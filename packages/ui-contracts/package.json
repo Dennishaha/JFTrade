@@ -1,0 +1,9 @@
+{
+  "name": "@jftrade/ui-contracts",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "version": "0.0.0"
+}

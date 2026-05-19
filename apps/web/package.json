@@ -1,0 +1,30 @@
+{
+  "name": "@jftrade/web",
+  "private": true,
+  "packageManager": "npm@10.9.7",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0 --port 5173",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0 --port 4173",
+    "typecheck": "vue-tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@element-plus/icons-vue": "^2.3.2",
+    "@jftrade/ui-contracts": "0.0.0",
+    "element-plus": "^2.14.0",
+    "lightweight-charts": "^4.2.3",
+    "pinia": "^3.0.4",
+    "vue": "^3.5.34",
+    "vue-router": "^4.6.3"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.0",
+    "@vitejs/plugin-vue": "^6.0.7",
+    "tailwindcss": "^4.3.0",
+    "vite": "^8.0.13",
+    "vite-plugin-vue-devtools": "^8.1.2",
+    "vue-tsc": "^3.2.9"
+  },
+  "version": "0.0.0"
+}

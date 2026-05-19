@@ -1,0 +1,33 @@
+# Go
+/bin/
+/dist/
+*.test
+*.out
+coverage.txt
+
+# Node
+node_modules/
+.npm
+.pnpm-store/
+.vite/
+.vite-cache/
+
+# IDE / OS
+.DS_Store
+.idea/
+.vscode/
+
+# Build artifacts
+apps/web/dist/
+packages/*/dist/
+
+# Local env
+.env
+.env.local
+*.sqlite
+*.db
+*.db-journal
+
+# bbgo runtime
+data/
+logs/

@@ -1,0 +1,9 @@
+# Minimal bbgo config for jftrade with a single Futu session.
+# Set FUTU_OPEND_ADDR (e.g. 127.0.0.1:11111) before running.
+---
+sessions:
+  futu:
+    exchange: futu
+    envVarPrefix: futu
+
+# No strategies wired by default; add under `exchangeStrategies:` as needed.

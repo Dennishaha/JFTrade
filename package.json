@@ -1,0 +1,15 @@
+{
+  "name": "@jftrade/root",
+  "private": true,
+  "packageManager": "npm@10.9.7",
+  "version": "0.0.0",
+  "workspaces": [
+    "apps/web",
+    "packages/ui-contracts"
+  ],
+  "scripts": {
+    "dev:web": "npm --workspace @jftrade/web run dev",
+    "build:web": "npm --workspace @jftrade/web run build",
+    "typecheck": "npm --workspace @jftrade/web run typecheck"
+  }
+}
