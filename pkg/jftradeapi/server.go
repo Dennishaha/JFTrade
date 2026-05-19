@@ -8,6 +8,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -15,6 +16,8 @@ import (
 	"sync"
 	"time"
 
+	bbgofixedpoint "github.com/c9s/bbgo/pkg/fixedpoint"
+	bbgotypes "github.com/c9s/bbgo/pkg/types"
 	"github.com/gorilla/websocket"
 	"google.golang.org/protobuf/proto"
 
@@ -66,8 +69,22 @@ type BrokerIntegration struct {
 	CreatedAt string                `json:"createdAt"`
 }
 
+type ManagedBrokerAccount struct {
+	ID                 string  `json:"id"`
+	BrokerID           string  `json:"brokerId"`
+	AccountID          string  `json:"accountId"`
+	DisplayName        string  `json:"displayName"`
+	TradingEnvironment string  `json:"tradingEnvironment"`
+	Market             string  `json:"market"`
+	SecurityFirm       *string `json:"securityFirm"`
+	Enabled            bool    `json:"enabled"`
+	UpdatedAt          string  `json:"updatedAt"`
+	CreatedAt          string  `json:"createdAt"`
+}
+
 type settingsFile struct {
-	Integration *BrokerIntegration `json:"integration,omitempty"`
+	Integration *BrokerIntegration     `json:"integration,omitempty"`
+	Accounts    []ManagedBrokerAccount `json:"accounts,omitempty"`
 }
 
 type SettingsStore struct {
@@ -77,8 +94,22 @@ type SettingsStore struct {
 }
 
 type Server struct {
-	store    *SettingsStore
-	upgrader websocket.Upgrader
+	store               *SettingsStore
+	upgrader            websocket.Upgrader
+	marketMu            sync.Mutex
+	marketSubscriptions map[string]*marketSubscription
+}
+
+type marketSubscription struct {
+	Key          string
+	Channel      string
+	Market       string
+	Symbol       string
+	InstrumentID string
+	Interval     string
+	Consumers    map[string]time.Time
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
 }
 
 type opendProbe struct {
@@ -140,7 +171,8 @@ func NewSettingsStore(path string) (*SettingsStore, error) {
 
 func NewServer(store *SettingsStore) *Server {
 	return &Server{
-		store: store,
+		store:               store,
+		marketSubscriptions: map[string]*marketSubscription{},
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(*http.Request) bool { return true },
 		},
@@ -237,6 +269,138 @@ func (s *SettingsStore) saveIntegration(input BrokerIntegration) (BrokerIntegrat
 
 	s.applyRuntimeEnv()
 	return input, nil
+}
+
+func (s *SettingsStore) managedAccounts() []ManagedBrokerAccount {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	accounts := make([]ManagedBrokerAccount, len(s.data.Accounts))
+	copy(accounts, s.data.Accounts)
+	return accounts
+}
+
+func (s *SettingsStore) createManagedAccount(input ManagedBrokerAccount) (ManagedBrokerAccount, error) {
+	input = normalizeManagedBrokerAccount(input)
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	input.UpdatedAt = now
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for index := range s.data.Accounts {
+		account := &s.data.Accounts[index]
+		if sameManagedAccountScope(*account, input) {
+			input.ID = account.ID
+			input.CreatedAt = account.CreatedAt
+			if input.CreatedAt == "" {
+				input.CreatedAt = now
+			}
+			s.data.Accounts[index] = input
+			if err := s.persistLocked(); err != nil {
+				return input, err
+			}
+			return input, nil
+		}
+	}
+
+	if input.ID == "" {
+		input.ID = buildManagedAccountID(input)
+	}
+	if input.CreatedAt == "" {
+		input.CreatedAt = now
+	}
+	s.data.Accounts = append(s.data.Accounts, input)
+	if err := s.persistLocked(); err != nil {
+		return input, err
+	}
+	return input, nil
+}
+
+func (s *SettingsStore) updateManagedAccount(id string, input ManagedBrokerAccount) (ManagedBrokerAccount, error) {
+	input = normalizeManagedBrokerAccount(input)
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for index := range s.data.Accounts {
+		account := &s.data.Accounts[index]
+		if account.ID != id {
+			continue
+		}
+		input.ID = account.ID
+		input.CreatedAt = account.CreatedAt
+		input.UpdatedAt = now
+		s.data.Accounts[index] = input
+		if err := s.persistLocked(); err != nil {
+			return input, err
+		}
+		return input, nil
+	}
+
+	return ManagedBrokerAccount{}, os.ErrNotExist
+}
+
+func (s *SettingsStore) deleteManagedAccount(id string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for index := range s.data.Accounts {
+		if s.data.Accounts[index].ID != id {
+			continue
+		}
+		s.data.Accounts = append(s.data.Accounts[:index], s.data.Accounts[index+1:]...)
+		return s.persistLocked()
+	}
+	return os.ErrNotExist
+}
+
+func (s *SettingsStore) persistLocked() error {
+	data, err := json.MarshalIndent(s.data, "", "  ")
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(s.path), 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(s.path, data, 0o600)
+}
+
+func normalizeManagedBrokerAccount(input ManagedBrokerAccount) ManagedBrokerAccount {
+	input.BrokerID = strings.TrimSpace(strings.ToLower(input.BrokerID))
+	if input.BrokerID == "" {
+		input.BrokerID = "futu"
+	}
+	input.AccountID = strings.TrimSpace(input.AccountID)
+	input.DisplayName = strings.TrimSpace(input.DisplayName)
+	if input.DisplayName == "" {
+		input.DisplayName = input.AccountID
+	}
+	input.TradingEnvironment = strings.ToUpper(strings.TrimSpace(input.TradingEnvironment))
+	if input.TradingEnvironment == "" {
+		input.TradingEnvironment = "SIMULATE"
+	}
+	input.Market = strings.ToUpper(strings.TrimSpace(input.Market))
+	if input.Market == "" {
+		input.Market = "HK"
+	}
+	if input.SecurityFirm != nil {
+		value := strings.TrimSpace(*input.SecurityFirm)
+		if value == "" {
+			input.SecurityFirm = nil
+		} else {
+			input.SecurityFirm = &value
+		}
+	}
+	return input
+}
+
+func sameManagedAccountScope(left ManagedBrokerAccount, right ManagedBrokerAccount) bool {
+	return left.BrokerID == right.BrokerID &&
+		left.AccountID == right.AccountID &&
+		left.TradingEnvironment == right.TradingEnvironment &&
+		left.Market == right.Market
+}
+
+func buildManagedAccountID(input ManagedBrokerAccount) string {
+	return strings.Join([]string{input.BrokerID, input.TradingEnvironment, input.AccountID, input.Market}, "|")
 }
 
 func (s *SettingsStore) applyRuntimeEnv() {
@@ -346,6 +510,12 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.writeOK(w, s.brokerSettings())
 	case strings.HasPrefix(r.URL.Path, "/api/v1/settings/brokers/") && strings.HasSuffix(r.URL.Path, "/integration") && r.Method == http.MethodPut:
 		s.handleSaveBrokerIntegration(w, r)
+	case r.URL.Path == "/api/v1/settings/broker-accounts" && r.Method == http.MethodPost:
+		s.handleCreateManagedBrokerAccount(w, r)
+	case strings.HasPrefix(r.URL.Path, "/api/v1/settings/broker-accounts/") && r.Method == http.MethodPut:
+		s.handleUpdateManagedBrokerAccount(w, r)
+	case strings.HasPrefix(r.URL.Path, "/api/v1/settings/broker-accounts/") && r.Method == http.MethodDelete:
+		s.handleDeleteManagedBrokerAccount(w, r)
 	case r.URL.Path == "/api/v1/system/futu-opend" && r.Method == http.MethodGet:
 		s.writeOK(w, s.futuOpenDHealth(r.Context()))
 	case r.URL.Path == "/api/v1/system/futu-opend/manual-retry" && r.Method == http.MethodPost:
@@ -374,8 +544,24 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		s.writeOK(w, map[string]any{"subscriptions": []any{}, "recentInvalidations": []any{}, "brokers": []any{}, "runtime": map[string]any{"lastStoppedAt": nil, "stoppedSubscriptions": nil}})
 	case r.URL.Path == "/api/v1/plugins" && r.Method == http.MethodGet:
 		s.writeOK(w, map[string]any{"targetDir": "", "plugins": []any{}})
+	case r.URL.Path == "/api/v1/strategies" && r.Method == http.MethodGet:
+		s.writeOK(w, []any{})
+	case strings.HasPrefix(r.URL.Path, "/api/v1/strategies/") && strings.HasSuffix(r.URL.Path, "/logs") && r.Method == http.MethodGet:
+		s.writeOK(w, map[string]any{"instanceId": pathMiddle(r.URL.Path, "/api/v1/strategies/", "/logs"), "logs": []string{}})
+	case strings.HasPrefix(r.URL.Path, "/api/v1/strategies/") && strings.HasSuffix(r.URL.Path, "/audit") && r.Method == http.MethodGet:
+		s.writeOK(w, map[string]any{"instanceId": pathMiddle(r.URL.Path, "/api/v1/strategies/", "/audit"), "entries": []any{}})
 	case r.URL.Path == "/api/v1/market-data/instruments" && r.Method == http.MethodGet:
 		s.writeOK(w, map[string]any{"query": r.URL.Query().Get("query"), "totalReturned": 0, "entries": []any{}})
+	case r.URL.Path == "/api/v1/market-data/subscriptions" && r.Method == http.MethodGet:
+		s.writeOK(w, s.marketSubscriptionsResponse())
+	case r.URL.Path == "/api/v1/market-data/subscriptions" && r.Method == http.MethodPost:
+		s.handleAcquireMarketSubscription(w, r)
+	case r.URL.Path == "/api/v1/market-data/subscriptions" && r.Method == http.MethodDelete:
+		s.handleClearMarketSubscriptions(w, r)
+	case r.URL.Path == "/api/v1/market-data/subscriptions/release" && r.Method == http.MethodPost:
+		s.handleReleaseMarketSubscription(w, r)
+	case r.URL.Path == "/api/v1/market-data/subscriptions/heartbeat" && r.Method == http.MethodPost:
+		s.handleHeartbeatMarketSubscription(w, r)
 	case strings.HasPrefix(r.URL.Path, "/api/v1/brokers/") && strings.HasSuffix(r.URL.Path, "/runtime") && r.Method == http.MethodGet:
 		s.writeOK(w, s.brokerRuntime(r.Context()))
 	case strings.HasPrefix(r.URL.Path, "/api/v1/brokers/") && strings.HasSuffix(r.URL.Path, "/funds") && r.Method == http.MethodGet:
@@ -401,9 +587,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case strings.HasPrefix(r.URL.Path, "/api/v1/execution/orders/") && strings.HasSuffix(r.URL.Path, "/events") && r.Method == http.MethodGet:
 		s.writeOK(w, map[string]any{"internalOrderId": "", "events": []any{}})
 	case strings.HasPrefix(r.URL.Path, "/api/v1/market-data/snapshots/") && r.Method == http.MethodGet:
-		s.writeOK(w, marketSnapshotResponse(r.URL.Path))
+		s.handleMarketSnapshot(w, r)
 	case strings.HasPrefix(r.URL.Path, "/api/v1/market-data/candles/") && r.Method == http.MethodGet:
-		s.writeOK(w, marketCandlesResponse(r.URL.Path, r.URL.Query()))
+		s.handleMarketCandles(w, r)
 	default:
 		s.writeError(w, http.StatusNotFound, "NOT_FOUND", fmt.Sprintf("unknown endpoint %s", r.URL.Path))
 	}
@@ -426,6 +612,212 @@ func (s *Server) writeError(w http.ResponseWriter, status int, code string, mess
 	_ = json.NewEncoder(w).Encode(envelope{OK: false, Error: &apiError{Code: code, Message: message}, Timestamp: time.Now().UTC().Format(time.RFC3339Nano)})
 }
 
+func (s *Server) handleAcquireMarketSubscription(w http.ResponseWriter, r *http.Request) {
+	var payload struct {
+		Channel    string `json:"channel"`
+		Market     string `json:"market"`
+		Symbol     string `json:"symbol"`
+		Interval   string `json:"interval"`
+		ConsumerID string `json:"consumerId"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", err.Error())
+		return
+	}
+
+	market, symbol, channel := normalizeMarketDataSubscription(payload.Market, payload.Symbol, payload.Channel)
+	if market == "" || symbol == "" {
+		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "market and symbol are required")
+		return
+	}
+	consumerID := normalizeConsumerID(payload.ConsumerID)
+	interval := strings.TrimSpace(strings.ToLower(payload.Interval))
+	now := time.Now().UTC()
+	key := marketSubscriptionKey(channel, market, symbol, interval)
+
+	s.marketMu.Lock()
+	entry := s.marketSubscriptions[key]
+	if entry == nil {
+		entry = &marketSubscription{
+			Key:          key,
+			Channel:      channel,
+			Market:       market,
+			Symbol:       symbol,
+			InstrumentID: market + "." + symbol,
+			Interval:     interval,
+			Consumers:    map[string]time.Time{},
+			CreatedAt:    now,
+		}
+		s.marketSubscriptions[key] = entry
+	}
+	entry.Consumers[consumerID] = now
+	entry.UpdatedAt = now
+	response := s.marketSubscriptionsResponseLocked()
+	s.marketMu.Unlock()
+
+	s.writeOK(w, response)
+}
+
+func (s *Server) handleReleaseMarketSubscription(w http.ResponseWriter, r *http.Request) {
+	var payload struct {
+		Channel    string `json:"channel"`
+		Market     string `json:"market"`
+		Symbol     string `json:"symbol"`
+		Interval   string `json:"interval"`
+		ConsumerID string `json:"consumerId"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", err.Error())
+		return
+	}
+
+	market, symbol, channel := normalizeMarketDataSubscription(payload.Market, payload.Symbol, payload.Channel)
+	consumerID := normalizeConsumerID(payload.ConsumerID)
+	key := marketSubscriptionKey(channel, market, symbol, strings.TrimSpace(strings.ToLower(payload.Interval)))
+	now := time.Now().UTC()
+
+	s.marketMu.Lock()
+	if entry := s.marketSubscriptions[key]; entry != nil {
+		delete(entry.Consumers, consumerID)
+		entry.UpdatedAt = now
+		if len(entry.Consumers) == 0 {
+			delete(s.marketSubscriptions, key)
+		}
+	}
+	response := s.marketSubscriptionsResponseLocked()
+	s.marketMu.Unlock()
+
+	s.writeOK(w, response)
+}
+
+func (s *Server) handleHeartbeatMarketSubscription(w http.ResponseWriter, r *http.Request) {
+	var payload struct {
+		ConsumerID string `json:"consumerId"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", err.Error())
+		return
+	}
+	consumerID := normalizeConsumerID(payload.ConsumerID)
+	now := time.Now().UTC()
+
+	s.marketMu.Lock()
+	for _, entry := range s.marketSubscriptions {
+		if _, exists := entry.Consumers[consumerID]; exists {
+			entry.Consumers[consumerID] = now
+			entry.UpdatedAt = now
+		}
+	}
+	response := s.marketSubscriptionsResponseLocked()
+	s.marketMu.Unlock()
+
+	s.writeOK(w, response)
+}
+
+func (s *Server) handleClearMarketSubscriptions(w http.ResponseWriter, r *http.Request) {
+	consumerID := normalizeConsumerID(r.URL.Query().Get("consumerId"))
+
+	s.marketMu.Lock()
+	if consumerID == "web" && r.URL.Query().Get("consumerId") == "" {
+		s.marketSubscriptions = map[string]*marketSubscription{}
+	} else {
+		for key, entry := range s.marketSubscriptions {
+			delete(entry.Consumers, consumerID)
+			entry.UpdatedAt = time.Now().UTC()
+			if len(entry.Consumers) == 0 {
+				delete(s.marketSubscriptions, key)
+			}
+		}
+	}
+	response := s.marketSubscriptionsResponseLocked()
+	s.marketMu.Unlock()
+
+	s.writeOK(w, response)
+}
+
+func (s *Server) marketSubscriptionsResponse() map[string]any {
+	s.marketMu.Lock()
+	defer s.marketMu.Unlock()
+	return s.marketSubscriptionsResponseLocked()
+}
+
+func (s *Server) marketSubscriptionsResponseLocked() map[string]any {
+	entries := make([]map[string]any, 0, len(s.marketSubscriptions))
+	byMarket := map[string]int{}
+	for _, entry := range s.marketSubscriptions {
+		consumers := make([]string, 0, len(entry.Consumers))
+		for consumerID := range entry.Consumers {
+			consumers = append(consumers, consumerID)
+		}
+		byMarket[entry.Market]++
+		var interval any
+		if entry.Interval != "" {
+			interval = entry.Interval
+		}
+		entries = append(entries, map[string]any{
+			"key":          entry.Key,
+			"channel":      entry.Channel,
+			"market":       entry.Market,
+			"symbol":       entry.Symbol,
+			"instrumentId": entry.InstrumentID,
+			"interval":     interval,
+			"depthLevel":   nil,
+			"consumers":    consumers,
+			"refCount":     len(consumers),
+			"createdAt":    entry.CreatedAt.Format(time.RFC3339Nano),
+			"updatedAt":    entry.UpdatedAt.Format(time.RFC3339Nano),
+		})
+	}
+
+	quotaBuckets := make([]map[string]any, 0, len(byMarket))
+	for market, used := range byMarket {
+		quotaBuckets = append(quotaBuckets, map[string]any{"market": market, "used": used, "limit": nil, "remaining": nil})
+	}
+
+	return map[string]any{
+		"totalActiveSubscriptions": len(entries),
+		"quota": map[string]any{
+			"totalUsed":      len(entries),
+			"totalLimit":     nil,
+			"totalRemaining": nil,
+			"byMarket":       quotaBuckets,
+		},
+		"entries": entries,
+	}
+}
+
+func normalizeMarketDataSubscription(market string, symbol string, channel string) (string, string, string) {
+	market = strings.ToUpper(strings.TrimSpace(market))
+	symbol = strings.ToUpper(strings.TrimSpace(symbol))
+	channel = strings.ToUpper(strings.TrimSpace(channel))
+	if channel == "" {
+		channel = "SNAPSHOT"
+	}
+	if strings.Contains(symbol, ".") {
+		parts := strings.SplitN(symbol, ".", 2)
+		if market == "" {
+			market = strings.ToUpper(parts[0])
+		}
+		symbol = strings.ToUpper(parts[1])
+	}
+	return market, symbol, channel
+}
+
+func normalizeConsumerID(consumerID string) string {
+	consumerID = strings.TrimSpace(consumerID)
+	if consumerID == "" {
+		return "web"
+	}
+	return consumerID
+}
+
+func marketSubscriptionKey(channel string, market string, symbol string, interval string) string {
+	if interval == "" {
+		return channel + ":" + market + ":" + symbol
+	}
+	return channel + ":" + market + ":" + symbol + ":" + interval
+}
+
 func (s *Server) handleSaveBrokerIntegration(w http.ResponseWriter, r *http.Request) {
 	var payload struct {
 		Enabled bool                  `json:"enabled"`
@@ -443,6 +835,103 @@ func (s *Server) handleSaveBrokerIntegration(w http.ResponseWriter, r *http.Requ
 	s.writeOK(w, integration)
 }
 
+func (s *Server) handleCreateManagedBrokerAccount(w http.ResponseWriter, r *http.Request) {
+	var payload struct {
+		BrokerID           string `json:"brokerId"`
+		AccountID          string `json:"accountId"`
+		DisplayName        string `json:"displayName"`
+		TradingEnvironment string `json:"tradingEnvironment"`
+		Market             string `json:"market"`
+		SecurityFirm       string `json:"securityFirm"`
+		Enabled            bool   `json:"enabled"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", err.Error())
+		return
+	}
+	if strings.TrimSpace(payload.AccountID) == "" {
+		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "accountId is required")
+		return
+	}
+	account, err := s.store.createManagedAccount(ManagedBrokerAccount{
+		BrokerID:           payload.BrokerID,
+		AccountID:          payload.AccountID,
+		DisplayName:        payload.DisplayName,
+		TradingEnvironment: payload.TradingEnvironment,
+		Market:             payload.Market,
+		SecurityFirm:       stringPointerOrNil(payload.SecurityFirm),
+		Enabled:            payload.Enabled,
+	})
+	if err != nil {
+		s.writeError(w, http.StatusInternalServerError, "SETTINGS_SAVE_FAILED", err.Error())
+		return
+	}
+	s.writeOK(w, account)
+}
+
+func (s *Server) handleUpdateManagedBrokerAccount(w http.ResponseWriter, r *http.Request) {
+	accountID, err := decodePathSegment(strings.TrimPrefix(r.URL.Path, "/api/v1/settings/broker-accounts/"))
+	if err != nil {
+		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", err.Error())
+		return
+	}
+	if accountID == "" {
+		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "accountRecordId is required")
+		return
+	}
+	var payload struct {
+		BrokerID           string `json:"brokerId"`
+		AccountID          string `json:"accountId"`
+		DisplayName        string `json:"displayName"`
+		TradingEnvironment string `json:"tradingEnvironment"`
+		Market             string `json:"market"`
+		SecurityFirm       string `json:"securityFirm"`
+		Enabled            bool   `json:"enabled"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", err.Error())
+		return
+	}
+	account, err := s.store.updateManagedAccount(accountID, ManagedBrokerAccount{
+		BrokerID:           payload.BrokerID,
+		AccountID:          payload.AccountID,
+		DisplayName:        payload.DisplayName,
+		TradingEnvironment: payload.TradingEnvironment,
+		Market:             payload.Market,
+		SecurityFirm:       stringPointerOrNil(payload.SecurityFirm),
+		Enabled:            payload.Enabled,
+	})
+	if errors.Is(err, os.ErrNotExist) {
+		s.writeError(w, http.StatusNotFound, "NOT_FOUND", "managed broker account not found")
+		return
+	}
+	if err != nil {
+		s.writeError(w, http.StatusInternalServerError, "SETTINGS_SAVE_FAILED", err.Error())
+		return
+	}
+	s.writeOK(w, account)
+}
+
+func (s *Server) handleDeleteManagedBrokerAccount(w http.ResponseWriter, r *http.Request) {
+	accountID, err := decodePathSegment(strings.TrimPrefix(r.URL.Path, "/api/v1/settings/broker-accounts/"))
+	if err != nil {
+		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", err.Error())
+		return
+	}
+	if accountID == "" {
+		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "accountRecordId is required")
+		return
+	}
+	if err := s.store.deleteManagedAccount(accountID); errors.Is(err, os.ErrNotExist) {
+		s.writeError(w, http.StatusNotFound, "NOT_FOUND", "managed broker account not found")
+		return
+	} else if err != nil {
+		s.writeError(w, http.StatusInternalServerError, "SETTINGS_SAVE_FAILED", err.Error())
+		return
+	}
+	s.writeOK(w, map[string]any{"deleted": true, "id": accountID})
+}
+
 func (s *Server) handleLiveWebSocket(w http.ResponseWriter, r *http.Request) {
 	conn, err := s.upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -453,14 +942,20 @@ func (s *Server) handleLiveWebSocket(w http.ResponseWriter, r *http.Request) {
 	if err := writeHeartbeat(conn); err != nil {
 		return
 	}
-	ticker := time.NewTicker(15 * time.Second)
-	defer ticker.Stop()
+	heartbeatTicker := time.NewTicker(15 * time.Second)
+	defer heartbeatTicker.Stop()
+	quoteTicker := time.NewTicker(3 * time.Second)
+	defer quoteTicker.Stop()
 	for {
 		select {
 		case <-r.Context().Done():
 			return
-		case <-ticker.C:
+		case <-heartbeatTicker.C:
 			if err := writeHeartbeat(conn); err != nil {
+				return
+			}
+		case <-quoteTicker.C:
+			if err := s.writeLiveMarketTicks(r.Context(), conn); err != nil {
 				return
 			}
 		}
@@ -527,7 +1022,7 @@ func (s *Server) brokerSettings() map[string]any {
 			"integration": integration,
 			"defaults":    integration.Config,
 		}},
-		"accounts": []any{},
+		"accounts": s.store.managedAccounts(),
 	}
 }
 
@@ -552,7 +1047,7 @@ func (s *Server) systemStatus() map[string]any {
 		"broker":          s.descriptor(),
 		"persistence": map[string]any{
 			"engine": "json", "databasePath": s.store.path, "status": "ok", "migrated": true,
-			"pendingMigrations": []any{}, "tables": []string{"broker_integrations"}, "checkedAt": time.Now().UTC().Format(time.RFC3339Nano),
+			"pendingMigrations": []any{}, "tables": []string{"broker_integrations", "broker_accounts"}, "checkedAt": time.Now().UTC().Format(time.RFC3339Nano),
 		},
 		"strategyRuntime": map[string]any{"status": "idle", "activeStrategies": 0, "supportsBacktestParity": true},
 		"message":         "JFTrade API adapter is running.",
@@ -792,27 +1287,338 @@ func (s *Server) realTradeRiskEvents() map[string]any {
 	return result
 }
 
-func marketSnapshotResponse(path string) map[string]any {
+func (s *Server) handleMarketSnapshot(w http.ResponseWriter, r *http.Request) {
+	response, err := s.marketSnapshotResponse(r.Context(), r.URL.Path)
+	if err != nil {
+		s.writeError(w, http.StatusBadGateway, "MARKET_SNAPSHOT_FAILED", err.Error())
+		return
+	}
+	s.writeOK(w, response)
+}
+
+func (s *Server) marketSnapshotResponse(ctx context.Context, path string) (map[string]any, error) {
 	market, symbol := pathTail(path, "/api/v1/market-data/snapshots/")
+	market = strings.ToUpper(strings.TrimSpace(market))
+	symbol = strings.ToUpper(strings.TrimSpace(symbol))
 	instrumentID := market + "." + symbol
+	ticker, err := s.futuExchange().QueryTicker(ctx, instrumentID)
+	if err != nil {
+		return nil, err
+	}
+	resolvedAt := tickerTimestamp(ticker)
+	price := ticker.Last.Float64()
+	if ticker.Last.IsZero() {
+		price = ticker.GetValidPrice().Float64()
+	}
+	bid := price
+	if !ticker.Buy.IsZero() {
+		bid = ticker.Buy.Float64()
+	}
+	ask := price
+	if !ticker.Sell.IsZero() {
+		ask = ticker.Sell.Float64()
+	}
 	return map[string]any{
-		"request":  map[string]any{"market": market, "symbol": symbol, "instrumentId": instrumentID},
-		"snapshot": nil,
-		"meta":     map[string]any{"instrumentId": instrumentID, "source": nil, "resolvedAt": time.Now().UTC().Format(time.RFC3339Nano), "fromCache": false},
+		"request": map[string]any{"market": market, "symbol": symbol, "instrumentId": instrumentID},
+		"snapshot": map[string]any{
+			"price":              price,
+			"bid":                bid,
+			"ask":                ask,
+			"openPrice":          tickerOptionalValue(ticker.Open),
+			"highPrice":          tickerOptionalValue(ticker.High),
+			"lowPrice":           tickerOptionalValue(ticker.Low),
+			"previousClosePrice": nil,
+			"volume":             ticker.Volume.Float64(),
+			"turnover":           0,
+			"at":                 resolvedAt,
+		},
+		"meta": map[string]any{"instrumentId": instrumentID, "source": "bbgo:futu", "resolvedAt": resolvedAt, "fromCache": false},
+	}, nil
+}
+
+func (s *Server) handleMarketCandles(w http.ResponseWriter, r *http.Request) {
+	response, err := s.marketCandlesResponse(r.Context(), r.URL.Path, r.URL.Query())
+	if err != nil {
+		s.writeError(w, http.StatusBadGateway, "OPEND_CANDLES_FAILED", err.Error())
+		return
+	}
+	s.writeOK(w, response)
+}
+
+func (s *Server) marketCandlesResponse(ctx context.Context, path string, query map[string][]string) (map[string]any, error) {
+	market, symbol := pathTail(path, "/api/v1/market-data/candles/")
+	market = strings.ToUpper(strings.TrimSpace(market))
+	symbol = strings.ToUpper(strings.TrimSpace(symbol))
+	instrumentID := market + "." + symbol
+	period, err := normalizeCandlePeriod(firstQuery(query, "period", "1m"))
+	if err != nil {
+		return nil, err
+	}
+	limit := intQuery(query, "limit", 200)
+	if limit < 1 {
+		limit = 1
+	}
+	if limit > 1000 {
+		limit = 1000
+	}
+	if period == "tick" {
+		ticker, err := s.futuExchange().QueryTicker(ctx, instrumentID)
+		if err != nil {
+			return nil, err
+		}
+		candles := []map[string]any{}
+		if tickCandle := tickCandleFromTicker(ticker); tickCandle != nil {
+			candles = append(candles, map[string]any{
+				"period": period,
+				"open":   tickCandle["open"],
+				"high":   tickCandle["high"],
+				"low":    tickCandle["low"],
+				"close":  tickCandle["close"],
+				"volume": tickCandle["volume"],
+				"at":     tickCandle["at"],
+			})
+		}
+		return map[string]any{
+			"request":       map[string]any{"instrument": map[string]any{"market": market, "symbol": symbol, "instrumentId": instrumentID}, "period": period, "limit": limit},
+			"candles":       candles,
+			"totalReturned": len(candles),
+			"meta":          map[string]any{"instrumentId": instrumentID, "source": "bbgo:futu", "resolvedAt": tickerTimestamp(ticker), "fromCache": false},
+		}, nil
+	}
+
+	interval := bbgotypes.Interval(period)
+	beginAt, endAt := kLineQueryWindow(query, interval.Duration(), limit)
+	klines, err := s.futuExchange().QueryKLines(ctx, instrumentID, interval, bbgotypes.KLineQueryOptions{Limit: limit, StartTime: &beginAt, EndTime: &endAt})
+	if err != nil {
+		return nil, err
+	}
+	candles := make([]map[string]any, 0, len(klines))
+	for _, kline := range klines {
+		candles = append(candles, map[string]any{
+			"period": period,
+			"open":   kline.Open.Float64(),
+			"high":   kline.High.Float64(),
+			"low":    kline.Low.Float64(),
+			"close":  kline.Close.Float64(),
+			"volume": kline.Volume.Float64(),
+			"at":     kline.StartTime.Time().UTC().Format(time.RFC3339Nano),
+		})
+	}
+
+	return map[string]any{
+		"request":       map[string]any{"instrument": map[string]any{"market": market, "symbol": symbol, "instrumentId": instrumentID}, "period": period, "limit": limit},
+		"candles":       candles,
+		"totalReturned": len(candles),
+		"meta":          map[string]any{"instrumentId": instrumentID, "source": "bbgo:futu", "resolvedAt": time.Now().UTC().Format(time.RFC3339Nano), "fromCache": false},
+	}, nil
+}
+
+func kLineQueryWindow(query map[string][]string, periodDuration time.Duration, limit int) (time.Time, time.Time) {
+	endAt := parseQueryTime(firstQuery(query, "toTime", ""), time.Now())
+	if queryEnd := firstQuery(query, "to", ""); queryEnd != "" {
+		endAt = parseQueryTime(queryEnd, endAt)
+	}
+	lookback := periodDuration * time.Duration(limit) * 4
+	minimumLookback := 36 * time.Hour
+	if periodDuration >= 24*time.Hour {
+		minimumLookback = 45 * 24 * time.Hour
+	}
+	if lookback < minimumLookback {
+		lookback = minimumLookback
+	}
+	defaultBegin := endAt.Add(-lookback)
+	beginAt := parseQueryTime(firstQuery(query, "fromTime", ""), defaultBegin)
+	if queryBegin := firstQuery(query, "from", ""); queryBegin != "" {
+		beginAt = parseQueryTime(queryBegin, beginAt)
+	}
+	if !beginAt.Before(endAt) {
+		beginAt = defaultBegin
+	}
+	return beginAt, endAt
+}
+
+func parseQueryTime(value string, fallback time.Time) time.Time {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return fallback
+	}
+	for _, layout := range []string{time.RFC3339Nano, time.RFC3339, "2006-01-02 15:04:05", "2006-01-02"} {
+		parsed, err := time.ParseInLocation(layout, value, time.Local)
+		if err == nil {
+			return parsed
+		}
+	}
+	return fallback
+}
+
+func (s *Server) futuExchange() *futu.Exchange {
+	integration := s.store.integration()
+	return futu.NewExchangeWithConfig(opend.Config{
+		Addr:             net.JoinHostPort(integration.Config.Host, strconv.Itoa(integration.Config.APIPort)),
+		WebSocketKey:     integration.Config.WebSocketKey,
+		HandshakeTimeout: 3 * time.Second,
+		RequestTimeout:   8 * time.Second,
+	})
+}
+
+func (s *Server) writeLiveMarketTicks(ctx context.Context, conn *websocket.Conn) error {
+	for _, instrumentID := range s.activeMarketInstrumentIDs() {
+		ticker, err := s.futuExchange().QueryTicker(ctx, instrumentID)
+		if err != nil {
+			continue
+		}
+		event := liveTickEventFromTicker(instrumentID, ticker)
+		if event == nil {
+			continue
+		}
+		if err := conn.WriteJSON(event); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *Server) activeMarketInstrumentIDs() []string {
+	s.marketMu.Lock()
+	defer s.marketMu.Unlock()
+	ids := make([]string, 0, len(s.marketSubscriptions))
+	seen := make(map[string]struct{}, len(s.marketSubscriptions))
+	for _, entry := range s.marketSubscriptions {
+		if entry.Market == "" || entry.Symbol == "" {
+			continue
+		}
+		instrumentID := entry.Market + "." + entry.Symbol
+		if _, exists := seen[instrumentID]; exists {
+			continue
+		}
+		seen[instrumentID] = struct{}{}
+		ids = append(ids, instrumentID)
+	}
+	return ids
+}
+
+func normalizeCandlePeriod(period string) (string, error) {
+	switch strings.ToLower(strings.TrimSpace(period)) {
+	case "tick", "ticker", "k_tick":
+		return "tick", nil
+	case "1m", "1min", "k_1m":
+		return "1m", nil
+	case "3m", "3min", "k_3m":
+		return "3m", nil
+	case "5m", "5min", "k_5m":
+		return "5m", nil
+	case "10m", "10min", "k_10m":
+		return "10m", nil
+	case "15m", "15min", "k_15m":
+		return "15m", nil
+	case "30m", "30min", "k_30m":
+		return "30m", nil
+	case "60m", "60min", "1h", "k_60m":
+		return "1h", nil
+	case "1d", "day", "d", "k_day":
+		return "1d", nil
+	case "1w", "week", "w", "k_week":
+		return "1w", nil
+	case "1mo", "month", "mth", "k_month":
+		return "1mo", nil
+	default:
+		return "", fmt.Errorf("unsupported period %q", period)
 	}
 }
 
-func marketCandlesResponse(path string, query map[string][]string) map[string]any {
-	market, symbol := pathTail(path, "/api/v1/market-data/candles/")
-	instrumentID := market + "." + symbol
-	period := firstQuery(query, "period", "1m")
-	limit := intQuery(query, "limit", 200)
-	return map[string]any{
-		"request":       map[string]any{"instrument": map[string]any{"market": market, "symbol": symbol, "instrumentId": instrumentID}, "period": period, "limit": limit},
-		"candles":       []any{},
-		"totalReturned": 0,
-		"meta":          map[string]any{"instrumentId": instrumentID, "source": nil, "resolvedAt": time.Now().UTC().Format(time.RFC3339Nano), "fromCache": false},
+func tickerTimestamp(ticker *bbgotypes.Ticker) string {
+	resolvedAt := time.Now().UTC()
+	if ticker != nil && !ticker.Time.IsZero() {
+		resolvedAt = ticker.Time.UTC()
 	}
+	return resolvedAt.Format(time.RFC3339Nano)
+}
+
+func tickerOptionalValue(value bbgofixedpoint.Value) any {
+	if value.IsZero() {
+		return nil
+	}
+	return value.Float64()
+}
+
+func tickCandleFromTicker(ticker *bbgotypes.Ticker) map[string]any {
+	if ticker == nil {
+		return nil
+	}
+	price := ticker.Last.Float64()
+	if ticker.Last.IsZero() {
+		price = ticker.GetValidPrice().Float64()
+	}
+	if price == 0 {
+		return nil
+	}
+	return map[string]any{
+		"open":   price,
+		"high":   price,
+		"low":    price,
+		"close":  price,
+		"volume": ticker.Volume.Float64(),
+		"at":     tickerTimestamp(ticker),
+	}
+}
+
+func liveTickEventFromTicker(instrumentID string, ticker *bbgotypes.Ticker) map[string]any {
+	tickCandle := tickCandleFromTicker(ticker)
+	if tickCandle == nil {
+		return nil
+	}
+	market, symbol := pathTail(instrumentID, "")
+	if market == "" || symbol == "" {
+		parts := strings.SplitN(instrumentID, ".", 2)
+		if len(parts) != 2 {
+			return nil
+		}
+		market = parts[0]
+		symbol = parts[1]
+	}
+	price := tickCandle["close"]
+	return map[string]any{
+		"type":     "market-data.tick",
+		"at":       tickCandle["at"],
+		"brokerId": "futu",
+		"instrument": map[string]any{
+			"market":       market,
+			"symbol":       symbol,
+			"instrumentId": instrumentID,
+		},
+		"snapshot": map[string]any{
+			"price":              price,
+			"bid":                price,
+			"ask":                price,
+			"openPrice":          tickerOptionalValue(ticker.Open),
+			"highPrice":          tickerOptionalValue(ticker.High),
+			"lowPrice":           tickerOptionalValue(ticker.Low),
+			"previousClosePrice": nil,
+			"volume":             ticker.Volume.Float64(),
+			"turnover":           0,
+			"at":                 tickCandle["at"],
+		},
+		"source": "bbgo:futu",
+	}
+}
+
+func stringPointerOrNil(value string) *string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil
+	}
+	return &value
+}
+
+func decodePathSegment(value string) (string, error) {
+	if value == "" {
+		return "", nil
+	}
+	decoded, err := url.PathUnescape(value)
+	if err != nil {
+		return "", err
+	}
+	return decoded, nil
 }
 
 func pathTail(path string, prefix string) (string, string) {
@@ -822,6 +1628,11 @@ func pathTail(path string, prefix string) (string, string) {
 		return "", ""
 	}
 	return parts[0], parts[1]
+}
+
+func pathMiddle(path string, prefix string, suffix string) string {
+	tail := strings.TrimPrefix(path, prefix)
+	return strings.TrimSuffix(tail, suffix)
 }
 
 func firstQuery(query map[string][]string, key string, fallback string) string {

@@ -6,6 +6,7 @@ import {
   KLINE_PERIODS,
   formatKlinePeriodLabel,
   normalizeKlinePeriod,
+  overlayRealtimeTickCandle,
   type KlineCandle,
 } from "../../charting/kline";
 import { useConsoleData } from "../../composables/useConsoleData";
@@ -14,6 +15,7 @@ import { useWorkspaceLayout } from "../../composables/useWorkspaceLayout";
 const { prefs, update } = useWorkspaceLayout();
 const {
   marketDataCandles,
+  marketDataSnapshot,
   marketDataQueryMarket,
   marketDataQuerySymbol,
   marketDataQueryPeriod,
@@ -38,8 +40,12 @@ let heldChartSubscription: {
 let heartbeatTimer: number | null = null;
 
 const periods = KLINE_PERIODS;
-const chartCandles = computed<KlineCandle[]>(
-  () => marketDataCandles.value?.candles ?? [],
+const chartCandles = computed<KlineCandle[]>(() =>
+  overlayRealtimeTickCandle(
+    marketDataCandles.value?.candles ?? [],
+    marketDataSnapshot.value?.snapshot ?? null,
+    marketDataQueryPeriod.value,
+  ),
 );
 const chartInstrumentTitle = computed(() => {
   const instrumentId = `${prefs.value.market}.${prefs.value.symbol}`;

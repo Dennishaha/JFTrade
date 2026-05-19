@@ -73,19 +73,26 @@ palette.register({
   },
 });
 
-// Wire live socket events into notifications
-let lastSeenEventCount = 0;
+// Wire live socket events into the shared console store and notify only on
+// non-market-data control events to avoid spamming the UI during live quotes.
+let lastSeenLiveEventKey = "";
 let lastSeenFutuOpenDIssueFingerprint = "";
 const stop = watch(
-  () => live.events.value.length,
-  (n) => {
-    if (n <= lastSeenEventCount) {
-      lastSeenEventCount = n;
+  () => live.events.value.at(-1),
+  (ev) => {
+    if (ev == null) {
       return;
     }
-    const newOnes = live.events.value.slice(0, n - lastSeenEventCount);
-    lastSeenEventCount = n;
-    for (const ev of newOnes) {
+
+    const eventKey = `${ev.type}|${ev.at}`;
+    if (eventKey === lastSeenLiveEventKey) {
+      return;
+    }
+    lastSeenLiveEventKey = eventKey;
+
+    console_.applyMarketDataTickEvent(ev);
+
+    if (ev.type !== "heartbeat" && ev.type !== "market-data.tick") {
       notifications.push({
         level: "info",
         title: `WS: ${ev.type}`,
