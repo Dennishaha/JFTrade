@@ -48,5 +48,5 @@ echo 启动后端服务...
 start "jftrade-backend" cmd /k "cd /d %CD% && go run ./cmd/jftrade run --config ./config/jftrade.yaml"
 
 echo JFTrade API: http://%JFTRADE_API_BIND%
-echo 启动前端预览服务: http://127.0.0.1:4173
+echo 启动前端预览服务: http://127.0.0.1:6688
 call npm --workspace @jftrade/web run preview

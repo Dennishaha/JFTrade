@@ -16,10 +16,16 @@ export interface KlineChartPalette {
   down: string;
   volumeUp: string;
   volumeDown: string;
+  indicatorA: string;
+  indicatorB: string;
+  indicatorC: string;
+  macdPositive: string;
+  macdNegative: string;
 }
 
 export interface KlineChartAdapter {
   setCandles(candles: readonly KlineCandle[]): void;
+  setIndicators(indicators: readonly KlineIndicatorKey[]): void;
   applyPalette(palette: KlineChartPalette): void;
   setLoadMoreHandler(handler: (() => void) | null): void;
   resize(width: number, height: number): void;
@@ -29,6 +35,7 @@ export interface KlineChartAdapter {
 
 export interface CreateKlineChartOptions {
   palette: KlineChartPalette;
+  indicators?: readonly KlineIndicatorKey[];
 }
 
 export interface KlineChartFactory {
@@ -50,10 +57,20 @@ export const KLINE_PERIODS = [
   { value: "1w", label: "1W" },
 ] as const;
 
+export const KLINE_INDICATORS = [
+  { value: "volume", label: "VOL" },
+  { value: "macd", label: "MACD" },
+  { value: "kdj", label: "KDJ" },
+] as const;
+
+export type KlineIndicatorKey = (typeof KLINE_INDICATORS)[number]["value"];
+
 export interface RealtimeKlineSnapshot {
   price: number;
   volume: number;
   at: string;
+  observedAt?: string | null;
+  barVolume?: number | null;
 }
 
 const KLINE_PERIOD_ALIASES: Record<string, string> = {
@@ -112,6 +129,26 @@ export function formatKlinePeriodLabel(period: string): string {
   );
 }
 
+export function normalizeKlineIndicators(
+  indicators: readonly string[],
+): KlineIndicatorKey[] {
+  const allowed = new Set<KlineIndicatorKey>(
+    KLINE_INDICATORS.map((indicator) => indicator.value),
+  );
+  const normalized = indicators.filter(
+    (indicator): indicator is KlineIndicatorKey =>
+      allowed.has(indicator as KlineIndicatorKey),
+  );
+
+  if (normalized.length === 0) {
+    return ["volume"];
+  }
+
+  return KLINE_INDICATORS.map((indicator) => indicator.value).filter((value) =>
+    normalized.includes(value),
+  );
+}
+
 function mergeDisplayCandles(
   current: readonly KlineCandle[],
   next: readonly KlineCandle[],
@@ -124,6 +161,113 @@ function mergeDisplayCandles(
   return [...byTime.values()].sort(
     (left, right) => new Date(left.at).getTime() - new Date(right.at).getTime(),
   );
+}
+
+function parseCandleTime(at: string | null | undefined): number | null {
+  if (at == null || at === "") {
+    return null;
+  }
+
+  const timestamp = new Date(at).getTime();
+  return Number.isFinite(timestamp) ? timestamp : null;
+}
+
+function shiftMinuteBucket(date: Date, shift: number): Date {
+  const minute = date.getUTCMinutes() - (date.getUTCMinutes() % shift);
+  return new Date(
+    Date.UTC(
+      date.getUTCFullYear(),
+      date.getUTCMonth(),
+      date.getUTCDate(),
+      date.getUTCHours(),
+      minute,
+      0,
+      0,
+    ),
+  );
+}
+
+function truncateSnapshotTimeToPeriod(
+  timestampMs: number,
+  period: string,
+): string | null {
+  const date = new Date(timestampMs);
+  if (!Number.isFinite(date.getTime())) {
+    return null;
+  }
+
+  switch (period) {
+    case "1m":
+      date.setUTCSeconds(0, 0);
+      return date.toISOString();
+    case "3m":
+      return shiftMinuteBucket(date, 3).toISOString();
+    case "5m":
+      return shiftMinuteBucket(date, 5).toISOString();
+    case "10m":
+      return shiftMinuteBucket(date, 10).toISOString();
+    case "15m":
+      return shiftMinuteBucket(date, 15).toISOString();
+    case "30m":
+      return shiftMinuteBucket(date, 30).toISOString();
+    case "1h":
+      date.setUTCMinutes(0, 0, 0);
+      return date.toISOString();
+    case "1d":
+      return new Date(
+        Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
+      ).toISOString();
+    case "1w": {
+      const weekday = date.getUTCDay();
+      const distanceFromMonday = weekday === 0 ? 6 : weekday - 1;
+      return new Date(
+        Date.UTC(
+          date.getUTCFullYear(),
+          date.getUTCMonth(),
+          date.getUTCDate() - distanceFromMonday,
+        ),
+      ).toISOString();
+    }
+    default:
+      return null;
+  }
+}
+
+function resolveSnapshotTimelineAt(snapshot: RealtimeKlineSnapshot): string {
+  return snapshot.observedAt?.trim() || snapshot.at;
+}
+
+export function resolveRealtimeBucketStart(
+  candles: readonly KlineCandle[],
+  snapshot: RealtimeKlineSnapshot,
+  period: string,
+): string | null {
+  const durationMs = resolveKlinePeriodDurationMs(period);
+  if (durationMs == null) {
+    return null;
+  }
+
+  const snapshotTime = parseCandleTime(resolveSnapshotTimelineAt(snapshot));
+  if (snapshotTime == null) {
+    return null;
+  }
+
+  const latestHistoricalBucket = candles[candles.length - 1];
+  const latestHistoricalBucketTime = parseCandleTime(latestHistoricalBucket?.at);
+  if (latestHistoricalBucketTime != null) {
+    if (snapshotTime <= latestHistoricalBucketTime) {
+      return latestHistoricalBucket?.at ?? null;
+    }
+
+    const bucketsAhead = Math.floor(
+      (snapshotTime - latestHistoricalBucketTime) / durationMs,
+    );
+    return new Date(
+      latestHistoricalBucketTime + Math.max(bucketsAhead, 0) * durationMs,
+    ).toISOString();
+  }
+
+  return truncateSnapshotTimeToPeriod(snapshotTime, period);
 }
 
 export function resolveKlinePeriodDurationMs(period: string): number | null {
@@ -162,7 +306,8 @@ export function overlayRealtimeTickCandle(
     return [...candles];
   }
 
-  const tickTime = new Date(snapshot.at).getTime();
+  const timelineAt = resolveSnapshotTimelineAt(snapshot);
+  const tickTime = new Date(timelineAt).getTime();
   if (!Number.isFinite(tickTime)) {
     return [...candles];
   }
@@ -170,12 +315,12 @@ export function overlayRealtimeTickCandle(
   if (period === "tick") {
     return mergeDisplayCandles(candles, [
       {
-        at: snapshot.at,
+        at: timelineAt,
         open: snapshot.price,
         high: snapshot.price,
         low: snapshot.price,
         close: snapshot.price,
-        volume: snapshot.volume,
+        volume: snapshot.barVolume ?? snapshot.volume,
       },
     ]);
   }
@@ -185,9 +330,10 @@ export function overlayRealtimeTickCandle(
     return [...candles];
   }
 
-  const bucketStart = new Date(
-    Math.floor(tickTime / durationMs) * durationMs,
-  ).toISOString();
+  const bucketStart = resolveRealtimeBucketStart(candles, snapshot, period);
+  if (bucketStart == null) {
+    return [...candles];
+  }
   const existing = candles.find((candle) => candle.at === bucketStart);
   const last = candles[candles.length - 1];
   const baseOpen = existing?.open ?? last?.close ?? snapshot.price;
@@ -200,7 +346,7 @@ export function overlayRealtimeTickCandle(
       high: Math.max(existing?.high ?? baseOpen, snapshot.price),
       low: Math.min(existing?.low ?? baseOpen, snapshot.price),
       close: snapshot.price,
-      volume: Math.max(baseVolume, snapshot.volume),
+      volume: snapshot.barVolume ?? Math.max(baseVolume, snapshot.volume),
     },
   ]);
 }

@@ -712,6 +712,9 @@ function scheduleMarketDataAutoRefresh(): void {
                     <KlineChart
                       :candles="chartCandles"
                       :min-height="260"
+                      show-indicator-selector
+                      indicator-storage-key="jftrade.market-chart.indicators"
+                      :default-indicators="['volume']"
                       empty-text="暂无 K 线图数据；点击查询后会在这里渲染最近 candles。"
                       @load-more="loadOlderCandles"
                     />

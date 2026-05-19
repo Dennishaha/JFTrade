@@ -35,6 +35,7 @@ export type MarketDataTickLiveSocketEvent = {
     volume: number;
     turnover: number;
     at: string;
+    observedAt?: string | null;
   };
   source: string | null;
 };

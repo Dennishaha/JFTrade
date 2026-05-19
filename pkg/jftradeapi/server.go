@@ -16,16 +16,10 @@ import (
 	"sync"
 	"time"
 
-	bbgofixedpoint "github.com/c9s/bbgo/pkg/fixedpoint"
 	bbgotypes "github.com/c9s/bbgo/pkg/types"
 	"github.com/gorilla/websocket"
-	"google.golang.org/protobuf/proto"
 
 	"github.com/jftrade/jftrade-main/pkg/futu"
-	"github.com/jftrade/jftrade-main/pkg/futu/opend"
-	commonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/common"
-	globalpb "github.com/jftrade/jftrade-main/pkg/futu/pb/getglobalstate"
-	initpb "github.com/jftrade/jftrade-main/pkg/futu/pb/initconnect"
 )
 
 const (
@@ -35,6 +29,8 @@ const (
 	defaultFutuAPIPort         = 11110
 	defaultFutuWebSocketPort   = 11111
 	defaultMaxWebSocketClients = 20
+	maxTickCacheSamples        = 30000
+	tickCacheRetention         = 30 * time.Minute
 )
 
 type envelope struct {
@@ -94,10 +90,22 @@ type SettingsStore struct {
 }
 
 type Server struct {
-	store               *SettingsStore
-	upgrader            websocket.Upgrader
-	marketMu            sync.Mutex
-	marketSubscriptions map[string]*marketSubscription
+	store                  *SettingsStore
+	upgrader               websocket.Upgrader
+	marketMu               sync.Mutex
+	marketSubscriptions    map[string]*marketSubscription
+	tickCacheMu            sync.Mutex
+	tickCache              map[string][]marketTickSample
+	exchangeMu             sync.Mutex
+	exchange               *futu.Exchange
+	exchangeConfigKey      string
+	liveMu                 sync.Mutex
+	liveWebSocketClients   int
+	liveRefreshMu          sync.Mutex
+	liveLastQuoteRefreshAt time.Time
+	liveStreamMu           sync.Mutex
+	liveStream             bbgotypes.Stream
+	liveStreamKey          string
 }
 
 type marketSubscription struct {
@@ -110,6 +118,23 @@ type marketSubscription struct {
 	Consumers    map[string]time.Time
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
+}
+
+type marketTickSample struct {
+	InstrumentID string
+	Market       string
+	Symbol       string
+	Price        float64
+	Bid          float64
+	Ask          float64
+	OpenPrice    *float64
+	HighPrice    *float64
+	LowPrice     *float64
+	Volume       float64
+	Turnover     float64
+	QuoteAt      string
+	ObservedAt   string
+	Source       string
 }
 
 type opendProbe struct {
@@ -173,6 +198,7 @@ func NewServer(store *SettingsStore) *Server {
 	return &Server{
 		store:               store,
 		marketSubscriptions: map[string]*marketSubscription{},
+		tickCache:           map[string][]marketTickSample{},
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(*http.Request) bool { return true },
 		},
@@ -932,40 +958,6 @@ func (s *Server) handleDeleteManagedBrokerAccount(w http.ResponseWriter, r *http
 	s.writeOK(w, map[string]any{"deleted": true, "id": accountID})
 }
 
-func (s *Server) handleLiveWebSocket(w http.ResponseWriter, r *http.Request) {
-	conn, err := s.upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		return
-	}
-	defer conn.Close()
-
-	if err := writeHeartbeat(conn); err != nil {
-		return
-	}
-	heartbeatTicker := time.NewTicker(15 * time.Second)
-	defer heartbeatTicker.Stop()
-	quoteTicker := time.NewTicker(3 * time.Second)
-	defer quoteTicker.Stop()
-	for {
-		select {
-		case <-r.Context().Done():
-			return
-		case <-heartbeatTicker.C:
-			if err := writeHeartbeat(conn); err != nil {
-				return
-			}
-		case <-quoteTicker.C:
-			if err := s.writeLiveMarketTicks(r.Context(), conn); err != nil {
-				return
-			}
-		}
-	}
-}
-
-func writeHeartbeat(conn *websocket.Conn) error {
-	return conn.WriteJSON(map[string]any{"type": "heartbeat", "at": time.Now().UTC().Format(time.RFC3339Nano)})
-}
-
 func (s *Server) handleEventStream(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
@@ -1004,28 +996,6 @@ func mustJSON(value any) string {
 	return string(data)
 }
 
-func (s *Server) descriptor() map[string]any {
-	return map[string]any{
-		"id":           "futu",
-		"displayName":  "Futu OpenAPI via OpenD",
-		"environments": []string{"SIMULATE", "REAL"},
-		"capabilities": []map[string]any{{"market": "HK", "supportsQuote": true, "supportsTrade": true}},
-		"notes":        []string{},
-	}
-}
-
-func (s *Server) brokerSettings() map[string]any {
-	integration := s.store.integration()
-	return map[string]any{
-		"brokers": []any{map[string]any{
-			"descriptor":  s.descriptor(),
-			"integration": integration,
-			"defaults":    integration.Config,
-		}},
-		"accounts": s.store.managedAccounts(),
-	}
-}
-
 func (s *Server) systemStatus() map[string]any {
 	return map[string]any{
 		"name":                      "JFTrade",
@@ -1052,191 +1022,6 @@ func (s *Server) systemStatus() map[string]any {
 		"strategyRuntime": map[string]any{"status": "idle", "activeStrategies": 0, "supportsBacktestParity": true},
 		"message":         "JFTrade API adapter is running.",
 	}
-}
-
-func (s *Server) futuOpenDInstallGuide() map[string]any {
-	config := s.store.integration().Config
-	return map[string]any{
-		"brokerId":    "futu",
-		"title":       "Futu OpenD",
-		"description": "Configure Futu OpenD and connect JFTrade through the WebSocket API port.",
-		"options":     []any{},
-		"nextSteps": []string{
-			"确认 OpenD 已登录并启用 WebSocket。",
-			"保存 Host、API Port、WebSocket Port 和 WebSocket Password / Key。",
-			"保存后刷新 OpenD 连接状态。",
-		},
-		"settings": map[string]any{
-			"host": config.Host, "apiPort": config.APIPort, "websocketPort": config.WebSocketPort,
-			"maxWebSocketConnections": config.MaxWebSocketConnections, "useEncryption": config.UseEncryption,
-			"websocketKeyRequired": strings.TrimSpace(config.WebSocketKey) != "",
-		},
-	}
-}
-
-func (s *Server) brokerRuntime(ctx context.Context) map[string]any {
-	probe := s.probeOpenD(ctx)
-	config := s.store.integration().Config
-	globalState := any(nil)
-	if probe.QuoteLoggedIn != nil || probe.TradeLoggedIn != nil || probe.ProgramStatus != nil {
-		globalState = map[string]any{
-			"quoteLoggedIn": boolValue(probe.QuoteLoggedIn),
-			"tradeLoggedIn": boolValue(probe.TradeLoggedIn),
-			"serverVersion": probe.ServerVersion,
-			"programStatus": probe.ProgramStatus,
-			"timestamp":     probe.ProgramTimestamp,
-			"markets":       probe.Markets,
-		}
-	}
-	return map[string]any{
-		"descriptor": s.descriptor(),
-		"session": map[string]any{
-			"brokerId":           "futu",
-			"displayName":        "Futu OpenAPI via OpenD",
-			"connection":         map[string]any{"host": config.Host, "port": config.WebSocketPort, "useEncryption": config.UseEncryption},
-			"connectivity":       probe.Connectivity,
-			"checkedAt":          probe.CheckedAt,
-			"lastError":          probe.LastError,
-			"globalState":        globalState,
-			"accountsDiscovered": 0,
-		},
-		"accounts": []any{},
-	}
-}
-
-func boolValue(value *bool) bool {
-	return value != nil && *value
-}
-
-func (s *Server) futuOpenDHealth(ctx context.Context) map[string]any {
-	probe := s.probeOpenD(ctx)
-	config := s.store.integration().Config
-	summary := any(nil)
-	code := "NONE"
-	manualRetry := false
-	if probe.LastError != nil {
-		summary = *probe.LastError
-		code = "WEBSOCKET_AUTH"
-		manualRetry = true
-	}
-	return map[string]any{
-		"checkedAt": probe.CheckedAt,
-		"status":    probe.Status,
-		"runtime": map[string]any{
-			"connectivity":           probe.Connectivity,
-			"host":                   config.Host,
-			"port":                   config.WebSocketPort,
-			"useEncryption":          config.UseEncryption,
-			"websocketKeyConfigured": strings.TrimSpace(config.WebSocketKey) != "",
-			"quoteLoggedIn":          probe.QuoteLoggedIn,
-			"tradeLoggedIn":          probe.TradeLoggedIn,
-			"programStatus":          probe.ProgramStatus,
-			"serverVersion":          probe.ServerVersion,
-			"lastError":              probe.LastError,
-		},
-		"diagnosis": map[string]any{
-			"code": code, "summary": summary, "manualRetryRequired": manualRetry, "restartOpenDRecommended": false,
-		},
-		"localSocketDiagnostics": map[string]any{
-			"websocketEstablishedConnections": 0,
-			"likelyConnectionSaturation":      false,
-			"topClientProcesses":              []any{},
-		},
-		"localInstallation": map[string]any{
-			"platform": os.Getenv("GOOS"), "installed": false, "version": nil, "installPath": nil, "guiDetected": false,
-			"process": map[string]any{"running": false, "pid": nil, "executablePath": nil},
-		},
-		"latestVersion":   map[string]any{"value": nil, "sourceUrl": nil, "checkedAt": nil, "status": "unknown", "error": nil},
-		"recommendations": []any{},
-	}
-}
-
-func (s *Server) probeOpenD(ctx context.Context) opendProbe {
-	config := s.store.integration().Config
-	checkedAt := time.Now().UTC().Format(time.RFC3339Nano)
-	probeCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-
-	client := opend.New(opend.Config{
-		Addr:             net.JoinHostPort(config.Host, strconv.Itoa(config.APIPort)),
-		TLS:              config.UseEncryption,
-		WebSocketKey:     config.WebSocketKey,
-		HandshakeTimeout: 2 * time.Second,
-		RequestTimeout:   3 * time.Second,
-	})
-	if err := client.Connect(probeCtx); err != nil {
-		message := err.Error()
-		return opendProbe{CheckedAt: checkedAt, Connectivity: "disconnected", Status: "offline", LastError: &message}
-	}
-	defer client.Close()
-
-	initReq := &initpb.Request{C2S: &initpb.C2S{
-		ClientVer:           proto.Int32(101),
-		ClientID:            proto.String("jftrade-api"),
-		RecvNotify:          proto.Bool(false),
-		ProgrammingLanguage: proto.String("Go"),
-	}}
-	var initResp initpb.Response
-	if err := client.Call(probeCtx, opend.ProtoInitConnect, initReq, &initResp); err != nil {
-		message := err.Error()
-		return opendProbe{CheckedAt: checkedAt, Connectivity: "degraded", Status: "degraded", LastError: &message}
-	}
-	if initResp.GetRetType() != int32(commonpb.RetType_RetType_Succeed) {
-		message := initResp.GetRetMsg()
-		if message == "" {
-			message = fmt.Sprintf("InitConnect failed: retType=%d", initResp.GetRetType())
-		}
-		return opendProbe{CheckedAt: checkedAt, Connectivity: "degraded", Status: "degraded", LastError: &message}
-	}
-
-	globalReq := &globalpb.Request{C2S: &globalpb.C2S{UserID: proto.Uint64(0)}}
-	var globalResp globalpb.Response
-	if err := client.Call(probeCtx, opend.ProtoGetGlobalState, globalReq, &globalResp); err != nil {
-		message := err.Error()
-		return opendProbe{CheckedAt: checkedAt, Connectivity: "degraded", Status: "degraded", LastError: &message}
-	}
-	if globalResp.GetRetType() != int32(commonpb.RetType_RetType_Succeed) {
-		message := globalResp.GetRetMsg()
-		if message == "" {
-			message = fmt.Sprintf("GetGlobalState failed: retType=%d", globalResp.GetRetType())
-		}
-		return opendProbe{CheckedAt: checkedAt, Connectivity: "degraded", Status: "degraded", LastError: &message}
-	}
-
-	s2c := globalResp.GetS2C()
-	quoteLoggedIn := s2c.GetQotLogined()
-	tradeLoggedIn := s2c.GetTrdLogined()
-	serverVersion := fmt.Sprintf("%d.%d", s2c.GetServerVer(), s2c.GetServerBuildNo())
-	programStatus := programStatusString(s2c.GetProgramStatus())
-	programTimestamp := time.Unix(s2c.GetTime(), 0).UTC().Format(time.RFC3339Nano)
-
-	return opendProbe{
-		CheckedAt:        checkedAt,
-		Connectivity:     "connected",
-		Status:           "healthy",
-		QuoteLoggedIn:    &quoteLoggedIn,
-		TradeLoggedIn:    &tradeLoggedIn,
-		ServerVersion:    &serverVersion,
-		ProgramStatus:    &programStatus,
-		ProgramTimestamp: &programTimestamp,
-		Markets: []map[string]any{
-			{"market": "HK", "state": strconv.Itoa(int(s2c.GetMarketHK()))},
-			{"market": "US", "state": strconv.Itoa(int(s2c.GetMarketUS()))},
-			{"market": "SH", "state": strconv.Itoa(int(s2c.GetMarketSH()))},
-			{"market": "SZ", "state": strconv.Itoa(int(s2c.GetMarketSZ()))},
-		},
-	}
-}
-
-func programStatusString(status *commonpb.ProgramStatus) string {
-	if status == nil {
-		return "Unavailable"
-	}
-	value := status.GetType().String()
-	if desc := status.GetStrExtDesc(); desc != "" {
-		return value + ": " + desc
-	}
-	return value
 }
 
 func (s *Server) emptyConnectivityList(key string, value any, extraKeys ...string) map[string]any {
@@ -1287,321 +1072,6 @@ func (s *Server) realTradeRiskEvents() map[string]any {
 	return result
 }
 
-func (s *Server) handleMarketSnapshot(w http.ResponseWriter, r *http.Request) {
-	response, err := s.marketSnapshotResponse(r.Context(), r.URL.Path)
-	if err != nil {
-		s.writeError(w, http.StatusBadGateway, "MARKET_SNAPSHOT_FAILED", err.Error())
-		return
-	}
-	s.writeOK(w, response)
-}
-
-func (s *Server) marketSnapshotResponse(ctx context.Context, path string) (map[string]any, error) {
-	market, symbol := pathTail(path, "/api/v1/market-data/snapshots/")
-	market = strings.ToUpper(strings.TrimSpace(market))
-	symbol = strings.ToUpper(strings.TrimSpace(symbol))
-	instrumentID := market + "." + symbol
-	ticker, err := s.futuExchange().QueryTicker(ctx, instrumentID)
-	if err != nil {
-		return nil, err
-	}
-	resolvedAt := tickerTimestamp(ticker)
-	price := ticker.Last.Float64()
-	if ticker.Last.IsZero() {
-		price = ticker.GetValidPrice().Float64()
-	}
-	bid := price
-	if !ticker.Buy.IsZero() {
-		bid = ticker.Buy.Float64()
-	}
-	ask := price
-	if !ticker.Sell.IsZero() {
-		ask = ticker.Sell.Float64()
-	}
-	return map[string]any{
-		"request": map[string]any{"market": market, "symbol": symbol, "instrumentId": instrumentID},
-		"snapshot": map[string]any{
-			"price":              price,
-			"bid":                bid,
-			"ask":                ask,
-			"openPrice":          tickerOptionalValue(ticker.Open),
-			"highPrice":          tickerOptionalValue(ticker.High),
-			"lowPrice":           tickerOptionalValue(ticker.Low),
-			"previousClosePrice": nil,
-			"volume":             ticker.Volume.Float64(),
-			"turnover":           0,
-			"at":                 resolvedAt,
-		},
-		"meta": map[string]any{"instrumentId": instrumentID, "source": "bbgo:futu", "resolvedAt": resolvedAt, "fromCache": false},
-	}, nil
-}
-
-func (s *Server) handleMarketCandles(w http.ResponseWriter, r *http.Request) {
-	response, err := s.marketCandlesResponse(r.Context(), r.URL.Path, r.URL.Query())
-	if err != nil {
-		s.writeError(w, http.StatusBadGateway, "OPEND_CANDLES_FAILED", err.Error())
-		return
-	}
-	s.writeOK(w, response)
-}
-
-func (s *Server) marketCandlesResponse(ctx context.Context, path string, query map[string][]string) (map[string]any, error) {
-	market, symbol := pathTail(path, "/api/v1/market-data/candles/")
-	market = strings.ToUpper(strings.TrimSpace(market))
-	symbol = strings.ToUpper(strings.TrimSpace(symbol))
-	instrumentID := market + "." + symbol
-	period, err := normalizeCandlePeriod(firstQuery(query, "period", "1m"))
-	if err != nil {
-		return nil, err
-	}
-	limit := intQuery(query, "limit", 200)
-	if limit < 1 {
-		limit = 1
-	}
-	if limit > 1000 {
-		limit = 1000
-	}
-	if period == "tick" {
-		ticker, err := s.futuExchange().QueryTicker(ctx, instrumentID)
-		if err != nil {
-			return nil, err
-		}
-		candles := []map[string]any{}
-		if tickCandle := tickCandleFromTicker(ticker); tickCandle != nil {
-			candles = append(candles, map[string]any{
-				"period": period,
-				"open":   tickCandle["open"],
-				"high":   tickCandle["high"],
-				"low":    tickCandle["low"],
-				"close":  tickCandle["close"],
-				"volume": tickCandle["volume"],
-				"at":     tickCandle["at"],
-			})
-		}
-		return map[string]any{
-			"request":       map[string]any{"instrument": map[string]any{"market": market, "symbol": symbol, "instrumentId": instrumentID}, "period": period, "limit": limit},
-			"candles":       candles,
-			"totalReturned": len(candles),
-			"meta":          map[string]any{"instrumentId": instrumentID, "source": "bbgo:futu", "resolvedAt": tickerTimestamp(ticker), "fromCache": false},
-		}, nil
-	}
-
-	interval := bbgotypes.Interval(period)
-	beginAt, endAt := kLineQueryWindow(query, interval.Duration(), limit)
-	klines, err := s.futuExchange().QueryKLines(ctx, instrumentID, interval, bbgotypes.KLineQueryOptions{Limit: limit, StartTime: &beginAt, EndTime: &endAt})
-	if err != nil {
-		return nil, err
-	}
-	candles := make([]map[string]any, 0, len(klines))
-	for _, kline := range klines {
-		candles = append(candles, map[string]any{
-			"period": period,
-			"open":   kline.Open.Float64(),
-			"high":   kline.High.Float64(),
-			"low":    kline.Low.Float64(),
-			"close":  kline.Close.Float64(),
-			"volume": kline.Volume.Float64(),
-			"at":     kline.StartTime.Time().UTC().Format(time.RFC3339Nano),
-		})
-	}
-
-	return map[string]any{
-		"request":       map[string]any{"instrument": map[string]any{"market": market, "symbol": symbol, "instrumentId": instrumentID}, "period": period, "limit": limit},
-		"candles":       candles,
-		"totalReturned": len(candles),
-		"meta":          map[string]any{"instrumentId": instrumentID, "source": "bbgo:futu", "resolvedAt": time.Now().UTC().Format(time.RFC3339Nano), "fromCache": false},
-	}, nil
-}
-
-func kLineQueryWindow(query map[string][]string, periodDuration time.Duration, limit int) (time.Time, time.Time) {
-	endAt := parseQueryTime(firstQuery(query, "toTime", ""), time.Now())
-	if queryEnd := firstQuery(query, "to", ""); queryEnd != "" {
-		endAt = parseQueryTime(queryEnd, endAt)
-	}
-	lookback := periodDuration * time.Duration(limit) * 4
-	minimumLookback := 36 * time.Hour
-	if periodDuration >= 24*time.Hour {
-		minimumLookback = 45 * 24 * time.Hour
-	}
-	if lookback < minimumLookback {
-		lookback = minimumLookback
-	}
-	defaultBegin := endAt.Add(-lookback)
-	beginAt := parseQueryTime(firstQuery(query, "fromTime", ""), defaultBegin)
-	if queryBegin := firstQuery(query, "from", ""); queryBegin != "" {
-		beginAt = parseQueryTime(queryBegin, beginAt)
-	}
-	if !beginAt.Before(endAt) {
-		beginAt = defaultBegin
-	}
-	return beginAt, endAt
-}
-
-func parseQueryTime(value string, fallback time.Time) time.Time {
-	value = strings.TrimSpace(value)
-	if value == "" {
-		return fallback
-	}
-	for _, layout := range []string{time.RFC3339Nano, time.RFC3339, "2006-01-02 15:04:05", "2006-01-02"} {
-		parsed, err := time.ParseInLocation(layout, value, time.Local)
-		if err == nil {
-			return parsed
-		}
-	}
-	return fallback
-}
-
-func (s *Server) futuExchange() *futu.Exchange {
-	integration := s.store.integration()
-	return futu.NewExchangeWithConfig(opend.Config{
-		Addr:             net.JoinHostPort(integration.Config.Host, strconv.Itoa(integration.Config.APIPort)),
-		WebSocketKey:     integration.Config.WebSocketKey,
-		HandshakeTimeout: 3 * time.Second,
-		RequestTimeout:   8 * time.Second,
-	})
-}
-
-func (s *Server) writeLiveMarketTicks(ctx context.Context, conn *websocket.Conn) error {
-	for _, instrumentID := range s.activeMarketInstrumentIDs() {
-		ticker, err := s.futuExchange().QueryTicker(ctx, instrumentID)
-		if err != nil {
-			continue
-		}
-		event := liveTickEventFromTicker(instrumentID, ticker)
-		if event == nil {
-			continue
-		}
-		if err := conn.WriteJSON(event); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (s *Server) activeMarketInstrumentIDs() []string {
-	s.marketMu.Lock()
-	defer s.marketMu.Unlock()
-	ids := make([]string, 0, len(s.marketSubscriptions))
-	seen := make(map[string]struct{}, len(s.marketSubscriptions))
-	for _, entry := range s.marketSubscriptions {
-		if entry.Market == "" || entry.Symbol == "" {
-			continue
-		}
-		instrumentID := entry.Market + "." + entry.Symbol
-		if _, exists := seen[instrumentID]; exists {
-			continue
-		}
-		seen[instrumentID] = struct{}{}
-		ids = append(ids, instrumentID)
-	}
-	return ids
-}
-
-func normalizeCandlePeriod(period string) (string, error) {
-	switch strings.ToLower(strings.TrimSpace(period)) {
-	case "tick", "ticker", "k_tick":
-		return "tick", nil
-	case "1m", "1min", "k_1m":
-		return "1m", nil
-	case "3m", "3min", "k_3m":
-		return "3m", nil
-	case "5m", "5min", "k_5m":
-		return "5m", nil
-	case "10m", "10min", "k_10m":
-		return "10m", nil
-	case "15m", "15min", "k_15m":
-		return "15m", nil
-	case "30m", "30min", "k_30m":
-		return "30m", nil
-	case "60m", "60min", "1h", "k_60m":
-		return "1h", nil
-	case "1d", "day", "d", "k_day":
-		return "1d", nil
-	case "1w", "week", "w", "k_week":
-		return "1w", nil
-	case "1mo", "month", "mth", "k_month":
-		return "1mo", nil
-	default:
-		return "", fmt.Errorf("unsupported period %q", period)
-	}
-}
-
-func tickerTimestamp(ticker *bbgotypes.Ticker) string {
-	resolvedAt := time.Now().UTC()
-	if ticker != nil && !ticker.Time.IsZero() {
-		resolvedAt = ticker.Time.UTC()
-	}
-	return resolvedAt.Format(time.RFC3339Nano)
-}
-
-func tickerOptionalValue(value bbgofixedpoint.Value) any {
-	if value.IsZero() {
-		return nil
-	}
-	return value.Float64()
-}
-
-func tickCandleFromTicker(ticker *bbgotypes.Ticker) map[string]any {
-	if ticker == nil {
-		return nil
-	}
-	price := ticker.Last.Float64()
-	if ticker.Last.IsZero() {
-		price = ticker.GetValidPrice().Float64()
-	}
-	if price == 0 {
-		return nil
-	}
-	return map[string]any{
-		"open":   price,
-		"high":   price,
-		"low":    price,
-		"close":  price,
-		"volume": ticker.Volume.Float64(),
-		"at":     tickerTimestamp(ticker),
-	}
-}
-
-func liveTickEventFromTicker(instrumentID string, ticker *bbgotypes.Ticker) map[string]any {
-	tickCandle := tickCandleFromTicker(ticker)
-	if tickCandle == nil {
-		return nil
-	}
-	market, symbol := pathTail(instrumentID, "")
-	if market == "" || symbol == "" {
-		parts := strings.SplitN(instrumentID, ".", 2)
-		if len(parts) != 2 {
-			return nil
-		}
-		market = parts[0]
-		symbol = parts[1]
-	}
-	price := tickCandle["close"]
-	return map[string]any{
-		"type":     "market-data.tick",
-		"at":       tickCandle["at"],
-		"brokerId": "futu",
-		"instrument": map[string]any{
-			"market":       market,
-			"symbol":       symbol,
-			"instrumentId": instrumentID,
-		},
-		"snapshot": map[string]any{
-			"price":              price,
-			"bid":                price,
-			"ask":                price,
-			"openPrice":          tickerOptionalValue(ticker.Open),
-			"highPrice":          tickerOptionalValue(ticker.High),
-			"lowPrice":           tickerOptionalValue(ticker.Low),
-			"previousClosePrice": nil,
-			"volume":             ticker.Volume.Float64(),
-			"turnover":           0,
-			"at":                 tickCandle["at"],
-		},
-		"source": "bbgo:futu",
-	}
-}
-
 func stringPointerOrNil(value string) *string {
 	value = strings.TrimSpace(value)
 	if value == "" {
@@ -1621,32 +1091,7 @@ func decodePathSegment(value string) (string, error) {
 	return decoded, nil
 }
 
-func pathTail(path string, prefix string) (string, string) {
-	tail := strings.TrimPrefix(path, prefix)
-	parts := strings.SplitN(tail, "/", 2)
-	if len(parts) != 2 {
-		return "", ""
-	}
-	return parts[0], parts[1]
-}
-
 func pathMiddle(path string, prefix string, suffix string) string {
 	tail := strings.TrimPrefix(path, prefix)
 	return strings.TrimSuffix(tail, suffix)
-}
-
-func firstQuery(query map[string][]string, key string, fallback string) string {
-	values := query[key]
-	if len(values) == 0 || values[0] == "" {
-		return fallback
-	}
-	return values[0]
-}
-
-func intQuery(query map[string][]string, key string, fallback int) int {
-	value, err := strconv.Atoi(firstQuery(query, key, strconv.Itoa(fallback)))
-	if err != nil {
-		return fallback
-	}
-	return value
 }

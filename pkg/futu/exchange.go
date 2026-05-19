@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/c9s/bbgo/pkg/exchange"
@@ -53,7 +54,12 @@ var ErrNotSupported = errors.New("futu exchange: operation not supported")
 type Exchange struct {
 	addr         string
 	webSocketKey string
-	client       *opend.Client
+
+	mu                        sync.Mutex
+	client                    *opend.Client
+	ready                     bool
+	basicQotSubscriptions     map[string]struct{}
+	basicQotPushSubscriptions map[string]struct{}
 }
 
 // NewExchange constructs an Exchange. It does not dial OpenD: bbgo expects
@@ -66,11 +72,20 @@ func NewExchange(addr string) *Exchange {
 // NewExchangeWithConfig constructs an Exchange with the full OpenD client
 // configuration.
 func NewExchangeWithConfig(cfg opend.Config) *Exchange {
-	return &Exchange{addr: cfg.Addr, webSocketKey: cfg.WebSocketKey, client: opend.New(cfg)}
+	return &Exchange{
+		addr:                      cfg.Addr,
+		webSocketKey:              cfg.WebSocketKey,
+		basicQotSubscriptions:     map[string]struct{}{},
+		basicQotPushSubscriptions: map[string]struct{}{},
+	}
 }
 
 // Client exposes the underlying OpenD client for advanced (non-bbgo) callers.
-func (e *Exchange) Client() *opend.Client { return e.client }
+func (e *Exchange) Client() *opend.Client {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return e.client
+}
 
 // --- bbgo types.ExchangeMinimal ---
 
@@ -104,27 +119,17 @@ func (e *Exchange) QueryTicker(ctx context.Context, symbol string) (*types.Ticke
 	if err != nil {
 		return nil, err
 	}
-	lastPrice := fixedpoint.NewFromFloat(basicQot.GetCurPrice())
-	resolvedAt := futuQuoteTime(basicQot.GetUpdateTimestamp(), basicQot.GetUpdateTime())
-	return &types.Ticker{
-		Time:   resolvedAt,
-		Volume: fixedpoint.NewFromFloat(float64(basicQot.GetVolume())),
-		Last:   lastPrice,
-		Open:   fixedpoint.NewFromFloat(basicQot.GetOpenPrice()),
-		High:   fixedpoint.NewFromFloat(basicQot.GetHighPrice()),
-		Low:    fixedpoint.NewFromFloat(basicQot.GetLowPrice()),
-		Buy:    lastPrice,
-		Sell:   lastPrice,
-	}, nil
+	return tickerFromBasicQot(basicQot), nil
 }
 
 func (e *Exchange) QueryTickers(ctx context.Context, symbol ...string) (map[string]types.Ticker, error) {
-	tickers := make(map[string]types.Ticker, len(symbol))
-	for _, currentSymbol := range symbol {
-		ticker, err := e.QueryTicker(ctx, currentSymbol)
-		if err != nil {
-			return nil, err
-		}
+	quotes, err := e.queryBasicQotList(ctx, symbol)
+	if err != nil {
+		return nil, err
+	}
+	tickers := make(map[string]types.Ticker, len(quotes))
+	for currentSymbol, basicQot := range quotes {
+		ticker := tickerFromBasicQot(basicQot)
 		if ticker != nil {
 			tickers[currentSymbol] = *ticker
 		}
@@ -198,9 +203,15 @@ func (e *Exchange) CancelOrders(ctx context.Context, orders ...types.Order) erro
 
 // Connect dials OpenD now, useful for health checks and tests.
 func (e *Exchange) Connect(ctx context.Context) error {
-	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
-	return e.client.Connect(ctx)
+	_, err := e.ensureClient(ctx)
+	return err
+}
+
+// Close terminates the cached OpenD session.
+func (e *Exchange) Close() error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return e.invalidateClientLocked()
 }
 
 func init() {
@@ -259,43 +270,70 @@ func (e *Exchange) withClient(ctx context.Context, fn func(*opend.Client) error)
 		ctx, cancel = context.WithTimeout(ctx, 10*time.Second)
 		defer cancel()
 	}
-	client := opend.New(opend.Config{
-		Addr:             e.addr,
-		WebSocketKey:     e.webSocketKey,
-		HandshakeTimeout: 3 * time.Second,
-		RequestTimeout:   8 * time.Second,
-	})
-	if err := client.Connect(ctx); err != nil {
-		return err
+	var lastErr error
+	for attempt := 0; attempt < 2; attempt++ {
+		client, err := e.ensureClient(ctx)
+		if err != nil {
+			return err
+		}
+		if err := fn(client); err != nil {
+			if !isRecoverableOpenDErr(err) {
+				return err
+			}
+			lastErr = err
+			e.invalidateClient()
+			continue
+		}
+		return nil
 	}
-	defer client.Close()
-
-	initReq := &initpb.Request{C2S: &initpb.C2S{
-		ClientVer:           proto.Int32(101),
-		ClientID:            proto.String("jftrade-bbgo"),
-		RecvNotify:          proto.Bool(false),
-		ProgrammingLanguage: proto.String("Go"),
-	}}
-	var initResp initpb.Response
-	if err := client.Call(ctx, opend.ProtoInitConnect, initReq, &initResp); err != nil {
-		return err
+	if lastErr != nil {
+		return lastErr
 	}
-	if initResp.GetRetType() != 0 {
-		return fmt.Errorf("opend InitConnect retType=%d errCode=%d retMsg=%s", initResp.GetRetType(), initResp.GetErrCode(), initResp.GetRetMsg())
-	}
-
-	return fn(client)
+	return fmt.Errorf("opend: unavailable client")
 }
 
 func (e *Exchange) queryBasicQot(ctx context.Context, symbol string) (*qotcommonpb.BasicQot, error) {
-	security, _, err := futuSecurityFromSymbol(symbol)
+	quotes, err := e.queryBasicQotList(ctx, []string{symbol})
 	if err != nil {
 		return nil, err
 	}
-	request := &qotgetbasicqotpb.Request{C2S: &qotgetbasicqotpb.C2S{SecurityList: []*qotcommonpb.Security{security}}}
+	canonical := strings.TrimSpace(strings.ToUpper(symbol))
+	quote := quotes[canonical]
+	if quote == nil {
+		return nil, fmt.Errorf("opend GetBasicQot returned no quotes for %s", symbol)
+	}
+	return quote, nil
+}
+
+type basicQotRequest struct {
+	canonical string
+	security  *qotcommonpb.Security
+}
+
+func (e *Exchange) queryBasicQotList(ctx context.Context, symbols []string) (map[string]*qotcommonpb.BasicQot, error) {
+	requests := make([]basicQotRequest, 0, len(symbols))
+	securityList := make([]*qotcommonpb.Security, 0, len(symbols))
+	seen := make(map[string]struct{}, len(symbols))
+	for _, symbol := range symbols {
+		security, canonical, err := futuSecurityFromSymbol(symbol)
+		if err != nil {
+			return nil, err
+		}
+		if _, exists := seen[canonical]; exists {
+			continue
+		}
+		seen[canonical] = struct{}{}
+		requests = append(requests, basicQotRequest{canonical: canonical, security: security})
+		securityList = append(securityList, security)
+	}
+	if len(requests) == 0 {
+		return map[string]*qotcommonpb.BasicQot{}, nil
+	}
+
+	request := &qotgetbasicqotpb.Request{C2S: &qotgetbasicqotpb.C2S{SecurityList: securityList}}
 	var response qotgetbasicqotpb.Response
 	if err := e.withClient(ctx, func(client *opend.Client) error {
-		if err := subscribeBasicQot(ctx, client, security); err != nil {
+		if err := e.ensureBasicQotSubscriptions(ctx, client, requests); err != nil {
 			return err
 		}
 		return client.Call(ctx, opend.ProtoGetBasicQot, request, &response)
@@ -305,15 +343,54 @@ func (e *Exchange) queryBasicQot(ctx context.Context, symbol string) (*qotcommon
 	if response.GetRetType() != 0 {
 		return nil, fmt.Errorf("opend GetBasicQot retType=%d errCode=%d retMsg=%s", response.GetRetType(), response.GetErrCode(), response.GetRetMsg())
 	}
-	if len(response.GetS2C().GetBasicQotList()) == 0 {
-		return nil, fmt.Errorf("opend GetBasicQot returned no quotes for %s", symbol)
+
+	quotes := make(map[string]*qotcommonpb.BasicQot, len(response.GetS2C().GetBasicQotList()))
+	for _, quote := range response.GetS2C().GetBasicQotList() {
+		canonical, err := futuSymbolFromSecurity(quote.GetSecurity())
+		if err != nil {
+			continue
+		}
+		quotes[canonical] = quote
 	}
-	return response.GetS2C().GetBasicQotList()[0], nil
+	if len(quotes) == 0 {
+		return nil, fmt.Errorf("opend GetBasicQot returned no quotes")
+	}
+	return quotes, nil
 }
 
-func subscribeBasicQot(ctx context.Context, client *opend.Client, security *qotcommonpb.Security) error {
+func (e *Exchange) ensureBasicQotSubscriptions(ctx context.Context, client *opend.Client, requests []basicQotRequest) error {
+	e.mu.Lock()
+	missing := make([]basicQotRequest, 0, len(requests))
+	for _, request := range requests {
+		if _, exists := e.basicQotSubscriptions[request.canonical]; exists {
+			continue
+		}
+		missing = append(missing, request)
+	}
+	e.mu.Unlock()
+	if len(missing) == 0 {
+		return nil
+	}
+
+	securityList := make([]*qotcommonpb.Security, 0, len(missing))
+	for _, request := range missing {
+		securityList = append(securityList, request.security)
+	}
+	if err := subscribeBasicQot(ctx, client, securityList); err != nil {
+		return err
+	}
+
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	for _, request := range missing {
+		e.basicQotSubscriptions[request.canonical] = struct{}{}
+	}
+	return nil
+}
+
+func subscribeBasicQot(ctx context.Context, client *opend.Client, securities []*qotcommonpb.Security) error {
 	request := &qotsubpb.Request{C2S: &qotsubpb.C2S{
-		SecurityList:     []*qotcommonpb.Security{security},
+		SecurityList:     securities,
 		SubTypeList:      []int32{int32(qotcommonpb.SubType_SubType_Basic)},
 		IsSubOrUnSub:     proto.Bool(true),
 		IsRegOrUnRegPush: proto.Bool(false),
@@ -326,6 +403,137 @@ func subscribeBasicQot(ctx context.Context, client *opend.Client, security *qotc
 		return fmt.Errorf("opend Qot_Sub retType=%d errCode=%d retMsg=%s", response.GetRetType(), response.GetErrCode(), response.GetRetMsg())
 	}
 	return nil
+}
+
+func tickerFromBasicQot(basicQot *qotcommonpb.BasicQot) *types.Ticker {
+	if basicQot == nil {
+		return nil
+	}
+	lastPrice := fixedpoint.NewFromFloat(basicQot.GetCurPrice())
+	resolvedAt := futuQuoteTime(basicQot.GetUpdateTimestamp(), basicQot.GetUpdateTime())
+	return &types.Ticker{
+		Time:   resolvedAt,
+		Volume: fixedpoint.NewFromFloat(float64(basicQot.GetVolume())),
+		Last:   lastPrice,
+		Open:   fixedpoint.NewFromFloat(basicQot.GetOpenPrice()),
+		High:   fixedpoint.NewFromFloat(basicQot.GetHighPrice()),
+		Low:    fixedpoint.NewFromFloat(basicQot.GetLowPrice()),
+		Buy:    lastPrice,
+		Sell:   lastPrice,
+	}
+}
+
+func (e *Exchange) ensureClient(ctx context.Context) (*opend.Client, error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	if e.client == nil {
+		e.client = e.newClient()
+	}
+	if e.ready {
+		return e.client, nil
+	}
+	if err := e.client.Connect(ctx); err != nil {
+		_ = e.invalidateClientLocked()
+		return nil, err
+	}
+
+	initReq := &initpb.Request{C2S: &initpb.C2S{
+		ClientVer:           proto.Int32(101),
+		ClientID:            proto.String("jftrade-bbgo"),
+		RecvNotify:          proto.Bool(false),
+		ProgrammingLanguage: proto.String("Go"),
+	}}
+	var initResp initpb.Response
+	if err := e.client.Call(ctx, opend.ProtoInitConnect, initReq, &initResp); err != nil {
+		_ = e.invalidateClientLocked()
+		return nil, err
+	}
+	if initResp.GetRetType() != 0 {
+		err := fmt.Errorf("opend InitConnect retType=%d errCode=%d retMsg=%s", initResp.GetRetType(), initResp.GetErrCode(), initResp.GetRetMsg())
+		_ = e.invalidateClientLocked()
+		return nil, err
+	}
+
+	e.ready = true
+	if e.basicQotSubscriptions == nil {
+		e.basicQotSubscriptions = map[string]struct{}{}
+	}
+	if e.basicQotPushSubscriptions == nil {
+		e.basicQotPushSubscriptions = map[string]struct{}{}
+	}
+	return e.client, nil
+}
+
+func (e *Exchange) newClient() *opend.Client {
+	return opend.New(opend.Config{
+		Addr:             e.addr,
+		WebSocketKey:     e.webSocketKey,
+		HandshakeTimeout: 3 * time.Second,
+		RequestTimeout:   8 * time.Second,
+	})
+}
+
+func (e *Exchange) invalidateClient() {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	_ = e.invalidateClientLocked()
+}
+
+func (e *Exchange) invalidateClientLocked() error {
+	client := e.client
+	e.client = nil
+	e.ready = false
+	e.basicQotSubscriptions = map[string]struct{}{}
+	e.basicQotPushSubscriptions = map[string]struct{}{}
+	if client != nil {
+		return client.Close()
+	}
+	return nil
+}
+
+func isRecoverableOpenDErr(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, opend.ErrClosed) || errors.Is(err, opend.ErrRequestTimeout) {
+		return true
+	}
+	lower := strings.ToLower(err.Error())
+	return strings.Contains(lower, "broken pipe") ||
+		strings.Contains(lower, "connection reset") ||
+		strings.Contains(lower, "eof") ||
+		strings.Contains(lower, "use of closed network connection")
+}
+
+func futuSymbolFromSecurity(security *qotcommonpb.Security) (string, error) {
+	if security == nil {
+		return "", fmt.Errorf("futu exchange: security is required")
+	}
+	market, err := futuMarketCodeFromQotMarket(qotcommonpb.QotMarket(security.GetMarket()))
+	if err != nil {
+		return "", err
+	}
+	code := strings.TrimSpace(strings.ToUpper(security.GetCode()))
+	if code == "" {
+		return "", fmt.Errorf("futu exchange: security code is required")
+	}
+	return market + "." + code, nil
+}
+
+func futuMarketCodeFromQotMarket(market qotcommonpb.QotMarket) (string, error) {
+	switch market {
+	case qotcommonpb.QotMarket_QotMarket_HK_Security:
+		return "HK", nil
+	case qotcommonpb.QotMarket_QotMarket_US_Security:
+		return "US", nil
+	case qotcommonpb.QotMarket_QotMarket_CNSH_Security:
+		return "SH", nil
+	case qotcommonpb.QotMarket_QotMarket_CNSZ_Security:
+		return "SZ", nil
+	default:
+		return "", fmt.Errorf("unsupported market %q", market.String())
+	}
 }
 
 func futuSecurityFromSymbol(symbol string) (*qotcommonpb.Security, string, error) {

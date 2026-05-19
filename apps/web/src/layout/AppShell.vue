@@ -77,6 +77,32 @@ palette.register({
 // non-market-data control events to avoid spamming the UI during live quotes.
 let lastSeenLiveEventKey = "";
 let lastSeenFutuOpenDIssueFingerprint = "";
+let pendingMarketTickEvent: Parameters<typeof console_.applyMarketDataTickEvent>[0] | null =
+  null;
+let marketTickFlushTimer: ReturnType<typeof setTimeout> | null = null;
+
+function flushPendingMarketTickEvent(): void {
+  if (pendingMarketTickEvent != null) {
+    console_.applyMarketDataTickEvent(pendingMarketTickEvent);
+    pendingMarketTickEvent = null;
+  }
+
+  if (marketTickFlushTimer != null) {
+    clearTimeout(marketTickFlushTimer);
+    marketTickFlushTimer = null;
+  }
+}
+
+function scheduleMarketTickFlush(): void {
+  if (marketTickFlushTimer != null) {
+    return;
+  }
+
+  marketTickFlushTimer = setTimeout(() => {
+    flushPendingMarketTickEvent();
+  }, Math.floor(1000 / 30));
+}
+
 const stop = watch(
   () => live.events.value.at(-1),
   (ev) => {
@@ -84,11 +110,20 @@ const stop = watch(
       return;
     }
 
-    const eventKey = `${ev.type}|${ev.at}`;
+    const eventKey =
+      ev.type === "market-data.tick" && "instrument" in ev && "snapshot" in ev
+        ? `${ev.type}|${ev.instrument.instrumentId}|${ev.at}|${ev.snapshot.price}`
+        : `${ev.type}|${ev.at}`;
     if (eventKey === lastSeenLiveEventKey) {
       return;
     }
     lastSeenLiveEventKey = eventKey;
+
+    if (ev.type === "market-data.tick") {
+      pendingMarketTickEvent = ev;
+      scheduleMarketTickFlush();
+      return;
+    }
 
     console_.applyMarketDataTickEvent(ev);
 
@@ -150,6 +185,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  flushPendingMarketTickEvent();
   live.disconnect();
   console_.dispose();
   stop();

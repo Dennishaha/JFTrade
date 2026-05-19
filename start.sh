@@ -60,5 +60,5 @@ trap cleanup EXIT INT TERM
 
 echo "后端 PID: $BACKEND_PID"
 echo "JFTrade API: http://${JFTRADE_API_BIND}"
-echo "启动前端预览服务: http://127.0.0.1:4173"
+echo "启动前端预览服务: http://127.0.0.1:6688"
 npm --workspace @jftrade/web run preview

@@ -12,6 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/c9s/bbgo/pkg/fixedpoint"
+	bbgotypes "github.com/c9s/bbgo/pkg/types"
 	"github.com/gorilla/websocket"
 
 	"github.com/jftrade/jftrade-main/pkg/futu"
@@ -113,6 +115,180 @@ func TestLiveWebSocketSendsHeartbeat(t *testing.T) {
 	}
 	if event["type"] != "heartbeat" || event["at"] == "" {
 		t.Fatalf("unexpected event: %+v", event)
+	}
+}
+
+func TestRecordTickerSampleDeduplicatesUnchangedQuote(t *testing.T) {
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	server := NewServer(store)
+	quoteTime := time.Date(2026, time.May, 19, 15, 24, 26, 0, time.UTC)
+	ticker := &bbgotypes.Ticker{
+		Time:   quoteTime,
+		Last:   fixedpoint.NewFromFloat(700.1),
+		Buy:    fixedpoint.NewFromFloat(700.0),
+		Sell:   fixedpoint.NewFromFloat(700.2),
+		Open:   fixedpoint.NewFromFloat(698.0),
+		High:   fixedpoint.NewFromFloat(701.0),
+		Low:    fixedpoint.NewFromFloat(697.5),
+		Volume: fixedpoint.NewFromFloat(12345),
+	}
+
+	first := server.recordTickerSample("HK.00700", ticker)
+	second := server.recordTickerSample("HK.00700", ticker)
+	if first == nil || second == nil {
+		t.Fatal("expected samples to be recorded")
+	}
+	if first.ObservedAt != second.ObservedAt {
+		t.Fatalf("expected unchanged quote to reuse latest sample, got %s then %s", first.ObservedAt, second.ObservedAt)
+	}
+
+	server.tickCacheMu.Lock()
+	defer server.tickCacheMu.Unlock()
+	if got := len(server.tickCache["HK.00700"]); got != 1 {
+		t.Fatalf("expected one cached sample, got %d", got)
+	}
+}
+
+func TestLiveSocketDiagnosticsUseConfiguredLimit(t *testing.T) {
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	store.mu.Lock()
+	store.data.Integration = &BrokerIntegration{
+		BrokerID: "futu",
+		Enabled:  true,
+		Config: normalizeFutuConfig(FutuIntegrationConfig{
+			Type:                    "futu",
+			Host:                    "127.0.0.1",
+			APIPort:                 11110,
+			WebSocketPort:           11111,
+			MaxWebSocketConnections: 2,
+			TradeMarket:             "HK",
+			SecurityFirm:            "FUTUSECURITIES",
+		}),
+		UpdatedAt: now,
+		CreatedAt: now,
+	}
+	store.mu.Unlock()
+
+	server := NewServer(store)
+	limit := server.effectiveLiveWebSocketLimit()
+	if limit != 2 {
+		t.Fatalf("effectiveLiveWebSocketLimit = %d", limit)
+	}
+	if !server.tryAcquireLiveWebSocketSlot(limit) {
+		t.Fatal("expected to acquire first websocket slot")
+	}
+	if !server.tryAcquireLiveWebSocketSlot(limit) {
+		t.Fatal("expected to acquire second websocket slot")
+	}
+	if server.tryAcquireLiveWebSocketSlot(limit) {
+		t.Fatal("expected third websocket slot acquisition to be rejected")
+	}
+
+	diagnostics := server.liveSocketDiagnostics(store.integration().Config)
+	if got := diagnostics["configuredOpenDWebSocketLimit"]; got != 2 {
+		t.Fatalf("configuredOpenDWebSocketLimit = %#v", got)
+	}
+	if got := diagnostics["jftradeLiveWebSocketLimit"]; got != 2 {
+		t.Fatalf("jftradeLiveWebSocketLimit = %#v", got)
+	}
+	if got := diagnostics["configuredOpenDWebSocketLimitActive"]; got != false {
+		t.Fatalf("configuredOpenDWebSocketLimitActive = %#v", got)
+	}
+	if got := diagnostics["likelyConnectionSaturation"]; got != true {
+		t.Fatalf("likelyConnectionSaturation = %#v", got)
+	}
+
+	server.releaseLiveWebSocketSlot()
+	server.releaseLiveWebSocketSlot()
+}
+
+func TestLiveWebSocketLimitRejectsAndRecoversEndToEnd(t *testing.T) {
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	store.mu.Lock()
+	store.data.Integration = &BrokerIntegration{
+		BrokerID: "futu",
+		Enabled:  true,
+		Config: normalizeFutuConfig(FutuIntegrationConfig{
+			Type:                    "futu",
+			Host:                    "127.0.0.1",
+			APIPort:                 11110,
+			WebSocketPort:           11111,
+			MaxWebSocketConnections: 1,
+			TradeMarket:             "HK",
+			SecurityFirm:            "FUTUSECURITIES",
+		}),
+		UpdatedAt: now,
+		CreatedAt: now,
+	}
+	store.mu.Unlock()
+
+	server := NewServer(store)
+	srv := httptest.NewServer(server)
+	defer srv.Close()
+	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http") + "/api/v1/ws/live"
+
+	first, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	if err != nil {
+		t.Fatalf("first Dial: %v", err)
+	}
+	defer first.Close()
+	_ = first.SetReadDeadline(time.Now().Add(2 * time.Second))
+	var heartbeat map[string]any
+	if err := first.ReadJSON(&heartbeat); err != nil {
+		t.Fatalf("first heartbeat: %v", err)
+	}
+
+	second, resp, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	if err == nil {
+		_ = second.Close()
+		t.Fatal("expected second Dial to be rejected")
+	}
+	if resp == nil || resp.StatusCode != http.StatusServiceUnavailable {
+		status := 0
+		if resp != nil {
+			status = resp.StatusCode
+		}
+		t.Fatalf("second Dial status = %d, err = %v", status, err)
+	}
+
+	if err := first.Close(); err != nil {
+		t.Fatalf("close first websocket: %v", err)
+	}
+	waitUntil(t, func() bool {
+		count, _, _ := server.liveWebSocketStats()
+		return count == 0
+	})
+
+	third, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	if err != nil {
+		t.Fatalf("third Dial after release: %v", err)
+	}
+	defer third.Close()
+	_ = third.SetReadDeadline(time.Now().Add(2 * time.Second))
+	if err := third.ReadJSON(&heartbeat); err != nil {
+		t.Fatalf("third heartbeat: %v", err)
+	}
+}
+
+func waitUntil(t *testing.T, condition func() bool) {
+	t.Helper()
+	deadline := time.Now().Add(3 * time.Second)
+	for !condition() {
+		if time.Now().After(deadline) {
+			t.Fatal("timed out waiting for condition")
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
 }
 

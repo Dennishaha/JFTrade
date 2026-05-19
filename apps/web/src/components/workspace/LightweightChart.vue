@@ -171,7 +171,14 @@ watch(
     </div>
     <div class="tv-panel-body is-flush">
       <div class="tv-chart-host">
-        <KlineChart :candles="chartCandles" :min-height="320" empty-text="暂无 K 线数据；确认 OpenD 行情权限后点击刷新。" />
+        <KlineChart
+          :candles="chartCandles"
+          :min-height="320"
+          show-indicator-selector
+          indicator-storage-key="jftrade.workspace-chart.indicators"
+          :default-indicators="['volume']"
+          empty-text="暂无 K 线数据；确认 OpenD 行情权限后点击刷新。"
+        />
       </div>
     </div>
   </section>

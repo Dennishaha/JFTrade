@@ -26,7 +26,7 @@ NODE_OPTIONS=--no-deprecation npm run build:web
 | 服务 | 默认地址 | 说明 |
 |------|----------|------|
 | JFTrade API | `127.0.0.1:3000` | 前端 `/api/v1/*`、SSE、WS 连接目标 |
-| Web preview | `127.0.0.1:4173` | `vite preview` |
+| Web preview | `127.0.0.1:6688` | `vite preview` |
 | Futu OpenD API | `127.0.0.1:11110` | Go OpenD client 实际连接端口 |
 | Futu OpenD WebSocket | `127.0.0.1:11111` | FTWebSocket / JavaScript 接入端口 |
 

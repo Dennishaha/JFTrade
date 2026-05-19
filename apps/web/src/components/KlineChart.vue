@@ -8,7 +8,13 @@ import {
   watch,
 } from "vue";
 
-import type { KlineCandle, KlineChartAdapter } from "../charting/kline";
+import {
+  KLINE_INDICATORS,
+  normalizeKlineIndicators,
+  type KlineCandle,
+  type KlineChartAdapter,
+  type KlineIndicatorKey,
+} from "../charting/kline";
 import { lightweightChartsKlineFactory } from "../charting/lightweightChartsKline";
 import { useTheme } from "../composables/useTheme";
 
@@ -17,10 +23,15 @@ const props = withDefaults(
     candles: readonly KlineCandle[];
     minHeight?: number;
     emptyText?: string;
+    showIndicatorSelector?: boolean;
+    indicatorStorageKey?: string;
+    defaultIndicators?: readonly KlineIndicatorKey[];
   }>(),
   {
     minHeight: 220,
     emptyText: "暂无 K 线数据",
+    showIndicatorSelector: false,
+    defaultIndicators: () => ["volume"] as KlineIndicatorKey[],
   },
 );
 const emit = defineEmits<{
@@ -31,6 +42,10 @@ const shell = ref<HTMLElement | null>(null);
 const host = ref<HTMLElement | null>(null);
 const chartError = ref("");
 const { theme } = useTheme();
+const availableIndicators = KLINE_INDICATORS;
+const selectedIndicators = ref<KlineIndicatorKey[]>(
+  normalizeKlineIndicators(props.defaultIndicators),
+);
 
 let adapter: KlineChartAdapter | null = null;
 let resizeObserver: ResizeObserver | null = null;
@@ -48,6 +63,11 @@ const palette = computed(() =>
         down: "#ea3943",
         volumeUp: "rgba(22, 199, 132, 0.45)",
         volumeDown: "rgba(234, 57, 67, 0.45)",
+        indicatorA: "#2563eb",
+        indicatorB: "#f59e0b",
+        indicatorC: "#8b5cf6",
+        macdPositive: "rgba(22, 199, 132, 0.65)",
+        macdNegative: "rgba(234, 57, 67, 0.65)",
       }
     : {
         bg: "#0f172a",
@@ -58,8 +78,72 @@ const palette = computed(() =>
         down: "#ea3943",
         volumeUp: "rgba(22, 199, 132, 0.45)",
         volumeDown: "rgba(234, 57, 67, 0.45)",
+        indicatorA: "#60a5fa",
+        indicatorB: "#fbbf24",
+        indicatorC: "#c084fc",
+        macdPositive: "rgba(22, 199, 132, 0.72)",
+        macdNegative: "rgba(248, 113, 113, 0.72)",
       },
 );
+
+const chartShellHeight = computed(() => {
+  const extraPanels = props.showIndicatorSelector
+    ? Math.max(0, selectedIndicators.value.length - 1)
+    : 0;
+  return props.minHeight + extraPanels * 96;
+});
+
+function readStoredIndicators(): KlineIndicatorKey[] | null {
+  if (
+    props.indicatorStorageKey == null ||
+    props.indicatorStorageKey.trim() === "" ||
+    typeof window === "undefined" ||
+    window.localStorage == null
+  ) {
+    return null;
+  }
+
+  try {
+    const raw = window.localStorage.getItem(props.indicatorStorageKey);
+    if (raw == null || raw.trim() === "") {
+      return null;
+    }
+
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      return null;
+    }
+
+    return normalizeKlineIndicators(parsed);
+  } catch {
+    return null;
+  }
+}
+
+function persistIndicators(next: readonly KlineIndicatorKey[]): void {
+  if (
+    props.indicatorStorageKey == null ||
+    props.indicatorStorageKey.trim() === "" ||
+    typeof window === "undefined" ||
+    window.localStorage == null
+  ) {
+    return;
+  }
+
+  window.localStorage.setItem(
+    props.indicatorStorageKey,
+    JSON.stringify(next),
+  );
+}
+
+function toggleIndicator(indicator: KlineIndicatorKey): void {
+  const exists = selectedIndicators.value.includes(indicator);
+  selectedIndicators.value = normalizeKlineIndicators(
+    exists
+      ? selectedIndicators.value.filter((value) => value !== indicator)
+      : [...selectedIndicators.value, indicator],
+  );
+}
 
 function refreshChartData(): void {
   adapter?.setCandles(props.candles);
@@ -109,6 +193,11 @@ onMounted(async () => {
 
   await nextTick();
 
+  const storedIndicators = readStoredIndicators();
+  if (storedIndicators != null) {
+    selectedIndicators.value = storedIndicators;
+  }
+
   if (typeof ResizeObserver === "undefined") {
     chartError.value = "K-line chart requires browser ResizeObserver support.";
     return;
@@ -117,6 +206,7 @@ onMounted(async () => {
   try {
     adapter = lightweightChartsKlineFactory.create(host.value, {
       palette: palette.value,
+      indicators: selectedIndicators.value,
     });
     adapter.setLoadMoreHandler(() => {
       if (loadMoreScheduled) {
@@ -160,6 +250,15 @@ onBeforeUnmount(() => {
 });
 
 watch(() => props.candles, refreshChartData, { deep: true });
+watch(
+  selectedIndicators,
+  (next) => {
+    persistIndicators(next);
+    adapter?.setIndicators(next);
+    scheduleChartSync();
+  },
+  { deep: true },
+);
 watch(palette, (next) => {
   adapter?.applyPalette(next);
   scheduleChartSync();
@@ -170,8 +269,20 @@ watch(palette, (next) => {
   <div
     ref="shell"
     class="kline-chart-shell"
-    :style="{ height: `${minHeight}px`, minHeight: `${minHeight}px` }"
+    :style="{ height: `${chartShellHeight}px`, minHeight: `${chartShellHeight}px` }"
   >
+    <div v-if="showIndicatorSelector" class="kline-chart-toolbar">
+      <button
+        v-for="indicator in availableIndicators"
+        :key="indicator.value"
+        class="kline-chart-chip"
+        :class="{ 'is-active': selectedIndicators.includes(indicator.value) }"
+        type="button"
+        @click="toggleIndicator(indicator.value)"
+      >
+        {{ indicator.label }}
+      </button>
+    </div>
     <div ref="host" class="kline-chart-host"></div>
     <div v-if="chartError" class="kline-chart-overlay is-error">
       {{ chartError }}
@@ -181,3 +292,55 @@ watch(palette, (next) => {
     </div>
   </div>
 </template>
+
+<style scoped>
+.kline-chart-shell {
+  position: relative;
+}
+
+.kline-chart-host {
+  height: 100%;
+}
+
+.kline-chart-toolbar {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.kline-chart-chip {
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  background: rgba(15, 23, 42, 0.72);
+  color: #e2e8f0;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 160ms ease;
+}
+
+.kline-chart-chip.is-active {
+  border-color: rgba(13, 148, 136, 0.72);
+  background: rgba(13, 148, 136, 0.18);
+  color: #f8fafc;
+}
+
+.kline-chart-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  text-align: center;
+}
+
+.kline-chart-overlay.is-error {
+  color: #dc2626;
+}
+</style>
