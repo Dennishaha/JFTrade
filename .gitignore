@@ -31,3 +31,4 @@ packages/*/dist/
 # bbgo runtime
 data/
 logs/
+otp.png

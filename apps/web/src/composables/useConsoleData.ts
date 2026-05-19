@@ -215,7 +215,7 @@ const DEFAULT_TICK_QUERY_LIMIT = 20_000;
 const DEFAULT_TICK_QUERY_LOOKBACK_MS = 15 * 60 * 1000;
 
 function buildApiUrl(path: string): string {
-  return apiBaseUrl ? `${apiBaseUrl}${path}` : `http://localhost:3000${path}`;
+  return apiBaseUrl ? `${apiBaseUrl}${path}` : `http://127.0.0.1:3000${path}`;
 }
 
 async function fetchEnvelope<T>(path: string): Promise<T> {
@@ -777,7 +777,7 @@ function createConsoleDataStore(workspaceLayout: WorkspaceLayoutStore) {
       },
     );
 
-    await loadSystemState();
+    await loadSystemState({ bypassCooldown: true });
   }
 
   async function createManagedBrokerAccount(payload: {

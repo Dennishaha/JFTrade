@@ -48,7 +48,7 @@ export type LiveSocketEvent =
 
 function buildLiveSocketUrl(path: string): string {
   if (!apiBaseUrl) {
-    return `ws://localhost:3000${path}`;
+    return `ws://127.0.0.1:3000${path}`;
   }
 
   const url = new URL(apiBaseUrl);
@@ -68,6 +68,11 @@ export function useLiveSocket() {
   let reconnectAttempts = 0;
   let shouldReconnect = false;
   let activeUrl: string | null = null;
+  // Track whether the current socket attempt ever reached "connected". A
+  // WebSocket "error" event before that means the backend is unreachable
+  // (e.g. dev environment with no live API), which should surface as a soft
+  // "disconnected" rather than a red "error" indicator.
+  let currentAttemptConnected = false;
 
   function clearReconnectTimer(): void {
     if (reconnectTimer == null) {
@@ -132,6 +137,7 @@ export function useLiveSocket() {
     clearReconnectTimer();
     closeActiveSocket(false);
     connectionState.value = "connecting";
+    currentAttemptConnected = false;
 
     const nextSocket = new WebSocket(url);
     socket = nextSocket;
@@ -142,6 +148,7 @@ export function useLiveSocket() {
       }
 
       connectionState.value = "connected";
+      currentAttemptConnected = true;
       reconnectAttempts = 0;
     });
 
@@ -170,7 +177,13 @@ export function useLiveSocket() {
         return;
       }
 
-      connectionState.value = "error";
+      // Only flag a red "error" when a previously-established connection
+      // broke. A failure during the initial handshake (e.g. backend not
+      // reachable) is a normal "disconnected" state that the reconnect loop
+      // will keep retrying.
+      connectionState.value = currentAttemptConnected
+        ? "error"
+        : "disconnected";
       nextSocket.close();
     });
 

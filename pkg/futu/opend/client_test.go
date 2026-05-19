@@ -2,37 +2,45 @@ package opend
 
 import (
 	"context"
+	"io"
 	"net"
-	"net/http"
-	"net/http/httptest"
-	"strings"
 	"testing"
 	"time"
 
-	"github.com/gorilla/websocket"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/jftrade/jftrade-main/pkg/futu/codec"
 	initpb "github.com/jftrade/jftrade-main/pkg/futu/pb/initconnect"
 )
 
-// startFakeOpenD serves a single connection that echoes back a response
+// startFakeOpenD serves a single TCP connection that echoes back a response
 // containing the requested protoID/serialNo and a small InitConnect.Response.
 func startFakeOpenD(t *testing.T) (addr string, stop func()) {
 	t.Helper()
-	upgrader := websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		c, err := upgrader.Upgrade(w, r, nil)
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		conn, err := ln.Accept()
 		if err != nil {
 			return
 		}
-		defer c.Close()
+		defer conn.Close()
 		for {
-			_, data, err := c.ReadMessage()
-			if err != nil {
+			header := make([]byte, codec.HeaderLen)
+			if _, err := io.ReadFull(conn, header); err != nil {
 				return
 			}
-			f, err := codec.Decode(data)
+			bodyLen := int(uint32(header[12]) | uint32(header[13])<<8 | uint32(header[14])<<16 | uint32(header[15])<<24)
+			packet := make([]byte, codec.HeaderLen+bodyLen)
+			copy(packet, header)
+			if _, err := io.ReadFull(conn, packet[codec.HeaderLen:]); err != nil {
+				return
+			}
+			f, err := codec.Decode(packet)
 			if err != nil {
 				return
 			}
@@ -48,12 +56,13 @@ func startFakeOpenD(t *testing.T) (addr string, stop func()) {
 			}
 			body, _ := proto.Marshal(resp)
 			pkt, _ := codec.Encode(f.Header.ProtoID, f.Header.SerialNo, body)
-			_ = c.WriteMessage(websocket.BinaryMessage, pkt)
+			_, _ = conn.Write(pkt)
 		}
-	}))
-	// httptest gives http://host:port; we need host:port for our ws config.
-	u := strings.TrimPrefix(srv.URL, "http://")
-	return u, srv.Close
+	}()
+	return ln.Addr().String(), func() {
+		_ = ln.Close()
+		<-done
+	}
 }
 
 func TestCallRoundTrip(t *testing.T) {
@@ -82,25 +91,21 @@ func TestCallRoundTrip(t *testing.T) {
 }
 
 func TestRequestTimeout(t *testing.T) {
-	// listen-only socket: never responds.
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer ln.Close()
-	srv := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		up := websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}
-		c, err := up.Upgrade(w, r, nil)
+	go func() {
+		conn, err := ln.Accept()
 		if err != nil {
 			return
 		}
-		// hold connection without responding
-		_, _, _ = c.ReadMessage()
+		defer conn.Close()
+		buf := make([]byte, codec.HeaderLen+256)
+		_, _ = conn.Read(buf)
 		time.Sleep(2 * time.Second)
-		_ = c.Close()
-	})}
-	go func() { _ = srv.Serve(ln) }()
-	defer srv.Close()
+	}()
 
 	c := New(Config{Addr: ln.Addr().String(), RequestTimeout: 200 * time.Millisecond})
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
@@ -111,7 +116,8 @@ func TestRequestTimeout(t *testing.T) {
 	defer c.Close()
 	var resp initpb.Response
 	err = c.Call(ctx, ProtoInitConnect, &initpb.Request{C2S: &initpb.C2S{
-		ClientVer: proto.Int32(1), ClientID: proto.String("x"),
+		ClientVer: proto.Int32(1),
+		ClientID:  proto.String("x"),
 	}}, &resp)
 	if err == nil {
 		t.Fatal("expected timeout error")

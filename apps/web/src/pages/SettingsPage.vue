@@ -162,7 +162,7 @@ const futuOpenDTopClientSummary = computed(() =>
 const integrationForm = reactive({
   enabled: true,
   host: "127.0.0.1",
-  apiPort: 11111,
+  apiPort: 11110,
   websocketPort: 11111,
   maxWebSocketConnections: 20,
   useEncryption: false,
@@ -192,7 +192,7 @@ watch(
       integrationForm.apiPort =
         "apiPort" in source && typeof source.apiPort === "number"
           ? source.apiPort
-          : 11111;
+          : 11110;
       integrationForm.websocketPort =
         "websocketPort" in source && typeof source.websocketPort === "number"
           ? source.websocketPort

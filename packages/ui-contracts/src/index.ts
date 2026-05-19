@@ -1295,7 +1295,7 @@ export const emptyFutuOpenDInstallGuide: FutuOpenDInstallGuideResponse = {
   nextSteps: [],
   settings: {
     host: "127.0.0.1",
-    apiPort: 11111,
+    apiPort: 11110,
     websocketPort: 11111,
     maxWebSocketConnections: 20,
     useEncryption: false,

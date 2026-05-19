@@ -3,6 +3,17 @@ setlocal
 
 cd /d "%~dp0"
 
+rem --- Default runtime configuration --------------------------------------
+rem bbgo session bootstrap requires the Futu OpenD API address; default it to
+rem the native OpenD API port so the backend boots out of the box.
+if "%JFTRADE_API_BIND%"=="" set JFTRADE_API_BIND=127.0.0.1:3000
+if "%JFTRADE_FUTU_API_PORT%"=="" set JFTRADE_FUTU_API_PORT=11110
+if "%JFTRADE_FUTU_WEBSOCKET_PORT%"=="" set JFTRADE_FUTU_WEBSOCKET_PORT=11111
+if "%FUTU_OPEND_ADDR%"=="" set FUTU_OPEND_ADDR=127.0.0.1:%JFTRADE_FUTU_API_PORT%
+if "%DISABLE_MARKETS_CACHE%"=="" set DISABLE_MARKETS_CACHE=1
+rem Suppress Node DEP0205 deprecation noise from vite plugins.
+if "%NODE_OPTIONS%"=="" set NODE_OPTIONS=--no-deprecation
+
 where go >nul 2>nul
 if errorlevel 1 (
   echo go 未安装或不在 PATH 中
@@ -36,5 +47,6 @@ if errorlevel 1 exit /b 1
 echo 启动后端服务...
 start "jftrade-backend" cmd /k "cd /d %CD% && go run ./cmd/jftrade run --config ./config/jftrade.yaml"
 
+echo JFTrade API: http://%JFTRADE_API_BIND%
 echo 启动前端预览服务: http://127.0.0.1:4173
 call npm --workspace @jftrade/web run preview

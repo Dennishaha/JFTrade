@@ -24,6 +24,15 @@ const Name types.ExchangeName = "futu"
 // EnvOpenDAddr names the env var carrying the OpenD WebSocket address.
 const EnvOpenDAddr = "FUTU_OPEND_ADDR"
 
+// EnvOpenDWebSocketKey names the env var carrying the optional OpenD
+// WebSocket plain-text key. FutuOpenD stores the MD5 value, while clients send
+// the plain value during the WebSocket handshake.
+const EnvOpenDWebSocketKey = "FUTU_OPEND_WEBSOCKET_KEY"
+
+// DefaultOpenDAddr is the fallback OpenD API address used when neither the
+// session-prefixed env var nor FUTU_OPEND_ADDR is set.
+const DefaultOpenDAddr = "127.0.0.1:11110"
+
 // ErrNotSupported is returned for bbgo Exchange methods that do not map
 // cleanly to the Futu trading domain (e.g. spot taker/maker fee math).
 var ErrNotSupported = errors.New("futu exchange: operation not supported")
@@ -35,15 +44,22 @@ var ErrNotSupported = errors.New("futu exchange: operation not supported")
 // the binary buildable inside bbgo while leaving room for incremental
 // adapter work without touching bbgo internals.
 type Exchange struct {
-	addr   string
-	client *opend.Client
+	addr         string
+	webSocketKey string
+	client       *opend.Client
 }
 
 // NewExchange constructs an Exchange. It does not dial OpenD: bbgo expects
 // constructors to be cheap; the underlying client lazily connects.
 func NewExchange(addr string) *Exchange {
 	cfg := opend.Config{Addr: addr}
-	return &Exchange{addr: addr, client: opend.New(cfg)}
+	return NewExchangeWithConfig(cfg)
+}
+
+// NewExchangeWithConfig constructs an Exchange with the full OpenD client
+// configuration.
+func NewExchangeWithConfig(cfg opend.Config) *Exchange {
+	return &Exchange{addr: cfg.Addr, webSocketKey: cfg.WebSocketKey, client: opend.New(cfg)}
 }
 
 // Client exposes the underlying OpenD client for advanced (non-bbgo) callers.
@@ -51,7 +67,7 @@ func (e *Exchange) Client() *opend.Client { return e.client }
 
 // --- bbgo types.ExchangeMinimal ---
 
-func (e *Exchange) Name() types.ExchangeName  { return Name }
+func (e *Exchange) Name() types.ExchangeName    { return Name }
 func (e *Exchange) PlatformFeeCurrency() string { return "HKD" }
 
 // --- bbgo types.ExchangeMarketDataService ---
@@ -59,7 +75,21 @@ func (e *Exchange) PlatformFeeCurrency() string { return "HKD" }
 func (e *Exchange) NewStream() types.Stream { return NewStream(e) }
 
 func (e *Exchange) QueryMarkets(ctx context.Context) (types.MarketMap, error) {
-	return types.MarketMap{}, nil
+	return types.MarketMap{
+		"HK.00700": {
+			Exchange:        Name,
+			Symbol:          "HK.00700",
+			LocalSymbol:     "HK.00700",
+			PricePrecision:  3,
+			VolumePrecision: 0,
+			QuotePrecision:  3,
+			QuoteCurrency:   "HKD",
+			BaseCurrency:    "HK.00700",
+			MinQuantity:     fixedpoint.One,
+			StepSize:        fixedpoint.One,
+			TickSize:        fixedpoint.NewFromFloat(0.001),
+		},
+	}, nil
 }
 
 func (e *Exchange) QueryTicker(ctx context.Context, symbol string) (*types.Ticker, error) {
@@ -116,21 +146,39 @@ func init() {
 			if addr == "" {
 				addr = os.Getenv(EnvOpenDAddr)
 			}
+			webSocketKey := os.Getenv(prefix + "_OPEND_WEBSOCKET_KEY")
+			if webSocketKey == "" {
+				webSocketKey = os.Getenv(EnvOpenDWebSocketKey)
+			}
+			if webSocketKey == "" {
+				webSocketKey = os.Getenv("JFTRADE_FUTU_WEBSOCKET_KEY")
+			}
 			if addr == "" {
-				return nil, fmt.Errorf("futu exchange: missing %s_OPEND_ADDR / %s", prefix, EnvOpenDAddr)
+				// Fall back to the default OpenD WebSocket endpoint so that bbgo
+				// can finish session bootstrap when the operator runs the
+				// out-of-the-box FutuOpenD GUI on the same host. Configuration
+				// via env still takes precedence when provided.
+				addr = DefaultOpenDAddr
 			}
 			// bbgo will pass the loaded options into Constructor below.
-			return exchange.Options{"OPEND_ADDR": addr}, nil
+			return exchange.Options{"OPEND_ADDR": addr, "OPEND_WEBSOCKET_KEY": webSocketKey}, nil
 		},
 		Constructor: func(opts exchange.Options) (types.Exchange, error) {
 			addr := opts["OPEND_ADDR"]
 			if addr == "" {
 				addr = os.Getenv(EnvOpenDAddr)
 			}
-			if addr == "" {
-				return nil, fmt.Errorf("futu exchange: OpenD address is empty")
+			webSocketKey := opts["OPEND_WEBSOCKET_KEY"]
+			if webSocketKey == "" {
+				webSocketKey = os.Getenv(EnvOpenDWebSocketKey)
 			}
-			return NewExchange(addr), nil
+			if webSocketKey == "" {
+				webSocketKey = os.Getenv("JFTRADE_FUTU_WEBSOCKET_KEY")
+			}
+			if addr == "" {
+				addr = DefaultOpenDAddr
+			}
+			return NewExchangeWithConfig(opend.Config{Addr: addr, WebSocketKey: webSocketKey}), nil
 		},
 	})
 }

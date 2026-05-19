@@ -1,4 +1,4 @@
-// Package opend is a small WebSocket client for Futu OpenD, providing a
+// Package opend is a small TCP client for Futu OpenD, providing a
 // request/response API on top of the codec frame layer.
 package opend
 
@@ -6,12 +6,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/url"
+	"io"
+	"net"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"github.com/gorilla/websocket"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/jftrade/jftrade-main/pkg/futu/codec"
@@ -23,39 +23,35 @@ const (
 	ProtoGetGlobalState uint32 = 1002
 	ProtoKeepAlive      uint32 = 1004
 
-	ProtoTrdGetAccList             uint32 = 2001
-	ProtoTrdUnlockTrade            uint32 = 2005
-	ProtoTrdSubAccPush             uint32 = 2008
-	ProtoTrdGetFunds               uint32 = 2101
-	ProtoTrdGetPositionList        uint32 = 2102
-	ProtoTrdGetOrderList           uint32 = 2201
-	ProtoTrdPlaceOrder             uint32 = 2202
-	ProtoTrdModifyOrder            uint32 = 2205
-	ProtoTrdGetHistoryOrderList    uint32 = 2221
+	ProtoTrdGetAccList              uint32 = 2001
+	ProtoTrdUnlockTrade             uint32 = 2005
+	ProtoTrdSubAccPush              uint32 = 2008
+	ProtoTrdGetFunds                uint32 = 2101
+	ProtoTrdGetPositionList         uint32 = 2102
+	ProtoTrdGetOrderList            uint32 = 2201
+	ProtoTrdPlaceOrder              uint32 = 2202
+	ProtoTrdModifyOrder             uint32 = 2205
+	ProtoTrdGetHistoryOrderList     uint32 = 2221
 	ProtoTrdGetHistoryOrderFillList uint32 = 2223
-	ProtoTrdUpdateOrder            uint32 = 2208
-	ProtoTrdUpdateOrderFill        uint32 = 2218
+	ProtoTrdUpdateOrder             uint32 = 2208
+	ProtoTrdUpdateOrderFill         uint32 = 2218
 )
 
 // Config controls how the client connects to OpenD.
 type Config struct {
-	// Addr is host:port, e.g. "127.0.0.1:11111".
+	// Addr is the native OpenD API host:port, e.g. "127.0.0.1:11110".
 	Addr string
-	// TLS toggles wss:// (default false → ws://).
+	// WebSocketKey is used by FTWebSocket / JavaScript API. The native OpenD TCP
+	// API does not use it, but we keep the field so the same settings payload can
+	// feed both API and FTWebSocket diagnostics.
+	WebSocketKey string
+	// TLS is not used by the native OpenD TCP API. It is kept for backward
+	// compatibility with older call sites.
 	TLS bool
-	// HandshakeTimeout caps the WS handshake (default 10s).
+	// HandshakeTimeout caps the TCP dial timeout (default 10s).
 	HandshakeTimeout time.Duration
 	// RequestTimeout caps a single RPC (default 15s).
 	RequestTimeout time.Duration
-}
-
-func (c Config) endpoint() string {
-	scheme := "ws"
-	if c.TLS {
-		scheme = "wss"
-	}
-	u := url.URL{Scheme: scheme, Host: c.Addr, Path: "/"}
-	return u.String()
 }
 
 // Errors.
@@ -72,7 +68,7 @@ type pending struct {
 type Client struct {
 	cfg Config
 
-	conn   *websocket.Conn
+	conn   net.Conn
 	serial uint32
 
 	mu      sync.Mutex
@@ -93,10 +89,10 @@ func New(cfg Config) *Client {
 	return &Client{cfg: cfg, pend: map[uint32]*pending{}, subs: map[uint32][]func(codec.Frame){}}
 }
 
-// Connect dials OpenD and starts the read loop.
+// Connect dials the native OpenD TCP API and starts the read loop.
 func (c *Client) Connect(ctx context.Context) error {
-	d := &websocket.Dialer{HandshakeTimeout: c.cfg.HandshakeTimeout}
-	conn, _, err := d.DialContext(ctx, c.cfg.endpoint(), nil)
+	d := &net.Dialer{Timeout: c.cfg.HandshakeTimeout}
+	conn, err := d.DialContext(ctx, "tcp", c.cfg.Addr)
 	if err != nil {
 		return fmt.Errorf("opend: dial %s: %w", c.cfg.Addr, err)
 	}
@@ -159,7 +155,7 @@ func (c *Client) Call(ctx context.Context, protoID uint32, req proto.Message, re
 	}()
 
 	c.writeMu.Lock()
-	err = c.conn.WriteMessage(websocket.BinaryMessage, pkt)
+	_, err = c.conn.Write(pkt)
 	c.writeMu.Unlock()
 	if err != nil {
 		return fmt.Errorf("opend: write: %w", err)
@@ -185,9 +181,19 @@ func (c *Client) Call(ctx context.Context, protoID uint32, req proto.Message, re
 }
 
 func (c *Client) readLoop() {
+	head := make([]byte, codec.HeaderLen)
 	for {
-		_, data, err := c.conn.ReadMessage()
-		if err != nil {
+		if _, err := io.ReadFull(c.conn, head); err != nil {
+			c.fanoutClose()
+			return
+		}
+		bodyLen := int(uint32(head[12]) | uint32(head[13])<<8 | uint32(head[14])<<16 | uint32(head[15])<<24)
+		if bodyLen < 0 || bodyLen > codec.MaxFrameBodyLen {
+			continue
+		}
+		data := make([]byte, codec.HeaderLen+bodyLen)
+		copy(data, head)
+		if _, err := io.ReadFull(c.conn, data[codec.HeaderLen:]); err != nil {
 			c.fanoutClose()
 			return
 		}

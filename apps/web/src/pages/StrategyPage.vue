@@ -53,7 +53,7 @@ const apiBaseUrl = (
 )?.replace(/\/$/, "");
 
 function buildApiUrl(path: string): string {
-  return apiBaseUrl ? `${apiBaseUrl}${path}` : `http://localhost:3000${path}`;
+  return apiBaseUrl ? `${apiBaseUrl}${path}` : `http://127.0.0.1:3000${path}`;
 }
 
 async function fetchEnvelope<T>(path: string): Promise<T> {
