@@ -3,7 +3,7 @@ module github.com/jftrade/jftrade-main
 go 1.25.0
 
 require (
-	github.com/c9s/bbgo v0.0.0
+	github.com/c9s/bbgo v1.64.2
 	github.com/gorilla/websocket v1.5.3
 	google.golang.org/protobuf v1.36.6
 )
@@ -148,5 +148,3 @@ require (
 	gopkg.in/tucnak/telebot.v2 v2.5.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-replace github.com/c9s/bbgo => ../bbgo-main
