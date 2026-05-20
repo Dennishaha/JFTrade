@@ -447,63 +447,65 @@ function scheduleMarketDataAutoRefresh(): void {
       <!-- Left Column: Filter Panel -->
       <div class="col-span-4 lg:col-span-3">
         <div class="sticky top-4 rounded-lg border border-slate-200 bg-white p-4">
-          <el-form label-position="top" class="space-y-4">
+          <div class="space-y-4">
             <!-- Market Select -->
-            <el-form-item label="市场 (Market)">
-              <el-select v-model="marketDataQueryMarket" class="w-full">
-                <el-option value="HK" label="HK" />
-                <el-option value="US" label="US" />
-                <el-option value="CN" label="CN" />
-                <el-option value="SG" label="SG" />
-                <el-option value="JP" label="JP" />
-                <el-option value="AU" label="AU" />
-                <el-option value="MY" label="MY" />
-                <el-option value="CA" label="CA" />
-                <el-option value="CRYPTO" label="CRYPTO" />
-              </el-select>
-            </el-form-item>
+            <div class="grid gap-1">
+              <label class="text-sm font-medium text-slate-700">市场 (Market)</label>
+              <v-select
+                v-model="marketDataQueryMarket"
+                class="w-full"
+                density="compact"
+                variant="outlined"
+                :items="['HK', 'US', 'CN', 'SG', 'JP', 'AU', 'MY', 'CA', 'CRYPTO']"
+              />
+            </div>
 
             <!-- Symbol Input -->
-            <el-form-item label="标的 (Symbol)">
-              <el-autocomplete
+            <div class="grid gap-1">
+              <label class="text-sm font-medium text-slate-700">标的 (Symbol)</label>
+              <v-autocomplete
                 v-model="symbolSearchText"
                 class="w-full"
-                :fetch-suggestions="queryInstrumentSuggestions"
+                :items="marketInstrumentSearchOptions.map(o => ({ value: o.lookupValue, title: o.label }))"
+                item-title="title"
+                item-value="value"
                 placeholder="00700"
-                value-key="value"
                 clearable
-                @select="selectInstrumentSuggestion"
-              >
-                <template #default="{ item }">
-                  <div class="font-medium text-slate-900">{{ item.value }}</div>
-                  <div class="text-xs text-slate-500">{{ item.label }}</div>
-                </template>
-              </el-autocomplete>
-              <div class="mt-2 text-xs text-slate-500">
+                density="compact"
+                variant="outlined"
+                @update:model-value="val => val && selectInstrumentSuggestion({ value: String(val) })"
+              />
+              <div class="mt-1 text-xs text-slate-500">
                 当前标的：<span class="font-medium text-slate-700">{{ selectedInstrumentTitle }}</span>
               </div>
-            </el-form-item>
+            </div>
 
             <!-- Period Select -->
-            <el-form-item label="周期 (Period)">
-              <el-select v-model="marketDataQueryPeriod" class="w-full">
-                <el-option
-                  v-for="period in periods"
-                  :key="period.value"
-                  :value="period.value"
-                  :label="period.label"
-                />
-              </el-select>
-            </el-form-item>
+            <div class="grid gap-1">
+              <label class="text-sm font-medium text-slate-700">周期 (Period)</label>
+              <v-select
+                v-model="marketDataQueryPeriod"
+                class="w-full"
+                density="compact"
+                variant="outlined"
+                :items="periods"
+                item-title="label"
+                item-value="value"
+              />
+            </div>
 
             <!-- Limit Input -->
-            <el-form-item label="Limit">
-              <el-input-number
-                v-model="marketDataQueryLimit"
+            <div class="grid gap-1">
+              <label class="text-sm font-medium text-slate-700">Limit</label>
+              <v-text-field
+                v-model.number="marketDataQueryLimit"
+                type="number"
                 :min="1"
                 class="w-full"
+                density="compact"
+                variant="outlined"
               />
-            </el-form-item>
+            </div>
 
             <!-- Query Button -->
             <button
@@ -520,7 +522,7 @@ function scheduleMarketDataAutoRefresh(): void {
               实时订阅已改为动态池：当前查看的 {{ selectedInstrumentTitle }}
               会自动申请订阅。
             </div>
-          </el-form>
+          </div>
         </div>
       </div>
 
@@ -542,58 +544,58 @@ function scheduleMarketDataAutoRefresh(): void {
               正在加载市场数据订阅...
             </div>
 
-            <el-alert
+            <v-alert
               v-else-if="marketDataError"
               class="mb-4"
               type="warning"
               :closable="false"
-              show-icon
               title="Market Data Warning"
-            >
-              <template #default>{{ marketDataError }}</template>
-            </el-alert>
+            >{{ marketDataError }}</v-alert>
 
-            <el-table
-              v-else
-              :data="marketDataSubscriptions.entries"
-              class="w-full"
-              stripe
-            >
-              <el-table-column prop="symbol" label="Symbol" width="100" />
-              <el-table-column label="Name" min-width="160">
-                <template #default="{ row }">
-                  {{
-                    marketInstrumentSearchOptions.find((option) => option.instrumentId === row.instrumentId)?.name ?? 'N/A'
-                  }}
-                </template>
-              </el-table-column>
-              <el-table-column prop="market" label="Market" width="80" />
-              <el-table-column prop="channel" label="Channel" width="100" />
-              <el-table-column prop="instrumentId" label="Instrument ID" min-width="150" />
-              <el-table-column prop="refCount" label="Ref Count" width="80" align="center" />
-              <el-table-column label="Consumers" width="100" align="center">
-                <template #default="{ row }">
-                  {{ row.consumers.length }}
-                </template>
-              </el-table-column>
-              <el-table-column label="Updated" min-width="180">
-                <template #default="{ row }">
-                  {{ formatDateTime(row.updatedAt) }}
-                </template>
-              </el-table-column>
-            </el-table>
+            <div v-else class="overflow-x-auto">
+              <table class="min-w-full text-left text-sm">
+                <thead class="text-xs uppercase tracking-[0.18em] text-slate-500">
+                  <tr>
+                    <th class="whitespace-nowrap px-3 py-2">Symbol</th>
+                    <th class="whitespace-nowrap px-3 py-2">Name</th>
+                    <th class="whitespace-nowrap px-3 py-2">Market</th>
+                    <th class="whitespace-nowrap px-3 py-2">Channel</th>
+                    <th class="whitespace-nowrap px-3 py-2">Instrument ID</th>
+                    <th class="whitespace-nowrap px-3 py-2 text-center">Ref Count</th>
+                    <th class="whitespace-nowrap px-3 py-2 text-center">Consumers</th>
+                    <th class="whitespace-nowrap px-3 py-2">Updated</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-for="row in marketDataSubscriptions.entries"
+                    :key="row.key"
+                    class="border-t border-slate-100"
+                  >
+                    <td class="whitespace-nowrap px-3 py-2 font-medium text-slate-900">{{ row.symbol }}</td>
+                    <td class="px-3 py-2 text-slate-600">{{ marketInstrumentSearchOptions.find(o => o.instrumentId === row.instrumentId)?.name ?? 'N/A' }}</td>
+                    <td class="whitespace-nowrap px-3 py-2 text-slate-600">{{ row.market }}</td>
+                    <td class="whitespace-nowrap px-3 py-2 text-slate-600">{{ row.channel }}</td>
+                    <td class="px-3 py-2 text-slate-600">{{ row.instrumentId }}</td>
+                    <td class="whitespace-nowrap px-3 py-2 text-center text-slate-600">{{ row.refCount }}</td>
+                    <td class="whitespace-nowrap px-3 py-2 text-center text-slate-600">{{ row.consumers.length }}</td>
+                    <td class="whitespace-nowrap px-3 py-2 text-slate-600">{{ formatDateTime(row.updatedAt) }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
 
-            <el-empty v-if="!isLoadingMarketData && !marketDataError && !marketDataSubscriptions.entries.length" description="当前没有活跃的市场数据订阅。策略或 broker provider 建立订阅后会显示消费者、配额与更新时间。" :image-size="80" />
+            <v-empty-state v-if="!isLoadingMarketData && !marketDataError && !marketDataSubscriptions.entries.length" text="当前没有活跃的市场数据订阅。策略或 broker provider 建立订阅后会显示消费者、配额与更新时间。" />
           </div>
 
           <!-- Secondary Panels in Collapse -->
-          <el-collapse v-model="activeResultPanels">
+          <v-expansion-panels v-model="activeResultPanels" variant="accordion" multiple>
             <!-- Quota Section -->
-            <el-collapse-item title="Subscription Quota" name="subscription-quota">
+            <v-expansion-panel value="subscription-quota">
               <template #title>
                 <div class="flex items-center justify-between gap-3 flex-1 pr-4">
                   <span>Subscription Quota</span>
-                  <el-tag effect="plain">{{ marketDataSubscriptions.quota.totalUsed }} / {{ marketDataSubscriptions.quota.totalLimit ?? '∞' }}</el-tag>
+                  <v-chip variant="outlined" size="small">{{ marketDataSubscriptions.quota.totalUsed }} / {{ marketDataSubscriptions.quota.totalLimit ?? '∞' }}</v-chip>
                 </div>
               </template>
 
@@ -605,7 +607,7 @@ function scheduleMarketDataAutoRefresh(): void {
                 >
                   <div class="flex items-center justify-between gap-3">
                     <div class="text-base font-semibold text-slate-900">{{ bucket.market }}</div>
-                    <el-tag effect="plain">{{ bucket.used }} / {{ bucket.limit ?? '∞' }}</el-tag>
+                    <v-chip variant="outlined" size="small">{{ bucket.used }} / {{ bucket.limit ?? '∞' }}</v-chip>
                   </div>
                   <div class="mt-3 rounded-lg bg-slate-50 px-3 py-3">
                     <div class="text-xs uppercase tracking-[0.2em] text-slate-500">Remaining</div>
@@ -616,28 +618,25 @@ function scheduleMarketDataAutoRefresh(): void {
                 </div>
               </div>
 
-              <el-empty v-else description="暂无各市场配额信息。配额 read-model 会随订阅 registry 接入后自动填充。" :image-size="80" />
-            </el-collapse-item>
+              <v-empty-state v-else text="暂无各市场配额信息。配额 read-model 会随订阅 registry 接入后自动填充。" />
+            </v-expansion-panel>
 
             <!-- Snapshot and Candles Section -->
-            <el-collapse-item title="Market Data Query Results" name="query-results">
+            <v-expansion-panel value="query-results">
               <template #title>
                 <div class="flex items-center justify-between gap-3 flex-1 pr-4">
                   <span>Market Data Query Results</span>
-                  <el-tag effect="plain">{{ marketDataSnapshot?.meta.source ?? 'cache' }}</el-tag>
+                  <v-chip variant="outlined" size="small">{{ marketDataSnapshot?.meta.source ?? 'cache' }}</v-chip>
                 </div>
               </template>
 
-              <el-alert
+              <v-alert
                 v-if="marketDataQueryError"
                 type="warning"
                 class="mb-4"
                 :closable="false"
-                show-icon
                 title="Market Data Query Warning"
-              >
-                <template #default>{{ marketDataQueryError }}</template>
-              </el-alert>
+              >{{ marketDataQueryError }}</v-alert>
 
               <div class="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
                 <!-- Snapshot Card -->
@@ -649,16 +648,16 @@ function scheduleMarketDataAutoRefresh(): void {
                         {{ selectedInstrumentTitle }}
                       </div>
                     </div>
-                    <el-tag :type="marketDataSnapshot?.snapshot ? 'success' : 'info'" effect="plain">
+                    <v-chip :color="marketDataSnapshot?.snapshot ? 'success' : 'info'" variant="outlined" size="small">
                       {{ marketDataSnapshot?.snapshot ? 'FOUND' : 'EMPTY' }}
-                    </el-tag>
+                    </v-chip>
                   </div>
 
                   <div v-if="latestQuoteSnapshot" class="mt-4 grid gap-3 sm:grid-cols-2">
                     <div class="rounded-lg bg-slate-50 px-3 py-3 sm:col-span-2">
                       <div class="flex items-center justify-between gap-3">
                         <div class="text-xs uppercase tracking-[0.2em] text-slate-500">Latest Quote</div>
-                        <el-tag effect="plain" size="small">{{ liveQuoteStateLabel }}</el-tag>
+                        <v-chip variant="outlined" size="small">{{ liveQuoteStateLabel }}</v-chip>
                       </div>
                       <div class="mt-2 flex flex-wrap items-end gap-3">
                         <div class="text-3xl font-semibold" :class="latestQuoteToneClass">
@@ -695,7 +694,7 @@ function scheduleMarketDataAutoRefresh(): void {
                       </div>
                     </div>
                   </div>
-                  <el-empty v-else description="未命中快照缓存；请确认 market / symbol 或等待行情 provider 写入。" :image-size="80" class="mt-4" />
+                  <v-empty-state v-else text="未命中快照缓存；请确认 market / symbol 或等待行情 provider 写入。" class="mt-4" />
                 </div>
 
                 <!-- Candles Card -->
@@ -791,8 +790,8 @@ function scheduleMarketDataAutoRefresh(): void {
                   </div>
                 </div>
               </div>
-            </el-collapse-item>
-          </el-collapse>
+            </v-expansion-panel>
+          </v-expansion-panels>
         </div>
       </div>
     </div>

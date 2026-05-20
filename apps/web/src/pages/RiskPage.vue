@@ -60,24 +60,30 @@ const riskHeaderStats = computed(() => [
     />
 
     <!-- Tabs: Limits, Kill Switch, Hard Stops, Events -->
-    <el-tabs v-model="riskActiveTab">
-      <!-- Limits Tab -->
-      <el-tab-pane label="Limits" name="Limits">
-        <el-card class="card-shell border-0" shadow="never">
-        <template #header>
-          <div class="flex items-center justify-between gap-3">
-            <div class="text-xl font-semibold text-slate-900">Risk Limits</div>
-            <div class="flex items-center gap-2">
-              <el-tag :type="realTradeRiskState.realTradingEnabled ? 'danger' : 'info'" effect="plain">
-                {{ realTradeRiskState.realTradingEnabled ? 'REAL' : 'GATED' }}
-              </el-tag>
-              <el-tag :type="realTradeRiskState.riskEnabled ? 'warning' : 'success'" effect="plain">
-                {{ realTradeRiskState.riskEnabled ? 'RISK ON' : 'RISK OFF' }}
-              </el-tag>
-            </div>
-          </div>
-        </template>
+    <v-tabs v-model="riskActiveTab" bg-color="transparent">
+      <v-tab value="Limits">Limits</v-tab>
+      <v-tab value="Kill Switch">Kill Switch</v-tab>
+      <v-tab value="Hard Stops">Hard Stops</v-tab>
+      <v-tab value="Events">Events</v-tab>
+    </v-tabs>
 
+    <v-window v-model="riskActiveTab">
+      <!-- Limits Tab -->
+      <v-window-item value="Limits">
+        <v-card flat class="card-shell border-0">
+        <div class="px-4 pt-4 flex items-center justify-between gap-3">
+          <div class="text-xl font-semibold text-slate-900">Risk Limits</div>
+          <div class="flex items-center gap-2">
+            <v-chip :color="realTradeRiskState.realTradingEnabled ? 'error' : 'default'" variant="outlined" size="small">
+              {{ realTradeRiskState.realTradingEnabled ? 'REAL' : 'GATED' }}
+            </v-chip>
+            <v-chip :color="realTradeRiskState.riskEnabled ? 'warning' : 'success'" variant="outlined" size="small">
+              {{ realTradeRiskState.riskEnabled ? 'RISK ON' : 'RISK OFF' }}
+            </v-chip>
+          </div>
+        </div>
+
+        <v-card-text>
         <div class="grid gap-4 sm:grid-cols-2">
           <div class="rounded-3xl bg-slate-50 px-4 py-4">
             <div class="text-xs uppercase tracking-[0.2em] text-slate-500">Max Order Qty</div>
@@ -116,29 +122,30 @@ const riskHeaderStats = computed(() => [
           </div>
           <div class="mt-1 text-xs text-slate-500">activated {{ realTradeRiskState.entry.activatedAt }}</div>
         </div>
-        <el-empty v-else :description="realTradeRiskState.riskEnabled ? 'Risk limits loaded from ENV — no control-plane entry.' : '无有效 REAL 风控限额。'" :image-size="80" class="mt-4" />
+        <v-empty-state v-else :text="realTradeRiskState.riskEnabled ? 'Risk limits loaded from ENV — no control-plane entry.' : '无有效 REAL 风控限额。'" class="mt-4" />
 
         <div class="mt-3 flex justify-end">
-          <el-button :loading="isLoading" text type="primary" @click="loadSystemState()">刷新</el-button>
+          <v-btn :loading="isLoading" variant="text" color="primary" @click="loadSystemState()">刷新</v-btn>
         </div>
-      </el-card>
-      </el-tab-pane>
+        </v-card-text>
+      </v-card>
+      </v-window-item>
 
       <!-- Kill Switch Tab -->
-      <el-tab-pane label="Kill Switch" name="Kill Switch">
-        <el-card class="card-shell border-0" shadow="never">
-        <template #header>
-          <div class="flex items-center justify-between gap-3">
-            <div class="text-xl font-semibold text-slate-900">Kill Switch</div>
-            <el-tag
-              :type="realTradeKillSwitchState.killSwitchActive ? 'danger' : 'success'"
-              effect="plain"
-            >
-              {{ realTradeKillSwitchState.killSwitchActive ? 'ACTIVE' : 'INACTIVE' }}
-            </el-tag>
-          </div>
-        </template>
+      <v-window-item value="Kill Switch">
+        <v-card flat class="card-shell border-0">
+        <div class="px-4 pt-4 flex items-center justify-between gap-3">
+          <div class="text-xl font-semibold text-slate-900">Kill Switch</div>
+          <v-chip
+            :color="realTradeKillSwitchState.killSwitchActive ? 'error' : 'success'"
+            variant="outlined"
+            size="small"
+          >
+            {{ realTradeKillSwitchState.killSwitchActive ? 'ACTIVE' : 'INACTIVE' }}
+          </v-chip>
+        </div>
 
+        <v-card-text>
         <div class="grid gap-4 sm:grid-cols-2">
           <div class="rounded-3xl bg-slate-50 px-4 py-4">
             <div class="text-xs uppercase tracking-[0.2em] text-slate-500">Source</div>
@@ -157,17 +164,18 @@ const riskHeaderStats = computed(() => [
         <div v-if="realTradeKillSwitchState.blockedOperations.length" class="mt-4 rounded-3xl border border-amber-200 bg-amber-50 px-4 py-4">
           <div class="text-xs uppercase tracking-[0.2em] text-amber-700">Blocked Operations</div>
           <div class="mt-2 flex flex-wrap gap-2">
-            <el-tag
+            <v-chip
               v-for="op in realTradeKillSwitchState.blockedOperations"
               :key="op"
-              type="warning"
-              effect="plain"
+              color="warning"
+              variant="outlined"
+              size="small"
             >
               {{ op }}
-            </el-tag>
+            </v-chip>
           </div>
         </div>
-        <el-empty v-else description="Kill switch inactive — no blocked operations." :image-size="80" class="mt-4" />
+        <v-empty-state v-else text="Kill switch inactive — no blocked operations." class="mt-4" />
 
         <div v-if="realTradeKillSwitchState.entry" class="mt-3 rounded-3xl border border-slate-200 bg-white px-4 py-4 text-sm">
           <div class="text-xs uppercase tracking-[0.2em] text-slate-500">Active Entry</div>
@@ -182,34 +190,35 @@ const riskHeaderStats = computed(() => [
           ENV {{ realTradeKillSwitchState.envConfiguredActive ? 'active' : 'inactive' }} /
           Control-Plane {{ realTradeKillSwitchState.controlPlaneActive ? 'active' : 'inactive' }}
         </div>
-      </el-card>
-      </el-tab-pane>
+        </v-card-text>
+      </v-card>
+      </v-window-item>
 
       <!-- Hard Stops Tab -->
-      <el-tab-pane label="Hard Stops" name="Hard Stops">
-        <el-card class="card-shell border-0" shadow="never">
-        <template #header>
-          <div class="flex items-center justify-between gap-3">
-            <div class="text-xl font-semibold text-slate-900">Hard Stops</div>
-            <el-tag :type="realTradeHardStops.entries.length ? 'danger' : 'success'" effect="plain">
-              {{ realTradeHardStops.entries.length ? `${realTradeHardStops.entries.length} ACTIVE` : 'NONE' }}
-            </el-tag>
-          </div>
-        </template>
+      <v-window-item value="Hard Stops">
+        <v-card flat class="card-shell border-0">
+        <div class="px-4 pt-4 flex items-center justify-between gap-3">
+          <div class="text-xl font-semibold text-slate-900">Hard Stops</div>
+          <v-chip :color="realTradeHardStops.entries.length ? 'error' : 'success'" variant="outlined" size="small">
+            {{ realTradeHardStops.entries.length ? `${realTradeHardStops.entries.length} ACTIVE` : 'NONE' }}
+          </v-chip>
+        </div>
 
+        <v-card-text>
         <div v-if="realTradeHardStops.entries.length">
           <div class="mb-3 flex flex-wrap gap-2">
-            <el-tag
+            <v-chip
               v-for="op in realTradeHardStops.blockedOperations"
               :key="op"
-              type="warning"
-              effect="plain"
+              color="warning"
+              variant="outlined"
+              size="small"
             >
               {{ op }} BLOCKED
-            </el-tag>
-            <el-tag :type="realTradeHardStops.allowsCancel ? 'success' : 'danger'" effect="plain">
+            </v-chip>
+            <v-chip :color="realTradeHardStops.allowsCancel ? 'success' : 'error'" variant="outlined" size="small">
               CANCEL {{ realTradeHardStops.allowsCancel ? 'ALLOWED' : 'BLOCKED' }}
-            </el-tag>
+            </v-chip>
           </div>
           <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             <div
@@ -219,9 +228,9 @@ const riskHeaderStats = computed(() => [
             >
               <div class="flex items-center justify-between gap-2">
                 <div class="font-medium text-slate-900">{{ entry.brokerId }}</div>
-                <el-tag :type="resolveRealTradeHardStopScopeTagType(entry)" effect="plain">
+                <v-chip :color="resolveRealTradeHardStopScopeTagType(entry)" variant="outlined" size="small">
                   {{ formatRealTradeHardStopScope(entry) }}
-                </el-tag>
+                </v-chip>
               </div>
               <div class="mt-1 text-xs text-slate-500">{{ entry.tradingEnvironment }} / {{ entry.accountId }}</div>
               <div class="mt-1 text-xs text-amber-700">{{ entry.reason }}</div>
@@ -229,24 +238,24 @@ const riskHeaderStats = computed(() => [
             </div>
           </div>
         </div>
-        <el-empty v-else description="无活跃 REAL hard stop。" :image-size="80" />
-      </el-card>
-      </el-tab-pane>
+        <v-empty-state v-else text="无活跃 REAL hard stop。" />
+        </v-card-text>
+      </v-card>
+      </v-window-item>
 
       <!-- Events Tab -->
-      <el-tab-pane label="Events" name="Events">
+      <v-window-item value="Events">
         <div class="grid gap-5 lg:grid-cols-[1fr_1fr]">
           <!-- Real Trade Approvals -->
-          <el-card class="card-shell border-0" shadow="never">
-        <template #header>
-          <div class="flex items-center justify-between gap-3">
-            <div class="text-xl font-semibold text-slate-900">Real Trade Approvals</div>
-            <el-tag :type="realTradeApprovals.realTradingEnabled ? 'danger' : 'info'" effect="plain">
-              {{ realTradeApprovals.realTradingEnabled ? 'REAL ENABLED' : 'REAL GATED' }}
-            </el-tag>
-          </div>
-        </template>
+          <v-card flat class="card-shell border-0">
+        <div class="px-4 pt-4 flex items-center justify-between gap-3">
+          <div class="text-xl font-semibold text-slate-900">Real Trade Approvals</div>
+          <v-chip :color="realTradeApprovals.realTradingEnabled ? 'error' : 'default'" variant="outlined" size="small">
+            {{ realTradeApprovals.realTradingEnabled ? 'REAL ENABLED' : 'REAL GATED' }}
+          </v-chip>
+        </div>
 
+        <v-card-text>
         <div v-if="realTradeApprovals.entries.length" class="grid gap-3">
           <div
             v-for="entry in realTradeApprovals.entries.slice(0, 5)"
@@ -255,9 +264,9 @@ const riskHeaderStats = computed(() => [
           >
             <div class="flex items-center justify-between gap-2">
               <div class="font-medium text-slate-900">{{ entry.operation }} / {{ entry.brokerId }}</div>
-              <el-tag :type="resolveRealTradeApprovalDecisionTagType(entry.decision)" effect="plain">
+              <v-chip :color="resolveRealTradeApprovalDecisionTagType(entry.decision)" variant="outlined" size="small">
                 {{ entry.decision.toUpperCase() }}
-              </el-tag>
+              </v-chip>
             </div>
             <div class="mt-1 text-xs text-slate-500">
               {{ entry.tradingEnvironment ?? 'N/A' }} / {{ entry.accountId ?? 'N/A' }} / {{ entry.market ?? 'N/A' }}
@@ -269,15 +278,17 @@ const riskHeaderStats = computed(() => [
             confirmation text: {{ realTradeApprovals.requiredConfirmationText }} / window {{ realTradeApprovals.maxApprovalAgeMs }}ms
           </div>
         </div>
-        <el-empty v-else :description="`暂无审批记录。confirmation: ${realTradeApprovals.requiredConfirmationText} / window ${realTradeApprovals.maxApprovalAgeMs}ms`" :image-size="80" />
-      </el-card>
+        <v-empty-state v-else :text="`暂无审批记录。confirmation: ${realTradeApprovals.requiredConfirmationText} / window ${realTradeApprovals.maxApprovalAgeMs}ms`" />
+        </v-card-text>
+      </v-card>
 
       <!-- Kill Switch + Risk + Hard Stop Event Log -->
-      <el-card class="card-shell border-0" shadow="never">
-        <template #header>
+      <v-card flat class="card-shell border-0">
+        <div class="px-4 pt-4">
           <div class="text-xl font-semibold text-slate-900">Risk Event Log</div>
-        </template>
+        </div>
 
+        <v-card-text>
         <div class="grid gap-4">
           <!-- Kill Switch Events -->
           <div>
@@ -290,9 +301,9 @@ const riskHeaderStats = computed(() => [
               >
                 <div class="flex items-center justify-between gap-2">
                   <div class="text-sm font-medium text-slate-900">{{ entry.action }}</div>
-                  <el-tag :type="resolveRealTradeKillSwitchEventTagType(entry.eventType)" effect="plain">
+                  <v-chip :color="resolveRealTradeKillSwitchEventTagType(entry.eventType)" variant="outlined" size="small">
                     {{ entry.eventType.toUpperCase() }}
-                  </el-tag>
+                  </v-chip>
                 </div>
                 <div class="mt-1 text-xs text-slate-500">
                   {{ entry.brokerId }} / {{ entry.tradingEnvironment ?? 'N/A' }}
@@ -315,9 +326,9 @@ const riskHeaderStats = computed(() => [
               >
                 <div class="flex items-center justify-between gap-2">
                   <div class="text-sm font-medium text-slate-900">{{ entry.action }}</div>
-                  <el-tag :type="resolveRealTradeRiskEventTagType(entry.eventType)" effect="plain">
+                  <v-chip :color="resolveRealTradeRiskEventTagType(entry.eventType)" variant="outlined" size="small">
                     {{ entry.eventType.toUpperCase() }}
-                  </el-tag>
+                  </v-chip>
                 </div>
                 <div class="mt-1 text-xs text-slate-500">
                   {{ entry.brokerId }} / {{ entry.tradingEnvironment ?? 'N/A' }}
@@ -341,9 +352,9 @@ const riskHeaderStats = computed(() => [
               >
                 <div class="flex items-center justify-between gap-2">
                   <div class="text-sm font-medium text-slate-900">{{ entry.action }}</div>
-                  <el-tag :type="resolveRealTradeHardStopScopeTagType(entry)" effect="plain">
+                  <v-chip :color="resolveRealTradeHardStopScopeTagType(entry)" variant="outlined" size="small">
                     {{ entry.eventType.toUpperCase() }}
-                  </el-tag>
+                  </v-chip>
                 </div>
                 <div class="mt-1 text-xs text-slate-500">
                   {{ entry.brokerId }} / {{ entry.tradingEnvironment ?? 'N/A' }}
@@ -357,9 +368,10 @@ const riskHeaderStats = computed(() => [
             <div v-else class="text-sm text-slate-500">暂无 hard stop 事件。</div>
           </div>
         </div>
-      </el-card>
+        </v-card-text>
+      </v-card>
         </div>
-      </el-tab-pane>
-    </el-tabs>
+      </v-window-item>
+    </v-window>
   </div>
 </template>

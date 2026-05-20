@@ -16,13 +16,13 @@ defineProps<{
 function resolveValueClass(tone: string | undefined): string {
   switch (tone) {
     case "good":
-      return "text-emerald-400";
+      return "text-[var(--tv-up)]";
     case "warn":
-      return "text-amber-300";
+      return "text-[var(--tv-warn)]";
     case "danger":
-      return "text-rose-300";
+      return "text-[var(--tv-down)]";
     default:
-      return "text-slate-100";
+      return "text-[var(--tv-text)]";
   }
 }
 </script>
@@ -33,15 +33,15 @@ function resolveValueClass(tone: string | undefined): string {
       <div class="space-y-3">
         <div
           v-if="eyebrow"
-          class="text-[11px] font-semibold uppercase tracking-[0.34em] text-cyan-300"
+          class="text-[11px] font-semibold uppercase tracking-[0.34em] text-[var(--tv-accent)]"
         >
           {{ eyebrow }}
         </div>
         <div class="space-y-2">
-          <h1 class="text-3xl font-semibold tracking-tight text-white md:text-[2.15rem]">
+          <h1 class="text-3xl font-semibold tracking-tight text-[var(--tv-text)] md:text-[2.15rem]">
             {{ title }}
           </h1>
-          <p class="max-w-4xl text-sm leading-7 text-slate-300 md:text-[15px]">
+          <p class="max-w-4xl text-sm leading-7 text-[var(--tv-text-muted)] md:text-[15px]">
             {{ description }}
           </p>
         </div>
@@ -56,13 +56,13 @@ function resolveValueClass(tone: string | undefined): string {
           :key="stat.label"
           class="page-header-stat"
         >
-          <div class="text-[11px] uppercase tracking-[0.28em] text-slate-400">
+          <div class="text-[11px] uppercase tracking-[0.28em] text-[var(--tv-text-dim)]">
             {{ stat.label }}
           </div>
           <div class="mt-2 text-xl font-semibold" :class="resolveValueClass(stat.tone)">
             {{ stat.value }}
           </div>
-          <div v-if="stat.hint" class="mt-2 text-xs leading-5 text-slate-400">
+          <div v-if="stat.hint" class="mt-2 text-xs leading-5 text-[var(--tv-text-dim)]">
             {{ stat.hint }}
           </div>
         </div>

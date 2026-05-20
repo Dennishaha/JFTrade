@@ -455,9 +455,9 @@ watch(palette, (next) => {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  border: 1px solid rgba(148, 163, 184, 0.3);
-  background: rgba(15, 23, 42, 0.82);
-  color: #e2e8f0;
+  border: 1px solid var(--tv-border);
+  background: var(--tv-bg-surface-2);
+  color: var(--tv-text);
   border-radius: 999px;
   padding: 8px 12px;
   font-size: 12px;
@@ -471,8 +471,8 @@ watch(palette, (next) => {
 
 .kline-chart-trigger:hover,
 .kline-chart-trigger.is-open {
-  border-color: rgba(94, 234, 212, 0.55);
-  background: rgba(15, 23, 42, 0.94);
+  border-color: var(--tv-accent-strong);
+  background: var(--tv-bg-elevated);
   transform: translateY(-1px);
 }
 
@@ -483,8 +483,8 @@ watch(palette, (next) => {
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  background: rgba(148, 163, 184, 0.18);
-  color: #f8fafc;
+  background: color-mix(in srgb, var(--tv-text) 16%, transparent);
+  color: var(--tv-text);
   font-size: 11px;
   font-weight: 600;
 }
@@ -495,10 +495,10 @@ watch(palette, (next) => {
   width: min(420px, calc(100vw - 24px));
   max-height: min(72vh, 520px);
   overflow: auto;
-  border: 1px solid rgba(148, 163, 184, 0.24);
+  border: 1px solid var(--tv-border-strong);
   border-radius: 18px;
   padding: 14px;
-  background: rgba(15, 23, 42, 0.96);
+  background: var(--tv-bg-surface);
   box-shadow: 0 24px 64px rgba(2, 6, 23, 0.42);
   backdrop-filter: blur(18px);
 }
@@ -512,21 +512,21 @@ watch(palette, (next) => {
 }
 
 .kline-chart-panel-title {
-  color: #f8fafc;
+  color: var(--tv-text);
   font-size: 14px;
   font-weight: 600;
 }
 
 .kline-chart-panel-subtitle {
   margin-top: 4px;
-  color: rgba(226, 232, 240, 0.72);
+  color: var(--tv-text-muted);
   font-size: 11px;
 }
 
 .kline-chart-panel-close {
-  border: 1px solid rgba(148, 163, 184, 0.22);
-  background: rgba(148, 163, 184, 0.08);
-  color: #e2e8f0;
+  border: 1px solid var(--tv-border);
+  background: color-mix(in srgb, var(--tv-text) 8%, transparent);
+  color: var(--tv-text);
   border-radius: 999px;
   padding: 6px 10px;
   font-size: 11px;
@@ -539,7 +539,7 @@ watch(palette, (next) => {
 
 .kline-chart-panel-group-title {
   margin-bottom: 8px;
-  color: #cbd5e1;
+  color: var(--tv-text-muted);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.04em;
@@ -556,11 +556,11 @@ watch(palette, (next) => {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  border: 1px solid rgba(148, 163, 184, 0.16);
+  border: 1px solid var(--tv-border);
   border-radius: 999px;
   padding: 8px 10px;
-  color: #e2e8f0;
-  background: rgba(30, 41, 59, 0.76);
+  color: var(--tv-text-muted);
+  background: var(--tv-bg-elevated);
   font-size: 11px;
   line-height: 1;
   cursor: pointer;
@@ -572,9 +572,9 @@ watch(palette, (next) => {
 }
 
 .kline-chart-option:has(input:checked) {
-  border-color: rgba(13, 148, 136, 0.7);
-  background: rgba(13, 148, 136, 0.18);
-  color: #f8fafc;
+  border-color: var(--card-teal-border);
+  background: var(--card-teal-surface);
+  color: var(--tv-text);
 }
 
 .kline-chart-overlay {

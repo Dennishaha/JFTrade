@@ -1,18 +1,5 @@
 <script setup lang="ts">
-import {
-  Connection,
-  Cpu,
-  DataAnalysis,
-  Document,
-  List,
-  MagicStick,
-  Monitor,
-  Setting,
-  TrendCharts,
-  Wallet,
-  Warning,
-} from "@element-plus/icons-vue";
-import { type Component, computed } from "vue";
+import { computed } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 import { useDocsLink } from "../composables/useDocsLink";
@@ -21,14 +8,14 @@ interface InternalNavItem {
   type: "route";
   to: string;
   label: string;
-  icon: Component;
+  icon: string;
 }
 
 interface ExternalNavItem {
   type: "external";
   href: string;
   label: string;
-  icon: Component;
+  icon: string;
 }
 
 type NavItem = InternalNavItem | ExternalNavItem;
@@ -36,17 +23,17 @@ type NavItem = InternalNavItem | ExternalNavItem;
 const { docsHomeUrl } = useDocsLink();
 
 const items: NavItem[] = [
-  { type: "route", to: "/workspace", label: "Trade", icon: Monitor },
-  { type: "route", to: "/overview", label: "Overview", icon: DataAnalysis },
-  { type: "route", to: "/market", label: "Market", icon: TrendCharts },
-  { type: "route", to: "/strategy", label: "Strategy", icon: MagicStick },
-  { type: "route", to: "/execution", label: "Execution", icon: List },
-  { type: "route", to: "/portfolio", label: "Portfolio", icon: Wallet },
-  { type: "route", to: "/broker", label: "Broker", icon: Connection },
-  { type: "route", to: "/risk", label: "Risk", icon: Warning },
-  { type: "route", to: "/system", label: "System", icon: Cpu },
-  { type: "route", to: "/settings", label: "Settings", icon: Setting },
-  { type: "external", href: docsHomeUrl, label: "Docs", icon: Document },
+  { type: "route", to: "/workspace", label: "Trade", icon: "fa-solid fa-display" },
+  { type: "route", to: "/overview", label: "Overview", icon: "fa-solid fa-chart-column" },
+  { type: "route", to: "/market", label: "Market", icon: "fa-solid fa-chart-line" },
+  { type: "route", to: "/strategy", label: "Strategy", icon: "fa-solid fa-wand-magic-sparkles" },
+  { type: "route", to: "/execution", label: "Execution", icon: "fa-solid fa-list" },
+  { type: "route", to: "/portfolio", label: "Portfolio", icon: "fa-solid fa-wallet" },
+  { type: "route", to: "/broker", label: "Broker", icon: "fa-solid fa-plug" },
+  { type: "route", to: "/risk", label: "Risk", icon: "fa-solid fa-triangle-exclamation" },
+  { type: "route", to: "/system", label: "System", icon: "fa-solid fa-microchip" },
+  { type: "route", to: "/settings", label: "Settings", icon: "fa-solid fa-gear" },
+  { type: "external", href: docsHomeUrl, label: "Docs", icon: "fa-solid fa-file-lines" },
 ];
 
 const route = useRoute();
@@ -70,9 +57,7 @@ function go(to: string): void {
         class="tv-iconrail-btn"
         :title="item.label"
       >
-        <el-icon :size="18">
-          <component :is="item.icon" />
-        </el-icon>
+        <v-icon class="tv-iconrail-glyph" :size="20">{{ item.icon }}</v-icon>
         <span>{{ item.label }}</span>
       </a>
       <button
@@ -83,9 +68,7 @@ function go(to: string): void {
         :title="item.label"
         @click="go(item.to)"
       >
-        <el-icon :size="18">
-          <component :is="item.icon" />
-        </el-icon>
+        <v-icon class="tv-iconrail-glyph" :size="18">{{ item.icon }}</v-icon>
         <span>{{ item.label }}</span>
       </button>
     </template>

@@ -72,6 +72,7 @@ async function fetchEnvelope<T>(path: string): Promise<T> {
 const { systemStatus } = useConsoleData();
 const strategies = ref<StrategyInstanceItem[]>([]);
 const selectedStrategyId = ref("");
+const strategyActiveTab = ref("params");
 const strategyLogs = ref<string[]>([]);
 const strategyAuditEntries = ref<StrategyAuditEntry[]>([]);
 const isLoadingStrategies = ref(false);
@@ -196,7 +197,7 @@ onMounted(() => {
       <div class="rounded-lg border border-slate-200 bg-white p-4">
         <div class="flex items-center justify-between gap-3">
           <div class="text-xl font-semibold text-slate-900">Strategy Runtime</div>
-          <el-tag effect="plain">{{ activeStrategyCount }} 活跃</el-tag>
+          <v-chip variant="outlined" size="small">{{ activeStrategyCount }} 活跃</v-chip>
         </div>
 
         <div class="mt-4 grid gap-4 md:grid-cols-2">
@@ -269,7 +270,7 @@ onMounted(() => {
           {{ listError }}
         </div>
 
-        <el-empty v-else-if="strategies.length === 0" description="暂无策略实例。" :image-size="120" />
+        <v-empty-state v-else-if="strategies.length === 0" text="暂无策略实例。" />
 
         <div v-else class="grid gap-3">
           <button
@@ -295,31 +296,35 @@ onMounted(() => {
 
       <!-- Right: Detail view in tabs (col-span-8 lg:col-span-9) -->
       <div class="col-span-12 lg:col-span-9 rounded-lg border border-slate-200 bg-white p-4">
-        <el-tabs>
+        <v-tabs v-model="strategyActiveTab" bg-color="transparent">
+          <v-tab value="params">参数 / Parameters</v-tab>
+          <v-tab value="logs">运行日志 / Run Log</v-tab>
+          <v-tab value="audit">Strategy Audit / 关联订单</v-tab>
+        </v-tabs>
+
+        <v-window v-model="strategyActiveTab" class="mt-2">
           <!-- Tab 1: Parameters -->
-          <el-tab-pane label="参数 / Parameters">
+          <v-window-item value="params">
             <div v-if="detailsError" class="rounded-3xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
               {{ detailsError }}
             </div>
 
-            <el-empty v-else-if="selectedStrategy === null" description="请选择策略查看参数。" :image-size="120" />
+            <v-empty-state v-else-if="selectedStrategy === null" text="请选择策略查看参数。" />
 
             <div v-else class="rounded-3xl bg-slate-50 px-4 py-4">
               <pre class="overflow-x-auto whitespace-pre-wrap text-xs leading-6 text-slate-700">{{ selectedStrategyParamsJson }}</pre>
             </div>
-          </el-tab-pane>
+          </v-window-item>
 
           <!-- Tab 2: Run Log -->
-          <el-tab-pane label="运行日志 / Run Log">
+          <v-window-item value="logs">
             <div v-if="detailsError" class="rounded-3xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
               {{ detailsError }}
             </div>
 
-            <el-empty v-else-if="selectedStrategy === null" description="请选择策略查看日志。" :image-size="120" />
+            <v-empty-state v-else-if="selectedStrategy === null" text="请选择策略查看日志。" />
 
-            <el-skeleton v-else-if="isLoadingDetails" :loading="true" animated :rows="3">
-              <div></div>
-            </el-skeleton>
+            <v-skeleton-loader v-else-if="isLoadingDetails" type="list-item-three-line" />
 
             <ul v-else-if="strategyLogs.length > 0" class="grid gap-3 text-sm text-slate-700">
               <li v-for="entry in strategyLogs" :key="entry" class="rounded-3xl bg-slate-50 px-4 py-3 font-mono leading-6">
@@ -327,12 +332,12 @@ onMounted(() => {
               </li>
             </ul>
 
-            <el-empty v-else description="暂无数据" />
-          </el-tab-pane>
+            <v-empty-state v-else text="暂无数据" />
+          </v-window-item>
 
           <!-- Tab 3: Linked Orders / Audit -->
-          <el-tab-pane label="Strategy Audit / 关联订单">
-            <el-empty v-if="selectedStrategy === null" description="请选择策略查看审计。" :image-size="120" />
+          <v-window-item value="audit">
+            <v-empty-state v-if="selectedStrategy === null" text="请选择策略查看审计。" />
 
             <ul v-else-if="strategyAuditEntries.length > 0" class="grid gap-3 text-sm text-slate-700">
               <li
@@ -348,9 +353,9 @@ onMounted(() => {
               </li>
             </ul>
 
-            <el-empty v-else description="暂无数据" />
-          </el-tab-pane>
-        </el-tabs>
+            <v-empty-state v-else text="暂无数据" />
+          </v-window-item>
+        </v-window>
       </div>
     </div>
   </div>

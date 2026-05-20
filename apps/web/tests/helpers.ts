@@ -74,12 +74,30 @@ export const switchStub = {
     '<label><input type=\'checkbox\' :checked="!!modelValue" @change="$emit(\'update:modelValue\', $event.target.checked)" /><span v-if="activeText">{{ activeText }}</span></label>',
 };
 
-export const selectStub = {
-  props: ["modelValue"],
+export const selectStub = defineComponent({
+  props: ["modelValue", "items", "itemTitle", "itemValue"],
   emits: ["update:modelValue"],
-  template:
-    '<select :value="modelValue" @change="$emit(\'update:modelValue\', $event.target.value)"><slot /></select>',
-};
+  setup(props, { slots, emit }) {
+    return () => {
+      const items = (props.items as Array<string | Record<string, unknown>>) ?? [];
+      const titleKey = (props.itemTitle as string) ?? "title";
+      const valueKey = (props.itemValue as string) ?? "value";
+      const options = items.map((item, idx) => {
+        const val = typeof item === "string" ? item : (item[valueKey] as string) ?? String(idx);
+        const label = typeof item === "string" ? item : ((item[titleKey] as string) ?? val);
+        return h("option", { key: val, value: val }, label);
+      });
+      return h(
+        "select",
+        {
+          value: props.modelValue ?? "",
+          onChange: (event: Event) => emit("update:modelValue", (event.target as HTMLSelectElement).value),
+        },
+        options.length > 0 ? options : slots.default?.(),
+      );
+    };
+  },
+});
 
 export const optionStub = {
   props: ["value", "label"],
@@ -140,30 +158,38 @@ export const drawerStub = {
 };
 
 export const emptyStub = {
-  props: ["description"],
-  template: "<div><slot>{{ description }}</slot></div>",
+  props: ["text", "description"],
+  template: "<div><slot>{{ text ?? description }}</slot></div>",
 };
 
 export const skeletonStub = defineComponent({
-  props: ["loading", "rows", "animated"],
+  props: ["type", "loading"],
   setup(_, { slots }) {
-    return () => h("div", { class: "el-skeleton-stub" }, slots.default?.());
+    return () => h("div", { class: "v-skeleton-loader-stub" }, slots.default?.());
   },
 });
 
-export const tabPaneStub = {
-  props: ["label"],
-  template:
-    "<div><div class='el-tab-pane-label'>{{ label }}</div><slot /></div>",
+export const tabStub = {
+  props: ["value"],
+  template: "<div class='v-tab-stub'><slot /></div>",
 };
 
 export const tabsStub = defineComponent({
-  template: "<div class='el-tabs-stub'><slot /></div>",
+  template: "<div class='v-tabs-stub'><slot /></div>",
+});
+
+export const windowStub = defineComponent({
+  template: "<div class='v-window-stub'><slot /></div>",
+});
+
+export const windowItemStub = defineComponent({
+  props: ["value"],
+  template: "<div class='v-window-item-stub'><slot /></div>",
 });
 
 export const iconStub = defineComponent({
-  setup(_, { slots }) {
-    return () => h("span", { class: "el-icon-stub" }, slots.default?.());
+  setup() {
+    return () => h("span", { class: "v-icon-stub", "aria-hidden": "true" });
   },
 });
 
@@ -339,36 +365,34 @@ export async function mountApp(path = "/system") {
     global: {
       plugins: [createPinia(), router],
       stubs: {
-        "el-card": passthroughStub,
-        "el-tag": passthroughStub,
-        "el-button": buttonStub,
-        "el-alert": passthroughStub,
-        "el-progress": passthroughStub,
-        "el-timeline": passthroughStub,
-        "el-timeline-item": passthroughStub,
-        "el-menu": passthroughStub,
-        "el-menu-item": passthroughStub,
-        "el-collapse": collapseStub,
-        "el-collapse-item": collapseItemStub,
-        "el-autocomplete": autocompleteStub,
-        "el-input": inputStub,
-        "el-input-number": inputNumberStub,
-        "el-switch": switchStub,
-        "el-select": selectStub,
-        "el-option": optionStub,
-        "el-form": passthroughStub,
-        "el-form-item": passthroughStub,
-        "el-table": tableStub,
-        "el-table-column": tableColumnStub,
-        "el-drawer": drawerStub,
-        "el-empty": emptyStub,
-        "el-skeleton": skeletonStub,
-        "el-page-header": passthroughStub,
-        "el-breadcrumb": passthroughStub,
-        "el-breadcrumb-item": passthroughStub,
-        "el-tabs": tabsStub,
-        "el-tab-pane": tabPaneStub,
-        "el-icon": iconStub,
+        "v-card": passthroughStub,
+        "v-card-item": passthroughStub,
+        "v-card-title": passthroughStub,
+        "v-card-text": passthroughStub,
+        "v-card-actions": passthroughStub,
+        "v-chip": passthroughStub,
+        "v-btn": buttonStub,
+        "v-alert": passthroughStub,
+        "v-progress-linear": passthroughStub,
+        "v-progress-circular": passthroughStub,
+        "v-expansion-panels": collapseStub,
+        "v-expansion-panel": collapseItemStub,
+        "v-autocomplete": autocompleteStub,
+        "v-text-field": inputStub,
+        "v-switch": switchStub,
+        "v-select": selectStub,
+        "v-form": passthroughStub,
+        "v-data-table": tableStub,
+        "v-navigation-drawer": drawerStub,
+        "v-empty-state": emptyStub,
+        "v-skeleton-loader": skeletonStub,
+        "v-breadcrumbs": passthroughStub,
+        "v-breadcrumbs-item": passthroughStub,
+        "v-tabs": tabsStub,
+        "v-tab": tabStub,
+        "v-window": windowStub,
+        "v-window-item": windowItemStub,
+        "v-icon": iconStub,
       },
     },
   });

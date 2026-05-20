@@ -180,6 +180,7 @@ afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+  document.body.innerHTML = "";
   chartMocks.barsInLogicalRange.mockClear();
   chartMocks.candlestickSetData.mockClear();
   chartMocks.volumeSetData.mockClear();
@@ -483,13 +484,17 @@ describe("KlineChart", () => {
         '<KlineChart :candles="candles" :min-height="320" :show-indicator-selector="true" />',
     });
 
-    const wrapper = mount(Host);
+    const wrapper = mount(Host, { attachTo: document.body });
     await nextTick();
     await nextTick();
 
     // Open the selector and enable MACD / KDJ from the popup.
     await wrapper.get("button.kline-chart-trigger").trigger("click");
-    await wrapper.get("input[value='macd']").trigger("change");
+    const macdInput = document.body.querySelector(
+      "input[value='macd']",
+    ) as HTMLInputElement | null;
+    expect(macdInput).not.toBeNull();
+    macdInput?.dispatchEvent(new Event("change", { bubbles: true }));
     await nextTick();
 
     // MACD pane series should have received data.
@@ -497,7 +502,11 @@ describe("KlineChart", () => {
     expect(chartMocks.macdDiffSetData).toHaveBeenCalled();
     expect(chartMocks.macdDeaSetData).toHaveBeenCalled();
 
-    await wrapper.get("input[value='kdj']").trigger("change");
+    const kdjInput = document.body.querySelector(
+      "input[value='kdj']",
+    ) as HTMLInputElement | null;
+    expect(kdjInput).not.toBeNull();
+    kdjInput?.dispatchEvent(new Event("change", { bubbles: true }));
     await nextTick();
 
     // KDJ pane series should have received data.
@@ -586,25 +595,29 @@ describe("KlineChart", () => {
         '<KlineChart :candles="candles" :min-height="320" show-indicator-selector />',
     });
 
-    const wrapper = mount(Host);
+    const wrapper = mount(Host, { attachTo: document.body });
     await nextTick();
     await nextTick();
 
     const shell = wrapper.get(".kline-chart-shell").element as HTMLElement;
-    expect(shell.style.width).toBe("100%");
-    expect(shell.style.height).toBe("100%");
-    expect(shell.style.minHeight).toBe("440px");
+    expect(shell.getAttribute("style") ?? "").toContain("--kline-min-h: 440px");
 
     await wrapper.get("button.kline-chart-trigger").trigger("click");
-    await wrapper.get("input[value='ma5']").trigger("change");
-    await wrapper.get("input[value='ema5']").trigger("change");
+    const ma5Input = document.body.querySelector(
+      "input[value='ma5']",
+    ) as HTMLInputElement | null;
+    expect(ma5Input).not.toBeNull();
+    ma5Input?.dispatchEvent(new Event("change", { bubbles: true }));
+    const ema5Input = document.body.querySelector(
+      "input[value='ema5']",
+    ) as HTMLInputElement | null;
+    expect(ema5Input).not.toBeNull();
+    ema5Input?.dispatchEvent(new Event("change", { bubbles: true }));
     await nextTick();
 
     expect(chartMocks.overlayLineSetDataByTitle.MA5).toHaveBeenCalled();
     expect(chartMocks.overlayLineSetDataByTitle.EMA5).toHaveBeenCalled();
-    expect(shell.style.width).toBe("100%");
-    expect(shell.style.height).toBe("100%");
-    expect(shell.style.minHeight).toBe("440px");
+    expect(shell.getAttribute("style") ?? "").toContain("--kline-min-h: 440px");
   });
 
   it("recenters the chart on the latest bars when the candle period changes", async () => {

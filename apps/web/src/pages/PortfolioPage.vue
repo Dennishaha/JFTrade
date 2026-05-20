@@ -110,23 +110,28 @@ const kpiMetrics = computed(() => {
         v-if="portfolioCashBalances.balances.length"
         class="overflow-x-auto rounded-lg border border-slate-200 bg-white"
       >
-        <el-table :data="portfolioCashBalances.balances.slice(0, 5)" stripe>
-          <el-table-column prop="currency" label="Currency" width="100" />
-          <el-table-column prop="tradingEnvironment" label="Environment" width="150" />
-          <el-table-column prop="accountId" label="Account ID" />
-          <el-table-column prop="cashBalance" label="Cash Balance" align="right">
-            <template #default="{ row }">
-              {{ row.cashBalance }}
-            </template>
-          </el-table-column>
-          <el-table-column prop="updatedAt" label="Updated At" width="200">
-            <template #default="{ row }">
-              {{ row.updatedAt }}
-            </template>
-          </el-table-column>
-        </el-table>
+        <table class="w-full text-sm">
+          <thead class="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+            <tr>
+              <th class="px-4 py-3 text-left">Currency</th>
+              <th class="px-4 py-3 text-left">Environment</th>
+              <th class="px-4 py-3 text-left">Account ID</th>
+              <th class="px-4 py-3 text-right">Cash Balance</th>
+              <th class="px-4 py-3 text-left">Updated At</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="row in portfolioCashBalances.balances.slice(0, 5)" :key="row.accountId" class="border-b border-slate-100 last:border-0">
+              <td class="px-4 py-3">{{ row.currency }}</td>
+              <td class="px-4 py-3">{{ row.tradingEnvironment }}</td>
+              <td class="px-4 py-3">{{ row.accountId }}</td>
+              <td class="px-4 py-3 text-right">{{ row.cashBalance }}</td>
+              <td class="px-4 py-3">{{ row.updatedAt }}</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
-      <el-empty v-else description="No cash balances available" :image-size="80" />
+      <v-empty-state v-else text="No cash balances available" />
     </section>
 
     <!-- Positions / Holdings Section -->
@@ -140,30 +145,34 @@ const kpiMetrics = computed(() => {
         v-if="portfolioPositions.positions.length"
         class="overflow-x-auto rounded-lg border border-slate-200 bg-white"
       >
-        <el-table :data="portfolioPositions.positions.slice(0, 6)" stripe>
-          <el-table-column prop="symbol" label="Symbol" width="120" sortable />
-          <el-table-column prop="market" label="Market" width="80" />
-          <el-table-column prop="tradingEnvironment" label="Environment" width="120" />
-          <el-table-column prop="accountId" label="Account" />
-          <el-table-column prop="quantity" label="Quantity" align="right" sortable>
-            <template #default="{ row }">
-              {{ row.quantity }}
-            </template>
-          </el-table-column>
-          <el-table-column prop="averagePrice" label="Average Price" align="right" sortable>
-            <template #default="{ row }">
-              {{ row.averagePrice }}
-            </template>
-          </el-table-column>
-          <el-table-column prop="marketValue" label="Market Value" align="right" sortable>
-            <template #default="{ row }">
-              {{ row.marketValue }}
-            </template>
-          </el-table-column>
-          <el-table-column prop="brokerId" label="Broker" width="100" />
-        </el-table>
+        <table class="w-full text-sm">
+          <thead class="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+            <tr>
+              <th class="px-4 py-3 text-left">Symbol</th>
+              <th class="px-4 py-3 text-left">Market</th>
+              <th class="px-4 py-3 text-left">Environment</th>
+              <th class="px-4 py-3 text-left">Account</th>
+              <th class="px-4 py-3 text-right">Quantity</th>
+              <th class="px-4 py-3 text-right">Average Price</th>
+              <th class="px-4 py-3 text-right">Market Value</th>
+              <th class="px-4 py-3 text-left">Broker</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="row in portfolioPositions.positions.slice(0, 6)" :key="`${row.accountId}-${row.symbol}`" class="border-b border-slate-100 last:border-0">
+              <td class="px-4 py-3">{{ row.symbol }}</td>
+              <td class="px-4 py-3">{{ row.market }}</td>
+              <td class="px-4 py-3">{{ row.tradingEnvironment }}</td>
+              <td class="px-4 py-3">{{ row.accountId }}</td>
+              <td class="px-4 py-3 text-right">{{ row.quantity }}</td>
+              <td class="px-4 py-3 text-right">{{ row.averagePrice }}</td>
+              <td class="px-4 py-3 text-right">{{ row.marketValue }}</td>
+              <td class="px-4 py-3">{{ row.brokerId }}</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
-      <el-empty v-else description="No positions available" :image-size="80" />
+      <v-empty-state v-else text="No positions available" />
     </section>
 
     <!-- Portfolio Reconciliation & Secondary Details -->
@@ -178,156 +187,162 @@ const kpiMetrics = computed(() => {
         v-if="portfolioReconciliation.positions.length"
         class="overflow-x-auto rounded-lg border border-slate-200 bg-white"
       >
-        <el-table :data="portfolioReconciliation.positions.slice(0, 6)" stripe>
-          <el-table-column prop="symbol" label="Symbol" width="120" sortable />
-          <el-table-column prop="symbolName" label="Security Name" />
-          <el-table-column prop="market" label="Market" width="80" />
-          <el-table-column prop="accountId" label="Account" />
-          <el-table-column prop="status" label="Status" width="100">
-            <template #default="{ row }">
-              <el-tag :type="resolvePortfolioReconciliationTagType(row.status)" effect="plain">
-                {{ resolvePortfolioReconciliationStatusLabel(row.status) }}
-              </el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column prop="projectedQuantity" label="Projected Qty" align="right" sortable>
-            <template #default="{ row }">
-              {{ row.projectedQuantity ?? "—" }}
-            </template>
-          </el-table-column>
-          <el-table-column prop="brokerQuantity" label="Broker Qty" align="right" sortable>
-            <template #default="{ row }">
-              {{ row.brokerQuantity ?? "—" }}
-            </template>
-          </el-table-column>
-          <el-table-column prop="quantityDelta" label="Qty Delta" align="right" sortable>
-            <template #default="{ row }">
-              {{ row.quantityDelta }}
-            </template>
-          </el-table-column>
-        </el-table>
+        <table class="w-full text-sm">
+          <thead class="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+            <tr>
+              <th class="px-4 py-3 text-left">Symbol</th>
+              <th class="px-4 py-3 text-left">Security Name</th>
+              <th class="px-4 py-3 text-left">Market</th>
+              <th class="px-4 py-3 text-left">Account</th>
+              <th class="px-4 py-3 text-left">Status</th>
+              <th class="px-4 py-3 text-right">Projected Qty</th>
+              <th class="px-4 py-3 text-right">Broker Qty</th>
+              <th class="px-4 py-3 text-right">Qty Delta</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="row in portfolioReconciliation.positions.slice(0, 6)" :key="`${row.accountId}-${row.symbol}`" class="border-b border-slate-100 last:border-0">
+              <td class="px-4 py-3">{{ row.symbol }}</td>
+              <td class="px-4 py-3">{{ row.symbolName }}</td>
+              <td class="px-4 py-3">{{ row.market }}</td>
+              <td class="px-4 py-3">{{ row.accountId }}</td>
+              <td class="px-4 py-3">
+                <v-chip :color="resolvePortfolioReconciliationTagType(row.status) === 'danger' ? 'error' : resolvePortfolioReconciliationTagType(row.status)" variant="outlined" size="small">
+                  {{ resolvePortfolioReconciliationStatusLabel(row.status) }}
+                </v-chip>
+              </td>
+              <td class="px-4 py-3 text-right">{{ row.projectedQuantity ?? "—" }}</td>
+              <td class="px-4 py-3 text-right">{{ row.brokerQuantity ?? "—" }}</td>
+              <td class="px-4 py-3 text-right">{{ row.quantityDelta }}</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
-      <el-empty v-else description="No reconciliation data available" :image-size="80" />
+      <v-empty-state v-else text="No reconciliation data available" />
 
       <!-- Collapsible Details -->
-      <el-collapse>
-        <el-collapse-item title="Detailed Reconciliation Info" name="details">
-          <div v-if="portfolioReconciliation.positions.length" class="grid gap-4">
-            <div
-              v-for="item in portfolioReconciliation.positions.slice(0, 6)"
-              :key="`${item.accountId}-${item.market}-${item.symbol}`"
-              class="rounded-lg border border-slate-200 bg-slate-50 p-4"
-            >
-              <div class="flex items-center justify-between gap-3">
-                <div>
-                  <div class="font-semibold text-slate-900">{{ item.symbol }}</div>
-                  <div class="text-sm text-slate-500">
-                    {{ item.symbolName ?? "Unknown Security" }} / {{ item.accountId }} / {{ item.market }}
+      <v-expansion-panels variant="accordion">
+        <v-expansion-panel title="Detailed Reconciliation Info">
+          <v-expansion-panel-text>
+            <div v-if="portfolioReconciliation.positions.length" class="grid gap-4">
+              <div
+                v-for="item in portfolioReconciliation.positions.slice(0, 6)"
+                :key="`${item.accountId}-${item.market}-${item.symbol}`"
+                class="rounded-lg border border-slate-200 bg-slate-50 p-4"
+              >
+                <div class="flex items-center justify-between gap-3">
+                  <div>
+                    <div class="font-semibold text-slate-900">{{ item.symbol }}</div>
+                    <div class="text-sm text-slate-500">
+                      {{ item.symbolName ?? "Unknown Security" }} / {{ item.accountId }} / {{ item.market }}
+                    </div>
                   </div>
+                  <v-chip :color="resolvePortfolioReconciliationTagType(item.status) === 'danger' ? 'error' : resolvePortfolioReconciliationTagType(item.status)" variant="outlined" size="small">
+                    {{ resolvePortfolioReconciliationStatusLabel(item.status) }}
+                  </v-chip>
                 </div>
-                <el-tag :type="resolvePortfolioReconciliationTagType(item.status)" effect="plain">
-                  {{ resolvePortfolioReconciliationStatusLabel(item.status) }}
-                </el-tag>
-              </div>
-              <div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                <div>
-                  <div class="text-xs uppercase tracking-[0.2em] text-slate-500">Projected Qty</div>
-                  <div class="mt-2 text-sm font-semibold text-slate-900">
-                    {{ item.projectedQuantity ?? "—" }}
+                <div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  <div>
+                    <div class="text-xs uppercase tracking-[0.2em] text-slate-500">Projected Qty</div>
+                    <div class="mt-2 text-sm font-semibold text-slate-900">
+                      {{ item.projectedQuantity ?? "—" }}
+                    </div>
                   </div>
-                </div>
-                <div>
-                  <div class="text-xs uppercase tracking-[0.2em] text-slate-500">Broker Qty</div>
-                  <div class="mt-2 text-sm font-semibold text-slate-900">
-                    {{ item.brokerQuantity ?? "—" }}
+                  <div>
+                    <div class="text-xs uppercase tracking-[0.2em] text-slate-500">Broker Qty</div>
+                    <div class="mt-2 text-sm font-semibold text-slate-900">
+                      {{ item.brokerQuantity ?? "—" }}
+                    </div>
                   </div>
-                </div>
-                <div>
-                  <div class="text-xs uppercase tracking-[0.2em] text-slate-500">Qty Delta</div>
-                  <div class="mt-2 text-sm font-semibold text-slate-900">{{ item.quantityDelta }}</div>
-                </div>
-                <div>
-                  <div class="text-xs uppercase tracking-[0.2em] text-slate-500">Projected Price</div>
-                  <div class="mt-2 text-sm font-semibold text-slate-900">
-                    {{ item.projectedAveragePrice ?? "—" }}
+                  <div>
+                    <div class="text-xs uppercase tracking-[0.2em] text-slate-500">Qty Delta</div>
+                    <div class="mt-2 text-sm font-semibold text-slate-900">{{ item.quantityDelta }}</div>
                   </div>
-                </div>
-                <div>
-                  <div class="text-xs uppercase tracking-[0.2em] text-slate-500">Broker Cost Price</div>
-                  <div class="mt-2 text-sm font-semibold text-slate-900">
-                    {{ item.brokerAverageCostPrice ?? "—" }}
+                  <div>
+                    <div class="text-xs uppercase tracking-[0.2em] text-slate-500">Projected Price</div>
+                    <div class="mt-2 text-sm font-semibold text-slate-900">
+                      {{ item.projectedAveragePrice ?? "—" }}
+                    </div>
                   </div>
-                </div>
-                <div>
-                  <div class="text-xs uppercase tracking-[0.2em] text-slate-500">Price Delta</div>
-                  <div class="mt-2 text-sm font-semibold text-slate-900">{{ item.averagePriceDelta }}</div>
-                </div>
-                <div>
-                  <div class="text-xs uppercase tracking-[0.2em] text-slate-500">Projected PnL</div>
-                  <div class="mt-2 text-sm font-semibold text-slate-900">
-                    {{ item.projectedRealizedPnl ?? "—" }}
+                  <div>
+                    <div class="text-xs uppercase tracking-[0.2em] text-slate-500">Broker Cost Price</div>
+                    <div class="mt-2 text-sm font-semibold text-slate-900">
+                      {{ item.brokerAverageCostPrice ?? "—" }}
+                    </div>
                   </div>
-                </div>
-                <div>
-                  <div class="text-xs uppercase tracking-[0.2em] text-slate-500">Broker PnL</div>
-                  <div class="mt-2 text-sm font-semibold text-slate-900">
-                    {{ item.brokerRealizedPnl ?? "—" }}
+                  <div>
+                    <div class="text-xs uppercase tracking-[0.2em] text-slate-500">Price Delta</div>
+                    <div class="mt-2 text-sm font-semibold text-slate-900">{{ item.averagePriceDelta }}</div>
                   </div>
-                </div>
-                <div>
-                  <div class="text-xs uppercase tracking-[0.2em] text-slate-500">PnL Delta</div>
-                  <div class="mt-2 text-sm font-semibold text-slate-900">{{ item.realizedPnlDelta }}</div>
+                  <div>
+                    <div class="text-xs uppercase tracking-[0.2em] text-slate-500">Projected PnL</div>
+                    <div class="mt-2 text-sm font-semibold text-slate-900">
+                      {{ item.projectedRealizedPnl ?? "—" }}
+                    </div>
+                  </div>
+                  <div>
+                    <div class="text-xs uppercase tracking-[0.2em] text-slate-500">Broker PnL</div>
+                    <div class="mt-2 text-sm font-semibold text-slate-900">
+                      {{ item.brokerRealizedPnl ?? "—" }}
+                    </div>
+                  </div>
+                  <div>
+                    <div class="text-xs uppercase tracking-[0.2em] text-slate-500">PnL Delta</div>
+                    <div class="mt-2 text-sm font-semibold text-slate-900">{{ item.realizedPnlDelta }}</div>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        </el-collapse-item>
+          </v-expansion-panel-text>
+        </v-expansion-panel>
 
-        <el-collapse-item title="Cash Reconciliation Details" name="cash">
-          <div v-if="portfolioCashReconciliation.balances.length" class="grid gap-4">
-            <div
-              v-for="item in portfolioCashReconciliation.balances.slice(0, 5)"
-              :key="`${item.accountId}-${item.currency}`"
-              class="rounded-lg border border-slate-200 bg-slate-50 p-4"
-            >
-              <div class="flex items-center justify-between gap-3">
-                <div class="text-base font-semibold text-slate-900">{{ item.currency }}</div>
-                <el-tag :type="resolvePortfolioReconciliationTagType(item.status)" effect="plain">
-                  {{ resolvePortfolioReconciliationStatusLabel(item.status) }}
-                </el-tag>
-              </div>
-              <div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                <div>
-                  <div class="text-xs uppercase tracking-[0.2em] text-slate-500">Projected Cash</div>
-                  <div class="mt-2 text-sm font-semibold text-slate-900">
-                    {{ item.projectedCashBalance ?? "—" }}
+        <v-expansion-panel title="Cash Reconciliation Details">
+          <v-expansion-panel-text>
+            <div v-if="portfolioCashReconciliation.balances.length" class="grid gap-4">
+              <div
+                v-for="item in portfolioCashReconciliation.balances.slice(0, 5)"
+                :key="`${item.accountId}-${item.currency}`"
+                class="rounded-lg border border-slate-200 bg-slate-50 p-4"
+              >
+                <div class="flex items-center justify-between gap-3">
+                  <div class="text-base font-semibold text-slate-900">{{ item.currency }}</div>
+                  <v-chip :color="resolvePortfolioReconciliationTagType(item.status) === 'danger' ? 'error' : resolvePortfolioReconciliationTagType(item.status)" variant="outlined" size="small">
+                    {{ resolvePortfolioReconciliationStatusLabel(item.status) }}
+                  </v-chip>
+                </div>
+                <div class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  <div>
+                    <div class="text-xs uppercase tracking-[0.2em] text-slate-500">Projected Cash</div>
+                    <div class="mt-2 text-sm font-semibold text-slate-900">
+                      {{ item.projectedCashBalance ?? "—" }}
+                    </div>
                   </div>
-                </div>
-                <div>
-                  <div class="text-xs uppercase tracking-[0.2em] text-slate-500">Broker Cash</div>
-                  <div class="mt-2 text-sm font-semibold text-slate-900">{{ item.brokerCash ?? "—" }}</div>
-                </div>
-                <div>
-                  <div class="text-xs uppercase tracking-[0.2em] text-slate-500">Cash Delta</div>
-                  <div class="mt-2 text-sm font-semibold text-slate-900">{{ item.cashDelta }}</div>
-                </div>
-                <div>
-                  <div class="text-xs uppercase tracking-[0.2em] text-slate-500">Available Withdrawal</div>
-                  <div class="mt-2 text-sm font-semibold text-slate-900">
-                    {{ item.brokerAvailableWithdrawalCash ?? "—" }}
+                  <div>
+                    <div class="text-xs uppercase tracking-[0.2em] text-slate-500">Broker Cash</div>
+                    <div class="mt-2 text-sm font-semibold text-slate-900">{{ item.brokerCash ?? "—" }}</div>
                   </div>
-                </div>
-                <div>
-                  <div class="text-xs uppercase tracking-[0.2em] text-slate-500">Net Cash Power</div>
-                  <div class="mt-2 text-sm font-semibold text-slate-900">
-                    {{ item.brokerNetCashPower ?? "—" }}
+                  <div>
+                    <div class="text-xs uppercase tracking-[0.2em] text-slate-500">Cash Delta</div>
+                    <div class="mt-2 text-sm font-semibold text-slate-900">{{ item.cashDelta }}</div>
+                  </div>
+                  <div>
+                    <div class="text-xs uppercase tracking-[0.2em] text-slate-500">Available Withdrawal</div>
+                    <div class="mt-2 text-sm font-semibold text-slate-900">
+                      {{ item.brokerAvailableWithdrawalCash ?? "—" }}
+                    </div>
+                  </div>
+                  <div>
+                    <div class="text-xs uppercase tracking-[0.2em] text-slate-500">Net Cash Power</div>
+                    <div class="mt-2 text-sm font-semibold text-slate-900">
+                      {{ item.brokerNetCashPower ?? "—" }}
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-        </el-collapse-item>
-      </el-collapse>
+          </v-expansion-panel-text>
+        </v-expansion-panel>
+      </v-expansion-panels>
     </section>
   </div>
 </template>

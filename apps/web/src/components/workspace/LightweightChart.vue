@@ -192,7 +192,7 @@ watch(
         </button>
       </div>
       <div style="flex: 1"></div>
-      <span v-if="chartSessionBadge" :title="chartSessionTitle" style="border: 1px solid var(--tv-border); border-radius: 999px; padding: 3px 8px; color: var(--tv-text); background: rgba(20, 184, 166, 0.12); font-size: 11px; white-space: nowrap">
+      <span v-if="chartSessionBadge" :title="chartSessionTitle" style="border: 1px solid var(--tv-border); border-radius: 999px; padding: 3px 8px; color: var(--tv-text); background: var(--card-teal-surface); font-size: 11px; white-space: nowrap">
         {{ chartSessionBadge }}
       </span>
       <span v-if="isLoadingMarketDataQuery" style="color: var(--tv-text-dim); font-size: 11px">loading…</span>

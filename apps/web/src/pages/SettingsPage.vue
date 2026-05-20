@@ -358,46 +358,33 @@ async function removeAccount(accountId: string): Promise<void> {
       :stats="settingsHeaderStats"
     />
 
-    <el-breadcrumb separator="/" class="text-sm text-slate-500">
-      <el-breadcrumb-item :to="{ path: '/settings' }">Console</el-breadcrumb-item>
-      <el-breadcrumb-item>Settings</el-breadcrumb-item>
-      <el-breadcrumb-item>{{ activeMenuMeta.label }}</el-breadcrumb-item>
-    </el-breadcrumb>
+    <v-breadcrumbs class="p-0 text-sm text-slate-500">
+      <v-breadcrumbs-item :to="{ path: '/settings' }">Console</v-breadcrumbs-item>
+      <v-breadcrumbs-item>Settings</v-breadcrumbs-item>
+      <v-breadcrumbs-item>{{ activeMenuMeta.label }}</v-breadcrumbs-item>
+    </v-breadcrumbs>
 
-    <el-page-header
-      class="settings-page-header"
-      :icon="null"
-      @back="activeMenu = settingsMenu[0].index"
-    >
-      <template #content>
-        <div>
-          <div class="text-lg font-semibold text-slate-900">
-            {{ activeMenuMeta.label }}
-          </div>
-          <div class="mt-1 text-xs text-slate-500">
-            {{ activeMenuMeta.description }}
-          </div>
-        </div>
-      </template>
-      <template #extra>
-        <el-tag effect="plain">{{ activeMenu }}</el-tag>
-      </template>
-    </el-page-header>
+    <div class="settings-page-header flex items-center justify-between gap-3">
+      <div>
+        <div class="text-lg font-semibold text-slate-900">{{ activeMenuMeta.label }}</div>
+        <div class="mt-1 text-xs text-slate-500">{{ activeMenuMeta.description }}</div>
+      </div>
+      <v-chip variant="outlined" size="small">{{ activeMenu }}</v-chip>
+    </div>
 
     <section class="grid gap-5 lg:grid-cols-[220px_1fr]">
-      <el-menu
-        :default-active="activeMenu"
-        class="rounded-lg border border-slate-200"
-        @select="handleMenuSelect"
-      >
-        <el-menu-item
+      <nav class="rounded-lg border border-slate-200 bg-white">
+        <button
           v-for="entry in settingsMenu"
           :key="entry.index"
-          :index="entry.index"
+          type="button"
+          class="w-full px-4 py-3 text-left text-sm transition hover:bg-slate-50"
+          :class="activeMenu === entry.index ? 'bg-slate-50 font-semibold text-slate-900' : 'text-slate-600'"
+          @click="handleMenuSelect(entry.index)"
         >
-          <span>{{ entry.label }}</span>
-        </el-menu-item>
-      </el-menu>
+          {{ entry.label }}
+        </button>
+      </nav>
 
       <div class="grid gap-6">
         <!-- Futu Integration Section -->
@@ -413,9 +400,9 @@ async function removeAccount(accountId: string): Promise<void> {
                 <div>
                   <div class="flex flex-wrap items-center gap-2">
                     <span class="text-sm font-semibold text-slate-900">OpenD 连接状态</span>
-                    <el-tag :type="futuConnectionTagType" effect="dark">
+                    <v-chip :color="futuConnectionTagType === 'danger' ? 'error' : futuConnectionTagType" variant="tonal" size="small">
                       {{ futuConnectionLabel }}
-                    </el-tag>
+                    </v-chip>
                   </div>
                   <p class="mt-2 text-sm leading-6 text-slate-600">
                     当前检测目标：WebSocket {{ futuConnectionTarget }}；检测时间：
@@ -423,22 +410,22 @@ async function removeAccount(accountId: string): Promise<void> {
                   </p>
                 </div>
                 <div class="flex flex-wrap gap-2">
-                  <el-button
+                  <v-btn
                     :loading="refreshingFutuConnection || isLoading"
-                    type="primary"
-                    plain
+                    variant="outlined"
+                    color="primary"
                     @click="refreshFutuConnection"
                   >
                     刷新连接状态
-                  </el-button>
-                  <el-button
+                  </v-btn>
+                  <v-btn
                     :loading="refreshingFutuConnection || isLoading"
-                    type="danger"
-                    plain
+                    variant="outlined"
+                    color="error"
                     @click="manualRetryFutuConnection"
                   >
                     手动重试 OpenD
-                  </el-button>
+                  </v-btn>
                 </div>
               </div>
 
@@ -469,11 +456,10 @@ async function removeAccount(accountId: string): Promise<void> {
                 </div>
               </div>
 
-              <el-alert
+              <v-alert
                 v-if="futuOpenDManualRetryRequired"
                 class="mt-4"
                 type="error"
-                show-icon
                 :closable="false"
                 title="OpenD 自动重试已暂停"
               >
@@ -481,7 +467,7 @@ async function removeAccount(accountId: string): Promise<void> {
                   {{ futuOpenDHealth.diagnosis.summary }}
                 </p>
                 <p class="mt-2 leading-6">
-                  建议先检查并重启 OpenD，再点击上方“手动重试 OpenD”。
+                  建议先检查并重启 OpenD，再点击上方"手动重试 OpenD"。
                 </p>
                 <p
                   v-if="futuOpenDHealth.localSocketDiagnostics.websocketEstablishedConnections > 0"
@@ -493,110 +479,108 @@ async function removeAccount(accountId: string): Promise<void> {
                   <span v-if="futuOpenDTopClientSummary">（{{ futuOpenDTopClientSummary }}）</span>
                   。
                 </p>
-              </el-alert>
+              </v-alert>
 
-              <el-alert
+              <v-alert
                 v-else-if="brokerRuntime.session.lastError"
                 class="mt-4"
                 type="error"
-                show-icon
                 :closable="false"
                 title="OpenD 连接错误"
               >
                 <p class="leading-6">
                   {{ brokerRuntime.session.lastError }}
                 </p>
-              </el-alert>
+              </v-alert>
 
-              <el-alert
+              <v-alert
                 v-if="!futuOpenDManualRetryRequired && futuOpenDRestartRecommended"
                 class="mt-4"
                 type="warning"
-                show-icon
                 :closable="false"
                 title="建议重启 OpenD 后再手动重试"
               >
                 <p class="leading-6">
                   {{ futuOpenDHealth.diagnosis.summary }}
                 </p>
-              </el-alert>
+              </v-alert>
 
-              <el-alert
+              <v-alert
                 v-else-if="brokerRuntime.session.connectivity === 'connected'"
                 class="mt-4"
                 type="success"
-                show-icon
                 :closable="false"
               >
                 <p class="leading-6">
                   <span class="font-semibold">OpenD WebSocket 已连接。</span>
                   当前参数已通过运行时检测，可以继续发现账号、查询行情或进行后续操作。
                 </p>
-              </el-alert>
+              </v-alert>
             </div>
 
-            <el-form label-position="top" class="mt-4 grid gap-4">
-              <el-form-item>
-                <el-switch v-model="integrationForm.enabled" active-text="启用富途接入配置" />
-              </el-form-item>
+            <div class="mt-4 grid gap-4">
+              <div class="grid gap-1">
+                <v-switch v-model="integrationForm.enabled" color="indigo" label="启用富途接入配置" hide-details />
+              </div>
 
               <div class="grid gap-4 md:grid-cols-2">
-                <el-form-item label="OpenD Host">
-                  <el-input v-model="integrationForm.host" />
-                </el-form-item>
-                <el-form-item label="OpenD API Port">
-                  <el-input-number
-                    v-model="integrationForm.apiPort"
+                <div class="grid gap-1">
+                  <label class="text-sm font-medium text-slate-700">OpenD Host</label>
+                  <v-text-field v-model="integrationForm.host" density="compact" variant="outlined" />
+                </div>
+                <div class="grid gap-1">
+                  <label class="text-sm font-medium text-slate-700">OpenD API Port</label>
+                  <v-text-field
+                    v-model.number="integrationForm.apiPort"
+                    type="number"
                     :min="1"
                     :max="65535"
-                    class="!w-full"
-                    controls-position="right"
+                    density="compact"
+                    variant="outlined"
                   />
-                </el-form-item>
-                <el-form-item label="OpenD WebSocket Port">
-                  <template #default>
-                    <el-input-number
-                      v-model="integrationForm.websocketPort"
-                      :min="1"
-                      :max="65535"
-                      class="!w-full"
-                      controls-position="right"
-                    />
-                    <div class="mt-1 text-xs text-amber-700">
-                      JFTrade 的 JavaScript 富途接入使用 WebSocket 端口；请先在 OpenD 中开启 WebSocket。
-                    </div>
-                  </template>
-                </el-form-item>
-                <el-form-item label="OpenD WebSocket 并发上限">
-                  <template #default>
-                    <el-input-number
-                      v-model="integrationForm.maxWebSocketConnections"
-                      :min="1"
-                      :max="128"
-                      class="!w-full"
-                      controls-position="right"
-                    />
-                    <div class="mt-1 text-xs text-slate-500">
-                      默认 20。JFTrade 会复用请求级 WebSocket 连接池，并限制同时连接 OpenD 的 client 数量，避免反复登录或并发查询耗尽 OpenD 连接。
-                    </div>
-                  </template>
-                </el-form-item>
-                <el-form-item label="默认账号市场">
-                  <template #default>
-                    <el-input v-model="integrationForm.tradeMarket" />
-                    <div class="mt-1 text-xs text-slate-500">
-                      仅用于手工创建账号时的默认值，不会限制 OpenD 可查询行情或账户授权市场。
-                    </div>
-                  </template>
-                </el-form-item>
-                <el-form-item label="默认券商标识">
-                  <template #default>
-                    <el-input v-model="integrationForm.securityFirm" />
-                    <div class="mt-1 text-xs text-slate-500">
-                      仅作为手工账号默认值；从 OpenD 导入账号时优先使用运行时探测到的 security firm。
-                    </div>
-                  </template>
-                </el-form-item>
+                </div>
+                <div class="grid gap-1">
+                  <label class="text-sm font-medium text-slate-700">OpenD WebSocket Port</label>
+                  <v-text-field
+                    v-model.number="integrationForm.websocketPort"
+                    type="number"
+                    :min="1"
+                    :max="65535"
+                    density="compact"
+                    variant="outlined"
+                  />
+                  <div class="mt-1 text-xs text-amber-700">
+                    JFTrade 的 JavaScript 富途接入使用 WebSocket 端口；请先在 OpenD 中开启 WebSocket。
+                  </div>
+                </div>
+                <div class="grid gap-1">
+                  <label class="text-sm font-medium text-slate-700">OpenD WebSocket 并发上限</label>
+                  <v-text-field
+                    v-model.number="integrationForm.maxWebSocketConnections"
+                    type="number"
+                    :min="1"
+                    :max="128"
+                    density="compact"
+                    variant="outlined"
+                  />
+                  <div class="mt-1 text-xs text-slate-500">
+                    默认 20。JFTrade 会复用请求级 WebSocket 连接池，并限制同时连接 OpenD 的 client 数量，避免反复登录或并发查询耗尽 OpenD 连接。
+                  </div>
+                </div>
+                <div class="grid gap-1">
+                  <label class="text-sm font-medium text-slate-700">默认账号市场</label>
+                  <v-text-field v-model="integrationForm.tradeMarket" density="compact" variant="outlined" />
+                  <div class="mt-1 text-xs text-slate-500">
+                    仅用于手工创建账号时的默认值，不会限制 OpenD 可查询行情或账户授权市场。
+                  </div>
+                </div>
+                <div class="grid gap-1">
+                  <label class="text-sm font-medium text-slate-700">默认券商标识</label>
+                  <v-text-field v-model="integrationForm.securityFirm" density="compact" variant="outlined" />
+                  <div class="mt-1 text-xs text-slate-500">
+                    仅作为手工账号默认值；从 OpenD 导入账号时优先使用运行时探测到的 security firm。
+                  </div>
+                </div>
               </div>
 
               <div class="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
@@ -606,40 +590,40 @@ async function removeAccount(accountId: string): Promise<void> {
                 TCP API 监听配置。
               </div>
 
-              <el-form-item label="WebSocket Password / Key">
-                <template #default>
-                  <el-input
-                    v-model="integrationForm.websocketKey"
-                    show-password
-                    type="password"
-                    placeholder="未启用密码时可留空"
-                  />
-                  <div class="mt-1 text-xs text-slate-500">
-                    如果 OpenD GUI 或命令行版 FutuOpenD.xml / <code>-cfg_file</code>
-                    参数文件配置了 <code>websocket_key_md5</code>，请在这里填写对应的明文密码；也可通过
-                    <code>JFTRADE_FUTU_WEBSOCKET_KEY</code> 配置。不要填写 32 位 MD5 密文。
-                  </div>
-                </template>
-              </el-form-item>
+              <div class="grid gap-1">
+                <label class="text-sm font-medium text-slate-700">WebSocket Password / Key</label>
+                <v-text-field
+                  v-model="integrationForm.websocketKey"
+                  type="password"
+                  placeholder="未启用密码时可留空"
+                  density="compact"
+                  variant="outlined"
+                />
+                <div class="mt-1 text-xs text-slate-500">
+                  如果 OpenD GUI 或命令行版 FutuOpenD.xml / <code>-cfg_file</code>
+                  参数文件配置了 <code>websocket_key_md5</code>，请在这里填写对应的明文密码；也可通过
+                  <code>JFTRADE_FUTU_WEBSOCKET_KEY</code> 配置。不要填写 32 位 MD5 密文。
+                </div>
+              </div>
 
-              <el-form-item>
-                <el-switch v-model="integrationForm.useEncryption" active-text="启用加密连接" />
-              </el-form-item>
+              <div class="grid gap-1">
+                <v-switch v-model="integrationForm.useEncryption" color="indigo" label="启用加密连接" hide-details />
+              </div>
 
               <div class="flex flex-wrap justify-end gap-3">
-                <el-button
+                <v-btn
                   :loading="cancellingSubscriptions"
-                  type="danger"
-                  plain
+                  variant="outlined"
+                  color="error"
                   @click="cancelAllMarketDataSubscriptions"
                 >
                   取消全部实时行情订阅
-                </el-button>
-                <el-button :loading="savingIntegration" type="primary" @click="submitIntegration">
+                </v-btn>
+                <v-btn :loading="savingIntegration" color="primary" @click="submitIntegration">
                   保存富途配置
-                </el-button>
+                </v-btn>
               </div>
-            </el-form>
+            </div>
           </div>
         </div>
 
@@ -663,25 +647,25 @@ async function removeAccount(accountId: string): Promise<void> {
                       </div>
                     </div>
                     <div class="flex items-center gap-2">
-                      <el-tag :type="account.enabled ? 'success' : 'info'" effect="plain">
+                      <v-chip :color="account.enabled ? 'success' : 'info'" variant="outlined" size="small">
                         {{ account.enabled ? "ENABLED" : "DISABLED" }}
-                      </el-tag>
-                      <el-button text type="primary" @click="populateAccountForm(account)">编辑</el-button>
-                      <el-button
-                        text
-                        type="danger"
+                      </v-chip>
+                      <v-btn variant="text" color="primary" @click="populateAccountForm(account)">编辑</v-btn>
+                      <v-btn
+                        variant="text"
+                        color="error"
                         :loading="deletingAccountId === account.id"
                         @click="removeAccount(account.id)"
                       >
                         删除
-                      </el-button>
+                      </v-btn>
                     </div>
                   </div>
                 </div>
               </template>
-              <el-empty
+              <v-empty-state
                 v-else
-                description="当前还没有保存任何 broker account，顶部 Scope 会回退到运行时探测出的账号。"
+                text="当前还没有保存任何 broker account，顶部 Scope 会回退到运行时探测出的账号。"
               />
             </div>
           </div>
@@ -692,45 +676,54 @@ async function removeAccount(accountId: string): Promise<void> {
               :description="editingAccountId ? undefined : '手工创建或导入一个新的托管账号。'"
             >
               <template #extra>
-                <el-button text type="primary" @click="resetAccountForm">重置</el-button>
+                <v-btn variant="text" color="primary" @click="resetAccountForm">重置</v-btn>
               </template>
             </SectionHeader>
 
-            <el-form label-position="top" class="mt-4 grid gap-4">
+            <div class="mt-4 grid gap-4">
               <div class="grid gap-4 md:grid-cols-2">
-                <el-form-item label="Broker ID">
-                  <el-input v-model="accountForm.brokerId" />
-                </el-form-item>
-                <el-form-item label="Account ID">
-                  <el-input v-model="accountForm.accountId" />
-                </el-form-item>
-                <el-form-item label="Display Name（可选）">
-                  <el-input v-model="accountForm.displayName" />
-                </el-form-item>
-                <el-form-item label="Trading Environment">
-                  <el-select v-model="accountForm.tradingEnvironment" class="!w-full">
-                    <el-option label="SIMULATE" value="SIMULATE" />
-                    <el-option label="REAL" value="REAL" />
-                  </el-select>
-                </el-form-item>
-                <el-form-item label="Market">
-                  <el-input v-model="accountForm.market" />
-                </el-form-item>
-                <el-form-item label="Security Firm（可选）">
-                  <el-input v-model="accountForm.securityFirm" />
-                </el-form-item>
+                <div class="grid gap-1">
+                  <label class="text-sm font-medium text-slate-700">Broker ID</label>
+                  <v-text-field v-model="accountForm.brokerId" density="compact" variant="outlined" />
+                </div>
+                <div class="grid gap-1">
+                  <label class="text-sm font-medium text-slate-700">Account ID</label>
+                  <v-text-field v-model="accountForm.accountId" density="compact" variant="outlined" />
+                </div>
+                <div class="grid gap-1">
+                  <label class="text-sm font-medium text-slate-700">Display Name（可选）</label>
+                  <v-text-field v-model="accountForm.displayName" density="compact" variant="outlined" />
+                </div>
+                <div class="grid gap-1">
+                  <label class="text-sm font-medium text-slate-700">Trading Environment</label>
+                  <v-select
+                    v-model="accountForm.tradingEnvironment"
+                    class="w-full"
+                    density="compact"
+                    variant="outlined"
+                    :items="['SIMULATE', 'REAL']"
+                  />
+                </div>
+                <div class="grid gap-1">
+                  <label class="text-sm font-medium text-slate-700">Market</label>
+                  <v-text-field v-model="accountForm.market" density="compact" variant="outlined" />
+                </div>
+                <div class="grid gap-1">
+                  <label class="text-sm font-medium text-slate-700">Security Firm（可选）</label>
+                  <v-text-field v-model="accountForm.securityFirm" density="compact" variant="outlined" />
+                </div>
               </div>
 
-              <el-form-item>
-                <el-switch v-model="accountForm.enabled" active-text="启用该账号作为前端可切换 Scope" />
-              </el-form-item>
+              <div class="grid gap-1">
+                <v-switch v-model="accountForm.enabled" color="indigo" label="启用该账号作为前端可切换 Scope" hide-details />
+              </div>
 
               <div class="flex justify-end">
-                <el-button :loading="savingAccount" type="primary" @click="submitAccount">
+                <v-btn :loading="savingAccount" color="primary" @click="submitAccount">
                   {{ editingAccountId ? "更新账号" : "新增账号" }}
-                </el-button>
+                </v-btn>
               </div>
-            </el-form>
+            </div>
           </div>
         </div>
 
@@ -753,15 +746,15 @@ async function removeAccount(accountId: string): Promise<void> {
                         {{ account.tradingEnvironment }} / {{ account.accountType }} / {{ account.marketAuthorities.join(", ") || "N/A" }}
                       </div>
                     </div>
-                    <el-button text type="primary" @click="importRuntimeAccount(account)">
+                    <v-btn variant="text" color="primary" @click="importRuntimeAccount(account)">
                       导入到账号管理
-                    </el-button>
+                    </v-btn>
                   </div>
                 </div>
               </template>
-              <el-empty
+              <v-empty-state
                 v-else
-                description="当前没有从运行时探测到账号。OpenD 未登录时，这里会为空。"
+                text="当前没有从运行时探测到账号。OpenD 未登录时，这里会为空。"
               />
             </div>
           </div>
@@ -775,7 +768,7 @@ async function removeAccount(accountId: string): Promise<void> {
               description="JFTrade 不安装 OpenD，只提供富途官方图形交互版与命令行版入口；安装完成后请回到 Futu Integration 填写连接信息。"
             >
               <template #extra>
-                <el-tag effect="plain">Official docs</el-tag>
+                <v-chip variant="outlined" size="small">Official docs</v-chip>
               </template>
             </SectionHeader>
 
@@ -804,12 +797,13 @@ async function removeAccount(accountId: string): Promise<void> {
                         {{ option.id === "gui" ? "GUI / Desktop" : "CLI / Server" }}
                       </div>
                     </div>
-                    <el-tag
-                      :type="option.recommended ? 'success' : 'info'"
-                      effect="plain"
+                    <v-chip
+                      :color="option.recommended ? 'success' : 'info'"
+                      variant="outlined"
+                      size="small"
                     >
                       {{ option.recommended ? "推荐" : "可选" }}
-                    </el-tag>
+                    </v-chip>
                   </div>
 
                   <p class="mt-3 text-sm leading-6 text-slate-600">
@@ -817,15 +811,14 @@ async function removeAccount(accountId: string): Promise<void> {
                   </p>
 
                   <div class="mt-4 flex flex-wrap justify-end gap-2">
-                    <el-button
-                      type="primary"
-                      tag="a"
+                    <a
                       :href="option.url"
                       target="_blank"
                       rel="noopener noreferrer"
+                      class="inline-flex items-center rounded-full bg-teal-600 px-4 py-2 text-sm font-medium text-white hover:bg-teal-700"
                     >
                       打开官方文档
-                    </el-button>
+                    </a>
                   </div>
                 </div>
               </div>
@@ -862,12 +855,8 @@ async function removeAccount(accountId: string): Promise<void> {
 <style scoped>
 .settings-panel {
   border-radius: 1.25rem;
-  border: 1px solid rgb(226 232 240);
-  background: #fff;
+  border: 1px solid var(--card-border);
+  background: var(--card-surface);
   padding: 1.25rem 1.5rem;
-}
-
-.settings-page-header :deep(.el-page-header__left) {
-  display: none;
 }
 </style>

@@ -4,6 +4,12 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>JFTrade Console</title>
+    <!-- Establish CSS cascade layer order BEFORE any JS-injected stylesheets.
+         Tailwind injects @layer base AFTER Vuetify's @layer components in document
+         order, which by default makes base win over components. Declaring the order
+         here (base < components) restores Vuetify component styles taking priority
+         over Tailwind preflight (e.g. fixes v-switch hidden input opacity). -->
+    <style>@layer theme, base, components, utilities;</style>
   </head>
   <body>
     <div id="app"></div>

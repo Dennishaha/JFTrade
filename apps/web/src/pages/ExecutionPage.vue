@@ -53,28 +53,27 @@ const executionHeaderStats = computed(() => [
       :stats="executionHeaderStats"
     />
 
-    <el-card class="card-shell border-0" shadow="never">
-      <template #header>
-        <div class="flex items-center justify-between gap-3">
-          <div class="text-xl font-semibold text-slate-900">Execution Orders</div>
-          <el-tag effect="plain">{{ executionOrders.orders.length }}</el-tag>
-        </div>
-      </template>
+    <v-card flat class="card-shell border-0">
+      <div class="px-4 pt-4 flex items-center justify-between gap-3">
+        <div class="text-xl font-semibold text-slate-900">Execution Orders</div>
+        <v-chip variant="outlined" size="small">{{ executionOrders.orders.length }}</v-chip>
+      </div>
 
+      <v-card-text>
       <div v-if="executionOrders.orders.length" class="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
         <div class="grid gap-3 md:grid-cols-2">
           <div
             v-for="order in executionOrders.orders.slice(0, 6)"
             :key="order.internalOrderId"
             class="rounded-3xl border px-4 py-4 transition"
-            :class="selectedExecutionOrderId === order.internalOrderId ? 'border-teal-400 bg-teal-50/60 shadow-[0_12px_32px_rgba(13,148,136,0.12)]' : 'border-slate-200 bg-white'"
+            :class="selectedExecutionOrderId === order.internalOrderId ? 'border-teal-400 bg-teal-50/60 shadow-teal-glow' : 'border-slate-200 bg-white'"
           >
             <div class="flex items-center justify-between gap-3">
               <div>
                 <div class="text-base font-semibold text-slate-900">{{ order.symbol ?? 'Unknown Symbol' }}</div>
                 <div class="mt-1 text-sm text-slate-500">{{ order.internalOrderId }}</div>
               </div>
-              <el-tag effect="plain">{{ order.status }}</el-tag>
+              <v-chip variant="outlined" size="small">{{ order.status }}</v-chip>
             </div>
             <div class="mt-4 grid gap-3 sm:grid-cols-2">
               <div class="rounded-2xl bg-slate-50 px-3 py-3">
@@ -105,23 +104,20 @@ const executionHeaderStats = computed(() => [
               <div class="text-base font-semibold text-slate-900">Execution Events</div>
               <div class="mt-1 text-sm text-slate-500">{{ selectedExecutionOrderId || '请选择 execution order' }}</div>
             </div>
-            <el-tag effect="plain">{{ executionOrderEvents.events.length }}</el-tag>
+            <v-chip variant="outlined" size="small">{{ executionOrderEvents.events.length }}</v-chip>
           </div>
 
           <div v-if="isLoadingExecutionEvents" class="mt-4 text-sm text-slate-500">正在加载 execution order events...</div>
 
-          <el-alert
+          <v-alert
             v-else-if="executionEventsError"
             class="mt-4"
             type="warning"
             :closable="false"
-            show-icon
             title="Execution Events Warning"
           >
-            <template #default>
-              {{ executionEventsError }}
-            </template>
-          </el-alert>
+            {{ executionEventsError }}
+          </v-alert>
 
           <div v-else-if="executionOrderEvents.events.length" class="mt-4 grid gap-3">
             <div
@@ -137,7 +133,7 @@ const executionHeaderStats = computed(() => [
             </div>
           </div>
 
-          <el-empty v-else description="当前 execution order 暂无事件。" :image-size="80" class="mt-4" />
+          <v-empty-state v-else text="当前 execution order 暂无事件。" class="mt-4" />
 
           <div class="mt-5 border-t border-slate-200 pt-4">
             <div class="flex items-center justify-between gap-3">
@@ -145,30 +141,26 @@ const executionHeaderStats = computed(() => [
                 <div class="text-base font-semibold text-slate-900">Broker Order Fees</div>
                 <div class="mt-1 text-sm text-slate-500">{{ selectedExecutionOrder?.brokerOrderId ?? 'Pending broker order id' }}</div>
               </div>
-              <el-tag effect="plain">{{ brokerOrderFees.fees.length }}</el-tag>
+              <v-chip variant="outlined" size="small">{{ brokerOrderFees.fees.length }}</v-chip>
             </div>
 
-            <el-empty
+            <v-empty-state
                    v-if="selectedExecutionOrder?.tradingEnvironment !== 'REAL'"
-                   description="当前仅在真实交易环境下查询券商订单费用。"
-                   :image-size="80"
+                   text="当前仅在真实交易环境下查询券商订单费用。"
                    class="mt-4"
                  />
 
             <div v-else-if="isLoadingOrderFees" class="mt-4 text-sm text-slate-500">正在加载 broker order fees...</div>
 
-            <el-alert
+            <v-alert
               v-else-if="orderFeesError"
               class="mt-4"
               type="warning"
               :closable="false"
-              show-icon
               title="Broker Order Fees Warning"
             >
-              <template #default>
-                {{ orderFeesError }}
-              </template>
-            </el-alert>
+              {{ orderFeesError }}
+            </v-alert>
 
             <div v-else-if="brokerOrderFees.fees.length" class="mt-4 grid gap-3">
               <div
@@ -192,12 +184,13 @@ const executionHeaderStats = computed(() => [
               </div>
             </div>
 
-            <el-empty v-else description="当前订单暂无可展示的券商费用数据。" :image-size="80" class="mt-4" />
+            <v-empty-state v-else text="当前订单暂无可展示的券商费用数据。" class="mt-4" />
           </div>
         </div>
       </div>
 
-      <el-empty v-else description="当前还没有 execution 订单状态。" :image-size="120" />
-    </el-card>
+      <v-empty-state v-else text="当前还没有 execution 订单状态。" />
+      </v-card-text>
+    </v-card>
   </section>
 </template>

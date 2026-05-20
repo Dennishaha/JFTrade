@@ -8,8 +8,8 @@ defineProps<{
 <template>
   <div class="flex items-start justify-between gap-3">
     <div>
-      <div class="text-xl font-semibold text-slate-900">{{ title }}</div>
-      <div v-if="description" class="mt-1 text-sm text-slate-500">
+      <div class="text-xl font-semibold text-[var(--card-text-1)]">{{ title }}</div>
+      <div v-if="description" class="mt-1 text-sm text-[var(--card-text-3)]">
         {{ description }}
       </div>
     </div>

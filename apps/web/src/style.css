@@ -37,14 +37,62 @@ body {
 
 .card-shell {
   border-radius: 28px;
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.96) 0%,
-    rgba(248, 250, 252, 0.94) 100%
-  );
+  background: var(--card-surface);
   box-shadow: 0 24px 80px rgba(2, 6, 23, 0.22);
   backdrop-filter: blur(18px);
+  color: var(--card-text-1);
 }
+
+/* ---- Theme-aware Tailwind overrides for all page content ----
+   Pages use plain Tailwind light-mode utility classes (bg-white, text-slate-900, …).
+   Scoped to .tv-main (the <main> that wraps RouterView) so every page is covered —
+   including pages that do NOT use .card-shell as a wrapper.
+   These unlayered rules (specificity wins over @layer utilities) remap those utilities
+   to CSS custom properties so the card content adapts to the active theme. */
+.tv-main .bg-white { background-color: var(--card-surface); }
+.tv-main .bg-slate-50,
+.tv-main .bg-slate-100 { background-color: var(--card-surface-raised); }
+.tv-main .text-slate-900,
+.tv-main .text-slate-800 { color: var(--card-text-1); }
+.tv-main .text-slate-700,
+.tv-main .text-slate-600 { color: var(--card-text-2); }
+.tv-main .text-slate-500,
+.tv-main .text-slate-400 { color: var(--card-text-3); }
+.tv-main .border-slate-200,
+.tv-main .border-slate-300 { border-color: var(--card-border); }
+.tv-main .border-slate-100 { border-color: var(--card-border-muted); }
+/* Hover states */
+.tv-main .hover\:bg-slate-50:hover { background-color: var(--card-surface-raised); }
+.tv-main .hover\:border-slate-300:hover { border-color: var(--card-border); }
+/* Amber / warning */
+.tv-main .bg-amber-50 { background-color: var(--card-amber-surface); }
+.tv-main .border-amber-200 { border-color: var(--card-amber-border); }
+/* Red / error */
+.tv-main .bg-red-50 { background-color: var(--card-red-surface); }
+.tv-main .border-red-200 { border-color: var(--card-red-border); }
+.tv-main .text-red-700 { color: var(--card-red-text); }
+/* Teal / accent */
+.tv-main .bg-teal-50 { background-color: var(--card-teal-surface); }
+.tv-main .bg-teal-50\/60 { background-color: var(--card-teal-surface); }
+.tv-main .border-teal-100,
+.tv-main .border-teal-200,
+.tv-main .border-teal-400 { border-color: var(--card-teal-border); }
+.tv-main .text-teal-700,
+.tv-main .text-teal-900,
+.tv-main .text-teal-950 { color: var(--card-teal-text); }
+.tv-main .bg-teal-600 { background-color: var(--card-teal-btn-bg); }
+.tv-main .hover\:border-teal-500:hover { border-color: var(--card-teal-border); }
+.tv-main .hover\:text-teal-700:hover { color: var(--card-teal-text); }
+/* Semantic up/down colors */
+.tv-main .text-emerald-600 { color: var(--tv-up); }
+.tv-main .text-red-600 { color: var(--tv-down); }
+.tv-main .text-rose-600,
+.tv-main .text-rose-700 { color: var(--tv-down); }
+.tv-main .text-amber-600,
+.tv-main .text-amber-700,
+.tv-main .text-amber-800 { color: var(--card-amber-text); }
+/* Theme-aware teal glow shadow (replaces hardcoded rgba shadow in ExecutionPage) */
+.shadow-teal-glow { box-shadow: 0 12px 32px var(--card-teal-border); }
 
 .shell-panel {
   border-radius: 32px;
@@ -93,20 +141,21 @@ body {
 
 .page-header {
   border-radius: 32px;
-  border: 1px solid rgba(148, 163, 184, 0.14);
+  border: 1px solid var(--tv-border);
   background: linear-gradient(
     180deg,
-    rgba(15, 23, 42, 0.96) 0%,
-    rgba(15, 23, 42, 0.84) 100%
+    var(--tv-bg-surface-2) 0%,
+    var(--tv-bg-app) 100%
   );
   padding: 1.5rem;
   box-shadow: 0 24px 80px rgba(2, 6, 23, 0.3);
+  color: var(--tv-text);
 }
 
 .page-header-stat {
   border-radius: 24px;
-  border: 1px solid rgba(148, 163, 184, 0.12);
-  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--tv-border);
+  background: color-mix(in srgb, var(--tv-text) 5%, transparent);
   padding: 1rem;
 }
 
@@ -169,6 +218,29 @@ body {
   --tv-up: #16c784;
   --tv-down: #ea3943;
   --tv-warn: #f59e0b;
+
+  /* Card-content semantic tokens (page body inside .card-shell) */
+  --card-surface: rgba(17, 24, 39, 0.90);
+  --card-surface-raised: rgba(30, 41, 59, 0.70);
+  --card-text-1: #e2e8f0;
+  --card-text-2: #94a3b8;
+  --card-text-3: #64748b;
+  --card-border: rgba(148, 163, 184, 0.18);
+  --card-border-muted: rgba(148, 163, 184, 0.10);
+  --card-amber-surface: rgba(245, 158, 11, 0.10);
+  --card-amber-border: rgba(245, 158, 11, 0.28);
+  --card-amber-text: #fbbf24;
+  --card-red-surface: rgba(239, 68, 68, 0.10);
+  --card-red-border: rgba(239, 68, 68, 0.28);
+  --card-red-text: #f87171;
+  --card-teal-surface: rgba(13, 148, 136, 0.12);
+  --card-teal-border: rgba(13, 148, 136, 0.35);
+  --card-teal-text: #2dd4bf;
+  --card-teal-btn-bg: #0d9488;
+  --card-teal-btn-text: #f0fdfa;
+  --card-active-surface: rgba(34, 211, 238, 0.10);
+  --card-active-border: rgba(34, 211, 238, 0.35);
+  --card-active-text: #22d3ee;
 }
 
 [data-theme="light"] {
@@ -186,6 +258,29 @@ body {
   --tv-up: #15803d;
   --tv-down: #b91c1c;
   --tv-warn: #b45309;
+
+  /* Card-content semantic tokens (light overrides) */
+  --card-surface: rgba(255, 255, 255, 0.98);
+  --card-surface-raised: #f8fafc;
+  --card-text-1: #0f172a;
+  --card-text-2: #475569;
+  --card-text-3: #64748b;
+  --card-border: rgba(15, 23, 42, 0.10);
+  --card-border-muted: rgba(15, 23, 42, 0.06);
+  --card-amber-surface: #fffbeb;
+  --card-amber-border: #fde68a;
+  --card-amber-text: #92400e;
+  --card-red-surface: #fef2f2;
+  --card-red-border: #fecaca;
+  --card-red-text: #991b1b;
+  --card-teal-surface: #f0fdfa;
+  --card-teal-border: #99f6e4;
+  --card-teal-text: #0f766e;
+  --card-teal-btn-bg: #0d9488;
+  --card-teal-btn-text: #ffffff;
+  --card-active-surface: #ecfdf5;
+  --card-active-border: #6ee7b7;
+  --card-active-text: #065f46;
 }
 
 [data-theme="light"] body {
@@ -229,6 +324,7 @@ body {
   padding: 8px 0;
   gap: 4px;
   overflow-y: auto;
+  overflow-x: hidden;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
 }
@@ -240,14 +336,19 @@ body {
   justify-content: center;
   gap: 4px;
   height: 56px;
+  width: 100%;
   margin: 0 6px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  appearance: none;
   border-radius: 10px;
   color: var(--tv-text-muted);
   cursor: pointer;
   transition:
     background-color 120ms ease,
     color 120ms ease;
-  font-size: 10px;
+  font-size: 11px;
   text-decoration: none;
   user-select: none;
 }
@@ -263,8 +364,11 @@ body {
 }
 
 .tv-iconrail-btn .tv-iconrail-glyph {
+  display: block;
+  width: 100%;
   font-size: 18px;
   line-height: 1;
+  text-align: center;
 }
 
 .tv-main {
@@ -362,6 +466,7 @@ body {
   justify-content: center;
   width: 32px;
   height: 32px;
+  font-size: large;
   border-radius: 6px;
   color: var(--tv-text-muted);
   background: transparent;
