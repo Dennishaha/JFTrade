@@ -178,7 +178,7 @@ afterEach(() => {
 });
 
 describe("KlineChart", () => {
-  it("renders finite candles into lightweight-charts and resizes the chart host", async () => {
+  it("renders intraday candles at the bucket-end display time", async () => {
     vi.stubGlobal("ResizeObserver", MockResizeObserver);
     vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
       callback(1);
@@ -201,6 +201,7 @@ describe("KlineChart", () => {
       {
         period: "1m",
         at: "2026-05-17T01:31:00.000Z",
+        displayAt: "2026-05-17T01:32:00.000Z",
         open: 320.7,
         high: 321.1,
         low: 320.6,
@@ -240,14 +241,14 @@ describe("KlineChart", () => {
     );
     expect(chartMocks.candlestickSetData).toHaveBeenLastCalledWith([
       {
-        time: 1778981400,
+        time: 1778981460,
         open: 320,
         high: 320.8,
         low: 319.9,
         close: 320.5,
       },
       {
-        time: 1778981460,
+        time: 1778981520,
         open: 320.7,
         high: 321.1,
         low: 320.6,
@@ -255,8 +256,8 @@ describe("KlineChart", () => {
       },
     ]);
     expect(chartMocks.volumeSetData).toHaveBeenLastCalledWith([
-      expect.objectContaining({ time: 1778981400, value: 18000 }),
-      expect.objectContaining({ time: 1778981460, value: 21000 }),
+      expect.objectContaining({ time: 1778981460, value: 18000 }),
+      expect.objectContaining({ time: 1778981520, value: 21000 }),
     ]);
     expect(chartMocks.resize).toHaveBeenCalledWith(640, 320, true);
     expect(chartMocks.setVisibleLogicalRange).toHaveBeenCalledWith({
@@ -483,5 +484,90 @@ describe("KlineChart", () => {
     expect(chartMocks.kdjKSetData).toHaveBeenCalled();
     expect(chartMocks.kdjDSetData).toHaveBeenCalled();
     expect(chartMocks.kdjJSetData).toHaveBeenCalled();
+  });
+
+  it("recenters the chart on the latest bars when the candle period changes", async () => {
+    vi.stubGlobal("ResizeObserver", MockResizeObserver);
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      callback(1);
+      return 1;
+    });
+    vi.stubGlobal("cancelAnimationFrame", vi.fn());
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({
+      x: 0,
+      y: 0,
+      width: 640,
+      height: 320,
+      top: 0,
+      right: 640,
+      bottom: 320,
+      left: 0,
+      toJSON: () => ({}),
+    });
+
+    const candles = ref([
+      {
+        period: "1m",
+        at: "2026-05-17T01:30:00.000Z",
+        open: 320,
+        high: 320.8,
+        low: 319.9,
+        close: 320.5,
+        volume: 18000,
+      },
+      {
+        period: "1m",
+        at: "2026-05-17T01:31:00.000Z",
+        open: 320.7,
+        high: 321.1,
+        low: 320.6,
+        close: 321,
+        volume: 21000,
+      },
+    ]);
+
+    const Host = defineComponent({
+      components: { KlineChart },
+      setup() {
+        provideThemeStore();
+        return { candles };
+      },
+      template: '<KlineChart :candles="candles" :min-height="320" />',
+    });
+
+    mount(Host);
+    await nextTick();
+    await nextTick();
+
+    chartMocks.setVisibleLogicalRange.mockClear();
+
+    candles.value = [
+      {
+        period: "5m",
+        at: "2026-05-17T01:25:00.000Z",
+        open: 319.8,
+        high: 320.2,
+        low: 319.6,
+        close: 320,
+        volume: 12000,
+      },
+      {
+        period: "5m",
+        at: "2026-05-17T01:30:00.000Z",
+        open: 320.5,
+        high: 321.2,
+        low: 320.4,
+        close: 321,
+        volume: 15000,
+      },
+    ];
+    await nextTick();
+    await nextTick();
+
+    expect(chartMocks.setVisibleLogicalRange).toHaveBeenCalledTimes(1);
+    expect(chartMocks.setVisibleLogicalRange).toHaveBeenLastCalledWith({
+      from: -118,
+      to: 10,
+    });
   });
 });

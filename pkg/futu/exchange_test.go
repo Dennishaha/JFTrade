@@ -19,6 +19,7 @@ import (
 	initpb "github.com/jftrade/jftrade-main/pkg/futu/pb/initconnect"
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
 	qotgetbasicqotpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetbasicqot"
+	qotgetklpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetkl"
 	historypb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotrequesthistorykl"
 	qotsubpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotsub"
 	qotupdatebasicqotpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotupdatebasicqot"
@@ -150,6 +151,60 @@ func TestQueryKLinesRequestsUSExtendedHours(t *testing.T) {
 	}
 }
 
+func TestQueryKLinesNormalizesIntradayHistoryLabelToBucketStart(t *testing.T) {
+	server := startQuoteOpenDServer(t)
+	defer server.stop()
+
+	labelAt := time.Date(2026, time.May, 20, 10, 55, 0, 0, time.UTC)
+	server.setHistoryPages([][]*qotcommonpb.KLine{{testHistoryKLine(labelAt, 100)}})
+
+	ex := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
+	defer ex.Close()
+
+	start := labelAt.Add(-time.Hour)
+	end := labelAt.Add(time.Hour)
+	klines, err := ex.QueryKLines(t.Context(), "HK.00700", types.Interval1m, types.KLineQueryOptions{Limit: 1, StartTime: &start, EndTime: &end})
+	if err != nil {
+		t.Fatalf("QueryKLines: %v", err)
+	}
+	if len(klines) != 1 {
+		t.Fatalf("expected one kline, got %d", len(klines))
+	}
+
+	wantStart := labelAt.Add(-time.Minute)
+	wantEnd := labelAt.Add(-time.Millisecond)
+	if !klines[0].StartTime.Time().Equal(wantStart) {
+		t.Fatalf("StartTime = %s, want %s", klines[0].StartTime.Time(), wantStart)
+	}
+	if !klines[0].EndTime.Time().Equal(wantEnd) {
+		t.Fatalf("EndTime = %s, want %s", klines[0].EndTime.Time(), wantEnd)
+	}
+}
+
+func TestQueryKLinesKeepsDailyHistoryLabelAsBucketStart(t *testing.T) {
+	server := startQuoteOpenDServer(t)
+	defer server.stop()
+
+	labelAt := time.Date(2026, time.May, 20, 0, 0, 0, 0, time.UTC)
+	server.setHistoryPages([][]*qotcommonpb.KLine{{testHistoryKLine(labelAt, 100)}})
+
+	ex := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
+	defer ex.Close()
+
+	start := labelAt.Add(-24 * time.Hour)
+	end := labelAt.Add(24 * time.Hour)
+	klines, err := ex.QueryKLines(t.Context(), "HK.00700", types.Interval1d, types.KLineQueryOptions{Limit: 1, StartTime: &start, EndTime: &end})
+	if err != nil {
+		t.Fatalf("QueryKLines: %v", err)
+	}
+	if len(klines) != 1 {
+		t.Fatalf("expected one kline, got %d", len(klines))
+	}
+	if !klines[0].StartTime.Time().Equal(labelAt) {
+		t.Fatalf("StartTime = %s, want %s", klines[0].StartTime.Time(), labelAt)
+	}
+}
+
 func TestQueryKLinesFollowsHistoryPaginationAndKeepsLatestLimit(t *testing.T) {
 	server := startQuoteOpenDServer(t)
 	defer server.stop()
@@ -182,8 +237,50 @@ func TestQueryKLinesFollowsHistoryPaginationAndKeepsLatestLimit(t *testing.T) {
 	if len(klines) != 2 {
 		t.Fatalf("expected latest two klines, got %d", len(klines))
 	}
-	if !klines[0].StartTime.Time().Equal(recentAt) || !klines[1].StartTime.Time().Equal(recentAt.Add(5*time.Minute)) {
+	if !klines[0].StartTime.Time().Equal(recentAt.Add(-5*time.Minute)) || !klines[1].StartTime.Time().Equal(recentAt) {
 		t.Fatalf("expected latest page to be retained, got %#v", klines)
+	}
+}
+
+func TestQueryKLinesIncludesCurrentRealtimeBucketFromGetKL(t *testing.T) {
+	server := startQuoteOpenDServer(t)
+	defer server.stop()
+
+	historyLabelAt := time.Now().UTC().Add(2 * time.Hour).Truncate(time.Minute)
+	currentLabelAt := historyLabelAt.Add(time.Minute)
+	server.setHistoryPages([][]*qotcommonpb.KLine{{testHistoryKLine(historyLabelAt, 100)}})
+	server.setCurrentKLines([]*qotcommonpb.KLine{testCurrentKLine(currentLabelAt, 101, 106, 99, 103, 500)})
+
+	ex := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
+	defer ex.Close()
+
+	start := historyLabelAt.Add(-time.Hour)
+	end := currentLabelAt.Add(time.Hour)
+	klines, err := ex.QueryKLines(t.Context(), "HK.00700", types.Interval1m, types.KLineQueryOptions{Limit: 2, StartTime: &start, EndTime: &end})
+	if err != nil {
+		t.Fatalf("QueryKLines: %v", err)
+	}
+	if got := server.currentKLCallCount(); got != 1 {
+		t.Fatalf("expected one GetKL call, got %d", got)
+	}
+	if len(klines) != 2 {
+		t.Fatalf("expected closed and current kline, got %d", len(klines))
+	}
+
+	if !klines[0].StartTime.Time().Equal(historyLabelAt.Add(-time.Minute)) {
+		t.Fatalf("first StartTime = %s, want %s", klines[0].StartTime.Time(), historyLabelAt.Add(-time.Minute))
+	}
+	if !klines[1].StartTime.Time().Equal(historyLabelAt) {
+		t.Fatalf("current StartTime = %s, want %s", klines[1].StartTime.Time(), historyLabelAt)
+	}
+	if klines[1].Open.Float64() != 101 || klines[1].High.Float64() != 106 || klines[1].Low.Float64() != 99 || klines[1].Close.Float64() != 103 {
+		t.Fatalf("unexpected current kline OHLC: %#v", klines[1])
+	}
+	if klines[1].Volume.Float64() != 500 {
+		t.Fatalf("current Volume = %v, want 500", klines[1].Volume.Float64())
+	}
+	if klines[1].Closed {
+		t.Fatal("expected current GetKL candle to remain open")
 	}
 }
 
@@ -270,10 +367,12 @@ type quoteOpenDServer struct {
 	pushSubCalls      atomic.Int32
 	basicQotCalls     atomic.Int32
 	historyKLCalls    atomic.Int32
+	currentKLCalls    atomic.Int32
 	historyExtended   atomic.Bool
 	historySession    atomic.Int32
 	historyMu         sync.Mutex
 	historyPages      [][]*qotcommonpb.KLine
+	currentKLines     []*qotcommonpb.KLine
 	listener          net.Listener
 	stopOnce          sync.Once
 	shutdownCompleted chan struct{}
@@ -283,6 +382,12 @@ func (s *quoteOpenDServer) setHistoryPages(pages [][]*qotcommonpb.KLine) {
 	s.historyMu.Lock()
 	defer s.historyMu.Unlock()
 	s.historyPages = pages
+}
+
+func (s *quoteOpenDServer) setCurrentKLines(klines []*qotcommonpb.KLine) {
+	s.historyMu.Lock()
+	defer s.historyMu.Unlock()
+	s.currentKLines = klines
 }
 
 func startQuoteOpenDServer(t *testing.T) *quoteOpenDServer {
@@ -363,6 +468,9 @@ func (s *quoteOpenDServer) handleConn(conn net.Conn) {
 		case opend.ProtoGetBasicQot:
 			s.basicQotCalls.Add(1)
 			response = s.basicQotResponse(frame.Body)
+		case opend.ProtoGetKL:
+			s.currentKLCalls.Add(1)
+			response = s.currentKLResponse(frame.Body)
 		case opend.ProtoRequestHistoryKL:
 			s.historyKLCalls.Add(1)
 			response = s.historyKLResponse(frame.Body)
@@ -446,6 +554,23 @@ func (s *quoteOpenDServer) historyKLResponse(body []byte) *historypb.Response {
 	}
 }
 
+func (s *quoteOpenDServer) currentKLResponse(body []byte) *qotgetklpb.Response {
+	request := &qotgetklpb.Request{}
+	if err := proto.Unmarshal(body, request); err != nil {
+		return &qotgetklpb.Response{RetType: proto.Int32(1), RetMsg: proto.String(err.Error())}
+	}
+	s.historyMu.Lock()
+	defer s.historyMu.Unlock()
+	response := &qotgetklpb.Response{
+		RetType: proto.Int32(0),
+		S2C: &qotgetklpb.S2C{
+			Security: request.GetC2S().GetSecurity(),
+			KlList:   s.currentKLines,
+		},
+	}
+	return response
+}
+
 func testHistoryKLine(at time.Time, price float64) *qotcommonpb.KLine {
 	return &qotcommonpb.KLine{
 		Time:       proto.String(at.Format("2006-01-02 15:04:05")),
@@ -457,6 +582,20 @@ func testHistoryKLine(at time.Time, price float64) *qotcommonpb.KLine {
 		ClosePrice: proto.Float64(price + 0.5),
 		Volume:     proto.Int64(1000),
 		Turnover:   proto.Float64(price * 1000),
+	}
+}
+
+func testCurrentKLine(at time.Time, open float64, high float64, low float64, close float64, volume int64) *qotcommonpb.KLine {
+	return &qotcommonpb.KLine{
+		Time:       proto.String(at.Format("2006-01-02 15:04:05")),
+		Timestamp:  proto.Float64(float64(at.Unix())),
+		IsBlank:    proto.Bool(false),
+		OpenPrice:  proto.Float64(open),
+		HighPrice:  proto.Float64(high),
+		LowPrice:   proto.Float64(low),
+		ClosePrice: proto.Float64(close),
+		Volume:     proto.Int64(volume),
+		Turnover:   proto.Float64(close * float64(volume)),
 	}
 }
 
@@ -537,6 +676,10 @@ func (s *quoteOpenDServer) basicQotCallCount() int {
 
 func (s *quoteOpenDServer) historyKLCallCount() int {
 	return int(s.historyKLCalls.Load())
+}
+
+func (s *quoteOpenDServer) currentKLCallCount() int {
+	return int(s.currentKLCalls.Load())
 }
 
 func (s *quoteOpenDServer) lastHistoryExtendedTime() bool {

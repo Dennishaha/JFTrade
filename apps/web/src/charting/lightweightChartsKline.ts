@@ -112,7 +112,6 @@ function sortCandles(candles: readonly KlineCandle[]): KlineCandle[] {
       byTimestamp.set(chartTimestamp, {
         ...candle,
         at: new Date(chartTimestamp).toISOString(),
-        displayAt: null,
       });
       continue;
     }
@@ -248,6 +247,7 @@ export class LightweightChartsKlineAdapter implements KlineChartAdapter {
   private hasFitInitialData = false;
   private firstTimestamp: number | null = null;
   private lastTimestamp: number | null = null;
+  private currentPeriod: string | null = null;
   private lastLoadMoreLogicalFrom: number | null = null;
 
   constructor(
@@ -469,6 +469,17 @@ export class LightweightChartsKlineAdapter implements KlineChartAdapter {
     const previousFirstTimestamp = this.firstTimestamp;
     const visibleRange = this.chart.timeScale().getVisibleLogicalRange();
     const sorted = sortCandles(candles);
+    const nextPeriod = sorted.find((candle) => candle.period != null)?.period ?? null;
+    const periodChanged =
+      this.currentPeriod != null &&
+      nextPeriod != null &&
+      nextPeriod !== this.currentPeriod;
+
+    if (periodChanged) {
+      this.hasFitInitialData = false;
+      this.lastLoadMoreLogicalFrom = null;
+    }
+
     this.currentCandles = sorted;
     const nextFirstTimestamp =
       sorted.length === 0 ? null : new Date(sorted[0]?.at ?? "").getTime();
@@ -503,6 +514,7 @@ export class LightweightChartsKlineAdapter implements KlineChartAdapter {
       })),
     );
     this.updateIndicatorSeries(sorted);
+    this.currentPeriod = nextPeriod;
 
     this.firstTimestamp = Number.isFinite(nextFirstTimestamp)
       ? nextFirstTimestamp

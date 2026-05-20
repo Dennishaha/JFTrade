@@ -24,6 +24,7 @@ import (
 	initpb "github.com/jftrade/jftrade-main/pkg/futu/pb/initconnect"
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
 	qotgetbasicqotpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetbasicqot"
+	qotgetklpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetkl"
 	historypb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotrequesthistorykl"
 	qotsubpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotsub"
 )
@@ -118,6 +119,7 @@ type Exchange struct {
 	ready                     bool
 	basicQotSubscriptions     map[string]struct{}
 	basicQotPushSubscriptions map[string]struct{}
+	klineSubscriptions        map[string]struct{}
 }
 
 // NewExchange constructs an Exchange. It does not dial OpenD: bbgo expects
@@ -135,6 +137,7 @@ func NewExchangeWithConfig(cfg opend.Config) *Exchange {
 		webSocketKey:              cfg.WebSocketKey,
 		basicQotSubscriptions:     map[string]struct{}{},
 		basicQotPushSubscriptions: map[string]struct{}{},
+		klineSubscriptions:        map[string]struct{}{},
 	}
 }
 
@@ -259,6 +262,12 @@ func (e *Exchange) QueryKLines(ctx context.Context, symbol string, interval type
 		}
 		if page == maxHistoryKLinePages-1 {
 			return nil, fmt.Errorf("opend RequestHistoryKL pagination exceeded %d pages", maxHistoryKLinePages)
+		}
+	}
+	if shouldQueryCurrentKLine(interval, endAt) {
+		currentKLines, err := e.queryCurrentKLines(ctx, security, canonicalSymbol, interval, klType)
+		if err == nil {
+			klines = mergeKLinesByStartTime(klines, filterKLinesByWindow(currentKLines, beginAt, endAt))
 		}
 	}
 	sort.Slice(klines, func(i, j int) bool {
@@ -407,6 +416,18 @@ type basicQotRequest struct {
 	security  *qotcommonpb.Security
 }
 
+type klineSubscriptionRequest struct {
+	canonical    string
+	security     *qotcommonpb.Security
+	subType      qotcommonpb.SubType
+	extendedTime bool
+	session      commonpb.Session
+}
+
+func (request klineSubscriptionRequest) cacheKey() string {
+	return fmt.Sprintf("%s:%d:%t:%d", request.canonical, request.subType, request.extendedTime, request.session)
+}
+
 func (e *Exchange) queryBasicQotList(ctx context.Context, symbols []string) (map[string]*qotcommonpb.BasicQot, error) {
 	requests := make([]basicQotRequest, 0, len(symbols))
 	securityList := make([]*qotcommonpb.Security, 0, len(symbols))
@@ -494,6 +515,97 @@ func subscribeBasicQot(ctx context.Context, client *opend.Client, securities []*
 	}}
 	var response qotsubpb.Response
 	if err := client.Call(ctx, opend.ProtoQotSub, request, &response); err != nil {
+		return err
+	}
+	if response.GetRetType() != 0 {
+		return fmt.Errorf("opend Qot_Sub retType=%d errCode=%d retMsg=%s", response.GetRetType(), response.GetErrCode(), response.GetRetMsg())
+	}
+	return nil
+}
+
+func (e *Exchange) queryCurrentKLines(ctx context.Context, security *qotcommonpb.Security, canonicalSymbol string, interval types.Interval, klType qotcommonpb.KLType) ([]types.KLine, error) {
+	subType, err := futuSubTypeFromInterval(interval)
+	if err != nil {
+		return nil, err
+	}
+
+	subscription := klineSubscriptionRequest{
+		canonical: canonicalSymbol,
+		security:  security,
+		subType:   subType,
+	}
+	if shouldRequestExtendedKLines(canonicalSymbol, interval) {
+		subscription.extendedTime = true
+		subscription.session = commonpb.Session_Session_ALL
+	}
+
+	request := &qotgetklpb.Request{C2S: &qotgetklpb.C2S{
+		RehabType: proto.Int32(int32(qotcommonpb.RehabType_RehabType_None)),
+		KlType:    proto.Int32(int32(klType)),
+		Security:  security,
+		ReqNum:    proto.Int32(2),
+	}}
+
+	var response qotgetklpb.Response
+	if err := e.withClient(ctx, func(client *opend.Client) error {
+		if err := e.ensureKLineSubscription(ctx, client, subscription); err != nil {
+			return err
+		}
+		return client.Call(ctx, opend.ProtoGetKL, request, &response)
+	}); err != nil {
+		return nil, err
+	}
+	if response.GetRetType() != 0 {
+		return nil, fmt.Errorf("opend GetKL retType=%d errCode=%d retMsg=%s", response.GetRetType(), response.GetErrCode(), response.GetRetMsg())
+	}
+
+	klines := make([]types.KLine, 0, len(response.GetS2C().GetKlList()))
+	for _, candle := range response.GetS2C().GetKlList() {
+		if candle.GetIsBlank() {
+			continue
+		}
+		klines = append(klines, futuKLineFromProto(candle, canonicalSymbol, interval))
+	}
+	return klines, nil
+}
+
+func (e *Exchange) ensureKLineSubscription(ctx context.Context, client *opend.Client, request klineSubscriptionRequest) error {
+	cacheKey := request.cacheKey()
+
+	e.mu.Lock()
+	_, exists := e.klineSubscriptions[cacheKey]
+	e.mu.Unlock()
+	if exists {
+		return nil
+	}
+
+	if err := subscribeKLine(ctx, client, request); err != nil {
+		return err
+	}
+
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if e.klineSubscriptions == nil {
+		e.klineSubscriptions = map[string]struct{}{}
+	}
+	e.klineSubscriptions[cacheKey] = struct{}{}
+	return nil
+}
+
+func subscribeKLine(ctx context.Context, client *opend.Client, request klineSubscriptionRequest) error {
+	subscription := &qotsubpb.Request{C2S: &qotsubpb.C2S{
+		SecurityList:     []*qotcommonpb.Security{request.security},
+		SubTypeList:      []int32{int32(request.subType)},
+		IsSubOrUnSub:     proto.Bool(true),
+		IsRegOrUnRegPush: proto.Bool(false),
+	}}
+	if request.extendedTime {
+		subscription.C2S.ExtendedTime = proto.Bool(true)
+		subscription.C2S.Session = proto.Int32(int32(request.session))
+	}
+
+	var response qotsubpb.Response
+	if err := client.Call(ctx, opend.ProtoQotSub, subscription, &response); err != nil {
 		return err
 	}
 	if response.GetRetType() != 0 {
@@ -680,6 +792,9 @@ func (e *Exchange) ensureClient(ctx context.Context) (*opend.Client, error) {
 	if e.basicQotPushSubscriptions == nil {
 		e.basicQotPushSubscriptions = map[string]struct{}{}
 	}
+	if e.klineSubscriptions == nil {
+		e.klineSubscriptions = map[string]struct{}{}
+	}
 	return e.client, nil
 }
 
@@ -704,6 +819,7 @@ func (e *Exchange) invalidateClientLocked() error {
 	e.ready = false
 	e.basicQotSubscriptions = map[string]struct{}{}
 	e.basicQotPushSubscriptions = map[string]struct{}{}
+	e.klineSubscriptions = map[string]struct{}{}
 	if client != nil {
 		return client.Close()
 	}
@@ -815,6 +931,31 @@ func futuKLTypeFromInterval(interval types.Interval) (qotcommonpb.KLType, error)
 	}
 }
 
+func futuSubTypeFromInterval(interval types.Interval) (qotcommonpb.SubType, error) {
+	switch interval {
+	case types.Interval1m:
+		return qotcommonpb.SubType_SubType_KL_1Min, nil
+	case types.Interval3m:
+		return qotcommonpb.SubType_SubType_KL_3Min, nil
+	case types.Interval5m:
+		return qotcommonpb.SubType_SubType_KL_5Min, nil
+	case types.Interval15m:
+		return qotcommonpb.SubType_SubType_KL_15Min, nil
+	case types.Interval30m:
+		return qotcommonpb.SubType_SubType_KL_30Min, nil
+	case types.Interval1h:
+		return qotcommonpb.SubType_SubType_KL_60Min, nil
+	case types.Interval1d:
+		return qotcommonpb.SubType_SubType_KL_Day, nil
+	case types.Interval1w:
+		return qotcommonpb.SubType_SubType_KL_Week, nil
+	case types.Interval1mo:
+		return qotcommonpb.SubType_SubType_KL_Month, nil
+	default:
+		return qotcommonpb.SubType_SubType_None, fmt.Errorf("futu exchange: unsupported interval %q", interval)
+	}
+}
+
 func futuKLineQueryWindow(interval types.Interval, options types.KLineQueryOptions) (time.Time, time.Time, int) {
 	limit := options.Limit
 	if limit < 1 {
@@ -845,8 +986,44 @@ func futuKLineQueryWindow(interval types.Interval, options types.KLineQueryOptio
 	return beginAt, endAt, limit
 }
 
+func shouldQueryCurrentKLine(interval types.Interval, endAt time.Time) bool {
+	duration := interval.Duration()
+	if duration <= 0 {
+		return false
+	}
+	return !endAt.Before(time.Now().UTC().Add(-duration))
+}
+
+func filterKLinesByWindow(klines []types.KLine, beginAt time.Time, endAt time.Time) []types.KLine {
+	filtered := make([]types.KLine, 0, len(klines))
+	for _, kline := range klines {
+		startAt := kline.StartTime.Time().UTC()
+		finishAt := kline.EndTime.Time().UTC()
+		if finishAt.Before(beginAt) || startAt.After(endAt) {
+			continue
+		}
+		filtered = append(filtered, kline)
+	}
+	return filtered
+}
+
+func mergeKLinesByStartTime(slices ...[]types.KLine) []types.KLine {
+	byStartTime := make(map[int64]types.KLine)
+	for _, slice := range slices {
+		for _, kline := range slice {
+			byStartTime[kline.StartTime.Time().UTC().UnixNano()] = kline
+		}
+	}
+	merged := make([]types.KLine, 0, len(byStartTime))
+	for _, kline := range byStartTime {
+		merged = append(merged, kline)
+	}
+	return merged
+}
+
 func futuKLineFromProto(candle *qotcommonpb.KLine, symbol string, interval types.Interval) types.KLine {
-	startAt := futuQuoteTime(candle.GetTimestamp(), candle.GetTime()).UTC()
+	labelAt := futuQuoteTime(candle.GetTimestamp(), candle.GetTime()).UTC()
+	startAt := futuHistoryKLineStartTime(labelAt, interval)
 	endAt := startAt.Add(interval.Duration()).Add(-time.Millisecond)
 	if endAt.Before(startAt) {
 		endAt = startAt
@@ -865,6 +1042,15 @@ func futuKLineFromProto(candle *qotcommonpb.KLine, symbol string, interval types
 		QuoteVolume: fixedpoint.NewFromFloat(candle.GetTurnover()),
 		Closed:      !endAt.After(time.Now().UTC()),
 	}
+}
+
+func futuHistoryKLineStartTime(labelAt time.Time, interval types.Interval) time.Time {
+	duration := interval.Duration()
+	if duration <= 0 || duration >= 24*time.Hour {
+		return labelAt
+	}
+
+	return labelAt.Add(-duration)
 }
 
 // ClassifyMarketSession classifies US equities into regular, pre-market,

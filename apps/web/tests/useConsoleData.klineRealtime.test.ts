@@ -2,7 +2,7 @@
 
 import { mount } from "@vue/test-utils";
 import { createPinia } from "pinia";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { defineComponent } from "vue";
 
 import { overlayRealtimeTickCandle } from "../src/charting/kline";
@@ -10,6 +10,7 @@ import {
   provideConsoleDataStore,
 } from "../src/composables/useConsoleData";
 import { provideWorkspaceLayoutStore } from "../src/composables/useWorkspaceLayout";
+import { createResponse } from "./helpers";
 
 function createConsoleStore() {
   let store: ReturnType<typeof provideConsoleDataStore> | null = null;
@@ -37,6 +38,7 @@ function createConsoleStore() {
 
 afterEach(() => {
   window.localStorage?.clear();
+  vi.unstubAllGlobals();
 });
 
 describe("console data realtime kline overlay", () => {
@@ -123,7 +125,7 @@ describe("console data realtime kline overlay", () => {
       {
         period: "1m",
         at: "2026-05-17T01:30:00.000Z",
-        displayAt: "2026-05-17T01:30:05.000Z",
+        displayAt: "2026-05-17T01:31:00.000Z",
         open: 320.5,
         high: 321.8,
         low: 320.5,
@@ -264,7 +266,7 @@ describe("console data realtime kline overlay", () => {
       {
         period: "1m",
         at: "2026-05-17T01:30:00.000Z",
-        displayAt: "2026-05-17T01:30:45.000Z",
+        displayAt: "2026-05-17T01:31:00.000Z",
         open: 320.5,
         high: 321.8,
         low: 319.7,
@@ -272,6 +274,203 @@ describe("console data realtime kline overlay", () => {
         volume: 200,
       },
     ]);
+  });
+
+  it("reuses the current bucket returned by the API instead of seeding from the previous close", () => {
+    const store = createConsoleStore();
+
+    store.marketDataQueryMarket.value = "HK";
+    store.marketDataQuerySymbol.value = "00700";
+    store.marketDataQueryPeriod.value = "1m";
+    store.marketDataCandles.value = {
+      request: {
+        instrument: {
+          market: "HK",
+          symbol: "00700",
+          instrumentId: "HK.00700",
+        },
+        period: "1m",
+        limit: 3,
+      },
+      candles: [
+        {
+          period: "1m",
+          open: 320,
+          high: 320.8,
+          low: 319.9,
+          close: 320.5,
+          volume: 18000,
+          at: "2026-05-17T01:29:00.000Z",
+        },
+        {
+          period: "1m",
+          open: 321.2,
+          high: 322.5,
+          low: 320.9,
+          close: 321.8,
+          volume: 240,
+          at: "2026-05-17T01:30:00.000Z",
+        },
+      ],
+      totalReturned: 2,
+      meta: {
+        instrumentId: "HK.00700",
+        source: "bbgo:futu",
+        resolvedAt: "2026-05-17T01:30:10.000Z",
+        fromCache: false,
+      },
+    };
+
+    store.applyMarketDataTickEvent({
+      type: "market-data.tick",
+      at: "2026-05-17T01:30:20.000Z",
+      brokerId: "futu",
+      instrument: {
+        market: "HK",
+        symbol: "00700",
+        instrumentId: "HK.00700",
+      },
+      snapshot: {
+        price: 321.4,
+        bid: 321.3,
+        ask: 321.5,
+        openPrice: 319.8,
+        highPrice: 322.6,
+        lowPrice: 319.6,
+        previousClosePrice: 318.9,
+        volume: 1282100,
+        turnover: 411020000,
+        at: "2026-05-17T01:30:20.000Z",
+      },
+      source: "futu",
+    });
+
+    expect(store.marketDataSnapshot.value?.snapshot?.barOpen).toBe(321.2);
+    expect(store.marketDataSnapshot.value?.snapshot?.barHigh).toBe(322.5);
+    expect(store.marketDataSnapshot.value?.snapshot?.barLow).toBe(320.9);
+
+    expect(
+      store.marketDataCandles.value?.candles.find(
+        (candle) => candle.at === "2026-05-17T01:30:00.000Z",
+      ),
+    ).toEqual({
+      period: "1m",
+      open: 321.2,
+      high: 322.5,
+      low: 320.9,
+      close: 321.4,
+      volume: 240,
+      at: "2026-05-17T01:30:00.000Z",
+      displayAt: "2026-05-17T01:31:00.000Z",
+    });
+  });
+
+  it("hydrates the latest bar volume from the current candle on initial query load", async () => {
+    const store = createConsoleStore();
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL | Request) => {
+        const url = String(input);
+
+        if (url.includes("/api/v1/market-data/snapshots/HK/00700")) {
+          return createResponse({
+            request: {
+              market: "HK",
+              symbol: "00700",
+              instrumentId: "HK.00700",
+            },
+            snapshot: {
+              price: 321.4,
+              bid: 321.3,
+              ask: 321.5,
+              openPrice: 319.8,
+              highPrice: 322.6,
+              lowPrice: 319.6,
+              previousClosePrice: 318.9,
+              volume: 1282100,
+              turnover: 411020000,
+              at: "2026-05-17T01:30:20.000Z",
+            },
+            meta: {
+              instrumentId: "HK.00700",
+              source: "bbgo:futu",
+              resolvedAt: "2026-05-17T01:30:20.000Z",
+              fromCache: false,
+            },
+          });
+        }
+
+        if (url.includes("/api/v1/market-data/candles/HK/00700")) {
+          return createResponse({
+            request: {
+              instrument: {
+                market: "HK",
+                symbol: "00700",
+                instrumentId: "HK.00700",
+              },
+              period: "1m",
+              limit: 3,
+            },
+            candles: [
+              {
+                period: "1m",
+                open: 320,
+                high: 320.8,
+                low: 319.9,
+                close: 320.5,
+                volume: 18000,
+                at: "2026-05-17T01:29:00.000Z",
+              },
+              {
+                period: "1m",
+                open: 321.2,
+                high: 322.5,
+                low: 320.9,
+                close: 321.8,
+                volume: 240,
+                at: "2026-05-17T01:30:00.000Z",
+              },
+            ],
+            totalReturned: 2,
+            meta: {
+              instrumentId: "HK.00700",
+              source: "bbgo:futu",
+              resolvedAt: "2026-05-17T01:30:10.000Z",
+              fromCache: false,
+            },
+          });
+        }
+
+        throw new Error(`Unexpected request: ${url}`);
+      }),
+    );
+
+    store.marketDataQueryMarket.value = "HK";
+    store.marketDataQuerySymbol.value = "00700";
+    store.marketDataQueryPeriod.value = "1m";
+    store.marketDataQueryLimit.value = 3;
+
+    await store.loadMarketDataQuery();
+
+    expect(store.marketDataSnapshot.value?.snapshot?.barVolume).toBe(240);
+
+    expect(
+      overlayRealtimeTickCandle(
+        store.marketDataCandles.value?.candles ?? [],
+        store.marketDataSnapshot.value?.snapshot ?? null,
+        store.marketDataQueryPeriod.value,
+      ).at(-1),
+    ).toEqual({
+      period: "1m",
+      at: "2026-05-17T01:30:00.000Z",
+      displayAt: "2026-05-17T01:31:00.000Z",
+      open: 321.2,
+      high: 322.5,
+      low: 320.9,
+      close: 321.4,
+      volume: 240,
+    });
   });
 
   it("splits realtime 1m candles when observed time moves into the next bucket", () => {
@@ -364,6 +563,7 @@ describe("console data realtime kline overlay", () => {
         close: 321.1,
         volume: 200,
         at: "2026-05-17T01:30:00.000Z",
+        displayAt: "2026-05-17T01:31:00.000Z",
       },
       {
         period: "1m",
@@ -373,7 +573,7 @@ describe("console data realtime kline overlay", () => {
         close: 322.4,
         volume: 0,
         at: "2026-05-17T01:31:00.000Z",
-        displayAt: "2026-05-17T01:31:30.000Z",
+        displayAt: "2026-05-17T01:32:00.000Z",
       },
     ]);
   });
@@ -468,6 +668,7 @@ describe("console data realtime kline overlay", () => {
         close: 321.1,
         volume: 200,
         at: "2026-05-17T01:30:00.000Z",
+        displayAt: "2026-05-17T01:35:00.000Z",
       },
       {
         period: "5m",
@@ -477,7 +678,7 @@ describe("console data realtime kline overlay", () => {
         close: 322.4,
         volume: 0,
         at: "2026-05-17T01:35:00.000Z",
-        displayAt: "2026-05-17T01:35:30.000Z",
+        displayAt: "2026-05-17T01:40:00.000Z",
       },
     ]);
   });

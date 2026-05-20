@@ -185,7 +185,46 @@ export function resolveKlineCandleDisplayAt(candle: KlineCandle): string {
     return explicitDisplayAt;
   }
 
-  return candle.at;
+  return resolveKlineBucketDisplayAt(candle.period, candle.at) ?? candle.at;
+}
+
+function shouldDisplayBucketEnd(period: string | null | undefined): boolean {
+  switch (period) {
+    case "1m":
+    case "3m":
+    case "5m":
+    case "10m":
+    case "15m":
+    case "30m":
+    case "1h":
+    case "2h":
+    case "3h":
+    case "4h":
+      return true;
+    default:
+      return false;
+  }
+}
+
+export function resolveKlineBucketDisplayAt(
+  period: string | null | undefined,
+  bucketAt: string,
+): string | null {
+  if (period == null) {
+    return null;
+  }
+
+  if (!shouldDisplayBucketEnd(period)) {
+    return null;
+  }
+
+  const durationMs = resolveKlinePeriodDurationMs(period);
+  const bucketTime = parseCandleTime(bucketAt);
+  if (durationMs == null || bucketTime == null) {
+    return null;
+  }
+
+  return new Date(bucketTime + durationMs).toISOString();
 }
 
 function shiftMinuteBucket(date: Date, shift: number): Date {
@@ -283,18 +322,9 @@ function maxRealtimeOverlayGapMs(
 
 function resolveRealtimeOverlayDisplayAt(
   period: string,
-  timelineAt: string,
+  bucketStart: string,
 ): string | null {
-  if (resolveKlinePeriodDurationMs(period) == null) {
-    return null;
-  }
-
-  const timelineTime = parseCandleTime(timelineAt);
-  if (timelineTime == null) {
-    return null;
-  }
-
-  return new Date(timelineTime).toISOString();
+  return resolveKlineBucketDisplayAt(period, bucketStart);
 }
 
 export function resolveRealtimeBucketStart(
@@ -414,7 +444,7 @@ export function overlayRealtimeTickCandle(
     return [...candles];
   }
   const existing = candles.find((candle) => candle.at === bucketStart);
-  const displayAt = resolveRealtimeOverlayDisplayAt(period, timelineAt);
+  const displayAt = resolveRealtimeOverlayDisplayAt(period, bucketStart);
   const last = candles[candles.length - 1];
   const baseOpen =
     snapshot.barOpen ?? existing?.open ?? last?.close ?? snapshot.price;

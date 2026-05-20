@@ -73,6 +73,7 @@ import {
 
 import {
   normalizeKlinePeriod,
+  resolveKlineBucketDisplayAt,
   resolveRealtimeBucketStart,
 } from "../charting/kline";
 import {
@@ -1283,19 +1284,12 @@ function createConsoleDataStore(workspaceLayout: WorkspaceLayoutStore) {
 
   function resolveRealtimeCandleDisplayAt(
     period: string,
-    observedAt: string,
+    bucketAt: string,
   ): string | null {
-    if (period === "tick") {
-      return null;
-    }
-
-    const observedTimestamp = new Date(observedAt).getTime();
-    return Number.isFinite(observedTimestamp)
-      ? new Date(observedTimestamp).toISOString()
-      : null;
+    return resolveKlineBucketDisplayAt(period, bucketAt);
   }
 
-  function clearCompletedRealtimeCandleDisplayAt(
+  function finalizeCompletedRealtimeCandleDisplayAt(
     state: MarketDataRealtimeBarPriceState,
   ): void {
     const existing = marketDataCandles.value;
@@ -1303,17 +1297,21 @@ function createConsoleDataStore(workspaceLayout: WorkspaceLayoutStore) {
       return;
     }
 
+    const displayAt = resolveRealtimeCandleDisplayAt(
+      state.period,
+      state.bucketAt,
+    );
+    if (displayAt == null) {
+      return;
+    }
+
     marketDataCandles.value = {
       ...existing,
-      candles: existing.candles.map((candle) => {
-        if (candle.period !== state.period || candle.at !== state.bucketAt) {
-          return candle;
-        }
-
-        const completedCandle = { ...candle };
-        delete completedCandle.displayAt;
-        return completedCandle;
-      }),
+      candles: existing.candles.map((candle) =>
+        candle.period === state.period && candle.at === state.bucketAt
+          ? { ...candle, displayAt }
+          : candle,
+      ),
     };
   }
 
@@ -1402,7 +1400,7 @@ function createConsoleDataStore(workspaceLayout: WorkspaceLayoutStore) {
         previousState.period === marketDataQueryPeriod.value &&
         previousState.bucketAt !== bucketAt
       ) {
-        clearCompletedRealtimeCandleDisplayAt(previousState);
+        finalizeCompletedRealtimeCandleDisplayAt(previousState);
       }
 
       marketDataRealtimeBarPriceState = {
@@ -1437,7 +1435,6 @@ function createConsoleDataStore(workspaceLayout: WorkspaceLayoutStore) {
     event: MarketDataTickLiveEvent,
     priceState: MarketDataRealtimeBarPriceState | null,
     currentBarVolume: number | null,
-    observedAt: string,
   ): void {
     if (marketDataQueryPeriod.value === "tick" || priceState == null) {
       return;
@@ -1455,7 +1452,7 @@ function createConsoleDataStore(workspaceLayout: WorkspaceLayoutStore) {
 
     const displayAt = resolveRealtimeCandleDisplayAt(
       priceState.period,
-      observedAt,
+      priceState.bucketAt,
     );
     if (displayAt != null) {
       realtimeCandle.displayAt = displayAt;
@@ -1591,6 +1588,16 @@ function createConsoleDataStore(workspaceLayout: WorkspaceLayoutStore) {
       (candle) => candle.at === bucketAt,
     );
     let nextSnapshot = snapshot;
+    if (existingCandle != null) {
+      nextSnapshot = {
+        ...nextSnapshot,
+        barOpen: nextSnapshot.barOpen ?? existingCandle.open,
+        barHigh: nextSnapshot.barHigh ?? existingCandle.high,
+        barLow: nextSnapshot.barLow ?? existingCandle.low,
+        barVolume: nextSnapshot.barVolume ?? existingCandle.volume,
+      };
+    }
+
     const priceState = marketDataRealtimeBarPriceState;
     if (
       priceState != null &&
@@ -1683,7 +1690,6 @@ function createConsoleDataStore(workspaceLayout: WorkspaceLayoutStore) {
       event,
       currentBarPriceState,
       currentBarVolume,
-      observedAt,
     );
 
     if (marketDataQueryPeriod.value !== "tick") {

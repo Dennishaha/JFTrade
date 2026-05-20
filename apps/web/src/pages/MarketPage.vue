@@ -4,6 +4,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import {
   KLINE_PERIODS,
   overlayRealtimeTickCandle,
+  resolveKlineCandleDisplayAt,
   type KlineCandle,
 } from "../charting/kline";
 import KlineChart from "../components/KlineChart.vue";
@@ -311,8 +312,8 @@ const historicalPriceSummary = computed(() => {
     change,
     changePct,
     volume,
-    from: first.at,
-    to: last.at,
+    from: resolveKlineCandleDisplayAt(first),
+    to: resolveKlineCandleDisplayAt(last),
   };
 });
 
@@ -778,7 +779,7 @@ function scheduleMarketDataAutoRefresh(): void {
                           :key="`${candle.period}:${candle.at}`"
                           class="border-t border-slate-100"
                         >
-                          <td class="whitespace-nowrap px-3 py-2 text-slate-600">{{ formatDateTime(candle.at) }}</td>
+                          <td class="whitespace-nowrap px-3 py-2 text-slate-600">{{ formatDateTime(resolveKlineCandleDisplayAt(candle)) }}</td>
                           <td class="px-3 py-2 font-medium text-slate-900">{{ candle.open }}</td>
                           <td class="px-3 py-2 font-medium text-slate-900">{{ candle.high }}</td>
                           <td class="px-3 py-2 font-medium text-slate-900">{{ candle.low }}</td>
