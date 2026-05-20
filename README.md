@@ -63,6 +63,8 @@ cd apps/web && npm run typecheck && npm run build
 
 也可以直接运行根目录的 `start.sh` 或 `start.cmd`，按顺序执行测试、前端类型检查、前端构建，然后启动后端和前端预览服务。
 
+前端 K 线实时合成与防回归说明见 `docs/frontend-kline.md`。
+
 ## 目录结构
 
 ```

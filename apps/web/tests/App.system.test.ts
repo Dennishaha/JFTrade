@@ -260,7 +260,7 @@ describe("System page", () => {
     const { wrapper } = await mountApp("/system");
     const liveSocket = MockWebSocket.instances[0];
 
-    expect(liveSocket?.url).toBe("ws://localhost:3000/api/v1/ws/live");
+    expect(liveSocket?.url).toBe("ws://127.0.0.1:3000/api/v1/ws/live");
 
     liveSocket?.emitMessage({
       type: "heartbeat",

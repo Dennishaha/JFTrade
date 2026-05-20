@@ -16,6 +16,7 @@ import {
 
 import {
   normalizeKlineIndicators,
+  resolveKlineCandleDisplayAt,
   type KlineCandle,
   type KlineChartAdapter,
   type KlineChartFactory,
@@ -88,11 +89,13 @@ function formatLocalTickMark(time: Time, tickMarkType: TickMarkType): string {
 function sortCandles(candles: readonly KlineCandle[]): KlineCandle[] {
   const byTimestamp = new Map<number, KlineCandle>();
   const normalizedCandles = [...candles].sort(
-    (left, right) => new Date(left.at).getTime() - new Date(right.at).getTime(),
+    (left, right) =>
+      new Date(resolveKlineCandleDisplayAt(left)).getTime() -
+      new Date(resolveKlineCandleDisplayAt(right)).getTime(),
   );
 
   for (const candle of normalizedCandles) {
-    const timestamp = new Date(candle.at).getTime();
+    const timestamp = new Date(resolveKlineCandleDisplayAt(candle)).getTime();
     if (
       !Number.isFinite(timestamp) ||
       !Number.isFinite(candle.open) ||
@@ -109,6 +112,7 @@ function sortCandles(candles: readonly KlineCandle[]): KlineCandle[] {
       byTimestamp.set(chartTimestamp, {
         ...candle,
         at: new Date(chartTimestamp).toISOString(),
+        displayAt: null,
       });
       continue;
     }

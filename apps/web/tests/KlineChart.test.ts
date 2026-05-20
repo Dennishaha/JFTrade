@@ -199,6 +199,7 @@ describe("KlineChart", () => {
 
     const candles = ref([
       {
+        period: "1m",
         at: "2026-05-17T01:31:00.000Z",
         open: 320.7,
         high: 321.1,
@@ -207,6 +208,7 @@ describe("KlineChart", () => {
         volume: 21000,
       },
       {
+        period: "1m",
         at: "2026-05-17T01:30:00.000Z",
         open: 320,
         high: 320.8,

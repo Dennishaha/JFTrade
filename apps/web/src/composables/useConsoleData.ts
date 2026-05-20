@@ -112,6 +112,9 @@ interface MarketDataSnapshotQueryResult {
     at: string;
     observedAt?: string | null;
     barVolume?: number | null;
+    barOpen?: number | null;
+    barHigh?: number | null;
+    barLow?: number | null;
     session?: MarketDataSession | string | null;
     extendedHours?: boolean | null;
     extended?: MarketDataExtendedQuoteBlocks | null;
@@ -142,6 +145,7 @@ interface MarketDataCandlesQueryResult {
     close: number;
     volume: number;
     at: string;
+    displayAt?: string | null;
     session?: MarketDataSession | string | null;
   }>;
   totalReturned: number;
@@ -211,10 +215,21 @@ interface MarketDataRealtimeBarVolumeState {
   baseBarVolume: number;
 }
 
+interface MarketDataRealtimeBarPriceState {
+  instrumentId: string;
+  period: string;
+  bucketAt: string;
+  open: number;
+  high: number;
+  low: number;
+}
+
 interface MarketDataRealtimeTickVolumeState {
   instrumentId: string;
   lastCumulativeVolume: number;
 }
+
+type MarketDataCandle = MarketDataCandlesQueryResult["candles"][number];
 
 interface LoadMarketDataQueryOptions {
   appendOlder?: boolean;
@@ -528,6 +543,8 @@ function createConsoleDataStore(workspaceLayout: WorkspaceLayoutStore) {
   } | null = null;
   let marketDataQueryRequestId = 0;
   let marketDataRealtimeBarVolumeState: MarketDataRealtimeBarVolumeState | null =
+    null;
+  let marketDataRealtimeBarPriceState: MarketDataRealtimeBarPriceState | null =
     null;
   let marketDataRealtimeTickVolumeState: MarketDataRealtimeTickVolumeState | null =
     null;
@@ -1260,7 +1277,56 @@ function createConsoleDataStore(workspaceLayout: WorkspaceLayoutStore) {
 
   function resetMarketDataRealtimeVolumeState(): void {
     marketDataRealtimeBarVolumeState = null;
+    marketDataRealtimeBarPriceState = null;
     marketDataRealtimeTickVolumeState = null;
+  }
+
+  function resolveRealtimeCandleDisplayAt(
+    period: string,
+    observedAt: string,
+  ): string | null {
+    if (period === "tick") {
+      return null;
+    }
+
+    const observedTimestamp = new Date(observedAt).getTime();
+    return Number.isFinite(observedTimestamp)
+      ? new Date(observedTimestamp).toISOString()
+      : null;
+  }
+
+  function clearCompletedRealtimeCandleDisplayAt(
+    state: MarketDataRealtimeBarPriceState,
+  ): void {
+    const existing = marketDataCandles.value;
+    if (existing == null) {
+      return;
+    }
+
+    marketDataCandles.value = {
+      ...existing,
+      candles: existing.candles.map((candle) => {
+        if (candle.period !== state.period || candle.at !== state.bucketAt) {
+          return candle;
+        }
+
+        const completedCandle = { ...candle };
+        delete completedCandle.displayAt;
+        return completedCandle;
+      }),
+    };
+  }
+
+  function resolveMarketDataTickObservedAt(
+    event: MarketDataTickLiveEvent,
+  ): string {
+    const snapshotObservedAt = event.snapshot.observedAt?.trim();
+    if (snapshotObservedAt != null && snapshotObservedAt !== "") {
+      return snapshotObservedAt;
+    }
+
+    const eventObservedAt = event.at.trim();
+    return eventObservedAt === "" ? event.snapshot.at : eventObservedAt;
   }
 
   function resolveMarketDataTickSampleVolume(
@@ -1287,6 +1353,150 @@ function createConsoleDataStore(workspaceLayout: WorkspaceLayoutStore) {
     return deltaVolume;
   }
 
+  function resolveMarketDataRealtimeBucketAt(
+    event: MarketDataTickLiveEvent,
+  ): string | null {
+    if (marketDataQueryPeriod.value === "tick") {
+      return null;
+    }
+
+    const observedAt = resolveMarketDataTickObservedAt(event);
+    return resolveRealtimeBucketStart(
+      marketDataCandles.value?.candles ?? [],
+      {
+        price: event.snapshot.price,
+        volume: event.snapshot.volume,
+        at: event.snapshot.at,
+        observedAt,
+      },
+      marketDataQueryPeriod.value,
+    );
+  }
+
+  function resolveMarketDataCurrentBarPriceState(
+    event: MarketDataTickLiveEvent,
+  ): MarketDataRealtimeBarPriceState | null {
+    const bucketAt = resolveMarketDataRealtimeBucketAt(event);
+    if (bucketAt == null) {
+      marketDataRealtimeBarPriceState = null;
+      return null;
+    }
+
+    const existingCandle = marketDataCandles.value?.candles.find(
+      (candle) => candle.at === bucketAt,
+    );
+    const lastHistoricalCandle = marketDataCandles.value?.candles.at(-1);
+    const baseOpen =
+      existingCandle?.open ?? lastHistoricalCandle?.close ?? event.snapshot.price;
+    const previousState = marketDataRealtimeBarPriceState;
+    const shouldResetState =
+      previousState == null ||
+      previousState.instrumentId !== event.instrument.instrumentId ||
+      previousState.period !== marketDataQueryPeriod.value ||
+      previousState.bucketAt !== bucketAt;
+
+    if (shouldResetState) {
+      if (
+        previousState != null &&
+        previousState.instrumentId === event.instrument.instrumentId &&
+        previousState.period === marketDataQueryPeriod.value &&
+        previousState.bucketAt !== bucketAt
+      ) {
+        clearCompletedRealtimeCandleDisplayAt(previousState);
+      }
+
+      marketDataRealtimeBarPriceState = {
+        instrumentId: event.instrument.instrumentId,
+        period: marketDataQueryPeriod.value,
+        bucketAt,
+        open: baseOpen,
+        high: Math.max(existingCandle?.high ?? baseOpen, event.snapshot.price),
+        low: Math.min(existingCandle?.low ?? baseOpen, event.snapshot.price),
+      };
+    } else {
+      marketDataRealtimeBarPriceState = {
+        ...previousState,
+        open: existingCandle?.open ?? previousState.open,
+        high: Math.max(
+          previousState.high,
+          existingCandle?.high ?? previousState.high,
+          event.snapshot.price,
+        ),
+        low: Math.min(
+          previousState.low,
+          existingCandle?.low ?? previousState.low,
+          event.snapshot.price,
+        ),
+      };
+    }
+
+    return marketDataRealtimeBarPriceState;
+  }
+
+  function upsertMarketDataRealtimeCandle(
+    event: MarketDataTickLiveEvent,
+    priceState: MarketDataRealtimeBarPriceState | null,
+    currentBarVolume: number | null,
+    observedAt: string,
+  ): void {
+    if (marketDataQueryPeriod.value === "tick" || priceState == null) {
+      return;
+    }
+
+    const realtimeCandle: MarketDataCandle = {
+      period: priceState.period,
+      open: priceState.open,
+      high: priceState.high,
+      low: priceState.low,
+      close: event.snapshot.price,
+      volume: currentBarVolume ?? 0,
+      at: priceState.bucketAt,
+    };
+
+    const displayAt = resolveRealtimeCandleDisplayAt(
+      priceState.period,
+      observedAt,
+    );
+    if (displayAt != null) {
+      realtimeCandle.displayAt = displayAt;
+    }
+    if (typeof event.snapshot.session === "string") {
+      realtimeCandle.session = event.snapshot.session;
+    }
+
+    const existing = marketDataCandles.value;
+    if (existing == null) {
+      marketDataCandles.value = {
+        request: {
+          instrument: event.instrument,
+          period: priceState.period,
+          limit: marketDataQueryLimit.value,
+        },
+        candles: [realtimeCandle],
+        totalReturned: 1,
+        meta: {
+          instrumentId: event.instrument.instrumentId,
+          source: event.source,
+          resolvedAt: event.at,
+          fromCache: false,
+        },
+      };
+      return;
+    }
+
+    marketDataCandles.value = mergeMarketDataCandles(existing, {
+      ...existing,
+      candles: [realtimeCandle],
+      totalReturned: 1,
+      meta: {
+        ...existing.meta,
+        source: event.source,
+        resolvedAt: event.at,
+        fromCache: false,
+      },
+    });
+  }
+
   function resolveMarketDataCurrentBarVolume(
     event: MarketDataTickLiveEvent,
   ): number | null {
@@ -1294,17 +1504,9 @@ function createConsoleDataStore(workspaceLayout: WorkspaceLayoutStore) {
       return resolveMarketDataTickSampleVolume(event);
     }
 
-    const bucketAt = resolveRealtimeBucketStart(
-      marketDataCandles.value?.candles ?? [],
-      {
-        price: event.snapshot.price,
-        volume: event.snapshot.volume,
-        at: event.snapshot.at,
-        observedAt: event.snapshot.observedAt ?? event.at,
-      },
-      marketDataQueryPeriod.value,
-    );
+    const bucketAt = resolveMarketDataRealtimeBucketAt(event);
     if (bucketAt == null) {
+      marketDataRealtimeBarVolumeState = null;
       return null;
     }
 
@@ -1334,6 +1536,7 @@ function createConsoleDataStore(workspaceLayout: WorkspaceLayoutStore) {
       };
     } else if (
       existingCandle != null &&
+      existingCandle.displayAt == null &&
       existingCandle.volume > previousState.baseBarVolume
     ) {
       marketDataRealtimeBarVolumeState = {
@@ -1358,6 +1561,81 @@ function createConsoleDataStore(workspaceLayout: WorkspaceLayoutStore) {
     );
   }
 
+  function mergeRealtimeBarStateIntoSnapshot(
+    current: MarketDataSnapshotQueryResult | null,
+  ): MarketDataSnapshotQueryResult | null {
+    if (
+      current == null ||
+      current.snapshot == null ||
+      marketDataQueryPeriod.value === "tick"
+    ) {
+      return current;
+    }
+
+    const snapshot = current.snapshot;
+    const bucketAt = resolveRealtimeBucketStart(
+      marketDataCandles.value?.candles ?? [],
+      {
+        price: snapshot.price,
+        volume: snapshot.volume,
+        at: snapshot.at,
+        observedAt: snapshot.observedAt ?? snapshot.at,
+      },
+      marketDataQueryPeriod.value,
+    );
+    if (bucketAt == null) {
+      return current;
+    }
+
+    const existingCandle = marketDataCandles.value?.candles.find(
+      (candle) => candle.at === bucketAt,
+    );
+    let nextSnapshot = snapshot;
+    const priceState = marketDataRealtimeBarPriceState;
+    if (
+      priceState != null &&
+      priceState.instrumentId === current.request.instrumentId &&
+      priceState.period === marketDataQueryPeriod.value &&
+      priceState.bucketAt === bucketAt
+    ) {
+      nextSnapshot = {
+        ...nextSnapshot,
+        barOpen: priceState.open,
+        barHigh: Math.max(priceState.high, existingCandle?.high ?? priceState.high),
+        barLow: Math.min(priceState.low, existingCandle?.low ?? priceState.low),
+      };
+    }
+
+    const volumeState = marketDataRealtimeBarVolumeState;
+    if (
+      volumeState != null &&
+      volumeState.instrumentId === current.request.instrumentId &&
+      volumeState.period === marketDataQueryPeriod.value &&
+      volumeState.bucketAt === bucketAt &&
+      Number.isFinite(nextSnapshot.volume) &&
+      nextSnapshot.volume >= 0
+    ) {
+      const incrementalVolume = Math.max(
+        0,
+        nextSnapshot.volume - volumeState.baselineCumulativeVolume,
+      );
+      nextSnapshot = {
+        ...nextSnapshot,
+        barVolume: Math.max(
+          volumeState.baseBarVolume + incrementalVolume,
+          existingCandle?.volume ?? 0,
+        ),
+      };
+    }
+
+    return nextSnapshot === snapshot
+      ? current
+      : {
+          ...current,
+          snapshot: nextSnapshot,
+        };
+  }
+
   function applyMarketDataTickEvent(event: unknown): void {
     if (!isMarketDataTickLiveEvent(event)) {
       return;
@@ -1378,10 +1656,16 @@ function createConsoleDataStore(workspaceLayout: WorkspaceLayoutStore) {
       return;
     }
 
+    const observedAt = resolveMarketDataTickObservedAt(event);
+    const currentBarPriceState = resolveMarketDataCurrentBarPriceState(event);
     const currentBarVolume = resolveMarketDataCurrentBarVolume(event);
     const snapshot = {
       ...event.snapshot,
+      observedAt,
       barVolume: currentBarVolume,
+      barOpen: currentBarPriceState?.open ?? null,
+      barHigh: currentBarPriceState?.high ?? null,
+      barLow: currentBarPriceState?.low ?? null,
     };
 
     marketDataSnapshot.value = {
@@ -1395,6 +1679,13 @@ function createConsoleDataStore(workspaceLayout: WorkspaceLayoutStore) {
       },
     };
 
+    upsertMarketDataRealtimeCandle(
+      event,
+      currentBarPriceState,
+      currentBarVolume,
+      observedAt,
+    );
+
     if (marketDataQueryPeriod.value !== "tick") {
       return;
     }
@@ -1406,7 +1697,7 @@ function createConsoleDataStore(workspaceLayout: WorkspaceLayoutStore) {
       low: event.snapshot.price,
       close: event.snapshot.price,
       volume: currentBarVolume ?? 0,
-      at: event.snapshot.observedAt ?? event.snapshot.at,
+      at: observedAt,
     };
     if (typeof event.snapshot.session === "string") {
       tickCandle.session = event.snapshot.session;
@@ -1557,6 +1848,10 @@ function createConsoleDataStore(workspaceLayout: WorkspaceLayoutStore) {
             : options.appendOlder === true
               ? marketDataCandles.value
               : null;
+
+        marketDataSnapshot.value = mergeRealtimeBarStateIntoSnapshot(
+          marketDataSnapshot.value,
+        );
 
         if (options.appendOlder !== true) {
           resetMarketDataRealtimeVolumeState();

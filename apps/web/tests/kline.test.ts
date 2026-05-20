@@ -1,14 +1,50 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  KLINE_PERIODS,
   overlayRealtimeTickCandle,
+  resolveKlineCandleDisplayAt,
   resolveRealtimeBucketStart,
 } from "../src/charting/kline";
 
 describe("kline realtime bucket resolution", () => {
+  it("does not shift historical candle display time for any period", () => {
+    const at = "2026-05-20T10:00:00.000Z";
+
+    for (const { value: period } of KLINE_PERIODS) {
+      expect(
+        resolveKlineCandleDisplayAt({
+          period,
+          at,
+          open: 100,
+          high: 101,
+          low: 99,
+          close: 100.5,
+          volume: 1200,
+        }),
+      ).toBe(at);
+    }
+  });
+
+  it("uses explicit realtime display time without changing the bucket key", () => {
+    expect(
+      resolveKlineCandleDisplayAt({
+        period: "5m",
+        at: "2026-05-20T10:05:00.000Z",
+        displayAt: "2026-05-20T10:06:30.000Z",
+        open: 100,
+        high: 102,
+        low: 99,
+        close: 101,
+        volume: 1500,
+      }),
+    ).toBe("2026-05-20T10:06:30.000Z");
+  });
+
   it("updates the existing daily candle in the same unfinished bucket", () => {
     const candles = [
       {
+        period: "1d",
         at: "2026-05-17T16:00:00.000Z",
         open: 100,
         high: 101,
@@ -29,7 +65,9 @@ describe("kline realtime bucket resolution", () => {
     );
     expect(overlayRealtimeTickCandle(candles, snapshot, "1d")).toEqual([
       {
+        period: "1d",
         at: "2026-05-17T16:00:00.000Z",
+        displayAt: "2026-05-17T20:31:00.000Z",
         open: 100,
         high: 102,
         low: 99,
@@ -70,7 +108,9 @@ describe("kline realtime bucket resolution", () => {
         volume: 1200,
       },
       {
+        period: "1d",
         at: "2026-05-17T00:00:00.000Z",
+        displayAt: "2026-05-17T09:31:00.000Z",
         open: 100.5,
         high: 102,
         low: 100.5,
@@ -156,7 +196,52 @@ describe("kline realtime bucket resolution", () => {
         volume: 1200,
       },
       {
+        period: "5m",
         at: "2026-05-20T10:05:00.000Z",
+        displayAt: "2026-05-20T10:06:00.000Z",
+        open: 100.5,
+        high: 102,
+        low: 100.5,
+        close: 102,
+        volume: 1500,
+      },
+    ]);
+  });
+
+  it("keeps the 1m bucket key stable while showing the current observed time", () => {
+    const candles = [
+      {
+        at: "2026-05-20T10:00:00.000Z",
+        open: 100,
+        high: 101,
+        low: 99,
+        close: 100.5,
+        volume: 1200,
+      },
+    ];
+    const snapshot = {
+      price: 102,
+      volume: 1500,
+      at: "2026-05-20T10:01:30.000Z",
+      observedAt: "2026-05-20T10:01:30.000Z",
+    };
+
+    expect(resolveRealtimeBucketStart(candles, snapshot, "1m")).toBe(
+      "2026-05-20T10:01:00.000Z",
+    );
+    expect(overlayRealtimeTickCandle(candles, snapshot, "1m")).toEqual([
+      {
+        at: "2026-05-20T10:00:00.000Z",
+        open: 100,
+        high: 101,
+        low: 99,
+        close: 100.5,
+        volume: 1200,
+      },
+      {
+        period: "1m",
+        at: "2026-05-20T10:01:00.000Z",
+        displayAt: "2026-05-20T10:01:30.000Z",
         open: 100.5,
         high: 102,
         low: 100.5,

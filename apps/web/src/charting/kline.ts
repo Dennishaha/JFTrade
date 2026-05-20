@@ -1,5 +1,7 @@
 export interface KlineCandle {
+  period?: string;
   at: string;
+  displayAt?: string | null;
   open: number;
   high: number;
   low: number;
@@ -72,6 +74,9 @@ export interface RealtimeKlineSnapshot {
   at: string;
   observedAt?: string | null;
   barVolume?: number | null;
+  barOpen?: number | null;
+  barHigh?: number | null;
+  barLow?: number | null;
   session?: string | null;
 }
 
@@ -174,6 +179,15 @@ function parseCandleTime(at: string | null | undefined): number | null {
   return Number.isFinite(timestamp) ? timestamp : null;
 }
 
+export function resolveKlineCandleDisplayAt(candle: KlineCandle): string {
+  const explicitDisplayAt = candle.displayAt?.trim();
+  if (explicitDisplayAt != null && explicitDisplayAt !== "") {
+    return explicitDisplayAt;
+  }
+
+  return candle.at;
+}
+
 function shiftMinuteBucket(date: Date, shift: number): Date {
   const minute = date.getUTCMinutes() - (date.getUTCMinutes() % shift);
   return new Date(
@@ -267,6 +281,22 @@ function maxRealtimeOverlayGapMs(
   return Math.max(durationMs * 3, 15 * 60_000);
 }
 
+function resolveRealtimeOverlayDisplayAt(
+  period: string,
+  timelineAt: string,
+): string | null {
+  if (resolveKlinePeriodDurationMs(period) == null) {
+    return null;
+  }
+
+  const timelineTime = parseCandleTime(timelineAt);
+  if (timelineTime == null) {
+    return null;
+  }
+
+  return new Date(timelineTime).toISOString();
+}
+
 export function resolveRealtimeBucketStart(
   candles: readonly KlineCandle[],
   snapshot: RealtimeKlineSnapshot,
@@ -358,6 +388,7 @@ export function overlayRealtimeTickCandle(
 
   if (period === "tick") {
     const tickCandle: KlineCandle = {
+      period: "tick",
       at: timelineAt,
       open: snapshot.price,
       high: snapshot.price,
@@ -383,19 +414,27 @@ export function overlayRealtimeTickCandle(
     return [...candles];
   }
   const existing = candles.find((candle) => candle.at === bucketStart);
+  const displayAt = resolveRealtimeOverlayDisplayAt(period, timelineAt);
   const last = candles[candles.length - 1];
-  const baseOpen = existing?.open ?? last?.close ?? snapshot.price;
+  const baseOpen =
+    snapshot.barOpen ?? existing?.open ?? last?.close ?? snapshot.price;
   const baseVolume = existing?.volume ?? 0;
+  const overlayHigh = snapshot.barHigh ?? snapshot.price;
+  const overlayLow = snapshot.barLow ?? snapshot.price;
 
   const session = snapshot.session ?? existing?.session;
   const mergedCandle: KlineCandle = {
+    period,
     at: bucketStart,
     open: baseOpen,
-    high: Math.max(existing?.high ?? baseOpen, snapshot.price),
-    low: Math.min(existing?.low ?? baseOpen, snapshot.price),
+    high: Math.max(existing?.high ?? baseOpen, overlayHigh),
+    low: Math.min(existing?.low ?? baseOpen, overlayLow),
     close: snapshot.price,
     volume: snapshot.barVolume ?? Math.max(baseVolume, snapshot.volume),
   };
+  if (displayAt != null) {
+    mergedCandle.displayAt = displayAt;
+  }
   if (session !== undefined) {
     mergedCandle.session = session;
   }

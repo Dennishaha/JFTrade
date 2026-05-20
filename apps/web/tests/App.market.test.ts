@@ -483,6 +483,7 @@ describe("Market page", () => {
       },
       source: "futu",
     });
+    await new Promise((resolve) => setTimeout(resolve, 40));
     await flushRequests();
 
     expect(wrapper.text()).toContain("321.8");
@@ -522,6 +523,7 @@ describe("Market page", () => {
         source: "futu",
       });
     }
+    await new Promise((resolve) => setTimeout(resolve, 40));
     await flushRequests();
 
     expect(wrapper.text()).toContain("323.4");
