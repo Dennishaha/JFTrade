@@ -3,7 +3,9 @@ import {
   ColorType,
   CrosshairMode,
   HistogramSeries,
+  LineStyle,
   LineSeries,
+  type LineWidth,
   type IChartApi,
   type ISeriesApi,
   type Logical,
@@ -15,6 +17,9 @@ import {
 } from "lightweight-charts";
 
 import {
+  getKlineIndicatorDefinition,
+  isKlineOverlayIndicator,
+  isKlinePaneIndicator,
   normalizeKlineIndicators,
   resolveKlineCandleDisplayAt,
   type KlineCandle,
@@ -27,6 +32,17 @@ import {
 const INITIAL_VISIBLE_BARS = 120;
 const INITIAL_RIGHT_OFFSET_BARS = 8;
 const DEFAULT_INDICATORS: KlineIndicatorKey[] = ["volume"];
+const MOVING_AVERAGE_PERIODS = [5, 10, 20, 30, 60, 120, 180, 250] as const;
+const OVERLAY_SERIES_COLORS = [
+  "#2563eb",
+  "#f97316",
+  "#10b981",
+  "#8b5cf6",
+  "#ef4444",
+  "#0ea5e9",
+  "#ca8a04",
+  "#db2777",
+] as const;
 
 /** Fixed height for each indicator sub-pane in pixels. */
 export const INDICATOR_PANE_HEIGHT = 120;
@@ -156,6 +172,29 @@ function computeExponentialMovingAverage(
   });
 }
 
+function computeSimpleMovingAverage(
+  values: readonly number[],
+  period: number,
+): Array<number | null> {
+  const result = new Array<number | null>(values.length).fill(null);
+  let rollingSum = 0;
+
+  for (let index = 0; index < values.length; index += 1) {
+    const currentValue = values[index]!;
+    rollingSum += currentValue;
+    if (index >= period) {
+      const trailingValue = values[index - period]!;
+      rollingSum -= trailingValue;
+    }
+
+    if (index + 1 >= period) {
+      result[index] = rollingSum / period;
+    }
+  }
+
+  return result;
+}
+
 function computeMacd(candles: readonly KlineCandle[]) {
   const closes = candles.map((candle) => candle.close);
   const ema12 = computeExponentialMovingAverage(closes, 12);
@@ -227,6 +266,59 @@ function computeKdj(candles: readonly KlineCandle[]) {
   );
 }
 
+function getOverlaySeriesColor(period: number): string {
+  const index = MOVING_AVERAGE_PERIODS.indexOf(
+    period as (typeof MOVING_AVERAGE_PERIODS)[number],
+  );
+  const color = OVERLAY_SERIES_COLORS[index >= 0 ? index : 0];
+  return color ?? OVERLAY_SERIES_COLORS[0];
+}
+
+function buildOverlaySeriesOptions(indicator: KlineIndicatorKey) {
+  const definition = getKlineIndicatorDefinition(indicator);
+  if (definition == null || definition.kind !== "overlay" || definition.period == null) {
+    throw new Error(`Unsupported overlay indicator '${indicator}'.`);
+  }
+
+  const lineWidth: LineWidth = definition.family === "ma" ? 2 : 1;
+
+  return {
+    title: definition.label,
+    color: getOverlaySeriesColor(definition.period),
+    lineWidth,
+    lineStyle:
+      definition.family === "ma" ? LineStyle.Solid : LineStyle.Dashed,
+    priceLineVisible: false,
+    lastValueVisible: false,
+    crosshairMarkerVisible: true,
+  };
+}
+
+function buildOverlaySeriesData(
+  candles: readonly KlineCandle[],
+  indicator: KlineIndicatorKey,
+): Array<{ time: UTCTimestamp; value: number }> {
+  const definition = getKlineIndicatorDefinition(indicator);
+  if (definition == null || definition.period == null) {
+    return [];
+  }
+
+  const closes = candles.map((candle) => candle.close);
+  const values =
+    definition.family === "ma"
+      ? computeSimpleMovingAverage(closes, definition.period)
+      : computeExponentialMovingAverage(closes, definition.period);
+
+  return candles.flatMap((candle, index) => {
+    const value = values[index];
+    if (value == null) {
+      return [];
+    }
+
+    return [{ time: toTimestamp(candle.at), value }];
+  });
+}
+
 export class LightweightChartsKlineAdapter implements KlineChartAdapter {
   private readonly chart: IChartApi;
   private readonly candleSeries: ISeriesApi<"Candlestick">;
@@ -239,6 +331,7 @@ export class LightweightChartsKlineAdapter implements KlineChartAdapter {
   private kdjKSeries: ISeriesApi<"Line"> | null = null;
   private kdjDSeries: ISeriesApi<"Line"> | null = null;
   private kdjJSeries: ISeriesApi<"Line"> | null = null;
+  private overlaySeries = new Map<KlineIndicatorKey, ISeriesApi<"Line">>();
 
   private palette: KlineChartPalette;
   private selectedIndicators: KlineIndicatorKey[];
@@ -298,8 +391,8 @@ export class LightweightChartsKlineAdapter implements KlineChartAdapter {
       wickDownColor: palette.down,
     });
 
-    // Build indicator panes for the initial indicator set.
-    this.syncIndicatorPanes();
+    // Build pane and overlay series for the initial indicator set.
+    this.syncIndicatorSeries();
 
     this.chart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
       if (range == null || this.loadMoreHandler == null) {
@@ -319,11 +412,15 @@ export class LightweightChartsKlineAdapter implements KlineChartAdapter {
   }
 
   /**
-   * Remove all indicator panes (index >= 1) and recreate them in canonical
-   * order for the currently-selected indicators.  Each indicator gets its own
-   * dedicated pane with a fixed height.
+   * Rebuild all indicator series so pane indicators keep their own sub-panes
+   * and overlay indicators stay on the main candle pane.
    */
-  private syncIndicatorPanes(): void {
+  private syncIndicatorSeries(): void {
+    for (const series of this.overlaySeries.values()) {
+      this.chart.removeSeries(series);
+    }
+    this.overlaySeries.clear();
+
     // Tear down all existing indicator panes (highest index first).
     const panes = this.chart.panes();
     for (let i = panes.length - 1; i >= 1; i--) {
@@ -339,7 +436,7 @@ export class LightweightChartsKlineAdapter implements KlineChartAdapter {
 
     // Recreate in canonical order.
     for (const indicator of INDICATOR_ORDER) {
-      if (!this.selectedIndicators.includes(indicator)) {
+      if (!isKlinePaneIndicator(indicator) || !this.selectedIndicators.includes(indicator)) {
         continue;
       }
 
@@ -426,6 +523,17 @@ export class LightweightChartsKlineAdapter implements KlineChartAdapter {
         indicatorPane.setHeight(INDICATOR_PANE_HEIGHT);
       }
     }
+
+    for (const indicator of this.selectedIndicators) {
+      if (!isKlineOverlayIndicator(indicator)) {
+        continue;
+      }
+
+      this.overlaySeries.set(
+        indicator,
+        this.chart.addSeries(LineSeries, buildOverlaySeriesOptions(indicator), 0),
+      );
+    }
   }
 
   private updateIndicatorSeries(sorted: readonly KlineCandle[]): void {
@@ -462,6 +570,10 @@ export class LightweightChartsKlineAdapter implements KlineChartAdapter {
       this.kdjKSeries.setData(kdj.k);
       this.kdjDSeries!.setData(kdj.d);
       this.kdjJSeries!.setData(kdj.j);
+    }
+
+    for (const [indicator, series] of this.overlaySeries.entries()) {
+      series.setData(buildOverlaySeriesData(sorted, indicator));
     }
   }
 
@@ -542,7 +654,7 @@ export class LightweightChartsKlineAdapter implements KlineChartAdapter {
 
   setIndicators(indicators: readonly KlineIndicatorKey[]): void {
     this.selectedIndicators = normalizeKlineIndicators(indicators);
-    this.syncIndicatorPanes();
+    this.syncIndicatorSeries();
     this.updateIndicatorSeries(this.currentCandles);
   }
 

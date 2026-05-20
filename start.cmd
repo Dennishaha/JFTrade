@@ -1,4 +1,5 @@
 @echo off
+>nul chcp 65001
 setlocal
 
 cd /d "%~dp0"

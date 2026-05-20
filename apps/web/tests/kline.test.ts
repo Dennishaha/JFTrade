@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   KLINE_PERIODS,
   overlayRealtimeTickCandle,
+  normalizeKlineIndicators,
   resolveKlineCandleDisplayAt,
   resolveRealtimeBucketStart,
 } from "../src/charting/kline";
@@ -302,5 +303,11 @@ describe("kline realtime bucket resolution", () => {
         volume: 1500,
       },
     ]);
+  });
+
+  it("keeps MA and EMA indicators in canonical order", () => {
+    expect(
+      normalizeKlineIndicators(["ema20", "ma5", "volume", "unknown"]),
+    ).toEqual(["volume", "ma5", "ema20"]);
   });
 });

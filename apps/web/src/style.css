@@ -6,6 +6,13 @@
   background-color: #07111f;
 }
 
+html,
+body {
+  height: 100%;
+  min-height: 100dvh;
+  overflow: hidden;
+}
+
 body {
   margin: 0;
   background:
@@ -23,7 +30,9 @@ body {
 }
 
 #app {
-  min-height: 100vh;
+  height: 100dvh;
+  min-height: 100dvh;
+  overflow: hidden;
 }
 
 .card-shell {
@@ -185,16 +194,18 @@ body {
 
 /* App shell layout */
 .tv-app {
-  min-height: 100vh;
+  height: 100dvh;
   background: var(--tv-bg-app);
   color: var(--tv-text);
   display: grid;
   grid-template-rows: 48px 1fr 28px;
+  overflow: hidden;
 }
 
 .tv-app-body {
   display: grid;
   grid-template-columns: 64px minmax(0, 1fr) auto;
+  min-width: 0;
   min-height: 0;
   overflow: hidden;
 }
@@ -218,6 +229,8 @@ body {
   padding: 8px 0;
   gap: 4px;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 .tv-iconrail-btn {
@@ -255,19 +268,32 @@ body {
 }
 
 .tv-main {
+  display: flex;
+  flex-direction: column;
   min-width: 0;
   min-height: 0;
-  overflow: auto;
+  overflow: hidden;
   background: var(--tv-bg-app);
 }
 
+.tv-main > * {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable both-edges;
+}
+
 .tv-rightdock {
-  width: 360px;
+  width: clamp(300px, 24vw, 360px);
   border-left: 1px solid var(--tv-border);
   background: var(--tv-bg-surface);
   display: flex;
   flex-direction: column;
+  min-width: 0;
   min-height: 0;
+  overflow: hidden;
 }
 
 .tv-rightdock.is-collapsed {
@@ -368,11 +394,13 @@ body {
 .tv-workspace {
   display: grid;
   grid-template-columns: minmax(0, 3fr) minmax(280px, 1fr);
-  grid-template-rows: minmax(360px, 1.6fr) minmax(260px, 1fr);
+  grid-template-rows: minmax(0, 1.65fr) minmax(0, 1fr);
   gap: 6px;
   padding: 6px;
   height: 100%;
-  min-height: calc(100vh - 76px);
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .tv-panel {
@@ -412,20 +440,31 @@ body {
   min-height: 0;
   overflow: auto;
   padding: 8px;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable both-edges;
 }
 
 .tv-panel-body.is-flush {
   padding: 0;
 }
 
+.tv-grid-area-chart .tv-panel-body.is-flush {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
 .tv-chart-host {
+  display: flex;
   flex: 1;
   min-height: 0;
   min-width: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
-.tv-chart-host .kline-chart-shell {
-  height: 100%;
+.tv-chart-host > .kline-chart-shell {
+  flex: 1 1 auto;
   border-radius: 0;
 }
 
@@ -577,7 +616,7 @@ body {
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding-top: 12vh;
+  padding-top: 12dvh;
   z-index: 100;
 }
 
@@ -605,7 +644,7 @@ body {
   list-style: none;
   margin: 0;
   padding: 6px;
-  max-height: 50vh;
+  max-height: 50dvh;
   overflow-y: auto;
 }
 
@@ -658,6 +697,8 @@ body {
   min-height: 0;
   overflow-y: auto;
   padding: 10px;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 .tv-noti-item {
@@ -692,4 +733,99 @@ body {
 }
 .tv-ai-msg.is-user {
   background: color-mix(in srgb, var(--tv-accent) 14%, transparent);
+}
+
+.tv-main > *::-webkit-scrollbar,
+.tv-panel-body::-webkit-scrollbar,
+.tv-dock-body::-webkit-scrollbar,
+.tv-iconrail::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.tv-main > *::-webkit-scrollbar-track,
+.tv-panel-body::-webkit-scrollbar-track,
+.tv-dock-body::-webkit-scrollbar-track,
+.tv-iconrail::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.tv-main > *::-webkit-scrollbar-thumb,
+.tv-panel-body::-webkit-scrollbar-thumb,
+.tv-dock-body::-webkit-scrollbar-thumb,
+.tv-iconrail::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--tv-text-dim) 60%, transparent);
+  background-clip: padding-box;
+}
+
+.tv-main > *,
+.tv-panel-body,
+.tv-dock-body,
+.tv-iconrail {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--tv-text-dim) 60%, transparent)
+    transparent;
+}
+
+@media (max-width: 1180px) {
+  .tv-app-body {
+    grid-template-columns: 56px minmax(0, 1fr) clamp(280px, 32vw, 340px);
+  }
+
+  .tv-workspace {
+    grid-template-columns: minmax(0, 1.7fr) minmax(240px, 1fr);
+  }
+}
+
+@media (max-width: 960px) {
+  .tv-app-body {
+    grid-template-columns: 56px minmax(0, 1fr);
+  }
+
+  .tv-rightdock {
+    position: absolute;
+    top: 48px;
+    right: 0;
+    bottom: 28px;
+    width: min(360px, calc(100vw - 72px));
+    box-shadow: -16px 0 40px rgba(2, 6, 23, 0.28);
+    z-index: 30;
+  }
+
+  .tv-rightdock.is-collapsed {
+    width: 0;
+    box-shadow: none;
+  }
+
+  .tv-workspace {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1.3fr) repeat(3, minmax(220px, 0.9fr));
+    overflow: auto;
+    scrollbar-gutter: stable both-edges;
+  }
+
+  .tv-grid-area-chart,
+  .tv-grid-area-watchlist,
+  .tv-grid-area-positions,
+  .tv-grid-area-order {
+    grid-column: 1;
+  }
+
+  .tv-grid-area-chart {
+    grid-row: 1;
+  }
+
+  .tv-grid-area-watchlist {
+    grid-row: 2;
+  }
+
+  .tv-grid-area-positions {
+    grid-row: 3;
+  }
+
+  .tv-grid-area-order {
+    grid-row: 4;
+  }
 }

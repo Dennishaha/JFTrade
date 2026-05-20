@@ -17,6 +17,13 @@ const chartMocks = vi.hoisted(() => {
   const kdjKSetData = vi.fn();
   const kdjDSetData = vi.fn();
   const kdjJSetData = vi.fn();
+  const movingAveragePeriods = [5, 10, 20, 30, 60, 120, 180, 250] as const;
+  const overlayLineSetDataByTitle = Object.fromEntries(
+    movingAveragePeriods.flatMap((period) => [
+      [`MA${period}`, vi.fn()],
+      [`EMA${period}`, vi.fn()],
+    ]),
+  ) as Record<string, ReturnType<typeof vi.fn>>;
   const resize = vi.fn();
   const fitContent = vi.fn();
   const setVisibleLogicalRange = vi.fn();
@@ -69,15 +76,24 @@ const chartMocks = vi.hoisted(() => {
     }
 
     const addSeries = vi.fn(
-      (definition: { type?: string }, _opts: unknown, paneIdx = 0) => {
+      (definition: { type?: string }, opts: unknown, paneIdx = 0) => {
         ensurePanes(paneIdx);
         const typeName = definition?.type ?? "";
+        const title =
+          typeof opts === "object" && opts != null
+            ? (opts as { title?: string }).title
+            : undefined;
         let setDataFn: ReturnType<typeof vi.fn>;
         if (typeName === "Candlestick") {
           setDataFn = candlestickSetData;
         } else if (typeName === "Histogram") {
           setDataFn =
             histogramSetDataFns[histogramIdx++ % histogramSetDataFns.length];
+        } else if (
+          title != null &&
+          Object.hasOwn(overlayLineSetDataByTitle, title)
+        ) {
+          setDataFn = overlayLineSetDataByTitle[title];
         } else {
           setDataFn = lineSetDataFns[lineIdx++ % lineSetDataFns.length];
         }
@@ -97,11 +113,13 @@ const chartMocks = vi.hoisted(() => {
       histogramIdx = 0;
       lineIdx = 0;
     });
+    const removeSeries = vi.fn();
 
     return {
       addSeries,
       panes: vi.fn(() => [...panesArray]),
       removePane,
+      removeSeries,
       applyOptions: vi.fn(),
       resize,
       remove: vi.fn(),
@@ -124,6 +142,7 @@ const chartMocks = vi.hoisted(() => {
     kdjKSetData,
     kdjDSetData,
     kdjJSetData,
+    overlayLineSetDataByTitle,
     resize,
     fitContent,
     getVisibleLogicalRange,
@@ -139,6 +158,7 @@ const chartMocks = vi.hoisted(() => {
 vi.mock("lightweight-charts", () => ({
   ColorType: { Solid: "solid" },
   CrosshairMode: { Normal: 0 },
+  LineStyle: { Solid: 0, Dashed: 1, Dotted: 2 },
   TickMarkType: { Year: 0, Month: 1, DayOfMonth: 2, Time: 3, TimeWithSeconds: 4 },
   CandlestickSeries: { type: "Candlestick" },
   HistogramSeries: { type: "Histogram" },
@@ -169,6 +189,7 @@ afterEach(() => {
   chartMocks.kdjKSetData.mockClear();
   chartMocks.kdjDSetData.mockClear();
   chartMocks.kdjJSetData.mockClear();
+  Object.values(chartMocks.overlayLineSetDataByTitle).forEach((spy) => spy.mockClear());
   chartMocks.resize.mockClear();
   chartMocks.fitContent.mockClear();
   chartMocks.getVisibleLogicalRange.mockClear();
@@ -414,7 +435,7 @@ describe("KlineChart", () => {
     ]);
   });
 
-  it("adds separate indicator panes when selector buttons are toggled", async () => {
+  it("adds separate indicator panes when selector checkboxes are toggled", async () => {
     vi.stubGlobal("ResizeObserver", MockResizeObserver);
     vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
       callback(1);
@@ -466,9 +487,9 @@ describe("KlineChart", () => {
     await nextTick();
     await nextTick();
 
-    // Enable MACD (button index 1).
-    const buttons = wrapper.findAll("button");
-    await buttons[1]?.trigger("click");
+    // Open the selector and enable MACD / KDJ from the popup.
+    await wrapper.get("button.kline-chart-trigger").trigger("click");
+    await wrapper.get("input[value='macd']").trigger("change");
     await nextTick();
 
     // MACD pane series should have received data.
@@ -476,14 +497,114 @@ describe("KlineChart", () => {
     expect(chartMocks.macdDiffSetData).toHaveBeenCalled();
     expect(chartMocks.macdDeaSetData).toHaveBeenCalled();
 
-    // Enable KDJ (button index 2).
-    await buttons[2]?.trigger("click");
+    await wrapper.get("input[value='kdj']").trigger("change");
     await nextTick();
 
     // KDJ pane series should have received data.
     expect(chartMocks.kdjKSetData).toHaveBeenCalled();
     expect(chartMocks.kdjDSetData).toHaveBeenCalled();
     expect(chartMocks.kdjJSetData).toHaveBeenCalled();
+  });
+
+  it("renders MA and EMA overlays in the main pane without adding extra pane height", async () => {
+    vi.stubGlobal("ResizeObserver", MockResizeObserver);
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      callback(1);
+      return 1;
+    });
+    vi.stubGlobal("cancelAnimationFrame", vi.fn());
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({
+      x: 0,
+      y: 0,
+      width: 640,
+      height: 320,
+      top: 0,
+      right: 640,
+      bottom: 320,
+      left: 0,
+      toJSON: () => ({}),
+    });
+
+    const candles = ref([
+      {
+        at: "2026-05-17T01:30:00.000Z",
+        open: 320,
+        high: 320.8,
+        low: 319.9,
+        close: 320.5,
+        volume: 18000,
+      },
+      {
+        at: "2026-05-17T01:31:00.000Z",
+        open: 320.7,
+        high: 321.1,
+        low: 320.6,
+        close: 321,
+        volume: 21000,
+      },
+      {
+        at: "2026-05-17T01:32:00.000Z",
+        open: 321.1,
+        high: 321.5,
+        low: 320.9,
+        close: 321.2,
+        volume: 22000,
+      },
+      {
+        at: "2026-05-17T01:33:00.000Z",
+        open: 321.4,
+        high: 321.8,
+        low: 321.1,
+        close: 321.6,
+        volume: 23000,
+      },
+      {
+        at: "2026-05-17T01:34:00.000Z",
+        open: 321.7,
+        high: 322,
+        low: 321.4,
+        close: 321.9,
+        volume: 24000,
+      },
+      {
+        at: "2026-05-17T01:35:00.000Z",
+        open: 321.9,
+        high: 322.3,
+        low: 321.5,
+        close: 322.1,
+        volume: 25000,
+      },
+    ]);
+
+    const Host = defineComponent({
+      components: { KlineChart },
+      setup() {
+        provideThemeStore();
+        return { candles };
+      },
+      template:
+        '<KlineChart :candles="candles" :min-height="320" show-indicator-selector />',
+    });
+
+    const wrapper = mount(Host);
+    await nextTick();
+    await nextTick();
+
+    const shell = wrapper.get(".kline-chart-shell").element as HTMLElement;
+    expect(shell.style.width).toBe("100%");
+    expect(shell.style.height).toBe("100%");
+    expect(shell.style.minHeight).toBe("440px");
+
+    await wrapper.get("button.kline-chart-trigger").trigger("click");
+    await wrapper.get("input[value='ma5']").trigger("change");
+    await wrapper.get("input[value='ema5']").trigger("change");
+    await nextTick();
+
+    expect(chartMocks.overlayLineSetDataByTitle.MA5).toHaveBeenCalled();
+    expect(chartMocks.overlayLineSetDataByTitle.EMA5).toHaveBeenCalled();
+    expect(shell.style.width).toBe("100%");
+    expect(shell.style.height).toBe("100%");
+    expect(shell.style.minHeight).toBe("440px");
   });
 
   it("recenters the chart on the latest bars when the candle period changes", async () => {

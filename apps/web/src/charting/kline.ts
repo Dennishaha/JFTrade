@@ -60,13 +60,63 @@ export const KLINE_PERIODS = [
   { value: "1w", label: "1W" },
 ] as const;
 
-export const KLINE_INDICATORS = [
-  { value: "volume", label: "VOL" },
-  { value: "macd", label: "MACD" },
-  { value: "kdj", label: "KDJ" },
-] as const;
+const MOVING_AVERAGE_PERIODS = [5, 10, 20, 30, 60, 120, 180, 250] as const;
+type MovingAveragePeriod = (typeof MOVING_AVERAGE_PERIODS)[number];
 
-export type KlineIndicatorKey = (typeof KLINE_INDICATORS)[number]["value"];
+export type KlineIndicatorKey =
+  | "volume"
+  | "macd"
+  | "kdj"
+  | `ma${MovingAveragePeriod}`
+  | `ema${MovingAveragePeriod}`;
+
+export interface KlineIndicatorDefinition {
+  value: KlineIndicatorKey;
+  label: string;
+  kind: "pane" | "overlay";
+  family: "volume" | "macd" | "kdj" | "ma" | "ema";
+  period?: MovingAveragePeriod;
+}
+
+export const KLINE_INDICATORS = [
+  { value: "volume", label: "VOL", kind: "pane", family: "volume" },
+  { value: "macd", label: "MACD", kind: "pane", family: "macd" },
+  { value: "kdj", label: "KDJ", kind: "pane", family: "kdj" },
+  { value: "ma5", label: "MA5", kind: "overlay", family: "ma", period: 5 },
+  { value: "ma10", label: "MA10", kind: "overlay", family: "ma", period: 10 },
+  { value: "ma20", label: "MA20", kind: "overlay", family: "ma", period: 20 },
+  { value: "ma30", label: "MA30", kind: "overlay", family: "ma", period: 30 },
+  { value: "ma60", label: "MA60", kind: "overlay", family: "ma", period: 60 },
+  { value: "ma120", label: "MA120", kind: "overlay", family: "ma", period: 120 },
+  { value: "ma180", label: "MA180", kind: "overlay", family: "ma", period: 180 },
+  { value: "ma250", label: "MA250", kind: "overlay", family: "ma", period: 250 },
+  { value: "ema5", label: "EMA5", kind: "overlay", family: "ema", period: 5 },
+  { value: "ema10", label: "EMA10", kind: "overlay", family: "ema", period: 10 },
+  { value: "ema20", label: "EMA20", kind: "overlay", family: "ema", period: 20 },
+  { value: "ema30", label: "EMA30", kind: "overlay", family: "ema", period: 30 },
+  { value: "ema60", label: "EMA60", kind: "overlay", family: "ema", period: 60 },
+  { value: "ema120", label: "EMA120", kind: "overlay", family: "ema", period: 120 },
+  { value: "ema180", label: "EMA180", kind: "overlay", family: "ema", period: 180 },
+  { value: "ema250", label: "EMA250", kind: "overlay", family: "ema", period: 250 },
+] as const satisfies readonly KlineIndicatorDefinition[];
+
+const KLINE_INDICATOR_SET = new Set<KlineIndicatorKey>(
+  KLINE_INDICATORS.map((indicator) => indicator.value),
+);
+
+export function getKlineIndicatorDefinition(
+  indicator: KlineIndicatorKey,
+): KlineIndicatorDefinition | undefined {
+  return KLINE_INDICATORS.find((definition) => definition.value === indicator);
+}
+
+export function isKlinePaneIndicator(indicator: KlineIndicatorKey): boolean {
+  return getKlineIndicatorDefinition(indicator)?.kind === "pane";
+}
+
+export function isKlineOverlayIndicator(indicator: KlineIndicatorKey): boolean {
+  return getKlineIndicatorDefinition(indicator)?.kind === "overlay";
+}
 
 export interface RealtimeKlineSnapshot {
   price: number;
@@ -139,12 +189,9 @@ export function formatKlinePeriodLabel(period: string): string {
 export function normalizeKlineIndicators(
   indicators: readonly string[],
 ): KlineIndicatorKey[] {
-  const allowed = new Set<KlineIndicatorKey>(
-    KLINE_INDICATORS.map((indicator) => indicator.value),
-  );
   const normalized = indicators.filter(
     (indicator): indicator is KlineIndicatorKey =>
-      allowed.has(indicator as KlineIndicatorKey),
+      KLINE_INDICATOR_SET.has(indicator as KlineIndicatorKey),
   );
 
   if (normalized.length === 0) {
