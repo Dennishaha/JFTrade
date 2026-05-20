@@ -86,11 +86,14 @@ const palette = computed(() =>
       },
 );
 
+// Each indicator gets its own dedicated pane.  Keep this in sync with
+// INDICATOR_PANE_HEIGHT in lightweightChartsKline.ts.
+const INDICATOR_PANE_HEIGHT = 120;
 const chartShellHeight = computed(() => {
-  const extraPanels = props.showIndicatorSelector
-    ? Math.max(0, selectedIndicators.value.length - 1)
-    : 0;
-  return props.minHeight + extraPanels * 96;
+  const nIndicators = props.showIndicatorSelector
+    ? selectedIndicators.value.length
+    : selectedIndicators.value.length; // always allocate space even without selector
+  return props.minHeight + nIndicators * INDICATOR_PANE_HEIGHT;
 });
 
 function readStoredIndicators(): KlineIndicatorKey[] | null {

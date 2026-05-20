@@ -14,6 +14,21 @@ const symbolInfo = computed(
   () => `${prefs.value.market}:${prefs.value.symbol}`,
 );
 const snap = computed(() => marketDataSnapshot.value?.snapshot ?? null);
+const sessionLabels: Record<string, string> = {
+  regular: "盘中",
+  pre: "盘前",
+  after: "盘后",
+  overnight: "夜盘",
+  closed: "休市",
+  unknown: "未知",
+};
+const snapSessionLabel = computed(() => {
+  const session = snap.value?.session;
+  if (typeof session !== "string" || session === "") {
+    return "—";
+  }
+  return sessionLabels[session] ?? session;
+});
 
 const tabs = [
   { id: "notifications", label: "Notifications" },
@@ -58,6 +73,7 @@ function toggle(): void {
             <tr><td>Last</td><td class="tv-num">{{ snap?.price ?? "—" }}</td></tr>
             <tr><td>Bid</td><td class="tv-num">{{ snap?.bid ?? "—" }}</td></tr>
             <tr><td>Ask</td><td class="tv-num">{{ snap?.ask ?? "—" }}</td></tr>
+            <tr><td>Session</td><td class="tv-num">{{ snapSessionLabel }}</td></tr>
             <tr><td>Vol</td><td class="tv-num">{{ snap?.volume ?? "—" }}</td></tr>
             <tr><td>Turnover</td><td class="tv-num">{{ snap?.turnover ?? "—" }}</td></tr>
             <tr><td>As of</td><td class="tv-num">{{ snap?.at ?? "—" }}</td></tr>

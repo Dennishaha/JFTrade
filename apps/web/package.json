@@ -13,7 +13,7 @@
     "@element-plus/icons-vue": "^2.3.2",
     "@jftrade/ui-contracts": "0.0.0",
     "element-plus": "^2.14.0",
-    "lightweight-charts": "^4.2.3",
+    "lightweight-charts": "^5.2.0",
     "pinia": "^3.0.4",
     "vue": "^3.5.34",
     "vue-router": "^4.6.3"

@@ -1,6 +1,9 @@
 import {
+  CandlestickSeries,
   ColorType,
   CrosshairMode,
+  HistogramSeries,
+  LineSeries,
   type IChartApi,
   type ISeriesApi,
   type Logical,
@@ -24,17 +27,11 @@ const INITIAL_VISIBLE_BARS = 120;
 const INITIAL_RIGHT_OFFSET_BARS = 8;
 const DEFAULT_INDICATORS: KlineIndicatorKey[] = ["volume"];
 
-type IndicatorPanelKey = "volume" | "macd" | "kdj";
+/** Fixed height for each indicator sub-pane in pixels. */
+export const INDICATOR_PANE_HEIGHT = 120;
 
-type PanelMargins = {
-  top: number;
-  bottom: number;
-};
-
-const HIDDEN_PANEL_MARGINS: PanelMargins = {
-  top: 0.99,
-  bottom: 0.005,
-};
+/** Canonical creation order for indicator panes. */
+const INDICATOR_ORDER: readonly KlineIndicatorKey[] = ["volume", "macd", "kdj"];
 
 function toTimestamp(at: string): UTCTimestamp {
   return Math.floor(new Date(at).getTime() / 1000) as UTCTimestamp;
@@ -230,13 +227,16 @@ function computeKdj(candles: readonly KlineCandle[]) {
 export class LightweightChartsKlineAdapter implements KlineChartAdapter {
   private readonly chart: IChartApi;
   private readonly candleSeries: ISeriesApi<"Candlestick">;
-  private readonly volumeSeries: ISeriesApi<"Histogram">;
-  private readonly macdHistogramSeries: ISeriesApi<"Histogram">;
-  private readonly macdDiffSeries: ISeriesApi<"Line">;
-  private readonly macdDeaSeries: ISeriesApi<"Line">;
-  private readonly kdjKSeries: ISeriesApi<"Line">;
-  private readonly kdjDSeries: ISeriesApi<"Line">;
-  private readonly kdjJSeries: ISeriesApi<"Line">;
+
+  // Indicator series — null when the indicator is disabled.
+  private volumeSeries: ISeriesApi<"Histogram"> | null = null;
+  private macdHistogramSeries: ISeriesApi<"Histogram"> | null = null;
+  private macdDiffSeries: ISeriesApi<"Line"> | null = null;
+  private macdDeaSeries: ISeriesApi<"Line"> | null = null;
+  private kdjKSeries: ISeriesApi<"Line"> | null = null;
+  private kdjDSeries: ISeriesApi<"Line"> | null = null;
+  private kdjJSeries: ISeriesApi<"Line"> | null = null;
+
   private palette: KlineChartPalette;
   private selectedIndicators: KlineIndicatorKey[];
   private currentCandles: KlineCandle[] = [];
@@ -260,6 +260,10 @@ export class LightweightChartsKlineAdapter implements KlineChartAdapter {
       layout: {
         background: { type: ColorType.Solid, color: palette.bg },
         textColor: palette.text,
+        panes: {
+          separatorColor: palette.border,
+          enableResize: true,
+        },
       },
       grid: {
         vertLines: { color: palette.grid },
@@ -280,7 +284,8 @@ export class LightweightChartsKlineAdapter implements KlineChartAdapter {
       crosshair: { mode: CrosshairMode.Normal },
     });
 
-    this.candleSeries = this.chart.addCandlestickSeries({
+    // Main candlestick series always lives in pane 0.
+    this.candleSeries = this.chart.addSeries(CandlestickSeries, {
       upColor: palette.up,
       downColor: palette.down,
       borderUpColor: palette.up,
@@ -288,54 +293,10 @@ export class LightweightChartsKlineAdapter implements KlineChartAdapter {
       wickUpColor: palette.up,
       wickDownColor: palette.down,
     });
-    this.volumeSeries = this.chart.addHistogramSeries({
-      priceFormat: { type: "volume" },
-      priceScaleId: "volume",
-      priceLineVisible: false,
-      lastValueVisible: false,
-    });
-    this.macdHistogramSeries = this.chart.addHistogramSeries({
-      priceScaleId: "macd",
-      priceLineVisible: false,
-      lastValueVisible: false,
-    });
-    this.macdDiffSeries = this.chart.addLineSeries({
-      priceScaleId: "macd",
-      lineWidth: 2,
-      priceLineVisible: false,
-      lastValueVisible: false,
-      crosshairMarkerVisible: true,
-    });
-    this.macdDeaSeries = this.chart.addLineSeries({
-      priceScaleId: "macd",
-      lineWidth: 2,
-      priceLineVisible: false,
-      lastValueVisible: false,
-      crosshairMarkerVisible: true,
-    });
-    this.kdjKSeries = this.chart.addLineSeries({
-      priceScaleId: "kdj",
-      lineWidth: 2,
-      priceLineVisible: false,
-      lastValueVisible: false,
-      crosshairMarkerVisible: true,
-    });
-    this.kdjDSeries = this.chart.addLineSeries({
-      priceScaleId: "kdj",
-      lineWidth: 2,
-      priceLineVisible: false,
-      lastValueVisible: false,
-      crosshairMarkerVisible: true,
-    });
-    this.kdjJSeries = this.chart.addLineSeries({
-      priceScaleId: "kdj",
-      lineWidth: 2,
-      priceLineVisible: false,
-      lastValueVisible: false,
-      crosshairMarkerVisible: true,
-    });
-    this.applyPalette(palette);
-    this.applyIndicatorLayout();
+
+    // Build indicator panes for the initial indicator set.
+    this.syncIndicatorPanes();
+
     this.chart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
       if (range == null || this.loadMoreHandler == null) {
         return;
@@ -353,130 +314,151 @@ export class LightweightChartsKlineAdapter implements KlineChartAdapter {
     });
   }
 
-  private setSeriesVisible(series: ISeriesApi<any>, visible: boolean): void {
-    series.applyOptions({ visible });
-  }
-
-  private setMainScaleMargins(margins: PanelMargins): void {
-    this.candleSeries.priceScale().applyOptions({
-      scaleMargins: margins,
-    });
-  }
-
-  private setPanelMargins(
-    priceScaleId: IndicatorPanelKey,
-    margins: PanelMargins,
-    visible = false,
-  ): void {
-    this.chart.priceScale(priceScaleId).applyOptions({
-      autoScale: true,
-      visible,
-      borderVisible: visible,
-      scaleMargins: margins,
-    });
-  }
-
-  private applyIndicatorLayout(): void {
-    const secondaryPanels = ["kdj", "macd", "volume"].filter((panel) =>
-      this.selectedIndicators.includes(panel as KlineIndicatorKey),
-    ) as IndicatorPanelKey[];
-
-    this.setMainScaleMargins(
-      secondaryPanels.length === 0
-        ? { top: 0.02, bottom: 0.04 }
-        : {
-            top: 0.02,
-            bottom:
-              secondaryPanels.length === 1
-                ? 0.22
-                : secondaryPanels.length === 2
-                  ? 0.34
-                  : 0.41,
-          },
-    );
-
-    const showVolume = this.selectedIndicators.includes("volume");
-    const showMacd = this.selectedIndicators.includes("macd");
-    const showKdj = this.selectedIndicators.includes("kdj");
-
-    this.setSeriesVisible(this.volumeSeries, showVolume);
-    this.setSeriesVisible(this.macdHistogramSeries, showMacd);
-    this.setSeriesVisible(this.macdDiffSeries, showMacd);
-    this.setSeriesVisible(this.macdDeaSeries, showMacd);
-    this.setSeriesVisible(this.kdjKSeries, showKdj);
-    this.setSeriesVisible(this.kdjDSeries, showKdj);
-    this.setSeriesVisible(this.kdjJSeries, showKdj);
-
-    this.setPanelMargins("volume", HIDDEN_PANEL_MARGINS, false);
-    this.setPanelMargins("macd", HIDDEN_PANEL_MARGINS, false);
-    this.setPanelMargins("kdj", HIDDEN_PANEL_MARGINS, false);
-
-    if (secondaryPanels.length === 0) {
-      return;
+  /**
+   * Remove all indicator panes (index >= 1) and recreate them in canonical
+   * order for the currently-selected indicators.  Each indicator gets its own
+   * dedicated pane with a fixed height.
+   */
+  private syncIndicatorPanes(): void {
+    // Tear down all existing indicator panes (highest index first).
+    const panes = this.chart.panes();
+    for (let i = panes.length - 1; i >= 1; i--) {
+      this.chart.removePane(i);
     }
+    this.volumeSeries = null;
+    this.macdHistogramSeries = null;
+    this.macdDiffSeries = null;
+    this.macdDeaSeries = null;
+    this.kdjKSeries = null;
+    this.kdjDSeries = null;
+    this.kdjJSeries = null;
 
-    const bottomPadding = 0.02;
-    const gap = 0.02;
-    const panelHeight =
-      secondaryPanels.length === 1
-        ? 0.18
-        : secondaryPanels.length === 2
-          ? 0.14
-          : 0.11;
-    const totalSecondaryHeight =
-      secondaryPanels.length * panelHeight +
-      Math.max(0, secondaryPanels.length - 1) * gap;
-    const mainBottom = 1 - bottomPadding - totalSecondaryHeight - gap;
-
-    let currentTop = mainBottom + gap;
-    for (const panel of secondaryPanels) {
-      const panelBottom = currentTop + panelHeight;
-      const margins = {
-        top: currentTop,
-        bottom: Math.max(bottomPadding, 1 - panelBottom),
-      };
-
-      if (panel === "volume") {
-        this.setPanelMargins("volume", margins, true);
-      } else if (panel === "macd") {
-        this.setPanelMargins("macd", margins, true);
-      } else {
-        this.setPanelMargins("kdj", margins, true);
+    // Recreate in canonical order.
+    for (const indicator of INDICATOR_ORDER) {
+      if (!this.selectedIndicators.includes(indicator)) {
+        continue;
       }
 
-      currentTop = panelBottom + gap;
+      const paneIdx = this.chart.panes().length;
+
+      if (indicator === "volume") {
+        this.volumeSeries = this.chart.addSeries(
+          HistogramSeries,
+          {
+            priceFormat: { type: "volume" },
+            priceLineVisible: false,
+            lastValueVisible: false,
+          },
+          paneIdx,
+        );
+      } else if (indicator === "macd") {
+        // All three MACD series share the same pane index.
+        this.macdHistogramSeries = this.chart.addSeries(
+          HistogramSeries,
+          { priceLineVisible: false, lastValueVisible: false },
+          paneIdx,
+        );
+        this.macdDiffSeries = this.chart.addSeries(
+          LineSeries,
+          {
+            lineWidth: 2,
+            color: this.palette.indicatorA,
+            priceLineVisible: false,
+            lastValueVisible: false,
+            crosshairMarkerVisible: true,
+          },
+          paneIdx,
+        );
+        this.macdDeaSeries = this.chart.addSeries(
+          LineSeries,
+          {
+            lineWidth: 2,
+            color: this.palette.indicatorB,
+            priceLineVisible: false,
+            lastValueVisible: false,
+            crosshairMarkerVisible: true,
+          },
+          paneIdx,
+        );
+      } else if (indicator === "kdj") {
+        this.kdjKSeries = this.chart.addSeries(
+          LineSeries,
+          {
+            lineWidth: 2,
+            color: this.palette.indicatorA,
+            priceLineVisible: false,
+            lastValueVisible: false,
+            crosshairMarkerVisible: true,
+          },
+          paneIdx,
+        );
+        this.kdjDSeries = this.chart.addSeries(
+          LineSeries,
+          {
+            lineWidth: 2,
+            color: this.palette.indicatorB,
+            priceLineVisible: false,
+            lastValueVisible: false,
+            crosshairMarkerVisible: true,
+          },
+          paneIdx,
+        );
+        this.kdjJSeries = this.chart.addSeries(
+          LineSeries,
+          {
+            lineWidth: 2,
+            color: this.palette.indicatorC,
+            priceLineVisible: false,
+            lastValueVisible: false,
+            crosshairMarkerVisible: true,
+          },
+          paneIdx,
+        );
+      }
+
+      // Set a fixed height on the newly-created indicator pane.
+      const indicatorPane = this.chart.panes()[paneIdx];
+      if (indicatorPane != null) {
+        indicatorPane.setHeight(INDICATOR_PANE_HEIGHT);
+      }
     }
   }
 
   private updateIndicatorSeries(sorted: readonly KlineCandle[]): void {
-    this.volumeSeries.setData(
-      sorted.map((candle) => ({
-        time: toTimestamp(candle.at),
-        value: candle.volume,
-        color:
-          candle.close >= candle.open
-            ? this.palette.volumeUp
-            : this.palette.volumeDown,
-      })),
-    );
+    if (this.volumeSeries != null) {
+      this.volumeSeries.setData(
+        sorted.map((candle) => ({
+          time: toTimestamp(candle.at),
+          value: candle.volume,
+          color:
+            candle.close >= candle.open
+              ? this.palette.volumeUp
+              : this.palette.volumeDown,
+        })),
+      );
+    }
 
-    const macd = computeMacd(sorted);
-    this.macdHistogramSeries.setData(
-      macd.histogram.map((item) => ({
-        ...item,
-        color:
-          item.value >= 0
-            ? this.palette.macdPositive
-            : this.palette.macdNegative,
-      })),
-    );
-    this.macdDiffSeries.setData(macd.diff);
-    this.macdDeaSeries.setData(macd.dea);
+    if (this.macdHistogramSeries != null) {
+      const macd = computeMacd(sorted);
+      this.macdHistogramSeries.setData(
+        macd.histogram.map((item) => ({
+          ...item,
+          color:
+            item.value >= 0
+              ? this.palette.macdPositive
+              : this.palette.macdNegative,
+        })),
+      );
+      this.macdDiffSeries!.setData(macd.diff);
+      this.macdDeaSeries!.setData(macd.dea);
+    }
 
-    const kdj = computeKdj(sorted);
-    this.kdjKSeries.setData(kdj.k);
-    this.kdjDSeries.setData(kdj.d);
-    this.kdjJSeries.setData(kdj.j);
+    if (this.kdjKSeries != null) {
+      const kdj = computeKdj(sorted);
+      this.kdjKSeries.setData(kdj.k);
+      this.kdjDSeries!.setData(kdj.d);
+      this.kdjJSeries!.setData(kdj.j);
+    }
   }
 
   setCandles(candles: readonly KlineCandle[]): void {
@@ -544,7 +526,7 @@ export class LightweightChartsKlineAdapter implements KlineChartAdapter {
 
   setIndicators(indicators: readonly KlineIndicatorKey[]): void {
     this.selectedIndicators = normalizeKlineIndicators(indicators);
-    this.applyIndicatorLayout();
+    this.syncIndicatorPanes();
     this.updateIndicatorSeries(this.currentCandles);
   }
 
@@ -554,6 +536,9 @@ export class LightweightChartsKlineAdapter implements KlineChartAdapter {
       layout: {
         background: { type: ColorType.Solid, color: palette.bg },
         textColor: palette.text,
+        panes: {
+          separatorColor: palette.border,
+        },
       },
       grid: {
         vertLines: { color: palette.grid },
@@ -570,12 +555,12 @@ export class LightweightChartsKlineAdapter implements KlineChartAdapter {
       wickUpColor: palette.up,
       wickDownColor: palette.down,
     });
-    this.macdDiffSeries.applyOptions({ color: palette.indicatorA });
-    this.macdDeaSeries.applyOptions({ color: palette.indicatorB });
-    this.kdjKSeries.applyOptions({ color: palette.indicatorA });
-    this.kdjDSeries.applyOptions({ color: palette.indicatorB });
-    this.kdjJSeries.applyOptions({ color: palette.indicatorC });
-    this.applyIndicatorLayout();
+    this.macdDiffSeries?.applyOptions({ color: palette.indicatorA });
+    this.macdDeaSeries?.applyOptions({ color: palette.indicatorB });
+    this.kdjKSeries?.applyOptions({ color: palette.indicatorA });
+    this.kdjDSeries?.applyOptions({ color: palette.indicatorB });
+    this.kdjJSeries?.applyOptions({ color: palette.indicatorC });
+    // Histogram bar colours are set per data point in updateIndicatorSeries.
     this.updateIndicatorSeries(this.currentCandles);
   }
 
@@ -585,6 +570,18 @@ export class LightweightChartsKlineAdapter implements KlineChartAdapter {
       Math.max(1, Math.floor(height)),
       true,
     );
+    this.applyPaneHeights();
+  }
+
+  /**
+   * Give each indicator pane a fixed height so the main candle pane always
+   * receives the majority of the vertical space.
+   */
+  private applyPaneHeights(): void {
+    const panes = this.chart.panes();
+    for (let i = 1; i < panes.length; i++) {
+      panes[i]?.setHeight(INDICATOR_PANE_HEIGHT);
+    }
   }
 
   setLoadMoreHandler(handler: (() => void) | null): void {

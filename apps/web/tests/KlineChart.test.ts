@@ -8,6 +8,7 @@ import KlineChart from "../src/components/KlineChart.vue";
 import { provideThemeStore } from "../src/composables/useTheme";
 
 const chartMocks = vi.hoisted(() => {
+  // Persistent per-role setData spies, shared across series recreations.
   const candlestickSetData = vi.fn();
   const volumeSetData = vi.fn();
   const macdHistogramSetData = vi.fn();
@@ -21,19 +22,6 @@ const chartMocks = vi.hoisted(() => {
   const setVisibleLogicalRange = vi.fn();
   const getVisibleLogicalRange = vi.fn(() => ({ from: 2, to: 3 }));
   const barsInLogicalRange = vi.fn(() => ({ barsBefore: 20 }));
-  const candlestickApplyOptions = vi.fn();
-  const volumeApplyOptions = vi.fn();
-  const macdHistogramApplyOptions = vi.fn();
-  const macdDiffApplyOptions = vi.fn();
-  const macdDeaApplyOptions = vi.fn();
-  const kdjKApplyOptions = vi.fn();
-  const kdjDApplyOptions = vi.fn();
-  const kdjJApplyOptions = vi.fn();
-  const mainPriceScaleApplyOptions = vi.fn();
-  const volumePriceScaleApplyOptions = vi.fn();
-  const macdPriceScaleApplyOptions = vi.fn();
-  const kdjPriceScaleApplyOptions = vi.fn();
-  const rightPriceScaleApplyOptions = vi.fn();
   let visibleLogicalRangeCallback:
     | ((range: { from: number; to: number } | null) => void)
     | null = null;
@@ -42,83 +30,79 @@ const chartMocks = vi.hoisted(() => {
       visibleLogicalRangeCallback = callback;
     },
   );
+
+  // Ordered queues used to map addSeries calls to the right spy.
+  const histogramSetDataFns = [volumeSetData, macdHistogramSetData];
+  const lineSetDataFns = [
+    macdDiffSetData,
+    macdDeaSetData,
+    kdjKSetData,
+    kdjDSetData,
+    kdjJSetData,
+  ];
+
   const createChart = vi.fn(() => {
-    const histogramSeries = [
+    // Per-chart state — fresh on each createChart() call.
+    let histogramIdx = 0;
+    let lineIdx = 0;
+    let panesArray: Array<{
+      setHeight: ReturnType<typeof vi.fn>;
+      paneIndex: ReturnType<typeof vi.fn>;
+      getSeries: ReturnType<typeof vi.fn>;
+    }> = [
       {
-        setData: volumeSetData,
-        applyOptions: volumeApplyOptions,
-        priceScale: vi.fn(() => ({
-          applyOptions: volumePriceScaleApplyOptions,
-        })),
-      },
-      {
-        setData: macdHistogramSetData,
-        applyOptions: macdHistogramApplyOptions,
-        priceScale: vi.fn(() => ({
-          applyOptions: macdPriceScaleApplyOptions,
-        })),
-      },
-    ];
-    const lineSeries = [
-      {
-        setData: macdDiffSetData,
-        applyOptions: macdDiffApplyOptions,
-        priceScale: vi.fn(() => ({
-          applyOptions: macdPriceScaleApplyOptions,
-        })),
-      },
-      {
-        setData: macdDeaSetData,
-        applyOptions: macdDeaApplyOptions,
-        priceScale: vi.fn(() => ({
-          applyOptions: macdPriceScaleApplyOptions,
-        })),
-      },
-      {
-        setData: kdjKSetData,
-        applyOptions: kdjKApplyOptions,
-        priceScale: vi.fn(() => ({
-          applyOptions: kdjPriceScaleApplyOptions,
-        })),
-      },
-      {
-        setData: kdjDSetData,
-        applyOptions: kdjDApplyOptions,
-        priceScale: vi.fn(() => ({
-          applyOptions: kdjPriceScaleApplyOptions,
-        })),
-      },
-      {
-        setData: kdjJSetData,
-        applyOptions: kdjJApplyOptions,
-        priceScale: vi.fn(() => ({
-          applyOptions: kdjPriceScaleApplyOptions,
-        })),
+        setHeight: vi.fn(),
+        paneIndex: vi.fn(() => 0),
+        getSeries: vi.fn(() => []),
       },
     ];
 
+    function ensurePanes(maxIdx: number): void {
+      while (panesArray.length <= maxIdx) {
+        const idx = panesArray.length;
+        panesArray.push({
+          setHeight: vi.fn(),
+          paneIndex: vi.fn(() => idx),
+          getSeries: vi.fn(() => []),
+        });
+      }
+    }
+
+    const addSeries = vi.fn(
+      (definition: { type?: string }, _opts: unknown, paneIdx = 0) => {
+        ensurePanes(paneIdx);
+        const typeName = definition?.type ?? "";
+        let setDataFn: ReturnType<typeof vi.fn>;
+        if (typeName === "Candlestick") {
+          setDataFn = candlestickSetData;
+        } else if (typeName === "Histogram") {
+          setDataFn =
+            histogramSetDataFns[histogramIdx++ % histogramSetDataFns.length];
+        } else {
+          setDataFn = lineSetDataFns[lineIdx++ % lineSetDataFns.length];
+        }
+        return {
+          setData: setDataFn,
+          applyOptions: vi.fn(),
+          priceScale: vi.fn(() => ({ applyOptions: vi.fn() })),
+          barsInLogicalRange,
+        };
+      },
+    );
+
+    const removePane = vi.fn((idx: number) => {
+      panesArray.splice(idx, 1);
+      panesArray.forEach((p, i) => p.paneIndex.mockReturnValue(i));
+      // Reset indicator counters so recreated series map to the correct spies.
+      histogramIdx = 0;
+      lineIdx = 0;
+    });
+
     return {
-      addCandlestickSeries: vi.fn(() => ({
-        setData: candlestickSetData,
-        applyOptions: candlestickApplyOptions,
-        priceScale: vi.fn(() => ({
-          applyOptions: mainPriceScaleApplyOptions,
-        })),
-        barsInLogicalRange,
-      })),
-      addHistogramSeries: vi.fn(() => histogramSeries.shift()),
-      addLineSeries: vi.fn(() => lineSeries.shift()),
+      addSeries,
+      panes: vi.fn(() => [...panesArray]),
+      removePane,
       applyOptions: vi.fn(),
-      priceScale: vi.fn((id: string) => ({
-        applyOptions:
-          id === "volume"
-            ? volumePriceScaleApplyOptions
-            : id === "macd"
-              ? macdPriceScaleApplyOptions
-              : id === "kdj"
-                ? kdjPriceScaleApplyOptions
-                : rightPriceScaleApplyOptions,
-      })),
       resize,
       remove: vi.fn(),
       timeScale: vi.fn(() => ({
@@ -145,19 +129,6 @@ const chartMocks = vi.hoisted(() => {
     getVisibleLogicalRange,
     setVisibleLogicalRange,
     subscribeVisibleLogicalRangeChange,
-    candlestickApplyOptions,
-    volumeApplyOptions,
-    macdHistogramApplyOptions,
-    macdDiffApplyOptions,
-    macdDeaApplyOptions,
-    kdjKApplyOptions,
-    kdjDApplyOptions,
-    kdjJApplyOptions,
-    mainPriceScaleApplyOptions,
-    volumePriceScaleApplyOptions,
-    macdPriceScaleApplyOptions,
-    kdjPriceScaleApplyOptions,
-    rightPriceScaleApplyOptions,
     triggerVisibleLogicalRange(range: { from: number; to: number } | null) {
       visibleLogicalRangeCallback?.(range);
     },
@@ -168,6 +139,10 @@ const chartMocks = vi.hoisted(() => {
 vi.mock("lightweight-charts", () => ({
   ColorType: { Solid: "solid" },
   CrosshairMode: { Normal: 0 },
+  TickMarkType: { Year: 0, Month: 1, DayOfMonth: 2, Time: 3, TimeWithSeconds: 4 },
+  CandlestickSeries: { type: "Candlestick" },
+  HistogramSeries: { type: "Histogram" },
+  LineSeries: { type: "Line" },
   createChart: chartMocks.createChart,
 }));
 
@@ -199,19 +174,6 @@ afterEach(() => {
   chartMocks.getVisibleLogicalRange.mockClear();
   chartMocks.setVisibleLogicalRange.mockClear();
   chartMocks.subscribeVisibleLogicalRangeChange.mockClear();
-  chartMocks.candlestickApplyOptions.mockClear();
-  chartMocks.volumeApplyOptions.mockClear();
-  chartMocks.macdHistogramApplyOptions.mockClear();
-  chartMocks.macdDiffApplyOptions.mockClear();
-  chartMocks.macdDeaApplyOptions.mockClear();
-  chartMocks.kdjKApplyOptions.mockClear();
-  chartMocks.kdjDApplyOptions.mockClear();
-  chartMocks.kdjJApplyOptions.mockClear();
-  chartMocks.mainPriceScaleApplyOptions.mockClear();
-  chartMocks.volumePriceScaleApplyOptions.mockClear();
-  chartMocks.macdPriceScaleApplyOptions.mockClear();
-  chartMocks.kdjPriceScaleApplyOptions.mockClear();
-  chartMocks.rightPriceScaleApplyOptions.mockClear();
   chartMocks.createChart.mockClear();
 });
 
@@ -449,7 +411,7 @@ describe("KlineChart", () => {
     ]);
   });
 
-  it("updates overlay indicator scales when selector buttons are toggled", async () => {
+  it("adds separate indicator panes when selector buttons are toggled", async () => {
     vi.stubGlobal("ResizeObserver", MockResizeObserver);
     vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
       callback(1);
@@ -501,36 +463,23 @@ describe("KlineChart", () => {
     await nextTick();
     await nextTick();
 
+    // Enable MACD (button index 1).
     const buttons = wrapper.findAll("button");
     await buttons[1]?.trigger("click");
     await nextTick();
 
-    expect(chartMocks.macdHistogramApplyOptions).toHaveBeenLastCalledWith(
-      expect.objectContaining({ visible: true }),
-    );
-    expect(chartMocks.macdDiffApplyOptions).toHaveBeenLastCalledWith(
-      expect.objectContaining({ visible: true }),
-    );
-    expect(chartMocks.macdPriceScaleApplyOptions).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        visible: true,
-        borderVisible: true,
-        scaleMargins: expect.objectContaining({ top: expect.any(Number) }),
-      }),
-    );
+    // MACD pane series should have received data.
+    expect(chartMocks.macdHistogramSetData).toHaveBeenCalled();
+    expect(chartMocks.macdDiffSetData).toHaveBeenCalled();
+    expect(chartMocks.macdDeaSetData).toHaveBeenCalled();
 
+    // Enable KDJ (button index 2).
     await buttons[2]?.trigger("click");
     await nextTick();
 
-    expect(chartMocks.kdjKApplyOptions).toHaveBeenLastCalledWith(
-      expect.objectContaining({ visible: true }),
-    );
-    expect(chartMocks.kdjPriceScaleApplyOptions).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        visible: true,
-        borderVisible: true,
-        scaleMargins: expect.objectContaining({ bottom: expect.any(Number) }),
-      }),
-    );
+    // KDJ pane series should have received data.
+    expect(chartMocks.kdjKSetData).toHaveBeenCalled();
+    expect(chartMocks.kdjDSetData).toHaveBeenCalled();
+    expect(chartMocks.kdjJSetData).toHaveBeenCalled();
   });
 });

@@ -13,6 +13,7 @@ curl -fsS http://127.0.0.1:3000/api/v1/settings/brokers
 
 # 端口监听
 lsof -nP -iTCP:3000 -sTCP:LISTEN
+lsof -nP -iTCP:11110 -sTCP:LISTEN
 lsof -nP -iTCP:11111 -sTCP:LISTEN
 
 # 基础验证
@@ -129,6 +130,29 @@ opend: request timed out
 ```
 
 优先检查是否把 Go 客户端错误地指到了 `websocketPort`。已验证 `127.0.0.1:11110` 才是原生 OpenD protobuf/TCP 端口，`127.0.0.1:11111` 是 FTWebSocket 端口；对 11111 发送原生 RPC 会建立握手但不回包，最终表现为 `request timed out`。
+
+## OpenD API 监听但拨号超时
+
+症状：
+
+```text
+opend: dial 127.0.0.1:11110: dial tcp 127.0.0.1:11110: i/o timeout
+```
+
+同时 `lsof` 还能看到 `Futu_OpenD` 在监听 `11110`，但：
+
+```bash
+nc -G 2 -vz 127.0.0.1 11110
+```
+
+也会超时。这不是普通的 OpenD 未启动，也不是端口配错，而是 OpenD native API accept 路径已经卡住。已观察到的日志模式是 `GTWLog.APISever` 在短时间内出现大量 `InitConnect -> Qot_Sub -> GetBasicQot -> RecvFailed(SysErrNo=57)`，最后停在一条 `APIServer OnAccept`，没有后续 `Add New Connect`。
+
+正确修法：
+
+* 当前卡住的 OpenD 进程需要重启才能恢复 `11110` accept。
+* 开发控制台默认使用 `go run ./cmd/jftrade api` 或 `./start.sh`，只启动 JFTrade API sidecar。
+* 不要用 `cmd/jftrade run` 作为前端开发默认启动命令；它会继续执行 bbgo 引擎，并额外启动 Futu `11111` public/user WebSocket 流。
+* JFTrade live quote 和 live stream 失败后必须退避重试，避免多个前端 websocket 把 OpenD 打成连接风暴。
 
 ## 排查原则
 

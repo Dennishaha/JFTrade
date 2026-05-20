@@ -15,9 +15,11 @@ import (
 
 	"github.com/jftrade/jftrade-main/pkg/futu/codec"
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
+	commonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/common"
 	initpb "github.com/jftrade/jftrade-main/pkg/futu/pb/initconnect"
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
 	qotgetbasicqotpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetbasicqot"
+	historypb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotrequesthistorykl"
 	qotsubpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotsub"
 	qotupdatebasicqotpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotupdatebasicqot"
 )
@@ -121,6 +123,70 @@ func TestQueryTickersBatchesBasicQotRequests(t *testing.T) {
 	}
 }
 
+func TestQueryKLinesRequestsUSExtendedHours(t *testing.T) {
+	server := startQuoteOpenDServer(t)
+	defer server.stop()
+
+	ex := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
+	defer ex.Close()
+
+	start := time.Date(2026, time.May, 20, 8, 0, 0, 0, time.UTC)
+	end := start.Add(2 * time.Hour)
+	klines, err := ex.QueryKLines(t.Context(), "US.NVDA", types.Interval1m, types.KLineQueryOptions{Limit: 2, StartTime: &start, EndTime: &end})
+	if err != nil {
+		t.Fatalf("QueryKLines: %v", err)
+	}
+	if len(klines) != 1 {
+		t.Fatalf("expected one test kline, got %d", len(klines))
+	}
+	if got := server.historyKLCallCount(); got != 1 {
+		t.Fatalf("expected one RequestHistoryKL call, got %d", got)
+	}
+	if !server.lastHistoryExtendedTime() {
+		t.Fatal("expected US intraday RequestHistoryKL to set extendedTime=true")
+	}
+	if got := server.lastHistorySession(); got != int32(commonpb.Session_Session_ALL) {
+		t.Fatalf("expected Session_ALL, got %d", got)
+	}
+}
+
+func TestQueryKLinesFollowsHistoryPaginationAndKeepsLatestLimit(t *testing.T) {
+	server := startQuoteOpenDServer(t)
+	defer server.stop()
+
+	oldAt := time.Date(2026, time.May, 15, 10, 0, 0, 0, time.UTC)
+	recentAt := time.Date(2026, time.May, 20, 10, 0, 0, 0, time.UTC)
+	server.setHistoryPages([][]*qotcommonpb.KLine{
+		{
+			testHistoryKLine(oldAt, 100),
+			testHistoryKLine(oldAt.Add(5*time.Minute), 101),
+		},
+		{
+			testHistoryKLine(recentAt, 200),
+			testHistoryKLine(recentAt.Add(5*time.Minute), 201),
+		},
+	})
+
+	ex := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
+	defer ex.Close()
+
+	start := oldAt.Add(-time.Hour)
+	end := recentAt.Add(time.Hour)
+	klines, err := ex.QueryKLines(t.Context(), "HK.00700", types.Interval5m, types.KLineQueryOptions{Limit: 2, StartTime: &start, EndTime: &end})
+	if err != nil {
+		t.Fatalf("QueryKLines: %v", err)
+	}
+	if got := server.historyKLCallCount(); got != 2 {
+		t.Fatalf("expected two paginated RequestHistoryKL calls, got %d", got)
+	}
+	if len(klines) != 2 {
+		t.Fatalf("expected latest two klines, got %d", len(klines))
+	}
+	if !klines[0].StartTime.Time().Equal(recentAt) || !klines[1].StartTime.Time().Equal(recentAt.Add(5*time.Minute)) {
+		t.Fatalf("expected latest page to be retained, got %#v", klines)
+	}
+}
+
 func TestStreamConnectEmitsBasicQotPushAsBBGOEvents(t *testing.T) {
 	server := startQuoteOpenDServer(t)
 	defer server.stop()
@@ -169,15 +235,54 @@ func TestStreamConnectEmitsBasicQotPushAsBBGOEvents(t *testing.T) {
 	}
 }
 
+func TestStreamConnectRebuildsClosedCachedOpenDClient(t *testing.T) {
+	server := startQuoteOpenDServer(t)
+	defer server.stop()
+
+	ex := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
+	defer ex.Close()
+
+	if _, err := ex.QueryTicker(t.Context(), "HK.00700"); err != nil {
+		t.Fatalf("QueryTicker: %v", err)
+	}
+	if client := ex.Client(); client != nil {
+		_ = client.Close()
+	}
+
+	stream := NewStream(ex)
+	stream.Subscribe(types.MarketTradeChannel, "HK.00700", types.SubscribeOptions{})
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	if err := stream.Connect(ctx); err != nil {
+		t.Fatalf("stream.Connect after cached client close: %v", err)
+	}
+	defer stream.Close()
+
+	if got := server.acceptCount(); got < 2 {
+		t.Fatalf("expected stream to create a fresh OpenD session, got %d accepts", got)
+	}
+}
+
 type quoteOpenDServer struct {
 	addr              string
 	accepts           atomic.Int32
 	qotSubCalls       atomic.Int32
 	pushSubCalls      atomic.Int32
 	basicQotCalls     atomic.Int32
+	historyKLCalls    atomic.Int32
+	historyExtended   atomic.Bool
+	historySession    atomic.Int32
+	historyMu         sync.Mutex
+	historyPages      [][]*qotcommonpb.KLine
 	listener          net.Listener
 	stopOnce          sync.Once
 	shutdownCompleted chan struct{}
+}
+
+func (s *quoteOpenDServer) setHistoryPages(pages [][]*qotcommonpb.KLine) {
+	s.historyMu.Lock()
+	defer s.historyMu.Unlock()
+	s.historyPages = pages
 }
 
 func startQuoteOpenDServer(t *testing.T) *quoteOpenDServer {
@@ -258,6 +363,9 @@ func (s *quoteOpenDServer) handleConn(conn net.Conn) {
 		case opend.ProtoGetBasicQot:
 			s.basicQotCalls.Add(1)
 			response = s.basicQotResponse(frame.Body)
+		case opend.ProtoRequestHistoryKL:
+			s.historyKLCalls.Add(1)
+			response = s.historyKLResponse(frame.Body)
 		default:
 			return
 		}
@@ -282,6 +390,73 @@ func (s *quoteOpenDServer) handleConn(conn net.Conn) {
 				}
 			}
 		}
+	}
+}
+
+func (s *quoteOpenDServer) historyKLResponse(body []byte) *historypb.Response {
+	request := &historypb.Request{}
+	if err := proto.Unmarshal(body, request); err != nil {
+		return &historypb.Response{RetType: proto.Int32(1), RetMsg: proto.String(err.Error())}
+	}
+	s.historyExtended.Store(request.GetC2S().GetExtendedTime())
+	s.historySession.Store(request.GetC2S().GetSession())
+	s.historyMu.Lock()
+	if len(s.historyPages) > 0 {
+		pageIndex := int(s.historyKLCalls.Load()) - 1
+		if pageIndex < 0 {
+			pageIndex = 0
+		}
+		if pageIndex >= len(s.historyPages) {
+			pageIndex = len(s.historyPages) - 1
+		}
+		response := &historypb.Response{
+			RetType: proto.Int32(0),
+			S2C: &historypb.S2C{
+				Security: request.GetC2S().GetSecurity(),
+				KlList:   s.historyPages[pageIndex],
+			},
+		}
+		if pageIndex < len(s.historyPages)-1 {
+			response.S2C.NextReqKey = []byte{byte(pageIndex + 1)}
+		}
+		s.historyMu.Unlock()
+		return response
+	}
+	s.historyMu.Unlock()
+
+	startAt := time.Date(2026, time.May, 20, 8, 0, 0, 0, time.UTC)
+	return &historypb.Response{
+		RetType: proto.Int32(0),
+		S2C: &historypb.S2C{
+			Security: request.GetC2S().GetSecurity(),
+			KlList: []*qotcommonpb.KLine{
+				{
+					Time:       proto.String(startAt.Format("2006-01-02 15:04:05")),
+					Timestamp:  proto.Float64(float64(startAt.Unix())),
+					IsBlank:    proto.Bool(false),
+					OpenPrice:  proto.Float64(100),
+					HighPrice:  proto.Float64(101),
+					LowPrice:   proto.Float64(99),
+					ClosePrice: proto.Float64(100.5),
+					Volume:     proto.Int64(1000),
+					Turnover:   proto.Float64(100500),
+				},
+			},
+		},
+	}
+}
+
+func testHistoryKLine(at time.Time, price float64) *qotcommonpb.KLine {
+	return &qotcommonpb.KLine{
+		Time:       proto.String(at.Format("2006-01-02 15:04:05")),
+		Timestamp:  proto.Float64(float64(at.Unix())),
+		IsBlank:    proto.Bool(false),
+		OpenPrice:  proto.Float64(price),
+		HighPrice:  proto.Float64(price + 1),
+		LowPrice:   proto.Float64(price - 1),
+		ClosePrice: proto.Float64(price + 0.5),
+		Volume:     proto.Int64(1000),
+		Turnover:   proto.Float64(price * 1000),
 	}
 }
 
@@ -358,6 +533,18 @@ func (s *quoteOpenDServer) pushSubCallCount() int {
 
 func (s *quoteOpenDServer) basicQotCallCount() int {
 	return int(s.basicQotCalls.Load())
+}
+
+func (s *quoteOpenDServer) historyKLCallCount() int {
+	return int(s.historyKLCalls.Load())
+}
+
+func (s *quoteOpenDServer) lastHistoryExtendedTime() bool {
+	return s.historyExtended.Load()
+}
+
+func (s *quoteOpenDServer) lastHistorySession() int32 {
+	return s.historySession.Load()
 }
 
 func waitFor(t *testing.T, condition func() bool) {

@@ -103,9 +103,15 @@ type Server struct {
 	liveWebSocketClients   int
 	liveRefreshMu          sync.Mutex
 	liveLastQuoteRefreshAt time.Time
+	liveQuoteRetryAfter    time.Time
+	liveQuoteFailureCount  int
+	liveQuoteLastError     string
 	liveStreamMu           sync.Mutex
 	liveStream             bbgotypes.Stream
 	liveStreamKey          string
+	liveStreamRetryAfter   time.Time
+	liveStreamFailureCount int
+	liveStreamLastError    string
 }
 
 type marketSubscription struct {
@@ -121,20 +127,26 @@ type marketSubscription struct {
 }
 
 type marketTickSample struct {
-	InstrumentID string
-	Market       string
-	Symbol       string
-	Price        float64
-	Bid          float64
-	Ask          float64
-	OpenPrice    *float64
-	HighPrice    *float64
-	LowPrice     *float64
-	Volume       float64
-	Turnover     float64
-	QuoteAt      string
-	ObservedAt   string
-	Source       string
+	InstrumentID       string
+	Market             string
+	Symbol             string
+	Price              float64
+	Bid                float64
+	Ask                float64
+	OpenPrice          *float64
+	HighPrice          *float64
+	LowPrice           *float64
+	PreviousClosePrice *float64
+	Volume             float64
+	Turnover           float64
+	QuoteAt            string
+	ObservedAt         string
+	Source             string
+	Session            string
+	ExtendedHours      bool
+	PreMarket          *futu.ExtendedMarketQuote
+	AfterMarket        *futu.ExtendedMarketQuote
+	Overnight          *futu.ExtendedMarketQuote
 }
 
 type opendProbe struct {
@@ -210,7 +222,7 @@ func shouldStartForArgs(args []string) bool {
 		return false
 	}
 	for _, arg := range args {
-		if arg == "run" {
+		if arg == "run" || arg == "api" || arg == "serve-api" {
 			return true
 		}
 		if arg == "help" || arg == "--help" || arg == "-h" {
@@ -545,6 +557,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case r.URL.Path == "/api/v1/system/futu-opend" && r.Method == http.MethodGet:
 		s.writeOK(w, s.futuOpenDHealth(r.Context()))
 	case r.URL.Path == "/api/v1/system/futu-opend/manual-retry" && r.Method == http.MethodPost:
+		s.resetFutuRuntime()
 		s.writeOK(w, map[string]any{"accepted": true})
 	case r.URL.Path == "/api/v1/system/futu-opend/install-guide" && r.Method == http.MethodGet:
 		s.writeOK(w, s.futuOpenDInstallGuide())

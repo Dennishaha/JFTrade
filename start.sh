@@ -6,9 +6,8 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT_DIR"
 
 # --- Default runtime configuration ---------------------------------------
-# bbgo's session bootstrap requires the Futu OpenD address; default it to the
-# FutuOpenD API address; default it to the native OpenD API port so the backend boots out of the box. Override
-# by exporting FUTU_OPEND_ADDR before invoking this script.
+# Default the sidecar to FutuOpenD's native API port. Full bbgo engine runs can
+# still use `go run ./cmd/jftrade run --config ./config/jftrade.yaml` directly.
 export JFTRADE_API_BIND="${JFTRADE_API_BIND:-127.0.0.1:3000}"
 export JFTRADE_FUTU_API_PORT="${JFTRADE_FUTU_API_PORT:-11110}"
 export JFTRADE_FUTU_WEBSOCKET_PORT="${JFTRADE_FUTU_WEBSOCKET_PORT:-11111}"
@@ -47,7 +46,7 @@ echo "构建前端..."
 npm run build:web
 
 echo "启动后端服务..."
-go run ./cmd/jftrade run --config ./config/jftrade.yaml &
+go run ./cmd/jftrade api &
 BACKEND_PID=$!
 
 cleanup() {

@@ -112,6 +112,9 @@ interface MarketDataSnapshotQueryResult {
     at: string;
     observedAt?: string | null;
     barVolume?: number | null;
+    session?: MarketDataSession | string | null;
+    extendedHours?: boolean | null;
+    extended?: MarketDataExtendedQuoteBlocks | null;
   } | null;
   meta: {
     instrumentId: string;
@@ -139,6 +142,7 @@ interface MarketDataCandlesQueryResult {
     close: number;
     volume: number;
     at: string;
+    session?: MarketDataSession | string | null;
   }>;
   totalReturned: number;
   meta: {
@@ -146,6 +150,8 @@ interface MarketDataCandlesQueryResult {
     source: string | null;
     resolvedAt: string;
     fromCache: boolean;
+    extendedHours?: boolean | null;
+    session?: string | null;
   };
 }
 
@@ -171,8 +177,30 @@ interface MarketDataTickLiveEvent {
     at: string;
     observedAt?: string | null;
     barVolume?: number | null;
+    session?: MarketDataSession | string | null;
+    extendedHours?: boolean | null;
+    extended?: MarketDataExtendedQuoteBlocks | null;
   };
   source: string | null;
+}
+
+type MarketDataSession = "regular" | "pre" | "after" | "overnight" | "closed" | "unknown";
+
+interface MarketDataExtendedQuote {
+  price?: number | null;
+  highPrice?: number | null;
+  lowPrice?: number | null;
+  volume?: number | null;
+  turnover?: number | null;
+  changeVal?: number | null;
+  changeRate?: number | null;
+  amplitude?: number | null;
+}
+
+interface MarketDataExtendedQuoteBlocks {
+  preMarket?: MarketDataExtendedQuote | null;
+  afterMarket?: MarketDataExtendedQuote | null;
+  overnight?: MarketDataExtendedQuote | null;
 }
 
 interface MarketDataRealtimeBarVolumeState {
@@ -1371,7 +1399,7 @@ function createConsoleDataStore(workspaceLayout: WorkspaceLayoutStore) {
       return;
     }
 
-    const tickCandle = {
+    const tickCandle: MarketDataCandlesQueryResult["candles"][number] = {
       period: "tick",
       open: event.snapshot.price,
       high: event.snapshot.price,
@@ -1380,6 +1408,9 @@ function createConsoleDataStore(workspaceLayout: WorkspaceLayoutStore) {
       volume: currentBarVolume ?? 0,
       at: event.snapshot.observedAt ?? event.snapshot.at,
     };
+    if (typeof event.snapshot.session === "string") {
+      tickCandle.session = event.snapshot.session;
+    }
     const existing = marketDataCandles.value;
     if (existing == null) {
       marketDataCandles.value = {

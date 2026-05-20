@@ -36,6 +36,9 @@ export type MarketDataTickLiveSocketEvent = {
     turnover: number;
     at: string;
     observedAt?: string | null;
+    session?: string | null;
+    extendedHours?: boolean | null;
+    extended?: unknown;
   };
   source: string | null;
 };

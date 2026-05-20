@@ -4,8 +4,8 @@ setlocal
 cd /d "%~dp0"
 
 rem --- Default runtime configuration --------------------------------------
-rem bbgo session bootstrap requires the Futu OpenD API address; default it to
-rem the native OpenD API port so the backend boots out of the box.
+rem Default the sidecar to FutuOpenD's native API port. Full bbgo engine runs can
+rem still use `go run ./cmd/jftrade run --config ./config/jftrade.yaml` directly.
 if "%JFTRADE_API_BIND%"=="" set JFTRADE_API_BIND=127.0.0.1:3000
 if "%JFTRADE_FUTU_API_PORT%"=="" set JFTRADE_FUTU_API_PORT=11110
 if "%JFTRADE_FUTU_WEBSOCKET_PORT%"=="" set JFTRADE_FUTU_WEBSOCKET_PORT=11111
@@ -45,7 +45,7 @@ call npm run build:web
 if errorlevel 1 exit /b 1
 
 echo 启动后端服务...
-start "jftrade-backend" cmd /k "cd /d %CD% && go run ./cmd/jftrade run --config ./config/jftrade.yaml"
+start "jftrade-backend" cmd /k "cd /d %CD% && go run ./cmd/jftrade api"
 
 echo JFTrade API: http://%JFTRADE_API_BIND%
 echo 启动前端预览服务: http://127.0.0.1:6688

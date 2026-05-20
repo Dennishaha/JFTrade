@@ -151,6 +151,18 @@ func (s *Server) futuOpenDHealth(ctx context.Context) map[string]any {
 
 func (s *Server) liveSocketDiagnostics(config FutuIntegrationConfig) map[string]any {
 	count, limit, atLimit := s.liveWebSocketStats()
+	s.liveRefreshMu.Lock()
+	quoteRetryAfter := s.liveQuoteRetryAfter
+	quoteFailureCount := s.liveQuoteFailureCount
+	quoteLastError := s.liveQuoteLastError
+	s.liveRefreshMu.Unlock()
+	s.liveStreamMu.Lock()
+	retryAfter := s.liveStreamRetryAfter
+	failureCount := s.liveStreamFailureCount
+	lastError := s.liveStreamLastError
+	s.liveStreamMu.Unlock()
+	quoteRetryAfterText, quoteBackoffActive := retryState(quoteRetryAfter)
+	streamRetryAfterText, streamBackoffActive := retryState(retryAfter)
 	return map[string]any{
 		"transportMode":                       liveQuoteTransportMode,
 		"configuredOpenDWebSocketLimit":       config.MaxWebSocketConnections,
@@ -161,7 +173,54 @@ func (s *Server) liveSocketDiagnostics(config FutuIntegrationConfig) map[string]
 		"jftradeLiveWebSocketAtLimit":         atLimit,
 		"likelyConnectionSaturation":          atLimit,
 		"openDWebSocketPoolLikelySaturation":  false,
+		"liveQuoteBackoffActive":              quoteBackoffActive,
+		"liveQuoteRetryAfter":                 quoteRetryAfterText,
+		"liveQuoteFailureCount":               quoteFailureCount,
+		"liveQuoteLastError":                  quoteLastError,
+		"liveStreamBackoffActive":             streamBackoffActive,
+		"liveStreamRetryAfter":                streamRetryAfterText,
+		"liveStreamFailureCount":              failureCount,
+		"liveStreamLastError":                 lastError,
 		"topClientProcesses":                  []any{},
+	}
+}
+
+func retryState(retryAfter time.Time) (any, bool) {
+	retryAfterText := any(nil)
+	backoffActive := false
+	if !retryAfter.IsZero() {
+		retryAfterText = retryAfter.UTC().Format(time.RFC3339Nano)
+		backoffActive = time.Now().UTC().Before(retryAfter)
+	}
+	return retryAfterText, backoffActive
+}
+
+func (s *Server) resetFutuRuntime() {
+	s.liveRefreshMu.Lock()
+	s.liveQuoteRetryAfter = time.Time{}
+	s.liveQuoteFailureCount = 0
+	s.liveQuoteLastError = ""
+	s.liveRefreshMu.Unlock()
+
+	s.liveStreamMu.Lock()
+	stream := s.liveStream
+	s.liveStream = nil
+	s.liveStreamKey = ""
+	s.liveStreamRetryAfter = time.Time{}
+	s.liveStreamFailureCount = 0
+	s.liveStreamLastError = ""
+	s.liveStreamMu.Unlock()
+	if stream != nil {
+		_ = stream.Close()
+	}
+
+	s.exchangeMu.Lock()
+	exchange := s.exchange
+	s.exchange = nil
+	s.exchangeConfigKey = ""
+	s.exchangeMu.Unlock()
+	if exchange != nil {
+		_ = exchange.Close()
 	}
 }
 

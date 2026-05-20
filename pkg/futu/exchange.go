@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -19,6 +20,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
+	commonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/common"
 	initpb "github.com/jftrade/jftrade-main/pkg/futu/pb/initconnect"
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
 	qotgetbasicqotpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetbasicqot"
@@ -41,9 +43,65 @@ const EnvOpenDWebSocketKey = "FUTU_OPEND_WEBSOCKET_KEY"
 // session-prefixed env var nor FUTU_OPEND_ADDR is set.
 const DefaultOpenDAddr = "127.0.0.1:11110"
 
+const maxHistoryKLinePages = 8
+
 // ErrNotSupported is returned for bbgo Exchange methods that do not map
 // cleanly to the Futu trading domain (e.g. spot taker/maker fee math).
 var ErrNotSupported = errors.New("futu exchange: operation not supported")
+
+// MarketSession identifies the active US equity trading session.
+type MarketSession string
+
+const (
+	MarketSessionUnknown   MarketSession = "unknown"
+	MarketSessionClosed    MarketSession = "closed"
+	MarketSessionPre       MarketSession = "pre"
+	MarketSessionRegular   MarketSession = "regular"
+	MarketSessionAfter     MarketSession = "after"
+	MarketSessionOvernight MarketSession = "overnight"
+)
+
+// ExtendedMarketQuote holds a Futu BasicQot pre-market, after-hours, or
+// overnight quote block.
+type ExtendedMarketQuote struct {
+	Price      *float64
+	HighPrice  *float64
+	LowPrice   *float64
+	Volume     *float64
+	Turnover   *float64
+	ChangeVal  *float64
+	ChangeRate *float64
+	Amplitude  *float64
+}
+
+// QuoteSnapshot preserves extended-session fields that do not fit into bbgo's
+// generic Ticker model.
+type QuoteSnapshot struct {
+	Symbol             string
+	Price              float64
+	Bid                float64
+	Ask                float64
+	OpenPrice          *float64
+	HighPrice          *float64
+	LowPrice           *float64
+	PreviousClosePrice *float64
+	Volume             float64
+	Turnover           float64
+	QuoteAt            time.Time
+	Session            MarketSession
+	ExtendedHours      bool
+	PreMarket          *ExtendedMarketQuote
+	AfterMarket        *ExtendedMarketQuote
+	Overnight          *ExtendedMarketQuote
+}
+
+var usEasternLocation = func() *time.Location {
+	loc, err := time.LoadLocation("America/New_York")
+	if err != nil {
+		return time.UTC
+	}
+	return loc
+}()
 
 // Exchange implements bbgo's types.Exchange backed by OpenD.
 //
@@ -137,6 +195,20 @@ func (e *Exchange) QueryTickers(ctx context.Context, symbol ...string) (map[stri
 	return tickers, nil
 }
 
+// QueryQuoteSnapshot returns BasicQot fields, including US pre-market,
+// after-hours, and overnight quote blocks when OpenD provides them.
+func (e *Exchange) QueryQuoteSnapshot(ctx context.Context, symbol string) (*QuoteSnapshot, error) {
+	basicQot, err := e.queryBasicQot(ctx, symbol)
+	if err != nil {
+		return nil, err
+	}
+	canonical, err := futuSymbolFromSecurity(basicQot.GetSecurity())
+	if err != nil {
+		canonical = strings.TrimSpace(strings.ToUpper(symbol))
+	}
+	return quoteSnapshotFromBasicQot(basicQot, canonical), nil
+}
+
 func (e *Exchange) QueryKLines(ctx context.Context, symbol string, interval types.Interval, options types.KLineQueryOptions) ([]types.KLine, error) {
 	security, canonicalSymbol, err := futuSecurityFromSymbol(symbol)
 	if err != nil {
@@ -147,28 +219,53 @@ func (e *Exchange) QueryKLines(ctx context.Context, symbol string, interval type
 		return nil, err
 	}
 	beginAt, endAt, limit := futuKLineQueryWindow(interval, options)
-	request := &historypb.Request{C2S: &historypb.C2S{
-		RehabType:   proto.Int32(int32(qotcommonpb.RehabType_RehabType_None)),
-		KlType:      proto.Int32(int32(klType)),
-		Security:    security,
-		BeginTime:   proto.String(beginAt.Format("2006-01-02 15:04:05")),
-		EndTime:     proto.String(endAt.Format("2006-01-02 15:04:05")),
-		MaxAckKLNum: proto.Int32(int32(limit)),
-	}}
-	var response historypb.Response
-	if err := e.callProto(ctx, opend.ProtoRequestHistoryKL, request, &response); err != nil {
-		return nil, err
-	}
-	if response.GetRetType() != 0 {
-		return nil, fmt.Errorf("opend RequestHistoryKL retType=%d errCode=%d retMsg=%s", response.GetRetType(), response.GetErrCode(), response.GetRetMsg())
-	}
-
-	klines := make([]types.KLine, 0, len(response.GetS2C().GetKlList()))
-	for _, candle := range response.GetS2C().GetKlList() {
-		if candle.GetIsBlank() {
-			continue
+	klines := make([]types.KLine, 0, limit)
+	nextReqKey := []byte(nil)
+	for page := 0; page < maxHistoryKLinePages; page++ {
+		request := &historypb.Request{C2S: &historypb.C2S{
+			RehabType:   proto.Int32(int32(qotcommonpb.RehabType_RehabType_None)),
+			KlType:      proto.Int32(int32(klType)),
+			Security:    security,
+			BeginTime:   proto.String(beginAt.Format("2006-01-02 15:04:05")),
+			EndTime:     proto.String(endAt.Format("2006-01-02 15:04:05")),
+			MaxAckKLNum: proto.Int32(int32(limit)),
+		}}
+		if len(nextReqKey) > 0 {
+			request.C2S.NextReqKey = nextReqKey
 		}
-		klines = append(klines, futuKLineFromProto(candle, canonicalSymbol, interval))
+		if shouldRequestExtendedKLines(canonicalSymbol, interval) {
+			request.C2S.ExtendedTime = proto.Bool(true)
+			request.C2S.Session = proto.Int32(int32(commonpb.Session_Session_ALL))
+		}
+
+		var response historypb.Response
+		if err := e.callProto(ctx, opend.ProtoRequestHistoryKL, request, &response); err != nil {
+			return nil, err
+		}
+		if response.GetRetType() != 0 {
+			return nil, fmt.Errorf("opend RequestHistoryKL retType=%d errCode=%d retMsg=%s", response.GetRetType(), response.GetErrCode(), response.GetRetMsg())
+		}
+
+		for _, candle := range response.GetS2C().GetKlList() {
+			if candle.GetIsBlank() {
+				continue
+			}
+			klines = append(klines, futuKLineFromProto(candle, canonicalSymbol, interval))
+		}
+
+		nextReqKey = response.GetS2C().GetNextReqKey()
+		if len(nextReqKey) == 0 {
+			break
+		}
+		if page == maxHistoryKLinePages-1 {
+			return nil, fmt.Errorf("opend RequestHistoryKL pagination exceeded %d pages", maxHistoryKLinePages)
+		}
+	}
+	sort.Slice(klines, func(i, j int) bool {
+		return klines[i].StartTime.Time().Before(klines[j].StartTime.Time())
+	})
+	if len(klines) > limit {
+		klines = klines[len(klines)-limit:]
 	}
 	return klines, nil
 }
@@ -409,18 +506,130 @@ func tickerFromBasicQot(basicQot *qotcommonpb.BasicQot) *types.Ticker {
 	if basicQot == nil {
 		return nil
 	}
-	lastPrice := fixedpoint.NewFromFloat(basicQot.GetCurPrice())
+	canonical, err := futuSymbolFromSecurity(basicQot.GetSecurity())
+	if err != nil {
+		canonical = ""
+	}
+	snapshot := quoteSnapshotFromBasicQot(basicQot, canonical)
+	lastPrice := fixedpoint.NewFromFloat(snapshot.Price)
 	resolvedAt := futuQuoteTime(basicQot.GetUpdateTimestamp(), basicQot.GetUpdateTime())
 	return &types.Ticker{
 		Time:   resolvedAt,
-		Volume: fixedpoint.NewFromFloat(float64(basicQot.GetVolume())),
+		Volume: fixedpoint.NewFromFloat(snapshot.Volume),
 		Last:   lastPrice,
-		Open:   fixedpoint.NewFromFloat(basicQot.GetOpenPrice()),
-		High:   fixedpoint.NewFromFloat(basicQot.GetHighPrice()),
-		Low:    fixedpoint.NewFromFloat(basicQot.GetLowPrice()),
+		Open:   fixedpoint.NewFromFloat(valueOrZero(snapshot.OpenPrice)),
+		High:   fixedpoint.NewFromFloat(valueOrZero(snapshot.HighPrice)),
+		Low:    fixedpoint.NewFromFloat(valueOrZero(snapshot.LowPrice)),
 		Buy:    lastPrice,
 		Sell:   lastPrice,
 	}
+}
+
+func quoteSnapshotFromBasicQot(basicQot *qotcommonpb.BasicQot, canonical string) *QuoteSnapshot {
+	preMarket := extendedMarketQuoteFromProto(basicQot.GetPreMarket())
+	afterMarket := extendedMarketQuoteFromProto(basicQot.GetAfterMarket())
+	overnight := extendedMarketQuoteFromProto(basicQot.GetOvernight())
+	session := ClassifyMarketSession(canonical, time.Now().UTC())
+	activeExtended := activeExtendedQuoteForSession(session, preMarket, afterMarket, overnight)
+
+	price := basicQot.GetCurPrice()
+	highPrice := floatPtr(basicQot.GetHighPrice())
+	lowPrice := floatPtr(basicQot.GetLowPrice())
+	volume := float64(basicQot.GetVolume())
+	turnover := basicQot.GetTurnover()
+	if activeExtended != nil {
+		if activeExtended.Price != nil && *activeExtended.Price > 0 {
+			price = *activeExtended.Price
+		}
+		if activeExtended.HighPrice != nil && *activeExtended.HighPrice > 0 {
+			highPrice = activeExtended.HighPrice
+		}
+		if activeExtended.LowPrice != nil && *activeExtended.LowPrice > 0 {
+			lowPrice = activeExtended.LowPrice
+		}
+		if activeExtended.Volume != nil {
+			volume = *activeExtended.Volume
+		}
+		if activeExtended.Turnover != nil {
+			turnover = *activeExtended.Turnover
+		}
+	}
+
+	return &QuoteSnapshot{
+		Symbol:             canonical,
+		Price:              price,
+		Bid:                price,
+		Ask:                price,
+		OpenPrice:          floatPtr(basicQot.GetOpenPrice()),
+		HighPrice:          highPrice,
+		LowPrice:           lowPrice,
+		PreviousClosePrice: floatPtr(basicQot.GetLastClosePrice()),
+		Volume:             volume,
+		Turnover:           turnover,
+		QuoteAt:            futuQuoteTime(basicQot.GetUpdateTimestamp(), basicQot.GetUpdateTime()).UTC(),
+		Session:            session,
+		ExtendedHours:      IsExtendedMarketSession(session),
+		PreMarket:          preMarket,
+		AfterMarket:        afterMarket,
+		Overnight:          overnight,
+	}
+}
+
+func extendedMarketQuoteFromProto(data *qotcommonpb.PreAfterMarketData) *ExtendedMarketQuote {
+	if data == nil {
+		return nil
+	}
+	return &ExtendedMarketQuote{
+		Price:      cloneFloat64(data.Price),
+		HighPrice:  cloneFloat64(data.HighPrice),
+		LowPrice:   cloneFloat64(data.LowPrice),
+		Volume:     cloneInt64AsFloat64(data.Volume),
+		Turnover:   cloneFloat64(data.Turnover),
+		ChangeVal:  cloneFloat64(data.ChangeVal),
+		ChangeRate: cloneFloat64(data.ChangeRate),
+		Amplitude:  cloneFloat64(data.Amplitude),
+	}
+}
+
+func activeExtendedQuoteForSession(session MarketSession, preMarket *ExtendedMarketQuote, afterMarket *ExtendedMarketQuote, overnight *ExtendedMarketQuote) *ExtendedMarketQuote {
+	switch session {
+	case MarketSessionPre:
+		return preMarket
+	case MarketSessionAfter:
+		return afterMarket
+	case MarketSessionOvernight:
+		return overnight
+	default:
+		return nil
+	}
+}
+
+func cloneFloat64(value *float64) *float64 {
+	if value == nil {
+		return nil
+	}
+	clone := *value
+	return &clone
+}
+
+func cloneInt64AsFloat64(value *int64) *float64 {
+	if value == nil {
+		return nil
+	}
+	clone := float64(*value)
+	return &clone
+}
+
+func floatPtr(value float64) *float64 {
+	clone := value
+	return &clone
+}
+
+func valueOrZero(value *float64) float64 {
+	if value == nil {
+		return 0
+	}
+	return *value
 }
 
 func (e *Exchange) ensureClient(ctx context.Context) (*opend.Client, error) {
@@ -431,7 +640,13 @@ func (e *Exchange) ensureClient(ctx context.Context) (*opend.Client, error) {
 		e.client = e.newClient()
 	}
 	if e.ready {
-		return e.client, nil
+		select {
+		case <-e.client.Done():
+			_ = e.invalidateClientLocked()
+			e.client = e.newClient()
+		default:
+			return e.client, nil
+		}
 	}
 	if err := e.client.Connect(ctx); err != nil {
 		_ = e.invalidateClientLocked()
@@ -456,6 +671,9 @@ func (e *Exchange) ensureClient(ctx context.Context) (*opend.Client, error) {
 	}
 
 	e.ready = true
+	if keepAliveInterval := initResp.GetS2C().GetKeepAliveInterval(); keepAliveInterval > 0 {
+		e.client.StartKeepAlive(time.Duration(keepAliveInterval) * time.Second)
+	}
 	if e.basicQotSubscriptions == nil {
 		e.basicQotSubscriptions = map[string]struct{}{}
 	}
@@ -647,6 +865,51 @@ func futuKLineFromProto(candle *qotcommonpb.KLine, symbol string, interval types
 		QuoteVolume: fixedpoint.NewFromFloat(candle.GetTurnover()),
 		Closed:      !endAt.After(time.Now().UTC()),
 	}
+}
+
+// ClassifyMarketSession classifies US equities into regular, pre-market,
+// after-hours, or overnight sessions using America/New_York clock time.
+func ClassifyMarketSession(symbol string, at time.Time) MarketSession {
+	if !strings.HasPrefix(strings.ToUpper(strings.TrimSpace(symbol)), "US.") {
+		return MarketSessionUnknown
+	}
+	local := at.In(usEasternLocation)
+	weekday := local.Weekday()
+	minutes := local.Hour()*60 + local.Minute()
+
+	if weekday == time.Saturday {
+		return MarketSessionClosed
+	}
+	if weekday == time.Sunday {
+		if minutes >= 20*60 {
+			return MarketSessionOvernight
+		}
+		return MarketSessionClosed
+	}
+	if weekday == time.Friday && minutes >= 20*60 {
+		return MarketSessionClosed
+	}
+
+	switch {
+	case minutes < 4*60:
+		return MarketSessionOvernight
+	case minutes < 9*60+30:
+		return MarketSessionPre
+	case minutes < 16*60:
+		return MarketSessionRegular
+	case minutes < 20*60:
+		return MarketSessionAfter
+	default:
+		return MarketSessionOvernight
+	}
+}
+
+func IsExtendedMarketSession(session MarketSession) bool {
+	return session == MarketSessionPre || session == MarketSessionAfter || session == MarketSessionOvernight
+}
+
+func shouldRequestExtendedKLines(symbol string, interval types.Interval) bool {
+	return strings.HasPrefix(strings.ToUpper(strings.TrimSpace(symbol)), "US.") && interval.Duration() <= time.Hour
 }
 
 func futuQuoteTime(timestamp float64, fallback string) time.Time {

@@ -56,6 +56,34 @@ const chartInstrumentTitle = computed(() => {
     ? instrumentId
     : `${instrumentId} · ${option.name}`;
 });
+const sessionLabels: Record<string, string> = {
+  regular: "盘中",
+  pre: "盘前",
+  after: "盘后",
+  overnight: "夜盘",
+  closed: "休市",
+  unknown: "未知时段",
+  all: "盘前/盘后K线",
+};
+const chartSessionBadge = computed(() => {
+  const snapshotSession = marketDataSnapshot.value?.snapshot?.session;
+  if (typeof snapshotSession === "string" && snapshotSession !== "") {
+    return sessionLabels[snapshotSession] ?? snapshotSession;
+  }
+  const candleSession = marketDataCandles.value?.meta?.session;
+  if (typeof candleSession === "string" && candleSession !== "") {
+    return sessionLabels[candleSession] ?? candleSession;
+  }
+  return "";
+});
+const chartSessionTitle = computed(() => {
+  const extendedHours =
+    marketDataSnapshot.value?.snapshot?.extendedHours === true ||
+    marketDataCandles.value?.meta?.extendedHours === true;
+  return extendedHours
+    ? "美股扩展时段数据：历史K线请求盘前/盘后，实时快照含盘前/盘后/夜盘字段"
+    : "常规交易时段数据";
+});
 
 async function reload(): Promise<void> {
   marketDataQueryMarket.value = prefs.value.market;
@@ -164,6 +192,9 @@ watch(
         </button>
       </div>
       <div style="flex: 1"></div>
+      <span v-if="chartSessionBadge" :title="chartSessionTitle" style="border: 1px solid var(--tv-border); border-radius: 999px; padding: 3px 8px; color: var(--tv-text); background: rgba(20, 184, 166, 0.12); font-size: 11px; white-space: nowrap">
+        {{ chartSessionBadge }}
+      </span>
       <span v-if="isLoadingMarketDataQuery" style="color: var(--tv-text-dim); font-size: 11px">loading…</span>
       <span v-else-if="marketDataQueryError" style="color: var(--tv-down); font-size: 11px" :title="marketDataQueryError">{{ marketDataQueryError }}</span>
       <span v-else style="color: var(--tv-text-dim); font-size: 11px">{{ marketDataCandles?.totalReturned ?? 0 }} bars · {{ formatKlinePeriodLabel(prefs.period) }} · limit {{ marketDataQueryLimit }}</span>

@@ -2,6 +2,7 @@ package jftradeapi
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -118,6 +119,18 @@ func TestLiveWebSocketSendsHeartbeat(t *testing.T) {
 	}
 }
 
+func TestShouldStartForAPIOnlyArgs(t *testing.T) {
+	if !shouldStartForArgs([]string{"api"}) {
+		t.Fatal("expected api command to start JFTrade sidecar")
+	}
+	if !shouldStartForArgs([]string{"serve-api"}) {
+		t.Fatal("expected serve-api command to start JFTrade sidecar")
+	}
+	if !shouldStartForArgs([]string{"run", "--config", "./config/jftrade.yaml"}) {
+		t.Fatal("expected bbgo run command to start JFTrade sidecar")
+	}
+}
+
 func TestRecordTickerSampleDeduplicatesUnchangedQuote(t *testing.T) {
 	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
 	if err != nil {
@@ -207,6 +220,137 @@ func TestLiveSocketDiagnosticsUseConfiguredLimit(t *testing.T) {
 
 	server.releaseLiveWebSocketSlot()
 	server.releaseLiveWebSocketSlot()
+}
+
+func TestLiveMarketStreamConnectFailureBacksOff(t *testing.T) {
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	store.mu.Lock()
+	store.data.Integration = &BrokerIntegration{
+		BrokerID: "futu",
+		Enabled:  true,
+		Config: normalizeFutuConfig(FutuIntegrationConfig{
+			Type:                    "futu",
+			Host:                    "127.0.0.1",
+			APIPort:                 1,
+			WebSocketPort:           11111,
+			MaxWebSocketConnections: 20,
+			TradeMarket:             "HK",
+			SecurityFirm:            "FUTUSECURITIES",
+		}),
+		UpdatedAt: now,
+		CreatedAt: now,
+	}
+	store.mu.Unlock()
+
+	server := NewServer(store)
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+	server.ensureLiveMarketStream(ctx, []string{"HK.00700"})
+
+	server.liveStreamMu.Lock()
+	failureCount := server.liveStreamFailureCount
+	retryAfter := server.liveStreamRetryAfter
+	lastError := server.liveStreamLastError
+	stream := server.liveStream
+	server.liveStreamMu.Unlock()
+	if stream != nil {
+		t.Fatal("expected failed stream to be cleared")
+	}
+	if failureCount != 1 {
+		t.Fatalf("liveStreamFailureCount = %d", failureCount)
+	}
+	if retryAfter.IsZero() || !retryAfter.After(time.Now().UTC()) {
+		t.Fatalf("expected future retryAfter, got %s", retryAfter)
+	}
+	if lastError == "" {
+		t.Fatal("expected last stream error to be recorded")
+	}
+
+	server.ensureLiveMarketStream(context.Background(), []string{"HK.00700"})
+	server.liveStreamMu.Lock()
+	deferredFailureCount := server.liveStreamFailureCount
+	deferredRetryAfter := server.liveStreamRetryAfter
+	server.liveStreamMu.Unlock()
+	if deferredFailureCount != failureCount {
+		t.Fatalf("expected retry to be deferred, failure count %d -> %d", failureCount, deferredFailureCount)
+	}
+	if !deferredRetryAfter.Equal(retryAfter) {
+		t.Fatalf("expected retryAfter to stay %s, got %s", retryAfter, deferredRetryAfter)
+	}
+}
+
+func TestLiveQuoteRefreshFailureBacksOff(t *testing.T) {
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	now := time.Now().UTC()
+	store.mu.Lock()
+	store.data.Integration = &BrokerIntegration{
+		BrokerID: "futu",
+		Enabled:  true,
+		Config: normalizeFutuConfig(FutuIntegrationConfig{
+			Type:                    "futu",
+			Host:                    "127.0.0.1",
+			APIPort:                 1,
+			WebSocketPort:           11111,
+			MaxWebSocketConnections: 20,
+			TradeMarket:             "HK",
+			SecurityFirm:            "FUTUSECURITIES",
+		}),
+		UpdatedAt: now.Format(time.RFC3339Nano),
+		CreatedAt: now.Format(time.RFC3339Nano),
+	}
+	store.mu.Unlock()
+
+	server := NewServer(store)
+	server.marketMu.Lock()
+	server.marketSubscriptions["tick:HK:00700"] = &marketSubscription{
+		Key:          "tick:HK:00700",
+		Channel:      "TICK",
+		Market:       "HK",
+		Symbol:       "00700",
+		InstrumentID: "HK.00700",
+		Consumers:    map[string]time.Time{"test": now},
+		CreatedAt:    now,
+		UpdatedAt:    now,
+	}
+	server.marketMu.Unlock()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
+	defer cancel()
+	server.refreshLiveMarketTicksIfNeeded(ctx)
+
+	server.liveRefreshMu.Lock()
+	failureCount := server.liveQuoteFailureCount
+	retryAfter := server.liveQuoteRetryAfter
+	lastError := server.liveQuoteLastError
+	server.liveRefreshMu.Unlock()
+	if failureCount != 1 {
+		t.Fatalf("liveQuoteFailureCount = %d", failureCount)
+	}
+	if retryAfter.IsZero() || !retryAfter.After(time.Now().UTC()) {
+		t.Fatalf("expected future live quote retryAfter, got %s", retryAfter)
+	}
+	if lastError == "" {
+		t.Fatal("expected live quote last error to be recorded")
+	}
+
+	server.refreshLiveMarketTicksIfNeeded(context.Background())
+	server.liveRefreshMu.Lock()
+	deferredFailureCount := server.liveQuoteFailureCount
+	deferredRetryAfter := server.liveQuoteRetryAfter
+	server.liveRefreshMu.Unlock()
+	if deferredFailureCount != failureCount {
+		t.Fatalf("expected quote retry to be deferred, failure count %d -> %d", failureCount, deferredFailureCount)
+	}
+	if !deferredRetryAfter.Equal(retryAfter) {
+		t.Fatalf("expected quote retryAfter to stay %s, got %s", retryAfter, deferredRetryAfter)
+	}
 }
 
 func TestLiveWebSocketLimitRejectsAndRecoversEndToEnd(t *testing.T) {

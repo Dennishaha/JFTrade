@@ -15,6 +15,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/jftrade/jftrade-main/pkg/futu/codec"
+	keepalivepb "github.com/jftrade/jftrade-main/pkg/futu/pb/keepalive"
 )
 
 // Protocol IDs (selected — see Futu OpenAPI docs for the full list).
@@ -75,11 +76,14 @@ type Client struct {
 	conn   net.Conn
 	serial uint32
 
-	mu      sync.Mutex
-	pend    map[uint32]*pending
-	subs    map[uint32][]func(codec.Frame)
-	closed  bool
-	writeMu sync.Mutex
+	mu            sync.Mutex
+	pend          map[uint32]*pending
+	subs          map[uint32][]func(codec.Frame)
+	closed        bool
+	writeMu       sync.Mutex
+	done          chan struct{}
+	doneOnce      sync.Once
+	keepAliveOnce sync.Once
 }
 
 // New creates a Client; Connect must be called to dial.
@@ -90,7 +94,7 @@ func New(cfg Config) *Client {
 	if cfg.RequestTimeout == 0 {
 		cfg.RequestTimeout = 15 * time.Second
 	}
-	return &Client{cfg: cfg, pend: map[uint32]*pending{}, subs: map[uint32][]func(codec.Frame){}}
+	return &Client{cfg: cfg, pend: map[uint32]*pending{}, subs: map[uint32][]func(codec.Frame){}, done: make(chan struct{})}
 }
 
 // Connect dials the native OpenD TCP API and starts the read loop.
@@ -100,26 +104,92 @@ func (c *Client) Connect(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("opend: dial %s: %w", c.cfg.Addr, err)
 	}
+	c.mu.Lock()
+	if c.closed {
+		c.mu.Unlock()
+		_ = conn.Close()
+		return ErrClosed
+	}
 	c.conn = conn
+	c.mu.Unlock()
 	go c.readLoop()
 	return nil
 }
 
 // Close terminates the connection.
 func (c *Client) Close() error {
+	return c.closeConn(true)
+}
+
+// Done is closed when the underlying OpenD session is closed or lost.
+func (c *Client) Done() <-chan struct{} {
+	return c.done
+}
+
+// StartKeepAlive sends Futu KeepAlive packets until the session closes.  OpenD
+// advertises the required interval in InitConnect.S2C.keepAliveInterval; missing
+// heartbeats can leave the TCP session accepted but unresponsive until OpenD is
+// restarted.
+func (c *Client) StartKeepAlive(interval time.Duration) {
+	if interval <= 0 {
+		return
+	}
+	c.keepAliveOnce.Do(func() {
+		go c.keepAliveLoop(interval)
+	})
+}
+
+func (c *Client) keepAliveLoop(interval time.Duration) {
+	tickInterval := interval
+	if tickInterval > time.Second {
+		tickInterval = tickInterval / 2
+	}
+	ticker := time.NewTicker(tickInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-c.Done():
+			return
+		case <-ticker.C:
+			callTimeout := c.cfg.RequestTimeout
+			if callTimeout <= 0 || callTimeout > tickInterval {
+				callTimeout = tickInterval
+			}
+			ctx, cancel := context.WithTimeout(context.Background(), callTimeout)
+			request := &keepalivepb.Request{C2S: &keepalivepb.C2S{Time: proto.Int64(time.Now().UTC().Unix())}}
+			var response keepalivepb.Response
+			err := c.Call(ctx, ProtoKeepAlive, request, &response)
+			cancel()
+			if err != nil || response.GetRetType() != 0 {
+				_ = c.Close()
+				return
+			}
+		}
+	}
+}
+
+func (c *Client) closeConn(closeNetwork bool) error {
 	c.mu.Lock()
 	if c.closed {
 		c.mu.Unlock()
 		return nil
 	}
 	c.closed = true
-	for _, p := range c.pend {
-		close(p.ch)
-	}
+	conn := c.conn
+	c.conn = nil
+	pend := c.pend
 	c.pend = map[uint32]*pending{}
 	c.mu.Unlock()
-	if c.conn != nil {
-		return c.conn.Close()
+	for _, p := range pend {
+		close(p.ch)
+	}
+	c.doneOnce.Do(func() { close(c.done) })
+	if conn != nil {
+		if closeNetwork {
+			return conn.Close()
+		}
+		_ = conn.Close()
 	}
 	return nil
 }
@@ -145,7 +215,8 @@ func (c *Client) Call(ctx context.Context, protoID uint32, req proto.Message, re
 
 	p := &pending{ch: make(chan codec.Frame, 1)}
 	c.mu.Lock()
-	if c.closed {
+	conn := c.conn
+	if c.closed || conn == nil {
 		c.mu.Unlock()
 		return ErrClosed
 	}
@@ -159,7 +230,7 @@ func (c *Client) Call(ctx context.Context, protoID uint32, req proto.Message, re
 	}()
 
 	c.writeMu.Lock()
-	_, err = c.conn.Write(pkt)
+	_, err = conn.Write(pkt)
 	c.writeMu.Unlock()
 	if err != nil {
 		return fmt.Errorf("opend: write: %w", err)
@@ -231,10 +302,5 @@ func (c *Client) dispatch(f codec.Frame) {
 }
 
 func (c *Client) fanoutClose() {
-	c.mu.Lock()
-	for _, p := range c.pend {
-		close(p.ch)
-	}
-	c.pend = map[uint32]*pending{}
-	c.mu.Unlock()
+	_ = c.closeConn(true)
 }

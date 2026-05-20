@@ -3,6 +3,7 @@ package jftradeapi
 import (
 	"context"
 	"fmt"
+	"log"
 	"net"
 	"net/http"
 	"sort"
@@ -23,6 +24,8 @@ const (
 	liveTickFallbackPollInterval = 1 * time.Second
 	liveTickFallbackPollTimeout  = 900 * time.Millisecond
 	liveTickSampleFreshness      = 1500 * time.Millisecond
+	liveStreamRetryBaseDelay     = 5 * time.Second
+	liveStreamRetryMaxDelay      = 30 * time.Second
 )
 
 func (s *Server) handleLiveWebSocket(w http.ResponseWriter, r *http.Request) {
@@ -127,7 +130,7 @@ func (s *Server) liveWebSocketStats() (count int, limit int, atLimit bool) {
 }
 
 func (s *Server) handleMarketSnapshot(w http.ResponseWriter, r *http.Request) {
-	response, err := s.marketSnapshotResponse(r.Context(), r.URL.Path)
+	response, err := s.marketSnapshotResponse(r.Context(), r.URL.Path, r.URL.Query())
 	if err != nil {
 		s.writeError(w, http.StatusBadGateway, "MARKET_SNAPSHOT_FAILED", err.Error())
 		return
@@ -135,39 +138,31 @@ func (s *Server) handleMarketSnapshot(w http.ResponseWriter, r *http.Request) {
 	s.writeOK(w, response)
 }
 
-func (s *Server) marketSnapshotResponse(ctx context.Context, path string) (map[string]any, error) {
+func (s *Server) marketSnapshotResponse(ctx context.Context, path string, query map[string][]string) (map[string]any, error) {
 	market, symbol := pathTail(path, "/api/v1/market-data/snapshots/")
 	market = strings.ToUpper(strings.TrimSpace(market))
 	symbol = strings.ToUpper(strings.TrimSpace(symbol))
 	instrumentID := market + "." + symbol
-	sample := s.latestTickerSample(instrumentID, liveTickSampleFreshness)
+	forceRefresh := boolQuery(query, "refresh", false)
+	sample := (*marketTickSample)(nil)
+	if !forceRefresh {
+		sample = s.latestTickerSample(instrumentID, liveTickSampleFreshness)
+	}
 	fromCache := sample != nil
 	if sample == nil {
-		ticker, err := s.futuExchange().QueryTicker(ctx, instrumentID)
+		snapshot, err := s.futuExchange().QueryQuoteSnapshot(ctx, instrumentID)
 		if err != nil {
 			return nil, err
 		}
-		sample = s.recordTickerSample(instrumentID, ticker)
+		sample = s.recordQuoteSnapshotSample(instrumentID, snapshot)
 	}
 	if sample == nil {
 		return nil, fmt.Errorf("no snapshot available for %s", instrumentID)
 	}
 	return map[string]any{
-		"request": map[string]any{"market": market, "symbol": symbol, "instrumentId": instrumentID},
-		"snapshot": map[string]any{
-			"price":              sample.Price,
-			"bid":                sample.Bid,
-			"ask":                sample.Ask,
-			"openPrice":          sample.OpenPrice,
-			"highPrice":          sample.HighPrice,
-			"lowPrice":           sample.LowPrice,
-			"previousClosePrice": nil,
-			"volume":             sample.Volume,
-			"turnover":           sample.Turnover,
-			"at":                 sample.QuoteAt,
-			"observedAt":         sample.ObservedAt,
-		},
-		"meta": map[string]any{"instrumentId": instrumentID, "source": sample.Source, "resolvedAt": sample.ObservedAt, "fromCache": fromCache},
+		"request":  map[string]any{"market": market, "symbol": symbol, "instrumentId": instrumentID},
+		"snapshot": snapshotMapFromSample(sample),
+		"meta":     map[string]any{"instrumentId": instrumentID, "source": sample.Source, "resolvedAt": sample.ObservedAt, "fromCache": fromCache},
 	}, nil
 }
 
@@ -197,6 +192,7 @@ func (s *Server) marketCandlesResponse(ctx context.Context, path string, query m
 		limit = 1000
 	}
 	if period == "tick" {
+		extendedHours := market == "US"
 		fromLiveCache := s.latestTickerSample(instrumentID, liveTickSampleFreshness) != nil
 		if !fromLiveCache {
 			ticker, err := s.futuExchange().QueryTicker(ctx, instrumentID)
@@ -209,7 +205,7 @@ func (s *Server) marketCandlesResponse(ctx context.Context, path string, query m
 					"request":       map[string]any{"instrument": map[string]any{"market": market, "symbol": symbol, "instrumentId": instrumentID}, "period": period, "limit": limit},
 					"candles":       cachedCandles,
 					"totalReturned": len(cachedCandles),
-					"meta":          map[string]any{"instrumentId": instrumentID, "source": "bbgo:futu", "resolvedAt": time.Now().UTC().Format(time.RFC3339Nano), "fromCache": true},
+					"meta":          candleMeta(instrumentID, true, extendedHours),
 				}, nil
 			}
 			s.recordTickerSample(instrumentID, ticker)
@@ -219,7 +215,7 @@ func (s *Server) marketCandlesResponse(ctx context.Context, path string, query m
 			"request":       map[string]any{"instrument": map[string]any{"market": market, "symbol": symbol, "instrumentId": instrumentID}, "period": period, "limit": limit},
 			"candles":       candles,
 			"totalReturned": len(candles),
-			"meta":          map[string]any{"instrumentId": instrumentID, "source": "bbgo:futu", "resolvedAt": time.Now().UTC().Format(time.RFC3339Nano), "fromCache": fromLiveCache},
+			"meta":          candleMeta(instrumentID, fromLiveCache, extendedHours),
 		}, nil
 	}
 
@@ -231,23 +227,41 @@ func (s *Server) marketCandlesResponse(ctx context.Context, path string, query m
 	}
 	candles := make([]map[string]any, 0, len(klines))
 	for _, kline := range klines {
+		session := futu.ClassifyMarketSession(instrumentID, kline.StartTime.Time().UTC())
 		candles = append(candles, map[string]any{
-			"period": period,
-			"open":   kline.Open.Float64(),
-			"high":   kline.High.Float64(),
-			"low":    kline.Low.Float64(),
-			"close":  kline.Close.Float64(),
-			"volume": kline.Volume.Float64(),
-			"at":     kline.StartTime.Time().UTC().Format(time.RFC3339Nano),
+			"period":  period,
+			"open":    kline.Open.Float64(),
+			"high":    kline.High.Float64(),
+			"low":     kline.Low.Float64(),
+			"close":   kline.Close.Float64(),
+			"volume":  kline.Volume.Float64(),
+			"at":      kline.StartTime.Time().UTC().Format(time.RFC3339Nano),
+			"session": string(session),
 		})
 	}
+	extendedHours := market == "US" && interval.Duration() <= time.Hour
 
 	return map[string]any{
 		"request":       map[string]any{"instrument": map[string]any{"market": market, "symbol": symbol, "instrumentId": instrumentID}, "period": period, "limit": limit},
 		"candles":       candles,
 		"totalReturned": len(candles),
-		"meta":          map[string]any{"instrumentId": instrumentID, "source": "bbgo:futu", "resolvedAt": time.Now().UTC().Format(time.RFC3339Nano), "fromCache": false},
+		"meta":          candleMeta(instrumentID, false, extendedHours),
 	}, nil
+}
+
+func candleMeta(instrumentID string, fromCache bool, extendedHours bool) map[string]any {
+	session := "regular"
+	if extendedHours {
+		session = "all"
+	}
+	return map[string]any{
+		"instrumentId":  instrumentID,
+		"source":        "bbgo:futu",
+		"resolvedAt":    time.Now().UTC().Format(time.RFC3339Nano),
+		"fromCache":     fromCache,
+		"extendedHours": extendedHours,
+		"session":       session,
+	}
 }
 
 func kLineQueryWindow(query map[string][]string, periodDuration time.Duration, limit int) (time.Time, time.Time) {
@@ -322,6 +336,9 @@ func (s *Server) refreshLiveMarketTicksIfNeeded(ctx context.Context) {
 	defer s.liveRefreshMu.Unlock()
 
 	now := time.Now().UTC()
+	if !s.liveQuoteRetryAfter.IsZero() && now.Before(s.liveQuoteRetryAfter) {
+		return
+	}
 	if !s.liveLastQuoteRefreshAt.IsZero() && now.Sub(s.liveLastQuoteRefreshAt) < liveTickFallbackPollInterval {
 		return
 	}
@@ -335,8 +352,16 @@ func (s *Server) refreshLiveMarketTicksIfNeeded(ctx context.Context) {
 
 	tickers, err := s.futuExchange().QueryTickers(refreshCtx, instrumentIDs...)
 	if err != nil {
+		retryDelay := liveRetryDelay(s.liveQuoteFailureCount)
+		s.liveQuoteFailureCount++
+		s.liveQuoteRetryAfter = time.Now().UTC().Add(retryDelay)
+		s.liveQuoteLastError = err.Error()
+		log.Printf("JFTrade live quote refresh failed; retrying in %s: %v", retryDelay, err)
 		return
 	}
+	s.liveQuoteFailureCount = 0
+	s.liveQuoteRetryAfter = time.Time{}
+	s.liveQuoteLastError = ""
 	for _, instrumentID := range instrumentIDs {
 		ticker, ok := tickers[instrumentID]
 		if !ok {
@@ -353,6 +378,10 @@ func (s *Server) ensureLiveMarketStream(ctx context.Context, instrumentIDs []str
 	}
 
 	s.liveStreamMu.Lock()
+	if !s.liveStreamRetryAfter.IsZero() && time.Now().UTC().Before(s.liveStreamRetryAfter) {
+		s.liveStreamMu.Unlock()
+		return
+	}
 	if s.liveStream != nil && s.liveStreamKey == streamKey {
 		s.liveStreamMu.Unlock()
 		return
@@ -375,13 +404,46 @@ func (s *Server) ensureLiveMarketStream(ctx context.Context, instrumentIDs []str
 	streamCtx, cancel := context.WithTimeout(ctx, liveTickFallbackPollTimeout)
 	defer cancel()
 	if err := stream.Connect(streamCtx); err != nil {
+		retryDelay := s.nextLiveStreamRetryDelay()
 		s.liveStreamMu.Lock()
 		if s.liveStream == stream {
 			s.liveStream = nil
 			s.liveStreamKey = ""
 		}
+		s.liveStreamFailureCount++
+		s.liveStreamRetryAfter = time.Now().UTC().Add(retryDelay)
+		s.liveStreamLastError = err.Error()
 		s.liveStreamMu.Unlock()
+		_ = stream.Close()
+		log.Printf("JFTrade live market stream connect failed; retrying in %s: %v", retryDelay, err)
+		return
 	}
+
+	s.liveStreamMu.Lock()
+	if s.liveStream == stream {
+		s.liveStreamFailureCount = 0
+		s.liveStreamRetryAfter = time.Time{}
+		s.liveStreamLastError = ""
+	}
+	s.liveStreamMu.Unlock()
+}
+
+func (s *Server) nextLiveStreamRetryDelay() time.Duration {
+	s.liveStreamMu.Lock()
+	failures := s.liveStreamFailureCount
+	s.liveStreamMu.Unlock()
+	return liveRetryDelay(failures)
+}
+
+func liveRetryDelay(failures int) time.Duration {
+	delay := liveStreamRetryBaseDelay
+	for i := 0; i < failures && delay < liveStreamRetryMaxDelay; i++ {
+		delay *= 2
+	}
+	if delay > liveStreamRetryMaxDelay {
+		return liveStreamRetryMaxDelay
+	}
+	return delay
 }
 
 func liveMarketStreamKey(config FutuIntegrationConfig, instrumentIDs []string) (string, []string) {
@@ -547,6 +609,78 @@ func tickerOptionalFloat(value bbgofixedpoint.Value) *float64 {
 	return &floatValue
 }
 
+func snapshotMapFromSample(sample *marketTickSample) map[string]any {
+	return map[string]any{
+		"price":              sample.Price,
+		"bid":                sample.Bid,
+		"ask":                sample.Ask,
+		"openPrice":          sample.OpenPrice,
+		"highPrice":          sample.HighPrice,
+		"lowPrice":           sample.LowPrice,
+		"previousClosePrice": sample.PreviousClosePrice,
+		"volume":             sample.Volume,
+		"turnover":           sample.Turnover,
+		"at":                 sample.QuoteAt,
+		"observedAt":         sample.ObservedAt,
+		"session":            sample.Session,
+		"extendedHours":      sample.ExtendedHours,
+		"extended": map[string]any{
+			"preMarket":   extendedMarketQuoteMap(sample.PreMarket),
+			"afterMarket": extendedMarketQuoteMap(sample.AfterMarket),
+			"overnight":   extendedMarketQuoteMap(sample.Overnight),
+		},
+	}
+}
+
+func extendedMarketQuoteMap(quote *futu.ExtendedMarketQuote) map[string]any {
+	if quote == nil {
+		return nil
+	}
+	return map[string]any{
+		"price":      quote.Price,
+		"highPrice":  quote.HighPrice,
+		"lowPrice":   quote.LowPrice,
+		"volume":     quote.Volume,
+		"turnover":   quote.Turnover,
+		"changeVal":  quote.ChangeVal,
+		"changeRate": quote.ChangeRate,
+		"amplitude":  quote.Amplitude,
+	}
+}
+
+func (s *Server) recordQuoteSnapshotSample(instrumentID string, snapshot *futu.QuoteSnapshot) *marketTickSample {
+	if snapshot == nil || snapshot.Price == 0 {
+		return nil
+	}
+	parts := strings.SplitN(instrumentID, ".", 2)
+	if len(parts) != 2 {
+		return nil
+	}
+	sample := marketTickSample{
+		InstrumentID:       instrumentID,
+		Market:             parts[0],
+		Symbol:             parts[1],
+		Price:              snapshot.Price,
+		Bid:                snapshot.Bid,
+		Ask:                snapshot.Ask,
+		OpenPrice:          snapshot.OpenPrice,
+		HighPrice:          snapshot.HighPrice,
+		LowPrice:           snapshot.LowPrice,
+		PreviousClosePrice: snapshot.PreviousClosePrice,
+		Volume:             snapshot.Volume,
+		Turnover:           snapshot.Turnover,
+		QuoteAt:            snapshot.QuoteAt.UTC().Format(time.RFC3339Nano),
+		ObservedAt:         time.Now().UTC().Format(time.RFC3339Nano),
+		Source:             "bbgo:futu",
+		Session:            string(snapshot.Session),
+		ExtendedHours:      snapshot.ExtendedHours,
+		PreMarket:          snapshot.PreMarket,
+		AfterMarket:        snapshot.AfterMarket,
+		Overnight:          snapshot.Overnight,
+	}
+	return s.storeTickerSample(sample)
+}
+
 func (s *Server) recordTickerSample(instrumentID string, ticker *bbgotypes.Ticker) *marketTickSample {
 	if ticker == nil {
 		return nil
@@ -570,21 +704,24 @@ func (s *Server) recordTickerSample(instrumentID string, ticker *bbgotypes.Ticke
 	if !ticker.Sell.IsZero() {
 		ask = ticker.Sell.Float64()
 	}
+	session := futu.ClassifyMarketSession(instrumentID, time.Now().UTC())
 	sample := marketTickSample{
-		InstrumentID: instrumentID,
-		Market:       parts[0],
-		Symbol:       parts[1],
-		Price:        price,
-		Bid:          bid,
-		Ask:          ask,
-		OpenPrice:    tickerOptionalFloat(ticker.Open),
-		HighPrice:    tickerOptionalFloat(ticker.High),
-		LowPrice:     tickerOptionalFloat(ticker.Low),
-		Volume:       ticker.Volume.Float64(),
-		Turnover:     0,
-		QuoteAt:      tickerTimestamp(ticker),
-		ObservedAt:   time.Now().UTC().Format(time.RFC3339Nano),
-		Source:       "bbgo:futu",
+		InstrumentID:  instrumentID,
+		Market:        parts[0],
+		Symbol:        parts[1],
+		Price:         price,
+		Bid:           bid,
+		Ask:           ask,
+		OpenPrice:     tickerOptionalFloat(ticker.Open),
+		HighPrice:     tickerOptionalFloat(ticker.High),
+		LowPrice:      tickerOptionalFloat(ticker.Low),
+		Volume:        ticker.Volume.Float64(),
+		Turnover:      0,
+		QuoteAt:       tickerTimestamp(ticker),
+		ObservedAt:    time.Now().UTC().Format(time.RFC3339Nano),
+		Source:        "bbgo:futu",
+		Session:       string(session),
+		ExtendedHours: futu.IsExtendedMarketSession(session),
 	}
 	return s.storeTickerSample(sample)
 }
@@ -622,10 +759,20 @@ func (s *Server) recordTradeTickSample(trade bbgotypes.Trade) *marketTickSample 
 		sample.OpenPrice = latest.OpenPrice
 		sample.HighPrice = latest.HighPrice
 		sample.LowPrice = latest.LowPrice
+		sample.PreviousClosePrice = latest.PreviousClosePrice
 		sample.Turnover = latest.Turnover
+		sample.Session = latest.Session
+		sample.ExtendedHours = latest.ExtendedHours
+		sample.PreMarket = latest.PreMarket
+		sample.AfterMarket = latest.AfterMarket
+		sample.Overnight = latest.Overnight
 		if sample.Volume == 0 {
 			sample.Volume = latest.Volume
 		}
+	} else {
+		session := futu.ClassifyMarketSession(instrumentID, time.Now().UTC())
+		sample.Session = string(session)
+		sample.ExtendedHours = futu.IsExtendedMarketSession(session)
 	}
 	return s.storeTickerSample(sample)
 }
@@ -671,9 +818,12 @@ func marketTickSamplesEquivalent(left marketTickSample, right marketTickSample) 
 		left.Ask == right.Ask &&
 		left.Volume == right.Volume &&
 		left.QuoteAt == right.QuoteAt &&
+		left.Session == right.Session &&
+		left.ExtendedHours == right.ExtendedHours &&
 		optionalFloatEqual(left.OpenPrice, right.OpenPrice) &&
 		optionalFloatEqual(left.HighPrice, right.HighPrice) &&
-		optionalFloatEqual(left.LowPrice, right.LowPrice)
+		optionalFloatEqual(left.LowPrice, right.LowPrice) &&
+		optionalFloatEqual(left.PreviousClosePrice, right.PreviousClosePrice)
 }
 
 func optionalFloatEqual(left *float64, right *float64) bool {
@@ -719,13 +869,14 @@ func (s *Server) cachedTickCandles(instrumentID string, query map[string][]strin
 			}
 		}
 		candles = append(candles, map[string]any{
-			"period": "tick",
-			"open":   sample.Price,
-			"high":   sample.Price,
-			"low":    sample.Price,
-			"close":  sample.Price,
-			"volume": deltaVolume,
-			"at":     sample.ObservedAt,
+			"period":  "tick",
+			"open":    sample.Price,
+			"high":    sample.Price,
+			"low":     sample.Price,
+			"close":   sample.Price,
+			"volume":  deltaVolume,
+			"at":      sample.ObservedAt,
+			"session": sample.Session,
 		})
 	}
 	if limit > 0 && len(candles) > limit {
@@ -754,11 +905,18 @@ func liveTickEventFromSample(sample *marketTickSample) map[string]any {
 			"openPrice":          sample.OpenPrice,
 			"highPrice":          sample.HighPrice,
 			"lowPrice":           sample.LowPrice,
-			"previousClosePrice": nil,
+			"previousClosePrice": sample.PreviousClosePrice,
 			"volume":             sample.Volume,
 			"turnover":           sample.Turnover,
 			"at":                 sample.QuoteAt,
 			"observedAt":         sample.ObservedAt,
+			"session":            sample.Session,
+			"extendedHours":      sample.ExtendedHours,
+			"extended": map[string]any{
+				"preMarket":   extendedMarketQuoteMap(sample.PreMarket),
+				"afterMarket": extendedMarketQuoteMap(sample.AfterMarket),
+				"overnight":   extendedMarketQuoteMap(sample.Overnight),
+			},
 		},
 		"source": sample.Source,
 	}
@@ -787,4 +945,19 @@ func intQuery(query map[string][]string, key string, fallback int) int {
 		return fallback
 	}
 	return value
+}
+
+func boolQuery(query map[string][]string, key string, fallback bool) bool {
+	value := strings.TrimSpace(strings.ToLower(firstQuery(query, key, "")))
+	if value == "" {
+		return fallback
+	}
+	switch value {
+	case "1", "true", "yes", "y", "on":
+		return true
+	case "0", "false", "no", "n", "off":
+		return false
+	default:
+		return fallback
+	}
 }
