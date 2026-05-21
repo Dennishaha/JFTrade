@@ -6,6 +6,8 @@
 coverage.txt
 
 # Node
+# avoid platform-specific lock files
+package-lock.json
 node_modules/
 .npm
 .pnpm-store/

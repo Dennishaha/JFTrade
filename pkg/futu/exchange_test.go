@@ -703,3 +703,81 @@ func waitFor(t *testing.T, condition func() bool) {
 		}
 	}
 }
+
+func TestSessionFromExtendedBlocksClockGuardsStaleExtendedData(t *testing.T) {
+	priceOf := func(v float64) *ExtendedMarketQuote {
+		p := v
+		return &ExtendedMarketQuote{Price: &p}
+	}
+	// Use a Tuesday in early January (EST, no DST ambiguity).
+	// 10:00 UTC = 05:00 EST (pre-market window).
+	preMarketClock := time.Date(2025, time.January, 7, 10, 0, 0, 0, time.UTC)
+	// 16:00 UTC = 11:00 EST (regular session).
+	regularClock := time.Date(2025, time.January, 7, 16, 0, 0, 0, time.UTC)
+	// 22:00 UTC = 17:00 EST (after-hours).
+	afterClock := time.Date(2025, time.January, 7, 22, 0, 0, 0, time.UTC)
+	// 02:00 UTC = 21:00 EST previous day (overnight).
+	overnightClock := time.Date(2025, time.January, 8, 2, 0, 0, 0, time.UTC)
+
+	stalePre := priceOf(195.0)
+	staleAfter := priceOf(198.0)
+	staleOvernight := priceOf(200.0)
+
+	cases := []struct {
+		name      string
+		now       time.Time
+		pre       *ExtendedMarketQuote
+		after     *ExtendedMarketQuote
+		overnight *ExtendedMarketQuote
+		want      MarketSession
+	}{
+		{
+			name:      "regular clock ignores stale overnight and after blocks",
+			now:       regularClock,
+			pre:       stalePre,
+			after:     staleAfter,
+			overnight: staleOvernight,
+			want:      MarketSessionRegular,
+		},
+		{
+			name:      "pre-market clock ignores stale overnight block",
+			now:       preMarketClock,
+			pre:       priceOf(196.5),
+			after:     staleAfter,
+			overnight: staleOvernight,
+			want:      MarketSessionPre,
+		},
+		{
+			name:      "after clock with after data returns after",
+			now:       afterClock,
+			pre:       stalePre,
+			after:     priceOf(199.5),
+			overnight: staleOvernight,
+			want:      MarketSessionAfter,
+		},
+		{
+			name:      "overnight clock with overnight data returns overnight",
+			now:       overnightClock,
+			pre:       stalePre,
+			after:     staleAfter,
+			overnight: priceOf(201.25),
+			want:      MarketSessionOvernight,
+		},
+		{
+			name:      "after clock without after data falls back to clock",
+			now:       afterClock,
+			pre:       nil,
+			after:     nil,
+			overnight: nil,
+			want:      MarketSessionAfter,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := sessionFromExtendedBlocksAt("US.AAPL", tc.pre, tc.after, tc.overnight, tc.now)
+			if got != tc.want {
+				t.Fatalf("session=%s, want %s", got, tc.want)
+			}
+		})
+	}
+}

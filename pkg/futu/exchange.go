@@ -1083,21 +1083,31 @@ func futuHistoryKLineStartTime(labelAt time.Time, interval types.Interval) time.
 //     → MarketSessionPre
 //   - fallback → ClassifyMarketSession (clock-based, handles Sat/Sun/etc.)
 func sessionFromExtendedBlocks(canonical string, preMarket, afterMarket, overnight *ExtendedMarketQuote) MarketSession {
-	// After-market and overnight blocks are unambiguous: Futu only populates
-	// them once those sessions open, and overnight takes priority (it follows
-	// after-market chronologically, so both may be non-nil at the same time).
-	if overnight != nil && overnight.Price != nil && *overnight.Price > 0 {
-		return MarketSessionOvernight
-	}
-	if afterMarket != nil && afterMarket.Price != nil && *afterMarket.Price > 0 {
-		return MarketSessionAfter
-	}
-	// Pre-market data persists into the regular session; confirm with the
-	// clock before treating a non-nil preMarket block as "currently pre".
-	clockSession := ClassifyMarketSession(canonical, time.Now().UTC())
-	if preMarket != nil && preMarket.Price != nil && *preMarket.Price > 0 &&
-		clockSession == MarketSessionPre {
-		return MarketSessionPre
+	return sessionFromExtendedBlocksAt(canonical, preMarket, afterMarket, overnight, time.Now().UTC())
+}
+
+func sessionFromExtendedBlocksAt(canonical string, preMarket, afterMarket, overnight *ExtendedMarketQuote, now time.Time) MarketSession {
+	// All three extended-session blocks (pre, after, overnight) can persist
+	// past their actual trading window — Futu's BasicQot keeps yesterday's
+	// after-market and last night's overnight prices populated well into the
+	// next pre-market and regular session. Without a clock guard, that stale
+	// data would freeze `activeExtended` (and therefore `snapshot.Price`) on
+	// the previous session's close, blocking all downstream tick updates.
+	// Treat the block as "currently active" only when the clock agrees.
+	clockSession := ClassifyMarketSession(canonical, now)
+	switch clockSession {
+	case MarketSessionOvernight:
+		if overnight != nil && overnight.Price != nil && *overnight.Price > 0 {
+			return MarketSessionOvernight
+		}
+	case MarketSessionAfter:
+		if afterMarket != nil && afterMarket.Price != nil && *afterMarket.Price > 0 {
+			return MarketSessionAfter
+		}
+	case MarketSessionPre:
+		if preMarket != nil && preMarket.Price != nil && *preMarket.Price > 0 {
+			return MarketSessionPre
+		}
 	}
 	return clockSession
 }
