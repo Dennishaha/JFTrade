@@ -14,6 +14,7 @@ import { provideThemeStore } from "../composables/useTheme";
 import { provideWorkspaceLayoutStore } from "../composables/useWorkspaceLayout";
 import CommandPalette from "./CommandPalette.vue";
 import IconRail from "./IconRail.vue";
+import type { SystemNotificationLiveSocketEvent } from "../composables/useLiveSocket";
 import RightDock from "./RightDock.vue";
 import StatusBar from "./StatusBar.vue";
 import TopBar from "./TopBar.vue";
@@ -81,6 +82,20 @@ let pendingMarketTickEvent: Parameters<typeof console_.applyMarketDataTickEvent>
   null;
 let marketTickFlushTimer: ReturnType<typeof setTimeout> | null = null;
 
+function isSystemNotificationEvent(
+  event: unknown,
+): event is SystemNotificationLiveSocketEvent {
+  return (
+    event != null &&
+    typeof event === "object" &&
+    "type" in event &&
+    (event as { type?: unknown }).type === "system.notification" &&
+    "id" in event &&
+    "level" in event &&
+    "title" in event
+  );
+}
+
 function flushPendingMarketTickEvent(): void {
   if (pendingMarketTickEvent != null) {
     console_.applyMarketDataTickEvent(pendingMarketTickEvent);
@@ -113,6 +128,8 @@ const stop = watch(
     const eventKey =
       ev.type === "market-data.tick" && "instrument" in ev && "snapshot" in ev
         ? `${ev.type}|${ev.instrument.instrumentId}|${ev.at}|${ev.snapshot.price}`
+        : isSystemNotificationEvent(ev)
+          ? `${ev.type}|${ev.id}`
         : `${ev.type}|${ev.at}`;
     if (eventKey === lastSeenLiveEventKey) {
       return;
@@ -125,6 +142,18 @@ const stop = watch(
       return;
     }
 
+    if (isSystemNotificationEvent(ev)) {
+      notifications.push({
+        level: ev.level,
+        title: ev.title,
+        source: ev.source ?? ev.brokerId ?? "live-socket",
+        at: ev.at,
+        ...(ev.category ? { category: ev.category } : {}),
+        ...(ev.message ? { message: ev.message } : {}),
+      });
+      return;
+    }
+
     console_.applyMarketDataTickEvent(ev);
 
     if (ev.type !== "heartbeat" && ev.type !== "market-data.tick") {
@@ -133,6 +162,7 @@ const stop = watch(
         title: `WS: ${ev.type}`,
         source: "live-socket",
         at: ev.at,
+        category: `live.${ev.type}`,
       });
     }
   },
@@ -169,6 +199,7 @@ const stopFutuOpenDMessages = watch(
         diagnosis.summary ??
         "请检查 OpenD 状态；如已重启 OpenD，请到 Settings / Futu Integration 手动重试。",
       source: "futu-opend",
+      category: "broker.connection",
     });
   },
 );
@@ -181,6 +212,7 @@ onMounted(() => {
     title: "Workspace ready",
     message: "JFTrade 控制台已加载。按 ⌘K / Ctrl+K 调出命令面板。",
     source: "system",
+    category: "system.workspace",
   });
 });
 

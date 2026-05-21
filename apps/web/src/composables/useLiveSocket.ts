@@ -44,12 +44,25 @@ export type MarketDataTickLiveSocketEvent = {
   source: string | null;
 };
 
+export type SystemNotificationLiveSocketEvent = {
+  type: "system.notification";
+  id: string;
+  at: string;
+  level: "info" | "success" | "warn" | "error";
+  title: string;
+  message?: string;
+  source?: string;
+  brokerId?: string;
+  category?: string;
+};
+
 export type LiveSocketEvent =
+  | SystemNotificationLiveSocketEvent
+  | MarketDataTickLiveSocketEvent
   | {
       type: string;
       at: string;
-    }
-  | MarketDataTickLiveSocketEvent;
+    };
 
 function buildLiveSocketUrl(path: string): string {
   if (!apiBaseUrl) {

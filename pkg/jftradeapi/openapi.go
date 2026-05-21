@@ -351,7 +351,7 @@ func buildOpenAPISpec() map[string]any {
 			"/api/v1/ws/live": map[string]any{
 				"get": operation(
 					"连接实时行情 WebSocket",
-					"升级为 WebSocket 后持续返回 heartbeat 与实时行情事件。Swagger UI 仅展示连接说明，不直接建立 WebSocket 交互。",
+					"升级为 WebSocket 后持续返回 heartbeat、实时行情事件与系统通知事件。Swagger UI 仅展示连接说明，不直接建立 WebSocket 交互。",
 					[]string{"streaming"},
 					nil,
 					nil,

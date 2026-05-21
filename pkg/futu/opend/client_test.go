@@ -12,6 +12,7 @@ import (
 
 	"github.com/jftrade/jftrade-main/pkg/futu/codec"
 	initpb "github.com/jftrade/jftrade-main/pkg/futu/pb/initconnect"
+	notifypb "github.com/jftrade/jftrade-main/pkg/futu/pb/notify"
 )
 
 // startFakeOpenD serves a single TCP connection that echoes back a response
@@ -212,5 +213,123 @@ func TestKeepAliveFailureClosesClient(t *testing.T) {
 	}}, &resp)
 	if !errors.Is(err, ErrClosed) {
 		t.Fatalf("expected ErrClosed after keepalive failure, got %v", err)
+	}
+}
+
+func TestSubscribeNotifyReceivesSystemPush(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	recvNotifyCh := make(chan bool, 1)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		conn, err := ln.Accept()
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+
+		header := make([]byte, codec.HeaderLen)
+		if _, err := io.ReadFull(conn, header); err != nil {
+			return
+		}
+		bodyLen := int(uint32(header[12]) | uint32(header[13])<<8 | uint32(header[14])<<16 | uint32(header[15])<<24)
+		packet := make([]byte, codec.HeaderLen+bodyLen)
+		copy(packet, header)
+		if _, err := io.ReadFull(conn, packet[codec.HeaderLen:]); err != nil {
+			return
+		}
+		frame, err := codec.Decode(packet)
+		if err != nil {
+			return
+		}
+		request := &initpb.Request{}
+		if err := proto.Unmarshal(frame.Body, request); err != nil {
+			return
+		}
+		recvNotifyCh <- request.GetC2S().GetRecvNotify()
+
+		response := &initpb.Response{
+			RetType: proto.Int32(0),
+			S2C: &initpb.S2C{
+				ServerVer:         proto.Int32(700),
+				LoginUserID:       proto.Uint64(1),
+				ConnID:            proto.Uint64(42),
+				ConnAESKey:        proto.String("0123456789abcdef"),
+				KeepAliveInterval: proto.Int32(10),
+			},
+		}
+		body, _ := proto.Marshal(response)
+		pkt, _ := codec.Encode(frame.Header.ProtoID, frame.Header.SerialNo, body)
+		if _, err := conn.Write(pkt); err != nil {
+			return
+		}
+
+		notifyBody, _ := proto.Marshal(&notifypb.Response{
+			RetType: proto.Int32(0),
+			S2C: &notifypb.S2C{
+				Type: proto.Int32(int32(notifypb.NotifyType_NotifyType_ConnStatus)),
+				ConnectStatus: &notifypb.ConnectStatus{
+					QotLogined: proto.Bool(true),
+					TrdLogined: proto.Bool(false),
+				},
+			},
+		})
+		notifyPacket, _ := codec.Encode(ProtoNotify, 0, notifyBody)
+		_, _ = conn.Write(notifyPacket)
+	}()
+	defer func() { <-done }()
+
+	c := New(Config{Addr: ln.Addr().String(), RequestTimeout: 3 * time.Second})
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := c.Connect(ctx); err != nil {
+		t.Fatalf("connect: %v", err)
+	}
+	defer c.Close()
+
+	notifyCh := make(chan *notifypb.Response, 1)
+	c.SubscribeNotify(func(response *notifypb.Response) {
+		select {
+		case notifyCh <- response:
+		default:
+		}
+	})
+
+	var initResp initpb.Response
+	if err := c.Call(ctx, ProtoInitConnect, &initpb.Request{C2S: &initpb.C2S{
+		ClientVer:  proto.Int32(101),
+		ClientID:   proto.String("jftrade-test"),
+		RecvNotify: proto.Bool(true),
+	}}, &initResp); err != nil {
+		t.Fatalf("init call: %v", err)
+	}
+
+	select {
+	case recvNotify := <-recvNotifyCh:
+		if !recvNotify {
+			t.Fatal("expected InitConnect recvNotify=true")
+		}
+	case <-ctx.Done():
+		t.Fatal("timed out waiting for init request")
+	}
+
+	select {
+	case response := <-notifyCh:
+		if response.GetRetType() != 0 {
+			t.Fatalf("unexpected notify retType: %d", response.GetRetType())
+		}
+		if response.GetS2C().GetType() != int32(notifypb.NotifyType_NotifyType_ConnStatus) {
+			t.Fatalf("unexpected notify type: %d", response.GetS2C().GetType())
+		}
+		if !response.GetS2C().GetConnectStatus().GetQotLogined() || response.GetS2C().GetConnectStatus().GetTrdLogined() {
+			t.Fatalf("unexpected connect status: %+v", response.GetS2C().GetConnectStatus())
+		}
+	case <-ctx.Done():
+		t.Fatal("timed out waiting for notify push")
 	}
 }

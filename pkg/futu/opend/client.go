@@ -16,12 +16,14 @@ import (
 
 	"github.com/jftrade/jftrade-main/pkg/futu/codec"
 	keepalivepb "github.com/jftrade/jftrade-main/pkg/futu/pb/keepalive"
+	notifypb "github.com/jftrade/jftrade-main/pkg/futu/pb/notify"
 )
 
 // Protocol IDs (selected — see Futu OpenAPI docs for the full list).
 const (
 	ProtoInitConnect       uint32 = 1001
 	ProtoGetGlobalState    uint32 = 1002
+	ProtoNotify            uint32 = 1003
 	ProtoKeepAlive         uint32 = 1004
 	ProtoQotSub            uint32 = 3001
 	ProtoGetBasicQot       uint32 = 3004
@@ -200,6 +202,21 @@ func (c *Client) Subscribe(protoID uint32, fn func(codec.Frame)) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.subs[protoID] = append(c.subs[protoID], fn)
+}
+
+// SubscribeNotify registers a typed handler for OpenD system notifications
+// delivered on protocol 1003.
+func (c *Client) SubscribeNotify(fn func(*notifypb.Response)) {
+	if fn == nil {
+		return
+	}
+	c.Subscribe(ProtoNotify, func(frame codec.Frame) {
+		var response notifypb.Response
+		if err := proto.Unmarshal(frame.Body, &response); err != nil {
+			return
+		}
+		fn(&response)
+	})
 }
 
 // Call issues a request and waits for the response on the same serialNo.

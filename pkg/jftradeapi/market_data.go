@@ -49,13 +49,19 @@ func (s *Server) handleLiveWebSocket(w http.ResponseWriter, r *http.Request) {
 		_ = conn.Close()
 	}()
 
+	s.ensureLiveNotificationBridge(r.Context())
+
 	if err := writeHeartbeat(conn); err != nil {
 		return
 	}
 	clientClosed := liveWebSocketClientClosed(conn)
 
 	lastSentByInstrument := map[string]string{}
+	lastSentNotificationSeq := uint64(0)
 	if err := s.writeLiveMarketTicks(r.Context(), conn, lastSentByInstrument); err != nil {
+		return
+	}
+	if err := s.writeLiveNotifications(conn, &lastSentNotificationSeq); err != nil {
 		return
 	}
 
@@ -76,6 +82,9 @@ func (s *Server) handleLiveWebSocket(w http.ResponseWriter, r *http.Request) {
 			}
 		case <-dataTicker.C:
 			if err := s.writeLiveMarketTicks(r.Context(), conn, lastSentByInstrument); err != nil {
+				return
+			}
+			if err := s.writeLiveNotifications(conn, &lastSentNotificationSeq); err != nil {
 				return
 			}
 		}
@@ -322,6 +331,7 @@ func (s *Server) futuExchange() *futu.Exchange {
 		return s.exchange
 	}
 	s.exchange = futu.NewExchangeWithConfig(config)
+	s.exchange.OnSystemNotify(s.handleFutuSystemNotify)
 	s.exchangeConfigKey = configKey
 	return s.exchange
 }

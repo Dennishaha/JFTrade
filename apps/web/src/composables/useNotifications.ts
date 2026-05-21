@@ -15,6 +15,7 @@ export interface NotificationItem {
   title: string;
   message?: string;
   source?: string;
+  category?: string;
   at: string;
   read: boolean;
 }

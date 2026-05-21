@@ -17,6 +17,7 @@ import (
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
 	commonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/common"
 	initpb "github.com/jftrade/jftrade-main/pkg/futu/pb/initconnect"
+	notifypb "github.com/jftrade/jftrade-main/pkg/futu/pb/notify"
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
 	qotgetbasicqotpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetbasicqot"
 	qotgetklpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetkl"
@@ -85,6 +86,9 @@ func TestQueryTickerReusesSingleOpenDConnection(t *testing.T) {
 	if got := server.acceptCount(); got != 1 {
 		t.Fatalf("expected one OpenD TCP session, got %d", got)
 	}
+	if !server.lastInitRecvNotify() {
+		t.Fatal("expected InitConnect to request OpenD notifications")
+	}
 	if got := server.subCallCount(); got != 1 {
 		t.Fatalf("expected one Qot_Sub call, got %d", got)
 	}
@@ -93,6 +97,53 @@ func TestQueryTickerReusesSingleOpenDConnection(t *testing.T) {
 	}
 	if firstTicker.Last.Float64() != secondTicker.Last.Float64() {
 		t.Fatalf("expected stable quote price, got %f and %f", firstTicker.Last.Float64(), secondTicker.Last.Float64())
+	}
+}
+
+func TestEnsureSystemNotificationsBindsSystemPushHandler(t *testing.T) {
+	server := startQuoteOpenDServer(t)
+	server.setNotifyAfterInit(&notifypb.Response{
+		RetType: proto.Int32(0),
+		S2C: &notifypb.S2C{
+			Type: proto.Int32(int32(notifypb.NotifyType_NotifyType_ConnStatus)),
+			ConnectStatus: &notifypb.ConnectStatus{
+				QotLogined: proto.Bool(true),
+				TrdLogined: proto.Bool(false),
+			},
+		},
+	})
+	defer server.stop()
+
+	ex := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
+	defer ex.Close()
+
+	received := make(chan *notifypb.Response, 1)
+	ex.OnSystemNotify(func(response *notifypb.Response) {
+		select {
+		case received <- response:
+		default:
+		}
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	if err := ex.EnsureSystemNotifications(ctx); err != nil {
+		t.Fatalf("EnsureSystemNotifications: %v", err)
+	}
+
+	select {
+	case response := <-received:
+		if response.GetS2C().GetType() != int32(notifypb.NotifyType_NotifyType_ConnStatus) {
+			t.Fatalf("notify type = %d", response.GetS2C().GetType())
+		}
+		if !response.GetS2C().GetConnectStatus().GetQotLogined() {
+			t.Fatal("expected qotLogined=true")
+		}
+		if response.GetS2C().GetConnectStatus().GetTrdLogined() {
+			t.Fatal("expected trdLogined=false")
+		}
+	case <-ctx.Done():
+		t.Fatal("timed out waiting for system notification")
 	}
 }
 
@@ -363,6 +414,7 @@ func TestStreamConnectRebuildsClosedCachedOpenDClient(t *testing.T) {
 type quoteOpenDServer struct {
 	addr              string
 	accepts           atomic.Int32
+	initRecvNotify    atomic.Bool
 	qotSubCalls       atomic.Int32
 	pushSubCalls      atomic.Int32
 	basicQotCalls     atomic.Int32
@@ -373,6 +425,8 @@ type quoteOpenDServer struct {
 	historyMu         sync.Mutex
 	historyPages      [][]*qotcommonpb.KLine
 	currentKLines     []*qotcommonpb.KLine
+	notifyMu          sync.Mutex
+	notifyAfterInit   *notifypb.Response
 	listener          net.Listener
 	stopOnce          sync.Once
 	shutdownCompleted chan struct{}
@@ -388,6 +442,12 @@ func (s *quoteOpenDServer) setCurrentKLines(klines []*qotcommonpb.KLine) {
 	s.historyMu.Lock()
 	defer s.historyMu.Unlock()
 	s.currentKLines = klines
+}
+
+func (s *quoteOpenDServer) setNotifyAfterInit(response *notifypb.Response) {
+	s.notifyMu.Lock()
+	defer s.notifyMu.Unlock()
+	s.notifyAfterInit = response
 }
 
 func startQuoteOpenDServer(t *testing.T) *quoteOpenDServer {
@@ -446,6 +506,9 @@ func (s *quoteOpenDServer) handleConn(conn net.Conn) {
 		var response proto.Message
 		switch frame.Header.ProtoID {
 		case opend.ProtoInitConnect:
+			request := &initpb.Request{}
+			_ = proto.Unmarshal(frame.Body, request)
+			s.initRecvNotify.Store(request.GetC2S().GetRecvNotify())
 			response = &initpb.Response{
 				RetType: proto.Int32(0),
 				S2C: &initpb.S2C{
@@ -489,6 +552,11 @@ func (s *quoteOpenDServer) handleConn(conn net.Conn) {
 		if _, err := conn.Write(packet); err != nil {
 			return
 		}
+		if frame.Header.ProtoID == opend.ProtoInitConnect {
+			if err := s.writeNotifyAfterInit(conn); err != nil {
+				return
+			}
+		}
 		if frame.Header.ProtoID == opend.ProtoQotSub {
 			request := &qotsubpb.Request{}
 			_ = proto.Unmarshal(frame.Body, request)
@@ -499,6 +567,27 @@ func (s *quoteOpenDServer) handleConn(conn net.Conn) {
 			}
 		}
 	}
+}
+
+func (s *quoteOpenDServer) writeNotifyAfterInit(conn net.Conn) error {
+	s.notifyMu.Lock()
+	response := s.notifyAfterInit
+	s.notifyMu.Unlock()
+	if response == nil {
+		return nil
+	}
+
+	time.Sleep(25 * time.Millisecond)
+	body, err := proto.Marshal(response)
+	if err != nil {
+		return err
+	}
+	packet, err := codec.Encode(opend.ProtoNotify, 0, body)
+	if err != nil {
+		return err
+	}
+	_, err = conn.Write(packet)
+	return err
 }
 
 func (s *quoteOpenDServer) historyKLResponse(body []byte) *historypb.Response {
@@ -660,6 +749,10 @@ func basicQotListForSecurities(securities []*qotcommonpb.Security) []*qotcommonp
 
 func (s *quoteOpenDServer) acceptCount() int {
 	return int(s.accepts.Load())
+}
+
+func (s *quoteOpenDServer) lastInitRecvNotify() bool {
+	return s.initRecvNotify.Load()
 }
 
 func (s *quoteOpenDServer) subCallCount() int {

@@ -281,4 +281,82 @@ describe("System page", () => {
 
     wrapper.unmount();
   });
+
+  it("renders structured live notifications in the notification center", async () => {
+    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+    const url = String(input);
+
+    if (url.includes("/api/v1/system/status"))
+      return createResponse(systemStatus);
+    if (url.includes("/api/v1/system/storage/overview"))
+      return createResponse(emptyStorageOverview);
+    if (url.includes("/api/v1/system/real-trade-approvals"))
+      return createResponse(emptyRealTradeApprovals);
+    if (url.includes("/api/v1/system/real-trade-hard-stops"))
+      return createResponse(emptyRealTradeHardStops);
+    if (url.includes("/api/v1/system/real-trade-hard-stop-events"))
+      return createResponse(emptyRealTradeHardStopEvents);
+    if (url.includes("/api/v1/system/real-trade-kill-switch-events"))
+      return createResponse(emptyRealTradeKillSwitchEvents);
+    if (url.includes("/api/v1/system/real-trade-kill-switch"))
+      return createResponse(emptyRealTradeKillSwitchState);
+    if (url.includes("/api/v1/system/real-trade-risk-events"))
+      return createResponse(emptyRealTradeRiskEvents);
+    if (url.includes("/api/v1/system/real-trade-risk-limits"))
+      return createResponse(emptyRealTradeRiskState);
+    if (url.includes("/api/v1/system/worker/broker-order-updates"))
+      return createResponse(emptyWorkerBrokerOrderUpdates);
+    if (url.includes("/api/v1/brokers/futu/runtime"))
+      return createResponse(emptyBrokerRuntime);
+    if (url.includes("/api/v1/brokers/futu/funds"))
+      return createResponse(emptyBrokerFunds);
+    if (url.includes("/api/v1/brokers/futu/cash-flows"))
+      return createResponse(emptyBrokerCashFlows);
+    if (url.includes("/api/v1/brokers/futu/positions"))
+      return createResponse(emptyBrokerPositions);
+    if (url.includes("/api/v1/brokers/futu/orders"))
+      return createResponse(emptyBrokerOrders);
+    if (url.includes("/api/v1/portfolio/futu/cash-balances"))
+      return createResponse(emptyPortfolioCashBalances);
+    if (url.includes("/api/v1/portfolio/futu/positions"))
+      return createResponse(emptyPortfolioPositions);
+    if (url.includes("/api/v1/portfolio/futu/cash-reconciliation"))
+      return createResponse(emptyPortfolioCashReconciliation);
+    if (url.includes("/api/v1/portfolio/futu/reconciliation"))
+      return createResponse(emptyPortfolioReconciliation);
+    if (url.includes("/api/v1/execution/orders"))
+      return createResponse(emptyExecutionOrders);
+
+    throw new Error(`Unexpected request: ${url}`);
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal(
+    "EventSource",
+    MockEventSource as unknown as typeof EventSource,
+    );
+
+    const { wrapper } = await mountApp("/system");
+    const liveSocket = MockWebSocket.instances[0];
+
+    liveSocket?.emitMessage({
+    type: "system.notification",
+    id: "system-notification-1",
+    at: "2026-05-16T00:31:00.000Z",
+    level: "warn",
+    title: "OpenD 连接状态变化",
+    message: "行情未登录，交易未登录。",
+    source: "futu-opend",
+    brokerId: "futu",
+    category: "broker.connection",
+    });
+    await flushRequests();
+
+    expect(wrapper.text()).toContain("OpenD 连接状态变化");
+    expect(wrapper.text()).toContain("行情未登录，交易未登录。");
+    expect(wrapper.text()).toContain("futu-opend");
+    expect(wrapper.text()).not.toContain("WS: system.notification");
+
+    wrapper.unmount();
+  });
 });

@@ -1,0 +1,106 @@
+syntax = "proto2";
+package Notify;
+option java_package = "com.futu.openapi.pb";
+option go_package = "github.com/jftrade/jftrade-main/pkg/futu/pb/notify;notify";
+
+import "Common.proto";
+
+// OpenD 系统通知推送协议（1003）。仓库原先缺失该 proto，按文档
+// docs/Futu-API-Doc-zh-Proto.md 补齐最小可生成定义。
+
+enum GtwEventType
+{
+	GtwEventType_None = 0; //正常无错
+	GtwEventType_LocalCfgLoadFailed = 1; //加载本地配置失败
+	GtwEventType_APISvrRunFailed = 2; //服务器启动失败
+	GtwEventType_ForceUpdate = 3; //客户端版本过低
+	GtwEventType_LoginFailed = 4; //登录失败
+	GtwEventType_UnAgreeDisclaimer = 5; //未同意免责声明
+	GtwEventType_NetCfgMissing = 6; //缺少必要网络配置信息
+	GtwEventType_KickedOut = 7; //牛牛帐号在别处登录
+	GtwEventType_LoginPwdChanged = 8; //登录密码被修改
+	GtwEventType_BanLogin = 9; //用户被禁止登录
+	GtwEventType_NeedPicVerifyCode = 10; //需要图形验证码
+	GtwEventType_NeedPhoneVerifyCode = 11; //需要手机验证码
+	GtwEventType_AppDataNotExist = 12; //程序自带数据不存在
+	GtwEventType_NessaryDataMissing = 13; //缺少必要数据
+	GtwEventType_TradePwdChanged = 14; //交易密码被修改
+	GtwEventType_EnableDeviceLock = 15; //启用设备锁
+}
+
+enum NotifyType
+{
+	NotifyType_None = 0; //无
+	NotifyType_GtwEvent = 1; //OpenD 运行事件通知
+	NotifyType_ProgramStatus = 2; //程序状态
+	NotifyType_ConnStatus = 3; //连接状态
+	NotifyType_QotRight = 4; //行情权限
+	NotifyType_APILevel = 5; //用户等级，已在2.10版本之后废弃
+	NotifyType_APIQuota = 6; //API 额度
+}
+
+enum APILevel
+{
+	APILevel_None = 0; //已废弃
+}
+
+message GtwEvent
+{
+	required int32 type = 1; //GtwEventType, OpenD 运行事件类型
+	optional string desc = 2; //事件描述
+}
+
+message ConnectStatus
+{
+	required bool qotLogined = 1; //是否登录行情服务器
+	required bool trdLogined = 2; //是否登录交易服务器
+}
+
+message QotRight
+{
+	optional int32 hkQotRight = 1; //Qot_Common.QotRight, 港股权限
+	optional int32 hkOptionQotRight = 2; //Qot_Common.QotRight, 港股期权权限
+	optional int32 hkFutureQotRight = 3; //Qot_Common.QotRight, 港股期货权限
+	optional int32 usQotRight = 4; //Qot_Common.QotRight, 美股权限
+	optional int32 usOptionQotRight = 5; //Qot_Common.QotRight, 美股期权权限
+	optional int32 usFutureQotRight = 6; //Qot_Common.QotRight, 美股期货权限（已废弃）
+	optional int32 cnQotRight = 7; //Qot_Common.QotRight, A 股权限
+	optional int32 usIndexQotRight = 8; //Qot_Common.QotRight, 美股指数权限
+	optional int32 usOTCQotRight = 9; //Qot_Common.QotRight, 美股 OTC 权限
+	optional int32 sgFutureQotRight = 10; //Qot_Common.QotRight, 新加坡期货权限
+	optional int32 jpFutureQotRight = 11; //Qot_Common.QotRight, 日本期货权限
+	optional int32 usFutureQotRightCME = 12; //Qot_Common.QotRight, CME 期货权限
+	optional int32 usFutureQotRightCBOT = 13; //Qot_Common.QotRight, CBOT 期货权限
+	optional int32 usFutureQotRightNYMEX = 14; //Qot_Common.QotRight, NYMEX 期货权限
+	optional int32 usFutureQotRightCOMEX = 15; //Qot_Common.QotRight, COMEX 期货权限
+	optional int32 usFutureQotRightCBOE = 16; //Qot_Common.QotRight, CBOE 期货权限
+}
+
+message APIQuota
+{
+	optional int32 totalUsed = 1; //所有连接已使用的订阅额度
+	optional int32 ownUsed = 2; //当前连接已使用的订阅额度
+	optional int32 remain = 3; //剩余订阅额度
+}
+
+// 推送协议，无 C2S 和 Request 结构，retType 始终是 RetType_Succeed。
+message S2C
+{
+	required int32 type = 1; //NotifyType, 通知类型
+	optional GtwEvent event = 2; //事件信息
+	optional Common.ProgramStatus programStatus = 3; //程序状态
+	optional ConnectStatus connectStatus = 4; //连接状态
+	optional QotRight qotRight = 5; //行情权限
+	optional APILevel apiLevel = 6; //用户等级，已在 2.10 版本之后废弃
+	optional APIQuota apiQuota = 7; //API 额度
+}
+
+message Response
+{
+	// 以下 3 个字段每条协议都有，注释说明在 InitConnect.proto 中。
+	required int32 retType = 1 [default = -400];
+	optional string retMsg = 2;
+	optional int32 errCode = 3;
+
+	optional S2C s2c = 4;
+}

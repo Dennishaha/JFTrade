@@ -10,6 +10,7 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC_DIR="${FUTU_PROTO_SRC:-${HOME}/Downloads/FTAPIProtoFiles_10.5.6508}"
+EXTRA_PROTO_DIR="${REPO_ROOT}/scripts/futu-proto-overlays"
 STAGE_DIR="${REPO_ROOT}/pkg/futu/proto"
 OUT_DIR="${REPO_ROOT}/pkg/futu/pb"
 
@@ -47,6 +48,12 @@ PROTO_FILES=(
   Trd_SubAccPush.proto
 )
 
+EXTRA_PROTO_FILES=(
+  Notify.proto
+)
+
+ALL_PROTO_FILES=("${PROTO_FILES[@]}" "${EXTRA_PROTO_FILES[@]}")
+
 rm -rf "${STAGE_DIR}" "${OUT_DIR}"
 mkdir -p "${STAGE_DIR}" "${OUT_DIR}"
 
@@ -56,6 +63,14 @@ for f in "${PROTO_FILES[@]}"; do
     exit 1
   fi
   cp "${SRC_DIR}/${f}" "${STAGE_DIR}/${f}"
+done
+
+for f in "${EXTRA_PROTO_FILES[@]}"; do
+  if [ ! -f "${EXTRA_PROTO_DIR}/${f}" ]; then
+    echo "missing extra proto file: ${EXTRA_PROTO_DIR}/${f}" >&2
+    exit 1
+  fi
+  cp "${EXTRA_PROTO_DIR}/${f}" "${STAGE_DIR}/${f}"
 done
 
 # Rewrite go_package to live under our module.
@@ -107,7 +122,7 @@ protoc \
   --proto_path="${STAGE_DIR}" \
   --go_out="${OUT_DIR}" \
   --go_opt=paths=source_relative \
-  $(printf '%s\n' "${PROTO_FILES[@]}" | sed "s#^#${STAGE_DIR}/#")
+  $(printf '%s\n' "${ALL_PROTO_FILES[@]}" | sed "s#^#${STAGE_DIR}/#")
 
 # Reorganize: protoc generates files in OUT_DIR root with original basenames.
 # Move each <Name>.pb.go into pkg/futu/pb/<gopkg>/.

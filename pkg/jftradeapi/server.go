@@ -97,6 +97,9 @@ type Server struct {
 	marketSubscriptions    map[string]*marketSubscription
 	tickCacheMu            sync.Mutex
 	tickCache              map[string][]marketTickSample
+	notificationMu         sync.Mutex
+	notificationCache      []liveNotificationEvent
+	notificationSeq        uint64
 	exchangeMu             sync.Mutex
 	exchange               *futu.Exchange
 	exchangeConfigKey      string
@@ -209,7 +212,7 @@ func NewSettingsStore(path string) (*SettingsStore, error) {
 }
 
 func NewServer(store *SettingsStore) *Server {
-	return &Server{
+	server := &Server{
 		store:               store,
 		marketSubscriptions: map[string]*marketSubscription{},
 		tickCache:           map[string][]marketTickSample{},
@@ -217,6 +220,8 @@ func NewServer(store *SettingsStore) *Server {
 			CheckOrigin: func(*http.Request) bool { return true },
 		},
 	}
+	registerBBGONotificationSink(server.recordLiveNotification)
+	return server
 }
 
 func shouldStartForArgs(args []string) bool {

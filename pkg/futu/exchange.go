@@ -22,6 +22,7 @@ import (
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
 	commonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/common"
 	initpb "github.com/jftrade/jftrade-main/pkg/futu/pb/initconnect"
+	notifypb "github.com/jftrade/jftrade-main/pkg/futu/pb/notify"
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
 	qotgetbasicqotpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetbasicqot"
 	qotgetklpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetkl"
@@ -121,6 +122,8 @@ type Exchange struct {
 	basicQotSubscriptions     map[string]struct{}
 	basicQotPushSubscriptions map[string]struct{}
 	klineSubscriptions        map[string]struct{}
+	systemNotifyClient        *opend.Client
+	systemNotifyHandlers      []func(*notifypb.Response)
 }
 
 // NewExchange constructs an Exchange. It does not dial OpenD: bbgo expects
@@ -147,6 +150,27 @@ func (e *Exchange) Client() *opend.Client {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	return e.client
+}
+
+// OnSystemNotify registers a handler for OpenD system notifications (protocol
+// 1003). Handlers survive client reconnects and are rebound to fresh OpenD
+// sessions automatically.
+func (e *Exchange) OnSystemNotify(fn func(*notifypb.Response)) {
+	if fn == nil {
+		return
+	}
+
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.systemNotifyHandlers = append(e.systemNotifyHandlers, fn)
+	e.bindSystemNotifyLocked(e.client)
+}
+
+// EnsureSystemNotifications brings up the shared OpenD session so registered
+// system-notify handlers can receive protocol 1003 pushes.
+func (e *Exchange) EnsureSystemNotifications(ctx context.Context) error {
+	_, err := e.ensureClient(ctx)
+	return err
 }
 
 // --- bbgo types.ExchangeMinimal ---
@@ -778,6 +802,7 @@ func (e *Exchange) ensureClient(ctx context.Context) (*opend.Client, error) {
 			_ = e.invalidateClientLocked()
 			e.client = e.newClient()
 		default:
+			e.bindSystemNotifyLocked(e.client)
 			return e.client, nil
 		}
 	}
@@ -789,7 +814,7 @@ func (e *Exchange) ensureClient(ctx context.Context) (*opend.Client, error) {
 	initReq := &initpb.Request{C2S: &initpb.C2S{
 		ClientVer:           proto.Int32(101),
 		ClientID:            proto.String("jftrade-bbgo"),
-		RecvNotify:          proto.Bool(false),
+		RecvNotify:          proto.Bool(true),
 		ProgrammingLanguage: proto.String("Go"),
 	}}
 	var initResp initpb.Response
@@ -816,7 +841,25 @@ func (e *Exchange) ensureClient(ctx context.Context) (*opend.Client, error) {
 	if e.klineSubscriptions == nil {
 		e.klineSubscriptions = map[string]struct{}{}
 	}
+	e.bindSystemNotifyLocked(e.client)
 	return e.client, nil
+}
+
+func (e *Exchange) bindSystemNotifyLocked(client *opend.Client) {
+	if client == nil || len(e.systemNotifyHandlers) == 0 || e.systemNotifyClient == client {
+		return
+	}
+	client.SubscribeNotify(e.dispatchSystemNotify)
+	e.systemNotifyClient = client
+}
+
+func (e *Exchange) dispatchSystemNotify(response *notifypb.Response) {
+	e.mu.Lock()
+	handlers := append([]func(*notifypb.Response){}, e.systemNotifyHandlers...)
+	e.mu.Unlock()
+	for _, handler := range handlers {
+		handler(response)
+	}
 }
 
 func (e *Exchange) newClient() *opend.Client {
@@ -841,6 +884,7 @@ func (e *Exchange) invalidateClientLocked() error {
 	e.basicQotSubscriptions = map[string]struct{}{}
 	e.basicQotPushSubscriptions = map[string]struct{}{}
 	e.klineSubscriptions = map[string]struct{}{}
+	e.systemNotifyClient = nil
 	if client != nil {
 		return client.Close()
 	}
