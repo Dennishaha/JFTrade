@@ -47,6 +47,10 @@ start.cmd
 # 启动后端 API sidecar（开发控制台默认路径，不启动 bbgo 策略/交易流）
 go run ./cmd/jftrade api
 
+# Swagger 调试文档
+# Swagger UI: http://127.0.0.1:3000/swagger/
+# OpenAPI JSON: http://127.0.0.1:3000/openapi.json
+
 # 如需完整 bbgo 引擎，再显式启动 bbgo run
 go run ./cmd/jftrade run --config ./config/jftrade.yaml
 
@@ -62,6 +66,9 @@ cd apps/web && npm run typecheck && npm run build
 ```
 
 也可以直接运行根目录的 `start.sh` 或 `start.cmd`，按顺序执行测试、前端类型检查、前端构建，然后启动后端和前端预览服务。
+
+后端 API 启动后，可直接打开 Swagger UI 进行调试：`http://127.0.0.1:3000/swagger/`。
+如需把 OpenAPI 规范导入其他工具，使用：`http://127.0.0.1:3000/openapi.json`。
 
 前端 K 线实时合成与防回归说明见 `docs/frontend-kline.md`。
 

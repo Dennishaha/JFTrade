@@ -542,6 +542,10 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	switch {
+	case r.URL.Path == "/swagger" || strings.HasPrefix(r.URL.Path, "/swagger/"):
+		s.handleSwaggerUI(w, r)
+	case r.URL.Path == "/openapi.json":
+		s.handleOpenAPISpec(w, r)
 	case r.URL.Path == "/api/v1/ws/live":
 		s.handleLiveWebSocket(w, r)
 	case r.URL.Path == "/api/v1/stream/live" || r.URL.Path == "/api/v1/streams/console":
