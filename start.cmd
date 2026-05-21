@@ -27,11 +27,9 @@ if errorlevel 1 (
   exit /b 1
 )
 
-if not exist node_modules (
-  echo 安装前端依赖...
-  call npm install
-  if errorlevel 1 exit /b 1
-)
+echo 安装前端依赖...
+call npm install
+if errorlevel 1 exit /b 1
 
 echo 运行 Go 测试...
 go test ./...
