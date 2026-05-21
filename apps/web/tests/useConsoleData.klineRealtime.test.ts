@@ -42,6 +42,109 @@ afterEach(() => {
 });
 
 describe("console data realtime kline overlay", () => {
+  it("refreshes US snapshots in the background so session flips without a live tick", async () => {
+    vi.useFakeTimers();
+
+    const store = createConsoleStore();
+    let snapshotCalls = 0;
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL | Request) => {
+        const url = String(input);
+
+        if (url.includes("/api/v1/market-data/snapshots/US/AAPL")) {
+          snapshotCalls += 1;
+          return createResponse({
+            request: {
+              market: "US",
+              symbol: "AAPL",
+              instrumentId: "US.AAPL",
+            },
+            snapshot: {
+              price: 213.4,
+              bid: 213.3,
+              ask: 213.5,
+              openPrice: 212.1,
+              highPrice: 214.2,
+              lowPrice: 211.8,
+              previousClosePrice: 212.9,
+              lastClosePrice: 210.4,
+              volume: 1450000,
+              turnover: 309000000,
+              at:
+                snapshotCalls === 1
+                  ? "2026-05-21T13:29:58.000Z"
+                  : "2026-05-21T13:30:02.000Z",
+              observedAt:
+                snapshotCalls === 1
+                  ? "2026-05-21T13:29:58.000Z"
+                  : "2026-05-21T13:30:02.000Z",
+              session: snapshotCalls === 1 ? "pre" : "regular",
+              extendedHours: snapshotCalls === 1,
+              extended: {
+                preMarket: {
+                  price: 213.4,
+                  changeRate: 0.24,
+                },
+              },
+            },
+            meta: {
+              instrumentId: "US.AAPL",
+              source: "bbgo:futu",
+              resolvedAt:
+                snapshotCalls === 1
+                  ? "2026-05-21T13:29:58.000Z"
+                  : "2026-05-21T13:30:02.000Z",
+              fromCache: false,
+            },
+          });
+        }
+
+        if (url.includes("/api/v1/market-data/candles/US/AAPL")) {
+          return createResponse({
+            request: {
+              instrument: {
+                market: "US",
+                symbol: "AAPL",
+                instrumentId: "US.AAPL",
+              },
+              period: "1m",
+              limit: 3,
+            },
+            candles: [],
+            totalReturned: 0,
+            meta: {
+              instrumentId: "US.AAPL",
+              source: "bbgo:futu",
+              resolvedAt: "2026-05-21T13:29:58.000Z",
+              fromCache: false,
+            },
+          });
+        }
+
+        throw new Error(`Unexpected request: ${url}`);
+      }),
+    );
+
+    store.marketDataQueryMarket.value = "US";
+    store.marketDataQuerySymbol.value = "AAPL";
+    store.marketDataQueryPeriod.value = "1m";
+    store.marketDataQueryLimit.value = 3;
+
+    await store.loadMarketDataQuery();
+
+    expect(store.marketDataSnapshot.value?.snapshot?.session).toBe("pre");
+
+    await vi.advanceTimersByTimeAsync(5_000);
+
+    expect(snapshotCalls).toBe(2);
+    expect(store.marketDataSnapshot.value?.snapshot?.session).toBe("regular");
+    expect(store.marketDataSnapshot.value?.snapshot?.extendedHours).toBe(false);
+
+    vi.useRealTimers();
+  });
+
   it("uses websocket event time when snapshot.at is still on the previous minute", () => {
     const store = createConsoleStore();
 

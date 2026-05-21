@@ -283,6 +283,7 @@ const apiBaseUrl = (
 )?.replace(/\/$/, "");
 const DEFAULT_TICK_QUERY_LIMIT = 20_000;
 const DEFAULT_TICK_QUERY_LOOKBACK_MS = 15 * 60 * 1000;
+const US_MARKET_SNAPSHOT_BACKGROUND_REFRESH_MS = 5_000;
 
 function buildApiUrl(path: string): string {
   return apiBaseUrl ? `${apiBaseUrl}${path}` : `http://127.0.0.1:3000${path}`;
@@ -544,6 +545,7 @@ function createConsoleDataStore(workspaceLayout: WorkspaceLayoutStore) {
     promise: Promise<void>;
     requestId: number;
   } | null = null;
+  let marketSnapshotRefreshTimer: ReturnType<typeof setTimeout> | null = null;
   let marketDataQueryRequestId = 0;
   let marketDataRealtimeBarVolumeState: MarketDataRealtimeBarVolumeState | null =
     null;
@@ -1645,6 +1647,92 @@ function createConsoleDataStore(workspaceLayout: WorkspaceLayoutStore) {
         };
   }
 
+      function clearMarketSnapshotRefreshTimer(): void {
+        if (marketSnapshotRefreshTimer == null) {
+          return;
+        }
+
+        window.clearTimeout(marketSnapshotRefreshTimer);
+        marketSnapshotRefreshTimer = null;
+      }
+
+      function resolveMarketSnapshotRefreshTarget(): {
+        market: string;
+        symbol: string;
+        instrumentId: string;
+      } | null {
+        const request = marketDataSnapshot.value?.request;
+        if (request == null) {
+          return null;
+        }
+
+        const market = request.market.trim().toUpperCase();
+        const symbol = request.symbol.trim().toUpperCase();
+        if (market !== "US" || symbol === "") {
+          return null;
+        }
+
+        return {
+          market,
+          symbol,
+          instrumentId: request.instrumentId,
+        };
+      }
+
+      async function refreshMarketSnapshotInBackground(target: {
+        market: string;
+        symbol: string;
+        instrumentId: string;
+      }): Promise<void> {
+        try {
+          const activeTarget = resolveMarketSnapshotRefreshTarget();
+          if (
+            activeTarget == null ||
+            activeTarget.instrumentId !== target.instrumentId
+          ) {
+            return;
+          }
+
+          const snapshot = await fetchEnvelope<MarketDataSnapshotQueryResult>(
+            `/api/v1/market-data/snapshots/${encodeURIComponent(target.market)}/${encodeURIComponent(target.symbol)}?refresh=true`,
+          );
+
+          const latestTarget = resolveMarketSnapshotRefreshTarget();
+          if (
+            latestTarget == null ||
+            latestTarget.instrumentId !== target.instrumentId
+          ) {
+            return;
+          }
+
+          marketDataSnapshot.value = mergeRealtimeBarStateIntoSnapshot(snapshot);
+        } catch {
+          // Keep the current snapshot and retry on the next background interval.
+        } finally {
+          const latestTarget = resolveMarketSnapshotRefreshTarget();
+          if (
+            latestTarget != null &&
+            latestTarget.instrumentId === target.instrumentId
+          ) {
+            scheduleMarketSnapshotBackgroundRefresh();
+          }
+        }
+      }
+
+      function scheduleMarketSnapshotBackgroundRefresh(): void {
+        clearMarketSnapshotRefreshTimer();
+
+        const target = resolveMarketSnapshotRefreshTarget();
+        if (target == null) {
+          return;
+        }
+
+        marketSnapshotRefreshTimer = window.setTimeout(() => {
+          marketSnapshotRefreshTimer = null;
+          void refreshMarketSnapshotInBackground(target);
+        }, US_MARKET_SNAPSHOT_BACKGROUND_REFRESH_MS);
+      }
+
   function applyMarketDataTickEvent(event: unknown): void {
     if (!isMarketDataTickLiveEvent(event)) {
       return;
@@ -1687,6 +1775,7 @@ function createConsoleDataStore(workspaceLayout: WorkspaceLayoutStore) {
         fromCache: false,
       },
     };
+    scheduleMarketSnapshotBackgroundRefresh();
 
     upsertMarketDataRealtimeCandle(
       event,
@@ -1886,6 +1975,7 @@ function createConsoleDataStore(workspaceLayout: WorkspaceLayoutStore) {
           resetMarketDataRealtimeVolumeState();
         }
       } finally {
+        scheduleMarketSnapshotBackgroundRefresh();
         if (marketDataQueryRequestId === requestId) {
           isLoadingMarketDataQuery.value = false;
         }

@@ -166,6 +166,23 @@ func TestRecordTickerSampleDeduplicatesUnchangedQuote(t *testing.T) {
 	}
 }
 
+func TestResolveLiveTickSampleSessionReclassifiesUSBoundary(t *testing.T) {
+	latest := &marketTickSample{
+		InstrumentID:  "US.AAPL",
+		Session:       string(futu.MarketSessionPre),
+		ExtendedHours: true,
+	}
+
+	regularClock := time.Date(2026, time.January, 7, 16, 0, 0, 0, time.UTC)
+	session, extendedHours := resolveLiveTickSampleSession("US.AAPL", regularClock, latest)
+	if session != string(futu.MarketSessionRegular) {
+		t.Fatalf("session = %s", session)
+	}
+	if extendedHours {
+		t.Fatal("expected regular session to clear extendedHours")
+	}
+}
+
 func TestLiveSocketDiagnosticsUseConfiguredLimit(t *testing.T) {
 	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
 	if err != nil {

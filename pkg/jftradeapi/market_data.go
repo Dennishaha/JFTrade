@@ -611,6 +611,14 @@ func tickerTimestamp(ticker *bbgotypes.Ticker) string {
 	return resolvedAt.Format(time.RFC3339Nano)
 }
 
+func resolveLiveTickSampleSession(instrumentID string, observedAt time.Time, latest *marketTickSample) (string, bool) {
+	session := futu.ClassifyMarketSession(instrumentID, observedAt)
+	if session != futu.MarketSessionUnknown || latest == nil {
+		return string(session), futu.IsExtendedMarketSession(session)
+	}
+	return latest.Session, latest.ExtendedHours
+}
+
 // tickerOptionalDecimal converts a bbgo fixedpoint.Value to *decimal.Decimal,
 // returning nil when the value is zero (meaning "not available").
 func tickerOptionalDecimal(value bbgofixedpoint.Value) *decimal.Decimal {
@@ -754,7 +762,9 @@ func (s *Server) recordTickerSample(instrumentID string, ticker *bbgotypes.Ticke
 	if !ticker.Sell.IsZero() {
 		ask = decimal.RequireFromString(ticker.Sell.String())
 	}
-	session := futu.ClassifyMarketSession(instrumentID, time.Now().UTC())
+	observedAt := time.Now().UTC()
+	latest := s.latestTickerSample(instrumentID, tickCacheRetention)
+	session, extendedHours := resolveLiveTickSampleSession(instrumentID, observedAt, latest)
 	sample := marketTickSample{
 		InstrumentID:  instrumentID,
 		Market:        parts[0],
@@ -768,16 +778,16 @@ func (s *Server) recordTickerSample(instrumentID string, ticker *bbgotypes.Ticke
 		Volume:        ticker.Volume.Float64(),
 		Turnover:      0,
 		QuoteAt:       tickerTimestamp(ticker),
-		ObservedAt:    time.Now().UTC().Format(time.RFC3339Nano),
+		ObservedAt:    observedAt.Format(time.RFC3339Nano),
 		Source:        "bbgo:futu",
-		Session:       string(session),
-		ExtendedHours: futu.IsExtendedMarketSession(session),
+		Session:       session,
+		ExtendedHours: extendedHours,
 	}
 	// The ticker stream does not carry PreviousClosePrice or extended-session
 	// quote blocks (PreMarket/AfterMarket/Overnight). Inherit those from the
 	// most-recent cached sample so they are not silently dropped when a live
 	// ticker event overwrites the snapshot used by the frontend.
-	if latest := s.latestTickerSample(instrumentID, tickCacheRetention); latest != nil {
+	if latest != nil {
 		if sample.PreviousClosePrice == nil {
 			sample.PreviousClosePrice = latest.PreviousClosePrice
 		}
@@ -810,22 +820,26 @@ func (s *Server) recordTradeTickSample(trade bbgotypes.Trade) *marketTickSample 
 		return nil
 	}
 	price := decimal.RequireFromString(trade.Price.String())
-	quoteAt := time.Now().UTC()
+	observedAt := time.Now().UTC()
+	quoteAt := observedAt
 	if !trade.Time.Time().IsZero() {
 		quoteAt = trade.Time.Time().UTC()
 	}
 	latest := s.latestTickerSample(instrumentID, tickCacheRetention)
+	session, extendedHours := resolveLiveTickSampleSession(instrumentID, observedAt, latest)
 	sample := marketTickSample{
-		InstrumentID: instrumentID,
-		Market:       parts[0],
-		Symbol:       parts[1],
-		Price:        price,
-		Bid:          price,
-		Ask:          price,
-		Volume:       trade.Quantity.Float64(),
-		QuoteAt:      quoteAt.Format(time.RFC3339Nano),
-		ObservedAt:   time.Now().UTC().Format(time.RFC3339Nano),
-		Source:       "bbgo:futu:stream",
+		InstrumentID:  instrumentID,
+		Market:        parts[0],
+		Symbol:        parts[1],
+		Price:         price,
+		Bid:           price,
+		Ask:           price,
+		Volume:        trade.Quantity.Float64(),
+		QuoteAt:       quoteAt.Format(time.RFC3339Nano),
+		ObservedAt:    observedAt.Format(time.RFC3339Nano),
+		Source:        "bbgo:futu:stream",
+		Session:       session,
+		ExtendedHours: extendedHours,
 	}
 	if latest != nil {
 		sample.Bid = latest.Bid
@@ -836,18 +850,12 @@ func (s *Server) recordTradeTickSample(trade bbgotypes.Trade) *marketTickSample 
 		sample.PreviousClosePrice = latest.PreviousClosePrice
 		sample.LastClosePrice = latest.LastClosePrice
 		sample.Turnover = latest.Turnover
-		sample.Session = latest.Session
-		sample.ExtendedHours = latest.ExtendedHours
 		sample.PreMarket = latest.PreMarket
 		sample.AfterMarket = latest.AfterMarket
 		sample.Overnight = latest.Overnight
 		if sample.Volume == 0 {
 			sample.Volume = latest.Volume
 		}
-	} else {
-		session := futu.ClassifyMarketSession(instrumentID, time.Now().UTC())
-		sample.Session = string(session)
-		sample.ExtendedHours = futu.IsExtendedMarketSession(session)
 	}
 	return s.storeTickerSample(sample)
 }
