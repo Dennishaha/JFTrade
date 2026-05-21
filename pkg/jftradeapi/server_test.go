@@ -251,12 +251,28 @@ func TestLiveMarketStreamConnectFailureBacksOff(t *testing.T) {
 	defer cancel()
 	server.ensureLiveMarketStream(ctx, []string{"HK.00700"})
 
-	server.liveStreamMu.Lock()
-	failureCount := server.liveStreamFailureCount
-	retryAfter := server.liveStreamRetryAfter
-	lastError := server.liveStreamLastError
-	stream := server.liveStream
-	server.liveStreamMu.Unlock()
+	// Stream connect now runs in a background goroutine so the websocket
+	// dispatch loop is not blocked by a slow OpenD handshake. Wait for the
+	// failure state to settle before asserting on it.
+	var (
+		failureCount int
+		retryAfter   time.Time
+		lastError    string
+		stream       bbgotypes.Stream
+	)
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		server.liveStreamMu.Lock()
+		failureCount = server.liveStreamFailureCount
+		retryAfter = server.liveStreamRetryAfter
+		lastError = server.liveStreamLastError
+		stream = server.liveStream
+		server.liveStreamMu.Unlock()
+		if stream == nil && failureCount > 0 {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
 	if stream != nil {
 		t.Fatal("expected failed stream to be cleared")
 	}

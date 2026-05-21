@@ -83,6 +83,32 @@ func (s *Stream) reconnectLoop(ctx context.Context) {
 	}
 }
 
+// watchClientLoop monitors the bound OpenD client and triggers a stream
+// reconnect when the underlying TCP session terminates (keepalive failure,
+// peer close, or `Exchange.invalidateClient` on a recoverable RPC error).
+// Without this watcher, `connectOpenDBasicQot` would never re-run after the
+// cached client was replaced, so push subscriptions and the per-client
+// callback handle would be lost — leaving the websocket on the fallback
+// poller indefinitely.
+func (s *Stream) watchClientLoop(ctx context.Context, client *opend.Client) {
+	if client == nil {
+		return
+	}
+	select {
+	case <-ctx.Done():
+		return
+	case <-s.CloseC:
+		return
+	case <-client.Done():
+		select {
+		case <-ctx.Done():
+		case <-s.CloseC:
+		case s.ReconnectC <- struct{}{}:
+		default:
+		}
+	}
+}
+
 func (s *Stream) connectOpenDBasicQot(ctx context.Context) error {
 	client, err := s.exchange.ensureClient(ctx)
 	if err != nil {
@@ -94,6 +120,7 @@ func (s *Stream) connectOpenDBasicQot(ctx context.Context) error {
 		client.Subscribe(opend.ProtoQotUpdateBasicQot, s.handleBasicQotPush)
 		s.callbackClient = client
 	}
+	streamCtx := s.ctx
 	s.mu.Unlock()
 
 	requests, err := basicQotRequestsFromSubscriptions(s.GetSubscriptions())
@@ -102,6 +129,9 @@ func (s *Stream) connectOpenDBasicQot(ctx context.Context) error {
 	}
 	if err := s.exchange.ensureBasicQotPushSubscriptions(ctx, client, requests); err != nil {
 		return err
+	}
+	if streamCtx != nil {
+		go s.watchClientLoop(streamCtx, client)
 	}
 	s.EmitConnect()
 	return nil

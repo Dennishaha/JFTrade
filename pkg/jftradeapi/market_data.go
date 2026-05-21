@@ -27,6 +27,7 @@ const (
 	liveTickFallbackPollInterval = 1 * time.Second
 	liveTickFallbackPollTimeout  = 900 * time.Millisecond
 	liveTickSampleFreshness      = 1500 * time.Millisecond
+	liveStreamConnectTimeout     = 8 * time.Second
 	liveStreamRetryBaseDelay     = 5 * time.Second
 	liveStreamRetryMaxDelay      = 30 * time.Second
 )
@@ -404,31 +405,37 @@ func (s *Server) ensureLiveMarketStream(ctx context.Context, instrumentIDs []str
 	s.liveStreamKey = streamKey
 	s.liveStreamMu.Unlock()
 
-	streamCtx, cancel := context.WithTimeout(ctx, liveTickFallbackPollTimeout)
-	defer cancel()
-	if err := stream.Connect(streamCtx); err != nil {
-		retryDelay := s.nextLiveStreamRetryDelay()
+	// Run the OpenD push subscription handshake off the websocket dispatch
+	// goroutine so a slow handshake cannot block live tick fan-out, and use a
+	// background context with a generous timeout so the connect is not bound
+	// to the 900ms fallback poll budget.
+	go func() {
+		connectCtx, cancel := context.WithTimeout(context.Background(), liveStreamConnectTimeout)
+		defer cancel()
+		if err := stream.Connect(connectCtx); err != nil {
+			retryDelay := s.nextLiveStreamRetryDelay()
+			s.liveStreamMu.Lock()
+			if s.liveStream == stream {
+				s.liveStream = nil
+				s.liveStreamKey = ""
+			}
+			s.liveStreamFailureCount++
+			s.liveStreamRetryAfter = time.Now().UTC().Add(retryDelay)
+			s.liveStreamLastError = err.Error()
+			s.liveStreamMu.Unlock()
+			_ = stream.Close()
+			log.Printf("JFTrade live market stream connect failed; retrying in %s: %v", retryDelay, err)
+			return
+		}
+
 		s.liveStreamMu.Lock()
 		if s.liveStream == stream {
-			s.liveStream = nil
-			s.liveStreamKey = ""
+			s.liveStreamFailureCount = 0
+			s.liveStreamRetryAfter = time.Time{}
+			s.liveStreamLastError = ""
 		}
-		s.liveStreamFailureCount++
-		s.liveStreamRetryAfter = time.Now().UTC().Add(retryDelay)
-		s.liveStreamLastError = err.Error()
 		s.liveStreamMu.Unlock()
-		_ = stream.Close()
-		log.Printf("JFTrade live market stream connect failed; retrying in %s: %v", retryDelay, err)
-		return
-	}
-
-	s.liveStreamMu.Lock()
-	if s.liveStream == stream {
-		s.liveStreamFailureCount = 0
-		s.liveStreamRetryAfter = time.Time{}
-		s.liveStreamLastError = ""
-	}
-	s.liveStreamMu.Unlock()
+	}()
 }
 
 func (s *Server) nextLiveStreamRetryDelay() time.Duration {
@@ -867,6 +874,17 @@ func (s *Server) storeTickerSample(sample marketTickSample) *marketTickSample {
 	samples = samples[:writeIndex]
 	if len(samples) > 0 && marketTickSamplesEquivalent(samples[len(samples)-1], sample) {
 		latest := samples[len(samples)-1]
+		// Promote the cached sample's Source/ObservedAt when a more
+		// authoritative event (an OpenD push trade) arrives carrying the same
+		// numeric payload as a fallback poll that was recorded first. Without
+		// this promotion the stream event is silently deduped, the WS write
+		// loop's per-instrument ObservedAt dedupe never advances, and the
+		// frontend keeps seeing only `source=bbgo:futu` fallback events.
+		if shouldPromoteTickSampleSource(latest.Source, sample.Source) {
+			latest.Source = sample.Source
+			latest.ObservedAt = sample.ObservedAt
+			samples[len(samples)-1] = latest
+		}
 		s.tickCache[sample.InstrumentID] = samples
 		copyOfLatest := latest
 		return &copyOfLatest
@@ -899,6 +917,15 @@ func optionalDecimalEqual(left *decimal.Decimal, right *decimal.Decimal) bool {
 		return left == nil && right == nil
 	}
 	return left.Equal(*right)
+}
+
+// shouldPromoteTickSampleSource reports whether a newly-recorded sample's
+// source is strictly more authoritative than the cached sample's source and
+// should replace it. Today the only promotion is fallback -> stream so that
+// OpenD push trades surface to the websocket even when a 1s fallback poll
+// recorded an equivalent sample microseconds earlier.
+func shouldPromoteTickSampleSource(cachedSource string, incomingSource string) bool {
+	return incomingSource == "bbgo:futu:stream" && cachedSource != "bbgo:futu:stream"
 }
 
 func (s *Server) cachedTickCandles(instrumentID string, query map[string][]string, limit int) []map[string]any {

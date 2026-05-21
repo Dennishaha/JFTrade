@@ -508,11 +508,15 @@ func (e *Exchange) ensureBasicQotSubscriptions(ctx context.Context, client *open
 }
 
 func subscribeBasicQot(ctx context.Context, client *opend.Client, securities []*qotcommonpb.Security) error {
+	// Intentionally omit IsRegOrUnRegPush: per Qot_Sub.proto, "该参数不指定不做
+	// 注册反注册操作" — leaving it unset preserves any push registration the
+	// stream layer has already installed on this OpenD connection. Sending
+	// `false` here would explicitly toggle push state and could silently
+	// unregister Qot_UpdateBasicQot pushes for these securities.
 	request := &qotsubpb.Request{C2S: &qotsubpb.C2S{
-		SecurityList:     securities,
-		SubTypeList:      []int32{int32(qotcommonpb.SubType_SubType_Basic)},
-		IsSubOrUnSub:     proto.Bool(true),
-		IsRegOrUnRegPush: proto.Bool(false),
+		SecurityList: securities,
+		SubTypeList:  []int32{int32(qotcommonpb.SubType_SubType_Basic)},
+		IsSubOrUnSub: proto.Bool(true),
 	}}
 	var response qotsubpb.Response
 	if err := client.Call(ctx, opend.ProtoQotSub, request, &response); err != nil {
