@@ -32,6 +32,7 @@ export type MarketDataTickLiveSocketEvent = {
     highPrice?: number | null;
     lowPrice?: number | null;
     previousClosePrice?: number | null;
+    lastClosePrice?: number | null;
     volume: number;
     turnover: number;
     at: string;

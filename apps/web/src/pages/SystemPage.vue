@@ -1,11 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
-
-import {
-  architectureCards,
-  consolePanels,
-  roadmapPhases,
-} from "@jftrade/ui-contracts";
+import { computed, onMounted, ref } from "vue";
 
 import PageHeader from "../components/PageHeader.vue";
 import { useConsoleData } from "../composables/useConsoleData";
@@ -35,7 +29,14 @@ const {
   formatRealTradeKillSwitchSource,
   formatRealTradeRiskSource,
   isLoading,
+  isLoadingMarketData,
+  loadMarketDataSubscriptions,
+  marketDataSubscriptions,
 } = useConsoleData();
+
+onMounted(() => {
+  void loadMarketDataSubscriptions();
+});
 
 const workerBackoffHotspots = computed(() =>
   workerBrokerOrderUpdates.value.brokers
@@ -583,69 +584,91 @@ const systemActiveTab = ref("status");
       </v-window-item>
     </v-window>
 
-    <section class="grid gap-5 xl:grid-cols-3">
-      <v-card
-        v-for="card in architectureCards"
-        :key="card.title"
-        flat
-        class="card-shell h-full border-0"
-      >
+    <section class="grid gap-5">
+      <v-card flat class="card-shell border-0">
         <div class="flex items-center justify-between gap-3 px-4 pt-4">
           <div>
-            <div class="text-xs uppercase tracking-[0.24em] text-teal-700">{{ card.owner }}</div>
-            <div class="mt-1 text-xl font-semibold text-slate-900">{{ card.title }}</div>
+            <div class="text-xl font-semibold text-slate-900">Watchlist / 市场数据订阅</div>
+            <div class="mt-1 text-sm text-slate-500">
+              系统当前所有活跃行情订阅及配额使用情况。
+            </div>
           </div>
-          <v-chip color="success" variant="outlined" size="small">{{ card.status }}</v-chip>
+          <div class="flex items-center gap-2">
+            <v-chip variant="outlined" size="small">
+              {{ marketDataSubscriptions.totalActiveSubscriptions }} 个活跃订阅
+            </v-chip>
+            <v-btn :loading="isLoadingMarketData" variant="text" color="primary" size="small" @click="loadMarketDataSubscriptions()">
+              刷新
+            </v-btn>
+          </div>
         </div>
         <v-card-text>
-          <p class="text-sm leading-6 text-slate-600">{{ card.summary }}</p>
-          <ul class="mt-5 grid gap-2 text-sm text-slate-700">
-            <li
-              v-for="bullet in card.bullets"
-              :key="bullet"
-              class="rounded-2xl bg-slate-50 px-4 py-3"
-            >
-              {{ bullet }}
-            </li>
-          </ul>
-        </v-card-text>
-      </v-card>
-    </section>
-
-    <section class="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
-      <v-card flat class="card-shell border-0">
-        <div class="text-xl font-semibold text-slate-900 px-4 pt-4">交付路径</div>
-        <v-card-text>
-          <div class="grid gap-4">
-            <div
-              v-for="phase in roadmapPhases"
-              :key="phase.key"
-              class="rounded-3xl border border-slate-200 bg-white px-4 py-4"
-            >
-              <div class="text-xs uppercase tracking-[0.2em] text-slate-500">{{ phase.target }}</div>
-              <div class="mt-1 text-base font-semibold text-slate-900">{{ phase.title }}</div>
-              <div class="mt-1 text-sm leading-6 text-slate-600">{{ phase.summary }}</div>
-            </div>
-          </div>
-        </v-card-text>
-      </v-card>
-
-      <v-card flat class="card-shell border-0">
-        <div class="text-xl font-semibold text-slate-900 px-4 pt-4">控制台模块</div>
-        <v-card-text>
-          <div class="grid gap-3">
-            <div
-              v-for="panel in consolePanels"
-              :key="panel.name"
-              class="rounded-3xl border border-slate-200 bg-white px-4 py-4"
-            >
-              <div class="flex items-center justify-between gap-3">
-                <div class="text-base font-semibold text-slate-900">{{ panel.name }}</div>
-                <v-chip variant="outlined" size="small">{{ panel.state }}</v-chip>
+          <div class="mb-5 grid gap-3 sm:grid-cols-3">
+            <div class="rounded-3xl bg-slate-50 px-4 py-4">
+              <div class="text-xs uppercase tracking-[0.2em] text-slate-500">总配额使用</div>
+              <div class="mt-2 text-2xl font-semibold text-slate-900">
+                {{ marketDataSubscriptions.quota.totalUsed }} / {{ marketDataSubscriptions.quota.totalLimit ?? '∞' }}
               </div>
-              <p class="mt-2 text-sm leading-6 text-slate-600">{{ panel.description }}</p>
+            </div>
+            <div class="rounded-3xl bg-slate-50 px-4 py-4">
+              <div class="text-xs uppercase tracking-[0.2em] text-slate-500">剩余配额</div>
+              <div class="mt-2 text-2xl font-semibold text-slate-900">
+                {{ marketDataSubscriptions.quota.totalRemaining ?? '∞' }}
+              </div>
+            </div>
+            <div class="rounded-3xl bg-slate-50 px-4 py-4">
+              <div class="text-xs uppercase tracking-[0.2em] text-slate-500">活跃订阅数</div>
+              <div class="mt-2 text-2xl font-semibold text-slate-900">
+                {{ marketDataSubscriptions.totalActiveSubscriptions }}
+              </div>
             </div>
           </div>
+
+          <div
+            v-if="marketDataSubscriptions.quota.byMarket.length"
+            class="mb-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4"
+          >
+            <div
+              v-for="bucket in marketDataSubscriptions.quota.byMarket"
+              :key="bucket.market"
+              class="rounded-2xl border border-slate-200 bg-white px-4 py-3"
+            >
+              <div class="flex items-center justify-between gap-2">
+                <div class="text-sm font-semibold text-slate-900">{{ bucket.market }}</div>
+                <v-chip variant="outlined" size="small">
+                  {{ bucket.used }} / {{ bucket.limit ?? '∞' }}
+                </v-chip>
+              </div>
+              <div class="mt-1 text-xs text-slate-500">
+                剩余 {{ bucket.remaining ?? '∞' }}
+              </div>
+            </div>
+          </div>
+
+          <div v-if="marketDataSubscriptions.entries.length" class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            <div
+              v-for="entry in marketDataSubscriptions.entries"
+              :key="entry.key"
+              class="rounded-2xl border border-slate-200 bg-white px-4 py-3"
+            >
+              <div class="flex items-center justify-between gap-2">
+                <div>
+                  <div class="text-sm font-semibold text-slate-900">{{ entry.instrumentId }}</div>
+                  <div class="mt-1 text-xs text-slate-500">
+                    {{ entry.channel }}{{ entry.interval ? ` / ${entry.interval}` : '' }} · 引用数 {{ entry.refCount }}
+                  </div>
+                </div>
+                <v-chip variant="outlined" size="small">{{ entry.market }}</v-chip>
+              </div>
+              <div class="mt-2 text-xs text-slate-400">
+                订阅时间 {{ entry.createdAt }}
+              </div>
+            </div>
+          </div>
+          <v-empty-state
+            v-else
+            text="当前没有活跃的行情订阅。在 Market 页面添加订阅后会在此处显示。"
+          />
         </v-card-text>
       </v-card>
     </section>

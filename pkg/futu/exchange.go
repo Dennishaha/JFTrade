@@ -86,6 +86,7 @@ type QuoteSnapshot struct {
 	HighPrice          *float64
 	LowPrice           *float64
 	PreviousClosePrice *float64
+	LastClosePrice     *float64 // 历史收盘：始终 = GetLastClosePrice()（上个交易日收盘）
 	Volume             float64
 	Turnover           float64
 	QuoteAt            time.Time
@@ -641,10 +642,15 @@ func quoteSnapshotFromBasicQot(basicQot *qotcommonpb.BasicQot, canonical string)
 	preMarket := extendedMarketQuoteFromProto(basicQot.GetPreMarket())
 	afterMarket := extendedMarketQuoteFromProto(basicQot.GetAfterMarket())
 	overnight := extendedMarketQuoteFromProto(basicQot.GetOvernight())
-	session := ClassifyMarketSession(canonical, time.Now().UTC())
+	session := sessionFromExtendedBlocks(canonical, preMarket, afterMarket, overnight)
 	activeExtended := activeExtendedQuoteForSession(session, preMarket, afterMarket, overnight)
 
-	price := basicQot.GetCurPrice()
+	// GetCurPrice() during extended sessions holds today's regular-session
+	// closing price (the last regular-session trade). Capture it before the
+	// extended override so it can be used as previousClosePrice.
+	regularSessionClose := basicQot.GetCurPrice()
+
+	price := regularSessionClose
 	highPrice := floatPtr(basicQot.GetHighPrice())
 	lowPrice := floatPtr(basicQot.GetLowPrice())
 	volume := float64(basicQot.GetVolume())
@@ -667,6 +673,16 @@ func quoteSnapshotFromBasicQot(basicQot *qotcommonpb.BasicQot, canonical string)
 		}
 	}
 
+	// During extended sessions (pre/after/overnight), use the captured
+	// regularSessionClose as previousClosePrice so the frontend "最近盘中收盘"
+	// label shows today's (most recent) regular-session close, not 昨收 which
+	// only carries the previous trading day's close.  During regular session
+	// there is no extended override, so fall back to GetLastClosePrice().
+	prevClosePrice := basicQot.GetLastClosePrice()
+	if IsExtendedMarketSession(session) && regularSessionClose > 0 {
+		prevClosePrice = regularSessionClose
+	}
+
 	return &QuoteSnapshot{
 		Symbol:             canonical,
 		Price:              price,
@@ -675,7 +691,8 @@ func quoteSnapshotFromBasicQot(basicQot *qotcommonpb.BasicQot, canonical string)
 		OpenPrice:          floatPtr(basicQot.GetOpenPrice()),
 		HighPrice:          highPrice,
 		LowPrice:           lowPrice,
-		PreviousClosePrice: floatPtr(basicQot.GetLastClosePrice()),
+		PreviousClosePrice: floatPtr(prevClosePrice),
+		LastClosePrice:     floatPtr(basicQot.GetLastClosePrice()),
 		Volume:             volume,
 		Turnover:           turnover,
 		QuoteAt:            futuQuoteTime(basicQot.GetUpdateTimestamp(), basicQot.GetUpdateTime()).UTC(),
@@ -1051,6 +1068,38 @@ func futuHistoryKLineStartTime(labelAt time.Time, interval types.Interval) time.
 	}
 
 	return labelAt.Add(-duration)
+}
+
+// sessionFromExtendedBlocks derives the current market session from Futu's
+// extended-data blocks rather than the wall clock.  This correctly handles
+// market holidays and early-close ("half-day") sessions without an external
+// holiday calendar:
+//
+//   - overnight block has a price  → MarketSessionOvernight
+//   - after-market block has a price → MarketSessionAfter
+//   - pre-market block has a price AND clock confirms pre-market window
+//     (clock guard is necessary because Futu keeps pre-market data alive
+//     through the subsequent regular session, so data alone is ambiguous)
+//     → MarketSessionPre
+//   - fallback → ClassifyMarketSession (clock-based, handles Sat/Sun/etc.)
+func sessionFromExtendedBlocks(canonical string, preMarket, afterMarket, overnight *ExtendedMarketQuote) MarketSession {
+	// After-market and overnight blocks are unambiguous: Futu only populates
+	// them once those sessions open, and overnight takes priority (it follows
+	// after-market chronologically, so both may be non-nil at the same time).
+	if overnight != nil && overnight.Price != nil && *overnight.Price > 0 {
+		return MarketSessionOvernight
+	}
+	if afterMarket != nil && afterMarket.Price != nil && *afterMarket.Price > 0 {
+		return MarketSessionAfter
+	}
+	// Pre-market data persists into the regular session; confirm with the
+	// clock before treating a non-nil preMarket block as "currently pre".
+	clockSession := ClassifyMarketSession(canonical, time.Now().UTC())
+	if preMarket != nil && preMarket.Price != nil && *preMarket.Price > 0 &&
+		clockSession == MarketSessionPre {
+		return MarketSessionPre
+	}
+	return clockSession
 }
 
 // ClassifyMarketSession classifies US equities into regular, pre-market,

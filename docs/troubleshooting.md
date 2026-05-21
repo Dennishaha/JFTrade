@@ -154,6 +154,27 @@ nc -G 2 -vz 127.0.0.1 11110
 * 不要用 `cmd/jftrade run` 作为前端开发默认启动命令；它会继续执行 bbgo 引擎，并额外启动 Futu `11111` public/user WebSocket 流。
 * JFTrade live quote 和 live stream 失败后必须退避重试，避免多个前端 websocket 把 OpenD 打成连接风暴。
 
+## 美股延伸时段卡片显示异常
+
+症状：
+
+* 盘前、盘后或夜盘卡片价格更新很慢，看起来只会跟着 HTTP 快照刷新。
+* “最近盘中收盘” 的涨跌幅基准不对，和上个交易日收盘混在一起。
+* 节假日或半日市时，session 看起来还是被时钟猜成了 `regular`。
+
+当前约定：
+
+* 主卡片在盘中显示实时价；非盘中显示最近盘中收盘价，也就是当天最后一个 regular session 收盘。
+* 盘外的涨跌幅基准切到 `lastClosePrice`，它对应 Futu 的 `GetLastClosePrice()`，也就是上个交易日收盘价。
+* 盘前、盘后、夜盘的活动卡片优先用 WebSocket tick 里的实时价；HTTP 快照只作为兜底和补全扩展行情块。
+* 快照侧的 session 判定优先看 Futu 的扩展行情块：`overnight.price` 和 `afterMarket.price` 有值时，直接认为对应时段有效；`preMarket.price` 需要再结合纽约本地时钟确认，因为 Futu 会把盘前块保留到 regular session。
+
+如果你在排这类问题，优先检查：
+
+1. `/api/v1/market-data/snapshot/*` 是否已经带上 `lastClosePrice`。
+2. 前端活动盘前/盘后/夜盘卡片是否使用了 live tick 的 `snap.price`。
+3. snapshot 里 `session` 是否来自扩展行情块，而不是只靠本地时钟硬猜。
+
 ## 排查原则
 
 * 先判断接口属于 bbgo 还是 JFTrade 自有 API，不要假设 bbgo 会提供 `/api/v1/*`。

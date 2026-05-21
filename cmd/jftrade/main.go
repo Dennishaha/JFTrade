@@ -15,6 +15,9 @@ import (
 
 	// Side-effect imports register plugins with bbgo at init() time.
 	_ "github.com/jftrade/jftrade-main/pkg/futu"
+	// Embed IANA timezone database so time.LoadLocation works in minimal
+	// environments (Docker images, CI runners) that lack the system tz data.
+	_ "time/tzdata"
 )
 
 func main() {

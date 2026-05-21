@@ -15,10 +15,8 @@ const {
   brokerRuntime,
   executionOrders,
   loadMarketDataQuery,
-  loadMarketDataSubscriptions,
   marketDataCandles,
   marketDataSnapshot,
-  marketDataSubscriptions,
   portfolioCashReconciliation,
   portfolioPositions,
   realTradeApprovals,
@@ -130,8 +128,119 @@ const docsCards = [
 ];
 
 onMounted(() => {
-  void Promise.all([loadMarketDataSubscriptions(), loadMarketDataQuery()]);
+  void loadMarketDataQuery();
 });
+
+const priceInstrumentId = computed(
+  () => marketDataSnapshot.value?.request.instrumentId ?? "—",
+);
+
+const isUSMarket = computed(
+  () => marketDataSnapshot.value?.request.market?.toUpperCase() === "US",
+);
+
+const snapshotSession = computed(
+  () => (watchlistSnapshot.value?.session as string) ?? null,
+);
+
+const isInRegularSession = computed(
+  () => snapshotSession.value === "regular",
+);
+
+const mainDisplayLabel = computed(() => {
+  if (!isUSMarket.value) return "最新价";
+  return isInRegularSession.value ? "最新价" : "最近盘中收盘";
+});
+
+// 大字展示逻辑：盘中展示实时价，非盘中展示最近盘中收盘价
+const mainDisplayPrice = computed((): number | null => {
+  const snap = watchlistSnapshot.value;
+  if (!snap) return null;
+  if (!isUSMarket.value) return snap.price;
+  if (isInRegularSession.value) return snap.price;
+  return snap.previousClosePrice ?? snap.price;
+});
+
+// priceChangePercent: 语义随时段变化，配合 mainDisplayLabel/mainDisplayPrice 展示
+// ▸ 盘中：实时价 vs 昨收
+// ▸ 盘外（最近盘中收盘）：盘中收盘 vs 上个交易日收盘（lastClosePrice）
+const priceChangePercent = computed((): number | null => {
+  const snap = watchlistSnapshot.value;
+  if (!snap) return null;
+  if (!isUSMarket.value || isInRegularSession.value) {
+    if (snap.previousClosePrice == null || snap.previousClosePrice === 0) return null;
+    return ((snap.price - snap.previousClosePrice) / snap.previousClosePrice) * 100;
+  }
+  // 扩展时段：最近盘中收盘 vs 上个交易日收盘
+  const close = snap.previousClosePrice;
+  const lastClose = snap.lastClosePrice;
+  if (close == null || lastClose == null || lastClose === 0 || close === lastClose) return null;
+  return ((close - lastClose) / lastClose) * 100;
+});
+
+// extendedCardChangePercent: 延伸时段卡片专用——实时延伸价格 vs 最近盘中收盘
+const extendedCardChangePercent = computed((): number | null => {
+  const snap = watchlistSnapshot.value;
+  if (!snap || snap.previousClosePrice == null || snap.previousClosePrice === 0) return null;
+  return ((snap.price - snap.previousClosePrice) / snap.previousClosePrice) * 100;
+});
+
+// Extended session display helpers.
+// snap.price is refreshed on every live ticker event; extended.*.price only
+// updates on HTTP snapshot fetches (~60 s). For the currently-active extended
+// session, prefer snap.price so the UI reflects live market data.
+const extendedPreMarketDisplay = computed(() => {
+  const snap = watchlistSnapshot.value;
+  if (!snap?.extended?.preMarket) return null;
+  const livePrice = snap.price > 0 ? snap.price : null;
+  const isActive = snapshotSession.value === "pre";
+  const price = (isActive ? livePrice : null) ?? snap.extended.preMarket.price;
+  if (price == null) return null;
+  return {
+    price,
+    changeRate: isActive
+      ? (extendedCardChangePercent.value ?? snap.extended.preMarket.changeRate ?? null)
+      : (snap.extended.preMarket.changeRate ?? null),
+  };
+});
+
+const extendedAfterMarketDisplay = computed(() => {
+  const snap = watchlistSnapshot.value;
+  if (!snap?.extended?.afterMarket) return null;
+  const livePrice = snap.price > 0 ? snap.price : null;
+  // after-market trading is only active when session === "after"; during
+  // "overnight" that window has already closed so keep the snapshot price.
+  const isActive = snapshotSession.value === "after";
+  const price = (isActive ? livePrice : null) ?? snap.extended.afterMarket.price;
+  if (price == null) return null;
+  return {
+    price,
+    changeRate: isActive
+      ? (extendedCardChangePercent.value ?? snap.extended.afterMarket.changeRate ?? null)
+      : (snap.extended.afterMarket.changeRate ?? null),
+  };
+});
+
+const extendedOvernightDisplay = computed(() => {
+  const snap = watchlistSnapshot.value;
+  if (!snap?.extended?.overnight) return null;
+  const livePrice = snap.price > 0 ? snap.price : null;
+  const price = livePrice ?? snap.extended.overnight.price;
+  if (price == null) return null;
+  return {
+    price,
+    changeRate: extendedCardChangePercent.value ?? snap.extended.overnight.changeRate ?? null,
+  };
+});
+
+function sessionLabel(session: string | null): string {
+  if (session === "regular") return "盘中";
+  if (session === "pre") return "盘前";
+  if (session === "after") return "盘后";
+  if (session === "overnight") return "夜盘";
+  if (session === "closed") return "已收盘";
+  return session?.toUpperCase() ?? "";
+}
 </script>
 
 <template>
@@ -149,77 +258,123 @@ onMounted(() => {
           <div>
             <div class="text-xl font-semibold text-slate-900">Market Spotlight</div>
             <div class="mt-1 text-sm text-slate-500">
-              TradingView 风格的紧凑行情摘要，优先展示当前默认查询的快照和最近 K 线。
+              当前焦点标的行情摘要，包含最新价、涨跌幅及美股盘前 / 盘后数据。
             </div>
           </div>
-          <v-chip variant="outlined" size="small">
-            {{ marketDataSubscriptions.totalActiveSubscriptions }} active
-          </v-chip>
         </div>
         <v-card-text>
           <div class="grid gap-4 lg:grid-cols-[0.92fr_1.08fr]">
             <div class="rounded-3xl border border-slate-200 bg-white px-5 py-5">
+              <!-- Header: instrument ID + live status -->
               <div class="flex items-center justify-between gap-3">
                 <div>
                   <div class="text-xs uppercase tracking-[0.24em] text-slate-500">
-                    Watchlist focus
+                    Price Focus
                   </div>
                   <div class="mt-2 text-2xl font-semibold text-slate-900">
-                    {{
-                      marketDataSnapshot?.request.instrumentId ??
-                      "HK.00700"
-                    }}
+                    {{ priceInstrumentId }}
                   </div>
                 </div>
                 <v-chip :color="watchlistSnapshot ? 'success' : undefined" variant="outlined" size="small">
-                  {{ watchlistSnapshot ? "LIVE SNAPSHOT" : "CACHE EMPTY" }}
+                  {{ watchlistSnapshot ? "LIVE" : "NO DATA" }}
                 </v-chip>
               </div>
 
-              <div
-                v-if="watchlistSnapshot"
-                class="mt-5 grid gap-3 sm:grid-cols-2"
-              >
-                <div class="rounded-2xl bg-slate-50 px-4 py-4">
-                  <div class="text-xs uppercase tracking-[0.2em] text-slate-500">
-                    Last Price
+              <div v-if="watchlistSnapshot" class="mt-5">
+                <!-- Big price + change % -->
+                <div class="flex items-end gap-3">
+                  <div>
+                    <div class="text-[11px] uppercase tracking-[0.2em] text-slate-400">
+                      {{ mainDisplayLabel }}
+                    </div>
+                    <div class="mt-1 text-4xl font-bold leading-none text-slate-900">
+                      {{ mainDisplayPrice != null ? mainDisplayPrice.toFixed(3) : '—' }}
+                    </div>
                   </div>
-                  <div class="mt-2 text-3xl font-semibold text-slate-900">
-                    {{ watchlistSnapshot.price }}
-                  </div>
-                </div>
-                <div class="rounded-2xl bg-slate-50 px-4 py-4">
-                  <div class="text-xs uppercase tracking-[0.2em] text-slate-500">
-                    Bid / Ask
-                  </div>
-                  <div class="mt-2 text-xl font-semibold text-slate-900">
-                    {{ watchlistSnapshot.bid }} / {{ watchlistSnapshot.ask }}
-                  </div>
-                </div>
-                <div class="rounded-2xl bg-slate-50 px-4 py-4">
-                  <div class="text-xs uppercase tracking-[0.2em] text-slate-500">
-                    Volume
-                  </div>
-                  <div class="mt-2 text-xl font-semibold text-slate-900">
-                    {{ watchlistSnapshot.volume }}
+                  <div
+                    v-if="priceChangePercent != null"
+                    class="pb-0.5 text-lg font-semibold"
+                    :class="priceChangePercent >= 0 ? 'text-emerald-600' : 'text-rose-600'"
+                  >
+                    {{ priceChangePercent >= 0 ? '+' : '' }}{{ priceChangePercent.toFixed(2) }}%
                   </div>
                 </div>
-                <div class="rounded-2xl bg-slate-50 px-4 py-4">
-                  <div class="text-xs uppercase tracking-[0.2em] text-slate-500">
-                    Subscription Quota
-                  </div>
-                  <div class="mt-2 text-xl font-semibold text-slate-900">
-                    {{
-                      marketDataSubscriptions.quota.totalUsed
-                    }}
-                    /
-                    {{
-                      marketDataSubscriptions.quota.totalLimit ?? "∞"
-                    }}
-                  </div>
+
+                <!-- Session indicator (US only) -->
+                <div v-if="isUSMarket && snapshotSession" class="mt-3">
+                  <v-chip
+                    :color="isInRegularSession ? 'success' : 'default'"
+                    variant="outlined"
+                    size="small"
+                  >
+                    {{ sessionLabel(snapshotSession) }}
+                  </v-chip>
                 </div>
+
+                <!-- US extended hours -->
+                <template v-if="isUSMarket">
+                  <!-- Pre-market -->
+                  <div
+                    v-if="snapshotSession === 'pre' && extendedPreMarketDisplay != null"
+                    class="mt-4 rounded-2xl border border-sky-100 bg-sky-50 px-4 py-3"
+                  >
+                    <div class="text-[11px] uppercase tracking-[0.2em] text-sky-600">盘前价格</div>
+                    <div class="mt-2 flex items-end gap-2">
+                      <div class="text-2xl font-semibold text-slate-900">
+                        {{ extendedPreMarketDisplay.price.toFixed(3) }}
+                      </div>
+                      <div
+                        v-if="extendedPreMarketDisplay.changeRate != null"
+                        class="pb-0.5 text-sm font-semibold"
+                        :class="extendedPreMarketDisplay.changeRate >= 0 ? 'text-emerald-600' : 'text-rose-600'"
+                      >
+                        {{ extendedPreMarketDisplay.changeRate >= 0 ? '+' : '' }}{{ extendedPreMarketDisplay.changeRate.toFixed(2) }}%
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- After-market -->
+                  <div
+                    v-if="(snapshotSession === 'after' || snapshotSession === 'overnight') && extendedAfterMarketDisplay != null"
+                    class="mt-4 rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3"
+                  >
+                    <div class="text-[11px] uppercase tracking-[0.2em] text-amber-600">盘后价格</div>
+                    <div class="mt-2 flex items-end gap-2">
+                      <div class="text-2xl font-semibold text-slate-900">
+                        {{ extendedAfterMarketDisplay.price.toFixed(3) }}
+                      </div>
+                      <div
+                        v-if="extendedAfterMarketDisplay.changeRate != null"
+                        class="pb-0.5 text-sm font-semibold"
+                        :class="extendedAfterMarketDisplay.changeRate >= 0 ? 'text-emerald-600' : 'text-rose-600'"
+                      >
+                        {{ extendedAfterMarketDisplay.changeRate >= 0 ? '+' : '' }}{{ extendedAfterMarketDisplay.changeRate.toFixed(2) }}%
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Overnight -->
+                  <div
+                    v-if="snapshotSession === 'overnight' && extendedOvernightDisplay != null"
+                    class="mt-3 rounded-2xl border border-violet-100 bg-violet-50 px-4 py-3"
+                  >
+                    <div class="text-[11px] uppercase tracking-[0.2em] text-violet-600">夜盘价格</div>
+                    <div class="mt-2 flex items-end gap-2">
+                      <div class="text-2xl font-semibold text-slate-900">
+                        {{ extendedOvernightDisplay.price.toFixed(3) }}
+                      </div>
+                      <div
+                        v-if="extendedOvernightDisplay.changeRate != null"
+                        class="pb-0.5 text-sm font-semibold"
+                        :class="extendedOvernightDisplay.changeRate >= 0 ? 'text-emerald-600' : 'text-rose-600'"
+                      >
+                        {{ extendedOvernightDisplay.changeRate >= 0 ? '+' : '' }}{{ extendedOvernightDisplay.changeRate.toFixed(2) }}%
+                      </div>
+                    </div>
+                  </div>
+                </template>
               </div>
-              <v-empty-state v-else text="当前未命中快照缓存。市场数据 provider 写入后会自动在这里形成主屏 watchlist。" class="mt-5" />
+              <v-empty-state v-else text="当前未命中快照缓存。启动行情数据订阅后价格信息将在此处自动更新。" class="mt-5" />
             </div>
 
             <div class="rounded-3xl border border-slate-200 bg-slate-950 px-5 py-5 text-slate-100">

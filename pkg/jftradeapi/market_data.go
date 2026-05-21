@@ -2,6 +2,7 @@ package jftradeapi
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net"
@@ -10,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/shopspring/decimal"
 
 	bbgofixedpoint "github.com/c9s/bbgo/pkg/fixedpoint"
 	bbgotypes "github.com/c9s/bbgo/pkg/types"
@@ -230,10 +233,10 @@ func (s *Server) marketCandlesResponse(ctx context.Context, path string, query m
 		session := futu.ClassifyMarketSession(instrumentID, kline.StartTime.Time().UTC())
 		candles = append(candles, map[string]any{
 			"period":  period,
-			"open":    kline.Open.Float64(),
-			"high":    kline.High.Float64(),
-			"low":     kline.Low.Float64(),
-			"close":   kline.Close.Float64(),
+			"open":    json.Number(kline.Open.String()),
+			"high":    json.Number(kline.High.String()),
+			"low":     json.Number(kline.Low.String()),
+			"close":   json.Number(kline.Close.String()),
 			"volume":  kline.Volume.Float64(),
 			"at":      kline.StartTime.Time().UTC().Format(time.RFC3339Nano),
 			"session": string(session),
@@ -601,23 +604,61 @@ func tickerTimestamp(ticker *bbgotypes.Ticker) string {
 	return resolvedAt.Format(time.RFC3339Nano)
 }
 
-func tickerOptionalFloat(value bbgofixedpoint.Value) *float64 {
+// tickerOptionalDecimal converts a bbgo fixedpoint.Value to *decimal.Decimal,
+// returning nil when the value is zero (meaning "not available").
+func tickerOptionalDecimal(value bbgofixedpoint.Value) *decimal.Decimal {
 	if value.IsZero() {
 		return nil
 	}
-	floatValue := value.Float64()
-	return &floatValue
+	d := decimal.RequireFromString(value.String())
+	return &d
+}
+
+// decimalPtr converts a *float64 from a Futu proto adapter into *decimal.Decimal.
+// decimal.NewFromFloat uses the shortest float64 string representation, so
+// proto values like 23.65 arrive as exactly "23.65" without IEEE-754 noise.
+func decimalPtr(v *float64) *decimal.Decimal {
+	if v == nil {
+		return nil
+	}
+	d := decimal.NewFromFloat(*v)
+	return &d
+}
+
+// priceJSON serialises a decimal.Decimal as a json.Number so the JSON
+// encoder emits a literal numeric token (no quotes) with exact decimal digits.
+func priceJSON(d decimal.Decimal) json.Number {
+	return json.Number(d.String())
+}
+
+// optionalPriceJSON serialises a *decimal.Decimal as either null or a
+// json.Number literal numeric token.
+func optionalPriceJSON(d *decimal.Decimal) any {
+	if d == nil {
+		return nil
+	}
+	return json.Number(d.String())
+}
+
+// floatPtrToJSONNumber converts a *float64 from a Futu proto adapter struct
+// (e.g. ExtendedMarketQuote) to a json.Number for serialisation.
+func floatPtrToJSONNumber(v *float64) any {
+	if v == nil {
+		return nil
+	}
+	return json.Number(decimal.NewFromFloat(*v).String())
 }
 
 func snapshotMapFromSample(sample *marketTickSample) map[string]any {
 	return map[string]any{
-		"price":              sample.Price,
-		"bid":                sample.Bid,
-		"ask":                sample.Ask,
-		"openPrice":          sample.OpenPrice,
-		"highPrice":          sample.HighPrice,
-		"lowPrice":           sample.LowPrice,
-		"previousClosePrice": sample.PreviousClosePrice,
+		"price":              priceJSON(sample.Price),
+		"bid":                priceJSON(sample.Bid),
+		"ask":                priceJSON(sample.Ask),
+		"openPrice":          optionalPriceJSON(sample.OpenPrice),
+		"highPrice":          optionalPriceJSON(sample.HighPrice),
+		"lowPrice":           optionalPriceJSON(sample.LowPrice),
+		"previousClosePrice": optionalPriceJSON(sample.PreviousClosePrice),
+		"lastClosePrice":     optionalPriceJSON(sample.LastClosePrice),
 		"volume":             sample.Volume,
 		"turnover":           sample.Turnover,
 		"at":                 sample.QuoteAt,
@@ -637,12 +678,12 @@ func extendedMarketQuoteMap(quote *futu.ExtendedMarketQuote) map[string]any {
 		return nil
 	}
 	return map[string]any{
-		"price":      quote.Price,
-		"highPrice":  quote.HighPrice,
-		"lowPrice":   quote.LowPrice,
+		"price":      floatPtrToJSONNumber(quote.Price),
+		"highPrice":  floatPtrToJSONNumber(quote.HighPrice),
+		"lowPrice":   floatPtrToJSONNumber(quote.LowPrice),
 		"volume":     quote.Volume,
-		"turnover":   quote.Turnover,
-		"changeVal":  quote.ChangeVal,
+		"turnover":   floatPtrToJSONNumber(quote.Turnover),
+		"changeVal":  floatPtrToJSONNumber(quote.ChangeVal),
 		"changeRate": quote.ChangeRate,
 		"amplitude":  quote.Amplitude,
 	}
@@ -660,13 +701,14 @@ func (s *Server) recordQuoteSnapshotSample(instrumentID string, snapshot *futu.Q
 		InstrumentID:       instrumentID,
 		Market:             parts[0],
 		Symbol:             parts[1],
-		Price:              snapshot.Price,
-		Bid:                snapshot.Bid,
-		Ask:                snapshot.Ask,
-		OpenPrice:          snapshot.OpenPrice,
-		HighPrice:          snapshot.HighPrice,
-		LowPrice:           snapshot.LowPrice,
-		PreviousClosePrice: snapshot.PreviousClosePrice,
+		Price:              decimal.NewFromFloat(snapshot.Price),
+		Bid:                decimal.NewFromFloat(snapshot.Bid),
+		Ask:                decimal.NewFromFloat(snapshot.Ask),
+		OpenPrice:          decimalPtr(snapshot.OpenPrice),
+		HighPrice:          decimalPtr(snapshot.HighPrice),
+		LowPrice:           decimalPtr(snapshot.LowPrice),
+		PreviousClosePrice: decimalPtr(snapshot.PreviousClosePrice),
+		LastClosePrice:     decimalPtr(snapshot.LastClosePrice),
 		Volume:             snapshot.Volume,
 		Turnover:           snapshot.Turnover,
 		QuoteAt:            snapshot.QuoteAt.UTC().Format(time.RFC3339Nano),
@@ -685,24 +727,25 @@ func (s *Server) recordTickerSample(instrumentID string, ticker *bbgotypes.Ticke
 	if ticker == nil {
 		return nil
 	}
-	price := ticker.Last.Float64()
-	if ticker.Last.IsZero() {
-		price = ticker.GetValidPrice().Float64()
+	priceFixed := ticker.Last
+	if priceFixed.IsZero() {
+		priceFixed = ticker.GetValidPrice()
 	}
-	if price == 0 {
+	if priceFixed.IsZero() {
 		return nil
 	}
 	parts := strings.SplitN(instrumentID, ".", 2)
 	if len(parts) != 2 {
 		return nil
 	}
+	price := decimal.RequireFromString(priceFixed.String())
 	bid := price
 	if !ticker.Buy.IsZero() {
-		bid = ticker.Buy.Float64()
+		bid = decimal.RequireFromString(ticker.Buy.String())
 	}
 	ask := price
 	if !ticker.Sell.IsZero() {
-		ask = ticker.Sell.Float64()
+		ask = decimal.RequireFromString(ticker.Sell.String())
 	}
 	session := futu.ClassifyMarketSession(instrumentID, time.Now().UTC())
 	sample := marketTickSample{
@@ -712,9 +755,9 @@ func (s *Server) recordTickerSample(instrumentID string, ticker *bbgotypes.Ticke
 		Price:         price,
 		Bid:           bid,
 		Ask:           ask,
-		OpenPrice:     tickerOptionalFloat(ticker.Open),
-		HighPrice:     tickerOptionalFloat(ticker.High),
-		LowPrice:      tickerOptionalFloat(ticker.Low),
+		OpenPrice:     tickerOptionalDecimal(ticker.Open),
+		HighPrice:     tickerOptionalDecimal(ticker.High),
+		LowPrice:      tickerOptionalDecimal(ticker.Low),
 		Volume:        ticker.Volume.Float64(),
 		Turnover:      0,
 		QuoteAt:       tickerTimestamp(ticker),
@@ -722,6 +765,30 @@ func (s *Server) recordTickerSample(instrumentID string, ticker *bbgotypes.Ticke
 		Source:        "bbgo:futu",
 		Session:       string(session),
 		ExtendedHours: futu.IsExtendedMarketSession(session),
+	}
+	// The ticker stream does not carry PreviousClosePrice or extended-session
+	// quote blocks (PreMarket/AfterMarket/Overnight). Inherit those from the
+	// most-recent cached sample so they are not silently dropped when a live
+	// ticker event overwrites the snapshot used by the frontend.
+	if latest := s.latestTickerSample(instrumentID, tickCacheRetention); latest != nil {
+		if sample.PreviousClosePrice == nil {
+			sample.PreviousClosePrice = latest.PreviousClosePrice
+		}
+		if sample.LastClosePrice == nil {
+			sample.LastClosePrice = latest.LastClosePrice
+		}
+		if sample.PreMarket == nil {
+			sample.PreMarket = latest.PreMarket
+		}
+		if sample.AfterMarket == nil {
+			sample.AfterMarket = latest.AfterMarket
+		}
+		if sample.Overnight == nil {
+			sample.Overnight = latest.Overnight
+		}
+		if sample.Turnover == 0 {
+			sample.Turnover = latest.Turnover
+		}
 	}
 	return s.storeTickerSample(sample)
 }
@@ -735,7 +802,7 @@ func (s *Server) recordTradeTickSample(trade bbgotypes.Trade) *marketTickSample 
 	if len(parts) != 2 {
 		return nil
 	}
-	price := trade.Price.Float64()
+	price := decimal.RequireFromString(trade.Price.String())
 	quoteAt := time.Now().UTC()
 	if !trade.Time.Time().IsZero() {
 		quoteAt = trade.Time.Time().UTC()
@@ -760,6 +827,7 @@ func (s *Server) recordTradeTickSample(trade bbgotypes.Trade) *marketTickSample 
 		sample.HighPrice = latest.HighPrice
 		sample.LowPrice = latest.LowPrice
 		sample.PreviousClosePrice = latest.PreviousClosePrice
+		sample.LastClosePrice = latest.LastClosePrice
 		sample.Turnover = latest.Turnover
 		sample.Session = latest.Session
 		sample.ExtendedHours = latest.ExtendedHours
@@ -778,7 +846,7 @@ func (s *Server) recordTradeTickSample(trade bbgotypes.Trade) *marketTickSample 
 }
 
 func (s *Server) storeTickerSample(sample marketTickSample) *marketTickSample {
-	if sample.InstrumentID == "" || sample.Price == 0 {
+	if sample.InstrumentID == "" || sample.Price.IsZero() {
 		return nil
 	}
 
@@ -813,24 +881,24 @@ func (s *Server) storeTickerSample(sample marketTickSample) *marketTickSample {
 
 func marketTickSamplesEquivalent(left marketTickSample, right marketTickSample) bool {
 	return left.InstrumentID == right.InstrumentID &&
-		left.Price == right.Price &&
-		left.Bid == right.Bid &&
-		left.Ask == right.Ask &&
+		left.Price.Equal(right.Price) &&
+		left.Bid.Equal(right.Bid) &&
+		left.Ask.Equal(right.Ask) &&
 		left.Volume == right.Volume &&
 		left.QuoteAt == right.QuoteAt &&
 		left.Session == right.Session &&
 		left.ExtendedHours == right.ExtendedHours &&
-		optionalFloatEqual(left.OpenPrice, right.OpenPrice) &&
-		optionalFloatEqual(left.HighPrice, right.HighPrice) &&
-		optionalFloatEqual(left.LowPrice, right.LowPrice) &&
-		optionalFloatEqual(left.PreviousClosePrice, right.PreviousClosePrice)
+		optionalDecimalEqual(left.OpenPrice, right.OpenPrice) &&
+		optionalDecimalEqual(left.HighPrice, right.HighPrice) &&
+		optionalDecimalEqual(left.LowPrice, right.LowPrice) &&
+		optionalDecimalEqual(left.PreviousClosePrice, right.PreviousClosePrice)
 }
 
-func optionalFloatEqual(left *float64, right *float64) bool {
+func optionalDecimalEqual(left *decimal.Decimal, right *decimal.Decimal) bool {
 	if left == nil || right == nil {
 		return left == nil && right == nil
 	}
-	return *left == *right
+	return left.Equal(*right)
 }
 
 func (s *Server) cachedTickCandles(instrumentID string, query map[string][]string, limit int) []map[string]any {
@@ -870,10 +938,10 @@ func (s *Server) cachedTickCandles(instrumentID string, query map[string][]strin
 		}
 		candles = append(candles, map[string]any{
 			"period":  "tick",
-			"open":    sample.Price,
-			"high":    sample.Price,
-			"low":     sample.Price,
-			"close":   sample.Price,
+			"open":    priceJSON(sample.Price),
+			"high":    priceJSON(sample.Price),
+			"low":     priceJSON(sample.Price),
+			"close":   priceJSON(sample.Price),
 			"volume":  deltaVolume,
 			"at":      sample.ObservedAt,
 			"session": sample.Session,
@@ -899,13 +967,14 @@ func liveTickEventFromSample(sample *marketTickSample) map[string]any {
 			"instrumentId": sample.InstrumentID,
 		},
 		"snapshot": map[string]any{
-			"price":              sample.Price,
-			"bid":                sample.Bid,
-			"ask":                sample.Ask,
-			"openPrice":          sample.OpenPrice,
-			"highPrice":          sample.HighPrice,
-			"lowPrice":           sample.LowPrice,
-			"previousClosePrice": sample.PreviousClosePrice,
+			"price":              priceJSON(sample.Price),
+			"bid":                priceJSON(sample.Bid),
+			"ask":                priceJSON(sample.Ask),
+			"openPrice":          optionalPriceJSON(sample.OpenPrice),
+			"highPrice":          optionalPriceJSON(sample.HighPrice),
+			"lowPrice":           optionalPriceJSON(sample.LowPrice),
+			"previousClosePrice": optionalPriceJSON(sample.PreviousClosePrice),
+			"lastClosePrice":     optionalPriceJSON(sample.LastClosePrice),
 			"volume":             sample.Volume,
 			"turnover":           sample.Turnover,
 			"at":                 sample.QuoteAt,

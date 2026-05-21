@@ -18,6 +18,7 @@ import (
 
 	bbgotypes "github.com/c9s/bbgo/pkg/types"
 	"github.com/gorilla/websocket"
+	"github.com/shopspring/decimal"
 
 	"github.com/jftrade/jftrade-main/pkg/futu"
 )
@@ -130,13 +131,14 @@ type marketTickSample struct {
 	InstrumentID       string
 	Market             string
 	Symbol             string
-	Price              float64
-	Bid                float64
-	Ask                float64
-	OpenPrice          *float64
-	HighPrice          *float64
-	LowPrice           *float64
-	PreviousClosePrice *float64
+	Price              decimal.Decimal
+	Bid                decimal.Decimal
+	Ask                decimal.Decimal
+	OpenPrice          *decimal.Decimal
+	HighPrice          *decimal.Decimal
+	LowPrice           *decimal.Decimal
+	PreviousClosePrice *decimal.Decimal
+	LastClosePrice     *decimal.Decimal // 始终 = GetLastClosePrice()（上个交易日收盘）
 	Volume             float64
 	Turnover           float64
 	QuoteAt            string

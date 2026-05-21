@@ -108,6 +108,7 @@ interface MarketDataSnapshotQueryResult {
     highPrice?: number | null;
     lowPrice?: number | null;
     previousClosePrice?: number | null;
+    lastClosePrice?: number | null;
     volume: number;
     turnover: number;
     at: string;
@@ -177,6 +178,7 @@ interface MarketDataTickLiveEvent {
     highPrice?: number | null;
     lowPrice?: number | null;
     previousClosePrice?: number | null;
+    lastClosePrice?: number | null;
     volume: number;
     turnover: number;
     at: string;

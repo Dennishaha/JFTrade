@@ -22,28 +22,28 @@ export DISABLE_MARKETS_CACHE="${DISABLE_MARKETS_CACHE:-1}"
 export NODE_OPTIONS="${NODE_OPTIONS:---no-deprecation}"
 
 if ! command -v go >/dev/null 2>&1; then
-  echo "go 未安装或不在 PATH 中" >&2
+  echo "go is not installed or not on PATH / go 未安装或不在 PATH 中" >&2
   exit 1
 fi
 
 if ! command -v npm >/dev/null 2>&1; then
-  echo "npm 未安装或不在 PATH 中" >&2
+  echo "npm is not installed or not on PATH / npm 未安装或不在 PATH 中" >&2
   exit 1
 fi
 
-echo "安装前端依赖..."
+echo "Installing frontend dependencies / 安装前端依赖..."
 npm install
 
-echo "运行 Go 测试..."
+echo "Running Go tests / 运行 Go 测试..."
 go test ./...
 
-echo "运行前端类型检查..."
+echo "Running frontend typecheck / 运行前端类型检查..."
 npm run typecheck
 
-echo "构建前端..."
+echo "Building frontend / 构建前端..."
 npm run build:web
 
-echo "启动后端服务..."
+echo "Starting backend service / 启动后端服务..."
 go run ./cmd/jftrade api &
 BACKEND_PID=$!
 
@@ -55,7 +55,7 @@ cleanup() {
 
 trap cleanup EXIT INT TERM
 
-echo "后端 PID: $BACKEND_PID"
-echo "JFTrade API: http://${JFTRADE_API_BIND}"
-echo "启动前端预览服务: http://127.0.0.1:6688"
+echo "Backend PID / 后端 PID: $BACKEND_PID"
+echo "JFTrade API / 后端地址: http://${JFTRADE_API_BIND}"
+echo "Starting frontend preview service / 启动前端预览服务: http://127.0.0.1:6688"
 npm --workspace @jftrade/web run preview

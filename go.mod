@@ -104,7 +104,7 @@ require (
 	github.com/sagikazarmark/locafero v0.4.0 // indirect
 	github.com/sagikazarmark/slog-shim v0.1.0 // indirect
 	github.com/sajari/regression v1.0.1 // indirect
-	github.com/shopspring/decimal v1.4.0 // indirect
+	github.com/shopspring/decimal v1.4.0
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/slack-go/slack v0.17.2 // indirect
 	github.com/sourcegraph/conc v0.3.0 // indirect

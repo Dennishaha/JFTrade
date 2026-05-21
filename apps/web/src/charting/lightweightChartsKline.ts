@@ -377,6 +377,9 @@ export class LightweightChartsKlineAdapter implements KlineChartAdapter {
       },
       localization: {
         timeFormatter: formatLocalChartTime,
+        // Strip IEEE-754 float64 noise (e.g. 23.649999999999999 → "23.65").
+        // parseFloat removes trailing zeros so "23.6500" becomes "23.65".
+        priceFormatter: (price: number) => String(parseFloat(price.toFixed(8))),
       },
       crosshair: { mode: CrosshairMode.Normal },
     });

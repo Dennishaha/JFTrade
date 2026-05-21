@@ -32,3 +32,6 @@ packages/*/dist/
 data/
 logs/
 otp.png
+
+# local var files
+var/
