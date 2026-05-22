@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from "vue";
 
 import SectionHeader from "../components/SectionHeader.vue";
+import { fetchEnvelope } from "../composables/apiClient";
 import { useConsoleData } from "../composables/useConsoleData";
 
 interface StrategyDefinitionSummary {
@@ -34,39 +35,6 @@ interface StrategyAuditEntry {
 interface StrategyAuditResponse {
   instanceId: string;
   entries: StrategyAuditEntry[];
-}
-
-interface ApiSuccessEnvelope<T> {
-  ok: true;
-  data: T;
-}
-
-interface ApiErrorEnvelope {
-  ok: false;
-  error: {
-    message: string;
-  };
-}
-
-const apiBaseUrl = (
-  import.meta.env.VITE_API_BASE_URL as string | undefined
-)?.replace(/\/$/, "");
-
-function buildApiUrl(path: string): string {
-  return apiBaseUrl ? `${apiBaseUrl}${path}` : `http://127.0.0.1:3000${path}`;
-}
-
-async function fetchEnvelope<T>(path: string): Promise<T> {
-  const response = await fetch(buildApiUrl(path));
-  const body = (await response.json()) as
-    | ApiSuccessEnvelope<T>
-    | ApiErrorEnvelope;
-
-  if (!response.ok || !body.ok) {
-    throw new Error(body.ok ? "Unknown API error" : body.error.message);
-  }
-
-  return body.data;
 }
 
 const { systemStatus } = useConsoleData();

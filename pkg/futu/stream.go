@@ -218,7 +218,7 @@ func (e *Exchange) ensureBasicQotPushSubscriptions(ctx context.Context, client *
 	e.mu.Lock()
 	missing := make([]basicQotRequest, 0, len(requests))
 	for _, request := range requests {
-		if _, exists := e.basicQotPushSubscriptions[request.canonical]; exists {
+		if e.subscriptions.hasBasicQotPush(request.canonical) {
 			continue
 		}
 		missing = append(missing, request)
@@ -239,7 +239,7 @@ func (e *Exchange) ensureBasicQotPushSubscriptions(ctx context.Context, client *
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	for _, request := range missing {
-		e.basicQotPushSubscriptions[request.canonical] = struct{}{}
+		e.subscriptions.markBasicQotPush(request.canonical)
 	}
 	return nil
 }

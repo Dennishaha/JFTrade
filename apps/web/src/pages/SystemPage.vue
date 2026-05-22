@@ -2,12 +2,22 @@
 import { computed, onMounted, ref } from "vue";
 
 import PageHeader from "../components/PageHeader.vue";
+import {
+  formatDateTime,
+  formatDurationMs,
+  formatRealTradeHardStopScope,
+  formatRealTradeKillSwitchSource,
+  formatRealTradeRiskSource,
+  formatWorkerBrokerErrorContext,
+  resolveRealTradeApprovalDecisionTagType,
+  resolveRealTradeHardStopScopeTagType,
+  resolveRealTradeKillSwitchEventTagType,
+  resolveRealTradeRiskEventTagType,
+  resolveWorkerBrokerSubscriptionTagType,
+} from "../composables/consoleDataFormatting";
 import { useConsoleData } from "../composables/useConsoleData";
 
 const {
-  formatDateTime,
-  formatDurationMs,
-  formatWorkerBrokerErrorContext,
   loadError,
   loadSystemState,
   realTradeApprovals,
@@ -17,17 +27,9 @@ const {
   realTradeKillSwitchState,
   realTradeRiskEvents,
   realTradeRiskState,
-  resolveRealTradeApprovalDecisionTagType,
-  resolveRealTradeHardStopScopeTagType,
-  resolveRealTradeKillSwitchEventTagType,
-  resolveRealTradeRiskEventTagType,
-  resolveWorkerBrokerSubscriptionTagType,
   storageOverview,
   systemStatus,
   workerBrokerOrderUpdates,
-  formatRealTradeHardStopScope,
-  formatRealTradeKillSwitchSource,
-  formatRealTradeRiskSource,
   isLoading,
   isLoadingMarketData,
   loadMarketDataSubscriptions,

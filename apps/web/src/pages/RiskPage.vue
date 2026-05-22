@@ -2,12 +2,18 @@
 import { computed, ref } from "vue";
 
 import PageHeader from "../components/PageHeader.vue";
-import { useConsoleData } from "../composables/useConsoleData";
-
-const {
+import {
   formatRealTradeHardStopScope,
   formatRealTradeKillSwitchSource,
   formatRealTradeRiskSource,
+  resolveRealTradeApprovalDecisionTagType,
+  resolveRealTradeHardStopScopeTagType,
+  resolveRealTradeKillSwitchEventTagType,
+  resolveRealTradeRiskEventTagType,
+} from "../composables/consoleDataFormatting";
+import { useConsoleData } from "../composables/useConsoleData";
+
+const {
   isLoading,
   loadSystemState,
   realTradeApprovals,
@@ -17,10 +23,6 @@ const {
   realTradeKillSwitchState,
   realTradeRiskEvents,
   realTradeRiskState,
-  resolveRealTradeApprovalDecisionTagType,
-  resolveRealTradeHardStopScopeTagType,
-  resolveRealTradeKillSwitchEventTagType,
-  resolveRealTradeRiskEventTagType,
   systemStatus,
 } = useConsoleData();
 

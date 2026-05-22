@@ -151,16 +151,16 @@ func (s *Server) futuOpenDHealth(ctx context.Context) map[string]any {
 
 func (s *Server) liveSocketDiagnostics(config FutuIntegrationConfig) map[string]any {
 	count, limit, atLimit := s.liveWebSocketStats()
-	s.liveRefreshMu.Lock()
-	quoteRetryAfter := s.liveQuoteRetryAfter
-	quoteFailureCount := s.liveQuoteFailureCount
-	quoteLastError := s.liveQuoteLastError
-	s.liveRefreshMu.Unlock()
-	s.liveStreamMu.Lock()
-	retryAfter := s.liveStreamRetryAfter
-	failureCount := s.liveStreamFailureCount
-	lastError := s.liveStreamLastError
-	s.liveStreamMu.Unlock()
+	s.liveQuoteState.mu.Lock()
+	quoteRetryAfter := s.liveQuoteState.retryAfter
+	quoteFailureCount := s.liveQuoteState.failureCount
+	quoteLastError := s.liveQuoteState.lastError
+	s.liveQuoteState.mu.Unlock()
+	s.liveStreamState.mu.Lock()
+	retryAfter := s.liveStreamState.retryAfter
+	failureCount := s.liveStreamState.failureCount
+	lastError := s.liveStreamState.lastError
+	s.liveStreamState.mu.Unlock()
 	quoteRetryAfterText, quoteBackoffActive := retryState(quoteRetryAfter)
 	streamRetryAfterText, streamBackoffActive := retryState(retryAfter)
 	return map[string]any{
@@ -196,20 +196,20 @@ func retryState(retryAfter time.Time) (any, bool) {
 }
 
 func (s *Server) resetFutuRuntime() {
-	s.liveRefreshMu.Lock()
-	s.liveQuoteRetryAfter = time.Time{}
-	s.liveQuoteFailureCount = 0
-	s.liveQuoteLastError = ""
-	s.liveRefreshMu.Unlock()
+	s.liveQuoteState.mu.Lock()
+	s.liveQuoteState.retryAfter = time.Time{}
+	s.liveQuoteState.failureCount = 0
+	s.liveQuoteState.lastError = ""
+	s.liveQuoteState.mu.Unlock()
 
-	s.liveStreamMu.Lock()
-	stream := s.liveStream
-	s.liveStream = nil
-	s.liveStreamKey = ""
-	s.liveStreamRetryAfter = time.Time{}
-	s.liveStreamFailureCount = 0
-	s.liveStreamLastError = ""
-	s.liveStreamMu.Unlock()
+	s.liveStreamState.mu.Lock()
+	stream := s.liveStreamState.stream
+	s.liveStreamState.stream = nil
+	s.liveStreamState.streamKey = ""
+	s.liveStreamState.retryAfter = time.Time{}
+	s.liveStreamState.failureCount = 0
+	s.liveStreamState.lastError = ""
+	s.liveStreamState.mu.Unlock()
 	if stream != nil {
 		_ = stream.Close()
 	}

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 
+import { formatDateTime } from "../../composables/consoleDataFormatting";
 import { useConsoleData } from "../../composables/useConsoleData";
 
 type Tab = "positions" | "orders" | "fills" | "executions";
@@ -10,7 +11,6 @@ const {
   executionOrders,
   executionOrderEvents,
   portfolioPositions,
-  formatDateTime,
 } = useConsoleData();
 
 const tab = ref<Tab>("positions");

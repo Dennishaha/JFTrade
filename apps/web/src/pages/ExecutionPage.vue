@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, watch } from "vue";
 
 import PageHeader from "../components/PageHeader.vue";
 import { useConsoleData } from "../composables/useConsoleData";
@@ -16,6 +16,30 @@ const {
   selectedExecutionOrder,
   selectedExecutionOrderId,
 } = useConsoleData();
+
+const preferredExecutionOrderId = computed(
+  () =>
+    executionOrders.value.orders.find(
+      (order) => order.internalOrderId === selectedExecutionOrderId.value,
+    )?.internalOrderId ?? executionOrders.value.orders[0]?.internalOrderId ?? "",
+);
+
+watch(
+  [preferredExecutionOrderId, isLoadingExecutionEvents, isLoadingOrderFees],
+  ([nextOrderId, loadingExecutionEvents, loadingOrderFees]) => {
+    if (
+      nextOrderId === "" ||
+      loadingExecutionEvents ||
+      loadingOrderFees ||
+      executionOrderEvents.value.internalOrderId === nextOrderId
+    ) {
+      return;
+    }
+
+    void loadExecutionOrderDetails(nextOrderId);
+  },
+  { immediate: true },
+);
 
 const executionHeaderStats = computed(() => [
   {

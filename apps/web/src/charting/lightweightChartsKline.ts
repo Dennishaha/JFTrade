@@ -28,6 +28,12 @@ import {
   type KlineIndicatorKey,
   type KlineChartPalette,
 } from "./kline";
+import {
+  computeExponentialMovingAverage,
+  computeKdj,
+  computeMacd,
+  computeSimpleMovingAverage,
+} from "./lightweightChartsIndicators";
 
 const INITIAL_VISIBLE_BARS = 120;
 const INITIAL_RIGHT_OFFSET_BARS = 8;
@@ -157,113 +163,6 @@ function measureHost(host: HTMLElement): { width: number; height: number } {
 
 function toLogical(value: number): Logical {
   return value as Logical;
-}
-
-function computeExponentialMovingAverage(
-  values: readonly number[],
-  period: number,
-): Array<number | null> {
-  const multiplier = 2 / (period + 1);
-  let previous: number | null = null;
-
-  return values.map((value) => {
-    previous = previous == null ? value : previous + (value - previous) * multiplier;
-    return previous;
-  });
-}
-
-function computeSimpleMovingAverage(
-  values: readonly number[],
-  period: number,
-): Array<number | null> {
-  const result = new Array<number | null>(values.length).fill(null);
-  let rollingSum = 0;
-
-  for (let index = 0; index < values.length; index += 1) {
-    const currentValue = values[index]!;
-    rollingSum += currentValue;
-    if (index >= period) {
-      const trailingValue = values[index - period]!;
-      rollingSum -= trailingValue;
-    }
-
-    if (index + 1 >= period) {
-      result[index] = rollingSum / period;
-    }
-  }
-
-  return result;
-}
-
-function computeMacd(candles: readonly KlineCandle[]) {
-  const closes = candles.map((candle) => candle.close);
-  const ema12 = computeExponentialMovingAverage(closes, 12);
-  const ema26 = computeExponentialMovingAverage(closes, 26);
-  const diff = closes.map((_, index) => {
-    const fast = ema12[index];
-    const slow = ema26[index];
-    return fast == null || slow == null ? null : fast - slow;
-  });
-  const dea = computeExponentialMovingAverage(
-    diff.map((value) => value ?? 0),
-    9,
-  );
-
-  return candles.reduce(
-    (result, candle, index) => {
-      const timestamp = toTimestamp(candle.at);
-      const diffValue = diff[index];
-      const deaValue = dea[index];
-      if (diffValue == null || deaValue == null) {
-        return result;
-      }
-
-      const histogramValue = (diffValue - deaValue) * 2;
-      result.diff.push({ time: timestamp, value: diffValue });
-      result.dea.push({ time: timestamp, value: deaValue });
-      result.histogram.push({ time: timestamp, value: histogramValue });
-      return result;
-    },
-    {
-      diff: [] as Array<{ time: UTCTimestamp; value: number }>,
-      dea: [] as Array<{ time: UTCTimestamp; value: number }>,
-      histogram: [] as Array<{ time: UTCTimestamp; value: number }>,
-    },
-  );
-}
-
-function computeKdj(candles: readonly KlineCandle[]) {
-  let previousK = 50;
-  let previousD = 50;
-
-  return candles.reduce(
-    (result, candle, index) => {
-      const window = candles.slice(Math.max(0, index - 8), index + 1);
-      const highestHigh = Math.max(...window.map((item) => item.high));
-      const lowestLow = Math.min(...window.map((item) => item.low));
-      const rsv =
-        highestHigh === lowestLow
-          ? 50
-          : ((candle.close - lowestLow) / (highestHigh - lowestLow)) * 100;
-      const nextK = (2 * previousK + rsv) / 3;
-      const nextD = (2 * previousD + nextK) / 3;
-      const nextJ = 3 * nextK - 2 * nextD;
-      const timestamp = toTimestamp(candle.at);
-
-      result.k.push({ time: timestamp, value: nextK });
-      result.d.push({ time: timestamp, value: nextD });
-      result.j.push({ time: timestamp, value: nextJ });
-
-      previousK = nextK;
-      previousD = nextD;
-      return result;
-    },
-    {
-      k: [] as Array<{ time: UTCTimestamp; value: number }>,
-      d: [] as Array<{ time: UTCTimestamp; value: number }>,
-      j: [] as Array<{ time: UTCTimestamp; value: number }>,
-    },
-  );
 }
 
 function getOverlaySeriesColor(period: number): string {

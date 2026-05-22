@@ -3,6 +3,10 @@ import { computed } from "vue";
 
 import PageHeader from "../components/PageHeader.vue";
 import SectionHeader from "../components/SectionHeader.vue";
+import {
+  resolvePortfolioReconciliationStatusLabel,
+  resolvePortfolioReconciliationTagType,
+} from "../composables/consoleDataFormatting";
 import { useConsoleData } from "../composables/useConsoleData";
 
 const {
@@ -10,8 +14,6 @@ const {
   portfolioCashReconciliation,
   portfolioPositions,
   portfolioReconciliation,
-  resolvePortfolioReconciliationStatusLabel,
-  resolvePortfolioReconciliationTagType,
 } = useConsoleData();
 
 const portfolioHeaderStats = computed(() => [

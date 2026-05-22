@@ -115,7 +115,7 @@ func (c *Client) Connect(ctx context.Context) error {
 	}
 	c.conn = conn
 	c.mu.Unlock()
-	go c.readLoop()
+	go c.readLoop(conn)
 	return nil
 }
 
@@ -273,10 +273,10 @@ func (c *Client) Call(ctx context.Context, protoID uint32, req proto.Message, re
 	}
 }
 
-func (c *Client) readLoop() {
+func (c *Client) readLoop(conn net.Conn) {
 	head := make([]byte, codec.HeaderLen)
 	for {
-		if _, err := io.ReadFull(c.conn, head); err != nil {
+		if _, err := io.ReadFull(conn, head); err != nil {
 			c.fanoutClose()
 			return
 		}
@@ -286,7 +286,7 @@ func (c *Client) readLoop() {
 		}
 		data := make([]byte, codec.HeaderLen+bodyLen)
 		copy(data, head)
-		if _, err := io.ReadFull(c.conn, data[codec.HeaderLen:]); err != nil {
+		if _, err := io.ReadFull(conn, data[codec.HeaderLen:]); err != nil {
 			c.fanoutClose()
 			return
 		}

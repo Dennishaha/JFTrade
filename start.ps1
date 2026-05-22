@@ -103,7 +103,7 @@ try {
     Remove-Item -LiteralPath $PSCommandPath -Force -ErrorAction SilentlyContinue
 }
 '@ | Set-Content -LiteralPath $watchdogPath -Encoding ASCII
-$watchdogProcess = Start-Process -FilePath "powershell.exe" -WindowStyle Minimized -PassThru -ArgumentList @(
+$watchdogProcess = Start-Process -FilePath "powershell.exe" -WindowStyle hidden -PassThru -ArgumentList @(
     "-NoProfile",
     "-ExecutionPolicy",
     "Bypass",

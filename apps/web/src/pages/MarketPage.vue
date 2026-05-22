@@ -10,11 +10,12 @@ import {
 import KlineChart from "../components/KlineChart.vue";
 import PageHeader from "../components/PageHeader.vue";
 import SectionHeader from "../components/SectionHeader.vue";
+import { createMarketDataSubscriptionScope } from "../composables/consoleDataMarketSubscriptionScope";
+import { formatDateTime } from "../composables/consoleDataFormatting";
 import { useConsoleData } from "../composables/useConsoleData";
 import { useSharedLiveSocket } from "../composables/useSharedLiveSocket";
 
 const {
-  formatDateTime,
   isLoadingMarketData,
   isLoadingMarketDataQuery,
   loadMarketDataQuery,
@@ -39,14 +40,16 @@ const {
 const live = useSharedLiveSocket();
 
 const marketPageConsumerId = createStableWebConsumerId("market-page");
-const heldVisibleSubscription = ref<{ market: string; symbol: string } | null>(
-  null,
-);
 const symbolSearchText = ref(marketDataQuerySymbol.value);
 const activeResultPanels = ref(["query-results"]);
 const isLoadingOlderCandles = ref(false);
-let heartbeatTimer: number | null = null;
 let queryRefreshTimer: number | null = null;
+const marketDataSubscriptionScope = createMarketDataSubscriptionScope({
+  consumerId: marketPageConsumerId,
+  acquireMarketDataSubscription,
+  releaseMarketDataSubscription,
+  heartbeatMarketDataConsumer,
+});
 
 function currentVisibleSubscription() {
   const rawSymbol = marketDataQuerySymbol.value.trim().toUpperCase();
@@ -66,50 +69,7 @@ function currentVisibleSubscription() {
 }
 
 async function syncVisibleSubscription(): Promise<void> {
-  const next = currentVisibleSubscription();
-  const previous = heldVisibleSubscription.value;
-
-  if (
-    previous != null &&
-    (previous.market !== next.market || previous.symbol !== next.symbol)
-  ) {
-    await Promise.all([
-      releaseMarketDataSubscription({
-        consumerId: marketPageConsumerId,
-        market: previous.market,
-        symbol: previous.symbol,
-        channel: "SNAPSHOT",
-      }),
-      releaseMarketDataSubscription({
-        consumerId: marketPageConsumerId,
-        market: previous.market,
-        symbol: previous.symbol,
-        channel: "TICK",
-      }),
-    ]);
-    heldVisibleSubscription.value = null;
-  }
-
-  if (next.market === "" || next.symbol === "") {
-    return;
-  }
-
-  await Promise.all([
-    acquireMarketDataSubscription({
-      consumerId: marketPageConsumerId,
-      market: next.market,
-      symbol: next.symbol,
-      channel: "SNAPSHOT",
-    }),
-    acquireMarketDataSubscription({
-      consumerId: marketPageConsumerId,
-      market: next.market,
-      symbol: next.symbol,
-      channel: "TICK",
-    }),
-  ]);
-  await heartbeatMarketDataConsumer(marketPageConsumerId);
-  heldVisibleSubscription.value = next;
+  await marketDataSubscriptionScope.syncTarget(currentVisibleSubscription());
 }
 
 onMounted(() => {
@@ -120,9 +80,7 @@ onMounted(() => {
     await syncVisibleSubscription();
     await loadMarketDataQuery();
     scheduleMarketDataAutoRefresh();
-    heartbeatTimer = window.setInterval(() => {
-      void heartbeatMarketDataConsumer(marketPageConsumerId);
-    }, 15_000);
+    marketDataSubscriptionScope.startHeartbeat();
   })();
 });
 
@@ -145,33 +103,12 @@ watch(
 );
 
 onUnmounted(() => {
-  if (heartbeatTimer != null) {
-    window.clearInterval(heartbeatTimer);
-    heartbeatTimer = null;
-  }
   if (queryRefreshTimer != null) {
     window.clearTimeout(queryRefreshTimer);
     queryRefreshTimer = null;
   }
-  const previous = heldVisibleSubscription.value;
-  if (previous == null) {
-    return;
-  }
 
-  void releaseMarketDataSubscription({
-    consumerId: marketPageConsumerId,
-    market: previous.market,
-    symbol: previous.symbol,
-    channel: "SNAPSHOT",
-    keepalive: true,
-  });
-  void releaseMarketDataSubscription({
-    consumerId: marketPageConsumerId,
-    market: previous.market,
-    symbol: previous.symbol,
-    channel: "TICK",
-    keepalive: true,
-  });
+  void marketDataSubscriptionScope.cleanup({ keepalive: true });
 });
 
 const marketHeaderStats = computed(() => [

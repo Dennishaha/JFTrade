@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed } from "vue";
 
+import { formatDateTime } from "../../composables/consoleDataFormatting";
 import { useConsoleData } from "../../composables/useConsoleData";
 import { useWorkspaceLayout } from "../../composables/useWorkspaceLayout";
 
-const { marketDataSnapshot, marketInstrumentSearchOptions, formatDateTime } =
-  useConsoleData();
+const { marketDataSnapshot, marketInstrumentSearchOptions } = useConsoleData();
 const { prefs } = useWorkspaceLayout();
 
 const snapshot = computed(() => marketDataSnapshot.value?.snapshot ?? null);
