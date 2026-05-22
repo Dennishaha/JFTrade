@@ -1,6 +1,9 @@
 import type { Ref } from "vue";
 
-import type { MarketDataSnapshotQueryResult } from "./marketDataRealtime";
+import type {
+  MarketSecurityDetailsQueryResult,
+  MarketDataSnapshotQueryResult,
+} from "./marketDataRealtime";
 
 interface MarketSnapshotRefreshTarget {
   market: string;
@@ -10,18 +13,20 @@ interface MarketSnapshotRefreshTarget {
 
 interface MarketDataSnapshotRefresherOptions {
   marketDataSnapshot: Ref<MarketDataSnapshotQueryResult | null>;
+  marketSecurityDetails: Ref<MarketSecurityDetailsQueryResult | null>;
   fetchEnvelope: <T>(path: string) => Promise<T>;
   mergeRealtimeBarStateIntoSnapshot: (
     current: MarketDataSnapshotQueryResult | null,
   ) => MarketDataSnapshotQueryResult | null;
 }
 
-const US_MARKET_SNAPSHOT_BACKGROUND_REFRESH_MS = 5_000;
+const MARKET_PANEL_BACKGROUND_REFRESH_MS = 1_000;
 
 export function createMarketDataSnapshotRefresher(
   options: MarketDataSnapshotRefresherOptions,
 ) {
   let marketSnapshotRefreshTimer: ReturnType<typeof setTimeout> | null = null;
+  let marketSnapshotRefreshTimerInstrumentId = "";
 
   function clearMarketSnapshotRefreshTimer(): void {
     if (marketSnapshotRefreshTimer == null) {
@@ -30,6 +35,7 @@ export function createMarketDataSnapshotRefresher(
 
     window.clearTimeout(marketSnapshotRefreshTimer);
     marketSnapshotRefreshTimer = null;
+    marketSnapshotRefreshTimerInstrumentId = "";
   }
 
   function resolveMarketSnapshotRefreshTarget(): MarketSnapshotRefreshTarget | null {
@@ -40,7 +46,7 @@ export function createMarketDataSnapshotRefresher(
 
     const market = request.market.trim().toUpperCase();
     const symbol = request.symbol.trim().toUpperCase();
-    if (market !== "US" || symbol === "") {
+    if (market === "" || symbol === "") {
       return null;
     }
 
@@ -63,6 +69,9 @@ export function createMarketDataSnapshotRefresher(
       const snapshot = await options.fetchEnvelope<MarketDataSnapshotQueryResult>(
         `/api/v1/market-data/snapshots/${encodeURIComponent(target.market)}/${encodeURIComponent(target.symbol)}?refresh=true`,
       );
+      const securityDetails = await options.fetchEnvelope<MarketSecurityDetailsQueryResult>(
+        `/api/v1/market-data/securities/${encodeURIComponent(target.market)}/${encodeURIComponent(target.symbol)}`,
+      );
 
       const latestTarget = resolveMarketSnapshotRefreshTarget();
       if (latestTarget == null || latestTarget.instrumentId !== target.instrumentId) {
@@ -71,6 +80,7 @@ export function createMarketDataSnapshotRefresher(
 
       options.marketDataSnapshot.value =
         options.mergeRealtimeBarStateIntoSnapshot(snapshot);
+      options.marketSecurityDetails.value = securityDetails;
     } catch {
       // Keep the current snapshot and retry on the next background interval.
     } finally {
@@ -82,17 +92,27 @@ export function createMarketDataSnapshotRefresher(
   }
 
   function scheduleMarketSnapshotBackgroundRefresh(): void {
-    clearMarketSnapshotRefreshTimer();
-
     const target = resolveMarketSnapshotRefreshTarget();
     if (target == null) {
+      clearMarketSnapshotRefreshTimer();
       return;
     }
 
+    if (
+      marketSnapshotRefreshTimer != null &&
+      marketSnapshotRefreshTimerInstrumentId === target.instrumentId
+    ) {
+      return;
+    }
+
+    clearMarketSnapshotRefreshTimer();
+
     marketSnapshotRefreshTimer = window.setTimeout(() => {
       marketSnapshotRefreshTimer = null;
+      marketSnapshotRefreshTimerInstrumentId = "";
       void refreshMarketSnapshotInBackground(target);
-    }, US_MARKET_SNAPSHOT_BACKGROUND_REFRESH_MS);
+    }, MARKET_PANEL_BACKGROUND_REFRESH_MS);
+    marketSnapshotRefreshTimerInstrumentId = target.instrumentId;
   }
 
   return {

@@ -201,6 +201,22 @@ func buildOpenAPIPaths(genericObject map[string]any) map[string]any {
 				},
 			),
 		},
+		"/api/v1/market-data/securities/{market}/{symbol}": map[string]any{
+			"get": operation(
+				"读取证券基础信息与快照扩展",
+				"读取证券公共信息与按证券类型拆分的扩展快照字段。",
+				[]string{"market-data"},
+				[]any{
+					pathParameter("market", "市场代码", "HK"),
+					pathParameter("symbol", "证券代码", "00700"),
+				},
+				nil,
+				map[string]any{
+					"200": jsonResponse("证券详情", envelopeSchema(genericObject)),
+					"502": jsonResponse("OpenD 查询失败", envelopeSchema(nil)),
+				},
+			),
+		},
 		"/api/v1/market-data/snapshots/{market}/{symbol}": map[string]any{
 			"get": operation(
 				"读取行情快照",

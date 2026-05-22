@@ -1069,6 +1069,192 @@ export interface MarketDataQueryMetaDto {
   fromCache: boolean;
 }
 
+export interface MarketDataExtendedQuote {
+  price?: number | null;
+  highPrice?: number | null;
+  lowPrice?: number | null;
+  volume?: number | null;
+  turnover?: number | null;
+  changeVal?: number | null;
+  changeRate?: number | null;
+  amplitude?: number | null;
+}
+
+export interface MarketDataExtendedQuoteBlocks {
+  preMarket?: MarketDataExtendedQuote | null;
+  afterMarket?: MarketDataExtendedQuote | null;
+  overnight?: MarketDataExtendedQuote | null;
+}
+
+export interface MarketSecurityRef {
+  instrumentId: string;
+  market: string;
+  symbol: string;
+}
+
+export interface MarketSecurityEquityDetails {
+  issuedShares: number;
+  issuedMarketValue: number;
+  netAsset: number;
+  netProfit: number;
+  earningsPerShare: number;
+  outstandingShares: number;
+  outstandingMarketVal: number;
+  netAssetPerShare: number;
+  earningsYieldRate: number;
+  peRate: number;
+  pbRate: number;
+  peTTMRate: number;
+  dividendTTM?: number | null;
+  dividendRatioTTM?: number | null;
+  dividendLFY?: number | null;
+  dividendLFYRatio?: number | null;
+}
+
+export interface MarketSecurityWarrantDetails {
+  conversionRate: number;
+  warrantType: string;
+  strikePrice: number;
+  maturityTime: string;
+  endTradeTime: string;
+  owner?: MarketSecurityRef | null;
+  recoveryPrice: number;
+  streetVolume: number;
+  issueVolume: number;
+  streetRate: number;
+  delta: number;
+  impliedVolatility: number;
+  premium: number;
+  maturityTimestamp?: number | null;
+  endTradeTimestamp?: number | null;
+  leverage?: number | null;
+  inOutPriceRatio?: number | null;
+  breakEvenPoint?: number | null;
+  conversionPrice?: number | null;
+  priceRecoveryRatio?: number | null;
+  score?: number | null;
+  upperStrikePrice?: number | null;
+  lowerStrikePrice?: number | null;
+  inLinePriceStatus?: string | null;
+  issuerCode?: string | null;
+}
+
+export interface MarketSecurityOptionDetails {
+  optionType: string;
+  owner?: MarketSecurityRef | null;
+  strikeTime: string;
+  strikePrice: number;
+  contractSize: number;
+  contractSizeFloat?: number | null;
+  openInterest: number;
+  impliedVolatility: number;
+  premium: number;
+  delta: number;
+  gamma: number;
+  vega: number;
+  theta: number;
+  rho: number;
+  strikeTimestamp?: number | null;
+  indexOptionType?: string | null;
+  netOpenInterest?: number | null;
+  expiryDateDistance?: number | null;
+  contractNominalValue?: number | null;
+  ownerLotMultiplier?: number | null;
+  optionAreaType?: string | null;
+  contractMultiplier?: number | null;
+}
+
+export interface MarketSecurityIndexDetails {
+  raiseCount: number;
+  fallCount: number;
+  equalCount: number;
+}
+
+export interface MarketSecurityPlateDetails {
+  raiseCount: number;
+  fallCount: number;
+  equalCount: number;
+}
+
+export interface MarketSecurityFutureDetails {
+  lastSettlePrice: number;
+  position: number;
+  positionChange: number;
+  lastTradeTime: string;
+  lastTradeTimestamp?: number | null;
+  isMainContract: boolean;
+}
+
+export interface MarketSecurityTrustDetails {
+  dividendYield: number;
+  aum: number;
+  outstandingUnit: number;
+  netAssetValue: number;
+  premium: number;
+  assetClass: string;
+}
+
+export interface MarketSecurityDetails {
+  instrumentId: string;
+  market: string;
+  symbol: string;
+  securityId?: number | null;
+  name: string;
+  securityType: string;
+  exchangeType: string;
+  listTime: string;
+  listTimestamp?: number | null;
+  delisting?: boolean | null;
+  lotSize: number;
+  isSuspend: boolean;
+  priceSpread: number;
+  updateTime: string;
+  updateTimestamp?: number | null;
+  highPrice: number;
+  openPrice: number;
+  lowPrice: number;
+  lastClosePrice: number;
+  currentPrice: number;
+  volume: number;
+  turnover: number;
+  turnoverRate: number;
+  askPrice?: number | null;
+  bidPrice?: number | null;
+  askVolume?: number | null;
+  bidVolume?: number | null;
+  amplitude?: number | null;
+  averagePrice?: number | null;
+  bidAskRatio?: number | null;
+  volumeRatio?: number | null;
+  highest52WeeksPrice?: number | null;
+  lowest52WeeksPrice?: number | null;
+  highestHistoryPrice?: number | null;
+  lowestHistoryPrice?: number | null;
+  sessionStatus?: string | null;
+  closePrice5Minute?: number | null;
+  highPrecisionVolume?: number | null;
+  highPrecisionAskVol?: number | null;
+  highPrecisionBidVol?: number | null;
+  extended?: MarketDataExtendedQuoteBlocks | null;
+  equity?: MarketSecurityEquityDetails | null;
+  warrant?: MarketSecurityWarrantDetails | null;
+  option?: MarketSecurityOptionDetails | null;
+  index?: MarketSecurityIndexDetails | null;
+  plate?: MarketSecurityPlateDetails | null;
+  future?: MarketSecurityFutureDetails | null;
+  trust?: MarketSecurityTrustDetails | null;
+}
+
+export interface MarketSecurityDetailsQueryResult {
+  request: {
+    market: string;
+    symbol: string;
+    instrumentId: string;
+  };
+  security: MarketSecurityDetails | null;
+  meta: MarketDataQueryMetaDto;
+}
+
 export interface MarketDataSnapshotResponse {
   ok: boolean;
   instrumentId: string;

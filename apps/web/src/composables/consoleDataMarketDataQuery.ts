@@ -12,6 +12,7 @@ import {
 } from "./marketDataQuery";
 import {
   type MarketDataCandlesQueryResult,
+  type MarketSecurityDetailsQueryResult,
   type MarketDataSnapshotQueryResult,
 } from "./marketDataRealtime";
 
@@ -21,6 +22,7 @@ export function createConsoleDataMarketDataQuerySlice() {
   const marketDataQueryPeriod = ref("1m");
   const marketDataQueryLimit = ref(500);
   const marketDataSnapshot = ref<MarketDataSnapshotQueryResult | null>(null);
+  const marketSecurityDetails = ref<MarketSecurityDetailsQueryResult | null>(null);
   const marketDataCandles = ref<MarketDataCandlesQueryResult | null>(null);
   const isLoadingMarketDataQuery = ref(false);
   const marketDataQueryError = ref("");
@@ -32,6 +34,7 @@ export function createConsoleDataMarketDataQuerySlice() {
       marketDataQueryPeriod,
       marketDataQueryLimit,
       marketDataSnapshot,
+      marketSecurityDetails,
       marketDataCandles,
       isLoadingMarketDataQuery,
       marketDataQueryError,
@@ -60,6 +63,7 @@ export function createConsoleDataMarketDataQuerySlice() {
     marketDataQueryMarket,
     marketDataQueryPeriod,
     marketDataQuerySymbol,
+    marketSecurityDetails,
     marketDataSnapshot,
   };
 }

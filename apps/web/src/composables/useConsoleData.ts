@@ -155,6 +155,7 @@ function createConsoleDataStore(workspaceLayout: WorkspaceLayoutStore) {
     marketDataQueryMarket,
     marketDataQueryPeriod,
     marketDataQuerySymbol,
+    marketSecurityDetails,
     marketDataSnapshot,
   } = createConsoleDataMarketDataQuerySlice();
   let systemStateController!: ReturnType<
@@ -355,6 +356,7 @@ function createConsoleDataStore(workspaceLayout: WorkspaceLayoutStore) {
     marketDataQueryMarket,
     marketDataQueryPeriod,
     marketDataQuerySymbol,
+    marketSecurityDetails,
     marketInstrumentReferences,
     marketInstrumentSearchOptions,
     marketDataSnapshot,

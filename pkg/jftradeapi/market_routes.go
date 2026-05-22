@@ -26,6 +26,8 @@ func (s *Server) serveMarketRoutes(w http.ResponseWriter, r *http.Request) bool 
 		s.handleReleaseMarketSubscription(w, r)
 	case r.URL.Path == "/api/v1/market-data/subscriptions/heartbeat" && r.Method == http.MethodPost:
 		s.handleHeartbeatMarketSubscription(w, r)
+	case strings.HasPrefix(r.URL.Path, "/api/v1/market-data/securities/") && r.Method == http.MethodGet:
+		s.handleMarketSecurityDetails(w, r)
 	case strings.HasPrefix(r.URL.Path, "/api/v1/market-data/snapshots/") && r.Method == http.MethodGet:
 		s.handleMarketSnapshot(w, r)
 	case strings.HasPrefix(r.URL.Path, "/api/v1/market-data/candles/") && r.Method == http.MethodGet:

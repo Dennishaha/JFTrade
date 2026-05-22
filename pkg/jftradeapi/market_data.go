@@ -25,6 +25,31 @@ func (s *Server) handleMarketSnapshot(w http.ResponseWriter, r *http.Request) {
 	s.writeOK(w, response)
 }
 
+func (s *Server) handleMarketSecurityDetails(w http.ResponseWriter, r *http.Request) {
+	response, err := s.marketSecurityDetailsResponse(r.Context(), r.URL.Path)
+	if err != nil {
+		s.writeError(w, http.StatusBadGateway, "MARKET_SECURITY_DETAILS_FAILED", err.Error())
+		return
+	}
+	s.writeOK(w, response)
+}
+
+func (s *Server) marketSecurityDetailsResponse(ctx context.Context, path string) (map[string]any, error) {
+	market, symbol := pathTail(path, "/api/v1/market-data/securities/")
+	market = strings.ToUpper(strings.TrimSpace(market))
+	symbol = strings.ToUpper(strings.TrimSpace(symbol))
+	instrumentID := market + "." + symbol
+	details, err := s.futuExchange().QuerySecurityDetails(ctx, instrumentID)
+	if err != nil {
+		return nil, err
+	}
+	return map[string]any{
+		"request":  map[string]any{"market": market, "symbol": symbol, "instrumentId": instrumentID},
+		"security": securityDetailsMap(details),
+		"meta":     map[string]any{"instrumentId": instrumentID, "source": "bbgo:futu", "resolvedAt": time.Now().UTC().Format(time.RFC3339Nano), "fromCache": false},
+	}, nil
+}
+
 func (s *Server) marketSnapshotResponse(ctx context.Context, path string, query map[string][]string) (map[string]any, error) {
 	market, symbol := pathTail(path, "/api/v1/market-data/snapshots/")
 	market = strings.ToUpper(strings.TrimSpace(market))

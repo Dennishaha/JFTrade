@@ -1,3 +1,18 @@
+import type {
+  MarketDataExtendedQuote,
+  MarketDataExtendedQuoteBlocks,
+  MarketSecurityDetails,
+  MarketSecurityDetailsQueryResult,
+  MarketSecurityEquityDetails,
+  MarketSecurityFutureDetails,
+  MarketSecurityIndexDetails,
+  MarketSecurityOptionDetails,
+  MarketSecurityPlateDetails,
+  MarketSecurityRef,
+  MarketSecurityTrustDetails,
+  MarketSecurityWarrantDetails,
+} from "@jftrade/ui-contracts";
+
 import {
   finalizeMarketDataRealtimeCandleDisplayAt,
   resolveMarketDataRealtimeBucketStart,
@@ -33,22 +48,20 @@ export type MarketDataSession =
   | "closed"
   | "unknown";
 
-export interface MarketDataExtendedQuote {
-  price?: number | null;
-  highPrice?: number | null;
-  lowPrice?: number | null;
-  volume?: number | null;
-  turnover?: number | null;
-  changeVal?: number | null;
-  changeRate?: number | null;
-  amplitude?: number | null;
-}
-
-export interface MarketDataExtendedQuoteBlocks {
-  preMarket?: MarketDataExtendedQuote | null;
-  afterMarket?: MarketDataExtendedQuote | null;
-  overnight?: MarketDataExtendedQuote | null;
-}
+export type {
+  MarketDataExtendedQuote,
+  MarketDataExtendedQuoteBlocks,
+  MarketSecurityDetails,
+  MarketSecurityDetailsQueryResult,
+  MarketSecurityEquityDetails,
+  MarketSecurityFutureDetails,
+  MarketSecurityIndexDetails,
+  MarketSecurityOptionDetails,
+  MarketSecurityPlateDetails,
+  MarketSecurityRef,
+  MarketSecurityTrustDetails,
+  MarketSecurityWarrantDetails,
+};
 
 export interface MarketDataSnapshotQueryResult {
   request: {

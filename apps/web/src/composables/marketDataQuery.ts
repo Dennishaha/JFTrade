@@ -4,6 +4,7 @@ import { normalizeKlinePeriod } from "../charting/kline";
 import {
   createMarketDataRealtimeController,
   type MarketDataCandlesQueryResult,
+  type MarketSecurityDetailsQueryResult,
   type MarketDataSnapshotQueryResult,
 } from "./marketDataRealtime";
 import { createMarketDataSnapshotRefresher } from "./marketDataSnapshotRefresh";
@@ -30,6 +31,7 @@ interface MarketDataQueryStateRefs {
   marketDataQueryPeriod: Ref<string>;
   marketDataQueryLimit: Ref<number>;
   marketDataSnapshot: Ref<MarketDataSnapshotQueryResult | null>;
+  marketSecurityDetails: Ref<MarketSecurityDetailsQueryResult | null>;
   marketDataCandles: Ref<MarketDataCandlesQueryResult | null>;
   isLoadingMarketDataQuery: Ref<boolean>;
   marketDataQueryError: Ref<string>;
@@ -58,6 +60,7 @@ export function createMarketDataQueryController(
     marketDataQueryLimit,
     marketDataQueryMarket,
     marketDataQueryPeriod,
+    marketSecurityDetails,
     marketDataQuerySymbol,
     marketDataSnapshot,
     isLoadingMarketDataQuery,
@@ -93,6 +96,7 @@ export function createMarketDataQueryController(
   const { scheduleMarketSnapshotBackgroundRefresh } =
     createMarketDataSnapshotRefresher({
       marketDataSnapshot,
+      marketSecurityDetails,
       fetchEnvelope: options.fetchEnvelope,
       mergeRealtimeBarStateIntoSnapshot,
     });
@@ -213,9 +217,12 @@ export function createMarketDataQueryController(
         if (queryOptions.toTime != null) {
           candleParams.set("toTime", queryOptions.toTime);
         }
-        const [snapshotResult, candlesResult] = await Promise.allSettled([
+        const [snapshotResult, securityDetailsResult, candlesResult] = await Promise.allSettled([
           options.fetchEnvelope<MarketDataSnapshotQueryResult>(
             `/api/v1/market-data/snapshots/${encodedMarket}/${encodedSymbol}?refresh=true`,
+          ),
+          options.fetchEnvelope<MarketSecurityDetailsQueryResult>(
+            `/api/v1/market-data/securities/${encodedMarket}/${encodedSymbol}`,
           ),
           options.fetchEnvelope<MarketDataCandlesQueryResult>(
             `/api/v1/market-data/candles/${encodedMarket}/${encodedSymbol}?${candleParams.toString()}`,
@@ -227,6 +234,12 @@ export function createMarketDataQueryController(
             ? snapshotResult.value
             : queryOptions.appendOlder === true
               ? marketDataSnapshot.value
+              : null;
+        marketSecurityDetails.value =
+          securityDetailsResult.status === "fulfilled"
+            ? securityDetailsResult.value
+            : queryOptions.appendOlder === true
+              ? marketSecurityDetails.value
               : null;
         marketDataCandles.value =
           candlesResult.status === "fulfilled"
@@ -248,7 +261,7 @@ export function createMarketDataQueryController(
           resetMarketDataRealtimeState();
         }
 
-        const partialErrors = [snapshotResult, candlesResult]
+        const partialErrors = [snapshotResult, securityDetailsResult, candlesResult]
           .filter((result) => result.status === "rejected")
           .map((result) =>
             result.reason instanceof Error
@@ -265,6 +278,7 @@ export function createMarketDataQueryController(
             : "Failed to load market data query.";
         if (queryOptions.appendOlder !== true) {
           marketDataSnapshot.value = null;
+          marketSecurityDetails.value = null;
           marketDataCandles.value = null;
           resetMarketDataRealtimeState();
         }

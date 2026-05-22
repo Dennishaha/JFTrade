@@ -72,3 +72,4 @@
 - `StandardStream` 文档比 `Exchange Factory` 文档完整得多
 - bbgo 通知系统在本地参考文档里覆盖不足，改这块时不要只依赖文档，先回到 [../../../pkg/jftradeapi/notifications.go](../../../pkg/jftradeapi/notifications.go)
 - 文档里仍能看到 `SubmitOrders` 这类旧命名，和当前项目实现的 `SubmitOrder` 不必完全一一对应，语义上按“交易下单能力”理解
+- 2026-05-22 起，证券 rich details / security snapshot 不再尝试塞进 bbgo 标准 `types.Exchange` 语义层；当前实现落在项目侧 Futu adapter + `pkg/jftradeapi` 的 `/api/v1/market-data/securities/{market}/{symbol}`，bbgo 仍主要承载通用 quote / ticker / stream 能力
