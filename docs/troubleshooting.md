@@ -1,183 +1,41 @@
-# 故障排查手册
+# 故障排查入口
 
-本文记录 JFTrade + bbgo + Futu OpenD 集成中容易踩到的启动、WebSocket 与配置保存问题。排查时先确认职责边界：bbgo 负责交易运行时与 exchange 抽象，JFTrade 前端依赖的是本项目自有的 `/api/v1/*` API 适配层。
+本文只做分诊，不再把所有细节堆在一页里。
 
-## 快速检查
+先记住两个前提：
+
+- 前端默认依赖的是 JFTrade sidecar 的 `/api/v1/*`，不是 bbgo 原生 `/api/*`
+- 启动方式分为 API-only 和 bbgo run，两者看到的故障现象可能完全不同
+
+## 先看症状，再进专题
+
+| 症状 | 去看哪里 | 快速验证 |
+| --- | --- | --- |
+| 后端起不来、端口不对、启动后马上退出 | [troubleshooting/startup-ports.md](troubleshooting/startup-ports.md) | `curl -fsS http://127.0.0.1:3000/api/v1/system/status` |
+| 前端显示 WS disconnected 或没有心跳 | [troubleshooting/websocket-connection.md](troubleshooting/websocket-connection.md) | `go test ./pkg/jftradeapi -run TestLiveWebSocketSendsHeartbeat` |
+| OpenD 连不上、设置保存了但运行时没生效 | [troubleshooting/opend-configuration.md](troubleshooting/opend-configuration.md) | `curl -fsS http://127.0.0.1:3000/api/v1/system/futu-opend` |
+| 美股盘前盘后或夜盘显示异常 | [troubleshooting/us-extended-hours.md](troubleshooting/us-extended-hours.md) | 检查 snapshot 是否带 `lastClosePrice` 和扩展行情块 |
+| 不确定到底该先查哪一层 | [troubleshooting/diagnostic-principles.md](troubleshooting/diagnostic-principles.md) | 先按职责边界和决策树定位 |
+
+## 常用诊断命令
 
 ```bash
-# 后端 JFTrade API 是否可达
 curl -fsS http://127.0.0.1:3000/api/v1/system/status
-
-# Futu 设置是否由 Go 后端返回，而不是浏览器本地兜底
 curl -fsS http://127.0.0.1:3000/api/v1/settings/brokers
+curl -fsS http://127.0.0.1:3000/api/v1/system/futu-opend
 
-# 端口监听
 lsof -nP -iTCP:3000 -sTCP:LISTEN
 lsof -nP -iTCP:11110 -sTCP:LISTEN
 lsof -nP -iTCP:11111 -sTCP:LISTEN
 
-# 基础验证
 go test ./...
-NODE_OPTIONS=--no-deprecation npm run typecheck
-NODE_OPTIONS=--no-deprecation npm run build:web
 ```
 
-默认端口约定：
+## 术语统一
 
-| 服务 | 默认地址 | 说明 |
-|------|----------|------|
-| JFTrade API | `127.0.0.1:3000` | 前端 `/api/v1/*`、SSE、WS 连接目标 |
-| Web preview | `127.0.0.1:6688` | `vite preview` |
-| Futu OpenD API | `127.0.0.1:11110` | Go OpenD client 实际连接端口 |
-| Futu OpenD WebSocket | `127.0.0.1:11111` | FTWebSocket / JavaScript 接入端口 |
+- API-only：`go run ./cmd/jftrade api`，只启动 sidecar
+- bbgo run：`go run ./cmd/jftrade run --config ./config/jftrade.yaml`，启动 bbgo 运行时，并尝试附带 sidecar
+- OpenD API port：默认 `127.0.0.1:11110`，Go 原生 TCP API 使用
+- OpenD WebSocket port：默认 `127.0.0.1:11111`，FTWebSocket / JavaScript API 使用
 
-## 前端 WS 连不上
-
-症状：状态栏显示 `WS disconnected` 或之前显示 `WS error`，前端没有实时心跳。
-
-根因优先级：
-
-1. 前端连接的是 `ws://127.0.0.1:3000/api/v1/ws/live`，不是 bbgo 自带 server。
-2. bbgo 自带 webserver 默认 `:8080`，且路由是 `/api/*`，不提供 JFTrade 前端需要的 `/api/v1/ws/live`。
-3. 如果 `cmd/jftrade run` 进程启动后又退出，刚打开的 JFTrade API 也会一起消失，前端会表现为连不上。
-
-正确修法：
-
-* 保持 `pkg/jftradeapi` sidecar 随 `cmd/jftrade` 启动，提供 `/api/v1/ws/live` heartbeat。
-* 前端默认 API/WS/SSE 地址使用 `127.0.0.1:3000`，避免 `localhost` 在 IPv4/IPv6 上解析不一致。
-* 用 `go test ./pkg/jftradeapi -run TestLiveWebSocketSendsHeartbeat` 验证 WS handler。
-
-不要只把前端 `error` 显示改成灰色。那只能隐藏症状，不能建立 WebSocket 连接。
-
-## OpenD 设置保存不生效
-
-症状：Settings 页面填入 Host、API Port、WebSocket Port、WebSocket Password / Key 后，刷新或重新检测仍显示旧值，OpenD 仍连不上。
-
-根因：
-
-* `/api/v1/settings/brokers` 和 `/api/v1/settings/brokers/{id}/integration` 是 JFTrade 自有 API 契约，不是 bbgo 原生接口。
-* 如果后端没有实现这些接口，前端用 `localStorage` 兜底会造成“看起来保存成功，但 Go 后端没有生效”。
-
-正确修法：
-
-* 设置必须保存到 Go 后端，默认存储文件是 `var/jftrade-api/settings.json`。
-* 保存成功后，Go 进程要同步运行时配置：
-  * `FUTU_OPEND_ADDR=host:apiPort`
-  * `JFTRADE_FUTU_WEBSOCKET_KEY=<plain key>`
-  * `FUTU_OPEND_WEBSOCKET_KEY=<plain key>`
-* `GET /api/v1/settings/brokers` 应该返回刚保存的 `apiPort=11110`、`websocketPort=11111`、`websocketKey`。
-
-注意：OpenD 配置文件中的 `websocket_key_md5` / UI 中的 `websocket_key` 只用于 FTWebSocket（JavaScript API）。JFTrade 的 Go 后端连接的是原生 OpenD API 端口 `apiPort`，走 TCP protobuf，不需要也不会发送 WebSocket 鉴权 key。
-
-## 后端启动后马上退出
-
-症状：日志中先看到 JFTrade API listening，然后 bbgo 报错退出；前端随后无法连接 `127.0.0.1:3000`。
-
-常见日志：
-
-```text
-market info should not be empty, 0 markets loaded
-```
-
-根因：bbgo bootstrap 要求 exchange market map 非空；旧 market cache 或 `QueryMarkets()` 返回空会让整个进程退出。
-
-正确修法：
-
-* `pkg/futu.Exchange.QueryMarkets()` 至少返回一个 bootstrap market，例如 `HK.00700`。
-* 启动时默认设置 `DISABLE_MARKETS_CACHE=1`，避免旧空缓存继续污染启动。
-* `start.sh`、`start.cmd` 和 `cmd/jftrade/main.go` 都应覆盖这个默认值。
-
-## FUTU_OPEND_ADDR 缺失
-
-症状：
-
-```text
-exchange session configure error: futu exchange: missing FUTU_OPEND_ADDR
-```
-
-根因：bbgo session bootstrap 会通过 exchange factory 的 `EnvLoader` 构造 exchange；如果没有 OpenD 地址，session 初始化失败。
-
-正确修法：
-
-* `pkg/futu` factory 在 session-prefixed env 与 `FUTU_OPEND_ADDR` 都为空时，回退到 `127.0.0.1:11110`。
-* 启动脚本显式导出：
-
-```bash
-export FUTU_OPEND_ADDR=${FUTU_OPEND_ADDR:-127.0.0.1:11110}
-```
-
-## OpenD 仍显示未连接
-
-按顺序确认：
-
-1. OpenD GUI 已登录。
-2. OpenD API 已启用，监听 `127.0.0.1:11110`。
-3. OpenD WebSocket 已启用，监听 `127.0.0.1:11111`，仅供 FTWebSocket / JavaScript API 使用。
-4. 如果 OpenD 配置了 `websocket_key_md5`，Settings 中填写对应明文 key，不要填写 MD5 密文。
-5. `apiPort` 是 `11110`，`websocketPort` 是 `11111`，不要混用；Go 探针和交易连接走 `apiPort`。
-6. 保存后调用：
-
-```bash
-curl -fsS http://127.0.0.1:3000/api/v1/system/futu-opend
-```
-
-`runtime.connectivity` 应从 `disconnected` 变为 `connected` 或至少给出明确 `lastError`。
-
-如果 `lastError` 是：
-
-```text
-opend: request timed out
-```
-
-优先检查是否把 Go 客户端错误地指到了 `websocketPort`。已验证 `127.0.0.1:11110` 才是原生 OpenD protobuf/TCP 端口，`127.0.0.1:11111` 是 FTWebSocket 端口；对 11111 发送原生 RPC 会建立握手但不回包，最终表现为 `request timed out`。
-
-## OpenD API 监听但拨号超时
-
-症状：
-
-```text
-opend: dial 127.0.0.1:11110: dial tcp 127.0.0.1:11110: i/o timeout
-```
-
-同时 `lsof` 还能看到 `Futu_OpenD` 在监听 `11110`，但：
-
-```bash
-nc -G 2 -vz 127.0.0.1 11110
-```
-
-也会超时。这不是普通的 OpenD 未启动，也不是端口配错，而是 OpenD native API accept 路径已经卡住。已观察到的日志模式是 `GTWLog.APISever` 在短时间内出现大量 `InitConnect -> Qot_Sub -> GetBasicQot -> RecvFailed(SysErrNo=57)`，最后停在一条 `APIServer OnAccept`，没有后续 `Add New Connect`。
-
-正确修法：
-
-* 当前卡住的 OpenD 进程需要重启才能恢复 `11110` accept。
-* 开发控制台默认使用 `go run ./cmd/jftrade api` 或 `./start.sh`，只启动 JFTrade API sidecar。
-* 不要用 `cmd/jftrade run` 作为前端开发默认启动命令；它会继续执行 bbgo 引擎，并额外启动 Futu `11111` public/user WebSocket 流。
-* JFTrade live quote 和 live stream 失败后必须退避重试，避免多个前端 websocket 把 OpenD 打成连接风暴。
-
-## 美股延伸时段卡片显示异常
-
-症状：
-
-* 盘前、盘后或夜盘卡片价格更新很慢，看起来只会跟着 HTTP 快照刷新。
-* “最近盘中收盘” 的涨跌幅基准不对，和上个交易日收盘混在一起。
-* 节假日或半日市时，session 看起来还是被时钟猜成了 `regular`。
-
-当前约定：
-
-* 主卡片在盘中显示实时价；非盘中显示最近盘中收盘价，也就是当天最后一个 regular session 收盘。
-* 盘外的涨跌幅基准切到 `lastClosePrice`，它对应 Futu 的 `GetLastClosePrice()`，也就是上个交易日收盘价。
-* 盘前、盘后、夜盘的活动卡片优先用 WebSocket tick 里的实时价；HTTP 快照只作为兜底和补全扩展行情块。
-* 快照侧的 session 判定优先看 Futu 的扩展行情块：`overnight.price` 和 `afterMarket.price` 有值时，直接认为对应时段有效；`preMarket.price` 需要再结合纽约本地时钟确认，因为 Futu 会把盘前块保留到 regular session。
-
-如果你在排这类问题，优先检查：
-
-1. `/api/v1/market-data/snapshot/*` 是否已经带上 `lastClosePrice`。
-2. 前端活动盘前/盘后/夜盘卡片是否使用了 live tick 的 `snap.price`。
-3. snapshot 里 `session` 是否来自扩展行情块，而不是只靠本地时钟硬猜。
-
-## 排查原则
-
-* 先判断接口属于 bbgo 还是 JFTrade 自有 API，不要假设 bbgo 会提供 `/api/v1/*`。
-* 不用浏览器本地状态掩盖后端失败；保存类问题必须能通过 `curl` 从 Go 后端读回。
-* 如果前端连不上，先看进程是否还活着，再看端口是否监听，最后看 WS 路由。
-* 任何修复都要覆盖启动链路：直接 `go run`、`start.sh`、`start.cmd` 的默认行为应保持一致。
+更完整的术语、职责边界和排查顺序见 [troubleshooting/diagnostic-principles.md](troubleshooting/diagnostic-principles.md)。

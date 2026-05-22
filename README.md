@@ -73,6 +73,16 @@ cd apps/web && npm run typecheck && npm run build
 
 前端 K 线实时合成与防回归说明见 `docs/frontend-kline.md`。
 
+## 文档
+
+开发时建议按下面顺序取上下文：
+
+1. [docs/README.md](docs/README.md)：文档导航与 AI 协作约定
+2. [docs/architecture.md](docs/architecture.md)：当前系统架构、双运行模式、职责边界
+3. [docs/frontend-kline.md](docs/frontend-kline.md)：前端行情与 K 线入口
+4. [docs/troubleshooting.md](docs/troubleshooting.md)：排障入口
+5. [docs/reference/README.md](docs/reference/README.md)：协议与上游参考资料
+
 ## 目录结构
 
 ```
