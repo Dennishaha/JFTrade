@@ -1,18 +1,162 @@
 package jftradeapi
 
 import (
+	"encoding/json"
 	"net/http"
 	"strings"
+
+	strategyquickjs "github.com/jftrade/jftrade-main/pkg/strategy/quickjs"
 )
 
 func (s *Server) serveStrategyRoutes(w http.ResponseWriter, r *http.Request) bool {
 	switch {
+	case r.URL.Path == "/api/v1/strategy-definitions" && r.Method == http.MethodGet:
+		s.writeOK(w, s.designStore.listDefinitions())
+	case r.URL.Path == "/api/v1/strategy-definitions" && r.Method == http.MethodPost:
+		var payload strategyDesignDefinition
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "invalid strategy definition payload")
+			return true
+		}
+		if err := strategyquickjs.ValidateScript(payload.Script); err != nil {
+			s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", err.Error())
+			return true
+		}
+		definition, err := s.designStore.saveDefinition(payload)
+		if err != nil {
+			s.writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to save strategy definition")
+			return true
+		}
+		s.writeOK(w, definition)
+	case strings.HasPrefix(r.URL.Path, "/api/v1/strategy-definitions/") && r.Method == http.MethodGet:
+		definitionID, err := decodePathSegment(strings.TrimPrefix(r.URL.Path, "/api/v1/strategy-definitions/"))
+		if err != nil || strings.TrimSpace(definitionID) == "" {
+			s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "definitionId is invalid")
+			return true
+		}
+		definition, ok := s.designStore.definition(definitionID)
+		if !ok {
+			s.writeError(w, http.StatusNotFound, "NOT_FOUND", "strategy definition not found")
+			return true
+		}
+		s.writeOK(w, definition)
+	case strings.HasPrefix(r.URL.Path, "/api/v1/strategy-definitions/") && r.Method == http.MethodPut:
+		definitionID, err := decodePathSegment(strings.TrimPrefix(r.URL.Path, "/api/v1/strategy-definitions/"))
+		if err != nil || strings.TrimSpace(definitionID) == "" {
+			s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "definitionId is invalid")
+			return true
+		}
+		var payload strategyDesignDefinition
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "invalid strategy definition payload")
+			return true
+		}
+		if err := strategyquickjs.ValidateScript(payload.Script); err != nil {
+			s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", err.Error())
+			return true
+		}
+		payload.ID = definitionID
+		definition, err := s.designStore.saveDefinition(payload)
+		if err != nil {
+			s.writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to save strategy definition")
+			return true
+		}
+		s.writeOK(w, definition)
+	case strings.HasPrefix(r.URL.Path, "/api/v1/strategy-definitions/") && strings.HasSuffix(r.URL.Path, "/instantiate") && r.Method == http.MethodPost:
+		definitionID, err := decodePathSegment(pathMiddle(r.URL.Path, "/api/v1/strategy-definitions/", "/instantiate"))
+		if err != nil || strings.TrimSpace(definitionID) == "" {
+			s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "definitionId is invalid")
+			return true
+		}
+		definition, ok := s.designStore.definition(definitionID)
+		if !ok {
+			s.writeError(w, http.StatusNotFound, "NOT_FOUND", "strategy definition not found")
+			return true
+		}
+		if err := strategyquickjs.ValidateScript(definition.Script); err != nil {
+			s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", err.Error())
+			return true
+		}
+		instance, err := s.strategyStore.instantiateStrategy(definition)
+		if err != nil {
+			s.writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to instantiate strategy")
+			return true
+		}
+		s.writeOK(w, instance)
 	case r.URL.Path == "/api/v1/strategies" && r.Method == http.MethodGet:
-		s.writeOK(w, []any{})
+		s.writeOK(w, s.strategyStore.strategies())
+	case strings.HasPrefix(r.URL.Path, "/api/v1/strategies/") && strings.HasSuffix(r.URL.Path, "/start") && r.Method == http.MethodPost:
+		instanceID, err := decodePathSegment(pathMiddle(r.URL.Path, "/api/v1/strategies/", "/start"))
+		if err != nil || strings.TrimSpace(instanceID) == "" {
+			s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "instanceId is invalid")
+			return true
+		}
+		instance, err := s.strategyStore.transitionStrategy(instanceID, strategyStatusRunning, "started", "quickjs runtime requested start")
+		if err != nil {
+			if errorsIsNotFound(err) {
+				s.writeError(w, http.StatusNotFound, "NOT_FOUND", "strategy instance not found")
+				return true
+			}
+			s.writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to start strategy")
+			return true
+		}
+		s.writeOK(w, instance)
+	case strings.HasPrefix(r.URL.Path, "/api/v1/strategies/") && strings.HasSuffix(r.URL.Path, "/pause") && r.Method == http.MethodPost:
+		instanceID, err := decodePathSegment(pathMiddle(r.URL.Path, "/api/v1/strategies/", "/pause"))
+		if err != nil || strings.TrimSpace(instanceID) == "" {
+			s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "instanceId is invalid")
+			return true
+		}
+		instance, err := s.strategyStore.transitionStrategy(instanceID, strategyStatusPaused, "paused", "manual pause")
+		if err != nil {
+			if errorsIsNotFound(err) {
+				s.writeError(w, http.StatusNotFound, "NOT_FOUND", "strategy instance not found")
+				return true
+			}
+			s.writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to pause strategy")
+			return true
+		}
+		s.writeOK(w, instance)
+	case strings.HasPrefix(r.URL.Path, "/api/v1/strategies/") && strings.HasSuffix(r.URL.Path, "/stop") && r.Method == http.MethodPost:
+		instanceID, err := decodePathSegment(pathMiddle(r.URL.Path, "/api/v1/strategies/", "/stop"))
+		if err != nil || strings.TrimSpace(instanceID) == "" {
+			s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "instanceId is invalid")
+			return true
+		}
+		instance, err := s.strategyStore.transitionStrategy(instanceID, strategyStatusStopped, "stopped", "manual stop")
+		if err != nil {
+			if errorsIsNotFound(err) {
+				s.writeError(w, http.StatusNotFound, "NOT_FOUND", "strategy instance not found")
+				return true
+			}
+			s.writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to stop strategy")
+			return true
+		}
+		s.writeOK(w, instance)
 	case strings.HasPrefix(r.URL.Path, "/api/v1/strategies/") && strings.HasSuffix(r.URL.Path, "/logs") && r.Method == http.MethodGet:
-		s.writeOK(w, map[string]any{"instanceId": pathMiddle(r.URL.Path, "/api/v1/strategies/", "/logs"), "logs": []string{}})
+		instanceID, err := decodePathSegment(pathMiddle(r.URL.Path, "/api/v1/strategies/", "/logs"))
+		if err != nil || strings.TrimSpace(instanceID) == "" {
+			s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "instanceId is invalid")
+			return true
+		}
+		logs, ok := s.strategyStore.strategyLogs(instanceID)
+		if !ok {
+			s.writeError(w, http.StatusNotFound, "NOT_FOUND", "strategy instance not found")
+			return true
+		}
+		s.writeOK(w, logs)
 	case strings.HasPrefix(r.URL.Path, "/api/v1/strategies/") && strings.HasSuffix(r.URL.Path, "/audit") && r.Method == http.MethodGet:
-		s.writeOK(w, map[string]any{"instanceId": pathMiddle(r.URL.Path, "/api/v1/strategies/", "/audit"), "entries": []any{}})
+		instanceID, err := decodePathSegment(pathMiddle(r.URL.Path, "/api/v1/strategies/", "/audit"))
+		if err != nil || strings.TrimSpace(instanceID) == "" {
+			s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "instanceId is invalid")
+			return true
+		}
+		audit, ok := s.strategyStore.strategyAudit(instanceID)
+		if !ok {
+			s.writeError(w, http.StatusNotFound, "NOT_FOUND", "strategy instance not found")
+			return true
+		}
+		s.writeOK(w, audit)
 	default:
 		return false
 	}

@@ -85,7 +85,7 @@ const systemActiveTab = ref("status");
       :stats="systemHeaderStats"
     />
 
-    <v-tabs v-model="systemActiveTab" bg-color="transparent">
+    <v-tabs v-model="systemActiveTab" bg-color="transparent" class="tv-page-tabs">
       <v-tab value="status">Status</v-tab>
       <v-tab value="worker-broker">Worker Broker</v-tab>
       <v-tab value="real-trade-risk">Real-Trade Risk</v-tab>

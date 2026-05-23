@@ -242,6 +242,24 @@ export interface PluginUninstallGuidanceDto {
   };
 }
 
+export interface PluginBuildTupleDto {
+  jftradeVersion: string;
+  goVersion: string;
+  goos: string;
+  goarch: string;
+  buildMode: string;
+  buildTags?: string[];
+}
+
+export interface PluginCompatibilityDto {
+  mode: string;
+  supported: boolean;
+  requiresRebuild: boolean;
+  reason?: string | null;
+  host: PluginBuildTupleDto;
+  artifact?: PluginBuildTupleDto | null;
+}
+
 export interface PluginInstallationDto {
   status: PluginInstallStatus;
   installed: boolean;
@@ -258,7 +276,47 @@ export interface PluginCatalogResponse {
   plugins: Array<{
     descriptor: PluginDescriptorDto;
     installation: PluginInstallationDto;
+    compatibility?: PluginCompatibilityDto;
   }>;
+}
+
+export interface StrategyVisualNodeDocument {
+  id: string;
+  type: string;
+  x: number;
+  y: number;
+  text: string;
+  properties: Record<string, unknown>;
+}
+
+export interface StrategyVisualEdgeDocument {
+  id?: string | undefined;
+  type: string;
+  sourceNodeId: string;
+  targetNodeId: string;
+  text?: string | undefined;
+  properties?: Record<string, unknown> | undefined;
+}
+
+export interface StrategyVisualModelDocument {
+  engine: "logic-flow";
+  version: number;
+  nodes: StrategyVisualNodeDocument[];
+  edges: StrategyVisualEdgeDocument[];
+}
+
+export interface StrategyDefinitionDocument {
+  id: string;
+  name: string;
+  version: string;
+  description: string;
+  runtime: string;
+  symbol: string;
+  interval: string;
+  script: string;
+  visualModel?: StrategyVisualModelDocument | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface PluginInstallResponse {

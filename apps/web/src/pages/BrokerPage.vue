@@ -123,7 +123,7 @@ const brokerActiveTab = ref("accounts");
     </section>
 
     <!-- Tabs for remaining content -->
-    <v-tabs v-model="brokerActiveTab" bg-color="transparent">
+    <v-tabs v-model="brokerActiveTab" bg-color="transparent" class="tv-page-tabs">
       <v-tab value="accounts">Accounts</v-tab>
       <v-tab value="funds">Funds &amp; Cash</v-tab>
       <v-tab value="positions">Positions</v-tab>

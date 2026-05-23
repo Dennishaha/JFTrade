@@ -12,9 +12,13 @@
     "typecheck": "vue-tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "@jftrade/ui-contracts": "0.0.0",
     "@fortawesome/fontawesome-free": "^7.2.0",
+    "@jftrade/ui-contracts": "0.0.0",
+    "@logicflow/core": "^2.2.3",
+    "@logicflow/extension": "^2.2.3",
+    "acorn": "^8.16.0",
     "lightweight-charts": "^5.2.0",
+    "monaco-editor": "^0.55.1",
     "pinia": "^3.0.4",
     "vue": "^3.5.34",
     "vue-router": "^5.0.7",

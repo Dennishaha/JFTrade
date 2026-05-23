@@ -62,7 +62,7 @@ const riskHeaderStats = computed(() => [
     />
 
     <!-- Tabs: Limits, Kill Switch, Hard Stops, Events -->
-    <v-tabs v-model="riskActiveTab" bg-color="transparent">
+    <v-tabs v-model="riskActiveTab" bg-color="transparent" class="tv-page-tabs">
       <v-tab value="Limits">Limits</v-tab>
       <v-tab value="Kill Switch">Kill Switch</v-tab>
       <v-tab value="Hard Stops">Hard Stops</v-tab>

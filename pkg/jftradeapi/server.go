@@ -41,6 +41,8 @@ type apiError struct {
 
 type Server struct {
 	store               *SettingsStore
+	strategyStore       *strategyCatalogStore
+	designStore         *strategyDesignStore
 	upgrader            websocket.Upgrader
 	marketSubscriptions marketSubscriptionManager
 	tickCache           tickSampleCacheManager
@@ -103,8 +105,20 @@ func StartForRunArgs(ctx context.Context, args []string) (func(context.Context) 
 }
 
 func NewServer(store *SettingsStore) *Server {
+	strategyStore, err := NewStrategyCatalogStore(deriveStrategyCatalogPath(store.path), deriveStrategyPluginTargetDir(store.path))
+	if err != nil {
+		log.Printf("JFTrade strategy catalog store degraded: %v", err)
+		strategyStore = &strategyCatalogStore{path: deriveStrategyCatalogPath(store.path), targetDir: deriveStrategyPluginTargetDir(store.path), data: strategyCatalogFile{TargetDir: deriveStrategyPluginTargetDir(store.path)}}
+	}
+	designStore, err := NewStrategyDesignStore(deriveStrategyDesignPath(store.path))
+	if err != nil {
+		log.Printf("JFTrade strategy design store degraded: %v", err)
+		designStore = &strategyDesignStore{path: deriveStrategyDesignPath(store.path), data: strategyDesignFile{}}
+	}
 	server := &Server{
 		store:               store,
+		strategyStore:       strategyStore,
+		designStore:         designStore,
 		marketSubscriptions: newMarketSubscriptionManager(),
 		tickCache:           newTickSampleCacheManager(),
 		upgrader: websocket.Upgrader{
@@ -153,8 +167,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case s.serveMarketRoutes(w, r):
 	case s.serveSettingsRoutes(w, r):
 	case s.serveSystemRoutes(w, r):
-	case r.URL.Path == "/api/v1/plugins" && r.Method == http.MethodGet:
-		s.writeOK(w, map[string]any{"targetDir": "", "plugins": []any{}})
+	case s.servePluginRoutes(w, r):
 	case s.serveStrategyRoutes(w, r):
 	case s.serveBrokerRoutes(w, r):
 	case s.servePortfolioRoutes(w, r):
@@ -204,7 +217,7 @@ func (s *Server) systemStatus() map[string]any {
 			"engine": "json", "databasePath": s.store.path, "status": "ok", "migrated": true,
 			"pendingMigrations": []any{}, "tables": []string{"broker_integrations", "broker_accounts"}, "checkedAt": time.Now().UTC().Format(time.RFC3339Nano),
 		},
-		"strategyRuntime": map[string]any{"status": "idle", "activeStrategies": 0, "supportsBacktestParity": true},
+		"strategyRuntime": s.strategyStore.runtimeSummary(),
 		"message":         "JFTrade API adapter is running.",
 	}
 }

@@ -13,7 +13,20 @@ func TestSystemStatusEndpointReturnsStatus(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	srv := httptest.NewServer(NewServer(store))
+	server := NewServer(store)
+	if err := server.strategyStore.saveStrategy(managedStrategyInstance{
+		ID:       "instance-running",
+		PluginID: "demo-plugin",
+		Definition: strategyDefinitionSummary{
+			StrategyID: "demo-plugin",
+			Name:       "Demo Plugin",
+			Version:    "1.0.0",
+		},
+		Status: strategyStatusRunning,
+	}); err != nil {
+		t.Fatalf("saveStrategy: %v", err)
+	}
+	srv := httptest.NewServer(server)
 	defer srv.Close()
 
 	resp, err := http.Get(srv.URL + "/api/v1/system/status")
@@ -40,5 +53,12 @@ func TestSystemStatusEndpointReturnsStatus(t *testing.T) {
 	}
 	if _, ok := envelope.Data["broker"]; !ok {
 		t.Fatal("expected broker in system status response")
+	}
+	strategyRuntime, ok := envelope.Data["strategyRuntime"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected strategyRuntime summary, got %+v", envelope.Data["strategyRuntime"])
+	}
+	if got := int(strategyRuntime["activeStrategies"].(float64)); got != 1 {
+		t.Fatalf("activeStrategies = %d", got)
 	}
 }
