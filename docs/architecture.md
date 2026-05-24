@@ -226,3 +226,51 @@ sidecar 当前负责把 Futu 系统通知和 bbgo 通知收束到同一条前端
 - [frontend/strategy-authoring.md](frontend/strategy-authoring.md)：前端策略设计专题
 - [frontend-kline.md](frontend-kline.md)：前端行情与 K 线专题入口
 - [reference/README.md](reference/README.md)：协议与参考资料入口
+
+## 6. 回测系统（新增）
+
+### 6.1 pkg/futu/backtest
+
+职责：提供基于 SQLite 的历史 K 线存储和回测执行能力。
+
+- `store.go` — 实现 `service.BackTestable` 接口，管理 `futu_klines` 表
+- `sync.go` — 从 Futu OpenD 增量同步 K 线数据到 SQLite
+- `runner.go` — 回测执行编排，创建 bbgo backtest.Exchange 并运行策略
+
+### 6.2 历史数据管线
+
+```
+OpenD Qot_RequestHistoryKL (3103)
+  → pkg/futu/exchange.go QueryKLines()
+    → backtest.SyncKLines()
+      → futu_klines (SQLite)
+        → backtest.FutuKLineStore.QueryKLinesBackward/Forward()
+          → bbgo backtest.Exchange
+            → SimplePriceMatching (bar close 撮合)
+              → QuickJS onKLineClosed → placeOrder/cancelOrder
+```
+
+### 6.3 操作入口
+
+所有回测操作通过前端控制台触发，不提供独立 CLI 命令。
+
+### 6.4 Sidecar API
+
+| 方法 | 路径 | 用途 |
+|------|------|------|
+| POST | `/api/v1/backtests` | 发起回测（指定策略定义ID、标的、周期、时段、初始资金） |
+| GET | `/api/v1/backtests` | 列出历史回测记录 |
+| GET | `/api/v1/backtests/{id}/status` | 轮询回测状态 |
+| GET | `/api/v1/backtests/{id}` | 获取回测结果详情 |
+| POST | `/api/v1/backtests/sync` | 同步历史K线数据 |
+
+### 6.5 策略回测感知
+
+QuickJS 策略可通过 `ctx.isBacktest` 判断当前运行环境：
+```javascript
+function onInit(ctx) {
+  if (ctx.isBacktest) {
+    console.log("Running in backtest mode");
+  }
+}
+```

@@ -20,7 +20,8 @@ export type StrategyBlockKind =
   | "ifCloseAbove"
   | "ifCloseBelow"
   | "log"
-  | "notify";
+  | "notify"
+  | "placeOrder";
 
 export interface StrategyBlockDefinition {
   kind: StrategyBlockKind;
@@ -263,6 +264,23 @@ const STRATEGY_BLOCK_CATALOG: StrategyBlockDefinition[] = [
       message: "策略条件命中，准备处理后续动作",
     },
     accent: "#be123c",
+  },
+  {
+    kind: "placeOrder",
+    label: "下单",
+    description: "向券商提交买入或卖出订单，支持固定股数、固定金额、仓位百分比或可用现金百分比四种数量模式。",
+    shape: "rect",
+    text: "下单",
+    properties: {
+      blockKind: "placeOrder",
+      side: "BUY",
+      orderType: "MARKET",
+      quantityMode: "shares",
+      quantityValue: 100,
+      limitPrice: 0,
+      referenceCash: 100000,
+    },
+    accent: "#0f766e",
   },
 ];
 

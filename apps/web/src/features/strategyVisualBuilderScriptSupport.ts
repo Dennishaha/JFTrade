@@ -230,6 +230,58 @@ export function normalizeDecimal(value: unknown, fallback: number): number {
   return fallback;
 }
 
+export type VisualOrderSide = "BUY" | "SELL" | "SELL_SHORT" | "BUY_COVER";
+
+export function normalizeOrderSide(value: unknown): VisualOrderSide {
+  if (
+    value === "BUY" ||
+    value === "SELL" ||
+    value === "SELL_SHORT" ||
+    value === "BUY_COVER"
+  ) {
+    return value;
+  }
+  return "BUY";
+}
+
+/** Convert visual side to the actual order side sent to the exchange. */
+export function orderSideForExchange(visualSide: VisualOrderSide): "BUY" | "SELL" {
+  return visualSide === "SELL" || visualSide === "SELL_SHORT" ? "SELL" : "BUY";
+}
+
+export function orderSideLabel(visualSide: VisualOrderSide): string {
+  switch (visualSide) {
+    case "BUY":
+      return "买入开多";
+    case "SELL":
+      return "卖出平多";
+    case "SELL_SHORT":
+      return "卖出开空";
+    case "BUY_COVER":
+      return "买入平空";
+    default:
+      return "买入";
+  }
+}
+
+export function normalizeOrderType(value: unknown): "MARKET" | "LIMIT" {
+  return value === "LIMIT" ? "LIMIT" : "MARKET";
+}
+
+export type QuantityMode = "shares" | "amount" | "positionPercent" | "cashPercent";
+
+export function normalizeQuantityMode(value: unknown): QuantityMode {
+  if (
+    value === "shares" ||
+    value === "amount" ||
+    value === "positionPercent" ||
+    value === "cashPercent"
+  ) {
+    return value;
+  }
+  return "shares";
+}
+
 export function toScriptMessage(message: string): string {
   if (message.includes("${")) {
     return `\`${escapeTemplateLiteral(message)}\``;

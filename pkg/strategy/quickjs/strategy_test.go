@@ -3,6 +3,7 @@ package quickjs
 import (
 	"context"
 	"testing"
+	"time"
 
 	bbgo2 "github.com/c9s/bbgo/pkg/bbgo"
 	"github.com/c9s/bbgo/pkg/fixedpoint"
@@ -175,5 +176,58 @@ func TestBuildPositionSnapshot(t *testing.T) {
 	}
 	if snapshot.UnrealizedPnL != float64(8000) {
 		t.Fatalf("unrealizedPnL = %v", snapshot.UnrealizedPnL)
+	}
+}
+
+func TestRuntimeBridgeHookContextBlocksWarmupOrders(t *testing.T) {
+	session := &bbgo2.ExchangeSession{Account: types.NewAccount()}
+	session.Account.CanTrade = true
+	session.Account.CanDeposit = true
+	session.Account.CanWithdraw = true
+	session.SetMarkets(types.MarketMap{
+		"BTCUSDT": {
+			Symbol:        "BTCUSDT",
+			BaseCurrency:  "BTC",
+			QuoteCurrency: "USDT",
+		},
+	})
+
+	executor := &stubOrderExecutor{}
+	baseTime := time.Date(2026, time.May, 25, 9, 0, 0, 0, time.UTC)
+	strategy := &Strategy{
+		Name:        "quickjs-warmup-test",
+		Symbol:      "BTCUSDT",
+		WarmupUntil: baseTime.Add(2 * time.Minute),
+		Script: `function onKLineClosed(ctx) {
+			placeOrder({ clientOrderId: "warmup-test-order", side: "BUY", quantity: 0.25, orderType: "MARKET" });
+		}`,
+	}
+
+	bridge, err := newRuntimeBridge(context.Background(), strategy, executor, session)
+	if err != nil {
+		t.Fatalf("newRuntimeBridge() error = %v", err)
+	}
+	defer bridge.close()
+
+	err = bridge.invokeHook("onKLineClosed", map[string]any{"symbol": "BTCUSDT"}, &HookContext{
+		CurrentKlineTime: baseTime.Add(time.Minute),
+		WarmupUntil:      strategy.WarmupUntil,
+	})
+	if err == nil {
+		t.Fatal("expected warmup hook to block placeOrder")
+	}
+	if len(executor.lastSubmitted) != 0 {
+		t.Fatalf("SubmitOrders() count during warmup = %d", len(executor.lastSubmitted))
+	}
+
+	err = bridge.invokeHook("onKLineClosed", map[string]any{"symbol": "BTCUSDT"}, &HookContext{
+		CurrentKlineTime: baseTime.Add(3 * time.Minute),
+		WarmupUntil:      strategy.WarmupUntil,
+	})
+	if err != nil {
+		t.Fatalf("invokeHook() after warmup error = %v", err)
+	}
+	if len(executor.lastSubmitted) != 1 {
+		t.Fatalf("SubmitOrders() count after warmup = %d", len(executor.lastSubmitted))
 	}
 }

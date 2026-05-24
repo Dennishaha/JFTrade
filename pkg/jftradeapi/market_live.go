@@ -117,15 +117,20 @@ func (s *Server) refreshLiveMarketTicksIfNeeded(ctx context.Context) {
 	refreshCtx, cancel := context.WithTimeout(ctx, liveTickFallbackPollTimeout)
 	defer cancel()
 
+	queryStart := time.Now()
 	tickers, err := s.futuExchange().QueryTickers(refreshCtx, instrumentIDs...)
+	queryElapsed := time.Since(queryStart)
 	if err != nil {
 		retryDelay := liveRetryDelay(s.liveQuoteState.failureCount)
 		s.liveQuoteState.failureCount++
 		s.liveQuoteState.retryAfter = time.Now().UTC().Add(retryDelay)
 		s.liveQuoteState.lastError = err.Error()
-		log.Printf("JFTrade live quote refresh failed; retrying in %s: %v", retryDelay, err)
+		log.Printf("JFTrade live quote refresh failed after %v (timeout=%v, instruments=%d); retrying in %s: %v",
+			queryElapsed, liveTickFallbackPollTimeout, len(instrumentIDs), retryDelay, err)
 		return
 	}
+	log.Printf("JFTrade live quote refresh OK in %v (instruments=%d, ticks=%d)",
+		queryElapsed, len(instrumentIDs), len(tickers))
 	s.liveQuoteState.failureCount = 0
 	s.liveQuoteState.retryAfter = time.Time{}
 	s.liveQuoteState.lastError = ""

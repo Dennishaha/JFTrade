@@ -17,6 +17,7 @@ import {
     fetchEnvelopeWithInit,
 } from "../composables/apiClient";
 import { useDraggable } from "../composables/useDraggable";
+import { useStrategyUndoRedo } from "../composables/useStrategyUndoRedo";
 import { useStrategyVisualNodeInspector } from "../composables/useStrategyVisualNodeInspector";
 import {
     strategyEditorCompletions,
@@ -98,6 +99,92 @@ const isTemplatePickerEntry = ref(false);
 
 const definitionsPanelDrag = useDraggable();
 const codePanelDrag = useDraggable();
+
+// ── Undo / Redo ──
+const undoRedo = useStrategyUndoRedo({ maxDepth: 80 });
+let skipNextHistorySnapshot = false;
+
+function pushDefinitionHistory(): void {
+    if (skipNextHistorySnapshot) {
+        skipNextHistorySnapshot = false;
+        return;
+    }
+
+    const snapshot = serializeDefinitionSnapshot(definitionForm.value);
+    if (snapshot === "") {
+        return;
+    }
+
+    undoRedo.pushSnapshot(snapshot);
+}
+
+function restoreFromSnapshot(snapshot: string): void {
+    try {
+        const parsed = JSON.parse(snapshot) as StrategyDefinitionDocument;
+        const model = cloneStrategyVisualModel(parsed.visualModel);
+
+        skipNextHistorySnapshot = true;
+        markNextScriptSyncAsInternal();
+
+        definitionForm.value = {
+            ...parsed,
+            visualModel: model,
+        };
+
+        selectedVisualNodeId.value = pickInitialVisualNodeId(
+            model ?? createDefaultStrategyVisualModel(),
+        );
+    } catch {
+        // Ignore corrupt snapshots.
+    }
+}
+
+function handleUndo(): void {
+    const snapshot = undoRedo.undo();
+    if (snapshot === null) {
+        return;
+    }
+
+    restoreFromSnapshot(snapshot);
+    definitionNotice.value = "已撤销至上一步改动。";
+}
+
+function handleRedo(): void {
+    const snapshot = undoRedo.redo();
+    if (snapshot === null) {
+        return;
+    }
+
+    restoreFromSnapshot(snapshot);
+    definitionNotice.value = "已重做至下一步改动。";
+}
+
+function handleDesignKeydown(event: KeyboardEvent): void {
+    const isMod = event.metaKey || event.ctrlKey;
+    if (!isMod) {
+        return;
+    }
+
+    if (event.key === "z" && !event.shiftKey) {
+        event.preventDefault();
+        handleUndo();
+        return;
+    }
+
+    if (event.key === "z" && event.shiftKey) {
+        event.preventDefault();
+        handleRedo();
+        return;
+    }
+
+    // Also support Ctrl+Y (Windows-style redo)
+    if (event.key === "y") {
+        event.preventDefault();
+        handleRedo();
+        return;
+    }
+}
+
 const SCRIPT_TO_VISUAL_SYNC_DELAY = 650;
 
 let scriptToVisualSyncTimer: ReturnType<typeof setTimeout> | null = null;
@@ -149,6 +236,13 @@ const {
     selectedMacdSignalPeriod,
     showsMultiplierInput,
     selectedBollingerMultiplier,
+    showsPlaceOrderInputs,
+    selectedPlaceOrderSide,
+    selectedPlaceOrderType,
+    selectedPlaceOrderQuantityMode,
+    selectedPlaceOrderQuantityValue,
+    selectedPlaceOrderLimitPrice,
+    showsPlaceOrderLimitPriceInput,
 } = useStrategyVisualNodeInspector({
     selectedVisualNode,
     mutateSelectedVisualNode,
@@ -165,6 +259,11 @@ const overlayDeckBindings = {
     selectedMacdSignalPeriod,
     selectedBollingerMultiplier,
     selectedVisualNodeThreshold,
+    selectedPlaceOrderSide,
+    selectedPlaceOrderType,
+    selectedPlaceOrderQuantityMode,
+    selectedPlaceOrderQuantityValue,
+    selectedPlaceOrderLimitPrice,
 } as const;
 
 const codeWorkbenchBindings = {
@@ -302,9 +401,27 @@ watch(
     },
 );
 
+// Push undo snapshots whenever the definition changes meaningfully.
+watch(
+    () => serializeDefinitionSnapshot(definitionForm.value),
+    (nextSnapshot, previousSnapshot) => {
+        if (nextSnapshot === previousSnapshot) {
+            return;
+        }
+
+        if (nextSnapshot === lastCommittedDefinitionSignature.value) {
+            return;
+        }
+
+        pushDefinitionHistory();
+    },
+    { flush: "post" },
+);
+
 onMounted(() => {
     if (typeof window !== "undefined") {
         window.addEventListener("beforeunload", handleBeforeUnload);
+        window.addEventListener("keydown", handleDesignKeydown);
     }
 
     void loadStrategyDefinitions(selectedDefinitionId.value, {
@@ -315,6 +432,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
     if (typeof window !== "undefined") {
         window.removeEventListener("beforeunload", handleBeforeUnload);
+        window.removeEventListener("keydown", handleDesignKeydown);
     }
 
     clearPendingScriptToVisualSync();
@@ -358,6 +476,7 @@ function openNewDefinitionTemplatePicker(
     templateId = defaultStrategyTemplateId,
 ): void {
     clearDefinitionMessages();
+    undoRedo.clear();
     isTemplatePickerEntry.value = true;
     lastCommittedDefinitionSignature.value = "";
     selectedDefinitionId.value = "";
@@ -457,11 +576,11 @@ function pickInitialVisualNodeId(model: StrategyVisualModelDocument): string {
     return preferred?.id ?? model.nodes[0]?.id ?? "";
 }
 
-function formatTimestamp(value: string): string {
-    if (value.trim() === "") {
+function formatTimestamp(value: string | undefined | null): string {
+    if ((value ?? "").trim() === "") {
         return "暂无";
     }
-    return value.replace("T", " ").replace(".000Z", "Z");
+    return value!.replace("T", " ").replace(".000Z", "Z");
 }
 
 function updateCommittedDefinitionSignature(
@@ -544,7 +663,10 @@ function syncScriptToVisualModelNow(options?: { updateCommittedSignature?: boole
 
     setVisualSyncState("syncing", "正在把代码异步转换回流程图…", visualSyncCodeBlockCount.value);
 
-    const parseResult = buildStrategyVisualModelFromScript(script);
+    const parseResult = buildStrategyVisualModelFromScript(
+        script,
+        definitionForm.value.visualModel,
+    );
     if (!parseResult.ok) {
         setVisualSyncState("error", `${parseResult.error} 已保留当前流程图。`, 0);
         return;
@@ -601,6 +723,7 @@ function buildScriptForModel(
 
 function applyDefinition(definition: StrategyDefinitionDocument | null): void {
     clearDefinitionMessages();
+    undoRedo.clear();
     isTemplatePickerEntry.value = false;
 
     if (definition === null) {
@@ -673,6 +796,7 @@ function createNewDefinitionDraft(templateId = defaultStrategyTemplateId): void 
     const template = getStrategyTemplate(templateId);
 
     clearDefinitionMessages();
+    undoRedo.clear();
     isTemplatePickerEntry.value = false;
     lastCommittedDefinitionSignature.value = "";
     selectedDefinitionId.value = "";
@@ -1195,6 +1319,16 @@ function deleteSelectedVisualNode(): void {
                         </div>
 
                         <div class="strategy-stage__toolbar-actions">
+                            <button class="strategy-btn strategy-btn--ghost" data-testid="undo-strategy-change"
+                                :disabled="!undoRedo.canUndo" type="button" title="撤销 (Ctrl+Z)"
+                                @click="handleUndo">
+                                ↩
+                            </button>
+                            <button class="strategy-btn strategy-btn--ghost" data-testid="redo-strategy-change"
+                                :disabled="!undoRedo.canRedo" type="button" title="重做 (Ctrl+Shift+Z)"
+                                @click="handleRedo">
+                                ↪
+                            </button>
                             <button class="strategy-btn strategy-btn--primary" data-testid="save-strategy-definition"
                                 :disabled="isSavingDefinition" type="button" @click="saveStrategyDefinition">
                                 {{ isSavingDefinition ? "保存中…" : "保存策略" }}
@@ -1292,6 +1426,8 @@ function deleteSelectedVisualNode(): void {
                 :show-templates-section="!isTemplatesSectionCollapsed" :shows-code-input="showsCodeInput"
                 :shows-macd-inputs="showsMacdInputs" :shows-multiplier-input="showsMultiplierInput"
                 :shows-period-input="showsPeriodInput" :shows-threshold-input="showsThresholdInput"
+                :shows-place-order-inputs="showsPlaceOrderInputs"
+                :shows-place-order-limit-price-input="showsPlaceOrderLimitPriceInput"
                 :strategy-templates="strategyTemplates" :updated-at-text="formatTimestamp(definitionForm.updatedAt)"
                 @delete-selected-node="deleteSelectedVisualNode" @select-template="createNewDefinitionDraft"
                 @close-block-details="isBlockInspectorCollapsed = true" />

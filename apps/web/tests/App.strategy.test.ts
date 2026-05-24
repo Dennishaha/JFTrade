@@ -504,8 +504,8 @@ describe("Strategy page", () => {
     expect(wrapper.find('[data-testid="strategy-templates-section"]').exists()).toBe(false);
     await openStrategyTemplatesPanel(wrapper);
     expect(wrapper.text()).toContain("双均线系统");
-    expect(wrapper.text()).toContain("MACD 动能观察");
-    expect(wrapper.text()).toContain("布林带回归观察");
+    expect(wrapper.text()).toContain("MACD 动能交易");
+    expect(wrapper.text()).toContain("布林带回归交易");
 
     wrapper.unmount();
   });
@@ -1129,7 +1129,7 @@ describe("Strategy page", () => {
     expect(scriptEditor.value).toContain("function simpleMovingAverage(values, windowSize)");
     expect(scriptEditor.value).toContain("simpleMovingAverage(state.closes, 5)");
     expect(scriptEditor.value).toContain("simpleMovingAverage(state.closes, 20)");
-    expect(scriptEditor.value).toContain("Golden cross");
+    expect(scriptEditor.value).toContain("金叉");
 
     wrapper.unmount();
   });
@@ -1346,7 +1346,7 @@ describe("Strategy page", () => {
 
     const scriptEditor = wrapper.get('[data-testid="strategy-script-editor"]')
       .element as HTMLTextAreaElement;
-    expect(wrapper.text()).toContain("已基于「RSI 反转观察」创建新草稿");
+    expect(wrapper.text()).toContain("已基于「RSI 反转交易」创建新草稿");
     expect(scriptEditor.value).toContain(
       "/** @param {number[]} values @param {number} period @returns {number | null} */",
     );
@@ -1383,7 +1383,7 @@ describe("Strategy page", () => {
 
     const scriptEditor = wrapper.get('[data-testid="strategy-script-editor"]')
       .element as HTMLTextAreaElement;
-    expect(wrapper.text()).toContain("已基于「MACD 动能观察」创建新草稿");
+    expect(wrapper.text()).toContain("已基于「MACD 动能交易」创建新草稿");
     expect(scriptEditor.value).toContain(
       "function calculateMACD(values, fastPeriod, slowPeriod, signalPeriod)",
     );
@@ -1420,7 +1420,7 @@ describe("Strategy page", () => {
 
     const scriptEditor = wrapper.get('[data-testid="strategy-script-editor"]')
       .element as HTMLTextAreaElement;
-    expect(wrapper.text()).toContain("已基于「布林带回归观察」创建新草稿");
+    expect(wrapper.text()).toContain("已基于「布林带回归交易」创建新草稿");
     expect(scriptEditor.value).toContain(
       "function calculateBollingerBands(values, period, multiplier)",
     );

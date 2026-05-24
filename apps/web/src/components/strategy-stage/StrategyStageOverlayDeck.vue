@@ -23,6 +23,11 @@ interface StrategyOverlayDeckBindings {
   selectedMacdSignalPeriod: Ref<string>;
   selectedBollingerMultiplier: Ref<string>;
   selectedVisualNodeThreshold: Ref<string>;
+  selectedPlaceOrderSide: Ref<string>;
+  selectedPlaceOrderType: Ref<string>;
+  selectedPlaceOrderQuantityMode: Ref<string>;
+  selectedPlaceOrderQuantityValue: Ref<string>;
+  selectedPlaceOrderLimitPrice: Ref<string>;
 }
 
 const props = defineProps<{
@@ -43,6 +48,8 @@ const props = defineProps<{
   showsMacdInputs: boolean;
   showsMultiplierInput: boolean;
   showsThresholdInput: boolean;
+  showsPlaceOrderInputs: boolean;
+  showsPlaceOrderLimitPriceInput: boolean;
   createdAtText: string;
   updatedAtText: string;
 }>();
@@ -63,6 +70,11 @@ const selectedMacdSlowPeriod = props.bindings.selectedMacdSlowPeriod;
 const selectedMacdSignalPeriod = props.bindings.selectedMacdSignalPeriod;
 const selectedBollingerMultiplier = props.bindings.selectedBollingerMultiplier;
 const selectedVisualNodeThreshold = props.bindings.selectedVisualNodeThreshold;
+const selectedPlaceOrderSide = props.bindings.selectedPlaceOrderSide;
+const selectedPlaceOrderType = props.bindings.selectedPlaceOrderType;
+const selectedPlaceOrderQuantityMode = props.bindings.selectedPlaceOrderQuantityMode;
+const selectedPlaceOrderQuantityValue = props.bindings.selectedPlaceOrderQuantityValue;
+const selectedPlaceOrderLimitPrice = props.bindings.selectedPlaceOrderLimitPrice;
 
 function toAuthoringModeLabel(mode: StrategyAuthoringTemplate["mode"] | null): string {
   return mode === "visual" ? "图优先" : "代码优先";
@@ -282,6 +294,85 @@ function toTemplateTypeLabel(mode: StrategyAuthoringTemplate["mode"]): string {
             type="number"
           />
         </label>
+
+        <!-- ── 下单图块专属属性 ── -->
+        <template v-if="props.showsPlaceOrderInputs">
+          <div class="grid gap-3 md:grid-cols-2">
+            <label class="grid gap-2 text-sm text-slate-700">
+              <span class="font-medium">方向</span>
+              <select
+                v-model="selectedPlaceOrderSide"
+                class="rounded-2xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-amber-500"
+              >
+                <option value="BUY">买入开多</option>
+                <option value="SELL">卖出平多</option>
+                <option value="SELL_SHORT">卖出开空</option>
+                <option value="BUY_COVER">买入平空</option>
+              </select>
+            </label>
+            <label class="grid gap-2 text-sm text-slate-700">
+              <span class="font-medium">订单类型</span>
+              <select
+                v-model="selectedPlaceOrderType"
+                class="rounded-2xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-amber-500"
+              >
+                <option value="MARKET">市价单</option>
+                <option value="LIMIT">限价单</option>
+              </select>
+            </label>
+          </div>
+
+          <label class="grid gap-2 text-sm text-slate-700">
+            <span class="font-medium">数量模式</span>
+            <select
+              v-model="selectedPlaceOrderQuantityMode"
+              class="rounded-2xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-amber-500"
+            >
+              <option value="shares">固定股票数</option>
+              <option value="amount">固定金额</option>
+              <option value="positionPercent">账户仓位百分比</option>
+              <option value="cashPercent">用户可用现金百分比</option>
+            </select>
+          </label>
+
+          <label class="grid gap-2 text-sm text-slate-700">
+            <span class="font-medium">
+              <template v-if="selectedPlaceOrderQuantityMode === 'shares'">股票数量（股）</template>
+              <template v-else-if="selectedPlaceOrderQuantityMode === 'amount'">金额</template>
+              <template v-else-if="selectedPlaceOrderQuantityMode === 'positionPercent'">仓位百分比（%）</template>
+              <template v-else-if="selectedPlaceOrderQuantityMode === 'cashPercent'">现金百分比（%）</template>
+            </span>
+            <input
+              v-model="selectedPlaceOrderQuantityValue"
+              class="rounded-2xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-amber-500"
+              min="0"
+              :step="selectedPlaceOrderQuantityMode === 'shares' ? '1' : '0.01'"
+              type="number"
+            />
+            <span class="text-xs text-slate-400">
+              <template v-if="selectedPlaceOrderQuantityMode === 'amount'">
+                股票数量以实际为准，不超过输入金额
+              </template>
+              <template v-else-if="selectedPlaceOrderQuantityMode === 'positionPercent'">
+                基于当前账户持仓市值计算目标股数
+              </template>
+              <template v-else-if="selectedPlaceOrderQuantityMode === 'cashPercent'">
+                回测使用策略当时的现金，实盘使用账户可用资金
+              </template>
+            </span>
+          </label>
+
+          <label v-if="props.showsPlaceOrderLimitPriceInput" class="grid gap-2 text-sm text-slate-700">
+            <span class="font-medium">限价</span>
+            <input
+              v-model="selectedPlaceOrderLimitPrice"
+              class="rounded-2xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-amber-500"
+              min="0"
+              step="0.01"
+              type="number"
+            />
+          </label>
+        </template>
 
         <label
           v-if="props.selectedVisualKind === 'log' || props.selectedVisualKind === 'notify'"

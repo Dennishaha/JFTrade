@@ -34,6 +34,7 @@ const navTargets = [
   { id: "nav.overview", label: "Go to Overview", to: "/overview" },
   { id: "nav.market", label: "Go to Market", to: "/market" },
   { id: "nav.strategy", label: "Go to Strategy", to: "/strategy" },
+  { id: "nav.backtest", label: "Go to 回测", to: "/backtest" },
   { id: "nav.execution", label: "Go to Execution", to: "/execution" },
   { id: "nav.portfolio", label: "Go to Portfolio", to: "/portfolio" },
   { id: "nav.broker", label: "Go to Broker", to: "/broker" },

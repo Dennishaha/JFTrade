@@ -52,6 +52,10 @@ export function createConsoleRouter(
         path: "/risk",
         component: () => import("./pages/RiskPage.vue"),
       },
+      {
+        path: "/backtest",
+        component: () => import("./pages/BacktestPage.vue"),
+      },
     ],
   });
 }

@@ -27,6 +27,7 @@ const items: NavItem[] = [
   { type: "route", to: "/overview", label: "Overview", icon: "fa-solid fa-chart-column" },
   { type: "route", to: "/market", label: "Market", icon: "fa-solid fa-chart-line" },
   { type: "route", to: "/strategy", label: "Strategy", icon: "fa-solid fa-wand-magic-sparkles" },
+  { type: "route", to: "/backtest", label: "回测", icon: "fa-solid fa-flask" },
   { type: "route", to: "/execution", label: "Execution", icon: "fa-solid fa-list" },
   { type: "route", to: "/portfolio", label: "Portfolio", icon: "fa-solid fa-wallet" },
   { type: "route", to: "/broker", label: "Broker", icon: "fa-solid fa-plug" },

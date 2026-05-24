@@ -20,6 +20,7 @@ import (
 )
 
 const maxHistoryKLinePages = 8
+const maxSyncKLinePages = 200 // unlimited: loop until OpenD nextReqKey is empty
 
 type klineSubscriptionRequest struct {
 	canonical    string
@@ -59,6 +60,67 @@ func (e *Exchange) QueryKLines(ctx context.Context, symbol string, interval type
 	if len(klines) > limit {
 		klines = klines[len(klines)-limit:]
 	}
+	return klines, nil
+}
+
+// QueryAllKLines is a sync-optimized variant that does not set MaxAckKLNum,
+// allowing OpenD to return larger pages. It follows nextReqKey until empty
+// (capped at maxSyncKLinePages) and returns ALL klines without trimming.
+// It does not query the current unfinished bucket (not needed for sync).
+// rehabType controls price adjustment: None(0)=不复权, Forward(1)=前复权, Backward(2)=后复权.
+func (e *Exchange) QueryAllKLines(ctx context.Context, symbol string, interval types.Interval, beginAt, endAt time.Time, rehabType qotcommonpb.RehabType) ([]types.KLine, error) {
+	security, canonicalSymbol, err := futuSecurityFromSymbol(symbol)
+	if err != nil {
+		return nil, err
+	}
+	klType, err := futuKLTypeFromInterval(interval)
+	if err != nil {
+		return nil, err
+	}
+
+	klines := make([]types.KLine, 0)
+	nextReqKey := []byte(nil)
+	for page := 0; page < maxSyncKLinePages; page++ {
+		request := &historypb.Request{C2S: &historypb.C2S{
+			RehabType: proto.Int32(int32(rehabType)),
+			KlType:    proto.Int32(int32(klType)),
+			Security:  security,
+			BeginTime: proto.String(beginAt.Format("2006-01-02 15:04:05")),
+			EndTime:   proto.String(endAt.Format("2006-01-02 15:04:05")),
+			// MaxAckKLNum intentionally not set — let OpenD decide the page size.
+		}}
+		if len(nextReqKey) > 0 {
+			request.C2S.NextReqKey = nextReqKey
+		}
+		if shouldRequestExtendedKLines(canonicalSymbol, interval) {
+			request.C2S.ExtendedTime = proto.Bool(true)
+			request.C2S.Session = proto.Int32(int32(commonpb.Session_Session_ALL))
+		}
+
+		var response historypb.Response
+		if err := e.callProto(ctx, opend.ProtoRequestHistoryKL, request, &response); err != nil {
+			return nil, err
+		}
+		if response.GetRetType() != 0 {
+			return nil, fmt.Errorf("opend RequestHistoryKL retType=%d errCode=%d retMsg=%s", response.GetRetType(), response.GetErrCode(), response.GetRetMsg())
+		}
+
+		for _, candle := range response.GetS2C().GetKlList() {
+			if candle.GetIsBlank() {
+				continue
+			}
+			klines = append(klines, futuKLineFromProto(candle, canonicalSymbol, interval))
+		}
+
+		nextReqKey = response.GetS2C().GetNextReqKey()
+		if len(nextReqKey) == 0 {
+			break
+		}
+	}
+
+	sort.Slice(klines, func(i, j int) bool {
+		return klines[i].StartTime.Time().Before(klines[j].StartTime.Time())
+	})
 	return klines, nil
 }
 

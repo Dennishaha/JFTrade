@@ -17,8 +17,13 @@ import {
   buildScriptRuntimeBlocks,
   normalizeDecimal,
   normalizeMessage,
+  normalizeOrderSide,
+  normalizeOrderType,
+  normalizeQuantityMode,
   normalizeThreshold,
   normalizeWindowSize,
+  orderSideForExchange,
+  orderSideLabel,
   toConsoleLogArgument,
   toScriptMessage,
   type StrategyScriptRuntimeFlags,
@@ -164,6 +169,136 @@ export function buildStrategyScriptFromVisualModel(
         );
         return withFlowAnnotation([
           `${indent(depth)}notify(${toScriptMessage(message)});`,
+          ...renderChildren(node.id, visited, depth),
+        ]);
+      }
+      case "placeOrder": {
+        const visualSide = normalizeOrderSide(nodeProperties.side);
+        const exchangeSide = orderSideForExchange(visualSide);
+        const sideLabel = orderSideLabel(visualSide);
+        const orderType = normalizeOrderType(nodeProperties.orderType);
+        const quantityMode = normalizeQuantityMode(nodeProperties.quantityMode);
+        const quantityValue = normalizeDecimal(nodeProperties.quantityValue, 100);
+        const limitPrice = normalizeDecimal(nodeProperties.limitPrice, 0);
+
+        const orderProps = [`side: "${exchangeSide}"`, `orderType: "${orderType}"`];
+        if (orderType === "LIMIT" && limitPrice > 0) {
+          orderProps.push(`limitPrice: ${limitPrice}`);
+        }
+
+        const lines: string[] = [];
+
+        // ── Position direction guard ──
+        switch (visualSide) {
+          case "BUY": {
+            // 开多：检查是否已有多头持仓，避免重复买入
+            lines.push(
+              `${indent(depth)}const pos = getPosition();`,
+              `${indent(depth)}if (pos && pos.direction === "LONG" && pos.quantity > 0) {`,
+              `${indent(depth + 1)}console.log("已有多头持仓 " + pos.quantity + " 股，跳过重复开多");`,
+              `${indent(depth + 1)}return;`,
+              `${indent(depth)}}`,
+            );
+            break;
+          }
+          case "SELL": {
+            // 平多：检查是否有多头持仓可平
+            lines.push(
+              `${indent(depth)}const pos = getPosition();`,
+              `${indent(depth)}if (!pos || pos.direction !== "LONG" || pos.availableQuantity <= 0) {`,
+              `${indent(depth + 1)}console.log("无多头持仓可平，跳过卖出");`,
+              `${indent(depth + 1)}return;`,
+              `${indent(depth)}}`,
+            );
+            break;
+          }
+          case "SELL_SHORT": {
+            // 开空：检查是否已有空头持仓，避免重复做空
+            lines.push(
+              `${indent(depth)}const pos = getPosition();`,
+              `${indent(depth)}if (pos && pos.direction === "SHORT" && pos.quantity > 0) {`,
+              `${indent(depth + 1)}console.log("已有空头持仓 " + pos.quantity + " 股，跳过重复开空");`,
+              `${indent(depth + 1)}return;`,
+              `${indent(depth)}}`,
+            );
+            break;
+          }
+          case "BUY_COVER": {
+            // 平空：检查是否有空头持仓可平
+            lines.push(
+              `${indent(depth)}const pos = getPosition();`,
+              `${indent(depth)}if (!pos || pos.direction !== "SHORT" || pos.availableQuantity <= 0) {`,
+              `${indent(depth + 1)}console.log("无空头持仓可平，跳过买入平空");`,
+              `${indent(depth + 1)}return;`,
+              `${indent(depth)}}`,
+            );
+            break;
+          }
+          default:
+            break;
+        }
+
+        // ── Quantity calculation based on mode ──
+        switch (quantityMode) {
+          case "shares": {
+            lines.push(
+              `${indent(depth)}const orderQty = ${quantityValue};`,
+            );
+            break;
+          }
+          case "amount": {
+            lines.push(
+              `${indent(depth)}const orderPrice = ctx.kline.close;`,
+              `${indent(depth)}const maxQty = Math.floor(${quantityValue} / orderPrice);`,
+              `${indent(depth)}if (maxQty <= 0) {`,
+              `${indent(depth + 1)}console.log("金额 ${quantityValue} 不足以购买 1 股（当前价格 " + orderPrice + "），跳过下单");`,
+              `${indent(depth + 1)}return;`,
+              `${indent(depth)}}`,
+              `${indent(depth)}const orderQty = maxQty;`,
+            );
+            break;
+          }
+          case "positionPercent": {
+            lines.push(
+              `${indent(depth)}const orderPrice = ctx.kline.close;`,
+              `${indent(depth)}const targetValue = (pos && pos.marketValue > 0 ? pos.marketValue : 0) * ${quantityValue} / 100;`,
+              `${indent(depth)}const orderQty = targetValue > 0 ? Math.floor(targetValue / orderPrice) : 0;`,
+              `${indent(depth)}if (orderQty <= 0) {`,
+              `${indent(depth + 1)}console.log("仓位百分比计算所得数量为 0，跳过下单");`,
+              `${indent(depth + 1)}return;`,
+              `${indent(depth)}}`,
+            );
+            break;
+          }
+          case "cashPercent": {
+            lines.push(
+              `${indent(depth)}const orderPrice = ctx.kline.close;`,
+              `${indent(depth)}const availableCash = getAvailableCash();`,
+              `${indent(depth)}const targetAmount = availableCash * ${quantityValue} / 100;`,
+              `${indent(depth)}const orderQty = targetAmount > 0 ? Math.floor(targetAmount / orderPrice) : 0;`,
+              `${indent(depth)}if (orderQty <= 0) {`,
+              `${indent(depth + 1)}console.log("现金百分比计算所得数量为 0（可用资金 " + availableCash + " × ${quantityValue}% ÷ 价格 " + orderPrice + "），请调整百分比或确认账户资金充足");`,
+              `${indent(depth + 1)}return;`,
+              `${indent(depth)}}`,
+            );
+            break;
+          }
+          default: {
+            lines.push(
+              `${indent(depth)}const orderQty = ${quantityValue};`,
+            );
+            break;
+          }
+        }
+
+        orderProps.push("quantity: orderQty");
+        lines.push(
+          `${indent(depth)}console.log(\`下单 \${orderQty} 股 ${sideLabel} (${quantityMode})\`);`,
+          `${indent(depth)}placeOrder({ ${orderProps.join(", ")} });`,
+        );
+
+        return withFlowAnnotation([
+          ...lines,
           ...renderChildren(node.id, visited, depth),
         ]);
       }

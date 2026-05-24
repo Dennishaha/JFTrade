@@ -126,6 +126,7 @@ declare function getPosition(symbol?: string): JFTradePositionSnapshot | null;
 declare function getPositions(): JFTradePositionSnapshot[];
 declare function getRiskState(): JFTradeRiskSnapshot;
 declare function isOperationBlocked(operation: JFTradeRiskOperation): boolean;
+declare function getAvailableCash(): number;
 `,
   },
 ];

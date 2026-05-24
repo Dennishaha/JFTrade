@@ -1,0 +1,47 @@
+package backtest
+
+import "testing"
+
+func TestRunResultSnapshotReturnsIndependentCopy(t *testing.T) {
+	original := &RunResult{
+		Symbol:        "HK.00700",
+		Interval:      "1m",
+		FinalBalance:  123456,
+		Trades:        []TradeEvent{{Time: "2026-01-02T00:00:00Z", Side: "BUY", Price: 100, Qty: 1}},
+		PnLCurve:      []PnLPoint{{Time: "2026-01-02T00:00:00Z", Equity: 100000}},
+		Candles:       []Candle{{Time: "2026-01-02T00:00:00Z", Open: 100, High: 101, Low: 99, Close: 100.5, Volume: 10}},
+		Logs:          []string{"warmup complete"},
+		RuntimeErrors: []string{"risk warning"},
+	}
+
+	snapshot := original.Snapshot()
+	if snapshot == nil {
+		t.Fatal("expected snapshot")
+	}
+
+	snapshot.FinalBalance = 42
+	snapshot.Trades[0].Price = 999
+	snapshot.PnLCurve[0].Equity = 12
+	snapshot.Candles[0].Close = 1
+	snapshot.Logs[0] = "changed"
+	snapshot.RuntimeErrors[0] = "changed"
+
+	if original.FinalBalance != 123456 {
+		t.Fatalf("original final balance mutated: %f", original.FinalBalance)
+	}
+	if original.Trades[0].Price != 100 {
+		t.Fatalf("original trade mutated: %f", original.Trades[0].Price)
+	}
+	if original.PnLCurve[0].Equity != 100000 {
+		t.Fatalf("original pnl point mutated: %f", original.PnLCurve[0].Equity)
+	}
+	if original.Candles[0].Close != 100.5 {
+		t.Fatalf("original candle mutated: %f", original.Candles[0].Close)
+	}
+	if original.Logs[0] != "warmup complete" {
+		t.Fatalf("original logs mutated: %s", original.Logs[0])
+	}
+	if original.RuntimeErrors[0] != "risk warning" {
+		t.Fatalf("original runtime errors mutated: %s", original.RuntimeErrors[0])
+	}
+}

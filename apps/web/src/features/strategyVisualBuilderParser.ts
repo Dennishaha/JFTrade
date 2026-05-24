@@ -114,6 +114,7 @@ const GENERATED_RUNTIME_FUNCTIONS = new Set([
 
 export function buildStrategyVisualModelFromScript(
   script: string,
+  existingModel?: StrategyVisualModelDocument | null,
 ): StrategyScriptParseResult {
   try {
     const flowAnnotations: FlowAnnotationComment[] = [];
@@ -142,7 +143,7 @@ export function buildStrategyVisualModelFromScript(
       script,
       flowAnnotations,
     };
-    const builder = createModelBuilder();
+    const builder = createModelBuilder(existingModel);
     const hookBodies = new Map<HookKind, AstStatement[]>();
     const globalStatements: AstStatement[] = [];
 
@@ -205,12 +206,30 @@ export function buildStrategyVisualModelFromScript(
   }
 }
 
-function createModelBuilder(): {
+function buildExistingNodePositionMap(
+  model: StrategyVisualModelDocument | null | undefined,
+): Map<string, { x: number; y: number }> {
+  const map = new Map<string, { x: number; y: number }>();
+  if (model === null || model === undefined) {
+    return map;
+  }
+
+  for (const node of model.nodes) {
+    map.set(node.id, { x: node.x, y: node.y });
+  }
+
+  return map;
+}
+
+function createModelBuilder(
+  existingModel?: StrategyVisualModelDocument | null,
+): {
   nodes: StrategyVisualNodeDocument[];
   edges: StrategyVisualEdgeDocument[];
   nextId: number;
   codeBlockCount: number;
   usedNodeIds: Set<string>;
+  existingPositions: Map<string, { x: number; y: number }>;
 } {
   return {
     nodes: [
@@ -239,7 +258,22 @@ function createModelBuilder(): {
     nextId: 0,
     codeBlockCount: 0,
     usedNodeIds: new Set(["on-init-root", "on-kline-root"]),
+    existingPositions: buildExistingNodePositionMap(existingModel),
   };
+}
+
+function resolvePreservedPosition(
+  builder: ReturnType<typeof createModelBuilder>,
+  nodeId: string,
+  fallbackX: number,
+  fallbackY: number,
+): { x: number; y: number } {
+  const preserved = builder.existingPositions.get(nodeId);
+  if (preserved !== undefined) {
+    return preserved;
+  }
+
+  return { x: fallbackX, y: fallbackY };
 }
 
 function appendGlobalCodeBlocks(
@@ -269,12 +303,15 @@ function appendGlobalCodeBlocks(
     }
 
     const { nodeId } = reserveParsedNodeIdentity(builder, annotation?.nodeId, "global-code");
+    const fallbackX = ROOT_LAYOUT.global.x + builder.codeBlockCount * BLOCK_X_STEP - BLOCK_X_STEP;
+    const fallbackY = ROOT_LAYOUT.global.y;
+    const { x, y } = resolvePreservedPosition(builder, nodeId, fallbackX, fallbackY);
     builder.codeBlockCount += 1;
     builder.nodes.push({
       id: nodeId,
       type: "rect",
-      x: ROOT_LAYOUT.global.x + builder.codeBlockCount * BLOCK_X_STEP - BLOCK_X_STEP,
-      y: ROOT_LAYOUT.global.y,
+      x,
+      y,
       text: annotation?.nodeText ?? buildCodeBlockLabel(code, true),
       properties: withSourceRangeProperties(
         applyCodeBlockAnnotationProperties(
@@ -335,11 +372,17 @@ function appendHookSequence(
       match.item.flowNodeId,
       "visual-node",
     );
+    const { x: resolvedX, y: resolvedY } = resolvePreservedPosition(
+      builder,
+      nodeId,
+      nodeX,
+      nodeY,
+    );
     builder.nodes.push({
       id: nodeId,
       type: resolveNodeShape(match.item.kind),
-      x: nodeX,
-      y: nodeY,
+      x: resolvedX,
+      y: resolvedY,
       text: match.item.text,
       properties: { ...match.item.properties },
     });
@@ -365,9 +408,9 @@ function appendHookSequence(
       appendHookSequence(match.item.children ?? [], parserContext, builder, {
         hookKind: context.hookKind,
         parentId: nodeId,
-        baseX: nodeX + BLOCK_X_STEP,
-        baseY: nodeY + BLOCK_Y_STEP,
-      }, "siblings");
+        baseX: resolvedX + BLOCK_X_STEP,
+        baseY: resolvedY + BLOCK_Y_STEP,
+      });
     }
   }
 }
@@ -443,6 +486,7 @@ function parseHookStatement(
     tryParseRsi(statements, index) ??
     tryParseMacd(statements, index) ??
     tryParseBollinger(statements, index) ??
+    tryParsePlaceOrder(statements, index, parserContext.script) ??
     tryParseNotify(statement, parserContext.script, index) ??
     tryParseLog(statement, parserContext.script, index) ??
     tryParseCondition(statements, index, hookKind) ??
@@ -756,6 +800,208 @@ function tryParseLog(
         blockKind: "log",
         message,
       },
+    },
+  };
+}
+
+function tryParsePlaceOrder(
+  statements: AstStatement[],
+  index: number,
+  script: string,
+): ParsedStatementMatch | null {
+  // Look for a sequence: qty calc + console.log(...下单...) + placeOrder({...})
+  // We need to scan forward to find the placeOrder call
+  let scanIndex = index;
+
+  // Skip quantity calculation statements (variable declarations)
+  while (scanIndex < statements.length) {
+    const stmt = statements[scanIndex];
+    if (stmt === undefined) {
+      return null;
+    }
+
+    // Stop when we find placeOrder
+    const placeOrderCall = matchCallStatement(stmt, "placeOrder");
+    if (placeOrderCall !== null) {
+      break;
+    }
+
+    // Allow through: variable declarations, if statements (for guards), console.log
+    if (
+      stmt.type === "VariableDeclaration" ||
+      stmt.type === "ExpressionStatement" ||
+      stmt.type === "IfStatement"
+    ) {
+      scanIndex += 1;
+      continue;
+    }
+
+    return null;
+  }
+
+  if (scanIndex >= statements.length) {
+    return null;
+  }
+
+  const placeOrderStmt = statements[scanIndex];
+  if (placeOrderStmt === undefined) {
+    return null;
+  }
+
+  const placeOrderCallExpr = matchCallStatement(placeOrderStmt, "placeOrder");
+  if (placeOrderCallExpr === null) {
+    return null;
+  }
+
+  // Parse the placeOrder arguments (the object literal)
+  const callArgs = readCallArguments(placeOrderCallExpr);
+  const orderObj = callArgs[0];
+
+  if (orderObj?.type !== "ObjectExpression") {
+    return null;
+  }
+
+  const properties = new Map<string, unknown>();
+  const objProps = (orderObj as AstNode & { properties?: Array<{ key?: AstNode; value?: AstNode }> }).properties ?? [];
+  for (const prop of objProps) {
+    const keyName = readIdentifierName(prop.key);
+    if (keyName === null || prop.value === undefined) {
+      continue;
+    }
+
+    if (keyName === "side") {
+      const sideValue = readSource(script, prop.value).replace(/["']/g, "");
+      properties.set("orderSideRaw", sideValue === "SELL" ? "SELL" : "BUY");
+    } else if (keyName === "orderType") {
+      const typeValue = readSource(script, prop.value).replace(/["']/g, "");
+      properties.set("orderType", typeValue === "LIMIT" ? "LIMIT" : "MARKET");
+    } else if (keyName === "limitPrice") {
+      const numVal = readNumericLiteral(prop.value);
+      if (numVal !== null) {
+        properties.set("limitPrice", numVal);
+      }
+    }
+  }
+
+  // Determine visual side from position guard patterns in preceding statements
+  const rawSide = properties.get("orderSideRaw") ?? "BUY";
+  let visualSide: string = rawSide === "SELL" ? "SELL" : "BUY";
+
+  // Scan backwards for position direction guards to infer SELL_SHORT / BUY_COVER
+  for (let backIdx = scanIndex - 1; backIdx >= index; backIdx -= 1) {
+    const stmt = statements[backIdx];
+    if (stmt === undefined) {
+      continue;
+    }
+
+    const source = readSource(script, stmt);
+
+    if (/跳过重复开空|已有空头持仓/.test(source)) {
+      visualSide = "SELL_SHORT";
+      break;
+    }
+    if (/无空头持仓可平|跳过买入平空/.test(source)) {
+      visualSide = "BUY_COVER";
+      break;
+    }
+    if (/跳过重复开多|已有多头持仓.*跳过/.test(source)) {
+      visualSide = "BUY";
+      break;
+    }
+    if (/无多头持仓可平/.test(source)) {
+      visualSide = "SELL";
+      break;
+    }
+  }
+
+  properties.set("side", visualSide);
+
+  // Try to recover quantity mode and value from preceding statements
+  let quantityMode: string = "shares";
+  let quantityValue: number = 100;
+
+  // Scan backwards for quantity calculation patterns
+  for (let backIdx = scanIndex - 1; backIdx >= index; backIdx -= 1) {
+    const stmt = statements[backIdx];
+    if (stmt === undefined) {
+      continue;
+    }
+
+    const source = readSource(script, stmt);
+
+    // Check for amount mode: maxQty = Math.floor(amount / price)
+    if (/maxQty\s*=\s*Math\.floor/.test(source)) {
+      quantityMode = "amount";
+      const amountMatch = source.match(/Math\.floor\(\s*(\d+(?:\.\d+)?)\s*\//);
+      if (amountMatch !== null && amountMatch[1] !== undefined) {
+        quantityValue = Number(amountMatch[1]);
+      }
+    }
+
+    // Check for positionPercent mode
+    if (/targetValue/.test(source) && /pos\.marketValue/.test(source)) {
+      quantityMode = "positionPercent";
+      const pctMatch = source.match(/\*\s*(\d+(?:\.\d+)?)\s*\/\s*100/);
+      if (pctMatch !== null && pctMatch[1] !== undefined) {
+        quantityValue = Number(pctMatch[1]);
+      }
+    }
+
+    // Check for cashPercent mode: targetAmount = availableCash * pct / 100
+    if (/targetAmount/.test(source) && /availableCash/.test(source)) {
+      quantityMode = "cashPercent";
+      const pctMatch = source.match(/\*\s*(\d+(?:\.\d+)?)\s*\/\s*100/);
+      if (pctMatch !== null && pctMatch[1] !== undefined) {
+        quantityValue = Number(pctMatch[1]);
+      }
+    }
+
+    // Check for shares mode: orderQty = NNN
+    const sharesMatch = source.match(/orderQty\s*=\s*(\d+(?:\.\d+)?)\s*;?\s*$/);
+    if (sharesMatch !== null && sharesMatch[1] !== undefined && quantityMode === "shares") {
+      quantityValue = Number(sharesMatch[1]);
+    }
+  }
+
+  properties.set("quantityMode", quantityMode);
+  properties.set("quantityValue", quantityValue);
+
+  const rawVisualSide = properties.get("side");
+  const side: string = typeof rawVisualSide === "string" ? rawVisualSide : "BUY";
+  const blockProperties: Record<string, unknown> = {
+    blockKind: "placeOrder",
+    side,
+    orderType: properties.get("orderType") ?? "MARKET",
+    quantityMode,
+    quantityValue,
+  };
+
+  const limitPrice = properties.get("limitPrice");
+  if (typeof limitPrice === "number") {
+    blockProperties.limitPrice = limitPrice;
+  }
+
+  const sideLabelMap: Record<string, string> = {
+    BUY: "买入开多",
+    SELL: "卖出平多",
+    SELL_SHORT: "卖出开空",
+    BUY_COVER: "买入平空",
+  };
+  const sideLabel = sideLabelMap[side] ?? "买入";
+  const modeLabels: Record<string, string> = {
+    shares: `${quantityValue} 股`,
+    amount: `${quantityValue} 元`,
+    positionPercent: `仓位 ${quantityValue}%`,
+    cashPercent: `现金 ${quantityValue}%`,
+  };
+  const modeLabel = modeLabels[quantityMode] ?? `${quantityValue} 股`;
+
+  return {
+    nextIndex: scanIndex + 1,
+    item: {
+      kind: "placeOrder",
+      text: `下单 · ${sideLabel} · ${modeLabel}`,
+      properties: blockProperties,
     },
   };
 }

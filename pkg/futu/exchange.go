@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"strings"
 	"sync"
@@ -61,6 +62,11 @@ type Exchange struct {
 	subscriptions        subscriptionRegistry
 	systemNotifyClient   *opend.Client
 	systemNotifyHandlers []func(*notifypb.Response)
+
+	// customMarkets holds market info for symbols that are not natively
+	// returned by QueryMarkets but should be known to the exchange — e.g.
+	// backtest symbols that the live OpenD connection hasn't discovered.
+	customMarkets types.MarketMap
 }
 
 // NewExchange constructs an Exchange. It does not dial OpenD: bbgo expects
@@ -118,7 +124,7 @@ func (e *Exchange) PlatformFeeCurrency() string { return "HKD" }
 func (e *Exchange) NewStream() types.Stream { return NewStream(e) }
 
 func (e *Exchange) QueryMarkets(ctx context.Context) (types.MarketMap, error) {
-	return types.MarketMap{
+	base := types.MarketMap{
 		"HK.00700": {
 			Exchange:        Name,
 			Symbol:          "HK.00700",
@@ -132,7 +138,63 @@ func (e *Exchange) QueryMarkets(ctx context.Context) (types.MarketMap, error) {
 			StepSize:        fixedpoint.One,
 			TickSize:        fixedpoint.NewFromFloat(0.001),
 		},
-	}, nil
+	}
+	e.mu.Lock()
+	for symbol, market := range e.customMarkets {
+		base[symbol] = market
+	}
+	e.mu.Unlock()
+	return base, nil
+}
+
+// EnsureMarket makes a minimal types.Market available for symbol so that
+// backtest matching books and Market() lookups succeed. It derives market
+// parameters (quote currency, tick size, precision) from the symbol prefix.
+func (e *Exchange) EnsureMarket(symbol string) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if e.customMarkets == nil {
+		e.customMarkets = make(types.MarketMap)
+	}
+	sym := strings.ToUpper(strings.TrimSpace(symbol))
+	if _, ok := e.customMarkets[sym]; ok {
+		return
+	}
+	e.customMarkets[sym] = inferMarket(sym)
+}
+
+// inferMarket builds a reasonable types.Market from a "MARKET.CODE" symbol.
+func inferMarket(symbol string) types.Market {
+	sym := strings.ToUpper(strings.TrimSpace(symbol))
+	m := types.Market{
+		Exchange:        Name,
+		Symbol:          sym,
+		LocalSymbol:     sym,
+		PricePrecision:  2,
+		VolumePrecision: 0,
+		QuotePrecision:  2,
+		MinQuantity:     fixedpoint.One,
+		StepSize:        fixedpoint.One,
+	}
+	switch {
+	case strings.HasPrefix(sym, "US."):
+		m.QuoteCurrency = "USD"
+		m.BaseCurrency = sym
+		m.TickSize = fixedpoint.NewFromFloat(0.01)
+	case strings.HasPrefix(sym, "HK."):
+		m.QuoteCurrency = "HKD"
+		m.BaseCurrency = sym
+		m.PricePrecision = 3
+		m.QuotePrecision = 3
+		m.TickSize = fixedpoint.NewFromFloat(0.001)
+	default:
+		m.QuoteCurrency = "HKD"
+		m.BaseCurrency = sym
+		m.PricePrecision = 3
+		m.QuotePrecision = 3
+		m.TickSize = fixedpoint.NewFromFloat(0.001)
+	}
+	return m
 }
 
 func (e *Exchange) QueryTicker(ctx context.Context, symbol string) (*types.Ticker, error) {
@@ -280,6 +342,7 @@ func (e *Exchange) withClient(ctx context.Context, fn func(*opend.Client) error)
 				return err
 			}
 			lastErr = err
+			log.Printf("futu withClient: recoverable error, invalidating client and retrying: %v", err)
 			e.invalidateClient()
 			continue
 		}
@@ -329,14 +392,28 @@ func (e *Exchange) queryBasicQotList(ctx context.Context, symbols []string) (map
 		return map[string]*qotcommonpb.BasicQot{}, nil
 	}
 
+	reqStart := time.Now()
 	request := &qotgetbasicqotpb.Request{C2S: &qotgetbasicqotpb.C2S{SecurityList: securityList}}
 	var response qotgetbasicqotpb.Response
 	if err := e.withClient(ctx, func(client *opend.Client) error {
+		subStart := time.Now()
 		if err := e.ensureBasicQotSubscriptions(ctx, client, requests); err != nil {
 			return err
 		}
-		return client.Call(ctx, opend.ProtoGetBasicQot, request, &response)
+		subElapsed := time.Since(subStart)
+
+		callStart := time.Now()
+		if err := client.Call(ctx, opend.ProtoGetBasicQot, request, &response); err != nil {
+			return err
+		}
+		callElapsed := time.Since(callStart)
+
+		log.Printf("futu GetBasicQot symbols=%d sub=%v rpc=%v total=%v",
+			len(requests), subElapsed, callElapsed, time.Since(reqStart))
+		return nil
 	}); err != nil {
+		log.Printf("futu GetBasicQot symbols=%d failed after %v: %v",
+			len(requests), time.Since(reqStart), err)
 		return nil, err
 	}
 	if response.GetRetType() != 0 {
@@ -418,6 +495,7 @@ func (e *Exchange) ensureClient(ctx context.Context) (*opend.Client, error) {
 	if e.ready {
 		select {
 		case <-e.client.Done():
+			log.Printf("futu OpenD client done; reconnecting to %s", e.addr)
 			_ = e.invalidateClientLocked()
 			e.client = e.newClient()
 		default:
@@ -425,11 +503,18 @@ func (e *Exchange) ensureClient(ctx context.Context) (*opend.Client, error) {
 			return e.client, nil
 		}
 	}
+	log.Printf("futu OpenD connecting new session to %s (ready=%v clientNil=%v)",
+		e.addr, e.ready, e.client == nil)
+
+	connectStart := time.Now()
 	if err := e.client.Connect(ctx); err != nil {
 		_ = e.invalidateClientLocked()
+		log.Printf("futu OpenD connect to %s failed after %v: %v", e.addr, time.Since(connectStart), err)
 		return nil, err
 	}
+	connectElapsed := time.Since(connectStart)
 
+	initStart := time.Now()
 	initReq := &initpb.Request{C2S: &initpb.C2S{
 		ClientVer:           proto.Int32(101),
 		ClientID:            proto.String("jftrade-bbgo"),
@@ -439,10 +524,13 @@ func (e *Exchange) ensureClient(ctx context.Context) (*opend.Client, error) {
 	var initResp initpb.Response
 	if err := e.client.Call(ctx, opend.ProtoInitConnect, initReq, &initResp); err != nil {
 		_ = e.invalidateClientLocked()
+		log.Printf("futu OpenD InitConnect to %s failed after %v (connect=%v): %v",
+			e.addr, time.Since(initStart), connectElapsed, err)
 		return nil, err
 	}
 	if initResp.GetRetType() != 0 {
 		err := fmt.Errorf("opend InitConnect retType=%d errCode=%d retMsg=%s", initResp.GetRetType(), initResp.GetErrCode(), initResp.GetRetMsg())
+		log.Printf("futu OpenD InitConnect error: %v", err)
 		_ = e.invalidateClientLocked()
 		return nil, err
 	}
@@ -453,6 +541,8 @@ func (e *Exchange) ensureClient(ctx context.Context) (*opend.Client, error) {
 	}
 	e.subscriptions.ensure()
 	e.bindSystemNotifyLocked(e.client)
+	log.Printf("futu OpenD session established to %s (connect=%v init=%v total=%v)",
+		e.addr, connectElapsed, time.Since(initStart), time.Since(connectStart))
 	return e.client, nil
 }
 
@@ -485,6 +575,7 @@ func (e *Exchange) newClient() *opend.Client {
 func (e *Exchange) invalidateClient() {
 	e.mu.Lock()
 	defer e.mu.Unlock()
+	log.Printf("futu OpenD invalidateClient (public) addr=%s", e.addr)
 	_ = e.invalidateClientLocked()
 }
 

@@ -43,6 +43,8 @@ type Server struct {
 	store               *SettingsStore
 	strategyStore       *strategyCatalogStore
 	designStore         *strategyDesignStore
+	backtestRuns        *backtestRunStore
+	backtestSyncTasks   *backtestSyncTaskStore
 	upgrader            websocket.Upgrader
 	marketSubscriptions marketSubscriptionManager
 	tickCache           tickSampleCacheManager
@@ -119,6 +121,8 @@ func NewServer(store *SettingsStore) *Server {
 		store:               store,
 		strategyStore:       strategyStore,
 		designStore:         designStore,
+		backtestRuns:        newBacktestRunStore(),
+		backtestSyncTasks:   newBacktestSyncTaskStore(),
 		marketSubscriptions: newMarketSubscriptionManager(),
 		tickCache:           newTickSampleCacheManager(),
 		upgrader: websocket.Upgrader{
@@ -169,6 +173,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case s.serveSystemRoutes(w, r):
 	case s.servePluginRoutes(w, r):
 	case s.serveStrategyRoutes(w, r):
+	case s.serveBacktestRoutes(w, r):
 	case s.serveBrokerRoutes(w, r):
 	case s.servePortfolioRoutes(w, r):
 	case s.serveExecutionRoutes(w, r):

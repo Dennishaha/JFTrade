@@ -242,6 +242,126 @@ export function useStrategyVisualNodeInspector(
     },
   });
 
+  // ── placeOrder block properties ──
+
+  const showsPlaceOrderInputs = computed(
+    () => selectedVisualKind.value === "placeOrder",
+  );
+
+  const selectedPlaceOrderSide = computed({
+    get: () => {
+      const side = selectedVisualNode.value?.properties.side;
+      if (
+        typeof side === "string" &&
+        (side === "BUY" || side === "SELL" || side === "SELL_SHORT" || side === "BUY_COVER")
+      ) {
+        return side;
+      }
+      return "BUY";
+    },
+    set: (value: string) => {
+      mutateSelectedVisualNode((node) => ({
+        ...node,
+        text: nextPlaceOrderNodeText({ ...node.properties, side: value }, node.text),
+        properties: {
+          ...node.properties,
+          side: value,
+        },
+      }));
+    },
+  });
+
+  const selectedPlaceOrderType = computed({
+    get: () => {
+      const orderType = selectedVisualNode.value?.properties.orderType;
+      return typeof orderType === "string" && orderType === "LIMIT" ? "LIMIT" : "MARKET";
+    },
+    set: (value: string) => {
+      mutateSelectedVisualNode((node) => ({
+        ...node,
+        text: nextPlaceOrderNodeText({ ...node.properties, orderType: value }, node.text),
+        properties: {
+          ...node.properties,
+          orderType: value,
+        },
+      }));
+    },
+  });
+
+  const selectedPlaceOrderQuantityMode = computed({
+    get: () => {
+      const mode = selectedVisualNode.value?.properties.quantityMode;
+      if (
+        typeof mode === "string" &&
+        (mode === "shares" || mode === "amount" || mode === "positionPercent" || mode === "cashPercent")
+      ) {
+        return mode;
+      }
+      return "shares";
+    },
+    set: (value: string) => {
+      mutateSelectedVisualNode((node) => ({
+        ...node,
+        text: nextPlaceOrderNodeText({ ...node.properties, quantityMode: value }, node.text),
+        properties: {
+          ...node.properties,
+          quantityMode: value,
+        },
+      }));
+    },
+  });
+
+  const selectedPlaceOrderQuantityValue = computed({
+    get: () => {
+      const value = selectedVisualNode.value?.properties.quantityValue;
+      if (typeof value === "number") {
+        return String(value);
+      }
+      if (typeof value === "string") {
+        return value;
+      }
+      return "100";
+    },
+    set: (value: string) => {
+      const nextValue = normalizeNumber(value, 100);
+      mutateSelectedVisualNode((node) => ({
+        ...node,
+        text: nextPlaceOrderNodeText({ ...node.properties, quantityValue: nextValue }, node.text),
+        properties: {
+          ...node.properties,
+          quantityValue: nextValue,
+        },
+      }));
+    },
+  });
+
+  const selectedPlaceOrderLimitPrice = computed({
+    get: () => {
+      const value = selectedVisualNode.value?.properties.limitPrice;
+      if (typeof value === "number") {
+        return String(value);
+      }
+      if (typeof value === "string") {
+        return value;
+      }
+      return "0";
+    },
+    set: (value: string) => {
+      const nextValue = normalizeNumber(value, 0);
+      mutateSelectedVisualNode((node) => ({
+        ...node,
+        properties: {
+          ...node.properties,
+          limitPrice: nextValue,
+        },
+      }));
+    },
+  });
+
+  const showsPlaceOrderLimitPriceInput = computed(
+    () => showsPlaceOrderInputs.value && selectedPlaceOrderType.value === "LIMIT",
+  );
+
   return {
     selectedVisualKind,
     selectedVisualBlock,
@@ -259,6 +379,14 @@ export function useStrategyVisualNodeInspector(
     selectedMacdSignalPeriod,
     showsMultiplierInput,
     selectedBollingerMultiplier,
+    // placeOrder
+    showsPlaceOrderInputs,
+    selectedPlaceOrderSide,
+    selectedPlaceOrderType,
+    selectedPlaceOrderQuantityMode,
+    selectedPlaceOrderQuantityValue,
+    selectedPlaceOrderLimitPrice,
+    showsPlaceOrderLimitPriceInput,
   };
 }
 
@@ -352,4 +480,36 @@ function nextMacdNodeText(properties: Record<string, unknown>): string {
     9,
   );
   return `MACD ${fastPeriod}/${slowPeriod}/${signalPeriod}`;
+}
+
+function nextPlaceOrderNodeText(
+  properties: Record<string, unknown>,
+  fallbackText: string,
+): string {
+  const side = typeof properties.side === "string" ? properties.side : "BUY";
+  const sideLabels: Record<string, string> = {
+    BUY: "买入开多",
+    SELL: "卖出平多",
+    SELL_SHORT: "卖出开空",
+    BUY_COVER: "买入平空",
+  };
+  const sideLabel = sideLabels[side] ?? "买入";
+  const quantityMode = typeof properties.quantityMode === "string"
+    ? properties.quantityMode
+    : "shares";
+  const quantityValue = typeof properties.quantityValue === "number"
+    ? properties.quantityValue
+    : typeof properties.quantityValue === "string"
+      ? normalizeNumber(properties.quantityValue, 100)
+      : 100;
+
+  const modeLabels: Record<string, string> = {
+    shares: `${quantityValue} 股`,
+    amount: `${quantityValue} 元`,
+    positionPercent: `仓位 ${quantityValue}%`,
+    cashPercent: `现金 ${quantityValue}%`,
+  };
+  const modeLabel = modeLabels[quantityMode] ?? `${quantityValue} 股`;
+
+  return `下单 · ${sideLabel} · ${modeLabel}`;
 }

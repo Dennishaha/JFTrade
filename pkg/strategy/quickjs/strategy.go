@@ -44,6 +44,14 @@ type Strategy struct {
 	Interval     types.Interval `json:"interval"`
 	Script       string         `json:"script"`
 	DefinitionID string         `json:"definitionId"`
+	// WarmupUntil, when set in backtest mode, suppresses placeOrder
+	// before this time so that indicators can warm up without
+	// executing trades during the warmup period.
+	WarmupUntil time.Time `json:"-"`
+	// OnError, when set, is called with human-readable error messages
+	// from runtime hooks (e.g. onKLineClosed).  This lets the backtest
+	// runner collect per-event errors for the frontend.
+	OnError func(errMsg string) `json:"-"`
 }
 
 func (s *Strategy) ID() string {
@@ -51,14 +59,22 @@ func (s *Strategy) ID() string {
 }
 
 type runtimeBridge struct {
-	mu       sync.Mutex
-	vm       *qjs.VM
-	strategy *Strategy
-	ctx      context.Context
-	session  *bbgo2.ExchangeSession
-	executor bbgo2.OrderExecutor
-	orders   map[string]types.Order
-	closed   bool
+	mu            sync.Mutex
+	hookContextMu sync.RWMutex
+	vm            *qjs.VM
+	strategy      *Strategy
+	ctx           context.Context
+	session       *bbgo2.ExchangeSession
+	executor      bbgo2.OrderExecutor
+	orders        map[string]types.Order
+	closed        bool
+	hookProbes    map[string]bool // cached typeof probe results
+	activeHookCtx *HookContext
+}
+
+type HookContext struct {
+	CurrentKlineTime time.Time
+	WarmupUntil      time.Time
 }
 
 type hostOrderAck struct {
@@ -122,7 +138,8 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo2.OrderExecutor, s
 		"definitionId": strings.TrimSpace(s.DefinitionID),
 		"symbol":       strings.ToUpper(strings.TrimSpace(s.Symbol)),
 		"interval":     string(defaultInterval(s.Interval)),
-	}); err != nil {
+		"isBacktest":   bbgo2.IsBackTesting,
+	}, &HookContext{WarmupUntil: s.WarmupUntil}); err != nil {
 		return err
 	}
 
@@ -139,8 +156,12 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo2.OrderExecutor, s
 			"symbol":       strings.ToUpper(strings.TrimSpace(s.Symbol)),
 			"interval":     string(defaultInterval(s.Interval)),
 			"kline":        klinePayload(kline),
-		}); hookErr != nil {
-			bbgo2.Notify("quickjs strategy %s hook error: %v", strategyName(s), hookErr)
+		}, &HookContext{CurrentKlineTime: kline.EndTime.Time(), WarmupUntil: s.WarmupUntil}); hookErr != nil {
+			errMsg := hookErr.Error()
+			bbgo2.Notify("quickjs strategy %s onKLineClosed error: %s", strategyName(s), errMsg)
+			if s.OnError != nil {
+				s.OnError(errMsg)
+			}
 		}
 	})
 
@@ -156,12 +177,13 @@ func newRuntimeBridge(ctx context.Context, strategy *Strategy, orderExecutor bbg
 		ctx = context.Background()
 	}
 	bridge := &runtimeBridge{
-		vm:       vm,
-		strategy: strategy,
-		ctx:      ctx,
-		session:  session,
-		executor: orderExecutor,
-		orders:   make(map[string]types.Order),
+		vm:         vm,
+		strategy:   strategy,
+		ctx:        ctx,
+		session:    session,
+		executor:   orderExecutor,
+		orders:     make(map[string]types.Order),
+		hookProbes: make(map[string]bool),
 	}
 	if err := bridge.installHostAPI(); err != nil {
 		_ = bridge.close()
@@ -242,6 +264,11 @@ func (r *runtimeBridge) installHostAPI() error {
 	}, false); err != nil {
 		return fmt.Errorf("register quickjs isOperationBlocked host: %w", err)
 	}
+	if err := r.vm.RegisterFunc("__jftradeHostGetAvailableCash", func() float64 {
+		return r.getAvailableCash()
+	}, false); err != nil {
+		return fmt.Errorf("register quickjs getAvailableCash host: %w", err)
+	}
 	bootstrap := strings.Join([]string{
 		"(() => {",
 		"  const formatArg = (value) => {",
@@ -268,6 +295,7 @@ func (r *runtimeBridge) installHostAPI() error {
 		"  globalThis.getPositions = () => __jftradeHostGetPositions();",
 		"  globalThis.getRiskState = () => __jftradeHostGetRiskState();",
 		"  globalThis.isOperationBlocked = (operation) => Boolean(__jftradeHostIsOperationBlocked(String(operation ?? '')));",
+		"  globalThis.getAvailableCash = () => __jftradeHostGetAvailableCash();",
 		"})();",
 	}, "\n")
 	if _, err := r.vm.Eval(bootstrap, qjs.EvalGlobal); err != nil {
@@ -394,12 +422,51 @@ func (r *runtimeBridge) getRiskState() runtimeRiskSnapshot {
 	return buildRuntimeRiskSnapshot(publicOnly, runtimeAccount(r.session), r.executor != nil)
 }
 
+func (r *runtimeBridge) setActiveHookContext(ctx *HookContext) {
+	r.hookContextMu.Lock()
+	defer r.hookContextMu.Unlock()
+	r.activeHookCtx = ctx
+}
+
+func (r *runtimeBridge) currentHookContext() *HookContext {
+	r.hookContextMu.RLock()
+	defer r.hookContextMu.RUnlock()
+	if r.activeHookCtx == nil {
+		return nil
+	}
+	ctx := *r.activeHookCtx
+	return &ctx
+}
+
+// isOperationBlocked checks whether the given operation is blocked.
+// In backtest mode, PLACE is also blocked during the warmup period.
 func (r *runtimeBridge) isOperationBlocked(operation string) bool {
 	snapshot := r.getRiskState()
 	normalizedOperation := strings.ToUpper(strings.TrimSpace(operation))
 	if normalizedOperation == "" {
 		return true
 	}
+
+	// During warmup, suppress order placement so indicators can
+	// accumulate history before actual trading begins.
+	if normalizedOperation == "PLACE" {
+		hookContext := r.currentHookContext()
+		warmupUntil := time.Time{}
+		currentKlineTime := time.Time{}
+		if r.strategy != nil {
+			warmupUntil = r.strategy.WarmupUntil
+		}
+		if hookContext != nil {
+			currentKlineTime = hookContext.CurrentKlineTime
+			if !hookContext.WarmupUntil.IsZero() {
+				warmupUntil = hookContext.WarmupUntil
+			}
+		}
+		if !warmupUntil.IsZero() && currentKlineTime.Before(warmupUntil) {
+			return true
+		}
+	}
+
 	for _, blockedOperation := range snapshot.BlockedOperations {
 		if blockedOperation == normalizedOperation {
 			return true
@@ -409,6 +476,36 @@ func (r *runtimeBridge) isOperationBlocked(operation string) bool {
 		return !snapshot.AllowsCancel
 	}
 	return false
+}
+
+// getAvailableCash returns the available cash for order sizing.
+// In backtest mode this reflects the strategy's current portfolio cash;
+// in live mode it returns the actual account available funds.
+func (r *runtimeBridge) getAvailableCash() float64 {
+	account := runtimeAccount(r.session)
+	if account == nil {
+		return 0
+	}
+
+	// Prefer TotalAccountValue (normalized to a single currency).
+	if !account.TotalAccountValue.IsZero() {
+		return account.TotalAccountValue.Float64()
+	}
+
+	// Fallback: sum available balances across all currencies.
+	total := fixedpoint.Zero
+	for _, bal := range account.Balances() {
+		total = total.Add(bal.Available)
+	}
+	if !total.IsZero() {
+		return total.Float64()
+	}
+
+	// Last resort: sum net assets.
+	for _, bal := range account.Balances() {
+		total = total.Add(bal.NetAsset)
+	}
+	return total.Float64()
 }
 
 func (r *runtimeBridge) rememberOrder(order types.Order, requestID string) {
@@ -666,149 +763,28 @@ func buildPositionSnapshot(symbol string, market types.Market, position *types.P
 	}
 }
 
-func decodeHostRequest(request *qjs.Object) (map[string]any, error) {
-	if request == nil {
-		return map[string]any{}, nil
-	}
-	decodedRequest := map[string]any{}
-	if err := request.Into(&decodedRequest); err != nil {
-		return nil, fmt.Errorf("decode host request: %w", err)
-	}
-	return decodedRequest, nil
-}
-
-func readHostString(values map[string]any, key string) string {
-	if values == nil {
-		return ""
-	}
-	value, ok := values[key]
-	if !ok || value == nil {
-		return ""
-	}
-	switch typedValue := value.(type) {
-	case string:
-		return typedValue
-	default:
-		return fmt.Sprintf("%v", value)
-	}
-}
-
-func readHostFixedpoint(values map[string]any, key string) (fixedpoint.Value, error) {
-	value, ok := values[key]
-	if !ok || value == nil {
-		return fixedpoint.Zero, fmt.Errorf("%s is required", key)
-	}
-	return toFixedpointValue(value, key)
-}
-
-func readOptionalHostFixedpoint(values map[string]any, key string) (*fixedpoint.Value, error) {
-	if values == nil {
-		return nil, nil
-	}
-	value, ok := values[key]
-	if !ok || value == nil {
-		return nil, nil
-	}
-	fixedValue, err := toFixedpointValue(value, key)
-	if err != nil {
-		return nil, err
-	}
-	return &fixedValue, nil
-}
-
-func toFixedpointValue(value any, key string) (fixedpoint.Value, error) {
-	switch typedValue := value.(type) {
-	case float64:
-		return fixedpoint.NewFromFloat(typedValue), nil
-	case float32:
-		return fixedpoint.NewFromFloat(float64(typedValue)), nil
-	case int:
-		return fixedpoint.NewFromFloat(float64(typedValue)), nil
-	case int64:
-		return fixedpoint.NewFromFloat(float64(typedValue)), nil
-	case int32:
-		return fixedpoint.NewFromFloat(float64(typedValue)), nil
-	case string:
-		trimmedValue := strings.TrimSpace(typedValue)
-		if trimmedValue == "" {
-			return fixedpoint.Zero, fmt.Errorf("%s is required", key)
-		}
-		fixedValue, err := fixedpoint.NewFromString(trimmedValue)
-		if err != nil {
-			return fixedpoint.Zero, fmt.Errorf("invalid %s: %w", key, err)
-		}
-		return fixedValue, nil
-	default:
-		return fixedpoint.Zero, fmt.Errorf("invalid %s type %T", key, value)
-	}
-}
-
-func readHostBool(values map[string]any, key string) (bool, bool) {
-	if values == nil {
-		return false, false
-	}
-	value, ok := values[key]
-	if !ok || value == nil {
-		return false, false
-	}
-	switch typedValue := value.(type) {
-	case bool:
-		return typedValue, true
-	default:
-		return false, false
-	}
-}
-
-func parseHostSideType(value string) (types.SideType, error) {
-	switch strings.ToUpper(strings.TrimSpace(value)) {
-	case string(types.SideTypeBuy):
-		return types.SideTypeBuy, nil
-	case string(types.SideTypeSell):
-		return types.SideTypeSell, nil
-	default:
-		return "", fmt.Errorf("invalid side %q", value)
-	}
-}
-
-func parseHostOrderType(value string) (types.OrderType, error) {
-	switch strings.ToUpper(strings.TrimSpace(value)) {
-	case "", string(types.OrderTypeMarket):
-		return types.OrderTypeMarket, nil
-	case string(types.OrderTypeLimit):
-		return types.OrderTypeLimit, nil
-	default:
-		return "", fmt.Errorf("invalid orderType %q", value)
-	}
-}
-
-func parseHostTimeInForce(value string) (types.TimeInForce, error) {
-	normalizedValue := strings.ToUpper(strings.TrimSpace(value))
-	if normalizedValue == "" {
-		return types.TimeInForceGTC, nil
-	}
-	timeInForce := types.TimeInForce(normalizedValue)
-	switch timeInForce {
-	case types.TimeInForceGTC, types.TimeInForceIOC, types.TimeInForceFOK, types.TimeInForceGTT:
-		return timeInForce, nil
-	default:
-		return "", fmt.Errorf("invalid timeInForce %q", value)
-	}
-}
-
-func (r *runtimeBridge) invokeHook(name string, payload map[string]any) error {
+func (r *runtimeBridge) invokeHook(name string, payload map[string]any, hookCtx *HookContext) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if r.closed || r.vm == nil {
 		return nil
 	}
-	hasHook, err := r.vm.Eval(fmt.Sprintf("typeof globalThis[%q] === 'function'", name), qjs.EvalGlobal)
-	if err != nil {
-		return fmt.Errorf("probe %s: %w", name, err)
+	// Probe once and cache: evaluating typeof on every kline is wasteful and
+	// risks QuickJS internal state issues under high-frequency calls.
+	if _, probed := r.hookProbes[name]; !probed {
+		hasHook, err := r.vm.Eval(fmt.Sprintf("typeof globalThis[%q] === 'function'", name), qjs.EvalGlobal)
+		if err != nil {
+			r.hookProbes[name] = false
+			return fmt.Errorf("probe %s: %w", name, err)
+		}
+		available, ok := hasHook.(bool)
+		r.hookProbes[name] = ok && available
 	}
-	available, ok := hasHook.(bool)
-	if !ok || !available {
+	if !r.hookProbes[name] {
 		return nil
 	}
+	r.setActiveHookContext(hookCtx)
+	defer r.setActiveHookContext(nil)
 	if _, err := r.vm.Call(name, payload); err != nil {
 		return fmt.Errorf("invoke %s: %w", name, err)
 	}
