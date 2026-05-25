@@ -7,11 +7,26 @@ import { parse } from "acorn";
 
 import type { StrategyBlockKind } from "./strategyVisualBuilderCatalog";
 import {
+  nextGetTechnicalIndicatorNodeText,
+  nextTechnicalIndicatorConditionNodeText,
   nextTechnicalIndicatorNodeText,
+  normalizeGetTechnicalIndicatorProperties,
+  normalizeTechnicalIndicatorConditionProperties,
   normalizeTechnicalIndicatorProperties,
+  type GetTechnicalIndicatorBlockProperties,
+  type TechnicalIndicatorConditionBlockProperties,
+  type TechnicalIndicatorInputSlot,
   type TechnicalIndicatorBlockProperties,
 } from "./strategyVisualBuilderIndicatorBlock";
-import { readTechnicalIndicatorProperties } from "./strategyVisualBuilderTechnicalIndicatorParsing";
+import {
+  buildStrategyVisualControlEdgeProperties,
+  buildStrategyVisualDataEdgeProperties,
+  type StrategyVisualEdgeBranch,
+} from "./strategyVisualBuilderEdges";
+import {
+  readGetTechnicalIndicatorProperties,
+  readTechnicalIndicatorProperties,
+} from "./strategyVisualBuilderTechnicalIndicatorParsing";
 import {
   parseStrategyFlowNodeJsDocComment,
   type StrategyFlowNodeJsDoc,
@@ -44,6 +59,7 @@ interface AstFunctionDeclaration extends AstNode {
 interface AstIfStatement extends AstNode {
   test: AstNode;
   consequent: AstStatement;
+  alternate?: AstStatement | null;
 }
 
 interface AstExpressionStatement extends AstNode {
@@ -69,6 +85,15 @@ interface StrategyParserContext {
   script: string;
   flowAnnotations: FlowAnnotationComment[];
   comments: ParserComment[];
+  getterBindings: Map<string, {
+    nodeId: string;
+    properties: GetTechnicalIndicatorBlockProperties;
+  }>;
+}
+
+interface ParsedIndicatorInputBinding {
+  slot: TechnicalIndicatorInputSlot;
+  getterNodeId: string;
 }
 
 interface ParsedVisualNode {
@@ -76,6 +101,9 @@ interface ParsedVisualNode {
   text: string;
   properties: Record<string, unknown>;
   children?: AstStatement[];
+  trueChildren?: AstStatement[];
+  falseChildren?: AstStatement[];
+  dataInputs?: ParsedIndicatorInputBinding[];
   flowNodeId?: string;
   keepParentForSiblings?: boolean;
 }
@@ -90,6 +118,7 @@ interface ParseSequenceContext {
   parentId: string;
   baseX: number;
   baseY: number;
+  rootEdgeProperties?: Record<string, unknown>;
 }
 
 interface StrategySourceRange {
@@ -156,6 +185,7 @@ export function buildStrategyVisualModelFromScript(
       script,
       flowAnnotations,
       comments,
+      getterBindings: new Map(),
     };
     const builder = createModelBuilder(existingModel);
     const hookBodies = new Map<HookKind, AstStatement[]>();
@@ -365,7 +395,31 @@ function appendHookSequence(
       type: "polyline",
       sourceNodeId: currentParentId,
       targetNodeId: identity.nodeId,
+      properties:
+        currentParentId === context.parentId
+          ? context.rootEdgeProperties
+          : undefined,
     });
+
+    if (match.item.kind === "getTechnicalIndicator") {
+      parserContext.getterBindings.set(
+        buildIndicatorGetterBaseIdentifierFromNodeId(identity.nodeId),
+        {
+          nodeId: identity.nodeId,
+          properties: normalizeGetTechnicalIndicatorProperties(match.item.properties),
+        },
+      );
+    }
+
+    for (const input of match.item.dataInputs ?? []) {
+      builder.edges.push({
+        id: `edge-data-${input.getterNodeId}-${identity.nodeId}-${input.slot}`,
+        type: "polyline",
+        sourceNodeId: input.getterNodeId,
+        targetNodeId: identity.nodeId,
+        properties: buildStrategyVisualDataEdgeProperties(input.slot),
+      });
+    }
 
     if (match.item.kind === "codeBlock") {
       builder.codeBlockCount += 1;
@@ -376,6 +430,26 @@ function appendHookSequence(
     } else {
       currentParentId = identity.nodeId;
       siblingIndex = 0;
+    }
+
+    if ((match.item.trueChildren?.length ?? 0) > 0) {
+      appendHookSequence(match.item.trueChildren ?? [], parserContext, builder, {
+        hookKind: context.hookKind,
+        parentId: identity.nodeId,
+        baseX: position.x + BLOCK_X_STEP,
+        baseY: position.y - BLOCK_Y_STEP / 2,
+        rootEdgeProperties: buildStrategyVisualControlEdgeProperties("true"),
+      });
+    }
+
+    if ((match.item.falseChildren?.length ?? 0) > 0) {
+      appendHookSequence(match.item.falseChildren ?? [], parserContext, builder, {
+        hookKind: context.hookKind,
+        parentId: identity.nodeId,
+        baseX: position.x + BLOCK_X_STEP,
+        baseY: position.y + BLOCK_Y_STEP / 2,
+        rootEdgeProperties: buildStrategyVisualControlEdgeProperties("false"),
+      });
     }
 
     if ((match.item.children?.length ?? 0) > 0) {
@@ -400,6 +474,12 @@ function parseHookStatement(
   }
 
   const annotation = readLeadingFlowAnnotation(statements, index, parserContext);
+  if (annotation?.blockKind === "getTechnicalIndicator") {
+    return parseGetTechnicalIndicatorNode(statements, index, parserContext, annotation);
+  }
+  if (annotation?.blockKind === "technicalIndicatorCondition") {
+    return parseTechnicalIndicatorConditionNode(statement, parserContext, annotation, index);
+  }
   if (annotation?.blockKind === "technicalIndicator") {
     return parseTechnicalIndicatorNode(statements, index, parserContext, annotation);
   }
@@ -465,6 +545,111 @@ function parseHookStatement(
   return {
     nextIndex: index + 1,
     item: buildFallbackCodeBlock(statement, parserContext),
+  };
+}
+
+function parseGetTechnicalIndicatorNode(
+  statements: AstStatement[],
+  index: number,
+  parserContext: StrategyParserContext,
+  annotation: StrategyFlowNodeJsDoc,
+): ParsedStatementMatch {
+  const statement = statements[index];
+  if (statement === undefined) {
+    return { nextIndex: index + 1, item: null };
+  }
+
+  const groupEnd = findNextAnnotatedStatementIndex(statements, index, parserContext);
+  const lastStatement = statements[groupEnd - 1] ?? statement;
+  const slice = parserContext.script.slice(statement.start, lastStatement.end);
+  const normalized = normalizeGetTechnicalIndicatorProperties(
+    readGetTechnicalIndicatorProperties(slice),
+  );
+  const variableName = annotation.variableName;
+
+  return {
+    nextIndex: groupEnd,
+    item: {
+      kind: "getTechnicalIndicator",
+      text: annotation.nodeText ?? nextGetTechnicalIndicatorNodeText({ ...normalized }),
+      flowNodeId: annotation.nodeId,
+      properties: withSourceRangeProperties(
+        {
+          ...normalized,
+          ...(variableName === undefined || variableName === "" ? {} : { variableName }),
+          blockKind: "getTechnicalIndicator",
+        },
+        { start: statement.start, end: lastStatement.end },
+      ),
+    },
+  };
+}
+
+function parseTechnicalIndicatorConditionNode(
+  statement: AstStatement,
+  parserContext: StrategyParserContext,
+  annotation: StrategyFlowNodeJsDoc,
+  index: number,
+): ParsedStatementMatch {
+  if (statement.type !== "IfStatement") {
+    return {
+      nextIndex: index + 1,
+      item: buildFallbackCodeBlock(statement, parserContext),
+    };
+  }
+
+  const ifStatement = statement as unknown as AstIfStatement;
+  const testSource = parserContext.script.slice(
+    ifStatement.test.start,
+    ifStatement.test.end,
+  );
+  const dataInputs = readConditionInputBindings(
+    annotation,
+    testSource,
+    parserContext.getterBindings,
+  );
+  const normalized = normalizeTechnicalIndicatorConditionProperties(
+    readTechnicalIndicatorConditionPropertiesFromSource(
+      testSource,
+      dataInputs,
+      parserContext.getterBindings,
+    ),
+  );
+
+  const item: ParsedVisualNode = {
+    kind: "technicalIndicatorCondition",
+    text: annotation.nodeText ?? nextTechnicalIndicatorConditionNodeText({ ...normalized }),
+    flowNodeId: annotation.nodeId,
+    dataInputs,
+    properties: withSourceRangeProperties(
+      {
+        ...normalized,
+        ...(dataInputs.find((input) => input.slot === "primary")?.getterNodeId === undefined
+          ? {}
+          : { inputPrimaryNodeId: dataInputs.find((input) => input.slot === "primary")?.getterNodeId }),
+        ...(dataInputs.find((input) => input.slot === "fast")?.getterNodeId === undefined
+          ? {}
+          : { inputFastNodeId: dataInputs.find((input) => input.slot === "fast")?.getterNodeId }),
+        ...(dataInputs.find((input) => input.slot === "slow")?.getterNodeId === undefined
+          ? {}
+          : { inputSlowNodeId: dataInputs.find((input) => input.slot === "slow")?.getterNodeId }),
+        blockKind: "technicalIndicatorCondition",
+      },
+      { start: statement.start, end: statement.end },
+    ),
+  };
+  const trueChildren = readIfChildren(statement);
+  const falseChildren = readElseChildren(statement);
+  if (trueChildren !== undefined) {
+    item.trueChildren = trueChildren;
+  }
+  if (falseChildren !== undefined) {
+    item.falseChildren = falseChildren;
+  }
+
+  return {
+    nextIndex: index + 1,
+    item,
   };
 }
 
@@ -581,8 +766,12 @@ function parsePlaceOrderNode(
     return { nextIndex: index + 1, item: null };
   }
   const blockSource = parserContext.script.slice(firstStatement.start, lastStatement.end);
-  const side = blockSource.includes('side: "SELL"') ? "SELL" : "BUY";
+  const side = readPlaceOrderSide(blockSource);
   const orderType = blockSource.includes('orderType: "LIMIT"') ? "LIMIT" : "MARKET";
+  const quantityMode = readPlaceOrderQuantityMode(blockSource);
+  const quantityValue = readPlaceOrderQuantityValue(blockSource, quantityMode);
+  const entryPositionPolicy = readPlaceOrderEntryPositionPolicy(blockSource, side);
+  const limitPrice = readPlaceOrderLimitPrice(blockSource);
   return {
     nextIndex: Math.min(endIndex + 1, statements.length),
     item: {
@@ -594,13 +783,90 @@ function parsePlaceOrderNode(
           blockKind: "placeOrder",
           side,
           orderType,
-          quantityMode: "shares",
-          quantityValue: 100,
+          entryPositionPolicy,
+          quantityMode,
+          quantityValue,
+          limitPrice,
         },
         { start: firstStatement.start, end: lastStatement.end },
       ),
     },
   };
+}
+
+function readPlaceOrderSide(
+  blockSource: string,
+): "BUY" | "SELL" | "SELL_SHORT" | "BUY_COVER" {
+  if (blockSource.includes("卖出开空")) {
+    return "SELL_SHORT";
+  }
+  if (blockSource.includes("买入平空")) {
+    return "BUY_COVER";
+  }
+  if (blockSource.includes('side: "SELL"')) {
+    return "SELL";
+  }
+  return "BUY";
+}
+
+function readPlaceOrderQuantityMode(
+  blockSource: string,
+): "shares" | "amount" | "accountPositionPercent" | "symbolPositionPercent" | "cashPercent" {
+  if (blockSource.includes("const accountTotalValue = getTotalAccountValue();")) {
+    return "accountPositionPercent";
+  }
+  if (blockSource.includes("const availableCash = getAvailableCash();")) {
+    return "cashPercent";
+  }
+  if (
+    blockSource.includes("const currentPositionValue = pos ? Math.abs(pos.marketValue) : 0;") ||
+    blockSource.includes("const targetValue = (pos && pos.marketValue > 0 ? pos.marketValue : 0) * ")
+  ) {
+    return "symbolPositionPercent";
+  }
+  if (blockSource.includes("const maxQty = Math.floor(") && blockSource.includes("/ orderPrice);")) {
+    return "amount";
+  }
+  return "shares";
+}
+
+function readPlaceOrderQuantityValue(
+  blockSource: string,
+  quantityMode: "shares" | "amount" | "accountPositionPercent" | "symbolPositionPercent" | "cashPercent",
+): number {
+  const patterns: Record<typeof quantityMode, RegExp> = {
+    shares: /const orderQty = (-?\d+(?:\.\d+)?);/,
+    amount: /const maxQty = Math\.floor\((-?\d+(?:\.\d+)?) \/ orderPrice\);/,
+    accountPositionPercent: /const targetAmount = accountTotalValue \* (-?\d+(?:\.\d+)?) \/ 100;/,
+    symbolPositionPercent: /const targetValue = (?:(?:currentPositionValue)|(?:\(pos && pos\.marketValue > 0 \? pos\.marketValue : 0\))) \* (-?\d+(?:\.\d+)?) \/ 100;/,
+    cashPercent: /const targetAmount = availableCash \* (-?\d+(?:\.\d+)?) \/ 100;/,
+  };
+  const match = blockSource.match(patterns[quantityMode]);
+  return match?.[1] === undefined ? 100 : Number(match[1]);
+}
+
+function readPlaceOrderEntryPositionPolicy(
+  blockSource: string,
+  side: "BUY" | "SELL" | "SELL_SHORT" | "BUY_COVER",
+): "sameDirection" | "flatOnly" | "allow" {
+  if (side !== "BUY" && side !== "SELL_SHORT") {
+    return "sameDirection";
+  }
+  if (blockSource.includes("if (pos && pos.quantity !== 0) {")) {
+    return "flatOnly";
+  }
+  if (side === "BUY" && blockSource.includes('if (pos && pos.direction === "LONG" && availablePositionQty > 0) {')) {
+    return "sameDirection";
+  }
+  if (side === "SELL_SHORT" && blockSource.includes('if (pos && pos.direction === "SHORT" && availablePositionQty > 0) {')) {
+    return "sameDirection";
+  }
+  return "allow";
+}
+
+function readPlaceOrderLimitPrice(blockSource: string): number {
+  const match = blockSource.match(/limitPrice: (-?\d+(?:\.\d+)?)/);
+  return match?.[1] === undefined ? 0 : Number(match[1]);
 }
 
 function parseCodeBlockNode(
@@ -696,6 +962,197 @@ function readIfChildren(statement: AstStatement): AstStatement[] | undefined {
     return (ifStatement.consequent as AstBlockStatement).body;
   }
   return [ifStatement.consequent];
+}
+
+function readElseChildren(statement: AstStatement): AstStatement[] | undefined {
+  if (statement.type !== "IfStatement") {
+    return undefined;
+  }
+  const ifStatement = statement as unknown as AstIfStatement;
+  const alternate = ifStatement.alternate;
+  if (alternate === undefined || alternate === null) {
+    return undefined;
+  }
+  if (alternate.type === "BlockStatement") {
+    return (alternate as AstBlockStatement).body;
+  }
+  return [alternate];
+}
+
+function readConditionInputBindings(
+  annotation: StrategyFlowNodeJsDoc,
+  testSource: string,
+  getterBindings: StrategyParserContext["getterBindings"],
+): ParsedIndicatorInputBinding[] {
+  const annotated = readConditionInputBindingsFromAnnotation(annotation, getterBindings);
+  if (annotated.length > 0) {
+    return annotated;
+  }
+
+  const fallbackBases = readIndicatorBaseIdentifiers(testSource)
+    .map((base) => getterBindings.get(base))
+    .filter((binding): binding is NonNullable<typeof binding> => binding !== undefined);
+
+  if (fallbackBases.length >= 2) {
+    const fast = fallbackBases[0];
+    const slow = fallbackBases[1];
+    if (fast === undefined || slow === undefined) {
+      return [];
+    }
+    return [
+      { slot: "fast", getterNodeId: fast.nodeId },
+      { slot: "slow", getterNodeId: slow.nodeId },
+    ];
+  }
+  if (fallbackBases.length === 1) {
+    const primary = fallbackBases[0];
+    return primary === undefined
+      ? []
+      : [{ slot: "primary", getterNodeId: primary.nodeId }];
+  }
+  return [];
+}
+
+function readConditionInputBindingsFromAnnotation(
+  annotation: StrategyFlowNodeJsDoc,
+  getterBindings: StrategyParserContext["getterBindings"],
+): ParsedIndicatorInputBinding[] {
+  const bindings: ParsedIndicatorInputBinding[] = [];
+  const pushIfKnown = (
+    slot: TechnicalIndicatorInputSlot,
+    getterNodeId: string | undefined,
+  ) => {
+    if (getterNodeId === undefined || getterNodeId === "") {
+      return;
+    }
+    const hasGetter = [...getterBindings.values()].some(
+      (binding) => binding.nodeId === getterNodeId,
+    );
+    if (hasGetter) {
+      bindings.push({ slot, getterNodeId });
+    }
+  };
+
+  pushIfKnown("primary", annotation.inputPrimaryNodeId);
+  pushIfKnown("fast", annotation.inputFastNodeId);
+  pushIfKnown("slow", annotation.inputSlowNodeId);
+  return bindings;
+}
+
+function readTechnicalIndicatorConditionPropertiesFromSource(
+  testSource: string,
+  dataInputs: ParsedIndicatorInputBinding[],
+  getterBindings: StrategyParserContext["getterBindings"],
+): Record<string, unknown> {
+  const primaryGetter = readGetterBindingForInput(dataInputs, getterBindings, "primary")
+    ?? readGetterBindingForInput(dataInputs, getterBindings, "fast");
+
+  const divergenceMatch = testSource.match(
+    /ctx\.indicators\[(?:"|')divergence:(rsi|macd|kdj):([^"']+):(top|bottom):(\d+)(?:"|')\]\s*\?\?\s*false/,
+  );
+  if (divergenceMatch !== null) {
+    return {
+      blockKind: "technicalIndicatorCondition",
+      indicatorType: primaryGetter?.properties.indicatorType ?? divergenceMatch[1] ?? "rsi",
+      conditionMode: "pattern",
+      patternType: divergenceMatch[3] === "top" ? "topDivergence" : "bottomDivergence",
+      lookback: Number(divergenceMatch[4] ?? 5),
+    };
+  }
+
+  if (testSource.includes("_upper") || testSource.includes("_lower")) {
+    return {
+      blockKind: "technicalIndicatorCondition",
+      indicatorType: primaryGetter?.properties.indicatorType ?? "bollinger",
+      conditionMode: "pattern",
+      patternType: testSource.includes(" > ")
+        ? "closeAboveUpperBand"
+        : "closeBelowLowerBand",
+    };
+  }
+
+  if (testSource.includes("_previous !== null") && testSource.includes("_value")) {
+    return {
+      blockKind: "technicalIndicatorCondition",
+      indicatorType: "movingAverage",
+      conditionMode: "pattern",
+      patternType: testSource.includes(" >= ") && testSource.includes(" < ")
+        ? "deathCross"
+        : "goldenCross",
+    };
+  }
+
+  if (testSource.includes("_previous_diff") || testSource.includes("_previous_signal")) {
+    return {
+      blockKind: "technicalIndicatorCondition",
+      indicatorType: primaryGetter?.properties.indicatorType ?? "macd",
+      conditionMode: "pattern",
+      patternType: testSource.includes(" >= ") && testSource.includes(" < ")
+        ? "deathCross"
+        : "goldenCross",
+    };
+  }
+
+  if (testSource.includes("_previous_k") || testSource.includes("_previous_d")) {
+    return {
+      blockKind: "technicalIndicatorCondition",
+      indicatorType: primaryGetter?.properties.indicatorType ?? "kdj",
+      conditionMode: "pattern",
+      patternType: testSource.includes(" >= ") && testSource.includes(" < ")
+        ? "deathCross"
+        : "goldenCross",
+    };
+  }
+
+  const numericMatch = testSource.match(
+    /\bindicator_[a-zA-Z0-9_]+(?:_(?:histogram|j))?\s*([<>])\s*(-?\d+(?:\.\d+)?)/,
+  );
+  if (numericMatch !== null) {
+    return {
+      blockKind: "technicalIndicatorCondition",
+      indicatorType: primaryGetter?.properties.indicatorType
+        ?? (testSource.includes("_histogram")
+          ? "macd"
+          : testSource.includes("_j")
+            ? "kdj"
+            : "rsi"),
+      conditionMode: "numeric",
+      operator: numericMatch[1] ?? "<",
+      threshold: Number(numericMatch[2] ?? 0),
+    };
+  }
+
+  return {
+    blockKind: "technicalIndicatorCondition",
+    indicatorType: primaryGetter?.properties.indicatorType ?? "rsi",
+    conditionMode: "numeric",
+  };
+}
+
+function readGetterBindingForInput(
+  dataInputs: ParsedIndicatorInputBinding[],
+  getterBindings: StrategyParserContext["getterBindings"],
+  slot: TechnicalIndicatorInputSlot,
+) {
+  const input = dataInputs.find((binding) => binding.slot === slot);
+  if (input === undefined) {
+    return undefined;
+  }
+  return [...getterBindings.values()].find(
+    (binding) => binding.nodeId === input.getterNodeId,
+  );
+}
+
+function readIndicatorBaseIdentifiers(testSource: string): string[] {
+  const matches = testSource.matchAll(/\b(indicator_[a-zA-Z0-9_]+?)(?:_(?:snapshot|value|previous|diff|signal|histogram|previous_diff|previous_signal|k|d|j|previous_k|previous_d|middle|upper|lower))?\b/g);
+  const result: string[] = [];
+  for (const match of matches) {
+    const value = match[1];
+    if (value !== undefined && !result.includes(value)) {
+      result.push(value);
+    }
+  }
+  return result;
 }
 
 function tryParseRawLogStatement(statement: AstStatement, script: string): string | null {
@@ -911,6 +1368,17 @@ function reserveNodeId(
   }
 }
 
+function buildIndicatorGetterBaseIdentifierFromNodeId(nodeId: string): string {
+  return `indicator_${sanitizeScriptIdentifier(nodeId)}`;
+}
+
+function sanitizeScriptIdentifier(value: string): string {
+  const normalized = value
+    .replace(/[^a-zA-Z0-9_]+/g, "_")
+    .replace(/^([0-9])/, "_$1");
+  return normalized === "" ? "node" : normalized;
+}
+
 function readNodePosition(
   nodes: StrategyVisualNodeDocument[],
   nodeId: string,
@@ -921,6 +1389,7 @@ function readNodePosition(
 
 function resolveNodeShape(kind: ParsedVisualNode["kind"]): "rect" | "diamond" | "circle" {
   switch (kind) {
+    case "technicalIndicatorCondition":
     case "ifCloseAbove":
     case "ifCloseBelow":
       return "diamond";

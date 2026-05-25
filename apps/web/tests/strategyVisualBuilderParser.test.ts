@@ -4,6 +4,8 @@ import type { StrategyVisualNodeDocument } from "@jftrade/ui-contracts";
 
 import {
   buildStrategyScriptFromVisualModel,
+  buildStrategyVisualControlEdgeProperties,
+  buildStrategyVisualDataEdgeProperties,
   buildStrategyVisualModelFromScript,
   cloneStrategyVisualModel,
   createDefaultStrategyVisualModel,
@@ -83,6 +85,220 @@ describe("strategyVisualBuilderParser", () => {
     }
   });
 
+  it("round-trips split indicator getter inputs and branch edges", () => {
+    const visualModel = {
+      engine: "logic-flow" as const,
+      version: 1,
+      nodes: [
+        {
+          id: "on-init-root",
+          type: "circle",
+          x: 180,
+          y: 120,
+          text: "策略启动",
+          properties: { blockKind: "onInit" },
+        },
+        {
+          id: "on-kline-root",
+          type: "circle",
+          x: 180,
+          y: 320,
+          text: "K 线收盘",
+          properties: { blockKind: "onKLineClosed" },
+        },
+        {
+          id: "split-rsi-getter",
+          type: "rect",
+          x: 430,
+          y: 320,
+          text: "获取 RSI 14",
+          properties: {
+            blockKind: "getTechnicalIndicator",
+            indicatorType: "rsi",
+            period: 14,
+          },
+        },
+        {
+          id: "split-rsi-condition",
+          type: "diamond",
+          x: 700,
+          y: 320,
+          text: "RSI < 30",
+          properties: {
+            blockKind: "technicalIndicatorCondition",
+            indicatorType: "rsi",
+            conditionMode: "numeric",
+            operator: "<",
+            threshold: 30,
+          },
+        },
+        {
+          id: "split-rsi-buy",
+          type: "rect",
+          x: 970,
+          y: 270,
+          text: "下单",
+          properties: {
+            blockKind: "placeOrder",
+            side: "BUY",
+            orderType: "MARKET",
+            quantityMode: "shares",
+            quantityValue: 100,
+          },
+        },
+        {
+          id: "split-rsi-log",
+          type: "rect",
+          x: 970,
+          y: 380,
+          text: "输出日志",
+          properties: {
+            blockKind: "log",
+            message: "not oversold",
+          },
+        },
+      ],
+      edges: [
+        {
+          id: "edge-split-getter",
+          type: "polyline",
+          sourceNodeId: "on-kline-root",
+          targetNodeId: "split-rsi-getter",
+          properties: buildStrategyVisualControlEdgeProperties(),
+        },
+        {
+          id: "edge-split-condition",
+          type: "polyline",
+          sourceNodeId: "split-rsi-getter",
+          targetNodeId: "split-rsi-condition",
+          properties: buildStrategyVisualControlEdgeProperties(),
+        },
+        {
+          id: "edge-split-data",
+          type: "polyline",
+          sourceNodeId: "split-rsi-getter",
+          targetNodeId: "split-rsi-condition",
+          properties: buildStrategyVisualDataEdgeProperties("primary"),
+        },
+        {
+          id: "edge-split-true",
+          type: "polyline",
+          sourceNodeId: "split-rsi-condition",
+          targetNodeId: "split-rsi-buy",
+          properties: buildStrategyVisualControlEdgeProperties("true"),
+        },
+        {
+          id: "edge-split-false",
+          type: "polyline",
+          sourceNodeId: "split-rsi-condition",
+          targetNodeId: "split-rsi-log",
+          properties: buildStrategyVisualControlEdgeProperties("false"),
+        },
+      ],
+    };
+
+    const script = buildStrategyScriptFromVisualModel(visualModel, {
+      name: "split-rsi-roundtrip",
+      symbol: "00700",
+      interval: "1m",
+    });
+
+    expect(script).toContain("@jftradeFlowInputPrimaryNodeId split-rsi-getter");
+
+    const parsed = buildStrategyVisualModelFromScript(script);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) {
+      return;
+    }
+
+    expect(readNonRootNodeSignatures(parsed.model.nodes)).toEqual(
+      readNonRootNodeSignatures(visualModel.nodes),
+    );
+    expect(readEdgeSignatures(parsed.model.nodes, parsed.model.edges)).toEqual(
+      readEdgeSignatures(visualModel.nodes, visualModel.edges),
+    );
+  });
+
+  it("round-trips getter variable names from flow annotations", () => {
+    const visualModel = {
+      engine: "logic-flow" as const,
+      version: 1,
+      nodes: [
+        {
+          id: "on-kline-root",
+          type: "circle",
+          x: 180,
+          y: 320,
+          text: "K 线收盘",
+          properties: { blockKind: "onKLineClosed" },
+        },
+        {
+          id: "split-rsi-getter",
+          type: "rect",
+          x: 430,
+          y: 320,
+          text: "获取 RSI 14",
+          properties: {
+            blockKind: "getTechnicalIndicator",
+            indicatorType: "rsi",
+            period: 14,
+            variableName: "oversoldRsi",
+          },
+        },
+        {
+          id: "split-rsi-condition",
+          type: "diamond",
+          x: 700,
+          y: 320,
+          text: "RSI < 30",
+          properties: {
+            blockKind: "technicalIndicatorCondition",
+            indicatorType: "rsi",
+            conditionMode: "numeric",
+            operator: "<",
+            threshold: 30,
+            inputPrimaryNodeId: "split-rsi-getter",
+          },
+        },
+      ],
+      edges: [
+        {
+          id: "edge-split-getter",
+          type: "polyline",
+          sourceNodeId: "on-kline-root",
+          targetNodeId: "split-rsi-getter",
+          properties: buildStrategyVisualControlEdgeProperties(),
+        },
+        {
+          id: "edge-split-condition",
+          type: "polyline",
+          sourceNodeId: "split-rsi-getter",
+          targetNodeId: "split-rsi-condition",
+          properties: buildStrategyVisualControlEdgeProperties(),
+        },
+      ],
+    };
+
+    const script = buildStrategyScriptFromVisualModel(visualModel, {
+      name: "split-rsi-variable-name",
+      symbol: "00700",
+      interval: "1m",
+    });
+
+    expect(script).toContain("@jftradeFlowVariableName oversoldRsi");
+
+    const parsed = buildStrategyVisualModelFromScript(script);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) {
+      return;
+    }
+
+    const getterNode = parsed.model.nodes.find((node) => node.id === "split-rsi-getter");
+    expect(getterNode?.properties.variableName).toBe("oversoldRsi");
+    const conditionNode = parsed.model.nodes.find((node) => node.id === "split-rsi-condition");
+    expect(conditionNode?.properties.inputPrimaryNodeId).toBe("split-rsi-getter");
+  });
+
   it("parses a raw console.log expression back into a visual log block", () => {
     const script = [
       "function onKLineClosed(ctx) {",
@@ -108,7 +324,7 @@ describe("strategyVisualBuilderParser", () => {
   it("preserves renamed visual block titles and ids via flow JSDoc", () => {
     const template = getStrategyAuthoringTemplates().find((item) =>
       item.visualModel.nodes.some(
-        (node) => getStrategyBlockKind(node) === "technicalIndicator",
+        (node) => isIndicatorAuthoringNode(node),
       ),
     );
     expect(template).toBeDefined();
@@ -123,7 +339,7 @@ describe("strategyVisualBuilderParser", () => {
     }
 
     const renamedNode = visualModel.nodes.find(
-      (node) => getStrategyBlockKind(node) === "technicalIndicator",
+      (node) => isIndicatorAuthoringNode(node),
     );
     expect(renamedNode).toBeDefined();
     if (renamedNode === undefined) {
@@ -150,7 +366,7 @@ describe("strategyVisualBuilderParser", () => {
       (node) => node.id === renamedNode.id,
     );
     expect(roundTrippedNode?.text).toBe("主信号入口");
-    expect(getStrategyBlockKind(roundTrippedNode)).toBe("technicalIndicator");
+    expect(getStrategyBlockKind(roundTrippedNode)).toBe(getStrategyBlockKind(renamedNode));
   });
 
   it("keeps a multi-statement code block as one renamed flow node", () => {
@@ -260,7 +476,7 @@ describe("strategyVisualBuilderParser", () => {
   it("preserves node x,y positions from the existing visual model when round-tripping code -> flow", () => {
     const template = getStrategyAuthoringTemplates().find((item) =>
       item.visualModel.nodes.some(
-        (node) => getStrategyBlockKind(node) === "technicalIndicator",
+        (node) => isIndicatorAuthoringNode(node),
       ),
     );
     expect(template).toBeDefined();
@@ -371,6 +587,129 @@ describe("strategyVisualBuilderParser", () => {
     expect(condToNotify, "condition should connect to notify").toBeDefined();
     expect(notifyChildren.length, "notify should keep serial body flow").toBeGreaterThan(0);
   });
+
+  it("parses place-order quantity mode and entry position policy from generated code", () => {
+    const script = `
+/** @param {JFTradeKLineClosedContext} ctx */
+function onKLineClosed(ctx) {
+  /**
+   * @jftradeFlowNodeId buy-node
+   * @jftradeFlowBlockKind placeOrder
+   * @jftradeFlowNodeText 下单
+   */
+  const pos = getPosition();
+  if (pos && pos.quantity !== 0) {
+    console.log("当前已有持仓（方向 " + pos.direction + "，数量 " + pos.quantity + "），按必须空仓策略跳过开多");
+    return;
+  }
+  const orderPrice = ctx.kline.close;
+  const availableCash = getAvailableCash();
+  const targetAmount = availableCash * 25 / 100;
+  const orderQty = targetAmount > 0 ? Math.floor(targetAmount / orderPrice) : 0;
+  if (orderQty <= 0) {
+    console.log("现金百分比计算所得数量为 0（可用资金 " + availableCash + " × 25% ÷ 价格 " + orderPrice + "），请调整百分比或确认账户资金充足");
+    return;
+  }
+  console.log(\`下单 \${orderQty} 股 买入开多 (cashPercent)\`);
+  placeOrder({ side: "BUY", orderType: "MARKET", quantity: orderQty });
+}
+`;
+
+    const parsed = buildStrategyVisualModelFromScript(script);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) {
+      return;
+    }
+
+    const buyNode = parsed.model.nodes.find((node) => node.id === "buy-node");
+    expect(getStrategyBlockKind(buyNode)).toBe("placeOrder");
+    expect(buyNode?.properties.entryPositionPolicy).toBe("flatOnly");
+    expect(buyNode?.properties.quantityMode).toBe("cashPercent");
+    expect(buyNode?.properties.quantityValue).toBe(25);
+  });
+
+  it("parses current symbol position percent and limit price from generated code", () => {
+    const script = `
+/** @param {JFTradeKLineClosedContext} ctx */
+function onKLineClosed(ctx) {
+  /**
+   * @jftradeFlowNodeId sell-node
+   * @jftradeFlowBlockKind placeOrder
+   * @jftradeFlowNodeText 下单
+   */
+  const pos = getPosition();
+  const availablePositionQty = pos ? Math.floor(Math.abs(pos.availableQuantity) > 0 ? Math.abs(pos.availableQuantity) : Math.abs(pos.quantity)) : 0;
+  if (!pos || pos.direction !== "LONG" || availablePositionQty <= 0) {
+    console.log("无多头持仓可平，跳过卖出");
+    return;
+  }
+  const orderPrice = 480.5;
+  const currentPositionValue = pos ? Math.abs(pos.marketValue) : 0;
+  const targetValue = currentPositionValue * 25 / 100;
+  const rawOrderQty = targetValue > 0 ? Math.floor(targetValue / orderPrice) : 0;
+  const orderQty = rawOrderQty > 0 ? Math.min(rawOrderQty, availablePositionQty || rawOrderQty) : (true && availablePositionQty > 0 ? 1 : 0);
+  if (orderQty <= 0) {
+    console.log("当前标的仓位百分比计算所得数量为 0，跳过下单");
+    return;
+  }
+  console.log(\`下单 \${orderQty} 股 卖出平多 (symbolPositionPercent)\`);
+  placeOrder({ side: "SELL", orderType: "LIMIT", limitPrice: 480.5, quantity: orderQty });
+}
+`;
+
+    const parsed = buildStrategyVisualModelFromScript(script);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) {
+      return;
+    }
+
+    const sellNode = parsed.model.nodes.find((node) => node.id === "sell-node");
+    expect(getStrategyBlockKind(sellNode)).toBe("placeOrder");
+    expect(sellNode?.properties.quantityMode).toBe("symbolPositionPercent");
+    expect(sellNode?.properties.quantityValue).toBe(25);
+    expect(sellNode?.properties.limitPrice).toBe(480.5);
+  });
+
+  it("parses account position percent from generated code", () => {
+    const script = `
+/** @param {JFTradeKLineClosedContext} ctx */
+function onKLineClosed(ctx) {
+  /**
+   * @jftradeFlowNodeId buy-node
+   * @jftradeFlowBlockKind placeOrder
+   * @jftradeFlowNodeText 下单
+   */
+  const pos = getPosition();
+  const availablePositionQty = pos ? Math.floor(Math.abs(pos.availableQuantity) > 0 ? Math.abs(pos.availableQuantity) : Math.abs(pos.quantity)) : 0;
+  if (pos && pos.direction === "LONG" && availablePositionQty > 0) {
+    console.log("已有多头持仓 " + pos.quantity + " 股，按拦截同向加仓策略跳过开多");
+    return;
+  }
+  const orderPrice = ctx.kline.close;
+  const accountTotalValue = getTotalAccountValue();
+  const targetAmount = accountTotalValue * 10 / 100;
+  const rawOrderQty = targetAmount > 0 ? Math.floor(targetAmount / orderPrice) : 0;
+  const orderQty = rawOrderQty > 0 ? Math.min(rawOrderQty, availablePositionQty || rawOrderQty) : (false && availablePositionQty > 0 ? 1 : 0);
+  if (orderQty <= 0) {
+    console.log("账户仓位百分比计算所得数量为 0（账户总资产 " + accountTotalValue + " × 10% ÷ 价格 " + orderPrice + "），请调整百分比或确认账户资产快照可用");
+    return;
+  }
+  console.log(\`下单 \${orderQty} 股 买入开多 (accountPositionPercent)\`);
+  placeOrder({ side: "BUY", orderType: "MARKET", quantity: orderQty });
+}
+`;
+
+    const parsed = buildStrategyVisualModelFromScript(script);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) {
+      return;
+    }
+
+    const buyNode = parsed.model.nodes.find((node) => node.id === "buy-node");
+    expect(getStrategyBlockKind(buyNode)).toBe("placeOrder");
+    expect(buyNode?.properties.quantityMode).toBe("accountPositionPercent");
+    expect(buyNode?.properties.quantityValue).toBe(10);
+  });
 });
 
 function readNodeSourceRange(
@@ -406,7 +745,11 @@ function readNonRootNodeSignatures(nodes: StrategyVisualNodeDocument[]): string[
 
 function readEdgeSignatures(
   nodes: StrategyVisualNodeDocument[],
-  edges: Array<{ sourceNodeId: string; targetNodeId: string }>,
+  edges: Array<{
+    sourceNodeId: string;
+    targetNodeId: string;
+    properties?: Record<string, unknown>;
+  }>,
 ): string[] {
   const nodesById = new Map(nodes.map((node) => [node.id, node] as const));
 
@@ -417,7 +760,12 @@ function readEdgeSignatures(
       if (source === undefined || target === undefined) {
         return null;
       }
-      return `${buildNodeSignature(source)}->${buildNodeSignature(target)}`;
+      return [
+        `${buildNodeSignature(source)}->${buildNodeSignature(target)}`,
+        String(edge.properties?.role ?? "control"),
+        String(edge.properties?.branch ?? ""),
+        String(edge.properties?.slot ?? ""),
+      ].join(":");
     })
     .filter((value): value is string => value !== null)
     .sort();
@@ -428,6 +776,30 @@ function buildNodeSignature(node: StrategyVisualNodeDocument): string {
   const properties = node.properties ?? {};
 
   switch (kind) {
+    case "getTechnicalIndicator":
+      return [
+        kind,
+        String(properties.indicatorType ?? ""),
+        String(properties.movingAverageType ?? ""),
+        String(properties.windowSize ?? ""),
+        String(properties.period ?? ""),
+        String(properties.fastPeriod ?? ""),
+        String(properties.slowPeriod ?? ""),
+        String(properties.signalPeriod ?? ""),
+        String(properties.m1 ?? ""),
+        String(properties.m2 ?? ""),
+        String(properties.multiplier ?? ""),
+      ].join(":");
+    case "technicalIndicatorCondition":
+      return [
+        kind,
+        String(properties.indicatorType ?? ""),
+        String(properties.conditionMode ?? ""),
+        String(properties.operator ?? ""),
+        String(properties.threshold ?? ""),
+        String(properties.patternType ?? ""),
+        String(properties.lookback ?? ""),
+      ].join(":");
     case "technicalIndicator":
       return [
         kind,
@@ -455,4 +827,11 @@ function buildNodeSignature(node: StrategyVisualNodeDocument): string {
     default:
       return `${kind}:${node.text}`;
   }
+}
+
+function isIndicatorAuthoringNode(node: StrategyVisualNodeDocument): boolean {
+  const kind = getStrategyBlockKind(node);
+  return kind === "technicalIndicator"
+    || kind === "getTechnicalIndicator"
+    || kind === "technicalIndicatorCondition";
 }

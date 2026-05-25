@@ -20,6 +20,7 @@ func TestBacktestRunStoreGetReturnsDeepCopy(t *testing.T) {
 			Interval:      "1m",
 			FinalBalance:  123456,
 			Trades:        []backtest.TradeEvent{{Time: "2026-01-02T00:00:00Z", Side: "BUY", Price: 100, Qty: 1}},
+			OrderBook:     []backtest.OrderBookEntry{{OrderID: "1", Side: "BUY", Quantity: 1, Status: "FILLED", FilledPrice: 100}},
 			PnLCurve:      []backtest.PnLPoint{{Time: "2026-01-02T00:00:00Z", Equity: 100000}},
 			Candles:       []backtest.Candle{{Time: "2026-01-02T00:00:00Z", Open: 100, High: 101, Low: 99, Close: 100.5, Volume: 10}},
 			Logs:          []string{"warmup complete"},
@@ -37,6 +38,7 @@ func TestBacktestRunStoreGetReturnsDeepCopy(t *testing.T) {
 	snapshot.Request.Symbol = "US.TSLA"
 	snapshot.Result.FinalBalance = 42
 	snapshot.Result.Trades[0].Price = 999
+	snapshot.Result.OrderBook[0].FilledPrice = 77
 	snapshot.Result.PnLCurve[0].Equity = 12
 	snapshot.Result.Candles[0].Close = 1
 	snapshot.Result.Logs[0] = "changed"
@@ -53,6 +55,9 @@ func TestBacktestRunStoreGetReturnsDeepCopy(t *testing.T) {
 	}
 	if original.Result.Trades[0].Price != 100 {
 		t.Fatalf("original trade mutated: %f", original.Result.Trades[0].Price)
+	}
+	if original.Result.OrderBook[0].FilledPrice != 100 {
+		t.Fatalf("original order book mutated: %f", original.Result.OrderBook[0].FilledPrice)
 	}
 	if original.Result.PnLCurve[0].Equity != 100000 {
 		t.Fatalf("original pnl point mutated: %f", original.Result.PnLCurve[0].Equity)

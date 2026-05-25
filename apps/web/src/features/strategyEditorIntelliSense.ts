@@ -86,7 +86,20 @@ declare interface JFTradeBollingerIndicatorSnapshot {
 }
 
 declare interface JFTradeIndicatorMap {
-  [key: string]: number | JFTradeMovingAverageIndicatorSnapshot | JFTradeMACDIndicatorSnapshot | JFTradeKDJIndicatorSnapshot | JFTradeBollingerIndicatorSnapshot | null | undefined;
+  [key: \`ma:\${string}\`]: JFTradeMovingAverageIndicatorSnapshot | null | undefined;
+  [key: \`rsi:\${number}\`]: number | null | undefined;
+  [key: \`macd:\${number}:\${number}:\${number}\`]: JFTradeMACDIndicatorSnapshot | null | undefined;
+  [key: \`bollinger:\${number}:\${number}\`]: JFTradeBollingerIndicatorSnapshot | null | undefined;
+  [key: \`kdj:\${number}:\${number}:\${number}\`]: JFTradeKDJIndicatorSnapshot | null | undefined;
+  [key: \`atr:\${number}\`]: number | null | undefined;
+  [key: \`cci:\${number}\`]: number | null | undefined;
+  [key: \`williamsr:\${number}\`]: number | null | undefined;
+  [key: \`divergence:rsi:\${number}:top:\${number}\`]: boolean | null | undefined;
+  [key: \`divergence:rsi:\${number}:bottom:\${number}\`]: boolean | null | undefined;
+  [key: \`divergence:macd:\${number}:\${number}:\${number}:top:\${number}\`]: boolean | null | undefined;
+  [key: \`divergence:macd:\${number}:\${number}:\${number}:bottom:\${number}\`]: boolean | null | undefined;
+  [key: \`divergence:kdj:\${number}:\${number}:\${number}:top:\${number}\`]: boolean | null | undefined;
+  [key: \`divergence:kdj:\${number}:\${number}:\${number}:bottom:\${number}\`]: boolean | null | undefined;
 }
 
 declare interface JFTradeKLineClosedContext extends JFTradeStrategyBaseContext {
@@ -161,6 +174,7 @@ declare function getPositions(): JFTradePositionSnapshot[];
 declare function getRiskState(): JFTradeRiskSnapshot;
 declare function isOperationBlocked(operation: JFTradeRiskOperation): boolean;
 declare function getAvailableCash(): number;
+declare function getTotalAccountValue(): number;
 `,
   },
 ];
@@ -291,12 +305,30 @@ export const strategyEditorCompletions: MonacoCompletionDefinition[] = [
     ].join("\n"),
   },
   {
+    label: "getAvailableCash",
+    detail: "QuickJS host API",
+    documentation: `${runtimeHostNotice} 查询当前策略标的报价币种下可用于下单的资金。`,
+    kind: "function",
+    insertTextRule: "snippet",
+    sortText: "11",
+    insertText: "getAvailableCash()",
+  },
+  {
+    label: "getTotalAccountValue",
+    detail: "QuickJS host API",
+    documentation: `${runtimeHostNotice} 查询账户总资产，优先使用 runtime 已归一化的总权益。`,
+    kind: "function",
+    insertTextRule: "snippet",
+    sortText: "12",
+    insertText: "getTotalAccountValue()",
+  },
+  {
     label: "JFTradePlaceOrderRequest",
     detail: "QuickJS runtime type",
     documentation: `${runtimeHostNotice} 下单请求结构。`,
     kind: "interface",
     insertTextRule: "plain",
-    sortText: "11",
+    sortText: "13",
     insertText: "JFTradePlaceOrderRequest",
   },
   {
@@ -305,7 +337,7 @@ export const strategyEditorCompletions: MonacoCompletionDefinition[] = [
     documentation: `${runtimeHostNotice} runtime 层风险与会话能力快照。`,
     kind: "interface",
     insertTextRule: "plain",
-    sortText: "12",
+    sortText: "14",
     insertText: "JFTradeRiskSnapshot",
   },
 ];
@@ -455,6 +487,16 @@ const runtimeHostHoverItems: MonacoHoverDefinition[] = [
     documentation: `${runtimeHostNotice} 基于 blockedOperations / allowsCancel 判断 PLACE、MODIFY、CANCEL 是否应被拦截。`,
   },
   {
+    target: "getAvailableCash",
+    signature: "function getAvailableCash(): number",
+    documentation: `${runtimeHostNotice} 返回当前策略标的报价币种下可用的下单资金，不再复用账户总资产口径。`,
+  },
+  {
+    target: "getTotalAccountValue",
+    signature: "function getTotalAccountValue(): number",
+    documentation: `${runtimeHostNotice} 返回账户总资产，优先使用 runtime 已归一化的 TotalAccountValue。`,
+  },
+  {
     target: "JFTradePlaceOrderRequest",
     signature: "interface JFTradePlaceOrderRequest",
     documentation: `${runtimeHostNotice} 下单请求结构，包含 side / quantity / orderType / limitPrice / timeInForce 等字段。`,
@@ -567,7 +609,7 @@ const generatedRuntimeVariableHoverItems: MonacoHoverDefinition[] = [
   },
   {
     target: "latestMacd",
-    signature: "let latestMacd: { diff: number; signal: number; histogram: number } | null",
+    signature: "let latestMacd: JFTradeMACDIndicatorSnapshot | null",
     documentation: `${generatedFactorRuntimeNotice} 当前 MACD 整体结果对象，由 macd 块生成。`,
   },
   {

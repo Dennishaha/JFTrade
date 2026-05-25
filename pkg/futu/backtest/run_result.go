@@ -19,6 +19,7 @@ func (r *RunResult) Snapshot() *RunResult {
 		TotalTrades:   r.TotalTrades,
 		WinRate:       r.WinRate,
 		Trades:        append([]TradeEvent(nil), r.Trades...),
+		OrderBook:     append([]OrderBookEntry(nil), r.OrderBook...),
 		PnLCurve:      append([]PnLPoint(nil), r.PnLCurve...),
 		Candles:       append([]Candle(nil), r.Candles...),
 		Logs:          append([]string(nil), r.Logs...),

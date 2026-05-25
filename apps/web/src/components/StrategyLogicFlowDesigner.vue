@@ -6,12 +6,22 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import "@logicflow/core/lib/style/index.css";
 import "@logicflow/extension/lib/style/index.css";
 
+import StrategyLogicFlowVariableManager from "./StrategyLogicFlowVariableManager.vue";
 import { useTheme, type ThemeMode } from "../composables/useTheme";
 import {
   createStrategyPaletteItems,
-  fromLogicFlowGraphData,
-  toLogicFlowGraphData,
+  fromStrategyCanvasGraphData,
+  toStrategyCanvasGraphData,
 } from "../features/strategyVisualBuilder";
+import {
+  expandTechnicalIndicatorShortcutNode,
+  isTechnicalIndicatorShortcutCreation,
+} from "../features/strategyVisualBuilderIndicatorShortcut";
+import type { GetTechnicalIndicatorBlockProperties } from "../features/strategyVisualBuilderIndicatorBlock";
+import {
+  registerStrategyLogicFlowNodes,
+  toStrategyLogicFlowDisplayNodeType,
+} from "../features/strategyVisualBuilderNodePresentation";
 
 interface FitViewPadding {
   top?: number;
@@ -20,8 +30,15 @@ interface FitViewPadding {
   left?: number;
 }
 
+interface StrategyIndicatorVariableItem {
+  id: string;
+  text: string;
+  properties: GetTechnicalIndicatorBlockProperties;
+}
+
 const props = withDefaults(defineProps<{
   modelValue: StrategyVisualModelDocument;
+  indicatorVariables?: StrategyIndicatorVariableItem[];
   chrome?: boolean;
   height?: number | string;
   minHeight?: number | string;
@@ -39,11 +56,15 @@ const props = withDefaults(defineProps<{
   showBuilderActions: false,
   zoomRightOffset: "1rem",
   fitViewPadding: () => ({}),
+  indicatorVariables: () => [],
 });
 
 const emit = defineEmits<{
   "update:modelValue": [value: StrategyVisualModelDocument];
   "select-node": [nodeId: string | null];
+  "add-indicator-variable": [];
+  "delete-indicator-variable": [nodeId: string];
+  "update-indicator-variable": [payload: { id: string; properties: Record<string, unknown> }];
 }>();
 
 const { theme } = useTheme();
@@ -51,9 +72,12 @@ const panel = ref<HTMLElement | null>(null);
 const container = ref<HTMLElement | null>(null);
 const isFallbackMode = ref(false);
 const isPaletteExpanded = ref(false);
+const isVariablesExpanded = ref(false);
 const paletteSearchQuery = ref("");
+const selectedVariableId = ref("");
 const zoomPercent = ref(100);
 const paletteItems = createStrategyPaletteItems();
+let pendingSelectNewestVariable = false;
 let resizeObserver: ResizeObserver | null = null;
 let resizeAnimationFrameId = 0;
 let alignViewportAnimationFrameId = 0;
@@ -73,6 +97,12 @@ const panelMinHeight = computed(() =>
 
 const zoomRightOffset = computed(() => props.zoomRightOffset);
 
+const flowPanelThemeClass = computed(() =>
+  theme.value === "dark"
+    ? "strategy-logic-flow-panel--dark"
+    : "strategy-logic-flow-panel--light",
+);
+
 const filteredPaletteItems = computed(() => {
   const query = normalizePaletteSearchQuery(paletteSearchQuery.value);
   if (query === "") {
@@ -81,6 +111,27 @@ const filteredPaletteItems = computed(() => {
 
   return paletteItems.filter((item) => buildPaletteSearchText(item).includes(query));
 });
+
+watch(
+  () => props.indicatorVariables.map((item) => item.id),
+  (nextIds, previousIds) => {
+    if (pendingSelectNewestVariable) {
+      const previousIdSet = new Set(previousIds ?? []);
+      selectedVariableId.value = nextIds.find((id) => !previousIdSet.has(id))
+        ?? nextIds[nextIds.length - 1]
+        ?? "";
+      pendingSelectNewestVariable = false;
+      return;
+    }
+
+    if (selectedVariableId.value !== "" && nextIds.includes(selectedVariableId.value)) {
+      return;
+    }
+
+    selectedVariableId.value = nextIds[0] ?? "";
+  },
+  { immediate: true },
+);
 
 const normalizedFitViewPadding = computed(() => ({
   top: Math.max(0, props.fitViewPadding?.top ?? 0),
@@ -102,7 +153,24 @@ let logicFlowInstance: {
       setPatternItems: (items: ReturnType<typeof createStrategyPaletteItems>) => void;
     };
   };
-  render: (data: ReturnType<typeof toLogicFlowGraphData>) => void;
+  render: (data: ReturnType<typeof toStrategyCanvasGraphData>) => void;
+  register: (definition: { type: string; model: any; view: any }) => void;
+  addNode: (nodeConfig: {
+    id?: string;
+    type?: string;
+    x?: number;
+    y?: number;
+    text?: string;
+    properties?: Record<string, unknown>;
+  }) => unknown;
+  addEdge: (edgeConfig: {
+    id?: string;
+    type?: string;
+    sourceNodeId?: string;
+    targetNodeId?: string;
+    text?: string;
+    properties?: Record<string, unknown>;
+  }) => unknown;
   getGraphData: () => unknown;
   on: (event: string, handler: (payload: any) => void) => void;
   off?: (event: string, handler: (payload: any) => void) => void;
@@ -127,14 +195,21 @@ let logicFlowInstance: {
 
 let logicFlowPluginsInstalled = false;
 let lastGraphSignature = "";
+let isApplyingShortcutExpansion = false;
 
 const emitGraphChange = () => {
   if (logicFlowInstance === null) {
     return;
   }
+  if (isApplyingShortcutExpansion) {
+    return;
+  }
   const graphData = logicFlowInstance.getGraphData();
-  const nextModel = fromLogicFlowGraphData(graphData as ReturnType<typeof toLogicFlowGraphData>);
-  lastGraphSignature = JSON.stringify(toLogicFlowGraphData(nextModel));
+  const nextModel = fromStrategyCanvasGraphData(
+    graphData as ReturnType<typeof toStrategyCanvasGraphData>,
+    props.modelValue,
+  );
+  lastGraphSignature = JSON.stringify(toStrategyCanvasGraphData(nextModel));
   emit("update:modelValue", nextModel);
 };
 
@@ -146,12 +221,90 @@ const handleBlankClicked = () => {
   emit("select-node", null);
 };
 
+const handleNodeDndAdd = (payload: {
+  data?: {
+    id?: string;
+    x?: number;
+    y?: number;
+    properties?: Record<string, unknown>;
+  };
+}) => {
+  if (logicFlowInstance === null || payload.data === undefined) {
+    return;
+  }
+
+  if (!isTechnicalIndicatorShortcutCreation(payload.data.properties)) {
+    return;
+  }
+
+  const shortcutNode = payload.data;
+  const shortcutNodeId = shortcutNode.id;
+  if (typeof shortcutNodeId !== "string" || shortcutNodeId === "") {
+    return;
+  }
+
+  const expansion = expandTechnicalIndicatorShortcutNode(shortcutNode);
+
+  isApplyingShortcutExpansion = true;
+  try {
+    logicFlowInstance.deleteNode(shortcutNodeId);
+
+    for (const node of expansion.nodes) {
+      logicFlowInstance.addNode({
+        id: node.id,
+        type: toStrategyLogicFlowDisplayNodeType(node.type),
+        x: node.x,
+        y: node.y,
+        text: node.text,
+        properties: { ...node.properties },
+      });
+    }
+
+    for (const edge of expansion.edges) {
+      logicFlowInstance.addEdge({
+        ...(edge.id === undefined ? {} : { id: edge.id }),
+        ...(edge.type === undefined ? {} : { type: edge.type }),
+        ...(edge.sourceNodeId === undefined ? {} : { sourceNodeId: edge.sourceNodeId }),
+        ...(edge.targetNodeId === undefined ? {} : { targetNodeId: edge.targetNodeId }),
+        ...(edge.text === undefined ? {} : { text: edge.text }),
+        ...(edge.properties === undefined ? {} : { properties: { ...edge.properties } }),
+      });
+    }
+  } finally {
+    isApplyingShortcutExpansion = false;
+  }
+
+  emitGraphChange();
+  emit("select-node", expansion.focusNodeId);
+};
+
 const togglePaletteExpanded = () => {
   const nextExpanded = !isPaletteExpanded.value;
   isPaletteExpanded.value = nextExpanded;
   if (!nextExpanded) {
     paletteSearchQuery.value = "";
   }
+};
+
+const toggleVariablesExpanded = () => {
+  isVariablesExpanded.value = !isVariablesExpanded.value;
+};
+
+const handleAddIndicatorVariable = () => {
+  pendingSelectNewestVariable = true;
+  isVariablesExpanded.value = true;
+  emit("add-indicator-variable");
+};
+
+const handleDeleteIndicatorVariable = (nodeId: string) => {
+  emit("delete-indicator-variable", nodeId);
+};
+
+const handleUpdateIndicatorVariable = (payload: {
+  id: string;
+  properties: Record<string, unknown>;
+}) => {
+  emit("update-indicator-variable", payload);
 };
 
 const handlePaletteItemPointerDown = (
@@ -163,7 +316,7 @@ const handlePaletteItemPointerDown = (
   }
 
   logicFlowInstance.dnd?.startDrag({
-    type: item.type,
+    type: toStrategyLogicFlowDisplayNodeType(item.type),
     properties: { ...item.properties },
     text: `${item.text}`,
   });
@@ -422,6 +575,7 @@ const graphMutationEvents = [
   "node:drop",
   "node:properties-change",
   "edge:add",
+  "edge:adjust",
   "edge:delete",
   "text:update",
 ];
@@ -432,7 +586,7 @@ watch(
     if (logicFlowInstance === null) {
       return;
     }
-    const nextGraphData = toLogicFlowGraphData(modelValue);
+    const nextGraphData = toStrategyCanvasGraphData(modelValue);
     const nextSignature = JSON.stringify(nextGraphData);
     if (nextSignature === lastGraphSignature) {
       return;
@@ -477,10 +631,11 @@ onMounted(async () => {
     return;
   }
 
-  const [{ default: LogicFlow }, { DndPanel }] = await Promise.all([
+  const [logicFlowCore, { DndPanel }] = await Promise.all([
     import("@logicflow/core"),
     import("@logicflow/extension"),
   ]);
+  const { default: LogicFlow, HtmlNode, HtmlNodeModel } = logicFlowCore;
 
   if (!logicFlowPluginsInstalled) {
     LogicFlow.use(DndPanel);
@@ -504,6 +659,8 @@ onMounted(async () => {
     },
     edgeTextEdit: false,
     nodeTextEdit: false,
+    adjustEdge: true,
+    adjustEdgeStartAndEnd: true,
     stopScrollGraph: true,
     stopZoomGraph: true,
     plugins: [DndPanel],
@@ -511,16 +668,26 @@ onMounted(async () => {
 
   logicFlowInstance = nextLogicFlowInstance;
 
+  registerStrategyLogicFlowNodes(nextLogicFlowInstance, {
+    HtmlNode,
+    HtmlNodeModel,
+  });
+
   nextLogicFlowInstance.extension?.dndPanel?.setPatternItems(
-    createStrategyPaletteItems(),
+    createStrategyPaletteItems().map((item) => ({
+      ...item,
+      type: toStrategyLogicFlowDisplayNodeType(item.type),
+    })),
   );
 
-  const initialGraphData = toLogicFlowGraphData(props.modelValue);
+  const initialGraphData = toStrategyCanvasGraphData(props.modelValue);
   nextLogicFlowInstance.render(initialGraphData);
   lastGraphSignature = JSON.stringify(initialGraphData);
   applyLogicFlowTheme();
   queueResizeLogicFlowCanvas(true);
   queueAlignLogicFlowViewport();
+
+  nextLogicFlowInstance.on("node:dnd-add", handleNodeDndAdd);
 
   for (const eventName of graphMutationEvents) {
     nextLogicFlowInstance.on(eventName, emitGraphChange);
@@ -561,6 +728,7 @@ onBeforeUnmount(() => {
   if (logicFlowInstance === null) {
     return;
   }
+  logicFlowInstance.off?.("node:dnd-add", handleNodeDndAdd);
   for (const eventName of graphMutationEvents) {
     logicFlowInstance.off?.(eventName, emitGraphChange);
   }
@@ -602,6 +770,7 @@ defineExpose({
       'strategy-logic-flow-panel--bare': !chrome,
       'strategy-logic-flow-panel--chrome': chrome,
       'strategy-logic-flow-panel--resizable': resizable,
+      [flowPanelThemeClass]: true,
     }" :style="{ height: panelHeight, minHeight: panelMinHeight }" @pointerdown="handlePanelPointerDown">
     <div v-if="chrome" class="mb-3 flex flex-wrap items-center justify-between gap-3 px-4 pt-4">
       <div>
@@ -623,50 +792,80 @@ defineExpose({
       </div>
     </div>
 
-    <div
-      v-if="showBuilderActions"
-      class="strategy-logic-flow-builder"
-      :class="{ 'strategy-logic-flow-builder--expanded': isPaletteExpanded }"
-      data-testid="strategy-logic-flow-builder"
-    >
-      <div v-if="isPaletteExpanded" class="strategy-logic-flow-builder__sheet">
-        <div class="strategy-logic-flow-builder__search-row">
-          <input
-            v-model="paletteSearchQuery"
-            class="strategy-logic-flow-builder__search"
-            data-testid="strategy-logic-flow-builder-search"
-            placeholder="搜索图块，例如 RSI、通知"
-            type="search"
-          />
-          <span class="strategy-logic-flow-builder__count">{{ filteredPaletteItems.length }}/{{ paletteItems.length }}</span>
+    <div v-if="showBuilderActions" class="strategy-logic-flow-actions">
+      <div
+        class="strategy-logic-flow-builder"
+        :class="{ 'strategy-logic-flow-builder--expanded': isPaletteExpanded }"
+        data-testid="strategy-logic-flow-builder"
+      >
+        <div v-if="isPaletteExpanded" class="strategy-logic-flow-builder__sheet">
+          <div class="strategy-logic-flow-builder__search-row">
+            <input
+              v-model="paletteSearchQuery"
+              class="strategy-logic-flow-builder__search"
+              data-testid="strategy-logic-flow-builder-search"
+              placeholder="搜索图块，例如 RSI、通知"
+              type="search"
+            />
+            <span class="strategy-logic-flow-builder__count">{{ filteredPaletteItems.length }}/{{ paletteItems.length }}</span>
+          </div>
+
+          <div v-if="filteredPaletteItems.length > 0" class="strategy-logic-flow-builder__grid">
+            <button
+              v-for="item in filteredPaletteItems"
+              :key="`${item.label}-${item.type}`"
+              class="strategy-logic-flow-builder__item"
+              type="button"
+              @pointerdown="handlePaletteItemPointerDown(item, $event)"
+            >
+              <span class="strategy-logic-flow-builder__icon" :style="{ backgroundImage: `url(${item.icon})` }" />
+              <span class="strategy-logic-flow-builder__label">{{ item.label }}</span>
+            </button>
+          </div>
+
+          <div v-else class="strategy-logic-flow-builder__empty">
+            没有匹配的图块，试试搜索指标名或动作名。
+          </div>
         </div>
 
-        <div v-if="filteredPaletteItems.length > 0" class="strategy-logic-flow-builder__grid">
-          <button
-            v-for="item in filteredPaletteItems"
-            :key="`${item.label}-${item.type}`"
-            class="strategy-logic-flow-builder__item"
-            type="button"
-            @pointerdown="handlePaletteItemPointerDown(item, $event)"
-          >
-            <span class="strategy-logic-flow-builder__icon" :style="{ backgroundImage: `url(${item.icon})` }" />
-            <span class="strategy-logic-flow-builder__label">{{ item.label }}</span>
-          </button>
-        </div>
-
-        <div v-else class="strategy-logic-flow-builder__empty">
-          没有匹配的图块，试试搜索指标名或动作名。
-        </div>
+        <button
+          class="strategy-logic-flow-builder__toggle"
+          data-testid="strategy-logic-flow-builder-toggle"
+          type="button"
+          @click="togglePaletteExpanded"
+        >
+          {{ isPaletteExpanded ? '关闭创建器' : '展开创建器' }}
+        </button>
       </div>
 
-      <button
-        class="strategy-logic-flow-builder__toggle"
-        data-testid="strategy-logic-flow-builder-toggle"
-        type="button"
-        @click="togglePaletteExpanded"
+      <div
+        class="strategy-logic-flow-variables"
+        :class="{ 'strategy-logic-flow-variables--expanded': isVariablesExpanded }"
       >
-        {{ isPaletteExpanded ? '关闭创建器' : '展开创建器' }}
-      </button>
+        <div
+          v-if="isVariablesExpanded"
+          class="strategy-logic-flow-variables__sheet"
+          data-testid="strategy-logic-flow-variables"
+        >
+          <StrategyLogicFlowVariableManager
+            :selected-variable-id="selectedVariableId"
+            :variables="props.indicatorVariables"
+            @add-variable="handleAddIndicatorVariable"
+            @delete-variable="handleDeleteIndicatorVariable"
+            @select-variable="selectedVariableId = $event"
+            @update-variable="handleUpdateIndicatorVariable"
+          />
+        </div>
+
+        <button
+          class="strategy-logic-flow-variables__toggle"
+          data-testid="strategy-logic-flow-variables-toggle"
+          type="button"
+          @click="toggleVariablesExpanded"
+        >
+          {{ isVariablesExpanded ? `关闭变量栏 · ${props.indicatorVariables.length}` : `变量 ${props.indicatorVariables.length}` }}
+        </button>
+      </div>
     </div>
 
     <div v-if="showZoomSlider" class="strategy-logic-flow-zoom" data-testid="strategy-visual-builder-section">
@@ -702,6 +901,139 @@ defineExpose({
   display: none !important;
 }
 
+.strategy-logic-flow-canvas :deep(.strategy-lf-node) {
+  box-sizing: border-box;
+  display: flex;
+  width: 100%;
+  height: 100%;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.72rem 0.82rem;
+  border: 1px solid var(--strategy-flow-node-border);
+  border-radius: 22px;
+  background: var(--strategy-flow-node-surface);
+  box-shadow:
+    0 18px 36px -30px rgba(15, 23, 42, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  color: var(--strategy-flow-node-text);
+  overflow: hidden;
+}
+
+.strategy-logic-flow-canvas :deep(.strategy-lf-node--condition) {
+  border-color: var(--strategy-flow-node-condition-border);
+  border-radius: 24px 14px 24px 14px;
+  background: var(--strategy-flow-node-condition-surface);
+}
+
+.strategy-logic-flow-canvas :deep(.strategy-lf-node--selected) {
+  box-shadow:
+    0 0 0 2px var(--strategy-flow-node-selected-ring),
+    0 18px 36px -28px var(--strategy-flow-node-selected-shadow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+
+.strategy-logic-flow-canvas :deep(.strategy-lf-node__header) {
+  display: flex;
+  flex-direction: column;
+  gap: 0.32rem;
+}
+
+.strategy-logic-flow-canvas :deep(.strategy-lf-node__eyebrow) {
+  font-size: 0.63rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--strategy-flow-node-eyebrow);
+}
+
+.strategy-logic-flow-canvas :deep(.strategy-lf-node__title) {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 0.92rem;
+  font-weight: 700;
+  line-height: 1.25;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.strategy-logic-flow-canvas :deep(.strategy-lf-node__details) {
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+}
+
+.strategy-logic-flow-canvas :deep(.strategy-lf-node__detail) {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+.strategy-logic-flow-canvas :deep(.strategy-lf-node__detail-label) {
+  flex: 0 0 auto;
+  color: var(--strategy-flow-node-detail-label);
+}
+
+.strategy-logic-flow-canvas :deep(.strategy-lf-node__detail-value) {
+  flex: 1 1 auto;
+  overflow: hidden;
+  color: var(--strategy-flow-node-detail-value);
+  font-weight: 600;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.strategy-logic-flow-canvas :deep(.strategy-lf-node__chips) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.32rem;
+}
+
+.strategy-logic-flow-canvas :deep(.strategy-lf-node__chip) {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.15rem;
+  padding: 0.1rem 0.42rem;
+  border-radius: 999px;
+  background: var(--strategy-flow-node-chip-bg);
+  color: var(--strategy-flow-node-chip-text);
+  font-size: 0.63rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.strategy-logic-flow-canvas :deep(.strategy-lf-node--tone-data .strategy-lf-node__eyebrow) {
+  color: var(--strategy-flow-node-data-eyebrow);
+}
+
+.strategy-logic-flow-canvas :deep(.strategy-lf-node--tone-condition .strategy-lf-node__eyebrow) {
+  color: var(--strategy-flow-node-condition-eyebrow);
+}
+
+.strategy-logic-flow-canvas :deep(.strategy-lf-node--tone-action .strategy-lf-node__eyebrow) {
+  color: var(--strategy-flow-node-action-eyebrow);
+}
+
+.strategy-logic-flow-canvas :deep(.strategy-lf-node--tone-info .strategy-lf-node__eyebrow) {
+  color: var(--strategy-flow-node-info-eyebrow);
+}
+
+.strategy-logic-flow-canvas :deep(.strategy-lf-node--tone-alert .strategy-lf-node__eyebrow) {
+  color: var(--strategy-flow-node-alert-eyebrow);
+}
+
+.strategy-logic-flow-canvas :deep(.strategy-lf-node--tone-code .strategy-lf-node__eyebrow) {
+  color: var(--strategy-flow-node-code-eyebrow);
+}
+
+.strategy-logic-flow-canvas :deep(.strategy-lf-node--tone-code .strategy-lf-node__detail-value) {
+  font-family: "SFMono-Regular", "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
+}
+
 .strategy-logic-flow-panel--resizable {
   resize: vertical;
 }
@@ -709,10 +1041,49 @@ defineExpose({
 .strategy-logic-flow-panel {
   --strategy-logic-flow-dnd-top: 1rem;
   --strategy-logic-flow-dnd-bottom-gap: 1rem;
+  --strategy-flow-node-border: rgba(148, 163, 184, 0.18);
+  --strategy-flow-node-surface: linear-gradient(180deg, rgba(255, 255, 255, 0.84) 0%, rgba(255, 251, 235, 0.78) 100%);
+  --strategy-flow-node-condition-border: rgba(217, 119, 6, 0.22);
+  --strategy-flow-node-condition-surface: linear-gradient(180deg, rgba(255, 251, 235, 0.84) 0%, rgba(255, 244, 214, 0.76) 100%);
+  --strategy-flow-node-text: #102032;
+  --strategy-flow-node-eyebrow: #8b5e1a;
+  --strategy-flow-node-detail-label: #64748b;
+  --strategy-flow-node-detail-value: #1e293b;
+  --strategy-flow-node-chip-bg: rgba(255, 255, 255, 0.46);
+  --strategy-flow-node-chip-text: #7c2d12;
+  --strategy-flow-node-selected-ring: rgba(245, 158, 11, 0.28);
+  --strategy-flow-node-selected-shadow: rgba(217, 119, 6, 0.36);
+  --strategy-flow-node-data-eyebrow: #0f766e;
+  --strategy-flow-node-condition-eyebrow: #b45309;
+  --strategy-flow-node-action-eyebrow: #047857;
+  --strategy-flow-node-info-eyebrow: #475569;
+  --strategy-flow-node-alert-eyebrow: #be123c;
+  --strategy-flow-node-code-eyebrow: #4338ca;
   overflow: hidden;
   background: linear-gradient(180deg,
-      color-mix(in srgb, var(--card-surface) 96%, var(--card-amber-surface) 4%) 0%,
-      color-mix(in srgb, var(--card-surface) 92%, transparent) 100%);
+      color-mix(in srgb, var(--card-surface) 72%, transparent) 0%,
+      color-mix(in srgb, var(--card-surface) 48%, transparent) 100%);
+}
+
+.strategy-logic-flow-panel--dark {
+  --strategy-flow-node-border: rgba(148, 163, 184, 0.22);
+  --strategy-flow-node-surface: linear-gradient(180deg, rgba(15, 23, 42, 0.78) 0%, rgba(30, 41, 59, 0.68) 100%);
+  --strategy-flow-node-condition-border: rgba(251, 191, 36, 0.32);
+  --strategy-flow-node-condition-surface: linear-gradient(180deg, rgba(77, 49, 15, 0.72) 0%, rgba(56, 38, 15, 0.68) 100%);
+  --strategy-flow-node-text: #e2e8f0;
+  --strategy-flow-node-eyebrow: #fbbf24;
+  --strategy-flow-node-detail-label: #94a3b8;
+  --strategy-flow-node-detail-value: #f8fafc;
+  --strategy-flow-node-chip-bg: rgba(15, 23, 42, 0.58);
+  --strategy-flow-node-chip-text: #fde68a;
+  --strategy-flow-node-selected-ring: rgba(251, 191, 36, 0.34);
+  --strategy-flow-node-selected-shadow: rgba(251, 191, 36, 0.28);
+  --strategy-flow-node-data-eyebrow: #34d399;
+  --strategy-flow-node-condition-eyebrow: #fbbf24;
+  --strategy-flow-node-action-eyebrow: #6ee7b7;
+  --strategy-flow-node-info-eyebrow: #cbd5e1;
+  --strategy-flow-node-alert-eyebrow: #fda4af;
+  --strategy-flow-node-code-eyebrow: #c4b5fd;
 }
 
 .strategy-logic-flow-panel--bare {
@@ -735,9 +1106,9 @@ defineExpose({
   overflow: hidden;
   border-top: 1px solid color-mix(in srgb, var(--card-amber-border) 72%, var(--card-border));
   background: linear-gradient(135deg,
-      color-mix(in srgb, var(--card-surface) 94%, var(--card-amber-surface) 6%) 0%,
-      color-mix(in srgb, var(--card-surface-raised) 88%, var(--card-amber-surface) 12%) 55%,
-      color-mix(in srgb, var(--card-surface) 90%, var(--card-amber-surface) 10%) 100%);
+  color-mix(in srgb, var(--card-surface) 72%, transparent) 0%,
+  color-mix(in srgb, var(--card-surface-raised) 60%, transparent) 55%,
+  color-mix(in srgb, var(--card-surface) 64%, transparent) 100%);
 }
 
 .strategy-logic-flow-panel--bare .strategy-logic-flow-canvas {
@@ -750,7 +1121,7 @@ defineExpose({
 }
 
 .strategy-logic-flow-fallback {
-  background: color-mix(in srgb, var(--card-surface) 82%, transparent);
+  background: color-mix(in srgb, var(--card-surface) 56%, transparent);
 }
 
 .strategy-logic-flow-zoom {
@@ -767,7 +1138,7 @@ defineExpose({
   padding: 0.65rem 0.85rem;
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  background: color-mix(in srgb, var(--tv-bg-surface) 55%, transparent);
+  background: color-mix(in srgb, var(--tv-bg-surface) 38%, transparent);
   box-shadow:
     0 8px 24px rgba(2, 6, 23, 0.24),
     inset 0 1px 0 rgba(255, 255, 255, 0.06);
@@ -822,20 +1193,33 @@ defineExpose({
   overflow: visible !important;
 }
 
-.strategy-logic-flow-builder {
+.strategy-logic-flow-actions {
   position: absolute;
   left: 1rem;
   bottom: 1rem;
   z-index: 70;
+  display: flex;
+  align-items: flex-end;
+  gap: 0.75rem;
+  max-width: min(68rem, calc(100% - 2rem));
+}
+
+.strategy-logic-flow-builder,
+.strategy-logic-flow-variables {
+  position: relative;
   display: block;
-  max-width: min(24rem, calc(100% - 2rem));
 }
 
 .strategy-logic-flow-builder--expanded {
   width: min(22rem, calc(100vw - 2rem));
 }
 
-.strategy-logic-flow-builder__toggle {
+.strategy-logic-flow-variables--expanded {
+  width: min(40rem, calc(100vw - 2rem));
+}
+
+.strategy-logic-flow-builder__toggle,
+.strategy-logic-flow-variables__toggle {
   position: relative;
   z-index: 2;
   display: inline-flex;
@@ -845,14 +1229,15 @@ defineExpose({
   padding: 0.45rem 0.95rem;
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  background: color-mix(in srgb, var(--tv-bg-surface) 58%, transparent);
+  background: color-mix(in srgb, var(--tv-bg-surface) 36%, transparent);
   color: var(--tv-text);
   font-size: 0.82rem;
   font-weight: 700;
   backdrop-filter: blur(24px) saturate(160%);
 }
 
-.strategy-logic-flow-builder__sheet {
+.strategy-logic-flow-builder__sheet,
+.strategy-logic-flow-variables__sheet {
   position: absolute;
   left: 0;
   bottom: calc(100% + 0.7rem);
@@ -865,7 +1250,7 @@ defineExpose({
   padding: 0.8rem;
   border-radius: 1.4rem;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  background: color-mix(in srgb, var(--tv-bg-surface) 58%, transparent);
+  background: color-mix(in srgb, var(--tv-bg-surface) 34%, transparent);
   box-shadow:
     0 8px 24px rgba(2, 6, 23, 0.24),
     inset 0 1px 0 rgba(255, 255, 255, 0.06);
@@ -887,7 +1272,7 @@ defineExpose({
   padding: 0.5rem 0.8rem;
   border-radius: 0.95rem;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  background: color-mix(in srgb, var(--tv-bg-elevated) 62%, transparent);
+  background: color-mix(in srgb, var(--tv-bg-elevated) 46%, transparent);
   color: var(--tv-text);
   font-size: 0.82rem;
   outline: none;
@@ -926,7 +1311,7 @@ defineExpose({
   padding: 0.6rem 0.45rem;
   border-radius: 1rem;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  background: color-mix(in srgb, var(--tv-bg-elevated) 52%, transparent);
+  background: color-mix(in srgb, var(--tv-bg-elevated) 34%, transparent);
   color: var(--tv-text);
   text-align: center;
 }
@@ -937,6 +1322,7 @@ defineExpose({
 
 .strategy-logic-flow-builder__item:focus-visible,
 .strategy-logic-flow-builder__toggle:focus-visible,
+.strategy-logic-flow-variables__toggle:focus-visible,
 .strategy-logic-flow-zoom__reset:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--tv-accent) 72%, white 28%);
   outline-offset: 2px;
@@ -1007,6 +1393,12 @@ defineExpose({
 }
 
 @media (max-width: 720px) {
+  .strategy-logic-flow-actions {
+    flex-direction: column;
+    align-items: flex-start;
+    max-width: calc(100% - 2rem);
+  }
+
   .strategy-logic-flow-zoom {
     width: min(18em, calc(100% - 2rem));
     border-radius: 1.4rem;
@@ -1016,15 +1408,18 @@ defineExpose({
     width: 100%;
   }
 
-  .strategy-logic-flow-builder {
+  .strategy-logic-flow-builder,
+  .strategy-logic-flow-variables {
     max-width: calc(100% - 2rem);
   }
 
-  .strategy-logic-flow-builder--expanded {
+  .strategy-logic-flow-builder--expanded,
+  .strategy-logic-flow-variables--expanded {
     width: min(20rem, calc(100vw - 2rem));
   }
 
-  .strategy-logic-flow-builder__sheet {
+  .strategy-logic-flow-builder__sheet,
+  .strategy-logic-flow-variables__sheet {
     max-height: min(24rem, calc(100dvh - 12rem));
   }
 }

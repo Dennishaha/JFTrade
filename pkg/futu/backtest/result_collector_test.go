@@ -27,10 +27,11 @@ func TestResultCollectorBuildsTradesAndFinalStats(t *testing.T) {
 		SubmitOrder: types.SubmitOrder{
 			Symbol:   "BTCUSDT",
 			Side:     types.SideTypeBuy,
-			Quantity: fixedpoint.NewFromFloat(0.5),
+			Quantity: fixedpoint.NewFromFloat(1),
 		},
-		OrderID: 1,
-		Status:  types.OrderStatusNew,
+		OrderID:    2,
+		Status:     types.OrderStatusNew,
+		UpdateTime: types.Time(warmupUntil.Add(30 * time.Second)),
 	})
 	collector.onOrderUpdate(types.Order{
 		SubmitOrder: types.SubmitOrder{
@@ -101,6 +102,27 @@ func TestResultCollectorBuildsTradesAndFinalStats(t *testing.T) {
 	}
 	if len(result.Trades) != 2 {
 		t.Fatalf("trades len = %d", len(result.Trades))
+	}
+	if len(result.OrderBook) != 2 {
+		t.Fatalf("orderBook len = %d", len(result.OrderBook))
+	}
+	if result.OrderBook[0].OrderID != "2" {
+		t.Fatalf("first order id = %s", result.OrderBook[0].OrderID)
+	}
+	if result.OrderBook[0].Status != string(types.OrderStatusFilled) {
+		t.Fatalf("first order status = %s", result.OrderBook[0].Status)
+	}
+	if result.OrderBook[0].FilledPrice != 100 {
+		t.Fatalf("first order filled price = %f", result.OrderBook[0].FilledPrice)
+	}
+	if result.OrderBook[0].FilledQuantity != 1 {
+		t.Fatalf("first order filled quantity = %f", result.OrderBook[0].FilledQuantity)
+	}
+	if result.OrderBook[0].SubmittedAt != warmupUntil.Add(30*time.Second).Format(time.RFC3339) {
+		t.Fatalf("first order submittedAt = %s", result.OrderBook[0].SubmittedAt)
+	}
+	if result.OrderBook[0].FilledAt != warmupUntil.Add(time.Minute).Format(time.RFC3339) {
+		t.Fatalf("first order filledAt = %s", result.OrderBook[0].FilledAt)
 	}
 	if len(result.PnLCurve) != 1 {
 		t.Fatalf("pnl curve len = %d", len(result.PnLCurve))

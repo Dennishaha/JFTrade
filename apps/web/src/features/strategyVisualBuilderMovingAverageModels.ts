@@ -1,5 +1,10 @@
 import type { StrategyVisualModelDocument } from "@jftrade/ui-contracts";
 
+import {
+  buildStrategyVisualControlEdgeProperties,
+  buildStrategyVisualDataEdgeProperties,
+} from "./strategyVisualBuilderEdges";
+
 export function createDoubleMovingAverageStrategyVisualModel(): StrategyVisualModelDocument {
   return {
     engine: "logic-flow",
@@ -33,25 +38,49 @@ export function createDoubleMovingAverageStrategyVisualModel(): StrategyVisualMo
         properties: { blockKind: "onKLineClosed" },
       },
       {
-        id: "dma-golden-cross",
+        id: "dma-fast-ma",
         type: "rect",
-        x: 470,
+        x: 450,
         y: 260,
-        text: "双均线 5/20 金叉",
+        text: "获取 MA 5",
         properties: {
-          blockKind: "technicalIndicator",
+          blockKind: "getTechnicalIndicator",
+          indicatorType: "movingAverage",
+          movingAverageType: "MA",
+          windowSize: 5,
+        },
+      },
+      {
+        id: "dma-slow-ma",
+        type: "rect",
+        x: 450,
+        y: 380,
+        text: "获取 MA 20",
+        properties: {
+          blockKind: "getTechnicalIndicator",
+          indicatorType: "movingAverage",
+          movingAverageType: "MA",
+          windowSize: 20,
+        },
+      },
+      {
+        id: "dma-golden-cross",
+        type: "diamond",
+        x: 750,
+        y: 260,
+        text: "双均线金叉",
+        properties: {
+          blockKind: "technicalIndicatorCondition",
           indicatorType: "movingAverage",
           conditionMode: "pattern",
           patternType: "goldenCross",
-          fastPeriod: 5,
-          slowPeriod: 20,
         },
       },
       {
         id: "dma-golden-buy",
         type: "rect",
-        x: 780,
-        y: 260,
+        x: 1030,
+        y: 200,
         text: "下单 · 买入开多 · 100 股",
         properties: {
           blockKind: "placeOrder",
@@ -63,23 +92,21 @@ export function createDoubleMovingAverageStrategyVisualModel(): StrategyVisualMo
       },
       {
         id: "dma-death-cross",
-        type: "rect",
-        x: 470,
+        type: "diamond",
+        x: 750,
         y: 380,
-        text: "双均线 5/20 死叉",
+        text: "双均线死叉",
         properties: {
-          blockKind: "technicalIndicator",
+          blockKind: "technicalIndicatorCondition",
           indicatorType: "movingAverage",
           conditionMode: "pattern",
           patternType: "deathCross",
-          fastPeriod: 5,
-          slowPeriod: 20,
         },
       },
       {
         id: "dma-death-sell",
         type: "rect",
-        x: 780,
+        x: 1030,
         y: 380,
         text: "下单 · 卖出平多 · 100 股",
         properties: {
@@ -92,11 +119,17 @@ export function createDoubleMovingAverageStrategyVisualModel(): StrategyVisualMo
       },
     ],
     edges: [
-      { id: "edge-dma-init-log", type: "polyline", sourceNodeId: "dma-init-root", targetNodeId: "dma-init-log" },
-      { id: "edge-dma-golden-cross", type: "polyline", sourceNodeId: "dma-kline-root", targetNodeId: "dma-golden-cross" },
-      { id: "edge-dma-golden-buy", type: "polyline", sourceNodeId: "dma-golden-cross", targetNodeId: "dma-golden-buy" },
-      { id: "edge-dma-death-cross", type: "polyline", sourceNodeId: "dma-kline-root", targetNodeId: "dma-death-cross" },
-      { id: "edge-dma-death-sell", type: "polyline", sourceNodeId: "dma-death-cross", targetNodeId: "dma-death-sell" },
+      { id: "edge-dma-init-log", type: "polyline", sourceNodeId: "dma-init-root", targetNodeId: "dma-init-log", properties: buildStrategyVisualControlEdgeProperties() },
+      { id: "edge-dma-fast-ma", type: "polyline", sourceNodeId: "dma-kline-root", targetNodeId: "dma-fast-ma", properties: buildStrategyVisualControlEdgeProperties() },
+      { id: "edge-dma-slow-ma", type: "polyline", sourceNodeId: "dma-fast-ma", targetNodeId: "dma-slow-ma", properties: buildStrategyVisualControlEdgeProperties() },
+      { id: "edge-dma-golden-cross", type: "polyline", sourceNodeId: "dma-slow-ma", targetNodeId: "dma-golden-cross", properties: buildStrategyVisualControlEdgeProperties() },
+      { id: "edge-dma-golden-fast", type: "polyline", sourceNodeId: "dma-fast-ma", targetNodeId: "dma-golden-cross", properties: buildStrategyVisualDataEdgeProperties("fast") },
+      { id: "edge-dma-golden-slow", type: "polyline", sourceNodeId: "dma-slow-ma", targetNodeId: "dma-golden-cross", properties: buildStrategyVisualDataEdgeProperties("slow") },
+      { id: "edge-dma-golden-buy", type: "polyline", sourceNodeId: "dma-golden-cross", targetNodeId: "dma-golden-buy", properties: buildStrategyVisualControlEdgeProperties("true") },
+      { id: "edge-dma-death-cross", type: "polyline", sourceNodeId: "dma-golden-cross", targetNodeId: "dma-death-cross", properties: buildStrategyVisualControlEdgeProperties("false") },
+      { id: "edge-dma-death-fast", type: "polyline", sourceNodeId: "dma-fast-ma", targetNodeId: "dma-death-cross", properties: buildStrategyVisualDataEdgeProperties("fast") },
+      { id: "edge-dma-death-slow", type: "polyline", sourceNodeId: "dma-slow-ma", targetNodeId: "dma-death-cross", properties: buildStrategyVisualDataEdgeProperties("slow") },
+      { id: "edge-dma-death-sell", type: "polyline", sourceNodeId: "dma-death-cross", targetNodeId: "dma-death-sell", properties: buildStrategyVisualControlEdgeProperties("true") },
     ],
   };
 }

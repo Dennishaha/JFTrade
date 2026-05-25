@@ -1,6 +1,8 @@
 import type { StrategyVisualNodeDocument } from "@jftrade/ui-contracts";
 
 import {
+  nextGetTechnicalIndicatorNodeText,
+  nextTechnicalIndicatorConditionNodeText,
   nextTechnicalIndicatorNodeText,
   type TechnicalIndicatorConditionMode,
   type TechnicalIndicatorOperator,
@@ -12,6 +14,8 @@ export type StrategyBlockKind =
   | "onInit"
   | "onKLineClosed"
   | "codeBlock"
+  | "getTechnicalIndicator"
+  | "technicalIndicatorCondition"
   | "technicalIndicator"
   | "ifCloseAbove"
   | "ifCloseBelow"
@@ -57,9 +61,49 @@ const STRATEGY_BLOCK_CATALOG: StrategyBlockDefinition[] = [
     accent: "#1d4ed8",
   },
   {
+    kind: "getTechnicalIndicator",
+    label: "指标数据",
+    description: "加载一个技术指标结果，供后续判断节点或动作节点复用。",
+    shape: "rect",
+    text: nextGetTechnicalIndicatorNodeText({
+      blockKind: "getTechnicalIndicator",
+      indicatorType: "rsi",
+      period: 14,
+    }),
+    properties: {
+      blockKind: "getTechnicalIndicator",
+      indicatorType: "rsi",
+      period: 14,
+    },
+    accent: "#0f766e",
+    paletteVisible: false,
+  },
+  {
+    kind: "technicalIndicatorCondition",
+    label: "指标条件判断",
+    description: "基于已定义变量里的指标结果做数值或形态判断，并提供 true / false 两个后续分支。",
+    shape: "diamond",
+    text: nextTechnicalIndicatorConditionNodeText({
+      blockKind: "technicalIndicatorCondition",
+      indicatorType: "rsi",
+      conditionMode: "numeric",
+      operator: "<",
+      threshold: 30,
+    }),
+    properties: {
+      blockKind: "technicalIndicatorCondition",
+      indicatorType: "rsi",
+      conditionMode: "numeric",
+      operator: "<",
+      threshold: 30,
+    },
+    accent: "#ca8a04",
+    paletteVisible: true,
+  },
+  {
     kind: "technicalIndicator",
-    label: "技术指标",
-    description: "单块完成技术指标参数配置与条件判断，可直接挂接下游动作。",
+    label: "技术指标（兼容）",
+    description: "旧版合并式技术指标图块，仅保留给兼容解析和历史模型使用。",
     shape: "rect",
     text: nextTechnicalIndicatorNodeText({
       blockKind: "technicalIndicator",
@@ -78,7 +122,7 @@ const STRATEGY_BLOCK_CATALOG: StrategyBlockDefinition[] = [
       threshold: 30,
     },
     accent: "#ca8a04",
-    paletteVisible: true,
+    paletteVisible: false,
   },
   {
     kind: "codeBlock",
@@ -150,6 +194,7 @@ const STRATEGY_BLOCK_CATALOG: StrategyBlockDefinition[] = [
       blockKind: "placeOrder",
       side: "BUY",
       orderType: "MARKET",
+      entryPositionPolicy: "sameDirection",
       quantityMode: "shares",
       quantityValue: 100,
       limitPrice: 0,
@@ -186,15 +231,17 @@ export function createStrategyPaletteItems(): Array<{
   icon: string;
   properties: Record<string, unknown>;
 }> {
-  return STRATEGY_BLOCK_CATALOG.filter((block) => block.paletteVisible !== false).map((block) => ({
-    type: block.shape,
-    text: block.text,
-    label: block.label,
-    icon: buildPaletteIcon(block.accent, block.label.slice(0, 2)),
-    properties: {
-      ...block.properties,
-    },
-  }));
+  return STRATEGY_BLOCK_CATALOG
+    .filter((block) => block.paletteVisible !== false)
+    .map((block) => ({
+      type: block.shape,
+      text: block.text,
+      label: block.label,
+      icon: buildPaletteIcon(block.accent, block.label.slice(0, 2)),
+      properties: {
+        ...block.properties,
+      },
+    }));
 }
 
 function buildPaletteIcon(fill: string, text: string): string {

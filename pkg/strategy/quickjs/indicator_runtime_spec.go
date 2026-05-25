@@ -10,7 +10,7 @@ import (
 var indicatorKeyPattern = regexp.MustCompile(`ctx\.indicators\[(?:"([^"]+)"|'([^']+)')\]`)
 
 type indicatorRequirements struct {
-	ma             []int
+	ma             []movingAverageConfig
 	rsi            []int
 	macd           []macdConfig
 	bollinger      []bollingerConfig
@@ -21,6 +21,11 @@ type indicatorRequirements struct {
 	rsiDivergence  []rsiDivergenceConfig
 	macdDivergence []macdDivergenceConfig
 	kdjDivergence  []kdjDivergenceConfig
+}
+
+type movingAverageConfig struct {
+	averageType string
+	period      int
 }
 
 type macdConfig struct {
@@ -63,7 +68,7 @@ type kdjDivergenceConfig struct {
 }
 
 func parseIndicatorRequirements(script string) indicatorRequirements {
-	maSet := map[int]struct{}{}
+	maSet := map[movingAverageConfig]struct{}{}
 	rsiSet := map[int]struct{}{}
 	macdSet := map[macdConfig]struct{}{}
 	bollingerSet := map[bollingerConfig]struct{}{}
@@ -83,9 +88,9 @@ func parseIndicatorRequirements(script string) indicatorRequirements {
 		}
 		switch parts[0] {
 		case "ma":
-			period, ok := parsePositiveInt(parts[1])
+			config, ok := parseMovingAverageConfig(parts)
 			if ok {
-				maSet[period] = struct{}{}
+				maSet[config] = struct{}{}
 			}
 		case "rsi":
 			period, ok := parsePositiveInt(parts[1])
@@ -179,7 +184,7 @@ func parseIndicatorRequirements(script string) indicatorRequirements {
 	}
 
 	return indicatorRequirements{
-		ma:             sortedInts(maSet),
+		ma:             sortedMovingAverageConfigs(maSet),
 		rsi:            sortedInts(rsiSet),
 		macd:           sortedMACDConfigs(macdSet),
 		bollinger:      sortedBollingerConfigs(bollingerSet),
@@ -207,7 +212,11 @@ func (r indicatorRequirements) isEmpty() bool {
 		len(r.kdjDivergence) == 0
 }
 
-func maIndicatorKey(period int) string {
+func maIndicatorKey(averageType string, period int) string {
+	return "ma:" + normalizeMovingAverageType(averageType) + ":" + strconv.Itoa(period)
+}
+
+func legacyMAIndicatorKey(period int) string {
 	return "ma:" + strconv.Itoa(period)
 }
 
@@ -249,6 +258,20 @@ func macdDivergenceIndicatorKey(fastPeriod, slowPeriod, signalPeriod int, direct
 
 func kdjDivergenceIndicatorKey(period, m1, m2 int, direction string, lookback int) string {
 	return "divergence:kdj:" + strconv.Itoa(period) + ":" + strconv.Itoa(m1) + ":" + strconv.Itoa(m2) + ":" + direction + ":" + strconv.Itoa(lookback)
+}
+
+func sortedMovingAverageConfigs(values map[movingAverageConfig]struct{}) []movingAverageConfig {
+	result := make([]movingAverageConfig, 0, len(values))
+	for value := range values {
+		result = append(result, value)
+	}
+	sort.Slice(result, func(left, right int) bool {
+		if result[left].period != result[right].period {
+			return result[left].period < result[right].period
+		}
+		return result[left].averageType < result[right].averageType
+	})
+	return result
 }
 
 func sortedInts(values map[int]struct{}) []int {
@@ -374,6 +397,36 @@ func sortedKDJDivergenceConfigs(values map[kdjDivergenceConfig]struct{}) []kdjDi
 func parsePositiveInt(value string) (int, bool) {
 	parsed, err := strconv.Atoi(strings.TrimSpace(value))
 	return parsed, err == nil && parsed > 0
+}
+
+func parseMovingAverageConfig(parts []string) (movingAverageConfig, bool) {
+	if len(parts) == 2 {
+		period, ok := parsePositiveInt(parts[1])
+		if !ok {
+			return movingAverageConfig{}, false
+		}
+		return movingAverageConfig{averageType: "MA", period: period}, true
+	}
+	if len(parts) != 3 {
+		return movingAverageConfig{}, false
+	}
+	period, ok := parsePositiveInt(parts[2])
+	if !ok {
+		return movingAverageConfig{}, false
+	}
+	return movingAverageConfig{
+		averageType: normalizeMovingAverageType(parts[1]),
+		period:      period,
+	}, true
+}
+
+func normalizeMovingAverageType(value string) string {
+	switch strings.ToUpper(strings.TrimSpace(value)) {
+	case "EMA", "SMA", "SMMA", "LWMA", "TMA", "EXPMA", "HMA", "VWMA", "BOLL":
+		return strings.ToUpper(strings.TrimSpace(value))
+	default:
+		return "MA"
+	}
 }
 
 func firstNonEmpty(values ...string) string {

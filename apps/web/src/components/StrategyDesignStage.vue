@@ -17,6 +17,7 @@ import {
     fetchEnvelopeWithInit,
 } from "../composables/apiClient";
 import { useDraggable } from "../composables/useDraggable";
+import { useStrategyIndicatorVariables } from "../composables/useStrategyIndicatorVariables";
 import { useStrategyUndoRedo } from "../composables/useStrategyUndoRedo";
 import { useStrategyVisualNodeInspector } from "../composables/useStrategyVisualNodeInspector";
 import {
@@ -33,6 +34,7 @@ import {
     getStrategyBlockKind,
     type StrategyAuthoringTemplate,
 } from "../features/strategyVisualBuilder";
+import { reconcileStrategyVisualModelIndicatorBindings } from "../features/strategyVisualBuilderIndicatorReferences";
 
 const props = withDefaults(defineProps<{
     entryMode?: "existing" | "new";
@@ -83,9 +85,7 @@ const visualSyncCodeBlockCount = ref(0);
 const isDefinitionsPanelCollapsed = ref(props.initialDefinitionsCollapsed);
 const isTemplatesSectionCollapsed = ref(true);
 const isBasicInfoSectionCollapsed = ref(true);
-const isVisualBuilderSectionCollapsed = ref(false);
 const isCodeEditorSectionCollapsed = ref(true);
-const isMetadataSectionCollapsed = ref(true);
 const isBlockInspectorCollapsed = ref(true);
 const strategyDisplayMode = ref<"canvas" | "split" | "code">("canvas");
 
@@ -232,9 +232,21 @@ const {
     selectedVisualNodePeriod,
     showsMacdInputs,
     showsTechnicalIndicatorMacdInputs,
+    showsMovingAverageTypeInput,
+    showsIndicatorVariableNameInput,
+    indicatorVariableNamePlaceholder,
+    selectedIndicatorVariableName,
+    showsIndicatorPrimaryInputSelect,
+    showsIndicatorFastInputSelect,
+    showsIndicatorSlowInputSelect,
+    indicatorGetterOptions,
+    selectedIndicatorPrimaryInputNodeId,
+    selectedIndicatorFastInputNodeId,
+    selectedIndicatorSlowInputNodeId,
     selectedMacdFastPeriod,
     selectedMacdSlowPeriod,
     selectedMacdSignalPeriod,
+    selectedMovingAverageType,
     showsMultiplierInput,
     selectedBollingerMultiplier,
     showsConditionModeInput,
@@ -249,11 +261,14 @@ const {
     showsPlaceOrderInputs,
     selectedPlaceOrderSide,
     selectedPlaceOrderType,
+    selectedPlaceOrderEntryPositionPolicy,
     selectedPlaceOrderQuantityMode,
     selectedPlaceOrderQuantityValue,
     selectedPlaceOrderLimitPrice,
+    showsPlaceOrderEntryPositionPolicyInput,
     showsPlaceOrderLimitPriceInput,
 } = useStrategyVisualNodeInspector({
+    visualModel: resolvedVisualModel,
     selectedVisualNode,
     mutateSelectedVisualNode,
 });
@@ -264,11 +279,16 @@ const overlayDeckBindings = {
     selectedVisualNodeMessage,
     selectedVisualNodeCode,
     selectedVisualNodePeriod,
+    selectedIndicatorVariableName,
     selectedIndicatorType,
+    selectedMovingAverageType,
     selectedIndicatorConditionMode,
     selectedIndicatorOperator,
     selectedIndicatorPatternType,
     selectedIndicatorLookback,
+    selectedIndicatorPrimaryInputNodeId,
+    selectedIndicatorFastInputNodeId,
+    selectedIndicatorSlowInputNodeId,
     selectedMacdFastPeriod,
     selectedMacdSlowPeriod,
     selectedMacdSignalPeriod,
@@ -276,6 +296,7 @@ const overlayDeckBindings = {
     selectedVisualNodeThreshold,
     selectedPlaceOrderSide,
     selectedPlaceOrderType,
+    selectedPlaceOrderEntryPositionPolicy,
     selectedPlaceOrderQuantityMode,
     selectedPlaceOrderQuantityValue,
     selectedPlaceOrderLimitPrice,
@@ -292,7 +313,6 @@ const hasDesignOverlayDeck = computed(
     () =>
         !isTemplatesSectionCollapsed.value ||
         !isBasicInfoSectionCollapsed.value ||
-        !isMetadataSectionCollapsed.value ||
         (!isBlockInspectorCollapsed.value && selectedVisualNode.value !== null),
 );
 
@@ -305,7 +325,7 @@ const showsCodeWorkbench = computed(
 const logicFlowFitViewPadding = computed(() => ({
     top: hasDesignOverlayDeck.value ? 320 : 156,
     right: showsCodeWorkbench.value ? 540 : 36,
-    bottom: !isVisualBuilderSectionCollapsed.value && showsCanvas.value ? 132 : 36,
+    bottom: showsCanvas.value ? 132 : 36,
     left: !isDefinitionsPanelCollapsed.value ? 320 : 36,
 }));
 
@@ -503,10 +523,8 @@ function openNewDefinitionTemplatePicker(
     isDefinitionsPanelCollapsed.value = true;
     isTemplatesSectionCollapsed.value = false;
     isBasicInfoSectionCollapsed.value = true;
-    isMetadataSectionCollapsed.value = true;
     isBlockInspectorCollapsed.value = true;
     isCodeEditorSectionCollapsed.value = true;
-    isVisualBuilderSectionCollapsed.value = false;
     strategyDisplayMode.value = "canvas";
     resetVisualSyncStatus();
 }
@@ -585,7 +603,7 @@ function serializeDefinitionSnapshot(
 function pickInitialVisualNodeId(model: StrategyVisualModelDocument): string {
     const preferred = model.nodes.find((node) => {
         const kind = getStrategyBlockKind(node);
-        return kind !== "onInit" && kind !== "onKLineClosed";
+        return kind !== "onInit" && kind !== "onKLineClosed" && kind !== "getTechnicalIndicator";
     });
 
     return preferred?.id ?? model.nodes[0]?.id ?? "";
@@ -823,7 +841,6 @@ function createNewDefinitionDraft(templateId = defaultStrategyTemplateId): void 
     isDefinitionsPanelCollapsed.value = true;
     isTemplatesSectionCollapsed.value = true;
     isCodeEditorSectionCollapsed.value = true;
-    isVisualBuilderSectionCollapsed.value = false;
     strategyDisplayMode.value = "canvas";
     definitionNotice.value = `已基于「${template.label}」创建新草稿。`;
     resetVisualSyncStatus();
@@ -1048,8 +1065,9 @@ function applyVisualModel(
         notice?: string;
     },
 ): void {
-    const nextModel =
-        cloneStrategyVisualModel(model) ?? createDefaultStrategyVisualModel();
+    const nextModel = reconcileStrategyVisualModelIndicatorBindings(
+        cloneStrategyVisualModel(model) ?? createDefaultStrategyVisualModel(),
+    );
     const nextSelectedNodeId =
         options?.preserveSelection === true &&
             nextModel.nodes.some((node) => node.id === selectedVisualNodeId.value)
@@ -1079,6 +1097,17 @@ function handleVisualModelUpdated(model: StrategyVisualModelDocument): void {
     clearDefinitionMessages();
     applyVisualModel(model, { preserveSelection: true });
 }
+
+const {
+    indicatorVariables,
+    addIndicatorVariable,
+    updateIndicatorVariable,
+    deleteIndicatorVariable,
+} = useStrategyIndicatorVariables({
+    visualModel: resolvedVisualModel,
+    selectedVisualNodeId,
+    applyVisualModel,
+});
 
 function handleScriptWorkbenchBlur(): void {
     syncScriptToVisualModelNow();
@@ -1374,21 +1403,6 @@ function deleteSelectedVisualNode(): void {
                             @click="isBasicInfoSectionCollapsed = !isBasicInfoSectionCollapsed">
                             基本信息
                         </button>
-                        <button class="strategy-tool-switch" :class="{ 'is-active': !isMetadataSectionCollapsed }"
-                            data-testid="toggle-strategy-metadata-section" type="button"
-                            @click="isMetadataSectionCollapsed = !isMetadataSectionCollapsed">
-                            元信息
-                        </button>
-                        <button class="strategy-tool-switch" :class="{ 'is-active': !isVisualBuilderSectionCollapsed }"
-                            data-testid="toggle-strategy-visual-builder-section" type="button"
-                            @click="isVisualBuilderSectionCollapsed = !isVisualBuilderSectionCollapsed">
-                            画布工具
-                        </button>
-                        <button class="strategy-tool-switch" :class="{ 'is-active': !isBlockInspectorCollapsed }"
-                            data-testid="toggle-strategy-block-inspector-section" type="button"
-                            @click="isBlockInspectorCollapsed = !isBlockInspectorCollapsed">
-                            图块详情
-                        </button>
                     </div>
                     
                     <div class="strategy-stage__toolbar-status" :class="visualSyncToneClass"
@@ -1409,11 +1423,15 @@ function deleteSelectedVisualNode(): void {
 
         <div v-if="showsCanvas" class="strategy-stage__canvas">
             <StrategyLogicFlowDesigner ref="logicFlowDesignerRef" :chrome="false" :fit-view-padding="logicFlowFitViewPadding" :height="'100%'"
-                :min-height="'100%'" :model-value="resolvedVisualModel" :resizable="false"
-                :show-builder-actions="!isVisualBuilderSectionCollapsed"
-                :show-zoom-slider="!isVisualBuilderSectionCollapsed"
+                :indicator-variables="indicatorVariables" :min-height="'100%'" :model-value="resolvedVisualModel" :resizable="false"
+                :show-builder-actions="showsCanvas"
+                :show-zoom-slider="showsCanvas"
                 :zoom-right-offset="strategyLogicFlowZoomRightOffset" class="h-full min-h-0"
-                @select-node="handleVisualNodeSelected" @update:model-value="handleVisualModelUpdated" />
+                @add-indicator-variable="addIndicatorVariable"
+                @delete-indicator-variable="deleteIndicatorVariable"
+                @select-node="handleVisualNodeSelected"
+                @update-indicator-variable="updateIndicatorVariable"
+                @update:model-value="handleVisualModelUpdated" />
         </div>
 
         <div v-if="!isDefinitionsPanelCollapsed" data-testid="strategy-definitions-panel"
@@ -1437,13 +1455,20 @@ function deleteSelectedVisualNode(): void {
                 :selected-visual-kind="selectedVisualKind" :selected-visual-node="selectedVisualNode"
                 :show-basic-info-section="!isBasicInfoSectionCollapsed"
                 :show-block-details-section="selectedVisualNode !== null && !isBlockInspectorCollapsed"
-                :show-metadata-section="!isMetadataSectionCollapsed"
                 :show-templates-section="!isTemplatesSectionCollapsed" :shows-code-input="showsCodeInput"
                 :shows-macd-inputs="showsMacdInputs" :shows-technical-indicator-macd-inputs="showsTechnicalIndicatorMacdInputs" :shows-multiplier-input="showsMultiplierInput"
+                :shows-moving-average-type-input="showsMovingAverageTypeInput"
+                :shows-indicator-variable-name-input="showsIndicatorVariableNameInput"
+                :indicator-variable-name-placeholder="indicatorVariableNamePlaceholder"
+                :shows-indicator-primary-input-select="showsIndicatorPrimaryInputSelect"
+                :shows-indicator-fast-input-select="showsIndicatorFastInputSelect"
+                :shows-indicator-slow-input-select="showsIndicatorSlowInputSelect"
+                :indicator-getter-options="indicatorGetterOptions"
                 :shows-period-input="showsPeriodInput" :shows-threshold-input="showsThresholdInput"
                 :shows-condition-mode-input="showsConditionModeInput" :shows-indicator-type-input="showsIndicatorTypeInput"
                 :shows-pattern-type-input="showsPatternTypeInput" :shows-lookback-input="showsLookbackInput"
                 :shows-place-order-inputs="showsPlaceOrderInputs"
+                :shows-place-order-entry-position-policy-input="showsPlaceOrderEntryPositionPolicyInput"
                 :shows-place-order-limit-price-input="showsPlaceOrderLimitPriceInput"
                 :strategy-templates="strategyTemplates" :updated-at-text="formatTimestamp(definitionForm.updatedAt)"
                 @delete-selected-node="deleteSelectedVisualNode" @select-template="createNewDefinitionDraft"
@@ -1507,7 +1532,7 @@ function deleteSelectedVisualNode(): void {
     padding: 0.45rem 0.85rem;
     border-radius: 999px;
     border: 1px solid rgba(255, 255, 255, 0.08);
-    background: color-mix(in srgb, var(--tv-bg-surface) 58%, transparent);
+    background: color-mix(in srgb, var(--tv-bg-surface) 34%, transparent);
     color: var(--tv-text-muted);
     font-size: 0.78rem;
     font-weight: 600;
@@ -1526,7 +1551,7 @@ function deleteSelectedVisualNode(): void {
     border-radius: 1.5rem;
     font-size: 0.92rem;
     line-height: 1.5;
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.06);
     backdrop-filter: blur(24px) saturate(160%);
 }
 
@@ -1610,7 +1635,7 @@ function deleteSelectedVisualNode(): void {
     align-items: center;
     border-radius: 999px;
     border: 1px solid rgba(255, 255, 255, 0.08);
-    background: color-mix(in srgb, var(--tv-bg-elevated) 50%, transparent);
+    background: color-mix(in srgb, var(--tv-bg-elevated) 32%, transparent);
     padding: 0.25rem 0.6rem;
     backdrop-filter: blur(20px) saturate(140%);
 }
@@ -1651,7 +1676,7 @@ function deleteSelectedVisualNode(): void {
     padding: 0.85rem 1rem;
     border-radius: 1.45rem;
     border: 1px solid rgba(255, 255, 255, 0.1);
-    background: color-mix(in srgb, var(--tv-bg-surface) 55%, transparent);
+    background: color-mix(in srgb, var(--tv-bg-surface) 38%, transparent);
     box-shadow:
         0 8px 32px rgba(0, 0, 0, 0.4),
         inset 0 1px 0 rgba(255, 255, 255, 0.06);
@@ -1696,7 +1721,7 @@ function deleteSelectedVisualNode(): void {
     padding: 0.45rem 0.7rem;
     border-radius: 1rem;
     border: 1px solid rgba(255, 255, 255, 0.08);
-    background: color-mix(in srgb, var(--tv-bg-elevated) 46%, transparent);
+    background: color-mix(in srgb, var(--tv-bg-elevated) 28%, transparent);
     color: var(--tv-text-muted);
 }
 
@@ -1706,7 +1731,7 @@ function deleteSelectedVisualNode(): void {
     min-height: 1.9rem;
     padding: 0.25rem 0.65rem;
     border-radius: 999px;
-    background: color-mix(in srgb, var(--tv-bg-surface) 72%, transparent);
+    background: color-mix(in srgb, var(--tv-bg-surface) 48%, transparent);
     font-size: 0.72rem;
     font-weight: 700;
     letter-spacing: 0.12em;

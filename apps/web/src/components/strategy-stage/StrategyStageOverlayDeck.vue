@@ -3,12 +3,23 @@ import type {
   StrategyDefinitionDocument,
   StrategyVisualNodeDocument,
 } from "@jftrade/ui-contracts";
-import type { Ref } from "vue";
+import { computed, type Ref } from "vue";
 
 import type {
   StrategyAuthoringTemplate,
   StrategyBlockKind,
 } from "../../features/strategyVisualBuilder";
+import {
+  GET_TECHNICAL_INDICATOR_OPTIONS,
+  getPatternOptions,
+  getTechnicalIndicatorConditionModeOptions,
+  MOVING_AVERAGE_INDICATOR_OPTIONS,
+  normalizeTechnicalIndicatorType,
+  TECHNICAL_INDICATOR_OPTIONS,
+} from "../../features/strategyVisualBuilderIndicatorBlock";
+import {
+  entryPositionPolicyLabel,
+} from "../../features/strategyVisualBuilderScriptSupport";
 
 import "./strategyStageShared.css";
 
@@ -18,11 +29,16 @@ interface StrategyOverlayDeckBindings {
   selectedVisualNodeMessage: Ref<string>;
   selectedVisualNodeCode: Ref<string>;
   selectedVisualNodePeriod: Ref<string>;
+  selectedIndicatorVariableName: Ref<string>;
   selectedIndicatorType: Ref<string>;
+  selectedMovingAverageType: Ref<string>;
   selectedIndicatorConditionMode: Ref<string>;
   selectedIndicatorOperator: Ref<string>;
   selectedIndicatorPatternType: Ref<string>;
   selectedIndicatorLookback: Ref<string>;
+  selectedIndicatorPrimaryInputNodeId: Ref<string>;
+  selectedIndicatorFastInputNodeId: Ref<string>;
+  selectedIndicatorSlowInputNodeId: Ref<string>;
   selectedMacdFastPeriod: Ref<string>;
   selectedMacdSlowPeriod: Ref<string>;
   selectedMacdSignalPeriod: Ref<string>;
@@ -30,9 +46,15 @@ interface StrategyOverlayDeckBindings {
   selectedVisualNodeThreshold: Ref<string>;
   selectedPlaceOrderSide: Ref<string>;
   selectedPlaceOrderType: Ref<string>;
+  selectedPlaceOrderEntryPositionPolicy: Ref<string>;
   selectedPlaceOrderQuantityMode: Ref<string>;
   selectedPlaceOrderQuantityValue: Ref<string>;
   selectedPlaceOrderLimitPrice: Ref<string>;
+}
+
+interface StrategyIndicatorGetterOption {
+  value: string;
+  label: string;
 }
 
 const props = defineProps<{
@@ -40,7 +62,6 @@ const props = defineProps<{
   showTemplatesSection: boolean;
   showBasicInfoSection: boolean;
   showBlockDetailsSection: boolean;
-  showMetadataSection: boolean;
   activeStrategyTemplateMode: StrategyAuthoringTemplate["mode"] | null;
   strategyTemplates: StrategyAuthoringTemplate[];
   selectedStrategyTemplateId: string;
@@ -52,6 +73,13 @@ const props = defineProps<{
   showsPeriodInput: boolean;
   showsMacdInputs: boolean;
   showsTechnicalIndicatorMacdInputs: boolean;
+  showsMovingAverageTypeInput: boolean;
+  showsIndicatorVariableNameInput: boolean;
+  indicatorVariableNamePlaceholder: string;
+  showsIndicatorPrimaryInputSelect: boolean;
+  showsIndicatorFastInputSelect: boolean;
+  showsIndicatorSlowInputSelect: boolean;
+  indicatorGetterOptions: StrategyIndicatorGetterOption[];
   showsMultiplierInput: boolean;
   showsThresholdInput: boolean;
   showsConditionModeInput: boolean;
@@ -59,6 +87,7 @@ const props = defineProps<{
   showsPatternTypeInput: boolean;
   showsLookbackInput: boolean;
   showsPlaceOrderInputs: boolean;
+  showsPlaceOrderEntryPositionPolicyInput: boolean;
   showsPlaceOrderLimitPriceInput: boolean;
   createdAtText: string;
   updatedAtText: string;
@@ -75,11 +104,16 @@ const selectedVisualNodeText = props.bindings.selectedVisualNodeText;
 const selectedVisualNodeMessage = props.bindings.selectedVisualNodeMessage;
 const selectedVisualNodeCode = props.bindings.selectedVisualNodeCode;
 const selectedVisualNodePeriod = props.bindings.selectedVisualNodePeriod;
+const selectedIndicatorVariableName = props.bindings.selectedIndicatorVariableName;
 const selectedIndicatorType = props.bindings.selectedIndicatorType;
+const selectedMovingAverageType = props.bindings.selectedMovingAverageType;
 const selectedIndicatorConditionMode = props.bindings.selectedIndicatorConditionMode;
 const selectedIndicatorOperator = props.bindings.selectedIndicatorOperator;
 const selectedIndicatorPatternType = props.bindings.selectedIndicatorPatternType;
 const selectedIndicatorLookback = props.bindings.selectedIndicatorLookback;
+const selectedIndicatorPrimaryInputNodeId = props.bindings.selectedIndicatorPrimaryInputNodeId;
+const selectedIndicatorFastInputNodeId = props.bindings.selectedIndicatorFastInputNodeId;
+const selectedIndicatorSlowInputNodeId = props.bindings.selectedIndicatorSlowInputNodeId;
 const selectedMacdFastPeriod = props.bindings.selectedMacdFastPeriod;
 const selectedMacdSlowPeriod = props.bindings.selectedMacdSlowPeriod;
 const selectedMacdSignalPeriod = props.bindings.selectedMacdSignalPeriod;
@@ -87,9 +121,38 @@ const selectedBollingerMultiplier = props.bindings.selectedBollingerMultiplier;
 const selectedVisualNodeThreshold = props.bindings.selectedVisualNodeThreshold;
 const selectedPlaceOrderSide = props.bindings.selectedPlaceOrderSide;
 const selectedPlaceOrderType = props.bindings.selectedPlaceOrderType;
+const selectedPlaceOrderEntryPositionPolicy = props.bindings.selectedPlaceOrderEntryPositionPolicy;
 const selectedPlaceOrderQuantityMode = props.bindings.selectedPlaceOrderQuantityMode;
 const selectedPlaceOrderQuantityValue = props.bindings.selectedPlaceOrderQuantityValue;
 const selectedPlaceOrderLimitPrice = props.bindings.selectedPlaceOrderLimitPrice;
+
+const placeOrderEntryPositionPolicyOptions = [
+  { value: "sameDirection", label: entryPositionPolicyLabel("sameDirection") },
+  { value: "flatOnly", label: entryPositionPolicyLabel("flatOnly") },
+  { value: "allow", label: entryPositionPolicyLabel("allow") },
+] as const;
+
+const indicatorOptions = computed(() => (
+  props.selectedVisualKind === "getTechnicalIndicator"
+    ? GET_TECHNICAL_INDICATOR_OPTIONS
+    : TECHNICAL_INDICATOR_OPTIONS
+));
+const movingAverageOptions = MOVING_AVERAGE_INDICATOR_OPTIONS;
+
+const normalizedSelectedIndicatorType = computed(() =>
+  normalizeTechnicalIndicatorType(selectedIndicatorType.value),
+);
+
+const indicatorConditionModeOptions = computed(() =>
+  getTechnicalIndicatorConditionModeOptions(
+    normalizedSelectedIndicatorType.value,
+    props.selectedVisualKind === "technicalIndicator",
+  ),
+);
+
+const indicatorPatternOptions = computed(() =>
+  getPatternOptions(normalizedSelectedIndicatorType.value),
+);
 
 function toAuthoringModeLabel(mode: StrategyAuthoringTemplate["mode"] | null): string {
   return mode === "visual" ? "图优先" : "代码优先";
@@ -205,6 +268,24 @@ function toTemplateTypeLabel(mode: StrategyAuthoringTemplate["mode"]): string {
             placeholder="例如：说明这套策略的目标、触发条件和输出行为。"
           />
         </label>
+
+        <div class="grid gap-2 pt-2">
+          <div class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">元信息</div>
+          <div class="grid gap-3 text-sm text-slate-600 md:grid-cols-3">
+            <div class="strategy-meta-card">
+              <div class="text-xs uppercase tracking-[0.2em] text-slate-500">定义 ID</div>
+              <div class="mt-2 font-medium text-slate-900">{{ definitionForm.id || '自动生成' }}</div>
+            </div>
+            <div class="strategy-meta-card">
+              <div class="text-xs uppercase tracking-[0.2em] text-slate-500">创建时间</div>
+              <div class="mt-2 font-medium text-slate-900">{{ props.createdAtText }}</div>
+            </div>
+            <div class="strategy-meta-card">
+              <div class="text-xs uppercase tracking-[0.2em] text-slate-500">更新时间</div>
+              <div class="mt-2 font-medium text-slate-900">{{ props.updatedAtText }}</div>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -244,20 +325,40 @@ function toTemplateTypeLabel(mode: StrategyAuthoringTemplate["mode"]): string {
           />
         </label>
 
+        <label v-if="props.showsIndicatorVariableNameInput" class="grid gap-2 text-sm text-slate-700">
+          <span class="font-medium">变量名</span>
+          <input
+            v-model="selectedIndicatorVariableName"
+            data-testid="strategy-block-variable-name-input"
+            :placeholder="props.indicatorVariableNamePlaceholder"
+            class="rounded-2xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-amber-500"
+            type="text"
+          />
+        </label>
+
         <label v-if="props.showsIndicatorTypeInput" class="grid gap-2 text-sm text-slate-700">
           <span class="font-medium">技术指标类型</span>
           <select
             v-model="selectedIndicatorType"
+            data-testid="strategy-block-indicator-type-select"
             class="rounded-2xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-amber-500"
           >
-            <option value="movingAverage">双均线</option>
-            <option value="rsi">RSI</option>
-            <option value="macd">MACD</option>
-            <option value="kdj">KDJ</option>
-            <option value="atr">ATR</option>
-            <option value="cci">CCI</option>
-            <option value="williamsR">Williams %R</option>
-            <option value="bollinger">布林带</option>
+            <option v-for="option in indicatorOptions" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </option>
+          </select>
+        </label>
+
+        <label v-if="props.showsMovingAverageTypeInput" class="grid gap-2 text-sm text-slate-700">
+          <span class="font-medium">均线指标类型</span>
+          <select
+            v-model="selectedMovingAverageType"
+            data-testid="strategy-block-moving-average-type-select"
+            class="rounded-2xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-amber-500"
+          >
+            <option v-for="option in movingAverageOptions" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </option>
           </select>
         </label>
 
@@ -265,13 +366,58 @@ function toTemplateTypeLabel(mode: StrategyAuthoringTemplate["mode"]): string {
           <span class="font-medium">判断类型</span>
           <select
             v-model="selectedIndicatorConditionMode"
+            data-testid="strategy-block-indicator-condition-mode-select"
             class="rounded-2xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-amber-500"
           >
-            <option value="none">仅加载指标</option>
-            <option value="numeric">数值型</option>
-            <option value="pattern">形态型</option>
+            <option v-for="option in indicatorConditionModeOptions" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </option>
           </select>
         </label>
+
+        <label v-if="props.showsIndicatorPrimaryInputSelect" class="grid gap-2 text-sm text-slate-700">
+          <span class="font-medium">引用变量</span>
+          <select
+            v-model="selectedIndicatorPrimaryInputNodeId"
+            data-testid="strategy-block-indicator-input-primary-select"
+            class="rounded-2xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-amber-500"
+          >
+            <option value="">请选择指标数据</option>
+            <option v-for="option in props.indicatorGetterOptions" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </option>
+          </select>
+        </label>
+
+        <div v-if="props.showsIndicatorFastInputSelect || props.showsIndicatorSlowInputSelect" class="grid gap-3 md:grid-cols-2">
+          <label v-if="props.showsIndicatorFastInputSelect" class="grid gap-2 text-sm text-slate-700">
+            <span class="font-medium">快线变量</span>
+            <select
+              v-model="selectedIndicatorFastInputNodeId"
+              data-testid="strategy-block-indicator-input-fast-select"
+              class="rounded-2xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-amber-500"
+            >
+              <option value="">请选择快线数据</option>
+              <option v-for="option in props.indicatorGetterOptions" :key="option.value" :value="option.value">
+                {{ option.label }}
+              </option>
+            </select>
+          </label>
+
+          <label v-if="props.showsIndicatorSlowInputSelect" class="grid gap-2 text-sm text-slate-700">
+            <span class="font-medium">慢线变量</span>
+            <select
+              v-model="selectedIndicatorSlowInputNodeId"
+              data-testid="strategy-block-indicator-input-slow-select"
+              class="rounded-2xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-amber-500"
+            >
+              <option value="">请选择慢线数据</option>
+              <option v-for="option in props.indicatorGetterOptions" :key="option.value" :value="option.value">
+                {{ option.label }}
+              </option>
+            </select>
+          </label>
+        </div>
 
         <label v-if="props.showsPeriodInput" class="grid gap-2 text-sm text-slate-700">
           <span class="font-medium">周期 / 窗口</span>
@@ -333,14 +479,12 @@ function toTemplateTypeLabel(mode: StrategyAuthoringTemplate["mode"]): string {
           <span class="font-medium">形态条件</span>
           <select
             v-model="selectedIndicatorPatternType"
+            data-testid="strategy-block-indicator-pattern-select"
             class="rounded-2xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-amber-500"
           >
-            <option v-if="selectedIndicatorType === 'movingAverage' || selectedIndicatorType === 'macd' || selectedIndicatorType === 'kdj'" value="goldenCross">金叉</option>
-            <option v-if="selectedIndicatorType === 'movingAverage' || selectedIndicatorType === 'macd' || selectedIndicatorType === 'kdj'" value="deathCross">死叉</option>
-            <option v-if="selectedIndicatorType === 'rsi' || selectedIndicatorType === 'macd' || selectedIndicatorType === 'kdj'" value="topDivergence">顶背离</option>
-            <option v-if="selectedIndicatorType === 'rsi' || selectedIndicatorType === 'macd' || selectedIndicatorType === 'kdj'" value="bottomDivergence">底背离</option>
-            <option v-if="selectedIndicatorType === 'bollinger'" value="closeAboveUpperBand">收盘价突破上轨</option>
-            <option v-if="selectedIndicatorType === 'bollinger'" value="closeBelowLowerBand">收盘价跌破下轨</option>
+            <option v-for="option in indicatorPatternOptions" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </option>
           </select>
         </label>
 
@@ -383,6 +527,7 @@ function toTemplateTypeLabel(mode: StrategyAuthoringTemplate["mode"]): string {
               <span class="font-medium">方向</span>
               <select
                 v-model="selectedPlaceOrderSide"
+                data-testid="strategy-place-order-side"
                 class="rounded-2xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-amber-500"
               >
                 <option value="BUY">买入开多</option>
@@ -411,8 +556,9 @@ function toTemplateTypeLabel(mode: StrategyAuthoringTemplate["mode"]): string {
             >
               <option value="shares">固定股票数</option>
               <option value="amount">固定金额</option>
-              <option value="positionPercent">账户仓位百分比</option>
-              <option value="cashPercent">用户可用现金百分比</option>
+              <option value="accountPositionPercent">账户仓位百分比</option>
+              <option value="symbolPositionPercent">当前标的仓位百分比</option>
+              <option value="cashPercent">可用现金百分比</option>
             </select>
           </label>
 
@@ -420,8 +566,9 @@ function toTemplateTypeLabel(mode: StrategyAuthoringTemplate["mode"]): string {
             <span class="font-medium">
               <template v-if="selectedPlaceOrderQuantityMode === 'shares'">股票数量（股）</template>
               <template v-else-if="selectedPlaceOrderQuantityMode === 'amount'">金额</template>
-              <template v-else-if="selectedPlaceOrderQuantityMode === 'positionPercent'">仓位百分比（%）</template>
-              <template v-else-if="selectedPlaceOrderQuantityMode === 'cashPercent'">现金百分比（%）</template>
+              <template v-else-if="selectedPlaceOrderQuantityMode === 'accountPositionPercent'">账户仓位百分比（%）</template>
+              <template v-else-if="selectedPlaceOrderQuantityMode === 'symbolPositionPercent'">当前标的仓位百分比（%）</template>
+              <template v-else-if="selectedPlaceOrderQuantityMode === 'cashPercent'">可用现金百分比（%）</template>
             </span>
             <input
               v-model="selectedPlaceOrderQuantityValue"
@@ -434,12 +581,31 @@ function toTemplateTypeLabel(mode: StrategyAuthoringTemplate["mode"]): string {
               <template v-if="selectedPlaceOrderQuantityMode === 'amount'">
                 股票数量以实际为准，不超过输入金额
               </template>
-              <template v-else-if="selectedPlaceOrderQuantityMode === 'positionPercent'">
-                基于当前账户持仓市值计算目标股数
+              <template v-else-if="selectedPlaceOrderQuantityMode === 'accountPositionPercent'">
+                基于账户总资产计算目标股数，适合统一资金规模下的开仓控制
+              </template>
+              <template v-else-if="selectedPlaceOrderQuantityMode === 'symbolPositionPercent'">
+                基于当前标的持仓市值计算目标股数，无持仓时结果为 0
               </template>
               <template v-else-if="selectedPlaceOrderQuantityMode === 'cashPercent'">
-                回测使用策略当时的现金，实盘使用账户可用资金
+                基于当前策略标的报价币种的可用资金计算目标股数
               </template>
+            </span>
+          </label>
+
+          <label v-if="props.showsPlaceOrderEntryPositionPolicyInput" class="grid gap-2 text-sm text-slate-700">
+            <span class="font-medium">开仓持仓策略</span>
+            <select
+              v-model="selectedPlaceOrderEntryPositionPolicy"
+              data-testid="strategy-place-order-entry-position-policy"
+              class="rounded-2xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-amber-500"
+            >
+              <option v-for="option in placeOrderEntryPositionPolicyOptions" :key="option.value" :value="option.value">
+                {{ option.label }}
+              </option>
+            </select>
+            <span class="text-xs text-slate-400">
+              仅对买入开多 / 卖出开空生效，用于控制已有仓位时是否继续同向开仓。
             </span>
           </label>
 
@@ -479,27 +645,6 @@ function toTemplateTypeLabel(mode: StrategyAuthoringTemplate["mode"]): string {
         <button class="strategy-btn strategy-btn--ghost strategy-btn--danger" type="button" @click="emit('delete-selected-node')">
           删除当前图块
         </button>
-      </div>
-    </section>
-
-    <section v-if="props.showMetadataSection" data-testid="strategy-metadata-section" class="strategy-stack-card">
-      <div class="strategy-stack-card__head">
-        <div class="strategy-stage__section-title">元信息</div>
-      </div>
-
-      <div class="mt-3 grid gap-3 text-sm text-slate-600">
-        <div class="strategy-meta-card">
-          <div class="text-xs uppercase tracking-[0.2em] text-slate-500">定义 ID</div>
-          <div class="mt-2 font-medium text-slate-900">{{ definitionForm.id || '自动生成' }}</div>
-        </div>
-        <div class="strategy-meta-card">
-          <div class="text-xs uppercase tracking-[0.2em] text-slate-500">创建时间</div>
-          <div class="mt-2 font-medium text-slate-900">{{ props.createdAtText }}</div>
-        </div>
-        <div class="strategy-meta-card">
-          <div class="text-xs uppercase tracking-[0.2em] text-slate-500">更新时间</div>
-          <div class="mt-2 font-medium text-slate-900">{{ props.updatedAtText }}</div>
-        </div>
       </div>
     </section>
   </div>

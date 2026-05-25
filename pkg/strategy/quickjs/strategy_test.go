@@ -2,6 +2,7 @@ package quickjs
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -179,6 +180,55 @@ func TestBuildPositionSnapshot(t *testing.T) {
 	}
 }
 
+func TestRuntimeBridgeGetAvailableCashUsesQuoteCurrencyBalance(t *testing.T) {
+	account := types.NewAccount()
+	account.TotalAccountValue = fixedpoint.NewFromFloat(88000)
+	account.SetBalance("USDT", types.Balance{
+		Currency:  "USDT",
+		Available: fixedpoint.NewFromFloat(1200),
+		NetAsset:  fixedpoint.NewFromFloat(1500),
+	})
+	account.SetBalance("BTC", types.Balance{
+		Currency:  "BTC",
+		Available: fixedpoint.NewFromFloat(0.75),
+		NetAsset:  fixedpoint.NewFromFloat(82500),
+	})
+
+	session := &bbgo2.ExchangeSession{Account: account}
+	session.SetMarkets(types.MarketMap{
+		"BTCUSDT": {
+			Symbol:        "BTCUSDT",
+			BaseCurrency:  "BTC",
+			QuoteCurrency: "USDT",
+		},
+	})
+
+	bridge := &runtimeBridge{
+		strategy: &Strategy{Symbol: "BTCUSDT"},
+		session:  session,
+	}
+
+	if cash := bridge.getAvailableCash(); cash != 1200 {
+		t.Fatalf("getAvailableCash() = %v", cash)
+	}
+}
+
+func TestRuntimeBridgeGetTotalAccountValuePrefersNormalizedValue(t *testing.T) {
+	account := types.NewAccount()
+	account.TotalAccountValue = fixedpoint.NewFromFloat(88000)
+	account.SetBalance("USDT", types.Balance{
+		Currency:  "USDT",
+		Available: fixedpoint.NewFromFloat(1200),
+		NetAsset:  fixedpoint.NewFromFloat(1500),
+	})
+
+	bridge := &runtimeBridge{session: &bbgo2.ExchangeSession{Account: account}}
+
+	if total := bridge.getTotalAccountValue(); total != 88000 {
+		t.Fatalf("getTotalAccountValue() = %v", total)
+	}
+}
+
 func TestRuntimeBridgeHookContextBlocksWarmupOrders(t *testing.T) {
 	session := &bbgo2.ExchangeSession{Account: types.NewAccount()}
 	session.Account.CanTrade = true
@@ -213,8 +263,8 @@ func TestRuntimeBridgeHookContextBlocksWarmupOrders(t *testing.T) {
 		CurrentKlineTime: baseTime.Add(time.Minute),
 		WarmupUntil:      strategy.WarmupUntil,
 	})
-	if err == nil {
-		t.Fatal("expected warmup hook to block placeOrder")
+	if err != nil {
+		t.Fatalf("invokeHook() during warmup error = %v", err)
 	}
 	if len(executor.lastSubmitted) != 0 {
 		t.Fatalf("SubmitOrders() count during warmup = %d", len(executor.lastSubmitted))
@@ -229,5 +279,42 @@ func TestRuntimeBridgeHookContextBlocksWarmupOrders(t *testing.T) {
 	}
 	if len(executor.lastSubmitted) != 1 {
 		t.Fatalf("SubmitOrders() count after warmup = %d", len(executor.lastSubmitted))
+	}
+}
+
+func TestRuntimeBridgePlaceOrderStillErrorsWhenRiskStateBlocksPlace(t *testing.T) {
+	session := &bbgo2.ExchangeSession{Account: types.NewAccount()}
+	session.SetMarkets(types.MarketMap{
+		"BTCUSDT": {
+			Symbol:        "BTCUSDT",
+			BaseCurrency:  "BTC",
+			QuoteCurrency: "USDT",
+		},
+	})
+
+	executor := &stubOrderExecutor{}
+	strategy := &Strategy{
+		Name:   "quickjs-blocked-test",
+		Symbol: "BTCUSDT",
+		Script: `function onKLineClosed(ctx) {
+			placeOrder({ clientOrderId: "blocked-test-order", side: "BUY", quantity: 0.25, orderType: "MARKET" });
+		}`,
+	}
+
+	bridge, err := newRuntimeBridge(context.Background(), strategy, executor, session)
+	if err != nil {
+		t.Fatalf("newRuntimeBridge() error = %v", err)
+	}
+	defer bridge.close()
+
+	err = bridge.invokeHook("onKLineClosed", map[string]any{"symbol": "BTCUSDT"}, &HookContext{})
+	if err == nil {
+		t.Fatal("expected runtime risk state to block placeOrder")
+	}
+	if !strings.Contains(err.Error(), "place operation is blocked by current runtime state") {
+		t.Fatalf("unexpected error = %v", err)
+	}
+	if len(executor.lastSubmitted) != 0 {
+		t.Fatalf("SubmitOrders() count = %d", len(executor.lastSubmitted))
 	}
 }

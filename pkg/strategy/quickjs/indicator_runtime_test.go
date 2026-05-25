@@ -14,7 +14,8 @@ func TestParseIndicatorRequirements(t *testing.T) {
 	requirements := parseIndicatorRequirements(`
 		function onKLineClosed(ctx) {
 			const fastAverage = ctx.indicators["ma:5"];
-			const slowAverage = ctx.indicators['ma:20'];
+			const slowAverage = ctx.indicators['ma:EMA:20'];
+			const volumeWeightedAverage = ctx.indicators["ma:VWMA:10"];
 			const latestRsi = ctx.indicators["rsi:14"];
 			const latestMacd = ctx.indicators["macd:12:26:9"];
 			const latestBollinger = ctx.indicators["bollinger:20:2"];
@@ -28,8 +29,17 @@ func TestParseIndicatorRequirements(t *testing.T) {
 		}
 	`)
 
-	if len(requirements.ma) != 2 || requirements.ma[0] != 5 || requirements.ma[1] != 20 {
+	if len(requirements.ma) != 3 {
 		t.Fatalf("ma requirements = %#v", requirements.ma)
+	}
+	if requirements.ma[0] != (movingAverageConfig{averageType: "MA", period: 5}) {
+		t.Fatalf("ma[0] = %#v", requirements.ma[0])
+	}
+	if requirements.ma[1] != (movingAverageConfig{averageType: "VWMA", period: 10}) {
+		t.Fatalf("ma[1] = %#v", requirements.ma[1])
+	}
+	if requirements.ma[2] != (movingAverageConfig{averageType: "EMA", period: 20}) {
+		t.Fatalf("ma[2] = %#v", requirements.ma[2])
 	}
 	if len(requirements.rsi) != 1 || requirements.rsi[0] != 14 {
 		t.Fatalf("rsi requirements = %#v", requirements.rsi)
@@ -63,6 +73,53 @@ func TestParseIndicatorRequirements(t *testing.T) {
 	}
 }
 
+func TestBuildMovingAverageSnapshotSupportsTypedMovingAverages(t *testing.T) {
+	values := []float64{10, 12, 11, 13, 15, 14, 16, 18, 17}
+	volumes := []float64{100, 140, 90, 160, 200, 150, 180, 220, 170}
+	configs := []movingAverageConfig{
+		{averageType: "MA", period: 5},
+		{averageType: "EMA", period: 5},
+		{averageType: "SMA", period: 5},
+		{averageType: "SMMA", period: 5},
+		{averageType: "LWMA", period: 5},
+		{averageType: "TMA", period: 5},
+		{averageType: "EXPMA", period: 5},
+		{averageType: "HMA", period: 5},
+		{averageType: "VWMA", period: 5},
+		{averageType: "BOLL", period: 5},
+	}
+
+	for _, config := range configs {
+		snapshot := buildMovingAverageSnapshot(values, volumes, config)
+		if snapshot == nil {
+			t.Fatalf("snapshot for %#v is nil", config)
+		}
+		if _, ok := snapshot["value"]; !ok {
+			t.Fatalf("snapshot for %#v missing value", config)
+		}
+	}
+
+	maValue := readSnapshotNumber(t, buildMovingAverageSnapshot(values, volumes, movingAverageConfig{averageType: "MA", period: 5}), "value")
+	smaValue := readSnapshotNumber(t, buildMovingAverageSnapshot(values, volumes, movingAverageConfig{averageType: "SMA", period: 5}), "value")
+	bollValue := readSnapshotNumber(t, buildMovingAverageSnapshot(values, volumes, movingAverageConfig{averageType: "BOLL", period: 5}), "value")
+	emaValue := readSnapshotNumber(t, buildMovingAverageSnapshot(values, volumes, movingAverageConfig{averageType: "EMA", period: 5}), "value")
+	expmaValue := readSnapshotNumber(t, buildMovingAverageSnapshot(values, volumes, movingAverageConfig{averageType: "EXPMA", period: 5}), "value")
+	vwmaValue := readSnapshotNumber(t, buildMovingAverageSnapshot(values, volumes, movingAverageConfig{averageType: "VWMA", period: 5}), "value")
+
+	if maValue != smaValue {
+		t.Fatalf("MA and SMA should match, got %v vs %v", maValue, smaValue)
+	}
+	if maValue != bollValue {
+		t.Fatalf("MA and BOLL middle should match, got %v vs %v", maValue, bollValue)
+	}
+	if emaValue != expmaValue {
+		t.Fatalf("EMA and EXPMA should match, got %v vs %v", emaValue, expmaValue)
+	}
+	if vwmaValue == maValue {
+		t.Fatalf("VWMA should differ from MA with uneven volumes, both = %v", maValue)
+	}
+}
+
 func TestRuntimeBridgeInjectsIndicators(t *testing.T) {
 	session := &bbgo2.ExchangeSession{Account: types.NewAccount()}
 	bridge, err := newRuntimeBridge(context.Background(), &Strategy{
@@ -71,6 +128,8 @@ func TestRuntimeBridgeInjectsIndicators(t *testing.T) {
 		Script: `function onKLineClosed(ctx) {
 			globalThis.__indicatorJSON = JSON.stringify([
 				ctx.indicators["ma:5"] !== null,
+				ctx.indicators["ma:EMA:3"] !== null,
+				ctx.indicators["ma:VWMA:3"] !== null,
 				ctx.indicators["rsi:3"],
 				ctx.indicators["macd:3:5:2"] !== null,
 				ctx.indicators["bollinger:3:2"] !== null,
@@ -93,9 +152,10 @@ func TestRuntimeBridgeInjectsIndicators(t *testing.T) {
 		high := closePrice + 1 + float64(index%2)
 		low := closePrice - 1 - float64(index%2)
 		bridge.pushIndicators(types.KLine{
-			High:  fixedpoint.NewFromFloat(high),
-			Low:   fixedpoint.NewFromFloat(low),
-			Close: fixedpoint.NewFromFloat(closePrice),
+			High:   fixedpoint.NewFromFloat(high),
+			Low:    fixedpoint.NewFromFloat(low),
+			Close:  fixedpoint.NewFromFloat(closePrice),
+			Volume: fixedpoint.NewFromFloat(1000 + float64(index*150)),
 		})
 	}
 
@@ -119,8 +179,44 @@ func TestRuntimeBridgeInjectsIndicators(t *testing.T) {
 	if text == "" || text == `[false,null,false,false,false,false,false,false]` {
 		t.Fatalf("indicator JSON = %s", text)
 	}
-	if text == "" || text == `[false,null,false,false,false,false,false,false,false,false,false]` {
+	if text == "" || text == `[false,false,false,null,false,false,false,false,false,false,false,false,false]` {
 		t.Fatalf("indicator JSON = %s", text)
+	}
+}
+
+func TestRuntimeBridgeExposesEmptyIndicatorMapBeforeWarmup(t *testing.T) {
+	session := &bbgo2.ExchangeSession{Account: types.NewAccount()}
+	bridge, err := newRuntimeBridge(context.Background(), &Strategy{
+		Name:   "quickjs-indicator-empty-map-test",
+		Symbol: "BTCUSDT",
+		Script: `function onKLineClosed(ctx) {
+			globalThis.__prewarmIndicator = ctx.indicators["rsi:14"] ?? null;
+		}`,
+	}, &stubOrderExecutor{}, session)
+	if err != nil {
+		t.Fatalf("newRuntimeBridge() error = %v", err)
+	}
+	defer bridge.close()
+
+	err = bridge.invokeHook("onKLineClosed", map[string]any{
+		"symbol":     "BTCUSDT",
+		"kline":      map[string]any{"close": 100},
+		"indicators": bridge.indicatorPayload(),
+	}, nil)
+	if err != nil {
+		t.Fatalf("invokeHook() error = %v", err)
+	}
+
+	encoded, err := bridge.vm.Eval(`globalThis.__prewarmIndicator === null`, qjs.EvalGlobal)
+	if err != nil {
+		t.Fatalf("read prewarm indicator flag error = %v", err)
+	}
+	flag, ok := encoded.(bool)
+	if !ok {
+		t.Fatalf("prewarm indicator flag type = %T", encoded)
+	}
+	if !flag {
+		t.Fatal("expected unresolved indicator lookup to evaluate to null before warmup")
 	}
 }
 
@@ -134,4 +230,17 @@ func TestDetectDivergence(t *testing.T) {
 	if detectDivergence([]float64{10, 11, 12, 13}, []float64{60, 62, 64, 66}, "top", 3) {
 		t.Fatal("did not expect divergence when indicator confirms price")
 	}
+}
+
+func readSnapshotNumber(t *testing.T, snapshot map[string]any, key string) float64 {
+	t.Helper()
+	value, ok := snapshot[key]
+	if !ok {
+		t.Fatalf("snapshot missing %s: %#v", key, snapshot)
+	}
+	number, ok := value.(float64)
+	if !ok {
+		t.Fatalf("snapshot %s type = %T", key, value)
+	}
+	return number
 }

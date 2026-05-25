@@ -179,10 +179,17 @@ func (r *runtimeBridge) pushIndicators(kline types.KLine) {
 }
 
 func (r *runtimeBridge) indicatorPayload() map[string]any {
-	if r == nil || r.indicators == nil {
+	if r == nil {
 		return nil
 	}
-	return r.indicators.snapshot()
+	if r.indicators == nil {
+		return map[string]any{}
+	}
+	snapshot := r.indicators.snapshot()
+	if snapshot == nil {
+		return map[string]any{}
+	}
+	return snapshot
 }
 
 func newRuntimeBridge(ctx context.Context, strategy *Strategy, orderExecutor bbgo2.OrderExecutor, session *bbgo2.ExchangeSession) (*runtimeBridge, error) {
@@ -287,6 +294,11 @@ func (r *runtimeBridge) installHostAPI() error {
 	}, false); err != nil {
 		return fmt.Errorf("register quickjs getAvailableCash host: %w", err)
 	}
+	if err := r.vm.RegisterFunc("__jftradeHostGetTotalAccountValue", func() float64 {
+		return r.getTotalAccountValue()
+	}, false); err != nil {
+		return fmt.Errorf("register quickjs getTotalAccountValue host: %w", err)
+	}
 	bootstrap := strings.Join([]string{
 		"(() => {",
 		"  const formatArg = (value) => {",
@@ -314,6 +326,7 @@ func (r *runtimeBridge) installHostAPI() error {
 		"  globalThis.getRiskState = () => __jftradeHostGetRiskState();",
 		"  globalThis.isOperationBlocked = (operation) => Boolean(__jftradeHostIsOperationBlocked(String(operation ?? '')));",
 		"  globalThis.getAvailableCash = () => __jftradeHostGetAvailableCash();",
+		"  globalThis.getTotalAccountValue = () => __jftradeHostGetTotalAccountValue();",
 		"})();",
 	}, "\n")
 	if _, err := r.vm.Eval(bootstrap, qjs.EvalGlobal); err != nil {
@@ -329,13 +342,21 @@ func (r *runtimeBridge) placeOrder(request map[string]any) (hostOrderAck, error)
 	if r.session == nil {
 		return hostOrderAck{}, fmt.Errorf("exchange session is not available")
 	}
-	if r.isOperationBlocked("PLACE") {
-		return hostOrderAck{}, fmt.Errorf("place operation is blocked by current runtime state")
-	}
 
 	order, requestID, err := buildSubmitOrderFromHostRequest(request, r.strategy, r.session)
 	if err != nil {
 		return hostOrderAck{}, err
+	}
+	if r.isPlaceBlockedDuringWarmup() {
+		return hostOrderAck{
+			Accepted:  false,
+			RequestID: requestID,
+			Status:    "BLOCKED",
+			Message:   "place order suppressed during warmup",
+		}, nil
+	}
+	if r.isOperationBlocked("PLACE") {
+		return hostOrderAck{}, fmt.Errorf("place operation is blocked by current runtime state")
 	}
 
 	createdOrders, err := r.executor.SubmitOrders(r.ctx, order)
@@ -465,24 +486,8 @@ func (r *runtimeBridge) isOperationBlocked(operation string) bool {
 		return true
 	}
 
-	// During warmup, suppress order placement so indicators can
-	// accumulate history before actual trading begins.
-	if normalizedOperation == "PLACE" {
-		hookContext := r.currentHookContext()
-		warmupUntil := time.Time{}
-		currentKlineTime := time.Time{}
-		if r.strategy != nil {
-			warmupUntil = r.strategy.WarmupUntil
-		}
-		if hookContext != nil {
-			currentKlineTime = hookContext.CurrentKlineTime
-			if !hookContext.WarmupUntil.IsZero() {
-				warmupUntil = hookContext.WarmupUntil
-			}
-		}
-		if !warmupUntil.IsZero() && currentKlineTime.Before(warmupUntil) {
-			return true
-		}
+	if normalizedOperation == "PLACE" && r.isPlaceBlockedDuringWarmup() {
+		return true
 	}
 
 	for _, blockedOperation := range snapshot.BlockedOperations {
@@ -496,21 +501,47 @@ func (r *runtimeBridge) isOperationBlocked(operation string) bool {
 	return false
 }
 
-// getAvailableCash returns the available cash for order sizing.
-// In backtest mode this reflects the strategy's current portfolio cash;
-// in live mode it returns the actual account available funds.
+func (r *runtimeBridge) isPlaceBlockedDuringWarmup() bool {
+	hookContext := r.currentHookContext()
+	warmupUntil := time.Time{}
+	currentKlineTime := time.Time{}
+	if r.strategy != nil {
+		warmupUntil = r.strategy.WarmupUntil
+	}
+	if hookContext != nil {
+		currentKlineTime = hookContext.CurrentKlineTime
+		if !hookContext.WarmupUntil.IsZero() {
+			warmupUntil = hookContext.WarmupUntil
+		}
+	}
+	return !warmupUntil.IsZero() && currentKlineTime.Before(warmupUntil)
+}
+
+// getAvailableCash returns the available quote-currency cash for order sizing.
+// It prefers the current strategy symbol's quote currency balance and only
+// falls back when the runtime lacks that market/account detail.
 func (r *runtimeBridge) getAvailableCash() float64 {
 	account := runtimeAccount(r.session)
 	if account == nil {
 		return 0
 	}
 
-	// Prefer TotalAccountValue (normalized to a single currency).
+	if quoteCurrency := r.strategyQuoteCurrency(); quoteCurrency != "" {
+		if balance, ok := account.Balance(quoteCurrency); ok {
+			if !balance.Available.IsZero() {
+				return balance.Available.Float64()
+			}
+			if !balance.NetAsset.IsZero() {
+				return balance.NetAsset.Float64()
+			}
+		}
+	}
+
 	if !account.TotalAccountValue.IsZero() {
 		return account.TotalAccountValue.Float64()
 	}
 
-	// Fallback: sum available balances across all currencies.
+	// Fallback: sum available balances when the runtime lacks quote-currency detail.
 	total := fixedpoint.Zero
 	for _, bal := range account.Balances() {
 		total = total.Add(bal.Available)
@@ -524,6 +555,48 @@ func (r *runtimeBridge) getAvailableCash() float64 {
 		total = total.Add(bal.NetAsset)
 	}
 	return total.Float64()
+}
+
+// getTotalAccountValue returns the normalized account equity for sizing.
+func (r *runtimeBridge) getTotalAccountValue() float64 {
+	account := runtimeAccount(r.session)
+	if account == nil {
+		return 0
+	}
+
+	if !account.TotalAccountValue.IsZero() {
+		return account.TotalAccountValue.Float64()
+	}
+
+	total := fixedpoint.Zero
+	for _, bal := range account.Balances() {
+		total = total.Add(bal.NetAsset)
+	}
+	if !total.IsZero() {
+		return total.Float64()
+	}
+
+	for _, bal := range account.Balances() {
+		total = total.Add(bal.Available)
+	}
+	return total.Float64()
+}
+
+func (r *runtimeBridge) strategyQuoteCurrency() string {
+	if r == nil || r.session == nil || r.strategy == nil {
+		return ""
+	}
+
+	symbol := strings.ToUpper(strings.TrimSpace(r.strategy.Symbol))
+	if symbol == "" {
+		return ""
+	}
+
+	market, ok := r.session.Market(symbol)
+	if !ok {
+		return ""
+	}
+	return strings.ToUpper(strings.TrimSpace(market.QuoteCurrency))
 }
 
 func (r *runtimeBridge) rememberOrder(order types.Order, requestID string) {

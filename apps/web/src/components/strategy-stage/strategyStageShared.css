@@ -6,7 +6,7 @@
   padding: 0.45rem 0.85rem;
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  background: color-mix(in srgb, var(--tv-bg-surface) 58%, transparent);
+  background: color-mix(in srgb, var(--tv-bg-surface) 34%, transparent);
   color: var(--tv-text-muted);
   font-size: 0.78rem;
   font-weight: 600;
@@ -62,7 +62,7 @@
 .strategy-empty-state {
   border-radius: 1.35rem;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  background: color-mix(in srgb, var(--tv-bg-surface) 58%, transparent);
+  background: color-mix(in srgb, var(--tv-bg-surface) 38%, transparent);
   box-shadow: 0 12px 28px rgba(2, 6, 23, 0.2);
   backdrop-filter: blur(24px) saturate(160%);
 }
@@ -142,7 +142,7 @@
 .strategy-stage input,
 .strategy-stage textarea {
   border-color: rgba(255, 255, 255, 0.1);
-  background: color-mix(in srgb, var(--tv-bg-elevated) 58%, var(--tv-bg-surface));
+  background: color-mix(in srgb, var(--tv-bg-elevated) 42%, var(--tv-bg-surface));
   color: var(--tv-text);
 }
 
@@ -161,7 +161,7 @@
   padding: 0.55rem 1rem;
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  background: color-mix(in srgb, var(--tv-bg-elevated) 50%, transparent);
+  background: color-mix(in srgb, var(--tv-bg-elevated) 34%, transparent);
   color: var(--tv-text);
   font-size: 0.9rem;
   font-weight: 600;

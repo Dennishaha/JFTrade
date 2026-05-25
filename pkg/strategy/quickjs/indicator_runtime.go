@@ -13,6 +13,7 @@ type indicatorRuntime struct {
 	highs        []float64
 	lows         []float64
 	closes       []float64
+	volumes      []float64
 }
 
 func newIndicatorRuntime(script string) *indicatorRuntime {
@@ -30,11 +31,13 @@ func (r *indicatorRuntime) push(kline types.KLine) {
 	r.highs = append(r.highs, kline.High.Float64())
 	r.lows = append(r.lows, kline.Low.Float64())
 	r.closes = append(r.closes, kline.Close.Float64())
+	r.volumes = append(r.volumes, kline.Volume.Float64())
 	if len(r.closes) > indicatorSeriesLimit {
 		start := len(r.closes) - indicatorSeriesLimit
 		r.highs = append([]float64(nil), r.highs[start:]...)
 		r.lows = append([]float64(nil), r.lows[start:]...)
 		r.closes = append([]float64(nil), r.closes[start:]...)
+		r.volumes = append([]float64(nil), r.volumes[start:]...)
 	}
 }
 
@@ -43,8 +46,15 @@ func (r *indicatorRuntime) snapshot() map[string]any {
 		return nil
 	}
 	result := map[string]any{}
-	for _, period := range r.requirements.ma {
-		result[maIndicatorKey(period)] = buildMovingAverageSnapshot(r.closes, period)
+	for _, config := range r.requirements.ma {
+		snapshot := buildMovingAverageSnapshot(r.closes, r.volumes, config)
+		if snapshot == nil {
+			continue
+		}
+		result[maIndicatorKey(config.averageType, config.period)] = snapshot
+		if config.averageType == "MA" {
+			result[legacyMAIndicatorKey(config.period)] = snapshot
+		}
 	}
 	for _, period := range r.requirements.rsi {
 		result[rsiIndicatorKey(period)] = calculateRSI(r.closes, period)
@@ -82,9 +92,13 @@ func (r *indicatorRuntime) snapshot() map[string]any {
 	return result
 }
 
-func buildMovingAverageSnapshot(values []float64, period int) map[string]any {
-	current, currentOK := simpleMovingAverage(values, period)
-	previous, previousOK := simpleMovingAverage(values[:max(len(values)-1, 0)], period)
+func buildMovingAverageSnapshot(values, volumes []float64, config movingAverageConfig) map[string]any {
+	current, currentOK := calculateMovingAverageValue(values, volumes, config)
+	previous, previousOK := calculateMovingAverageValue(
+		values[:max(len(values)-1, 0)],
+		volumes[:max(len(volumes)-1, 0)],
+		config,
+	)
 	if !currentOK && !previousOK {
 		return nil
 	}
@@ -98,6 +112,27 @@ func buildMovingAverageSnapshot(values []float64, period int) map[string]any {
 	return result
 }
 
+func calculateMovingAverageValue(values, volumes []float64, config movingAverageConfig) (float64, bool) {
+	switch normalizeMovingAverageType(config.averageType) {
+	case "EMA", "EXPMA":
+		return exponentialMovingAverage(values, config.period)
+	case "SMMA":
+		return smoothedMovingAverage(values, config.period)
+	case "LWMA":
+		return linearWeightedMovingAverage(values, config.period)
+	case "TMA":
+		return triangularMovingAverage(values, config.period)
+	case "HMA":
+		return hullMovingAverage(values, config.period)
+	case "VWMA":
+		return volumeWeightedMovingAverage(values, volumes, config.period)
+	case "SMA", "BOLL", "MA":
+		fallthrough
+	default:
+		return simpleMovingAverage(values, config.period)
+	}
+}
+
 func simpleMovingAverage(values []float64, period int) (float64, bool) {
 	if period <= 0 || len(values) < period {
 		return 0, false
@@ -107,6 +142,134 @@ func simpleMovingAverage(values []float64, period int) (float64, bool) {
 		sum += value
 	}
 	return sum / float64(period), true
+}
+
+func exponentialMovingAverage(values []float64, period int) (float64, bool) {
+	if period <= 0 || len(values) < period {
+		return 0, false
+	}
+	sequence := calculateEMASequence(values, period)
+	if len(sequence) == 0 {
+		return 0, false
+	}
+	return sequence[len(sequence)-1], true
+}
+
+func smoothedMovingAverage(values []float64, period int) (float64, bool) {
+	if period <= 0 || len(values) < period {
+		return 0, false
+	}
+	previous, ok := simpleMovingAverage(values[:period], period)
+	if !ok {
+		return 0, false
+	}
+	for index := period; index < len(values); index++ {
+		previous = (previous*float64(period-1) + values[index]) / float64(period)
+	}
+	return previous, true
+}
+
+func linearWeightedMovingAverage(values []float64, period int) (float64, bool) {
+	if period <= 0 || len(values) < period {
+		return 0, false
+	}
+	window := values[len(values)-period:]
+	weightSum := 0.0
+	weightedSum := 0.0
+	for index, value := range window {
+		weight := float64(index + 1)
+		weightSum += weight
+		weightedSum += value * weight
+	}
+	if weightSum == 0 {
+		return 0, false
+	}
+	return weightedSum / weightSum, true
+}
+
+func triangularMovingAverage(values []float64, period int) (float64, bool) {
+	sequence := calculateSMASequence(values, period)
+	if len(sequence) < period {
+		return 0, false
+	}
+	return simpleMovingAverage(sequence, period)
+}
+
+func hullMovingAverage(values []float64, period int) (float64, bool) {
+	if period <= 0 || len(values) < period {
+		return 0, false
+	}
+	halfPeriod := max(1, period/2)
+	sqrtPeriod := max(1, int(math.Round(math.Sqrt(float64(period)))))
+	fastSequence := calculateWMASequence(values, halfPeriod)
+	slowSequence := calculateWMASequence(values, period)
+	if len(fastSequence) == 0 || len(slowSequence) == 0 {
+		return 0, false
+	}
+	combined := make([]float64, 0, len(values)-period+1)
+	for end := period; end <= len(values); end++ {
+		fastIndex := end - halfPeriod
+		slowIndex := end - period
+		if fastIndex < 0 || fastIndex >= len(fastSequence) || slowIndex < 0 || slowIndex >= len(slowSequence) {
+			continue
+		}
+		combined = append(combined, 2*fastSequence[fastIndex]-slowSequence[slowIndex])
+	}
+	if len(combined) < sqrtPeriod {
+		return 0, false
+	}
+	return linearWeightedMovingAverage(combined, sqrtPeriod)
+}
+
+func volumeWeightedMovingAverage(values, volumes []float64, period int) (float64, bool) {
+	if period <= 0 || len(values) < period || len(volumes) < period {
+		return 0, false
+	}
+	windowValues := values[len(values)-period:]
+	windowVolumes := volumes[len(volumes)-period:]
+	volumeSum := 0.0
+	weightedSum := 0.0
+	for index, value := range windowValues {
+		volume := windowVolumes[index]
+		volumeSum += volume
+		weightedSum += value * volume
+	}
+	if volumeSum == 0 {
+		return 0, false
+	}
+	return weightedSum / volumeSum, true
+}
+
+func calculateSMASequence(values []float64, period int) []float64 {
+	if period <= 0 || len(values) < period {
+		return nil
+	}
+	result := make([]float64, 0, len(values)-period+1)
+	windowSum := 0.0
+	for index, value := range values {
+		windowSum += value
+		if index >= period {
+			windowSum -= values[index-period]
+		}
+		if index >= period-1 {
+			result = append(result, windowSum/float64(period))
+		}
+	}
+	return result
+}
+
+func calculateWMASequence(values []float64, period int) []float64 {
+	if period <= 0 || len(values) < period {
+		return nil
+	}
+	result := make([]float64, 0, len(values)-period+1)
+	for end := period; end <= len(values); end++ {
+		value, ok := linearWeightedMovingAverage(values[:end], period)
+		if ok {
+			result = append(result, value)
+		}
+	}
+	return result
 }
 
 func calculateRSI(values []float64, period int) any {

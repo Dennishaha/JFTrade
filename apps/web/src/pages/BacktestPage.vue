@@ -235,6 +235,70 @@ function pnlPrefix(val: number) {
   return val >= 0 ? "+" : "";
 }
 
+function formatBacktestTimestamp(value?: string) {
+  if (!value) {
+    return "--";
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return value;
+  }
+
+  return parsed.toLocaleString("zh-CN", {
+    hour12: false,
+  });
+}
+
+function formatBacktestOrderSide(side: string) {
+  switch (side) {
+    case "BUY":
+      return "买入";
+    case "SELL":
+      return "卖出";
+    default:
+      return side;
+  }
+}
+
+function formatBacktestOrderStatus(status: string) {
+  switch (status) {
+    case "NEW":
+      return "已下单";
+    case "FILLED":
+      return "已成交";
+    case "CANCELED":
+      return "已撤单";
+    case "REJECTED":
+      return "已拒绝";
+    default:
+      return status;
+  }
+}
+
+function formatBacktestOrderPrice(value: number | undefined, orderType?: string) {
+  if (value !== undefined && Number.isFinite(value) && value > 0) {
+    return value.toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 4,
+    });
+  }
+  if (orderType === "MARKET") {
+    return "市价";
+  }
+  return "--";
+}
+
+function formatBacktestQuantity(value: number | undefined) {
+  if (value === undefined || !Number.isFinite(value)) {
+    return "--";
+  }
+  return value.toLocaleString(undefined, {
+    minimumFractionDigits: Number.isInteger(value) ? 0 : 2,
+    maximumFractionDigits: 4,
+  });
+}
+
 // When definition changes, fill defaults only if user hasn't manually overridden
 watch(selectedDefinitionId, () => {
   const d = selectedDefinition.value;
@@ -606,6 +670,68 @@ watch(interval, (val, old) => {
                   :min-height="420"
                   empty-text="暂无权益曲线数据"
                 />
+              </div>
+
+              <div
+                v-if="run.result?.orderBook?.length"
+                :class="[cardBorderClass, 'mt-3 overflow-hidden']"
+              >
+                <details>
+                  <summary class="flex cursor-pointer items-center justify-between px-4 py-3 text-sm font-semibold text-slate-900 marker:content-none dark:text-slate-100">
+                    <span>订单簿</span>
+                    <span class="text-xs font-medium text-slate-500 dark:text-slate-400">
+                      {{ run.result.orderBook.length }} 笔 · 默认收起
+                    </span>
+                  </summary>
+                  <div class="border-t border-slate-200 dark:border-slate-700">
+                    <div class="max-h-96 overflow-auto">
+                      <table class="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-700">
+                        <thead class="sticky top-0 bg-slate-50 text-left text-xs uppercase tracking-[0.14em] text-slate-500 dark:bg-slate-800/95 dark:text-slate-400">
+                          <tr>
+                            <th class="px-4 py-3 font-medium">下单</th>
+                            <th class="px-4 py-3 font-medium">成交</th>
+                            <th class="px-4 py-3 font-medium">方向</th>
+                            <th class="px-4 py-3 font-medium">数量</th>
+                            <th class="px-4 py-3 font-medium">委托价</th>
+                            <th class="px-4 py-3 font-medium">成交价</th>
+                            <th class="px-4 py-3 font-medium">状态</th>
+                          </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 bg-white dark:divide-slate-800 dark:bg-slate-900/50">
+                          <tr v-for="entry in run.result.orderBook" :key="`${entry.orderId}-${entry.filledAt ?? entry.submittedAt ?? ''}`">
+                            <td class="px-4 py-3 align-top text-slate-700 dark:text-slate-200">
+                              <div>{{ formatBacktestTimestamp(entry.submittedAt) }}</div>
+                              <div class="mt-1 text-xs text-slate-400 dark:text-slate-500">
+                                #{{ entry.orderId }}<span v-if="entry.clientOrderId"> · {{ entry.clientOrderId }}</span>
+                              </div>
+                            </td>
+                            <td class="px-4 py-3 align-top text-slate-700 dark:text-slate-200">
+                              {{ formatBacktestTimestamp(entry.filledAt) }}
+                            </td>
+                            <td class="px-4 py-3 align-top text-slate-700 dark:text-slate-200">
+                              {{ formatBacktestOrderSide(entry.side) }}
+                            </td>
+                            <td class="px-4 py-3 align-top text-slate-700 dark:text-slate-200">
+                              <div>{{ formatBacktestQuantity(entry.quantity) }}</div>
+                              <div v-if="entry.filledQuantity !== undefined" class="mt-1 text-xs text-slate-400 dark:text-slate-500">
+                                成交 {{ formatBacktestQuantity(entry.filledQuantity) }}
+                              </div>
+                            </td>
+                            <td class="px-4 py-3 align-top text-slate-700 dark:text-slate-200">
+                              {{ formatBacktestOrderPrice(entry.orderPrice, entry.orderType) }}
+                            </td>
+                            <td class="px-4 py-3 align-top text-slate-700 dark:text-slate-200">
+                              {{ formatBacktestOrderPrice(entry.filledPrice) }}
+                            </td>
+                            <td class="px-4 py-3 align-top text-slate-700 dark:text-slate-200">
+                              {{ formatBacktestOrderStatus(entry.status) }}
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </details>
               </div>
             </v-card-text>
 

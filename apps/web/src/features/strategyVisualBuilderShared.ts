@@ -13,6 +13,10 @@ export interface StrategyFlowNodeJsDoc {
   blockKind: StrategyBlockKind;
   nodeText?: string;
   codeScope?: string;
+  variableName?: string;
+  inputPrimaryNodeId?: string;
+  inputFastNodeId?: string;
+  inputSlowNodeId?: string;
 }
 
 const STRATEGY_FLOW_JSDOC_TAGS = {
@@ -20,6 +24,10 @@ const STRATEGY_FLOW_JSDOC_TAGS = {
   blockKind: "jftradeFlowBlockKind",
   nodeText: "jftradeFlowNodeText",
   codeScope: "jftradeFlowCodeScope",
+  variableName: "jftradeFlowVariableName",
+  inputPrimaryNodeId: "jftradeFlowInputPrimaryNodeId",
+  inputFastNodeId: "jftradeFlowInputFastNodeId",
+  inputSlowNodeId: "jftradeFlowInputSlowNodeId",
 } as const;
 
 const STRATEGY_FLOW_JSDOC_TAG_NAMES = new Set<string>(
@@ -51,6 +59,10 @@ export function cloneStrategyVisualModel(
 export function buildStrategyFlowNodeJsDoc(
   node: StrategyVisualNodeDocument,
   depth: number,
+  extra: Partial<Pick<
+    StrategyFlowNodeJsDoc,
+    "variableName" | "inputPrimaryNodeId" | "inputFastNodeId" | "inputSlowNodeId"
+  >> = {},
 ): string[] {
   const blockKind = getStrategyBlockKind(node);
   if (blockKind === null) {
@@ -82,6 +94,34 @@ export function buildStrategyFlowNodeJsDoc(
         `${indent} * @${STRATEGY_FLOW_JSDOC_TAGS.codeScope} ${codeScope}`,
       );
     }
+  }
+
+  const variableName = sanitizeFlowTagValue(extra.variableName);
+  if (variableName !== "") {
+    lines.push(
+      `${indent} * @${STRATEGY_FLOW_JSDOC_TAGS.variableName} ${variableName}`,
+    );
+  }
+
+  const inputPrimaryNodeId = sanitizeFlowTagValue(extra.inputPrimaryNodeId);
+  if (inputPrimaryNodeId !== "") {
+    lines.push(
+      `${indent} * @${STRATEGY_FLOW_JSDOC_TAGS.inputPrimaryNodeId} ${inputPrimaryNodeId}`,
+    );
+  }
+
+  const inputFastNodeId = sanitizeFlowTagValue(extra.inputFastNodeId);
+  if (inputFastNodeId !== "") {
+    lines.push(
+      `${indent} * @${STRATEGY_FLOW_JSDOC_TAGS.inputFastNodeId} ${inputFastNodeId}`,
+    );
+  }
+
+  const inputSlowNodeId = sanitizeFlowTagValue(extra.inputSlowNodeId);
+  if (inputSlowNodeId !== "") {
+    lines.push(
+      `${indent} * @${STRATEGY_FLOW_JSDOC_TAGS.inputSlowNodeId} ${inputSlowNodeId}`,
+    );
   }
 
   lines.push(`${indent} */`);
@@ -125,12 +165,28 @@ export function parseStrategyFlowNodeJsDocComment(
 
   const nodeText = tags.get(STRATEGY_FLOW_JSDOC_TAGS.nodeText);
   const codeScope = tags.get(STRATEGY_FLOW_JSDOC_TAGS.codeScope);
+  const variableName = tags.get(STRATEGY_FLOW_JSDOC_TAGS.variableName);
+  const inputPrimaryNodeId = tags.get(
+    STRATEGY_FLOW_JSDOC_TAGS.inputPrimaryNodeId,
+  );
+  const inputFastNodeId = tags.get(STRATEGY_FLOW_JSDOC_TAGS.inputFastNodeId);
+  const inputSlowNodeId = tags.get(STRATEGY_FLOW_JSDOC_TAGS.inputSlowNodeId);
 
   return {
     nodeId,
     blockKind,
     ...(nodeText !== undefined && nodeText !== "" ? { nodeText } : {}),
     ...(codeScope !== undefined && codeScope !== "" ? { codeScope } : {}),
+    ...(variableName !== undefined && variableName !== "" ? { variableName } : {}),
+    ...(inputPrimaryNodeId !== undefined && inputPrimaryNodeId !== ""
+      ? { inputPrimaryNodeId }
+      : {}),
+    ...(inputFastNodeId !== undefined && inputFastNodeId !== ""
+      ? { inputFastNodeId }
+      : {}),
+    ...(inputSlowNodeId !== undefined && inputSlowNodeId !== ""
+      ? { inputSlowNodeId }
+      : {}),
   };
 }
 
@@ -147,6 +203,8 @@ function isStrategyBlockKind(value: string): value is StrategyBlockKind {
     case "onInit":
     case "onKLineClosed":
     case "codeBlock":
+    case "getTechnicalIndicator":
+    case "technicalIndicatorCondition":
     case "technicalIndicator":
     case "ifCloseAbove":
     case "ifCloseBelow":

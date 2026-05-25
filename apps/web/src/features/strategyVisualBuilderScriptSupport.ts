@@ -1,4 +1,5 @@
 import type { StrategyBlockKind } from "./strategyVisualBuilderCatalog";
+import type { MovingAverageIndicatorType } from "./strategyVisualBuilderIndicatorBlock";
 
 export interface StrategyScriptRuntimeFlags {
   usesMovingAverageRuntime: boolean;
@@ -80,8 +81,11 @@ export function buildScriptRuntimeBlocks(
   return [];
 }
 
-export function buildMovingAverageIndicatorKey(windowSize: number): string {
-  return `ma:${windowSize}`;
+export function buildMovingAverageIndicatorKey(
+  windowSize: number,
+  movingAverageType: MovingAverageIndicatorType = "MA",
+): string {
+  return `ma:${movingAverageType}:${windowSize}`;
 }
 
 export function buildRsiIndicatorKey(period: number): string {
@@ -215,16 +219,38 @@ export function normalizeOrderType(value: unknown): "MARKET" | "LIMIT" {
   return value === "LIMIT" ? "LIMIT" : "MARKET";
 }
 
-export type QuantityMode = "shares" | "amount" | "positionPercent" | "cashPercent";
+export type EntryPositionPolicy = "sameDirection" | "flatOnly" | "allow";
+
+export function normalizeEntryPositionPolicy(value: unknown): EntryPositionPolicy {
+  if (value === "flatOnly" || value === "allow") {
+    return value;
+  }
+  return "sameDirection";
+}
+
+export function entryPositionPolicyLabel(value: EntryPositionPolicy): string {
+  switch (value) {
+    case "flatOnly":
+      return "必须空仓";
+    case "allow":
+      return "允许加仓";
+    default:
+      return "拦截同向加仓";
+  }
+}
+
+export type QuantityMode = "shares" | "amount" | "accountPositionPercent" | "symbolPositionPercent" | "cashPercent";
 
 export function normalizeQuantityMode(value: unknown): QuantityMode {
   if (
     value === "shares" ||
     value === "amount" ||
+    value === "accountPositionPercent" ||
     value === "positionPercent" ||
+    value === "symbolPositionPercent" ||
     value === "cashPercent"
   ) {
-    return value;
+    return value === "positionPercent" ? "symbolPositionPercent" : value;
   }
   return "shares";
 }

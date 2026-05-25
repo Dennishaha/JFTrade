@@ -4,11 +4,18 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/c9s/bbgo/pkg/fixedpoint"
 	"github.com/c9s/bbgo/pkg/types"
 )
+
+type orderBookEntryState struct {
+	entry         OrderBookEntry
+	submittedTime time.Time
+	filledTime    time.Time
+}
 
 type accountQuerier interface {
 	QueryAccount(context.Context) (*types.Account, error)
@@ -23,6 +30,8 @@ type resultCollector struct {
 
 	filledOrders   []types.Order
 	allOrders      []types.Order
+	orderBook      []orderBookEntryState
+	orderBookIndex map[string]int
 	netPosition    fixedpoint.Value
 	pnlCurve       []PnLPoint
 	candles        []Candle
@@ -36,10 +45,12 @@ func newResultCollector(symbol string, strategyInterval types.Interval, quoteCur
 		quoteCurrency:    quoteCurrency,
 		warmupUntil:      warmupUntil,
 		result:           result,
+		orderBookIndex:   make(map[string]int),
 	}
 }
 
 func (c *resultCollector) onOrderUpdate(order types.Order) {
+	c.recordOrderBookEntry(order)
 	c.allOrders = append(c.allOrders, order)
 	if order.Status != types.OrderStatusFilled {
 		log.Printf("backtest: ORDER id=%d status=%s %s %s", order.OrderID, order.Status, order.Symbol, order.Side)
@@ -54,6 +65,79 @@ func (c *resultCollector) onOrderUpdate(order types.Order) {
 	case types.SideTypeSell:
 		c.netPosition = c.netPosition.Sub(order.Quantity)
 	}
+}
+
+func (c *resultCollector) recordOrderBookEntry(order types.Order) {
+	key := orderBookEntryKey(order)
+	index, ok := c.orderBookIndex[key]
+	if !ok {
+		index = len(c.orderBook)
+		c.orderBookIndex[key] = index
+		c.orderBook = append(c.orderBook, orderBookEntryState{
+			entry: OrderBookEntry{
+				OrderID: orderBookDisplayID(order),
+			},
+		})
+	}
+
+	state := &c.orderBook[index]
+	state.entry.Symbol = order.Symbol
+	state.entry.Side = string(order.Side)
+	state.entry.Quantity = order.Quantity.Float64()
+	state.entry.OrderType = string(order.Type)
+	state.entry.Status = string(order.Status)
+	if clientOrderID := strings.TrimSpace(order.ClientOrderID); clientOrderID != "" {
+		state.entry.ClientOrderID = clientOrderID
+	}
+	if orderPrice := order.Price.Float64(); orderPrice > 0 {
+		state.entry.OrderPrice = orderPrice
+	}
+
+	eventTime := order.UpdateTime.Time().UTC()
+	if !eventTime.IsZero() && (state.submittedTime.IsZero() || eventTime.Before(state.submittedTime)) {
+		state.submittedTime = eventTime
+		state.entry.SubmittedAt = eventTime.Format(time.RFC3339)
+	}
+
+	if order.Status == types.OrderStatusFilled {
+		if !eventTime.IsZero() && (state.filledTime.IsZero() || state.filledTime.Before(eventTime)) {
+			state.filledTime = eventTime
+			state.entry.FilledAt = eventTime.Format(time.RFC3339)
+		}
+		state.entry.FilledQuantity = order.Quantity.Float64()
+		price := order.AveragePrice
+		if price.IsZero() {
+			price = order.Price
+		}
+		if fillPrice := price.Float64(); fillPrice > 0 {
+			state.entry.FilledPrice = fillPrice
+		}
+	}
+}
+
+func orderBookEntryKey(order types.Order) string {
+	if order.OrderID != 0 {
+		return fmt.Sprintf("id:%v", order.OrderID)
+	}
+	if clientOrderID := strings.TrimSpace(order.ClientOrderID); clientOrderID != "" {
+		return "client:" + clientOrderID
+	}
+	return fmt.Sprintf(
+		"fallback:%s:%s:%s",
+		order.Symbol,
+		order.Side,
+		order.UpdateTime.Time().UTC().Format(time.RFC3339Nano),
+	)
+}
+
+func orderBookDisplayID(order types.Order) string {
+	if order.OrderID != 0 {
+		return fmt.Sprint(order.OrderID)
+	}
+	if clientOrderID := strings.TrimSpace(order.ClientOrderID); clientOrderID != "" {
+		return clientOrderID
+	}
+	return "pending"
 }
 
 func (c *resultCollector) onKLineClosed(ctx context.Context, exchange accountQuerier, kline types.KLine) {
@@ -130,6 +214,16 @@ func (c *resultCollector) finalize(ctx context.Context, exchange accountQuerier,
 			Price: price.Float64(),
 			Qty:   order.Quantity.Float64(),
 		})
+	}
+
+	for _, entry := range c.orderBook {
+		if !entry.submittedTime.IsZero() && entry.submittedTime.Before(c.warmupUntil) {
+			continue
+		}
+		if entry.submittedTime.IsZero() && !entry.filledTime.IsZero() && entry.filledTime.Before(c.warmupUntil) {
+			continue
+		}
+		c.result.OrderBook = append(c.result.OrderBook, entry.entry)
 	}
 
 	c.result.PnLCurve = c.pnlCurve

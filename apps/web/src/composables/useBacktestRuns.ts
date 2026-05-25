@@ -3,6 +3,21 @@ import { computed, reactive, ref, type ComputedRef } from "vue";
 import type { BacktestTrade, BacktestPnlPoint, BacktestCandle } from "../components/BacktestChart.vue";
 import { fetchEnvelope, fetchEnvelopeWithInit } from "./apiClient";
 
+interface BacktestOrderBookEntry {
+  orderId: string;
+  clientOrderId?: string;
+  symbol: string;
+  side: string;
+  quantity: number;
+  orderType?: string;
+  orderPrice?: number;
+  submittedAt?: string;
+  status: string;
+  filledQuantity?: number;
+  filledPrice?: number;
+  filledAt?: string;
+}
+
 interface BacktestRunResult {
   symbol: string;
   interval: string;
@@ -14,6 +29,7 @@ interface BacktestRunResult {
   totalTrades: number;
   winRate: number;
   trades?: BacktestTrade[];
+  orderBook?: BacktestOrderBookEntry[];
   pnlCurve?: BacktestPnlPoint[];
   candles?: BacktestCandle[];
   logs?: string[];
