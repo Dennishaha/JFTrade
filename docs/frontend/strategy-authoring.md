@@ -80,7 +80,11 @@
 - 双均线系统
 - RSI 反转观察
 - MACD 动能观察
+- KDJ 交叉交易
 - 布林带回归观察
+- ATR 波动率过滤
+- CCI 反转交易
+- Williams %R 反转交易
 - 突破告警
 - 均值回归告警
 
@@ -90,6 +94,10 @@
 - 均线块：快均线、慢均线、金叉、死叉
 - RSI 块：RSI 计算、超买、超卖
 - MACD 块：MACD 计算、diff 高于 signal、diff 低于 signal
+- KDJ 块：KDJ 计算、金叉、死叉、J 超买、J 超卖
+- ATR 块：ATR 计算、高于阈值、低于阈值
+- CCI 块：CCI 计算、高于阈值、低于阈值
+- Williams %R 块：Williams %R 计算、超买、超卖
 - 布林带块：布林带计算、收盘价突破上轨、收盘价跌破下轨
 - 动作块：日志、通知
 - 兜底块：`codeBlock`，用于承载当前不能稳定映射成标准语义块的 QuickJS 代码
@@ -110,7 +118,8 @@
 - 浏览器运行时使用 Monaco，提供 JavaScript 高亮和基础语言服务
 - 单元测试和 jsdom 环境使用 textarea 回退，保持测试稳定和可操作性；失焦事件同样会触发 code -> flow 自动同步
 - 策略编辑器额外注入 `notify`、`JFTradeInitContext`、`JFTradeKLineClosedContext` 等声明，并补 `onInit` / `onKLineClosed` snippet completion
-- 策略编辑器现在还会给 `ctx`、`ctx.kline.close`、`placeOrder` / `getPosition` / `getRiskState`、模板生成的 `simpleMovingAverage` / `calculateRSI` / `calculateMACD` / `calculateBollingerBands`，以及 `state.closes` / `latestRsi` / `latestMacdDiff` 这类因子运行时变量提供 hover 文档
+- 策略编辑器现在还会给 `ctx`、`ctx.kline.close`、`ctx.indicators`、`placeOrder` / `getPosition` / `getRiskState`，以及 `latestRsi` / `latestMacdDiff` / `latestKValue` / `latestAtr` / `latestCci` / `latestWilliamsR` 这类因子运行时变量提供 hover 文档
+- 视觉模板中的指标计算已经统一迁到 Go runtime 预计算，QuickJS 侧只消费 `ctx.indicators["..."]`，不再保留旧版指标 helper 兼容层
 - `placeOrder` / `cancelOrder` / `getPosition` / `getPositions` / `getRiskState` / `isOperationBlocked` 现在已经接到真实 QuickJS runtime，不再只是编辑器预留
 - `getRiskState()` 返回的是 runtime 本地会话能力快照：它反映 executor、账户能力和被阻断的操作列表，不是控制面 `real-trade-risk` 接口的直通镜像
 - Logic Flow 画布和策略设计里新增的可视化卡片都需要走主题变量，不应继续写死浅色渐变、白底半透明或扩展库默认白色浮层

@@ -5,10 +5,12 @@ go 1.26.3
 require (
 	github.com/c9s/bbgo v1.64.2
 	github.com/gorilla/websocket v1.5.3
+	github.com/jmoiron/sqlx v1.3.4
+	github.com/shopspring/decimal v1.4.0
 	github.com/swaggo/http-swagger/v2 v2.0.2
 	google.golang.org/protobuf v1.36.11
 	modernc.org/quickjs v0.18.2
-	github.com/shopspring/decimal v1.4.0
+	modernc.org/sqlite v1.38.2
 )
 
 require (
@@ -89,7 +91,6 @@ require (
 	github.com/heroku/rollrus v0.2.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jedib0t/go-pretty/v6 v6.5.8 // indirect
-	github.com/jmoiron/sqlx v1.3.4 // indirect
 	github.com/joho/godotenv v1.3.0 // indirect
 	github.com/jpillora/backoff v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
@@ -150,7 +151,7 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	golang.org/x/arch v0.9.0 // indirect
 	golang.org/x/crypto v0.50.0 // indirect
-	golang.org/x/exp v0.0.0-20240719175910-8a7402abbf56 // indirect
+	golang.org/x/exp v0.0.0-20250620022241-b7579e27df2b // indirect
 	golang.org/x/image v0.22.0 // indirect
 	golang.org/x/mod v0.36.0 // indirect
 	golang.org/x/net v0.53.0 // indirect

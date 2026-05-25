@@ -56,8 +56,42 @@ declare interface JFTradeKLine {
   closed: boolean;
 }
 
+declare interface JFTradeMovingAverageIndicatorSnapshot {
+  value: number | null;
+  previous: number | null;
+}
+
+declare interface JFTradeMACDIndicatorSnapshot {
+  diff: number;
+  signal: number;
+  histogram: number;
+  previousDiff?: number;
+  previousSignal?: number;
+  previousHistogram?: number;
+}
+
+declare interface JFTradeKDJIndicatorSnapshot {
+  k: number;
+  d: number;
+  j: number;
+  previousK?: number;
+  previousD?: number;
+  previousJ?: number;
+}
+
+declare interface JFTradeBollingerIndicatorSnapshot {
+  middle: number;
+  upper: number;
+  lower: number;
+}
+
+declare interface JFTradeIndicatorMap {
+  [key: string]: number | JFTradeMovingAverageIndicatorSnapshot | JFTradeMACDIndicatorSnapshot | JFTradeKDJIndicatorSnapshot | JFTradeBollingerIndicatorSnapshot | null | undefined;
+}
+
 declare interface JFTradeKLineClosedContext extends JFTradeStrategyBaseContext {
   kline: JFTradeKLine;
+  indicators: JFTradeIndicatorMap;
 }
 
 declare type JFTradeStrategyContext =
@@ -313,6 +347,11 @@ const coreHoverItems: MonacoHoverDefinition[] = [
     documentation: "K 线收盘事件里的行情对象，包含 OHLC、成交量和时间区间。",
   },
   {
+    target: "ctx.indicators",
+    signature: "ctx.indicators: JFTradeIndicatorMap",
+    documentation: "由 Go runtime 在调用 QuickJS 前预计算并注入的指标结果集合，键名如 ma:5、rsi:14、macd:12:26:9、kdj:9:3:3、atr:14、cci:20、williamsr:14、bollinger:20:2。",
+  },
+  {
     target: "ctx.kline.open",
     signature: "ctx.kline.open: number",
     documentation: "当前 K 线开盘价。",
@@ -545,6 +584,51 @@ const generatedRuntimeVariableHoverItems: MonacoHoverDefinition[] = [
     target: "latestMacdHistogram",
     signature: "let latestMacdHistogram: number | null",
     documentation: `${generatedFactorRuntimeNotice} 当前 MACD histogram 值。`,
+  },
+  {
+    target: "latestKdj",
+    signature: "let latestKdj: { k: number; d: number; j: number; previousK?: number; previousD?: number; previousJ?: number } | null",
+    documentation: `${generatedFactorRuntimeNotice} 当前 KDJ 结果对象，由 kdj 块生成。`,
+  },
+  {
+    target: "latestKValue",
+    signature: "let latestKValue: number | null",
+    documentation: `${generatedFactorRuntimeNotice} 当前 KDJ 的 K 值。`,
+  },
+  {
+    target: "latestDValue",
+    signature: "let latestDValue: number | null",
+    documentation: `${generatedFactorRuntimeNotice} 当前 KDJ 的 D 值。`,
+  },
+  {
+    target: "latestJValue",
+    signature: "let latestJValue: number | null",
+    documentation: `${generatedFactorRuntimeNotice} 当前 KDJ 的 J 值。`,
+  },
+  {
+    target: "previousKValue",
+    signature: "let previousKValue: number | null",
+    documentation: `${generatedFactorRuntimeNotice} 上一根 K 线的 K 值，用于 KDJ 金叉/死叉判定。`,
+  },
+  {
+    target: "previousDValue",
+    signature: "let previousDValue: number | null",
+    documentation: `${generatedFactorRuntimeNotice} 上一根 K 线的 D 值，用于 KDJ 金叉/死叉判定。`,
+  },
+  {
+    target: "latestAtr",
+    signature: "let latestAtr: number | null",
+    documentation: `${generatedFactorRuntimeNotice} 当前 ATR 值，由 atr 块生成。`,
+  },
+  {
+    target: "latestCci",
+    signature: "let latestCci: number | null",
+    documentation: `${generatedFactorRuntimeNotice} 当前 CCI 值，由 cci 块生成。`,
+  },
+  {
+    target: "latestWilliamsR",
+    signature: "let latestWilliamsR: number | null",
+    documentation: `${generatedFactorRuntimeNotice} 当前 Williams %R 值，由 williamsR 块生成。`,
   },
   {
     target: "latestBollinger",

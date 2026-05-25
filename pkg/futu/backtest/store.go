@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
 
 	"github.com/c9s/bbgo/pkg/fixedpoint"
 	"github.com/c9s/bbgo/pkg/types"
@@ -34,7 +34,7 @@ type FutuKLineStore struct {
 // NewFutuKLineStore opens or creates a SQLite database at the given path and
 // ensures the futu_klines table exists.
 func NewFutuKLineStore(dbPath string) (*FutuKLineStore, error) {
-	db, err := sqlx.Open("sqlite3", dbPath+"?_journal_mode=WAL&_synchronous=NORMAL")
+	db, err := sqlx.Open("sqlite", dbPath+"?_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)")
 	if err != nil {
 		return nil, fmt.Errorf("open sqlite backtest store: %w", err)
 	}

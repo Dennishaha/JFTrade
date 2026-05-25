@@ -147,23 +147,12 @@ function isStrategyBlockKind(value: string): value is StrategyBlockKind {
     case "onInit":
     case "onKLineClosed":
     case "codeBlock":
-    case "movingAverageFast":
-    case "movingAverageSlow":
-    case "ifGoldenCross":
-    case "ifDeathCross":
-    case "rsi":
-    case "ifRsiAbove":
-    case "ifRsiBelow":
-    case "macd":
-    case "ifMacdBullish":
-    case "ifMacdBearish":
-    case "bollinger":
-    case "ifCloseAboveUpperBand":
-    case "ifCloseBelowLowerBand":
+    case "technicalIndicator":
     case "ifCloseAbove":
     case "ifCloseBelow":
     case "log":
     case "notify":
+    case "placeOrder":
       return true;
     default:
       return false;

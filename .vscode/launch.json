@@ -37,7 +37,8 @@
                 "JFTRADE_BACKTEST_DB": "${workspaceFolder}/var/jftrade-api/backtest.db",
                 "DISABLE_MARKETS_CACHE": "1"
             },
-            "buildFlags": "-tags=embed_zoneinfo"
+            "buildFlags": "-tags=embed_zoneinfo",
+            "dlvFlags": ["--check-go-version=false"]
         },
         {
             "name": "Launch API Server (dev)",
@@ -53,7 +54,8 @@
                 "JFTRADE_BACKTEST_DB": "${workspaceFolder}/var/jftrade-api/backtest.db",
                 "DISABLE_MARKETS_CACHE": "1"
             },
-            "buildFlags": "-tags=embed_zoneinfo"
+            "buildFlags": "-tags=embed_zoneinfo",
+            "dlvFlags": ["--check-go-version=false"]
         },
     ]
 }

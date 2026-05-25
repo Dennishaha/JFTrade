@@ -191,7 +191,7 @@ export function createMeanReversionStrategyVisualModel(): StrategyVisualModelDoc
       {
         id: "edge-mean-revert-buy",
         type: "polyline",
-        sourceNodeId: "mean-revert-condition",
+        sourceNodeId: "mean-revert-log",
         targetNodeId: "mean-revert-buy",
       },
     ],

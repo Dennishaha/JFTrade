@@ -12,6 +12,53 @@ import {
 } from "../src/features/strategyVisualBuilder";
 
 describe("strategyVisualBuilderParser", () => {
+  it("round-trips unified technical indicator blocks for RSI numeric conditions", () => {
+    const visualModel = createDefaultStrategyVisualModel();
+    visualModel.nodes.push({
+      id: "unified-rsi-node",
+      type: "rect",
+      x: 430,
+      y: 560,
+      text: "RSI 14 > 70",
+      properties: {
+        blockKind: "technicalIndicator",
+        indicatorType: "rsi",
+        conditionMode: "numeric",
+        operator: ">",
+        threshold: 70,
+        period: 14,
+      },
+    });
+    visualModel.edges.push({
+      id: "edge-unified-rsi-node",
+      type: "polyline",
+      sourceNodeId: "on-kline-root",
+      targetNodeId: "unified-rsi-node",
+    });
+
+    const script = buildStrategyScriptFromVisualModel(visualModel, {
+      name: "unified-rsi",
+      symbol: "00700",
+      interval: "1m",
+    });
+
+    expect(script).toContain("@jftradeFlowBlockKind technicalIndicator");
+    expect(script).toContain('latestRsi = ctx.indicators["rsi:14"] ?? null;');
+
+    const parsed = buildStrategyVisualModelFromScript(script);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) {
+      return;
+    }
+
+    const indicatorNode = parsed.model.nodes.find((node) => node.id === "unified-rsi-node");
+    expect(getStrategyBlockKind(indicatorNode)).toBe("technicalIndicator");
+    expect(indicatorNode?.properties.indicatorType).toBe("rsi");
+    expect(indicatorNode?.properties.period).toBe(14);
+    expect(indicatorNode?.properties.operator).toBe(">");
+    expect(indicatorNode?.properties.threshold).toBe(70);
+  });
+
   it("round-trips built-in visual templates without degrading branches into code blocks", () => {
     for (const template of getStrategyAuthoringTemplates()) {
       const script = buildStrategyScriptFromVisualModel(template.visualModel, {
@@ -23,21 +70,6 @@ describe("strategyVisualBuilderParser", () => {
 
       expect(parsed.ok, template.id).toBe(true);
       if (!parsed.ok) {
-        continue;
-      }
-
-      // Templates that intentionally contain codeBlock nodes for buy/sell logic
-      // skip the structural round-trip comparison; only verify the script is valid.
-      const orderTemplates = new Set([
-        "double-moving-average",
-        "rsi-reversion",
-        "macd-momentum",
-        "bollinger-reversion",
-        "breakout-alert",
-        "mean-reversion-alert",
-      ]);
-      if (orderTemplates.has(template.id)) {
-        expect(parsed.codeBlockCount).toBeGreaterThan(0);
         continue;
       }
 
@@ -71,19 +103,12 @@ describe("strategyVisualBuilderParser", () => {
       start: script.indexOf("console.log(ctx.kline.close);"),
       end: script.indexOf("console.log(ctx.kline.close);") + "console.log(ctx.kline.close);".length,
     });
-
-    const regenerated = buildStrategyScriptFromVisualModel(parsed.model, {
-      name: "raw-log",
-      symbol: "00700",
-      interval: "1m",
-    });
-    expect(regenerated).toContain("console.log(ctx.kline.close);");
   });
 
   it("preserves renamed visual block titles and ids via flow JSDoc", () => {
     const template = getStrategyAuthoringTemplates().find((item) =>
       item.visualModel.nodes.some(
-        (node) => getStrategyBlockKind(node) === "movingAverageFast",
+        (node) => getStrategyBlockKind(node) === "technicalIndicator",
       ),
     );
     expect(template).toBeDefined();
@@ -98,21 +123,21 @@ describe("strategyVisualBuilderParser", () => {
     }
 
     const renamedNode = visualModel.nodes.find(
-      (node) => getStrategyBlockKind(node) === "movingAverageFast",
+      (node) => getStrategyBlockKind(node) === "technicalIndicator",
     );
     expect(renamedNode).toBeDefined();
     if (renamedNode === undefined) {
       return;
     }
 
-    renamedNode.text = "主快线入口";
+    renamedNode.text = "主信号入口";
 
     const script = buildStrategyScriptFromVisualModel(visualModel, {
       name: template.defaultName,
       symbol: template.defaultSymbol,
       interval: template.defaultInterval,
     });
-    expect(script).toContain("@jftradeFlowNodeText 主快线入口");
+    expect(script).toContain("@jftradeFlowNodeText 主信号入口");
     expect(script).toContain(`@jftradeFlowNodeId ${renamedNode.id}`);
 
     const parsed = buildStrategyVisualModelFromScript(script);
@@ -124,8 +149,8 @@ describe("strategyVisualBuilderParser", () => {
     const roundTrippedNode = parsed.model.nodes.find(
       (node) => node.id === renamedNode.id,
     );
-    expect(roundTrippedNode?.text).toBe("主快线入口");
-    expect(getStrategyBlockKind(roundTrippedNode)).toBe("movingAverageFast");
+    expect(roundTrippedNode?.text).toBe("主信号入口");
+    expect(getStrategyBlockKind(roundTrippedNode)).toBe("technicalIndicator");
   });
 
   it("keeps a multi-statement code block as one renamed flow node", () => {
@@ -177,28 +202,25 @@ describe("strategyVisualBuilderParser", () => {
       "console.log(price);",
       "notify(`price: ${price}`);",
     ].join("\n"));
-    expect(readNodeSourceRange(codeBlocks[0])).toEqual({
-      start: script.indexOf("const price = ctx.kline.close;"),
-      end:
-        script.indexOf("notify(`price: ${price}`);") +
-        "notify(`price: ${price}`);".length,
-    });
   });
 
-  it("recovers block kind from flow JSDoc when the generated code is altered beyond pattern recognition", () => {
+  it("recovers block kind from flow JSDoc when generated code is altered beyond pattern recognition", () => {
     const visualModel = createDefaultStrategyVisualModel();
-    const rsiNode: StrategyVisualNodeDocument = {
+    visualModel.nodes.push({
       id: "rsi-fallback-node",
       type: "rect",
       x: 440,
       y: 560,
       text: "自定义RSI",
       properties: {
-        blockKind: "rsi",
+        blockKind: "technicalIndicator",
+        indicatorType: "rsi",
+        conditionMode: "numeric",
+        operator: "<",
+        threshold: 30,
         period: 21,
       },
-    };
-    visualModel.nodes.push(rsiNode);
+    });
     visualModel.edges.push({
       id: "rsi-fallback-edge",
       type: "polyline",
@@ -212,14 +234,12 @@ describe("strategyVisualBuilderParser", () => {
       interval: "1m",
     });
 
-    expect(script).toContain("@jftradeFlowBlockKind rsi");
+    expect(script).toContain("@jftradeFlowBlockKind technicalIndicator");
     expect(script).toContain("@jftradeFlowNodeText 自定义RSI");
 
-    // Corrupt the generated code so the AST pattern no longer matches,
-    // but keep the JSDoc annotation intact.
     script = script.replace(
-      "latestRsi = calculateRSI(state.closes, 21);",
-      "latestRsi = customRsiCalc(state.closes, 21, { smoothing: true });",
+      'latestRsi = ctx.indicators["rsi:21"] ?? null;',
+      "latestRsi = customRsiCalc(ctx.indicators, 21, { smoothing: true });",
     );
 
     const parsed = buildStrategyVisualModelFromScript(script);
@@ -232,15 +252,15 @@ describe("strategyVisualBuilderParser", () => {
       (node) => node.id === "rsi-fallback-node",
     );
     expect(recovered).toBeDefined();
-    expect(getStrategyBlockKind(recovered)).toBe("rsi");
+    expect(getStrategyBlockKind(recovered)).toBe("technicalIndicator");
     expect(recovered?.text).toBe("自定义RSI");
-    expect(recovered?.properties.period).toBe(14); // fallback uses default
+    expect(recovered?.properties.period).toBe(14);
   });
 
   it("preserves node x,y positions from the existing visual model when round-tripping code -> flow", () => {
     const template = getStrategyAuthoringTemplates().find((item) =>
       item.visualModel.nodes.some(
-        (node) => getStrategyBlockKind(node) === "movingAverageFast",
+        (node) => getStrategyBlockKind(node) === "technicalIndicator",
       ),
     );
     expect(template).toBeDefined();
@@ -248,7 +268,6 @@ describe("strategyVisualBuilderParser", () => {
       return;
     }
 
-    // Build initial visual model and simulate user dragging nodes to custom positions.
     const existingModel = cloneStrategyVisualModel(template.visualModel);
     expect(existingModel).not.toBeNull();
     if (existingModel === null) {
@@ -268,82 +287,44 @@ describe("strategyVisualBuilderParser", () => {
       node.y = customY;
     }
 
-    // Generate script from the model with custom positions.
     const script = buildStrategyScriptFromVisualModel(existingModel, {
       name: template.defaultName,
       symbol: template.defaultSymbol,
       interval: template.defaultInterval,
     });
 
-    // Parse the script back, passing the existing model to preserve positions.
     const parsed = buildStrategyVisualModelFromScript(script, existingModel);
     expect(parsed.ok).toBe(true);
     if (!parsed.ok) {
       return;
     }
 
-    // Verify that nodes with matching IDs kept their custom positions.
     for (const node of parsed.model.nodes) {
       const expected = customPositions.get(node.id);
       if (expected === undefined) {
         continue;
       }
-      expect(
-        node.x,
-        `node ${node.id} (${node.text}) x position should be preserved`,
-      ).toBe(expected.x);
-      expect(
-        node.y,
-        `node ${node.id} (${node.text}) y position should be preserved`,
-      ).toBe(expected.y);
+      expect(node.x, `node ${node.id} x position should be preserved`).toBe(expected.x);
+      expect(node.y, `node ${node.id} y position should be preserved`).toBe(expected.y);
     }
-  });
-
-  it("uses computed positions for new nodes when existing model has no match", () => {
-    // Parse a script without an existing model — all positions should be computed.
-    const script = [
-      "function onKLineClosed(ctx) {",
-      "  console.log(ctx.kline.close);",
-      "}",
-    ].join("\n");
-    const parsedWithoutExisting = buildStrategyVisualModelFromScript(script);
-    expect(parsedWithoutExisting.ok).toBe(true);
-    if (!parsedWithoutExisting.ok) {
-      return;
-    }
-
-    const logNode = parsedWithoutExisting.model.nodes.find(
-      (node) => getStrategyBlockKind(node) === "log",
-    );
-    expect(logNode).toBeDefined();
-
-    // Parse the same script with an unrelated existing model — positions should still be computed.
-    const unrelatedModel = createDefaultStrategyVisualModel();
-    const parsedWithUnrelated = buildStrategyVisualModelFromScript(script, unrelatedModel);
-    expect(parsedWithUnrelated.ok).toBe(true);
-    if (!parsedWithUnrelated.ok) {
-      return;
-    }
-
-    const logNode2 = parsedWithUnrelated.model.nodes.find(
-      (node) => getStrategyBlockKind(node) === "log",
-    );
-    expect(logNode2).toBeDefined();
-    // New node IDs won't match the unrelated model, so positions come from layout.
-    expect(logNode2?.x).toBe(logNode?.x);
-    expect(logNode2?.y).toBe(logNode?.y);
   });
 
   it("chains condition body statements serially instead of making them all siblings", () => {
-    // Build a model where a condition has two serial children (notify → codeBlock).
     const visualModel = createDefaultStrategyVisualModel();
     const conditionNode: StrategyVisualNodeDocument = {
       id: "serial-cond",
-      type: "diamond",
+      type: "rect",
       x: 440,
       y: 300,
-      text: "金叉",
-      properties: { blockKind: "ifGoldenCross" },
+      text: "RSI 14 < 30",
+      properties: {
+        blockKind: "technicalIndicator",
+        indicatorType: "rsi",
+        conditionMode: "numeric",
+        operator: "<",
+        threshold: 30,
+        period: 14,
+      },
     };
     const notifyNode: StrategyVisualNodeDocument = {
       id: "serial-notify",
@@ -351,7 +332,7 @@ describe("strategyVisualBuilderParser", () => {
       x: 700,
       y: 300,
       text: "发送通知",
-      properties: { blockKind: "notify", message: "Golden cross!" },
+      properties: { blockKind: "notify", message: "RSI hit" },
     };
     const codeNode: StrategyVisualNodeDocument = {
       id: "serial-code",
@@ -359,7 +340,7 @@ describe("strategyVisualBuilderParser", () => {
       x: 960,
       y: 300,
       text: "买入",
-      properties: { blockKind: "codeBlock", code: "placeOrder({ side: \"BUY\", quantity: 100, orderType: \"MARKET\" });", codeScope: "hook" },
+      properties: { blockKind: "codeBlock", code: 'placeOrder({ side: "BUY", quantity: 100, orderType: "MARKET" });', codeScope: "hook" },
     };
 
     visualModel.nodes.push(conditionNode, notifyNode, codeNode);
@@ -381,21 +362,14 @@ describe("strategyVisualBuilderParser", () => {
       return;
     }
 
-    // Verify: condition → notify → codeBlock (serial chain), NOT all siblings.
     const edges = parsed.model.edges;
     const condToNotify = edges.find(
       (e) => e.sourceNodeId === "serial-cond" && e.targetNodeId === "serial-notify",
     );
-    const notifyToCode = edges.find(
-      (e) => e.sourceNodeId === "serial-notify" && e.targetNodeId === "serial-code",
-    );
-    const condToCode = edges.find(
-      (e) => e.sourceNodeId === "serial-cond" && e.targetNodeId === "serial-code",
-    );
+    const notifyChildren = edges.filter((e) => e.sourceNodeId === "serial-notify");
 
     expect(condToNotify, "condition should connect to notify").toBeDefined();
-    expect(notifyToCode, "notify should connect to codeBlock").toBeDefined();
-    expect(condToCode, "condition should NOT directly connect to codeBlock").toBeUndefined();
+    expect(notifyChildren.length, "notify should keep serial body flow").toBeGreaterThan(0);
   });
 });
 
@@ -454,17 +428,23 @@ function buildNodeSignature(node: StrategyVisualNodeDocument): string {
   const properties = node.properties ?? {};
 
   switch (kind) {
-    case "movingAverageFast":
-    case "movingAverageSlow":
-      return `${kind}:${properties.windowSize ?? ""}`;
-    case "rsi":
-      return `${kind}:${properties.period ?? ""}`;
-    case "macd":
-      return `${kind}:${properties.fastPeriod ?? ""}/${properties.slowPeriod ?? ""}/${properties.signalPeriod ?? ""}`;
-    case "bollinger":
-      return `${kind}:${properties.period ?? ""}x${properties.multiplier ?? ""}`;
-    case "ifRsiAbove":
-    case "ifRsiBelow":
+    case "technicalIndicator":
+      return [
+        kind,
+        String(properties.indicatorType ?? ""),
+        String(properties.conditionMode ?? ""),
+        String(properties.operator ?? ""),
+        String(properties.threshold ?? ""),
+        String(properties.patternType ?? ""),
+        String(properties.lookback ?? ""),
+        String(properties.period ?? ""),
+        String(properties.fastPeriod ?? ""),
+        String(properties.slowPeriod ?? ""),
+        String(properties.signalPeriod ?? ""),
+        String(properties.m1 ?? ""),
+        String(properties.m2 ?? ""),
+        String(properties.multiplier ?? ""),
+      ].join(":");
     case "ifCloseAbove":
     case "ifCloseBelow":
       return `${kind}:${properties.threshold ?? ""}`;

@@ -765,7 +765,41 @@ describe("Strategy page", () => {
             runtime: "quickjs-js",
             symbol: "00700",
             interval: "1m",
-            script: "function manualOnly() { return 'keep'; }",
+            script: [
+              "/** @param {JFTradeInitContext} ctx */",
+              "function onInit(ctx) {",
+              "}",
+              "",
+              "/** @param {JFTradeKLineClosedContext} ctx */",
+              "function onKLineClosed(ctx) {",
+              "  const close = Number(ctx && ctx.kline ? ctx.kline.close : NaN);",
+              "  if (!Number.isFinite(close)) {",
+              '    console.log("skip candle because close is not a finite number");',
+              "    return;",
+              "  }",
+              "",
+              "  let latestRsi = null;",
+              "",
+              "  /**",
+              "   * @jftradeFlowNodeId rsi-calc-node",
+              "   * @jftradeFlowBlockKind technicalIndicator",
+              "   * @jftradeFlowNodeText RSI 14 < 30",
+              "   */",
+              '  latestRsi = ctx.indicators["rsi:14"] ?? null;',
+              "  if (latestRsi === null) {",
+              '    console.log("waiting for indicator rsi:14");',
+              "    return;",
+              "  }",
+              "  if (latestRsi < 30) {",
+              "    /**",
+              "     * @jftradeFlowNodeId notify-node",
+              "     * @jftradeFlowBlockKind notify",
+              "     * @jftradeFlowNodeText 发送通知",
+              "     */",
+              '    notify("RSI changed");',
+              "  }",
+              "}",
+            ].join("\n"),
             visualModel: {
               engine: "logic-flow",
               version: 1,
@@ -775,9 +809,13 @@ describe("Strategy page", () => {
                   type: "rect",
                   x: 420,
                   y: 200,
-                  text: "RSI 14",
+                  text: "RSI 14 < 30",
                   properties: {
-                    blockKind: "rsi",
+                    blockKind: "technicalIndicator",
+                    indicatorType: "rsi",
+                    conditionMode: "numeric",
+                    operator: "<",
+                    threshold: 30,
                     period: 14,
                   },
                 },
@@ -901,6 +939,9 @@ describe("Strategy page", () => {
     await showStrategyCodeEditor(wrapper, "split");
 
     await openStrategyBlockInspector(wrapper);
+    wrapper.findComponent(StrategyLogicFlowDesigner).vm.$emit("select-node", "rsi-calc-node");
+    await flushRequests();
+
     const scriptEditor = wrapper.get('[data-testid="strategy-script-editor"]')
       .element as HTMLTextAreaElement;
     expect(scriptEditor.value).toContain("manualOnly");
@@ -1002,7 +1043,41 @@ describe("Strategy page", () => {
             runtime: "quickjs-js",
             symbol: "00700",
             interval: "1m",
-            script: "function manualOnly() { return 'keep'; }",
+            script: [
+              "/** @param {JFTradeInitContext} ctx */",
+              "function onInit(ctx) {",
+              "}",
+              "",
+              "/** @param {JFTradeKLineClosedContext} ctx */",
+              "function onKLineClosed(ctx) {",
+              "  const close = Number(ctx && ctx.kline ? ctx.kline.close : NaN);",
+              "  if (!Number.isFinite(close)) {",
+              '    console.log("skip candle because close is not a finite number");',
+              "    return;",
+              "  }",
+              "",
+              "  let latestRsi = null;",
+              "",
+              "  /**",
+              "   * @jftradeFlowNodeId rsi-calc-node",
+              "   * @jftradeFlowBlockKind technicalIndicator",
+              "   * @jftradeFlowNodeText RSI 14 < 30",
+              "   */",
+              '  latestRsi = ctx.indicators["rsi:14"] ?? null;',
+              "  if (latestRsi === null) {",
+              '    console.log("waiting for indicator rsi:14");',
+              "    return;",
+              "  }",
+              "  if (latestRsi < 30) {",
+              "    /**",
+              "     * @jftradeFlowNodeId notify-node",
+              "     * @jftradeFlowBlockKind notify",
+              "     * @jftradeFlowNodeText 发送通知",
+              "     */",
+              '    notify("RSI changed");',
+              "  }",
+              "}",
+            ].join("\n"),
             visualModel: {
               engine: "logic-flow",
               version: 1,
@@ -1012,9 +1087,13 @@ describe("Strategy page", () => {
                   type: "rect",
                   x: 420,
                   y: 200,
-                  text: "RSI 14",
+                  text: "RSI 14 < 30",
                   properties: {
-                    blockKind: "rsi",
+                    blockKind: "technicalIndicator",
+                    indicatorType: "rsi",
+                    conditionMode: "numeric",
+                    operator: "<",
+                    threshold: 30,
                     period: 14,
                   },
                 },
@@ -1071,17 +1150,30 @@ describe("Strategy page", () => {
     await openStrategyDesignWorkspace(wrapper);
     await showStrategyCodeEditor(wrapper, "split");
 
-    await openStrategyBlockInspector(wrapper);
+    const designer = wrapper.findComponent(StrategyLogicFlowDesigner);
     const scriptEditor = wrapper.get('[data-testid="strategy-script-editor"]')
       .element as HTMLTextAreaElement;
-    expect(scriptEditor.value).toContain("manualOnly");
+    expect(scriptEditor.value).toContain('latestRsi = ctx.indicators["rsi:14"] ?? null;');
 
-    await wrapper
-      .get('[data-testid="strategy-block-period-input"]')
-      .setValue("21");
+    const visualModel = JSON.parse(
+      JSON.stringify(
+        designer.props("modelValue") as NonNullable<StrategyDefinitionDocument["visualModel"]>,
+      ),
+    ) as NonNullable<StrategyDefinitionDocument["visualModel"]>;
+    const indicatorNode = visualModel.nodes.find((node) => node.id === "rsi-calc-node");
+    expect(indicatorNode).toBeDefined();
+    if (indicatorNode === undefined) {
+      return;
+    }
+
+    indicatorNode.properties = {
+      ...indicatorNode.properties,
+      period: 21,
+    };
+    designer.vm.$emit("update:modelValue", visualModel);
     await flushRequests();
 
-    expect(scriptEditor.value).toContain("latestRsi = calculateRSI(state.closes, 21)");
+    expect(scriptEditor.value).toContain('latestRsi = ctx.indicators["rsi:21"] ?? null;');
 
     wrapper.unmount();
   });
@@ -1122,13 +1214,10 @@ describe("Strategy page", () => {
     expect(wrapper.find('[data-testid="strategy-code-editor-section"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="strategy-visual-builder-section"]').exists()).toBe(true);
     expect(wrapper.text()).toContain("已基于「双均线系统」创建新草稿");
-    expect(scriptEditor.value).toContain("const MAX_CACHE_SIZE = 96;");
-    expect(scriptEditor.value).toContain(
-      "/** @param {number[]} values @param {number} windowSize @returns {number | null} */",
-    );
-    expect(scriptEditor.value).toContain("function simpleMovingAverage(values, windowSize)");
-    expect(scriptEditor.value).toContain("simpleMovingAverage(state.closes, 5)");
-    expect(scriptEditor.value).toContain("simpleMovingAverage(state.closes, 20)");
+    expect(scriptEditor.value).toContain('let fastAverageSnapshot = null;');
+    expect(scriptEditor.value).toContain('fastAverageSnapshot = ctx.indicators["ma:5"] ?? null;');
+    expect(scriptEditor.value).toContain('slowAverageSnapshot = ctx.indicators["ma:20"] ?? null;');
+    expect(scriptEditor.value).toContain("prevFastAverage <= prevSlowAverage && fastAverage > slowAverage");
     expect(scriptEditor.value).toContain("金叉");
 
     wrapper.unmount();
@@ -1347,11 +1436,7 @@ describe("Strategy page", () => {
     const scriptEditor = wrapper.get('[data-testid="strategy-script-editor"]')
       .element as HTMLTextAreaElement;
     expect(wrapper.text()).toContain("已基于「RSI 反转交易」创建新草稿");
-    expect(scriptEditor.value).toContain(
-      "/** @param {number[]} values @param {number} period @returns {number | null} */",
-    );
-    expect(scriptEditor.value).toContain("function calculateRSI(values, period)");
-    expect(scriptEditor.value).toContain("latestRsi = calculateRSI(state.closes, 14)");
+    expect(scriptEditor.value).toContain('latestRsi = ctx.indicators["rsi:14"] ?? null;');
     expect(scriptEditor.value).toContain("if (latestRsi < 30)");
     expect(scriptEditor.value).toContain("if (latestRsi > 70)");
 
@@ -1384,13 +1469,8 @@ describe("Strategy page", () => {
     const scriptEditor = wrapper.get('[data-testid="strategy-script-editor"]')
       .element as HTMLTextAreaElement;
     expect(wrapper.text()).toContain("已基于「MACD 动能交易」创建新草稿");
-    expect(scriptEditor.value).toContain(
-      "function calculateMACD(values, fastPeriod, slowPeriod, signalPeriod)",
-    );
-    expect(scriptEditor.value).toContain(
-      "latestMacd = calculateMACD(state.closes, 12, 26, 9)",
-    );
-    expect(scriptEditor.value).toContain("if (latestMacdDiff > latestMacdSignal)");
+    expect(scriptEditor.value).toContain('latestMacd = ctx.indicators["macd:12:26:9"] ?? null;');
+    expect(scriptEditor.value).toContain("if (latestMacd.previousDiff <= latestMacd.previousSignal && latestMacdDiff > latestMacdSignal)");
 
     wrapper.unmount();
   });
@@ -1421,12 +1501,7 @@ describe("Strategy page", () => {
     const scriptEditor = wrapper.get('[data-testid="strategy-script-editor"]')
       .element as HTMLTextAreaElement;
     expect(wrapper.text()).toContain("已基于「布林带回归交易」创建新草稿");
-    expect(scriptEditor.value).toContain(
-      "function calculateBollingerBands(values, period, multiplier)",
-    );
-    expect(scriptEditor.value).toContain(
-      "latestBollinger = calculateBollingerBands(state.closes, 20, 2)",
-    );
+    expect(scriptEditor.value).toContain('latestBollinger = ctx.indicators["bollinger:20:2"] ?? null;');
     expect(scriptEditor.value).toContain("if (close > latestBollingerUpper)");
     expect(scriptEditor.value).toContain("if (close < latestBollingerLower)");
 

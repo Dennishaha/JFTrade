@@ -29,10 +29,13 @@ import {
   type KlineChartPalette,
 } from "./kline";
 import {
+  computeAtr,
+  computeCci,
   computeExponentialMovingAverage,
   computeKdj,
   computeMacd,
   computeSimpleMovingAverage,
+  computeWilliamsR,
 } from "./lightweightChartsIndicators";
 
 const INITIAL_VISIBLE_BARS = 120;
@@ -54,7 +57,7 @@ const OVERLAY_SERIES_COLORS = [
 export const INDICATOR_PANE_HEIGHT = 120;
 
 /** Canonical creation order for indicator panes. */
-const INDICATOR_ORDER: readonly KlineIndicatorKey[] = ["volume", "macd", "kdj"];
+const INDICATOR_ORDER: readonly KlineIndicatorKey[] = ["volume", "macd", "kdj", "atr", "cci", "williamsr"];
 
 function toTimestamp(at: string): UTCTimestamp {
   return Math.floor(new Date(at).getTime() / 1000) as UTCTimestamp;
@@ -230,6 +233,9 @@ export class LightweightChartsKlineAdapter implements KlineChartAdapter {
   private kdjKSeries: ISeriesApi<"Line"> | null = null;
   private kdjDSeries: ISeriesApi<"Line"> | null = null;
   private kdjJSeries: ISeriesApi<"Line"> | null = null;
+  private atrSeries: ISeriesApi<"Line"> | null = null;
+  private cciSeries: ISeriesApi<"Line"> | null = null;
+  private williamsRSeries: ISeriesApi<"Line"> | null = null;
   private overlaySeries = new Map<KlineIndicatorKey, ISeriesApi<"Line">>();
 
   private palette: KlineChartPalette;
@@ -335,6 +341,9 @@ export class LightweightChartsKlineAdapter implements KlineChartAdapter {
     this.kdjKSeries = null;
     this.kdjDSeries = null;
     this.kdjJSeries = null;
+    this.atrSeries = null;
+    this.cciSeries = null;
+    this.williamsRSeries = null;
 
     // Recreate in canonical order.
     for (const indicator of INDICATOR_ORDER) {
@@ -417,6 +426,42 @@ export class LightweightChartsKlineAdapter implements KlineChartAdapter {
           },
           paneIdx,
         );
+      } else if (indicator === "atr") {
+        this.atrSeries = this.chart.addSeries(
+          LineSeries,
+          {
+            lineWidth: 2,
+            color: this.palette.indicatorA,
+            priceLineVisible: false,
+            lastValueVisible: false,
+            crosshairMarkerVisible: true,
+          },
+          paneIdx,
+        );
+      } else if (indicator === "cci") {
+        this.cciSeries = this.chart.addSeries(
+          LineSeries,
+          {
+            lineWidth: 2,
+            color: this.palette.indicatorB,
+            priceLineVisible: false,
+            lastValueVisible: false,
+            crosshairMarkerVisible: true,
+          },
+          paneIdx,
+        );
+      } else if (indicator === "williamsr") {
+        this.williamsRSeries = this.chart.addSeries(
+          LineSeries,
+          {
+            lineWidth: 2,
+            color: this.palette.indicatorC,
+            priceLineVisible: false,
+            lastValueVisible: false,
+            crosshairMarkerVisible: true,
+          },
+          paneIdx,
+        );
       }
 
       // Set a fixed height on the newly-created indicator pane.
@@ -472,6 +517,18 @@ export class LightweightChartsKlineAdapter implements KlineChartAdapter {
       this.kdjKSeries.setData(kdj.k);
       this.kdjDSeries!.setData(kdj.d);
       this.kdjJSeries!.setData(kdj.j);
+    }
+
+    if (this.atrSeries != null) {
+      this.atrSeries.setData(computeAtr(sorted));
+    }
+
+    if (this.cciSeries != null) {
+      this.cciSeries.setData(computeCci(sorted));
+    }
+
+    if (this.williamsRSeries != null) {
+      this.williamsRSeries.setData(computeWilliamsR(sorted));
     }
 
     for (const [indicator, series] of this.overlaySeries.entries()) {
@@ -590,6 +647,9 @@ export class LightweightChartsKlineAdapter implements KlineChartAdapter {
     this.kdjKSeries?.applyOptions({ color: palette.indicatorA });
     this.kdjDSeries?.applyOptions({ color: palette.indicatorB });
     this.kdjJSeries?.applyOptions({ color: palette.indicatorC });
+    this.atrSeries?.applyOptions({ color: palette.indicatorA });
+    this.cciSeries?.applyOptions({ color: palette.indicatorB });
+    this.williamsRSeries?.applyOptions({ color: palette.indicatorC });
     // Histogram bar colours are set per data point in updateIndicatorSeries.
     this.updateIndicatorSeries(this.currentCandles);
   }

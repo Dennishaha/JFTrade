@@ -164,8 +164,8 @@ const handlePaletteItemPointerDown = (
 
   logicFlowInstance.dnd?.startDrag({
     type: item.type,
-    properties: item.properties,
-    text: item.text,
+    properties: { ...item.properties },
+    text: `${item.text}`,
   });
   event.preventDefault();
 };

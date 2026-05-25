@@ -4,9 +4,14 @@ export interface StrategyScriptRuntimeFlags {
   usesMovingAverageRuntime: boolean;
   usesRSIRuntime: boolean;
   usesMACDRuntime: boolean;
+  usesKDJRuntime: boolean;
+  usesATRRuntime: boolean;
+  usesCCIRuntime: boolean;
+  usesWilliamsRRuntime: boolean;
   usesBollingerRuntime: boolean;
   usesSimpleMovingAverageHelper: boolean;
   usesSeriesStateRuntime: boolean;
+  usesDivergenceRuntime: boolean;
 }
 
 export function buildHookPrelude(
@@ -24,17 +29,14 @@ export function buildHookPrelude(
     `${indent(2)}return;`,
     `${indent(1)}}`,
     "",
-    `${indent(1)}state.closes.push(close);`,
-    `${indent(1)}if (state.closes.length > MAX_CACHE_SIZE) {`,
-    `${indent(2)}state.closes.shift();`,
-    `${indent(1)}}`,
-    "",
     ...(flags.usesMovingAverageRuntime
       ? [
+          `${indent(1)}let fastAverageSnapshot = null;`,
+          `${indent(1)}let slowAverageSnapshot = null;`,
           `${indent(1)}let fastAverage = null;`,
           `${indent(1)}let slowAverage = null;`,
-          `${indent(1)}const prevFastAverage = state.prevFastAverage;`,
-          `${indent(1)}const prevSlowAverage = state.prevSlowAverage;`,
+        `${indent(1)}let prevFastAverage = null;`,
+        `${indent(1)}let prevSlowAverage = null;`,
         ]
       : []),
     ...(flags.usesRSIRuntime ? [`${indent(1)}let latestRsi = null;`] : []),
@@ -46,6 +48,19 @@ export function buildHookPrelude(
           `${indent(1)}let latestMacdHistogram = null;`,
         ]
       : []),
+    ...(flags.usesKDJRuntime
+      ? [
+          `${indent(1)}let latestKdj = null;`,
+          `${indent(1)}let latestKValue = null;`,
+          `${indent(1)}let latestDValue = null;`,
+          `${indent(1)}let latestJValue = null;`,
+          `${indent(1)}let previousKValue = null;`,
+          `${indent(1)}let previousDValue = null;`,
+        ]
+      : []),
+    ...(flags.usesATRRuntime ? [`${indent(1)}let latestAtr = null;`] : []),
+    ...(flags.usesCCIRuntime ? [`${indent(1)}let latestCci = null;`] : []),
+    ...(flags.usesWilliamsRRuntime ? [`${indent(1)}let latestWilliamsR = null;`] : []),
     ...(flags.usesBollingerRuntime
       ? [
           `${indent(1)}let latestBollinger = null;`,
@@ -54,135 +69,67 @@ export function buildHookPrelude(
           `${indent(1)}let latestBollingerLower = null;`,
         ]
       : []),
+    ...(flags.usesDivergenceRuntime ? [`${indent(1)}let divergenceSignal = false;`] : []),
   ];
 }
 
 export function buildScriptRuntimeBlocks(
   flags: StrategyScriptRuntimeFlags,
 ): string[] {
-  return [
-    ...(flags.usesSeriesStateRuntime
-      ? [
-          "const MAX_CACHE_SIZE = 96;",
-          "",
-          "const state = {",
-          "  closes: [],",
-          ...(flags.usesMovingAverageRuntime
-            ? [
-                "  prevFastAverage: null,",
-                "  prevSlowAverage: null,",
-              ]
-            : []),
-          "};",
-          "",
-        ]
-      : []),
-    ...(flags.usesSimpleMovingAverageHelper
-      ? [
-          "/** @param {number[]} values @param {number} windowSize @returns {number | null} */",
-          "function simpleMovingAverage(values, windowSize) {",
-          "  if (values.length < windowSize) {",
-          "    return null;",
-          "  }",
-          "  let sum = 0;",
-          "  for (let index = values.length - windowSize; index < values.length; index += 1) {",
-          "    sum += values[index];",
-          "  }",
-          "  return sum / windowSize;",
-          "}",
-          "",
-        ]
-      : []),
-    ...(flags.usesRSIRuntime
-      ? [
-          "/** @param {number[]} values @param {number} period @returns {number | null} */",
-          "function calculateRSI(values, period) {",
-          "  if (values.length <= period) {",
-          "    return null;",
-          "  }",
-          "  let gains = 0;",
-          "  let losses = 0;",
-          "  for (let index = values.length - period; index < values.length; index += 1) {",
-          "    const delta = values[index] - values[index - 1];",
-          "    if (delta >= 0) {",
-          "      gains += delta;",
-          "    } else {",
-          "      losses += Math.abs(delta);",
-          "    }",
-          "  }",
-          "  if (losses === 0) {",
-          "    return 100;",
-          "  }",
-          "  const relativeStrength = gains / losses;",
-          "  return 100 - 100 / (1 + relativeStrength);",
-          "}",
-          "",
-        ]
-      : []),
-    ...(flags.usesMACDRuntime
-      ? [
-          "/** @param {number[]} values @param {number} period @returns {number[]} */",
-          "function calculateEMASequence(values, period) {",
-          "  const multiplier = 2 / (period + 1);",
-          "  let previous = null;",
-          "  return values.map((value) => {",
-          "    previous = previous === null ? value : previous + (value - previous) * multiplier;",
-          "    return previous;",
-          "  });",
-          "}",
-          "",
-          "/** @param {number[]} values @param {number} fastPeriod @param {number} slowPeriod @param {number} signalPeriod @returns {{ diff: number; signal: number; histogram: number } | null} */",
-          "function calculateMACD(values, fastPeriod, slowPeriod, signalPeriod) {",
-          "  if (values.length < Math.max(fastPeriod, slowPeriod) + signalPeriod) {",
-          "    return null;",
-          "  }",
-          "  const fastSequence = calculateEMASequence(values, fastPeriod);",
-          "  const slowSequence = calculateEMASequence(values, slowPeriod);",
-          "  const diffSequence = fastSequence.map((value, index) => value - slowSequence[index]);",
-          "  const signalSequence = calculateEMASequence(diffSequence, signalPeriod);",
-          "  const diff = diffSequence[diffSequence.length - 1];",
-          "  const signal = signalSequence[signalSequence.length - 1];",
-          "  if (diff === undefined || signal === undefined) {",
-          "    return null;",
-          "  }",
-          "  return {",
-          "    diff,",
-          "    signal,",
-          "    histogram: (diff - signal) * 2,",
-          "  };",
-          "}",
-          "",
-        ]
-      : []),
-    ...(flags.usesBollingerRuntime
-      ? [
-          "/** @param {number[]} values @param {number} average @returns {number} */",
-          "function calculateStandardDeviation(values, average) {",
-          "  const variance = values.reduce((sum, value) => sum + (value - average) * (value - average), 0) / values.length;",
-          "  return Math.sqrt(variance);",
-          "}",
-          "",
-          "/** @param {number[]} values @param {number} period @param {number} multiplier @returns {{ middle: number; upper: number; lower: number } | null} */",
-          "function calculateBollingerBands(values, period, multiplier) {",
-          "  if (values.length < period) {",
-          "    return null;",
-          "  }",
-          "  const windowValues = values.slice(values.length - period);",
-          "  const middle = simpleMovingAverage(windowValues, period);",
-          "  if (middle === null) {",
-          "    return null;",
-          "  }",
-          "  const standardDeviation = calculateStandardDeviation(windowValues, middle);",
-          "  return {",
-          "    middle,",
-          "    upper: middle + standardDeviation * multiplier,",
-          "    lower: middle - standardDeviation * multiplier,",
-          "  };",
-          "}",
-          "",
-        ]
-      : []),
-  ];
+  void flags;
+  return [];
+}
+
+export function buildMovingAverageIndicatorKey(windowSize: number): string {
+  return `ma:${windowSize}`;
+}
+
+export function buildRsiIndicatorKey(period: number): string {
+  return `rsi:${period}`;
+}
+
+export function buildMacdIndicatorKey(
+  fastPeriod: number,
+  slowPeriod: number,
+  signalPeriod: number,
+): string {
+  return `macd:${fastPeriod}:${slowPeriod}:${signalPeriod}`;
+}
+
+export function buildBollingerIndicatorKey(
+  period: number,
+  multiplier: number,
+): string {
+  return `bollinger:${period}:${multiplier}`;
+}
+
+export function buildKdjIndicatorKey(
+  period: number,
+  m1: number,
+  m2: number,
+): string {
+  return `kdj:${period}:${m1}:${m2}`;
+}
+
+export function buildAtrIndicatorKey(period: number): string {
+  return `atr:${period}`;
+}
+
+export function buildCciIndicatorKey(period: number): string {
+  return `cci:${period}`;
+}
+
+export function buildWilliamsRIndicatorKey(period: number): string {
+  return `williamsr:${period}`;
+}
+
+export function buildDivergenceIndicatorKey(
+  indicatorType: "rsi" | "macd" | "kdj",
+  params: number[],
+  direction: "top" | "bottom",
+  lookback: number,
+): string {
+  return ["divergence", indicatorType, ...params.map(String), direction, String(lookback)].join(":");
 }
 
 export function normalizeMessage(value: unknown, fallback: string): string {

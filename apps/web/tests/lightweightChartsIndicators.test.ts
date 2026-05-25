@@ -2,10 +2,13 @@ import { describe, expect, it } from "vitest";
 
 import type { KlineCandle } from "../src/charting/kline";
 import {
+  computeAtr,
+  computeCci,
   computeExponentialMovingAverage,
   computeKdj,
   computeMacd,
   computeSimpleMovingAverage,
+  computeWilliamsR,
 } from "../src/charting/lightweightChartsIndicators";
 
 function buildCandle(overrides: Partial<KlineCandle>): KlineCandle {
@@ -63,5 +66,41 @@ describe("lightweightChartsIndicators", () => {
     expect(kdj.k.map((point) => point.value)).toEqual([50, 50, 50]);
     expect(kdj.d.map((point) => point.value)).toEqual([50, 50, 50]);
     expect(kdj.j.map((point) => point.value)).toEqual([50, 50, 50]);
+  });
+
+  it("computes atr after the warmup window", () => {
+    const candles = [
+      buildCandle({ at: "2026-05-17T01:30:00.000Z", high: 105, low: 100, close: 103 }),
+      buildCandle({ at: "2026-05-17T01:31:00.000Z", high: 108, low: 102, close: 107 }),
+      buildCandle({ at: "2026-05-17T01:32:00.000Z", high: 110, low: 104, close: 109 }),
+    ];
+
+    const atr = computeAtr(candles, 3);
+    expect(atr).toHaveLength(1);
+    expect(atr[0]?.value).toBeCloseTo(5.6666667, 6);
+  });
+
+  it("computes cci for a trending window", () => {
+    const candles = [
+      buildCandle({ at: "2026-05-17T01:30:00.000Z", high: 105, low: 99, close: 104 }),
+      buildCandle({ at: "2026-05-17T01:31:00.000Z", high: 108, low: 102, close: 107 }),
+      buildCandle({ at: "2026-05-17T01:32:00.000Z", high: 112, low: 106, close: 111 }),
+    ];
+
+    const cci = computeCci(candles, 3);
+    expect(cci).toHaveLength(1);
+    expect(cci[0]?.value ?? 0).toBeGreaterThan(90);
+  });
+
+  it("computes williams r inside the expected range", () => {
+    const candles = [
+      buildCandle({ at: "2026-05-17T01:30:00.000Z", high: 105, low: 99, close: 104 }),
+      buildCandle({ at: "2026-05-17T01:31:00.000Z", high: 108, low: 102, close: 107 }),
+      buildCandle({ at: "2026-05-17T01:32:00.000Z", high: 110, low: 104, close: 105 }),
+    ];
+
+    const williamsR = computeWilliamsR(candles, 3);
+    expect(williamsR).toHaveLength(1);
+    expect(williamsR[0]?.value).toBeCloseTo(-45.454545, 5);
   });
 });

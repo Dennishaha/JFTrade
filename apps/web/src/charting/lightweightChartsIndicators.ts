@@ -122,3 +122,72 @@ export function computeKdj(candles: readonly KlineCandle[]): {
     },
   );
 }
+
+export function computeAtr(
+  candles: readonly KlineCandle[],
+  period = 14,
+): IndicatorPoint[] {
+  const trueRanges = candles.map((candle, index) => {
+    if (index === 0) {
+      return candle.high - candle.low;
+    }
+    const previousClose = candles[index - 1]?.close ?? candle.close;
+    return Math.max(
+      candle.high - candle.low,
+      Math.abs(candle.high - previousClose),
+      Math.abs(candle.low - previousClose),
+    );
+  });
+
+  const averages = computeSimpleMovingAverage(trueRanges, period);
+  return candles.flatMap((candle, index) => {
+    const value = averages[index];
+    if (value == null) {
+      return [];
+    }
+    return [{ time: toIndicatorTimestamp(candle.at), value }];
+  });
+}
+
+export function computeCci(
+  candles: readonly KlineCandle[],
+  period = 20,
+): IndicatorPoint[] {
+  const typicalPrices = candles.map((candle) => (candle.high + candle.low + candle.close) / 3);
+  const averages = computeSimpleMovingAverage(typicalPrices, period);
+
+  return candles.flatMap((candle, index) => {
+    if (index + 1 < period) {
+      return [];
+    }
+
+    const mean = averages[index];
+    if (mean == null) {
+      return [];
+    }
+
+    const window = typicalPrices.slice(index - period + 1, index + 1);
+    const meanDeviation =
+      window.reduce((sum, value) => sum + Math.abs(value - mean), 0) / period;
+    const value = meanDeviation === 0 ? 0 : (typicalPrices[index]! - mean) / (0.015 * meanDeviation);
+    return [{ time: toIndicatorTimestamp(candle.at), value }];
+  });
+}
+
+export function computeWilliamsR(
+  candles: readonly KlineCandle[],
+  period = 14,
+): IndicatorPoint[] {
+  return candles.flatMap((candle, index) => {
+    if (index + 1 < period) {
+      return [];
+    }
+
+    const window = candles.slice(index - period + 1, index + 1);
+    const highestHigh = Math.max(...window.map((item) => item.high));
+    const lowestLow = Math.min(...window.map((item) => item.low));
+    const range = highestHigh - lowestLow;
+    const value = range === 0 ? -50 : ((highestHigh - candle.close) / range) * -100;
+    return [{ time: toIndicatorTimestamp(candle.at), value }];
+  });
+}

@@ -17,6 +17,8 @@ apps/web
   -> AppShell / MarketPage
   -> marketDataQuery / marketDataRealtime
   -> charting/kline.ts
+
+当前图表指标层除了主图 MA/EMA 和副图 Volume/MACD/KDJ 外，还支持副图 ATR、CCI、Williams %R；这些展示指标只在前端图表层做可视化计算，不参与策略运行时判定。
 ```
 
 前端只负责在“后端已给出正确当前桶 seed”的前提下继续做实时累计，不负责猜测当前桶的真实 open/high/low。

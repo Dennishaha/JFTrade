@@ -18,6 +18,11 @@ interface StrategyOverlayDeckBindings {
   selectedVisualNodeMessage: Ref<string>;
   selectedVisualNodeCode: Ref<string>;
   selectedVisualNodePeriod: Ref<string>;
+  selectedIndicatorType: Ref<string>;
+  selectedIndicatorConditionMode: Ref<string>;
+  selectedIndicatorOperator: Ref<string>;
+  selectedIndicatorPatternType: Ref<string>;
+  selectedIndicatorLookback: Ref<string>;
   selectedMacdFastPeriod: Ref<string>;
   selectedMacdSlowPeriod: Ref<string>;
   selectedMacdSignalPeriod: Ref<string>;
@@ -46,8 +51,13 @@ const props = defineProps<{
   showsCodeInput: boolean;
   showsPeriodInput: boolean;
   showsMacdInputs: boolean;
+  showsTechnicalIndicatorMacdInputs: boolean;
   showsMultiplierInput: boolean;
   showsThresholdInput: boolean;
+  showsConditionModeInput: boolean;
+  showsIndicatorTypeInput: boolean;
+  showsPatternTypeInput: boolean;
+  showsLookbackInput: boolean;
   showsPlaceOrderInputs: boolean;
   showsPlaceOrderLimitPriceInput: boolean;
   createdAtText: string;
@@ -65,6 +75,11 @@ const selectedVisualNodeText = props.bindings.selectedVisualNodeText;
 const selectedVisualNodeMessage = props.bindings.selectedVisualNodeMessage;
 const selectedVisualNodeCode = props.bindings.selectedVisualNodeCode;
 const selectedVisualNodePeriod = props.bindings.selectedVisualNodePeriod;
+const selectedIndicatorType = props.bindings.selectedIndicatorType;
+const selectedIndicatorConditionMode = props.bindings.selectedIndicatorConditionMode;
+const selectedIndicatorOperator = props.bindings.selectedIndicatorOperator;
+const selectedIndicatorPatternType = props.bindings.selectedIndicatorPatternType;
+const selectedIndicatorLookback = props.bindings.selectedIndicatorLookback;
 const selectedMacdFastPeriod = props.bindings.selectedMacdFastPeriod;
 const selectedMacdSlowPeriod = props.bindings.selectedMacdSlowPeriod;
 const selectedMacdSignalPeriod = props.bindings.selectedMacdSignalPeriod;
@@ -229,6 +244,35 @@ function toTemplateTypeLabel(mode: StrategyAuthoringTemplate["mode"]): string {
           />
         </label>
 
+        <label v-if="props.showsIndicatorTypeInput" class="grid gap-2 text-sm text-slate-700">
+          <span class="font-medium">技术指标类型</span>
+          <select
+            v-model="selectedIndicatorType"
+            class="rounded-2xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-amber-500"
+          >
+            <option value="movingAverage">双均线</option>
+            <option value="rsi">RSI</option>
+            <option value="macd">MACD</option>
+            <option value="kdj">KDJ</option>
+            <option value="atr">ATR</option>
+            <option value="cci">CCI</option>
+            <option value="williamsR">Williams %R</option>
+            <option value="bollinger">布林带</option>
+          </select>
+        </label>
+
+        <label v-if="props.showsConditionModeInput" class="grid gap-2 text-sm text-slate-700">
+          <span class="font-medium">判断类型</span>
+          <select
+            v-model="selectedIndicatorConditionMode"
+            class="rounded-2xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-amber-500"
+          >
+            <option value="none">仅加载指标</option>
+            <option value="numeric">数值型</option>
+            <option value="pattern">形态型</option>
+          </select>
+        </label>
+
         <label v-if="props.showsPeriodInput" class="grid gap-2 text-sm text-slate-700">
           <span class="font-medium">周期 / 窗口</span>
           <input
@@ -241,9 +285,9 @@ function toTemplateTypeLabel(mode: StrategyAuthoringTemplate["mode"]): string {
           />
         </label>
 
-        <div v-if="props.showsMacdInputs" class="grid gap-3 md:grid-cols-3">
+        <div v-if="props.showsMacdInputs || props.showsTechnicalIndicatorMacdInputs" class="grid gap-3 md:grid-cols-3">
           <label class="grid gap-2 text-sm text-slate-700">
-            <span class="font-medium">快线</span>
+            <span class="font-medium">{{ selectedIndicatorType === 'movingAverage' ? '快线' : '快线' }}</span>
             <input
               v-model="selectedMacdFastPeriod"
               class="rounded-2xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-amber-500"
@@ -253,7 +297,7 @@ function toTemplateTypeLabel(mode: StrategyAuthoringTemplate["mode"]): string {
             />
           </label>
           <label class="grid gap-2 text-sm text-slate-700">
-            <span class="font-medium">慢线</span>
+            <span class="font-medium">{{ selectedIndicatorType === 'kdj' ? 'M1' : '慢线' }}</span>
             <input
               v-model="selectedMacdSlowPeriod"
               class="rounded-2xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-amber-500"
@@ -262,8 +306,8 @@ function toTemplateTypeLabel(mode: StrategyAuthoringTemplate["mode"]): string {
               type="number"
             />
           </label>
-          <label class="grid gap-2 text-sm text-slate-700">
-            <span class="font-medium">信号线</span>
+          <label v-if="selectedIndicatorType !== 'movingAverage'" class="grid gap-2 text-sm text-slate-700">
+            <span class="font-medium">{{ selectedIndicatorType === 'kdj' ? 'M2' : '信号线' }}</span>
             <input
               v-model="selectedMacdSignalPeriod"
               class="rounded-2xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-amber-500"
@@ -285,12 +329,49 @@ function toTemplateTypeLabel(mode: StrategyAuthoringTemplate["mode"]): string {
           />
         </label>
 
+        <label v-if="props.showsPatternTypeInput" class="grid gap-2 text-sm text-slate-700">
+          <span class="font-medium">形态条件</span>
+          <select
+            v-model="selectedIndicatorPatternType"
+            class="rounded-2xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-amber-500"
+          >
+            <option v-if="selectedIndicatorType === 'movingAverage' || selectedIndicatorType === 'macd' || selectedIndicatorType === 'kdj'" value="goldenCross">金叉</option>
+            <option v-if="selectedIndicatorType === 'movingAverage' || selectedIndicatorType === 'macd' || selectedIndicatorType === 'kdj'" value="deathCross">死叉</option>
+            <option v-if="selectedIndicatorType === 'rsi' || selectedIndicatorType === 'macd' || selectedIndicatorType === 'kdj'" value="topDivergence">顶背离</option>
+            <option v-if="selectedIndicatorType === 'rsi' || selectedIndicatorType === 'macd' || selectedIndicatorType === 'kdj'" value="bottomDivergence">底背离</option>
+            <option v-if="selectedIndicatorType === 'bollinger'" value="closeAboveUpperBand">收盘价突破上轨</option>
+            <option v-if="selectedIndicatorType === 'bollinger'" value="closeBelowLowerBand">收盘价跌破下轨</option>
+          </select>
+        </label>
+
         <label v-if="props.showsThresholdInput" class="grid gap-2 text-sm text-slate-700">
           <span class="font-medium">阈值</span>
           <input
             v-model="selectedVisualNodeThreshold"
             class="rounded-2xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-amber-500"
             step="0.01"
+            type="number"
+          />
+        </label>
+
+        <label v-if="props.showsThresholdInput && props.selectedVisualKind === 'technicalIndicator'" class="grid gap-2 text-sm text-slate-700">
+          <span class="font-medium">比较方向</span>
+          <select
+            v-model="selectedIndicatorOperator"
+            class="rounded-2xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-amber-500"
+          >
+            <option value=">">大于</option>
+            <option value="<">小于</option>
+          </select>
+        </label>
+
+        <label v-if="props.showsLookbackInput" class="grid gap-2 text-sm text-slate-700">
+          <span class="font-medium">背离观察窗口</span>
+          <input
+            v-model="selectedIndicatorLookback"
+            class="rounded-2xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-amber-500"
+            min="1"
+            step="1"
             type="number"
           />
         </label>

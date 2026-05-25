@@ -62,6 +62,7 @@ type runtimeBridge struct {
 	mu            sync.Mutex
 	hookContextMu sync.RWMutex
 	vm            *qjs.VM
+	indicators    *indicatorRuntime
 	strategy      *Strategy
 	ctx           context.Context
 	session       *bbgo2.ExchangeSession
@@ -150,12 +151,14 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo2.OrderExecutor, s
 		if interval := defaultInterval(s.Interval); interval != "" && kline.Interval != interval {
 			return
 		}
+		bridge.pushIndicators(kline)
 		if hookErr := bridge.invokeHook("onKLineClosed", map[string]any{
 			"id":           strategyName(s),
 			"definitionId": strings.TrimSpace(s.DefinitionID),
 			"symbol":       strings.ToUpper(strings.TrimSpace(s.Symbol)),
 			"interval":     string(defaultInterval(s.Interval)),
 			"kline":        klinePayload(kline),
+			"indicators":   bridge.indicatorPayload(),
 		}, &HookContext{CurrentKlineTime: kline.EndTime.Time(), WarmupUntil: s.WarmupUntil}); hookErr != nil {
 			errMsg := hookErr.Error()
 			bbgo2.Notify("quickjs strategy %s onKLineClosed error: %s", strategyName(s), errMsg)
@@ -168,6 +171,20 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo2.OrderExecutor, s
 	return nil
 }
 
+func (r *runtimeBridge) pushIndicators(kline types.KLine) {
+	if r == nil || r.indicators == nil {
+		return
+	}
+	r.indicators.push(kline)
+}
+
+func (r *runtimeBridge) indicatorPayload() map[string]any {
+	if r == nil || r.indicators == nil {
+		return nil
+	}
+	return r.indicators.snapshot()
+}
+
 func newRuntimeBridge(ctx context.Context, strategy *Strategy, orderExecutor bbgo2.OrderExecutor, session *bbgo2.ExchangeSession) (*runtimeBridge, error) {
 	vm, err := qjs.NewVM()
 	if err != nil {
@@ -178,6 +195,7 @@ func newRuntimeBridge(ctx context.Context, strategy *Strategy, orderExecutor bbg
 	}
 	bridge := &runtimeBridge{
 		vm:         vm,
+		indicators: newIndicatorRuntime(strategy.Script),
 		strategy:   strategy,
 		ctx:        ctx,
 		session:    session,

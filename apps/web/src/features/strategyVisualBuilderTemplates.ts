@@ -1,13 +1,17 @@
 import type { StrategyVisualModelDocument } from "@jftrade/ui-contracts";
 
 import {
+  createATRVolatilityStrategyVisualModel,
   createBollingerReversionStrategyVisualModel,
   createBreakoutStrategyVisualModel,
+  createCCIReversionStrategyVisualModel,
   createDefaultStrategyVisualModel,
   createDoubleMovingAverageStrategyVisualModel,
+  createKDJReversionStrategyVisualModel,
   createMACDMomentumStrategyVisualModel,
   createMeanReversionStrategyVisualModel,
   createRSIReversionStrategyVisualModel,
+  createWilliamsRReversionStrategyVisualModel,
 } from "./strategyVisualBuilderModels";
 import {
   buildDoubleMovingAverageScript,
@@ -97,6 +101,22 @@ export function getStrategyAuthoringTemplates(): StrategyAuthoringTemplate[] {
         buildStrategyScriptFromVisualModel(createMACDMomentumStrategyVisualModel(), context),
     },
     {
+      id: "kdj-reversion",
+      label: "KDJ 交叉交易",
+      description: "KDJ 金叉/死叉模板，适合短周期动量反转。",
+      mode: "visual",
+      defaultId: "js-kdj-reversion",
+      defaultName: "KDJ 交叉交易",
+      defaultVersion: "0.1.0",
+      defaultDescription: "通过 KDJ 9/3/3 金叉买入、死叉卖出，自动管理持仓。",
+      defaultSymbol: "00700",
+      defaultInterval: "1m",
+      visualModel: createKDJReversionStrategyVisualModel(),
+      syncVisualToCode: true,
+      buildScript: (context) =>
+        buildStrategyScriptFromVisualModel(createKDJReversionStrategyVisualModel(), context),
+    },
+    {
       id: "bollinger-reversion",
       label: "布林带回归交易",
       description: "布林带模板，下轨买入、上轨卖出，含持仓与重复买入检查。",
@@ -111,6 +131,54 @@ export function getStrategyAuthoringTemplates(): StrategyAuthoringTemplate[] {
       syncVisualToCode: true,
       buildScript: (context) =>
         buildStrategyScriptFromVisualModel(createBollingerReversionStrategyVisualModel(), context),
+    },
+    {
+      id: "atr-volatility",
+      label: "ATR 波动率过滤",
+      description: "ATR 高低阈值模板，适合作为波动率开关或风险过滤。",
+      mode: "visual",
+      defaultId: "js-atr-volatility",
+      defaultName: "ATR 波动率过滤",
+      defaultVersion: "0.1.0",
+      defaultDescription: "通过 ATR 14 判断波动率状态，波动升高买入、回落卖出。",
+      defaultSymbol: "00700",
+      defaultInterval: "5m",
+      visualModel: createATRVolatilityStrategyVisualModel(),
+      syncVisualToCode: true,
+      buildScript: (context) =>
+        buildStrategyScriptFromVisualModel(createATRVolatilityStrategyVisualModel(), context),
+    },
+    {
+      id: "cci-reversion",
+      label: "CCI 反转交易",
+      description: "CCI 超买超卖模板，适合顺势回撤与区间反转。",
+      mode: "visual",
+      defaultId: "js-cci-reversion",
+      defaultName: "CCI 反转交易",
+      defaultVersion: "0.1.0",
+      defaultDescription: "通过 CCI 20 在低于 -100 买入、高于 100 卖出。",
+      defaultSymbol: "00700",
+      defaultInterval: "5m",
+      visualModel: createCCIReversionStrategyVisualModel(),
+      syncVisualToCode: true,
+      buildScript: (context) =>
+        buildStrategyScriptFromVisualModel(createCCIReversionStrategyVisualModel(), context),
+    },
+    {
+      id: "williamsr-reversion",
+      label: "Williams %R 反转交易",
+      description: "Williams %R 超买超卖模板，适合高频回归场景。",
+      mode: "visual",
+      defaultId: "js-williamsr-reversion",
+      defaultName: "Williams %R 反转交易",
+      defaultVersion: "0.1.0",
+      defaultDescription: "通过 Williams %R 14 在超卖区买入、超买区卖出。",
+      defaultSymbol: "00700",
+      defaultInterval: "5m",
+      visualModel: createWilliamsRReversionStrategyVisualModel(),
+      syncVisualToCode: true,
+      buildScript: (context) =>
+        buildStrategyScriptFromVisualModel(createWilliamsRReversionStrategyVisualModel(), context),
     },
     {
       id: "breakout-alert",

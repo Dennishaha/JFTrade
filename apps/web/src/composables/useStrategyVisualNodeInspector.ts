@@ -6,6 +6,12 @@ import {
   getStrategyBlockKind,
   type StrategyBlockKind,
 } from "../features/strategyVisualBuilder";
+import {
+  isDivergencePattern,
+  nextTechnicalIndicatorNodeText,
+  normalizeTechnicalIndicatorProperties,
+  type TechnicalIndicatorBlockProperties,
+} from "../features/strategyVisualBuilderIndicatorBlock";
 
 interface UseStrategyVisualNodeInspectorOptions {
   selectedVisualNode: ComputedRef<StrategyVisualNodeDocument | null>;
@@ -61,7 +67,7 @@ export function useStrategyVisualNodeInspector(
     set: (value: string) => {
       mutateSelectedVisualNode((node) => ({
         ...node,
-        text: nextCodeBlockNodeText(value, node.text),
+        text: value.trim() === "" ? "代码块" : node.text,
         properties: {
           ...node.properties,
           code: value,
@@ -70,199 +76,252 @@ export function useStrategyVisualNodeInspector(
     },
   });
 
-  const showsThresholdInput = computed(() => {
-    switch (selectedVisualKind.value) {
-      case "ifCloseAbove":
-      case "ifCloseBelow":
-      case "ifRsiAbove":
-      case "ifRsiBelow":
-        return true;
-      default:
-        return false;
+  const technicalIndicator = computed<TechnicalIndicatorBlockProperties | null>(() => {
+    if (selectedVisualKind.value !== "technicalIndicator") {
+      return null;
     }
+    return normalizeTechnicalIndicatorProperties(selectedVisualNode.value?.properties ?? {});
+  });
+
+  const showsIndicatorTypeInput = computed(
+    () => selectedVisualKind.value === "technicalIndicator",
+  );
+
+  const showsConditionModeInput = computed(
+    () => selectedVisualKind.value === "technicalIndicator",
+  );
+
+  const showsThresholdInput = computed(() => {
+    if (selectedVisualKind.value === "technicalIndicator") {
+      return technicalIndicator.value?.conditionMode === "numeric";
+    }
+    return selectedVisualKind.value === "ifCloseAbove" || selectedVisualKind.value === "ifCloseBelow";
+  });
+
+  const showsPeriodInput = computed(() => {
+    if (selectedVisualKind.value !== "technicalIndicator") {
+      return false;
+    }
+    const indicatorType = technicalIndicator.value?.indicatorType;
+    return indicatorType !== "movingAverage" && indicatorType !== "macd";
+  });
+
+  const showsMacdInputs = computed(() => false);
+  const showsTechnicalIndicatorMacdInputs = computed(() => {
+    if (selectedVisualKind.value !== "technicalIndicator") {
+      return false;
+    }
+    const indicatorType = technicalIndicator.value?.indicatorType;
+    return indicatorType === "movingAverage" || indicatorType === "macd" || indicatorType === "kdj";
+  });
+
+  const showsMultiplierInput = computed(
+    () => technicalIndicator.value?.indicatorType === "bollinger",
+  );
+
+  const showsPatternTypeInput = computed(
+    () => technicalIndicator.value?.conditionMode === "pattern",
+  );
+
+  const showsLookbackInput = computed(() =>
+    isDivergencePattern(technicalIndicator.value?.patternType),
+  );
+
+  const selectedIndicatorType = computed({
+    get: () => technicalIndicator.value?.indicatorType ?? "rsi",
+    set: (value: string) => {
+      updateTechnicalIndicator((properties) => ({
+        ...properties,
+        indicatorType: value,
+      }));
+    },
+  });
+
+  const selectedIndicatorConditionMode = computed({
+    get: () => technicalIndicator.value?.conditionMode ?? "numeric",
+    set: (value: string) => {
+      updateTechnicalIndicator((properties) => ({
+        ...properties,
+        conditionMode: value,
+      }));
+    },
+  });
+
+  const selectedIndicatorOperator = computed({
+    get: () => technicalIndicator.value?.operator ?? ">",
+    set: (value: string) => {
+      updateTechnicalIndicator((properties) => ({
+        ...properties,
+        operator: value,
+      }));
+    },
+  });
+
+  const selectedIndicatorPatternType = computed({
+    get: () => technicalIndicator.value?.patternType ?? "goldenCross",
+    set: (value: string) => {
+      updateTechnicalIndicator((properties) => ({
+        ...properties,
+        patternType: value,
+      }));
+    },
+  });
+
+  const selectedIndicatorLookback = computed({
+    get: () => readNumberString(technicalIndicator.value?.lookback),
+    set: (value: string) => {
+      updateTechnicalIndicator((properties) => ({
+        ...properties,
+        lookback: normalizeInteger(value, 5),
+      }));
+    },
   });
 
   const selectedVisualNodeThreshold = computed({
     get: () => {
       const threshold = selectedVisualNode.value?.properties.threshold;
-      if (typeof threshold === "number") {
-        return String(threshold);
-      }
-      if (typeof threshold === "string") {
-        return threshold;
-      }
-      return "";
+      return readNumberString(threshold);
     },
     set: (value: string) => {
-      const kind = selectedVisualKind.value;
-      const nextThreshold = normalizeNumber(value, 0);
-
+      const threshold = normalizeDecimal(value, 0);
+      if (selectedVisualKind.value === "technicalIndicator") {
+        updateTechnicalIndicator((properties) => ({
+          ...properties,
+          threshold,
+        }));
+        return;
+      }
       mutateSelectedVisualNode((node) => ({
         ...node,
-        text: nextThresholdNodeText(kind, nextThreshold, node.text),
+        text: nextPriceConditionNodeText(selectedVisualKind.value, threshold),
         properties: {
           ...node.properties,
-          threshold: nextThreshold,
+          threshold,
         },
       }));
     },
   });
 
-  const showsPeriodInput = computed(() => {
-    switch (selectedVisualKind.value) {
-      case "movingAverageFast":
-      case "movingAverageSlow":
-      case "rsi":
-      case "bollinger":
-        return true;
-      default:
-        return false;
-    }
-  });
-
   const selectedVisualNodePeriod = computed({
     get: () => {
-      const node = selectedVisualNode.value;
-      if (node === null) {
+      if (selectedVisualKind.value !== "technicalIndicator") {
         return "";
       }
-
-      switch (selectedVisualKind.value) {
-        case "movingAverageFast":
-        case "movingAverageSlow": {
-          const value = node.properties.windowSize;
-          return typeof value === "number" || typeof value === "string"
-            ? String(value)
-            : "";
-        }
-        case "rsi":
-        case "bollinger": {
-          const value = node.properties.period;
-          return typeof value === "number" || typeof value === "string"
-            ? String(value)
-            : "";
-        }
-        default:
-          return "";
+      const indicator = technicalIndicator.value;
+      if (indicator === null) {
+        return "";
       }
+      return readNumberString(indicator.period);
     },
     set: (value: string) => {
-      const kind = selectedVisualKind.value;
-      if (kind === null) {
+      if (selectedVisualKind.value !== "technicalIndicator") {
         return;
       }
-
-      const nextPeriod = normalizeInteger(value, 1);
-      mutateSelectedVisualNode((node) => {
-        const properties = { ...node.properties };
-
-        if (kind === "movingAverageFast" || kind === "movingAverageSlow") {
-          properties.windowSize = nextPeriod;
-        } else {
-          properties.period = nextPeriod;
-        }
-
-        return {
-          ...node,
-          text: nextPeriodNodeText(kind, nextPeriod, properties, node.text),
-          properties,
-        };
-      });
+      updateTechnicalIndicator((properties) => ({
+        ...properties,
+        period: normalizeInteger(value, 14),
+      }));
     },
   });
 
-  const showsMacdInputs = computed(() => selectedVisualKind.value === "macd");
-
   const selectedMacdFastPeriod = computed({
-    get: () => readNumericProperty(selectedVisualNode.value, "fastPeriod"),
+    get: () => {
+      const indicator = technicalIndicator.value;
+      if (indicator === null) {
+        return "";
+      }
+      if (indicator.indicatorType === "movingAverage" || indicator.indicatorType === "macd") {
+        return readNumberString(indicator.fastPeriod);
+      }
+      return "";
+    },
     set: (value: string) => {
-      mutateSelectedVisualNode((node) => {
-        const properties = { ...node.properties };
-        properties.fastPeriod = normalizeInteger(value, 12);
-        return {
-          ...node,
-          text: nextMacdNodeText(properties),
-          properties,
-        };
-      });
+      updateTechnicalIndicator((properties) => ({
+        ...properties,
+        fastPeriod: normalizeInteger(value, properties.indicatorType === "movingAverage" ? 5 : 12),
+      }));
     },
   });
 
   const selectedMacdSlowPeriod = computed({
-    get: () => readNumericProperty(selectedVisualNode.value, "slowPeriod"),
+    get: () => {
+      const indicator = technicalIndicator.value;
+      if (indicator === null) {
+        return "";
+      }
+      if (indicator.indicatorType === "movingAverage" || indicator.indicatorType === "macd") {
+        return readNumberString(indicator.slowPeriod);
+      }
+      if (indicator.indicatorType === "kdj") {
+        return readNumberString(indicator.m1);
+      }
+      return "";
+    },
     set: (value: string) => {
-      mutateSelectedVisualNode((node) => {
-        const properties = { ...node.properties };
-        properties.slowPeriod = normalizeInteger(value, 26);
+      updateTechnicalIndicator((properties) => {
+        if (properties.indicatorType === "kdj") {
+          return {
+            ...properties,
+            m1: normalizeInteger(value, 3),
+          };
+        }
         return {
-          ...node,
-          text: nextMacdNodeText(properties),
-          properties,
+          ...properties,
+          slowPeriod: normalizeInteger(value, properties.indicatorType === "movingAverage" ? 20 : 26),
         };
       });
     },
   });
 
   const selectedMacdSignalPeriod = computed({
-    get: () => readNumericProperty(selectedVisualNode.value, "signalPeriod"),
+    get: () => {
+      const indicator = technicalIndicator.value;
+      if (indicator === null) {
+        return "";
+      }
+      if (indicator.indicatorType === "macd") {
+        return readNumberString(indicator.signalPeriod);
+      }
+      if (indicator.indicatorType === "kdj") {
+        return readNumberString(indicator.m2);
+      }
+      return "";
+    },
     set: (value: string) => {
-      mutateSelectedVisualNode((node) => {
-        const properties = { ...node.properties };
-        properties.signalPeriod = normalizeInteger(value, 9);
+      updateTechnicalIndicator((properties) => {
+        if (properties.indicatorType === "kdj") {
+          return {
+            ...properties,
+            m2: normalizeInteger(value, 3),
+          };
+        }
         return {
-          ...node,
-          text: nextMacdNodeText(properties),
-          properties,
+          ...properties,
+          signalPeriod: normalizeInteger(value, 9),
         };
       });
     },
   });
-
-  const showsMultiplierInput = computed(
-    () => selectedVisualKind.value === "bollinger",
-  );
 
   const selectedBollingerMultiplier = computed({
-    get: () => readNumericProperty(selectedVisualNode.value, "multiplier"),
+    get: () => readNumberString(technicalIndicator.value?.multiplier),
     set: (value: string) => {
-      mutateSelectedVisualNode((node) => {
-        const properties = { ...node.properties };
-        properties.multiplier = normalizeNumber(value, 2);
-        return {
-          ...node,
-          text: nextPeriodNodeText(
-            "bollinger",
-            normalizeInteger(String(properties.period ?? 20), 20),
-            properties,
-            node.text,
-          ),
-          properties,
-        };
-      });
+      updateTechnicalIndicator((properties) => ({
+        ...properties,
+        multiplier: normalizeDecimal(value, 2),
+      }));
     },
   });
-
-  // ── placeOrder block properties ──
 
   const showsPlaceOrderInputs = computed(
     () => selectedVisualKind.value === "placeOrder",
   );
 
   const selectedPlaceOrderSide = computed({
-    get: () => {
-      const side = selectedVisualNode.value?.properties.side;
-      if (
-        typeof side === "string" &&
-        (side === "BUY" || side === "SELL" || side === "SELL_SHORT" || side === "BUY_COVER")
-      ) {
-        return side;
-      }
-      return "BUY";
-    },
+    get: () => readString(selectedVisualNode.value?.properties.side, "BUY"),
     set: (value: string) => {
       mutateSelectedVisualNode((node) => ({
         ...node,
-        text: nextPlaceOrderNodeText({ ...node.properties, side: value }, node.text),
         properties: {
           ...node.properties,
           side: value,
@@ -272,14 +331,10 @@ export function useStrategyVisualNodeInspector(
   });
 
   const selectedPlaceOrderType = computed({
-    get: () => {
-      const orderType = selectedVisualNode.value?.properties.orderType;
-      return typeof orderType === "string" && orderType === "LIMIT" ? "LIMIT" : "MARKET";
-    },
+    get: () => readString(selectedVisualNode.value?.properties.orderType, "MARKET"),
     set: (value: string) => {
       mutateSelectedVisualNode((node) => ({
         ...node,
-        text: nextPlaceOrderNodeText({ ...node.properties, orderType: value }, node.text),
         properties: {
           ...node.properties,
           orderType: value,
@@ -289,20 +344,10 @@ export function useStrategyVisualNodeInspector(
   });
 
   const selectedPlaceOrderQuantityMode = computed({
-    get: () => {
-      const mode = selectedVisualNode.value?.properties.quantityMode;
-      if (
-        typeof mode === "string" &&
-        (mode === "shares" || mode === "amount" || mode === "positionPercent" || mode === "cashPercent")
-      ) {
-        return mode;
-      }
-      return "shares";
-    },
+    get: () => readString(selectedVisualNode.value?.properties.quantityMode, "shares"),
     set: (value: string) => {
       mutateSelectedVisualNode((node) => ({
         ...node,
-        text: nextPlaceOrderNodeText({ ...node.properties, quantityMode: value }, node.text),
         properties: {
           ...node.properties,
           quantityMode: value,
@@ -312,55 +357,51 @@ export function useStrategyVisualNodeInspector(
   });
 
   const selectedPlaceOrderQuantityValue = computed({
-    get: () => {
-      const value = selectedVisualNode.value?.properties.quantityValue;
-      if (typeof value === "number") {
-        return String(value);
-      }
-      if (typeof value === "string") {
-        return value;
-      }
-      return "100";
-    },
+    get: () => readNumberString(selectedVisualNode.value?.properties.quantityValue),
     set: (value: string) => {
-      const nextValue = normalizeNumber(value, 100);
       mutateSelectedVisualNode((node) => ({
         ...node,
-        text: nextPlaceOrderNodeText({ ...node.properties, quantityValue: nextValue }, node.text),
         properties: {
           ...node.properties,
-          quantityValue: nextValue,
+          quantityValue: normalizeDecimal(value, 100),
         },
       }));
     },
   });
 
   const selectedPlaceOrderLimitPrice = computed({
-    get: () => {
-      const value = selectedVisualNode.value?.properties.limitPrice;
-      if (typeof value === "number") {
-        return String(value);
-      }
-      if (typeof value === "string") {
-        return value;
-      }
-      return "0";
-    },
+    get: () => readNumberString(selectedVisualNode.value?.properties.limitPrice),
     set: (value: string) => {
-      const nextValue = normalizeNumber(value, 0);
       mutateSelectedVisualNode((node) => ({
         ...node,
         properties: {
           ...node.properties,
-          limitPrice: nextValue,
+          limitPrice: normalizeDecimal(value, 0),
         },
       }));
     },
   });
 
   const showsPlaceOrderLimitPriceInput = computed(
-    () => showsPlaceOrderInputs.value && selectedPlaceOrderType.value === "LIMIT",
+    () => selectedPlaceOrderType.value === "LIMIT",
   );
+
+  function updateTechnicalIndicator(
+    mutator: (properties: Record<string, unknown>) => Record<string, unknown>,
+  ): void {
+    if (selectedVisualKind.value !== "technicalIndicator") {
+      return;
+    }
+
+    mutateSelectedVisualNode((node) => {
+      const nextProperties = normalizeTechnicalIndicatorProperties(mutator({ ...node.properties }));
+      return {
+        ...node,
+        text: nextTechnicalIndicatorNodeText(nextProperties as unknown as Record<string, unknown>),
+        properties: nextProperties as unknown as Record<string, unknown>,
+      };
+    });
+  }
 
   return {
     selectedVisualKind,
@@ -374,12 +415,21 @@ export function useStrategyVisualNodeInspector(
     showsPeriodInput,
     selectedVisualNodePeriod,
     showsMacdInputs,
+    showsTechnicalIndicatorMacdInputs,
     selectedMacdFastPeriod,
     selectedMacdSlowPeriod,
     selectedMacdSignalPeriod,
     showsMultiplierInput,
     selectedBollingerMultiplier,
-    // placeOrder
+    showsConditionModeInput,
+    showsIndicatorTypeInput,
+    showsPatternTypeInput,
+    showsLookbackInput,
+    selectedIndicatorType,
+    selectedIndicatorConditionMode,
+    selectedIndicatorOperator,
+    selectedIndicatorPatternType,
+    selectedIndicatorLookback,
     showsPlaceOrderInputs,
     selectedPlaceOrderSide,
     selectedPlaceOrderType,
@@ -390,126 +440,39 @@ export function useStrategyVisualNodeInspector(
   };
 }
 
-function nextCodeBlockNodeText(value: string, fallbackText: string): string {
-  const firstLine = value
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .find((line) => line !== "");
-
-  if (firstLine === undefined) {
-    return fallbackText;
-  }
-
-  const preview = firstLine.replace(/\s+/g, " ");
-  return preview.length > 12 ? `代码 · ${preview.slice(0, 12)}…` : `代码 · ${preview}`;
+function readString(value: unknown, fallback: string): string {
+  return typeof value === "string" ? value : fallback;
 }
 
-function readNumericProperty(
-  node: StrategyVisualNodeDocument | null,
-  key: string,
-): string {
-  if (node === null) {
-    return "";
-  }
-  const value = node.properties[key];
-  if (typeof value === "number" || typeof value === "string") {
+function readNumberString(value: unknown): string {
+  if (typeof value === "number" && Number.isFinite(value)) {
     return String(value);
+  }
+  if (typeof value === "string") {
+    return value;
   }
   return "";
 }
 
 function normalizeInteger(value: string, fallback: number): number {
   const parsed = Number(value);
-  if (!Number.isFinite(parsed)) {
-    return fallback;
-  }
-  return Math.max(1, Math.round(parsed));
+  return Number.isFinite(parsed) ? Math.max(1, Math.round(parsed)) : fallback;
 }
 
-function normalizeNumber(value: string, fallback: number): number {
+function normalizeDecimal(value: string, fallback: number): number {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-function nextThresholdNodeText(
+function nextPriceConditionNodeText(
   kind: StrategyBlockKind | null,
   threshold: number,
-  fallbackText: string,
 ): string {
-  switch (kind) {
-    case "ifCloseAbove":
-      return `收盘价 > ${threshold}`;
-    case "ifCloseBelow":
-      return `收盘价 < ${threshold}`;
-    case "ifRsiAbove":
-      return `RSI > ${threshold}`;
-    case "ifRsiBelow":
-      return `RSI < ${threshold}`;
-    default:
-      return fallbackText;
+  if (kind === "ifCloseAbove") {
+    return `收盘价 > ${threshold}`;
   }
-}
-
-function nextPeriodNodeText(
-  kind: StrategyBlockKind | null,
-  period: number,
-  properties: Record<string, unknown>,
-  fallbackText: string,
-): string {
-  switch (kind) {
-    case "movingAverageFast":
-      return `快均线 ${period}`;
-    case "movingAverageSlow":
-      return `慢均线 ${period}`;
-    case "rsi":
-      return `RSI ${period}`;
-    case "bollinger": {
-      const multiplier = normalizeNumber(String(properties.multiplier ?? 2), 2);
-      return `布林带 ${period}x${multiplier}`;
-    }
-    default:
-      return fallbackText;
+  if (kind === "ifCloseBelow") {
+    return `收盘价 < ${threshold}`;
   }
-}
-
-function nextMacdNodeText(properties: Record<string, unknown>): string {
-  const fastPeriod = normalizeInteger(String(properties.fastPeriod ?? 12), 12);
-  const slowPeriod = normalizeInteger(String(properties.slowPeriod ?? 26), 26);
-  const signalPeriod = normalizeInteger(
-    String(properties.signalPeriod ?? 9),
-    9,
-  );
-  return `MACD ${fastPeriod}/${slowPeriod}/${signalPeriod}`;
-}
-
-function nextPlaceOrderNodeText(
-  properties: Record<string, unknown>,
-  fallbackText: string,
-): string {
-  const side = typeof properties.side === "string" ? properties.side : "BUY";
-  const sideLabels: Record<string, string> = {
-    BUY: "买入开多",
-    SELL: "卖出平多",
-    SELL_SHORT: "卖出开空",
-    BUY_COVER: "买入平空",
-  };
-  const sideLabel = sideLabels[side] ?? "买入";
-  const quantityMode = typeof properties.quantityMode === "string"
-    ? properties.quantityMode
-    : "shares";
-  const quantityValue = typeof properties.quantityValue === "number"
-    ? properties.quantityValue
-    : typeof properties.quantityValue === "string"
-      ? normalizeNumber(properties.quantityValue, 100)
-      : 100;
-
-  const modeLabels: Record<string, string> = {
-    shares: `${quantityValue} 股`,
-    amount: `${quantityValue} 元`,
-    positionPercent: `仓位 ${quantityValue}%`,
-    cashPercent: `现金 ${quantityValue}%`,
-  };
-  const modeLabel = modeLabels[quantityMode] ?? `${quantityValue} 股`;
-
-  return `下单 · ${sideLabel} · ${modeLabel}`;
+  return "条件";
 }

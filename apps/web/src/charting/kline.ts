@@ -67,6 +67,9 @@ export type KlineIndicatorKey =
   | "volume"
   | "macd"
   | "kdj"
+  | "atr"
+  | "cci"
+  | "williamsr"
   | `ma${MovingAveragePeriod}`
   | `ema${MovingAveragePeriod}`;
 
@@ -74,7 +77,7 @@ export interface KlineIndicatorDefinition {
   value: KlineIndicatorKey;
   label: string;
   kind: "pane" | "overlay";
-  family: "volume" | "macd" | "kdj" | "ma" | "ema";
+  family: "volume" | "macd" | "kdj" | "atr" | "cci" | "williamsr" | "ma" | "ema";
   period?: MovingAveragePeriod;
 }
 
@@ -82,6 +85,9 @@ export const KLINE_INDICATORS = [
   { value: "volume", label: "VOL", kind: "pane", family: "volume" },
   { value: "macd", label: "MACD", kind: "pane", family: "macd" },
   { value: "kdj", label: "KDJ", kind: "pane", family: "kdj" },
+  { value: "atr", label: "ATR", kind: "pane", family: "atr" },
+  { value: "cci", label: "CCI", kind: "pane", family: "cci" },
+  { value: "williamsr", label: "Williams %R", kind: "pane", family: "williamsr" },
   { value: "ma5", label: "MA5", kind: "overlay", family: "ma", period: 5 },
   { value: "ma10", label: "MA10", kind: "overlay", family: "ma", period: 10 },
   { value: "ma20", label: "MA20", kind: "overlay", family: "ma", period: 20 },

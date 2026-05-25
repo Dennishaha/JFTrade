@@ -231,11 +231,21 @@ const {
     showsPeriodInput,
     selectedVisualNodePeriod,
     showsMacdInputs,
+    showsTechnicalIndicatorMacdInputs,
     selectedMacdFastPeriod,
     selectedMacdSlowPeriod,
     selectedMacdSignalPeriod,
     showsMultiplierInput,
     selectedBollingerMultiplier,
+    showsConditionModeInput,
+    showsIndicatorTypeInput,
+    showsPatternTypeInput,
+    showsLookbackInput,
+    selectedIndicatorType,
+    selectedIndicatorConditionMode,
+    selectedIndicatorOperator,
+    selectedIndicatorPatternType,
+    selectedIndicatorLookback,
     showsPlaceOrderInputs,
     selectedPlaceOrderSide,
     selectedPlaceOrderType,
@@ -254,6 +264,11 @@ const overlayDeckBindings = {
     selectedVisualNodeMessage,
     selectedVisualNodeCode,
     selectedVisualNodePeriod,
+    selectedIndicatorType,
+    selectedIndicatorConditionMode,
+    selectedIndicatorOperator,
+    selectedIndicatorPatternType,
+    selectedIndicatorLookback,
     selectedMacdFastPeriod,
     selectedMacdSlowPeriod,
     selectedMacdSignalPeriod,
@@ -1424,8 +1439,10 @@ function deleteSelectedVisualNode(): void {
                 :show-block-details-section="selectedVisualNode !== null && !isBlockInspectorCollapsed"
                 :show-metadata-section="!isMetadataSectionCollapsed"
                 :show-templates-section="!isTemplatesSectionCollapsed" :shows-code-input="showsCodeInput"
-                :shows-macd-inputs="showsMacdInputs" :shows-multiplier-input="showsMultiplierInput"
+                :shows-macd-inputs="showsMacdInputs" :shows-technical-indicator-macd-inputs="showsTechnicalIndicatorMacdInputs" :shows-multiplier-input="showsMultiplierInput"
                 :shows-period-input="showsPeriodInput" :shows-threshold-input="showsThresholdInput"
+                :shows-condition-mode-input="showsConditionModeInput" :shows-indicator-type-input="showsIndicatorTypeInput"
+                :shows-pattern-type-input="showsPatternTypeInput" :shows-lookback-input="showsLookbackInput"
                 :shows-place-order-inputs="showsPlaceOrderInputs"
                 :shows-place-order-limit-price-input="showsPlaceOrderLimitPriceInput"
                 :strategy-templates="strategyTemplates" :updated-at-text="formatTimestamp(definitionForm.updatedAt)"

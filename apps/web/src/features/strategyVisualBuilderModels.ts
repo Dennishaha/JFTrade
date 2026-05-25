@@ -5,7 +5,11 @@ export {
 } from "./strategyVisualBuilderBasicModels";
 export { createDoubleMovingAverageStrategyVisualModel } from "./strategyVisualBuilderMovingAverageModels";
 export {
+  createATRVolatilityStrategyVisualModel,
   createBollingerReversionStrategyVisualModel,
+  createCCIReversionStrategyVisualModel,
+  createKDJReversionStrategyVisualModel,
   createMACDMomentumStrategyVisualModel,
   createRSIReversionStrategyVisualModel,
+  createWilliamsRReversionStrategyVisualModel,
 } from "./strategyVisualBuilderIndicatorModels";

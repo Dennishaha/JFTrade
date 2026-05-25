@@ -1,27 +1,30 @@
 import type { StrategyVisualNodeDocument } from "@jftrade/ui-contracts";
 
+import {
+  nextTechnicalIndicatorNodeText,
+  type TechnicalIndicatorConditionMode,
+  type TechnicalIndicatorOperator,
+  type TechnicalIndicatorPatternType,
+  type TechnicalIndicatorType,
+} from "./strategyVisualBuilderIndicatorBlock";
+
 export type StrategyBlockKind =
   | "onInit"
   | "onKLineClosed"
   | "codeBlock"
-  | "movingAverageFast"
-  | "movingAverageSlow"
-  | "ifGoldenCross"
-  | "ifDeathCross"
-  | "rsi"
-  | "ifRsiAbove"
-  | "ifRsiBelow"
-  | "macd"
-  | "ifMacdBullish"
-  | "ifMacdBearish"
-  | "bollinger"
-  | "ifCloseAboveUpperBand"
-  | "ifCloseBelowLowerBand"
+  | "technicalIndicator"
   | "ifCloseAbove"
   | "ifCloseBelow"
   | "log"
   | "notify"
   | "placeOrder";
+
+export type {
+  TechnicalIndicatorConditionMode,
+  TechnicalIndicatorOperator,
+  TechnicalIndicatorPatternType,
+  TechnicalIndicatorType,
+} from "./strategyVisualBuilderIndicatorBlock";
 
 export interface StrategyBlockDefinition {
   kind: StrategyBlockKind;
@@ -31,6 +34,7 @@ export interface StrategyBlockDefinition {
   text: string;
   properties: Record<string, unknown>;
   accent: string;
+  paletteVisible?: boolean;
 }
 
 const STRATEGY_BLOCK_CATALOG: StrategyBlockDefinition[] = [
@@ -53,16 +57,28 @@ const STRATEGY_BLOCK_CATALOG: StrategyBlockDefinition[] = [
     accent: "#1d4ed8",
   },
   {
-    kind: "movingAverageFast",
-    label: "快均线",
-    description: "计算快线均值，默认是 5 根 K 线。",
+    kind: "technicalIndicator",
+    label: "技术指标",
+    description: "单块完成技术指标参数配置与条件判断，可直接挂接下游动作。",
     shape: "rect",
-    text: "快均线 5",
+    text: nextTechnicalIndicatorNodeText({
+      blockKind: "technicalIndicator",
+      indicatorType: "rsi",
+      conditionMode: "numeric",
+      operator: "<",
+      threshold: 30,
+      period: 14,
+    }),
     properties: {
-      blockKind: "movingAverageFast",
-      windowSize: 5,
+      blockKind: "technicalIndicator",
+      indicatorType: "rsi",
+      period: 14,
+      conditionMode: "numeric",
+      operator: "<",
+      threshold: 30,
     },
-    accent: "#0891b2",
+    accent: "#ca8a04",
+    paletteVisible: true,
   },
   {
     kind: "codeBlock",
@@ -75,147 +91,6 @@ const STRATEGY_BLOCK_CATALOG: StrategyBlockDefinition[] = [
       code: "console.log(\"补充自定义逻辑\");",
     },
     accent: "#475569",
-  },
-  {
-    kind: "movingAverageSlow",
-    label: "慢均线",
-    description: "计算慢线均值，并同步更新上一根均线状态。",
-    shape: "rect",
-    text: "慢均线 20",
-    properties: {
-      blockKind: "movingAverageSlow",
-      windowSize: 20,
-    },
-    accent: "#7c3aed",
-  },
-  {
-    kind: "ifGoldenCross",
-    label: "金叉",
-    description: "快线从下向上穿过慢线时执行后续动作。",
-    shape: "diamond",
-    text: "金叉",
-    properties: {
-      blockKind: "ifGoldenCross",
-    },
-    accent: "#ca8a04",
-  },
-  {
-    kind: "ifDeathCross",
-    label: "死叉",
-    description: "快线从上向下跌破慢线时执行后续动作。",
-    shape: "diamond",
-    text: "死叉",
-    properties: {
-      blockKind: "ifDeathCross",
-    },
-    accent: "#dc2626",
-  },
-  {
-    kind: "rsi",
-    label: "RSI",
-    description: "计算相对强弱指数，适合和超买超卖条件块组合。",
-    shape: "rect",
-    text: "RSI 14",
-    properties: {
-      blockKind: "rsi",
-      period: 14,
-    },
-    accent: "#0f766e",
-  },
-  {
-    kind: "ifRsiAbove",
-    label: "RSI 高于",
-    description: "当 RSI 高于阈值时执行后续动作，常用于超买告警。",
-    shape: "diamond",
-    text: "RSI > 70",
-    properties: {
-      blockKind: "ifRsiAbove",
-      threshold: 70,
-    },
-    accent: "#ea580c",
-  },
-  {
-    kind: "ifRsiBelow",
-    label: "RSI 低于",
-    description: "当 RSI 低于阈值时执行后续动作，常用于超卖反转观察。",
-    shape: "diamond",
-    text: "RSI < 30",
-    properties: {
-      blockKind: "ifRsiBelow",
-      threshold: 30,
-    },
-    accent: "#2563eb",
-  },
-  {
-    kind: "macd",
-    label: "MACD",
-    description: "计算 MACD diff、signal 和 histogram，适合做趋势动能观察。",
-    shape: "rect",
-    text: "MACD 12/26/9",
-    properties: {
-      blockKind: "macd",
-      fastPeriod: 12,
-      slowPeriod: 26,
-      signalPeriod: 9,
-    },
-    accent: "#9333ea",
-  },
-  {
-    kind: "ifMacdBullish",
-    label: "MACD 多头",
-    description: "当 MACD diff 高于 signal 时执行后续动作。",
-    shape: "diamond",
-    text: "MACD 多头",
-    properties: {
-      blockKind: "ifMacdBullish",
-    },
-    accent: "#16a34a",
-  },
-  {
-    kind: "ifMacdBearish",
-    label: "MACD 空头",
-    description: "当 MACD diff 低于 signal 时执行后续动作。",
-    shape: "diamond",
-    text: "MACD 空头",
-    properties: {
-      blockKind: "ifMacdBearish",
-    },
-    accent: "#dc2626",
-  },
-  {
-    kind: "bollinger",
-    label: "布林带",
-    description: "计算中轨、上轨、下轨，适合做通道突破或回归观察。",
-    shape: "rect",
-    text: "布林带 20x2",
-    properties: {
-      blockKind: "bollinger",
-      period: 20,
-      multiplier: 2,
-    },
-    accent: "#0d9488",
-  },
-  {
-    kind: "ifCloseAboveUpperBand",
-    label: "收盘价高于上轨",
-    description: "当收盘价突破布林带上轨时执行后续动作。",
-    shape: "diamond",
-    text: "收盘价 > 上轨",
-    properties: {
-      blockKind: "ifCloseAboveUpperBand",
-    },
-    accent: "#f97316",
-  },
-  {
-    kind: "ifCloseBelowLowerBand",
-    label: "收盘价低于下轨",
-    description: "当收盘价跌破布林带下轨时执行后续动作。",
-    shape: "diamond",
-    text: "收盘价 < 下轨",
-    properties: {
-      blockKind: "ifCloseBelowLowerBand",
-    },
-    accent: "#2563eb",
   },
   {
     kind: "ifCloseAbove",
@@ -311,7 +186,7 @@ export function createStrategyPaletteItems(): Array<{
   icon: string;
   properties: Record<string, unknown>;
 }> {
-  return STRATEGY_BLOCK_CATALOG.map((block) => ({
+  return STRATEGY_BLOCK_CATALOG.filter((block) => block.paletteVisible !== false).map((block) => ({
     type: block.shape,
     text: block.text,
     label: block.label,
