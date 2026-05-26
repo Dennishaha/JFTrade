@@ -232,4 +232,58 @@ describe("strategyVisualBuilderScript", () => {
     expect(script).toContain("const targetAmount = accountTotalValue * 10 / 100;");
     expect(script).toContain("账户仓位百分比计算所得数量为 0（账户总资产 ");
   });
+
+  it("renders time-unit moving averages and stop-loss snapshots from Go-computed keys", () => {
+    const visualModel: StrategyVisualModelDocument = {
+      engine: "logic-flow",
+      version: 1,
+      nodes: [
+        { id: "on-kline-root", type: "circle", x: 180, y: 120, text: "K 线收盘", properties: { blockKind: "onKLineClosed" } },
+        { id: "day-ma", type: "rect", x: 420, y: 120, text: "获取 均线 EMA 5日", properties: { blockKind: "getTechnicalIndicator", indicatorType: "movingAverage", movingAverageType: "EMA", windowSize: 5, periodUnit: "day" } },
+        { id: "stop-loss", type: "rect", x: 700, y: 120, text: "自动止损 1日 2%", properties: { blockKind: "stopLoss", direction: "auto", timeValue: 1, timeUnit: "day", percentage: 2 } },
+      ],
+      edges: [
+        { id: "edge-root-ma", type: "polyline", sourceNodeId: "on-kline-root", targetNodeId: "day-ma", properties: buildStrategyVisualControlEdgeProperties() },
+        { id: "edge-ma-stop-loss", type: "polyline", sourceNodeId: "day-ma", targetNodeId: "stop-loss", properties: buildStrategyVisualControlEdgeProperties() },
+      ],
+    };
+
+    const script = buildStrategyScriptFromVisualModel(visualModel, {
+      name: "time-unit-stop-loss",
+      symbol: "00700",
+      interval: "5m",
+    });
+
+    expect(script).toContain('const indicator_day_ma_snapshot = ctx.indicators["ma:EMA:5:day"] ?? null;');
+    expect(script).toContain('const risk_stop_loss_snapshot = ctx.indicators["sl:auto:1:day:2"] ?? null;');
+    expect(script).toContain('placeOrder({ side: "SELL", orderType: "MARKET", quantity: risk_stop_loss_qty });');
+    expect(script).toContain('placeOrder({ side: "BUY", orderType: "MARKET", quantity: risk_stop_loss_qty });');
+  });
+
+  it("renders take-profit and session-aware trailing-stop risk snapshots from Go-computed keys", () => {
+    const visualModel: StrategyVisualModelDocument = {
+      engine: "logic-flow",
+      version: 1,
+      nodes: [
+        { id: "on-kline-root", type: "circle", x: 180, y: 120, text: "K 线收盘", properties: { blockKind: "onKLineClosed" } },
+        { id: "take-profit", type: "rect", x: 420, y: 120, text: "自动止盈 1日 4%", properties: { blockKind: "stopLoss", mode: "takeProfit", direction: "auto", timeValue: 1, timeUnit: "day", percentage: 4, windowPolicy: "continuous" } },
+        { id: "trailing-stop", type: "rect", x: 700, y: 120, text: "自动追踪止损 2小时 3% 时段感知", properties: { blockKind: "stopLoss", mode: "trailingStop", direction: "auto", timeValue: 2, timeUnit: "hour", percentage: 3, windowPolicy: "session" } },
+      ],
+      edges: [
+        { id: "edge-root-take-profit", type: "polyline", sourceNodeId: "on-kline-root", targetNodeId: "take-profit", properties: buildStrategyVisualControlEdgeProperties() },
+        { id: "edge-take-profit-trailing", type: "polyline", sourceNodeId: "take-profit", targetNodeId: "trailing-stop", properties: buildStrategyVisualControlEdgeProperties() },
+      ],
+    };
+
+    const script = buildStrategyScriptFromVisualModel(visualModel, {
+      name: "risk-guard-modes",
+      symbol: "00700",
+      interval: "5m",
+    });
+
+    expect(script).toContain('ctx.indicators["risk:takeProfit:auto:1:day:4:continuous"]');
+    expect(script).toContain('ctx.indicators["risk:trailingStop:auto:2:hour:3:session"]');
+    expect(script).toContain('risk_take_profit_snapshot.triggerPercent');
+    expect(script).toContain('risk_trailing_stop_snapshot.triggerPercent');
+  });
 });

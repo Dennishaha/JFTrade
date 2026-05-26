@@ -3,6 +3,7 @@ import { computed } from "vue";
 
 import {
   GET_TECHNICAL_INDICATOR_OPTIONS,
+  INDICATOR_PERIOD_UNIT_OPTIONS,
   MOVING_AVERAGE_INDICATOR_OPTIONS,
   getTechnicalIndicatorDefinition,
   nextGetTechnicalIndicatorNodeText,
@@ -112,6 +113,16 @@ const selectedMovingAverageType = computed({
     mutateSelectedVariable((properties) => ({
       ...properties,
       movingAverageType: value,
+    }));
+  },
+});
+
+const selectedPeriodUnit = computed({
+  get: () => selectedVariable.value?.properties.periodUnit ?? "bar",
+  set: (value: string) => {
+    mutateSelectedVariable((properties) => ({
+      ...properties,
+      periodUnit: value,
     }));
   },
 });
@@ -343,6 +354,15 @@ function normalizeDecimal(value: string, fallback: number): number {
             <label v-if="showsWindowSizeInput" class="strategy-variable-manager__field">
               <span>窗口</span>
               <input v-model="selectedWindowSize" data-testid="strategy-variable-window-size-input" min="1" step="1" type="number" />
+            </label>
+
+            <label v-if="showsWindowSizeInput" class="strategy-variable-manager__field">
+              <span>时间单位</span>
+              <select v-model="selectedPeriodUnit" data-testid="strategy-variable-period-unit-select">
+                <option v-for="option in INDICATOR_PERIOD_UNIT_OPTIONS" :key="option.value" :value="option.value">
+                  {{ option.label }}
+                </option>
+              </select>
             </label>
 
             <label v-if="showsPeriodInput" class="strategy-variable-manager__field">

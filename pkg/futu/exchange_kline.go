@@ -2,6 +2,7 @@ package futu
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -21,6 +22,23 @@ import (
 
 const maxHistoryKLinePages = 8
 const maxSyncKLinePages = 200 // unlimited: loop until OpenD nextReqKey is empty
+
+type historicalKLineRequestPlan struct {
+	extendedTime bool
+	session      *commonpb.Session
+	keepSessions []MarketSession
+}
+
+type historicalKLineRequestError struct {
+	session *commonpb.Session
+	retType int32
+	errCode int32
+	retMsg  string
+}
+
+func (err *historicalKLineRequestError) Error() string {
+	return fmt.Sprintf("opend RequestHistoryKL retType=%d errCode=%d retMsg=%s", err.retType, err.errCode, err.retMsg)
+}
 
 type klineSubscriptionRequest struct {
 	canonical    string
@@ -78,46 +96,11 @@ func (e *Exchange) QueryAllKLines(ctx context.Context, symbol string, interval t
 		return nil, err
 	}
 
-	klines := make([]types.KLine, 0)
-	nextReqKey := []byte(nil)
-	for page := 0; page < maxSyncKLinePages; page++ {
-		request := &historypb.Request{C2S: &historypb.C2S{
-			RehabType: proto.Int32(int32(rehabType)),
-			KlType:    proto.Int32(int32(klType)),
-			Security:  security,
-			BeginTime: proto.String(beginAt.Format("2006-01-02 15:04:05")),
-			EndTime:   proto.String(endAt.Format("2006-01-02 15:04:05")),
-			// MaxAckKLNum intentionally not set — let OpenD decide the page size.
-		}}
-		if len(nextReqKey) > 0 {
-			request.C2S.NextReqKey = nextReqKey
-		}
-		if shouldRequestExtendedKLines(canonicalSymbol, interval) {
-			request.C2S.ExtendedTime = proto.Bool(true)
-			request.C2S.Session = proto.Int32(int32(commonpb.Session_Session_ALL))
-		}
-
-		var response historypb.Response
-		if err := e.callProto(ctx, opend.ProtoRequestHistoryKL, request, &response); err != nil {
-			return nil, err
-		}
-		if response.GetRetType() != 0 {
-			return nil, fmt.Errorf("opend RequestHistoryKL retType=%d errCode=%d retMsg=%s", response.GetRetType(), response.GetErrCode(), response.GetRetMsg())
-		}
-
-		for _, candle := range response.GetS2C().GetKlList() {
-			if candle.GetIsBlank() {
-				continue
-			}
-			klines = append(klines, futuKLineFromProto(candle, canonicalSymbol, interval))
-		}
-
-		nextReqKey = response.GetS2C().GetNextReqKey()
-		if len(nextReqKey) == 0 {
-			break
-		}
+	plans := buildHistoricalKLineRequestPlans(canonicalSymbol, interval)
+	klines, err := e.queryHistoricalKLinesAcrossPlans(ctx, security, canonicalSymbol, interval, klType, beginAt, endAt, rehabType, 0, maxSyncKLinePages, plans)
+	if err != nil {
+		return nil, err
 	}
-
 	sort.Slice(klines, func(i, j int) bool {
 		return klines[i].StartTime.Time().Before(klines[j].StartTime.Time())
 	})
@@ -125,23 +108,47 @@ func (e *Exchange) QueryAllKLines(ctx context.Context, symbol string, interval t
 }
 
 func (e *Exchange) queryHistoricalKLines(ctx context.Context, security *qotcommonpb.Security, canonicalSymbol string, interval types.Interval, klType qotcommonpb.KLType, beginAt time.Time, endAt time.Time, limit int) ([]types.KLine, error) {
-	klines := make([]types.KLine, 0, limit)
+	plans := buildHistoricalKLineRequestPlans(canonicalSymbol, interval)
+	return e.queryHistoricalKLinesAcrossPlans(ctx, security, canonicalSymbol, interval, klType, beginAt, endAt, qotcommonpb.RehabType_RehabType_None, limit, maxHistoryKLinePages, plans)
+}
+
+func (e *Exchange) queryHistoricalKLinesAcrossPlans(ctx context.Context, security *qotcommonpb.Security, canonicalSymbol string, interval types.Interval, klType qotcommonpb.KLType, beginAt time.Time, endAt time.Time, rehabType qotcommonpb.RehabType, limit int, maxPages int, plans []historicalKLineRequestPlan) ([]types.KLine, error) {
+	klines := make([]types.KLine, 0, max(limit, 1))
+	for _, plan := range plans {
+		routeKLines, err := e.queryHistoricalKLinesForPlan(ctx, security, canonicalSymbol, interval, klType, beginAt, endAt, rehabType, limit, maxPages, plan)
+		if err != nil {
+			if shouldFallbackHistoricalKLineSplit(err, plan) {
+				return e.queryHistoricalKLinesForPlan(ctx, security, canonicalSymbol, interval, klType, beginAt, endAt, rehabType, limit, maxPages, historicalKLineRequestPlanAll())
+			}
+			return nil, err
+		}
+		klines = mergeKLinesByStartTime(klines, routeKLines)
+	}
+	return klines, nil
+}
+
+func (e *Exchange) queryHistoricalKLinesForPlan(ctx context.Context, security *qotcommonpb.Security, canonicalSymbol string, interval types.Interval, klType qotcommonpb.KLType, beginAt time.Time, endAt time.Time, rehabType qotcommonpb.RehabType, limit int, maxPages int, plan historicalKLineRequestPlan) ([]types.KLine, error) {
+	klines := make([]types.KLine, 0, max(limit, 1))
 	nextReqKey := []byte(nil)
-	for page := 0; page < maxHistoryKLinePages; page++ {
+	for page := 0; page < maxPages; page++ {
 		request := &historypb.Request{C2S: &historypb.C2S{
-			RehabType:   proto.Int32(int32(qotcommonpb.RehabType_RehabType_None)),
-			KlType:      proto.Int32(int32(klType)),
-			Security:    security,
-			BeginTime:   proto.String(beginAt.Format("2006-01-02 15:04:05")),
-			EndTime:     proto.String(endAt.Format("2006-01-02 15:04:05")),
-			MaxAckKLNum: proto.Int32(int32(limit)),
+			RehabType: proto.Int32(int32(rehabType)),
+			KlType:    proto.Int32(int32(klType)),
+			Security:  security,
+			BeginTime: proto.String(beginAt.Format("2006-01-02 15:04:05")),
+			EndTime:   proto.String(endAt.Format("2006-01-02 15:04:05")),
 		}}
+		if limit > 0 {
+			request.C2S.MaxAckKLNum = proto.Int32(int32(limit))
+		}
 		if len(nextReqKey) > 0 {
 			request.C2S.NextReqKey = nextReqKey
 		}
-		if shouldRequestExtendedKLines(canonicalSymbol, interval) {
+		if plan.extendedTime {
 			request.C2S.ExtendedTime = proto.Bool(true)
-			request.C2S.Session = proto.Int32(int32(commonpb.Session_Session_ALL))
+			if plan.session != nil {
+				request.C2S.Session = proto.Int32(int32(*plan.session))
+			}
 		}
 
 		var response historypb.Response
@@ -149,22 +156,33 @@ func (e *Exchange) queryHistoricalKLines(ctx context.Context, security *qotcommo
 			return nil, err
 		}
 		if response.GetRetType() != 0 {
-			return nil, fmt.Errorf("opend RequestHistoryKL retType=%d errCode=%d retMsg=%s", response.GetRetType(), response.GetErrCode(), response.GetRetMsg())
+			return nil, &historicalKLineRequestError{
+				session: plan.session,
+				retType: response.GetRetType(),
+				errCode: response.GetErrCode(),
+				retMsg:  response.GetRetMsg(),
+			}
 		}
 
 		for _, candle := range response.GetS2C().GetKlList() {
 			if candle.GetIsBlank() {
 				continue
 			}
-			klines = append(klines, futuKLineFromProto(candle, canonicalSymbol, interval))
+			kline := futuKLineFromProto(candle, canonicalSymbol, interval)
+			session := plan.resolveMarketSession(canonicalSymbol, kline)
+			if !plan.shouldKeepMarketSession(session) {
+				continue
+			}
+			e.RegisterKLineSession(kline, session)
+			klines = append(klines, kline)
 		}
 
 		nextReqKey = response.GetS2C().GetNextReqKey()
 		if len(nextReqKey) == 0 {
 			break
 		}
-		if page == maxHistoryKLinePages-1 {
-			return nil, fmt.Errorf("opend RequestHistoryKL pagination exceeded %d pages", maxHistoryKLinePages)
+		if page == maxPages-1 {
+			return nil, fmt.Errorf("opend RequestHistoryKL pagination exceeded %d pages", maxPages)
 		}
 	}
 	return klines, nil
@@ -211,9 +229,117 @@ func (e *Exchange) queryCurrentKLines(ctx context.Context, security *qotcommonpb
 		if candle.GetIsBlank() {
 			continue
 		}
-		klines = append(klines, futuKLineFromProto(candle, canonicalSymbol, interval))
+		kline := futuKLineFromProto(candle, canonicalSymbol, interval)
+		e.RegisterKLineSession(kline, resolveKLineSessionByClock(canonicalSymbol, kline))
+		klines = append(klines, kline)
 	}
 	return klines, nil
+}
+
+func (plan historicalKLineRequestPlan) resolveMarketSession(symbol string, kline types.KLine) MarketSession {
+	if plan.session == nil {
+		return resolveKLineSessionByClock(symbol, kline)
+	}
+	return resolveHistoricalMarketSession(*plan.session, symbol, kline)
+}
+
+func (plan historicalKLineRequestPlan) shouldKeepMarketSession(session MarketSession) bool {
+	if len(plan.keepSessions) == 0 {
+		return true
+	}
+	for _, candidate := range plan.keepSessions {
+		if candidate == session {
+			return true
+		}
+	}
+	return false
+}
+
+func buildHistoricalKLineRequestPlans(symbol string, interval types.Interval) []historicalKLineRequestPlan {
+	if shouldSplitHistoricalKLineRequestsBySession(symbol, interval) {
+		rth := commonpb.Session_Session_RTH
+		eth := commonpb.Session_Session_ETH
+		all := commonpb.Session_Session_ALL
+		return []historicalKLineRequestPlan{
+			{extendedTime: true, session: &rth, keepSessions: []MarketSession{MarketSessionRegular}},
+			{extendedTime: true, session: &eth, keepSessions: []MarketSession{MarketSessionPre, MarketSessionAfter}},
+			{extendedTime: true, session: &all, keepSessions: []MarketSession{MarketSessionOvernight}},
+		}
+	}
+	if shouldRequestExtendedKLines(symbol, interval) {
+		all := commonpb.Session_Session_ALL
+		return []historicalKLineRequestPlan{{extendedTime: true, session: &all}}
+	}
+	return []historicalKLineRequestPlan{{}}
+}
+
+func historicalKLineRequestPlanAll() historicalKLineRequestPlan {
+	all := commonpb.Session_Session_ALL
+	return historicalKLineRequestPlan{extendedTime: true, session: &all}
+}
+
+func shouldSplitHistoricalKLineRequestsBySession(symbol string, interval types.Interval) bool {
+	return shouldRequestExtendedKLines(symbol, interval)
+}
+
+func shouldFallbackHistoricalKLineSplit(err error, plan historicalKLineRequestPlan) bool {
+	if plan.session == nil {
+		return false
+	}
+	var routeErr *historicalKLineRequestError
+	if !errors.As(err, &routeErr) || routeErr.session == nil {
+		return false
+	}
+	if *routeErr.session != *plan.session {
+		return false
+	}
+	message := strings.ToUpper(strings.TrimSpace(routeErr.retMsg))
+	if message == "" {
+		return false
+	}
+	hasSessionMarker := strings.Contains(message, "OVERNIGHT") || strings.Contains(message, "SESSION") || strings.Contains(message, "时段") || (strings.Contains(message, "RTH") && strings.Contains(message, "ETH") && strings.Contains(message, "ALL"))
+	if hasSessionMarker {
+		if strings.Contains(message, "NOT SUPPORT") || strings.Contains(message, "UNSUPPORTED") || strings.Contains(message, "INVALID") || strings.Contains(message, "ONLY SUPPORT") || strings.Contains(message, "SUPPORT ONLY") || strings.Contains(message, "不支持") || strings.Contains(message, "无效") || strings.Contains(message, "仅支持") {
+			return true
+		}
+	}
+	return false
+}
+
+func resolveHistoricalMarketSession(requestSession commonpb.Session, symbol string, kline types.KLine) MarketSession {
+	switch requestSession {
+	case commonpb.Session_Session_RTH:
+		return MarketSessionRegular
+	case commonpb.Session_Session_OVERNIGHT:
+		return MarketSessionOvernight
+	case commonpb.Session_Session_ETH:
+		return resolveETHHistoricalKLineSession(symbol, kline)
+	default:
+		return resolveKLineSessionByClock(symbol, kline)
+	}
+}
+
+func resolveETHHistoricalKLineSession(symbol string, kline types.KLine) MarketSession {
+	clockSession := resolveKLineSessionByClock(symbol, kline)
+	if clockSession == MarketSessionPre || clockSession == MarketSessionAfter {
+		return clockSession
+	}
+	if !strings.HasPrefix(strings.ToUpper(strings.TrimSpace(symbol)), "US.") {
+		return clockSession
+	}
+	observedAt := kline.StartTime.Time().UTC()
+	if observedAt.IsZero() {
+		observedAt = kline.EndTime.Time().UTC()
+	}
+	if observedAt.IsZero() {
+		return MarketSessionUnknown
+	}
+	local := observedAt.In(usEasternLocation)
+	minutes := local.Hour()*60 + local.Minute()
+	if minutes < 12*60 {
+		return MarketSessionPre
+	}
+	return MarketSessionAfter
 }
 
 func (e *Exchange) ensureKLineSubscription(ctx context.Context, client *opend.Client, request klineSubscriptionRequest) error {

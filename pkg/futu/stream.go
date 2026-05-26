@@ -190,6 +190,9 @@ func (s *Stream) emitBasicQot(basicQot *qotcommonpb.BasicQot) {
 	if err != nil {
 		return
 	}
+	if snapshot := quoteSnapshotFromBasicQot(basicQot, canonical); snapshot != nil {
+		s.exchange.RecordMarketSessionSample(canonical, snapshot.Session, snapshot.QuoteAt)
+	}
 	ticker := tickerFromBasicQot(basicQot)
 	if ticker == nil || ticker.Last.IsZero() {
 		return

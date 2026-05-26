@@ -10,11 +10,16 @@ import {
   type StrategyBlockKind,
 } from "../features/strategyVisualBuilder";
 import {
+  nextStopLossNodeText,
+  normalizeStopLossBlockProperties,
+} from "../features/strategyVisualBuilderCatalog";
+import {
   getTechnicalIndicatorDefinition,
   isDivergencePattern,
   nextGetTechnicalIndicatorNodeText,
   nextTechnicalIndicatorConditionNodeText,
   nextTechnicalIndicatorNodeText,
+  normalizeIndicatorPeriodUnit,
   normalizeGetTechnicalIndicatorProperties,
   normalizeTechnicalIndicatorConditionProperties,
   normalizeTechnicalIndicatorProperties,
@@ -96,6 +101,13 @@ export function useStrategyVisualNodeInspector(
     },
   });
 
+  const stopLoss = computed(() => {
+    if (selectedVisualKind.value !== "stopLoss") {
+      return null;
+    }
+    return normalizeStopLossBlockProperties(selectedVisualNode.value?.properties ?? {});
+  });
+
   const technicalIndicator = computed<TechnicalIndicatorBlockProperties | null>(() => {
     if (selectedVisualKind.value !== "technicalIndicator") {
       return null;
@@ -161,6 +173,9 @@ export function useStrategyVisualNodeInspector(
     if (isTechnicalIndicatorCondition.value) {
       return technicalIndicatorCondition.value?.conditionMode === "numeric";
     }
+    if (selectedVisualKind.value === "stopLoss") {
+      return true;
+    }
     return selectedVisualKind.value === "ifCloseAbove" || selectedVisualKind.value === "ifCloseBelow";
   });
 
@@ -173,6 +188,9 @@ export function useStrategyVisualNodeInspector(
     if (isLegacyTechnicalIndicator.value) {
       const indicatorType = technicalIndicator.value?.indicatorType;
       return indicatorType !== "movingAverage" && indicatorType !== "macd";
+    }
+    if (selectedVisualKind.value === "stopLoss") {
+      return true;
     }
     return false;
   });
@@ -330,10 +348,20 @@ export function useStrategyVisualNodeInspector(
 
   const selectedVisualNodeThreshold = computed({
     get: () => {
+      if (selectedVisualKind.value === "stopLoss") {
+        return readNumberString(stopLoss.value?.percentage);
+      }
       const threshold = selectedVisualNode.value?.properties.threshold;
       return readNumberString(threshold);
     },
     set: (value: string) => {
+      if (selectedVisualKind.value === "stopLoss") {
+        updateStopLoss((properties) => ({
+          ...properties,
+          percentage: normalizeDecimal(value, 2),
+        }));
+        return;
+      }
       const threshold = normalizeDecimal(value, 0);
       if (isTechnicalIndicatorCondition.value) {
         updateTechnicalIndicatorCondition((properties) => ({
@@ -362,6 +390,9 @@ export function useStrategyVisualNodeInspector(
 
   const selectedVisualNodePeriod = computed({
     get: () => {
+      if (selectedVisualKind.value === "stopLoss") {
+        return readNumberString(stopLoss.value?.timeValue);
+      }
       if (isTechnicalIndicatorGetter.value) {
         if (selectedIndicatorDefinition.value.parameterShape === "windowSize") {
           return readNumberString(technicalIndicatorGetter.value?.windowSize);
@@ -378,6 +409,13 @@ export function useStrategyVisualNodeInspector(
       return "";
     },
     set: (value: string) => {
+      if (selectedVisualKind.value === "stopLoss") {
+        updateStopLoss((properties) => ({
+          ...properties,
+          timeValue: normalizeInteger(value, 1),
+        }));
+        return;
+      }
       if (isTechnicalIndicatorGetter.value) {
         updateTechnicalIndicatorGetter((properties) => {
           if (selectedIndicatorDefinition.value.parameterShape === "windowSize") {
@@ -553,6 +591,19 @@ export function useStrategyVisualNodeInspector(
     },
   });
 
+  const selectedIndicatorPeriodUnit = computed({
+    get: () => technicalIndicatorGetter.value?.periodUnit ?? "bar",
+    set: (value: string) => {
+      if (!isTechnicalIndicatorGetter.value) {
+        return;
+      }
+      updateTechnicalIndicatorGetter((properties) => ({
+        ...properties,
+        periodUnit: normalizeIndicatorPeriodUnit(value),
+      }));
+    },
+  });
+
   const indicatorVariableNamePlaceholder = computed(() => {
     if (!isTechnicalIndicatorGetter.value) {
       return "";
@@ -598,6 +649,46 @@ export function useStrategyVisualNodeInspector(
     get: () => technicalIndicatorCondition.value?.inputSlowNodeId ?? "",
     set: (value: string) => {
       updateTechnicalIndicatorConditionInput("inputSlowNodeId", value);
+    },
+  });
+
+  const selectedStopLossDirection = computed({
+    get: () => stopLoss.value?.direction ?? "auto",
+    set: (value: string) => {
+      updateStopLoss((properties) => ({
+        ...properties,
+        direction: value,
+      }));
+    },
+  });
+
+  const selectedStopLossMode = computed({
+    get: () => stopLoss.value?.mode ?? "stopLoss",
+    set: (value: string) => {
+      updateStopLoss((properties) => ({
+        ...properties,
+        mode: value,
+      }));
+    },
+  });
+
+  const selectedStopLossTimeUnit = computed({
+    get: () => stopLoss.value?.timeUnit ?? "day",
+    set: (value: string) => {
+      updateStopLoss((properties) => ({
+        ...properties,
+        timeUnit: value,
+      }));
+    },
+  });
+
+  const selectedStopLossWindowPolicy = computed({
+    get: () => stopLoss.value?.windowPolicy ?? "continuous",
+    set: (value: string) => {
+      updateStopLoss((properties) => ({
+        ...properties,
+        windowPolicy: value,
+      }));
     },
   });
 
@@ -763,6 +854,23 @@ export function useStrategyVisualNodeInspector(
     });
   }
 
+  function updateStopLoss(
+    mutator: (properties: Record<string, unknown>) => Record<string, unknown>,
+  ): void {
+    if (selectedVisualKind.value !== "stopLoss") {
+      return;
+    }
+
+    mutateSelectedVisualNode((node) => {
+      const nextProperties = normalizeStopLossBlockProperties(mutator({ ...node.properties }));
+      return {
+        ...node,
+        text: nextStopLossNodeText(nextProperties as unknown as Record<string, unknown>),
+        properties: nextProperties as unknown as Record<string, unknown>,
+      };
+    });
+  }
+
   return {
     selectedVisualKind,
     selectedVisualBlock,
@@ -787,10 +895,15 @@ export function useStrategyVisualNodeInspector(
     selectedIndicatorPrimaryInputNodeId,
     selectedIndicatorFastInputNodeId,
     selectedIndicatorSlowInputNodeId,
+    selectedStopLossMode,
+    selectedStopLossDirection,
+    selectedStopLossTimeUnit,
+    selectedStopLossWindowPolicy,
     selectedMacdFastPeriod,
     selectedMacdSlowPeriod,
     selectedMacdSignalPeriod,
     selectedMovingAverageType,
+    selectedIndicatorPeriodUnit,
     showsMultiplierInput,
     selectedBollingerMultiplier,
     showsConditionModeInput,

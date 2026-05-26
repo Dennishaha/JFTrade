@@ -11,6 +11,7 @@ import type {
 } from "../../features/strategyVisualBuilder";
 import {
   GET_TECHNICAL_INDICATOR_OPTIONS,
+  INDICATOR_PERIOD_UNIT_OPTIONS,
   getPatternOptions,
   getTechnicalIndicatorConditionModeOptions,
   MOVING_AVERAGE_INDICATOR_OPTIONS,
@@ -20,6 +21,12 @@ import {
 import {
   entryPositionPolicyLabel,
 } from "../../features/strategyVisualBuilderScriptSupport";
+import {
+  STOP_LOSS_MODE_OPTIONS,
+  STOP_LOSS_DIRECTION_OPTIONS,
+  STOP_LOSS_TIME_UNIT_OPTIONS,
+  STOP_LOSS_WINDOW_POLICY_OPTIONS,
+} from "../../features/strategyVisualBuilderCatalog";
 
 import "./strategyStageShared.css";
 
@@ -32,6 +39,7 @@ interface StrategyOverlayDeckBindings {
   selectedIndicatorVariableName: Ref<string>;
   selectedIndicatorType: Ref<string>;
   selectedMovingAverageType: Ref<string>;
+  selectedIndicatorPeriodUnit: Ref<string>;
   selectedIndicatorConditionMode: Ref<string>;
   selectedIndicatorOperator: Ref<string>;
   selectedIndicatorPatternType: Ref<string>;
@@ -39,6 +47,10 @@ interface StrategyOverlayDeckBindings {
   selectedIndicatorPrimaryInputNodeId: Ref<string>;
   selectedIndicatorFastInputNodeId: Ref<string>;
   selectedIndicatorSlowInputNodeId: Ref<string>;
+  selectedStopLossMode: Ref<string>;
+  selectedStopLossDirection: Ref<string>;
+  selectedStopLossTimeUnit: Ref<string>;
+  selectedStopLossWindowPolicy: Ref<string>;
   selectedMacdFastPeriod: Ref<string>;
   selectedMacdSlowPeriod: Ref<string>;
   selectedMacdSignalPeriod: Ref<string>;
@@ -107,6 +119,7 @@ const selectedVisualNodePeriod = props.bindings.selectedVisualNodePeriod;
 const selectedIndicatorVariableName = props.bindings.selectedIndicatorVariableName;
 const selectedIndicatorType = props.bindings.selectedIndicatorType;
 const selectedMovingAverageType = props.bindings.selectedMovingAverageType;
+const selectedIndicatorPeriodUnit = props.bindings.selectedIndicatorPeriodUnit;
 const selectedIndicatorConditionMode = props.bindings.selectedIndicatorConditionMode;
 const selectedIndicatorOperator = props.bindings.selectedIndicatorOperator;
 const selectedIndicatorPatternType = props.bindings.selectedIndicatorPatternType;
@@ -114,6 +127,10 @@ const selectedIndicatorLookback = props.bindings.selectedIndicatorLookback;
 const selectedIndicatorPrimaryInputNodeId = props.bindings.selectedIndicatorPrimaryInputNodeId;
 const selectedIndicatorFastInputNodeId = props.bindings.selectedIndicatorFastInputNodeId;
 const selectedIndicatorSlowInputNodeId = props.bindings.selectedIndicatorSlowInputNodeId;
+const selectedStopLossMode = props.bindings.selectedStopLossMode;
+const selectedStopLossDirection = props.bindings.selectedStopLossDirection;
+const selectedStopLossTimeUnit = props.bindings.selectedStopLossTimeUnit;
+const selectedStopLossWindowPolicy = props.bindings.selectedStopLossWindowPolicy;
 const selectedMacdFastPeriod = props.bindings.selectedMacdFastPeriod;
 const selectedMacdSlowPeriod = props.bindings.selectedMacdSlowPeriod;
 const selectedMacdSignalPeriod = props.bindings.selectedMacdSignalPeriod;
@@ -138,6 +155,11 @@ const indicatorOptions = computed(() => (
     : TECHNICAL_INDICATOR_OPTIONS
 ));
 const movingAverageOptions = MOVING_AVERAGE_INDICATOR_OPTIONS;
+const indicatorPeriodUnitOptions = INDICATOR_PERIOD_UNIT_OPTIONS;
+const stopLossModeOptions = STOP_LOSS_MODE_OPTIONS;
+const stopLossDirectionOptions = STOP_LOSS_DIRECTION_OPTIONS;
+const stopLossTimeUnitOptions = STOP_LOSS_TIME_UNIT_OPTIONS;
+const stopLossWindowPolicyOptions = STOP_LOSS_WINDOW_POLICY_OPTIONS;
 
 const normalizedSelectedIndicatorType = computed(() =>
   normalizeTechnicalIndicatorType(selectedIndicatorType.value),
@@ -153,6 +175,17 @@ const indicatorConditionModeOptions = computed(() =>
 const indicatorPatternOptions = computed(() =>
   getPatternOptions(normalizedSelectedIndicatorType.value),
 );
+
+const stopLossThresholdLabel = computed(() => {
+  switch (selectedStopLossMode.value) {
+    case "takeProfit":
+      return "止盈幅度（%）";
+    case "trailingStop":
+      return "追踪幅度（%）";
+    default:
+      return "止损幅度（%）";
+  }
+});
 
 function toAuthoringModeLabel(mode: StrategyAuthoringTemplate["mode"] | null): string {
   return mode === "visual" ? "图优先" : "代码优先";
@@ -420,7 +453,7 @@ function toTemplateTypeLabel(mode: StrategyAuthoringTemplate["mode"]): string {
         </div>
 
         <label v-if="props.showsPeriodInput" class="grid gap-2 text-sm text-slate-700">
-          <span class="font-medium">周期 / 窗口</span>
+          <span class="font-medium">{{ props.selectedVisualKind === 'stopLoss' ? '观察窗口' : '周期 / 窗口' }}</span>
           <input
             v-model="selectedVisualNodePeriod"
             data-testid="strategy-block-period-input"
@@ -430,6 +463,73 @@ function toTemplateTypeLabel(mode: StrategyAuthoringTemplate["mode"]): string {
             type="number"
           />
         </label>
+
+        <label v-if="props.selectedVisualKind === 'getTechnicalIndicator' && normalizedSelectedIndicatorType === 'movingAverage'" class="grid gap-2 text-sm text-slate-700">
+          <span class="font-medium">时间单位</span>
+          <select
+            v-model="selectedIndicatorPeriodUnit"
+            data-testid="strategy-block-indicator-period-unit-select"
+            class="rounded-2xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-amber-500"
+          >
+            <option v-for="option in indicatorPeriodUnitOptions" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </option>
+          </select>
+        </label>
+
+        <div v-if="props.selectedVisualKind === 'stopLoss'" class="grid gap-3 md:grid-cols-2">
+          <label class="grid gap-2 text-sm text-slate-700">
+            <span class="font-medium">风险模式</span>
+            <select
+              v-model="selectedStopLossMode"
+              data-testid="strategy-stop-loss-mode"
+              class="rounded-2xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-amber-500"
+            >
+              <option v-for="option in stopLossModeOptions" :key="option.value" :value="option.value">
+                {{ option.label }}
+              </option>
+            </select>
+          </label>
+
+          <label class="grid gap-2 text-sm text-slate-700">
+            <span class="font-medium">监控方向</span>
+            <select
+              v-model="selectedStopLossDirection"
+              data-testid="strategy-stop-loss-direction"
+              class="rounded-2xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-amber-500"
+            >
+              <option v-for="option in stopLossDirectionOptions" :key="option.value" :value="option.value">
+                {{ option.label }}
+              </option>
+            </select>
+          </label>
+
+          <label class="grid gap-2 text-sm text-slate-700">
+            <span class="font-medium">时间单位</span>
+            <select
+              v-model="selectedStopLossTimeUnit"
+              data-testid="strategy-stop-loss-time-unit"
+              class="rounded-2xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-amber-500"
+            >
+              <option v-for="option in stopLossTimeUnitOptions" :key="option.value" :value="option.value">
+                {{ option.label }}
+              </option>
+            </select>
+          </label>
+
+          <label class="grid gap-2 text-sm text-slate-700">
+            <span class="font-medium">窗口模式</span>
+            <select
+              v-model="selectedStopLossWindowPolicy"
+              data-testid="strategy-stop-loss-window-policy"
+              class="rounded-2xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-amber-500"
+            >
+              <option v-for="option in stopLossWindowPolicyOptions" :key="option.value" :value="option.value">
+                {{ option.label }}
+              </option>
+            </select>
+          </label>
+        </div>
 
         <div v-if="props.showsMacdInputs || props.showsTechnicalIndicatorMacdInputs" class="grid gap-3 md:grid-cols-3">
           <label class="grid gap-2 text-sm text-slate-700">
@@ -489,7 +589,7 @@ function toTemplateTypeLabel(mode: StrategyAuthoringTemplate["mode"]): string {
         </label>
 
         <label v-if="props.showsThresholdInput" class="grid gap-2 text-sm text-slate-700">
-          <span class="font-medium">阈值</span>
+          <span class="font-medium">{{ props.selectedVisualKind === 'stopLoss' ? stopLossThresholdLabel : '阈值' }}</span>
           <input
             v-model="selectedVisualNodeThreshold"
             class="rounded-2xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-amber-500"

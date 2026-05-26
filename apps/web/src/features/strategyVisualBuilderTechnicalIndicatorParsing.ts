@@ -1,8 +1,13 @@
-import type { MovingAverageIndicatorType } from "./strategyVisualBuilderIndicatorBlock";
+import type {
+  IndicatorPeriodUnit,
+  MovingAverageIndicatorType,
+} from "./strategyVisualBuilderIndicatorBlock";
+import { normalizeIndicatorPeriodUnit } from "./strategyVisualBuilderIndicatorBlock";
 
 interface MovingAverageMatch {
   movingAverageType: MovingAverageIndicatorType;
   period: number;
+  periodUnit?: IndicatorPeriodUnit;
 }
 
 interface ParsedIndicatorKey {
@@ -16,6 +21,7 @@ interface ParsedIndicatorKey {
     | "williamsR"
     | "bollinger";
   movingAverageType?: MovingAverageIndicatorType;
+  periodUnit?: IndicatorPeriodUnit;
   period?: number;
   windowSize?: number;
   fastPeriod?: number;
@@ -26,7 +32,7 @@ interface ParsedIndicatorKey {
   multiplier?: number;
 }
 
-const MOVING_AVERAGE_INDICATOR_PATTERN = /ctx\.indicators\[(?:"|')ma:(?:(MA|EMA|SMA|SMMA|LWMA|TMA|EXPMA|HMA|VWMA|BOLL):)?(\d+)(?:"|')\]/g;
+const MOVING_AVERAGE_INDICATOR_PATTERN = /ctx\.indicators\[(?:"|')ma:(?:(MA|EMA|SMA|SMMA|LWMA|TMA|EXPMA|HMA|VWMA|BOLL):)?(\d+)(?::(bar|minute|hour|day|week|month))?(?:"|')\]/g;
 
 export function readTechnicalIndicatorProperties(source: string): Record<string, unknown> {
   const movingAverageMatches = readMovingAverageMatches(source);
@@ -206,6 +212,7 @@ export function readGetTechnicalIndicatorProperties(source: string): Record<stri
         indicatorType: "movingAverage",
         movingAverageType: key.movingAverageType ?? "MA",
         windowSize: key.windowSize ?? 20,
+        periodUnit: key.periodUnit ?? "bar",
       };
     case "rsi":
     case "atr":
@@ -255,6 +262,7 @@ function readFirstIndicatorKey(source: string): ParsedIndicatorKey | null {
       indicatorType: "movingAverage",
       movingAverageType: movingAverageMatch.movingAverageType,
       windowSize: movingAverageMatch.period,
+      periodUnit: movingAverageMatch.periodUnit ?? "bar",
     };
   }
 
@@ -317,6 +325,7 @@ function readMovingAverageMatches(source: string): MovingAverageMatch[] {
   return [...source.matchAll(MOVING_AVERAGE_INDICATOR_PATTERN)].map((match) => ({
     movingAverageType: readMovingAverageIndicatorType(match[1]),
     period: Number(match[2] ?? 20),
+    periodUnit: normalizeIndicatorPeriodUnit(match[3]),
   }));
 }
 

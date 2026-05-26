@@ -29,6 +29,8 @@ export type MovingAverageIndicatorType =
   | "VWMA"
   | "BOLL";
 
+export type IndicatorPeriodUnit = "bar" | "minute" | "hour" | "day" | "week" | "month";
+
 export type TechnicalIndicatorInputSlot = "primary" | "fast" | "slow";
 
 export type TechnicalIndicatorPatternType =
@@ -63,6 +65,7 @@ export interface GetTechnicalIndicatorBlockProperties {
   indicatorType: TechnicalIndicatorType;
   variableName?: string;
   movingAverageType?: MovingAverageIndicatorType;
+  periodUnit?: IndicatorPeriodUnit;
   period?: number;
   windowSize?: number;
   fastPeriod?: number;
@@ -98,6 +101,11 @@ export interface TechnicalIndicatorConditionModeOption {
 
 export interface MovingAverageIndicatorOption {
   value: MovingAverageIndicatorType;
+  label: string;
+}
+
+export interface IndicatorPeriodUnitOption {
+  value: IndicatorPeriodUnit;
   label: string;
 }
 
@@ -145,6 +153,15 @@ export const MOVING_AVERAGE_INDICATOR_OPTIONS: MovingAverageIndicatorOption[] = 
   { value: "HMA", label: "HMA" },
   { value: "VWMA", label: "VWMA" },
   { value: "BOLL", label: "BOLL" },
+];
+
+export const INDICATOR_PERIOD_UNIT_OPTIONS: IndicatorPeriodUnitOption[] = [
+  { value: "bar", label: "柱" },
+  { value: "minute", label: "分钟" },
+  { value: "hour", label: "小时" },
+  { value: "day", label: "日" },
+  { value: "week", label: "周" },
+  { value: "month", label: "月" },
 ];
 
 const TECHNICAL_INDICATOR_DEFINITION_MAP: Record<
@@ -347,6 +364,14 @@ export function normalizeMovingAverageIndicatorType(
     : "MA";
 }
 
+export function normalizeIndicatorPeriodUnit(
+  value: unknown,
+): IndicatorPeriodUnit {
+  return INDICATOR_PERIOD_UNIT_OPTIONS.some((option) => option.value === value)
+    ? (value as IndicatorPeriodUnit)
+    : "bar";
+}
+
 export function normalizeTechnicalIndicatorConditionMode(
   value: unknown,
   indicatorType: TechnicalIndicatorType,
@@ -472,6 +497,7 @@ export function normalizeGetTechnicalIndicatorProperties(
       normalized.movingAverageType = normalizeMovingAverageIndicatorType(
         properties.movingAverageType,
       );
+      normalized.periodUnit = normalizeIndicatorPeriodUnit(properties.periodUnit);
       normalized.windowSize = normalizeInteger(
         properties.windowSize ?? properties.period,
         definition.defaultWindowSize ?? 20,
@@ -681,7 +707,7 @@ function indicatorInputParameterText(
 ): string {
   switch (properties.indicatorType) {
     case "movingAverage":
-      return `${properties.movingAverageType ?? "MA"} ${properties.windowSize ?? 20}`;
+      return `${properties.movingAverageType ?? "MA"} ${properties.windowSize ?? 20}${indicatorPeriodUnitSuffix(properties.periodUnit ?? "bar")}`;
     case "macd":
       return `${properties.fastPeriod ?? 12}/${properties.slowPeriod ?? 26}/${properties.signalPeriod ?? 9}`;
     case "kdj":
@@ -695,6 +721,28 @@ function indicatorInputParameterText(
 
 function defaultPeriodForIndicator(indicatorType: TechnicalIndicatorType): number {
   return getTechnicalIndicatorDefinition(indicatorType).defaultPeriod ?? 14;
+}
+
+export function indicatorPeriodUnitLabel(unit: IndicatorPeriodUnit): string {
+  switch (unit) {
+    case "minute":
+      return "分钟";
+    case "hour":
+      return "小时";
+    case "day":
+      return "日";
+    case "week":
+      return "周";
+    case "month":
+      return "月";
+    case "bar":
+    default:
+      return "柱";
+  }
+}
+
+function indicatorPeriodUnitSuffix(unit: IndicatorPeriodUnit): string {
+  return unit === "bar" ? "" : indicatorPeriodUnitLabel(unit);
 }
 
 function defaultThresholdForIndicator(

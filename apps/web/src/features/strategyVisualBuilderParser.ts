@@ -5,7 +5,11 @@ import type {
 } from "@jftrade/ui-contracts";
 import { parse } from "acorn";
 
-import type { StrategyBlockKind } from "./strategyVisualBuilderCatalog";
+import {
+  nextStopLossNodeText,
+  normalizeStopLossBlockProperties,
+  type StrategyBlockKind,
+} from "./strategyVisualBuilderCatalog";
 import {
   nextGetTechnicalIndicatorNodeText,
   nextTechnicalIndicatorConditionNodeText,
@@ -492,6 +496,9 @@ function parseHookStatement(
   if (annotation?.blockKind === "placeOrder") {
     return parsePlaceOrderNode(statements, index, parserContext, annotation);
   }
+  if (annotation?.blockKind === "stopLoss") {
+    return parseStopLossNode(statements, index, parserContext, annotation);
+  }
   if (annotation?.blockKind === "codeBlock") {
     return parseCodeBlockNode(statements, index, parserContext, annotation);
   }
@@ -791,6 +798,64 @@ function parsePlaceOrderNode(
         { start: firstStatement.start, end: lastStatement.end },
       ),
     },
+  };
+}
+
+function parseStopLossNode(
+  statements: AstStatement[],
+  index: number,
+  parserContext: StrategyParserContext,
+  annotation: StrategyFlowNodeJsDoc,
+): ParsedStatementMatch {
+  const statement = statements[index];
+  if (statement === undefined) {
+    return { nextIndex: index + 1, item: null };
+  }
+
+  const groupEnd = findNextAnnotatedStatementIndex(statements, index, parserContext);
+  const lastStatement = statements[groupEnd - 1] ?? statement;
+  const blockSource = parserContext.script.slice(statement.start, lastStatement.end);
+  const normalized = normalizeStopLossBlockProperties(readStopLossProperties(blockSource));
+
+  return {
+    nextIndex: groupEnd,
+    item: {
+      kind: "stopLoss",
+      text: annotation.nodeText ?? nextStopLossNodeText(normalized as unknown as Record<string, unknown>),
+      flowNodeId: annotation.nodeId,
+      properties: withSourceRangeProperties(
+        {
+          ...normalized,
+          blockKind: "stopLoss",
+        },
+        { start: statement.start, end: lastStatement.end },
+      ),
+    },
+  };
+}
+
+function readStopLossProperties(blockSource: string): Record<string, unknown> {
+  const riskMatch = blockSource.match(/ctx\.indicators\[(?:"|')risk:(stopLoss|takeProfit|trailingStop):(auto|long|short):(\d+):(minute|hour|day|week|month):(-?\d+(?:\.\d+)?):(continuous|session)(?:"|')\]/);
+  if (riskMatch !== null) {
+    return {
+      blockKind: "stopLoss",
+      mode: riskMatch[1] ?? "stopLoss",
+      direction: riskMatch[2] ?? "auto",
+      timeValue: riskMatch[3] === undefined ? 1 : Number(riskMatch[3]),
+      timeUnit: riskMatch[4] ?? "day",
+      percentage: riskMatch[5] === undefined ? 2 : Number(riskMatch[5]),
+      windowPolicy: riskMatch[6] ?? "continuous",
+    };
+  }
+  const match = blockSource.match(/ctx\.indicators\[(?:"|')sl:(auto|long|short):(\d+):(minute|hour|day|week|month):(-?\d+(?:\.\d+)?)(?:"|')\]/);
+  return {
+    blockKind: "stopLoss",
+    mode: "stopLoss",
+    direction: match?.[1] ?? "auto",
+    timeValue: match?.[2] === undefined ? 1 : Number(match[2]),
+    timeUnit: match?.[3] ?? "day",
+    percentage: match?.[4] === undefined ? 2 : Number(match[4]),
+    windowPolicy: "continuous",
   };
 }
 

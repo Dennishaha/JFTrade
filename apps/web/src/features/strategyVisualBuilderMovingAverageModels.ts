@@ -4,6 +4,7 @@ import {
   buildStrategyVisualControlEdgeProperties,
   buildStrategyVisualDataEdgeProperties,
 } from "./strategyVisualBuilderEdges";
+import { nextGetTechnicalIndicatorNodeText } from "./strategyVisualBuilderIndicatorBlock";
 
 export function createDoubleMovingAverageStrategyVisualModel(): StrategyVisualModelDocument {
   return {
@@ -42,12 +43,19 @@ export function createDoubleMovingAverageStrategyVisualModel(): StrategyVisualMo
         type: "rect",
         x: 450,
         y: 260,
-        text: "获取 MA 5",
+        text: nextGetTechnicalIndicatorNodeText({
+          blockKind: "getTechnicalIndicator",
+          indicatorType: "movingAverage",
+          movingAverageType: "MA",
+          windowSize: 5,
+          periodUnit: "day",
+        }),
         properties: {
           blockKind: "getTechnicalIndicator",
           indicatorType: "movingAverage",
           movingAverageType: "MA",
           windowSize: 5,
+          periodUnit: "day",
         },
       },
       {
@@ -55,12 +63,19 @@ export function createDoubleMovingAverageStrategyVisualModel(): StrategyVisualMo
         type: "rect",
         x: 450,
         y: 380,
-        text: "获取 MA 20",
+        text: nextGetTechnicalIndicatorNodeText({
+          blockKind: "getTechnicalIndicator",
+          indicatorType: "movingAverage",
+          movingAverageType: "MA",
+          windowSize: 20,
+          periodUnit: "day",
+        }),
         properties: {
           blockKind: "getTechnicalIndicator",
           indicatorType: "movingAverage",
           movingAverageType: "MA",
           windowSize: 20,
+          periodUnit: "day",
         },
       },
       {

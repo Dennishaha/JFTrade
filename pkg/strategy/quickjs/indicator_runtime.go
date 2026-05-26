@@ -2,29 +2,44 @@ package quickjs
 
 import (
 	"math"
+	"strconv"
+	"strings"
+	"time"
 
 	"github.com/c9s/bbgo/pkg/types"
+	"github.com/jftrade/jftrade-main/pkg/futu"
 )
 
-const indicatorSeriesLimit = 256
+const minimumIndicatorSeriesLimit = 256
 
 type indicatorRuntime struct {
-	requirements indicatorRequirements
-	highs        []float64
-	lows         []float64
-	closes       []float64
-	volumes      []float64
+	requirements    indicatorRequirements
+	symbol          string
+	intervalMinutes int
+	seriesLimit     int
+	highs           []float64
+	lows            []float64
+	closes          []float64
+	volumes         []float64
+	endTimes        []time.Time
+	sessions        []futu.MarketSession
 }
 
-func newIndicatorRuntime(script string) *indicatorRuntime {
+func newIndicatorRuntime(script string, interval types.Interval, symbol string) *indicatorRuntime {
 	requirements := parseIndicatorRequirements(script)
 	if requirements.isEmpty() {
 		return nil
 	}
-	return &indicatorRuntime{requirements: requirements}
+	intervalMinutes := resolveIntervalMinutes(interval)
+	return &indicatorRuntime{
+		requirements:    requirements,
+		symbol:          strings.ToUpper(strings.TrimSpace(symbol)),
+		intervalMinutes: intervalMinutes,
+		seriesLimit:     calculateIndicatorSeriesLimit(requirements, intervalMinutes),
+	}
 }
 
-func (r *indicatorRuntime) push(kline types.KLine) {
+func (r *indicatorRuntime) push(kline types.KLine, session futu.MarketSession) {
 	if r == nil {
 		return
 	}
@@ -32,12 +47,24 @@ func (r *indicatorRuntime) push(kline types.KLine) {
 	r.lows = append(r.lows, kline.Low.Float64())
 	r.closes = append(r.closes, kline.Close.Float64())
 	r.volumes = append(r.volumes, kline.Volume.Float64())
-	if len(r.closes) > indicatorSeriesLimit {
-		start := len(r.closes) - indicatorSeriesLimit
+	r.endTimes = append(r.endTimes, kline.EndTime.Time())
+	resolvedSession := session
+	if resolvedSession == futu.MarketSessionUnknown {
+		resolvedSession = classifyKLineSession(r.symbol, kline)
+	}
+	r.sessions = append(r.sessions, resolvedSession)
+	seriesLimit := r.seriesLimit
+	if seriesLimit <= 0 {
+		seriesLimit = minimumIndicatorSeriesLimit
+	}
+	if len(r.closes) > seriesLimit {
+		start := len(r.closes) - seriesLimit
 		r.highs = append([]float64(nil), r.highs[start:]...)
 		r.lows = append([]float64(nil), r.lows[start:]...)
 		r.closes = append([]float64(nil), r.closes[start:]...)
 		r.volumes = append([]float64(nil), r.volumes[start:]...)
+		r.endTimes = append([]time.Time(nil), r.endTimes[start:]...)
+		r.sessions = append([]futu.MarketSession(nil), r.sessions[start:]...)
 	}
 }
 
@@ -47,12 +74,12 @@ func (r *indicatorRuntime) snapshot() map[string]any {
 	}
 	result := map[string]any{}
 	for _, config := range r.requirements.ma {
-		snapshot := buildMovingAverageSnapshot(r.closes, r.volumes, config)
+		snapshot := buildMovingAverageSnapshot(r.closes, r.volumes, config, r.intervalMinutes)
 		if snapshot == nil {
 			continue
 		}
-		result[maIndicatorKey(config.averageType, config.period)] = snapshot
-		if config.averageType == "MA" {
+		result[maIndicatorKey(config)] = snapshot
+		if config.averageType == "MA" && normalizeIndicatorTimeUnit(config.timeUnit) == "" {
 			result[legacyMAIndicatorKey(config.period)] = snapshot
 		}
 	}
@@ -77,6 +104,13 @@ func (r *indicatorRuntime) snapshot() map[string]any {
 	for _, period := range r.requirements.williamsR {
 		result[williamsRIndicatorKey(period)] = calculateWilliamsR(r.highs, r.lows, r.closes, period)
 	}
+	for _, config := range r.requirements.stopLoss {
+		snapshot := buildStopLossSnapshot(r.closes, r.endTimes, r.sessions, config, r.intervalMinutes)
+		if snapshot == nil {
+			continue
+		}
+		result[stopLossIndicatorKey(config)] = snapshot
+	}
 	for _, config := range r.requirements.rsiDivergence {
 		result[rsiDivergenceIndicatorKey(config.period, config.direction, config.lookback)] = calculateRSIDivergence(r.closes, config)
 	}
@@ -92,12 +126,30 @@ func (r *indicatorRuntime) snapshot() map[string]any {
 	return result
 }
 
-func buildMovingAverageSnapshot(values, volumes []float64, config movingAverageConfig) map[string]any {
-	current, currentOK := calculateMovingAverageValue(values, volumes, config)
+func classifyKLineSession(symbol string, kline types.KLine) futu.MarketSession {
+	resolvedSymbol := strings.ToUpper(strings.TrimSpace(symbol))
+	if resolvedSymbol == "" {
+		resolvedSymbol = strings.ToUpper(strings.TrimSpace(kline.Symbol))
+	}
+	observedAt := kline.StartTime.Time().UTC()
+	if observedAt.IsZero() {
+		observedAt = kline.EndTime.Time().UTC()
+	}
+	if resolvedSymbol == "" || observedAt.IsZero() {
+		return futu.MarketSessionUnknown
+	}
+	return futu.ClassifyMarketSession(resolvedSymbol, observedAt)
+}
+
+func buildMovingAverageSnapshot(values, volumes []float64, config movingAverageConfig, intervalMinutes int) map[string]any {
+	effectiveConfig := config
+	effectiveConfig.period = resolveBarCount(config.period, config.timeUnit, intervalMinutes)
+	effectiveConfig.timeUnit = ""
+	current, currentOK := calculateMovingAverageValue(values, volumes, effectiveConfig)
 	previous, previousOK := calculateMovingAverageValue(
 		values[:max(len(values)-1, 0)],
 		volumes[:max(len(volumes)-1, 0)],
-		config,
+		effectiveConfig,
 	)
 	if !currentOK && !previousOK {
 		return nil
@@ -110,6 +162,264 @@ func buildMovingAverageSnapshot(values, volumes []float64, config movingAverageC
 		result["previous"] = previous
 	}
 	return result
+}
+
+func buildStopLossSnapshot(closes []float64, endTimes []time.Time, sessions []futu.MarketSession, config stopLossConfig, intervalMinutes int) map[string]any {
+	lookback := resolveBarCount(config.timeValue, config.timeUnit, intervalMinutes)
+	if lookback <= 0 || len(closes) <= lookback {
+		return nil
+	}
+	windowStart := len(closes) - 1 - lookback
+	if windowStart < 0 {
+		return nil
+	}
+	windowPolicy := normalizeStopLossWindowPolicy(config.windowPolicy)
+	if windowPolicy == "session" {
+		windowStart = resolveSessionAwareWindowStart(endTimes, sessions, windowStart, intervalMinutes)
+		if windowStart < 0 {
+			return nil
+		}
+	}
+	reference := closes[windowStart]
+	current := closes[len(closes)-1]
+	if reference <= 0 || math.IsNaN(reference) || math.IsInf(reference, 0) || math.IsNaN(current) || math.IsInf(current, 0) {
+		return nil
+	}
+	changePercent := ((current - reference) / reference) * 100
+	mode := normalizeStopLossMode(config.mode)
+	direction := normalizeStopLossDirection(config.direction)
+	longTriggered := false
+	shortTriggered := false
+	longTriggerPercent := math.Abs(changePercent)
+	shortTriggerPercent := math.Abs(changePercent)
+	peakClose := current
+	troughClose := current
+	longDrawdownPercent := 0.0
+	shortReboundPercent := 0.0
+	switch mode {
+	case "takeProfit":
+		longTriggered = changePercent >= config.percentage
+		shortTriggered = changePercent <= -config.percentage
+	case "trailingStop":
+		peakClose, troughClose = maxMinSlice(closes[windowStart:])
+		if peakClose <= 0 || troughClose <= 0 || math.IsNaN(peakClose) || math.IsNaN(troughClose) || math.IsInf(peakClose, 0) || math.IsInf(troughClose, 0) {
+			return nil
+		}
+		longDrawdownPercent = ((peakClose - current) / peakClose) * 100
+		shortReboundPercent = ((current - troughClose) / troughClose) * 100
+		longTriggered = longDrawdownPercent >= config.percentage
+		shortTriggered = shortReboundPercent >= config.percentage
+		longTriggerPercent = longDrawdownPercent
+		shortTriggerPercent = shortReboundPercent
+	default:
+		longTriggered = changePercent <= -config.percentage
+		shortTriggered = changePercent >= config.percentage
+	}
+	triggered := false
+	triggerPercent := 0.0
+	switch direction {
+	case "long":
+		triggered = longTriggered
+		triggerPercent = longTriggerPercent
+	case "short":
+		triggered = shortTriggered
+		triggerPercent = shortTriggerPercent
+	default:
+		triggered = longTriggered || shortTriggered
+		if longTriggered && !shortTriggered {
+			triggerPercent = longTriggerPercent
+		} else if shortTriggered && !longTriggered {
+			triggerPercent = shortTriggerPercent
+		} else {
+			triggerPercent = max(longTriggerPercent, shortTriggerPercent)
+		}
+	}
+	return map[string]any{
+		"mode":                mode,
+		"triggered":           triggered,
+		"direction":           direction,
+		"windowBars":          float64(len(closes) - 1 - windowStart),
+		"percentage":          config.percentage,
+		"windowPolicy":        windowPolicy,
+		"sessionAware":        windowPolicy == "session",
+		"referenceClose":      reference,
+		"currentClose":        current,
+		"changePercent":       changePercent,
+		"triggerPercent":      triggerPercent,
+		"longTriggered":       longTriggered,
+		"shortTriggered":      shortTriggered,
+		"longTriggerPercent":  longTriggerPercent,
+		"shortTriggerPercent": shortTriggerPercent,
+		"peakClose":           peakClose,
+		"troughClose":         troughClose,
+		"longDrawdownPercent": longDrawdownPercent,
+		"shortReboundPercent": shortReboundPercent,
+	}
+}
+
+func resolveSessionAwareWindowStart(endTimes []time.Time, sessions []futu.MarketSession, windowStart int, intervalMinutes int) int {
+	if windowStart < 0 {
+		return -1
+	}
+	if intervalMinutes <= 0 || intervalMinutes >= tradingSessionMinutesPerDay {
+		return windowStart
+	}
+	seriesLength := len(endTimes)
+	if len(sessions) > seriesLength {
+		seriesLength = len(sessions)
+	}
+	if seriesLength == 0 {
+		return windowStart
+	}
+	if seriesLength <= windowStart {
+		return -1
+	}
+	for index := windowStart + 1; index < seriesLength; index++ {
+		if isSessionBoundary(
+			readMarketSessionAt(sessions, index-1),
+			readMarketSessionAt(sessions, index),
+			readTimeAt(endTimes, index-1),
+			readTimeAt(endTimes, index),
+			intervalMinutes,
+		) {
+			return -1
+		}
+	}
+	return windowStart
+}
+
+func readMarketSessionAt(sessions []futu.MarketSession, index int) futu.MarketSession {
+	if index < 0 || index >= len(sessions) {
+		return futu.MarketSessionUnknown
+	}
+	return sessions[index]
+}
+
+func readTimeAt(values []time.Time, index int) time.Time {
+	if index < 0 || index >= len(values) {
+		return time.Time{}
+	}
+	return values[index]
+}
+
+func isSessionBoundary(previousSession, currentSession futu.MarketSession, previousTime, currentTime time.Time, intervalMinutes int) bool {
+	if previousSession != futu.MarketSessionUnknown && currentSession != futu.MarketSessionUnknown && previousSession != currentSession {
+		return true
+	}
+	return isSessionBreak(previousTime, currentTime, intervalMinutes)
+}
+
+func isSessionBreak(previous, current time.Time, intervalMinutes int) bool {
+	if previous.IsZero() || current.IsZero() {
+		return false
+	}
+	if !current.After(previous) {
+		return true
+	}
+	expectedGap := time.Duration(max(intervalMinutes, 1)) * time.Minute
+	return current.Sub(previous) > expectedGap*2
+}
+
+func maxMinSlice(values []float64) (float64, float64) {
+	if len(values) == 0 {
+		return 0, 0
+	}
+	maximum := values[0]
+	minimum := values[0]
+	for _, value := range values[1:] {
+		maximum = max(maximum, value)
+		minimum = min(minimum, value)
+	}
+	return maximum, minimum
+}
+
+func calculateIndicatorSeriesLimit(requirements indicatorRequirements, intervalMinutes int) int {
+	limit := minimumIndicatorSeriesLimit
+	for _, config := range requirements.ma {
+		limit = max(limit, resolveBarCount(config.period, config.timeUnit, intervalMinutes)+1)
+	}
+	for _, period := range requirements.rsi {
+		limit = max(limit, period+1)
+	}
+	for _, config := range requirements.macd {
+		limit = max(limit, config.slowPeriod+config.signalPeriod+1)
+	}
+	for _, config := range requirements.bollinger {
+		limit = max(limit, config.period+1)
+	}
+	for _, config := range requirements.kdj {
+		limit = max(limit, config.period+config.m1+config.m2+1)
+	}
+	for _, period := range requirements.atr {
+		limit = max(limit, period+2)
+	}
+	for _, period := range requirements.cci {
+		limit = max(limit, period+1)
+	}
+	for _, period := range requirements.williamsR {
+		limit = max(limit, period+1)
+	}
+	for _, config := range requirements.stopLoss {
+		limit = max(limit, resolveBarCount(config.timeValue, config.timeUnit, intervalMinutes)+1)
+	}
+	for _, config := range requirements.rsiDivergence {
+		limit = max(limit, config.period+config.lookback+1)
+	}
+	for _, config := range requirements.macdDivergence {
+		limit = max(limit, config.slowPeriod+config.signalPeriod+config.lookback+1)
+	}
+	for _, config := range requirements.kdjDivergence {
+		limit = max(limit, config.period+config.m1+config.m2+config.lookback+1)
+	}
+	return limit
+}
+
+func resolveIntervalMinutes(interval types.Interval) int {
+	value := strings.ToLower(strings.TrimSpace(string(interval)))
+	if value == "" {
+		return 1
+	}
+	unit := ""
+	switch {
+	case strings.HasSuffix(value, "mo"):
+		unit = "mo"
+		value = strings.TrimSuffix(value, "mo")
+	case strings.HasSuffix(value, "min"):
+		unit = "min"
+		value = strings.TrimSuffix(value, "min")
+	case strings.HasSuffix(value, "m"):
+		unit = "m"
+		value = strings.TrimSuffix(value, "m")
+	case strings.HasSuffix(value, "h"):
+		unit = "h"
+		value = strings.TrimSuffix(value, "h")
+	case strings.HasSuffix(value, "d"):
+		unit = "d"
+		value = strings.TrimSuffix(value, "d")
+	case strings.HasSuffix(value, "w"):
+		unit = "w"
+		value = strings.TrimSuffix(value, "w")
+	default:
+		return 1
+	}
+	amount, err := strconv.Atoi(strings.TrimSpace(value))
+	if err != nil || amount <= 0 {
+		return 1
+	}
+	switch unit {
+	case "min", "m":
+		return amount
+	case "h":
+		return amount * 60
+	case "d":
+		return amount * tradingSessionMinutesPerDay
+	case "w":
+		return amount * tradingSessionMinutesPerWeek
+	case "mo":
+		return amount * tradingSessionMinutesPerMonth
+	default:
+		return 1
+	}
 }
 
 func calculateMovingAverageValue(values, volumes []float64, config movingAverageConfig) (float64, bool) {

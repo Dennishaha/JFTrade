@@ -47,6 +47,7 @@ declare interface JFTradeKLine {
   interval: string;
   startTime: string;
   endTime: string;
+  session?: string | null;
   open: number;
   high: number;
   low: number;
@@ -85,6 +86,28 @@ declare interface JFTradeBollingerIndicatorSnapshot {
   lower: number;
 }
 
+declare interface JFTradeStopLossIndicatorSnapshot {
+  triggered: boolean;
+  mode: "stopLoss" | "takeProfit" | "trailingStop";
+  direction: "auto" | "long" | "short";
+  windowBars: number;
+  percentage: number;
+  windowPolicy: "continuous" | "session";
+  sessionAware: boolean;
+  referenceClose: number;
+  currentClose: number;
+  changePercent: number;
+  triggerPercent: number;
+  longTriggered: boolean;
+  shortTriggered: boolean;
+  longTriggerPercent: number;
+  shortTriggerPercent: number;
+  peakClose: number;
+  troughClose: number;
+  longDrawdownPercent: number;
+  shortReboundPercent: number;
+}
+
 declare interface JFTradeIndicatorMap {
   [key: \`ma:\${string}\`]: JFTradeMovingAverageIndicatorSnapshot | null | undefined;
   [key: \`rsi:\${number}\`]: number | null | undefined;
@@ -94,6 +117,8 @@ declare interface JFTradeIndicatorMap {
   [key: \`atr:\${number}\`]: number | null | undefined;
   [key: \`cci:\${number}\`]: number | null | undefined;
   [key: \`williamsr:\${number}\`]: number | null | undefined;
+  [key: \`sl:\${string}\`]: JFTradeStopLossIndicatorSnapshot | null | undefined;
+  [key: \`risk:\${string}\`]: JFTradeStopLossIndicatorSnapshot | null | undefined;
   [key: \`divergence:rsi:\${number}:top:\${number}\`]: boolean | null | undefined;
   [key: \`divergence:rsi:\${number}:bottom:\${number}\`]: boolean | null | undefined;
   [key: \`divergence:macd:\${number}:\${number}:\${number}:top:\${number}\`]: boolean | null | undefined;

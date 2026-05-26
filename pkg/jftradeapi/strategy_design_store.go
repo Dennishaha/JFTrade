@@ -5,7 +5,9 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -14,6 +16,11 @@ import (
 const (
 	defaultStrategyDesignFilename = "strategy-definitions.json"
 	strategyRuntimeQuickJS        = "quickjs-js"
+)
+
+var (
+	legacyMovingAverageIndicatorPattern = regexp.MustCompile(`(^|[^[:alnum:]_])ma:(MA|EMA|WMA|VWMA):(5|20)([^:[:alnum:]_]|$)`)
+	legacySimpleMovingAveragePattern    = regexp.MustCompile(`(^|[^[:alnum:]_])ma:(5|20)([^:[:alnum:]_]|$)`)
 )
 
 type strategyVisualNode struct {
@@ -97,7 +104,21 @@ func (s *strategyDesignStore) load() error {
 		s.data = strategyDesignFile{}
 		return nil
 	}
-	return json.Unmarshal(data, &s.data)
+	if err := json.Unmarshal(data, &s.data); err != nil {
+		return err
+	}
+	migrated := false
+	for index := range s.data.Definitions {
+		normalized := normalizeStrategyDesignDefinition(s.data.Definitions[index])
+		if !strategyDesignDefinitionsEqual(s.data.Definitions[index], normalized) {
+			migrated = true
+		}
+		s.data.Definitions[index] = normalized
+	}
+	if migrated {
+		return s.persistLocked()
+	}
+	return nil
 }
 
 func (s *strategyDesignStore) listDefinitions() []strategyDesignDefinition {
@@ -167,6 +188,7 @@ func normalizeStrategyDesignDefinition(input strategyDesignDefinition) strategyD
 	input.Symbol = strings.ToUpper(strings.TrimSpace(input.Symbol))
 	input.Interval = strings.TrimSpace(input.Interval)
 	input.VisualModel = normalizeStrategyVisualModel(input.VisualModel)
+	input.Script = migrateLegacyMovingAverageScript(input.Script)
 	if input.Interval == "" {
 		input.Interval = "1m"
 	}
@@ -232,6 +254,9 @@ func normalizeStrategyVisualModel(model *strategyVisualModel) *strategyVisualMod
 		if normalized.Nodes[index].Properties == nil {
 			normalized.Nodes[index].Properties = map[string]any{}
 		}
+		normalized.Nodes[index].Properties = migrateLegacyMovingAverageNodeProperties(
+			normalized.Nodes[index].Properties,
+		)
 	}
 	if normalized.Edges == nil {
 		normalized.Edges = []strategyVisualEdge{}
@@ -245,4 +270,84 @@ func normalizeStrategyVisualModel(model *strategyVisualModel) *strategyVisualMod
 		}
 	}
 	return &normalized
+}
+
+func strategyDesignDefinitionsEqual(left, right strategyDesignDefinition) bool {
+	leftJSON, leftErr := json.Marshal(left)
+	rightJSON, rightErr := json.Marshal(right)
+	if leftErr != nil || rightErr != nil {
+		return false
+	}
+	return string(leftJSON) == string(rightJSON)
+}
+
+func migrateLegacyMovingAverageNodeProperties(properties map[string]any) map[string]any {
+	if properties == nil {
+		return map[string]any{}
+	}
+	blockKind, _ := properties["blockKind"].(string)
+	indicatorType, _ := properties["indicatorType"].(string)
+	if blockKind != "getTechnicalIndicator" || indicatorType != "movingAverage" {
+		return properties
+	}
+	if unit, ok := properties["periodUnit"].(string); ok && strings.TrimSpace(unit) != "" {
+		return properties
+	}
+	period := normalizeLegacyMovingAveragePeriod(properties["windowSize"])
+	if period != 5 && period != 20 {
+		return properties
+	}
+	next := cloneStringAnyMap(properties)
+	next["periodUnit"] = "day"
+	return next
+}
+
+func migrateLegacyMovingAverageScript(script string) string {
+	trimmed := strings.TrimSpace(script)
+	if trimmed == "" {
+		return script
+	}
+	migrated := legacyMovingAverageIndicatorPattern.ReplaceAllString(script, "${1}ma:${2}:${3}:day${4}")
+	migrated = legacySimpleMovingAveragePattern.ReplaceAllString(migrated, "${1}ma:MA:${2}:day${3}")
+	return migrated
+}
+
+func normalizeLegacyMovingAveragePeriod(value any) int {
+	switch typed := value.(type) {
+	case float64:
+		return int(typed)
+	case float32:
+		return int(typed)
+	case int:
+		return typed
+	case int32:
+		return int(typed)
+	case int64:
+		return int(typed)
+	case json.Number:
+		parsed, err := typed.Int64()
+		if err != nil {
+			return 0
+		}
+		return int(parsed)
+	case string:
+		parsed, err := strconv.Atoi(strings.TrimSpace(typed))
+		if err != nil {
+			return 0
+		}
+		return parsed
+	default:
+		return 0
+	}
+}
+
+func cloneStringAnyMap(input map[string]any) map[string]any {
+	if input == nil {
+		return map[string]any{}
+	}
+	cloned := make(map[string]any, len(input))
+	for key, value := range input {
+		cloned[key] = value
+	}
+	return cloned
 }

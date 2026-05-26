@@ -35,6 +35,7 @@ type marketDataQuoteOpenDServer struct {
 	staticInfoCalls       atomic.Int32
 	historyMu             sync.Mutex
 	historyPages          [][]*qotcommonpb.KLine
+	historyPagesBySession map[int32][][]*qotcommonpb.KLine
 	currentKLines         []*qotcommonpb.KLine
 	currentKLCalls        atomic.Int32
 }
@@ -66,6 +67,21 @@ func (s *marketDataQuoteOpenDServer) setHistoryPages(pages [][]*qotcommonpb.KLin
 	s.historyMu.Lock()
 	defer s.historyMu.Unlock()
 	s.historyPages = pages
+	s.historyPagesBySession = nil
+}
+
+func (s *marketDataQuoteOpenDServer) setHistoryPagesBySession(pages map[int32][][]*qotcommonpb.KLine) {
+	s.historyMu.Lock()
+	defer s.historyMu.Unlock()
+	s.historyPages = nil
+	s.historyPagesBySession = make(map[int32][][]*qotcommonpb.KLine, len(pages))
+	for session, sessionPages := range pages {
+		clonedPages := make([][]*qotcommonpb.KLine, 0, len(sessionPages))
+		for _, page := range sessionPages {
+			clonedPages = append(clonedPages, append([]*qotcommonpb.KLine(nil), page...))
+		}
+		s.historyPagesBySession[session] = clonedPages
+	}
 }
 
 func (s *marketDataQuoteOpenDServer) setCurrentKLines(klines []*qotcommonpb.KLine) {
@@ -478,6 +494,19 @@ func (s *marketDataQuoteOpenDServer) historyKLResponse(body []byte) *historypb.R
 
 	s.historyMu.Lock()
 	defer s.historyMu.Unlock()
+	if len(s.historyPagesBySession) > 0 {
+		page := []*qotcommonpb.KLine(nil)
+		if pages := s.historyPagesBySession[request.GetC2S().GetSession()]; len(pages) > 0 {
+			page = pages[0]
+		}
+		return &historypb.Response{
+			RetType: proto.Int32(0),
+			S2C: &historypb.S2C{
+				Security: request.GetC2S().GetSecurity(),
+				KlList:   page,
+			},
+		}
+	}
 	page := []*qotcommonpb.KLine(nil)
 	if len(s.historyPages) > 0 {
 		page = s.historyPages[0]

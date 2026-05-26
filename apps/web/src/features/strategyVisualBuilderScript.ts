@@ -6,6 +6,8 @@ import type {
 
 import {
   getStrategyBlockKind,
+  nextStopLossNodeText,
+  normalizeStopLossBlockProperties,
   type StrategyBlockKind,
 } from "./strategyVisualBuilderCatalog";
 import {
@@ -38,6 +40,7 @@ import {
   buildMacdIndicatorKey,
   buildMovingAverageIndicatorKey,
   buildRsiIndicatorKey,
+  buildStopLossIndicatorKey,
   buildScriptRuntimeBlocks,
   buildWilliamsRIndicatorKey,
   entryPositionPolicyLabel,
@@ -311,6 +314,12 @@ export function buildStrategyScriptFromVisualModel(
           ...renderChildren(node.id, visited, depth),
         ]);
       }
+      case "stopLoss": {
+        return withFlowAnnotation([
+          ...renderStopLossNode(node.id, nodeProperties, depth),
+          ...renderChildren(node.id, visited, depth),
+        ]);
+      }
       case "codeBlock": {
         const code = normalizeCodeBlock(
           nodeProperties.code,
@@ -481,6 +490,7 @@ function buildGetTechnicalIndicatorSetupLines(
       const key = buildMovingAverageIndicatorKey(
         properties.windowSize ?? 20,
         properties.movingAverageType ?? "MA",
+        properties.periodUnit ?? "bar",
       );
       const snapshotVar = `${base}_snapshot`;
       const valueVar = `${base}_value`;
@@ -1162,6 +1172,54 @@ function renderPlaceOrderNode(
     `${indent(depth)}placeOrder({ ${orderProps.join(", ")} });`,
   );
   return lines;
+}
+
+function renderStopLossNode(
+  nodeId: string,
+  nodeProperties: Record<string, unknown>,
+  depth: number,
+): string[] {
+  const properties = normalizeStopLossBlockProperties(nodeProperties);
+  const base = `risk_${sanitizeScriptIdentifier(nodeId)}`;
+  const snapshotName = `${base}_snapshot`;
+  const positionName = `${base}_position`;
+  const quantityName = `${base}_qty`;
+  const shouldExitLongName = `${base}_exit_long`;
+  const shouldExitShortName = `${base}_exit_short`;
+  const indicatorKey = buildStopLossIndicatorKey(
+    properties.direction ?? "auto",
+    properties.timeValue ?? 1,
+    properties.timeUnit ?? "day",
+    properties.percentage ?? 2,
+    properties.mode ?? "stopLoss",
+    properties.windowPolicy ?? "continuous",
+  );
+  const label = nextStopLossNodeText(properties as unknown as Record<string, unknown>);
+  const triggerMetric = properties.mode === "trailingStop"
+    ? `Math.abs(${snapshotName}.triggerPercent ?? ${snapshotName}.longDrawdownPercent ?? ${snapshotName}.shortReboundPercent ?? 0)`
+    : `Math.abs(${snapshotName}.triggerPercent ?? ${snapshotName}.changePercent ?? 0)`;
+
+  return [
+    `${indent(depth)}const ${snapshotName} = ctx.indicators[${JSON.stringify(indicatorKey)}] ?? null;`,
+    `${indent(depth)}if (${snapshotName} === null) {`,
+    `${indent(depth + 1)}console.log("waiting for indicator ${indicatorKey}");`,
+    `${indent(depth + 1)}return;`,
+    `${indent(depth)}}`,
+    `${indent(depth)}const ${positionName} = getPosition();`,
+    `${indent(depth)}const ${quantityName} = ${positionName} ? Math.floor(Math.abs(${positionName}.availableQuantity) > 0 ? Math.abs(${positionName}.availableQuantity) : Math.abs(${positionName}.quantity)) : 0;`,
+    `${indent(depth)}const ${shouldExitLongName} = ${properties.direction !== "short"} && !!${positionName} && ${positionName}.direction === "LONG" && ${quantityName} > 0 && ${snapshotName}.longTriggered === true;`,
+    `${indent(depth)}const ${shouldExitShortName} = ${properties.direction !== "long"} && !!${positionName} && ${positionName}.direction === "SHORT" && ${quantityName} > 0 && ${snapshotName}.shortTriggered === true;`,
+    `${indent(depth)}if (${shouldExitLongName}) {`,
+    `${indent(depth + 1)}console.log("${label}触发，幅度 " + ${triggerMetric} + "% ，执行卖出平多");`,
+    `${indent(depth + 1)}placeOrder({ side: "SELL", orderType: "MARKET", quantity: ${quantityName} });`,
+    `${indent(depth + 1)}return;`,
+    `${indent(depth)}}`,
+    `${indent(depth)}if (${shouldExitShortName}) {`,
+    `${indent(depth + 1)}console.log("${label}触发，幅度 " + ${triggerMetric} + "% ，执行买入平空");`,
+    `${indent(depth + 1)}placeOrder({ side: "BUY", orderType: "MARKET", quantity: ${quantityName} });`,
+    `${indent(depth + 1)}return;`,
+    `${indent(depth)}}`,
+  ];
 }
 
 function buildEntryPositionGuardLines(

@@ -173,7 +173,7 @@ func (c *resultCollector) onKLineClosed(ctx context.Context, exchange accountQue
 		c.warnedBadClose = true
 		msg := fmt.Sprintf("回测期间发现非正收盘价 (%.4f)，持仓市值无法计算，权益曲线可能不准确。请检查K线数据或复权方式。", kline.Close.Float64())
 		log.Printf("backtest: %s", msg)
-		c.result.addRuntimeError(msg)
+		c.result.AddRuntimeError(msg)
 	}
 
 	c.pnlCurve = append(c.pnlCurve, PnLPoint{
@@ -195,7 +195,7 @@ func (c *resultCollector) finalize(ctx context.Context, exchange accountQuerier,
 		} else if !c.netPosition.IsZero() {
 			msg := fmt.Sprintf("最终持仓 %.0f 股无法按市价估值（最新收盘价非正），最终权益不含持仓市值。", c.netPosition.Float64())
 			log.Printf("backtest: %s", msg)
-			c.result.addRuntimeError(msg)
+			c.result.AddRuntimeError(msg)
 		}
 		c.result.FinalBalance = total.Float64()
 	}

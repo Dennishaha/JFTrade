@@ -88,23 +88,25 @@ describe("strategyVisualBuilderIndicatorShortcut", () => {
     expect(expansion.edges).toHaveLength(2);
     expect(expansion.nodes[0]).toMatchObject({
       id: "shortcut-ma-fast",
-      text: "获取 均线 EMA 5",
+      text: "获取 均线 EMA 5日",
       properties: {
         blockKind: "getTechnicalIndicator",
         indicatorType: "movingAverage",
         movingAverageType: "EMA",
         windowSize: 5,
+        periodUnit: "day",
         variableName: "EMA5",
       },
     });
     expect(expansion.nodes[1]).toMatchObject({
       id: "shortcut-ma-slow",
-      text: "获取 均线 EMA 20",
+      text: "获取 均线 EMA 20日",
       properties: {
         blockKind: "getTechnicalIndicator",
         indicatorType: "movingAverage",
         movingAverageType: "EMA",
         windowSize: 20,
+        periodUnit: "day",
         variableName: "EMA20",
       },
     });

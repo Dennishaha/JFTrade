@@ -107,4 +107,59 @@ describe("strategyVisualBuilderNodePresentation", () => {
       value: "10% 账户仓位",
     });
   });
+
+  it("builds a stop-loss summary with direction and time window", () => {
+    const summary = buildStrategyVisualNodeSummary({
+      properties: {
+        blockKind: "stopLoss",
+        direction: "auto",
+        timeValue: 2,
+        timeUnit: "hour",
+        percentage: 5,
+      },
+    });
+
+    expect(summary.eyebrow).toBe("风控动作");
+    expect(summary.title).toBe("自动止损 2小时 5%");
+    expect(summary.details).toContainEqual({
+      label: "方向",
+      value: "自动",
+    });
+    expect(summary.details).toContainEqual({
+      label: "窗口",
+      value: "2 小时",
+    });
+    expect(summary.details).toContainEqual({
+      label: "规则",
+      value: "反向波动 >= 5%",
+    });
+  });
+
+  it("builds a trailing-stop summary with session-aware window mode", () => {
+    const summary = buildStrategyVisualNodeSummary({
+      properties: {
+        blockKind: "stopLoss",
+        mode: "trailingStop",
+        direction: "auto",
+        timeValue: 2,
+        timeUnit: "hour",
+        percentage: 3,
+        windowPolicy: "session",
+      },
+    });
+
+    expect(summary.title).toBe("自动追踪止损 2小时 3% 时段感知");
+    expect(summary.details).toContainEqual({
+      label: "模式",
+      value: "追踪止损",
+    });
+    expect(summary.details).toContainEqual({
+      label: "窗口模式",
+      value: "交易时段感知",
+    });
+    expect(summary.details).toContainEqual({
+      label: "规则",
+      value: "回撤 / 反弹 >= 3%",
+    });
+  });
 });

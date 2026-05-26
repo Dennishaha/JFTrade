@@ -57,11 +57,14 @@ type Exchange struct {
 	webSocketKey string
 
 	mu                   sync.Mutex
+	sessionMu            sync.RWMutex
 	client               *opend.Client
 	ready                bool
 	subscriptions        subscriptionRegistry
 	systemNotifyClient   *opend.Client
 	systemNotifyHandlers []func(*notifypb.Response)
+	klineSessions        map[string]klineSessionRecord
+	marketSessionSamples map[string][]marketSessionSample
 
 	// customMarkets holds market info for symbols that are not natively
 	// returned by QueryMarkets but should be known to the exchange — e.g.
@@ -231,7 +234,11 @@ func (e *Exchange) QueryQuoteSnapshot(ctx context.Context, symbol string) (*Quot
 	if err != nil {
 		canonical = strings.TrimSpace(strings.ToUpper(symbol))
 	}
-	return quoteSnapshotFromBasicQot(basicQot, canonical), nil
+	snapshot := quoteSnapshotFromBasicQot(basicQot, canonical)
+	if snapshot != nil {
+		e.RecordMarketSessionSample(canonical, snapshot.Session, snapshot.QuoteAt)
+	}
+	return snapshot, nil
 }
 
 // --- bbgo types.ExchangeAccountService ---

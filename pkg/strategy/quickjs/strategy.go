@@ -10,6 +10,7 @@ import (
 	bbgo2 "github.com/c9s/bbgo/pkg/bbgo"
 	"github.com/c9s/bbgo/pkg/fixedpoint"
 	"github.com/c9s/bbgo/pkg/types"
+	"github.com/jftrade/jftrade-main/pkg/futu"
 	qjs "modernc.org/quickjs"
 )
 
@@ -151,13 +152,14 @@ func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo2.OrderExecutor, s
 		if interval := defaultInterval(s.Interval); interval != "" && kline.Interval != interval {
 			return
 		}
+		klineSession := bridge.resolveKLineSession(kline)
 		bridge.pushIndicators(kline)
 		if hookErr := bridge.invokeHook("onKLineClosed", map[string]any{
 			"id":           strategyName(s),
 			"definitionId": strings.TrimSpace(s.DefinitionID),
 			"symbol":       strings.ToUpper(strings.TrimSpace(s.Symbol)),
 			"interval":     string(defaultInterval(s.Interval)),
-			"kline":        klinePayload(kline),
+			"kline":        klinePayload(kline, klineSession),
 			"indicators":   bridge.indicatorPayload(),
 		}, &HookContext{CurrentKlineTime: kline.EndTime.Time(), WarmupUntil: s.WarmupUntil}); hookErr != nil {
 			errMsg := hookErr.Error()
@@ -175,7 +177,26 @@ func (r *runtimeBridge) pushIndicators(kline types.KLine) {
 	if r == nil || r.indicators == nil {
 		return
 	}
-	r.indicators.push(kline)
+	r.indicators.push(kline, r.resolveKLineSession(kline))
+}
+
+type klineSessionResolver interface {
+	ResolveKLineSession(kline types.KLine) (futu.MarketSession, bool)
+}
+
+func (r *runtimeBridge) resolveKLineSession(kline types.KLine) futu.MarketSession {
+	if r != nil && r.session != nil && r.session.Exchange != nil {
+		if resolver, ok := r.session.Exchange.(klineSessionResolver); ok {
+			if session, ok := resolver.ResolveKLineSession(kline); ok {
+				return session
+			}
+		}
+	}
+	strategySymbol := ""
+	if r != nil && r.strategy != nil {
+		strategySymbol = r.strategy.Symbol
+	}
+	return classifyKLineSession(strategySymbol, kline)
 }
 
 func (r *runtimeBridge) indicatorPayload() map[string]any {
@@ -202,7 +223,7 @@ func newRuntimeBridge(ctx context.Context, strategy *Strategy, orderExecutor bbg
 	}
 	bridge := &runtimeBridge{
 		vm:         vm,
-		indicators: newIndicatorRuntime(strategy.Script),
+		indicators: newIndicatorRuntime(strategy.Script, defaultInterval(strategy.Interval), strategy.Symbol),
 		strategy:   strategy,
 		ctx:        ctx,
 		session:    session,
@@ -917,8 +938,8 @@ func strategyName(strategy *Strategy) string {
 	return ID
 }
 
-func klinePayload(kline types.KLine) map[string]any {
-	return map[string]any{
+func klinePayload(kline types.KLine, session futu.MarketSession) map[string]any {
+	payload := map[string]any{
 		"symbol":      kline.Symbol,
 		"interval":    string(kline.Interval),
 		"startTime":   kline.StartTime.Time().Format("2006-01-02T15:04:05.000Z07:00"),
@@ -931,4 +952,10 @@ func klinePayload(kline types.KLine) map[string]any {
 		"quoteVolume": kline.QuoteVolume.Float64(),
 		"closed":      kline.Closed,
 	}
+	if session != futu.MarketSessionUnknown {
+		payload["session"] = string(session)
+	} else {
+		payload["session"] = nil
+	}
+	return payload
 }

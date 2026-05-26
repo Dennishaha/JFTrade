@@ -999,8 +999,8 @@ describe("Strategy page", () => {
 
     expect((wrapper.get('[data-testid="strategy-block-indicator-input-fast-select"]').element as HTMLSelectElement).value).toBe("fast-ma");
     expect((wrapper.get('[data-testid="strategy-block-indicator-input-slow-select"]').element as HTMLSelectElement).value).toBe("slow-ma");
-    expect(wrapper.text()).toContain("EMA5 · 获取 均线 EMA 5");
-    expect(wrapper.text()).toContain("EMA20 · 获取 均线 EMA 20");
+    expect(wrapper.text()).toContain("EMA5 · 获取 均线 EMA 5日");
+    expect(wrapper.text()).toContain("EMA20 · 获取 均线 EMA 20日");
 
     wrapper.unmount();
   });
@@ -1391,6 +1391,103 @@ describe("Strategy page", () => {
     wrapper.unmount();
   });
 
+  it("rewrites risk block mode and window policy from the block inspector", async () => {
+    vi.stubGlobal(
+      "fetch",
+      buildFetchMock({
+        definitions: [
+          {
+            id: "js-risk-inspector",
+            name: "Risk Inspector",
+            version: "0.2.0",
+            description: "risk block inspector",
+            runtime: "quickjs-js",
+            symbol: "US.AAPL",
+            interval: "5m",
+            script: "function manualOnly() { return 'keep'; }",
+            visualModel: {
+              engine: "logic-flow",
+              version: 1,
+              nodes: [
+                {
+                  id: "on-kline-root",
+                  type: "circle",
+                  x: 160,
+                  y: 200,
+                  text: "K 线收盘",
+                  properties: {
+                    blockKind: "onKLineClosed",
+                  },
+                },
+                {
+                  id: "risk-node",
+                  type: "rect",
+                  x: 420,
+                  y: 200,
+                  text: "自动止损 1日 2%",
+                  properties: {
+                    blockKind: "stopLoss",
+                    mode: "stopLoss",
+                    direction: "auto",
+                    timeValue: 1,
+                    timeUnit: "day",
+                    percentage: 2,
+                    windowPolicy: "continuous",
+                  },
+                },
+              ],
+              edges: [
+                {
+                  id: "edge-root-risk",
+                  type: "polyline",
+                  sourceNodeId: "on-kline-root",
+                  targetNodeId: "risk-node",
+                },
+              ],
+            },
+            createdAt: "2026-05-23T00:00:00.000Z",
+            updatedAt: "2026-05-23T00:00:00.000Z",
+          },
+        ],
+      }),
+    );
+    vi.stubGlobal(
+      "EventSource",
+      MockEventSource as unknown as typeof EventSource,
+    );
+
+    const { wrapper } = await mountApp("/strategy");
+
+    await openStrategyDesignWorkspace(wrapper);
+    await showStrategyCodeEditor(wrapper, "split");
+
+    const designer = wrapper.findComponent(StrategyLogicFlowDesigner);
+    designer.vm.$emit("select-node", "risk-node");
+    await flushRequests();
+
+    expect((wrapper.get('[data-testid="strategy-stop-loss-mode"]').element as HTMLSelectElement).value).toBe("stopLoss");
+    expect((wrapper.get('[data-testid="strategy-stop-loss-window-policy"]').element as HTMLSelectElement).value).toBe("continuous");
+
+    await wrapper.get('[data-testid="strategy-stop-loss-mode"]').setValue("trailingStop");
+    await flushRequests();
+
+    await wrapper.get('[data-testid="strategy-stop-loss-window-policy"]').setValue("session");
+    await flushRequests();
+
+    const updatedModel = designer.props("modelValue") as NonNullable<StrategyDefinitionDocument["visualModel"]>;
+    const riskNode = updatedModel.nodes.find((node) => node.id === "risk-node");
+    expect(riskNode).toBeDefined();
+    expect(riskNode?.text).toBe("自动追踪止损 1日 2% 时段感知");
+    expect(riskNode?.properties.mode).toBe("trailingStop");
+    expect(riskNode?.properties.windowPolicy).toBe("session");
+
+    const scriptEditor = wrapper.get('[data-testid="strategy-script-editor"]')
+      .element as HTMLTextAreaElement;
+    expect(scriptEditor.value).toContain('ctx.indicators["risk:trailingStop:auto:1:day:2:session"]');
+
+    wrapper.unmount();
+  });
+
   it("creates a new draft from the double moving average template", async () => {
     vi.stubGlobal(
       "fetch",
@@ -1427,8 +1524,8 @@ describe("Strategy page", () => {
     expect(wrapper.find('[data-testid="strategy-code-editor-section"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="strategy-visual-builder-section"]').exists()).toBe(true);
     expect(wrapper.text()).toContain("已基于「双均线系统」创建新草稿");
-    expect(scriptEditor.value).toContain('const indicator_dma_fast_ma_snapshot = ctx.indicators["ma:MA:5"] ?? null;');
-    expect(scriptEditor.value).toContain('const indicator_dma_slow_ma_snapshot = ctx.indicators["ma:MA:20"] ?? null;');
+    expect(scriptEditor.value).toContain('const indicator_dma_fast_ma_snapshot = ctx.indicators["ma:MA:5:day"] ?? null;');
+    expect(scriptEditor.value).toContain('const indicator_dma_slow_ma_snapshot = ctx.indicators["ma:MA:20:day"] ?? null;');
     expect(scriptEditor.value).toContain("indicator_dma_fast_ma_previous <= indicator_dma_slow_ma_previous && indicator_dma_fast_ma_value > indicator_dma_slow_ma_value");
     expect(scriptEditor.value).toContain("金叉");
 

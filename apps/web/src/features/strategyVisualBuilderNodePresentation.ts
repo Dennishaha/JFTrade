@@ -17,6 +17,15 @@ import {
   type TechnicalIndicatorType,
 } from "./strategyVisualBuilderIndicatorBlock";
 import {
+  nextStopLossNodeText,
+  normalizeStopLossBlockProperties,
+  stopLossDirectionLabel,
+  stopLossModeLabel,
+  stopLossRuleLabel,
+  stopLossTimeUnitLabel,
+  stopLossWindowPolicyLabel,
+} from "./strategyVisualBuilderCatalog";
+import {
   normalizeOrderSide,
   normalizeOrderType,
   normalizeQuantityMode,
@@ -141,6 +150,23 @@ export function buildStrategyVisualNodeSummary(
         details: buildPlaceOrderDetails(properties),
         chips: [],
       };
+    case "stopLoss": {
+      const normalized = normalizeStopLossBlockProperties(properties);
+      return {
+        eyebrow: "风控动作",
+        title: resolveNodeTitle(input.text, nextStopLossNodeText(properties)),
+        tone: "alert",
+        variant: variantOverride ?? "card",
+        details: [
+          { label: "模式", value: stopLossModeLabel(normalized.mode ?? "stopLoss") },
+          { label: "方向", value: stopLossDirectionLabel(normalized.direction ?? "auto") },
+          { label: "窗口", value: `${formatNumber(normalized.timeValue ?? 1)} ${stopLossTimeUnitLabel(normalized.timeUnit ?? "day")}` },
+          { label: "窗口模式", value: stopLossWindowPolicyLabel(normalized.windowPolicy ?? "continuous") },
+          { label: "规则", value: stopLossRuleLabel(normalized) },
+        ],
+        chips: ["平仓"],
+      };
+    }
     case "log":
       return {
         eyebrow: "运行日志",

@@ -1,5 +1,14 @@
 import type { StrategyBlockKind } from "./strategyVisualBuilderCatalog";
-import type { MovingAverageIndicatorType } from "./strategyVisualBuilderIndicatorBlock";
+import type {
+  StopLossDirection,
+  StopLossMode,
+  StopLossTimeUnit,
+  StopLossWindowPolicy,
+} from "./strategyVisualBuilderCatalog";
+import type {
+  IndicatorPeriodUnit,
+  MovingAverageIndicatorType,
+} from "./strategyVisualBuilderIndicatorBlock";
 
 export interface StrategyScriptRuntimeFlags {
   usesMovingAverageRuntime: boolean;
@@ -84,8 +93,25 @@ export function buildScriptRuntimeBlocks(
 export function buildMovingAverageIndicatorKey(
   windowSize: number,
   movingAverageType: MovingAverageIndicatorType = "MA",
+  periodUnit: IndicatorPeriodUnit = "bar",
 ): string {
-  return `ma:${movingAverageType}:${windowSize}`;
+  return periodUnit === "bar"
+    ? `ma:${movingAverageType}:${windowSize}`
+    : `ma:${movingAverageType}:${windowSize}:${periodUnit}`;
+}
+
+export function buildStopLossIndicatorKey(
+  direction: StopLossDirection,
+  timeValue: number,
+  timeUnit: StopLossTimeUnit,
+  percentage: number,
+  mode: StopLossMode = "stopLoss",
+  windowPolicy: StopLossWindowPolicy = "continuous",
+): string {
+  if (mode === "stopLoss" && windowPolicy === "continuous") {
+    return `sl:${direction}:${timeValue}:${timeUnit}:${percentage}`;
+  }
+  return `risk:${mode}:${direction}:${timeValue}:${timeUnit}:${percentage}:${windowPolicy}`;
 }
 
 export function buildRsiIndicatorKey(period: number): string {

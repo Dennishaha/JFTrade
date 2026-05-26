@@ -114,11 +114,13 @@ function buildMovingAverageShortcutExpansion(
     indicatorType: "movingAverage",
     movingAverageType,
     windowSize: properties.fastPeriod ?? 5,
+    periodUnit: "day",
     variableName: suggestStrategyIndicatorVariableName({
       blockKind: "getTechnicalIndicator",
       indicatorType: "movingAverage",
       movingAverageType,
       windowSize: properties.fastPeriod ?? 5,
+      periodUnit: "day",
     }),
   };
   const slowGetterProperties: Record<string, unknown> = {
@@ -126,11 +128,13 @@ function buildMovingAverageShortcutExpansion(
     indicatorType: "movingAverage",
     movingAverageType,
     windowSize: properties.slowPeriod ?? 20,
+    periodUnit: "day",
     variableName: suggestStrategyIndicatorVariableName({
       blockKind: "getTechnicalIndicator",
       indicatorType: "movingAverage",
       movingAverageType,
       windowSize: properties.slowPeriod ?? 20,
+      periodUnit: "day",
     }),
   };
   const conditionProperties = buildConditionProperties(properties, {

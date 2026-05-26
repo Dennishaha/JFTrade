@@ -175,8 +175,23 @@ func TestQueryTickersBatchesBasicQotRequests(t *testing.T) {
 	}
 }
 
-func TestQueryKLinesRequestsUSExtendedHours(t *testing.T) {
+func TestQueryKLinesSplitsUSHistoricalRequestsBySessionAndMergesResults(t *testing.T) {
 	server := startQuoteOpenDServer(t)
+	server.setHistoryPagesBySession(map[int32][][]*qotcommonpb.KLine{
+		int32(commonpb.Session_Session_RTH): {
+			{testHistoryKLine(time.Date(2026, time.May, 20, 15, 30, 0, 0, time.UTC), 110)},
+		},
+		int32(commonpb.Session_Session_ETH): {
+			{testHistoryKLine(time.Date(2026, time.May, 20, 10, 0, 0, 0, time.UTC), 100)},
+		},
+		int32(commonpb.Session_Session_ALL): {
+			{
+				testHistoryKLine(time.Date(2026, time.May, 20, 2, 0, 0, 0, time.UTC), 90),
+				testHistoryKLine(time.Date(2026, time.May, 20, 10, 0, 0, 0, time.UTC), 95),
+				testHistoryKLine(time.Date(2026, time.May, 20, 15, 30, 0, 0, time.UTC), 105),
+			},
+		},
+	})
 	defer server.stop()
 
 	ex := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
@@ -184,21 +199,100 @@ func TestQueryKLinesRequestsUSExtendedHours(t *testing.T) {
 
 	start := time.Date(2026, time.May, 20, 8, 0, 0, 0, time.UTC)
 	end := start.Add(2 * time.Hour)
-	klines, err := ex.QueryKLines(t.Context(), "US.NVDA", types.Interval1m, types.KLineQueryOptions{Limit: 2, StartTime: &start, EndTime: &end})
+	klines, err := ex.QueryKLines(t.Context(), "US.NVDA", types.Interval1m, types.KLineQueryOptions{Limit: 3, StartTime: &start, EndTime: &end})
 	if err != nil {
 		t.Fatalf("QueryKLines: %v", err)
 	}
-	if len(klines) != 1 {
-		t.Fatalf("expected one test kline, got %d", len(klines))
+	if len(klines) != 3 {
+		t.Fatalf("expected three merged session klines, got %d", len(klines))
 	}
-	if got := server.historyKLCallCount(); got != 1 {
-		t.Fatalf("expected one RequestHistoryKL call, got %d", got)
+	if got := server.historyKLCallCount(); got != 3 {
+		t.Fatalf("expected three RequestHistoryKL calls, got %d", got)
 	}
 	if !server.lastHistoryExtendedTime() {
 		t.Fatal("expected US intraday RequestHistoryKL to set extendedTime=true")
 	}
-	if got := server.lastHistorySession(); got != int32(commonpb.Session_Session_ALL) {
-		t.Fatalf("expected Session_ALL, got %d", got)
+	if got := server.historySessionCalls(); len(got) != 3 || got[0] != int32(commonpb.Session_Session_RTH) || got[1] != int32(commonpb.Session_Session_ETH) || got[2] != int32(commonpb.Session_Session_ALL) {
+		t.Fatalf("expected RTH/ETH/ALL route calls, got %#v", got)
+	}
+	if got := klines[1].Open.Float64(); got != 100 {
+		t.Fatalf("expected ETH route candle to win over ALL duplicate, got %v", got)
+	}
+	if got := klines[2].Open.Float64(); got != 110 {
+		t.Fatalf("expected RTH route candle to win over ALL duplicate, got %v", got)
+	}
+	if session, ok := ex.ResolveKLineSession(klines[0]); !ok || session != MarketSessionOvernight {
+		t.Fatalf("expected overnight session tag, got %s ok=%v", session, ok)
+	}
+	if session, ok := ex.ResolveKLineSession(klines[1]); !ok || session != MarketSessionPre {
+		t.Fatalf("expected ETH route to resolve pre session, got %s ok=%v", session, ok)
+	}
+	if session, ok := ex.ResolveKLineSession(klines[2]); !ok || session != MarketSessionRegular {
+		t.Fatalf("expected RTH route to resolve regular session, got %s ok=%v", session, ok)
+	}
+}
+
+func TestResolveHistoricalRequestSessionUsesRouteForRTHAndOvernight(t *testing.T) {
+	preClockKLine := types.KLine{
+		Symbol:    "US.AAPL",
+		StartTime: types.Time(time.Date(2026, time.May, 20, 10, 0, 0, 0, time.UTC)),
+		EndTime:   types.Time(time.Date(2026, time.May, 20, 10, 0, 59, 0, time.UTC)),
+	}
+	if session := resolveHistoricalMarketSession(commonpb.Session_Session_RTH, "US.AAPL", preClockKLine); session != MarketSessionRegular {
+		t.Fatalf("expected RTH route to force regular session, got %s", session)
+	}
+	if session := resolveHistoricalMarketSession(commonpb.Session_Session_OVERNIGHT, "US.AAPL", preClockKLine); session != MarketSessionOvernight {
+		t.Fatalf("expected overnight route to force overnight session, got %s", session)
+	}
+}
+
+func TestQueryKLinesFallsBackToSessionAllWhenHistoricalRouteUnsupported(t *testing.T) {
+	server := startQuoteOpenDServer(t)
+	server.setHistoryPagesBySession(map[int32][][]*qotcommonpb.KLine{
+		int32(commonpb.Session_Session_RTH): {
+			{testHistoryKLine(time.Date(2026, time.May, 20, 15, 30, 0, 0, time.UTC), 110)},
+		},
+		int32(commonpb.Session_Session_ALL): {
+			{
+				testHistoryKLine(time.Date(2026, time.May, 20, 2, 0, 0, 0, time.UTC), 90),
+				testHistoryKLine(time.Date(2026, time.May, 20, 10, 0, 0, 0, time.UTC), 100),
+				testHistoryKLine(time.Date(2026, time.May, 20, 15, 30, 0, 0, time.UTC), 110),
+			},
+		},
+	})
+	server.setHistorySessionError(int32(commonpb.Session_Session_ETH), 1, "session is invalid")
+	defer server.stop()
+
+	ex := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
+	defer ex.Close()
+
+	start := time.Date(2026, time.May, 20, 8, 0, 0, 0, time.UTC)
+	end := start.Add(2 * time.Hour)
+	klines, err := ex.QueryKLines(t.Context(), "US.NVDA", types.Interval1m, types.KLineQueryOptions{Limit: 3, StartTime: &start, EndTime: &end})
+	if err != nil {
+		t.Fatalf("QueryKLines: %v", err)
+	}
+	if len(klines) != 3 {
+		t.Fatalf("expected fallback Session_ALL history to return three klines, got %d", len(klines))
+	}
+	if got := server.historySessionCalls(); len(got) != 3 || got[0] != int32(commonpb.Session_Session_RTH) || got[1] != int32(commonpb.Session_Session_ETH) || got[2] != int32(commonpb.Session_Session_ALL) {
+		t.Fatalf("expected RTH/ETH then fallback Session_ALL, got %#v", got)
+	}
+	if session, ok := ex.ResolveKLineSession(klines[0]); !ok || session != MarketSessionOvernight {
+		t.Fatalf("expected fallback ALL route to classify overnight candle, got %s ok=%v", session, ok)
+	}
+}
+
+func TestShouldFallbackHistoricalKLineSplitRecognizesChineseSupportedSessionsMessage(t *testing.T) {
+	plan := historicalKLineRequestPlanAll()
+	err := &historicalKLineRequestError{
+		session: plan.session,
+		retType: 1,
+		errCode: 0,
+		retMsg:  "获取历史K线的时段仅支持设置 RTH，ETH，ALL",
+	}
+	if !shouldFallbackHistoricalKLineSplit(err, plan) {
+		t.Fatal("expected supported-session-list message to trigger fallback")
 	}
 }
 
@@ -412,30 +506,67 @@ func TestStreamConnectRebuildsClosedCachedOpenDClient(t *testing.T) {
 }
 
 type quoteOpenDServer struct {
-	addr              string
-	accepts           atomic.Int32
-	initRecvNotify    atomic.Bool
-	qotSubCalls       atomic.Int32
-	pushSubCalls      atomic.Int32
-	basicQotCalls     atomic.Int32
-	historyKLCalls    atomic.Int32
-	currentKLCalls    atomic.Int32
-	historyExtended   atomic.Bool
-	historySession    atomic.Int32
-	historyMu         sync.Mutex
-	historyPages      [][]*qotcommonpb.KLine
-	currentKLines     []*qotcommonpb.KLine
-	notifyMu          sync.Mutex
-	notifyAfterInit   *notifypb.Response
-	listener          net.Listener
-	stopOnce          sync.Once
-	shutdownCompleted chan struct{}
+	addr                  string
+	accepts               atomic.Int32
+	initRecvNotify        atomic.Bool
+	qotSubCalls           atomic.Int32
+	pushSubCalls          atomic.Int32
+	basicQotCalls         atomic.Int32
+	historyKLCalls        atomic.Int32
+	currentKLCalls        atomic.Int32
+	historyExtended       atomic.Bool
+	historySession        atomic.Int32
+	historyMu             sync.Mutex
+	historyPages          [][]*qotcommonpb.KLine
+	historyPagesBySession map[int32][][]*qotcommonpb.KLine
+	historySessionErrors  map[int32]*historypb.Response
+	historySessionCallLog []int32
+	historyRouteCallCount map[int32]int
+	currentKLines         []*qotcommonpb.KLine
+	notifyMu              sync.Mutex
+	notifyAfterInit       *notifypb.Response
+	listener              net.Listener
+	stopOnce              sync.Once
+	shutdownCompleted     chan struct{}
 }
 
 func (s *quoteOpenDServer) setHistoryPages(pages [][]*qotcommonpb.KLine) {
 	s.historyMu.Lock()
 	defer s.historyMu.Unlock()
 	s.historyPages = pages
+	s.historyPagesBySession = nil
+	s.historySessionErrors = nil
+	s.historySessionCallLog = nil
+	s.historyRouteCallCount = nil
+}
+
+func (s *quoteOpenDServer) setHistoryPagesBySession(pages map[int32][][]*qotcommonpb.KLine) {
+	s.historyMu.Lock()
+	defer s.historyMu.Unlock()
+	s.historyPages = nil
+	s.historySessionErrors = nil
+	s.historySessionCallLog = nil
+	s.historyRouteCallCount = make(map[int32]int, len(pages))
+	s.historyPagesBySession = make(map[int32][][]*qotcommonpb.KLine, len(pages))
+	for session, sessionPages := range pages {
+		clonedPages := make([][]*qotcommonpb.KLine, 0, len(sessionPages))
+		for _, page := range sessionPages {
+			clonedPages = append(clonedPages, append([]*qotcommonpb.KLine(nil), page...))
+		}
+		s.historyPagesBySession[session] = clonedPages
+	}
+}
+
+func (s *quoteOpenDServer) setHistorySessionError(session int32, retType int32, retMsg string) {
+	s.historyMu.Lock()
+	defer s.historyMu.Unlock()
+	if s.historySessionErrors == nil {
+		s.historySessionErrors = make(map[int32]*historypb.Response)
+	}
+	s.historySessionErrors[session] = &historypb.Response{
+		RetType: proto.Int32(retType),
+		RetMsg:  proto.String(retMsg),
+	}
 }
 
 func (s *quoteOpenDServer) setCurrentKLines(klines []*qotcommonpb.KLine) {
@@ -598,6 +729,34 @@ func (s *quoteOpenDServer) historyKLResponse(body []byte) *historypb.Response {
 	s.historyExtended.Store(request.GetC2S().GetExtendedTime())
 	s.historySession.Store(request.GetC2S().GetSession())
 	s.historyMu.Lock()
+	s.historySessionCallLog = append(s.historySessionCallLog, request.GetC2S().GetSession())
+	if response := s.historySessionErrors[request.GetC2S().GetSession()]; response != nil {
+		s.historyMu.Unlock()
+		return response
+	}
+	if len(s.historyPagesBySession) > 0 {
+		session := request.GetC2S().GetSession()
+		pages := s.historyPagesBySession[session]
+		pageIndex := s.historyRouteCallCount[session]
+		if pageIndex >= len(pages) && len(pages) > 0 {
+			pageIndex = len(pages) - 1
+		}
+		s.historyRouteCallCount[session]++
+		response := &historypb.Response{
+			RetType: proto.Int32(0),
+			S2C: &historypb.S2C{
+				Security: request.GetC2S().GetSecurity(),
+			},
+		}
+		if len(pages) > 0 {
+			response.S2C.KlList = pages[pageIndex]
+			if pageIndex < len(pages)-1 {
+				response.S2C.NextReqKey = []byte{byte(pageIndex + 1)}
+			}
+		}
+		s.historyMu.Unlock()
+		return response
+	}
 	if len(s.historyPages) > 0 {
 		pageIndex := int(s.historyKLCalls.Load()) - 1
 		if pageIndex < 0 {
@@ -781,6 +940,12 @@ func (s *quoteOpenDServer) lastHistoryExtendedTime() bool {
 
 func (s *quoteOpenDServer) lastHistorySession() int32 {
 	return s.historySession.Load()
+}
+
+func (s *quoteOpenDServer) historySessionCalls() []int32 {
+	s.historyMu.Lock()
+	defer s.historyMu.Unlock()
+	return append([]int32(nil), s.historySessionCallLog...)
 }
 
 func waitFor(t *testing.T, condition func() bool) {

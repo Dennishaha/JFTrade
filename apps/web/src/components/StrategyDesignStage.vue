@@ -35,6 +35,7 @@ import {
     type StrategyAuthoringTemplate,
 } from "../features/strategyVisualBuilder";
 import { reconcileStrategyVisualModelIndicatorBindings } from "../features/strategyVisualBuilderIndicatorReferences";
+import { migrateLegacyMovingAverageDefinition } from "../features/strategyVisualBuilderMigration";
 
 const props = withDefaults(defineProps<{
     entryMode?: "existing" | "new";
@@ -243,10 +244,15 @@ const {
     selectedIndicatorPrimaryInputNodeId,
     selectedIndicatorFastInputNodeId,
     selectedIndicatorSlowInputNodeId,
+    selectedStopLossMode,
+    selectedStopLossDirection,
+    selectedStopLossTimeUnit,
+    selectedStopLossWindowPolicy,
     selectedMacdFastPeriod,
     selectedMacdSlowPeriod,
     selectedMacdSignalPeriod,
     selectedMovingAverageType,
+    selectedIndicatorPeriodUnit,
     showsMultiplierInput,
     selectedBollingerMultiplier,
     showsConditionModeInput,
@@ -282,6 +288,7 @@ const overlayDeckBindings = {
     selectedIndicatorVariableName,
     selectedIndicatorType,
     selectedMovingAverageType,
+    selectedIndicatorPeriodUnit,
     selectedIndicatorConditionMode,
     selectedIndicatorOperator,
     selectedIndicatorPatternType,
@@ -289,6 +296,10 @@ const overlayDeckBindings = {
     selectedIndicatorPrimaryInputNodeId,
     selectedIndicatorFastInputNodeId,
     selectedIndicatorSlowInputNodeId,
+    selectedStopLossMode,
+    selectedStopLossDirection,
+    selectedStopLossTimeUnit,
+    selectedStopLossWindowPolicy,
     selectedMacdFastPeriod,
     selectedMacdSlowPeriod,
     selectedMacdSignalPeriod,
@@ -569,15 +580,16 @@ function normalizeInterval(value: string): string {
 function normalizeDefinition(
     definition: StrategyDefinitionDocument,
 ): StrategyDefinitionDocument {
+    const migrated = migrateLegacyMovingAverageDefinition(definition);
     const visualModel =
-        cloneStrategyVisualModel(definition.visualModel) ??
+        cloneStrategyVisualModel(migrated.visualModel) ??
         createDefaultStrategyVisualModel();
 
     return {
-        ...definition,
-        runtime: definition.runtime.trim() === "" ? "quickjs-js" : definition.runtime,
-        symbol: normalizeSymbol(definition.symbol),
-        interval: normalizeInterval(definition.interval),
+        ...migrated,
+        runtime: migrated.runtime.trim() === "" ? "quickjs-js" : migrated.runtime,
+        symbol: normalizeSymbol(migrated.symbol),
+        interval: normalizeInterval(migrated.interval),
         visualModel,
     };
 }
@@ -860,15 +872,15 @@ async function loadStrategyDefinitions(
             "/api/v1/strategy-definitions",
         );
 
-        strategyDefinitions.value = items;
+        strategyDefinitions.value = items.map((item) => normalizeDefinition(item));
 
-        if (items.length === 0 || options?.openTemplatePicker === true) {
+        if (strategyDefinitions.value.length === 0 || options?.openTemplatePicker === true) {
             openNewDefinitionTemplatePicker();
             return;
         }
 
         const nextDefinition =
-            items.find((item) => item.id === preferredDefinitionId) ?? items[0] ?? null;
+            strategyDefinitions.value.find((item) => item.id === preferredDefinitionId) ?? strategyDefinitions.value[0] ?? null;
         applyDefinition(nextDefinition);
     } catch (error) {
         strategyDefinitions.value = [];

@@ -211,6 +211,7 @@ function isStrategyBlockKind(value: string): value is StrategyBlockKind {
     case "log":
     case "notify":
     case "placeOrder":
+    case "stopLoss":
       return true;
     default:
       return false;

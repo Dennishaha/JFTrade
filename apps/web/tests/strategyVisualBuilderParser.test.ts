@@ -299,6 +299,183 @@ describe("strategyVisualBuilderParser", () => {
     expect(conditionNode?.properties.inputPrimaryNodeId).toBe("split-rsi-getter");
   });
 
+  it("round-trips time-unit moving averages and stop-loss nodes", () => {
+    const visualModel = {
+      engine: "logic-flow" as const,
+      version: 1,
+      nodes: [
+        {
+          id: "on-kline-root",
+          type: "circle",
+          x: 180,
+          y: 320,
+          text: "K 线收盘",
+          properties: { blockKind: "onKLineClosed" },
+        },
+        {
+          id: "ma-day-getter",
+          type: "rect",
+          x: 430,
+          y: 280,
+          text: "获取 均线 EMA 5日",
+          properties: {
+            blockKind: "getTechnicalIndicator",
+            indicatorType: "movingAverage",
+            movingAverageType: "EMA",
+            windowSize: 5,
+            periodUnit: "day",
+          },
+        },
+        {
+          id: "stop-loss-node",
+          type: "rect",
+          x: 700,
+          y: 320,
+          text: "自动止损 1日 2%",
+          properties: {
+            blockKind: "stopLoss",
+            direction: "auto",
+            timeValue: 1,
+            timeUnit: "day",
+            percentage: 2,
+          },
+        },
+      ],
+      edges: [
+        {
+          id: "edge-ma-day",
+          type: "polyline",
+          sourceNodeId: "on-kline-root",
+          targetNodeId: "ma-day-getter",
+          properties: buildStrategyVisualControlEdgeProperties(),
+        },
+        {
+          id: "edge-stop-loss",
+          type: "polyline",
+          sourceNodeId: "ma-day-getter",
+          targetNodeId: "stop-loss-node",
+          properties: buildStrategyVisualControlEdgeProperties(),
+        },
+      ],
+    };
+
+    const script = buildStrategyScriptFromVisualModel(visualModel, {
+      name: "time-unit-stop-loss-roundtrip",
+      symbol: "00700",
+      interval: "5m",
+    });
+
+    expect(script).toContain("@jftradeFlowBlockKind stopLoss");
+    expect(script).toContain('ctx.indicators["ma:EMA:5:day"]');
+    expect(script).toContain('ctx.indicators["sl:auto:1:day:2"]');
+
+    const parsed = buildStrategyVisualModelFromScript(script);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) {
+      return;
+    }
+
+    const getterNode = parsed.model.nodes.find((node) => node.id === "ma-day-getter");
+    expect(getterNode?.properties.periodUnit).toBe("day");
+
+    const stopLossNode = parsed.model.nodes.find((node) => node.id === "stop-loss-node");
+    expect(getStrategyBlockKind(stopLossNode)).toBe("stopLoss");
+    expect(stopLossNode?.properties.direction).toBe("auto");
+    expect(stopLossNode?.properties.timeValue).toBe(1);
+    expect(stopLossNode?.properties.timeUnit).toBe("day");
+    expect(stopLossNode?.properties.percentage).toBe(2);
+    expect(stopLossNode?.properties.mode).toBe("stopLoss");
+    expect(stopLossNode?.properties.windowPolicy).toBe("continuous");
+  });
+
+  it("round-trips take-profit and session-aware trailing-stop nodes", () => {
+    const visualModel = {
+      engine: "logic-flow" as const,
+      version: 1,
+      nodes: [
+        {
+          id: "on-kline-root",
+          type: "circle",
+          x: 180,
+          y: 320,
+          text: "K 线收盘",
+          properties: { blockKind: "onKLineClosed" },
+        },
+        {
+          id: "take-profit-node",
+          type: "rect",
+          x: 430,
+          y: 280,
+          text: "自动止盈 1日 4%",
+          properties: {
+            blockKind: "stopLoss",
+            mode: "takeProfit",
+            direction: "auto",
+            timeValue: 1,
+            timeUnit: "day",
+            percentage: 4,
+            windowPolicy: "continuous",
+          },
+        },
+        {
+          id: "trailing-stop-node",
+          type: "rect",
+          x: 700,
+          y: 320,
+          text: "自动追踪止损 2小时 3% 时段感知",
+          properties: {
+            blockKind: "stopLoss",
+            mode: "trailingStop",
+            direction: "auto",
+            timeValue: 2,
+            timeUnit: "hour",
+            percentage: 3,
+            windowPolicy: "session",
+          },
+        },
+      ],
+      edges: [
+        {
+          id: "edge-take-profit",
+          type: "polyline",
+          sourceNodeId: "on-kline-root",
+          targetNodeId: "take-profit-node",
+          properties: buildStrategyVisualControlEdgeProperties(),
+        },
+        {
+          id: "edge-trailing-stop",
+          type: "polyline",
+          sourceNodeId: "take-profit-node",
+          targetNodeId: "trailing-stop-node",
+          properties: buildStrategyVisualControlEdgeProperties(),
+        },
+      ],
+    };
+
+    const script = buildStrategyScriptFromVisualModel(visualModel, {
+      name: "risk-guard-roundtrip",
+      symbol: "00700",
+      interval: "5m",
+    });
+
+    expect(script).toContain('ctx.indicators["risk:takeProfit:auto:1:day:4:continuous"]');
+    expect(script).toContain('ctx.indicators["risk:trailingStop:auto:2:hour:3:session"]');
+
+    const parsed = buildStrategyVisualModelFromScript(script);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) {
+      return;
+    }
+
+    const takeProfitNode = parsed.model.nodes.find((node) => node.id === "take-profit-node");
+    expect(takeProfitNode?.properties.mode).toBe("takeProfit");
+    expect(takeProfitNode?.properties.windowPolicy).toBe("continuous");
+
+    const trailingStopNode = parsed.model.nodes.find((node) => node.id === "trailing-stop-node");
+    expect(trailingStopNode?.properties.mode).toBe("trailingStop");
+    expect(trailingStopNode?.properties.windowPolicy).toBe("session");
+  });
+
   it("parses a raw console.log expression back into a visual log block", () => {
     const script = [
       "function onKLineClosed(ctx) {",

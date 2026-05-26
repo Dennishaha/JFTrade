@@ -1,6 +1,7 @@
 package quickjs
 
 import (
+	"math"
 	"regexp"
 	"sort"
 	"strconv"
@@ -8,6 +9,12 @@ import (
 )
 
 var indicatorKeyPattern = regexp.MustCompile(`ctx\.indicators\[(?:"([^"]+)"|'([^']+)')\]`)
+
+const (
+	tradingSessionMinutesPerDay   = 390
+	tradingSessionMinutesPerWeek  = tradingSessionMinutesPerDay * 5
+	tradingSessionMinutesPerMonth = tradingSessionMinutesPerDay * 20
+)
 
 type indicatorRequirements struct {
 	ma             []movingAverageConfig
@@ -18,6 +25,7 @@ type indicatorRequirements struct {
 	atr            []int
 	cci            []int
 	williamsR      []int
+	stopLoss       []stopLossConfig
 	rsiDivergence  []rsiDivergenceConfig
 	macdDivergence []macdDivergenceConfig
 	kdjDivergence  []kdjDivergenceConfig
@@ -26,6 +34,16 @@ type indicatorRequirements struct {
 type movingAverageConfig struct {
 	averageType string
 	period      int
+	timeUnit    string
+}
+
+type stopLossConfig struct {
+	mode         string
+	direction    string
+	timeValue    int
+	timeUnit     string
+	percentage   float64
+	windowPolicy string
 }
 
 type macdConfig struct {
@@ -76,6 +94,7 @@ func parseIndicatorRequirements(script string) indicatorRequirements {
 	atrSet := map[int]struct{}{}
 	cciSet := map[int]struct{}{}
 	williamsRSet := map[int]struct{}{}
+	stopLossSet := map[stopLossConfig]struct{}{}
 	rsiDivergenceSet := map[rsiDivergenceConfig]struct{}{}
 	macdDivergenceSet := map[macdDivergenceConfig]struct{}{}
 	kdjDivergenceSet := map[kdjDivergenceConfig]struct{}{}
@@ -141,6 +160,11 @@ func parseIndicatorRequirements(script string) indicatorRequirements {
 			if ok {
 				williamsRSet[period] = struct{}{}
 			}
+		case "sl", "risk":
+			config, ok := parseStopLossConfig(parts)
+			if ok {
+				stopLossSet[config] = struct{}{}
+			}
 		case "divergence":
 			if len(parts) < 5 {
 				continue
@@ -192,6 +216,7 @@ func parseIndicatorRequirements(script string) indicatorRequirements {
 		atr:            sortedInts(atrSet),
 		cci:            sortedInts(cciSet),
 		williamsR:      sortedInts(williamsRSet),
+		stopLoss:       sortedStopLossConfigs(stopLossSet),
 		rsiDivergence:  sortedRSIDivergenceConfigs(rsiDivergenceSet),
 		macdDivergence: sortedMACDDivergenceConfigs(macdDivergenceSet),
 		kdjDivergence:  sortedKDJDivergenceConfigs(kdjDivergenceSet),
@@ -207,13 +232,19 @@ func (r indicatorRequirements) isEmpty() bool {
 		len(r.atr) == 0 &&
 		len(r.cci) == 0 &&
 		len(r.williamsR) == 0 &&
+		len(r.stopLoss) == 0 &&
 		len(r.rsiDivergence) == 0 &&
 		len(r.macdDivergence) == 0 &&
 		len(r.kdjDivergence) == 0
 }
 
-func maIndicatorKey(averageType string, period int) string {
-	return "ma:" + normalizeMovingAverageType(averageType) + ":" + strconv.Itoa(period)
+func maIndicatorKey(config movingAverageConfig) string {
+	base := "ma:" + normalizeMovingAverageType(config.averageType) + ":" + strconv.Itoa(config.period)
+	timeUnit := normalizeIndicatorTimeUnit(config.timeUnit)
+	if timeUnit == "" {
+		return base
+	}
+	return base + ":" + timeUnit
 }
 
 func legacyMAIndicatorKey(period int) string {
@@ -248,6 +279,19 @@ func williamsRIndicatorKey(period int) string {
 	return "williamsr:" + strconv.Itoa(period)
 }
 
+func stopLossIndicatorKey(config stopLossConfig) string {
+	timeUnit := normalizeIndicatorTimeUnit(config.timeUnit)
+	if timeUnit == "" {
+		timeUnit = "bar"
+	}
+	mode := normalizeStopLossMode(config.mode)
+	windowPolicy := normalizeStopLossWindowPolicy(config.windowPolicy)
+	if mode == "stopLoss" && windowPolicy == "continuous" {
+		return "sl:" + normalizeStopLossDirection(config.direction) + ":" + strconv.Itoa(config.timeValue) + ":" + timeUnit + ":" + strconv.FormatFloat(config.percentage, 'f', -1, 64)
+	}
+	return "risk:" + mode + ":" + normalizeStopLossDirection(config.direction) + ":" + strconv.Itoa(config.timeValue) + ":" + timeUnit + ":" + strconv.FormatFloat(config.percentage, 'f', -1, 64) + ":" + windowPolicy
+}
+
 func rsiDivergenceIndicatorKey(period int, direction string, lookback int) string {
 	return "divergence:rsi:" + strconv.Itoa(period) + ":" + direction + ":" + strconv.Itoa(lookback)
 }
@@ -269,7 +313,36 @@ func sortedMovingAverageConfigs(values map[movingAverageConfig]struct{}) []movin
 		if result[left].period != result[right].period {
 			return result[left].period < result[right].period
 		}
-		return result[left].averageType < result[right].averageType
+		if result[left].averageType != result[right].averageType {
+			return result[left].averageType < result[right].averageType
+		}
+		return normalizeIndicatorTimeUnit(result[left].timeUnit) < normalizeIndicatorTimeUnit(result[right].timeUnit)
+	})
+	return result
+}
+
+func sortedStopLossConfigs(values map[stopLossConfig]struct{}) []stopLossConfig {
+	result := make([]stopLossConfig, 0, len(values))
+	for value := range values {
+		result = append(result, value)
+	}
+	sort.Slice(result, func(left, right int) bool {
+		if normalizeStopLossMode(result[left].mode) != normalizeStopLossMode(result[right].mode) {
+			return normalizeStopLossMode(result[left].mode) < normalizeStopLossMode(result[right].mode)
+		}
+		if result[left].timeValue != result[right].timeValue {
+			return result[left].timeValue < result[right].timeValue
+		}
+		if normalizeIndicatorTimeUnit(result[left].timeUnit) != normalizeIndicatorTimeUnit(result[right].timeUnit) {
+			return normalizeIndicatorTimeUnit(result[left].timeUnit) < normalizeIndicatorTimeUnit(result[right].timeUnit)
+		}
+		if result[left].percentage != result[right].percentage {
+			return result[left].percentage < result[right].percentage
+		}
+		if normalizeStopLossWindowPolicy(result[left].windowPolicy) != normalizeStopLossWindowPolicy(result[right].windowPolicy) {
+			return normalizeStopLossWindowPolicy(result[left].windowPolicy) < normalizeStopLossWindowPolicy(result[right].windowPolicy)
+		}
+		return normalizeStopLossDirection(result[left].direction) < normalizeStopLossDirection(result[right].direction)
 	})
 	return result
 }
@@ -407,7 +480,24 @@ func parseMovingAverageConfig(parts []string) (movingAverageConfig, bool) {
 		}
 		return movingAverageConfig{averageType: "MA", period: period}, true
 	}
-	if len(parts) != 3 {
+	if len(parts) == 3 {
+		if period, ok := parsePositiveInt(parts[1]); ok {
+			return movingAverageConfig{
+				averageType: "MA",
+				period:      period,
+				timeUnit:    normalizeIndicatorTimeUnit(parts[2]),
+			}, true
+		}
+		period, ok := parsePositiveInt(parts[2])
+		if !ok {
+			return movingAverageConfig{}, false
+		}
+		return movingAverageConfig{
+			averageType: normalizeMovingAverageType(parts[1]),
+			period:      period,
+		}, true
+	}
+	if len(parts) != 4 {
 		return movingAverageConfig{}, false
 	}
 	period, ok := parsePositiveInt(parts[2])
@@ -417,7 +507,88 @@ func parseMovingAverageConfig(parts []string) (movingAverageConfig, bool) {
 	return movingAverageConfig{
 		averageType: normalizeMovingAverageType(parts[1]),
 		period:      period,
+		timeUnit:    normalizeIndicatorTimeUnit(parts[3]),
 	}, true
+}
+
+func parseStopLossConfig(parts []string) (stopLossConfig, bool) {
+	switch firstNonEmpty(parts[0]) {
+	case "sl":
+		if len(parts) != 5 {
+			return stopLossConfig{}, false
+		}
+		timeValue, ok := parsePositiveInt(parts[2])
+		if !ok {
+			return stopLossConfig{}, false
+		}
+		percentage, err := strconv.ParseFloat(strings.TrimSpace(parts[4]), 64)
+		if err != nil || percentage <= 0 {
+			return stopLossConfig{}, false
+		}
+		return stopLossConfig{
+			mode:         "stopLoss",
+			direction:    normalizeStopLossDirection(parts[1]),
+			timeValue:    timeValue,
+			timeUnit:     normalizeIndicatorTimeUnit(parts[3]),
+			percentage:   percentage,
+			windowPolicy: "continuous",
+		}, true
+	case "risk":
+		if len(parts) != 7 {
+			return stopLossConfig{}, false
+		}
+		mode, ok := parseStopLossMode(parts[1])
+		if !ok {
+			return stopLossConfig{}, false
+		}
+		timeValue, ok := parsePositiveInt(parts[3])
+		if !ok {
+			return stopLossConfig{}, false
+		}
+		percentage, err := strconv.ParseFloat(strings.TrimSpace(parts[5]), 64)
+		if err != nil || percentage <= 0 {
+			return stopLossConfig{}, false
+		}
+		windowPolicy, ok := parseStopLossWindowPolicy(parts[6])
+		if !ok {
+			return stopLossConfig{}, false
+		}
+		return stopLossConfig{
+			mode:         mode,
+			direction:    normalizeStopLossDirection(parts[2]),
+			timeValue:    timeValue,
+			timeUnit:     normalizeIndicatorTimeUnit(parts[4]),
+			percentage:   percentage,
+			windowPolicy: windowPolicy,
+		}, true
+	default:
+		return stopLossConfig{}, false
+	}
+}
+
+func resolveBarCount(period int, timeUnit string, intervalMinutes int) int {
+	if period <= 0 {
+		return 0
+	}
+	if intervalMinutes <= 0 {
+		intervalMinutes = 1
+	}
+	switch normalizeIndicatorTimeUnit(timeUnit) {
+	case "":
+		return period
+	case "minute":
+		return max(1, int(math.Ceil(float64(period)/float64(intervalMinutes))))
+	case "hour":
+		return max(1, int(math.Ceil(float64(period*60)/float64(intervalMinutes))))
+	case "day":
+		return max(1, int(math.Ceil(float64(period*tradingSessionMinutesPerDay)/float64(intervalMinutes))))
+	case "week":
+		return max(1, int(math.Ceil(float64(period*tradingSessionMinutesPerWeek)/float64(intervalMinutes))))
+	case "month":
+		return max(1, int(math.Ceil(float64(period*tradingSessionMinutesPerMonth)/float64(intervalMinutes))))
+	default:
+		return period
+	}
 }
 
 func normalizeMovingAverageType(value string) string {
@@ -426,6 +597,72 @@ func normalizeMovingAverageType(value string) string {
 		return strings.ToUpper(strings.TrimSpace(value))
 	default:
 		return "MA"
+	}
+}
+
+func normalizeIndicatorTimeUnit(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "", "bar", "bars":
+		return ""
+	case "m", "min", "mins", "minute", "minutes":
+		return "minute"
+	case "h", "hr", "hrs", "hour", "hours":
+		return "hour"
+	case "d", "day", "days":
+		return "day"
+	case "w", "week", "weeks":
+		return "week"
+	case "mo", "mon", "month", "months":
+		return "month"
+	default:
+		return ""
+	}
+}
+
+func normalizeStopLossDirection(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "long":
+		return "long"
+	case "short":
+		return "short"
+	default:
+		return "auto"
+	}
+}
+
+func normalizeStopLossMode(value string) string {
+	switch strings.TrimSpace(value) {
+	case "takeProfit":
+		return "takeProfit"
+	case "trailingStop":
+		return "trailingStop"
+	default:
+		return "stopLoss"
+	}
+}
+
+func parseStopLossMode(value string) (string, bool) {
+	switch strings.TrimSpace(value) {
+	case "stopLoss", "takeProfit", "trailingStop":
+		return strings.TrimSpace(value), true
+	default:
+		return "", false
+	}
+}
+
+func normalizeStopLossWindowPolicy(value string) string {
+	if strings.EqualFold(strings.TrimSpace(value), "session") {
+		return "session"
+	}
+	return "continuous"
+}
+
+func parseStopLossWindowPolicy(value string) (string, bool) {
+	switch strings.TrimSpace(value) {
+	case "continuous", "session":
+		return strings.TrimSpace(value), true
+	default:
+		return "", false
 	}
 }
 
