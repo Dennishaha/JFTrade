@@ -353,7 +353,7 @@ function formatInitialMargin(value: number | null | undefined): string {
 }
 
 async function loadMaxTradeQuantity(): Promise<void> {
-  await loadBrokerMaxTradeQuantity({
+  const request = {
     brokerId: activeBrokerId.value,
     tradingEnvironment: activeTradingEnvironment.value,
     accountId: activeAccountId.value,
@@ -361,8 +361,9 @@ async function loadMaxTradeQuantity(): Promise<void> {
     symbol: `${activeMarket.value}.${prefs.value.symbol.trim()}`,
     orderType: orderType.value,
     price: maxTradeQuantityReferencePrice.value,
-    session: isUSMarket.value ? orderSession.value : undefined,
-  });
+    ...(isUSMarket.value ? { session: orderSession.value } : {}),
+  };
+  await loadBrokerMaxTradeQuantity(request);
 }
 
 async function submit(): Promise<void> {

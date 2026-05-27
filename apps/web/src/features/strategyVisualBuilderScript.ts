@@ -49,7 +49,7 @@ import {
   normalizeMessage,
   normalizeOrderSide,
   normalizeOrderType,
-  normalizeQuantityMode,
+  normalizeQuantityModeForSide,
   normalizeThreshold,
   orderSideForExchange,
   orderSideLabel,
@@ -246,9 +246,7 @@ export function buildStrategyScriptFromVisualModel(
         lines.push(`${indent(depth)}// Skipped cyclic block ${child.text}`);
         continue;
       }
-      const nextVisited = new Set(visited);
-      nextVisited.add(child.id);
-      lines.push(...renderNode(child, nextVisited, depth));
+      lines.push(`${indent(depth)}${buildFlowFunctionName(child.id)}();`);
     }
     return lines;
   };
@@ -265,18 +263,58 @@ export function buildStrategyScriptFromVisualModel(
         lines.push(`${indent(depth)}// Skipped cyclic block ${child.text}`);
         continue;
       }
-      const nextVisited = new Set(visited);
-      nextVisited.add(child.id);
-      lines.push(...renderNode(child, nextVisited, depth));
+      lines.push(`${indent(depth)}${buildFlowFunctionName(child.id)}();`);
     }
     return lines;
   };
 
-  const renderNode = (
+  const readFunctionDependencies = (
+    node: StrategyVisualNodeDocument,
+  ): StrategyVisualNodeDocument[] => {
+    const dependencies: StrategyVisualNodeDocument[] = [];
+    const pushUnique = (candidates: StrategyVisualNodeDocument[]) => {
+      for (const candidate of candidates) {
+        if (!dependencies.some((item) => item.id === candidate.id)) {
+          dependencies.push(candidate);
+        }
+      }
+    };
+
+    const kind = getStrategyBlockKind(node);
+    if (kind === "technicalIndicatorCondition") {
+      pushUnique(
+        incomingIndicatorInputs(node.id)
+          .map((input) => input.node),
+      );
+      pushUnique(outgoingBranchTargets(node.id, "true"));
+      pushUnique(outgoingBranchTargets(node.id, "false"));
+      return dependencies;
+    }
+
+    pushUnique(outgoingTargets(node.id));
+    return dependencies;
+  };
+
+  const renderedFunctionIds = new Set<string>();
+  const renderedFunctionNodes: StrategyVisualNodeDocument[] = [];
+
+  const renderNodeDefinition = (
     node: StrategyVisualNodeDocument,
     visited: Set<string>,
     depth: number,
   ): string[] => {
+    if (renderedFunctionIds.has(node.id)) {
+      return [];
+    }
+    renderedFunctionIds.add(node.id);
+    renderedFunctionNodes.push(node);
+
+    const dependencyLines = readFunctionDependencies(node).flatMap((dependency) => {
+      const nextVisited = new Set(visited);
+      nextVisited.add(dependency.id);
+      return renderNodeDefinition(dependency, nextVisited, depth);
+    });
+
     const kind = getStrategyBlockKind(node);
     const nodeProperties = node.properties ?? {};
     const withFlowAnnotation = (
@@ -293,57 +331,101 @@ export function buildStrategyScriptFromVisualModel(
           nodeProperties.message,
           "观察到新的策略事件",
         );
-        return withFlowAnnotation([
-          `${indent(depth)}console.log(${toConsoleLogArgument(message)});`,
-          ...renderChildren(node.id, visited, depth),
-        ]);
+        return [
+          ...dependencyLines,
+          ...withFlowAnnotation([
+            `${indent(depth)}const ${buildFlowFunctionName(node.id)} = () => {`,
+            `${indent(depth + 1)}console.log(${toConsoleLogArgument(message)});`,
+            ...renderChildren(node.id, visited, depth + 1),
+            `${indent(depth)}};`,
+          ]),
+          "",
+        ];
       }
       case "notify": {
         const message = normalizeMessage(
           nodeProperties.message,
           "策略条件命中，准备处理后续动作",
         );
-        return withFlowAnnotation([
-          `${indent(depth)}notify(${toScriptMessage(message)});`,
-          ...renderChildren(node.id, visited, depth),
-        ]);
+        return [
+          ...dependencyLines,
+          ...withFlowAnnotation([
+            `${indent(depth)}const ${buildFlowFunctionName(node.id)} = () => {`,
+            `${indent(depth + 1)}notify(${toScriptMessage(message)});`,
+            ...renderChildren(node.id, visited, depth + 1),
+            `${indent(depth)}};`,
+          ]),
+          "",
+        ];
       }
       case "placeOrder": {
-        return withFlowAnnotation([
-          ...renderPlaceOrderNode(nodeProperties, depth),
-          ...renderChildren(node.id, visited, depth),
-        ]);
+        return [
+          ...dependencyLines,
+          ...withFlowAnnotation([
+            `${indent(depth)}const ${buildFlowFunctionName(node.id)} = () => {`,
+            ...renderPlaceOrderNode(nodeProperties, depth + 1),
+            ...renderChildren(node.id, visited, depth + 1),
+            `${indent(depth)}};`,
+          ]),
+          "",
+        ];
       }
       case "stopLoss": {
-        return withFlowAnnotation([
-          ...renderStopLossNode(node.id, nodeProperties, depth),
-          ...renderChildren(node.id, visited, depth),
-        ]);
+        return [
+          ...dependencyLines,
+          ...withFlowAnnotation([
+            `${indent(depth)}const ${buildFlowFunctionName(node.id)} = () => {`,
+            ...renderStopLossNode(node.id, nodeProperties, depth + 1),
+            ...renderChildren(node.id, visited, depth + 1),
+            `${indent(depth)}};`,
+          ]),
+          "",
+        ];
       }
       case "codeBlock": {
         const code = normalizeCodeBlock(
           nodeProperties.code,
           'console.log("补充自定义逻辑");',
         );
-        const codeLines = indentCodeBlock(code, depth);
+        const codeLines = indentCodeBlock(code, depth + 1);
         if (codeLines.length === 0) {
-          return withFlowAnnotation(renderChildren(node.id, visited, depth));
+          return [
+            ...dependencyLines,
+            ...withFlowAnnotation([
+              `${indent(depth)}const ${buildFlowFunctionName(node.id)} = () => {`,
+              ...renderChildren(node.id, visited, depth + 1),
+              `${indent(depth)}};`,
+            ]),
+            "",
+          ];
         }
-        return withFlowAnnotation([
-          `${indent(depth)}// @jftradeCodeBlockBegin`,
-          ...codeLines,
-          `${indent(depth)}// @jftradeCodeBlockEnd`,
-          ...renderChildren(node.id, visited, depth),
-        ]);
+        return [
+          ...dependencyLines,
+          ...withFlowAnnotation([
+            `${indent(depth)}const ${buildFlowFunctionName(node.id)} = () => {`,
+            `${indent(depth + 1)}// @jftradeCodeBlockBegin`,
+            ...codeLines,
+            `${indent(depth + 1)}// @jftradeCodeBlockEnd`,
+            ...renderChildren(node.id, visited, depth + 1),
+            `${indent(depth)}};`,
+          ]),
+          "",
+        ];
       }
       case "getTechnicalIndicator": {
         const getterProperties = normalizeGetTechnicalIndicatorProperties(node.properties ?? {});
-        return withFlowAnnotation(
-          renderGetTechnicalIndicatorNode(node, visited, depth, renderChildren),
+        return [
+          ...dependencyLines,
+          ...withFlowAnnotation([
+            `${indent(depth)}const ${buildFlowFunctionName(node.id)} = () => {`,
+            ...renderGetTechnicalIndicatorNode(node, visited, depth + 1, renderChildren),
+            `${indent(depth)}};`,
+          ],
           getterProperties.variableName === undefined
             ? {}
-            : { variableName: getterProperties.variableName },
-        );
+            : { variableName: getterProperties.variableName }),
+          "",
+        ];
       }
       case "technicalIndicatorCondition": {
         const inputs = incomingIndicatorInputs(node.id);
@@ -360,42 +442,63 @@ export function buildStrategyScriptFromVisualModel(
         if (slowInputNodeId !== undefined) {
           flowInputTags.inputSlowNodeId = slowInputNodeId;
         }
-        return withFlowAnnotation(
-          renderTechnicalIndicatorConditionNode(
-            node,
-            visited,
-            depth,
-            renderBranchChildren,
-            () => inputs,
-            (inputNodeId) => !controlReachableNodeIds.has(inputNodeId),
-          ),
-          flowInputTags,
-        );
+        return [
+          ...dependencyLines,
+          ...withFlowAnnotation([
+            `${indent(depth)}const ${buildFlowFunctionName(node.id)} = () => {`,
+            ...renderTechnicalIndicatorConditionNode(
+              node,
+              visited,
+              depth + 1,
+              renderBranchChildren,
+              () => inputs,
+              (inputNodeId) => !controlReachableNodeIds.has(inputNodeId),
+            ),
+            `${indent(depth)}};`,
+          ],
+          flowInputTags),
+          "",
+        ];
       }
       case "technicalIndicator": {
-        return withFlowAnnotation(
-          renderTechnicalIndicatorNode(node, visited, depth, renderChildren),
-        );
+        return [
+          ...dependencyLines,
+          ...withFlowAnnotation([
+            `${indent(depth)}const ${buildFlowFunctionName(node.id)} = () => {`,
+            ...renderTechnicalIndicatorNode(node, visited, depth + 1, renderChildren),
+            `${indent(depth)}};`,
+          ]),
+          "",
+        ];
       }
       case "ifCloseAbove":
       case "ifCloseBelow": {
         const threshold = normalizeThreshold(nodeProperties.threshold, 500);
         const operator = kind === "ifCloseAbove" ? ">" : "<";
-        const body = renderChildren(node.id, visited, depth + 1);
-        return withFlowAnnotation([
-          `${indent(depth)}if (ctx.kline.close ${operator} ${threshold}) {`,
-          ...(body.length > 0
-            ? body
-            : [`${indent(depth + 1)}// Add action blocks after this condition.`]),
-          `${indent(depth)}}`,
-        ]);
+        const body = renderChildren(node.id, visited, depth + 2);
+        return [
+          ...dependencyLines,
+          ...withFlowAnnotation([
+            `${indent(depth)}const ${buildFlowFunctionName(node.id)} = () => {`,
+            `${indent(depth + 1)}if (ctx.kline.close ${operator} ${threshold}) {`,
+            ...(body.length > 0
+              ? body
+              : [`${indent(depth + 2)}// Add action blocks after this condition.`]),
+            `${indent(depth + 1)}}`,
+            `${indent(depth)}};`,
+          ]),
+          "",
+        ];
       }
       default:
-        return renderChildren(node.id, visited, depth);
+        return dependencyLines;
     }
   };
 
   const renderHook = (kind: StrategyBlockKind, hookName: string): string[] => {
+    renderedFunctionIds.clear();
+    renderedFunctionNodes.length = 0;
+
     const rootNodes = sortNodeIds(
       normalizedModel.nodes
         .filter((node) => getStrategyBlockKind(node) === kind)
@@ -406,6 +509,19 @@ export function buildStrategyScriptFromVisualModel(
         (node): node is StrategyVisualNodeDocument => node !== undefined,
       );
 
+    const rootEntryNodes = rootNodes.flatMap((node) => outgoingTargets(node.id));
+    const functionDefinitionLines = rootEntryNodes.flatMap((node) =>
+      renderNodeDefinition(node, new Set([node.id]), 1),
+    );
+    const sharedIndicatorStateLines = renderedFunctionNodes
+      .filter((node) => getStrategyBlockKind(node) === "getTechnicalIndicator")
+      .flatMap((node) =>
+        buildGetTechnicalIndicatorStateDeclarationLines(
+          node.id,
+          normalizeGetTechnicalIndicatorProperties(node.properties ?? {}),
+          1,
+        ),
+      );
     const bodyLines = rootNodes.flatMap((node) =>
       renderChildren(node.id, new Set([node.id]), 1),
     );
@@ -419,7 +535,11 @@ export function buildStrategyScriptFromVisualModel(
       `/** @param {${hookContextType}} ctx */`,
       `function ${hookName}(ctx) {`,
       ...hookPrelude,
-      ...(hookPrelude.length > 0 && bodyLines.length > 0 ? [""] : []),
+      ...(hookPrelude.length > 0 && (sharedIndicatorStateLines.length > 0 || functionDefinitionLines.length > 0 || bodyLines.length > 0) ? [""] : []),
+      ...sharedIndicatorStateLines,
+      ...(sharedIndicatorStateLines.length > 0 && (functionDefinitionLines.length > 0 || bodyLines.length > 0) ? [""] : []),
+      ...functionDefinitionLines,
+      ...(functionDefinitionLines.length > 0 && bodyLines.length > 0 ? [""] : []),
       ...(bodyLines.length > 0
         ? bodyLines
         : [`${indent(1)}// Add visual blocks for this lifecycle hook.`]),
@@ -441,7 +561,22 @@ export function buildStrategyScriptFromVisualModel(
     .filter(
       (node): node is StrategyVisualNodeDocument => node !== undefined,
     )
-    .flatMap((node) => renderNode(node, new Set([node.id]), 0));
+    .flatMap((node) => {
+      const code = normalizeCodeBlock(
+        node.properties.code,
+        'console.log("补充自定义逻辑");',
+      );
+      const codeLines = indentCodeBlock(code, 0);
+      if (codeLines.length === 0) {
+        return [];
+      }
+      return [
+        ...buildStrategyFlowNodeJsDoc(node, 0),
+        `// @jftradeCodeBlockBegin`,
+        ...codeLines,
+        `// @jftradeCodeBlockEnd`,
+      ];
+    });
 
   return [
     `// Generated by the Logic Flow visual builder for ${context.name || context.symbol || "QuickJS Strategy"}.`,
@@ -473,8 +608,9 @@ function renderGetTechnicalIndicatorNode(
 ): string[] {
   const properties = normalizeGetTechnicalIndicatorProperties(node.properties ?? {});
   return [
-    ...buildGetTechnicalIndicatorSetupLines(node.id, properties, depth),
+    ...buildGetTechnicalIndicatorSetupLines(node.id, properties, depth, true),
     ...renderChildren(node.id, visited, depth),
+    `${indent(depth)}return true;`,
   ];
 }
 
@@ -482,8 +618,11 @@ function buildGetTechnicalIndicatorSetupLines(
   nodeId: string,
   properties: GetTechnicalIndicatorBlockProperties,
   depth: number,
+  assignToSharedState = false,
 ): string[] {
   const base = buildIndicatorGetterBaseIdentifier(nodeId);
+  const assign = (identifier: string, expression: string) =>
+    `${indent(depth)}${assignToSharedState ? `${identifier} = ${expression};` : `const ${identifier} = ${expression};`}`;
 
   switch (properties.indicatorType) {
     case "movingAverage": {
@@ -496,18 +635,18 @@ function buildGetTechnicalIndicatorSetupLines(
       const valueVar = `${base}_value`;
       const previousVar = `${base}_previous`;
       return [
-        `${indent(depth)}const ${snapshotVar} = ctx.indicators[${JSON.stringify(key)}] ?? null;`,
+        assign(snapshotVar, `ctx.indicators[${JSON.stringify(key)}] ?? null`),
         `${indent(depth)}if (${snapshotVar} === null) {`,
         `${indent(depth + 1)}console.log("waiting for indicator ${key}");`,
-        `${indent(depth + 1)}return;`,
+        `${indent(depth + 1)}return false;`,
         `${indent(depth)}}`,
-        `${indent(depth)}const ${valueVar} = ${snapshotVar}.value ?? null;`,
-        `${indent(depth)}const ${previousVar} = ${snapshotVar}.previous ?? null;`,
+        assign(valueVar, `${snapshotVar}.value ?? null`),
+        assign(previousVar, `${snapshotVar}.previous ?? null`),
       ];
     }
     case "rsi": {
       const key = buildRsiIndicatorKey(properties.period ?? 14);
-      return buildScalarIndicatorSetupLines(base, key, depth);
+      return buildScalarIndicatorSetupLines(base, key, depth, assignToSharedState);
     }
     case "macd": {
       const key = buildMacdIndicatorKey(
@@ -516,16 +655,16 @@ function buildGetTechnicalIndicatorSetupLines(
         properties.signalPeriod ?? 9,
       );
       return [
-        `${indent(depth)}const ${base} = ctx.indicators[${JSON.stringify(key)}] ?? null;`,
+        assign(base, `ctx.indicators[${JSON.stringify(key)}] ?? null`),
         `${indent(depth)}if (${base} === null) {`,
         `${indent(depth + 1)}console.log("waiting for indicator ${key}");`,
-        `${indent(depth + 1)}return;`,
+        `${indent(depth + 1)}return false;`,
         `${indent(depth)}}`,
-        `${indent(depth)}const ${base}_diff = ${base}.diff;`,
-        `${indent(depth)}const ${base}_signal = ${base}.signal;`,
-        `${indent(depth)}const ${base}_histogram = ${base}.histogram;`,
-        `${indent(depth)}const ${base}_previous_diff = ${base}.previousDiff ?? null;`,
-        `${indent(depth)}const ${base}_previous_signal = ${base}.previousSignal ?? null;`,
+        assign(`${base}_diff`, `${base}.diff`),
+        assign(`${base}_signal`, `${base}.signal`),
+        assign(`${base}_histogram`, `${base}.histogram`),
+        assign(`${base}_previous_diff`, `${base}.previousDiff ?? null`),
+        assign(`${base}_previous_signal`, `${base}.previousSignal ?? null`),
       ];
     }
     case "kdj": {
@@ -535,29 +674,29 @@ function buildGetTechnicalIndicatorSetupLines(
         properties.m2 ?? 3,
       );
       return [
-        `${indent(depth)}const ${base} = ctx.indicators[${JSON.stringify(key)}] ?? null;`,
+        assign(base, `ctx.indicators[${JSON.stringify(key)}] ?? null`),
         `${indent(depth)}if (${base} === null) {`,
         `${indent(depth + 1)}console.log("waiting for indicator ${key}");`,
-        `${indent(depth + 1)}return;`,
+        `${indent(depth + 1)}return false;`,
         `${indent(depth)}}`,
-        `${indent(depth)}const ${base}_k = ${base}.k;`,
-        `${indent(depth)}const ${base}_d = ${base}.d;`,
-        `${indent(depth)}const ${base}_j = ${base}.j;`,
-        `${indent(depth)}const ${base}_previous_k = ${base}.previousK ?? null;`,
-        `${indent(depth)}const ${base}_previous_d = ${base}.previousD ?? null;`,
+        assign(`${base}_k`, `${base}.k`),
+        assign(`${base}_d`, `${base}.d`),
+        assign(`${base}_j`, `${base}.j`),
+        assign(`${base}_previous_k`, `${base}.previousK ?? null`),
+        assign(`${base}_previous_d`, `${base}.previousD ?? null`),
       ];
     }
     case "atr": {
       const key = buildAtrIndicatorKey(properties.period ?? 14);
-      return buildScalarIndicatorSetupLines(base, key, depth);
+      return buildScalarIndicatorSetupLines(base, key, depth, assignToSharedState);
     }
     case "cci": {
       const key = buildCciIndicatorKey(properties.period ?? 20);
-      return buildScalarIndicatorSetupLines(base, key, depth);
+      return buildScalarIndicatorSetupLines(base, key, depth, assignToSharedState);
     }
     case "williamsR": {
       const key = buildWilliamsRIndicatorKey(properties.period ?? 14);
-      return buildScalarIndicatorSetupLines(base, key, depth);
+      return buildScalarIndicatorSetupLines(base, key, depth, assignToSharedState);
     }
     case "bollinger": {
       const key = buildBollingerIndicatorKey(
@@ -565,16 +704,67 @@ function buildGetTechnicalIndicatorSetupLines(
         properties.multiplier ?? 2,
       );
       return [
-        `${indent(depth)}const ${base} = ctx.indicators[${JSON.stringify(key)}] ?? null;`,
+        assign(base, `ctx.indicators[${JSON.stringify(key)}] ?? null`),
         `${indent(depth)}if (${base} === null) {`,
         `${indent(depth + 1)}console.log("waiting for indicator ${key}");`,
-        `${indent(depth + 1)}return;`,
+        `${indent(depth + 1)}return false;`,
         `${indent(depth)}}`,
-        `${indent(depth)}const ${base}_middle = ${base}.middle;`,
-        `${indent(depth)}const ${base}_upper = ${base}.upper;`,
-        `${indent(depth)}const ${base}_lower = ${base}.lower;`,
+        assign(`${base}_middle`, `${base}.middle`),
+        assign(`${base}_upper`, `${base}.upper`),
+        assign(`${base}_lower`, `${base}.lower`),
       ];
     }
+    default:
+      return [];
+  }
+}
+
+function buildGetTechnicalIndicatorStateDeclarationLines(
+  nodeId: string,
+  properties: GetTechnicalIndicatorBlockProperties,
+  depth: number,
+): string[] {
+  const base = buildIndicatorGetterBaseIdentifier(nodeId);
+  switch (properties.indicatorType) {
+    case "movingAverage":
+      return [
+        `${indent(depth)}let ${base}_snapshot = null;`,
+        `${indent(depth)}let ${base}_value = null;`,
+        `${indent(depth)}let ${base}_previous = null;`,
+      ];
+    case "rsi":
+    case "atr":
+    case "cci":
+    case "williamsR":
+      return [
+        `${indent(depth)}let ${base}_snapshot = null;`,
+        `${indent(depth)}let ${base}_value = null;`,
+      ];
+    case "macd":
+      return [
+        `${indent(depth)}let ${base} = null;`,
+        `${indent(depth)}let ${base}_diff = null;`,
+        `${indent(depth)}let ${base}_signal = null;`,
+        `${indent(depth)}let ${base}_histogram = null;`,
+        `${indent(depth)}let ${base}_previous_diff = null;`,
+        `${indent(depth)}let ${base}_previous_signal = null;`,
+      ];
+    case "kdj":
+      return [
+        `${indent(depth)}let ${base} = null;`,
+        `${indent(depth)}let ${base}_k = null;`,
+        `${indent(depth)}let ${base}_d = null;`,
+        `${indent(depth)}let ${base}_j = null;`,
+        `${indent(depth)}let ${base}_previous_k = null;`,
+        `${indent(depth)}let ${base}_previous_d = null;`,
+      ];
+    case "bollinger":
+      return [
+        `${indent(depth)}let ${base} = null;`,
+        `${indent(depth)}let ${base}_middle = null;`,
+        `${indent(depth)}let ${base}_upper = null;`,
+        `${indent(depth)}let ${base}_lower = null;`,
+      ];
     default:
       return [];
   }
@@ -584,16 +774,17 @@ function buildScalarIndicatorSetupLines(
   variableName: string,
   indicatorKey: string,
   depth: number,
+  assignToSharedState = false,
 ): string[] {
   const snapshotVar = `${variableName}_snapshot`;
   const valueVar = `${variableName}_value`;
   return [
-    `${indent(depth)}const ${snapshotVar} = ctx.indicators[${JSON.stringify(indicatorKey)}] ?? null;`,
+    `${indent(depth)}${assignToSharedState ? `${snapshotVar} = ctx.indicators[${JSON.stringify(indicatorKey)}] ?? null;` : `const ${snapshotVar} = ctx.indicators[${JSON.stringify(indicatorKey)}] ?? null;`}`,
     `${indent(depth)}if (${snapshotVar} === null) {`,
     `${indent(depth + 1)}console.log("waiting for indicator ${indicatorKey}");`,
-    `${indent(depth + 1)}return;`,
+    `${indent(depth + 1)}return false;`,
     `${indent(depth)}}`,
-    `${indent(depth)}const ${valueVar} = ${snapshotVar};`,
+    `${indent(depth)}${assignToSharedState ? `${valueVar} = ${snapshotVar};` : `const ${valueVar} = ${snapshotVar};`}`,
   ];
 }
 
@@ -612,27 +803,29 @@ function renderTechnicalIndicatorConditionNode(
 ): string[] {
   const properties = normalizeTechnicalIndicatorConditionProperties(node.properties ?? {});
   const inputs = incomingIndicatorInputs(node.id);
-  const inlineSetupLines = inputs
+  const inlineGetterCalls = inputs
     .filter((input, index, allInputs) =>
       allInputs.findIndex((candidate) => candidate.node.id === input.node.id) === index,
     )
     .filter((input) => shouldInlineIndicatorSetup(input.node.id))
-    .flatMap((input) =>
-      buildGetTechnicalIndicatorSetupLines(input.node.id, input.properties, depth),
-    );
+    .flatMap((input) => [
+      `${indent(depth)}if (!${buildFlowFunctionName(input.node.id)}()) {`,
+      `${indent(depth + 1)}return;`,
+      `${indent(depth)}}`,
+    ]);
   const conditionExpression = buildTechnicalIndicatorConditionExpression(properties, inputs);
   const trueBody = renderBranchChildren(node.id, "true", visited, depth + 1);
   const falseBody = renderBranchChildren(node.id, "false", visited, depth + 1);
 
   if (conditionExpression === null) {
     return [
-      ...inlineSetupLines,
+      ...inlineGetterCalls,
       `${indent(depth)}// Missing indicator inputs for ${node.text || node.id}.`,
     ];
   }
 
   return [
-    ...inlineSetupLines,
+    ...inlineGetterCalls,
     `${indent(depth)}if (${conditionExpression}) {`,
     ...(trueBody.length > 0
       ? trueBody
@@ -748,6 +941,10 @@ function numericInputTargetExpression(
 
 function buildIndicatorGetterBaseIdentifier(nodeId: string): string {
   return `indicator_${sanitizeScriptIdentifier(nodeId)}`;
+}
+
+function buildFlowFunctionName(nodeId: string): string {
+  return `flow_${sanitizeScriptIdentifier(nodeId)}`;
 }
 
 function sanitizeScriptIdentifier(value: string): string {
@@ -1068,7 +1265,7 @@ function renderPlaceOrderNode(
   const exchangeSide = orderSideForExchange(visualSide);
   const sideLabel = orderSideLabel(visualSide);
   const orderType = normalizeOrderType(nodeProperties.orderType);
-  const quantityMode = normalizeQuantityMode(nodeProperties.quantityMode);
+  const quantityMode = normalizeQuantityModeForSide(nodeProperties.quantityMode, visualSide);
   const quantityValue = normalizeDecimal(nodeProperties.quantityValue, 100);
   const limitPrice = normalizeDecimal(nodeProperties.limitPrice, 0);
   const orderProps = [`side: "${exchangeSide}"`, `orderType: "${orderType}"`];
@@ -1157,6 +1354,30 @@ function renderPlaceOrderNode(
         `${indent(depth)}const orderQty = targetAmount > 0 ? Math.floor(targetAmount / orderPrice) : 0;`,
         `${indent(depth)}if (orderQty <= 0) {`,
         `${indent(depth + 1)}console.log("现金百分比计算所得数量为 0（可用资金 " + availableCash + " × ${quantityValue}% ÷ 价格 " + orderPrice + "），请调整百分比或确认账户资金充足");`,
+        `${indent(depth + 1)}return;`,
+        `${indent(depth)}}`,
+      );
+      break;
+    case "marginBuyingPowerPercent":
+      lines.push(
+        `${indent(depth)}const orderPrice = ${orderPriceExpression};`,
+        `${indent(depth)}const marginBuyingPower = getMarginBuyingPower();`,
+        `${indent(depth)}const targetAmount = marginBuyingPower * ${quantityValue} / 100;`,
+        `${indent(depth)}const orderQty = targetAmount > 0 ? Math.floor(targetAmount / orderPrice) : 0;`,
+        `${indent(depth)}if (orderQty <= 0) {`,
+        `${indent(depth + 1)}console.log("融资可用百分比计算所得数量为 0（融资可用 " + marginBuyingPower + " × ${quantityValue}% ÷ 价格 " + orderPrice + "），请调整百分比或确认保证金账户购买力可用");`,
+        `${indent(depth + 1)}return;`,
+        `${indent(depth)}}`,
+      );
+      break;
+    case "shortSellingPowerPercent":
+      lines.push(
+        `${indent(depth)}const orderPrice = ${orderPriceExpression};`,
+        `${indent(depth)}const shortSellingPower = getShortSellingPower();`,
+        `${indent(depth)}const targetAmount = shortSellingPower * ${quantityValue} / 100;`,
+        `${indent(depth)}const orderQty = targetAmount > 0 ? Math.floor(targetAmount / orderPrice) : 0;`,
+        `${indent(depth)}if (orderQty <= 0) {`,
+        `${indent(depth + 1)}console.log("融券可用百分比计算所得数量为 0（融券可用 " + shortSellingPower + " × ${quantityValue}% ÷ 价格 " + orderPrice + "），请调整百分比或确认保证金账户融券能力可用");`,
         `${indent(depth + 1)}return;`,
         `${indent(depth)}}`,
       );

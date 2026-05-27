@@ -108,6 +108,42 @@ describe("strategyVisualBuilderNodePresentation", () => {
     });
   });
 
+  it("builds a place-order summary for margin buying power sizing", () => {
+    const summary = buildStrategyVisualNodeSummary({
+      text: "下单 · 买入开多 · 15% 融资可用",
+      properties: {
+        blockKind: "placeOrder",
+        side: "BUY",
+        orderType: "MARKET",
+        quantityMode: "marginBuyingPowerPercent",
+        quantityValue: 15,
+      },
+    });
+
+    expect(summary.details).toContainEqual({
+      label: "数量",
+      value: "15% 融资可用",
+    });
+  });
+
+  it("builds a place-order summary for short selling power sizing", () => {
+    const summary = buildStrategyVisualNodeSummary({
+      text: "下单 · 卖出开空 · 20% 融券可用",
+      properties: {
+        blockKind: "placeOrder",
+        side: "SELL_SHORT",
+        orderType: "MARKET",
+        quantityMode: "shortSellingPowerPercent",
+        quantityValue: 20,
+      },
+    });
+
+    expect(summary.details).toContainEqual({
+      label: "数量",
+      value: "20% 融券可用",
+    });
+  });
+
   it("builds a stop-loss summary with direction and time window", () => {
     const summary = buildStrategyVisualNodeSummary({
       properties: {

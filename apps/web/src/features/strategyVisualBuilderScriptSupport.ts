@@ -265,7 +265,14 @@ export function entryPositionPolicyLabel(value: EntryPositionPolicy): string {
   }
 }
 
-export type QuantityMode = "shares" | "amount" | "accountPositionPercent" | "symbolPositionPercent" | "cashPercent";
+export type QuantityMode =
+  | "shares"
+  | "amount"
+  | "accountPositionPercent"
+  | "symbolPositionPercent"
+  | "cashPercent"
+  | "marginBuyingPowerPercent"
+  | "shortSellingPowerPercent";
 
 export function normalizeQuantityMode(value: unknown): QuantityMode {
   if (
@@ -274,9 +281,42 @@ export function normalizeQuantityMode(value: unknown): QuantityMode {
     value === "accountPositionPercent" ||
     value === "positionPercent" ||
     value === "symbolPositionPercent" ||
-    value === "cashPercent"
+		value === "cashPercent" ||
+		value === "marginBuyingPowerPercent" ||
+		value === "shortSellingPowerPercent"
   ) {
     return value === "positionPercent" ? "symbolPositionPercent" : value;
+  }
+  return "shares";
+}
+
+export function isQuantityModeAllowedForSide(
+  quantityMode: QuantityMode,
+  visualSide: VisualOrderSide,
+): boolean {
+  switch (quantityMode) {
+    case "marginBuyingPowerPercent":
+      return visualSide === "BUY";
+    case "shortSellingPowerPercent":
+      return visualSide === "SELL_SHORT";
+    default:
+      return true;
+  }
+}
+
+export function normalizeQuantityModeForSide(
+  value: unknown,
+  visualSide: VisualOrderSide,
+): QuantityMode {
+  const quantityMode = normalizeQuantityMode(value);
+  if (isQuantityModeAllowedForSide(quantityMode, visualSide)) {
+    return quantityMode;
+  }
+  if (visualSide === "BUY" && quantityMode === "shortSellingPowerPercent") {
+    return "marginBuyingPowerPercent";
+  }
+  if (visualSide === "SELL_SHORT" && quantityMode === "marginBuyingPowerPercent") {
+    return "shortSellingPowerPercent";
   }
   return "shares";
 }

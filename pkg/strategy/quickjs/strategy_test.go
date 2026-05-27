@@ -9,6 +9,8 @@ import (
 	bbgo2 "github.com/c9s/bbgo/pkg/bbgo"
 	"github.com/c9s/bbgo/pkg/fixedpoint"
 	"github.com/c9s/bbgo/pkg/types"
+	trdcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdcommon"
+	"google.golang.org/protobuf/proto"
 	qjs "modernc.org/quickjs"
 )
 
@@ -226,6 +228,48 @@ func TestRuntimeBridgeGetTotalAccountValuePrefersNormalizedValue(t *testing.T) {
 
 	if total := bridge.getTotalAccountValue(); total != 88000 {
 		t.Fatalf("getTotalAccountValue() = %v", total)
+	}
+}
+
+func TestRuntimeBridgeRegistersMarginBuyingPowerHelpers(t *testing.T) {
+	account := types.NewAccount()
+	account.RawAccount = &trdcommonpb.Funds{
+		Power:         proto.Float64(25000),
+		MaxPowerShort: proto.Float64(18000),
+	}
+
+	bridge, err := newRuntimeBridge(context.Background(), &Strategy{
+		Name:   "quickjs-margin-power-test",
+		Symbol: "BTCUSDT",
+		Script: "function onInit(ctx) { console.log(ctx.symbol); }",
+	}, nil, &bbgo2.ExchangeSession{Account: account})
+	if err != nil {
+		t.Fatalf("newRuntimeBridge() error = %v", err)
+	}
+	defer bridge.close()
+
+	result, err := bridge.vm.Eval(`JSON.stringify([getMarginBuyingPower(), getShortSellingPower()])`, qjs.EvalGlobal)
+	if err != nil {
+		t.Fatalf("margin helpers eval error = %v", err)
+	}
+
+	text, ok := result.(string)
+	if !ok {
+		t.Fatalf("margin helpers returned %T", result)
+	}
+	if text != `[25000,18000]` {
+		t.Fatalf("margin helpers = %s", text)
+	}
+}
+
+func TestRuntimeBridgeMarginBuyingPowerReturnsZeroWithoutBrokerFunds(t *testing.T) {
+	bridge := &runtimeBridge{session: &bbgo2.ExchangeSession{Account: types.NewAccount()}}
+
+	if got := bridge.getMarginBuyingPower(); got != 0 {
+		t.Fatalf("getMarginBuyingPower() = %v", got)
+	}
+	if got := bridge.getShortSellingPower(); got != 0 {
+		t.Fatalf("getShortSellingPower() = %v", got)
 	}
 }
 

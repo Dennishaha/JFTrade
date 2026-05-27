@@ -37,8 +37,9 @@ describe("strategyVisualBuilderScript", () => {
 
     expect(script).toContain("@jftradeFlowBlockKind getTechnicalIndicator");
     expect(script).toContain("@jftradeFlowBlockKind technicalIndicatorCondition");
-    expect(script).toContain('const indicator_rsi_getter_snapshot = ctx.indicators["rsi:14"] ?? null;');
-    expect(script).toContain('const indicator_rsi_getter_value = indicator_rsi_getter_snapshot;');
+    expect(script).toContain("const flow_rsi_getter = () => {");
+    expect(script).toContain('indicator_rsi_getter_snapshot = ctx.indicators["rsi:14"] ?? null;');
+    expect(script).toContain('indicator_rsi_getter_value = indicator_rsi_getter_snapshot;');
     expect(script).toContain("if (Number.isFinite(indicator_rsi_getter_value) && indicator_rsi_getter_value < 30) {");
     expect(script).toContain("} else {");
     expect(script).toContain('console.log("RSI not oversold");');
@@ -74,8 +75,9 @@ describe("strategyVisualBuilderScript", () => {
       interval: "5m",
     });
 
-    expect(script).toContain('const indicator_fast_ma_snapshot = ctx.indicators["ma:MA:5"] ?? null;');
-    expect(script).toContain('const indicator_slow_ma_snapshot = ctx.indicators["ma:MA:20"] ?? null;');
+    expect(script).toContain("const flow_fast_ma = () => {");
+    expect(script).toContain('indicator_fast_ma_snapshot = ctx.indicators["ma:MA:5"] ?? null;');
+    expect(script).toContain('indicator_slow_ma_snapshot = ctx.indicators["ma:MA:20"] ?? null;');
     expect(script).toContain("indicator_fast_ma_previous <= indicator_slow_ma_previous");
     expect(script).toContain("indicator_fast_ma_value > indicator_slow_ma_value");
     expect(script).toContain('console.log("均线未金叉");');
@@ -131,8 +133,9 @@ describe("strategyVisualBuilderScript", () => {
       interval: "1m",
     });
 
-    expect(script).toContain('const indicator_rsi_var_snapshot = ctx.indicators["rsi:14"] ?? null;');
-    expect(script).toContain('const indicator_rsi_var_value = indicator_rsi_var_snapshot;');
+    expect(script).toContain("const flow_rsi_var = () => {");
+    expect(script).toContain('indicator_rsi_var_snapshot = ctx.indicators["rsi:14"] ?? null;');
+    expect(script).toContain('indicator_rsi_var_value = indicator_rsi_var_snapshot;');
     expect(script).toContain("if (Number.isFinite(indicator_rsi_var_value) && indicator_rsi_var_value < 30) {");
   });
 
@@ -233,6 +236,35 @@ describe("strategyVisualBuilderScript", () => {
     expect(script).toContain("账户仓位百分比计算所得数量为 0（账户总资产 ");
   });
 
+  it("renders margin buying power and short selling power sizing for margin accounts", () => {
+    const visualModel: StrategyVisualModelDocument = {
+      engine: "logic-flow",
+      version: 1,
+      nodes: [
+        { id: "on-kline-root", type: "circle", x: 180, y: 120, text: "K 线收盘", properties: { blockKind: "onKLineClosed" } },
+        { id: "buy-node", type: "rect", x: 420, y: 120, text: "下单", properties: { blockKind: "placeOrder", side: "BUY", orderType: "MARKET", quantityMode: "marginBuyingPowerPercent", quantityValue: 15 } },
+        { id: "short-node", type: "rect", x: 700, y: 120, text: "下单", properties: { blockKind: "placeOrder", side: "SELL_SHORT", orderType: "MARKET", quantityMode: "shortSellingPowerPercent", quantityValue: 20 } },
+      ],
+      edges: [
+        { id: "edge-root-buy", type: "polyline", sourceNodeId: "on-kline-root", targetNodeId: "buy-node", properties: buildStrategyVisualControlEdgeProperties() },
+        { id: "edge-buy-short", type: "polyline", sourceNodeId: "buy-node", targetNodeId: "short-node", properties: buildStrategyVisualControlEdgeProperties() },
+      ],
+    };
+
+    const script = buildStrategyScriptFromVisualModel(visualModel, {
+      name: "margin-account-sizing",
+      symbol: "00700",
+      interval: "5m",
+    });
+
+    expect(script).toContain("const marginBuyingPower = getMarginBuyingPower();");
+    expect(script).toContain("const targetAmount = marginBuyingPower * 15 / 100;");
+    expect(script).toContain("融资可用百分比计算所得数量为 0");
+    expect(script).toContain("const shortSellingPower = getShortSellingPower();");
+    expect(script).toContain("const targetAmount = shortSellingPower * 20 / 100;");
+    expect(script).toContain("融券可用百分比计算所得数量为 0");
+  });
+
   it("renders time-unit moving averages and stop-loss snapshots from Go-computed keys", () => {
     const visualModel: StrategyVisualModelDocument = {
       engine: "logic-flow",
@@ -254,7 +286,8 @@ describe("strategyVisualBuilderScript", () => {
       interval: "5m",
     });
 
-    expect(script).toContain('const indicator_day_ma_snapshot = ctx.indicators["ma:EMA:5:day"] ?? null;');
+    expect(script).toContain("const flow_day_ma = () => {");
+    expect(script).toContain('indicator_day_ma_snapshot = ctx.indicators["ma:EMA:5:day"] ?? null;');
     expect(script).toContain('const risk_stop_loss_snapshot = ctx.indicators["sl:auto:1:day:2"] ?? null;');
     expect(script).toContain('placeOrder({ side: "SELL", orderType: "MARKET", quantity: risk_stop_loss_qty });');
     expect(script).toContain('placeOrder({ side: "BUY", orderType: "MARKET", quantity: risk_stop_loss_qty });');

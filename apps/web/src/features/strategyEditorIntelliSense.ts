@@ -200,6 +200,8 @@ declare function getRiskState(): JFTradeRiskSnapshot;
 declare function isOperationBlocked(operation: JFTradeRiskOperation): boolean;
 declare function getAvailableCash(): number;
 declare function getTotalAccountValue(): number;
+declare function getMarginBuyingPower(): number;
+declare function getShortSellingPower(): number;
 `,
   },
 ];
@@ -346,6 +348,24 @@ export const strategyEditorCompletions: MonacoCompletionDefinition[] = [
     insertTextRule: "snippet",
     sortText: "12",
     insertText: "getTotalAccountValue()",
+  },
+  {
+    label: "getMarginBuyingPower",
+    detail: "QuickJS host API",
+    documentation: `${runtimeHostNotice} 查询账户级融资可用 buying power，仅保证金/信用账户返回有效值。`,
+    kind: "function",
+    insertTextRule: "snippet",
+    sortText: "12a",
+    insertText: "getMarginBuyingPower()",
+  },
+  {
+    label: "getShortSellingPower",
+    detail: "QuickJS host API",
+    documentation: `${runtimeHostNotice} 查询账户级融券/卖空可用额度，仅保证金/信用账户返回有效值。`,
+    kind: "function",
+    insertTextRule: "snippet",
+    sortText: "12b",
+    insertText: "getShortSellingPower()",
   },
   {
     label: "JFTradePlaceOrderRequest",
@@ -520,6 +540,16 @@ const runtimeHostHoverItems: MonacoHoverDefinition[] = [
     target: "getTotalAccountValue",
     signature: "function getTotalAccountValue(): number",
     documentation: `${runtimeHostNotice} 返回账户总资产，优先使用 runtime 已归一化的 TotalAccountValue。`,
+  },
+  {
+    target: "getMarginBuyingPower",
+    signature: "function getMarginBuyingPower(): number",
+    documentation: `${runtimeHostNotice} 返回账户级融资可用 buying power；当 runtime 没有 live broker funds snapshot 时会返回 0。`,
+  },
+  {
+    target: "getShortSellingPower",
+    signature: "function getShortSellingPower(): number",
+    documentation: `${runtimeHostNotice} 返回账户级融券/卖空可用额度；当 runtime 没有 live broker funds snapshot 时会返回 0。`,
   },
   {
     target: "JFTradePlaceOrderRequest",

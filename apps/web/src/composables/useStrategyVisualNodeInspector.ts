@@ -34,7 +34,7 @@ import {
 import {
   normalizeEntryPositionPolicy,
   normalizeOrderSide,
-  normalizeQuantityMode,
+  normalizeQuantityModeForSide,
 } from "../features/strategyVisualBuilderScriptSupport";
 
 interface UseStrategyVisualNodeInspectorOptions {
@@ -699,11 +699,16 @@ export function useStrategyVisualNodeInspector(
   const selectedPlaceOrderSide = computed({
     get: () => readString(selectedVisualNode.value?.properties.side, "BUY"),
     set: (value: string) => {
+      const normalizedSide = normalizeOrderSide(value);
       mutateSelectedVisualNode((node) => ({
         ...node,
         properties: {
           ...node.properties,
-          side: value,
+          side: normalizedSide,
+          quantityMode: normalizeQuantityModeForSide(
+            node.properties.quantityMode,
+            normalizedSide,
+          ),
         },
       }));
     },
@@ -736,13 +741,19 @@ export function useStrategyVisualNodeInspector(
   });
 
   const selectedPlaceOrderQuantityMode = computed({
-    get: () => normalizeQuantityMode(selectedVisualNode.value?.properties.quantityMode),
+    get: () => normalizeQuantityModeForSide(
+      selectedVisualNode.value?.properties.quantityMode,
+      normalizeOrderSide(selectedVisualNode.value?.properties.side),
+    ),
     set: (value: string) => {
       mutateSelectedVisualNode((node) => ({
         ...node,
         properties: {
           ...node.properties,
-          quantityMode: normalizeQuantityMode(value),
+          quantityMode: normalizeQuantityModeForSide(
+            value,
+            normalizeOrderSide(node.properties.side),
+          ),
         },
       }));
     },

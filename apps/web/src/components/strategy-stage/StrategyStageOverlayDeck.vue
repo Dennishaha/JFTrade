@@ -20,6 +20,8 @@ import {
 } from "../../features/strategyVisualBuilderIndicatorBlock";
 import {
   entryPositionPolicyLabel,
+  isQuantityModeAllowedForSide,
+  normalizeOrderSide,
 } from "../../features/strategyVisualBuilderScriptSupport";
 import {
   STOP_LOSS_MODE_OPTIONS,
@@ -148,6 +150,18 @@ const placeOrderEntryPositionPolicyOptions = [
   { value: "flatOnly", label: entryPositionPolicyLabel("flatOnly") },
   { value: "allow", label: entryPositionPolicyLabel("allow") },
 ] as const;
+
+const normalizedSelectedPlaceOrderSide = computed(() =>
+  normalizeOrderSide(selectedPlaceOrderSide.value),
+);
+
+const canUseMarginBuyingPower = computed(() =>
+  isQuantityModeAllowedForSide("marginBuyingPowerPercent", normalizedSelectedPlaceOrderSide.value),
+);
+
+const canUseShortSellingPower = computed(() =>
+  isQuantityModeAllowedForSide("shortSellingPowerPercent", normalizedSelectedPlaceOrderSide.value),
+);
 
 const indicatorOptions = computed(() => (
   props.selectedVisualKind === "getTechnicalIndicator"
@@ -652,6 +666,7 @@ function toTemplateTypeLabel(mode: StrategyAuthoringTemplate["mode"]): string {
             <span class="font-medium">数量模式</span>
             <select
               v-model="selectedPlaceOrderQuantityMode"
+              data-testid="strategy-place-order-quantity-mode"
               class="rounded-2xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-amber-500"
             >
               <option value="shares">固定股票数</option>
@@ -659,6 +674,8 @@ function toTemplateTypeLabel(mode: StrategyAuthoringTemplate["mode"]): string {
               <option value="accountPositionPercent">账户仓位百分比</option>
               <option value="symbolPositionPercent">当前标的仓位百分比</option>
               <option value="cashPercent">可用现金百分比</option>
+              <option value="marginBuyingPowerPercent" :disabled="!canUseMarginBuyingPower">融资可用百分比（仅买入开多）</option>
+              <option value="shortSellingPowerPercent" :disabled="!canUseShortSellingPower">融券可用百分比（仅卖出开空）</option>
             </select>
           </label>
 
@@ -669,6 +686,8 @@ function toTemplateTypeLabel(mode: StrategyAuthoringTemplate["mode"]): string {
               <template v-else-if="selectedPlaceOrderQuantityMode === 'accountPositionPercent'">账户仓位百分比（%）</template>
               <template v-else-if="selectedPlaceOrderQuantityMode === 'symbolPositionPercent'">当前标的仓位百分比（%）</template>
               <template v-else-if="selectedPlaceOrderQuantityMode === 'cashPercent'">可用现金百分比（%）</template>
+              <template v-else-if="selectedPlaceOrderQuantityMode === 'marginBuyingPowerPercent'">融资可用百分比（%）</template>
+              <template v-else-if="selectedPlaceOrderQuantityMode === 'shortSellingPowerPercent'">融券可用百分比（%）</template>
             </span>
             <input
               v-model="selectedPlaceOrderQuantityValue"
@@ -689,6 +708,12 @@ function toTemplateTypeLabel(mode: StrategyAuthoringTemplate["mode"]): string {
               </template>
               <template v-else-if="selectedPlaceOrderQuantityMode === 'cashPercent'">
                 基于当前策略标的报价币种的可用资金计算目标股数
+              </template>
+              <template v-else-if="selectedPlaceOrderQuantityMode === 'marginBuyingPowerPercent'">
+                基于保证金账户融资可用额度计算买入开多目标股数，仅适用于买入开多
+              </template>
+              <template v-else-if="selectedPlaceOrderQuantityMode === 'shortSellingPowerPercent'">
+                基于保证金账户融券可用额度计算卖出开空目标股数，仅适用于卖出开空
               </template>
             </span>
           </label>

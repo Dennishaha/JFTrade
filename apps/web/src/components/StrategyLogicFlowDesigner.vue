@@ -73,6 +73,7 @@ const container = ref<HTMLElement | null>(null);
 const isFallbackMode = ref(false);
 const isPaletteExpanded = ref(false);
 const isVariablesExpanded = ref(false);
+const selectedEdgeId = ref<string | null>(null);
 const paletteSearchQuery = ref("");
 const selectedVariableId = ref("");
 const zoomPercent = ref(100);
@@ -197,6 +198,17 @@ let logicFlowPluginsInstalled = false;
 let lastGraphSignature = "";
 let isApplyingShortcutExpansion = false;
 
+const emitGraphChangeFromCanvasGraphData = (
+  graphData: ReturnType<typeof toStrategyCanvasGraphData>,
+) => {
+  const nextModel = fromStrategyCanvasGraphData(
+    graphData,
+    props.modelValue,
+  );
+  lastGraphSignature = JSON.stringify(toStrategyCanvasGraphData(nextModel));
+  emit("update:modelValue", nextModel);
+};
+
 const emitGraphChange = () => {
   if (logicFlowInstance === null) {
     return;
@@ -204,21 +216,29 @@ const emitGraphChange = () => {
   if (isApplyingShortcutExpansion) {
     return;
   }
-  const graphData = logicFlowInstance.getGraphData();
-  const nextModel = fromStrategyCanvasGraphData(
-    graphData as ReturnType<typeof toStrategyCanvasGraphData>,
-    props.modelValue,
+  emitGraphChangeFromCanvasGraphData(
+    logicFlowInstance.getGraphData() as ReturnType<typeof toStrategyCanvasGraphData>,
   );
-  lastGraphSignature = JSON.stringify(toStrategyCanvasGraphData(nextModel));
-  emit("update:modelValue", nextModel);
 };
 
 const handleNodeSelected = (payload: { data?: { id?: string } }) => {
+  selectedEdgeId.value = null;
   emit("select-node", payload.data?.id ?? null);
 };
 
 const handleBlankClicked = () => {
+  selectedEdgeId.value = null;
   emit("select-node", null);
+};
+
+const handleEdgeSelected = (payload: { data?: { id?: string } }) => {
+  const edgeId = payload.data?.id;
+  selectedEdgeId.value = typeof edgeId === "string" && edgeId !== "" ? edgeId : null;
+  emit("select-node", null);
+};
+
+const handleEdgeDeleted = () => {
+  selectedEdgeId.value = null;
 };
 
 const handleNodeDndAdd = (payload: {
@@ -560,6 +580,79 @@ const handlePanelPointerDown = (event: PointerEvent) => {
   queueResizeLogicFlowCanvas(true);
 };
 
+function currentCanvasGraphData(): ReturnType<typeof toStrategyCanvasGraphData> {
+  if (logicFlowInstance !== null) {
+    return logicFlowInstance.getGraphData() as ReturnType<typeof toStrategyCanvasGraphData>;
+  }
+  return toStrategyCanvasGraphData(props.modelValue);
+}
+
+function selectEdgeById(edgeId: string | null): void {
+  if (edgeId === null) {
+    selectedEdgeId.value = null;
+    return;
+  }
+
+  const edgeExists = (currentCanvasGraphData().edges ?? []).some(
+    (edge) => edge.id === edgeId,
+  );
+  if (!edgeExists) {
+    return;
+  }
+
+  selectedEdgeId.value = edgeId;
+  emit("select-node", null);
+}
+
+function deleteSelectedEdge(): void {
+  const edgeId = selectedEdgeId.value;
+  if (edgeId === null) {
+    return;
+  }
+
+  selectedEdgeId.value = null;
+
+  if (logicFlowInstance !== null) {
+    logicFlowInstance.deleteEdge(edgeId);
+    return;
+  }
+
+  const graphData = currentCanvasGraphData();
+  emitGraphChangeFromCanvasGraphData({
+    ...graphData,
+    edges: (graphData.edges ?? []).filter((edge) => edge.id !== edgeId),
+  });
+}
+
+function shouldIgnoreDeleteShortcut(event: KeyboardEvent): boolean {
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  if (target.isContentEditable) {
+    return true;
+  }
+
+  const tagName = target.tagName.toLowerCase();
+  return tagName === "input" || tagName === "textarea" || tagName === "select";
+}
+
+const handleWindowKeyDown = (event: KeyboardEvent) => {
+  if (selectedEdgeId.value === null) {
+    return;
+  }
+  if (event.key !== "Delete" && event.key !== "Backspace") {
+    return;
+  }
+  if (shouldIgnoreDeleteShortcut(event)) {
+    return;
+  }
+
+  event.preventDefault();
+  deleteSelectedEdge();
+};
+
 const stopPointerResizeTracking = () => {
   if (!isPointerResizeTracking) {
     return;
@@ -605,6 +698,23 @@ watch(theme, () => {
 });
 
 watch(
+  () => props.modelValue,
+  (modelValue) => {
+    if (selectedEdgeId.value === null) {
+      return;
+    }
+
+    const edgeExists = (toStrategyCanvasGraphData(modelValue).edges ?? []).some(
+      (edge) => edge.id === selectedEdgeId.value,
+    );
+    if (!edgeExists) {
+      selectedEdgeId.value = null;
+    }
+  },
+  { deep: true },
+);
+
+watch(
   normalizedFitViewPadding,
   () => {
     queueResizeLogicFlowCanvas(true);
@@ -617,6 +727,7 @@ onMounted(async () => {
   if (typeof window !== "undefined") {
     window.addEventListener("pointerup", stopPointerResizeTracking);
     window.addEventListener("pointercancel", stopPointerResizeTracking);
+    window.addEventListener("keydown", handleWindowKeyDown);
   }
 
   if (container.value === null) {
@@ -694,6 +805,8 @@ onMounted(async () => {
   }
 
   nextLogicFlowInstance.on("node:click", handleNodeSelected);
+  nextLogicFlowInstance.on("edge:click", handleEdgeSelected);
+  nextLogicFlowInstance.on("edge:delete", handleEdgeDeleted);
   nextLogicFlowInstance.on("blank:click", handleBlankClicked);
 
   if (typeof ResizeObserver !== "undefined") {
@@ -713,6 +826,7 @@ onBeforeUnmount(() => {
   if (typeof window !== "undefined") {
     window.removeEventListener("pointerup", stopPointerResizeTracking);
     window.removeEventListener("pointercancel", stopPointerResizeTracking);
+    window.removeEventListener("keydown", handleWindowKeyDown);
   }
   if (resizeAnimationFrameId !== 0 && typeof cancelAnimationFrame !== "undefined") {
     cancelAnimationFrame(resizeAnimationFrameId);
@@ -733,6 +847,8 @@ onBeforeUnmount(() => {
     logicFlowInstance.off?.(eventName, emitGraphChange);
   }
   logicFlowInstance.off?.("node:click", handleNodeSelected);
+  logicFlowInstance.off?.("edge:click", handleEdgeSelected);
+  logicFlowInstance.off?.("edge:delete", handleEdgeDeleted);
   logicFlowInstance.off?.("blank:click", handleBlankClicked);
   logicFlowInstance.destroy?.();
   logicFlowInstance = null;
@@ -760,6 +876,8 @@ function selectNodeById(nodeId: string | null): void {
 
 defineExpose({
   selectNodeById,
+  selectEdgeById,
+  deleteSelectedEdge,
 });
 </script>
 
@@ -784,11 +902,36 @@ defineExpose({
       </div>
     </div>
 
-    <div ref="container" data-testid="strategy-logic-flow-canvas"
-      class="strategy-logic-flow-canvas relative min-h-[260px] w-full flex-1" :class="{ 'mt-1': chrome }">
+    <div
+      class="strategy-logic-flow-canvas-shell relative min-h-[260px] w-full flex-1"
+      :class="{ 'mt-1': chrome }"
+    >
+      <div
+        ref="container"
+        data-testid="strategy-logic-flow-canvas"
+        class="strategy-logic-flow-canvas h-full w-full"
+      />
+
       <div v-if="isFallbackMode"
         class="strategy-logic-flow-fallback absolute inset-0 flex items-center justify-center px-6 text-center text-sm text-slate-500">
         测试环境已跳过流程图真实初始化，运行浏览器页面时会启用完整拖拽画布。
+      </div>
+
+      <div
+        v-if="selectedEdgeId !== null"
+        class="strategy-logic-flow-edge-menu"
+        data-testid="strategy-logic-flow-edge-menu"
+      >
+        <div class="strategy-logic-flow-edge-menu__label">已选中连线</div>
+        <div class="strategy-logic-flow-edge-menu__meta">可按 Delete / Backspace，或直接点按钮断开</div>
+        <button
+          class="strategy-logic-flow-edge-menu__action"
+          data-testid="strategy-logic-flow-edge-disconnect"
+          type="button"
+          @click="deleteSelectedEdge"
+        >
+          断开连接
+        </button>
       </div>
     </div>
 
@@ -899,6 +1042,54 @@ defineExpose({
 
 .strategy-logic-flow-canvas :deep(.lf-dndpanel) {
   display: none !important;
+}
+
+.strategy-logic-flow-edge-menu {
+  position: absolute;
+  top: 0.9rem;
+  right: 0.9rem;
+  z-index: 12;
+  display: flex;
+  min-width: 12rem;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid rgba(217, 119, 6, 0.24);
+  border-radius: 18px;
+  background: rgba(255, 251, 235, 0.96);
+  box-shadow: 0 20px 44px -34px rgba(15, 23, 42, 0.42);
+  backdrop-filter: blur(10px);
+}
+
+.strategy-logic-flow-edge-menu__label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #9a3412;
+}
+
+.strategy-logic-flow-edge-menu__meta {
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: #7c2d12;
+}
+
+.strategy-logic-flow-edge-menu__action {
+  border: 0;
+  border-radius: 999px;
+  background: #b45309;
+  color: #fff7ed;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1;
+  padding: 0.7rem 0.95rem;
+  transition: background 160ms ease;
+}
+
+.strategy-logic-flow-edge-menu__action:hover {
+  background: #92400e;
 }
 
 .strategy-logic-flow-canvas :deep(.strategy-lf-node) {

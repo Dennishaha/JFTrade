@@ -28,7 +28,7 @@ import {
 import {
   normalizeOrderSide,
   normalizeOrderType,
-  normalizeQuantityMode,
+  normalizeQuantityModeForSide,
   orderSideLabel,
 } from "./strategyVisualBuilderScriptSupport";
 
@@ -478,7 +478,7 @@ function buildPlaceOrderDetails(
 ): StrategyVisualNodeSummaryDetail[] {
   const side = normalizeOrderSide(properties.side);
   const orderType = normalizeOrderType(properties.orderType);
-  const quantityMode = normalizeQuantityMode(properties.quantityMode);
+  const quantityMode = normalizeQuantityModeForSide(properties.quantityMode, side);
   const quantityValue = readNumber(properties.quantityValue, 100);
   const limitPrice = readNumber(properties.limitPrice, 0);
 
@@ -614,7 +614,7 @@ function formatNumber(value: number): string {
 }
 
 function formatQuantity(
-  quantityMode: ReturnType<typeof normalizeQuantityMode>,
+  quantityMode: ReturnType<typeof normalizeQuantityModeForSide>,
   quantityValue: number,
 ): string {
   switch (quantityMode) {
@@ -626,6 +626,10 @@ function formatQuantity(
       return `${formatNumber(quantityValue)}% 当前标的仓位`;
     case "cashPercent":
       return `${formatNumber(quantityValue)}% 可用现金`;
+    case "marginBuyingPowerPercent":
+      return `${formatNumber(quantityValue)}% 融资可用`;
+    case "shortSellingPowerPercent":
+      return `${formatNumber(quantityValue)}% 融券可用`;
     case "shares":
     default:
       return `${formatNumber(quantityValue)} 股`;

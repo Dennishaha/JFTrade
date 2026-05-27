@@ -32,6 +32,8 @@
 - Logic Flow 组件在设计态使用无外壳模式铺满底层画布；独立组件默认仍保留原有卡片外壳，避免影响其它潜在用法
 - 为避免画布节点被顶部工具栏或底部 HUD 压住，设计态会给 Logic Flow 视口保留上下安全区，并在模型重绘后重新对齐视口
 - 选中任意流程图节点时，“图块详情”卡片会自动展开；点击画布空白处后，该卡片会随选中态一起隐藏
+- 选中流程图连线后，设计态现在支持两种断开方式：边上的“断开连接”操作和键盘 `Delete` / `Backspace`；断开时会按 visualModel 语义清理连线，而不是把相关节点一起删掉
+- 下单图块 Inspector 现在显式区分 `现金可用`、`融资可用`、`融券可用` 等数量来源；其中融资可用只允许开多方向，融券可用只允许卖空方向，切换 side 时会同步纠正非法的数量模式
 - Definitions、样板策略、基本信息、元信息和 QuickJS 代码工作台的面板标题现在统一为单层标题，不再拆成 kicker + title 两行
 
 设计态当前支持两种协作方式：
@@ -43,8 +45,9 @@
 当前约束必须明确：
 
 - 系统会持久化 `script` 和可选 `visualModel`
-- visual builder 生成 QuickJS 时，除 lifecycle/helper 的 JSDoc 外，还会给每个可视节点补一段 flow JSDoc，至少携带 `nodeId`、`blockKind`、`nodeText`，`codeBlock` 还会额外带 `codeScope`
+- visual builder 生成 QuickJS 时，除 lifecycle/helper 的 JSDoc 外，还会给每个可视节点补一段 flow JSDoc，至少携带 `nodeId`、`blockKind`、`nodeText`，`codeBlock` 还会额外带 `codeScope`；当前生成器会把每个 flow block 落成 hook 内独立的 `const flow_xxx = () => {}` 函数，再通过函数调用连接控制流
 - `script -> visualModel` 目前支持常见 QuickJS 策略骨架、内置模板生成的条件分支结构，以及简单 `console.log(expr)` 这类表达式日志；复杂控制流或无法稳定归一化的自定义表达式仍会降级成 `codeBlock`
+- 对函数化脚本的反解不再依赖块定义的文本先后顺序，而是优先读取 flow JSDoc 和函数调用图；只要手改代码后仍保留 flow 注解和可识别的根调用，解析器就能恢复连线关系
 - 加载已有定义时，如果只有代码没有 `visualModel`，页面会自动尝试反解流程图；如果定义已经保存了 `visualModel`，则优先保留已保存脚本，直到用户继续改图或改代码
 
 ## 关键职责分层
@@ -54,7 +57,7 @@
 - [../../apps/web/src/pages/StrategyPage.vue](../../apps/web/src/pages/StrategyPage.vue)：策略工作区薄包装器，负责默认进入运行态、协调运行/设计 tab 切换，并在设计态挂载前传递“编辑已有定义 / 新建模板草稿”的入口模式
 - [../../apps/web/src/components/StrategyDesignStage.vue](../../apps/web/src/components/StrategyDesignStage.vue)：设计态主体，负责 Logic Flow 画布、悬浮 definitions/code workbench、模板选择、图块详情、同步和保存流程；现在默认以画布态进入并收起代码工作台，同时负责未保存修改签名跟踪，以及页内切换、路由离开、刷新关闭前的离开确认
 - [../../apps/web/src/components/StrategyRuntimePanel.vue](../../apps/web/src/components/StrategyRuntimePanel.vue)：运行态主体，负责实例列表、启停控制、日志和审计，并提供“进入设计”和“新增策略模板草稿”两个设计态入口
-- [../../apps/web/src/components/StrategyLogicFlowDesigner.vue](../../apps/web/src/components/StrategyLogicFlowDesigner.vue)：Logic Flow 画布封装，负责图块渲染、选择、图结构更新，以及拖拽调整画布高度后的 resize 同步；现在会在原生拖拽调高过程中按帧调用 resize，对安全区执行 fitView + 偏移居中，提供可随右侧代码面板让位的右下角缩放 HUD，并把图块创建器改成左下角折叠式 launcher，展开时网格上弹、关闭入口保留在原始锚点
+- [../../apps/web/src/components/StrategyLogicFlowDesigner.vue](../../apps/web/src/components/StrategyLogicFlowDesigner.vue)：Logic Flow 画布封装，负责图块渲染、选择、图结构更新，以及拖拽调整画布高度后的 resize 同步；现在会在原生拖拽调高过程中按帧调用 resize，对安全区执行 fitView + 偏移居中，提供可随右侧代码面板让位的右下角缩放 HUD，把图块创建器改成左下角折叠式 launcher，展开时网格上弹、关闭入口保留在原始锚点，并支持选中边后的显式断开操作和键盘删除
 - [../../apps/web/src/components/MonacoCodeEditor.vue](../../apps/web/src/components/MonacoCodeEditor.vue)：浏览器内 Monaco 包装；支持拖拽调整高度、QuickJS 宿主 API 声明注入、常用 hook/snippet completion，以及 ctx/ctx.kline、runtime host API、模板 helper 和因子变量的 hover 文档，在 jsdom 测试里自动回退到 textarea；显示模式切换或面板隐藏时会跳过已脱离 DOM 的异步初始化，避免浏览器侧挂载报错
 - [../../apps/web/src/features/strategyEditorIntelliSense.ts](../../apps/web/src/features/strategyEditorIntelliSense.ts)：策略脚本编辑器的额外类型声明、completion/snippet 定义和 hover 元数据；现在和真实 QuickJS runtime host API 对齐
 - [../../apps/web/src/features/strategyVisualBuilder.ts](../../apps/web/src/features/strategyVisualBuilder.ts)：图块目录、内置模板、visualModel 克隆/初始化，以及 script 和 graph 双向转换的统一导出入口
@@ -70,7 +73,7 @@
 
 ### 运行时
 
-- [../../pkg/strategy/quickjs/strategy.go](../../pkg/strategy/quickjs/strategy.go)：QuickJS 运行时桥接，负责把生成脚本接到 bbgo 生命周期，并暴露 `notify`、`placeOrder`、`cancelOrder`、`getPosition`、`getPositions`、`getRiskState`、`isOperationBlocked`
+- [../../pkg/strategy/quickjs/strategy.go](../../pkg/strategy/quickjs/strategy.go)：QuickJS 运行时桥接，负责把生成脚本接到 bbgo 生命周期，并暴露 `notify`、`placeOrder`、`cancelOrder`、`getPosition`、`getPositions`、`getRiskState`、`isOperationBlocked`、`getAvailableCash`、`getMarginBuyingPower`、`getShortSellingPower`、`getTotalAccountValue`
 
 ## 当前内置模板与经典块
 
@@ -99,6 +102,7 @@
 - CCI 块：CCI 计算、高于阈值、低于阈值
 - Williams %R 块：Williams %R 计算、超买、超卖
 - 布林带块：布林带计算、收盘价突破上轨、收盘价跌破下轨
+- 交易块：下单；当前支持按 `shares`、`cashPercent`、`marginBuyingPowerPercent`、`shortSellingPowerPercent`、`positionPercent`、`accountPositionPercent` 定义数量，其中融资可用和融券可用会按 side 做合法性约束
 - 动作块：日志、通知
 - 兜底块：`codeBlock`，用于承载当前不能稳定映射成标准语义块的 QuickJS 代码
 
@@ -109,7 +113,7 @@
 当前同步策略是双向自动的，但能力并不对称：
 
 - `visualModel -> script`：支持，拖拽建块、连线变化和 Inspector 改参数后都会自动异步刷新代码区
-- `script -> visualModel`：支持常见 QuickJS 结构、内置模板导出的兄弟分支条件，以及简单 `console.log(expr)` 日志；如果脚本里保留了 visual builder 生成的 flow JSDoc，解析器还会优先用它恢复被重命名的节点标题、稳定 node id，以及多语句 `codeBlock` 的边界；代码区输入防抖到时或编辑器失焦时会自动尝试反解流程图
+- `script -> visualModel`：支持常见 QuickJS 结构、内置模板导出的兄弟分支条件，以及简单 `console.log(expr)` 日志；如果脚本里保留了 visual builder 生成的 flow JSDoc，解析器会优先用它恢复被重命名的节点标题、稳定 node id、多语句 `codeBlock` 的边界，以及函数化块之间的调用关系；代码区输入防抖到时或编辑器失焦时会自动尝试反解流程图
 - 无法反解的代码不会直接丢失，而是会转成 `codeBlock` 节点保留在图里；工具栏会显示当前是否存在 code block 兜底或解析失败
 - 已保存且自带 `visualModel` 的定义，打开时仍以现有保存内容为准；只有后续发生图编辑或代码编辑时，才会触发新的自动同步
 
@@ -121,6 +125,7 @@
 - 策略编辑器现在还会给 `ctx`、`ctx.kline.close`、`ctx.indicators`、`placeOrder` / `getPosition` / `getRiskState`，以及 `latestRsi` / `latestMacdDiff` / `latestKValue` / `latestAtr` / `latestCci` / `latestWilliamsR` 这类因子运行时变量提供 hover 文档
 - 视觉模板中的指标计算已经统一迁到 Go runtime 预计算，QuickJS 侧只消费 `ctx.indicators["..."]`，不再保留旧版指标 helper 兼容层
 - `placeOrder` / `cancelOrder` / `getPosition` / `getPositions` / `getRiskState` / `isOperationBlocked` 现在已经接到真实 QuickJS runtime，不再只是编辑器预留
+- 策略编辑器和生成器现在同时认识 `getAvailableCash()`、`getMarginBuyingPower()`、`getShortSellingPower()`、`getTotalAccountValue()`；下单块的百分比数量模式会根据 side 选择对应的资金来源
 - `getRiskState()` 返回的是 runtime 本地会话能力快照：它反映 executor、账户能力和被阻断的操作列表，不是控制面 `real-trade-risk` 接口的直通镜像
 - Logic Flow 画布和策略设计里新增的可视化卡片都需要走主题变量，不应继续写死浅色渐变、白底半透明或扩展库默认白色浮层
 - visual builder 生成的 QuickJS 现在会同时输出两类 JSDoc：一类给 hook 和常用 helper 补类型，避免 Monaco 在 `checkJs` 下把参数推成隐式 any；另一类给每个 visual node 写 flow 元标签，供 code -> flow 反解时恢复标题、边界和稳定映射

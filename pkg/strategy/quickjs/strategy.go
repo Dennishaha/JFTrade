@@ -11,6 +11,7 @@ import (
 	"github.com/c9s/bbgo/pkg/fixedpoint"
 	"github.com/c9s/bbgo/pkg/types"
 	"github.com/jftrade/jftrade-main/pkg/futu"
+	trdcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdcommon"
 	qjs "modernc.org/quickjs"
 )
 
@@ -320,6 +321,16 @@ func (r *runtimeBridge) installHostAPI() error {
 	}, false); err != nil {
 		return fmt.Errorf("register quickjs getTotalAccountValue host: %w", err)
 	}
+	if err := r.vm.RegisterFunc("__jftradeHostGetMarginBuyingPower", func() float64 {
+		return r.getMarginBuyingPower()
+	}, false); err != nil {
+		return fmt.Errorf("register quickjs getMarginBuyingPower host: %w", err)
+	}
+	if err := r.vm.RegisterFunc("__jftradeHostGetShortSellingPower", func() float64 {
+		return r.getShortSellingPower()
+	}, false); err != nil {
+		return fmt.Errorf("register quickjs getShortSellingPower host: %w", err)
+	}
 	bootstrap := strings.Join([]string{
 		"(() => {",
 		"  const formatArg = (value) => {",
@@ -348,6 +359,8 @@ func (r *runtimeBridge) installHostAPI() error {
 		"  globalThis.isOperationBlocked = (operation) => Boolean(__jftradeHostIsOperationBlocked(String(operation ?? '')));",
 		"  globalThis.getAvailableCash = () => __jftradeHostGetAvailableCash();",
 		"  globalThis.getTotalAccountValue = () => __jftradeHostGetTotalAccountValue();",
+		"  globalThis.getMarginBuyingPower = () => __jftradeHostGetMarginBuyingPower();",
+		"  globalThis.getShortSellingPower = () => __jftradeHostGetShortSellingPower();",
 		"})();",
 	}, "\n")
 	if _, err := r.vm.Eval(bootstrap, qjs.EvalGlobal); err != nil {
@@ -601,6 +614,37 @@ func (r *runtimeBridge) getTotalAccountValue() float64 {
 		total = total.Add(bal.Available)
 	}
 	return total.Float64()
+}
+
+// getMarginBuyingPower returns the account-level long buying power exposed by
+// the broker funds payload. When the runtime is not backed by a live broker
+// funds snapshot (for example in backtest mode), it intentionally returns 0
+// instead of approximating with cash or total equity.
+func (r *runtimeBridge) getMarginBuyingPower() float64 {
+	funds := r.brokerFunds()
+	if funds == nil {
+		return 0
+	}
+	return funds.GetPower()
+}
+
+// getShortSellingPower returns the account-level short selling power exposed by
+// the broker funds payload. It does not approximate from positions or equity.
+func (r *runtimeBridge) getShortSellingPower() float64 {
+	funds := r.brokerFunds()
+	if funds == nil {
+		return 0
+	}
+	return funds.GetMaxPowerShort()
+}
+
+func (r *runtimeBridge) brokerFunds() *trdcommonpb.Funds {
+	account := runtimeAccount(r.session)
+	if account == nil || account.RawAccount == nil {
+		return nil
+	}
+	funds, _ := account.RawAccount.(*trdcommonpb.Funds)
+	return funds
 }
 
 func (r *runtimeBridge) strategyQuoteCurrency() string {

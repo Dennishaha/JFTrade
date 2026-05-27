@@ -887,6 +887,117 @@ function onKLineClosed(ctx) {
     expect(buyNode?.properties.quantityMode).toBe("accountPositionPercent");
     expect(buyNode?.properties.quantityValue).toBe(10);
   });
+
+  it("parses reordered functionized block definitions from hand-edited code", () => {
+    const script = `
+/** @param {JFTradeKLineClosedContext} ctx */
+function onKLineClosed(ctx) {
+  /**
+   * @jftradeFlowNodeId notify-node
+   * @jftradeFlowBlockKind notify
+   * @jftradeFlowNodeText 发送通知
+   */
+  const flow_notify_node = () => {
+    notify("manual function order");
+  };
+
+  /**
+   * @jftradeFlowNodeId log-node
+   * @jftradeFlowBlockKind log
+   * @jftradeFlowNodeText 输出日志
+   */
+  const flow_log_node = () => {
+    console.log("manual function order");
+    flow_notify_node();
+  };
+
+  flow_log_node();
+}
+`;
+
+    const parsed = buildStrategyVisualModelFromScript(script);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) {
+      return;
+    }
+
+    const logNode = parsed.model.nodes.find((node) => node.id === "log-node");
+    const notifyNode = parsed.model.nodes.find((node) => node.id === "notify-node");
+    expect(getStrategyBlockKind(logNode)).toBe("log");
+    expect(getStrategyBlockKind(notifyNode)).toBe("notify");
+    expect(parsed.model.edges.some(
+      (edge) => edge.sourceNodeId === "on-kline-root" && edge.targetNodeId === "log-node",
+    )).toBe(true);
+    expect(parsed.model.edges.some(
+      (edge) => edge.sourceNodeId === "log-node" && edge.targetNodeId === "notify-node",
+    )).toBe(true);
+  });
+
+  it("parses margin buying power and short selling power from generated code", () => {
+    const script = `
+/** @param {JFTradeKLineClosedContext} ctx */
+function onKLineClosed(ctx) {
+  /**
+   * @jftradeFlowNodeId buy-node
+   * @jftradeFlowBlockKind placeOrder
+   * @jftradeFlowNodeText 下单
+   */
+  const pos = getPosition();
+  const availablePositionQty = pos ? Math.floor(Math.abs(pos.availableQuantity) > 0 ? Math.abs(pos.availableQuantity) : Math.abs(pos.quantity)) : 0;
+  if (pos && pos.direction === "LONG" && availablePositionQty > 0) {
+    console.log("已有多头持仓 " + pos.quantity + " 股，按拦截同向加仓策略跳过开多");
+    return;
+  }
+  const orderPrice = ctx.kline.close;
+  const marginBuyingPower = getMarginBuyingPower();
+  const targetAmount = marginBuyingPower * 15 / 100;
+  const orderQty = targetAmount > 0 ? Math.floor(targetAmount / orderPrice) : 0;
+  if (orderQty <= 0) {
+    console.log("融资可用百分比计算所得数量为 0（融资可用 " + marginBuyingPower + " × 15% ÷ 价格 " + orderPrice + "），请调整百分比或确认保证金账户购买力可用");
+    return;
+  }
+  console.log(\`下单 \${orderQty} 股 买入开多 (marginBuyingPowerPercent)\`);
+  placeOrder({ side: "BUY", orderType: "MARKET", quantity: orderQty });
+
+  /**
+   * @jftradeFlowNodeId short-node
+   * @jftradeFlowBlockKind placeOrder
+   * @jftradeFlowNodeText 下单
+   */
+  const shortPos = getPosition();
+  const availableShortQty = shortPos ? Math.floor(Math.abs(shortPos.availableQuantity) > 0 ? Math.abs(shortPos.availableQuantity) : Math.abs(shortPos.quantity)) : 0;
+  if (shortPos && shortPos.direction === "SHORT" && availableShortQty > 0) {
+    console.log("已有空头持仓 " + shortPos.quantity + " 股，按拦截同向加仓策略跳过开空");
+    return;
+  }
+  const shortOrderPrice = ctx.kline.close;
+  const shortSellingPower = getShortSellingPower();
+  const shortTargetAmount = shortSellingPower * 20 / 100;
+  const shortOrderQty = shortTargetAmount > 0 ? Math.floor(shortTargetAmount / shortOrderPrice) : 0;
+  if (shortOrderQty <= 0) {
+    console.log("融券可用百分比计算所得数量为 0（融券可用 " + shortSellingPower + " × 20% ÷ 价格 " + shortOrderPrice + "），请调整百分比或确认保证金账户融券能力可用");
+    return;
+  }
+  console.log(\`下单 \${shortOrderQty} 股 卖出开空 (shortSellingPowerPercent)\`);
+  placeOrder({ side: "SELL", orderType: "MARKET", quantity: shortOrderQty });
+}
+`;
+
+    const parsed = buildStrategyVisualModelFromScript(script);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) {
+      return;
+    }
+
+    const buyNode = parsed.model.nodes.find((node) => node.id === "buy-node");
+    const shortNode = parsed.model.nodes.find((node) => node.id === "short-node");
+    expect(getStrategyBlockKind(buyNode)).toBe("placeOrder");
+    expect(buyNode?.properties.quantityMode).toBe("marginBuyingPowerPercent");
+    expect(buyNode?.properties.quantityValue).toBe(15);
+    expect(getStrategyBlockKind(shortNode)).toBe("placeOrder");
+    expect(shortNode?.properties.quantityMode).toBe("shortSellingPowerPercent");
+    expect(shortNode?.properties.quantityValue).toBe(20);
+  });
 });
 
 function readNodeSourceRange(

@@ -1076,11 +1076,131 @@ describe("Strategy page", () => {
     expect(wrapper.find('[data-testid="strategy-place-order-entry-position-policy"]').exists()).toBe(true);
     expect(wrapper.text()).toContain("账户仓位百分比");
     expect(wrapper.text()).toContain("当前标的仓位百分比");
+    expect(wrapper.text()).toContain("融资可用百分比");
+    expect(wrapper.text()).toContain("融券可用百分比");
+
+    expect((wrapper.get('option[value="marginBuyingPowerPercent"]').element as HTMLOptionElement).disabled).toBe(false);
+    expect((wrapper.get('option[value="shortSellingPowerPercent"]').element as HTMLOptionElement).disabled).toBe(true);
+
+    await wrapper.find('[data-testid="strategy-place-order-side"]').setValue("SELL_SHORT");
+    await flushRequests();
+
+    expect(wrapper.find('[data-testid="strategy-place-order-entry-position-policy"]').exists()).toBe(true);
+    expect((wrapper.get('option[value="marginBuyingPowerPercent"]').element as HTMLOptionElement).disabled).toBe(true);
+    expect((wrapper.get('option[value="shortSellingPowerPercent"]').element as HTMLOptionElement).disabled).toBe(false);
 
     await wrapper.find('[data-testid="strategy-place-order-side"]').setValue("SELL");
     await flushRequests();
 
     expect(wrapper.find('[data-testid="strategy-place-order-entry-position-policy"]').exists()).toBe(false);
+    expect((wrapper.get('option[value="marginBuyingPowerPercent"]').element as HTMLOptionElement).disabled).toBe(true);
+    expect((wrapper.get('option[value="shortSellingPowerPercent"]').element as HTMLOptionElement).disabled).toBe(true);
+
+    wrapper.unmount();
+  });
+
+  it("disconnects selected flow edges by menu action and keyboard delete", async () => {
+    vi.stubGlobal(
+      "fetch",
+      buildFetchMock({
+        definitions: [
+          {
+            id: "js-edge-disconnect",
+            name: "JS Edge Disconnect",
+            version: "0.2.0",
+            description: "edge disconnect inspector",
+            runtime: "quickjs-js",
+            symbol: "00700",
+            interval: "1m",
+            script: "function manualOnly() { return 'keep'; }",
+            visualModel: {
+              engine: "logic-flow",
+              version: 1,
+              nodes: [
+                {
+                  id: "on-kline-root",
+                  type: "circle",
+                  x: 160,
+                  y: 200,
+                  text: "K 线收盘",
+                  properties: { blockKind: "onKLineClosed" },
+                },
+                {
+                  id: "notify-node",
+                  type: "rect",
+                  x: 420,
+                  y: 200,
+                  text: "发送通知",
+                  properties: { blockKind: "notify", message: "edge one" },
+                },
+                {
+                  id: "log-node",
+                  type: "rect",
+                  x: 700,
+                  y: 200,
+                  text: "输出日志",
+                  properties: { blockKind: "log", message: "edge two" },
+                },
+              ],
+              edges: [
+                {
+                  id: "edge-root-notify",
+                  type: "polyline",
+                  sourceNodeId: "on-kline-root",
+                  targetNodeId: "notify-node",
+                },
+                {
+                  id: "edge-notify-log",
+                  type: "polyline",
+                  sourceNodeId: "notify-node",
+                  targetNodeId: "log-node",
+                },
+              ],
+            },
+            createdAt: "2026-05-23T00:00:00.000Z",
+            updatedAt: "2026-05-23T00:00:00.000Z",
+          },
+        ],
+      }),
+    );
+    vi.stubGlobal(
+      "EventSource",
+      MockEventSource as unknown as typeof EventSource,
+    );
+
+    const { wrapper } = await mountApp("/strategy");
+
+    await openStrategyDesignWorkspace(wrapper);
+
+    const designer = wrapper.findComponent(StrategyLogicFlowDesigner);
+    const designerVm = designer.vm as unknown as {
+      selectEdgeById: (edgeId: string | null) => void;
+    };
+
+    designerVm.selectEdgeById("edge-root-notify");
+    await flushRequests();
+
+    expect(wrapper.find('[data-testid="strategy-logic-flow-edge-menu"]').exists()).toBe(true);
+    expect(
+      wrapper.get('[data-testid="strategy-logic-flow-canvas"]').element.contains(
+        wrapper.get('[data-testid="strategy-logic-flow-edge-menu"]').element,
+      ),
+    ).toBe(false);
+
+    await wrapper.get('[data-testid="strategy-logic-flow-edge-disconnect"]').trigger("click");
+    await flushRequests();
+
+    let visualModel = designer.props("modelValue") as NonNullable<StrategyDefinitionDocument["visualModel"]>;
+    expect(visualModel.edges.map((edge) => edge.id)).toEqual(["edge-notify-log"]);
+
+    designerVm.selectEdgeById("edge-notify-log");
+    await flushRequests();
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Delete" }));
+    await flushRequests();
+
+    visualModel = designer.props("modelValue") as NonNullable<StrategyDefinitionDocument["visualModel"]>;
+    expect(visualModel.edges).toHaveLength(0);
+    expect(wrapper.find('[data-testid="strategy-logic-flow-edge-menu"]').exists()).toBe(false);
 
     wrapper.unmount();
   });
@@ -1524,8 +1644,9 @@ describe("Strategy page", () => {
     expect(wrapper.find('[data-testid="strategy-code-editor-section"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="strategy-visual-builder-section"]').exists()).toBe(true);
     expect(wrapper.text()).toContain("已基于「双均线系统」创建新草稿");
-    expect(scriptEditor.value).toContain('const indicator_dma_fast_ma_snapshot = ctx.indicators["ma:MA:5:day"] ?? null;');
-    expect(scriptEditor.value).toContain('const indicator_dma_slow_ma_snapshot = ctx.indicators["ma:MA:20:day"] ?? null;');
+    expect(scriptEditor.value).toContain("const flow_dma_fast_ma = () => {");
+    expect(scriptEditor.value).toContain('indicator_dma_fast_ma_snapshot = ctx.indicators["ma:MA:5:day"] ?? null;');
+    expect(scriptEditor.value).toContain('indicator_dma_slow_ma_snapshot = ctx.indicators["ma:MA:20:day"] ?? null;');
     expect(scriptEditor.value).toContain("indicator_dma_fast_ma_previous <= indicator_dma_slow_ma_previous && indicator_dma_fast_ma_value > indicator_dma_slow_ma_value");
     expect(scriptEditor.value).toContain("金叉");
 
@@ -1745,8 +1866,9 @@ describe("Strategy page", () => {
     const scriptEditor = wrapper.get('[data-testid="strategy-script-editor"]')
       .element as HTMLTextAreaElement;
     expect(wrapper.text()).toContain("已基于「RSI 反转交易」创建新草稿");
-    expect(scriptEditor.value).toContain('const indicator_rsi_getter_snapshot = ctx.indicators["rsi:14"] ?? null;');
-    expect(scriptEditor.value).toContain('const indicator_rsi_getter_value = indicator_rsi_getter_snapshot;');
+    expect(scriptEditor.value).toContain("const flow_rsi_getter = () => {");
+    expect(scriptEditor.value).toContain('indicator_rsi_getter_snapshot = ctx.indicators["rsi:14"] ?? null;');
+    expect(scriptEditor.value).toContain('indicator_rsi_getter_value = indicator_rsi_getter_snapshot;');
     expect(scriptEditor.value).toContain("if (Number.isFinite(indicator_rsi_getter_value) && indicator_rsi_getter_value < 30)");
     expect(scriptEditor.value).toContain("if (Number.isFinite(indicator_rsi_getter_value) && indicator_rsi_getter_value > 70)");
 
@@ -1779,7 +1901,8 @@ describe("Strategy page", () => {
     const scriptEditor = wrapper.get('[data-testid="strategy-script-editor"]')
       .element as HTMLTextAreaElement;
     expect(wrapper.text()).toContain("已基于「MACD 动能交易」创建新草稿");
-    expect(scriptEditor.value).toContain('const indicator_macd_getter = ctx.indicators["macd:12:26:9"] ?? null;');
+    expect(scriptEditor.value).toContain("const flow_macd_getter = () => {");
+    expect(scriptEditor.value).toContain('indicator_macd_getter = ctx.indicators["macd:12:26:9"] ?? null;');
     expect(scriptEditor.value).toContain("if (indicator_macd_getter_previous_diff !== null && indicator_macd_getter_previous_signal !== null && indicator_macd_getter_previous_diff <= indicator_macd_getter_previous_signal && indicator_macd_getter_diff > indicator_macd_getter_signal)");
 
     wrapper.unmount();
@@ -1811,7 +1934,8 @@ describe("Strategy page", () => {
     const scriptEditor = wrapper.get('[data-testid="strategy-script-editor"]')
       .element as HTMLTextAreaElement;
     expect(wrapper.text()).toContain("已基于「布林带回归交易」创建新草稿");
-    expect(scriptEditor.value).toContain('const indicator_boll_getter = ctx.indicators["bollinger:20:2"] ?? null;');
+    expect(scriptEditor.value).toContain("const flow_boll_getter = () => {");
+    expect(scriptEditor.value).toContain('indicator_boll_getter = ctx.indicators["bollinger:20:2"] ?? null;');
     expect(scriptEditor.value).toContain("if (ctx.kline.close > indicator_boll_getter_upper)");
     expect(scriptEditor.value).toContain("if (ctx.kline.close < indicator_boll_getter_lower)");
 

@@ -35,6 +35,9 @@ import {
   parseStrategyFlowNodeJsDocComment,
   type StrategyFlowNodeJsDoc,
 } from "./strategyVisualBuilderShared";
+import {
+  normalizeQuantityModeForSide,
+} from "./strategyVisualBuilderScriptSupport";
 
 type HookKind = "onInit" | "onKLineClosed";
 
@@ -58,6 +61,19 @@ interface AstBlockStatement extends AstNode {
 interface AstFunctionDeclaration extends AstNode {
   id?: { name?: string };
   body: AstBlockStatement;
+}
+
+interface AstFunctionExpression extends AstNode {
+  body: AstBlockStatement;
+}
+
+interface AstVariableDeclaration extends AstNode {
+  declarations: AstVariableDeclarator[];
+}
+
+interface AstVariableDeclarator extends AstNode {
+  id?: { name?: string };
+  init?: AstNode | null;
 }
 
 interface AstIfStatement extends AstNode {
@@ -128,6 +144,21 @@ interface ParseSequenceContext {
 interface StrategySourceRange {
   start: number;
   end: number;
+}
+
+interface FunctionizedHookDefinition {
+  annotation: StrategyFlowNodeJsDoc | null;
+  functionName: string;
+  statement: AstStatement;
+  bodyStatements: AstStatement[];
+}
+
+interface ParsedFunctionizedHookNode {
+  functionName: string;
+  item: ParsedVisualNode | null;
+  linearCalls: string[];
+  trueCalls: string[];
+  falseCalls: string[];
 }
 
 export interface StrategyScriptParseSuccess {
@@ -206,8 +237,9 @@ export function buildStrategyVisualModelFromScript(
 
     appendGlobalCodeBlocks(globalStatements, parserContext, builder);
 
-    appendHookSequence(
-      hookBodies.get("onInit") ?? [],
+    const onInitStatements = hookBodies.get("onInit") ?? [];
+    if (!appendFunctionizedHookSequence(
+      onInitStatements,
       parserContext,
       builder,
       {
@@ -216,10 +248,23 @@ export function buildStrategyVisualModelFromScript(
         baseX: ROOT_LAYOUT.onInit.x + BLOCK_X_STEP,
         baseY: ROOT_LAYOUT.onInit.y,
       },
-    );
+    )) {
+      appendHookSequence(
+        onInitStatements,
+        parserContext,
+        builder,
+        {
+          hookKind: "onInit",
+          parentId: "on-init-root",
+          baseX: ROOT_LAYOUT.onInit.x + BLOCK_X_STEP,
+          baseY: ROOT_LAYOUT.onInit.y,
+        },
+      );
+    }
 
-    appendHookSequence(
-      hookBodies.get("onKLineClosed") ?? [],
+    const onKLineClosedStatements = hookBodies.get("onKLineClosed") ?? [];
+    if (!appendFunctionizedHookSequence(
+      onKLineClosedStatements,
       parserContext,
       builder,
       {
@@ -228,7 +273,19 @@ export function buildStrategyVisualModelFromScript(
         baseX: ROOT_LAYOUT.onKLineClosed.x + BLOCK_X_STEP,
         baseY: ROOT_LAYOUT.onKLineClosed.y,
       },
-    );
+    )) {
+      appendHookSequence(
+        onKLineClosedStatements,
+        parserContext,
+        builder,
+        {
+          hookKind: "onKLineClosed",
+          parentId: "on-kline-root",
+          baseX: ROOT_LAYOUT.onKLineClosed.x + BLOCK_X_STEP,
+          baseY: ROOT_LAYOUT.onKLineClosed.y,
+        },
+      );
+    }
 
     return {
       ok: true,
@@ -465,6 +522,436 @@ function appendHookSequence(
       });
     }
   }
+}
+
+function appendFunctionizedHookSequence(
+  statements: AstStatement[],
+  parserContext: StrategyParserContext,
+  builder: ReturnType<typeof createModelBuilder>,
+  context: ParseSequenceContext,
+): boolean {
+  const functionDefinitions = readFunctionizedHookDefinitions(statements, parserContext);
+  if (functionDefinitions.length === 0) {
+    return false;
+  }
+
+  const functionNames = new Set(functionDefinitions.map((definition) => definition.functionName));
+  const parsedFunctions = new Map<string, ParsedFunctionizedHookNode>();
+
+  for (const definition of functionDefinitions) {
+    if (definition.annotation?.blockKind !== "getTechnicalIndicator") {
+      continue;
+    }
+    const parsed = parseFunctionizedHookDefinition(definition, parserContext, functionNames);
+    parsedFunctions.set(definition.functionName, parsed);
+    if (parsed.item?.kind === "getTechnicalIndicator") {
+      parserContext.getterBindings.set(
+        buildIndicatorGetterBaseIdentifierFromNodeId(parsed.item.flowNodeId ?? definition.functionName),
+        {
+          nodeId: parsed.item.flowNodeId ?? definition.functionName,
+          properties: normalizeGetTechnicalIndicatorProperties(parsed.item.properties),
+        },
+      );
+    }
+  }
+
+  for (const definition of functionDefinitions) {
+    if (parsedFunctions.has(definition.functionName)) {
+      continue;
+    }
+    parsedFunctions.set(
+      definition.functionName,
+      parseFunctionizedHookDefinition(definition, parserContext, functionNames),
+    );
+  }
+
+  const createdNodeIds = new Map<string, string>();
+
+  const ensureFunctionNode = (
+    functionName: string,
+    fallbackX: number,
+    fallbackY: number,
+  ) => {
+    const parsed = parsedFunctions.get(functionName);
+    if (parsed === undefined || parsed.item === null) {
+      return null;
+    }
+
+    const existingNodeId = createdNodeIds.get(functionName);
+    if (existingNodeId !== undefined) {
+      const position = readNodePosition(builder.nodes, existingNodeId) ?? { x: fallbackX, y: fallbackY };
+      return { nodeId: existingNodeId, item: parsed.item, position };
+    }
+
+    const identity = reserveParsedNodeIdentity(builder, parsed.item.flowNodeId, "visual-node");
+    const position = resolvePreservedPosition(builder, identity.nodeId, fallbackX, fallbackY);
+    builder.nodes.push({
+      id: identity.nodeId,
+      type: resolveNodeShape(parsed.item.kind),
+      x: position.x,
+      y: position.y,
+      text: parsed.item.text,
+      properties: { ...parsed.item.properties },
+    });
+    createdNodeIds.set(functionName, identity.nodeId);
+
+    for (const input of parsed.item.dataInputs ?? []) {
+      builder.edges.push({
+        id: `edge-data-${input.getterNodeId}-${identity.nodeId}-${input.slot}`,
+        type: "polyline",
+        sourceNodeId: input.getterNodeId,
+        targetNodeId: identity.nodeId,
+        properties: buildStrategyVisualDataEdgeProperties(input.slot),
+      });
+    }
+
+    if (parsed.item.kind === "codeBlock") {
+      builder.codeBlockCount += 1;
+    }
+
+    return { nodeId: identity.nodeId, item: parsed.item, position };
+  };
+
+  const appendFunctionCalls = (
+    functionCallNames: string[],
+    parentId: string,
+    baseX: number,
+    baseY: number,
+    edgeProperties: Record<string, unknown> | undefined,
+    mode: ParseSequenceMode,
+    visiting: Set<string>,
+  ) => {
+    let siblingIndex = 0;
+
+    for (const functionName of functionCallNames) {
+      if (visiting.has(functionName)) {
+        continue;
+      }
+
+      const parsed = parsedFunctions.get(functionName);
+      if (parsed === undefined || parsed.item === null) {
+        continue;
+      }
+
+      const parentPosition = readNodePosition(builder.nodes, parentId) ?? {
+        x: baseX - BLOCK_X_STEP,
+        y: baseY,
+      };
+      const keepsCurrentParent = mode === "siblings" || parsed.item.keepParentForSiblings === true;
+      const nodeX = mode === "siblings"
+        ? Math.max(baseX, parentPosition.x + BLOCK_X_STEP)
+        : keepsCurrentParent
+          ? parentPosition.x
+          : Math.max(baseX, parentPosition.x + BLOCK_X_STEP);
+      const nodeY = mode === "siblings"
+        ? baseY + siblingIndex * BLOCK_Y_STEP
+        : keepsCurrentParent
+          ? parentPosition.y + siblingIndex * BLOCK_Y_STEP
+          : parentPosition.y;
+
+      const resolved = ensureFunctionNode(functionName, nodeX, nodeY);
+      if (resolved === null) {
+        continue;
+      }
+
+      builder.edges.push({
+        id: `edge-${parentId}-${resolved.nodeId}-${builder.edges.length + 1}`,
+        type: "polyline",
+        sourceNodeId: parentId,
+        targetNodeId: resolved.nodeId,
+        properties: edgeProperties,
+      });
+
+      const nextVisiting = new Set(visiting);
+      nextVisiting.add(functionName);
+
+      if (resolved.item.kind === "technicalIndicatorCondition") {
+        appendFunctionCalls(
+          parsed.trueCalls,
+          resolved.nodeId,
+          resolved.position.x + BLOCK_X_STEP,
+          resolved.position.y - BLOCK_Y_STEP / 2,
+          buildStrategyVisualControlEdgeProperties("true"),
+          "linear",
+          nextVisiting,
+        );
+        appendFunctionCalls(
+          parsed.falseCalls,
+          resolved.nodeId,
+          resolved.position.x + BLOCK_X_STEP,
+          resolved.position.y + BLOCK_Y_STEP / 2,
+          buildStrategyVisualControlEdgeProperties("false"),
+          "linear",
+          nextVisiting,
+        );
+      } else if (
+        resolved.item.kind === "technicalIndicator"
+        || resolved.item.kind === "ifCloseAbove"
+        || resolved.item.kind === "ifCloseBelow"
+      ) {
+        appendFunctionCalls(
+          parsed.trueCalls.length > 0 ? parsed.trueCalls : parsed.linearCalls,
+          resolved.nodeId,
+          resolved.position.x + BLOCK_X_STEP,
+          resolved.position.y + BLOCK_Y_STEP,
+          undefined,
+          "linear",
+          nextVisiting,
+        );
+      } else {
+        appendFunctionCalls(
+          parsed.linearCalls,
+          resolved.nodeId,
+          resolved.position.x + BLOCK_X_STEP,
+          resolved.position.y + BLOCK_Y_STEP,
+          undefined,
+          "linear",
+          nextVisiting,
+        );
+      }
+
+      if (keepsCurrentParent) {
+        siblingIndex += 1;
+      } else {
+        siblingIndex = 0;
+      }
+    }
+  };
+
+  const definitionStatements = new Set(functionDefinitions.map((definition) => definition.statement));
+  const rootCalls = readKnownFunctionCallsFromStatements(
+    statements.filter((statement) => !definitionStatements.has(statement)),
+    functionNames,
+  );
+
+  appendFunctionCalls(
+    rootCalls,
+    context.parentId,
+    context.baseX,
+    context.baseY,
+    context.rootEdgeProperties,
+    "siblings",
+    new Set(),
+  );
+
+  return true;
+}
+
+function readFunctionizedHookDefinitions(
+  statements: AstStatement[],
+  parserContext: StrategyParserContext,
+): FunctionizedHookDefinition[] {
+  const definitions: FunctionizedHookDefinition[] = [];
+
+  for (let index = 0; index < statements.length; index += 1) {
+    const statement = statements[index];
+    if (statement === undefined) {
+      continue;
+    }
+    const declaration = readFunctionizedHookDefinitionStatement(statement);
+    if (declaration === null) {
+      continue;
+    }
+    const annotation = readLeadingFlowAnnotation(statements, index, parserContext);
+    if (annotation === null && !declaration.functionName.startsWith("flow_")) {
+      continue;
+    }
+    definitions.push({
+      ...declaration,
+      annotation,
+    });
+  }
+
+  return definitions;
+}
+
+function readFunctionizedHookDefinitionStatement(
+  statement: AstStatement,
+): Omit<FunctionizedHookDefinition, "annotation"> | null {
+  if (statement.type !== "VariableDeclaration") {
+    return null;
+  }
+
+  const declaration = statement as AstVariableDeclaration;
+  const declarator = declaration.declarations[0];
+  if (declarator === undefined) {
+    return null;
+  }
+  const functionName = declarator.id?.name;
+  if (typeof functionName !== "string" || functionName === "") {
+    return null;
+  }
+
+  const initializer = declarator.init;
+  if (initializer === null || initializer === undefined) {
+    return null;
+  }
+  if (initializer.type !== "ArrowFunctionExpression" && initializer.type !== "FunctionExpression") {
+    return null;
+  }
+
+  const functionExpression = initializer as AstFunctionExpression;
+  if (functionExpression.body.type !== "BlockStatement") {
+    return null;
+  }
+
+  return {
+    functionName,
+    statement,
+    bodyStatements: functionExpression.body.body,
+  };
+}
+
+function parseFunctionizedHookDefinition(
+  definition: FunctionizedHookDefinition,
+  parserContext: StrategyParserContext,
+  functionNames: Set<string>,
+): ParsedFunctionizedHookNode {
+  const semanticStatements = definition.bodyStatements.filter(
+    (statement) => !isKnownBlockFunctionCallStatement(statement, functionNames),
+  );
+
+  let item: ParsedVisualNode | null = null;
+  const annotation = definition.annotation;
+  if (annotation !== null && semanticStatements.length > 0) {
+    switch (annotation.blockKind) {
+      case "getTechnicalIndicator":
+        item = parseGetTechnicalIndicatorNode(semanticStatements, 0, parserContext, annotation).item;
+        break;
+      case "technicalIndicatorCondition": {
+        const conditionStatement = semanticStatements.find((statement) => statement.type === "IfStatement") ?? semanticStatements[0];
+        if (conditionStatement !== undefined) {
+          item = parseTechnicalIndicatorConditionNode(conditionStatement, parserContext, annotation, 0).item;
+        }
+        break;
+      }
+      case "technicalIndicator":
+        item = parseTechnicalIndicatorNode(semanticStatements, 0, parserContext, annotation).item;
+        break;
+      case "log": {
+        const firstStatement = semanticStatements[0];
+        if (firstStatement !== undefined) {
+          item = parseLogNode(firstStatement, parserContext, annotation, 0).item;
+        }
+        break;
+      }
+      case "notify": {
+        const firstStatement = semanticStatements[0];
+        if (firstStatement !== undefined) {
+          item = parseNotifyNode(firstStatement, parserContext, annotation, 0).item;
+        }
+        break;
+      }
+      case "placeOrder":
+        item = parsePlaceOrderNode(semanticStatements, 0, parserContext, annotation).item;
+        break;
+      case "stopLoss":
+        item = parseStopLossNode(semanticStatements, 0, parserContext, annotation).item;
+        break;
+      case "codeBlock":
+        item = parseCodeBlockNode(semanticStatements, 0, parserContext, annotation).item;
+        break;
+      case "ifCloseAbove":
+      case "ifCloseBelow": {
+        const conditionStatement = semanticStatements.find((statement) => statement.type === "IfStatement") ?? semanticStatements[0];
+        if (conditionStatement !== undefined) {
+          item = parseCloseConditionNode(conditionStatement, parserContext, annotation, 0).item;
+        }
+        break;
+      }
+      default:
+        break;
+    }
+  }
+
+  if (item === null && semanticStatements.length > 0) {
+    item = parseHookStatement(semanticStatements, 0, parserContext).item;
+    if (item !== null && (item.flowNodeId === undefined || item.flowNodeId === "")) {
+      item.flowNodeId = definition.functionName.replace(/^flow_/, "");
+    }
+  }
+
+  if (item !== null) {
+    item.properties = withSourceRangeProperties(
+      { ...item.properties },
+      { start: definition.statement.start, end: definition.statement.end },
+    );
+  }
+
+  return {
+    functionName: definition.functionName,
+    item,
+    linearCalls: readKnownFunctionCallsFromStatements(definition.bodyStatements, functionNames),
+    trueCalls: readBranchFunctionCalls(definition.bodyStatements, functionNames, "true"),
+    falseCalls: readBranchFunctionCalls(definition.bodyStatements, functionNames, "false"),
+  };
+}
+
+function readKnownFunctionCallsFromStatements(
+  statements: AstStatement[],
+  functionNames: Set<string>,
+): string[] {
+  const result: string[] = [];
+
+  for (const statement of statements) {
+    const functionName = readKnownCalledFunctionName(statement, functionNames);
+    if (functionName !== null) {
+      result.push(functionName);
+    }
+  }
+
+  return result;
+}
+
+function readBranchFunctionCalls(
+  statements: AstStatement[],
+  functionNames: Set<string>,
+  branch: "true" | "false",
+): string[] {
+  for (const statement of statements) {
+    const branchStatements = branch === "true"
+      ? readIfChildren(statement)
+      : readElseChildren(statement);
+    if (branchStatements === undefined) {
+      continue;
+    }
+    const calls = readKnownFunctionCallsFromStatements(branchStatements, functionNames);
+    if (calls.length > 0) {
+      return calls;
+    }
+  }
+  return [];
+}
+
+function isKnownBlockFunctionCallStatement(
+  statement: AstStatement,
+  functionNames: Set<string>,
+): boolean {
+  return readKnownCalledFunctionName(statement, functionNames) !== null;
+}
+
+function readKnownCalledFunctionName(
+  statement: AstStatement,
+  functionNames: Set<string>,
+): string | null {
+  if (statement.type !== "ExpressionStatement") {
+    return null;
+  }
+
+  const expression = (statement as AstExpressionStatement).expression as AstNode | undefined;
+  if (expression === undefined || expression.type !== "CallExpression") {
+    return null;
+  }
+
+  const callee = (expression as AstNode & { callee?: AstNode }).callee;
+  if (callee === undefined || callee.type !== "Identifier") {
+    return null;
+  }
+
+  const functionName = (callee as AstNode & { name?: string }).name;
+  return functionName !== undefined && functionNames.has(functionName)
+    ? functionName
+    : null;
 }
 
 function parseHookStatement(
@@ -775,8 +1262,9 @@ function parsePlaceOrderNode(
   const blockSource = parserContext.script.slice(firstStatement.start, lastStatement.end);
   const side = readPlaceOrderSide(blockSource);
   const orderType = blockSource.includes('orderType: "LIMIT"') ? "LIMIT" : "MARKET";
-  const quantityMode = readPlaceOrderQuantityMode(blockSource);
-  const quantityValue = readPlaceOrderQuantityValue(blockSource, quantityMode);
+  const rawQuantityMode = readPlaceOrderQuantityMode(blockSource);
+  const quantityValue = readPlaceOrderQuantityValue(blockSource, rawQuantityMode);
+  const quantityMode = normalizeQuantityModeForSide(rawQuantityMode, side);
   const entryPositionPolicy = readPlaceOrderEntryPositionPolicy(blockSource, side);
   const limitPrice = readPlaceOrderLimitPrice(blockSource);
   return {
@@ -876,12 +1364,18 @@ function readPlaceOrderSide(
 
 function readPlaceOrderQuantityMode(
   blockSource: string,
-): "shares" | "amount" | "accountPositionPercent" | "symbolPositionPercent" | "cashPercent" {
+): "shares" | "amount" | "accountPositionPercent" | "symbolPositionPercent" | "cashPercent" | "marginBuyingPowerPercent" | "shortSellingPowerPercent" {
   if (blockSource.includes("const accountTotalValue = getTotalAccountValue();")) {
     return "accountPositionPercent";
   }
   if (blockSource.includes("const availableCash = getAvailableCash();")) {
     return "cashPercent";
+  }
+  if (blockSource.includes("const marginBuyingPower = getMarginBuyingPower();")) {
+    return "marginBuyingPowerPercent";
+  }
+  if (blockSource.includes("const shortSellingPower = getShortSellingPower();")) {
+    return "shortSellingPowerPercent";
   }
   if (
     blockSource.includes("const currentPositionValue = pos ? Math.abs(pos.marketValue) : 0;") ||
@@ -897,7 +1391,7 @@ function readPlaceOrderQuantityMode(
 
 function readPlaceOrderQuantityValue(
   blockSource: string,
-  quantityMode: "shares" | "amount" | "accountPositionPercent" | "symbolPositionPercent" | "cashPercent",
+  quantityMode: "shares" | "amount" | "accountPositionPercent" | "symbolPositionPercent" | "cashPercent" | "marginBuyingPowerPercent" | "shortSellingPowerPercent",
 ): number {
   const patterns: Record<typeof quantityMode, RegExp> = {
     shares: /const orderQty = (-?\d+(?:\.\d+)?);/,
@@ -905,6 +1399,8 @@ function readPlaceOrderQuantityValue(
     accountPositionPercent: /const targetAmount = accountTotalValue \* (-?\d+(?:\.\d+)?) \/ 100;/,
     symbolPositionPercent: /const targetValue = (?:(?:currentPositionValue)|(?:\(pos && pos\.marketValue > 0 \? pos\.marketValue : 0\))) \* (-?\d+(?:\.\d+)?) \/ 100;/,
     cashPercent: /const targetAmount = availableCash \* (-?\d+(?:\.\d+)?) \/ 100;/,
+    marginBuyingPowerPercent: /const [A-Za-z_$][\w$]* = marginBuyingPower \* (-?\d+(?:\.\d+)?) \/ 100;/,
+    shortSellingPowerPercent: /const [A-Za-z_$][\w$]* = shortSellingPower \* (-?\d+(?:\.\d+)?) \/ 100;/,
   };
   const match = blockSource.match(patterns[quantityMode]);
   return match?.[1] === undefined ? 100 : Number(match[1]);
