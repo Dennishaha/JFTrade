@@ -11,7 +11,7 @@ export function createBollingerReversionStrategyVisualModel(): StrategyVisualMod
     version: 1,
     nodes: [
       { id: "boll-init-root", type: "circle", x: 180, y: 120, text: "策略启动", properties: { blockKind: "onInit" } },
-      { id: "boll-init-log", type: "rect", x: 450, y: 120, text: "输出日志", properties: { blockKind: "log", message: "Bollinger strategy initialized for ${ctx.symbol || '00700'} ${ctx.interval || '1m'}" } },
+      { id: "boll-init-log", type: "rect", x: 450, y: 120, text: "输出日志", properties: { blockKind: "log", message: "布林带策略已初始化：${ctx.symbol || '00700'} ${ctx.interval || '1m'}" } },
       { id: "boll-kline-root", type: "circle", x: 180, y: 320, text: "K 线收盘", properties: { blockKind: "onKLineClosed" } },
       { id: "boll-getter", type: "rect", x: 470, y: 320, text: "获取布林带 20x2", properties: { blockKind: "getTechnicalIndicator", indicatorType: "bollinger", period: 20, multiplier: 2 } },
       { id: "boll-lower-node", type: "diamond", x: 760, y: 260, text: "布林带跌破下轨", properties: { blockKind: "technicalIndicatorCondition", indicatorType: "bollinger", conditionMode: "pattern", patternType: "closeBelowLowerBand" } },

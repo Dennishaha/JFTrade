@@ -9,11 +9,11 @@ const { futuOpenDInstallGuide } = useConsoleData();
   <div class="grid gap-6">
     <div class="settings-panel">
       <SectionHeader
-        title="OpenD install guide"
-        description="JFTrade 不安装 OpenD，只提供富途官方图形交互版与命令行版入口；安装完成后请回到 Futu Integration 填写连接信息。"
+        title="OpenD 安装引导"
+        description="JFTrade 不安装 OpenD，只提供富途官方图形交互版与命令行版入口；安装完成后请回到富途接入填写连接信息。"
       >
         <template #extra>
-          <v-chip variant="outlined" size="small">Official docs</v-chip>
+          <v-chip variant="outlined" size="small">官方文档</v-chip>
         </template>
       </SectionHeader>
 
@@ -39,7 +39,7 @@ const { futuOpenDInstallGuide } = useConsoleData();
                   {{ option.label }}
                 </div>
                 <div class="mt-1 text-xs text-slate-500">
-                  {{ option.id === "gui" ? "GUI / Desktop" : "CLI / Server" }}
+                  {{ option.id === "gui" ? "图形界面 / 桌面" : "命令行 / 服务器" }}
                 </div>
               </div>
               <v-chip
@@ -71,12 +71,12 @@ const { futuOpenDInstallGuide } = useConsoleData();
         <div class="rounded-2xl border border-slate-200 bg-white px-4 py-4">
           <div class="text-sm font-semibold text-slate-900">安装后设置</div>
           <p class="mt-2 text-sm leading-6 text-slate-600">
-            默认 Host 为 {{ futuOpenDInstallGuide.settings.host }}，API Port 为
-            {{ futuOpenDInstallGuide.settings.apiPort }}，WebSocket Port 为
+            默认主机为 {{ futuOpenDInstallGuide.settings.host }}，API 端口为
+            {{ futuOpenDInstallGuide.settings.apiPort }}，WebSocket 端口为
             {{ futuOpenDInstallGuide.settings.websocketPort }}，加密连接：
             {{ futuOpenDInstallGuide.settings.useEncryption ? "开启" : "关闭" }}。
             安装并登录 OpenD 后，请先确认已开启 WebSocket；若 OpenD 配置了 WebSocket
-            密码，请在 Futu Integration 的 WebSocket Password / Key 中填写同一明文密码。
+            密码，请在富途接入的 WebSocket 密码 / 密钥中填写同一明文密码。
             命令行版 OpenD 可在 FutuOpenD.xml 或 <code>-cfg_file</code> 指定的参数文件中配置
             <code>websocket_key_md5</code>。
           </p>

@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import { computed, nextTick, ref } from "vue";
 
+import {
+  formatGenericStatusLabel,
+  formatMarketLabel,
+  formatTradingEnvironment,
+} from "../composables/consoleDataFormatting";
 import { useConsoleData } from "../composables/useConsoleData";
 import { useWorkspaceLayout } from "../composables/useWorkspaceLayout";
 
@@ -47,29 +52,29 @@ function localReply(question: string): string {
   const q = question.toLowerCase();
   if (q.includes("环境") || q.includes("env") || q.includes("trading")) {
     return selectedBrokerAccount.value == null
-      ? `当前默认交易环境：${systemStatus.value.defaultTradingEnvironment}，券商层：${systemStatus.value.broker.displayName}。`
-      : `当前查询作用域：${selectedBrokerAccount.value.brokerId} / ${selectedBrokerAccount.value.accountId} / ${selectedBrokerAccount.value.tradingEnvironment} / ${selectedBrokerAccount.value.market}。`;
+      ? `当前默认交易环境：${formatTradingEnvironment(systemStatus.value.defaultTradingEnvironment)}，券商层：${systemStatus.value.broker.displayName}。`
+      : `当前查询作用域：${selectedBrokerAccount.value.brokerId} / ${selectedBrokerAccount.value.accountId} / ${formatTradingEnvironment(selectedBrokerAccount.value.tradingEnvironment)} / ${formatMarketLabel(selectedBrokerAccount.value.market)}。`;
   }
   if (q.includes("风控") || q.includes("kill") || q.includes("risk")) {
-    return `Kill switch：${realTradeKillSwitchState.value.killSwitchActive ? "ACTIVE ⚠" : "clear"}；风控限额：${realTradeRiskState.value.riskEnabled ? "已启用" : "未启用"}。`;
+    return `熔断开关：${formatGenericStatusLabel(realTradeKillSwitchState.value.killSwitchActive ? "ACTIVE" : "CLEAR")}；风控限额：${realTradeRiskState.value.riskEnabled ? "已启用" : "未启用"}。`;
   }
   if (q.includes("持仓") || q.includes("position") || q.includes("portfolio")) {
     const n = portfolioPositions.value.positions.length;
-    return `投影层共 ${n} 条持仓记录。打开 Portfolio 页查看明细。`;
+    return `投影层共 ${n} 条持仓记录。打开账户页查看明细。`;
   }
   if (q.includes("订单") || q.includes("order")) {
     const n = brokerOrders.value.orders.length;
-    return `Broker 订单视图共 ${n} 条记录。可在 Execution / Broker 页查看详情。`;
+    return `券商订单视图共 ${n} 条记录。可在执行相关页面查看详情。`;
   }
   if (q.includes("订阅") || q.includes("sub") || q.includes("market")) {
     return `当前行情活跃订阅 ${marketDataSubscriptions.value.totalActiveSubscriptions} 条，配额 ${marketDataSubscriptions.value.quota.totalUsed}/${marketDataSubscriptions.value.quota.totalLimit ?? "∞"}。`;
   }
   if (q.includes("审计") || q.includes("audit") || q.includes("log")) {
     const n = storageOverview.value.recentAuditLogs.length;
-    return `最近 ${n} 条审计日志可在右栏 / System 页查看。`;
+    return `最近 ${n} 条审计日志可在右栏或系统页查看。`;
   }
   if (q.includes("标的") || q.includes("symbol")) {
-    return `当前工作区标的：${prefs.value.market}:${prefs.value.symbol}，周期 ${prefs.value.period}。`;
+    return `当前工作区标的：${formatMarketLabel(prefs.value.market)}:${prefs.value.symbol}，周期 ${prefs.value.period}。`;
   }
   return "（本地助手）目前我可以回答关于交易环境、风控、持仓、订单、订阅、审计的问题。后续会接入大模型 / 策略生成能力。";
 }
@@ -122,7 +127,7 @@ function pick(s: string): void {
     <div ref="scrollHost" style="flex: 1; overflow-y: auto; padding: 10px">
       <div v-for="m in messages" :key="m.id" class="tv-ai-msg" :class="{ 'is-user': m.role === 'user' }">
         <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--tv-text-muted); margin-bottom: 4px">
-          {{ m.role === "user" ? "You" : "Assistant" }}
+          {{ m.role === "user" ? "你" : "助手" }}
         </div>
         <div>{{ m.content }}</div>
       </div>

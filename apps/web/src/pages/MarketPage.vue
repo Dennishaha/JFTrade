@@ -11,7 +11,13 @@ import KlineChart from "../components/KlineChart.vue";
 import PageHeader from "../components/PageHeader.vue";
 import SectionHeader from "../components/SectionHeader.vue";
 import { createMarketDataSubscriptionScope } from "../composables/consoleDataMarketSubscriptionScope";
-import { formatDateTime } from "../composables/consoleDataFormatting";
+import {
+  formatConnectivityLabel,
+  formatDateTime,
+  formatGenericStatusLabel,
+  formatMarketDataChannelLabel,
+  formatMarketLabel,
+} from "../composables/consoleDataFormatting";
 import { useConsoleData } from "../composables/useConsoleData";
 import { useSharedLiveSocket } from "../composables/useSharedLiveSocket";
 
@@ -39,6 +45,9 @@ const {
 } = useConsoleData();
 const live = useSharedLiveSocket();
 
+const marketOptions = ["HK", "US", "CN", "SG", "JP", "AU", "MY", "CA", "CRYPTO"].map(
+  (market) => ({ value: market, title: formatMarketLabel(market) }),
+);
 const marketPageConsumerId = createStableWebConsumerId("market-page");
 const symbolSearchText = ref(marketDataQuerySymbol.value);
 const activeResultPanels = ref(["query-results"]);
@@ -113,20 +122,20 @@ onUnmounted(() => {
 
 const marketHeaderStats = computed(() => [
   {
-    label: "Active Subs",
+    label: "活跃订阅",
     value: marketDataSubscriptions.value.totalActiveSubscriptions,
   },
   {
-    label: "Quota",
+    label: "配额",
     value: `${marketDataSubscriptions.value.quota.totalUsed} / ${marketDataSubscriptions.value.quota.totalLimit ?? "∞"}`,
   },
   {
-    label: "Snapshot",
-    value: marketDataSnapshot.value?.snapshot ? "READY" : "EMPTY",
+    label: "快照",
+    value: formatGenericStatusLabel(marketDataSnapshot.value?.snapshot ? "READY" : "EMPTY"),
     tone: marketDataSnapshot.value?.snapshot ? "good" : "warn",
   },
   {
-    label: "Candles",
+    label: "K线",
     value: marketDataCandles.value?.totalReturned ?? 0,
     hint: `${marketDataQueryMarket.value}.${marketDataQuerySymbol.value}`,
   },
@@ -200,28 +209,28 @@ const latestQuoteChangeLabel = computed(() => {
   const change = latestQuoteChange.value;
   const percent = latestQuoteChangePercent.value;
   if (change == null || percent == null) {
-    return "N/A";
+    return "暂无";
   }
 
   const prefix = change > 0 ? "+" : "";
   return `${prefix}${change.toFixed(3)} (${prefix}${percent.toFixed(2)}%)`;
 });
 const liveQuoteStateLabel = computed(() => {
-  switch (live.connectionState.value) {
-    case "connected":
-      return "WS LIVE";
-    case "connecting":
-      return "WS CONNECTING";
-    case "unsupported":
-      return "WS UNSUPPORTED";
-    case "error":
-      return "WS ERROR";
-    case "disconnected":
-      return "WS DISCONNECTED";
-    default:
-      return "WS IDLE";
-  }
+  return `实时通道：${formatConnectivityLabel(live.connectionState.value)}`;
 });
+
+function formatMarketDataSourceLabel(source: string | null | undefined): string {
+  switch ((source ?? "").trim().toLowerCase()) {
+    case "cache":
+      return "缓存";
+    case "live":
+      return "实时";
+    case "provider":
+      return "数据源";
+    default:
+      return source == null || source === "" ? "缓存" : source;
+  }
+}
 
 const historicalPriceSummary = computed(() => {
   const candles = chartCandles.value;
@@ -365,8 +374,8 @@ function scheduleMarketDataAutoRefresh(): void {
 <template>
   <div class="grid gap-6">
     <PageHeader
-      eyebrow="Market workstation"
-      title="Market / Data"
+      eyebrow="行情工作台"
+      title="行情 / 数据"
       description="用更接近交易终端的布局收纳订阅、配额、快照和 K 线查询，避免行情状态散落在不同卡片里。"
       :stats="marketHeaderStats"
     />
@@ -374,8 +383,8 @@ function scheduleMarketDataAutoRefresh(): void {
     <!-- Section Header with Page Title and Description -->
     <div>
       <SectionHeader
-        title="Market Data"
-        description="Configure query parameters and monitor active subscriptions"
+        title="行情数据"
+        description="配置查询参数并监控活跃订阅。"
       />
     </div>
 
@@ -387,19 +396,21 @@ function scheduleMarketDataAutoRefresh(): void {
           <div class="space-y-4">
             <!-- Market Select -->
             <div class="grid gap-1">
-              <label class="text-sm font-medium text-slate-700">市场 (Market)</label>
+              <label class="text-sm font-medium text-slate-700">市场</label>
               <v-select
                 v-model="marketDataQueryMarket"
                 class="w-full"
                 density="compact"
                 variant="outlined"
-                :items="['HK', 'US', 'CN', 'SG', 'JP', 'AU', 'MY', 'CA', 'CRYPTO']"
+                :items="marketOptions"
+                item-title="title"
+                item-value="value"
               />
             </div>
 
             <!-- Symbol Input -->
             <div class="grid gap-1">
-              <label class="text-sm font-medium text-slate-700">标的 (Symbol)</label>
+              <label class="text-sm font-medium text-slate-700">标的</label>
               <v-autocomplete
                 v-model="symbolSearchText"
                 class="w-full"
@@ -419,7 +430,7 @@ function scheduleMarketDataAutoRefresh(): void {
 
             <!-- Period Select -->
             <div class="grid gap-1">
-              <label class="text-sm font-medium text-slate-700">周期 (Period)</label>
+              <label class="text-sm font-medium text-slate-700">周期</label>
               <v-select
                 v-model="marketDataQueryPeriod"
                 class="w-full"
@@ -433,7 +444,7 @@ function scheduleMarketDataAutoRefresh(): void {
 
             <!-- Limit Input -->
             <div class="grid gap-1">
-              <label class="text-sm font-medium text-slate-700">Limit</label>
+              <label class="text-sm font-medium text-slate-700">查询条数</label>
               <v-text-field
                 v-model.number="marketDataQueryLimit"
                 type="number"
@@ -470,10 +481,10 @@ function scheduleMarketDataAutoRefresh(): void {
           <div class="rounded-lg border border-slate-200 bg-white p-4">
             <div class="mb-4">
               <h3 class="text-base font-semibold text-slate-900">
-                Market Data Subscriptions
+                行情订阅
               </h3>
               <p class="mt-1 text-sm text-slate-500">
-                Active: {{ marketDataSubscriptions.totalActiveSubscriptions }}
+                活跃：{{ marketDataSubscriptions.totalActiveSubscriptions }}
               </p>
             </div>
 
@@ -486,21 +497,21 @@ function scheduleMarketDataAutoRefresh(): void {
               class="mb-4"
               type="warning"
               :closable="false"
-              title="Market Data Warning"
+              title="行情数据提示"
             >{{ marketDataError }}</v-alert>
 
             <div v-else class="overflow-x-auto">
               <table class="min-w-full text-left text-sm">
                 <thead class="text-xs uppercase tracking-[0.18em] text-slate-500">
                   <tr>
-                    <th class="whitespace-nowrap px-3 py-2">Symbol</th>
-                    <th class="whitespace-nowrap px-3 py-2">Name</th>
-                    <th class="whitespace-nowrap px-3 py-2">Market</th>
-                    <th class="whitespace-nowrap px-3 py-2">Channel</th>
-                    <th class="whitespace-nowrap px-3 py-2">Instrument ID</th>
-                    <th class="whitespace-nowrap px-3 py-2 text-center">Ref Count</th>
-                    <th class="whitespace-nowrap px-3 py-2 text-center">Consumers</th>
-                    <th class="whitespace-nowrap px-3 py-2">Updated</th>
+                    <th class="whitespace-nowrap px-3 py-2">代码</th>
+                    <th class="whitespace-nowrap px-3 py-2">名称</th>
+                    <th class="whitespace-nowrap px-3 py-2">市场</th>
+                    <th class="whitespace-nowrap px-3 py-2">通道</th>
+                    <th class="whitespace-nowrap px-3 py-2">标的ID</th>
+                    <th class="whitespace-nowrap px-3 py-2 text-center">引用数</th>
+                    <th class="whitespace-nowrap px-3 py-2 text-center">消费者</th>
+                    <th class="whitespace-nowrap px-3 py-2">更新时间</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -510,9 +521,9 @@ function scheduleMarketDataAutoRefresh(): void {
                     class="border-t border-slate-100"
                   >
                     <td class="whitespace-nowrap px-3 py-2 font-medium text-slate-900">{{ row.symbol }}</td>
-                    <td class="px-3 py-2 text-slate-600">{{ marketInstrumentSearchOptions.find(o => o.instrumentId === row.instrumentId)?.name ?? 'N/A' }}</td>
-                    <td class="whitespace-nowrap px-3 py-2 text-slate-600">{{ row.market }}</td>
-                    <td class="whitespace-nowrap px-3 py-2 text-slate-600">{{ row.channel }}</td>
+                    <td class="px-3 py-2 text-slate-600">{{ marketInstrumentSearchOptions.find(o => o.instrumentId === row.instrumentId)?.name ?? '暂无' }}</td>
+                    <td class="whitespace-nowrap px-3 py-2 text-slate-600">{{ formatMarketLabel(row.market) }}</td>
+                    <td class="whitespace-nowrap px-3 py-2 text-slate-600">{{ formatMarketDataChannelLabel(row.channel) }}</td>
                     <td class="px-3 py-2 text-slate-600">{{ row.instrumentId }}</td>
                     <td class="whitespace-nowrap px-3 py-2 text-center text-slate-600">{{ row.refCount }}</td>
                     <td class="whitespace-nowrap px-3 py-2 text-center text-slate-600">{{ row.consumers.length }}</td>
@@ -522,7 +533,7 @@ function scheduleMarketDataAutoRefresh(): void {
               </table>
             </div>
 
-            <v-empty-state v-if="!isLoadingMarketData && !marketDataError && !marketDataSubscriptions.entries.length" text="当前没有活跃的市场数据订阅。策略或 broker provider 建立订阅后会显示消费者、配额与更新时间。" />
+            <v-empty-state v-if="!isLoadingMarketData && !marketDataError && !marketDataSubscriptions.entries.length" text="当前没有活跃的市场数据订阅。策略或券商数据源建立订阅后会显示消费者、配额与更新时间。" />
           </div>
 
           <!-- Secondary Panels in Collapse -->
@@ -531,7 +542,7 @@ function scheduleMarketDataAutoRefresh(): void {
             <v-expansion-panel value="subscription-quota">
               <template #title>
                 <div class="flex items-center justify-between gap-3 flex-1 pr-4">
-                  <span>Subscription Quota</span>
+                  <span>订阅配额</span>
                   <v-chip variant="outlined" size="small">{{ marketDataSubscriptions.quota.totalUsed }} / {{ marketDataSubscriptions.quota.totalLimit ?? '∞' }}</v-chip>
                 </div>
               </template>
@@ -543,11 +554,11 @@ function scheduleMarketDataAutoRefresh(): void {
                   class="rounded-lg border border-slate-200 bg-white px-4 py-4"
                 >
                   <div class="flex items-center justify-between gap-3">
-                    <div class="text-base font-semibold text-slate-900">{{ bucket.market }}</div>
+                    <div class="text-base font-semibold text-slate-900">{{ formatMarketLabel(bucket.market) }}</div>
                     <v-chip variant="outlined" size="small">{{ bucket.used }} / {{ bucket.limit ?? '∞' }}</v-chip>
                   </div>
                   <div class="mt-3 rounded-lg bg-slate-50 px-3 py-3">
-                    <div class="text-xs uppercase tracking-[0.2em] text-slate-500">Remaining</div>
+                    <div class="text-xs uppercase tracking-[0.2em] text-slate-500">剩余</div>
                     <div class="mt-2 text-xl font-semibold text-slate-900">
                       {{ bucket.remaining ?? '∞' }}
                     </div>
@@ -555,15 +566,15 @@ function scheduleMarketDataAutoRefresh(): void {
                 </div>
               </div>
 
-              <v-empty-state v-else text="暂无各市场配额信息。配额 read-model 会随订阅 registry 接入后自动填充。" />
+              <v-empty-state v-else text="暂无各市场配额信息。配额读模型会随订阅注册表接入后自动填充。" />
             </v-expansion-panel>
 
             <!-- Snapshot and Candles Section -->
             <v-expansion-panel value="query-results">
               <template #title>
                 <div class="flex items-center justify-between gap-3 flex-1 pr-4">
-                  <span>Market Data Query Results</span>
-                  <v-chip variant="outlined" size="small">{{ marketDataSnapshot?.meta.source ?? 'cache' }}</v-chip>
+                  <span>行情查询结果</span>
+                  <v-chip variant="outlined" size="small">{{ formatMarketDataSourceLabel(marketDataSnapshot?.meta.source) }}</v-chip>
                 </div>
               </template>
 
@@ -572,7 +583,7 @@ function scheduleMarketDataAutoRefresh(): void {
                 type="warning"
                 class="mb-4"
                 :closable="false"
-                title="Market Data Query Warning"
+                title="行情查询提示"
               >{{ marketDataQueryError }}</v-alert>
 
               <div class="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
@@ -580,20 +591,20 @@ function scheduleMarketDataAutoRefresh(): void {
                 <div class="rounded-lg border border-slate-200 bg-white px-4 py-4">
                   <div class="flex items-center justify-between gap-3">
                     <div>
-                      <div class="text-xs uppercase tracking-[0.2em] text-slate-500">Snapshot</div>
+                      <div class="text-xs uppercase tracking-[0.2em] text-slate-500">快照</div>
                       <div class="mt-1 text-sm font-medium text-slate-900">
                         {{ selectedInstrumentTitle }}
                       </div>
                     </div>
                     <v-chip :color="marketDataSnapshot?.snapshot ? 'success' : 'info'" variant="outlined" size="small">
-                      {{ marketDataSnapshot?.snapshot ? 'FOUND' : 'EMPTY' }}
+                      {{ formatGenericStatusLabel(marketDataSnapshot?.snapshot ? 'FOUND' : 'EMPTY') }}
                     </v-chip>
                   </div>
 
                   <div v-if="latestQuoteSnapshot" class="mt-4 grid gap-3 sm:grid-cols-2">
                     <div class="rounded-lg bg-slate-50 px-3 py-3 sm:col-span-2">
                       <div class="flex items-center justify-between gap-3">
-                        <div class="text-xs uppercase tracking-[0.2em] text-slate-500">Latest Quote</div>
+                        <div class="text-xs uppercase tracking-[0.2em] text-slate-500">最新报价</div>
                         <v-chip variant="outlined" size="small">{{ liveQuoteStateLabel }}</v-chip>
                       </div>
                       <div class="mt-2 flex flex-wrap items-end gap-3">
@@ -605,42 +616,42 @@ function scheduleMarketDataAutoRefresh(): void {
                         </div>
                       </div>
                       <div class="mt-2 text-xs text-slate-500">
-                        参考价：{{ latestQuoteReferencePrice ?? 'N/A' }} · {{ formatDateTime(latestQuoteSnapshot.at) }}
+                        参考价：{{ latestQuoteReferencePrice ?? '暂无' }} · {{ formatDateTime(latestQuoteSnapshot.at) }}
                       </div>
                     </div>
                     <div class="rounded-lg bg-slate-50 px-3 py-3">
-                      <div class="text-xs uppercase tracking-[0.2em] text-slate-500">Bid / Ask</div>
+                      <div class="text-xs uppercase tracking-[0.2em] text-slate-500">买一 / 卖一</div>
                       <div class="mt-2 text-xl font-semibold text-slate-900">
                         {{ latestQuoteSnapshot.bid }} / {{ latestQuoteSnapshot.ask }}
                       </div>
                     </div>
                     <div class="rounded-lg bg-slate-50 px-3 py-3">
-                      <div class="text-xs uppercase tracking-[0.2em] text-slate-500">Volume</div>
+                      <div class="text-xs uppercase tracking-[0.2em] text-slate-500">成交量</div>
                       <div class="mt-2 text-xl font-semibold text-slate-900">{{ latestQuoteSnapshot.volume }}</div>
                     </div>
                     <div class="rounded-lg bg-slate-50 px-3 py-3">
-                      <div class="text-xs uppercase tracking-[0.2em] text-slate-500">High / Low</div>
+                      <div class="text-xs uppercase tracking-[0.2em] text-slate-500">最高 / 最低</div>
                       <div class="mt-2 text-xl font-semibold text-slate-900">
-                        {{ latestQuoteSnapshot.highPrice ?? 'N/A' }} / {{ latestQuoteSnapshot.lowPrice ?? 'N/A' }}
+                        {{ latestQuoteSnapshot.highPrice ?? '暂无' }} / {{ latestQuoteSnapshot.lowPrice ?? '暂无' }}
                       </div>
                     </div>
                     <div class="rounded-lg bg-slate-50 px-3 py-3">
-                      <div class="text-xs uppercase tracking-[0.2em] text-slate-500">Updated</div>
+                      <div class="text-xs uppercase tracking-[0.2em] text-slate-500">更新时间</div>
                       <div class="mt-2 text-sm font-semibold text-slate-900">
                         {{ formatDateTime(latestQuoteSnapshot.at) }}
                       </div>
                     </div>
                   </div>
-                  <v-empty-state v-else text="未命中快照缓存；请确认 market / symbol 或等待行情 provider 写入。" class="mt-4" />
+                  <v-empty-state v-else text="未命中快照缓存；请确认市场 / 标的，或等待行情数据源写入。" class="mt-4" />
                 </div>
 
                 <!-- Candles Card -->
                 <div class="rounded-lg border border-slate-200 bg-white px-4 py-4">
                   <div class="flex items-center justify-between gap-3">
                     <div>
-                      <div class="text-xs uppercase tracking-[0.2em] text-slate-500">Recent Candles</div>
+                      <div class="text-xs uppercase tracking-[0.2em] text-slate-500">近期K线</div>
                       <div class="mt-1 text-sm font-medium text-slate-900">
-                        {{ selectedInstrumentTitle }} · {{ marketDataCandles?.request.period ?? marketDataQueryPeriod }} / {{ marketDataCandles?.totalReturned ?? 0 }} returned
+                        {{ selectedInstrumentTitle }} · {{ marketDataCandles?.request.period ?? marketDataQueryPeriod }} / {{ marketDataCandles?.totalReturned ?? 0 }} 条
                       </div>
                     </div>
                   </div>
@@ -652,7 +663,7 @@ function scheduleMarketDataAutoRefresh(): void {
                       show-indicator-selector
                       indicator-storage-key="jftrade.market-chart.indicators"
                       :default-indicators="['volume']"
-                      empty-text="暂无 K 线图数据；点击查询后会在这里渲染最近 candles。"
+                      empty-text="暂无 K 线图数据；点击查询后会在这里渲染最近 K 线数据。"
                       @load-more="loadOlderCandles"
                     />
                     <div v-if="isLoadingOlderCandles" class="px-2 pt-2 text-xs text-slate-500">
@@ -665,25 +676,25 @@ function scheduleMarketDataAutoRefresh(): void {
                     class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
                   >
                     <div class="rounded-lg bg-slate-50 px-3 py-3">
-                      <div class="text-xs uppercase tracking-[0.2em] text-slate-500">History Range</div>
+                      <div class="text-xs uppercase tracking-[0.2em] text-slate-500">历史区间</div>
                       <div class="mt-2 text-xs font-semibold text-slate-900">
                         {{ formatDateTime(historicalPriceSummary.from) }} → {{ formatDateTime(historicalPriceSummary.to) }}
                       </div>
                     </div>
                     <div class="rounded-lg bg-slate-50 px-3 py-3">
-                      <div class="text-xs uppercase tracking-[0.2em] text-slate-500">Open → Close</div>
+                      <div class="text-xs uppercase tracking-[0.2em] text-slate-500">开盘 → 收盘</div>
                       <div class="mt-2 text-lg font-semibold text-slate-900">
                         {{ historicalPriceSummary.firstOpen }} → {{ historicalPriceSummary.lastClose }}
                       </div>
                     </div>
                     <div class="rounded-lg bg-slate-50 px-3 py-3">
-                      <div class="text-xs uppercase tracking-[0.2em] text-slate-500">High / Low</div>
+                      <div class="text-xs uppercase tracking-[0.2em] text-slate-500">最高 / 最低</div>
                       <div class="mt-2 text-lg font-semibold text-slate-900">
                         {{ historicalPriceSummary.high }} / {{ historicalPriceSummary.low }}
                       </div>
                     </div>
                     <div class="rounded-lg bg-slate-50 px-3 py-3">
-                      <div class="text-xs uppercase tracking-[0.2em] text-slate-500">Change / Volume</div>
+                      <div class="text-xs uppercase tracking-[0.2em] text-slate-500">涨跌 / 成交量</div>
                       <div
                         class="mt-2 text-lg font-semibold"
                         :class="historicalPriceSummary.change >= 0 ? 'text-teal-700' : 'text-rose-700'"
@@ -696,17 +707,17 @@ function scheduleMarketDataAutoRefresh(): void {
 
                   <div v-if="marketDataCandles?.candles.length" class="mt-4 overflow-x-auto">
                     <div class="mb-2 text-xs uppercase tracking-[0.18em] text-slate-500">
-                      Historical K-line Prices
+                      历史K线价格
                     </div>
                     <table class="min-w-full text-left text-sm">
                       <thead class="text-xs uppercase tracking-[0.18em] text-slate-500">
                         <tr>
-                          <th class="whitespace-nowrap px-3 py-2">Time</th>
-                          <th class="whitespace-nowrap px-3 py-2">Open</th>
-                          <th class="whitespace-nowrap px-3 py-2">High</th>
-                          <th class="whitespace-nowrap px-3 py-2">Low</th>
-                          <th class="whitespace-nowrap px-3 py-2">Close</th>
-                          <th class="whitespace-nowrap px-3 py-2">Volume</th>
+                          <th class="whitespace-nowrap px-3 py-2">时间</th>
+                          <th class="whitespace-nowrap px-3 py-2">开盘</th>
+                          <th class="whitespace-nowrap px-3 py-2">最高</th>
+                          <th class="whitespace-nowrap px-3 py-2">最低</th>
+                          <th class="whitespace-nowrap px-3 py-2">收盘</th>
+                          <th class="whitespace-nowrap px-3 py-2">成交量</th>
                         </tr>
                       </thead>
                       <tbody>

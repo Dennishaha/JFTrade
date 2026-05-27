@@ -4,12 +4,15 @@ import (
 	"context"
 	"io"
 	"net"
+	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/c9s/bbgo/pkg/exchange"
+	"github.com/c9s/bbgo/pkg/fixedpoint"
 	"github.com/c9s/bbgo/pkg/types"
 	"google.golang.org/protobuf/proto"
 
@@ -24,6 +27,13 @@ import (
 	historypb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotrequesthistorykl"
 	qotsubpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotsub"
 	qotupdatebasicqotpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotupdatebasicqot"
+	trdcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdcommon"
+	trdgetacclistpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdgetacclist"
+	trdgetfundspb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdgetfunds"
+	trdgetorderlistpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdgetorderlist"
+	trdgetpositionlistpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdgetpositionlist"
+	trdmodifyorderpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdmodifyorder"
+	trdplaceorderpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdplaceorder"
 )
 
 func TestRegistration(t *testing.T) {
@@ -97,6 +107,267 @@ func TestQueryTickerReusesSingleOpenDConnection(t *testing.T) {
 	}
 	if firstTicker.Last.Float64() != secondTicker.Last.Float64() {
 		t.Fatalf("expected stable quote price, got %f and %f", firstTicker.Last.Float64(), secondTicker.Last.Float64())
+	}
+}
+
+func TestDiscoverAccountsReusesSingleOpenDConnection(t *testing.T) {
+	server := startQuoteOpenDServer(t)
+	server.setAccounts([]*trdcommonpb.TrdAcc{
+		{
+			TrdEnv:            proto.Int32(int32(trdcommonpb.TrdEnv_TrdEnv_Simulate)),
+			AccID:             proto.Uint64(1001),
+			TrdMarketAuthList: []int32{int32(trdcommonpb.TrdMarket_TrdMarket_HK)},
+			AccType:           proto.Int32(int32(trdcommonpb.TrdAccType_TrdAccType_Cash)),
+			SecurityFirm:      proto.Int32(int32(trdcommonpb.SecurityFirm_SecurityFirm_FutuSecurities)),
+			SimAccType:        proto.Int32(int32(trdcommonpb.SimAccType_SimAccType_Stock)),
+		},
+	})
+	defer server.stop()
+
+	ex := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
+	defer ex.Close()
+
+	accounts, err := ex.DiscoverAccounts(t.Context())
+	if err != nil {
+		t.Fatalf("first DiscoverAccounts: %v", err)
+	}
+	secondAccounts, err := ex.DiscoverAccounts(t.Context())
+	if err != nil {
+		t.Fatalf("second DiscoverAccounts: %v", err)
+	}
+	if len(accounts) != 1 || len(secondAccounts) != 1 {
+		t.Fatalf("expected one discovered account, got %#v / %#v", accounts, secondAccounts)
+	}
+	if got := accounts[0].AccountID; got != "1001" {
+		t.Fatalf("AccountID = %q, want 1001", got)
+	}
+	if got := accounts[0].TradingEnvironment; got != "SIMULATE" {
+		t.Fatalf("TradingEnvironment = %q, want SIMULATE", got)
+	}
+	if got := accounts[0].AccountType; got != "CASH" {
+		t.Fatalf("AccountType = %q, want CASH", got)
+	}
+	if accounts[0].SecurityFirm == nil || *accounts[0].SecurityFirm != "FUTUSECURITIES" {
+		t.Fatalf("SecurityFirm = %#v, want FUTUSECURITIES", accounts[0].SecurityFirm)
+	}
+	if accounts[0].SimulatedAccountType == nil || *accounts[0].SimulatedAccountType != "STOCK" {
+		t.Fatalf("SimulatedAccountType = %#v, want STOCK", accounts[0].SimulatedAccountType)
+	}
+	if len(accounts[0].MarketAuthorities) != 1 || accounts[0].MarketAuthorities[0] != "HK" {
+		t.Fatalf("MarketAuthorities = %#v, want [HK]", accounts[0].MarketAuthorities)
+	}
+	if got := server.acceptCount(); got != 1 {
+		t.Fatalf("expected one OpenD TCP session, got %d", got)
+	}
+	if got := server.accountListCallCount(); got != 2 {
+		t.Fatalf("expected two Trd_GetAccList calls, got %d", got)
+	}
+	if !server.lastInitRecvNotify() {
+		t.Fatal("expected InitConnect to request OpenD notifications")
+	}
+}
+
+func TestQueryAccountBalancesUsesOpenDFundsSnapshot(t *testing.T) {
+	server := startQuoteOpenDServer(t)
+	server.setAccounts([]*trdcommonpb.TrdAcc{
+		{
+			TrdEnv:            proto.Int32(int32(trdcommonpb.TrdEnv_TrdEnv_Simulate)),
+			AccID:             proto.Uint64(1001),
+			TrdMarketAuthList: []int32{int32(trdcommonpb.TrdMarket_TrdMarket_HK)},
+			AccType:           proto.Int32(int32(trdcommonpb.TrdAccType_TrdAccType_Cash)),
+		},
+	})
+	server.setFunds(&trdcommonpb.Funds{
+		CashInfoList: []*trdcommonpb.AccCashInfo{{
+			Currency:         proto.Int32(int32(trdcommonpb.Currency_Currency_HKD)),
+			Cash:             proto.Float64(10000),
+			AvailableBalance: proto.Float64(9200),
+			NetCashPower:     proto.Float64(15000),
+		}},
+		Cash:              proto.Float64(10000),
+		FrozenCash:        proto.Float64(800),
+		AvlWithdrawalCash: proto.Float64(9200),
+	})
+	defer server.stop()
+
+	ex := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
+	defer ex.Close()
+
+	balances, err := ex.QueryAccountBalances(t.Context())
+	if err != nil {
+		t.Fatalf("QueryAccountBalances: %v", err)
+	}
+	balance, ok := balances["HKD"]
+	if !ok {
+		t.Fatalf("expected HKD balance, got %#v", balances)
+	}
+	if got := balance.Available.Float64(); got != 9200 {
+		t.Fatalf("Available = %v, want 9200", got)
+	}
+	if got := balance.MaxWithdrawAmount.Float64(); got != 9200 {
+		t.Fatalf("MaxWithdrawAmount = %v, want 9200", got)
+	}
+	if got := server.fundsCallCount(); got != 1 {
+		t.Fatalf("expected one Trd_GetFunds call, got %d", got)
+	}
+}
+
+func TestQueryOpenOrdersReturnsActiveOrders(t *testing.T) {
+	server := startQuoteOpenDServer(t)
+	server.setAccounts([]*trdcommonpb.TrdAcc{
+		{
+			TrdEnv:            proto.Int32(int32(trdcommonpb.TrdEnv_TrdEnv_Simulate)),
+			AccID:             proto.Uint64(1001),
+			TrdMarketAuthList: []int32{int32(trdcommonpb.TrdMarket_TrdMarket_HK)},
+			AccType:           proto.Int32(int32(trdcommonpb.TrdAccType_TrdAccType_Cash)),
+		},
+	})
+	server.setOrders([]*trdcommonpb.Order{
+		{
+			OrderID:         proto.Uint64(2001),
+			Code:            proto.String("HK.00700"),
+			TrdSide:         proto.Int32(int32(trdcommonpb.TrdSide_TrdSide_Buy)),
+			OrderType:       proto.Int32(int32(trdcommonpb.OrderType_OrderType_Normal)),
+			OrderStatus:     proto.Int32(int32(trdcommonpb.OrderStatus_OrderStatus_Submitted)),
+			Qty:             proto.Float64(100),
+			Price:           proto.Float64(320),
+			FillQty:         proto.Float64(25),
+			FillAvgPrice:    proto.Float64(319.5),
+			CreateTimestamp: proto.Float64(float64(time.Date(2026, time.May, 20, 9, 30, 0, 0, time.UTC).Unix())),
+			UpdateTimestamp: proto.Float64(float64(time.Date(2026, time.May, 20, 9, 31, 0, 0, time.UTC).Unix())),
+			TimeInForce:     proto.Int32(int32(trdcommonpb.TimeInForce_TimeInForce_GTC)),
+			Currency:        proto.Int32(int32(trdcommonpb.Currency_Currency_HKD)),
+			TrdMarket:       proto.Int32(int32(trdcommonpb.TrdMarket_TrdMarket_HK)),
+		},
+		{
+			OrderID:     proto.Uint64(2002),
+			Code:        proto.String("HK.00700"),
+			TrdSide:     proto.Int32(int32(trdcommonpb.TrdSide_TrdSide_Sell)),
+			OrderType:   proto.Int32(int32(trdcommonpb.OrderType_OrderType_Normal)),
+			OrderStatus: proto.Int32(int32(trdcommonpb.OrderStatus_OrderStatus_Cancelled_All)),
+			Qty:         proto.Float64(50),
+			Price:       proto.Float64(330),
+			UpdateTime:  proto.String("2026-05-20 09:32:00"),
+			CreateTime:  proto.String("2026-05-20 09:30:30"),
+			TrdMarket:   proto.Int32(int32(trdcommonpb.TrdMarket_TrdMarket_HK)),
+			Currency:    proto.Int32(int32(trdcommonpb.Currency_Currency_HKD)),
+		},
+	})
+	defer server.stop()
+
+	ex := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
+	defer ex.Close()
+
+	orders, err := ex.QueryOpenOrders(t.Context(), "HK.00700")
+	if err != nil {
+		t.Fatalf("QueryOpenOrders: %v", err)
+	}
+	if len(orders) != 1 {
+		t.Fatalf("expected one active order, got %#v", orders)
+	}
+	if got := orders[0].OrderID; got != 2001 {
+		t.Fatalf("OrderID = %d, want 2001", got)
+	}
+	if got := orders[0].ExecutedQuantity.Float64(); got != 25 {
+		t.Fatalf("ExecutedQuantity = %v, want 25", got)
+	}
+	if !orders[0].IsWorking {
+		t.Fatal("expected order to remain working")
+	}
+	if got := server.orderListCallCount(); got != 1 {
+		t.Fatalf("expected one Trd_GetOrderList call, got %d", got)
+	}
+}
+
+func TestSubmitOrderPlacesViaOpenD(t *testing.T) {
+	server := startQuoteOpenDServer(t)
+	server.setAccounts([]*trdcommonpb.TrdAcc{{
+		TrdEnv:            proto.Int32(int32(trdcommonpb.TrdEnv_TrdEnv_Simulate)),
+		AccID:             proto.Uint64(1001),
+		TrdMarketAuthList: []int32{int32(trdcommonpb.TrdMarket_TrdMarket_HK)},
+		AccType:           proto.Int32(int32(trdcommonpb.TrdAccType_TrdAccType_Cash)),
+	}})
+	server.setPlacedOrderResponse(9001, "FT-9001")
+	defer server.stop()
+
+	ex := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
+	defer ex.Close()
+
+	placed, err := ex.SubmitOrder(t.Context(), types.SubmitOrder{
+		ClientOrderID: "execution-test-order",
+		Symbol:        "HK.00700",
+		Side:          types.SideTypeBuy,
+		Type:          types.OrderTypeLimit,
+		Quantity:      fixedpoint.NewFromFloat(100),
+		Price:         fixedpoint.NewFromFloat(320.5),
+		TimeInForce:   types.TimeInForceGTC,
+	})
+	if err != nil {
+		t.Fatalf("SubmitOrder: %v", err)
+	}
+	if placed == nil {
+		t.Fatal("expected placed order")
+	}
+	if got := placed.OrderID; got != 9001 {
+		t.Fatalf("OrderID = %d, want 9001", got)
+	}
+	request := server.lastPlaceOrderRequest()
+	if request == nil {
+		t.Fatal("expected place order request to be captured")
+	}
+	if got := request.GetPacketID().GetConnID(); got != 42 {
+		t.Fatalf("PacketID.ConnID = %d, want 42", got)
+	}
+	if got := request.GetCode(); got != "00700" {
+		t.Fatalf("Code = %q, want 00700", got)
+	}
+	if got := request.GetRemark(); got != "execution-test-order" {
+		t.Fatalf("Remark = %q, want execution-test-order", got)
+	}
+	if got := server.placeOrderCallCount(); got != 1 {
+		t.Fatalf("expected one Trd_PlaceOrder call, got %d", got)
+	}
+}
+
+func TestCancelOrdersUsesModifyOrderCancel(t *testing.T) {
+	server := startQuoteOpenDServer(t)
+	server.setAccounts([]*trdcommonpb.TrdAcc{{
+		TrdEnv:            proto.Int32(int32(trdcommonpb.TrdEnv_TrdEnv_Simulate)),
+		AccID:             proto.Uint64(1001),
+		TrdMarketAuthList: []int32{int32(trdcommonpb.TrdMarket_TrdMarket_HK)},
+		AccType:           proto.Int32(int32(trdcommonpb.TrdAccType_TrdAccType_Cash)),
+	}})
+	defer server.stop()
+
+	ex := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
+	defer ex.Close()
+
+	err := ex.CancelOrders(t.Context(), types.Order{
+		SubmitOrder: types.SubmitOrder{
+			Symbol: "HK.00700",
+			Side:   types.SideTypeBuy,
+			Type:   types.OrderTypeLimit,
+		},
+		OrderID: 9001,
+	})
+	if err != nil {
+		t.Fatalf("CancelOrders: %v", err)
+	}
+	request := server.lastModifyOrderRequest()
+	if request == nil {
+		t.Fatal("expected modify order request to be captured")
+	}
+	if got := request.GetModifyOrderOp(); got != int32(trdcommonpb.ModifyOrderOp_ModifyOrderOp_Cancel) {
+		t.Fatalf("ModifyOrderOp = %d, want cancel", got)
+	}
+	if got := request.GetOrderID(); got != 9001 {
+		t.Fatalf("OrderID = %d, want 9001", got)
+	}
+	if got := request.GetPacketID().GetConnID(); got != 42 {
+		t.Fatalf("PacketID.ConnID = %d, want 42", got)
+	}
+	if got := server.modifyOrderCallCount(); got != 1 {
+		t.Fatalf("expected one Trd_ModifyOrder call, got %d", got)
 	}
 }
 
@@ -509,9 +780,25 @@ type quoteOpenDServer struct {
 	addr                  string
 	accepts               atomic.Int32
 	initRecvNotify        atomic.Bool
+	accountListCalls      atomic.Int32
+	fundsCalls            atomic.Int32
+	positionListCalls     atomic.Int32
+	orderListCalls        atomic.Int32
+	placeOrderCalls       atomic.Int32
+	modifyOrderCalls      atomic.Int32
 	qotSubCalls           atomic.Int32
 	pushSubCalls          atomic.Int32
 	basicQotCalls         atomic.Int32
+	accountMu             sync.Mutex
+	accounts              []*trdcommonpb.TrdAcc
+	tradeMu               sync.Mutex
+	funds                 *trdcommonpb.Funds
+	positions             []*trdcommonpb.Position
+	orders                []*trdcommonpb.Order
+	placedOrderID         uint64
+	placedOrderIDEx       string
+	lastPlaceOrder        *trdplaceorderpb.C2S
+	lastModifyOrder       *trdmodifyorderpb.C2S
 	historyKLCalls        atomic.Int32
 	currentKLCalls        atomic.Int32
 	historyExtended       atomic.Bool
@@ -579,6 +866,37 @@ func (s *quoteOpenDServer) setNotifyAfterInit(response *notifypb.Response) {
 	s.notifyMu.Lock()
 	defer s.notifyMu.Unlock()
 	s.notifyAfterInit = response
+}
+
+func (s *quoteOpenDServer) setAccounts(accounts []*trdcommonpb.TrdAcc) {
+	s.accountMu.Lock()
+	defer s.accountMu.Unlock()
+	s.accounts = append([]*trdcommonpb.TrdAcc(nil), accounts...)
+}
+
+func (s *quoteOpenDServer) setFunds(funds *trdcommonpb.Funds) {
+	s.tradeMu.Lock()
+	defer s.tradeMu.Unlock()
+	s.funds = funds
+}
+
+func (s *quoteOpenDServer) setPositions(positions []*trdcommonpb.Position) {
+	s.tradeMu.Lock()
+	defer s.tradeMu.Unlock()
+	s.positions = append([]*trdcommonpb.Position(nil), positions...)
+}
+
+func (s *quoteOpenDServer) setOrders(orders []*trdcommonpb.Order) {
+	s.tradeMu.Lock()
+	defer s.tradeMu.Unlock()
+	s.orders = append([]*trdcommonpb.Order(nil), orders...)
+}
+
+func (s *quoteOpenDServer) setPlacedOrderResponse(orderID uint64, orderIDEx string) {
+	s.tradeMu.Lock()
+	defer s.tradeMu.Unlock()
+	s.placedOrderID = orderID
+	s.placedOrderIDEx = orderIDEx
 }
 
 func startQuoteOpenDServer(t *testing.T) *quoteOpenDServer {
@@ -659,6 +977,24 @@ func (s *quoteOpenDServer) handleConn(conn net.Conn) {
 				s.pushSubCalls.Add(1)
 			}
 			response = &qotsubpb.Response{RetType: proto.Int32(0)}
+		case opend.ProtoTrdGetAccList:
+			s.accountListCalls.Add(1)
+			response = s.accountListResponse()
+		case opend.ProtoTrdGetFunds:
+			s.fundsCalls.Add(1)
+			response = s.fundsResponse(frame.Body)
+		case opend.ProtoTrdGetPositionList:
+			s.positionListCalls.Add(1)
+			response = s.positionListResponse(frame.Body)
+		case opend.ProtoTrdGetOrderList:
+			s.orderListCalls.Add(1)
+			response = s.orderListResponse(frame.Body)
+		case opend.ProtoTrdPlaceOrder:
+			s.placeOrderCalls.Add(1)
+			response = s.placeOrderResponse(frame.Body)
+		case opend.ProtoTrdModifyOrder:
+			s.modifyOrderCalls.Add(1)
+			response = s.modifyOrderResponse(frame.Body)
 		case opend.ProtoGetBasicQot:
 			s.basicQotCalls.Add(1)
 			response = s.basicQotResponse(frame.Body)
@@ -880,6 +1216,149 @@ func (s *quoteOpenDServer) basicQotResponse(body []byte) *qotgetbasicqotpb.Respo
 	}
 }
 
+func (s *quoteOpenDServer) accountListResponse() *trdgetacclistpb.Response {
+	s.accountMu.Lock()
+	accounts := append([]*trdcommonpb.TrdAcc(nil), s.accounts...)
+	s.accountMu.Unlock()
+	return &trdgetacclistpb.Response{
+		RetType: proto.Int32(0),
+		S2C: &trdgetacclistpb.S2C{
+			AccList: accounts,
+		},
+	}
+}
+
+func (s *quoteOpenDServer) fundsResponse(body []byte) *trdgetfundspb.Response {
+	request := &trdgetfundspb.Request{}
+	if err := proto.Unmarshal(body, request); err != nil {
+		return &trdgetfundspb.Response{RetType: proto.Int32(1), RetMsg: proto.String(err.Error())}
+	}
+	s.tradeMu.Lock()
+	funds := s.funds
+	s.tradeMu.Unlock()
+	return &trdgetfundspb.Response{
+		RetType: proto.Int32(0),
+		S2C: &trdgetfundspb.S2C{
+			Header: normalizeTestTrdHeader(request.GetC2S().GetHeader()),
+			Funds:  normalizeTestFunds(funds),
+		},
+	}
+}
+
+func (s *quoteOpenDServer) positionListResponse(body []byte) *trdgetpositionlistpb.Response {
+	request := &trdgetpositionlistpb.Request{}
+	if err := proto.Unmarshal(body, request); err != nil {
+		return &trdgetpositionlistpb.Response{RetType: proto.Int32(1), RetMsg: proto.String(err.Error())}
+	}
+	s.tradeMu.Lock()
+	positions := append([]*trdcommonpb.Position(nil), s.positions...)
+	s.tradeMu.Unlock()
+	normalized := make([]*trdcommonpb.Position, 0, len(positions))
+	for _, position := range positions {
+		normalized = append(normalized, normalizeTestPosition(position))
+	}
+	return &trdgetpositionlistpb.Response{
+		RetType: proto.Int32(0),
+		S2C: &trdgetpositionlistpb.S2C{
+			Header:       normalizeTestTrdHeader(request.GetC2S().GetHeader()),
+			PositionList: normalized,
+		},
+	}
+}
+
+func (s *quoteOpenDServer) orderListResponse(body []byte) *trdgetorderlistpb.Response {
+	request := &trdgetorderlistpb.Request{}
+	if err := proto.Unmarshal(body, request); err != nil {
+		return &trdgetorderlistpb.Response{RetType: proto.Int32(1), RetMsg: proto.String(err.Error())}
+	}
+	s.tradeMu.Lock()
+	orders := append([]*trdcommonpb.Order(nil), s.orders...)
+	s.tradeMu.Unlock()
+	normalizedOrders := make([]*trdcommonpb.Order, 0, len(orders))
+	for _, order := range orders {
+		normalizedOrders = append(normalizedOrders, normalizeTestOrder(order))
+	}
+	orders = normalizedOrders
+	if codes := request.GetC2S().GetFilterConditions().GetCodeList(); len(codes) > 0 {
+		filtered := make([]*trdcommonpb.Order, 0, len(orders))
+		for _, order := range orders {
+			if order == nil {
+				continue
+			}
+			for _, code := range codes {
+				if strings.EqualFold(order.GetCode(), code) {
+					filtered = append(filtered, order)
+					break
+				}
+			}
+		}
+		orders = filtered
+	}
+	return &trdgetorderlistpb.Response{
+		RetType: proto.Int32(0),
+		S2C: &trdgetorderlistpb.S2C{
+			Header:    normalizeTestTrdHeader(request.GetC2S().GetHeader()),
+			OrderList: orders,
+		},
+	}
+}
+
+func (s *quoteOpenDServer) placeOrderResponse(body []byte) *trdplaceorderpb.Response {
+	request := &trdplaceorderpb.Request{}
+	if err := proto.Unmarshal(body, request); err != nil {
+		return &trdplaceorderpb.Response{RetType: proto.Int32(1), RetMsg: proto.String(err.Error())}
+	}
+	if request.GetC2S() == nil {
+		return &trdplaceorderpb.Response{RetType: proto.Int32(1), RetMsg: proto.String("missing place order payload")}
+	}
+	s.tradeMu.Lock()
+	s.lastPlaceOrder = proto.Clone(request.GetC2S()).(*trdplaceorderpb.C2S)
+	orderID := s.placedOrderID
+	orderIDEx := s.placedOrderIDEx
+	s.tradeMu.Unlock()
+	if orderID == 0 {
+		orderID = 9001
+	}
+	if orderIDEx == "" {
+		orderIDEx = strconv.FormatUint(orderID, 10)
+	}
+	if request.GetC2S().GetPacketID().GetConnID() == 0 {
+		return &trdplaceorderpb.Response{RetType: proto.Int32(1), RetMsg: proto.String("missing packet id connID")}
+	}
+	return &trdplaceorderpb.Response{
+		RetType: proto.Int32(0),
+		S2C: &trdplaceorderpb.S2C{
+			Header:    normalizeTestTrdHeader(request.GetC2S().GetHeader()),
+			OrderID:   proto.Uint64(orderID),
+			OrderIDEx: proto.String(orderIDEx),
+		},
+	}
+}
+
+func (s *quoteOpenDServer) modifyOrderResponse(body []byte) *trdmodifyorderpb.Response {
+	request := &trdmodifyorderpb.Request{}
+	if err := proto.Unmarshal(body, request); err != nil {
+		return &trdmodifyorderpb.Response{RetType: proto.Int32(1), RetMsg: proto.String(err.Error())}
+	}
+	if request.GetC2S() == nil {
+		return &trdmodifyorderpb.Response{RetType: proto.Int32(1), RetMsg: proto.String("missing modify order payload")}
+	}
+	s.tradeMu.Lock()
+	s.lastModifyOrder = proto.Clone(request.GetC2S()).(*trdmodifyorderpb.C2S)
+	s.tradeMu.Unlock()
+	if request.GetC2S().GetPacketID().GetConnID() == 0 {
+		return &trdmodifyorderpb.Response{RetType: proto.Int32(1), RetMsg: proto.String("missing packet id connID")}
+	}
+	return &trdmodifyorderpb.Response{
+		RetType: proto.Int32(0),
+		S2C: &trdmodifyorderpb.S2C{
+			Header:    normalizeTestTrdHeader(request.GetC2S().GetHeader()),
+			OrderID:   proto.Uint64(request.GetC2S().GetOrderID()),
+			OrderIDEx: proto.String(strconv.FormatUint(request.GetC2S().GetOrderID(), 10)),
+		},
+	}
+}
+
 func basicQotListForSecurities(securities []*qotcommonpb.Security) []*qotcommonpb.BasicQot {
 	quotes := make([]*qotcommonpb.BasicQot, 0, len(securities))
 	baseQuoteTime := time.Date(2026, time.May, 20, 9, 30, 0, 0, time.UTC)
@@ -918,6 +1397,44 @@ func (s *quoteOpenDServer) subCallCount() int {
 	return int(s.qotSubCalls.Load())
 }
 
+func (s *quoteOpenDServer) accountListCallCount() int {
+	return int(s.accountListCalls.Load())
+}
+
+func (s *quoteOpenDServer) fundsCallCount() int {
+	return int(s.fundsCalls.Load())
+}
+
+func (s *quoteOpenDServer) orderListCallCount() int {
+	return int(s.orderListCalls.Load())
+}
+
+func (s *quoteOpenDServer) placeOrderCallCount() int {
+	return int(s.placeOrderCalls.Load())
+}
+
+func (s *quoteOpenDServer) modifyOrderCallCount() int {
+	return int(s.modifyOrderCalls.Load())
+}
+
+func (s *quoteOpenDServer) lastPlaceOrderRequest() *trdplaceorderpb.C2S {
+	s.tradeMu.Lock()
+	defer s.tradeMu.Unlock()
+	if s.lastPlaceOrder == nil {
+		return nil
+	}
+	return proto.Clone(s.lastPlaceOrder).(*trdplaceorderpb.C2S)
+}
+
+func (s *quoteOpenDServer) lastModifyOrderRequest() *trdmodifyorderpb.C2S {
+	s.tradeMu.Lock()
+	defer s.tradeMu.Unlock()
+	if s.lastModifyOrder == nil {
+		return nil
+	}
+	return proto.Clone(s.lastModifyOrder).(*trdmodifyorderpb.C2S)
+}
+
 func (s *quoteOpenDServer) pushSubCallCount() int {
 	return int(s.pushSubCalls.Load())
 }
@@ -946,6 +1463,125 @@ func (s *quoteOpenDServer) historySessionCalls() []int32 {
 	s.historyMu.Lock()
 	defer s.historyMu.Unlock()
 	return append([]int32(nil), s.historySessionCallLog...)
+}
+
+func normalizeTestFunds(funds *trdcommonpb.Funds) *trdcommonpb.Funds {
+	if funds == nil {
+		funds = &trdcommonpb.Funds{}
+	}
+	clone := proto.Clone(funds).(*trdcommonpb.Funds)
+	if clone.Power == nil {
+		clone.Power = proto.Float64(0)
+	}
+	if clone.TotalAssets == nil {
+		clone.TotalAssets = proto.Float64(0)
+	}
+	if clone.Cash == nil {
+		clone.Cash = proto.Float64(0)
+	}
+	if clone.MarketVal == nil {
+		clone.MarketVal = proto.Float64(0)
+	}
+	if clone.FrozenCash == nil {
+		clone.FrozenCash = proto.Float64(0)
+	}
+	if clone.DebtCash == nil {
+		clone.DebtCash = proto.Float64(0)
+	}
+	if clone.AvlWithdrawalCash == nil {
+		clone.AvlWithdrawalCash = proto.Float64(0)
+	}
+	return clone
+}
+
+func normalizeTestTrdHeader(header *trdcommonpb.TrdHeader) *trdcommonpb.TrdHeader {
+	if header == nil {
+		header = &trdcommonpb.TrdHeader{}
+	}
+	clone := proto.Clone(header).(*trdcommonpb.TrdHeader)
+	if clone.TrdEnv == nil {
+		clone.TrdEnv = proto.Int32(int32(trdcommonpb.TrdEnv_TrdEnv_Simulate))
+	}
+	if clone.AccID == nil {
+		clone.AccID = proto.Uint64(1001)
+	}
+	if clone.TrdMarket == nil {
+		clone.TrdMarket = proto.Int32(int32(trdcommonpb.TrdMarket_TrdMarket_HK))
+	}
+	return clone
+}
+
+func normalizeTestPosition(position *trdcommonpb.Position) *trdcommonpb.Position {
+	if position == nil {
+		position = &trdcommonpb.Position{}
+	}
+	clone := proto.Clone(position).(*trdcommonpb.Position)
+	if clone.PositionID == nil {
+		clone.PositionID = proto.Uint64(1)
+	}
+	if clone.PositionSide == nil {
+		clone.PositionSide = proto.Int32(1)
+	}
+	if clone.Code == nil {
+		clone.Code = proto.String("HK.00700")
+	}
+	if clone.Name == nil {
+		clone.Name = proto.String(clone.GetCode())
+	}
+	if clone.Qty == nil {
+		clone.Qty = proto.Float64(0)
+	}
+	if clone.CanSellQty == nil {
+		clone.CanSellQty = proto.Float64(0)
+	}
+	if clone.Price == nil {
+		clone.Price = proto.Float64(0)
+	}
+	if clone.Val == nil {
+		clone.Val = proto.Float64(0)
+	}
+	if clone.PlVal == nil {
+		clone.PlVal = proto.Float64(0)
+	}
+	return clone
+}
+
+func normalizeTestOrder(order *trdcommonpb.Order) *trdcommonpb.Order {
+	if order == nil {
+		order = &trdcommonpb.Order{}
+	}
+	clone := proto.Clone(order).(*trdcommonpb.Order)
+	if clone.TrdSide == nil {
+		clone.TrdSide = proto.Int32(int32(trdcommonpb.TrdSide_TrdSide_Buy))
+	}
+	if clone.OrderType == nil {
+		clone.OrderType = proto.Int32(int32(trdcommonpb.OrderType_OrderType_Normal))
+	}
+	if clone.OrderStatus == nil {
+		clone.OrderStatus = proto.Int32(int32(trdcommonpb.OrderStatus_OrderStatus_Submitted))
+	}
+	if clone.OrderID == nil {
+		clone.OrderID = proto.Uint64(1)
+	}
+	if clone.OrderIDEx == nil {
+		clone.OrderIDEx = proto.String(strconv.FormatUint(clone.GetOrderID(), 10))
+	}
+	if clone.Code == nil {
+		clone.Code = proto.String("HK.00700")
+	}
+	if clone.Name == nil {
+		clone.Name = proto.String(clone.GetCode())
+	}
+	if clone.Qty == nil {
+		clone.Qty = proto.Float64(0)
+	}
+	if clone.CreateTime == nil {
+		clone.CreateTime = proto.String("2026-05-20 09:30:00")
+	}
+	if clone.UpdateTime == nil {
+		clone.UpdateTime = proto.String(clone.GetCreateTime())
+	}
+	return clone
 }
 
 func waitFor(t *testing.T, condition func() bool) {

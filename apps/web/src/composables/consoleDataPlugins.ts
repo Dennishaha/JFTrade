@@ -45,7 +45,7 @@ export function createConsoleDataPluginController(
       options.pluginCatalog.value = await fetchPluginCatalog();
     } catch (error) {
       options.pluginError.value =
-        error instanceof Error ? error.message : "Failed to load plugins.";
+        error instanceof Error ? error.message : "插件列表加载失败。";
     }
   }
 
@@ -68,7 +68,7 @@ export function createConsoleDataPluginController(
       await delay(500);
     }
 
-    throw new Error("Plugin operation did not finish in time.");
+    throw new Error("插件操作未在预期时间内完成。");
   }
 
   async function installPlugin(pluginId: string): Promise<void> {
@@ -94,7 +94,7 @@ export function createConsoleDataPluginController(
       await loadPlugins();
     } catch (error) {
       options.pluginError.value =
-        error instanceof Error ? error.message : "Failed to install plugin.";
+        error instanceof Error ? error.message : "插件安装失败。";
     } finally {
       options.installingPluginIds.value = removePluginOperationId(
         options.installingPluginIds.value,
@@ -128,7 +128,7 @@ export function createConsoleDataPluginController(
       options.pluginError.value =
         error instanceof Error
           ? error.message
-          : "Failed to uninstall plugin.";
+          : "插件卸载失败。";
     } finally {
       options.uninstallingPluginIds.value = removePluginOperationId(
         options.uninstallingPluginIds.value,
@@ -150,7 +150,7 @@ export function createConsoleDataPluginController(
       options.pluginError.value =
         error instanceof Error
           ? error.message
-          : "Failed to load plugin uninstall guidance.";
+          : "插件卸载指引加载失败。";
       return null;
     }
   }

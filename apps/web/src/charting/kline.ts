@@ -180,7 +180,7 @@ export function normalizeKlinePeriod(period: string): string {
     case "1w":
       return lower;
     default:
-      throw new Error(`Unsupported K-line period '${period}'.`);
+      throw new Error(`不支持的 K 线周期：${period}`);
   }
 }
 

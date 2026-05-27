@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 
+import {
+  formatOrderSideLabel,
+  formatOrderTypeLabel,
+  formatTimeInForceLabel,
+} from "../../composables/consoleDataFormatting";
 import { useConsoleData } from "../../composables/useConsoleData";
 import { useNotifications } from "../../composables/useNotifications";
 import { useWorkspaceLayout } from "../../composables/useWorkspaceLayout";
@@ -60,7 +65,6 @@ async function submit(): Promise<void> {
 
   submitting.value = true;
   try {
-    // Optimistic: paper preview when no execution endpoint is wired
     const payload = {
       market: prefs.value.market,
       symbol: prefs.value.symbol,
@@ -76,23 +80,46 @@ async function submit(): Promise<void> {
     };
 
     let placedRemotely = false;
+    let successMessage = `已提交订单（${formatOrderTypeLabel(orderType.value)}，${formatTimeInForceLabel(tif.value)}）`;
+    let failureMessage = "下单请求未送达后端。";
     try {
-      const res = await fetch("/api/v1/execution/orders/preview", {
+      const res = await fetch("/api/v1/execution/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
       placedRemotely = res.ok;
+      if (res.ok) {
+        const body = (await res.json().catch(() => null)) as {
+          data?: {
+            internalOrderId?: string | null;
+            brokerOrderId?: string | null;
+          };
+        } | null;
+        const brokerOrderId = body?.data?.brokerOrderId?.trim();
+        const internalOrderId = body?.data?.internalOrderId?.trim();
+        if (brokerOrderId) {
+          successMessage = `已提交订单，券商单号 ${brokerOrderId}`;
+        } else if (internalOrderId) {
+          successMessage = `已提交订单，内部单号 ${internalOrderId}`;
+        }
+      } else {
+        const body = (await res.json().catch(() => null)) as {
+          error?: { message?: string };
+        } | null;
+        failureMessage =
+          body?.error?.message?.trim() || `下单失败，HTTP ${res.status}`;
+      }
     } catch {
       placedRemotely = false;
     }
 
     notifications.push({
-      level: placedRemotely ? "success" : "info",
-      title: `${side.value} ${quantity.value} ${prefs.value.market}:${prefs.value.symbol}`,
+      level: placedRemotely ? "success" : "warn",
+      title: `${formatOrderSideLabel(side.value)} ${quantity.value} ${prefs.value.market}:${prefs.value.symbol}`,
       message: placedRemotely
-        ? `已提交预览 (${orderType.value}, ${tif.value})`
-        : `本地草稿 (后端未接入预览接口) — ${orderType.value} ${tif.value}`,
+        ? successMessage
+        : failureMessage,
       source: "order-entry",
     });
   } finally {
@@ -108,59 +135,59 @@ function setSide(s: Side): void {
 <template>
   <section class="tv-panel tv-grid-area-order">
     <div class="tv-panel-head">
-      <span class="tv-panel-title">Order entry</span>
+      <span class="tv-panel-title">下单</span>
       <span style="color: var(--tv-text); font-weight: 600">{{ prefs.market }}:{{ prefs.symbol }}</span>
       <div style="flex: 1"></div>
       <span
         v-if="isRealMode"
         style="font-size: 10px; padding: 2px 6px; border-radius: 4px; background: var(--tv-down); color: #fff; font-weight: 600"
       >
-        REAL
+        实盘
       </span>
     </div>
     <div class="tv-panel-body">
       <div class="tv-seg" style="width: 100%; margin-bottom: 10px">
-        <button style="flex: 1" :class="{ 'is-active': side === 'BUY' }" @click="setSide('BUY')">BUY</button>
-        <button style="flex: 1" :class="{ 'is-active': side === 'SELL' }" @click="setSide('SELL')">SELL</button>
+        <button style="flex: 1" :class="{ 'is-active': side === 'BUY' }" @click="setSide('BUY')">买入</button>
+        <button style="flex: 1" :class="{ 'is-active': side === 'SELL' }" @click="setSide('SELL')">卖出</button>
       </div>
 
       <div class="tv-form-row">
-        <label>Type</label>
+        <label>类型</label>
         <select v-model="orderType" class="tv-select">
-          <option value="LIMIT">Limit</option>
-          <option value="MARKET">Market</option>
-          <option value="STOP">Stop</option>
-          <option value="STOP_LIMIT">Stop Limit</option>
+          <option value="LIMIT">限价</option>
+          <option value="MARKET">市价</option>
+          <option value="STOP">止损</option>
+          <option value="STOP_LIMIT">止损限价</option>
         </select>
       </div>
 
       <div class="tv-form-row">
-        <label>Qty</label>
+        <label>数量</label>
         <input v-model.number="quantity" type="number" min="1" class="tv-input" />
       </div>
 
       <div v-if="isLimit" class="tv-form-row">
-        <label>Price</label>
+        <label>价格</label>
         <input v-model.number="price" type="number" step="0.01" class="tv-input" />
       </div>
 
       <div v-if="isStop" class="tv-form-row">
-        <label>Stop</label>
+        <label>止损价</label>
         <input v-model.number="stopPrice" type="number" step="0.01" class="tv-input" />
       </div>
 
       <div class="tv-form-row">
-        <label>TIF</label>
+        <label>有效期</label>
         <select v-model="tif" class="tv-select">
-          <option value="DAY">Day</option>
-          <option value="GTC">GTC</option>
-          <option value="IOC">IOC</option>
-          <option value="FOK">FOK</option>
+          <option value="DAY">当日有效</option>
+          <option value="GTC">撤单前有效</option>
+          <option value="IOC">立即成交剩余取消</option>
+          <option value="FOK">全部成交否则取消</option>
         </select>
       </div>
 
       <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--tv-text-muted); margin: 4px 0 10px">
-        <span>Notional</span>
+        <span>名义金额</span>
         <span class="tv-num" style="color: var(--tv-text)">{{ estimate() }}</span>
       </div>
 
@@ -172,7 +199,7 @@ function setSide(s: Side): void {
         :disabled="submitting"
         @click="submit"
       >
-        {{ submitting ? "Submitting…" : `${side} ${prefs.symbol}` }}
+        {{ submitting ? "提交中..." : `${formatOrderSideLabel(side)} ${prefs.symbol}` }}
       </button>
     </div>
   </section>

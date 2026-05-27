@@ -68,6 +68,25 @@ func (s *Server) futuOpenDInstallGuide() map[string]any {
 func (s *Server) brokerRuntime(ctx context.Context) map[string]any {
 	probe := s.probeOpenD(ctx)
 	config := s.store.integration().Config
+	accounts := []any{}
+	if probe.Connectivity != "disconnected" {
+		discoveredAccounts, err := s.futuExchange().DiscoverAccounts(ctx)
+		if err != nil {
+			message := err.Error()
+			if probe.LastError == nil {
+				probe.LastError = &message
+			}
+			if probe.Connectivity == "connected" {
+				probe.Connectivity = "degraded"
+				probe.Status = "degraded"
+			}
+		} else {
+			accounts = make([]any, 0, len(discoveredAccounts))
+			for _, account := range discoveredAccounts {
+				accounts = append(accounts, account)
+			}
+		}
+	}
 	globalState := any(nil)
 	if probe.QuoteLoggedIn != nil || probe.TradeLoggedIn != nil || probe.ProgramStatus != nil {
 		globalState = map[string]any{
@@ -85,19 +104,19 @@ func (s *Server) brokerRuntime(ctx context.Context) map[string]any {
 		"session": map[string]any{
 			"brokerId":           "futu",
 			"displayName":        "Futu OpenAPI via OpenD",
-			"connection":         map[string]any{"host": config.Host, "apiPort": config.APIPort, "websocketPort": config.WebSocketPort, "useEncryption": config.UseEncryption, "marketDataTransport": liveQuoteTransportMode},
+			"connection":         map[string]any{"host": config.Host, "apiPort": config.APIPort, "websocketPort": config.WebSocketPort, "port": config.APIPort, "useEncryption": config.UseEncryption, "marketDataTransport": liveQuoteTransportMode},
 			"connectivity":       probe.Connectivity,
 			"checkedAt":          probe.CheckedAt,
 			"lastError":          probe.LastError,
 			"globalState":        globalState,
-			"accountsDiscovered": 0,
+			"accountsDiscovered": len(accounts),
 			"liveWebSocketClients": map[string]any{
 				"connected": count,
 				"limit":     limit,
 				"atLimit":   atLimit,
 			},
 		},
-		"accounts": []any{},
+		"accounts": accounts,
 	}
 }
 
@@ -219,6 +238,9 @@ func (s *Server) resetFutuRuntime() {
 	s.exchange = nil
 	s.exchangeConfigKey = ""
 	s.exchangeMu.Unlock()
+	if s.brokerOrderUpdates != nil {
+		s.brokerOrderUpdates.markStopped()
+	}
 	if exchange != nil {
 		_ = exchange.Close()
 	}

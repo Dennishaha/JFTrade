@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import type { BrokerRuntimeResponse } from "@jftrade/ui-contracts";
 
+import {
+  formatAccountTypeLabel,
+  formatMarketLabel,
+  formatTradingEnvironment,
+} from "../composables/consoleDataFormatting";
 import SectionHeader from "./SectionHeader.vue";
 
 defineProps<{
@@ -14,7 +19,7 @@ defineProps<{
 <template>
   <div class="grid gap-6">
     <div class="settings-panel">
-      <SectionHeader title="OpenD discovered accounts" description="OpenD 实时探测到的账号；可一键导入到托管列表。" />
+      <SectionHeader title="OpenD 发现的账户" description="OpenD 实时探测到的账号；可一键导入到托管列表。" />
 
       <div class="mt-4 grid gap-3">
         <template v-if="accounts.length">
@@ -27,7 +32,7 @@ defineProps<{
               <div>
                 <div class="text-base font-semibold text-slate-900">{{ account.accountId }}</div>
                 <div class="mt-1 text-xs text-slate-500">
-                  {{ account.tradingEnvironment }} / {{ account.accountType }} / {{ account.marketAuthorities.join(", ") || "N/A" }}
+                  {{ formatTradingEnvironment(account.tradingEnvironment) }} / {{ formatAccountTypeLabel(account.accountType) }} / {{ account.marketAuthorities.map(formatMarketLabel).join(", ") || "暂无" }}
                 </div>
               </div>
               <v-btn variant="text" color="primary" @click="importRuntimeAccount(account)">

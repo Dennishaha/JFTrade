@@ -15,6 +15,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/jftrade/jftrade-main/pkg/futu/codec"
+	commonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/common"
 	keepalivepb "github.com/jftrade/jftrade-main/pkg/futu/pb/keepalive"
 	notifypb "github.com/jftrade/jftrade-main/pkg/futu/pb/notify"
 )
@@ -80,6 +81,8 @@ type Client struct {
 
 	conn   net.Conn
 	serial uint32
+	connID atomic.Uint64
+	packet uint32
 
 	mu            sync.Mutex
 	pend          map[uint32]*pending
@@ -129,6 +132,26 @@ func (c *Client) Close() error {
 // Done is closed when the underlying OpenD session is closed or lost.
 func (c *Client) Done() <-chan struct{} {
 	return c.done
+}
+
+func (c *Client) SetConnID(connID uint64) {
+	c.connID.Store(connID)
+}
+
+func (c *Client) ConnID() uint64 {
+	return c.connID.Load()
+}
+
+func (c *Client) NextPacketID() *commonpb.PacketID {
+	connID := c.ConnID()
+	if connID == 0 {
+		return nil
+	}
+	serialNo := atomic.AddUint32(&c.packet, 1)
+	return &commonpb.PacketID{
+		ConnID:   proto.Uint64(connID),
+		SerialNo: proto.Uint32(serialNo),
+	}
 }
 
 // StartKeepAlive sends Futu KeepAlive packets until the session closes.  OpenD

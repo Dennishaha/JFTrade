@@ -11,7 +11,7 @@ export function createMACDMomentumStrategyVisualModel(): StrategyVisualModelDocu
     version: 1,
     nodes: [
       { id: "macd-init-root", type: "circle", x: 180, y: 120, text: "策略启动", properties: { blockKind: "onInit" } },
-      { id: "macd-init-log", type: "rect", x: 450, y: 120, text: "输出日志", properties: { blockKind: "log", message: "MACD strategy initialized for ${ctx.symbol || '00700'} ${ctx.interval || '1m'}" } },
+      { id: "macd-init-log", type: "rect", x: 450, y: 120, text: "输出日志", properties: { blockKind: "log", message: "MACD 策略已初始化：${ctx.symbol || '00700'} ${ctx.interval || '1m'}" } },
       { id: "macd-kline-root", type: "circle", x: 180, y: 320, text: "K 线收盘", properties: { blockKind: "onKLineClosed" } },
       { id: "macd-getter", type: "rect", x: 470, y: 320, text: "获取 MACD 12/26/9", properties: { blockKind: "getTechnicalIndicator", indicatorType: "macd", fastPeriod: 12, slowPeriod: 26, signalPeriod: 9 } },
       { id: "macd-bullish-node", type: "diamond", x: 760, y: 260, text: "MACD 金叉", properties: { blockKind: "technicalIndicatorCondition", indicatorType: "macd", conditionMode: "pattern", patternType: "goldenCross" } },

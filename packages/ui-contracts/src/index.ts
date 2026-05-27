@@ -724,6 +724,8 @@ export interface BrokerRuntimeResponse {
     displayName: string;
     connection: {
       host: string;
+      apiPort: number;
+      websocketPort: number;
       port: number;
       useEncryption: boolean;
     };
@@ -1694,7 +1696,9 @@ export const emptyBrokerRuntime: BrokerRuntimeResponse = {
     displayName: "Futu OpenAPI via OpenD",
     connection: {
       host: "127.0.0.1",
-      port: 11111,
+      apiPort: 11110,
+      websocketPort: 11111,
+      port: 11110,
       useEncryption: false,
     },
     connectivity: "disconnected",

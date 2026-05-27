@@ -55,7 +55,7 @@ export function createConsoleDataBrokerLiveQueryController(
         lastError:
           error instanceof Error
             ? error.message
-            : "Failed to load broker cash flows.",
+            : "券商资金流水加载失败。",
       };
     }
   }

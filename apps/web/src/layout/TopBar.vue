@@ -2,6 +2,10 @@
 import { computed } from "vue";
 
 import TradingEnvironmentBadge from "../components/TradingEnvironmentBadge.vue";
+import {
+  formatMarketLabel,
+  formatTradingEnvironment,
+} from "../composables/consoleDataFormatting";
 import { useCommandPalette } from "../composables/useCommandPalette";
 import { useConsoleData } from "../composables/useConsoleData";
 import { useNotifications } from "../composables/useNotifications";
@@ -36,7 +40,7 @@ const brokerAccountLabel = computed(() => {
     return "未选择账号";
   }
 
-  return `${selectedBrokerAccount.value.brokerId.toUpperCase()} / ${selectedBrokerAccount.value.displayName} / ${selectedBrokerAccount.value.market}`;
+  return `${selectedBrokerAccount.value.brokerId.toUpperCase()} / ${selectedBrokerAccount.value.displayName} / ${formatMarketLabel(selectedBrokerAccount.value.market)}`;
 });
 
 function openRightDock(tab: "notifications" | "ai" | "context"): void {
@@ -83,7 +87,7 @@ function onBrokerAccountChange(event: Event): void {
       </datalist>
       <span
         style="font-size: 10px; color: var(--tv-text-dim)"
-        :title="`${marketInstrumentSearchOptions.length} searchable code(s) from subscriptions, positions, orders and query cache`"
+        :title="`${marketInstrumentSearchOptions.length} 个可搜索代码，来源于订阅、持仓、订单和查询缓存`"
       >
         {{ marketInstrumentSearchOptions.length }}
       </span>
@@ -95,7 +99,7 @@ function onBrokerAccountChange(event: Event): void {
       class="tv-btn tv-btn-ghost"
       style="height: 28px; padding: 0 8px; font-size: 11px"
       @click="palette.show()"
-      title="Command palette (⌘K / Ctrl+K)"
+      title="命令面板（⌘K / Ctrl+K）"
     >
       ⌘K
     </button>
@@ -105,7 +109,7 @@ function onBrokerAccountChange(event: Event): void {
     <label
       style="display: inline-flex; align-items: center; gap: 8px; font-size: 11px; color: var(--tv-text-muted)"
     >
-      <span>Scope</span>
+      <span>账户范围</span>
       <select
         :value="selectedBrokerAccount?.selectionKey ?? ''"
         class="tv-select"
@@ -118,7 +122,7 @@ function onBrokerAccountChange(event: Event): void {
           :key="account.selectionKey"
           :value="account.selectionKey"
         >
-          {{ `${account.brokerId.toUpperCase()} / ${account.displayName} / ${account.accountId} / ${account.tradingEnvironment} / ${account.market}` }}
+          {{ `${account.brokerId.toUpperCase()} / ${account.displayName} / ${account.accountId} / ${formatTradingEnvironment(account.tradingEnvironment)} / ${formatMarketLabel(account.market)}` }}
         </option>
       </select>
     </label>
@@ -128,24 +132,24 @@ function onBrokerAccountChange(event: Event): void {
     <div style="display: flex; gap: 12px; font-size: 11px; color: var(--tv-text-muted)">
       <span>
         <span class="tv-status-dot" :class="liveStreamStatus === 'connected' ? 'tv-dot-ok' : liveStreamStatus === 'degraded' ? 'tv-dot-warn' : 'tv-dot-idle'"></span>
-        SSE
+        事件流
       </span>
       <span>
         <span class="tv-status-dot" :class="connectionState === 'connected' ? 'tv-dot-ok' : connectionState === 'error' ? 'tv-dot-err' : 'tv-dot-idle'"></span>
-        WS
+        实时通道
       </span>
     </div>
 
-    <button type="button" class="tv-icon-btn" :title="`Theme: ${theme}`" @click="toggleTheme">
+    <button type="button" class="tv-icon-btn" :title="`主题：${theme === 'dark' ? '深色' : '浅色'}`" @click="toggleTheme">
       {{ theme === "dark" ? "☾" : "☀" }}
     </button>
 
-    <button type="button" class="tv-icon-btn" title="Notifications" @click="openRightDock('notifications')">
+    <button type="button" class="tv-icon-btn" title="通知" @click="openRightDock('notifications')">
       ◔
       <span v-if="unreadCount > 0" class="tv-badge">{{ unreadCount > 99 ? "99+" : unreadCount }}</span>
     </button>
 
-    <button type="button" class="tv-icon-btn" title="AI Assistant" @click="openRightDock('ai')">
+    <button type="button" class="tv-icon-btn" title="AI 助手" @click="openRightDock('ai')">
       ✦
     </button>
   </header>

@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from "vue";
 
-import { formatDateTime } from "../composables/consoleDataFormatting";
+import {
+  formatConnectivityLabel,
+  formatDateTime,
+  formatFutuProgramStatusLabel,
+} from "../composables/consoleDataFormatting";
 import SectionHeader from "./SectionHeader.vue";
 import { useConsoleData } from "../composables/useConsoleData";
 
@@ -42,22 +46,13 @@ const futuConnectionTagType = computed<StatusTagType>(() => {
   }
 });
 
-const futuConnectionLabel = computed(() => {
-  switch (brokerRuntime.value.session.connectivity) {
-    case "connected":
-      return "已连接";
-    case "degraded":
-      return "部分可用";
-    case "disconnected":
-      return "未连接";
-    default:
-      return "未知";
-  }
-});
+const futuConnectionLabel = computed(() =>
+  formatConnectivityLabel(brokerRuntime.value.session.connectivity),
+);
 
 const futuConnectionTarget = computed(
   () =>
-    `${brokerRuntime.value.session.connection.host}:${brokerRuntime.value.session.connection.port}`,
+    `${brokerRuntime.value.session.connection.host}:${brokerRuntime.value.session.connection.apiPort}`,
 );
 
 const futuConnectionCheckedAt = computed(() =>
@@ -200,7 +195,7 @@ async function cancelAllMarketDataSubscriptions(): Promise<void> {
   <div class="grid gap-6">
     <div class="settings-panel">
       <SectionHeader
-        title="Futu Integration"
+        title="富途接入"
         description="配置 OpenD 连接参数与默认账号信息。"
       />
 
@@ -240,25 +235,25 @@ async function cancelAllMarketDataSubscriptions(): Promise<void> {
 
         <div class="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <div class="rounded-xl bg-slate-50 px-3 py-3">
-            <div class="text-xs uppercase tracking-wide text-slate-500">Quote Login</div>
+            <div class="text-xs text-slate-500">行情登录</div>
             <div class="mt-1 text-sm font-semibold text-slate-900">
               {{ futuQuoteLoginLabel }}
             </div>
           </div>
           <div class="rounded-xl bg-slate-50 px-3 py-3">
-            <div class="text-xs uppercase tracking-wide text-slate-500">Trade Login</div>
+            <div class="text-xs text-slate-500">交易登录</div>
             <div class="mt-1 text-sm font-semibold text-slate-900">
               {{ futuTradeLoginLabel }}
             </div>
           </div>
           <div class="rounded-xl bg-slate-50 px-3 py-3">
-            <div class="text-xs uppercase tracking-wide text-slate-500">Program Status</div>
+            <div class="text-xs text-slate-500">程序状态</div>
             <div class="mt-1 text-sm font-semibold text-slate-900">
-              {{ brokerRuntime.session.globalState?.programStatus ?? "Unavailable" }}
+              {{ formatFutuProgramStatusLabel(brokerRuntime.session.globalState?.programStatus) }}
             </div>
           </div>
           <div class="rounded-xl bg-slate-50 px-3 py-3">
-            <div class="text-xs uppercase tracking-wide text-slate-500">Password / Key</div>
+            <div class="text-xs text-slate-500">密码 / 密钥</div>
             <div class="mt-1 text-sm font-semibold text-slate-900">
               {{ websocketPasswordFormStatus }}
             </div>
@@ -334,11 +329,11 @@ async function cancelAllMarketDataSubscriptions(): Promise<void> {
 
         <div class="grid gap-4 md:grid-cols-2">
           <div class="grid gap-1">
-            <label class="text-sm font-medium text-slate-700">OpenD Host</label>
+            <label class="text-sm font-medium text-slate-700">OpenD 主机</label>
             <v-text-field v-model="integrationForm.host" density="compact" variant="outlined" />
           </div>
           <div class="grid gap-1">
-            <label class="text-sm font-medium text-slate-700">OpenD API Port</label>
+            <label class="text-sm font-medium text-slate-700">OpenD API 端口</label>
             <v-text-field
               v-model.number="integrationForm.apiPort"
               type="number"
@@ -349,7 +344,7 @@ async function cancelAllMarketDataSubscriptions(): Promise<void> {
             />
           </div>
           <div class="grid gap-1">
-            <label class="text-sm font-medium text-slate-700">OpenD WebSocket Port</label>
+            <label class="text-sm font-medium text-slate-700">OpenD WebSocket 端口</label>
             <v-text-field
               v-model.number="integrationForm.websocketPort"
               type="number"
@@ -373,7 +368,7 @@ async function cancelAllMarketDataSubscriptions(): Promise<void> {
               variant="outlined"
             />
             <div class="mt-1 text-xs text-slate-500">
-              默认 20。JFTrade 会复用请求级 WebSocket 连接池，并限制同时连接 OpenD 的 client 数量，避免反复登录或并发查询耗尽 OpenD 连接。
+              默认 20。JFTrade 会复用请求级 WebSocket 连接池，并限制同时连接 OpenD 的客户端数量，避免反复登录或并发查询耗尽 OpenD 连接。
             </div>
           </div>
           <div class="grid gap-1">
@@ -387,20 +382,20 @@ async function cancelAllMarketDataSubscriptions(): Promise<void> {
             <label class="text-sm font-medium text-slate-700">默认券商标识</label>
             <v-text-field v-model="integrationForm.securityFirm" density="compact" variant="outlined" />
             <div class="mt-1 text-xs text-slate-500">
-              仅作为手工账号默认值；从 OpenD 导入账号时优先使用运行时探测到的 security firm。
+              仅作为手工账号默认值；从 OpenD 导入账号时优先使用运行时探测到的券商机构。
             </div>
           </div>
         </div>
 
         <div class="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           请在 OpenD GUI 中确认 WebSocket 已开启；如果配置了 WebSocket 密码，请把这里的
-          WebSocket Password / Key 与 OpenD GUI 或命令行版 FutuOpenD.xml（或
-          <code>-cfg_file</code> 指定的参数文件）保持一致。API Port 主要用于记录当前 OpenD 的
+          WebSocket 密码 / 密钥与 OpenD 图形界面或命令行版 FutuOpenD.xml（或
+          <code>-cfg_file</code> 指定的参数文件）保持一致。API 端口主要用于记录当前 OpenD 的
           TCP API 监听配置。
         </div>
 
         <div class="grid gap-1">
-          <label class="text-sm font-medium text-slate-700">WebSocket Password / Key</label>
+          <label class="text-sm font-medium text-slate-700">WebSocket 密码 / 密钥</label>
           <v-text-field
             v-model="integrationForm.websocketKey"
             type="password"

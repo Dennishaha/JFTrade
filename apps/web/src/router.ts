@@ -29,16 +29,20 @@ export function createConsoleRouter(
         component: () => import("./pages/SettingsPage.vue"),
       },
       {
+        path: "/account",
+        component: () => import("./pages/AccountPage.vue"),
+      },
+      {
         path: "/broker",
-        component: () => import("./pages/BrokerPage.vue"),
+        redirect: "/account",
       },
       {
         path: "/portfolio",
-        component: () => import("./pages/PortfolioPage.vue"),
+        redirect: "/account",
       },
       {
         path: "/execution",
-        component: () => import("./pages/ExecutionPage.vue"),
+        redirect: "/account",
       },
       {
         path: "/market",

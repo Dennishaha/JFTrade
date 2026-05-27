@@ -67,7 +67,7 @@ export function createConsoleDataMarketSubscriptionsController(
       options.marketDataError.value =
         error instanceof Error
           ? error.message
-          : "Failed to load market data subscriptions.";
+          : "行情订阅加载失败。";
     } finally {
       options.isLoadingMarketData.value = false;
     }
@@ -118,7 +118,7 @@ export function createConsoleDataMarketSubscriptionsController(
 
     if (market === "" || symbol === "") {
       options.marketDataError.value =
-        "Market and symbol are required to acquire a realtime subscription.";
+        "申请实时订阅前请填写市场和标的。";
       return;
     }
 
@@ -148,7 +148,7 @@ export function createConsoleDataMarketSubscriptionsController(
       options.marketDataError.value =
         error instanceof Error
           ? error.message
-          : "Failed to acquire market data subscription.";
+          : "行情订阅申请失败。";
     } finally {
       options.isLoadingMarketData.value = false;
     }
@@ -198,7 +198,7 @@ export function createConsoleDataMarketSubscriptionsController(
       options.marketDataError.value =
         error instanceof Error
           ? error.message
-          : "Failed to release market data subscription.";
+          : "行情订阅释放失败。";
     }
   }
 
@@ -225,7 +225,7 @@ export function createConsoleDataMarketSubscriptionsController(
       options.marketDataError.value =
         error instanceof Error
           ? error.message
-          : "Failed to heartbeat market data subscription.";
+          : "行情订阅心跳失败。";
     }
   }
 
@@ -251,7 +251,7 @@ export function createConsoleDataMarketSubscriptionsController(
       options.marketDataError.value =
         error instanceof Error
           ? error.message
-          : "Failed to cancel market data subscriptions.";
+          : "取消行情订阅失败。";
     } finally {
       options.isLoadingMarketData.value = false;
     }

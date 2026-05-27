@@ -4,6 +4,17 @@ import { computed, onMounted } from "vue";
 import type { KlineCandle } from "../charting/kline";
 import KlineChart from "../components/KlineChart.vue";
 import PageHeader from "../components/PageHeader.vue";
+import {
+  formatApprovalDecisionLabel,
+  formatConnectivityLabel,
+  formatExecutionOrderStatusLabel,
+  formatGenericStatusLabel,
+  formatMarketLabel,
+  formatOrderSideLabel,
+  formatOrderTypeLabel,
+  formatRealTradeOperationLabel,
+  formatTradingEnvironment,
+} from "../composables/consoleDataFormatting";
 import { useConsoleData } from "../composables/useConsoleData";
 import { useDocsLink } from "../composables/useDocsLink";
 
@@ -29,39 +40,39 @@ const {
 
 const overviewStats = computed(() => [
   {
-    label: "Default Runtime",
-    value: systemStatus.value.defaultTradingEnvironment,
+    label: "默认环境",
+    value: formatTradingEnvironment(systemStatus.value.defaultTradingEnvironment),
     tone:
       systemStatus.value.defaultTradingEnvironment === "REAL"
         ? "danger"
         : "good",
     hint: systemStatus.value.realTradingEnabled
-      ? "REAL execution gate enabled."
-      : "Simulation-first workspace.",
+      ? "实盘执行门禁已开启。"
+      : "当前优先使用模拟环境。",
   },
   {
-    label: "Broker Pulse",
-    value: brokerRuntime.value.session.connectivity.toUpperCase(),
+    label: "券商连接",
+    value: formatConnectivityLabel(brokerRuntime.value.session.connectivity),
     tone:
       brokerRuntime.value.session.connectivity === "connected"
         ? "good"
         : brokerRuntime.value.session.connectivity === "degraded"
           ? "warn"
           : "danger",
-    hint: `${brokerRuntime.value.accounts.length} account(s) discovered`,
+    hint: `已发现 ${brokerRuntime.value.accounts.length} 个账户`,
   },
   {
-    label: "Open Orders",
+    label: "订单流",
     value: executionOrders.value.orders.length,
-    hint: `${brokerOrders.value.orders.length} broker-side order(s) visible`,
+    hint: `券商侧可见 ${brokerOrders.value.orders.length} 个订单`,
   },
   {
-    label: "Risk Gates",
+    label: "风控门禁",
     value: realTradeHardStops.value.entries.length,
     tone: realTradeHardStops.value.entries.length ? "warn" : "good",
     hint: realTradeKillSwitchState.value.killSwitchActive
-      ? "Kill switch currently active."
-      : "No hard-stop scope is active.",
+      ? "熔断开关当前已激活。"
+      : "当前没有活跃硬停止范围。",
   },
 ]);
 
@@ -93,18 +104,18 @@ const projectedPositions = computed(() =>
 
 const riskSummary = computed(() => [
   {
-    label: "Kill Switch",
-    value: realTradeKillSwitchState.value.killSwitchActive ? "ACTIVE" : "CLEAR",
+    label: "熔断开关",
+    value: formatGenericStatusLabel(realTradeKillSwitchState.value.killSwitchActive ? "ACTIVE" : "CLEAR"),
     tone: realTradeKillSwitchState.value.killSwitchActive ? "danger" : "good",
   },
   {
-    label: "Risk Limit",
-    value: realTradeRiskState.value.riskEnabled ? "ENFORCED" : "OFF",
+    label: "风控限额",
+    value: formatGenericStatusLabel(realTradeRiskState.value.riskEnabled ? "ENFORCED" : "OFF"),
     tone: realTradeRiskState.value.riskEnabled ? "warn" : "good",
   },
   {
-    label: "Hard Stops",
-    value: `${realTradeHardStops.value.entries.length} scope`,
+    label: "硬停止",
+    value: `${realTradeHardStops.value.entries.length} 个范围`,
     tone: realTradeHardStops.value.entries.length ? "warn" : "good",
   },
 ]);
@@ -122,7 +133,7 @@ const docsCards = [
   },
   {
     title: "开发部署与发布",
-    detail: "查看 build、deploy、rollback 与 smoke 流程。",
+    detail: "查看构建、部署、回滚与冒烟检查流程。",
     href: resolveDocsHref("developer/deployment-and-release.html"),
   },
 ];
@@ -246,9 +257,9 @@ function sessionLabel(session: string | null): string {
 <template>
   <div class="grid gap-6">
     <PageHeader
-      eyebrow="Trading workstation"
-      title="Overview / 工作台概览"
-      description="把系统运行态、风险门禁、订单流、市场快照和文档入口收敛到一个主屏，减少在多个分页之间来回切换。该页优先展示当下状态、异常信号和下一步操作入口。"
+      eyebrow="交易工作台"
+      title="工作台概览"
+      description="把系统运行态、风险门禁、订单流、市场快照和文档入口收敛到一个主屏，减少在多个分页之间来回切换。该页优先展示当前状态、异常信号和下一步操作入口。"
       :stats="overviewStats"
     />
 
@@ -256,7 +267,7 @@ function sessionLabel(session: string | null): string {
       <v-card flat class="card-shell border-0">
         <div class="flex items-center justify-between gap-3 px-4 pt-4">
           <div>
-            <div class="text-xl font-semibold text-slate-900">Market Spotlight</div>
+            <div class="text-xl font-semibold text-slate-900">行情焦点</div>
             <div class="mt-1 text-sm text-slate-500">
               当前焦点标的行情摘要，包含最新价、涨跌幅及美股盘前 / 盘后数据。
             </div>
@@ -269,14 +280,14 @@ function sessionLabel(session: string | null): string {
               <div class="flex items-center justify-between gap-3">
                 <div>
                   <div class="text-xs uppercase tracking-[0.24em] text-slate-500">
-                    Price Focus
+                    焦点标的
                   </div>
                   <div class="mt-2 text-2xl font-semibold text-slate-900">
                     {{ priceInstrumentId }}
                   </div>
                 </div>
                 <v-chip :color="watchlistSnapshot ? 'success' : undefined" variant="outlined" size="small">
-                  {{ watchlistSnapshot ? "LIVE" : "NO DATA" }}
+                  {{ watchlistSnapshot ? formatGenericStatusLabel("LIVE") : "暂无数据" }}
                 </v-chip>
               </div>
 
@@ -381,10 +392,10 @@ function sessionLabel(session: string | null): string {
               <div class="flex items-center justify-between gap-3">
                 <div>
                   <div class="text-xs uppercase tracking-[0.24em] text-slate-400">
-                    Mini chart
+                    迷你K线
                   </div>
                   <div class="mt-2 text-lg font-semibold">
-                    Recent Candles
+                    近期K线
                   </div>
                 </div>
                 <div class="text-xs uppercase tracking-[0.2em] text-slate-400">
@@ -396,7 +407,7 @@ function sessionLabel(session: string | null): string {
                 <KlineChart
                   :candles="overviewCandles"
                   :min-height="220"
-                  empty-text="还没有可视化 K 线缓存；Market 页查询或 OpenD 拉取成功后会同步反映到这里。"
+                  empty-text="还没有可视化 K 线缓存；行情页查询或 OpenD 拉取成功后会同步反映到这里。"
                 />
               </div>
             </div>
@@ -406,7 +417,7 @@ function sessionLabel(session: string | null): string {
 
       <v-card flat class="card-shell border-0">
         <div class="flex items-center justify-between gap-3 px-4 pt-4">
-          <div class="text-xl font-semibold text-slate-900">Risk Monitor</div>
+          <div class="text-xl font-semibold text-slate-900">风控监控</div>
           <v-chip
             :color="realTradeKillSwitchState.killSwitchActive ? 'error' : 'success'"
             variant="outlined"
@@ -414,8 +425,8 @@ function sessionLabel(session: string | null): string {
           >
             {{
               realTradeKillSwitchState.killSwitchActive
-                ? "KILL SWITCH"
-                : "CLEAR"
+                ? "熔断中"
+                : formatGenericStatusLabel("CLEAR")
             }}
           </v-chip>
         </div>
@@ -445,17 +456,17 @@ function sessionLabel(session: string | null): string {
           <div class="mt-4 grid gap-3">
             <div class="rounded-3xl bg-slate-50 px-4 py-4 text-sm text-slate-600">
               <div class="text-xs uppercase tracking-[0.2em] text-slate-500">
-                Effective REAL guardrail
+                实盘有效风控
               </div>
               <div class="mt-2">
-                Qty
+                数量
                 <span class="font-semibold text-slate-900">
-                  {{ realTradeRiskState.effectiveMaxOrderQuantity ?? "N/A" }}
+                  {{ realTradeRiskState.effectiveMaxOrderQuantity ?? "暂无" }}
                 </span>
                 /
-                Notional
+                金额
                 <span class="font-semibold text-slate-900">
-                  {{ realTradeRiskState.effectiveMaxOrderNotional ?? "N/A" }}
+                  {{ realTradeRiskState.effectiveMaxOrderNotional ?? "暂无" }}
                 </span>
               </div>
             </div>
@@ -465,7 +476,7 @@ function sessionLabel(session: string | null): string {
               class="grid gap-2"
             >
               <div class="text-xs uppercase tracking-[0.2em] text-slate-500">
-                Recent approvals
+                最近审批
               </div>
               <div
                 v-for="entry in approvalEntries"
@@ -474,24 +485,24 @@ function sessionLabel(session: string | null): string {
               >
                 <div class="flex items-center justify-between gap-3">
                   <div class="text-sm font-semibold text-slate-900">
-                    {{ entry.operation }} / {{ entry.brokerId }}
+                    {{ formatRealTradeOperationLabel(entry.operation) }} / {{ entry.brokerId }}
                   </div>
                   <v-chip
                     :color="entry.decision === 'approved' ? 'success' : 'error'"
                     variant="outlined"
                     size="small"
                   >
-                    {{ entry.decision.toUpperCase() }}
+                    {{ formatApprovalDecisionLabel(entry.decision) }}
                   </v-chip>
                 </div>
                 <div class="mt-1 text-xs text-slate-500">
-                  {{ entry.accountId ?? "N/A" }} / {{ entry.tradingEnvironment ?? "N/A" }}
+                  {{ entry.accountId ?? "暂无" }} / {{ formatTradingEnvironment(entry.tradingEnvironment) }}
                 </div>
               </div>
             </div>
             <v-empty-state
               v-else
-              text="还没有 REAL 审批事件；风险页面会展示更完整的 control-plane timeline。"
+              text="还没有实盘审批事件；风控页面会展示更完整的控制面时间线。"
             />
           </div>
         </v-card-text>
@@ -501,14 +512,14 @@ function sessionLabel(session: string | null): string {
     <section class="grid gap-5 xl:grid-cols-[1.02fr_0.98fr]">
       <v-card flat class="card-shell border-0">
         <div class="flex items-center justify-between gap-3 px-4 pt-4">
-          <div class="text-xl font-semibold text-slate-900">Execution / Order Blotter</div>
+          <div class="text-xl font-semibold text-slate-900">订单执行概览</div>
           <v-chip variant="outlined" size="small">{{ recentExecutionOrders.length }}</v-chip>
         </div>
         <v-card-text>
           <div class="grid gap-4 lg:grid-cols-2">
             <div class="grid gap-3">
               <div class="text-xs uppercase tracking-[0.2em] text-slate-500">
-                Execution Orders
+                内部订单
               </div>
               <div
                 v-if="recentExecutionOrders.length"
@@ -528,12 +539,12 @@ function sessionLabel(session: string | null): string {
                         {{ order.internalOrderId }}
                       </div>
                     </div>
-                    <v-chip variant="outlined" size="small">{{ order.status }}</v-chip>
+                    <v-chip variant="outlined" size="small">{{ formatExecutionOrderStatusLabel(order.status) }}</v-chip>
                   </div>
                   <div class="mt-4 grid gap-3 sm:grid-cols-2">
                     <div class="rounded-2xl bg-slate-50 px-3 py-3">
                       <div class="text-xs uppercase tracking-[0.18em] text-slate-500">
-                        Requested
+                        委托数量
                       </div>
                       <div class="mt-2 text-lg font-semibold text-slate-900">
                         {{ order.requestedQuantity }}
@@ -541,7 +552,7 @@ function sessionLabel(session: string | null): string {
                     </div>
                     <div class="rounded-2xl bg-slate-50 px-3 py-3">
                       <div class="text-xs uppercase tracking-[0.18em] text-slate-500">
-                        Filled
+                        成交数量
                       </div>
                       <div class="mt-2 text-lg font-semibold text-slate-900">
                         {{ order.filledQuantity ?? 0 }}
@@ -552,13 +563,13 @@ function sessionLabel(session: string | null): string {
               </div>
               <v-empty-state
                 v-else
-                text="当前还没有 execution blotter 数据。"
+                text="当前还没有执行流水数据。"
               />
             </div>
 
             <div class="grid gap-3">
               <div class="text-xs uppercase tracking-[0.2em] text-slate-500">
-                Broker Orders
+                券商订单
               </div>
               <div
                 v-if="recentBrokerOrders.length"
@@ -575,13 +586,13 @@ function sessionLabel(session: string | null): string {
                         {{ order.symbol }}
                       </div>
                       <div class="mt-1 text-xs text-slate-500">
-                        {{ order.side }} / {{ order.orderType }}
+                        {{ formatOrderSideLabel(order.side) }} / {{ formatOrderTypeLabel(order.orderType) }}
                       </div>
                     </div>
-                    <v-chip variant="outlined" size="small">{{ order.status }}</v-chip>
+                    <v-chip variant="outlined" size="small">{{ formatExecutionOrderStatusLabel(order.status) }}</v-chip>
                   </div>
                   <div class="mt-4 text-xs text-slate-500">
-                    Submitted {{ order.submittedAt || "N/A" }}
+                    提交时间 {{ order.submittedAt || "暂无" }}
                   </div>
                 </div>
               </div>
@@ -597,7 +608,7 @@ function sessionLabel(session: string | null): string {
       <div class="grid gap-5">
         <v-card flat class="card-shell border-0">
           <div class="flex items-center justify-between gap-3 px-4 pt-4">
-            <div class="text-xl font-semibold text-slate-900">Portfolio Pulse</div>
+            <div class="text-xl font-semibold text-slate-900">持仓概览</div>
             <v-chip variant="outlined" size="small">{{ projectedPositions.length }}</v-chip>
           </div>
           <v-card-text>
@@ -614,14 +625,14 @@ function sessionLabel(session: string | null): string {
                       {{ position.symbol }}
                     </div>
                     <div class="mt-1 text-xs text-slate-500">
-                      {{ position.accountId }} / {{ position.market }}
+                      {{ position.accountId }} / {{ formatMarketLabel(position.market) }}
                     </div>
                   </div>
                   <div class="text-right">
                     <div class="text-lg font-semibold text-slate-900">
                       {{ position.quantity }}
                     </div>
-                    <div class="text-xs text-slate-500">qty</div>
+                    <div class="text-xs text-slate-500">数量</div>
                   </div>
                 </div>
               </div>
@@ -629,19 +640,19 @@ function sessionLabel(session: string | null): string {
                 v-if="portfolioCashReconciliation.balances.length"
                 class="rounded-3xl bg-slate-50 px-4 py-4 text-sm text-slate-600"
               >
-                Cash delta
+                现金差额
                 <span class="font-semibold text-slate-900">
-                  {{ portfolioCashReconciliation.balances[0]?.cashDelta ?? "N/A" }}
+                  {{ portfolioCashReconciliation.balances[0]?.cashDelta ?? "暂无" }}
                 </span>
                 /
-                Connectivity
+                连接状态
                 <span class="font-semibold text-slate-900">
-                  {{ portfolioCashReconciliation.connectivity.toUpperCase() }}
+                  {{ formatConnectivityLabel(portfolioCashReconciliation.connectivity) }}
                 </span>
               </div>
               <v-empty-state
                 v-else
-                text="Portfolio projection 和对账结果稍后会在这里形成组合脉冲。"
+                text="持仓投影和对账结果稍后会在这里形成组合脉冲。"
               />
             </div>
           </v-card-text>
@@ -649,8 +660,8 @@ function sessionLabel(session: string | null): string {
 
         <v-card flat class="card-shell border-0">
           <div class="flex items-center justify-between gap-3 px-4 pt-4">
-            <div class="text-xl font-semibold text-slate-900">Docs &amp; Operations</div>
-            <v-chip variant="outlined" size="small">readiness</v-chip>
+            <div class="text-xl font-semibold text-slate-900">文档与运维</div>
+            <v-chip variant="outlined" size="small">准备度</v-chip>
           </div>
           <v-card-text>
             <div class="grid gap-3">
@@ -669,15 +680,15 @@ function sessionLabel(session: string | null): string {
               </a>
 
               <div class="rounded-3xl bg-slate-50 px-4 py-4 text-sm text-slate-600">
-                API / persistence / strategy active:
+                API / 持久化 / 活跃策略：
                 <span class="font-semibold text-slate-900">
-                  {{ systemStatus.persistence.status }}
+                  {{ formatGenericStatusLabel(systemStatus.persistence.status) }}
                 </span>
                 /
                 <span class="font-semibold text-slate-900">
                   {{ systemStatus.strategyRuntime.activeStrategies }}
                 </span>
-                strategies
+                个策略
               </div>
             </div>
           </v-card-text>
@@ -688,7 +699,7 @@ function sessionLabel(session: string | null): string {
     <section class="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
       <v-card flat class="card-shell border-0">
         <div class="flex items-center justify-between gap-3 px-4 pt-4">
-          <div class="text-xl font-semibold text-slate-900">Audit Timeline</div>
+          <div class="text-xl font-semibold text-slate-900">审计时间线</div>
           <v-chip variant="outlined" size="small">{{ recentAuditLogs.length }}</v-chip>
         </div>
         <v-card-text>
@@ -721,7 +732,7 @@ function sessionLabel(session: string | null): string {
 
       <v-card flat class="card-shell border-0">
         <div class="flex items-center justify-between gap-3 px-4 pt-4">
-          <div class="text-xl font-semibold text-slate-900">Command Ledger</div>
+          <div class="text-xl font-semibold text-slate-900">指令台账</div>
           <v-chip variant="outlined" size="small">{{ recentExecutionCommands.length }}</v-chip>
         </div>
         <v-card-text>
@@ -736,10 +747,10 @@ function sessionLabel(session: string | null): string {
             >
               <div class="flex items-center justify-between gap-3">
                 <div class="text-sm font-semibold text-slate-900">
-                  {{ entry.operation }} / {{ entry.brokerId }}
+                  {{ formatRealTradeOperationLabel(entry.operation) }} / {{ entry.brokerId }}
                 </div>
                 <v-chip variant="outlined" size="small">
-                  {{ entry.completedAt ? "DONE" : "PENDING" }}
+                  {{ formatGenericStatusLabel(entry.completedAt ? "COMPLETED" : "PENDING") }}
                 </v-chip>
               </div>
               <div class="mt-2 break-all text-xs text-slate-500">
@@ -752,7 +763,7 @@ function sessionLabel(session: string | null): string {
           </div>
           <v-empty-state
             v-else
-            text="最近还没有 execution command ledger 事件。"
+            text="最近还没有执行指令台账事件。"
           />
         </v-card-text>
       </v-card>

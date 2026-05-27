@@ -45,6 +45,8 @@ type Server struct {
 	designStore         *strategyDesignStore
 	backtestRuns        *backtestRunStore
 	backtestSyncTasks   *backtestSyncTaskStore
+	executionOrders     *executionOrderStore
+	brokerOrderUpdates  *brokerOrderUpdateWorker
 	upgrader            websocket.Upgrader
 	marketSubscriptions marketSubscriptionManager
 	tickCache           tickSampleCacheManager
@@ -123,6 +125,8 @@ func NewServer(store *SettingsStore) *Server {
 		designStore:         designStore,
 		backtestRuns:        newBacktestRunStore(),
 		backtestSyncTasks:   newBacktestSyncTaskStore(),
+		executionOrders:     newExecutionOrderStore(),
+		brokerOrderUpdates:  newBrokerOrderUpdateWorker(),
 		marketSubscriptions: newMarketSubscriptionManager(),
 		tickCache:           newTickSampleCacheManager(),
 		upgrader: websocket.Upgrader{

@@ -279,7 +279,7 @@ onMounted(async () => {
     chartError.value =
       error instanceof Error
         ? error.message
-        : "Failed to initialize K-line chart.";
+        : "K 线图初始化失败。";
     return;
   }
 

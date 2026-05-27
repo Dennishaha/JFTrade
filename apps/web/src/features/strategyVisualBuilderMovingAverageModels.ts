@@ -27,7 +27,7 @@ export function createDoubleMovingAverageStrategyVisualModel(): StrategyVisualMo
         text: "输出日志",
         properties: {
           blockKind: "log",
-          message: "double moving average initialized for ${ctx.symbol || '00700'} ${ctx.interval || '5m'}",
+          message: "双均线策略已初始化：${ctx.symbol || '00700'} ${ctx.interval || '5m'}",
         },
       },
       {

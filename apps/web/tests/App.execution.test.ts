@@ -38,8 +38,8 @@ afterEach(() => {
   MockEventSource.instances = [];
 });
 
-describe("Execution page", () => {
-  it("shows execution orders, order events, and broker order fees", async () => {
+describe("Account page execution route redirect", () => {
+  it("shows pending orders, order events, and broker order fees", async () => {
     const executionOrders: ExecutionOrdersResponse = {
       ...emptySystemStatus,
       orders: [
@@ -157,8 +157,9 @@ describe("Execution page", () => {
 
     const { wrapper } = await mountApp("/execution");
 
-    expect(wrapper.text()).toContain("Execution Orders");
-    expect(wrapper.text()).toContain("COMMAND_PLACE_ACCEPTED");
+    expect(wrapper.text()).toContain("我的账户");
+    expect(wrapper.text()).toContain("在途订单");
+    expect(wrapper.text()).toContain("下单已受理");
     expect(wrapper.text()).toContain("18.5 HKD");
 
     wrapper.unmount();

@@ -244,29 +244,25 @@ func (e *Exchange) QueryQuoteSnapshot(ctx context.Context, symbol string) (*Quot
 // --- bbgo types.ExchangeAccountService ---
 
 func (e *Exchange) QueryAccount(ctx context.Context) (*types.Account, error) {
-	acc := types.NewAccount()
-	acc.AccountType = "futu"
-	return acc, nil
+	return e.queryAccount(ctx)
 }
 
 func (e *Exchange) QueryAccountBalances(ctx context.Context) (types.BalanceMap, error) {
-	return types.BalanceMap{
-		"HKD": types.Balance{Currency: "HKD", Available: fixedpoint.Zero, Locked: fixedpoint.Zero},
-	}, nil
+	return e.queryAccountBalances(ctx)
 }
 
 // --- bbgo types.ExchangeTradeService ---
 
 func (e *Exchange) SubmitOrder(ctx context.Context, order types.SubmitOrder) (*types.Order, error) {
-	return nil, fmt.Errorf("%w: SubmitOrder symbol=%s side=%s qty=%s", ErrNotSupported, order.Symbol, order.Side, order.Quantity.String())
+	return e.submitOrder(ctx, order)
 }
 
 func (e *Exchange) QueryOpenOrders(ctx context.Context, symbol string) ([]types.Order, error) {
-	return nil, nil
+	return e.queryOpenOrders(ctx, symbol)
 }
 
 func (e *Exchange) CancelOrders(ctx context.Context, orders ...types.Order) error {
-	return fmt.Errorf("%w: CancelOrders n=%d", ErrNotSupported, len(orders))
+	return e.cancelOrders(ctx, orders...)
 }
 
 // Connect dials OpenD now, useful for health checks and tests.
@@ -543,6 +539,7 @@ func (e *Exchange) ensureClient(ctx context.Context) (*opend.Client, error) {
 	}
 
 	e.ready = true
+	e.client.SetConnID(initResp.GetS2C().GetConnID())
 	if keepAliveInterval := initResp.GetS2C().GetKeepAliveInterval(); keepAliveInterval > 0 {
 		e.client.StartKeepAlive(time.Duration(keepAliveInterval) * time.Second)
 	}

@@ -30,7 +30,7 @@ func (s *Server) serveSystemRoutes(w http.ResponseWriter, r *http.Request) bool 
 	case r.URL.Path == "/api/v1/system/real-trade-risk-events" && r.Method == http.MethodGet:
 		s.writeOK(w, s.realTradeRiskEvents())
 	case r.URL.Path == "/api/v1/system/worker/broker-order-updates" && r.Method == http.MethodGet:
-		s.writeOK(w, map[string]any{"subscriptions": []any{}, "recentInvalidations": []any{}, "brokers": []any{}, "runtime": map[string]any{"lastStoppedAt": nil, "stoppedSubscriptions": nil}})
+		s.writeOK(w, s.brokerOrderUpdates.snapshotResponse())
 	default:
 		return false
 	}

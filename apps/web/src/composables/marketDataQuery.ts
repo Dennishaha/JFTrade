@@ -149,7 +149,7 @@ export function createMarketDataQueryController(
 
     if (market === "" || symbol === "" || rawPeriod === "") {
       marketDataQueryError.value =
-        "Market, symbol and candle period are required.";
+        "请填写市场、标的和 K 线周期。";
       return;
     }
 
@@ -158,12 +158,12 @@ export function createMarketDataQueryController(
       period = normalizeKlinePeriod(rawPeriod);
     } catch (error) {
       marketDataQueryError.value =
-        error instanceof Error ? error.message : "Unsupported candle period.";
+        error instanceof Error ? error.message : "不支持的 K 线周期。";
       return;
     }
 
     if (!Number.isInteger(requestedLimit) || requestedLimit <= 0) {
-      marketDataQueryError.value = "Candle limit must be a positive integer.";
+      marketDataQueryError.value = "K 线查询条数必须是正整数。";
       return;
     }
 
@@ -266,7 +266,7 @@ export function createMarketDataQueryController(
           .map((result) =>
             result.reason instanceof Error
               ? result.reason.message
-              : "Failed to load part of market data query.",
+              : "部分行情查询加载失败。",
           );
         if (partialErrors.length > 0) {
           marketDataQueryError.value = partialErrors.join(" / ");
@@ -275,7 +275,7 @@ export function createMarketDataQueryController(
         marketDataQueryError.value =
           error instanceof Error
             ? error.message
-            : "Failed to load market data query.";
+            : "行情查询加载失败。";
         if (queryOptions.appendOlder !== true) {
           marketDataSnapshot.value = null;
           marketSecurityDetails.value = null;

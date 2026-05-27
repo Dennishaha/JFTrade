@@ -254,7 +254,7 @@ function loadData() {
         position: isBuy ? "belowBar" : "aboveBar",
         color: isBuy ? p.buyMarker : p.sellMarker,
         shape: isBuy ? "arrowUp" : "arrowDown",
-        text: `${isBuy ? "BUY" : "SELL"} ${t.qty}股 HK$${amount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`,
+        text: `${isBuy ? "买入" : "卖出"} ${t.qty}股 HK$${amount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`,
         size: 3,
       };
     });

@@ -101,7 +101,7 @@ body {
 .tv-main .text-amber-600,
 .tv-main .text-amber-700,
 .tv-main .text-amber-800 { color: var(--card-amber-text); }
-/* Theme-aware teal glow shadow (replaces hardcoded rgba shadow in ExecutionPage) */
+/* Theme-aware teal glow shadow for elevated account and market surfaces. */
 .shadow-teal-glow { box-shadow: 0 12px 32px var(--card-teal-border); }
 
 .tv-main .tv-page-tabs {
@@ -441,13 +441,18 @@ body {
   background: var(--tv-bg-app);
 }
 
-.tv-main > * {
+.tv-main-scroll {
   flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
   overflow: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable both-edges;
+}
+
+.tv-main-scroll > * {
+  min-width: 0;
+  min-height: 100%;
 }
 
 .tv-rightdock {
@@ -901,7 +906,7 @@ body {
   background: color-mix(in srgb, var(--tv-accent) 14%, transparent);
 }
 
-.tv-main > *::-webkit-scrollbar,
+.tv-main-scroll::-webkit-scrollbar,
 .tv-panel-body::-webkit-scrollbar,
 .tv-dock-body::-webkit-scrollbar,
 .tv-iconrail::-webkit-scrollbar {
@@ -909,14 +914,14 @@ body {
   height: 10px;
 }
 
-.tv-main > *::-webkit-scrollbar-track,
+.tv-main-scroll::-webkit-scrollbar-track,
 .tv-panel-body::-webkit-scrollbar-track,
 .tv-dock-body::-webkit-scrollbar-track,
 .tv-iconrail::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.tv-main > *::-webkit-scrollbar-thumb,
+.tv-main-scroll::-webkit-scrollbar-thumb,
 .tv-panel-body::-webkit-scrollbar-thumb,
 .tv-dock-body::-webkit-scrollbar-thumb,
 .tv-iconrail::-webkit-scrollbar-thumb {
@@ -926,7 +931,7 @@ body {
   background-clip: padding-box;
 }
 
-.tv-main > *,
+.tv-main-scroll,
 .tv-panel-body,
 .tv-dock-body,
 .tv-iconrail {

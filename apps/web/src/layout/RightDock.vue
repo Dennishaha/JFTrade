@@ -31,9 +31,9 @@ const snapSessionLabel = computed(() => {
 });
 
 const tabs = [
-  { id: "notifications", label: "Notifications" },
-  { id: "ai", label: "Assistant" },
-  { id: "context", label: "Context" },
+  { id: "notifications", label: "通知" },
+  { id: "ai", label: "助手" },
+  { id: "context", label: "上下文" },
 ] as const;
 
 function select(id: (typeof tabs)[number]["id"]): void {
@@ -58,38 +58,38 @@ function toggle(): void {
         >
           {{ tab.label }}
         </div>
-        <button class="tv-icon-btn" style="width: 36px" title="Collapse" @click="toggle">⟩</button>
+        <button class="tv-icon-btn" style="width: 36px" title="收起" @click="toggle">⟩</button>
       </div>
 
       <NotificationCenter v-if="prefs.rightDockTab === 'notifications'" />
       <AiAssistantPanel v-else-if="prefs.rightDockTab === 'ai'" />
       <div v-else class="tv-dock-body">
         <div style="font-size: 11px; color: var(--tv-text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px">
-          Symbol
+          标的
         </div>
         <div style="font-size: 18px; font-weight: 600; margin-bottom: 8px">{{ symbolInfo }}</div>
         <table class="tv-table">
           <tbody>
-            <tr><td>Last</td><td class="tv-num">{{ snap?.price ?? "—" }}</td></tr>
-            <tr><td>Bid</td><td class="tv-num">{{ snap?.bid ?? "—" }}</td></tr>
-            <tr><td>Ask</td><td class="tv-num">{{ snap?.ask ?? "—" }}</td></tr>
-            <tr><td>Session</td><td class="tv-num">{{ snapSessionLabel }}</td></tr>
-            <tr><td>Vol</td><td class="tv-num">{{ snap?.volume ?? "—" }}</td></tr>
-            <tr><td>Turnover</td><td class="tv-num">{{ snap?.turnover ?? "—" }}</td></tr>
-            <tr><td>As of</td><td class="tv-num">{{ snap?.at ?? "—" }}</td></tr>
+            <tr><td>最新价</td><td class="tv-num">{{ snap?.price ?? "—" }}</td></tr>
+            <tr><td>买一</td><td class="tv-num">{{ snap?.bid ?? "—" }}</td></tr>
+            <tr><td>卖一</td><td class="tv-num">{{ snap?.ask ?? "—" }}</td></tr>
+            <tr><td>时段</td><td class="tv-num">{{ snapSessionLabel }}</td></tr>
+            <tr><td>成交量</td><td class="tv-num">{{ snap?.volume ?? "—" }}</td></tr>
+            <tr><td>成交额</td><td class="tv-num">{{ snap?.turnover ?? "—" }}</td></tr>
+            <tr><td>时间</td><td class="tv-num">{{ snap?.at ?? "—" }}</td></tr>
           </tbody>
         </table>
 
         <div style="font-size: 11px; color: var(--tv-text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin: 14px 0 6px">
-          Subscriptions
+          订阅
         </div>
         <div style="font-size: 12px; color: var(--tv-text-muted)">
-          {{ marketDataSubscriptions.totalActiveSubscriptions }} active
-          · quota {{ marketDataSubscriptions.quota.totalUsed }} / {{ marketDataSubscriptions.quota.totalLimit ?? "∞" }}
+          {{ marketDataSubscriptions.totalActiveSubscriptions }} 个活跃
+          · 配额 {{ marketDataSubscriptions.quota.totalUsed }} / {{ marketDataSubscriptions.quota.totalLimit ?? "∞" }}
         </div>
 
         <div style="font-size: 11px; color: var(--tv-text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin: 14px 0 6px">
-          System
+          系统
         </div>
         <div style="font-size: 12px; color: var(--tv-text-muted)">
           {{ systemStatus.message }}
@@ -99,7 +99,7 @@ function toggle(): void {
     <button
       v-else
       class="tv-icon-btn"
-      title="Open dock"
+      title="打开侧栏"
       style="position: fixed; right: 8px; top: 64px; z-index: 20; border: 1px solid var(--tv-border); background: var(--tv-bg-surface)"
       @click="toggle"
     >⟨</button>

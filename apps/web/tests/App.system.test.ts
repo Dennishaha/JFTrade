@@ -270,13 +270,13 @@ describe("System page", () => {
 
     expect(wrapper.text()).toContain("JFTRADE");
     expect(wrapper.text()).toContain("系统运行状态");
-    expect(wrapper.text()).toContain("Worker Broker Subscription Health");
-    expect(wrapper.text()).toContain("Worker Backoff Hotspots");
-    expect(wrapper.text()).toContain("Layered Backoff Governance");
-    expect(wrapper.text()).toContain("REAL / REAL-001");
+    expect(wrapper.text()).toContain("工作进程券商订阅健康");
+    expect(wrapper.text()).toContain("工作进程退避热点");
+    expect(wrapper.text()).toContain("分层退避治理");
+    expect(wrapper.text()).toContain("实盘 / REAL-001");
     expect(wrapper.text()).toContain("OpenD unavailable");
     expect(wrapper.text()).toContain("network down (code 1006)");
-    expect(wrapper.text()).toContain("WS");
+    expect(wrapper.text()).toContain("实时通道");
     expect(wrapper.text()).toContain("2026-05-16T00:30:00.000Z");
 
     wrapper.unmount();
@@ -354,7 +354,8 @@ describe("System page", () => {
 
     expect(wrapper.text()).toContain("OpenD 连接状态变化");
     expect(wrapper.text()).toContain("行情未登录，交易未登录。");
-    expect(wrapper.text()).toContain("futu-opend");
+    expect(wrapper.text()).toContain("富途 OpenD");
+    expect(wrapper.text()).toContain("券商连接");
     expect(wrapper.text()).not.toContain("WS: system.notification");
 
     wrapper.unmount();

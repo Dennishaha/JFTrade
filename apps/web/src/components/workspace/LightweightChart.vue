@@ -179,7 +179,7 @@ watch(
 <template>
   <section class="tv-panel tv-grid-area-chart">
     <div class="tv-panel-head">
-      <span class="tv-panel-title">Chart</span>
+      <span class="tv-panel-title">图表</span>
       <span style="color: var(--tv-text); font-weight: 600">{{ chartInstrumentTitle }}</span>
       <div class="tv-seg" style="margin-left: 12px">
         <button
@@ -195,10 +195,10 @@ watch(
       <span v-if="chartSessionBadge" :title="chartSessionTitle" style="border: 1px solid var(--tv-border); border-radius: 999px; padding: 3px 8px; color: var(--tv-text); background: var(--card-teal-surface); font-size: 11px; white-space: nowrap">
         {{ chartSessionBadge }}
       </span>
-      <span v-if="isLoadingMarketDataQuery" style="color: var(--tv-text-dim); font-size: 11px">loading…</span>
+      <span v-if="isLoadingMarketDataQuery" style="color: var(--tv-text-dim); font-size: 11px">加载中...</span>
       <span v-else-if="marketDataQueryError" style="color: var(--tv-down); font-size: 11px" :title="marketDataQueryError">{{ marketDataQueryError }}</span>
-      <span v-else style="color: var(--tv-text-dim); font-size: 11px">{{ marketDataCandles?.totalReturned ?? 0 }} bars · {{ formatKlinePeriodLabel(prefs.period) }} · limit {{ marketDataQueryLimit }}</span>
-      <button class="tv-icon-btn" title="Reload" @click="reload">↻</button>
+      <span v-else style="color: var(--tv-text-dim); font-size: 11px">{{ marketDataCandles?.totalReturned ?? 0 }} 根 · {{ formatKlinePeriodLabel(prefs.period) }} · 上限 {{ marketDataQueryLimit }}</span>
+      <button class="tv-icon-btn" title="刷新" @click="reload">↻</button>
     </div>
     <div class="tv-panel-body is-flush">
       <div class="tv-chart-host">

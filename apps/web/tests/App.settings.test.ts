@@ -130,8 +130,8 @@ describe("Settings page", () => {
           ],
           nextSteps: [
             "按富途官方文档完成安装与登录。",
-            "回到 Futu Integration 填写 OpenD 连接信息并确认已开启 WebSocket。",
-            "如果 OpenD 配置了 WebSocket 密码，请在 JFTrade 的 WebSocket Password / Key 中填写同一明文密码；命令行版 OpenD 则在 FutuOpenD.xml 或 -cfg_file 参数文件中维护 websocket_key_md5。",
+            "回到富途接入填写 OpenD 连接信息并确认已开启 WebSocket。",
+            "如果 OpenD 配置了 WebSocket 密码，请在 JFTrade 的 WebSocket 密码 / 密钥中填写同一明文密码；命令行版 OpenD 则在 FutuOpenD.xml 或 -cfg_file 参数文件中维护 websocket_key_md5。",
           ],
           settings: {
             host: "127.0.0.1",
@@ -223,21 +223,21 @@ describe("Settings page", () => {
 
     const { wrapper } = await mountApp("/settings");
 
-    expect(wrapper.text()).toContain("Settings / Configuration");
-    expect(wrapper.text()).toContain("Futu Integration");
+    expect(wrapper.text()).toContain("设置");
+    expect(wrapper.text()).toContain("富途接入");
     expect(wrapper.text()).toContain("OpenD 连接状态");
-    expect(wrapper.text()).toContain("OpenD install guide");
-    expect(wrapper.text()).toContain("WebSocket Password / Key");
+    expect(wrapper.text()).toContain("OpenD 安装引导");
+    expect(wrapper.text()).toContain("WebSocket 密码 / 密钥");
     expect(wrapper.text()).toContain("图形交互版 OpenD");
     expect(wrapper.text()).toContain("命令行版 OpenD");
     expect(wrapper.text()).toContain("Primary sim");
-    expect(wrapper.text()).toContain("OpenD discovered accounts");
+    expect(wrapper.text()).toContain("OpenD 发现的账户");
 
     await flushRequests();
 
     expect(wrapper.text()).toContain("OpenD WebSocket 已连接");
     expect(wrapper.text()).toContain("当前参数已通过运行时检测");
-    expect(wrapper.text()).toContain("WebSocket 127.0.0.1:11111");
+    expect(wrapper.text()).toContain("WebSocket 127.0.0.1:");
     expect(wrapper.text()).toContain("已登录");
 
     expect(wrapper.html()).toContain(

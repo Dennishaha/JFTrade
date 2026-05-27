@@ -256,7 +256,7 @@ describe("Console Stream", () => {
     await flushRequests();
 
     expect(fetchMock.mock.calls.length).toBeGreaterThan(initialFetchCount);
-    expect(wrapper.text()).toContain("SSE");
+    expect(wrapper.text()).toContain("事件流");
     expect(wrapper.text()).toContain("2026-05-17T00:02:00.000Z");
 
     wrapper.unmount();

@@ -33,8 +33,8 @@ afterEach(() => {
   MockEventSource.instances = [];
 });
 
-describe("Portfolio page", () => {
-  it("shows projected cash balances and portfolio reconciliation", async () => {
+describe("Account page portfolio route redirect", () => {
+  it("shows account cash balances and projected positions", async () => {
     const portfolioCashBalances: PortfolioCashBalancesResponse = {
       ...emptySystemStatus,
       balances: [
@@ -165,10 +165,12 @@ describe("Portfolio page", () => {
 
     const { wrapper } = await mountApp("/portfolio");
 
-    expect(wrapper.text()).toContain("Projected Cash");
-    expect(wrapper.text()).toContain("55981.5");
-    expect(wrapper.text()).toContain("Portfolio Reconciliation");
-    expect(wrapper.text()).toContain("-50");
+    expect(wrapper.text()).toContain("我的账户");
+    expect(wrapper.text()).toContain("资金余额");
+    expect(wrapper.text()).toContain("55,981.5");
+    expect(wrapper.text()).toContain("持仓概览");
+    expect(wrapper.text()).toContain("HK.00700");
+    expect(wrapper.text()).toContain("投影");
 
     wrapper.unmount();
   });

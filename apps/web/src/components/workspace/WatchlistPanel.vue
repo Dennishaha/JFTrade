@@ -345,13 +345,13 @@ function formatPercent(value: number | null | undefined): string {
 <template>
   <section class="tv-panel tv-grid-area-watchlist">
     <div class="tv-panel-head">
-      <span class="tv-panel-title">Price</span>
+      <span class="tv-panel-title">行情</span>
       <span style="font-weight: 600">{{ instrumentTitle }}</span>
       <div style="flex: 1"></div>
       <span
         style="font-size: 11px; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--tv-border); white-space: nowrap"
         :style="snapshot ? 'color: var(--tv-up); background: var(--card-green-surface)' : 'color: var(--tv-text-dim)'">
-        {{ snapshot ? "LIVE" : "NO DATA" }}
+        {{ snapshot ? "实时" : "无数据" }}
       </span>
     </div>
     <div class="tv-panel-body">

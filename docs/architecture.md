@@ -104,6 +104,7 @@ flowchart LR
 - 设置、诊断、实时通知来自 sidecar
 - 行情快照和 K 线查询来自 sidecar
 - 实时 tick 来自 `/api/v1/ws/live`
+- 交易环境、市场、连接状态、订单状态和风控状态等枚举值在前端展示时通过 `apps/web/src/composables/consoleDataFormatting.ts` 统一转成中文标签，避免修改 API 原始值
 - 策略设计工作区同时承载 Logic Flow visualModel 与 QuickJS script，浏览器内代码编辑使用 Monaco，测试环境回退 textarea
 
 ## 请求与数据流

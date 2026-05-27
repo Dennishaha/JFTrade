@@ -109,12 +109,12 @@ describe("Risk page", () => {
 
     const { wrapper } = await mountApp("/risk");
 
-    expect(wrapper.text()).toContain("Risk");
-    expect(wrapper.text()).toContain("Risk Limits");
-    expect(wrapper.text()).toContain("Kill Switch");
-    expect(wrapper.text()).toContain("Hard Stops");
-    expect(wrapper.text()).toContain("Real Trade Approvals");
-    expect(wrapper.text()).toContain("Risk Event Log");
+    expect(wrapper.text()).toContain("风控 / 门禁");
+    expect(wrapper.text()).toContain("风控限额");
+    expect(wrapper.text()).toContain("熔断开关");
+    expect(wrapper.text()).toContain("硬停止");
+    expect(wrapper.text()).toContain("实盘审批");
+    expect(wrapper.text()).toContain("风控事件日志");
 
     wrapper.unmount();
   });
@@ -131,7 +131,7 @@ describe("Risk page", () => {
 
     const { wrapper } = await mountApp("/risk");
 
-    expect(wrapper.text()).toContain("INACTIVE");
+    expect(wrapper.text()).toContain("未激活");
 
     wrapper.unmount();
   });
@@ -155,9 +155,9 @@ describe("Risk page", () => {
 
     const { wrapper } = await mountApp("/risk");
 
-    expect(wrapper.text()).toContain("ACTIVE");
-    expect(wrapper.text()).toContain("PLACE");
-    expect(wrapper.text()).toContain("MODIFY");
+    expect(wrapper.text()).toContain("已激活");
+    expect(wrapper.text()).toContain("下单");
+    expect(wrapper.text()).toContain("改单");
 
     wrapper.unmount();
   });
@@ -195,7 +195,7 @@ describe("Risk page", () => {
 
     expect(wrapper.text()).toContain("circuit breaker triggered");
     expect(wrapper.text()).toContain("futu");
-    expect(wrapper.text()).toContain("1 ACTIVE");
+    expect(wrapper.text()).toContain("1 个活跃");
 
     wrapper.unmount();
   });
@@ -234,7 +234,7 @@ describe("Risk page", () => {
 
     const { wrapper } = await mountApp("/risk");
 
-    expect(wrapper.text()).toContain("NONE");
+    expect(wrapper.text()).toContain("无活跃实盘硬停止");
 
     wrapper.unmount();
   });
@@ -248,8 +248,8 @@ describe("Risk page", () => {
 
     const { wrapper } = await mountApp("/system");
 
-    expect(wrapper.text()).toContain("Risk");
-    expect(wrapper.text()).toContain("Kill switch");
+    expect(wrapper.text()).toContain("风控");
+    expect(wrapper.text()).toContain("实盘熔断开关");
 
     wrapper.unmount();
   });

@@ -5,6 +5,7 @@ import { KLINE_PERIODS } from "../charting/kline";
 import BacktestChart from "../components/BacktestChart.vue";
 import PageHeader from "../components/PageHeader.vue";
 import { fetchEnvelope } from "../composables/apiClient";
+import { formatGenericStatusLabel } from "../composables/consoleDataFormatting";
 import { useBacktestRuns, type BacktestFormState } from "../composables/useBacktestRuns";
 import { useConsoleData } from "../composables/useConsoleData";
 import { useTheme } from "../composables/useTheme";
@@ -212,15 +213,15 @@ async function loadDefinitions() {
 const statusChip = (status: string) => {
   switch (status) {
     case "completed":
-      return { color: "success", label: "COMPLETED" };
+      return { color: "success", label: formatGenericStatusLabel(status) };
     case "failed":
-      return { color: "error", label: "FAILED" };
+      return { color: "error", label: formatGenericStatusLabel(status) };
     case "running":
-      return { color: "info", label: "RUNNING" };
+      return { color: "info", label: formatGenericStatusLabel(status) };
     case "queued":
-      return { color: "warning", label: "QUEUED" };
+      return { color: "warning", label: formatGenericStatusLabel(status) };
     default:
-      return { color: "", label: status };
+      return { color: "", label: formatGenericStatusLabel(status) };
   }
 };
 
@@ -329,7 +330,7 @@ watch(interval, (val, old) => {
 <template>
   <div class="grid gap-4">
     <PageHeader
-      eyebrow="Simulation"
+      eyebrow="模拟回测"
       title="回测"
       description="选择策略定义、标的和时段，同步历史K线后运行回测。"
       :stats="headerStats"

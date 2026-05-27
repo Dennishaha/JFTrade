@@ -179,7 +179,7 @@ function getOverlaySeriesColor(period: number): string {
 function buildOverlaySeriesOptions(indicator: KlineIndicatorKey) {
   const definition = getKlineIndicatorDefinition(indicator);
   if (definition == null || definition.kind !== "overlay" || definition.period == null) {
-    throw new Error(`Unsupported overlay indicator '${indicator}'.`);
+    throw new Error(`不支持的叠加指标：${indicator}`);
   }
 
   const lineWidth: LineWidth = definition.family === "ma" ? 2 : 1;

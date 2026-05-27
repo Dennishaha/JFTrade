@@ -11,7 +11,7 @@ export function createKDJReversionStrategyVisualModel(): StrategyVisualModelDocu
     version: 1,
     nodes: [
       { id: "kdj-init-root", type: "circle", x: 180, y: 120, text: "策略启动", properties: { blockKind: "onInit" } },
-      { id: "kdj-init-log", type: "rect", x: 450, y: 120, text: "输出日志", properties: { blockKind: "log", message: "KDJ strategy initialized for ${ctx.symbol || '00700'} ${ctx.interval || '1m'}" } },
+      { id: "kdj-init-log", type: "rect", x: 450, y: 120, text: "输出日志", properties: { blockKind: "log", message: "KDJ 策略已初始化：${ctx.symbol || '00700'} ${ctx.interval || '1m'}" } },
       { id: "kdj-kline-root", type: "circle", x: 180, y: 320, text: "K 线收盘", properties: { blockKind: "onKLineClosed" } },
       { id: "kdj-getter", type: "rect", x: 470, y: 320, text: "获取 KDJ 9/3/3", properties: { blockKind: "getTechnicalIndicator", indicatorType: "kdj", period: 9, m1: 3, m2: 3 } },
       { id: "kdj-buy-signal", type: "diamond", x: 760, y: 260, text: "KDJ 金叉", properties: { blockKind: "technicalIndicatorCondition", indicatorType: "kdj", conditionMode: "pattern", patternType: "goldenCross" } },
@@ -38,7 +38,7 @@ export function createATRVolatilityStrategyVisualModel(): StrategyVisualModelDoc
     version: 1,
     nodes: [
       { id: "atr-init-root", type: "circle", x: 180, y: 120, text: "策略启动", properties: { blockKind: "onInit" } },
-      { id: "atr-init-log", type: "rect", x: 450, y: 120, text: "输出日志", properties: { blockKind: "log", message: "ATR strategy initialized for ${ctx.symbol || '00700'} ${ctx.interval || '1m'}" } },
+      { id: "atr-init-log", type: "rect", x: 450, y: 120, text: "输出日志", properties: { blockKind: "log", message: "ATR 策略已初始化：${ctx.symbol || '00700'} ${ctx.interval || '1m'}" } },
       { id: "atr-kline-root", type: "circle", x: 180, y: 320, text: "K 线收盘", properties: { blockKind: "onKLineClosed" } },
       { id: "atr-getter", type: "rect", x: 470, y: 320, text: "获取 ATR 14", properties: { blockKind: "getTechnicalIndicator", indicatorType: "atr", period: 14 } },
       { id: "atr-high", type: "diamond", x: 740, y: 260, text: "ATR > 2", properties: { blockKind: "technicalIndicatorCondition", indicatorType: "atr", conditionMode: "numeric", operator: ">", threshold: 2 } },
@@ -65,7 +65,7 @@ export function createCCIReversionStrategyVisualModel(): StrategyVisualModelDocu
     version: 1,
     nodes: [
       { id: "cci-init-root", type: "circle", x: 180, y: 120, text: "策略启动", properties: { blockKind: "onInit" } },
-      { id: "cci-init-log", type: "rect", x: 450, y: 120, text: "输出日志", properties: { blockKind: "log", message: "CCI strategy initialized for ${ctx.symbol || '00700'} ${ctx.interval || '1m'}" } },
+      { id: "cci-init-log", type: "rect", x: 450, y: 120, text: "输出日志", properties: { blockKind: "log", message: "CCI 策略已初始化：${ctx.symbol || '00700'} ${ctx.interval || '1m'}" } },
       { id: "cci-kline-root", type: "circle", x: 180, y: 320, text: "K 线收盘", properties: { blockKind: "onKLineClosed" } },
       { id: "cci-getter", type: "rect", x: 470, y: 320, text: "获取 CCI 20", properties: { blockKind: "getTechnicalIndicator", indicatorType: "cci", period: 20 } },
       { id: "cci-buy-signal", type: "diamond", x: 740, y: 260, text: "CCI < -100", properties: { blockKind: "technicalIndicatorCondition", indicatorType: "cci", conditionMode: "numeric", operator: "<", threshold: -100 } },
@@ -92,7 +92,7 @@ export function createWilliamsRReversionStrategyVisualModel(): StrategyVisualMod
     version: 1,
     nodes: [
       { id: "wr-init-root", type: "circle", x: 180, y: 120, text: "策略启动", properties: { blockKind: "onInit" } },
-      { id: "wr-init-log", type: "rect", x: 450, y: 120, text: "输出日志", properties: { blockKind: "log", message: "Williams %R strategy initialized for ${ctx.symbol || '00700'} ${ctx.interval || '1m'}" } },
+      { id: "wr-init-log", type: "rect", x: 450, y: 120, text: "输出日志", properties: { blockKind: "log", message: "Williams %R 策略已初始化：${ctx.symbol || '00700'} ${ctx.interval || '1m'}" } },
       { id: "wr-kline-root", type: "circle", x: 180, y: 320, text: "K 线收盘", properties: { blockKind: "onKLineClosed" } },
       { id: "wr-getter", type: "rect", x: 470, y: 320, text: "获取 Williams %R 14", properties: { blockKind: "getTechnicalIndicator", indicatorType: "williamsR", period: 14 } },
       { id: "wr-buy-signal", type: "diamond", x: 770, y: 260, text: "Williams %R < -80", properties: { blockKind: "technicalIndicatorCondition", indicatorType: "williamsR", conditionMode: "numeric", operator: "<", threshold: -80 } },

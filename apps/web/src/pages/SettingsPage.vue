@@ -20,22 +20,22 @@ const {
 const settingsMenu = [
   {
     index: "futu-integration",
-    label: "Futu Integration",
+    label: "富途接入",
     description: "配置 OpenD 连接参数与默认账号信息。",
   },
   {
     index: "managed-accounts",
-    label: "Managed Accounts",
-    description: "维护用于切换 Scope 的托管账号。",
+    label: "托管账户",
+    description: "维护用于切换账户范围的托管账号。",
   },
   {
     index: "account-discovery",
-    label: "Account Discovery",
+    label: "账户发现",
     description: "查看运行时探测到的 OpenD 账号并一键导入。",
   },
   {
     index: "plugin-manager",
-    label: "OpenD Install",
+    label: "OpenD 安装",
     description: "跳转富途官方 OpenD 安装文档并引导连接配置。",
   },
 ] as const;
@@ -56,15 +56,15 @@ function handleMenuSelect(index: string): void {
 
 const settingsHeaderStats = computed(() => [
   {
-    label: "Managed brokers",
+    label: "托管券商",
     value: brokerSettings.value.brokers.length,
   },
   {
-    label: "Managed accounts",
+    label: "托管账户",
     value: brokerSettings.value.accounts.length,
   },
   {
-    label: "Runtime accounts",
+    label: "运行时账户",
     value: brokerRuntime.value.accounts.length,
   },
 ]);
@@ -91,15 +91,15 @@ const {
 <template>
   <div class="grid gap-6">
     <PageHeader
-      eyebrow="Control plane"
-      title="Settings / Configuration"
-      description="统一维护券商接入配置与账号资料；顶部 Scope 会基于这里的账号清单切换查询上下文。"
+      eyebrow="控制面"
+      title="设置"
+      description="统一维护券商接入配置与账号资料；顶部账户范围会基于这里的账号清单切换查询上下文。"
       :stats="settingsHeaderStats"
     />
 
     <v-breadcrumbs class="p-0 text-sm text-slate-500">
-      <v-breadcrumbs-item :to="{ path: '/settings' }">Console</v-breadcrumbs-item>
-      <v-breadcrumbs-item>Settings</v-breadcrumbs-item>
+      <v-breadcrumbs-item :to="{ path: '/settings' }">控制台</v-breadcrumbs-item>
+      <v-breadcrumbs-item>设置</v-breadcrumbs-item>
       <v-breadcrumbs-item>{{ activeMenuMeta.label }}</v-breadcrumbs-item>
     </v-breadcrumbs>
 
@@ -108,7 +108,7 @@ const {
         <div class="text-lg font-semibold text-slate-900">{{ activeMenuMeta.label }}</div>
         <div class="mt-1 text-xs text-slate-500">{{ activeMenuMeta.description }}</div>
       </div>
-      <v-chip variant="outlined" size="small">{{ activeMenu }}</v-chip>
+      <v-chip variant="outlined" size="small">{{ activeMenuMeta.label }}</v-chip>
     </div>
 
     <section class="grid gap-5 lg:grid-cols-[220px_1fr]">

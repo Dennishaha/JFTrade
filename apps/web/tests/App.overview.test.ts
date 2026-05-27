@@ -313,10 +313,10 @@ describe("Overview page", () => {
 
     const { wrapper } = await mountApp("/overview");
 
-    expect(wrapper.text()).toContain("Overview / 工作台概览");
-    expect(wrapper.text()).toContain("Market Spotlight");
-    expect(wrapper.text()).toContain("Execution / Order Blotter");
-    expect(wrapper.text()).toContain("Docs & Operations");
+    expect(wrapper.text()).toContain("工作台概览");
+    expect(wrapper.text()).toContain("行情焦点");
+    expect(wrapper.text()).toContain("订单执行概览");
+    expect(wrapper.text()).toContain("文档与运维准备度");
 
     wrapper.unmount();
   });

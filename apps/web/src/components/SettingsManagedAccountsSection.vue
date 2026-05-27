@@ -1,8 +1,18 @@
 <script setup lang="ts">
 import type { BrokerSettingsResponse } from "@jftrade/ui-contracts";
 
+import {
+  formatGenericStatusLabel,
+  formatMarketLabel,
+  formatTradingEnvironment,
+} from "../composables/consoleDataFormatting";
 import type { SettingsManagedAccountForm } from "../composables/settingsManagedAccounts";
 import SectionHeader from "./SectionHeader.vue";
+
+const tradingEnvironmentOptions = [
+  { value: "SIMULATE", title: "模拟" },
+  { value: "REAL", title: "实盘" },
+];
 
 defineProps<{
   accounts: BrokerSettingsResponse["accounts"];
@@ -22,7 +32,7 @@ defineProps<{
 <template>
   <div class="grid gap-6">
     <div class="settings-panel">
-      <SectionHeader title="Managed accounts" description="这些账号会出现在顶部 Scope 切换器内。" />
+      <SectionHeader title="托管账户" description="这些账号会出现在顶部账户范围切换器内。" />
 
       <div class="mt-4 grid gap-3">
         <template v-if="accounts.length">
@@ -35,12 +45,12 @@ defineProps<{
               <div>
                 <div class="text-base font-semibold text-slate-900">{{ account.displayName }}</div>
                 <div class="mt-1 text-xs text-slate-500">
-                  {{ account.brokerId }} / {{ account.accountId }} / {{ account.tradingEnvironment }} / {{ account.market }}
+                  {{ account.brokerId }} / {{ account.accountId }} / {{ formatTradingEnvironment(account.tradingEnvironment) }} / {{ formatMarketLabel(account.market) }}
                 </div>
               </div>
               <div class="flex items-center gap-2">
                 <v-chip :color="account.enabled ? 'success' : 'info'" variant="outlined" size="small">
-                  {{ account.enabled ? "ENABLED" : "DISABLED" }}
+                  {{ formatGenericStatusLabel(account.enabled ? "ENABLED" : "DISABLED") }}
                 </v-chip>
                 <v-btn variant="text" color="primary" @click="populateAccountForm(account)">编辑</v-btn>
                 <v-btn
@@ -57,14 +67,14 @@ defineProps<{
         </template>
         <v-empty-state
           v-else
-          text="当前还没有保存任何 broker account，顶部 Scope 会回退到运行时探测出的账号。"
+          text="当前还没有保存任何券商账户，顶部账户范围会回退到运行时探测出的账号。"
         />
       </div>
     </div>
 
     <div class="settings-panel">
       <SectionHeader
-        :title="editingAccountId ? 'Edit account' : 'Create account'"
+        :title="editingAccountId ? '编辑账户' : '新增账户'"
         :description="editingAccountId ? undefined : '手工创建或导入一个新的托管账号。'"
       >
         <template #extra>
@@ -75,39 +85,41 @@ defineProps<{
       <div class="mt-4 grid gap-4">
         <div class="grid gap-4 md:grid-cols-2">
           <div class="grid gap-1">
-            <label class="text-sm font-medium text-slate-700">Broker ID</label>
+            <label class="text-sm font-medium text-slate-700">券商标识</label>
             <v-text-field v-model="accountForm.brokerId" density="compact" variant="outlined" />
           </div>
           <div class="grid gap-1">
-            <label class="text-sm font-medium text-slate-700">Account ID</label>
+            <label class="text-sm font-medium text-slate-700">账户号</label>
             <v-text-field v-model="accountForm.accountId" density="compact" variant="outlined" />
           </div>
           <div class="grid gap-1">
-            <label class="text-sm font-medium text-slate-700">Display Name（可选）</label>
+            <label class="text-sm font-medium text-slate-700">显示名称（可选）</label>
             <v-text-field v-model="accountForm.displayName" density="compact" variant="outlined" />
           </div>
           <div class="grid gap-1">
-            <label class="text-sm font-medium text-slate-700">Trading Environment</label>
+            <label class="text-sm font-medium text-slate-700">交易环境</label>
             <v-select
               v-model="accountForm.tradingEnvironment"
               class="w-full"
               density="compact"
               variant="outlined"
-              :items="['SIMULATE', 'REAL']"
+              :items="tradingEnvironmentOptions"
+              item-title="title"
+              item-value="value"
             />
           </div>
           <div class="grid gap-1">
-            <label class="text-sm font-medium text-slate-700">Market</label>
+            <label class="text-sm font-medium text-slate-700">市场</label>
             <v-text-field v-model="accountForm.market" density="compact" variant="outlined" />
           </div>
           <div class="grid gap-1">
-            <label class="text-sm font-medium text-slate-700">Security Firm（可选）</label>
+            <label class="text-sm font-medium text-slate-700">券商机构（可选）</label>
             <v-text-field v-model="accountForm.securityFirm" density="compact" variant="outlined" />
           </div>
         </div>
 
         <div class="grid gap-1">
-          <v-switch v-model="accountForm.enabled" color="indigo" label="启用该账号作为前端可切换 Scope" hide-details />
+          <v-switch v-model="accountForm.enabled" color="indigo" label="启用该账号作为前端可切换账户范围" hide-details />
         </div>
 
         <div class="flex justify-end">

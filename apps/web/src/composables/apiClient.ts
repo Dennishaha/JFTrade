@@ -18,7 +18,7 @@ export async function fetchEnvelope<T>(path: string): Promise<T> {
     | ApiErrorEnvelope;
 
   if (!response.ok || !body.ok) {
-    throw new Error(body.ok ? "Unknown API error" : body.error.message);
+    throw new Error(body.ok ? "未知 API 错误" : body.error.message);
   }
 
   return body.data;
@@ -34,7 +34,7 @@ export async function fetchEnvelopeWithInit<T>(
     | ApiErrorEnvelope;
 
   if (!response.ok || !body.ok) {
-    throw new Error(body.ok ? "Unknown API error" : body.error.message);
+    throw new Error(body.ok ? "未知 API 错误" : body.error.message);
   }
 
   return body.data;

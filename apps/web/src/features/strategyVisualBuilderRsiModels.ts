@@ -11,7 +11,7 @@ export function createRSIReversionStrategyVisualModel(): StrategyVisualModelDocu
     version: 1,
     nodes: [
       { id: "rsi-init-root", type: "circle", x: 180, y: 120, text: "策略启动", properties: { blockKind: "onInit" } },
-      { id: "rsi-init-log", type: "rect", x: 450, y: 120, text: "输出日志", properties: { blockKind: "log", message: "RSI strategy initialized for ${ctx.symbol || '00700'} ${ctx.interval || '1m'}" } },
+      { id: "rsi-init-log", type: "rect", x: 450, y: 120, text: "输出日志", properties: { blockKind: "log", message: "RSI 策略已初始化：${ctx.symbol || '00700'} ${ctx.interval || '1m'}" } },
       { id: "rsi-kline-root", type: "circle", x: 180, y: 320, text: "K 线收盘", properties: { blockKind: "onKLineClosed" } },
       { id: "rsi-getter", type: "rect", x: 460, y: 320, text: "获取 RSI 14", properties: { blockKind: "getTechnicalIndicator", indicatorType: "rsi", period: 14 } },
       { id: "rsi-oversold-node", type: "diamond", x: 730, y: 260, text: "RSI < 30", properties: { blockKind: "technicalIndicatorCondition", indicatorType: "rsi", conditionMode: "numeric", operator: "<", threshold: 30 } },

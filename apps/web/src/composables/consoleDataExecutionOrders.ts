@@ -46,7 +46,7 @@ export function createConsoleDataExecutionOrdersController(
       options.executionEventsError.value =
         error instanceof Error
           ? error.message
-          : "Failed to load execution order events.";
+          : "订单事件加载失败。";
       options.executionOrderEvents.value = {
         ...emptyExecutionOrderEvents,
         internalOrderId,
@@ -84,7 +84,7 @@ export function createConsoleDataExecutionOrdersController(
       options.orderFeesError.value =
         error instanceof Error
           ? error.message
-          : "Failed to load broker order fees.";
+          : "券商订单费用加载失败。";
     } finally {
       options.isLoadingOrderFees.value = false;
     }

@@ -310,7 +310,7 @@ export function createConsoleDataSystemStateController(
         options.loadError.value =
           error instanceof Error
             ? error.message
-            : "Failed to load system status.";
+            : "系统状态加载失败。";
       }
     } finally {
       if (background) {

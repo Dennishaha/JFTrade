@@ -23,18 +23,16 @@ type NavItem = InternalNavItem | ExternalNavItem;
 const { docsHomeUrl } = useDocsLink();
 
 const items: NavItem[] = [
-  { type: "route", to: "/workspace", label: "Trade", icon: "fa-solid fa-display" },
-  { type: "route", to: "/overview", label: "Overview", icon: "fa-solid fa-chart-column" },
-  { type: "route", to: "/market", label: "Market", icon: "fa-solid fa-chart-line" },
-  { type: "route", to: "/strategy", label: "Strategy", icon: "fa-solid fa-wand-magic-sparkles" },
+  { type: "route", to: "/workspace", label: "交易", icon: "fa-solid fa-display" },
+  { type: "route", to: "/overview", label: "概览", icon: "fa-solid fa-chart-column" },
+  { type: "route", to: "/market", label: "行情", icon: "fa-solid fa-chart-line" },
+  { type: "route", to: "/strategy", label: "策略", icon: "fa-solid fa-wand-magic-sparkles" },
   { type: "route", to: "/backtest", label: "回测", icon: "fa-solid fa-flask" },
-  { type: "route", to: "/execution", label: "Execution", icon: "fa-solid fa-list" },
-  { type: "route", to: "/portfolio", label: "Portfolio", icon: "fa-solid fa-wallet" },
-  { type: "route", to: "/broker", label: "Broker", icon: "fa-solid fa-plug" },
-  { type: "route", to: "/risk", label: "Risk", icon: "fa-solid fa-triangle-exclamation" },
-  { type: "route", to: "/system", label: "System", icon: "fa-solid fa-microchip" },
-  { type: "route", to: "/settings", label: "Settings", icon: "fa-solid fa-gear" },
-  { type: "external", href: docsHomeUrl, label: "Docs", icon: "fa-solid fa-file-lines" },
+  { type: "route", to: "/account", label: "我的账户", icon: "fa-solid fa-wallet" },
+  { type: "route", to: "/risk", label: "风控", icon: "fa-solid fa-triangle-exclamation" },
+  { type: "route", to: "/system", label: "系统", icon: "fa-solid fa-microchip" },
+  { type: "route", to: "/settings", label: "设置", icon: "fa-solid fa-gear" },
+  { type: "external", href: docsHomeUrl, label: "文档", icon: "fa-solid fa-file-lines" },
 ];
 
 const route = useRoute();
@@ -48,7 +46,7 @@ function go(to: string): void {
 </script>
 
 <template>
-  <nav class="tv-iconrail" aria-label="primary">
+  <nav class="tv-iconrail" aria-label="主导航">
     <template v-for="item in items" :key="item.label">
       <a
         v-if="item.type === 'external'"

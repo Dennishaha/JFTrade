@@ -107,6 +107,22 @@ function buildStandardFetchMock(overrides: Record<string, unknown> = {}) {
         },
       });
     }
+    if (url.includes("/api/v1/market-data/securities/HK/00700")) {
+      return createResponse({
+        request: {
+          market: "HK",
+          symbol: "00700",
+          instrumentId: "HK.00700",
+        },
+        security: null,
+        meta: {
+          instrumentId: "HK.00700",
+          source: "api-sample-cache",
+          resolvedAt: "2026-05-17T01:30:00.000Z",
+          fromCache: true,
+        },
+      });
+    }
     if (url.includes("/api/v1/market-data/candles/HK/00700")) {
       return createResponse({
         request: {
@@ -222,8 +238,8 @@ describe("Market page", () => {
 
     const { wrapper } = await mountApp("/market");
 
-    expect(wrapper.text()).toContain("Market Data Subscriptions");
-    expect(wrapper.text()).toContain("Subscription Quota");
+    expect(wrapper.text()).toContain("行情订阅");
+    expect(wrapper.text()).toContain("订阅配额");
     expect(wrapper.text()).toContain("实时订阅已改为动态池");
     expect(wrapper.text()).toContain("HK.00700");
     expect(wrapper.text()).toContain("Tencent Holdings");
@@ -289,14 +305,14 @@ describe("Market page", () => {
     expect(wrapper.text()).toContain("HK.00700");
     expect(wrapper.text()).toContain("09988.HK");
     expect(wrapper.text()).toContain("HK");
-    expect(wrapper.text()).toContain("Market Data Query");
-    expect(wrapper.text()).toContain("Recent Candles");
-    expect(wrapper.text()).toContain("Historical K-line Prices");
-    expect(wrapper.text()).toContain("Open → Close");
+    expect(wrapper.text()).toContain("行情查询结果");
+    expect(wrapper.text()).toContain("近期K线");
+    expect(wrapper.text()).toContain("历史K线价格");
+    expect(wrapper.text()).toContain("开盘 → 收盘");
     expect(wrapper.text()).toContain("Tencent Holdings");
-    expect(wrapper.text()).toContain("Latest Quote");
+    expect(wrapper.text()).toContain("最新报价");
     expect(wrapper.text()).toContain("+1.600");
-    expect(wrapper.text()).toContain("WS LIVE");
+    expect(wrapper.text()).toContain("实时通道：已连接");
     expect(wrapper.text()).toContain("Tick");
     expect(wrapper.find(".kline-chart-shell").exists()).toBe(true);
 
@@ -312,12 +328,12 @@ describe("Market page", () => {
 
     const { wrapper } = await mountApp("/market");
 
-    expect(wrapper.text()).toContain("Market");
-    expect(wrapper.text()).toContain("Strategy");
-    expect(wrapper.text()).toContain("System");
-    expect(wrapper.text()).toContain("Broker");
-    expect(wrapper.text()).toContain("Portfolio");
-    expect(wrapper.text()).toContain("Execution");
+    expect(wrapper.text()).toContain("行情");
+    expect(wrapper.text()).toContain("策略");
+    expect(wrapper.text()).toContain("系统");
+    expect(wrapper.text()).toContain("我的账户");
+    expect(wrapper.text()).toContain("风控");
+    expect(wrapper.text()).toContain("交易概览");
 
     wrapper.unmount();
   });

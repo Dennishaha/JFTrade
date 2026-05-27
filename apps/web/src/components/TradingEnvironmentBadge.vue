@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed } from "vue";
 
+import { formatTradingEnvironment } from "../composables/consoleDataFormatting";
+
 const props = defineProps<{ env: string }>();
 
 interface BadgeStyle {
@@ -11,14 +13,14 @@ interface BadgeStyle {
 function resolveBadgeStyle(env: string): BadgeStyle {
   switch (env) {
     case "REAL":
-      return { background: "#dc2626", label: "⚠ REAL TRADING" };
+      return { background: "#dc2626", label: formatTradingEnvironment(env) };
     case "PAPER":
-      return { background: "#16a34a", label: "● PAPER" };
+      return { background: "#16a34a", label: formatTradingEnvironment(env) };
     case "SIMULATE":
     case "SIM":
-      return { background: "#2563eb", label: "● SIM" };
+      return { background: "#2563eb", label: formatTradingEnvironment(env) };
     default:
-      return { background: "#6b7280", label: env };
+      return { background: "#6b7280", label: formatTradingEnvironment(env) };
   }
 }
 

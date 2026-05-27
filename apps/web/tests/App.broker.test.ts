@@ -41,8 +41,8 @@ afterEach(() => {
   MockEventSource.instances = [];
 });
 
-describe("Broker page", () => {
-  it("shows broker runtime, funds, positions, orders, and cash flows", async () => {
+describe("Account page broker route redirect", () => {
+  it("shows account basics, funds, and broker positions", async () => {
     const brokerRuntime: BrokerRuntimeResponse = {
       ...emptyBrokerRuntime,
       session: {
@@ -238,10 +238,13 @@ describe("Broker page", () => {
 
     const { wrapper } = await mountApp("/broker");
 
-    expect(wrapper.text()).toContain("Futu Broker Runtime");
-    expect(wrapper.text()).toContain("Broker Funds");
+    expect(wrapper.text()).toContain("我的账户");
+    expect(wrapper.text()).toContain("账户信息");
+    expect(wrapper.text()).toContain("资金余额");
+    expect(wrapper.text()).toContain("120,000 HKD");
+    expect(wrapper.text()).toContain("持仓概览");
     expect(wrapper.text()).toContain("HK.00700");
-    expect(wrapper.text()).toContain("BUY_SETTLEMENT");
+    expect(wrapper.text()).toContain("券商");
 
     wrapper.unmount();
   });

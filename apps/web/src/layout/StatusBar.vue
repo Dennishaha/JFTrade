@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from "vue";
 
+import {
+  formatConnectivityLabel,
+  formatGenericStatusLabel,
+  formatTradingEnvironment,
+} from "../composables/consoleDataFormatting";
 import { useConsoleData } from "../composables/useConsoleData";
 import { useSharedLiveSocket } from "../composables/useSharedLiveSocket";
 
@@ -36,28 +41,28 @@ const killActive = computed(
   <footer class="tv-statusbar">
     <span>
       <span class="tv-status-dot" :class="liveStreamStatus === 'connected' ? 'tv-dot-ok' : 'tv-dot-idle'"></span>
-      SSE {{ liveStreamStatus }}
+      事件流 {{ formatConnectivityLabel(liveStreamStatus) }}
     </span>
     <span style="color: var(--tv-text-dim)">{{ liveStreamCheckedAt || "—" }}</span>
     <span>
       <span class="tv-status-dot" :class="connectionState === 'connected' ? 'tv-dot-ok' : connectionState === 'error' ? 'tv-dot-err' : 'tv-dot-idle'"></span>
-      WS {{ connectionState }}
+      实时通道 {{ formatConnectivityLabel(connectionState) }}
     </span>
     <span style="color: var(--tv-text-dim)">{{ lastHeartbeat || "—" }}</span>
     <span>
       <span class="tv-status-dot" :class="killActive ? 'tv-dot-err' : 'tv-dot-ok'"></span>
-      Kill switch {{ killActive ? "ACTIVE" : "clear" }}
+      交易总闸 {{ killActive ? "已激活" : "正常" }}
     </span>
-    <span>Persistence: {{ systemStatus.persistence.engine }}</span>
+    <span>存储：{{ systemStatus.persistence.engine }} / {{ formatGenericStatusLabel(systemStatus.persistence.status) }}</span>
     <span style="flex: 1"></span>
     <span>
-      Scope:
+      账户范围：
       {{
         selectedBrokerAccount
-          ? `${selectedBrokerAccount.brokerId}/${selectedBrokerAccount.accountId}/${selectedBrokerAccount.tradingEnvironment}`
-          : `${systemStatus.broker.displayName}/${systemStatus.defaultTradingEnvironment}`
+          ? `${selectedBrokerAccount.brokerId}/${selectedBrokerAccount.accountId}/${formatTradingEnvironment(selectedBrokerAccount.tradingEnvironment)}`
+          : `${systemStatus.broker.displayName}/${formatTradingEnvironment(systemStatus.defaultTradingEnvironment)}`
       }}
     </span>
-    <span style="font-variant-numeric: tabular-nums">{{ clock }} UTC</span>
+    <span style="font-variant-numeric: tabular-nums">{{ clock }} 协调时</span>
   </footer>
 </template>
