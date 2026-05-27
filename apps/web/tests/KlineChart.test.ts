@@ -5,10 +5,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { defineComponent, nextTick, ref } from "vue";
 
 import KlineChart from "../src/components/KlineChart.vue";
+import { provideUIColorPreferencesStore } from "../src/composables/useUIColorPreferences";
 import { provideThemeStore } from "../src/composables/useTheme";
 
 const chartMocks = vi.hoisted(() => {
   // Persistent per-role setData spies, shared across series recreations.
+  const candlestickApplyOptions = vi.fn();
   const candlestickSetData = vi.fn();
   const volumeSetData = vi.fn();
   const macdHistogramSetData = vi.fn();
@@ -37,6 +39,7 @@ const chartMocks = vi.hoisted(() => {
       visibleLogicalRangeCallback = callback;
     },
   );
+  let lastCandlestickSeriesOptions: Record<string, unknown> | null = null;
 
   // Ordered queues used to map addSeries calls to the right spy.
   const histogramSetDataFns = [volumeSetData, macdHistogramSetData];
@@ -84,8 +87,14 @@ const chartMocks = vi.hoisted(() => {
             ? (opts as { title?: string }).title
             : undefined;
         let setDataFn: ReturnType<typeof vi.fn>;
+        let applyOptionsFn: ReturnType<typeof vi.fn> = vi.fn();
         if (typeName === "Candlestick") {
           setDataFn = candlestickSetData;
+          applyOptionsFn = candlestickApplyOptions;
+          lastCandlestickSeriesOptions =
+            typeof opts === "object" && opts != null
+              ? ({ ...(opts as Record<string, unknown>) })
+              : null;
         } else if (typeName === "Histogram") {
           setDataFn =
             histogramSetDataFns[histogramIdx++ % histogramSetDataFns.length];
@@ -99,7 +108,7 @@ const chartMocks = vi.hoisted(() => {
         }
         return {
           setData: setDataFn,
-          applyOptions: vi.fn(),
+          applyOptions: applyOptionsFn,
           priceScale: vi.fn(() => ({ applyOptions: vi.fn() })),
           barsInLogicalRange,
         };
@@ -134,6 +143,7 @@ const chartMocks = vi.hoisted(() => {
 
   return {
     barsInLogicalRange,
+    candlestickApplyOptions,
     candlestickSetData,
     volumeSetData,
     macdHistogramSetData,
@@ -146,6 +156,9 @@ const chartMocks = vi.hoisted(() => {
     resize,
     fitContent,
     getVisibleLogicalRange,
+    getLastCandlestickSeriesOptions() {
+      return lastCandlestickSeriesOptions;
+    },
     setVisibleLogicalRange,
     subscribeVisibleLogicalRangeChange,
     triggerVisibleLogicalRange(range: { from: number; to: number } | null) {
@@ -181,6 +194,7 @@ afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
   document.body.innerHTML = "";
+  chartMocks.candlestickApplyOptions.mockClear();
   chartMocks.barsInLogicalRange.mockClear();
   chartMocks.candlestickSetData.mockClear();
   chartMocks.volumeSetData.mockClear();
@@ -434,6 +448,73 @@ describe("KlineChart", () => {
         close: 321.2,
       },
     ]);
+  });
+
+  it("updates candle colors when the rise-is-red preference is enabled", async () => {
+    vi.stubGlobal("ResizeObserver", MockResizeObserver);
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      callback(1);
+      return 1;
+    });
+    vi.stubGlobal("cancelAnimationFrame", vi.fn());
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({
+      x: 0,
+      y: 0,
+      width: 640,
+      height: 320,
+      top: 0,
+      right: 640,
+      bottom: 320,
+      left: 0,
+      toJSON: () => ({}),
+    });
+
+    const candles = ref([
+      {
+        period: "1m",
+        at: "2026-05-17T01:31:00.000Z",
+        open: 320.7,
+        high: 321.1,
+        low: 320.6,
+        close: 321,
+        volume: 20000,
+      },
+    ]);
+
+    let colorStore: ReturnType<typeof provideUIColorPreferencesStore> | null = null;
+    const Host = defineComponent({
+      components: { KlineChart },
+      setup() {
+        const themeStore = provideThemeStore();
+        colorStore = provideUIColorPreferencesStore(themeStore);
+        return { candles };
+      },
+      template: '<KlineChart :candles="candles" :min-height="320" />',
+    });
+
+    mount(Host);
+    await nextTick();
+    await nextTick();
+
+    expect(chartMocks.getLastCandlestickSeriesOptions()).toMatchObject({
+      upColor: "#16c784",
+      downColor: "#ea3943",
+      borderUpColor: "#16c784",
+      borderDownColor: "#ea3943",
+    });
+
+    colorStore?.setRiseIsRed(true);
+    await nextTick();
+    await nextTick();
+
+    expect(chartMocks.candlestickApplyOptions).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        upColor: "#ea3943",
+        downColor: "#16c784",
+        borderUpColor: "#ea3943",
+        borderDownColor: "#16c784",
+      }),
+    );
   });
 
   it("adds separate indicator panes when selector checkboxes are toggled", async () => {

@@ -160,6 +160,18 @@ func (s *executionOrderStore) recordPlacedOrder(input executionPlacedOrderRecord
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	if internalOrderID := s.findInternalOrderIDLocked(
+		input.BrokerID,
+		input.AccountID,
+		input.TradingEnvironment,
+		input.Market,
+		input.BrokerOrderID,
+		stringPointerOrNil(input.BrokerOrderIDEx),
+	); internalOrderID != "" {
+		summary := s.mergePlacedOrderLocked(internalOrderID, input, submittedAt, now)
+		return cloneExecutionOrderSummary(summary)
+	}
+
 	s.nextOrderSeq++
 	internalOrderID := fmt.Sprintf("exec-%06d", s.nextOrderSeq)
 	requestedQuantity := input.RequestedQuantity
@@ -198,6 +210,68 @@ func (s *executionOrderStore) recordPlacedOrder(input executionPlacedOrderRecord
 	s.linkBrokerOrderLocked(summary)
 	s.appendEventLocked(internalOrderID, nil, summary.Status, input.EventType, input.Payload, now)
 	return cloneExecutionOrderSummary(summary)
+}
+
+func (s *executionOrderStore) mergePlacedOrderLocked(internalOrderID string, input executionPlacedOrderRecord, submittedAt string, createdAt string) executionOrderSummaryResponse {
+	summary := s.orders[internalOrderID]
+	previousStatus := summary.Status
+
+	if value := strings.TrimSpace(input.BrokerID); value != "" {
+		summary.BrokerID = value
+	}
+	if stringPointersDiffer(summary.BrokerOrderID, stringPointerOrNil(input.BrokerOrderID)) {
+		summary.BrokerOrderID = stringPointerOrNil(input.BrokerOrderID)
+	}
+	if stringPointersDiffer(summary.BrokerOrderIDEx, stringPointerOrNil(input.BrokerOrderIDEx)) {
+		summary.BrokerOrderIDEx = stringPointerOrNil(input.BrokerOrderIDEx)
+	}
+	if value := strings.TrimSpace(input.TradingEnvironment); value != "" {
+		summary.TradingEnvironment = value
+	}
+	if value := strings.TrimSpace(input.AccountID); value != "" {
+		summary.AccountID = value
+	}
+	if value := strings.TrimSpace(input.Market); value != "" {
+		summary.Market = value
+	}
+	if stringPointersDiffer(summary.Symbol, stringPointerOrNil(input.Symbol)) {
+		summary.Symbol = stringPointerOrNil(input.Symbol)
+	}
+	if stringPointersDiffer(summary.Side, stringPointerOrNil(input.Side)) {
+		summary.Side = stringPointerOrNil(input.Side)
+	}
+	if stringPointersDiffer(summary.OrderType, stringPointerOrNil(input.OrderType)) {
+		summary.OrderType = stringPointerOrNil(input.OrderType)
+	}
+	if input.RequestedQuantity > 0 {
+		requestedQuantity := input.RequestedQuantity
+		if float64PointersDiffer(summary.RequestedQuantity, &requestedQuantity) {
+			summary.RequestedQuantity = &requestedQuantity
+		}
+	}
+	if input.RequestedPrice != nil && float64PointersDiffer(summary.RequestedPrice, input.RequestedPrice) {
+		summary.RequestedPrice = cloneFloat64Pointer(input.RequestedPrice)
+	}
+	if stringPointersDiffer(summary.Remark, stringPointerOrNil(input.Remark)) {
+		summary.Remark = stringPointerOrNil(input.Remark)
+	}
+	if summary.SubmittedAt == nil && submittedAt != "" {
+		summary.SubmittedAt = stringPointerOrNil(submittedAt)
+	}
+	if summary.Status == "" {
+		summary.Status = firstNonEmptyString(input.Status, "SUBMITTED")
+	}
+	if summary.UpdatedAt == "" {
+		summary.UpdatedAt = createdAt
+	}
+	if summary.CreatedAt == "" {
+		summary.CreatedAt = createdAt
+	}
+
+	s.orders[internalOrderID] = summary
+	s.linkBrokerOrderLocked(summary)
+	s.appendEventLocked(internalOrderID, stringPointerOrNil(previousStatus), summary.Status, input.EventType, input.Payload, createdAt)
+	return summary
 }
 
 func (s *executionOrderStore) markCancelRequested(internalOrderID string, payload any) (executionOrderSummaryResponse, bool) {

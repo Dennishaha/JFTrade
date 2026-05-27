@@ -24,7 +24,21 @@ func (s *Server) descriptor() map[string]any {
 		"id":           "futu",
 		"displayName":  "Futu OpenAPI via OpenD",
 		"environments": []string{"SIMULATE", "REAL"},
-		"capabilities": []map[string]any{{"market": "HK", "supportsQuote": true, "supportsTrade": true}},
+		"capabilities": []map[string]any{{
+			"market":        "HK",
+			"supportsQuote": true,
+			"supportsTrade": true,
+			"readFeatures": map[string]any{
+				"funds":            map[string]any{"supportedEnvironments": []string{"SIMULATE", "REAL"}},
+				"positions":        map[string]any{"supportedEnvironments": []string{"SIMULATE", "REAL"}},
+				"orders":           map[string]any{"supportedEnvironments": []string{"SIMULATE", "REAL"}, "supportsHistory": true},
+				"fills":            map[string]any{"supportedEnvironments": []string{"SIMULATE", "REAL"}, "supportsHistory": true},
+				"cashFlows":        map[string]any{"supportedEnvironments": []string{"REAL"}, "requiresClearingDate": true},
+				"orderFees":        map[string]any{"supportedEnvironments": []string{"REAL"}, "requiresOrderIdEx": true},
+				"marginRatios":     map[string]any{"supportedEnvironments": []string{"REAL"}, "requiresSymbols": true},
+				"maxTradeQuantity": map[string]any{"supportedEnvironments": []string{"SIMULATE", "REAL"}, "requiresPrice": true},
+			},
+		}},
 		"notes": []string{
 			"Market data is exposed to the frontend through the bbgo exchange boundary.",
 			"OpenD WebSocket settings are retained for compatibility and diagnostics; the current hot path uses the native API port.",

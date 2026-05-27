@@ -3,6 +3,7 @@ package jftradeapi
 import (
 	"bytes"
 	"encoding/json"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -12,6 +13,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
+	commonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/common"
 	trdcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdcommon"
 )
 
@@ -195,6 +197,147 @@ func TestExecutionOrderRoutesPlaceListEventsAndCancel(t *testing.T) {
 	}
 	if got := updatedEventsEnvelope.Data.Events[1].EventType; got != "COMMAND_CANCEL_ACCEPTED" {
 		t.Fatalf("second eventType = %q, want COMMAND_CANCEL_ACCEPTED", got)
+	}
+}
+
+func TestExecutionOrderRoutesNormalizeUSPricePrecision(t *testing.T) {
+	opendServer := startBrokerRouteOpenDServer(t)
+	opendServer.setAccounts([]*trdcommonpb.TrdAcc{{
+		TrdEnv:            proto.Int32(int32(trdcommonpb.TrdEnv_TrdEnv_Simulate)),
+		AccID:             proto.Uint64(1001),
+		TrdMarketAuthList: []int32{int32(trdcommonpb.TrdMarket_TrdMarket_US)},
+		AccType:           proto.Int32(int32(trdcommonpb.TrdAccType_TrdAccType_Margin)),
+	}})
+	opendServer.setPlacedOrderResponse(9001, "EXT-9001")
+	defer opendServer.stop()
+
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	_, err = store.saveIntegration(BrokerIntegration{Config: normalizeFutuConfig(FutuIntegrationConfig{
+		Type:          "futu",
+		Host:          strings.Split(opendServer.addr, ":")[0],
+		APIPort:       portFromAddr(t, opendServer.addr),
+		WebSocketPort: 11111,
+		TradeMarket:   "US",
+	})})
+	if err != nil {
+		t.Fatalf("saveIntegration: %v", err)
+	}
+	srv := httptest.NewServer(NewServer(store))
+	defer srv.Close()
+
+	payload, err := json.Marshal(map[string]any{
+		"brokerId":           "futu",
+		"market":             "US",
+		"symbol":             "TME",
+		"side":               "BUY",
+		"orderType":          "LIMIT",
+		"timeInForce":        "DAY",
+		"quantity":           100,
+		"price":              10.123,
+		"accountId":          "1001",
+		"tradingEnvironment": "SIMULATE",
+	})
+	if err != nil {
+		t.Fatalf("Marshal payload: %v", err)
+	}
+	resp, err := http.Post(srv.URL+"/api/v1/execution/orders/preview", "application/json", bytes.NewReader(payload))
+	if err != nil {
+		t.Fatalf("POST execution preview: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("POST execution preview status = %d", resp.StatusCode)
+	}
+
+	request := opendServer.lastPlaceOrderRequest()
+	if request == nil {
+		t.Fatal("expected place order request to be captured")
+	}
+	if diff := math.Abs(request.GetPrice() - 10.12); diff > 1e-9 {
+		t.Fatalf("price = %f, want 10.12", request.GetPrice())
+	}
+	if got := request.GetCode(); got != "TME" {
+		t.Fatalf("Code = %q, want TME", got)
+	}
+	if got := request.GetSession(); got != int32(commonpb.Session_Session_RTH) {
+		t.Fatalf("session = %d, want RTH", got)
+	}
+	if request.FillOutsideRTH == nil {
+		t.Fatal("expected fillOutsideRTH to be set for US limit order")
+	}
+	if request.GetFillOutsideRTH() {
+		t.Fatal("fillOutsideRTH = true, want false for default RTH session")
+	}
+}
+
+func TestExecutionOrderRoutesPropagateUSSessionSelection(t *testing.T) {
+	opendServer := startBrokerRouteOpenDServer(t)
+	opendServer.setAccounts([]*trdcommonpb.TrdAcc{{
+		TrdEnv:            proto.Int32(int32(trdcommonpb.TrdEnv_TrdEnv_Simulate)),
+		AccID:             proto.Uint64(1001),
+		TrdMarketAuthList: []int32{int32(trdcommonpb.TrdMarket_TrdMarket_US)},
+		AccType:           proto.Int32(int32(trdcommonpb.TrdAccType_TrdAccType_Margin)),
+	}})
+	opendServer.setPlacedOrderResponse(9001, "EXT-9001")
+	defer opendServer.stop()
+
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	_, err = store.saveIntegration(BrokerIntegration{Config: normalizeFutuConfig(FutuIntegrationConfig{
+		Type:          "futu",
+		Host:          strings.Split(opendServer.addr, ":")[0],
+		APIPort:       portFromAddr(t, opendServer.addr),
+		WebSocketPort: 11111,
+		TradeMarket:   "US",
+	})})
+	if err != nil {
+		t.Fatalf("saveIntegration: %v", err)
+	}
+	srv := httptest.NewServer(NewServer(store))
+	defer srv.Close()
+
+	payload, err := json.Marshal(map[string]any{
+		"brokerId":           "futu",
+		"market":             "US",
+		"symbol":             "TME",
+		"side":               "BUY",
+		"orderType":          "LIMIT",
+		"timeInForce":        "DAY",
+		"session":            "ETH",
+		"quantity":           100,
+		"price":              10.12,
+		"accountId":          "1001",
+		"tradingEnvironment": "SIMULATE",
+	})
+	if err != nil {
+		t.Fatalf("Marshal payload: %v", err)
+	}
+	resp, err := http.Post(srv.URL+"/api/v1/execution/orders/preview", "application/json", bytes.NewReader(payload))
+	if err != nil {
+		t.Fatalf("POST execution preview: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("POST execution preview status = %d", resp.StatusCode)
+	}
+
+	request := opendServer.lastPlaceOrderRequest()
+	if request == nil {
+		t.Fatal("expected place order request to be captured")
+	}
+	if got := request.GetSession(); got != int32(commonpb.Session_Session_ETH) {
+		t.Fatalf("session = %d, want ETH", got)
+	}
+	if request.FillOutsideRTH == nil {
+		t.Fatal("expected fillOutsideRTH to be set for extended-hours limit order")
+	}
+	if !request.GetFillOutsideRTH() {
+		t.Fatal("fillOutsideRTH = false, want true for ETH session")
 	}
 }
 
@@ -422,5 +565,70 @@ func TestExecutionPushHandlersWriteBackAndNotify(t *testing.T) {
 	}
 	if !cancelNotificationFound {
 		t.Fatalf("expected Futu 撤单成功 notification, got %#v", server.liveNotificationsAfter(0))
+	}
+}
+
+func TestRecordPlacedOrderReusesExistingBrokerDiscoveredOrder(t *testing.T) {
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	server := NewServer(store)
+
+	server.handleFutuBrokerOrderPush(&trdcommonpb.TrdHeader{
+		TrdEnv:    proto.Int32(int32(trdcommonpb.TrdEnv_TrdEnv_Simulate)),
+		AccID:     proto.Uint64(1001),
+		TrdMarket: proto.Int32(int32(trdcommonpb.TrdMarket_TrdMarket_HK)),
+	}, &trdcommonpb.Order{
+		TrdSide:     proto.Int32(int32(trdcommonpb.TrdSide_TrdSide_Buy)),
+		OrderType:   proto.Int32(int32(trdcommonpb.OrderType_OrderType_Normal)),
+		OrderStatus: proto.Int32(int32(trdcommonpb.OrderStatus_OrderStatus_Submitted)),
+		OrderID:     proto.Uint64(9001),
+		OrderIDEx:   proto.String("EXT-9001"),
+		Code:        proto.String("HK.00700"),
+		Qty:         proto.Float64(100),
+		Price:       proto.Float64(320.5),
+		CreateTime:  proto.String("2026-05-20 09:33:00"),
+		UpdateTime:  proto.String("2026-05-20 09:33:00"),
+		TrdMarket:   proto.Int32(int32(trdcommonpb.TrdMarket_TrdMarket_HK)),
+	})
+
+	ordersBefore := server.executionOrders.listOrders()
+	if len(ordersBefore.Orders) != 1 {
+		t.Fatalf("expected one discovered order, got %#v", ordersBefore.Orders)
+	}
+	discovered := ordersBefore.Orders[0]
+	price := 320.5
+
+	placed := server.executionOrders.recordPlacedOrder(executionPlacedOrderRecord{
+		BrokerID:           "futu",
+		BrokerOrderID:      "9001",
+		BrokerOrderIDEx:    "EXT-9001",
+		TradingEnvironment: "SIMULATE",
+		AccountID:          "1001",
+		Market:             "HK",
+		Symbol:             "HK.00700",
+		Side:               "BUY",
+		OrderType:          "LIMIT",
+		Status:             "SUBMITTED",
+		RequestedQuantity:  100,
+		RequestedPrice:     &price,
+		SubmittedAt:        time.Now().UTC().Format(time.RFC3339Nano),
+		EventType:          "COMMAND_PLACE_ACCEPTED",
+	})
+
+	if placed.InternalOrderID != discovered.InternalOrderID {
+		t.Fatalf("internalOrderId = %q, want %q", placed.InternalOrderID, discovered.InternalOrderID)
+	}
+	ordersAfter := server.executionOrders.listOrders()
+	if len(ordersAfter.Orders) != 1 {
+		t.Fatalf("expected one order after command acceptance, got %#v", ordersAfter.Orders)
+	}
+	events := server.executionOrders.orderEvents(placed.InternalOrderID)
+	if len(events.Events) != 2 {
+		t.Fatalf("expected push + command events, got %#v", events.Events)
+	}
+	if got := events.Events[1].EventType; got != "COMMAND_PLACE_ACCEPTED" {
+		t.Fatalf("second event type = %q, want COMMAND_PLACE_ACCEPTED", got)
 	}
 }

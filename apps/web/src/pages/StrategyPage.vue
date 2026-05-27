@@ -104,8 +104,8 @@ function handleDefinitionsCountChange(count: number): void {
 }
 
 .strategy-banner--success {
-  border: 1px solid color-mix(in srgb, var(--tv-up) 34%, var(--tv-border));
-  background: color-mix(in srgb, var(--tv-up) 14%, transparent);
-  color: color-mix(in srgb, var(--tv-up) 74%, var(--tv-text));
+  border: 1px solid color-mix(in srgb, var(--tv-accent) 34%, var(--tv-border));
+  background: color-mix(in srgb, var(--tv-accent) 14%, transparent);
+  color: color-mix(in srgb, var(--tv-accent) 74%, var(--tv-text));
 }
 </style>

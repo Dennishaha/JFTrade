@@ -16,11 +16,11 @@ defineProps<{
 function resolveValueClass(tone: string | undefined): string {
   switch (tone) {
     case "good":
-      return "text-[var(--tv-up)]";
+      return "text-[var(--tv-accent)]";
     case "warn":
       return "text-[var(--tv-warn)]";
     case "danger":
-      return "text-[var(--tv-down)]";
+      return "text-[var(--tv-accent)]";
     default:
       return "text-[var(--tv-text)]";
   }

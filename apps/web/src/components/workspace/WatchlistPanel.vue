@@ -350,7 +350,7 @@ function formatPercent(value: number | null | undefined): string {
       <div style="flex: 1"></div>
       <span
         style="font-size: 11px; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--tv-border); white-space: nowrap"
-        :style="snapshot ? 'color: var(--tv-up); background: var(--card-green-surface)' : 'color: var(--tv-text-dim)'">
+        :style="snapshot ? 'color: var(--tv-accent); background: color-mix(in srgb, var(--tv-accent) 14%, var(--tv-bg-surface-2))' : 'color: var(--tv-text-dim)'">
         {{ snapshot ? "实时" : "无数据" }}
       </span>
     </div>
@@ -372,7 +372,7 @@ function formatPercent(value: number | null | undefined): string {
           <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 10px">
             <span v-if="isUSMarket && sessionLabel"
               style="font-size: 11px; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--tv-border); white-space: nowrap"
-              :style="snapshotSession === 'regular' ? 'color: var(--tv-up); background: var(--card-green-surface)' : 'color: var(--tv-text); background: var(--tv-bg-surface-2)'">
+              :style="snapshotSession === 'regular' ? 'color: var(--tv-accent); background: color-mix(in srgb, var(--tv-accent) 14%, var(--tv-bg-surface-2))' : 'color: var(--tv-text); background: var(--tv-bg-surface-2)'">
               {{ sessionLabel }}
             </span>
             <span style="font-size: 11px; color: var(--tv-text-dim)">

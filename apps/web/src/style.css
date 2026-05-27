@@ -93,11 +93,11 @@ body {
 .tv-main .bg-teal-600 { background-color: var(--card-teal-btn-bg); }
 .tv-main .hover\:border-teal-500:hover { border-color: var(--card-teal-border); }
 .tv-main .hover\:text-teal-700:hover { color: var(--card-teal-text); }
-/* Semantic up/down colors */
-.tv-main .text-emerald-600 { color: var(--tv-up); }
-.tv-main .text-red-600 { color: var(--tv-down); }
+/* Utility compatibility: generic red/green utility classes are status labels, not price direction. */
+.tv-main .text-emerald-600 { color: var(--tv-accent); }
+.tv-main .text-red-600 { color: var(--tv-accent); }
 .tv-main .text-rose-600,
-.tv-main .text-rose-700 { color: var(--tv-down); }
+.tv-main .text-rose-700 { color: var(--tv-accent); }
 .tv-main .text-amber-600,
 .tv-main .text-amber-700,
 .tv-main .text-amber-800 { color: var(--card-amber-text); }
@@ -259,7 +259,7 @@ body {
 }
 
 .kline-chart-overlay.is-error {
-  color: var(--tv-down);
+  color: var(--tv-accent);
 }
 
 /* ---------- Theme tokens (TradingView-style workspace) ---------- */
@@ -387,7 +387,7 @@ body {
   overflow-y: auto;
   overflow-x: hidden;
   overscroll-behavior: contain;
-  scrollbar-gutter: stable;
+  scrollbar-gutter: auto;
 }
 
 .tv-iconrail-btn {
@@ -493,13 +493,13 @@ body {
 }
 
 .tv-dot-ok {
-  background: var(--tv-up);
+  background: var(--tv-accent);
 }
 .tv-dot-warn {
   background: var(--tv-warn);
 }
 .tv-dot-err {
-  background: var(--tv-down);
+  background: var(--tv-accent-strong);
 }
 .tv-dot-idle {
   background: var(--tv-text-dim);
@@ -554,7 +554,7 @@ body {
   height: 14px;
   padding: 0 4px;
   border-radius: 7px;
-  background: var(--tv-down);
+  background: var(--tv-accent-strong);
   color: #fff;
   font-size: 9px;
   line-height: 14px;
@@ -778,6 +778,14 @@ body {
   background: var(--tv-bg-elevated);
   color: var(--tv-text);
 }
+.tv-order-side-seg button.is-active.is-buy {
+  background: color-mix(in srgb, var(--tv-up) 18%, var(--tv-bg-elevated));
+  color: var(--tv-up);
+}
+.tv-order-side-seg button.is-active.is-sell {
+  background: color-mix(in srgb, var(--tv-down) 18%, var(--tv-bg-elevated));
+  color: var(--tv-down);
+}
 
 /* Command palette */
 .tv-palette-backdrop {
@@ -885,13 +893,13 @@ body {
   border-left: 3px solid var(--tv-accent);
 }
 .tv-noti-item.level-error {
-  border-left-color: var(--tv-down);
+  border-left-color: var(--tv-accent-strong);
 }
 .tv-noti-item.level-warn {
   border-left-color: var(--tv-warn);
 }
 .tv-noti-item.level-success {
-  border-left-color: var(--tv-up);
+  border-left-color: var(--tv-accent);
 }
 
 .tv-ai-msg {

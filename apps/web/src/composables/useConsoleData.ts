@@ -9,10 +9,15 @@ import {
 
 import {
   type BrokerCashFlowsResponse,
+  type BrokerFillsResponse,
   type BrokerFundsResponse,
+  type BrokerMarginRatiosResponse,
+  type BrokerMaxTradeQuantityResponse,
   type BrokerOrderFeesResponse,
   type BrokerOrdersResponse,
   type BrokerPositionsResponse,
+  type BrokerReadFeatureCapability,
+  type BrokerReadFeatureKey,
   type BrokerRuntimeResponse,
   type BrokerSettingsResponse,
   type ExecutionOrderEventsResponse,
@@ -30,7 +35,10 @@ import {
   type WorkerBrokerOrderUpdateErrorContext,
   type WorkerBrokerOrderUpdatesResponse,
   emptyBrokerCashFlows,
+  emptyBrokerFills,
   emptyBrokerFunds,
+  emptyBrokerMarginRatios,
+  emptyBrokerMaxTradeQuantity,
   emptyBrokerOrderFees,
   emptyBrokerOrders,
   emptyBrokerPositions,
@@ -95,6 +103,16 @@ export type {
   MarketInstrumentSearchOption,
 } from "./consoleDataMarketInstruments";
 
+interface BrokerReadFeatureQueryRequirements {
+  capability: BrokerReadFeatureCapability | null;
+  supported: boolean;
+  supportsHistory: boolean;
+  requiresSymbols: boolean;
+  requiresClearingDate: boolean;
+  requiresPrice: boolean;
+  requiresOrderIdEx: boolean;
+}
+
 function createConsoleDataStore(workspaceLayout: WorkspaceLayoutStore) {
   const { prefs, update } = workspaceLayout;
   const systemStatus = ref<SystemStatusResponse>(emptySystemStatus);
@@ -113,8 +131,15 @@ function createConsoleDataStore(workspaceLayout: WorkspaceLayoutStore) {
   );
   const brokerRuntime = ref<BrokerRuntimeResponse>(emptyBrokerRuntime);
   const brokerCashFlows = ref<BrokerCashFlowsResponse>(emptyBrokerCashFlows);
+  const brokerFills = ref<BrokerFillsResponse>(emptyBrokerFills);
   const brokerOrderFees = ref<BrokerOrderFeesResponse>(emptyBrokerOrderFees);
   const brokerFunds = ref<BrokerFundsResponse>(emptyBrokerFunds);
+  const brokerMarginRatios = ref<BrokerMarginRatiosResponse>(
+    emptyBrokerMarginRatios,
+  );
+  const brokerMaxTradeQuantity = ref<BrokerMaxTradeQuantityResponse>(
+    emptyBrokerMaxTradeQuantity,
+  );
   const brokerPositions = ref<BrokerPositionsResponse>(emptyBrokerPositions);
   const brokerOrders = ref<BrokerOrdersResponse>(emptyBrokerOrders);
   const portfolioCashBalances = ref<PortfolioCashBalancesResponse>(
@@ -135,6 +160,9 @@ function createConsoleDataStore(workspaceLayout: WorkspaceLayoutStore) {
   );
   const selectedExecutionOrderId = ref("");
   const isLoadingExecutionEvents = ref(false);
+  const isLoadingBrokerFills = ref(false);
+  const isLoadingBrokerMarginRatios = ref(false);
+  const isLoadingBrokerMaxTradeQuantity = ref(false);
   const isLoadingOrderFees = ref(false);
   const executionEventsError = ref("");
   const orderFeesError = ref("");
@@ -189,6 +217,89 @@ function createConsoleDataStore(workspaceLayout: WorkspaceLayoutStore) {
     selectedBrokerAccount,
     updateManagedBrokerAccount,
   } = brokerSettingsController;
+
+  function resolveBrokerMarketCapability(market?: string | null) {
+    const normalizedMarket = market?.trim().toUpperCase() ?? "";
+    const descriptors = [brokerRuntime.value.descriptor, systemStatus.value.broker];
+
+    for (const descriptor of descriptors) {
+      if (descriptor.capabilities.length === 0) {
+        continue;
+      }
+      if (normalizedMarket !== "") {
+        const matched = descriptor.capabilities.find(
+          (capability) => capability.market.trim().toUpperCase() === normalizedMarket,
+        );
+        if (matched != null) {
+          return matched;
+        }
+      }
+      return descriptor.capabilities[0] ?? null;
+    }
+
+    return null;
+  }
+
+  function resolveBrokerReadFeatureCapability(
+    feature: BrokerReadFeatureKey,
+    context?: {
+      market?: string | null;
+      tradingEnvironment?: string | null;
+    },
+  ): BrokerReadFeatureCapability | null {
+    const capability = resolveBrokerMarketCapability(context?.market);
+    const featureCapability = capability?.readFeatures?.[feature];
+    if (featureCapability == null) {
+      return null;
+    }
+
+    const normalizedEnvironment =
+      context?.tradingEnvironment?.trim().toUpperCase() ?? "";
+    if (normalizedEnvironment === "") {
+      return featureCapability;
+    }
+
+    return featureCapability.supportedEnvironments.some(
+      (environment) => environment.trim().toUpperCase() === normalizedEnvironment,
+    )
+      ? featureCapability
+      : null;
+  }
+
+  function resolveBrokerReadFeatureQueryRequirements(
+    feature: BrokerReadFeatureKey,
+    context?: {
+      market?: string | null;
+      tradingEnvironment?: string | null;
+    },
+  ): BrokerReadFeatureQueryRequirements {
+    const capability = resolveBrokerReadFeatureCapability(feature, context);
+
+    return {
+      capability,
+      supported: capability != null,
+      supportsHistory: capability?.supportsHistory === true,
+      requiresSymbols:
+        capability?.requiresSymbols ?? feature === "marginRatios",
+      requiresClearingDate:
+        capability?.requiresClearingDate ?? feature === "cashFlows",
+      requiresPrice:
+        capability?.requiresPrice ?? feature === "maxTradeQuantity",
+      requiresOrderIdEx:
+        capability?.requiresOrderIdEx ?? feature === "orderFees",
+    };
+  }
+
+  function supportsBrokerReadFeature(
+    feature: BrokerReadFeatureKey,
+    context?: {
+      market?: string | null;
+      tradingEnvironment?: string | null;
+    },
+  ): boolean {
+    return resolveBrokerReadFeatureCapability(feature, context) != null;
+  }
+
   const {
     acquireMarketDataSubscription,
     heartbeatMarketDataConsumer,
@@ -235,6 +346,8 @@ function createConsoleDataStore(workspaceLayout: WorkspaceLayoutStore) {
     executionEventsError,
     brokerOrderFees,
     orderFeesError,
+    resolveBrokerReadFeatureQueryRequirements,
+    supportsBrokerReadFeature,
   });
   const { loadExecutionOrderDetails, selectedExecutionOrder } =
     executionOrdersController;
@@ -260,13 +373,25 @@ function createConsoleDataStore(workspaceLayout: WorkspaceLayoutStore) {
     createConsoleDataBrokerLiveQueryController({
       systemStatus,
       brokerCashFlows,
+      brokerFills,
       brokerFunds,
+      brokerMarginRatios,
+      brokerMaxTradeQuantity,
       brokerPositions,
       brokerOrders,
       executionOrders,
+      isLoadingBrokerFills,
+      isLoadingBrokerMarginRatios,
+      isLoadingBrokerMaxTradeQuantity,
+      resolveBrokerReadFeatureQueryRequirements,
+      supportsBrokerReadFeature,
       loadPortfolioLiveData,
     });
-  const { loadBrokerLiveData } = brokerLiveQueryController;
+  const {
+    clearBrokerMaxTradeQuantity,
+    loadBrokerLiveData,
+    loadBrokerMaxTradeQuantity,
+  } = brokerLiveQueryController;
   systemStateController = createConsoleDataSystemStateController({
     prefs,
     update,
@@ -313,7 +438,10 @@ function createConsoleDataStore(workspaceLayout: WorkspaceLayoutStore) {
   return {
     availableBrokerAccounts,
     brokerCashFlows,
+    brokerFills,
     brokerFunds,
+    brokerMarginRatios,
+    brokerMaxTradeQuantity,
     brokerOrderFees,
     brokerOrders,
     brokerPositions,
@@ -334,6 +462,9 @@ function createConsoleDataStore(workspaceLayout: WorkspaceLayoutStore) {
     installPlugin,
     installingPluginIds,
     isLoading,
+    isLoadingBrokerFills,
+    isLoadingBrokerMarginRatios,
+    isLoadingBrokerMaxTradeQuantity,
     isLoadingExecutionEvents,
     isLoadingMarketData,
     isLoadingMarketDataQuery,
@@ -342,6 +473,7 @@ function createConsoleDataStore(workspaceLayout: WorkspaceLayoutStore) {
     liveStreamStatus,
     loadError,
     loadBrokerSettings,
+    loadBrokerMaxTradeQuantity,
     loadExecutionOrderDetails,
     loadMarketDataQuery,
     loadMarketInstrumentReferences,
@@ -369,6 +501,7 @@ function createConsoleDataStore(workspaceLayout: WorkspaceLayoutStore) {
     pluginCatalog,
     pluginError,
     requestFutuOpenDManualRetry,
+    clearBrokerMaxTradeQuantity,
     realTradeApprovals,
     realTradeHardStopEvents,
     realTradeHardStops,
@@ -383,7 +516,10 @@ function createConsoleDataStore(workspaceLayout: WorkspaceLayoutStore) {
     selectedBrokerAccount,
     selectedExecutionOrder,
     selectedExecutionOrderId,
+    resolveBrokerReadFeatureCapability,
+    resolveBrokerReadFeatureQueryRequirements,
     storageOverview,
+    supportsBrokerReadFeature,
     subscribeCurrentMarketData,
     systemStatus,
     releaseMarketDataSubscription,

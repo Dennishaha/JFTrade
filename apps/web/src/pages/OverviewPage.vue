@@ -305,7 +305,7 @@ function sessionLabel(session: string | null): string {
                   <div
                     v-if="priceChangePercent != null"
                     class="pb-0.5 text-lg font-semibold"
-                    :class="priceChangePercent >= 0 ? 'text-emerald-600' : 'text-rose-600'"
+                    :class="priceChangePercent >= 0 ? 'tv-up' : 'tv-down'"
                   >
                     {{ priceChangePercent >= 0 ? '+' : '' }}{{ priceChangePercent.toFixed(2) }}%
                   </div>
@@ -337,7 +337,7 @@ function sessionLabel(session: string | null): string {
                       <div
                         v-if="extendedPreMarketDisplay.changeRate != null"
                         class="pb-0.5 text-sm font-semibold"
-                        :class="extendedPreMarketDisplay.changeRate >= 0 ? 'text-emerald-600' : 'text-rose-600'"
+                        :class="extendedPreMarketDisplay.changeRate >= 0 ? 'tv-up' : 'tv-down'"
                       >
                         {{ extendedPreMarketDisplay.changeRate >= 0 ? '+' : '' }}{{ extendedPreMarketDisplay.changeRate.toFixed(2) }}%
                       </div>
@@ -357,7 +357,7 @@ function sessionLabel(session: string | null): string {
                       <div
                         v-if="extendedAfterMarketDisplay.changeRate != null"
                         class="pb-0.5 text-sm font-semibold"
-                        :class="extendedAfterMarketDisplay.changeRate >= 0 ? 'text-emerald-600' : 'text-rose-600'"
+                        :class="extendedAfterMarketDisplay.changeRate >= 0 ? 'tv-up' : 'tv-down'"
                       >
                         {{ extendedAfterMarketDisplay.changeRate >= 0 ? '+' : '' }}{{ extendedAfterMarketDisplay.changeRate.toFixed(2) }}%
                       </div>
@@ -377,7 +377,7 @@ function sessionLabel(session: string | null): string {
                       <div
                         v-if="extendedOvernightDisplay.changeRate != null"
                         class="pb-0.5 text-sm font-semibold"
-                        :class="extendedOvernightDisplay.changeRate >= 0 ? 'text-emerald-600' : 'text-rose-600'"
+                        :class="extendedOvernightDisplay.changeRate >= 0 ? 'tv-up' : 'tv-down'"
                       >
                         {{ extendedOvernightDisplay.changeRate >= 0 ? '+' : '' }}{{ extendedOvernightDisplay.changeRate.toFixed(2) }}%
                       </div>

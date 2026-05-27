@@ -35,10 +35,14 @@ PROTO_FILES=(
   Trd_GetAccList.proto
   Trd_GetFunds.proto
   Trd_GetPositionList.proto
+  Trd_GetMaxTrdQtys.proto
   Trd_GetOrderList.proto
+  Trd_GetOrderFillList.proto
   Trd_GetHistoryOrderList.proto
   Trd_GetHistoryOrderFillList.proto
+  Trd_GetMarginRatio.proto
   Trd_GetOrderFee.proto
+  Trd_FlowSummary.proto
   Trd_PlaceOrder.proto
   Trd_ModifyOrder.proto
   Trd_Notify.proto

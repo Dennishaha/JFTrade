@@ -11,6 +11,7 @@ import { useDocsLink } from "../composables/useDocsLink";
 import { provideNotificationsStore } from "../composables/useNotifications";
 import { provideLiveSocketStore } from "../composables/useSharedLiveSocket";
 import { provideThemeStore } from "../composables/useTheme";
+import { provideUIColorPreferencesStore } from "../composables/useUIColorPreferences";
 import { provideWorkspaceLayoutStore } from "../composables/useWorkspaceLayout";
 import CommandPalette from "./CommandPalette.vue";
 import IconRail from "./IconRail.vue";
@@ -19,7 +20,8 @@ import RightDock from "./RightDock.vue";
 import StatusBar from "./StatusBar.vue";
 import TopBar from "./TopBar.vue";
 
-provideThemeStore();
+const themeStore = provideThemeStore();
+provideUIColorPreferencesStore(themeStore.theme);
 const notifications = provideNotificationsStore();
 const workspaceLayout = provideWorkspaceLayoutStore();
 const palette = provideCommandPaletteStore();

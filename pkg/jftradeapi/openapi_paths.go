@@ -273,11 +273,20 @@ func buildOpenAPIPaths(genericObject map[string]any) map[string]any {
 		"/api/v1/brokers/{brokerId}/orders": map[string]any{
 			"get": operation("读取订单", "返回订单列表。", []string{"broker"}, []any{pathParameter("brokerId", "Broker 标识", "futu")}, nil, map[string]any{"200": jsonResponse("订单列表", envelopeSchema(genericObject))}),
 		},
+		"/api/v1/brokers/{brokerId}/fills": map[string]any{
+			"get": operation("读取成交", "返回成交列表。", []string{"broker"}, []any{pathParameter("brokerId", "Broker 标识", "futu")}, nil, map[string]any{"200": jsonResponse("成交列表", envelopeSchema(genericObject))}),
+		},
 		"/api/v1/brokers/{brokerId}/cash-flows": map[string]any{
 			"get": operation("读取资金流水", "返回现金流列表。", []string{"broker"}, []any{pathParameter("brokerId", "Broker 标识", "futu")}, nil, map[string]any{"200": jsonResponse("资金流水", envelopeSchema(genericObject))}),
 		},
 		"/api/v1/brokers/{brokerId}/order-fees": map[string]any{
 			"get": operation("读取订单费用", "返回订单费用列表。", []string{"broker"}, []any{pathParameter("brokerId", "Broker 标识", "futu")}, nil, map[string]any{"200": jsonResponse("订单费用", envelopeSchema(genericObject))}),
+		},
+		"/api/v1/brokers/{brokerId}/margin-ratios": map[string]any{
+			"get": operation("读取融资融券数据", "返回标的融资融券参数。", []string{"broker"}, []any{pathParameter("brokerId", "Broker 标识", "futu")}, nil, map[string]any{"200": jsonResponse("融资融券数据", envelopeSchema(genericObject))}),
+		},
+		"/api/v1/brokers/{brokerId}/max-trade-qtys": map[string]any{
+			"get": operation("读取最大可交易数量", "返回给定下单参数下的最大可交易数量。", []string{"broker"}, []any{pathParameter("brokerId", "Broker 标识", "futu")}, nil, map[string]any{"200": jsonResponse("最大可交易数量", envelopeSchema(genericObject))}),
 		},
 		"/api/v1/plugins": map[string]any{
 			"get": operation("读取插件列表", "返回插件安装目标目录与插件列表。", []string{"strategy"}, nil, nil, map[string]any{"200": jsonResponse("插件列表", envelopeSchema(genericObject))}),

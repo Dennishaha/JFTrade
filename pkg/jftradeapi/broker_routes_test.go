@@ -17,10 +17,19 @@ import (
 
 	"github.com/jftrade/jftrade-main/pkg/futu/codec"
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
+	commonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/common"
 	initpb "github.com/jftrade/jftrade-main/pkg/futu/pb/initconnect"
+	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
 	trdcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdcommon"
+	trdflowsummarypb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdflowsummary"
 	trdgetacclistpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdgetacclist"
 	trdgetfundspb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdgetfunds"
+	trdgethistoryorderfilllistpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdgethistoryorderfilllist"
+	trdgethistoryorderlistpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdgethistoryorderlist"
+	trdgetmarginratiopb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdgetmarginratio"
+	trdgetmaxtrdqtyspb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdgetmaxtrdqtys"
+	trdgetorderfeepb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdgetorderfee"
+	trdgetorderfilllistpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdgetorderfilllist"
 	trdgetorderlistpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdgetorderlist"
 	trdgetpositionlistpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdgetpositionlist"
 	trdmodifyorderpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdmodifyorder"
@@ -83,6 +92,11 @@ func TestBrokerReadEndpointsReturnExchangeBackedData(t *testing.T) {
 		AccID:             proto.Uint64(1001),
 		TrdMarketAuthList: []int32{int32(trdcommonpb.TrdMarket_TrdMarket_HK)},
 		AccType:           proto.Int32(int32(trdcommonpb.TrdAccType_TrdAccType_Cash)),
+	}, {
+		TrdEnv:            proto.Int32(int32(trdcommonpb.TrdEnv_TrdEnv_Real)),
+		AccID:             proto.Uint64(2001),
+		TrdMarketAuthList: []int32{int32(trdcommonpb.TrdMarket_TrdMarket_HK)},
+		AccType:           proto.Int32(int32(trdcommonpb.TrdAccType_TrdAccType_Margin)),
 	}})
 	opendServer.setFunds(&trdcommonpb.Funds{
 		Power:             proto.Float64(120000),
@@ -138,6 +152,84 @@ func TestBrokerReadEndpointsReturnExchangeBackedData(t *testing.T) {
 		Currency:     proto.Int32(int32(trdcommonpb.Currency_Currency_HKD)),
 		TrdMarket:    proto.Int32(int32(trdcommonpb.TrdMarket_TrdMarket_HK)),
 	}})
+	opendServer.setHistoryOrders([]*trdcommonpb.Order{{
+		TrdSide:      proto.Int32(int32(trdcommonpb.TrdSide_TrdSide_Buy)),
+		OrderType:    proto.Int32(int32(trdcommonpb.OrderType_OrderType_Normal)),
+		OrderStatus:  proto.Int32(int32(trdcommonpb.OrderStatus_OrderStatus_Filled_All)),
+		OrderID:      proto.Uint64(2101),
+		OrderIDEx:    proto.String("EXT-2101"),
+		Code:         proto.String("HK.00700"),
+		Name:         proto.String("Tencent"),
+		Qty:          proto.Float64(50),
+		Price:        proto.Float64(321.2),
+		CreateTime:   proto.String("2026-05-19 09:30:00"),
+		UpdateTime:   proto.String("2026-05-19 09:45:00"),
+		FillQty:      proto.Float64(50),
+		FillAvgPrice: proto.Float64(321.1),
+		TimeInForce:  proto.Int32(int32(trdcommonpb.TimeInForce_TimeInForce_GTC)),
+		Currency:     proto.Int32(int32(trdcommonpb.Currency_Currency_HKD)),
+		TrdMarket:    proto.Int32(int32(trdcommonpb.TrdMarket_TrdMarket_HK)),
+	}})
+	opendServer.setOrderFills([]*trdcommonpb.OrderFill{{
+		OrderID:    proto.Uint64(2001),
+		OrderIDEx:  proto.String("EXT-2001"),
+		FillID:     proto.Uint64(3001),
+		FillIDEx:   proto.String("FILL-3001"),
+		Code:       proto.String("HK.00700"),
+		Name:       proto.String("Tencent"),
+		TrdSide:    proto.Int32(int32(trdcommonpb.TrdSide_TrdSide_Buy)),
+		Qty:        proto.Float64(20),
+		Price:      proto.Float64(319.5),
+		CreateTime: proto.String("2026-05-20 09:31:30"),
+		Status:     proto.Int32(int32(trdcommonpb.OrderFillStatus_OrderFillStatus_OK)),
+		TrdMarket:  proto.Int32(int32(trdcommonpb.TrdMarket_TrdMarket_HK)),
+	}})
+	opendServer.setHistoryFills([]*trdcommonpb.OrderFill{{
+		OrderID:    proto.Uint64(2101),
+		OrderIDEx:  proto.String("EXT-2101"),
+		FillID:     proto.Uint64(3101),
+		FillIDEx:   proto.String("FILL-3101"),
+		Code:       proto.String("HK.00700"),
+		Name:       proto.String("Tencent"),
+		TrdSide:    proto.Int32(int32(trdcommonpb.TrdSide_TrdSide_Buy)),
+		Qty:        proto.Float64(50),
+		Price:      proto.Float64(321.1),
+		CreateTime: proto.String("2026-05-19 09:40:00"),
+		Status:     proto.Int32(int32(trdcommonpb.OrderFillStatus_OrderFillStatus_OK)),
+		TrdMarket:  proto.Int32(int32(trdcommonpb.TrdMarket_TrdMarket_HK)),
+	}})
+	opendServer.setOrderFees([]*trdcommonpb.OrderFee{{
+		OrderIDEx: proto.String("EXT-2001"),
+		FeeAmount: proto.Float64(12.5),
+		FeeList:   []*trdcommonpb.OrderFeeItem{{Title: proto.String("Commission"), Value: proto.Float64(10.0)}},
+	}})
+	opendServer.setCashFlows([]*trdflowsummarypb.FlowSummaryInfo{{
+		CashFlowID:        proto.Uint64(5001),
+		ClearingDate:      proto.String("2026-05-20"),
+		SettlementDate:    proto.String("2026-05-21"),
+		Currency:          proto.Int32(int32(trdcommonpb.Currency_Currency_HKD)),
+		CashFlowType:      proto.String("DIVIDEND"),
+		CashFlowDirection: proto.Int32(int32(trdflowsummarypb.TrdCashFlowDirection_TrdCashFlowDirection_In)),
+		CashFlowAmount:    proto.Float64(88.8),
+		CashFlowRemark:    proto.String("cash-flow-test"),
+	}})
+	opendServer.setMarginRatios([]*trdgetmarginratiopb.MarginRatioInfo{{
+		Security:       &qotcommonpb.Security{Market: proto.Int32(int32(qotcommonpb.QotMarket_QotMarket_HK_Security)), Code: proto.String("00700")},
+		IsLongPermit:   proto.Bool(true),
+		IsShortPermit:  proto.Bool(false),
+		ShortFeeRate:   proto.Float64(1.25),
+		AlertLongRatio: proto.Float64(0.3),
+	}})
+	opendServer.setMaxTrdQtys(&trdcommonpb.MaxTrdQtys{
+		MaxCashBuy:          proto.Float64(1000),
+		MaxCashAndMarginBuy: proto.Float64(2000),
+		MaxPositionSell:     proto.Float64(500),
+		MaxSellShort:        proto.Float64(300),
+		MaxBuyBack:          proto.Float64(150),
+		LongRequiredIM:      proto.Float64(10),
+		ShortRequiredIM:     proto.Float64(12),
+		Session:             proto.Int32(int32(commonpb.Session_Session_RTH)),
+	})
 	defer opendServer.stop()
 
 	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
@@ -159,6 +251,7 @@ func TestBrokerReadEndpointsReturnExchangeBackedData(t *testing.T) {
 	defer srv.Close()
 
 	query := "?tradingEnvironment=SIMULATE&accountId=1001&market=HK"
+	realQuery := "?tradingEnvironment=REAL&accountId=2001&market=HK"
 
 	funds := decodeBrokerEnvelope(t, srv.URL+"/api/v1/brokers/futu/funds"+query)
 	if got := funds["connectivity"]; got != "connected" {
@@ -202,6 +295,82 @@ func TestBrokerReadEndpointsReturnExchangeBackedData(t *testing.T) {
 	}
 	if got := order["status"]; got != "SUBMITTED" {
 		t.Fatalf("order status = %v, want SUBMITTED", got)
+	}
+
+	historyOrders := decodeBrokerEnvelope(t, srv.URL+"/api/v1/brokers/futu/orders"+query+"&scope=history")
+	historyOrderEntries, ok := historyOrders["orders"].([]any)
+	if !ok || len(historyOrderEntries) != 1 {
+		t.Fatalf("history orders entries = %#v", historyOrders["orders"])
+	}
+
+	fills := decodeBrokerEnvelope(t, srv.URL+"/api/v1/brokers/futu/fills"+query)
+	fillEntries, ok := fills["fills"].([]any)
+	if !ok || len(fillEntries) != 1 {
+		t.Fatalf("fills entries = %#v", fills["fills"])
+	}
+	fill, ok := fillEntries[0].(map[string]any)
+	if !ok {
+		t.Fatalf("fill entry = %#v", fillEntries[0])
+	}
+	if got := fill["brokerFillId"]; got != "3001" {
+		t.Fatalf("brokerFillId = %v, want 3001", got)
+	}
+
+	historyFills := decodeBrokerEnvelope(t, srv.URL+"/api/v1/brokers/futu/fills"+query+"&scope=history")
+	historyFillEntries, ok := historyFills["fills"].([]any)
+	if !ok || len(historyFillEntries) != 1 {
+		t.Fatalf("history fills entries = %#v", historyFills["fills"])
+	}
+
+	fees := decodeBrokerEnvelope(t, srv.URL+"/api/v1/brokers/futu/order-fees"+query+"&orderIdEx=EXT-2001")
+	feeEntries, ok := fees["fees"].([]any)
+	if !ok || len(feeEntries) != 1 {
+		t.Fatalf("fees entries = %#v", fees["fees"])
+	}
+	fee, ok := feeEntries[0].(map[string]any)
+	if !ok {
+		t.Fatalf("fee entry = %#v", feeEntries[0])
+	}
+	if got := fee["brokerOrderIdEx"]; got != "EXT-2001" {
+		t.Fatalf("fee brokerOrderIdEx = %v, want EXT-2001", got)
+	}
+
+	cashFlows := decodeBrokerEnvelope(t, srv.URL+"/api/v1/brokers/futu/cash-flows"+query+"&clearingDate=2026-05-20&direction=IN")
+	flowEntries, ok := cashFlows["cashFlows"].([]any)
+	if !ok || len(flowEntries) != 1 {
+		t.Fatalf("cashFlows entries = %#v", cashFlows["cashFlows"])
+	}
+	flow, ok := flowEntries[0].(map[string]any)
+	if !ok {
+		t.Fatalf("cashFlow entry = %#v", flowEntries[0])
+	}
+	if got := flow["cashFlowType"]; got != "DIVIDEND" {
+		t.Fatalf("cashFlowType = %v, want DIVIDEND", got)
+	}
+
+	marginRatios := decodeBrokerEnvelope(t, srv.URL+"/api/v1/brokers/futu/margin-ratios"+realQuery+"&symbol=HK.00700")
+	ratioEntries, ok := marginRatios["marginRatios"].([]any)
+	if !ok || len(ratioEntries) != 1 {
+		t.Fatalf("marginRatios entries = %#v", marginRatios["marginRatios"])
+	}
+	ratio, ok := ratioEntries[0].(map[string]any)
+	if !ok {
+		t.Fatalf("margin ratio entry = %#v", ratioEntries[0])
+	}
+	if got := ratio["symbol"]; got != "HK.00700" {
+		t.Fatalf("margin ratio symbol = %v, want HK.00700", got)
+	}
+
+	maxTradeQtys := decodeBrokerEnvelope(t, srv.URL+"/api/v1/brokers/futu/max-trade-qtys"+query+"&symbol=HK.00700&orderType=LIMIT&price=320.5")
+	maxTradeQuantity, ok := maxTradeQtys["maxTradeQuantity"].(map[string]any)
+	if !ok {
+		t.Fatalf("maxTradeQuantity = %#v", maxTradeQtys["maxTradeQuantity"])
+	}
+	if got := maxTradeQuantity["maxCashBuy"]; got != 1000.0 {
+		t.Fatalf("maxCashBuy = %v, want 1000", got)
+	}
+	if got := maxTradeQuantity["orderType"]; got != "LIMIT" {
+		t.Fatalf("orderType = %v, want LIMIT", got)
 	}
 }
 
@@ -251,10 +420,18 @@ type brokerRouteOpenDServer struct {
 	funds             *trdcommonpb.Funds
 	positions         []*trdcommonpb.Position
 	orders            []*trdcommonpb.Order
+	historyOrders     []*trdcommonpb.Order
+	orderFills        []*trdcommonpb.OrderFill
+	historyFills      []*trdcommonpb.OrderFill
+	orderFees         []*trdcommonpb.OrderFee
+	marginRatios      []*trdgetmarginratiopb.MarginRatioInfo
+	cashFlows         []*trdflowsummarypb.FlowSummaryInfo
+	maxTrdQtys        *trdcommonpb.MaxTrdQtys
 	placedOrderID     uint64
 	placedOrderIDEx   string
 	lastPlaceOrder    *trdplaceorderpb.C2S
 	lastModifyOrder   *trdmodifyorderpb.C2S
+	lastMaxTrdQtys    *trdgetmaxtrdqtyspb.C2S
 	placeOrderCalls   int
 	modifyOrderCalls  int
 	subAccPushCalls   int
@@ -304,6 +481,48 @@ func (s *brokerRouteOpenDServer) setOrders(orders []*trdcommonpb.Order) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.orders = append([]*trdcommonpb.Order(nil), orders...)
+}
+
+func (s *brokerRouteOpenDServer) setHistoryOrders(orders []*trdcommonpb.Order) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.historyOrders = append([]*trdcommonpb.Order(nil), orders...)
+}
+
+func (s *brokerRouteOpenDServer) setOrderFills(fills []*trdcommonpb.OrderFill) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.orderFills = append([]*trdcommonpb.OrderFill(nil), fills...)
+}
+
+func (s *brokerRouteOpenDServer) setHistoryFills(fills []*trdcommonpb.OrderFill) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.historyFills = append([]*trdcommonpb.OrderFill(nil), fills...)
+}
+
+func (s *brokerRouteOpenDServer) setOrderFees(fees []*trdcommonpb.OrderFee) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.orderFees = append([]*trdcommonpb.OrderFee(nil), fees...)
+}
+
+func (s *brokerRouteOpenDServer) setMarginRatios(ratios []*trdgetmarginratiopb.MarginRatioInfo) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.marginRatios = append([]*trdgetmarginratiopb.MarginRatioInfo(nil), ratios...)
+}
+
+func (s *brokerRouteOpenDServer) setCashFlows(flows []*trdflowsummarypb.FlowSummaryInfo) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.cashFlows = append([]*trdflowsummarypb.FlowSummaryInfo(nil), flows...)
+}
+
+func (s *brokerRouteOpenDServer) setMaxTrdQtys(maxQtys *trdcommonpb.MaxTrdQtys) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.maxTrdQtys = maxQtys
 }
 
 func (s *brokerRouteOpenDServer) setPlacedOrderResponse(orderID uint64, orderIDEx string) {
@@ -441,27 +660,130 @@ func (s *brokerRouteOpenDServer) responseForFrame(frame codec.Frame) proto.Messa
 	case opend.ProtoTrdGetOrderList:
 		request := &trdgetorderlistpb.Request{}
 		_ = proto.Unmarshal(frame.Body, request)
-		orders := make([]*trdcommonpb.Order, 0, len(s.orders))
-		for _, order := range s.orders {
-			orders = append(orders, normalizeBrokerRouteOrder(order))
-		}
-		if codes := request.GetC2S().GetFilterConditions().GetCodeList(); len(codes) > 0 {
-			filtered := make([]*trdcommonpb.Order, 0, len(orders))
-			for _, order := range orders {
-				for _, code := range codes {
-					if strings.EqualFold(order.GetCode(), code) {
-						filtered = append(filtered, order)
-						break
-					}
-				}
-			}
-			orders = filtered
-		}
+		orders := filterBrokerRouteOrders(s.orders, request.GetC2S().GetFilterConditions(), nil)
 		return &trdgetorderlistpb.Response{
 			RetType: proto.Int32(0),
 			S2C: &trdgetorderlistpb.S2C{
 				Header:    normalizeBrokerRouteHeader(request.GetC2S().GetHeader()),
 				OrderList: orders,
+			},
+		}
+	case opend.ProtoTrdGetHistoryOrderList:
+		request := &trdgethistoryorderlistpb.Request{}
+		_ = proto.Unmarshal(frame.Body, request)
+		orders := filterBrokerRouteOrders(s.historyOrders, request.GetC2S().GetFilterConditions(), request.GetC2S().GetFilterStatusList())
+		return &trdgethistoryorderlistpb.Response{
+			RetType: proto.Int32(0),
+			S2C: &trdgethistoryorderlistpb.S2C{
+				Header:    normalizeBrokerRouteHeader(request.GetC2S().GetHeader()),
+				OrderList: orders,
+			},
+		}
+	case opend.ProtoTrdGetOrderFillList:
+		request := &trdgetorderfilllistpb.Request{}
+		_ = proto.Unmarshal(frame.Body, request)
+		fills := filterBrokerRouteFills(s.orderFills, request.GetC2S().GetFilterConditions())
+		return &trdgetorderfilllistpb.Response{
+			RetType: proto.Int32(0),
+			S2C: &trdgetorderfilllistpb.S2C{
+				Header:        normalizeBrokerRouteHeader(request.GetC2S().GetHeader()),
+				OrderFillList: fills,
+			},
+		}
+	case opend.ProtoTrdGetHistoryOrderFillList:
+		request := &trdgethistoryorderfilllistpb.Request{}
+		_ = proto.Unmarshal(frame.Body, request)
+		fills := filterBrokerRouteFills(s.historyFills, request.GetC2S().GetFilterConditions())
+		return &trdgethistoryorderfilllistpb.Response{
+			RetType: proto.Int32(0),
+			S2C: &trdgethistoryorderfilllistpb.S2C{
+				Header:        normalizeBrokerRouteHeader(request.GetC2S().GetHeader()),
+				OrderFillList: fills,
+			},
+		}
+	case opend.ProtoTrdGetOrderFee:
+		request := &trdgetorderfeepb.Request{}
+		_ = proto.Unmarshal(frame.Body, request)
+		fees := make([]*trdcommonpb.OrderFee, 0, len(s.orderFees))
+		requested := make(map[string]struct{}, len(request.GetC2S().GetOrderIdExList()))
+		for _, orderIDEx := range request.GetC2S().GetOrderIdExList() {
+			requested[strings.ToUpper(strings.TrimSpace(orderIDEx))] = struct{}{}
+		}
+		for _, fee := range s.orderFees {
+			if fee == nil {
+				continue
+			}
+			if len(requested) > 0 {
+				if _, ok := requested[strings.ToUpper(strings.TrimSpace(fee.GetOrderIDEx()))]; !ok {
+					continue
+				}
+			}
+			fees = append(fees, normalizeBrokerRouteOrderFee(fee))
+		}
+		return &trdgetorderfeepb.Response{
+			RetType: proto.Int32(0),
+			S2C: &trdgetorderfeepb.S2C{
+				Header:       normalizeBrokerRouteHeader(request.GetC2S().GetHeader()),
+				OrderFeeList: fees,
+			},
+		}
+	case opend.ProtoTrdGetMarginRatio:
+		request := &trdgetmarginratiopb.Request{}
+		_ = proto.Unmarshal(frame.Body, request)
+		ratios := make([]*trdgetmarginratiopb.MarginRatioInfo, 0, len(s.marginRatios))
+		requested := make(map[string]struct{}, len(request.GetC2S().GetSecurityList()))
+		for _, security := range request.GetC2S().GetSecurityList() {
+			requested[strings.ToUpper(strings.TrimSpace(security.GetCode()))] = struct{}{}
+		}
+		for _, ratio := range s.marginRatios {
+			if ratio == nil {
+				continue
+			}
+			if len(requested) > 0 {
+				if _, ok := requested[strings.ToUpper(strings.TrimSpace(ratio.GetSecurity().GetCode()))]; !ok {
+					continue
+				}
+			}
+			ratios = append(ratios, normalizeBrokerRouteMarginRatio(ratio))
+		}
+		return &trdgetmarginratiopb.Response{
+			RetType: proto.Int32(0),
+			S2C: &trdgetmarginratiopb.S2C{
+				Header:              normalizeBrokerRouteHeader(request.GetC2S().GetHeader()),
+				MarginRatioInfoList: ratios,
+			},
+		}
+	case opend.ProtoTrdFlowSummary:
+		request := &trdflowsummarypb.Request{}
+		_ = proto.Unmarshal(frame.Body, request)
+		flows := make([]*trdflowsummarypb.FlowSummaryInfo, 0, len(s.cashFlows))
+		for _, flow := range s.cashFlows {
+			if flow == nil {
+				continue
+			}
+			if direction := request.GetC2S().GetCashFlowDirection(); direction != 0 && flow.GetCashFlowDirection() != direction {
+				continue
+			}
+			flows = append(flows, normalizeBrokerRouteCashFlow(flow))
+		}
+		return &trdflowsummarypb.Response{
+			RetType: proto.Int32(0),
+			S2C: &trdflowsummarypb.S2C{
+				Header:              normalizeBrokerRouteHeader(request.GetC2S().GetHeader()),
+				FlowSummaryInfoList: flows,
+			},
+		}
+	case opend.ProtoTrdGetMaxTrdQtys:
+		request := &trdgetmaxtrdqtyspb.Request{}
+		_ = proto.Unmarshal(frame.Body, request)
+		if request.GetC2S() != nil {
+			s.lastMaxTrdQtys = proto.Clone(request.GetC2S()).(*trdgetmaxtrdqtyspb.C2S)
+		}
+		return &trdgetmaxtrdqtyspb.Response{
+			RetType: proto.Int32(0),
+			S2C: &trdgetmaxtrdqtyspb.S2C{
+				Header:     normalizeBrokerRouteHeader(request.GetC2S().GetHeader()),
+				MaxTrdQtys: normalizeBrokerRouteMaxTrdQtys(s.maxTrdQtys),
 			},
 		}
 	case opend.ProtoTrdPlaceOrder:
@@ -629,4 +951,130 @@ func normalizeBrokerRouteOrder(order *trdcommonpb.Order) *trdcommonpb.Order {
 		clone.UpdateTime = proto.String(clone.GetCreateTime())
 	}
 	return clone
+}
+
+func normalizeBrokerRouteOrderFill(fill *trdcommonpb.OrderFill) *trdcommonpb.OrderFill {
+	if fill == nil {
+		fill = &trdcommonpb.OrderFill{}
+	}
+	clone := proto.Clone(fill).(*trdcommonpb.OrderFill)
+	if clone.OrderID == nil {
+		clone.OrderID = proto.Uint64(1)
+	}
+	if clone.OrderIDEx == nil {
+		clone.OrderIDEx = proto.String(strconv.FormatUint(clone.GetOrderID(), 10))
+	}
+	if clone.FillID == nil {
+		clone.FillID = proto.Uint64(1)
+	}
+	if clone.FillIDEx == nil {
+		clone.FillIDEx = proto.String(strconv.FormatUint(clone.GetFillID(), 10))
+	}
+	if clone.Code == nil {
+		clone.Code = proto.String("HK.00700")
+	}
+	if clone.Name == nil {
+		clone.Name = proto.String(clone.GetCode())
+	}
+	if clone.TrdSide == nil {
+		clone.TrdSide = proto.Int32(int32(trdcommonpb.TrdSide_TrdSide_Buy))
+	}
+	if clone.Qty == nil {
+		clone.Qty = proto.Float64(0)
+	}
+	if clone.CreateTime == nil {
+		clone.CreateTime = proto.String("2026-05-20 09:30:00")
+	}
+	return clone
+}
+
+func normalizeBrokerRouteOrderFee(fee *trdcommonpb.OrderFee) *trdcommonpb.OrderFee {
+	if fee == nil {
+		fee = &trdcommonpb.OrderFee{}
+	}
+	clone := proto.Clone(fee).(*trdcommonpb.OrderFee)
+	if clone.OrderIDEx == nil {
+		clone.OrderIDEx = proto.String("")
+	}
+	if clone.FeeAmount == nil {
+		clone.FeeAmount = proto.Float64(0)
+	}
+	return clone
+}
+
+func normalizeBrokerRouteMarginRatio(ratio *trdgetmarginratiopb.MarginRatioInfo) *trdgetmarginratiopb.MarginRatioInfo {
+	if ratio == nil {
+		ratio = &trdgetmarginratiopb.MarginRatioInfo{}
+	}
+	clone := proto.Clone(ratio).(*trdgetmarginratiopb.MarginRatioInfo)
+	if clone.Security == nil {
+		clone.Security = &qotcommonpb.Security{Market: proto.Int32(int32(qotcommonpb.QotMarket_QotMarket_HK_Security)), Code: proto.String("00700")}
+	}
+	return clone
+}
+
+func normalizeBrokerRouteCashFlow(flow *trdflowsummarypb.FlowSummaryInfo) *trdflowsummarypb.FlowSummaryInfo {
+	if flow == nil {
+		flow = &trdflowsummarypb.FlowSummaryInfo{}
+	}
+	clone := proto.Clone(flow).(*trdflowsummarypb.FlowSummaryInfo)
+	if clone.CashFlowID == nil {
+		clone.CashFlowID = proto.Uint64(1)
+	}
+	if clone.ClearingDate == nil {
+		clone.ClearingDate = proto.String("2026-05-20")
+	}
+	return clone
+}
+
+func normalizeBrokerRouteMaxTrdQtys(maxQtys *trdcommonpb.MaxTrdQtys) *trdcommonpb.MaxTrdQtys {
+	if maxQtys == nil {
+		maxQtys = &trdcommonpb.MaxTrdQtys{}
+	}
+	return proto.Clone(maxQtys).(*trdcommonpb.MaxTrdQtys)
+}
+
+func filterBrokerRouteOrders(input []*trdcommonpb.Order, filter *trdcommonpb.TrdFilterConditions, statuses []int32) []*trdcommonpb.Order {
+	orders := make([]*trdcommonpb.Order, 0, len(input))
+	codeSet := make(map[string]struct{}, len(filter.GetCodeList()))
+	for _, code := range filter.GetCodeList() {
+		codeSet[strings.ToUpper(strings.TrimSpace(code))] = struct{}{}
+	}
+	statusSet := make(map[int32]struct{}, len(statuses))
+	for _, status := range statuses {
+		statusSet[status] = struct{}{}
+	}
+	for _, order := range input {
+		normalized := normalizeBrokerRouteOrder(order)
+		if len(codeSet) > 0 {
+			if _, ok := codeSet[strings.ToUpper(strings.TrimSpace(normalized.GetCode()))]; !ok {
+				continue
+			}
+		}
+		if len(statusSet) > 0 {
+			if _, ok := statusSet[normalized.GetOrderStatus()]; !ok {
+				continue
+			}
+		}
+		orders = append(orders, normalized)
+	}
+	return orders
+}
+
+func filterBrokerRouteFills(input []*trdcommonpb.OrderFill, filter *trdcommonpb.TrdFilterConditions) []*trdcommonpb.OrderFill {
+	fills := make([]*trdcommonpb.OrderFill, 0, len(input))
+	codeSet := make(map[string]struct{}, len(filter.GetCodeList()))
+	for _, code := range filter.GetCodeList() {
+		codeSet[strings.ToUpper(strings.TrimSpace(code))] = struct{}{}
+	}
+	for _, fill := range input {
+		normalized := normalizeBrokerRouteOrderFill(fill)
+		if len(codeSet) > 0 {
+			if _, ok := codeSet[strings.ToUpper(strings.TrimSpace(normalized.GetCode()))]; !ok {
+				continue
+			}
+		}
+		fills = append(fills, normalized)
+	}
+	return fills
 }

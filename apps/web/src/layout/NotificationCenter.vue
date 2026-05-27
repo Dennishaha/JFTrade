@@ -5,7 +5,10 @@ import {
   type NotificationItem,
   useNotifications,
 } from "../composables/useNotifications";
-import { formatNotificationLevelLabel } from "../composables/consoleDataFormatting";
+import {
+  formatDateTime,
+  formatNotificationLevelLabel,
+} from "../composables/consoleDataFormatting";
 
 const { items, markAllRead, clear, remove } = useNotifications();
 
@@ -57,6 +60,15 @@ const categoryLabels: Record<string, string> = {
   "live.system.notification": "实时通知",
   "system.workspace": "工作台",
 };
+const notificationDateTimeFormatter = new Intl.DateTimeFormat(undefined, {
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hour12: false,
+});
 
 function formatNotificationSource(source: string | null | undefined): string {
   if (source == null || source.trim() === "") {
@@ -84,11 +96,11 @@ function formatNotificationMeta(item: NotificationItem): string {
 }
 
 function fmt(at: string): string {
-  try {
-    return new Date(at).toISOString().substring(11, 19);
-  } catch {
+  const parsed = new Date(at);
+  if (Number.isNaN(parsed.getTime())) {
     return at;
   }
+  return notificationDateTimeFormatter.format(parsed);
 }
 </script>
 
@@ -151,7 +163,7 @@ function fmt(at: string): string {
       >
         <div style="display: flex; justify-content: space-between; gap: 8px">
           <div style="font-weight: 600">{{ item.title }}</div>
-          <div style="color: var(--tv-text-dim); font-size: 11px">{{ fmt(item.at) }}</div>
+          <div style="color: var(--tv-text-dim); font-size: 11px" :title="formatDateTime(item.at)">{{ fmt(item.at) }}</div>
         </div>
         <div v-if="item.message" style="margin-top: 4px; color: var(--tv-text-muted)">{{ item.message }}</div>
         <div style="display: flex; justify-content: space-between; margin-top: 4px; color: var(--tv-text-dim); font-size: 11px">

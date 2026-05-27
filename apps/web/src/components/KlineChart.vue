@@ -17,6 +17,11 @@ import {
   type KlineIndicatorKey,
 } from "../charting/kline";
 import { lightweightChartsKlineFactory } from "../charting/lightweightChartsKline";
+import {
+  hexToRgba,
+  resolveDirectionalColors,
+  tryUseUIColorPreferences,
+} from "../composables/useUIColorPreferences";
 import { useTheme } from "../composables/useTheme";
 
 const props = withDefaults(
@@ -48,6 +53,7 @@ const panelRef = ref<HTMLElement | null>(null);
 const panelTop = ref(0);
 const panelRight = ref(0);
 const { theme } = useTheme();
+const uiColorPreferences = tryUseUIColorPreferences();
 const paneIndicators = KLINE_INDICATORS.filter(
   (indicator) => indicator.kind === "pane",
 );
@@ -66,6 +72,10 @@ let resizeObserver: ResizeObserver | null = null;
 let scheduledFrame: number | null = null;
 let loadMoreScheduled = false;
 
+const directionalColors = computed(() =>
+  uiColorPreferences?.resolved.value ?? resolveDirectionalColors(theme.value, false),
+);
+
 const palette = computed(() =>
   theme.value === "light"
     ? {
@@ -73,30 +83,30 @@ const palette = computed(() =>
         text: "#0f172a",
         grid: "rgba(15, 23, 42, 0.06)",
         border: "rgba(15, 23, 42, 0.12)",
-        up: "#16c784",
-        down: "#ea3943",
-        volumeUp: "rgba(22, 199, 132, 0.45)",
-        volumeDown: "rgba(234, 57, 67, 0.45)",
+        up: directionalColors.value.upColor,
+        down: directionalColors.value.downColor,
+        volumeUp: hexToRgba(directionalColors.value.upColor, 0.45),
+        volumeDown: hexToRgba(directionalColors.value.downColor, 0.45),
         indicatorA: "#2563eb",
         indicatorB: "#f59e0b",
         indicatorC: "#8b5cf6",
-        macdPositive: "rgba(22, 199, 132, 0.65)",
-        macdNegative: "rgba(234, 57, 67, 0.65)",
+        macdPositive: hexToRgba(directionalColors.value.upColor, 0.65),
+        macdNegative: hexToRgba(directionalColors.value.downColor, 0.65),
       }
     : {
         bg: "#0f172a",
         text: "#cbd5e1",
         grid: "rgba(148, 163, 184, 0.08)",
         border: "rgba(148, 163, 184, 0.16)",
-        up: "#16c784",
-        down: "#ea3943",
-        volumeUp: "rgba(22, 199, 132, 0.45)",
-        volumeDown: "rgba(234, 57, 67, 0.45)",
+        up: directionalColors.value.upColor,
+        down: directionalColors.value.downColor,
+        volumeUp: hexToRgba(directionalColors.value.upColor, 0.45),
+        volumeDown: hexToRgba(directionalColors.value.downColor, 0.45),
         indicatorA: "#60a5fa",
         indicatorB: "#fbbf24",
         indicatorC: "#c084fc",
-        macdPositive: "rgba(22, 199, 132, 0.72)",
-        macdNegative: "rgba(248, 113, 113, 0.72)",
+        macdPositive: hexToRgba(directionalColors.value.upColor, 0.72),
+        macdNegative: hexToRgba(directionalColors.value.downColor, 0.72),
       },
 );
 

@@ -13,7 +13,12 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
+	commonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/common"
+	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
 	trdcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdcommon"
+	trdflowsummarypb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdflowsummary"
+	trdgetmarginratiopb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdgetmarginratio"
+	trdgetmaxtrdqtyspb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdgetmaxtrdqtys"
 )
 
 // BrokerReadQuery selects a specific Futu trading account context for read-side
@@ -113,6 +118,119 @@ type BrokerOrderSnapshot struct {
 	LastError          *string
 	TimeInForce        *string
 	Currency           *string
+}
+
+type BrokerOrderHistoryQuery struct {
+	BrokerReadQuery
+	Symbol    string
+	StartTime string
+	EndTime   string
+	Statuses  []string
+}
+
+type BrokerOrderFillHistoryQuery struct {
+	BrokerReadQuery
+	Symbol    string
+	StartTime string
+	EndTime   string
+}
+
+type BrokerOrderFillQuery struct {
+	BrokerReadQuery
+	Symbol    string
+	StartTime string
+	EndTime   string
+}
+
+type BrokerOrderFeeQuery struct {
+	BrokerReadQuery
+	OrderIDExList []string
+}
+
+type BrokerOrderFeeItemSnapshot struct {
+	Title string
+	Value float64
+}
+
+type BrokerOrderFeeSnapshot struct {
+	AccountID          string
+	TradingEnvironment string
+	Market             string
+	BrokerOrderIDEx    string
+	FeeAmount          *float64
+	FeeItems           []BrokerOrderFeeItemSnapshot
+}
+
+type BrokerMarginRatioQuery struct {
+	BrokerReadQuery
+	Symbols []string
+}
+
+type BrokerMarginRatioSnapshot struct {
+	AccountID               string
+	TradingEnvironment      string
+	Market                  string
+	Symbol                  string
+	IsLongPermit            *bool
+	IsShortPermit           *bool
+	ShortPoolRemain         *float64
+	ShortFeeRate            *float64
+	AlertLongRatio          *float64
+	AlertShortRatio         *float64
+	InitialMarginLongRatio  *float64
+	InitialMarginShortRatio *float64
+	MarginCallLongRatio     *float64
+	MarginCallShortRatio    *float64
+	MaintenanceLongRatio    *float64
+	MaintenanceShortRatio   *float64
+}
+
+type BrokerCashFlowQuery struct {
+	BrokerReadQuery
+	ClearingDate string
+	Direction    string
+}
+
+type BrokerCashFlowSnapshot struct {
+	AccountID          string
+	TradingEnvironment string
+	Market             string
+	CashFlowID         *string
+	ClearingDate       *string
+	SettlementDate     *string
+	Currency           *string
+	CashFlowType       *string
+	CashFlowDirection  *string
+	CashFlowAmount     *float64
+	CashFlowRemark     *string
+}
+
+type BrokerMaxTradeQuantityQuery struct {
+	BrokerReadQuery
+	Symbol             string
+	OrderType          string
+	Price              float64
+	OrderIDEx          string
+	AdjustSideAndLimit *float64
+	Session            *string
+	PositionID         *uint64
+}
+
+type BrokerMaxTradeQuantitySnapshot struct {
+	AccountID           string
+	TradingEnvironment  string
+	Market              string
+	Symbol              string
+	OrderType           string
+	Price               float64
+	MaxCashBuy          float64
+	MaxCashAndMarginBuy *float64
+	MaxPositionSell     float64
+	MaxSellShort        *float64
+	MaxBuyBack          *float64
+	LongRequiredIM      *float64
+	ShortRequiredIM     *float64
+	Session             *string
 }
 
 type resolvedTradeAccount struct {
@@ -275,6 +393,313 @@ func (e *Exchange) QueryBrokerOrders(ctx context.Context, query BrokerReadQuery,
 		return nil, err
 	}
 	return snapshots, nil
+}
+
+// QueryBrokerHistoryOrders returns normalized historical broker orders for the
+// selected trading account context.
+func (e *Exchange) QueryBrokerHistoryOrders(ctx context.Context, query BrokerOrderHistoryQuery) ([]BrokerOrderSnapshot, error) {
+	var snapshots []BrokerOrderSnapshot
+	if err := e.withClient(ctx, func(client *opend.Client) error {
+		resolved, err := e.resolveTradeAccountWithClient(ctx, client, query.BrokerReadQuery)
+		if err != nil {
+			return err
+		}
+
+		orders, err := client.GetHistoryOrderList(ctx, resolved.header(), brokerTradeFilterConditions(query.Symbol, query.StartTime, query.EndTime, resolved.protoTrdMarket), brokerOrderStatusFilterValues(query.Statuses))
+		if err != nil {
+			return err
+		}
+
+		snapshots = make([]BrokerOrderSnapshot, 0, len(orders))
+		canonicalSymbol := strings.TrimSpace(strings.ToUpper(query.Symbol))
+		for _, order := range orders {
+			if order == nil {
+				continue
+			}
+			if canonicalSymbol != "" && !strings.EqualFold(strings.TrimSpace(order.GetCode()), canonicalSymbol) {
+				continue
+			}
+			snapshots = append(snapshots, brokerOrderSnapshotFromProto(resolved, order))
+		}
+
+		sort.Slice(snapshots, func(i, j int) bool {
+			left := brokerOrderSortKey(snapshots[i])
+			right := brokerOrderSortKey(snapshots[j])
+			if !left.Equal(right) {
+				return left.After(right)
+			}
+			return snapshots[i].BrokerOrderID > snapshots[j].BrokerOrderID
+		})
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+	return snapshots, nil
+}
+
+// QueryBrokerHistoryOrderFills returns normalized historical broker fills for
+// the selected trading account context.
+func (e *Exchange) QueryBrokerHistoryOrderFills(ctx context.Context, query BrokerOrderFillHistoryQuery) ([]BrokerOrderFillSnapshot, error) {
+	var snapshots []BrokerOrderFillSnapshot
+	if err := e.withClient(ctx, func(client *opend.Client) error {
+		resolved, err := e.resolveTradeAccountWithClient(ctx, client, query.BrokerReadQuery)
+		if err != nil {
+			return err
+		}
+
+		fills, err := client.GetHistoryOrderFillList(ctx, resolved.header(), brokerTradeFilterConditions(query.Symbol, query.StartTime, query.EndTime, resolved.protoTrdMarket))
+		if err != nil {
+			return err
+		}
+
+		snapshots = make([]BrokerOrderFillSnapshot, 0, len(fills))
+		canonicalSymbol := strings.TrimSpace(strings.ToUpper(query.Symbol))
+		for _, fill := range fills {
+			if fill == nil {
+				continue
+			}
+			if canonicalSymbol != "" && !strings.EqualFold(strings.TrimSpace(fill.GetCode()), canonicalSymbol) {
+				continue
+			}
+			snapshots = append(snapshots, brokerOrderFillSnapshotFromProto(resolved, fill))
+		}
+
+		sort.Slice(snapshots, func(i, j int) bool {
+			left := brokerOrderFillSortKey(snapshots[i])
+			right := brokerOrderFillSortKey(snapshots[j])
+			if !left.Equal(right) {
+				return left.After(right)
+			}
+			return snapshots[i].BrokerFillID > snapshots[j].BrokerFillID
+		})
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+	return snapshots, nil
+}
+
+// QueryBrokerOrderFills returns normalized current-session broker fills for the
+// selected trading account context.
+func (e *Exchange) QueryBrokerOrderFills(ctx context.Context, query BrokerOrderFillQuery) ([]BrokerOrderFillSnapshot, error) {
+	var snapshots []BrokerOrderFillSnapshot
+	if err := e.withClient(ctx, func(client *opend.Client) error {
+		resolved, err := e.resolveTradeAccountWithClient(ctx, client, query.BrokerReadQuery)
+		if err != nil {
+			return err
+		}
+
+		fills, err := client.GetOrderFillList(ctx, resolved.header(), brokerTradeFilterConditions(query.Symbol, query.StartTime, query.EndTime, resolved.protoTrdMarket))
+		if err != nil {
+			return err
+		}
+
+		snapshots = make([]BrokerOrderFillSnapshot, 0, len(fills))
+		canonicalSymbol := strings.TrimSpace(strings.ToUpper(query.Symbol))
+		for _, fill := range fills {
+			if fill == nil {
+				continue
+			}
+			if canonicalSymbol != "" && !strings.EqualFold(strings.TrimSpace(fill.GetCode()), canonicalSymbol) {
+				continue
+			}
+			snapshots = append(snapshots, brokerOrderFillSnapshotFromProto(resolved, fill))
+		}
+
+		sort.Slice(snapshots, func(i, j int) bool {
+			left := brokerOrderFillSortKey(snapshots[i])
+			right := brokerOrderFillSortKey(snapshots[j])
+			if !left.Equal(right) {
+				return left.After(right)
+			}
+			return snapshots[i].BrokerFillID > snapshots[j].BrokerFillID
+		})
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+	return snapshots, nil
+}
+
+// QueryBrokerOrderFees returns normalized broker order fees for the selected
+// trading account context.
+func (e *Exchange) QueryBrokerOrderFees(ctx context.Context, query BrokerOrderFeeQuery) ([]BrokerOrderFeeSnapshot, error) {
+	var snapshots []BrokerOrderFeeSnapshot
+	if err := e.withClient(ctx, func(client *opend.Client) error {
+		resolved, err := e.resolveTradeAccountWithClient(ctx, client, query.BrokerReadQuery)
+		if err != nil {
+			return err
+		}
+
+		fees, err := client.GetOrderFee(ctx, resolved.header(), query.OrderIDExList)
+		if err != nil {
+			return err
+		}
+
+		snapshots = make([]BrokerOrderFeeSnapshot, 0, len(fees))
+		for _, fee := range fees {
+			if fee == nil {
+				continue
+			}
+			snapshots = append(snapshots, brokerOrderFeeSnapshotFromProto(resolved, fee))
+		}
+
+		sort.Slice(snapshots, func(i, j int) bool {
+			return snapshots[i].BrokerOrderIDEx < snapshots[j].BrokerOrderIDEx
+		})
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+	return snapshots, nil
+}
+
+// QueryBrokerMarginRatios returns margin-ratio data for the requested symbols.
+func (e *Exchange) QueryBrokerMarginRatios(ctx context.Context, query BrokerMarginRatioQuery) ([]BrokerMarginRatioSnapshot, error) {
+	var snapshots []BrokerMarginRatioSnapshot
+	resolveQuery := query.BrokerReadQuery
+	resolveQuery.TradingEnvironment = "REAL"
+	if resolveQuery.Market == "" && len(query.Symbols) > 0 {
+		resolveQuery.Market = marketFromSymbol(query.Symbols[0], "")
+	}
+	if err := e.withClient(ctx, func(client *opend.Client) error {
+		resolved, err := e.resolveTradeAccountWithClient(ctx, client, resolveQuery)
+		if err != nil {
+			return err
+		}
+
+		qotSecurityListRequest := make([]*qotcommonpb.Security, 0, len(query.Symbols))
+		for _, symbol := range query.Symbols {
+			security, canonical, err := futuSecurityFromSymbol(symbol)
+			if err != nil {
+				return err
+			}
+			qotSecurityListRequest = append(qotSecurityListRequest, security)
+			_ = canonical
+		}
+		infoList, err := client.GetMarginRatio(ctx, &trdcommonpb.TrdHeader{TrdEnv: proto.Int32(int32(trdcommonpb.TrdEnv_TrdEnv_Real)), AccID: proto.Uint64(resolved.protoAccountID), TrdMarket: proto.Int32(resolved.protoTrdMarket)}, qotSecurityListRequest)
+		if err != nil {
+			return err
+		}
+
+		snapshots = make([]BrokerMarginRatioSnapshot, 0, len(infoList))
+		for _, info := range infoList {
+			if info == nil {
+				continue
+			}
+			snapshots = append(snapshots, brokerMarginRatioSnapshotFromProto(resolved, info))
+		}
+		sort.Slice(snapshots, func(i, j int) bool {
+			return snapshots[i].Symbol < snapshots[j].Symbol
+		})
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+	return snapshots, nil
+}
+
+// QueryBrokerCashFlows returns account cash-flow snapshots.
+func (e *Exchange) QueryBrokerCashFlows(ctx context.Context, query BrokerCashFlowQuery) ([]BrokerCashFlowSnapshot, error) {
+	var snapshots []BrokerCashFlowSnapshot
+	if err := e.withClient(ctx, func(client *opend.Client) error {
+		resolved, err := e.resolveTradeAccountWithClient(ctx, client, query.BrokerReadQuery)
+		if err != nil {
+			return err
+		}
+		direction := cashFlowDirectionValue(query.Direction)
+		flows, err := client.GetFlowSummary(ctx, resolved.header(), strings.TrimSpace(query.ClearingDate), direction)
+		if err != nil {
+			return err
+		}
+
+		snapshots = make([]BrokerCashFlowSnapshot, 0, len(flows))
+		for _, flow := range flows {
+			if flow == nil {
+				continue
+			}
+			snapshots = append(snapshots, brokerCashFlowSnapshotFromProto(resolved, flow))
+		}
+		sort.Slice(snapshots, func(i, j int) bool {
+			left := optionalStringValue(snapshots[i].ClearingDate)
+			right := optionalStringValue(snapshots[j].ClearingDate)
+			if left != right {
+				return left > right
+			}
+			return optionalStringValue(snapshots[i].CashFlowID) > optionalStringValue(snapshots[j].CashFlowID)
+		})
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+	return snapshots, nil
+}
+
+// QueryBrokerMaxTradeQuantity returns the maximum tradable quantity snapshot
+// for a target symbol and order shape.
+func (e *Exchange) QueryBrokerMaxTradeQuantity(ctx context.Context, query BrokerMaxTradeQuantityQuery) (*BrokerMaxTradeQuantitySnapshot, error) {
+	canonicalSymbol := strings.TrimSpace(strings.ToUpper(query.Symbol))
+	if canonicalSymbol == "" {
+		return nil, fmt.Errorf("futu exchange: symbol is required")
+	}
+	if query.Price <= 0 {
+		return nil, fmt.Errorf("futu exchange: price must be positive")
+	}
+	orderType, normalizedOrderType, ok := trdOrderTypeFromBrokerOrderType(query.OrderType)
+	if !ok {
+		return nil, fmt.Errorf("futu exchange: unsupported orderType %q", query.OrderType)
+	}
+
+	resolveQuery := query.BrokerReadQuery
+	if resolveQuery.Market == "" {
+		resolveQuery.Market = marketFromSymbol(canonicalSymbol, "")
+	}
+
+	var snapshot *BrokerMaxTradeQuantitySnapshot
+	if err := e.withClient(ctx, func(client *opend.Client) error {
+		resolved, err := e.resolveTradeAccountWithClient(ctx, client, resolveQuery)
+		if err != nil {
+			return err
+		}
+		code, secMarket, err := tradeSecurityInfoFromSymbol(canonicalSymbol)
+		if err != nil {
+			return err
+		}
+		request := &trdgetmaxtrdqtyspb.C2S{
+			Header:    resolved.header(),
+			OrderType: proto.Int32(int32(orderType)),
+			Code:      proto.String(code),
+			Price:     proto.Float64(query.Price),
+			SecMarket: proto.Int32(int32(secMarket)),
+		}
+		if trimmed := strings.TrimSpace(query.OrderIDEx); trimmed != "" {
+			request.OrderIDEx = proto.String(trimmed)
+		}
+		if query.AdjustSideAndLimit != nil {
+			request.AdjustPrice = proto.Bool(*query.AdjustSideAndLimit != 0)
+			request.AdjustSideAndLimit = proto.Float64(*query.AdjustSideAndLimit)
+		}
+		if query.Session != nil {
+			if session, ok := sessionValue(*query.Session); ok {
+				request.Session = proto.Int32(session)
+			} else {
+				return fmt.Errorf("futu exchange: unsupported session %q", *query.Session)
+			}
+		}
+		if query.PositionID != nil {
+			request.PositionID = proto.Uint64(*query.PositionID)
+		}
+
+		maxQtys, err := client.GetMaxTrdQtys(ctx, request)
+		if err != nil {
+			return err
+		}
+		snapshot = brokerMaxTradeQuantitySnapshotFromProto(resolved, canonicalSymbol, normalizedOrderType, query.Price, maxQtys)
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+	return snapshot, nil
 }
 
 func (e *Exchange) resolveTradeAccountWithClient(ctx context.Context, client *opend.Client, query BrokerReadQuery) (resolvedTradeAccount, error) {
@@ -586,6 +1011,115 @@ func brokerOrderSnapshotFromProto(account resolvedTradeAccount, order *trdcommon
 	}
 }
 
+func brokerOrderFillSnapshotFromProto(account resolvedTradeAccount, fill *trdcommonpb.OrderFill) BrokerOrderFillSnapshot {
+	market := runtimeMarketAuthority(fill.GetTrdMarket())
+	if market == "" {
+		market = marketFromSymbol(fill.GetCode(), account.Market)
+	}
+
+	return BrokerOrderFillSnapshot{
+		AccountID:          account.AccountID,
+		TradingEnvironment: account.TradingEnvironment,
+		Market:             market,
+		BrokerOrderID:      strconv.FormatUint(fill.GetOrderID(), 10),
+		BrokerOrderIDEx:    optionalNonEmptyString(fill.GetOrderIDEx()),
+		BrokerFillID:       strconv.FormatUint(fill.GetFillID(), 10),
+		BrokerFillIDEx:     optionalNonEmptyString(fill.GetFillIDEx()),
+		Symbol:             strings.TrimSpace(strings.ToUpper(fill.GetCode())),
+		SymbolName:         optionalNonEmptyString(fill.GetName()),
+		Side:               normalizeRuntimeEnum(enumName(fill.GetTrdSide(), trdcommonpb.TrdSide_name)),
+		FilledQuantity:     fill.GetQty(),
+		FillPrice:          cloneFloat64Ptr(fill.Price),
+		FilledAt:           formatBrokerOrderTime(fill.CreateTimestamp, fill.GetCreateTime()),
+		Status:             optionalEnumStringPtr(fill.Status, trdcommonpb.OrderFillStatus_name),
+	}
+}
+
+func brokerOrderFeeSnapshotFromProto(account resolvedTradeAccount, fee *trdcommonpb.OrderFee) BrokerOrderFeeSnapshot {
+	snapshot := BrokerOrderFeeSnapshot{
+		AccountID:          account.AccountID,
+		TradingEnvironment: account.TradingEnvironment,
+		Market:             account.Market,
+		BrokerOrderIDEx:    strings.TrimSpace(fee.GetOrderIDEx()),
+		FeeAmount:          cloneFloat64Ptr(fee.FeeAmount),
+		FeeItems:           make([]BrokerOrderFeeItemSnapshot, 0, len(fee.GetFeeList())),
+	}
+	for _, item := range fee.GetFeeList() {
+		if item == nil {
+			continue
+		}
+		snapshot.FeeItems = append(snapshot.FeeItems, BrokerOrderFeeItemSnapshot{
+			Title: strings.TrimSpace(item.GetTitle()),
+			Value: item.GetValue(),
+		})
+	}
+	return snapshot
+}
+
+func brokerMarginRatioSnapshotFromProto(account resolvedTradeAccount, info *trdgetmarginratiopb.MarginRatioInfo) BrokerMarginRatioSnapshot {
+	symbol, err := futuSymbolFromSecurity(info.GetSecurity())
+	if err != nil {
+		symbol = ""
+	}
+	market := marketFromSymbol(symbol, account.Market)
+	return BrokerMarginRatioSnapshot{
+		AccountID:               account.AccountID,
+		TradingEnvironment:      "REAL",
+		Market:                  market,
+		Symbol:                  symbol,
+		IsLongPermit:            cloneBoolPtr(info.IsLongPermit),
+		IsShortPermit:           cloneBoolPtr(info.IsShortPermit),
+		ShortPoolRemain:         cloneFloat64Ptr(info.ShortPoolRemain),
+		ShortFeeRate:            cloneFloat64Ptr(info.ShortFeeRate),
+		AlertLongRatio:          cloneFloat64Ptr(info.AlertLongRatio),
+		AlertShortRatio:         cloneFloat64Ptr(info.AlertShortRatio),
+		InitialMarginLongRatio:  cloneFloat64Ptr(info.ImLongRatio),
+		InitialMarginShortRatio: cloneFloat64Ptr(info.ImShortRatio),
+		MarginCallLongRatio:     cloneFloat64Ptr(info.McmLongRatio),
+		MarginCallShortRatio:    cloneFloat64Ptr(info.McmShortRatio),
+		MaintenanceLongRatio:    cloneFloat64Ptr(info.MmLongRatio),
+		MaintenanceShortRatio:   cloneFloat64Ptr(info.MmShortRatio),
+	}
+}
+
+func brokerCashFlowSnapshotFromProto(account resolvedTradeAccount, flow *trdflowsummarypb.FlowSummaryInfo) BrokerCashFlowSnapshot {
+	return BrokerCashFlowSnapshot{
+		AccountID:          account.AccountID,
+		TradingEnvironment: account.TradingEnvironment,
+		Market:             account.Market,
+		CashFlowID:         optionalUint64StringPtr(flow.CashFlowID),
+		ClearingDate:       optionalNonEmptyString(flow.GetClearingDate()),
+		SettlementDate:     optionalNonEmptyString(flow.GetSettlementDate()),
+		Currency:           optionalEnumStringPtr(flow.Currency, trdcommonpb.Currency_name),
+		CashFlowType:       optionalNonEmptyString(flow.GetCashFlowType()),
+		CashFlowDirection:  optionalEnumStringPtr(flow.CashFlowDirection, trdflowsummarypb.TrdCashFlowDirection_name),
+		CashFlowAmount:     cloneFloat64Ptr(flow.CashFlowAmount),
+		CashFlowRemark:     optionalNonEmptyString(flow.GetCashFlowRemark()),
+	}
+}
+
+func brokerMaxTradeQuantitySnapshotFromProto(account resolvedTradeAccount, symbol string, orderType string, price float64, maxQtys *trdcommonpb.MaxTrdQtys) *BrokerMaxTradeQuantitySnapshot {
+	if maxQtys == nil {
+		maxQtys = &trdcommonpb.MaxTrdQtys{}
+	}
+	return &BrokerMaxTradeQuantitySnapshot{
+		AccountID:           account.AccountID,
+		TradingEnvironment:  account.TradingEnvironment,
+		Market:              account.Market,
+		Symbol:              symbol,
+		OrderType:           orderType,
+		Price:               price,
+		MaxCashBuy:          maxQtys.GetMaxCashBuy(),
+		MaxCashAndMarginBuy: cloneFloat64Ptr(maxQtys.MaxCashAndMarginBuy),
+		MaxPositionSell:     maxQtys.GetMaxPositionSell(),
+		MaxSellShort:        cloneFloat64Ptr(maxQtys.MaxSellShort),
+		MaxBuyBack:          cloneFloat64Ptr(maxQtys.MaxBuyBack),
+		LongRequiredIM:      cloneFloat64Ptr(maxQtys.LongRequiredIM),
+		ShortRequiredIM:     cloneFloat64Ptr(maxQtys.ShortRequiredIM),
+		Session:             optionalEnumStringPtr(maxQtys.Session, commonpb.Session_name),
+	}
+}
+
 func balanceMapFromBrokerFunds(snapshot *BrokerFundsSnapshot) types.BalanceMap {
 	balances := types.BalanceMap{}
 	if snapshot == nil {
@@ -747,6 +1281,10 @@ func brokerOrderSortKey(order BrokerOrderSnapshot) time.Time {
 	return parseBrokerOrderTime(order.SubmittedAt)
 }
 
+func brokerOrderFillSortKey(fill BrokerOrderFillSnapshot) time.Time {
+	return parseBrokerOrderTime(fill.FilledAt)
+}
+
 func parseBrokerOrderTime(value string) time.Time {
 	trimmed := strings.TrimSpace(value)
 	if trimmed == "" {
@@ -828,6 +1366,119 @@ func defaultCurrencyForMarket(market string) string {
 	default:
 		return "HKD"
 	}
+}
+
+func brokerTradeFilterConditions(symbol string, startTime string, endTime string, market int32) *trdcommonpb.TrdFilterConditions {
+	filter := &trdcommonpb.TrdFilterConditions{}
+	canonicalSymbol := strings.TrimSpace(strings.ToUpper(symbol))
+	if canonicalSymbol != "" {
+		filter.CodeList = []string{canonicalSymbol}
+	}
+	if trimmed := strings.TrimSpace(startTime); trimmed != "" {
+		filter.BeginTime = proto.String(trimmed)
+	}
+	if trimmed := strings.TrimSpace(endTime); trimmed != "" {
+		filter.EndTime = proto.String(trimmed)
+	}
+	if market != 0 {
+		filter.FilterMarket = proto.Int32(market)
+	}
+	return filter
+}
+
+func brokerOrderStatusFilterValues(statuses []string) []int32 {
+	if len(statuses) == 0 {
+		return nil
+	}
+	values := make([]int32, 0, len(statuses))
+	seen := make(map[int32]struct{}, len(statuses))
+	for _, rawStatus := range statuses {
+		normalized := normalizeRuntimeEnum(rawStatus)
+		if normalized == "" {
+			continue
+		}
+		for value := range trdcommonpb.OrderStatus_name {
+			if normalizeRuntimeEnum(enumName(value, trdcommonpb.OrderStatus_name)) != normalized {
+				continue
+			}
+			if _, exists := seen[value]; exists {
+				break
+			}
+			seen[value] = struct{}{}
+			values = append(values, value)
+			break
+		}
+	}
+	return values
+}
+
+func trdOrderTypeFromNormalized(orderType string) (trdcommonpb.OrderType, bool) {
+	normalized := normalizeRuntimeEnum(orderType)
+	for value := range trdcommonpb.OrderType_name {
+		if normalizeRuntimeEnum(enumName(value, trdcommonpb.OrderType_name)) == normalized {
+			return trdcommonpb.OrderType(value), true
+		}
+	}
+	return 0, false
+}
+
+func trdOrderTypeFromBrokerOrderType(orderType string) (trdcommonpb.OrderType, string, bool) {
+	normalized := normalizeRuntimeEnum(orderType)
+	switch normalized {
+	case "LIMIT", "LIMIT_MAKER", "NORMAL":
+		return trdcommonpb.OrderType_OrderType_Normal, "LIMIT", true
+	case "MARKET":
+		return trdcommonpb.OrderType_OrderType_Market, "MARKET", true
+	case "STOP":
+		return trdcommonpb.OrderType_OrderType_Stop, "STOP", true
+	case "STOP_LIMIT", "STOPLIMIT":
+		return trdcommonpb.OrderType_OrderType_StopLimit, "STOP_LIMIT", true
+	case "TAKE_PROFIT_MARKET", "MARKETIFTOUCHED":
+		return trdcommonpb.OrderType_OrderType_MarketifTouched, "TAKE_PROFIT_MARKET", true
+	case "TAKE_PROFIT", "LIMITIFTOUCHED":
+		return trdcommonpb.OrderType_OrderType_LimitifTouched, "TAKE_PROFIT", true
+	default:
+		return 0, "", false
+	}
+}
+
+func sessionValue(session string) (int32, bool) {
+	normalized := normalizeRuntimeEnum(session)
+	for value := range commonpb.Session_name {
+		if normalizeRuntimeEnum(enumName(value, commonpb.Session_name)) == normalized {
+			return value, true
+		}
+	}
+	return 0, false
+}
+
+func cashFlowDirectionValue(direction string) *int32 {
+	normalized := normalizeRuntimeEnum(direction)
+	if normalized == "" {
+		return nil
+	}
+	for value := range trdflowsummarypb.TrdCashFlowDirection_name {
+		if normalizeRuntimeEnum(enumName(value, trdflowsummarypb.TrdCashFlowDirection_name)) != normalized {
+			continue
+		}
+		return proto.Int32(value)
+	}
+	return nil
+}
+
+func optionalStringValue(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return *value
+}
+
+func optionalUint64StringPtr(value *uint64) *string {
+	if value == nil {
+		return nil
+	}
+	converted := strconv.FormatUint(*value, 10)
+	return &converted
 }
 
 func optionalEnumStringPtr(value *int32, names map[int32]string) *string {

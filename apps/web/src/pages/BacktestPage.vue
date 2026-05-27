@@ -227,9 +227,9 @@ const statusChip = (status: string) => {
 
 function pnlColor(val: number) {
   if (val >= 0) {
-    return theme.value === "light" ? "text-emerald-600" : "text-emerald-400";
+    return "tv-up";
   }
-  return theme.value === "light" ? "text-red-600" : "text-red-400";
+  return "tv-down";
 }
 
 function pnlPrefix(val: number) {

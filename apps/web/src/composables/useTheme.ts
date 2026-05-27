@@ -4,7 +4,7 @@ export type ThemeMode = "dark" | "light";
 
 const THEME_STORAGE_KEY = "jftrade.theme";
 
-interface ThemeStore {
+export interface ThemeStore {
   theme: Ref<ThemeMode>;
   toggle: () => void;
   set: (mode: ThemeMode) => void;

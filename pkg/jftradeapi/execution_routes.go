@@ -24,6 +24,7 @@ type executionPlaceOrderRequest struct {
 	Side               string   `json:"side"`
 	OrderType          string   `json:"orderType"`
 	TimeInForce        string   `json:"timeInForce"`
+	Session            string   `json:"session"`
 	Quantity           float64  `json:"quantity"`
 	Price              *float64 `json:"price"`
 	StopPrice          *float64 `json:"stopPrice"`
@@ -33,12 +34,13 @@ type executionPlaceOrderRequest struct {
 
 type normalizedExecutionPlaceOrder struct {
 	brokerID    string
-	query       futu.BrokerReadQuery
+	query       futu.BrokerPlaceOrderQuery
 	submitOrder types.SubmitOrder
 	symbol      string
 	side        string
 	orderType   string
 	remark      string
+	session     string
 }
 
 func (s *Server) serveExecutionRoutes(w http.ResponseWriter, r *http.Request) bool {
@@ -86,6 +88,23 @@ func (s *Server) handleExecutionPlaceOrder(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	payloadData := map[string]any{
+		"operation":          "PLACE",
+		"brokerOrderId":      strconv.FormatUint(placed.Order.OrderID, 10),
+		"brokerOrderIdEx":    placed.BrokerOrderIDEx,
+		"tradingEnvironment": placed.TradingEnvironment,
+		"accountId":          placed.AccountID,
+		"market":             placed.Market,
+		"symbol":             request.symbol,
+		"side":               request.side,
+		"orderType":          request.orderType,
+		"requestedQuantity":  request.submitOrder.Quantity.Float64(),
+		"requestedPrice":     executionOptionalFixedpointValue(request.submitOrder.Price),
+	}
+	if request.session != "" {
+		payloadData["session"] = request.session
+	}
+
 	placedRecord := s.executionOrders.recordPlacedOrder(executionPlacedOrderRecord{
 		BrokerID:           request.brokerID,
 		BrokerOrderID:      strconv.FormatUint(placed.Order.OrderID, 10),
@@ -101,20 +120,8 @@ func (s *Server) handleExecutionPlaceOrder(w http.ResponseWriter, r *http.Reques
 		RequestedPrice:     executionOptionalFixedpointValue(request.submitOrder.Price),
 		Remark:             request.remark,
 		SubmittedAt:        placed.Order.CreationTime.Time().UTC().Format(time.RFC3339Nano),
-		Payload: map[string]any{
-			"operation":          "PLACE",
-			"brokerOrderId":      strconv.FormatUint(placed.Order.OrderID, 10),
-			"brokerOrderIdEx":    placed.BrokerOrderIDEx,
-			"tradingEnvironment": placed.TradingEnvironment,
-			"accountId":          placed.AccountID,
-			"market":             placed.Market,
-			"symbol":             request.symbol,
-			"side":               request.side,
-			"orderType":          request.orderType,
-			"requestedQuantity":  request.submitOrder.Quantity.Float64(),
-			"requestedPrice":     executionOptionalFixedpointValue(request.submitOrder.Price),
-		},
-		EventType: "COMMAND_PLACE_ACCEPTED",
+		Payload:            payloadData,
+		EventType:          "COMMAND_PLACE_ACCEPTED",
 	})
 
 	message := "order submitted to broker"
@@ -248,6 +255,11 @@ func (s *Server) normalizeExecutionPlaceOrder(payload executionPlaceOrderRequest
 		tradingEnvironment = "SIMULATE"
 	}
 
+	session, fillOutsideRTH, err := normalizeExecutionOrderSession(market, orderType, payload.Session)
+	if err != nil {
+		return normalizedExecutionPlaceOrder{}, err
+	}
+
 	remark := strings.TrimSpace(payload.Remark)
 	if remark == "" {
 		remark = strings.TrimSpace(payload.ClientOrderID)
@@ -270,19 +282,63 @@ func (s *Server) normalizeExecutionPlaceOrder(payload executionPlaceOrderRequest
 		submitOrder.StopPrice = fixedpoint.NewFromFloat(*payload.StopPrice)
 	}
 
+	var sessionPtr *string
+	if session != "" {
+		sessionCopy := session
+		sessionPtr = &sessionCopy
+	}
+
 	return normalizedExecutionPlaceOrder{
 		brokerID: brokerID,
-		query: futu.BrokerReadQuery{
-			TradingEnvironment: tradingEnvironment,
-			AccountID:          strings.TrimSpace(payload.AccountID),
-			Market:             market,
+		query: futu.BrokerPlaceOrderQuery{
+			BrokerReadQuery: futu.BrokerReadQuery{
+				TradingEnvironment: tradingEnvironment,
+				AccountID:          strings.TrimSpace(payload.AccountID),
+				Market:             market,
+			},
+			Session:        sessionPtr,
+			FillOutsideRTH: fillOutsideRTH,
 		},
 		submitOrder: submitOrder,
 		symbol:      symbol,
 		side:        side,
 		orderType:   orderType,
 		remark:      remark,
+		session:     session,
 	}, nil
+}
+
+func normalizeExecutionOrderSession(market string, orderType string, rawSession string) (string, *bool, error) {
+	market = strings.ToUpper(strings.TrimSpace(market))
+	session := strings.ToUpper(strings.TrimSpace(rawSession))
+	if market != "US" {
+		if session != "" {
+			return "", nil, fmt.Errorf("session is supported for US market orders only")
+		}
+		return "", nil, nil
+	}
+	if session == "" {
+		session = "RTH"
+	}
+	switch session {
+	case "RTH", "ETH", "ALL", "OVERNIGHT":
+	default:
+		return "", nil, fmt.Errorf("unsupported session %q", rawSession)
+	}
+	if !supportsExecutionFillOutsideRTH(orderType) {
+		return session, nil, nil
+	}
+	fillOutsideRTH := session != "RTH"
+	return session, &fillOutsideRTH, nil
+}
+
+func supportsExecutionFillOutsideRTH(orderType string) bool {
+	switch strings.ToUpper(strings.TrimSpace(orderType)) {
+	case "LIMIT", "STOP_LIMIT":
+		return true
+	default:
+		return false
+	}
 }
 
 func normalizeExecutionMarket(market string, symbol string, fallbackMarket string) string {

@@ -74,6 +74,7 @@ const EXECUTION_ORDER_STATUS_LABELS: Record<string, string> = {
   PARTIAL_FILLED: "部分成交",
   FILLED: "已成交",
   CANCELING: "撤单中",
+  CANCEL_REQUESTED: "撤单已提交",
   CANCELLED: "已撤单",
   CANCELED: "已撤单",
   REJECTED: "已拒绝",
@@ -94,7 +95,12 @@ const EXECUTION_EVENT_TYPE_LABELS: Record<string, string> = {
   COMMAND_MODIFY_ACCEPTED: "改单已受理",
   COMMAND_MODIFY_REJECTED: "改单被拒绝",
   BROKER_SYNC: "券商同步",
+  BROKER_SYNC_DISCOVERED: "券商同步首次发现订单",
+  BROKER_SYNC_UPDATED: "券商同步更新订单",
   BROKER_PUSH: "券商推送",
+  BROKER_PUSH_DISCOVERED: "券商推送首次发现订单",
+  BROKER_PUSH_ORDER: "券商推送更新订单",
+  BROKER_FILL_RECEIVED: "收到券商成交回报",
 };
 
 const ACCOUNT_TYPE_LABELS: Record<string, string> = {

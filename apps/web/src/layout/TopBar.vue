@@ -9,20 +9,16 @@ import {
 import { useCommandPalette } from "../composables/useCommandPalette";
 import { useConsoleData } from "../composables/useConsoleData";
 import { useNotifications } from "../composables/useNotifications";
-import { useSharedLiveSocket } from "../composables/useSharedLiveSocket";
 import { useTheme } from "../composables/useTheme";
 import { useWorkspaceLayout } from "../composables/useWorkspaceLayout";
 
 const {
   availableBrokerAccounts,
-  liveStreamStatus,
   marketInstrumentSearchOptions,
   resolveMarketInstrumentInput,
   selectBrokerAccount,
   selectedBrokerAccount,
-  systemStatus,
-} = useConsoleData();
-const { connectionState } = useSharedLiveSocket();
+  systemStatus,} = useConsoleData();
 const { theme, toggle: toggleTheme } = useTheme();
 const { unreadCount } = useNotifications();
 const { prefs, update } = useWorkspaceLayout();
@@ -109,7 +105,7 @@ function onBrokerAccountChange(event: Event): void {
     <label
       style="display: inline-flex; align-items: center; gap: 8px; font-size: 11px; color: var(--tv-text-muted)"
     >
-      <span>账户范围</span>
+      <span style="white-space: nowrap;">选定账户</span>
       <select
         :value="selectedBrokerAccount?.selectionKey ?? ''"
         class="tv-select"
@@ -128,17 +124,6 @@ function onBrokerAccountChange(event: Event): void {
     </label>
 
     <TradingEnvironmentBadge :env="env" />
-
-    <div style="display: flex; gap: 12px; font-size: 11px; color: var(--tv-text-muted)">
-      <span>
-        <span class="tv-status-dot" :class="liveStreamStatus === 'connected' ? 'tv-dot-ok' : liveStreamStatus === 'degraded' ? 'tv-dot-warn' : 'tv-dot-idle'"></span>
-        事件流
-      </span>
-      <span>
-        <span class="tv-status-dot" :class="connectionState === 'connected' ? 'tv-dot-ok' : connectionState === 'error' ? 'tv-dot-err' : 'tv-dot-idle'"></span>
-        实时通道
-      </span>
-    </div>
 
     <button type="button" class="tv-icon-btn" :title="`主题：${theme === 'dark' ? '深色' : '浅色'}`" @click="toggleTheme">
       {{ theme === "dark" ? "☾" : "☀" }}

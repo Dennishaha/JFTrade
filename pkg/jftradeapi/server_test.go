@@ -22,6 +22,67 @@ func TestShouldStartForAPIOnlyArgs(t *testing.T) {
 	}
 }
 
+func TestBrokerRuntimeDescriptorIncludesReadFeatures(t *testing.T) {
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	srv := httptest.NewServer(NewServer(store))
+	defer srv.Close()
+
+	resp, err := http.Get(srv.URL + "/api/v1/brokers/futu/runtime")
+	if err != nil {
+		t.Fatalf("GET broker runtime: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("GET broker runtime status = %d", resp.StatusCode)
+	}
+
+	var envelope struct {
+		OK   bool           `json:"ok"`
+		Data map[string]any `json:"data"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
+		t.Fatalf("decode broker runtime: %v", err)
+	}
+	if !envelope.OK {
+		t.Fatal("expected broker runtime ok=true")
+	}
+
+	descriptor, ok := envelope.Data["descriptor"].(map[string]any)
+	if !ok {
+		t.Fatalf("descriptor = %#v", envelope.Data["descriptor"])
+	}
+	capabilities, ok := descriptor["capabilities"].([]any)
+	if !ok || len(capabilities) == 0 {
+		t.Fatalf("capabilities = %#v", descriptor["capabilities"])
+	}
+	firstCapability, ok := capabilities[0].(map[string]any)
+	if !ok {
+		t.Fatalf("first capability = %#v", capabilities[0])
+	}
+	readFeatures, ok := firstCapability["readFeatures"].(map[string]any)
+	if !ok {
+		t.Fatalf("readFeatures = %#v", firstCapability["readFeatures"])
+	}
+	marginRatios, ok := readFeatures["marginRatios"].(map[string]any)
+	if !ok {
+		t.Fatalf("marginRatios capability = %#v", readFeatures["marginRatios"])
+	}
+	environments, ok := marginRatios["supportedEnvironments"].([]any)
+	if !ok || len(environments) != 1 || environments[0] != "REAL" {
+		t.Fatalf("marginRatios supportedEnvironments = %#v", marginRatios["supportedEnvironments"])
+	}
+	maxTradeQuantity, ok := readFeatures["maxTradeQuantity"].(map[string]any)
+	if !ok {
+		t.Fatalf("maxTradeQuantity capability = %#v", readFeatures["maxTradeQuantity"])
+	}
+	if got := maxTradeQuantity["requiresPrice"]; got != true {
+		t.Fatalf("maxTradeQuantity requiresPrice = %#v, want true", got)
+	}
+}
+
 func TestMarketDataSubscriptionHeartbeat(t *testing.T) {
 	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
 	if err != nil {

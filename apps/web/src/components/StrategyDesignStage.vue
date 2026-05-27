@@ -1530,7 +1530,7 @@ function deleteSelectedVisualNode(): void {
     overflow: hidden;
     background:
         radial-gradient(circle at top left, color-mix(in srgb, var(--tv-accent) 20%, transparent), transparent 34%),
-        radial-gradient(circle at bottom right, color-mix(in srgb, var(--tv-up) 14%, transparent), transparent 28%),
+        radial-gradient(circle at bottom right, color-mix(in srgb, var(--tv-accent-strong) 14%, transparent), transparent 28%),
         linear-gradient(180deg,
             color-mix(in srgb, var(--tv-bg-surface) 72%, var(--tv-bg-app)) 0%,
             color-mix(in srgb, var(--tv-bg-surface-2) 68%, var(--tv-bg-app)) 100%);
@@ -1606,8 +1606,8 @@ function deleteSelectedVisualNode(): void {
 }
 
 .strategy-banner--success {
-    background: color-mix(in srgb, var(--tv-up) 16%, transparent);
-    color: color-mix(in srgb, var(--tv-up) 74%, var(--tv-text));
+    background: color-mix(in srgb, var(--tv-accent) 16%, transparent);
+    color: color-mix(in srgb, var(--tv-accent) 74%, var(--tv-text));
 }
 
 .strategy-stage__section-title {
@@ -1775,8 +1775,8 @@ function deleteSelectedVisualNode(): void {
 }
 
 .strategy-stage__toolbar-status--synced {
-    border-color: color-mix(in srgb, var(--tv-up) 45%, transparent);
-    color: color-mix(in srgb, var(--tv-up) 70%, var(--tv-text));
+    border-color: color-mix(in srgb, var(--tv-accent) 45%, transparent);
+    color: color-mix(in srgb, var(--tv-accent) 70%, var(--tv-text));
 }
 
 .strategy-stage__toolbar-status--partial {
@@ -1785,8 +1785,8 @@ function deleteSelectedVisualNode(): void {
 }
 
 .strategy-stage__toolbar-status--error {
-    border-color: color-mix(in srgb, var(--tv-down) 55%, transparent);
-    color: color-mix(in srgb, var(--tv-down) 74%, var(--tv-text));
+    border-color: color-mix(in srgb, var(--tv-accent-strong) 55%, transparent);
+    color: color-mix(in srgb, var(--tv-accent-strong) 74%, var(--tv-text));
 }
 
 .strategy-stage__toolbar-actions {
@@ -2162,7 +2162,7 @@ function deleteSelectedVisualNode(): void {
 }
 
 .strategy-btn--danger {
-    color: var(--tv-down);
+    color: var(--tv-accent);
 }
 
 .strategy-tool-switch.is-active {

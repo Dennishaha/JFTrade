@@ -4,6 +4,7 @@ import { computed, ref } from "vue";
 import FutuIntegrationSection from "../components/FutuIntegrationSection.vue";
 import OpenDInstallGuideSection from "../components/OpenDInstallGuideSection.vue";
 import SettingsAccountDiscoverySection from "../components/SettingsAccountDiscoverySection.vue";
+import SettingsAppearanceSection from "../components/SettingsAppearanceSection.vue";
 import SettingsManagedAccountsSection from "../components/SettingsManagedAccountsSection.vue";
 import PageHeader from "../components/PageHeader.vue";
 import { createSettingsManagedAccountsController } from "../composables/settingsManagedAccounts";
@@ -32,6 +33,11 @@ const settingsMenu = [
     index: "account-discovery",
     label: "账户发现",
     description: "查看运行时探测到的 OpenD 账号并一键导入。",
+  },
+  {
+    index: "appearance",
+    label: "界面外观",
+    description: "设置 K 线、价格涨跌与下单买卖颜色。",
   },
   {
     index: "plugin-manager",
@@ -146,6 +152,8 @@ const {
           :accounts="brokerRuntime.accounts"
           :import-runtime-account="importRuntimeAccount"
         />
+
+        <SettingsAppearanceSection v-show="activeMenu === 'appearance'" />
 
         <OpenDInstallGuideSection v-show="activeMenu === 'plugin-manager'" />
       </div>

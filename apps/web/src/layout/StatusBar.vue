@@ -20,6 +20,16 @@ const { connectionState, lastHeartbeat } = useSharedLiveSocket();
 
 const now = ref(new Date());
 let timer: ReturnType<typeof setInterval> | null = null;
+const localClockFormatter = new Intl.DateTimeFormat(undefined, {
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hour12: false,
+});
+
+function formatUTCDateTime(value: Date): string {
+  return `${value.toISOString().slice(0, 19).replace("T", " ")} UTC`;
+}
 
 onMounted(() => {
   timer = setInterval(() => {
@@ -31,7 +41,8 @@ onUnmounted(() => {
   if (timer) clearInterval(timer);
 });
 
-const clock = computed(() => now.value.toISOString().substring(11, 19));
+const clock = computed(() => localClockFormatter.format(now.value));
+const utcClock = computed(() => formatUTCDateTime(now.value));
 const killActive = computed(
   () => realTradeKillSwitchState.value.killSwitchActive,
 );
@@ -51,18 +62,18 @@ const killActive = computed(
     <span style="color: var(--tv-text-dim)">{{ lastHeartbeat || "—" }}</span>
     <span>
       <span class="tv-status-dot" :class="killActive ? 'tv-dot-err' : 'tv-dot-ok'"></span>
-      交易总闸 {{ killActive ? "已激活" : "正常" }}
+      交易网关 {{ killActive ? "已激活" : "正常" }}
     </span>
     <span>存储：{{ systemStatus.persistence.engine }} / {{ formatGenericStatusLabel(systemStatus.persistence.status) }}</span>
     <span style="flex: 1"></span>
     <span>
-      账户范围：
+      选定账户：
       {{
         selectedBrokerAccount
           ? `${selectedBrokerAccount.brokerId}/${selectedBrokerAccount.accountId}/${formatTradingEnvironment(selectedBrokerAccount.tradingEnvironment)}`
           : `${systemStatus.broker.displayName}/${formatTradingEnvironment(systemStatus.defaultTradingEnvironment)}`
       }}
     </span>
-    <span style="font-variant-numeric: tabular-nums">{{ clock }} 协调时</span>
+    <span style="font-variant-numeric: tabular-nums" :title="utcClock">{{ clock }} 本地时间</span>
   </footer>
 </template>

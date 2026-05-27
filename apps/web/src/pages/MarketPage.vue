@@ -203,7 +203,7 @@ const latestQuoteToneClass = computed(() => {
     return "text-slate-900";
   }
 
-  return change > 0 ? "text-emerald-600" : "text-red-600";
+  return change > 0 ? "tv-up" : "tv-down";
 });
 const latestQuoteChangeLabel = computed(() => {
   const change = latestQuoteChange.value;
@@ -697,7 +697,7 @@ function scheduleMarketDataAutoRefresh(): void {
                       <div class="text-xs uppercase tracking-[0.2em] text-slate-500">涨跌 / 成交量</div>
                       <div
                         class="mt-2 text-lg font-semibold"
-                        :class="historicalPriceSummary.change >= 0 ? 'text-teal-700' : 'text-rose-700'"
+                        :class="historicalPriceSummary.change >= 0 ? 'tv-up' : 'tv-down'"
                       >
                         {{ historicalPriceSummary.change.toFixed(3) }}
                         ({{ historicalPriceSummary.changePct.toFixed(2) }}%) · {{ historicalPriceSummary.volume }}

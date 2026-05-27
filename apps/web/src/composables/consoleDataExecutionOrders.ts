@@ -2,6 +2,7 @@ import { computed, type Ref } from "vue";
 
 import {
   type BrokerOrderFeesResponse,
+  type BrokerReadFeatureKey,
   type ExecutionOrderEventsResponse,
   type ExecutionOrdersResponse,
   emptyBrokerOrderFees,
@@ -19,6 +20,27 @@ interface CreateConsoleDataExecutionOrdersControllerOptions {
   executionEventsError: Ref<string>;
   brokerOrderFees: Ref<BrokerOrderFeesResponse>;
   orderFeesError: Ref<string>;
+  resolveBrokerReadFeatureQueryRequirements: (
+    feature: BrokerReadFeatureKey,
+    context?: {
+      market?: string | null;
+      tradingEnvironment?: string | null;
+    },
+  ) => {
+    supported: boolean;
+    supportsHistory: boolean;
+    requiresSymbols: boolean;
+    requiresClearingDate: boolean;
+    requiresPrice: boolean;
+    requiresOrderIdEx: boolean;
+  };
+  supportsBrokerReadFeature: (
+    feature: BrokerReadFeatureKey,
+    context?: {
+      market?: string | null;
+      tradingEnvironment?: string | null;
+    },
+  ) => boolean;
 }
 
 export function createConsoleDataExecutionOrdersController(
@@ -65,12 +87,39 @@ export function createConsoleDataExecutionOrdersController(
     const order = options.executionOrders.value.orders.find(
       (candidate) => candidate.internalOrderId === internalOrderId,
     );
+    const brokerOrderIdEx = order?.brokerOrderIdEx?.trim();
+
+    if (order == null) {
+      return;
+    }
+
+    const requirements = options.resolveBrokerReadFeatureQueryRequirements(
+      "orderFees",
+      {
+        market: order.market,
+        tradingEnvironment: order.tradingEnvironment,
+      },
+    );
 
     if (
-      order == null ||
-      order.brokerOrderId == null ||
-      order.tradingEnvironment !== "REAL"
+      !requirements.supported ||
+      !options.supportsBrokerReadFeature("orderFees", {
+        market: order.market,
+        tradingEnvironment: order.tradingEnvironment,
+      })
     ) {
+      return;
+    }
+
+    if (
+      requirements.requiresOrderIdEx &&
+      (brokerOrderIdEx == null || brokerOrderIdEx === "")
+    ) {
+      options.orderFeesError.value = "当前订单缺少券商扩展单号，暂无法查询费用。";
+      return;
+    }
+
+    if (brokerOrderIdEx == null || brokerOrderIdEx === "") {
       return;
     }
 
@@ -78,7 +127,7 @@ export function createConsoleDataExecutionOrdersController(
 
     try {
       options.brokerOrderFees.value = await fetchEnvelope<BrokerOrderFeesResponse>(
-        `/api/v1/brokers/${encodeURIComponent(order.brokerId)}/order-fees?tradingEnvironment=${encodeURIComponent(order.tradingEnvironment)}&accountId=${encodeURIComponent(order.accountId)}&market=${encodeURIComponent(order.market)}&orderId=${encodeURIComponent(order.brokerOrderId)}`,
+        `/api/v1/brokers/${encodeURIComponent(order.brokerId)}/order-fees?tradingEnvironment=${encodeURIComponent(order.tradingEnvironment)}&accountId=${encodeURIComponent(order.accountId)}&market=${encodeURIComponent(order.market)}&orderIdEx=${encodeURIComponent(brokerOrderIdEx)}`,
       );
     } catch (error) {
       options.orderFeesError.value =

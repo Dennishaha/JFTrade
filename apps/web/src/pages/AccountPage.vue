@@ -1,10 +1,14 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 
+import type { ExecutionOrdersResponse } from "@jftrade/ui-contracts";
+
 import PageHeader from "../components/PageHeader.vue";
 import SectionHeader from "../components/SectionHeader.vue";
+import { fetchEnvelope, fetchEnvelopeWithInit } from "../composables/apiClient";
 import {
   formatAccountTypeLabel,
+  formatBooleanLabel,
   formatConnectivityLabel,
   formatDateTime,
   formatExecutionEventTypeLabel,
@@ -16,27 +20,51 @@ import {
   isFinalExecutionOrderStatus,
 } from "../composables/consoleDataFormatting";
 import { useConsoleData } from "../composables/useConsoleData";
+import { useNotifications } from "../composables/useNotifications";
 
 const {
+  brokerCashFlows,
+  brokerFills,
   brokerFunds,
+  brokerMarginRatios,
   brokerOrderFees,
   brokerPositions,
   brokerRuntime,
   executionEventsError,
   executionOrderEvents,
   executionOrders,
+  isLoadingBrokerFills,
+  isLoadingBrokerMarginRatios,
   isLoadingExecutionEvents,
   isLoadingOrderFees,
   loadExecutionOrderDetails,
   orderFeesError,
   portfolioCashBalances,
   portfolioPositions,
+  resolveBrokerReadFeatureQueryRequirements,
   selectedBrokerAccount,
   selectedExecutionOrder,
   selectedExecutionOrderId,
+  supportsBrokerReadFeature,
 } = useConsoleData();
+const notifications = useNotifications();
 
 const activeTab = ref("account");
+const cancellingOrderIds = ref<Set<string>>(new Set());
+
+type AccountExecutionOrder = ExecutionOrdersResponse["orders"][number];
+
+interface ExecutionOrderCommandResult {
+  accepted: boolean;
+  operation: string;
+  internalOrderId?: string | null;
+  brokerOrderId?: string | null;
+  brokerOrderIdEx?: string | null;
+  orderStatus?: string | null;
+  brokerErrorCode?: string | null;
+  message: string;
+  checkedAt: string;
+}
 
 const selectedRuntimeAccount = computed(() => {
   const selected = selectedBrokerAccount.value;
@@ -77,17 +105,17 @@ const accountSubtitle = computed(() => {
 
 const scopedExecutionOrders = computed(() => {
   const selected = selectedBrokerAccount.value;
-  if (selected == null) {
-    return executionOrders.value.orders;
-  }
+  const scoped = selected == null
+    ? executionOrders.value.orders
+    : executionOrders.value.orders.filter(
+      (order) =>
+        order.brokerId === selected.brokerId &&
+        order.accountId === selected.accountId &&
+        order.tradingEnvironment === selected.tradingEnvironment &&
+        order.market === selected.market,
+    );
 
-  return executionOrders.value.orders.filter(
-    (order) =>
-      order.brokerId === selected.brokerId &&
-      order.accountId === selected.accountId &&
-      order.tradingEnvironment === selected.tradingEnvironment &&
-      order.market === selected.market,
-  );
+  return dedupeExecutionOrders(scoped);
 });
 
 const pendingOrders = computed(() =>
@@ -258,6 +286,105 @@ const fundsSummaryRows = computed(() => [
   { label: "冻结资金", value: brokerFunds.value.summary?.frozenCash },
 ]);
 
+const activeTradingEnvironment = computed(
+  () =>
+    selectedBrokerAccount.value?.tradingEnvironment ??
+    selectedRuntimeAccount.value?.tradingEnvironment ??
+    brokerFunds.value.summary?.tradingEnvironment ??
+    null,
+);
+
+const activeBrokerReadContext = computed(() => {
+  const selected = selectedBrokerAccount.value;
+  if (selected != null) {
+    return {
+      brokerId: selected.brokerId,
+      accountId: selected.accountId,
+      tradingEnvironment: selected.tradingEnvironment,
+      market: selected.market,
+    };
+  }
+
+  const summary = brokerFunds.value.summary;
+  if (summary != null) {
+    return {
+      brokerId: brokerRuntime.value.descriptor.id,
+      accountId: summary.accountId,
+      tradingEnvironment: summary.tradingEnvironment,
+      market: summary.market,
+    };
+  }
+
+  const runtimeAccount = selectedRuntimeAccount.value;
+  if (runtimeAccount == null) {
+    return null;
+  }
+
+  return {
+    brokerId: brokerRuntime.value.descriptor.id,
+    accountId: runtimeAccount.accountId,
+    tradingEnvironment: runtimeAccount.tradingEnvironment,
+    market:
+      runtimeAccount.marketAuthorities[0] ??
+      brokerRuntime.value.descriptor.capabilities[0]?.market ??
+      "HK",
+  };
+});
+
+const marginRatioSymbols = computed(() =>
+  Array.from(
+    new Set(
+      accountPositions.value
+        .map((position) => position.symbol?.trim())
+        .filter((symbol): symbol is string => symbol != null && symbol !== ""),
+    ),
+  ).slice(0, 24),
+);
+
+const recentBrokerCashFlows = computed(() =>
+  brokerCashFlows.value.cashFlows.slice(0, 8),
+);
+const recentBrokerFills = computed(() => brokerFills.value.fills.slice(0, 12));
+const brokerFillsRequirements = computed(() =>
+  resolveBrokerReadFeatureQueryRequirements("fills", {
+    market: activeBrokerReadContext.value?.market ?? null,
+    tradingEnvironment:
+      activeBrokerReadContext.value?.tradingEnvironment ?? activeTradingEnvironment.value,
+  }),
+);
+const brokerFillsDescription = computed(() =>
+  brokerFillsRequirements.value.supportsHistory
+    ? "展示当前账户最近 30 天的券商成交记录。"
+    : "当前券商未声明历史成交能力，展示当前刷新窗口内可见的成交记录。",
+);
+
+const supportsBrokerCashFlows = computed(() =>
+  supportsBrokerReadFeature("cashFlows", {
+    market: activeBrokerReadContext.value?.market ?? null,
+    tradingEnvironment:
+      activeBrokerReadContext.value?.tradingEnvironment ?? activeTradingEnvironment.value,
+  }),
+);
+
+const supportsBrokerMarginRatios = computed(() =>
+  supportsBrokerReadFeature("marginRatios", {
+    market: activeBrokerReadContext.value?.market ?? null,
+    tradingEnvironment:
+      activeBrokerReadContext.value?.tradingEnvironment ?? activeTradingEnvironment.value,
+  }),
+);
+
+const supportsSelectedExecutionOrderFees = computed(() => {
+  const order = selectedExecutionOrder.value;
+  if (order == null) {
+    return false;
+  }
+  return supportsBrokerReadFeature("orderFees", {
+    market: order.market,
+    tradingEnvironment: order.tradingEnvironment,
+  });
+});
+
 function formatNumber(value: number | null | undefined): string {
   if (value == null) {
     return "暂无";
@@ -280,8 +407,127 @@ function formatMoney(
   return currency != null && currency !== "" ? `${formatted} ${currency}` : formatted;
 }
 
+function executionOrderDisplayKey(order: AccountExecutionOrder): string {
+  const brokerOrderIdentity =
+    order.brokerOrderId?.trim() ||
+    order.brokerOrderIdEx?.trim() ||
+    order.internalOrderId;
+  return [
+    order.brokerId,
+    order.accountId,
+    order.tradingEnvironment,
+    order.market,
+    brokerOrderIdentity,
+  ].join("|");
+}
+
+function dedupeExecutionOrders(
+  orders: AccountExecutionOrder[],
+): AccountExecutionOrder[] {
+  const seen = new Set<string>();
+  const deduped: AccountExecutionOrder[] = [];
+  for (const order of orders) {
+    const key = executionOrderDisplayKey(order);
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    deduped.push(order);
+  }
+  return deduped;
+}
+
 function selectOrder(internalOrderId: string): void {
   void loadExecutionOrderDetails(internalOrderId);
+}
+
+function openOrderEvents(internalOrderId: string): void {
+  activeTab.value = "history";
+  void loadExecutionOrderDetails(internalOrderId);
+}
+
+function isCancellingOrder(internalOrderId: string): boolean {
+  return cancellingOrderIds.value.has(internalOrderId);
+}
+
+function canCancelOrder(order: AccountExecutionOrder): boolean {
+  if (isFinalExecutionOrderStatus(order.status)) {
+    return false;
+  }
+  if (isCancellingOrder(order.internalOrderId)) {
+    return false;
+  }
+
+  const normalized = order.status.trim().toUpperCase();
+  if (
+    normalized === "CANCELING" ||
+    normalized === "PENDING_CANCEL" ||
+    normalized === "CANCEL_REQUESTED"
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
+function formatExecutionStatusTransition(
+  previousStatus: string | null | undefined,
+  nextStatus: string | null | undefined,
+): string {
+  const nextLabel = formatExecutionOrderStatusLabel(nextStatus);
+  if ((previousStatus ?? "").trim() === "") {
+    return `首次发现，当前状态：${nextLabel}`;
+  }
+  return `${formatExecutionOrderStatusLabel(previousStatus)} → ${nextLabel}`;
+}
+
+async function refreshExecutionOrders(): Promise<void> {
+  executionOrders.value = await fetchEnvelope<ExecutionOrdersResponse>(
+    "/api/v1/execution/orders",
+  );
+}
+
+async function cancelOrder(order: AccountExecutionOrder): Promise<void> {
+  if (!canCancelOrder(order)) {
+    return;
+  }
+
+  const nextCancelling = new Set(cancellingOrderIds.value);
+  nextCancelling.add(order.internalOrderId);
+  cancellingOrderIds.value = nextCancelling;
+
+  try {
+    const result = await fetchEnvelopeWithInit<ExecutionOrderCommandResult>(
+      `/api/v1/execution/orders/${encodeURIComponent(order.internalOrderId)}/cancel`,
+      {
+        method: "POST",
+      },
+    );
+
+    await refreshExecutionOrders();
+    await loadExecutionOrderDetails(order.internalOrderId);
+
+    notifications.push({
+      level: "success",
+      title: `已提交撤单 ${order.symbol ?? order.internalOrderId}`,
+      message: result.message,
+      source: "account-page",
+    });
+  } catch (error) {
+    const message = error instanceof Error && error.message.trim() !== ""
+      ? error.message
+      : "撤单请求失败。";
+    notifications.push({
+      level: "error",
+      title: `撤单失败 ${order.symbol ?? order.internalOrderId}`,
+      message,
+      source: "account-page",
+    });
+  } finally {
+    const nextCancellingDone = new Set(cancellingOrderIds.value);
+    nextCancellingDone.delete(order.internalOrderId);
+    cancellingOrderIds.value = nextCancellingDone;
+  }
 }
 
 function resolveOrderChipColor(status: string): string {
@@ -457,6 +703,144 @@ watch(
               </v-card-text>
             </v-card>
           </section>
+
+          <v-card flat class="card-shell border-0">
+            <div class="flex flex-wrap items-center justify-between gap-3 px-4 pt-4">
+              <div>
+                <div class="text-xl font-semibold text-slate-900">最近资金流水</div>
+                <div class="mt-1 text-sm text-slate-500">展示当前账户最近一次刷新拿到的券商现金流水，用于核对股息、入金和费用扣款。</div>
+              </div>
+              <v-chip variant="outlined" size="small">
+                {{ formatConnectivityLabel(brokerCashFlows.connectivity) }}
+              </v-chip>
+            </div>
+            <v-card-text>
+              <v-empty-state
+                v-if="!supportsBrokerCashFlows"
+                text="当前券商未为该交易环境声明资金流水能力。"
+              />
+              <v-alert
+                v-else-if="brokerCashFlows.lastError"
+                type="warning"
+                :closable="false"
+                title="资金流水提示"
+              >
+                {{ brokerCashFlows.lastError }}
+              </v-alert>
+              <div
+                v-else-if="recentBrokerCashFlows.length"
+                class="overflow-x-auto rounded-lg border border-slate-200 bg-white"
+              >
+                <table class="w-full text-sm">
+                  <thead class="border-b border-slate-200 bg-slate-50 text-xs text-slate-500">
+                    <tr>
+                      <th class="px-4 py-3 text-left">流水号</th>
+                      <th class="px-4 py-3 text-left">清算日</th>
+                      <th class="px-4 py-3 text-left">交收日</th>
+                      <th class="px-4 py-3 text-left">类型 / 方向</th>
+                      <th class="px-4 py-3 text-right">金额</th>
+                      <th class="px-4 py-3 text-left">备注</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr
+                      v-for="flow in recentBrokerCashFlows"
+                      :key="flow.cashFlowId ?? `${flow.clearingDate ?? 'na'}-${flow.cashFlowType ?? 'na'}-${flow.cashFlowAmount ?? 'na'}`"
+                      class="border-b border-slate-100 last:border-0"
+                    >
+                      <td class="px-4 py-3 font-mono text-xs">{{ flow.cashFlowId ?? '—' }}</td>
+                      <td class="px-4 py-3">{{ flow.clearingDate ?? '—' }}</td>
+                      <td class="px-4 py-3">{{ flow.settlementDate ?? '—' }}</td>
+                      <td class="px-4 py-3">
+                        <div class="font-medium text-slate-900">{{ flow.cashFlowType ?? '未分类' }}</div>
+                        <div class="mt-1 text-xs text-slate-500">{{ flow.cashFlowDirection ?? '方向未标注' }}</div>
+                      </td>
+                      <td class="px-4 py-3 text-right">
+                        {{ formatMoney(flow.cashFlowAmount, flow.currency ?? brokerFunds.summary?.currency) }}
+                      </td>
+                      <td class="px-4 py-3 text-slate-600">{{ flow.cashFlowRemark ?? '—' }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <v-empty-state v-else text="当前账户暂无券商资金流水。" />
+            </v-card-text>
+          </v-card>
+
+          <v-card flat class="card-shell border-0">
+            <div class="flex flex-wrap items-center justify-between gap-3 px-4 pt-4">
+              <div>
+                <div class="text-xl font-semibold text-slate-900">融资融券参数</div>
+                <div class="mt-1 text-sm text-slate-500">按当前账户持仓标的查询融资许可、卖空券源和保证金阈值。</div>
+              </div>
+              <v-chip variant="outlined" size="small">
+                {{ formatConnectivityLabel(brokerMarginRatios.connectivity) }}
+              </v-chip>
+            </div>
+            <v-card-text>
+              <v-empty-state
+                v-if="!supportsBrokerMarginRatios"
+                text="当前券商未为该交易环境声明融资融券参数能力。"
+              />
+              <v-empty-state
+                v-else-if="marginRatioSymbols.length === 0"
+                text="当前账户暂无持仓标的，暂不查询融资融券参数。"
+              />
+              <div v-else-if="isLoadingBrokerMarginRatios" class="text-sm text-slate-500">
+                正在加载融资融券参数...
+              </div>
+              <v-alert
+                v-else-if="brokerMarginRatios.lastError"
+                type="warning"
+                :closable="false"
+                title="融资融券提示"
+              >
+                {{ brokerMarginRatios.lastError }}
+              </v-alert>
+              <div
+                v-else-if="brokerMarginRatios.marginRatios.length"
+                class="overflow-x-auto rounded-lg border border-slate-200 bg-white"
+              >
+                <table class="w-full text-sm">
+                  <thead class="border-b border-slate-200 bg-slate-50 text-xs text-slate-500">
+                    <tr>
+                      <th class="px-4 py-3 text-left">标的</th>
+                      <th class="px-4 py-3 text-left">融资 / 融券</th>
+                      <th class="px-4 py-3 text-right">券源余量</th>
+                      <th class="px-4 py-3 text-right">融券费率</th>
+                      <th class="px-4 py-3 text-right">预警比率</th>
+                      <th class="px-4 py-3 text-right">初始保证金</th>
+                      <th class="px-4 py-3 text-right">维持保证金</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr
+                      v-for="ratio in brokerMarginRatios.marginRatios"
+                      :key="ratio.symbol"
+                      class="border-b border-slate-100 last:border-0"
+                    >
+                      <td class="px-4 py-3 font-medium text-slate-900">{{ ratio.symbol }}</td>
+                      <td class="px-4 py-3">
+                        {{ formatBooleanLabel(ratio.isLongPermit) }} / {{ formatBooleanLabel(ratio.isShortPermit) }}
+                      </td>
+                      <td class="px-4 py-3 text-right">{{ formatNumber(ratio.shortPoolRemain) }}</td>
+                      <td class="px-4 py-3 text-right">{{ formatNumber(ratio.shortFeeRate) }}</td>
+                      <td class="px-4 py-3 text-right">
+                        {{ formatNumber(ratio.alertLongRatio) }} / {{ formatNumber(ratio.alertShortRatio) }}
+                      </td>
+                      <td class="px-4 py-3 text-right">
+                        {{ formatNumber(ratio.initialMarginLongRatio) }} / {{ formatNumber(ratio.initialMarginShortRatio) }}
+                      </td>
+                      <td class="px-4 py-3 text-right">
+                        {{ formatNumber(ratio.maintenanceLongRatio) }} / {{ formatNumber(ratio.maintenanceShortRatio) }}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <v-empty-state v-else text="当前账户暂无融资融券参数。" />
+            </v-card-text>
+          </v-card>
         </div>
       </v-window-item>
 
@@ -506,9 +890,20 @@ watch(
                     </td>
                     <td class="px-4 py-3">{{ formatDateTime(order.updatedAt) }}</td>
                     <td class="px-4 py-3 text-right">
-                      <v-btn variant="text" color="primary" @click="selectOrder(order.internalOrderId)">
-                        查看事件
-                      </v-btn>
+                      <div class="flex justify-end gap-2">
+                        <v-btn variant="text" color="primary" @click="openOrderEvents(order.internalOrderId)">
+                          查看事件
+                        </v-btn>
+                        <v-btn
+                          variant="text"
+                          color="warning"
+                          :disabled="!canCancelOrder(order)"
+                          :loading="isCancellingOrder(order.internalOrderId)"
+                          @click="cancelOrder(order)"
+                        >
+                          撤单
+                        </v-btn>
+                      </div>
                     </td>
                   </tr>
                 </tbody>
@@ -593,7 +988,7 @@ watch(
                     <div class="text-xs text-slate-500">{{ formatDateTime(event.createdAt) }}</div>
                   </div>
                   <div class="mt-2 text-sm text-slate-600">
-                    {{ formatExecutionOrderStatusLabel(event.previousStatus) }} → {{ formatExecutionOrderStatusLabel(event.nextStatus) }}
+                    {{ formatExecutionStatusTransition(event.previousStatus, event.nextStatus) }}
                   </div>
                 </div>
               </div>
@@ -603,14 +998,14 @@ watch(
                 <div class="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <div class="font-semibold text-slate-900">券商费用</div>
-                    <div class="mt-1 text-xs text-slate-500">{{ selectedExecutionOrder?.brokerOrderId ?? '暂无券商订单号' }}</div>
+                    <div class="mt-1 text-xs text-slate-500">{{ selectedExecutionOrder?.brokerOrderIdEx ?? selectedExecutionOrder?.brokerOrderId ?? '暂无券商订单号' }}</div>
                   </div>
                   <v-chip variant="outlined" size="small">{{ brokerOrderFees.fees.length }} 条</v-chip>
                 </div>
 
                 <v-empty-state
-                  v-if="selectedExecutionOrder?.tradingEnvironment !== 'REAL'"
-                  text="模拟环境不查询券商费用。"
+                  v-if="selectedExecutionOrder != null && !supportsSelectedExecutionOrderFees"
+                  text="当前券商未为该交易环境声明费用查询能力。"
                   class="mt-3"
                 />
                 <div v-else-if="isLoadingOrderFees" class="mt-3 text-sm text-slate-500">正在加载券商费用...</div>
@@ -626,25 +1021,83 @@ watch(
                 <div v-else-if="brokerOrderFees.fees.length" class="mt-3 grid gap-3">
                   <div
                     v-for="fee in brokerOrderFees.fees"
-                    :key="fee.brokerOrderId"
+                    :key="fee.brokerOrderIdEx"
                     class="rounded-lg bg-slate-50 px-4 py-3"
                   >
                     <div class="flex flex-wrap items-center justify-between gap-3">
-                      <div class="font-medium text-slate-900">{{ fee.brokerOrderId }}</div>
-                      <div class="text-sm text-slate-700">{{ formatMoney(fee.totalFee, fee.currency) }}</div>
+                      <div class="font-medium text-slate-900">{{ fee.brokerOrderIdEx }}</div>
+                      <div class="text-sm text-slate-700">{{ formatMoney(fee.feeAmount, brokerFunds.summary?.currency) }}</div>
                     </div>
-                    <div v-if="fee.details.length" class="mt-3 flex flex-wrap gap-2">
+                    <div v-if="fee.feeItems.length" class="mt-3 flex flex-wrap gap-2">
                       <span
-                        v-for="detail in fee.details"
-                        :key="`${fee.brokerOrderId}-${detail.title}`"
+                        v-for="detail in fee.feeItems"
+                        :key="`${fee.brokerOrderIdEx}-${detail.title}`"
                         class="rounded-full border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700"
                       >
-                        {{ detail.title }}：{{ formatMoney(detail.amount, fee.currency) }}
+                        {{ detail.title }}：{{ formatMoney(detail.value, brokerFunds.summary?.currency) }}
                       </span>
                     </div>
                   </div>
                 </div>
                 <v-empty-state v-else text="当前订单暂无券商费用。" class="mt-3" />
+
+                <div class="mt-5 border-t border-slate-200 pt-4">
+                  <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <div class="font-semibold text-slate-900">最近成交</div>
+                        <div class="mt-1 text-xs text-slate-500">{{ brokerFillsDescription }}</div>
+                    </div>
+                    <v-chip variant="outlined" size="small">{{ recentBrokerFills.length }} 条</v-chip>
+                  </div>
+
+                  <div v-if="isLoadingBrokerFills" class="mt-3 text-sm text-slate-500">正在加载券商成交...</div>
+                  <v-alert
+                    v-else-if="brokerFills.lastError"
+                    class="mt-3"
+                    type="warning"
+                    :closable="false"
+                    title="成交查询提示"
+                  >
+                    {{ brokerFills.lastError }}
+                  </v-alert>
+                  <div
+                    v-else-if="recentBrokerFills.length"
+                    class="mt-3 overflow-x-auto rounded-lg border border-slate-200 bg-white"
+                  >
+                    <table class="w-full text-sm">
+                      <thead class="border-b border-slate-200 bg-slate-50 text-xs text-slate-500">
+                        <tr>
+                          <th class="px-4 py-3 text-left">成交号</th>
+                          <th class="px-4 py-3 text-left">标的</th>
+                          <th class="px-4 py-3 text-left">方向</th>
+                          <th class="px-4 py-3 text-right">数量</th>
+                          <th class="px-4 py-3 text-right">价格</th>
+                          <th class="px-4 py-3 text-left">状态</th>
+                          <th class="px-4 py-3 text-left">成交时间</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr
+                          v-for="fill in recentBrokerFills"
+                          :key="fill.brokerFillId"
+                          class="border-b border-slate-100 last:border-0"
+                        >
+                          <td class="px-4 py-3 font-mono text-xs">{{ fill.brokerFillIdEx ?? fill.brokerFillId }}</td>
+                          <td class="px-4 py-3">
+                            <div class="font-medium text-slate-900">{{ fill.symbol }}</div>
+                            <div v-if="fill.symbolName" class="mt-1 text-xs text-slate-500">{{ fill.symbolName }}</div>
+                          </td>
+                          <td class="px-4 py-3">{{ formatOrderSideLabel(fill.side) }}</td>
+                          <td class="px-4 py-3 text-right">{{ formatNumber(fill.filledQuantity) }}</td>
+                          <td class="px-4 py-3 text-right">{{ formatNumber(fill.fillPrice) }}</td>
+                          <td class="px-4 py-3">{{ fill.status ?? '—' }}</td>
+                          <td class="px-4 py-3">{{ formatDateTime(fill.filledAt) }}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  <v-empty-state v-else text="当前账户暂无券商成交。" class="mt-3" />
+                </div>
               </div>
             </v-card-text>
           </v-card>

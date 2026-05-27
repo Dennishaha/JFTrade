@@ -3,6 +3,8 @@ package futu
 import (
 	"context"
 	"fmt"
+	"math"
+	"strconv"
 	"strings"
 	"time"
 
@@ -24,8 +26,16 @@ type BrokerPlaceOrderResult struct {
 	BrokerOrderIDEx    *string
 }
 
+type BrokerPlaceOrderQuery struct {
+	BrokerReadQuery
+	Session        *string
+	FillOutsideRTH *bool
+}
+
 func (e *Exchange) submitOrder(ctx context.Context, order types.SubmitOrder) (*types.Order, error) {
-	result, err := e.PlaceBrokerOrder(ctx, BrokerReadQuery{Market: marketFromSymbol(order.Symbol, "")}, order)
+	result, err := e.PlaceBrokerOrder(ctx, BrokerPlaceOrderQuery{
+		BrokerReadQuery: BrokerReadQuery{Market: marketFromSymbol(order.Symbol, "")},
+	}, order)
 	if err != nil {
 		return nil, err
 	}
@@ -37,7 +47,7 @@ func (e *Exchange) cancelOrders(ctx context.Context, orders ...types.Order) erro
 	return e.CancelBrokerOrders(ctx, BrokerReadQuery{}, orders...)
 }
 
-func (e *Exchange) PlaceBrokerOrder(ctx context.Context, query BrokerReadQuery, submitOrder types.SubmitOrder) (*BrokerPlaceOrderResult, error) {
+func (e *Exchange) PlaceBrokerOrder(ctx context.Context, query BrokerPlaceOrderQuery, submitOrder types.SubmitOrder) (*BrokerPlaceOrderResult, error) {
 	var result BrokerPlaceOrderResult
 	if err := e.withClient(ctx, func(client *opend.Client) error {
 		market := query.Market
@@ -53,7 +63,7 @@ func (e *Exchange) PlaceBrokerOrder(ctx context.Context, query BrokerReadQuery, 
 			return err
 		}
 
-		request, err := placeOrderRequestFromSubmitOrder(resolved, submitOrder)
+		request, err := placeOrderRequestFromSubmitOrder(resolved, submitOrder, query)
 		if err != nil {
 			return err
 		}
@@ -110,7 +120,7 @@ func (e *Exchange) CancelBrokerOrders(ctx context.Context, query BrokerReadQuery
 	})
 }
 
-func placeOrderRequestFromSubmitOrder(account resolvedTradeAccount, submitOrder types.SubmitOrder) (*trdplaceorderpb.C2S, error) {
+func placeOrderRequestFromSubmitOrder(account resolvedTradeAccount, submitOrder types.SubmitOrder, query BrokerPlaceOrderQuery) (*trdplaceorderpb.C2S, error) {
 	code, secMarket, err := tradeSecurityInfoFromSymbol(submitOrder.Symbol)
 	if err != nil {
 		return nil, err
@@ -132,11 +142,13 @@ func placeOrderRequestFromSubmitOrder(account resolvedTradeAccount, submitOrder 
 		Qty:       proto.Float64(submitOrder.Quantity.Float64()),
 		SecMarket: proto.Int32(int32(secMarket)),
 	}
-	if submitOrder.Price.Sign() > 0 {
-		request.Price = proto.Float64(submitOrder.Price.Float64())
+	normalizedPrice := normalizeSubmitOrderPrice(submitOrder.Symbol, submitOrder.Price)
+	if normalizedPrice.Sign() > 0 {
+		request.Price = proto.Float64(normalizedPrice.Float64())
 	}
-	if submitOrder.StopPrice.Sign() > 0 {
-		request.AuxPrice = proto.Float64(submitOrder.StopPrice.Float64())
+	normalizedStopPrice := normalizeSubmitOrderPrice(submitOrder.Symbol, submitOrder.StopPrice)
+	if normalizedStopPrice.Sign() > 0 {
+		request.AuxPrice = proto.Float64(normalizedStopPrice.Float64())
 	}
 	if timeInForce, ok := trdTimeInForceFromBBGO(submitOrder.TimeInForce); ok {
 		request.TimeInForce = proto.Int32(int32(timeInForce))
@@ -150,7 +162,77 @@ func placeOrderRequestFromSubmitOrder(account resolvedTradeAccount, submitOrder 
 	if remark != "" {
 		request.Remark = proto.String(remark)
 	}
+	if query.Session != nil {
+		if secMarket != trdcommonpb.TrdSecMarket_TrdSecMarket_US {
+			return nil, fmt.Errorf("futu exchange: session is supported for US orders only")
+		}
+		session, ok := sessionValue(*query.Session)
+		if !ok {
+			return nil, fmt.Errorf("futu exchange: unsupported session %q", *query.Session)
+		}
+		request.Session = proto.Int32(session)
+	}
+	if query.FillOutsideRTH != nil {
+		if secMarket != trdcommonpb.TrdSecMarket_TrdSecMarket_US {
+			return nil, fmt.Errorf("futu exchange: fillOutsideRTH is supported for US orders only")
+		}
+		if supportsFillOutsideRTH(submitOrder.Type) {
+			request.FillOutsideRTH = proto.Bool(*query.FillOutsideRTH)
+		}
+	}
 	return request, nil
+}
+
+func normalizeSubmitOrderPrice(symbol string, price fixedpoint.Value) fixedpoint.Value {
+	if price.Sign() <= 0 {
+		return price
+	}
+	step := submitOrderPriceStep(symbol, price.Float64())
+	if step <= 0 {
+		return price
+	}
+	return fixedpoint.NewFromFloat(roundPriceToStep(price.Float64(), step))
+}
+
+func submitOrderPriceStep(symbol string, price float64) float64 {
+	switch strings.ToUpper(strings.TrimSpace(marketFromSymbol(symbol, ""))) {
+	case "US":
+		if price > 0 && price < 1 {
+			return 0.0001
+		}
+		return 0.01
+	default:
+		return 0
+	}
+}
+
+func roundPriceToStep(value float64, step float64) float64 {
+	if step <= 0 || !isFinitePositive(value) {
+		return value
+	}
+	decimals := countStepDecimals(step)
+	return math.Round(value/step) * stepRoundedUnit(decimals)
+}
+
+func stepRoundedUnit(decimals int) float64 {
+	factor := math.Pow10(decimals)
+	if factor <= 0 {
+		return 1
+	}
+	return 1 / factor
+}
+
+func countStepDecimals(step float64) int {
+	text := strconv.FormatFloat(step, 'f', -1, 64)
+	idx := strings.IndexByte(text, '.')
+	if idx < 0 {
+		return 0
+	}
+	return len(text) - idx - 1
+}
+
+func isFinitePositive(value float64) bool {
+	return !math.IsNaN(value) && !math.IsInf(value, 0) && value > 0
 }
 
 func placedOrderFromSubmitOrder(submitOrder types.SubmitOrder, orderID uint64) types.Order {
@@ -277,5 +359,14 @@ func trdTimeInForceFromBBGO(timeInForce types.TimeInForce) (trdcommonpb.TimeInFo
 		return trdcommonpb.TimeInForce_TimeInForce_IOC, true
 	default:
 		return 0, false
+	}
+}
+
+func supportsFillOutsideRTH(orderType types.OrderType) bool {
+	switch orderType {
+	case types.OrderTypeLimit, types.OrderTypeLimitMaker, types.OrderTypeStopLimit:
+		return true
+	default:
+		return false
 	}
 }

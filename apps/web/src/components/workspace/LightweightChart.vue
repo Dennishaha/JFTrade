@@ -196,7 +196,7 @@ watch(
         {{ chartSessionBadge }}
       </span>
       <span v-if="isLoadingMarketDataQuery" style="color: var(--tv-text-dim); font-size: 11px">加载中...</span>
-      <span v-else-if="marketDataQueryError" style="color: var(--tv-down); font-size: 11px" :title="marketDataQueryError">{{ marketDataQueryError }}</span>
+      <span v-else-if="marketDataQueryError" style="color: var(--tv-accent); font-size: 11px" :title="marketDataQueryError">{{ marketDataQueryError }}</span>
       <span v-else style="color: var(--tv-text-dim); font-size: 11px">{{ marketDataCandles?.totalReturned ?? 0 }} 根 · {{ formatKlinePeriodLabel(prefs.period) }} · 上限 {{ marketDataQueryLimit }}</span>
       <button class="tv-icon-btn" title="刷新" @click="reload">↻</button>
     </div>

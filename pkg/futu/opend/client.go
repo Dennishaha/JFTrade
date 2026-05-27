@@ -39,11 +39,16 @@ const (
 	ProtoTrdSubAccPush              uint32 = 2008
 	ProtoTrdGetFunds                uint32 = 2101
 	ProtoTrdGetPositionList         uint32 = 2102
+	ProtoTrdGetMaxTrdQtys           uint32 = 2111
 	ProtoTrdGetOrderList            uint32 = 2201
 	ProtoTrdPlaceOrder              uint32 = 2202
 	ProtoTrdModifyOrder             uint32 = 2205
+	ProtoTrdGetOrderFillList        uint32 = 2211
 	ProtoTrdGetHistoryOrderList     uint32 = 2221
-	ProtoTrdGetHistoryOrderFillList uint32 = 2223
+	ProtoTrdGetHistoryOrderFillList uint32 = 2222
+	ProtoTrdGetMarginRatio          uint32 = 2223
+	ProtoTrdGetOrderFee             uint32 = 2225
+	ProtoTrdFlowSummary             uint32 = 2226
 	ProtoTrdUpdateOrder             uint32 = 2208
 	ProtoTrdUpdateOrderFill         uint32 = 2218
 )

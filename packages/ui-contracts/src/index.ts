@@ -52,6 +52,40 @@ export interface HealthResponse {
   };
 }
 
+export type BrokerReadFeatureKey =
+  | "funds"
+  | "positions"
+  | "orders"
+  | "fills"
+  | "cashFlows"
+  | "orderFees"
+  | "marginRatios"
+  | "maxTradeQuantity";
+
+export interface BrokerReadFeatureCapability {
+  supportedEnvironments: string[];
+  supportsHistory?: boolean;
+  requiresSymbols?: boolean;
+  requiresClearingDate?: boolean;
+  requiresPrice?: boolean;
+  requiresOrderIdEx?: boolean;
+}
+
+export interface BrokerMarketCapability {
+  market: string;
+  supportsQuote: boolean;
+  supportsTrade: boolean;
+  readFeatures: Record<BrokerReadFeatureKey, BrokerReadFeatureCapability>;
+}
+
+export interface BrokerDescriptor {
+  id: string;
+  displayName: string;
+  environments: string[];
+  capabilities: BrokerMarketCapability[];
+  notes: string[];
+}
+
 export interface SystemStatusResponse {
   name: string;
   apiPort: number;
@@ -82,17 +116,7 @@ export interface SystemStatusResponse {
     adminAllowlistEnabled: boolean;
     adminCount: number;
   };
-  broker: {
-    id: string;
-    displayName: string;
-    environments: string[];
-    capabilities: Array<{
-      market: string;
-      supportsQuote: boolean;
-      supportsTrade: boolean;
-    }>;
-    notes: string[];
-  };
+  broker: BrokerDescriptor;
   persistence: {
     engine: string;
     databasePath: string;
@@ -162,17 +186,7 @@ export type BrokerIntegrationConfig = FutuBrokerIntegrationConfig;
 
 export interface BrokerSettingsResponse {
   brokers: Array<{
-    descriptor: {
-      id: string;
-      displayName: string;
-      environments: string[];
-      capabilities: Array<{
-        market: string;
-        supportsQuote: boolean;
-        supportsTrade: boolean;
-      }>;
-      notes: string[];
-    };
+    descriptor: BrokerDescriptor;
     integration: {
       brokerId: string;
       enabled: boolean;
@@ -708,17 +722,7 @@ export interface RealTradeHardStopEventsResponse {
 }
 
 export interface BrokerRuntimeResponse {
-  descriptor: {
-    id: string;
-    displayName: string;
-    environments: string[];
-    capabilities: Array<{
-      market: string;
-      supportsQuote: boolean;
-      supportsTrade: boolean;
-    }>;
-    notes: string[];
-  };
+  descriptor: BrokerDescriptor;
   session: {
     brokerId: string;
     displayName: string;
@@ -832,14 +836,17 @@ export interface BrokerCashFlowsResponse {
   connectivity: string;
   lastError: string | null;
   cashFlows: Array<{
-    cashFlowId: string;
+    accountId: string;
+    tradingEnvironment: string;
+    market: string;
+    cashFlowId: string | null;
     clearingDate: string | null;
     settlementDate: string | null;
     currency: string | null;
-    type: string | null;
-    direction: string;
-    amount: number | null;
-    remark: string | null;
+    cashFlowType: string | null;
+    cashFlowDirection: string | null;
+    cashFlowAmount: number | null;
+    cashFlowRemark: string | null;
   }>;
 }
 
@@ -848,14 +855,84 @@ export interface BrokerOrderFeesResponse {
   connectivity: string;
   lastError: string | null;
   fees: Array<{
-    brokerOrderId: string;
-    totalFee: number | null;
-    currency: string | null;
-    details: Array<{
+    accountId: string;
+    tradingEnvironment: string;
+    market: string;
+    brokerOrderIdEx: string;
+    feeAmount: number | null;
+    feeItems: Array<{
       title: string;
-      amount: number | null;
+      value: number;
     }>;
   }>;
+}
+
+export interface BrokerFillsResponse {
+  checkedAt: string;
+  connectivity: string;
+  lastError: string | null;
+  fills: Array<{
+    accountId: string;
+    tradingEnvironment: string;
+    market: string;
+    brokerOrderId: string;
+    brokerOrderIdEx: string | null;
+    brokerFillId: string;
+    brokerFillIdEx: string | null;
+    symbol: string;
+    symbolName: string | null;
+    side: string;
+    filledQuantity: number;
+    fillPrice: number | null;
+    filledAt: string;
+    status: string | null;
+  }>;
+}
+
+export interface BrokerMarginRatiosResponse {
+  checkedAt: string;
+  connectivity: string;
+  lastError: string | null;
+  marginRatios: Array<{
+    accountId: string;
+    tradingEnvironment: string;
+    market: string;
+    symbol: string;
+    isLongPermit: boolean | null;
+    isShortPermit: boolean | null;
+    shortPoolRemain: number | null;
+    shortFeeRate: number | null;
+    alertLongRatio: number | null;
+    alertShortRatio: number | null;
+    initialMarginLongRatio: number | null;
+    initialMarginShortRatio: number | null;
+    marginCallLongRatio: number | null;
+    marginCallShortRatio: number | null;
+    maintenanceLongRatio: number | null;
+    maintenanceShortRatio: number | null;
+  }>;
+}
+
+export interface BrokerMaxTradeQuantityResponse {
+  checkedAt: string;
+  connectivity: string;
+  lastError: string | null;
+  maxTradeQuantity: {
+    accountId: string;
+    tradingEnvironment: string;
+    market: string;
+    symbol: string;
+    orderType: string;
+    price: number;
+    maxCashBuy: number;
+    maxCashAndMarginBuy: number | null;
+    maxPositionSell: number;
+    maxSellShort: number | null;
+    maxBuyBack: number | null;
+    longRequiredIM: number | null;
+    shortRequiredIM: number | null;
+    session: string | null;
+  } | null;
 }
 
 export interface BrokerOrdersResponse {
@@ -1738,6 +1815,27 @@ export const emptyBrokerOrderFees: BrokerOrderFeesResponse = {
   connectivity: "disconnected",
   lastError: null,
   fees: [],
+};
+
+export const emptyBrokerFills: BrokerFillsResponse = {
+  checkedAt: new Date(0).toISOString(),
+  connectivity: "disconnected",
+  lastError: null,
+  fills: [],
+};
+
+export const emptyBrokerMarginRatios: BrokerMarginRatiosResponse = {
+  checkedAt: new Date(0).toISOString(),
+  connectivity: "disconnected",
+  lastError: null,
+  marginRatios: [],
+};
+
+export const emptyBrokerMaxTradeQuantity: BrokerMaxTradeQuantityResponse = {
+  checkedAt: new Date(0).toISOString(),
+  connectivity: "disconnected",
+  lastError: null,
+  maxTradeQuantity: null,
 };
 
 export const emptyBrokerOrders: BrokerOrdersResponse = {
