@@ -11,8 +11,8 @@ import (
 	"time"
 
 	bbgotypes "github.com/c9s/bbgo/pkg/types"
+	"github.com/jftrade/jftrade-main/pkg/backtest"
 	"github.com/jftrade/jftrade-main/pkg/futu"
-	"github.com/jftrade/jftrade-main/pkg/futu/backtest"
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 )
@@ -46,7 +46,6 @@ type backtestStartRequest struct {
 	StartTime      string  `json:"startTime"`
 	EndTime        string  `json:"endTime"`
 	InitialBalance float64 `json:"initialBalance"`
-	WarmupCandles  int     `json:"warmupCandles"`
 	RehabType      string  `json:"rehabType"` // "forward" | "backward" | "none"
 }
 
@@ -82,9 +81,6 @@ func (s *Server) handleBacktestStart(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.InitialBalance <= 0 {
 		req.InitialBalance = 100000
-	}
-	if req.WarmupCandles <= 0 {
-		req.WarmupCandles = 365
 	}
 
 	// Look up the strategy definition for the script.
@@ -137,7 +133,6 @@ func (s *Server) handleBacktestStart(w http.ResponseWriter, r *http.Request) {
 			EndTime:        endTime,
 			StrategyScript: definition.Script,
 			InitialBalance: req.InitialBalance,
-			WarmupCandles:  req.WarmupCandles,
 			RehabType:      req.RehabType,
 		})
 

@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jftrade/jftrade-main/pkg/futu/backtest"
+	"github.com/jftrade/jftrade-main/pkg/backtest"
 )
 
 type backtestRunStore struct {

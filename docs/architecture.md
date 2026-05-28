@@ -234,7 +234,7 @@ sidecar 当前负责把 Futu 系统通知和 bbgo 通知收束到同一条前端
 
 职责：提供基于 SQLite 的历史 K 线存储和回测执行能力。
 
-- `store.go` — 实现 `service.BackTestable` 接口，管理 `futu_klines` 表
+- `store.go` — 实现 `service.BackTestable` 接口，管理 `local_klines` 表
 - `sync.go` — 从 Futu OpenD 增量同步 K 线数据到 SQLite
 - `runner.go` — 回测执行编排，创建 bbgo backtest.Exchange，并运行纯 Go DSL 策略
 
@@ -244,7 +244,7 @@ sidecar 当前负责把 Futu 系统通知和 bbgo 通知收束到同一条前端
 OpenD Qot_RequestHistoryKL (3103)
   → pkg/futu/exchange.go QueryKLines()
     → backtest.SyncKLines()
-      → futu_klines (SQLite)
+      → local_klines (SQLite)
         → backtest.FutuKLineStore.QueryKLinesBackward/Forward()
           → bbgo backtest.Exchange
             → SimplePriceMatching (bar close 撮合)

@@ -2,9 +2,24 @@ package dslruntime
 
 import (
 	"testing"
+	"time"
 
+	"github.com/c9s/bbgo/pkg/fixedpoint"
+	"github.com/c9s/bbgo/pkg/types"
 	exprast "github.com/expr-lang/expr/ast"
+	"github.com/jftrade/jftrade-main/pkg/futu"
 )
+
+type testObjectFieldReader struct {
+	fields map[string]any
+}
+
+var benchmarkExpressionBoolSink bool
+
+func (r testObjectFieldReader) FieldValue(name string) (any, bool) {
+	value, ok := r.fields[name]
+	return value, ok
+}
 
 func TestEvaluateExpressionUsesExprParserAndPreservesSeriesSemantics(t *testing.T) {
 	runtime := &strategyRuntime{expressionCache: map[string]exprast.Node{}}
@@ -43,5 +58,159 @@ func TestEvaluateExpressionUsesExprParserAndPreservesSeriesSemantics(t *testing.
 	}
 	if len(runtime.expressionCache) != 1 {
 		t.Fatalf("expression cache size after second run = %d, want 1", len(runtime.expressionCache))
+	}
+}
+
+func TestEvaluateExpressionSupportsObjectFieldReaders(t *testing.T) {
+	runtime := &strategyRuntime{expressionCache: map[string]exprast.Node{}}
+	scope := &evaluationScope{
+		runtime: runtime,
+		variables: map[string]any{
+			"bands": testObjectFieldReader{fields: map[string]any{
+				"upper":         101.0,
+				"previousUpper": 99.0,
+			}},
+		},
+		bindings:   map[string]indicatorBinding{},
+		indicators: map[string]any{},
+	}
+
+	value, err := evaluateExpression("bands.upper > 100", scope)
+	if err != nil {
+		t.Fatalf("evaluateExpression() error = %v", err)
+	}
+	if value != true {
+		t.Fatalf("evaluateExpression() = %#v, want true", value)
+	}
+}
+
+func TestEvaluateExpressionShortCircuitsLogicalBinary(t *testing.T) {
+	runtime := &strategyRuntime{expressionCache: map[string]exprast.Node{}}
+	scope := &evaluationScope{
+		runtime:    runtime,
+		variables:  map[string]any{},
+		bindings:   map[string]indicatorBinding{},
+		indicators: map[string]any{},
+	}
+
+	value, err := evaluateExpression("false and missing.value > 0", scope)
+	if err != nil {
+		t.Fatalf("false-and short circuit error = %v", err)
+	}
+	if value != false {
+		t.Fatalf("false-and short circuit = %#v, want false", value)
+	}
+
+	value, err = evaluateExpression("true or missing.value > 0", scope)
+	if err != nil {
+		t.Fatalf("true-or short circuit error = %v", err)
+	}
+	if value != true {
+		t.Fatalf("true-or short circuit = %#v, want true", value)
+	}
+}
+
+func TestEvaluateExpressionSupportsReservedBarVariablesAndShadowing(t *testing.T) {
+	runtime := &strategyRuntime{expressionCache: map[string]exprast.Node{}}
+	scope := newBarExpressionScope(runtime)
+	scope.indicators = map[string]any{"ready": true}
+
+	value, err := evaluateExpression("indicators.ready and close > open and high > low and volume > 1000 and kline.close > open", scope)
+	if err != nil {
+		t.Fatalf("reserved variable expression error = %v", err)
+	}
+	if value != true {
+		t.Fatalf("reserved variable expression = %#v, want true", value)
+	}
+
+	child := scope.clone()
+	child.setVariable("close", 10.0)
+	value, err = evaluateExpression("close == 10", child)
+	if err != nil {
+		t.Fatalf("shadowed close expression error = %v", err)
+	}
+	if value != true {
+		t.Fatalf("shadowed close expression = %#v, want true", value)
+	}
+}
+
+func TestEvaluateExpressionCoercesObjectFieldReaderForNumericComparison(t *testing.T) {
+	runtime := &strategyRuntime{expressionCache: map[string]exprast.Node{}}
+	scope := &evaluationScope{
+		runtime: runtime,
+		variables: map[string]any{
+			"ma": testObjectFieldReader{fields: map[string]any{
+				"value":    11.0,
+				"previous": 10.0,
+			}},
+		},
+		bindings:   map[string]indicatorBinding{},
+		indicators: map[string]any{},
+	}
+
+	value, err := evaluateExpression("ma > 10 and ma == 11", scope)
+	if err != nil {
+		t.Fatalf("object field reader numeric comparison error = %v", err)
+	}
+	if value != true {
+		t.Fatalf("object field reader numeric comparison = %#v, want true", value)
+	}
+}
+
+func BenchmarkEvaluateExpressionBinaryHeavy(b *testing.B) {
+	runtime := &strategyRuntime{expressionCache: map[string]exprast.Node{}}
+	scope := newBarExpressionScope(runtime)
+	expression := "enabled and not halted and fast > slow and close > bands.lower and close / open > 1"
+	if _, err := evaluateBoolExpression(expression, scope); err != nil {
+		b.Fatalf("evaluateBoolExpression() warmup error = %v", err)
+	}
+	b.ResetTimer()
+	for index := 0; index < b.N; index++ {
+		result, err := evaluateBoolExpression(expression, scope)
+		if err != nil {
+			b.Fatalf("evaluateBoolExpression() error = %v", err)
+		}
+		benchmarkExpressionBoolSink = result
+	}
+}
+
+func newBarExpressionScope(runtime *strategyRuntime) *evaluationScope {
+	bar := types.KLine{
+		Symbol:      "US.AAPL",
+		Interval:    types.Interval1m,
+		StartTime:   types.Time(time.Date(2026, time.May, 28, 9, 30, 0, 0, time.UTC)),
+		EndTime:     types.Time(time.Date(2026, time.May, 28, 9, 30, 59, 0, time.UTC)),
+		Open:        fixedpoint.NewFromFloat(100.0),
+		High:        fixedpoint.NewFromFloat(102.0),
+		Low:         fixedpoint.NewFromFloat(99.0),
+		Close:       fixedpoint.NewFromFloat(101.5),
+		Volume:      fixedpoint.NewFromFloat(1234.0),
+		QuoteVolume: fixedpoint.NewFromFloat(125241.0),
+	}
+	return &evaluationScope{
+		runtime: runtime,
+		variables: map[string]any{
+			"fast":    seriesNumber{Current: 11, Previous: 10, HasCurrent: true, HasPrevious: true},
+			"slow":    seriesNumber{Current: 9, Previous: 9, HasCurrent: true, HasPrevious: true},
+			"enabled": true,
+			"halted":  false,
+			"bands": testObjectFieldReader{fields: map[string]any{
+				"upper": 103.0,
+				"lower": 99.0,
+			}},
+		},
+		bindings:           map[string]indicatorBinding{},
+		indicators:         map[string]any{},
+		currentKline:       &bar,
+		currentKlineTime:   bar.EndTime.Time(),
+		currentKlineSymbol: bar.Symbol,
+		currentSession:     futu.MarketSessionRegular,
+		klinePayload:       klinePayloadView{kline: &bar, session: futu.MarketSessionRegular},
+		closeSeries:        seriesNumber{Current: bar.Close.Float64(), Previous: 100.0, HasCurrent: true, HasPrevious: true},
+		openValue:          bar.Open.Float64(),
+		highValue:          bar.High.Float64(),
+		lowValue:           bar.Low.Float64(),
+		volumeValue:        bar.Volume.Float64(),
+		hasBarData:         true,
 	}
 }

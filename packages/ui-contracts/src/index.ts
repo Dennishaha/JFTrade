@@ -355,6 +355,8 @@ export interface StrategyDefinitionDocument {
   visualModel?: StrategyVisualModelDocument | null;
   createdAt: string;
   updatedAt: string;
+  derivedWarmupBars?: number;
+  derivedWarmupInterval?: string;
 }
 
 export interface PluginInstallResponse {

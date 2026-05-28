@@ -35,5 +35,31 @@ func (e *IndicatorEngine) Snapshot() map[string]any {
 	if snapshot == nil {
 		return map[string]any{}
 	}
+	clone := make(map[string]any, len(snapshot))
+	for key, value := range snapshot {
+		if scalar, ok := value.(interface{ ScalarValue() (float64, bool) }); ok {
+			if current, currentOK := scalar.ScalarValue(); currentOK {
+				clone[key] = current
+			} else {
+				clone[key] = nil
+			}
+			continue
+		}
+		clone[key] = value
+	}
+	return clone
+}
+
+// SnapshotBorrowed returns a snapshot map borrowed from the engine runtime.
+// The returned map is reused by the next SnapshotBorrowed call and must only
+// be consumed synchronously within the current execution tick.
+func (e *IndicatorEngine) SnapshotBorrowed() map[string]any {
+	if e == nil || e.runtime == nil {
+		return map[string]any{}
+	}
+	snapshot := e.runtime.snapshot()
+	if snapshot == nil {
+		return map[string]any{}
+	}
 	return snapshot
 }

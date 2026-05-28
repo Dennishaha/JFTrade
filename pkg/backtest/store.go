@@ -3,7 +3,7 @@ package backtest
 import (
 	"github.com/c9s/bbgo/pkg/types"
 
-	internalstorage "github.com/jftrade/jftrade-main/pkg/futu/backtest/internal/storage"
+	internalstorage "github.com/jftrade/jftrade-main/pkg/backtest/internal/storage"
 )
 
 const (
@@ -31,4 +31,8 @@ func intervalStorageValue(interval types.Interval) int64 {
 
 func intervalFromStorageValue(value int64) (types.Interval, error) {
 	return internalstorage.IntervalFromStorageValue(value)
+}
+
+func KLineTableName(symbol string, interval types.Interval, rehabType string) string {
+	return internalstorage.KLineTableName(symbol, interval, rehabType)
 }

@@ -19,6 +19,7 @@ import (
 	"github.com/jftrade/jftrade-main/pkg/futu"
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 	"github.com/jftrade/jftrade-main/pkg/strategy/dslruntime"
+	"github.com/jftrade/jftrade-main/pkg/strategy/indicatorruntime"
 )
 
 // Run executes a backtest with the given configuration.
@@ -52,11 +53,20 @@ func Run(ctx context.Context, cfg RunConfig) *RunResult {
 	}
 	store.SetRehabType(cfg.RehabType)
 
-	// Validate that we have data.
-	klines, err := store.QueryKLinesBackward(nil, cfg.Symbol, types.Interval(cfg.Interval), cfg.EndTime, 1)
-	if err != nil || len(klines) == 0 {
-		result.Error = fmt.Sprintf("no K-line data for %s %s (run 'jftrade kline-sync' first)", cfg.Symbol, cfg.Interval)
+	sourceFormat := strategydefinition.NormalizeSourceFormat(cfg.SourceFormat)
+	if sourceFormat != strategydefinition.SourceFormatDSLV1 {
+		result.Error = fmt.Sprintf("unsupported strategy source format: %s", sourceFormat)
 		return result
+	}
+
+	derivedWarmupCandles, err := deriveStrategyWarmupCandles(cfg.StrategyScript, types.Interval(cfg.Interval))
+	if err != nil {
+		result.Error = fmt.Sprintf("derive strategy warmup: %v", err)
+		return result
+	}
+	warmupCandles := cfg.WarmupCandles
+	if derivedWarmupCandles > warmupCandles {
+		warmupCandles = derivedWarmupCandles
 	}
 
 	// ── Warmup ──────────────────────────────────────────────────────
@@ -64,12 +74,16 @@ func Run(ctx context.Context, cfg RunConfig) *RunResult {
 	// enough history before the actual backtest start.
 	warmupUntil := cfg.StartTime
 	queryStartTime := cfg.StartTime
-	if cfg.WarmupCandles > 0 {
+	if warmupCandles > 0 {
 		intervalDur := types.Interval(cfg.Interval).Duration()
-		warmupDur := intervalDur * time.Duration(cfg.WarmupCandles)
+		warmupDur := intervalDur * time.Duration(warmupCandles)
 		queryStartTime = cfg.StartTime.Add(-warmupDur)
-		log.Printf("backtest: warmup %d candles (%v), query from %s",
-			cfg.WarmupCandles, warmupDur, queryStartTime.Format(time.RFC3339))
+		log.Printf("backtest: warmup %d candles (configured=%d derived=%d, %v), query from %s",
+			warmupCandles, cfg.WarmupCandles, derivedWarmupCandles, warmupDur, queryStartTime.Format(time.RFC3339))
+	}
+	if err := store.EnsureCoverage(cfg.Symbol, types.Interval(cfg.Interval), queryStartTime, cfg.EndTime); err != nil {
+		result.Error = err.Error()
+		return result
 	}
 
 	// ── 2. Build backtest exchange ──────────────────────────────────
@@ -173,11 +187,6 @@ func Run(ctx context.Context, cfg RunConfig) *RunResult {
 		Run(ctx context.Context, orderExecutor bbgo2.OrderExecutor, session *bbgo2.ExchangeSession) error
 	}
 
-	sourceFormat := strategydefinition.NormalizeSourceFormat(cfg.SourceFormat)
-	if sourceFormat != strategydefinition.SourceFormatDSLV1 {
-		result.Error = fmt.Sprintf("unsupported strategy source format: %s", sourceFormat)
-		return result
-	}
 	strategy := &dslruntime.Strategy{
 		Name:        "backtest-strategy",
 		Symbol:      cfg.Symbol,
@@ -260,4 +269,8 @@ func Run(ctx context.Context, cfg RunConfig) *RunResult {
 	log.Printf("backtest: done totalOrders=%d filledOrders=%d finalBalance=%.2f", totalOrders, filledOrders, result.FinalBalance)
 
 	return result
+}
+
+func deriveStrategyWarmupCandles(script string, interval types.Interval) (int, error) {
+	return indicatorruntime.WarmupBarsFromScript(script, interval)
 }

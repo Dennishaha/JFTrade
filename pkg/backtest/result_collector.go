@@ -182,6 +182,40 @@ func (c *resultCollector) onKLineClosed(ctx context.Context, exchange accountQue
 	})
 }
 
+func buildDrawdownMetrics(pnlCurve []PnLPoint) (float64, float64, []DrawdownPoint) {
+	if len(pnlCurve) == 0 {
+		return 0, 0, nil
+	}
+
+	drawdownCurve := make([]DrawdownPoint, len(pnlCurve))
+	peak := pnlCurve[0].Equity
+	maxDrawdown := 0.0
+	currentDrawdown := 0.0
+
+	for index := range pnlCurve {
+		point := pnlCurve[index]
+		if point.Equity > peak {
+			peak = point.Equity
+		}
+
+		drawdown := 0.0
+		if peak > 0 && point.Equity < peak {
+			drawdown = (peak - point.Equity) / peak
+		}
+
+		drawdownCurve[index] = DrawdownPoint{
+			Time:     point.Time,
+			Drawdown: drawdown,
+		}
+		if drawdown > maxDrawdown {
+			maxDrawdown = drawdown
+		}
+		currentDrawdown = drawdown
+	}
+
+	return maxDrawdown, currentDrawdown, drawdownCurve
+}
+
 func (c *resultCollector) finalize(ctx context.Context, exchange accountQuerier, initialBalance float64) (int, int) {
 	account, err := exchange.QueryAccount(ctx)
 	if err == nil {
@@ -227,6 +261,7 @@ func (c *resultCollector) finalize(ctx context.Context, exchange accountQuerier,
 	}
 
 	c.result.PnLCurve = c.pnlCurve
+	c.result.MaxDrawdown, c.result.CurrentDrawdown, c.result.DrawdownCurve = buildDrawdownMetrics(c.pnlCurve)
 	c.result.Candles = c.candles
 	c.result.PnL = c.result.FinalBalance - initialBalance
 	c.result.TotalTrades = len(c.filledOrders)

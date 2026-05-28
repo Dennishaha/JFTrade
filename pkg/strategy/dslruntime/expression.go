@@ -17,6 +17,14 @@ type seriesNumber struct {
 	HasPrevious bool
 }
 
+type objectFieldReader interface {
+	FieldValue(name string) (any, bool)
+}
+
+type scalarValueReader interface {
+	ScalarValue() (float64, bool)
+}
+
 func evaluateFloatExpression(expression string, scope *evaluationScope) (float64, error) {
 	value, err := evaluateExpression(expression, scope)
 	if err != nil {
@@ -98,10 +106,8 @@ func evaluateIdentifier(identifier *exprast.IdentifierNode, scope *evaluationSco
 	if identifier == nil {
 		return nil, fmt.Errorf("identifier is required")
 	}
-	if scope != nil && scope.variables != nil {
-		if value, ok := scope.variables[identifier.Value]; ok {
-			return value, nil
-		}
+	if value, ok := scope.variable(identifier.Value); ok {
+		return value, nil
 	}
 	switch strings.ToLower(strings.TrimSpace(identifier.Value)) {
 	case "true":
@@ -145,34 +151,51 @@ func evaluateUnaryExpression(expression *exprast.UnaryNode, scope *evaluationSco
 }
 
 func evaluateBinaryExpression(expression *exprast.BinaryNode, scope *evaluationScope) (any, error) {
-	left, err := evaluateAST(expression.Left, scope)
-	if err != nil {
-		return nil, err
-	}
-	right, err := evaluateAST(expression.Right, scope)
-	if err != nil {
-		return nil, err
-	}
 	switch expression.Operator {
 	case "&&", "and", "||", "or":
-		leftValue, ok := coerceBoolValue(left)
-		if !ok {
-			return nil, fmt.Errorf("logical operator %s requires boolean operands", expression.Operator)
+		leftValue, ok, err := evaluateBoolOperand(expression.Left, scope)
+		if err != nil {
+			return nil, err
 		}
-		rightValue, ok := coerceBoolValue(right)
 		if !ok {
 			return nil, fmt.Errorf("logical operator %s requires boolean operands", expression.Operator)
 		}
 		if expression.Operator == "&&" || expression.Operator == "and" {
+			if !leftValue {
+				return false, nil
+			}
+			rightValue, ok, err := evaluateBoolOperand(expression.Right, scope)
+			if err != nil {
+				return nil, err
+			}
+			if !ok {
+				return nil, fmt.Errorf("logical operator %s requires boolean operands", expression.Operator)
+			}
 			return leftValue && rightValue, nil
+		}
+		if leftValue {
+			return true, nil
+		}
+		rightValue, ok, err := evaluateBoolOperand(expression.Right, scope)
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			return nil, fmt.Errorf("logical operator %s requires boolean operands", expression.Operator)
 		}
 		return leftValue || rightValue, nil
 	case "+", "-", "*", "/":
-		leftValue, ok := coerceFloatValue(left)
+		leftValue, ok, err := evaluateFloatOperand(expression.Left, scope)
+		if err != nil {
+			return nil, err
+		}
 		if !ok {
 			return nil, fmt.Errorf("arithmetic operator %s requires numeric operands", expression.Operator)
 		}
-		rightValue, ok := coerceFloatValue(right)
+		rightValue, ok, err := evaluateFloatOperand(expression.Right, scope)
+		if err != nil {
+			return nil, err
+		}
 		if !ok {
 			return nil, fmt.Errorf("arithmetic operator %s requires numeric operands", expression.Operator)
 		}
@@ -190,10 +213,117 @@ func evaluateBinaryExpression(expression *exprast.BinaryNode, scope *evaluationS
 			return leftValue / rightValue, nil
 		}
 	case ">", ">=", "<", "<=", "==", "!=":
+		leftFloat, leftFloatOK, err := evaluateFloatOperand(expression.Left, scope)
+		if err != nil {
+			return nil, err
+		}
+		if leftFloatOK {
+			rightFloat, rightFloatOK, err := evaluateFloatOperand(expression.Right, scope)
+			if err != nil {
+				return nil, err
+			}
+			if rightFloatOK {
+				return compareFloatValues(leftFloat, rightFloat, expression.Operator), nil
+			}
+		}
+		if expression.Operator == "==" || expression.Operator == "!=" {
+			leftBool, leftBoolOK, err := evaluateBoolOperand(expression.Left, scope)
+			if err != nil {
+				return nil, err
+			}
+			if leftBoolOK {
+				rightBool, rightBoolOK, err := evaluateBoolOperand(expression.Right, scope)
+				if err != nil {
+					return nil, err
+				}
+				if rightBoolOK {
+					return compareBoolValues(leftBool, rightBool, expression.Operator), nil
+				}
+			}
+		}
+		left, err := evaluateAST(expression.Left, scope)
+		if err != nil {
+			return nil, err
+		}
+		right, err := evaluateAST(expression.Right, scope)
+		if err != nil {
+			return nil, err
+		}
 		return compareValues(left, right, expression.Operator)
 	default:
 		return nil, fmt.Errorf("unsupported binary operator %s", expression.Operator)
 	}
+}
+
+func compareFloatValues(left float64, right float64, operator string) bool {
+	switch operator {
+	case ">":
+		return left > right
+	case ">=":
+		return left >= right
+	case "<":
+		return left < right
+	case "<=":
+		return left <= right
+	case "==":
+		return left == right
+	default:
+		return left != right
+	}
+}
+
+func compareBoolValues(left bool, right bool, operator string) bool {
+	if operator == "==" {
+		return left == right
+	}
+	return left != right
+}
+
+func evaluateFloatOperand(node exprast.Node, scope *evaluationScope) (float64, bool, error) {
+	switch typed := node.(type) {
+	case *exprast.IntegerNode:
+		return float64(typed.Value), true, nil
+	case *exprast.FloatNode:
+		return typed.Value, true, nil
+	case *exprast.UnaryNode:
+		if typed.Operator == "+" || typed.Operator == "-" {
+			value, ok, err := evaluateFloatOperand(typed.Node, scope)
+			if err != nil || !ok {
+				return 0, ok, err
+			}
+			if typed.Operator == "-" {
+				return -value, true, nil
+			}
+			return value, true, nil
+		}
+	}
+	value, err := evaluateAST(node, scope)
+	if err != nil {
+		return 0, false, err
+	}
+	result, ok := coerceFloatValue(value)
+	return result, ok, nil
+}
+
+func evaluateBoolOperand(node exprast.Node, scope *evaluationScope) (bool, bool, error) {
+	switch typed := node.(type) {
+	case *exprast.BoolNode:
+		return typed.Value, true, nil
+	case *exprast.UnaryNode:
+		if typed.Operator == "!" || typed.Operator == "not" {
+			value, ok, err := evaluateBoolOperand(typed.Node, scope)
+			if err != nil || !ok {
+				return false, ok, err
+			}
+			return !value, true, nil
+		}
+	}
+	value, err := evaluateAST(node, scope)
+	if err != nil {
+		return false, false, err
+	}
+	result, ok := coerceBoolValue(value)
+	return result, ok, nil
 }
 
 func evaluateMemberExpression(expression *exprast.MemberNode, scope *evaluationScope) (any, error) {
@@ -205,16 +335,15 @@ func evaluateMemberExpression(expression *exprast.MemberNode, scope *evaluationS
 	if !ok {
 		return nil, fmt.Errorf("unsupported member property %T", expression.Property)
 	}
-	values, ok := base.(map[string]any)
+	current, ok := readObjectField(base, property)
 	if !ok {
 		return nil, fmt.Errorf("selector %s requires an object expression", property)
 	}
-	current, ok := values[property]
-	if !ok {
+	if current == missingObjectField {
 		return nil, fmt.Errorf("unknown field %q", property)
 	}
 	if previousField := previousFieldName(property); previousField != "" {
-		if previous, ok := values[previousField]; ok {
+		if previous, ok := readObjectField(base, previousField); ok && previous != missingObjectField {
 			currentFloat, currentOK := coerceFloatValue(current)
 			previousFloat, previousOK := coerceFloatValue(previous)
 			if currentOK && previousOK {
@@ -223,6 +352,27 @@ func evaluateMemberExpression(expression *exprast.MemberNode, scope *evaluationS
 		}
 	}
 	return current, nil
+}
+
+var missingObjectField = struct{}{}
+
+func readObjectField(base any, property string) (any, bool) {
+	switch values := base.(type) {
+	case map[string]any:
+		value, ok := values[property]
+		if !ok {
+			return missingObjectField, true
+		}
+		return value, true
+	case objectFieldReader:
+		value, ok := values.FieldValue(property)
+		if !ok {
+			return missingObjectField, true
+		}
+		return value, true
+	default:
+		return nil, false
+	}
 }
 
 func memberPropertyName(node exprast.Node) (string, bool) {
@@ -242,11 +392,10 @@ func evaluateBuiltinExpression(expression *exprast.BuiltinNode, scope *evaluatio
 		if len(expression.Arguments) != 1 {
 			return nil, fmt.Errorf("abs() requires 1 argument")
 		}
-		value, err := evaluateAST(expression.Arguments[0], scope)
+		floatValue, ok, err := evaluateFloatOperand(expression.Arguments[0], scope)
 		if err != nil {
 			return nil, err
 		}
-		floatValue, ok := coerceFloatValue(value)
 		if !ok {
 			return nil, fmt.Errorf("abs() requires a numeric argument")
 		}
@@ -275,11 +424,10 @@ func evaluateCallExpression(expression *exprast.CallNode, scope *evaluationScope
 		if len(expression.Arguments) != 1 {
 			return nil, fmt.Errorf("abs() requires 1 argument")
 		}
-		value, err := evaluateAST(expression.Arguments[0], scope)
+		floatValue, ok, err := evaluateFloatOperand(expression.Arguments[0], scope)
 		if err != nil {
 			return nil, err
 		}
-		floatValue, ok := coerceFloatValue(value)
 		if !ok {
 			return nil, fmt.Errorf("abs() requires a numeric argument")
 		}
@@ -337,7 +485,7 @@ func evaluateDivergenceExpression(arguments []exprast.Node, scope *evaluationSco
 	if !ok || lookbackFloat <= 0 {
 		return false, fmt.Errorf("divergence_%s() lookback must be a positive integer", direction)
 	}
-	binding, ok := scope.bindings[aliasIdentifier.Value]
+	binding, ok := scope.binding(aliasIdentifier.Value)
 	if !ok {
 		return false, nil
 	}
@@ -357,29 +505,16 @@ func compareValues(left any, right any, operator string) (bool, error) {
 	leftFloat, leftFloatOK := coerceFloatValue(left)
 	rightFloat, rightFloatOK := coerceFloatValue(right)
 	if leftFloatOK && rightFloatOK {
-		switch operator {
-		case ">":
-			return leftFloat > rightFloat, nil
-		case ">=":
-			return leftFloat >= rightFloat, nil
-		case "<":
-			return leftFloat < rightFloat, nil
-		case "<=":
-			return leftFloat <= rightFloat, nil
-		case "==":
-			return leftFloat == rightFloat, nil
-		default:
-			return leftFloat != rightFloat, nil
-		}
+		return compareFloatValues(leftFloat, rightFloat, operator), nil
 	}
 	leftBool, leftBoolOK := coerceBoolValue(left)
 	rightBool, rightBoolOK := coerceBoolValue(right)
 	if leftBoolOK && rightBoolOK {
 		switch operator {
 		case "==":
-			return leftBool == rightBool, nil
+			return compareBoolValues(leftBool, rightBool, operator), nil
 		case "!=":
-			return leftBool != rightBool, nil
+			return compareBoolValues(leftBool, rightBool, operator), nil
 		default:
 			return false, fmt.Errorf("operator %s requires numeric operands", operator)
 		}
@@ -430,18 +565,48 @@ func coerceFloatValue(value any) (float64, bool) {
 			return 0, false
 		}
 		return typed.Current, true
-	case map[string]any:
-		for _, key := range []string{"value", "diff", "signal", "histogram", "k", "d", "j", "middle", "upper", "lower", "changePercent", "triggerPercent"} {
-			if nested, ok := typed[key]; ok {
-				if parsed, ok := coerceFloatValue(nested); ok {
-					return parsed, true
-				}
-			}
+	case *seriesNumber:
+		if typed == nil || !typed.HasCurrent {
+			return 0, false
 		}
-		return 0, false
+		return typed.Current, true
+	case scalarValueReader:
+		return typed.ScalarValue()
+	case map[string]any:
+		return coerceFloatFromMapFields(typed)
+	case objectFieldReader:
+		return coerceFloatFromObjectFields(typed)
 	default:
 		return 0, false
 	}
+}
+
+var scalarObjectFieldCandidates = [...]string{"value", "diff", "signal", "histogram", "k", "d", "j", "middle", "upper", "lower", "changePercent", "triggerPercent"}
+
+func coerceFloatFromMapFields(values map[string]any) (float64, bool) {
+	for _, key := range scalarObjectFieldCandidates {
+		nested, ok := values[key]
+		if !ok {
+			continue
+		}
+		if parsed, ok := coerceFloatValue(nested); ok {
+			return parsed, true
+		}
+	}
+	return 0, false
+}
+
+func coerceFloatFromObjectFields(values objectFieldReader) (float64, bool) {
+	for _, key := range scalarObjectFieldCandidates {
+		nested, ok := values.FieldValue(key)
+		if !ok {
+			continue
+		}
+		if parsed, ok := coerceFloatValue(nested); ok {
+			return parsed, true
+		}
+	}
+	return 0, false
 }
 
 func coerceBoolValue(value any) (bool, bool) {
@@ -467,6 +632,11 @@ func coerceBoolValue(value any) (bool, bool) {
 			return false, true
 		}
 		return typed.Current != 0, true
+	case *seriesNumber:
+		if typed == nil || !typed.HasCurrent {
+			return false, true
+		}
+		return typed.Current != 0, true
 	default:
 		if numeric, ok := coerceFloatValue(value); ok {
 			return numeric != 0, true
@@ -479,11 +649,16 @@ func coerceSeriesNumber(value any) (seriesNumber, bool) {
 	switch typed := value.(type) {
 	case seriesNumber:
 		return typed, true
-	case map[string]any:
+	case *seriesNumber:
+		if typed == nil {
+			return seriesNumber{}, false
+		}
+		return *typed, true
+	case map[string]any, objectFieldReader:
 		for _, pair := range [][2]string{{"value", "previous"}, {"diff", "previousDiff"}, {"signal", "previousSignal"}, {"histogram", "previousHistogram"}, {"k", "previousK"}, {"d", "previousD"}, {"j", "previousJ"}} {
-			current, currentOK := typed[pair[0]]
-			previous, previousOK := typed[pair[1]]
-			if !currentOK || !previousOK {
+			current, currentOK := readObjectField(value, pair[0])
+			previous, previousOK := readObjectField(value, pair[1])
+			if !currentOK || !previousOK || current == missingObjectField || previous == missingObjectField {
 				continue
 			}
 			currentFloat, currentFloatOK := coerceFloatValue(current)

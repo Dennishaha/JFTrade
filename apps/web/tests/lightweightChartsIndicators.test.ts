@@ -11,6 +11,16 @@ import {
   computeWilliamsR,
 } from "../src/charting/lightweightChartsIndicators";
 
+function expectIndicatorValues(
+  actual: Array<{ value: number }>,
+  expected: number[],
+): void {
+  expect(actual).toHaveLength(expected.length);
+  actual.forEach((point, index) => {
+    expect(point.value).toBeCloseTo(expected[index]!, 10);
+  });
+}
+
 function buildCandle(overrides: Partial<KlineCandle>): KlineCandle {
   return {
     at: "2026-05-17T01:30:00.000Z",
@@ -40,6 +50,20 @@ describe("lightweightChartsIndicators", () => {
     expect(values[2]).toBeCloseTo(2.5555556, 6);
   });
 
+    it("computes KDJ from rolling highs and lows without changing values", () => {
+      const candles: KlineCandle[] = [
+        { at: "2026-05-20T09:30:00.000Z", open: 10, high: 11, low: 9, close: 10, volume: 100 },
+        { at: "2026-05-20T09:31:00.000Z", open: 10, high: 13, low: 10, close: 12, volume: 120 },
+        { at: "2026-05-20T09:32:00.000Z", open: 12, high: 12, low: 10, close: 11, volume: 110 },
+        { at: "2026-05-20T09:33:00.000Z", open: 11, high: 14, low: 11, close: 13, volume: 130 },
+      ];
+
+      const result = computeKdj(candles);
+      expectIndicatorValues(result.k, [50, 58.333333333333336, 55.555555555555564, 63.703703703703716]);
+      expectIndicatorValues(result.d, [50, 52.77777777777778, 53.70370370370371, 57.037037037037045]);
+      expectIndicatorValues(result.j, [50, 69.44444444444446, 59.25925925925927, 77.03703703703706]);
+    });
+
   it("computes macd series for rising closes", () => {
     const candles = [
       buildCandle({ at: "2026-05-17T01:30:00.000Z", close: 100 }),
@@ -53,6 +77,17 @@ describe("lightweightChartsIndicators", () => {
     expect(macd.histogram).toHaveLength(3);
     expect(macd.histogram[0]?.value).toBe(0);
     expect(macd.histogram[2]?.value ?? 0).toBeGreaterThan(0);
+  });
+
+  it("computes ATR with a rolling true-range sum", () => {
+    const candles: KlineCandle[] = [
+      { at: "2026-05-20T09:30:00.000Z", open: 9, high: 10, low: 8, close: 9, volume: 100 },
+      { at: "2026-05-20T09:31:00.000Z", open: 11, high: 13, low: 10, close: 12, volume: 120 },
+      { at: "2026-05-20T09:32:00.000Z", open: 13, high: 15, low: 11, close: 13, volume: 110 },
+      { at: "2026-05-20T09:33:00.000Z", open: 13, high: 14, low: 12, close: 13, volume: 130 },
+    ];
+
+    expectIndicatorValues(computeAtr(candles, 2), [3, 4, 3]);
   });
 
   it("keeps flat candles at neutral kdj values", () => {
@@ -89,7 +124,7 @@ describe("lightweightChartsIndicators", () => {
 
     const cci = computeCci(candles, 3);
     expect(cci).toHaveLength(1);
-    expect(cci[0]?.value ?? 0).toBeGreaterThan(90);
+    expect(cci[0]?.value).toBeCloseTo(100, 10);
   });
 
   it("computes williams r inside the expected range", () => {
@@ -102,5 +137,16 @@ describe("lightweightChartsIndicators", () => {
     const williamsR = computeWilliamsR(candles, 3);
     expect(williamsR).toHaveLength(1);
     expect(williamsR[0]?.value).toBeCloseTo(-45.454545, 5);
+  });
+
+  it("computes Williams %R from rolling extrema", () => {
+    const candles: KlineCandle[] = [
+      { at: "2026-05-20T09:30:00.000Z", open: 10, high: 11, low: 9, close: 10, volume: 100 },
+      { at: "2026-05-20T09:31:00.000Z", open: 11, high: 12, low: 10, close: 11, volume: 120 },
+      { at: "2026-05-20T09:32:00.000Z", open: 12, high: 13, low: 11, close: 12, volume: 110 },
+      { at: "2026-05-20T09:33:00.000Z", open: 13, high: 14, low: 12, close: 13, volume: 130 },
+    ];
+
+    expectIndicatorValues(computeWilliamsR(candles, 3), [-25, -25]);
   });
 });

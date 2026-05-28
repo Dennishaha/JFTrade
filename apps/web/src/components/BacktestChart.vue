@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import {
+  type Logical,
+  type LogicalRange,
   type UTCTimestamp,
   type SeriesMarker,
   type Time,
@@ -35,6 +37,11 @@ export interface BacktestPnlPoint {
   equity: number;
 }
 
+export interface BacktestDrawdownPoint {
+  time: string;
+  drawdown: number;
+}
+
 export interface BacktestCandle {
   time: string;
   open: number;
@@ -49,15 +56,23 @@ const props = withDefaults(
     candles: readonly BacktestCandle[];
     trades: readonly BacktestTrade[];
     pnlCurve: readonly BacktestPnlPoint[];
+    drawdownCurve: readonly BacktestDrawdownPoint[];
     initialBalance: number;
+    currencyUnit?: string;
     minHeight?: number;
     emptyText?: string;
   }>(),
   {
-    minHeight: 420,
+    minHeight: 560,
     emptyText: "暂无回测数据",
   },
 );
+
+const INITIAL_WINDOW_BARS = 5000;
+const WINDOW_EXPAND_BARS = 5000;
+const LOAD_MORE_THRESHOLD = 200;
+const INITIAL_VISIBLE_BARS = 120;
+const INITIAL_RIGHT_OFFSET_BARS = 8;
 
 const host = ref<HTMLElement | null>(null);
 const chartError = ref("");
@@ -76,6 +91,8 @@ const palette = computed(() =>
         volumeDown: "rgba(234, 57, 67, 0.45)",
         pnl: "#2563eb",
         pnlBaseline: "rgba(15, 23, 42, 0.18)",
+        drawdown: "#f97316",
+        drawdownBaseline: "rgba(148, 163, 184, 0.35)",
         buyMarker: "#16c784",
         sellMarker: "#ea3943",
       }
@@ -90,6 +107,8 @@ const palette = computed(() =>
         volumeDown: "rgba(234, 57, 67, 0.45)",
         pnl: "#60a5fa",
         pnlBaseline: "rgba(148, 163, 184, 0.25)",
+        drawdown: "#fb923c",
+        drawdownBaseline: "rgba(148, 163, 184, 0.4)",
         buyMarker: "#16c784",
         sellMarker: "#ea3943",
       },
@@ -98,21 +117,254 @@ const palette = computed(() =>
 const hasCandles = computed(() => props.candles.length > 0);
 const hasTrades = computed(() => props.trades.length > 0);
 const hasPnl = computed(() => props.pnlCurve.length > 0);
-const hasData = computed(() => hasCandles.value || hasPnl.value);
+const hasDrawdown = computed(() => props.drawdownCurve.length > 0);
+const hasData = computed(() => hasCandles.value || hasPnl.value || hasDrawdown.value);
+const displayCurrencyUnit = computed(() => props.currencyUnit?.trim().toUpperCase() || "HKD");
+
+function formatCurrencyValue(value: number) {
+  return `${displayCurrencyUnit.value} ${value.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
+
+function buildCurrencyPriceFormat() {
+  return {
+    type: "custom" as const,
+    formatter: formatCurrencyValue,
+    minMove: 0.01,
+  };
+}
+
+function formatDrawdownPercent(value: number) {
+  return `${(value * 100).toFixed(2)}%`;
+}
+
+function normalizePeakRatio(drawdown: number) {
+  return Math.max(0, Math.min(1, 1 - drawdown));
+}
 
 type ChartHandle = ReturnType<typeof createChart>;
+type NormalizedCandleDatum = {
+  time: UTCTimestamp;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+};
+type NormalizedHistogramDatum = {
+  time: UTCTimestamp;
+  value: number;
+  color: string;
+};
+type NormalizedLineDatum = {
+  time: UTCTimestamp;
+  value: number;
+};
 
 let chart: ChartHandle | null = null;
 let candleSeries: ReturnType<ChartHandle["addSeries"]> | null = null;
 let volumeSeries: ReturnType<ChartHandle["addSeries"]> | null = null;
 let pnlSeries: ReturnType<ChartHandle["addSeries"]> | null = null;
 let pnlBaselineSeries: ReturnType<ChartHandle["addSeries"]> | null = null;
+let drawdownSeries: ReturnType<ChartHandle["addSeries"]> | null = null;
+let drawdownBaselineSeries: ReturnType<ChartHandle["addSeries"]> | null = null;
 let markersPlugin: ISeriesMarkersPluginApi<Time> | null = null;
 let resizeObserver: ResizeObserver | null = null;
 let resizeRaf: number | null = null;
+let candleDataCache: NormalizedCandleDatum[] = [];
+let volumeDataCache: NormalizedHistogramDatum[] = [];
+let pnlDataCache: NormalizedLineDatum[] = [];
+let drawdownDataCache: NormalizedLineDatum[] = [];
+let markerDataCache: SeriesMarker<Time>[] = [];
+let referenceTimesCache: UTCTimestamp[] = [];
+let windowStartIndex = 0;
+let isSyncingVisibleRange = false;
 
 function toTimestamp(at: string): UTCTimestamp {
   return Math.floor(new Date(at).getTime() / 1000) as UTCTimestamp;
+}
+
+function toLogical(value: number): Logical {
+  return value as Logical;
+}
+
+function referenceLength() {
+  return referenceTimesCache.length;
+}
+
+function setVisibleLogicalRange(range: LogicalRange) {
+  if (!chart) {
+    return;
+  }
+
+  isSyncingVisibleRange = true;
+  chart.timeScale().setVisibleLogicalRange(range);
+  queueMicrotask(() => {
+    isSyncingVisibleRange = false;
+  });
+}
+
+function rebuildPaletteDependentData() {
+  const p = palette.value;
+
+  volumeDataCache = props.candles.map((candle, index) => {
+    const prevClose = index > 0 ? props.candles[index - 1]!.close : candle.open;
+    return {
+      time: toTimestamp(candle.time),
+      value: candle.volume,
+      color: candle.close >= prevClose ? p.volumeUp : p.volumeDown,
+    };
+  });
+
+  markerDataCache = props.trades.map((trade) => {
+    const isBuy = trade.side.toUpperCase() === "BUY";
+    const amount = trade.price * trade.qty;
+    return {
+      time: toTimestamp(trade.time),
+      position: isBuy ? "belowBar" : "aboveBar",
+      color: isBuy ? p.buyMarker : p.sellMarker,
+      shape: isBuy ? "arrowUp" : "arrowDown",
+      text: `${isBuy ? "买入" : "卖出"} ${trade.qty}股 ${formatCurrencyValue(amount)}`,
+      size: 3,
+    };
+  });
+}
+
+function rebuildAllData() {
+  candleDataCache = props.candles.map((candle) => ({
+    time: toTimestamp(candle.time),
+    open: candle.open,
+    high: candle.high,
+    low: candle.low,
+    close: candle.close,
+  }));
+  pnlDataCache = props.pnlCurve.map((point) => ({
+    time: toTimestamp(point.time),
+    value: point.equity,
+  }));
+  drawdownDataCache = props.drawdownCurve.map((point) => ({
+    time: toTimestamp(point.time),
+    value: normalizePeakRatio(point.drawdown),
+  }));
+  referenceTimesCache = candleDataCache.length > 0
+    ? candleDataCache.map((point) => point.time)
+    : pnlDataCache.length > 0
+      ? pnlDataCache.map((point) => point.time)
+      : drawdownDataCache.map((point) => point.time);
+  rebuildPaletteDependentData();
+
+  const totalBars = referenceLength();
+  windowStartIndex = totalBars > INITIAL_WINDOW_BARS ? totalBars - INITIAL_WINDOW_BARS : 0;
+  applyCurrentWindow({ resetVisibleRange: true });
+}
+
+function applyCurrentWindow(options: {
+  resetVisibleRange?: boolean;
+  visibleRange?: LogicalRange | null;
+  visibleShift?: number;
+} = {}) {
+  if (
+    !candleSeries ||
+    !volumeSeries ||
+    !pnlSeries ||
+    !pnlBaselineSeries ||
+    !drawdownSeries ||
+    !drawdownBaselineSeries
+  ) {
+    return;
+  }
+
+  const totalBars = referenceLength();
+  const start = Math.min(windowStartIndex, totalBars);
+  const visibleCandles = candleDataCache.slice(start);
+  const visibleVolume = volumeDataCache.slice(start);
+  const visiblePnl = pnlDataCache.slice(start);
+  const visibleDrawdown = drawdownDataCache.slice(start);
+
+  candleSeries.setData(visibleCandles);
+  volumeSeries.setData(visibleVolume);
+  pnlSeries.setData(visiblePnl);
+  drawdownSeries.setData(visibleDrawdown);
+
+  if (visiblePnl.length > 0) {
+    pnlBaselineSeries.setData([
+      { time: visiblePnl[0]!.time, value: props.initialBalance },
+      { time: visiblePnl[visiblePnl.length - 1]!.time, value: props.initialBalance },
+    ]);
+  } else {
+    pnlBaselineSeries.setData([]);
+  }
+
+  if (visibleDrawdown.length > 0) {
+    drawdownBaselineSeries.setData([
+      { time: visibleDrawdown[0]!.time, value: 1 },
+      { time: visibleDrawdown[visibleDrawdown.length - 1]!.time, value: 1 },
+    ]);
+  } else {
+    drawdownBaselineSeries.setData([]);
+  }
+
+  if (markersPlugin && referenceTimesCache.length > 0) {
+    const firstVisibleTime = referenceTimesCache[start]!;
+    const lastVisibleTime = referenceTimesCache[referenceTimesCache.length - 1]!;
+    markersPlugin.setMarkers(
+      markerDataCache.filter((marker) => {
+        const markerTime = marker.time as UTCTimestamp;
+        return markerTime >= firstVisibleTime && markerTime <= lastVisibleTime;
+      }),
+    );
+  } else {
+    markersPlugin?.setMarkers([]);
+  }
+
+  const windowLength = totalBars - start;
+  if (options.resetVisibleRange && windowLength > 0) {
+    setVisibleLogicalRange({
+      from: toLogical(Math.max(0, windowLength - INITIAL_VISIBLE_BARS)),
+      to: toLogical(windowLength + INITIAL_RIGHT_OFFSET_BARS),
+    });
+    return;
+  }
+
+  if (options.visibleRange != null && options.visibleShift != null && options.visibleShift > 0) {
+    setVisibleLogicalRange({
+      from: toLogical(options.visibleRange.from + options.visibleShift),
+      to: toLogical(options.visibleRange.to + options.visibleShift),
+    });
+  }
+}
+
+function expandWindow(range: LogicalRange) {
+  if (!chart || windowStartIndex === 0) {
+    return;
+  }
+
+  const nextWindowStart = Math.max(0, windowStartIndex - WINDOW_EXPAND_BARS);
+  if (nextWindowStart === windowStartIndex) {
+    return;
+  }
+
+  const visibleRange = chart.timeScale().getVisibleLogicalRange() ?? range;
+  const prependedCount = windowStartIndex - nextWindowStart;
+  windowStartIndex = nextWindowStart;
+  applyCurrentWindow({
+    visibleRange,
+    visibleShift: prependedCount,
+  });
+}
+
+function handleVisibleLogicalRangeChange(range: LogicalRange | null) {
+  if (
+    range == null ||
+    isSyncingVisibleRange ||
+    windowStartIndex === 0 ||
+    range.from > LOAD_MORE_THRESHOLD
+  ) {
+    return;
+  }
+
+  expandWindow(range);
 }
 
 function measureHost(el: HTMLElement): { width: number; height: number } {
@@ -156,10 +408,6 @@ function buildChart() {
         secondsVisible: false,
       },
       crosshair: { mode: CrosshairMode.Normal },
-      localization: {
-        priceFormatter: (price: number) =>
-          `HK$${parseFloat(price.toFixed(2)).toLocaleString()}`,
-      },
     });
 
     // ── Pane 0: K-line candlestick (main) ──
@@ -170,6 +418,7 @@ function buildChart() {
       borderDownColor: p.down,
       wickUpColor: p.up,
       wickDownColor: p.down,
+      priceFormat: buildCurrencyPriceFormat(),
     });
 
     // Markers plugin on candlestick series
@@ -195,6 +444,7 @@ function buildChart() {
         priceLineVisible: false,
         lastValueVisible: true,
         crosshairMarkerVisible: true,
+        priceFormat: buildCurrencyPriceFormat(),
       },
       2,
     );
@@ -207,74 +457,63 @@ function buildChart() {
         lineStyle: 2,
         priceLineVisible: false,
         lastValueVisible: false,
+        priceFormat: buildCurrencyPriceFormat(),
       },
       2,
     );
 
-    loadData();
+    drawdownSeries = chart.addSeries(
+      LineSeries,
+      {
+        color: p.drawdown,
+        lineWidth: 2,
+        priceLineVisible: false,
+        lastValueVisible: true,
+        crosshairMarkerVisible: true,
+        priceFormat: {
+          type: "custom",
+          formatter: formatDrawdownPercent,
+          minMove: 0.0001,
+        },
+        autoscaleInfoProvider: () => ({
+          priceRange: {
+            minValue: 0,
+            maxValue: 1,
+          },
+        }),
+      },
+      3,
+    );
+
+    drawdownBaselineSeries = chart.addSeries(
+      LineSeries,
+      {
+        color: p.drawdownBaseline,
+        lineWidth: 1,
+        lineStyle: 2,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        priceFormat: {
+          type: "custom",
+          formatter: formatDrawdownPercent,
+          minMove: 0.0001,
+        },
+        autoscaleInfoProvider: () => ({
+          priceRange: {
+            minValue: 0,
+            maxValue: 1,
+          },
+        }),
+      },
+      3,
+    );
+
+    chart.timeScale().subscribeVisibleLogicalRangeChange(handleVisibleLogicalRangeChange);
+    rebuildAllData();
   } catch (e) {
     chartError.value = `图表初始化失败: ${e instanceof Error ? e.message : String(e)}`;
     destroyChart();
   }
-}
-
-function loadData() {
-  if (!chart || !candleSeries || !volumeSeries || !pnlSeries || !pnlBaselineSeries) return;
-  const p = palette.value;
-
-  // ── K-line candles ──
-  const candleData = props.candles.map((c) => ({
-    time: toTimestamp(c.time),
-    open: c.open,
-    high: c.high,
-    low: c.low,
-    close: c.close,
-  }));
-  if (candleData.length > 0) {
-    candleSeries.setData(candleData);
-  }
-
-  // ── Volume histogram ──
-  const volumeData = props.candles.map((c, i) => {
-    const prevClose = i > 0 ? props.candles[i - 1]!.close : c.open;
-    const color = c.close >= prevClose ? p.volumeUp : p.volumeDown;
-    return { time: toTimestamp(c.time), value: c.volume, color };
-  });
-  if (volumeData.length > 0) {
-    volumeSeries.setData(volumeData);
-  }
-
-  // ── Trade markers on K-line chart ──
-  if (markersPlugin && props.trades.length > 0) {
-    const markers: SeriesMarker<Time>[] = props.trades.map((t) => {
-      const isBuy = t.side.toUpperCase() === "BUY";
-      const amount = t.price * t.qty;
-      return {
-        time: toTimestamp(t.time),
-        position: isBuy ? "belowBar" : "aboveBar",
-        color: isBuy ? p.buyMarker : p.sellMarker,
-        shape: isBuy ? "arrowUp" : "arrowDown",
-        text: `${isBuy ? "买入" : "卖出"} ${t.qty}股 HK$${amount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`,
-        size: 3,
-      };
-    });
-    markersPlugin.setMarkers(markers);
-  }
-
-  // ── P&L equity curve ──
-  const pnlData = props.pnlCurve.map((pt) => ({
-    time: toTimestamp(pt.time),
-    value: pt.equity,
-  }));
-  if (pnlData.length > 0) {
-    pnlSeries.setData(pnlData);
-    pnlBaselineSeries.setData([
-      { time: pnlData[0]!.time, value: props.initialBalance },
-      { time: pnlData[pnlData.length - 1]!.time, value: props.initialBalance },
-    ]);
-  }
-
-  chart.timeScale().fitContent();
 }
 
 function destroyChart() {
@@ -287,6 +526,8 @@ function destroyChart() {
     volumeSeries = null;
     pnlSeries = null;
     pnlBaselineSeries = null;
+    drawdownSeries = null;
+    drawdownBaselineSeries = null;
   }
 }
 
@@ -340,18 +581,22 @@ function applyPalette() {
     borderDownColor: p.down,
     wickUpColor: p.up,
     wickDownColor: p.down,
+    priceFormat: buildCurrencyPriceFormat(),
   });
-  pnlSeries?.applyOptions({ color: p.pnl });
-  pnlBaselineSeries?.applyOptions({ color: p.pnlBaseline });
-  // Reload data for per-bar volume colors and trade markers (baked into data)
-  loadData();
+  pnlSeries?.applyOptions({ color: p.pnl, priceFormat: buildCurrencyPriceFormat() });
+  pnlBaselineSeries?.applyOptions({ color: p.pnlBaseline, priceFormat: buildCurrencyPriceFormat() });
+  drawdownSeries?.applyOptions({ color: p.drawdown });
+  drawdownBaselineSeries?.applyOptions({ color: p.drawdownBaseline });
+  rebuildPaletteDependentData();
+  applyCurrentWindow();
 }
 
 // Shallow watch — parent passes new array references on data change, no need for deep
 watch(
-  () => [props.candles, props.pnlCurve, props.trades] as const,
-  () => loadData(),
+  () => [props.candles, props.pnlCurve, props.drawdownCurve, props.trades] as const,
+  () => rebuildAllData(),
 );
+watch(displayCurrencyUnit, () => applyPalette());
 watch(palette, () => applyPalette());
 </script>
 
@@ -364,7 +609,7 @@ watch(palette, () => applyPalette());
     >
       <div class="flex items-center gap-1.5">
         <span class="font-semibold text-slate-600">K线</span>
-        <span class="text-slate-400">{{ candles.length }} 根</span>
+        <span class="text-slate-400">{{ candles.length }} 根 · {{ displayCurrencyUnit }}</span>
       </div>
       <div v-if="hasTrades" class="flex items-center gap-1.5">
         <span class="text-sm" :style="{ color: palette.buyMarker }">▲</span>
@@ -377,7 +622,11 @@ watch(palette, () => applyPalette());
         <span class="h-2.5 w-2.5 rounded-full" :style="{ backgroundColor: palette.pnl }" />
         <span class="text-slate-600">权益曲线</span>
       </div>
-      <span class="text-slate-400">基准 {{ initialBalance.toLocaleString() }} HKD</span>
+      <div v-if="hasDrawdown" class="flex items-center gap-1.5">
+        <span class="h-2.5 w-2.5 rounded-full" :style="{ backgroundColor: palette.drawdown }" />
+        <span class="text-slate-600">权益/峰值</span>
+      </div>
+      <span class="text-slate-400">基准 {{ formatCurrencyValue(initialBalance) }}</span>
     </div>
 
     <!-- Error -->

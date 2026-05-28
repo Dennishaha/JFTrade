@@ -7,12 +7,11 @@ import (
 	"github.com/c9s/bbgo/pkg/types"
 )
 
-func scanKLine(row *sql.Row) (*types.KLine, error) {
-	var startTimeMillis, endTimeMillis, intervalValue int64
-	var symbol string
+func scanKLine(row *sql.Row, symbol string, interval types.Interval) (*types.KLine, error) {
+	var startTimeMillis, endTimeMillis int64
 	var open, high, low, close, volume float64
 
-	if err := row.Scan(&startTimeMillis, &endTimeMillis, &intervalValue, &symbol,
+	if err := row.Scan(&startTimeMillis, &endTimeMillis,
 		&open, &high, &low, &close, &volume,
 	); err != nil {
 		if err == sql.ErrNoRows {
@@ -21,42 +20,29 @@ func scanKLine(row *sql.Row) (*types.KLine, error) {
 		return nil, err
 	}
 
-	kline, err := newStoredKLine(startTimeMillis, endTimeMillis, intervalValue, symbol, open, high, low, close, volume)
-	if err != nil {
-		return nil, err
-	}
+	kline := newStoredKLine(startTimeMillis, endTimeMillis, symbol, interval, open, high, low, close, volume)
 	return &kline, nil
 }
 
-func scanKLines(rows *sql.Rows) ([]types.KLine, error) {
+func scanKLines(rows *sql.Rows, symbol string, interval types.Interval) ([]types.KLine, error) {
 	var klines []types.KLine
 	for rows.Next() {
-		var startTimeMillis, endTimeMillis, intervalValue int64
-		var symbol string
+		var startTimeMillis, endTimeMillis int64
 		var open, high, low, close, volume float64
 
-		if err := rows.Scan(&startTimeMillis, &endTimeMillis, &intervalValue, &symbol,
+		if err := rows.Scan(&startTimeMillis, &endTimeMillis,
 			&open, &high, &low, &close, &volume,
 		); err != nil {
 			return nil, err
 		}
 
-		kline, err := newStoredKLine(startTimeMillis, endTimeMillis, intervalValue, symbol, open, high, low, close, volume)
-		if err != nil {
-			return nil, err
-		}
-
+		kline := newStoredKLine(startTimeMillis, endTimeMillis, symbol, interval, open, high, low, close, volume)
 		klines = append(klines, kline)
 	}
 	return klines, rows.Err()
 }
 
-func newStoredKLine(startTimeMillis, endTimeMillis, intervalValue int64, symbol string, open, high, low, close, volume float64) (types.KLine, error) {
-	interval, err := intervalFromStorageValue(intervalValue)
-	if err != nil {
-		return types.KLine{}, err
-	}
-
+func newStoredKLine(startTimeMillis, endTimeMillis int64, symbol string, interval types.Interval, open, high, low, close, volume float64) types.KLine {
 	return types.KLine{
 		StartTime:      types.Time(timeFromUnixMillis(startTimeMillis)),
 		EndTime:        types.Time(timeFromUnixMillis(endTimeMillis)),
@@ -70,7 +56,7 @@ func newStoredKLine(startTimeMillis, endTimeMillis, intervalValue int64, symbol 
 		Closed:         true,
 		LastTradeID:    0,
 		NumberOfTrades: 0,
-	}, nil
+	}
 }
 
 func reverseKLines(klines []types.KLine) {

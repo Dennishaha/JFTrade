@@ -139,15 +139,16 @@ func (s *FutuKLineStore) syncInterval(
 		}
 
 		var klines []bbgotypes.KLine
+		queryEnd := syncHistoryRequestEndTime(interval, batchEnd)
 		queryErr := rateLimitRetry(func() error {
 			var innerErr error
 			// QueryAllKLines does not set MaxAckKLNum — OpenD returns all data in the range
 			// using its internal page size. nextReqKey is followed until empty.
-			klines, innerErr = exchange.QueryAllKLines(ctx, symbol, interval, cursor, batchEnd, rehabType)
+			klines, innerErr = exchange.QueryAllKLines(ctx, symbol, interval, cursor, queryEnd, rehabType)
 			return innerErr
 		}, progress)
 		if queryErr != nil {
-			return fmt.Errorf("query klines %s %s [%s, %s]: %w", symbol, interval, cursor, batchEnd, queryErr)
+			return fmt.Errorf("query klines %s %s [%s, %s]: %w", symbol, interval, cursor, queryEnd, queryErr)
 		}
 
 		if len(klines) == 0 {
@@ -177,4 +178,17 @@ func (s *FutuKLineStore) syncInterval(
 		}
 	}
 	return nil
+}
+
+func syncHistoryRequestEndTime(interval bbgotypes.Interval, requestedEnd time.Time) time.Time {
+	normalizedEnd := requestedEnd.UTC()
+	if interval.Duration() <= 0 {
+		return normalizedEnd
+	}
+
+	closedEnd := latestClosedKLineEndAtOrBefore(normalizedEnd, interval)
+	if interval.Duration() < 24*time.Hour {
+		return closedEnd.Add(time.Millisecond)
+	}
+	return closedEnd
 }

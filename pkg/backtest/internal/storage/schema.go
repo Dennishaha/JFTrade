@@ -2,16 +2,19 @@ package storage
 
 import (
 	"fmt"
+	"hash/fnv"
+	"sort"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/c9s/bbgo/pkg/types"
 )
 
-// KLineTable is the SQLite table name for Futu historical K-lines.
-const KLineTable = "futu_klines"
+// KLineTable is the SQLite table-name prefix for Futu historical K-lines.
+const KLineTable = "local_klines"
 
-const selectKLineColumns = "start_time, end_time, interval, symbol, open, high, low, close, volume"
+const selectKLineColumns = "start_time, end_time, open, high, low, close, volume"
 
 const (
 	rehabTypeNoneCode int64 = iota
@@ -143,12 +146,107 @@ func timeFromUnixMillis(value int64) time.Time {
 	return time.UnixMilli(value).UTC()
 }
 
+func klineTableName(symbol string, interval types.Interval, rehabType string) string {
+	normalizedSymbol := strings.ToLower(strings.TrimSpace(symbol))
+	normalizedInterval := strings.ToLower(strings.TrimSpace(string(interval)))
+	normalizedRehabType := normalizeRehabTypeName(rehabType)
+
+	hasher := fnv.New32a()
+	_, _ = hasher.Write([]byte(normalizedSymbol))
+	// Keep the suffix deterministic (not random): it avoids table-name collisions
+	// when different symbols normalize to the same sanitized identifier.
+
+	return fmt.Sprintf(
+		"%s__%s__%s__%s__%08x",
+		KLineTable,
+		sanitizeIdentifierComponent(normalizedSymbol),
+		sanitizeIdentifierComponent(normalizedInterval),
+		normalizedRehabType,
+		hasher.Sum32(),
+	)
+}
+
+func sanitizeIdentifierComponent(value string) string {
+	if value == "" {
+		return "value"
+	}
+	builder := strings.Builder{}
+	builder.Grow(len(value))
+	lastUnderscore := false
+	for _, r := range value {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			builder.WriteRune(unicode.ToLower(r))
+			lastUnderscore = false
+			continue
+		}
+		if !lastUnderscore {
+			builder.WriteByte('_')
+			lastUnderscore = true
+		}
+	}
+	cleaned := strings.Trim(builder.String(), "_")
+	if cleaned == "" {
+		return "value"
+	}
+	return cleaned
+}
+
+func quoteIdentifier(identifier string) string {
+	return `"` + strings.ReplaceAll(identifier, `"`, `""`) + `"`
+}
+
+func aggregationBaseIntervals(interval types.Interval) []types.Interval {
+	targetDuration := interval.Duration()
+	if targetDuration <= time.Minute || targetDuration%time.Minute != 0 {
+		return nil
+	}
+
+	candidates := make([]types.Interval, 0)
+	for candidate := range types.SupportedIntervals {
+		candidateDuration := candidate.Duration()
+		if candidateDuration < time.Minute || candidateDuration >= targetDuration {
+			continue
+		}
+		if targetDuration%candidateDuration != 0 {
+			continue
+		}
+		candidates = append(candidates, candidate)
+	}
+
+	sort.Slice(candidates, func(i, j int) bool {
+		return candidates[i].Duration() > candidates[j].Duration()
+	})
+	return candidates
+}
+
+func canAggregateFromLowerInterval(interval types.Interval) bool {
+	return len(aggregationBaseIntervals(interval)) > 0
+}
+
+func alignTimeToIntervalStart(at time.Time, interval types.Interval) time.Time {
+	duration := interval.Duration()
+	if duration <= 0 {
+		return at.UTC()
+	}
+	return at.UTC().Truncate(duration)
+}
+
+func firstClosedKLineEndAtOrAfter(at time.Time, interval types.Interval) time.Time {
+	return alignTimeToIntervalStart(at, interval).Add(interval.Duration()).Add(-time.Millisecond)
+}
+
+func latestClosedKLineEndAtOrBefore(at time.Time, interval types.Interval) time.Time {
+	bucketStart := alignTimeToIntervalStart(at, interval)
+	bucketEnd := bucketStart.Add(interval.Duration()).Add(-time.Millisecond)
+	if !at.Before(bucketEnd) {
+		return bucketEnd
+	}
+	return bucketStart.Add(-time.Millisecond)
+}
+
 func expectedKLineSchemaColumns() []string {
 	return []string{
-		"symbol:TEXT:1",
-		"interval:INTEGER:2",
-		"rehab_type:INTEGER:3",
-		"end_time:INTEGER:4",
+		"end_time:INTEGER:1",
 		"start_time:INTEGER:0",
 		"open:REAL:0",
 		"high:REAL:0",
@@ -174,4 +272,8 @@ func IntervalStorageValue(interval types.Interval) int64 {
 
 func IntervalFromStorageValue(value int64) (types.Interval, error) {
 	return intervalFromStorageValue(value)
+}
+
+func KLineTableName(symbol string, interval types.Interval, rehabType string) string {
+	return klineTableName(symbol, interval, rehabType)
 }

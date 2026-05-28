@@ -3,7 +3,7 @@ package backtest
 import (
 	"time"
 
-	internalstorage "github.com/jftrade/jftrade-main/pkg/futu/backtest/internal/storage"
+	internalstorage "github.com/jftrade/jftrade-main/pkg/backtest/internal/storage"
 )
 
 type SyncProgress = internalstorage.SyncProgress

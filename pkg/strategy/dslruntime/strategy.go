@@ -43,12 +43,27 @@ type strategyRuntime struct {
 	strategy         *Strategy
 	program          *strategyir.Program
 	plan             strategyir.Requirements
+	displayName      string
+	definitionID     string
+	symbol           string
+	interval         types.Interval
 	expressionCache  map[string]exprast.Node
+	bindingCache     map[*strategyir.LetStmt]cachedIndicatorBinding
 	engine           *strategyindicatorruntime.IndicatorEngine
 	session          *bbgo2.ExchangeSession
 	executor         bbgo2.OrderExecutor
+	baseScope        *evaluationScope
+	reusableScope    *evaluationScope
+	variableCapacity int
+	bindingCapacity  int
 	previousClose    float64
 	hasPreviousClose bool
+}
+
+type cachedIndicatorBinding struct {
+	binding    indicatorBinding
+	recognized bool
+	err        error
 }
 
 type indicatorBinding struct {
@@ -68,6 +83,7 @@ type positionSnapshot struct {
 
 type evaluationScope struct {
 	runtime            *strategyRuntime
+	parent             *evaluationScope
 	variables          map[string]any
 	bindings           map[string]indicatorBinding
 	indicators         map[string]any
@@ -75,6 +91,119 @@ type evaluationScope struct {
 	currentKlineTime   time.Time
 	currentKlineSymbol string
 	currentSession     futu.MarketSession
+	klinePayload       klinePayloadView
+	closeSeries        seriesNumber
+	openValue          float64
+	highValue          float64
+	lowValue           float64
+	volumeValue        float64
+	hasBarData         bool
+}
+
+type klinePayloadView struct {
+	kline         *types.KLine
+	session       futu.MarketSession
+	startTimeText string
+	endTimeText   string
+	hasStartTime  bool
+	hasEndTime    bool
+}
+
+func (s *evaluationScope) variable(name string) (any, bool) {
+	for current := s; current != nil; current = current.parent {
+		if current.variables == nil {
+			if value, ok := current.reservedVariable(name); ok {
+				return value, true
+			}
+			continue
+		}
+		value, ok := current.variables[name]
+		if ok {
+			return value, true
+		}
+		if value, ok := current.reservedVariable(name); ok {
+			return value, true
+		}
+	}
+	return nil, false
+}
+
+func (s *evaluationScope) reservedVariable(name string) (any, bool) {
+	if s == nil {
+		return nil, false
+	}
+	switch name {
+	case "indicators":
+		if s.indicators == nil {
+			return nil, false
+		}
+		return s.indicators, true
+	case "kline":
+		if s.currentKline == nil {
+			return nil, false
+		}
+		return &s.klinePayload, true
+	case "close":
+		if !s.hasBarData {
+			return nil, false
+		}
+		return &s.closeSeries, true
+	case "open":
+		if !s.hasBarData {
+			return nil, false
+		}
+		return s.openValue, true
+	case "high":
+		if !s.hasBarData {
+			return nil, false
+		}
+		return s.highValue, true
+	case "low":
+		if !s.hasBarData {
+			return nil, false
+		}
+		return s.lowValue, true
+	case "volume":
+		if !s.hasBarData {
+			return nil, false
+		}
+		return s.volumeValue, true
+	default:
+		return nil, false
+	}
+}
+
+func (s *evaluationScope) setVariable(name string, value any) {
+	if s == nil {
+		return
+	}
+	if s.variables == nil {
+		s.variables = map[string]any{}
+	}
+	s.variables[name] = value
+}
+
+func (s *evaluationScope) binding(name string) (indicatorBinding, bool) {
+	for current := s; current != nil; current = current.parent {
+		if current.bindings == nil {
+			continue
+		}
+		value, ok := current.bindings[name]
+		if ok {
+			return value, true
+		}
+	}
+	return indicatorBinding{}, false
+}
+
+func (s *evaluationScope) setBinding(name string, binding indicatorBinding) {
+	if s == nil {
+		return
+	}
+	if s.bindings == nil {
+		s.bindings = map[string]indicatorBinding{}
+	}
+	s.bindings[name] = binding
 }
 
 type klineSessionResolver interface {
@@ -133,20 +262,52 @@ func newStrategyRuntime(
 	if ctx == nil {
 		ctx = context.Background()
 	}
+	displayName := strategyName(strategy)
+	definitionID := strings.TrimSpace(strategy.DefinitionID)
+	symbol := strings.ToUpper(strings.TrimSpace(strategy.Symbol))
+	interval := defaultInterval(strategy.Interval)
+	letCount := countProgramLetStatements(program)
 	engine, err := strategyindicatorruntime.NewIndicatorEngineForPlan(plan, defaultInterval(strategy.Interval), strategy.Symbol)
 	if err != nil {
 		return nil, fmt.Errorf("create dsl indicator engine: %w", err)
 	}
-	return &strategyRuntime{
+	runtime := &strategyRuntime{
 		ctx:             ctx,
 		strategy:        strategy,
 		program:         program,
 		plan:            plan,
+		displayName:     displayName,
+		definitionID:    definitionID,
+		symbol:          symbol,
+		interval:        interval,
 		expressionCache: map[string]exprast.Node{},
+		bindingCache:    map[*strategyir.LetStmt]cachedIndicatorBinding{},
 		engine:          engine,
 		session:         session,
 		executor:        orderExecutor,
-	}, nil
+		baseScope: &evaluationScope{
+			variables: map[string]any{
+				"id":           displayName,
+				"name":         displayName,
+				"definitionId": definitionID,
+				"symbol":       symbol,
+				"interval":     string(interval),
+				"isBacktest":   bbgo2.IsBackTesting,
+			},
+		},
+		variableCapacity: letCount,
+		bindingCapacity:  letCount,
+	}
+	runtime.baseScope.runtime = runtime
+	runtime.reusableScope = &evaluationScope{
+		runtime:   runtime,
+		parent:    runtime.baseScope,
+		variables: make(map[string]any, runtime.variableCapacity),
+	}
+	if runtime.bindingCapacity > 0 {
+		runtime.reusableScope.bindings = make(map[string]indicatorBinding, runtime.bindingCapacity)
+	}
+	return runtime, nil
 }
 
 func (r *strategyRuntime) runInit() error {
@@ -159,10 +320,10 @@ func (r *strategyRuntime) handleKLineClosed(kline types.KLine) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if symbol := strings.ToUpper(strings.TrimSpace(r.strategy.Symbol)); symbol != "" && kline.Symbol != symbol {
+	if symbol := r.symbol; symbol != "" && kline.Symbol != symbol {
 		return
 	}
-	if interval := defaultInterval(r.strategy.Interval); interval != "" && kline.Interval != interval {
+	if interval := r.interval; interval != "" && kline.Interval != interval {
 		return
 	}
 
@@ -172,7 +333,7 @@ func (r *strategyRuntime) handleKLineClosed(kline types.KLine) {
 	}
 	if err := r.runHookLocked(strategyir.HookKLineClose, &kline, resolvedSession); err != nil {
 		errMsg := err.Error()
-		bbgo2.Notify("dsl strategy %s onKLineClosed error: %s", strategyName(r.strategy), errMsg)
+		bbgo2.Notify("dsl strategy %s onKLineClosed error: %s", r.displayName, errMsg)
 		if r.strategy.OnError != nil {
 			r.strategy.OnError(errMsg)
 		}
@@ -203,38 +364,75 @@ func findHook(program *strategyir.Program, kind strategyir.HookKind) (strategyir
 	return strategyir.HookBlock{}, false
 }
 
-func (r *strategyRuntime) newScope(kline *types.KLine, session futu.MarketSession) *evaluationScope {
-	variables := map[string]any{
-		"id":           strategyName(r.strategy),
-		"name":         strategyName(r.strategy),
-		"definitionId": strings.TrimSpace(r.strategy.DefinitionID),
-		"symbol":       strings.ToUpper(strings.TrimSpace(r.strategy.Symbol)),
-		"interval":     string(defaultInterval(r.strategy.Interval)),
-		"isBacktest":   bbgo2.IsBackTesting,
+func countProgramLetStatements(program *strategyir.Program) int {
+	if program == nil {
+		return 0
 	}
+	total := 0
+	for _, hook := range program.Hooks {
+		total += countLetStatements(hook.Statements)
+	}
+	return total
+}
+
+func countLetStatements(statements []strategyir.Statement) int {
+	total := 0
+	for _, statement := range statements {
+		switch typed := statement.(type) {
+		case *strategyir.LetStmt:
+			total++
+		case *strategyir.IfStmt:
+			total += countLetStatements(typed.Then)
+			total += countLetStatements(typed.Else)
+		}
+	}
+	return total
+}
+
+func (r *strategyRuntime) newScope(kline *types.KLine, session futu.MarketSession) *evaluationScope {
 	indicators := map[string]any{}
 	if r.engine != nil {
-		indicators = r.engine.Snapshot()
+		indicators = r.engine.SnapshotBorrowed()
 	}
-	variables["indicators"] = indicators
-
-	scope := &evaluationScope{
-		runtime:        r,
-		variables:      variables,
-		bindings:       map[string]indicatorBinding{},
-		indicators:     indicators,
-		currentKline:   kline,
-		currentSession: session,
+	scope := r.reusableScope
+	if scope == nil {
+		scope = &evaluationScope{
+			runtime:   r,
+			parent:    r.baseScope,
+			variables: make(map[string]any, r.variableCapacity),
+		}
+		if r.bindingCapacity > 0 {
+			scope.bindings = make(map[string]indicatorBinding, r.bindingCapacity)
+		}
+		r.reusableScope = scope
 	}
+	scope.parent = r.baseScope
+	clear(scope.variables)
+	if scope.bindings != nil {
+		clear(scope.bindings)
+	}
+	scope.indicators = indicators
+	scope.currentKline = kline
+	scope.currentSession = session
+	scope.currentKlineTime = time.Time{}
+	scope.currentKlineSymbol = ""
+	scope.klinePayload = klinePayloadView{}
+	scope.closeSeries = seriesNumber{}
+	scope.openValue = 0
+	scope.highValue = 0
+	scope.lowValue = 0
+	scope.volumeValue = 0
+	scope.hasBarData = false
 	if kline != nil {
 		scope.currentKlineTime = kline.EndTime.Time()
 		scope.currentKlineSymbol = kline.Symbol
-		variables["kline"] = klinePayload(*kline, session)
-		variables["close"] = seriesNumber{Current: kline.Close.Float64(), Previous: r.previousClose, HasCurrent: true, HasPrevious: r.hasPreviousClose}
-		variables["open"] = kline.Open.Float64()
-		variables["high"] = kline.High.Float64()
-		variables["low"] = kline.Low.Float64()
-		variables["volume"] = kline.Volume.Float64()
+		scope.klinePayload = klinePayloadView{kline: kline, session: session}
+		scope.closeSeries = seriesNumber{Current: kline.Close.Float64(), Previous: r.previousClose, HasCurrent: true, HasPrevious: r.hasPreviousClose}
+		scope.openValue = kline.Open.Float64()
+		scope.highValue = kline.High.Float64()
+		scope.lowValue = kline.Low.Float64()
+		scope.volumeValue = kline.Volume.Float64()
+		scope.hasBarData = true
 	}
 	return scope
 }
@@ -283,16 +481,16 @@ func (r *strategyRuntime) executeStatements(statements []strategyir.Statement, s
 }
 
 func (r *strategyRuntime) executeLetStatement(statement *strategyir.LetStmt, scope *evaluationScope) error {
-	binding, recognized, err := parseIndicatorBinding(statement)
+	binding, recognized, err := r.parseIndicatorBinding(statement)
 	if err != nil {
 		return err
 	}
 	if recognized {
-		scope.bindings[statement.Name] = binding
+		scope.setBinding(statement.Name, binding)
 		if snapshot, ok := scope.indicators[binding.Key]; ok {
-			scope.variables[statement.Name] = snapshot
+			scope.setVariable(statement.Name, snapshot)
 		} else {
-			scope.variables[statement.Name] = nil
+			scope.setVariable(statement.Name, nil)
 		}
 		return nil
 	}
@@ -300,12 +498,12 @@ func (r *strategyRuntime) executeLetStatement(statement *strategyir.LetStmt, sco
 	if err != nil {
 		return fmt.Errorf("dsl line %d: %w", statement.Range.StartLine, err)
 	}
-	scope.variables[statement.Name] = value
+	scope.setVariable(statement.Name, value)
 	return nil
 }
 
 func (r *strategyRuntime) executeOrderStatement(statement *strategyir.OrderStmt, scope *evaluationScope) error {
-	position := r.getPosition(strings.ToUpper(strings.TrimSpace(r.strategy.Symbol)))
+	position := r.getPosition(r.symbol)
 	availablePositionQty := 0.0
 	if position != nil {
 		availablePositionQty = math.Floor(absFloat(firstPositiveFloat(absFloat(position.AvailableQuantity), absFloat(position.Quantity))))
@@ -381,11 +579,7 @@ func (r *strategyRuntime) executeProtectStatement(statement *strategyir.ProtectS
 		r.log("waiting for indicator " + key)
 		return false, nil
 	}
-	snapshot, ok := rawSnapshot.(map[string]any)
-	if !ok {
-		return false, fmt.Errorf("dsl line %d: protect indicator %s returned unexpected type %T", statement.Range.StartLine, key, rawSnapshot)
-	}
-	position := r.getPosition(strings.ToUpper(strings.TrimSpace(r.strategy.Symbol)))
+	position := r.getPosition(r.symbol)
 	if position == nil {
 		return false, nil
 	}
@@ -393,8 +587,8 @@ func (r *strategyRuntime) executeProtectStatement(statement *strategyir.ProtectS
 	if quantity <= 0 {
 		return false, nil
 	}
-	shouldExitLong := normalizeProtectDirection(statement.Direction) != "short" && position.Direction == "LONG" && readBool(snapshot, "longTriggered")
-	shouldExitShort := normalizeProtectDirection(statement.Direction) != "long" && position.Direction == "SHORT" && readBool(snapshot, "shortTriggered")
+	shouldExitLong := normalizeProtectDirection(statement.Direction) != "short" && position.Direction == "LONG" && readBool(rawSnapshot, "longTriggered")
+	shouldExitShort := normalizeProtectDirection(statement.Direction) != "long" && position.Direction == "SHORT" && readBool(rawSnapshot, "shortTriggered")
 	if shouldExitLong {
 		if r.isPlaceBlockedDuringWarmup(scope.currentKlineTime) {
 			r.log("protect exit suppressed during warmup")
@@ -541,7 +735,7 @@ func (r *strategyRuntime) submitOrder(side types.SideType, orderType types.Order
 	if r.session == nil {
 		return fmt.Errorf("exchange session is not available")
 	}
-	symbol := strings.ToUpper(strings.TrimSpace(r.strategy.Symbol))
+	symbol := r.symbol
 	market, ok := r.session.Market(symbol)
 	if !ok {
 		return fmt.Errorf("market %s is not loaded in this session", symbol)
@@ -689,7 +883,7 @@ func (r *strategyRuntime) strategyQuoteCurrency() string {
 	if r.session == nil || r.strategy == nil {
 		return ""
 	}
-	market, ok := r.session.Market(strings.ToUpper(strings.TrimSpace(r.strategy.Symbol)))
+	market, ok := r.session.Market(r.symbol)
 	if !ok {
 		return ""
 	}
@@ -727,11 +921,11 @@ func (r *strategyRuntime) isPlaceBlockedDuringWarmup(currentKlineTime time.Time)
 }
 
 func (r *strategyRuntime) log(message string) {
-	bbgo2.Notify("dsl strategy %s: %s", strategyName(r.strategy), strings.TrimSpace(message))
+	bbgo2.Notify("dsl strategy %s: %s", r.displayName, strings.TrimSpace(message))
 }
 
 func (r *strategyRuntime) notify(message string) {
-	bbgo2.Notify("dsl strategy %s: %s", strategyName(r.strategy), strings.TrimSpace(message))
+	bbgo2.Notify("dsl strategy %s: %s", r.displayName, strings.TrimSpace(message))
 }
 
 func runtimeAccount(session *bbgo2.ExchangeSession) *types.Account {
@@ -775,46 +969,71 @@ func strategyName(strategy *Strategy) string {
 	return ID
 }
 
-func klinePayload(kline types.KLine, session futu.MarketSession) map[string]any {
-	payload := map[string]any{
-		"symbol":      kline.Symbol,
-		"interval":    string(kline.Interval),
-		"startTime":   kline.StartTime.Time().Format("2006-01-02T15:04:05.000Z07:00"),
-		"endTime":     kline.EndTime.Time().Format("2006-01-02T15:04:05.000Z07:00"),
-		"open":        kline.Open.Float64(),
-		"high":        kline.High.Float64(),
-		"low":         kline.Low.Float64(),
-		"close":       kline.Close.Float64(),
-		"volume":      kline.Volume.Float64(),
-		"quoteVolume": kline.QuoteVolume.Float64(),
-		"closed":      kline.Closed,
+func klinePayload(kline types.KLine, session futu.MarketSession) *klinePayloadView {
+	return &klinePayloadView{kline: &kline, session: session}
+}
+
+func (p *klinePayloadView) FieldValue(name string) (any, bool) {
+	if p == nil || p.kline == nil {
+		return nil, false
 	}
-	if session != futu.MarketSessionUnknown {
-		payload["session"] = string(session)
-	} else {
-		payload["session"] = nil
+	switch name {
+	case "symbol":
+		return p.kline.Symbol, true
+	case "interval":
+		return string(p.kline.Interval), true
+	case "startTime":
+		if !p.hasStartTime {
+			p.startTimeText = p.kline.StartTime.Time().Format("2006-01-02T15:04:05.000Z07:00")
+			p.hasStartTime = true
+		}
+		return p.startTimeText, true
+	case "endTime":
+		if !p.hasEndTime {
+			p.endTimeText = p.kline.EndTime.Time().Format("2006-01-02T15:04:05.000Z07:00")
+			p.hasEndTime = true
+		}
+		return p.endTimeText, true
+	case "open":
+		return p.kline.Open.Float64(), true
+	case "high":
+		return p.kline.High.Float64(), true
+	case "low":
+		return p.kline.Low.Float64(), true
+	case "close":
+		return p.kline.Close.Float64(), true
+	case "volume":
+		return p.kline.Volume.Float64(), true
+	case "quoteVolume":
+		return p.kline.QuoteVolume.Float64(), true
+	case "closed":
+		return p.kline.Closed, true
+	case "session":
+		if p.session == futu.MarketSessionUnknown {
+			return nil, true
+		}
+		return string(p.session), true
+	default:
+		return nil, false
 	}
-	return payload
 }
 
 func (s *evaluationScope) clone() *evaluationScope {
-	variables := make(map[string]any, len(s.variables))
-	for key, value := range s.variables {
-		variables[key] = value
-	}
-	bindings := make(map[string]indicatorBinding, len(s.bindings))
-	for key, value := range s.bindings {
-		bindings[key] = value
-	}
 	return &evaluationScope{
 		runtime:            s.runtime,
-		variables:          variables,
-		bindings:           bindings,
+		parent:             s,
 		indicators:         s.indicators,
 		currentKline:       s.currentKline,
 		currentKlineTime:   s.currentKlineTime,
 		currentKlineSymbol: s.currentKlineSymbol,
 		currentSession:     s.currentSession,
+		klinePayload:       s.klinePayload,
+		closeSeries:        s.closeSeries,
+		openValue:          s.openValue,
+		highValue:          s.highValue,
+		lowValue:           s.lowValue,
+		volumeValue:        s.volumeValue,
+		hasBarData:         s.hasBarData,
 	}
 }
 
@@ -894,13 +1113,25 @@ func absFloat(value float64) float64 {
 	return value
 }
 
-func readBool(values map[string]any, key string) bool {
-	value, ok := values[key]
-	if !ok {
+func readBool(values any, key string) bool {
+	value, ok := readObjectField(values, key)
+	if !ok || value == missingObjectField {
 		return false
 	}
 	result, _ := coerceBoolValue(value)
 	return result
+}
+
+func (r *strategyRuntime) parseIndicatorBinding(statement *strategyir.LetStmt) (indicatorBinding, bool, error) {
+	if r == nil || statement == nil {
+		return parseIndicatorBinding(statement)
+	}
+	if cached, ok := r.bindingCache[statement]; ok {
+		return cached.binding, cached.recognized, cached.err
+	}
+	binding, recognized, err := parseIndicatorBinding(statement)
+	r.bindingCache[statement] = cachedIndicatorBinding{binding: binding, recognized: recognized, err: err}
+	return binding, recognized, err
 }
 
 func parseIndicatorBinding(statement *strategyir.LetStmt) (indicatorBinding, bool, error) {

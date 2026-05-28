@@ -40,7 +40,7 @@ func (s *Server) serveStrategyRoutes(w http.ResponseWriter, r *http.Request) boo
 			s.writeError(w, http.StatusNotFound, "NOT_FOUND", "strategy definition not found")
 			return true
 		}
-		s.writeOK(w, definition)
+		s.writeOK(w, buildStrategyDefinitionResponse(definition, r.URL.Query().Get("interval")))
 	case strings.HasPrefix(r.URL.Path, "/api/v1/strategy-definitions/") && r.Method == http.MethodPut:
 		definitionID, err := decodePathSegment(strings.TrimPrefix(r.URL.Path, "/api/v1/strategy-definitions/"))
 		if err != nil || strings.TrimSpace(definitionID) == "" {

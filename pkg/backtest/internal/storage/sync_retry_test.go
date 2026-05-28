@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	bbgotypes "github.com/c9s/bbgo/pkg/types"
 )
 
 func TestRateLimitRetryExhaustsAndTracksRetries(t *testing.T) {
@@ -98,5 +100,24 @@ func TestRateLimitRetryReturnsImmediatelyForNonRetryableError(t *testing.T) {
 	}
 	if snapshot.Retries != 0 {
 		t.Fatalf("non-retryable retries = %d, want 0", snapshot.Retries)
+	}
+}
+
+func TestSyncHistoryRequestEndTimeAlignsIntradayRequestsToClosedLabelTime(t *testing.T) {
+	requestedEnd := time.Date(2026, time.May, 20, 23, 59, 59, 999000000, time.UTC)
+
+	got := syncHistoryRequestEndTime(bbgotypes.Interval1m, requestedEnd)
+	want := time.Date(2026, time.May, 21, 0, 0, 0, 0, time.UTC)
+	if !got.Equal(want) {
+		t.Fatalf("syncHistoryRequestEndTime(1m) = %s, want %s", got, want)
+	}
+}
+
+func TestSyncHistoryRequestEndTimeKeepsDailyRequestsOnClosedBoundary(t *testing.T) {
+	requestedEnd := time.Date(2026, time.May, 20, 23, 59, 59, 999000000, time.UTC)
+
+	got := syncHistoryRequestEndTime(bbgotypes.Interval1d, requestedEnd)
+	if !got.Equal(requestedEnd) {
+		t.Fatalf("syncHistoryRequestEndTime(1d) = %s, want %s", got, requestedEnd)
 	}
 }

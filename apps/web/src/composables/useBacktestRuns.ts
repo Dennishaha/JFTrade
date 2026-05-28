@@ -1,6 +1,6 @@
 import { computed, reactive, ref, type ComputedRef } from "vue";
 
-import type { BacktestTrade, BacktestPnlPoint, BacktestCandle } from "../components/BacktestChart.vue";
+import type { BacktestTrade, BacktestPnlPoint, BacktestDrawdownPoint, BacktestCandle } from "../components/BacktestChart.vue";
 import { fetchEnvelope, fetchEnvelopeWithInit } from "./apiClient";
 
 interface BacktestOrderBookEntry {
@@ -26,11 +26,14 @@ interface BacktestRunResult {
   quoteCurrency?: string;
   finalBalance: number;
   pnl: number;
+  maxDrawdown?: number;
+  currentDrawdown?: number;
   totalTrades: number;
   winRate: number;
   trades?: BacktestTrade[];
   orderBook?: BacktestOrderBookEntry[];
   pnlCurve?: BacktestPnlPoint[];
+  drawdownCurve?: BacktestDrawdownPoint[];
   candles?: BacktestCandle[];
   logs?: string[];
   runtimeErrors?: string[];
@@ -77,7 +80,6 @@ export interface BacktestFormState {
   backtestStartTime: string;
   backtestEndTime: string;
   initialBalance: number;
-  warmupCandles: number;
   rehabType: string;
 }
 
@@ -219,7 +221,6 @@ export function useBacktestRuns(options: UseBacktestRunsOptions) {
             startTime: formState.backtestStartTime,
             endTime: formState.backtestEndTime,
             initialBalance: formState.initialBalance,
-            warmupCandles: formState.warmupCandles,
             rehabType: formState.rehabType,
           }),
         },

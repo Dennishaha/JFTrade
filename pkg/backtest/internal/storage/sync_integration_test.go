@@ -69,11 +69,10 @@ func TestSyncKLinesImmediateCancellation(t *testing.T) {
 	}
 
 	var rowCount int
-	if err := store.DB().QueryRow(`SELECT COUNT(*) FROM ` + KLineTable).Scan(&rowCount); err != nil {
+	if err := store.DB().QueryRow(`SELECT COUNT(*) FROM ` + quoteIdentifier(klineTableName("HK.00700", bbgotypes.Interval1m, RehabTypeName(int32(qotcommonpb.RehabType_RehabType_Forward))))).Scan(&rowCount); err == nil {
+		t.Fatalf("expected no per-series table after cancelled sync, found %d rows", rowCount)
+	} else if !strings.Contains(err.Error(), "no such table") {
 		t.Fatalf("count rows after cancelled sync: %v", err)
-	}
-	if rowCount != 0 {
-		t.Fatalf("row count after cancelled sync = %d, want 0", rowCount)
 	}
 }
 
@@ -158,7 +157,8 @@ func TestSyncKLinesCancellationAfterFirstBatch(t *testing.T) {
 	}
 
 	var rowCount int
-	if err := store.DB().QueryRow(`SELECT COUNT(*) FROM ` + KLineTable).Scan(&rowCount); err != nil {
+	tableName := quoteIdentifier(klineTableName("HK.00700", bbgotypes.Interval1m, RehabTypeName(int32(qotcommonpb.RehabType_RehabType_Forward))))
+	if err := store.DB().QueryRow(`SELECT COUNT(*) FROM ` + tableName).Scan(&rowCount); err != nil {
 		t.Fatalf("count rows after mid-cancel sync: %v", err)
 	}
 	if rowCount != 1 {
@@ -222,7 +222,8 @@ func TestSyncKLinesSyncsAndSkipsCoveredBatch(t *testing.T) {
 	}
 
 	var rowCount int
-	if err := store.DB().QueryRow(`SELECT COUNT(*) FROM ` + KLineTable).Scan(&rowCount); err != nil {
+	tableName := quoteIdentifier(klineTableName("HK.00700", bbgotypes.Interval1m, RehabTypeName(int32(qotcommonpb.RehabType_RehabType_Forward))))
+	if err := store.DB().QueryRow(`SELECT COUNT(*) FROM ` + tableName).Scan(&rowCount); err != nil {
 		t.Fatalf("count synced rows: %v", err)
 	}
 	if rowCount != 3 {
@@ -268,7 +269,7 @@ func TestSyncKLinesSyncsAndSkipsCoveredBatch(t *testing.T) {
 		t.Fatalf("expected covered batch to skip RequestHistoryKL, calls before=%d after=%d", firstCalls, secondCalls)
 	}
 
-	if err := store.DB().QueryRow(`SELECT COUNT(*) FROM ` + KLineTable).Scan(&rowCount); err != nil {
+	if err := store.DB().QueryRow(`SELECT COUNT(*) FROM ` + tableName).Scan(&rowCount); err != nil {
 		t.Fatalf("count rows after second sync: %v", err)
 	}
 	if rowCount != 3 {
@@ -346,11 +347,14 @@ func TestSyncKLinesPersistentRateLimitFailure(t *testing.T) {
 	}
 
 	var rowCount int
-	if err := store.DB().QueryRow(`SELECT COUNT(*) FROM ` + KLineTable).Scan(&rowCount); err != nil {
+	tableName := quoteIdentifier(klineTableName("HK.00700", bbgotypes.Interval1m, RehabTypeName(int32(qotcommonpb.RehabType_RehabType_Forward))))
+	if err := store.DB().QueryRow(`SELECT COUNT(*) FROM ` + tableName).Scan(&rowCount); err == nil {
+		if rowCount != 0 {
+			t.Fatalf("row count after rate-limit sync = %d, want 0", rowCount)
+		}
+		return
+	} else if !strings.Contains(err.Error(), "no such table") {
 		t.Fatalf("count rows after rate-limit sync: %v", err)
-	}
-	if rowCount != 0 {
-		t.Fatalf("row count after rate-limit sync = %d, want 0", rowCount)
 	}
 }
 

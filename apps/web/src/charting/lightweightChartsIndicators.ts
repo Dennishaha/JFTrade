@@ -4,8 +4,55 @@ import type { KlineCandle } from "./kline";
 
 type IndicatorPoint = { time: UTCTimestamp; value: number };
 
+type RollingHighLow = {
+  highestHighs: number[];
+  lowestLows: number[];
+};
+
 function toIndicatorTimestamp(at: string): UTCTimestamp {
   return Math.floor(new Date(at).getTime() / 1000) as UTCTimestamp;
+}
+
+function calculateRollingHighLow(
+  candles: readonly KlineCandle[],
+  period: number,
+): RollingHighLow {
+  const highestHighs = new Array<number>(candles.length);
+  const lowestLows = new Array<number>(candles.length);
+  const highDeque: number[] = [];
+  const lowDeque: number[] = [];
+
+  for (let index = 0; index < candles.length; index += 1) {
+    const windowStart = Math.max(0, index - period + 1);
+    const candle = candles[index]!;
+
+    while (highDeque.length > 0 && highDeque[0]! < windowStart) {
+      highDeque.shift();
+    }
+    while (lowDeque.length > 0 && lowDeque[0]! < windowStart) {
+      lowDeque.shift();
+    }
+
+    while (
+      highDeque.length > 0 &&
+      candles[highDeque[highDeque.length - 1]!]!.high <= candle.high
+    ) {
+      highDeque.pop();
+    }
+    while (
+      lowDeque.length > 0 &&
+      candles[lowDeque[lowDeque.length - 1]!]!.low >= candle.low
+    ) {
+      lowDeque.pop();
+    }
+
+    highDeque.push(index);
+    lowDeque.push(index);
+    highestHighs[index] = candles[highDeque[0]!]!.high;
+    lowestLows[index] = candles[lowDeque[0]!]!.low;
+  }
+
+  return { highestHighs, lowestLows };
 }
 
 export function computeExponentialMovingAverage(
@@ -52,37 +99,28 @@ export function computeMacd(candles: readonly KlineCandle[]): {
   const closes = candles.map((candle) => candle.close);
   const ema12 = computeExponentialMovingAverage(closes, 12);
   const ema26 = computeExponentialMovingAverage(closes, 26);
-  const diff = closes.map((_, index) => {
-    const fast = ema12[index];
-    const slow = ema26[index];
-    return fast == null || slow == null ? null : fast - slow;
-  });
-  const dea = computeExponentialMovingAverage(
-    diff.map((value) => value ?? 0),
-    9,
-  );
+  const multiplier = 2 / 10;
+  const diff: IndicatorPoint[] = new Array(candles.length);
+  const dea: IndicatorPoint[] = new Array(candles.length);
+  const histogram: IndicatorPoint[] = new Array(candles.length);
+  let previousSignal: number | null = null;
 
-  return candles.reduce(
-    (result, candle, index) => {
-      const timestamp = toIndicatorTimestamp(candle.at);
-      const diffValue = diff[index];
-      const deaValue = dea[index];
-      if (diffValue == null || deaValue == null) {
-        return result;
-      }
+  for (let index = 0; index < candles.length; index += 1) {
+    const candle = candles[index]!;
+    const diffValue = (ema12[index] ?? 0) - (ema26[index] ?? 0);
+    const deaValue: number =
+      previousSignal == null
+        ? diffValue
+        : previousSignal + (diffValue - previousSignal) * multiplier;
+    previousSignal = deaValue;
+    const timestamp = toIndicatorTimestamp(candle.at);
 
-      const histogramValue = (diffValue - deaValue) * 2;
-      result.diff.push({ time: timestamp, value: diffValue });
-      result.dea.push({ time: timestamp, value: deaValue });
-      result.histogram.push({ time: timestamp, value: histogramValue });
-      return result;
-    },
-    {
-      diff: [] as IndicatorPoint[],
-      dea: [] as IndicatorPoint[],
-      histogram: [] as IndicatorPoint[],
-    },
-  );
+    diff[index] = { time: timestamp, value: diffValue };
+    dea[index] = { time: timestamp, value: deaValue };
+    histogram[index] = { time: timestamp, value: (diffValue - deaValue) * 2 };
+  }
+
+  return { diff, dea, histogram };
 }
 
 export function computeKdj(candles: readonly KlineCandle[]): {
@@ -90,14 +128,14 @@ export function computeKdj(candles: readonly KlineCandle[]): {
   d: IndicatorPoint[];
   j: IndicatorPoint[];
 } {
+  const { highestHighs, lowestLows } = calculateRollingHighLow(candles, 9);
   let previousK = 50;
   let previousD = 50;
 
   return candles.reduce(
     (result, candle, index) => {
-      const window = candles.slice(Math.max(0, index - 8), index + 1);
-      const highestHigh = Math.max(...window.map((item) => item.high));
-      const lowestLow = Math.min(...window.map((item) => item.low));
+      const highestHigh = highestHighs[index]!;
+      const lowestLow = lowestLows[index]!;
       const rsv =
         highestHigh === lowestLow
           ? 50
@@ -127,26 +165,37 @@ export function computeAtr(
   candles: readonly KlineCandle[],
   period = 14,
 ): IndicatorPoint[] {
-  const trueRanges = candles.map((candle, index) => {
-    if (index === 0) {
-      return candle.high - candle.low;
-    }
-    const previousClose = candles[index - 1]?.close ?? candle.close;
-    return Math.max(
-      candle.high - candle.low,
-      Math.abs(candle.high - previousClose),
-      Math.abs(candle.low - previousClose),
-    );
-  });
+  const result: IndicatorPoint[] = [];
+  const trueRanges = new Array<number>(candles.length);
+  let rollingSum = 0;
 
-  const averages = computeSimpleMovingAverage(trueRanges, period);
-  return candles.flatMap((candle, index) => {
-    const value = averages[index];
-    if (value == null) {
-      return [];
+  for (let index = 0; index < candles.length; index += 1) {
+    const candle = candles[index]!;
+    const previousClose = candles[index - 1]?.close ?? candle.close;
+    const trueRange =
+      index === 0
+        ? candle.high - candle.low
+        : Math.max(
+            candle.high - candle.low,
+            Math.abs(candle.high - previousClose),
+            Math.abs(candle.low - previousClose),
+          );
+
+    trueRanges[index] = trueRange;
+    rollingSum += trueRange;
+    if (index >= period) {
+      rollingSum -= trueRanges[index - period]!;
     }
-    return [{ time: toIndicatorTimestamp(candle.at), value }];
-  });
+
+    if (index + 1 >= period) {
+      result.push({
+        time: toIndicatorTimestamp(candle.at),
+        value: rollingSum / period,
+      });
+    }
+  }
+
+  return result;
 }
 
 export function computeCci(
@@ -154,40 +203,48 @@ export function computeCci(
   period = 20,
 ): IndicatorPoint[] {
   const typicalPrices = candles.map((candle) => (candle.high + candle.low + candle.close) / 3);
-  const averages = computeSimpleMovingAverage(typicalPrices, period);
+  const result: IndicatorPoint[] = [];
+  let rollingSum = 0;
 
-  return candles.flatMap((candle, index) => {
+  for (let index = 0; index < candles.length; index += 1) {
+    rollingSum += typicalPrices[index]!;
+    if (index >= period) {
+      rollingSum -= typicalPrices[index - period]!;
+    }
     if (index + 1 < period) {
-      return [];
+      continue;
     }
 
-    const mean = averages[index];
-    if (mean == null) {
-      return [];
+    const mean = rollingSum / period;
+    let meanDeviation = 0;
+    for (let cursor = index - period + 1; cursor <= index; cursor += 1) {
+      meanDeviation += Math.abs(typicalPrices[cursor]! - mean);
     }
-
-    const window = typicalPrices.slice(index - period + 1, index + 1);
-    const meanDeviation =
-      window.reduce((sum, value) => sum + Math.abs(value - mean), 0) / period;
+    meanDeviation /= period;
     const value = meanDeviation === 0 ? 0 : (typicalPrices[index]! - mean) / (0.015 * meanDeviation);
-    return [{ time: toIndicatorTimestamp(candle.at), value }];
-  });
+    result.push({ time: toIndicatorTimestamp(candles[index]!.at), value });
+  }
+
+  return result;
 }
 
 export function computeWilliamsR(
   candles: readonly KlineCandle[],
   period = 14,
 ): IndicatorPoint[] {
-  return candles.flatMap((candle, index) => {
-    if (index + 1 < period) {
-      return [];
-    }
+  const { highestHighs, lowestLows } = calculateRollingHighLow(candles, period);
+  const result: IndicatorPoint[] = [];
 
-    const window = candles.slice(index - period + 1, index + 1);
-    const highestHigh = Math.max(...window.map((item) => item.high));
-    const lowestLow = Math.min(...window.map((item) => item.low));
+  for (let index = period - 1; index < candles.length; index += 1) {
+    const candle = candles[index]!;
+    const highestHigh = highestHighs[index]!;
+    const lowestLow = lowestLows[index]!;
     const range = highestHigh - lowestLow;
-    const value = range === 0 ? -50 : ((highestHigh - candle.close) / range) * -100;
-    return [{ time: toIndicatorTimestamp(candle.at), value }];
-  });
+    result.push({
+      time: toIndicatorTimestamp(candle.at),
+      value: range === 0 ? -50 : ((highestHigh - candle.close) / range) * -100,
+    });
+  }
+
+  return result;
 }

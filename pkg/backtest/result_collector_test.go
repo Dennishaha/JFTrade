@@ -2,6 +2,7 @@ package backtest
 
 import (
 	"context"
+	"math"
 	"testing"
 	"time"
 
@@ -127,8 +128,53 @@ func TestResultCollectorBuildsTradesAndFinalStats(t *testing.T) {
 	if len(result.PnLCurve) != 1 {
 		t.Fatalf("pnl curve len = %d", len(result.PnLCurve))
 	}
+	if result.MaxDrawdown != 0 {
+		t.Fatalf("maxDrawdown = %f", result.MaxDrawdown)
+	}
+	if result.CurrentDrawdown != 0 {
+		t.Fatalf("currentDrawdown = %f", result.CurrentDrawdown)
+	}
+	if len(result.DrawdownCurve) != 1 {
+		t.Fatalf("drawdown curve len = %d", len(result.DrawdownCurve))
+	}
+	if result.DrawdownCurve[0].Drawdown != 0 {
+		t.Fatalf("drawdown = %f", result.DrawdownCurve[0].Drawdown)
+	}
 	if len(result.Candles) != 1 {
 		t.Fatalf("candles len = %d", len(result.Candles))
+	}
+}
+
+func TestResultCollectorTracksDrawdownMetrics(t *testing.T) {
+	result := &RunResult{}
+	collector := newResultCollector("BTCUSDT", types.Interval("1m"), "USDT", time.Time{}, result)
+	collector.pnlCurve = []PnLPoint{
+		{Time: "2026-05-25T09:00:00Z", Equity: 100},
+		{Time: "2026-05-25T09:01:00Z", Equity: 120},
+		{Time: "2026-05-25T09:02:00Z", Equity: 90},
+		{Time: "2026-05-25T09:03:00Z", Equity: 110},
+	}
+
+	account := types.NewAccount()
+	account.SetBalance("USDT", types.Balance{Currency: "USDT", Available: fixedpoint.NewFromFloat(110)})
+	querier := stubAccountQuerier{account: account}
+
+	collector.finalize(context.Background(), querier, 100)
+
+	if math.Abs(result.MaxDrawdown-0.25) > 1e-9 {
+		t.Fatalf("maxDrawdown = %f, want 0.25", result.MaxDrawdown)
+	}
+	if math.Abs(result.CurrentDrawdown-((120.0-110.0)/120.0)) > 1e-9 {
+		t.Fatalf("currentDrawdown = %f", result.CurrentDrawdown)
+	}
+	if len(result.DrawdownCurve) != 4 {
+		t.Fatalf("drawdown curve len = %d", len(result.DrawdownCurve))
+	}
+	if math.Abs(result.DrawdownCurve[2].Drawdown-0.25) > 1e-9 {
+		t.Fatalf("drawdown curve[2] = %f, want 0.25", result.DrawdownCurve[2].Drawdown)
+	}
+	if math.Abs(result.DrawdownCurve[3].Drawdown-((120.0-110.0)/120.0)) > 1e-9 {
+		t.Fatalf("drawdown curve[3] = %f", result.DrawdownCurve[3].Drawdown)
 	}
 }
 

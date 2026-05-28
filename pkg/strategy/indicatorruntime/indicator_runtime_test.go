@@ -1,6 +1,7 @@
 package indicatorruntime
 
 import (
+	"math"
 	"testing"
 	"time"
 
@@ -10,6 +11,8 @@ import (
 	strategydsl "github.com/jftrade/jftrade-main/pkg/strategy/dsl"
 	strategyir "github.com/jftrade/jftrade-main/pkg/strategy/ir"
 )
+
+var benchmarkSnapshotSink map[string]any
 
 func TestParseIndicatorRequirements(t *testing.T) {
 	requirements := parseIndicatorRequirements(`
@@ -116,7 +119,7 @@ func TestNewIndicatorRuntimeFromPlan(t *testing.T) {
 		t.Fatal("newIndicatorRuntimeFromPlan() = nil, want runtime")
 	}
 
-	for _, closePrice := range []float64{100, 101, 103, 99} {
+	for _, closePrice := range []float64{100, 101, 102, 103, 104, 105, 103, 99} {
 		runtime.push(types.KLine{
 			High:   fixedpoint.NewFromFloat(closePrice + 1),
 			Low:    fixedpoint.NewFromFloat(closePrice - 1),
@@ -144,6 +147,104 @@ func TestNewIndicatorRuntimeFromPlan(t *testing.T) {
 	}
 	if !readSnapshotBool(t, stopLoss, "triggered") {
 		t.Fatal("expected planned stop-loss snapshot to trigger")
+	}
+}
+
+func TestWarmupBarsFromPlanUsesLargestIndicatorRequirement(t *testing.T) {
+	script := `strategy Warmup Max
+version 1
+symbol US.AAPL
+interval 1m
+
+on kline_close:
+  let fast = ma(MA, 5)
+  let slow = ma(MA, 20, day)
+  let signal = macd(12, 26, 9)
+  if cross_over(fast, signal):
+    notify "go"`
+
+	program, err := strategydsl.ParseScript(script)
+	if err != nil {
+		t.Fatalf("ParseScript() error = %v", err)
+	}
+
+	plan, err := strategyir.PlanRequirements(program)
+	if err != nil {
+		t.Fatalf("PlanRequirements() error = %v", err)
+	}
+
+	warmupBars, err := WarmupBarsFromPlan(plan, types.Interval1m)
+	if err != nil {
+		t.Fatalf("WarmupBarsFromPlan() error = %v", err)
+	}
+
+	const want = 20 * tradingSessionMinutesPerDay
+	if warmupBars != want {
+		t.Fatalf("WarmupBarsFromPlan() = %d, want %d", warmupBars, want)
+	}
+}
+
+func TestWarmupBarsFromPlanDoesNotApplyRuntimeSeriesFloor(t *testing.T) {
+	script := `strategy Warmup Small
+version 1
+symbol US.AAPL
+interval 1m
+
+on kline_close:
+  let fast = ma(MA, 5)`
+
+	program, err := strategydsl.ParseScript(script)
+	if err != nil {
+		t.Fatalf("ParseScript() error = %v", err)
+	}
+
+	plan, err := strategyir.PlanRequirements(program)
+	if err != nil {
+		t.Fatalf("PlanRequirements() error = %v", err)
+	}
+
+	warmupBars, err := WarmupBarsFromPlan(plan, types.Interval1m)
+	if err != nil {
+		t.Fatalf("WarmupBarsFromPlan() error = %v", err)
+	}
+
+	if warmupBars != 5 {
+		t.Fatalf("WarmupBarsFromPlan() = %d, want 5", warmupBars)
+	}
+	if warmupBars >= minimumIndicatorSeriesLimit {
+		t.Fatalf("WarmupBarsFromPlan() = %d, expected no %d-bar runtime floor", warmupBars, minimumIndicatorSeriesLimit)
+	}
+}
+
+func TestWarmupBarsFromPlanHandlesDivergenceAndProtectLookback(t *testing.T) {
+	script := `strategy Warmup Protect
+version 1
+symbol US.AAPL
+interval 5m
+
+on kline_close:
+  let signal = rsi(14)
+  if divergence_top(signal, 8):
+    protect auto stop_loss 2 hour 1%`
+
+	program, err := strategydsl.ParseScript(script)
+	if err != nil {
+		t.Fatalf("ParseScript() error = %v", err)
+	}
+
+	plan, err := strategyir.PlanRequirements(program)
+	if err != nil {
+		t.Fatalf("PlanRequirements() error = %v", err)
+	}
+
+	warmupBars, err := WarmupBarsFromPlan(plan, types.Interval5m)
+	if err != nil {
+		t.Fatalf("WarmupBarsFromPlan() error = %v", err)
+	}
+
+	const want = 24
+	if warmupBars != want {
+		t.Fatalf("WarmupBarsFromPlan() = %d, want %d", warmupBars, want)
 	}
 }
 
@@ -207,6 +308,278 @@ func TestBuildMovingAverageSnapshotSupportsTimeUnits(t *testing.T) {
 	if previous := readSnapshotNumber(t, snapshot, "previous"); previous != 6.5 {
 		t.Fatalf("previous = %v, want 6.5", previous)
 	}
+}
+
+func TestBuildMovingAverageSnapshotHonorsEMAWarmup(t *testing.T) {
+	values := []float64{10, 11, 12}
+	volumes := []float64{1, 1, 1}
+	if snapshot := buildMovingAverageSnapshot(values, volumes, movingAverageConfig{averageType: "EMA", period: 5}, 1); snapshot != nil {
+		t.Fatalf("expected nil EMA snapshot before warmup, got %#v", snapshot)
+	}
+
+	snapshot := buildMovingAverageSnapshot([]float64{10, 11, 12, 13, 14}, []float64{1, 1, 1, 1, 1}, movingAverageConfig{averageType: "EMA", period: 5}, 1)
+	if snapshot == nil {
+		t.Fatal("expected EMA snapshot at warmup boundary")
+	}
+	if snapshot["previous"] != nil {
+		t.Fatalf("expected EMA previous to remain nil at warmup boundary, got %#v", snapshot)
+	}
+
+	snapshot = buildMovingAverageSnapshot([]float64{10, 11, 12, 13, 14, 15}, []float64{1, 1, 1, 1, 1, 1}, movingAverageConfig{averageType: "EMA", period: 5}, 1)
+	if snapshot == nil {
+		t.Fatal("expected EMA snapshot after warmup")
+	}
+	if snapshot["previous"] == nil {
+		t.Fatalf("expected EMA previous after warmup, got %#v", snapshot)
+	}
+}
+
+func TestRollingMovingAverageStateMatchesBatchSnapshots(t *testing.T) {
+	state := &rollingMovingAverageSnapshotState{kind: "MA", period: 3}
+	vwmaState := &rollingMovingAverageSnapshotState{kind: "VWMA", period: 3}
+	values := []float64{10, 12, 14, 16}
+	volumes := []float64{1, 2, 3, 4}
+	for index, value := range values {
+		state.push(value, volumes[index])
+		vwmaState.push(value, volumes[index])
+	}
+	assertSnapshotMapApproxEqual(t, state.snapshot(), buildMovingAverageSnapshot(values, volumes, movingAverageConfig{averageType: "MA", period: 3}, 1))
+	assertSnapshotMapApproxEqual(t, vwmaState.snapshot(), buildMovingAverageSnapshot(values, volumes, movingAverageConfig{averageType: "VWMA", period: 3}, 1))
+}
+
+func TestCalculateWMASequenceMatchesExpectedWindows(t *testing.T) {
+	sequence := calculateWMASequence([]float64{1, 2, 3, 4, 5}, 3)
+	assertFloatSliceApproxEqual(t, sequence, []float64{14.0 / 6.0, 20.0 / 6.0, 26.0 / 6.0})
+}
+
+func TestCalculateRSISeriesMatchesExpectedValues(t *testing.T) {
+	series := calculateRSISeries([]float64{10, 13, 12, 14, 15}, 3)
+	assertFloatSliceApproxEqual(t, series, []float64{83.33333333333333, 75})
+	if value := calculateRSI([]float64{10, 13, 12, 14, 15}, 3); value.(float64) != series[len(series)-1] {
+		t.Fatalf("calculateRSI() = %v, want %v", value, series[len(series)-1])
+	}
+}
+
+func TestRollingRSIStateMatchesBatchSeriesWithTrim(t *testing.T) {
+	state := &rollingRSIState{period: 3, maxLength: 2}
+	closes := []float64{10, 13, 12, 14, 15, 14, 16}
+	for index, closeValue := range closes {
+		if index == 0 {
+			state.push(closeValue, 0, false)
+			continue
+		}
+		state.push(closeValue, closes[index-1], true)
+	}
+	expectedCloses := closes[len(closes)-5:]
+	assertFloatSliceApproxEqual(t, state.seriesValues(), calculateRSISeries(expectedCloses, 3))
+}
+
+func TestCalculateMACDSnapshotMatchesExpectedValues(t *testing.T) {
+	snapshot := calculateMACDSnapshot([]float64{1, 2, 3, 4, 5}, macdConfig{fastPeriod: 2, slowPeriod: 3, signalPeriod: 2})
+	if snapshot == nil {
+		t.Fatal("expected MACD snapshot")
+	}
+	assertSnapshotNumberApproxEqual(t, snapshot, "diff", 0.4436728395061724)
+	assertSnapshotNumberApproxEqual(t, snapshot, "signal", 0.4099794238683127)
+	assertSnapshotNumberApproxEqual(t, snapshot, "histogram", 0.0673868312757194)
+	assertSnapshotNumberApproxEqual(t, snapshot, "previousDiff", 0.3935185185185186)
+	assertSnapshotNumberApproxEqual(t, snapshot, "previousSignal", 0.34259259259259267)
+	assertSnapshotNumberApproxEqual(t, snapshot, "previousHistogram", 0.10185185185185186)
+}
+
+func TestRollingEMATailStateMatchesBatchSnapshotWithTrim(t *testing.T) {
+	config := movingAverageConfig{averageType: "EMA", period: 5}
+	state := newRollingEMATailState(config.period, 6, 2)
+	cache := newSnapshotSeriesCache()
+	window := make([]float64, 0, 6)
+	volumes := make([]float64, 0, 6)
+	for _, closeValue := range []float64{10, 11, 12, 13, 14, 15, 16, 17, 18, 19} {
+		oldFirst := 0.0
+		oldSecond := 0.0
+		hasOldFirst := len(window) > 0
+		hasOldSecond := len(window) > 1
+		if hasOldFirst {
+			oldFirst = window[0]
+		}
+		if hasOldSecond {
+			oldSecond = window[1]
+		}
+		trimmed := len(window)+1 > 6
+		state.push(closeValue, trimmed, oldFirst, oldSecond, hasOldFirst, hasOldSecond)
+		window = append(window, closeValue)
+		volumes = append(volumes, 1)
+		if len(window) > 6 {
+			window = window[len(window)-6:]
+			volumes = volumes[len(volumes)-6:]
+		}
+		current, previous, currentOK, previousOK := state.snapshotValues()
+		actual := snapshotToMap(cache.getMovingAverageSnapshot(config, current, previous, currentOK, previousOK), []string{"value", "previous"})
+		expected := buildMovingAverageSnapshot(window, volumes, config, 1)
+		assertSnapshotMapApproxEqual(t, actual, expected)
+	}
+}
+
+func TestRollingMACDStateMatchesBatchSnapshotAndDivergenceWithTrim(t *testing.T) {
+	config := macdConfig{fastPeriod: 3, slowPeriod: 5, signalPeriod: 2}
+	lookback := 3
+	state := newRollingMACDState(config, 7, lookback+1)
+	cache := newSnapshotSeriesCache()
+	window := make([]float64, 0, 7)
+	for _, closeValue := range []float64{10, 11, 12, 13, 12, 14, 16, 15, 17, 19, 18, 20} {
+		oldFirst := 0.0
+		oldSecond := 0.0
+		hasOldFirst := len(window) > 0
+		hasOldSecond := len(window) > 1
+		if hasOldFirst {
+			oldFirst = window[0]
+		}
+		if hasOldSecond {
+			oldSecond = window[1]
+		}
+		trimmed := len(window)+1 > 7
+		state.push(closeValue, trimmed, oldFirst, oldSecond, hasOldFirst, hasOldSecond)
+		window = append(window, closeValue)
+		if len(window) > 7 {
+			window = window[len(window)-7:]
+		}
+		currentDiff, currentSignal, previousDiff, previousSignal, currentOK, previousOK := state.snapshotValues()
+		actualSnapshot := snapshotToMap(cache.getMACDSnapshotValues(config, currentDiff, currentSignal, previousDiff, previousSignal, currentOK, previousOK), []string{"diff", "signal", "histogram", "previousDiff", "previousSignal", "previousHistogram"})
+		expectedSnapshot := calculateMACDSnapshot(window, config)
+		assertSnapshotMapApproxEqual(t, actualSnapshot, expectedSnapshot)
+
+		expectedSeries := calculateMACDSeries(window, config)
+		if actual := state.detectDivergence(window, "top", lookback); actual != detectMACDDivergence(window, expectedSeries.diff, "top", lookback) {
+			t.Fatalf("top divergence mismatch after close %v: actual=%v expected=%v", closeValue, actual, detectMACDDivergence(window, expectedSeries.diff, "top", lookback))
+		}
+		if actual := state.detectDivergence(window, "bottom", lookback); actual != detectMACDDivergence(window, expectedSeries.diff, "bottom", lookback) {
+			t.Fatalf("bottom divergence mismatch after close %v: actual=%v expected=%v", closeValue, actual, detectMACDDivergence(window, expectedSeries.diff, "bottom", lookback))
+		}
+	}
+}
+
+func TestRollingKDJStateMatchesBatchSnapshotAndDivergenceWithTrim(t *testing.T) {
+	config := kdjConfig{period: 3, m1: 3, m2: 3}
+	lookback := 3
+	state := newRollingKDJState(config, 7, lookback+1)
+	cache := newSnapshotSeriesCache()
+	highWindow := make([]float64, 0, 7)
+	lowWindow := make([]float64, 0, 7)
+	closeWindow := make([]float64, 0, 7)
+	highs := []float64{11, 13, 12, 14, 15, 16, 15, 17, 16, 18, 17, 19}
+	lows := []float64{9, 10, 10, 11, 12, 13, 12, 14, 13, 15, 14, 16}
+	closes := []float64{10, 12, 11, 13, 14, 15, 13, 16, 14, 17, 15, 18}
+	for index := range closes {
+		trimmed := len(closeWindow)+1 > 7
+		state.push(highWindow, lowWindow, closeWindow, highs[index], lows[index], closes[index], trimmed)
+		highWindow = append(highWindow, highs[index])
+		lowWindow = append(lowWindow, lows[index])
+		closeWindow = append(closeWindow, closes[index])
+		if len(closeWindow) > 7 {
+			highWindow = highWindow[len(highWindow)-7:]
+			lowWindow = lowWindow[len(lowWindow)-7:]
+			closeWindow = closeWindow[len(closeWindow)-7:]
+		}
+		currentK, currentD, currentJ, previousK, previousD, previousJ, currentOK, previousOK := state.snapshotValues()
+		actualSnapshot := snapshotToMap(cache.getKDJSnapshotValues(config, currentK, currentD, currentJ, previousK, previousD, previousJ, currentOK, previousOK), []string{"k", "d", "j", "previousK", "previousD", "previousJ"})
+		expectedSnapshot := calculateKDJSnapshot(highWindow, lowWindow, closeWindow, config)
+		if _, ok := expectedSnapshot["previousK"]; !ok {
+			expectedSnapshot["previousK"] = nil
+			expectedSnapshot["previousD"] = nil
+			expectedSnapshot["previousJ"] = nil
+		}
+		assertSnapshotMapApproxEqual(t, actualSnapshot, expectedSnapshot)
+
+		_, _, expectedJ := calculateKDJSeries(highWindow, lowWindow, closeWindow, config)
+		expectedTail := expectedJ
+		if len(expectedTail) > lookback+1 {
+			expectedTail = expectedTail[len(expectedTail)-(lookback+1):]
+		}
+		assertFloatSliceApproxEqual(t, state.jTail, expectedTail)
+
+		if actual := state.detectDivergence(closeWindow, "top", lookback); actual != detectKDJDivergence(closeWindow, expectedJ, "top", lookback) {
+			t.Fatalf("top divergence mismatch after close %v: actual=%v expected=%v", closes[index], actual, detectKDJDivergence(closeWindow, expectedJ, "top", lookback))
+		}
+		if actual := state.detectDivergence(closeWindow, "bottom", lookback); actual != detectKDJDivergence(closeWindow, expectedJ, "bottom", lookback) {
+			t.Fatalf("bottom divergence mismatch after close %v: actual=%v expected=%v", closes[index], actual, detectKDJDivergence(closeWindow, expectedJ, "bottom", lookback))
+		}
+	}
+}
+
+func TestCalculateATRSeriesMatchesRollingAverage(t *testing.T) {
+	highs := []float64{10, 13, 15, 14}
+	lows := []float64{8, 10, 11, 12}
+	closes := []float64{9, 12, 13, 13}
+	series := calculateATRSeries(highs, lows, closes, 2)
+	assertFloatSliceApproxEqual(t, series, []float64{3, 4, 3})
+}
+
+func TestRollingATRStateMatchesBatchCurrentValue(t *testing.T) {
+	state := &rollingATRState{period: 2}
+	highs := []float64{10, 13, 15, 14}
+	lows := []float64{8, 10, 11, 12}
+	closes := []float64{9, 12, 13, 13}
+	for index := range closes {
+		state.push(highs[index], lows[index], closes[index], firstOrZero(closes, index-1), index > 0)
+	}
+	assertOptionalNumberApproxEqual(t, state.value(), calculateATR(highs, lows, closes, 2))
+}
+
+func TestCalculateKDJSeriesMatchesExpectedValues(t *testing.T) {
+	config := kdjConfig{period: 3, m1: 3, m2: 3}
+	highs := []float64{11, 13, 12, 14}
+	lows := []float64{9, 10, 10, 11}
+	closes := []float64{10, 12, 11, 13}
+	kValues, dValues, jValues := calculateKDJSeries(highs, lows, closes, config)
+	assertFloatSliceApproxEqual(t, kValues, []float64{50, 58.333333333333336, 55.555555555555564, 62.037037037037045})
+	assertFloatSliceApproxEqual(t, dValues, []float64{50, 52.77777777777778, 53.70370370370371, 56.48148148148149})
+	assertFloatSliceApproxEqual(t, jValues, []float64{50, 69.44444444444446, 59.25925925925927, 73.14814814814817})
+}
+
+func TestCalculateWilliamsRSeriesMatchesExpectedValues(t *testing.T) {
+	highs := []float64{11, 12, 13, 14}
+	lows := []float64{9, 10, 11, 12}
+	closes := []float64{10, 11, 12, 13}
+	series := calculateWilliamsRSeries(highs, lows, closes, 3)
+	assertFloatSliceApproxEqual(t, series, []float64{-25, -25})
+}
+
+func TestRollingBollingerStateMatchesBatchSnapshot(t *testing.T) {
+	state := &rollingBollingerState{period: 3, multiplier: 2}
+	values := []float64{10, 12, 14, 16}
+	for _, value := range values {
+		state.push(value)
+	}
+	assertSnapshotMapApproxEqual(t, state.snapshot(), calculateBollingerSnapshot(values, bollingerConfig{period: 3, multiplier: 2}))
+}
+
+func TestRollingWilliamsRStateMatchesBatchCurrentValue(t *testing.T) {
+	state := &rollingWilliamsRState{period: 3}
+	highs := []float64{11, 12, 13, 14}
+	lows := []float64{9, 10, 11, 12}
+	closes := []float64{10, 11, 12, 13}
+	for index := range closes {
+		state.push(highs[index], lows[index], closes[index])
+	}
+	assertOptionalNumberApproxEqual(t, state.value(), calculateWilliamsR(highs, lows, closes, 3))
+}
+
+func TestCalculateCCISeriesMatchesExpectedValues(t *testing.T) {
+	highs := []float64{105, 108, 112}
+	lows := []float64{99, 102, 106}
+	closes := []float64{104, 107, 111}
+	series := calculateCCISeries(highs, lows, closes, 3)
+	assertFloatSliceApproxEqual(t, series, []float64{100})
+}
+
+func TestRollingCCIStateMatchesBatchCurrentValue(t *testing.T) {
+	state := &rollingCCIState{period: 3}
+	highs := []float64{105, 108, 112}
+	lows := []float64{99, 102, 106}
+	closes := []float64{104, 107, 111}
+	for index := range closes {
+		state.push((highs[index] + lows[index] + closes[index]) / 3)
+	}
+	assertOptionalNumberApproxEqual(t, state.value(), calculateCCI(highs, lows, closes, 3))
 }
 
 func TestBuildStopLossSnapshot(t *testing.T) {
@@ -323,6 +696,76 @@ func TestIndicatorRuntimeSnapshotIncludesTimeBoundIndicators(t *testing.T) {
 	}
 }
 
+func TestIndicatorEngineSnapshotReturnsIndependentMap(t *testing.T) {
+	script := `on kline_close:
+  let momentum = rsi(2)`
+
+	program, err := strategydsl.ParseScript(script)
+	if err != nil {
+		t.Fatalf("ParseScript() error = %v", err)
+	}
+	plan, err := strategyir.PlanRequirements(program)
+	if err != nil {
+		t.Fatalf("PlanRequirements() error = %v", err)
+	}
+	engine, err := NewIndicatorEngineForPlan(plan, types.Interval1m, "US.AAPL")
+	if err != nil {
+		t.Fatalf("NewIndicatorEngineForPlan() error = %v", err)
+	}
+	if engine == nil {
+		t.Fatal("expected indicator engine")
+	}
+
+	pushClose := func(closeValue float64) {
+		engine.Push(types.KLine{
+			Symbol:   "US.AAPL",
+			Interval: types.Interval1m,
+			High:     fixedpoint.NewFromFloat(closeValue + 1),
+			Low:      fixedpoint.NewFromFloat(closeValue - 1),
+			Close:    fixedpoint.NewFromFloat(closeValue),
+			Volume:   fixedpoint.NewFromFloat(1000),
+		}, futu.MarketSessionRegular)
+	}
+
+	pushClose(100)
+	pushClose(101)
+	pushClose(103)
+	firstSnapshot := engine.Snapshot()
+	firstRSI, ok := firstSnapshot["rsi:2"].(float64)
+	if !ok {
+		t.Fatalf("first snapshot rsi type = %T", firstSnapshot["rsi:2"])
+	}
+
+	pushClose(99)
+	secondSnapshot := engine.Snapshot()
+	secondRSI, ok := secondSnapshot["rsi:2"].(float64)
+	if !ok {
+		t.Fatalf("second snapshot rsi type = %T", secondSnapshot["rsi:2"])
+	}
+	if firstRSI == secondRSI {
+		t.Fatalf("expected independent snapshots with different RSI values, both = %v", firstRSI)
+	}
+	if current, ok := firstSnapshot["rsi:2"].(float64); !ok || current != firstRSI {
+		t.Fatalf("first snapshot mutated after second snapshot: %#v", firstSnapshot)
+	}
+	secondSnapshot["manual"] = true
+	if _, ok := firstSnapshot["manual"]; ok {
+		t.Fatalf("first snapshot unexpectedly shared outer map with second snapshot: %#v", firstSnapshot)
+	}
+	borrowedSnapshot := engine.SnapshotBorrowed()
+	if borrowedSnapshot == nil {
+		t.Fatal("expected borrowed snapshot")
+	}
+	borrowedRSI, ok := borrowedSnapshot["rsi:2"].(interface{ ScalarValue() (float64, bool) })
+	if !ok {
+		t.Fatalf("borrowed snapshot rsi type = %T", borrowedSnapshot["rsi:2"])
+	}
+	borrowedValue, borrowedValueOK := borrowedRSI.ScalarValue()
+	if !borrowedValueOK || borrowedValue != secondRSI {
+		t.Fatalf("borrowed snapshot rsi = (%v, %v), want (%v, true)", borrowedValue, borrowedValueOK, secondRSI)
+	}
+}
+
 func TestDetectDivergence(t *testing.T) {
 	if !detectDivergence([]float64{10, 11, 12, 13}, []float64{60, 65, 63, 61}, "top", 3) {
 		t.Fatal("expected top divergence to be detected")
@@ -348,6 +791,28 @@ func readSnapshotNumber(t *testing.T, snapshot map[string]any, key string) float
 	return number
 }
 
+func snapshotToMap(snapshot any, keys []string) map[string]any {
+	if snapshot == nil {
+		return nil
+	}
+	if values, ok := snapshot.(map[string]any); ok {
+		return values
+	}
+	reader, ok := snapshot.(interface {
+		FieldValue(string) (any, bool)
+	})
+	if !ok {
+		return nil
+	}
+	result := make(map[string]any, len(keys))
+	for _, key := range keys {
+		value, ok := reader.FieldValue(key)
+		if ok {
+			result[key] = value
+		}
+	}
+	return result
+}
 func readSnapshotBool(t *testing.T, snapshot map[string]any, key string) bool {
 	t.Helper()
 	value, ok := snapshot[key]
@@ -372,4 +837,133 @@ func readSnapshotString(t *testing.T, snapshot map[string]any, key string) strin
 		t.Fatalf("snapshot %s type = %T", key, value)
 	}
 	return text
+}
+
+func assertFloatSliceApproxEqual(t *testing.T, actual, expected []float64) {
+	t.Helper()
+	if len(actual) != len(expected) {
+		t.Fatalf("len(actual) = %d, want %d (%v)", len(actual), len(expected), actual)
+	}
+	for index := range expected {
+		if math.Abs(actual[index]-expected[index]) > 1e-9 {
+			t.Fatalf("actual[%d] = %v, want %v", index, actual[index], expected[index])
+		}
+	}
+}
+
+func assertSnapshotNumberApproxEqual(t *testing.T, snapshot map[string]any, key string, expected float64) {
+	t.Helper()
+	if math.Abs(readSnapshotNumber(t, snapshot, key)-expected) > 1e-9 {
+		t.Fatalf("snapshot[%s] = %v, want %v", key, readSnapshotNumber(t, snapshot, key), expected)
+	}
+}
+
+func assertOptionalNumberApproxEqual(t *testing.T, actual, expected any) {
+	t.Helper()
+	if actual == nil || expected == nil {
+		if actual != expected {
+			t.Fatalf("actual = %v, expected = %v", actual, expected)
+		}
+		return
+	}
+	actualNumber, ok := actual.(float64)
+	if !ok {
+		t.Fatalf("actual type = %T", actual)
+	}
+	expectedNumber, ok := expected.(float64)
+	if !ok {
+		t.Fatalf("expected type = %T", expected)
+	}
+	if math.Abs(actualNumber-expectedNumber) > 1e-9 {
+		t.Fatalf("actual = %v, expected = %v", actualNumber, expectedNumber)
+	}
+}
+
+func assertSnapshotMapApproxEqual(t *testing.T, actual, expected map[string]any) {
+	t.Helper()
+	if len(actual) != len(expected) {
+		t.Fatalf("len(actual) = %d, len(expected) = %d", len(actual), len(expected))
+	}
+	for key, expectedValue := range expected {
+		actualValue, ok := actual[key]
+		if !ok {
+			t.Fatalf("actual missing key %s", key)
+		}
+		assertOptionalNumberApproxEqual(t, actualValue, expectedValue)
+	}
+}
+
+func firstOrZero(values []float64, index int) float64 {
+	if index < 0 || index >= len(values) {
+		return 0
+	}
+	return values[index]
+}
+
+func BenchmarkIndicatorRuntimeSnapshot(b *testing.B) {
+	runtime := benchmarkIndicatorRuntime(b)
+	b.ResetTimer()
+	for index := 0; index < b.N; index++ {
+		benchmarkSnapshotSink = runtime.snapshot()
+	}
+}
+
+func BenchmarkIndicatorRuntimePushAndSnapshot(b *testing.B) {
+	runtime := benchmarkIndicatorRuntime(b)
+	baseTime := time.Date(2026, 5, 28, 14, 30, 0, 0, time.UTC)
+	b.ResetTimer()
+	for index := 0; index < b.N; index++ {
+		closeValue := 100 + float64(index%37)
+		runtime.push(types.KLine{
+			Symbol:    "US.AAPL",
+			Interval:  types.Interval1m,
+			StartTime: types.Time(baseTime.Add(time.Duration(index) * time.Minute)),
+			EndTime:   types.Time(baseTime.Add(time.Duration(index+1) * time.Minute)),
+			High:      fixedpoint.NewFromFloat(closeValue + 1),
+			Low:       fixedpoint.NewFromFloat(closeValue - 1),
+			Close:     fixedpoint.NewFromFloat(closeValue),
+			Volume:    fixedpoint.NewFromFloat(1000 + float64(index%100)),
+		}, futu.MarketSessionRegular)
+		benchmarkSnapshotSink = runtime.snapshot()
+	}
+}
+
+func benchmarkIndicatorRuntime(b *testing.B) *indicatorRuntime {
+	b.Helper()
+	script := `
+		function onKLineClosed(ctx) {
+			ctx.indicators["ma:20"];
+			ctx.indicators["ma:EMA:20"];
+			ctx.indicators["ma:VWMA:20"];
+			ctx.indicators["rsi:14"];
+			ctx.indicators["macd:12:26:9"];
+			ctx.indicators["bollinger:20:2"];
+			ctx.indicators["kdj:9:3:3"];
+			ctx.indicators["atr:14"];
+			ctx.indicators["cci:20"];
+			ctx.indicators["williamsr:14"];
+			ctx.indicators["divergence:rsi:14:top:5"];
+			ctx.indicators["divergence:macd:12:26:9:bottom:6"];
+			ctx.indicators["divergence:kdj:9:3:3:top:4"];
+		}
+	`
+	runtime := newIndicatorRuntime(script, types.Interval1m, "US.AAPL")
+	if runtime == nil {
+		b.Fatal("expected benchmark runtime")
+	}
+	baseTime := time.Date(2026, 5, 28, 9, 30, 0, 0, time.UTC)
+	for index := 0; index < minimumIndicatorSeriesLimit+32; index++ {
+		closeValue := 100 + float64(index%41)
+		runtime.push(types.KLine{
+			Symbol:    "US.AAPL",
+			Interval:  types.Interval1m,
+			StartTime: types.Time(baseTime.Add(time.Duration(index) * time.Minute)),
+			EndTime:   types.Time(baseTime.Add(time.Duration(index+1) * time.Minute)),
+			High:      fixedpoint.NewFromFloat(closeValue + 1),
+			Low:       fixedpoint.NewFromFloat(closeValue - 1),
+			Close:     fixedpoint.NewFromFloat(closeValue),
+			Volume:    fixedpoint.NewFromFloat(1000 + float64(index%100)),
+		}, futu.MarketSessionRegular)
+	}
+	return runtime
 }
