@@ -49,7 +49,7 @@ function resolveValueClass(tone: string | undefined): string {
 
       <div
         v-if="stats?.length"
-        class="grid gap-3 sm:grid-cols-2"
+        class="grid gap-3 sm:grid-cols-4"
       >
         <div
           v-for="stat in stats"

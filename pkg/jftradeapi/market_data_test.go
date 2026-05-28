@@ -77,10 +77,10 @@ func TestMarketCandlesEndpointIncludesCurrentRealtimeBucket(t *testing.T) {
 		Data struct {
 			Candles []struct {
 				Period string  `json:"period"`
-				Open   float64 `json:"open"`
-				High   float64 `json:"high"`
-				Low    float64 `json:"low"`
-				Close  float64 `json:"close"`
+				Open   string  `json:"open"`
+				High   string  `json:"high"`
+				Low    string  `json:"low"`
+				Close  string  `json:"close"`
 				Volume float64 `json:"volume"`
 				At     string  `json:"at"`
 			} `json:"candles"`
@@ -112,7 +112,7 @@ func TestMarketCandlesEndpointIncludesCurrentRealtimeBucket(t *testing.T) {
 	if envelope.Data.Candles[1].Period != "1m" {
 		t.Fatalf("current candle period = %s", envelope.Data.Candles[1].Period)
 	}
-	if envelope.Data.Candles[1].Open != 101 || envelope.Data.Candles[1].High != 106 || envelope.Data.Candles[1].Low != 99 || envelope.Data.Candles[1].Close != 103 {
+	if envelope.Data.Candles[1].Open != "101" || envelope.Data.Candles[1].High != "106" || envelope.Data.Candles[1].Low != "99" || envelope.Data.Candles[1].Close != "103" {
 		t.Fatalf("unexpected current candle OHLC: %+v", envelope.Data.Candles[1])
 	}
 	if envelope.Data.Candles[1].Volume != 500 {
@@ -138,7 +138,7 @@ func TestMarketSnapshotResponseUsesFreshCache(t *testing.T) {
 		Ask:                decimal.RequireFromString("321.5"),
 		PreviousClosePrice: decimalPtr(float64Ptr(318.9)),
 		Volume:             1282100,
-		Turnover:           411020000,
+		Turnover:           decimal.RequireFromString("411020000"),
 		QuoteAt:            now.Format(time.RFC3339Nano),
 		ObservedAt:         now.Format(time.RFC3339Nano),
 		Source:             "bbgo:futu:stream",
@@ -157,6 +157,9 @@ func TestMarketSnapshotResponseUsesFreshCache(t *testing.T) {
 	assertSnapshotResponse(t, response, instrumentID, true, "bbgo:futu:stream")
 	if got := response["snapshot"].(map[string]any)["at"]; got != now.Format(time.RFC3339Nano) {
 		t.Fatalf("snapshot at = %v", got)
+	}
+	if got := response["snapshot"].(map[string]any)["turnover"]; got != "411020000" {
+		t.Fatalf("snapshot turnover = %v", got)
 	}
 }
 
@@ -178,7 +181,7 @@ func TestMarketSnapshotResponseQueriesQuoteSnapshotOnCacheMiss(t *testing.T) {
 	if got := quoteServer.basicQotCallCount(); got != 1 {
 		t.Fatalf("expected one GetBasicQot call, got %d", got)
 	}
-	if got := response["snapshot"].(map[string]any)["price"]; got != json.Number("321.4") {
+	if got := response["snapshot"].(map[string]any)["price"]; got != "321.4" {
 		t.Fatalf("snapshot price = %v", got)
 	}
 }
@@ -215,7 +218,7 @@ func TestMarketSnapshotResponseForceRefreshBypassesCache(t *testing.T) {
 	if got := quoteServer.basicQotCallCount(); got != 1 {
 		t.Fatalf("expected one forced GetBasicQot call, got %d", got)
 	}
-	if got := response["snapshot"].(map[string]any)["price"]; got != json.Number("321.4") {
+	if got := response["snapshot"].(map[string]any)["price"]; got != "321.4" {
 		t.Fatalf("forced refresh snapshot price = %v", got)
 	}
 }
@@ -250,14 +253,14 @@ func TestMarketSecurityDetailsResponseQueriesSecuritySnapshot(t *testing.T) {
 	if got := security["exchangeType"]; got != "HK_HKEX" {
 		t.Fatalf("exchangeType = %v", got)
 	}
-	if got := security["currentPrice"]; got != json.Number("321.4") {
+	if got := security["currentPrice"]; got != "321.4" {
 		t.Fatalf("currentPrice = %v", got)
 	}
 	equity, ok := security["equity"].(map[string]any)
 	if !ok {
 		t.Fatalf("equity payload type = %T", security["equity"])
 	}
-	if got := equity["peRate"]; got != json.Number("16.7") {
+	if got := equity["peRate"]; got != "16.7" {
 		t.Fatalf("peRate = %v", got)
 	}
 	meta, ok := response["meta"].(map[string]any)
@@ -340,7 +343,7 @@ func TestMarketSecurityDetailsResponseIncludesTrustBlock(t *testing.T) {
 	if got := trust["assetClass"]; got != "Stock" {
 		t.Fatalf("assetClass = %v", got)
 	}
-	if got := trust["aum"]; got != json.Number("580000000000") {
+	if got := trust["aum"]; got != "580000000000" {
 		t.Fatalf("aum = %v", got)
 	}
 }
@@ -512,7 +515,7 @@ func TestMarketCandlesResponseUsesExchangeResolvedSessionsForUSIntraday(t *testi
 	}
 	sessionsByOpen := make(map[string]string, len(candles))
 	for _, candle := range candles {
-		open, ok := candle["open"].(json.Number)
+		open, ok := candle["open"].(string)
 		if !ok {
 			t.Fatalf("open payload type = %T", candle["open"])
 		}
@@ -520,7 +523,7 @@ func TestMarketCandlesResponseUsesExchangeResolvedSessionsForUSIntraday(t *testi
 		if !ok {
 			t.Fatalf("session payload type = %T", candle["session"])
 		}
-		sessionsByOpen[open.String()] = session
+		sessionsByOpen[open] = session
 	}
 	if got := sessionsByOpen["90"]; got != "overnight" {
 		t.Fatalf("overnight candle session = %q, want overnight", got)

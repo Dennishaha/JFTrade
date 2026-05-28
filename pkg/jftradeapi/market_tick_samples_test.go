@@ -53,9 +53,9 @@ func TestRecordTickerSampleInheritsLatestSnapshotFields(t *testing.T) {
 
 	previousClose := decimal.RequireFromString("698.9")
 	lastClose := decimal.RequireFromString("698.1")
-	prePrice := 699.5
-	afterPrice := 701.2
-	overnightPrice := 697.8
+	prePrice := decimal.RequireFromString("699.5")
+	afterPrice := decimal.RequireFromString("701.2")
+	overnightPrice := decimal.RequireFromString("697.8")
 	seedCachedTickSample(server, marketTickSample{
 		InstrumentID:       "HK.00700",
 		Market:             "HK",
@@ -66,7 +66,7 @@ func TestRecordTickerSampleInheritsLatestSnapshotFields(t *testing.T) {
 		PreviousClosePrice: &previousClose,
 		LastClosePrice:     &lastClose,
 		Volume:             12345,
-		Turnover:           998877.5,
+		Turnover:           decimal.RequireFromString("998877.5"),
 		QuoteAt:            time.Now().UTC().Add(-time.Second).Format(time.RFC3339Nano),
 		ObservedAt:         time.Now().UTC().Add(-time.Second).Format(time.RFC3339Nano),
 		Source:             "bbgo:futu",
@@ -94,16 +94,16 @@ func TestRecordTickerSampleInheritsLatestSnapshotFields(t *testing.T) {
 	if sample.LastClosePrice == nil || !sample.LastClosePrice.Equal(lastClose) {
 		t.Fatalf("LastClosePrice = %#v", sample.LastClosePrice)
 	}
-	if sample.Turnover != 998877.5 {
-		t.Fatalf("Turnover = %v", sample.Turnover)
+	if !sample.Turnover.Equal(decimal.RequireFromString("998877.5")) {
+		t.Fatalf("Turnover = %s", sample.Turnover.String())
 	}
-	if sample.PreMarket == nil || sample.PreMarket.Price == nil || *sample.PreMarket.Price != prePrice {
+	if sample.PreMarket == nil || sample.PreMarket.Price == nil || !sample.PreMarket.Price.Equal(prePrice) {
 		t.Fatalf("PreMarket = %#v", sample.PreMarket)
 	}
-	if sample.AfterMarket == nil || sample.AfterMarket.Price == nil || *sample.AfterMarket.Price != afterPrice {
+	if sample.AfterMarket == nil || sample.AfterMarket.Price == nil || !sample.AfterMarket.Price.Equal(afterPrice) {
 		t.Fatalf("AfterMarket = %#v", sample.AfterMarket)
 	}
-	if sample.Overnight == nil || sample.Overnight.Price == nil || *sample.Overnight.Price != overnightPrice {
+	if sample.Overnight == nil || sample.Overnight.Price == nil || !sample.Overnight.Price.Equal(overnightPrice) {
 		t.Fatalf("Overnight = %#v", sample.Overnight)
 	}
 }
@@ -133,7 +133,7 @@ func TestRecordTradeTickSampleInheritsLatestQuoteFields(t *testing.T) {
 		PreviousClosePrice: &previousClose,
 		LastClosePrice:     &lastClose,
 		Volume:             43210,
-		Turnover:           1234567.8,
+		Turnover:           decimal.RequireFromString("1234567.8"),
 		QuoteAt:            time.Now().UTC().Add(-time.Second).Format(time.RFC3339Nano),
 		ObservedAt:         time.Now().UTC().Add(-time.Second).Format(time.RFC3339Nano),
 		Source:             "bbgo:futu",
@@ -172,8 +172,8 @@ func TestRecordTradeTickSampleInheritsLatestQuoteFields(t *testing.T) {
 	if sample.LastClosePrice == nil || !sample.LastClosePrice.Equal(lastClose) {
 		t.Fatalf("LastClosePrice = %#v", sample.LastClosePrice)
 	}
-	if sample.Turnover != 1234567.8 {
-		t.Fatalf("Turnover = %v", sample.Turnover)
+	if !sample.Turnover.Equal(decimal.RequireFromString("1234567.8")) {
+		t.Fatalf("Turnover = %s", sample.Turnover.String())
 	}
 	if sample.Volume != 43210 {
 		t.Fatalf("Volume = %v", sample.Volume)

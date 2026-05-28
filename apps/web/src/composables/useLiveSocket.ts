@@ -1,5 +1,10 @@
 import { ref } from "vue";
 
+import {
+  normalizeMarketDataTickLiveEvent,
+  type MarketDataTickLiveEvent,
+} from "./marketDataRealtime";
+
 const apiBaseUrl = (
   import.meta.env.VITE_API_BASE_URL as string | undefined
 )?.replace(/\/$/, "");
@@ -15,34 +20,7 @@ export type LiveSocketConnectionState =
   | "error"
   | "unsupported";
 
-export type MarketDataTickLiveSocketEvent = {
-  type: "market-data.tick";
-  at: string;
-  brokerId: string;
-  instrument: {
-    market: string;
-    symbol: string;
-    instrumentId: string;
-  };
-  snapshot: {
-    price: number;
-    bid: number;
-    ask: number;
-    openPrice?: number | null;
-    highPrice?: number | null;
-    lowPrice?: number | null;
-    previousClosePrice?: number | null;
-    lastClosePrice?: number | null;
-    volume: number;
-    turnover: number;
-    at: string;
-    observedAt?: string | null;
-    session?: string | null;
-    extendedHours?: boolean | null;
-    extended?: unknown;
-  };
-  source: string | null;
-};
+export type MarketDataTickLiveSocketEvent = MarketDataTickLiveEvent;
 
 export type SystemNotificationLiveSocketEvent = {
   type: "system.notification";
@@ -176,7 +154,10 @@ export function useLiveSocket() {
       }
 
       try {
-        const payload = JSON.parse(event.data) as LiveSocketEvent;
+        const rawPayload = JSON.parse(event.data) as unknown;
+        const payload =
+          normalizeMarketDataTickLiveEvent(rawPayload) ??
+          (rawPayload as LiveSocketEvent);
         events.value = [
           ...events.value.slice(-(MAX_BUFFERED_EVENTS - 1)),
           payload,

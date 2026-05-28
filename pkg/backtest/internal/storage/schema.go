@@ -248,11 +248,11 @@ func expectedKLineSchemaColumns() []string {
 	return []string{
 		"end_time:INTEGER:1",
 		"start_time:INTEGER:0",
-		"open:REAL:0",
-		"high:REAL:0",
-		"low:REAL:0",
-		"close:REAL:0",
-		"volume:REAL:0",
+		"open:TEXT:0",
+		"high:TEXT:0",
+		"low:TEXT:0",
+		"close:TEXT:0",
+		"volume:TEXT:0",
 	}
 }
 

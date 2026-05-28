@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/shopspring/decimal"
+
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
 	qotgetsecuritysnapshotpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetsecuritysnapshot"
@@ -19,47 +21,47 @@ type SecurityRef struct {
 
 type EquitySecurityDetails struct {
 	IssuedShares         int64
-	IssuedMarketValue    float64
-	NetAsset             float64
-	NetProfit            float64
-	EarningsPerShare     float64
+	IssuedMarketValue    decimal.Decimal
+	NetAsset             decimal.Decimal
+	NetProfit            decimal.Decimal
+	EarningsPerShare     decimal.Decimal
 	OutstandingShares    int64
-	OutstandingMarketVal float64
-	NetAssetPerShare     float64
-	EarningsYieldRate    float64
-	PERate               float64
-	PBRate               float64
-	PETTMRate            float64
-	DividendTTM          *float64
-	DividendRatioTTM     *float64
-	DividendLFY          *float64
-	DividendLFYRatio     *float64
+	OutstandingMarketVal decimal.Decimal
+	NetAssetPerShare     decimal.Decimal
+	EarningsYieldRate    decimal.Decimal
+	PERate               decimal.Decimal
+	PBRate               decimal.Decimal
+	PETTMRate            decimal.Decimal
+	DividendTTM          *decimal.Decimal
+	DividendRatioTTM     *decimal.Decimal
+	DividendLFY          *decimal.Decimal
+	DividendLFYRatio     *decimal.Decimal
 }
 
 type WarrantSecurityDetails struct {
-	ConversionRate     float64
+	ConversionRate     decimal.Decimal
 	WarrantType        string
-	StrikePrice        float64
+	StrikePrice        decimal.Decimal
 	MaturityTime       string
 	EndTradeTime       string
 	Owner              *SecurityRef
-	RecoveryPrice      float64
+	RecoveryPrice      decimal.Decimal
 	StreetVolume       int64
 	IssueVolume        int64
-	StreetRate         float64
-	Delta              float64
-	ImpliedVolatility  float64
-	Premium            float64
+	StreetRate         decimal.Decimal
+	Delta              decimal.Decimal
+	ImpliedVolatility  decimal.Decimal
+	Premium            decimal.Decimal
 	MaturityTimestamp  *float64
 	EndTradeTimestamp  *float64
-	Leverage           *float64
-	InOutPriceRatio    *float64
-	BreakEvenPoint     *float64
-	ConversionPrice    *float64
-	PriceRecoveryRatio *float64
-	Score              *float64
-	UpperStrikePrice   *float64
-	LowerStrikePrice   *float64
+	Leverage           *decimal.Decimal
+	InOutPriceRatio    *decimal.Decimal
+	BreakEvenPoint     *decimal.Decimal
+	ConversionPrice    *decimal.Decimal
+	PriceRecoveryRatio *decimal.Decimal
+	Score              *decimal.Decimal
+	UpperStrikePrice   *decimal.Decimal
+	LowerStrikePrice   *decimal.Decimal
 	InLinePriceStatus  string
 	IssuerCode         *string
 }
@@ -68,25 +70,25 @@ type OptionSecurityDetails struct {
 	OptionType           string
 	Owner                *SecurityRef
 	StrikeTime           string
-	StrikePrice          float64
+	StrikePrice          decimal.Decimal
 	ContractSize         int32
-	ContractSizeFloat    *float64
+	ContractSizeFloat    *decimal.Decimal
 	OpenInterest         int32
-	ImpliedVolatility    float64
-	Premium              float64
-	Delta                float64
-	Gamma                float64
-	Vega                 float64
-	Theta                float64
-	Rho                  float64
+	ImpliedVolatility    decimal.Decimal
+	Premium              decimal.Decimal
+	Delta                decimal.Decimal
+	Gamma                decimal.Decimal
+	Vega                 decimal.Decimal
+	Theta                decimal.Decimal
+	Rho                  decimal.Decimal
 	StrikeTimestamp      *float64
 	IndexOptionType      string
 	NetOpenInterest      *int32
 	ExpiryDateDistance   *int32
-	ContractNominalValue *float64
-	OwnerLotMultiplier   *float64
+	ContractNominalValue *decimal.Decimal
+	OwnerLotMultiplier   *decimal.Decimal
 	OptionAreaType       string
-	ContractMultiplier   *float64
+	ContractMultiplier   *decimal.Decimal
 }
 
 type IndexSecurityDetails struct {
@@ -102,7 +104,7 @@ type PlateSecurityDetails struct {
 }
 
 type FutureSecurityDetails struct {
-	LastSettlePrice    float64
+	LastSettlePrice    decimal.Decimal
 	Position           int32
 	PositionChange     int32
 	LastTradeTime      string
@@ -111,11 +113,11 @@ type FutureSecurityDetails struct {
 }
 
 type TrustSecurityDetails struct {
-	DividendYield   float64
-	AUM             float64
+	DividendYield   decimal.Decimal
+	AUM             decimal.Decimal
 	OutstandingUnit int64
-	NetAssetValue   float64
-	Premium         float64
+	NetAssetValue   decimal.Decimal
+	Premium         decimal.Decimal
 	AssetClass      string
 }
 
@@ -132,34 +134,34 @@ type SecurityDetails struct {
 	Delisting           *bool
 	LotSize             int32
 	IsSuspend           bool
-	PriceSpread         float64
+	PriceSpread         decimal.Decimal
 	UpdateTime          string
 	UpdateTimestamp     *float64
-	HighPrice           float64
-	OpenPrice           float64
-	LowPrice            float64
-	LastClosePrice      float64
-	CurrentPrice        float64
+	HighPrice           decimal.Decimal
+	OpenPrice           decimal.Decimal
+	LowPrice            decimal.Decimal
+	LastClosePrice      decimal.Decimal
+	CurrentPrice        decimal.Decimal
 	Volume              int64
-	Turnover            float64
-	TurnoverRate        float64
-	AskPrice            *float64
-	BidPrice            *float64
+	Turnover            decimal.Decimal
+	TurnoverRate        decimal.Decimal
+	AskPrice            *decimal.Decimal
+	BidPrice            *decimal.Decimal
 	AskVolume           *int64
 	BidVolume           *int64
-	Amplitude           *float64
-	AveragePrice        *float64
-	BidAskRatio         *float64
-	VolumeRatio         *float64
-	Highest52WeeksPrice *float64
-	Lowest52WeeksPrice  *float64
-	HighestHistoryPrice *float64
-	LowestHistoryPrice  *float64
+	Amplitude           *decimal.Decimal
+	AveragePrice        *decimal.Decimal
+	BidAskRatio         *decimal.Decimal
+	VolumeRatio         *decimal.Decimal
+	Highest52WeeksPrice *decimal.Decimal
+	Lowest52WeeksPrice  *decimal.Decimal
+	HighestHistoryPrice *decimal.Decimal
+	LowestHistoryPrice  *decimal.Decimal
 	SessionStatus       string
-	ClosePrice5Minute   *float64
-	HighPrecisionVolume *float64
-	HighPrecisionAskVol *float64
-	HighPrecisionBidVol *float64
+	ClosePrice5Minute   *decimal.Decimal
+	HighPrecisionVolume *decimal.Decimal
+	HighPrecisionAskVol *decimal.Decimal
+	HighPrecisionBidVol *decimal.Decimal
 	PreMarket           *ExtendedMarketQuote
 	AfterMarket         *ExtendedMarketQuote
 	Overnight           *ExtendedMarketQuote
@@ -328,34 +330,34 @@ func securityDetailsFromSnapshot(snapshot *qotgetsecuritysnapshotpb.Snapshot, ca
 		ListTimestamp:       cloneFloat64(basic.ListTimestamp),
 		LotSize:             basic.GetLotSize(),
 		IsSuspend:           basic.GetIsSuspend(),
-		PriceSpread:         basic.GetPriceSpread(),
+		PriceSpread:         decimalFromFloat64(basic.GetPriceSpread()),
 		UpdateTime:          basic.GetUpdateTime(),
 		UpdateTimestamp:     cloneFloat64(basic.UpdateTimestamp),
-		HighPrice:           basic.GetHighPrice(),
-		OpenPrice:           basic.GetOpenPrice(),
-		LowPrice:            basic.GetLowPrice(),
-		LastClosePrice:      basic.GetLastClosePrice(),
-		CurrentPrice:        basic.GetCurPrice(),
+		HighPrice:           decimalFromFloat64(basic.GetHighPrice()),
+		OpenPrice:           decimalFromFloat64(basic.GetOpenPrice()),
+		LowPrice:            decimalFromFloat64(basic.GetLowPrice()),
+		LastClosePrice:      decimalFromFloat64(basic.GetLastClosePrice()),
+		CurrentPrice:        decimalFromFloat64(basic.GetCurPrice()),
 		Volume:              basic.GetVolume(),
-		Turnover:            basic.GetTurnover(),
-		TurnoverRate:        basic.GetTurnoverRate(),
-		AskPrice:            cloneFloat64(basic.AskPrice),
-		BidPrice:            cloneFloat64(basic.BidPrice),
+		Turnover:            decimalFromFloat64(basic.GetTurnover()),
+		TurnoverRate:        decimalFromFloat64(basic.GetTurnoverRate()),
+		AskPrice:            decimalPtrFromFloat64(basic.AskPrice),
+		BidPrice:            decimalPtrFromFloat64(basic.BidPrice),
 		AskVolume:           cloneInt64Ptr(basic.AskVol),
 		BidVolume:           cloneInt64Ptr(basic.BidVol),
-		Amplitude:           cloneFloat64(basic.Amplitude),
-		AveragePrice:        cloneFloat64(basic.AvgPrice),
-		BidAskRatio:         cloneFloat64(basic.BidAskRatio),
-		VolumeRatio:         cloneFloat64(basic.VolumeRatio),
-		Highest52WeeksPrice: cloneFloat64(basic.Highest52WeeksPrice),
-		Lowest52WeeksPrice:  cloneFloat64(basic.Lowest52WeeksPrice),
-		HighestHistoryPrice: cloneFloat64(basic.HighestHistoryPrice),
-		LowestHistoryPrice:  cloneFloat64(basic.LowestHistoryPrice),
+		Amplitude:           decimalPtrFromFloat64(basic.Amplitude),
+		AveragePrice:        decimalPtrFromFloat64(basic.AvgPrice),
+		BidAskRatio:         decimalPtrFromFloat64(basic.BidAskRatio),
+		VolumeRatio:         decimalPtrFromFloat64(basic.VolumeRatio),
+		Highest52WeeksPrice: decimalPtrFromFloat64(basic.Highest52WeeksPrice),
+		Lowest52WeeksPrice:  decimalPtrFromFloat64(basic.Lowest52WeeksPrice),
+		HighestHistoryPrice: decimalPtrFromFloat64(basic.HighestHistoryPrice),
+		LowestHistoryPrice:  decimalPtrFromFloat64(basic.LowestHistoryPrice),
 		SessionStatus:       enumName(basic.GetSecStatus(), qotcommonpb.SecurityStatus_name),
-		ClosePrice5Minute:   cloneFloat64(basic.ClosePrice5Minute),
-		HighPrecisionVolume: cloneFloat64(basic.HpVolume),
-		HighPrecisionAskVol: cloneFloat64(basic.HpAskVol),
-		HighPrecisionBidVol: cloneFloat64(basic.HpBidVol),
+		ClosePrice5Minute:   decimalPtrFromFloat64(basic.ClosePrice5Minute),
+		HighPrecisionVolume: decimalPtrFromFloat64(basic.HpVolume),
+		HighPrecisionAskVol: decimalPtrFromFloat64(basic.HpAskVol),
+		HighPrecisionBidVol: decimalPtrFromFloat64(basic.HpBidVol),
 		PreMarket:           extendedMarketQuoteFromProto(basic.GetPreMarket()),
 		AfterMarket:         extendedMarketQuoteFromProto(basic.GetAfterMarket()),
 		Overnight:           extendedMarketQuoteFromProto(basic.GetOvernight()),
@@ -363,48 +365,48 @@ func securityDetailsFromSnapshot(snapshot *qotgetsecuritysnapshotpb.Snapshot, ca
 	if equity := snapshot.GetEquityExData(); equity != nil {
 		details.Equity = &EquitySecurityDetails{
 			IssuedShares:         equity.GetIssuedShares(),
-			IssuedMarketValue:    equity.GetIssuedMarketVal(),
-			NetAsset:             equity.GetNetAsset(),
-			NetProfit:            equity.GetNetProfit(),
-			EarningsPerShare:     equity.GetEarningsPershare(),
+			IssuedMarketValue:    decimalFromFloat64(equity.GetIssuedMarketVal()),
+			NetAsset:             decimalFromFloat64(equity.GetNetAsset()),
+			NetProfit:            decimalFromFloat64(equity.GetNetProfit()),
+			EarningsPerShare:     decimalFromFloat64(equity.GetEarningsPershare()),
 			OutstandingShares:    equity.GetOutstandingShares(),
-			OutstandingMarketVal: equity.GetOutstandingMarketVal(),
-			NetAssetPerShare:     equity.GetNetAssetPershare(),
-			EarningsYieldRate:    equity.GetEyRate(),
-			PERate:               equity.GetPeRate(),
-			PBRate:               equity.GetPbRate(),
-			PETTMRate:            equity.GetPeTTMRate(),
-			DividendTTM:          cloneFloat64(equity.DividendTTM),
-			DividendRatioTTM:     cloneFloat64(equity.DividendRatioTTM),
-			DividendLFY:          cloneFloat64(equity.DividendLFY),
-			DividendLFYRatio:     cloneFloat64(equity.DividendLFYRatio),
+			OutstandingMarketVal: decimalFromFloat64(equity.GetOutstandingMarketVal()),
+			NetAssetPerShare:     decimalFromFloat64(equity.GetNetAssetPershare()),
+			EarningsYieldRate:    decimalFromFloat64(equity.GetEyRate()),
+			PERate:               decimalFromFloat64(equity.GetPeRate()),
+			PBRate:               decimalFromFloat64(equity.GetPbRate()),
+			PETTMRate:            decimalFromFloat64(equity.GetPeTTMRate()),
+			DividendTTM:          decimalPtrFromFloat64(equity.DividendTTM),
+			DividendRatioTTM:     decimalPtrFromFloat64(equity.DividendRatioTTM),
+			DividendLFY:          decimalPtrFromFloat64(equity.DividendLFY),
+			DividendLFYRatio:     decimalPtrFromFloat64(equity.DividendLFYRatio),
 		}
 	}
 	if warrant := snapshot.GetWarrantExData(); warrant != nil {
 		details.Warrant = &WarrantSecurityDetails{
-			ConversionRate:     warrant.GetConversionRate(),
+			ConversionRate:     decimalFromFloat64(warrant.GetConversionRate()),
 			WarrantType:        enumName(warrant.GetWarrantType(), qotcommonpb.WarrantType_name),
-			StrikePrice:        warrant.GetStrikePrice(),
+			StrikePrice:        decimalFromFloat64(warrant.GetStrikePrice()),
 			MaturityTime:       warrant.GetMaturityTime(),
 			EndTradeTime:       warrant.GetEndTradeTime(),
 			Owner:              securityRefFromProto(warrant.GetOwner()),
-			RecoveryPrice:      warrant.GetRecoveryPrice(),
+			RecoveryPrice:      decimalFromFloat64(warrant.GetRecoveryPrice()),
 			StreetVolume:       warrant.GetStreetVolumn(),
 			IssueVolume:        warrant.GetIssueVolumn(),
-			StreetRate:         warrant.GetStreetRate(),
-			Delta:              warrant.GetDelta(),
-			ImpliedVolatility:  warrant.GetImpliedVolatility(),
-			Premium:            warrant.GetPremium(),
+			StreetRate:         decimalFromFloat64(warrant.GetStreetRate()),
+			Delta:              decimalFromFloat64(warrant.GetDelta()),
+			ImpliedVolatility:  decimalFromFloat64(warrant.GetImpliedVolatility()),
+			Premium:            decimalFromFloat64(warrant.GetPremium()),
 			MaturityTimestamp:  cloneFloat64(warrant.MaturityTimestamp),
 			EndTradeTimestamp:  cloneFloat64(warrant.EndTradeTimestamp),
-			Leverage:           cloneFloat64(warrant.Leverage),
-			InOutPriceRatio:    cloneFloat64(warrant.Ipop),
-			BreakEvenPoint:     cloneFloat64(warrant.BreakEvenPoint),
-			ConversionPrice:    cloneFloat64(warrant.ConversionPrice),
-			PriceRecoveryRatio: cloneFloat64(warrant.PriceRecoveryRatio),
-			Score:              cloneFloat64(warrant.Score),
-			UpperStrikePrice:   cloneFloat64(warrant.UpperStrikePrice),
-			LowerStrikePrice:   cloneFloat64(warrant.LowerStrikePrice),
+			Leverage:           decimalPtrFromFloat64(warrant.Leverage),
+			InOutPriceRatio:    decimalPtrFromFloat64(warrant.Ipop),
+			BreakEvenPoint:     decimalPtrFromFloat64(warrant.BreakEvenPoint),
+			ConversionPrice:    decimalPtrFromFloat64(warrant.ConversionPrice),
+			PriceRecoveryRatio: decimalPtrFromFloat64(warrant.PriceRecoveryRatio),
+			Score:              decimalPtrFromFloat64(warrant.Score),
+			UpperStrikePrice:   decimalPtrFromFloat64(warrant.UpperStrikePrice),
+			LowerStrikePrice:   decimalPtrFromFloat64(warrant.LowerStrikePrice),
 			InLinePriceStatus:  enumName(warrant.GetInLinePriceStatus(), qotcommonpb.PriceType_name),
 			IssuerCode:         cloneStringPtr(warrant.IssuerCode),
 		}
@@ -414,25 +416,25 @@ func securityDetailsFromSnapshot(snapshot *qotgetsecuritysnapshotpb.Snapshot, ca
 			OptionType:           enumName(option.GetType(), qotcommonpb.OptionType_name),
 			Owner:                securityRefFromProto(option.GetOwner()),
 			StrikeTime:           option.GetStrikeTime(),
-			StrikePrice:          option.GetStrikePrice(),
+			StrikePrice:          decimalFromFloat64(option.GetStrikePrice()),
 			ContractSize:         option.GetContractSize(),
-			ContractSizeFloat:    cloneFloat64(option.ContractSizeFloat),
+			ContractSizeFloat:    decimalPtrFromFloat64(option.ContractSizeFloat),
 			OpenInterest:         option.GetOpenInterest(),
-			ImpliedVolatility:    option.GetImpliedVolatility(),
-			Premium:              option.GetPremium(),
-			Delta:                option.GetDelta(),
-			Gamma:                option.GetGamma(),
-			Vega:                 option.GetVega(),
-			Theta:                option.GetTheta(),
-			Rho:                  option.GetRho(),
+			ImpliedVolatility:    decimalFromFloat64(option.GetImpliedVolatility()),
+			Premium:              decimalFromFloat64(option.GetPremium()),
+			Delta:                decimalFromFloat64(option.GetDelta()),
+			Gamma:                decimalFromFloat64(option.GetGamma()),
+			Vega:                 decimalFromFloat64(option.GetVega()),
+			Theta:                decimalFromFloat64(option.GetTheta()),
+			Rho:                  decimalFromFloat64(option.GetRho()),
 			StrikeTimestamp:      cloneFloat64(option.StrikeTimestamp),
 			IndexOptionType:      enumName(option.GetIndexOptionType(), qotcommonpb.IndexOptionType_name),
 			NetOpenInterest:      cloneInt32Ptr(option.NetOpenInterest),
 			ExpiryDateDistance:   cloneInt32Ptr(option.ExpiryDateDistance),
-			ContractNominalValue: cloneFloat64(option.ContractNominalValue),
-			OwnerLotMultiplier:   cloneFloat64(option.OwnerLotMultiplier),
+			ContractNominalValue: decimalPtrFromFloat64(option.ContractNominalValue),
+			OwnerLotMultiplier:   decimalPtrFromFloat64(option.OwnerLotMultiplier),
 			OptionAreaType:       enumName(option.GetOptionAreaType(), qotcommonpb.OptionAreaType_name),
-			ContractMultiplier:   cloneFloat64(option.ContractMultiplier),
+			ContractMultiplier:   decimalPtrFromFloat64(option.ContractMultiplier),
 		}
 	}
 	if index := snapshot.GetIndexExData(); index != nil {
@@ -451,7 +453,7 @@ func securityDetailsFromSnapshot(snapshot *qotgetsecuritysnapshotpb.Snapshot, ca
 	}
 	if future := snapshot.GetFutureExData(); future != nil {
 		details.Future = &FutureSecurityDetails{
-			LastSettlePrice:    future.GetLastSettlePrice(),
+			LastSettlePrice:    decimalFromFloat64(future.GetLastSettlePrice()),
 			Position:           future.GetPosition(),
 			PositionChange:     future.GetPositionChange(),
 			LastTradeTime:      future.GetLastTradeTime(),
@@ -461,11 +463,11 @@ func securityDetailsFromSnapshot(snapshot *qotgetsecuritysnapshotpb.Snapshot, ca
 	}
 	if trust := snapshot.GetTrustExData(); trust != nil {
 		details.Trust = &TrustSecurityDetails{
-			DividendYield:   trust.GetDividendYield(),
-			AUM:             trust.GetAum(),
+			DividendYield:   decimalFromFloat64(trust.GetDividendYield()),
+			AUM:             decimalFromFloat64(trust.GetAum()),
 			OutstandingUnit: trust.GetOutstandingUnits(),
-			NetAssetValue:   trust.GetNetAssetValue(),
-			Premium:         trust.GetPremium(),
+			NetAssetValue:   decimalFromFloat64(trust.GetNetAssetValue()),
+			Premium:         decimalFromFloat64(trust.GetPremium()),
 			AssetClass:      enumName(trust.GetAssetClass(), qotcommonpb.AssetClass_name),
 		}
 	}
@@ -520,8 +522,8 @@ func mergeStaticInfoIntoSecurityDetails(details *SecurityDetails, info *qotcommo
 		if details.Option.StrikeTime == "" {
 			details.Option.StrikeTime = option.GetStrikeTime()
 		}
-		if details.Option.StrikePrice == 0 {
-			details.Option.StrikePrice = option.GetStrikePrice()
+		if details.Option.StrikePrice.IsZero() {
+			details.Option.StrikePrice = decimalFromFloat64(option.GetStrikePrice())
 		}
 		if details.Option.StrikeTimestamp == nil {
 			details.Option.StrikeTimestamp = cloneFloat64(option.StrikeTimestamp)

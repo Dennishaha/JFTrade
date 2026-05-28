@@ -113,11 +113,11 @@ func TestResultCollectorBuildsTradesAndFinalStats(t *testing.T) {
 	if result.OrderBook[0].Status != string(types.OrderStatusFilled) {
 		t.Fatalf("first order status = %s", result.OrderBook[0].Status)
 	}
-	if result.OrderBook[0].FilledPrice != 100 {
-		t.Fatalf("first order filled price = %f", result.OrderBook[0].FilledPrice)
+	if result.OrderBook[0].FilledPrice != "100" {
+		t.Fatalf("first order filled price = %s", result.OrderBook[0].FilledPrice)
 	}
-	if result.OrderBook[0].FilledQuantity != 1 {
-		t.Fatalf("first order filled quantity = %f", result.OrderBook[0].FilledQuantity)
+	if result.OrderBook[0].FilledQuantity != "1" {
+		t.Fatalf("first order filled quantity = %s", result.OrderBook[0].FilledQuantity)
 	}
 	if result.OrderBook[0].SubmittedAt != warmupUntil.Add(30*time.Second).Format(time.RFC3339) {
 		t.Fatalf("first order submittedAt = %s", result.OrderBook[0].SubmittedAt)

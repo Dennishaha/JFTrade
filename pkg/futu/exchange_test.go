@@ -14,6 +14,7 @@ import (
 	"github.com/c9s/bbgo/pkg/exchange"
 	"github.com/c9s/bbgo/pkg/fixedpoint"
 	"github.com/c9s/bbgo/pkg/types"
+	"github.com/shopspring/decimal"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/jftrade/jftrade-main/pkg/futu/codec"
@@ -2252,7 +2253,7 @@ func waitFor(t *testing.T, condition func() bool) {
 
 func TestSessionFromExtendedBlocksClockGuardsStaleExtendedData(t *testing.T) {
 	priceOf := func(v float64) *ExtendedMarketQuote {
-		p := v
+		p := decimal.NewFromFloat(v)
 		return &ExtendedMarketQuote{Price: &p}
 	}
 	// Use a Tuesday in early January (EST, no DST ambiguity).

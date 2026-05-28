@@ -6,7 +6,10 @@ import {
   type MarketDataCandlesQueryResult,
   type MarketSecurityDetailsQueryResult,
   type MarketDataSnapshotQueryResult,
+  normalizeMarketDataCandlesQueryResult,
+  normalizeMarketDataSnapshotQueryResult,
 } from "./marketDataRealtime";
+import { normalizeMarketSecurityDetailsQueryResult } from "./marketSecurityNormalization";
 import { createMarketDataSnapshotRefresher } from "./marketDataSnapshotRefresh";
 
 export interface LoadMarketDataQueryOptions {
@@ -231,13 +234,13 @@ export function createMarketDataQueryController(
 
         marketDataSnapshot.value =
           snapshotResult.status === "fulfilled"
-            ? snapshotResult.value
+            ? normalizeMarketDataSnapshotQueryResult(snapshotResult.value)
             : queryOptions.appendOlder === true
               ? marketDataSnapshot.value
               : null;
         marketSecurityDetails.value =
           securityDetailsResult.status === "fulfilled"
-            ? securityDetailsResult.value
+            ? normalizeMarketSecurityDetailsQueryResult(securityDetailsResult.value)
             : queryOptions.appendOlder === true
               ? marketSecurityDetails.value
               : null;
@@ -246,9 +249,9 @@ export function createMarketDataQueryController(
             ? queryOptions.appendOlder === true
               ? mergeMarketDataCandles(
                   marketDataCandles.value,
-                  candlesResult.value,
+                  normalizeMarketDataCandlesQueryResult(candlesResult.value),
                 )
-              : candlesResult.value
+              : normalizeMarketDataCandlesQueryResult(candlesResult.value)
             : queryOptions.appendOlder === true
               ? marketDataCandles.value
               : null;

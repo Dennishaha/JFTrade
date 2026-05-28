@@ -658,6 +658,11 @@ func assertTickCandlesResponse(t *testing.T, response map[string]any, instrument
 	if len(candles) != wantCount {
 		t.Fatalf("len(candles) = %d, want %d", len(candles), wantCount)
 	}
+	if wantCount > 0 {
+		if _, ok := candles[0]["open"].(string); !ok {
+			t.Fatalf("tick candle open payload type = %T", candles[0]["open"])
+		}
+	}
 	meta, ok := response["meta"].(map[string]any)
 	if !ok {
 		t.Fatalf("meta payload type = %T", response["meta"])

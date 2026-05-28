@@ -541,7 +541,7 @@ function sessionLabel(session: string | null): string {
                     </div>
                     <v-chip variant="outlined" size="small">{{ formatExecutionOrderStatusLabel(order.status) }}</v-chip>
                   </div>
-                  <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                  <div class="mt-4 grid gap-3 sm:grid-cols-4">
                     <div class="rounded-2xl bg-slate-50 px-3 py-3">
                       <div class="text-xs uppercase tracking-[0.18em] text-slate-500">
                         委托数量

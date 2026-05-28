@@ -29,7 +29,7 @@ type marketTickSample struct {
 	PreviousClosePrice *decimal.Decimal
 	LastClosePrice     *decimal.Decimal // 始终 = GetLastClosePrice()（上个交易日收盘）
 	Volume             float64
-	Turnover           float64
+	Turnover           decimal.Decimal
 	QuoteAt            string
 	ObservedAt         string
 	Source             string
@@ -78,7 +78,7 @@ func decimalPtr(v *float64) *decimal.Decimal {
 }
 
 func (s *Server) recordQuoteSnapshotSample(instrumentID string, snapshot *futu.QuoteSnapshot) *marketTickSample {
-	if snapshot == nil || snapshot.Price == 0 {
+	if snapshot == nil || snapshot.Price.IsZero() {
 		return nil
 	}
 	parts := strings.SplitN(instrumentID, ".", 2)
@@ -89,14 +89,14 @@ func (s *Server) recordQuoteSnapshotSample(instrumentID string, snapshot *futu.Q
 		InstrumentID:       instrumentID,
 		Market:             parts[0],
 		Symbol:             parts[1],
-		Price:              decimal.NewFromFloat(snapshot.Price),
-		Bid:                decimal.NewFromFloat(snapshot.Bid),
-		Ask:                decimal.NewFromFloat(snapshot.Ask),
-		OpenPrice:          decimalPtr(snapshot.OpenPrice),
-		HighPrice:          decimalPtr(snapshot.HighPrice),
-		LowPrice:           decimalPtr(snapshot.LowPrice),
-		PreviousClosePrice: decimalPtr(snapshot.PreviousClosePrice),
-		LastClosePrice:     decimalPtr(snapshot.LastClosePrice),
+		Price:              snapshot.Price,
+		Bid:                snapshot.Bid,
+		Ask:                snapshot.Ask,
+		OpenPrice:          snapshot.OpenPrice,
+		HighPrice:          snapshot.HighPrice,
+		LowPrice:           snapshot.LowPrice,
+		PreviousClosePrice: snapshot.PreviousClosePrice,
+		LastClosePrice:     snapshot.LastClosePrice,
 		Volume:             snapshot.Volume,
 		Turnover:           snapshot.Turnover,
 		QuoteAt:            snapshot.QuoteAt.UTC().Format(time.RFC3339Nano),
@@ -149,7 +149,7 @@ func (s *Server) recordTickerSample(instrumentID string, ticker *bbgotypes.Ticke
 		HighPrice:     tickerOptionalDecimal(ticker.High),
 		LowPrice:      tickerOptionalDecimal(ticker.Low),
 		Volume:        ticker.Volume.Float64(),
-		Turnover:      0,
+		Turnover:      decimal.Zero,
 		QuoteAt:       tickerTimestamp(ticker),
 		ObservedAt:    observedAt.Format(time.RFC3339Nano),
 		Source:        "bbgo:futu",
@@ -228,7 +228,7 @@ func inheritLatestTickSampleContext(sample *marketTickSample, latest *marketTick
 	if sample.Overnight == nil {
 		sample.Overnight = latest.Overnight
 	}
-	if sample.Turnover == 0 {
+	if sample.Turnover.IsZero() {
 		sample.Turnover = latest.Turnover
 	}
 }

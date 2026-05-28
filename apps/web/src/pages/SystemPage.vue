@@ -394,7 +394,7 @@ const systemActiveTab = ref("status");
                   </div>
                 </div>
 
-                <div class="grid gap-3 sm:grid-cols-2">
+                <div class="grid gap-3 sm:grid-cols-4">
                   <div class="rounded-3xl border border-slate-200 bg-white px-4 py-4">
                     <div class="text-xs uppercase tracking-[0.2em] text-slate-500">待发送箱</div>
                     <div class="mt-2 text-2xl font-semibold text-slate-900">
@@ -639,7 +639,7 @@ const systemActiveTab = ref("status");
 
           <div
             v-if="marketDataSubscriptions.quota.byMarket.length"
-            class="mb-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-4"
+            class="mb-5 grid gap-2 sm:grid-cols-4 lg:grid-cols-4"
           >
             <div
               v-for="bucket in marketDataSubscriptions.quota.byMarket"
@@ -658,7 +658,7 @@ const systemActiveTab = ref("status");
             </div>
           </div>
 
-          <div v-if="marketDataSubscriptions.entries.length" class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          <div v-if="marketDataSubscriptions.entries.length" class="grid gap-2 sm:grid-cols-4 lg:grid-cols-3">
             <div
               v-for="entry in marketDataSubscriptions.entries"
               :key="entry.key"

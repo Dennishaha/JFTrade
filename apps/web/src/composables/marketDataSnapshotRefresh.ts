@@ -4,6 +4,8 @@ import type {
   MarketSecurityDetailsQueryResult,
   MarketDataSnapshotQueryResult,
 } from "./marketDataRealtime";
+import { normalizeMarketDataSnapshotQueryResult } from "./marketDataRealtime";
+import { normalizeMarketSecurityDetailsQueryResult } from "./marketSecurityNormalization";
 
 interface MarketSnapshotRefreshTarget {
   market: string;
@@ -79,8 +81,11 @@ export function createMarketDataSnapshotRefresher(
       }
 
       options.marketDataSnapshot.value =
-        options.mergeRealtimeBarStateIntoSnapshot(snapshot);
-      options.marketSecurityDetails.value = securityDetails;
+        options.mergeRealtimeBarStateIntoSnapshot(
+          normalizeMarketDataSnapshotQueryResult(snapshot),
+        );
+      options.marketSecurityDetails.value =
+        normalizeMarketSecurityDetailsQueryResult(securityDetails);
     } catch {
       // Keep the current snapshot and retry on the next background interval.
     } finally {

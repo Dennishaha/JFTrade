@@ -171,11 +171,12 @@ func TestFutuKLineStoreRoundTripsCompactRows(t *testing.T) {
 	}
 
 	var startTimeValue, endTimeValue int64
-	var startType, endType string
+	var openValue, highValue, lowValue, closeValue, volumeValue string
+	var startType, endType, openType, highType, lowType, closeType, volumeType string
 	tableName := KLineTableName(input.Symbol, input.Interval, "forward")
 	if err := store.DB().QueryRow(
-		`SELECT start_time, end_time, typeof(start_time), typeof(end_time) FROM `+tableName+` LIMIT 1`,
-	).Scan(&startTimeValue, &endTimeValue, &startType, &endType); err != nil {
+		`SELECT start_time, end_time, open, high, low, close, volume, typeof(start_time), typeof(end_time), typeof(open), typeof(high), typeof(low), typeof(close), typeof(volume) FROM `+tableName+` LIMIT 1`,
+	).Scan(&startTimeValue, &endTimeValue, &openValue, &highValue, &lowValue, &closeValue, &volumeValue, &startType, &endType, &openType, &highType, &lowType, &closeType, &volumeType); err != nil {
 		t.Fatalf("inspect stored row: %v", err)
 	}
 	if startTimeValue != startAt.UnixMilli() {
@@ -186,6 +187,12 @@ func TestFutuKLineStoreRoundTripsCompactRows(t *testing.T) {
 	}
 	if startType != "integer" || endType != "integer" {
 		t.Fatalf("expected integer storage classes, got start=%s end=%s", startType, endType)
+	}
+	if openType != "text" || highType != "text" || lowType != "text" || closeType != "text" || volumeType != "text" {
+		t.Fatalf("expected text storage classes, got open=%s high=%s low=%s close=%s volume=%s", openType, highType, lowType, closeType, volumeType)
+	}
+	if openValue != input.Open.String() || highValue != input.High.String() || lowValue != input.Low.String() || closeValue != input.Close.String() || volumeValue != input.Volume.String() {
+		t.Fatalf("stored decimal text does not match input strings: got open=%s high=%s low=%s close=%s volume=%s", openValue, highValue, lowValue, closeValue, volumeValue)
 	}
 }
 

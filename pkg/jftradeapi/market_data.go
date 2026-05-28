@@ -2,7 +2,6 @@ package jftradeapi
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net"
 	"net/http"
@@ -162,10 +161,10 @@ func (s *Server) buildKLineCandlesResponse(ctx context.Context, market string, s
 	for _, kline := range klines {
 		candle := map[string]any{
 			"period": period,
-			"open":   json.Number(kline.Open.String()),
-			"high":   json.Number(kline.High.String()),
-			"low":    json.Number(kline.Low.String()),
-			"close":  json.Number(kline.Close.String()),
+			"open":   kline.Open.String(),
+			"high":   kline.High.String(),
+			"low":    kline.Low.String(),
+			"close":  kline.Close.String(),
 			"volume": kline.Volume.Float64(),
 			"at":     kline.StartTime.Time().UTC().Format(time.RFC3339Nano),
 		}

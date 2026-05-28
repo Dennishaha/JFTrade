@@ -47,10 +47,10 @@ func tickCandlesFromSamples(samples []marketTickSample, beginAt time.Time, endAt
 		}
 		candles = append(candles, map[string]any{
 			"period":  "tick",
-			"open":    priceJSON(sample.Price),
-			"high":    priceJSON(sample.Price),
-			"low":     priceJSON(sample.Price),
-			"close":   priceJSON(sample.Price),
+			"open":    priceString(sample.Price),
+			"high":    priceString(sample.Price),
+			"low":     priceString(sample.Price),
+			"close":   priceString(sample.Price),
 			"volume":  deltaVolume,
 			"at":      sample.ObservedAt,
 			"session": sample.Session,

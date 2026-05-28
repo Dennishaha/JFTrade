@@ -1,49 +1,34 @@
 package jftradeapi
 
 import (
-	"encoding/json"
-
 	"github.com/shopspring/decimal"
 
 	"github.com/jftrade/jftrade-main/pkg/futu"
 )
 
-// priceJSON serialises a decimal.Decimal as a json.Number so the JSON
-// encoder emits a literal numeric token (no quotes) with exact decimal digits.
-func priceJSON(d decimal.Decimal) json.Number {
-	return json.Number(d.String())
+func priceString(d decimal.Decimal) string {
+	return d.String()
 }
 
-// optionalPriceJSON serialises a *decimal.Decimal as either null or a
-// json.Number literal numeric token.
-func optionalPriceJSON(d *decimal.Decimal) any {
+func optionalPriceString(d *decimal.Decimal) any {
 	if d == nil {
 		return nil
 	}
-	return json.Number(d.String())
-}
-
-// floatPtrToJSONNumber converts a *float64 from a Futu proto adapter struct
-// (e.g. ExtendedMarketQuote) to a json.Number for serialisation.
-func floatPtrToJSONNumber(v *float64) any {
-	if v == nil {
-		return nil
-	}
-	return json.Number(decimal.NewFromFloat(*v).String())
+	return d.String()
 }
 
 func snapshotMapFromSample(sample *marketTickSample) map[string]any {
 	return map[string]any{
-		"price":              priceJSON(sample.Price),
-		"bid":                priceJSON(sample.Bid),
-		"ask":                priceJSON(sample.Ask),
-		"openPrice":          optionalPriceJSON(sample.OpenPrice),
-		"highPrice":          optionalPriceJSON(sample.HighPrice),
-		"lowPrice":           optionalPriceJSON(sample.LowPrice),
-		"previousClosePrice": optionalPriceJSON(sample.PreviousClosePrice),
-		"lastClosePrice":     optionalPriceJSON(sample.LastClosePrice),
+		"price":              priceString(sample.Price),
+		"bid":                priceString(sample.Bid),
+		"ask":                priceString(sample.Ask),
+		"openPrice":          optionalPriceString(sample.OpenPrice),
+		"highPrice":          optionalPriceString(sample.HighPrice),
+		"lowPrice":           optionalPriceString(sample.LowPrice),
+		"previousClosePrice": optionalPriceString(sample.PreviousClosePrice),
+		"lastClosePrice":     optionalPriceString(sample.LastClosePrice),
 		"volume":             sample.Volume,
-		"turnover":           sample.Turnover,
+		"turnover":           priceString(sample.Turnover),
 		"at":                 sample.QuoteAt,
 		"observedAt":         sample.ObservedAt,
 		"session":            sample.Session,
@@ -61,14 +46,14 @@ func extendedMarketQuoteMap(quote *futu.ExtendedMarketQuote) map[string]any {
 		return nil
 	}
 	return map[string]any{
-		"price":      floatPtrToJSONNumber(quote.Price),
-		"highPrice":  floatPtrToJSONNumber(quote.HighPrice),
-		"lowPrice":   floatPtrToJSONNumber(quote.LowPrice),
+		"price":      optionalPriceString(quote.Price),
+		"highPrice":  optionalPriceString(quote.HighPrice),
+		"lowPrice":   optionalPriceString(quote.LowPrice),
 		"volume":     quote.Volume,
-		"turnover":   floatPtrToJSONNumber(quote.Turnover),
-		"changeVal":  floatPtrToJSONNumber(quote.ChangeVal),
-		"changeRate": quote.ChangeRate,
-		"amplitude":  quote.Amplitude,
+		"turnover":   optionalPriceString(quote.Turnover),
+		"changeVal":  optionalPriceString(quote.ChangeVal),
+		"changeRate": optionalPriceString(quote.ChangeRate),
+		"amplitude":  optionalPriceString(quote.Amplitude),
 	}
 }
 
@@ -86,16 +71,16 @@ func liveTickEventFromSample(sample *marketTickSample) map[string]any {
 			"instrumentId": sample.InstrumentID,
 		},
 		"snapshot": map[string]any{
-			"price":              priceJSON(sample.Price),
-			"bid":                priceJSON(sample.Bid),
-			"ask":                priceJSON(sample.Ask),
-			"openPrice":          optionalPriceJSON(sample.OpenPrice),
-			"highPrice":          optionalPriceJSON(sample.HighPrice),
-			"lowPrice":           optionalPriceJSON(sample.LowPrice),
-			"previousClosePrice": optionalPriceJSON(sample.PreviousClosePrice),
-			"lastClosePrice":     optionalPriceJSON(sample.LastClosePrice),
+			"price":              priceString(sample.Price),
+			"bid":                priceString(sample.Bid),
+			"ask":                priceString(sample.Ask),
+			"openPrice":          optionalPriceString(sample.OpenPrice),
+			"highPrice":          optionalPriceString(sample.HighPrice),
+			"lowPrice":           optionalPriceString(sample.LowPrice),
+			"previousClosePrice": optionalPriceString(sample.PreviousClosePrice),
+			"lastClosePrice":     optionalPriceString(sample.LastClosePrice),
 			"volume":             sample.Volume,
-			"turnover":           sample.Turnover,
+			"turnover":           priceString(sample.Turnover),
 			"at":                 sample.QuoteAt,
 			"observedAt":         sample.ObservedAt,
 			"session":            sample.Session,

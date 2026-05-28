@@ -6,6 +6,7 @@ import (
 
 	"github.com/c9s/bbgo/pkg/fixedpoint"
 	"github.com/c9s/bbgo/pkg/types"
+	"github.com/shopspring/decimal"
 
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
 )
@@ -25,30 +26,30 @@ const (
 // ExtendedMarketQuote holds a Futu BasicQot pre-market, after-hours, or
 // overnight quote block.
 type ExtendedMarketQuote struct {
-	Price      *float64
-	HighPrice  *float64
-	LowPrice   *float64
+	Price      *decimal.Decimal
+	HighPrice  *decimal.Decimal
+	LowPrice   *decimal.Decimal
 	Volume     *float64
-	Turnover   *float64
-	ChangeVal  *float64
-	ChangeRate *float64
-	Amplitude  *float64
+	Turnover   *decimal.Decimal
+	ChangeVal  *decimal.Decimal
+	ChangeRate *decimal.Decimal
+	Amplitude  *decimal.Decimal
 }
 
 // QuoteSnapshot preserves extended-session fields that do not fit into bbgo's
 // generic Ticker model.
 type QuoteSnapshot struct {
 	Symbol             string
-	Price              float64
-	Bid                float64
-	Ask                float64
-	OpenPrice          *float64
-	HighPrice          *float64
-	LowPrice           *float64
-	PreviousClosePrice *float64
-	LastClosePrice     *float64
+	Price              decimal.Decimal
+	Bid                decimal.Decimal
+	Ask                decimal.Decimal
+	OpenPrice          *decimal.Decimal
+	HighPrice          *decimal.Decimal
+	LowPrice           *decimal.Decimal
+	PreviousClosePrice *decimal.Decimal
+	LastClosePrice     *decimal.Decimal
 	Volume             float64
-	Turnover           float64
+	Turnover           decimal.Decimal
 	QuoteAt            time.Time
 	Session            MarketSession
 	ExtendedHours      bool
@@ -74,15 +75,15 @@ func tickerFromBasicQot(basicQot *qotcommonpb.BasicQot) *types.Ticker {
 		canonical = ""
 	}
 	snapshot := quoteSnapshotFromBasicQot(basicQot, canonical)
-	lastPrice := fixedpoint.NewFromFloat(snapshot.Price)
+	lastPrice := fixedpointFromDecimal(snapshot.Price)
 	resolvedAt := futuQuoteTime(basicQot.GetUpdateTimestamp(), basicQot.GetUpdateTime())
 	return &types.Ticker{
 		Time:   resolvedAt,
 		Volume: fixedpoint.NewFromFloat(snapshot.Volume),
 		Last:   lastPrice,
-		Open:   fixedpoint.NewFromFloat(valueOrZero(snapshot.OpenPrice)),
-		High:   fixedpoint.NewFromFloat(valueOrZero(snapshot.HighPrice)),
-		Low:    fixedpoint.NewFromFloat(valueOrZero(snapshot.LowPrice)),
+		Open:   fixedpointFromDecimalPtr(snapshot.OpenPrice),
+		High:   fixedpointFromDecimalPtr(snapshot.HighPrice),
+		Low:    fixedpointFromDecimalPtr(snapshot.LowPrice),
 		Buy:    lastPrice,
 		Sell:   lastPrice,
 	}
@@ -95,21 +96,21 @@ func quoteSnapshotFromBasicQot(basicQot *qotcommonpb.BasicQot, canonical string)
 	session := sessionFromExtendedBlocks(canonical, preMarket, afterMarket, overnight)
 	activeExtended := activeExtendedQuoteForSession(session, preMarket, afterMarket, overnight)
 
-	regularSessionClose := basicQot.GetCurPrice()
+	regularSessionClose := decimalFromFloat64(basicQot.GetCurPrice())
 
 	price := regularSessionClose
-	highPrice := floatPtr(basicQot.GetHighPrice())
-	lowPrice := floatPtr(basicQot.GetLowPrice())
+	highPrice := decimalPtrFromFloat64(basicQot.HighPrice)
+	lowPrice := decimalPtrFromFloat64(basicQot.LowPrice)
 	volume := float64(basicQot.GetVolume())
-	turnover := basicQot.GetTurnover()
+	turnover := decimalFromFloat64(basicQot.GetTurnover())
 	if activeExtended != nil {
-		if activeExtended.Price != nil && *activeExtended.Price > 0 {
+		if decimalPositive(activeExtended.Price) {
 			price = *activeExtended.Price
 		}
-		if activeExtended.HighPrice != nil && *activeExtended.HighPrice > 0 {
+		if decimalPositive(activeExtended.HighPrice) {
 			highPrice = activeExtended.HighPrice
 		}
-		if activeExtended.LowPrice != nil && *activeExtended.LowPrice > 0 {
+		if decimalPositive(activeExtended.LowPrice) {
 			lowPrice = activeExtended.LowPrice
 		}
 		if activeExtended.Volume != nil {
@@ -120,9 +121,9 @@ func quoteSnapshotFromBasicQot(basicQot *qotcommonpb.BasicQot, canonical string)
 		}
 	}
 
-	prevClosePrice := basicQot.GetLastClosePrice()
-	if IsExtendedMarketSession(session) && regularSessionClose > 0 {
-		prevClosePrice = regularSessionClose
+	prevClosePrice := decimalPtrFromFloat64(basicQot.LastClosePrice)
+	if IsExtendedMarketSession(session) && regularSessionClose.GreaterThan(decimal.Zero) {
+		prevClosePrice = &regularSessionClose
 	}
 
 	return &QuoteSnapshot{
@@ -130,11 +131,11 @@ func quoteSnapshotFromBasicQot(basicQot *qotcommonpb.BasicQot, canonical string)
 		Price:              price,
 		Bid:                price,
 		Ask:                price,
-		OpenPrice:          floatPtr(basicQot.GetOpenPrice()),
+		OpenPrice:          decimalPtrFromFloat64(basicQot.OpenPrice),
 		HighPrice:          highPrice,
 		LowPrice:           lowPrice,
-		PreviousClosePrice: floatPtr(prevClosePrice),
-		LastClosePrice:     floatPtr(basicQot.GetLastClosePrice()),
+		PreviousClosePrice: prevClosePrice,
+		LastClosePrice:     decimalPtrFromFloat64(basicQot.LastClosePrice),
 		Volume:             volume,
 		Turnover:           turnover,
 		QuoteAt:            futuQuoteTime(basicQot.GetUpdateTimestamp(), basicQot.GetUpdateTime()).UTC(),
@@ -151,14 +152,14 @@ func extendedMarketQuoteFromProto(data *qotcommonpb.PreAfterMarketData) *Extende
 		return nil
 	}
 	return &ExtendedMarketQuote{
-		Price:      cloneFloat64(data.Price),
-		HighPrice:  cloneFloat64(data.HighPrice),
-		LowPrice:   cloneFloat64(data.LowPrice),
+		Price:      decimalPtrFromFloat64(data.Price),
+		HighPrice:  decimalPtrFromFloat64(data.HighPrice),
+		LowPrice:   decimalPtrFromFloat64(data.LowPrice),
 		Volume:     cloneInt64AsFloat64(data.Volume),
-		Turnover:   cloneFloat64(data.Turnover),
-		ChangeVal:  cloneFloat64(data.ChangeVal),
-		ChangeRate: cloneFloat64(data.ChangeRate),
-		Amplitude:  cloneFloat64(data.Amplitude),
+		Turnover:   decimalPtrFromFloat64(data.Turnover),
+		ChangeVal:  decimalPtrFromFloat64(data.ChangeVal),
+		ChangeRate: decimalPtrFromFloat64(data.ChangeRate),
+		Amplitude:  decimalPtrFromFloat64(data.Amplitude),
 	}
 }
 
@@ -175,32 +176,12 @@ func activeExtendedQuoteForSession(session MarketSession, preMarket *ExtendedMar
 	}
 }
 
-func cloneFloat64(value *float64) *float64 {
-	if value == nil {
-		return nil
-	}
-	clone := *value
-	return &clone
-}
-
 func cloneInt64AsFloat64(value *int64) *float64 {
 	if value == nil {
 		return nil
 	}
 	clone := float64(*value)
 	return &clone
-}
-
-func floatPtr(value float64) *float64 {
-	clone := value
-	return &clone
-}
-
-func valueOrZero(value *float64) float64 {
-	if value == nil {
-		return 0
-	}
-	return *value
 }
 
 // sessionFromExtendedBlocks derives the current market session from Futu's
@@ -214,15 +195,15 @@ func sessionFromExtendedBlocksAt(canonical string, preMarket, afterMarket, overn
 	clockSession := ClassifyMarketSession(canonical, now)
 	switch clockSession {
 	case MarketSessionOvernight:
-		if overnight != nil && overnight.Price != nil && *overnight.Price > 0 {
+		if overnight != nil && decimalPositive(overnight.Price) {
 			return MarketSessionOvernight
 		}
 	case MarketSessionAfter:
-		if afterMarket != nil && afterMarket.Price != nil && *afterMarket.Price > 0 {
+		if afterMarket != nil && decimalPositive(afterMarket.Price) {
 			return MarketSessionAfter
 		}
 	case MarketSessionPre:
-		if preMarket != nil && preMarket.Price != nil && *preMarket.Price > 0 {
+		if preMarket != nil && decimalPositive(preMarket.Price) {
 			return MarketSessionPre
 		}
 	}

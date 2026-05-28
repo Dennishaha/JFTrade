@@ -174,7 +174,7 @@ function inferQuoteCurrencyFromInstrumentId(instrumentId: string | undefined) {
   return "HKD";
 }
 
-function resolveRunQuoteCurrency(run: { request: { symbol: string }; result?: { quoteCurrency?: string } }) {
+function resolveRunQuoteCurrency(run: { request: { symbol: string }; result?: { quoteCurrency?: string | undefined } | undefined }) {
   const resultCurrency = run.result?.quoteCurrency?.trim();
   if (resultCurrency) {
     return resultCurrency;
@@ -379,7 +379,10 @@ function formatBacktestOrderStatus(status: string) {
   }
 }
 
-function formatBacktestOrderPrice(value: number | undefined, orderType?: string) {
+function formatBacktestOrderPrice(value: number | undefined, orderType?: string, raw?: string) {
+  if (raw && raw.trim() !== "" && raw !== "0") {
+    return raw;
+  }
   if (value !== undefined && Number.isFinite(value) && value > 0) {
     return value.toLocaleString(undefined, {
       minimumFractionDigits: 2,
@@ -392,7 +395,10 @@ function formatBacktestOrderPrice(value: number | undefined, orderType?: string)
   return "--";
 }
 
-function formatBacktestQuantity(value: number | undefined) {
+function formatBacktestQuantity(value: number | undefined, raw?: string) {
+  if (raw && raw.trim() !== "") {
+    return raw;
+  }
   if (value === undefined || !Number.isFinite(value)) {
     return "--";
   }
@@ -765,17 +771,17 @@ watch([selectedDefinitionId, interval], () => {
                               {{ formatBacktestOrderSide(entry.side) }}
                             </td>
                             <td class="px-4 py-3 align-top text-slate-700 dark:text-slate-200">
-                              <div>{{ formatBacktestQuantity(entry.quantity) }}</div>
+                              <div>{{ formatBacktestQuantity(entry.quantity, entry.quantityText) }}</div>
                               <div v-if="entry.filledQuantity !== undefined"
                                 class="mt-1 text-xs text-slate-400 dark:text-slate-500">
-                                成交 {{ formatBacktestQuantity(entry.filledQuantity) }}
+                                成交 {{ formatBacktestQuantity(entry.filledQuantity, entry.filledQuantityText) }}
                               </div>
                             </td>
                             <td class="px-4 py-3 align-top text-slate-700 dark:text-slate-200">
-                              {{ formatBacktestOrderPrice(entry.orderPrice, entry.orderType) }}
+                              {{ formatBacktestOrderPrice(entry.orderPrice, entry.orderType, entry.orderPriceText) }}
                             </td>
                             <td class="px-4 py-3 align-top text-slate-700 dark:text-slate-200">
-                              {{ formatBacktestOrderPrice(entry.filledPrice) }}
+                              {{ formatBacktestOrderPrice(entry.filledPrice, undefined, entry.filledPriceText) }}
                             </td>
                             <td class="px-4 py-3 align-top text-slate-700 dark:text-slate-200">
                               {{ formatBacktestOrderStatus(entry.status) }}

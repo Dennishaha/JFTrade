@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/c9s/bbgo/pkg/fixedpoint"
 	"github.com/jmoiron/sqlx"
 	_ "modernc.org/sqlite"
 
@@ -67,11 +68,11 @@ func (s *FutuKLineStore) ensureKLineTable(tableName string) error {
 		`CREATE TABLE IF NOT EXISTS ` + quoteIdentifier(tableName) + ` (`,
 		`  end_time    INTEGER NOT NULL,`,
 		`  start_time  INTEGER NOT NULL,`,
-		`  open        REAL    NOT NULL,`,
-		`  high        REAL    NOT NULL,`,
-		`  low         REAL    NOT NULL,`,
-		`  close       REAL    NOT NULL,`,
-		`  volume      REAL    NOT NULL,`,
+		`  open        TEXT    NOT NULL,`,
+		`  high        TEXT    NOT NULL,`,
+		`  low         TEXT    NOT NULL,`,
+		`  close       TEXT    NOT NULL,`,
+		`  volume      TEXT    NOT NULL,`,
 		`  PRIMARY KEY (end_time)`,
 		`) WITHOUT ROWID`,
 	}, " "))
@@ -570,11 +571,11 @@ func (s *FutuKLineStore) InsertKLine(kline types.KLine, rehabType string) error 
 			`start_time = excluded.start_time, open = excluded.open, high = excluded.high, low = excluded.low, close = excluded.close, volume = excluded.volume`,
 		timeToUnixMillis(kline.EndTime.Time()),
 		timeToUnixMillis(kline.StartTime.Time()),
-		kline.Open.Float64(),
-		kline.High.Float64(),
-		kline.Low.Float64(),
-		kline.Close.Float64(),
-		kline.Volume.Float64(),
+		kline.Open.String(),
+		kline.High.String(),
+		kline.Low.String(),
+		kline.Close.String(),
+		kline.Volume.String(),
 	)
 	return err
 }
@@ -681,7 +682,7 @@ func aggregateKLinesFromBase(symbol string, interval, baseInterval types.Interva
 	var current types.KLine
 	var currentBucketStart time.Time
 	currentCount := 0
-	currentVolume := 0.0
+	currentVolume := fixedpoint.Zero
 
 	flush := func() {
 		if currentCount != factor {
@@ -691,7 +692,7 @@ func aggregateKLinesFromBase(symbol string, interval, baseInterval types.Interva
 		if endAt.Before(since) || endAt.After(until) {
 			return
 		}
-		current.Volume = floatToFixed(currentVolume)
+		current.Volume = currentVolume
 		aggregated = append(aggregated, current)
 	}
 
@@ -701,7 +702,7 @@ func aggregateKLinesFromBase(symbol string, interval, baseInterval types.Interva
 			flush()
 			currentBucketStart = bucketStart
 			currentCount = 0
-			currentVolume = 0
+			currentVolume = fixedpoint.Zero
 			current = types.KLine{
 				StartTime: types.Time(bucketStart),
 				EndTime:   base.EndTime,
@@ -724,7 +725,7 @@ func aggregateKLinesFromBase(symbol string, interval, baseInterval types.Interva
 			current.EndTime = base.EndTime
 		}
 		currentCount++
-		currentVolume += base.Volume.Float64()
+		currentVolume = currentVolume.Add(base.Volume)
 	}
 	flush()
 	return aggregated

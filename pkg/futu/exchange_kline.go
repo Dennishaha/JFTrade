@@ -512,12 +512,12 @@ func futuKLineFromProto(candle *qotcommonpb.KLine, symbol string, interval types
 		StartTime:   types.Time(startAt),
 		EndTime:     types.Time(endAt),
 		Interval:    interval,
-		Open:        fixedpoint.NewFromFloat(candle.GetOpenPrice()),
-		Close:       fixedpoint.NewFromFloat(candle.GetClosePrice()),
-		High:        fixedpoint.NewFromFloat(candle.GetHighPrice()),
-		Low:         fixedpoint.NewFromFloat(candle.GetLowPrice()),
-		Volume:      fixedpoint.NewFromFloat(float64(candle.GetVolume())),
-		QuoteVolume: fixedpoint.NewFromFloat(candle.GetTurnover()),
+		Open:        fixedpointFromFloat64(candle.GetOpenPrice()),
+		Close:       fixedpointFromFloat64(candle.GetClosePrice()),
+		High:        fixedpointFromFloat64(candle.GetHighPrice()),
+		Low:         fixedpointFromFloat64(candle.GetLowPrice()),
+		Volume:      fixedpoint.NewFromInt(int64(candle.GetVolume())),
+		QuoteVolume: fixedpointFromFloat64(candle.GetTurnover()),
 		Closed:      !endAt.After(time.Now().UTC()),
 	}
 }

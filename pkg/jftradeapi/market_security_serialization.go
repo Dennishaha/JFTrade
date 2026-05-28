@@ -12,6 +12,33 @@ func float64JSON(v float64) json.Number {
 	return json.Number(decimal.NewFromFloat(v).String())
 }
 
+func decimalJSON(v decimal.Decimal) string {
+	return v.String()
+}
+
+func optionalDecimalJSON(v *decimal.Decimal) any {
+	if v == nil {
+		return nil
+	}
+	return v.String()
+}
+
+func extendedMarketQuoteSecurityMap(quote *futu.ExtendedMarketQuote) map[string]any {
+	if quote == nil {
+		return nil
+	}
+	return map[string]any{
+		"price":      optionalDecimalJSON(quote.Price),
+		"highPrice":  optionalDecimalJSON(quote.HighPrice),
+		"lowPrice":   optionalDecimalJSON(quote.LowPrice),
+		"volume":     quote.Volume,
+		"turnover":   optionalDecimalJSON(quote.Turnover),
+		"changeVal":  optionalDecimalJSON(quote.ChangeVal),
+		"changeRate": optionalDecimalJSON(quote.ChangeRate),
+		"amplitude":  optionalDecimalJSON(quote.Amplitude),
+	}
+}
+
 func optionalFloat64JSON(v *float64) any {
 	if v == nil {
 		return nil
@@ -75,38 +102,38 @@ func securityDetailsMap(details *futu.SecurityDetails) map[string]any {
 		"delisting":           optionalBool(details.Delisting),
 		"lotSize":             details.LotSize,
 		"isSuspend":           details.IsSuspend,
-		"priceSpread":         float64JSON(details.PriceSpread),
+		"priceSpread":         decimalJSON(details.PriceSpread),
 		"updateTime":          details.UpdateTime,
 		"updateTimestamp":     optionalFloat64JSON(details.UpdateTimestamp),
-		"highPrice":           float64JSON(details.HighPrice),
-		"openPrice":           float64JSON(details.OpenPrice),
-		"lowPrice":            float64JSON(details.LowPrice),
-		"lastClosePrice":      float64JSON(details.LastClosePrice),
-		"currentPrice":        float64JSON(details.CurrentPrice),
+		"highPrice":           decimalJSON(details.HighPrice),
+		"openPrice":           decimalJSON(details.OpenPrice),
+		"lowPrice":            decimalJSON(details.LowPrice),
+		"lastClosePrice":      decimalJSON(details.LastClosePrice),
+		"currentPrice":        decimalJSON(details.CurrentPrice),
 		"volume":              details.Volume,
-		"turnover":            float64JSON(details.Turnover),
-		"turnoverRate":        float64JSON(details.TurnoverRate),
-		"askPrice":            optionalFloat64JSON(details.AskPrice),
-		"bidPrice":            optionalFloat64JSON(details.BidPrice),
+		"turnover":            decimalJSON(details.Turnover),
+		"turnoverRate":        decimalJSON(details.TurnoverRate),
+		"askPrice":            optionalDecimalJSON(details.AskPrice),
+		"bidPrice":            optionalDecimalJSON(details.BidPrice),
 		"askVolume":           optionalInt64(details.AskVolume),
 		"bidVolume":           optionalInt64(details.BidVolume),
-		"amplitude":           optionalFloat64JSON(details.Amplitude),
-		"averagePrice":        optionalFloat64JSON(details.AveragePrice),
-		"bidAskRatio":         optionalFloat64JSON(details.BidAskRatio),
-		"volumeRatio":         optionalFloat64JSON(details.VolumeRatio),
-		"highest52WeeksPrice": optionalFloat64JSON(details.Highest52WeeksPrice),
-		"lowest52WeeksPrice":  optionalFloat64JSON(details.Lowest52WeeksPrice),
-		"highestHistoryPrice": optionalFloat64JSON(details.HighestHistoryPrice),
-		"lowestHistoryPrice":  optionalFloat64JSON(details.LowestHistoryPrice),
+		"amplitude":           optionalDecimalJSON(details.Amplitude),
+		"averagePrice":        optionalDecimalJSON(details.AveragePrice),
+		"bidAskRatio":         optionalDecimalJSON(details.BidAskRatio),
+		"volumeRatio":         optionalDecimalJSON(details.VolumeRatio),
+		"highest52WeeksPrice": optionalDecimalJSON(details.Highest52WeeksPrice),
+		"lowest52WeeksPrice":  optionalDecimalJSON(details.Lowest52WeeksPrice),
+		"highestHistoryPrice": optionalDecimalJSON(details.HighestHistoryPrice),
+		"lowestHistoryPrice":  optionalDecimalJSON(details.LowestHistoryPrice),
 		"sessionStatus":       details.SessionStatus,
-		"closePrice5Minute":   optionalFloat64JSON(details.ClosePrice5Minute),
-		"highPrecisionVolume": optionalFloat64JSON(details.HighPrecisionVolume),
-		"highPrecisionAskVol": optionalFloat64JSON(details.HighPrecisionAskVol),
-		"highPrecisionBidVol": optionalFloat64JSON(details.HighPrecisionBidVol),
+		"closePrice5Minute":   optionalDecimalJSON(details.ClosePrice5Minute),
+		"highPrecisionVolume": optionalDecimalJSON(details.HighPrecisionVolume),
+		"highPrecisionAskVol": optionalDecimalJSON(details.HighPrecisionAskVol),
+		"highPrecisionBidVol": optionalDecimalJSON(details.HighPrecisionBidVol),
 		"extended": map[string]any{
-			"preMarket":   extendedMarketQuoteMap(details.PreMarket),
-			"afterMarket": extendedMarketQuoteMap(details.AfterMarket),
-			"overnight":   extendedMarketQuoteMap(details.Overnight),
+			"preMarket":   extendedMarketQuoteSecurityMap(details.PreMarket),
+			"afterMarket": extendedMarketQuoteSecurityMap(details.AfterMarket),
+			"overnight":   extendedMarketQuoteSecurityMap(details.Overnight),
 		},
 		"equity":  equitySecurityDetailsMap(details.Equity),
 		"warrant": warrantSecurityDetailsMap(details.Warrant),
@@ -124,21 +151,21 @@ func equitySecurityDetailsMap(details *futu.EquitySecurityDetails) map[string]an
 	}
 	return map[string]any{
 		"issuedShares":         details.IssuedShares,
-		"issuedMarketValue":    float64JSON(details.IssuedMarketValue),
-		"netAsset":             float64JSON(details.NetAsset),
-		"netProfit":            float64JSON(details.NetProfit),
-		"earningsPerShare":     float64JSON(details.EarningsPerShare),
+		"issuedMarketValue":    decimalJSON(details.IssuedMarketValue),
+		"netAsset":             decimalJSON(details.NetAsset),
+		"netProfit":            decimalJSON(details.NetProfit),
+		"earningsPerShare":     decimalJSON(details.EarningsPerShare),
 		"outstandingShares":    details.OutstandingShares,
-		"outstandingMarketVal": float64JSON(details.OutstandingMarketVal),
-		"netAssetPerShare":     float64JSON(details.NetAssetPerShare),
-		"earningsYieldRate":    float64JSON(details.EarningsYieldRate),
-		"peRate":               float64JSON(details.PERate),
-		"pbRate":               float64JSON(details.PBRate),
-		"peTTMRate":            float64JSON(details.PETTMRate),
-		"dividendTTM":          optionalFloat64JSON(details.DividendTTM),
-		"dividendRatioTTM":     optionalFloat64JSON(details.DividendRatioTTM),
-		"dividendLFY":          optionalFloat64JSON(details.DividendLFY),
-		"dividendLFYRatio":     optionalFloat64JSON(details.DividendLFYRatio),
+		"outstandingMarketVal": decimalJSON(details.OutstandingMarketVal),
+		"netAssetPerShare":     decimalJSON(details.NetAssetPerShare),
+		"earningsYieldRate":    decimalJSON(details.EarningsYieldRate),
+		"peRate":               decimalJSON(details.PERate),
+		"pbRate":               decimalJSON(details.PBRate),
+		"peTTMRate":            decimalJSON(details.PETTMRate),
+		"dividendTTM":          optionalDecimalJSON(details.DividendTTM),
+		"dividendRatioTTM":     optionalDecimalJSON(details.DividendRatioTTM),
+		"dividendLFY":          optionalDecimalJSON(details.DividendLFY),
+		"dividendLFYRatio":     optionalDecimalJSON(details.DividendLFYRatio),
 	}
 }
 
@@ -147,29 +174,29 @@ func warrantSecurityDetailsMap(details *futu.WarrantSecurityDetails) map[string]
 		return nil
 	}
 	return map[string]any{
-		"conversionRate":     float64JSON(details.ConversionRate),
+		"conversionRate":     decimalJSON(details.ConversionRate),
 		"warrantType":        details.WarrantType,
-		"strikePrice":        float64JSON(details.StrikePrice),
+		"strikePrice":        decimalJSON(details.StrikePrice),
 		"maturityTime":       details.MaturityTime,
 		"endTradeTime":       details.EndTradeTime,
 		"owner":              securityRefMap(details.Owner),
-		"recoveryPrice":      float64JSON(details.RecoveryPrice),
+		"recoveryPrice":      decimalJSON(details.RecoveryPrice),
 		"streetVolume":       details.StreetVolume,
 		"issueVolume":        details.IssueVolume,
-		"streetRate":         float64JSON(details.StreetRate),
-		"delta":              float64JSON(details.Delta),
-		"impliedVolatility":  float64JSON(details.ImpliedVolatility),
-		"premium":            float64JSON(details.Premium),
+		"streetRate":         decimalJSON(details.StreetRate),
+		"delta":              decimalJSON(details.Delta),
+		"impliedVolatility":  decimalJSON(details.ImpliedVolatility),
+		"premium":            decimalJSON(details.Premium),
 		"maturityTimestamp":  optionalFloat64JSON(details.MaturityTimestamp),
 		"endTradeTimestamp":  optionalFloat64JSON(details.EndTradeTimestamp),
-		"leverage":           optionalFloat64JSON(details.Leverage),
-		"inOutPriceRatio":    optionalFloat64JSON(details.InOutPriceRatio),
-		"breakEvenPoint":     optionalFloat64JSON(details.BreakEvenPoint),
-		"conversionPrice":    optionalFloat64JSON(details.ConversionPrice),
-		"priceRecoveryRatio": optionalFloat64JSON(details.PriceRecoveryRatio),
-		"score":              optionalFloat64JSON(details.Score),
-		"upperStrikePrice":   optionalFloat64JSON(details.UpperStrikePrice),
-		"lowerStrikePrice":   optionalFloat64JSON(details.LowerStrikePrice),
+		"leverage":           optionalDecimalJSON(details.Leverage),
+		"inOutPriceRatio":    optionalDecimalJSON(details.InOutPriceRatio),
+		"breakEvenPoint":     optionalDecimalJSON(details.BreakEvenPoint),
+		"conversionPrice":    optionalDecimalJSON(details.ConversionPrice),
+		"priceRecoveryRatio": optionalDecimalJSON(details.PriceRecoveryRatio),
+		"score":              optionalDecimalJSON(details.Score),
+		"upperStrikePrice":   optionalDecimalJSON(details.UpperStrikePrice),
+		"lowerStrikePrice":   optionalDecimalJSON(details.LowerStrikePrice),
 		"inLinePriceStatus":  details.InLinePriceStatus,
 		"issuerCode":         optionalString(details.IssuerCode),
 	}
@@ -183,25 +210,25 @@ func optionSecurityDetailsMap(details *futu.OptionSecurityDetails) map[string]an
 		"optionType":           details.OptionType,
 		"owner":                securityRefMap(details.Owner),
 		"strikeTime":           details.StrikeTime,
-		"strikePrice":          float64JSON(details.StrikePrice),
+		"strikePrice":          decimalJSON(details.StrikePrice),
 		"contractSize":         details.ContractSize,
-		"contractSizeFloat":    optionalFloat64JSON(details.ContractSizeFloat),
+		"contractSizeFloat":    optionalDecimalJSON(details.ContractSizeFloat),
 		"openInterest":         details.OpenInterest,
-		"impliedVolatility":    float64JSON(details.ImpliedVolatility),
-		"premium":              float64JSON(details.Premium),
-		"delta":                float64JSON(details.Delta),
-		"gamma":                float64JSON(details.Gamma),
-		"vega":                 float64JSON(details.Vega),
-		"theta":                float64JSON(details.Theta),
-		"rho":                  float64JSON(details.Rho),
+		"impliedVolatility":    decimalJSON(details.ImpliedVolatility),
+		"premium":              decimalJSON(details.Premium),
+		"delta":                decimalJSON(details.Delta),
+		"gamma":                decimalJSON(details.Gamma),
+		"vega":                 decimalJSON(details.Vega),
+		"theta":                decimalJSON(details.Theta),
+		"rho":                  decimalJSON(details.Rho),
 		"strikeTimestamp":      optionalFloat64JSON(details.StrikeTimestamp),
 		"indexOptionType":      details.IndexOptionType,
 		"netOpenInterest":      optionalInt32(details.NetOpenInterest),
 		"expiryDateDistance":   optionalInt32(details.ExpiryDateDistance),
-		"contractNominalValue": optionalFloat64JSON(details.ContractNominalValue),
-		"ownerLotMultiplier":   optionalFloat64JSON(details.OwnerLotMultiplier),
+		"contractNominalValue": optionalDecimalJSON(details.ContractNominalValue),
+		"ownerLotMultiplier":   optionalDecimalJSON(details.OwnerLotMultiplier),
 		"optionAreaType":       details.OptionAreaType,
-		"contractMultiplier":   optionalFloat64JSON(details.ContractMultiplier),
+		"contractMultiplier":   optionalDecimalJSON(details.ContractMultiplier),
 	}
 }
 
@@ -232,7 +259,7 @@ func futureSecurityDetailsMap(details *futu.FutureSecurityDetails) map[string]an
 		return nil
 	}
 	return map[string]any{
-		"lastSettlePrice":    float64JSON(details.LastSettlePrice),
+		"lastSettlePrice":    decimalJSON(details.LastSettlePrice),
 		"position":           details.Position,
 		"positionChange":     details.PositionChange,
 		"lastTradeTime":      details.LastTradeTime,
@@ -246,11 +273,11 @@ func trustSecurityDetailsMap(details *futu.TrustSecurityDetails) map[string]any 
 		return nil
 	}
 	return map[string]any{
-		"dividendYield":   float64JSON(details.DividendYield),
-		"aum":             float64JSON(details.AUM),
+		"dividendYield":   decimalJSON(details.DividendYield),
+		"aum":             decimalJSON(details.AUM),
 		"outstandingUnit": details.OutstandingUnit,
-		"netAssetValue":   float64JSON(details.NetAssetValue),
-		"premium":         float64JSON(details.Premium),
+		"netAssetValue":   decimalJSON(details.NetAssetValue),
+		"premium":         decimalJSON(details.Premium),
 		"assetClass":      details.AssetClass,
 	}
 }

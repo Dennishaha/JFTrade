@@ -92,7 +92,7 @@ const riskHeaderStats = computed(() => [
         </div>
 
         <v-card-text>
-        <div class="grid gap-4 sm:grid-cols-2">
+        <div class="grid gap-4 sm:grid-cols-4">
           <div class="rounded-3xl bg-slate-50 px-4 py-4">
             <div class="text-xs uppercase tracking-[0.2em] text-slate-500">最大下单数量</div>
             <div class="mt-2 text-2xl font-semibold text-slate-900">
@@ -154,7 +154,7 @@ const riskHeaderStats = computed(() => [
         </div>
 
         <v-card-text>
-        <div class="grid gap-4 sm:grid-cols-2">
+        <div class="grid gap-4 sm:grid-cols-4">
           <div class="rounded-3xl bg-slate-50 px-4 py-4">
             <div class="text-xs uppercase tracking-[0.2em] text-slate-500">来源</div>
             <div class="mt-2 text-lg font-semibold" :class="realTradeKillSwitchState.killSwitchActive ? 'text-amber-700' : 'text-slate-900'">
@@ -228,7 +228,7 @@ const riskHeaderStats = computed(() => [
               撤单{{ realTradeHardStops.allowsCancel ? '允许' : '阻断' }}
             </v-chip>
           </div>
-          <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <div class="grid gap-3 sm:grid-cols-4 xl:grid-cols-3">
             <div
               v-for="entry in realTradeHardStops.entries"
               :key="entry.id"

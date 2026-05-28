@@ -2,6 +2,7 @@ package backtest
 
 import (
 	"context"
+	"strconv"
 	"testing"
 	"time"
 
@@ -83,12 +84,14 @@ func buildBenchmarkPnLCurve(count int) []PnLPoint {
 func buildBenchmarkDrawdownCandles(pnlCurve []PnLPoint) []Candle {
 	candles := make([]Candle, len(pnlCurve))
 	for index := range pnlCurve {
+		equity := strconv.FormatFloat(pnlCurve[index].Equity, 'f', -1, 64)
 		candles[index] = Candle{
-			Time:  pnlCurve[index].Time,
-			Open:  pnlCurve[index].Equity,
-			High:  pnlCurve[index].Equity,
-			Low:   pnlCurve[index].Equity,
-			Close: pnlCurve[index].Equity,
+			Time:   pnlCurve[index].Time,
+			Open:   equity,
+			High:   equity,
+			Low:    equity,
+			Close:  equity,
+			Volume: "0",
 		}
 	}
 	return candles

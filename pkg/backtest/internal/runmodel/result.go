@@ -6,26 +6,26 @@ import "sync"
 type TradeEvent struct {
 	Time  string  `json:"time"`
 	Side  string  `json:"side"`
-	Price float64 `json:"price"`
-	Qty   float64 `json:"qty"`
+	Price string  `json:"price"`
+	Qty   string  `json:"qty"`
 	PnL   float64 `json:"pnl,omitempty"`
 }
 
 // OrderBookEntry captures a single backtest order and its latest fill outcome.
 // A submitted order that later fills is merged into the same row.
 type OrderBookEntry struct {
-	OrderID        string  `json:"orderId"`
-	ClientOrderID  string  `json:"clientOrderId,omitempty"`
-	Symbol         string  `json:"symbol"`
-	Side           string  `json:"side"`
-	Quantity       float64 `json:"quantity"`
-	OrderType      string  `json:"orderType,omitempty"`
-	OrderPrice     float64 `json:"orderPrice,omitempty"`
-	SubmittedAt    string  `json:"submittedAt,omitempty"`
-	Status         string  `json:"status"`
-	FilledQuantity float64 `json:"filledQuantity,omitempty"`
-	FilledPrice    float64 `json:"filledPrice,omitempty"`
-	FilledAt       string  `json:"filledAt,omitempty"`
+	OrderID        string `json:"orderId"`
+	ClientOrderID  string `json:"clientOrderId,omitempty"`
+	Symbol         string `json:"symbol"`
+	Side           string `json:"side"`
+	Quantity       string `json:"quantity"`
+	OrderType      string `json:"orderType,omitempty"`
+	OrderPrice     string `json:"orderPrice,omitempty"`
+	SubmittedAt    string `json:"submittedAt,omitempty"`
+	Status         string `json:"status"`
+	FilledQuantity string `json:"filledQuantity,omitempty"`
+	FilledPrice    string `json:"filledPrice,omitempty"`
+	FilledAt       string `json:"filledAt,omitempty"`
 }
 
 // PnLPoint is a single point on the equity curve.
@@ -42,12 +42,12 @@ type DrawdownPoint struct {
 
 // Candle is a single OHLCV bar for chart rendering.
 type Candle struct {
-	Time   string  `json:"time"`
-	Open   float64 `json:"open"`
-	High   float64 `json:"high"`
-	Low    float64 `json:"low"`
-	Close  float64 `json:"close"`
-	Volume float64 `json:"volume"`
+	Time   string `json:"time"`
+	Open   string `json:"open"`
+	High   string `json:"high"`
+	Low    string `json:"low"`
+	Close  string `json:"close"`
+	Volume string `json:"volume"`
 }
 
 // RunResult holds the output of a backtest run.

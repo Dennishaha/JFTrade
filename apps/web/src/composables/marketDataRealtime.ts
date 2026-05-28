@@ -63,6 +63,162 @@ export type {
   MarketSecurityWarrantDetails,
 };
 
+const marketDataExtendedQuoteNumberKeys = [
+  "price",
+  "highPrice",
+  "lowPrice",
+  "volume",
+  "turnover",
+  "changeVal",
+  "changeRate",
+  "amplitude",
+] as const;
+
+const marketDataSnapshotNumberKeys = [
+  "price",
+  "bid",
+  "ask",
+  "openPrice",
+  "highPrice",
+  "lowPrice",
+  "previousClosePrice",
+  "lastClosePrice",
+  "volume",
+  "turnover",
+  "barVolume",
+  "barOpen",
+  "barHigh",
+  "barLow",
+] as const;
+
+const marketDataCandleNumberKeys = [
+  "open",
+  "high",
+  "low",
+  "close",
+  "volume",
+] as const;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function normalizeNumberish(value: unknown): number | undefined {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : undefined;
+  }
+  if (typeof value !== "string") {
+    return undefined;
+  }
+  const trimmed = value.trim();
+  if (trimmed === "") {
+    return undefined;
+  }
+  const parsed = Number(trimmed);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function normalizeFields<T extends Record<string, unknown> | null | undefined>(
+  value: T,
+  keys: readonly string[],
+): T {
+  if (!isRecord(value)) {
+    return value;
+  }
+  const normalized: Record<string, unknown> = { ...value };
+  for (const key of keys) {
+    if (!(key in normalized)) {
+      continue;
+    }
+    const current = normalized[key];
+    if (current == null) {
+      continue;
+    }
+    const parsed = normalizeNumberish(current);
+    if (parsed !== undefined) {
+      normalized[key] = parsed;
+    }
+  }
+  return normalized as T;
+}
+
+function normalizeMarketDataExtendedQuote(
+  value: unknown,
+): MarketDataExtendedQuote | null {
+  return normalizeFields(
+    isRecord(value) ? value : null,
+    marketDataExtendedQuoteNumberKeys,
+  ) as MarketDataExtendedQuote | null;
+}
+
+function normalizeMarketDataExtendedQuoteBlocks(
+  value: unknown,
+): MarketDataExtendedQuoteBlocks | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  return {
+    ...value,
+    preMarket: normalizeMarketDataExtendedQuote(value.preMarket),
+    afterMarket: normalizeMarketDataExtendedQuote(value.afterMarket),
+    overnight: normalizeMarketDataExtendedQuote(value.overnight),
+  } as MarketDataExtendedQuoteBlocks;
+}
+
+function normalizeMarketDataSnapshotValue(
+  value: unknown,
+): MarketDataSnapshotQueryResult["snapshot"] {
+  const snapshot = normalizeFields(
+    isRecord(value) ? value : null,
+    marketDataSnapshotNumberKeys,
+  );
+  if (!isRecord(snapshot)) {
+    return null;
+  }
+  return {
+    ...snapshot,
+    extended: normalizeMarketDataExtendedQuoteBlocks(snapshot.extended),
+  } as MarketDataSnapshotQueryResult["snapshot"];
+}
+
+function normalizeMarketDataCandle(
+  value: unknown,
+): MarketDataCandlesQueryResult["candles"][number] | null {
+  const candle = normalizeFields(
+    isRecord(value) ? value : null,
+    marketDataCandleNumberKeys,
+  );
+  if (!isRecord(candle)) {
+    return null;
+  }
+  return candle as MarketDataCandlesQueryResult["candles"][number];
+}
+
+export function normalizeMarketDataSnapshotQueryResult(
+  result: MarketDataSnapshotQueryResult,
+): MarketDataSnapshotQueryResult {
+  return {
+    ...result,
+    snapshot: normalizeMarketDataSnapshotValue(result.snapshot),
+  };
+}
+
+export function normalizeMarketDataCandlesQueryResult(
+  result: MarketDataCandlesQueryResult,
+): MarketDataCandlesQueryResult {
+  return {
+    ...result,
+    candles: Array.isArray(result.candles)
+      ? result.candles
+          .map((candle) => normalizeMarketDataCandle(candle))
+          .filter(
+            (candle): candle is MarketDataCandlesQueryResult["candles"][number] =>
+              candle != null,
+          )
+      : [],
+  };
+}
+
 export interface MarketDataSnapshotQueryResult {
   request: {
     market: string;
@@ -130,7 +286,7 @@ export interface MarketDataCandlesQueryResult {
   };
 }
 
-interface MarketDataTickLiveEvent {
+export interface MarketDataTickLiveEvent {
   type: "market-data.tick";
   at: string;
   brokerId: string;
@@ -158,6 +314,35 @@ interface MarketDataTickLiveEvent {
     extended?: MarketDataExtendedQuoteBlocks | null;
   };
   source: string | null;
+}
+
+function isMarketDataTickLiveEvent(
+  event: unknown,
+): event is MarketDataTickLiveEvent {
+  return (
+    typeof event === "object" &&
+    event !== null &&
+    "type" in event &&
+    event.type === "market-data.tick" &&
+    "instrument" in event &&
+    "snapshot" in event
+  );
+}
+
+export function normalizeMarketDataTickLiveEvent(
+  event: unknown,
+): MarketDataTickLiveEvent | null {
+  if (!isMarketDataTickLiveEvent(event)) {
+    return null;
+  }
+  const snapshot = normalizeMarketDataSnapshotValue(event.snapshot);
+  if (snapshot == null) {
+    return null;
+  }
+  return {
+    ...event,
+    snapshot,
+  } as MarketDataTickLiveEvent;
 }
 
 interface MarketDataRealtimeContext {
@@ -204,19 +389,6 @@ export function createMarketDataRealtimeController(): MarketDataRealtimeControll
     next: MarketDataCandlesQueryResult,
   ): MarketDataCandlesQueryResult {
     return mergeMarketDataCandles(current, next);
-  }
-
-  function isMarketDataTickLiveEvent(
-    event: unknown,
-  ): event is MarketDataTickLiveEvent {
-    return (
-      typeof event === "object" &&
-      event !== null &&
-      "type" in event &&
-      event.type === "market-data.tick" &&
-      "instrument" in event &&
-      "snapshot" in event
-    );
   }
 
   function reset(): void {
@@ -345,20 +517,21 @@ export function createMarketDataRealtimeController(): MarketDataRealtimeControll
   function applyTickEvent(
     input: ApplyMarketDataTickEventInput,
   ): ApplyMarketDataTickEventResult | null {
-    if (!isMarketDataTickLiveEvent(input.event)) {
+    const event = normalizeMarketDataTickLiveEvent(input.event);
+    if (event == null) {
       return null;
     }
 
-    if (input.event.instrument.instrumentId !== input.currentInstrumentId) {
+    if (event.instrument.instrumentId !== input.currentInstrumentId) {
       return null;
     }
 
     const observedAt = resolveMarketDataRealtimeTickObservedAt({
-      eventAt: input.event.at,
-      snapshot: input.event.snapshot,
+      eventAt: event.at,
+      snapshot: event.snapshot,
     });
     const priceStateResult = resolveMarketDataCurrentBarPriceState(
-      input.event,
+      event,
       input,
     );
     const nextInput = {
@@ -366,13 +539,13 @@ export function createMarketDataRealtimeController(): MarketDataRealtimeControll
       candles: priceStateResult.candles,
     };
     const currentBarVolume = resolveMarketDataCurrentBarVolume(
-      input.event,
+      event,
       nextInput,
     );
     const snapshot = {
-      request: input.event.instrument,
+      request: event.instrument,
       snapshot: {
-        ...input.event.snapshot,
+        ...event.snapshot,
         observedAt,
         barVolume: currentBarVolume,
         barOpen: priceStateResult.priceState?.open ?? null,
@@ -380,9 +553,9 @@ export function createMarketDataRealtimeController(): MarketDataRealtimeControll
         barLow: priceStateResult.priceState?.low ?? null,
       },
       meta: {
-        instrumentId: input.event.instrument.instrumentId,
-        source: input.event.source,
-        resolvedAt: input.event.at,
+        instrumentId: event.instrument.instrumentId,
+        source: event.source,
+        resolvedAt: event.at,
         fromCache: false,
       },
     };
@@ -393,31 +566,31 @@ export function createMarketDataRealtimeController(): MarketDataRealtimeControll
         input.period === "tick"
           ? upsertMarketDataTickCandle({
               current: nextInput.candles,
-              instrument: input.event.instrument,
+              instrument: event.instrument,
               limit: input.limit,
-              source: input.event.source,
-              resolvedAt: input.event.at,
-              price: input.event.snapshot.price,
+              source: event.source,
+              resolvedAt: event.at,
+              price: event.snapshot.price,
               observedAt,
               currentBarVolume,
-              session: input.event.snapshot.session,
+              session: event.snapshot.session,
             })
           : priceStateResult.priceState == null
             ? nextInput.candles
             : upsertMarketDataRealtimeCandle({
                 current: nextInput.candles,
-                instrument: input.event.instrument,
+                instrument: event.instrument,
                 period: priceStateResult.priceState.period,
                 limit: input.limit,
-                source: input.event.source,
-                resolvedAt: input.event.at,
-                price: input.event.snapshot.price,
+                source: event.source,
+                resolvedAt: event.at,
+                price: event.snapshot.price,
                 currentBarVolume,
                 bucketAt: priceStateResult.priceState.bucketAt,
                 open: priceStateResult.priceState.open,
                 high: priceStateResult.priceState.high,
                 low: priceStateResult.priceState.low,
-                session: input.event.snapshot.session,
+                session: event.snapshot.session,
               }),
     };
   }

@@ -59,7 +59,7 @@ function updateDownColor(event: Event): void {
         <span class="tv-down">-1.08%</span>
         <span class="text-slate-500">状态色不跟随这里变化</span>
       </div>
-      <div class="grid gap-2 sm:grid-cols-2">
+      <div class="grid gap-2 sm:grid-cols-4">
         <div class="rounded border px-3 py-2 text-sm font-semibold text-white" style="border-color: var(--tv-up); background: var(--tv-up)">买入按钮</div>
         <div class="rounded border px-3 py-2 text-sm font-semibold text-white" style="border-color: var(--tv-down); background: var(--tv-down)">卖出按钮</div>
       </div>

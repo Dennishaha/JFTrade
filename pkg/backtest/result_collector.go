@@ -83,14 +83,14 @@ func (c *resultCollector) recordOrderBookEntry(order types.Order) {
 	state := &c.orderBook[index]
 	state.entry.Symbol = order.Symbol
 	state.entry.Side = string(order.Side)
-	state.entry.Quantity = order.Quantity.Float64()
+	state.entry.Quantity = order.Quantity.String()
 	state.entry.OrderType = string(order.Type)
 	state.entry.Status = string(order.Status)
 	if clientOrderID := strings.TrimSpace(order.ClientOrderID); clientOrderID != "" {
 		state.entry.ClientOrderID = clientOrderID
 	}
-	if orderPrice := order.Price.Float64(); orderPrice > 0 {
-		state.entry.OrderPrice = orderPrice
+	if !order.Price.IsZero() {
+		state.entry.OrderPrice = order.Price.String()
 	}
 
 	eventTime := order.UpdateTime.Time().UTC()
@@ -104,13 +104,13 @@ func (c *resultCollector) recordOrderBookEntry(order types.Order) {
 			state.filledTime = eventTime
 			state.entry.FilledAt = eventTime.Format(time.RFC3339)
 		}
-		state.entry.FilledQuantity = order.Quantity.Float64()
+		state.entry.FilledQuantity = order.Quantity.String()
 		price := order.AveragePrice
 		if price.IsZero() {
 			price = order.Price
 		}
-		if fillPrice := price.Float64(); fillPrice > 0 {
-			state.entry.FilledPrice = fillPrice
+		if !price.IsZero() {
+			state.entry.FilledPrice = price.String()
 		}
 	}
 }
@@ -150,11 +150,11 @@ func (c *resultCollector) onKLineClosed(ctx context.Context, exchange accountQue
 	if kline.Interval == c.strategyInterval {
 		c.candles = append(c.candles, Candle{
 			Time:   kline.EndTime.Time().Format(time.RFC3339),
-			Open:   kline.Open.Float64(),
-			High:   kline.High.Float64(),
-			Low:    kline.Low.Float64(),
-			Close:  kline.Close.Float64(),
-			Volume: kline.Volume.Float64(),
+			Open:   kline.Open.String(),
+			High:   kline.High.String(),
+			Low:    kline.Low.String(),
+			Close:  kline.Close.String(),
+			Volume: kline.Volume.String(),
 		})
 	}
 
@@ -223,11 +223,17 @@ func (c *resultCollector) finalize(ctx context.Context, exchange accountQuerier,
 		if balance, ok := account.Balances()[c.quoteCurrency]; ok {
 			total = balance.Total()
 		}
-		if !c.netPosition.IsZero() && len(c.candles) > 0 && c.candles[len(c.candles)-1].Close > 0 {
-			lastClose := fixedpoint.NewFromFloat(c.candles[len(c.candles)-1].Close)
-			total = total.Add(c.netPosition.Mul(lastClose))
+		if !c.netPosition.IsZero() && len(c.candles) > 0 {
+			lastClose, err := fixedpoint.NewFromString(c.candles[len(c.candles)-1].Close)
+			if err == nil && lastClose.Sign() > 0 {
+				total = total.Add(c.netPosition.Mul(lastClose))
+			} else if !c.netPosition.IsZero() {
+				msg := fmt.Sprintf("最终持仓 %.0f 股无法按市价估值（最新收盘价非正），最终权益不含持仓市值。", c.netPosition.Float64())
+				log.Printf("backtest: %s", msg)
+				c.result.AddRuntimeError(msg)
+			}
 		} else if !c.netPosition.IsZero() {
-			msg := fmt.Sprintf("最终持仓 %.0f 股无法按市价估值（最新收盘价非正），最终权益不含持仓市值。", c.netPosition.Float64())
+			msg := fmt.Sprintf("最终持仓 %.0f 股无法按市价估值（最新收盘价缺失），最终权益不含持仓市值。", c.netPosition.Float64())
 			log.Printf("backtest: %s", msg)
 			c.result.AddRuntimeError(msg)
 		}
@@ -245,8 +251,8 @@ func (c *resultCollector) finalize(ctx context.Context, exchange accountQuerier,
 		c.result.Trades = append(c.result.Trades, TradeEvent{
 			Time:  order.UpdateTime.Time().Format(time.RFC3339),
 			Side:  string(order.Side),
-			Price: price.Float64(),
-			Qty:   order.Quantity.Float64(),
+			Price: price.String(),
+			Qty:   order.Quantity.String(),
 		})
 	}
 

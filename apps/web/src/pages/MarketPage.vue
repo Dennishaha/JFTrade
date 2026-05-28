@@ -601,7 +601,7 @@ function scheduleMarketDataAutoRefresh(): void {
                     </v-chip>
                   </div>
 
-                  <div v-if="latestQuoteSnapshot" class="mt-4 grid gap-3 sm:grid-cols-2">
+                  <div v-if="latestQuoteSnapshot" class="mt-4 grid gap-3 sm:grid-cols-4">
                     <div class="rounded-lg bg-slate-50 px-3 py-3 sm:col-span-2">
                       <div class="flex items-center justify-between gap-3">
                         <div class="text-xs uppercase tracking-[0.2em] text-slate-500">最新报价</div>
@@ -673,7 +673,7 @@ function scheduleMarketDataAutoRefresh(): void {
 
                   <div
                     v-if="historicalPriceSummary"
-                    class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
+                    class="mt-4 grid gap-3 sm:grid-cols-4 lg:grid-cols-4"
                   >
                     <div class="rounded-lg bg-slate-50 px-3 py-3">
                       <div class="text-xs uppercase tracking-[0.2em] text-slate-500">历史区间</div>

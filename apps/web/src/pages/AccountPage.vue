@@ -604,7 +604,7 @@ watch(
               </v-chip>
             </div>
             <v-card-text>
-              <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              <div class="grid gap-3 sm:grid-cols-4 xl:grid-cols-3">
                 <div
                   v-for="fact in accountFacts"
                   :key="fact.label"
@@ -623,7 +623,7 @@ watch(
                 <SectionHeader title="资金余额" description="按账户范围展示现金、购买力与可用资金。" />
               </div>
               <v-card-text>
-                <div class="grid gap-3 sm:grid-cols-2">
+                <div class="grid gap-3 sm:grid-cols-4">
                   <div
                     v-for="row in fundsSummaryRows"
                     :key="row.label"
