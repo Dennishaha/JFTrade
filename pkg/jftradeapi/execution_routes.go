@@ -1,6 +1,7 @@
 package jftradeapi
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -81,11 +82,33 @@ func (s *Server) handleExecutionPlaceOrder(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	placed, err := s.futuExchange().PlaceBrokerOrder(r.Context(), request.query, request.submitOrder)
+	placedRecord, err := s.placeExecutionOrder(r.Context(), request)
 	if err != nil {
 		status, code := executionCommandError(err)
 		s.writeError(w, status, code, err.Error())
 		return
+	}
+
+	message := "order submitted to broker"
+	internalOrderID := placedRecord.InternalOrderID
+	status := placedRecord.Status
+	s.writeOK(w, brokerOrderCommandResponse{
+		Accepted:        true,
+		Operation:       "PLACE",
+		InternalOrderID: &internalOrderID,
+		BrokerOrderID:   placedRecord.BrokerOrderID,
+		BrokerOrderIDEx: placedRecord.BrokerOrderIDEx,
+		OrderStatus:     &status,
+		BrokerErrorCode: nil,
+		Message:         message,
+		CheckedAt:       time.Now().UTC().Format(time.RFC3339Nano),
+	})
+}
+
+func (s *Server) placeExecutionOrder(ctx context.Context, request normalizedExecutionPlaceOrder) (executionOrderSummaryResponse, error) {
+	placed, err := s.brokerExecutionExchange().PlaceBrokerOrder(ctx, request.query, request.submitOrder)
+	if err != nil {
+		return executionOrderSummaryResponse{}, err
 	}
 
 	payloadData := map[string]any{
@@ -123,22 +146,8 @@ func (s *Server) handleExecutionPlaceOrder(w http.ResponseWriter, r *http.Reques
 		Payload:            payloadData,
 		EventType:          "COMMAND_PLACE_ACCEPTED",
 	})
-
-	message := "order submitted to broker"
-	internalOrderID := placedRecord.InternalOrderID
-	status := placedRecord.Status
 	s.notifyExecutionOrderPlaced(placedRecord)
-	s.writeOK(w, brokerOrderCommandResponse{
-		Accepted:        true,
-		Operation:       "PLACE",
-		InternalOrderID: &internalOrderID,
-		BrokerOrderID:   placedRecord.BrokerOrderID,
-		BrokerOrderIDEx: placedRecord.BrokerOrderIDEx,
-		OrderStatus:     &status,
-		BrokerErrorCode: nil,
-		Message:         message,
-		CheckedAt:       time.Now().UTC().Format(time.RFC3339Nano),
-	})
+	return placedRecord, nil
 }
 
 func (s *Server) handleExecutionCancelOrder(w http.ResponseWriter, r *http.Request) {

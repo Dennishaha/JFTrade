@@ -20,8 +20,8 @@ import (
 	qotsubpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotsub"
 )
 
-const maxHistoryKLinePages = 8
-const maxSyncKLinePages = 200 // unlimited: loop until OpenD nextReqKey is empty
+const maxHistoryKLinePages = 32 // OpenD can paginate valid recent intraday windows into more than 8 history pages.
+const maxSyncKLinePages = 200   // unlimited: loop until OpenD nextReqKey is empty
 
 type historicalKLineRequestPlan struct {
 	extendedTime bool
@@ -130,6 +130,7 @@ func (e *Exchange) queryHistoricalKLinesAcrossPlans(ctx context.Context, securit
 func (e *Exchange) queryHistoricalKLinesForPlan(ctx context.Context, security *qotcommonpb.Security, canonicalSymbol string, interval types.Interval, klType qotcommonpb.KLType, beginAt time.Time, endAt time.Time, rehabType qotcommonpb.RehabType, limit int, maxPages int, plan historicalKLineRequestPlan) ([]types.KLine, error) {
 	klines := make([]types.KLine, 0, max(limit, 1))
 	nextReqKey := []byte(nil)
+	pageSize := resolveHistoricalKLinePageSize(limit)
 	for page := 0; page < maxPages; page++ {
 		request := &historypb.Request{C2S: &historypb.C2S{
 			RehabType: proto.Int32(int32(rehabType)),
@@ -138,8 +139,8 @@ func (e *Exchange) queryHistoricalKLinesForPlan(ctx context.Context, security *q
 			BeginTime: proto.String(beginAt.Format("2006-01-02 15:04:05")),
 			EndTime:   proto.String(endAt.Format("2006-01-02 15:04:05")),
 		}}
-		if limit > 0 {
-			request.C2S.MaxAckKLNum = proto.Int32(int32(limit))
+		if pageSize > 0 {
+			request.C2S.MaxAckKLNum = proto.Int32(int32(pageSize))
 		}
 		if len(nextReqKey) > 0 {
 			request.C2S.NextReqKey = nextReqKey
@@ -186,6 +187,19 @@ func (e *Exchange) queryHistoricalKLinesForPlan(ctx context.Context, security *q
 		}
 	}
 	return klines, nil
+}
+
+func resolveHistoricalKLinePageSize(limit int) int {
+	if limit <= 0 {
+		return 0
+	}
+	if limit > 1000 {
+		return 1000
+	}
+	if limit < 200 {
+		return 200
+	}
+	return limit
 }
 
 func (e *Exchange) queryCurrentKLines(ctx context.Context, security *qotcommonpb.Security, canonicalSymbol string, interval types.Interval, klType qotcommonpb.KLType) ([]types.KLine, error) {

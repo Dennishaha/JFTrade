@@ -47,7 +47,7 @@ const props = withDefaults(defineProps<{
 });
 
 const emit = defineEmits<{
-    "switch-to-runtime": [payload?: { notice?: string }];
+    "switch-to-runtime": [payload?: { notice?: string; definitionId?: string }];
     "definitions-count-change": [count: number];
 }>();
 
@@ -61,7 +61,7 @@ const fallbackTemplate: StrategyAuthoringTemplate = {
     defaultVersion: "0.1.0",
     defaultDescription: "用流程图拖拽块，快速搭一个可保存的 DSL 策略骨架。",
     defaultSymbol: "00700",
-    defaultInterval: "1m",
+    defaultInterval: "5m",
     visualModel: createDefaultStrategyVisualModel(),
     syncVisualToCode: true,
     buildScript: (context) =>
@@ -545,8 +545,6 @@ function createDefinitionFromTemplate(
     templateId: string,
 ): StrategyDefinitionDocument {
     const template = getStrategyTemplate(templateId);
-    const symbol = normalizeSymbol(template.defaultSymbol);
-    const interval = normalizeInterval(template.defaultInterval);
     const visualModel =
         cloneStrategyVisualModel(template.visualModel) ??
         createDefaultStrategyVisualModel();
@@ -558,26 +556,14 @@ function createDefinitionFromTemplate(
         description: template.defaultDescription,
         runtime: "dsl-go-plan",
         sourceFormat: "dsl-v1",
-        symbol,
-        interval,
         script: template.buildScript({
             name: template.defaultName,
-            symbol,
-            interval,
             version: template.defaultVersion,
         }),
         visualModel,
         createdAt: "",
         updatedAt: "",
     };
-}
-
-function normalizeSymbol(value: string): string {
-    return value.trim().toUpperCase();
-}
-
-function normalizeInterval(value: string): string {
-    return value.trim() === "" ? "1m" : value.trim();
 }
 
 function normalizeSourceFormat(
@@ -594,8 +580,6 @@ function normalizeDefinition(
     const visualModel =
         cloneStrategyVisualModel(migrated.visualModel) ??
         createDefaultStrategyVisualModel();
-    const symbol = normalizeSymbol(migrated.symbol);
-    const interval = normalizeInterval(migrated.interval);
     const name = migrated.name.trim();
     const version = migrated.version.trim() || "0.1.0";
 
@@ -603,13 +587,9 @@ function normalizeDefinition(
         ...migrated,
         runtime: "dsl-go-plan",
         sourceFormat: "dsl-v1",
-        symbol,
-        interval,
         version,
         script: buildStrategyScriptFromVisualModel(visualModel, {
             name,
-            symbol,
-            interval,
             version,
         }),
         visualModel,
@@ -626,8 +606,6 @@ function serializeDefinitionSnapshot(
         description: definition.description.trim(),
         runtime: "dsl-go-plan",
         sourceFormat: normalizeSourceFormat(definition.sourceFormat),
-        symbol: normalizeSymbol(definition.symbol),
-        interval: normalizeInterval(definition.interval),
         script: definition.script,
         visualModel:
             cloneStrategyVisualModel(definition.visualModel) ??
@@ -784,8 +762,6 @@ function buildScriptForModel(
 ): string {
     return buildStrategyScriptFromVisualModel(model, {
         name: definitionForm.value.name.trim(),
-        symbol: normalizeSymbol(definitionForm.value.symbol),
-        interval: normalizeInterval(definitionForm.value.interval),
         version: definitionForm.value.version.trim() || "0.1.0",
     });
 }
@@ -927,19 +903,12 @@ async function saveStrategyDefinition(): Promise<boolean> {
         description: definitionForm.value.description.trim(),
         runtime: "dsl-go-plan",
         sourceFormat: normalizeSourceFormat(definitionForm.value.sourceFormat),
-        symbol: normalizeSymbol(definitionForm.value.symbol),
-        interval: normalizeInterval(definitionForm.value.interval),
         script: definitionForm.value.script,
         visualModel: cloneStrategyVisualModel(definitionForm.value.visualModel),
     };
 
     if (payload.name === "") {
         definitionError.value = "策略名称不能为空。";
-        return false;
-    }
-
-    if (payload.symbol === "") {
-        definitionError.value = "标的不能为空。";
         return false;
     }
 
@@ -999,20 +968,10 @@ async function instantiateStrategyDefinition(): Promise<void> {
     isInstantiatingDefinition.value = true;
 
     try {
-        await fetchEnvelopeWithInit(
-            `/api/v1/strategy-definitions/${encodeURIComponent(selectedDefinition.value.id)}/instantiate`,
-            {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({}),
-            },
-        );
-
-        definitionNotice.value = "已创建运行实例。";
+        definitionNotice.value = "已切换到运行面板，请先完成实例绑定再创建实例。";
         emit("switch-to-runtime", {
             notice: definitionNotice.value,
+            definitionId: selectedDefinition.value.id,
         });
     } catch (error) {
         definitionError.value =
@@ -1357,8 +1316,7 @@ function deleteSelectedVisualNode(): void {
                             </span>
                             <div class="strategy-stage__toolbar-meta">
                                 <span>{{ definitionForm.runtime || "dsl-go-plan" }}</span>
-                                <span>{{ definitionForm.symbol || "未设置标的" }}</span>
-                                <span>{{ definitionForm.interval || "1m" }}</span>
+                                <span>v{{ definitionForm.version || "0.1.0" }}</span>
                             </div>
                         </div>
                     </div>

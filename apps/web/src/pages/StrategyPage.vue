@@ -13,6 +13,7 @@ const strategyDesignEntryMode = ref<StrategyDesignEntryMode>("existing");
 const strategyDesignSessionKey = ref(0);
 const strategyDefinitionsCount = ref(0);
 const runtimeNotice = ref("");
+const pendingStrategyDefinitionId = ref("");
 
 onMounted(() => {
   void loadStrategyDefinitionsCount();
@@ -27,13 +28,15 @@ async function loadStrategyDefinitionsCount(): Promise<void> {
   }
 }
 
-function handleSwitchToRuntime(payload?: { notice?: string }): void {
+function handleSwitchToRuntime(payload?: { notice?: string; definitionId?: string }): void {
   runtimeNotice.value = payload?.notice ?? "";
+  pendingStrategyDefinitionId.value = payload?.definitionId ?? "";
   strategyWorkspaceTab.value = "runtime";
 }
 
 function handleSwitchToDesign(payload?: { mode?: StrategyDesignEntryMode }): void {
   runtimeNotice.value = "";
+  pendingStrategyDefinitionId.value = "";
   strategyDesignEntryMode.value = payload?.mode ?? "existing";
   strategyDesignSessionKey.value += 1;
   strategyWorkspaceTab.value = "design";
@@ -62,6 +65,7 @@ function handleDefinitionsCountChange(count: number): void {
 
       <StrategyRuntimePanel
         :definitions-count="strategyDefinitionsCount"
+        :pending-definition-id="pendingStrategyDefinitionId"
         @switch-to-design="handleSwitchToDesign"
       />
     </div>

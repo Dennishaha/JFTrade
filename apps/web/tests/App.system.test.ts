@@ -282,6 +282,89 @@ describe("System page", () => {
     wrapper.unmount();
   });
 
+  it("shows active runtime instance summaries from system status", async () => {
+    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+
+      if (url.includes("/api/v1/system/status")) {
+        return createResponse({
+          ...systemStatus,
+          strategyRuntime: {
+            activeStrategies: 1,
+            activeInstances: [
+              {
+                instanceId: "runtime-1",
+                definitionName: "Alpha",
+                actualStatus: "RUNNING",
+                activeSymbols: ["US.AAPL", "US.MSFT"],
+                lastClosedKlineAt: "2026-05-16T00:10:00.000Z",
+                lastSignalAt: "2026-05-16T00:10:05.000Z",
+                lastOrderAt: "2026-05-16T00:10:06.000Z",
+                lastErrorAt: "2026-05-16T00:09:59.000Z",
+                lastError: "network jitter",
+                updatedAt: "2026-05-16T00:10:06.000Z",
+              },
+            ],
+          },
+        });
+      }
+      if (url.includes("/api/v1/system/storage/overview"))
+        return createResponse(emptyStorageOverview);
+      if (url.includes("/api/v1/system/real-trade-approvals"))
+        return createResponse(emptyRealTradeApprovals);
+      if (url.includes("/api/v1/system/real-trade-hard-stops"))
+        return createResponse(emptyRealTradeHardStops);
+      if (url.includes("/api/v1/system/real-trade-hard-stop-events"))
+        return createResponse(emptyRealTradeHardStopEvents);
+      if (url.includes("/api/v1/system/real-trade-kill-switch-events"))
+        return createResponse(emptyRealTradeKillSwitchEvents);
+      if (url.includes("/api/v1/system/real-trade-kill-switch"))
+        return createResponse(emptyRealTradeKillSwitchState);
+      if (url.includes("/api/v1/system/real-trade-risk-events"))
+        return createResponse(emptyRealTradeRiskEvents);
+      if (url.includes("/api/v1/system/real-trade-risk-limits"))
+        return createResponse(emptyRealTradeRiskState);
+      if (url.includes("/api/v1/system/worker/broker-order-updates"))
+        return createResponse(emptyWorkerBrokerOrderUpdates);
+      if (url.includes("/api/v1/brokers/futu/runtime"))
+        return createResponse(emptyBrokerRuntime);
+      if (url.includes("/api/v1/brokers/futu/funds"))
+        return createResponse(emptyBrokerFunds);
+      if (url.includes("/api/v1/brokers/futu/positions"))
+        return createResponse(emptyBrokerPositions);
+      if (url.includes("/api/v1/brokers/futu/orders"))
+        return createResponse(emptyBrokerOrders);
+      if (url.includes("/api/v1/portfolio/futu/cash-balances"))
+        return createResponse(emptyPortfolioCashBalances);
+      if (url.includes("/api/v1/portfolio/futu/positions"))
+        return createResponse(emptyPortfolioPositions);
+      if (url.includes("/api/v1/portfolio/futu/cash-reconciliation"))
+        return createResponse(emptyPortfolioCashReconciliation);
+      if (url.includes("/api/v1/portfolio/futu/reconciliation"))
+        return createResponse(emptyPortfolioReconciliation);
+      if (url.includes("/api/v1/execution/orders"))
+        return createResponse(emptyExecutionOrders);
+
+      throw new Error(`Unexpected request: ${url}`);
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal(
+      "EventSource",
+      MockEventSource as unknown as typeof EventSource,
+    );
+
+    const { wrapper } = await mountApp("/system");
+
+    expect(wrapper.text()).toContain("活跃策略实例");
+    expect(wrapper.text()).toContain("Alpha");
+    expect(wrapper.text()).toContain("runtime-1");
+    expect(wrapper.text()).toContain("US.AAPL / US.MSFT");
+    expect(wrapper.text()).toContain("network jitter");
+
+    wrapper.unmount();
+  });
+
   it("renders structured live notifications in the notification center", async () => {
     const fetchMock = vi.fn(async (input: string | URL | Request) => {
     const url = String(input);

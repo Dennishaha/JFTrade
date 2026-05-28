@@ -157,6 +157,12 @@ export const drawerStub = {
   template: "<div v-if=\"modelValue\" class='el-drawer-stub'><slot /></div>",
 };
 
+export const dialogStub = {
+  props: ["modelValue"],
+  emits: ["update:modelValue"],
+  template: "<div v-if=\"modelValue\" class='v-dialog-stub'><slot /></div>",
+};
+
 export const emptyStub = {
   props: ["text", "description"],
   template: "<div><slot>{{ text ?? description }}</slot></div>",
@@ -384,6 +390,7 @@ export async function mountApp(path = "/system") {
         "v-form": passthroughStub,
         "v-data-table": tableStub,
         "v-navigation-drawer": drawerStub,
+        "v-dialog": dialogStub,
         "v-empty-state": emptyStub,
         "v-skeleton-loader": skeletonStub,
         "v-breadcrumbs": passthroughStub,

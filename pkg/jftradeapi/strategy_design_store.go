@@ -51,8 +51,8 @@ type strategyDesignDefinition struct {
 	Description  string               `json:"description"`
 	Runtime      string               `json:"runtime"`
 	SourceFormat string               `json:"sourceFormat"`
-	Symbol       string               `json:"symbol"`
-	Interval     string               `json:"interval"`
+	Symbol       string               `json:"symbol,omitempty"`
+	Interval     string               `json:"interval,omitempty"`
 	Script       string               `json:"script"`
 	VisualModel  *strategyVisualModel `json:"visualModel,omitempty"`
 	CreatedAt    string               `json:"createdAt"`
@@ -188,9 +188,6 @@ func normalizeStrategyDesignDefinition(input strategyDesignDefinition) strategyD
 	input.Symbol = strings.ToUpper(strings.TrimSpace(input.Symbol))
 	input.Interval = strings.TrimSpace(input.Interval)
 	input.VisualModel = normalizeStrategyVisualModel(input.VisualModel)
-	if input.Interval == "" {
-		input.Interval = "1m"
-	}
 	if shouldReplaceWithDefaultDSLScript(rawSourceFormat, rawRuntime, input.Script) {
 		input.Script = defaultStrategyDesignScript(input.Name, input.SourceFormat)
 	}

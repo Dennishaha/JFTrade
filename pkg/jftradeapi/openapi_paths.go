@@ -312,19 +312,23 @@ func buildOpenAPIPaths(genericObject map[string]any) map[string]any {
 			"put": operation("更新策略定义", "按 definitionId 更新 DSL 策略定义。", []string{"strategy"}, []any{pathParameter("definitionId", "策略定义 ID", "dsl-mean-revert")}, jsonRequestBody(schemaRef("StrategyDefinitionWriteRequest"), true), map[string]any{"200": jsonResponse("更新后的策略定义", envelopeSchema(schemaRef("StrategyDefinition"))), "400": jsonResponse("请求错误", envelopeSchema(nil)), "404": jsonResponse("策略定义不存在", envelopeSchema(nil))}),
 		},
 		"/api/v1/strategy-definitions/{definitionId}/instantiate": map[string]any{
-			"post": operation("从定义创建策略实例", "基于保存的 DSL 策略定义创建一个运行时实例，并实例化为已编译计划。", []string{"strategy"}, []any{pathParameter("definitionId", "策略定义 ID", "dsl-mean-revert")}, nil, map[string]any{"200": jsonResponse("策略实例", envelopeSchema(schemaRef("StrategyInstance"))), "400": jsonResponse("脚本校验失败", envelopeSchema(nil)), "404": jsonResponse("策略定义不存在", envelopeSchema(nil))}),
+			"post": operation("从定义创建策略实例", "基于保存的 DSL 策略定义创建一个运行时实例，并携带实例级标的、周期、账号与执行模式绑定。", []string{"strategy"}, []any{pathParameter("definitionId", "策略定义 ID", "dsl-mean-revert")}, jsonRequestBody(schemaRef("StrategyInstanceBinding"), false), map[string]any{"200": jsonResponse("策略实例", envelopeSchema(schemaRef("StrategyInstance"))), "400": jsonResponse("脚本校验失败", envelopeSchema(nil)), "404": jsonResponse("策略定义不存在", envelopeSchema(nil))}),
 		},
 		"/api/v1/strategies": map[string]any{
 			"get": operation("读取策略列表", "返回当前策略实例列表。", []string{"strategy"}, nil, nil, map[string]any{"200": jsonResponse("策略列表", envelopeSchema(map[string]any{"type": "array", "items": schemaRef("StrategyInstance")}))}),
 		},
+		"/api/v1/strategies/{instanceId}": map[string]any{
+			"put":    operation("更新策略实例绑定", "更新策略实例的标的、周期、账号与执行模式绑定。实例需处于 STOPPED。", []string{"strategy"}, []any{pathParameter("instanceId", "策略实例 ID", "dsl-mean-revert-20260523")}, jsonRequestBody(schemaRef("StrategyInstanceBinding"), true), map[string]any{"200": jsonResponse("策略实例", envelopeSchema(schemaRef("StrategyInstance"))), "400": jsonResponse("实例当前不可修改", envelopeSchema(nil)), "404": jsonResponse("策略实例不存在", envelopeSchema(nil))}),
+			"delete": operation("删除策略实例", "删除已停止的策略实例。", []string{"strategy"}, []any{pathParameter("instanceId", "策略实例 ID", "dsl-mean-revert-20260523")}, nil, map[string]any{"200": jsonResponse("已删除的策略实例", envelopeSchema(schemaRef("StrategyInstance"))), "400": jsonResponse("实例当前不可删除", envelopeSchema(nil)), "404": jsonResponse("策略实例不存在", envelopeSchema(nil))}),
+		},
 		"/api/v1/strategies/{instanceId}/start": map[string]any{
-			"post": operation("启动策略实例", "将可启动策略实例切换到 RUNNING。当前实现先落控制面状态。", []string{"strategy"}, []any{pathParameter("instanceId", "策略实例 ID", "dsl-mean-revert-20260523")}, nil, map[string]any{"200": jsonResponse("策略实例", envelopeSchema(schemaRef("StrategyInstance"))), "400": jsonResponse("实例当前不可启动", envelopeSchema(nil)), "404": jsonResponse("策略实例不存在", envelopeSchema(nil))}),
+			"post": operation("启动策略实例", "启动绑定标的的真实 DSL 运行时，将实例切换到 RUNNING，并按执行模式发通知或提交券商订单。", []string{"strategy"}, []any{pathParameter("instanceId", "策略实例 ID", "dsl-mean-revert-20260523")}, nil, map[string]any{"200": jsonResponse("策略实例", envelopeSchema(schemaRef("StrategyInstance"))), "400": jsonResponse("实例当前不可启动", envelopeSchema(nil)), "404": jsonResponse("策略实例不存在", envelopeSchema(nil))}),
 		},
 		"/api/v1/strategies/{instanceId}/pause": map[string]any{
-			"post": operation("暂停策略实例", "将策略实例切换到 PAUSED。当前实现先落控制面状态。", []string{"strategy"}, []any{pathParameter("instanceId", "策略实例 ID", "dsl-mean-revert-20260523")}, nil, map[string]any{"200": jsonResponse("策略实例", envelopeSchema(schemaRef("StrategyInstance"))), "404": jsonResponse("策略实例不存在", envelopeSchema(nil))}),
+			"post": operation("暂停策略实例", "停止内存中的策略运行时，并将实例状态切换到 PAUSED。", []string{"strategy"}, []any{pathParameter("instanceId", "策略实例 ID", "dsl-mean-revert-20260523")}, nil, map[string]any{"200": jsonResponse("策略实例", envelopeSchema(schemaRef("StrategyInstance"))), "404": jsonResponse("策略实例不存在", envelopeSchema(nil))}),
 		},
 		"/api/v1/strategies/{instanceId}/stop": map[string]any{
-			"post": operation("停止策略实例", "将策略实例切换到 STOPPED。当前实现先落控制面状态。", []string{"strategy"}, []any{pathParameter("instanceId", "策略实例 ID", "dsl-mean-revert-20260523")}, nil, map[string]any{"200": jsonResponse("策略实例", envelopeSchema(schemaRef("StrategyInstance"))), "404": jsonResponse("策略实例不存在", envelopeSchema(nil))}),
+			"post": operation("停止策略实例", "停止内存中的策略运行时，并将实例状态切换到 STOPPED。", []string{"strategy"}, []any{pathParameter("instanceId", "策略实例 ID", "dsl-mean-revert-20260523")}, nil, map[string]any{"200": jsonResponse("策略实例", envelopeSchema(schemaRef("StrategyInstance"))), "404": jsonResponse("策略实例不存在", envelopeSchema(nil))}),
 		},
 		"/api/v1/strategies/{instanceId}/logs": map[string]any{
 			"get": operation(

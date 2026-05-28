@@ -63,6 +63,10 @@ const workerBackoffHotspots = computed(() =>
     .slice(0, 10),
 );
 
+const activeRuntimeInstances = computed(
+  () => systemStatus.value.strategyRuntime.activeInstances ?? [],
+);
+
 const systemHeaderStats = computed(() => [
   {
     label: "API 端口",
@@ -85,6 +89,27 @@ const systemHeaderStats = computed(() => [
 ]);
 
 const systemActiveTab = ref("status");
+
+function formatStrategyRuntimeStatus(status: string): string {
+  switch (status) {
+    case "RUNNING":
+      return "运行中";
+    case "PAUSED":
+      return "已暂停";
+    case "STOPPED":
+      return "已停止";
+    default:
+      return status || "未知";
+  }
+}
+
+function formatRuntimeObservationSymbols(symbols: string[] | null | undefined): string {
+  return Array.isArray(symbols) && symbols.length ? symbols.join(" / ") : "暂无";
+}
+
+function formatRuntimeObservationTime(value: string | null | undefined): string {
+  return value ? formatDateTime(value) : "暂无";
+}
 </script>
 
 <template>
@@ -189,6 +214,52 @@ const systemActiveTab = ref("status");
                       {{ formatMarketLabel(capability.market) }}
                     </v-chip>
                   </div>
+                </div>
+                <div class="rounded-3xl border border-slate-200 bg-white px-4 py-4">
+                  <div class="flex items-center justify-between gap-3">
+                    <div class="text-xs uppercase tracking-[0.2em] text-slate-500">活跃策略实例</div>
+                    <v-chip color="success" variant="outlined" size="small">
+                      {{ activeRuntimeInstances.length }} 个
+                    </v-chip>
+                  </div>
+                  <div v-if="activeRuntimeInstances.length" class="mt-3 grid gap-3">
+                    <div
+                      v-for="item in activeRuntimeInstances"
+                      :key="item.instanceId"
+                      class="rounded-2xl bg-slate-50 px-3 py-3"
+                    >
+                      <div class="flex items-center justify-between gap-3">
+                        <div class="font-medium text-slate-900">{{ item.definitionName }}</div>
+                        <v-chip color="success" variant="outlined" size="small">
+                          {{ formatStrategyRuntimeStatus(item.actualStatus) }}
+                        </v-chip>
+                      </div>
+                      <div class="mt-1 break-all text-xs text-slate-500">{{ item.instanceId }}</div>
+                      <div class="mt-3 grid gap-2 text-xs text-slate-600 md:grid-cols-2">
+                        <div>
+                          <div class="uppercase tracking-[0.16em] text-slate-400">活跃标的</div>
+                          <div class="mt-1 font-medium text-slate-900">{{ formatRuntimeObservationSymbols(item.activeSymbols) }}</div>
+                        </div>
+                        <div>
+                          <div class="uppercase tracking-[0.16em] text-slate-400">最近闭合 K 线</div>
+                          <div class="mt-1 font-medium text-slate-900">{{ formatRuntimeObservationTime(item.lastClosedKlineAt) }}</div>
+                        </div>
+                        <div>
+                          <div class="uppercase tracking-[0.16em] text-slate-400">最近信号</div>
+                          <div class="mt-1 font-medium text-slate-900">{{ formatRuntimeObservationTime(item.lastSignalAt) }}</div>
+                        </div>
+                        <div>
+                          <div class="uppercase tracking-[0.16em] text-slate-400">最近下单</div>
+                          <div class="mt-1 font-medium text-slate-900">{{ formatRuntimeObservationTime(item.lastOrderAt) }}</div>
+                        </div>
+                      </div>
+                      <div v-if="item.lastError" class="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                        最近异常：{{ item.lastError }}
+                        <span class="text-amber-600">（{{ formatRuntimeObservationTime(item.lastErrorAt) }}）</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div v-else class="mt-3 text-sm text-slate-500">当前没有活跃策略实例。</div>
                 </div>
               </div>
             </v-card-text>

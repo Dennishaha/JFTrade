@@ -90,7 +90,7 @@ func (s *Server) liveWebSocketStats() (count int, limit int, atLimit bool) {
 }
 
 func (s *Server) refreshLiveMarketTicksIfNeeded(ctx context.Context) {
-	instrumentIDs := s.activeMarketInstrumentIDs()
+	instrumentIDs := s.activeLiveStreamInstrumentIDs()
 	if len(instrumentIDs) == 0 {
 		return
 	}
@@ -118,7 +118,7 @@ func (s *Server) refreshLiveMarketTicksIfNeeded(ctx context.Context) {
 	defer cancel()
 
 	queryStart := time.Now()
-	tickers, err := s.futuExchange().QueryTickers(refreshCtx, instrumentIDs...)
+	tickers, err := s.liveMarketExchange().QueryTickers(refreshCtx, instrumentIDs...)
 	queryElapsed := time.Since(queryStart)
 	if err != nil {
 		retryDelay := liveRetryDelay(s.liveQuoteState.failureCount)
@@ -161,13 +161,16 @@ func (s *Server) ensureLiveMarketStream(ctx context.Context, instrumentIDs []str
 	if s.liveStreamState.stream != nil {
 		_ = s.liveStreamState.stream.Close()
 	}
-	stream := s.futuExchange().NewStream()
+	stream := s.liveMarketExchange().NewStream()
 	stream.SetPublicOnly()
 	for _, symbol := range symbols {
 		stream.Subscribe(bbgotypes.MarketTradeChannel, symbol, bbgotypes.SubscribeOptions{})
 	}
 	stream.OnMarketTrade(func(trade bbgotypes.Trade) {
 		s.recordTradeTickSample(trade)
+		if s.strategyRuntimeManager != nil {
+			s.strategyRuntimeManager.handleMarketTrade(trade)
+		}
 	})
 	s.liveStreamState.stream = stream
 	s.liveStreamState.streamKey = streamKey
@@ -267,4 +270,27 @@ func (s *Server) writeLiveMarketTicks(ctx context.Context, conn *websocket.Conn,
 
 func (s *Server) activeMarketInstrumentIDs() []string {
 	return s.marketSubscriptions.activeInstrumentIDs()
+}
+
+func (s *Server) activeLiveStreamInstrumentIDs() []string {
+	seen := map[string]struct{}{}
+	result := make([]string, 0)
+	for _, instrumentID := range s.marketSubscriptions.activeInstrumentIDs() {
+		if _, exists := seen[instrumentID]; exists {
+			continue
+		}
+		seen[instrumentID] = struct{}{}
+		result = append(result, instrumentID)
+	}
+	if s.strategyRuntimeManager != nil {
+		for _, instrumentID := range s.strategyRuntimeManager.activeInstrumentIDs() {
+			if _, exists := seen[instrumentID]; exists {
+				continue
+			}
+			seen[instrumentID] = struct{}{}
+			result = append(result, instrumentID)
+		}
+	}
+	sort.Strings(result)
+	return result
 }

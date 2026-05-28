@@ -21,6 +21,13 @@ func TestNormalizeStrategyDoesNotShareReferenceFields(t *testing.T) {
 		},
 		Params: map[string]any{
 			"definitionId": "mean-revert",
+			"symbols":      []string{"US.AAPL"},
+			"brokerAccount": map[string]any{
+				"brokerId":           "futu",
+				"accountId":          "123456",
+				"tradingEnvironment": "SIMULATE",
+				"market":             "US",
+			},
 		},
 		Logs: []string{"started"},
 		AuditEntries: []strategyAuditEntry{{
@@ -41,11 +48,34 @@ func TestNormalizeStrategyDoesNotShareReferenceFields(t *testing.T) {
 	}
 
 	normalized.Params["definitionId"] = "changed"
+	normalizedSymbols, ok := normalized.Params["symbols"].([]string)
+	if !ok || len(normalizedSymbols) != 1 {
+		t.Fatalf("normalized symbols = %#v", normalized.Params["symbols"])
+	}
+	normalizedSymbols[0] = "HK.00700"
+	normalizedBrokerAccount, ok := normalized.Params["brokerAccount"].(map[string]any)
+	if !ok {
+		t.Fatalf("normalized brokerAccount type = %T", normalized.Params["brokerAccount"])
+	}
+	normalizedBrokerAccount["brokerId"] = "ib"
+	normalized.Binding.Symbols[0] = "US.MSFT"
+	if normalized.Binding.BrokerAccount == nil {
+		t.Fatal("expected normalized binding broker account")
+	}
+	normalized.Binding.BrokerAccount.BrokerID = "test"
 	normalized.Logs[0] = "mutated"
 	normalized.AuditEntries[0].Kind = "mutated"
 
 	if got := input.Params["definitionId"]; got != "mean-revert" {
 		t.Fatalf("input params shared with normalized copy: %#v", got)
+	}
+	inputSymbols, ok := input.Params["symbols"].([]string)
+	if !ok || len(inputSymbols) != 1 || inputSymbols[0] != "US.AAPL" {
+		t.Fatalf("input symbols shared with normalized copy: %#v", input.Params["symbols"])
+	}
+	inputBrokerAccount, ok := input.Params["brokerAccount"].(map[string]any)
+	if !ok || inputBrokerAccount["brokerId"] != "futu" {
+		t.Fatalf("input brokerAccount shared with normalized copy: %#v", input.Params["brokerAccount"])
 	}
 	if got := input.Logs[0]; got != "started" {
 		t.Fatalf("input logs shared with normalized copy: %q", got)

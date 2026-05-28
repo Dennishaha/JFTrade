@@ -130,6 +130,7 @@ export interface SystemStatusResponse {
     status: string;
     activeStrategies: number;
     supportsBacktestParity: boolean;
+    activeInstances?: StrategyRuntimeActiveInstanceSummary[];
   };
   message: string;
 }
@@ -323,10 +324,43 @@ export type StrategySourceFormat = "dsl-v1";
 
 export type StrategyInstanceStatus = "RUNNING" | "PAUSED" | "STOPPED";
 
+export type StrategyExecutionMode = "live" | "notify_only";
+
 export interface StrategyDefinitionSummaryDocument {
   strategyId: string;
   name: string;
   version: string;
+}
+
+export interface StrategyBrokerAccountBinding {
+  brokerId: string;
+  accountId: string;
+  tradingEnvironment: string;
+  market: string;
+}
+
+export interface StrategyInstanceBindingDocument {
+  symbols: string[];
+  interval: string;
+  executionMode: StrategyExecutionMode;
+  brokerAccount?: StrategyBrokerAccountBinding | null;
+}
+
+export interface StrategyRuntimeObservation {
+  actualStatus: StrategyInstanceStatus;
+  activeSymbols: string[];
+  lastClosedKlineAt?: string | null;
+  lastSignalAt?: string | null;
+  lastOrderAt?: string | null;
+  lastErrorAt?: string | null;
+  lastError?: string | null;
+  updatedAt?: string | null;
+}
+
+export interface StrategyRuntimeActiveInstanceSummary
+  extends StrategyRuntimeObservation {
+  instanceId: string;
+  definitionName: string;
 }
 
 export interface StrategyInstanceItem {
@@ -336,10 +370,12 @@ export interface StrategyInstanceItem {
   runtime: string;
   sourceFormat: StrategySourceFormat;
   startable: boolean;
+  binding?: StrategyInstanceBindingDocument;
   params: Record<string, unknown>;
   status: StrategyInstanceStatus;
   createdAt: string;
   logs: string[];
+  runtimeObservation?: StrategyRuntimeObservation | null;
 }
 
 export interface StrategyDefinitionDocument {
@@ -349,8 +385,8 @@ export interface StrategyDefinitionDocument {
   description: string;
   runtime: string;
   sourceFormat?: StrategySourceFormat;
-  symbol: string;
-  interval: string;
+  symbol?: string;
+  interval?: string;
   script: string;
   visualModel?: StrategyVisualModelDocument | null;
   createdAt: string;
@@ -1615,6 +1651,7 @@ export const emptySystemStatus: SystemStatusResponse = {
     status: "idle",
     activeStrategies: 0,
     supportsBacktestParity: true,
+    activeInstances: [],
   },
   message: "Waiting for API connection.",
 };

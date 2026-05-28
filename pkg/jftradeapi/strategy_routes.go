@@ -1,8 +1,10 @@
 package jftradeapi
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 
@@ -82,14 +84,64 @@ func (s *Server) serveStrategyRoutes(w http.ResponseWriter, r *http.Request) boo
 			s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", fmt.Sprintf("strategy source format %s is not instantiable yet", strategydefinition.NormalizeSourceFormat(definition.SourceFormat)))
 			return true
 		}
-		instance, err := s.strategyStore.instantiateStrategy(definition)
+		var payload strategyInstanceBinding
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil && err != io.EOF {
+			s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "invalid strategy instance payload")
+			return true
+		}
+		instance, err := s.strategyStore.instantiateStrategy(definition, payload)
 		if err != nil {
 			s.writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to instantiate strategy")
 			return true
 		}
-		s.writeOK(w, instance)
+		s.writeOK(w, s.enrichStrategyItem(instance))
 	case r.URL.Path == "/api/v1/strategies" && r.Method == http.MethodGet:
-		s.writeOK(w, s.strategyStore.strategies())
+		s.writeOK(w, s.enrichStrategyItems(s.strategyStore.strategies()))
+	case strings.HasPrefix(r.URL.Path, "/api/v1/strategies/") && r.Method == http.MethodPut:
+		instanceID, err := decodePathSegment(strings.TrimPrefix(r.URL.Path, "/api/v1/strategies/"))
+		if err != nil || strings.TrimSpace(instanceID) == "" {
+			s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "instanceId is invalid")
+			return true
+		}
+		var payload strategyInstanceBinding
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "invalid strategy instance payload")
+			return true
+		}
+		instance, err := s.strategyStore.updateStrategyBinding(instanceID, payload)
+		if err != nil {
+			if errorsIsNotFound(err) {
+				s.writeError(w, http.StatusNotFound, "NOT_FOUND", "strategy instance not found")
+				return true
+			}
+			if err == errStrategyInstanceBusy {
+				s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "strategy instance must be stopped before updating bindings")
+				return true
+			}
+			s.writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to update strategy instance")
+			return true
+		}
+		s.writeOK(w, s.enrichStrategyItem(instance))
+	case strings.HasPrefix(r.URL.Path, "/api/v1/strategies/") && r.Method == http.MethodDelete:
+		instanceID, err := decodePathSegment(strings.TrimPrefix(r.URL.Path, "/api/v1/strategies/"))
+		if err != nil || strings.TrimSpace(instanceID) == "" {
+			s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "instanceId is invalid")
+			return true
+		}
+		instance, err := s.strategyStore.deleteStrategy(instanceID)
+		if err != nil {
+			if errorsIsNotFound(err) {
+				s.writeError(w, http.StatusNotFound, "NOT_FOUND", "strategy instance not found")
+				return true
+			}
+			if err == errStrategyInstanceBusy {
+				s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "strategy instance must be stopped before deletion")
+				return true
+			}
+			s.writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to delete strategy instance")
+			return true
+		}
+		s.writeOK(w, s.enrichStrategyItem(instance))
 	case strings.HasPrefix(r.URL.Path, "/api/v1/strategies/") && strings.HasSuffix(r.URL.Path, "/start") && r.Method == http.MethodPost:
 		instanceID, err := decodePathSegment(pathMiddle(r.URL.Path, "/api/v1/strategies/", "/start"))
 		if err != nil || strings.TrimSpace(instanceID) == "" {
@@ -105,8 +157,14 @@ func (s *Server) serveStrategyRoutes(w http.ResponseWriter, r *http.Request) boo
 			s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", fmt.Sprintf("strategy runtime %s is not startable yet", strategyRuntimeFromParams(instanceRecord.Params)))
 			return true
 		}
+		if err := s.strategyRuntimeManager.startStrategy(r.Context(), instanceRecord); err != nil {
+			status, code := strategyRuntimeStartError(err)
+			s.writeError(w, status, code, err.Error())
+			return true
+		}
 		instance, err := s.strategyStore.transitionStrategy(instanceID, strategyStatusRunning, "started", "strategy runtime requested start")
 		if err != nil {
+			s.strategyRuntimeManager.stopStrategy(instanceID)
 			if errorsIsNotFound(err) {
 				s.writeError(w, http.StatusNotFound, "NOT_FOUND", "strategy instance not found")
 				return true
@@ -114,7 +172,8 @@ func (s *Server) serveStrategyRoutes(w http.ResponseWriter, r *http.Request) boo
 			s.writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to start strategy")
 			return true
 		}
-		s.writeOK(w, instance)
+		s.ensureLiveMarketStream(context.Background(), s.activeLiveStreamInstrumentIDs())
+		s.writeOK(w, s.enrichStrategyItem(instance))
 	case strings.HasPrefix(r.URL.Path, "/api/v1/strategies/") && strings.HasSuffix(r.URL.Path, "/pause") && r.Method == http.MethodPost:
 		instanceID, err := decodePathSegment(pathMiddle(r.URL.Path, "/api/v1/strategies/", "/pause"))
 		if err != nil || strings.TrimSpace(instanceID) == "" {
@@ -130,7 +189,9 @@ func (s *Server) serveStrategyRoutes(w http.ResponseWriter, r *http.Request) boo
 			s.writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to pause strategy")
 			return true
 		}
-		s.writeOK(w, instance)
+		s.strategyRuntimeManager.stopStrategy(instanceID)
+		s.ensureLiveMarketStream(context.Background(), s.activeLiveStreamInstrumentIDs())
+		s.writeOK(w, s.enrichStrategyItem(instance))
 	case strings.HasPrefix(r.URL.Path, "/api/v1/strategies/") && strings.HasSuffix(r.URL.Path, "/stop") && r.Method == http.MethodPost:
 		instanceID, err := decodePathSegment(pathMiddle(r.URL.Path, "/api/v1/strategies/", "/stop"))
 		if err != nil || strings.TrimSpace(instanceID) == "" {
@@ -146,7 +207,9 @@ func (s *Server) serveStrategyRoutes(w http.ResponseWriter, r *http.Request) boo
 			s.writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to stop strategy")
 			return true
 		}
-		s.writeOK(w, instance)
+		s.strategyRuntimeManager.stopStrategy(instanceID)
+		s.ensureLiveMarketStream(context.Background(), s.activeLiveStreamInstrumentIDs())
+		s.writeOK(w, s.enrichStrategyItem(instance))
 	case strings.HasPrefix(r.URL.Path, "/api/v1/strategies/") && strings.HasSuffix(r.URL.Path, "/logs") && r.Method == http.MethodGet:
 		instanceID, err := decodePathSegment(pathMiddle(r.URL.Path, "/api/v1/strategies/", "/logs"))
 		if err != nil || strings.TrimSpace(instanceID) == "" {

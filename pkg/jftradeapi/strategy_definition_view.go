@@ -14,8 +14,8 @@ type strategyDefinitionResponse struct {
 	Description           string               `json:"description"`
 	Runtime               string               `json:"runtime"`
 	SourceFormat          string               `json:"sourceFormat"`
-	Symbol                string               `json:"symbol"`
-	Interval              string               `json:"interval"`
+	Symbol                string               `json:"symbol,omitempty"`
+	Interval              string               `json:"interval,omitempty"`
 	Script                string               `json:"script"`
 	VisualModel           *strategyVisualModel `json:"visualModel,omitempty"`
 	CreatedAt             string               `json:"createdAt"`
@@ -27,10 +27,7 @@ type strategyDefinitionResponse struct {
 func buildStrategyDefinitionResponse(definition strategyDesignDefinition, interval string) strategyDefinitionResponse {
 	previewInterval := strings.TrimSpace(interval)
 	if previewInterval == "" {
-		previewInterval = strings.TrimSpace(definition.Interval)
-	}
-	if previewInterval == "" {
-		previewInterval = "1m"
+		previewInterval = "5m"
 	}
 
 	derivedWarmupBars := 0

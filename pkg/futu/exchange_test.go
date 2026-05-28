@@ -990,6 +990,69 @@ func TestQueryKLinesFollowsHistoryPaginationAndKeepsLatestLimit(t *testing.T) {
 	}
 }
 
+func TestQueryKLinesAllowsMoreThanEightHistoryPages(t *testing.T) {
+	server := startQuoteOpenDServer(t)
+	defer server.stop()
+
+	baseAt := time.Date(2026, time.May, 15, 10, 0, 0, 0, time.UTC)
+	pages := make([][]*qotcommonpb.KLine, 0, 9)
+	for index := 0; index < 9; index++ {
+		labelAt := baseAt.Add(time.Duration(index) * 5 * time.Minute)
+		pages = append(pages, []*qotcommonpb.KLine{testHistoryKLine(labelAt, 100+float64(index))})
+	}
+	server.setHistoryPages(pages)
+
+	ex := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
+	defer ex.Close()
+
+	start := baseAt.Add(-time.Hour)
+	end := baseAt.Add(2 * time.Hour)
+	klines, err := ex.QueryKLines(t.Context(), "HK.00700", types.Interval5m, types.KLineQueryOptions{Limit: 2, StartTime: &start, EndTime: &end})
+	if err != nil {
+		t.Fatalf("QueryKLines: %v", err)
+	}
+	if got := server.historyKLCallCount(); got != 9 {
+		t.Fatalf("expected nine paginated RequestHistoryKL calls, got %d", got)
+	}
+	if len(klines) != 2 {
+		t.Fatalf("expected latest two klines, got %d", len(klines))
+	}
+	if klines[0].Open.Float64() != 107 || klines[1].Open.Float64() != 108 {
+		t.Fatalf("expected last two paginated klines, got %#v", klines)
+	}
+}
+
+func TestQueryKLinesUsesLargerHistoryPageSizeThanRequestedLimit(t *testing.T) {
+	server := startQuoteOpenDServer(t)
+	defer server.stop()
+
+	baseAt := time.Date(2026, time.May, 15, 10, 0, 0, 0, time.UTC)
+	series := make([]*qotcommonpb.KLine, 0, 401)
+	for index := 0; index < 401; index++ {
+		series = append(series, testHistoryKLine(baseAt.Add(time.Duration(index)*time.Minute), 100+float64(index)))
+	}
+	server.setHistorySeries(series)
+
+	ex := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
+	defer ex.Close()
+
+	start := baseAt.Add(-time.Minute)
+	end := baseAt.Add(401 * time.Minute)
+	klines, err := ex.QueryKLines(t.Context(), "HK.00700", types.Interval1m, types.KLineQueryOptions{Limit: 2, StartTime: &start, EndTime: &end})
+	if err != nil {
+		t.Fatalf("QueryKLines: %v", err)
+	}
+	if got := server.historyKLCallCount(); got != 3 {
+		t.Fatalf("expected three RequestHistoryKL calls with enlarged page size, got %d", got)
+	}
+	if len(klines) != 2 {
+		t.Fatalf("expected latest two klines, got %d", len(klines))
+	}
+	if klines[0].Open.Float64() != 499 || klines[1].Open.Float64() != 500 {
+		t.Fatalf("expected last two klines from history series, got %#v", klines)
+	}
+}
+
 func TestQueryKLinesIncludesCurrentRealtimeBucketFromGetKL(t *testing.T) {
 	server := startQuoteOpenDServer(t)
 	defer server.stop()
@@ -1151,6 +1214,7 @@ type quoteOpenDServer struct {
 	historySession        atomic.Int32
 	historyMu             sync.Mutex
 	historyPages          [][]*qotcommonpb.KLine
+	historySeries         []*qotcommonpb.KLine
 	historyPagesBySession map[int32][][]*qotcommonpb.KLine
 	historySessionErrors  map[int32]*historypb.Response
 	historySessionCallLog []int32
@@ -1167,6 +1231,18 @@ func (s *quoteOpenDServer) setHistoryPages(pages [][]*qotcommonpb.KLine) {
 	s.historyMu.Lock()
 	defer s.historyMu.Unlock()
 	s.historyPages = pages
+	s.historySeries = nil
+	s.historyPagesBySession = nil
+	s.historySessionErrors = nil
+	s.historySessionCallLog = nil
+	s.historyRouteCallCount = nil
+}
+
+func (s *quoteOpenDServer) setHistorySeries(series []*qotcommonpb.KLine) {
+	s.historyMu.Lock()
+	defer s.historyMu.Unlock()
+	s.historyPages = nil
+	s.historySeries = append([]*qotcommonpb.KLine(nil), series...)
 	s.historyPagesBySession = nil
 	s.historySessionErrors = nil
 	s.historySessionCallLog = nil
@@ -1177,6 +1253,7 @@ func (s *quoteOpenDServer) setHistoryPagesBySession(pages map[int32][][]*qotcomm
 	s.historyMu.Lock()
 	defer s.historyMu.Unlock()
 	s.historyPages = nil
+	s.historySeries = nil
 	s.historySessionErrors = nil
 	s.historySessionCallLog = nil
 	s.historyRouteCallCount = make(map[int32]int, len(pages))
@@ -1498,6 +1575,36 @@ func (s *quoteOpenDServer) historyKLResponse(body []byte) *historypb.Response {
 			if pageIndex < len(pages)-1 {
 				response.S2C.NextReqKey = []byte{byte(pageIndex + 1)}
 			}
+		}
+		s.historyMu.Unlock()
+		return response
+	}
+	if len(s.historySeries) > 0 {
+		pageSize := int(request.GetC2S().GetMaxAckKLNum())
+		if pageSize <= 0 {
+			pageSize = len(s.historySeries)
+		}
+		pageIndex := 0
+		if nextReqKey := request.GetC2S().GetNextReqKey(); len(nextReqKey) > 0 {
+			pageIndex = int(nextReqKey[0])
+		}
+		start := pageIndex * pageSize
+		if start > len(s.historySeries) {
+			start = len(s.historySeries)
+		}
+		end := start + pageSize
+		if end > len(s.historySeries) {
+			end = len(s.historySeries)
+		}
+		response := &historypb.Response{
+			RetType: proto.Int32(0),
+			S2C: &historypb.S2C{
+				Security: request.GetC2S().GetSecurity(),
+				KlList:   append([]*qotcommonpb.KLine(nil), s.historySeries[start:end]...),
+			},
+		}
+		if end < len(s.historySeries) {
+			response.S2C.NextReqKey = []byte{byte(pageIndex + 1)}
 		}
 		s.historyMu.Unlock()
 		return response

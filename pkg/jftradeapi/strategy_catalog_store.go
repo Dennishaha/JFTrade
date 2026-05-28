@@ -20,14 +20,18 @@ import (
 )
 
 const (
-	defaultStrategyCatalogFilename = "strategy-catalog.json"
-	defaultStrategyPluginDirName   = "plugins"
-	pluginTypeGoStrategy           = "strategy-go-plugin"
-	pluginBuildMode                = "plugin"
-	strategyStatusRunning          = "RUNNING"
-	strategyStatusPaused           = "PAUSED"
-	strategyStatusStopped          = "STOPPED"
+	defaultStrategyCatalogFilename  = "strategy-catalog.json"
+	defaultStrategyPluginDirName    = "plugins"
+	pluginTypeGoStrategy            = "strategy-go-plugin"
+	pluginBuildMode                 = "plugin"
+	strategyStatusRunning           = "RUNNING"
+	strategyStatusPaused            = "PAUSED"
+	strategyStatusStopped           = "STOPPED"
+	strategyExecutionModeLive       = "live"
+	strategyExecutionModeNotifyOnly = "notify_only"
 )
+
+var errStrategyInstanceBusy = errors.New("strategy instance must be stopped before modification")
 
 type strategyPluginBuildTuple struct {
 	JFTradeVersion string   `json:"jftradeVersion"`
@@ -121,17 +125,57 @@ type strategyAuditEntry struct {
 	At         string `json:"at"`
 }
 
+type strategyBrokerAccountBinding struct {
+	BrokerID           string `json:"brokerId"`
+	AccountID          string `json:"accountId"`
+	TradingEnvironment string `json:"tradingEnvironment"`
+	Market             string `json:"market"`
+}
+
+type strategyInstanceBinding struct {
+	Symbols       []string                      `json:"symbols"`
+	Interval      string                        `json:"interval"`
+	ExecutionMode string                        `json:"executionMode"`
+	BrokerAccount *strategyBrokerAccountBinding `json:"brokerAccount,omitempty"`
+}
+
+type strategyRuntimeObservation struct {
+	ActualStatus      string   `json:"actualStatus"`
+	ActiveSymbols     []string `json:"activeSymbols"`
+	LastClosedKLineAt *string  `json:"lastClosedKlineAt,omitempty"`
+	LastSignalAt      *string  `json:"lastSignalAt,omitempty"`
+	LastOrderAt       *string  `json:"lastOrderAt,omitempty"`
+	LastErrorAt       *string  `json:"lastErrorAt,omitempty"`
+	LastError         *string  `json:"lastError,omitempty"`
+	UpdatedAt         *string  `json:"updatedAt,omitempty"`
+}
+
+type strategyRuntimeActiveInstanceSummary struct {
+	InstanceID        string   `json:"instanceId"`
+	DefinitionName    string   `json:"definitionName"`
+	ActualStatus      string   `json:"actualStatus"`
+	ActiveSymbols     []string `json:"activeSymbols"`
+	LastClosedKLineAt *string  `json:"lastClosedKlineAt,omitempty"`
+	LastSignalAt      *string  `json:"lastSignalAt,omitempty"`
+	LastOrderAt       *string  `json:"lastOrderAt,omitempty"`
+	LastErrorAt       *string  `json:"lastErrorAt,omitempty"`
+	LastError         *string  `json:"lastError,omitempty"`
+	UpdatedAt         *string  `json:"updatedAt,omitempty"`
+}
+
 type strategyListItem struct {
-	ID           string                    `json:"id"`
-	PluginID     string                    `json:"pluginId,omitempty"`
-	Definition   strategyDefinitionSummary `json:"definition"`
-	Runtime      string                    `json:"runtime"`
-	SourceFormat string                    `json:"sourceFormat"`
-	Startable    bool                      `json:"startable"`
-	Params       map[string]any            `json:"params"`
-	Status       string                    `json:"status"`
-	CreatedAt    string                    `json:"createdAt"`
-	Logs         []string                  `json:"logs"`
+	ID                 string                      `json:"id"`
+	PluginID           string                      `json:"pluginId,omitempty"`
+	Definition         strategyDefinitionSummary   `json:"definition"`
+	Runtime            string                      `json:"runtime"`
+	SourceFormat       string                      `json:"sourceFormat"`
+	Startable          bool                        `json:"startable"`
+	Binding            strategyInstanceBinding     `json:"binding"`
+	Params             map[string]any              `json:"params"`
+	Status             string                      `json:"status"`
+	CreatedAt          string                      `json:"createdAt"`
+	Logs               []string                    `json:"logs"`
+	RuntimeObservation *strategyRuntimeObservation `json:"runtimeObservation,omitempty"`
 }
 
 type strategyLogsResponse struct {
@@ -154,6 +198,7 @@ type managedStrategyInstance struct {
 	ID           string                    `json:"id"`
 	PluginID     string                    `json:"pluginId,omitempty"`
 	Definition   strategyDefinitionSummary `json:"definition"`
+	Binding      strategyInstanceBinding   `json:"binding"`
 	Params       map[string]any            `json:"params"`
 	Status       string                    `json:"status"`
 	CreatedAt    string                    `json:"createdAt"`
@@ -407,12 +452,13 @@ func (s *strategyCatalogStore) strategies() []strategyListItem {
 	return items
 }
 
-func (s *strategyCatalogStore) instantiateStrategy(definition strategyDesignDefinition) (strategyListItem, error) {
+func (s *strategyCatalogStore) instantiateStrategy(definition strategyDesignDefinition, binding strategyInstanceBinding) (strategyListItem, error) {
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	params, err := buildStrategyInstanceParams(definition, now)
 	if err != nil {
 		return strategyListItem{}, err
 	}
+	binding = normalizeStrategyInstanceBinding(binding, params)
 	instance := managedStrategyInstance{
 		ID:       buildStrategyInstanceID(definition.ID),
 		PluginID: strategyPluginIDForDefinition(definition),
@@ -421,6 +467,7 @@ func (s *strategyCatalogStore) instantiateStrategy(definition strategyDesignDefi
 			Name:       definition.Name,
 			Version:    definition.Version,
 		},
+		Binding:   binding,
 		Params:    params,
 		Status:    strategyStatusStopped,
 		CreatedAt: now,
@@ -430,7 +477,7 @@ func (s *strategyCatalogStore) instantiateStrategy(definition strategyDesignDefi
 		AuditEntries: []strategyAuditEntry{{
 			InstanceID: "",
 			Kind:       "instantiated",
-			Detail:     definition.ID,
+			Detail:     strategyBindingAuditDetail(definition.ID, binding),
 			At:         now,
 		}},
 	}
@@ -443,6 +490,60 @@ func (s *strategyCatalogStore) instantiateStrategy(definition strategyDesignDefi
 		return strategyListItem{}, os.ErrNotExist
 	}
 	return strategyToListItem(stored), nil
+}
+
+func (s *strategyCatalogStore) updateStrategyBinding(instanceID string, binding strategyInstanceBinding) (strategyListItem, error) {
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for index := range s.data.Strategies {
+		strategy := s.normalizeStrategy(s.data.Strategies[index])
+		if strategy.ID != instanceID {
+			continue
+		}
+		if strategy.Status != strategyStatusStopped {
+			return strategyListItem{}, errStrategyInstanceBusy
+		}
+		strategy.Binding = normalizeStrategyInstanceBinding(binding, strategy.Params)
+		applyStrategyBindingParams(&strategy)
+		strategy.Logs = append(strategy.Logs, fmt.Sprintf("%s updated strategy binding", now))
+		strategy.AuditEntries = append(strategy.AuditEntries, strategyAuditEntry{
+			InstanceID: strategy.ID,
+			Kind:       "binding.updated",
+			Detail:     strategyBindingAuditDetail(strategy.Definition.StrategyID, strategy.Binding),
+			At:         now,
+		})
+		s.data.Strategies[index] = strategy
+		if err := s.persistLocked(); err != nil {
+			return strategyListItem{}, err
+		}
+		return strategyToListItem(strategy), nil
+	}
+
+	return strategyListItem{}, os.ErrNotExist
+}
+
+func (s *strategyCatalogStore) deleteStrategy(instanceID string) (strategyListItem, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for index := range s.data.Strategies {
+		strategy := s.normalizeStrategy(s.data.Strategies[index])
+		if strategy.ID != instanceID {
+			continue
+		}
+		if strategy.Status != strategyStatusStopped {
+			return strategyListItem{}, errStrategyInstanceBusy
+		}
+		removed := strategyToListItem(strategy)
+		s.data.Strategies = append(s.data.Strategies[:index], s.data.Strategies[index+1:]...)
+		if err := s.persistLocked(); err != nil {
+			return strategyListItem{}, err
+		}
+		return removed, nil
+	}
+
+	return strategyListItem{}, os.ErrNotExist
 }
 
 func (s *strategyCatalogStore) transitionStrategy(instanceID string, nextStatus string, kind string, detail string) (strategyListItem, error) {
@@ -472,6 +573,97 @@ func (s *strategyCatalogStore) transitionStrategy(instanceID string, nextStatus 
 	}
 
 	return strategyListItem{}, os.ErrNotExist
+}
+
+func (s *strategyCatalogStore) appendStrategyRuntimeEvent(instanceID string, logMessage string, kind string, detail string) error {
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for index := range s.data.Strategies {
+		strategy := s.normalizeStrategy(s.data.Strategies[index])
+		if strategy.ID != instanceID {
+			continue
+		}
+		if strings.TrimSpace(logMessage) != "" {
+			strategy.Logs = append(strategy.Logs, fmt.Sprintf("%s %s", now, strings.TrimSpace(logMessage)))
+		}
+		if strings.TrimSpace(kind) != "" {
+			strategy.AuditEntries = append(strategy.AuditEntries, strategyAuditEntry{
+				InstanceID: strategy.ID,
+				Kind:       strings.TrimSpace(kind),
+				Detail:     strings.TrimSpace(detail),
+				At:         now,
+			})
+		}
+		s.data.Strategies[index] = strategy
+		return s.persistLocked()
+	}
+
+	return os.ErrNotExist
+}
+
+func (s *strategyCatalogStore) reconcileStrategyRuntimeFailure(instanceID string, detail string) error {
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	detail = strings.TrimSpace(detail)
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for index := range s.data.Strategies {
+		strategy := s.normalizeStrategy(s.data.Strategies[index])
+		if strategy.ID != instanceID {
+			continue
+		}
+		if strategy.Status != strategyStatusRunning {
+			return nil
+		}
+		strategy.Status = strategyStatusStopped
+		strategy.Logs = append(strategy.Logs, fmt.Sprintf("%s strategy runtime exited unexpectedly: %s", now, detail))
+		strategy.AuditEntries = append(strategy.AuditEntries, strategyAuditEntry{
+			InstanceID: strategy.ID,
+			Kind:       "runtime_exited",
+			Detail:     detail,
+			At:         now,
+		})
+		s.data.Strategies[index] = strategy
+		return s.persistLocked()
+	}
+
+	return os.ErrNotExist
+}
+
+func (s *strategyCatalogStore) reconcileRuntimeStatesOnStartup() (int, error) {
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	changed := 0
+	for index := range s.data.Strategies {
+		strategy := s.normalizeStrategy(s.data.Strategies[index])
+		if strategy.Status != strategyStatusRunning && strategy.Status != strategyStatusPaused {
+			continue
+		}
+		previousStatus := strategy.Status
+		strategy.Status = strategyStatusStopped
+		strategy.Logs = append(strategy.Logs, fmt.Sprintf("%s reconciled strategy state from %s to %s after server startup", now, previousStatus, strategyStatusStopped))
+		strategy.AuditEntries = append(strategy.AuditEntries, strategyAuditEntry{
+			InstanceID: strategy.ID,
+			Kind:       "reconciled",
+			Detail:     fmt.Sprintf("server startup reset stale %s state to %s", strings.ToLower(previousStatus), strategyStatusStopped),
+			At:         now,
+		})
+		s.data.Strategies[index] = strategy
+		changed++
+	}
+
+	if changed == 0 {
+		return 0, nil
+	}
+	if err := s.persistLocked(); err != nil {
+		return 0, err
+	}
+	return changed, nil
 }
 
 func (s *strategyCatalogStore) strategy(instanceID string) (managedStrategyInstance, bool) {
@@ -611,13 +803,7 @@ func (s *strategyCatalogStore) normalizeStrategy(input managedStrategyInstance) 
 	if input.CreatedAt == "" {
 		input.CreatedAt = time.Now().UTC().Format(time.RFC3339Nano)
 	}
-	if input.Logs == nil {
-		input.Logs = []string{}
-	}
-	if input.AuditEntries == nil {
-		input.AuditEntries = []strategyAuditEntry{}
-	}
-	return input
+	return normalizeManagedStrategyInstance(input)
 }
 
 func (s *strategyCatalogStore) effectiveTargetDirLocked() string {
@@ -712,11 +898,16 @@ func buildStrategyInstanceParams(definition strategyDesignDefinition, compiledAt
 	if sourceFormat != strategydefinition.SourceFormatDSLV1 {
 		return nil, fmt.Errorf("unsupported strategy source format: %s", sourceFormat)
 	}
+	symbol := strings.ToUpper(strings.TrimSpace(definition.Symbol))
+	interval := strings.TrimSpace(definition.Interval)
+	if interval == "" {
+		interval = "5m"
+	}
 	params := map[string]any{
 		"definitionId": definition.ID,
 		"sourceFormat": sourceFormat,
-		"symbol":       definition.Symbol,
-		"interval":     definition.Interval,
+		"symbol":       symbol,
+		"interval":     interval,
 		"script":       definition.Script,
 	}
 	program, err := strategydsl.ParseScript(definition.Script)
@@ -733,6 +924,168 @@ func buildStrategyInstanceParams(definition strategyDesignDefinition, compiledAt
 	params["compiledRequirements"] = buildCompiledRequirementsPayload(requirements)
 
 	return params, nil
+}
+
+func normalizeStrategyInstrumentID(value string) string {
+	normalized := strings.ToUpper(strings.TrimSpace(value))
+	if normalized == "" {
+		return ""
+	}
+	if strings.Contains(normalized, ":") {
+		parts := strings.SplitN(normalized, ":", 2)
+		if len(parts) == 2 && strings.TrimSpace(parts[0]) != "" && strings.TrimSpace(parts[1]) != "" {
+			return strings.TrimSpace(parts[0]) + "." + strings.TrimSpace(parts[1])
+		}
+	}
+	return normalized
+}
+
+func normalizeStrategyExecutionMode(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case strategyExecutionModeNotifyOnly:
+		return strategyExecutionModeNotifyOnly
+	default:
+		return strategyExecutionModeLive
+	}
+}
+
+func normalizeStrategyBrokerAccountBinding(input *strategyBrokerAccountBinding) *strategyBrokerAccountBinding {
+	if input == nil {
+		return nil
+	}
+	copyValue := *input
+	copyValue.BrokerID = strings.ToLower(strings.TrimSpace(copyValue.BrokerID))
+	copyValue.AccountID = strings.TrimSpace(copyValue.AccountID)
+	copyValue.TradingEnvironment = strings.ToUpper(strings.TrimSpace(copyValue.TradingEnvironment))
+	copyValue.Market = strings.ToUpper(strings.TrimSpace(copyValue.Market))
+	if copyValue.BrokerID == "" && copyValue.AccountID == "" && copyValue.TradingEnvironment == "" && copyValue.Market == "" {
+		return nil
+	}
+	return &copyValue
+}
+
+func readStringSlice(value any) []string {
+	switch typed := value.(type) {
+	case []string:
+		return append([]string(nil), typed...)
+	case []any:
+		result := make([]string, 0, len(typed))
+		for _, entry := range typed {
+			if text, ok := entry.(string); ok {
+				result = append(result, text)
+			}
+		}
+		return result
+	default:
+		return nil
+	}
+}
+
+func strategyBrokerAccountBindingFromAny(value any) *strategyBrokerAccountBinding {
+	raw, ok := value.(map[string]any)
+	if !ok {
+		return nil
+	}
+	brokerID, _ := raw["brokerId"].(string)
+	accountID, _ := raw["accountId"].(string)
+	tradingEnvironment, _ := raw["tradingEnvironment"].(string)
+	market, _ := raw["market"].(string)
+	return normalizeStrategyBrokerAccountBinding(&strategyBrokerAccountBinding{
+		BrokerID:           brokerID,
+		AccountID:          accountID,
+		TradingEnvironment: tradingEnvironment,
+		Market:             market,
+	})
+}
+
+func normalizeStrategyInstanceBinding(input strategyInstanceBinding, params map[string]any) strategyInstanceBinding {
+	if len(input.Symbols) == 0 {
+		input.Symbols = readStringSlice(params["symbols"])
+		if len(input.Symbols) == 0 {
+			if symbol, ok := params["symbol"].(string); ok && strings.TrimSpace(symbol) != "" {
+				input.Symbols = []string{symbol}
+			}
+		}
+	}
+	seen := map[string]struct{}{}
+	normalizedSymbols := make([]string, 0, len(input.Symbols))
+	for _, symbol := range input.Symbols {
+		normalized := normalizeStrategyInstrumentID(symbol)
+		if normalized == "" {
+			continue
+		}
+		if _, exists := seen[normalized]; exists {
+			continue
+		}
+		seen[normalized] = struct{}{}
+		normalizedSymbols = append(normalizedSymbols, normalized)
+	}
+	input.Symbols = normalizedSymbols
+
+	input.Interval = strings.TrimSpace(input.Interval)
+	if input.Interval == "" {
+		if interval, ok := params["interval"].(string); ok {
+			input.Interval = strings.TrimSpace(interval)
+		}
+	}
+	if input.Interval == "" {
+		input.Interval = "5m"
+	}
+
+	if input.BrokerAccount == nil {
+		input.BrokerAccount = strategyBrokerAccountBindingFromAny(params["brokerAccount"])
+	}
+	input.BrokerAccount = normalizeStrategyBrokerAccountBinding(input.BrokerAccount)
+
+	if strings.TrimSpace(input.ExecutionMode) == "" {
+		if executionMode, ok := params["executionMode"].(string); ok {
+			input.ExecutionMode = executionMode
+		}
+	}
+	input.ExecutionMode = normalizeStrategyExecutionMode(input.ExecutionMode)
+
+	return input
+}
+
+func applyStrategyBindingParams(input *managedStrategyInstance) {
+	if input == nil {
+		return
+	}
+	if input.Params == nil {
+		input.Params = map[string]any{}
+	}
+	input.Binding = normalizeStrategyInstanceBinding(input.Binding, input.Params)
+	input.Params["symbols"] = append([]string(nil), input.Binding.Symbols...)
+	if len(input.Binding.Symbols) > 0 {
+		input.Params["symbol"] = input.Binding.Symbols[0]
+	} else {
+		delete(input.Params, "symbol")
+	}
+	input.Params["interval"] = input.Binding.Interval
+	input.Params["executionMode"] = input.Binding.ExecutionMode
+	if input.Binding.BrokerAccount != nil {
+		input.Params["brokerAccount"] = map[string]any{
+			"brokerId":           input.Binding.BrokerAccount.BrokerID,
+			"accountId":          input.Binding.BrokerAccount.AccountID,
+			"tradingEnvironment": input.Binding.BrokerAccount.TradingEnvironment,
+			"market":             input.Binding.BrokerAccount.Market,
+		}
+	} else {
+		delete(input.Params, "brokerAccount")
+	}
+}
+
+func strategyBindingAuditDetail(definitionID string, binding strategyInstanceBinding) string {
+	parts := []string{strings.TrimSpace(definitionID)}
+	if len(binding.Symbols) > 0 {
+		parts = append(parts, "symbols="+strings.Join(binding.Symbols, ","))
+	}
+	parts = append(parts, "interval="+binding.Interval)
+	parts = append(parts, "mode="+binding.ExecutionMode)
+	if binding.BrokerAccount != nil {
+		parts = append(parts, fmt.Sprintf("account=%s/%s/%s/%s", binding.BrokerAccount.BrokerID, binding.BrokerAccount.TradingEnvironment, binding.BrokerAccount.AccountID, binding.BrokerAccount.Market))
+	}
+	return strings.Join(parts, " | ")
 }
 
 func buildCompiledHookKinds(program *strategyir.Program) []string {
@@ -811,9 +1164,32 @@ func copyMap(input map[string]any) map[string]any {
 	}
 	output := make(map[string]any, len(input))
 	for key, value := range input {
-		output[key] = value
+		output[key] = copyDynamicValue(value)
 	}
 	return output
+}
+
+func copyDynamicValue(value any) any {
+	switch typed := value.(type) {
+	case map[string]any:
+		return copyMap(typed)
+	case []string:
+		return append([]string(nil), typed...)
+	case []any:
+		output := make([]any, len(typed))
+		for index, entry := range typed {
+			output[index] = copyDynamicValue(entry)
+		}
+		return output
+	case []map[string]any:
+		output := make([]map[string]any, len(typed))
+		for index, entry := range typed {
+			output[index] = copyMap(entry)
+		}
+		return output
+	default:
+		return value
+	}
 }
 
 func cloneManagedStrategyPlugin(input managedStrategyPlugin) managedStrategyPlugin {
@@ -838,6 +1214,11 @@ func cloneManagedStrategyPlugin(input managedStrategyPlugin) managedStrategyPlug
 
 func cloneManagedStrategyInstance(input managedStrategyInstance) managedStrategyInstance {
 	input.Params = copyMap(input.Params)
+	input.Binding.Symbols = append([]string(nil), input.Binding.Symbols...)
+	if input.Binding.BrokerAccount != nil {
+		bindingCopy := *input.Binding.BrokerAccount
+		input.Binding.BrokerAccount = &bindingCopy
+	}
 	input.Logs = append([]string(nil), input.Logs...)
 	input.AuditEntries = append([]strategyAuditEntry(nil), input.AuditEntries...)
 	return input
@@ -852,6 +1233,7 @@ func strategyToListItem(strategy managedStrategyInstance) strategyListItem {
 		Runtime:      strategyRuntimeFromParams(strategy.Params),
 		SourceFormat: strategySourceFormatFromParams(strategy.Params),
 		Startable:    strategyInstanceStartable(strategy),
+		Binding:      strategy.Binding,
 		Params:       copyMap(strategy.Params),
 		Status:       strategy.Status,
 		CreatedAt:    strategy.CreatedAt,
@@ -863,6 +1245,7 @@ func normalizeManagedStrategyInstance(input managedStrategyInstance) managedStra
 	if input.Params == nil {
 		input.Params = map[string]any{}
 	}
+	applyStrategyBindingParams(&input)
 	if input.Logs == nil {
 		input.Logs = []string{}
 	}

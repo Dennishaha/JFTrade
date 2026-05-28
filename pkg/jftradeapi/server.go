@@ -15,6 +15,7 @@ import (
 
 	"github.com/gorilla/websocket"
 
+	bbgotypes "github.com/c9s/bbgo/pkg/types"
 	"github.com/jftrade/jftrade-main/pkg/futu"
 )
 
@@ -40,23 +41,24 @@ type apiError struct {
 }
 
 type Server struct {
-	store               *SettingsStore
-	strategyStore       *strategyCatalogStore
-	designStore         *strategyDesignStore
-	backtestRuns        *backtestRunStore
-	backtestSyncTasks   *backtestSyncTaskStore
-	executionOrders     *executionOrderStore
-	brokerOrderUpdates  *brokerOrderUpdateWorker
-	upgrader            websocket.Upgrader
-	marketSubscriptions marketSubscriptionManager
-	tickCache           tickSampleCacheManager
-	liveSockets         liveSocketPool
-	liveNotifications   liveNotificationCache
-	liveQuoteState      liveQuoteRefreshState
-	liveStreamState     liveMarketStreamState
-	exchangeMu          sync.Mutex
-	exchange            *futu.Exchange
-	exchangeConfigKey   string
+	store                  *SettingsStore
+	strategyStore          *strategyCatalogStore
+	strategyRuntimeManager *strategyRuntimeManager
+	designStore            *strategyDesignStore
+	backtestRuns           *backtestRunStore
+	backtestSyncTasks      *backtestSyncTaskStore
+	executionOrders        *executionOrderStore
+	brokerOrderUpdates     *brokerOrderUpdateWorker
+	upgrader               websocket.Upgrader
+	marketSubscriptions    marketSubscriptionManager
+	tickCache              tickSampleCacheManager
+	liveSockets            liveSocketPool
+	liveNotifications      liveNotificationCache
+	liveQuoteState         liveQuoteRefreshState
+	liveStreamState        liveMarketStreamState
+	exchangeMu             sync.Mutex
+	exchange               *futu.Exchange
+	exchangeConfigKey      string
 }
 
 type opendProbe struct {
@@ -133,6 +135,12 @@ func NewServer(store *SettingsStore) *Server {
 			CheckOrigin: func(*http.Request) bool { return true },
 		},
 	}
+	server.strategyRuntimeManager = newStrategyRuntimeManager(server)
+	if reconciled, err := server.strategyStore.reconcileRuntimeStatesOnStartup(); err != nil {
+		log.Printf("JFTrade strategy runtime state reconciliation failed: %v", err)
+	} else if reconciled > 0 {
+		log.Printf("JFTrade reconciled %d stale strategy runtime state(s) to STOPPED during startup", reconciled)
+	}
 	registerBBGONotificationSink(server.recordLiveNotification)
 	return server
 }
@@ -158,6 +166,24 @@ func envOrDefault(key string, fallback string) string {
 		return fallback
 	}
 	return value
+}
+
+func (s *Server) liveMarketExchange() bbgotypes.Exchange {
+	if s.strategyRuntimeManager != nil && s.strategyRuntimeManager.exchangeProvider != nil {
+		if exchange := s.strategyRuntimeManager.exchangeProvider(); exchange != nil {
+			return exchange
+		}
+	}
+	return s.futuExchange()
+}
+
+func (s *Server) brokerExecutionExchange() strategyRuntimeExchange {
+	if s.strategyRuntimeManager != nil && s.strategyRuntimeManager.exchangeProvider != nil {
+		if exchange := s.strategyRuntimeManager.exchangeProvider(); exchange != nil {
+			return exchange
+		}
+	}
+	return s.futuExchange()
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -226,9 +252,42 @@ func (s *Server) systemStatus() map[string]any {
 			"engine": "json", "databasePath": s.store.path, "status": "ok", "migrated": true,
 			"pendingMigrations": []any{}, "tables": []string{"broker_integrations", "broker_accounts"}, "checkedAt": time.Now().UTC().Format(time.RFC3339Nano),
 		},
-		"strategyRuntime": s.strategyStore.runtimeSummary(),
+		"strategyRuntime": s.strategyRuntimeSummary(),
 		"message":         "JFTrade API adapter is running.",
 	}
+}
+
+func (s *Server) strategyRuntimeSummary() map[string]any {
+	if s.strategyRuntimeManager == nil {
+		return map[string]any{
+			"status":                 "idle",
+			"activeStrategies":       0,
+			"supportsBacktestParity": true,
+			"activeInstances":        []strategyRuntimeActiveInstanceSummary{},
+		}
+	}
+	return s.strategyRuntimeManager.runtimeSummary()
+}
+
+func (s *Server) enrichStrategyItem(item strategyListItem) strategyListItem {
+	if s.strategyRuntimeManager == nil {
+		return item
+	}
+	if observation, ok := s.strategyRuntimeManager.runtimeObservation(item.ID); ok {
+		item.RuntimeObservation = &observation
+	}
+	return item
+}
+
+func (s *Server) enrichStrategyItems(items []strategyListItem) []strategyListItem {
+	if len(items) == 0 {
+		return items
+	}
+	enriched := make([]strategyListItem, len(items))
+	for index := range items {
+		enriched[index] = s.enrichStrategyItem(items[index])
+	}
+	return enriched
 }
 
 func (s *Server) emptyConnectivityList(key string, value any, extraKeys ...string) map[string]any {

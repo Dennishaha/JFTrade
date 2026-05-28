@@ -237,7 +237,7 @@ function toTemplateTypeLabel(mode: StrategyAuthoringTemplate["mode"]): string {
             {{ template.description }}
           </div>
           <div class="mt-3 text-xs uppercase tracking-[0.18em] text-slate-400">
-            {{ template.defaultSymbol }} / {{ template.defaultInterval }}
+            标的 / 周期在运行实例中绑定
           </div>
         </button>
       </div>
@@ -249,6 +249,9 @@ function toTemplateTypeLabel(mode: StrategyAuthoringTemplate["mode"]): string {
       </div>
 
       <div class="mt-3 grid gap-3">
+        <div class="rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-600">
+          标的、运行周期和券商账号会在创建运行实例时绑定。设计阶段只保存策略逻辑与元信息。
+        </div>
         <label class="grid gap-1.5 text-sm text-slate-700">
           <span class="font-medium">定义 ID</span>
           <input
@@ -283,26 +286,6 @@ function toTemplateTypeLabel(mode: StrategyAuthoringTemplate["mode"]): string {
               v-model="definitionForm.runtime"
               class="rounded-2xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 outline-none"
               readonly
-              type="text"
-            />
-          </label>
-        </div>
-        <div class="grid gap-3 md:grid-cols-2">
-          <label class="grid gap-1.5 text-sm text-slate-700">
-            <span class="font-medium">标的</span>
-            <input
-              v-model="definitionForm.symbol"
-              class="rounded-2xl border border-slate-300 px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-500"
-              placeholder="00700"
-              type="text"
-            />
-          </label>
-          <label class="grid gap-1.5 text-sm text-slate-700">
-            <span class="font-medium">周期</span>
-            <input
-              v-model="definitionForm.interval"
-              class="rounded-2xl border border-slate-300 px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-500"
-              placeholder="1m"
               type="text"
             />
           </label>

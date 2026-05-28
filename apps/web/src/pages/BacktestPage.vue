@@ -49,8 +49,6 @@ const cardBorderClass = computed(() =>
 interface StrategyDefinition {
   id: string;
   name: string;
-  symbol: string;
-  interval: string;
   derivedWarmupBars?: number;
   derivedWarmupInterval?: string;
 }
@@ -65,51 +63,11 @@ let warmupPreviewRequestId = 0;
 // Form state
 const selectedDefinitionId = ref("");
 const symbolInput = ref("HK:00700");
-const interval = ref("1m");
+const interval = ref("5m");
 const startDate = ref(dayjs().subtract(3, "year").format("YYYY-MM-DD"));
 const endDate = ref(dayjs().format("YYYY-MM-DD"));
 const initialBalance = ref(1000000);
 const rehabType = ref("forward"); // "forward" | "backward" | "none"
-
-// Track whether the user has manually overridden the strategy defaults
-const symbolManuallySet = ref(false);
-const intervalManuallySet = ref(false);
-
-// Strategy's configured symbol in "MARKET:CODE" display format
-const strategyDefaultSymbol = computed(() => {
-  const d = selectedDefinition.value;
-  if (!d?.symbol) return "";
-  return d.symbol.includes(".")
-    ? d.symbol.replace(".", ":")
-    : `HK:${d.symbol}`;
-});
-
-// Whether the current symbol differs from the strategy's default
-const symbolDiffersFromStrategy = computed(() => {
-  if (!strategyDefaultSymbol.value) return false;
-  return symbolInput.value !== strategyDefaultSymbol.value;
-});
-
-// Whether the current interval differs from the strategy's default
-const intervalDiffersFromStrategy = computed(() => {
-  const d = selectedDefinition.value;
-  if (!d?.interval) return false;
-  return interval.value !== d.interval;
-});
-
-// Reset symbol/interval to strategy defaults
-function resetToStrategyDefaults() {
-  const d = selectedDefinition.value;
-  if (!d) return;
-  if (d.symbol) {
-    symbolInput.value = strategyDefaultSymbol.value;
-    symbolManuallySet.value = false;
-  }
-  if (d.interval) {
-    interval.value = d.interval;
-    intervalManuallySet.value = false;
-  }
-}
 
 // Sync form (start/end time)
 const syncStartTime = computed(() => buildBacktestDayStartTime(startDate.value));
@@ -156,7 +114,7 @@ const warmupPreviewValue = computed(() => {
 });
 
 const warmupPreviewNote = computed(() => {
-  const previewInterval = warmupPreviewInterval.value || interval.value || selectedDefinition.value?.interval || "1m";
+  const previewInterval = warmupPreviewInterval.value || interval.value || "5m";
   return `按当前回测周期 ${previewInterval} 推导策略依赖的最大历史 bars。`;
 });
 
@@ -264,7 +222,7 @@ async function loadDefinitions() {
 
 async function loadWarmupPreview() {
   const definitionId = selectedDefinitionId.value.trim();
-  const requestedInterval = (interval.value || selectedDefinition.value?.interval || "1m").trim();
+  const requestedInterval = (interval.value || "5m").trim();
   const requestId = ++warmupPreviewRequestId;
 
   if (!definitionId) {
@@ -438,31 +396,6 @@ function resolveQueriedCandleBounds(candles: Array<{ time: string }> | undefined
 }
 
 // When definition changes, fill defaults only if user hasn't manually overridden
-watch(selectedDefinitionId, () => {
-  const d = selectedDefinition.value;
-  if (d) {
-    if (d.symbol && !symbolManuallySet.value) {
-      symbolInput.value = strategyDefaultSymbol.value;
-    }
-    if (d.interval && !intervalManuallySet.value) {
-      interval.value = d.interval;
-    }
-  }
-});
-
-// Track manual user edits on symbol and interval
-watch(symbolInput, (val, old) => {
-  if (old !== undefined && val !== strategyDefaultSymbol.value) {
-    symbolManuallySet.value = true;
-  }
-});
-watch(interval, (val, old) => {
-  const d = selectedDefinition.value;
-  if (old !== undefined && d && val !== d.interval) {
-    intervalManuallySet.value = true;
-  }
-});
-
 watch([selectedDefinitionId, interval], () => {
   void loadWarmupPreview();
 }, { immediate: true });
@@ -498,20 +431,12 @@ watch([selectedDefinitionId, interval], () => {
             <div class="grid gap-0.5">
               <div class="flex items-center justify-between">
                 <label class="text-xs font-semibold text-slate-700 dark:text-slate-200">标的</label>
-                <button v-if="symbolDiffersFromStrategy || intervalDiffersFromStrategy"
-                  class="text-xs text-teal-600 underline hover:text-teal-800 transition dark:text-teal-400 dark:hover:text-teal-200"
-                  type="button" @click="resetToStrategyDefaults">
-                  使用策略默认
-                </button>
               </div>
               <v-combobox v-model="symbolInput"
                 :items="marketInstrumentSearchOptions.map(o => ({ value: o.lookupValue, title: o.label }))"
                 item-title="title" item-value="value" density="compact" variant="outlined" placeholder="HK:00700"
                 clearable />
-              <div v-if="symbolDiffersFromStrategy" class="text-xs text-amber-600 dark:text-amber-400">
-                策略默认标的：{{ strategyDefaultSymbol }}（{{ parsedSymbol.instrumentId }}）
-              </div>
-              <div v-else class="text-xs text-slate-500 dark:text-slate-400">
+              <div class="text-xs text-slate-500 dark:text-slate-400">
                 {{ parsedSymbol.instrumentId }}
               </div>
             </div>
@@ -521,8 +446,8 @@ watch([selectedDefinitionId, interval], () => {
               <label class="text-xs font-semibold text-slate-700 dark:text-slate-200">K线周期</label>
               <v-select v-model="interval" :items="KLINE_PERIODS" item-title="label" item-value="value"
                 density="compact" variant="outlined" />
-              <div v-if="intervalDiffersFromStrategy" class="text-xs text-amber-600 dark:text-amber-400">
-                策略默认周期：{{ selectedDefinition?.interval }}
+              <div class="text-xs text-slate-400 dark:text-slate-500">
+                默认 5m，可按本次回测需要单独调整。
               </div>
             </div>
 

@@ -63,7 +63,7 @@ const emit = defineEmits<{
         @click="emit('select-definition', definition)"
       >
         <div class="text-base font-semibold">{{ definition.name }}</div>
-        <div class="mt-2 text-sm text-slate-500">{{ definition.symbol }} / {{ definition.interval }}</div>
+        <div class="mt-2 text-sm text-slate-500">版本 {{ definition.version }}</div>
         <div class="mt-2 text-xs uppercase tracking-[0.2em] text-slate-500">{{ definition.runtime }}</div>
       </button>
     </div>

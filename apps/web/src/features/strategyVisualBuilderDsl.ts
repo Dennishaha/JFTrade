@@ -42,8 +42,6 @@ import {
 
 export interface StrategyDslContext {
   name: string;
-  symbol: string;
-  interval: string;
   version?: string;
 }
 
@@ -74,8 +72,6 @@ export function buildStrategyDslFromVisualModel(
   const lines = [
     `strategy ${sanitizeMetadataValue(context.name, "未命名策略")}`,
     `version ${sanitizeMetadataValue(context.version ?? "0.1.0", "0.1.0")}`,
-    `symbol ${sanitizeMetadataValue(context.symbol, "00700")}`,
-    `interval ${sanitizeMetadataValue(context.interval, "1m")}`,
   ];
 
   const initRoots = sourceModel.nodes.filter(

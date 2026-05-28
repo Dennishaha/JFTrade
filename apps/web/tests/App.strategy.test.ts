@@ -8,6 +8,7 @@ import { createMemoryHistory, createRouter, RouterView } from "vue-router";
 
 import {
   emptyBrokerCashFlows,
+  emptyBrokerSettings,
   emptyBrokerFunds,
   emptyBrokerOrders,
   emptyBrokerPositions,
@@ -30,6 +31,7 @@ import {
   emptyWorkerBrokerOrderUpdates,
 } from "@jftrade/ui-contracts";
 import type {
+  BrokerRuntimeResponse,
   StrategyDefinitionDocument,
   SystemStatusResponse,
 } from "@jftrade/ui-contracts";
@@ -43,10 +45,12 @@ import StrategyPage from "../src/pages/StrategyPage.vue";
 import {
   MockEventSource,
   createResponse,
+  dialogStub,
   flushRequests,
 } from "./helpers";
 
 let currentStrategySystemStatus: SystemStatusResponse = emptySystemStatus;
+let currentConsoleDataStore: ReturnType<typeof provideConsoleDataStore> | null = null;
 
 const StrategyPageTestRoot = defineComponent({
   setup() {
@@ -54,6 +58,7 @@ const StrategyPageTestRoot = defineComponent({
     provideUIColorPreferencesStore(themeStore.theme);
     const workspaceLayout = provideWorkspaceLayoutStore();
     const consoleData = provideConsoleDataStore(workspaceLayout);
+    currentConsoleDataStore = consoleData;
     consoleData.systemStatus.value = currentStrategySystemStatus;
     return () => h(RouterView);
   },
@@ -79,6 +84,9 @@ async function mountStrategyPage(path = "/strategy") {
   const wrapper = mount(StrategyPageTestRoot, {
     global: {
       plugins: [createPinia(), router],
+      stubs: {
+        "v-dialog": dialogStub,
+      },
     },
   });
 
@@ -93,6 +101,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
   MockEventSource.instances = [];
   currentStrategySystemStatus = emptySystemStatus;
+  currentConsoleDataStore = null;
 });
 
 async function settleStrategyWorkspace() {
@@ -163,11 +172,43 @@ async function openNewStrategyFromRuntime(
     if (wrapper.find('[data-testid="strategy-templates-section"]').exists()) {
       return;
     }
+    await wrapper.get('[data-testid="strategy-create-menu-toggle"]').trigger("click");
+    await settleStrategyWorkspace();
     await wrapper.get('[data-testid="strategy-new-definition"]').trigger("click");
     await settleStrategyWorkspace();
     if (wrapper.find('[data-testid="strategy-templates-section"]').exists()) {
       return;
     }
+  }
+}
+
+async function openCreateInstancePanel(
+  wrapper: StrategyPageWrapper,
+) {
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    if (wrapper.find('[data-testid="strategy-create-instance-panel"]').exists()) {
+      return;
+    }
+    await wrapper.get('[data-testid="strategy-create-menu-toggle"]').trigger("click");
+    await settleStrategyWorkspace();
+    await wrapper.get('[data-testid="strategy-new-instance"]').trigger("click");
+    await settleStrategyWorkspace();
+    if (wrapper.find('[data-testid="strategy-create-instance-panel"]').exists()) {
+      return;
+    }
+  }
+}
+
+async function appendSymbolTags(
+  wrapper: StrategyPageWrapper,
+  selector: string,
+  symbols: string[],
+) {
+  for (const symbol of symbols) {
+    const input = wrapper.get(selector);
+    await input.setValue(symbol);
+    await input.trigger("keydown", { key: "Enter" });
+    await settleStrategyWorkspace();
   }
 }
 
@@ -197,6 +238,7 @@ async function waitForSelector(
 
 function buildFetchMock(options: {
   systemStatus?: SystemStatusResponse;
+  brokerRuntime?: BrokerRuntimeResponse;
   definitions?: StrategyDefinitionDocument[];
   strategies?: Array<{
     id: string;
@@ -209,10 +251,31 @@ function buildFetchMock(options: {
     runtime?: string;
     sourceFormat?: "dsl-v1";
     startable?: boolean;
+    binding?: {
+      symbols?: string[];
+      interval?: string;
+      executionMode?: "live" | "notify_only";
+      brokerAccount?: {
+        brokerId: string;
+        accountId: string;
+        tradingEnvironment: string;
+        market: string;
+      } | null;
+    };
     params: Record<string, unknown>;
     status: "RUNNING" | "PAUSED" | "STOPPED";
     createdAt: string;
     logs: string[];
+    runtimeObservation?: {
+      actualStatus: "RUNNING" | "PAUSED" | "STOPPED";
+      activeSymbols: string[];
+      lastClosedKlineAt?: string | null;
+      lastSignalAt?: string | null;
+      lastOrderAt?: string | null;
+      lastErrorAt?: string | null;
+      lastError?: string | null;
+      updatedAt?: string | null;
+    } | null;
   }>;
   logsById?: Record<string, string[]>;
   auditById?: Record<
@@ -226,24 +289,122 @@ function buildFetchMock(options: {
   >;
 }) {
   const systemStatus = options.systemStatus ?? emptySystemStatus;
+  const brokerRuntime = options.brokerRuntime ?? emptyBrokerRuntime;
   currentStrategySystemStatus = systemStatus;
   const definitions = options.definitions ?? [];
   const strategies = options.strategies ?? [];
   const logsById = options.logsById ?? {};
   const auditById = options.auditById ?? {};
 
+  function normalizeInstrumentId(value: unknown) {
+    const normalized = typeof value === "string" ? value.trim().toUpperCase() : "";
+    if (normalized === "") {
+      return "";
+    }
+    if (normalized.includes(":")) {
+      const [market, symbol] = normalized.split(":", 2);
+      if ((market ?? "") !== "" && (symbol ?? "") !== "") {
+        return `${market}.${symbol}`;
+      }
+    }
+    return normalized;
+  }
+
+  function normalizeBinding(
+    rawBinding: unknown,
+    params: Record<string, unknown>,
+  ) {
+    const bindingRecord = rawBinding && typeof rawBinding === "object" && !Array.isArray(rawBinding)
+      ? rawBinding as Record<string, unknown>
+      : {};
+    const rawSymbols = Array.isArray(bindingRecord.symbols)
+      ? bindingRecord.symbols
+      : Array.isArray(params.symbols)
+        ? params.symbols
+        : typeof params.symbol === "string" && params.symbol.trim() !== ""
+          ? [params.symbol]
+          : [];
+    const symbols = Array.from(new Set(
+      rawSymbols
+        .map((value) => normalizeInstrumentId(value))
+        .filter((value) => value !== ""),
+    ));
+    const interval = typeof bindingRecord.interval === "string" && bindingRecord.interval.trim() !== ""
+      ? bindingRecord.interval.trim()
+      : typeof params.interval === "string" && params.interval.trim() !== ""
+        ? params.interval.trim()
+        : "5m";
+    const executionMode = bindingRecord.executionMode === "notify_only"
+      ? "notify_only"
+      : bindingRecord.executionMode === "live"
+        ? "live"
+        : params.executionMode === "notify_only"
+          ? "notify_only"
+          : "live";
+    const brokerAccountRecord = bindingRecord.brokerAccount && typeof bindingRecord.brokerAccount === "object" && !Array.isArray(bindingRecord.brokerAccount)
+      ? bindingRecord.brokerAccount as Record<string, unknown>
+      : params.brokerAccount && typeof params.brokerAccount === "object" && !Array.isArray(params.brokerAccount)
+        ? params.brokerAccount as Record<string, unknown>
+        : null;
+    const brokerAccount = brokerAccountRecord === null
+      ? null
+      : {
+          brokerId: String(brokerAccountRecord.brokerId ?? "").trim().toLowerCase(),
+          accountId: String(brokerAccountRecord.accountId ?? "").trim(),
+          tradingEnvironment: String(brokerAccountRecord.tradingEnvironment ?? "").trim().toUpperCase(),
+          market: String(brokerAccountRecord.market ?? "").trim().toUpperCase(),
+        };
+
+    return {
+      symbols,
+      interval,
+      executionMode,
+      brokerAccount,
+    } as const;
+  }
+
+  async function readJsonBody(init?: RequestInit, request?: Request | null) {
+    if (request != null) {
+      const text = await request.clone().text();
+      return text === "" ? {} : JSON.parse(text);
+    }
+    if (typeof init?.body === "string") {
+      return init.body === "" ? {} : JSON.parse(init.body);
+    }
+    return {};
+  }
+
   const runtimeState = {
     strategies: strategies.map((strategy) => ({
-      ...strategy,
-      runtime: strategy.runtime ?? "dsl-go-plan",
-      sourceFormat: strategy.sourceFormat ?? "dsl-v1",
-      startable:
-        strategy.startable
-        ?? ((strategy.sourceFormat ?? "dsl-v1") === "dsl-v1"
-          && (strategy.runtime ?? "dsl-go-plan") === "dsl-go-plan"),
-      params: { ...strategy.params },
-      definition: { ...strategy.definition },
-      logs: [...strategy.logs],
+      ...(() => {
+        const runtime = strategy.runtime ?? "dsl-go-plan";
+        const sourceFormat = strategy.sourceFormat ?? "dsl-v1";
+        const startable =
+          strategy.startable
+          ?? (sourceFormat === "dsl-v1" && runtime === "dsl-go-plan");
+        const binding = normalizeBinding(strategy.binding, strategy.params);
+        return {
+          ...strategy,
+          runtime,
+          sourceFormat,
+          startable,
+          binding,
+          params: {
+            ...strategy.params,
+            symbols: [...binding.symbols],
+            symbol: binding.symbols[0] ?? "",
+            interval: binding.interval,
+            executionMode: binding.executionMode,
+            ...(binding.brokerAccount === null
+              ? {}
+              : {
+                  brokerAccount: { ...binding.brokerAccount },
+                }),
+          },
+          definition: { ...strategy.definition },
+          logs: [...strategy.logs],
+        };
+      })(),
     })),
     logsById: { ...logsById },
     auditById: { ...auditById },
@@ -257,6 +418,7 @@ function buildFetchMock(options: {
     const auditMatch = url.match(/\/api\/v1\/strategies\/([^/]+)\/audit/);
     const instantiateMatch = url.match(/\/api\/v1\/strategy-definitions\/([^/]+)\/instantiate/);
     const lifecycleMatch = url.match(/\/api\/v1\/strategies\/([^/]+)\/(start|pause|stop)/);
+    const instanceMatch = url.match(/\/api\/v1\/strategies\/([^/]+)$/);
 
     if (url.includes("/api/v1/market-data/subscriptions"))
       return createResponse(emptyMarketDataSubscriptions);
@@ -281,7 +443,7 @@ function buildFetchMock(options: {
     if (url.includes("/api/v1/system/worker/broker-order-updates"))
       return createResponse(emptyWorkerBrokerOrderUpdates);
     if (url.includes("/api/v1/brokers/futu/runtime"))
-      return createResponse(emptyBrokerRuntime);
+      return createResponse(brokerRuntime);
     if (url.includes("/api/v1/brokers/futu/funds"))
       return createResponse(emptyBrokerFunds);
     if (url.includes("/api/v1/brokers/futu/positions"))
@@ -304,12 +466,17 @@ function buildFetchMock(options: {
       if (definition === undefined) {
         throw new Error(`Unknown strategy definition: ${definitionId}`);
       }
+      const payload = await readJsonBody(init, request);
       const instanceId = `${definitionId}-instance`;
       const sourceFormat = definition.sourceFormat ?? "dsl-v1";
       const runtime = sourceFormat === "dsl-v1" ? "dsl-go-plan" : definition.runtime;
       const startable =
         (sourceFormat === "dsl-v1" && runtime === "dsl-go-plan") ||
         (sourceFormat === "dsl-v1" && runtime === "dsl-go-plan");
+      const binding = normalizeBinding(payload, {
+        symbol: definition.symbol ?? "",
+        interval: definition.interval ?? "5m",
+      });
       const instance = {
         id: instanceId,
         pluginId: "dsl-go-plan",
@@ -321,12 +488,20 @@ function buildFetchMock(options: {
         runtime,
         sourceFormat,
         startable,
+        binding,
         params: {
           runtime,
           sourceFormat,
           definitionId: definition.id,
-          symbol: definition.symbol,
-          interval: definition.interval,
+          symbols: [...binding.symbols],
+          symbol: binding.symbols[0] ?? "",
+          interval: binding.interval,
+          executionMode: binding.executionMode,
+          ...(binding.brokerAccount === null
+            ? {}
+            : {
+                brokerAccount: { ...binding.brokerAccount },
+              }),
           script: definition.script,
           ...(sourceFormat === "dsl-v1"
             ? {
@@ -358,11 +533,58 @@ function buildFetchMock(options: {
         {
           instanceId,
           kind: "instantiated",
-          detail: definition.id,
+          detail: `${definition.id} | interval=${binding.interval} | mode=${binding.executionMode}`,
           at: definition.updatedAt,
         },
       ];
       return createResponse(instance);
+    }
+    if (instanceMatch && method === "PUT") {
+      const instanceId = decodeURIComponent(instanceMatch[1]);
+      const instance = runtimeState.strategies.find((item) => item.id === instanceId);
+      if (instance === undefined) {
+        throw new Error(`Unknown strategy instance: ${instanceId}`);
+      }
+      const payload = await readJsonBody(init, request);
+      const binding = normalizeBinding(payload, instance.params);
+      instance.binding = binding;
+      instance.params = {
+        ...instance.params,
+        symbols: [...binding.symbols],
+        symbol: binding.symbols[0] ?? "",
+        interval: binding.interval,
+        executionMode: binding.executionMode,
+        ...(binding.brokerAccount === null
+          ? {}
+          : {
+              brokerAccount: { ...binding.brokerAccount },
+            }),
+      };
+      runtimeState.logsById[instanceId] = [
+        ...(runtimeState.logsById[instanceId] ?? []),
+        "2026-05-23T00:00:00.000Z updated strategy binding",
+      ];
+      runtimeState.auditById[instanceId] = [
+        ...(runtimeState.auditById[instanceId] ?? []),
+        {
+          instanceId,
+          kind: "binding.updated",
+          detail: `${binding.symbols.join(", ") || "未绑定"} / ${binding.interval}`,
+          at: "2026-05-23T00:00:00.000Z",
+        },
+      ];
+      return createResponse(instance);
+    }
+    if (instanceMatch && method === "DELETE") {
+      const instanceId = decodeURIComponent(instanceMatch[1]);
+      const instanceIndex = runtimeState.strategies.findIndex((item) => item.id === instanceId);
+      if (instanceIndex === -1) {
+        throw new Error(`Unknown strategy instance: ${instanceId}`);
+      }
+      const [removed] = runtimeState.strategies.splice(instanceIndex, 1);
+      delete runtimeState.logsById[instanceId];
+      delete runtimeState.auditById[instanceId];
+      return createResponse(removed);
     }
     if (lifecycleMatch && method === "POST") {
       const instanceId = decodeURIComponent(lifecycleMatch[1]);
@@ -434,6 +656,14 @@ function buildDslScript(
   ].join("\n");
 }
 
+function buildRuntimeAccount(overrides?: Partial<BrokerRuntimeResponse>): BrokerRuntimeResponse {
+  return {
+    ...emptyBrokerRuntime,
+    ...overrides,
+    accounts: overrides?.accounts ?? emptyBrokerRuntime.accounts,
+  };
+}
+
 describe("Strategy page", () => {
   it("lists strategies and shows the selected strategy logs and audit", async () => {
     const strategies = [
@@ -443,6 +673,11 @@ describe("Strategy page", () => {
           strategyId: "s-mean-revert",
           name: "Mean Revert",
           version: "1.0.0",
+        },
+        binding: {
+          symbols: ["HK.00700"],
+          interval: "5m",
+          executionMode: "live" as const,
         },
         params: {
           threshold: 10,
@@ -457,6 +692,11 @@ describe("Strategy page", () => {
           strategyId: "s-breakout",
           name: "Breakout",
           version: "1.0.0",
+        },
+        binding: {
+          symbols: ["US.AAPL"],
+          interval: "15m",
+          executionMode: "notify_only" as const,
         },
         params: {
           window: 20,
@@ -525,6 +765,433 @@ describe("Strategy page", () => {
     expect(wrapper.text()).toContain("运行审计");
     expect(wrapper.text()).toContain("QUOTE_SNAPSHOT HK.00700");
     expect(wrapper.text()).toContain("REAL");
+    expect(wrapper.text()).toContain("仅通知");
+    expect(wrapper.get('[data-testid="strategy-status-instance-1"]').classes()).toContain("strategy-status-badge--running");
+    expect(wrapper.get('[data-testid="strategy-status-instance-2"]').classes()).toContain("strategy-status-badge--paused");
+
+    wrapper.unmount();
+  });
+
+  it("shows activity tabs, importance filters, and params dialog", async () => {
+    vi.stubGlobal(
+      "fetch",
+      buildFetchMock({
+        strategies: [
+          {
+            id: "instance-1",
+            definition: {
+              strategyId: "s-mean-revert",
+              name: "Mean Revert",
+              version: "1.0.0",
+            },
+            params: {
+              window: 20,
+              threshold: 1.8,
+            },
+            status: "RUNNING",
+            createdAt: "2026-05-16T00:00:00.000Z",
+            logs: [],
+          },
+        ],
+        logsById: {
+          "instance-1": [
+            "2026-05-16T00:00:00.000Z ERROR order rejected for HK.00700",
+            "2026-05-16T00:00:02.000Z paused strategy execution",
+            "2026-05-16T00:00:03.000Z tick QUOTE_SNAPSHOT HK.00700",
+          ],
+        },
+        auditById: {
+          "instance-1": [
+            {
+              instanceId: "instance-1",
+              kind: "failed",
+              detail: "order rejected for HK.00700",
+              at: "2026-05-16T00:00:05.000Z",
+            },
+            {
+              instanceId: "instance-1",
+              kind: "paused",
+              detail: "manual guardrail pause",
+              at: "2026-05-16T00:00:06.000Z",
+            },
+            {
+              instanceId: "instance-1",
+              kind: "started",
+              detail: "runtime ready",
+              at: "2026-05-16T00:00:07.000Z",
+            },
+          ],
+        },
+      }),
+    );
+    vi.stubGlobal(
+      "EventSource",
+      MockEventSource as unknown as typeof EventSource,
+    );
+
+    const { wrapper } = await mountStrategyPage("/strategy");
+    await openStrategyWorkspaceTab(wrapper, "runtime");
+    await waitForSelector(wrapper, '[data-testid="strategy-instance-1"]');
+
+    expect(wrapper.findAll('[data-testid="strategy-log-entry"]')).toHaveLength(3);
+
+    await wrapper.get('[data-testid="strategy-activity-filter-error"]').trigger("click");
+    await settleStrategyWorkspace();
+
+    expect(wrapper.findAll('[data-testid="strategy-log-entry"]')).toHaveLength(1);
+    expect(wrapper.get('[data-testid="strategy-log-list"]').text()).toContain("ERROR order rejected for HK.00700");
+
+    await wrapper.get('[data-testid="strategy-activity-tab-audit"]').trigger("click");
+    await settleStrategyWorkspace();
+
+    expect(wrapper.findAll('[data-testid="strategy-audit-entry"]')).toHaveLength(1);
+    expect(wrapper.get('[data-testid="strategy-audit-list"]').text()).toContain("order rejected for HK.00700");
+
+    await wrapper.get('[data-testid="strategy-open-params-dialog"]').trigger("click");
+    await settleStrategyWorkspace();
+
+    expect(wrapper.find('[data-testid="strategy-params-dialog"]').exists()).toBe(true);
+    expect(wrapper.get('[data-testid="strategy-params-dialog"]').text()).toContain('"window": 20');
+    expect(wrapper.get('[data-testid="strategy-params-dialog"]').text()).toContain('"threshold": 1.8');
+
+    wrapper.unmount();
+  });
+
+  it("creates, updates, and deletes a strategy instance with bindings", async () => {
+    vi.stubGlobal(
+      "fetch",
+      buildFetchMock({
+        brokerRuntime: buildRuntimeAccount({
+          descriptor: {
+            ...emptyBrokerRuntime.descriptor,
+            id: "futu",
+          },
+          accounts: [
+            {
+              accountId: "123456",
+              tradingEnvironment: "SIMULATE",
+              marketAuthorities: ["US"],
+              securityFirm: "futu-securities",
+            },
+          ],
+        }),
+        definitions: [
+          {
+            id: "dsl-breakout",
+            name: "DSL Breakout",
+            version: "0.1.0",
+            description: "dsl strategy",
+            runtime: "dsl-go-plan",
+            script: buildDslScript("DSL Breakout"),
+            createdAt: "2026-05-23T00:00:00.000Z",
+            updatedAt: "2026-05-23T00:00:00.000Z",
+          },
+        ],
+        strategies: [],
+      }),
+    );
+    vi.stubGlobal(
+      "EventSource",
+      MockEventSource as unknown as typeof EventSource,
+    );
+    vi.stubGlobal("confirm", vi.fn().mockReturnValue(true));
+
+    const { wrapper } = await mountStrategyPage("/strategy");
+    await openStrategyWorkspaceTab(wrapper, "runtime");
+
+    expect(wrapper.find('[data-testid="strategy-create-instance-panel"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="strategy-current-binding-summary"]').exists()).toBe(false);
+    expect(wrapper.text()).not.toContain("运行控制");
+
+    await openCreateInstancePanel(wrapper);
+
+    await appendSymbolTags(wrapper, '[data-testid="strategy-instance-symbols"]', ["us:aapl", "hk:00700"]);
+    await wrapper.get('[data-testid="strategy-instance-interval"]').setValue("15m");
+    await wrapper.get('[data-testid="strategy-instance-execution-mode"]').setValue("notify_only");
+    await wrapper.get('[data-testid="strategy-create-instance"]').trigger("click");
+    await settleStrategyWorkspace();
+
+    expect(wrapper.text()).toContain("DSL Breakout");
+    expect(wrapper.text()).toContain("US.AAPL, HK.00700");
+    expect(wrapper.text()).toContain("15m");
+    expect(wrapper.text()).toContain("仅通知");
+
+    expect(wrapper.find('[data-testid="strategy-edit-instance-panel"]').exists()).toBe(false);
+    await wrapper.get('[data-testid="strategy-current-binding-summary"]').trigger("click");
+    await settleStrategyWorkspace();
+
+    expect(wrapper.find('[data-testid="strategy-edit-instance-panel"]').exists()).toBe(true);
+
+    await appendSymbolTags(wrapper, '[data-testid="strategy-edit-symbols"]', ["us:msft"]);
+    await wrapper.get('[data-testid="strategy-edit-interval"]').setValue("30m");
+    await wrapper.get('[data-testid="strategy-edit-execution-mode"]').setValue("live");
+    await wrapper.get('[data-testid="strategy-update-binding"]').trigger("click");
+    await settleStrategyWorkspace();
+
+    expect(wrapper.text()).toContain("US.MSFT");
+    expect(wrapper.text()).toContain("30m");
+    expect(wrapper.text()).toContain("已更新实例绑定");
+
+    await wrapper.get('[data-testid="strategy-current-binding-summary"]').trigger("click");
+    await settleStrategyWorkspace();
+
+    await wrapper.get('[data-testid="strategy-delete-instance"]').trigger("click");
+    await settleStrategyWorkspace();
+
+    expect(wrapper.text()).toContain("暂无策略实例");
+
+    wrapper.unmount();
+  });
+
+  it("shows the add menu and expands the instance composer only on demand", async () => {
+    vi.stubGlobal(
+      "fetch",
+      buildFetchMock({
+        definitions: [
+          {
+            id: "dsl-breakout",
+            name: "DSL Breakout",
+            version: "0.1.0",
+            description: "dsl strategy",
+            runtime: "dsl-go-plan",
+            script: buildDslScript("DSL Breakout"),
+            createdAt: "2026-05-23T00:00:00.000Z",
+            updatedAt: "2026-05-23T00:00:00.000Z",
+          },
+        ],
+        strategies: [],
+      }),
+    );
+    vi.stubGlobal(
+      "EventSource",
+      MockEventSource as unknown as typeof EventSource,
+    );
+
+    const { wrapper } = await mountStrategyPage("/strategy");
+    await openStrategyWorkspaceTab(wrapper, "runtime");
+
+    expect(wrapper.find('[data-testid="strategy-create-instance-panel"]').exists()).toBe(false);
+
+    await wrapper.get('[data-testid="strategy-create-menu-toggle"]').trigger("click");
+    await settleStrategyWorkspace();
+
+    expect(wrapper.text()).toContain("新增策略");
+    expect(wrapper.text()).toContain("新增实例");
+
+    await wrapper.get('[data-testid="strategy-new-instance"]').trigger("click");
+    await settleStrategyWorkspace();
+
+    expect(wrapper.find('[data-testid="strategy-create-instance-panel"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="strategy-instance-dialog"]').exists()).toBe(true);
+
+    await wrapper.get('[data-testid="strategy-create-instance-close"]').trigger("click");
+    await settleStrategyWorkspace();
+
+    expect(wrapper.find('[data-testid="strategy-create-instance-panel"]').exists()).toBe(false);
+
+    wrapper.unmount();
+  });
+
+  it("tokenizes pasted symbols into tags in the instance composer", async () => {
+    vi.stubGlobal(
+      "fetch",
+      buildFetchMock({
+        definitions: [
+          {
+            id: "dsl-breakout",
+            name: "DSL Breakout",
+            version: "0.1.0",
+            description: "dsl strategy",
+            runtime: "dsl-go-plan",
+            script: buildDslScript("DSL Breakout"),
+            createdAt: "2026-05-23T00:00:00.000Z",
+            updatedAt: "2026-05-23T00:00:00.000Z",
+          },
+        ],
+        strategies: [],
+      }),
+    );
+    vi.stubGlobal(
+      "EventSource",
+      MockEventSource as unknown as typeof EventSource,
+    );
+
+    const { wrapper } = await mountStrategyPage("/strategy");
+    await openStrategyWorkspaceTab(wrapper, "runtime");
+    await openCreateInstancePanel(wrapper);
+
+    await wrapper.get('[data-testid="strategy-instance-symbols"]').trigger("paste", {
+      clipboardData: {
+        getData: () => "us:tme\nhk:00700",
+      },
+    });
+    await settleStrategyWorkspace();
+
+    expect(wrapper.text()).toContain("US.TME");
+    expect(wrapper.text()).toContain("HK.00700");
+
+    wrapper.unmount();
+  });
+
+  it("filters broker accounts in the searchable selector", async () => {
+    vi.stubGlobal(
+      "fetch",
+      buildFetchMock({
+      brokerRuntime: buildRuntimeAccount({
+        descriptor: {
+          ...emptyBrokerRuntime.descriptor,
+          id: "futu",
+        },
+        accounts: [
+          {
+            accountId: "123456",
+            tradingEnvironment: "SIMULATE",
+            marketAuthorities: ["US"],
+            securityFirm: "futu-securities",
+          },
+          {
+            accountId: "654321",
+            tradingEnvironment: "REAL",
+            marketAuthorities: ["HK"],
+            securityFirm: "futu-securities",
+          },
+        ],
+      }),
+      definitions: [
+        {
+          id: "dsl-breakout",
+          name: "DSL Breakout",
+          version: "0.1.0",
+          description: "dsl strategy",
+          runtime: "dsl-go-plan",
+          script: buildDslScript("DSL Breakout"),
+          createdAt: "2026-05-23T00:00:00.000Z",
+          updatedAt: "2026-05-23T00:00:00.000Z",
+        },
+      ],
+      strategies: [],
+      }),
+    );
+    vi.stubGlobal(
+      "EventSource",
+      MockEventSource as unknown as typeof EventSource,
+    );
+
+    const { wrapper } = await mountStrategyPage("/strategy");
+    expect(currentConsoleDataStore).not.toBeNull();
+    currentConsoleDataStore!.brokerSettings.value = {
+      ...emptyBrokerSettings,
+      accounts: [
+        {
+          id: "managed-1",
+          brokerId: "futu",
+          accountId: "123456",
+          displayName: "模拟 US 123456",
+          tradingEnvironment: "SIMULATE",
+          market: "US",
+          securityFirm: "futu-securities",
+          enabled: true,
+          createdAt: "2026-05-23T00:00:00.000Z",
+          updatedAt: "2026-05-23T00:00:00.000Z",
+        },
+        {
+          id: "managed-2",
+          brokerId: "futu",
+          accountId: "654321",
+          displayName: "实盘 HK 654321",
+          tradingEnvironment: "REAL",
+          market: "HK",
+          securityFirm: "futu-securities",
+          enabled: true,
+          createdAt: "2026-05-23T00:00:00.000Z",
+          updatedAt: "2026-05-23T00:00:00.000Z",
+        },
+      ],
+    };
+    currentConsoleDataStore!.brokerRuntime.value = buildRuntimeAccount({
+      descriptor: {
+        ...emptyBrokerRuntime.descriptor,
+        id: "futu",
+      },
+      accounts: [
+        {
+          accountId: "123456",
+          tradingEnvironment: "SIMULATE",
+          marketAuthorities: ["US"],
+          securityFirm: "futu-securities",
+        },
+        {
+          accountId: "654321",
+          tradingEnvironment: "REAL",
+          marketAuthorities: ["HK"],
+          securityFirm: "futu-securities",
+        },
+      ],
+    });
+    await settleStrategyWorkspace();
+    await openStrategyWorkspaceTab(wrapper, "runtime");
+    await openCreateInstancePanel(wrapper);
+
+    await wrapper.get('[data-testid="strategy-instance-account"]').trigger("click");
+    await settleStrategyWorkspace();
+    await wrapper.get('[data-testid="strategy-instance-account-search"]').setValue("654321");
+    await settleStrategyWorkspace();
+
+    expect(wrapper.find('[data-testid="strategy-instance-account-option-654321"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="strategy-instance-account-option-123456"]').exists()).toBe(false);
+
+    await wrapper.get('[data-testid="strategy-instance-account-option-654321"]').trigger("click");
+    await settleStrategyWorkspace();
+
+    expect(wrapper.get('[data-testid="strategy-instance-account"]').text()).toContain("654321");
+
+    wrapper.unmount();
+  });
+
+  it("clears invalid symbols on blur and blocks instance creation", async () => {
+    const fetchMock = buildFetchMock({
+      definitions: [
+        {
+          id: "dsl-breakout",
+          name: "DSL Breakout",
+          version: "0.1.0",
+          description: "dsl strategy",
+          runtime: "dsl-go-plan",
+          script: buildDslScript("DSL Breakout"),
+          createdAt: "2026-05-23T00:00:00.000Z",
+          updatedAt: "2026-05-23T00:00:00.000Z",
+        },
+      ],
+      strategies: [],
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal(
+      "EventSource",
+      MockEventSource as unknown as typeof EventSource,
+    );
+
+    const { wrapper } = await mountStrategyPage("/strategy");
+    await openStrategyWorkspaceTab(wrapper, "runtime");
+    await openCreateInstancePanel(wrapper);
+
+    const symbolInput = wrapper.get('[data-testid="strategy-instance-symbols"]');
+    await symbolInput.setValue("tme");
+    await symbolInput.trigger("blur");
+    await settleStrategyWorkspace();
+
+    expect((wrapper.get('[data-testid="strategy-instance-symbols"]').element as HTMLInputElement).value).toBe("");
+    expect(wrapper.get('[data-testid="strategy-instance-symbols-validation"]').text()).toContain("带市场前缀");
+
+    await wrapper.get('[data-testid="strategy-create-instance"]').trigger("click");
+    await settleStrategyWorkspace();
+
+    expect(
+      fetchMock.mock.calls.some(([input, init]) => (
+        String(input).includes("/instantiate")
+        && init?.method === "POST"
+      )),
+    ).toBe(false);
+    expect(wrapper.text()).toContain("已忽略无效交易代码");
 
     wrapper.unmount();
   });
@@ -602,8 +1269,112 @@ describe("Strategy page", () => {
     await flushRequests();
 
     expect(wrapper.text()).toContain("paused strategy execution");
+
+    await wrapper.get('[data-testid="strategy-activity-tab-audit"]').trigger("click");
+    await settleStrategyWorkspace();
+
     expect(wrapper.text()).toContain("manual pause");
     expect(wrapper.text()).toContain("已启用");
+
+    wrapper.unmount();
+  });
+
+  it("shows runtime observation details for the selected strategy instance", async () => {
+    vi.stubGlobal(
+      "fetch",
+      buildFetchMock({
+        strategies: [
+          {
+            id: "instance-1",
+            definition: {
+              strategyId: "s-alpha",
+              name: "Alpha",
+              version: "1.0.0",
+            },
+            params: { fast: 5 },
+            status: "RUNNING",
+            createdAt: "2026-05-16T00:00:00.000Z",
+            logs: [],
+            runtimeObservation: {
+              actualStatus: "RUNNING",
+              activeSymbols: ["US.AAPL", "US.MSFT"],
+              lastClosedKlineAt: "2026-05-16T00:03:00.000Z",
+              lastSignalAt: "2026-05-16T00:03:05.000Z",
+              lastOrderAt: "2026-05-16T00:03:06.000Z",
+              lastErrorAt: "2026-05-16T00:02:59.000Z",
+              lastError: "network glitch",
+              updatedAt: "2026-05-16T00:03:06.000Z",
+            },
+          },
+        ],
+      }),
+    );
+    vi.stubGlobal(
+      "EventSource",
+      MockEventSource as unknown as typeof EventSource,
+    );
+
+    const { wrapper } = await mountStrategyPage("/strategy");
+    await openStrategyWorkspaceTab(wrapper, "runtime");
+
+    await wrapper.get('[data-testid="strategy-instance-1"]').trigger("click");
+    await flushRequests();
+
+    expect(wrapper.find('[data-testid="strategy-runtime-observation"]').exists()).toBe(true);
+    expect(wrapper.text()).toContain("实际运行态");
+    expect(wrapper.text()).toContain("US.AAPL, US.MSFT");
+    expect(wrapper.text()).toContain("2026-05-16 00:03:00Z");
+    expect(wrapper.text()).toContain("network glitch");
+
+    wrapper.unmount();
+  });
+
+  it("counts only actual running runtime observations in the runtime header", async () => {
+    vi.stubGlobal(
+      "fetch",
+      buildFetchMock({
+        strategies: [
+          {
+            id: "instance-running",
+            definition: {
+              strategyId: "s-alpha",
+              name: "Alpha",
+              version: "1.0.0",
+            },
+            params: { fast: 5 },
+            status: "RUNNING",
+            createdAt: "2026-05-16T00:00:00.000Z",
+            logs: [],
+            runtimeObservation: {
+              actualStatus: "RUNNING",
+              activeSymbols: ["US.AAPL"],
+            },
+          },
+          {
+            id: "instance-stale",
+            definition: {
+              strategyId: "s-beta",
+              name: "Beta",
+              version: "1.0.0",
+            },
+            params: { slow: 13 },
+            status: "PAUSED",
+            createdAt: "2026-05-16T00:02:00.000Z",
+            logs: [],
+          },
+        ],
+      }),
+    );
+    vi.stubGlobal(
+      "EventSource",
+      MockEventSource as unknown as typeof EventSource,
+    );
+
+    const { wrapper } = await mountStrategyPage("/strategy");
+    await openStrategyWorkspaceTab(wrapper, "runtime");
+
+    expect(wrapper.text()).toContain("1 个活跃实例");
+    expect(wrapper.text()).toContain("1 个运行中");
 
     wrapper.unmount();
   });
@@ -1468,8 +2239,6 @@ describe("Strategy page", () => {
     const nextScript = [
       "strategy DSL Handwritten",
       "version 0.2.0",
-      "symbol 00700",
-      "interval 1m",
       "on kline_close:",
       "  notify \"close signal\"",
       "  let rsi14 = rsi(14)",
@@ -1789,17 +2558,17 @@ describe("Strategy page", () => {
     await flushRequests();
 
     await wrapper
-      .get('[data-testid="strategy-basic-info-section"] input[placeholder="00700"]')
+      .get('[data-testid="strategy-basic-info-section"] input[placeholder="例如：双均线观察策略"]')
       .setValue("");
     await wrapper.get('[data-testid="save-strategy-definition"]').trigger("click");
     await flushRequests();
 
-    expect(wrapper.text()).toContain("标的不能为空。");
+    expect(wrapper.text()).toContain("策略名称不能为空。");
 
     await wrapper.get('[data-testid="dismiss-strategy-error-banner"]').trigger("click");
     await flushRequests();
 
-    expect(wrapper.text()).not.toContain("标的不能为空。");
+    expect(wrapper.text()).not.toContain("策略名称不能为空。");
     expect(wrapper.find('[data-testid="dismiss-strategy-error-banner"]').exists()).toBe(false);
 
     wrapper.unmount();
