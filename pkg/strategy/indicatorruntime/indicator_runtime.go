@@ -1,4 +1,4 @@
-package quickjs
+package indicatorruntime
 
 import (
 	"math"
@@ -8,6 +8,7 @@ import (
 
 	"github.com/c9s/bbgo/pkg/types"
 	"github.com/jftrade/jftrade-main/pkg/futu"
+	strategyir "github.com/jftrade/jftrade-main/pkg/strategy/ir"
 )
 
 const minimumIndicatorSeriesLimit = 256
@@ -27,6 +28,18 @@ type indicatorRuntime struct {
 
 func newIndicatorRuntime(script string, interval types.Interval, symbol string) *indicatorRuntime {
 	requirements := parseIndicatorRequirements(script)
+	return newIndicatorRuntimeWithRequirements(requirements, interval, symbol)
+}
+
+func newIndicatorRuntimeFromPlan(plan strategyir.Requirements, interval types.Interval, symbol string) (*indicatorRuntime, error) {
+	requirements, err := indicatorRequirementsFromPlan(plan)
+	if err != nil {
+		return nil, err
+	}
+	return newIndicatorRuntimeWithRequirements(requirements, interval, symbol), nil
+}
+
+func newIndicatorRuntimeWithRequirements(requirements indicatorRequirements, interval types.Interval, symbol string) *indicatorRuntime {
 	if requirements.isEmpty() {
 		return nil
 	}

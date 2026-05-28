@@ -421,7 +421,7 @@ function scheduleMarketDataAutoRefresh(): void {
                 clearable
                 density="compact"
                 variant="outlined"
-                @update:model-value="val => val && selectInstrumentSuggestion({ value: String(val) })"
+                @update:model-value="(val: string | null | undefined) => val && selectInstrumentSuggestion({ value: String(val) })"
               />
               <div class="mt-1 text-xs text-slate-500">
                 当前标的：<span class="font-medium text-slate-700">{{ selectedInstrumentTitle }}</span>

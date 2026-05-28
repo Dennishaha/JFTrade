@@ -68,7 +68,7 @@ flowchart LR
 - `/api/v1/settings/*`：Broker 配置持久化和运行时注入
 - `/api/v1/system/*`：状态、诊断、OpenD 探针、通知
 - `/api/v1/market-data/*`：订阅、快照、K 线查询
-- `/api/v1/strategy-definitions/*`：QuickJS 策略定义、实例化、visualModel 持久化
+- `/api/v1/strategy-definitions/*`：DSL 策略定义、实例化、visualModel 持久化
 - `/api/v1/ws/live`：实时心跳、tick、系统通知
 - 与 bbgo notifier 的桥接缓存
 
@@ -105,7 +105,7 @@ flowchart LR
 - 行情快照和 K 线查询来自 sidecar
 - 实时 tick 来自 `/api/v1/ws/live`
 - 交易环境、市场、连接状态、订单状态和风控状态等枚举值在前端展示时通过 `apps/web/src/composables/consoleDataFormatting.ts` 统一转成中文标签，避免修改 API 原始值
-- 策略设计工作区同时承载 Logic Flow visualModel 与 QuickJS script，浏览器内代码编辑使用 Monaco，测试环境回退 textarea
+- 策略设计工作区同时承载 Logic Flow visualModel 与 DSL script，浏览器内代码编辑使用 Monaco，测试环境回退 textarea
 
 ## 请求与数据流
 
@@ -127,14 +127,14 @@ apps/web
   -> /api/v1/strategy-definitions/*
   -> pkg/jftradeapi/strategy_routes.go
   -> strategy_design_store / strategy_catalog_store
-  -> QuickJS strategy definition + optional visualModel persistence
+  -> DSL strategy definition + optional visualModel persistence
 ```
 
 这条链路当前有四个重要约束：
 
-- 策略定义同时保存 QuickJS script 和可选 `visualModel`，两者都属于控制平面数据。
-- 前端支持 Logic Flow 可视化编辑和纯代码编辑，但当前没有“代码反解回图”的能力。
-- 加载已有定义时保留已保存脚本；只有显式同步或修改图块参数后，才会重新生成 QuickJS。
+- 策略定义同时保存 DSL 源码和可选 `visualModel`，二者都属于控制平面数据。
+- 前端支持 Logic Flow 可视化编辑和纯代码编辑，图块不变；可视模型会生成 DSL，DSL 会统一交给后端解析、规划并编译成 Go runtime 可消费的 IR。
+- 加载已有定义时优先保留已保存的 `visualModel`；只有显式同步或修改图块参数后，才会重新生成 DSL。
 - 设计页的浏览器代码编辑器使用 Monaco，但前端测试仍走 textarea 回退，避免 jsdom 初始化重量级编辑器。
 
 ### 实时行情链路
@@ -215,7 +215,7 @@ sidecar 当前负责把 Futu 系统通知和 bbgo 通知收束到同一条前端
 
 1. 改启动方式、运行模式、环境变量：先看 [../cmd/jftrade/main.go](../cmd/jftrade/main.go)
 2. 改前端 API、系统状态、设置：先看 [../pkg/jftradeapi/server.go](../pkg/jftradeapi/server.go)
-3. 改策略定义、模板、QuickJS/Logic Flow 同步：先看 [../pkg/jftradeapi/strategy_routes.go](../pkg/jftradeapi/strategy_routes.go)、[../pkg/jftradeapi/strategy_design_store.go](../pkg/jftradeapi/strategy_design_store.go)、[../apps/web/src/pages/StrategyPage.vue](../apps/web/src/pages/StrategyPage.vue) 和 [../apps/web/src/features/strategyVisualBuilder.ts](../apps/web/src/features/strategyVisualBuilder.ts)
+3. 改策略定义、模板、DSL/Logic Flow 同步：先看 [../pkg/jftradeapi/strategy_routes.go](../pkg/jftradeapi/strategy_routes.go)、[../pkg/jftradeapi/strategy_design_store.go](../pkg/jftradeapi/strategy_design_store.go)、[../apps/web/src/pages/StrategyPage.vue](../apps/web/src/pages/StrategyPage.vue) 和 [../apps/web/src/features/strategyVisualBuilder.ts](../apps/web/src/features/strategyVisualBuilder.ts)
 4. 改行情订阅、实时推送、通知：先看 [../pkg/jftradeapi/market_routes.go](../pkg/jftradeapi/market_routes.go) 和 [../pkg/jftradeapi/market_live.go](../pkg/jftradeapi/market_live.go)
 5. 改 Futu 协议、映射、连接：先看 [../pkg/futu/exchange.go](../pkg/futu/exchange.go) 与 reference 层文档
 6. 改实时 K 线：先看 [frontend-kline.md](frontend-kline.md)
@@ -236,7 +236,7 @@ sidecar 当前负责把 Futu 系统通知和 bbgo 通知收束到同一条前端
 
 - `store.go` — 实现 `service.BackTestable` 接口，管理 `futu_klines` 表
 - `sync.go` — 从 Futu OpenD 增量同步 K 线数据到 SQLite
-- `runner.go` — 回测执行编排，创建 bbgo backtest.Exchange 并运行策略
+- `runner.go` — 回测执行编排，创建 bbgo backtest.Exchange，并运行纯 Go DSL 策略
 
 ### 6.2 历史数据管线
 
@@ -248,7 +248,7 @@ OpenD Qot_RequestHistoryKL (3103)
         → backtest.FutuKLineStore.QueryKLinesBackward/Forward()
           → bbgo backtest.Exchange
             → SimplePriceMatching (bar close 撮合)
-              → QuickJS onKLineClosed → placeOrder/cancelOrder
+              → DSL Go executor → placeOrder/cancelOrder
 ```
 
 ### 6.3 操作入口
@@ -267,11 +267,14 @@ OpenD Qot_RequestHistoryKL (3103)
 
 ### 6.5 策略回测感知
 
-QuickJS 策略可通过 `ctx.isBacktest` 判断当前运行环境：
-```javascript
-function onInit(ctx) {
-  if (ctx.isBacktest) {
-    console.log("Running in backtest mode");
-  }
-}
+DSL 策略通过纯 Go executor 在回测和实盘泵线里执行同一套条件判断与下单逻辑：
+```text
+strategy BacktestAware
+version 0.1.0
+
+on init:
+  log "strategy initialized"
+
+on kline_close:
+  log "kline closed"
 ```

@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 )
 
 func TestStrategyDesignStoreLoadMigratesLegacyMovingAverageDefinitions(t *testing.T) {
@@ -16,10 +18,11 @@ func TestStrategyDesignStoreLoadMigratesLegacyMovingAverageDefinitions(t *testin
 	      "name": "Legacy MA",
 	      "version": "0.1.0",
 	      "description": "legacy builder payload",
-	      "runtime": "quickjs-js",
+	      "runtime": "legacy-runtime",
+	      "sourceFormat": "legacy-v0",
 	      "symbol": "00700",
 	      "interval": "1m",
-	      "script": "function onKLineClosed(ctx) { const fast = ctx.indicators[\"ma:EMA:5\"]; const slow = ctx.indicators[\"ma:20\"]; return fast && slow; }",
+	      "script": "",
 	      "visualModel": {
 	        "engine": "logic-flow",
 	        "version": 1,
@@ -71,11 +74,14 @@ func TestStrategyDesignStoreLoadMigratesLegacyMovingAverageDefinitions(t *testin
 	if !ok {
 		t.Fatal("expected migrated definition to exist")
 	}
-	if !strings.Contains(definition.Script, `ma:EMA:5:day`) {
-		t.Fatalf("expected fast MA script to migrate to day semantics, got %q", definition.Script)
+	if !strings.Contains(definition.Script, `strategy Legacy MA`) {
+		t.Fatalf("expected empty legacy script to fall back to the default DSL skeleton, got %q", definition.Script)
 	}
-	if !strings.Contains(definition.Script, `ma:MA:20:day`) {
-		t.Fatalf("expected slow MA script to migrate to day semantics, got %q", definition.Script)
+	if definition.SourceFormat != strategydefinition.SourceFormatDSLV1 {
+		t.Fatalf("expected strategy source format to normalize to DSL, got %q", definition.SourceFormat)
+	}
+	if definition.Runtime != strategyRuntimeDSLPlan {
+		t.Fatalf("expected strategy runtime to normalize to DSL plan, got %q", definition.Runtime)
 	}
 	if definition.VisualModel == nil || len(definition.VisualModel.Nodes) != 2 {
 		t.Fatalf("expected migrated visual model nodes, got %+v", definition.VisualModel)
@@ -91,10 +97,62 @@ func TestStrategyDesignStoreLoadMigratesLegacyMovingAverageDefinitions(t *testin
 		t.Fatalf("read migrated definitions: %v", err)
 	}
 	persistedText := string(persisted)
+	if !strings.Contains(persistedText, `"sourceFormat": "dsl-v1"`) {
+		t.Fatalf("expected migrated file to persist sourceFormat, got %s", persistedText)
+	}
+	if !strings.Contains(persistedText, `"runtime": "dsl-go-plan"`) {
+		t.Fatalf("expected migrated file to persist DSL runtime, got %s", persistedText)
+	}
 	if !strings.Contains(persistedText, `"periodUnit": "day"`) {
 		t.Fatalf("expected migrated file to persist visualModel day semantics, got %s", persistedText)
 	}
-	if !strings.Contains(persistedText, `ma:EMA:5:day`) || !strings.Contains(persistedText, `ma:MA:20:day`) {
-		t.Fatalf("expected migrated file to persist day semantic MA keys, got %s", persistedText)
+	if !strings.Contains(persistedText, `strategy Legacy MA`) {
+		t.Fatalf("expected migrated file to persist the DSL fallback script, got %s", persistedText)
+	}
+}
+
+func TestStrategyDesignStoreLoadReplacesRemovedRuntimeScriptWithDSL(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "strategy-definitions.json")
+	legacy := `{
+	  "definitions": [
+	    {
+	      "id": "removed-runtime-strategy",
+	      "name": "Removed Runtime Strategy",
+	      "version": "0.1.0",
+	      "description": "legacy script payload",
+	      "runtime": "removed-script-runtime",
+	      "sourceFormat": "removed-script-source",
+	      "symbol": "00700",
+	      "interval": "1m",
+	      "script": "function onInit(ctx) { console.log(ctx.symbol); }",
+	      "createdAt": "2026-05-26T00:00:00Z",
+	      "updatedAt": "2026-05-26T00:00:00Z"
+	    }
+	  ]
+	}`
+	if err := os.WriteFile(path, []byte(legacy), 0o600); err != nil {
+		t.Fatalf("write legacy definitions: %v", err)
+	}
+
+	store, err := NewStrategyDesignStore(path)
+	if err != nil {
+		t.Fatalf("NewStrategyDesignStore: %v", err)
+	}
+
+	definition, ok := store.definition("removed-runtime-strategy")
+	if !ok {
+		t.Fatal("expected migrated definition to exist")
+	}
+	if strings.Contains(definition.Script, "function onInit") {
+		t.Fatalf("expected removed runtime script to be replaced, got %q", definition.Script)
+	}
+	if !strings.Contains(definition.Script, "strategy Removed Runtime Strategy") {
+		t.Fatalf("expected migrated DSL skeleton, got %q", definition.Script)
+	}
+	if definition.SourceFormat != strategydefinition.SourceFormatDSLV1 {
+		t.Fatalf("expected DSL source format, got %q", definition.SourceFormat)
+	}
+	if definition.Runtime != strategyRuntimeDSLPlan {
+		t.Fatalf("expected DSL runtime, got %q", definition.Runtime)
 	}
 }

@@ -1,4 +1,4 @@
-package quickjs
+package indicatorruntime
 
 func calculateRSIDivergence(closes []float64, config rsiDivergenceConfig) bool {
 	series := calculateRSISeries(closes, config.period)

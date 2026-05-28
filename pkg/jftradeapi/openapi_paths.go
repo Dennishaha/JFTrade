@@ -304,27 +304,27 @@ func buildOpenAPIPaths(genericObject map[string]any) map[string]any {
 			"get": operation("读取插件卸载指引", "返回当前插件的本地卸载路径与命令。", []string{"strategy"}, []any{pathParameter("pluginId", "插件 ID", "demo-plugin")}, nil, map[string]any{"200": jsonResponse("卸载指引", envelopeSchema(genericObject)), "404": jsonResponse("插件不存在", envelopeSchema(nil))}),
 		},
 		"/api/v1/strategy-definitions": map[string]any{
-			"get":  operation("读取 JS 策略定义列表", "返回当前通过 QuickJS 设计的策略定义。", []string{"strategy"}, nil, nil, map[string]any{"200": jsonResponse("策略定义列表", envelopeSchema(map[string]any{"type": "array", "items": schemaRef("StrategyDefinition")}))}),
-			"post": operation("创建 JS 策略定义", "创建一个新的 QuickJS JS 策略定义。", []string{"strategy"}, nil, jsonRequestBody(schemaRef("StrategyDefinitionWriteRequest"), true), map[string]any{"200": jsonResponse("创建后的策略定义", envelopeSchema(schemaRef("StrategyDefinition"))), "400": jsonResponse("请求错误", envelopeSchema(nil))}),
+			"get":  operation("读取策略定义列表", "返回当前 DSL 策略定义列表。", []string{"strategy"}, nil, nil, map[string]any{"200": jsonResponse("策略定义列表", envelopeSchema(map[string]any{"type": "array", "items": schemaRef("StrategyDefinition")}))}),
+			"post": operation("创建策略定义", "创建一个新的 DSL 策略定义。", []string{"strategy"}, nil, jsonRequestBody(schemaRef("StrategyDefinitionWriteRequest"), true), map[string]any{"200": jsonResponse("创建后的策略定义", envelopeSchema(schemaRef("StrategyDefinition"))), "400": jsonResponse("请求错误", envelopeSchema(nil))}),
 		},
 		"/api/v1/strategy-definitions/{definitionId}": map[string]any{
-			"get": operation("读取 JS 策略定义", "按 definitionId 返回 QuickJS JS 策略定义。", []string{"strategy"}, []any{pathParameter("definitionId", "策略定义 ID", "js-mean-revert")}, nil, map[string]any{"200": jsonResponse("策略定义", envelopeSchema(schemaRef("StrategyDefinition"))), "404": jsonResponse("策略定义不存在", envelopeSchema(nil))}),
-			"put": operation("更新 JS 策略定义", "按 definitionId 更新 QuickJS JS 策略定义。", []string{"strategy"}, []any{pathParameter("definitionId", "策略定义 ID", "js-mean-revert")}, jsonRequestBody(schemaRef("StrategyDefinitionWriteRequest"), true), map[string]any{"200": jsonResponse("更新后的策略定义", envelopeSchema(schemaRef("StrategyDefinition"))), "400": jsonResponse("请求错误", envelopeSchema(nil)), "404": jsonResponse("策略定义不存在", envelopeSchema(nil))}),
+			"get": operation("读取策略定义", "按 definitionId 返回 DSL 策略定义。", []string{"strategy"}, []any{pathParameter("definitionId", "策略定义 ID", "dsl-mean-revert")}, nil, map[string]any{"200": jsonResponse("策略定义", envelopeSchema(schemaRef("StrategyDefinition"))), "404": jsonResponse("策略定义不存在", envelopeSchema(nil))}),
+			"put": operation("更新策略定义", "按 definitionId 更新 DSL 策略定义。", []string{"strategy"}, []any{pathParameter("definitionId", "策略定义 ID", "dsl-mean-revert")}, jsonRequestBody(schemaRef("StrategyDefinitionWriteRequest"), true), map[string]any{"200": jsonResponse("更新后的策略定义", envelopeSchema(schemaRef("StrategyDefinition"))), "400": jsonResponse("请求错误", envelopeSchema(nil)), "404": jsonResponse("策略定义不存在", envelopeSchema(nil))}),
 		},
 		"/api/v1/strategy-definitions/{definitionId}/instantiate": map[string]any{
-			"post": operation("从定义创建策略实例", "基于保存的 QuickJS 策略定义创建一个运行时实例。", []string{"strategy"}, []any{pathParameter("definitionId", "策略定义 ID", "js-mean-revert")}, nil, map[string]any{"200": jsonResponse("策略实例", envelopeSchema(genericObject)), "400": jsonResponse("脚本校验失败", envelopeSchema(nil)), "404": jsonResponse("策略定义不存在", envelopeSchema(nil))}),
+			"post": operation("从定义创建策略实例", "基于保存的 DSL 策略定义创建一个运行时实例，并实例化为已编译计划。", []string{"strategy"}, []any{pathParameter("definitionId", "策略定义 ID", "dsl-mean-revert")}, nil, map[string]any{"200": jsonResponse("策略实例", envelopeSchema(schemaRef("StrategyInstance"))), "400": jsonResponse("脚本校验失败", envelopeSchema(nil)), "404": jsonResponse("策略定义不存在", envelopeSchema(nil))}),
 		},
 		"/api/v1/strategies": map[string]any{
-			"get": operation("读取策略列表", "返回当前策略实例列表。", []string{"strategy"}, nil, nil, map[string]any{"200": jsonResponse("策略列表", envelopeSchema(map[string]any{"type": "array", "items": genericObject}))}),
+			"get": operation("读取策略列表", "返回当前策略实例列表。", []string{"strategy"}, nil, nil, map[string]any{"200": jsonResponse("策略列表", envelopeSchema(map[string]any{"type": "array", "items": schemaRef("StrategyInstance")}))}),
 		},
 		"/api/v1/strategies/{instanceId}/start": map[string]any{
-			"post": operation("启动策略实例", "将策略实例切换到 RUNNING。当前实现先落控制面状态。", []string{"strategy"}, []any{pathParameter("instanceId", "策略实例 ID", "js-mean-revert-20260523")}, nil, map[string]any{"200": jsonResponse("策略实例", envelopeSchema(genericObject)), "404": jsonResponse("策略实例不存在", envelopeSchema(nil))}),
+			"post": operation("启动策略实例", "将可启动策略实例切换到 RUNNING。当前实现先落控制面状态。", []string{"strategy"}, []any{pathParameter("instanceId", "策略实例 ID", "dsl-mean-revert-20260523")}, nil, map[string]any{"200": jsonResponse("策略实例", envelopeSchema(schemaRef("StrategyInstance"))), "400": jsonResponse("实例当前不可启动", envelopeSchema(nil)), "404": jsonResponse("策略实例不存在", envelopeSchema(nil))}),
 		},
 		"/api/v1/strategies/{instanceId}/pause": map[string]any{
-			"post": operation("暂停策略实例", "将策略实例切换到 PAUSED。当前实现先落控制面状态。", []string{"strategy"}, []any{pathParameter("instanceId", "策略实例 ID", "js-mean-revert-20260523")}, nil, map[string]any{"200": jsonResponse("策略实例", envelopeSchema(genericObject)), "404": jsonResponse("策略实例不存在", envelopeSchema(nil))}),
+			"post": operation("暂停策略实例", "将策略实例切换到 PAUSED。当前实现先落控制面状态。", []string{"strategy"}, []any{pathParameter("instanceId", "策略实例 ID", "dsl-mean-revert-20260523")}, nil, map[string]any{"200": jsonResponse("策略实例", envelopeSchema(schemaRef("StrategyInstance"))), "404": jsonResponse("策略实例不存在", envelopeSchema(nil))}),
 		},
 		"/api/v1/strategies/{instanceId}/stop": map[string]any{
-			"post": operation("停止策略实例", "将策略实例切换到 STOPPED。当前实现先落控制面状态。", []string{"strategy"}, []any{pathParameter("instanceId", "策略实例 ID", "js-mean-revert-20260523")}, nil, map[string]any{"200": jsonResponse("策略实例", envelopeSchema(genericObject)), "404": jsonResponse("策略实例不存在", envelopeSchema(nil))}),
+			"post": operation("停止策略实例", "将策略实例切换到 STOPPED。当前实现先落控制面状态。", []string{"strategy"}, []any{pathParameter("instanceId", "策略实例 ID", "dsl-mean-revert-20260523")}, nil, map[string]any{"200": jsonResponse("策略实例", envelopeSchema(schemaRef("StrategyInstance"))), "404": jsonResponse("策略实例不存在", envelopeSchema(nil))}),
 		},
 		"/api/v1/strategies/{instanceId}/logs": map[string]any{
 			"get": operation(
@@ -333,7 +333,7 @@ func buildOpenAPIPaths(genericObject map[string]any) map[string]any {
 				[]string{"strategy"},
 				[]any{pathParameter("instanceId", "策略实例 ID", "demo-strategy")},
 				nil,
-				map[string]any{"200": jsonResponse("策略日志", envelopeSchema(genericObject))},
+				map[string]any{"200": jsonResponse("策略日志", envelopeSchema(schemaRef("StrategyLogsResponse")))},
 			),
 		},
 		"/api/v1/strategies/{instanceId}/audit": map[string]any{
@@ -343,7 +343,7 @@ func buildOpenAPIPaths(genericObject map[string]any) map[string]any {
 				[]string{"strategy"},
 				[]any{pathParameter("instanceId", "策略实例 ID", "demo-strategy")},
 				nil,
-				map[string]any{"200": jsonResponse("策略审计日志", envelopeSchema(genericObject))},
+				map[string]any{"200": jsonResponse("策略审计日志", envelopeSchema(schemaRef("StrategyAuditResponse")))},
 			),
 		},
 		"/api/v1/ws/live": map[string]any{

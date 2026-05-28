@@ -1,11 +1,14 @@
-package quickjs
+package indicatorruntime
 
 import (
+	"fmt"
 	"math"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
+
+	strategyir "github.com/jftrade/jftrade-main/pkg/strategy/ir"
 )
 
 var indicatorKeyPattern = regexp.MustCompile(`ctx\.indicators\[(?:"([^"]+)"|'([^']+)')\]`)
@@ -86,6 +89,33 @@ type kdjDivergenceConfig struct {
 }
 
 func parseIndicatorRequirements(script string) indicatorRequirements {
+	keys := make([]string, 0)
+	for _, match := range indicatorKeyPattern.FindAllStringSubmatch(script, -1) {
+		key := strings.TrimSpace(firstNonEmpty(match[1], match[2]))
+		if key == "" {
+			continue
+		}
+		keys = append(keys, key)
+	}
+
+	requirements, _ := parseIndicatorRequirementKeys(keys, false)
+	return requirements
+}
+
+func indicatorRequirementsFromPlan(plan strategyir.Requirements) (indicatorRequirements, error) {
+	keys := make([]string, 0, len(plan.Indicators))
+	for _, requirement := range plan.Indicators {
+		key := strings.TrimSpace(requirement.Key)
+		if key == "" {
+			continue
+		}
+		keys = append(keys, key)
+	}
+
+	return parseIndicatorRequirementKeys(keys, true)
+}
+
+func parseIndicatorRequirementKeys(keys []string, strict bool) (indicatorRequirements, error) {
 	maSet := map[movingAverageConfig]struct{}{}
 	rsiSet := map[int]struct{}{}
 	macdSet := map[macdConfig]struct{}{}
@@ -99,25 +129,49 @@ func parseIndicatorRequirements(script string) indicatorRequirements {
 	macdDivergenceSet := map[macdDivergenceConfig]struct{}{}
 	kdjDivergenceSet := map[kdjDivergenceConfig]struct{}{}
 
-	for _, match := range indicatorKeyPattern.FindAllStringSubmatch(script, -1) {
-		key := strings.TrimSpace(firstNonEmpty(match[1], match[2]))
-		parts := strings.Split(key, ":")
-		if len(parts) < 2 {
+	for _, rawKey := range keys {
+		key := strings.TrimSpace(rawKey)
+		if key == "" {
 			continue
 		}
+		parts := strings.Split(key, ":")
+		if len(parts) < 2 {
+			if strict {
+				return indicatorRequirements{}, fmt.Errorf("invalid indicator key: %s", key)
+			}
+			continue
+		}
+
 		switch parts[0] {
 		case "ma":
 			config, ok := parseMovingAverageConfig(parts)
 			if ok {
 				maSet[config] = struct{}{}
+				continue
+			}
+			if strict {
+				return indicatorRequirements{}, fmt.Errorf("invalid moving average key: %s", key)
 			}
 		case "rsi":
+			if len(parts) != 2 {
+				if strict {
+					return indicatorRequirements{}, fmt.Errorf("invalid rsi key: %s", key)
+				}
+				continue
+			}
 			period, ok := parsePositiveInt(parts[1])
 			if ok {
 				rsiSet[period] = struct{}{}
+				continue
+			}
+			if strict {
+				return indicatorRequirements{}, fmt.Errorf("invalid rsi key: %s", key)
 			}
 		case "macd":
 			if len(parts) != 4 {
+				if strict {
+					return indicatorRequirements{}, fmt.Errorf("invalid macd key: %s", key)
+				}
 				continue
 			}
 			fast, fastOK := parsePositiveInt(parts[1])
@@ -125,18 +179,32 @@ func parseIndicatorRequirements(script string) indicatorRequirements {
 			signal, signalOK := parsePositiveInt(parts[3])
 			if fastOK && slowOK && signalOK {
 				macdSet[macdConfig{fastPeriod: fast, slowPeriod: slow, signalPeriod: signal}] = struct{}{}
+				continue
+			}
+			if strict {
+				return indicatorRequirements{}, fmt.Errorf("invalid macd key: %s", key)
 			}
 		case "bollinger":
 			if len(parts) != 3 {
+				if strict {
+					return indicatorRequirements{}, fmt.Errorf("invalid bollinger key: %s", key)
+				}
 				continue
 			}
 			period, periodOK := parsePositiveInt(parts[1])
 			multiplier, multiplierErr := strconv.ParseFloat(parts[2], 64)
-			if periodOK && multiplierErr == nil {
+			if periodOK && multiplierErr == nil && multiplier > 0 {
 				bollingerSet[bollingerConfig{period: period, multiplier: multiplier}] = struct{}{}
+				continue
+			}
+			if strict {
+				return indicatorRequirements{}, fmt.Errorf("invalid bollinger key: %s", key)
 			}
 		case "kdj":
 			if len(parts) != 4 {
+				if strict {
+					return indicatorRequirements{}, fmt.Errorf("invalid kdj key: %s", key)
+				}
 				continue
 			}
 			period, periodOK := parsePositiveInt(parts[1])
@@ -144,47 +212,101 @@ func parseIndicatorRequirements(script string) indicatorRequirements {
 			m2, m2OK := parsePositiveInt(parts[3])
 			if periodOK && m1OK && m2OK {
 				kdjSet[kdjConfig{period: period, m1: m1, m2: m2}] = struct{}{}
+				continue
+			}
+			if strict {
+				return indicatorRequirements{}, fmt.Errorf("invalid kdj key: %s", key)
 			}
 		case "atr":
+			if len(parts) != 2 {
+				if strict {
+					return indicatorRequirements{}, fmt.Errorf("invalid atr key: %s", key)
+				}
+				continue
+			}
 			period, ok := parsePositiveInt(parts[1])
 			if ok {
 				atrSet[period] = struct{}{}
+				continue
+			}
+			if strict {
+				return indicatorRequirements{}, fmt.Errorf("invalid atr key: %s", key)
 			}
 		case "cci":
+			if len(parts) != 2 {
+				if strict {
+					return indicatorRequirements{}, fmt.Errorf("invalid cci key: %s", key)
+				}
+				continue
+			}
 			period, ok := parsePositiveInt(parts[1])
 			if ok {
 				cciSet[period] = struct{}{}
+				continue
+			}
+			if strict {
+				return indicatorRequirements{}, fmt.Errorf("invalid cci key: %s", key)
 			}
 		case "williamsr":
+			if len(parts) != 2 {
+				if strict {
+					return indicatorRequirements{}, fmt.Errorf("invalid williamsr key: %s", key)
+				}
+				continue
+			}
 			period, ok := parsePositiveInt(parts[1])
 			if ok {
 				williamsRSet[period] = struct{}{}
+				continue
+			}
+			if strict {
+				return indicatorRequirements{}, fmt.Errorf("invalid williamsr key: %s", key)
 			}
 		case "sl", "risk":
 			config, ok := parseStopLossConfig(parts)
 			if ok {
 				stopLossSet[config] = struct{}{}
+				continue
+			}
+			if strict {
+				return indicatorRequirements{}, fmt.Errorf("invalid risk key: %s", key)
 			}
 		case "divergence":
 			if len(parts) < 5 {
+				if strict {
+					return indicatorRequirements{}, fmt.Errorf("invalid divergence key: %s", key)
+				}
 				continue
 			}
 			direction := strings.TrimSpace(parts[len(parts)-2])
 			lookback, lookbackOK := parsePositiveInt(parts[len(parts)-1])
 			if !lookbackOK || (direction != "top" && direction != "bottom") {
+				if strict {
+					return indicatorRequirements{}, fmt.Errorf("invalid divergence key: %s", key)
+				}
 				continue
 			}
 			switch parts[1] {
 			case "rsi":
 				if len(parts) != 5 {
+					if strict {
+						return indicatorRequirements{}, fmt.Errorf("invalid divergence key: %s", key)
+					}
 					continue
 				}
 				period, ok := parsePositiveInt(parts[2])
 				if ok {
 					rsiDivergenceSet[rsiDivergenceConfig{period: period, direction: direction, lookback: lookback}] = struct{}{}
+					continue
+				}
+				if strict {
+					return indicatorRequirements{}, fmt.Errorf("invalid divergence key: %s", key)
 				}
 			case "macd":
 				if len(parts) != 7 {
+					if strict {
+						return indicatorRequirements{}, fmt.Errorf("invalid divergence key: %s", key)
+					}
 					continue
 				}
 				fast, fastOK := parsePositiveInt(parts[2])
@@ -192,9 +314,16 @@ func parseIndicatorRequirements(script string) indicatorRequirements {
 				signal, signalOK := parsePositiveInt(parts[4])
 				if fastOK && slowOK && signalOK {
 					macdDivergenceSet[macdDivergenceConfig{fastPeriod: fast, slowPeriod: slow, signalPeriod: signal, direction: direction, lookback: lookback}] = struct{}{}
+					continue
+				}
+				if strict {
+					return indicatorRequirements{}, fmt.Errorf("invalid divergence key: %s", key)
 				}
 			case "kdj":
 				if len(parts) != 7 {
+					if strict {
+						return indicatorRequirements{}, fmt.Errorf("invalid divergence key: %s", key)
+					}
 					continue
 				}
 				period, periodOK := parsePositiveInt(parts[2])
@@ -202,7 +331,19 @@ func parseIndicatorRequirements(script string) indicatorRequirements {
 				m2, m2OK := parsePositiveInt(parts[4])
 				if periodOK && m1OK && m2OK {
 					kdjDivergenceSet[kdjDivergenceConfig{period: period, m1: m1, m2: m2, direction: direction, lookback: lookback}] = struct{}{}
+					continue
 				}
+				if strict {
+					return indicatorRequirements{}, fmt.Errorf("invalid divergence key: %s", key)
+				}
+			default:
+				if strict {
+					return indicatorRequirements{}, fmt.Errorf("unsupported divergence key: %s", key)
+				}
+			}
+		default:
+			if strict {
+				return indicatorRequirements{}, fmt.Errorf("unsupported indicator key: %s", key)
 			}
 		}
 	}
@@ -220,7 +361,7 @@ func parseIndicatorRequirements(script string) indicatorRequirements {
 		rsiDivergence:  sortedRSIDivergenceConfigs(rsiDivergenceSet),
 		macdDivergence: sortedMACDDivergenceConfigs(macdDivergenceSet),
 		kdjDivergence:  sortedKDJDivergenceConfigs(kdjDivergenceSet),
-	}
+	}, nil
 }
 
 func (r indicatorRequirements) isEmpty() bool {

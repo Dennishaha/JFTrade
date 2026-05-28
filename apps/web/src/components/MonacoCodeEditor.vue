@@ -486,6 +486,97 @@ function getMonacoTheme(): "vs" | "vs-dark" {
   return theme.value === "light" ? "vs" : "vs-dark";
 }
 
+function ensureJftradeDslLanguage(monacoInstance: MonacoModule): void {
+  const languageId = "jftrade-dsl";
+  if (!monacoInstance.languages.getLanguages().some((language) => language.id === languageId)) {
+    monacoInstance.languages.register({ id: languageId });
+  }
+
+  monacoInstance.languages.setLanguageConfiguration(languageId, {
+    comments: { lineComment: "#" },
+    brackets: [["(", ")"]],
+    autoClosingPairs: [
+      { open: '"', close: '"' },
+      { open: "'", close: "'" },
+      { open: "(", close: ")" },
+    ],
+    surroundingPairs: [
+      { open: '"', close: '"' },
+      { open: "'", close: "'" },
+      { open: "(", close: ")" },
+    ],
+    indentationRules: {
+      increaseIndentPattern: /^\s*(on\s+(?:init|kline_close)|if\s+.+|else)\s*:\s*(?:#.*)?$/,
+      decreaseIndentPattern: /^\s*else\s*:\s*(?:#.*)?$/,
+    },
+  });
+
+  monacoInstance.languages.setMonarchTokensProvider(languageId, {
+    defaultToken: "",
+    tokenPostfix: ".dsl",
+    keywords: [
+      "strategy",
+      "version",
+      "symbol",
+      "interval",
+      "on",
+      "init",
+      "kline_close",
+      "let",
+      "if",
+      "else",
+      "log",
+      "notify",
+      "buy",
+      "sell",
+      "short",
+      "cover",
+      "protect",
+      "policy",
+      "limit",
+      "type",
+      "window",
+      "and",
+      "or",
+      "not",
+    ],
+    functions: [
+      "ma",
+      "rsi",
+      "macd",
+      "kdj",
+      "bollinger",
+      "atr",
+      "cci",
+      "williams_r",
+      "williamsr",
+      "cross_over",
+      "cross_under",
+      "divergence_top",
+      "divergence_bottom",
+      "abs",
+    ],
+    tokenizer: {
+      root: [
+        [/#.*$/, "comment"],
+        [/"([^"\\]|\\.)*$/, "string.invalid"],
+        [/"([^"\\]|\\.)*"/, "string"],
+        [/'([^'\\]|\\.)*'/, "string"],
+        [/\b\d+(?:\.\d+)?%?\b/, "number"],
+        [/[()]/, "delimiter.parenthesis"],
+        [/[<>!=]=?|[-+*/]/, "operator"],
+        [/[A-Za-z_][A-Za-z0-9_]*/, {
+          cases: {
+            "@keywords": "keyword",
+            "@functions": "type.identifier",
+            "@default": "identifier",
+          },
+        }],
+      ],
+    },
+  });
+}
+
 async function initializeMonaco(): Promise<void> {
   const target = containerRef.value;
   if (!canMountEditor(target) || editor !== null) {
@@ -527,6 +618,7 @@ async function initializeMonaco(): Promise<void> {
     };
 
     monaco = nextMonaco;
+  ensureJftradeDslLanguage(monaco);
     monaco.typescript.javascriptDefaults.setEagerModelSync(true);
     monaco.typescript.javascriptDefaults.setDiagnosticsOptions({
       noSemanticValidation: false,

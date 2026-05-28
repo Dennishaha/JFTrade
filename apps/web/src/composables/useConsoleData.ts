@@ -538,8 +538,9 @@ let providedWorkspaceLayout: WorkspaceLayoutStore | null = null;
 
 export const useConsoleDataStore = defineStore("console-data", () => {
   const workspaceLayout = providedWorkspaceLayout ?? useWorkspaceLayout();
+  const legacy = markRaw(createConsoleDataStore(workspaceLayout)) as ConsoleDataStore;
   return {
-    legacy: markRaw(createConsoleDataStore(workspaceLayout)),
+    legacy,
   };
 });
 
@@ -547,11 +548,14 @@ export function provideConsoleDataStore(
   workspaceLayout: WorkspaceLayoutStore,
 ): ConsoleDataStore {
   providedWorkspaceLayout = workspaceLayout;
-  const store = useConsoleDataStore().legacy;
+  const store = useConsoleDataStore().legacy as unknown as ConsoleDataStore;
   provide(consoleDataKey, store);
   return store;
 }
 
 export function useConsoleData(): ConsoleDataStore {
-  return inject(consoleDataKey, null) ?? useConsoleDataStore().legacy;
+  return (
+    inject(consoleDataKey, null) ??
+    (useConsoleDataStore().legacy as unknown as ConsoleDataStore)
+  );
 }

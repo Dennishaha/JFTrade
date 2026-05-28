@@ -1,23 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
+import type { StrategyInstanceItem, StrategySourceFormat } from "@jftrade/ui-contracts";
 
 import { fetchEnvelope, fetchEnvelopeWithInit } from "../composables/apiClient";
 import { useConsoleData } from "../composables/useConsoleData";
-
-interface StrategyDefinitionSummary {
-    strategyId: string;
-    name: string;
-    version: string;
-}
-
-interface StrategyInstanceItem {
-    id: string;
-    definition: StrategyDefinitionSummary;
-    params: Record<string, unknown>;
-    status: "RUNNING" | "PAUSED" | "STOPPED";
-    createdAt: string;
-    logs: string[];
-}
 
 interface StrategyLogsResponse {
     instanceId: string;
@@ -71,16 +57,79 @@ const selectedStrategyParamsJson = computed(() => {
     return JSON.stringify(selectedStrategy.value.params, null, 2);
 });
 
+const selectedStrategyRuntimeLabel = computed(() => {
+    if (selectedStrategy.value === null) return "暂无";
+    return formatStrategyRuntime(selectedStrategy.value.runtime);
+});
+
+const selectedStrategySourceFormatLabel = computed(() => {
+    if (selectedStrategy.value === null) return "暂无";
+    return formatSourceFormat(selectedStrategy.value.sourceFormat);
+});
+
+const selectedStrategyStartHint = computed(() => {
+    if (selectedStrategy.value === null) return "请选择策略实例。";
+    if (selectedStrategy.value.startable) {
+        return "当前实例已接入策略控制面生命周期，可启动、暂停、停止。";
+    }
+    if (selectedStrategy.value.runtime === "dsl-go-plan") {
+        return "当前实例已完成 DSL 编译与 requirements 规划，但暂不可启动。";
+    }
+    return "当前实例暂不可启动。";
+});
+
+const selectedStrategyCompiledSummary = computed(() => {
+    if (selectedStrategy.value === null || selectedStrategy.value.runtime !== "dsl-go-plan") {
+        return "";
+    }
+    const hookCount = readCompiledHookCount(selectedStrategy.value);
+    const indicatorCount = readCompiledIndicatorCount(selectedStrategy.value);
+    const parts: string[] = [];
+    if (hookCount !== null) parts.push(`${hookCount} 个 hook`);
+    if (indicatorCount !== null) parts.push(`${indicatorCount} 项依赖`);
+    if (parts.length === 0) return "已完成 DSL 编译计划。";
+    return `已完成 DSL 编译计划，包含 ${parts.join(" / ")}。`;
+});
+
+const canStartSelectedStrategy = computed(
+    () =>
+        selectedStrategy.value !== null
+        && !isLoadingDetails.value
+        && selectedStrategy.value.startable
+        && selectedStrategy.value.status !== "RUNNING",
+);
+
+const canPauseSelectedStrategy = computed(
+    () =>
+        selectedStrategy.value !== null
+        && !isLoadingDetails.value
+        && selectedStrategy.value.startable
+        && selectedStrategy.value.status === "RUNNING",
+);
+
+const canStopSelectedStrategy = computed(
+    () =>
+        selectedStrategy.value !== null
+        && !isLoadingDetails.value
+        && selectedStrategy.value.startable
+        && selectedStrategy.value.status !== "STOPPED",
+);
+
 onMounted(() => {
     void loadStrategies();
 });
 
-function formatTimestamp(value: string): string {
-    if (value.trim() === "") return "暂无";
-    return value.replace("T", " ").replace(".000Z", "Z");
+function normalizeText(value: unknown): string {
+    return typeof value === "string" ? value.trim() : "";
 }
 
-function formatStrategyStatus(status: StrategyInstanceItem["status"]): string {
+function formatTimestamp(value: unknown): string {
+    const normalized = normalizeText(value);
+    if (normalized === "") return "暂无";
+    return normalized.replace("T", " ").replace(".000Z", "Z");
+}
+
+function formatStrategyStatus(status: StrategyInstanceItem["status"] | string): string {
     switch (status) {
         case "RUNNING":
             return "运行中";
@@ -89,12 +138,57 @@ function formatStrategyStatus(status: StrategyInstanceItem["status"]): string {
         case "STOPPED":
             return "已停止";
         default:
-            return status;
+            return normalizeText(status) || "未知";
     }
 }
 
-function formatAuditKind(kind: string): string {
-    switch (kind.trim().toLowerCase()) {
+function formatStrategyRuntime(runtime: unknown): string {
+    switch (normalizeText(runtime)) {
+        case "dsl-go-plan":
+            return "DSL 编译计划";
+        default:
+            return "未知 / 受限";
+    }
+}
+
+function formatSourceFormat(sourceFormat: StrategySourceFormat | string | null | undefined): string {
+    switch (normalizeText(sourceFormat)) {
+        case "dsl-v1":
+            return "DSL v1";
+        default:
+            return "未知 / 受限";
+    }
+}
+
+function formatExecutionMode(strategy: StrategyInstanceItem): string {
+    if (strategy.startable) return "可启动";
+    if (strategy.runtime === "dsl-go-plan") return "待启用";
+    return "受限";
+}
+
+function readCompiledIndicatorCount(strategy: StrategyInstanceItem): number | null {
+    const compiledRequirements = asRecord(strategy.params.compiledRequirements);
+    if (compiledRequirements === null) return null;
+    return Array.isArray(compiledRequirements.indicators)
+        ? compiledRequirements.indicators.length
+        : null;
+}
+
+function readCompiledHookCount(strategy: StrategyInstanceItem): number | null {
+    return Array.isArray(strategy.params.compiledHooks)
+        ? strategy.params.compiledHooks.length
+        : null;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+    if (value === null || typeof value !== "object" || Array.isArray(value)) {
+        return null;
+    }
+    return value as Record<string, unknown>;
+}
+
+function formatAuditKind(kind: unknown): string {
+    switch (normalizeText(kind).toLowerCase()) {
         case "created":
             return "已创建";
         case "started":
@@ -108,7 +202,7 @@ function formatAuditKind(kind: string): string {
         case "failed":
             return "执行失败";
         default:
-            return kind;
+            return normalizeText(kind) || "未知";
     }
 }
 
@@ -148,7 +242,7 @@ async function loadStrategies(preferredId = selectedStrategyId.value): Promise<v
             items.find((item) => item.id === preferredId)?.id ?? items[0]?.id ?? "";
 
         if (nextId !== "") {
-            await loadStrategyDetails(nextId);
+            void loadStrategyDetails(nextId);
         }
     } catch (error) {
         strategies.value = [];
@@ -221,7 +315,7 @@ async function changeStrategyStatus(action: StrategyAction): Promise<void> {
         <!-- 头部 -->
         <div class="runtime-panel__bar">
             <div class="runtime-panel__intro">
-                <div class="runtime-panel__eyebrow">QuickJS 运行时</div>
+                <div class="runtime-panel__eyebrow">策略运行时</div>
                 <div class="runtime-panel__title-row">
                     <div class="runtime-panel__title">策略运行</div>
                 </div>
@@ -262,7 +356,7 @@ async function changeStrategyStatus(action: StrategyAction): Promise<void> {
                             {{ activeStrategyCount }} 个运行中
                         </span>
                     </div>
-                    <div class="mt-4 grid gap-3 md:grid-cols-2">
+                    <div class="mt-4 grid gap-3 md:grid-cols-3">
                         <div class="rounded-3xl bg-white px-4 py-4">
                             <div class="text-xs uppercase tracking-[0.2em] text-slate-500">交易环境</div>
                             <div class="mt-2 text-2xl font-semibold text-slate-900">
@@ -275,9 +369,15 @@ async function changeStrategyStatus(action: StrategyAction): Promise<void> {
                                 {{ selectedStrategy?.definition.name ?? "暂无" }}
                             </div>
                         </div>
+                        <div class="rounded-3xl bg-white px-4 py-4">
+                            <div class="text-xs uppercase tracking-[0.2em] text-slate-500">运行形态</div>
+                            <div class="mt-2 text-xl font-semibold text-slate-900" data-testid="strategy-runtime-mode">
+                                {{ selectedStrategyRuntimeLabel }}
+                            </div>
+                        </div>
                     </div>
                     <div class="mt-4 text-sm text-slate-600">
-                        运行面板负责实例控制、日志和审计；和 QuickJS 运行时之间的宿主 API 已经打通。
+                        运行面板负责实例控制、日志和审计；新策略统一使用 DSL 编译计划生命周期。
                     </div>
                 </div>
 
@@ -325,7 +425,6 @@ async function changeStrategyStatus(action: StrategyAction): Promise<void> {
                             </button>
                         </div>
                     </div>
-
                     <div v-if="listError"
                         class="rounded-3xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                         {{ listError }}
@@ -346,6 +445,21 @@ async function changeStrategyStatus(action: StrategyAction): Promise<void> {
                             </div>
                             <div class="mt-2 text-sm text-slate-500">{{ strategy.id }}</div>
                             <div class="mt-2 text-sm text-slate-500">创建于 {{ formatTimestamp(strategy.createdAt) }}</div>
+                            <div class="mt-3 flex flex-wrap gap-2 text-[11px] font-semibold uppercase tracking-[0.16em]">
+                                <span class="rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-slate-600">
+                                    {{ formatStrategyRuntime(strategy.runtime) }}
+                                </span>
+                                <span class="rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-slate-600">
+                                    {{ formatSourceFormat(strategy.sourceFormat) }}
+                                </span>
+                                <span
+                                    class="rounded-full px-2.5 py-1"
+                                    :class="strategy.startable
+                                        ? 'border border-emerald-200 bg-emerald-50 text-emerald-700'
+                                        : 'border border-amber-200 bg-amber-50 text-amber-700'">
+                                    {{ formatExecutionMode(strategy) }}
+                                </span>
+                            </div>
                         </button>
                     </div>
                 </div>
@@ -359,25 +473,48 @@ async function changeStrategyStatus(action: StrategyAction): Promise<void> {
                                     启动、暂停、停止都会同步刷新日志与审计视图。
                                 </div>
                             </div>
+                            <div v-if="selectedStrategy !== null" class="rounded-3xl bg-slate-50 px-4 py-4">
+                                <div class="flex flex-wrap gap-2">
+                                    <span class="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-600">
+                                        {{ selectedStrategyRuntimeLabel }}
+                                    </span>
+                                    <span class="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-600">
+                                        {{ selectedStrategySourceFormatLabel }}
+                                    </span>
+                                    <span
+                                        class="rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em]"
+                                        :class="selectedStrategy.startable
+                                            ? 'border border-emerald-200 bg-emerald-50 text-emerald-700'
+                                            : 'border border-amber-200 bg-amber-50 text-amber-700'">
+                                        {{ formatExecutionMode(selectedStrategy) }}
+                                    </span>
+                                </div>
+                                <div class="mt-3 text-sm text-slate-600" data-testid="strategy-runtime-start-hint">
+                                    {{ selectedStrategyStartHint }}
+                                </div>
+                                <div v-if="selectedStrategyCompiledSummary" class="mt-2 text-xs text-slate-500">
+                                    {{ selectedStrategyCompiledSummary }}
+                                </div>
+                            </div>
                             <div class="flex flex-wrap gap-2">
                                 <button
                                     class="rounded-full border border-emerald-300 px-4 py-2 text-sm font-medium text-emerald-700 transition hover:border-emerald-400 hover:text-emerald-900 disabled:cursor-not-allowed disabled:opacity-50"
                                     data-testid="strategy-start"
-                                    :disabled="selectedStrategy === null || isLoadingDetails" type="button"
+                                    :disabled="!canStartSelectedStrategy" type="button"
                                     @click="changeStrategyStatus('start')">
                                     启动
                                 </button>
                                 <button
                                     class="rounded-full border border-amber-300 px-4 py-2 text-sm font-medium text-amber-700 transition hover:border-amber-400 hover:text-amber-900 disabled:cursor-not-allowed disabled:opacity-50"
                                     data-testid="strategy-pause"
-                                    :disabled="selectedStrategy === null || isLoadingDetails" type="button"
+                                    :disabled="!canPauseSelectedStrategy" type="button"
                                     @click="changeStrategyStatus('pause')">
                                     暂停
                                 </button>
                                 <button
                                     class="rounded-full border border-rose-300 px-4 py-2 text-sm font-medium text-rose-700 transition hover:border-rose-400 hover:text-rose-900 disabled:cursor-not-allowed disabled:opacity-50"
                                     data-testid="strategy-stop"
-                                    :disabled="selectedStrategy === null || isLoadingDetails" type="button"
+                                    :disabled="!canStopSelectedStrategy" type="button"
                                     @click="changeStrategyStatus('stop')">
                                     停止
                                 </button>

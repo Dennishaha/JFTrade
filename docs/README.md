@@ -17,7 +17,7 @@
 
 - [troubleshooting.md](troubleshooting.md)：排障入口，按启动、WebSocket、OpenD、行情时段分流。
 - [frontend-kline.md](frontend-kline.md)：前端行情与 K 线专题入口，包含实时合成与防回归约束。
-- [frontend/strategy-authoring.md](frontend/strategy-authoring.md)：前端 QuickJS 策略设计专题，覆盖 Logic Flow、Monaco、模板和 visualModel 同步约束。
+- [frontend/strategy-authoring.md](frontend/strategy-authoring.md)：前端 DSL 策略设计专题，覆盖 Logic Flow、Monaco、模板和 visualModel 同步约束。
 
 ### 3. 最后看参考资料
 
@@ -52,6 +52,6 @@ docs/
 
 1. 先读 [architecture.md](architecture.md)，确认是在改 sidecar、bbgo 运行时、前端，还是 Futu 适配层。
 2. 如果是启动、端口、连接问题，再进 [troubleshooting.md](troubleshooting.md)。
-3. 如果是策略定义、Logic Flow、QuickJS 脚本同步或编辑器问题，再进 [frontend/strategy-authoring.md](frontend/strategy-authoring.md)。
+3. 如果是策略定义、Logic Flow、DSL 脚本同步或编辑器问题，再进 [frontend/strategy-authoring.md](frontend/strategy-authoring.md)。
 4. 如果是实时行情、K 线、WebSocket、快照合成问题，再进 [frontend-kline.md](frontend-kline.md)。
 5. 只有在需要协议或上游背景时，才进入 [reference/README.md](reference/README.md) 或 [reference/bbgo-doc/README.md](reference/bbgo-doc/README.md)。

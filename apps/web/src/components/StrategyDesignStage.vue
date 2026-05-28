@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type {
     StrategyDefinitionDocument,
+    StrategySourceFormat,
     StrategyVisualModelDocument,
     StrategyVisualNodeDocument,
 } from "@jftrade/ui-contracts";
@@ -21,10 +22,10 @@ import { useStrategyIndicatorVariables } from "../composables/useStrategyIndicat
 import { useStrategyUndoRedo } from "../composables/useStrategyUndoRedo";
 import { useStrategyVisualNodeInspector } from "../composables/useStrategyVisualNodeInspector";
 import {
-    strategyEditorCompletions,
-    strategyEditorExtraLibs,
-    strategyEditorHoverItems,
-} from "../features/strategyEditorIntelliSense";
+    strategyDslEditorCompletions,
+    strategyDslEditorExtraLibs,
+    strategyDslEditorHoverItems,
+} from "../features/strategyDslEditorIntelliSense";
 import {
     buildStrategyVisualModelFromScript,
     buildStrategyScriptFromVisualModel,
@@ -55,10 +56,10 @@ const fallbackTemplate: StrategyAuthoringTemplate = {
     label: "逻辑流起步骨架",
     description: "给一份可视化起步图，适合从拖拽块开始搭策略。",
     mode: "visual",
-    defaultId: "js-logic-flow-starter",
+    defaultId: "dsl-logic-flow-starter",
     defaultName: "逻辑流起步骨架",
     defaultVersion: "0.1.0",
-    defaultDescription: "用流程图拖拽块，快速搭一个可保存的 QuickJS 策略骨架。",
+    defaultDescription: "用流程图拖拽块，快速搭一个可保存的 DSL 策略骨架。",
     defaultSymbol: "00700",
     defaultInterval: "1m",
     visualModel: createDefaultStrategyVisualModel(),
@@ -80,7 +81,7 @@ const isInstantiatingDefinition = ref(false);
 const definitionError = ref("");
 const definitionNotice = ref("");
 const visualSyncStatus = ref<"ready" | "syncing" | "synced" | "partial" | "error">("ready");
-const visualSyncMessage = ref("图形与代码会自动异步同步。\n修改代码后会尝试反解回流程图。\n无法标准化的语句会保留为代码块。");
+const visualSyncMessage = ref("图形与 DSL 会自动异步同步。\n修改 DSL 后会尝试反解回流程图。");
 const visualSyncCodeBlockCount = ref(0);
 
 const isDefinitionsPanelCollapsed = ref(props.initialDefinitionsCollapsed);
@@ -382,7 +383,7 @@ const visualSyncLabel = computed(() => {
         case "synced":
             return "已同步";
         case "partial":
-            return "代码块兜底";
+            return "DSL 提示";
         case "error":
             return "同步提示";
         default:
@@ -555,13 +556,15 @@ function createDefinitionFromTemplate(
         name: template.defaultName,
         version: template.defaultVersion,
         description: template.defaultDescription,
-        runtime: "quickjs-js",
+        runtime: "dsl-go-plan",
+        sourceFormat: "dsl-v1",
         symbol,
         interval,
         script: template.buildScript({
             name: template.defaultName,
             symbol,
             interval,
+            version: template.defaultVersion,
         }),
         visualModel,
         createdAt: "",
@@ -577,6 +580,13 @@ function normalizeInterval(value: string): string {
     return value.trim() === "" ? "1m" : value.trim();
 }
 
+function normalizeSourceFormat(
+    value: StrategySourceFormat | string | null | undefined,
+): StrategySourceFormat {
+    void value;
+    return "dsl-v1";
+}
+
 function normalizeDefinition(
     definition: StrategyDefinitionDocument,
 ): StrategyDefinitionDocument {
@@ -584,12 +594,24 @@ function normalizeDefinition(
     const visualModel =
         cloneStrategyVisualModel(migrated.visualModel) ??
         createDefaultStrategyVisualModel();
+    const symbol = normalizeSymbol(migrated.symbol);
+    const interval = normalizeInterval(migrated.interval);
+    const name = migrated.name.trim();
+    const version = migrated.version.trim() || "0.1.0";
 
     return {
         ...migrated,
-        runtime: migrated.runtime.trim() === "" ? "quickjs-js" : migrated.runtime,
-        symbol: normalizeSymbol(migrated.symbol),
-        interval: normalizeInterval(migrated.interval),
+        runtime: "dsl-go-plan",
+        sourceFormat: "dsl-v1",
+        symbol,
+        interval,
+        version,
+        script: buildStrategyScriptFromVisualModel(visualModel, {
+            name,
+            symbol,
+            interval,
+            version,
+        }),
         visualModel,
     };
 }
@@ -602,7 +624,8 @@ function serializeDefinitionSnapshot(
         name: definition.name.trim(),
         version: definition.version.trim(),
         description: definition.description.trim(),
-        runtime: definition.runtime.trim() || "quickjs-js",
+        runtime: "dsl-go-plan",
+        sourceFormat: normalizeSourceFormat(definition.sourceFormat),
         symbol: normalizeSymbol(definition.symbol),
         interval: normalizeInterval(definition.interval),
         script: definition.script,
@@ -652,7 +675,7 @@ function setVisualSyncState(
 function resetVisualSyncStatus(): void {
     setVisualSyncState(
         "ready",
-        "图形与代码会自动同步。修改代码后会尝试反解回流程图，无法标准化的语句会保留为代码块。",
+        "图形与 DSL 会自动同步。修改 DSL 后会尝试反解回流程图。",
         0,
     );
 }
@@ -689,7 +712,7 @@ function scheduleScriptToVisualModelSync(
     delay = SCRIPT_TO_VISUAL_SYNC_DELAY,
 ): void {
     clearPendingScriptToVisualSync();
-    setVisualSyncState("syncing", "正在把代码异步转换回流程图…", visualSyncCodeBlockCount.value);
+    setVisualSyncState("syncing", "正在把 DSL 异步转换回流程图…", visualSyncCodeBlockCount.value);
 
     scriptToVisualSyncTimer = setTimeout(() => {
         scriptToVisualSyncTimer = null;
@@ -702,11 +725,11 @@ function syncScriptToVisualModelNow(options?: { updateCommittedSignature?: boole
 
     const script = definitionForm.value.script;
     if (script.trim() === "") {
-        setVisualSyncState("error", "代码为空，无法转换回流程图。已保留当前流程图。", 0);
+        setVisualSyncState("error", "DSL 为空，无法转换回流程图。已保留当前流程图。", 0);
         return;
     }
 
-    setVisualSyncState("syncing", "正在把代码异步转换回流程图…", visualSyncCodeBlockCount.value);
+    setVisualSyncState("syncing", "正在把 DSL 异步转换回流程图…", visualSyncCodeBlockCount.value);
 
     const parseResult = buildStrategyVisualModelFromScript(
         script,
@@ -739,13 +762,13 @@ function syncScriptToVisualModelNow(options?: { updateCommittedSignature?: boole
     if (parseResult.codeBlockCount > 0) {
         setVisualSyncState(
             "partial",
-            `代码已同步回流程图，其中 ${parseResult.codeBlockCount} 段保留为代码块，后续仍可继续混编。`,
+            `DSL 已同步回流程图，其中 ${parseResult.codeBlockCount} 段无法标准化。`,
             parseResult.codeBlockCount,
         );
         return;
     }
 
-    setVisualSyncState("synced", "代码已同步回流程图。", 0);
+    setVisualSyncState("synced", "DSL 已同步回流程图。", 0);
 }
 
 function dismissDefinitionError(): void {
@@ -763,6 +786,7 @@ function buildScriptForModel(
         name: definitionForm.value.name.trim(),
         symbol: normalizeSymbol(definitionForm.value.symbol),
         interval: normalizeInterval(definitionForm.value.interval),
+        version: definitionForm.value.version.trim() || "0.1.0",
     });
 }
 
@@ -789,7 +813,6 @@ function applyDefinition(definition: StrategyDefinitionDocument | null): void {
         skipScriptParse: true,
     });
     selectedVisualNodeId.value = pickInitialVisualNodeId(resolvedVisualModel.value);
-    updateCommittedDefinitionSignature(definitionForm.value);
 
     if (definition.visualModel === null || definition.visualModel === undefined) {
         syncScriptToVisualModelNow({ updateCommittedSignature: true });
@@ -797,6 +820,7 @@ function applyDefinition(definition: StrategyDefinitionDocument | null): void {
     }
 
     attachSourceRangesFromScript(definition.script, definitionForm.value.visualModel);
+    updateCommittedDefinitionSignature(definitionForm.value);
     resetVisualSyncStatus();
 }
 
@@ -901,7 +925,8 @@ async function saveStrategyDefinition(): Promise<boolean> {
         name: definitionForm.value.name.trim(),
         version: definitionForm.value.version.trim(),
         description: definitionForm.value.description.trim(),
-        runtime: definitionForm.value.runtime.trim() || "quickjs-js",
+        runtime: "dsl-go-plan",
+        sourceFormat: normalizeSourceFormat(definitionForm.value.sourceFormat),
         symbol: normalizeSymbol(definitionForm.value.symbol),
         interval: normalizeInterval(definitionForm.value.interval),
         script: definitionForm.value.script,
@@ -919,7 +944,7 @@ async function saveStrategyDefinition(): Promise<boolean> {
     }
 
     if (payload.script.trim() === "") {
-        definitionError.value = "策略脚本不能为空。";
+        definitionError.value = "策略 DSL 不能为空。";
         return false;
     }
 
@@ -1044,10 +1069,10 @@ function syncVisualModelToScript(showNotice = false): void {
         },
     );
 
-    setVisualSyncState("synced", "流程图已同步到代码。", visualSyncCodeBlockCount.value);
+    setVisualSyncState("synced", "流程图已同步到 DSL。", visualSyncCodeBlockCount.value);
 
     if (showNotice) {
-        definitionNotice.value = "已用流程图更新下方代码。";
+        definitionNotice.value = "已用流程图更新下方 DSL。";
     }
 }
 
@@ -1067,7 +1092,7 @@ function initializeVisualModel(): void {
     );
     selectedVisualNodeId.value = pickInitialVisualNodeId(visualModel);
     definitionNotice.value = "已创建新的默认流程骨架。";
-    setVisualSyncState("synced", "已创建新的默认流程骨架，并同步到代码。", 0);
+    setVisualSyncState("synced", "已创建新的默认流程骨架，并同步到 DSL。", 0);
 }
 
 function applyVisualModel(
@@ -1098,7 +1123,7 @@ function applyVisualModel(
         },
     );
     selectedVisualNodeId.value = nextSelectedNodeId;
-    setVisualSyncState("synced", "流程图已异步同步到代码。", visualSyncCodeBlockCount.value);
+    setVisualSyncState("synced", "流程图已异步同步到 DSL。", visualSyncCodeBlockCount.value);
 
     if (options?.notice) {
         definitionNotice.value = options.notice;
@@ -1325,13 +1350,13 @@ function deleteSelectedVisualNode(): void {
                     <div class="strategy-stage__toolbar-main">
                         <div class="strategy-stage__toolbar-title-row">
                             <div class="strategy-stage__toolbar-title">
-                                {{ definitionForm.name || "未命名 QuickJS 策略" }}
+                                {{ definitionForm.name || "未命名 DSL 策略" }}
                             </div>
                             <span class="strategy-page__pill">
                                 {{ activeStrategyTemplate?.mode === "visual" ? "图优先" : "代码优先" }}
                             </span>
                             <div class="strategy-stage__toolbar-meta">
-                                <span>{{ definitionForm.runtime || "quickjs-js" }}</span>
+                                <span>{{ definitionForm.runtime || "dsl-go-plan" }}</span>
                                 <span>{{ definitionForm.symbol || "未设置标的" }}</span>
                                 <span>{{ definitionForm.interval || "1m" }}</span>
                             </div>
@@ -1462,7 +1487,7 @@ function deleteSelectedVisualNode(): void {
             <StrategyStageOverlayDeck :active-strategy-template-mode="activeStrategyTemplate?.mode ?? null"
                 :bindings="overlayDeckBindings" :created-at-text="formatTimestamp(definitionForm.createdAt)"
                 :selected-strategy-template-id="selectedStrategyTemplateId"
-                :selected-visual-block-description="selectedVisualBlock?.description ?? '调整图块参数并同步 QuickJS。'"
+                :selected-visual-block-description="selectedVisualBlock?.description ?? '调整图块参数并同步 DSL。'"
                 :selected-visual-block-label="selectedVisualBlock?.label ?? (selectedVisualNode?.text ?? '')"
                 :selected-visual-kind="selectedVisualKind" :selected-visual-node="selectedVisualNode"
                 :show-basic-info-section="!isBasicInfoSectionCollapsed"
@@ -1491,8 +1516,8 @@ function deleteSelectedVisualNode(): void {
             class="strategy-stage__panel strategy-stage__panel--code"
             :class="{ 'strategy-stage__panel--code-pure': strategyDisplayMode === 'code' }" :style="codePanelStyle">
             <StrategyStageCodeWorkbenchPanel ref="codeWorkbenchRef" :bindings="codeWorkbenchBindings"
-                :completion-items="strategyEditorCompletions" :extra-libs="strategyEditorExtraLibs"
-                :hover-items="strategyEditorHoverItems" :strategy-display-mode="strategyDisplayMode"
+                :completion-items="strategyDslEditorCompletions" :extra-libs="strategyDslEditorExtraLibs"
+                :hover-items="strategyDslEditorHoverItems" :strategy-display-mode="strategyDisplayMode"
                 @drag-start="startCodePanelDrag" @script-blur="handleScriptWorkbenchBlur"
                 @cursor-offset="handleCodeCursorOffset" />
         </div>

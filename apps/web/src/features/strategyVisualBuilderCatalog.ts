@@ -98,7 +98,7 @@ const STRATEGY_BLOCK_CATALOG: StrategyBlockDefinition[] = [
   {
     kind: "onKLineClosed",
     label: "K 线收盘",
-    description: "每次 K 线收盘触发，是当前 QuickJS 策略的核心入口。",
+    description: "每次 K 线收盘触发，是当前 DSL 策略的核心入口。",
     shape: "circle",
     text: "K 线收盘",
     properties: { blockKind: "onKLineClosed" },
@@ -171,7 +171,7 @@ const STRATEGY_BLOCK_CATALOG: StrategyBlockDefinition[] = [
   {
     kind: "codeBlock",
     label: "代码块",
-    description: "承载当前无法映射成标准图块的 QuickJS 代码片段，保留在流程图里继续混编。",
+    description: "旧版自定义代码块已废弃，请改用标准 DSL 图块表达策略逻辑。",
     shape: "rect",
     text: "代码块",
     properties: {

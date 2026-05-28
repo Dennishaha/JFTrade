@@ -5,22 +5,18 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 )
 
 const (
 	defaultStrategyDesignFilename = "strategy-definitions.json"
-	strategyRuntimeQuickJS        = "quickjs-js"
-)
-
-var (
-	legacyMovingAverageIndicatorPattern = regexp.MustCompile(`(^|[^[:alnum:]_])ma:(MA|EMA|WMA|VWMA):(5|20)([^:[:alnum:]_]|$)`)
-	legacySimpleMovingAveragePattern    = regexp.MustCompile(`(^|[^[:alnum:]_])ma:(5|20)([^:[:alnum:]_]|$)`)
+	strategyRuntimeDSLPlan        = "dsl-go-plan"
 )
 
 type strategyVisualNode struct {
@@ -49,17 +45,18 @@ type strategyVisualModel struct {
 }
 
 type strategyDesignDefinition struct {
-	ID          string               `json:"id"`
-	Name        string               `json:"name"`
-	Version     string               `json:"version"`
-	Description string               `json:"description"`
-	Runtime     string               `json:"runtime"`
-	Symbol      string               `json:"symbol"`
-	Interval    string               `json:"interval"`
-	Script      string               `json:"script"`
-	VisualModel *strategyVisualModel `json:"visualModel,omitempty"`
-	CreatedAt   string               `json:"createdAt"`
-	UpdatedAt   string               `json:"updatedAt"`
+	ID           string               `json:"id"`
+	Name         string               `json:"name"`
+	Version      string               `json:"version"`
+	Description  string               `json:"description"`
+	Runtime      string               `json:"runtime"`
+	SourceFormat string               `json:"sourceFormat"`
+	Symbol       string               `json:"symbol"`
+	Interval     string               `json:"interval"`
+	Script       string               `json:"script"`
+	VisualModel  *strategyVisualModel `json:"visualModel,omitempty"`
+	CreatedAt    string               `json:"createdAt"`
+	UpdatedAt    string               `json:"updatedAt"`
 }
 
 type strategyDesignFile struct {
@@ -173,7 +170,7 @@ func normalizeStrategyDesignDefinition(input strategyDesignDefinition) strategyD
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	input.ID = strings.TrimSpace(input.ID)
 	if input.ID == "" {
-		input.ID = "js-strategy-" + time.Now().UTC().Format("20060102150405.000000000")
+		input.ID = "dsl-strategy-" + time.Now().UTC().Format("20060102150405.000000000")
 	}
 	input.Name = strings.TrimSpace(input.Name)
 	if input.Name == "" {
@@ -184,16 +181,18 @@ func normalizeStrategyDesignDefinition(input strategyDesignDefinition) strategyD
 		input.Version = "0.1.0"
 	}
 	input.Description = strings.TrimSpace(input.Description)
-	input.Runtime = normalizeStrategyRuntime(input.Runtime)
+	rawSourceFormat := strings.TrimSpace(input.SourceFormat)
+	rawRuntime := strings.TrimSpace(input.Runtime)
+	input.SourceFormat = normalizeStrategyDesignSourceFormat(rawSourceFormat, rawRuntime, input.Script)
+	input.Runtime = normalizeStrategyRuntimeForSource(rawRuntime, input.SourceFormat)
 	input.Symbol = strings.ToUpper(strings.TrimSpace(input.Symbol))
 	input.Interval = strings.TrimSpace(input.Interval)
 	input.VisualModel = normalizeStrategyVisualModel(input.VisualModel)
-	input.Script = migrateLegacyMovingAverageScript(input.Script)
 	if input.Interval == "" {
 		input.Interval = "1m"
 	}
-	if input.Script == "" {
-		input.Script = defaultStrategyDesignScript(input.Name)
+	if shouldReplaceWithDefaultDSLScript(rawSourceFormat, rawRuntime, input.Script) {
+		input.Script = defaultStrategyDesignScript(input.Name, input.SourceFormat)
 	}
 	if input.CreatedAt == "" {
 		input.CreatedAt = now
@@ -204,17 +203,22 @@ func normalizeStrategyDesignDefinition(input strategyDesignDefinition) strategyD
 	return input
 }
 
-func defaultStrategyDesignScript(name string) string {
+func defaultStrategyDesignScript(name string, sourceFormat string) string {
+	_ = sourceFormat
+	return defaultStrategyDesignDSL(name)
+}
+
+func defaultStrategyDesignDSL(name string) string {
 	name = strings.TrimSpace(name)
 	if name == "" {
-		name = "quickjs-strategy"
+		name = "dsl-strategy"
 	}
-	return "function onInit(ctx) {\n" +
-		"  console.log('init strategy', ctx.name, ctx.symbol, ctx.interval);\n" +
-		"}\n\n" +
-		"function onKLineClosed(ctx) {\n" +
-		"  console.log('kline closed', ctx.kline.symbol, ctx.kline.close);\n" +
-		"}\n"
+	return "strategy " + name + "\n" +
+		"version 0.1.0\n\n" +
+		"on init:\n" +
+		"  log \"init strategy\"\n\n" +
+		"on kline_close:\n" +
+		"  log \"kline closed\"\n"
 }
 
 func (s *strategyDesignStore) persistLocked() error {
@@ -229,11 +233,40 @@ func (s *strategyDesignStore) persistLocked() error {
 }
 
 func normalizeStrategyRuntime(runtime string) string {
-	runtime = strings.TrimSpace(runtime)
-	if runtime == "" {
-		return strategyRuntimeQuickJS
+	if strings.TrimSpace(runtime) == strategyRuntimeDSLPlan {
+		return strategyRuntimeDSLPlan
 	}
-	return runtime
+	return strategyRuntimeDSLPlan
+}
+
+func normalizeStrategyRuntimeForSource(runtime string, sourceFormat string) string {
+	_ = sourceFormat
+	return normalizeStrategyRuntime(runtime)
+}
+
+func normalizeStrategyDesignSourceFormat(sourceFormat string, runtime string, script string) string {
+	_ = runtime
+	_ = script
+	return strategydefinition.SourceFormatDSLV1
+}
+
+func shouldReplaceWithDefaultDSLScript(sourceFormat string, runtime string, script string) bool {
+	if strings.TrimSpace(script) == "" {
+		return true
+	}
+	if usesNonDSLStrategyRuntimeOrSource(sourceFormat, runtime) {
+		return true
+	}
+	return strategydefinition.ValidateScript(strategydefinition.SourceFormatDSLV1, script) != nil
+}
+
+func usesNonDSLStrategyRuntimeOrSource(sourceFormat string, runtime string) bool {
+	normalizedSourceFormat := strings.TrimSpace(strings.ToLower(sourceFormat))
+	if normalizedSourceFormat != "" && normalizedSourceFormat != strategydefinition.SourceFormatDSLV1 {
+		return true
+	}
+	normalizedRuntime := strings.TrimSpace(strings.ToLower(runtime))
+	return normalizedRuntime != "" && normalizedRuntime != strategyRuntimeDSLPlan
 }
 
 func normalizeStrategyVisualModel(model *strategyVisualModel) *strategyVisualModel {
@@ -300,16 +333,6 @@ func migrateLegacyMovingAverageNodeProperties(properties map[string]any) map[str
 	next := cloneStringAnyMap(properties)
 	next["periodUnit"] = "day"
 	return next
-}
-
-func migrateLegacyMovingAverageScript(script string) string {
-	trimmed := strings.TrimSpace(script)
-	if trimmed == "" {
-		return script
-	}
-	migrated := legacyMovingAverageIndicatorPattern.ReplaceAllString(script, "${1}ma:${2}:${3}:day${4}")
-	migrated = legacySimpleMovingAveragePattern.ReplaceAllString(migrated, "${1}ma:MA:${2}:day${3}")
-	return migrated
 }
 
 func normalizeLegacyMovingAveragePeriod(value any) int {

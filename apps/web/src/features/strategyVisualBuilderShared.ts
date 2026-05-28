@@ -128,6 +128,47 @@ export function buildStrategyFlowNodeJsDoc(
   return lines;
 }
 
+export function buildStrategyFlowNodeDslComment(
+  node: StrategyVisualNodeDocument,
+  depth: number,
+  extra: Partial<Pick<
+    StrategyFlowNodeJsDoc,
+    "variableName" | "inputPrimaryNodeId" | "inputFastNodeId" | "inputSlowNodeId"
+  >> = {},
+): string[] {
+  const annotation = buildStrategyFlowNodeAnnotation(node, extra);
+  if (annotation === null) {
+    return [];
+  }
+
+  const indent = "  ".repeat(depth);
+  const lines = [
+    `${indent}# @${STRATEGY_FLOW_JSDOC_TAGS.nodeId} ${annotation.nodeId}`,
+    `${indent}# @${STRATEGY_FLOW_JSDOC_TAGS.blockKind} ${annotation.blockKind}`,
+  ];
+
+  if (annotation.nodeText !== undefined) {
+    lines.push(`${indent}# @${STRATEGY_FLOW_JSDOC_TAGS.nodeText} ${annotation.nodeText}`);
+  }
+  if (annotation.codeScope !== undefined) {
+    lines.push(`${indent}# @${STRATEGY_FLOW_JSDOC_TAGS.codeScope} ${annotation.codeScope}`);
+  }
+  if (annotation.variableName !== undefined) {
+    lines.push(`${indent}# @${STRATEGY_FLOW_JSDOC_TAGS.variableName} ${annotation.variableName}`);
+  }
+  if (annotation.inputPrimaryNodeId !== undefined) {
+    lines.push(`${indent}# @${STRATEGY_FLOW_JSDOC_TAGS.inputPrimaryNodeId} ${annotation.inputPrimaryNodeId}`);
+  }
+  if (annotation.inputFastNodeId !== undefined) {
+    lines.push(`${indent}# @${STRATEGY_FLOW_JSDOC_TAGS.inputFastNodeId} ${annotation.inputFastNodeId}`);
+  }
+  if (annotation.inputSlowNodeId !== undefined) {
+    lines.push(`${indent}# @${STRATEGY_FLOW_JSDOC_TAGS.inputSlowNodeId} ${annotation.inputSlowNodeId}`);
+  }
+
+  return lines;
+}
+
 export function parseStrategyFlowNodeJsDocComment(
   commentValue: string,
 ): StrategyFlowNodeJsDoc | null {
@@ -188,6 +229,71 @@ export function parseStrategyFlowNodeJsDocComment(
       ? { inputSlowNodeId }
       : {}),
   };
+}
+
+export function parseStrategyFlowNodeDslCommentLines(
+  commentLines: string[],
+): StrategyFlowNodeJsDoc | null {
+  const normalized = commentLines
+    .map((line) => line.trim().replace(/^#\s?/, ""))
+    .join("\n");
+  return parseStrategyFlowNodeJsDocComment(normalized);
+}
+
+function buildStrategyFlowNodeAnnotation(
+  node: StrategyVisualNodeDocument,
+  extra: Partial<Pick<
+    StrategyFlowNodeJsDoc,
+    "variableName" | "inputPrimaryNodeId" | "inputFastNodeId" | "inputSlowNodeId"
+  >>,
+): StrategyFlowNodeJsDoc | null {
+  const blockKind = getStrategyBlockKind(node);
+  if (blockKind === null) {
+    return null;
+  }
+
+  const annotation: StrategyFlowNodeJsDoc = {
+    nodeId: sanitizeFlowTagValue(node.id),
+    blockKind,
+  };
+
+  const nodeText = sanitizeFlowTagValue(node.text);
+  if (nodeText !== "") {
+    annotation.nodeText = nodeText;
+  }
+
+  if (blockKind === "codeBlock") {
+    const codeScope = sanitizeFlowTagValue(
+      typeof node.properties.codeScope === "string"
+        ? node.properties.codeScope
+        : "hook",
+    );
+    if (codeScope !== "") {
+      annotation.codeScope = codeScope;
+    }
+  }
+
+  const variableName = sanitizeFlowTagValue(extra.variableName);
+  if (variableName !== "") {
+    annotation.variableName = variableName;
+  }
+
+  const inputPrimaryNodeId = sanitizeFlowTagValue(extra.inputPrimaryNodeId);
+  if (inputPrimaryNodeId !== "") {
+    annotation.inputPrimaryNodeId = inputPrimaryNodeId;
+  }
+
+  const inputFastNodeId = sanitizeFlowTagValue(extra.inputFastNodeId);
+  if (inputFastNodeId !== "") {
+    annotation.inputFastNodeId = inputFastNodeId;
+  }
+
+  const inputSlowNodeId = sanitizeFlowTagValue(extra.inputSlowNodeId);
+  if (inputSlowNodeId !== "") {
+    annotation.inputSlowNodeId = inputSlowNodeId;
+  }
+
+  return annotation;
 }
 
 function sanitizeFlowTagValue(value: unknown): string {

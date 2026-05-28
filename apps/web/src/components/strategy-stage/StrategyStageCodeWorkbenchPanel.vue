@@ -7,7 +7,7 @@ import type {
   MonacoCompletionDefinition,
   MonacoExtraLibDefinition,
   MonacoHoverDefinition,
-} from "../../features/strategyEditorIntelliSense";
+} from "../../features/strategyMonacoIntelliSenseTypes";
 
 import "./strategyStageShared.css";
 
@@ -31,6 +31,7 @@ const emit = defineEmits<{
 
 const definitionForm = props.bindings.definitionForm;
 const monacoEditorRef = ref<InstanceType<typeof MonacoCodeEditor> | null>(null);
+const dslEditorPlaceholder = 'on kline_close:\n  log "kline closed"';
 
 interface CodeOffsetRange {
   start: number;
@@ -48,7 +49,7 @@ defineExpose({
 
 <template>
   <div class="strategy-stage__panel-head strategy-stage__drag-handle" @mousedown="emit('drag-start', $event)">
-    <div class="strategy-stage__section-title">QuickJS 代码工作台</div>
+    <div class="strategy-stage__section-title">DSL 策略工作台</div>
   </div>
 
   <div class="strategy-stage__panel-body strategy-stage__panel-body--editor">
@@ -61,9 +62,9 @@ defineExpose({
       :resizable="false"
       class="flex-1 min-h-0"
       height="100%"
-      language="javascript"
+      language="jftrade-dsl"
       min-height="280px"
-      placeholder="function onKLineClosed(ctx) { console.log(ctx.kline.close); }"
+      :placeholder="dslEditorPlaceholder"
       test-id="strategy-script-editor"
       @blur="emit('script-blur')"
       @cursor-offset="emit('cursor-offset', $event)"

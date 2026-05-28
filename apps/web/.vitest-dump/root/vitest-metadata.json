@@ -1,0 +1,417 @@
+{
+  "externalized": {
+    "/@fs/Users/jiangfan/Desktop/jftrade-main/node_modules/pinia/dist/pinia.mjs": "/Users/jiangfan/Desktop/jftrade-main/node_modules/pinia/dist/pinia.mjs",
+    "/node_modules/@vue/runtime-dom/dist/runtime-dom.cjs.js": "/Users/jiangfan/Desktop/jftrade-main/apps/web/node_modules/@vue/runtime-dom/dist/runtime-dom.cjs.js",
+    "/@fs/Users/jiangfan/Desktop/jftrade-main/node_modules/vue-router/vue-router.node.mjs": "/Users/jiangfan/Desktop/jftrade-main/node_modules/vue-router/vue-router.node.mjs"
+  },
+  "duration": {
+    "/tests/App.strategy.test.ts": [
+      46.01966700000003
+    ],
+    "/@fs/Users/jiangfan/Desktop/jftrade-main/node_modules/@vue/test-utils/dist/vue-test-utils.cjs.js": [
+      68.79933299999993
+    ],
+    "/@fs/Users/jiangfan/Desktop/jftrade-main/node_modules/pinia/dist/pinia.mjs": [
+      0.28358300000013514
+    ],
+    "/@fs/Users/jiangfan/Desktop/jftrade-main/node_modules/vue/dist/vue.runtime.esm-bundler.js": [
+      4.9309169999999085
+    ],
+    "/node_modules/@vue/runtime-dom/dist/runtime-dom.cjs.js": [
+      0.02750000000014552
+    ],
+    "/@fs/Users/jiangfan/Desktop/jftrade-main/node_modules/vue-router/vue-router.node.mjs": [
+      0.038082999999915046
+    ],
+    "/@fs/Users/jiangfan/Desktop/jftrade-main/packages/ui-contracts/src/index.ts": [
+      8.256542000000081
+    ],
+    "/src/components/StrategyLogicFlowDesigner.vue": [
+      215.88412500000004
+    ],
+    "/@fs/Users/jiangfan/Desktop/jftrade-main/node_modules/@logicflow/core/lib/style/index.css": [
+      9.966624999999794
+    ],
+    "/@fs/Users/jiangfan/Desktop/jftrade-main/node_modules/@logicflow/extension/lib/style/index.css": [
+      5.038291999999956
+    ],
+    "/src/components/StrategyLogicFlowVariableManager.vue": [
+      27.29933300000016
+    ],
+    "/src/features/strategyVisualBuilderIndicatorBlock.ts": [
+      7.7619170000000395
+    ],
+    "/src/features/strategyVisualBuilderIndicatorReferences.ts": [
+      5.628208000000086
+    ],
+    "/src/features/strategyVisualBuilderCatalog.ts": [
+      4.099500000000035
+    ],
+    "/src/features/strategyVisualBuilderEdges.ts": [
+      2.121249999999918
+    ],
+    "/src/features/strategyVisualBuilderShared.ts": [
+      2.8626670000001013
+    ],
+    "/src/components/StrategyLogicFlowVariableManager.vue?vue&type=style&index=0&scoped=6d63c9dc&lang.css": [
+      3.9945839999998043
+    ],
+    "/@id/__x00__plugin-vue:export-helper": [
+      0.6438339999999698
+    ],
+    "/src/composables/useTheme.ts": [
+      2.2192079999999805
+    ],
+    "/src/features/strategyVisualBuilder.ts": [
+      1.5506250000000819
+    ],
+    "/src/features/strategyVisualBuilderDslParser.ts": [
+      7.703541000000087
+    ],
+    "/src/features/strategyVisualBuilderDsl.ts": [
+      9.072999999999865
+    ],
+    "/src/features/strategyVisualBuilderScriptSupport.ts": [
+      3.660624999999982
+    ],
+    "/src/features/strategyVisualBuilderTemplates.ts": [
+      4.910833000000139
+    ],
+    "/src/features/strategyVisualBuilderModels.ts": [
+      1.95637499999998
+    ],
+    "/src/features/strategyVisualBuilderBasicModels.ts": [
+      1.7682910000000902
+    ],
+    "/src/features/strategyVisualBuilderMovingAverageModels.ts": [
+      2.2808749999999236
+    ],
+    "/src/features/strategyVisualBuilderIndicatorModels.ts": [
+      1.5381660000000466
+    ],
+    "/src/features/strategyVisualBuilderBollingerModels.ts": [
+      1.6270830000000842
+    ],
+    "/src/features/strategyVisualBuilderExtendedIndicatorModels.ts": [
+      4.119957999999997
+    ],
+    "/src/features/strategyVisualBuilderMacdModels.ts": [
+      1.8070419999999103
+    ],
+    "/src/features/strategyVisualBuilderRsiModels.ts": [
+      2.024832999999944
+    ],
+    "/src/features/strategyVisualBuilderGraphData.ts": [
+      6.316291999999976
+    ],
+    "/src/features/strategyVisualBuilderNodePresentation.ts": [
+      6.308874999999944
+    ],
+    "/src/features/strategyVisualBuilderIndicatorShortcut.ts": [
+      4.2660829999999805
+    ],
+    "/src/components/StrategyLogicFlowDesigner.vue?vue&type=style&index=0&scoped=c990bcc8&lang.css": [
+      2.9708340000001954
+    ],
+    "/src/components/StrategyRuntimePanel.vue": [
+      23.547915999999987
+    ],
+    "/src/composables/apiClient.ts": [
+      8.457583000000113
+    ],
+    "/src/composables/useConsoleData.ts": [
+      4.882917000000134
+    ],
+    "/src/composables/consoleDataBrokerSettings.ts": [
+      3.3097919999997885
+    ],
+    "/src/composables/consoleDataBrokerAccountSelection.ts": [
+      2.673000000000002
+    ],
+    "/src/composables/consoleDataBrokerLiveQuery.ts": [
+      4.121208000000024
+    ],
+    "/src/composables/consoleDataConsoleStream.ts": [
+      2.0385829999997895
+    ],
+    "/src/composables/consoleDataExecutionOrders.ts": [
+      2.5909580000000005
+    ],
+    "/src/composables/consoleDataMarketData.ts": [
+      3.061374999999998
+    ],
+    "/src/composables/consoleDataMarketInstruments.ts": [
+      3.890957999999955
+    ],
+    "/src/composables/consoleDataMarketSubscriptions.ts": [
+      3.6557920000000195
+    ],
+    "/src/charting/kline.ts": [
+      5.3339169999999285
+    ],
+    "/src/composables/consoleDataMarketDataQuery.ts": [
+      3.614917000000105
+    ],
+    "/src/composables/marketDataQuery.ts": [
+      3.43754100000001
+    ],
+    "/src/composables/marketDataRealtime.ts": [
+      6.068209000000024
+    ],
+    "/src/composables/marketDataRealtimeBuckets.ts": [
+      3.150124999999889
+    ],
+    "/src/composables/marketDataRealtimeTickState.ts": [
+      1.3354589999999007
+    ],
+    "/src/composables/marketDataRealtimeBarVolumeState.ts": [
+      1.6682090000001608
+    ],
+    "/src/composables/marketDataRealtimeBarPriceState.ts": [
+      1.9933750000000146
+    ],
+    "/src/composables/marketDataRealtimeCandles.ts": [
+      1.79424999999992
+    ],
+    "/src/composables/marketDataRealtimeSnapshot.ts": [
+      2.032791999999972
+    ],
+    "/src/composables/marketDataRealtimeTickContext.ts": [
+      1.3868340000001353
+    ],
+    "/src/composables/marketDataSnapshotRefresh.ts": [
+      2.0013750000000528
+    ],
+    "/src/composables/consoleDataPlugins.ts": [
+      3.503791000000092
+    ],
+    "/src/composables/consoleDataPortfolioLiveQuery.ts": [
+      3.2447500000000673
+    ],
+    "/src/composables/consoleDataSystemState.ts": [
+      3.908083999999917
+    ],
+    "/src/composables/consoleDataSystemStateDecisions.ts": [
+      2.0564160000001266
+    ],
+    "/src/composables/consoleDataRealTrade.ts": [
+      1.5253750000001673
+    ],
+    "/src/composables/useWorkspaceLayout.ts": [
+      3.152499999999918
+    ],
+    "/src/components/StrategyRuntimePanel.vue?vue&type=style&index=0&scoped=ab995f63&lang.css": [
+      1.5802499999999782
+    ],
+    "/src/pages/StrategyPage.vue": [
+      5.419374999999945
+    ],
+    "/src/components/StrategyDesignStage.vue": [
+      46.494500000000016
+    ],
+    "/src/components/strategy-stage/StrategyStageCodeWorkbenchPanel.vue": [
+      8.500042000000121
+    ],
+    "/src/components/MonacoCodeEditor.vue": [
+      16.474124999999958
+    ],
+    "/src/components/MonacoCodeEditor.vue?vue&type=style&index=0&scoped=89c6b6f5&lang.css": [
+      1.3665840000001026
+    ],
+    "/src/components/strategy-stage/strategyStageShared.css": [
+      1.640292000000045
+    ],
+    "/src/components/strategy-stage/StrategyStageDefinitionsPanel.vue": [
+      6.517458999999917
+    ],
+    "/src/components/strategy-stage/StrategyStageOverlayDeck.vue": [
+      56.54029199999991
+    ],
+    "/src/composables/useDraggable.ts": [
+      2.7907090000001062
+    ],
+    "/src/composables/useStrategyIndicatorVariables.ts": [
+      2.608833000000004
+    ],
+    "/src/composables/useStrategyUndoRedo.ts": [
+      1.786833999999999
+    ],
+    "/src/composables/useStrategyVisualNodeInspector.ts": [
+      8.212541999999985
+    ],
+    "/src/features/strategyDslEditorIntelliSense.ts": [
+      2.880625000000009
+    ],
+    "/src/features/strategyVisualBuilderMigration.ts": [
+      2.0822079999998095
+    ],
+    "/src/components/StrategyDesignStage.vue?vue&type=style&index=0&scoped=76f16176&lang.css": [
+      2.399208000000044
+    ],
+    "/src/pages/StrategyPage.vue?vue&type=style&index=0&scoped=261fec33&lang.css": [
+      1.1975419999998849
+    ],
+    "/tests/helpers.ts": [
+      4.00933299999997
+    ],
+    "/src/App.vue": [
+      3.3359580000001188
+    ],
+    "/src/layout/AppShell.vue": [
+      8.93316700000014
+    ],
+    "/src/composables/useCommandPalette.ts": [
+      1.6142090000000735
+    ],
+    "/src/composables/useDocsLink.ts": [
+      2.6741250000000036
+    ],
+    "/src/composables/useNotifications.ts": [
+      1.7944169999998394
+    ],
+    "/src/composables/useSharedLiveSocket.ts": [
+      1.4509169999998903
+    ],
+    "/src/composables/useLiveSocket.ts": [
+      6.628584000000046
+    ],
+    "/src/composables/useUIColorPreferences.ts": [
+      2.650666000000001
+    ],
+    "/src/layout/CommandPalette.vue": [
+      5.496499999999969
+    ],
+    "/src/layout/IconRail.vue": [
+      6.492917000000034
+    ],
+    "/src/layout/RightDock.vue": [
+      7.117291000000023
+    ],
+    "/src/layout/AiAssistantPanel.vue": [
+      7.232500000000073
+    ],
+    "/src/composables/consoleDataFormatting.ts": [
+      6.101083000000017
+    ],
+    "/src/layout/NotificationCenter.vue": [
+      8.842125000000124
+    ],
+    "/src/layout/StatusBar.vue": [
+      6.012000000000171
+    ],
+    "/src/layout/TopBar.vue": [
+      6.449041999999736
+    ],
+    "/src/components/TradingEnvironmentBadge.vue": [
+      4.142832999999882
+    ],
+    "/src/router.ts": [
+      1.937249999999949
+    ]
+  },
+  "tmps": {
+    "/tests/App.strategy.test.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/09141cc2eebba70874fb88561b76d98da0aefe3d",
+    "/@fs/Users/jiangfan/Desktop/jftrade-main/node_modules/@vue/test-utils/dist/vue-test-utils.cjs.js": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/2812f6810d9507ea2ee3c2788ef46f2d686a1679",
+    "/@fs/Users/jiangfan/Desktop/jftrade-main/node_modules/vue/dist/vue.runtime.esm-bundler.js": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/0faa906f3cda627c4665168bff15d94287fa09c1",
+    "/@fs/Users/jiangfan/Desktop/jftrade-main/packages/ui-contracts/src/index.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/fb62df9f084dcda8dd0b25ee519b9138737713a4",
+    "/src/components/StrategyLogicFlowDesigner.vue": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/6dc265b505376d955c9133506f6bb6fc46035f4f",
+    "/@fs/Users/jiangfan/Desktop/jftrade-main/node_modules/@logicflow/core/lib/style/index.css": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/2e9dbe312af9f376375bc6dec61621a96d59d462",
+    "/@fs/Users/jiangfan/Desktop/jftrade-main/node_modules/@logicflow/extension/lib/style/index.css": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/f46a3752c982a4b13f4c9bb79f23ae63723ae7f2",
+    "/src/components/StrategyLogicFlowVariableManager.vue": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/14d6878f65697c4c467e5d81bc791e95055b4286",
+    "/src/features/strategyVisualBuilderIndicatorBlock.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/ce397bcf2c099fbefa1bc15f40b53af57055bb52",
+    "/src/features/strategyVisualBuilderIndicatorReferences.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/8469eb148cf18f55d976c450b9dcd5dcab2bdb1d",
+    "/src/features/strategyVisualBuilderCatalog.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/796116b864e6bfc676e2289bd22937b4466674c2",
+    "/src/features/strategyVisualBuilderEdges.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/55689cc2bf5c4df413deaa792689ff75362ee9fc",
+    "/src/features/strategyVisualBuilderShared.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/660fed16c660a09a6bc762e3063a95866144b5fa",
+    "/src/components/StrategyLogicFlowVariableManager.vue?vue&type=style&index=0&scoped=6d63c9dc&lang.css": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/6c7f3048494f8fbe6a3257500457bd151c0f8334",
+    "/@id/__x00__plugin-vue:export-helper": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/dd3436e33f24f652f149b7af6333f5df9b4dab2d",
+    "/src/composables/useTheme.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/c312db31f6f531fabbc877b3446843a9daadb84d",
+    "/src/features/strategyVisualBuilder.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/fcc3dcd090c721ab0700ee55c01cede3c4fb8769",
+    "/src/features/strategyVisualBuilderDslParser.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/9e25a1dc0e68d6549b858b60e4c037a9907ef173",
+    "/src/features/strategyVisualBuilderDsl.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/2f97ad74b391e259615ae4be266763016033b13d",
+    "/src/features/strategyVisualBuilderScriptSupport.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/93ebfb3f819c43a270eef2f2f96edb212246da66",
+    "/src/features/strategyVisualBuilderTemplates.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/0f3c048b33ab8244601e2757d2e0905f351c6e99",
+    "/src/features/strategyVisualBuilderModels.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/4dfb56b67dc54bf8312d103bdef070987d2d1434",
+    "/src/features/strategyVisualBuilderBasicModels.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/098c5d2e0b9f99cb025f39bb6ae25d14280d09e4",
+    "/src/features/strategyVisualBuilderMovingAverageModels.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/a8d6db86b58bc44c344296bf7426b596d4777d54",
+    "/src/features/strategyVisualBuilderIndicatorModels.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/c7b4f3e2820be086bf062af558894a768292290b",
+    "/src/features/strategyVisualBuilderBollingerModels.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/5db30495dc08bd7702cc96b24ec2cfd170e68bb8",
+    "/src/features/strategyVisualBuilderExtendedIndicatorModels.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/c6ab3a3bffe643090d8df2a9f3018242845f89a7",
+    "/src/features/strategyVisualBuilderMacdModels.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/dad647e5ff10a750a9f31ed208710e82efda98e4",
+    "/src/features/strategyVisualBuilderRsiModels.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/8fd856b4c710fce606f6cef71131c96663dc3090",
+    "/src/features/strategyVisualBuilderGraphData.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/f6c7d5b7eb7955d9d9a431f860409e20e41c115b",
+    "/src/features/strategyVisualBuilderNodePresentation.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/34ab1fb90ba643ae60592f07ead0c21c35c47ac7",
+    "/src/features/strategyVisualBuilderIndicatorShortcut.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/1a05b8bd05d429b3316a1b9d1af00ae458437208",
+    "/src/components/StrategyLogicFlowDesigner.vue?vue&type=style&index=0&scoped=c990bcc8&lang.css": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/2fd30649c2695137fb276e6f7c3258e1441f58ad",
+    "/src/components/StrategyRuntimePanel.vue": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/788d60e56b1ba5a993289d3d63cd99cf4fcc3232",
+    "/src/composables/apiClient.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/2588d50a28d705c3c4f92610ad7465f18fee9372",
+    "/src/composables/useConsoleData.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/38913c7fd3590f8a04929b419ac6edb917056724",
+    "/src/composables/consoleDataBrokerSettings.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/35f8763b2d59465489f325c6e076cc5b322537b3",
+    "/src/composables/consoleDataBrokerAccountSelection.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/fd8a9e362c89fcdc5aa6e9b96630e71df7a8644e",
+    "/src/composables/consoleDataBrokerLiveQuery.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/dad1f4129e5f96868036e05ede3fb095fa39a66c",
+    "/src/composables/consoleDataConsoleStream.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/0074ba9892e5ba6eff005b1bd14bbc28688de03e",
+    "/src/composables/consoleDataExecutionOrders.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/f5cb04e67dec5b25f470d29613f74eebde64fce5",
+    "/src/composables/consoleDataMarketData.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/2701af25be8d20817eff4635bf61e059dc9b44b1",
+    "/src/composables/consoleDataMarketInstruments.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/011f6ebe1b9ebce4f510f47673d55f599ece1127",
+    "/src/composables/consoleDataMarketSubscriptions.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/64ac1878a5e000fc521656b00266f4624e164bd1",
+    "/src/charting/kline.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/18c8b421579f27ce0391aef3634b08eaf1d0e3b6",
+    "/src/composables/consoleDataMarketDataQuery.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/5e29d47a14f298dca76fdfd73e77a2f980dc9850",
+    "/src/composables/marketDataQuery.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/1f56901f31cc6356e1ab40ce69c830855411830e",
+    "/src/composables/marketDataRealtime.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/dbae9fd2949bacedd02ca2821f3a322eed2d899b",
+    "/src/composables/marketDataRealtimeBuckets.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/d731d7059e25ebf205417e3506a6e3bd8a44973f",
+    "/src/composables/marketDataRealtimeTickState.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/932220cb24871055f66429ee224cd05fcdf9da9d",
+    "/src/composables/marketDataRealtimeBarVolumeState.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/b4d253d11b8b274ef191ed06e1824e168df66974",
+    "/src/composables/marketDataRealtimeBarPriceState.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/424f8cdd7306faa7307531eb68ddb509ef0f8089",
+    "/src/composables/marketDataRealtimeCandles.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/354ca82e24344c7e58766e4945640add95049ea3",
+    "/src/composables/marketDataRealtimeSnapshot.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/58e5c38fe47b631fa7c394eb39ae50f678bf4053",
+    "/src/composables/marketDataRealtimeTickContext.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/79116f3d73a3baeb461f6f3bd212afedb60e756b",
+    "/src/composables/marketDataSnapshotRefresh.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/6d9a0310c392115b749eaf69501d3cf2a3a69eab",
+    "/src/composables/consoleDataPlugins.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/16ae292a93320f775ed3f020efe702404f98aa0b",
+    "/src/composables/consoleDataPortfolioLiveQuery.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/15b68f5b338b69e10a23f352dbf7b5f0dfaa4971",
+    "/src/composables/consoleDataSystemState.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/945ae1a5cd19da592bfb2bf9924b0c09eb185905",
+    "/src/composables/consoleDataSystemStateDecisions.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/697e44def49ffe3f439e3d08cdb5e5504ec33272",
+    "/src/composables/consoleDataRealTrade.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/21899a1fbd3751b6ba63fda9cbb896158d2aa7a7",
+    "/src/composables/useWorkspaceLayout.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/d3ba752b725b3828cf521b24d3ba1189f3ad8097",
+    "/src/components/StrategyRuntimePanel.vue?vue&type=style&index=0&scoped=ab995f63&lang.css": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/c0baec35270d79d09eb41d9018d1f3d3e2225473",
+    "/src/pages/StrategyPage.vue": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/3d4a0545e2f6c0860e664d055b354819005de30b",
+    "/src/components/StrategyDesignStage.vue": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/4a1b1ae9b6bfe09c2b1a5b628ed6822682f9d9d8",
+    "/src/components/strategy-stage/StrategyStageCodeWorkbenchPanel.vue": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/22c1a9e8c44edea9fd2bea7714ca5b2035e959cb",
+    "/src/components/MonacoCodeEditor.vue": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/0f81445acb57da62abf48c11e541612f9f43f5ef",
+    "/src/components/MonacoCodeEditor.vue?vue&type=style&index=0&scoped=89c6b6f5&lang.css": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/cad97e92ae156b88ce59425a14483f8192cf637b",
+    "/src/components/strategy-stage/strategyStageShared.css": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/18660b90cdeca1086c5433fd8df725997eb5815e",
+    "/src/components/strategy-stage/StrategyStageDefinitionsPanel.vue": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/acd6d5052af2c2d67e4afa0dc31b1708db70e4ec",
+    "/src/components/strategy-stage/StrategyStageOverlayDeck.vue": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/3e4c85b15ea53b0b40729c59baf27f6bafaf3c7a",
+    "/src/composables/useDraggable.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/8d6ec248b87a7a3d5953379e023a7646f125d843",
+    "/src/composables/useStrategyIndicatorVariables.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/b562e1db41f28da5e378f8b412996512606b02c8",
+    "/src/composables/useStrategyUndoRedo.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/d861ef0bc968413ff74a0a4ff5da62b0f31e9375",
+    "/src/composables/useStrategyVisualNodeInspector.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/fdc7afcf54982566ea90f0077d12c3a0980c9c0d",
+    "/src/features/strategyDslEditorIntelliSense.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/944ff812171c4a07d989d5059d2fe5156420e5f7",
+    "/src/features/strategyVisualBuilderMigration.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/54f2916e00367b37a006e1b6b509e21e1ca05798",
+    "/src/components/StrategyDesignStage.vue?vue&type=style&index=0&scoped=76f16176&lang.css": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/b0c2de69c7a079d7bc88e1ceb40a253517cd00a0",
+    "/src/pages/StrategyPage.vue?vue&type=style&index=0&scoped=261fec33&lang.css": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/33ba2fd64319563db5c7358c3ef06cedb90259ad",
+    "/tests/helpers.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/007992f54fc711efc81835a595ff1c742dee60a9",
+    "/src/App.vue": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/df2d62694e7bc5b8b48301d39867da3a8d141b2e",
+    "/src/layout/AppShell.vue": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/04bd9fd2b6a2aec58ed4d3e3cf568a554c06004d",
+    "/src/composables/useCommandPalette.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/f5fa95b3eb8cbfea505f107cb2362d84a9d1530f",
+    "/src/composables/useDocsLink.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/6861b364334e20ca57a7e4c8aedf599a93fd14fb",
+    "/src/composables/useNotifications.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/4fd7745b3d2b9ae1680f63bb4a1d87fe84d73717",
+    "/src/composables/useSharedLiveSocket.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/7b5e9814723efe328d3bd6bd0a0f169602263e4d",
+    "/src/composables/useLiveSocket.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/a9583d1734da4b1d0743356a25094076e1e145cf",
+    "/src/composables/useUIColorPreferences.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/c466342ea5d652d9e3d466971d8cc9151e7b05c8",
+    "/src/layout/CommandPalette.vue": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/0713d156a7456d1f4d08200a947b06f5666fbee9",
+    "/src/layout/IconRail.vue": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/ae596cd7ebe375ad64c45eeafbd592a739643e6a",
+    "/src/layout/RightDock.vue": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/d5e9a4001d18e2a3ac94a52f780af14a40cc1713",
+    "/src/layout/AiAssistantPanel.vue": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/76d26f2ee75031647ee75368058c0e050d6ce7fb",
+    "/src/composables/consoleDataFormatting.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/52bf1d147473bea56f07e045412788d48e5f030a",
+    "/src/layout/NotificationCenter.vue": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/da2a4d684c9eb39f9379193ca7f0abf2ed70e4ed",
+    "/src/layout/StatusBar.vue": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/8440c6966b1167d38e87310534254b7765722880",
+    "/src/layout/TopBar.vue": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/5ad9898c2e139f49e5f8b0a32fd2bcc2da45877b",
+    "/src/components/TradingEnvironmentBadge.vue": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/b736eece257aa1ee7a2ce0815486eb4c179650e6",
+    "/src/router.ts": "/var/folders/9d/pjvzzxls4pq3kt5mb0m42wlm0000gn/T/lRUgde6-87QKBVK2RKlVx/client/2516a7c4d02ed7a1843deb823328fee284d6cdb9"
+  },
+  "dumpDir": "/Users/jiangfan/Desktop/jftrade-main/apps/web/.vitest-dump/root",
+  "outline": {
+    "externalized": 3,
+    "inlined": 98
+  }
+}

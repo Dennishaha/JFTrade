@@ -10,14 +10,18 @@ export type {
 } from "./strategyVisualBuilderCatalog";
 export {
   buildStrategyVisualModelFromScript,
-} from "./strategyVisualBuilderParser";
+  buildStrategyVisualModelFromDsl,
+} from "./strategyVisualBuilderDslParser";
 export type {
   StrategyScriptParseFailure,
   StrategyScriptParseResult,
   StrategyScriptParseSuccess,
-} from "./strategyVisualBuilderParser";
-export { buildStrategyScriptFromVisualModel } from "./strategyVisualBuilderScript";
-export type { StrategyScriptContext } from "./strategyVisualBuilderScript";
+} from "./strategyVisualBuilderDslParser";
+export {
+  buildStrategyDslFromVisualModel,
+  buildStrategyScriptFromVisualModel,
+} from "./strategyVisualBuilderDsl";
+export type { StrategyDslContext, StrategyScriptContext } from "./strategyVisualBuilderDsl";
 export { getStrategyAuthoringTemplates } from "./strategyVisualBuilderTemplates";
 export type { StrategyAuthoringTemplate } from "./strategyVisualBuilderTemplates";
 export {

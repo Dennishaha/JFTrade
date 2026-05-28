@@ -14,6 +14,7 @@ import (
 	"github.com/jftrade/jftrade-main/pkg/futu"
 	"github.com/jftrade/jftrade-main/pkg/futu/backtest"
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
+	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 )
 
 func (s *Server) serveBacktestRoutes(w http.ResponseWriter, r *http.Request) bool {
@@ -92,6 +93,10 @@ func (s *Server) handleBacktestStart(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusNotFound, "NOT_FOUND", "strategy definition not found")
 		return
 	}
+	if err := strategydefinition.ValidateScript(definition.SourceFormat, definition.Script); err != nil {
+		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", err.Error())
+		return
+	}
 
 	startTime, err := time.Parse(time.RFC3339, req.StartTime)
 	if err != nil {
@@ -127,6 +132,7 @@ func (s *Server) handleBacktestStart(w http.ResponseWriter, r *http.Request) {
 			DBPath:         dbPath,
 			Symbol:         req.Symbol,
 			Interval:       req.Interval,
+			SourceFormat:   definition.SourceFormat,
 			StartTime:      startTime,
 			EndTime:        endTime,
 			StrategyScript: definition.Script,

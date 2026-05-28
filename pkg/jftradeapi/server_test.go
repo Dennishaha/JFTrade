@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
+
+	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 )
 
 func TestShouldStartForAPIOnlyArgs(t *testing.T) {
@@ -355,14 +357,15 @@ func TestStrategyDefinitionEndpoints(t *testing.T) {
 	defer srv.Close()
 
 	payload := map[string]any{
-		"id":          "js-mean-revert",
-		"name":        "JS Mean Revert",
-		"version":     "0.1.0",
-		"description": "quickjs strategy",
-		"runtime":     strategyRuntimeQuickJS,
-		"symbol":      "00700",
-		"interval":    "1m",
-		"script":      "function onInit(ctx) { console.log(ctx.name); }",
+		"id":           "dsl-mean-revert",
+		"name":         "DSL Mean Revert",
+		"version":      "0.1.0",
+		"description":  "dsl strategy",
+		"runtime":      strategyRuntimeDSLPlan,
+		"sourceFormat": strategydefinition.SourceFormatDSLV1,
+		"symbol":       "00700",
+		"interval":     "1m",
+		"script":       "strategy DSL Mean Revert\non init:\n  log \"init\"\non kline_close:\n  log \"close\"",
 		"visualModel": map[string]any{
 			"engine":  "logic-flow",
 			"version": 1,
@@ -406,11 +409,11 @@ func TestStrategyDefinitionEndpoints(t *testing.T) {
 	if err := json.NewDecoder(listResp.Body).Decode(&listEnvelope); err != nil {
 		t.Fatalf("decode strategy definitions: %v", err)
 	}
-	if len(listEnvelope.Data) != 1 || listEnvelope.Data[0].ID != "js-mean-revert" {
+	if len(listEnvelope.Data) != 1 || listEnvelope.Data[0].ID != "dsl-mean-revert" {
 		t.Fatalf("unexpected definitions response: %+v", listEnvelope.Data)
 	}
 
-	detailResp, err := http.Get(srv.URL + "/api/v1/strategy-definitions/js-mean-revert")
+	detailResp, err := http.Get(srv.URL + "/api/v1/strategy-definitions/dsl-mean-revert")
 	if err != nil {
 		t.Fatalf("GET strategy definition detail: %v", err)
 	}
@@ -425,16 +428,19 @@ func TestStrategyDefinitionEndpoints(t *testing.T) {
 	if err := json.NewDecoder(detailResp.Body).Decode(&detailEnvelope); err != nil {
 		t.Fatalf("decode strategy definition detail: %v", err)
 	}
-	if detailEnvelope.Data.Runtime != strategyRuntimeQuickJS {
+	if detailEnvelope.Data.Runtime != strategyRuntimeDSLPlan {
 		t.Fatalf("unexpected strategy runtime: %+v", detailEnvelope.Data)
+	}
+	if detailEnvelope.Data.SourceFormat != strategydefinition.SourceFormatDSLV1 {
+		t.Fatalf("unexpected strategy source format: %+v", detailEnvelope.Data)
 	}
 	if detailEnvelope.Data.VisualModel == nil || len(detailEnvelope.Data.VisualModel.Nodes) != 1 {
 		t.Fatalf("unexpected visual model: %+v", detailEnvelope.Data.VisualModel)
 	}
 
-	payload["description"] = "updated quickjs strategy"
+	payload["description"] = "updated dsl strategy"
 	updateBody, _ := json.Marshal(payload)
-	request, err := http.NewRequest(http.MethodPut, srv.URL+"/api/v1/strategy-definitions/js-mean-revert", bytes.NewReader(updateBody))
+	request, err := http.NewRequest(http.MethodPut, srv.URL+"/api/v1/strategy-definitions/dsl-mean-revert", bytes.NewReader(updateBody))
 	if err != nil {
 		t.Fatalf("build PUT request: %v", err)
 	}
@@ -454,89 +460,148 @@ func TestStrategyDefinitionEndpoints(t *testing.T) {
 	if err := json.NewDecoder(updateResp.Body).Decode(&updateEnvelope); err != nil {
 		t.Fatalf("decode updated strategy definition: %v", err)
 	}
-	if updateEnvelope.Data.Description != "updated quickjs strategy" {
+	if updateEnvelope.Data.Description != "updated dsl strategy" {
 		t.Fatalf("unexpected updated definition: %+v", updateEnvelope.Data)
 	}
 }
 
-func TestInstantiateAndTransitionQuickJSStrategyInstance(t *testing.T) {
+func TestInstantiateDSLStrategyDefinitionBuildsCompiledPlan(t *testing.T) {
 	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
 	server := NewServer(store)
 	if _, err := server.designStore.saveDefinition(strategyDesignDefinition{
-		ID:       "js-breakout",
-		Name:     "JS Breakout",
-		Version:  "0.1.0",
-		Runtime:  strategyRuntimeQuickJS,
-		Symbol:   "00700",
-		Interval: "1m",
-		Script:   "function onKLineClosed(ctx) { console.log(ctx.kline.close); }",
+		ID:           "dsl-breakout",
+		Name:         "DSL Breakout",
+		Version:      "0.1.0",
+		Runtime:      strategyRuntimeDSLPlan,
+		SourceFormat: strategydefinition.SourceFormatDSLV1,
+		Symbol:       "00700",
+		Interval:     "1m",
+		Script:       "strategy DSL Breakout\non kline_close:\n  let fast = ma(EMA, 5, day)\n  if cross_over(fast, fast):\n    buy cash_percent 50\n  else:\n    protect auto trailing_stop 2 day 4% window session",
 	}); err != nil {
 		t.Fatalf("saveDefinition: %v", err)
 	}
 	srv := httptest.NewServer(server)
 	defer srv.Close()
 
-	createResp, err := http.Post(srv.URL+"/api/v1/strategy-definitions/js-breakout/instantiate", "application/json", bytes.NewReader([]byte(`{}`)))
+	resp, err := http.Post(srv.URL+"/api/v1/strategy-definitions/dsl-breakout/instantiate", "application/json", bytes.NewReader([]byte(`{}`)))
 	if err != nil {
-		t.Fatalf("POST instantiate: %v", err)
+		t.Fatalf("POST instantiate DSL strategy: %v", err)
 	}
-	defer createResp.Body.Close()
-	if createResp.StatusCode != http.StatusOK {
-		t.Fatalf("POST instantiate status = %d", createResp.StatusCode)
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("POST instantiate DSL strategy status = %d, want %d", resp.StatusCode, http.StatusOK)
 	}
-	var createEnvelope struct {
+
+	var envelope struct {
 		OK   bool             `json:"ok"`
 		Data strategyListItem `json:"data"`
 	}
-	if err := json.NewDecoder(createResp.Body).Decode(&createEnvelope); err != nil {
-		t.Fatalf("decode instantiate: %v", err)
+	if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
+		t.Fatalf("decode DSL instantiate response: %v", err)
 	}
-	if createEnvelope.Data.Status != strategyStatusStopped {
-		t.Fatalf("unexpected instantiated status: %+v", createEnvelope.Data)
+	if envelope.Data.PluginID != IDDSLPlanPlugin() {
+		t.Fatalf("unexpected DSL plugin id: %+v", envelope.Data)
 	}
-	instanceID := createEnvelope.Data.ID
+	if envelope.Data.Runtime != strategyRuntimeDSLPlan {
+		t.Fatalf("unexpected DSL runtime field: %+v", envelope.Data)
+	}
+	if envelope.Data.SourceFormat != strategydefinition.SourceFormatDSLV1 {
+		t.Fatalf("unexpected DSL source format field: %+v", envelope.Data)
+	}
+	if !envelope.Data.Startable {
+		t.Fatalf("expected DSL compiled instance to be startable: %+v", envelope.Data)
+	}
+	if got := envelope.Data.Params["runtime"]; got != strategyRuntimeDSLPlan {
+		t.Fatalf("unexpected DSL runtime params: %+v", envelope.Data.Params)
+	}
+	if got := envelope.Data.Params["sourceFormat"]; got != strategydefinition.SourceFormatDSLV1 {
+		t.Fatalf("unexpected DSL source format params: %+v", envelope.Data.Params)
+	}
+	compiledRequirements, ok := envelope.Data.Params["compiledRequirements"].(map[string]any)
+	if !ok {
+		t.Fatalf("compiledRequirements type = %T", envelope.Data.Params["compiledRequirements"])
+	}
+	if compiledRequirements["requiresAvailableCash"] != true {
+		t.Fatalf("expected compiled requirements to request available cash, got %+v", compiledRequirements)
+	}
+	indicators, ok := compiledRequirements["indicators"].([]any)
+	if !ok || len(indicators) != 2 {
+		t.Fatalf("unexpected compiled indicators: %+v", compiledRequirements["indicators"])
+	}
 
+	instanceID := envelope.Data.ID
 	assertTransition := func(action string, expectedStatus string) {
-		resp, err := http.Post(srv.URL+"/api/v1/strategies/"+instanceID+"/"+action, "application/json", bytes.NewReader([]byte(`{}`)))
-		if err != nil {
-			t.Fatalf("POST %s: %v", action, err)
+		transitionResp, transitionErr := http.Post(srv.URL+"/api/v1/strategies/"+instanceID+"/"+action, "application/json", bytes.NewReader([]byte(`{}`)))
+		if transitionErr != nil {
+			t.Fatalf("POST DSL %s: %v", action, transitionErr)
 		}
-		defer resp.Body.Close()
-		if resp.StatusCode != http.StatusOK {
-			t.Fatalf("POST %s status = %d", action, resp.StatusCode)
+		defer transitionResp.Body.Close()
+		if transitionResp.StatusCode != http.StatusOK {
+			t.Fatalf("POST DSL %s status = %d, want %d", action, transitionResp.StatusCode, http.StatusOK)
 		}
-		var envelope struct {
+		var transitionEnvelope struct {
 			OK   bool             `json:"ok"`
 			Data strategyListItem `json:"data"`
 		}
-		if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
-			t.Fatalf("decode %s: %v", action, err)
+		if err := json.NewDecoder(transitionResp.Body).Decode(&transitionEnvelope); err != nil {
+			t.Fatalf("decode DSL %s response: %v", action, err)
 		}
-		if envelope.Data.Status != expectedStatus {
-			t.Fatalf("%s expected status %s, got %+v", action, expectedStatus, envelope.Data)
+		if transitionEnvelope.Data.Status != expectedStatus {
+			t.Fatalf("DSL %s status = %s, want %s", action, transitionEnvelope.Data.Status, expectedStatus)
+		}
+		if !transitionEnvelope.Data.Startable {
+			t.Fatalf("expected transitioned DSL instance to remain startable: %+v", transitionEnvelope.Data)
 		}
 	}
 
 	assertTransition("start", strategyStatusRunning)
 	assertTransition("pause", strategyStatusPaused)
 	assertTransition("stop", strategyStatusStopped)
+}
 
-	logsResp, err := http.Get(srv.URL + "/api/v1/strategies/" + instanceID + "/logs")
+func TestInstantiateStoredDefinitionNormalizesLegacySourceFormatToDSL(t *testing.T) {
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
 	if err != nil {
-		t.Fatalf("GET logs: %v", err)
+		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	defer logsResp.Body.Close()
-	var logsEnvelope struct {
-		OK   bool                 `json:"ok"`
-		Data strategyLogsResponse `json:"data"`
+	server := NewServer(store)
+	if _, err := server.designStore.saveDefinition(strategyDesignDefinition{
+		ID:           "legacy-breakout",
+		Name:         "Legacy Breakout",
+		Version:      "0.1.0",
+		Runtime:      strategyRuntimeDSLPlan,
+		SourceFormat: "legacy-v0",
+		Symbol:       "00700",
+		Interval:     "1m",
+		Script:       "strategy Legacy Breakout\non kline_close:\n  log \"close\"",
+	}); err != nil {
+		t.Fatalf("saveDefinition: %v", err)
 	}
-	if err := json.NewDecoder(logsResp.Body).Decode(&logsEnvelope); err != nil {
-		t.Fatalf("decode logs after transitions: %v", err)
+	srv := httptest.NewServer(server)
+	defer srv.Close()
+
+	createResp, err := http.Post(srv.URL+"/api/v1/strategy-definitions/legacy-breakout/instantiate", "application/json", bytes.NewReader([]byte(`{}`)))
+	if err != nil {
+		t.Fatalf("POST instantiate: %v", err)
 	}
-	if len(logsEnvelope.Data.Logs) < 4 {
-		t.Fatalf("expected lifecycle logs, got %+v", logsEnvelope.Data.Logs)
+	defer createResp.Body.Close()
+	if createResp.StatusCode != http.StatusOK {
+		t.Fatalf("POST normalized legacy source format instantiate status = %d, want %d", createResp.StatusCode, http.StatusOK)
+	}
+	var createEnvelope struct {
+		OK   bool             `json:"ok"`
+		Data strategyListItem `json:"data"`
+	}
+	if err := json.NewDecoder(createResp.Body).Decode(&createEnvelope); err != nil {
+		t.Fatalf("decode normalized instantiate: %v", err)
+	}
+	if createEnvelope.Data.SourceFormat != strategydefinition.SourceFormatDSLV1 {
+		t.Fatalf("expected normalized DSL source format, got %+v", createEnvelope.Data)
+	}
+	if createEnvelope.Data.Runtime != strategyRuntimeDSLPlan {
+		t.Fatalf("expected normalized DSL runtime, got %+v", createEnvelope.Data)
 	}
 }

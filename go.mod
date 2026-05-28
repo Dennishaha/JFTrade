@@ -4,12 +4,12 @@ go 1.26.3
 
 require (
 	github.com/c9s/bbgo v1.64.2
+	github.com/expr-lang/expr v1.17.8
 	github.com/gorilla/websocket v1.5.3
 	github.com/jmoiron/sqlx v1.3.4
 	github.com/shopspring/decimal v1.4.0
 	github.com/swaggo/http-swagger/v2 v2.0.2
 	google.golang.org/protobuf v1.36.11
-	modernc.org/quickjs v0.18.2
 	modernc.org/sqlite v1.38.2
 )
 
@@ -28,7 +28,6 @@ require (
 	github.com/swaggo/swag v1.8.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	modernc.org/libc v1.72.3 // indirect
-	modernc.org/libquickjs v0.12.8 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
 )

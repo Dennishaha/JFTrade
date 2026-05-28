@@ -1,5 +1,5 @@
-// Package backtest provides a standalone backtest runner for Futu/QuickJS
-// strategies using bbgo's backtest engine with a local SQLite K-line store.
+// Package backtest provides a standalone backtest runner for Futu strategies
+// using bbgo's backtest engine with a local SQLite K-line store.
 package backtest
 
 import (
@@ -17,15 +17,15 @@ import (
 	"github.com/c9s/bbgo/pkg/types"
 
 	"github.com/jftrade/jftrade-main/pkg/futu"
-	"github.com/jftrade/jftrade-main/pkg/strategy/quickjs"
+	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
+	"github.com/jftrade/jftrade-main/pkg/strategy/dslruntime"
 )
 
 // Run executes a backtest with the given configuration.
 //
 // It opens the SQLite K-line store, creates a bbgo backtest.Exchange,
-// instantiates a QuickJS strategy, and replays historical K-lines one by one
-// through bbgo's matching engine. The strategy's onKLineClosed hook receives
-// each candle and may place/cancel orders via the host API.
+// instantiates the configured strategy runtime, and replays historical K-lines
+// one by one through bbgo's matching engine.
 func Run(ctx context.Context, cfg RunConfig) *RunResult {
 	result := &RunResult{
 		Symbol:    cfg.Symbol,
@@ -150,8 +150,8 @@ func Run(ctx context.Context, cfg RunConfig) *RunResult {
 
 	// Enable trading on the session account AFTER Init, because
 	// session.Init() calls session.setAccount() which replaces the
-	// Account object.  NewExchangeSession defaults CanTrade to false,
-	// which causes the QuickJS risk check to block PLACE operations.
+	// Account object. NewExchangeSession defaults CanTrade to false,
+	// which causes runtime-side risk checks to block PLACE operations.
 	session.Account.CanTrade = true
 	session.Account.CanDeposit = true
 	session.Account.CanWithdraw = true
@@ -161,21 +161,29 @@ func Run(ctx context.Context, cfg RunConfig) *RunResult {
 	}
 	btExchange.BindUserData(session.UserDataStream.(types.StandardStreamEmitter))
 
-	// ── 4. Instantiate and run QuickJS strategy ─────────────────────
+	// ── 4. Instantiate and run strategy runtime ─────────────────────
 	// Wire before Subscribe so SubscribeMarketData sees strategy interval.
 	btExchange.MarketDataStream = session.MarketDataStream.(types.StandardStreamEmitter)
 
 	bbgo2.IsBackTesting = true
 	defer func() { bbgo2.IsBackTesting = false }()
 
-	strategy := &quickjs.Strategy{
+	type runnableStrategy interface {
+		Subscribe(session *bbgo2.ExchangeSession)
+		Run(ctx context.Context, orderExecutor bbgo2.OrderExecutor, session *bbgo2.ExchangeSession) error
+	}
+
+	sourceFormat := strategydefinition.NormalizeSourceFormat(cfg.SourceFormat)
+	if sourceFormat != strategydefinition.SourceFormatDSLV1 {
+		result.Error = fmt.Sprintf("unsupported strategy source format: %s", sourceFormat)
+		return result
+	}
+	strategy := &dslruntime.Strategy{
 		Name:        "backtest-strategy",
 		Symbol:      cfg.Symbol,
 		Interval:    types.Interval(cfg.Interval),
 		Script:      cfg.StrategyScript,
 		WarmupUntil: warmupUntil,
-		// Collect runtime errors (e.g. insufficient balance) so the
-		// frontend can surface them alongside the backtest result.
 		OnError: func(errMsg string) {
 			result.AddRuntimeError(errMsg)
 			log.Printf("backtest runtime error: %s", errMsg)

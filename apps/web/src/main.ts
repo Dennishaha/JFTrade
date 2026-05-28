@@ -1,6 +1,6 @@
 import "@fortawesome/fontawesome-free/css/all.min.css";
 import { createPinia } from "pinia";
-import { createApp } from "vue";
+import { createApp, type Plugin } from "vue";
 import * as components from "vuetify/components";
 import * as directives from "vuetify/directives";
 import { createVuetify } from "vuetify";
@@ -17,8 +17,9 @@ const vuetify = createVuetify({
   icons: fontAwesomeIcons,
 });
 
-createApp(App)
-  .use(createPinia())
-  .use(createConsoleRouter())
-  .use(vuetify)
-  .mount("#app");
+const app = createApp(App);
+
+app.use(createPinia() as unknown as Plugin);
+app.use(createConsoleRouter() as unknown as Plugin);
+app.use(vuetify as unknown as Plugin);
+app.mount("#app");

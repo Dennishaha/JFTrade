@@ -319,12 +319,36 @@ export interface StrategyVisualModelDocument {
   edges: StrategyVisualEdgeDocument[];
 }
 
+export type StrategySourceFormat = "dsl-v1";
+
+export type StrategyInstanceStatus = "RUNNING" | "PAUSED" | "STOPPED";
+
+export interface StrategyDefinitionSummaryDocument {
+  strategyId: string;
+  name: string;
+  version: string;
+}
+
+export interface StrategyInstanceItem {
+  id: string;
+  pluginId?: string;
+  definition: StrategyDefinitionSummaryDocument;
+  runtime: string;
+  sourceFormat: StrategySourceFormat;
+  startable: boolean;
+  params: Record<string, unknown>;
+  status: StrategyInstanceStatus;
+  createdAt: string;
+  logs: string[];
+}
+
 export interface StrategyDefinitionDocument {
   id: string;
   name: string;
   version: string;
   description: string;
   runtime: string;
+  sourceFormat?: StrategySourceFormat;
   symbol: string;
   interval: string;
   script: string;

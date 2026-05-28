@@ -6,12 +6,17 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"runtime/debug"
 	"sort"
 	"strings"
 	"sync"
 	"time"
+
+	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
+	strategydsl "github.com/jftrade/jftrade-main/pkg/strategy/dsl"
+	strategyir "github.com/jftrade/jftrade-main/pkg/strategy/ir"
 )
 
 const (
@@ -117,13 +122,16 @@ type strategyAuditEntry struct {
 }
 
 type strategyListItem struct {
-	ID         string                    `json:"id"`
-	PluginID   string                    `json:"pluginId,omitempty"`
-	Definition strategyDefinitionSummary `json:"definition"`
-	Params     map[string]any            `json:"params"`
-	Status     string                    `json:"status"`
-	CreatedAt  string                    `json:"createdAt"`
-	Logs       []string                  `json:"logs"`
+	ID           string                    `json:"id"`
+	PluginID     string                    `json:"pluginId,omitempty"`
+	Definition   strategyDefinitionSummary `json:"definition"`
+	Runtime      string                    `json:"runtime"`
+	SourceFormat string                    `json:"sourceFormat"`
+	Startable    bool                      `json:"startable"`
+	Params       map[string]any            `json:"params"`
+	Status       string                    `json:"status"`
+	CreatedAt    string                    `json:"createdAt"`
+	Logs         []string                  `json:"logs"`
 }
 
 type strategyLogsResponse struct {
@@ -213,8 +221,20 @@ func (s *strategyCatalogStore) load() error {
 	if err := json.Unmarshal(data, &s.data); err != nil {
 		return err
 	}
+	migrated := false
 	if strings.TrimSpace(s.data.TargetDir) == "" {
 		s.data.TargetDir = s.targetDir
+		migrated = true
+	}
+	for index := range s.data.Strategies {
+		normalized := s.normalizeStrategy(s.data.Strategies[index])
+		if !reflect.DeepEqual(s.data.Strategies[index], normalized) {
+			migrated = true
+		}
+		s.data.Strategies[index] = normalized
+	}
+	if migrated {
+		return s.persistLocked()
 	}
 	return nil
 }
@@ -379,15 +399,7 @@ func (s *strategyCatalogStore) strategies() []strategyListItem {
 	items := make([]strategyListItem, 0, len(s.data.Strategies))
 	for _, strategy := range s.data.Strategies {
 		normalized := s.normalizeStrategy(strategy)
-		items = append(items, strategyListItem{
-			ID:         normalized.ID,
-			PluginID:   normalized.PluginID,
-			Definition: normalized.Definition,
-			Params:     copyMap(normalized.Params),
-			Status:     normalized.Status,
-			CreatedAt:  normalized.CreatedAt,
-			Logs:       append([]string(nil), normalized.Logs...),
-		})
+		items = append(items, strategyToListItem(normalized))
 	}
 	sort.Slice(items, func(i int, j int) bool {
 		return items[i].CreatedAt < items[j].CreatedAt
@@ -397,21 +409,19 @@ func (s *strategyCatalogStore) strategies() []strategyListItem {
 
 func (s *strategyCatalogStore) instantiateStrategy(definition strategyDesignDefinition) (strategyListItem, error) {
 	now := time.Now().UTC().Format(time.RFC3339Nano)
+	params, err := buildStrategyInstanceParams(definition, now)
+	if err != nil {
+		return strategyListItem{}, err
+	}
 	instance := managedStrategyInstance{
 		ID:       buildStrategyInstanceID(definition.ID),
-		PluginID: IDQuickJSPlugin(),
+		PluginID: strategyPluginIDForDefinition(definition),
 		Definition: strategyDefinitionSummary{
 			StrategyID: definition.ID,
 			Name:       definition.Name,
 			Version:    definition.Version,
 		},
-		Params: map[string]any{
-			"runtime":      normalizeStrategyRuntime(definition.Runtime),
-			"definitionId": definition.ID,
-			"symbol":       definition.Symbol,
-			"interval":     definition.Interval,
-			"script":       definition.Script,
-		},
+		Params:    params,
 		Status:    strategyStatusStopped,
 		CreatedAt: now,
 		Logs: []string{
@@ -571,17 +581,18 @@ func (s *strategyCatalogStore) normalizeStrategy(input managedStrategyInstance) 
 	if input.ID == "" {
 		input.ID = "strategy-" + time.Now().UTC().Format("20060102150405.000000000")
 	}
-	if strings.TrimSpace(input.PluginID) == "" {
-		input.PluginID = IDQuickJSPlugin()
-	}
+	input.PluginID = IDDSLPlanPlugin()
 	if input.Params == nil {
 		input.Params = map[string]any{}
 	}
+	rawRuntime, _ := input.Params["runtime"].(string)
+	rawSourceFormat, _ := input.Params["sourceFormat"].(string)
 	if runtime, ok := input.Params["runtime"].(string); ok {
 		input.Params["runtime"] = normalizeStrategyRuntime(runtime)
 	} else {
-		input.Params["runtime"] = strategyRuntimeQuickJS
+		input.Params["runtime"] = strategyRuntimeDSLPlan
 	}
+	input.Params["sourceFormat"] = strategydefinition.SourceFormatDSLV1
 	if input.Definition.StrategyID == "" {
 		input.Definition.StrategyID = input.PluginID
 	}
@@ -590,6 +601,9 @@ func (s *strategyCatalogStore) normalizeStrategy(input managedStrategyInstance) 
 	}
 	if input.Definition.Version == "" {
 		input.Definition.Version = "0.1.0"
+	}
+	if script, _ := input.Params["script"].(string); shouldReplaceWithDefaultDSLScript(rawSourceFormat, rawRuntime, script) {
+		input.Params["script"] = defaultStrategyDesignDSL(input.Definition.Name)
 	}
 	if input.Status == "" {
 		input.Status = strategyStatusStopped
@@ -693,6 +707,89 @@ func buildPluginOperationID(pluginID string) string {
 	return strings.ToLower(strings.ReplaceAll(pluginID, " ", "-")) + "-" + time.Now().UTC().Format("20060102150405.000000000")
 }
 
+func buildStrategyInstanceParams(definition strategyDesignDefinition, compiledAt string) (map[string]any, error) {
+	sourceFormat := strategydefinition.NormalizeSourceFormat(definition.SourceFormat)
+	if sourceFormat != strategydefinition.SourceFormatDSLV1 {
+		return nil, fmt.Errorf("unsupported strategy source format: %s", sourceFormat)
+	}
+	params := map[string]any{
+		"definitionId": definition.ID,
+		"sourceFormat": sourceFormat,
+		"symbol":       definition.Symbol,
+		"interval":     definition.Interval,
+		"script":       definition.Script,
+	}
+	program, err := strategydsl.ParseScript(definition.Script)
+	if err != nil {
+		return nil, err
+	}
+	requirements, err := strategyir.PlanRequirements(program)
+	if err != nil {
+		return nil, err
+	}
+	params["runtime"] = strategyRuntimeDSLPlan
+	params["compiledAt"] = compiledAt
+	params["compiledHooks"] = buildCompiledHookKinds(program)
+	params["compiledRequirements"] = buildCompiledRequirementsPayload(requirements)
+
+	return params, nil
+}
+
+func buildCompiledHookKinds(program *strategyir.Program) []string {
+	if program == nil {
+		return []string{}
+	}
+	result := make([]string, 0, len(program.Hooks))
+	for _, hook := range program.Hooks {
+		result = append(result, string(hook.Kind))
+	}
+	return result
+}
+
+func buildCompiledRequirementsPayload(requirements strategyir.Requirements) map[string]any {
+	indicators := make([]map[string]any, 0, len(requirements.Indicators))
+	for _, indicator := range requirements.Indicators {
+		indicators = append(indicators, map[string]any{
+			"alias": indicator.Alias,
+			"kind":  indicator.Kind,
+			"key":   indicator.Key,
+		})
+	}
+	return map[string]any{
+		"indicators":                indicators,
+		"requiresPosition":          requirements.RequiresPosition,
+		"requiresAvailableCash":     requirements.RequiresAvailableCash,
+		"requiresMarginBuyingPower": requirements.RequiresMarginBuyingPower,
+		"requiresShortSellingPower": requirements.RequiresShortSellingPower,
+		"requiresTotalAccountValue": requirements.RequiresTotalAccountValue,
+	}
+}
+
+func strategyPluginIDForDefinition(definition strategyDesignDefinition) string {
+	_ = definition
+	return IDDSLPlanPlugin()
+}
+
+func strategyRuntimeFromParams(params map[string]any) string {
+	if runtime, ok := params["runtime"].(string); ok {
+		return normalizeStrategyRuntime(runtime)
+	}
+	return strategyRuntimeDSLPlan
+}
+
+func strategySourceFormatFromParams(params map[string]any) string {
+	if sourceFormat, ok := params["sourceFormat"].(string); ok {
+		return strategydefinition.NormalizeSourceFormat(sourceFormat)
+	}
+	return strategydefinition.SourceFormatDSLV1
+}
+
+func strategyInstanceStartable(instance managedStrategyInstance) bool {
+	sourceFormat := strategySourceFormatFromParams(instance.Params)
+	runtime := strategyRuntimeFromParams(instance.Params)
+	return sourceFormat == strategydefinition.SourceFormatDSLV1 && runtime == strategyRuntimeDSLPlan
+}
+
 func buildPluginUninstallGuidance(pluginID string, installPath string) strategyPluginUninstallGuidance {
 	guidance := strategyPluginUninstallGuidance{
 		PluginID: pluginID,
@@ -749,13 +846,16 @@ func cloneManagedStrategyInstance(input managedStrategyInstance) managedStrategy
 func strategyToListItem(strategy managedStrategyInstance) strategyListItem {
 	strategy = normalizeManagedStrategyInstance(strategy)
 	return strategyListItem{
-		ID:         strategy.ID,
-		PluginID:   strategy.PluginID,
-		Definition: strategy.Definition,
-		Params:     copyMap(strategy.Params),
-		Status:     strategy.Status,
-		CreatedAt:  strategy.CreatedAt,
-		Logs:       append([]string(nil), strategy.Logs...),
+		ID:           strategy.ID,
+		PluginID:     strategy.PluginID,
+		Definition:   strategy.Definition,
+		Runtime:      strategyRuntimeFromParams(strategy.Params),
+		SourceFormat: strategySourceFormatFromParams(strategy.Params),
+		Startable:    strategyInstanceStartable(strategy),
+		Params:       copyMap(strategy.Params),
+		Status:       strategy.Status,
+		CreatedAt:    strategy.CreatedAt,
+		Logs:         append([]string(nil), strategy.Logs...),
 	}
 }
 
@@ -775,11 +875,11 @@ func normalizeManagedStrategyInstance(input managedStrategyInstance) managedStra
 func buildStrategyInstanceID(definitionID string) string {
 	definitionID = strings.TrimSpace(definitionID)
 	if definitionID == "" {
-		definitionID = IDQuickJSPlugin()
+		definitionID = IDDSLPlanPlugin()
 	}
 	return definitionID + "-" + time.Now().UTC().Format("20060102150405.000000000")
 }
 
-func IDQuickJSPlugin() string {
-	return "quickjs"
+func IDDSLPlanPlugin() string {
+	return "dsl-go-plan"
 }

@@ -11,5 +11,10 @@
     "dev:web": "npm --workspace @jftrade/web run dev",
     "build:web": "npm --workspace @jftrade/web run build",
     "typecheck": "npm --workspace @jftrade/web run typecheck"
+  },
+  "devDependencies": {
+    "@vue/compiler-dom": "^3.5.35",
+    "@vue/server-renderer": "^3.5.35",
+    "vue": "^3.5.35"
   }
 }

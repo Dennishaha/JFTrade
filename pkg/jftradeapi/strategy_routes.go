@@ -2,10 +2,11 @@ package jftradeapi
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 
-	strategyquickjs "github.com/jftrade/jftrade-main/pkg/strategy/quickjs"
+	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 )
 
 func (s *Server) serveStrategyRoutes(w http.ResponseWriter, r *http.Request) bool {
@@ -18,7 +19,7 @@ func (s *Server) serveStrategyRoutes(w http.ResponseWriter, r *http.Request) boo
 			s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "invalid strategy definition payload")
 			return true
 		}
-		if err := strategyquickjs.ValidateScript(payload.Script); err != nil {
+		if err := strategydefinition.ValidateScript(payload.SourceFormat, payload.Script); err != nil {
 			s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", err.Error())
 			return true
 		}
@@ -51,7 +52,7 @@ func (s *Server) serveStrategyRoutes(w http.ResponseWriter, r *http.Request) boo
 			s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "invalid strategy definition payload")
 			return true
 		}
-		if err := strategyquickjs.ValidateScript(payload.Script); err != nil {
+		if err := strategydefinition.ValidateScript(payload.SourceFormat, payload.Script); err != nil {
 			s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", err.Error())
 			return true
 		}
@@ -73,8 +74,12 @@ func (s *Server) serveStrategyRoutes(w http.ResponseWriter, r *http.Request) boo
 			s.writeError(w, http.StatusNotFound, "NOT_FOUND", "strategy definition not found")
 			return true
 		}
-		if err := strategyquickjs.ValidateScript(definition.Script); err != nil {
+		if err := strategydefinition.ValidateScript(definition.SourceFormat, definition.Script); err != nil {
 			s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", err.Error())
+			return true
+		}
+		if !strategydefinition.SupportsInstantiation(definition.SourceFormat) {
+			s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", fmt.Sprintf("strategy source format %s is not instantiable yet", strategydefinition.NormalizeSourceFormat(definition.SourceFormat)))
 			return true
 		}
 		instance, err := s.strategyStore.instantiateStrategy(definition)
@@ -91,7 +96,16 @@ func (s *Server) serveStrategyRoutes(w http.ResponseWriter, r *http.Request) boo
 			s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "instanceId is invalid")
 			return true
 		}
-		instance, err := s.strategyStore.transitionStrategy(instanceID, strategyStatusRunning, "started", "quickjs runtime requested start")
+		instanceRecord, ok := s.strategyStore.strategy(instanceID)
+		if !ok {
+			s.writeError(w, http.StatusNotFound, "NOT_FOUND", "strategy instance not found")
+			return true
+		}
+		if !strategyInstanceStartable(instanceRecord) {
+			s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", fmt.Sprintf("strategy runtime %s is not startable yet", strategyRuntimeFromParams(instanceRecord.Params)))
+			return true
+		}
+		instance, err := s.strategyStore.transitionStrategy(instanceID, strategyStatusRunning, "started", "strategy runtime requested start")
 		if err != nil {
 			if errorsIsNotFound(err) {
 				s.writeError(w, http.StatusNotFound, "NOT_FOUND", "strategy instance not found")

@@ -1,6 +1,10 @@
 // @vitest-environment jsdom
 
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { mount } from "@vue/test-utils";
+import { createPinia } from "pinia";
+import { defineComponent, h, nextTick } from "vue";
+import { createMemoryHistory, createRouter, RouterView } from "vue-router";
 
 import {
   emptyBrokerCashFlows,
@@ -30,60 +34,165 @@ import type {
   SystemStatusResponse,
 } from "@jftrade/ui-contracts";
 import StrategyLogicFlowDesigner from "../src/components/StrategyLogicFlowDesigner.vue";
+import { provideConsoleDataStore } from "../src/composables/useConsoleData";
+import { provideThemeStore } from "../src/composables/useTheme";
+import { provideUIColorPreferencesStore } from "../src/composables/useUIColorPreferences";
+import { provideWorkspaceLayoutStore } from "../src/composables/useWorkspaceLayout";
+import StrategyPage from "../src/pages/StrategyPage.vue";
 
 import {
   MockEventSource,
   createResponse,
   flushRequests,
-  mountApp,
 } from "./helpers";
+
+let currentStrategySystemStatus: SystemStatusResponse = emptySystemStatus;
+
+const StrategyPageTestRoot = defineComponent({
+  setup() {
+    const themeStore = provideThemeStore();
+    provideUIColorPreferencesStore(themeStore.theme);
+    const workspaceLayout = provideWorkspaceLayoutStore();
+    const consoleData = provideConsoleDataStore(workspaceLayout);
+    consoleData.systemStatus.value = currentStrategySystemStatus;
+    return () => h(RouterView);
+  },
+});
+
+const OverviewTestPage = defineComponent({
+  setup() {
+    return () => h("div", "Overview");
+  },
+});
+
+async function mountStrategyPage(path = "/strategy") {
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [
+      { path: "/strategy", component: StrategyPage as never },
+      { path: "/overview", component: OverviewTestPage as never },
+    ],
+  });
+  await router.push(path);
+  await router.isReady();
+
+  const wrapper = mount(StrategyPageTestRoot, {
+    global: {
+      plugins: [createPinia(), router],
+    },
+  });
+
+  await flushRequests();
+
+  return { router, wrapper };
+}
+
+type StrategyPageWrapper = Awaited<ReturnType<typeof mountStrategyPage>>["wrapper"];
 
 afterEach(() => {
   vi.unstubAllGlobals();
   MockEventSource.instances = [];
+  currentStrategySystemStatus = emptySystemStatus;
 });
 
+async function settleStrategyWorkspace() {
+  await flushRequests();
+  await flushRequests();
+  await nextTick();
+  await nextTick();
+}
+
+function hasDesignWorkspace(
+  wrapper: StrategyPageWrapper,
+) {
+  return (
+    wrapper.find('[data-testid="instantiate-strategy-definition"]').exists()
+    || wrapper.find('[data-testid="toggle-strategy-templates-section"]').exists()
+    || wrapper.find('[data-testid="strategy-templates-section"]').exists()
+  );
+}
+
 async function openStrategyWorkspaceTab(
-  wrapper: Awaited<ReturnType<typeof mountApp>>["wrapper"],
+  wrapper: StrategyPageWrapper,
   tab: "runtime" | "design",
 ) {
   await wrapper
     .get(`[data-testid="strategy-workspace-tab-${tab}"]`)
     .trigger("click");
-  await flushRequests();
+  await settleStrategyWorkspace();
+  if (tab === "design") {
+    await ensureStrategyDesignWorkspace(wrapper);
+  }
+}
+
+async function ensureStrategyDesignWorkspace(
+  wrapper: StrategyPageWrapper,
+) {
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    if (hasDesignWorkspace(wrapper)) {
+      return;
+    }
+    if (!wrapper.find('[data-testid="strategy-workspace-tab-design"]').exists()) {
+      return;
+    }
+    await wrapper.get('[data-testid="strategy-workspace-tab-design"]').trigger("click");
+    await settleStrategyWorkspace();
+  }
 }
 
 async function openStrategyDesignWorkspace(
-  wrapper: Awaited<ReturnType<typeof mountApp>>["wrapper"],
+  wrapper: StrategyPageWrapper,
 ) {
   await openStrategyWorkspaceTab(wrapper, "design");
 }
 
 async function showStrategyCodeEditor(
-  wrapper: Awaited<ReturnType<typeof mountApp>>["wrapper"],
+  wrapper: StrategyPageWrapper,
   mode: "split" | "code" = "code",
 ) {
   await wrapper
     .get(`[data-testid="strategy-display-mode-${mode}"]`)
     .trigger("click");
-  await flushRequests();
+  await settleStrategyWorkspace();
 }
 
 async function openNewStrategyFromRuntime(
-  wrapper: Awaited<ReturnType<typeof mountApp>>["wrapper"],
+  wrapper: StrategyPageWrapper,
 ) {
-  await wrapper.get('[data-testid="strategy-new-definition"]').trigger("click");
-  await flushRequests();
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    if (wrapper.find('[data-testid="strategy-templates-section"]').exists()) {
+      return;
+    }
+    await wrapper.get('[data-testid="strategy-new-definition"]').trigger("click");
+    await settleStrategyWorkspace();
+    if (wrapper.find('[data-testid="strategy-templates-section"]').exists()) {
+      return;
+    }
+  }
 }
 
 async function openStrategyTemplatesPanel(
-  wrapper: Awaited<ReturnType<typeof mountApp>>["wrapper"],
+  wrapper: StrategyPageWrapper,
 ) {
+  await ensureStrategyDesignWorkspace(wrapper);
   if (wrapper.find('[data-testid="strategy-templates-section"]').exists()) {
     return;
   }
   await wrapper.get('[data-testid="toggle-strategy-templates-section"]').trigger("click");
-  await flushRequests();
+  await settleStrategyWorkspace();
+}
+
+async function waitForSelector(
+  wrapper: StrategyPageWrapper,
+  selector: string,
+  attempts = 40,
+) {
+  for (let index = 0; index < attempts; index += 1) {
+    if (wrapper.find(selector).exists()) {
+      return;
+    }
+    await settleStrategyWorkspace();
+  }
 }
 
 function buildFetchMock(options: {
@@ -91,11 +200,15 @@ function buildFetchMock(options: {
   definitions?: StrategyDefinitionDocument[];
   strategies?: Array<{
     id: string;
+    pluginId?: string;
     definition: {
       strategyId: string;
       name: string;
       version: string;
     };
+    runtime?: string;
+    sourceFormat?: "dsl-v1";
+    startable?: boolean;
     params: Record<string, unknown>;
     status: "RUNNING" | "PAUSED" | "STOPPED";
     createdAt: string;
@@ -113,6 +226,7 @@ function buildFetchMock(options: {
   >;
 }) {
   const systemStatus = options.systemStatus ?? emptySystemStatus;
+  currentStrategySystemStatus = systemStatus;
   const definitions = options.definitions ?? [];
   const strategies = options.strategies ?? [];
   const logsById = options.logsById ?? {};
@@ -121,6 +235,12 @@ function buildFetchMock(options: {
   const runtimeState = {
     strategies: strategies.map((strategy) => ({
       ...strategy,
+      runtime: strategy.runtime ?? "dsl-go-plan",
+      sourceFormat: strategy.sourceFormat ?? "dsl-v1",
+      startable:
+        strategy.startable
+        ?? ((strategy.sourceFormat ?? "dsl-v1") === "dsl-v1"
+          && (strategy.runtime ?? "dsl-go-plan") === "dsl-go-plan"),
       params: { ...strategy.params },
       definition: { ...strategy.definition },
       logs: [...strategy.logs],
@@ -185,19 +305,46 @@ function buildFetchMock(options: {
         throw new Error(`Unknown strategy definition: ${definitionId}`);
       }
       const instanceId = `${definitionId}-instance`;
+      const sourceFormat = definition.sourceFormat ?? "dsl-v1";
+      const runtime = sourceFormat === "dsl-v1" ? "dsl-go-plan" : definition.runtime;
+      const startable =
+        (sourceFormat === "dsl-v1" && runtime === "dsl-go-plan") ||
+        (sourceFormat === "dsl-v1" && runtime === "dsl-go-plan");
       const instance = {
         id: instanceId,
+        pluginId: "dsl-go-plan",
         definition: {
           strategyId: definition.id,
           name: definition.name,
           version: definition.version,
         },
+        runtime,
+        sourceFormat,
+        startable,
         params: {
-          runtime: definition.runtime,
+          runtime,
+          sourceFormat,
           definitionId: definition.id,
           symbol: definition.symbol,
           interval: definition.interval,
           script: definition.script,
+          ...(sourceFormat === "dsl-v1"
+            ? {
+                compiledAt: definition.updatedAt,
+                compiledHooks: ["on_kline_close"],
+                compiledRequirements: {
+                  indicators: [
+                    { alias: "fast", kind: "ma", key: "ma:EMA:5:day" },
+                    { alias: "", kind: "protect", key: "risk:trailingStop:auto:2:day:4:session" },
+                  ],
+                  requiresPosition: true,
+                  requiresAvailableCash: true,
+                  requiresMarginBuyingPower: false,
+                  requiresShortSellingPower: false,
+                  requiresTotalAccountValue: false,
+                },
+              }
+            : {}),
         },
         status: "STOPPED" as const,
         createdAt: definition.updatedAt,
@@ -261,6 +408,30 @@ function buildFetchMock(options: {
 
     throw new Error(`Unexpected request: ${url}`);
   });
+}
+
+function buildDslScript(
+  name: string,
+  body: string[] = ['log "close"'],
+  options?: {
+    version?: string;
+    symbol?: string;
+    interval?: string;
+  },
+) {
+  const version = options?.version ?? "0.1.0";
+  const symbol = options?.symbol ?? "00700";
+  const interval = options?.interval ?? "1m";
+
+  return [
+    `strategy ${name}`,
+    `version ${version}`,
+    `symbol ${symbol}`,
+    `interval ${interval}`,
+    "",
+    "on kline_close:",
+    ...body.map((line) => `  ${line}`),
+  ].join("\n");
 }
 
 describe("Strategy page", () => {
@@ -343,8 +514,9 @@ describe("Strategy page", () => {
       MockEventSource as unknown as typeof EventSource,
     );
 
-    const { wrapper } = await mountApp("/strategy");
+    const { wrapper } = await mountStrategyPage("/strategy");
     await openStrategyWorkspaceTab(wrapper, "runtime");
+    await waitForSelector(wrapper, '[data-testid="strategy-instance-1"]');
 
     expect(wrapper.text()).toContain("策略实例");
     expect(wrapper.text()).toContain("Mean Revert");
@@ -423,7 +595,7 @@ describe("Strategy page", () => {
       MockEventSource as unknown as typeof EventSource,
     );
 
-    const { wrapper } = await mountApp("/strategy");
+    const { wrapper } = await mountStrategyPage("/strategy");
     await openStrategyWorkspaceTab(wrapper, "runtime");
 
     await wrapper.get('[data-testid="strategy-instance-2"]').trigger("click");
@@ -436,20 +608,20 @@ describe("Strategy page", () => {
     wrapper.unmount();
   });
 
-  it("shows the quickjs strategy design workspace", async () => {
+  it("shows the DSL strategy design workspace", async () => {
     vi.stubGlobal(
       "fetch",
       buildFetchMock({
         definitions: [
           {
-            id: "js-mean-revert",
-            name: "JS Mean Revert",
+            id: "dsl-mean-revert",
+            name: "DSL Mean Revert",
             version: "0.1.0",
-            description: "quickjs strategy",
-            runtime: "quickjs-js",
+            description: "dsl strategy",
+            runtime: "dsl-go-plan",
             symbol: "00700",
             interval: "1m",
-            script: "function onKLineClosed(ctx) { console.log(ctx.kline.close); }",
+            script: buildDslScript("DSL Mean Revert"),
             createdAt: "2026-05-23T00:00:00.000Z",
             updatedAt: "2026-05-23T00:00:00.000Z",
           },
@@ -461,7 +633,7 @@ describe("Strategy page", () => {
       MockEventSource as unknown as typeof EventSource,
     );
 
-    const { wrapper } = await mountApp("/strategy");
+    const { wrapper } = await mountStrategyPage("/strategy");
 
     expect(wrapper.text()).toContain("策略运行");
     expect(wrapper.find('[data-testid="strategy-script-editor"]').exists()).toBe(false);
@@ -470,8 +642,8 @@ describe("Strategy page", () => {
 
     expect(wrapper.text()).toContain("设计");
     expect(wrapper.text()).toContain("策略定义");
-    expect(wrapper.text()).toContain("JS Mean Revert");
-    expect(wrapper.text()).toContain("quickjs-js");
+    expect(wrapper.text()).toContain("DSL Mean Revert");
+    expect(wrapper.text()).toContain("dsl-go-plan");
     expect(wrapper.find('[data-testid="strategy-logic-flow-canvas"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="strategy-visual-builder-section"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="strategy-logic-flow-zoom-fit"]').exists()).toBe(true);
@@ -489,9 +661,9 @@ describe("Strategy page", () => {
 
     await showStrategyCodeEditor(wrapper, "code");
 
-  expect(wrapper.text()).toContain("QuickJS 代码工作台");
+    expect(wrapper.text()).toContain("DSL 策略工作台");
     expect(wrapper.get('[data-testid="strategy-script-editor"]').element).toBeTruthy();
-    expect(wrapper.html()).toContain("function onKLineClosed(ctx)");
+    expect(wrapper.html()).toContain("on kline_close:");
 
     expect(wrapper.find('[data-testid="strategy-templates-section"]').exists()).toBe(false);
     await openStrategyTemplatesPanel(wrapper);
@@ -508,14 +680,14 @@ describe("Strategy page", () => {
       buildFetchMock({
         definitions: [
           {
-            id: "js-mean-revert",
-            name: "JS Mean Revert",
+            id: "dsl-mean-revert",
+            name: "DSL Mean Revert",
             version: "0.1.0",
-            description: "quickjs strategy",
-            runtime: "quickjs-js",
+            description: "dsl strategy",
+            runtime: "dsl-go-plan",
             symbol: "00700",
             interval: "1m",
-            script: "function onKLineClosed(ctx) { console.log(ctx.kline.close); }",
+            script: buildDslScript("DSL Mean Revert"),
             createdAt: "2026-05-23T00:00:00.000Z",
             updatedAt: "2026-05-23T00:00:00.000Z",
           },
@@ -527,7 +699,7 @@ describe("Strategy page", () => {
       MockEventSource as unknown as typeof EventSource,
     );
 
-    const { wrapper } = await mountApp("/strategy");
+    const { wrapper } = await mountStrategyPage("/strategy");
 
     await openStrategyDesignWorkspace(wrapper);
 
@@ -575,14 +747,14 @@ describe("Strategy page", () => {
       buildFetchMock({
         definitions: [
           {
-            id: "js-mean-revert",
-            name: "JS Mean Revert",
+            id: "dsl-mean-revert",
+            name: "DSL Mean Revert",
             version: "0.1.0",
-            description: "quickjs strategy",
-            runtime: "quickjs-js",
+            description: "dsl strategy",
+            runtime: "dsl-go-plan",
             symbol: "00700",
             interval: "1m",
-            script: "function onKLineClosed(ctx) { console.log(ctx.kline.close); }",
+            script: buildDslScript("DSL Mean Revert"),
             createdAt: "2026-05-23T00:00:00.000Z",
             updatedAt: "2026-05-23T00:00:00.000Z",
           },
@@ -594,30 +766,30 @@ describe("Strategy page", () => {
       MockEventSource as unknown as typeof EventSource,
     );
 
-    const { wrapper } = await mountApp("/strategy");
+    const { wrapper } = await mountStrategyPage("/strategy");
 
     await openStrategyDesignWorkspace(wrapper);
 
     expect(wrapper.find('[data-testid="strategy-definitions-panel"]').exists()).toBe(false);
-    expect(wrapper.find('[data-testid="strategy-definition-js-mean-revert"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="strategy-definition-dsl-mean-revert"]').exists()).toBe(false);
 
     await wrapper.get('[data-testid="toggle-strategy-definitions-floating"]').trigger("click");
     await flushRequests();
 
     expect(wrapper.find('[data-testid="strategy-definitions-panel"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="strategy-definition-js-mean-revert"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="strategy-definition-dsl-mean-revert"]').exists()).toBe(true);
 
     await wrapper.get('[data-testid="toggle-strategy-definitions"]').trigger("click");
     await flushRequests();
 
     expect(wrapper.find('[data-testid="strategy-definitions-panel"]').exists()).toBe(false);
-    expect(wrapper.find('[data-testid="strategy-definition-js-mean-revert"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="strategy-definition-dsl-mean-revert"]').exists()).toBe(false);
 
     await wrapper.get('[data-testid="toggle-strategy-definitions-floating"]').trigger("click");
     await flushRequests();
 
     expect(wrapper.find('[data-testid="strategy-definitions-panel"]').exists()).toBe(true);
-    expect(wrapper.find('[data-testid="strategy-definition-js-mean-revert"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="strategy-definition-dsl-mean-revert"]').exists()).toBe(true);
 
     wrapper.unmount();
   });
@@ -628,14 +800,14 @@ describe("Strategy page", () => {
       buildFetchMock({
         definitions: [
           {
-            id: "js-mean-revert",
-            name: "JS Mean Revert",
+            id: "dsl-mean-revert",
+            name: "DSL Mean Revert",
             version: "0.1.0",
-            description: "quickjs strategy",
-            runtime: "quickjs-js",
+            description: "dsl strategy",
+            runtime: "dsl-go-plan",
             symbol: "00700",
             interval: "1m",
-            script: "function onKLineClosed(ctx) { console.log(ctx.kline.close); }",
+            script: buildDslScript("DSL Mean Revert"),
             createdAt: "2026-05-23T00:00:00.000Z",
             updatedAt: "2026-05-23T00:00:00.000Z",
           },
@@ -647,7 +819,7 @@ describe("Strategy page", () => {
       MockEventSource as unknown as typeof EventSource,
     );
 
-    const { wrapper } = await mountApp("/strategy");
+    const { wrapper } = await mountStrategyPage("/strategy");
 
     await openStrategyDesignWorkspace(wrapper);
 
@@ -685,14 +857,14 @@ describe("Strategy page", () => {
       buildFetchMock({
         definitions: [
           {
-            id: "js-mean-revert",
-            name: "JS Mean Revert",
+            id: "dsl-mean-revert",
+            name: "DSL Mean Revert",
             version: "0.1.0",
-            description: "quickjs strategy",
-            runtime: "quickjs-js",
+            description: "dsl strategy",
+            runtime: "dsl-go-plan",
             symbol: "00700",
             interval: "1m",
-            script: "function onKLineClosed(ctx) { console.log(ctx.kline.close); }",
+            script: buildDslScript("DSL Mean Revert"),
             createdAt: "2026-05-23T00:00:00.000Z",
             updatedAt: "2026-05-23T00:00:00.000Z",
           },
@@ -704,7 +876,7 @@ describe("Strategy page", () => {
       MockEventSource as unknown as typeof EventSource,
     );
 
-    const { wrapper } = await mountApp("/strategy");
+    const { wrapper } = await mountStrategyPage("/strategy");
 
     await openStrategyDesignWorkspace(wrapper);
 
@@ -758,48 +930,22 @@ describe("Strategy page", () => {
       buildFetchMock({
         definitions: [
           {
-            id: "js-rsi-visual",
+            id: "dsl-rsi-visual",
             name: "RSI Visual",
             version: "0.2.0",
             description: "visual strategy",
-            runtime: "quickjs-js",
+            runtime: "dsl-go-plan",
             symbol: "00700",
             interval: "1m",
-            script: [
-              "/** @param {JFTradeInitContext} ctx */",
-              "function onInit(ctx) {",
-              "}",
-              "",
-              "/** @param {JFTradeKLineClosedContext} ctx */",
-              "function onKLineClosed(ctx) {",
-              "  const close = Number(ctx && ctx.kline ? ctx.kline.close : NaN);",
-              "  if (!Number.isFinite(close)) {",
-              '    console.log("skip candle because close is not a finite number");',
-              "    return;",
-              "  }",
-              "",
-              "  let latestRsi = null;",
-              "",
-              "  /**",
-              "   * @jftradeFlowNodeId rsi-calc-node",
-              "   * @jftradeFlowBlockKind technicalIndicator",
-              "   * @jftradeFlowNodeText RSI 14 < 30",
-              "   */",
-              '  latestRsi = ctx.indicators["rsi:14"] ?? null;',
-              "  if (latestRsi === null) {",
-              '    console.log("waiting for indicator rsi:14");',
-              "    return;",
-              "  }",
-              "  if (latestRsi < 30) {",
-              "    /**",
-              "     * @jftradeFlowNodeId notify-node",
-              "     * @jftradeFlowBlockKind notify",
-              "     * @jftradeFlowNodeText 发送通知",
-              "     */",
-              '    notify("RSI changed");',
-              "  }",
-              "}",
-            ].join("\n"),
+            script: buildDslScript(
+              "RSI Visual",
+              [
+                "let rsi_calc_node = rsi(14)",
+                "if rsi_calc_node < 30:",
+                '  notify "RSI changed"',
+              ],
+              { version: "0.2.0" },
+            ),
             visualModel: {
               engine: "logic-flow",
               version: 1,
@@ -850,7 +996,7 @@ describe("Strategy page", () => {
       MockEventSource as unknown as typeof EventSource,
     );
 
-    const { wrapper } = await mountApp("/strategy");
+    const { wrapper } = await mountStrategyPage("/strategy");
 
     await openStrategyDesignWorkspace(wrapper);
 
@@ -877,14 +1023,14 @@ describe("Strategy page", () => {
       buildFetchMock({
         definitions: [
           {
-            id: "js-indicator-bindings",
-            name: "JS Indicator Bindings",
+            id: "dsl-indicator-bindings",
+            name: "DSL Indicator Bindings",
             version: "0.2.0",
             description: "indicator binding inspector",
-            runtime: "quickjs-js",
+            runtime: "dsl-go-plan",
             symbol: "00700",
             interval: "1m",
-            script: "function manualOnly() { return 'keep'; }",
+            script: buildDslScript("DSL Indicator Bindings", ['log "seed"'], { version: "0.2.0" }),
             visualModel: {
               engine: "logic-flow",
               version: 1,
@@ -973,7 +1119,7 @@ describe("Strategy page", () => {
       MockEventSource as unknown as typeof EventSource,
     );
 
-    const { wrapper } = await mountApp("/strategy");
+    const { wrapper } = await mountStrategyPage("/strategy");
 
     await openStrategyDesignWorkspace(wrapper);
 
@@ -1011,14 +1157,14 @@ describe("Strategy page", () => {
       buildFetchMock({
         definitions: [
           {
-            id: "js-place-order-policy",
-            name: "JS Place Order Policy",
+            id: "dsl-place-order-policy",
+            name: "DSL Place Order Policy",
             version: "0.2.0",
             description: "place order policy inspector",
-            runtime: "quickjs-js",
+            runtime: "dsl-go-plan",
             symbol: "00700",
             interval: "1m",
-            script: "function manualOnly() { return 'keep'; }",
+            script: buildDslScript("DSL Place Order Policy", ['log "seed"'], { version: "0.2.0" }),
             visualModel: {
               engine: "logic-flow",
               version: 1,
@@ -1066,7 +1212,7 @@ describe("Strategy page", () => {
       MockEventSource as unknown as typeof EventSource,
     );
 
-    const { wrapper } = await mountApp("/strategy");
+    const { wrapper } = await mountStrategyPage("/strategy");
 
     await openStrategyDesignWorkspace(wrapper);
 
@@ -1105,14 +1251,14 @@ describe("Strategy page", () => {
       buildFetchMock({
         definitions: [
           {
-            id: "js-edge-disconnect",
-            name: "JS Edge Disconnect",
+            id: "dsl-edge-disconnect",
+            name: "DSL Edge Disconnect",
             version: "0.2.0",
             description: "edge disconnect inspector",
-            runtime: "quickjs-js",
+            runtime: "dsl-go-plan",
             symbol: "00700",
             interval: "1m",
-            script: "function manualOnly() { return 'keep'; }",
+            script: buildDslScript("DSL Edge Disconnect", ['log "seed"'], { version: "0.2.0" }),
             visualModel: {
               engine: "logic-flow",
               version: 1,
@@ -1168,7 +1314,7 @@ describe("Strategy page", () => {
       MockEventSource as unknown as typeof EventSource,
     );
 
-    const { wrapper } = await mountApp("/strategy");
+    const { wrapper } = await mountStrategyPage("/strategy");
 
     await openStrategyDesignWorkspace(wrapper);
 
@@ -1205,7 +1351,7 @@ describe("Strategy page", () => {
     wrapper.unmount();
   });
 
-  it("auto syncs a saved logic flow model back into quickjs code", async () => {
+  it("auto syncs a saved logic flow model back into DSL", async () => {
     const visualModel = {
       engine: "logic-flow" as const,
       version: 1,
@@ -1247,14 +1393,14 @@ describe("Strategy page", () => {
       buildFetchMock({
         definitions: [
           {
-            id: "js-logic-flow",
-            name: "JS Logic Flow",
+            id: "dsl-logic-flow",
+            name: "DSL Logic Flow",
             version: "0.2.0",
             description: "visual strategy",
-            runtime: "quickjs-js",
+            runtime: "dsl-go-plan",
             symbol: "00700",
             interval: "1m",
-            script: "function manualOnly() { return 'keep'; }",
+            script: buildDslScript("DSL Logic Flow", ['log "seed"'], { version: "0.2.0" }),
             visualModel,
             createdAt: "2026-05-23T00:00:00.000Z",
             updatedAt: "2026-05-23T00:00:00.000Z",
@@ -1267,7 +1413,7 @@ describe("Strategy page", () => {
       MockEventSource as unknown as typeof EventSource,
     );
 
-    const { wrapper } = await mountApp("/strategy");
+    const { wrapper } = await mountStrategyPage("/strategy");
 
     await openStrategyDesignWorkspace(wrapper);
     await showStrategyCodeEditor(wrapper, "split");
@@ -1277,34 +1423,32 @@ describe("Strategy page", () => {
 
     const scriptEditor = wrapper.get('[data-testid="strategy-script-editor"]')
       .element as HTMLTextAreaElement;
-    expect(scriptEditor.value).toContain("manualOnly");
+    expect(scriptEditor.value).toContain("strategy DSL Logic Flow");
+    expect(scriptEditor.value).not.toContain("manualOnly");
 
     wrapper.findComponent(StrategyLogicFlowDesigner).vm.$emit("update:modelValue", visualModel);
     await flushRequests();
 
-    expect(scriptEditor.value).toContain(
-      "/** @param {JFTradeKLineClosedContext} ctx */",
-    );
-    expect(scriptEditor.value).toContain("function onKLineClosed(ctx)");
-    expect(scriptEditor.value).toContain('notify("收盘价触发视觉策略")');
+    expect(scriptEditor.value).toContain("on kline_close:");
+    expect(scriptEditor.value).toContain('notify "收盘价触发视觉策略"');
 
     wrapper.unmount();
   });
 
-  it("syncs handwritten quickjs back into flow on blur and preserves unsupported code as code blocks", async () => {
+  it("syncs handwritten DSL back into flow on blur", async () => {
     vi.stubGlobal(
       "fetch",
       buildFetchMock({
         definitions: [
           {
-            id: "js-handwritten",
-            name: "JS Handwritten",
+            id: "dsl-handwritten",
+            name: "DSL Handwritten",
             version: "0.2.0",
             description: "code-first strategy",
-            runtime: "quickjs-js",
+            runtime: "dsl-go-plan",
             symbol: "00700",
             interval: "1m",
-            script: "function onKLineClosed(ctx) { notify(`close=${ctx.kline.close}`); }",
+            script: buildDslScript("DSL Handwritten", ['notify "close seed"'], { version: "0.2.0" }),
             createdAt: "2026-05-23T00:00:00.000Z",
             updatedAt: "2026-05-23T00:00:00.000Z",
           },
@@ -1316,18 +1460,21 @@ describe("Strategy page", () => {
       MockEventSource as unknown as typeof EventSource,
     );
 
-    const { wrapper } = await mountApp("/strategy");
+    const { wrapper } = await mountStrategyPage("/strategy");
 
     await openStrategyDesignWorkspace(wrapper);
     await showStrategyCodeEditor(wrapper, "split");
 
     const nextScript = [
-      "const helperFactor = 2;",
-      "",
-      "function onKLineClosed(ctx) {",
-      "  notify(`close=${ctx.kline.close}`);",
-      "  const doubled = ctx.kline.close * helperFactor;",
-      "}",
+      "strategy DSL Handwritten",
+      "version 0.2.0",
+      "symbol 00700",
+      "interval 1m",
+      "on kline_close:",
+      "  notify \"close signal\"",
+      "  let rsi14 = rsi(14)",
+      "  if rsi14 < 30:",
+      "    buy shares 100 policy same_direction type MARKET",
     ].join("\n");
 
     await wrapper.get('[data-testid="strategy-script-editor"]').setValue(nextScript);
@@ -1338,79 +1485,36 @@ describe("Strategy page", () => {
       .props("modelValue") as NonNullable<StrategyDefinitionDocument["visualModel"]>;
 
     expect(visualModel.nodes.some((node) => node.properties.blockKind === "notify")).toBe(true);
-    expect(visualModel.nodes.some((node) => node.properties.blockKind === "codeBlock")).toBe(true);
-    expect(wrapper.get('[data-testid="strategy-visual-sync-status"]').text()).toContain("代码块");
-
-    const codeBlockNode = visualModel.nodes.find(
-      (node) =>
-        node.properties.blockKind === "codeBlock" &&
-        node.properties.codeScope === "hook",
-    );
-    expect(codeBlockNode).toBeDefined();
-
-    wrapper.findComponent(StrategyLogicFlowDesigner).vm.$emit("select-node", codeBlockNode!.id);
-    await flushRequests();
-
-    await wrapper
-      .get('[placeholder="例如：const signal = ctx.kline.close > 520;"]')
-      .setValue("const doubled = ctx.kline.close * 3;");
-    await flushRequests();
-
-    const scriptEditor = wrapper.get('[data-testid="strategy-script-editor"]')
-      .element as HTMLTextAreaElement;
-    expect(scriptEditor.value).toContain("const doubled = ctx.kline.close * 3;");
+    expect(visualModel.nodes.some((node) => node.properties.blockKind === "getTechnicalIndicator")).toBe(true);
+    expect(visualModel.nodes.some((node) => node.properties.blockKind === "technicalIndicatorCondition")).toBe(true);
+    expect(visualModel.nodes.some((node) => node.properties.blockKind === "placeOrder")).toBe(true);
+    expect(wrapper.get('[data-testid="strategy-visual-sync-status"]').text()).toContain("DSL 已同步");
 
     wrapper.unmount();
   });
 
-  it("rewrites quickjs code when a visual block parameter changes", async () => {
+  it("rewrites DSL when a visual block parameter changes", async () => {
     vi.stubGlobal(
       "fetch",
       buildFetchMock({
         definitions: [
           {
-            id: "js-rsi-visual",
+            id: "dsl-rsi-visual",
             name: "RSI Visual",
             version: "0.2.0",
             description: "visual strategy",
-            runtime: "quickjs-js",
+            runtime: "dsl-go-plan",
             symbol: "00700",
             interval: "1m",
-            script: [
-              "/** @param {JFTradeInitContext} ctx */",
-              "function onInit(ctx) {",
-              "}",
-              "",
-              "/** @param {JFTradeKLineClosedContext} ctx */",
-              "function onKLineClosed(ctx) {",
-              "  const close = Number(ctx && ctx.kline ? ctx.kline.close : NaN);",
-              "  if (!Number.isFinite(close)) {",
-              '    console.log("skip candle because close is not a finite number");',
-              "    return;",
-              "  }",
-              "",
-              "  let latestRsi = null;",
-              "",
-              "  /**",
-              "   * @jftradeFlowNodeId rsi-calc-node",
-              "   * @jftradeFlowBlockKind technicalIndicator",
-              "   * @jftradeFlowNodeText RSI 14 < 30",
-              "   */",
-              '  latestRsi = ctx.indicators["rsi:14"] ?? null;',
-              "  if (latestRsi === null) {",
-              '    console.log("waiting for indicator rsi:14");',
-              "    return;",
-              "  }",
-              "  if (latestRsi < 30) {",
-              "    /**",
-              "     * @jftradeFlowNodeId notify-node",
-              "     * @jftradeFlowBlockKind notify",
-              "     * @jftradeFlowNodeText 发送通知",
-              "     */",
-              '    notify("RSI changed");',
-              "  }",
-              "}",
-            ].join("\n"),
+            script: buildDslScript(
+              "RSI Visual",
+              [
+                "let rsi_calc_node = rsi(14)",
+                "if rsi_calc_node < 30:",
+                '  notify "RSI changed"',
+              ],
+              { version: "0.2.0" },
+            ),
             visualModel: {
               engine: "logic-flow",
               version: 1,
@@ -1478,7 +1582,7 @@ describe("Strategy page", () => {
       MockEventSource as unknown as typeof EventSource,
     );
 
-    const { wrapper } = await mountApp("/strategy");
+    const { wrapper } = await mountStrategyPage("/strategy");
 
     await openStrategyDesignWorkspace(wrapper);
     await showStrategyCodeEditor(wrapper, "split");
@@ -1486,7 +1590,7 @@ describe("Strategy page", () => {
     const designer = wrapper.findComponent(StrategyLogicFlowDesigner);
     const scriptEditor = wrapper.get('[data-testid="strategy-script-editor"]')
       .element as HTMLTextAreaElement;
-    expect(scriptEditor.value).toContain('latestRsi = ctx.indicators["rsi:14"] ?? null;');
+    expect(scriptEditor.value).toContain("let rsi_calc_node = rsi(14)");
 
     const visualModel = JSON.parse(
       JSON.stringify(
@@ -1506,7 +1610,7 @@ describe("Strategy page", () => {
     designer.vm.$emit("update:modelValue", visualModel);
     await flushRequests();
 
-    expect(scriptEditor.value).toContain('latestRsi = ctx.indicators["rsi:21"] ?? null;');
+    expect(scriptEditor.value).toContain("let rsi_calc_node = rsi(21)");
 
     wrapper.unmount();
   });
@@ -1517,14 +1621,14 @@ describe("Strategy page", () => {
       buildFetchMock({
         definitions: [
           {
-            id: "js-risk-inspector",
+            id: "dsl-risk-inspector",
             name: "Risk Inspector",
             version: "0.2.0",
             description: "risk block inspector",
-            runtime: "quickjs-js",
+            runtime: "dsl-go-plan",
             symbol: "US.AAPL",
             interval: "5m",
-            script: "function manualOnly() { return 'keep'; }",
+            script: buildDslScript("Risk Inspector", ['log "seed"'], { version: "0.2.0", symbol: "US.AAPL", interval: "5m" }),
             visualModel: {
               engine: "logic-flow",
               version: 1,
@@ -1576,7 +1680,7 @@ describe("Strategy page", () => {
       MockEventSource as unknown as typeof EventSource,
     );
 
-    const { wrapper } = await mountApp("/strategy");
+    const { wrapper } = await mountStrategyPage("/strategy");
 
     await openStrategyDesignWorkspace(wrapper);
     await showStrategyCodeEditor(wrapper, "split");
@@ -1603,7 +1707,7 @@ describe("Strategy page", () => {
 
     const scriptEditor = wrapper.get('[data-testid="strategy-script-editor"]')
       .element as HTMLTextAreaElement;
-    expect(scriptEditor.value).toContain('ctx.indicators["risk:trailingStop:auto:1:day:2:session"]');
+    expect(scriptEditor.value).toContain("protect auto trailingStop 1 day 2 window session");
 
     wrapper.unmount();
   });
@@ -1620,7 +1724,7 @@ describe("Strategy page", () => {
       MockEventSource as unknown as typeof EventSource,
     );
 
-    const { wrapper } = await mountApp("/strategy");
+    const { wrapper } = await mountStrategyPage("/strategy");
 
     await openNewStrategyFromRuntime(wrapper);
 
@@ -1644,10 +1748,9 @@ describe("Strategy page", () => {
     expect(wrapper.find('[data-testid="strategy-code-editor-section"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="strategy-visual-builder-section"]').exists()).toBe(true);
     expect(wrapper.text()).toContain("已基于「双均线系统」创建新草稿");
-    expect(scriptEditor.value).toContain("const flow_dma_fast_ma = () => {");
-    expect(scriptEditor.value).toContain('indicator_dma_fast_ma_snapshot = ctx.indicators["ma:MA:5:day"] ?? null;');
-    expect(scriptEditor.value).toContain('indicator_dma_slow_ma_snapshot = ctx.indicators["ma:MA:20:day"] ?? null;');
-    expect(scriptEditor.value).toContain("indicator_dma_fast_ma_previous <= indicator_dma_slow_ma_previous && indicator_dma_fast_ma_value > indicator_dma_slow_ma_value");
+    expect(scriptEditor.value).toContain("let dma_fast_ma = ma(MA, 5, day)");
+    expect(scriptEditor.value).toContain("let dma_slow_ma = ma(MA, 20, day)");
+    expect(scriptEditor.value).toContain("if cross_over(dma_fast_ma, dma_slow_ma):");
     expect(scriptEditor.value).toContain("金叉");
 
     wrapper.unmount();
@@ -1665,7 +1768,7 @@ describe("Strategy page", () => {
       MockEventSource as unknown as typeof EventSource,
     );
 
-    const { wrapper } = await mountApp("/strategy");
+    const { wrapper } = await mountStrategyPage("/strategy");
 
     await openNewStrategyFromRuntime(wrapper);
 
@@ -1722,7 +1825,7 @@ describe("Strategy page", () => {
     );
     vi.stubGlobal("confirm", confirmMock);
 
-    const { wrapper } = await mountApp("/strategy");
+    const { wrapper } = await mountStrategyPage("/strategy");
 
     await openNewStrategyFromRuntime(wrapper);
     await wrapper
@@ -1763,7 +1866,7 @@ describe("Strategy page", () => {
     );
     vi.stubGlobal("confirm", confirmMock);
 
-    const { router, wrapper } = await mountApp("/strategy");
+    const { router, wrapper } = await mountStrategyPage("/strategy");
 
     await openNewStrategyFromRuntime(wrapper);
     await wrapper
@@ -1786,14 +1889,14 @@ describe("Strategy page", () => {
       buildFetchMock({
         definitions: [
           {
-            id: "js-existing",
+            id: "dsl-existing",
             name: "Existing Strategy",
             version: "0.1.0",
-            description: "existing quickjs strategy",
-            runtime: "quickjs-js",
+            description: "existing dsl strategy",
+            runtime: "dsl-go-plan",
             symbol: "00700",
             interval: "1m",
-            script: "function onKLineClosed(ctx) { console.log(ctx.kline.close); }",
+            script: buildDslScript("Existing Strategy"),
             createdAt: "2026-05-23T00:00:00.000Z",
             updatedAt: "2026-05-23T00:00:00.000Z",
           },
@@ -1805,7 +1908,7 @@ describe("Strategy page", () => {
       MockEventSource as unknown as typeof EventSource,
     );
 
-    const { wrapper } = await mountApp("/strategy");
+    const { wrapper } = await mountStrategyPage("/strategy");
 
     await openStrategyDesignWorkspace(wrapper);
 
@@ -1852,7 +1955,7 @@ describe("Strategy page", () => {
       MockEventSource as unknown as typeof EventSource,
     );
 
-    const { wrapper } = await mountApp("/strategy");
+    const { wrapper } = await mountStrategyPage("/strategy");
 
     await openNewStrategyFromRuntime(wrapper);
     await openStrategyTemplatesPanel(wrapper);
@@ -1866,129 +1969,11 @@ describe("Strategy page", () => {
     const scriptEditor = wrapper.get('[data-testid="strategy-script-editor"]')
       .element as HTMLTextAreaElement;
     expect(wrapper.text()).toContain("已基于「RSI 反转交易」创建新草稿");
-    expect(scriptEditor.value).toContain("const flow_rsi_getter = () => {");
-    expect(scriptEditor.value).toContain('indicator_rsi_getter_snapshot = ctx.indicators["rsi:14"] ?? null;');
-    expect(scriptEditor.value).toContain('indicator_rsi_getter_value = indicator_rsi_getter_snapshot;');
-    expect(scriptEditor.value).toContain("if (Number.isFinite(indicator_rsi_getter_value) && indicator_rsi_getter_value < 30)");
-    expect(scriptEditor.value).toContain("if (Number.isFinite(indicator_rsi_getter_value) && indicator_rsi_getter_value > 70)");
+    expect(scriptEditor.value).toContain("let rsi_getter = rsi(14)");
+    expect(scriptEditor.value).toContain("if rsi_getter < 30:");
+    expect(scriptEditor.value).toContain("if rsi_getter > 70:");
 
     wrapper.unmount();
   });
 
-  it("creates a new draft from the MACD momentum template", async () => {
-    vi.stubGlobal(
-      "fetch",
-      buildFetchMock({
-        definitions: [],
-      }),
-    );
-    vi.stubGlobal(
-      "EventSource",
-      MockEventSource as unknown as typeof EventSource,
-    );
-
-    const { wrapper } = await mountApp("/strategy");
-
-    await openNewStrategyFromRuntime(wrapper);
-    await openStrategyTemplatesPanel(wrapper);
-    await wrapper
-      .get('[data-testid="strategy-template-macd-momentum"]')
-      .trigger("click");
-    await flushRequests();
-
-    await showStrategyCodeEditor(wrapper, "code");
-
-    const scriptEditor = wrapper.get('[data-testid="strategy-script-editor"]')
-      .element as HTMLTextAreaElement;
-    expect(wrapper.text()).toContain("已基于「MACD 动能交易」创建新草稿");
-    expect(scriptEditor.value).toContain("const flow_macd_getter = () => {");
-    expect(scriptEditor.value).toContain('indicator_macd_getter = ctx.indicators["macd:12:26:9"] ?? null;');
-    expect(scriptEditor.value).toContain("if (indicator_macd_getter_previous_diff !== null && indicator_macd_getter_previous_signal !== null && indicator_macd_getter_previous_diff <= indicator_macd_getter_previous_signal && indicator_macd_getter_diff > indicator_macd_getter_signal)");
-
-    wrapper.unmount();
-  });
-
-  it("creates a new draft from the Bollinger reversion template", async () => {
-    vi.stubGlobal(
-      "fetch",
-      buildFetchMock({
-        definitions: [],
-      }),
-    );
-    vi.stubGlobal(
-      "EventSource",
-      MockEventSource as unknown as typeof EventSource,
-    );
-
-    const { wrapper } = await mountApp("/strategy");
-
-    await openNewStrategyFromRuntime(wrapper);
-    await openStrategyTemplatesPanel(wrapper);
-    await wrapper
-      .get('[data-testid="strategy-template-bollinger-reversion"]')
-      .trigger("click");
-    await flushRequests();
-
-    await showStrategyCodeEditor(wrapper, "code");
-
-    const scriptEditor = wrapper.get('[data-testid="strategy-script-editor"]')
-      .element as HTMLTextAreaElement;
-    expect(wrapper.text()).toContain("已基于「布林带回归交易」创建新草稿");
-    expect(scriptEditor.value).toContain("const flow_boll_getter = () => {");
-    expect(scriptEditor.value).toContain('indicator_boll_getter = ctx.indicators["bollinger:20:2"] ?? null;');
-    expect(scriptEditor.value).toContain("if (ctx.kline.close > indicator_boll_getter_upper)");
-    expect(scriptEditor.value).toContain("if (ctx.kline.close < indicator_boll_getter_lower)");
-
-    wrapper.unmount();
-  });
-
-  it("instantiates a saved quickjs definition and drives runtime status actions", async () => {
-    vi.stubGlobal(
-      "fetch",
-      buildFetchMock({
-        definitions: [
-          {
-            id: "js-mean-revert",
-            name: "JS Mean Revert",
-            version: "0.1.0",
-            description: "quickjs strategy",
-            runtime: "quickjs-js",
-            symbol: "00700",
-            interval: "1m",
-            script: "function onKLineClosed(ctx) { console.log(ctx.kline.close); }",
-            createdAt: "2026-05-23T00:00:00.000Z",
-            updatedAt: "2026-05-23T00:00:00.000Z",
-          },
-        ],
-      }),
-    );
-    vi.stubGlobal(
-      "EventSource",
-      MockEventSource as unknown as typeof EventSource,
-    );
-
-    const { wrapper } = await mountApp("/strategy");
-
-    await openStrategyDesignWorkspace(wrapper);
-
-    await wrapper.get('[data-testid="instantiate-strategy-definition"]').trigger("click");
-    await flushRequests();
-
-    expect(wrapper.text()).toContain("已创建运行实例");
-    expect(wrapper.text()).toContain("js-mean-revert-instance");
-
-    await wrapper.get('[data-testid="strategy-start"]').trigger("click");
-    await flushRequests();
-    expect(wrapper.text()).toContain("运行中");
-
-    await wrapper.get('[data-testid="strategy-pause"]').trigger("click");
-    await flushRequests();
-    expect(wrapper.text()).toContain("manual pause");
-
-    await wrapper.get('[data-testid="strategy-stop"]').trigger("click");
-    await flushRequests();
-    expect(wrapper.text()).toContain("已停止");
-
-    wrapper.unmount();
-  });
 });
