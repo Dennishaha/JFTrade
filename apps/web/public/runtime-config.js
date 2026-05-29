@@ -1,0 +1,1 @@
+window.__JFTRADE_RUNTIME_CONFIG__ = window.__JFTRADE_RUNTIME_CONFIG__ || {};

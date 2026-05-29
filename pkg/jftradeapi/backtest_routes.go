@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -185,11 +184,7 @@ func (s *Server) handleBacktestResult(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) backtestDBPath() string {
-	path := os.Getenv("JFTRADE_BACKTEST_DB")
-	if path == "" {
-		path = "var/jftrade-api/backtest.db"
-	}
-	return path
+	return deriveBacktestDBPath()
 }
 
 type backtestSyncRequest struct {

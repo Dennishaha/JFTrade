@@ -8,7 +8,6 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
-	"time"
 
 	"github.com/c9s/bbgo/pkg/cmd"
 	"github.com/jftrade/jftrade-main/pkg/jftradeapi"
@@ -41,6 +40,9 @@ func shouldRunAPIOnly(args []string) bool {
 	if strings.EqualFold(value, "1") || strings.EqualFold(value, "true") {
 		return true
 	}
+	if len(args) == 0 {
+		return true
+	}
 	return len(args) > 0 && (args[0] == "api" || args[0] == "serve-api")
 }
 
@@ -48,15 +50,7 @@ func runAPIOnly() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	shutdown, err := jftradeapi.StartForRunArgs(ctx, []string{"api"})
-	if err != nil {
+	if err := jftradeapi.RunAPIOnly(ctx); err != nil {
 		log.Fatalf("JFTrade API adapter failed: %v", err)
-	}
-	<-ctx.Done()
-
-	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	if err := shutdown(shutdownCtx); err != nil {
-		log.Printf("JFTrade API shutdown failed: %v", err)
 	}
 }

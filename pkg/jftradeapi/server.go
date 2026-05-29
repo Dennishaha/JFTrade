@@ -18,12 +18,11 @@ import (
 	"github.com/jmoiron/sqlx"
 
 	bbgotypes "github.com/c9s/bbgo/pkg/types"
+	"github.com/jftrade/jftrade-main/internal/buildinfo"
 	"github.com/jftrade/jftrade-main/pkg/futu"
 )
 
 const (
-	defaultAPIBind             = "127.0.0.1:3000"
-	defaultSettingsPath        = "var/jftrade-api/settings.json"
 	defaultFutuHost            = "127.0.0.1"
 	defaultFutuAPIPort         = 11110
 	defaultFutuWebSocketPort   = 11111
@@ -63,6 +62,8 @@ type Server struct {
 	exchangeMu             sync.Mutex
 	exchange               *futu.Exchange
 	exchangeConfigKey      string
+	frontend               *frontendServer
+	apiPort                int
 }
 
 type opendProbe struct {
@@ -83,38 +84,101 @@ func StartForRunArgs(ctx context.Context, args []string) (func(context.Context) 
 		return func(context.Context) error { return nil }, nil
 	}
 
-	settingsPath := envOrDefault("JFTRADE_SETTINGS_PATH", defaultSettingsPath)
+	frontendFS := loadFrontendFS()
+	defaults := resolveLaunchDefaults(frontendFS != nil)
+	settingsPath := envOrDefault("JFTRADE_SETTINGS_PATH", defaults.settingsPath)
+	backtestDBPath := envOrDefault("JFTRADE_BACKTEST_DB", defaults.backtestDBPath)
+	if err := ensureRuntimeLayout(settingsPath, backtestDBPath); err != nil {
+		return nil, err
+	}
 	store, err := NewSettingsStore(settingsPath)
 	if err != nil {
 		return nil, err
 	}
+	if err := store.ensureBootstrapFile(defaults); err != nil {
+		return nil, err
+	}
 	store.applyRuntimeEnv()
+	interfaceSettings := store.interfaceSettings(defaults)
 
-	bind := envOrDefault("JFTRADE_API_BIND", defaultAPIBind)
-	server := &http.Server{
-		Addr:              bind,
-		Handler:           NewServer(store),
+	apiBind := envOrDefault("JFTRADE_API_BIND", interfaceSettings.APIBind)
+	apiHandler := newServerWithFrontend(store, nil)
+	apiHandler.apiPort = portFromBind(apiBind, portFromBind(defaults.apiBind, 3000))
+	apiServer := &http.Server{
+		Addr:              apiBind,
+		Handler:           apiHandler,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
+	servers := []*http.Server{apiServer}
 
 	go func() {
-		log.Printf("JFTrade API listening on http://%s", bind)
-		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		log.Printf("JFTrade API listening on http://%s", apiBind)
+		if err := apiServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Printf("JFTrade API server stopped: %v", err)
 		}
 	}()
+
+	if frontendFS != nil {
+		guiBind := envOrDefault("JFTRADE_GUI_BIND", interfaceSettings.GUIBind)
+		guiAPIBaseURL := resolveGUIAPIBaseURL(interfaceSettings, apiBind)
+		guiServer := &http.Server{
+			Addr:              guiBind,
+			Handler:           newFrontendServerWithRuntimeConfig(frontendFS, guiAPIBaseURL),
+			ReadHeaderTimeout: 5 * time.Second,
+		}
+		servers = append(servers, guiServer)
+
+		go func() {
+			fmt.Printf("JFTrade 交互界面已启动，请访问 http://%s\n\n", guiBind)
+			log.Printf("JFTrade GUI listening on http://%s", guiBind)
+			if err := guiServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				log.Printf("JFTrade GUI server stopped: %v", err)
+			}
+		}()
+	}
+
+	var shutdownOnce sync.Once
+	shutdownAll := func(shutdownCtx context.Context) error {
+		var shutdownErr error
+		shutdownOnce.Do(func() {
+			for _, server := range servers {
+				if err := server.Shutdown(shutdownCtx); err != nil && !errors.Is(err, http.ErrServerClosed) && shutdownErr == nil {
+					shutdownErr = err
+				}
+			}
+		})
+		return shutdownErr
+	}
 
 	go func() {
 		<-ctx.Done()
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		_ = server.Shutdown(shutdownCtx)
+		_ = shutdownAll(shutdownCtx)
 	}()
 
-	return server.Shutdown, nil
+	return shutdownAll, nil
+}
+
+func resolveGUIAPIBaseURL(interfaceSettings InterfaceSettings, apiBind string) string {
+	envValue := strings.TrimSpace(os.Getenv("JFTRADE_GUI_API_BASE_URL"))
+	if envValue != "" {
+		return envValue
+	}
+
+	configuredValue := strings.TrimSpace(interfaceSettings.GUIAPIBaseURL)
+	defaultConfiguredValue := apiBaseURLForBind(interfaceSettings.APIBind)
+	if configuredValue == "" || configuredValue == defaultConfiguredValue {
+		return apiBaseURLForBind(apiBind)
+	}
+	return configuredValue
 }
 
 func NewServer(store *SettingsStore) *Server {
+	return newServerWithFrontend(store, newFrontendServer(loadFrontendFS()))
+}
+
+func newServerWithFrontend(store *SettingsStore, frontend *frontendServer) *Server {
 	strategyStore, err := NewStrategyCatalogStore(deriveStrategyCatalogPath(store.path), deriveStrategyPluginTargetDir(store.path))
 	if err != nil {
 		log.Printf("JFTrade strategy catalog store degraded: %v", err)
@@ -166,6 +230,8 @@ func NewServer(store *SettingsStore) *Server {
 		brokerOrderUpdates:   newBrokerOrderUpdateWorker(),
 		marketSubscriptions:  newMarketSubscriptionManager(),
 		tickCache:            newTickSampleCacheManager(),
+		apiPort:              portFromBind(defaultDevelopmentAPIBind, 3000),
+		frontend:             frontend,
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(*http.Request) bool { return true },
 		},
@@ -242,6 +308,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case s.serveBrokerRoutes(w, r):
 	case s.servePortfolioRoutes(w, r):
 	case s.serveExecutionRoutes(w, r):
+	case s.frontend != nil && s.frontend.serveRequest(w, r):
 	default:
 		s.writeError(w, http.StatusNotFound, "NOT_FOUND", fmt.Sprintf("unknown endpoint %s", r.URL.Path))
 	}
@@ -267,7 +334,7 @@ func (s *Server) writeError(w http.ResponseWriter, status int, code string, mess
 func (s *Server) systemStatus() map[string]any {
 	return map[string]any{
 		"name":                      "JFTrade",
-		"apiPort":                   3000,
+		"apiPort":                   s.apiPort,
 		"defaultBroker":             "futu",
 		"defaultTradingEnvironment": "SIMULATE",
 		"realTradingEnabled":        false,
@@ -283,6 +350,7 @@ func (s *Server) systemStatus() map[string]any {
 		},
 		"realTradeAccess": map[string]any{"approverAllowlistEnabled": false, "approverCount": 0, "adminAllowlistEnabled": false, "adminCount": 0},
 		"broker":          s.descriptor(),
+		"build":           buildinfo.Snapshot(),
 		"persistence": map[string]any{
 			"engine": "json", "databasePath": s.store.path, "status": "ok", "migrated": true,
 			"pendingMigrations": []any{}, "tables": []string{"broker_integrations", "broker_accounts"}, "checkedAt": time.Now().UTC().Format(time.RFC3339Nano),

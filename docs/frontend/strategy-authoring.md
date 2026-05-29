@@ -132,10 +132,15 @@
 
 ## 回归检查
 
+当前前端策略页测试已拆成两份：
+
+- `App.strategy.runtime.test.ts` 负责运行态面板、实例绑定、日志审计、runtime observation 和定义刷新。
+- `App.strategy.test.ts` 负责设计态、Logic Flow、模板草稿和离开保护。
+
 前端策略设计相关改动，优先跑下面这条窄验证：
 
 ```bash
-npm --workspace @jftrade/web run test -- --run App.strategy.test.ts
+npm --workspace @jftrade/web run test -- --run tests/App.strategy.test.ts tests/App.strategy.runtime.test.ts
 ```
 
 如果改了 DSL 编辑器或图块转换，再补：

@@ -43,7 +43,14 @@ type ManagedBrokerAccount struct {
 	CreatedAt          string  `json:"createdAt"`
 }
 
+type InterfaceSettings struct {
+	APIBind       string `json:"apiBind"`
+	GUIBind       string `json:"guiBind,omitempty"`
+	GUIAPIBaseURL string `json:"guiApiBaseUrl,omitempty"`
+}
+
 type settingsFile struct {
+	Interfaces  *InterfaceSettings     `json:"interfaces,omitempty"`
 	Integration *BrokerIntegration     `json:"integration,omitempty"`
 	Accounts    []ManagedBrokerAccount `json:"accounts,omitempty"`
 }
@@ -60,6 +67,19 @@ func NewSettingsStore(path string) (*SettingsStore, error) {
 		return nil, err
 	}
 	return store, nil
+}
+
+func (s *SettingsStore) ensureBootstrapFile(defaults launchDefaults) error {
+	if _, err := os.Stat(s.path); err == nil {
+		return nil
+	} else if !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	s.mu.Lock()
+	s.data.Interfaces = interfaceSettingsPointer(normalizeInterfaceSettings(interfaceSettingsFromDefaults(defaults), defaults))
+	s.mu.Unlock()
+	_, err := s.saveIntegration(s.integration())
+	return err
 }
 
 func (s *SettingsStore) load() error {
@@ -97,6 +117,15 @@ func (s *SettingsStore) integration() BrokerIntegration {
 	}
 }
 
+func (s *SettingsStore) interfaceSettings(defaults launchDefaults) InterfaceSettings {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.data.Interfaces != nil {
+		return normalizeInterfaceSettings(*s.data.Interfaces, defaults)
+	}
+	return normalizeInterfaceSettings(interfaceSettingsFromDefaults(defaults), defaults)
+}
+
 func (s *SettingsStore) saveIntegration(input BrokerIntegration) (BrokerIntegration, error) {
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	input.BrokerID = "futu"
@@ -111,6 +140,9 @@ func (s *SettingsStore) saveIntegration(input BrokerIntegration) (BrokerIntegrat
 	}
 
 	s.mu.Lock()
+	if s.data.Interfaces == nil {
+		s.data.Interfaces = interfaceSettingsPointer(normalizeInterfaceSettings(interfaceSettingsFromDefaults(launchDefaults{}), launchDefaults{}))
+	}
 	s.data.Integration = &input
 	data, err := json.MarshalIndent(s.data, "", "  ")
 	if err != nil {
@@ -221,4 +253,39 @@ func (s *SettingsStore) persistLocked() error {
 		return err
 	}
 	return os.WriteFile(s.path, data, 0o600)
+}
+
+func interfaceSettingsFromDefaults(defaults launchDefaults) InterfaceSettings {
+	settings := InterfaceSettings{APIBind: defaults.apiBind}
+	if strings.TrimSpace(defaults.guiBind) != "" {
+		settings.GUIBind = defaults.guiBind
+		settings.GUIAPIBaseURL = apiBaseURLForBind(defaults.apiBind)
+	}
+	return settings
+}
+
+func normalizeInterfaceSettings(input InterfaceSettings, defaults launchDefaults) InterfaceSettings {
+	settings := input
+	settings.APIBind = strings.TrimSpace(settings.APIBind)
+	settings.GUIBind = strings.TrimSpace(settings.GUIBind)
+	settings.GUIAPIBaseURL = strings.TrimRight(strings.TrimSpace(settings.GUIAPIBaseURL), "/")
+
+	if settings.APIBind == "" {
+		settings.APIBind = defaults.apiBind
+	}
+	if settings.APIBind == "" {
+		settings.APIBind = defaultDevelopmentAPIBind
+	}
+	if settings.GUIBind == "" {
+		settings.GUIBind = defaults.guiBind
+	}
+	if settings.GUIAPIBaseURL == "" && settings.GUIBind != "" {
+		settings.GUIAPIBaseURL = apiBaseURLForBind(settings.APIBind)
+	}
+	return settings
+}
+
+func interfaceSettingsPointer(value InterfaceSettings) *InterfaceSettings {
+	settings := value
+	return &settings
 }

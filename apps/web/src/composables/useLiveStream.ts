@@ -1,11 +1,9 @@
 import { ref } from "vue";
 
-const apiBaseUrl = (
-  import.meta.env.VITE_API_BASE_URL as string | undefined
-)?.replace(/\/$/, "");
+import { buildRuntimeApiUrl } from "../runtimeConfig";
 
 function buildEventStreamUrl(path: string): string {
-  return apiBaseUrl ? `${apiBaseUrl}${path}` : `http://127.0.0.1:3000${path}`;
+  return buildRuntimeApiUrl(path);
 }
 
 export function useLiveStream() {

@@ -55,6 +55,13 @@ func TestSystemStatusEndpointReturnsStatus(t *testing.T) {
 	if _, ok := envelope.Data["broker"]; !ok {
 		t.Fatal("expected broker in system status response")
 	}
+	build, ok := envelope.Data["build"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected build metadata, got %+v", envelope.Data["build"])
+	}
+	if build["version"] == "" || build["commit"] == "" {
+		t.Fatalf("expected build version and commit, got %+v", build)
+	}
 	strategyRuntime, ok := envelope.Data["strategyRuntime"].(map[string]any)
 	if !ok {
 		t.Fatalf("expected strategyRuntime summary, got %+v", envelope.Data["strategyRuntime"])

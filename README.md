@@ -48,6 +48,9 @@ start.cmd
 # 启动后端 API sidecar（开发控制台默认路径，不启动 bbgo 策略/交易流）
 go run ./cmd/jftrade api
 
+# 直接运行二进制（无参数默认启动 API 与内嵌前端，适合发布产物）
+./jftrade
+
 # Swagger 调试文档
 # Swagger UI: http://127.0.0.1:3000/swagger/
 # OpenAPI JSON: http://127.0.0.1:3000/openapi.json
@@ -59,6 +62,70 @@ go run ./cmd/jftrade run --config ./config/jftrade.yaml
 cd apps/web && npm install && npm run dev
 ```
 
+## 生产部署
+
+发布构建会把前端静态资源嵌入 Go 二进制。发布态运行时会拆成两个默认端口：GUI 为 `127.0.0.1:6688`，API 网关为 `127.0.0.1:6699`；前端页面会在运行时自动指向对应网关，不再依赖单独的 `vite preview` 服务。
+
+```bash
+# macOS / Linux
+./build-release.sh
+
+# Windows PowerShell
+.\build-release.ps1
+
+# Windows CMD 包装入口
+build-release.cmd
+```
+
+发布脚本会依次完成：
+
+1. 安装前端依赖。
+2. 构建 `apps/web/dist`。
+3. 暂存 `internal/frontendassets/dist/`，并生成压缩归档 `internal/frontendassets/dist.zip` 供发布标签嵌入，减少最终二进制体积。
+4. 一次性输出以下平台产物到 `dist/`：macOS arm64、Linux amd64、Windows amd64、Windows arm64。
+
+当前发布脚本固定构建 `cmd/jftrade-api`，也就是只保留 sidecar 与内嵌 GUI 的 API-only 发行版；发布产物名仍然保持 `jftrade`，但不再包含 bbgo `run` 模式和原有 CLI 命令面。以当前 darwin arm64 产物为例，发布二进制约 `55.6MB`。
+
+当前发布构建已经使用 `-trimpath`、`-buildvcs=false`、`-tags 'release_assets,netgo,osusergo'`、`-ldflags '-s -w'`，并把嵌入前端改成 zip 归档再嵌入；同时发布入口固定收敛到 `cmd/jftrade-api`。以当前 darwin arm64 产物为例，发布二进制已从早期约 `79M` 降到约 `55.6MB`。如果仍需要完整 bbgo `run` 和原有 CLI 能力，继续通过源码入口 `go run ./cmd/jftrade run --config ./config/jftrade.yaml` 使用，不再作为当前发布包分发。
+
+发布态二进制默认无参数即启动 API 网关与内嵌前端；首次启动会在二进制同级目录下自动生成 `var/jftrade-api/` 运行时目录，并写入默认 `settings.json` 与回测库文件。开发态仍保持 Vite `5173` + sidecar `3000` 的结构。
+
+`settings.json` 现在支持配置 GUI / gateway 绑定地址。启动时优先级为：环境变量 > `settings.json` > 内置默认值。示例：
+
+```json
+{
+  "interfaces": {
+    "apiBind": "127.0.0.1:6699",
+    "guiBind": "127.0.0.1:6688",
+    "guiApiBaseUrl": "http://127.0.0.1:6699"
+  },
+  "integration": {
+    "brokerId": "futu",
+    "enabled": true,
+    "config": {
+      "type": "futu",
+      "host": "127.0.0.1",
+      "apiPort": 11110,
+      "websocketPort": 11111,
+      "maxWebSocketConnections": 20,
+      "useEncryption": false,
+      "websocketKey": "123456",
+      "tradeMarket": "HK",
+      "securityFirm": "FUTUSECURITIES"
+    }
+  }
+}
+```
+
+可选环境变量：
+
+- `JFTRADE_API_BIND`：API 监听地址，开发态默认 `127.0.0.1:3000`，发布态默认 `127.0.0.1:6699`
+- `JFTRADE_GUI_BIND`：内嵌前端监听地址，仅发布态启用，默认 `127.0.0.1:6688`
+- `JFTRADE_GUI_API_BASE_URL`：覆盖发布态 GUI 注入的 API 基地址；默认跟随 `JFTRADE_API_BIND`
+- `JFTRADE_SETTINGS_PATH`：设置文件路径，开发态默认 `var/jftrade-api/settings.json`，发布态默认 `<binary-dir>/var/jftrade-api/settings.json`
+- `JFTRADE_BACKTEST_DB`：回测数据库路径，开发态默认 `var/jftrade-api/backtest.db`，发布态默认 `<binary-dir>/var/jftrade-api/backtest.db`
+- `JFTRADE_VERSION` / `JFTRADE_COMMIT` / `JFTRADE_BUILD_TIME`：覆盖发布脚本注入的构建元数据
+
 ## 测试
 
 ```bash
@@ -68,8 +135,8 @@ cd apps/web && npm run typecheck && npm run build
 
 也可以直接运行根目录的 `start.sh` 或 `start.cmd`，按顺序执行测试、前端类型检查、前端构建，然后启动后端和前端预览服务。
 
-后端 API 启动后，可直接打开 Swagger UI 进行调试：`http://127.0.0.1:3000/swagger/`。
-如需把 OpenAPI 规范导入其他工具，使用：`http://127.0.0.1:3000/openapi.json`。
+开发态后端 API 启动后，可直接打开 Swagger UI 进行调试：`http://127.0.0.1:3000/swagger/`。
+发布态默认从 `http://127.0.0.1:6688/` 打开控制台，Swagger UI 与 OpenAPI 分别位于 `http://127.0.0.1:6699/swagger/` 和 `http://127.0.0.1:6699/openapi.json`。
 
 前端 K 线实时合成与防回归说明见 `docs/frontend-kline.md`。
 

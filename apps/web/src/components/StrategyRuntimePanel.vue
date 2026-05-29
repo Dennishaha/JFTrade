@@ -1,6 +1,27 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
-import MonacoCodeEditor from "./MonacoCodeEditor.vue";
+import StrategyRuntimeActivityPanel from "./strategy-runtime/StrategyRuntimeActivityPanel.vue";
+import StrategyRuntimeInstanceEditorDialog from "./strategy-runtime/StrategyRuntimeInstanceEditorDialog.vue";
+import StrategyRuntimeInstanceListPanel from "./strategy-runtime/StrategyRuntimeInstanceListPanel.vue";
+import StrategyRuntimeOverviewSection from "./strategy-runtime/StrategyRuntimeOverviewSection.vue";
+import StrategyRuntimeSelectedStrategyPanel from "./strategy-runtime/StrategyRuntimeSelectedStrategyPanel.vue";
+import {
+    brokerAccountOptionSubtitle,
+    buildStrategyBindingPayload,
+    filterBrokerAccountOptions,
+    formatBrokerAccountSummary,
+    formatRuntimeObservationSymbols,
+    formatStrategyInterval,
+    formatStrategySymbols,
+    invalidSymbolsFromText,
+    normalizeText,
+    parseSymbolsText,
+    parseValidatedSymbolsText,
+    readStrategyBinding,
+    resolveBrokerAccountOption,
+    resolveBrokerAccountSelectionKey,
+    splitSymbolsText,
+} from "./strategy-runtime/strategyRuntimeInstanceBinding";
 import type {
     StrategyAuditEntryDocument,
     StrategyAuditListResponse,
@@ -17,7 +38,6 @@ import type {
 
 import { fetchEnvelope, fetchEnvelopeWithInit } from "../composables/apiClient";
 import {
-    buildBrokerAccountSelectionKey,
     type BrokerAccountSelectionOption,
 } from "../composables/consoleDataBrokerAccountSelection";
 import { useConsoleData } from "../composables/useConsoleData";
@@ -28,39 +48,11 @@ type StrategyAuditResponse = StrategyAuditListResponse;
 
 type StrategyAction = "start" | "pause" | "stop";
 type StrategySymbolEditorMode = "create" | "edit";
-type StrategyActivityTab = "logs" | "audit";
-type StrategyActivityLevel = "all" | "error" | "warning" | "info";
 
 interface StrategyTimestampParts {
     display: string;
     utc: string;
     timestampMs: number | null;
-}
-
-interface StrategyLogViewEntry {
-    raw: string;
-    message: string;
-    at: string;
-    timestampMs: number | null;
-    level: Exclude<StrategyActivityLevel, "all">;
-}
-
-interface StrategyAuditViewEntry extends StrategyAuditEntry {
-    detailText: string;
-    label: string;
-    level: Exclude<StrategyActivityLevel, "all">;
-    timestampMs: number | null;
-}
-
-interface StrategyActivityDetailView {
-    title: string;
-    kindLabel: string;
-    summary: string;
-    detail: string;
-    at: string;
-    utc: string;
-    level: Exclude<StrategyActivityLevel, "all">;
-    rawKind?: string;
 }
 
 const props = defineProps<{
@@ -94,11 +86,6 @@ const instanceMutationNotice = ref("");
 const instanceMutationError = ref("");
 const isCreateMenuOpen = ref(false);
 const instanceEditorMode = ref<StrategySymbolEditorMode | null>(null);
-const strategyActivityTab = ref<StrategyActivityTab>("logs");
-const strategyActivityLevelFilter = ref<StrategyActivityLevel>("all");
-const strategyParamsDialogOpen = ref(false);
-const strategyActivityDetailDialogOpen = ref(false);
-const selectedStrategyActivityDetail = ref<StrategyActivityDetailView | null>(null);
 
 const createDefinitionId = ref("");
 const createSymbolsText = ref("");
@@ -141,20 +128,20 @@ const createDefinition = computed(
     () => strategyDefinitions.value.find((item) => item.id === createDefinitionId.value) ?? null,
 );
 
+const brokerAccountOptions = computed(() => availableBrokerAccounts.value);
+
 const createSymbolTags = computed(() => parseSymbolsText(createSymbolsText.value));
 const editSymbolTags = computed(() => parseSymbolsText(editSymbolsText.value));
 const createSelectedBrokerAccountOption = computed(
-    () => resolveBrokerAccountOption(createBrokerAccountKey.value),
+    () => resolveBrokerAccountOption(brokerAccountOptions.value, createBrokerAccountKey.value),
 );
 const editSelectedBrokerAccountOption = computed(
-    () => resolveBrokerAccountOption(editBrokerAccountKey.value),
+    () => resolveBrokerAccountOption(brokerAccountOptions.value, editBrokerAccountKey.value),
 );
 
 const activeStrategyCount = computed(
     () => strategies.value.filter((item) => item.runtimeObservation?.actualStatus === "RUNNING").length,
 );
-
-const brokerAccountOptions = computed(() => availableBrokerAccounts.value);
 
 const defaultBrokerAccountSelectionKey = computed(
     () => selectedBrokerAccount.value?.selectionKey ?? brokerAccountOptions.value[0]?.selectionKey ?? "",
@@ -169,10 +156,10 @@ const effectiveCurrentBrokerAccountSelectionKey = computed(
 );
 
 const createFilteredBrokerAccountOptions = computed(() =>
-    filterBrokerAccountOptions(createBrokerAccountQuery.value),
+    filterBrokerAccountOptions(brokerAccountOptions.value, createBrokerAccountQuery.value),
 );
 const editFilteredBrokerAccountOptions = computed(() =>
-    filterBrokerAccountOptions(editBrokerAccountQuery.value),
+    filterBrokerAccountOptions(brokerAccountOptions.value, editBrokerAccountQuery.value),
 );
 const activeInstanceEditorMode = computed<StrategySymbolEditorMode>(() => instanceEditorMode.value ?? "create");
 const instanceEditorOpen = computed({
@@ -185,6 +172,26 @@ const instanceEditorOpen = computed({
 });
 const isCreateInstanceEditor = computed(() => instanceEditorMode.value === "create");
 const isEditInstanceEditor = computed(() => instanceEditorMode.value === "edit");
+const activeSymbolTags = computed(() => symbolTagsFor(activeInstanceEditorMode.value));
+const activeSymbolDraft = computed(() => symbolDraftFor(activeInstanceEditorMode.value));
+const activeSymbolValidationMessage = computed(() => symbolValidationMessageFor(activeInstanceEditorMode.value));
+const activeIntervalValue = computed(() => intervalValueFor(activeInstanceEditorMode.value));
+const activeExecutionMode = computed(() => executionModeFor(activeInstanceEditorMode.value));
+const activeSelectedBrokerAccountOption = computed(() => selectedBrokerAccountOptionFor(activeInstanceEditorMode.value));
+const activeSelectedBrokerAccountKey = computed(() => selectedBrokerAccountKeyFor(activeInstanceEditorMode.value));
+const activeBrokerAccountQuery = computed(() => brokerAccountQueryFor(activeInstanceEditorMode.value));
+const activeIsBrokerAccountPickerOpen = computed(() => isBrokerAccountPickerOpen(activeInstanceEditorMode.value));
+const activeFilteredBrokerAccountOptions = computed(() => filteredBrokerAccountOptionsFor(activeInstanceEditorMode.value));
+const activeInstanceEditorSymbolsSummary = computed(() => instanceEditorSymbolsSummary(activeInstanceEditorMode.value));
+const activeInstanceEditorBrokerAccountSummary = computed(() => instanceEditorBrokerAccountSummary(activeInstanceEditorMode.value));
+const instanceEditorPreviewDefinitionLabel = computed(() => {
+    if (isCreateInstanceEditor.value) {
+        return createDefinition.value == null
+            ? "未选择策略定义"
+            : `${createDefinition.value.name} / v${createDefinition.value.version}`;
+    }
+    return `${selectedStrategy.value?.definition.name ?? "未选择"} / v${selectedStrategy.value?.definition.version ?? ""}`;
+});
 
 const selectedStrategyParamsJson = computed(() => {
     if (selectedStrategy.value === null) return "";
@@ -272,111 +279,6 @@ const selectedStrategyDefinitionRefreshHint = computed(() => {
     return selectedStrategyDefinitionSync.value.blockedReason ?? "当前实例需要先停止后再刷新。";
 });
 
-function sortActivityEntriesByTime<T extends { timestampMs: number | null }>(items: T[]): T[] {
-    return items
-        .map((item, index) => ({ item, index }))
-        .sort((left, right) => {
-            const leftTime = left.item.timestampMs ?? Number.NEGATIVE_INFINITY;
-            const rightTime = right.item.timestampMs ?? Number.NEGATIVE_INFINITY;
-            if (rightTime !== leftTime) {
-                return rightTime - leftTime;
-            }
-            return right.index - left.index;
-        })
-        .map(({ item }) => item);
-}
-
-const strategyLogViewEntries = computed<StrategyLogViewEntry[]>(() =>
-    sortActivityEntriesByTime(strategyLogs.value.map((entry) => parseStrategyLogEntry(entry))),
-);
-
-const strategyAuditViewEntries = computed<StrategyAuditViewEntry[]>(() =>
-    sortActivityEntriesByTime(strategyAuditEntries.value.map((entry) => ({
-        ...entry,
-        detailText: entry.detail ?? "生命周期变更",
-        label: formatAuditKind(entry.kind),
-        level: classifyStrategyAuditLevel(entry),
-        timestampMs: formatTimestampParts(entry.at).timestampMs,
-    }))),
-);
-
-const strategyActivityTabs = computed(() => [
-    {
-        value: "logs" as const,
-        label: "运行日志",
-        count: strategyLogViewEntries.value.length,
-    },
-    {
-        value: "audit" as const,
-        label: "运行审计",
-        count: strategyAuditViewEntries.value.length,
-    },
-]);
-
-const strategyActivityLevelOptions = computed(() => {
-    const items = strategyActivityTab.value === "logs"
-        ? strategyLogViewEntries.value
-        : strategyAuditViewEntries.value;
-    const counts = new Map<Exclude<StrategyActivityLevel, "all">, number>([
-        ["error", 0],
-        ["warning", 0],
-        ["info", 0],
-    ]);
-    for (const item of items) {
-        counts.set(item.level, (counts.get(item.level) ?? 0) + 1);
-    }
-    const options: Array<{
-        value: StrategyActivityLevel;
-        label: string;
-        count: number;
-    }> = [{
-        value: "all" as const,
-        label: formatStrategyActivityLevel("all"),
-        count: items.length,
-    }];
-    for (const level of ["error", "warning", "info"] as const) {
-        const count = counts.get(level) ?? 0;
-        if (count === 0) {
-            continue;
-        }
-        options.push({
-            value: level,
-            label: formatStrategyActivityLevel(level),
-            count,
-        });
-    }
-    return options;
-});
-
-const filteredStrategyLogViewEntries = computed(() => {
-    if (strategyActivityLevelFilter.value === "all") {
-        return strategyLogViewEntries.value;
-    }
-    return strategyLogViewEntries.value.filter(
-        (entry) => entry.level === strategyActivityLevelFilter.value,
-    );
-});
-
-const filteredStrategyAuditViewEntries = computed(() => {
-    if (strategyActivityLevelFilter.value === "all") {
-        return strategyAuditViewEntries.value;
-    }
-    return strategyAuditViewEntries.value.filter(
-        (entry) => entry.level === strategyActivityLevelFilter.value,
-    );
-});
-
-const strategyActivityEmptyMessage = computed(() => {
-    if (strategyActivityTab.value === "logs") {
-        return strategyActivityLevelFilter.value === "all"
-            ? "暂无日志。"
-            : "当前筛选下暂无日志。";
-    }
-    return strategyActivityLevelFilter.value === "all"
-        ? "暂无审计记录。"
-        : "当前筛选下暂无审计记录。";
-});
-
 const canStartSelectedStrategy = computed(
     () =>
         selectedStrategy.value !== null
@@ -444,27 +346,11 @@ watch(
 
 watch(
     selectedStrategy,
-    (strategy, previousStrategy) => {
-        if (strategy?.id !== previousStrategy?.id) {
-            strategyActivityTab.value = "logs";
-            strategyActivityLevelFilter.value = "all";
-            strategyParamsDialogOpen.value = false;
-            closeStrategyActivityDetailDialog();
-        }
+    (strategy) => {
         if (strategy === null && instanceEditorMode.value === "edit") {
             closeInstanceEditorDialog();
         }
     },
-);
-
-watch(
-    strategyActivityLevelOptions,
-    (options) => {
-        if (!options.some((option) => option.value === strategyActivityLevelFilter.value)) {
-            strategyActivityLevelFilter.value = "all";
-        }
-    },
-    { immediate: true },
 );
 
 watch(
@@ -536,80 +422,11 @@ watch(
         editInterval.value = binding.interval;
         editExecutionMode.value = binding.executionMode;
         editBrokerAccountKey.value =
-            resolveBrokerAccountSelectionKey(binding.brokerAccount)
+            resolveBrokerAccountSelectionKey(brokerAccountOptions.value, binding.brokerAccount)
             || defaultBrokerAccountSelectionKey.value;
     },
     { immediate: true },
 );
-
-function normalizeText(value: unknown): string {
-    return typeof value === "string" ? value.trim() : "";
-}
-
-function normalizeInstrumentId(value: string): string {
-    const normalized = normalizeText(value).toUpperCase();
-    if (normalized === "") {
-        return "";
-    }
-    if (normalized.includes(":")) {
-        const [market, symbol] = normalized.split(":", 2);
-        if ((market ?? "") !== "" && (symbol ?? "") !== "") {
-            return `${market}.${symbol}`;
-        }
-    }
-    return normalized;
-}
-
-function normalizeSymbols(values: string[]): string[] {
-    const seen = new Set<string>();
-    const result: string[] = [];
-    for (const value of values) {
-        const normalized = normalizeInstrumentId(value);
-        if (normalized === "" || seen.has(normalized)) {
-            continue;
-        }
-        seen.add(normalized);
-        result.push(normalized);
-    }
-    return result;
-}
-
-function splitSymbolsText(value: string): string[] {
-    return value
-    .split(/[\s,，;；]+/)
-        .map((segment) => segment.trim())
-        .filter((segment) => segment !== "");
-}
-
-function parseSymbolsText(value: string): string[] {
-    return normalizeSymbols(splitSymbolsText(value));
-}
-
-function isValidNormalizedInstrumentId(value: string): boolean {
-    return /^[A-Z0-9_-]+\.[A-Z0-9._-]+$/.test(value);
-}
-
-function parseValidatedSymbolsText(value: string): string[] {
-    return normalizeSymbols(
-        splitSymbolsText(value)
-            .map((segment) => normalizeInstrumentId(segment))
-            .filter((segment) => isValidNormalizedInstrumentId(segment)),
-    );
-}
-
-function invalidSymbolsFromText(value: string): string[] {
-    const seen = new Set<string>();
-    const invalidSymbols: string[] = [];
-    for (const segment of splitSymbolsText(value)) {
-        const normalized = normalizeInstrumentId(segment);
-        if (normalized === "" || isValidNormalizedInstrumentId(normalized) || seen.has(normalized)) {
-            continue;
-        }
-        seen.add(normalized);
-        invalidSymbols.push(normalized);
-    }
-    return invalidSymbols;
-}
 
 const localTimestampFormatter = new Intl.DateTimeFormat("zh-CN", {
     year: "numeric",
@@ -746,118 +563,6 @@ function formatStrategyExecutionMode(mode: StrategyExecutionMode | string | null
     return normalizeText(mode) === "notify_only" ? "仅通知" : "确认执行";
 }
 
-function formatTradingEnvironment(value: unknown): string {
-    switch (normalizeText(value).toUpperCase()) {
-        case "SIMULATE":
-            return "模拟盘";
-        case "REAL":
-            return "实盘";
-        default:
-            return normalizeText(value) || "未设置";
-    }
-}
-
-function normalizeBrokerAccountBinding(
-    value: StrategyBrokerAccountBinding | null | undefined,
-): StrategyBrokerAccountBinding | null {
-    if (value == null) {
-        return null;
-    }
-
-    const brokerId = normalizeText(value.brokerId).toLowerCase();
-    const accountId = normalizeText(value.accountId);
-    const tradingEnvironment = normalizeText(value.tradingEnvironment).toUpperCase();
-    const market = normalizeText(value.market).toUpperCase();
-
-    if (brokerId === "" && accountId === "" && tradingEnvironment === "" && market === "") {
-        return null;
-    }
-
-    return {
-        brokerId,
-        accountId,
-        tradingEnvironment,
-        market,
-    };
-}
-
-function readStrategySymbolsFromParams(
-    params: Record<string, unknown> | null,
-): string[] {
-    if (params === null) {
-        return [];
-    }
-    if (Array.isArray(params.symbols)) {
-        return normalizeSymbols(
-            params.symbols.filter((entry): entry is string => typeof entry === "string"),
-        );
-    }
-    const symbol = normalizeInstrumentId(normalizeText(params.symbol));
-    return symbol === "" ? [] : [symbol];
-}
-
-function readStrategyBrokerAccount(
-    params: Record<string, unknown> | null,
-): StrategyBrokerAccountBinding | null {
-    if (params === null) {
-        return null;
-    }
-    const brokerAccount = asRecord(params.brokerAccount);
-    if (brokerAccount === null) {
-        return null;
-    }
-    return normalizeBrokerAccountBinding({
-        brokerId: normalizeText(brokerAccount.brokerId),
-        accountId: normalizeText(brokerAccount.accountId),
-        tradingEnvironment: normalizeText(brokerAccount.tradingEnvironment),
-        market: normalizeText(brokerAccount.market),
-    });
-}
-
-function readStrategyBinding(strategy: StrategyInstanceItem): StrategyInstanceBindingDocument {
-    const params = asRecord(strategy.params);
-    const bindingSymbols = Array.isArray(strategy.binding?.symbols)
-        ? normalizeSymbols(strategy.binding.symbols)
-        : readStrategySymbolsFromParams(params);
-    const executionModeSource =
-        normalizeText(strategy.binding?.executionMode)
-        || normalizeText(params?.executionMode);
-    return {
-        symbols: bindingSymbols,
-        interval: normalizeText(strategy.binding?.interval) || normalizeText(params?.interval) || "5m",
-        executionMode: executionModeSource === "notify_only" ? "notify_only" : "live",
-        brokerAccount: normalizeBrokerAccountBinding(strategy.binding?.brokerAccount)
-            ?? readStrategyBrokerAccount(params),
-    };
-}
-
-function formatBrokerAccountSummary(
-    brokerAccount: StrategyBrokerAccountBinding | null | undefined,
-): string {
-    const normalized = normalizeBrokerAccountBinding(brokerAccount);
-    if (normalized == null) {
-        return "未绑定账号";
-    }
-    return `${normalized.brokerId.toUpperCase()} / ${formatTradingEnvironment(normalized.tradingEnvironment)} / ${normalized.accountId} / ${normalized.market}`;
-}
-
-function formatStrategySymbols(strategy: StrategyInstanceItem): string {
-    const symbols = readStrategyBinding(strategy).symbols;
-    return symbols.length > 0 ? symbols.join(", ") : "未绑定交易代码";
-}
-
-function formatStrategyInterval(strategy: StrategyInstanceItem): string {
-    return readStrategyBinding(strategy).interval || "5m";
-}
-
-function formatRuntimeObservationSymbols(symbols: string[] | null | undefined): string {
-    if (!Array.isArray(symbols)) {
-        return "暂无";
-    }
-    const normalized = normalizeSymbols(symbols);
-    return normalized.length > 0 ? normalized.join(", ") : "暂无";
-}
-
 function symbolTagsFor(mode: StrategySymbolEditorMode): string[] {
     return mode === "create" ? createSymbolTags.value : editSymbolTags.value;
 }
@@ -888,7 +593,7 @@ function setSymbolValidationMessage(mode: StrategySymbolEditorMode, value: strin
 }
 
 function setSymbolTags(mode: StrategySymbolEditorMode, tags: string[]): void {
-    const nextValue = normalizeSymbols(tags).join("\n");
+    const nextValue = parseSymbolsText(tags.join("\n")).join("\n");
     if (mode === "create") {
         createSymbolsText.value = nextValue;
         createSymbolDraft.value = "";
@@ -1031,25 +736,6 @@ function closeBrokerAccountPicker(mode?: StrategySymbolEditorMode): void {
     }
 }
 
-function filterBrokerAccountOptions(query: string): BrokerAccountSelectionOption[] {
-    const normalizedQuery = normalizeText(query).toLowerCase();
-    if (normalizedQuery === "") {
-        return brokerAccountOptions.value;
-    }
-    return brokerAccountOptions.value.filter((option) =>
-        [
-            option.displayName,
-            option.accountId,
-            option.market,
-            option.brokerId,
-            option.tradingEnvironment,
-            formatBrokerAccountOption(option),
-        ]
-            .filter((value): value is string => typeof value === "string")
-            .some((value) => value.toLowerCase().includes(normalizedQuery)),
-    );
-}
-
 function filteredBrokerAccountOptionsFor(mode: StrategySymbolEditorMode): BrokerAccountSelectionOption[] {
     return mode === "create"
         ? createFilteredBrokerAccountOptions.value
@@ -1076,26 +762,48 @@ function instanceEditorBrokerAccountSummary(mode: StrategySymbolEditorMode): str
     return option == null ? "暂不绑定账号" : brokerAccountOptionSubtitle(option);
 }
 
-function resolveBrokerAccountSelectionKey(
-    brokerAccount: StrategyBrokerAccountBinding | null | undefined,
-): string {
-    const normalized = normalizeBrokerAccountBinding(brokerAccount);
-    if (normalized == null) {
-        return "";
-    }
-
-    const selectionKey = buildBrokerAccountSelectionKey({
-        brokerId: normalized.brokerId,
-        tradingEnvironment: normalized.tradingEnvironment,
-        accountId: normalized.accountId,
-        market: normalized.market,
-    });
-
-    return brokerAccountOptions.value.find((option) => option.selectionKey === selectionKey)?.selectionKey ?? "";
+function removeActiveSymbol(symbol: string): void {
+    removeSymbolTag(activeInstanceEditorMode.value, symbol);
 }
 
-function resolveBrokerAccountOption(selectionKey: string): BrokerAccountSelectionOption | null {
-    return brokerAccountOptions.value.find((option) => option.selectionKey === selectionKey) ?? null;
+function updateActiveSymbolDraft(value: string): void {
+    setSymbolDraft(activeInstanceEditorMode.value, value);
+}
+
+function commitActiveSymbolDraft(): boolean {
+    return commitSymbolDraft(activeInstanceEditorMode.value);
+}
+
+function handleActiveSymbolDraftKeydown(event: KeyboardEvent): void {
+    handleSymbolDraftKeydown(event, activeInstanceEditorMode.value);
+}
+
+function handleActiveSymbolDraftPaste(event: ClipboardEvent): void {
+    handleSymbolDraftPaste(event, activeInstanceEditorMode.value);
+}
+
+function updateActiveIntervalValue(value: string): void {
+    setIntervalValue(activeInstanceEditorMode.value, value);
+}
+
+function updateActiveExecutionMode(value: string): void {
+    setExecutionMode(activeInstanceEditorMode.value, value);
+}
+
+function toggleActiveBrokerAccountPicker(): void {
+    toggleBrokerAccountPicker(activeInstanceEditorMode.value);
+}
+
+function updateActiveBrokerAccountQuery(value: string): void {
+    setBrokerAccountQuery(activeInstanceEditorMode.value, value);
+}
+
+function clearActiveBrokerAccountSelection(): void {
+    clearBrokerAccountSelection(activeInstanceEditorMode.value);
+}
+
+function selectActiveBrokerAccount(selectionKey: string): void {
+    selectBrokerAccountOption(activeInstanceEditorMode.value, selectionKey);
 }
 
 function isCurrentBrokerAccountSelectionKey(selectionKey: string | null | undefined): boolean {
@@ -1105,38 +813,9 @@ function isCurrentBrokerAccountSelectionKey(selectionKey: string | null | undefi
 function isCurrentBrokerAccountBinding(
     brokerAccount: StrategyBrokerAccountBinding | null | undefined,
 ): boolean {
-    return isCurrentBrokerAccountSelectionKey(resolveBrokerAccountSelectionKey(brokerAccount));
-}
-
-function formatBrokerAccountOption(option: BrokerAccountSelectionOption): string {
-    return `${option.brokerId.toUpperCase()} / ${formatTradingEnvironment(option.tradingEnvironment)} / ${option.accountId} / ${option.market}`;
-}
-
-function brokerAccountOptionSubtitle(option: BrokerAccountSelectionOption): string {
-    return `${option.brokerId.toUpperCase()} / ${formatTradingEnvironment(option.tradingEnvironment)} / ${option.accountId} / ${option.market}`;
-}
-
-function buildStrategyBindingPayload(input: {
-    symbolsText: string;
-    interval: string;
-    executionMode: StrategyExecutionMode;
-    brokerAccountKey: string;
-    fallbackBrokerAccount?: StrategyBrokerAccountBinding | null;
-}): StrategyInstanceBindingDocument {
-    const selectedAccount = resolveBrokerAccountOption(input.brokerAccountKey);
-    return {
-        symbols: parseValidatedSymbolsText(input.symbolsText),
-        interval: normalizeText(input.interval) || "5m",
-        executionMode: input.executionMode === "notify_only" ? "notify_only" : "live",
-        brokerAccount: selectedAccount == null
-            ? input.fallbackBrokerAccount ?? null
-            : {
-                brokerId: selectedAccount.brokerId,
-                accountId: selectedAccount.accountId,
-                tradingEnvironment: selectedAccount.tradingEnvironment,
-                market: selectedAccount.market,
-            },
-    };
+    return isCurrentBrokerAccountSelectionKey(
+        resolveBrokerAccountSelectionKey(brokerAccountOptions.value, brokerAccount),
+    );
 }
 
 function readCompiledIndicatorCount(strategy: StrategyInstanceItem): number | null {
@@ -1158,127 +837,6 @@ function asRecord(value: unknown): Record<string, unknown> | null {
         return null;
     }
     return value as Record<string, unknown>;
-}
-
-function formatAuditKind(kind: unknown): string {
-    switch (normalizeText(kind).toLowerCase()) {
-        case "instantiated":
-            return "已实例化";
-        case "binding.updated":
-            return "已更新绑定";
-        case "created":
-            return "已创建";
-        case "started":
-            return "已启动";
-        case "running":
-            return "运行中";
-        case "paused":
-            return "已暂停";
-        case "stopped":
-            return "已停止";
-        case "failed":
-            return "执行失败";
-        default:
-            return normalizeText(kind) || "未知";
-    }
-}
-
-function formatStrategyActivityLevel(level: StrategyActivityLevel): string {
-    switch (level) {
-        case "error":
-            return "高优先";
-        case "warning":
-            return "需关注";
-        case "info":
-            return "常规";
-        default:
-            return "全部";
-    }
-}
-
-function classifyStrategyLogLevel(message: string): Exclude<StrategyActivityLevel, "all"> {
-    const normalized = normalizeText(message).toLowerCase();
-    if (["panic", "fatal", "error", "failed", "exception", "reject", "denied", "timeout"].some(
-        (keyword) => normalized.includes(keyword),
-    )) {
-        return "error";
-    }
-    if (["warn", "warning", "paused", "pause", "stopped", "stop", "retry", "skip", "throttle"].some(
-        (keyword) => normalized.includes(keyword),
-    )) {
-        return "warning";
-    }
-    return "info";
-}
-
-function classifyStrategyAuditLevel(entry: StrategyAuditEntry): Exclude<StrategyActivityLevel, "all"> {
-    const signal = `${normalizeText(entry.kind)} ${normalizeText(entry.detail)}`.toLowerCase();
-    if (["failed", "panic", "error", "exception", "reject", "denied", "timeout"].some(
-        (keyword) => signal.includes(keyword),
-    )) {
-        return "error";
-    }
-    if (["paused", "pause", "stopped", "stop", "retry", "warning", "warn"].some(
-        (keyword) => signal.includes(keyword),
-    )) {
-        return "warning";
-    }
-    return "info";
-}
-
-function parseStrategyLogEntry(entry: string): StrategyLogViewEntry {
-    const raw = normalizeText(entry);
-    const matched = raw.match(/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z)\s*(.*)$/);
-    const at = matched?.[1] ?? "";
-    const message = normalizeText(matched?.[2]) || raw;
-    const timestampMs = at === "" ? null : formatTimestampParts(at).timestampMs;
-    return {
-        raw: entry,
-        message,
-        at,
-        timestampMs,
-        level: classifyStrategyLogLevel(message || raw),
-    };
-}
-
-function openStrategyActivityDetail(detail: StrategyActivityDetailView): void {
-    selectedStrategyActivityDetail.value = detail;
-    strategyActivityDetailDialogOpen.value = true;
-}
-
-function closeStrategyActivityDetailDialog(): void {
-    strategyActivityDetailDialogOpen.value = false;
-    selectedStrategyActivityDetail.value = null;
-}
-
-function buildLogActivityDetail(entry: StrategyLogViewEntry): StrategyActivityDetailView {
-    return {
-        title: "运行日志",
-        kindLabel: "日志详情",
-        summary: entry.message,
-        detail: entry.raw,
-        at: formatTimestamp(entry.at),
-        utc: formatTimestampTooltip(entry.at),
-        level: entry.level,
-    };
-}
-
-function buildAuditActivityDetail(entry: StrategyAuditViewEntry): StrategyActivityDetailView {
-    return {
-        title: entry.label,
-        kindLabel: "审计详情",
-        summary: entry.detailText,
-        detail: [
-            `instanceId: ${entry.instanceId}`,
-            `kind: ${entry.kind}`,
-            `detail: ${entry.detailText}`,
-            `at: ${entry.at}`,
-        ].join("\n"),
-        at: formatTimestamp(entry.at),
-        utc: formatTimestampTooltip(entry.at),
-        level: entry.level,
-        rawKind: entry.kind,
-    };
 }
 
 function formatActionLabel(action: StrategyAction): string {
@@ -1408,6 +966,7 @@ async function createStrategyInstance(): Promise<void> {
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify(buildStrategyBindingPayload({
+                    brokerAccountOptions: brokerAccountOptions.value,
                     symbolsText: createSymbolsText.value,
                     interval: createInterval.value,
                     executionMode: createExecutionMode.value,
@@ -1497,6 +1056,7 @@ async function updateSelectedStrategyBinding(): Promise<void> {
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify(buildStrategyBindingPayload({
+                    brokerAccountOptions: brokerAccountOptions.value,
                     symbolsText: editSymbolsText.value,
                     interval: editInterval.value,
                     executionMode: editExecutionMode.value,
@@ -1670,865 +1230,133 @@ async function refreshSelectedStrategyDefinition(): Promise<void> {
                 {{ instanceMutationError }}
             </div>
 
-            <div class="grid gap-4 lg:grid-cols-[1fr_1fr]">
-                <div class="rounded-[28px] border border-slate-200 bg-slate-50/70 p-4">
-                    <div class="flex items-center justify-between gap-3">
-                        <div class="text-xl font-semibold text-slate-900">运行总览</div>
-                        <span
-                            class="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-slate-600">
-                            {{ activeStrategyCount }} 个运行中
-                        </span>
-                    </div>
-                    <div class="mt-4 grid gap-3 md:grid-cols-3">
-                        <div class="rounded-3xl bg-white px-4 py-4">
-                            <div class="text-xs uppercase tracking-[0.2em] text-slate-500">交易环境</div>
-                            <div class="mt-2 text-2xl font-semibold text-slate-900">
-                                {{ systemStatus.defaultTradingEnvironment }}
-                            </div>
-                        </div>
-                        <div class="rounded-3xl bg-white px-4 py-4">
-                            <div class="text-xs uppercase tracking-[0.2em] text-slate-500">当前策略</div>
-                            <div class="mt-2 text-xl font-semibold text-slate-900">
-                                {{ selectedStrategy?.definition.name ?? "暂无" }}
-                            </div>
-                        </div>
-                        <div class="rounded-3xl bg-white px-4 py-4">
-                            <div class="text-xs uppercase tracking-[0.2em] text-slate-500">运行形态</div>
-                            <div class="mt-2 text-xl font-semibold text-slate-900" data-testid="strategy-runtime-mode">
-                                {{ selectedStrategyRuntimeLabel }}
-                            </div>
-                        </div>
-                    </div>
-                    <div class="mt-4 text-sm text-slate-600">
-                        运行面板负责实例控制、日志和审计；新策略统一使用 DSL 编译计划生命周期。
-                    </div>
-                </div>
-
-                <div class="rounded-[28px] border border-slate-200 bg-slate-50/70 p-4">
-                    <div class="text-xl font-semibold text-slate-900">运行保护</div>
-                    <div class="mt-4 grid gap-3 md:grid-cols-3">
-                        <div class="rounded-3xl bg-white px-4 py-4">
-                            <div class="text-xs uppercase tracking-[0.2em] text-slate-500">实盘开关</div>
-                            <div class="mt-2 text-xl font-semibold text-slate-900">
-                                {{ systemStatus.realTradingEnabled ? "已开启" : "已关闭" }}
-                            </div>
-                        </div>
-                        <div class="rounded-3xl bg-white px-4 py-4">
-                            <div class="text-xs uppercase tracking-[0.2em] text-slate-500">急停开关</div>
-                            <div class="mt-2 text-xl font-semibold"
-                                :class="systemStatus.realTradingKillSwitch.active ? 'text-red-600' : 'text-teal-700'">
-                                {{ systemStatus.realTradingKillSwitch.active ? "已启用" : "未启用" }}
-                            </div>
-                        </div>
-                        <div class="rounded-3xl bg-white px-4 py-4">
-                            <div class="text-xs uppercase tracking-[0.2em] text-slate-500">最大下单数量</div>
-                            <div class="mt-2 text-xl font-semibold text-slate-900">
-                                {{ systemStatus.realTradingRisk.maxOrderQuantity ?? "暂无" }}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <StrategyRuntimeOverviewSection
+                :active-strategy-count="activeStrategyCount"
+                :selected-strategy="selectedStrategy"
+                :selected-strategy-runtime-label="selectedStrategyRuntimeLabel"
+                :system-status="systemStatus"
+            />
 
             <div class="grid gap-4" :class="selectedStrategy === null ? 'grid-cols-1' : 'xl:grid-cols-[minmax(22rem,26rem)_minmax(0,1fr)]'">
-                <div class="min-w-0 rounded-[28px] border border-slate-200 bg-white p-4">
-                    <div class="mb-4 flex items-center justify-between gap-3">
-                        <div class="text-xl font-semibold text-slate-900">策略实例</div>
-                        <div class="flex flex-wrap items-center gap-2">
-                            <div class="relative">
-                                <button
-                                    class="rounded-full border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
-                                    data-testid="strategy-create-menu-toggle" type="button"
-                                    :aria-expanded="isCreateMenuOpen ? 'true' : 'false'"
-                                    @click="toggleCreateMenu">
-                                    新增
-                                </button>
-                                <div v-if="isCreateMenuOpen" data-testid="strategy-create-menu"
-                                    class="absolute right-0 z-10 mt-2 grid min-w-[12rem] gap-1 rounded-3xl border border-slate-200 bg-white p-2 shadow-lg">
-                                    <button
-                                        class="rounded-2xl px-3 py-2 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-900"
-                                        data-testid="strategy-new-definition" type="button"
-                                        @click="openCreateDefinition">
-                                        新增策略
-                                    </button>
-                                    <button
-                                        class="rounded-2xl px-3 py-2 text-left text-sm font-medium text-slate-700 transition hover:bg-slate-50 hover:text-slate-900"
-                                        data-testid="strategy-new-instance" type="button"
-                                        @click="openCreateInstanceForm">
-                                        新增实例
-                                    </button>
-                                </div>
-                            </div>
-                            <button
-                                class="rounded-full border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
-                                type="button" @click="loadStrategies()">
-                                {{ isLoadingStrategies ? "等待" : "刷新" }}
-                            </button>
-                        </div>
-                    </div>
-                    <v-dialog v-model="instanceEditorOpen" max-width="980">
-                        <div class="strategy-instance-dialog" data-testid="strategy-instance-dialog">
-                            <div class="flex items-start justify-between gap-3">
-                                <div>
-                                    <div class="text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">{{ instanceEditorTitle }}</div>
-                                    <div class="mt-1 text-sm text-slate-500">
-                                        {{ instanceEditorHint }}
-                                    </div>
-                                </div>
-                                <div class="flex flex-wrap items-center gap-2">
-                                    <button v-if="isCreateInstanceEditor"
-                                        class="rounded-full border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
-                                        type="button" @click="loadStrategyDefinitions()">
-                                        {{ isLoadingDefinitions ? "等待" : "刷新定义" }}
-                                    </button>
-                                    <button
-                                        class="rounded-full border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
-                                        :data-testid="isCreateInstanceEditor ? 'strategy-create-instance-close' : 'strategy-edit-instance-close'"
-                                        type="button" @click="closeInstanceEditorDialog">
-                                        关闭
-                                    </button>
-                                </div>
-                            </div>
-                            <div v-if="definitionsError && isCreateInstanceEditor"
-                                class="mt-3 rounded-3xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                                {{ definitionsError }}
-                            </div>
-                            <div v-else-if="isCreateInstanceEditor && strategyDefinitions.length === 0"
-                                class="mt-3 rounded-3xl border border-dashed border-slate-300 bg-white px-4 py-5 text-sm text-slate-500">
-                                <div>暂无已保存策略定义。</div>
-                                <button
-                                    class="mt-3 rounded-full border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
-                                    type="button" @click="openCreateDefinition">
-                                    去设计区创建
-                                </button>
-                            </div>
-                            <div v-else-if="isEditInstanceEditor && selectedStrategy === null"
-                                class="mt-3 rounded-3xl border border-dashed border-slate-300 bg-white px-4 py-5 text-sm text-slate-500">
-                                请先选择策略实例。
-                            </div>
-                            <div v-else class="mt-4 grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(18rem,22rem)]">
-                                <div class="min-w-0 grid gap-3"
-                                    :data-testid="isCreateInstanceEditor ? 'strategy-create-instance-panel' : 'strategy-edit-instance-panel'">
-                                    <label v-if="isCreateInstanceEditor" class="grid gap-1.5 text-sm text-slate-600">
-                                        <span class="font-medium text-slate-700">策略定义</span>
-                                        <select v-model="createDefinitionId" data-testid="strategy-instance-definition"
-                                            class="rounded-2xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-500">
-                                            <option value="" disabled>请选择策略定义</option>
-                                            <option v-for="definition in strategyDefinitions" :key="definition.id" :value="definition.id">
-                                                {{ definition.name }} / v{{ definition.version }}
-                                            </option>
-                                        </select>
-                                    </label>
-                                    <div v-else class="rounded-3xl bg-slate-50 px-4 py-4 text-sm text-slate-600">
-                                        <div class="text-xs uppercase tracking-[0.16em] text-slate-500">策略定义</div>
-                                        <div class="mt-2 break-words font-medium text-slate-900">
-                                            {{ selectedStrategy?.definition.name }} / v{{ selectedStrategy?.definition.version }}
-                                        </div>
-                                    </div>
-                                    <label class="grid gap-1.5 text-sm text-slate-600">
-                                        <span class="font-medium text-slate-700">交易代码</span>
-                                        <div class="strategy-tag-input"
-                                            :class="{ 'strategy-tag-input--invalid': symbolValidationMessageFor(activeInstanceEditorMode) !== '' }">
-                                            <button
-                                                v-for="symbol in symbolTagsFor(activeInstanceEditorMode)"
-                                                :key="`${activeInstanceEditorMode}-${symbol}`"
-                                                class="strategy-tag-chip"
-                                                type="button"
-                                                @click="removeSymbolTag(activeInstanceEditorMode, symbol)">
-                                                <span>{{ symbol }}</span>
-                                                <span class="strategy-tag-chip__remove">x</span>
-                                            </button>
-                                            <input
-                                                :value="symbolDraftFor(activeInstanceEditorMode)"
-                                                :data-testid="activeInstanceEditorMode === 'create' ? 'strategy-instance-symbols' : 'strategy-edit-symbols'"
-                                                class="strategy-tag-input__field"
-                                                placeholder="输入交易代码后按 Enter，例如 US.TME"
-                                                type="text"
-                                                @input="setSymbolDraft(activeInstanceEditorMode, ($event.target as HTMLInputElement).value)"
-                                                @blur="commitSymbolDraft(activeInstanceEditorMode)"
-                                                @keydown="handleSymbolDraftKeydown($event, activeInstanceEditorMode)"
-                                                @paste="handleSymbolDraftPaste($event, activeInstanceEditorMode)">
-                                        </div>
-                                        <span v-if="symbolValidationMessageFor(activeInstanceEditorMode)"
-                                            :data-testid="activeInstanceEditorMode === 'create' ? 'strategy-instance-symbols-validation' : 'strategy-edit-symbols-validation'"
-                                            class="text-xs text-amber-700">
-                                            {{ symbolValidationMessageFor(activeInstanceEditorMode) }}
-                                        </span>
-                                        <span v-else class="text-xs text-slate-500">
-                                            {{ activeInstanceEditorMode === 'create'
-                                                ? '支持多个交易代码，按 Enter、Tab、逗号或直接粘贴多个代码生成标签。'
-                                                : '为空时表示暂未绑定交易代码；按 Backspace 可快速删除最后一个标签。' }}
-                                        </span>
-                                    </label>
-                                    <div class="grid gap-3 md:grid-cols-2">
-                                        <label class="grid gap-1.5 text-sm text-slate-600">
-                                            <span class="font-medium text-slate-700">运行周期</span>
-                                            <input
-                                                :value="intervalValueFor(activeInstanceEditorMode)"
-                                                :data-testid="activeInstanceEditorMode === 'create' ? 'strategy-instance-interval' : 'strategy-edit-interval'"
-                                                class="rounded-2xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-500"
-                                                placeholder="5m" type="text"
-                                                @input="setIntervalValue(activeInstanceEditorMode, ($event.target as HTMLInputElement).value)">
-                                        </label>
-                                        <label class="grid gap-1.5 text-sm text-slate-600">
-                                            <span class="font-medium text-slate-700">执行模式</span>
-                                            <select
-                                                :value="executionModeFor(activeInstanceEditorMode)"
-                                                :data-testid="activeInstanceEditorMode === 'create' ? 'strategy-instance-execution-mode' : 'strategy-edit-execution-mode'"
-                                                class="rounded-2xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-500"
-                                                @change="setExecutionMode(activeInstanceEditorMode, ($event.target as HTMLSelectElement).value)">
-                                                <option value="live">确认执行</option>
-                                                <option value="notify_only">仅通知</option>
-                                            </select>
-                                        </label>
-                                    </div>
-                                    <label class="grid gap-1.5 text-sm text-slate-600">
-                                        <span class="font-medium text-slate-700">券商账号</span>
-                                        <div class="strategy-account-picker">
-                                            <button
-                                                class="strategy-account-picker__trigger"
-                                                :data-testid="activeInstanceEditorMode === 'create' ? 'strategy-instance-account' : 'strategy-edit-account'"
-                                                type="button"
-                                                @click="toggleBrokerAccountPicker(activeInstanceEditorMode)">
-                                                <span class="strategy-account-picker__copy">
-                                                    <span class="strategy-account-picker__label">
-                                                        {{ selectedBrokerAccountOptionFor(activeInstanceEditorMode)?.displayName ?? '暂不绑定账号' }}
-                                                    </span>
-                                                    <span v-if="selectedBrokerAccountOptionFor(activeInstanceEditorMode)"
-                                                        class="strategy-account-picker__meta">
-                                                        <span>{{ brokerAccountOptionSubtitle(selectedBrokerAccountOptionFor(activeInstanceEditorMode)!) }}</span>
-                                                        <span v-if="isCurrentBrokerAccountSelectionKey(selectedBrokerAccountKeyFor(activeInstanceEditorMode))"
-                                                            :data-testid="activeInstanceEditorMode === 'create' ? 'strategy-create-account-current-tag' : 'strategy-edit-account-current-tag'"
-                                                            class="strategy-account-picker__tag strategy-account-picker__tag--current">
-                                                            当前
-                                                        </span>
-                                                    </span>
-                                                    <span v-else class="strategy-account-picker__meta">保留当前默认路由</span>
-                                                </span>
-                                                <span class="strategy-account-picker__action">
-                                                    {{ isBrokerAccountPickerOpen(activeInstanceEditorMode) ? '收起' : '搜索选择' }}
-                                                </span>
-                                            </button>
-                                            <div v-if="isBrokerAccountPickerOpen(activeInstanceEditorMode)" class="strategy-account-picker__menu">
-                                                <input
-                                                    :value="brokerAccountQueryFor(activeInstanceEditorMode)"
-                                                    :data-testid="activeInstanceEditorMode === 'create' ? 'strategy-instance-account-search' : 'strategy-edit-account-search'"
-                                                    class="strategy-account-picker__search"
-                                                    placeholder="搜索账号 / 环境 / 市场"
-                                                    type="text"
-                                                    @input="setBrokerAccountQuery(activeInstanceEditorMode, ($event.target as HTMLInputElement).value)">
-                                                <div class="strategy-account-picker__options">
-                                                    <button
-                                                        class="strategy-account-picker__option"
-                                                        :class="{ 'is-active': selectedBrokerAccountKeyFor(activeInstanceEditorMode) === '' }"
-                                                        :data-testid="activeInstanceEditorMode === 'create' ? 'strategy-instance-account-option-none' : 'strategy-edit-account-option-none'"
-                                                        type="button"
-                                                        @click="clearBrokerAccountSelection(activeInstanceEditorMode)">
-                                                        <span class="strategy-account-picker__option-title">暂不绑定账号</span>
-                                                        <span class="strategy-account-picker__option-meta">保留当前默认路由</span>
-                                                    </button>
-                                                    <button
-                                                        v-for="option in filteredBrokerAccountOptionsFor(activeInstanceEditorMode)"
-                                                        :key="option.selectionKey"
-                                                        class="strategy-account-picker__option"
-                                                        :class="{ 'is-active': selectedBrokerAccountKeyFor(activeInstanceEditorMode) === option.selectionKey }"
-                                                        :data-testid="`${activeInstanceEditorMode === 'create' ? 'strategy-instance-account-option' : 'strategy-edit-account-option'}-${option.accountId}`"
-                                                        type="button"
-                                                        @click="selectBrokerAccountOption(activeInstanceEditorMode, option.selectionKey)">
-                                                        <span class="strategy-account-picker__option-header">
-                                                            <span class="strategy-account-picker__option-title">{{ option.displayName }}</span>
-                                                            <span v-if="isCurrentBrokerAccountSelectionKey(option.selectionKey)"
-                                                                class="strategy-account-picker__tag strategy-account-picker__tag--current">
-                                                                当前
-                                                            </span>
-                                                        </span>
-                                                        <span class="strategy-account-picker__option-meta">{{ brokerAccountOptionSubtitle(option) }}</span>
-                                                    </button>
-                                                    <div v-if="filteredBrokerAccountOptionsFor(activeInstanceEditorMode).length === 0"
-                                                        class="strategy-account-picker__empty">
-                                                        没有匹配的券商账号。
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </label>
-                                    <div v-if="executionModeFor(activeInstanceEditorMode) === 'notify_only'"
-                                        class="rounded-3xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
-                                        {{ activeInstanceEditorMode === 'create'
-                                            ? '仅通知模式只发送准备下单提示，不自动下单。'
-                                            : '仅通知模式会发送准备下单提示，不自动下单。实例卡片会同步显示“仅通知”。' }}
-                                    </div>
-                                </div>
-
-                                <div class="min-w-0 rounded-3xl bg-slate-50 px-4 py-4">
-                                    <div class="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                                        {{ isCreateInstanceEditor ? '创建预览' : '绑定预览' }}
-                                    </div>
-                                    <div class="mt-4 grid gap-3 text-sm text-slate-600">
-                                        <div>
-                                            <div class="text-xs uppercase tracking-[0.16em] text-slate-400">策略定义</div>
-                                            <div class="mt-1 break-words font-medium text-slate-900">
-                                                {{ isCreateInstanceEditor
-                                                    ? (createDefinition == null ? '未选择策略定义' : `${createDefinition.name} / v${createDefinition.version}`)
-                                                    : `${selectedStrategy?.definition.name ?? '未选择'} / v${selectedStrategy?.definition.version ?? ''}` }}
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <div class="text-xs uppercase tracking-[0.16em] text-slate-400">交易代码</div>
-                                            <div class="mt-1 break-words font-medium text-slate-900">
-                                                {{ instanceEditorSymbolsSummary(activeInstanceEditorMode) }}
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <div class="text-xs uppercase tracking-[0.16em] text-slate-400">周期</div>
-                                            <div class="mt-1 font-medium text-slate-900">
-                                                {{ intervalValueFor(activeInstanceEditorMode).trim() || '5m' }}
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <div class="text-xs uppercase tracking-[0.16em] text-slate-400">执行模式</div>
-                                            <div class="mt-1 font-medium text-slate-900">
-                                                {{ formatStrategyExecutionMode(executionModeFor(activeInstanceEditorMode)) }}
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <div class="text-xs uppercase tracking-[0.16em] text-slate-400">券商账号</div>
-                                            <div class="mt-1 break-all font-medium text-slate-900">
-                                                {{ instanceEditorBrokerAccountSummary(activeInstanceEditorMode) }}
-                                            </div>
-                                            <div v-if="isCurrentBrokerAccountSelectionKey(selectedBrokerAccountKeyFor(activeInstanceEditorMode))"
-                                                class="mt-2 inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700">
-                                                当前
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="mt-4 flex flex-wrap gap-2">
-                                        <button v-if="isCreateInstanceEditor"
-                                            class="rounded-full border border-slate-900 bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
-                                            data-testid="strategy-create-instance" :disabled="!canCreateStrategyInstance"
-                                            type="button" @click="createStrategyInstance">
-                                            {{ isCreatingStrategyInstance ? "创建中" : `添加${createDefinition?.name ?? '策略'}到实例` }}
-                                        </button>
-                                        <template v-else>
-                                            <button
-                                                class="rounded-full border border-slate-900 bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
-                                                data-testid="strategy-update-binding"
-                                                :disabled="!canUpdateSelectedStrategyBinding" type="button"
-                                                @click="updateSelectedStrategyBinding">
-                                                {{ isUpdatingStrategyBinding ? "保存中" : "保存绑定" }}
-                                            </button>
-                                            <button
-                                                class="rounded-full border border-rose-300 px-4 py-2 text-sm font-medium text-rose-700 transition hover:border-rose-400 hover:text-rose-900 disabled:cursor-not-allowed disabled:opacity-50"
-                                                data-testid="strategy-delete-instance"
-                                                :disabled="!canDeleteSelectedStrategy" type="button"
-                                                @click="deleteSelectedStrategy">
-                                                {{ isDeletingStrategy ? "删除中" : "删除实例" }}
-                                            </button>
-                                        </template>
-                                    </div>
-                                    <div v-if="isEditInstanceEditor && selectedStrategy?.status !== 'STOPPED'" class="mt-3 text-xs text-amber-700">
-                                        当前实例不是 STOPPED，先停止后才能修改绑定或删除。
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </v-dialog>
-                    <div v-if="listError"
-                        class="rounded-3xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                        {{ listError }}
-                    </div>
-                    <div v-else-if="strategies.length === 0"
-                        class="rounded-3xl border border-dashed border-slate-300 bg-slate-50 px-4 py-5 text-sm text-slate-500">
-                        暂无策略实例。先从设计区保存定义并创建运行实例。
-                    </div>
-                    <div v-else class="grid gap-3">
-                        <button v-for="strategy in strategies" :key="strategy.id"
-                            :data-testid="`strategy-${strategy.id}`" class="strategy-list-card"
-                            :class="[strategyStatusCardClass(strategy), { 'is-active': strategy.id === selectedStrategyId }]" type="button"
-                            @click="loadStrategyDetails(strategy.id)">
-                            <div class="flex items-center justify-between gap-3">
-                                <div class="min-w-0 break-words text-base font-semibold">{{ strategy.definition.name }}</div>
-                                <div class="flex flex-wrap items-center justify-end gap-2">
-                                    <div v-if="strategy.definitionSync && !strategy.definitionSync.isLatest"
-                                        :data-testid="`strategy-definition-stale-${strategy.id}`"
-                                        class="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-amber-700">
-                                        待刷新
-                                    </div>
-                                    <div :data-testid="`strategy-status-${strategy.id}`" :class="strategyStatusBadgeClass(strategy)">{{
-                                        formatStrategyStatus(displayStrategyStatus(strategy)) }}</div>
-                                </div>
-                            </div>
-                            <div class="mt-2 break-all text-sm text-slate-500">{{ strategy.id }}</div>
-                            <div v-if="strategy.definitionSync && !strategy.definitionSync.isLatest"
-                                class="mt-2 text-sm text-amber-700">
-                                {{ formatStrategyDefinitionSyncSummary(strategy.definitionSync) }}
-                            </div>
-                            <div class="mt-2 text-sm text-slate-500">标的 {{ formatStrategySymbols(strategy) }}</div>
-                            <div class="mt-1 text-sm text-slate-500">
-                                周期 {{ formatStrategyInterval(strategy) }}
-                            </div>
-                            <div class="mt-1 break-all text-sm text-slate-500">
-                                {{ formatBrokerAccountSummary(readStrategyBinding(strategy).brokerAccount) }}
-                            </div>
-                            <div v-if="isCurrentBrokerAccountBinding(readStrategyBinding(strategy).brokerAccount)"
-                                class="mt-1 inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700">
-                                当前
-                            </div>
-                            <div class="mt-2 text-sm text-slate-500">
-                                创建于
-                                <span class="strategy-time-display" :title="formatTimestampTooltip(strategy.createdAt)">
-                                    {{ formatTimestamp(strategy.createdAt) }}
-                                </span>
-                            </div>
-                            <div class="mt-3 flex flex-wrap gap-2 text-[11px] font-semibold uppercase tracking-[0.16em]">
-                                <span class="rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-slate-600">
-                                    {{ formatStrategyRuntime(strategy.runtime) }}
-                                </span>
-                                <span class="rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-slate-600">
-                                    {{ formatSourceFormat(strategy.sourceFormat) }}
-                                </span>
-                                <span
-                                    class="rounded-full px-2.5 py-1"
-                                    :class="strategy.startable
-                                        ? 'border border-emerald-200 bg-emerald-50 text-emerald-700'
-                                        : 'border border-amber-200 bg-amber-50 text-amber-700'">
-                                    {{ formatStrategyEligibility(strategy) }}
-                                </span>
-                                <span
-                                    class="rounded-full px-2.5 py-1"
-                                    :class="readStrategyBinding(strategy).executionMode === 'notify_only'
-                                        ? 'border border-sky-200 bg-sky-50 text-sky-700'
-                                        : 'border border-slate-200 bg-slate-100 text-slate-600'">
-                                    {{ formatStrategyExecutionMode(readStrategyBinding(strategy).executionMode) }}
-                                </span>
-                            </div>
-                        </button>
-                    </div>
-                </div>
+                <StrategyRuntimeInstanceListPanel
+                    :is-create-menu-open="isCreateMenuOpen"
+                    :is-loading-strategies="isLoadingStrategies"
+                    :list-error="listError"
+                    :strategies="strategies"
+                    :selected-strategy-id="selectedStrategyId"
+                    :display-strategy-status="displayStrategyStatus"
+                    :strategy-status-badge-class="strategyStatusBadgeClass"
+                    :strategy-status-card-class="strategyStatusCardClass"
+                    :format-strategy-status="formatStrategyStatus"
+                    :format-strategy-definition-sync-summary="formatStrategyDefinitionSyncSummary"
+                    :format-strategy-symbols="formatStrategySymbols"
+                    :format-strategy-interval="formatStrategyInterval"
+                    :format-broker-account-summary="formatBrokerAccountSummary"
+                    :read-strategy-binding="readStrategyBinding"
+                    :is-current-broker-account-binding="isCurrentBrokerAccountBinding"
+                    :format-timestamp="formatTimestamp"
+                    :format-timestamp-tooltip="formatTimestampTooltip"
+                    :format-strategy-runtime="formatStrategyRuntime"
+                    :format-source-format="formatSourceFormat"
+                    :format-strategy-eligibility="formatStrategyEligibility"
+                    :format-strategy-execution-mode="formatStrategyExecutionMode"
+                    @toggle-create-menu="toggleCreateMenu"
+                    @open-create-definition="openCreateDefinition"
+                    @open-create-instance="openCreateInstanceForm"
+                    @refresh-strategies="loadStrategies()"
+                    @select-strategy="loadStrategyDetails($event)"
+                >
+                    <StrategyRuntimeInstanceEditorDialog
+                        v-model:open="instanceEditorOpen"
+                        :mode="activeInstanceEditorMode"
+                        :title="instanceEditorTitle"
+                        :hint="instanceEditorHint"
+                        :is-loading-definitions="isLoadingDefinitions"
+                        :definitions-error="definitionsError"
+                        :strategy-definitions="strategyDefinitions"
+                        :create-definition-id="createDefinitionId"
+                        :create-definition="createDefinition"
+                        :selected-strategy="selectedStrategy"
+                        :symbol-tags="activeSymbolTags"
+                        :symbol-draft="activeSymbolDraft"
+                        :symbol-validation-message="activeSymbolValidationMessage"
+                        :interval-value="activeIntervalValue"
+                        :execution-mode="activeExecutionMode"
+                        :selected-broker-account-option="activeSelectedBrokerAccountOption"
+                        :selected-broker-account-key="activeSelectedBrokerAccountKey"
+                        :current-broker-account-selection-key="effectiveCurrentBrokerAccountSelectionKey"
+                        :is-broker-account-picker-open="activeIsBrokerAccountPickerOpen"
+                        :broker-account-query="activeBrokerAccountQuery"
+                        :filtered-broker-account-options="activeFilteredBrokerAccountOptions"
+                        :preview-definition-label="instanceEditorPreviewDefinitionLabel"
+                        :symbols-summary="activeInstanceEditorSymbolsSummary"
+                        :broker-account-summary="activeInstanceEditorBrokerAccountSummary"
+                        :can-create-strategy-instance="canCreateStrategyInstance"
+                        :can-update-selected-strategy-binding="canUpdateSelectedStrategyBinding"
+                        :can-delete-selected-strategy="canDeleteSelectedStrategy"
+                        :is-creating-strategy-instance="isCreatingStrategyInstance"
+                        :is-updating-strategy-binding="isUpdatingStrategyBinding"
+                        :is-deleting-strategy="isDeletingStrategy"
+                        @refresh-definitions="void loadStrategyDefinitions()"
+                        @switch-to-design="openCreateDefinition"
+                        @update:create-definition-id="createDefinitionId = $event"
+                        @remove-symbol="removeActiveSymbol"
+                        @update:symbol-draft="updateActiveSymbolDraft"
+                        @commit-symbol-draft="commitActiveSymbolDraft"
+                        @symbol-draft-keydown="handleActiveSymbolDraftKeydown"
+                        @symbol-draft-paste="handleActiveSymbolDraftPaste"
+                        @update:interval="updateActiveIntervalValue"
+                        @update:execution-mode="updateActiveExecutionMode"
+                        @toggle-broker-picker="toggleActiveBrokerAccountPicker"
+                        @update:broker-query="updateActiveBrokerAccountQuery"
+                        @clear-broker-selection="clearActiveBrokerAccountSelection"
+                        @select-broker-selection="selectActiveBrokerAccount"
+                        @submit-create="createStrategyInstance"
+                        @submit-update="updateSelectedStrategyBinding"
+                        @submit-delete="deleteSelectedStrategy"
+                    />
+                </StrategyRuntimeInstanceListPanel>
 
                 <div v-if="selectedStrategy !== null" class="min-w-0 grid gap-4">
-                    <div class="grid gap-4 2xl:grid-cols-[minmax(19rem,22rem)_minmax(0,1fr)]">
-                        <div
-                            class="strategy-binding-summary min-w-0 rounded-[28px] border border-slate-200 bg-white p-4 text-left cursor-pointer"
-                            data-testid="strategy-current-binding-summary"
-                            @click="openEditInstanceForm">
-                            <div class="flex flex-wrap items-center justify-between gap-3">
-                                <div>
-                                    <div class="text-xl font-semibold text-slate-900">当前绑定摘要</div>
-                                    <div class="mt-1 text-sm text-slate-500">
-                                        点击卡片即可编辑绑定、更新执行模式或删除实例。
-                                    </div>
-                                </div>
-                                <div class="flex flex-wrap items-center justify-end gap-2">
-                                    <button
-                                        v-if="selectedStrategyDefinitionSync !== null && !selectedStrategyDefinitionSync.isLatest"
-                                        class="rounded-full border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
-                                        data-testid="strategy-refresh-definition"
-                                        :disabled="!canRefreshSelectedStrategyDefinition"
-                                        :title="selectedStrategyDefinitionSync.canApplyLatest
-                                            ? `刷新到 v${selectedStrategyDefinitionSync.latestVersion}`
-                                            : (selectedStrategyDefinitionSync.blockedReason ?? '')"
-                                        type="button"
-                                        @click.stop="refreshSelectedStrategyDefinition">
-                                        {{ isRefreshingStrategyDefinition ? "刷新中" : "刷新到最新策略" }}
-                                    </button>
-                                    <span
-                                        class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-                                        仅 STOPPED 可编辑
-                                    </span>
-                                </div>
-                            </div>
-                            <div v-if="selectedStrategyDefinitionSync !== null"
-                                class="mt-4 rounded-3xl border px-4 py-3"
-                                :class="selectedStrategyDefinitionSync.isLatest
-                                    ? 'border-emerald-200 bg-emerald-50/70'
-                                    : 'border-amber-200 bg-amber-50/70'">
-                                <div class="flex flex-wrap items-center gap-2">
-                                    <span data-testid="strategy-definition-sync-badge"
-                                        class="rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em]"
-                                        :class="selectedStrategyDefinitionSync.isLatest
-                                            ? 'border border-emerald-200 bg-white text-emerald-700'
-                                            : 'border border-amber-200 bg-white text-amber-700'">
-                                        {{ formatStrategyDefinitionSyncSummary(selectedStrategyDefinitionSync) }}
-                                    </span>
-                                </div>
-                                <div class="mt-2 text-sm"
-                                    :class="selectedStrategyDefinitionSync.isLatest ? 'text-emerald-700' : 'text-amber-700'">
-                                    {{ selectedStrategyDefinitionRefreshHint }}
-                                </div>
-                            </div>
-                            <div class="mt-4 grid gap-3 text-sm text-slate-600">
-                                <div>
-                                    <div class="text-xs uppercase tracking-[0.16em] text-slate-400">策略定义</div>
-                                    <div class="mt-1 break-words font-medium text-slate-900">
-                                        {{ selectedStrategy.definition.name }} / v{{ selectedStrategy.definition.version }}
-                                    </div>
-                                </div>
-                                <div>
-                                    <div class="text-xs uppercase tracking-[0.16em] text-slate-400">交易代码</div>
-                                    <div class="mt-1 break-words font-medium text-slate-900">
-                                        {{ formatStrategySymbols(selectedStrategy) }}
-                                    </div>
-                                </div>
-                                <div class="grid gap-3 sm:grid-cols-2">
-                                    <div>
-                                        <div class="text-xs uppercase tracking-[0.16em] text-slate-400">周期</div>
-                                        <div class="mt-1 font-medium text-slate-900">
-                                            {{ formatStrategyInterval(selectedStrategy) }}
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <div class="text-xs uppercase tracking-[0.16em] text-slate-400">执行模式</div>
-                                        <div class="mt-1 font-medium text-slate-900">
-                                            {{ formatStrategyExecutionMode(selectedStrategyBinding?.executionMode) }}
-                                        </div>
-                                    </div>
-                                </div>
-                                <div>
-                                    <div class="text-xs uppercase tracking-[0.16em] text-slate-400">券商账号</div>
-                                    <div class="mt-1 break-all font-medium text-slate-900">
-                                        {{ formatBrokerAccountSummary(selectedStrategyBinding?.brokerAccount) }}
-                                    </div>
-                                    <div v-if="isCurrentBrokerAccountBinding(selectedStrategyBinding?.brokerAccount)"
-                                        class="mt-2 inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700">
-                                        当前
-                                    </div>
-                                </div>
-                            </div>
-                            <div v-if="selectedStrategy.status !== 'STOPPED'" class="mt-4 text-xs text-amber-700">
-                                当前实例不是 STOPPED，先停止后才能修改绑定或删除。
-                            </div>
-                        </div>
+                    <StrategyRuntimeSelectedStrategyPanel
+                        :selected-strategy="selectedStrategy"
+                        :selected-strategy-binding="selectedStrategyBinding"
+                        :selected-strategy-definition-sync="selectedStrategyDefinitionSync"
+                        :selected-strategy-runtime-observation="selectedStrategyRuntimeObservation"
+                        :is-refreshing-strategy-definition="isRefreshingStrategyDefinition"
+                        :can-refresh-selected-strategy-definition="canRefreshSelectedStrategyDefinition"
+                        :selected-strategy-definition-refresh-hint="selectedStrategyDefinitionRefreshHint"
+                        :selected-strategy-runtime-label="selectedStrategyRuntimeLabel"
+                        :selected-strategy-source-format-label="selectedStrategySourceFormatLabel"
+                        :selected-strategy-start-hint="selectedStrategyStartHint"
+                        :selected-strategy-compiled-summary="selectedStrategyCompiledSummary"
+                        :can-start-selected-strategy="canStartSelectedStrategy"
+                        :can-pause-selected-strategy="canPauseSelectedStrategy"
+                        :can-stop-selected-strategy="canStopSelectedStrategy"
+                        :details-error="detailsError"
+                        :format-strategy-definition-sync-summary="formatStrategyDefinitionSyncSummary"
+                        :format-strategy-symbols="formatStrategySymbols"
+                        :format-strategy-interval="formatStrategyInterval"
+                        :format-strategy-execution-mode="formatStrategyExecutionMode"
+                        :format-broker-account-summary="formatBrokerAccountSummary"
+                        :is-current-broker-account-binding="isCurrentBrokerAccountBinding"
+                        :format-strategy-eligibility="formatStrategyEligibility"
+                        :format-strategy-status="formatStrategyStatus"
+                        :format-runtime-observation-symbols="formatRuntimeObservationSymbols"
+                        :format-timestamp="formatTimestamp"
+                        :format-timestamp-tooltip="formatTimestampTooltip"
+                        @open-edit="openEditInstanceForm"
+                        @refresh-definition="refreshSelectedStrategyDefinition"
+                        @change-status="changeStrategyStatus"
+                    />
 
-                        <div class="rounded-[28px] border border-slate-200 bg-white p-4">
-                            <div class="flex flex-wrap items-center justify-between gap-3">
-                                <div>
-                                    <div class="text-xl font-semibold text-slate-900">运行控制</div>
-                                    <div class="mt-1 text-sm text-slate-500">
-                                        启动、暂停、停止都会同步刷新日志与审计视图。
-                                    </div>
-                                </div>
-                                <div class="rounded-3xl bg-slate-50 px-4 py-4">
-                                    <div class="flex flex-wrap gap-2">
-                                        <span class="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-600">
-                                            {{ selectedStrategyRuntimeLabel }}
-                                        </span>
-                                        <span class="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-600">
-                                            {{ selectedStrategySourceFormatLabel }}
-                                        </span>
-                                        <span
-                                            class="rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em]"
-                                            :class="selectedStrategy.startable
-                                                ? 'border border-emerald-200 bg-emerald-50 text-emerald-700'
-                                                : 'border border-amber-200 bg-amber-50 text-amber-700'">
-                                            {{ formatStrategyEligibility(selectedStrategy) }}
-                                        </span>
-                                        <span v-if="selectedStrategyBinding !== null"
-                                            class="rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em]"
-                                            :class="selectedStrategyBinding.executionMode === 'notify_only'
-                                                ? 'border border-sky-200 bg-sky-50 text-sky-700'
-                                                : 'border border-slate-200 bg-white text-slate-600'">
-                                            {{ formatStrategyExecutionMode(selectedStrategyBinding.executionMode) }}
-                                        </span>
-                                    </div>
-                                    <div class="mt-3 text-sm text-slate-600" data-testid="strategy-runtime-start-hint">
-                                        {{ selectedStrategyStartHint }}
-                                    </div>
-                                    <div v-if="selectedStrategyCompiledSummary" class="mt-2 text-xs text-slate-500">
-                                        {{ selectedStrategyCompiledSummary }}
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div v-if="selectedStrategyRuntimeObservation !== null"
-                                class="mt-4 rounded-3xl border border-slate-200 bg-white/80 px-4 py-4"
-                                data-testid="strategy-runtime-observation">
-                                <div class="text-[11px] uppercase tracking-[0.18em] text-slate-500">实际运行态</div>
-                                <div class="mt-3 grid gap-3 text-sm text-slate-600 sm:grid-cols-2 xl:grid-cols-3">
-                                    <div>
-                                        <div class="text-[11px] uppercase tracking-[0.16em] text-slate-400">运行状态</div>
-                                        <div class="mt-1 font-medium text-slate-900">
-                                            {{ formatStrategyStatus(selectedStrategyRuntimeObservation.actualStatus) }}
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <div class="text-[11px] uppercase tracking-[0.16em] text-slate-400">活跃标的</div>
-                                        <div class="mt-1 font-medium text-slate-900">
-                                            {{ formatRuntimeObservationSymbols(selectedStrategyRuntimeObservation.activeSymbols) }}
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <div class="text-[11px] uppercase tracking-[0.16em] text-slate-400">最近闭合 K 线</div>
-                                        <div class="mt-1 font-medium text-slate-900 strategy-time-display"
-                                            :title="formatTimestampTooltip(selectedStrategyRuntimeObservation.lastClosedKlineAt)">
-                                            {{ formatTimestamp(selectedStrategyRuntimeObservation.lastClosedKlineAt) }}
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <div class="text-[11px] uppercase tracking-[0.16em] text-slate-400">最近信号</div>
-                                        <div class="mt-1 font-medium text-slate-900 strategy-time-display"
-                                            :title="formatTimestampTooltip(selectedStrategyRuntimeObservation.lastSignalAt)">
-                                            {{ formatTimestamp(selectedStrategyRuntimeObservation.lastSignalAt) }}
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <div class="text-[11px] uppercase tracking-[0.16em] text-slate-400">最近下单</div>
-                                        <div class="mt-1 font-medium text-slate-900 strategy-time-display"
-                                            :title="formatTimestampTooltip(selectedStrategyRuntimeObservation.lastOrderAt)">
-                                            {{ formatTimestamp(selectedStrategyRuntimeObservation.lastOrderAt) }}
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <div class="text-[11px] uppercase tracking-[0.16em] text-slate-400">最近更新</div>
-                                        <div class="mt-1 font-medium text-slate-900 strategy-time-display"
-                                            :title="formatTimestampTooltip(selectedStrategyRuntimeObservation.updatedAt)">
-                                            {{ formatTimestamp(selectedStrategyRuntimeObservation.updatedAt) }}
-                                        </div>
-                                    </div>
-                                </div>
-                                <div v-if="selectedStrategyRuntimeObservation.lastError"
-                                    class="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-3 text-xs text-amber-700">
-                                    最近异常：{{ selectedStrategyRuntimeObservation.lastError }}
-                                    <span class="strategy-time-display text-amber-600"
-                                        :title="formatTimestampTooltip(selectedStrategyRuntimeObservation.lastErrorAt)">（{{ formatTimestamp(selectedStrategyRuntimeObservation.lastErrorAt) }}）</span>
-                                </div>
-                            </div>
-                            <div v-else class="mt-4 text-xs text-slate-500">
-                                实例未运行时暂无实时观测信息。
-                            </div>
-                            <div class="mt-4 flex flex-wrap gap-2">
-                                <button
-                                    class="strategy-runtime-start-button rounded-full border border-emerald-300 px-4 py-2 text-sm font-medium text-emerald-700 transition hover:border-emerald-400 hover:text-emerald-900 disabled:cursor-not-allowed disabled:opacity-50"
-                                    data-testid="strategy-start"
-                                    :disabled="!canStartSelectedStrategy" type="button"
-                                    @click="changeStrategyStatus('start')">
-                                    启动
-                                </button>
-                                <button
-                                    class="rounded-full border border-amber-300 px-4 py-2 text-sm font-medium text-amber-700 transition hover:border-amber-400 hover:text-amber-900 disabled:cursor-not-allowed disabled:opacity-50"
-                                    data-testid="strategy-pause"
-                                    :disabled="!canPauseSelectedStrategy" type="button"
-                                    @click="changeStrategyStatus('pause')">
-                                    暂停
-                                </button>
-                                <button
-                                    class="rounded-full border border-rose-300 px-4 py-2 text-sm font-medium text-rose-700 transition hover:border-rose-400 hover:text-rose-900 disabled:cursor-not-allowed disabled:opacity-50"
-                                    data-testid="strategy-stop"
-                                    :disabled="!canStopSelectedStrategy" type="button"
-                                    @click="changeStrategyStatus('stop')">
-                                    停止
-                                </button>
-                            </div>
-                            <div v-if="detailsError"
-                                class="mt-4 rounded-3xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                                {{ detailsError }}
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="strategy-activity-panel rounded-[28px] border border-slate-200 bg-white p-4"
-                        data-testid="strategy-activity-panel">
-                        <div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-                            <div>
-                                <div class="text-xl font-semibold text-slate-900">运行明细</div>
-                                <div class="mt-1 text-sm text-slate-500">
-                                    在运行日志与运行审计之间切换，并按重要性快速聚焦当前实例的问题与状态变化。
-                                </div>
-                            </div>
-                            <div class="flex flex-wrap items-center gap-2 xl:justify-end">
-                                <button v-for="tab in strategyActivityTabs" :key="tab.value" type="button"
-                                    class="strategy-activity-tab"
-                                    :class="{ 'is-active': strategyActivityTab === tab.value }"
-                                    :data-testid="`strategy-activity-tab-${tab.value}`"
-                                    @click="strategyActivityTab = tab.value">
-                                    <span>{{ tab.label }}</span>
-                                    <span class="strategy-activity-tab-count">{{ tab.count }}</span>
-                                </button>
-                                <button type="button" class="strategy-runtime-params-trigger"
-                                    data-testid="strategy-open-params-dialog" aria-label="查看运行参数"
-                                    @click="strategyParamsDialogOpen = true">
-                                    <span aria-hidden="true">{}</span>
-                                </button>
-                            </div>
-                        </div>
-
-                        <div class="mt-4 flex flex-wrap gap-2">
-                            <button v-for="option in strategyActivityLevelOptions" :key="option.value"
-                                type="button" class="strategy-activity-filter"
-                                :class="[
-                                    `strategy-activity-filter--${option.value}`,
-                                    { 'is-active': strategyActivityLevelFilter === option.value },
-                                ]"
-                                :data-testid="`strategy-activity-filter-${option.value}`"
-                                @click="strategyActivityLevelFilter = option.value">
-                                <span>{{ option.label }}</span>
-                                <span class="strategy-activity-filter-count">{{ option.count }}</span>
-                            </button>
-                        </div>
-
-                        <div class="mt-4">
-                            <div v-if="isLoadingDetails" class="strategy-activity-empty">
-                                正在加载运行明细…
-                            </div>
-
-                            <ul v-else-if="strategyActivityTab === 'logs' && filteredStrategyLogViewEntries.length > 0"
-                                class="strategy-activity-viewport" data-testid="strategy-log-list">
-                                <li v-for="(entry, index) in filteredStrategyLogViewEntries" :key="entry.raw"
-                                    class="strategy-activity-entry" :class="`strategy-activity-entry--${entry.level}`"
-                                    :data-testid="`strategy-log-entry-${index}`">
-                                    <div class="flex flex-wrap items-center justify-between gap-3">
-                                        <div class="flex flex-wrap items-center gap-2">
-                                            <span class="strategy-activity-level-badge"
-                                                :class="`strategy-activity-level-badge--${entry.level}`">{{
-                                                    formatStrategyActivityLevel(entry.level) }}</span>
-                                            <span class="strategy-activity-kind-badge">运行日志</span>
-                                        </div>
-                                        <span class="strategy-activity-time strategy-time-display"
-                                            :title="entry.at === '' ? '' : formatTimestampTooltip(entry.at)">{{
-                                            entry.at === '' ? '未标注时间' : formatTimestamp(entry.at) }}</span>
-                                    </div>
-                                    <div class="mt-3 flex items-center gap-2">
-                                        <div class="strategy-activity-entry__summary strategy-activity-entry__summary--log min-w-0 flex-1"
-                                            :title="entry.message">
-                                            {{ entry.message }}
-                                        </div>
-                                        <button type="button" class="strategy-activity-entry__detail-trigger"
-                                            :data-testid="`strategy-log-detail-trigger-${index}`"
-                                            @click="openStrategyActivityDetail(buildLogActivityDetail(entry))">
-                                            ....
-                                        </button>
-                                    </div>
-                                </li>
-                            </ul>
-
-                            <ul v-else-if="strategyActivityTab === 'audit' && filteredStrategyAuditViewEntries.length > 0"
-                                class="strategy-activity-viewport" data-testid="strategy-audit-list">
-                                <li v-for="(entry, index) in filteredStrategyAuditViewEntries"
-                                    :key="`${entry.at}-${entry.kind}-${entry.detail ?? ''}`"
-                                    class="strategy-activity-entry" :class="`strategy-activity-entry--${entry.level}`"
-                                    :data-testid="`strategy-audit-entry-${index}`">
-                                    <div class="flex flex-wrap items-center justify-between gap-3">
-                                        <div class="flex flex-wrap items-center gap-2">
-                                            <span class="strategy-activity-level-badge"
-                                                :class="`strategy-activity-level-badge--${entry.level}`">{{
-                                                    formatStrategyActivityLevel(entry.level) }}</span>
-                                            <span class="strategy-activity-kind-badge">{{ entry.label }}</span>
-                                        </div>
-                                        <span class="strategy-activity-time strategy-time-display"
-                                            :title="formatTimestampTooltip(entry.at)">{{ formatTimestamp(entry.at) }}</span>
-                                    </div>
-                                    <div class="mt-3 flex items-center gap-2">
-                                        <div class="strategy-activity-entry__summary strategy-activity-entry__summary--audit min-w-0 flex-1"
-                                            :title="entry.detailText">
-                                            {{ entry.detailText }}
-                                        </div>
-                                        <button type="button" class="strategy-activity-entry__detail-trigger"
-                                            :data-testid="`strategy-audit-detail-trigger-${index}`"
-                                            @click="openStrategyActivityDetail(buildAuditActivityDetail(entry))">
-                                            ....
-                                        </button>
-                                    </div>
-                                </li>
-                            </ul>
-
-                            <div v-else class="strategy-activity-empty">
-                                {{ strategyActivityEmptyMessage }}
-                            </div>
-                        </div>
-
-                        <v-dialog v-model="strategyParamsDialogOpen" max-width="840">
-                            <div class="strategy-instance-dialog strategy-params-dialog"
-                                data-testid="strategy-params-dialog">
-                                <div class="flex flex-wrap items-start justify-between gap-4">
-                                    <div>
-                                        <div class="text-xl font-semibold text-slate-900">运行参数</div>
-                                        <div class="mt-1 text-sm text-slate-500">
-                                            当前实例启动时使用的参数快照，通过对话框查看避免占用主面板高度。
-                                        </div>
-                                    </div>
-                                    <button type="button" class="strategy-params-dialog-close"
-                                        data-testid="strategy-close-params-dialog"
-                                        @click="strategyParamsDialogOpen = false">
-                                        关闭
-                                    </button>
-                                </div>
-                                <div class="mt-4 strategy-params-editor">
-                                    <MonacoCodeEditor
-                                        :model-value="selectedStrategyParamsJson"
-                                        language="json"
-                                        :read-only="true"
-                                        min-height="18rem"
-                                        height="min(56vh, 34rem)"
-                                        test-id="strategy-params-editor"
-                                    />
-                                </div>
-                            </div>
-                        </v-dialog>
-
-                        <v-dialog v-model="strategyActivityDetailDialogOpen" max-width="760">
-                            <div class="strategy-instance-dialog strategy-activity-detail-dialog"
-                                data-testid="strategy-activity-detail-dialog">
-                                <div class="flex flex-wrap items-start justify-between gap-4">
-                                    <div>
-                                        <div class="text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">
-                                            {{ selectedStrategyActivityDetail?.kindLabel ?? '详情' }}
-                                        </div>
-                                        <div class="mt-1 text-xl font-semibold text-slate-900">
-                                            {{ selectedStrategyActivityDetail?.title ?? '活动详情' }}
-                                        </div>
-                                    </div>
-                                    <button type="button" class="strategy-params-dialog-close"
-                                        data-testid="strategy-close-activity-detail-dialog"
-                                        @click="closeStrategyActivityDetailDialog">
-                                        关闭
-                                    </button>
-                                </div>
-
-                                <div v-if="selectedStrategyActivityDetail !== null"
-                                    class="mt-4 grid gap-3 sm:grid-cols-2">
-                                    <div class="rounded-3xl bg-slate-50 px-4 py-4">
-                                        <div class="text-[11px] uppercase tracking-[0.18em] text-slate-500">本地时间</div>
-                                        <div class="mt-2 text-sm font-medium text-slate-900 strategy-time-display"
-                                            :title="selectedStrategyActivityDetail.utc">
-                                            {{ selectedStrategyActivityDetail.at }}
-                                        </div>
-                                    </div>
-                                    <div class="rounded-3xl bg-slate-50 px-4 py-4">
-                                        <div class="text-[11px] uppercase tracking-[0.18em] text-slate-500">UTC</div>
-                                        <div class="mt-2 text-sm font-medium text-slate-900 strategy-time-display"
-                                            :title="selectedStrategyActivityDetail.utc">
-                                            {{ selectedStrategyActivityDetail.utc }}
-                                        </div>
-                                    </div>
-                                    <div class="rounded-3xl bg-slate-50 px-4 py-4">
-                                        <div class="text-[11px] uppercase tracking-[0.18em] text-slate-500">级别</div>
-                                        <div class="mt-2 text-sm font-medium text-slate-900">
-                                            {{ formatStrategyActivityLevel(selectedStrategyActivityDetail.level) }}
-                                        </div>
-                                    </div>
-                                    <div v-if="selectedStrategyActivityDetail.rawKind !== undefined"
-                                        class="rounded-3xl bg-slate-50 px-4 py-4">
-                                        <div class="text-[11px] uppercase tracking-[0.18em] text-slate-500">原始类型</div>
-                                        <div class="mt-2 text-sm font-medium text-slate-900 break-all">
-                                            {{ selectedStrategyActivityDetail.rawKind }}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div v-if="selectedStrategyActivityDetail !== null"
-                                    class="mt-4 rounded-3xl bg-slate-50 px-4 py-4">
-                                    <div class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">摘要</div>
-                                    <div class="mt-2 text-sm text-slate-700 break-words">
-                                        {{ selectedStrategyActivityDetail.summary }}
-                                    </div>
-                                    <div class="mt-4 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">详情</div>
-                                    <div class="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-slate-700">
-                                        {{ selectedStrategyActivityDetail.detail }}
-                                    </div>
-                                </div>
-                            </div>
-                        </v-dialog>
-                    </div>
+                    <StrategyRuntimeActivityPanel
+                        :key="selectedStrategy?.id ?? 'strategy-runtime-activity-empty'"
+                        :is-loading-details="isLoadingDetails"
+                        :strategy-logs="strategyLogs"
+                        :strategy-audit-entries="strategyAuditEntries"
+                        :selected-strategy-params-json="selectedStrategyParamsJson"
+                    />
                 </div>
             </div>
         </div>
@@ -2617,817 +1445,4 @@ async function refreshSelectedStrategyDefinition(): Promise<void> {
     padding-bottom: 1rem;
 }
 
-/* 复用主题 strategy-list-card */
-.strategy-list-card {
-    display: block;
-    width: 100%;
-    text-align: left;
-    border-radius: 1.5rem;
-    border: 1px solid var(--tv-border);
-    background: color-mix(in srgb, var(--tv-bg-surface) 90%, transparent);
-    padding: 0.9rem 1rem;
-    cursor: pointer;
-    transition: border-color 140ms ease, background-color 140ms ease;
-}
-
-.strategy-list-card:hover {
-    border-color: color-mix(in srgb, var(--tv-accent) 55%, var(--tv-border));
-}
-
-.strategy-list-card.is-active {
-    border-color: var(--card-active-border);
-    background: color-mix(in srgb, var(--card-active-surface) 18%, transparent);
-}
-
-.strategy-list-card--running {
-    border-color: color-mix(in srgb, rgb(52 211 153) 58%, var(--tv-border));
-    background: color-mix(in srgb, rgb(236 253 245) 90%, var(--tv-bg-surface));
-}
-
-.strategy-list-card--paused {
-    border-color: color-mix(in srgb, rgb(251 191 36) 55%, var(--tv-border));
-    background: color-mix(in srgb, rgb(255 251 235) 90%, var(--tv-bg-surface));
-}
-
-.strategy-list-card--stopped {
-    border-color: var(--tv-border);
-}
-
-.strategy-status-badge {
-    display: inline-flex;
-    align-items: center;
-    border-radius: 999px;
-    padding: 0.2rem 0.65rem;
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-}
-
-.strategy-status-badge--running {
-    border: 1px solid rgb(167 243 208);
-    background: rgb(236 253 245);
-    color: rgb(4 120 87);
-}
-
-.strategy-status-badge--paused {
-    border: 1px solid rgb(253 230 138);
-    background: rgb(254 249 195);
-    color: rgb(161 98 7);
-}
-
-.strategy-status-badge--stopped {
-    border: 1px solid rgb(226 232 240);
-    background: rgb(248 250 252);
-    color: rgb(71 85 105);
-}
-
-.tv-main .strategy-binding-summary {
-    cursor: pointer;
-    border-color: var(--card-border);
-    background: var(--card-surface);
-    color: var(--card-text-1);
-    transition: border-color 140ms ease, background-color 140ms ease, transform 140ms ease, box-shadow 140ms ease;
-}
-
-.tv-main .strategy-binding-summary:hover {
-    border-color: var(--card-border);
-    background: var(--card-surface-raised);
-    box-shadow: 0 18px 40px rgb(15 23 42 / 0.08);
-    transform: translateY(-1px);
-}
-
-.tv-main .strategy-binding-summary:focus-visible {
-    outline: 2px solid color-mix(in srgb, var(--tv-accent) 70%, var(--card-surface));
-    outline-offset: 3px;
-}
-
-.tv-main .strategy-binding-summary .text-slate-900,
-.tv-main .strategy-binding-summary .text-slate-800,
-.tv-main .strategy-binding-summary .text-slate-700 {
-    color: var(--card-text-1);
-}
-
-.tv-main .strategy-binding-summary .text-slate-600,
-.tv-main .strategy-binding-summary .text-slate-500 {
-    color: var(--card-text-2);
-}
-
-.tv-main .strategy-binding-summary .text-slate-400 {
-    color: var(--card-text-3);
-}
-
-.tv-main .strategy-binding-summary .border-slate-200,
-.tv-main .strategy-binding-summary .border-slate-300 {
-    border-color: var(--card-border);
-}
-
-.tv-main .strategy-binding-summary .bg-white {
-    background: var(--card-surface);
-}
-
-.tv-main .strategy-binding-summary .bg-slate-50 {
-    background: var(--card-surface-raised);
-}
-
-.tv-main .strategy-runtime-start-button {
-    border-color: var(--card-teal-border);
-    background: color-mix(in srgb, var(--card-teal-surface) 74%, var(--tv-bg-surface) 26%);
-    color: var(--card-teal-text);
-    box-shadow: 0 8px 20px rgb(15 23 42 / 0.04);
-    transition: border-color 140ms ease, background-color 140ms ease, color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
-}
-
-.tv-main .strategy-runtime-start-button:hover {
-    border-color: color-mix(in srgb, var(--card-teal-border) 60%, var(--tv-accent));
-    background: color-mix(in srgb, var(--card-teal-surface) 84%, var(--tv-accent) 8%);
-    color: var(--tv-text);
-    box-shadow: 0 12px 24px rgb(15 23 42 / 0.08);
-    transform: translateY(-1px);
-}
-
-.tv-main .strategy-runtime-start-button:disabled {
-    border-color: var(--tv-border);
-    background: var(--tv-bg-surface-2);
-    color: var(--tv-text-dim);
-    box-shadow: none;
-    transform: none;
-}
-
-.tv-main .strategy-activity-panel {
-    border-color: var(--card-border);
-    background: var(--card-surface);
-}
-
-.tv-main .strategy-activity-tab,
-.tv-main .strategy-activity-filter,
-.tv-main .strategy-runtime-params-trigger,
-
-.tv-main .strategy-activity-entry__summary {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    color: var(--card-text-1);
-}
-
-.tv-main .strategy-activity-entry__summary--log {
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-    font-size: 0.78rem;
-    line-height: 1.6;
-}
-
-.tv-main .strategy-activity-entry__summary--audit {
-    font-size: 0.9rem;
-    font-weight: 600;
-    line-height: 1.5;
-}
-
-.tv-main .strategy-activity-entry__detail-trigger {
-    flex-shrink: 0;
-    border: 1px solid var(--card-border);
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--tv-bg-surface) 76%, transparent);
-    color: var(--card-text-2);
-    padding: 0.15rem 0.55rem;
-    font-size: 0.78rem;
-    font-weight: 800;
-    letter-spacing: 0.14em;
-    cursor: pointer;
-    transition: border-color 140ms ease, background-color 140ms ease, color 140ms ease, transform 140ms ease;
-}
-
-.tv-main .strategy-activity-entry__detail-trigger:hover {
-    border-color: var(--card-active-border);
-    background: color-mix(in srgb, var(--card-active-surface) 82%, var(--card-surface));
-    color: var(--card-active-text);
-    transform: translateY(-1px);
-}
-
-.tv-main .strategy-activity-entry__detail-trigger:focus-visible {
-    outline: 2px solid color-mix(in srgb, var(--tv-accent) 70%, var(--card-surface));
-    outline-offset: 2px;
-}
-.tv-main .strategy-params-dialog-close {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    border-radius: 999px;
-    border: 1px solid var(--card-border);
-    background: color-mix(in srgb, var(--tv-bg-surface) 72%, transparent);
-    color: var(--card-text-2);
-    cursor: pointer;
-    transition: border-color 140ms ease, background-color 140ms ease, color 140ms ease, transform 140ms ease;
-}
-
-.tv-main .strategy-activity-tab,
-.tv-main .strategy-activity-filter {
-    padding: 0.5rem 0.85rem;
-    font-size: 0.76rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-}
-
-.tv-main .strategy-runtime-params-trigger,
-.tv-main .strategy-params-dialog-close {
-    padding: 0.55rem 0.95rem;
-    font-size: 0.8rem;
-    font-weight: 700;
-}
-
-.tv-main .strategy-runtime-params-trigger {
-    font-family: ui-monospace, SFMono-Regular, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-}
-
-.tv-main .strategy-activity-tab:hover,
-.tv-main .strategy-activity-filter:hover,
-.tv-main .strategy-runtime-params-trigger:hover,
-.tv-main .strategy-params-dialog-close:hover {
-    border-color: var(--card-border);
-    background: var(--card-surface-raised);
-    color: var(--card-text-1);
-    transform: translateY(-1px);
-}
-
-.tv-main .strategy-activity-tab.is-active {
-    border-color: var(--card-active-border);
-    background: color-mix(in srgb, var(--card-active-surface) 82%, var(--card-surface));
-    color: var(--card-active-text);
-}
-
-.tv-main .strategy-activity-filter.is-active {
-    color: var(--card-text-1);
-}
-
-.tv-main .strategy-activity-filter--error.is-active {
-    border-color: var(--card-red-border);
-    background: var(--card-red-surface);
-    color: var(--card-red-text);
-}
-
-.tv-main .strategy-activity-filter--warning.is-active {
-    border-color: var(--card-amber-border);
-    background: var(--card-amber-surface);
-    color: var(--card-amber-text);
-}
-
-.tv-main .strategy-activity-filter--info.is-active {
-    border-color: var(--card-active-border);
-    background: color-mix(in srgb, var(--card-active-surface) 80%, var(--card-surface));
-    color: var(--card-active-text);
-}
-
-.tv-main .strategy-activity-tab-count,
-.tv-main .strategy-activity-filter-count {
-    border-radius: 999px;
-    padding: 0.15rem 0.45rem;
-    background: color-mix(in srgb, var(--tv-text) 7%, transparent);
-    font-size: 0.72rem;
-    line-height: 1;
-}
-
-.tv-main .strategy-activity-viewport {
-    display: grid;
-    gap: 0.75rem;
-    max-height: 24rem;
-    overflow-y: auto;
-    padding-right: 0.35rem;
-}
-
-.tv-main .strategy-activity-entry {
-    border-radius: 1.5rem;
-    border: 1px solid var(--card-border);
-    background: var(--card-surface-raised);
-    padding: 1rem;
-}
-
-.tv-main .strategy-activity-entry--error {
-    border-color: var(--card-red-border);
-    background: var(--card-red-surface);
-}
-
-.tv-main .strategy-activity-entry--warning {
-    border-color: var(--card-amber-border);
-    background: var(--card-amber-surface);
-}
-
-.tv-main .strategy-activity-level-badge,
-.tv-main .strategy-activity-kind-badge {
-    display: inline-flex;
-    align-items: center;
-    border-radius: 999px;
-    padding: 0.22rem 0.65rem;
-    font-size: 0.68rem;
-    font-weight: 700;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-}
-
-.tv-main .strategy-activity-level-badge--error {
-    border: 1px solid var(--card-red-border);
-    background: color-mix(in srgb, var(--card-red-surface) 88%, transparent);
-    color: var(--card-red-text);
-}
-
-.tv-main .strategy-activity-level-badge--warning {
-    border: 1px solid var(--card-amber-border);
-    background: color-mix(in srgb, var(--card-amber-surface) 88%, transparent);
-    color: var(--card-amber-text);
-}
-
-.tv-main .strategy-activity-level-badge--info {
-    border: 1px solid var(--card-active-border);
-    background: color-mix(in srgb, var(--card-active-surface) 85%, transparent);
-    color: var(--card-active-text);
-}
-
-.tv-main .strategy-activity-kind-badge {
-    border: 1px solid var(--card-border);
-    background: color-mix(in srgb, var(--tv-text) 5%, transparent);
-    color: var(--card-text-2);
-}
-
-.tv-main .strategy-activity-time {
-    color: var(--card-text-3);
-    font-size: 0.76rem;
-}
-
-.tv-main .strategy-time-display {
-    cursor: help;
-}
-
-.tv-main .strategy-activity-entry .text-slate-900,
-.tv-main .strategy-activity-entry .text-slate-700 {
-    color: var(--card-text-1);
-}
-
-.tv-main .strategy-activity-empty {
-    border-radius: 1.5rem;
-    border: 1px dashed var(--card-border);
-    background: color-mix(in srgb, var(--card-surface-raised) 76%, transparent);
-    padding: 1.25rem 1rem;
-    color: var(--card-text-2);
-    font-size: 0.92rem;
-}
-
-.tv-main .strategy-params-dialog {
-    border-color: var(--card-border);
-    background: var(--card-surface);
-}
-
-.tv-main .strategy-params-json {
-    max-height: 28rem;
-    overflow: auto;
-    white-space: pre-wrap;
-    word-break: break-word;
-    color: var(--card-text-1);
-    font-size: 0.78rem;
-    line-height: 1.7;
-}
-
-.tv-main .strategy-params-editor {
-    overflow: hidden;
-    border-radius: 1.25rem;
-}
-
-.tv-main .strategy-activity-detail-dialog {
-    border-color: var(--card-border);
-    background: var(--card-surface);
-}
-
-.tv-main .strategy-activity-detail-dialog .bg-slate-50 {
-    background: var(--card-surface-raised);
-}
-
-.tv-main .strategy-activity-detail-dialog .text-slate-900,
-.tv-main .strategy-activity-detail-dialog .text-slate-800,
-.tv-main .strategy-activity-detail-dialog .text-slate-700 {
-    color: var(--card-text-1);
-}
-
-.tv-main .strategy-activity-detail-dialog .text-slate-600,
-.tv-main .strategy-activity-detail-dialog .text-slate-500 {
-    color: var(--card-text-2);
-}
-
-.tv-main .strategy-activity-detail-dialog .text-slate-400 {
-    color: var(--card-text-3);
-}
-
-.tv-main .strategy-instance-dialog {
-    max-height: calc(100vh - 2rem);
-    overflow-y: auto;
-    overflow-x: hidden;
-    border-color: var(--card-border);
-    background: var(--card-surface);
-    color: var(--card-text-1);
-}
-
-.tv-main .strategy-instance-dialog .text-slate-900,
-.tv-main .strategy-instance-dialog .text-slate-800,
-.tv-main .strategy-instance-dialog .text-slate-700 {
-    color: var(--card-text-1);
-}
-
-.tv-main .strategy-instance-dialog .text-slate-600,
-.tv-main .strategy-instance-dialog .text-slate-500 {
-    color: var(--card-text-2);
-}
-
-.tv-main .strategy-instance-dialog .text-slate-400 {
-    color: var(--card-text-3);
-}
-
-.tv-main .strategy-instance-dialog .bg-white,
-.tv-main .strategy-instance-dialog .bg-slate-50 {
-    background: var(--card-surface-raised);
-}
-
-.tv-main .strategy-instance-dialog .border-slate-200,
-.tv-main .strategy-instance-dialog .border-slate-300 {
-    border-color: var(--card-border);
-}
-
-.tv-main .strategy-instance-dialog .bg-amber-50 {
-    background: var(--card-amber-surface);
-}
-
-.tv-main .strategy-instance-dialog .border-amber-200 {
-    border-color: var(--card-amber-border);
-}
-
-.tv-main .strategy-instance-dialog .text-amber-700,
-.tv-main .strategy-instance-dialog .text-amber-800 {
-    color: var(--card-amber-text);
-}
-
-.tv-main .strategy-instance-dialog .bg-red-50 {
-    background: var(--card-red-surface);
-}
-
-.tv-main .strategy-instance-dialog .border-red-200 {
-    border-color: var(--card-red-border);
-}
-
-.tv-main .strategy-instance-dialog .text-red-700,
-.tv-main .strategy-instance-dialog .text-red-800 {
-    color: var(--card-red-text);
-}
-
-.tv-main .strategy-instance-dialog .bg-emerald-50 {
-    background: var(--card-teal-surface);
-}
-
-.tv-main .strategy-instance-dialog .border-emerald-200 {
-    border-color: var(--card-teal-border);
-}
-
-.tv-main .strategy-instance-dialog .text-emerald-700,
-.tv-main .strategy-instance-dialog .text-emerald-800 {
-    color: var(--card-teal-text);
-}
-
-.tv-main .strategy-instance-dialog .bg-sky-50 {
-    background: color-mix(in srgb, var(--card-active-surface) 88%, transparent);
-}
-
-.tv-main .strategy-instance-dialog .border-sky-200 {
-    border-color: var(--card-active-border);
-}
-
-.tv-main .strategy-instance-dialog .text-sky-700,
-.tv-main .strategy-instance-dialog .text-sky-800 {
-    color: var(--card-active-text);
-}
-
-.tv-main .strategy-account-picker__menu {
-    position: static;
-    top: auto;
-    left: auto;
-    right: auto;
-    z-index: auto;
-    margin-top: 0.45rem;
-    border-color: var(--card-border);
-    background: var(--card-surface);
-    box-shadow: 0 18px 40px rgb(15 23 42 / 0.14);
-}
-
-.tv-main .strategy-account-picker__search {
-    border-color: var(--card-border);
-    background: var(--card-surface-raised);
-    color: var(--card-text-1);
-}
-
-.tv-main .strategy-account-picker__search:focus {
-    border-color: color-mix(in srgb, var(--tv-accent) 72%, var(--card-border));
-    background: var(--card-surface);
-}
-
-.tv-main .strategy-account-picker__option {
-    background: var(--card-surface-raised);
-    border-color: transparent;
-}
-
-.tv-main .strategy-account-picker__option:hover {
-    border-color: var(--card-active-border);
-    background: color-mix(in srgb, var(--card-active-surface) 72%, var(--card-surface));
-}
-
-.tv-main .strategy-account-picker__option.is-active {
-    border-color: var(--card-active-border);
-    background: color-mix(in srgb, var(--card-active-surface) 84%, var(--card-surface));
-}
-
-.tv-main .strategy-account-picker__label,
-.tv-main .strategy-account-picker__option-title,
-.tv-main .strategy-account-picker__option-header {
-    color: var(--card-text-1);
-}
-
-.tv-main .strategy-account-picker__meta,
-.tv-main .strategy-account-picker__action,
-.tv-main .strategy-account-picker__option-meta,
-.tv-main .strategy-account-picker__empty {
-    color: var(--card-text-2);
-}
-
-.tv-main .strategy-account-picker__tag--current {
-    border-color: var(--card-teal-border);
-    background: color-mix(in srgb, var(--card-teal-surface) 86%, transparent);
-    color: var(--card-teal-text);
-}
-
-.tv-main .strategy-account-picker__empty {
-    border-color: var(--card-border);
-    background: color-mix(in srgb, var(--card-surface-raised) 88%, transparent);
-}
-
-.tv-main .strategy-tag-input {
-    border-color: var(--card-border);
-    background: var(--card-surface);
-}
-
-.tv-main .strategy-tag-input:focus-within {
-    border-color: color-mix(in srgb, var(--tv-accent) 70%, var(--card-border));
-}
-
-.tv-main .strategy-tag-input--invalid {
-    border-color: var(--card-amber-border);
-    background: var(--card-amber-surface);
-}
-
-.tv-main .strategy-tag-input--invalid:focus-within {
-    border-color: color-mix(in srgb, var(--card-amber-text) 70%, var(--card-amber-border));
-}
-
-.tv-main .strategy-tag-chip {
-    border-color: var(--card-active-border);
-    background: color-mix(in srgb, var(--card-active-surface) 88%, var(--card-surface));
-    color: var(--card-active-text);
-}
-
-.tv-main .strategy-tag-chip__remove {
-    color: var(--card-text-2);
-}
-
-.tv-main .strategy-tag-input__field {
-    color: var(--card-text-1);
-}
-
-.tv-main .strategy-tag-input__field::placeholder {
-    color: var(--card-text-3);
-}
-
-.strategy-instance-dialog {
-    border-radius: 1.75rem;
-    border: 1px solid rgb(226 232 240);
-    background: white;
-    padding: 1.25rem;
-    box-shadow: 0 24px 90px rgb(15 23 42 / 0.2);
-}
-
-.strategy-tag-input {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.5rem;
-    min-height: 3rem;
-    padding: 0.6rem 0.75rem;
-    border-radius: 1rem;
-    border: 1px solid rgb(203 213 225);
-    background: white;
-    transition: border-color 140ms ease;
-}
-
-.strategy-tag-input:focus-within {
-    border-color: rgb(100 116 139);
-}
-
-.strategy-tag-input--invalid {
-    border-color: rgb(245 158 11);
-    background: rgb(255 251 235);
-}
-
-.strategy-tag-input--invalid:focus-within {
-    border-color: rgb(217 119 6);
-}
-
-.strategy-tag-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.45rem;
-    max-width: 100%;
-    padding: 0.35rem 0.7rem;
-    border-radius: 999px;
-    border: 1px solid rgb(191 219 254);
-    background: rgb(239 246 255);
-    color: rgb(30 64 175);
-    font-size: 0.76rem;
-    font-weight: 600;
-    line-height: 1;
-}
-
-.strategy-tag-chip__remove {
-    color: rgb(71 85 105);
-    font-size: 0.72rem;
-    text-transform: uppercase;
-}
-
-.strategy-tag-input__field {
-    flex: 1 1 10rem;
-    min-width: 10rem;
-    border: 0;
-    outline: none;
-    background: transparent;
-    color: rgb(15 23 42);
-    font-size: 0.875rem;
-    padding: 0.1rem 0;
-}
-
-.strategy-tag-input__field::placeholder {
-    color: rgb(148 163 184);
-}
-
-.strategy-account-picker {
-    position: relative;
-}
-
-.strategy-account-picker__trigger {
-    display: flex;
-    width: 100%;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
-    border-radius: 1rem;
-    border: 1px solid rgb(203 213 225);
-    background: white;
-    padding: 0.75rem 0.85rem;
-    text-align: left;
-    transition: border-color 140ms ease, box-shadow 140ms ease;
-}
-
-.strategy-account-picker__trigger:hover {
-    border-color: rgb(148 163 184);
-}
-
-.strategy-account-picker__trigger:focus-visible {
-    outline: none;
-    border-color: rgb(100 116 139);
-    box-shadow: 0 0 0 3px rgb(226 232 240 / 0.9);
-}
-
-.strategy-account-picker__copy {
-    display: grid;
-    min-width: 0;
-    gap: 0.2rem;
-}
-
-.strategy-account-picker__label {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    color: rgb(15 23 42);
-    font-size: 0.875rem;
-    font-weight: 600;
-}
-
-.strategy-account-picker__meta {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.4rem;
-    color: rgb(100 116 139);
-    font-size: 0.74rem;
-    line-height: 1.3;
-}
-
-.strategy-account-picker__action {
-    flex-shrink: 0;
-    color: rgb(71 85 105);
-    font-size: 0.74rem;
-    font-weight: 600;
-}
-
-.strategy-account-picker__menu {
-    z-index: 20;
-    display: grid;
-    gap: 0.65rem;
-    border-radius: 1.1rem;
-    border: 1px solid rgb(226 232 240);
-    background: white;
-    padding: 0.8rem;
-    box-shadow: 0 18px 40px rgb(15 23 42 / 0.14);
-}
-
-.strategy-account-picker__search {
-    width: 100%;
-    border-radius: 0.9rem;
-    border: 1px solid rgb(203 213 225);
-    background: rgb(248 250 252);
-    padding: 0.7rem 0.8rem;
-    color: rgb(15 23 42);
-    font-size: 0.875rem;
-    outline: none;
-}
-
-.strategy-account-picker__search:focus {
-    border-color: rgb(100 116 139);
-    background: white;
-}
-
-.strategy-account-picker__options {
-    display: grid;
-    gap: 0.45rem;
-    max-height: 16rem;
-    overflow-y: auto;
-}
-
-.strategy-account-picker__option {
-    display: grid;
-    gap: 0.25rem;
-    width: 100%;
-    border-radius: 0.95rem;
-    border: 1px solid transparent;
-    background: rgb(248 250 252);
-    padding: 0.7rem 0.8rem;
-    text-align: left;
-    transition: border-color 140ms ease, background-color 140ms ease;
-}
-
-.strategy-account-picker__option:hover {
-    border-color: rgb(191 219 254);
-    background: rgb(239 246 255);
-}
-
-.strategy-account-picker__option.is-active {
-    border-color: rgb(59 130 246);
-    background: rgb(239 246 255);
-}
-
-.strategy-account-picker__option-header {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
-}
-
-.strategy-account-picker__option-title {
-    color: rgb(15 23 42);
-    font-size: 0.84rem;
-    font-weight: 600;
-}
-
-.strategy-account-picker__option-meta {
-    color: rgb(100 116 139);
-    font-size: 0.72rem;
-    line-height: 1.35;
-}
-
-.strategy-account-picker__tag {
-    display: inline-flex;
-    align-items: center;
-    border-radius: 999px;
-    padding: 0.15rem 0.5rem;
-    font-size: 0.64rem;
-    font-weight: 700;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-}
-
-.strategy-account-picker__tag--current {
-    border: 1px solid rgb(167 243 208);
-    background: rgb(236 253 245);
-    color: rgb(4 120 87);
-}
-
-.strategy-account-picker__empty {
-    border-radius: 0.95rem;
-    border: 1px dashed rgb(203 213 225);
-    padding: 0.9rem 0.8rem;
-    color: rgb(100 116 139);
-    font-size: 0.78rem;
-}
 </style>

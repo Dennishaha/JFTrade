@@ -23,6 +23,8 @@ node_modules/
 # Build artifacts
 apps/web/dist/
 packages/*/dist/
+internal/frontendassets/dist.zip
+internal/frontendassets/dist/
 
 # Local env
 .env

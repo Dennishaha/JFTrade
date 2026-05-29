@@ -1,19 +1,17 @@
 <script setup lang="ts">
 import type {
-    StrategyApplyLinkedInstancesResponse,
     StrategyDefinitionDocument,
-    StrategyInstanceItem,
     StrategySourceFormat,
     StrategyVisualModelDocument,
-    StrategyVisualNodeDocument,
 } from "@jftrade/ui-contracts";
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
-import { onBeforeRouteLeave } from "vue-router";
 
 import StrategyLogicFlowDesigner from "./StrategyLogicFlowDesigner.vue";
 import StrategyStageCodeWorkbenchPanel from "./strategy-stage/StrategyStageCodeWorkbenchPanel.vue";
 import StrategyStageDefinitionsPanel from "./strategy-stage/StrategyStageDefinitionsPanel.vue";
 import StrategyStageOverlayDeck from "./strategy-stage/StrategyStageOverlayDeck.vue";
+import { useStrategyStageDefinitionPersistence } from "./strategy-stage/useStrategyStageDefinitionPersistence";
+import { useStrategyStageVisualSync } from "./strategy-stage/useStrategyStageVisualSync";
 import "./strategy-stage/strategyStageShared.css";
 import {
     fetchEnvelope,
@@ -29,7 +27,6 @@ import {
     strategyDslEditorHoverItems,
 } from "../features/strategyDslEditorIntelliSense";
 import {
-    buildStrategyVisualModelFromScript,
     buildStrategyScriptFromVisualModel,
     cloneStrategyVisualModel,
     createDefaultStrategyVisualModel,
@@ -37,7 +34,6 @@ import {
     getStrategyBlockKind,
     type StrategyAuthoringTemplate,
 } from "../features/strategyVisualBuilder";
-import { reconcileStrategyVisualModelIndicatorBindings } from "../features/strategyVisualBuilderIndicatorReferences";
 import { migrateLegacyMovingAverageDefinition } from "../features/strategyVisualBuilderMigration";
 
 const props = withDefaults(defineProps<{
@@ -78,14 +74,8 @@ const strategyDefinitions = ref<StrategyDefinitionDocument[]>([]);
 const selectedDefinitionId = ref("");
 const selectedStrategyTemplateId = ref(defaultStrategyTemplateId);
 const isLoadingDefinitions = ref(false);
-const isSavingDefinition = ref(false);
-const isInstantiatingDefinition = ref(false);
-const deletingDefinitionId = ref("");
 const definitionError = ref("");
 const definitionNotice = ref("");
-const visualSyncStatus = ref<"ready" | "syncing" | "synced" | "partial" | "error">("ready");
-const visualSyncMessage = ref("图形与 DSL 会自动异步同步。\n修改 DSL 后会尝试反解回流程图。");
-const visualSyncCodeBlockCount = ref(0);
 
 const isDefinitionsPanelCollapsed = ref(props.initialDefinitionsCollapsed);
 const isTemplatesSectionCollapsed = ref(true);
@@ -97,25 +87,13 @@ const strategyDisplayMode = ref<"canvas" | "split" | "code">("canvas");
 const definitionForm = ref<StrategyDefinitionDocument>(
     createDefinitionFromTemplate(defaultStrategyTemplateId),
 );
-const selectedVisualNodeId = ref("");
-const codeContextNodeId = ref("");
 const lastCommittedDefinitionSignature = ref("");
 const isTemplatePickerEntry = ref(false);
 
 const definitionsPanelDrag = useDraggable();
 const codePanelDrag = useDraggable();
-const isSaveLinkedInstancesDialogOpen = ref(false);
-const pendingSaveLinkedInstancesSummary = ref<{
-    definitionId: string;
-    linkedCount: number;
-    stoppedCount: number;
-    busyCount: number;
-} | null>(null);
-const isDeleteDefinitionDialogOpen = ref(false);
-const pendingDeleteDefinition = ref<{
-    definition: StrategyDefinitionDocument;
-    linkedStrategies: StrategyInstanceItem[];
-} | null>(null);
+const codeWorkbenchRef = ref<InstanceType<typeof StrategyStageCodeWorkbenchPanel> | null>(null);
+const logicFlowDesignerRef = ref<InstanceType<typeof StrategyLogicFlowDesigner> | null>(null);
 
 // ── Undo / Redo ──
 const undoRedo = useStrategyUndoRedo({ maxDepth: 80 });
@@ -202,12 +180,6 @@ function handleDesignKeydown(event: KeyboardEvent): void {
     }
 }
 
-const SCRIPT_TO_VISUAL_SYNC_DELAY = 650;
-
-let scriptToVisualSyncTimer: ReturnType<typeof setTimeout> | null = null;
-let skipScriptToVisualSyncCount = 0;
-let isCodeOriginatedSelection = false;
-
 const selectedDefinition = computed(
     () =>
         strategyDefinitions.value.find(
@@ -222,18 +194,42 @@ const activeStrategyTemplate = computed(
         ) ?? null,
 );
 
-const resolvedVisualModel = computed(
-    () => definitionForm.value.visualModel ?? createDefaultStrategyVisualModel(),
-);
-
-const selectedVisualNode = computed<StrategyVisualNodeDocument | null>(() => {
-    const nodeId = selectedVisualNodeId.value;
-    if (nodeId === "") {
-        return null;
-    }
-    return (
-        resolvedVisualModel.value.nodes.find((node) => node.id === nodeId) ?? null
-    );
+const {
+    applyVisualModel,
+    attachSourceRangesFromScript,
+    codeContextNodeId,
+    deleteSelectedVisualNode,
+    handleCodeContextOpenInspector,
+    handleCodeCursorOffset,
+    handleScriptWorkbenchBlur,
+    handleVisualModelUpdated,
+    handleVisualNodeSelected,
+    markNextScriptSyncAsInternal,
+    mutateSelectedVisualNode,
+    replaceDefinitionForm,
+    resetVisualSyncStatus,
+    resolvedVisualModel,
+    selectedVisualNode,
+    selectedVisualNodeId,
+    syncScriptToVisualModelNow,
+    updateCommittedDefinitionSignature,
+    visualSyncCodeBlockCount,
+    visualSyncMessage,
+    visualSyncStatus,
+} = useStrategyStageVisualSync({
+    definitionForm,
+    definitionError,
+    definitionNotice,
+    lastCommittedDefinitionSignature,
+    clearDefinitionMessages,
+    pickInitialVisualNodeId,
+    buildScriptForModel,
+    serializeDefinitionSnapshot,
+    codeWorkbenchRef,
+    logicFlowDesignerRef,
+    showBlockInspector: () => {
+        isBlockInspectorCollapsed.value = false;
+    },
 });
 
 const {
@@ -332,9 +328,6 @@ const overlayDeckBindings = {
 const codeWorkbenchBindings = {
     definitionForm,
 } as const;
-
-const codeWorkbenchRef = ref<InstanceType<typeof StrategyStageCodeWorkbenchPanel> | null>(null);
-const logicFlowDesignerRef = ref<InstanceType<typeof StrategyLogicFlowDesigner> | null>(null);
 
 const hasDesignOverlayDeck = computed(
     () =>
@@ -447,22 +440,6 @@ watch(
     { immediate: true },
 );
 
-watch(
-    () => definitionForm.value.script,
-    (nextScript, previousScript) => {
-        if (nextScript === previousScript) {
-            return;
-        }
-
-        if (skipScriptToVisualSyncCount > 0) {
-            skipScriptToVisualSyncCount -= 1;
-            return;
-        }
-
-        scheduleScriptToVisualModelSync();
-    },
-);
-
 // Push undo snapshots whenever the definition changes meaningfully.
 watch(
     () => serializeDefinitionSnapshot(definitionForm.value),
@@ -482,7 +459,6 @@ watch(
 
 onMounted(() => {
     if (typeof window !== "undefined") {
-        window.addEventListener("beforeunload", handleBeforeUnload);
         window.addEventListener("keydown", handleDesignKeydown);
     }
 
@@ -493,14 +469,9 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
     if (typeof window !== "undefined") {
-        window.removeEventListener("beforeunload", handleBeforeUnload);
         window.removeEventListener("keydown", handleDesignKeydown);
     }
-
-    clearPendingScriptToVisualSync();
 });
-
-onBeforeRouteLeave(async () => await confirmStrategyDesignExit());
 
 function startDefinitionsPanelDrag(event: MouseEvent): void {
     definitionsPanelDrag.startDrag(event);
@@ -644,124 +615,9 @@ function formatTimestamp(value: string | undefined | null): string {
     return value!.replace("T", " ").replace(".000Z", "Z");
 }
 
-function updateCommittedDefinitionSignature(
-    definition: StrategyDefinitionDocument,
-): void {
-    lastCommittedDefinitionSignature.value = serializeDefinitionSnapshot(definition);
-}
-
 function clearDefinitionMessages(): void {
     definitionError.value = "";
     definitionNotice.value = "";
-}
-
-function setVisualSyncState(
-    status: "ready" | "syncing" | "synced" | "partial" | "error",
-    message: string,
-    codeBlockCount = 0,
-): void {
-    visualSyncStatus.value = status;
-    visualSyncMessage.value = message;
-    visualSyncCodeBlockCount.value = codeBlockCount;
-}
-
-function resetVisualSyncStatus(): void {
-    setVisualSyncState(
-        "ready",
-        "图形与 DSL 会自动同步。修改 DSL 后会尝试反解回流程图。",
-        0,
-    );
-}
-
-function clearPendingScriptToVisualSync(): void {
-    if (scriptToVisualSyncTimer !== null) {
-        clearTimeout(scriptToVisualSyncTimer);
-        scriptToVisualSyncTimer = null;
-    }
-}
-
-function markNextScriptSyncAsInternal(): void {
-    skipScriptToVisualSyncCount += 1;
-    clearPendingScriptToVisualSync();
-}
-
-function replaceDefinitionForm(
-    nextDefinition: StrategyDefinitionDocument,
-    options?: {
-        skipScriptParse?: boolean;
-    },
-): void {
-    if (
-        options?.skipScriptParse === true &&
-        nextDefinition.script !== definitionForm.value.script
-    ) {
-        markNextScriptSyncAsInternal();
-    }
-
-    definitionForm.value = nextDefinition;
-}
-
-function scheduleScriptToVisualModelSync(
-    delay = SCRIPT_TO_VISUAL_SYNC_DELAY,
-): void {
-    clearPendingScriptToVisualSync();
-    setVisualSyncState("syncing", "正在把 DSL 异步转换回流程图…", visualSyncCodeBlockCount.value);
-
-    scriptToVisualSyncTimer = setTimeout(() => {
-        scriptToVisualSyncTimer = null;
-        syncScriptToVisualModelNow();
-    }, delay);
-}
-
-function syncScriptToVisualModelNow(options?: { updateCommittedSignature?: boolean }): void {
-    clearPendingScriptToVisualSync();
-
-    const script = definitionForm.value.script;
-    if (script.trim() === "") {
-        setVisualSyncState("error", "DSL 为空，无法转换回流程图。已保留当前流程图。", 0);
-        return;
-    }
-
-    setVisualSyncState("syncing", "正在把 DSL 异步转换回流程图…", visualSyncCodeBlockCount.value);
-
-    const parseResult = buildStrategyVisualModelFromScript(
-        script,
-        definitionForm.value.visualModel,
-    );
-    if (!parseResult.ok) {
-        setVisualSyncState("error", `${parseResult.error} 已保留当前流程图。`, 0);
-        return;
-    }
-
-    const nextVisualModel =
-        cloneStrategyVisualModel(parseResult.model) ??
-        createDefaultStrategyVisualModel();
-
-    replaceDefinitionForm(
-        {
-            ...definitionForm.value,
-            visualModel: nextVisualModel,
-        },
-        {
-            skipScriptParse: false,
-        },
-    );
-    selectedVisualNodeId.value = pickInitialVisualNodeId(nextVisualModel);
-
-    if (options?.updateCommittedSignature === true) {
-        updateCommittedDefinitionSignature(definitionForm.value);
-    }
-
-    if (parseResult.codeBlockCount > 0) {
-        setVisualSyncState(
-            "partial",
-            `DSL 已同步回流程图，其中 ${parseResult.codeBlockCount} 段无法标准化。`,
-            parseResult.codeBlockCount,
-        );
-        return;
-    }
-
-    setVisualSyncState("synced", "DSL 已同步回流程图。", 0);
 }
 
 function dismissDefinitionError(): void {
@@ -813,43 +669,6 @@ function applyDefinition(definition: StrategyDefinitionDocument | null): void {
     attachSourceRangesFromScript(definition.script, definitionForm.value.visualModel);
     updateCommittedDefinitionSignature(definitionForm.value);
     resetVisualSyncStatus();
-}
-
-function attachSourceRangesFromScript(
-    script: string,
-    visualModel: StrategyVisualModelDocument | null | undefined,
-): void {
-    if (visualModel === null || visualModel === undefined || script.trim() === "") {
-        return;
-    }
-
-    const parseResult = buildStrategyVisualModelFromScript(script);
-    if (!parseResult.ok) {
-        return;
-    }
-
-    const parsedNodeById = new Map(
-        parseResult.model.nodes.map((node) => [node.id, node] as const),
-    );
-
-    for (const node of visualModel.nodes) {
-        const parsedNode = parsedNodeById.get(node.id);
-        if (parsedNode === undefined) {
-            continue;
-        }
-
-        const sourceRange = parsedNode.properties.sourceRange;
-        if (
-            sourceRange !== undefined &&
-            sourceRange !== null &&
-            typeof sourceRange === "object"
-        ) {
-            node.properties = {
-                ...node.properties,
-                sourceRange,
-            };
-        }
-    }
 }
 
 function createNewDefinitionDraft(templateId = defaultStrategyTemplateId): void {
@@ -908,26 +727,10 @@ async function loadStrategyDefinitions(
     }
 }
 
-async function saveStrategyDefinition(): Promise<boolean> {
-    clearDefinitionMessages();
-
-    const payload = buildStrategyDefinitionSavePayload();
-
-    if (payload.name === "") {
-        definitionError.value = "策略名称不能为空。";
-        return false;
-    }
-
-    if (payload.script.trim() === "") {
-        definitionError.value = "策略 DSL 不能为空。";
-        return false;
-    }
-
-    if (await maybePromptLinkedInstanceSave()) {
-        return false;
-    }
-
-    return persistStrategyDefinition(payload, { applyLinkedInstances: false });
+function loadStrategyDefinitionsForPersistence(
+    preferredDefinitionId = selectedDefinitionId.value,
+): Promise<void> {
+    return loadStrategyDefinitions(preferredDefinitionId);
 }
 
 function buildStrategyDefinitionSavePayload(): StrategyDefinitionDocument {
@@ -945,386 +748,37 @@ function buildStrategyDefinitionSavePayload(): StrategyDefinitionDocument {
     };
 }
 
-function isStrategyLinkedToDefinition(
-    strategy: StrategyInstanceItem,
-    definitionId: string,
-): boolean {
-    const normalizedDefinitionID = definitionId.trim();
-    if (normalizedDefinitionID === "") {
-        return false;
-    }
-
-    if (strategy.definition.strategyId.trim() === normalizedDefinitionID) {
-        return true;
-    }
-
-    return typeof strategy.params.definitionId === "string"
-        && strategy.params.definitionId.trim() === normalizedDefinitionID;
-}
-
-async function maybePromptLinkedInstanceSave(): Promise<boolean> {
-    const definitionId = selectedDefinitionId.value.trim();
-    if (definitionId === "" || !hasUnsavedDefinitionChanges.value) {
-        return false;
-    }
-
-    isSavingDefinition.value = true;
-
-    try {
-        const strategies = await fetchEnvelope<StrategyInstanceItem[]>("/api/v1/strategies");
-        const linkedStrategies = strategies.filter((item) => isStrategyLinkedToDefinition(item, definitionId));
-        if (linkedStrategies.length === 0) {
-            return false;
-        }
-
-        pendingSaveLinkedInstancesSummary.value = {
-            definitionId,
-            linkedCount: linkedStrategies.length,
-            stoppedCount: linkedStrategies.filter((item) => item.status === "STOPPED").length,
-            busyCount: linkedStrategies.filter((item) => item.status !== "STOPPED").length,
-        };
-        isSaveLinkedInstancesDialogOpen.value = true;
-        return true;
-    } catch (error) {
-        definitionError.value =
-            error instanceof Error
-                ? error.message
-                : "加载关联实例失败。";
-        return true;
-    } finally {
-        isSavingDefinition.value = false;
-    }
-}
-
-function closeSaveLinkedInstancesDialog(): void {
-    isSaveLinkedInstancesDialogOpen.value = false;
-    pendingSaveLinkedInstancesSummary.value = null;
-}
-
-function closeDeleteDefinitionDialog(options?: { force?: boolean }): void {
-    if (!options?.force && deletingDefinitionId.value !== "") {
-        return;
-    }
-    isDeleteDefinitionDialogOpen.value = false;
-    pendingDeleteDefinition.value = null;
-}
-
-function summarizeLinkedStrategyForDeleteDialog(
-    strategy: StrategyInstanceItem,
-): string {
-    const symbols = (strategy.binding?.symbols ?? []).join(", ");
-    if (symbols !== "") {
-        return `${strategy.status} · ${symbols}`;
-    }
-    return `${strategy.status} · 未绑定标的`;
-}
-
-function jumpToRuntimeForDeletingLinkedInstances(): void {
-    const pending = pendingDeleteDefinition.value;
-    if (pending === null || pending.linkedStrategies.length === 0) {
-        return;
-    }
-    closeDeleteDefinitionDialog({ force: true });
-    emit("switch-to-runtime", {
-        notice: `已切换到运行面板，请先删除策略「${pending.definition.name}」关联的 ${pending.linkedStrategies.length} 个实例。`,
-        definitionId: pending.definition.id,
-    });
-}
-
-function buildApplyLinkedInstancesNotice(
-    result: StrategyApplyLinkedInstancesResponse,
-): string {
-    if (result.totalLinked === 0) {
-        return "当前没有关联实例需要同步。";
-    }
-
-    const parts: string[] = [];
-    if (result.applied.length > 0) {
-        parts.push(`已同步 ${result.applied.length} 个关联实例`);
-    }
-    if (result.alreadyLatest.length > 0) {
-        parts.push(`${result.alreadyLatest.length} 个实例本来就是最新版本`);
-    }
-    if (result.skippedBusy.length > 0) {
-        parts.push(`${result.skippedBusy.length} 个实例因未停止而跳过`);
-    }
-    return parts.join("，") || "关联实例状态未变化。";
-}
-
-async function persistStrategyDefinition(
-    payload: StrategyDefinitionDocument,
-    options: {
-        applyLinkedInstances: boolean;
-        promptedLinkedCount?: number;
-    },
-): Promise<boolean> {
-    const isExisting =
-        selectedDefinition.value !== null &&
-        selectedDefinition.value.id === selectedDefinitionId.value;
-    const path = isExisting
-        ? `/api/v1/strategy-definitions/${encodeURIComponent(selectedDefinitionId.value)}`
-        : "/api/v1/strategy-definitions";
-
-    isSavingDefinition.value = true;
-
-    try {
-        const response = await fetchEnvelopeWithInit<StrategyDefinitionDocument>(path, {
-            method: isExisting ? "PUT" : "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(payload),
-        });
-
-        const savedId = response.id;
-        let notice = isExisting ? "策略已保存。" : "策略已创建。";
-
-        if (options.applyLinkedInstances && savedId.trim() !== "") {
-            const applyResult = await fetchEnvelopeWithInit<StrategyApplyLinkedInstancesResponse>(
-                `/api/v1/strategy-definitions/${encodeURIComponent(savedId)}/apply-linked-instances`,
-                {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({}),
-                },
-            );
-            notice = `${notice} ${buildApplyLinkedInstancesNotice(applyResult)}`;
-        } else if ((options.promptedLinkedCount ?? 0) > 0) {
-            notice = `${notice} 已保留 ${options.promptedLinkedCount ?? 0} 个关联实例的当前版本。`;
-        }
-
-        await loadStrategyDefinitions(savedId);
-        definitionNotice.value = notice;
-        return true;
-    } catch (error) {
-        definitionError.value =
-            error instanceof Error ? error.message : "保存策略失败。";
-        return false;
-    } finally {
-        isSavingDefinition.value = false;
-    }
-}
-
-async function saveStrategyDefinitionWithLinkedInstanceChoice(
-    action: "save-only" | "save-and-apply",
-): Promise<void> {
-    const summary = pendingSaveLinkedInstancesSummary.value;
-    closeSaveLinkedInstancesDialog();
-
-    const payload = buildStrategyDefinitionSavePayload();
-    if (payload.name === "") {
-        definitionError.value = "策略名称不能为空。";
-        return;
-    }
-    if (payload.script.trim() === "") {
-        definitionError.value = "策略 DSL 不能为空。";
-        return;
-    }
-
-    await persistStrategyDefinition(payload, {
-        applyLinkedInstances: action === "save-and-apply",
-        promptedLinkedCount: summary?.linkedCount ?? 0,
-    });
-}
-
-async function instantiateStrategyDefinition(): Promise<void> {
-    clearDefinitionMessages();
-
-    if (selectedDefinition.value === null) {
-        definitionError.value = "请先选择已保存的策略定义，再创建运行实例。";
-        return;
-    }
-
-    if (!(await confirmStrategyDesignExit())) {
-        return;
-    }
-
-    isInstantiatingDefinition.value = true;
-
-    try {
-        definitionNotice.value = "已切换到运行面板，请先完成实例绑定再创建实例。";
-        emit("switch-to-runtime", {
-            notice: definitionNotice.value,
-            definitionId: selectedDefinition.value.id,
-        });
-    } catch (error) {
-        definitionError.value =
-            error instanceof Error
-                ? error.message
-                : "创建运行实例失败。";
-    } finally {
-        isInstantiatingDefinition.value = false;
-    }
-}
-
-async function deleteStrategyDefinition(definition: StrategyDefinitionDocument): Promise<void> {
-    clearDefinitionMessages();
-    deletingDefinitionId.value = definition.id;
-    try {
-        const strategies = await fetchEnvelope<StrategyInstanceItem[]>("/api/v1/strategies");
-        const linkedStrategies = strategies
-            .filter((item) => isStrategyLinkedToDefinition(item, definition.id))
-            .sort((left, right) => {
-                if (left.createdAt === right.createdAt) {
-                    return left.id.localeCompare(right.id);
-                }
-                return left.createdAt.localeCompare(right.createdAt);
-            });
-
-        pendingDeleteDefinition.value = {
-            definition,
-            linkedStrategies,
-        };
-        isDeleteDefinitionDialogOpen.value = true;
-    } catch (error) {
-        definitionError.value =
-            error instanceof Error ? error.message : "加载关联实例失败。";
-    } finally {
-        deletingDefinitionId.value = "";
-    }
-}
-
-async function confirmDeleteStrategyDefinition(): Promise<void> {
-    const pending = pendingDeleteDefinition.value;
-    if (pending === null || pending.linkedStrategies.length > 0) {
-        return;
-    }
-
-    deletingDefinitionId.value = pending.definition.id;
-    try {
-        await fetchEnvelopeWithInit<StrategyDefinitionDocument>(
-            `/api/v1/strategy-definitions/${encodeURIComponent(pending.definition.id)}`,
-            {
-                method: "DELETE",
-            },
-        );
-
-        const nextPreferredId = selectedDefinitionId.value === pending.definition.id
-            ? strategyDefinitions.value.find((item) => item.id !== pending.definition.id)?.id ?? ""
-            : selectedDefinitionId.value;
-        closeDeleteDefinitionDialog({ force: true });
-        await loadStrategyDefinitions(nextPreferredId);
-        definitionNotice.value = `策略已删除：${pending.definition.name}。`;
-    } catch (error) {
-        definitionError.value =
-            error instanceof Error ? error.message : "删除策略定义失败。";
-    } finally {
-        deletingDefinitionId.value = "";
-    }
-}
-
-async function confirmStrategyDesignExit(): Promise<boolean> {
-    if (!hasUnsavedDefinitionChanges.value) {
-        return true;
-    }
-
-    if (typeof window === "undefined" || typeof window.confirm !== "function") {
-        return false;
-    }
-
-    const shouldSave = window.confirm(
-        "当前策略有未保存更改。\n选择“确定”将先保存再离开当前编辑界面。",
-    );
-
-    if (shouldSave) {
-        return await saveStrategyDefinition();
-    }
-
-    return window.confirm("要放弃未保存更改并离开当前编辑界面吗？");
-}
-
-function handleBeforeUnload(event: BeforeUnloadEvent): void {
-    if (!hasUnsavedDefinitionChanges.value) {
-        return;
-    }
-
-    event.preventDefault();
-    event.returnValue = "";
-}
-
-function syncVisualModelToScript(showNotice = false): void {
-    if (definitionForm.value.visualModel === null || definitionForm.value.visualModel === undefined) {
-        definitionError.value = "请先创建流程图画布。";
-        return;
-    }
-
-    replaceDefinitionForm(
-        {
-            ...definitionForm.value,
-            script: buildScriptForModel(definitionForm.value.visualModel),
-        },
-        {
-            skipScriptParse: true,
-        },
-    );
-
-    setVisualSyncState("synced", "流程图已同步到 DSL。", visualSyncCodeBlockCount.value);
-
-    if (showNotice) {
-        definitionNotice.value = "已用流程图更新下方 DSL。";
-    }
-}
-
-function initializeVisualModel(): void {
-    clearDefinitionMessages();
-
-    const visualModel = createDefaultStrategyVisualModel();
-    replaceDefinitionForm(
-        {
-            ...definitionForm.value,
-            visualModel,
-            script: buildScriptForModel(visualModel),
-        },
-        {
-            skipScriptParse: true,
-        },
-    );
-    selectedVisualNodeId.value = pickInitialVisualNodeId(visualModel);
-    definitionNotice.value = "已创建新的默认流程骨架。";
-    setVisualSyncState("synced", "已创建新的默认流程骨架，并同步到 DSL。", 0);
-}
-
-function applyVisualModel(
-    model: StrategyVisualModelDocument,
-    options?: {
-        preserveSelection?: boolean;
-        notice?: string;
-    },
-): void {
-    const nextModel = reconcileStrategyVisualModelIndicatorBindings(
-        cloneStrategyVisualModel(model) ?? createDefaultStrategyVisualModel(),
-    );
-    const nextSelectedNodeId =
-        options?.preserveSelection === true &&
-            nextModel.nodes.some((node) => node.id === selectedVisualNodeId.value)
-            ? selectedVisualNodeId.value
-            : pickInitialVisualNodeId(nextModel);
-    const nextScript = buildScriptForModel(nextModel);
-
-    replaceDefinitionForm(
-        {
-            ...definitionForm.value,
-            visualModel: nextModel,
-            script: nextScript,
-        },
-        {
-            skipScriptParse: true,
-        },
-    );
-    selectedVisualNodeId.value = nextSelectedNodeId;
-    setVisualSyncState("synced", "流程图已异步同步到 DSL。", visualSyncCodeBlockCount.value);
-
-    if (options?.notice) {
-        definitionNotice.value = options.notice;
-    }
-}
-
-function handleVisualModelUpdated(model: StrategyVisualModelDocument): void {
-    clearDefinitionMessages();
-    applyVisualModel(model, { preserveSelection: true });
-}
+const {
+    closeDeleteDefinitionDialog,
+    closeSaveLinkedInstancesDialog,
+    confirmDeleteStrategyDefinition,
+    confirmStrategyDesignExit,
+    deleteStrategyDefinition,
+    deletingDefinitionId,
+    instantiateStrategyDefinition,
+    isDeleteDefinitionDialogOpen,
+    isInstantiatingDefinition,
+    isSaveLinkedInstancesDialogOpen,
+    isSavingDefinition,
+    jumpToRuntimeForDeletingLinkedInstances,
+    pendingDeleteDefinition,
+    pendingSaveLinkedInstancesSummary,
+    saveStrategyDefinition,
+    saveStrategyDefinitionWithLinkedInstanceChoice,
+    summarizeLinkedStrategyForDeleteDialog,
+} = useStrategyStageDefinitionPersistence({
+    definitionForm,
+    selectedDefinitionId,
+    selectedDefinition,
+    strategyDefinitions,
+    hasUnsavedDefinitionChanges,
+    definitionError,
+    definitionNotice,
+    clearDefinitionMessages,
+    buildSavePayload: buildStrategyDefinitionSavePayload,
+    loadStrategyDefinitions: loadStrategyDefinitionsForPersistence,
+    emitSwitchToRuntime: (payload) => emit("switch-to-runtime", payload),
+});
 
 const {
     indicatorVariables,
@@ -1336,183 +790,6 @@ const {
     selectedVisualNodeId,
     applyVisualModel,
 });
-
-function handleScriptWorkbenchBlur(): void {
-    syncScriptToVisualModelNow();
-}
-
-function handleCodeCursorOffset(offset: number): void {
-    const nodes = resolvedVisualModel.value.nodes;
-
-    for (const node of nodes) {
-        const sourceRange = node.properties.sourceRange;
-        if (
-            sourceRange === undefined ||
-            sourceRange === null ||
-            typeof sourceRange !== "object"
-        ) {
-            continue;
-        }
-
-        const start = Reflect.get(sourceRange, "start");
-        const end = Reflect.get(sourceRange, "end");
-        if (typeof start !== "number" || typeof end !== "number") {
-            continue;
-        }
-
-        if (offset >= start && offset < end) {
-            isCodeOriginatedSelection = true;
-            codeContextNodeId.value = node.id;
-            selectedVisualNodeId.value = node.id;
-            return;
-        }
-    }
-
-    codeContextNodeId.value = "";
-    logicFlowDesignerRef.value?.selectNodeById(null);
-}
-
-function handleCodeContextOpenInspector(): void {
-    const nodeId = codeContextNodeId.value;
-    if (nodeId === "") {
-        return;
-    }
-
-    codeContextNodeId.value = "";
-    isCodeOriginatedSelection = true;
-    logicFlowDesignerRef.value?.selectNodeById(nodeId);
-    isCodeOriginatedSelection = false;
-    selectedVisualNodeId.value = nodeId;
-    isBlockInspectorCollapsed.value = false;
-}
-
-function handleVisualNodeSelected(nodeId: string | null): void {
-    selectedVisualNodeId.value = nodeId ?? "";
-
-    if (isCodeOriginatedSelection) {
-        isCodeOriginatedSelection = false;
-        return;
-    }
-
-    if (nodeId !== null) {
-        isBlockInspectorCollapsed.value = false;
-    }
-}
-
-function readSourceRangeFromNode(
-    node: StrategyVisualNodeDocument | null,
-): { start: number; end: number } | null {
-    if (node === null) {
-        return null;
-    }
-
-    const sourceRange = node.properties.sourceRange;
-    if (
-        sourceRange === undefined ||
-        sourceRange === null ||
-        typeof sourceRange !== "object"
-    ) {
-        return null;
-    }
-
-    const start = Reflect.get(sourceRange, "start");
-    const end = Reflect.get(sourceRange, "end");
-    if (typeof start !== "number" || typeof end !== "number") {
-        return null;
-    }
-
-    return { start, end };
-}
-
-watch(
-    () => selectedVisualNode.value,
-    (node) => {
-        if (isCodeOriginatedSelection) {
-            return;
-        }
-
-        const codeRange = readSourceRangeFromNode(node);
-        if (codeRange === null) {
-            return;
-        }
-
-        codeWorkbenchRef.value?.revealCodeRange(codeRange);
-    },
-);
-
-function mutateSelectedVisualNode(
-    mutator: (node: StrategyVisualNodeDocument) => StrategyVisualNodeDocument,
-): void {
-    const currentModel =
-        cloneStrategyVisualModel(definitionForm.value.visualModel) ??
-        createDefaultStrategyVisualModel();
-    const targetNodeId = selectedVisualNodeId.value;
-
-    if (targetNodeId === "") {
-        return;
-    }
-
-    let changed = false;
-
-    const nextNodes = currentModel.nodes.map((node) => {
-        if (node.id !== targetNodeId) {
-            return {
-                ...node,
-                properties: { ...node.properties },
-            };
-        }
-
-        changed = true;
-        return mutator({
-            ...node,
-            properties: { ...node.properties },
-        });
-    });
-
-    if (!changed) {
-        return;
-    }
-
-    applyVisualModel(
-        {
-            ...currentModel,
-            nodes: nextNodes,
-            edges: currentModel.edges.map((edge) => ({
-                ...edge,
-                properties:
-                    edge.properties === undefined ? undefined : { ...edge.properties },
-            })),
-        },
-        { preserveSelection: true },
-    );
-}
-
-function deleteSelectedVisualNode(): void {
-    if (selectedVisualNode.value === null) {
-        return;
-    }
-
-    const currentModel =
-        cloneStrategyVisualModel(definitionForm.value.visualModel) ??
-        createDefaultStrategyVisualModel();
-    const removedNodeId = selectedVisualNode.value.id;
-
-    applyVisualModel(
-        {
-            ...currentModel,
-            nodes: currentModel.nodes.filter((node) => node.id !== removedNodeId),
-            edges: currentModel.edges.filter(
-                (edge) =>
-                    edge.sourceNodeId !== removedNodeId &&
-                    edge.targetNodeId !== removedNodeId,
-            ),
-        },
-        {
-            preserveSelection: false,
-            notice: "已删除当前图块。",
-        },
-    );
-}
 
 </script>
 

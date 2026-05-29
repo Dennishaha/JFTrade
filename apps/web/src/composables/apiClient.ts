@@ -3,12 +3,10 @@ import {
   type ApiSuccessEnvelope,
 } from "@jftrade/ui-contracts";
 
-const apiBaseUrl = (
-  import.meta.env.VITE_API_BASE_URL as string | undefined
-)?.replace(/\/$/, "");
+import { buildRuntimeApiUrl } from "../runtimeConfig";
 
 export function buildApiUrl(path: string): string {
-  return apiBaseUrl ? `${apiBaseUrl}${path}` : `http://127.0.0.1:3000${path}`;
+  return buildRuntimeApiUrl(path);
 }
 
 export async function fetchEnvelope<T>(path: string): Promise<T> {

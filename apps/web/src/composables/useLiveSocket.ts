@@ -4,10 +4,7 @@ import {
   normalizeMarketDataTickLiveEvent,
   type MarketDataTickLiveEvent,
 } from "./marketDataRealtime";
-
-const apiBaseUrl = (
-  import.meta.env.VITE_API_BASE_URL as string | undefined
-)?.replace(/\/$/, "");
+import { buildRuntimeLiveSocketUrl } from "../runtimeConfig";
 const MAX_BUFFERED_EVENTS = 20;
 const INITIAL_RECONNECT_DELAY_MS = 500;
 const MAX_RECONNECT_DELAY_MS = 5000;
@@ -43,16 +40,7 @@ export type LiveSocketEvent =
     };
 
 function buildLiveSocketUrl(path: string): string {
-  if (!apiBaseUrl) {
-    return `ws://127.0.0.1:3000${path}`;
-  }
-
-  const url = new URL(apiBaseUrl);
-  url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
-  url.pathname = path;
-  url.search = "";
-  url.hash = "";
-  return url.toString();
+  return buildRuntimeLiveSocketUrl(path);
 }
 
 export function useLiveSocket() {
