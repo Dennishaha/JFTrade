@@ -166,9 +166,18 @@ func buildOpenAPIComponents() map[string]any {
 				},
 				"required": []string{"brokerId", "accountId", "tradingEnvironment", "market"},
 			},
+			"StrategyBindingInstrument": map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"market": map[string]any{"type": "string", "example": "US"},
+					"code":   map[string]any{"type": "string", "example": "AAPL"},
+				},
+				"required": []string{"market", "code"},
+			},
 			"StrategyInstanceBinding": map[string]any{
 				"type": "object",
 				"properties": map[string]any{
+					"instruments":   map[string]any{"type": "array", "items": schemaRef("StrategyBindingInstrument")},
 					"symbols":       map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
 					"interval":      map[string]any{"type": "string", "example": "5m"},
 					"executionMode": map[string]any{"type": "string", "example": "notify_only"},

@@ -61,6 +61,35 @@ describe("OrderEntryPanel", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("submits explicit market and code payloads", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ ok: true, data: { internalOrderId: "io-1", brokerOrderId: "bo-1" } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { wrapper } = mountOrderEntryPanel({
+      snapshotPrice: 321.234,
+      priceSpread: 0.01,
+    });
+
+    await nextTick();
+    await findSubmitButton(wrapper).trigger("click");
+    await nextTick();
+
+    const orderCall = fetchMock.mock.calls.find((entry) =>
+      String(entry[0]).includes("/api/v1/execution/orders"),
+    );
+    expect(orderCall).toBeTruthy();
+
+    const init = orderCall?.[1] as RequestInit | undefined;
+    expect(init?.method).toBe("POST");
+    const payload = JSON.parse(String(init?.body));
+    expect(payload.market).toBe("HK");
+    expect(payload.code).toBe("00700");
+    expect(payload.symbol).toBe("HK.00700");
+  });
+
   it("explains max trade quantity session, unit, and empty IM values", async () => {
     const { wrapper } = mountOrderEntryPanel({
       snapshotPrice: 321.234,

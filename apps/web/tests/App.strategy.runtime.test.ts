@@ -11,7 +11,7 @@ import type { SystemStatusResponse } from "@jftrade/ui-contracts"
 
 import {
   MockEventSource,
-  appendSymbolTags,
+  appendInstrumentTags,
   buildDslScript,
   buildFetchMock,
   buildRuntimeAccount,
@@ -24,6 +24,7 @@ import {
   settleStrategyWorkspace,
   waitForSelector,
 } from "./strategyPageTestUtils"
+import { createResponse } from "./helpers"
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -260,38 +261,36 @@ describe("Strategy page", () => {
   })
 
   it("creates, updates, and deletes a strategy instance with bindings", async () => {
-    vi.stubGlobal(
-      "fetch",
-      buildFetchMock({
-        brokerRuntime: buildRuntimeAccount({
-          descriptor: {
-            ...emptyBrokerRuntime.descriptor,
-            id: "futu",
-          },
-          accounts: [
-            {
-              accountId: "123456",
-              tradingEnvironment: "SIMULATE",
-              marketAuthorities: ["US"],
-              securityFirm: "futu-securities",
-            },
-          ],
-        }),
-        definitions: [
+    const fetchMock = buildFetchMock({
+      brokerRuntime: buildRuntimeAccount({
+        descriptor: {
+          ...emptyBrokerRuntime.descriptor,
+          id: "futu",
+        },
+        accounts: [
           {
-            id: "dsl-breakout",
-            name: "DSL Breakout",
-            version: "0.1.0",
-            description: "dsl strategy",
-            runtime: "dsl-go-plan",
-            script: buildDslScript("DSL Breakout"),
-            createdAt: "2026-05-23T00:00:00.000Z",
-            updatedAt: "2026-05-23T00:00:00.000Z",
+            accountId: "123456",
+            tradingEnvironment: "SIMULATE",
+            marketAuthorities: ["US"],
+            securityFirm: "futu-securities",
           },
         ],
-        strategies: [],
       }),
-    )
+      definitions: [
+        {
+          id: "dsl-breakout",
+          name: "DSL Breakout",
+          version: "0.1.0",
+          description: "dsl strategy",
+          runtime: "dsl-go-plan",
+          script: buildDslScript("DSL Breakout"),
+          createdAt: "2026-05-23T00:00:00.000Z",
+          updatedAt: "2026-05-23T00:00:00.000Z",
+        },
+      ],
+      strategies: [],
+    })
+    vi.stubGlobal("fetch", fetchMock)
     vi.stubGlobal(
       "EventSource",
       MockEventSource as unknown as typeof EventSource,
@@ -307,11 +306,33 @@ describe("Strategy page", () => {
 
     await openCreateInstancePanel(wrapper)
 
-    await appendSymbolTags(wrapper, '[data-testid="strategy-instance-symbols"]', ["us:aapl", "hk:00700"])
+    await appendInstrumentTags(
+      wrapper,
+      {
+        market: '[data-testid="strategy-instance-symbol-market"]',
+        code: '[data-testid="strategy-instance-symbols"]',
+      },
+      [
+        { market: "US", code: "aapl" },
+        { market: "HK", code: "00700" },
+      ],
+    )
     await wrapper.get('[data-testid="strategy-instance-interval"]').setValue("15m")
     await wrapper.get('[data-testid="strategy-instance-execution-mode"]').setValue("notify_only")
     await wrapper.get('[data-testid="strategy-create-instance"]').trigger("click")
     await settleStrategyWorkspace()
+
+    const instantiateCall = fetchMock.mock.calls.find(([input, init]) => (
+      String(input).includes("/instantiate")
+      && init?.method === "POST"
+    ))
+    expect(instantiateCall).toBeDefined()
+    const instantiatePayload = JSON.parse(String(instantiateCall?.[1]?.body ?? "{}"))
+    expect(instantiatePayload.instruments).toEqual([
+      { market: "US", code: "AAPL" },
+      { market: "HK", code: "00700" },
+    ])
+    expect(instantiatePayload.symbols).toEqual(["US.AAPL", "HK.00700"])
 
     expect(wrapper.text()).toContain("DSL Breakout")
     expect(wrapper.text()).toContain("US.AAPL, HK.00700")
@@ -324,11 +345,31 @@ describe("Strategy page", () => {
 
     expect(wrapper.find('[data-testid="strategy-edit-instance-panel"]').exists()).toBe(true)
 
-    await appendSymbolTags(wrapper, '[data-testid="strategy-edit-symbols"]', ["us:msft"])
+    await appendInstrumentTags(
+      wrapper,
+      {
+        market: '[data-testid="strategy-edit-symbol-market"]',
+        code: '[data-testid="strategy-edit-symbols"]',
+      },
+      [{ market: "US", code: "msft" }],
+    )
     await wrapper.get('[data-testid="strategy-edit-interval"]').setValue("30m")
     await wrapper.get('[data-testid="strategy-edit-execution-mode"]').setValue("live")
     await wrapper.get('[data-testid="strategy-update-binding"]').trigger("click")
     await settleStrategyWorkspace()
+
+    const updateCall = fetchMock.mock.calls.find(([input, init]) => (
+      /\/api\/v1\/strategies\/[^/]+$/.test(String(input))
+      && init?.method === "PUT"
+    ))
+    expect(updateCall).toBeDefined()
+    const updatePayload = JSON.parse(String(updateCall?.[1]?.body ?? "{}"))
+    expect(updatePayload.instruments).toEqual([
+      { market: "US", code: "AAPL" },
+      { market: "HK", code: "00700" },
+      { market: "US", code: "MSFT" },
+    ])
+    expect(updatePayload.symbols).toEqual(["US.AAPL", "HK.00700", "US.MSFT"])
 
     expect(wrapper.text()).toContain("US.MSFT")
     expect(wrapper.text()).toContain("30m")
@@ -581,12 +622,13 @@ describe("Strategy page", () => {
     await openCreateInstancePanel(wrapper)
 
     const symbolInput = wrapper.get('[data-testid="strategy-instance-symbols"]')
-    await symbolInput.setValue("tme")
+  await wrapper.get('[data-testid="strategy-instance-symbol-market"]').setValue("US")
+  await symbolInput.setValue("bad input")
     await symbolInput.trigger("blur")
     await settleStrategyWorkspace()
 
     expect((wrapper.get('[data-testid="strategy-instance-symbols"]').element as HTMLInputElement).value).toBe("")
-    expect(wrapper.get('[data-testid="strategy-instance-symbols-validation"]').text()).toContain("带市场前缀")
+  expect(wrapper.get('[data-testid="strategy-instance-symbols-validation"]').text()).toContain("请选择市场后输入代码")
 
     await wrapper.get('[data-testid="strategy-create-instance"]').trigger("click")
     await settleStrategyWorkspace()
@@ -734,6 +776,119 @@ describe("Strategy page", () => {
     expect(runtimeTimes[0].text()).not.toContain("T")
     expect(runtimeTimes[0].attributes("title")).toContain("UTC")
     expect(wrapper.text()).toContain("network glitch")
+
+    wrapper.unmount()
+  })
+
+  it("refreshes selected strategy runtime content on demand", async () => {
+    const initialStrategy = {
+      id: "instance-1",
+      definition: {
+        strategyId: "s-alpha",
+        name: "Alpha",
+        version: "1.0.0",
+      },
+      runtime: "dsl-go-plan",
+      sourceFormat: "dsl-v1" as const,
+      startable: true,
+      binding: {
+        symbols: ["US.TME"],
+        interval: "1m",
+        executionMode: "live" as const,
+      },
+      params: { fast: 5 },
+      status: "RUNNING" as const,
+      createdAt: "2026-05-16T00:00:00.000Z",
+      logs: [],
+    }
+    const refreshedStrategy = {
+      ...initialStrategy,
+      runtimeObservation: {
+        actualStatus: "RUNNING" as const,
+        activeSymbols: ["US.TME"],
+        lastClosedKlineAt: "2026-05-16T00:03:00.000Z",
+        lastSignalAt: "2026-05-16T00:03:05.000Z",
+        lastOrderAt: "2026-05-16T00:03:06.000Z",
+        updatedAt: "2026-05-16T00:03:06.000Z",
+      },
+    }
+    const baseFetch = buildFetchMock({
+      strategies: [initialStrategy],
+      logsById: {
+        "instance-1": ["2026-05-16T00:00:00.000Z started strategy s-alpha"],
+      },
+      auditById: {
+        "instance-1": [
+          {
+            instanceId: "instance-1",
+            kind: "started",
+            detail: "s-alpha",
+            at: "2026-05-16T00:00:00.000Z",
+          },
+        ],
+      },
+    })
+    let refreshed = false
+    const dynamicFetch = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input)
+      if (refreshed && /\/api\/v1\/strategies(?:\?|$)/.test(url)) {
+        return createResponse([refreshedStrategy])
+      }
+      if (refreshed && url.includes("/api/v1/strategies/instance-1/logs")) {
+        return createResponse({
+          instanceId: "instance-1",
+          logs: ["2026-05-16T00:03:05.000Z signal emitted for US.TME"],
+          page: {
+            limit: 500,
+            offset: 0,
+            total: 1,
+            returned: 1,
+            hasMore: false,
+          },
+        })
+      }
+      if (refreshed && url.includes("/api/v1/strategies/instance-1/audit")) {
+        return createResponse({
+          instanceId: "instance-1",
+          entries: [
+            {
+              instanceId: "instance-1",
+              kind: "signal.emitted",
+              detail: "US.TME",
+              at: "2026-05-16T00:03:05.000Z",
+            },
+          ],
+          page: {
+            limit: 500,
+            offset: 0,
+            total: 1,
+            returned: 1,
+            hasMore: false,
+          },
+        })
+      }
+      return baseFetch(input, init)
+    })
+
+    vi.stubGlobal("fetch", dynamicFetch)
+    vi.stubGlobal(
+      "EventSource",
+      MockEventSource as unknown as typeof EventSource,
+    )
+
+    const { wrapper } = await mountStrategyPage("/strategy")
+    await openStrategyWorkspaceTab(wrapper, "runtime")
+
+    expect(wrapper.text()).toContain("started strategy s-alpha")
+    expect(wrapper.find('[data-testid="strategy-runtime-observation"]').exists()).toBe(false)
+
+    refreshed = true
+    await wrapper.get('[data-testid="strategy-refresh-content"]').trigger("click")
+    await settleStrategyWorkspace()
+
+    expect(wrapper.find('[data-testid="strategy-runtime-observation"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain("US.TME")
+    expect(wrapper.text()).toContain("signal emitted for US.TME")
 
     wrapper.unmount()
   })

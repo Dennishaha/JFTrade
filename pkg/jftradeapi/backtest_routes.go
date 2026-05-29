@@ -40,6 +40,8 @@ func (s *Server) serveBacktestRoutes(w http.ResponseWriter, r *http.Request) boo
 
 type backtestStartRequest struct {
 	DefinitionID   string  `json:"definitionId"`
+	Market         string  `json:"market"`
+	Code           string  `json:"code"`
 	Symbol         string  `json:"symbol"`
 	Interval       string  `json:"interval"`
 	StartTime      string  `json:"startTime"`
@@ -71,10 +73,14 @@ func (s *Server) handleBacktestStart(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "definitionId is required")
 		return
 	}
-	if strings.TrimSpace(req.Symbol) == "" {
-		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "symbol is required")
+	instrument, err := normalizeInstrumentInput(req.Market, req.Symbol, req.Code)
+	if err != nil {
+		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", err.Error())
 		return
 	}
+	req.Market = instrument.Market
+	req.Code = instrument.Code
+	req.Symbol = instrument.Symbol
 	if strings.TrimSpace(req.Interval) == "" {
 		req.Interval = "1m"
 	}
@@ -188,6 +194,8 @@ func (s *Server) backtestDBPath() string {
 }
 
 type backtestSyncRequest struct {
+	Market    string   `json:"market"`
+	Code      string   `json:"code"`
 	Symbol    string   `json:"symbol"`
 	Intervals []string `json:"intervals"`
 	Since     string   `json:"since"`
@@ -201,9 +209,18 @@ func (s *Server) handleBacktestSync(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "invalid sync request")
 		return
 	}
-	if strings.TrimSpace(req.Symbol) == "" {
-		req.Symbol = "HK.00700"
+	if strings.TrimSpace(req.Symbol) == "" && strings.TrimSpace(req.Code) == "" {
+		req.Market = "HK"
+		req.Code = "00700"
 	}
+	instrument, err := normalizeInstrumentInput(req.Market, req.Symbol, req.Code)
+	if err != nil {
+		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", err.Error())
+		return
+	}
+	req.Market = instrument.Market
+	req.Code = instrument.Code
+	req.Symbol = instrument.Symbol
 	if len(req.Intervals) == 0 {
 		req.Intervals = []string{"1m", "5m", "15m", "30m", "1h", "1d", "1w"}
 	}

@@ -7,6 +7,7 @@ import {
   formatOrderTypeLabel,
   formatTimeInForceLabel,
 } from "../../composables/consoleDataFormatting";
+import { resolveInstrumentRef } from "../../composables/instrumentRef";
 import { useConsoleData } from "../../composables/useConsoleData";
 import { useNotifications } from "../../composables/useNotifications";
 import { useWorkspaceLayout } from "../../composables/useWorkspaceLayout";
@@ -55,9 +56,10 @@ const isLimit = computed(
 const security = computed(() => marketSecurityDetails.value?.security ?? null);
 const latestSnapshot = computed(() => {
   const snapshotResult = marketDataSnapshot.value;
-  const currentInstrumentId = `${prefs.value.market.trim().toUpperCase()}.${prefs.value.symbol.trim().toUpperCase()}`;
+  const currentInstrumentId = activeInstrument.value?.instrumentId ?? "";
   if (
     snapshotResult == null ||
+    currentInstrumentId === "" ||
     snapshotResult.request.instrumentId.trim().toUpperCase() !== currentInstrumentId
   ) {
     return null;
@@ -125,6 +127,15 @@ const activeAccountId = computed(
 );
 const activeMarket = computed(
   () => prefs.value.market.trim() || selectedBrokerAccount.value?.market || "",
+);
+const activeInstrument = computed(() =>
+  resolveInstrumentRef(
+    {
+      market: activeMarket.value,
+      code: prefs.value.symbol,
+    },
+    activeMarket.value,
+  ),
 );
 const isUSMarket = computed(
   () => activeMarket.value.trim().toUpperCase() === "US",
@@ -272,6 +283,10 @@ function resolveReferencePrice(value: number): number | null {
 }
 
 function resolveOrderPriceStep(value: number): number {
+  const securitySpread = security.value?.priceSpread;
+  if (typeof securitySpread === "number" && Number.isFinite(securitySpread) && securitySpread > 0) {
+    return securitySpread;
+  }
   const market = activeMarket.value.trim().toUpperCase();
   if (market === "US") {
     const referencePrice = resolveReferencePrice(value);
@@ -353,12 +368,16 @@ function formatInitialMargin(value: number | null | undefined): string {
 }
 
 async function loadMaxTradeQuantity(): Promise<void> {
+  const instrument = activeInstrument.value;
+  if (instrument == null) {
+    return;
+  }
   const request = {
     brokerId: activeBrokerId.value,
     tradingEnvironment: activeTradingEnvironment.value,
     accountId: activeAccountId.value,
-    market: activeMarket.value,
-    symbol: `${activeMarket.value}.${prefs.value.symbol.trim()}`,
+    market: instrument.market,
+    symbol: instrument.instrumentId,
     orderType: orderType.value,
     price: maxTradeQuantityReferencePrice.value,
     ...(isUSMarket.value ? { session: orderSession.value } : {}),
@@ -368,6 +387,16 @@ async function loadMaxTradeQuantity(): Promise<void> {
 
 async function submit(): Promise<void> {
   if (submitting.value) return;
+  const instrument = activeInstrument.value;
+  if (instrument == null) {
+    notifications.push({
+      level: "warn",
+      title: "标的无效",
+      message: "请先选择有效的市场与代码。",
+      source: "order-entry",
+    });
+    return;
+  }
   if (!quantity.value || quantity.value <= 0) {
     notifications.push({
       level: "warn",
@@ -413,8 +442,9 @@ async function submit(): Promise<void> {
       brokerId: activeBrokerId.value,
       tradingEnvironment: activeTradingEnvironment.value,
       accountId: activeAccountId.value,
-      market: activeMarket.value,
-      symbol: prefs.value.symbol.trim(),
+      market: instrument.market,
+      code: instrument.code,
+      symbol: instrument.instrumentId,
       side: side.value,
       orderType: orderType.value,
       timeInForce: tif.value,

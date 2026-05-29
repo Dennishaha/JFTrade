@@ -15,6 +15,7 @@ import (
 	bbgotypes "github.com/c9s/bbgo/pkg/types"
 
 	"github.com/jftrade/jftrade-main/pkg/futu"
+	"github.com/jftrade/jftrade-main/pkg/futu/opend"
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 )
 
@@ -26,6 +27,8 @@ type strategyRuntimeStubExchange struct {
 	positions         []futu.BrokerPositionSnapshot
 	placedOrders      []bbgotypes.SubmitOrder
 	nextOrderID       uint64
+	queryFundsErr     error
+	queryPositionsErr error
 	panicOnPlaceOrder bool
 }
 
@@ -87,6 +90,8 @@ func (e *strategyRuntimeStubExchange) NewStream() bbgotypes.Stream {
 }
 
 func (e *strategyRuntimeStubExchange) QueryMarkets(context.Context) (bbgotypes.MarketMap, error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
 	result := make(bbgotypes.MarketMap, len(e.markets))
 	for symbol, market := range e.markets {
 		result[symbol] = market
@@ -130,6 +135,8 @@ func (e *strategyRuntimeStubExchange) QueryTicker(_ context.Context, symbol stri
 }
 
 func (e *strategyRuntimeStubExchange) QueryTickers(_ context.Context, symbols ...string) (map[string]bbgotypes.Ticker, error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
 	result := make(map[string]bbgotypes.Ticker, len(symbols))
 	for _, symbol := range symbols {
 		price := 100.0
@@ -147,6 +154,8 @@ func (e *strategyRuntimeStubExchange) QueryTickers(_ context.Context, symbols ..
 }
 
 func (e *strategyRuntimeStubExchange) QueryKLines(_ context.Context, symbol string, interval bbgotypes.Interval, options bbgotypes.KLineQueryOptions) ([]bbgotypes.KLine, error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
 	history := append([]bbgotypes.KLine(nil), e.history[strings.ToUpper(strings.TrimSpace(symbol))]...)
 	for index := range history {
 		history[index].Interval = interval
@@ -155,6 +164,18 @@ func (e *strategyRuntimeStubExchange) QueryKLines(_ context.Context, symbol stri
 		history = history[len(history)-options.Limit:]
 	}
 	return history, nil
+}
+
+func (e *strategyRuntimeStubExchange) appendHistory(symbol string, klines ...bbgotypes.KLine) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	normalizedSymbol := strings.ToUpper(strings.TrimSpace(symbol))
+	if normalizedSymbol == "" {
+		return
+	}
+	nextHistory := append([]bbgotypes.KLine(nil), e.history[normalizedSymbol]...)
+	nextHistory = append(nextHistory, klines...)
+	e.history[normalizedSymbol] = nextHistory
 }
 
 func (e *strategyRuntimeStubExchange) QueryAccount(context.Context) (*bbgotypes.Account, error) {
@@ -178,12 +199,18 @@ func (e *strategyRuntimeStubExchange) CancelOrders(context.Context, ...bbgotypes
 }
 
 func (e *strategyRuntimeStubExchange) QueryBrokerFunds(context.Context, futu.BrokerReadQuery) (*futu.BrokerFundsSnapshot, error) {
+	if e.queryFundsErr != nil {
+		return nil, e.queryFundsErr
+	}
 	copyValue := *e.funds
 	copyValue.CurrencyBalances = append([]futu.BrokerCurrencyBalanceSnapshot(nil), e.funds.CurrencyBalances...)
 	return &copyValue, nil
 }
 
 func (e *strategyRuntimeStubExchange) QueryBrokerPositions(context.Context, futu.BrokerReadQuery) ([]futu.BrokerPositionSnapshot, error) {
+	if e.queryPositionsErr != nil {
+		return nil, e.queryPositionsErr
+	}
 	return append([]futu.BrokerPositionSnapshot(nil), e.positions...), nil
 }
 
@@ -220,6 +247,15 @@ func (e *strategyRuntimeStubExchange) placedOrderCount() int {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	return len(e.placedOrders)
+}
+
+func (e *strategyRuntimeStubExchange) lastPlacedOrder() (bbgotypes.SubmitOrder, bool) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if len(e.placedOrders) == 0 {
+		return bbgotypes.SubmitOrder{}, false
+	}
+	return e.placedOrders[len(e.placedOrders)-1], true
 }
 
 func TestStrategyRuntimeNotifyOnlyEmitsSignalNotification(t *testing.T) {
@@ -321,6 +357,13 @@ func TestStrategyRuntimeLiveModeRecordsExecutionOrder(t *testing.T) {
 	if got := stub.placedOrderCount(); got != 1 {
 		t.Fatalf("expected 1 broker order, got %d", got)
 	}
+	placedOrder, ok := stub.lastPlacedOrder()
+	if !ok {
+		t.Fatal("expected placed order")
+	}
+	if placedOrder.TimeInForce != bbgotypes.TimeInForce("DAY") {
+		t.Fatalf("expected live strategy order timeInForce DAY, got %q", placedOrder.TimeInForce)
+	}
 	orders := server.executionOrders.listOrders().Orders
 	if len(orders) != 1 {
 		t.Fatalf("expected 1 execution order, got %+v", orders)
@@ -352,6 +395,233 @@ func TestStrategyRuntimeLiveModeRecordsExecutionOrder(t *testing.T) {
 	}
 	if !foundSubmitted {
 		t.Fatalf("expected order_submitted audit entry, got %+v", audit.Entries)
+	}
+}
+
+func TestStrategyRuntimeRefreshesBrokerPositionsBeforeSellOnKLineClose(t *testing.T) {
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	server := NewServer(store)
+	stub := newStrategyRuntimeStubExchange()
+	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return stub }
+
+	definition := strategyDesignDefinition{
+		ID:           "runtime-sell-test",
+		Name:         "Runtime Sell Test",
+		Version:      "0.1.0",
+		Runtime:      strategyRuntimeDSLPlan,
+		SourceFormat: strategydefinition.SourceFormatDSLV1,
+		Script:       "strategy Runtime Sell Test\non kline_close:\n  sell shares 1 policy same_direction type MARKET",
+	}
+	instance, err := server.strategyStore.instantiateStrategy(definition, strategyInstanceBinding{
+		Symbols:       []string{"US.AAPL"},
+		Interval:      "1m",
+		ExecutionMode: strategyExecutionModeLive,
+		BrokerAccount: &strategyBrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
+	})
+	if err != nil {
+		t.Fatalf("instantiateStrategy: %v", err)
+	}
+	instanceRecord, ok := server.strategyStore.strategy(instance.ID)
+	if !ok {
+		t.Fatalf("strategy(%s) not found", instance.ID)
+	}
+	if err := server.strategyRuntimeManager.startStrategy(context.Background(), instanceRecord); err != nil {
+		t.Fatalf("startStrategy: %v", err)
+	}
+	if _, err := server.strategyStore.transitionStrategy(instance.ID, strategyStatusRunning, "started", "test start"); err != nil {
+		t.Fatalf("transitionStrategy start: %v", err)
+	}
+	defer server.strategyRuntimeManager.stopStrategy(instance.ID)
+
+	stub.positions = []futu.BrokerPositionSnapshot{{
+		Market:           "US",
+		Symbol:           "AAPL",
+		Quantity:         1,
+		SellableQuantity: 1,
+	}}
+
+	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 100, strategyRuntimeTestTime(10, 0, 30)))
+	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 101, strategyRuntimeTestTime(10, 1, 0)))
+
+	if got := stub.placedOrderCount(); got != 1 {
+		t.Fatalf("expected 1 broker order after runtime position refresh, got %d", got)
+	}
+	orders := server.executionOrders.listOrders().Orders
+	if len(orders) != 1 {
+		t.Fatalf("expected 1 execution order, got %+v", orders)
+	}
+	if orders[0].Side == nil || *orders[0].Side != "SELL" {
+		t.Fatalf("expected SELL execution order, got %+v", orders[0])
+	}
+	if orders[0].RequestedQuantity == nil || *orders[0].RequestedQuantity != 1 {
+		t.Fatalf("expected quantity 1 execution order, got %+v", orders[0])
+	}
+	if runtime := server.strategyRuntimeManager.runtime(instance.ID); runtime == nil {
+		t.Fatalf("expected active runtime for %s", instance.ID)
+	}
+	audit, ok := server.strategyStore.strategyAudit(instance.ID)
+	if !ok {
+		t.Fatalf("strategyAudit(%s) not found", instance.ID)
+	}
+	foundSubmitted := false
+	for _, entry := range audit.Entries {
+		if entry.Kind == "order_submitted" {
+			foundSubmitted = true
+			break
+		}
+	}
+	if !foundSubmitted {
+		t.Fatalf("expected order_submitted audit entry, got %+v", audit.Entries)
+	}
+}
+
+func TestStrategyRuntimeDisconnectedBrokerRefreshKeepsCachedState(t *testing.T) {
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	server := NewServer(store)
+	stub := newStrategyRuntimeStubExchange()
+	stub.positions = []futu.BrokerPositionSnapshot{{
+		Symbol:           "US.AAPL",
+		Quantity:         1,
+		SellableQuantity: 1,
+	}}
+	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return stub }
+
+	definition := strategyDesignDefinition{
+		ID:           "runtime-disconnected-refresh-test",
+		Name:         "Runtime Disconnected Refresh Test",
+		Version:      "0.1.0",
+		Runtime:      strategyRuntimeDSLPlan,
+		SourceFormat: strategydefinition.SourceFormatDSLV1,
+		Script:       "strategy Runtime Disconnected Refresh Test\non kline_close:\n  sell shares 1 policy same_direction type MARKET",
+	}
+	instance, err := server.strategyStore.instantiateStrategy(definition, strategyInstanceBinding{
+		Symbols:       []string{"US.AAPL"},
+		Interval:      "1m",
+		ExecutionMode: strategyExecutionModeLive,
+		BrokerAccount: &strategyBrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
+	})
+	if err != nil {
+		t.Fatalf("instantiateStrategy: %v", err)
+	}
+	instanceRecord, ok := server.strategyStore.strategy(instance.ID)
+	if !ok {
+		t.Fatalf("strategy(%s) not found", instance.ID)
+	}
+	if err := server.strategyRuntimeManager.startStrategy(context.Background(), instanceRecord); err != nil {
+		t.Fatalf("startStrategy: %v", err)
+	}
+	if _, err := server.strategyStore.transitionStrategy(instance.ID, strategyStatusRunning, "started", "test start"); err != nil {
+		t.Fatalf("transitionStrategy start: %v", err)
+	}
+	defer server.strategyRuntimeManager.stopStrategy(instance.ID)
+
+	stub.queryFundsErr = opend.ErrClosed
+	stub.queryPositionsErr = opend.ErrClosed
+
+	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 100, strategyRuntimeTestTime(10, 0, 30)))
+	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 101, strategyRuntimeTestTime(10, 1, 0)))
+
+	if got := stub.placedOrderCount(); got != 1 {
+		t.Fatalf("expected cached position to allow 1 broker order, got %d", got)
+	}
+	audit, ok := server.strategyStore.strategyAudit(instance.ID)
+	if !ok {
+		t.Fatalf("strategyAudit(%s) not found", instance.ID)
+	}
+	for _, entry := range audit.Entries {
+		if entry.Kind == "runtime_error" && strings.Contains(entry.Detail, "client closed") {
+			t.Fatalf("expected disconnected refresh to avoid runtime_error audit entry, got %+v", audit.Entries)
+		}
+	}
+	observation, ok := server.strategyRuntimeManager.runtimeObservation(instance.ID)
+	if !ok {
+		t.Fatalf("expected runtime observation for %s", instance.ID)
+	}
+	if observation.LastError != nil {
+		t.Fatalf("expected runtime observation without lastError after disconnected refresh, got %+v", observation)
+	}
+}
+
+func TestStrategyRuntimePollsClosedKLinesWhenTradePushStalls(t *testing.T) {
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	server := NewServer(store)
+	stub := newStrategyRuntimeStubExchange()
+	stub.positions = []futu.BrokerPositionSnapshot{{
+		Market:           "US",
+		Symbol:           "AAPL",
+		Quantity:         3,
+		SellableQuantity: 3,
+	}}
+	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return stub }
+
+	originalInterval := strategyRuntimeClosedKLineSyncInterval
+	strategyRuntimeClosedKLineSyncInterval = 10 * time.Millisecond
+	defer func() {
+		strategyRuntimeClosedKLineSyncInterval = originalInterval
+	}()
+
+	definition := strategyDesignDefinition{
+		ID:           "runtime-poll-kline-test",
+		Name:         "Runtime Poll KLine Test",
+		Version:      "0.1.0",
+		Runtime:      strategyRuntimeDSLPlan,
+		SourceFormat: strategydefinition.SourceFormatDSLV1,
+		Script:       "strategy Runtime Poll KLine Test\non kline_close:\n  sell shares 1 policy same_direction type MARKET",
+	}
+	instance, err := server.strategyStore.instantiateStrategy(definition, strategyInstanceBinding{
+		Symbols:       []string{"US.AAPL"},
+		Interval:      "1m",
+		ExecutionMode: strategyExecutionModeLive,
+		BrokerAccount: &strategyBrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
+	})
+	if err != nil {
+		t.Fatalf("instantiateStrategy: %v", err)
+	}
+	instanceRecord, ok := server.strategyStore.strategy(instance.ID)
+	if !ok {
+		t.Fatalf("strategy(%s) not found", instance.ID)
+	}
+	if err := server.strategyRuntimeManager.startStrategy(context.Background(), instanceRecord); err != nil {
+		t.Fatalf("startStrategy: %v", err)
+	}
+	if _, err := server.strategyStore.transitionStrategy(instance.ID, strategyStatusRunning, "started", "test start"); err != nil {
+		t.Fatalf("transitionStrategy start: %v", err)
+	}
+	defer server.strategyRuntimeManager.stopStrategy(instance.ID)
+
+	stub.appendHistory(
+		"US.AAPL",
+		strategyRuntimeHistoricalKLine("US.AAPL", "1m", 100, strategyRuntimeTestTime(10, 0, 0)),
+		strategyRuntimeHistoricalKLine("US.AAPL", "1m", 101, strategyRuntimeTestTime(10, 1, 0)),
+		strategyRuntimeHistoricalKLine("US.AAPL", "1m", 102, strategyRuntimeTestTime(10, 2, 0)),
+	)
+
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if stub.placedOrderCount() >= 3 {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	if got := stub.placedOrderCount(); got != 3 {
+		t.Fatalf("expected 3 broker orders from polled closed klines, got %d", got)
+	}
+	observation, ok := server.strategyRuntimeManager.runtimeObservation(instance.ID)
+	if !ok {
+		t.Fatalf("expected runtime observation for %s", instance.ID)
+	}
+	if observation.LastClosedKLineAt == nil || observation.LastOrderAt == nil {
+		t.Fatalf("expected runtime observation to record polled kline/order timestamps, got %+v", observation)
 	}
 }
 

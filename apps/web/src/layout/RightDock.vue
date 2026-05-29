@@ -54,6 +54,7 @@ function toggle(): void {
           :key="tab.id"
           class="tv-dock-tab"
           :class="{ 'is-active': prefs.rightDockTab === tab.id }"
+          :data-testid="`rightdock-tab-${tab.id}`"
           @click="select(tab.id)"
         >
           {{ tab.label }}
@@ -67,7 +68,7 @@ function toggle(): void {
         <div style="font-size: 11px; color: var(--tv-text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px">
           标的
         </div>
-        <div style="font-size: 18px; font-weight: 600; margin-bottom: 8px">{{ symbolInfo }}</div>
+        <div data-testid="rightdock-symbol-info" style="font-size: 18px; font-weight: 600; margin-bottom: 8px">{{ symbolInfo }}</div>
         <table class="tv-table">
           <tbody>
             <tr><td>最新价</td><td class="tv-num">{{ snap?.price ?? "—" }}</td></tr>

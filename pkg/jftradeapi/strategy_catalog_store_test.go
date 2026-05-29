@@ -21,7 +21,11 @@ func TestNormalizeStrategyDoesNotShareReferenceFields(t *testing.T) {
 		},
 		Params: map[string]any{
 			"definitionId": "mean-revert",
-			"symbols":      []string{"US.AAPL"},
+			"instruments": []map[string]any{{
+				"market": "US",
+				"code":   "AAPL",
+			}},
+			"symbols": []string{"US.AAPL"},
 			"brokerAccount": map[string]any{
 				"brokerId":           "futu",
 				"accountId":          "123456",
@@ -46,12 +50,18 @@ func TestNormalizeStrategyDoesNotShareReferenceFields(t *testing.T) {
 		t.Fatalf("normalized symbols = %#v", normalized.Params["symbols"])
 	}
 	normalizedSymbols[0] = "HK.00700"
+	normalizedInstruments, ok := normalized.Params["instruments"].([]map[string]any)
+	if !ok || len(normalizedInstruments) != 1 {
+		t.Fatalf("normalized instruments = %#v", normalized.Params["instruments"])
+	}
+	normalizedInstruments[0]["code"] = "00700"
 	normalizedBrokerAccount, ok := normalized.Params["brokerAccount"].(map[string]any)
 	if !ok {
 		t.Fatalf("normalized brokerAccount type = %T", normalized.Params["brokerAccount"])
 	}
 	normalizedBrokerAccount["brokerId"] = "ib"
 	normalized.Binding.Symbols[0] = "US.MSFT"
+	normalized.Binding.Instruments[0].Code = "MSFT"
 	if normalized.Binding.BrokerAccount == nil {
 		t.Fatal("expected normalized binding broker account")
 	}
@@ -64,9 +74,30 @@ func TestNormalizeStrategyDoesNotShareReferenceFields(t *testing.T) {
 	if !ok || len(inputSymbols) != 1 || inputSymbols[0] != "US.AAPL" {
 		t.Fatalf("input symbols shared with normalized copy: %#v", input.Params["symbols"])
 	}
+	inputInstruments, ok := input.Params["instruments"].([]map[string]any)
+	if !ok || len(inputInstruments) != 1 || inputInstruments[0]["code"] != "AAPL" {
+		t.Fatalf("input instruments shared with normalized copy: %#v", input.Params["instruments"])
+	}
 	inputBrokerAccount, ok := input.Params["brokerAccount"].(map[string]any)
 	if !ok || inputBrokerAccount["brokerId"] != "futu" {
 		t.Fatalf("input brokerAccount shared with normalized copy: %#v", input.Params["brokerAccount"])
+	}
+}
+
+func TestNormalizeStrategyInstanceBindingPrefersExplicitInstruments(t *testing.T) {
+	got := normalizeStrategyInstanceBinding(strategyInstanceBinding{
+		Instruments: []strategyBindingInstrument{
+			{Market: "us", Code: "aapl"},
+			{Market: "hk", Code: "00700"},
+		},
+		Symbols: []string{"US.MSFT"},
+	}, nil)
+
+	if len(got.Symbols) != 2 || got.Symbols[0] != "US.AAPL" || got.Symbols[1] != "HK.00700" {
+		t.Fatalf("normalized symbols = %+v", got.Symbols)
+	}
+	if len(got.Instruments) != 2 || got.Instruments[0].Market != "US" || got.Instruments[0].Code != "AAPL" || got.Instruments[1].Market != "HK" || got.Instruments[1].Code != "00700" {
+		t.Fatalf("normalized instruments = %+v", got.Instruments)
 	}
 }
 

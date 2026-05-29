@@ -1,7 +1,10 @@
 import { computed, reactive, ref, type ComputedRef } from "vue";
 
+import type { BacktestStartRequestPayload, BacktestSyncRequestPayload } from "@jftrade/ui-contracts";
+
 import type { BacktestTrade, BacktestPnlPoint, BacktestDrawdownPoint, BacktestCandle } from "../components/BacktestChart.vue";
 import { fetchEnvelope, fetchEnvelopeWithInit } from "./apiClient";
+import { resolveInstrumentRef } from "./instrumentRef";
 
 type BacktestDecimalTransport = string | number;
 
@@ -133,11 +136,14 @@ interface BacktestRun {
   status: string;
   request: {
     definitionId: string;
+    market?: string;
+    code?: string;
     symbol: string;
     interval: string;
     startTime: string;
     endTime: string;
     initialBalance: number;
+    rehabType?: string;
   };
   result?: BacktestRunResult | undefined;
   createdAt: string;
@@ -149,11 +155,14 @@ interface BacktestRunTransport {
   status: string;
   request: {
     definitionId: string;
+    market?: string;
+    code?: string;
     symbol: string;
     interval: string;
     startTime: string;
     endTime: string;
     initialBalance: number;
+    rehabType?: string;
   };
   result?: BacktestRunResultTransport | undefined;
   createdAt: string;
@@ -162,6 +171,8 @@ interface BacktestRunTransport {
 
 export interface BacktestFormState {
   definitionId: string;
+  market: string;
+  code: string;
   instrumentId: string;
   interval: string;
   syncStartTime: string;
@@ -174,6 +185,27 @@ export interface BacktestFormState {
 
 interface UseBacktestRunsOptions {
   formState: ComputedRef<BacktestFormState>;
+}
+
+export function buildBacktestInstrumentPayload(
+  formState: Pick<BacktestFormState, "market" | "code" | "instrumentId">,
+): { market: string; code: string; symbol: string } | null {
+  const instrument = resolveInstrumentRef(
+    {
+      market: formState.market,
+      code: formState.code,
+      instrumentId: formState.instrumentId,
+    },
+    formState.market,
+  );
+  if (instrument == null) {
+    return null;
+  }
+  return {
+    market: instrument.market,
+    code: instrument.code,
+    symbol: instrument.instrumentId,
+  };
 }
 
 export function useBacktestRuns(options: UseBacktestRunsOptions) {
@@ -312,6 +344,11 @@ export function useBacktestRuns(options: UseBacktestRunsOptions) {
 
   async function syncKlines() {
     const formState = options.formState.value;
+    const instrument = buildBacktestInstrumentPayload(formState);
+    if (instrument == null) {
+      error.value = "同步启动失败: 请先输入有效的市场与代码";
+      return;
+    }
     syncing.value = true;
     error.value = "";
     syncTaskId.value = "";
@@ -319,18 +356,21 @@ export function useBacktestRuns(options: UseBacktestRunsOptions) {
     stopSyncPolling();
 
     try {
+      const payload: BacktestSyncRequestPayload = {
+        market: instrument.market,
+        code: instrument.code,
+        symbol: instrument.symbol,
+        intervals: [formState.interval],
+        since: formState.syncStartTime,
+        until: formState.syncEndTime,
+        rehabType: formState.rehabType,
+      };
       const data = await fetchEnvelopeWithInit<{ taskId: string; message: string }>(
         "/api/v1/backtests/sync",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            symbol: formState.instrumentId,
-            intervals: [formState.interval],
-            since: formState.syncStartTime,
-            until: formState.syncEndTime,
-            rehabType: formState.rehabType,
-          }),
+          body: JSON.stringify(payload),
         },
       );
 
@@ -394,24 +434,32 @@ export function useBacktestRuns(options: UseBacktestRunsOptions) {
   async function startBacktest() {
     const formState = options.formState.value;
     if (!formState.definitionId) return;
+    const instrument = buildBacktestInstrumentPayload(formState);
+    if (instrument == null) {
+      error.value = "启动回测失败: 请先输入有效的市场与代码";
+      return;
+    }
 
     running.value = true;
     error.value = "";
     try {
+      const payload: BacktestStartRequestPayload = {
+        definitionId: formState.definitionId,
+        market: instrument.market,
+        code: instrument.code,
+        symbol: instrument.symbol,
+        interval: formState.interval,
+        startTime: formState.backtestStartTime,
+        endTime: formState.backtestEndTime,
+        initialBalance: formState.initialBalance,
+        rehabType: formState.rehabType,
+      };
       const data = await fetchEnvelopeWithInit<{ id: string; status: string }>(
         "/api/v1/backtests",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            definitionId: formState.definitionId,
-            symbol: formState.instrumentId,
-            interval: formState.interval,
-            startTime: formState.backtestStartTime,
-            endTime: formState.backtestEndTime,
-            initialBalance: formState.initialBalance,
-            rehabType: formState.rehabType,
-          }),
+          body: JSON.stringify(payload),
         },
       );
       startPolling(data.id);

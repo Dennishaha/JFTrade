@@ -21,6 +21,7 @@ type executionPlaceOrderRequest struct {
 	Env                string   `json:"env"`
 	AccountID          string   `json:"accountId"`
 	Market             string   `json:"market"`
+	Code               string   `json:"code"`
 	Symbol             string   `json:"symbol"`
 	Side               string   `json:"side"`
 	OrderType          string   `json:"orderType"`
@@ -105,7 +106,15 @@ func (s *Server) handleExecutionPlaceOrder(w http.ResponseWriter, r *http.Reques
 	})
 }
 
+func executionSubmitOrderWithDefaults(order types.SubmitOrder) types.SubmitOrder {
+	if strings.TrimSpace(string(order.TimeInForce)) == "" {
+		order.TimeInForce = types.TimeInForce("DAY")
+	}
+	return order
+}
+
 func (s *Server) placeExecutionOrder(ctx context.Context, request normalizedExecutionPlaceOrder) (executionOrderSummaryResponse, error) {
+	request.submitOrder = executionSubmitOrderWithDefaults(request.submitOrder)
 	placed, err := s.brokerExecutionExchange().PlaceBrokerOrder(ctx, request.query, request.submitOrder)
 	if err != nil {
 		return executionOrderSummaryResponse{}, err
@@ -220,15 +229,12 @@ func (s *Server) normalizeExecutionPlaceOrder(payload executionPlaceOrderRequest
 		return normalizedExecutionPlaceOrder{}, fmt.Errorf("execution orders currently support brokerId=futu only")
 	}
 
-	fallbackMarket := strings.ToUpper(strings.TrimSpace(s.store.integration().Config.TradeMarket))
-	if fallbackMarket == "" {
-		fallbackMarket = "HK"
+	instrument, err := normalizeInstrumentInput(payload.Market, payload.Symbol, payload.Code)
+	if err != nil {
+		return normalizedExecutionPlaceOrder{}, err
 	}
-	market := normalizeExecutionMarket(payload.Market, payload.Symbol, fallbackMarket)
-	symbol := normalizeExecutionSymbol(market, payload.Symbol)
-	if symbol == "" {
-		return normalizedExecutionPlaceOrder{}, fmt.Errorf("symbol is required")
-	}
+	market := instrument.Market
+	symbol := instrument.Symbol
 
 	side, bbgoSide, err := normalizeExecutionSide(payload.Side)
 	if err != nil {
@@ -348,51 +354,6 @@ func supportsExecutionFillOutsideRTH(orderType string) bool {
 	default:
 		return false
 	}
-}
-
-func normalizeExecutionMarket(market string, symbol string, fallbackMarket string) string {
-	market = strings.ToUpper(strings.TrimSpace(market))
-	if market != "" {
-		return market
-	}
-	symbol = strings.ToUpper(strings.TrimSpace(symbol))
-	if strings.Contains(symbol, ".") {
-		parts := strings.SplitN(symbol, ".", 2)
-		if len(parts) == 2 && strings.TrimSpace(parts[0]) != "" {
-			prefix := strings.TrimSpace(parts[0])
-			if prefix == "SH" || prefix == "SZ" {
-				return "CN"
-			}
-			return prefix
-		}
-	}
-	if strings.Contains(symbol, ":") {
-		parts := strings.SplitN(symbol, ":", 2)
-		if len(parts) == 2 && strings.TrimSpace(parts[0]) != "" {
-			prefix := strings.TrimSpace(parts[0])
-			if prefix == "SH" || prefix == "SZ" {
-				return "CN"
-			}
-			return prefix
-		}
-	}
-	return fallbackMarket
-}
-
-func normalizeExecutionSymbol(market string, symbol string) string {
-	symbol = strings.ToUpper(strings.TrimSpace(symbol))
-	if symbol == "" {
-		return ""
-	}
-	symbol = strings.ReplaceAll(symbol, ":", ".")
-	if strings.Contains(symbol, ".") {
-		return symbol
-	}
-	market = strings.ToUpper(strings.TrimSpace(market))
-	if market == "" {
-		return symbol
-	}
-	return market + "." + symbol
 }
 
 func normalizeExecutionSide(side string) (string, types.SideType, error) {

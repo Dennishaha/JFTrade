@@ -18,7 +18,6 @@ import {
 import type { MarketInstrumentReference } from "./consoleDataSystemState";
 
 interface CreateConsoleDataMarketDataSliceOptions {
-  prefs: Ref<{ market: string }>;
   marketDataQueryMarket: Ref<string>;
   marketDataQuerySymbol: Ref<string>;
   selectedBrokerAccount: Ref<{ market?: string | null } | null | undefined>;
@@ -40,7 +39,6 @@ export function createConsoleDataMarketDataSlice(
 
   const marketInstrumentsController =
     createConsoleDataMarketInstrumentsController({
-      prefs: options.prefs,
       marketDataQueryMarket: options.marketDataQueryMarket,
       selectedBrokerAccount: options.selectedBrokerAccount,
       marketInstrumentReferences,
@@ -50,8 +48,7 @@ export function createConsoleDataMarketDataSlice(
       brokerOrders: options.brokerOrders,
       executionOrders: options.executionOrders,
     });
-  const { marketInstrumentSearchOptions, resolveMarketInstrumentInput } =
-    marketInstrumentsController;
+  const { marketInstrumentSearchOptions } = marketInstrumentsController;
 
   const marketSubscriptionsController =
     createConsoleDataMarketSubscriptionsController({
@@ -83,7 +80,6 @@ export function createConsoleDataMarketDataSlice(
     marketInstrumentReferences,
     marketInstrumentSearchOptions,
     releaseMarketDataSubscription,
-    resolveMarketInstrumentInput,
     subscribeCurrentMarketData,
     unsubscribeAllMarketData,
   };

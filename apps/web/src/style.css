@@ -514,16 +514,29 @@ body {
   border: 1px solid var(--tv-border);
   background: var(--tv-bg-surface-2);
   border-radius: 6px;
-  min-width: 220px;
+  min-width: 300px;
 }
 
+.tv-topbar-symbol select,
 .tv-topbar-symbol input {
   background: transparent;
   border: 0;
   outline: none;
   color: var(--tv-text);
-  flex: 1;
   font-size: 13px;
+}
+
+.tv-topbar-symbol select {
+  flex: 0 0 auto;
+}
+
+.tv-topbar-symbol input {
+  flex: 1;
+  min-width: 0;
+}
+
+.tv-topbar-symbol__market {
+  min-width: 92px;
 }
 
 .tv-icon-btn {

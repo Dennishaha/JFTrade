@@ -22,6 +22,7 @@ const props = defineProps<{
     selectedStrategySourceFormatLabel: string;
     selectedStrategyStartHint: string;
     selectedStrategyCompiledSummary: string;
+    isRefreshingStrategyContent: boolean;
     canStartSelectedStrategy: boolean;
     canPauseSelectedStrategy: boolean;
     canStopSelectedStrategy: boolean;
@@ -41,6 +42,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
     "open-edit": [];
+    "refresh-content": [];
     "refresh-definition": [];
     "change-status": [action: StrategyAction];
 }>();
@@ -156,10 +158,21 @@ const emit = defineEmits<{
                 <div>
                     <div class="text-xl font-semibold text-slate-900">运行控制</div>
                     <div class="mt-1 text-sm text-slate-500">
-                        启动、暂停、停止都会同步刷新日志与审计视图。
+                        启动、暂停、停止都会同步刷新日志与审计视图；页面也会定时补刷新当前内容。
                     </div>
                 </div>
-                <div class="rounded-3xl bg-slate-50 px-4 py-4">
+                <div class="flex flex-wrap items-center justify-end gap-3">
+                    <v-button
+                        class="rounded-full border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+                        data-testid="strategy-refresh-content"
+                        :disabled="isRefreshingStrategyContent"
+                        type="button"
+                        :loading="isRefreshingStrategyContent"
+                        @click="emit('refresh-content')"
+                    >
+                        {{ isRefreshingStrategyContent ? "等待" : "刷新" }}
+                    </v-button>
+                    <div class="rounded-3xl bg-slate-50 px-4 py-4">
                     <div class="flex flex-wrap gap-2">
                         <span class="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-600">
                             {{ selectedStrategyRuntimeLabel }}
@@ -190,6 +203,7 @@ const emit = defineEmits<{
                     </div>
                     <div v-if="selectedStrategyCompiledSummary" class="mt-2 text-xs text-slate-500">
                         {{ selectedStrategyCompiledSummary }}
+                    </div>
                     </div>
                 </div>
             </div>

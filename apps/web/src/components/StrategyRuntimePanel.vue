@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import StrategyRuntimeActivityPanel from "./strategy-runtime/StrategyRuntimeActivityPanel.vue";
 import StrategyRuntimeInstanceEditorDialog from "./strategy-runtime/StrategyRuntimeInstanceEditorDialog.vue";
 import StrategyRuntimeInstanceListPanel from "./strategy-runtime/StrategyRuntimeInstanceListPanel.vue";
 import StrategyRuntimeOverviewSection from "./strategy-runtime/StrategyRuntimeOverviewSection.vue";
 import StrategyRuntimeSelectedStrategyPanel from "./strategy-runtime/StrategyRuntimeSelectedStrategyPanel.vue";
 import {
+    bindingInstrumentsToSymbols,
     brokerAccountOptionSubtitle,
     buildStrategyBindingPayload,
     filterBrokerAccountOptions,
@@ -13,10 +14,10 @@ import {
     formatRuntimeObservationSymbols,
     formatStrategyInterval,
     formatStrategySymbols,
-    invalidSymbolsFromText,
+    invalidSymbolsFromTextWithFallbackMarket,
     normalizeText,
-    parseSymbolsText,
-    parseValidatedSymbolsText,
+    normalizeBindingInstruments,
+    parseBindingInstrumentsTextWithFallbackMarket,
     readStrategyBinding,
     resolveBrokerAccountOption,
     resolveBrokerAccountSelectionKey,
@@ -25,6 +26,7 @@ import {
 import type {
     StrategyAuditEntryDocument,
     StrategyAuditListResponse,
+    StrategyBindingInstrumentDocument,
     StrategyBrokerAccountBinding,
     StrategyDefinitionDocument,
     StrategyDefinitionSyncStatus,
@@ -45,6 +47,21 @@ import { useConsoleData } from "../composables/useConsoleData";
 type StrategyLogsResponse = StrategyLogListResponse;
 type StrategyAuditEntry = StrategyAuditEntryDocument;
 type StrategyAuditResponse = StrategyAuditListResponse;
+
+const STRATEGY_INSTRUMENT_MARKET_OPTIONS = [
+    { value: "HK", title: "港股 HK" },
+    { value: "US", title: "美股 US" },
+    { value: "SH", title: "沪市 SH" },
+    { value: "SZ", title: "深市 SZ" },
+    { value: "SG", title: "新加坡 SG" },
+    { value: "JP", title: "日本 JP" },
+    { value: "AU", title: "澳洲 AU" },
+    { value: "MY", title: "马来西亚 MY" },
+    { value: "CA", title: "加拿大 CA" },
+];
+
+const STRATEGY_RUNTIME_ACTIVE_REFRESH_MS = 1_000;
+const STRATEGY_RUNTIME_IDLE_REFRESH_MS = 3_000;
 
 type StrategyAction = "start" | "pause" | "stop";
 type StrategySymbolEditorMode = "create" | "edit";
@@ -88,7 +105,8 @@ const isCreateMenuOpen = ref(false);
 const instanceEditorMode = ref<StrategySymbolEditorMode | null>(null);
 
 const createDefinitionId = ref("");
-const createSymbolsText = ref("");
+const createBindingInstruments = ref<StrategyBindingInstrumentDocument[]>([]);
+const createSymbolDraftMarket = ref("HK");
 const createSymbolDraft = ref("");
 const createSymbolValidationMessage = ref("");
 const createInterval = ref("5m");
@@ -96,7 +114,8 @@ const createExecutionMode = ref<StrategyExecutionMode>("live");
 const createBrokerAccountKey = ref("");
 const createBrokerAccountQuery = ref("");
 
-const editSymbolsText = ref("");
+const editBindingInstruments = ref<StrategyBindingInstrumentDocument[]>([]);
+const editSymbolDraftMarket = ref("HK");
 const editSymbolDraft = ref("");
 const editSymbolValidationMessage = ref("");
 const editInterval = ref("5m");
@@ -104,6 +123,7 @@ const editExecutionMode = ref<StrategyExecutionMode>("live");
 const editBrokerAccountKey = ref("");
 const editBrokerAccountQuery = ref("");
 const activeBrokerAccountPicker = ref<StrategySymbolEditorMode | null>(null);
+let strategyRuntimeRefreshTimer: number | null = null;
 
 const selectedStrategy = computed(
     () => strategies.value.find((item) => item.id === selectedStrategyId.value) ?? null,
@@ -129,9 +149,6 @@ const createDefinition = computed(
 );
 
 const brokerAccountOptions = computed(() => availableBrokerAccounts.value);
-
-const createSymbolTags = computed(() => parseSymbolsText(createSymbolsText.value));
-const editSymbolTags = computed(() => parseSymbolsText(editSymbolsText.value));
 const createSelectedBrokerAccountOption = computed(
     () => resolveBrokerAccountOption(brokerAccountOptions.value, createBrokerAccountKey.value),
 );
@@ -141,6 +158,10 @@ const editSelectedBrokerAccountOption = computed(
 
 const activeStrategyCount = computed(
     () => strategies.value.filter((item) => item.runtimeObservation?.actualStatus === "RUNNING").length,
+);
+
+const isRefreshingStrategyContent = computed(
+    () => isLoadingStrategies.value || isLoadingDetails.value,
 );
 
 const defaultBrokerAccountSelectionKey = computed(
@@ -173,6 +194,7 @@ const instanceEditorOpen = computed({
 const isCreateInstanceEditor = computed(() => instanceEditorMode.value === "create");
 const isEditInstanceEditor = computed(() => instanceEditorMode.value === "edit");
 const activeSymbolTags = computed(() => symbolTagsFor(activeInstanceEditorMode.value));
+const activeSymbolDraftMarket = computed(() => symbolDraftMarketFor(activeInstanceEditorMode.value));
 const activeSymbolDraft = computed(() => symbolDraftFor(activeInstanceEditorMode.value));
 const activeSymbolValidationMessage = computed(() => symbolValidationMessageFor(activeInstanceEditorMode.value));
 const activeIntervalValue = computed(() => intervalValueFor(activeInstanceEditorMode.value));
@@ -328,7 +350,17 @@ const canDeleteSelectedStrategy = computed(
 );
 
 onMounted(() => {
+    if (typeof document !== "undefined") {
+        document.addEventListener("visibilitychange", handleStrategyRuntimeVisibilityChange);
+    }
     void Promise.all([loadStrategyDefinitions(), loadStrategies()]);
+});
+
+onUnmounted(() => {
+    clearStrategyRuntimeRefreshTimer();
+    if (typeof document !== "undefined") {
+        document.removeEventListener("visibilitychange", handleStrategyRuntimeVisibilityChange);
+    }
 });
 
 watch(
@@ -404,10 +436,22 @@ watch(
 );
 
 watch(
+    [selectedBrokerAccount, createSelectedBrokerAccountOption],
+    () => {
+        if (normalizeText(createSymbolDraftMarket.value) !== "") {
+            return;
+        }
+        createSymbolDraftMarket.value = defaultSymbolDraftMarket("create");
+    },
+    { immediate: true },
+);
+
+watch(
     selectedStrategyBinding,
     (binding) => {
         if (binding === null) {
-            editSymbolsText.value = "";
+            editBindingInstruments.value = [];
+            editSymbolDraftMarket.value = defaultSymbolDraftMarket("edit");
             editSymbolDraft.value = "";
             editSymbolValidationMessage.value = "";
             editInterval.value = "5m";
@@ -416,7 +460,8 @@ watch(
             return;
         }
 
-        editSymbolsText.value = binding.symbols.join("\n");
+        editBindingInstruments.value = normalizeBindingInstruments(binding.instruments ?? []);
+        editSymbolDraftMarket.value = binding.instruments?.[0]?.market ?? defaultSymbolDraftMarket("edit");
         editSymbolDraft.value = "";
         editSymbolValidationMessage.value = "";
         editInterval.value = binding.interval;
@@ -563,8 +608,43 @@ function formatStrategyExecutionMode(mode: StrategyExecutionMode | string | null
     return normalizeText(mode) === "notify_only" ? "仅通知" : "确认执行";
 }
 
+function bindingInstrumentsFor(mode: StrategySymbolEditorMode): StrategyBindingInstrumentDocument[] {
+    return mode === "create" ? createBindingInstruments.value : editBindingInstruments.value;
+}
+
 function symbolTagsFor(mode: StrategySymbolEditorMode): string[] {
-    return mode === "create" ? createSymbolTags.value : editSymbolTags.value;
+    return bindingInstrumentsToSymbols(bindingInstrumentsFor(mode));
+}
+
+function defaultSymbolDraftMarket(mode: StrategySymbolEditorMode): string {
+    if (mode === "edit") {
+        const bindingMarket = selectedStrategyBinding.value?.instruments?.[0]?.market;
+        if (normalizeText(bindingMarket) !== "") {
+            return normalizeText(bindingMarket).toUpperCase();
+        }
+    }
+    const optionMarket = selectedBrokerAccountOptionFor(mode)?.market;
+    if (normalizeText(optionMarket) !== "") {
+        return normalizeText(optionMarket).toUpperCase();
+    }
+    const selectedMarket = selectedBrokerAccount.value?.market;
+    if (normalizeText(selectedMarket) !== "") {
+        return normalizeText(selectedMarket).toUpperCase();
+    }
+    return "HK";
+}
+
+function symbolDraftMarketFor(mode: StrategySymbolEditorMode): string {
+    return mode === "create" ? createSymbolDraftMarket.value : editSymbolDraftMarket.value;
+}
+
+function setSymbolDraftMarket(mode: StrategySymbolEditorMode, value: string): void {
+    const normalized = normalizeText(value).toUpperCase();
+    if (mode === "create") {
+        createSymbolDraftMarket.value = normalized || defaultSymbolDraftMarket(mode);
+        return;
+    }
+    editSymbolDraftMarket.value = normalized || defaultSymbolDraftMarket(mode);
 }
 
 function symbolDraftFor(mode: StrategySymbolEditorMode): string {
@@ -592,29 +672,38 @@ function setSymbolValidationMessage(mode: StrategySymbolEditorMode, value: strin
     editSymbolValidationMessage.value = value;
 }
 
-function setSymbolTags(mode: StrategySymbolEditorMode, tags: string[]): void {
-    const nextValue = parseSymbolsText(tags.join("\n")).join("\n");
+function setBindingInstruments(mode: StrategySymbolEditorMode, values: StrategyBindingInstrumentDocument[]): void {
+    const nextValue = normalizeBindingInstruments(values);
     if (mode === "create") {
-        createSymbolsText.value = nextValue;
+        createBindingInstruments.value = nextValue;
         createSymbolDraft.value = "";
         return;
     }
-    editSymbolsText.value = nextValue;
+    editBindingInstruments.value = nextValue;
     editSymbolDraft.value = "";
 }
 
+function bindingInstrumentId(value: StrategyBindingInstrumentDocument): string {
+    return bindingInstrumentsToSymbols([value])[0] ?? "";
+}
+
 function commitSymbolDraft(mode: StrategySymbolEditorMode, draft = symbolDraftFor(mode)): boolean {
-    const parsed = parseValidatedSymbolsText(draft);
-    const invalidSymbols = invalidSymbolsFromText(draft);
+    const fallbackMarket = symbolDraftMarketFor(mode);
+    const parsed = parseBindingInstrumentsTextWithFallbackMarket(draft, fallbackMarket);
+    const invalidSymbols = invalidSymbolsFromTextWithFallbackMarket(draft, fallbackMarket);
     if (parsed.length === 0) {
         setSymbolDraft(mode, "");
     } else {
-        setSymbolTags(mode, [...symbolTagsFor(mode), ...parsed]);
+        setBindingInstruments(mode, [...bindingInstrumentsFor(mode), ...parsed]);
+        const last = parsed[parsed.length - 1];
+        if (last != null) {
+            setSymbolDraftMarket(mode, last.market);
+        }
     }
     if (invalidSymbols.length > 0) {
         setSymbolValidationMessage(
             mode,
-            `已忽略无效交易代码：${invalidSymbols.join("、")}。请使用带市场前缀的格式，例如 US.TME、HK.00700。`,
+            `已忽略无效交易代码：${invalidSymbols.join("、")}。请选择市场后输入代码，或直接使用 US.TME、HK.00700 这类完整格式。`,
         );
         return false;
     }
@@ -623,9 +712,9 @@ function commitSymbolDraft(mode: StrategySymbolEditorMode, draft = symbolDraftFo
 }
 
 function removeSymbolTag(mode: StrategySymbolEditorMode, symbol: string): void {
-    setSymbolTags(
+    setBindingInstruments(
         mode,
-        symbolTagsFor(mode).filter((item) => item !== symbol),
+        bindingInstrumentsFor(mode).filter((item) => bindingInstrumentId(item) !== symbol),
     );
 }
 
@@ -639,12 +728,12 @@ function handleSymbolDraftKeydown(event: KeyboardEvent, mode: StrategySymbolEdit
         return;
     }
     if (event.key === "Backspace" && normalizeText(symbolDraftFor(mode)) === "") {
-        const tags = symbolTagsFor(mode);
-        if (tags.length === 0) {
+        const instruments = bindingInstrumentsFor(mode);
+        if (instruments.length === 0) {
             return;
         }
         event.preventDefault();
-        setSymbolTags(mode, tags.slice(0, -1));
+        setBindingInstruments(mode, instruments.slice(0, -1));
     }
 }
 
@@ -770,6 +859,10 @@ function updateActiveSymbolDraft(value: string): void {
     setSymbolDraft(activeInstanceEditorMode.value, value);
 }
 
+function updateActiveSymbolDraftMarket(value: string): void {
+    setSymbolDraftMarket(activeInstanceEditorMode.value, value);
+}
+
 function commitActiveSymbolDraft(): boolean {
     return commitSymbolDraft(activeInstanceEditorMode.value);
 }
@@ -862,6 +955,51 @@ function clearInstanceMutationMessages(): void {
     instanceMutationError.value = "";
 }
 
+function clearStrategyRuntimeRefreshTimer(): void {
+    if (strategyRuntimeRefreshTimer != null) {
+        window.clearTimeout(strategyRuntimeRefreshTimer);
+        strategyRuntimeRefreshTimer = null;
+    }
+}
+
+function resolveStrategyRuntimeRefreshMs(): number {
+    const selectedStatus = selectedStrategy.value == null ? "" : displayStrategyStatus(selectedStrategy.value);
+    if (activeStrategyCount.value > 0 || selectedStatus === "RUNNING" || selectedStatus === "PAUSED") {
+        return STRATEGY_RUNTIME_ACTIVE_REFRESH_MS;
+    }
+    return STRATEGY_RUNTIME_IDLE_REFRESH_MS;
+}
+
+function shouldDeferStrategyRuntimeRefresh(): boolean {
+    return isLoadingStrategies.value
+        || isLoadingDetails.value
+        || isCreatingStrategyInstance.value
+        || isUpdatingStrategyBinding.value
+        || isDeletingStrategy.value
+        || isRefreshingStrategyDefinition.value;
+}
+
+function scheduleStrategyRuntimeRefresh(): void {
+    if (typeof window === "undefined") {
+        return;
+    }
+    clearStrategyRuntimeRefreshTimer();
+    if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+        return;
+    }
+    strategyRuntimeRefreshTimer = window.setTimeout(() => {
+        void refreshStrategyRuntimeContent();
+    }, resolveStrategyRuntimeRefreshMs());
+}
+
+function handleStrategyRuntimeVisibilityChange(): void {
+    if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+        clearStrategyRuntimeRefreshTimer();
+        return;
+    }
+    void refreshStrategyRuntimeContent();
+}
+
 async function loadStrategyDefinitions(): Promise<void> {
     isLoadingDefinitions.value = true;
     definitionsError.value = "";
@@ -905,6 +1043,7 @@ async function loadStrategies(preferredId = selectedStrategyId.value): Promise<v
             error instanceof Error ? error.message : "加载策略实例失败。";
     } finally {
         isLoadingStrategies.value = false;
+        scheduleStrategyRuntimeRefresh();
     }
 }
 
@@ -936,7 +1075,25 @@ async function loadStrategyDetails(instanceId: string): Promise<void> {
             error instanceof Error ? error.message : "加载策略明细失败。";
     } finally {
         isLoadingDetails.value = false;
+        scheduleStrategyRuntimeRefresh();
     }
+}
+
+async function refreshStrategyRuntimeContent(): Promise<void> {
+    clearStrategyRuntimeRefreshTimer();
+    if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+        return;
+    }
+    if (shouldDeferStrategyRuntimeRefresh()) {
+        scheduleStrategyRuntimeRefresh();
+        return;
+    }
+    await loadStrategies(selectedStrategyId.value);
+}
+
+async function selectStrategy(instanceId: string): Promise<void> {
+    clearStrategyRuntimeRefreshTimer();
+    await loadStrategyDetails(instanceId);
 }
 
 async function createStrategyInstance(): Promise<void> {
@@ -967,7 +1124,7 @@ async function createStrategyInstance(): Promise<void> {
                 },
                 body: JSON.stringify(buildStrategyBindingPayload({
                     brokerAccountOptions: brokerAccountOptions.value,
-                    symbolsText: createSymbolsText.value,
+                    instruments: createBindingInstruments.value,
                     interval: createInterval.value,
                     executionMode: createExecutionMode.value,
                     brokerAccountKey: createBrokerAccountKey.value,
@@ -999,6 +1156,8 @@ function openCreateDefinition(): void {
 function openCreateInstanceForm(): void {
     isCreateMenuOpen.value = false;
     instanceEditorMode.value = "create";
+    createSymbolDraftMarket.value = defaultSymbolDraftMarket("create");
+    createSymbolDraft.value = "";
     createSymbolValidationMessage.value = "";
     closeBrokerAccountPicker();
 }
@@ -1057,7 +1216,7 @@ async function updateSelectedStrategyBinding(): Promise<void> {
                 },
                 body: JSON.stringify(buildStrategyBindingPayload({
                     brokerAccountOptions: brokerAccountOptions.value,
-                    symbolsText: editSymbolsText.value,
+                    instruments: editBindingInstruments.value,
                     interval: editInterval.value,
                     executionMode: editExecutionMode.value,
                     brokerAccountKey: editBrokerAccountKey.value,
@@ -1263,8 +1422,8 @@ async function refreshSelectedStrategyDefinition(): Promise<void> {
                     @toggle-create-menu="toggleCreateMenu"
                     @open-create-definition="openCreateDefinition"
                     @open-create-instance="openCreateInstanceForm"
-                    @refresh-strategies="loadStrategies()"
-                    @select-strategy="loadStrategyDetails($event)"
+                    @refresh-strategies="refreshStrategyRuntimeContent"
+                    @select-strategy="selectStrategy($event)"
                 >
                     <StrategyRuntimeInstanceEditorDialog
                         v-model:open="instanceEditorOpen"
@@ -1278,8 +1437,10 @@ async function refreshSelectedStrategyDefinition(): Promise<void> {
                         :create-definition="createDefinition"
                         :selected-strategy="selectedStrategy"
                         :symbol-tags="activeSymbolTags"
+                        :symbol-market="activeSymbolDraftMarket"
                         :symbol-draft="activeSymbolDraft"
                         :symbol-validation-message="activeSymbolValidationMessage"
+                        :market-options="STRATEGY_INSTRUMENT_MARKET_OPTIONS"
                         :interval-value="activeIntervalValue"
                         :execution-mode="activeExecutionMode"
                         :selected-broker-account-option="activeSelectedBrokerAccountOption"
@@ -1301,6 +1462,7 @@ async function refreshSelectedStrategyDefinition(): Promise<void> {
                         @switch-to-design="openCreateDefinition"
                         @update:create-definition-id="createDefinitionId = $event"
                         @remove-symbol="removeActiveSymbol"
+                        @update:symbol-market="updateActiveSymbolDraftMarket"
                         @update:symbol-draft="updateActiveSymbolDraft"
                         @commit-symbol-draft="commitActiveSymbolDraft"
                         @symbol-draft-keydown="handleActiveSymbolDraftKeydown"
@@ -1330,6 +1492,7 @@ async function refreshSelectedStrategyDefinition(): Promise<void> {
                         :selected-strategy-source-format-label="selectedStrategySourceFormatLabel"
                         :selected-strategy-start-hint="selectedStrategyStartHint"
                         :selected-strategy-compiled-summary="selectedStrategyCompiledSummary"
+                        :is-refreshing-strategy-content="isRefreshingStrategyContent"
                         :can-start-selected-strategy="canStartSelectedStrategy"
                         :can-pause-selected-strategy="canPauseSelectedStrategy"
                         :can-stop-selected-strategy="canStopSelectedStrategy"
@@ -1346,6 +1509,7 @@ async function refreshSelectedStrategyDefinition(): Promise<void> {
                         :format-timestamp="formatTimestamp"
                         :format-timestamp-tooltip="formatTimestampTooltip"
                         @open-edit="openEditInstanceForm"
+                        @refresh-content="refreshStrategyRuntimeContent"
                         @refresh-definition="refreshSelectedStrategyDefinition"
                         @change-status="changeStrategyStatus"
                     />

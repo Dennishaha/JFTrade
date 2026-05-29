@@ -339,7 +339,13 @@ export interface StrategyBrokerAccountBinding {
   market: string;
 }
 
+export interface StrategyBindingInstrumentDocument {
+  market: string;
+  code: string;
+}
+
 export interface StrategyInstanceBindingDocument {
+  instruments?: StrategyBindingInstrumentDocument[];
   symbols: string[];
   interval: string;
   executionMode: StrategyExecutionMode;
@@ -1152,7 +1158,8 @@ export interface BrokerPlaceOrderRequestPayload {
   tradingEnvironment: string;
   accountId: string;
   market: string;
-  symbol: string;
+  code?: string;
+  symbol?: string;
   side: string;
   quantity: number;
   idempotencyKey?: string;
@@ -1160,6 +1167,28 @@ export interface BrokerPlaceOrderRequestPayload {
   orderType?: string;
   remark?: string;
   timeInForce?: string;
+}
+
+export interface BacktestStartRequestPayload {
+  definitionId: string;
+  market?: string;
+  code?: string;
+  symbol?: string;
+  interval: string;
+  startTime: string;
+  endTime: string;
+  initialBalance: number;
+  rehabType?: string;
+}
+
+export interface BacktestSyncRequestPayload {
+  market?: string;
+  code?: string;
+  symbol?: string;
+  intervals: string[];
+  since: string;
+  until: string;
+  rehabType?: string;
 }
 
 export interface BrokerCancelOrderRequestPayload {

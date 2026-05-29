@@ -18,6 +18,7 @@ import {
   formatMarketDataChannelLabel,
   formatMarketLabel,
 } from "../composables/consoleDataFormatting";
+import { resolveInstrumentRef } from "../composables/instrumentRef";
 import { useConsoleData } from "../composables/useConsoleData";
 import { useSharedLiveSocket } from "../composables/useSharedLiveSocket";
 
@@ -41,7 +42,6 @@ const {
   createStableWebConsumerId,
   heartbeatMarketDataConsumer,
   releaseMarketDataSubscription,
-  resolveMarketInstrumentInput,
 } = useConsoleData();
 const live = useSharedLiveSocket();
 
@@ -61,19 +61,9 @@ const marketDataSubscriptionScope = createMarketDataSubscriptionScope({
 });
 
 function currentVisibleSubscription() {
-  const rawSymbol = marketDataQuerySymbol.value.trim().toUpperCase();
-  const separator = rawSymbol.includes(":") ? ":" : ".";
-  if (rawSymbol.includes(separator)) {
-    const [market, symbol] = rawSymbol.split(separator, 2);
-    return {
-      market: (market ?? "").trim().toUpperCase(),
-      symbol: (symbol ?? "").trim().toUpperCase(),
-    };
-  }
-
   return {
     market: marketDataQueryMarket.value.trim().toUpperCase(),
-    symbol: rawSymbol,
+    symbol: marketDataQuerySymbol.value.trim().toUpperCase(),
   };
 }
 
@@ -149,6 +139,33 @@ const chartCandles = computed<KlineCandle[]>(() =>
   ),
 );
 const periods = KLINE_PERIODS;
+
+const codeSuggestions = computed(() => {
+  const market = marketDataQueryMarket.value.trim().toUpperCase();
+  return marketInstrumentSearchOptions.value
+    .filter((option) => option.market === market)
+    .map((option) => ({
+      value: option.symbol,
+      title: option.name == null ? option.instrumentId : `${option.symbol} · ${option.name}`,
+    }));
+});
+
+watch(symbolSearchText, (value) => {
+  const raw = value.trim();
+  if (raw === "" || (!raw.includes(":") && !raw.includes("."))) {
+    return;
+  }
+  const resolved = resolveInstrumentRef({ instrumentId: raw }, marketDataQueryMarket.value);
+  if (resolved == null) {
+    return;
+  }
+  if (marketDataQueryMarket.value !== resolved.market) {
+    marketDataQueryMarket.value = resolved.market;
+  }
+  if (symbolSearchText.value.trim().toUpperCase() !== resolved.code) {
+    symbolSearchText.value = resolved.code;
+  }
+});
 
 const selectedInstrumentParts = computed(() => currentVisibleSubscription());
 const selectedMarketInstrument = computed(() => {
@@ -263,33 +280,6 @@ const historicalPriceSummary = computed(() => {
   };
 });
 
-async function queryInstrumentSuggestions(
-  query: string,
-  cb: (suggestions: Array<{ value: string; label: string }>) => void,
-): Promise<void> {
-  await loadMarketInstrumentReferences(query);
-  const normalized = query.trim().toUpperCase();
-  cb(
-    marketInstrumentSearchOptions.value
-      .filter((option) => {
-        if (normalized === "") {
-          return true;
-        }
-        return (
-          option.instrumentId.includes(normalized) ||
-          option.symbol.includes(normalized) ||
-          option.lookupValue.includes(normalized) ||
-          (option.name ?? "").toUpperCase().includes(normalized)
-        );
-      })
-      .slice(0, 20)
-      .map((option) => ({
-        value: option.lookupValue,
-        label: option.label,
-      })),
-  );
-}
-
 function normalizeManualSymbolInput(value: string): string {
   const input = value.trim().toUpperCase();
   if (/^\d{1,5}$/.test(input) && marketDataQueryMarket.value === "HK") {
@@ -299,28 +289,18 @@ function normalizeManualSymbolInput(value: string): string {
   return input;
 }
 
-function selectInstrumentSuggestion(item: {
-  value: string;
-  label?: string;
-}): void {
-  const [market, symbol] = item.value.split(":", 2);
-  if (market == null || symbol == null || market === "" || symbol === "") {
-    return;
-  }
-
-  marketDataQueryMarket.value = market;
-  marketDataQuerySymbol.value = symbol;
-  symbolSearchText.value = symbol;
-}
-
 async function runMarketDataQuery(): Promise<void> {
-  const parsed = resolveMarketInstrumentInput(
-    normalizeManualSymbolInput(symbolSearchText.value),
+  const parsed = resolveInstrumentRef(
+    {
+      market: marketDataQueryMarket.value,
+      code: normalizeManualSymbolInput(symbolSearchText.value),
+    },
+    marketDataQueryMarket.value,
   );
   if (parsed != null) {
     marketDataQueryMarket.value = parsed.market;
-    marketDataQuerySymbol.value = parsed.symbol;
-    symbolSearchText.value = parsed.symbol;
+    marketDataQuerySymbol.value = parsed.code;
+    symbolSearchText.value = parsed.code;
   }
 
   await syncVisibleSubscription();
@@ -414,14 +394,13 @@ function scheduleMarketDataAutoRefresh(): void {
               <v-autocomplete
                 v-model="symbolSearchText"
                 class="w-full"
-                :items="marketInstrumentSearchOptions.map(o => ({ value: o.lookupValue, title: o.label }))"
+                :items="codeSuggestions"
                 item-title="title"
                 item-value="value"
                 placeholder="00700"
                 clearable
                 density="compact"
                 variant="outlined"
-                @update:model-value="(val: string | null | undefined) => val && selectInstrumentSuggestion({ value: String(val) })"
               />
               <div class="mt-1 text-xs text-slate-500">
                 当前标的：<span class="font-medium text-slate-700">{{ selectedInstrumentTitle }}</span>

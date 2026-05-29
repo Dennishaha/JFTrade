@@ -140,7 +140,13 @@ type strategyBrokerAccountBinding struct {
 	Market             string `json:"market"`
 }
 
+type strategyBindingInstrument struct {
+	Market string `json:"market"`
+	Code   string `json:"code"`
+}
+
 type strategyInstanceBinding struct {
+	Instruments   []strategyBindingInstrument   `json:"instruments,omitempty"`
 	Symbols       []string                      `json:"symbols"`
 	Interval      string                        `json:"interval"`
 	ExecutionMode string                        `json:"executionMode"`
@@ -1388,6 +1394,27 @@ func readStringSlice(value any) []string {
 	}
 }
 
+func readStrategyBindingInstruments(value any) []strategyBindingInstrument {
+	switch typed := value.(type) {
+	case []strategyBindingInstrument:
+		return append([]strategyBindingInstrument(nil), typed...)
+	case []any:
+		result := make([]strategyBindingInstrument, 0, len(typed))
+		for _, entry := range typed {
+			record, ok := entry.(map[string]any)
+			if !ok {
+				continue
+			}
+			market, _ := record["market"].(string)
+			code, _ := record["code"].(string)
+			result = append(result, strategyBindingInstrument{Market: market, Code: code})
+		}
+		return result
+	default:
+		return nil
+	}
+}
+
 func strategyBrokerAccountBindingFromAny(value any) *strategyBrokerAccountBinding {
 	raw, ok := value.(map[string]any)
 	if !ok {
@@ -1405,7 +1432,37 @@ func strategyBrokerAccountBindingFromAny(value any) *strategyBrokerAccountBindin
 	})
 }
 
+func strategyBindingInstrumentFromNormalized(value normalizedInstrument) strategyBindingInstrument {
+	return strategyBindingInstrument{
+		Market: value.Prefix,
+		Code:   value.Code,
+	}
+}
+
+func normalizeStrategyBindingInstrument(input strategyBindingInstrument) (strategyBindingInstrument, string, bool) {
+	normalized, err := normalizeInstrumentInput(input.Market, "", input.Code)
+	if err != nil {
+		return strategyBindingInstrument{}, "", false
+	}
+	return strategyBindingInstrumentFromNormalized(normalized), normalized.Symbol, true
+}
+
+func strategyBindingInstrumentFromSymbol(symbol string) (strategyBindingInstrument, bool) {
+	normalized := normalizeStrategyInstrumentID(symbol)
+	if normalized == "" {
+		return strategyBindingInstrument{}, false
+	}
+	parsed, err := parseQualifiedInstrumentSymbol(normalized)
+	if err != nil {
+		return strategyBindingInstrument{}, false
+	}
+	return strategyBindingInstrumentFromNormalized(parsed), true
+}
+
 func normalizeStrategyInstanceBinding(input strategyInstanceBinding, params map[string]any) strategyInstanceBinding {
+	if len(input.Instruments) == 0 {
+		input.Instruments = readStrategyBindingInstruments(params["instruments"])
+	}
 	if len(input.Symbols) == 0 {
 		input.Symbols = readStringSlice(params["symbols"])
 		if len(input.Symbols) == 0 {
@@ -1414,20 +1471,44 @@ func normalizeStrategyInstanceBinding(input strategyInstanceBinding, params map[
 			}
 		}
 	}
-	seen := map[string]struct{}{}
+	seenSymbols := map[string]struct{}{}
 	normalizedSymbols := make([]string, 0, len(input.Symbols))
-	for _, symbol := range input.Symbols {
-		normalized := normalizeStrategyInstrumentID(symbol)
-		if normalized == "" {
-			continue
+	normalizedInstruments := make([]strategyBindingInstrument, 0, len(input.Instruments))
+
+	if len(input.Instruments) > 0 {
+		for _, instrument := range input.Instruments {
+			normalizedInstrument, symbol, ok := normalizeStrategyBindingInstrument(instrument)
+			if !ok {
+				continue
+			}
+			if _, exists := seenSymbols[symbol]; exists {
+				continue
+			}
+			seenSymbols[symbol] = struct{}{}
+			normalizedSymbols = append(normalizedSymbols, symbol)
+			normalizedInstruments = append(normalizedInstruments, normalizedInstrument)
 		}
-		if _, exists := seen[normalized]; exists {
-			continue
-		}
-		seen[normalized] = struct{}{}
-		normalizedSymbols = append(normalizedSymbols, normalized)
 	}
+
+	if len(normalizedSymbols) == 0 {
+		for _, symbol := range input.Symbols {
+			normalized := normalizeStrategyInstrumentID(symbol)
+			if normalized == "" {
+				continue
+			}
+			if _, exists := seenSymbols[normalized]; exists {
+				continue
+			}
+			seenSymbols[normalized] = struct{}{}
+			normalizedSymbols = append(normalizedSymbols, normalized)
+			if instrument, ok := strategyBindingInstrumentFromSymbol(normalized); ok {
+				normalizedInstruments = append(normalizedInstruments, instrument)
+			}
+		}
+	}
+
 	input.Symbols = normalizedSymbols
+	input.Instruments = normalizedInstruments
 
 	input.Interval = strings.TrimSpace(input.Interval)
 	if input.Interval == "" {
@@ -1462,6 +1543,7 @@ func applyStrategyBindingParams(input *managedStrategyInstance) {
 		input.Params = map[string]any{}
 	}
 	input.Binding = normalizeStrategyInstanceBinding(input.Binding, input.Params)
+	input.Params["instruments"] = strategyBindingInstrumentsToParams(input.Binding.Instruments)
 	input.Params["symbols"] = append([]string(nil), input.Binding.Symbols...)
 	if len(input.Binding.Symbols) > 0 {
 		input.Params["symbol"] = input.Binding.Symbols[0]
@@ -1480,6 +1562,17 @@ func applyStrategyBindingParams(input *managedStrategyInstance) {
 	} else {
 		delete(input.Params, "brokerAccount")
 	}
+}
+
+func strategyBindingInstrumentsToParams(input []strategyBindingInstrument) []map[string]any {
+	result := make([]map[string]any, 0, len(input))
+	for _, instrument := range input {
+		result = append(result, map[string]any{
+			"market": instrument.Market,
+			"code":   instrument.Code,
+		})
+	}
+	return result
 }
 
 func strategyBindingAuditDetail(definitionID string, binding strategyInstanceBinding) string {

@@ -341,6 +341,121 @@ func TestExecutionOrderRoutesPropagateUSSessionSelection(t *testing.T) {
 	}
 }
 
+func TestExecutionOrderRoutesAcceptExplicitCodeWithMarket(t *testing.T) {
+	opendServer := startBrokerRouteOpenDServer(t)
+	opendServer.setAccounts([]*trdcommonpb.TrdAcc{{
+		TrdEnv:            proto.Int32(int32(trdcommonpb.TrdEnv_TrdEnv_Simulate)),
+		AccID:             proto.Uint64(1001),
+		TrdMarketAuthList: []int32{int32(trdcommonpb.TrdMarket_TrdMarket_US)},
+		AccType:           proto.Int32(int32(trdcommonpb.TrdAccType_TrdAccType_Margin)),
+	}})
+	opendServer.setPlacedOrderResponse(9002, "EXT-9002")
+	defer opendServer.stop()
+
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	_, err = store.saveIntegration(BrokerIntegration{Config: normalizeFutuConfig(FutuIntegrationConfig{
+		Type:          "futu",
+		Host:          strings.Split(opendServer.addr, ":")[0],
+		APIPort:       portFromAddr(t, opendServer.addr),
+		WebSocketPort: 11111,
+		TradeMarket:   "US",
+	})})
+	if err != nil {
+		t.Fatalf("saveIntegration: %v", err)
+	}
+	srv := httptest.NewServer(NewServer(store))
+	defer srv.Close()
+
+	payload, err := json.Marshal(map[string]any{
+		"brokerId":           "futu",
+		"market":             "US",
+		"code":               "TME",
+		"side":               "BUY",
+		"orderType":          "LIMIT",
+		"timeInForce":        "DAY",
+		"quantity":           100,
+		"price":              10.12,
+		"accountId":          "1001",
+		"tradingEnvironment": "SIMULATE",
+	})
+	if err != nil {
+		t.Fatalf("Marshal payload: %v", err)
+	}
+	resp, err := http.Post(srv.URL+"/api/v1/execution/orders/preview", "application/json", bytes.NewReader(payload))
+	if err != nil {
+		t.Fatalf("POST execution preview: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("POST execution preview status = %d", resp.StatusCode)
+	}
+
+	request := opendServer.lastPlaceOrderRequest()
+	if request == nil {
+		t.Fatal("expected place order request to be captured")
+	}
+	if got := request.GetCode(); got != "TME" {
+		t.Fatalf("Code = %q, want TME", got)
+	}
+}
+
+func TestExecutionOrderRoutesRejectBareSymbolWithoutMarket(t *testing.T) {
+	opendServer := startBrokerRouteOpenDServer(t)
+	opendServer.setAccounts([]*trdcommonpb.TrdAcc{{
+		TrdEnv:            proto.Int32(int32(trdcommonpb.TrdEnv_TrdEnv_Simulate)),
+		AccID:             proto.Uint64(1001),
+		TrdMarketAuthList: []int32{int32(trdcommonpb.TrdMarket_TrdMarket_US)},
+		AccType:           proto.Int32(int32(trdcommonpb.TrdAccType_TrdAccType_Margin)),
+	}})
+	defer opendServer.stop()
+
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	_, err = store.saveIntegration(BrokerIntegration{Config: normalizeFutuConfig(FutuIntegrationConfig{
+		Type:          "futu",
+		Host:          strings.Split(opendServer.addr, ":")[0],
+		APIPort:       portFromAddr(t, opendServer.addr),
+		WebSocketPort: 11111,
+		TradeMarket:   "US",
+	})})
+	if err != nil {
+		t.Fatalf("saveIntegration: %v", err)
+	}
+	srv := httptest.NewServer(NewServer(store))
+	defer srv.Close()
+
+	payload, err := json.Marshal(map[string]any{
+		"brokerId":           "futu",
+		"symbol":             "TME",
+		"side":               "BUY",
+		"orderType":          "LIMIT",
+		"timeInForce":        "DAY",
+		"quantity":           100,
+		"price":              10.12,
+		"accountId":          "1001",
+		"tradingEnvironment": "SIMULATE",
+	})
+	if err != nil {
+		t.Fatalf("Marshal payload: %v", err)
+	}
+	resp, err := http.Post(srv.URL+"/api/v1/execution/orders/preview", "application/json", bytes.NewReader(payload))
+	if err != nil {
+		t.Fatalf("POST execution preview: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("POST execution preview status = %d, want %d", resp.StatusCode, http.StatusBadRequest)
+	}
+	if got := opendServer.placeOrderCallCount(); got != 0 {
+		t.Fatalf("expected no place order call, got %d", got)
+	}
+}
+
 func TestExecutionOrdersSyncBrokerOrdersAndTracksWorkerState(t *testing.T) {
 	opendServer := startBrokerRouteOpenDServer(t)
 	opendServer.setAccounts([]*trdcommonpb.TrdAcc{{

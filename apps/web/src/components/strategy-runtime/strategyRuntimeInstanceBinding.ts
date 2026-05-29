@@ -1,4 +1,5 @@
 import type {
+    StrategyBindingInstrumentDocument,
     StrategyBrokerAccountBinding,
     StrategyExecutionMode,
     StrategyInstanceBindingDocument,
@@ -9,23 +10,10 @@ import {
     buildBrokerAccountSelectionKey,
     type BrokerAccountSelectionOption,
 } from "../../composables/consoleDataBrokerAccountSelection";
+import { normalizeInstrumentId, resolveInstrumentRef } from "../../composables/instrumentRef";
 
 export function normalizeText(value: unknown): string {
     return typeof value === "string" ? value.trim() : "";
-}
-
-function normalizeInstrumentId(value: string): string {
-    const normalized = normalizeText(value).toUpperCase();
-    if (normalized === "") {
-        return "";
-    }
-    if (normalized.includes(":")) {
-        const [market, symbol] = normalized.split(":", 2);
-        if ((market ?? "") !== "" && (symbol ?? "") !== "") {
-            return `${market}.${symbol}`;
-        }
-    }
-    return normalized;
 }
 
 function normalizeSymbols(values: string[]): string[] {
@@ -42,15 +30,61 @@ function normalizeSymbols(values: string[]): string[] {
     return result;
 }
 
+function normalizeDraftSymbol(value: string, fallbackMarket?: string): string {
+    const resolved = resolveInstrumentRef(
+        { instrumentId: normalizeText(value) },
+        normalizeText(fallbackMarket),
+    );
+    return resolved?.instrumentId ?? normalizeInstrumentId(value);
+}
+
+function instrumentIdFromBindingInstrument(value: StrategyBindingInstrumentDocument): string {
+    const resolved = resolveInstrumentRef({
+        market: normalizeText(value.market),
+        code: normalizeText(value.code),
+    }, normalizeText(value.market));
+    return resolved?.instrumentId ?? "";
+}
+
+export function normalizeBindingInstruments(values: StrategyBindingInstrumentDocument[]): StrategyBindingInstrumentDocument[] {
+    const seen = new Set<string>();
+    const result: StrategyBindingInstrumentDocument[] = [];
+    for (const value of values) {
+        const instrumentId = instrumentIdFromBindingInstrument(value);
+        if (instrumentId === "" || seen.has(instrumentId)) {
+            continue;
+        }
+        seen.add(instrumentId);
+        const [market, code] = instrumentId.split(".", 2);
+        const resolvedMarket = market ?? "";
+        const resolvedCode = code ?? "";
+        if (resolvedMarket === "" || resolvedCode === "") {
+            continue;
+        }
+        result.push({ market: resolvedMarket, code: resolvedCode });
+    }
+    return result;
+}
+
+export function bindingInstrumentsToSymbols(values: StrategyBindingInstrumentDocument[]): string[] {
+    return normalizeSymbols(values.map((value) => `${value.market}.${value.code}`));
+}
+
 export function splitSymbolsText(value: string): string[] {
     return value
-        .split(/[\s,，;；]+/)
+    .split(/[\n\r\t,，;；]+/)
         .map((segment) => segment.trim())
         .filter((segment) => segment !== "");
 }
 
 export function parseSymbolsText(value: string): string[] {
-    return normalizeSymbols(splitSymbolsText(value));
+    return parseSymbolsTextWithFallbackMarket(value);
+}
+
+export function parseSymbolsTextWithFallbackMarket(value: string, fallbackMarket?: string): string[] {
+    return normalizeSymbols(
+        splitSymbolsText(value).map((segment) => normalizeDraftSymbol(segment, fallbackMarket)),
+    );
 }
 
 function isValidNormalizedInstrumentId(value: string): boolean {
@@ -58,18 +92,33 @@ function isValidNormalizedInstrumentId(value: string): boolean {
 }
 
 export function parseValidatedSymbolsText(value: string): string[] {
+    return parseValidatedSymbolsTextWithFallbackMarket(value);
+}
+
+export function parseValidatedSymbolsTextWithFallbackMarket(value: string, fallbackMarket?: string): string[] {
     return normalizeSymbols(
         splitSymbolsText(value)
-            .map((segment) => normalizeInstrumentId(segment))
+            .map((segment) => normalizeDraftSymbol(segment, fallbackMarket))
             .filter((segment) => isValidNormalizedInstrumentId(segment)),
     );
 }
 
+export function parseBindingInstrumentsTextWithFallbackMarket(
+    value: string,
+    fallbackMarket?: string,
+): StrategyBindingInstrumentDocument[] {
+    return symbolsToBindingInstruments(parseValidatedSymbolsTextWithFallbackMarket(value, fallbackMarket));
+}
+
 export function invalidSymbolsFromText(value: string): string[] {
+    return invalidSymbolsFromTextWithFallbackMarket(value);
+}
+
+export function invalidSymbolsFromTextWithFallbackMarket(value: string, fallbackMarket?: string): string[] {
     const seen = new Set<string>();
     const invalidSymbols: string[] = [];
     for (const segment of splitSymbolsText(value)) {
-        const normalized = normalizeInstrumentId(segment);
+        const normalized = normalizeDraftSymbol(segment, fallbackMarket);
         if (normalized === "" || isValidNormalizedInstrumentId(normalized) || seen.has(normalized)) {
             continue;
         }
@@ -125,6 +174,10 @@ function readStrategySymbolsFromParams(params: Record<string, unknown> | null): 
     if (params === null) {
         return [];
     }
+    const instruments = readStrategyInstrumentsFromParams(params);
+    if (instruments.length > 0) {
+        return bindingInstrumentsToSymbols(instruments);
+    }
     if (Array.isArray(params.symbols)) {
         return normalizeSymbols(
             params.symbols.filter((entry): entry is string => typeof entry === "string"),
@@ -132,6 +185,40 @@ function readStrategySymbolsFromParams(params: Record<string, unknown> | null): 
     }
     const symbol = normalizeInstrumentId(normalizeText(params.symbol));
     return symbol === "" ? [] : [symbol];
+}
+
+function readStrategyInstrumentsFromParams(params: Record<string, unknown> | null): StrategyBindingInstrumentDocument[] {
+    if (params === null || !Array.isArray(params.instruments)) {
+        return [];
+    }
+    return normalizeBindingInstruments(
+        params.instruments
+            .map((entry) => asRecord(entry))
+            .filter((entry): entry is Record<string, unknown> => entry !== null)
+            .map((entry) => ({
+                market: normalizeText(entry.market),
+                code: normalizeText(entry.code),
+            })),
+    );
+}
+
+function bindingInstrumentFromSymbol(symbol: string): StrategyBindingInstrumentDocument | null {
+    const resolved = resolveInstrumentRef({ instrumentId: symbol });
+    if (resolved == null) {
+        return null;
+    }
+    return {
+        market: resolved.market,
+        code: resolved.code,
+    };
+}
+
+function symbolsToBindingInstruments(symbols: string[]): StrategyBindingInstrumentDocument[] {
+    return normalizeBindingInstruments(
+        symbols
+            .map((symbol) => bindingInstrumentFromSymbol(symbol))
+            .filter((entry): entry is StrategyBindingInstrumentDocument => entry !== null),
+    );
 }
 
 function readStrategyBrokerAccount(
@@ -154,13 +241,19 @@ function readStrategyBrokerAccount(
 
 export function readStrategyBinding(strategy: StrategyInstanceItem): StrategyInstanceBindingDocument {
     const params = asRecord(strategy.params);
-    const bindingSymbols = Array.isArray(strategy.binding?.symbols)
-        ? normalizeSymbols(strategy.binding.symbols)
-        : readStrategySymbolsFromParams(params);
+    const bindingInstruments = Array.isArray(strategy.binding?.instruments)
+        ? normalizeBindingInstruments(strategy.binding.instruments)
+        : readStrategyInstrumentsFromParams(params);
+    const bindingSymbols = bindingInstruments.length > 0
+        ? bindingInstrumentsToSymbols(bindingInstruments)
+        : Array.isArray(strategy.binding?.symbols)
+            ? normalizeSymbols(strategy.binding.symbols)
+            : readStrategySymbolsFromParams(params);
     const executionModeSource =
         normalizeText(strategy.binding?.executionMode)
         || normalizeText(params?.executionMode);
     return {
+        instruments: bindingInstruments.length > 0 ? bindingInstruments : symbolsToBindingInstruments(bindingSymbols),
         symbols: bindingSymbols,
         interval: normalizeText(strategy.binding?.interval) || normalizeText(params?.interval) || "5m",
         executionMode: executionModeSource === "notify_only" ? "notify_only" : "live",
@@ -254,15 +347,21 @@ export function resolveBrokerAccountOption(
 
 export function buildStrategyBindingPayload(input: {
     brokerAccountOptions: BrokerAccountSelectionOption[];
-    symbolsText: string;
+    symbolsText?: string;
+    instruments?: StrategyBindingInstrumentDocument[];
     interval: string;
     executionMode: StrategyExecutionMode;
     brokerAccountKey: string;
     fallbackBrokerAccount?: StrategyBrokerAccountBinding | null;
 }): StrategyInstanceBindingDocument {
     const selectedAccount = resolveBrokerAccountOption(input.brokerAccountOptions, input.brokerAccountKey);
+    const instruments = input.instruments == null
+        ? symbolsToBindingInstruments(parseValidatedSymbolsText(input.symbolsText ?? ""))
+        : normalizeBindingInstruments(input.instruments);
+    const symbols = bindingInstrumentsToSymbols(instruments);
     return {
-        symbols: parseValidatedSymbolsText(input.symbolsText),
+        instruments,
+        symbols,
         interval: normalizeText(input.interval) || "5m",
         executionMode: input.executionMode === "notify_only" ? "notify_only" : "live",
         brokerAccount: selectedAccount == null

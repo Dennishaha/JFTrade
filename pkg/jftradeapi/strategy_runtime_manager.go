@@ -19,6 +19,11 @@ import (
 	strategyindicatorruntime "github.com/jftrade/jftrade-main/pkg/strategy/indicatorruntime"
 )
 
+var (
+	strategyRuntimeClosedKLineSyncInterval = 5 * time.Second
+	strategyRuntimeClosedKLineSyncLimit    = 8
+)
+
 type strategyRuntimeExchange interface {
 	bbgotypes.Exchange
 	QueryBrokerFunds(ctx context.Context, query futu.BrokerReadQuery) (*futu.BrokerFundsSnapshot, error)
@@ -53,17 +58,26 @@ type managedStrategyRuntime struct {
 }
 
 type strategySymbolRuntime struct {
-	instanceID    string
-	name          string
-	symbol        string
-	interval      bbgotypes.Interval
-	exchange      bbgotypes.ExchangeName
-	emitter       bbgotypes.StandardStreamEmitter
-	onClosedKLine func(time.Time)
+	instanceID      string
+	name            string
+	symbol          string
+	interval        bbgotypes.Interval
+	exchange        bbgotypes.ExchangeName
+	ctx             context.Context
+	runtimeExchange strategyRuntimeExchange
+	brokerQuery     futu.BrokerReadQuery
+	market          bbgotypes.Market
+	cachedFunds     *futu.BrokerFundsSnapshot
+	cachedPositions []futu.BrokerPositionSnapshot
+	session         *bbgo.ExchangeSession
+	emitter         bbgotypes.StandardStreamEmitter
+	onClosedKLine   func(time.Time)
+	onError         func(string)
 
 	mu              sync.RWMutex
 	currentBucket   *bbgotypes.KLine
 	lastClosedPrice float64
+	lastClosedKLine time.Time
 }
 
 type strategyNotifyOnlyOrderExecutor struct {
@@ -180,6 +194,9 @@ func (m *strategyRuntimeManager) startStrategy(ctx context.Context, instance man
 	}
 	m.runtimes[instance.ID] = managed
 	m.persistObservationSnapshot(managed.snapshot(strategyStatusRunning))
+	for _, runner := range managed.symbols {
+		go runner.syncClosedKLinesLoop()
+	}
 	return nil
 }
 
@@ -254,14 +271,34 @@ func (m *strategyRuntimeManager) buildSymbolRuntime(
 	}
 
 	runner := &strategySymbolRuntime{
-		instanceID: instance.ID,
-		name:       strings.TrimSpace(instance.Definition.Name),
-		symbol:     symbol,
-		interval:   interval,
-		exchange:   exchange.Name(),
-		emitter:    emitter,
+		instanceID:      instance.ID,
+		name:            strings.TrimSpace(instance.Definition.Name),
+		symbol:          symbol,
+		interval:        interval,
+		exchange:        exchange.Name(),
+		ctx:             runtimeCtx,
+		runtimeExchange: exchange,
+		brokerQuery:     strategyRuntimeBrokerReadQuery(instance.Binding),
+		market:          market,
+		cachedFunds:     cloneStrategyRuntimeFundsSnapshot(funds),
+		cachedPositions: cloneStrategyRuntimePositions(positions),
+		session:         session,
+		emitter:         emitter,
 		onClosedKLine: func(at time.Time) {
 			m.recordClosedKLine(instance.ID, at)
+		},
+		onError: func(message string) {
+			message = strings.TrimSpace(message)
+			if message == "" {
+				return
+			}
+			m.recordError(instance.ID, message, time.Now().UTC())
+			_ = m.server.strategyStore.appendStrategyRuntimeEvent(
+				instance.ID,
+				fmt.Sprintf("runtime error %s: %s", symbol, message),
+				"runtime_error",
+				fmt.Sprintf("%s: %s", symbol, message),
+			)
 		},
 	}
 
@@ -313,6 +350,7 @@ func (m *strategyRuntimeManager) seedSymbolRuntime(ctx context.Context, exchange
 		closed := kline
 		closed.Closed = true
 		runner.setLastClosedPrice(closed.Close.Float64())
+		runner.recordClosedKLineState(closed)
 		runner.emitter.EmitKLineClosed(closed)
 	}
 	return nil
@@ -323,6 +361,60 @@ func (m *strategyRuntimeManager) newOrderExecutor(instance managedStrategyInstan
 		return &strategyNotifyOnlyOrderExecutor{manager: m, server: m.server, instance: instance, runner: runner}
 	}
 	return &strategyLiveOrderExecutor{manager: m, server: m.server, instance: instance, runner: runner}
+}
+
+func (r *strategySymbolRuntime) syncClosedKLinesLoop() {
+	if r == nil || strategyRuntimeClosedKLineSyncInterval <= 0 {
+		return
+	}
+	ticker := time.NewTicker(strategyRuntimeClosedKLineSyncInterval)
+	defer ticker.Stop()
+	ctx := r.ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			r.syncClosedKLines()
+		}
+	}
+}
+
+func (r *strategySymbolRuntime) syncClosedKLines() {
+	if r == nil || r.runtimeExchange == nil {
+		return
+	}
+	ctx := r.ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	limit := strategyRuntimeClosedKLineSyncLimit
+	if limit <= 0 {
+		limit = 8
+	}
+	klines, err := r.runtimeExchange.QueryKLines(ctx, r.symbol, r.interval, bbgotypes.KLineQueryOptions{Limit: limit})
+	if err != nil {
+		r.handleRuntimeError(fmt.Errorf("refresh strategy klines for %s: %w", r.symbol, err))
+		return
+	}
+	sort.SliceStable(klines, func(left int, right int) bool {
+		return klines[left].StartTime.Time().Before(klines[right].StartTime.Time())
+	})
+	for index := range klines {
+		kline := klines[index]
+		if !kline.Closed {
+			if index == len(klines)-1 {
+				current := kline
+				r.setCurrentBucket(&current)
+			}
+			continue
+		}
+		kline.Closed = true
+		r.emitClosedKLine(kline)
+	}
 }
 
 func (r *strategySymbolRuntime) handleTrade(trade bbgotypes.Trade) {
@@ -357,11 +449,83 @@ func (r *strategySymbolRuntime) handleTrade(trade bbgotypes.Trade) {
 	r.mu.Unlock()
 
 	if closed != nil {
-		if r.onClosedKLine != nil {
-			r.onClosedKLine(closed.EndTime.Time().UTC())
-		}
-		r.emitter.EmitKLineClosed(*closed)
+		r.emitClosedKLine(*closed)
 	}
+}
+
+func (r *strategySymbolRuntime) recordClosedKLineState(closed bbgotypes.KLine) bool {
+	closedAt := closed.EndTime.Time().UTC()
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if !closedAt.After(r.lastClosedKLine) {
+		if closed.Close.Sign() > 0 {
+			r.lastClosedPrice = closed.Close.Float64()
+		}
+		return false
+	}
+	r.lastClosedKLine = closedAt
+	if closed.Close.Sign() > 0 {
+		r.lastClosedPrice = closed.Close.Float64()
+	}
+	return true
+}
+
+func (r *strategySymbolRuntime) emitClosedKLine(closed bbgotypes.KLine) {
+	if !r.recordClosedKLineState(closed) {
+		return
+	}
+	if err := r.refreshBrokerAccount(); err != nil {
+		r.handleRuntimeError(err)
+	}
+	if r.onClosedKLine != nil {
+		r.onClosedKLine(closed.EndTime.Time().UTC())
+	}
+	r.emitter.EmitKLineClosed(closed)
+}
+
+func (r *strategySymbolRuntime) handleRuntimeError(err error) {
+	if err == nil {
+		return
+	}
+	if r.onError != nil {
+		r.onError(err.Error())
+		return
+	}
+	log.Printf("JFTrade strategy runtime degraded: %v", err)
+}
+
+func (r *strategySymbolRuntime) refreshBrokerAccount() error {
+	if r == nil || r.runtimeExchange == nil || r.session == nil {
+		return nil
+	}
+	ctx := r.ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	funds := r.cachedFunds
+	positions := r.cachedPositions
+	freshFunds, err := r.runtimeExchange.QueryBrokerFunds(ctx, r.brokerQuery)
+	if err != nil {
+		if connectivityFromBrokerReadError(err) != "disconnected" {
+			return fmt.Errorf("refresh strategy broker funds for %s: %w", r.symbol, err)
+		}
+		log.Printf("JFTrade strategy runtime broker funds refresh disconnected for %s: %v", r.symbol, err)
+	} else {
+		r.cachedFunds = cloneStrategyRuntimeFundsSnapshot(freshFunds)
+		funds = r.cachedFunds
+	}
+	freshPositions, err := r.runtimeExchange.QueryBrokerPositions(ctx, r.brokerQuery)
+	if err != nil {
+		if connectivityFromBrokerReadError(err) != "disconnected" {
+			return fmt.Errorf("refresh strategy broker positions for %s: %w", r.symbol, err)
+		}
+		log.Printf("JFTrade strategy runtime broker positions refresh disconnected for %s: %v", r.symbol, err)
+	} else {
+		r.cachedPositions = cloneStrategyRuntimePositions(freshPositions)
+		positions = r.cachedPositions
+	}
+	r.session.Account = buildStrategyRuntimeAccount(funds, positions, r.market, r.symbol)
+	return nil
 }
 
 func (r *strategySymbolRuntime) currentPrice() float64 {
@@ -780,6 +944,54 @@ func strategyRuntimeTradeKLine(exchange bbgotypes.ExchangeName, symbol string, i
 	return kline
 }
 
+func cloneStrategyRuntimeFundsSnapshot(snapshot *futu.BrokerFundsSnapshot) *futu.BrokerFundsSnapshot {
+	if snapshot == nil {
+		return nil
+	}
+	copyValue := *snapshot
+	copyValue.CurrencyBalances = append([]futu.BrokerCurrencyBalanceSnapshot(nil), snapshot.CurrencyBalances...)
+	return &copyValue
+}
+
+func cloneStrategyRuntimePositions(positions []futu.BrokerPositionSnapshot) []futu.BrokerPositionSnapshot {
+	if len(positions) == 0 {
+		return nil
+	}
+	return append([]futu.BrokerPositionSnapshot(nil), positions...)
+}
+
+func strategyRuntimePositionMatchesSymbol(position futu.BrokerPositionSnapshot, symbol string) bool {
+	strategySymbol := strings.TrimSpace(strings.ToUpper(symbol))
+	if strategySymbol == "" {
+		return false
+	}
+	positionSymbol := strings.TrimSpace(strings.ToUpper(position.Symbol))
+	if positionSymbol == "" {
+		return false
+	}
+	if strings.EqualFold(positionSymbol, strategySymbol) {
+		return true
+	}
+	market := strings.TrimSpace(strings.ToUpper(position.Market))
+	if market != "" && !strings.Contains(positionSymbol, ".") && !strings.Contains(positionSymbol, ":") {
+		if strings.EqualFold(market+"."+positionSymbol, strategySymbol) {
+			return true
+		}
+		if strings.EqualFold(market+":"+positionSymbol, strategySymbol) {
+			return true
+		}
+	}
+	if market == "" {
+		if parts := strings.SplitN(strategySymbol, ".", 2); len(parts) == 2 && strings.EqualFold(parts[1], positionSymbol) {
+			return true
+		}
+		if parts := strings.SplitN(strategySymbol, ":", 2); len(parts) == 2 && strings.EqualFold(parts[1], positionSymbol) {
+			return true
+		}
+	}
+	return false
+}
+
 func buildStrategyRuntimeAccount(funds *futu.BrokerFundsSnapshot, positions []futu.BrokerPositionSnapshot, market bbgotypes.Market, symbol string) *bbgotypes.Account {
 	account := bbgotypes.NewAccount()
 	account.CanDeposit = true
@@ -832,7 +1044,7 @@ func buildStrategyRuntimeAccount(funds *futu.BrokerFundsSnapshot, positions []fu
 	if baseCurrency != "" {
 		baseEntry := bbgotypes.NewZeroBalance(baseCurrency)
 		for _, position := range positions {
-			if !strings.EqualFold(strings.TrimSpace(position.Symbol), symbol) {
+			if !strategyRuntimePositionMatchesSymbol(position, symbol) {
 				continue
 			}
 			baseEntry.Available = baseEntry.Available.Add(fixedpoint.NewFromFloat(position.SellableQuantity))

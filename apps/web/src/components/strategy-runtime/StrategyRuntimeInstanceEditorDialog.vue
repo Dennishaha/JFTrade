@@ -23,8 +23,10 @@ const props = defineProps<{
     createDefinition: StrategyDefinitionDocument | null;
     selectedStrategy: StrategyInstanceItem | null;
     symbolTags: string[];
+    symbolMarket: string;
     symbolDraft: string;
     symbolValidationMessage: string;
+    marketOptions: Array<{ value: string; title: string }>;
     intervalValue: string;
     executionMode: StrategyExecutionMode;
     selectedBrokerAccountOption: BrokerAccountSelectionOption | null;
@@ -50,6 +52,7 @@ const emit = defineEmits<{
     "switch-to-design": [];
     "update:create-definition-id": [value: string];
     "remove-symbol": [symbol: string];
+    "update:symbol-market": [value: string];
     "update:symbol-draft": [value: string];
     "commit-symbol-draft": [];
     "symbol-draft-keydown": [event: KeyboardEvent];
@@ -75,6 +78,12 @@ const panelTestId = computed(() =>
 );
 const symbolInputTestId = computed(() =>
     isCreate.value ? "strategy-instance-symbols" : "strategy-edit-symbols",
+);
+const symbolMarketTestId = computed(() =>
+    isCreate.value ? "strategy-instance-symbol-market" : "strategy-edit-symbol-market",
+);
+const symbolAddTestId = computed(() =>
+    isCreate.value ? "strategy-instance-symbol-add" : "strategy-edit-symbol-add",
 );
 const symbolValidationTestId = computed(() =>
     isCreate.value ? "strategy-instance-symbols-validation" : "strategy-edit-symbols-validation",
@@ -103,8 +112,8 @@ const currentTagTestId = computed(() =>
 const previewHeading = computed(() => (isCreate.value ? "创建预览" : "绑定预览"));
 const symbolHelperText = computed(() =>
     isCreate.value
-        ? "支持多个交易代码，按 Enter、Tab、逗号或直接粘贴多个代码生成标签。"
-        : "为空时表示暂未绑定交易代码；按 Backspace 可快速删除最后一个标签。",
+    ? "先选市场，再输入代码；按 Enter、Tab、逗号可添加，也支持直接粘贴 US.TME、HK.00700 或多行列表。"
+    : "为空时表示暂未绑定交易代码；先选市场再输入代码，按 Backspace 可快速删除最后一个标签。",
 );
 const notifyOnlyNotice = computed(() =>
     isCreate.value
@@ -133,6 +142,10 @@ function handleDefinitionChange(event: Event): void {
 
 function handleSymbolDraftInput(event: Event): void {
     emit("update:symbol-draft", (event.target as HTMLInputElement).value);
+}
+
+function handleSymbolMarketChange(event: Event): void {
+    emit("update:symbol-market", (event.target as HTMLSelectElement).value);
 }
 
 function handleSymbolDraftKeydown(event: KeyboardEvent): void {
@@ -234,28 +247,54 @@ function handleBrokerQueryInput(event: Event): void {
                     </div>
                     <label class="grid gap-1.5 text-sm text-slate-600">
                         <span class="font-medium text-slate-700">交易代码</span>
-                        <div class="strategy-tag-input" :class="{ 'strategy-tag-input--invalid': symbolValidationMessage !== '' }">
-                            <button
-                                v-for="symbol in symbolTags"
-                                :key="`${mode}-${symbol}`"
-                                class="strategy-tag-chip"
-                                type="button"
-                                @click="emit('remove-symbol', symbol)"
-                            >
-                                <span>{{ symbol }}</span>
-                                <span class="strategy-tag-chip__remove">x</span>
-                            </button>
-                            <input
-                                :value="symbolDraft"
-                                :data-testid="symbolInputTestId"
-                                class="strategy-tag-input__field"
-                                placeholder="输入交易代码后按 Enter，例如 US.TME"
-                                type="text"
-                                @input="handleSymbolDraftInput"
-                                @blur="emit('commit-symbol-draft')"
-                                @keydown="handleSymbolDraftKeydown"
-                                @paste="handleSymbolDraftPaste"
-                            >
+                        <div class="grid gap-2">
+                            <div class="grid gap-2 md:grid-cols-[9rem_minmax(0,1fr)_auto]">
+                                <select
+                                    :value="symbolMarket"
+                                    :data-testid="symbolMarketTestId"
+                                    class="rounded-2xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-500"
+                                    @change="handleSymbolMarketChange"
+                                >
+                                    <option v-for="option in marketOptions" :key="option.value" :value="option.value">
+                                        {{ option.title }}
+                                    </option>
+                                </select>
+                                <input
+                                    :value="symbolDraft"
+                                    :data-testid="symbolInputTestId"
+                                    class="rounded-2xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-500"
+                                    placeholder="输入代码，例如 TME"
+                                    type="text"
+                                    @input="handleSymbolDraftInput"
+                                    @blur="emit('commit-symbol-draft')"
+                                    @keydown="handleSymbolDraftKeydown"
+                                    @paste="handleSymbolDraftPaste"
+                                >
+                                <button
+                                    class="rounded-full border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
+                                    :data-testid="symbolAddTestId"
+                                    type="button"
+                                    @mousedown.prevent
+                                    @click="emit('commit-symbol-draft')"
+                                >
+                                    添加
+                                </button>
+                            </div>
+                            <div class="strategy-tag-input" :class="{ 'strategy-tag-input--invalid': symbolValidationMessage !== '' }">
+                                <button
+                                    v-for="symbol in symbolTags"
+                                    :key="`${mode}-${symbol}`"
+                                    class="strategy-tag-chip"
+                                    type="button"
+                                    @click="emit('remove-symbol', symbol)"
+                                >
+                                    <span>{{ symbol }}</span>
+                                    <span class="strategy-tag-chip__remove">x</span>
+                                </button>
+                                <span v-if="symbolTags.length === 0" class="text-xs text-slate-400">
+                                    暂未添加交易代码
+                                </span>
+                            </div>
                         </div>
                         <span v-if="symbolValidationMessage" :data-testid="symbolValidationTestId" class="text-xs text-amber-700">
                             {{ symbolValidationMessage }}

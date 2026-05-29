@@ -229,6 +229,30 @@ function buildStandardFetchMock(overrides: Record<string, unknown> = {}) {
 }
 
 describe("Market page", () => {
+  it("updates the global workspace instrument from the top bar with explicit market and code fields", async () => {
+    vi.stubGlobal("fetch", buildStandardFetchMock());
+    vi.stubGlobal(
+      "EventSource",
+      MockEventSource as unknown as typeof EventSource,
+    );
+
+    const { wrapper } = await mountApp("/market");
+
+    await wrapper.get('[data-testid="rightdock-tab-context"]').trigger("click");
+    await flushRequests();
+
+    expect(wrapper.get('[data-testid="rightdock-symbol-info"]').text()).toBe("HK:00700");
+
+    await wrapper.get('[data-testid="topbar-instrument-market"]').setValue("US");
+    await wrapper.get('[data-testid="topbar-instrument-code"]').setValue("TME");
+    await wrapper.get('[data-testid="topbar-instrument-form"]').trigger("submit");
+    await flushRequests();
+
+    expect(wrapper.get('[data-testid="rightdock-symbol-info"]').text()).toBe("US:TME");
+
+    wrapper.unmount();
+  });
+
   it("shows empty state when no subscriptions are active", async () => {
     vi.stubGlobal("fetch", buildStandardFetchMock());
     vi.stubGlobal(

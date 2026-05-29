@@ -6,11 +6,24 @@ import BacktestChart from "../components/BacktestChart.vue";
 import PageHeader from "../components/PageHeader.vue";
 import { fetchEnvelope } from "../composables/apiClient";
 import { formatGenericStatusLabel } from "../composables/consoleDataFormatting";
+import { resolveInstrumentRef } from "../composables/instrumentRef";
 import { useBacktestRuns, type BacktestFormState } from "../composables/useBacktestRuns";
 import { useConsoleData } from "../composables/useConsoleData";
 import { useTheme } from "../composables/useTheme";
 import { buildBacktestDayInclusiveEndTime, buildBacktestDayStartTime } from "./backtestTimeWindow";
 import dayjs from "dayjs";
+
+const BACKTEST_MARKET_OPTIONS = [
+  { value: "HK", title: "港股 HK" },
+  { value: "US", title: "美股 US" },
+  { value: "SH", title: "沪市 SH" },
+  { value: "SZ", title: "深市 SZ" },
+  { value: "SG", title: "新加坡 SG" },
+  { value: "JP", title: "日本 JP" },
+  { value: "AU", title: "澳洲 AU" },
+  { value: "MY", title: "马来西亚 MY" },
+  { value: "CA", title: "加拿大 CA" },
+];
 
 // ── Console data (reuse existing symbol search infrastructure) ──
 const {
@@ -62,7 +75,8 @@ let warmupPreviewRequestId = 0;
 
 // Form state
 const selectedDefinitionId = ref("");
-const symbolInput = ref("HK:00700");
+const selectedMarket = ref("HK");
+const codeInput = ref("00700");
 const interval = ref("5m");
 const startDate = ref(dayjs().subtract(3, "year").format("YYYY-MM-DD"));
 const endDate = ref(dayjs().format("YYYY-MM-DD"));
@@ -80,23 +94,37 @@ const selectedDefinition = computed(() =>
   definitions.value.find((d) => d.id === selectedDefinitionId.value),
 );
 
-const parsedSymbol = computed(() => {
-  const raw = symbolInput.value ?? "";
-  const parts = raw.includes(":") ? raw.split(":") : ["HK", "00700"];
-  return {
-    market: parts[0] || "HK",
-    symbol: parts[1] || "00700",
-    instrumentId: `${parts[0] || "HK"}.${parts[1] || "00700"}`,
-  };
+const codeSuggestions = computed(() => {
+  const market = selectedMarket.value.trim().toUpperCase();
+  return marketInstrumentSearchOptions.value
+    .filter((option) => option.market === market)
+    .map((option) => ({
+      value: option.symbol,
+      title: option.name == null ? option.instrumentId : `${option.symbol} · ${option.name}`,
+    }));
 });
+
+const parsedInstrument = computed(() => resolveInstrumentRef(
+  {
+    market: selectedMarket.value,
+    code: codeInput.value,
+  },
+  selectedMarket.value,
+));
 
 const periodLabel = computed(() =>
   KLINE_PERIODS.find((p) => p.value === interval.value)?.label ?? interval.value,
 );
 
 const quoteCurrency = computed(() => {
-  const market = parsedSymbol.value.market.toUpperCase();
+  const market = (parsedInstrument.value?.market ?? selectedMarket.value).toUpperCase();
   if (market === "US") return "USD";
+  if (["SH", "SZ", "CN"].includes(market)) return "CNY";
+  if (market === "SG") return "SGD";
+  if (market === "JP") return "JPY";
+  if (market === "AU") return "AUD";
+  if (market === "MY") return "MYR";
+  if (market === "CA") return "CAD";
   return "HKD";
 });
 
@@ -149,7 +177,9 @@ function resolveStrategyName(definitionId: string | undefined) {
 
 const backtestFormState = computed<BacktestFormState>(() => ({
   definitionId: selectedDefinitionId.value,
-  instrumentId: parsedSymbol.value.instrumentId,
+  market: parsedInstrument.value?.market ?? selectedMarket.value.trim().toUpperCase(),
+  code: parsedInstrument.value?.code ?? codeInput.value.trim().toUpperCase(),
+  instrumentId: parsedInstrument.value?.instrumentId ?? "",
   interval: interval.value,
   syncStartTime: syncStartTime.value,
   syncEndTime: syncEndTime.value,
@@ -174,6 +204,23 @@ const {
   startBacktest,
 } = useBacktestRuns({
   formState: backtestFormState,
+});
+
+watch(codeInput, (value) => {
+  const raw = value.trim();
+  if (raw === "" || (!raw.includes(":") && !raw.includes("."))) {
+    return;
+  }
+  const resolved = resolveInstrumentRef({ instrumentId: raw }, selectedMarket.value);
+  if (resolved == null) {
+    return;
+  }
+  if (selectedMarket.value !== resolved.market) {
+    selectedMarket.value = resolved.market;
+  }
+  if (codeInput.value.trim().toUpperCase() !== resolved.code) {
+    codeInput.value = resolved.code;
+  }
 });
 
 const headerStats = computed(() => [
@@ -427,17 +474,22 @@ watch([selectedDefinitionId, interval], () => {
                 density="compact" variant="outlined" placeholder="选择策略" />
             </div>
 
-            <!-- Symbol -->
-            <div class="grid gap-0.5">
-              <div class="flex items-center justify-between">
-                <label class="text-xs font-semibold text-slate-700 dark:text-slate-200">标的</label>
+            <!-- Instrument -->
+            <div class="grid gap-2">
+              <div class="grid grid-cols-2 gap-2">
+                <div class="grid gap-0.5">
+                  <label class="text-xs font-semibold text-slate-700 dark:text-slate-200">市场</label>
+                  <v-select v-model="selectedMarket" :items="BACKTEST_MARKET_OPTIONS" item-title="title" item-value="value"
+                    density="compact" variant="outlined" />
+                </div>
+                <div class="grid gap-0.5">
+                  <label class="text-xs font-semibold text-slate-700 dark:text-slate-200">代码</label>
+                  <v-combobox v-model="codeInput" :items="codeSuggestions" item-title="title" item-value="value"
+                    density="compact" variant="outlined" placeholder="00700" clearable />
+                </div>
               </div>
-              <v-combobox v-model="symbolInput"
-                :items="marketInstrumentSearchOptions.map(o => ({ value: o.lookupValue, title: o.label }))"
-                item-title="title" item-value="value" density="compact" variant="outlined" placeholder="HK:00700"
-                clearable />
               <div class="text-xs text-slate-500 dark:text-slate-400">
-                {{ parsedSymbol.instrumentId }}
+                {{ parsedInstrument?.instrumentId || "请先输入市场与代码" }}
               </div>
             </div>
 

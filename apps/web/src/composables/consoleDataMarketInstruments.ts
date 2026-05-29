@@ -9,6 +9,7 @@ import {
 } from "@jftrade/ui-contracts";
 
 import type { MarketInstrumentReference } from "./consoleDataSystemState";
+import { resolveInstrumentRef } from "./instrumentRef";
 
 interface MarketInstrumentInput {
   market?: string | null;
@@ -25,12 +26,10 @@ export interface MarketInstrumentSearchOption {
   instrumentId: string;
   name: string | null;
   label: string;
-  lookupValue: string;
   sources: string[];
 }
 
 interface ConsoleDataMarketInstrumentsControllerOptions {
-  prefs: Ref<{ market: string }>;
   marketDataQueryMarket: Ref<string>;
   selectedBrokerAccount: Ref<{ market?: string | null } | null | undefined>;
   marketInstrumentReferences: Ref<MarketInstrumentReference[]>;
@@ -41,64 +40,21 @@ interface ConsoleDataMarketInstrumentsControllerOptions {
   executionOrders: Ref<ExecutionOrdersResponse>;
 }
 
-export function parseMarketInstrumentInput(
-  value: string,
-  fallbackMarket: string,
-): { market: string; symbol: string } | null {
-  const normalized = value.trim().toUpperCase();
-  if (normalized === "") {
-    return null;
-  }
-
-  const separator = normalized.includes(":") ? ":" : ".";
-  if (normalized.includes(separator)) {
-    const [market, symbol] = normalized.split(separator, 2);
-    if (market != null && symbol != null && market !== "" && symbol !== "") {
-      return { market, symbol };
-    }
-  }
-
-  const market = fallbackMarket.trim().toUpperCase();
-  if (market === "") {
-    return null;
-  }
-
-  return { market, symbol: normalized };
-}
-
 export function normalizeInstrumentParts(
   input: MarketInstrumentInput,
   fallbackMarket?: string,
 ): { market: string; symbol: string } | null {
-  const rawSymbol = input.symbol?.trim().toUpperCase();
-  const rawMarket = input.market?.trim().toUpperCase() ?? "";
-
-  if (rawSymbol == null || rawSymbol === "") {
+  const resolved = resolveInstrumentRef(
+    {
+      market: input.market ?? null,
+      symbol: input.symbol ?? null,
+    },
+    fallbackMarket,
+  );
+  if (resolved == null) {
     return null;
   }
-
-  const embeddedSeparator = rawSymbol.includes(":") ? ":" : ".";
-  if (rawSymbol.includes(embeddedSeparator)) {
-    const [symbolMarket, symbol] = rawSymbol.split(embeddedSeparator, 2);
-    if (
-      symbolMarket != null &&
-      symbol != null &&
-      symbolMarket !== "" &&
-      symbol !== ""
-    ) {
-      return {
-        market: rawMarket === "" ? symbolMarket : rawMarket,
-        symbol,
-      };
-    }
-  }
-
-  const market = rawMarket || fallbackMarket?.trim().toUpperCase() || "";
-  if (market === "") {
-    return null;
-  }
-
-  return { market, symbol: rawSymbol };
+  return { market: resolved.market, symbol: resolved.symbol };
 }
 
 export function createConsoleDataMarketInstrumentsController(
@@ -186,7 +142,6 @@ export function createConsoleDataMarketInstrumentsController(
             instrumentId,
             name: item.name,
             label: `${instrumentId}${nameSuffix} · ${sources.join(", ")}`,
-            lookupValue: `${item.market}:${item.symbol}`,
             sources,
           };
         })
@@ -196,14 +151,7 @@ export function createConsoleDataMarketInstrumentsController(
     },
   );
 
-  function resolveMarketInstrumentInput(
-    value: string,
-  ): { market: string; symbol: string } | null {
-    return parseMarketInstrumentInput(value, options.prefs.value.market);
-  }
-
   return {
     marketInstrumentSearchOptions,
-    resolveMarketInstrumentInput,
   };
 }

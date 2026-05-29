@@ -762,7 +762,7 @@ func TestInstantiateDSLStrategyDefinitionBuildsCompiledPlan(t *testing.T) {
 	srv := httptest.NewServer(server)
 	defer srv.Close()
 
-	resp, err := http.Post(srv.URL+"/api/v1/strategy-definitions/dsl-breakout/instantiate", "application/json", bytes.NewReader([]byte(`{"symbols":["us:aapl","hk:00700"],"interval":"15m","executionMode":"notify_only","brokerAccount":{"brokerId":"futu","accountId":"123456","tradingEnvironment":"simulate","market":"us"}}`)))
+	resp, err := http.Post(srv.URL+"/api/v1/strategy-definitions/dsl-breakout/instantiate", "application/json", bytes.NewReader([]byte(`{"instruments":[{"market":"US","code":"AAPL"},{"market":"HK","code":"00700"}],"interval":"15m","executionMode":"notify_only","brokerAccount":{"brokerId":"futu","accountId":"123456","tradingEnvironment":"simulate","market":"us"}}`)))
 	if err != nil {
 		t.Fatalf("POST instantiate DSL strategy: %v", err)
 	}
@@ -793,6 +793,9 @@ func TestInstantiateDSLStrategyDefinitionBuildsCompiledPlan(t *testing.T) {
 	if len(envelope.Data.Binding.Symbols) != 2 || envelope.Data.Binding.Symbols[0] != "US.AAPL" || envelope.Data.Binding.Symbols[1] != "HK.00700" {
 		t.Fatalf("unexpected binding symbols: %+v", envelope.Data.Binding)
 	}
+	if len(envelope.Data.Binding.Instruments) != 2 || envelope.Data.Binding.Instruments[0].Market != "US" || envelope.Data.Binding.Instruments[0].Code != "AAPL" || envelope.Data.Binding.Instruments[1].Market != "HK" || envelope.Data.Binding.Instruments[1].Code != "00700" {
+		t.Fatalf("unexpected binding instruments: %+v", envelope.Data.Binding)
+	}
 	if envelope.Data.Binding.Interval != "15m" {
 		t.Fatalf("unexpected binding interval: %+v", envelope.Data.Binding)
 	}
@@ -817,6 +820,9 @@ func TestInstantiateDSLStrategyDefinitionBuildsCompiledPlan(t *testing.T) {
 	if got, ok := envelope.Data.Params["brokerAccount"].(map[string]any); !ok || got["brokerId"] != "futu" {
 		t.Fatalf("unexpected DSL broker account params: %+v", envelope.Data.Params)
 	}
+	if got, ok := envelope.Data.Params["instruments"].([]any); !ok || len(got) != 2 {
+		t.Fatalf("unexpected DSL binding instruments params: %+v", envelope.Data.Params)
+	}
 	compiledRequirements, ok := envelope.Data.Params["compiledRequirements"].(map[string]any)
 	if !ok {
 		t.Fatalf("compiledRequirements type = %T", envelope.Data.Params["compiledRequirements"])
@@ -830,7 +836,7 @@ func TestInstantiateDSLStrategyDefinitionBuildsCompiledPlan(t *testing.T) {
 	}
 
 	instanceID := envelope.Data.ID
-	updateRequest, err := http.NewRequest(http.MethodPut, srv.URL+"/api/v1/strategies/"+instanceID, bytes.NewReader([]byte(`{"symbols":["us:msft"],"interval":"30m","executionMode":"live"}`)))
+	updateRequest, err := http.NewRequest(http.MethodPut, srv.URL+"/api/v1/strategies/"+instanceID, bytes.NewReader([]byte(`{"instruments":[{"market":"US","code":"MSFT"}],"interval":"30m","executionMode":"live"}`)))
 	if err != nil {
 		t.Fatalf("build PUT strategy request: %v", err)
 	}
@@ -852,6 +858,9 @@ func TestInstantiateDSLStrategyDefinitionBuildsCompiledPlan(t *testing.T) {
 	}
 	if len(updateEnvelope.Data.Binding.Symbols) != 1 || updateEnvelope.Data.Binding.Symbols[0] != "US.MSFT" {
 		t.Fatalf("unexpected updated binding symbols: %+v", updateEnvelope.Data.Binding)
+	}
+	if len(updateEnvelope.Data.Binding.Instruments) != 1 || updateEnvelope.Data.Binding.Instruments[0].Market != "US" || updateEnvelope.Data.Binding.Instruments[0].Code != "MSFT" {
+		t.Fatalf("unexpected updated binding instruments: %+v", updateEnvelope.Data.Binding)
 	}
 	if updateEnvelope.Data.Binding.Interval != "30m" || updateEnvelope.Data.Binding.ExecutionMode != strategyExecutionModeLive {
 		t.Fatalf("unexpected updated binding fields: %+v", updateEnvelope.Data.Binding)
@@ -1208,5 +1217,66 @@ on kline_close:
 	}
 	if len(runEnvelope.Data.Result.OrderBook) == 0 {
 		t.Fatal("expected order book entries from auto warmup backtest")
+	}
+}
+
+func TestBacktestRouteAcceptsExplicitMarketAndCode(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	dbPath := filepath.Join(t.TempDir(), "backtest-route-market-code.db")
+	t.Setenv("JFTRADE_BACKTEST_DB", dbPath)
+
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	server := NewServer(store)
+	if _, err := server.designStore.saveDefinition(strategyDesignDefinition{
+		ID:           "dsl-market-code-route",
+		Name:         "DSL Market Code Route",
+		Version:      "0.1.0",
+		Runtime:      strategyRuntimeDSLPlan,
+		SourceFormat: strategydefinition.SourceFormatDSLV1,
+		Symbol:       "US.AAPL",
+		Interval:     "1m",
+		Script: `strategy DSL Market Code Route
+version 1
+symbol US.AAPL
+interval 1m
+
+on kline_close:
+  buy shares 1`,
+	}); err != nil {
+		t.Fatalf("saveDefinition: %v", err)
+	}
+
+	srv := httptest.NewServer(server)
+	defer srv.Close()
+
+	body, _ := json.Marshal(map[string]any{
+		"definitionId":   "dsl-market-code-route",
+		"market":         "US",
+		"code":           "AAPL",
+		"interval":       "1m",
+		"startTime":      time.Date(2026, time.May, 26, 9, 30, 0, 0, time.UTC).Format(time.RFC3339),
+		"endTime":        time.Date(2026, time.May, 26, 9, 31, 0, 0, time.UTC).Format(time.RFC3339),
+		"initialBalance": 10000,
+		"rehabType":      "forward",
+	})
+	createResp, err := http.Post(srv.URL+"/api/v1/backtests", "application/json", bytes.NewReader(body))
+	if err != nil {
+		t.Fatalf("POST backtest: %v", err)
+	}
+	defer createResp.Body.Close()
+	if createResp.StatusCode != http.StatusOK {
+		t.Fatalf("POST backtest status = %d", createResp.StatusCode)
+	}
+
+	runs := server.backtestRuns.list()
+	if len(runs) != 1 {
+		t.Fatalf("expected 1 backtest run, got %+v", runs)
+	}
+	if runs[0].Request.Market != "US" || runs[0].Request.Code != "AAPL" || runs[0].Request.Symbol != "US.AAPL" {
+		t.Fatalf("unexpected normalized backtest request: %+v", runs[0].Request)
 	}
 }

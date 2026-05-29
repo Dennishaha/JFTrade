@@ -211,6 +211,25 @@ export async function appendSymbolTags(
   }
 }
 
+export async function appendInstrumentTags(
+  wrapper: StrategyPageWrapper,
+  selectors: {
+    market: string
+    code: string
+  },
+  instruments: Array<{
+    market: string
+    code: string
+  }>,
+) {
+  for (const instrument of instruments) {
+    await wrapper.get(selectors.market).setValue(instrument.market)
+    await wrapper.get(selectors.code).setValue(instrument.code)
+    await wrapper.get(selectors.code).trigger("keydown", { key: "Enter" })
+    await settleStrategyWorkspace()
+  }
+}
+
 export async function openStrategyTemplatesPanel(
   wrapper: StrategyPageWrapper,
 ) {
@@ -251,6 +270,10 @@ type BuildFetchMockOptions = {
     sourceFormat?: "dsl-v1";
     startable?: boolean;
     binding?: {
+      instruments?: {
+        market: string;
+        code: string;
+      }[];
       symbols?: string[];
       interval?: string;
       executionMode?: "live" | "notify_only";
@@ -359,6 +382,27 @@ export function buildFetchMock(options: BuildFetchMockOptions) {
     return normalized
   }
 
+  function normalizeBindingInstrument(value: unknown) {
+    if (value == null || typeof value !== "object" || Array.isArray(value)) {
+      return null
+    }
+    const record = value as Record<string, unknown>
+    const market = String(record.market ?? "").trim().toUpperCase()
+    const code = String(record.code ?? "").trim().toUpperCase()
+    const instrumentId = normalizeInstrumentId(`${market}.${code}`)
+    if (instrumentId === "" || !instrumentId.includes(".")) {
+      return null
+    }
+    const [resolvedMarket, resolvedCode] = instrumentId.split(".", 2)
+    if ((resolvedMarket ?? "") === "" || (resolvedCode ?? "") === "") {
+      return null
+    }
+    return {
+      market: resolvedMarket,
+      code: resolvedCode,
+    }
+  }
+
   function normalizeBinding(
     rawBinding: unknown,
     params: Record<string, unknown>,
@@ -366,6 +410,17 @@ export function buildFetchMock(options: BuildFetchMockOptions) {
     const bindingRecord = rawBinding && typeof rawBinding === "object" && !Array.isArray(rawBinding)
       ? rawBinding as Record<string, unknown>
       : {}
+    const rawInstruments = Array.isArray(bindingRecord.instruments)
+      ? bindingRecord.instruments
+      : Array.isArray(params.instruments)
+        ? params.instruments
+        : []
+    const instruments = Array.from(new Map(
+      rawInstruments
+        .map((value) => normalizeBindingInstrument(value))
+        .filter((value): value is NonNullable<ReturnType<typeof normalizeBindingInstrument>> => value !== null)
+        .map((value) => [`${value.market}.${value.code}`, value] as const),
+    ).values())
     const rawSymbols = Array.isArray(bindingRecord.symbols)
       ? bindingRecord.symbols
       : Array.isArray(params.symbols)
@@ -373,11 +428,13 @@ export function buildFetchMock(options: BuildFetchMockOptions) {
         : typeof params.symbol === "string" && params.symbol.trim() !== ""
           ? [params.symbol]
           : []
-    const symbols = Array.from(new Set(
-      rawSymbols
-        .map((value) => normalizeInstrumentId(value))
-        .filter((value) => value !== ""),
-    ))
+    const symbols = instruments.length > 0
+      ? instruments.map((value) => `${value.market}.${value.code}`)
+      : Array.from(new Set(
+          rawSymbols
+            .map((value) => normalizeInstrumentId(value))
+            .filter((value) => value !== ""),
+        ))
     const interval = typeof bindingRecord.interval === "string" && bindingRecord.interval.trim() !== ""
       ? bindingRecord.interval.trim()
       : typeof params.interval === "string" && params.interval.trim() !== ""
@@ -405,6 +462,7 @@ export function buildFetchMock(options: BuildFetchMockOptions) {
         }
 
     return {
+      instruments,
       symbols,
       interval,
       executionMode,
@@ -497,6 +555,7 @@ export function buildFetchMock(options: BuildFetchMockOptions) {
       runtime: strategy.runtime,
       sourceFormat: strategy.sourceFormat,
       definitionId: definition.id,
+      instruments: binding.instruments.map((instrument) => ({ ...instrument })),
       symbols: [...binding.symbols],
       symbol: binding.symbols[0] ?? "",
       interval: binding.interval,
@@ -514,6 +573,10 @@ export function buildFetchMock(options: BuildFetchMockOptions) {
   function serializeStrategy<T extends {
     definition: { strategyId: string; name: string; version: string };
     binding?: {
+      instruments?: {
+        market: string;
+        code: string;
+      }[];
       symbols?: string[];
       interval?: string;
       executionMode?: "live" | "notify_only";
@@ -545,6 +608,9 @@ export function buildFetchMock(options: BuildFetchMockOptions) {
         ? strategy.binding
         : {
             ...strategy.binding,
+            instruments: strategy.binding.instruments == null
+              ? strategy.binding.instruments
+              : strategy.binding.instruments.map((instrument) => ({ ...instrument })),
             symbols: [...(strategy.binding.symbols ?? [])],
             brokerAccount: strategy.binding.brokerAccount == null
               ? strategy.binding.brokerAccount
@@ -582,6 +648,7 @@ export function buildFetchMock(options: BuildFetchMockOptions) {
           binding,
           params: {
             ...strategy.params,
+            instruments: binding.instruments.map((instrument) => ({ ...instrument })),
             symbols: [...binding.symbols],
             symbol: binding.symbols[0] ?? "",
             interval: binding.interval,
@@ -753,6 +820,7 @@ export function buildFetchMock(options: BuildFetchMockOptions) {
           runtime,
           sourceFormat,
           definitionId: definition.id,
+          instruments: binding.instruments.map((instrument) => ({ ...instrument })),
           symbols: [...binding.symbols],
           symbol: binding.symbols[0] ?? "",
           interval: binding.interval,
@@ -842,6 +910,7 @@ export function buildFetchMock(options: BuildFetchMockOptions) {
       instance.binding = binding
       instance.params = {
         ...instance.params,
+        instruments: binding.instruments.map((instrument) => ({ ...instrument })),
         symbols: [...binding.symbols],
         symbol: binding.symbols[0] ?? "",
         interval: binding.interval,
