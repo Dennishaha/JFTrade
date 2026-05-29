@@ -1,11 +1,16 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
+import MonacoCodeEditor from "./MonacoCodeEditor.vue";
 import type {
+    StrategyAuditEntryDocument,
+    StrategyAuditListResponse,
     StrategyBrokerAccountBinding,
     StrategyDefinitionDocument,
+    StrategyDefinitionSyncStatus,
     StrategyExecutionMode,
     StrategyInstanceBindingDocument,
     StrategyInstanceItem,
+    StrategyLogListResponse,
     StrategyRuntimeObservation,
     StrategySourceFormat,
 } from "@jftrade/ui-contracts";
@@ -17,32 +22,26 @@ import {
 } from "../composables/consoleDataBrokerAccountSelection";
 import { useConsoleData } from "../composables/useConsoleData";
 
-interface StrategyLogsResponse {
-    instanceId: string;
-    logs: string[];
-}
-
-interface StrategyAuditEntry {
-    instanceId: string;
-    kind: string;
-    detail?: string;
-    at: string;
-}
-
-interface StrategyAuditResponse {
-    instanceId: string;
-    entries: StrategyAuditEntry[];
-}
+type StrategyLogsResponse = StrategyLogListResponse;
+type StrategyAuditEntry = StrategyAuditEntryDocument;
+type StrategyAuditResponse = StrategyAuditListResponse;
 
 type StrategyAction = "start" | "pause" | "stop";
 type StrategySymbolEditorMode = "create" | "edit";
 type StrategyActivityTab = "logs" | "audit";
 type StrategyActivityLevel = "all" | "error" | "warning" | "info";
 
+interface StrategyTimestampParts {
+    display: string;
+    utc: string;
+    timestampMs: number | null;
+}
+
 interface StrategyLogViewEntry {
     raw: string;
     message: string;
     at: string;
+    timestampMs: number | null;
     level: Exclude<StrategyActivityLevel, "all">;
 }
 
@@ -50,6 +49,18 @@ interface StrategyAuditViewEntry extends StrategyAuditEntry {
     detailText: string;
     label: string;
     level: Exclude<StrategyActivityLevel, "all">;
+    timestampMs: number | null;
+}
+
+interface StrategyActivityDetailView {
+    title: string;
+    kindLabel: string;
+    summary: string;
+    detail: string;
+    at: string;
+    utc: string;
+    level: Exclude<StrategyActivityLevel, "all">;
+    rawKind?: string;
 }
 
 const props = defineProps<{
@@ -75,6 +86,7 @@ const isLoadingDetails = ref(false);
 const isCreatingStrategyInstance = ref(false);
 const isUpdatingStrategyBinding = ref(false);
 const isDeletingStrategy = ref(false);
+const isRefreshingStrategyDefinition = ref(false);
 const definitionsError = ref("");
 const listError = ref("");
 const detailsError = ref("");
@@ -85,6 +97,8 @@ const instanceEditorMode = ref<StrategySymbolEditorMode | null>(null);
 const strategyActivityTab = ref<StrategyActivityTab>("logs");
 const strategyActivityLevelFilter = ref<StrategyActivityLevel>("all");
 const strategyParamsDialogOpen = ref(false);
+const strategyActivityDetailDialogOpen = ref(false);
+const selectedStrategyActivityDetail = ref<StrategyActivityDetailView | null>(null);
 
 const createDefinitionId = ref("");
 const createSymbolsText = ref("");
@@ -114,6 +128,10 @@ const selectedStrategyBinding = computed<StrategyInstanceBindingDocument | null>
     }
     return readStrategyBinding(selectedStrategy.value);
 });
+
+const selectedStrategyDefinitionSync = computed<StrategyDefinitionSyncStatus | null>(
+    () => selectedStrategy.value?.definitionSync ?? null,
+);
 
 const selectedStrategyRuntimeObservation = computed<StrategyRuntimeObservation | null>(
     () => selectedStrategy.value?.runtimeObservation ?? null,
@@ -231,17 +249,55 @@ const selectedStrategyCompiledSummary = computed(() => {
     return `已完成 DSL 编译计划，包含 ${parts.join(" / ")}。`;
 });
 
+const canRefreshSelectedStrategyDefinition = computed(
+    () =>
+        selectedStrategy.value !== null
+        && selectedStrategyDefinitionSync.value !== null
+        && !selectedStrategyDefinitionSync.value.isLatest
+        && selectedStrategyDefinitionSync.value.canApplyLatest
+        && !isLoadingDetails.value
+        && !isRefreshingStrategyDefinition.value,
+);
+
+const selectedStrategyDefinitionRefreshHint = computed(() => {
+    if (selectedStrategyDefinitionSync.value === null) {
+        return "";
+    }
+    if (selectedStrategyDefinitionSync.value.isLatest) {
+        return "当前实例已采用最新保存版本。";
+    }
+    if (selectedStrategyDefinitionSync.value.canApplyLatest) {
+        return `当前实例版本为 v${selectedStrategyDefinitionSync.value.appliedVersion}，可刷新到最新设计 v${selectedStrategyDefinitionSync.value.latestVersion}。`;
+    }
+    return selectedStrategyDefinitionSync.value.blockedReason ?? "当前实例需要先停止后再刷新。";
+});
+
+function sortActivityEntriesByTime<T extends { timestampMs: number | null }>(items: T[]): T[] {
+    return items
+        .map((item, index) => ({ item, index }))
+        .sort((left, right) => {
+            const leftTime = left.item.timestampMs ?? Number.NEGATIVE_INFINITY;
+            const rightTime = right.item.timestampMs ?? Number.NEGATIVE_INFINITY;
+            if (rightTime !== leftTime) {
+                return rightTime - leftTime;
+            }
+            return right.index - left.index;
+        })
+        .map(({ item }) => item);
+}
+
 const strategyLogViewEntries = computed<StrategyLogViewEntry[]>(() =>
-    strategyLogs.value.map((entry) => parseStrategyLogEntry(entry)),
+    sortActivityEntriesByTime(strategyLogs.value.map((entry) => parseStrategyLogEntry(entry))),
 );
 
 const strategyAuditViewEntries = computed<StrategyAuditViewEntry[]>(() =>
-    strategyAuditEntries.value.map((entry) => ({
+    sortActivityEntriesByTime(strategyAuditEntries.value.map((entry) => ({
         ...entry,
         detailText: entry.detail ?? "生命周期变更",
         label: formatAuditKind(entry.kind),
         level: classifyStrategyAuditLevel(entry),
-    })),
+        timestampMs: formatTimestampParts(entry.at).timestampMs,
+    }))),
 );
 
 const strategyActivityTabs = computed(() => [
@@ -393,6 +449,7 @@ watch(
             strategyActivityTab.value = "logs";
             strategyActivityLevelFilter.value = "all";
             strategyParamsDialogOpen.value = false;
+            closeStrategyActivityDetailDialog();
         }
         if (strategy === null && instanceEditorMode.value === "edit") {
             closeInstanceEditorDialog();
@@ -554,10 +611,60 @@ function invalidSymbolsFromText(value: string): string[] {
     return invalidSymbols;
 }
 
-function formatTimestamp(value: unknown): string {
+const localTimestampFormatter = new Intl.DateTimeFormat("zh-CN", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+});
+
+const utcTimestampFormatter = new Intl.DateTimeFormat("zh-CN", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+    timeZone: "UTC",
+});
+
+function formatTimestampParts(value: unknown): StrategyTimestampParts {
     const normalized = normalizeText(value);
-    if (normalized === "") return "暂无";
-    return normalized.replace("T", " ").replace(".000Z", "Z");
+    if (normalized === "") {
+        return {
+            display: "暂无",
+            utc: "暂无",
+            timestampMs: null,
+        };
+    }
+
+    const parsed = new Date(normalized);
+    if (Number.isNaN(parsed.getTime())) {
+        const fallback = normalized.replace("T", " ").replace(".000Z", "Z");
+        return {
+            display: fallback,
+            utc: fallback,
+            timestampMs: null,
+        };
+    }
+
+    return {
+        display: localTimestampFormatter.format(parsed),
+        utc: `${utcTimestampFormatter.format(parsed)} UTC`,
+        timestampMs: parsed.getTime(),
+    };
+}
+
+function formatTimestamp(value: unknown): string {
+    return formatTimestampParts(value).display;
+}
+
+function formatTimestampTooltip(value: unknown): string {
+    return formatTimestampParts(value).utc;
 }
 
 function formatStrategyStatus(status: StrategyInstanceItem["status"] | string): string {
@@ -621,6 +728,18 @@ function formatStrategyEligibility(strategy: StrategyInstanceItem): string {
     if (strategy.startable) return "可启动";
     if (strategy.runtime === "dsl-go-plan") return "待启用";
     return "受限";
+}
+
+function formatStrategyDefinitionSyncSummary(
+    sync: StrategyDefinitionSyncStatus | null | undefined,
+): string {
+    if (sync == null) {
+        return "";
+    }
+    if (sync.isLatest) {
+        return `已同步至 v${sync.latestVersion}`;
+    }
+    return `待刷新 v${sync.appliedVersion} -> v${sync.latestVersion}`;
 }
 
 function formatStrategyExecutionMode(mode: StrategyExecutionMode | string | null | undefined): string {
@@ -1112,11 +1231,53 @@ function parseStrategyLogEntry(entry: string): StrategyLogViewEntry {
     const matched = raw.match(/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z)\s*(.*)$/);
     const at = matched?.[1] ?? "";
     const message = normalizeText(matched?.[2]) || raw;
+    const timestampMs = at === "" ? null : formatTimestampParts(at).timestampMs;
     return {
         raw: entry,
         message,
         at,
+        timestampMs,
         level: classifyStrategyLogLevel(message || raw),
+    };
+}
+
+function openStrategyActivityDetail(detail: StrategyActivityDetailView): void {
+    selectedStrategyActivityDetail.value = detail;
+    strategyActivityDetailDialogOpen.value = true;
+}
+
+function closeStrategyActivityDetailDialog(): void {
+    strategyActivityDetailDialogOpen.value = false;
+    selectedStrategyActivityDetail.value = null;
+}
+
+function buildLogActivityDetail(entry: StrategyLogViewEntry): StrategyActivityDetailView {
+    return {
+        title: "运行日志",
+        kindLabel: "日志详情",
+        summary: entry.message,
+        detail: entry.raw,
+        at: formatTimestamp(entry.at),
+        utc: formatTimestampTooltip(entry.at),
+        level: entry.level,
+    };
+}
+
+function buildAuditActivityDetail(entry: StrategyAuditViewEntry): StrategyActivityDetailView {
+    return {
+        title: entry.label,
+        kindLabel: "审计详情",
+        summary: entry.detailText,
+        detail: [
+            `instanceId: ${entry.instanceId}`,
+            `kind: ${entry.kind}`,
+            `detail: ${entry.detailText}`,
+            `at: ${entry.at}`,
+        ].join("\n"),
+        at: formatTimestamp(entry.at),
+        utc: formatTimestampTooltip(entry.at),
+        level: entry.level,
+        rawKind: entry.kind,
     };
 }
 
@@ -1194,13 +1355,18 @@ async function loadStrategyDetails(instanceId: string): Promise<void> {
     detailsError.value = "";
     isLoadingDetails.value = true;
 
+    const logsUrl = new URL(`/api/v1/strategies/${encodeURIComponent(instanceId)}/logs`, window.location.origin);
+    logsUrl.searchParams.set("limit", "500");
+    const auditUrl = new URL(`/api/v1/strategies/${encodeURIComponent(instanceId)}/audit`, window.location.origin);
+    auditUrl.searchParams.set("limit", "500");
+
     try {
         const [logs, audit] = await Promise.all([
             fetchEnvelope<StrategyLogsResponse>(
-                `/api/v1/strategies/${encodeURIComponent(instanceId)}/logs`,
+                `${logsUrl.pathname}${logsUrl.search}`,
             ),
             fetchEnvelope<StrategyAuditResponse>(
-                `/api/v1/strategies/${encodeURIComponent(instanceId)}/audit`,
+                `${auditUrl.pathname}${auditUrl.search}`,
             ),
         ]);
 
@@ -1416,6 +1582,44 @@ async function changeStrategyStatus(action: StrategyAction): Promise<void> {
             error instanceof Error ? error.message : `执行${formatActionLabel(action)}失败。`;
     } finally {
         isLoadingDetails.value = false;
+    }
+}
+
+async function refreshSelectedStrategyDefinition(): Promise<void> {
+    clearInstanceMutationMessages();
+
+    if (selectedStrategy.value === null) {
+        instanceMutationError.value = "请先选择策略实例。";
+        return;
+    }
+    if (selectedStrategyDefinitionSync.value === null || selectedStrategyDefinitionSync.value.isLatest) {
+        instanceMutationNotice.value = "当前实例已经是最新策略版本。";
+        return;
+    }
+    if (!selectedStrategyDefinitionSync.value.canApplyLatest) {
+        instanceMutationError.value =
+            selectedStrategyDefinitionSync.value.blockedReason ?? "当前实例需要先停止后再刷新。";
+        return;
+    }
+
+    isRefreshingStrategyDefinition.value = true;
+
+    try {
+        const updated = await fetchEnvelopeWithInit<StrategyInstanceItem>(
+            `/api/v1/strategies/${encodeURIComponent(selectedStrategy.value.id)}/refresh-definition`,
+            {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({}),
+            },
+        );
+        instanceMutationNotice.value = `已刷新实例策略到最新版本：${updated.definition.name} / v${updated.definition.version}。`;
+        await loadStrategies(updated.id);
+    } catch (error) {
+        instanceMutationError.value =
+            error instanceof Error ? error.message : "刷新实例策略失败。";
+    } finally {
+        isRefreshingStrategyDefinition.value = false;
     }
 }
 </script>
@@ -1844,10 +2048,21 @@ async function changeStrategyStatus(action: StrategyAction): Promise<void> {
                             @click="loadStrategyDetails(strategy.id)">
                             <div class="flex items-center justify-between gap-3">
                                 <div class="min-w-0 break-words text-base font-semibold">{{ strategy.definition.name }}</div>
-                                <div :data-testid="`strategy-status-${strategy.id}`" :class="strategyStatusBadgeClass(strategy)">{{
-                                    formatStrategyStatus(displayStrategyStatus(strategy)) }}</div>
+                                <div class="flex flex-wrap items-center justify-end gap-2">
+                                    <div v-if="strategy.definitionSync && !strategy.definitionSync.isLatest"
+                                        :data-testid="`strategy-definition-stale-${strategy.id}`"
+                                        class="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-amber-700">
+                                        待刷新
+                                    </div>
+                                    <div :data-testid="`strategy-status-${strategy.id}`" :class="strategyStatusBadgeClass(strategy)">{{
+                                        formatStrategyStatus(displayStrategyStatus(strategy)) }}</div>
+                                </div>
                             </div>
                             <div class="mt-2 break-all text-sm text-slate-500">{{ strategy.id }}</div>
+                            <div v-if="strategy.definitionSync && !strategy.definitionSync.isLatest"
+                                class="mt-2 text-sm text-amber-700">
+                                {{ formatStrategyDefinitionSyncSummary(strategy.definitionSync) }}
+                            </div>
                             <div class="mt-2 text-sm text-slate-500">标的 {{ formatStrategySymbols(strategy) }}</div>
                             <div class="mt-1 text-sm text-slate-500">
                                 周期 {{ formatStrategyInterval(strategy) }}
@@ -1859,7 +2074,12 @@ async function changeStrategyStatus(action: StrategyAction): Promise<void> {
                                 class="mt-1 inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700">
                                 当前
                             </div>
-                            <div class="mt-2 text-sm text-slate-500">创建于 {{ formatTimestamp(strategy.createdAt) }}</div>
+                            <div class="mt-2 text-sm text-slate-500">
+                                创建于
+                                <span class="strategy-time-display" :title="formatTimestampTooltip(strategy.createdAt)">
+                                    {{ formatTimestamp(strategy.createdAt) }}
+                                </span>
+                            </div>
                             <div class="mt-3 flex flex-wrap gap-2 text-[11px] font-semibold uppercase tracking-[0.16em]">
                                 <span class="rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-slate-600">
                                     {{ formatStrategyRuntime(strategy.runtime) }}
@@ -1888,10 +2108,10 @@ async function changeStrategyStatus(action: StrategyAction): Promise<void> {
 
                 <div v-if="selectedStrategy !== null" class="min-w-0 grid gap-4">
                     <div class="grid gap-4 2xl:grid-cols-[minmax(19rem,22rem)_minmax(0,1fr)]">
-                        <button
-                            class="strategy-binding-summary min-w-0 rounded-[28px] border border-slate-200 bg-white p-4 text-left"
+                        <div
+                            class="strategy-binding-summary min-w-0 rounded-[28px] border border-slate-200 bg-white p-4 text-left cursor-pointer"
                             data-testid="strategy-current-binding-summary"
-                            type="button" @click="openEditInstanceForm">
+                            @click="openEditInstanceForm">
                             <div class="flex flex-wrap items-center justify-between gap-3">
                                 <div>
                                     <div class="text-xl font-semibold text-slate-900">当前绑定摘要</div>
@@ -1899,10 +2119,43 @@ async function changeStrategyStatus(action: StrategyAction): Promise<void> {
                                         点击卡片即可编辑绑定、更新执行模式或删除实例。
                                     </div>
                                 </div>
-                                <span
-                                    class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-                                    仅 STOPPED 可编辑
-                                </span>
+                                <div class="flex flex-wrap items-center justify-end gap-2">
+                                    <button
+                                        v-if="selectedStrategyDefinitionSync !== null && !selectedStrategyDefinitionSync.isLatest"
+                                        class="rounded-full border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+                                        data-testid="strategy-refresh-definition"
+                                        :disabled="!canRefreshSelectedStrategyDefinition"
+                                        :title="selectedStrategyDefinitionSync.canApplyLatest
+                                            ? `刷新到 v${selectedStrategyDefinitionSync.latestVersion}`
+                                            : (selectedStrategyDefinitionSync.blockedReason ?? '')"
+                                        type="button"
+                                        @click.stop="refreshSelectedStrategyDefinition">
+                                        {{ isRefreshingStrategyDefinition ? "刷新中" : "刷新到最新策略" }}
+                                    </button>
+                                    <span
+                                        class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                                        仅 STOPPED 可编辑
+                                    </span>
+                                </div>
+                            </div>
+                            <div v-if="selectedStrategyDefinitionSync !== null"
+                                class="mt-4 rounded-3xl border px-4 py-3"
+                                :class="selectedStrategyDefinitionSync.isLatest
+                                    ? 'border-emerald-200 bg-emerald-50/70'
+                                    : 'border-amber-200 bg-amber-50/70'">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <span data-testid="strategy-definition-sync-badge"
+                                        class="rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em]"
+                                        :class="selectedStrategyDefinitionSync.isLatest
+                                            ? 'border border-emerald-200 bg-white text-emerald-700'
+                                            : 'border border-amber-200 bg-white text-amber-700'">
+                                        {{ formatStrategyDefinitionSyncSummary(selectedStrategyDefinitionSync) }}
+                                    </span>
+                                </div>
+                                <div class="mt-2 text-sm"
+                                    :class="selectedStrategyDefinitionSync.isLatest ? 'text-emerald-700' : 'text-amber-700'">
+                                    {{ selectedStrategyDefinitionRefreshHint }}
+                                </div>
                             </div>
                             <div class="mt-4 grid gap-3 text-sm text-slate-600">
                                 <div>
@@ -1945,7 +2198,7 @@ async function changeStrategyStatus(action: StrategyAction): Promise<void> {
                             <div v-if="selectedStrategy.status !== 'STOPPED'" class="mt-4 text-xs text-amber-700">
                                 当前实例不是 STOPPED，先停止后才能修改绑定或删除。
                             </div>
-                        </button>
+                        </div>
 
                         <div class="rounded-[28px] border border-slate-200 bg-white p-4">
                             <div class="flex flex-wrap items-center justify-between gap-3">
@@ -2006,25 +2259,29 @@ async function changeStrategyStatus(action: StrategyAction): Promise<void> {
                                     </div>
                                     <div>
                                         <div class="text-[11px] uppercase tracking-[0.16em] text-slate-400">最近闭合 K 线</div>
-                                        <div class="mt-1 font-medium text-slate-900">
+                                        <div class="mt-1 font-medium text-slate-900 strategy-time-display"
+                                            :title="formatTimestampTooltip(selectedStrategyRuntimeObservation.lastClosedKlineAt)">
                                             {{ formatTimestamp(selectedStrategyRuntimeObservation.lastClosedKlineAt) }}
                                         </div>
                                     </div>
                                     <div>
                                         <div class="text-[11px] uppercase tracking-[0.16em] text-slate-400">最近信号</div>
-                                        <div class="mt-1 font-medium text-slate-900">
+                                        <div class="mt-1 font-medium text-slate-900 strategy-time-display"
+                                            :title="formatTimestampTooltip(selectedStrategyRuntimeObservation.lastSignalAt)">
                                             {{ formatTimestamp(selectedStrategyRuntimeObservation.lastSignalAt) }}
                                         </div>
                                     </div>
                                     <div>
                                         <div class="text-[11px] uppercase tracking-[0.16em] text-slate-400">最近下单</div>
-                                        <div class="mt-1 font-medium text-slate-900">
+                                        <div class="mt-1 font-medium text-slate-900 strategy-time-display"
+                                            :title="formatTimestampTooltip(selectedStrategyRuntimeObservation.lastOrderAt)">
                                             {{ formatTimestamp(selectedStrategyRuntimeObservation.lastOrderAt) }}
                                         </div>
                                     </div>
                                     <div>
                                         <div class="text-[11px] uppercase tracking-[0.16em] text-slate-400">最近更新</div>
-                                        <div class="mt-1 font-medium text-slate-900">
+                                        <div class="mt-1 font-medium text-slate-900 strategy-time-display"
+                                            :title="formatTimestampTooltip(selectedStrategyRuntimeObservation.updatedAt)">
                                             {{ formatTimestamp(selectedStrategyRuntimeObservation.updatedAt) }}
                                         </div>
                                     </div>
@@ -2032,7 +2289,8 @@ async function changeStrategyStatus(action: StrategyAction): Promise<void> {
                                 <div v-if="selectedStrategyRuntimeObservation.lastError"
                                     class="mt-3 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-3 text-xs text-amber-700">
                                     最近异常：{{ selectedStrategyRuntimeObservation.lastError }}
-                                    <span class="text-amber-600">（{{ formatTimestamp(selectedStrategyRuntimeObservation.lastErrorAt) }}）</span>
+                                    <span class="strategy-time-display text-amber-600"
+                                        :title="formatTimestampTooltip(selectedStrategyRuntimeObservation.lastErrorAt)">（{{ formatTimestamp(selectedStrategyRuntimeObservation.lastErrorAt) }}）</span>
                                 </div>
                             </div>
                             <div v-else class="mt-4 text-xs text-slate-500">
@@ -2115,9 +2373,9 @@ async function changeStrategyStatus(action: StrategyAction): Promise<void> {
 
                             <ul v-else-if="strategyActivityTab === 'logs' && filteredStrategyLogViewEntries.length > 0"
                                 class="strategy-activity-viewport" data-testid="strategy-log-list">
-                                <li v-for="entry in filteredStrategyLogViewEntries" :key="entry.raw"
+                                <li v-for="(entry, index) in filteredStrategyLogViewEntries" :key="entry.raw"
                                     class="strategy-activity-entry" :class="`strategy-activity-entry--${entry.level}`"
-                                    data-testid="strategy-log-entry">
+                                    :data-testid="`strategy-log-entry-${index}`">
                                     <div class="flex flex-wrap items-center justify-between gap-3">
                                         <div class="flex flex-wrap items-center gap-2">
                                             <span class="strategy-activity-level-badge"
@@ -2125,21 +2383,30 @@ async function changeStrategyStatus(action: StrategyAction): Promise<void> {
                                                     formatStrategyActivityLevel(entry.level) }}</span>
                                             <span class="strategy-activity-kind-badge">运行日志</span>
                                         </div>
-                                        <span class="strategy-activity-time">{{
+                                        <span class="strategy-activity-time strategy-time-display"
+                                            :title="entry.at === '' ? '' : formatTimestampTooltip(entry.at)">{{
                                             entry.at === '' ? '未标注时间' : formatTimestamp(entry.at) }}</span>
                                     </div>
-                                    <div class="mt-3 break-words font-mono text-xs leading-6 text-slate-700">
-                                        {{ entry.message }}
+                                    <div class="mt-3 flex items-center gap-2">
+                                        <div class="strategy-activity-entry__summary strategy-activity-entry__summary--log min-w-0 flex-1"
+                                            :title="entry.message">
+                                            {{ entry.message }}
+                                        </div>
+                                        <button type="button" class="strategy-activity-entry__detail-trigger"
+                                            :data-testid="`strategy-log-detail-trigger-${index}`"
+                                            @click="openStrategyActivityDetail(buildLogActivityDetail(entry))">
+                                            ....
+                                        </button>
                                     </div>
                                 </li>
                             </ul>
 
                             <ul v-else-if="strategyActivityTab === 'audit' && filteredStrategyAuditViewEntries.length > 0"
                                 class="strategy-activity-viewport" data-testid="strategy-audit-list">
-                                <li v-for="entry in filteredStrategyAuditViewEntries"
+                                <li v-for="(entry, index) in filteredStrategyAuditViewEntries"
                                     :key="`${entry.at}-${entry.kind}-${entry.detail ?? ''}`"
                                     class="strategy-activity-entry" :class="`strategy-activity-entry--${entry.level}`"
-                                    data-testid="strategy-audit-entry">
+                                    :data-testid="`strategy-audit-entry-${index}`">
                                     <div class="flex flex-wrap items-center justify-between gap-3">
                                         <div class="flex flex-wrap items-center gap-2">
                                             <span class="strategy-activity-level-badge"
@@ -2147,10 +2414,19 @@ async function changeStrategyStatus(action: StrategyAction): Promise<void> {
                                                     formatStrategyActivityLevel(entry.level) }}</span>
                                             <span class="strategy-activity-kind-badge">{{ entry.label }}</span>
                                         </div>
-                                        <span class="strategy-activity-time">{{ formatTimestamp(entry.at) }}</span>
+                                        <span class="strategy-activity-time strategy-time-display"
+                                            :title="formatTimestampTooltip(entry.at)">{{ formatTimestamp(entry.at) }}</span>
                                     </div>
-                                    <div class="mt-2 text-sm font-medium text-slate-900">
-                                        {{ entry.detailText }}
+                                    <div class="mt-3 flex items-center gap-2">
+                                        <div class="strategy-activity-entry__summary strategy-activity-entry__summary--audit min-w-0 flex-1"
+                                            :title="entry.detailText">
+                                            {{ entry.detailText }}
+                                        </div>
+                                        <button type="button" class="strategy-activity-entry__detail-trigger"
+                                            :data-testid="`strategy-audit-detail-trigger-${index}`"
+                                            @click="openStrategyActivityDetail(buildAuditActivityDetail(entry))">
+                                            ....
+                                        </button>
                                     </div>
                                 </li>
                             </ul>
@@ -2176,8 +2452,79 @@ async function changeStrategyStatus(action: StrategyAction): Promise<void> {
                                         关闭
                                     </button>
                                 </div>
-                                <div class="mt-4 rounded-3xl bg-slate-50 px-4 py-4">
-                                    <pre class="strategy-params-json">{{ selectedStrategyParamsJson }}</pre>
+                                <div class="mt-4 strategy-params-editor">
+                                    <MonacoCodeEditor
+                                        :model-value="selectedStrategyParamsJson"
+                                        language="json"
+                                        :read-only="true"
+                                        min-height="18rem"
+                                        height="min(56vh, 34rem)"
+                                        test-id="strategy-params-editor"
+                                    />
+                                </div>
+                            </div>
+                        </v-dialog>
+
+                        <v-dialog v-model="strategyActivityDetailDialogOpen" max-width="760">
+                            <div class="strategy-instance-dialog strategy-activity-detail-dialog"
+                                data-testid="strategy-activity-detail-dialog">
+                                <div class="flex flex-wrap items-start justify-between gap-4">
+                                    <div>
+                                        <div class="text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">
+                                            {{ selectedStrategyActivityDetail?.kindLabel ?? '详情' }}
+                                        </div>
+                                        <div class="mt-1 text-xl font-semibold text-slate-900">
+                                            {{ selectedStrategyActivityDetail?.title ?? '活动详情' }}
+                                        </div>
+                                    </div>
+                                    <button type="button" class="strategy-params-dialog-close"
+                                        data-testid="strategy-close-activity-detail-dialog"
+                                        @click="closeStrategyActivityDetailDialog">
+                                        关闭
+                                    </button>
+                                </div>
+
+                                <div v-if="selectedStrategyActivityDetail !== null"
+                                    class="mt-4 grid gap-3 sm:grid-cols-2">
+                                    <div class="rounded-3xl bg-slate-50 px-4 py-4">
+                                        <div class="text-[11px] uppercase tracking-[0.18em] text-slate-500">本地时间</div>
+                                        <div class="mt-2 text-sm font-medium text-slate-900 strategy-time-display"
+                                            :title="selectedStrategyActivityDetail.utc">
+                                            {{ selectedStrategyActivityDetail.at }}
+                                        </div>
+                                    </div>
+                                    <div class="rounded-3xl bg-slate-50 px-4 py-4">
+                                        <div class="text-[11px] uppercase tracking-[0.18em] text-slate-500">UTC</div>
+                                        <div class="mt-2 text-sm font-medium text-slate-900 strategy-time-display"
+                                            :title="selectedStrategyActivityDetail.utc">
+                                            {{ selectedStrategyActivityDetail.utc }}
+                                        </div>
+                                    </div>
+                                    <div class="rounded-3xl bg-slate-50 px-4 py-4">
+                                        <div class="text-[11px] uppercase tracking-[0.18em] text-slate-500">级别</div>
+                                        <div class="mt-2 text-sm font-medium text-slate-900">
+                                            {{ formatStrategyActivityLevel(selectedStrategyActivityDetail.level) }}
+                                        </div>
+                                    </div>
+                                    <div v-if="selectedStrategyActivityDetail.rawKind !== undefined"
+                                        class="rounded-3xl bg-slate-50 px-4 py-4">
+                                        <div class="text-[11px] uppercase tracking-[0.18em] text-slate-500">原始类型</div>
+                                        <div class="mt-2 text-sm font-medium text-slate-900 break-all">
+                                            {{ selectedStrategyActivityDetail.rawKind }}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div v-if="selectedStrategyActivityDetail !== null"
+                                    class="mt-4 rounded-3xl bg-slate-50 px-4 py-4">
+                                    <div class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">摘要</div>
+                                    <div class="mt-2 text-sm text-slate-700 break-words">
+                                        {{ selectedStrategyActivityDetail.summary }}
+                                    </div>
+                                    <div class="mt-4 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">详情</div>
+                                    <div class="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-slate-700">
+                                        {{ selectedStrategyActivityDetail.detail }}
+                                    </div>
                                 </div>
                             </div>
                         </v-dialog>
@@ -2415,6 +2762,52 @@ async function changeStrategyStatus(action: StrategyAction): Promise<void> {
 .tv-main .strategy-activity-tab,
 .tv-main .strategy-activity-filter,
 .tv-main .strategy-runtime-params-trigger,
+
+.tv-main .strategy-activity-entry__summary {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--card-text-1);
+}
+
+.tv-main .strategy-activity-entry__summary--log {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size: 0.78rem;
+    line-height: 1.6;
+}
+
+.tv-main .strategy-activity-entry__summary--audit {
+    font-size: 0.9rem;
+    font-weight: 600;
+    line-height: 1.5;
+}
+
+.tv-main .strategy-activity-entry__detail-trigger {
+    flex-shrink: 0;
+    border: 1px solid var(--card-border);
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--tv-bg-surface) 76%, transparent);
+    color: var(--card-text-2);
+    padding: 0.15rem 0.55rem;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.14em;
+    cursor: pointer;
+    transition: border-color 140ms ease, background-color 140ms ease, color 140ms ease, transform 140ms ease;
+}
+
+.tv-main .strategy-activity-entry__detail-trigger:hover {
+    border-color: var(--card-active-border);
+    background: color-mix(in srgb, var(--card-active-surface) 82%, var(--card-surface));
+    color: var(--card-active-text);
+    transform: translateY(-1px);
+}
+
+.tv-main .strategy-activity-entry__detail-trigger:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--tv-accent) 70%, var(--card-surface));
+    outline-offset: 2px;
+}
 .tv-main .strategy-params-dialog-close {
     display: inline-flex;
     align-items: center;
@@ -2560,6 +2953,10 @@ async function changeStrategyStatus(action: StrategyAction): Promise<void> {
     font-size: 0.76rem;
 }
 
+.tv-main .strategy-time-display {
+    cursor: help;
+}
+
 .tv-main .strategy-activity-entry .text-slate-900,
 .tv-main .strategy-activity-entry .text-slate-700 {
     color: var(--card-text-1);
@@ -2587,6 +2984,35 @@ async function changeStrategyStatus(action: StrategyAction): Promise<void> {
     color: var(--card-text-1);
     font-size: 0.78rem;
     line-height: 1.7;
+}
+
+.tv-main .strategy-params-editor {
+    overflow: hidden;
+    border-radius: 1.25rem;
+}
+
+.tv-main .strategy-activity-detail-dialog {
+    border-color: var(--card-border);
+    background: var(--card-surface);
+}
+
+.tv-main .strategy-activity-detail-dialog .bg-slate-50 {
+    background: var(--card-surface-raised);
+}
+
+.tv-main .strategy-activity-detail-dialog .text-slate-900,
+.tv-main .strategy-activity-detail-dialog .text-slate-800,
+.tv-main .strategy-activity-detail-dialog .text-slate-700 {
+    color: var(--card-text-1);
+}
+
+.tv-main .strategy-activity-detail-dialog .text-slate-600,
+.tv-main .strategy-activity-detail-dialog .text-slate-500 {
+    color: var(--card-text-2);
+}
+
+.tv-main .strategy-activity-detail-dialog .text-slate-400 {
+    color: var(--card-text-3);
 }
 
 .tv-main .strategy-instance-dialog {

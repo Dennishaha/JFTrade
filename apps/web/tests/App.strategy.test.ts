@@ -295,6 +295,54 @@ function buildFetchMock(options: {
   const strategies = options.strategies ?? [];
   const logsById = options.logsById ?? {};
   const auditById = options.auditById ?? {};
+  const mutationTimestamp = "2026-05-23T00:05:00.000Z";
+
+  function nextPatchVersion(version: string) {
+    const match = version.trim().match(/^(\d+)\.(\d+)\.(\d+)$/);
+    if (!match) {
+      return "0.1.1";
+    }
+    return `${match[1]}.${match[2]}.${Number.parseInt(match[3], 10) + 1}`;
+  }
+
+  function syncDslVersion(script: string, version: string) {
+    if (script.trim() === "") {
+      return script;
+    }
+    if (/^version\s+/m.test(script)) {
+      return script.replace(/^version\s+.*$/m, `version ${version}`);
+    }
+    const lines = script.split("\n");
+    if (lines.length <= 1) {
+      return `${script}\nversion ${version}`;
+    }
+    lines.splice(1, 0, `version ${version}`);
+    return lines.join("\n");
+  }
+
+  function cloneDefinition(definition: StrategyDefinitionDocument): StrategyDefinitionDocument {
+    return {
+      ...definition,
+      runtime: definition.runtime ?? "dsl-go-plan",
+      sourceFormat: definition.sourceFormat ?? "dsl-v1",
+      visualModel: definition.visualModel ?? null,
+    };
+  }
+
+  function createErrorResponse(message: string, status = 400): Response {
+    return {
+      ok: false,
+      status,
+      json: async () => ({
+        ok: false,
+        error: {
+          code: "BAD_REQUEST",
+          message,
+        },
+        timestamp: mutationTimestamp,
+      }),
+    } as Response;
+  }
 
   function normalizeInstrumentId(value: unknown) {
     const normalized = typeof value === "string" ? value.trim().toUpperCase() : "";
@@ -374,7 +422,149 @@ function buildFetchMock(options: {
     return {};
   }
 
+  const runtimeDefinitions = definitions.map((definition) => cloneDefinition(definition));
+
+  function strategyUsesDefinition(
+    strategy: {
+      definition: { strategyId: string };
+      params: Record<string, unknown>;
+    },
+    definitionId: string,
+  ) {
+    if (strategy.definition.strategyId === definitionId) {
+      return true;
+    }
+    return typeof strategy.params.definitionId === "string"
+      && strategy.params.definitionId.trim() === definitionId;
+  }
+
+  function buildDefinitionSync(strategy: {
+    definition: { strategyId: string; version: string };
+    params: Record<string, unknown>;
+    status: "RUNNING" | "PAUSED" | "STOPPED";
+  }) {
+    const definitionId = strategy.definition.strategyId || String(strategy.params.definitionId ?? "").trim();
+    const definition = runtimeState.definitions.find((item) => item.id === definitionId);
+    if (definition === undefined) {
+      return null;
+    }
+    const appliedVersion = strategy.definition.version;
+    const latestVersion = definition.version;
+    const isLatest = appliedVersion === latestVersion;
+    return {
+      definitionId,
+      appliedVersion,
+      latestVersion,
+      isLatest,
+      canApplyLatest: !isLatest && strategy.status === "STOPPED",
+      blockedReason: !isLatest && strategy.status !== "STOPPED"
+        ? "当前实例不是 STOPPED，先停止后才能刷新到最新策略。"
+        : null,
+    };
+  }
+
+  function applyDefinitionSnapshot(
+    strategy: {
+      definition: { strategyId: string; name: string; version: string };
+      runtime?: string;
+      sourceFormat?: "dsl-v1";
+      binding?: {
+        symbols?: string[];
+        interval?: string;
+        executionMode?: "live" | "notify_only";
+        brokerAccount?: {
+          brokerId: string;
+          accountId: string;
+          tradingEnvironment: string;
+          market: string;
+        } | null;
+      };
+      params: Record<string, unknown>;
+    },
+    definition: StrategyDefinitionDocument,
+  ) {
+    const binding = normalizeBinding(strategy.binding, strategy.params);
+    strategy.definition = {
+      strategyId: definition.id,
+      name: definition.name,
+      version: definition.version,
+    };
+    strategy.runtime = definition.runtime ?? "dsl-go-plan";
+    strategy.sourceFormat = definition.sourceFormat ?? "dsl-v1";
+    strategy.params = {
+      ...strategy.params,
+      runtime: strategy.runtime,
+      sourceFormat: strategy.sourceFormat,
+      definitionId: definition.id,
+      symbols: [...binding.symbols],
+      symbol: binding.symbols[0] ?? "",
+      interval: binding.interval,
+      executionMode: binding.executionMode,
+      script: definition.script,
+      compiledAt: definition.updatedAt,
+      ...(binding.brokerAccount === null
+        ? {}
+        : {
+            brokerAccount: { ...binding.brokerAccount },
+          }),
+    };
+  }
+
+  function serializeStrategy<T extends {
+    definition: { strategyId: string; name: string; version: string };
+    binding?: {
+      symbols?: string[];
+      interval?: string;
+      executionMode?: "live" | "notify_only";
+      brokerAccount?: {
+        brokerId: string;
+        accountId: string;
+        tradingEnvironment: string;
+        market: string;
+      } | null;
+    };
+    params: Record<string, unknown>;
+    logs: string[];
+    runtimeObservation?: {
+      actualStatus: "RUNNING" | "PAUSED" | "STOPPED";
+      activeSymbols: string[];
+      lastClosedKlineAt?: string | null;
+      lastSignalAt?: string | null;
+      lastOrderAt?: string | null;
+      lastErrorAt?: string | null;
+      lastError?: string | null;
+      updatedAt?: string | null;
+    } | null;
+    status: "RUNNING" | "PAUSED" | "STOPPED";
+  }>(strategy: T) {
+    return {
+      ...strategy,
+      definition: { ...strategy.definition },
+      binding: strategy.binding == null
+        ? strategy.binding
+        : {
+            ...strategy.binding,
+            symbols: [...(strategy.binding.symbols ?? [])],
+            brokerAccount: strategy.binding.brokerAccount == null
+              ? strategy.binding.brokerAccount
+              : { ...strategy.binding.brokerAccount },
+          },
+      params: {
+        ...strategy.params,
+      },
+      logs: [...strategy.logs],
+      runtimeObservation: strategy.runtimeObservation == null
+        ? strategy.runtimeObservation
+        : {
+            ...strategy.runtimeObservation,
+            activeSymbols: [...strategy.runtimeObservation.activeSymbols],
+          },
+      definitionSync: buildDefinitionSync(strategy),
+    };
+  }
+
   const runtimeState = {
+    definitions: runtimeDefinitions,
     strategies: strategies.map((strategy) => ({
       ...(() => {
         const runtime = strategy.runtime ?? "dsl-go-plan";
@@ -417,7 +607,10 @@ function buildFetchMock(options: {
     const logsMatch = url.match(/\/api\/v1\/strategies\/([^/]+)\/logs/);
     const auditMatch = url.match(/\/api\/v1\/strategies\/([^/]+)\/audit/);
     const instantiateMatch = url.match(/\/api\/v1\/strategy-definitions\/([^/]+)\/instantiate/);
+    const applyLinkedInstancesMatch = url.match(/\/api\/v1\/strategy-definitions\/([^/]+)\/apply-linked-instances$/);
+    const definitionMatch = url.match(/\/api\/v1\/strategy-definitions\/([^/]+)$/);
     const lifecycleMatch = url.match(/\/api\/v1\/strategies\/([^/]+)\/(start|pause|stop)/);
+    const refreshDefinitionMatch = url.match(/\/api\/v1\/strategies\/([^/]+)\/refresh-definition$/);
     const instanceMatch = url.match(/\/api\/v1\/strategies\/([^/]+)$/);
 
     if (url.includes("/api/v1/market-data/subscriptions"))
@@ -460,9 +653,75 @@ function buildFetchMock(options: {
       return createResponse(emptyPortfolioReconciliation);
     if (url.includes("/api/v1/execution/orders"))
       return createResponse(emptyExecutionOrders);
+    if (url.endsWith("/api/v1/strategy-definitions") && method === "POST") {
+      const payload = await readJsonBody(init, request);
+      const definitionId = String(payload.id ?? "").trim() || `dsl-strategy-${runtimeState.definitions.length + 1}`;
+      const saved: StrategyDefinitionDocument = {
+        id: definitionId,
+        name: String(payload.name ?? "").trim(),
+        version: "0.1.0",
+        description: String(payload.description ?? "").trim(),
+        runtime: "dsl-go-plan",
+        sourceFormat: "dsl-v1",
+        script: syncDslVersion(String(payload.script ?? ""), "0.1.0"),
+        visualModel: payload.visualModel ?? null,
+        createdAt: mutationTimestamp,
+        updatedAt: mutationTimestamp,
+      };
+      runtimeState.definitions.unshift(saved);
+      return createResponse(saved);
+    }
+    if (definitionMatch && method === "PUT") {
+      const definitionId = decodeURIComponent(definitionMatch[1]);
+      const existingIndex = runtimeState.definitions.findIndex((item) => item.id === definitionId);
+      if (existingIndex === -1) {
+        throw new Error(`Unknown strategy definition: ${definitionId}`);
+      }
+      const existing = runtimeState.definitions[existingIndex];
+      const payload = await readJsonBody(init, request);
+      const name = String(payload.name ?? existing.name).trim();
+      const description = String(payload.description ?? existing.description).trim();
+      const scriptCandidate = String(payload.script ?? existing.script);
+      const visualModel = payload.visualModel ?? existing.visualModel ?? null;
+      const changed =
+        name !== existing.name
+        || description !== existing.description
+        || scriptCandidate !== existing.script
+        || JSON.stringify(visualModel) !== JSON.stringify(existing.visualModel ?? null);
+      const nextVersion = changed ? nextPatchVersion(existing.version) : existing.version;
+      const saved: StrategyDefinitionDocument = {
+        ...existing,
+        id: definitionId,
+        name,
+        description,
+        runtime: "dsl-go-plan",
+        sourceFormat: "dsl-v1",
+        script: syncDslVersion(scriptCandidate, nextVersion),
+        visualModel,
+        version: nextVersion,
+        updatedAt: changed ? mutationTimestamp : existing.updatedAt,
+      };
+      runtimeState.definitions.splice(existingIndex, 1, saved);
+      return createResponse(saved);
+    }
+    if (definitionMatch && method === "DELETE") {
+      const definitionId = decodeURIComponent(definitionMatch[1]);
+      const existingIndex = runtimeState.definitions.findIndex((item) => item.id === definitionId);
+      if (existingIndex === -1) {
+        throw new Error(`Unknown strategy definition: ${definitionId}`);
+      }
+      const linkedStrategies = runtimeState.strategies.filter((strategy) => strategyUsesDefinition(strategy, definitionId));
+      if (linkedStrategies.length > 0) {
+        return createErrorResponse(
+          `当前有 ${linkedStrategies.length} 个实例仍关联该策略，请先删除对应实例再删除。实例: ${linkedStrategies.map((strategy) => strategy.id).join(", ")}`,
+        );
+      }
+      const [removed] = runtimeState.definitions.splice(existingIndex, 1);
+      return createResponse(removed);
+    }
     if (instantiateMatch && method === "POST") {
       const definitionId = decodeURIComponent(instantiateMatch[1]);
-      const definition = definitions.find((item) => item.id === definitionId);
+      const definition = runtimeState.definitions.find((item) => item.id === definitionId);
       if (definition === undefined) {
         throw new Error(`Unknown strategy definition: ${definitionId}`);
       }
@@ -537,7 +796,39 @@ function buildFetchMock(options: {
           at: definition.updatedAt,
         },
       ];
-      return createResponse(instance);
+      return createResponse(serializeStrategy(instance));
+    }
+    if (applyLinkedInstancesMatch && method === "POST") {
+      const definitionId = decodeURIComponent(applyLinkedInstancesMatch[1]);
+      const definition = runtimeState.definitions.find((item) => item.id === definitionId);
+      if (definition === undefined) {
+        throw new Error(`Unknown strategy definition: ${definitionId}`);
+      }
+      const result = {
+        definitionId,
+        latestVersion: definition.version,
+        totalLinked: 0,
+        applied: [] as string[],
+        alreadyLatest: [] as string[],
+        skippedBusy: [] as string[],
+      };
+      for (const strategy of runtimeState.strategies) {
+        if (!strategyUsesDefinition(strategy, definitionId)) {
+          continue;
+        }
+        result.totalLinked += 1;
+        if (strategy.status !== "STOPPED") {
+          result.skippedBusy.push(strategy.id);
+          continue;
+        }
+        if (strategy.definition.version === definition.version) {
+          result.alreadyLatest.push(strategy.id);
+          continue;
+        }
+        applyDefinitionSnapshot(strategy, definition);
+        result.applied.push(strategy.id);
+      }
+      return createResponse(result);
     }
     if (instanceMatch && method === "PUT") {
       const instanceId = decodeURIComponent(instanceMatch[1]);
@@ -573,7 +864,7 @@ function buildFetchMock(options: {
           at: "2026-05-23T00:00:00.000Z",
         },
       ];
-      return createResponse(instance);
+      return createResponse(serializeStrategy(instance));
     }
     if (instanceMatch && method === "DELETE") {
       const instanceId = decodeURIComponent(instanceMatch[1]);
@@ -584,7 +875,37 @@ function buildFetchMock(options: {
       const [removed] = runtimeState.strategies.splice(instanceIndex, 1);
       delete runtimeState.logsById[instanceId];
       delete runtimeState.auditById[instanceId];
-      return createResponse(removed);
+      return createResponse(serializeStrategy(removed));
+    }
+    if (refreshDefinitionMatch && method === "POST") {
+      const instanceId = decodeURIComponent(refreshDefinitionMatch[1]);
+      const instance = runtimeState.strategies.find((item) => item.id === instanceId);
+      if (instance === undefined) {
+        throw new Error(`Unknown strategy instance: ${instanceId}`);
+      }
+      const definitionId = instance.definition.strategyId || String(instance.params.definitionId ?? "").trim();
+      const definition = runtimeState.definitions.find((item) => item.id === definitionId);
+      if (definition === undefined) {
+        throw new Error(`Unknown strategy definition: ${definitionId}`);
+      }
+      if (instance.status !== "STOPPED") {
+        throw new Error("strategy instance must be stopped before refreshing definition");
+      }
+      applyDefinitionSnapshot(instance, definition);
+      runtimeState.logsById[instanceId] = [
+        ...(runtimeState.logsById[instanceId] ?? []),
+        `${mutationTimestamp} refreshed strategy definition ${definition.id}`,
+      ];
+      runtimeState.auditById[instanceId] = [
+        ...(runtimeState.auditById[instanceId] ?? []),
+        {
+          instanceId,
+          kind: "definition.refreshed",
+          detail: `${definition.id} | ${definition.version}`,
+          at: mutationTimestamp,
+        },
+      ];
+      return createResponse(serializeStrategy(instance));
     }
     if (lifecycleMatch && method === "POST") {
       const instanceId = decodeURIComponent(lifecycleMatch[1]);
@@ -608,25 +929,59 @@ function buildFetchMock(options: {
           at: "2026-05-23T00:00:00.000Z",
         },
       ];
-      return createResponse(instance);
+      return createResponse(serializeStrategy(instance));
+    }
+    if (definitionMatch && method === "GET") {
+      const definitionId = decodeURIComponent(definitionMatch[1]);
+      const definition = runtimeState.definitions.find((item) => item.id === definitionId);
+      if (definition === undefined) {
+        throw new Error(`Unknown strategy definition: ${definitionId}`);
+      }
+      return createResponse(cloneDefinition(definition));
     }
     if (url.includes("/api/v1/strategy-definitions"))
-      return createResponse(definitions);
+      return createResponse(runtimeState.definitions.map((definition) => cloneDefinition(definition)));
     if (logsMatch) {
       const instanceId = decodeURIComponent(logsMatch[1]);
+      const requestUrl = new URL(url, "http://localhost");
+      const limit = Number.parseInt(requestUrl.searchParams.get("limit") ?? "500", 10);
+      const offset = Number.parseInt(requestUrl.searchParams.get("offset") ?? "0", 10);
+      const logs = runtimeState.logsById[instanceId] ?? [];
+      const pagedLogs = logs.slice(offset, offset + limit);
       return createResponse({
         instanceId,
-        logs: runtimeState.logsById[instanceId] ?? [],
+        logs: pagedLogs,
+        page: {
+          limit,
+          offset,
+          total: logs.length,
+          returned: pagedLogs.length,
+          hasMore: offset + pagedLogs.length < logs.length,
+        },
       });
     }
     if (auditMatch) {
       const instanceId = decodeURIComponent(auditMatch[1]);
+      const requestUrl = new URL(url, "http://localhost");
+      const limit = Number.parseInt(requestUrl.searchParams.get("limit") ?? "500", 10);
+      const offset = Number.parseInt(requestUrl.searchParams.get("offset") ?? "0", 10);
+      const entries = runtimeState.auditById[instanceId] ?? [];
+      const pagedEntries = entries.slice(offset, offset + limit);
       return createResponse({
         instanceId,
-        entries: runtimeState.auditById[instanceId] ?? [],
+        entries: pagedEntries,
+        page: {
+          limit,
+          offset,
+          total: entries.length,
+          returned: pagedEntries.length,
+          hasMore: offset + pagedEntries.length < entries.length,
+        },
       });
     }
-    if (url.includes("/api/v1/strategies")) return createResponse(runtimeState.strategies);
+    if (url.includes("/api/v1/strategies")) {
+      return createResponse(runtimeState.strategies.map((strategy) => serializeStrategy(strategy)));
+    }
 
     throw new Error(`Unexpected request: ${url}`);
   });
@@ -766,6 +1121,11 @@ describe("Strategy page", () => {
     expect(wrapper.text()).toContain("QUOTE_SNAPSHOT HK.00700");
     expect(wrapper.text()).toContain("REAL");
     expect(wrapper.text()).toContain("仅通知");
+
+    const createdAt = wrapper.get('[data-testid="strategy-instance-1"]').find('.strategy-time-display');
+    expect(createdAt.text()).not.toContain("T");
+    expect(createdAt.attributes("title")).toContain("UTC");
+
     expect(wrapper.get('[data-testid="strategy-status-instance-1"]').classes()).toContain("strategy-status-badge--running");
     expect(wrapper.get('[data-testid="strategy-status-instance-2"]').classes()).toContain("strategy-status-badge--paused");
 
@@ -833,26 +1193,57 @@ describe("Strategy page", () => {
     await openStrategyWorkspaceTab(wrapper, "runtime");
     await waitForSelector(wrapper, '[data-testid="strategy-instance-1"]');
 
-    expect(wrapper.findAll('[data-testid="strategy-log-entry"]')).toHaveLength(3);
+    expect(wrapper.findAll('[data-testid^="strategy-log-entry-"]')).toHaveLength(3);
+    expect(wrapper.get('[data-testid="strategy-log-entry-0"]').text()).toContain("tick QUOTE_SNAPSHOT HK.00700");
+    expect(wrapper.get('[data-testid="strategy-log-entry-1"]').text()).toContain("paused strategy execution");
+    expect(wrapper.get('[data-testid="strategy-log-entry-2"]').text()).toContain("ERROR order rejected for HK.00700");
+
+    const logTime = wrapper.get('[data-testid="strategy-log-entry-0"]').find('.strategy-time-display');
+    expect(logTime.text()).not.toContain("T");
+    expect(logTime.attributes("title")).toContain("UTC");
+
+    await wrapper.get('[data-testid="strategy-log-detail-trigger-0"]').trigger("click");
+    await settleStrategyWorkspace();
+
+    expect(wrapper.find('[data-testid="strategy-activity-detail-dialog"]').exists()).toBe(true);
+    expect(wrapper.get('[data-testid="strategy-activity-detail-dialog"]').text()).toContain("tick QUOTE_SNAPSHOT HK.00700");
+
+    await wrapper.get('[data-testid="strategy-close-activity-detail-dialog"]').trigger("click");
+    await settleStrategyWorkspace();
 
     await wrapper.get('[data-testid="strategy-activity-filter-error"]').trigger("click");
     await settleStrategyWorkspace();
 
-    expect(wrapper.findAll('[data-testid="strategy-log-entry"]')).toHaveLength(1);
+    expect(wrapper.findAll('[data-testid^="strategy-log-entry-"]')).toHaveLength(1);
     expect(wrapper.get('[data-testid="strategy-log-list"]').text()).toContain("ERROR order rejected for HK.00700");
 
     await wrapper.get('[data-testid="strategy-activity-tab-audit"]').trigger("click");
     await settleStrategyWorkspace();
 
-    expect(wrapper.findAll('[data-testid="strategy-audit-entry"]')).toHaveLength(1);
-    expect(wrapper.get('[data-testid="strategy-audit-list"]').text()).toContain("order rejected for HK.00700");
+    await wrapper.get('[data-testid="strategy-activity-filter-all"]').trigger("click");
+    await settleStrategyWorkspace();
+
+    expect(wrapper.findAll('[data-testid^="strategy-audit-entry-"]')).toHaveLength(3);
+    expect(wrapper.get('[data-testid="strategy-audit-entry-0"]').text()).toContain("runtime ready");
+    expect(wrapper.get('[data-testid="strategy-audit-entry-1"]').text()).toContain("manual guardrail pause");
+    expect(wrapper.get('[data-testid="strategy-audit-entry-2"]').text()).toContain("order rejected for HK.00700");
+    expect(wrapper.get('[data-testid="strategy-audit-entry-0"]').find('.strategy-time-display').attributes("title")).toContain("UTC");
+
+    await wrapper.get('[data-testid="strategy-audit-detail-trigger-0"]').trigger("click");
+    await settleStrategyWorkspace();
+
+    expect(wrapper.get('[data-testid="strategy-activity-detail-dialog"]').text()).toContain("runtime ready");
+    await wrapper.get('[data-testid="strategy-close-activity-detail-dialog"]').trigger("click");
+    await settleStrategyWorkspace();
 
     await wrapper.get('[data-testid="strategy-open-params-dialog"]').trigger("click");
     await settleStrategyWorkspace();
 
     expect(wrapper.find('[data-testid="strategy-params-dialog"]').exists()).toBe(true);
-    expect(wrapper.get('[data-testid="strategy-params-dialog"]').text()).toContain('"window": 20');
-    expect(wrapper.get('[data-testid="strategy-params-dialog"]').text()).toContain('"threshold": 1.8');
+    const paramsEditor = wrapper.get('[data-testid="strategy-params-editor"]');
+    expect((paramsEditor.element as HTMLTextAreaElement).value).toContain('"window": 20');
+    expect((paramsEditor.element as HTMLTextAreaElement).value).toContain('"threshold": 1.8');
+    expect((paramsEditor.element as HTMLTextAreaElement).readOnly).toBe(true);
 
     wrapper.unmount();
   });
@@ -1323,7 +1714,10 @@ describe("Strategy page", () => {
     expect(wrapper.find('[data-testid="strategy-runtime-observation"]').exists()).toBe(true);
     expect(wrapper.text()).toContain("实际运行态");
     expect(wrapper.text()).toContain("US.AAPL, US.MSFT");
-    expect(wrapper.text()).toContain("2026-05-16 00:03:00Z");
+    const runtimeTimes = wrapper.get('[data-testid="strategy-runtime-observation"]').findAll('.strategy-time-display');
+    expect(runtimeTimes.length).toBeGreaterThan(0);
+    expect(runtimeTimes[0].text()).not.toContain("T");
+    expect(runtimeTimes[0].attributes("title")).toContain("UTC");
     expect(wrapper.text()).toContain("network glitch");
 
     wrapper.unmount();
@@ -1561,6 +1955,135 @@ describe("Strategy page", () => {
 
     expect(wrapper.find('[data-testid="strategy-definitions-panel"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="strategy-definition-dsl-mean-revert"]').exists()).toBe(true);
+
+    wrapper.unmount();
+  });
+
+  it("deletes an unused strategy definition from the design sidebar", async () => {
+    vi.stubGlobal(
+      "fetch",
+      buildFetchMock({
+        definitions: [
+          {
+            id: "dsl-mean-revert",
+            name: "DSL Mean Revert",
+            version: "0.1.0",
+            description: "dsl strategy",
+            runtime: "dsl-go-plan",
+            script: buildDslScript("DSL Mean Revert"),
+            createdAt: "2026-05-23T00:00:00.000Z",
+            updatedAt: "2026-05-23T00:00:00.000Z",
+          },
+          {
+            id: "dsl-breakout",
+            name: "DSL Breakout",
+            version: "0.1.0",
+            description: "second dsl strategy",
+            runtime: "dsl-go-plan",
+            script: buildDslScript("DSL Breakout"),
+            createdAt: "2026-05-23T00:01:00.000Z",
+            updatedAt: "2026-05-23T00:01:00.000Z",
+          },
+        ],
+      }),
+    );
+    vi.stubGlobal(
+      "EventSource",
+      MockEventSource as unknown as typeof EventSource,
+    );
+
+    const { wrapper } = await mountStrategyPage("/strategy");
+
+    await openStrategyDesignWorkspace(wrapper);
+    await wrapper.get('[data-testid="toggle-strategy-definitions-floating"]').trigger("click");
+    await settleStrategyWorkspace();
+
+    await wrapper.get('[data-testid="delete-strategy-definition-dsl-mean-revert"]').trigger("click");
+    await settleStrategyWorkspace();
+
+    expect(wrapper.find('[data-testid="strategy-delete-definition-dialog"]').exists()).toBe(true);
+    expect(wrapper.get('[data-testid="strategy-delete-definition-summary"]').text()).toContain("DSL Mean Revert");
+    expect(wrapper.find('[data-testid="confirm-delete-strategy-definition"]').exists()).toBe(true);
+
+    await wrapper.get('[data-testid="confirm-delete-strategy-definition"]').trigger("click");
+    await settleStrategyWorkspace();
+
+    expect(wrapper.text()).toContain("策略已删除：DSL Mean Revert。");
+    expect(wrapper.find('[data-testid="strategy-definition-dsl-mean-revert"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="strategy-definition-dsl-breakout"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="strategy-delete-definition-dialog"]').exists()).toBe(false);
+
+    wrapper.unmount();
+  });
+
+  it("blocks deleting a strategy definition when linked instances still exist", async () => {
+    vi.stubGlobal(
+      "fetch",
+      buildFetchMock({
+        definitions: [
+          {
+            id: "dsl-breakout",
+            name: "DSL Breakout",
+            version: "0.1.0",
+            description: "dsl strategy",
+            runtime: "dsl-go-plan",
+            script: buildDslScript("DSL Breakout"),
+            createdAt: "2026-05-23T00:00:00.000Z",
+            updatedAt: "2026-05-23T00:00:00.000Z",
+          },
+        ],
+        strategies: [
+          {
+            id: "dsl-breakout-instance",
+            definition: {
+              strategyId: "dsl-breakout",
+              name: "DSL Breakout",
+              version: "0.1.0",
+            },
+            binding: {
+              symbols: ["US.AAPL"],
+              interval: "5m",
+              executionMode: "notify_only",
+            },
+            params: {
+              definitionId: "dsl-breakout",
+              script: buildDslScript("DSL Breakout"),
+            },
+            status: "STOPPED",
+            createdAt: "2026-05-23T00:01:00.000Z",
+            logs: [],
+          },
+        ],
+      }),
+    );
+    vi.stubGlobal(
+      "EventSource",
+      MockEventSource as unknown as typeof EventSource,
+    );
+
+    const { wrapper } = await mountStrategyPage("/strategy");
+
+    await openStrategyDesignWorkspace(wrapper);
+    await wrapper.get('[data-testid="toggle-strategy-definitions-floating"]').trigger("click");
+    await settleStrategyWorkspace();
+
+    await wrapper.get('[data-testid="delete-strategy-definition-dsl-breakout"]').trigger("click");
+    await settleStrategyWorkspace();
+
+    expect(wrapper.find('[data-testid="strategy-delete-definition-dialog"]').exists()).toBe(true);
+    expect(wrapper.get('[data-testid="strategy-delete-definition-summary"]').text()).toContain("1 个实例引用");
+    expect(wrapper.find('[data-testid="strategy-delete-linked-instance-dsl-breakout-instance"]').exists()).toBe(true);
+    expect(wrapper.get('[data-testid="strategy-delete-linked-instance-dsl-breakout-instance"]').text()).toContain("STOPPED · US.AAPL");
+    expect(wrapper.find('[data-testid="confirm-delete-strategy-definition"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="jump-to-runtime-for-delete-linked-instances"]').exists()).toBe(true);
+
+    await wrapper.get('[data-testid="jump-to-runtime-for-delete-linked-instances"]').trigger("click");
+    await settleStrategyWorkspace();
+
+    expect(wrapper.find('[data-testid="strategy-delete-definition-dialog"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="strategy-definitions-panel"]').exists()).toBe(false);
+    expect(wrapper.text()).toContain("已切换到运行面板，请先删除策略「DSL Breakout」关联的 1 个实例");
+    expect(wrapper.find('[data-testid="strategy-create-instance-panel"]').exists()).toBe(true);
 
     wrapper.unmount();
   });
@@ -2648,6 +3171,137 @@ describe("Strategy page", () => {
 
     expect(router.currentRoute.value.path).toBe("/overview");
     expect(confirmMock).toHaveBeenCalledTimes(2);
+
+    wrapper.unmount();
+  });
+
+  it("prompts to save only or update linked instances when saving a definition", async () => {
+    vi.stubGlobal(
+      "fetch",
+      buildFetchMock({
+        definitions: [
+          {
+            id: "dsl-breakout",
+            name: "DSL Breakout",
+            version: "0.1.0",
+            description: "dsl strategy",
+            runtime: "dsl-go-plan",
+            script: buildDslScript("DSL Breakout"),
+            createdAt: "2026-05-23T00:00:00.000Z",
+            updatedAt: "2026-05-23T00:00:00.000Z",
+          },
+        ],
+        strategies: [
+          {
+            id: "dsl-breakout-instance",
+            definition: {
+              strategyId: "dsl-breakout",
+              name: "DSL Breakout",
+              version: "0.1.0",
+            },
+            binding: {
+              symbols: ["US.AAPL"],
+              interval: "5m",
+              executionMode: "live",
+            },
+            params: {
+              definitionId: "dsl-breakout",
+              script: buildDslScript("DSL Breakout"),
+            },
+            status: "STOPPED",
+            createdAt: "2026-05-23T00:01:00.000Z",
+            logs: [],
+          },
+        ],
+      }),
+    );
+    vi.stubGlobal(
+      "EventSource",
+      MockEventSource as unknown as typeof EventSource,
+    );
+
+    const { wrapper } = await mountStrategyPage("/strategy");
+    await openStrategyDesignWorkspace(wrapper);
+    await wrapper.get('[data-testid="toggle-strategy-basic-info-section"]').trigger("click");
+    await settleStrategyWorkspace();
+
+    const description = wrapper.get('[data-testid="strategy-basic-info-section"] textarea');
+    await description.setValue("save and apply latest instance snapshot");
+    await wrapper.get('[data-testid="save-strategy-definition"]').trigger("click");
+    await settleStrategyWorkspace();
+
+    expect(wrapper.find('[data-testid="strategy-save-linked-dialog"]').exists()).toBe(true);
+    expect(wrapper.get('[data-testid="strategy-save-linked-summary"]').text()).toContain("当前共有 1 个实例应用了这份策略");
+    expect(wrapper.find('[data-testid="strategy-save-definition-only"]').exists()).toBe(true);
+    expect(wrapper.find('[data-testid="strategy-save-definition-and-apply"]').exists()).toBe(true);
+
+    await wrapper.get('[data-testid="strategy-save-definition-and-apply"]').trigger("click");
+    await settleStrategyWorkspace();
+
+    expect(wrapper.text()).toContain("策略已保存。 已同步 1 个关联实例");
+
+    wrapper.unmount();
+  });
+
+  it("shows stale instance strategy status and refreshes to latest definition", async () => {
+    vi.stubGlobal(
+      "fetch",
+      buildFetchMock({
+        definitions: [
+          {
+            id: "dsl-breakout",
+            name: "DSL Breakout",
+            version: "0.1.1",
+            description: "latest dsl strategy",
+            runtime: "dsl-go-plan",
+            script: buildDslScript("DSL Breakout", ['log "latest"'], { version: "0.1.1" }),
+            createdAt: "2026-05-23T00:00:00.000Z",
+            updatedAt: "2026-05-23T00:05:00.000Z",
+          },
+        ],
+        strategies: [
+          {
+            id: "dsl-breakout-instance",
+            definition: {
+              strategyId: "dsl-breakout",
+              name: "DSL Breakout",
+              version: "0.1.0",
+            },
+            binding: {
+              symbols: ["US.AAPL"],
+              interval: "5m",
+              executionMode: "live",
+            },
+            params: {
+              definitionId: "dsl-breakout",
+              script: buildDslScript("DSL Breakout", ['log "old"'], { version: "0.1.0" }),
+            },
+            status: "STOPPED",
+            createdAt: "2026-05-23T00:01:00.000Z",
+            logs: [],
+          },
+        ],
+      }),
+    );
+    vi.stubGlobal(
+      "EventSource",
+      MockEventSource as unknown as typeof EventSource,
+    );
+
+    const { wrapper } = await mountStrategyPage("/strategy");
+    await openStrategyWorkspaceTab(wrapper, "runtime");
+    await waitForSelector(wrapper, '[data-testid="strategy-dsl-breakout-instance"]');
+
+    expect(wrapper.find('[data-testid="strategy-definition-stale-dsl-breakout-instance"]').exists()).toBe(true);
+    expect(wrapper.get('[data-testid="strategy-definition-sync-badge"]').text()).toContain("待刷新 v0.1.0 -> v0.1.1");
+    expect(wrapper.get('[data-testid="strategy-refresh-definition"]').attributes("disabled")).toBeUndefined();
+
+    await wrapper.get('[data-testid="strategy-refresh-definition"]').trigger("click");
+    await settleStrategyWorkspace();
+
+    expect(wrapper.text()).toContain("已刷新实例策略到最新版本：DSL Breakout / v0.1.1");
+    expect(wrapper.get('[data-testid="strategy-definition-sync-badge"]').text()).toContain("已同步至 v0.1.1");
+    expect(wrapper.find('[data-testid="strategy-definition-stale-dsl-breakout-instance"]').exists()).toBe(false);
 
     wrapper.unmount();
   });

@@ -492,6 +492,67 @@ func TestStrategyRuntimeObservationAppearsInStrategiesAndSystemStatus(t *testing
 	}
 }
 
+func TestStrategyRuntimeObservationPersistsAcrossServerRestart(t *testing.T) {
+	settingsPath := filepath.Join(t.TempDir(), "settings.json")
+	store, err := NewSettingsStore(settingsPath)
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	server := NewServer(store)
+	stub := newStrategyRuntimeStubExchange()
+	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return stub }
+
+	instanceID := instantiateStrategyRuntimeTestInstance(t, server, strategyInstanceBinding{
+		Symbols:       []string{"US.AAPL"},
+		Interval:      "1m",
+		ExecutionMode: strategyExecutionModeNotifyOnly,
+		BrokerAccount: &strategyBrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
+	})
+	instanceRecord, ok := server.strategyStore.strategy(instanceID)
+	if !ok {
+		t.Fatalf("strategy(%s) not found", instanceID)
+	}
+	if err := server.strategyRuntimeManager.startStrategy(context.Background(), instanceRecord); err != nil {
+		t.Fatalf("startStrategy: %v", err)
+	}
+	if _, err := server.strategyStore.transitionStrategy(instanceID, strategyStatusRunning, "started", "test start"); err != nil {
+		t.Fatalf("transitionStrategy start: %v", err)
+	}
+	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 100, strategyRuntimeTestTime(10, 0, 30)))
+	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 101, strategyRuntimeTestTime(10, 1, 0)))
+	if _, err := server.strategyStore.transitionStrategy(instanceID, strategyStatusStopped, "stopped", "test stop"); err != nil {
+		t.Fatalf("transitionStrategy stop: %v", err)
+	}
+	server.strategyRuntimeManager.stopStrategy(instanceID)
+
+	reloadedStore, err := NewSettingsStore(settingsPath)
+	if err != nil {
+		t.Fatalf("NewSettingsStore reload: %v", err)
+	}
+	reloadedServer := NewServer(reloadedStore)
+	strategies := reloadedServer.enrichStrategyItems(reloadedServer.strategyStore.strategies())
+	if len(strategies) != 1 {
+		t.Fatalf("expected 1 strategy after reload, got %+v", strategies)
+	}
+	observation := strategies[0].RuntimeObservation
+	if observation == nil {
+		t.Fatalf("expected persisted runtime observation after reload, got %+v", strategies[0])
+	}
+	if observation.ActualStatus != strategyStatusStopped {
+		t.Fatalf("persisted actual status = %s, want %s", observation.ActualStatus, strategyStatusStopped)
+	}
+	if observation.LastClosedKLineAt == nil || observation.LastSignalAt == nil {
+		t.Fatalf("expected persisted timestamps after reload, got %+v", observation)
+	}
+	strategyRuntime, ok := reloadedServer.systemStatus()["strategyRuntime"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected strategyRuntime summary, got %+v", reloadedServer.systemStatus()["strategyRuntime"])
+	}
+	if got := strategyRuntime["activeStrategies"].(int); got != 0 {
+		t.Fatalf("activeStrategies after reload = %d, want 0", got)
+	}
+}
+
 func TestStrategyRuntimePanicAutoReconcilesToStopped(t *testing.T) {
 	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
 	if err != nil {

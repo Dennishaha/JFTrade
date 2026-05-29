@@ -38,6 +38,7 @@ interface Props {
   placeholder?: string;
   testId?: string;
   resizable?: boolean;
+  readOnly?: boolean;
   extraLibs?: MonacoExtraLibConfig[];
   completionItems?: MonacoCompletionConfig[];
   hoverItems?: MonacoHoverConfig[];
@@ -50,6 +51,7 @@ const props = withDefaults(defineProps<Props>(), {
   placeholder: "",
   testId: "",
   resizable: false,
+  readOnly: false,
   extraLibs: () => [],
   completionItems: () => [],
   hoverItems: () => [],
@@ -168,6 +170,23 @@ watch(theme, (nextTheme) => {
   }
   monaco.editor.setTheme(nextTheme === "light" ? "vs" : "vs-dark");
 });
+
+watch(
+  () => props.readOnly,
+  (nextReadOnly) => {
+    if (isFallbackMode.value || editor === null) {
+      return;
+    }
+
+    editor.updateOptions({
+      readOnly: nextReadOnly,
+      domReadOnly: nextReadOnly,
+      contextmenu: !nextReadOnly,
+      cursorStyle: nextReadOnly ? "line-thin" : "line",
+      occurrencesHighlight: nextReadOnly ? "off" : "singleFile",
+    });
+  },
+);
 
 onMounted(() => {
   isUnmounted = false;
@@ -472,6 +491,9 @@ function shouldUseFallback(): boolean {
 }
 
 function handleFallbackInput(event: Event): void {
+  if (props.readOnly) {
+    return;
+  }
   emit(
     "update:modelValue",
     (event.target as HTMLTextAreaElement | null)?.value ?? "",
@@ -720,6 +742,11 @@ async function initializeMonaco(): Promise<void> {
       language: props.language,
       theme: getMonacoTheme(),
       automaticLayout: true,
+      readOnly: props.readOnly,
+      domReadOnly: props.readOnly,
+      contextmenu: !props.readOnly,
+      cursorStyle: props.readOnly ? "line-thin" : "line",
+      occurrencesHighlight: props.readOnly ? "off" : "singleFile",
       minimap: { enabled: false },
       overviewRulerLanes: 0,
       scrollBeyondLastLine: false,
@@ -790,6 +817,7 @@ async function initializeMonaco(): Promise<void> {
       :value="modelValue"
       :data-testid="testId || undefined"
       :placeholder="placeholder"
+      :readonly="readOnly"
       class="monaco-code-editor-fallback"
       spellcheck="false"
       @blur="handleFallbackBlur"

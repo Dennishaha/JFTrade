@@ -185,6 +185,18 @@ func buildOpenAPIComponents() map[string]any {
 				},
 				"required": []string{"strategyId", "name", "version"},
 			},
+			"StrategyDefinitionSyncStatus": map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"definitionId":   map[string]any{"type": "string", "example": "dsl-mean-revert"},
+					"appliedVersion": map[string]any{"type": "string", "example": "0.1.0"},
+					"latestVersion":  map[string]any{"type": "string", "example": "0.1.1"},
+					"isLatest":       map[string]any{"type": "boolean", "example": false},
+					"canApplyLatest": map[string]any{"type": "boolean", "example": true},
+					"blockedReason":  map[string]any{"type": "string", "nullable": true, "example": "当前实例不是 STOPPED，先停止后才能刷新到最新策略。"},
+				},
+				"required": []string{"definitionId", "appliedVersion", "latestVersion", "isLatest", "canApplyLatest"},
+			},
 			"StrategyInstance": map[string]any{
 				"type": "object",
 				"properties": map[string]any{
@@ -202,9 +214,22 @@ func buildOpenAPIComponents() map[string]any {
 						"type":  "array",
 						"items": map[string]any{"type": "string"},
 					},
+					"definitionSync":     schemaRef("StrategyDefinitionSyncStatus"),
 					"runtimeObservation": schemaRef("StrategyRuntimeObservation"),
 				},
 				"required": []string{"id", "definition", "runtime", "sourceFormat", "startable", "binding", "params", "status", "createdAt", "logs"},
+			},
+			"StrategyApplyLinkedInstancesResponse": map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"definitionId":  map[string]any{"type": "string", "example": "dsl-mean-revert"},
+					"latestVersion": map[string]any{"type": "string", "example": "0.1.1"},
+					"totalLinked":   map[string]any{"type": "integer", "example": 3},
+					"applied":       map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+					"alreadyLatest": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+					"skippedBusy":   map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+				},
+				"required": []string{"definitionId", "latestVersion", "totalLinked", "applied", "alreadyLatest", "skippedBusy"},
 			},
 			"StrategyRuntimeObservation": map[string]any{
 				"type": "object",
@@ -220,6 +245,17 @@ func buildOpenAPIComponents() map[string]any {
 				},
 				"required": []string{"actualStatus", "activeSymbols"},
 			},
+			"StrategyActivityPage": map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"limit":    map[string]any{"type": "integer", "example": 500},
+					"offset":   map[string]any{"type": "integer", "example": 0},
+					"total":    map[string]any{"type": "integer", "example": 12},
+					"returned": map[string]any{"type": "integer", "example": 12},
+					"hasMore":  map[string]any{"type": "boolean", "example": false},
+				},
+				"required": []string{"limit", "offset", "total", "returned", "hasMore"},
+			},
 			"StrategyLogsResponse": map[string]any{
 				"type": "object",
 				"properties": map[string]any{
@@ -228,8 +264,9 @@ func buildOpenAPIComponents() map[string]any {
 						"type":  "array",
 						"items": map[string]any{"type": "string"},
 					},
+					"page": schemaRef("StrategyActivityPage"),
 				},
-				"required": []string{"instanceId", "logs"},
+				"required": []string{"instanceId", "logs", "page"},
 			},
 			"StrategyAuditEntry": map[string]any{
 				"type": "object",
@@ -249,8 +286,9 @@ func buildOpenAPIComponents() map[string]any {
 						"type":  "array",
 						"items": schemaRef("StrategyAuditEntry"),
 					},
+					"page": schemaRef("StrategyActivityPage"),
 				},
-				"required": []string{"instanceId", "entries"},
+				"required": []string{"instanceId", "entries", "page"},
 			},
 		},
 	}

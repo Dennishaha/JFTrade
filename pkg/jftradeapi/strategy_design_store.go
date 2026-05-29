@@ -1,22 +1,28 @@
 package jftradeapi
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
+	"github.com/jmoiron/sqlx"
+	"golang.org/x/mod/semver"
+	_ "modernc.org/sqlite"
 )
 
 const (
 	defaultStrategyDesignFilename = "strategy-definitions.json"
+	strategyDesignDefinitionTable = "strategy_design_definitions"
 	strategyRuntimeDSLPlan        = "dsl-go-plan"
+	defaultStrategyVersion        = "0.1.0"
 )
 
 type strategyVisualNode struct {
@@ -59,19 +65,36 @@ type strategyDesignDefinition struct {
 	UpdatedAt    string               `json:"updatedAt"`
 }
 
-type strategyDesignFile struct {
-	Definitions []strategyDesignDefinition `json:"definitions,omitempty"`
+type strategyDesignStore struct {
+	path   string
+	dbPath string
+	db     *sqlx.DB
+	mu     sync.RWMutex
 }
 
-type strategyDesignStore struct {
-	path string
-	mu   sync.RWMutex
-	data strategyDesignFile
+type strategyDesignDefinitionRow struct {
+	ID              string         `db:"id"`
+	Name            string         `db:"name"`
+	Version         string         `db:"version"`
+	Description     string         `db:"description"`
+	Runtime         string         `db:"runtime"`
+	SourceFormat    string         `db:"source_format"`
+	Symbol          string         `db:"symbol"`
+	Interval        string         `db:"interval"`
+	Script          string         `db:"script"`
+	VisualModelJSON string         `db:"visual_model_json"`
+	CreatedAt       string         `db:"created_at"`
+	UpdatedAt       string         `db:"updated_at"`
+	DeletedAt       sql.NullString `db:"deleted_at"`
 }
 
 func NewStrategyDesignStore(path string) (*strategyDesignStore, error) {
-	store := &strategyDesignStore{path: path}
+	store := &strategyDesignStore{path: path, dbPath: deriveStrategyDesignDBPath(path)}
+	if err := store.openDB(); err != nil {
+		return nil, err
+	}
 	if err := store.load(); err != nil {
+		_ = store.Close()
 		return nil, err
 	}
 	return store, nil
@@ -85,35 +108,74 @@ func deriveStrategyDesignPath(settingsPath string) string {
 	return filepath.Join(directory, defaultStrategyDesignFilename)
 }
 
+func deriveStrategyDesignDBPath(legacyPath string) string {
+	if envPath := strings.TrimSpace(os.Getenv("JFTRADE_STRATEGY_RUNTIME_DB")); envPath != "" {
+		return envPath
+	}
+	directory := filepath.Dir(strings.TrimSpace(legacyPath))
+	if directory == "" || directory == "." {
+		return defaultStrategyRuntimeDBFilename
+	}
+	return filepath.Join(directory, defaultStrategyRuntimeDBFilename)
+}
+
+func (s *strategyDesignStore) openDB() error {
+	trimmedPath := strings.TrimSpace(s.dbPath)
+	if trimmedPath == "" {
+		return fmt.Errorf("strategy design db path is required")
+	}
+	directory := filepath.Dir(trimmedPath)
+	if directory != "" && directory != "." {
+		if err := os.MkdirAll(directory, 0o755); err != nil {
+			return fmt.Errorf("create strategy design db directory: %w", err)
+		}
+	}
+	db, err := sqlx.Open("sqlite", trimmedPath+"?_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)")
+	if err != nil {
+		return fmt.Errorf("open strategy design sqlite store: %w", err)
+	}
+	s.db = db
+	return nil
+}
+
+func (s *strategyDesignStore) Close() error {
+	if s == nil || s.db == nil {
+		return nil
+	}
+	return s.db.Close()
+}
+
 func (s *strategyDesignStore) load() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	return s.migrateLocked()
+}
 
-	data, err := os.ReadFile(s.path)
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			s.data = strategyDesignFile{}
-			return nil
+func (s *strategyDesignStore) migrateLocked() error {
+	for _, statement := range []string{
+		strings.Join([]string{
+			`CREATE TABLE IF NOT EXISTS ` + strategyDesignDefinitionTable + ` (`,
+			`  id                TEXT PRIMARY KEY,`,
+			`  name              TEXT NOT NULL DEFAULT '',`,
+			`  version           TEXT NOT NULL DEFAULT '',`,
+			`  description       TEXT NOT NULL DEFAULT '',`,
+			`  runtime           TEXT NOT NULL DEFAULT '',`,
+			`  source_format     TEXT NOT NULL DEFAULT '',`,
+			`  symbol            TEXT NOT NULL DEFAULT '',`,
+			`  interval          TEXT NOT NULL DEFAULT '',`,
+			`  script            TEXT NOT NULL DEFAULT '',`,
+			`  visual_model_json TEXT NOT NULL DEFAULT '',`,
+			`  created_at        TEXT NOT NULL DEFAULT '',`,
+			`  updated_at        TEXT NOT NULL DEFAULT '',`,
+			`  deleted_at        TEXT`,
+			`)`,
+		}, " "),
+		`CREATE INDEX IF NOT EXISTS idx_strategy_design_definitions_updated_at ON ` + strategyDesignDefinitionTable + ` (updated_at DESC, id ASC)`,
+		`CREATE INDEX IF NOT EXISTS idx_strategy_design_definitions_deleted_at ON ` + strategyDesignDefinitionTable + ` (deleted_at)`,
+	} {
+		if _, err := s.db.Exec(statement); err != nil {
+			return err
 		}
-		return err
-	}
-	if len(strings.TrimSpace(string(data))) == 0 {
-		s.data = strategyDesignFile{}
-		return nil
-	}
-	if err := json.Unmarshal(data, &s.data); err != nil {
-		return err
-	}
-	migrated := false
-	for index := range s.data.Definitions {
-		normalized := normalizeStrategyDesignDefinition(s.data.Definitions[index])
-		if !strategyDesignDefinitionsEqual(s.data.Definitions[index], normalized) {
-			migrated = true
-		}
-		s.data.Definitions[index] = normalized
-	}
-	if migrated {
-		return s.persistLocked()
 	}
 	return nil
 }
@@ -121,17 +183,26 @@ func (s *strategyDesignStore) load() error {
 func (s *strategyDesignStore) listDefinitions() []strategyDesignDefinition {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
+	return s.listDefinitionsFromDBLocked()
+}
 
-	items := make([]strategyDesignDefinition, 0, len(s.data.Definitions))
-	for _, definition := range s.data.Definitions {
-		items = append(items, normalizeStrategyDesignDefinition(definition))
+func (s *strategyDesignStore) listDefinitionsFromDBLocked() []strategyDesignDefinition {
+	rows := []strategyDesignDefinitionRow{}
+	if err := s.db.Select(&rows,
+		`SELECT id, name, version, description, runtime, source_format, symbol, interval, script, visual_model_json, created_at, updated_at, deleted_at `+
+			`FROM `+strategyDesignDefinitionTable+` `+
+			`WHERE deleted_at IS NULL OR TRIM(deleted_at) = '' `+
+			`ORDER BY updated_at DESC, id ASC`); err != nil {
+		return []strategyDesignDefinition{}
 	}
-	sort.Slice(items, func(i int, j int) bool {
-		if items[i].UpdatedAt == items[j].UpdatedAt {
-			return items[i].ID < items[j].ID
+	items := make([]strategyDesignDefinition, 0, len(rows))
+	for _, row := range rows {
+		definition, err := strategyDesignDefinitionFromRow(row)
+		if err != nil {
+			continue
 		}
-		return items[i].UpdatedAt > items[j].UpdatedAt
-	})
+		items = append(items, definition)
+	}
 	return items
 }
 
@@ -139,13 +210,15 @@ func (s *strategyDesignStore) definition(id string) (strategyDesignDefinition, b
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	id = strings.TrimSpace(id)
-	for _, definition := range s.data.Definitions {
-		normalized := normalizeStrategyDesignDefinition(definition)
-		if normalized.ID == id {
-			return normalized, true
-		}
+	row, ok, err := s.definitionRowLocked(id, false)
+	if err != nil || !ok {
+		return strategyDesignDefinition{}, false
 	}
-	return strategyDesignDefinition{}, false
+	definition, defErr := strategyDesignDefinitionFromRow(row)
+	if defErr != nil {
+		return strategyDesignDefinition{}, false
+	}
+	return definition, true
 }
 
 func (s *strategyDesignStore) saveDefinition(input strategyDesignDefinition) (strategyDesignDefinition, error) {
@@ -153,17 +226,183 @@ func (s *strategyDesignStore) saveDefinition(input strategyDesignDefinition) (st
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	for index := range s.data.Definitions {
-		if s.data.Definitions[index].ID != normalized.ID {
-			continue
-		}
-		normalized.CreatedAt = normalizeStrategyDesignDefinition(s.data.Definitions[index]).CreatedAt
-		normalized.UpdatedAt = time.Now().UTC().Format(time.RFC3339Nano)
-		s.data.Definitions[index] = normalized
-		return normalized, s.persistLocked()
+	return s.saveDefinitionToDBLocked(normalized)
+}
+
+func (s *strategyDesignStore) saveDefinitionToDBLocked(normalized strategyDesignDefinition) (strategyDesignDefinition, error) {
+	row, found, err := s.definitionRowLocked(normalized.ID, true)
+	if err != nil {
+		return strategyDesignDefinition{}, err
 	}
-	s.data.Definitions = append(s.data.Definitions, normalized)
-	return normalized, s.persistLocked()
+	if found {
+		existing, err := strategyDesignDefinitionFromRow(row)
+		if err != nil {
+			return strategyDesignDefinition{}, err
+		}
+		normalized.CreatedAt = existing.CreatedAt
+		normalized.Version = existing.Version
+		normalized.Script = syncStrategyDSLVersion(normalized.Script, normalized.Version)
+		deleted := row.DeletedAt.Valid && strings.TrimSpace(row.DeletedAt.String) != ""
+		changed := strategyDesignDefinitionMeaningfullyChanged(existing, normalized)
+		if !changed && !deleted {
+			return existing, nil
+		}
+		if changed {
+			normalized.Version = nextStrategyDefinitionVersion(existing.Version)
+			normalized.Script = syncStrategyDSLVersion(normalized.Script, normalized.Version)
+		}
+		normalized.UpdatedAt = time.Now().UTC().Format(time.RFC3339Nano)
+		if err := s.upsertDefinitionLocked(normalized, nil); err != nil {
+			return strategyDesignDefinition{}, err
+		}
+		return normalized, nil
+	}
+
+	normalized.Version = defaultStrategyVersion
+	normalized.Script = syncStrategyDSLVersion(normalized.Script, normalized.Version)
+	if err := s.upsertDefinitionLocked(normalized, nil); err != nil {
+		return strategyDesignDefinition{}, err
+	}
+	return normalized, nil
+}
+
+func (s *strategyDesignStore) deleteDefinition(id string) (strategyDesignDefinition, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	id = strings.TrimSpace(id)
+	row, ok, err := s.definitionRowLocked(id, false)
+	if err != nil {
+		return strategyDesignDefinition{}, err
+	}
+	if !ok {
+		return strategyDesignDefinition{}, os.ErrNotExist
+	}
+	definition, err := strategyDesignDefinitionFromRow(row)
+	if err != nil {
+		return strategyDesignDefinition{}, err
+	}
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	if _, err := s.db.Exec(
+		`UPDATE `+strategyDesignDefinitionTable+` SET updated_at = ?, deleted_at = ? WHERE id = ?`,
+		now,
+		now,
+		id,
+	); err != nil {
+		return strategyDesignDefinition{}, err
+	}
+	return definition, nil
+}
+
+func (s *strategyDesignStore) definitionRowLocked(id string, includeDeleted bool) (strategyDesignDefinitionRow, bool, error) {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return strategyDesignDefinitionRow{}, false, nil
+	}
+	query := `SELECT id, name, version, description, runtime, source_format, symbol, interval, script, visual_model_json, created_at, updated_at, deleted_at FROM ` + strategyDesignDefinitionTable + ` WHERE id = ?`
+	if !includeDeleted {
+		query += ` AND (deleted_at IS NULL OR TRIM(deleted_at) = '')`
+	}
+	var row strategyDesignDefinitionRow
+	if err := s.db.Get(&row, query, id); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return strategyDesignDefinitionRow{}, false, nil
+		}
+		return strategyDesignDefinitionRow{}, false, err
+	}
+	return row, true, nil
+}
+
+func (s *strategyDesignStore) upsertDefinitionLocked(definition strategyDesignDefinition, deletedAt *string) error {
+	row, err := strategyDesignDefinitionRowFromDefinition(definition)
+	if err != nil {
+		return err
+	}
+	var deletedValue any
+	if deletedAt != nil {
+		deletedValue = strings.TrimSpace(*deletedAt)
+	}
+	_, err = s.db.Exec(
+		`INSERT INTO `+strategyDesignDefinitionTable+` (`+
+			`id, name, version, description, runtime, source_format, symbol, interval, script, visual_model_json, created_at, updated_at, deleted_at`+
+			`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) `+
+			`ON CONFLICT(id) DO UPDATE SET `+
+			`name = excluded.name, `+
+			`version = excluded.version, `+
+			`description = excluded.description, `+
+			`runtime = excluded.runtime, `+
+			`source_format = excluded.source_format, `+
+			`symbol = excluded.symbol, `+
+			`interval = excluded.interval, `+
+			`script = excluded.script, `+
+			`visual_model_json = excluded.visual_model_json, `+
+			`created_at = excluded.created_at, `+
+			`updated_at = excluded.updated_at, `+
+			`deleted_at = excluded.deleted_at`,
+		row.ID,
+		row.Name,
+		row.Version,
+		row.Description,
+		row.Runtime,
+		row.SourceFormat,
+		row.Symbol,
+		row.Interval,
+		row.Script,
+		row.VisualModelJSON,
+		row.CreatedAt,
+		row.UpdatedAt,
+		deletedValue,
+	)
+	return err
+}
+
+func strategyDesignDefinitionFromRow(row strategyDesignDefinitionRow) (strategyDesignDefinition, error) {
+	var visualModel *strategyVisualModel
+	if strings.TrimSpace(row.VisualModelJSON) != "" {
+		var parsed strategyVisualModel
+		if err := json.Unmarshal([]byte(row.VisualModelJSON), &parsed); err != nil {
+			return strategyDesignDefinition{}, err
+		}
+		visualModel = &parsed
+	}
+	return normalizeStrategyDesignDefinition(strategyDesignDefinition{
+		ID:           row.ID,
+		Name:         row.Name,
+		Version:      row.Version,
+		Description:  row.Description,
+		Runtime:      row.Runtime,
+		SourceFormat: row.SourceFormat,
+		Symbol:       row.Symbol,
+		Interval:     row.Interval,
+		Script:       row.Script,
+		VisualModel:  visualModel,
+		CreatedAt:    row.CreatedAt,
+		UpdatedAt:    row.UpdatedAt,
+	}), nil
+}
+
+func strategyDesignDefinitionRowFromDefinition(definition strategyDesignDefinition) (strategyDesignDefinitionRow, error) {
+	visualModelJSON := ""
+	if definition.VisualModel != nil {
+		data, err := json.Marshal(definition.VisualModel)
+		if err != nil {
+			return strategyDesignDefinitionRow{}, err
+		}
+		visualModelJSON = string(data)
+	}
+	return strategyDesignDefinitionRow{
+		ID:              definition.ID,
+		Name:            definition.Name,
+		Version:         definition.Version,
+		Description:     definition.Description,
+		Runtime:         definition.Runtime,
+		SourceFormat:    definition.SourceFormat,
+		Symbol:          definition.Symbol,
+		Interval:        definition.Interval,
+		Script:          definition.Script,
+		VisualModelJSON: visualModelJSON,
+		CreatedAt:       definition.CreatedAt,
+		UpdatedAt:       definition.UpdatedAt,
+	}, nil
 }
 
 func normalizeStrategyDesignDefinition(input strategyDesignDefinition) strategyDesignDefinition {
@@ -176,10 +415,7 @@ func normalizeStrategyDesignDefinition(input strategyDesignDefinition) strategyD
 	if input.Name == "" {
 		input.Name = input.ID
 	}
-	input.Version = strings.TrimSpace(input.Version)
-	if input.Version == "" {
-		input.Version = "0.1.0"
-	}
+	input.Version = normalizeStrategySemanticVersion(input.Version)
 	input.Description = strings.TrimSpace(input.Description)
 	rawSourceFormat := strings.TrimSpace(input.SourceFormat)
 	rawRuntime := strings.TrimSpace(input.Runtime)
@@ -191,6 +427,7 @@ func normalizeStrategyDesignDefinition(input strategyDesignDefinition) strategyD
 	if shouldReplaceWithDefaultDSLScript(rawSourceFormat, rawRuntime, input.Script) {
 		input.Script = defaultStrategyDesignScript(input.Name, input.SourceFormat)
 	}
+	input.Script = syncStrategyDSLVersion(input.Script, input.Version)
 	if input.CreatedAt == "" {
 		input.CreatedAt = now
 	}
@@ -211,22 +448,82 @@ func defaultStrategyDesignDSL(name string) string {
 		name = "dsl-strategy"
 	}
 	return "strategy " + name + "\n" +
-		"version 0.1.0\n\n" +
+		"version " + defaultStrategyVersion + "\n\n" +
 		"on init:\n" +
 		"  log \"init strategy\"\n\n" +
 		"on kline_close:\n" +
 		"  log \"kline closed\"\n"
 }
 
-func (s *strategyDesignStore) persistLocked() error {
-	data, err := json.MarshalIndent(s.data, "", "  ")
-	if err != nil {
-		return err
+func normalizeStrategySemanticVersion(value string) string {
+	canonical := canonicalStrategySemanticVersion(value)
+	if canonical == "" {
+		return defaultStrategyVersion
 	}
-	if err := os.MkdirAll(filepath.Dir(s.path), 0o755); err != nil {
-		return err
+	return strings.TrimPrefix(canonical, "v")
+}
+
+func canonicalStrategySemanticVersion(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
 	}
-	return os.WriteFile(s.path, data, 0o600)
+	if !strings.HasPrefix(value, "v") {
+		value = "v" + value
+	}
+	return semver.Canonical(value)
+}
+
+func nextStrategyDefinitionVersion(current string) string {
+	canonical := canonicalStrategySemanticVersion(current)
+	if canonical == "" {
+		return defaultStrategyVersion
+	}
+	parts := strings.Split(strings.TrimPrefix(canonical, "v"), ".")
+	if len(parts) != 3 {
+		return defaultStrategyVersion
+	}
+	major, majorErr := strconv.Atoi(parts[0])
+	minor, minorErr := strconv.Atoi(parts[1])
+	patch, patchErr := strconv.Atoi(parts[2])
+	if majorErr != nil || minorErr != nil || patchErr != nil {
+		return defaultStrategyVersion
+	}
+	return fmt.Sprintf("%d.%d.%d", major, minor, patch+1)
+}
+
+func syncStrategyDSLVersion(script string, version string) string {
+	if strings.TrimSpace(script) == "" {
+		return script
+	}
+	version = normalizeStrategySemanticVersion(version)
+	lines := strings.Split(script, "\n")
+	for index, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if !strings.HasPrefix(trimmed, "version ") {
+			continue
+		}
+		leadingWidth := len(line) - len(strings.TrimLeft(line, " \t"))
+		leading := ""
+		if leadingWidth > 0 {
+			leading = line[:leadingWidth]
+		}
+		lines[index] = leading + "version " + version
+		return strings.Join(lines, "\n")
+	}
+	return script
+}
+
+func strategyDesignDefinitionMeaningfullyChanged(left, right strategyDesignDefinition) bool {
+	left.CreatedAt = ""
+	left.UpdatedAt = ""
+	left.Version = ""
+	left.Script = syncStrategyDSLVersion(left.Script, defaultStrategyVersion)
+	right.CreatedAt = ""
+	right.UpdatedAt = ""
+	right.Version = ""
+	right.Script = syncStrategyDSLVersion(right.Script, defaultStrategyVersion)
+	return !strategyDesignDefinitionsEqual(left, right)
 }
 
 func normalizeStrategyRuntime(runtime string) string {

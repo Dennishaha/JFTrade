@@ -7,9 +7,45 @@ import (
 	"testing"
 
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
+	"github.com/jmoiron/sqlx"
+	_ "modernc.org/sqlite"
 )
 
-func TestStrategyDesignStoreLoadMigratesLegacyMovingAverageDefinitions(t *testing.T) {
+func countStrategyDesignDefinitionRows(t *testing.T, dbPath string) int {
+	t.Helper()
+	db, err := sqlx.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatalf("open sqlite db: %v", err)
+	}
+	defer db.Close()
+
+	var count int
+	if err := db.Get(&count, `SELECT COUNT(*) FROM `+strategyDesignDefinitionTable); err != nil {
+		t.Fatalf("count design definitions: %v", err)
+	}
+	return count
+}
+
+func readStrategyDesignDefinitionRow(t *testing.T, dbPath string, id string) strategyDesignDefinitionRow {
+	t.Helper()
+	db, err := sqlx.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatalf("open sqlite db: %v", err)
+	}
+	defer db.Close()
+
+	var row strategyDesignDefinitionRow
+	if err := db.Get(&row,
+		`SELECT id, name, version, description, runtime, source_format, symbol, interval, script, visual_model_json, created_at, updated_at, deleted_at `+
+			`FROM `+strategyDesignDefinitionTable+` WHERE id = ?`,
+		id,
+	); err != nil {
+		t.Fatalf("read design definition row %s: %v", id, err)
+	}
+	return row
+}
+
+func TestStrategyDesignStoreIgnoresLegacyJSONFile(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "strategy-definitions.json")
 	legacy := `{
 	  "definitions": [
@@ -22,40 +58,7 @@ func TestStrategyDesignStoreLoadMigratesLegacyMovingAverageDefinitions(t *testin
 	      "sourceFormat": "legacy-v0",
 	      "symbol": "00700",
 	      "interval": "1m",
-	      "script": "",
-	      "visualModel": {
-	        "engine": "logic-flow",
-	        "version": 1,
-	        "nodes": [
-	          {
-	            "id": "indicator-fast",
-	            "type": "rect",
-	            "x": 120,
-	            "y": 160,
-	            "text": "获取 均线 EMA 5",
-	            "properties": {
-	              "blockKind": "getTechnicalIndicator",
-	              "indicatorType": "movingAverage",
-	              "movingAverageType": "EMA",
-	              "windowSize": 5
-	            }
-	          },
-	          {
-	            "id": "indicator-slow",
-	            "type": "rect",
-	            "x": 280,
-	            "y": 160,
-	            "text": "获取 均线 MA 20",
-	            "properties": {
-	              "blockKind": "getTechnicalIndicator",
-	              "indicatorType": "movingAverage",
-	              "movingAverageType": "MA",
-	              "windowSize": 20
-	            }
-	          }
-	        ],
-	        "edges": []
-	      },
+	      "script": "strategy Legacy MA\non kline_close:\n  log \"close\"",
 	      "createdAt": "2026-05-26T00:00:00Z",
 	      "updatedAt": "2026-05-26T00:00:00Z"
 	    }
@@ -70,89 +73,133 @@ func TestStrategyDesignStoreLoadMigratesLegacyMovingAverageDefinitions(t *testin
 		t.Fatalf("NewStrategyDesignStore: %v", err)
 	}
 
-	definition, ok := store.definition("legacy-ma-strategy")
-	if !ok {
-		t.Fatal("expected migrated definition to exist")
+	if got := store.listDefinitions(); len(got) != 0 {
+		t.Fatalf("expected legacy json definitions to be ignored, got %+v", got)
 	}
-	if !strings.Contains(definition.Script, `strategy Legacy MA`) {
-		t.Fatalf("expected empty legacy script to fall back to the default DSL skeleton, got %q", definition.Script)
+	if _, ok := store.definition("legacy-ma-strategy"); ok {
+		t.Fatal("expected legacy json definition to be ignored")
 	}
-	if definition.SourceFormat != strategydefinition.SourceFormatDSLV1 {
-		t.Fatalf("expected strategy source format to normalize to DSL, got %q", definition.SourceFormat)
+	if got := countStrategyDesignDefinitionRows(t, store.dbPath); got != 0 {
+		t.Fatalf("db definition row count = %d, want 0", got)
 	}
-	if definition.Runtime != strategyRuntimeDSLPlan {
-		t.Fatalf("expected strategy runtime to normalize to DSL plan, got %q", definition.Runtime)
-	}
-	if definition.VisualModel == nil || len(definition.VisualModel.Nodes) != 2 {
-		t.Fatalf("expected migrated visual model nodes, got %+v", definition.VisualModel)
-	}
-	for _, node := range definition.VisualModel.Nodes {
-		if got := node.Properties["periodUnit"]; got != "day" {
-			t.Fatalf("expected node %s periodUnit to migrate to day, got %#v", node.ID, got)
-		}
-	}
-
-	persisted, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("read migrated definitions: %v", err)
-	}
-	persistedText := string(persisted)
-	if !strings.Contains(persistedText, `"sourceFormat": "dsl-v1"`) {
-		t.Fatalf("expected migrated file to persist sourceFormat, got %s", persistedText)
-	}
-	if !strings.Contains(persistedText, `"runtime": "dsl-go-plan"`) {
-		t.Fatalf("expected migrated file to persist DSL runtime, got %s", persistedText)
-	}
-	if !strings.Contains(persistedText, `"periodUnit": "day"`) {
-		t.Fatalf("expected migrated file to persist visualModel day semantics, got %s", persistedText)
-	}
-	if !strings.Contains(persistedText, `strategy Legacy MA`) {
-		t.Fatalf("expected migrated file to persist the DSL fallback script, got %s", persistedText)
+	if persisted, err := os.ReadFile(path); err != nil {
+		t.Fatalf("read legacy file: %v", err)
+	} else if string(persisted) != legacy {
+		t.Fatalf("expected legacy json file to remain untouched, got %s", string(persisted))
 	}
 }
 
-func TestStrategyDesignStoreLoadReplacesRemovedRuntimeScriptWithDSL(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "strategy-definitions.json")
-	legacy := `{
-	  "definitions": [
-	    {
-	      "id": "removed-runtime-strategy",
-	      "name": "Removed Runtime Strategy",
-	      "version": "0.1.0",
-	      "description": "legacy script payload",
-	      "runtime": "removed-script-runtime",
-	      "sourceFormat": "removed-script-source",
-	      "symbol": "00700",
-	      "interval": "1m",
-	      "script": "function onInit(ctx) { console.log(ctx.symbol); }",
-	      "createdAt": "2026-05-26T00:00:00Z",
-	      "updatedAt": "2026-05-26T00:00:00Z"
-	    }
-	  ]
-	}`
-	if err := os.WriteFile(path, []byte(legacy), 0o600); err != nil {
-		t.Fatalf("write legacy definitions: %v", err)
-	}
-
-	store, err := NewStrategyDesignStore(path)
+func TestStrategyDesignStoreSaveDefinitionManagesVersionAndScriptMetadata(t *testing.T) {
+	store, err := NewStrategyDesignStore(filepath.Join(t.TempDir(), "strategy-definitions.json"))
 	if err != nil {
 		t.Fatalf("NewStrategyDesignStore: %v", err)
 	}
 
-	definition, ok := store.definition("removed-runtime-strategy")
-	if !ok {
-		t.Fatal("expected migrated definition to exist")
+	created, err := store.saveDefinition(strategyDesignDefinition{
+		ID:           "dsl-versioned",
+		Name:         "Versioned Strategy",
+		Version:      "9.9.9",
+		Description:  "first save",
+		Runtime:      strategyRuntimeDSLPlan,
+		SourceFormat: strategydefinition.SourceFormatDSLV1,
+		Script:       "strategy Versioned Strategy\nversion 9.9.9\non init:\n  log \"init\"\non kline_close:\n  log \"close\"",
+	})
+	if err != nil {
+		t.Fatalf("saveDefinition(create): %v", err)
 	}
-	if strings.Contains(definition.Script, "function onInit") {
-		t.Fatalf("expected removed runtime script to be replaced, got %q", definition.Script)
+	if created.Version != defaultStrategyVersion {
+		t.Fatalf("created version = %q, want %q", created.Version, defaultStrategyVersion)
 	}
-	if !strings.Contains(definition.Script, "strategy Removed Runtime Strategy") {
-		t.Fatalf("expected migrated DSL skeleton, got %q", definition.Script)
+	if !strings.Contains(created.Script, "version "+defaultStrategyVersion) {
+		t.Fatalf("expected created script version to sync to %s, got %q", defaultStrategyVersion, created.Script)
 	}
-	if definition.SourceFormat != strategydefinition.SourceFormatDSLV1 {
-		t.Fatalf("expected DSL source format, got %q", definition.SourceFormat)
+
+	updated, err := store.saveDefinition(strategyDesignDefinition{
+		ID:           created.ID,
+		Name:         created.Name,
+		Version:      created.Version,
+		Description:  "second save",
+		Runtime:      created.Runtime,
+		SourceFormat: created.SourceFormat,
+		Script:       created.Script,
+		CreatedAt:    created.CreatedAt,
+		UpdatedAt:    created.UpdatedAt,
+	})
+	if err != nil {
+		t.Fatalf("saveDefinition(update): %v", err)
 	}
-	if definition.Runtime != strategyRuntimeDSLPlan {
-		t.Fatalf("expected DSL runtime, got %q", definition.Runtime)
+	if updated.Version != "0.1.1" {
+		t.Fatalf("updated version = %q, want 0.1.1", updated.Version)
+	}
+	if !strings.Contains(updated.Script, "version 0.1.1") {
+		t.Fatalf("expected updated script version to sync to 0.1.1, got %q", updated.Script)
+	}
+
+	unchanged, err := store.saveDefinition(strategyDesignDefinition{
+		ID:           updated.ID,
+		Name:         updated.Name,
+		Version:      "88.88.88",
+		Description:  updated.Description,
+		Runtime:      updated.Runtime,
+		SourceFormat: updated.SourceFormat,
+		Script:       strings.Replace(updated.Script, "version 0.1.1", "version 88.88.88", 1),
+		CreatedAt:    updated.CreatedAt,
+		UpdatedAt:    updated.UpdatedAt,
+	})
+	if err != nil {
+		t.Fatalf("saveDefinition(unchanged): %v", err)
+	}
+	if unchanged.Version != "0.1.1" {
+		t.Fatalf("unchanged version = %q, want 0.1.1", unchanged.Version)
+	}
+	if unchanged.UpdatedAt != updated.UpdatedAt {
+		t.Fatalf("unchanged UpdatedAt = %q, want %q", unchanged.UpdatedAt, updated.UpdatedAt)
+	}
+	row := readStrategyDesignDefinitionRow(t, store.dbPath, updated.ID)
+	if row.Version != "0.1.1" {
+		t.Fatalf("persisted version = %q, want 0.1.1", row.Version)
+	}
+	if !strings.Contains(row.Script, "version 0.1.1") {
+		t.Fatalf("expected persisted script version to sync to 0.1.1, got %q", row.Script)
+	}
+}
+
+func TestStrategyDesignStoreDeleteDefinitionSoftDeletes(t *testing.T) {
+	store, err := NewStrategyDesignStore(filepath.Join(t.TempDir(), "strategy-definitions.json"))
+	if err != nil {
+		t.Fatalf("NewStrategyDesignStore: %v", err)
+	}
+
+	created, err := store.saveDefinition(strategyDesignDefinition{
+		ID:           "dsl-delete-me",
+		Name:         "Delete Me",
+		Description:  "soft delete target",
+		Runtime:      strategyRuntimeDSLPlan,
+		SourceFormat: strategydefinition.SourceFormatDSLV1,
+		Script:       "strategy Delete Me\nversion 0.1.0\non init:\n  log \"init\"\non kline_close:\n  log \"close\"",
+	})
+	if err != nil {
+		t.Fatalf("saveDefinition: %v", err)
+	}
+
+	deleted, err := store.deleteDefinition(created.ID)
+	if err != nil {
+		t.Fatalf("deleteDefinition: %v", err)
+	}
+	if deleted.ID != created.ID {
+		t.Fatalf("deleted id = %q, want %q", deleted.ID, created.ID)
+	}
+	if _, ok := store.definition(created.ID); ok {
+		t.Fatal("expected soft-deleted definition to be hidden from definition lookup")
+	}
+	if got := store.listDefinitions(); len(got) != 0 {
+		t.Fatalf("expected soft-deleted definition to be hidden from list, got %+v", got)
+	}
+	if got := countStrategyDesignDefinitionRows(t, store.dbPath); got != 1 {
+		t.Fatalf("db row count after soft delete = %d, want 1", got)
+	}
+	row := readStrategyDesignDefinitionRow(t, store.dbPath, created.ID)
+	if !row.DeletedAt.Valid || strings.TrimSpace(row.DeletedAt.String) == "" {
+		t.Fatalf("expected deleted_at to be populated, got %+v", row.DeletedAt)
 	}
 }

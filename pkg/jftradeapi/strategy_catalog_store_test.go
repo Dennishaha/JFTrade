@@ -29,13 +29,6 @@ func TestNormalizeStrategyDoesNotShareReferenceFields(t *testing.T) {
 				"market":             "US",
 			},
 		},
-		Logs: []string{"started"},
-		AuditEntries: []strategyAuditEntry{{
-			InstanceID: "instance-1",
-			Kind:       "started",
-			Detail:     "mean-revert",
-			At:         "2026-05-23T17:54:38Z",
-		}},
 	}
 
 	normalized := store.normalizeStrategy(input)
@@ -63,8 +56,6 @@ func TestNormalizeStrategyDoesNotShareReferenceFields(t *testing.T) {
 		t.Fatal("expected normalized binding broker account")
 	}
 	normalized.Binding.BrokerAccount.BrokerID = "test"
-	normalized.Logs[0] = "mutated"
-	normalized.AuditEntries[0].Kind = "mutated"
 
 	if got := input.Params["definitionId"]; got != "mean-revert" {
 		t.Fatalf("input params shared with normalized copy: %#v", got)
@@ -77,15 +68,9 @@ func TestNormalizeStrategyDoesNotShareReferenceFields(t *testing.T) {
 	if !ok || inputBrokerAccount["brokerId"] != "futu" {
 		t.Fatalf("input brokerAccount shared with normalized copy: %#v", input.Params["brokerAccount"])
 	}
-	if got := input.Logs[0]; got != "started" {
-		t.Fatalf("input logs shared with normalized copy: %q", got)
-	}
-	if got := input.AuditEntries[0].Kind; got != "started" {
-		t.Fatalf("input audit entries shared with normalized copy: %q", got)
-	}
 }
 
-func TestStrategyCatalogStoreLoadPersistsRemovedRuntimeMigration(t *testing.T) {
+func TestStrategyCatalogStoreIgnoresLegacyJSONFile(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "strategy-catalog.json")
 	legacy := `{
 	  "targetDir": "plugins",
@@ -116,27 +101,13 @@ func TestStrategyCatalogStoreLoadPersistsRemovedRuntimeMigration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewStrategyCatalogStore: %v", err)
 	}
-	items := store.strategies()
-	if len(items) != 1 {
-		t.Fatalf("expected one strategy, got %d", len(items))
+	if got := store.strategies(); len(got) != 0 {
+		t.Fatalf("expected legacy json catalog to be ignored, got %+v", got)
 	}
-	if items[0].PluginID != IDDSLPlanPlugin() || items[0].Runtime != strategyRuntimeDSLPlan {
-		t.Fatalf("expected DSL strategy item, got %+v", items[0])
-	}
-
-	persisted, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("read migrated catalog: %v", err)
-	}
-	persistedText := string(persisted)
-	if strings.Contains(persistedText, "function onInit") {
-		t.Fatalf("expected removed runtime script to be replaced, got %s", persistedText)
-	}
-	if !strings.Contains(persistedText, `"pluginId": "dsl-go-plan"`) {
-		t.Fatalf("expected persisted DSL plugin id, got %s", persistedText)
-	}
-	if !strings.Contains(persistedText, `"sourceFormat": "dsl-v1"`) {
-		t.Fatalf("expected persisted DSL source format, got %s", persistedText)
+	if persisted, err := os.ReadFile(path); err != nil {
+		t.Fatalf("read legacy catalog: %v", err)
+	} else if string(persisted) != legacy {
+		t.Fatalf("expected legacy catalog file to remain untouched, got %s", string(persisted))
 	}
 }
 
@@ -174,5 +145,108 @@ func TestNormalizeStrategyMigratesRemovedRuntimeInstanceToDSL(t *testing.T) {
 	}
 	if !strings.Contains(script, "strategy Removed Runtime Strategy") {
 		t.Fatalf("expected DSL skeleton, got %q", script)
+	}
+}
+
+func TestRefreshStrategyDefinitionUpdatesSnapshotForStoppedInstance(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "strategy-catalog.json")
+	store, err := NewStrategyCatalogStore(path, "plugins")
+	if err != nil {
+		t.Fatalf("NewStrategyCatalogStore: %v", err)
+	}
+	if err := store.saveStrategy(managedStrategyInstance{
+		ID: "instance-1",
+		Definition: strategyDefinitionSummary{
+			StrategyID: "dsl-mean-revert",
+			Name:       "Mean Revert",
+			Version:    "0.1.0",
+		},
+		Binding: strategyInstanceBinding{
+			Symbols:       []string{"US.AAPL"},
+			Interval:      "1m",
+			ExecutionMode: strategyExecutionModeNotifyOnly,
+		},
+		Params: map[string]any{
+			"definitionId": "dsl-mean-revert",
+			"runtime":      strategyRuntimeDSLPlan,
+			"sourceFormat": strategydefinition.SourceFormatDSLV1,
+			"interval":     "1m",
+			"symbols":      []string{"US.AAPL"},
+			"symbol":       "US.AAPL",
+			"script":       "strategy Mean Revert\nversion 0.1.0\non init:\n  log \"init\"\non kline_close:\n  log \"old\"",
+		},
+		Status:    strategyStatusStopped,
+		CreatedAt: "2026-05-29T00:00:00Z",
+	}); err != nil {
+		t.Fatalf("saveStrategy: %v", err)
+	}
+
+	item, err := store.refreshStrategyDefinition("instance-1", strategyDesignDefinition{
+		ID:           "dsl-mean-revert",
+		Name:         "Mean Revert v2",
+		Version:      "0.1.1",
+		Runtime:      strategyRuntimeDSLPlan,
+		SourceFormat: strategydefinition.SourceFormatDSLV1,
+		Script:       "strategy Mean Revert\nversion 0.1.1\non init:\n  log \"init\"\non kline_close:\n  let fast = ma(MA, 10)\n  log \"new\"",
+	})
+	if err != nil {
+		t.Fatalf("refreshStrategyDefinition: %v", err)
+	}
+	if item.Definition.Version != "0.1.1" {
+		t.Fatalf("refreshed definition version = %q, want 0.1.1", item.Definition.Version)
+	}
+	if item.Definition.Name != "Mean Revert v2" {
+		t.Fatalf("refreshed definition name = %q", item.Definition.Name)
+	}
+	if got := strategyDefinitionIDFromParams(item.Params); got != "dsl-mean-revert" {
+		t.Fatalf("definitionId = %q, want dsl-mean-revert", got)
+	}
+	if script, _ := item.Params["script"].(string); !strings.Contains(script, "let fast = ma(MA, 10)") {
+		t.Fatalf("expected refreshed script snapshot, got %q", script)
+	}
+	if symbols, ok := item.Params["symbols"].([]string); !ok || len(symbols) != 1 || symbols[0] != "US.AAPL" {
+		t.Fatalf("expected binding symbols to be preserved, got %#v", item.Params["symbols"])
+	}
+	if audit, ok := store.strategyAudit(item.ID); !ok || len(audit.Entries) == 0 || audit.Entries[0].Kind != "definition.refreshed" {
+		t.Fatalf("expected definition.refreshed audit entry, got %+v", audit)
+	}
+	if logs, ok := store.strategyLogs(item.ID); !ok || len(logs.Logs) == 0 || !strings.Contains(logs.Logs[0], "refreshed strategy definition dsl-mean-revert to v0.1.1") {
+		t.Fatalf("expected refresh log entry, got %+v", logs)
+	}
+
+	if _, err := store.refreshStrategyDefinition("instance-1", strategyDesignDefinition{
+		ID:           "dsl-mean-revert",
+		Name:         "Mean Revert v3",
+		Version:      "0.1.2",
+		Runtime:      strategyRuntimeDSLPlan,
+		SourceFormat: strategydefinition.SourceFormatDSLV1,
+		Script:       "strategy Mean Revert\nversion 0.1.2\non init:\n  log \"init\"\non kline_close:\n  log \"busy\"",
+	}); err != nil {
+		t.Fatalf("second refreshStrategyDefinition: %v", err)
+	}
+
+	if err := store.saveStrategy(managedStrategyInstance{
+		ID:         "instance-busy",
+		Definition: strategyDefinitionSummary{StrategyID: "dsl-mean-revert", Name: "Mean Revert", Version: "0.1.0"},
+		Params: map[string]any{
+			"definitionId": "dsl-mean-revert",
+			"runtime":      strategyRuntimeDSLPlan,
+			"sourceFormat": strategydefinition.SourceFormatDSLV1,
+			"script":       "strategy Mean Revert\nversion 0.1.0\non init:\n  log \"init\"\non kline_close:\n  log \"busy\"",
+		},
+		Status:    strategyStatusRunning,
+		CreatedAt: "2026-05-29T00:01:00Z",
+	}); err != nil {
+		t.Fatalf("saveStrategy busy: %v", err)
+	}
+	if _, err := store.refreshStrategyDefinition("instance-busy", strategyDesignDefinition{
+		ID:           "dsl-mean-revert",
+		Name:         "Mean Revert v4",
+		Version:      "0.1.3",
+		Runtime:      strategyRuntimeDSLPlan,
+		SourceFormat: strategydefinition.SourceFormatDSLV1,
+		Script:       "strategy Mean Revert\nversion 0.1.3\non init:\n  log \"init\"\non kline_close:\n  log \"busy\"",
+	}); err != errStrategyInstanceBusy {
+		t.Fatalf("refresh busy instance error = %v, want errStrategyInstanceBusy", err)
 	}
 }

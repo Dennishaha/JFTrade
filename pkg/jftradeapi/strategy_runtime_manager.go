@@ -3,6 +3,7 @@ package jftradeapi
 import (
 	"context"
 	"fmt"
+	"log"
 	"sort"
 	"strconv"
 	"strings"
@@ -178,6 +179,7 @@ func (m *strategyRuntimeManager) startStrategy(ctx context.Context, instance man
 		return fmt.Errorf("strategy instance is already running")
 	}
 	m.runtimes[instance.ID] = managed
+	m.persistObservationSnapshot(managed.snapshot(strategyStatusRunning))
 	return nil
 }
 
@@ -188,6 +190,9 @@ func (m *strategyRuntimeManager) stopStrategy(instanceID string) {
 		delete(m.runtimes, instanceID)
 	}
 	m.mu.Unlock()
+	if exists {
+		m.persistObservationSnapshot(runtime.snapshot(strategyStatusStopped))
+	}
 	if exists && runtime.cancel != nil {
 		runtime.cancel()
 	}
@@ -524,24 +529,28 @@ func (m *strategyRuntimeManager) runtime(instanceID string) *managedStrategyRunt
 func (m *strategyRuntimeManager) recordClosedKLine(instanceID string, at time.Time) {
 	if runtime := m.runtime(instanceID); runtime != nil {
 		runtime.recordClosedKLine(at)
+		m.persistObservationSnapshot(runtime.snapshot(strategyStatusRunning))
 	}
 }
 
 func (m *strategyRuntimeManager) recordSignal(instanceID string, at time.Time) {
 	if runtime := m.runtime(instanceID); runtime != nil {
 		runtime.recordSignal(at)
+		m.persistObservationSnapshot(runtime.snapshot(strategyStatusRunning))
 	}
 }
 
 func (m *strategyRuntimeManager) recordOrder(instanceID string, at time.Time) {
 	if runtime := m.runtime(instanceID); runtime != nil {
 		runtime.recordOrder(at)
+		m.persistObservationSnapshot(runtime.snapshot(strategyStatusRunning))
 	}
 }
 
 func (m *strategyRuntimeManager) recordError(instanceID string, message string, at time.Time) {
 	if runtime := m.runtime(instanceID); runtime != nil {
 		runtime.recordError(message, at)
+		m.persistObservationSnapshot(runtime.snapshot(strategyStatusRunning))
 	}
 }
 
@@ -564,17 +573,23 @@ func (m *strategyRuntimeManager) handleRuntimePanic(instanceID string, symbol st
 }
 
 func (runtime *managedStrategyRuntime) observation() strategyRuntimeObservation {
+	snapshot := runtime.snapshot(strategyStatusRunning)
+	return strategyRuntimeObservationFromSnapshot(snapshot, strategyStatusRunning)
+}
+
+func (runtime *managedStrategyRuntime) snapshot(actualStatus string) strategyRuntimeObservationSnapshot {
 	runtime.mu.RLock()
 	defer runtime.mu.RUnlock()
-	return strategyRuntimeObservation{
-		ActualStatus:      strategyStatusRunning,
+	return strategyRuntimeObservationSnapshot{
+		InstanceID:        runtime.instanceID,
+		ActualStatus:      strings.TrimSpace(actualStatus),
 		ActiveSymbols:     strategyRuntimeSortedSymbols(runtime.symbols),
-		LastClosedKLineAt: strategyRuntimeOptionalTimestamp(runtime.lastClosedKLineAt),
-		LastSignalAt:      strategyRuntimeOptionalTimestamp(runtime.lastSignalAt),
-		LastOrderAt:       strategyRuntimeOptionalTimestamp(runtime.lastOrderAt),
-		LastErrorAt:       strategyRuntimeOptionalTimestamp(runtime.lastErrorAt),
-		LastError:         strategyRuntimeOptionalString(runtime.lastError),
-		UpdatedAt:         strategyRuntimeOptionalTimestamp(runtime.updatedAt),
+		LastClosedKLineAt: strategyRuntimeOptionalTime(runtime.lastClosedKLineAt),
+		LastSignalAt:      strategyRuntimeOptionalTime(runtime.lastSignalAt),
+		LastOrderAt:       strategyRuntimeOptionalTime(runtime.lastOrderAt),
+		LastErrorAt:       strategyRuntimeOptionalTime(runtime.lastErrorAt),
+		LastError:         strings.TrimSpace(runtime.lastError),
+		UpdatedAt:         strategyRuntimeOptionalTime(runtime.updatedAt),
 	}
 }
 
@@ -613,6 +628,51 @@ func (runtime *managedStrategyRuntime) recordError(message string, at time.Time)
 	}
 	runtime.lastError = strings.TrimSpace(message)
 	runtime.updatedAt = strategyRuntimeMaxTime(runtime.updatedAt, at)
+}
+
+func (m *strategyRuntimeManager) persistObservationSnapshot(snapshot strategyRuntimeObservationSnapshot) {
+	if m == nil || m.server == nil || m.server.strategyRuntimeStore == nil {
+		return
+	}
+	if err := m.server.strategyRuntimeStore.UpsertObservation(context.Background(), snapshot); err != nil {
+		log.Printf("JFTrade persist strategy runtime observation degraded: %v", err)
+	}
+}
+
+func strategyRuntimeObservationFromSnapshot(snapshot strategyRuntimeObservationSnapshot, actualStatus string) strategyRuntimeObservation {
+	status := strings.TrimSpace(actualStatus)
+	if status == "" {
+		status = strings.TrimSpace(snapshot.ActualStatus)
+	}
+	if status == "" {
+		status = strategyStatusStopped
+	}
+	return strategyRuntimeObservation{
+		ActualStatus:      status,
+		ActiveSymbols:     append([]string(nil), snapshot.ActiveSymbols...),
+		LastClosedKLineAt: strategyRuntimeTimePointerToString(snapshot.LastClosedKLineAt),
+		LastSignalAt:      strategyRuntimeTimePointerToString(snapshot.LastSignalAt),
+		LastOrderAt:       strategyRuntimeTimePointerToString(snapshot.LastOrderAt),
+		LastErrorAt:       strategyRuntimeTimePointerToString(snapshot.LastErrorAt),
+		LastError:         strategyRuntimeOptionalString(snapshot.LastError),
+		UpdatedAt:         strategyRuntimeTimePointerToString(snapshot.UpdatedAt),
+	}
+}
+
+func strategyRuntimeOptionalTime(value time.Time) *time.Time {
+	if value.IsZero() {
+		return nil
+	}
+	timestamp := value.UTC()
+	return &timestamp
+}
+
+func strategyRuntimeTimePointerToString(value *time.Time) *string {
+	if value == nil || value.IsZero() {
+		return nil
+	}
+	formatted := value.UTC().Format(time.RFC3339Nano)
+	return &formatted
 }
 
 func strategyRuntimeBrokerReadQuery(binding strategyInstanceBinding) futu.BrokerReadQuery {

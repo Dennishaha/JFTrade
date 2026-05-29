@@ -363,6 +363,51 @@ export interface StrategyRuntimeActiveInstanceSummary
   definitionName: string;
 }
 
+export interface StrategyDefinitionSyncStatus {
+  definitionId: string;
+  appliedVersion: string;
+  latestVersion: string;
+  isLatest: boolean;
+  canApplyLatest: boolean;
+  blockedReason?: string | null;
+}
+
+export interface StrategyApplyLinkedInstancesResponse {
+  definitionId: string;
+  latestVersion: string;
+  totalLinked: number;
+  applied: string[];
+  alreadyLatest: string[];
+  skippedBusy: string[];
+}
+
+export interface StrategyActivityPage {
+  limit: number;
+  offset: number;
+  total: number;
+  returned: number;
+  hasMore: boolean;
+}
+
+export interface StrategyLogListResponse {
+  instanceId: string;
+  logs: string[];
+  page: StrategyActivityPage;
+}
+
+export interface StrategyAuditEntryDocument {
+  instanceId: string;
+  kind: string;
+  detail?: string;
+  at: string;
+}
+
+export interface StrategyAuditListResponse {
+  instanceId: string;
+  entries: StrategyAuditEntryDocument[];
+  page: StrategyActivityPage;
+}
+
 export interface StrategyInstanceItem {
   id: string;
   pluginId?: string;
@@ -375,6 +420,7 @@ export interface StrategyInstanceItem {
   status: StrategyInstanceStatus;
   createdAt: string;
   logs: string[];
+  definitionSync?: StrategyDefinitionSyncStatus | null;
   runtimeObservation?: StrategyRuntimeObservation | null;
 }
 

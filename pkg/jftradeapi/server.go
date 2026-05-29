@@ -9,11 +9,13 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
+	"github.com/jmoiron/sqlx"
 
 	bbgotypes "github.com/c9s/bbgo/pkg/types"
 	"github.com/jftrade/jftrade-main/pkg/futu"
@@ -26,6 +28,7 @@ const (
 	defaultFutuAPIPort         = 11110
 	defaultFutuWebSocketPort   = 11111
 	defaultMaxWebSocketClients = 20
+	strategyListLogsTailSize   = 20
 )
 
 type envelope struct {
@@ -43,6 +46,7 @@ type apiError struct {
 type Server struct {
 	store                  *SettingsStore
 	strategyStore          *strategyCatalogStore
+	strategyRuntimeStore   *strategyRuntimeStore
 	strategyRuntimeManager *strategyRuntimeManager
 	designStore            *strategyDesignStore
 	backtestRuns           *backtestRunStore
@@ -114,23 +118,54 @@ func NewServer(store *SettingsStore) *Server {
 	strategyStore, err := NewStrategyCatalogStore(deriveStrategyCatalogPath(store.path), deriveStrategyPluginTargetDir(store.path))
 	if err != nil {
 		log.Printf("JFTrade strategy catalog store degraded: %v", err)
-		strategyStore = &strategyCatalogStore{path: deriveStrategyCatalogPath(store.path), targetDir: deriveStrategyPluginTargetDir(store.path), data: strategyCatalogFile{TargetDir: deriveStrategyPluginTargetDir(store.path)}}
+		fallbackSettingsPath := filepath.Join(os.TempDir(), "jftrade-strategy-catalog-fallback", "settings.json")
+		strategyStore, err = NewStrategyCatalogStore(deriveStrategyCatalogPath(fallbackSettingsPath), deriveStrategyPluginTargetDir(fallbackSettingsPath))
+		if err != nil {
+			log.Printf("JFTrade strategy catalog fallback sqlite store degraded: %v", err)
+		}
+	}
+	var runtimeStore *strategyRuntimeStore
+	if strategyStore != nil {
+		runtimeStore = strategyStore.runtimeStore
+	}
+	if strategyStore == nil {
+		var runtimeDB *sqlx.DB
+		runtimeStore, err = NewStrategyRuntimeStore(deriveStrategyRuntimeDBPath(store.path))
+		if err != nil {
+			log.Printf("JFTrade strategy runtime sqlite store degraded: %v", err)
+			runtimeStore = nil
+		}
+		if runtimeStore != nil {
+			runtimeDB = runtimeStore.DB()
+		}
+		strategyStore = &strategyCatalogStore{path: deriveStrategyCatalogPath(store.path), dbPath: deriveStrategyCatalogDBPath(deriveStrategyCatalogPath(store.path)), db: runtimeDB, targetDir: deriveStrategyPluginTargetDir(store.path), runtimeStore: runtimeStore, data: strategyCatalogFile{TargetDir: deriveStrategyPluginTargetDir(store.path)}}
+		if strategyStore.db != nil {
+			if migrateErr := strategyStore.migrateLocked(); migrateErr != nil {
+				log.Printf("JFTrade strategy catalog fallback sqlite store degraded: %v", migrateErr)
+			}
+		}
 	}
 	designStore, err := NewStrategyDesignStore(deriveStrategyDesignPath(store.path))
 	if err != nil {
 		log.Printf("JFTrade strategy design store degraded: %v", err)
-		designStore = &strategyDesignStore{path: deriveStrategyDesignPath(store.path), data: strategyDesignFile{}}
+		fallbackSettingsPath := filepath.Join(os.TempDir(), "jftrade-strategy-design-fallback", "settings.json")
+		designStore, err = NewStrategyDesignStore(deriveStrategyDesignPath(fallbackSettingsPath))
+		if err != nil {
+			log.Printf("JFTrade strategy design fallback sqlite store degraded: %v", err)
+			designStore = nil
+		}
 	}
 	server := &Server{
-		store:               store,
-		strategyStore:       strategyStore,
-		designStore:         designStore,
-		backtestRuns:        newBacktestRunStore(),
-		backtestSyncTasks:   newBacktestSyncTaskStore(),
-		executionOrders:     newExecutionOrderStore(),
-		brokerOrderUpdates:  newBrokerOrderUpdateWorker(),
-		marketSubscriptions: newMarketSubscriptionManager(),
-		tickCache:           newTickSampleCacheManager(),
+		store:                store,
+		strategyStore:        strategyStore,
+		strategyRuntimeStore: runtimeStore,
+		designStore:          designStore,
+		backtestRuns:         newBacktestRunStore(),
+		backtestSyncTasks:    newBacktestSyncTaskStore(),
+		executionOrders:      newExecutionOrderStore(),
+		brokerOrderUpdates:   newBrokerOrderUpdateWorker(),
+		marketSubscriptions:  newMarketSubscriptionManager(),
+		tickCache:            newTickSampleCacheManager(),
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(*http.Request) bool { return true },
 		},
@@ -270,13 +305,74 @@ func (s *Server) strategyRuntimeSummary() map[string]any {
 }
 
 func (s *Server) enrichStrategyItem(item strategyListItem) strategyListItem {
-	if s.strategyRuntimeManager == nil {
-		return item
+	if sync := s.buildStrategyDefinitionSyncStatus(item); sync != nil {
+		item.DefinitionSync = sync
 	}
-	if observation, ok := s.strategyRuntimeManager.runtimeObservation(item.ID); ok {
-		item.RuntimeObservation = &observation
+	if s.strategyRuntimeStore != nil {
+		persistedLogs, err := s.strategyRuntimeStore.ListRecentLogsTail(context.Background(), item.ID, strategyListLogsTailSize)
+		if err != nil {
+			log.Printf("JFTrade load persisted strategy list logs degraded: %v", err)
+		} else if len(persistedLogs) > 0 {
+			logs := make([]string, 0, len(persistedLogs))
+			for _, event := range persistedLogs {
+				logs = append(logs, event.Raw)
+			}
+			item.Logs = logs
+		}
+	}
+	if s.strategyRuntimeManager != nil {
+		if observation, ok := s.strategyRuntimeManager.runtimeObservation(item.ID); ok {
+			item.RuntimeObservation = &observation
+			return item
+		}
+	}
+	if s.strategyRuntimeStore != nil {
+		snapshot, ok, err := s.strategyRuntimeStore.GetObservation(context.Background(), item.ID)
+		if err != nil {
+			log.Printf("JFTrade load persisted strategy runtime observation degraded: %v", err)
+			return item
+		}
+		if ok {
+			observation := strategyRuntimeObservationFromSnapshot(snapshot, item.Status)
+			item.RuntimeObservation = &observation
+		}
 	}
 	return item
+}
+
+func (s *Server) buildStrategyDefinitionSyncStatus(item strategyListItem) *strategyDefinitionSyncStatus {
+	definitionID := strings.TrimSpace(item.Definition.StrategyID)
+	if definitionID == "" {
+		definitionID = strategyDefinitionIDFromParams(item.Params)
+	}
+	if definitionID == "" {
+		return nil
+	}
+	appliedVersion := strings.TrimSpace(item.Definition.Version)
+	status := &strategyDefinitionSyncStatus{
+		DefinitionID:   definitionID,
+		AppliedVersion: appliedVersion,
+		LatestVersion:  appliedVersion,
+		IsLatest:       true,
+	}
+	if s == nil || s.designStore == nil {
+		return status
+	}
+	definition, ok := s.designStore.definition(definitionID)
+	if !ok {
+		return status
+	}
+	status.LatestVersion = strings.TrimSpace(definition.Version)
+	status.IsLatest = status.AppliedVersion == status.LatestVersion
+	if status.IsLatest {
+		return status
+	}
+	status.CanApplyLatest = item.Status == strategyStatusStopped
+	if !status.CanApplyLatest {
+		reason := "当前实例不是 STOPPED，先停止后才能刷新到最新策略。"
+		status.BlockedReason = &reason
+	}
+	return status
 }
 
 func (s *Server) enrichStrategyItems(items []strategyListItem) []strategyListItem {

@@ -104,8 +104,9 @@ func TestNewServerReconcilesPersistedActiveStrategyStates(t *testing.T) {
 	if strategy.Status != strategyStatusStopped {
 		t.Fatalf("reconciled status = %s, want %s", strategy.Status, strategyStatusStopped)
 	}
-	if len(strategy.Logs) == 0 || !strings.Contains(strategy.Logs[len(strategy.Logs)-1], "reconciled strategy state") {
-		t.Fatalf("expected reconciliation log, got %+v", strategy.Logs)
+	logs, ok := reloadedServer.strategyStore.strategyLogs("instance-running")
+	if !ok || len(logs.Logs) == 0 || !strings.Contains(logs.Logs[0], "reconciled strategy state") {
+		t.Fatalf("expected reconciliation log, got %+v", logs)
 	}
 	audit, ok := reloadedServer.strategyStore.strategyAudit("instance-running")
 	if !ok {

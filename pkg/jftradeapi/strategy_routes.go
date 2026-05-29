@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 )
@@ -65,6 +66,48 @@ func (s *Server) serveStrategyRoutes(w http.ResponseWriter, r *http.Request) boo
 			return true
 		}
 		s.writeOK(w, definition)
+	case strings.HasPrefix(r.URL.Path, "/api/v1/strategy-definitions/") && r.Method == http.MethodDelete:
+		definitionID, err := decodePathSegment(strings.TrimPrefix(r.URL.Path, "/api/v1/strategy-definitions/"))
+		if err != nil || strings.TrimSpace(definitionID) == "" {
+			s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "definitionId is invalid")
+			return true
+		}
+		linkedInstances := s.strategyStore.linkedStrategyInstanceIDs(definitionID)
+		if len(linkedInstances) > 0 {
+			message := fmt.Sprintf("当前有 %d 个实例仍关联该策略，请先删除对应实例再删除。", len(linkedInstances))
+			if len(linkedInstances) > 0 {
+				message = fmt.Sprintf("当前有 %d 个实例仍关联该策略，请先删除对应实例再删除。实例: %s", len(linkedInstances), strings.Join(linkedInstances, ", "))
+			}
+			s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", message)
+			return true
+		}
+		definition, err := s.designStore.deleteDefinition(definitionID)
+		if err != nil {
+			if errorsIsNotFound(err) {
+				s.writeError(w, http.StatusNotFound, "NOT_FOUND", "strategy definition not found")
+				return true
+			}
+			s.writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to delete strategy definition")
+			return true
+		}
+		s.writeOK(w, definition)
+	case strings.HasPrefix(r.URL.Path, "/api/v1/strategy-definitions/") && strings.HasSuffix(r.URL.Path, "/apply-linked-instances") && r.Method == http.MethodPost:
+		definitionID, err := decodePathSegment(pathMiddle(r.URL.Path, "/api/v1/strategy-definitions/", "/apply-linked-instances"))
+		if err != nil || strings.TrimSpace(definitionID) == "" {
+			s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "definitionId is invalid")
+			return true
+		}
+		definition, ok := s.designStore.definition(definitionID)
+		if !ok {
+			s.writeError(w, http.StatusNotFound, "NOT_FOUND", "strategy definition not found")
+			return true
+		}
+		result, applyErr := s.strategyStore.applyDefinitionToLinkedStrategies(definition)
+		if applyErr != nil {
+			s.writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to apply linked strategy instances")
+			return true
+		}
+		s.writeOK(w, result)
 	case strings.HasPrefix(r.URL.Path, "/api/v1/strategy-definitions/") && strings.HasSuffix(r.URL.Path, "/instantiate") && r.Method == http.MethodPost:
 		definitionID, err := decodePathSegment(pathMiddle(r.URL.Path, "/api/v1/strategy-definitions/", "/instantiate"))
 		if err != nil || strings.TrimSpace(definitionID) == "" {
@@ -174,6 +217,44 @@ func (s *Server) serveStrategyRoutes(w http.ResponseWriter, r *http.Request) boo
 		}
 		s.ensureLiveMarketStream(context.Background(), s.activeLiveStreamInstrumentIDs())
 		s.writeOK(w, s.enrichStrategyItem(instance))
+	case strings.HasPrefix(r.URL.Path, "/api/v1/strategies/") && strings.HasSuffix(r.URL.Path, "/refresh-definition") && r.Method == http.MethodPost:
+		instanceID, err := decodePathSegment(pathMiddle(r.URL.Path, "/api/v1/strategies/", "/refresh-definition"))
+		if err != nil || strings.TrimSpace(instanceID) == "" {
+			s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "instanceId is invalid")
+			return true
+		}
+		instanceRecord, ok := s.strategyStore.strategy(instanceID)
+		if !ok {
+			s.writeError(w, http.StatusNotFound, "NOT_FOUND", "strategy instance not found")
+			return true
+		}
+		definitionID := strings.TrimSpace(instanceRecord.Definition.StrategyID)
+		if definitionID == "" {
+			definitionID = strategyDefinitionIDFromParams(instanceRecord.Params)
+		}
+		if definitionID == "" {
+			s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "strategy instance is not linked to a saved definition")
+			return true
+		}
+		definition, ok := s.designStore.definition(definitionID)
+		if !ok {
+			s.writeError(w, http.StatusNotFound, "NOT_FOUND", "strategy definition not found")
+			return true
+		}
+		instance, refreshErr := s.strategyStore.refreshStrategyDefinition(instanceID, definition)
+		if refreshErr != nil {
+			if errorsIsNotFound(refreshErr) {
+				s.writeError(w, http.StatusNotFound, "NOT_FOUND", "strategy instance not found")
+				return true
+			}
+			if refreshErr == errStrategyInstanceBusy {
+				s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "strategy instance must be stopped before refreshing definition")
+				return true
+			}
+			s.writeError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to refresh strategy definition")
+			return true
+		}
+		s.writeOK(w, s.enrichStrategyItem(instance))
 	case strings.HasPrefix(r.URL.Path, "/api/v1/strategies/") && strings.HasSuffix(r.URL.Path, "/pause") && r.Method == http.MethodPost:
 		instanceID, err := decodePathSegment(pathMiddle(r.URL.Path, "/api/v1/strategies/", "/pause"))
 		if err != nil || strings.TrimSpace(instanceID) == "" {
@@ -216,7 +297,13 @@ func (s *Server) serveStrategyRoutes(w http.ResponseWriter, r *http.Request) boo
 			s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "instanceId is invalid")
 			return true
 		}
-		logs, ok := s.strategyStore.strategyLogs(instanceID)
+		logs, ok := s.strategyStore.strategyLogsPage(instanceID, strategyRuntimeLogQuery{
+			Limit:  intQuery(r.URL.Query(), "limit", 500),
+			Offset: intQuery(r.URL.Query(), "offset", 0),
+			Level:  firstQuery(r.URL.Query(), "level", ""),
+			FromAt: strategyActivityQueryTime(r.URL.Query(), "fromTime"),
+			ToAt:   strategyActivityQueryTime(r.URL.Query(), "toTime"),
+		})
 		if !ok {
 			s.writeError(w, http.StatusNotFound, "NOT_FOUND", "strategy instance not found")
 			return true
@@ -228,7 +315,13 @@ func (s *Server) serveStrategyRoutes(w http.ResponseWriter, r *http.Request) boo
 			s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "instanceId is invalid")
 			return true
 		}
-		audit, ok := s.strategyStore.strategyAudit(instanceID)
+		audit, ok := s.strategyStore.strategyAuditPage(instanceID, strategyRuntimeAuditQuery{
+			Limit:  intQuery(r.URL.Query(), "limit", 500),
+			Offset: intQuery(r.URL.Query(), "offset", 0),
+			Kind:   firstQuery(r.URL.Query(), "kind", ""),
+			FromAt: strategyActivityQueryTime(r.URL.Query(), "fromTime"),
+			ToAt:   strategyActivityQueryTime(r.URL.Query(), "toTime"),
+		})
 		if !ok {
 			s.writeError(w, http.StatusNotFound, "NOT_FOUND", "strategy instance not found")
 			return true
@@ -238,4 +331,17 @@ func (s *Server) serveStrategyRoutes(w http.ResponseWriter, r *http.Request) boo
 		return false
 	}
 	return true
+}
+
+func strategyActivityQueryTime(query map[string][]string, key string) *time.Time {
+	raw := strings.TrimSpace(firstQuery(query, key, ""))
+	if raw == "" {
+		return nil
+	}
+	parsed := parseQueryTime(raw, time.Time{})
+	if parsed.IsZero() {
+		return nil
+	}
+	result := parsed.UTC()
+	return &result
 }

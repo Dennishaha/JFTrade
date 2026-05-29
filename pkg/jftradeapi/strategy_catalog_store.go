@@ -1,9 +1,12 @@
 package jftradeapi
 
 import (
+	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -17,11 +20,16 @@ import (
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 	strategydsl "github.com/jftrade/jftrade-main/pkg/strategy/dsl"
 	strategyir "github.com/jftrade/jftrade-main/pkg/strategy/ir"
+	"github.com/jmoiron/sqlx"
 )
 
 const (
 	defaultStrategyCatalogFilename  = "strategy-catalog.json"
 	defaultStrategyPluginDirName    = "plugins"
+	strategyCatalogMetaTable        = "strategy_catalog_meta"
+	strategyCatalogPluginTable      = "strategy_catalog_plugins"
+	strategyCatalogStrategyTable    = "strategy_catalog_strategies"
+	strategyCatalogOperationTable   = "strategy_catalog_operations"
 	pluginTypeGoStrategy            = "strategy-go-plugin"
 	pluginBuildMode                 = "plugin"
 	strategyStatusRunning           = "RUNNING"
@@ -163,29 +171,58 @@ type strategyRuntimeActiveInstanceSummary struct {
 	UpdatedAt         *string  `json:"updatedAt,omitempty"`
 }
 
+type strategyDefinitionSyncStatus struct {
+	DefinitionID   string  `json:"definitionId"`
+	AppliedVersion string  `json:"appliedVersion"`
+	LatestVersion  string  `json:"latestVersion"`
+	IsLatest       bool    `json:"isLatest"`
+	CanApplyLatest bool    `json:"canApplyLatest"`
+	BlockedReason  *string `json:"blockedReason,omitempty"`
+}
+
+type strategyApplyLinkedInstancesResponse struct {
+	DefinitionID  string   `json:"definitionId"`
+	LatestVersion string   `json:"latestVersion"`
+	TotalLinked   int      `json:"totalLinked"`
+	Applied       []string `json:"applied"`
+	AlreadyLatest []string `json:"alreadyLatest"`
+	SkippedBusy   []string `json:"skippedBusy"`
+}
+
 type strategyListItem struct {
-	ID                 string                      `json:"id"`
-	PluginID           string                      `json:"pluginId,omitempty"`
-	Definition         strategyDefinitionSummary   `json:"definition"`
-	Runtime            string                      `json:"runtime"`
-	SourceFormat       string                      `json:"sourceFormat"`
-	Startable          bool                        `json:"startable"`
-	Binding            strategyInstanceBinding     `json:"binding"`
-	Params             map[string]any              `json:"params"`
-	Status             string                      `json:"status"`
-	CreatedAt          string                      `json:"createdAt"`
-	Logs               []string                    `json:"logs"`
-	RuntimeObservation *strategyRuntimeObservation `json:"runtimeObservation,omitempty"`
+	ID                 string                        `json:"id"`
+	PluginID           string                        `json:"pluginId,omitempty"`
+	Definition         strategyDefinitionSummary     `json:"definition"`
+	Runtime            string                        `json:"runtime"`
+	SourceFormat       string                        `json:"sourceFormat"`
+	Startable          bool                          `json:"startable"`
+	Binding            strategyInstanceBinding       `json:"binding"`
+	Params             map[string]any                `json:"params"`
+	Status             string                        `json:"status"`
+	CreatedAt          string                        `json:"createdAt"`
+	Logs               []string                      `json:"logs"`
+	DefinitionSync     *strategyDefinitionSyncStatus `json:"definitionSync,omitempty"`
+	RuntimeObservation *strategyRuntimeObservation   `json:"runtimeObservation,omitempty"`
 }
 
 type strategyLogsResponse struct {
-	InstanceID string   `json:"instanceId"`
-	Logs       []string `json:"logs"`
+	InstanceID string               `json:"instanceId"`
+	Logs       []string             `json:"logs"`
+	Page       strategyActivityPage `json:"page"`
 }
 
 type strategyAuditResponse struct {
 	InstanceID string               `json:"instanceId"`
 	Entries    []strategyAuditEntry `json:"entries"`
+	Page       strategyActivityPage `json:"page"`
+}
+
+type strategyActivityPage struct {
+	Limit    int  `json:"limit"`
+	Offset   int  `json:"offset"`
+	Total    int  `json:"total"`
+	Returned int  `json:"returned"`
+	HasMore  bool `json:"hasMore"`
 }
 
 type managedStrategyPlugin struct {
@@ -214,18 +251,26 @@ type strategyCatalogFile struct {
 }
 
 type strategyCatalogStore struct {
-	path      string
-	targetDir string
-	mu        sync.RWMutex
-	data      strategyCatalogFile
+	path         string
+	dbPath       string
+	db           *sqlx.DB
+	targetDir    string
+	runtimeStore *strategyRuntimeStore
+	mu           sync.RWMutex
+	data         strategyCatalogFile
 }
 
 func NewStrategyCatalogStore(path string, targetDir string) (*strategyCatalogStore, error) {
-	store := &strategyCatalogStore{path: path, targetDir: strings.TrimSpace(targetDir)}
+	runtimeStore, err := NewStrategyRuntimeStore(deriveStrategyCatalogDBPath(path))
+	if err != nil {
+		return nil, err
+	}
+	store := &strategyCatalogStore{path: path, dbPath: deriveStrategyCatalogDBPath(path), db: runtimeStore.DB(), targetDir: strings.TrimSpace(targetDir), runtimeStore: runtimeStore}
 	if store.targetDir == "" {
 		store.targetDir = defaultStrategyPluginDirName
 	}
 	if err := store.load(); err != nil {
+		_ = runtimeStore.Close()
 		return nil, err
 	}
 	return store, nil
@@ -247,41 +292,115 @@ func deriveStrategyPluginTargetDir(settingsPath string) string {
 	return filepath.Join(directory, defaultStrategyPluginDirName)
 }
 
+func deriveStrategyCatalogDBPath(catalogPath string) string {
+	return deriveStrategyRuntimeDBPath(catalogPath)
+}
+
 func (s *strategyCatalogStore) load() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
-	data, err := os.ReadFile(s.path)
+	if err := s.migrateLocked(); err != nil {
+		return err
+	}
+	s.data = strategyCatalogFile{TargetDir: s.targetDir, Plugins: []managedStrategyPlugin{}, Strategies: []managedStrategyInstance{}, Operations: []strategyPluginOperation{}}
+	targetDir, err := s.loadCatalogMetaLocked("target_dir")
 	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			s.data = strategyCatalogFile{TargetDir: s.targetDir}
-			return nil
-		}
 		return err
 	}
-	if len(strings.TrimSpace(string(data))) == 0 {
-		s.data = strategyCatalogFile{TargetDir: s.targetDir}
-		return nil
+	if strings.TrimSpace(targetDir) != "" {
+		s.data.TargetDir = strings.TrimSpace(targetDir)
 	}
-	if err := json.Unmarshal(data, &s.data); err != nil {
+
+	pluginRows := []struct {
+		PayloadJSON string `db:"payload_json"`
+	}{}
+	if err := s.db.Select(&pluginRows, `SELECT payload_json FROM `+strategyCatalogPluginTable+` ORDER BY id ASC`); err != nil {
 		return err
 	}
+	strategyRows := []struct {
+		PayloadJSON string `db:"payload_json"`
+	}{}
+	if err := s.db.Select(&strategyRows, `SELECT payload_json FROM `+strategyCatalogStrategyTable+` ORDER BY created_at ASC, id ASC`); err != nil {
+		return err
+	}
+	operationRows := []struct {
+		PayloadJSON string `db:"payload_json"`
+	}{}
+	if err := s.db.Select(&operationRows, `SELECT payload_json FROM `+strategyCatalogOperationTable+` ORDER BY updated_at DESC, operation_id ASC`); err != nil {
+		return err
+	}
+
 	migrated := false
 	if strings.TrimSpace(s.data.TargetDir) == "" {
 		s.data.TargetDir = s.targetDir
 		migrated = true
 	}
-	for index := range s.data.Strategies {
-		normalized := s.normalizeStrategy(s.data.Strategies[index])
-		if !reflect.DeepEqual(s.data.Strategies[index], normalized) {
+	for _, row := range pluginRows {
+		var plugin managedStrategyPlugin
+		if err := json.Unmarshal([]byte(row.PayloadJSON), &plugin); err != nil {
+			return err
+		}
+		normalized := s.normalizePlugin(plugin)
+		if !reflect.DeepEqual(plugin, normalized) {
 			migrated = true
 		}
-		s.data.Strategies[index] = normalized
+		s.data.Plugins = append(s.data.Plugins, normalized)
+	}
+	for _, row := range strategyRows {
+		var strategy managedStrategyInstance
+		if err := json.Unmarshal([]byte(row.PayloadJSON), &strategy); err != nil {
+			return err
+		}
+		normalized := s.normalizeStrategy(strategy)
+		if !reflect.DeepEqual(strategy, normalized) {
+			migrated = true
+		}
+		normalized.Logs = nil
+		normalized.AuditEntries = nil
+		s.data.Strategies = append(s.data.Strategies, normalized)
+	}
+	for _, row := range operationRows {
+		var operation strategyPluginOperation
+		if err := json.Unmarshal([]byte(row.PayloadJSON), &operation); err != nil {
+			return err
+		}
+		s.data.Operations = append(s.data.Operations, operation)
 	}
 	if migrated {
 		return s.persistLocked()
 	}
 	return nil
+}
+
+func (s *strategyCatalogStore) migrateLocked() error {
+	for _, statement := range []string{
+		`CREATE TABLE IF NOT EXISTS ` + strategyCatalogMetaTable + ` (key TEXT PRIMARY KEY, value TEXT NOT NULL DEFAULT '')`,
+		`CREATE TABLE IF NOT EXISTS ` + strategyCatalogPluginTable + ` (id TEXT PRIMARY KEY, payload_json TEXT NOT NULL DEFAULT '', updated_at TEXT NOT NULL DEFAULT '')`,
+		`CREATE TABLE IF NOT EXISTS ` + strategyCatalogStrategyTable + ` (id TEXT PRIMARY KEY, payload_json TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT '', updated_at TEXT NOT NULL DEFAULT '')`,
+		`CREATE TABLE IF NOT EXISTS ` + strategyCatalogOperationTable + ` (operation_id TEXT PRIMARY KEY, plugin_id TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT '', updated_at TEXT NOT NULL DEFAULT '', payload_json TEXT NOT NULL DEFAULT '')`,
+		`CREATE INDEX IF NOT EXISTS idx_strategy_catalog_strategies_created_at ON ` + strategyCatalogStrategyTable + ` (created_at ASC, id ASC)`,
+		`CREATE INDEX IF NOT EXISTS idx_strategy_catalog_operations_updated_at ON ` + strategyCatalogOperationTable + ` (updated_at DESC, operation_id ASC)`,
+	} {
+		if _, err := s.db.Exec(statement); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *strategyCatalogStore) loadCatalogMetaLocked(key string) (string, error) {
+	key = strings.TrimSpace(key)
+	if key == "" {
+		return "", nil
+	}
+	var value string
+	if err := s.db.Get(&value, `SELECT value FROM `+strategyCatalogMetaTable+` WHERE key = ?`, key); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", nil
+		}
+		return "", err
+	}
+	return strings.TrimSpace(value), nil
 }
 
 func (s *strategyCatalogStore) savePlugin(input managedStrategyPlugin) error {
@@ -452,6 +571,26 @@ func (s *strategyCatalogStore) strategies() []strategyListItem {
 	return items
 }
 
+func (s *strategyCatalogStore) linkedStrategyInstanceIDs(definitionID string) []string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	definitionID = strings.TrimSpace(definitionID)
+	if definitionID == "" {
+		return []string{}
+	}
+	linked := make([]string, 0)
+	for _, strategy := range s.data.Strategies {
+		normalized := s.normalizeStrategy(strategy)
+		if !strategyInstanceUsesDefinition(normalized, definitionID) {
+			continue
+		}
+		linked = append(linked, normalized.ID)
+	}
+	sort.Strings(linked)
+	return linked
+}
+
 func (s *strategyCatalogStore) instantiateStrategy(definition strategyDesignDefinition, binding strategyInstanceBinding) (strategyListItem, error) {
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	params, err := buildStrategyInstanceParams(definition, now)
@@ -471,17 +610,8 @@ func (s *strategyCatalogStore) instantiateStrategy(definition strategyDesignDefi
 		Params:    params,
 		Status:    strategyStatusStopped,
 		CreatedAt: now,
-		Logs: []string{
-			fmt.Sprintf("%s instantiated strategy from definition %s", now, definition.ID),
-		},
-		AuditEntries: []strategyAuditEntry{{
-			InstanceID: "",
-			Kind:       "instantiated",
-			Detail:     strategyBindingAuditDetail(definition.ID, binding),
-			At:         now,
-		}},
 	}
-	instance.AuditEntries[0].InstanceID = instance.ID
+	s.recordStrategyEventsLocked(&instance, time.Now().UTC(), fmt.Sprintf("instantiated strategy from definition %s", definition.ID), "info", "control", "instantiated", strategyBindingAuditDetail(definition.ID, binding))
 	if err := s.saveStrategy(instance); err != nil {
 		return strategyListItem{}, err
 	}
@@ -493,8 +623,6 @@ func (s *strategyCatalogStore) instantiateStrategy(definition strategyDesignDefi
 }
 
 func (s *strategyCatalogStore) updateStrategyBinding(instanceID string, binding strategyInstanceBinding) (strategyListItem, error) {
-	now := time.Now().UTC().Format(time.RFC3339Nano)
-
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for index := range s.data.Strategies {
@@ -507,13 +635,7 @@ func (s *strategyCatalogStore) updateStrategyBinding(instanceID string, binding 
 		}
 		strategy.Binding = normalizeStrategyInstanceBinding(binding, strategy.Params)
 		applyStrategyBindingParams(&strategy)
-		strategy.Logs = append(strategy.Logs, fmt.Sprintf("%s updated strategy binding", now))
-		strategy.AuditEntries = append(strategy.AuditEntries, strategyAuditEntry{
-			InstanceID: strategy.ID,
-			Kind:       "binding.updated",
-			Detail:     strategyBindingAuditDetail(strategy.Definition.StrategyID, strategy.Binding),
-			At:         now,
-		})
+		s.recordStrategyEventsLocked(&strategy, time.Now().UTC(), "updated strategy binding", "info", "control", "binding.updated", strategyBindingAuditDetail(strategy.Definition.StrategyID, strategy.Binding))
 		s.data.Strategies[index] = strategy
 		if err := s.persistLocked(); err != nil {
 			return strategyListItem{}, err
@@ -522,6 +644,88 @@ func (s *strategyCatalogStore) updateStrategyBinding(instanceID string, binding 
 	}
 
 	return strategyListItem{}, os.ErrNotExist
+}
+
+func (s *strategyCatalogStore) refreshStrategyDefinition(instanceID string, definition strategyDesignDefinition) (strategyListItem, error) {
+	now := time.Now().UTC()
+	params, err := buildStrategyInstanceParams(definition, now.Format(time.RFC3339Nano))
+	if err != nil {
+		return strategyListItem{}, err
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for index := range s.data.Strategies {
+		strategy := s.normalizeStrategy(s.data.Strategies[index])
+		if strategy.ID != instanceID {
+			continue
+		}
+		changed, refreshErr := s.refreshStrategyDefinitionLocked(&strategy, definition, params, now)
+		if refreshErr != nil {
+			return strategyListItem{}, refreshErr
+		}
+		if changed {
+			s.data.Strategies[index] = strategy
+			if err := s.persistLocked(); err != nil {
+				return strategyListItem{}, err
+			}
+		}
+		return strategyToListItem(strategy), nil
+	}
+
+	return strategyListItem{}, os.ErrNotExist
+}
+
+func (s *strategyCatalogStore) applyDefinitionToLinkedStrategies(definition strategyDesignDefinition) (strategyApplyLinkedInstancesResponse, error) {
+	now := time.Now().UTC()
+	params, err := buildStrategyInstanceParams(definition, now.Format(time.RFC3339Nano))
+	if err != nil {
+		return strategyApplyLinkedInstancesResponse{}, err
+	}
+
+	result := strategyApplyLinkedInstancesResponse{
+		DefinitionID:  strings.TrimSpace(definition.ID),
+		LatestVersion: strings.TrimSpace(definition.Version),
+		Applied:       []string{},
+		AlreadyLatest: []string{},
+		SkippedBusy:   []string{},
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	persistChanged := false
+	for index := range s.data.Strategies {
+		strategy := s.normalizeStrategy(s.data.Strategies[index])
+		if !strategyInstanceUsesDefinition(strategy, definition.ID) {
+			continue
+		}
+		result.TotalLinked++
+		if strategy.Status != strategyStatusStopped {
+			result.SkippedBusy = append(result.SkippedBusy, strategy.ID)
+			continue
+		}
+		if strings.TrimSpace(strategy.Definition.Version) == strings.TrimSpace(definition.Version) {
+			result.AlreadyLatest = append(result.AlreadyLatest, strategy.ID)
+			continue
+		}
+		changed, refreshErr := s.refreshStrategyDefinitionLocked(&strategy, definition, params, now)
+		if refreshErr != nil {
+			return strategyApplyLinkedInstancesResponse{}, refreshErr
+		}
+		if !changed {
+			result.AlreadyLatest = append(result.AlreadyLatest, strategy.ID)
+			continue
+		}
+		s.data.Strategies[index] = strategy
+		persistChanged = true
+		result.Applied = append(result.Applied, strategy.ID)
+	}
+	if persistChanged {
+		if err := s.persistLocked(); err != nil {
+			return strategyApplyLinkedInstancesResponse{}, err
+		}
+	}
+	return result, nil
 }
 
 func (s *strategyCatalogStore) deleteStrategy(instanceID string) (strategyListItem, error) {
@@ -547,7 +751,7 @@ func (s *strategyCatalogStore) deleteStrategy(instanceID string) (strategyListIt
 }
 
 func (s *strategyCatalogStore) transitionStrategy(instanceID string, nextStatus string, kind string, detail string) (strategyListItem, error) {
-	now := time.Now().UTC().Format(time.RFC3339Nano)
+	now := time.Now().UTC()
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -557,14 +761,7 @@ func (s *strategyCatalogStore) transitionStrategy(instanceID string, nextStatus 
 			continue
 		}
 		strategy.Status = nextStatus
-		logEntry := fmt.Sprintf("%s %s strategy %s", now, strings.ToLower(kind), strategy.Definition.StrategyID)
-		strategy.Logs = append(strategy.Logs, logEntry)
-		strategy.AuditEntries = append(strategy.AuditEntries, strategyAuditEntry{
-			InstanceID: strategy.ID,
-			Kind:       kind,
-			Detail:     detail,
-			At:         now,
-		})
+		s.recordStrategyEventsLocked(&strategy, now, fmt.Sprintf("%s strategy %s", strings.ToLower(kind), strategy.Definition.StrategyID), strategyLogLevelForKind(kind, detail), "control", kind, detail)
 		s.data.Strategies[index] = strategy
 		if err := s.persistLocked(); err != nil {
 			return strategyListItem{}, err
@@ -576,7 +773,7 @@ func (s *strategyCatalogStore) transitionStrategy(instanceID string, nextStatus 
 }
 
 func (s *strategyCatalogStore) appendStrategyRuntimeEvent(instanceID string, logMessage string, kind string, detail string) error {
-	now := time.Now().UTC().Format(time.RFC3339Nano)
+	now := time.Now().UTC()
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -585,26 +782,19 @@ func (s *strategyCatalogStore) appendStrategyRuntimeEvent(instanceID string, log
 		if strategy.ID != instanceID {
 			continue
 		}
-		if strings.TrimSpace(logMessage) != "" {
-			strategy.Logs = append(strategy.Logs, fmt.Sprintf("%s %s", now, strings.TrimSpace(logMessage)))
+		legacyWritten := s.recordStrategyEventsLocked(&strategy, now, logMessage, strategyLogLevelForKind(kind, logMessage), "runtime", kind, detail)
+		if legacyWritten {
+			s.data.Strategies[index] = strategy
+			return s.persistLocked()
 		}
-		if strings.TrimSpace(kind) != "" {
-			strategy.AuditEntries = append(strategy.AuditEntries, strategyAuditEntry{
-				InstanceID: strategy.ID,
-				Kind:       strings.TrimSpace(kind),
-				Detail:     strings.TrimSpace(detail),
-				At:         now,
-			})
-		}
-		s.data.Strategies[index] = strategy
-		return s.persistLocked()
+		return nil
 	}
 
 	return os.ErrNotExist
 }
 
 func (s *strategyCatalogStore) reconcileStrategyRuntimeFailure(instanceID string, detail string) error {
-	now := time.Now().UTC().Format(time.RFC3339Nano)
+	now := time.Now().UTC()
 	detail = strings.TrimSpace(detail)
 
 	s.mu.Lock()
@@ -618,13 +808,7 @@ func (s *strategyCatalogStore) reconcileStrategyRuntimeFailure(instanceID string
 			return nil
 		}
 		strategy.Status = strategyStatusStopped
-		strategy.Logs = append(strategy.Logs, fmt.Sprintf("%s strategy runtime exited unexpectedly: %s", now, detail))
-		strategy.AuditEntries = append(strategy.AuditEntries, strategyAuditEntry{
-			InstanceID: strategy.ID,
-			Kind:       "runtime_exited",
-			Detail:     detail,
-			At:         now,
-		})
+		s.recordStrategyEventsLocked(&strategy, now, fmt.Sprintf("strategy runtime exited unexpectedly: %s", detail), "error", "runtime", "runtime_exited", detail)
 		s.data.Strategies[index] = strategy
 		return s.persistLocked()
 	}
@@ -633,7 +817,7 @@ func (s *strategyCatalogStore) reconcileStrategyRuntimeFailure(instanceID string
 }
 
 func (s *strategyCatalogStore) reconcileRuntimeStatesOnStartup() (int, error) {
-	now := time.Now().UTC().Format(time.RFC3339Nano)
+	now := time.Now().UTC()
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -646,13 +830,7 @@ func (s *strategyCatalogStore) reconcileRuntimeStatesOnStartup() (int, error) {
 		}
 		previousStatus := strategy.Status
 		strategy.Status = strategyStatusStopped
-		strategy.Logs = append(strategy.Logs, fmt.Sprintf("%s reconciled strategy state from %s to %s after server startup", now, previousStatus, strategyStatusStopped))
-		strategy.AuditEntries = append(strategy.AuditEntries, strategyAuditEntry{
-			InstanceID: strategy.ID,
-			Kind:       "reconciled",
-			Detail:     fmt.Sprintf("server startup reset stale %s state to %s", strings.ToLower(previousStatus), strategyStatusStopped),
-			At:         now,
-		})
+		s.recordStrategyEventsLocked(&strategy, now, fmt.Sprintf("reconciled strategy state from %s to %s after server startup", previousStatus, strategyStatusStopped), "warning", "startup", "reconciled", fmt.Sprintf("server startup reset stale %s state to %s", strings.ToLower(previousStatus), strategyStatusStopped))
 		s.data.Strategies[index] = strategy
 		changed++
 	}
@@ -678,30 +856,194 @@ func (s *strategyCatalogStore) strategy(instanceID string) (managedStrategyInsta
 	return managedStrategyInstance{}, false
 }
 
+func (s *strategyCatalogStore) refreshStrategyDefinitionLocked(strategy *managedStrategyInstance, definition strategyDesignDefinition, params map[string]any, at time.Time) (bool, error) {
+	if strategy == nil {
+		return false, nil
+	}
+	if strategy.Status != strategyStatusStopped {
+		return false, errStrategyInstanceBusy
+	}
+	if strings.TrimSpace(strategy.Definition.Version) == strings.TrimSpace(definition.Version) {
+		return false, nil
+	}
+	previousVersion := strings.TrimSpace(strategy.Definition.Version)
+	strategy.PluginID = strategyPluginIDForDefinition(definition)
+	strategy.Definition = strategyDefinitionSummary{
+		StrategyID: strings.TrimSpace(definition.ID),
+		Name:       strings.TrimSpace(definition.Name),
+		Version:    strings.TrimSpace(definition.Version),
+	}
+	strategy.Params = copyMap(params)
+	strategy.Binding = normalizeStrategyInstanceBinding(strategy.Binding, strategy.Params)
+	applyStrategyBindingParams(strategy)
+	s.recordStrategyEventsLocked(
+		strategy,
+		at,
+		fmt.Sprintf("refreshed strategy definition %s to v%s", strings.TrimSpace(definition.ID), strings.TrimSpace(definition.Version)),
+		"info",
+		"control",
+		"definition.refreshed",
+		fmt.Sprintf("%s | %s -> %s", strings.TrimSpace(definition.ID), previousVersion, strings.TrimSpace(definition.Version)),
+	)
+	return true, nil
+}
+
 func (s *strategyCatalogStore) strategyLogs(instanceID string) (strategyLogsResponse, bool) {
+	return s.strategyLogsPage(instanceID, strategyRuntimeLogQuery{InstanceID: instanceID, Limit: maxStrategyRuntimePageSize})
+}
+
+func (s *strategyCatalogStore) strategyLogsPage(instanceID string, query strategyRuntimeLogQuery) (strategyLogsResponse, bool) {
 	s.mu.RLock()
-	defer s.mu.RUnlock()
+	var normalized managedStrategyInstance
+	var found bool
 	for _, strategy := range s.data.Strategies {
-		normalized := s.normalizeStrategy(strategy)
+		normalized = s.normalizeStrategy(strategy)
 		if normalized.ID == instanceID {
-			return strategyLogsResponse{InstanceID: instanceID, Logs: append([]string(nil), normalized.Logs...)}, true
+			found = true
+			break
 		}
 	}
-	return strategyLogsResponse{}, false
+	s.mu.RUnlock()
+	if !found {
+		return strategyLogsResponse{}, false
+	}
+	if s.runtimeStore == nil {
+		return strategyLogsResponse{InstanceID: instanceID, Logs: []string{}, Page: strategyActivityPage{Limit: normalizeStrategyRuntimePageSize(query.Limit), Offset: normalizeStrategyRuntimeOffset(query.Offset), Total: 0, Returned: 0, HasMore: false}}, true
+	}
+	query.InstanceID = instanceID
+	limit := normalizeStrategyRuntimePageSize(query.Limit)
+	offset := normalizeStrategyRuntimeOffset(query.Offset)
+	total, countErr := s.runtimeStore.CountLogs(context.Background(), query)
+	persisted, listErr := s.runtimeStore.ListLogs(context.Background(), query)
+	if countErr != nil {
+		log.Printf("JFTrade strategy log count degraded: %v", countErr)
+		return strategyLogsResponse{InstanceID: instanceID, Logs: []string{}, Page: strategyActivityPage{Limit: limit, Offset: offset, Total: 0, Returned: 0, HasMore: false}}, true
+	}
+	if listErr != nil {
+		log.Printf("JFTrade strategy log query degraded: %v", listErr)
+		return strategyLogsResponse{InstanceID: instanceID, Logs: []string{}, Page: strategyActivityPage{Limit: limit, Offset: offset, Total: total, Returned: 0, HasMore: false}}, true
+	}
+	logs := make([]string, 0, len(persisted))
+	for _, event := range persisted {
+		logs = append(logs, event.Raw)
+	}
+	return strategyLogsResponse{InstanceID: instanceID, Logs: logs, Page: strategyActivityPage{Limit: limit, Offset: offset, Total: total, Returned: len(logs), HasMore: offset+len(logs) < total}}, true
 }
 
 func (s *strategyCatalogStore) strategyAudit(instanceID string) (strategyAuditResponse, bool) {
+	return s.strategyAuditPage(instanceID, strategyRuntimeAuditQuery{InstanceID: instanceID, Limit: maxStrategyRuntimePageSize})
+}
+
+func (s *strategyCatalogStore) strategyAuditPage(instanceID string, query strategyRuntimeAuditQuery) (strategyAuditResponse, bool) {
 	s.mu.RLock()
-	defer s.mu.RUnlock()
+	var normalized managedStrategyInstance
+	var found bool
 	for _, strategy := range s.data.Strategies {
-		normalized := s.normalizeStrategy(strategy)
+		normalized = s.normalizeStrategy(strategy)
 		if normalized.ID == instanceID {
-			entries := make([]strategyAuditEntry, len(normalized.AuditEntries))
-			copy(entries, normalized.AuditEntries)
-			return strategyAuditResponse{InstanceID: instanceID, Entries: entries}, true
+			found = true
+			break
 		}
 	}
-	return strategyAuditResponse{}, false
+	s.mu.RUnlock()
+	if !found {
+		return strategyAuditResponse{}, false
+	}
+	if s.runtimeStore == nil {
+		return strategyAuditResponse{InstanceID: instanceID, Entries: []strategyAuditEntry{}, Page: strategyActivityPage{Limit: normalizeStrategyRuntimePageSize(query.Limit), Offset: normalizeStrategyRuntimeOffset(query.Offset), Total: 0, Returned: 0, HasMore: false}}, true
+	}
+	query.InstanceID = instanceID
+	limit := normalizeStrategyRuntimePageSize(query.Limit)
+	offset := normalizeStrategyRuntimeOffset(query.Offset)
+	total, countErr := s.runtimeStore.CountAudit(context.Background(), query)
+	persisted, listErr := s.runtimeStore.ListAudit(context.Background(), query)
+	if countErr != nil {
+		log.Printf("JFTrade strategy audit count degraded: %v", countErr)
+		return strategyAuditResponse{InstanceID: instanceID, Entries: []strategyAuditEntry{}, Page: strategyActivityPage{Limit: limit, Offset: offset, Total: 0, Returned: 0, HasMore: false}}, true
+	}
+	if listErr != nil {
+		log.Printf("JFTrade strategy audit query degraded: %v", listErr)
+		return strategyAuditResponse{InstanceID: instanceID, Entries: []strategyAuditEntry{}, Page: strategyActivityPage{Limit: limit, Offset: offset, Total: total, Returned: 0, HasMore: false}}, true
+	}
+	entries := make([]strategyAuditEntry, 0, len(persisted))
+	for _, event := range persisted {
+		entries = append(entries, strategyAuditEntry{InstanceID: event.InstanceID, Kind: event.Kind, Detail: event.Detail, At: event.At.UTC().Format(time.RFC3339Nano)})
+	}
+	return strategyAuditResponse{InstanceID: instanceID, Entries: entries, Page: strategyActivityPage{Limit: limit, Offset: offset, Total: total, Returned: len(entries), HasMore: offset+len(entries) < total}}, true
+}
+
+func (s *strategyCatalogStore) recordStrategyEventsLocked(strategy *managedStrategyInstance, at time.Time, logMessage string, logLevel string, logSource string, kind string, detail string) bool {
+	rawLog := buildStrategyRuntimeLogEntry(at, logMessage)
+	if rawLog != "" {
+		if s.runtimeStore != nil {
+			if err := s.runtimeStore.AppendLog(context.Background(), strategyRuntimeLogEvent{
+				InstanceID: strategy.ID,
+				At:         at,
+				Raw:        rawLog,
+				Level:      strings.ToLower(strings.TrimSpace(logLevel)),
+				Source:     strings.ToLower(strings.TrimSpace(logSource)),
+			}); err != nil {
+				log.Printf("JFTrade persist strategy runtime log degraded: %v", err)
+			}
+		}
+	}
+
+	kind = strings.TrimSpace(kind)
+	if kind != "" {
+		auditEntry := strategyAuditEntry{
+			InstanceID: strategy.ID,
+			Kind:       kind,
+			Detail:     strings.TrimSpace(detail),
+			At:         at.UTC().Format(time.RFC3339Nano),
+		}
+		if s.runtimeStore != nil {
+			if err := s.runtimeStore.AppendAudit(context.Background(), strategyRuntimeAuditEvent{
+				InstanceID: strategy.ID,
+				Kind:       auditEntry.Kind,
+				Detail:     auditEntry.Detail,
+				At:         at,
+			}); err != nil {
+				log.Printf("JFTrade persist strategy runtime audit degraded: %v", err)
+			}
+		}
+	}
+
+	return false
+}
+
+func buildStrategyRuntimeLogEntry(at time.Time, logMessage string) string {
+	logMessage = strings.TrimSpace(logMessage)
+	if logMessage == "" {
+		return ""
+	}
+	return fmt.Sprintf("%s %s", at.UTC().Format(time.RFC3339Nano), logMessage)
+}
+
+func strategyLogLevelForKind(kind string, logMessage string) string {
+	switch strings.TrimSpace(kind) {
+	case "runtime_error", "order_submit_failed", "runtime_exited":
+		return "error"
+	case "reconciled":
+		return "warning"
+	}
+	message := strings.ToLower(strings.TrimSpace(logMessage))
+	if strings.Contains(message, "error") || strings.Contains(message, "failed") || strings.Contains(message, "panic") {
+		return "error"
+	}
+	return "info"
+}
+
+func sliceStrategyActivityPage[T any](items []T, limit int, offset int) ([]T, int, bool) {
+	total := len(items)
+	if offset >= total {
+		return []T{}, total, false
+	}
+	end := offset + limit
+	if end > total {
+		end = total
+	}
+	page := append([]T(nil), items[offset:end]...)
+	return page, total, end < total
 }
 
 func (s *strategyCatalogStore) runtimeSummary() map[string]any {
@@ -820,14 +1162,63 @@ func (s *strategyCatalogStore) persistLocked() error {
 	if strings.TrimSpace(s.data.TargetDir) == "" {
 		s.data.TargetDir = s.targetDir
 	}
-	data, err := json.MarshalIndent(s.data, "", "  ")
+	tx, err := s.db.Beginx()
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(filepath.Dir(s.path), 0o755); err != nil {
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback()
+		}
+	}()
+	if _, err = tx.Exec(`DELETE FROM ` + strategyCatalogMetaTable); err != nil {
 		return err
 	}
-	return os.WriteFile(s.path, data, 0o600)
+	if _, err = tx.Exec(`DELETE FROM ` + strategyCatalogPluginTable); err != nil {
+		return err
+	}
+	if _, err = tx.Exec(`DELETE FROM ` + strategyCatalogStrategyTable); err != nil {
+		return err
+	}
+	if _, err = tx.Exec(`DELETE FROM ` + strategyCatalogOperationTable); err != nil {
+		return err
+	}
+	if _, err = tx.Exec(`INSERT INTO `+strategyCatalogMetaTable+` (key, value) VALUES (?, ?)`, "target_dir", s.data.TargetDir); err != nil {
+		return err
+	}
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	for _, plugin := range s.data.Plugins {
+		payload, marshalErr := json.Marshal(s.normalizePlugin(plugin))
+		if marshalErr != nil {
+			return marshalErr
+		}
+		if _, err = tx.Exec(`INSERT INTO `+strategyCatalogPluginTable+` (id, payload_json, updated_at) VALUES (?, ?, ?)`, strings.TrimSpace(plugin.Descriptor.ID), string(payload), now); err != nil {
+			return err
+		}
+	}
+	for _, strategy := range s.data.Strategies {
+		stored := s.normalizeStrategy(strategy)
+		stored.Logs = nil
+		stored.AuditEntries = nil
+		payload, marshalErr := json.Marshal(stored)
+		if marshalErr != nil {
+			return marshalErr
+		}
+		if _, err = tx.Exec(`INSERT INTO `+strategyCatalogStrategyTable+` (id, payload_json, created_at, updated_at) VALUES (?, ?, ?, ?)`, strings.TrimSpace(stored.ID), string(payload), strings.TrimSpace(stored.CreatedAt), now); err != nil {
+			return err
+		}
+	}
+	for _, operation := range s.data.Operations {
+		payload, marshalErr := json.Marshal(operation)
+		if marshalErr != nil {
+			return marshalErr
+		}
+		if _, err = tx.Exec(`INSERT INTO `+strategyCatalogOperationTable+` (operation_id, plugin_id, status, updated_at, payload_json) VALUES (?, ?, ?, ?, ?)`, strings.TrimSpace(operation.OperationID), strings.TrimSpace(operation.PluginID), strings.TrimSpace(operation.Status), strings.TrimSpace(operation.UpdatedAt), string(payload)); err != nil {
+			return err
+		}
+	}
+	err = tx.Commit()
+	return err
 }
 
 func buildPluginCompatibility(artifact *strategyPluginArtifact) strategyPluginCompatibility {
@@ -924,6 +1315,22 @@ func buildStrategyInstanceParams(definition strategyDesignDefinition, compiledAt
 	params["compiledRequirements"] = buildCompiledRequirementsPayload(requirements)
 
 	return params, nil
+}
+
+func strategyDefinitionIDFromParams(params map[string]any) string {
+	definitionID, _ := params["definitionId"].(string)
+	return strings.TrimSpace(definitionID)
+}
+
+func strategyInstanceUsesDefinition(strategy managedStrategyInstance, definitionID string) bool {
+	definitionID = strings.TrimSpace(definitionID)
+	if definitionID == "" {
+		return false
+	}
+	if strategyDefinitionIDFromParams(strategy.Params) == definitionID {
+		return true
+	}
+	return strings.TrimSpace(strategy.Definition.StrategyID) == definitionID
 }
 
 func normalizeStrategyInstrumentID(value string) string {
@@ -1219,8 +1626,6 @@ func cloneManagedStrategyInstance(input managedStrategyInstance) managedStrategy
 		bindingCopy := *input.Binding.BrokerAccount
 		input.Binding.BrokerAccount = &bindingCopy
 	}
-	input.Logs = append([]string(nil), input.Logs...)
-	input.AuditEntries = append([]strategyAuditEntry(nil), input.AuditEntries...)
 	return input
 }
 
@@ -1237,7 +1642,7 @@ func strategyToListItem(strategy managedStrategyInstance) strategyListItem {
 		Params:       copyMap(strategy.Params),
 		Status:       strategy.Status,
 		CreatedAt:    strategy.CreatedAt,
-		Logs:         append([]string(nil), strategy.Logs...),
+		Logs:         []string{},
 	}
 }
 
@@ -1246,12 +1651,6 @@ func normalizeManagedStrategyInstance(input managedStrategyInstance) managedStra
 		input.Params = map[string]any{}
 	}
 	applyStrategyBindingParams(&input)
-	if input.Logs == nil {
-		input.Logs = []string{}
-	}
-	if input.AuditEntries == nil {
-		input.AuditEntries = []strategyAuditEntry{}
-	}
 	return input
 }
 

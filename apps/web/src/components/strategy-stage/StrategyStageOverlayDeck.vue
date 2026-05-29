@@ -271,15 +271,13 @@ function toTemplateTypeLabel(mode: StrategyAuthoringTemplate["mode"]): string {
           />
         </label>
         <div class="grid gap-3 md:grid-cols-2">
-          <label class="grid gap-1.5 text-sm text-slate-700">
+          <div class="grid gap-1.5 text-sm text-slate-700">
             <span class="font-medium">版本</span>
-            <input
-              v-model="definitionForm.version"
-              class="rounded-2xl border border-slate-300 px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-500"
-              placeholder="0.1.0"
-              type="text"
-            />
-          </label>
+            <div class="rounded-2xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-sm text-slate-900">
+              v{{ definitionForm.version || '0.1.0' }}
+            </div>
+            <span class="text-xs text-slate-500">版本由系统在保存时自动编号并强制递增。</span>
+          </div>
           <label class="grid gap-1.5 text-sm text-slate-700">
             <span class="font-medium">运行时</span>
             <input

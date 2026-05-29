@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 
@@ -165,15 +167,11 @@ func TestStrategiesEndpointReturnsList(t *testing.T) {
 		Params:    map[string]any{"window": 20},
 		Status:    strategyStatusRunning,
 		CreatedAt: "2026-05-22T00:00:00Z",
-		Logs:      []string{"started"},
-		AuditEntries: []strategyAuditEntry{{
-			InstanceID: "instance-1",
-			Kind:       "started",
-			Detail:     "mean-revert",
-			At:         "2026-05-22T00:00:00Z",
-		}},
 	}); err != nil {
 		t.Fatalf("saveStrategy: %v", err)
+	}
+	if err := server.strategyStore.appendStrategyRuntimeEvent("instance-1", "started", "started", "mean-revert"); err != nil {
+		t.Fatalf("appendStrategyRuntimeEvent: %v", err)
 	}
 	srv := httptest.NewServer(server)
 	defer srv.Close()
@@ -215,7 +213,7 @@ func TestStrategiesEndpointReturnsList(t *testing.T) {
 	if err := json.NewDecoder(logsResp.Body).Decode(&logsEnvelope); err != nil {
 		t.Fatalf("decode logs: %v", err)
 	}
-	if len(logsEnvelope.Data.Logs) != 1 || logsEnvelope.Data.Logs[0] != "started" {
+	if len(logsEnvelope.Data.Logs) != 1 || !strings.Contains(logsEnvelope.Data.Logs[0], "started") {
 		t.Fatalf("unexpected logs response: %+v", logsEnvelope.Data)
 	}
 
@@ -236,6 +234,253 @@ func TestStrategiesEndpointReturnsList(t *testing.T) {
 	}
 	if len(auditEnvelope.Data.Entries) != 1 || auditEnvelope.Data.Entries[0].Kind != "started" {
 		t.Fatalf("unexpected audit response: %+v", auditEnvelope.Data)
+	}
+}
+
+func TestStrategiesEndpointIncludesPersistedRuntimeLogTail(t *testing.T) {
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	server := NewServer(store)
+	if err := server.strategyStore.saveStrategy(managedStrategyInstance{
+		ID: "instance-tail",
+		Definition: strategyDefinitionSummary{
+			StrategyID: "mean-revert",
+			Name:       "Mean Revert",
+			Version:    "1.0.0",
+		},
+		Params:    map[string]any{"window": 20},
+		Status:    strategyStatusStopped,
+		CreatedAt: "2026-05-22T00:00:00Z",
+	}); err != nil {
+		t.Fatalf("saveStrategy: %v", err)
+	}
+	if err := server.strategyStore.appendStrategyRuntimeEvent("instance-tail", "runtime error US.AAPL: boom", "runtime_error", "boom"); err != nil {
+		t.Fatalf("appendStrategyRuntimeEvent: %v", err)
+	}
+
+	srv := httptest.NewServer(server)
+	defer srv.Close()
+
+	resp, err := http.Get(srv.URL + "/api/v1/strategies")
+	if err != nil {
+		t.Fatalf("GET strategies: %v", err)
+	}
+	defer resp.Body.Close()
+	var envelope struct {
+		OK   bool               `json:"ok"`
+		Data []strategyListItem `json:"data"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
+		t.Fatalf("decode strategies: %v", err)
+	}
+	if len(envelope.Data) != 1 {
+		t.Fatalf("expected 1 strategy, got %+v", envelope.Data)
+	}
+	if len(envelope.Data[0].Logs) == 0 || !strings.Contains(envelope.Data[0].Logs[0], "runtime error US.AAPL: boom") {
+		t.Fatalf("expected persisted runtime log tail in strategy list item, got %+v", envelope.Data[0].Logs)
+	}
+}
+
+func TestNewServerUsesStrategyRuntimeDBEnvOverride(t *testing.T) {
+	customRuntimeDBPath := filepath.Join(t.TempDir(), "custom", "strategy-runtime-override.db")
+	t.Setenv("JFTRADE_STRATEGY_RUNTIME_DB", customRuntimeDBPath)
+
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	server := NewServer(store)
+	if server.strategyRuntimeStore == nil {
+		t.Fatal("expected strategy runtime store to be initialized with env override")
+	}
+	if _, err := os.Stat(customRuntimeDBPath); err != nil {
+		t.Fatalf("expected runtime db file at env override path, got error: %v", err)
+	}
+	if got := deriveStrategyRuntimeDBPath(store.path); got != customRuntimeDBPath {
+		t.Fatalf("deriveStrategyRuntimeDBPath() = %s, want %s", got, customRuntimeDBPath)
+	}
+}
+
+func TestStrategyLogsAndAuditEndpointsSupportPaginationAndFilters(t *testing.T) {
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	server := NewServer(store)
+	if err := server.strategyStore.saveStrategy(managedStrategyInstance{
+		ID: "instance-logs",
+		Definition: strategyDefinitionSummary{
+			StrategyID: "mean-revert",
+			Name:       "Mean Revert",
+			Version:    "1.0.0",
+		},
+		Params:    map[string]any{"window": 20},
+		Status:    strategyStatusStopped,
+		CreatedAt: "2026-05-22T00:00:00Z",
+	}); err != nil {
+		t.Fatalf("saveStrategy: %v", err)
+	}
+	for _, event := range []struct {
+		message string
+		kind    string
+		detail  string
+	}{
+		{message: "notify-only signal US.AAPL BUY 10", kind: "signal_notified", detail: "signal detail"},
+		{message: "runtime error US.AAPL: boom", kind: "runtime_error", detail: "boom"},
+		{message: "live order submitted US.AAPL BUY 10", kind: "order_submitted", detail: "internalOrderId=1"},
+	} {
+		if err := server.strategyStore.appendStrategyRuntimeEvent("instance-logs", event.message, event.kind, event.detail); err != nil {
+			t.Fatalf("appendStrategyRuntimeEvent(%s): %v", event.kind, err)
+		}
+	}
+
+	srv := httptest.NewServer(server)
+	defer srv.Close()
+
+	logsResp, err := http.Get(srv.URL + "/api/v1/strategies/instance-logs/logs?limit=1&offset=1")
+	if err != nil {
+		t.Fatalf("GET paged logs: %v", err)
+	}
+	defer logsResp.Body.Close()
+	var logsEnvelope struct {
+		OK   bool                 `json:"ok"`
+		Data strategyLogsResponse `json:"data"`
+	}
+	if err := json.NewDecoder(logsResp.Body).Decode(&logsEnvelope); err != nil {
+		t.Fatalf("decode paged logs: %v", err)
+	}
+	if logsEnvelope.Data.Page.Total != 3 || logsEnvelope.Data.Page.Returned != 1 || !logsEnvelope.Data.Page.HasMore {
+		t.Fatalf("unexpected logs page: %+v", logsEnvelope.Data.Page)
+	}
+
+	filteredLogsResp, err := http.Get(srv.URL + "/api/v1/strategies/instance-logs/logs?level=error")
+	if err != nil {
+		t.Fatalf("GET filtered logs: %v", err)
+	}
+	defer filteredLogsResp.Body.Close()
+	if err := json.NewDecoder(filteredLogsResp.Body).Decode(&logsEnvelope); err != nil {
+		t.Fatalf("decode filtered logs: %v", err)
+	}
+	if logsEnvelope.Data.Page.Total != 1 || len(logsEnvelope.Data.Logs) != 1 || !strings.Contains(logsEnvelope.Data.Logs[0], "runtime error") {
+		t.Fatalf("unexpected filtered logs response: %+v", logsEnvelope.Data)
+	}
+
+	auditResp, err := http.Get(srv.URL + "/api/v1/strategies/instance-logs/audit?kind=runtime_error")
+	if err != nil {
+		t.Fatalf("GET filtered audit: %v", err)
+	}
+	defer auditResp.Body.Close()
+	var auditEnvelope struct {
+		OK   bool                  `json:"ok"`
+		Data strategyAuditResponse `json:"data"`
+	}
+	if err := json.NewDecoder(auditResp.Body).Decode(&auditEnvelope); err != nil {
+		t.Fatalf("decode filtered audit: %v", err)
+	}
+	if auditEnvelope.Data.Page.Total != 1 || len(auditEnvelope.Data.Entries) != 1 || auditEnvelope.Data.Entries[0].Kind != "runtime_error" {
+		t.Fatalf("unexpected filtered audit response: %+v", auditEnvelope.Data)
+	}
+}
+
+func TestStrategiesExposeDefinitionSyncAndRefreshDefinitionRoute(t *testing.T) {
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	server := NewServer(store)
+	definition, err := server.designStore.saveDefinition(strategyDesignDefinition{
+		ID:           "dsl-versioned",
+		Name:         "Versioned Strategy",
+		Description:  "first save",
+		Runtime:      strategyRuntimeDSLPlan,
+		SourceFormat: strategydefinition.SourceFormatDSLV1,
+		Script:       "strategy Versioned Strategy\nversion 0.1.0\non init:\n  log \"init\"\non kline_close:\n  log \"old\"",
+	})
+	if err != nil {
+		t.Fatalf("saveDefinition(create): %v", err)
+	}
+	instance, err := server.strategyStore.instantiateStrategy(definition, strategyInstanceBinding{
+		Symbols:       []string{"US.AAPL"},
+		Interval:      "1m",
+		ExecutionMode: strategyExecutionModeNotifyOnly,
+	})
+	if err != nil {
+		t.Fatalf("instantiateStrategy: %v", err)
+	}
+	definition, err = server.designStore.saveDefinition(strategyDesignDefinition{
+		ID:           definition.ID,
+		Name:         definition.Name,
+		Description:  "second save",
+		Runtime:      definition.Runtime,
+		SourceFormat: definition.SourceFormat,
+		Symbol:       definition.Symbol,
+		Interval:     definition.Interval,
+		Script:       "strategy Versioned Strategy\nversion 0.1.0\non init:\n  log \"init\"\non kline_close:\n  let fast = ma(MA, 10)\n  log \"new\"",
+		VisualModel:  definition.VisualModel,
+	})
+	if err != nil {
+		t.Fatalf("saveDefinition(update): %v", err)
+	}
+	if definition.Version != "0.1.1" {
+		t.Fatalf("definition version = %q, want 0.1.1", definition.Version)
+	}
+
+	srv := httptest.NewServer(server)
+	defer srv.Close()
+
+	listResp, err := http.Get(srv.URL + "/api/v1/strategies")
+	if err != nil {
+		t.Fatalf("GET strategies: %v", err)
+	}
+	defer listResp.Body.Close()
+	var listEnvelope struct {
+		OK   bool               `json:"ok"`
+		Data []strategyListItem `json:"data"`
+	}
+	if err := json.NewDecoder(listResp.Body).Decode(&listEnvelope); err != nil {
+		t.Fatalf("decode strategies: %v", err)
+	}
+	if len(listEnvelope.Data) != 1 {
+		t.Fatalf("expected 1 strategy, got %+v", listEnvelope.Data)
+	}
+	if listEnvelope.Data[0].DefinitionSync == nil {
+		t.Fatal("expected definition sync status")
+	}
+	if listEnvelope.Data[0].DefinitionSync.IsLatest {
+		t.Fatalf("expected strategy to be stale, got %+v", listEnvelope.Data[0].DefinitionSync)
+	}
+	if !listEnvelope.Data[0].DefinitionSync.CanApplyLatest {
+		t.Fatalf("expected stopped strategy to allow refresh, got %+v", listEnvelope.Data[0].DefinitionSync)
+	}
+	if listEnvelope.Data[0].DefinitionSync.LatestVersion != "0.1.1" {
+		t.Fatalf("latestVersion = %q, want 0.1.1", listEnvelope.Data[0].DefinitionSync.LatestVersion)
+	}
+
+	refreshResp, err := http.Post(srv.URL+"/api/v1/strategies/"+instance.ID+"/refresh-definition", "application/json", bytes.NewReader([]byte(`{}`)))
+	if err != nil {
+		t.Fatalf("POST refresh-definition: %v", err)
+	}
+	defer refreshResp.Body.Close()
+	if refreshResp.StatusCode != http.StatusOK {
+		t.Fatalf("POST refresh-definition status = %d", refreshResp.StatusCode)
+	}
+	var refreshEnvelope struct {
+		OK   bool             `json:"ok"`
+		Data strategyListItem `json:"data"`
+	}
+	if err := json.NewDecoder(refreshResp.Body).Decode(&refreshEnvelope); err != nil {
+		t.Fatalf("decode refresh-definition: %v", err)
+	}
+	if refreshEnvelope.Data.Definition.Version != "0.1.1" {
+		t.Fatalf("refreshed strategy version = %q, want 0.1.1", refreshEnvelope.Data.Definition.Version)
+	}
+	if refreshEnvelope.Data.DefinitionSync == nil || !refreshEnvelope.Data.DefinitionSync.IsLatest {
+		t.Fatalf("expected refreshed strategy to be latest, got %+v", refreshEnvelope.Data.DefinitionSync)
+	}
+	if script, _ := refreshEnvelope.Data.Params["script"].(string); !strings.Contains(script, "let fast = ma(MA, 10)") {
+		t.Fatalf("expected refreshed script snapshot, got %q", script)
 	}
 }
 
@@ -679,6 +924,92 @@ func TestInstantiateDSLStrategyDefinitionBuildsCompiledPlan(t *testing.T) {
 	}
 	if len(listEnvelope.Data) != 0 {
 		t.Fatalf("expected no strategies after delete, got %+v", listEnvelope.Data)
+	}
+}
+
+func TestDeleteStrategyDefinitionRequiresDeletingLinkedInstancesFirst(t *testing.T) {
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	server := NewServer(store)
+	definition, err := server.designStore.saveDefinition(strategyDesignDefinition{
+		ID:           "dsl-delete-guard",
+		Name:         "Delete Guard",
+		Description:  "delete guard",
+		Runtime:      strategyRuntimeDSLPlan,
+		SourceFormat: strategydefinition.SourceFormatDSLV1,
+		Script:       "strategy Delete Guard\nversion 0.1.0\non init:\n  log \"init\"\non kline_close:\n  log \"close\"",
+	})
+	if err != nil {
+		t.Fatalf("saveDefinition: %v", err)
+	}
+	instance, err := server.strategyStore.instantiateStrategy(definition, strategyInstanceBinding{
+		Symbols:       []string{"US.AAPL"},
+		Interval:      "5m",
+		ExecutionMode: strategyExecutionModeNotifyOnly,
+	})
+	if err != nil {
+		t.Fatalf("instantiateStrategy: %v", err)
+	}
+
+	srv := httptest.NewServer(server)
+	defer srv.Close()
+
+	deleteReq, err := http.NewRequest(http.MethodDelete, srv.URL+"/api/v1/strategy-definitions/"+definition.ID, nil)
+	if err != nil {
+		t.Fatalf("build delete definition request: %v", err)
+	}
+	deleteResp, err := http.DefaultClient.Do(deleteReq)
+	if err != nil {
+		t.Fatalf("delete definition with linked instance: %v", err)
+	}
+	defer deleteResp.Body.Close()
+	if deleteResp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("delete definition with linked instance status = %d, want %d", deleteResp.StatusCode, http.StatusBadRequest)
+	}
+	var blockedEnvelope envelope
+	if err := json.NewDecoder(deleteResp.Body).Decode(&blockedEnvelope); err != nil {
+		t.Fatalf("decode blocked delete response: %v", err)
+	}
+	if blockedEnvelope.Error == nil || !strings.Contains(blockedEnvelope.Error.Message, "请先删除对应实例再删除") {
+		t.Fatalf("unexpected blocked delete response: %+v", blockedEnvelope)
+	}
+	if _, ok := server.designStore.definition(definition.ID); !ok {
+		t.Fatal("definition should still exist after blocked delete")
+	}
+
+	instanceDeleteReq, err := http.NewRequest(http.MethodDelete, srv.URL+"/api/v1/strategies/"+instance.ID, nil)
+	if err != nil {
+		t.Fatalf("build delete instance request: %v", err)
+	}
+	instanceDeleteResp, err := http.DefaultClient.Do(instanceDeleteReq)
+	if err != nil {
+		t.Fatalf("delete linked instance: %v", err)
+	}
+	defer instanceDeleteResp.Body.Close()
+	if instanceDeleteResp.StatusCode != http.StatusOK {
+		t.Fatalf("delete linked instance status = %d, want %d", instanceDeleteResp.StatusCode, http.StatusOK)
+	}
+
+	deleteReq, err = http.NewRequest(http.MethodDelete, srv.URL+"/api/v1/strategy-definitions/"+definition.ID, nil)
+	if err != nil {
+		t.Fatalf("build second delete definition request: %v", err)
+	}
+	deleteResp, err = http.DefaultClient.Do(deleteReq)
+	if err != nil {
+		t.Fatalf("delete definition after removing instances: %v", err)
+	}
+	defer deleteResp.Body.Close()
+	if deleteResp.StatusCode != http.StatusOK {
+		t.Fatalf("delete definition after removing instances status = %d, want %d", deleteResp.StatusCode, http.StatusOK)
+	}
+	if _, ok := server.designStore.definition(definition.ID); ok {
+		t.Fatal("definition should be hidden after soft delete")
+	}
+	definitions := server.designStore.listDefinitions()
+	if len(definitions) != 0 {
+		t.Fatalf("expected no active definitions after delete, got %+v", definitions)
 	}
 }
 

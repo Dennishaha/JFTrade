@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type {
+    StrategyApplyLinkedInstancesResponse,
     StrategyDefinitionDocument,
+    StrategyInstanceItem,
     StrategySourceFormat,
     StrategyVisualModelDocument,
     StrategyVisualNodeDocument,
@@ -78,6 +80,7 @@ const selectedStrategyTemplateId = ref(defaultStrategyTemplateId);
 const isLoadingDefinitions = ref(false);
 const isSavingDefinition = ref(false);
 const isInstantiatingDefinition = ref(false);
+const deletingDefinitionId = ref("");
 const definitionError = ref("");
 const definitionNotice = ref("");
 const visualSyncStatus = ref<"ready" | "syncing" | "synced" | "partial" | "error">("ready");
@@ -101,6 +104,18 @@ const isTemplatePickerEntry = ref(false);
 
 const definitionsPanelDrag = useDraggable();
 const codePanelDrag = useDraggable();
+const isSaveLinkedInstancesDialogOpen = ref(false);
+const pendingSaveLinkedInstancesSummary = ref<{
+    definitionId: string;
+    linkedCount: number;
+    stoppedCount: number;
+    busyCount: number;
+} | null>(null);
+const isDeleteDefinitionDialogOpen = ref(false);
+const pendingDeleteDefinition = ref<{
+    definition: StrategyDefinitionDocument;
+    linkedStrategies: StrategyInstanceItem[];
+} | null>(null);
 
 // ── Undo / Redo ──
 const undoRedo = useStrategyUndoRedo({ maxDepth: 80 });
@@ -896,16 +911,7 @@ async function loadStrategyDefinitions(
 async function saveStrategyDefinition(): Promise<boolean> {
     clearDefinitionMessages();
 
-    const payload = {
-        id: definitionForm.value.id.trim(),
-        name: definitionForm.value.name.trim(),
-        version: definitionForm.value.version.trim(),
-        description: definitionForm.value.description.trim(),
-        runtime: "dsl-go-plan",
-        sourceFormat: normalizeSourceFormat(definitionForm.value.sourceFormat),
-        script: definitionForm.value.script,
-        visualModel: cloneStrategyVisualModel(definitionForm.value.visualModel),
-    };
+    const payload = buildStrategyDefinitionSavePayload();
 
     if (payload.name === "") {
         definitionError.value = "策略名称不能为空。";
@@ -917,6 +923,141 @@ async function saveStrategyDefinition(): Promise<boolean> {
         return false;
     }
 
+    if (await maybePromptLinkedInstanceSave()) {
+        return false;
+    }
+
+    return persistStrategyDefinition(payload, { applyLinkedInstances: false });
+}
+
+function buildStrategyDefinitionSavePayload(): StrategyDefinitionDocument {
+    return {
+        id: definitionForm.value.id.trim(),
+        name: definitionForm.value.name.trim(),
+        version: definitionForm.value.version.trim(),
+        description: definitionForm.value.description.trim(),
+        runtime: "dsl-go-plan",
+        sourceFormat: normalizeSourceFormat(definitionForm.value.sourceFormat),
+        script: definitionForm.value.script,
+        visualModel: cloneStrategyVisualModel(definitionForm.value.visualModel),
+        createdAt: definitionForm.value.createdAt,
+        updatedAt: definitionForm.value.updatedAt,
+    };
+}
+
+function isStrategyLinkedToDefinition(
+    strategy: StrategyInstanceItem,
+    definitionId: string,
+): boolean {
+    const normalizedDefinitionID = definitionId.trim();
+    if (normalizedDefinitionID === "") {
+        return false;
+    }
+
+    if (strategy.definition.strategyId.trim() === normalizedDefinitionID) {
+        return true;
+    }
+
+    return typeof strategy.params.definitionId === "string"
+        && strategy.params.definitionId.trim() === normalizedDefinitionID;
+}
+
+async function maybePromptLinkedInstanceSave(): Promise<boolean> {
+    const definitionId = selectedDefinitionId.value.trim();
+    if (definitionId === "" || !hasUnsavedDefinitionChanges.value) {
+        return false;
+    }
+
+    isSavingDefinition.value = true;
+
+    try {
+        const strategies = await fetchEnvelope<StrategyInstanceItem[]>("/api/v1/strategies");
+        const linkedStrategies = strategies.filter((item) => isStrategyLinkedToDefinition(item, definitionId));
+        if (linkedStrategies.length === 0) {
+            return false;
+        }
+
+        pendingSaveLinkedInstancesSummary.value = {
+            definitionId,
+            linkedCount: linkedStrategies.length,
+            stoppedCount: linkedStrategies.filter((item) => item.status === "STOPPED").length,
+            busyCount: linkedStrategies.filter((item) => item.status !== "STOPPED").length,
+        };
+        isSaveLinkedInstancesDialogOpen.value = true;
+        return true;
+    } catch (error) {
+        definitionError.value =
+            error instanceof Error
+                ? error.message
+                : "加载关联实例失败。";
+        return true;
+    } finally {
+        isSavingDefinition.value = false;
+    }
+}
+
+function closeSaveLinkedInstancesDialog(): void {
+    isSaveLinkedInstancesDialogOpen.value = false;
+    pendingSaveLinkedInstancesSummary.value = null;
+}
+
+function closeDeleteDefinitionDialog(options?: { force?: boolean }): void {
+    if (!options?.force && deletingDefinitionId.value !== "") {
+        return;
+    }
+    isDeleteDefinitionDialogOpen.value = false;
+    pendingDeleteDefinition.value = null;
+}
+
+function summarizeLinkedStrategyForDeleteDialog(
+    strategy: StrategyInstanceItem,
+): string {
+    const symbols = (strategy.binding?.symbols ?? []).join(", ");
+    if (symbols !== "") {
+        return `${strategy.status} · ${symbols}`;
+    }
+    return `${strategy.status} · 未绑定标的`;
+}
+
+function jumpToRuntimeForDeletingLinkedInstances(): void {
+    const pending = pendingDeleteDefinition.value;
+    if (pending === null || pending.linkedStrategies.length === 0) {
+        return;
+    }
+    closeDeleteDefinitionDialog({ force: true });
+    emit("switch-to-runtime", {
+        notice: `已切换到运行面板，请先删除策略「${pending.definition.name}」关联的 ${pending.linkedStrategies.length} 个实例。`,
+        definitionId: pending.definition.id,
+    });
+}
+
+function buildApplyLinkedInstancesNotice(
+    result: StrategyApplyLinkedInstancesResponse,
+): string {
+    if (result.totalLinked === 0) {
+        return "当前没有关联实例需要同步。";
+    }
+
+    const parts: string[] = [];
+    if (result.applied.length > 0) {
+        parts.push(`已同步 ${result.applied.length} 个关联实例`);
+    }
+    if (result.alreadyLatest.length > 0) {
+        parts.push(`${result.alreadyLatest.length} 个实例本来就是最新版本`);
+    }
+    if (result.skippedBusy.length > 0) {
+        parts.push(`${result.skippedBusy.length} 个实例因未停止而跳过`);
+    }
+    return parts.join("，") || "关联实例状态未变化。";
+}
+
+async function persistStrategyDefinition(
+    payload: StrategyDefinitionDocument,
+    options: {
+        applyLinkedInstances: boolean;
+        promptedLinkedCount?: number;
+    },
+): Promise<boolean> {
     const isExisting =
         selectedDefinition.value !== null &&
         selectedDefinition.value.id === selectedDefinitionId.value;
@@ -927,9 +1068,7 @@ async function saveStrategyDefinition(): Promise<boolean> {
     isSavingDefinition.value = true;
 
     try {
-        const response = await fetchEnvelopeWithInit<
-            StrategyDefinitionDocument | StrategyDefinitionDocument[]
-        >(path, {
+        const response = await fetchEnvelopeWithInit<StrategyDefinitionDocument>(path, {
             method: isExisting ? "PUT" : "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -937,12 +1076,27 @@ async function saveStrategyDefinition(): Promise<boolean> {
             body: JSON.stringify(payload),
         });
 
-        const savedId = Array.isArray(response)
-            ? payload.id || selectedDefinitionId.value
-            : response.id;
+        const savedId = response.id;
+        let notice = isExisting ? "策略已保存。" : "策略已创建。";
 
-        definitionNotice.value = isExisting ? "策略已保存。" : "策略已创建。";
+        if (options.applyLinkedInstances && savedId.trim() !== "") {
+            const applyResult = await fetchEnvelopeWithInit<StrategyApplyLinkedInstancesResponse>(
+                `/api/v1/strategy-definitions/${encodeURIComponent(savedId)}/apply-linked-instances`,
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({}),
+                },
+            );
+            notice = `${notice} ${buildApplyLinkedInstancesNotice(applyResult)}`;
+        } else if ((options.promptedLinkedCount ?? 0) > 0) {
+            notice = `${notice} 已保留 ${options.promptedLinkedCount ?? 0} 个关联实例的当前版本。`;
+        }
+
         await loadStrategyDefinitions(savedId);
+        definitionNotice.value = notice;
         return true;
     } catch (error) {
         definitionError.value =
@@ -951,6 +1105,28 @@ async function saveStrategyDefinition(): Promise<boolean> {
     } finally {
         isSavingDefinition.value = false;
     }
+}
+
+async function saveStrategyDefinitionWithLinkedInstanceChoice(
+    action: "save-only" | "save-and-apply",
+): Promise<void> {
+    const summary = pendingSaveLinkedInstancesSummary.value;
+    closeSaveLinkedInstancesDialog();
+
+    const payload = buildStrategyDefinitionSavePayload();
+    if (payload.name === "") {
+        definitionError.value = "策略名称不能为空。";
+        return;
+    }
+    if (payload.script.trim() === "") {
+        definitionError.value = "策略 DSL 不能为空。";
+        return;
+    }
+
+    await persistStrategyDefinition(payload, {
+        applyLinkedInstances: action === "save-and-apply",
+        promptedLinkedCount: summary?.linkedCount ?? 0,
+    });
 }
 
 async function instantiateStrategyDefinition(): Promise<void> {
@@ -980,6 +1156,62 @@ async function instantiateStrategyDefinition(): Promise<void> {
                 : "创建运行实例失败。";
     } finally {
         isInstantiatingDefinition.value = false;
+    }
+}
+
+async function deleteStrategyDefinition(definition: StrategyDefinitionDocument): Promise<void> {
+    clearDefinitionMessages();
+    deletingDefinitionId.value = definition.id;
+    try {
+        const strategies = await fetchEnvelope<StrategyInstanceItem[]>("/api/v1/strategies");
+        const linkedStrategies = strategies
+            .filter((item) => isStrategyLinkedToDefinition(item, definition.id))
+            .sort((left, right) => {
+                if (left.createdAt === right.createdAt) {
+                    return left.id.localeCompare(right.id);
+                }
+                return left.createdAt.localeCompare(right.createdAt);
+            });
+
+        pendingDeleteDefinition.value = {
+            definition,
+            linkedStrategies,
+        };
+        isDeleteDefinitionDialogOpen.value = true;
+    } catch (error) {
+        definitionError.value =
+            error instanceof Error ? error.message : "加载关联实例失败。";
+    } finally {
+        deletingDefinitionId.value = "";
+    }
+}
+
+async function confirmDeleteStrategyDefinition(): Promise<void> {
+    const pending = pendingDeleteDefinition.value;
+    if (pending === null || pending.linkedStrategies.length > 0) {
+        return;
+    }
+
+    deletingDefinitionId.value = pending.definition.id;
+    try {
+        await fetchEnvelopeWithInit<StrategyDefinitionDocument>(
+            `/api/v1/strategy-definitions/${encodeURIComponent(pending.definition.id)}`,
+            {
+                method: "DELETE",
+            },
+        );
+
+        const nextPreferredId = selectedDefinitionId.value === pending.definition.id
+            ? strategyDefinitions.value.find((item) => item.id !== pending.definition.id)?.id ?? ""
+            : selectedDefinitionId.value;
+        closeDeleteDefinitionDialog({ force: true });
+        await loadStrategyDefinitions(nextPreferredId);
+        definitionNotice.value = `策略已删除：${pending.definition.name}。`;
+    } catch (error) {
+        definitionError.value =
+            error instanceof Error ? error.message : "删除策略定义失败。";
+    } finally {
+        deletingDefinitionId.value = "";
     }
 }
 
@@ -1286,6 +1518,91 @@ function deleteSelectedVisualNode(): void {
 
 <template>
     <div class="strategy-stage">
+        <v-dialog v-model="isSaveLinkedInstancesDialogOpen" max-width="560">
+            <div class="strategy-save-dialog" data-testid="strategy-save-linked-dialog">
+                <div class="strategy-save-dialog__eyebrow">保存策略</div>
+                <div class="strategy-save-dialog__title">检测到关联实例正在使用当前策略</div>
+                <div v-if="pendingSaveLinkedInstancesSummary !== null"
+                    class="strategy-save-dialog__body" data-testid="strategy-save-linked-summary">
+                    当前共有 {{ pendingSaveLinkedInstancesSummary.linkedCount }} 个实例应用了这份策略，
+                    其中 {{ pendingSaveLinkedInstancesSummary.stoppedCount }} 个实例为 STOPPED，保存后可立即刷新到最新版本；
+                    {{ pendingSaveLinkedInstancesSummary.busyCount }} 个运行中或暂停中的实例会保留当前版本，后续停止后再刷新。
+                </div>
+                <div class="strategy-save-dialog__hint">策略版本会由系统在本次保存时自动编号。</div>
+                <div class="strategy-save-dialog__actions">
+                    <button class="strategy-btn strategy-btn--ghost" data-testid="strategy-save-definition-only"
+                        :disabled="isSavingDefinition" type="button"
+                        @click="void saveStrategyDefinitionWithLinkedInstanceChoice('save-only')">
+                        仅保存策略
+                    </button>
+                    <button class="strategy-btn strategy-btn--primary" data-testid="strategy-save-definition-and-apply"
+                        :disabled="isSavingDefinition" type="button"
+                        @click="void saveStrategyDefinitionWithLinkedInstanceChoice('save-and-apply')">
+                        {{ isSavingDefinition ? "保存中…" : "保存并更新关联实例" }}
+                    </button>
+                </div>
+                <button class="strategy-save-dialog__close" type="button" @click="closeSaveLinkedInstancesDialog">
+                    继续编辑
+                </button>
+            </div>
+        </v-dialog>
+
+        <v-dialog v-model="isDeleteDefinitionDialogOpen" max-width="620">
+            <div class="strategy-save-dialog" data-testid="strategy-delete-definition-dialog">
+                <div class="strategy-save-dialog__eyebrow">删除策略</div>
+                <div class="strategy-save-dialog__title">
+                    {{ pendingDeleteDefinition?.linkedStrategies.length ? "当前还有实例引用该策略" : "确认删除当前策略定义" }}
+                </div>
+                <div v-if="pendingDeleteDefinition !== null"
+                    class="strategy-save-dialog__body" data-testid="strategy-delete-definition-summary">
+                    <template v-if="pendingDeleteDefinition.linkedStrategies.length === 0">
+                        策略定义「{{ pendingDeleteDefinition.definition.name }}」会被软删除，并从当前定义列表中移除。
+                        <template v-if="selectedDefinitionId === pendingDeleteDefinition.definition.id && hasUnsavedDefinitionChanges">
+                            当前未保存的编辑也会一并丢弃。
+                        </template>
+                    </template>
+                    <template v-else>
+                        策略定义「{{ pendingDeleteDefinition.definition.name }}」当前仍被
+                        {{ pendingDeleteDefinition.linkedStrategies.length }} 个实例引用，请先删除这些实例，再回来删除该定义。
+                    </template>
+                </div>
+                <div v-if="pendingDeleteDefinition !== null && pendingDeleteDefinition.linkedStrategies.length > 0"
+                    class="strategy-save-dialog__linked-list" data-testid="strategy-delete-linked-instances">
+                    <div v-for="strategy in pendingDeleteDefinition.linkedStrategies" :key="strategy.id"
+                        class="strategy-save-dialog__linked-item"
+                        :data-testid="`strategy-delete-linked-instance-${strategy.id}`">
+                        <div class="strategy-save-dialog__linked-item-id">{{ strategy.id }}</div>
+                        <div class="strategy-save-dialog__linked-item-meta">
+                            {{ summarizeLinkedStrategyForDeleteDialog(strategy) }}
+                        </div>
+                    </div>
+                </div>
+                <div class="strategy-save-dialog__hint">
+                    {{ pendingDeleteDefinition?.linkedStrategies.length
+                        ? "删除策略定义不会自动删除运行实例。请先在运行面板删除这些实例，再回到设计页删除定义。"
+                        : "删除后不会自动影响现有实例；只有未被实例引用的定义才允许删除。" }}
+                </div>
+                <div class="strategy-save-dialog__actions">
+                    <button class="strategy-btn strategy-btn--ghost" data-testid="cancel-delete-strategy-definition"
+                        :disabled="deletingDefinitionId !== ''" type="button" @click="closeDeleteDefinitionDialog()">
+                        {{ pendingDeleteDefinition?.linkedStrategies.length ? "我知道了" : "取消" }}
+                    </button>
+                    <button v-if="pendingDeleteDefinition !== null && pendingDeleteDefinition.linkedStrategies.length > 0"
+                        class="strategy-btn" data-testid="jump-to-runtime-for-delete-linked-instances"
+                        :disabled="deletingDefinitionId !== ''" type="button"
+                        @click="jumpToRuntimeForDeletingLinkedInstances">
+                        去运行面板删除实例
+                    </button>
+                    <button v-if="pendingDeleteDefinition !== null && pendingDeleteDefinition.linkedStrategies.length === 0"
+                        class="strategy-btn strategy-btn--primary" data-testid="confirm-delete-strategy-definition"
+                        :disabled="deletingDefinitionId !== ''" type="button"
+                        @click="void confirmDeleteStrategyDefinition()">
+                        {{ deletingDefinitionId === pendingDeleteDefinition.definition.id ? "删除中…" : "确认删除" }}
+                    </button>
+                </div>
+            </div>
+        </v-dialog>
+
         <div class="strategy-stage__toast-stack">
             <div v-if="definitionError" class="strategy-banner strategy-banner--error">
                 <div class="strategy-banner__message">{{ definitionError }}</div>
@@ -1432,8 +1749,10 @@ function deleteSelectedVisualNode(): void {
         <div v-if="!isDefinitionsPanelCollapsed" data-testid="strategy-definitions-panel"
             class="strategy-stage__panel strategy-stage__panel--definitions" :style="definitionsPanelStyle">
             <StrategyStageDefinitionsPanel :is-loading-definitions="isLoadingDefinitions"
+                :deleting-definition-id="deletingDefinitionId"
                 :selected-definition-id="selectedDefinitionId" :strategy-definitions="strategyDefinitions"
                 @close="isDefinitionsPanelCollapsed = true" @create-new="openNewDefinitionTemplatePicker()"
+                @delete-definition="void deleteStrategyDefinition($event)"
                 @drag-start="startDefinitionsPanelDrag" @select-definition="applyDefinition" />
         </div>
 
@@ -1591,6 +1910,92 @@ function deleteSelectedVisualNode(): void {
 .strategy-banner--success {
     background: color-mix(in srgb, var(--tv-accent) 16%, transparent);
     color: color-mix(in srgb, var(--tv-accent) 74%, var(--tv-text));
+}
+
+.strategy-save-dialog {
+    display: grid;
+    gap: 0.9rem;
+    padding: 1.35rem;
+    border: 1px solid rgba(15, 23, 42, 0.1);
+    border-radius: 1.5rem;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.98));
+    box-shadow: 0 24px 80px rgba(15, 23, 42, 0.18);
+    color: var(--tv-text-main);
+}
+
+.strategy-save-dialog__eyebrow {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--tv-accent-strong);
+}
+
+.strategy-save-dialog__title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--tv-text-main);
+}
+
+.strategy-save-dialog__body {
+    line-height: 1.7;
+    color: var(--tv-text-subtle);
+}
+
+.strategy-save-dialog__hint {
+    padding: 0.8rem 0.95rem;
+    border-radius: 1rem;
+    background: rgba(15, 23, 42, 0.05);
+    font-size: 0.85rem;
+    color: var(--tv-text-muted);
+}
+
+.strategy-save-dialog__actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.75rem;
+}
+
+.strategy-save-dialog__linked-list {
+    display: grid;
+    gap: 0.7rem;
+}
+
+.strategy-save-dialog__linked-item {
+    display: grid;
+    gap: 0.2rem;
+    padding: 0.8rem 0.95rem;
+    border-radius: 1rem;
+    background: rgba(15, 23, 42, 0.05);
+}
+
+.strategy-save-dialog__linked-item-id {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: var(--tv-text-main);
+}
+
+.strategy-save-dialog__linked-item-meta {
+    font-size: 0.82rem;
+    color: var(--tv-text-muted);
+}
+
+.strategy-save-dialog__close {
+    justify-self: flex-start;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--tv-text-muted);
+    cursor: pointer;
+}
+
+.strategy-save-dialog__close:hover,
+.strategy-save-dialog__close:focus-visible {
+    color: var(--tv-text-main);
+    outline: none;
 }
 
 .strategy-stage__section-title {

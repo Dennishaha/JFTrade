@@ -308,11 +308,15 @@ func buildOpenAPIPaths(genericObject map[string]any) map[string]any {
 			"post": operation("创建策略定义", "创建一个新的 DSL 策略定义。", []string{"strategy"}, nil, jsonRequestBody(schemaRef("StrategyDefinitionWriteRequest"), true), map[string]any{"200": jsonResponse("创建后的策略定义", envelopeSchema(schemaRef("StrategyDefinition"))), "400": jsonResponse("请求错误", envelopeSchema(nil))}),
 		},
 		"/api/v1/strategy-definitions/{definitionId}": map[string]any{
-			"get": operation("读取策略定义", "按 definitionId 返回 DSL 策略定义。", []string{"strategy"}, []any{pathParameter("definitionId", "策略定义 ID", "dsl-mean-revert")}, nil, map[string]any{"200": jsonResponse("策略定义", envelopeSchema(schemaRef("StrategyDefinition"))), "404": jsonResponse("策略定义不存在", envelopeSchema(nil))}),
-			"put": operation("更新策略定义", "按 definitionId 更新 DSL 策略定义。", []string{"strategy"}, []any{pathParameter("definitionId", "策略定义 ID", "dsl-mean-revert")}, jsonRequestBody(schemaRef("StrategyDefinitionWriteRequest"), true), map[string]any{"200": jsonResponse("更新后的策略定义", envelopeSchema(schemaRef("StrategyDefinition"))), "400": jsonResponse("请求错误", envelopeSchema(nil)), "404": jsonResponse("策略定义不存在", envelopeSchema(nil))}),
+			"get":    operation("读取策略定义", "按 definitionId 返回 DSL 策略定义。", []string{"strategy"}, []any{pathParameter("definitionId", "策略定义 ID", "dsl-mean-revert")}, nil, map[string]any{"200": jsonResponse("策略定义", envelopeSchema(schemaRef("StrategyDefinition"))), "404": jsonResponse("策略定义不存在", envelopeSchema(nil))}),
+			"put":    operation("更新策略定义", "按 definitionId 更新 DSL 策略定义。", []string{"strategy"}, []any{pathParameter("definitionId", "策略定义 ID", "dsl-mean-revert")}, jsonRequestBody(schemaRef("StrategyDefinitionWriteRequest"), true), map[string]any{"200": jsonResponse("更新后的策略定义", envelopeSchema(schemaRef("StrategyDefinition"))), "400": jsonResponse("请求错误", envelopeSchema(nil)), "404": jsonResponse("策略定义不存在", envelopeSchema(nil))}),
+			"delete": operation("删除策略定义", "软删除策略定义；若仍有实例关联该定义，则必须先删除相关实例。", []string{"strategy"}, []any{pathParameter("definitionId", "策略定义 ID", "dsl-mean-revert")}, nil, map[string]any{"200": jsonResponse("已删除的策略定义", envelopeSchema(schemaRef("StrategyDefinition"))), "400": jsonResponse("仍有关联实例，无法删除", envelopeSchema(nil)), "404": jsonResponse("策略定义不存在", envelopeSchema(nil))}),
 		},
 		"/api/v1/strategy-definitions/{definitionId}/instantiate": map[string]any{
 			"post": operation("从定义创建策略实例", "基于保存的 DSL 策略定义创建一个运行时实例，并携带实例级标的、周期、账号与执行模式绑定。", []string{"strategy"}, []any{pathParameter("definitionId", "策略定义 ID", "dsl-mean-revert")}, jsonRequestBody(schemaRef("StrategyInstanceBinding"), false), map[string]any{"200": jsonResponse("策略实例", envelopeSchema(schemaRef("StrategyInstance"))), "400": jsonResponse("脚本校验失败", envelopeSchema(nil)), "404": jsonResponse("策略定义不存在", envelopeSchema(nil))}),
+		},
+		"/api/v1/strategy-definitions/{definitionId}/apply-linked-instances": map[string]any{
+			"post": operation("将最新定义应用到关联实例", "把最新保存的策略定义批量刷新到所有关联的 STOPPED 实例；运行中或暂停中的实例会被跳过。", []string{"strategy"}, []any{pathParameter("definitionId", "策略定义 ID", "dsl-mean-revert")}, nil, map[string]any{"200": jsonResponse("批量应用结果", envelopeSchema(schemaRef("StrategyApplyLinkedInstancesResponse"))), "404": jsonResponse("策略定义不存在", envelopeSchema(nil)), "500": jsonResponse("批量应用失败", envelopeSchema(nil))}),
 		},
 		"/api/v1/strategies": map[string]any{
 			"get": operation("读取策略列表", "返回当前策略实例列表。", []string{"strategy"}, nil, nil, map[string]any{"200": jsonResponse("策略列表", envelopeSchema(map[string]any{"type": "array", "items": schemaRef("StrategyInstance")}))}),
@@ -330,12 +334,22 @@ func buildOpenAPIPaths(genericObject map[string]any) map[string]any {
 		"/api/v1/strategies/{instanceId}/stop": map[string]any{
 			"post": operation("停止策略实例", "停止内存中的策略运行时，并将实例状态切换到 STOPPED。", []string{"strategy"}, []any{pathParameter("instanceId", "策略实例 ID", "dsl-mean-revert-20260523")}, nil, map[string]any{"200": jsonResponse("策略实例", envelopeSchema(schemaRef("StrategyInstance"))), "404": jsonResponse("策略实例不存在", envelopeSchema(nil))}),
 		},
+		"/api/v1/strategies/{instanceId}/refresh-definition": map[string]any{
+			"post": operation("刷新实例到最新策略定义", "把单个 STOPPED 策略实例的脚本快照刷新到当前定义的最新版本。", []string{"strategy"}, []any{pathParameter("instanceId", "策略实例 ID", "dsl-mean-revert-20260523")}, nil, map[string]any{"200": jsonResponse("刷新后的策略实例", envelopeSchema(schemaRef("StrategyInstance"))), "400": jsonResponse("实例当前不可刷新", envelopeSchema(nil)), "404": jsonResponse("策略实例或定义不存在", envelopeSchema(nil))}),
+		},
 		"/api/v1/strategies/{instanceId}/logs": map[string]any{
 			"get": operation(
 				"读取策略日志",
-				"返回策略实例日志列表。",
+				"返回策略实例日志列表，支持 limit、offset、level、fromTime、toTime 过滤。",
 				[]string{"strategy"},
-				[]any{pathParameter("instanceId", "策略实例 ID", "demo-strategy")},
+				[]any{
+					pathParameter("instanceId", "策略实例 ID", "demo-strategy"),
+					queryParameter("limit", "分页大小，默认 500，最大 5000", false, map[string]any{"type": "integer", "default": 500, "minimum": 1, "maximum": 5000}),
+					queryParameter("offset", "分页偏移，默认 0", false, map[string]any{"type": "integer", "default": 0, "minimum": 0}),
+					queryParameter("level", "日志级别过滤，支持 info、warning、error", false, map[string]any{"type": "string", "example": "error"}),
+					queryParameter("fromTime", "起始时间，RFC3339", false, map[string]any{"type": "string", "format": "date-time"}),
+					queryParameter("toTime", "结束时间，RFC3339", false, map[string]any{"type": "string", "format": "date-time"}),
+				},
 				nil,
 				map[string]any{"200": jsonResponse("策略日志", envelopeSchema(schemaRef("StrategyLogsResponse")))},
 			),
@@ -343,9 +357,16 @@ func buildOpenAPIPaths(genericObject map[string]any) map[string]any {
 		"/api/v1/strategies/{instanceId}/audit": map[string]any{
 			"get": operation(
 				"读取策略审计日志",
-				"返回策略实例审计记录。",
+				"返回策略实例审计记录，支持 limit、offset、kind、fromTime、toTime 过滤。",
 				[]string{"strategy"},
-				[]any{pathParameter("instanceId", "策略实例 ID", "demo-strategy")},
+				[]any{
+					pathParameter("instanceId", "策略实例 ID", "demo-strategy"),
+					queryParameter("limit", "分页大小，默认 500，最大 5000", false, map[string]any{"type": "integer", "default": 500, "minimum": 1, "maximum": 5000}),
+					queryParameter("offset", "分页偏移，默认 0", false, map[string]any{"type": "integer", "default": 0, "minimum": 0}),
+					queryParameter("kind", "审计类型过滤，例如 started、runtime_exited", false, map[string]any{"type": "string", "example": "runtime_exited"}),
+					queryParameter("fromTime", "起始时间，RFC3339", false, map[string]any{"type": "string", "format": "date-time"}),
+					queryParameter("toTime", "结束时间，RFC3339", false, map[string]any{"type": "string", "format": "date-time"}),
+				},
 				nil,
 				map[string]any{"200": jsonResponse("策略审计日志", envelopeSchema(schemaRef("StrategyAuditResponse")))},
 			),

@@ -7,6 +7,7 @@ const props = defineProps<{
   isLoadingDefinitions: boolean;
   strategyDefinitions: StrategyDefinitionDocument[];
   selectedDefinitionId: string;
+  deletingDefinitionId?: string;
 }>();
 
 const emit = defineEmits<{
@@ -14,6 +15,7 @@ const emit = defineEmits<{
   "create-new": [];
   "close": [];
   "select-definition": [definition: StrategyDefinitionDocument];
+  "delete-definition": [definition: StrategyDefinitionDocument];
 }>();
 </script>
 
@@ -53,19 +55,34 @@ const emit = defineEmits<{
     </div>
 
     <div v-else class="grid gap-3">
-      <button
+      <div
         v-for="definition in props.strategyDefinitions"
         :key="definition.id"
-        :data-testid="`strategy-definition-${definition.id}`"
         class="strategy-list-card"
         :class="{ 'is-active': definition.id === props.selectedDefinitionId }"
-        type="button"
-        @click="emit('select-definition', definition)"
       >
-        <div class="text-base font-semibold">{{ definition.name }}</div>
-        <div class="mt-2 text-sm text-slate-500">版本 {{ definition.version }}</div>
-        <div class="mt-2 text-xs uppercase tracking-[0.2em] text-slate-500">{{ definition.runtime }}</div>
-      </button>
+        <div class="flex items-start justify-between gap-3">
+          <button
+            :data-testid="`strategy-definition-${definition.id}`"
+            class="min-w-0 flex-1 text-left"
+            type="button"
+            @click="emit('select-definition', definition)"
+          >
+            <div class="text-base font-semibold">{{ definition.name }}</div>
+            <div class="mt-2 text-sm text-slate-500">版本 {{ definition.version }}</div>
+            <div class="mt-2 text-xs uppercase tracking-[0.2em] text-slate-500">{{ definition.runtime }}</div>
+          </button>
+          <button
+            :data-testid="`delete-strategy-definition-${definition.id}`"
+            class="rounded-full border border-rose-200 px-3 py-1.5 text-xs font-semibold text-rose-700 transition hover:border-rose-300 hover:text-rose-900 disabled:cursor-not-allowed disabled:opacity-50"
+            :disabled="props.deletingDefinitionId === definition.id"
+            type="button"
+            @click="emit('delete-definition', definition)"
+          >
+            {{ props.deletingDefinitionId === definition.id ? '删除中' : '删除' }}
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 </template>
