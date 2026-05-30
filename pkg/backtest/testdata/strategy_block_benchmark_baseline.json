@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "updatedAt": "2026-05-30T10:29:16Z",
+  "cases": {
+    "atr_volatility": {
+      "nsPerOp": 10721791,
+      "bytesPerOp": 2950424,
+      "allocsPerOp": 77092
+    },
+    "bollinger_reversion": {
+      "nsPerOp": 10901010,
+      "bytesPerOp": 3441808,
+      "allocsPerOp": 84595
+    },
+    "breakout_notify": {
+      "nsPerOp": 16790056,
+      "bytesPerOp": 4072848,
+      "allocsPerOp": 115174
+    },
+    "cci_reversion": {
+      "nsPerOp": 11501101,
+      "bytesPerOp": 3469454,
+      "allocsPerOp": 81957
+    },
+    "kdj_reversion": {
+      "nsPerOp": 10305622,
+      "bytesPerOp": 4200598,
+      "allocsPerOp": 96910
+    },
+    "macd_momentum": {
+      "nsPerOp": 14443278,
+      "bytesPerOp": 3772614,
+      "allocsPerOp": 92061
+    },
+    "mean_reversion_price": {
+      "nsPerOp": 8835322,
+      "bytesPerOp": 4120398,
+      "allocsPerOp": 115106
+    },
+    "moving_average_windowed": {
+      "nsPerOp": 10355890,
+      "bytesPerOp": 2962277,
+      "allocsPerOp": 76334
+    },
+    "protect_session_risk": {
+      "nsPerOp": 43767864,
+      "bytesPerOp": 13637619,
+      "allocsPerOp": 249162
+    },
+    "rsi_reversion": {
+      "nsPerOp": 10398115,
+      "bytesPerOp": 3541708,
+      "allocsPerOp": 82640
+    },
+    "williamsr_reversion": {
+      "nsPerOp": 12210487,
+      "bytesPerOp": 3452996,
+      "allocsPerOp": 81742
+    }
+  }
+}

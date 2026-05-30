@@ -305,7 +305,7 @@ func buildOpenAPIPaths(genericObject map[string]any) map[string]any {
 		},
 		"/api/v1/strategy-definitions": map[string]any{
 			"get":  operation("读取策略定义列表", "返回当前 DSL 策略定义列表。", []string{"strategy"}, nil, nil, map[string]any{"200": jsonResponse("策略定义列表", envelopeSchema(map[string]any{"type": "array", "items": schemaRef("StrategyDefinition")}))}),
-			"post": operation("创建策略定义", "创建一个新的 DSL 策略定义。", []string{"strategy"}, nil, jsonRequestBody(schemaRef("StrategyDefinitionWriteRequest"), true), map[string]any{"200": jsonResponse("创建后的策略定义", envelopeSchema(schemaRef("StrategyDefinition"))), "400": jsonResponse("请求错误", envelopeSchema(nil))}),
+			"post": operation("创建策略定义", "创建一个新的 DSL 策略定义；definitionId 由服务端生成 GUID，若请求体携带 id 会被忽略。", []string{"strategy"}, nil, jsonRequestBody(schemaRef("StrategyDefinitionWriteRequest"), true), map[string]any{"200": jsonResponse("创建后的策略定义", envelopeSchema(schemaRef("StrategyDefinition"))), "400": jsonResponse("请求错误", envelopeSchema(nil))}),
 		},
 		"/api/v1/strategy-definitions/{definitionId}": map[string]any{
 			"get":    operation("读取策略定义", "按 definitionId 返回 DSL 策略定义。", []string{"strategy"}, []any{pathParameter("definitionId", "策略定义 ID", "dsl-mean-revert")}, nil, map[string]any{"200": jsonResponse("策略定义", envelopeSchema(schemaRef("StrategyDefinition"))), "404": jsonResponse("策略定义不存在", envelopeSchema(nil))}),

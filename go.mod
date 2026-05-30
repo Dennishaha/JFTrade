@@ -127,7 +127,7 @@ require (
 	github.com/sagikazarmark/locafero v0.4.0 // indirect
 	github.com/sagikazarmark/slog-shim v0.1.0 // indirect
 	github.com/sajari/regression v1.0.1 // indirect
-	github.com/sirupsen/logrus v1.9.3 // indirect
+	github.com/sirupsen/logrus v1.9.3
 	github.com/slack-go/slack v0.17.2 // indirect
 	github.com/sourcegraph/conc v0.3.0 // indirect
 	github.com/spf13/afero v1.11.0 // indirect
@@ -152,7 +152,7 @@ require (
 	golang.org/x/crypto v0.50.0 // indirect
 	golang.org/x/exp v0.0.0-20250620022241-b7579e27df2b // indirect
 	golang.org/x/image v0.22.0 // indirect
-	golang.org/x/mod v0.36.0 // indirect
+	golang.org/x/mod v0.36.0
 	golang.org/x/net v0.53.0 // indirect
 	golang.org/x/oauth2 v0.22.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect

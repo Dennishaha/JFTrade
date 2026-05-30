@@ -22,6 +22,13 @@ const (
 	rehabTypeBackwardCode
 )
 
+const (
+	klineSessionScopeLegacy   = "legacy"
+	klineSessionScopeRegular  = "regular"
+	klineSessionScopeExtended = "extended"
+	klineReadSessionScopeAuto = "auto"
+)
+
 func normalizeRehabTypeName(rehabType string) string {
 	switch strings.ToLower(strings.TrimSpace(rehabType)) {
 	case "backward":
@@ -147,23 +154,87 @@ func timeFromUnixMillis(value int64) time.Time {
 }
 
 func klineTableName(symbol string, interval types.Interval, rehabType string) string {
+	return klineTableNameForSessionScope(symbol, interval, rehabType, klineSessionScopeLegacy)
+}
+
+func klineTableNameForSessionScope(symbol string, interval types.Interval, rehabType string, sessionScope string) string {
 	normalizedSymbol := strings.ToLower(strings.TrimSpace(symbol))
 	normalizedInterval := strings.ToLower(strings.TrimSpace(string(interval)))
 	normalizedRehabType := normalizeRehabTypeName(rehabType)
+	normalizedSessionScope := normalizeKLineSessionScopeName(sessionScope)
 
 	hasher := fnv.New32a()
 	_, _ = hasher.Write([]byte(normalizedSymbol))
 	// Keep the suffix deterministic (not random): it avoids table-name collisions
 	// when different symbols normalize to the same sanitized identifier.
+	if normalizedSessionScope == klineSessionScopeLegacy {
+		return fmt.Sprintf(
+			"%s__%s__%s__%s__%08x",
+			KLineTable,
+			sanitizeIdentifierComponent(normalizedSymbol),
+			sanitizeIdentifierComponent(normalizedInterval),
+			normalizedRehabType,
+			hasher.Sum32(),
+		)
+	}
 
 	return fmt.Sprintf(
-		"%s__%s__%s__%s__%08x",
+		"%s__%s__%s__%s__%s__%08x",
 		KLineTable,
 		sanitizeIdentifierComponent(normalizedSymbol),
 		sanitizeIdentifierComponent(normalizedInterval),
 		normalizedRehabType,
+		klineSessionScopeStorageTag(normalizedSessionScope),
 		hasher.Sum32(),
 	)
+}
+
+func normalizeKLineSessionScopeName(scope string) string {
+	switch strings.ToLower(strings.TrimSpace(scope)) {
+	case klineSessionScopeRegular:
+		return klineSessionScopeRegular
+	case klineSessionScopeExtended:
+		return klineSessionScopeExtended
+	default:
+		return klineSessionScopeLegacy
+	}
+}
+
+func normalizeReadSessionScopeName(scope string) string {
+	switch strings.ToLower(strings.TrimSpace(scope)) {
+	case klineSessionScopeLegacy:
+		return klineSessionScopeLegacy
+	case klineSessionScopeRegular:
+		return klineSessionScopeRegular
+	case klineSessionScopeExtended:
+		return klineSessionScopeExtended
+	default:
+		return klineReadSessionScopeAuto
+	}
+}
+
+func klineSessionScopeStorageTag(scope string) string {
+	switch normalizeKLineSessionScopeName(scope) {
+	case klineSessionScopeRegular:
+		return "r"
+	case klineSessionScopeExtended:
+		return "x"
+	default:
+		return "l"
+	}
+}
+
+func klineReadSessionScopeCandidates(scope string) []string {
+	switch normalizeReadSessionScopeName(scope) {
+	case klineSessionScopeRegular:
+		return []string{klineSessionScopeRegular, klineSessionScopeLegacy, klineSessionScopeExtended}
+	case klineSessionScopeExtended:
+		return []string{klineSessionScopeExtended, klineSessionScopeLegacy, klineSessionScopeRegular}
+	case klineSessionScopeLegacy:
+		return []string{klineSessionScopeLegacy}
+	default:
+		return []string{klineSessionScopeLegacy, klineSessionScopeExtended, klineSessionScopeRegular}
+	}
 }
 
 func sanitizeIdentifierComponent(value string) string {
@@ -277,3 +348,18 @@ func IntervalFromStorageValue(value int64) (types.Interval, error) {
 func KLineTableName(symbol string, interval types.Interval, rehabType string) string {
 	return klineTableName(symbol, interval, rehabType)
 }
+
+func KLineTableNameForSessionScope(symbol string, interval types.Interval, rehabType string, sessionScope string) string {
+	return klineTableNameForSessionScope(symbol, interval, rehabType, sessionScope)
+}
+
+func NormalizeKLineSessionScopeName(scope string) string {
+	return normalizeKLineSessionScopeName(scope)
+}
+
+const (
+	KLineSessionScopeLegacy   = klineSessionScopeLegacy
+	KLineSessionScopeRegular  = klineSessionScopeRegular
+	KLineSessionScopeExtended = klineSessionScopeExtended
+	KLineReadSessionScopeAuto = klineReadSessionScopeAuto
+)

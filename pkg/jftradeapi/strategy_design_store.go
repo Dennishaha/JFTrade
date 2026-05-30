@@ -1,7 +1,9 @@
 package jftradeapi
 
 import (
+	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -409,7 +411,7 @@ func normalizeStrategyDesignDefinition(input strategyDesignDefinition) strategyD
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	input.ID = strings.TrimSpace(input.ID)
 	if input.ID == "" {
-		input.ID = "dsl-strategy-" + time.Now().UTC().Format("20060102150405.000000000")
+		input.ID = generateStrategyDefinitionID()
 	}
 	input.Name = strings.TrimSpace(input.Name)
 	if input.Name == "" {
@@ -435,6 +437,17 @@ func normalizeStrategyDesignDefinition(input strategyDesignDefinition) strategyD
 		input.UpdatedAt = now
 	}
 	return input
+}
+
+func generateStrategyDefinitionID() string {
+	var bytes [16]byte
+	if _, err := rand.Read(bytes[:]); err != nil {
+		return "dsl-strategy-" + time.Now().UTC().Format("20060102150405.000000000")
+	}
+	bytes[6] = (bytes[6] & 0x0f) | 0x40
+	bytes[8] = (bytes[8] & 0x3f) | 0x80
+	encoded := hex.EncodeToString(bytes[:])
+	return encoded[0:8] + "-" + encoded[8:12] + "-" + encoded[12:16] + "-" + encoded[16:20] + "-" + encoded[20:32]
 }
 
 func defaultStrategyDesignScript(name string, sourceFormat string) string {

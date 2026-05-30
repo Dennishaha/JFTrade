@@ -30,6 +30,8 @@ func (s *Server) serveBacktestRoutes(w http.ResponseWriter, r *http.Request) boo
 		s.handleBacktestSyncCancel(w, r)
 	case strings.HasPrefix(r.URL.Path, "/api/v1/backtests/") && strings.HasSuffix(r.URL.Path, "/status") && r.Method == http.MethodGet:
 		s.handleBacktestStatus(w, r)
+	case strings.HasPrefix(r.URL.Path, "/api/v1/backtests/") && r.Method == http.MethodDelete:
+		s.handleBacktestDelete(w, r)
 	case strings.HasPrefix(r.URL.Path, "/api/v1/backtests/") && r.Method == http.MethodGet:
 		s.handleBacktestResult(w, r)
 	default:
@@ -39,15 +41,17 @@ func (s *Server) serveBacktestRoutes(w http.ResponseWriter, r *http.Request) boo
 }
 
 type backtestStartRequest struct {
-	DefinitionID   string  `json:"definitionId"`
-	Market         string  `json:"market"`
-	Code           string  `json:"code"`
-	Symbol         string  `json:"symbol"`
-	Interval       string  `json:"interval"`
-	StartTime      string  `json:"startTime"`
-	EndTime        string  `json:"endTime"`
-	InitialBalance float64 `json:"initialBalance"`
-	RehabType      string  `json:"rehabType"` // "forward" | "backward" | "none"
+	DefinitionID      string  `json:"definitionId"`
+	DefinitionVersion string  `json:"definitionVersion,omitempty"`
+	Market            string  `json:"market"`
+	Code              string  `json:"code"`
+	Symbol            string  `json:"symbol"`
+	Interval          string  `json:"interval"`
+	StartTime         string  `json:"startTime"`
+	EndTime           string  `json:"endTime"`
+	InitialBalance    float64 `json:"initialBalance"`
+	RehabType         string  `json:"rehabType"` // "forward" | "backward" | "none"
+	UseExtendedHours  *bool   `json:"useExtendedHours,omitempty"`
 }
 
 type backtestRunState struct {
@@ -98,6 +102,7 @@ func (s *Server) handleBacktestStart(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", err.Error())
 		return
 	}
+	req.DefinitionVersion = definition.Version
 
 	startTime, err := time.Parse(time.RFC3339, req.StartTime)
 	if err != nil {
@@ -120,28 +125,34 @@ func (s *Server) handleBacktestStart(w http.ResponseWriter, r *http.Request) {
 		CreatedAt: time.Now().UTC().Format(time.RFC3339Nano),
 		UpdatedAt: time.Now().UTC().Format(time.RFC3339Nano),
 	}
-	s.backtestRuns.add(run)
+	if err := s.backtestRuns.add(run); err != nil {
+		s.writeError(w, http.StatusInternalServerError, "BACKTEST_RUN_STORE_FAILED", "persist backtest run failed")
+		return
+	}
 
 	// Start the backtest in a goroutine.
 	go func() {
-		s.backtestRuns.update(runID, func(run *backtestRunState) {
+		if _, err := s.backtestRuns.update(runID, func(run *backtestRunState) {
 			run.Status = "running"
 			run.UpdatedAt = time.Now().UTC().Format(time.RFC3339Nano)
-		})
+		}); err != nil {
+			log.Printf("backtest run store update(%s running) failed: %v", runID, err)
+		}
 
 		result := backtest.Run(context.Background(), backtest.RunConfig{
-			DBPath:         dbPath,
-			Symbol:         req.Symbol,
-			Interval:       req.Interval,
-			SourceFormat:   definition.SourceFormat,
-			StartTime:      startTime,
-			EndTime:        endTime,
-			StrategyScript: definition.Script,
-			InitialBalance: req.InitialBalance,
-			RehabType:      req.RehabType,
+			DBPath:           dbPath,
+			Symbol:           req.Symbol,
+			Interval:         req.Interval,
+			SourceFormat:     definition.SourceFormat,
+			StartTime:        startTime,
+			EndTime:          endTime,
+			StrategyScript:   definition.Script,
+			InitialBalance:   req.InitialBalance,
+			RehabType:        req.RehabType,
+			UseExtendedHours: req.UseExtendedHours,
 		})
 
-		s.backtestRuns.update(runID, func(run *backtestRunState) {
+		if _, err := s.backtestRuns.update(runID, func(run *backtestRunState) {
 			run.Result = result
 			if result.Error != "" {
 				run.Status = "failed"
@@ -149,7 +160,9 @@ func (s *Server) handleBacktestStart(w http.ResponseWriter, r *http.Request) {
 				run.Status = "completed"
 			}
 			run.UpdatedAt = time.Now().UTC().Format(time.RFC3339Nano)
-		})
+		}); err != nil {
+			log.Printf("backtest run store update(%s terminal) failed: %v", runID, err)
+		}
 	}()
 
 	s.writeOK(w, map[string]any{
@@ -189,18 +202,48 @@ func (s *Server) handleBacktestResult(w http.ResponseWriter, r *http.Request) {
 	s.writeOK(w, run)
 }
 
+func (s *Server) handleBacktestDelete(w http.ResponseWriter, r *http.Request) {
+	runID := strings.TrimPrefix(r.URL.Path, "/api/v1/backtests/")
+	runID = strings.TrimSpace(runID)
+	if runID == "" {
+		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "backtest run id is required")
+		return
+	}
+
+	run, ok := s.backtestRuns.get(runID)
+	if !ok {
+		s.writeError(w, http.StatusNotFound, "NOT_FOUND", "backtest run not found")
+		return
+	}
+	if run.Status != "completed" && run.Status != "failed" {
+		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "only completed or failed backtest runs can be deleted")
+		return
+	}
+
+	if _, deleted, err := s.backtestRuns.delete(runID); err != nil {
+		s.writeError(w, http.StatusInternalServerError, "BACKTEST_RUN_STORE_FAILED", "delete backtest run failed")
+		return
+	} else if !deleted {
+		s.writeError(w, http.StatusNotFound, "NOT_FOUND", "backtest run not found")
+		return
+	}
+
+	s.writeOK(w, map[string]any{"deleted": true, "id": runID})
+}
+
 func (s *Server) backtestDBPath() string {
 	return deriveBacktestDBPath()
 }
 
 type backtestSyncRequest struct {
-	Market    string   `json:"market"`
-	Code      string   `json:"code"`
-	Symbol    string   `json:"symbol"`
-	Intervals []string `json:"intervals"`
-	Since     string   `json:"since"`
-	Until     string   `json:"until"`
-	RehabType string   `json:"rehabType"` // "none" | "forward" | "backward"
+	Market       string   `json:"market"`
+	Code         string   `json:"code"`
+	Symbol       string   `json:"symbol"`
+	Intervals    []string `json:"intervals"`
+	Since        string   `json:"since"`
+	Until        string   `json:"until"`
+	RehabType    string   `json:"rehabType"` // "none" | "forward" | "backward"
+	SessionScope string   `json:"sessionScope,omitempty"`
 }
 
 func (s *Server) handleBacktestSync(w http.ResponseWriter, r *http.Request) {
@@ -255,6 +298,9 @@ func (s *Server) handleBacktestSync(w http.ResponseWriter, r *http.Request) {
 		intervals = []bbgotypes.Interval{"1m", "5m", "1h", "1d"}
 	}
 
+	req.SessionScope = normalizeBacktestSyncSessionScope(req.SessionScope)
+	intervals = planBacktestSyncIntervals(req.Symbol, intervals, req.SessionScope)
+
 	// Parse rehab type from request, default to forward (前复权).
 	rehabType := qotcommonpb.RehabType_RehabType_Forward
 	switch strings.ToLower(strings.TrimSpace(req.RehabType)) {
@@ -283,7 +329,7 @@ func (s *Server) handleBacktestSync(w http.ResponseWriter, r *http.Request) {
 	go func() {
 		defer store.Close()
 		defer s.backtestSyncTasks.finish(taskID)
-		if err := store.SyncKLines(syncCtx, exchange, req.Symbol, intervals, sinceTime, untilTime, rehabType, progress); err != nil {
+		if err := store.SyncKLines(syncCtx, exchange, req.Symbol, intervals, sinceTime, untilTime, rehabType, req.SessionScope, progress); err != nil {
 			snapshot := progress.Snapshot()
 			if snapshot != nil && snapshot.Status != "cancelled" {
 				log.Printf("backtest sync failed %s: %v", req.Symbol, err)
@@ -296,13 +342,53 @@ func (s *Server) handleBacktestSync(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	s.writeOK(w, map[string]any{
-		"taskId":    taskID,
-		"symbol":    req.Symbol,
-		"intervals": req.Intervals,
-		"since":     sinceTime.Format(time.RFC3339),
-		"until":     untilTime.Format(time.RFC3339),
-		"message":   "sync started",
+		"taskId":       taskID,
+		"symbol":       req.Symbol,
+		"intervals":    intervals,
+		"since":        sinceTime.Format(time.RFC3339),
+		"until":        untilTime.Format(time.RFC3339),
+		"sessionScope": req.SessionScope,
+		"message":      "sync started",
 	})
+}
+
+func normalizeBacktestSyncSessionScope(scope string) string {
+	switch strings.ToLower(strings.TrimSpace(scope)) {
+	case "regular":
+		return "regular"
+	case "extended":
+		return "extended"
+	default:
+		return "legacy"
+	}
+}
+
+func planBacktestSyncIntervals(symbol string, requested []bbgotypes.Interval, sessionScope string) []bbgotypes.Interval {
+	planned := make([]bbgotypes.Interval, 0, len(requested))
+	seen := make(map[bbgotypes.Interval]struct{}, len(requested))
+	for _, interval := range requested {
+		plannedInterval := planBacktestSyncInterval(symbol, interval, sessionScope)
+		if _, ok := seen[plannedInterval]; ok {
+			continue
+		}
+		seen[plannedInterval] = struct{}{}
+		planned = append(planned, plannedInterval)
+	}
+	return planned
+}
+
+func planBacktestSyncInterval(symbol string, interval bbgotypes.Interval, sessionScope string) bbgotypes.Interval {
+	duration := interval.Duration()
+	if interval == bbgotypes.Interval("3d") || interval == bbgotypes.Interval("2w") {
+		return bbgotypes.Interval1d
+	}
+	if duration > time.Hour && duration < 24*time.Hour {
+		return bbgotypes.Interval1h
+	}
+	if normalizeBacktestSyncSessionScope(sessionScope) == "extended" && strings.HasPrefix(strings.ToUpper(strings.TrimSpace(symbol)), "US.") && duration >= 24*time.Hour {
+		return bbgotypes.Interval1h
+	}
+	return interval
 }
 
 func (s *Server) handleBacktestSyncCancel(w http.ResponseWriter, r *http.Request) {

@@ -8,10 +8,18 @@ import (
 	"github.com/c9s/bbgo/pkg/types"
 	exprast "github.com/expr-lang/expr/ast"
 	"github.com/jftrade/jftrade-main/pkg/futu"
+	strategyir "github.com/jftrade/jftrade-main/pkg/strategy/ir"
 )
 
 type testObjectFieldReader struct {
 	fields map[string]any
+}
+
+type testSeriesFieldReader struct {
+	current     float64
+	previous    float64
+	hasCurrent  bool
+	hasPrevious bool
 }
 
 var benchmarkExpressionBoolSink bool
@@ -19,6 +27,37 @@ var benchmarkExpressionBoolSink bool
 func (r testObjectFieldReader) FieldValue(name string) (any, bool) {
 	value, ok := r.fields[name]
 	return value, ok
+}
+
+func (r testSeriesFieldReader) FieldValue(name string) (any, bool) {
+	switch name {
+	case "value":
+		if r.hasCurrent {
+			return r.current, true
+		}
+		return nil, true
+	case "previous":
+		if r.hasPrevious {
+			return r.previous, true
+		}
+		return nil, true
+	default:
+		return nil, false
+	}
+}
+
+func (r testSeriesFieldReader) SeriesField(name string) (float64, float64, bool, bool, bool) {
+	if name != "value" {
+		return 0, 0, false, false, false
+	}
+	return r.current, r.previous, r.hasCurrent, r.hasPrevious, true
+}
+
+func (r testSeriesFieldReader) PreferredScalarValue() (float64, bool) {
+	if !r.hasCurrent {
+		return 0, false
+	}
+	return r.current, true
 }
 
 func TestEvaluateExpressionUsesExprParserAndPreservesSeriesSemantics(t *testing.T) {
@@ -134,6 +173,30 @@ func TestEvaluateExpressionSupportsReservedBarVariablesAndShadowing(t *testing.T
 	}
 }
 
+func TestExecuteStatementsKeepsBranchLetScoped(t *testing.T) {
+	ifStmt := &strategyir.IfStmt{
+		Range:     strategyir.SourceRange{StartLine: 1, EndLine: 2},
+		Condition: "true",
+		Then: []strategyir.Statement{
+			&strategyir.LetStmt{Range: strategyir.SourceRange{StartLine: 2, EndLine: 2}, Name: "temp", Expression: "42"},
+		},
+	}
+	statements := []strategyir.Statement{ifStmt}
+	runtime := &strategyRuntime{
+		expressionCache: map[string]exprast.Node{},
+		bindingCache:    map[*strategyir.LetStmt]cachedIndicatorBinding{},
+		ifScopePlans:    buildIfScopePlans(&strategyir.Program{Hooks: []strategyir.HookBlock{{Kind: strategyir.HookKLineClose, Statements: statements}}}),
+	}
+	scope := newBarExpressionScope(runtime)
+	_, err := runtime.executeStatements(statements, scope)
+	if err != nil {
+		t.Fatalf("executeStatements() error = %v", err)
+	}
+	if _, ok := scope.variable("temp"); ok {
+		t.Fatal("expected branch let variable to stay scoped inside branch")
+	}
+}
+
 func TestEvaluateExpressionCoercesObjectFieldReaderForNumericComparison(t *testing.T) {
 	runtime := &strategyRuntime{expressionCache: map[string]exprast.Node{}}
 	scope := &evaluationScope{
@@ -157,6 +220,27 @@ func TestEvaluateExpressionCoercesObjectFieldReaderForNumericComparison(t *testi
 	}
 }
 
+func TestEvaluateExpressionSupportsSeriesFieldReaders(t *testing.T) {
+	runtime := &strategyRuntime{expressionCache: map[string]exprast.Node{}}
+	scope := &evaluationScope{
+		runtime: runtime,
+		variables: map[string]any{
+			"ma":   testSeriesFieldReader{current: 11, previous: 9, hasCurrent: true, hasPrevious: true},
+			"slow": seriesNumber{Current: 10, Previous: 10, HasCurrent: true, HasPrevious: true},
+		},
+		bindings:   map[string]indicatorBinding{},
+		indicators: map[string]any{},
+	}
+
+	value, err := evaluateExpression("cross_over(ma, slow) and cross_over(ma.value, slow) and ma > 10 and ma.value > 10", scope)
+	if err != nil {
+		t.Fatalf("series field reader expression error = %v", err)
+	}
+	if value != true {
+		t.Fatalf("series field reader expression = %#v, want true", value)
+	}
+}
+
 func BenchmarkEvaluateExpressionBinaryHeavy(b *testing.B) {
 	runtime := &strategyRuntime{expressionCache: map[string]exprast.Node{}}
 	scope := newBarExpressionScope(runtime)
@@ -164,6 +248,53 @@ func BenchmarkEvaluateExpressionBinaryHeavy(b *testing.B) {
 	if _, err := evaluateBoolExpression(expression, scope); err != nil {
 		b.Fatalf("evaluateBoolExpression() warmup error = %v", err)
 	}
+	b.ResetTimer()
+	for index := 0; index < b.N; index++ {
+		result, err := evaluateBoolExpression(expression, scope)
+		if err != nil {
+			b.Fatalf("evaluateBoolExpression() error = %v", err)
+		}
+		benchmarkExpressionBoolSink = result
+	}
+}
+
+func BenchmarkEvaluateExpressionDivergenceHeavy(b *testing.B) {
+	runtime := &strategyRuntime{
+		expressionCache: map[string]exprast.Node{},
+		divergenceCache: map[divergenceRequirementCacheKey]string{},
+	}
+	scope := newBarExpressionScope(runtime)
+	scope.bindings["flow"] = indicatorBinding{
+		Alias: "flow",
+		Kind:  "macd",
+		Key:   "macd:12:26:9",
+		Args:  []string{"12", "26", "9"},
+	}
+	scope.indicators["divergence:macd:12:26:9:top:6"] = true
+	expression := "divergence_top(flow, 6) and divergence_top(flow, 6)"
+	if _, err := evaluateBoolExpression(expression, scope); err != nil {
+		b.Fatalf("evaluateBoolExpression() warmup error = %v", err)
+	}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for index := 0; index < b.N; index++ {
+		result, err := evaluateBoolExpression(expression, scope)
+		if err != nil {
+			b.Fatalf("evaluateBoolExpression() error = %v", err)
+		}
+		benchmarkExpressionBoolSink = result
+	}
+}
+
+func BenchmarkEvaluateExpressionSeriesReaderHeavy(b *testing.B) {
+	runtime := &strategyRuntime{expressionCache: map[string]exprast.Node{}}
+	scope := newBarExpressionScope(runtime)
+	scope.variables["ma"] = testSeriesFieldReader{current: 11, previous: 9, hasCurrent: true, hasPrevious: true}
+	expression := "cross_over(ma, slow) and cross_over(ma.value, slow) and ma > 10 and ma.value > 10"
+	if _, err := evaluateBoolExpression(expression, scope); err != nil {
+		b.Fatalf("evaluateBoolExpression() warmup error = %v", err)
+	}
+	b.ReportAllocs()
 	b.ResetTimer()
 	for index := 0; index < b.N; index++ {
 		result, err := evaluateBoolExpression(expression, scope)

@@ -14,6 +14,16 @@ import (
 
 var benchmarkSnapshotSink map[string]any
 
+const benchmarkProtectSessionStrategyScript = `strategy DSL Indicator Protect Session Benchmark
+version 1
+symbol US.AAPL
+interval 1m
+
+on kline_close:
+	protect auto stopLoss 2 hour 2 window session
+	protect auto takeProfit 2 hour 3 window session
+	protect auto trailingStop 2 hour 1.5 window session`
+
 func TestParseIndicatorRequirements(t *testing.T) {
 	requirements := parseIndicatorRequirements(`
 		function onKLineClosed(ctx) {
@@ -173,14 +183,84 @@ on kline_close:
 		t.Fatalf("PlanRequirements() error = %v", err)
 	}
 
-	warmupBars, err := WarmupBarsFromPlan(plan, types.Interval1m)
+	warmupBars, err := WarmupBarsFromPlanForSymbol(plan, types.Interval1m, "US.AAPL")
 	if err != nil {
-		t.Fatalf("WarmupBarsFromPlan() error = %v", err)
+		t.Fatalf("WarmupBarsFromPlanForSymbol() error = %v", err)
 	}
 
 	const want = 20 * tradingSessionMinutesPerDay
 	if warmupBars != want {
-		t.Fatalf("WarmupBarsFromPlan() = %d, want %d", warmupBars, want)
+		t.Fatalf("WarmupBarsFromPlanForSymbol() = %d, want %d", warmupBars, want)
+	}
+}
+
+func TestWarmupBarsFromPlanForSymbolUsesMarketTradingProfiles(t *testing.T) {
+	script := `strategy Warmup Markets
+version 1
+symbol HK.00700
+interval 1m
+
+on kline_close:
+  let slow = ma(MA, 20, day)`
+
+	program, err := strategydsl.ParseScript(script)
+	if err != nil {
+		t.Fatalf("ParseScript() error = %v", err)
+	}
+
+	plan, err := strategyir.PlanRequirements(program)
+	if err != nil {
+		t.Fatalf("PlanRequirements() error = %v", err)
+	}
+
+	testCases := []struct {
+		symbol string
+		want   int
+	}{
+		{symbol: "US.AAPL", want: 20 * 390},
+		{symbol: "HK.00700", want: 20 * 330},
+		{symbol: "SH.600519", want: 20 * 240},
+		{symbol: "SZ.000001", want: 20 * 240},
+	}
+
+	for _, tt := range testCases {
+		warmupBars, warmupErr := WarmupBarsFromPlanForSymbol(plan, types.Interval1m, tt.symbol)
+		if warmupErr != nil {
+			t.Fatalf("WarmupBarsFromPlanForSymbol(%s) error = %v", tt.symbol, warmupErr)
+		}
+		if warmupBars != tt.want {
+			t.Fatalf("WarmupBarsFromPlanForSymbol(%s) = %d, want %d", tt.symbol, warmupBars, tt.want)
+		}
+	}
+}
+
+func TestWarmupBarsFromPlanForSymbolUsesExtendedTradingDayWhenEnabled(t *testing.T) {
+	script := `strategy Warmup Extended
+version 1
+symbol US.AAPL
+interval 1m
+
+on kline_close:
+  let slow = ma(MA, 5, day)`
+
+	program, err := strategydsl.ParseScript(script)
+	if err != nil {
+		t.Fatalf("ParseScript() error = %v", err)
+	}
+
+	plan, err := strategyir.PlanRequirements(program)
+	if err != nil {
+		t.Fatalf("PlanRequirements() error = %v", err)
+	}
+
+	warmupBars, err := WarmupBarsFromPlanForSymbolWithOptions(plan, types.Interval1m, "US.AAPL", RuntimeOptions{IncludeExtendedHours: true})
+	if err != nil {
+		t.Fatalf("WarmupBarsFromPlanForSymbolWithOptions() error = %v", err)
+	}
+
+	const want = 5 * 24 * 60
+	if warmupBars != want {
+		t.Fatalf("WarmupBarsFromPlanForSymbolWithOptions() = %d, want %d", warmupBars, want)
 	}
 }
 
@@ -307,6 +387,75 @@ func TestBuildMovingAverageSnapshotSupportsTimeUnits(t *testing.T) {
 	}
 	if previous := readSnapshotNumber(t, snapshot, "previous"); previous != 6.5 {
 		t.Fatalf("previous = %v, want 6.5", previous)
+	}
+}
+
+func TestBuildMovingAverageSnapshotUsesRegularTradingWindows(t *testing.T) {
+	values := []float64{10, 100, 20}
+	volumes := []float64{1, 1, 1}
+	endTimes := []time.Time{
+		time.Date(2026, time.May, 28, 19, 59, 59, 0, time.UTC),
+		time.Date(2026, time.May, 28, 21, 0, 0, 0, time.UTC),
+		time.Date(2026, time.May, 29, 14, 0, 0, 0, time.UTC),
+	}
+	snapshot := buildMovingAverageSnapshotForSymbol(values, volumes, endTimes, movingAverageConfig{averageType: "MA", period: 1, timeUnit: "day"}, 1, "US.AAPL", nil)
+	if snapshot == nil {
+		t.Fatal("expected trading-day MA snapshot")
+	}
+	if value := readSnapshotNumber(t, snapshot, "value"); value != 20 {
+		t.Fatalf("value = %v, want 20", value)
+	}
+	if previous := readSnapshotNumber(t, snapshot, "previous"); previous != 10 {
+		t.Fatalf("previous = %v, want 10", previous)
+	}
+	if _, ok := snapshot["value"].(float64); !ok {
+		t.Fatalf("unexpected snapshot payload: %#v", snapshot)
+	}
+	if values := buildMovingAverageSnapshotForSymbol([]float64{10, 11, 12}, []float64{1, 1, 1}, []time.Time{
+		time.Date(2026, time.May, 29, 0, 30, 0, 0, time.UTC),
+		time.Date(2026, time.May, 29, 4, 30, 0, 0, time.UTC),
+		time.Date(2026, time.May, 29, 9, 30, 0, 0, time.UTC),
+	}, movingAverageConfig{averageType: "MA", period: 1, timeUnit: "day"}, 60, "HK.00700", nil); values != nil {
+		t.Fatalf("expected non-regular HK samples to be ignored, got %#v", values)
+	}
+}
+
+func TestBuildMovingAverageSnapshotUsesExtendedTradingWindowsWhenEnabled(t *testing.T) {
+	values := []float64{1, 2, 3, 4, 10, 20, 30, 40}
+	volumes := []float64{1, 1, 1, 1, 1, 1, 1, 1}
+	endTimes := []time.Time{
+		time.Date(2026, time.May, 28, 1, 0, 0, 0, time.UTC),
+		time.Date(2026, time.May, 28, 7, 0, 0, 0, time.UTC),
+		time.Date(2026, time.May, 28, 13, 0, 0, 0, time.UTC),
+		time.Date(2026, time.May, 28, 15, 0, 0, 0, time.UTC),
+		time.Date(2026, time.May, 29, 1, 0, 0, 0, time.UTC),
+		time.Date(2026, time.May, 29, 7, 0, 0, 0, time.UTC),
+		time.Date(2026, time.May, 29, 13, 0, 0, 0, time.UTC),
+		time.Date(2026, time.May, 29, 15, 0, 0, 0, time.UTC),
+	}
+	snapshot := snapshotValueToMap(
+		movingAverageSnapshotForSymbol(values, volumes, endTimes, movingAverageConfig{averageType: "MA", period: 1, timeUnit: "day"}, 60, "US.AAPL", true, nil),
+		[...]string{"value", "previous"},
+	)
+	if snapshot == nil {
+		t.Fatal("expected extended trading-day MA snapshot")
+	}
+	if value := readSnapshotNumber(t, snapshot, "value"); value != 25 {
+		t.Fatalf("value = %v, want 25", value)
+	}
+	if previous := readSnapshotNumber(t, snapshot, "previous"); previous != 20 {
+		t.Fatalf("previous = %v, want 20", previous)
+	}
+
+	regularSnapshot := buildMovingAverageSnapshotForSymbol(values, volumes, endTimes, movingAverageConfig{averageType: "MA", period: 1, timeUnit: "day"}, 60, "US.AAPL", nil)
+	if regularSnapshot == nil {
+		t.Fatal("expected regular trading-day MA snapshot")
+	}
+	if value := readSnapshotNumber(t, regularSnapshot, "value"); value != 40 {
+		t.Fatalf("regular value = %v, want 40", value)
+	}
+	if previous := readSnapshotNumber(t, regularSnapshot, "previous"); previous != 4 {
+		t.Fatalf("regular previous = %v, want 4", previous)
 	}
 }
 
@@ -648,6 +797,67 @@ func TestBuildStopLossSnapshotSupportsSessionAwareWindow(t *testing.T) {
 	}
 }
 
+func TestBuildStopLossSnapshotUsesRegularTradingWindows(t *testing.T) {
+	closes := []float64{100, 80, 90, 85}
+	endTimes := []time.Time{
+		time.Date(2026, time.May, 28, 19, 59, 59, 0, time.UTC),
+		time.Date(2026, time.May, 28, 21, 0, 0, 0, time.UTC),
+		time.Date(2026, time.May, 29, 14, 0, 0, 0, time.UTC),
+		time.Date(2026, time.May, 29, 19, 30, 0, 0, time.UTC),
+	}
+	snapshot := buildStopLossSnapshotForSymbol(closes, endTimes, nil, stopLossConfig{mode: "stopLoss", direction: "auto", timeValue: 2, timeUnit: "day", percentage: 5, windowPolicy: "continuous"}, 1, "US.AAPL")
+	if snapshot == nil {
+		t.Fatal("expected trading-day stop-loss snapshot")
+	}
+	if changePercent := readSnapshotNumber(t, snapshot, "changePercent"); changePercent != -15 {
+		t.Fatalf("changePercent = %v, want -15", changePercent)
+	}
+	if !readSnapshotBool(t, snapshot, "longTriggered") {
+		t.Fatal("expected stop-loss to ignore extended-hours close and trigger on regular-session window")
+	}
+	if windowBars := readSnapshotNumber(t, snapshot, "windowBars"); windowBars != 2 {
+		t.Fatalf("windowBars = %v, want 2", windowBars)
+	}
+}
+
+func TestBuildStopLossSnapshotUsesExtendedTradingWindowsWhenEnabled(t *testing.T) {
+	closes := []float64{1, 2, 3, 4, 10, 20, 30, 40}
+	endTimes := []time.Time{
+		time.Date(2026, time.May, 28, 1, 0, 0, 0, time.UTC),
+		time.Date(2026, time.May, 28, 7, 0, 0, 0, time.UTC),
+		time.Date(2026, time.May, 28, 13, 0, 0, 0, time.UTC),
+		time.Date(2026, time.May, 28, 15, 0, 0, 0, time.UTC),
+		time.Date(2026, time.May, 29, 1, 0, 0, 0, time.UTC),
+		time.Date(2026, time.May, 29, 7, 0, 0, 0, time.UTC),
+		time.Date(2026, time.May, 29, 13, 0, 0, 0, time.UTC),
+		time.Date(2026, time.May, 29, 15, 0, 0, 0, time.UTC),
+	}
+	snapshot := buildStopLossSnapshotForSymbolWithOptions(closes, endTimes, nil, stopLossConfig{mode: "stopLoss", direction: "auto", timeValue: 2, timeUnit: "day", percentage: 5, windowPolicy: "continuous"}, 1, "US.AAPL", true)
+	if snapshot == nil {
+		t.Fatal("expected extended trading-day stop-loss snapshot")
+	}
+	if changePercent := readSnapshotNumber(t, snapshot, "changePercent"); changePercent != 3900 {
+		t.Fatalf("changePercent = %v, want 3900", changePercent)
+	}
+	if readSnapshotBool(t, snapshot, "longTriggered") {
+		t.Fatal("did not expect long stop-loss trigger for extended trading-day window")
+	}
+	if !readSnapshotBool(t, snapshot, "shortTriggered") {
+		t.Fatal("expected short stop-loss trigger for extended trading-day window")
+	}
+	if windowBars := readSnapshotNumber(t, snapshot, "windowBars"); windowBars != 7 {
+		t.Fatalf("windowBars = %v, want 7", windowBars)
+	}
+
+	regularSnapshot := buildStopLossSnapshotForSymbol(closes, endTimes, nil, stopLossConfig{mode: "stopLoss", direction: "auto", timeValue: 2, timeUnit: "day", percentage: 5, windowPolicy: "continuous"}, 1, "US.AAPL")
+	if regularSnapshot == nil {
+		t.Fatal("expected regular trading-day stop-loss snapshot")
+	}
+	if changePercent := readSnapshotNumber(t, regularSnapshot, "changePercent"); changePercent != 900 {
+		t.Fatalf("regular changePercent = %v, want 900", changePercent)
+	}
+}
+
 func TestIndicatorRuntimeSnapshotIncludesTimeBoundIndicators(t *testing.T) {
 	runtime := newIndicatorRuntime(`
 		function onKLineClosed(ctx) {
@@ -908,6 +1118,14 @@ func BenchmarkIndicatorRuntimeSnapshot(b *testing.B) {
 	}
 }
 
+func BenchmarkIndicatorRuntimeProtectSessionSnapshot(b *testing.B) {
+	runtime := benchmarkProtectSessionIndicatorRuntime(b)
+	b.ResetTimer()
+	for index := 0; index < b.N; index++ {
+		benchmarkSnapshotSink = runtime.snapshot()
+	}
+}
+
 func BenchmarkIndicatorRuntimePushAndSnapshot(b *testing.B) {
 	runtime := benchmarkIndicatorRuntime(b)
 	baseTime := time.Date(2026, 5, 28, 14, 30, 0, 0, time.UTC)
@@ -964,6 +1182,40 @@ func benchmarkIndicatorRuntime(b *testing.B) *indicatorRuntime {
 			Close:     fixedpoint.NewFromFloat(closeValue),
 			Volume:    fixedpoint.NewFromFloat(1000 + float64(index%100)),
 		}, futu.MarketSessionRegular)
+	}
+	return runtime
+}
+
+func benchmarkProtectSessionIndicatorRuntime(b *testing.B) *indicatorRuntime {
+	b.Helper()
+	program, err := strategydsl.ParseScript(benchmarkProtectSessionStrategyScript)
+	if err != nil {
+		b.Fatalf("ParseScript() error = %v", err)
+	}
+	plan, err := strategyir.PlanRequirements(program)
+	if err != nil {
+		b.Fatalf("PlanRequirements() error = %v", err)
+	}
+	runtime, err := newIndicatorRuntimeFromPlanWithOptions(plan, types.Interval1m, "US.AAPL", RuntimeOptions{IncludeExtendedHours: true})
+	if err != nil {
+		b.Fatalf("newIndicatorRuntimeFromPlanWithOptions() error = %v", err)
+	}
+	if runtime == nil {
+		b.Fatal("expected protect benchmark runtime")
+	}
+	baseTime := time.Date(2026, 5, 28, 9, 30, 0, 0, time.UTC)
+	for index := 0; index < minimumIndicatorSeriesLimit+128; index++ {
+		closeValue := 100 + math.Sin(float64(index)/11.0)*3 + float64(index%17)/10
+		runtime.push(types.KLine{
+			Symbol:    "US.AAPL",
+			Interval:  types.Interval1m,
+			StartTime: types.Time(baseTime.Add(time.Duration(index) * time.Minute)),
+			EndTime:   types.Time(baseTime.Add(time.Duration(index+1) * time.Minute)),
+			High:      fixedpoint.NewFromFloat(closeValue + 1),
+			Low:       fixedpoint.NewFromFloat(closeValue - 1),
+			Close:     fixedpoint.NewFromFloat(closeValue),
+			Volume:    fixedpoint.NewFromFloat(1000 + float64(index%100)),
+		}, futu.MarketSessionUnknown)
 	}
 	return runtime
 }

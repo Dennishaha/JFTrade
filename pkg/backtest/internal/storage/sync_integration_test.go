@@ -45,6 +45,7 @@ func TestSyncKLinesImmediateCancellation(t *testing.T) {
 		queuedAt,
 		queuedAt.Add(3*time.Minute),
 		qotcommonpb.RehabType_RehabType_Forward,
+		klineSessionScopeLegacy,
 		progress,
 	)
 	if !errors.Is(err, context.Canceled) {
@@ -115,6 +116,7 @@ func TestSyncKLinesCancellationAfterFirstBatch(t *testing.T) {
 			since,
 			until,
 			qotcommonpb.RehabType_RehabType_Forward,
+			klineSessionScopeLegacy,
 			progress,
 		)
 	}()
@@ -201,6 +203,7 @@ func TestSyncKLinesSyncsAndSkipsCoveredBatch(t *testing.T) {
 		since,
 		until,
 		qotcommonpb.RehabType_RehabType_Forward,
+		klineSessionScopeLegacy,
 		firstProgress,
 	)
 	if err != nil {
@@ -244,6 +247,7 @@ func TestSyncKLinesSyncsAndSkipsCoveredBatch(t *testing.T) {
 		since,
 		until,
 		qotcommonpb.RehabType_RehabType_Forward,
+		klineSessionScopeLegacy,
 		secondProgress,
 	)
 	if err != nil {
@@ -313,6 +317,7 @@ func TestSyncKLinesPersistentRateLimitFailure(t *testing.T) {
 		queuedAt,
 		queuedAt.Add(3*time.Minute),
 		qotcommonpb.RehabType_RehabType_Forward,
+		klineSessionScopeLegacy,
 		progress,
 	)
 	if err == nil {

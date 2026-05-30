@@ -493,7 +493,7 @@ function handleBrokerQueryInput(event: Event): void {
 </template>
 
 <style scoped>
-:global(.tv-main) .strategy-instance-dialog {
+.strategy-instance-dialog {
     max-height: calc(100vh - 2rem);
     overflow-y: auto;
     overflow-x: hidden;
@@ -502,84 +502,84 @@ function handleBrokerQueryInput(event: Event): void {
     color: var(--card-text-1);
 }
 
-:global(.tv-main) .strategy-instance-dialog .text-slate-900,
-:global(.tv-main) .strategy-instance-dialog .text-slate-800,
-:global(.tv-main) .strategy-instance-dialog .text-slate-700 {
+.strategy-instance-dialog .text-slate-900,
+.strategy-instance-dialog .text-slate-800,
+.strategy-instance-dialog .text-slate-700 {
     color: var(--card-text-1);
 }
 
-:global(.tv-main) .strategy-instance-dialog .text-slate-600,
-:global(.tv-main) .strategy-instance-dialog .text-slate-500 {
+.strategy-instance-dialog .text-slate-600,
+.strategy-instance-dialog .text-slate-500 {
     color: var(--card-text-2);
 }
 
-:global(.tv-main) .strategy-instance-dialog .text-slate-400 {
+.strategy-instance-dialog .text-slate-400 {
     color: var(--card-text-3);
 }
 
-:global(.tv-main) .strategy-instance-dialog .bg-white,
-:global(.tv-main) .strategy-instance-dialog .bg-slate-50 {
+.strategy-instance-dialog .bg-white,
+.strategy-instance-dialog .bg-slate-50 {
     background: var(--card-surface-raised);
 }
 
-:global(.tv-main) .strategy-instance-dialog .border-slate-200,
-:global(.tv-main) .strategy-instance-dialog .border-slate-300 {
+.strategy-instance-dialog .border-slate-200,
+.strategy-instance-dialog .border-slate-300 {
     border-color: var(--card-border);
 }
 
-:global(.tv-main) .strategy-instance-dialog .bg-amber-50 {
+.strategy-instance-dialog .bg-amber-50 {
     background: var(--card-amber-surface);
 }
 
-:global(.tv-main) .strategy-instance-dialog .border-amber-200 {
+.strategy-instance-dialog .border-amber-200 {
     border-color: var(--card-amber-border);
 }
 
-:global(.tv-main) .strategy-instance-dialog .text-amber-700,
-:global(.tv-main) .strategy-instance-dialog .text-amber-800 {
+.strategy-instance-dialog .text-amber-700,
+.strategy-instance-dialog .text-amber-800 {
     color: var(--card-amber-text);
 }
 
-:global(.tv-main) .strategy-instance-dialog .bg-red-50 {
+.strategy-instance-dialog .bg-red-50 {
     background: var(--card-red-surface);
 }
 
-:global(.tv-main) .strategy-instance-dialog .border-red-200 {
+.strategy-instance-dialog .border-red-200 {
     border-color: var(--card-red-border);
 }
 
-:global(.tv-main) .strategy-instance-dialog .text-red-700,
-:global(.tv-main) .strategy-instance-dialog .text-red-800 {
+.strategy-instance-dialog .text-red-700,
+.strategy-instance-dialog .text-red-800 {
     color: var(--card-red-text);
 }
 
-:global(.tv-main) .strategy-instance-dialog .bg-emerald-50 {
+.strategy-instance-dialog .bg-emerald-50 {
     background: var(--card-teal-surface);
 }
 
-:global(.tv-main) .strategy-instance-dialog .border-emerald-200 {
+.strategy-instance-dialog .border-emerald-200 {
     border-color: var(--card-teal-border);
 }
 
-:global(.tv-main) .strategy-instance-dialog .text-emerald-700,
-:global(.tv-main) .strategy-instance-dialog .text-emerald-800 {
+.strategy-instance-dialog .text-emerald-700,
+.strategy-instance-dialog .text-emerald-800 {
     color: var(--card-teal-text);
 }
 
-:global(.tv-main) .strategy-instance-dialog .bg-sky-50 {
+.strategy-instance-dialog .bg-sky-50 {
     background: color-mix(in srgb, var(--card-active-surface) 88%, transparent);
 }
 
-:global(.tv-main) .strategy-instance-dialog .border-sky-200 {
+.strategy-instance-dialog .border-sky-200 {
     border-color: var(--card-active-border);
 }
 
-:global(.tv-main) .strategy-instance-dialog .text-sky-700,
-:global(.tv-main) .strategy-instance-dialog .text-sky-800 {
+.strategy-instance-dialog .text-sky-700,
+.strategy-instance-dialog .text-sky-800 {
     color: var(--card-active-text);
 }
 
-:global(.tv-main) .strategy-account-picker__menu {
+.strategy-account-picker__menu {
     position: static;
     top: auto;
     left: auto;
@@ -591,89 +591,89 @@ function handleBrokerQueryInput(event: Event): void {
     box-shadow: 0 18px 40px rgb(15 23 42 / 0.14);
 }
 
-:global(.tv-main) .strategy-account-picker__search {
+.strategy-account-picker__search {
     border-color: var(--card-border);
     background: var(--card-surface-raised);
     color: var(--card-text-1);
 }
 
-:global(.tv-main) .strategy-account-picker__search:focus {
+.strategy-account-picker__search:focus {
     border-color: color-mix(in srgb, var(--tv-accent) 72%, var(--card-border));
     background: var(--card-surface);
 }
 
-:global(.tv-main) .strategy-account-picker__option {
+.strategy-account-picker__option {
     background: var(--card-surface-raised);
     border-color: transparent;
 }
 
-:global(.tv-main) .strategy-account-picker__option:hover {
+.strategy-account-picker__option:hover {
     border-color: var(--card-active-border);
     background: color-mix(in srgb, var(--card-active-surface) 72%, var(--card-surface));
 }
 
-:global(.tv-main) .strategy-account-picker__option.is-active {
+.strategy-account-picker__option.is-active {
     border-color: var(--card-active-border);
     background: color-mix(in srgb, var(--card-active-surface) 84%, var(--card-surface));
 }
 
-:global(.tv-main) .strategy-account-picker__label,
-:global(.tv-main) .strategy-account-picker__option-title,
-:global(.tv-main) .strategy-account-picker__option-header {
+.strategy-account-picker__label,
+.strategy-account-picker__option-title,
+.strategy-account-picker__option-header {
     color: var(--card-text-1);
 }
 
-:global(.tv-main) .strategy-account-picker__meta,
-:global(.tv-main) .strategy-account-picker__action,
-:global(.tv-main) .strategy-account-picker__option-meta,
-:global(.tv-main) .strategy-account-picker__empty {
+.strategy-account-picker__meta,
+.strategy-account-picker__action,
+.strategy-account-picker__option-meta,
+.strategy-account-picker__empty {
     color: var(--card-text-2);
 }
 
-:global(.tv-main) .strategy-account-picker__tag--current {
+.strategy-account-picker__tag--current {
     border-color: var(--card-teal-border);
     background: color-mix(in srgb, var(--card-teal-surface) 86%, transparent);
     color: var(--card-teal-text);
 }
 
-:global(.tv-main) .strategy-account-picker__empty {
+.strategy-account-picker__empty {
     border-color: var(--card-border);
     background: color-mix(in srgb, var(--card-surface-raised) 88%, transparent);
 }
 
-:global(.tv-main) .strategy-tag-input {
+.strategy-tag-input {
     border-color: var(--card-border);
     background: var(--card-surface);
 }
 
-:global(.tv-main) .strategy-tag-input:focus-within {
+.strategy-tag-input:focus-within {
     border-color: color-mix(in srgb, var(--tv-accent) 70%, var(--card-border));
 }
 
-:global(.tv-main) .strategy-tag-input--invalid {
+.strategy-tag-input--invalid {
     border-color: var(--card-amber-border);
     background: var(--card-amber-surface);
 }
 
-:global(.tv-main) .strategy-tag-input--invalid:focus-within {
+.strategy-tag-input--invalid:focus-within {
     border-color: color-mix(in srgb, var(--card-amber-text) 70%, var(--card-amber-border));
 }
 
-:global(.tv-main) .strategy-tag-chip {
+.strategy-tag-chip {
     border-color: var(--card-active-border);
     background: color-mix(in srgb, var(--card-active-surface) 88%, var(--card-surface));
     color: var(--card-active-text);
 }
 
-:global(.tv-main) .strategy-tag-chip__remove {
+.strategy-tag-chip__remove {
     color: var(--card-text-2);
 }
 
-:global(.tv-main) .strategy-tag-input__field {
+.strategy-tag-input__field {
     color: var(--card-text-1);
 }
 
-:global(.tv-main) .strategy-tag-input__field::placeholder {
+.strategy-tag-input__field::placeholder {
     color: var(--card-text-3);
 }
 

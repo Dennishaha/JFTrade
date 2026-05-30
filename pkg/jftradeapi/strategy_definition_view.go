@@ -24,14 +24,23 @@ type strategyDefinitionResponse struct {
 	DerivedWarmupInterval string               `json:"derivedWarmupInterval"`
 }
 
-func buildStrategyDefinitionResponse(definition strategyDesignDefinition, interval string) strategyDefinitionResponse {
+func buildStrategyDefinitionResponse(definition strategyDesignDefinition, interval string, symbol string, useExtendedHours bool) strategyDefinitionResponse {
 	previewInterval := strings.TrimSpace(interval)
 	if previewInterval == "" {
 		previewInterval = "5m"
 	}
+	previewSymbol := strings.TrimSpace(symbol)
+	if previewSymbol == "" {
+		previewSymbol = strings.TrimSpace(definition.Symbol)
+	}
 
 	derivedWarmupBars := 0
-	if warmupBars, err := indicatorruntime.WarmupBarsFromScript(definition.Script, types.Interval(previewInterval)); err == nil {
+	if warmupBars, err := indicatorruntime.WarmupBarsFromScriptForSymbolWithOptions(
+		definition.Script,
+		types.Interval(previewInterval),
+		previewSymbol,
+		indicatorruntime.RuntimeOptions{IncludeExtendedHours: useExtendedHours},
+	); err == nil {
 		derivedWarmupBars = warmupBars
 	}
 

@@ -28,6 +28,7 @@
 当前约束必须明确：
 
 - 系统只持久化 DSL v1 源码和可选 `visualModel`。
+- 新建策略定义的 `id` 现在默认生成 GUID；设计页只展示该 ID，不允许手工修改。策略 `version` 仍由系统在每次有意义保存时自动递增。
 - 图块语义保持不变；`visualModel -> script` 由前端生成 DSL，后端只接收 DSL v1。
 - 后端不会执行文本脚本；DSL 会先解析为策略 IR/规划结果，再由 Go executor 消费。
 - 加载旧定义时会统一归一到 `sourceFormat: "dsl-v1"` 和 `runtime: "dsl-go-plan"`。
@@ -63,6 +64,14 @@
 - [../../pkg/strategy/dslruntime](../../pkg/strategy/dslruntime)：Go 策略执行器，直接消费 DSL/IR 语义并执行 hook、条件、通知和下单。
 - [../../pkg/strategy/indicatorruntime](../../pkg/strategy/indicatorruntime)：指标预计算运行时，为 DSL executor 提供 MA、RSI、MACD、KDJ、布林带、ATR、CCI、Williams %R 等序列值。
 
+当前和策略 timeUnit 直接相关的运行时约束需要单独记住：
+
+- 对 `day`、`week`、`month` 这类 timeUnit，策略运行时不再把 US/HK/SH/SZ 一刀切成同一个日内分钟常量；`pkg/strategy/indicatorruntime` 现在会按真实交易日窗口计算 time-bound 指标与保护条件。regular-only 时仍只取 regular session；backtest 打开 extended-hours 后，US 的 `ma(..., day/week/month)` / `ema(..., day/week/month)` / `vwma(..., day/week/month)` 等 moving-average，以及 `stopLoss` / `takeProfit` / `trailingStop` 的 `day/week/month` window，都会把 pre/after/overnight bar 一起纳入同一个 trading-period window。
+- 对 `2h`、`4h`、`6h`、`12h` 这类 intraday higher-period，backtest store 现在也会按 market session 起点切 bucket：US regular 从 `09:30` 起桶，HK/SH/SZ 会在午休前后分别重置，不再沿用 UTC floor 把不同时段硬拼进同一根 bar。
+- warmup 估算已经改成 symbol-aware：常规情况下 US/HK/SH/SZ 会按各自 regular session 分钟数推导预热 bars；backtest 打开 extended-hours 后，US 的 moving-average trading-period window 会按 extended trading day 分钟数放大 warmup。策略详情预览和实盘 seed 目前仍保持 regular 口径。
+- backtest store 的 `1d`、`1w`、`1mo` synthetic path 已改成 market-aware trading period bucket：当原生 higher-period K 线缺失时，会按 trading profile 从 sub-daily 或 daily label 合成真实交易日/周/月；regular-only 模式只取 regular session，HK/SH/SZ 会正确跨午休拼接同一交易日。
+- 回测页现在提供“是否包含扩展交易时段”的开关，并把它同时带到 sync 与 run 两条链路。对 US 回测，关闭时会同步/读取 regular-only 数据版本，`2h`/`4h`/`6h`/`12h` 的 synthetic intraday bar 与 `1d`/`1w`/`1mo` synthesis 都只统计 regular session；打开时会同步/读取 extended 数据版本，US 会按 pre/regular/after/overnight 的 session-aware bucket 从 `60m` 及以下 sub-daily 数据合成更高周期 bar，而且 backtest DSL indicatorruntime 的 moving-average 与 stop-loss `day/week/month` 窗口都会切到 extended trading-period 口径。SQLite 现在已用紧凑的表级 session tag 区分 `legacy` / `regular` / `extended` 三套版本，regular-only 与 regular+extended 可以并存。
+
 ## 当前内置模板与经典块
 
 当前内置模板包括：
@@ -97,6 +106,12 @@
 这些语义都在 [../../apps/web/src/features/strategyVisualBuilder.ts](../../apps/web/src/features/strategyVisualBuilder.ts) 里定义，并直接决定生成的 DSL 结构。
 
 ## 同步与编辑器约束
+
+样式隔离还需要额外注意：
+
+- 策略运行/设计组件中的 scoped 样式，避免写 `:global(.tv-main) ...` 这一类“先全局父级再局部后代”的组合选择器。
+- 这类写法在当前构建链路下可能被错误降级成直接命中 `.tv-main`，从而把 border/outline 等视觉规则污染到整个 SPA 容器。
+- 组件内样式优先直接使用本地类名（例如 `.strategy-*`），确需跨组件时优先使用明确的页面级包装类，不要绑定到全局 shell 容器。
 
 当前同步策略是双向自动的，但能力并不对称：
 
@@ -154,3 +169,23 @@ npm --workspace @jftrade/web run typecheck
 ```bash
 go test ./pkg/jftradeapi ./pkg/strategy/dsl ./pkg/strategy/dslruntime ./pkg/strategy/ir
 ```
+
+如果改动会影响共享 Go 运行时，且希望确认“当前策略设计器里各图块”的成本有没有一起回升，再补：
+
+```bash
+go test ./pkg/backtest -run '^TestStrategyBlockBenchmarkCasesSmoke$'
+
+go test ./pkg/backtest -run '^$' \
+	-bench '^BenchmarkRunExecutesStrategyBlockMatrix$' \
+	-benchtime 1x -benchmem
+
+JFTRADE_UPDATE_STRATEGY_BLOCK_BASELINE=1 \
+	go test ./pkg/backtest -run '^TestStrategyBlockBenchmarkBaseline$' -count 1
+
+JFTRADE_ENFORCE_STRATEGY_BLOCK_BASELINE=1 \
+	go test ./pkg/backtest -run '^TestStrategyBlockBenchmarkBaseline$' -count 1
+```
+
+这套矩阵覆盖当前可视化设计里主要的指标、价格判断、日志、通知、下单和风控图块；它不是替代真实链路 benchmark，而是用来快速判断共享执行路径优化是否真的对整组图块都生效。
+
+其中 `TestStrategyBlockBenchmarkBaseline` 会把基线写入或比对 `pkg/backtest/testdata/strategy_block_benchmark_baseline.json`，适合在做共享 replay/runtime 优化后，补一条半自动性能门槛。

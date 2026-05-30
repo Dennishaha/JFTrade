@@ -255,11 +255,12 @@ function toTemplateTypeLabel(mode: StrategyAuthoringTemplate["mode"]): string {
         <label class="grid gap-1.5 text-sm text-slate-700">
           <span class="font-medium">定义 ID</span>
           <input
-            v-model="definitionForm.id"
-            class="rounded-2xl border border-slate-300 px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-500"
-            placeholder="js-mean-revert"
+            :value="definitionForm.id || '自动生成 GUID'"
+            class="rounded-2xl border border-slate-300 bg-slate-50 px-3 py-2.5 text-sm text-slate-900 outline-none"
+            readonly
             type="text"
           />
+          <span class="text-xs text-slate-500">新建策略时自动生成 GUID，保存后定义 ID 不可修改。</span>
         </label>
         <label class="grid gap-1.5 text-sm text-slate-700">
           <span class="font-medium">策略名称</span>

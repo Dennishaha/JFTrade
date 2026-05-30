@@ -27,14 +27,15 @@ func init() {
 }
 
 type Strategy struct {
-	StrategyID   string         `json:"strategyId"`
-	Name         string         `json:"name"`
-	Symbol       string         `json:"symbol"`
-	Interval     types.Interval `json:"interval"`
-	Script       string         `json:"script"`
-	DefinitionID string         `json:"definitionId"`
-	WarmupUntil  time.Time      `json:"-"`
-	OnError      func(string)   `json:"-"`
+	StrategyID       string         `json:"strategyId"`
+	Name             string         `json:"name"`
+	Symbol           string         `json:"symbol"`
+	Interval         types.Interval `json:"interval"`
+	Script           string         `json:"script"`
+	DefinitionID     string         `json:"definitionId"`
+	UseExtendedHours bool           `json:"-"`
+	WarmupUntil      time.Time      `json:"-"`
+	OnError          func(string)   `json:"-"`
 }
 
 type strategyRuntime struct {
@@ -43,12 +44,15 @@ type strategyRuntime struct {
 	strategy         *Strategy
 	program          *strategyir.Program
 	plan             strategyir.Requirements
+	ifScopePlans     map[*strategyir.IfStmt]ifScopePlan
 	displayName      string
 	definitionID     string
 	symbol           string
 	interval         types.Interval
 	expressionCache  map[string]exprast.Node
 	bindingCache     map[*strategyir.LetStmt]cachedIndicatorBinding
+	protectCache     map[*strategyir.ProtectStmt]cachedProtectRequirement
+	divergenceCache  map[divergenceRequirementCacheKey]string
 	engine           *strategyindicatorruntime.IndicatorEngine
 	session          *bbgo2.ExchangeSession
 	executor         bbgo2.OrderExecutor
@@ -58,6 +62,7 @@ type strategyRuntime struct {
 	bindingCapacity  int
 	previousClose    float64
 	hasPreviousClose bool
+	positionCache    cachedPositionSnapshot
 }
 
 type cachedIndicatorBinding struct {
@@ -66,11 +71,36 @@ type cachedIndicatorBinding struct {
 	err        error
 }
 
+type cachedProtectRequirement struct {
+	key            string
+	allowLongExit  bool
+	allowShortExit bool
+	err            error
+}
+
+type cachedPositionSnapshot struct {
+	barTime time.Time
+	symbol  string
+	value   *positionSnapshot
+	valid   bool
+}
+
 type indicatorBinding struct {
 	Alias string
 	Kind  string
 	Key   string
 	Args  []string
+}
+
+type divergenceRequirementCacheKey struct {
+	bindingKey string
+	direction  string
+	lookback   int
+}
+
+type ifScopePlan struct {
+	thenNeedsClone bool
+	elseNeedsClone bool
 }
 
 type positionSnapshot struct {
@@ -267,7 +297,12 @@ func newStrategyRuntime(
 	symbol := strings.ToUpper(strings.TrimSpace(strategy.Symbol))
 	interval := defaultInterval(strategy.Interval)
 	letCount := countProgramLetStatements(program)
-	engine, err := strategyindicatorruntime.NewIndicatorEngineForPlan(plan, defaultInterval(strategy.Interval), strategy.Symbol)
+	engine, err := strategyindicatorruntime.NewIndicatorEngineForPlanWithOptions(
+		plan,
+		defaultInterval(strategy.Interval),
+		strategy.Symbol,
+		strategyindicatorruntime.RuntimeOptions{IncludeExtendedHours: strategy.UseExtendedHours},
+	)
 	if err != nil {
 		return nil, fmt.Errorf("create dsl indicator engine: %w", err)
 	}
@@ -276,12 +311,15 @@ func newStrategyRuntime(
 		strategy:        strategy,
 		program:         program,
 		plan:            plan,
+		ifScopePlans:    buildIfScopePlans(program),
 		displayName:     displayName,
 		definitionID:    definitionID,
 		symbol:          symbol,
 		interval:        interval,
 		expressionCache: map[string]exprast.Node{},
 		bindingCache:    map[*strategyir.LetStmt]cachedIndicatorBinding{},
+		protectCache:    map[*strategyir.ProtectStmt]cachedProtectRequirement{},
+		divergenceCache: map[divergenceRequirementCacheKey]string{},
 		engine:          engine,
 		session:         session,
 		executor:        orderExecutor,
@@ -308,6 +346,21 @@ func newStrategyRuntime(
 		runtime.reusableScope.bindings = make(map[string]indicatorBinding, runtime.bindingCapacity)
 	}
 	return runtime, nil
+}
+
+func (r *strategyRuntime) cachedDivergenceRequirementKey(binding indicatorBinding, direction string, lookback int) (string, bool) {
+	cacheKey := divergenceRequirementCacheKey{bindingKey: binding.Key, direction: direction, lookback: lookback}
+	if r != nil && r.divergenceCache != nil {
+		if cached, hit := r.divergenceCache[cacheKey]; hit {
+			return cached, true
+		}
+	}
+	key, ok := buildDivergenceRequirementKey(binding, direction, lookback)
+	if !ok || r == nil || r.divergenceCache == nil {
+		return key, ok
+	}
+	r.divergenceCache[cacheKey] = key
+	return key, true
 }
 
 func (r *strategyRuntime) runInit() error {
@@ -389,8 +442,34 @@ func countLetStatements(statements []strategyir.Statement) int {
 	return total
 }
 
+func buildIfScopePlans(program *strategyir.Program) map[*strategyir.IfStmt]ifScopePlan {
+	if program == nil {
+		return nil
+	}
+	plans := make(map[*strategyir.IfStmt]ifScopePlan)
+	for _, hook := range program.Hooks {
+		collectIfScopePlans(hook.Statements, plans)
+	}
+	return plans
+}
+
+func collectIfScopePlans(statements []strategyir.Statement, plans map[*strategyir.IfStmt]ifScopePlan) {
+	for _, statement := range statements {
+		typed, ok := statement.(*strategyir.IfStmt)
+		if !ok {
+			continue
+		}
+		plans[typed] = ifScopePlan{
+			thenNeedsClone: countLetStatements(typed.Then) > 0,
+			elseNeedsClone: countLetStatements(typed.Else) > 0,
+		}
+		collectIfScopePlans(typed.Then, plans)
+		collectIfScopePlans(typed.Else, plans)
+	}
+}
+
 func (r *strategyRuntime) newScope(kline *types.KLine, session futu.MarketSession) *evaluationScope {
-	indicators := map[string]any{}
+	var indicators map[string]any
 	if r.engine != nil {
 		indicators = r.engine.SnapshotBorrowed()
 	}
@@ -449,14 +528,28 @@ func (r *strategyRuntime) executeStatements(statements []strategyir.Statement, s
 			if err != nil {
 				return false, fmt.Errorf("dsl line %d: %w", typed.Range.StartLine, err)
 			}
+			plan := ifScopePlan{thenNeedsClone: true, elseNeedsClone: true}
+			if r != nil && r.ifScopePlans != nil {
+				if cached, ok := r.ifScopePlans[typed]; ok {
+					plan = cached
+				}
+			}
 			if condition {
-				stopped, err := r.executeStatements(typed.Then, scope.clone())
+				branchScope := scope
+				if plan.thenNeedsClone {
+					branchScope = scope.clone()
+				}
+				stopped, err := r.executeStatements(typed.Then, branchScope)
 				if err != nil || stopped {
 					return stopped, err
 				}
 				continue
 			}
-			stopped, err := r.executeStatements(typed.Else, scope.clone())
+			branchScope := scope
+			if plan.elseNeedsClone {
+				branchScope = scope.clone()
+			}
+			stopped, err := r.executeStatements(typed.Else, branchScope)
 			if err != nil || stopped {
 				return stopped, err
 			}
@@ -503,7 +596,7 @@ func (r *strategyRuntime) executeLetStatement(statement *strategyir.LetStmt, sco
 }
 
 func (r *strategyRuntime) executeOrderStatement(statement *strategyir.OrderStmt, scope *evaluationScope) error {
-	position := r.getPosition(r.symbol)
+	position := r.getPosition(r.symbol, scope.currentKlineTime)
 	availablePositionQty := 0.0
 	if position != nil {
 		availablePositionQty = math.Floor(absFloat(firstPositiveFloat(absFloat(position.AvailableQuantity), absFloat(position.Quantity))))
@@ -513,22 +606,22 @@ func (r *strategyRuntime) executeOrderStatement(statement *strategyir.OrderStmt,
 	switch statement.Action {
 	case strategyir.OrderActionBuy:
 		if shouldSkipLongEntry(position, availablePositionQty, entryPolicy) {
-			r.log("已有多头持仓，按策略跳过开多")
+			r.internalLog("已有多头持仓，按策略跳过开多")
 			return nil
 		}
 	case strategyir.OrderActionSell:
 		if position == nil || position.Direction != "LONG" || availablePositionQty <= 0 {
-			r.log("无多头持仓可平，跳过卖出")
+			r.internalLog("无多头持仓可平，跳过卖出")
 			return nil
 		}
 	case strategyir.OrderActionShort:
 		if shouldSkipShortEntry(position, availablePositionQty, entryPolicy) {
-			r.log("已有空头持仓，按策略跳过开空")
+			r.internalLog("已有空头持仓，按策略跳过开空")
 			return nil
 		}
 	case strategyir.OrderActionCover:
 		if position == nil || position.Direction != "SHORT" || availablePositionQty <= 0 {
-			r.log("无空头持仓可平，跳过买入平空")
+			r.internalLog("无空头持仓可平，跳过买入平空")
 			return nil
 		}
 	default:
@@ -555,7 +648,7 @@ func (r *strategyRuntime) executeOrderStatement(statement *strategyir.OrderStmt,
 		return nil
 	}
 	if r.isPlaceBlockedDuringWarmup(scope.currentKlineTime) {
-		r.log("place order suppressed during warmup")
+		r.internalLog("place order suppressed during warmup")
 		return nil
 	}
 
@@ -570,16 +663,16 @@ func (r *strategyRuntime) executeOrderStatement(statement *strategyir.OrderStmt,
 }
 
 func (r *strategyRuntime) executeProtectStatement(statement *strategyir.ProtectStmt, scope *evaluationScope) (bool, error) {
-	key, err := buildProtectRequirementKey(statement)
+	requirement, err := r.resolveProtectRequirement(statement)
 	if err != nil {
 		return false, err
 	}
-	rawSnapshot, ok := scope.indicators[key]
+	rawSnapshot, ok := scope.indicators[requirement.key]
 	if !ok || rawSnapshot == nil {
-		r.log("waiting for indicator " + key)
+		r.internalLog("waiting for indicator " + requirement.key)
 		return false, nil
 	}
-	position := r.getPosition(r.symbol)
+	position := r.getPosition(r.symbol, scope.currentKlineTime)
 	if position == nil {
 		return false, nil
 	}
@@ -587,11 +680,11 @@ func (r *strategyRuntime) executeProtectStatement(statement *strategyir.ProtectS
 	if quantity <= 0 {
 		return false, nil
 	}
-	shouldExitLong := normalizeProtectDirection(statement.Direction) != "short" && position.Direction == "LONG" && readBool(rawSnapshot, "longTriggered")
-	shouldExitShort := normalizeProtectDirection(statement.Direction) != "long" && position.Direction == "SHORT" && readBool(rawSnapshot, "shortTriggered")
+	shouldExitLong := requirement.allowLongExit && position.Direction == "LONG" && readBool(rawSnapshot, "longTriggered")
+	shouldExitShort := requirement.allowShortExit && position.Direction == "SHORT" && readBool(rawSnapshot, "shortTriggered")
 	if shouldExitLong {
 		if r.isPlaceBlockedDuringWarmup(scope.currentKlineTime) {
-			r.log("protect exit suppressed during warmup")
+			r.internalLog("protect exit suppressed during warmup")
 			return true, nil
 		}
 		if err := r.submitOrder(types.SideTypeSell, types.OrderTypeMarket, quantity, 0); err != nil {
@@ -601,7 +694,7 @@ func (r *strategyRuntime) executeProtectStatement(statement *strategyir.ProtectS
 	}
 	if shouldExitShort {
 		if r.isPlaceBlockedDuringWarmup(scope.currentKlineTime) {
-			r.log("protect exit suppressed during warmup")
+			r.internalLog("protect exit suppressed during warmup")
 			return true, nil
 		}
 		if err := r.submitOrder(types.SideTypeBuy, types.OrderTypeMarket, quantity, 0); err != nil {
@@ -610,6 +703,21 @@ func (r *strategyRuntime) executeProtectStatement(statement *strategyir.ProtectS
 		return true, nil
 	}
 	return false, nil
+}
+
+func (r *strategyRuntime) resolveProtectRequirement(statement *strategyir.ProtectStmt) (cachedProtectRequirement, error) {
+	if cached, ok := r.protectCache[statement]; ok {
+		return cached, cached.err
+	}
+	key, err := buildProtectRequirementKey(statement)
+	cached := cachedProtectRequirement{key: key, err: err}
+	if err == nil {
+		direction := normalizeProtectDirection(statement.Direction)
+		cached.allowLongExit = direction != "short"
+		cached.allowShortExit = direction != "long"
+	}
+	r.protectCache[statement] = cached
+	return cached, err
 }
 
 func (r *strategyRuntime) resolveOrderPrice(statement *strategyir.OrderStmt, scope *evaluationScope) (float64, float64, error) {
@@ -649,14 +757,14 @@ func (r *strategyRuntime) resolveOrderQuantity(
 	case "shares":
 		quantity := math.Floor(value)
 		if quantity <= 0 {
-			r.log("shares quantity computed as 0, skipping order")
+			r.internalLog("shares quantity computed as 0, skipping order")
 			return 0, nil
 		}
 		return quantity, nil
 	case "amount":
 		quantity := math.Floor(value / orderPrice)
 		if quantity <= 0 {
-			r.log("amount quantity computed as 0, skipping order")
+			r.internalLog("amount quantity computed as 0, skipping order")
 			return 0, nil
 		}
 		return quantity, nil
@@ -684,7 +792,7 @@ func (r *strategyRuntime) resolveOrderQuantity(
 		targetAmount := availableCash * value / 100
 		quantity := math.Floor(targetAmount / orderPrice)
 		if quantity <= 0 {
-			r.log("cash_percent quantity computed as 0, skipping order")
+			r.internalLog("cash_percent quantity computed as 0, skipping order")
 			return 0, nil
 		}
 		return quantity, nil
@@ -693,7 +801,7 @@ func (r *strategyRuntime) resolveOrderQuantity(
 		targetAmount := marginBuyingPower * value / 100
 		quantity := math.Floor(targetAmount / orderPrice)
 		if quantity <= 0 {
-			r.log("margin_buying_power_percent quantity computed as 0, skipping order")
+			r.internalLog("margin_buying_power_percent quantity computed as 0, skipping order")
 			return 0, nil
 		}
 		return quantity, nil
@@ -702,7 +810,7 @@ func (r *strategyRuntime) resolveOrderQuantity(
 		targetAmount := shortSellingPower * value / 100
 		quantity := math.Floor(targetAmount / orderPrice)
 		if quantity <= 0 {
-			r.log("short_selling_power_percent quantity computed as 0, skipping order")
+			r.internalLog("short_selling_power_percent quantity computed as 0, skipping order")
 			return 0, nil
 		}
 		return quantity, nil
@@ -758,10 +866,14 @@ func (r *strategyRuntime) submitOrder(side types.SideType, orderType types.Order
 	if _, err := r.executor.SubmitOrders(r.ctx, order); err != nil {
 		return fmt.Errorf("submit order: %w", err)
 	}
+	r.clearPositionCache()
 	return nil
 }
 
-func (r *strategyRuntime) getPosition(symbol string) *positionSnapshot {
+func (r *strategyRuntime) getPosition(symbol string, barTime time.Time) *positionSnapshot {
+	if cached, ok := r.cachedPosition(symbol, barTime); ok {
+		return cached
+	}
 	if r.session == nil {
 		return nil
 	}
@@ -770,7 +882,8 @@ func (r *strategyRuntime) getPosition(symbol string) *positionSnapshot {
 		return nil
 	}
 	var baseQuantity fixedpoint.Value
-	if position := runtimePositionForSymbol(r.session, symbol); position != nil {
+	position := runtimePositionForSymbol(r.session, symbol)
+	if position != nil {
 		baseQuantity = position.Base
 	}
 	availableQuantity := fixedpoint.Zero
@@ -784,8 +897,8 @@ func (r *strategyRuntime) getPosition(symbol string) *positionSnapshot {
 	}
 	lastPrice, _ := r.session.LastPrice(symbol)
 	marketPrice := lastPrice
-	if marketPrice.IsZero() && runtimePositionForSymbol(r.session, symbol) != nil {
-		marketPrice = runtimePositionForSymbol(r.session, symbol).AverageCost
+	if marketPrice.IsZero() && position != nil {
+		marketPrice = position.AverageCost
 	}
 	direction := "FLAT"
 	if baseQuantity.Sign() > 0 {
@@ -793,13 +906,15 @@ func (r *strategyRuntime) getPosition(symbol string) *positionSnapshot {
 	} else if baseQuantity.Sign() < 0 {
 		direction = "SHORT"
 	}
-	return &positionSnapshot{
+	snapshot := &positionSnapshot{
 		Symbol:            symbol,
 		Quantity:          baseQuantity.Float64(),
 		AvailableQuantity: availableQuantity.Float64(),
 		MarketValue:       marketPrice.Mul(baseQuantity).Float64(),
 		Direction:         direction,
 	}
+	r.storeCachedPosition(symbol, barTime, snapshot)
+	return snapshot
 }
 
 func (r *strategyRuntime) getAvailableCash() float64 {
@@ -924,8 +1039,44 @@ func (r *strategyRuntime) log(message string) {
 	bbgo2.Notify("dsl strategy %s: %s", r.displayName, strings.TrimSpace(message))
 }
 
+func (r *strategyRuntime) internalLog(message string) {
+	if bbgo2.IsBackTesting {
+		return
+	}
+	r.log(message)
+}
+
 func (r *strategyRuntime) notify(message string) {
 	bbgo2.Notify("dsl strategy %s: %s", r.displayName, strings.TrimSpace(message))
+}
+
+func (r *strategyRuntime) cachedPosition(symbol string, barTime time.Time) (*positionSnapshot, bool) {
+	if r == nil || !r.positionCache.valid {
+		return nil, false
+	}
+	if r.positionCache.symbol != symbol || !r.positionCache.barTime.Equal(barTime) {
+		return nil, false
+	}
+	return r.positionCache.value, true
+}
+
+func (r *strategyRuntime) storeCachedPosition(symbol string, barTime time.Time, snapshot *positionSnapshot) {
+	if r == nil {
+		return
+	}
+	r.positionCache = cachedPositionSnapshot{
+		barTime: barTime,
+		symbol:  symbol,
+		value:   snapshot,
+		valid:   true,
+	}
+}
+
+func (r *strategyRuntime) clearPositionCache() {
+	if r == nil {
+		return
+	}
+	r.positionCache = cachedPositionSnapshot{}
 }
 
 func runtimeAccount(session *bbgo2.ExchangeSession) *types.Account {
@@ -1219,11 +1370,11 @@ func parseIndicatorBinding(statement *strategyir.LetStmt) (indicatorBinding, boo
 func buildDivergenceRequirementKey(binding indicatorBinding, direction string, lookback int) (string, bool) {
 	switch binding.Kind {
 	case "rsi":
-		return fmt.Sprintf("divergence:rsi:%s:%s:%d", binding.Args[0], direction, lookback), true
+		return "divergence:" + binding.Key + ":" + direction + ":" + strconv.Itoa(lookback), true
 	case "macd":
-		return fmt.Sprintf("divergence:macd:%s:%s:%s:%s:%d", binding.Args[0], binding.Args[1], binding.Args[2], direction, lookback), true
+		return "divergence:" + binding.Key + ":" + direction + ":" + strconv.Itoa(lookback), true
 	case "kdj":
-		return fmt.Sprintf("divergence:kdj:%s:%s:%s:%s:%d", binding.Args[0], binding.Args[1], binding.Args[2], direction, lookback), true
+		return "divergence:" + binding.Key + ":" + direction + ":" + strconv.Itoa(lookback), true
 	default:
 		return "", false
 	}

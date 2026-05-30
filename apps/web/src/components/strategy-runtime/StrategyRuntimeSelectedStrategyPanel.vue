@@ -299,7 +299,7 @@ const emit = defineEmits<{
 </template>
 
 <style scoped>
-:global(.tv-main) .strategy-binding-summary {
+.strategy-binding-summary {
     cursor: pointer;
     border-color: var(--card-border);
     background: var(--card-surface);
@@ -307,47 +307,47 @@ const emit = defineEmits<{
     transition: border-color 140ms ease, background-color 140ms ease, transform 140ms ease, box-shadow 140ms ease;
 }
 
-:global(.tv-main) .strategy-binding-summary:hover {
+.strategy-binding-summary:hover {
     border-color: var(--card-border);
     background: var(--card-surface-raised);
     box-shadow: 0 18px 40px rgb(15 23 42 / 0.08);
     transform: translateY(-1px);
 }
 
-:global(.tv-main) .strategy-binding-summary:focus-visible {
+.strategy-binding-summary:focus-visible {
     outline: 2px solid color-mix(in srgb, var(--tv-accent) 70%, var(--card-surface));
     outline-offset: 3px;
 }
 
-:global(.tv-main) .strategy-binding-summary .text-slate-900,
-:global(.tv-main) .strategy-binding-summary .text-slate-800,
-:global(.tv-main) .strategy-binding-summary .text-slate-700 {
+.strategy-binding-summary .text-slate-900,
+.strategy-binding-summary .text-slate-800,
+.strategy-binding-summary .text-slate-700 {
     color: var(--card-text-1);
 }
 
-:global(.tv-main) .strategy-binding-summary .text-slate-600,
-:global(.tv-main) .strategy-binding-summary .text-slate-500 {
+.strategy-binding-summary .text-slate-600,
+.strategy-binding-summary .text-slate-500 {
     color: var(--card-text-2);
 }
 
-:global(.tv-main) .strategy-binding-summary .text-slate-400 {
+.strategy-binding-summary .text-slate-400 {
     color: var(--card-text-3);
 }
 
-:global(.tv-main) .strategy-binding-summary .border-slate-200,
-:global(.tv-main) .strategy-binding-summary .border-slate-300 {
+.strategy-binding-summary .border-slate-200,
+.strategy-binding-summary .border-slate-300 {
     border-color: var(--card-border);
 }
 
-:global(.tv-main) .strategy-binding-summary .bg-white {
+.strategy-binding-summary .bg-white {
     background: var(--card-surface);
 }
 
-:global(.tv-main) .strategy-binding-summary .bg-slate-50 {
+.strategy-binding-summary .bg-slate-50 {
     background: var(--card-surface-raised);
 }
 
-:global(.tv-main) .strategy-runtime-start-button {
+.strategy-runtime-start-button {
     border-color: var(--card-teal-border);
     background: color-mix(in srgb, var(--card-teal-surface) 74%, var(--tv-bg-surface) 26%);
     color: var(--card-teal-text);
@@ -355,7 +355,7 @@ const emit = defineEmits<{
     transition: border-color 140ms ease, background-color 140ms ease, color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
 }
 
-:global(.tv-main) .strategy-runtime-start-button:hover {
+.strategy-runtime-start-button:hover {
     border-color: color-mix(in srgb, var(--card-teal-border) 60%, var(--tv-accent));
     background: color-mix(in srgb, var(--card-teal-surface) 84%, var(--tv-accent) 8%);
     color: var(--tv-text);
@@ -363,7 +363,7 @@ const emit = defineEmits<{
     transform: translateY(-1px);
 }
 
-:global(.tv-main) .strategy-runtime-start-button:disabled {
+.strategy-runtime-start-button:disabled {
     border-color: var(--tv-border);
     background: var(--tv-bg-surface-2);
     color: var(--tv-text-dim);

@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"testing"
@@ -642,6 +643,20 @@ func TestStrategyDefinitionEndpoints(t *testing.T) {
 	if createResp.StatusCode != http.StatusOK {
 		t.Fatalf("POST strategy definition status = %d", createResp.StatusCode)
 	}
+	var createEnvelope struct {
+		OK   bool                     `json:"ok"`
+		Data strategyDesignDefinition `json:"data"`
+	}
+	if err := json.NewDecoder(createResp.Body).Decode(&createEnvelope); err != nil {
+		t.Fatalf("decode created strategy definition: %v", err)
+	}
+	uuidPattern := regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
+	if !uuidPattern.MatchString(createEnvelope.Data.ID) {
+		t.Fatalf("created id = %q, want uuid", createEnvelope.Data.ID)
+	}
+	if createEnvelope.Data.ID == payload["id"] {
+		t.Fatalf("expected create endpoint to ignore client id, got %q", createEnvelope.Data.ID)
+	}
 
 	listResp, err := http.Get(srv.URL + "/api/v1/strategy-definitions")
 	if err != nil {
@@ -658,11 +673,11 @@ func TestStrategyDefinitionEndpoints(t *testing.T) {
 	if err := json.NewDecoder(listResp.Body).Decode(&listEnvelope); err != nil {
 		t.Fatalf("decode strategy definitions: %v", err)
 	}
-	if len(listEnvelope.Data) != 1 || listEnvelope.Data[0].ID != "dsl-mean-revert" {
+	if len(listEnvelope.Data) != 1 || listEnvelope.Data[0].ID != createEnvelope.Data.ID {
 		t.Fatalf("unexpected definitions response: %+v", listEnvelope.Data)
 	}
 
-	detailResp, err := http.Get(srv.URL + "/api/v1/strategy-definitions/dsl-mean-revert")
+	detailResp, err := http.Get(srv.URL + "/api/v1/strategy-definitions/" + createEnvelope.Data.ID)
 	if err != nil {
 		t.Fatalf("GET strategy definition detail: %v", err)
 	}
@@ -693,7 +708,7 @@ func TestStrategyDefinitionEndpoints(t *testing.T) {
 		t.Fatalf("default derivedWarmupInterval = %q, want 5m", detailEnvelope.Data.DerivedWarmupInterval)
 	}
 
-	previewResp, err := http.Get(srv.URL + "/api/v1/strategy-definitions/dsl-mean-revert?interval=5m")
+	previewResp, err := http.Get(srv.URL + "/api/v1/strategy-definitions/" + createEnvelope.Data.ID + "?interval=5m")
 	if err != nil {
 		t.Fatalf("GET strategy definition detail preview: %v", err)
 	}
@@ -717,7 +732,7 @@ func TestStrategyDefinitionEndpoints(t *testing.T) {
 
 	payload["description"] = "updated dsl strategy"
 	updateBody, _ := json.Marshal(payload)
-	request, err := http.NewRequest(http.MethodPut, srv.URL+"/api/v1/strategy-definitions/dsl-mean-revert", bytes.NewReader(updateBody))
+	request, err := http.NewRequest(http.MethodPut, srv.URL+"/api/v1/strategy-definitions/"+createEnvelope.Data.ID, bytes.NewReader(updateBody))
 	if err != nil {
 		t.Fatalf("build PUT request: %v", err)
 	}
@@ -739,6 +754,47 @@ func TestStrategyDefinitionEndpoints(t *testing.T) {
 	}
 	if updateEnvelope.Data.Description != "updated dsl strategy" {
 		t.Fatalf("unexpected updated definition: %+v", updateEnvelope.Data)
+	}
+	if updateEnvelope.Data.ID != createEnvelope.Data.ID {
+		t.Fatalf("updated definition id = %q, want %q", updateEnvelope.Data.ID, createEnvelope.Data.ID)
+	}
+}
+
+func TestStrategyDefinitionCreateGeneratesUUIDWhenIDMissing(t *testing.T) {
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	srv := httptest.NewServer(NewServer(store))
+	defer srv.Close()
+
+	payload := map[string]any{
+		"name":         "UUID Strategy",
+		"description":  "strategy without explicit id",
+		"runtime":      strategyRuntimeDSLPlan,
+		"sourceFormat": strategydefinition.SourceFormatDSLV1,
+		"script":       "strategy UUID Strategy\nversion 0.1.0\non init:\n  log \"init\"\non kline_close:\n  log \"close\"",
+	}
+	body, _ := json.Marshal(payload)
+	createResp, err := http.Post(srv.URL+"/api/v1/strategy-definitions", "application/json", bytes.NewReader(body))
+	if err != nil {
+		t.Fatalf("POST strategy definition without id: %v", err)
+	}
+	defer createResp.Body.Close()
+	if createResp.StatusCode != http.StatusOK {
+		t.Fatalf("POST strategy definition without id status = %d", createResp.StatusCode)
+	}
+
+	var createEnvelope struct {
+		OK   bool                     `json:"ok"`
+		Data strategyDesignDefinition `json:"data"`
+	}
+	if err := json.NewDecoder(createResp.Body).Decode(&createEnvelope); err != nil {
+		t.Fatalf("decode created strategy definition without id: %v", err)
+	}
+	uuidPattern := regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
+	if !uuidPattern.MatchString(createEnvelope.Data.ID) {
+		t.Fatalf("created id = %q, want uuid", createEnvelope.Data.ID)
 	}
 }
 
@@ -1066,6 +1122,75 @@ func TestInstantiateStoredDefinitionNormalizesLegacySourceFormatToDSL(t *testing
 	}
 }
 
+func TestStrategyDefinitionPreviewUsesRequestedSymbolAndExtendedHours(t *testing.T) {
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	server := NewServer(store)
+	if _, err := server.designStore.saveDefinition(strategyDesignDefinition{
+		ID:           "dsl-preview-day-window",
+		Name:         "DSL Preview Day Window",
+		Version:      "0.1.0",
+		Description:  "preview route should respect symbol and extended-hours",
+		Runtime:      strategyRuntimeDSLPlan,
+		SourceFormat: strategydefinition.SourceFormatDSLV1,
+		Symbol:       "HK.00700",
+		Interval:     "5m",
+		Script: `strategy DSL Preview Day Window
+version 0.1.0
+on kline_close:
+  let slow = ma(MA, 1, day)
+  log "close"`,
+	}); err != nil {
+		t.Fatalf("saveDefinition: %v", err)
+	}
+
+	srv := httptest.NewServer(server)
+	defer srv.Close()
+
+	defaultResp, err := http.Get(srv.URL + "/api/v1/strategy-definitions/dsl-preview-day-window?interval=5m")
+	if err != nil {
+		t.Fatalf("GET default strategy preview: %v", err)
+	}
+	defer defaultResp.Body.Close()
+	if defaultResp.StatusCode != http.StatusOK {
+		t.Fatalf("GET default strategy preview status = %d", defaultResp.StatusCode)
+	}
+	var defaultEnvelope struct {
+		OK   bool                       `json:"ok"`
+		Data strategyDefinitionResponse `json:"data"`
+	}
+	if err := json.NewDecoder(defaultResp.Body).Decode(&defaultEnvelope); err != nil {
+		t.Fatalf("decode default strategy preview: %v", err)
+	}
+	if defaultEnvelope.Data.DerivedWarmupBars != 66 {
+		t.Fatalf("default derivedWarmupBars = %d, want 66", defaultEnvelope.Data.DerivedWarmupBars)
+	}
+
+	previewResp, err := http.Get(srv.URL + "/api/v1/strategy-definitions/dsl-preview-day-window?interval=5m&symbol=US.AAPL&useExtendedHours=true")
+	if err != nil {
+		t.Fatalf("GET extended strategy preview: %v", err)
+	}
+	defer previewResp.Body.Close()
+	if previewResp.StatusCode != http.StatusOK {
+		t.Fatalf("GET extended strategy preview status = %d", previewResp.StatusCode)
+	}
+	var previewEnvelope struct {
+		OK   bool                       `json:"ok"`
+		Data strategyDefinitionResponse `json:"data"`
+	}
+	if err := json.NewDecoder(previewResp.Body).Decode(&previewEnvelope); err != nil {
+		t.Fatalf("decode extended strategy preview: %v", err)
+	}
+	if previewEnvelope.Data.DerivedWarmupBars != 288 {
+		t.Fatalf("extended derivedWarmupBars = %d, want 288", previewEnvelope.Data.DerivedWarmupBars)
+	}
+	if previewEnvelope.Data.DerivedWarmupInterval != "5m" {
+		t.Fatalf("extended derivedWarmupInterval = %q, want 5m", previewEnvelope.Data.DerivedWarmupInterval)
+	}
+}
+
 func TestBacktestRouteUsesDerivedStrategyWarmup(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 
@@ -1254,14 +1379,15 @@ on kline_close:
 	defer srv.Close()
 
 	body, _ := json.Marshal(map[string]any{
-		"definitionId":   "dsl-market-code-route",
-		"market":         "US",
-		"code":           "AAPL",
-		"interval":       "1m",
-		"startTime":      time.Date(2026, time.May, 26, 9, 30, 0, 0, time.UTC).Format(time.RFC3339),
-		"endTime":        time.Date(2026, time.May, 26, 9, 31, 0, 0, time.UTC).Format(time.RFC3339),
-		"initialBalance": 10000,
-		"rehabType":      "forward",
+		"definitionId":     "dsl-market-code-route",
+		"market":           "US",
+		"code":             "AAPL",
+		"interval":         "1m",
+		"startTime":        time.Date(2026, time.May, 26, 9, 30, 0, 0, time.UTC).Format(time.RFC3339),
+		"endTime":          time.Date(2026, time.May, 26, 9, 31, 0, 0, time.UTC).Format(time.RFC3339),
+		"initialBalance":   10000,
+		"rehabType":        "forward",
+		"useExtendedHours": true,
 	})
 	createResp, err := http.Post(srv.URL+"/api/v1/backtests", "application/json", bytes.NewReader(body))
 	if err != nil {
@@ -1278,5 +1404,174 @@ on kline_close:
 	}
 	if runs[0].Request.Market != "US" || runs[0].Request.Code != "AAPL" || runs[0].Request.Symbol != "US.AAPL" {
 		t.Fatalf("unexpected normalized backtest request: %+v", runs[0].Request)
+	}
+	if runs[0].Request.UseExtendedHours == nil || !*runs[0].Request.UseExtendedHours {
+		t.Fatalf("expected useExtendedHours to be preserved: %+v", runs[0].Request)
+	}
+	if runs[0].Request.DefinitionVersion != "0.1.0" {
+		t.Fatalf("expected definitionVersion to be snapshotted: %+v", runs[0].Request)
+	}
+}
+
+func TestNewServerReloadsPersistedBacktestRuns(t *testing.T) {
+	settingsPath := filepath.Join(t.TempDir(), "settings.json")
+	store, err := NewSettingsStore(settingsPath)
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	server := NewServer(store)
+
+	completedRun := &backtestRunState{
+		ID:     "bt-reload-completed",
+		Status: "completed",
+		Request: backtestStartRequest{
+			DefinitionID: "dsl-reload-completed",
+			Symbol:       "US.AAPL",
+			Interval:     "5m",
+			StartTime:    "2026-05-01T00:00:00Z",
+			EndTime:      "2026-05-02T00:00:00Z",
+		},
+		Result: &backtest.RunResult{
+			Symbol:       "US.AAPL",
+			Interval:     "5m",
+			StartTime:    "2026-05-01T00:00:00Z",
+			EndTime:      "2026-05-02T00:00:00Z",
+			FinalBalance: 100123,
+		},
+		CreatedAt: "2026-05-30T00:00:00Z",
+		UpdatedAt: "2026-05-30T00:00:01Z",
+	}
+	runningRun := &backtestRunState{
+		ID:     "bt-reload-running",
+		Status: "running",
+		Request: backtestStartRequest{
+			DefinitionID: "dsl-reload-running",
+			Symbol:       "US.TSLA",
+			Interval:     "1m",
+			StartTime:    "2026-05-03T00:00:00Z",
+			EndTime:      "2026-05-04T00:00:00Z",
+		},
+		CreatedAt: "2026-05-30T00:00:02Z",
+		UpdatedAt: "2026-05-30T00:00:03Z",
+	}
+	if err := server.backtestRuns.add(completedRun); err != nil {
+		t.Fatalf("persist completed run: %v", err)
+	}
+	if err := server.backtestRuns.add(runningRun); err != nil {
+		t.Fatalf("persist running run: %v", err)
+	}
+
+	reloadedStore, err := NewSettingsStore(settingsPath)
+	if err != nil {
+		t.Fatalf("NewSettingsStore reload: %v", err)
+	}
+	reloadedServer := NewServer(reloadedStore)
+
+	runs := reloadedServer.backtestRuns.list()
+	if len(runs) != 2 {
+		t.Fatalf("expected 2 reloaded runs, got %+v", runs)
+	}
+	byID := make(map[string]*backtestRunState, len(runs))
+	for _, run := range runs {
+		byID[run.ID] = run
+	}
+	if byID[completedRun.ID] == nil || byID[completedRun.ID].Status != "completed" {
+		t.Fatalf("unexpected reloaded completed run: %+v", byID[completedRun.ID])
+	}
+	if byID[runningRun.ID] == nil || byID[runningRun.ID].Status != "failed" {
+		t.Fatalf("unexpected reloaded running run: %+v", byID[runningRun.ID])
+	}
+	if byID[runningRun.ID].Result == nil || !strings.Contains(byID[runningRun.ID].Result.Error, recoveredBacktestRunErrorText) {
+		t.Fatalf("expected recovered error on reloaded running run: %+v", byID[runningRun.ID])
+	}
+}
+
+func TestBacktestRouteDeletesTerminalRuns(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	server := NewServer(store)
+
+	completedRun := &backtestRunState{
+		ID:     "bt-delete-completed",
+		Status: "completed",
+		Request: backtestStartRequest{
+			DefinitionID:   "dsl-delete-completed",
+			Symbol:         "US.AAPL",
+			Interval:       "1m",
+			InitialBalance: 10000,
+		},
+		CreatedAt: time.Now().UTC().Format(time.RFC3339Nano),
+		UpdatedAt: time.Now().UTC().Format(time.RFC3339Nano),
+	}
+	runningRun := &backtestRunState{
+		ID:     "bt-delete-running",
+		Status: "running",
+		Request: backtestStartRequest{
+			DefinitionID:   "dsl-delete-running",
+			Symbol:         "US.AAPL",
+			Interval:       "1m",
+			InitialBalance: 10000,
+		},
+		CreatedAt: time.Now().UTC().Format(time.RFC3339Nano),
+		UpdatedAt: time.Now().UTC().Format(time.RFC3339Nano),
+	}
+	if err := server.backtestRuns.add(completedRun); err != nil {
+		t.Fatalf("persist completed run: %v", err)
+	}
+	if err := server.backtestRuns.add(runningRun); err != nil {
+		t.Fatalf("persist running run: %v", err)
+	}
+
+	srv := httptest.NewServer(server)
+	defer srv.Close()
+
+	deleteReq, err := http.NewRequest(http.MethodDelete, srv.URL+"/api/v1/backtests/"+completedRun.ID, nil)
+	if err != nil {
+		t.Fatalf("build delete backtest request: %v", err)
+	}
+	deleteResp, err := http.DefaultClient.Do(deleteReq)
+	if err != nil {
+		t.Fatalf("DELETE backtest: %v", err)
+	}
+	defer deleteResp.Body.Close()
+	if deleteResp.StatusCode != http.StatusOK {
+		t.Fatalf("DELETE backtest status = %d, want %d", deleteResp.StatusCode, http.StatusOK)
+	}
+
+	var deleteEnvelope struct {
+		OK   bool `json:"ok"`
+		Data struct {
+			Deleted bool   `json:"deleted"`
+			ID      string `json:"id"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(deleteResp.Body).Decode(&deleteEnvelope); err != nil {
+		t.Fatalf("decode delete backtest response: %v", err)
+	}
+	if !deleteEnvelope.Data.Deleted || deleteEnvelope.Data.ID != completedRun.ID {
+		t.Fatalf("unexpected delete backtest response: %+v", deleteEnvelope.Data)
+	}
+	if _, ok := server.backtestRuns.get(completedRun.ID); ok {
+		t.Fatal("expected completed backtest run to be removed")
+	}
+
+	blockedReq, err := http.NewRequest(http.MethodDelete, srv.URL+"/api/v1/backtests/"+runningRun.ID, nil)
+	if err != nil {
+		t.Fatalf("build delete running backtest request: %v", err)
+	}
+	blockedResp, err := http.DefaultClient.Do(blockedReq)
+	if err != nil {
+		t.Fatalf("DELETE running backtest: %v", err)
+	}
+	defer blockedResp.Body.Close()
+	if blockedResp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("DELETE running backtest status = %d, want %d", blockedResp.StatusCode, http.StatusBadRequest)
+	}
+	if _, ok := server.backtestRuns.get(runningRun.ID); !ok {
+		t.Fatal("running backtest run should not be deleted")
 	}
 }

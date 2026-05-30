@@ -3,6 +3,7 @@ package backtest
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"log"
 	"math"
@@ -151,6 +152,509 @@ on kline_close:
 			t.Fatalf("candle time %s outside requested replay window [%s, %s]", candle.Time, klines[1].StartTime.Time().Format(time.RFC3339), klines[2].EndTime.Time().Format(time.RFC3339))
 		}
 	}
+}
+
+func TestSessionFilteredBacktestStoreFiltersUSExtendedHours(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	dbPath := filepath.Join(t.TempDir(), "backtest-rth.db")
+	store, err := NewFutuKLineStore(dbPath)
+	if err != nil {
+		t.Fatalf("NewFutuKLineStore() error = %v", err)
+	}
+
+	premarketStart := time.Date(2026, time.May, 26, 13, 0, 0, 0, time.UTC)
+	regularStart := time.Date(2026, time.May, 26, 13, 30, 0, 0, time.UTC)
+	klines := []types.KLine{
+		{
+			StartTime: types.Time(premarketStart),
+			EndTime:   types.Time(premarketStart.Add(time.Minute - time.Millisecond)),
+			Interval:  types.Interval1m,
+			Symbol:    "US.AAPL",
+			Open:      fixedpoint.NewFromFloat(100),
+			High:      fixedpoint.NewFromFloat(100.5),
+			Low:       fixedpoint.NewFromFloat(99.8),
+			Close:     fixedpoint.NewFromFloat(100.2),
+			Volume:    fixedpoint.NewFromFloat(500),
+		},
+		{
+			StartTime: types.Time(regularStart),
+			EndTime:   types.Time(regularStart.Add(time.Minute - time.Millisecond)),
+			Interval:  types.Interval1m,
+			Symbol:    "US.AAPL",
+			Open:      fixedpoint.NewFromFloat(101),
+			High:      fixedpoint.NewFromFloat(101.5),
+			Low:       fixedpoint.NewFromFloat(100.9),
+			Close:     fixedpoint.NewFromFloat(101.2),
+			Volume:    fixedpoint.NewFromFloat(700),
+		},
+	}
+
+	if err := store.InsertKLines(klines, "forward"); err != nil {
+		_ = store.Close()
+		t.Fatalf("InsertKLines() error = %v", err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatalf("store.Close() error = %v", err)
+	}
+
+	reopenedStore, err := NewFutuKLineStore(dbPath)
+	if err != nil {
+		t.Fatalf("NewFutuKLineStore(reopen) error = %v", err)
+	}
+	defer reopenedStore.Close()
+	reopenedStore.SetRehabType("forward")
+
+	filteredStore := newBacktestReplayStore(reopenedStore, boolPtr(false))
+	backwardRows, err := filteredStore.QueryKLinesBackward(nil, "US.AAPL", types.Interval1m, regularStart.Add(time.Minute-time.Millisecond), 2)
+	if err != nil {
+		t.Fatalf("QueryKLinesBackward(filtered) error = %v", err)
+	}
+	if len(backwardRows) != 1 {
+		t.Fatalf("QueryKLinesBackward(filtered) len = %d, want 1", len(backwardRows))
+	}
+	if got := backwardRows[0].StartTime.Time(); !got.Equal(regularStart) {
+		t.Fatalf("QueryKLinesBackward(filtered) start = %s, want %s", got, regularStart)
+	}
+
+	filteredCh, filteredErrCh := filteredStore.QueryKLinesCh(
+		premarketStart,
+		regularStart.Add(time.Minute-time.Millisecond),
+		nil,
+		[]string{"US.AAPL"},
+		[]types.Interval{types.Interval1m},
+	)
+	filteredRows, err := collectKLinesFromChannels(filteredCh, filteredErrCh)
+	if err != nil {
+		t.Fatalf("QueryKLinesCh(filtered) error = %v", err)
+	}
+	if len(filteredRows) != 1 {
+		t.Fatalf("QueryKLinesCh(filtered) len = %d, want 1", len(filteredRows))
+	}
+	if got := filteredRows[0].StartTime.Time(); !got.Equal(regularStart) {
+		t.Fatalf("QueryKLinesCh(filtered) start = %s, want %s", got, regularStart)
+	}
+
+	unfilteredStore := newBacktestReplayStore(reopenedStore, boolPtr(true))
+	unfilteredCh, unfilteredErrCh := unfilteredStore.QueryKLinesCh(
+		premarketStart,
+		regularStart.Add(time.Minute-time.Millisecond),
+		nil,
+		[]string{"US.AAPL"},
+		[]types.Interval{types.Interval1m},
+	)
+	unfilteredRows, err := collectKLinesFromChannels(unfilteredCh, unfilteredErrCh)
+	if err != nil {
+		t.Fatalf("QueryKLinesCh(unfiltered) error = %v", err)
+	}
+	if len(unfilteredRows) != 2 {
+		t.Fatalf("QueryKLinesCh(unfiltered) len = %d, want 2", len(unfilteredRows))
+	}
+
+	filteredStreamRows, err := collectKLinesFromStreamer(filteredStore, premarketStart, regularStart.Add(time.Minute-time.Millisecond), []string{"US.AAPL"}, []types.Interval{types.Interval1m})
+	if err != nil {
+		t.Fatalf("StreamKLines(filtered) error = %v", err)
+	}
+	if len(filteredStreamRows) != 1 {
+		t.Fatalf("StreamKLines(filtered) len = %d, want 1", len(filteredStreamRows))
+	}
+	if got := filteredStreamRows[0].StartTime.Time(); !got.Equal(regularStart) {
+		t.Fatalf("StreamKLines(filtered) start = %s, want %s", got, regularStart)
+	}
+
+	unfilteredStreamRows, err := collectKLinesFromStreamer(unfilteredStore, premarketStart, regularStart.Add(time.Minute-time.Millisecond), []string{"US.AAPL"}, []types.Interval{types.Interval1m})
+	if err != nil {
+		t.Fatalf("StreamKLines(unfiltered) error = %v", err)
+	}
+	if len(unfilteredStreamRows) != 2 {
+		t.Fatalf("StreamKLines(unfiltered) len = %d, want 2", len(unfilteredStreamRows))
+	}
+}
+
+func TestSessionFilteredBacktestStoreSynthesizesUSDailyWithOvernightWhenExtendedEnabled(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	dbPath := filepath.Join(t.TempDir(), "backtest-extended-daily.db")
+	store, err := NewFutuKLineStore(dbPath)
+	if err != nil {
+		t.Fatalf("NewFutuKLineStore() error = %v", err)
+	}
+
+	baseRows := []types.KLine{
+		{
+			StartTime: types.Time(time.Date(2026, time.January, 8, 1, 0, 0, 0, time.UTC)),
+			EndTime:   types.Time(time.Date(2026, time.January, 8, 1, 59, 59, 999000000, time.UTC)),
+			Interval:  types.Interval1h,
+			Symbol:    "US.AAPL",
+			Open:      fixedpoint.NewFromFloat(90),
+			High:      fixedpoint.NewFromFloat(92),
+			Low:       fixedpoint.NewFromFloat(89),
+			Close:     fixedpoint.NewFromFloat(91),
+			Volume:    fixedpoint.NewFromFloat(400),
+		},
+		{
+			StartTime: types.Time(time.Date(2026, time.January, 8, 14, 30, 0, 0, time.UTC)),
+			EndTime:   types.Time(time.Date(2026, time.January, 8, 15, 29, 59, 999000000, time.UTC)),
+			Interval:  types.Interval1h,
+			Symbol:    "US.AAPL",
+			Open:      fixedpoint.NewFromFloat(100),
+			High:      fixedpoint.NewFromFloat(106),
+			Low:       fixedpoint.NewFromFloat(99),
+			Close:     fixedpoint.NewFromFloat(105),
+			Volume:    fixedpoint.NewFromFloat(1000),
+		},
+		{
+			StartTime: types.Time(time.Date(2026, time.January, 9, 0, 0, 0, 0, time.UTC)),
+			EndTime:   types.Time(time.Date(2026, time.January, 9, 0, 59, 59, 999000000, time.UTC)),
+			Interval:  types.Interval1h,
+			Symbol:    "US.AAPL",
+			Open:      fixedpoint.NewFromFloat(105),
+			High:      fixedpoint.NewFromFloat(108),
+			Low:       fixedpoint.NewFromFloat(104),
+			Close:     fixedpoint.NewFromFloat(107),
+			Volume:    fixedpoint.NewFromFloat(700),
+		},
+	}
+	if err := store.InsertKLines(baseRows, "forward"); err != nil {
+		_ = store.Close()
+		t.Fatalf("InsertKLines() error = %v", err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatalf("store.Close() error = %v", err)
+	}
+
+	reopenedStore, err := NewFutuKLineStore(dbPath)
+	if err != nil {
+		t.Fatalf("NewFutuKLineStore(reopen) error = %v", err)
+	}
+	defer reopenedStore.Close()
+	reopenedStore.SetRehabType("forward")
+
+	regularDailyStore := newBacktestReplayStore(reopenedStore, boolPtr(false))
+	regularRows, err := regularDailyStore.QueryKLinesBackward(nil, "US.AAPL", types.Interval1d, time.Date(2026, time.January, 9, 0, 0, 0, 0, time.UTC), 1)
+	if err != nil {
+		t.Fatalf("QueryKLinesBackward(regular 1d) error = %v", err)
+	}
+	if len(regularRows) != 1 {
+		t.Fatalf("regular daily rows len = %d, want 1", len(regularRows))
+	}
+	if regularRows[0].Volume.Compare(fixedpoint.NewFromFloat(1000)) != 0 {
+		t.Fatalf("regular daily volume = %s, want 1000", regularRows[0].Volume.String())
+	}
+
+	extendedDailyStore := newBacktestReplayStore(reopenedStore, boolPtr(true))
+	extendedRows, err := extendedDailyStore.QueryKLinesBackward(nil, "US.AAPL", types.Interval1d, time.Date(2026, time.January, 9, 0, 0, 0, 0, time.UTC), 1)
+	if err != nil {
+		t.Fatalf("QueryKLinesBackward(extended 1d) error = %v", err)
+	}
+	if len(extendedRows) != 1 {
+		t.Fatalf("extended daily rows len = %d, want 1", len(extendedRows))
+	}
+	if extendedRows[0].Open.Compare(fixedpoint.NewFromFloat(90)) != 0 {
+		t.Fatalf("extended daily open = %s, want 90", extendedRows[0].Open.String())
+	}
+	if extendedRows[0].High.Compare(fixedpoint.NewFromFloat(108)) != 0 {
+		t.Fatalf("extended daily high = %s, want 108", extendedRows[0].High.String())
+	}
+	if extendedRows[0].Low.Compare(fixedpoint.NewFromFloat(89)) != 0 {
+		t.Fatalf("extended daily low = %s, want 89", extendedRows[0].Low.String())
+	}
+	if extendedRows[0].Close.Compare(fixedpoint.NewFromFloat(107)) != 0 {
+		t.Fatalf("extended daily close = %s, want 107", extendedRows[0].Close.String())
+	}
+	if extendedRows[0].Volume.Compare(fixedpoint.NewFromFloat(2100)) != 0 {
+		t.Fatalf("extended daily volume = %s, want 2100", extendedRows[0].Volume.String())
+	}
+
+	extendedCh, extendedErrCh := extendedDailyStore.QueryKLinesCh(
+		time.Date(2026, time.January, 8, 0, 0, 0, 0, time.UTC),
+		time.Date(2026, time.January, 8, 23, 59, 59, 999000000, time.UTC),
+		nil,
+		[]string{"US.AAPL"},
+		[]types.Interval{types.Interval1d},
+	)
+	extendedChannelRows, err := collectKLinesFromChannels(extendedCh, extendedErrCh)
+	if err != nil {
+		t.Fatalf("QueryKLinesCh(extended 1d) error = %v", err)
+	}
+	if len(extendedChannelRows) != 1 {
+		t.Fatalf("extended daily channel rows len = %d, want 1", len(extendedChannelRows))
+	}
+	if extendedChannelRows[0].Volume.Compare(fixedpoint.NewFromFloat(2100)) != 0 {
+		t.Fatalf("extended daily channel volume = %s, want 2100", extendedChannelRows[0].Volume.String())
+	}
+
+	extendedStreamRows, err := collectKLinesFromStreamer(extendedDailyStore, time.Date(2026, time.January, 8, 0, 0, 0, 0, time.UTC), time.Date(2026, time.January, 8, 23, 59, 59, 999000000, time.UTC), []string{"US.AAPL"}, []types.Interval{types.Interval1d})
+	if err != nil {
+		t.Fatalf("StreamKLines(extended 1d) error = %v", err)
+	}
+	if len(extendedStreamRows) != 1 {
+		t.Fatalf("extended daily stream rows len = %d, want 1", len(extendedStreamRows))
+	}
+	if extendedStreamRows[0].Volume.Compare(fixedpoint.NewFromFloat(2100)) != 0 {
+		t.Fatalf("extended daily stream volume = %s, want 2100", extendedStreamRows[0].Volume.String())
+	}
+}
+
+func TestSessionFilteredBacktestStoreSynthesizesUSWeeklyWithOvernightWhenExtendedEnabled(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	dbPath := filepath.Join(t.TempDir(), "backtest-extended-weekly.db")
+	store, err := NewFutuKLineStore(dbPath)
+	if err != nil {
+		t.Fatalf("NewFutuKLineStore() error = %v", err)
+	}
+
+	baseRows := []types.KLine{
+		{
+			StartTime: types.Time(time.Date(2026, time.January, 5, 1, 0, 0, 0, time.UTC)),
+			EndTime:   types.Time(time.Date(2026, time.January, 5, 1, 59, 59, 999000000, time.UTC)),
+			Interval:  types.Interval1h,
+			Symbol:    "US.AAPL",
+			Open:      fixedpoint.NewFromFloat(90),
+			High:      fixedpoint.NewFromFloat(92),
+			Low:       fixedpoint.NewFromFloat(89),
+			Close:     fixedpoint.NewFromFloat(91),
+			Volume:    fixedpoint.NewFromFloat(400),
+		},
+		{
+			StartTime: types.Time(time.Date(2026, time.January, 5, 14, 30, 0, 0, time.UTC)),
+			EndTime:   types.Time(time.Date(2026, time.January, 5, 15, 29, 59, 999000000, time.UTC)),
+			Interval:  types.Interval1h,
+			Symbol:    "US.AAPL",
+			Open:      fixedpoint.NewFromFloat(100),
+			High:      fixedpoint.NewFromFloat(103),
+			Low:       fixedpoint.NewFromFloat(99),
+			Close:     fixedpoint.NewFromFloat(102),
+			Volume:    fixedpoint.NewFromFloat(1000),
+		},
+		{
+			StartTime: types.Time(time.Date(2026, time.January, 9, 14, 30, 0, 0, time.UTC)),
+			EndTime:   types.Time(time.Date(2026, time.January, 9, 15, 29, 59, 999000000, time.UTC)),
+			Interval:  types.Interval1h,
+			Symbol:    "US.AAPL",
+			Open:      fixedpoint.NewFromFloat(104),
+			High:      fixedpoint.NewFromFloat(110),
+			Low:       fixedpoint.NewFromFloat(103),
+			Close:     fixedpoint.NewFromFloat(109),
+			Volume:    fixedpoint.NewFromFloat(1200),
+		},
+		{
+			StartTime: types.Time(time.Date(2026, time.January, 10, 0, 0, 0, 0, time.UTC)),
+			EndTime:   types.Time(time.Date(2026, time.January, 10, 0, 59, 59, 999000000, time.UTC)),
+			Interval:  types.Interval1h,
+			Symbol:    "US.AAPL",
+			Open:      fixedpoint.NewFromFloat(109),
+			High:      fixedpoint.NewFromFloat(112),
+			Low:       fixedpoint.NewFromFloat(108),
+			Close:     fixedpoint.NewFromFloat(111),
+			Volume:    fixedpoint.NewFromFloat(700),
+		},
+	}
+	if err := store.InsertKLines(baseRows, "forward"); err != nil {
+		_ = store.Close()
+		t.Fatalf("InsertKLines() error = %v", err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatalf("store.Close() error = %v", err)
+	}
+
+	reopenedStore, err := NewFutuKLineStore(dbPath)
+	if err != nil {
+		t.Fatalf("NewFutuKLineStore(reopen) error = %v", err)
+	}
+	defer reopenedStore.Close()
+	reopenedStore.SetRehabType("forward")
+
+	regularWeeklyStore := newBacktestReplayStore(reopenedStore, boolPtr(false))
+	regularRows, err := regularWeeklyStore.QueryKLinesBackward(nil, "US.AAPL", types.Interval1w, time.Date(2026, time.January, 12, 0, 0, 0, 0, time.UTC), 1)
+	if err != nil {
+		t.Fatalf("QueryKLinesBackward(regular 1w) error = %v", err)
+	}
+	if len(regularRows) != 1 {
+		t.Fatalf("regular weekly rows len = %d, want 1", len(regularRows))
+	}
+	if regularRows[0].Open.Compare(fixedpoint.NewFromFloat(100)) != 0 {
+		t.Fatalf("regular weekly open = %s, want 100", regularRows[0].Open.String())
+	}
+	if regularRows[0].Close.Compare(fixedpoint.NewFromFloat(109)) != 0 {
+		t.Fatalf("regular weekly close = %s, want 109", regularRows[0].Close.String())
+	}
+	if regularRows[0].Volume.Compare(fixedpoint.NewFromFloat(2200)) != 0 {
+		t.Fatalf("regular weekly volume = %s, want 2200", regularRows[0].Volume.String())
+	}
+
+	extendedWeeklyStore := newBacktestReplayStore(reopenedStore, boolPtr(true))
+	extendedRows, err := extendedWeeklyStore.QueryKLinesBackward(nil, "US.AAPL", types.Interval1w, time.Date(2026, time.January, 12, 0, 0, 0, 0, time.UTC), 1)
+	if err != nil {
+		t.Fatalf("QueryKLinesBackward(extended 1w) error = %v", err)
+	}
+	if len(extendedRows) != 1 {
+		t.Fatalf("extended weekly rows len = %d, want 1", len(extendedRows))
+	}
+	if extendedRows[0].Open.Compare(fixedpoint.NewFromFloat(90)) != 0 {
+		t.Fatalf("extended weekly open = %s, want 90", extendedRows[0].Open.String())
+	}
+	if extendedRows[0].High.Compare(fixedpoint.NewFromFloat(112)) != 0 {
+		t.Fatalf("extended weekly high = %s, want 112", extendedRows[0].High.String())
+	}
+	if extendedRows[0].Low.Compare(fixedpoint.NewFromFloat(89)) != 0 {
+		t.Fatalf("extended weekly low = %s, want 89", extendedRows[0].Low.String())
+	}
+	if extendedRows[0].Close.Compare(fixedpoint.NewFromFloat(111)) != 0 {
+		t.Fatalf("extended weekly close = %s, want 111", extendedRows[0].Close.String())
+	}
+	if extendedRows[0].Volume.Compare(fixedpoint.NewFromFloat(3300)) != 0 {
+		t.Fatalf("extended weekly volume = %s, want 3300", extendedRows[0].Volume.String())
+	}
+}
+
+func TestSessionFilteredBacktestStoreSynthesizesUSTwoHourWithPreMarketWhenExtendedEnabled(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	dbPath := filepath.Join(t.TempDir(), "backtest-extended-2h.db")
+	store, err := NewFutuKLineStore(dbPath)
+	if err != nil {
+		t.Fatalf("NewFutuKLineStore() error = %v", err)
+	}
+
+	starts := []time.Time{
+		time.Date(2026, time.January, 8, 13, 0, 0, 0, time.UTC),
+		time.Date(2026, time.January, 8, 13, 30, 0, 0, time.UTC),
+		time.Date(2026, time.January, 8, 14, 0, 0, 0, time.UTC),
+		time.Date(2026, time.January, 8, 14, 30, 0, 0, time.UTC),
+		time.Date(2026, time.January, 8, 15, 0, 0, 0, time.UTC),
+		time.Date(2026, time.January, 8, 15, 30, 0, 0, time.UTC),
+		time.Date(2026, time.January, 8, 16, 0, 0, 0, time.UTC),
+	}
+	baseRows := make([]types.KLine, 0, len(starts))
+	for index, startAt := range starts {
+		openValue := 90 + float64(index)
+		baseRows = append(baseRows, types.KLine{
+			StartTime: types.Time(startAt),
+			EndTime:   types.Time(startAt.Add(30*time.Minute - time.Millisecond)),
+			Interval:  types.Interval30m,
+			Symbol:    "US.AAPL",
+			Open:      fixedpoint.NewFromFloat(openValue),
+			High:      fixedpoint.NewFromFloat(openValue + 1),
+			Low:       fixedpoint.NewFromFloat(openValue - 1),
+			Close:     fixedpoint.NewFromFloat(openValue + 0.5),
+			Volume:    fixedpoint.NewFromFloat(100 + float64(index)*10),
+		})
+	}
+	if err := store.InsertKLines(baseRows, "forward"); err != nil {
+		_ = store.Close()
+		t.Fatalf("InsertKLines() error = %v", err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatalf("store.Close() error = %v", err)
+	}
+
+	reopenedStore, err := NewFutuKLineStore(dbPath)
+	if err != nil {
+		t.Fatalf("NewFutuKLineStore(reopen) error = %v", err)
+	}
+	defer reopenedStore.Close()
+	reopenedStore.SetRehabType("forward")
+
+	regularStore := newBacktestReplayStore(reopenedStore, boolPtr(false))
+	regularRows, err := regularStore.QueryKLinesBackward(nil, "US.AAPL", types.Interval2h, time.Date(2026, time.January, 8, 16, 30, 0, 0, time.UTC), 2)
+	if err != nil {
+		t.Fatalf("QueryKLinesBackward(regular 2h) error = %v", err)
+	}
+	if len(regularRows) != 1 {
+		t.Fatalf("regular 2h rows len = %d, want 1", len(regularRows))
+	}
+	if !regularRows[0].StartTime.Time().Equal(time.Date(2026, time.January, 8, 14, 30, 0, 0, time.UTC)) {
+		t.Fatalf("regular 2h start = %s, want 2026-01-08T14:30:00Z", regularRows[0].StartTime.Time())
+	}
+	if regularRows[0].Volume.Compare(fixedpoint.NewFromFloat(580)) != 0 {
+		t.Fatalf("regular 2h volume = %s, want 580", regularRows[0].Volume.String())
+	}
+
+	extendedStore := newBacktestReplayStore(reopenedStore, boolPtr(true))
+	extendedRows, err := extendedStore.QueryKLinesBackward(nil, "US.AAPL", types.Interval2h, time.Date(2026, time.January, 8, 16, 30, 0, 0, time.UTC), 2)
+	if err != nil {
+		t.Fatalf("QueryKLinesBackward(extended 2h) error = %v", err)
+	}
+	if len(extendedRows) != 2 {
+		t.Fatalf("extended 2h rows len = %d, want 2", len(extendedRows))
+	}
+	if !extendedRows[0].StartTime.Time().Equal(time.Date(2026, time.January, 8, 13, 0, 0, 0, time.UTC)) {
+		t.Fatalf("extended pre-market 2h start = %s, want 2026-01-08T13:00:00Z", extendedRows[0].StartTime.Time())
+	}
+	if !extendedRows[1].StartTime.Time().Equal(time.Date(2026, time.January, 8, 14, 30, 0, 0, time.UTC)) {
+		t.Fatalf("extended regular 2h start = %s, want 2026-01-08T14:30:00Z", extendedRows[1].StartTime.Time())
+	}
+	if extendedRows[0].Volume.Compare(fixedpoint.NewFromFloat(330)) != 0 {
+		t.Fatalf("extended pre-market 2h volume = %s, want 330", extendedRows[0].Volume.String())
+	}
+	if extendedRows[1].Volume.Compare(fixedpoint.NewFromFloat(580)) != 0 {
+		t.Fatalf("extended regular 2h volume = %s, want 580", extendedRows[1].Volume.String())
+	}
+
+	extendedCh, extendedErrCh := extendedStore.QueryKLinesCh(
+		time.Date(2026, time.January, 8, 13, 0, 0, 0, time.UTC),
+		time.Date(2026, time.January, 8, 16, 29, 59, 999000000, time.UTC),
+		nil,
+		[]string{"US.AAPL"},
+		[]types.Interval{types.Interval2h},
+	)
+	extendedChannelRows, err := collectKLinesFromChannels(extendedCh, extendedErrCh)
+	if err != nil {
+		t.Fatalf("QueryKLinesCh(extended 2h) error = %v", err)
+	}
+	if len(extendedChannelRows) != 2 {
+		t.Fatalf("extended 2h channel rows len = %d, want 2", len(extendedChannelRows))
+	}
+	if !extendedChannelRows[0].StartTime.Time().Equal(time.Date(2026, time.January, 8, 13, 0, 0, 0, time.UTC)) {
+		t.Fatalf("extended channel pre-market 2h start = %s, want 2026-01-08T13:00:00Z", extendedChannelRows[0].StartTime.Time())
+	}
+	if !extendedChannelRows[1].StartTime.Time().Equal(time.Date(2026, time.January, 8, 14, 30, 0, 0, time.UTC)) {
+		t.Fatalf("extended channel regular 2h start = %s, want 2026-01-08T14:30:00Z", extendedChannelRows[1].StartTime.Time())
+	}
+}
+
+func collectKLinesFromChannels(ch chan types.KLine, errCh chan error) ([]types.KLine, error) {
+	rows := make([]types.KLine, 0)
+	for ch != nil || errCh != nil {
+		select {
+		case kline, ok := <-ch:
+			if !ok {
+				ch = nil
+				continue
+			}
+			rows = append(rows, kline)
+		case err, ok := <-errCh:
+			if !ok {
+				errCh = nil
+				continue
+			}
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	return rows, nil
+}
+
+func collectKLinesFromStreamer(store any, since, until time.Time, symbols []string, intervals []types.Interval) ([]types.KLine, error) {
+	streamer, ok := store.(klineRangeStreamer)
+	if !ok {
+		return nil, fmt.Errorf("store does not implement klineRangeStreamer")
+	}
+	rows := make([]types.KLine, 0)
+	err := streamer.StreamKLines(since, until, nil, symbols, intervals, func(kline types.KLine) {
+		rows = append(rows, kline)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return rows, nil
+}
+
+func boolPtr(value bool) *bool {
+	return &value
 }
 
 func TestRunExecutesDSLBacktestSmoke(t *testing.T) {

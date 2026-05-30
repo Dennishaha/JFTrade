@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -22,6 +23,7 @@ func (s *Server) serveStrategyRoutes(w http.ResponseWriter, r *http.Request) boo
 			s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "invalid strategy definition payload")
 			return true
 		}
+		payload.ID = ""
 		if err := strategydefinition.ValidateScript(payload.SourceFormat, payload.Script); err != nil {
 			s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", err.Error())
 			return true
@@ -43,7 +45,22 @@ func (s *Server) serveStrategyRoutes(w http.ResponseWriter, r *http.Request) boo
 			s.writeError(w, http.StatusNotFound, "NOT_FOUND", "strategy definition not found")
 			return true
 		}
-		s.writeOK(w, buildStrategyDefinitionResponse(definition, r.URL.Query().Get("interval")))
+		query := r.URL.Query()
+		useExtendedHours := false
+		if raw := strings.TrimSpace(query.Get("useExtendedHours")); raw != "" {
+			parsed, parseErr := strconv.ParseBool(raw)
+			if parseErr != nil {
+				s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "useExtendedHours must be a boolean")
+				return true
+			}
+			useExtendedHours = parsed
+		}
+		s.writeOK(w, buildStrategyDefinitionResponse(
+			definition,
+			query.Get("interval"),
+			query.Get("symbol"),
+			useExtendedHours,
+		))
 	case strings.HasPrefix(r.URL.Path, "/api/v1/strategy-definitions/") && r.Method == http.MethodPut:
 		definitionID, err := decodePathSegment(strings.TrimPrefix(r.URL.Path, "/api/v1/strategy-definitions/"))
 		if err != nil || strings.TrimSpace(definitionID) == "" {

@@ -10,8 +10,20 @@ import { resolveInstrumentRef } from "../composables/instrumentRef";
 import { useBacktestRuns, type BacktestFormState } from "../composables/useBacktestRuns";
 import { useConsoleData } from "../composables/useConsoleData";
 import { useTheme } from "../composables/useTheme";
+import { formatLocalDateTime } from "../utils/dateTime";
 import { buildBacktestDayInclusiveEndTime, buildBacktestDayStartTime } from "./backtestTimeWindow";
 import dayjs from "dayjs";
+
+const BACKTEST_FORM_STORAGE_KEY = "jftrade.backtest.form.v1";
+const BACKTEST_RESULTS_PAGE_SIZE = 5;
+
+const BACKTEST_RESULT_STATUS_OPTIONS = [
+  { value: "all", title: "全部状态" },
+  { value: "queued", title: "排队中" },
+  { value: "running", title: "运行中" },
+  { value: "completed", title: "已完成" },
+  { value: "failed", title: "失败" },
+];
 
 const BACKTEST_MARKET_OPTIONS = [
   { value: "HK", title: "港股 HK" },
@@ -62,9 +74,92 @@ const cardBorderClass = computed(() =>
 interface StrategyDefinition {
   id: string;
   name: string;
+  version: string;
+  symbol?: string;
   derivedWarmupBars?: number;
   derivedWarmupInterval?: string;
 }
+
+interface StoredBacktestFormPreferences {
+  selectedDefinitionId: string;
+  selectedMarket: string;
+  codeInput: string;
+  interval: string;
+  startDate: string;
+  endDate: string;
+  initialBalance: number;
+  rehabType: string;
+  useExtendedHours: boolean;
+}
+
+function readStoredBacktestFormPreferences(): StoredBacktestFormPreferences {
+  const defaultStartDate = dayjs().subtract(3, "year").format("YYYY-MM-DD");
+  const defaultEndDate = dayjs().format("YYYY-MM-DD");
+  const defaults: StoredBacktestFormPreferences = {
+    selectedDefinitionId: "",
+    selectedMarket: "HK",
+    codeInput: "00700",
+    interval: "5m",
+    startDate: defaultStartDate,
+    endDate: defaultEndDate,
+    initialBalance: 1000000,
+    rehabType: "forward",
+    useExtendedHours: false,
+  };
+
+  if (typeof window === "undefined" || window.localStorage == null) {
+    return defaults;
+  }
+
+  try {
+    const raw = window.localStorage.getItem(BACKTEST_FORM_STORAGE_KEY);
+    if (raw == null || raw.trim() === "") {
+      return defaults;
+    }
+    const parsed = JSON.parse(raw) as Partial<StoredBacktestFormPreferences>;
+    const validMarkets = new Set(BACKTEST_MARKET_OPTIONS.map((option) => option.value));
+    const validIntervals = new Set<string>(KLINE_PERIODS.map((period) => period.value));
+    const validRehabTypes = new Set(["forward", "backward", "none"]);
+    const normalizeDate = (value: unknown, fallback: string) => {
+      if (typeof value !== "string") {
+        return fallback;
+      }
+      const trimmed = value.trim();
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed) || !dayjs(trimmed).isValid()) {
+        return fallback;
+      }
+      return trimmed;
+    };
+
+    return {
+      selectedDefinitionId: typeof parsed.selectedDefinitionId === "string"
+        ? parsed.selectedDefinitionId.trim()
+        : defaults.selectedDefinitionId,
+      selectedMarket: typeof parsed.selectedMarket === "string" && validMarkets.has(parsed.selectedMarket.trim().toUpperCase())
+        ? parsed.selectedMarket.trim().toUpperCase()
+        : defaults.selectedMarket,
+      codeInput: typeof parsed.codeInput === "string" && parsed.codeInput.trim() !== ""
+        ? parsed.codeInput.trim().toUpperCase()
+        : defaults.codeInput,
+      interval: typeof parsed.interval === "string" && validIntervals.has(parsed.interval.trim())
+        ? parsed.interval.trim()
+        : defaults.interval,
+      startDate: normalizeDate(parsed.startDate, defaults.startDate),
+      endDate: normalizeDate(parsed.endDate, defaults.endDate),
+      initialBalance: typeof parsed.initialBalance === "number" && Number.isFinite(parsed.initialBalance) && parsed.initialBalance > 0
+        ? parsed.initialBalance
+        : defaults.initialBalance,
+      rehabType: typeof parsed.rehabType === "string" && validRehabTypes.has(parsed.rehabType.trim().toLowerCase())
+        ? parsed.rehabType.trim().toLowerCase()
+        : defaults.rehabType,
+      useExtendedHours: parsed.useExtendedHours === true,
+    };
+  } catch {
+    return defaults;
+  }
+}
+
+const storedBacktestFormPreferences = readStoredBacktestFormPreferences();
 
 // ── Reactive state ──
 const definitions = ref<StrategyDefinition[]>([]);
@@ -72,16 +167,36 @@ const warmupPreviewBars = ref<number | null>(null);
 const warmupPreviewPending = ref(false);
 const warmupPreviewInterval = ref("");
 let warmupPreviewRequestId = 0;
+const resultsPage = ref(1);
+const resultsSearchQuery = ref("");
+const resultsStatusFilter = ref("all");
+const resultsStrategyFilter = ref("all");
 
 // Form state
-const selectedDefinitionId = ref("");
-const selectedMarket = ref("HK");
-const codeInput = ref("00700");
-const interval = ref("5m");
-const startDate = ref(dayjs().subtract(3, "year").format("YYYY-MM-DD"));
-const endDate = ref(dayjs().format("YYYY-MM-DD"));
-const initialBalance = ref(1000000);
-const rehabType = ref("forward"); // "forward" | "backward" | "none"
+const selectedDefinitionId = ref(storedBacktestFormPreferences.selectedDefinitionId);
+const selectedMarket = ref(storedBacktestFormPreferences.selectedMarket);
+const codeInput = ref(storedBacktestFormPreferences.codeInput);
+const interval = ref(storedBacktestFormPreferences.interval);
+const startDate = ref(storedBacktestFormPreferences.startDate);
+const endDate = ref(storedBacktestFormPreferences.endDate);
+const initialBalance = ref(storedBacktestFormPreferences.initialBalance);
+const rehabType = ref(storedBacktestFormPreferences.rehabType); // "forward" | "backward" | "none"
+const useExtendedHours = ref(storedBacktestFormPreferences.useExtendedHours);
+
+const EXTENDED_HOURS_INTERVALS = new Set([
+  "1m",
+  "5m",
+  "15m",
+  "30m",
+  "1h",
+  "2h",
+  "4h",
+  "6h",
+  "12h",
+  "1d",
+  "1w",
+  "1mo",
+]);
 
 // Sync form (start/end time)
 const syncStartTime = computed(() => buildBacktestDayStartTime(startDate.value));
@@ -116,6 +231,27 @@ const periodLabel = computed(() =>
   KLINE_PERIODS.find((p) => p.value === interval.value)?.label ?? interval.value,
 );
 
+function supportsExtendedHoursForInterval(market: string, intervalValue: string) {
+  if ((market ?? "").trim().toUpperCase() !== "US") {
+    return false;
+  }
+  return EXTENDED_HOURS_INTERVALS.has((intervalValue ?? "").trim().toLowerCase());
+}
+
+const extendedHoursSupported = computed(() => {
+  const market = (parsedInstrument.value?.market ?? selectedMarket.value).trim().toUpperCase();
+  return supportsExtendedHoursForInterval(market, interval.value);
+});
+
+const extendedHoursHint = computed(() => {
+  if (extendedHoursSupported.value) {
+    return useExtendedHours.value
+      ? "US 盘前、盘后与夜盘数据会写入 extended 版本，并参与本次回测回放/高周期合成。"
+      : "仅使用 US regular session 数据；同步会写入 regular-only 版本，回测不会混入扩展时段 bar。";
+  }
+  return "当前仅 US 的 1m/5m/15m/30m/1h/2h/4h/6h/12h/1d/1w/1mo 支持扩展交易时段回放与对应同步版本。";
+});
+
 const quoteCurrency = computed(() => {
   const market = (parsedInstrument.value?.market ?? selectedMarket.value).toUpperCase();
   if (market === "US") return "USD";
@@ -143,8 +279,15 @@ const warmupPreviewValue = computed(() => {
 
 const warmupPreviewNote = computed(() => {
   const previewInterval = warmupPreviewInterval.value || interval.value || "5m";
-  return `按当前回测周期 ${previewInterval} 推导策略依赖的最大历史 bars。`;
+  const sessionMode = extendedHoursSupported.value && useExtendedHours.value ? "扩展时段" : "当前时段口径";
+  return `按当前标的与回测周期 ${previewInterval} 的${sessionMode}推导策略依赖的最大历史 bars。`;
 });
+
+const warmupPreviewSymbol = computed(() =>
+  parsedInstrument.value?.instrumentId
+  || selectedDefinition.value?.symbol?.trim()
+  || "",
+);
 
 function inferQuoteCurrencyFromInstrumentId(instrumentId: string | undefined) {
   const normalized = (instrumentId ?? "").trim().toUpperCase();
@@ -168,6 +311,35 @@ function resolveRunQuoteCurrency(run: { request: { symbol: string }; result?: { 
   return inferQuoteCurrencyFromInstrumentId(run.request.symbol);
 }
 
+function resolveRunSessionMode(run: { request: { symbol: string; interval: string; useExtendedHours?: boolean | undefined } }) {
+  const normalizedSymbol = run.request.symbol.trim().toUpperCase();
+  if (!supportsExtendedHoursForInterval(normalizedSymbol.split(".")[0] ?? "", run.request.interval)) {
+    return "常规时段";
+  }
+  return run.request.useExtendedHours ? "含扩展时段" : "仅常规时段";
+}
+
+function formatBacktestRehabType(rehabType: string | undefined) {
+  switch ((rehabType ?? "forward").trim().toLowerCase()) {
+    case "none":
+      return "不复权";
+    case "backward":
+      return "后复权";
+    case "forward":
+    default:
+      return "前复权";
+  }
+}
+
+function resolveBacktestPriceBasisNote(run: { request: { rehabType?: string; interval: string } }) {
+  const rehabLabel = formatBacktestRehabType(run.request.rehabType);
+  const intervalLabel = run.request.interval.trim() || "当前周期";
+  if ((run.request.rehabType ?? "forward").trim().toLowerCase() === "none") {
+    return `价格口径：图表显示的是 ${intervalLabel} 已闭合历史 K 线；若和当前盘后/夜盘快照不同，通常是因为快照展示的是最新成交，而不是最后一根已闭合 bar。`;
+  }
+  return `价格口径：图表显示的是${rehabLabel}${intervalLabel}已闭合历史 K 线；不要直接和实时盘后/夜盘快照比较，后者通常是不复权的最新成交。`;
+}
+
 function resolveStrategyName(definitionId: string | undefined) {
   if (!definitionId) {
     return "未命名策略";
@@ -175,8 +347,43 @@ function resolveStrategyName(definitionId: string | undefined) {
   return definitions.value.find((definition) => definition.id === definitionId)?.name ?? definitionId;
 }
 
+function resolveStrategyDefinition(definitionId: string | undefined) {
+  if (!definitionId) {
+    return null;
+  }
+  return definitions.value.find((definition) => definition.id === definitionId) ?? null;
+}
+
+function formatStrategyVersion(version: string | undefined) {
+  const normalized = (version ?? "").trim();
+  if (normalized === "") {
+    return "版本未知";
+  }
+  return `v${normalized}`;
+}
+
+function resolveBacktestStrategyVersionNotice(run: { request: { definitionId: string; definitionVersion?: string | undefined } }) {
+  const recordedVersion = (run.request.definitionVersion ?? "").trim();
+  if (recordedVersion === "") {
+    return "";
+  }
+
+  const currentDefinition = resolveStrategyDefinition(run.request.definitionId);
+  if (currentDefinition == null) {
+    return `历史策略回测结果：当前策略定义已不存在；该结果基于策略 ${formatStrategyVersion(recordedVersion)}。`;
+  }
+
+  const currentVersion = currentDefinition.version.trim();
+  if (currentVersion === "" || currentVersion === recordedVersion) {
+    return "";
+  }
+
+  return `旧版本策略回测结果：当时策略 ${formatStrategyVersion(recordedVersion)}，当前已更新到 ${formatStrategyVersion(currentVersion)}。`;
+}
+
 const backtestFormState = computed<BacktestFormState>(() => ({
   definitionId: selectedDefinitionId.value,
+  definitionVersion: selectedDefinition.value?.version?.trim() ?? "",
   market: parsedInstrument.value?.market ?? selectedMarket.value.trim().toUpperCase(),
   code: parsedInstrument.value?.code ?? codeInput.value.trim().toUpperCase(),
   instrumentId: parsedInstrument.value?.instrumentId ?? "",
@@ -187,7 +394,14 @@ const backtestFormState = computed<BacktestFormState>(() => ({
   backtestEndTime: backtestEndTime.value,
   initialBalance: initialBalance.value,
   rehabType: rehabType.value,
+  useExtendedHours: useExtendedHours.value,
 }));
+
+watch(extendedHoursSupported, (supported) => {
+	if (!supported) {
+		useExtendedHours.value = false;
+	}
+}, { immediate: true });
 
 const {
   runs,
@@ -196,14 +410,140 @@ const {
   syncProgress,
   error,
   expandedRuns,
-  filteredRuns,
+  filteredRuns: sortedRuns,
   toggleRun,
+  deleteRun,
   loadRuns,
   syncKlines,
   cancelSync,
   startBacktest,
 } = useBacktestRuns({
   formState: backtestFormState,
+});
+
+const resultStrategyOptions = computed(() => {
+  const options = [{ value: "all", title: "全部策略" }];
+  const seenDefinitionIDs = new Set<string>();
+  for (const run of sortedRuns.value) {
+    const definitionID = run.request.definitionId.trim();
+    if (definitionID === "" || seenDefinitionIDs.has(definitionID)) {
+      continue;
+    }
+    seenDefinitionIDs.add(definitionID);
+    options.push({ value: definitionID, title: resolveStrategyName(definitionID) });
+  }
+  return options;
+});
+
+const hasResultsFilters = computed(() =>
+  resultsSearchQuery.value.trim() !== ""
+  || resultsStatusFilter.value !== "all"
+  || resultsStrategyFilter.value !== "all",
+);
+
+const filteredRuns = computed(() => {
+  const normalizedQuery = resultsSearchQuery.value.trim().toLowerCase();
+  return sortedRuns.value.filter((run) => {
+    if (resultsStatusFilter.value !== "all" && run.status !== resultsStatusFilter.value) {
+      return false;
+    }
+    if (resultsStrategyFilter.value !== "all" && run.request.definitionId !== resultsStrategyFilter.value) {
+      return false;
+    }
+    if (normalizedQuery === "") {
+      return true;
+    }
+
+    const searchText = [
+      run.id,
+      run.request.symbol,
+      run.request.market ?? "",
+      run.request.code ?? "",
+      run.request.interval,
+      run.request.definitionId,
+      run.request.definitionVersion ?? "",
+      resolveStrategyName(run.request.definitionId),
+      run.status,
+    ]
+      .join(" ")
+      .toLowerCase();
+    return searchText.includes(normalizedQuery);
+  });
+});
+
+const emptyResultsMessage = computed(() => {
+  if (sortedRuns.value.length === 0) {
+    return "暂无回测记录。请在左侧配置参数并启动回测。";
+  }
+  return "没有匹配当前搜索或筛选条件的回测结果。";
+});
+
+const resultsPageCount = computed(() =>
+  Math.max(1, Math.ceil(filteredRuns.value.length / BACKTEST_RESULTS_PAGE_SIZE)),
+);
+
+const pagedRuns = computed(() => {
+  const startIndex = (resultsPage.value - 1) * BACKTEST_RESULTS_PAGE_SIZE;
+  return filteredRuns.value.slice(startIndex, startIndex + BACKTEST_RESULTS_PAGE_SIZE);
+});
+
+const resultsPageSummary = computed(() => {
+  if (filteredRuns.value.length === 0) {
+    return "";
+  }
+  const startIndex = (resultsPage.value - 1) * BACKTEST_RESULTS_PAGE_SIZE;
+  const visibleStart = startIndex + 1;
+  const visibleEnd = Math.min(filteredRuns.value.length, startIndex + BACKTEST_RESULTS_PAGE_SIZE);
+  if (hasResultsFilters.value) {
+    return `筛选后第 ${visibleStart}-${visibleEnd} 条，共 ${filteredRuns.value.length} 条；全部结果 ${sortedRuns.value.length} 条`;
+  }
+  return `第 ${visibleStart}-${visibleEnd} 条，共 ${filteredRuns.value.length} 条`;
+});
+
+function resetResultsFilters() {
+  resultsSearchQuery.value = "";
+  resultsStatusFilter.value = "all";
+  resultsStrategyFilter.value = "all";
+  resultsPage.value = 1;
+}
+
+watch(
+  [selectedDefinitionId, selectedMarket, codeInput, interval, startDate, endDate, initialBalance, rehabType, useExtendedHours],
+  ([nextDefinitionId, nextMarket, nextCodeInput, nextInterval, nextStartDate, nextEndDate, nextInitialBalance, nextRehabType, nextUseExtendedHours]) => {
+    if (typeof window === "undefined" || window.localStorage == null) {
+      return;
+    }
+    const storedPreferences: StoredBacktestFormPreferences = {
+      selectedDefinitionId: nextDefinitionId.trim(),
+      selectedMarket: nextMarket.trim().toUpperCase(),
+      codeInput: nextCodeInput.trim().toUpperCase(),
+      interval: nextInterval.trim(),
+      startDate: nextStartDate,
+      endDate: nextEndDate,
+      initialBalance: nextInitialBalance,
+      rehabType: nextRehabType,
+      useExtendedHours: nextUseExtendedHours,
+    };
+    window.localStorage.setItem(BACKTEST_FORM_STORAGE_KEY, JSON.stringify(storedPreferences));
+  },
+  { immediate: true },
+);
+
+watch(
+  () => [filteredRuns.value.length, resultsPageCount.value] as const,
+  () => {
+    if (resultsPage.value > resultsPageCount.value) {
+      resultsPage.value = resultsPageCount.value;
+    }
+    if (resultsPage.value < 1) {
+      resultsPage.value = 1;
+    }
+  },
+  { immediate: true },
+);
+
+watch([resultsSearchQuery, resultsStatusFilter, resultsStrategyFilter], () => {
+  resultsPage.value = 1;
 });
 
 watch(codeInput, (value) => {
@@ -270,6 +610,7 @@ async function loadDefinitions() {
 async function loadWarmupPreview() {
   const definitionId = selectedDefinitionId.value.trim();
   const requestedInterval = (interval.value || "5m").trim();
+  const requestedSymbol = warmupPreviewSymbol.value.trim();
   const requestId = ++warmupPreviewRequestId;
 
   if (!definitionId) {
@@ -281,8 +622,13 @@ async function loadWarmupPreview() {
 
   warmupPreviewPending.value = true;
   try {
+    const params = new URLSearchParams({ interval: requestedInterval });
+    if (requestedSymbol !== "") {
+      params.set("symbol", requestedSymbol);
+    }
+    params.set("useExtendedHours", String(extendedHoursSupported.value && useExtendedHours.value));
     const detail = await fetchEnvelope<StrategyDefinition>(
-      `/api/v1/strategy-definitions/${encodeURIComponent(definitionId)}?interval=${encodeURIComponent(requestedInterval)}`,
+      `/api/v1/strategy-definitions/${encodeURIComponent(definitionId)}?${params.toString()}`,
     );
     if (requestId !== warmupPreviewRequestId) {
       return;
@@ -348,14 +694,7 @@ function formatBacktestTimestamp(value?: string) {
     return "--";
   }
 
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    return value;
-  }
-
-  return parsed.toLocaleString("zh-CN", {
-    hour12: false,
-  });
+  return formatLocalDateTime(value, "--");
 }
 
 function formatBacktestOrderSide(side: string) {
@@ -514,6 +853,18 @@ watch([selectedDefinitionId, interval], () => {
               <div class="text-xs text-slate-400 dark:text-slate-500">前复权适合回测，后复权适合分析。</div>
             </div>
 
+            <div v-if="extendedHoursSupported" class="grid gap-1">
+              <div class="flex items-start justify-between gap-3 rounded-lg border border-slate-200 px-3 py-2 dark:border-slate-700">
+                <div class="min-w-0">
+                  <div class="text-xs font-semibold text-slate-700 dark:text-slate-200">扩展交易时段</div>
+                  <div class="text-xs text-slate-400 dark:text-slate-500">
+                    {{ extendedHoursHint }}
+                  </div>
+                </div>
+                <v-switch v-model="useExtendedHours" color="teal" density="compact" hide-details inset />
+              </div>
+            </div>
+
             <!-- Date range -->
             <div class="grid grid-cols-2 gap-2">
               <div class="grid gap-0.5">
@@ -602,11 +953,36 @@ watch([selectedDefinitionId, interval], () => {
       <div class="col-span-8 lg:col-span-9">
         <div class="grid gap-4">
           <!-- Results cards -->
-          <div v-if="filteredRuns.length === 0" :class="[emptyStateClass, 'p-8 text-center text-sm']">
-            暂无回测记录。请在左侧配置参数并启动回测。
+          <div v-if="sortedRuns.length === 0" :class="[emptyStateClass, 'p-8 text-center text-sm']">
+            {{ emptyResultsMessage }}
           </div>
 
-          <v-card v-for="run in filteredRuns" :key="run.id" flat :class="cardBorderClass">
+          <div v-else class="grid gap-3 rounded-lg border border-slate-200 bg-white px-3 py-3 dark:border-slate-700 dark:bg-slate-900">
+            <div class="grid gap-3 lg:grid-cols-[minmax(0,1.7fr)_180px_220px_auto]">
+              <v-text-field v-model="resultsSearchQuery" density="compact" variant="outlined" hide-details clearable
+                placeholder="搜索策略、标的、回测 ID" />
+              <v-select v-model="resultsStatusFilter" :items="BACKTEST_RESULT_STATUS_OPTIONS" item-title="title"
+                item-value="value" density="compact" variant="outlined" hide-details />
+              <v-select v-model="resultsStrategyFilter" :items="resultStrategyOptions" item-title="title"
+                item-value="value" density="compact" variant="outlined" hide-details />
+              <div class="flex items-center justify-end">
+                <v-btn variant="text" density="comfortable" :disabled="!hasResultsFilters" @click="resetResultsFilters">
+                  清空筛选
+                </v-btn>
+              </div>
+            </div>
+            <div
+              class="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400">
+              <span>{{ resultsPageSummary }}</span>
+              <span>最近使用的回测参数与已完成结果会保存在当前浏览器。</span>
+            </div>
+          </div>
+
+          <div v-if="sortedRuns.length > 0 && filteredRuns.length === 0" :class="[emptyStateClass, 'p-8 text-center text-sm']">
+            {{ emptyResultsMessage }}
+          </div>
+
+          <v-card v-for="run in pagedRuns" :key="run.id" flat :class="cardBorderClass">
             <v-card-item>
               <template #prepend>
                 <v-chip :color="statusChip(run.status).color" size="small" variant="outlined">
@@ -618,15 +994,25 @@ watch([selectedDefinitionId, interval], () => {
                   dayjs(run.request.endTime).format('YYYY-MM-DD') }}
               </v-card-title>
               <v-card-subtitle>
-                {{ run.id }} · {{ run.request.interval }} · {{ run.request.initialBalance.toLocaleString() }} {{
-                  resolveRunQuoteCurrency(run) }}
+                {{ run.id }} · {{ run.request.interval }} · {{ formatBacktestRehabType(run.request.rehabType) }} · {{ resolveRunSessionMode(run) }} · {{ run.request.initialBalance.toLocaleString() }} {{
+                  resolveRunQuoteCurrency(run) }}<template v-if="run.request.definitionVersion"> · {{ formatStrategyVersion(run.request.definitionVersion) }}</template>
               </v-card-subtitle>
               <template #append>
-                <v-btn v-if="run.result && (run.status === 'completed' || run.status === 'failed')"
-                  :icon="expandedRuns[run.id] ? 'fa-solid fa-chevron-up' : 'fa-solid fa-chevron-down'" size="small"
-                  variant="text" :title="expandedRuns[run.id] ? '收起结果' : '展开结果'" @click="toggleRun(run.id)" />
+                <div class="flex items-center gap-1">
+                  <v-btn v-if="run.status === 'completed' || run.status === 'failed'" icon="fa-solid fa-trash" size="small"
+                    variant="text" color="error" title="删除回测结果" @click="deleteRun(run.id)" />
+                  <v-btn v-if="run.result && (run.status === 'completed' || run.status === 'failed')"
+                    :icon="expandedRuns[run.id] ? 'fa-solid fa-chevron-up' : 'fa-solid fa-chevron-down'" size="small"
+                    variant="text" :title="expandedRuns[run.id] ? '收起结果' : '展开结果'" @click="toggleRun(run.id)" />
+                </div>
               </template>
             </v-card-item>
+
+            <v-card-text v-if="resolveBacktestStrategyVersionNotice(run)" class="pb-0 pt-0">
+              <div class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                {{ resolveBacktestStrategyVersionNotice(run) }}
+              </div>
+            </v-card-text>
 
             <!-- Running / Queued progress -->
             <v-card-text v-if="run.status === 'running' || run.status === 'queued'" class="pb-0">
@@ -692,11 +1078,14 @@ watch([selectedDefinitionId, interval], () => {
                 class="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300">
                 未产生任何交易。可能原因：策略未调用 placeOrder()，或订阅的K线周期未同步。
               </div>
-              <div v-if="resolveQueriedCandleBounds(run.result?.candles)"
+              <div
                 class="mt-2 rounded border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
-                查询到的周期边界：左边界 {{ resolveQueriedCandleBounds(run.result?.candles)?.left }} ｜ 右边界 {{
-                  resolveQueriedCandleBounds(run.result?.candles)?.right }} ｜ 共 {{
-                  resolveQueriedCandleBounds(run.result?.candles)?.count }} 根
+                <div class="mt-1">{{ resolveBacktestPriceBasisNote(run) }}</div>
+                <div v-if="resolveQueriedCandleBounds(run.result?.candles)" class="mt-1">
+                  查询到的周期边界：左边界 {{ resolveQueriedCandleBounds(run.result?.candles)?.left }} ｜ 右边界 {{
+                    resolveQueriedCandleBounds(run.result?.candles)?.right }} ｜ 共 {{
+                    resolveQueriedCandleBounds(run.result?.candles)?.count }} 根
+                </div>
               </div>
 
               <!-- Backtest chart -->
@@ -801,6 +1190,10 @@ watch([selectedDefinitionId, interval], () => {
               </div>
             </v-card-text>
           </v-card>
+
+          <div v-if="resultsPageCount > 1" class="flex justify-center pt-2">
+            <v-pagination v-model="resultsPage" :length="resultsPageCount" :total-visible="6" density="comfortable" />
+          </div>
         </div>
       </div>
     </div>

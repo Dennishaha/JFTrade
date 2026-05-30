@@ -6,6 +6,11 @@ import type { BacktestTrade, BacktestPnlPoint, BacktestDrawdownPoint, BacktestCa
 import { fetchEnvelope, fetchEnvelopeWithInit } from "./apiClient";
 import { resolveInstrumentRef } from "./instrumentRef";
 
+const BACKTEST_RUNS_STORAGE_KEY = "jftrade.backtest.runs.v1";
+const BACKTEST_DELETED_RUN_IDS_STORAGE_KEY = "jftrade.backtest.deleted-runs.v1";
+const MAX_PERSISTED_BACKTEST_RUNS = 50;
+const MAX_DELETED_BACKTEST_RUN_IDS = 200;
+
 type BacktestDecimalTransport = string | number;
 
 interface BacktestTradeView extends BacktestTrade {
@@ -136,6 +141,7 @@ interface BacktestRun {
   status: string;
   request: {
     definitionId: string;
+    definitionVersion?: string;
     market?: string;
     code?: string;
     symbol: string;
@@ -144,6 +150,7 @@ interface BacktestRun {
     endTime: string;
     initialBalance: number;
     rehabType?: string;
+    useExtendedHours?: boolean;
   };
   result?: BacktestRunResult | undefined;
   createdAt: string;
@@ -155,6 +162,7 @@ interface BacktestRunTransport {
   status: string;
   request: {
     definitionId: string;
+    definitionVersion?: string;
     market?: string;
     code?: string;
     symbol: string;
@@ -163,6 +171,7 @@ interface BacktestRunTransport {
     endTime: string;
     initialBalance: number;
     rehabType?: string;
+    useExtendedHours?: boolean;
   };
   result?: BacktestRunResultTransport | undefined;
   createdAt: string;
@@ -171,6 +180,7 @@ interface BacktestRunTransport {
 
 export interface BacktestFormState {
   definitionId: string;
+  definitionVersion: string;
   market: string;
   code: string;
   instrumentId: string;
@@ -181,6 +191,7 @@ export interface BacktestFormState {
   backtestEndTime: string;
   initialBalance: number;
   rehabType: string;
+  useExtendedHours: boolean;
 }
 
 interface UseBacktestRunsOptions {
@@ -208,8 +219,13 @@ export function buildBacktestInstrumentPayload(
   };
 }
 
+function resolveSyncSessionScope(formState: Pick<BacktestFormState, "useExtendedHours">): "regular" | "extended" {
+  return formState.useExtendedHours ? "extended" : "regular";
+}
+
 export function useBacktestRuns(options: UseBacktestRunsOptions) {
   const runs = ref<BacktestRun[]>([]);
+  const deletedRunIds = ref<string[]>(readPersistedDeletedRunIds());
   const running = ref(false);
   const syncing = ref(false);
   const syncTaskId = ref("");
@@ -331,15 +347,192 @@ export function useBacktestRuns(options: UseBacktestRunsOptions) {
     };
   }
 
+  function getBrowserStorage(): Storage | null {
+    if (typeof window === "undefined" || window.localStorage == null) {
+      return null;
+    }
+    return window.localStorage;
+  }
+
+  function sortRunsByUpdatedAtDesc(nextRuns: BacktestRun[]) {
+    return [...nextRuns].sort(
+      (left, right) =>
+        new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime(),
+    );
+  }
+
+  function isTerminalRun(run: BacktestRun) {
+    return run.status === "completed" || run.status === "failed";
+  }
+
+  function readPersistedDeletedRunIds(): string[] {
+    const storage = getBrowserStorage();
+    if (storage == null) {
+      return [];
+    }
+
+    try {
+      const raw = storage.getItem(BACKTEST_DELETED_RUN_IDS_STORAGE_KEY);
+      if (raw == null || raw.trim() === "") {
+        return [];
+      }
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) {
+        return [];
+      }
+      return Array.from(new Set(
+        parsed
+          .filter((value): value is string => typeof value === "string")
+          .map((value) => value.trim())
+          .filter((value) => value !== ""),
+      )).slice(-MAX_DELETED_BACKTEST_RUN_IDS);
+    } catch {
+      return [];
+    }
+  }
+
+  function persistDeletedRunIds(nextDeletedRunIds = deletedRunIds.value): void {
+    const storage = getBrowserStorage();
+    if (storage == null) {
+      return;
+    }
+
+    storage.setItem(
+      BACKTEST_DELETED_RUN_IDS_STORAGE_KEY,
+      JSON.stringify(nextDeletedRunIds.slice(-MAX_DELETED_BACKTEST_RUN_IDS)),
+    );
+  }
+
+  function pickPreferredRun(existingRun: BacktestRun, candidateRun: BacktestRun): BacktestRun {
+    const existingUpdatedAt = new Date(existingRun.updatedAt).getTime();
+    const candidateUpdatedAt = new Date(candidateRun.updatedAt).getTime();
+
+    if (Number.isFinite(candidateUpdatedAt) && Number.isFinite(existingUpdatedAt)) {
+      if (candidateUpdatedAt > existingUpdatedAt) {
+        return candidateRun;
+      }
+      if (candidateUpdatedAt < existingUpdatedAt) {
+        return existingRun;
+      }
+    }
+
+    if (candidateRun.result && !existingRun.result) {
+      return candidateRun;
+    }
+    if (existingRun.result && !candidateRun.result) {
+      return existingRun;
+    }
+    if (candidateRun.status === "completed" && existingRun.status !== "completed") {
+      return candidateRun;
+    }
+    return candidateRun;
+  }
+
+  function dedupeRuns(nextRuns: BacktestRun[]): BacktestRun[] {
+    const hiddenRunIds = new Set(deletedRunIds.value);
+    const merged = new Map<string, BacktestRun>();
+
+    for (const run of nextRuns) {
+      if (hiddenRunIds.has(run.id)) {
+        continue;
+      }
+      const existing = merged.get(run.id);
+      merged.set(run.id, existing ? pickPreferredRun(existing, run) : run);
+    }
+
+    return Array.from(merged.values());
+  }
+
+  function persistRuns(nextRuns = runs.value): void {
+    const storage = getBrowserStorage();
+    if (storage == null) {
+      return;
+    }
+
+    const persistedRuns = sortRunsByUpdatedAtDesc(dedupeRuns(nextRuns))
+      .filter(isTerminalRun)
+      .slice(0, MAX_PERSISTED_BACKTEST_RUNS);
+    storage.setItem(BACKTEST_RUNS_STORAGE_KEY, JSON.stringify(persistedRuns));
+  }
+
+  function readPersistedRuns(): BacktestRun[] {
+    const storage = getBrowserStorage();
+    if (storage == null) {
+      return [];
+    }
+
+    try {
+      const raw = storage.getItem(BACKTEST_RUNS_STORAGE_KEY);
+      if (raw == null || raw.trim() === "") {
+        return [];
+      }
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) {
+        return [];
+      }
+      return dedupeRuns(
+        parsed
+          .map((item) => normalizeRun(item as BacktestRunTransport))
+          .filter(isTerminalRun),
+      );
+    } catch {
+      return [];
+    }
+  }
+
+  function setRuns(nextRuns: BacktestRun[]): void {
+    runs.value = dedupeRuns(nextRuns);
+    persistRuns();
+  }
+
+  function removeRunLocally(runId: string, persistDeletedId: boolean): void {
+    if (persistDeletedId && !deletedRunIds.value.includes(runId)) {
+      deletedRunIds.value = [...deletedRunIds.value, runId].slice(-MAX_DELETED_BACKTEST_RUN_IDS);
+      persistDeletedRunIds();
+    }
+    delete expandedRuns[runId];
+    setRuns(runs.value.filter((run) => run.id !== runId));
+  }
+
+  runs.value = readPersistedRuns();
+
   async function loadRuns() {
     try {
       const data = await fetchEnvelope<{ runs: BacktestRunTransport[] }>(
         "/api/v1/backtests",
       );
-      runs.value = (data.runs ?? []).map(normalizeRun);
+      setRuns([
+        ...runs.value,
+        ...((data.runs ?? []).map(normalizeRun)),
+      ]);
     } catch {
       // backtests may not be available yet
     }
+  }
+
+  async function deleteRun(runId: string) {
+    const normalizedRunID = runId.trim();
+    if (normalizedRunID === "") {
+      return;
+    }
+
+    const targetRun = runs.value.find((run) => run.id === normalizedRunID);
+    if (targetRun && isTerminalRun(targetRun)) {
+      try {
+        await fetchEnvelopeWithInit<{ deleted: boolean; id: string }>(
+          `/api/v1/backtests/${encodeURIComponent(normalizedRunID)}`,
+          {
+            method: "DELETE",
+          },
+        );
+        removeRunLocally(normalizedRunID, false);
+        return;
+      } catch {
+        // Fallback to browser-local removal if the sidecar cannot delete this run.
+      }
+    }
+
+    removeRunLocally(normalizedRunID, true);
   }
 
   async function syncKlines() {
@@ -364,6 +557,7 @@ export function useBacktestRuns(options: UseBacktestRunsOptions) {
         since: formState.syncStartTime,
         until: formState.syncEndTime,
         rehabType: formState.rehabType,
+        sessionScope: resolveSyncSessionScope(formState),
       };
       const data = await fetchEnvelopeWithInit<{ taskId: string; message: string }>(
         "/api/v1/backtests/sync",
@@ -445,6 +639,7 @@ export function useBacktestRuns(options: UseBacktestRunsOptions) {
     try {
       const payload: BacktestStartRequestPayload = {
         definitionId: formState.definitionId,
+        definitionVersion: formState.definitionVersion,
         market: instrument.market,
         code: instrument.code,
         symbol: instrument.symbol,
@@ -453,6 +648,7 @@ export function useBacktestRuns(options: UseBacktestRunsOptions) {
         endTime: formState.backtestEndTime,
         initialBalance: formState.initialBalance,
         rehabType: formState.rehabType,
+        useExtendedHours: formState.useExtendedHours,
       };
       const data = await fetchEnvelopeWithInit<{ id: string; status: string }>(
         "/api/v1/backtests",
@@ -504,6 +700,7 @@ export function useBacktestRuns(options: UseBacktestRunsOptions) {
     expandedRuns,
     filteredRuns,
     toggleRun,
+    deleteRun,
     loadRuns,
     syncKlines,
     cancelSync,

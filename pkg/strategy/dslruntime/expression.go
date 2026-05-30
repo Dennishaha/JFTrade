@@ -21,6 +21,14 @@ type objectFieldReader interface {
 	FieldValue(name string) (any, bool)
 }
 
+type objectSeriesReader interface {
+	SeriesField(name string) (current float64, previous float64, hasCurrent bool, hasPrevious bool, ok bool)
+}
+
+type preferredScalarReader interface {
+	PreferredScalarValue() (float64, bool)
+}
+
 type scalarValueReader interface {
 	ScalarValue() (float64, bool)
 }
@@ -335,6 +343,18 @@ func evaluateMemberExpression(expression *exprast.MemberNode, scope *evaluationS
 	if !ok {
 		return nil, fmt.Errorf("unsupported member property %T", expression.Property)
 	}
+	if values, ok := base.(objectSeriesReader); ok {
+		current, previous, currentOK, previousOK, seriesOK := values.SeriesField(property)
+		if seriesOK {
+			if currentOK && previousOK {
+				return seriesNumber{Current: current, Previous: previous, HasCurrent: true, HasPrevious: true}, nil
+			}
+			if currentOK {
+				return current, nil
+			}
+			return nil, nil
+		}
+	}
 	current, ok := readObjectField(base, property)
 	if !ok {
 		return nil, fmt.Errorf("selector %s requires an object expression", property)
@@ -489,7 +509,13 @@ func evaluateDivergenceExpression(arguments []exprast.Node, scope *evaluationSco
 	if !ok {
 		return false, nil
 	}
-	key, ok := buildDivergenceRequirementKey(binding, direction, int(math.Round(lookbackFloat)))
+	lookback := int(math.Round(lookbackFloat))
+	var key string
+	if runtime := scope.runtime; runtime != nil {
+		key, ok = runtime.cachedDivergenceRequirementKey(binding, direction, lookback)
+	} else {
+		key, ok = buildDivergenceRequirementKey(binding, direction, lookback)
+	}
 	if !ok {
 		return false, nil
 	}
@@ -597,6 +623,11 @@ func coerceFloatFromMapFields(values map[string]any) (float64, bool) {
 }
 
 func coerceFloatFromObjectFields(values objectFieldReader) (float64, bool) {
+	if preferred, ok := values.(preferredScalarReader); ok {
+		if parsed, ok := preferred.PreferredScalarValue(); ok {
+			return parsed, true
+		}
+	}
 	for _, key := range scalarObjectFieldCandidates {
 		nested, ok := values.FieldValue(key)
 		if !ok {
@@ -655,6 +686,15 @@ func coerceSeriesNumber(value any) (seriesNumber, bool) {
 		}
 		return *typed, true
 	case map[string]any, objectFieldReader:
+		if values, ok := value.(objectSeriesReader); ok {
+			for _, field := range [...]string{"value", "diff", "signal", "histogram", "k", "d", "j"} {
+				current, previous, currentOK, previousOK, seriesOK := values.SeriesField(field)
+				if !seriesOK || !currentOK || !previousOK {
+					continue
+				}
+				return seriesNumber{Current: current, Previous: previous, HasCurrent: true, HasPrevious: true}, true
+			}
+		}
 		for _, pair := range [][2]string{{"value", "previous"}, {"diff", "previousDiff"}, {"signal", "previousSignal"}, {"histogram", "previousHistogram"}, {"k", "previousK"}, {"d", "previousD"}, {"j", "previousJ"}} {
 			current, currentOK := readObjectField(value, pair[0])
 			previous, previousOK := readObjectField(value, pair[1])

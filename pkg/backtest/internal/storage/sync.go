@@ -60,8 +60,10 @@ func (s *FutuKLineStore) SyncKLines(
 	intervals []bbgotypes.Interval,
 	since, until time.Time,
 	rehabType qotcommonpb.RehabType,
+	sessionScope string,
 	progress *SyncProgress,
 ) error {
+	sessionScope = normalizeKLineSessionScopeName(sessionScope)
 	if progress != nil {
 		progress.SetRunning(len(intervals), time.Now().UTC())
 	}
@@ -78,7 +80,7 @@ func (s *FutuKLineStore) SyncKLines(
 		if progress != nil {
 			progress.BeginInterval(interval, i, time.Now().UTC())
 		}
-		if err := s.syncInterval(ctx, exchange, symbol, interval, since, until, rehabType, progress); err != nil {
+		if err := s.syncInterval(ctx, exchange, symbol, interval, since, until, rehabType, sessionScope, progress); err != nil {
 			if progress != nil {
 				if errors.Is(err, context.Canceled) {
 					progress.MarkCancelled(time.Now().UTC())
@@ -105,8 +107,12 @@ func (s *FutuKLineStore) syncInterval(
 	interval bbgotypes.Interval,
 	since, until time.Time,
 	rehabType qotcommonpb.RehabType,
+	sessionScope string,
 	progress *SyncProgress,
 ) error {
+	writeSessionScope := syncWriteSessionScope(symbol, interval, sessionScope)
+	s.SetWriteSessionScope(writeSessionScope)
+
 	// Always start from the requested start time.  Instead of jumping the
 	// cursor to the "latest stored kline" (which would skip older gaps when
 	// the DB already contains newer data), we check each batch against the
@@ -157,6 +163,12 @@ func (s *FutuKLineStore) syncInterval(
 			continue
 		}
 
+		klines = filterSyncedKLinesBySessionScope(symbol, interval, writeSessionScope, klines)
+		if len(klines) == 0 {
+			cursor = batchEnd
+			continue
+		}
+
 		if err := s.InsertKLines(klines, RehabTypeName(int32(rehabType))); err != nil {
 			return fmt.Errorf("insert klines: %w", err)
 		}
@@ -191,4 +203,28 @@ func syncHistoryRequestEndTime(interval bbgotypes.Interval, requestedEnd time.Ti
 		return closedEnd.Add(time.Millisecond)
 	}
 	return closedEnd
+}
+
+func syncWriteSessionScope(symbol string, interval bbgotypes.Interval, requestedScope string) string {
+	scope := normalizeKLineSessionScopeName(requestedScope)
+	if scope != klineSessionScopeExtended {
+		return scope
+	}
+	if strings.HasPrefix(strings.ToUpper(strings.TrimSpace(symbol)), "US.") && interval.Duration() <= time.Hour {
+		return klineSessionScopeExtended
+	}
+	return klineSessionScopeRegular
+}
+
+func filterSyncedKLinesBySessionScope(symbol string, interval bbgotypes.Interval, sessionScope string, klines []bbgotypes.KLine) []bbgotypes.KLine {
+	if normalizeKLineSessionScopeName(sessionScope) != klineSessionScopeRegular || interval.Duration() > time.Hour {
+		return klines
+	}
+	filtered := klines[:0]
+	for _, kline := range klines {
+		if futu.IsRegularTradingTime(symbol, kline.StartTime.Time()) {
+			filtered = append(filtered, kline)
+		}
+	}
+	return filtered
 }

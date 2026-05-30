@@ -330,7 +330,7 @@ func (m *strategyRuntimeManager) buildSymbolRuntime(
 }
 
 func (m *strategyRuntimeManager) seedSymbolRuntime(ctx context.Context, exchange strategyRuntimeExchange, strategy *dslruntime.Strategy, runner *strategySymbolRuntime) error {
-	warmupBars, err := strategyindicatorruntime.WarmupBarsFromScript(strategy.Script, strategy.Interval)
+	warmupBars, err := strategyindicatorruntime.WarmupBarsFromScriptForSymbol(strategy.Script, strategy.Interval, runner.symbol)
 	if err != nil {
 		return fmt.Errorf("analyze strategy warmup for %s: %w", runner.symbol, err)
 	}

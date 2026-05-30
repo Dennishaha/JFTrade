@@ -1,0 +1,99 @@
+name: Backtest Performance Gate
+
+on:
+  workflow_dispatch:
+    inputs:
+      baseline_mode:
+        description: Strategy block baseline mode
+        required: true
+        default: enforce
+        type: choice
+        options:
+          - skip
+          - enforce
+          - update
+      run_real_tme:
+        description: Run the real US.TME protect-session replay benchmark
+        required: true
+        default: false
+        type: boolean
+      real_chain_db_path:
+        description: Local DB path on the self-hosted runner for the real US.TME benchmark
+        required: false
+        default: /tmp/jftrade-real-us-tme-202301-202601-extended.db
+        type: string
+
+jobs:
+  backtest-performance:
+    name: Backtest performance gate
+    runs-on:
+      - self-hosted
+      - macOS
+      - ARM64
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Prepare artifact directory
+        run: mkdir -p artifacts/performance
+
+      - name: Run strategy block smoke test
+        run: |
+          go test ./pkg/backtest -run '^TestStrategyBlockBenchmarkCasesSmoke$' -count 1 \
+            | tee artifacts/performance/strategy_block_smoke.txt
+
+      - name: Run protect-session matrix benchmark
+        run: |
+          go test ./pkg/backtest -run '^$' \
+            -bench '^BenchmarkRunExecutesStrategyBlockMatrix/protect_session_risk$' \
+            -benchtime 3x -benchmem \
+            | tee artifacts/performance/protect_session_risk.txt
+
+      - name: Update strategy block baseline
+        if: inputs.baseline_mode == 'update'
+        env:
+          JFTRADE_UPDATE_STRATEGY_BLOCK_BASELINE: '1'
+        run: |
+          go test ./pkg/backtest -run '^TestStrategyBlockBenchmarkBaseline$' -count 1 \
+            | tee artifacts/performance/strategy_block_baseline_update.txt
+
+      - name: Enforce strategy block baseline
+        if: inputs.baseline_mode == 'enforce'
+        env:
+          JFTRADE_ENFORCE_STRATEGY_BLOCK_BASELINE: '1'
+        run: |
+          go test ./pkg/backtest -run '^TestStrategyBlockBenchmarkBaseline$' -count 1 \
+            | tee artifacts/performance/strategy_block_baseline_enforce.txt
+
+      - name: Run real US.TME protect-session benchmark
+        if: inputs.run_real_tme
+        env:
+          JFTRADE_REAL_CHAIN_PROFILE: '1'
+          JFTRADE_REAL_CHAIN_DB_PATH: ${{ inputs.real_chain_db_path }}
+        run: |
+          if [[ ! -f "${JFTRADE_REAL_CHAIN_DB_PATH}" ]]; then
+            echo "missing real-chain DB at ${JFTRADE_REAL_CHAIN_DB_PATH}" >&2
+            exit 1
+          fi
+          COLUMNS=200 go test ./pkg/backtest -run '^$' \
+            -bench '^BenchmarkRealUSTME2023To2026ProtectSessionReplayExtended$' \
+            -benchtime 1x -benchmem \
+            | tee artifacts/performance/real_tme_protect_session.txt
+
+      - name: Upload performance artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backtest-performance-gate-${{ github.run_id }}
+          path: |
+            artifacts/performance
+            pkg/backtest/testdata/strategy_block_benchmark_baseline.json
+          if-no-files-found: error

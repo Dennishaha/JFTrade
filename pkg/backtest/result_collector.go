@@ -28,14 +28,15 @@ type resultCollector struct {
 	warmupUntil      time.Time
 	result           *RunResult
 
-	filledOrders   []types.Order
-	allOrders      []types.Order
-	orderBook      []orderBookEntryState
-	orderBookIndex map[string]int
-	netPosition    fixedpoint.Value
-	pnlCurve       []PnLPoint
-	candles        []Candle
-	warnedBadClose bool
+	totalOrders         int
+	totalFilledOrders   int
+	winningFilledOrders int
+	orderBook           []orderBookEntryState
+	orderBookIndex      map[string]int
+	netPosition         fixedpoint.Value
+	pnlCurve            []PnLPoint
+	candles             []Candle
+	warnedBadClose      bool
 }
 
 func newResultCollector(symbol string, strategyInterval types.Interval, quoteCurrency string, warmupUntil time.Time, result *RunResult) *resultCollector {
@@ -51,14 +52,29 @@ func newResultCollector(symbol string, strategyInterval types.Interval, quoteCur
 
 func (c *resultCollector) onOrderUpdate(order types.Order) {
 	c.recordOrderBookEntry(order)
-	c.allOrders = append(c.allOrders, order)
+	c.totalOrders++
 	if order.Status != types.OrderStatusFilled {
 		log.Printf("backtest: ORDER id=%d status=%s %s %s", order.OrderID, order.Status, order.Symbol, order.Side)
 		return
 	}
 
-	c.filledOrders = append(c.filledOrders, order)
+	c.totalFilledOrders++
+	if order.AveragePrice.Compare(fixedpoint.Zero) > 0 && order.Side == types.SideTypeSell {
+		c.winningFilledOrders++
+	}
 	log.Printf("backtest: FILLED id=%d %s %s qty=%s price=%s", order.OrderID, order.Symbol, order.Side, order.Quantity.String(), order.AveragePrice.String())
+	if !order.UpdateTime.Time().Before(c.warmupUntil) {
+		price := order.AveragePrice
+		if price.IsZero() {
+			price = order.Price
+		}
+		c.result.Trades = append(c.result.Trades, TradeEvent{
+			Time:  order.UpdateTime.Time().Format(time.RFC3339),
+			Side:  string(order.Side),
+			Price: price.String(),
+			Qty:   order.Quantity.String(),
+		})
+	}
 	switch order.Side {
 	case types.SideTypeBuy:
 		c.netPosition = c.netPosition.Add(order.Quantity)
@@ -144,12 +160,14 @@ func (c *resultCollector) onKLineClosed(ctx context.Context, exchange accountQue
 	if kline.Symbol != c.symbol {
 		return
 	}
-	if kline.EndTime.Time().Before(c.warmupUntil) {
+	endAt := kline.EndTime.Time()
+	if endAt.Before(c.warmupUntil) {
 		return
 	}
+	timestamp := endAt.Format(time.RFC3339)
 	if kline.Interval == c.strategyInterval {
 		c.candles = append(c.candles, Candle{
-			Time:   kline.EndTime.Time().Format(time.RFC3339),
+			Time:   timestamp,
 			Open:   kline.Open.String(),
 			High:   kline.High.String(),
 			Low:    kline.Low.String(),
@@ -164,7 +182,7 @@ func (c *resultCollector) onKLineClosed(ctx context.Context, exchange accountQue
 	}
 
 	total := fixedpoint.Zero
-	if balance, ok := account.Balances()[c.quoteCurrency]; ok {
+	if balance, ok := account.Balance(c.quoteCurrency); ok {
 		total = balance.Total()
 	}
 	if !c.netPosition.IsZero() && kline.Close.Sign() > 0 {
@@ -177,7 +195,7 @@ func (c *resultCollector) onKLineClosed(ctx context.Context, exchange accountQue
 	}
 
 	c.pnlCurve = append(c.pnlCurve, PnLPoint{
-		Time:   kline.EndTime.Time().Format(time.RFC3339),
+		Time:   timestamp,
 		Equity: total.Float64(),
 	})
 }
@@ -220,7 +238,7 @@ func (c *resultCollector) finalize(ctx context.Context, exchange accountQuerier,
 	account, err := exchange.QueryAccount(ctx)
 	if err == nil {
 		total := fixedpoint.Zero
-		if balance, ok := account.Balances()[c.quoteCurrency]; ok {
+		if balance, ok := account.Balance(c.quoteCurrency); ok {
 			total = balance.Total()
 		}
 		if !c.netPosition.IsZero() && len(c.candles) > 0 {
@@ -240,22 +258,6 @@ func (c *resultCollector) finalize(ctx context.Context, exchange accountQuerier,
 		c.result.FinalBalance = total.Float64()
 	}
 
-	for _, order := range c.filledOrders {
-		if order.UpdateTime.Time().Before(c.warmupUntil) {
-			continue
-		}
-		price := order.AveragePrice
-		if price.IsZero() {
-			price = order.Price
-		}
-		c.result.Trades = append(c.result.Trades, TradeEvent{
-			Time:  order.UpdateTime.Time().Format(time.RFC3339),
-			Side:  string(order.Side),
-			Price: price.String(),
-			Qty:   order.Quantity.String(),
-		})
-	}
-
 	for _, entry := range c.orderBook {
 		if !entry.submittedTime.IsZero() && entry.submittedTime.Before(c.warmupUntil) {
 			continue
@@ -270,16 +272,10 @@ func (c *resultCollector) finalize(ctx context.Context, exchange accountQuerier,
 	c.result.MaxDrawdown, c.result.CurrentDrawdown, c.result.DrawdownCurve = buildDrawdownMetrics(c.pnlCurve)
 	c.result.Candles = c.candles
 	c.result.PnL = c.result.FinalBalance - initialBalance
-	c.result.TotalTrades = len(c.filledOrders)
+	c.result.TotalTrades = c.totalFilledOrders
 	if c.result.TotalTrades > 0 {
-		wins := 0
-		for _, order := range c.filledOrders {
-			if order.AveragePrice.Compare(fixedpoint.Zero) > 0 && order.Side == types.SideTypeSell {
-				wins++
-			}
-		}
-		c.result.WinRate = float64(wins) / float64(c.result.TotalTrades)
+		c.result.WinRate = float64(c.winningFilledOrders) / float64(c.result.TotalTrades)
 	}
 
-	return len(c.allOrders), len(c.filledOrders)
+	return c.totalOrders, c.totalFilledOrders
 }

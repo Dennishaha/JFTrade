@@ -13,6 +13,7 @@ func ensureRuntimeLayout(settingsPath string, backtestDBPath string) error {
 		filepath.Dir(deriveStrategyCatalogPath(settingsPath)),
 		filepath.Dir(deriveStrategyRuntimeDBPath(settingsPath)),
 		filepath.Dir(deriveStrategyDesignPath(settingsPath)),
+		filepath.Dir(deriveBacktestRunDBPath(settingsPath)),
 		deriveStrategyPluginTargetDir(settingsPath),
 		filepath.Dir(strings.TrimSpace(backtestDBPath)),
 	}

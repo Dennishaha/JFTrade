@@ -439,6 +439,7 @@ body {
   min-height: 0;
   overflow: hidden;
   background: var(--tv-bg-app);
+  outline: none;
 }
 
 .tv-main-scroll {

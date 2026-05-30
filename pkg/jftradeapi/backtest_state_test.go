@@ -1,6 +1,8 @@
 package jftradeapi
 
 import (
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/jftrade/jftrade-main/pkg/backtest"
@@ -30,7 +32,9 @@ func TestBacktestRunStoreGetReturnsDeepCopy(t *testing.T) {
 			RuntimeErrors:   []string{"risk warning"},
 		},
 	}
-	store.add(original)
+	if err := store.add(original); err != nil {
+		t.Fatalf("add: %v", err)
+	}
 
 	snapshot, ok := store.get(original.ID)
 	if !ok {
@@ -97,7 +101,9 @@ func TestBacktestRunStoreListReturnsIndependentSnapshots(t *testing.T) {
 			Logs: []string{"queued"},
 		},
 	}
-	store.add(original)
+	if err := store.add(original); err != nil {
+		t.Fatalf("add: %v", err)
+	}
 
 	runs := store.list()
 	if len(runs) != 1 {
@@ -116,5 +122,94 @@ func TestBacktestRunStoreListReturnsIndependentSnapshots(t *testing.T) {
 	}
 	if fresh.Result.Logs[0] != "queued" {
 		t.Fatalf("store logs mutated through list snapshot: %s", fresh.Result.Logs[0])
+	}
+}
+
+func TestBacktestRunStorePersistsAndRecoversTransientRuns(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "backtest-runs.db")
+	store, err := newBacktestRunStoreWithDB(dbPath)
+	if err != nil {
+		t.Fatalf("newBacktestRunStoreWithDB: %v", err)
+	}
+
+	completedRun := &backtestRunState{
+		ID:     "bt-persist-completed",
+		Status: "completed",
+		Request: backtestStartRequest{
+			DefinitionID: "def-completed",
+			Symbol:       "US.AAPL",
+			Interval:     "5m",
+			StartTime:    "2026-05-01T00:00:00Z",
+			EndTime:      "2026-05-02T00:00:00Z",
+		},
+		Result: &backtest.RunResult{
+			Symbol:       "US.AAPL",
+			Interval:     "5m",
+			StartTime:    "2026-05-01T00:00:00Z",
+			EndTime:      "2026-05-02T00:00:00Z",
+			FinalBalance: 123456,
+		},
+		CreatedAt: "2026-05-30T00:00:00Z",
+		UpdatedAt: "2026-05-30T00:00:01Z",
+	}
+	runningRun := &backtestRunState{
+		ID:     "bt-persist-running",
+		Status: "running",
+		Request: backtestStartRequest{
+			DefinitionID: "def-running",
+			Symbol:       "US.TSLA",
+			Interval:     "1m",
+			StartTime:    "2026-05-03T00:00:00Z",
+			EndTime:      "2026-05-04T00:00:00Z",
+		},
+		CreatedAt: "2026-05-30T00:00:02Z",
+		UpdatedAt: "2026-05-30T00:00:03Z",
+	}
+	if err := store.add(completedRun); err != nil {
+		t.Fatalf("add completed run: %v", err)
+	}
+	if err := store.add(runningRun); err != nil {
+		t.Fatalf("add running run: %v", err)
+	}
+
+	reloadedStore, err := newBacktestRunStoreWithDB(dbPath)
+	if err != nil {
+		t.Fatalf("reload store: %v", err)
+	}
+
+	reloadedCompleted, ok := reloadedStore.get(completedRun.ID)
+	if !ok {
+		t.Fatal("expected completed run after reload")
+	}
+	if reloadedCompleted.Status != "completed" {
+		t.Fatalf("completed run status = %s, want completed", reloadedCompleted.Status)
+	}
+	if reloadedCompleted.Result == nil || reloadedCompleted.Result.FinalBalance != 123456 {
+		t.Fatalf("completed run result lost after reload: %+v", reloadedCompleted.Result)
+	}
+
+	reloadedRunning, ok := reloadedStore.get(runningRun.ID)
+	if !ok {
+		t.Fatal("expected recovered running run after reload")
+	}
+	if reloadedRunning.Status != "failed" {
+		t.Fatalf("recovered running run status = %s, want failed", reloadedRunning.Status)
+	}
+	if reloadedRunning.Result == nil || !strings.Contains(reloadedRunning.Result.Error, recoveredBacktestRunErrorText) {
+		t.Fatalf("expected recovered running run error, got %+v", reloadedRunning.Result)
+	}
+
+	if _, deleted, err := reloadedStore.delete(completedRun.ID); err != nil {
+		t.Fatalf("delete completed run: %v", err)
+	} else if !deleted {
+		t.Fatal("expected completed run delete to succeed")
+	}
+
+	reloadedAgain, err := newBacktestRunStoreWithDB(dbPath)
+	if err != nil {
+		t.Fatalf("reload store after delete: %v", err)
+	}
+	if _, ok := reloadedAgain.get(completedRun.ID); ok {
+		t.Fatal("expected deleted completed run to stay deleted after reload")
 	}
 }

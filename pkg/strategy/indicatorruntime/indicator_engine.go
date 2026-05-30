@@ -12,8 +12,16 @@ type IndicatorEngine struct {
 	runtime *indicatorRuntime
 }
 
+type RuntimeOptions struct {
+	IncludeExtendedHours bool
+}
+
 func NewIndicatorEngineForPlan(plan strategyir.Requirements, interval types.Interval, symbol string) (*IndicatorEngine, error) {
-	runtime, err := newIndicatorRuntimeFromPlan(plan, interval, symbol)
+	return NewIndicatorEngineForPlanWithOptions(plan, interval, symbol, RuntimeOptions{})
+}
+
+func NewIndicatorEngineForPlanWithOptions(plan strategyir.Requirements, interval types.Interval, symbol string, options RuntimeOptions) (*IndicatorEngine, error) {
+	runtime, err := newIndicatorRuntimeFromPlanWithOptions(plan, interval, symbol, options)
 	if err != nil {
 		return nil, err
 	}

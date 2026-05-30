@@ -15,6 +15,7 @@
 | 前端显示 WS disconnected 或没有心跳 | [troubleshooting/websocket-connection.md](troubleshooting/websocket-connection.md) | `go test ./pkg/jftradeapi -run TestLiveWebSocketSendsHeartbeat` |
 | OpenD 连不上、设置保存了但运行时没生效 | [troubleshooting/opend-configuration.md](troubleshooting/opend-configuration.md) | 开发态查 `http://127.0.0.1:3000/api/v1/system/futu-opend`，发布态查 `http://127.0.0.1:6699/api/v1/system/futu-opend` |
 | 美股盘前盘后或夜盘显示异常 | [troubleshooting/us-extended-hours.md](troubleshooting/us-extended-hours.md) | 检查 snapshot 是否带 `lastClosePrice` 和扩展行情块 |
+| 回测明显变慢，或不确定慢在 sync 还是 replay | [troubleshooting/backtest-performance.md](troubleshooting/backtest-performance.md) | `JFTRADE_REAL_CHAIN_PROFILE=1 go test ./pkg/backtest -run '^TestRealUSMarch2026DoubleMATemplateProfile$' -v` |
 | 不确定到底该先查哪一层 | [troubleshooting/diagnostic-principles.md](troubleshooting/diagnostic-principles.md) | 先按职责边界和决策树定位 |
 
 ## 常用诊断命令

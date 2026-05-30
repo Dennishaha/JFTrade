@@ -259,11 +259,32 @@ OpenD Qot_RequestHistoryKL (3103)
 
 | 方法 | 路径 | 用途 |
 |------|------|------|
-| POST | `/api/v1/backtests` | 发起回测（指定策略定义ID、标的、周期、时段、初始资金） |
+| POST | `/api/v1/backtests` | 发起回测（指定策略定义ID、标的、周期、时段、初始资金，以及是否在回放时包含扩展交易时段数据） |
 | GET | `/api/v1/backtests` | 列出历史回测记录 |
+| DELETE | `/api/v1/backtests/{id}` | 删除已完成或失败的回测记录 |
 | GET | `/api/v1/backtests/{id}/status` | 轮询回测状态 |
 | GET | `/api/v1/backtests/{id}` | 获取回测结果详情 |
 | POST | `/api/v1/backtests/sync` | 同步历史K线数据 |
+
+回测 run 元数据现在会独立落到 sidecar 本地 SQLite；因此 `/api/v1/backtests` 不再只返回“当前进程内列表”，而会跨 sidecar 重启恢复历史结果。恢复时如果发现上一进程遗留的 `queued/running` run，会在启动期自动改记为 `failed`，并附上“sidecar restarted before backtest completed”错误，避免前端出现永久运行中的僵尸记录。回测页前端仍保留浏览器本地持久化，作为 sidecar 暂不可用时的补充缓存：
+
+- 最近一次使用的回测参数会写入浏览器 `localStorage`，下次进入页面时会用这组参数作为默认填充值。
+- 已完成或失败的回测结果会缓存到浏览器本地；如果 sidecar 当前没有返回历史列表，前端仍可先展示这批本地缓存。
+- 回测页里的“删除结果”会优先调用 sidecar `DELETE /api/v1/backtests/{id}` 删除当前进程内的终态回测；如果 sidecar 当前删不到该结果或删除失败，前端会退回到本地隐藏，并把对应 run id 记入浏览器删除名单，避免旧缓存回流。
+- 结果列表前端已支持搜索、状态筛选、策略筛选和分页，避免历史回测积累后难以定位目标结果。
+- backtest run 在启动时会快照当前 `definitionVersion`；回测页会把 run 使用的策略版本和当前定义版本做对比，不一致时提示“旧版本策略回测结果”，避免把历史结果误当成最新策略表现。
+
+当前回测的 session 语义已经同时落到 runner 和 store schema：
+
+- 前端 `/api/v1/backtests` 仍通过 `useExtendedHours` 控制 replay 读取 regular-only 还是 regular+extended 数据版本。
+- `/api/v1/backtests/sync` 新增 `sessionScope`，SQLite 会以紧凑的表级 tag 区分 `legacy`、`regular`、`extended` 三类版本；regular-only 与 regular+extended 现在可以在同一 symbol/interval/rehabType 下并存，不再互相覆盖。
+- `extended` 版本只会落在真正有扩展时段差异的 US `60m` 及以下基础周期表上；`1d` / `1w` / `1mo` 与 `2h` / `4h` / `6h` / `12h` 的 extended 回测，会优先从这些 sub-daily extended 基础表做 trading-period 或 session-aware synthesis。
+- sync 入口会把需要合成的高周期自动规划到基础同步周期：`2h` / `4h` / `6h` / `12h` 映射到 `1h`，US extended 的 `1d` / `1w` / `1mo` 也会落到 `1h` 基础数据，避免把 native regular-only 日线误写进 extended 版本。
+- backtest SQLite 的 OHLCV 仍以 `fixedpoint.Value.String()` 形式存为 TEXT；读取侧对这种 plain decimal 存储格式走本地 fast path，只有遇到科学计数、百分号或 `inf` 之类的非常规输入时才回退上游 `fixedpoint.NewFromString`，以控制 `QueryKLinesBackward/Forward` 的解析开销。
+- session-aware higher intraday 的 backward 查询按时间窗口分页拉取后，会先批量合并本批结果再一次性 prepend 到最终序列，避免逐条前插造成的重复切片拷贝和额外分配。
+- 单标的单周期的回测回放现在会在 `QueryKLinesCh` 走 fast path：direct stored-range 查询会按行直接流到 replay channel，而不再先整段收集和排序；single-series path 的 channel buffer 也已收紧到较小固定值，避免为每次回放预留过大的 channel backing array。regular-only 的 replay wrapper 同样会直接边读边过滤 regular session bar，不再先把底层 channel 全量收集成切片再过滤。`resultCollector` 同时会按预计 bar 数预分配 `candles/pnlCurve`，并在权益计算时直接读取单币种余额，避免每根 bar 复制整张 `BalanceMap`。DSL runtime 同时会缓存 divergence requirement key，并且仅在 `if` 分支内存在 `let` 时才为该分支创建子作用域，避免无意义的字符串构造和 scope clone；表达式层面对 moving-average / MACD / KDJ 这类快照对象新增了序列直读和首选标量快路径，`cross_over(ma, slow)`、`ma.value`、`ma > 10` 之类路径不再反复通过字符串 `FieldValue` 探测。
+
+- `useExtendedHours=true` 不再只影响 replay 数据版本和 higher-period K 线 synthesis。对 US backtest，DSL indicatorruntime 的 moving-average 与 stop-loss `day/week/month` 窗口现在都会切到 extended trading-period 口径，并且回测 warmup 会按 extended trading day 分钟数放大；这样 MA/保护条件/runtime warmup 三者的 trading-window 语义已经对齐。
 
 ### 6.5 策略回测感知
 

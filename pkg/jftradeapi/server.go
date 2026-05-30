@@ -219,12 +219,22 @@ func newServerWithFrontend(store *SettingsStore, frontend *frontendServer) *Serv
 			designStore = nil
 		}
 	}
+	backtestRunStore, err := newBacktestRunStoreWithDB(deriveBacktestRunDBPath(store.path))
+	if err != nil {
+		log.Printf("JFTrade backtest run store degraded: %v", err)
+		fallbackSettingsPath := filepath.Join(os.TempDir(), "jftrade-backtest-runs-fallback", "settings.json")
+		backtestRunStore, err = newBacktestRunStoreWithDB(deriveBacktestRunDBPath(fallbackSettingsPath))
+		if err != nil {
+			log.Printf("JFTrade backtest run fallback sqlite store degraded: %v", err)
+			backtestRunStore = newBacktestRunStore()
+		}
+	}
 	server := &Server{
 		store:                store,
 		strategyStore:        strategyStore,
 		strategyRuntimeStore: runtimeStore,
 		designStore:          designStore,
-		backtestRuns:         newBacktestRunStore(),
+		backtestRuns:         backtestRunStore,
 		backtestSyncTasks:    newBacktestSyncTaskStore(),
 		executionOrders:      newExecutionOrderStore(),
 		brokerOrderUpdates:   newBrokerOrderUpdateWorker(),

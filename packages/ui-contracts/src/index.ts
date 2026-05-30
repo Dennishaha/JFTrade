@@ -1171,6 +1171,7 @@ export interface BrokerPlaceOrderRequestPayload {
 
 export interface BacktestStartRequestPayload {
   definitionId: string;
+  definitionVersion?: string;
   market?: string;
   code?: string;
   symbol?: string;
@@ -1179,6 +1180,7 @@ export interface BacktestStartRequestPayload {
   endTime: string;
   initialBalance: number;
   rehabType?: string;
+  useExtendedHours?: boolean;
 }
 
 export interface BacktestSyncRequestPayload {
@@ -1189,6 +1191,7 @@ export interface BacktestSyncRequestPayload {
   since: string;
   until: string;
   rehabType?: string;
+  sessionScope?: "legacy" | "regular" | "extended";
 }
 
 export interface BrokerCancelOrderRequestPayload {

@@ -13,48 +13,62 @@ import (
 
 const minimumIndicatorSeriesLimit = 256
 
+const invalidTradingPeriodLabelKey int64 = -1 << 63
+
 type indicatorRuntime struct {
-	requirements    indicatorRequirements
-	symbol          string
-	intervalMinutes int
-	seriesLimit     int
-	snapshotCache   *snapshotSeriesCache
-	snapshotKeys    snapshotKeyCache
-	snapshotResult  map[string]any
-	maStates        map[movingAverageConfig]*rollingMovingAverageSnapshotState
-	emaStates       map[movingAverageConfig]*rollingEMATailState
-	macdStates      map[macdConfig]*rollingMACDState
-	kdjStates       map[kdjConfig]*rollingKDJState
-	rsiStates       map[int]*rollingRSIState
-	atrStates       map[int]*rollingATRState
-	bollingerStates map[bollingerConfig]*rollingBollingerState
-	cciStates       map[int]*rollingCCIState
-	williamsRStates map[int]*rollingWilliamsRState
-	highs           []float64
-	lows            []float64
-	closes          []float64
-	volumes         []float64
-	endTimes        []time.Time
-	sessions        []futu.MarketSession
+	requirements         indicatorRequirements
+	symbol               string
+	intervalMinutes      int
+	includeExtendedHours bool
+	seriesLimit          int
+	tradingPeriodUnits   []string
+	tradingPeriodLabels  map[string][]int64
+	snapshotCache        *snapshotSeriesCache
+	snapshotKeys         snapshotKeyCache
+	snapshotResult       map[string]any
+	maStates             map[movingAverageConfig]*rollingMovingAverageSnapshotState
+	emaStates            map[movingAverageConfig]*rollingEMATailState
+	macdStates           map[macdConfig]*rollingMACDState
+	kdjStates            map[kdjConfig]*rollingKDJState
+	rsiStates            map[int]*rollingRSIState
+	atrStates            map[int]*rollingATRState
+	bollingerStates      map[bollingerConfig]*rollingBollingerState
+	cciStates            map[int]*rollingCCIState
+	williamsRStates      map[int]*rollingWilliamsRState
+	highs                []float64
+	lows                 []float64
+	closes               []float64
+	volumes              []float64
+	endTimes             []time.Time
+	sessions             []futu.MarketSession
 }
 
 type snapshotSeriesCache struct {
-	ema           map[int][]float64
-	sma           map[int][]float64
-	smma          map[int][]float64
-	wma           map[int][]float64
-	tma           map[int][]float64
-	hma           map[int][]float64
-	rsi           map[int][]float64
-	macd          map[macdConfig]macdSeries
-	kdj           map[kdjConfig]kdjSeries
-	emaBuffers    map[int][]float64
-	macdBuffers   map[macdConfig]macdSeries
-	kdjBuffers    map[kdjConfig]*reusableKDJSeriesBuffer
-	maSnapshots   map[movingAverageConfig]*indicatorSeriesSnapshot
-	macdSnapshots map[macdConfig]*indicatorMACDSnapshot
-	kdjSnapshots  map[kdjConfig]*indicatorKDJSnapshot
-	scalarValues  map[string]*indicatorScalarSnapshot
+	ema                   map[int][]float64
+	sma                   map[int][]float64
+	smma                  map[int][]float64
+	wma                   map[int][]float64
+	tma                   map[int][]float64
+	hma                   map[int][]float64
+	rsi                   map[int][]float64
+	macd                  map[macdConfig]macdSeries
+	kdj                   map[kdjConfig]kdjSeries
+	emaBuffers            map[int][]float64
+	macdBuffers           map[macdConfig]macdSeries
+	kdjBuffers            map[kdjConfig]*reusableKDJSeriesBuffer
+	tradingPeriodLabels   map[tradingPeriodLabelCacheKey][]int64
+	tradingPeriodBuffers  map[tradingPeriodLabelCacheKey][]int64
+	maSnapshots           map[movingAverageConfig]*indicatorSeriesSnapshot
+	macdSnapshots         map[macdConfig]*indicatorMACDSnapshot
+	kdjSnapshots          map[kdjConfig]*indicatorKDJSnapshot
+	scalarValues          map[string]*indicatorScalarSnapshot
+	stopLossSnapshots     map[stopLossConfig]map[string]any
+	tradingWindowIndices  []int
+	tradingWindowValues   []float64
+	tradingWindowVolumes  []float64
+	stopLossWindowStart   stopLossWindowStartCacheEntry
+	stopLossWindowSelect  stopLossWindowSelectionCacheEntry
+	stopLossWindowExtrema stopLossWindowExtremaCacheEntry
 }
 
 type macdSeries struct {
@@ -214,6 +228,38 @@ type reusableKDJSeriesBuffer struct {
 	lowDeque  indexDeque
 }
 
+type tradingPeriodLabelCacheKey struct {
+	symbol               string
+	unit                 string
+	includeExtendedHours bool
+}
+
+type stopLossWindowStartCacheEntry struct {
+	valid           bool
+	requestedStart  int
+	intervalMinutes int
+	seriesLength    int
+	resolvedStart   int
+}
+
+type stopLossWindowSelectionCacheEntry struct {
+	valid                bool
+	period               int
+	timeUnit             string
+	symbol               string
+	upperBound           int
+	includeExtendedHours bool
+	indices              []int
+}
+
+type stopLossWindowExtremaCacheEntry struct {
+	valid        bool
+	windowStart  int
+	seriesLength int
+	peakClose    float64
+	troughClose  float64
+}
+
 type snapshotKeyCache struct {
 	ma             map[movingAverageConfig]string
 	maLegacy       map[movingAverageConfig]string
@@ -233,22 +279,25 @@ type snapshotKeyCache struct {
 
 func newSnapshotSeriesCache() *snapshotSeriesCache {
 	return &snapshotSeriesCache{
-		ema:           map[int][]float64{},
-		sma:           map[int][]float64{},
-		smma:          map[int][]float64{},
-		wma:           map[int][]float64{},
-		tma:           map[int][]float64{},
-		hma:           map[int][]float64{},
-		rsi:           map[int][]float64{},
-		macd:          map[macdConfig]macdSeries{},
-		kdj:           map[kdjConfig]kdjSeries{},
-		emaBuffers:    map[int][]float64{},
-		macdBuffers:   map[macdConfig]macdSeries{},
-		kdjBuffers:    map[kdjConfig]*reusableKDJSeriesBuffer{},
-		maSnapshots:   map[movingAverageConfig]*indicatorSeriesSnapshot{},
-		macdSnapshots: map[macdConfig]*indicatorMACDSnapshot{},
-		kdjSnapshots:  map[kdjConfig]*indicatorKDJSnapshot{},
-		scalarValues:  map[string]*indicatorScalarSnapshot{},
+		ema:                  map[int][]float64{},
+		sma:                  map[int][]float64{},
+		smma:                 map[int][]float64{},
+		wma:                  map[int][]float64{},
+		tma:                  map[int][]float64{},
+		hma:                  map[int][]float64{},
+		rsi:                  map[int][]float64{},
+		macd:                 map[macdConfig]macdSeries{},
+		kdj:                  map[kdjConfig]kdjSeries{},
+		emaBuffers:           map[int][]float64{},
+		macdBuffers:          map[macdConfig]macdSeries{},
+		kdjBuffers:           map[kdjConfig]*reusableKDJSeriesBuffer{},
+		tradingPeriodLabels:  map[tradingPeriodLabelCacheKey][]int64{},
+		tradingPeriodBuffers: map[tradingPeriodLabelCacheKey][]int64{},
+		maSnapshots:          map[movingAverageConfig]*indicatorSeriesSnapshot{},
+		macdSnapshots:        map[macdConfig]*indicatorMACDSnapshot{},
+		kdjSnapshots:         map[kdjConfig]*indicatorKDJSnapshot{},
+		scalarValues:         map[string]*indicatorScalarSnapshot{},
+		stopLossSnapshots:    map[stopLossConfig]map[string]any{},
 	}
 }
 
@@ -265,6 +314,10 @@ func (c *snapshotSeriesCache) reset() {
 	clearMap(c.rsi)
 	clearMap(c.macd)
 	clearMap(c.kdj)
+	clearMap(c.tradingPeriodLabels)
+	c.stopLossWindowStart.valid = false
+	c.stopLossWindowSelect.valid = false
+	c.stopLossWindowExtrema.valid = false
 }
 
 func clearMap[K comparable, V any](values map[K]V) {
@@ -320,6 +373,25 @@ func (c *snapshotSeriesCache) getWMASequence(values []float64, period int) []flo
 	sequence := calculateWMASequence(values, period)
 	c.wma[period] = sequence
 	return sequence
+}
+
+func (c *snapshotSeriesCache) getTradingPeriodLabels(endTimes []time.Time, symbol string, unit string, includeExtendedHours bool) []int64 {
+	normalizedUnit := normalizeIndicatorTimeUnit(unit)
+	if c == nil {
+		return buildTradingPeriodLabels(nil, endTimes, symbol, normalizedUnit, includeExtendedHours)
+	}
+	cacheKey := tradingPeriodLabelCacheKey{
+		symbol:               symbol,
+		unit:                 normalizedUnit,
+		includeExtendedHours: includeExtendedHours,
+	}
+	if labels, ok := c.tradingPeriodLabels[cacheKey]; ok {
+		return labels
+	}
+	labels := buildTradingPeriodLabels(c.tradingPeriodBuffers[cacheKey], endTimes, symbol, normalizedUnit, includeExtendedHours)
+	c.tradingPeriodBuffers[cacheKey] = labels
+	c.tradingPeriodLabels[cacheKey] = labels
+	return labels
 }
 
 func (c *snapshotSeriesCache) getTMASequence(values []float64, period int) []float64 {
@@ -403,6 +475,18 @@ func (c *snapshotSeriesCache) getScalarSnapshot(key string, current float64, cur
 	}
 	snapshot.current = current
 	snapshot.hasCurrent = true
+	return snapshot
+}
+
+func (c *snapshotSeriesCache) getStopLossSnapshot(config stopLossConfig) map[string]any {
+	if c == nil {
+		return make(map[string]any, 18)
+	}
+	snapshot, ok := c.stopLossSnapshots[config]
+	if !ok {
+		snapshot = make(map[string]any, 18)
+		c.stopLossSnapshots[config] = snapshot
+	}
 	return snapshot
 }
 
@@ -557,41 +641,65 @@ func (c *snapshotSeriesCache) getKDJSnapshotValues(config kdjConfig, currentK, c
 }
 
 func newIndicatorRuntime(script string, interval types.Interval, symbol string) *indicatorRuntime {
+	return newIndicatorRuntimeWithOptions(script, interval, symbol, RuntimeOptions{})
+}
+
+func newIndicatorRuntimeWithOptions(script string, interval types.Interval, symbol string, options RuntimeOptions) *indicatorRuntime {
 	requirements := parseIndicatorRequirements(script)
-	return newIndicatorRuntimeWithRequirements(requirements, interval, symbol)
+	return newIndicatorRuntimeWithRequirements(requirements, interval, symbol, options)
 }
 
 func newIndicatorRuntimeFromPlan(plan strategyir.Requirements, interval types.Interval, symbol string) (*indicatorRuntime, error) {
+	return newIndicatorRuntimeFromPlanWithOptions(plan, interval, symbol, RuntimeOptions{})
+}
+
+func newIndicatorRuntimeFromPlanWithOptions(plan strategyir.Requirements, interval types.Interval, symbol string, options RuntimeOptions) (*indicatorRuntime, error) {
 	requirements, err := indicatorRequirementsFromPlan(plan)
 	if err != nil {
 		return nil, err
 	}
-	return newIndicatorRuntimeWithRequirements(requirements, interval, symbol), nil
+	return newIndicatorRuntimeWithRequirements(requirements, interval, symbol, options), nil
 }
 
-func newIndicatorRuntimeWithRequirements(requirements indicatorRequirements, interval types.Interval, symbol string) *indicatorRuntime {
+func newIndicatorRuntimeWithRequirements(requirements indicatorRequirements, interval types.Interval, symbol string, options RuntimeOptions) *indicatorRuntime {
 	if requirements.isEmpty() {
 		return nil
 	}
+	normalizedSymbol := strings.ToUpper(strings.TrimSpace(symbol))
 	intervalMinutes := resolveIntervalMinutes(interval)
 	seriesLimit := calculateIndicatorSeriesLimit(requirements, intervalMinutes)
-	return &indicatorRuntime{
-		requirements:    requirements,
-		symbol:          strings.ToUpper(strings.TrimSpace(symbol)),
-		intervalMinutes: intervalMinutes,
-		seriesLimit:     seriesLimit,
-		snapshotCache:   newSnapshotSeriesCache(),
-		snapshotKeys:    buildSnapshotKeyCache(requirements),
-		maStates:        newRollingMovingAverageStates(requirements, intervalMinutes),
-		emaStates:       newRollingEMAStates(requirements, intervalMinutes, seriesLimit),
-		macdStates:      newRollingMACDStates(requirements, seriesLimit),
-		kdjStates:       newRollingKDJStates(requirements, seriesLimit),
-		rsiStates:       newRollingRSIStates(requirements, seriesLimit),
-		atrStates:       newRollingATRStates(requirements),
-		bollingerStates: newRollingBollingerStates(requirements),
-		cciStates:       newRollingCCIStates(requirements),
-		williamsRStates: newRollingWilliamsRStates(requirements),
+	runtime := &indicatorRuntime{
+		requirements:         requirements,
+		symbol:               normalizedSymbol,
+		intervalMinutes:      intervalMinutes,
+		includeExtendedHours: options.IncludeExtendedHours,
+		seriesLimit:          seriesLimit,
+		tradingPeriodUnits:   collectTradingPeriodUnits(requirements, intervalMinutes, normalizedSymbol, options.IncludeExtendedHours),
+		tradingPeriodLabels:  map[string][]int64{},
+		snapshotCache:        newSnapshotSeriesCache(),
+		snapshotKeys:         buildSnapshotKeyCache(requirements),
+		maStates:             newRollingMovingAverageStates(requirements, intervalMinutes),
+		emaStates:            newRollingEMAStates(requirements, intervalMinutes, seriesLimit),
+		macdStates:           newRollingMACDStates(requirements, seriesLimit),
+		kdjStates:            newRollingKDJStates(requirements, seriesLimit),
+		rsiStates:            newRollingRSIStates(requirements, seriesLimit),
+		atrStates:            newRollingATRStates(requirements),
+		bollingerStates:      newRollingBollingerStates(requirements),
+		cciStates:            newRollingCCIStates(requirements),
+		williamsRStates:      newRollingWilliamsRStates(requirements),
 	}
+	if seriesLimit > 0 {
+		runtime.highs = make([]float64, 0, seriesLimit)
+		runtime.lows = make([]float64, 0, seriesLimit)
+		runtime.closes = make([]float64, 0, seriesLimit)
+		runtime.volumes = make([]float64, 0, seriesLimit)
+		runtime.endTimes = make([]time.Time, 0, seriesLimit)
+		runtime.sessions = make([]futu.MarketSession, 0, seriesLimit)
+		for _, unit := range runtime.tradingPeriodUnits {
+			runtime.tradingPeriodLabels[unit] = make([]int64, 0, seriesLimit)
+		}
+	}
+	return runtime
 }
 
 func (r *indicatorRuntime) push(kline types.KLine, session futu.MarketSession) {
@@ -630,6 +738,7 @@ func (r *indicatorRuntime) push(kline types.KLine, session futu.MarketSession) {
 	r.volumes = append(r.volumes, kline.Volume.Float64())
 	r.endTimes = append(r.endTimes, kline.EndTime.Time())
 	r.sessions = append(r.sessions, resolvedSession)
+	r.appendTradingPeriodLabels(kline.EndTime.Time())
 	if trimmed {
 		r.highs = trimFloatSeriesInPlace(r.highs, seriesLimit)
 		r.lows = trimFloatSeriesInPlace(r.lows, seriesLimit)
@@ -637,6 +746,9 @@ func (r *indicatorRuntime) push(kline types.KLine, session futu.MarketSession) {
 		r.volumes = trimFloatSeriesInPlace(r.volumes, seriesLimit)
 		r.endTimes = trimTimeSeriesInPlace(r.endTimes, seriesLimit)
 		r.sessions = trimSessionSeriesInPlace(r.sessions, seriesLimit)
+		for _, unit := range r.tradingPeriodUnits {
+			r.tradingPeriodLabels[unit] = trimInt64SeriesInPlace(r.tradingPeriodLabels[unit], seriesLimit)
+		}
 	}
 	r.pushMovingAverageStates(closeValue, kline.Volume.Float64())
 	r.pushEMAStates(closeValue, trimmed, oldFirstClose, oldSecondClose, hasOldFirstClose, hasOldSecondClose)
@@ -716,7 +828,7 @@ func (r *indicatorRuntime) snapshot() map[string]any {
 		result[key] = cache.getScalarSnapshot(key, current, currentOK)
 	}
 	for _, config := range r.requirements.stopLoss {
-		snapshot := buildStopLossSnapshot(r.closes, r.endTimes, r.sessions, config, r.intervalMinutes)
+		snapshot := buildStopLossSnapshotForSymbolWithOptionsAndCache(r.closes, r.endTimes, r.sessions, config, r.intervalMinutes, r.symbol, r.includeExtendedHours, cache)
 		if snapshot == nil {
 			continue
 		}
@@ -833,6 +945,32 @@ func buildSnapshotKeyCache(requirements indicatorRequirements) snapshotKeyCache 
 	return cache
 }
 
+func collectTradingPeriodUnits(requirements indicatorRequirements, intervalMinutes int, symbol string, includeExtendedHours bool) []string {
+	if len(requirements.ma) == 0 || strings.TrimSpace(symbol) == "" {
+		return nil
+	}
+	dayMinutes, ok := futu.TradingMinutesPerTradingDay(symbol, includeExtendedHours)
+	if !ok || intervalMinutes <= 0 || intervalMinutes >= dayMinutes {
+		return nil
+	}
+	units := make([]string, 0, 3)
+	seen := map[string]struct{}{}
+	for _, config := range requirements.ma {
+		unit := normalizeIndicatorTimeUnit(config.timeUnit)
+		switch unit {
+		case "day", "week", "month":
+		default:
+			continue
+		}
+		if _, ok := seen[unit]; ok {
+			continue
+		}
+		seen[unit] = struct{}{}
+		units = append(units, unit)
+	}
+	return units
+}
+
 func trimFloatSeriesInPlace(values []float64, limit int) []float64 {
 	if limit <= 0 || len(values) <= limit {
 		return values
@@ -852,6 +990,15 @@ func trimTimeSeriesInPlace(values []time.Time, limit int) []time.Time {
 }
 
 func trimSessionSeriesInPlace(values []futu.MarketSession, limit int) []futu.MarketSession {
+	if limit <= 0 || len(values) <= limit {
+		return values
+	}
+	start := len(values) - limit
+	copy(values, values[start:])
+	return values[:limit]
+}
+
+func trimInt64SeriesInPlace(values []int64, limit int) []int64 {
 	if limit <= 0 || len(values) <= limit {
 		return values
 	}
@@ -1643,6 +1790,9 @@ func (r *indicatorRuntime) movingAverageSnapshot(config movingAverageConfig, cac
 	if r == nil {
 		return nil
 	}
+	if usesTradingPeriodWindow(config.timeUnit, r.intervalMinutes, r.symbol, r.endTimes, r.includeExtendedHours) {
+		return r.movingAverageSnapshotForTradingWindow(config, cache)
+	}
 	if state, ok := r.emaStates[config]; ok {
 		current, previous, currentOK, previousOK := state.snapshotValues()
 		return cache.getMovingAverageSnapshot(config, current, previous, currentOK, previousOK)
@@ -1655,6 +1805,37 @@ func (r *indicatorRuntime) movingAverageSnapshot(config movingAverageConfig, cac
 	effectiveConfig.timeUnit = ""
 	current, previous, currentOK, previousOK := calculateMovingAverageSnapshotValuesWithCache(r.closes, r.volumes, effectiveConfig, cache)
 	return cache.getMovingAverageSnapshot(config, current, previous, currentOK, previousOK)
+}
+
+func (r *indicatorRuntime) movingAverageSnapshotForTradingWindow(config movingAverageConfig, cache *snapshotSeriesCache) any {
+	if r == nil {
+		return nil
+	}
+	unit := normalizeIndicatorTimeUnit(config.timeUnit)
+	labelKeys := r.tradingPeriodLabels[unit]
+	if len(labelKeys) == len(r.endTimes) && len(labelKeys) > 0 {
+		if current, previous, currentOK, previousOK, handled := calculateTradingWindowMovingAverageSnapshotFromKeys(r.closes, r.volumes, labelKeys, config); handled {
+			if !currentOK {
+				return nil
+			}
+			return cache.getMovingAverageSnapshot(config, current, previous, currentOK, previousOK)
+		}
+	}
+	return buildMovingAverageSnapshotForTradingWindow(r.closes, r.volumes, r.endTimes, config, r.symbol, r.includeExtendedHours, cache)
+}
+
+func (r *indicatorRuntime) appendTradingPeriodLabels(endTime time.Time) {
+	if r == nil || len(r.tradingPeriodUnits) == 0 {
+		return
+	}
+	for _, unit := range r.tradingPeriodUnits {
+		labelStart, ok := futu.TradingPeriodLabelStart(r.symbol, endTime, unit, r.includeExtendedHours)
+		key := invalidTradingPeriodLabelKey
+		if ok {
+			key = labelStart.Unix()
+		}
+		r.tradingPeriodLabels[unit] = append(r.tradingPeriodLabels[unit], key)
+	}
 }
 
 func (r *indicatorRuntime) atrValue(period int) any {
@@ -1842,6 +2023,20 @@ func (s *rollingMovingAverageSnapshotState) snapshotValue() any {
 	return s
 }
 
+func (s *rollingMovingAverageSnapshotState) PreferredScalarValue() (float64, bool) {
+	if s == nil || !s.hasCurrent {
+		return 0, false
+	}
+	return s.current, true
+}
+
+func (s *rollingMovingAverageSnapshotState) SeriesField(name string) (float64, float64, bool, bool, bool) {
+	if s == nil || name != "value" {
+		return 0, 0, false, false, false
+	}
+	return s.current, s.previous, s.hasCurrent, s.hasPrevious, true
+}
+
 func (s *rollingMovingAverageSnapshotState) FieldValue(name string) (any, bool) {
 	if s == nil {
 		return nil, false
@@ -1936,6 +2131,13 @@ func (s *rollingBollingerState) snapshotValue() any {
 		return nil
 	}
 	return s
+}
+
+func (s *rollingBollingerState) PreferredScalarValue() (float64, bool) {
+	if s == nil || len(s.window) < s.period {
+		return 0, false
+	}
+	return s.sum / float64(s.period), true
 }
 
 func (s *rollingBollingerState) FieldValue(name string) (any, bool) {
@@ -2057,6 +2259,20 @@ func (s *indicatorScalarSnapshot) ScalarValue() (float64, bool) {
 	return s.current, true
 }
 
+func (s *indicatorSeriesSnapshot) PreferredScalarValue() (float64, bool) {
+	if s == nil || !s.hasCurrent {
+		return 0, false
+	}
+	return s.current, true
+}
+
+func (s *indicatorSeriesSnapshot) SeriesField(name string) (float64, float64, bool, bool, bool) {
+	if s == nil || name != "value" {
+		return 0, 0, false, false, false
+	}
+	return s.current, s.previous, s.hasCurrent, s.hasPrevious, true
+}
+
 func (s *indicatorSeriesSnapshot) FieldValue(name string) (any, bool) {
 	switch name {
 	case "value":
@@ -2071,6 +2287,29 @@ func (s *indicatorSeriesSnapshot) FieldValue(name string) (any, bool) {
 		return nil, true
 	default:
 		return nil, false
+	}
+}
+
+func (s *indicatorMACDSnapshot) PreferredScalarValue() (float64, bool) {
+	if s == nil {
+		return 0, false
+	}
+	return s.diff, true
+}
+
+func (s *indicatorMACDSnapshot) SeriesField(name string) (float64, float64, bool, bool, bool) {
+	if s == nil {
+		return 0, 0, false, false, false
+	}
+	switch name {
+	case "diff":
+		return s.diff, s.previousDiff, true, s.hasPrevious, true
+	case "signal":
+		return s.signal, s.previousSignal, true, s.hasPrevious, true
+	case "histogram":
+		return s.histogram, s.previousHistogram, true, s.hasPrevious, true
+	default:
+		return 0, 0, false, false, false
 	}
 }
 
@@ -2099,6 +2338,29 @@ func (s *indicatorMACDSnapshot) FieldValue(name string) (any, bool) {
 		return nil, true
 	default:
 		return nil, false
+	}
+}
+
+func (s *indicatorKDJSnapshot) PreferredScalarValue() (float64, bool) {
+	if s == nil {
+		return 0, false
+	}
+	return s.k, true
+}
+
+func (s *indicatorKDJSnapshot) SeriesField(name string) (float64, float64, bool, bool, bool) {
+	if s == nil {
+		return 0, 0, false, false, false
+	}
+	switch name {
+	case "k":
+		return s.k, s.previousK, true, s.hasPrevious, true
+	case "d":
+		return s.d, s.previousD, true, s.hasPrevious, true
+	case "j":
+		return s.j, s.previousJ, true, s.hasPrevious, true
+	default:
+		return 0, 0, false, false, false
 	}
 }
 
@@ -2146,23 +2408,544 @@ func classifyKLineSession(symbol string, kline types.KLine) futu.MarketSession {
 }
 
 func buildMovingAverageSnapshot(values, volumes []float64, config movingAverageConfig, intervalMinutes int) map[string]any {
-	return buildMovingAverageSnapshotWithCache(values, volumes, config, intervalMinutes, nil)
+	return buildMovingAverageSnapshotForSymbol(values, volumes, nil, config, intervalMinutes, "", nil)
 }
 
 func buildMovingAverageSnapshotWithCache(values, volumes []float64, config movingAverageConfig, intervalMinutes int, cache *snapshotSeriesCache) map[string]any {
+	return buildMovingAverageSnapshotForSymbol(values, volumes, nil, config, intervalMinutes, "", cache)
+}
+
+func buildMovingAverageSnapshotForSymbol(values, volumes []float64, endTimes []time.Time, config movingAverageConfig, intervalMinutes int, symbol string, cache *snapshotSeriesCache) map[string]any {
+	return snapshotValueToMap(
+		movingAverageSnapshotForSymbol(values, volumes, endTimes, config, intervalMinutes, symbol, false, cache),
+		[...]string{"value", "previous"},
+	)
+}
+
+func movingAverageSnapshotForSymbol(values, volumes []float64, endTimes []time.Time, config movingAverageConfig, intervalMinutes int, symbol string, includeExtendedHours bool, cache *snapshotSeriesCache) any {
+	if usesTradingPeriodWindow(config.timeUnit, intervalMinutes, symbol, endTimes, includeExtendedHours) {
+		return buildMovingAverageSnapshotForTradingWindow(values, volumes, endTimes, config, symbol, includeExtendedHours, cache)
+	}
 	effectiveConfig := config
 	effectiveConfig.period = resolveBarCount(config.period, config.timeUnit, intervalMinutes)
 	effectiveConfig.timeUnit = ""
 	current, previous, currentOK, previousOK := calculateMovingAverageSnapshotValuesWithCache(values, volumes, effectiveConfig, cache)
-	if !currentOK && !previousOK {
+	return cache.getMovingAverageSnapshot(config, current, previous, currentOK, previousOK)
+}
+
+func buildMovingAverageSnapshotForTradingWindow(values, volumes []float64, endTimes []time.Time, config movingAverageConfig, symbol string, includeExtendedHours bool, cache *snapshotSeriesCache) any {
+	if current, previous, currentOK, previousOK, handled := calculateTradingWindowMovingAverageSnapshotOnline(values, volumes, endTimes, config, symbol, includeExtendedHours); handled {
+		if !currentOK {
+			return nil
+		}
+		return cache.getMovingAverageSnapshot(config, current, previous, currentOK, previousOK)
+	}
+	current, currentOK := calculateTradingWindowMovingAverageCurrentValue(values, volumes, endTimes, config, symbol, len(values), includeExtendedHours, cache)
+	if !currentOK {
 		return nil
 	}
-	result := map[string]any{"value": nil, "previous": nil}
-	if currentOK {
-		result["value"] = current
+	previous, previousOK := calculateTradingWindowMovingAverageCurrentValue(values, volumes, endTimes, config, symbol, max(len(values)-1, 0), includeExtendedHours, cache)
+	return cache.getMovingAverageSnapshot(config, current, previous, currentOK, previousOK)
+}
+
+func calculateTradingWindowMovingAverageSnapshotOnline(values, volumes []float64, endTimes []time.Time, config movingAverageConfig, symbol string, includeExtendedHours bool) (float64, float64, bool, bool, bool) {
+	return calculateTradingWindowMovingAverageSnapshotOnlineWithCache(values, volumes, endTimes, config, symbol, includeExtendedHours, nil)
+}
+
+func calculateTradingWindowMovingAverageSnapshotOnlineWithCache(values, volumes []float64, endTimes []time.Time, config movingAverageConfig, symbol string, includeExtendedHours bool, cache *snapshotSeriesCache) (float64, float64, bool, bool, bool) {
+	aggregator, handled := newTradingWindowMovingAverageAggregator(config)
+	if !handled {
+		return 0, 0, false, false, false
 	}
-	if previousOK {
-		result["previous"] = previous
+	if len(values) == 0 || len(values) != len(endTimes) {
+		return 0, 0, false, false, true
+	}
+	currentLimit := len(values)
+	previousLimit := max(len(values)-1, 0)
+	labelKeys := cache.getTradingPeriodLabels(endTimes, symbol, config.timeUnit, includeExtendedHours)
+	currentState := tradingWindowMovingAverageState{aggregator: aggregator}
+	previousState := tradingWindowMovingAverageState{aggregator: aggregator}
+	for index := currentLimit - 1; index >= 0; index-- {
+		if index >= len(labelKeys) {
+			break
+		}
+		key := labelKeys[index]
+		if key == invalidTradingPeriodLabelKey {
+			continue
+		}
+		if !currentState.done {
+			currentState.push(config.period, key, values[index], volumes, index)
+		}
+		if index < previousLimit && !previousState.done {
+			previousState.push(config.period, key, values[index], volumes, index)
+		}
+		if currentState.done && (previousLimit == 0 || previousState.done) {
+			break
+		}
+	}
+	current, currentOK := currentState.value()
+	previous, previousOK := previousState.value()
+	return current, previous, currentOK, previousOK, true
+}
+
+func calculateMovingAverageCurrentValue(values, volumes []float64, config movingAverageConfig) (float64, bool) {
+	if len(values) == 0 {
+		return 0, false
+	}
+	effectiveConfig := config
+	effectiveConfig.period = len(values)
+	effectiveConfig.timeUnit = ""
+	current, _, currentOK, _ := calculateMovingAverageSnapshotValuesWithCache(values, volumes, effectiveConfig, nil)
+	return current, currentOK
+}
+
+func calculateTradingWindowMovingAverageCurrentValue(values, volumes []float64, endTimes []time.Time, config movingAverageConfig, symbol string, upperBound int, includeExtendedHours bool, cache *snapshotSeriesCache) (float64, bool) {
+	if current, currentOK, handled := calculateTradingWindowMovingAverageCurrentValueOnline(values, volumes, endTimes, config, symbol, upperBound, includeExtendedHours); handled {
+		return current, currentOK
+	}
+	selected := selectTradingWindowIndicesWithCache(endTimes, config.period, config.timeUnit, symbol, upperBound, includeExtendedHours, cache)
+	if len(selected) == 0 {
+		return 0, false
+	}
+	return calculateMovingAverageCurrentValueFromSelected(values, volumes, selected, config, cache)
+}
+
+func calculateTradingWindowMovingAverageCurrentValueOnline(values, volumes []float64, endTimes []time.Time, config movingAverageConfig, symbol string, upperBound int, includeExtendedHours bool) (float64, bool, bool) {
+	aggregator, handled := newTradingWindowMovingAverageAggregator(config)
+	if !handled {
+		return 0, false, false
+	}
+	if len(values) == 0 || len(values) != len(endTimes) || upperBound <= 0 {
+		return 0, false, true
+	}
+	limit := min(upperBound, len(endTimes))
+	orderedKeys := 0
+	lastKey := int64(0)
+	hasKey := false
+	normalizedUnit := normalizeIndicatorTimeUnit(config.timeUnit)
+	for index := limit - 1; index >= 0; index-- {
+		labelStart, ok := futu.TradingPeriodLabelStart(symbol, endTimes[index], normalizedUnit, includeExtendedHours)
+		if !ok {
+			continue
+		}
+		key := labelStart.Unix()
+		if !hasKey || key != lastKey {
+			if orderedKeys == config.period {
+				break
+			}
+			lastKey = key
+			hasKey = true
+			orderedKeys++
+		}
+		if !aggregator.push(values[index], volumes, index) {
+			return 0, false, true
+		}
+	}
+	current, currentOK := aggregator.value()
+	return current, currentOK, true
+}
+
+func calculateTradingWindowMovingAverageCurrentValueOnlineWithCache(values, volumes []float64, endTimes []time.Time, config movingAverageConfig, symbol string, upperBound int, includeExtendedHours bool, cache *snapshotSeriesCache) (float64, bool, bool) {
+	aggregator, handled := newTradingWindowMovingAverageAggregator(config)
+	if !handled {
+		return 0, false, false
+	}
+	if len(values) == 0 || len(values) != len(endTimes) || upperBound <= 0 {
+		return 0, false, true
+	}
+	limit := min(upperBound, len(endTimes))
+	orderedKeys := 0
+	lastKey := int64(0)
+	hasKey := false
+	labelKeys := cache.getTradingPeriodLabels(endTimes, symbol, config.timeUnit, includeExtendedHours)
+	for index := limit - 1; index >= 0; index-- {
+		if index >= len(labelKeys) {
+			break
+		}
+		key := labelKeys[index]
+		if key == invalidTradingPeriodLabelKey {
+			continue
+		}
+		if !hasKey || key != lastKey {
+			if orderedKeys == config.period {
+				break
+			}
+			lastKey = key
+			hasKey = true
+			orderedKeys++
+		}
+		if !aggregator.push(values[index], volumes, index) {
+			return 0, false, true
+		}
+	}
+	current, currentOK := aggregator.value()
+	return current, currentOK, true
+}
+
+func calculateTradingWindowMovingAverageSnapshotFromKeys(values, volumes []float64, labelKeys []int64, config movingAverageConfig) (float64, float64, bool, bool, bool) {
+	aggregator, handled := newTradingWindowMovingAverageAggregator(config)
+	if !handled {
+		return 0, 0, false, false, false
+	}
+	if len(values) == 0 || len(values) != len(labelKeys) {
+		return 0, 0, false, false, true
+	}
+	currentState := tradingWindowMovingAverageState{aggregator: aggregator}
+	previousState := tradingWindowMovingAverageState{aggregator: aggregator}
+	previousLimit := max(len(values)-1, 0)
+	for index := len(values) - 1; index >= 0; index-- {
+		key := labelKeys[index]
+		if key == invalidTradingPeriodLabelKey {
+			continue
+		}
+		if !currentState.done {
+			currentState.push(config.period, key, values[index], volumes, index)
+		}
+		if index < previousLimit && !previousState.done {
+			previousState.push(config.period, key, values[index], volumes, index)
+		}
+		if currentState.done && (previousLimit == 0 || previousState.done) {
+			break
+		}
+	}
+	current, currentOK := currentState.value()
+	previous, previousOK := previousState.value()
+	return current, previous, currentOK, previousOK, true
+}
+
+func calculateMovingAverageCurrentValueFromSelected(values, volumes []float64, selected []int, config movingAverageConfig, cache *snapshotSeriesCache) (float64, bool) {
+	if len(selected) == 0 {
+		return 0, false
+	}
+	period := len(selected)
+	switch normalizeMovingAverageType(config.averageType) {
+	case "LWMA":
+		return linearWeightedMovingAverageFromSelected(values, selected, period)
+	case "VWMA":
+		return volumeWeightedMovingAverageFromSelected(values, volumes, selected)
+	case "SMA", "BOLL", "MA":
+		fallthrough
+	default:
+		if normalized := normalizeMovingAverageType(config.averageType); normalized != "EMA" && normalized != "EXPMA" && normalized != "SMMA" && normalized != "TMA" && normalized != "HMA" {
+			return simpleMovingAverageFromSelected(values, selected)
+		}
+	}
+	selectedValues, selectedVolumes := materializeTradingWindowSeriesFromSelected(values, volumes, selected, cache)
+	return calculateMovingAverageCurrentValue(selectedValues, selectedVolumes, config)
+}
+
+type tradingWindowMovingAverageAggregator struct {
+	kind        string
+	count       int
+	sum         float64
+	weightedSum float64
+	volumeSum   float64
+	missingData bool
+}
+
+type tradingWindowMovingAverageState struct {
+	aggregator  tradingWindowMovingAverageAggregator
+	orderedKeys int
+	lastKey     int64
+	hasKey      bool
+	done        bool
+}
+
+func newTradingWindowMovingAverageAggregator(config movingAverageConfig) (tradingWindowMovingAverageAggregator, bool) {
+	switch normalizeMovingAverageType(config.averageType) {
+	case "SMA", "BOLL", "MA":
+		return tradingWindowMovingAverageAggregator{kind: "sma"}, true
+	case "LWMA":
+		return tradingWindowMovingAverageAggregator{kind: "lwma"}, true
+	case "VWMA":
+		return tradingWindowMovingAverageAggregator{kind: "vwma"}, true
+	default:
+		return tradingWindowMovingAverageAggregator{}, false
+	}
+}
+
+func (a *tradingWindowMovingAverageAggregator) push(value float64, volumes []float64, index int) bool {
+	if a == nil {
+		return false
+	}
+	switch a.kind {
+	case "sma":
+		a.sum += value
+		a.count++
+		return true
+	case "lwma":
+		a.weightedSum += a.sum + value
+		a.sum += value
+		a.count++
+		return true
+	case "vwma":
+		if index >= len(volumes) {
+			a.missingData = true
+			return false
+		}
+		volume := volumes[index]
+		a.weightedSum += value * volume
+		a.volumeSum += volume
+		a.count++
+		return true
+	default:
+		return false
+	}
+}
+
+func (a tradingWindowMovingAverageAggregator) value() (float64, bool) {
+	if a.count == 0 || a.missingData {
+		return 0, false
+	}
+	switch a.kind {
+	case "sma":
+		return a.sum / float64(a.count), true
+	case "lwma":
+		weightSum := float64(a.count * (a.count + 1) / 2)
+		if weightSum == 0 {
+			return 0, false
+		}
+		return a.weightedSum / weightSum, true
+	case "vwma":
+		if a.volumeSum == 0 {
+			return 0, false
+		}
+		return a.weightedSum / a.volumeSum, true
+	default:
+		return 0, false
+	}
+}
+
+func (s *tradingWindowMovingAverageState) push(period int, key int64, value float64, volumes []float64, index int) {
+	if s == nil || s.done {
+		return
+	}
+	if !s.hasKey || key != s.lastKey {
+		if s.orderedKeys == period {
+			s.done = true
+			return
+		}
+		s.lastKey = key
+		s.hasKey = true
+		s.orderedKeys++
+	}
+	if !s.aggregator.push(value, volumes, index) {
+		s.done = true
+	}
+}
+
+func (s tradingWindowMovingAverageState) value() (float64, bool) {
+	return s.aggregator.value()
+}
+
+func simpleMovingAverageFromSelected(values []float64, selected []int) (float64, bool) {
+	if len(selected) == 0 {
+		return 0, false
+	}
+	sum := 0.0
+	for index := len(selected) - 1; index >= 0; index-- {
+		sum += values[selected[index]]
+	}
+	return sum / float64(len(selected)), true
+}
+
+func exponentialMovingAverageFromSelected(values []float64, selected []int, period int) (float64, bool) {
+	if period <= 0 || len(selected) < period {
+		return 0, false
+	}
+	multiplier := 2 / float64(period+1)
+	current := values[selected[len(selected)-1]]
+	for index := len(selected) - 2; index >= 0; index-- {
+		current = current + (values[selected[index]]-current)*multiplier
+	}
+	return current, true
+}
+
+func linearWeightedMovingAverageFromSelected(values []float64, selected []int, period int) (float64, bool) {
+	if period <= 0 || len(selected) < period {
+		return 0, false
+	}
+	weightSum := float64(period * (period + 1) / 2)
+	weightedSum := 0.0
+	weight := 1.0
+	for index := len(selected) - 1; index >= 0; index-- {
+		weightedSum += values[selected[index]] * weight
+		weight++
+	}
+	return weightedSum / weightSum, true
+}
+
+func volumeWeightedMovingAverageFromSelected(values, volumes []float64, selected []int) (float64, bool) {
+	if len(selected) == 0 {
+		return 0, false
+	}
+	volumeSum := 0.0
+	weightedSum := 0.0
+	for index := len(selected) - 1; index >= 0; index-- {
+		position := selected[index]
+		if position >= len(volumes) {
+			return 0, false
+		}
+		volume := volumes[position]
+		volumeSum += volume
+		weightedSum += values[position] * volume
+	}
+	if volumeSum == 0 {
+		return 0, false
+	}
+	return weightedSum / volumeSum, true
+}
+
+func selectTradingWindowSeries(values, volumes []float64, endTimes []time.Time, period int, timeUnit string, symbol string, upperBound int, includeExtendedHours bool) ([]float64, []float64) {
+	if len(values) == 0 || len(values) != len(endTimes) {
+		return nil, nil
+	}
+	selected := selectTradingWindowIndices(endTimes, period, timeUnit, symbol, upperBound, includeExtendedHours)
+	return materializeTradingWindowSeriesFromSelected(values, volumes, selected, nil)
+}
+
+func selectTradingWindowSeriesWithCache(values, volumes []float64, endTimes []time.Time, period int, timeUnit string, symbol string, upperBound int, includeExtendedHours bool, cache *snapshotSeriesCache) ([]float64, []float64) {
+	if len(values) == 0 || len(values) != len(endTimes) {
+		return nil, nil
+	}
+	selected := selectTradingWindowIndicesWithCache(endTimes, period, timeUnit, symbol, upperBound, includeExtendedHours, cache)
+	return materializeTradingWindowSeriesFromSelected(values, volumes, selected, cache)
+}
+
+func selectTradingWindowIndicesWithCache(endTimes []time.Time, period int, timeUnit string, symbol string, upperBound int, includeExtendedHours bool, cache *snapshotSeriesCache) []int {
+	if cache == nil {
+		return selectTradingWindowIndices(endTimes, period, timeUnit, symbol, upperBound, includeExtendedHours)
+	}
+	selected := selectTradingWindowIndicesInto(cache.tradingWindowIndices, endTimes, period, timeUnit, symbol, upperBound, includeExtendedHours)
+	cache.tradingWindowIndices = selected
+	return selected
+}
+
+func materializeTradingWindowSeriesFromSelected(values, volumes []float64, selected []int, cache *snapshotSeriesCache) ([]float64, []float64) {
+	if len(selected) == 0 {
+		if cache != nil {
+			cache.tradingWindowValues = cache.tradingWindowValues[:0]
+			cache.tradingWindowVolumes = cache.tradingWindowVolumes[:0]
+		}
+		return nil, nil
+	}
+	windowValues := []float64(nil)
+	windowVolumes := []float64(nil)
+	if cache != nil {
+		windowValues = cache.tradingWindowValues[:0]
+		windowVolumes = cache.tradingWindowVolumes[:0]
+	}
+	if cap(windowValues) < len(selected) {
+		windowValues = make([]float64, 0, len(selected))
+	}
+	if cap(windowVolumes) < len(selected) {
+		windowVolumes = make([]float64, 0, len(selected))
+	}
+	for index := len(selected) - 1; index >= 0; index-- {
+		position := selected[index]
+		windowValues = append(windowValues, values[position])
+		if position < len(volumes) {
+			windowVolumes = append(windowVolumes, volumes[position])
+		}
+	}
+	if cache != nil {
+		cache.tradingWindowValues = windowValues
+		cache.tradingWindowVolumes = windowVolumes
+	}
+	return windowValues, windowVolumes
+}
+
+func selectTradingWindowIndicesInto(destination []int, endTimes []time.Time, period int, timeUnit string, symbol string, upperBound int, includeExtendedHours bool) []int {
+	if period <= 0 || upperBound <= 0 || len(endTimes) == 0 {
+		return nil
+	}
+	limit := min(upperBound, len(endTimes))
+	selected := destination[:0]
+	if cap(selected) < limit {
+		selected = make([]int, 0, limit)
+	}
+	orderedKeys := 0
+	lastKey := int64(0)
+	hasKey := false
+	normalizedUnit := normalizeIndicatorTimeUnit(timeUnit)
+	for index := limit - 1; index >= 0; index-- {
+		labelStart, ok := futu.TradingPeriodLabelStart(symbol, endTimes[index], normalizedUnit, includeExtendedHours)
+		if !ok {
+			continue
+		}
+		key := labelStart.Unix()
+		if !hasKey || key != lastKey {
+			if orderedKeys == period {
+				break
+			}
+			lastKey = key
+			hasKey = true
+			orderedKeys++
+		}
+		selected = append(selected, index)
+	}
+	return selected
+}
+
+func selectTradingWindowIndices(endTimes []time.Time, period int, timeUnit string, symbol string, upperBound int, includeExtendedHours bool) []int {
+	if period <= 0 || upperBound <= 0 || len(endTimes) == 0 {
+		return nil
+	}
+	limit := min(upperBound, len(endTimes))
+	selected := make([]int, 0, limit)
+	keys := make(map[string]struct{}, period)
+	orderedKeys := 0
+	normalizedUnit := normalizeIndicatorTimeUnit(timeUnit)
+	for index := limit - 1; index >= 0; index-- {
+		key, ok := futu.TradingPeriodKey(symbol, endTimes[index], normalizedUnit, includeExtendedHours)
+		if !ok {
+			continue
+		}
+		if _, exists := keys[key]; !exists {
+			if orderedKeys == period {
+				break
+			}
+			keys[key] = struct{}{}
+			orderedKeys++
+		}
+		selected = append(selected, index)
+	}
+	return selected
+}
+
+func usesTradingPeriodWindow(timeUnit string, intervalMinutes int, symbol string, endTimes []time.Time, includeExtendedHours bool) bool {
+	switch normalizeIndicatorTimeUnit(timeUnit) {
+	case "day", "week", "month":
+	default:
+		return false
+	}
+	if len(endTimes) == 0 || strings.TrimSpace(symbol) == "" {
+		return false
+	}
+	dayMinutes, ok := futu.TradingMinutesPerTradingDay(symbol, includeExtendedHours)
+	if !ok {
+		return false
+	}
+	return intervalMinutes > 0 && intervalMinutes < dayMinutes
+}
+
+func snapshotValueToMap(snapshot any, keys [2]string) map[string]any {
+	if snapshot == nil {
+		return nil
+	}
+	if values, ok := snapshot.(map[string]any); ok {
+		return values
+	}
+	reader, ok := snapshot.(interface{ FieldValue(string) (any, bool) })
+	if !ok {
+		return nil
+	}
+	result := make(map[string]any, len(keys))
+	for _, key := range keys {
+		value, ok := reader.FieldValue(key)
+		if ok {
+			result[key] = value
+		}
 	}
 	return result
 }
@@ -2225,6 +3008,21 @@ func lastTwoSequenceValues(sequence []float64) (float64, float64, bool, bool) {
 }
 
 func buildStopLossSnapshot(closes []float64, endTimes []time.Time, sessions []futu.MarketSession, config stopLossConfig, intervalMinutes int) map[string]any {
+	return buildStopLossSnapshotForSymbol(closes, endTimes, sessions, config, intervalMinutes, "")
+}
+
+func buildStopLossSnapshotForSymbol(closes []float64, endTimes []time.Time, sessions []futu.MarketSession, config stopLossConfig, intervalMinutes int, symbol string) map[string]any {
+	return buildStopLossSnapshotForSymbolWithOptions(closes, endTimes, sessions, config, intervalMinutes, symbol, false)
+}
+
+func buildStopLossSnapshotForSymbolWithOptions(closes []float64, endTimes []time.Time, sessions []futu.MarketSession, config stopLossConfig, intervalMinutes int, symbol string, includeExtendedHours bool) map[string]any {
+	return buildStopLossSnapshotForSymbolWithOptionsAndCache(closes, endTimes, sessions, config, intervalMinutes, symbol, includeExtendedHours, nil)
+}
+
+func buildStopLossSnapshotForSymbolWithOptionsAndCache(closes []float64, endTimes []time.Time, sessions []futu.MarketSession, config stopLossConfig, intervalMinutes int, symbol string, includeExtendedHours bool, cache *snapshotSeriesCache) map[string]any {
+	if usesTradingPeriodWindow(config.timeUnit, intervalMinutes, symbol, endTimes, includeExtendedHours) {
+		return buildStopLossSnapshotForTradingWindowWithCache(closes, endTimes, sessions, config, intervalMinutes, symbol, includeExtendedHours, cache)
+	}
 	lookback := resolveBarCount(config.timeValue, config.timeUnit, intervalMinutes)
 	if lookback <= 0 || len(closes) <= lookback {
 		return nil
@@ -2235,7 +3033,7 @@ func buildStopLossSnapshot(closes []float64, endTimes []time.Time, sessions []fu
 	}
 	windowPolicy := normalizeStopLossWindowPolicy(config.windowPolicy)
 	if windowPolicy == "session" {
-		windowStart = resolveSessionAwareWindowStart(endTimes, sessions, windowStart, intervalMinutes)
+		windowStart = resolveSessionAwareWindowStartWithCache(endTimes, sessions, windowStart, intervalMinutes, cache)
 		if windowStart < 0 {
 			return nil
 		}
@@ -2261,7 +3059,7 @@ func buildStopLossSnapshot(closes []float64, endTimes []time.Time, sessions []fu
 		longTriggered = changePercent >= config.percentage
 		shortTriggered = changePercent <= -config.percentage
 	case "trailingStop":
-		peakClose, troughClose = maxMinSlice(closes[windowStart:])
+		peakClose, troughClose = maxMinSliceFromWindowStartWithCache(closes, windowStart, cache)
 		if peakClose <= 0 || troughClose <= 0 || math.IsNaN(peakClose) || math.IsNaN(troughClose) || math.IsInf(peakClose, 0) || math.IsInf(troughClose, 0) {
 			return nil
 		}
@@ -2275,17 +3073,13 @@ func buildStopLossSnapshot(closes []float64, endTimes []time.Time, sessions []fu
 		longTriggered = changePercent <= -config.percentage
 		shortTriggered = changePercent >= config.percentage
 	}
-	triggered := false
 	triggerPercent := 0.0
 	switch direction {
 	case "long":
-		triggered = longTriggered
 		triggerPercent = longTriggerPercent
 	case "short":
-		triggered = shortTriggered
 		triggerPercent = shortTriggerPercent
 	default:
-		triggered = longTriggered || shortTriggered
 		if longTriggered && !shortTriggered {
 			triggerPercent = longTriggerPercent
 		} else if shortTriggered && !longTriggered {
@@ -2294,27 +3088,216 @@ func buildStopLossSnapshot(closes []float64, endTimes []time.Time, sessions []fu
 			triggerPercent = max(longTriggerPercent, shortTriggerPercent)
 		}
 	}
-	return map[string]any{
-		"mode":                mode,
-		"triggered":           triggered,
-		"direction":           direction,
-		"windowBars":          float64(len(closes) - 1 - windowStart),
-		"percentage":          config.percentage,
-		"windowPolicy":        windowPolicy,
-		"sessionAware":        windowPolicy == "session",
-		"referenceClose":      reference,
-		"currentClose":        current,
-		"changePercent":       changePercent,
-		"triggerPercent":      triggerPercent,
-		"longTriggered":       longTriggered,
-		"shortTriggered":      shortTriggered,
-		"longTriggerPercent":  longTriggerPercent,
-		"shortTriggerPercent": shortTriggerPercent,
-		"peakClose":           peakClose,
-		"troughClose":         troughClose,
-		"longDrawdownPercent": longDrawdownPercent,
-		"shortReboundPercent": shortReboundPercent,
+	return fillStopLossSnapshot(
+		cache,
+		config,
+		mode,
+		direction,
+		float64(len(closes)-1-windowStart),
+		windowPolicy,
+		reference,
+		current,
+		changePercent,
+		triggerPercent,
+		longTriggered,
+		shortTriggered,
+		longTriggerPercent,
+		shortTriggerPercent,
+		peakClose,
+		troughClose,
+		longDrawdownPercent,
+		shortReboundPercent,
+	)
+}
+
+func buildStopLossSnapshotForTradingWindow(closes []float64, endTimes []time.Time, sessions []futu.MarketSession, config stopLossConfig, intervalMinutes int, symbol string, includeExtendedHours bool) map[string]any {
+	return buildStopLossSnapshotForTradingWindowWithCache(closes, endTimes, sessions, config, intervalMinutes, symbol, includeExtendedHours, nil)
+}
+
+func buildStopLossSnapshotForTradingWindowWithCache(closes []float64, endTimes []time.Time, sessions []futu.MarketSession, config stopLossConfig, intervalMinutes int, symbol string, includeExtendedHours bool, cache *snapshotSeriesCache) map[string]any {
+	selectedIndices := selectStopLossTradingWindowIndicesWithCache(endTimes, config.timeValue, config.timeUnit, symbol, len(closes), includeExtendedHours, cache)
+	if len(selectedIndices) < 2 {
+		return nil
 	}
+	reference := closes[selectedIndices[len(selectedIndices)-1]]
+	current := closes[selectedIndices[0]]
+	if reference <= 0 || math.IsNaN(reference) || math.IsInf(reference, 0) || math.IsNaN(current) || math.IsInf(current, 0) {
+		return nil
+	}
+	changePercent := ((current - reference) / reference) * 100
+	mode := normalizeStopLossMode(config.mode)
+	direction := normalizeStopLossDirection(config.direction)
+	longTriggered := false
+	shortTriggered := false
+	longTriggerPercent := math.Abs(changePercent)
+	shortTriggerPercent := math.Abs(changePercent)
+	peakClose := current
+	troughClose := current
+	longDrawdownPercent := 0.0
+	shortReboundPercent := 0.0
+	switch mode {
+	case "takeProfit":
+		longTriggered = changePercent >= config.percentage
+		shortTriggered = changePercent <= -config.percentage
+	case "trailingStop":
+		peakClose, troughClose = maxMinSelectedCloses(closes, selectedIndices)
+		if peakClose <= 0 || troughClose <= 0 || math.IsNaN(peakClose) || math.IsNaN(troughClose) || math.IsInf(peakClose, 0) || math.IsInf(troughClose, 0) {
+			return nil
+		}
+		longDrawdownPercent = ((peakClose - current) / peakClose) * 100
+		shortReboundPercent = ((current - troughClose) / troughClose) * 100
+		longTriggered = longDrawdownPercent >= config.percentage
+		shortTriggered = shortReboundPercent >= config.percentage
+		longTriggerPercent = longDrawdownPercent
+		shortTriggerPercent = shortReboundPercent
+	default:
+		longTriggered = changePercent <= -config.percentage
+		shortTriggered = changePercent >= config.percentage
+	}
+	triggerPercent := 0.0
+	switch direction {
+	case "long":
+		triggerPercent = longTriggerPercent
+	case "short":
+		triggerPercent = shortTriggerPercent
+	default:
+		if longTriggered && !shortTriggered {
+			triggerPercent = longTriggerPercent
+		} else if shortTriggered && !longTriggered {
+			triggerPercent = shortTriggerPercent
+		} else {
+			triggerPercent = max(longTriggerPercent, shortTriggerPercent)
+		}
+	}
+	windowPolicy := normalizeStopLossWindowPolicy(config.windowPolicy)
+	return fillStopLossSnapshot(
+		cache,
+		config,
+		mode,
+		direction,
+		float64(len(selectedIndices)-1),
+		windowPolicy,
+		reference,
+		current,
+		changePercent,
+		triggerPercent,
+		longTriggered,
+		shortTriggered,
+		longTriggerPercent,
+		shortTriggerPercent,
+		peakClose,
+		troughClose,
+		longDrawdownPercent,
+		shortReboundPercent,
+	)
+}
+
+func fillStopLossSnapshot(cache *snapshotSeriesCache, config stopLossConfig, mode, direction string, windowBars float64, windowPolicy string, reference, current, changePercent, triggerPercent float64, longTriggered, shortTriggered bool, longTriggerPercent, shortTriggerPercent, peakClose, troughClose, longDrawdownPercent, shortReboundPercent float64) map[string]any {
+	triggered := false
+	if direction == "long" {
+		triggered = longTriggered
+	} else if direction == "short" {
+		triggered = shortTriggered
+	} else {
+		triggered = longTriggered || shortTriggered
+	}
+	snapshot := cache.getStopLossSnapshot(config)
+	snapshot["mode"] = mode
+	snapshot["triggered"] = triggered
+	snapshot["direction"] = direction
+	snapshot["windowBars"] = windowBars
+	snapshot["percentage"] = config.percentage
+	snapshot["windowPolicy"] = windowPolicy
+	snapshot["sessionAware"] = windowPolicy == "session"
+	snapshot["referenceClose"] = reference
+	snapshot["currentClose"] = current
+	snapshot["changePercent"] = changePercent
+	snapshot["triggerPercent"] = triggerPercent
+	snapshot["longTriggered"] = longTriggered
+	snapshot["shortTriggered"] = shortTriggered
+	snapshot["longTriggerPercent"] = longTriggerPercent
+	snapshot["shortTriggerPercent"] = shortTriggerPercent
+	snapshot["peakClose"] = peakClose
+	snapshot["troughClose"] = troughClose
+	snapshot["longDrawdownPercent"] = longDrawdownPercent
+	snapshot["shortReboundPercent"] = shortReboundPercent
+	return snapshot
+}
+
+func selectStopLossTradingWindowIndicesWithCache(endTimes []time.Time, period int, timeUnit string, symbol string, upperBound int, includeExtendedHours bool, cache *snapshotSeriesCache) []int {
+	if cache == nil {
+		return selectTradingWindowIndices(endTimes, period, timeUnit, symbol, upperBound, includeExtendedHours)
+	}
+	selection := &cache.stopLossWindowSelect
+	if selection.valid && selection.period == period && selection.timeUnit == timeUnit && selection.symbol == symbol && selection.upperBound == upperBound && selection.includeExtendedHours == includeExtendedHours {
+		return selection.indices
+	}
+	selected := selectTradingWindowIndicesWithCache(endTimes, period, timeUnit, symbol, upperBound, includeExtendedHours, cache)
+	selection.indices = append(selection.indices[:0], selected...)
+	selection.valid = true
+	selection.period = period
+	selection.timeUnit = timeUnit
+	selection.symbol = symbol
+	selection.upperBound = upperBound
+	selection.includeExtendedHours = includeExtendedHours
+	return selection.indices
+}
+
+func resolveSessionAwareWindowStartWithCache(endTimes []time.Time, sessions []futu.MarketSession, windowStart int, intervalMinutes int, cache *snapshotSeriesCache) int {
+	if cache == nil {
+		return resolveSessionAwareWindowStart(endTimes, sessions, windowStart, intervalMinutes)
+	}
+	seriesLength := sessionAwareSeriesLength(endTimes, sessions)
+	entry := &cache.stopLossWindowStart
+	if entry.valid && entry.requestedStart == windowStart && entry.intervalMinutes == intervalMinutes && entry.seriesLength == seriesLength {
+		return entry.resolvedStart
+	}
+	resolved := resolveSessionAwareWindowStart(endTimes, sessions, windowStart, intervalMinutes)
+	entry.valid = true
+	entry.requestedStart = windowStart
+	entry.intervalMinutes = intervalMinutes
+	entry.seriesLength = seriesLength
+	entry.resolvedStart = resolved
+	return resolved
+}
+
+func maxMinSliceFromWindowStartWithCache(closes []float64, windowStart int, cache *snapshotSeriesCache) (float64, float64) {
+	if cache == nil {
+		return maxMinSlice(closes[windowStart:])
+	}
+	entry := &cache.stopLossWindowExtrema
+	if entry.valid && entry.windowStart == windowStart && entry.seriesLength == len(closes) {
+		return entry.peakClose, entry.troughClose
+	}
+	peakClose, troughClose := maxMinSlice(closes[windowStart:])
+	entry.valid = true
+	entry.windowStart = windowStart
+	entry.seriesLength = len(closes)
+	entry.peakClose = peakClose
+	entry.troughClose = troughClose
+	return peakClose, troughClose
+}
+
+func maxMinSelectedCloses(closes []float64, selectedIndices []int) (float64, float64) {
+	if len(selectedIndices) == 0 {
+		return 0, 0
+	}
+	peakClose := closes[selectedIndices[0]]
+	troughClose := peakClose
+	for _, index := range selectedIndices[1:] {
+		value := closes[index]
+		peakClose = max(peakClose, value)
+		troughClose = min(troughClose, value)
+	}
+	return peakClose, troughClose
+}
+
+func sessionAwareSeriesLength(endTimes []time.Time, sessions []futu.MarketSession) int {
+	seriesLength := len(endTimes)
+	if len(sessions) > seriesLength {
+		seriesLength = len(sessions)
+	}
+	return seriesLength
 }
 
 func resolveSessionAwareWindowStart(endTimes []time.Time, sessions []futu.MarketSession, windowStart int, intervalMinutes int) int {
@@ -2324,10 +3307,7 @@ func resolveSessionAwareWindowStart(endTimes []time.Time, sessions []futu.Market
 	if intervalMinutes <= 0 || intervalMinutes >= tradingSessionMinutesPerDay {
 		return windowStart
 	}
-	seriesLength := len(endTimes)
-	if len(sessions) > seriesLength {
-		seriesLength = len(sessions)
-	}
+	seriesLength := sessionAwareSeriesLength(endTimes, sessions)
 	if seriesLength == 0 {
 		return windowStart
 	}
@@ -3085,6 +4065,32 @@ func reuseFloat64Slice(values []float64, length int) []float64 {
 		return make([]float64, length)
 	}
 	return values[:length]
+}
+
+func reuseInt64Slice(values []int64, length int) []int64 {
+	if length <= 0 {
+		return nil
+	}
+	if cap(values) < length {
+		return make([]int64, length)
+	}
+	return values[:length]
+}
+
+func buildTradingPeriodLabels(destination []int64, endTimes []time.Time, symbol string, normalizedUnit string, includeExtendedHours bool) []int64 {
+	if len(endTimes) == 0 {
+		return nil
+	}
+	labels := reuseInt64Slice(destination, len(endTimes))
+	for index, endTime := range endTimes {
+		labelStart, ok := futu.TradingPeriodLabelStart(symbol, endTime, normalizedUnit, includeExtendedHours)
+		if !ok {
+			labels[index] = invalidTradingPeriodLabelKey
+			continue
+		}
+		labels[index] = labelStart.Unix()
+	}
+	return labels
 }
 
 func fillEMASequence(destination []float64, values []float64, period int) []float64 {

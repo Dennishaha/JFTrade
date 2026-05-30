@@ -7,8 +7,12 @@ import (
 )
 
 const (
-	KLineTable           = internalstorage.KLineTable
-	rehabTypeForwardCode = internalstorage.RehabTypeForwardCode
+	KLineTable                = internalstorage.KLineTable
+	KLineSessionScopeLegacy   = internalstorage.KLineSessionScopeLegacy
+	KLineSessionScopeRegular  = internalstorage.KLineSessionScopeRegular
+	KLineSessionScopeExtended = internalstorage.KLineSessionScopeExtended
+	KLineReadSessionScopeAuto = internalstorage.KLineReadSessionScopeAuto
+	rehabTypeForwardCode      = internalstorage.RehabTypeForwardCode
 )
 
 type FutuKLineStore = internalstorage.FutuKLineStore
@@ -35,4 +39,12 @@ func intervalFromStorageValue(value int64) (types.Interval, error) {
 
 func KLineTableName(symbol string, interval types.Interval, rehabType string) string {
 	return internalstorage.KLineTableName(symbol, interval, rehabType)
+}
+
+func KLineTableNameForSessionScope(symbol string, interval types.Interval, rehabType string, sessionScope string) string {
+	return internalstorage.KLineTableNameForSessionScope(symbol, interval, rehabType, sessionScope)
+}
+
+func NormalizeKLineSessionScopeName(scope string) string {
+	return internalstorage.NormalizeKLineSessionScopeName(scope)
 }

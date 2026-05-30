@@ -2,9 +2,15 @@ package storage
 
 import (
 	"database/sql"
+	"unsafe"
 
 	"github.com/c9s/bbgo/pkg/fixedpoint"
 	"github.com/c9s/bbgo/pkg/types"
+)
+
+const (
+	storedFixedScale  = int64(fixedpoint.DefaultPow)
+	storedFixedMaxInt = int64(^uint64(0) >> 1)
 )
 
 func scanKLine(row *sql.Row, symbol string, interval types.Interval) (*types.KLine, error) {
@@ -28,24 +34,62 @@ func scanKLine(row *sql.Row, symbol string, interval types.Interval) (*types.KLi
 }
 
 func scanKLines(rows *sql.Rows, symbol string, interval types.Interval) ([]types.KLine, error) {
-	var klines []types.KLine
-	for rows.Next() {
-		var startTimeMillis, endTimeMillis int64
-		var open, high, low, close, volume string
+	return scanKLinesWithCapacity(rows, symbol, interval, 0)
+}
 
-		if err := rows.Scan(&startTimeMillis, &endTimeMillis,
-			&open, &high, &low, &close, &volume,
-		); err != nil {
-			return nil, err
-		}
-
-		kline, err := newStoredKLine(startTimeMillis, endTimeMillis, symbol, interval, open, high, low, close, volume)
-		if err != nil {
-			return nil, err
-		}
+func scanKLinesWithCapacity(rows *sql.Rows, symbol string, interval types.Interval, capacity int) ([]types.KLine, error) {
+	klines := make([]types.KLine, 0, capacity)
+	if err := streamKLines(rows, symbol, interval, func(kline types.KLine) {
 		klines = append(klines, kline)
+	}); err != nil {
+		return nil, err
 	}
-	return klines, rows.Err()
+	return klines, nil
+}
+
+func streamKLines(rows *sql.Rows, symbol string, interval types.Interval, emit func(types.KLine)) error {
+	for rows.Next() {
+		kline, err := scanStoredKLineRow(rows, symbol, interval)
+		if err != nil {
+			return err
+		}
+		emit(kline)
+	}
+	return rows.Err()
+}
+
+func streamKLinesToChannel(rows *sql.Rows, symbol string, interval types.Interval, ch chan<- types.KLine) error {
+	for rows.Next() {
+		kline, err := scanStoredKLineRow(rows, symbol, interval)
+		if err != nil {
+			return err
+		}
+		ch <- kline
+	}
+	return rows.Err()
+}
+
+func scanStoredKLineRow(rows *sql.Rows, symbol string, interval types.Interval) (types.KLine, error) {
+	var startTimeMillis, endTimeMillis int64
+	var open, high, low, close, volume sql.RawBytes
+
+	if err := rows.Scan(&startTimeMillis, &endTimeMillis,
+		&open, &high, &low, &close, &volume,
+	); err != nil {
+		return types.KLine{}, err
+	}
+
+	return newStoredKLine(
+		startTimeMillis,
+		endTimeMillis,
+		symbol,
+		interval,
+		rawBytesToString(open),
+		rawBytesToString(high),
+		rawBytesToString(low),
+		rawBytesToString(close),
+		rawBytesToString(volume),
+	)
 }
 
 func newStoredKLine(startTimeMillis, endTimeMillis int64, symbol string, interval types.Interval, open, high, low, close, volume string) (types.KLine, error) {
@@ -93,5 +137,79 @@ func reverseKLines(klines []types.KLine) {
 }
 
 func parseStoredFixed(value string) (fixedpoint.Value, error) {
+	if parsed, ok := parseStoredFixedDecimal(value); ok {
+		return parsed, nil
+	}
 	return fixedpoint.NewFromString(value)
+}
+
+func parseStoredFixedDecimal(value string) (fixedpoint.Value, bool) {
+	if len(value) == 0 {
+		return 0, true
+	}
+
+	index := 0
+	sign := int64(1)
+	switch value[0] {
+	case '-':
+		sign = -1
+		index = 1
+	case '+':
+		index = 1
+	}
+	if index >= len(value) {
+		return 0, false
+	}
+
+	var whole int64
+	var fraction int64
+	fractionDigits := 0
+	seenDot := false
+
+	for ; index < len(value); index++ {
+		char := value[index]
+		switch {
+		case char >= '0' && char <= '9':
+			digit := int64(char - '0')
+			if !seenDot {
+				if whole > (storedFixedMaxInt-digit)/10 {
+					return 0, false
+				}
+				whole = whole*10 + digit
+				continue
+			}
+			if fractionDigits >= fixedpoint.DefaultPrecision {
+				return 0, false
+			}
+			fraction = fraction*10 + digit
+			fractionDigits++
+		case char == '.':
+			if seenDot {
+				return 0, false
+			}
+			seenDot = true
+		default:
+			return 0, false
+		}
+	}
+
+	for ; fractionDigits < fixedpoint.DefaultPrecision; fractionDigits++ {
+		fraction *= 10
+	}
+	if whole > (storedFixedMaxInt-fraction)/storedFixedScale {
+		return 0, false
+	}
+
+	total := whole*storedFixedScale + fraction
+	if sign < 0 {
+		total = -total
+	}
+	return fixedpoint.Value(total), true
+}
+
+func rawBytesToString(value sql.RawBytes) string {
+	if len(value) == 0 {
+		return ""
+	}
+	return unsafe.String(unsafe.SliceData(value), len(value))
 }

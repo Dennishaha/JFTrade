@@ -52,6 +52,7 @@ func Run(ctx context.Context, cfg RunConfig) *RunResult {
 		cfg.RehabType = "forward"
 	}
 	store.SetRehabType(cfg.RehabType)
+	store.SetReadSessionScope(resolveBacktestReadSessionScope(cfg.UseExtendedHours))
 
 	sourceFormat := strategydefinition.NormalizeSourceFormat(cfg.SourceFormat)
 	if sourceFormat != strategydefinition.SourceFormatDSLV1 {
@@ -59,7 +60,7 @@ func Run(ctx context.Context, cfg RunConfig) *RunResult {
 		return result
 	}
 
-	derivedWarmupCandles, err := deriveStrategyWarmupCandles(cfg.StrategyScript, types.Interval(cfg.Interval))
+	derivedWarmupCandles, err := deriveStrategyWarmupCandles(cfg.StrategyScript, types.Interval(cfg.Interval), cfg.Symbol, cfg.UseExtendedHours)
 	if err != nil {
 		result.Error = fmt.Sprintf("derive strategy warmup: %v", err)
 		return result
@@ -85,6 +86,7 @@ func Run(ctx context.Context, cfg RunConfig) *RunResult {
 		result.Error = err.Error()
 		return result
 	}
+	replayStore := newBacktestReplayStore(store, cfg.UseExtendedHours)
 
 	// ── 2. Build backtest exchange ──────────────────────────────────
 	sourceExchange := futu.NewExchange("127.0.0.1:11110")
@@ -137,7 +139,7 @@ func Run(ctx context.Context, cfg RunConfig) *RunResult {
 	btExchange, err := bt.NewExchange(
 		sourceExchange.Name(),
 		sourceExchange,
-		store,
+		replayStore,
 		backtestCfg,
 	)
 	if err != nil {
@@ -188,11 +190,12 @@ func Run(ctx context.Context, cfg RunConfig) *RunResult {
 	}
 
 	strategy := &dslruntime.Strategy{
-		Name:        "backtest-strategy",
-		Symbol:      cfg.Symbol,
-		Interval:    types.Interval(cfg.Interval),
-		Script:      cfg.StrategyScript,
-		WarmupUntil: warmupUntil,
+		Name:             "backtest-strategy",
+		Symbol:           cfg.Symbol,
+		Interval:         types.Interval(cfg.Interval),
+		Script:           cfg.StrategyScript,
+		UseExtendedHours: cfg.UseExtendedHours != nil && *cfg.UseExtendedHours,
+		WarmupUntil:      warmupUntil,
 		OnError: func(errMsg string) {
 			result.AddRuntimeError(errMsg)
 			log.Printf("backtest runtime error: %s", errMsg)
@@ -227,6 +230,35 @@ func Run(ctx context.Context, cfg RunConfig) *RunResult {
 	// interval avoids this while still delivering correct matching at
 	// the strategy's own granularity.
 	strategyInterval := types.Interval(cfg.Interval)
+	collector := newResultCollector(cfg.Symbol, strategyInterval, quoteCurrency, warmupUntil, result)
+	if estimatedBars := estimateReplayBarCapacity(warmupUntil, cfg.EndTime, strategyInterval); estimatedBars > 0 {
+		collector.candles = make([]Candle, 0, estimatedBars)
+		collector.pnlCurve = make([]PnLPoint, 0, estimatedBars)
+	}
+
+	session.UserDataStream.OnOrderUpdate(collector.onOrderUpdate)
+
+	session.MarketDataStream.OnKLineClosed(func(kline types.KLine) {
+		collector.onKLineClosed(ctx, btExchange, kline)
+	})
+
+	if streamer, ok := replayStore.(klineRangeStreamer); ok {
+		btExchange.Src = &bt.ExchangeDataSource{Exchange: btExchange, Session: session}
+		if err := streamer.StreamKLines(queryStartTime, cfg.EndTime, btExchange, []string{cfg.Symbol}, []types.Interval{strategyInterval}, func(kline types.KLine) {
+			btExchange.ConsumeKLine(kline, strategyInterval)
+		}); err != nil {
+			result.Error = fmt.Sprintf("stream replay klines: %v", err)
+			return result
+		}
+		if err := btExchange.CloseMarketData(); err != nil {
+			log.Printf("backtest close market data: %v", err)
+		}
+
+		totalOrders, filledOrders := collector.finalize(ctx, btExchange, cfg.InitialBalance)
+		log.Printf("backtest: done totalOrders=%d filledOrders=%d finalBalance=%.2f", totalOrders, filledOrders, result.FinalBalance)
+		return result
+	}
+
 	exchangeSources, err := bt.InitializeExchangeSources(
 		environ.Sessions(),
 		queryStartTime, cfg.EndTime,
@@ -237,14 +269,6 @@ func Run(ctx context.Context, cfg RunConfig) *RunResult {
 		result.Error = fmt.Sprintf("initialize exchange sources: %v", err)
 		return result
 	}
-
-	collector := newResultCollector(cfg.Symbol, strategyInterval, quoteCurrency, warmupUntil, result)
-
-	session.UserDataStream.OnOrderUpdate(collector.onOrderUpdate)
-
-	session.MarketDataStream.OnKLineClosed(func(kline types.KLine) {
-		collector.onKLineClosed(ctx, btExchange, kline)
-	})
 
 	// Pump klines one by one. Each call to ConsumeKLine drives the
 	// matching engine: orders are matched against the candle's OHLCV,
@@ -271,6 +295,32 @@ func Run(ctx context.Context, cfg RunConfig) *RunResult {
 	return result
 }
 
-func deriveStrategyWarmupCandles(script string, interval types.Interval) (int, error) {
-	return indicatorruntime.WarmupBarsFromScript(script, interval)
+func deriveStrategyWarmupCandles(script string, interval types.Interval, symbol string, useExtendedHours *bool) (int, error) {
+	return indicatorruntime.WarmupBarsFromScriptForSymbolWithOptions(
+		script,
+		interval,
+		symbol,
+		indicatorruntime.RuntimeOptions{IncludeExtendedHours: useExtendedHours != nil && *useExtendedHours},
+	)
+}
+
+func resolveBacktestReadSessionScope(useExtendedHours *bool) string {
+	if useExtendedHours == nil {
+		return "auto"
+	}
+	if *useExtendedHours {
+		return "extended"
+	}
+	return "regular"
+}
+
+func estimateReplayBarCapacity(start, end time.Time, interval types.Interval) int {
+	if start.IsZero() || end.IsZero() || !end.After(start) {
+		return 0
+	}
+	intervalDuration := interval.Duration()
+	if intervalDuration <= 0 {
+		return 0
+	}
+	return int(end.Sub(start)/intervalDuration) + 1
 }
