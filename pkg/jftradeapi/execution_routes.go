@@ -9,10 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/c9s/bbgo/pkg/fixedpoint"
-	"github.com/c9s/bbgo/pkg/types"
-
-	"github.com/jftrade/jftrade-main/pkg/futu"
+	"github.com/jftrade/jftrade-main/pkg/broker"
 )
 
 type executionPlaceOrderRequest struct {
@@ -35,14 +32,13 @@ type executionPlaceOrderRequest struct {
 }
 
 type normalizedExecutionPlaceOrder struct {
-	brokerID    string
-	query       futu.BrokerPlaceOrderQuery
-	submitOrder types.SubmitOrder
-	symbol      string
-	side        string
-	orderType   string
-	remark      string
-	session     string
+	brokerID  string
+	query     broker.PlaceOrderQuery
+	symbol    string
+	side      string
+	orderType string
+	remark    string
+	session   string
 }
 
 func (s *Server) serveExecutionRoutes(w http.ResponseWriter, r *http.Request) bool {
@@ -106,23 +102,18 @@ func (s *Server) handleExecutionPlaceOrder(w http.ResponseWriter, r *http.Reques
 	})
 }
 
-func executionSubmitOrderWithDefaults(order types.SubmitOrder) types.SubmitOrder {
-	if strings.TrimSpace(string(order.TimeInForce)) == "" {
-		order.TimeInForce = types.TimeInForce("DAY")
-	}
-	return order
-}
-
 func (s *Server) placeExecutionOrder(ctx context.Context, request normalizedExecutionPlaceOrder) (executionOrderSummaryResponse, error) {
-	request.submitOrder = executionSubmitOrderWithDefaults(request.submitOrder)
-	placed, err := s.brokerExecutionExchange().PlaceBrokerOrder(ctx, request.query, request.submitOrder)
+	placed, err := s.brokerExecutionExchange().PlaceBrokerOrder(ctx, request.query)
 	if err != nil {
 		return executionOrderSummaryResponse{}, err
 	}
 
+	brokerOrderID := placed.BrokerOrderID
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+
 	payloadData := map[string]any{
 		"operation":          "PLACE",
-		"brokerOrderId":      strconv.FormatUint(placed.Order.OrderID, 10),
+		"brokerOrderId":      brokerOrderID,
 		"brokerOrderIdEx":    placed.BrokerOrderIDEx,
 		"tradingEnvironment": placed.TradingEnvironment,
 		"accountId":          placed.AccountID,
@@ -130,8 +121,8 @@ func (s *Server) placeExecutionOrder(ctx context.Context, request normalizedExec
 		"symbol":             request.symbol,
 		"side":               request.side,
 		"orderType":          request.orderType,
-		"requestedQuantity":  request.submitOrder.Quantity.Float64(),
-		"requestedPrice":     executionOptionalFixedpointValue(request.submitOrder.Price),
+		"requestedQuantity":  request.query.Quantity,
+		"requestedPrice":     request.query.Price,
 	}
 	if request.session != "" {
 		payloadData["session"] = request.session
@@ -139,7 +130,7 @@ func (s *Server) placeExecutionOrder(ctx context.Context, request normalizedExec
 
 	placedRecord := s.executionOrders.recordPlacedOrder(executionPlacedOrderRecord{
 		BrokerID:           request.brokerID,
-		BrokerOrderID:      strconv.FormatUint(placed.Order.OrderID, 10),
+		BrokerOrderID:      brokerOrderID,
 		BrokerOrderIDEx:    derefString(placed.BrokerOrderIDEx),
 		TradingEnvironment: placed.TradingEnvironment,
 		AccountID:          placed.AccountID,
@@ -147,11 +138,11 @@ func (s *Server) placeExecutionOrder(ctx context.Context, request normalizedExec
 		Symbol:             request.symbol,
 		Side:               request.side,
 		OrderType:          request.orderType,
-		Status:             placed.Order.OriginalStatus,
-		RequestedQuantity:  request.submitOrder.Quantity.Float64(),
-		RequestedPrice:     executionOptionalFixedpointValue(request.submitOrder.Price),
+		Status:             placed.Status,
+		RequestedQuantity:  request.query.Quantity,
+		RequestedPrice:     request.query.Price,
 		Remark:             request.remark,
-		SubmittedAt:        placed.Order.CreationTime.Time().UTC().Format(time.RFC3339Nano),
+		SubmittedAt:        now,
 		Payload:            payloadData,
 		EventType:          "COMMAND_PLACE_ACCEPTED",
 	})
@@ -186,13 +177,14 @@ func (s *Server) handleExecutionCancelOrder(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	err = s.futuExchange().CancelBrokerOrders(r.Context(), futu.BrokerReadQuery{
+	err = s.activeBroker().Trading().CancelOrders(r.Context(), broker.ReadQuery{
+		BrokerID:           "futu",
 		TradingEnvironment: order.TradingEnvironment,
 		AccountID:          order.AccountID,
 		Market:             order.Market,
-	}, types.Order{
-		SubmitOrder: types.SubmitOrder{Symbol: *order.Symbol},
-		OrderID:     brokerOrderID,
+	}, broker.CancelOrder{
+		OrderID: brokerOrderID,
+		Symbol:  *order.Symbol,
 	})
 	if err != nil {
 		status, code := executionCommandError(err)
@@ -236,11 +228,11 @@ func (s *Server) normalizeExecutionPlaceOrder(payload executionPlaceOrderRequest
 	market := instrument.Market
 	symbol := instrument.Symbol
 
-	side, bbgoSide, err := normalizeExecutionSide(payload.Side)
+	side, err := normalizeExecutionSide(payload.Side)
 	if err != nil {
 		return normalizedExecutionPlaceOrder{}, err
 	}
-	orderType, bbgoOrderType, err := normalizeExecutionOrderType(payload.OrderType)
+	orderType, err := normalizeExecutionOrderType(payload.OrderType)
 	if err != nil {
 		return normalizedExecutionPlaceOrder{}, err
 	}
@@ -280,46 +272,45 @@ func (s *Server) normalizeExecutionPlaceOrder(payload executionPlaceOrderRequest
 		remark = strings.TrimSpace(payload.ClientOrderID)
 	}
 
-	submitOrder := types.SubmitOrder{
-		ClientOrderID: strings.TrimSpace(payload.ClientOrderID),
-		Symbol:        symbol,
-		Side:          bbgoSide,
-		Type:          bbgoOrderType,
-		Quantity:      fixedpoint.NewFromFloat(payload.Quantity),
-		Market:        types.Market{Exchange: futu.Name, Symbol: symbol, LocalSymbol: symbol},
-		TimeInForce:   types.TimeInForce(timeInForce),
-		Tag:           remark,
-	}
-	if payload.Price != nil {
-		submitOrder.Price = fixedpoint.NewFromFloat(*payload.Price)
-	}
-	if payload.StopPrice != nil {
-		submitOrder.StopPrice = fixedpoint.NewFromFloat(*payload.StopPrice)
-	}
-
 	var sessionPtr *string
 	if session != "" {
 		sessionCopy := session
 		sessionPtr = &sessionCopy
 	}
 
-	return normalizedExecutionPlaceOrder{
-		brokerID: brokerID,
-		query: futu.BrokerPlaceOrderQuery{
-			BrokerReadQuery: futu.BrokerReadQuery{
-				TradingEnvironment: tradingEnvironment,
-				AccountID:          strings.TrimSpace(payload.AccountID),
-				Market:             market,
-			},
-			Session:        sessionPtr,
-			FillOutsideRTH: fillOutsideRTH,
+	var remarkPtr *string
+	if remark != "" {
+		remarkCopy := remark
+		remarkPtr = &remarkCopy
+	}
+
+	placeQuery := broker.PlaceOrderQuery{
+		ReadQuery: broker.ReadQuery{
+			BrokerID:           brokerID,
+			TradingEnvironment: tradingEnvironment,
+			AccountID:          strings.TrimSpace(payload.AccountID),
+			Market:             market,
 		},
-		submitOrder: submitOrder,
-		symbol:      symbol,
-		side:        side,
-		orderType:   orderType,
-		remark:      remark,
-		session:     session,
+		Symbol:         symbol,
+		Side:           side,
+		OrderType:      orderType,
+		Quantity:       payload.Quantity,
+		Price:          payload.Price,
+		TimeInForce:    &timeInForce,
+		ClientOrderID:  strings.TrimSpace(payload.ClientOrderID),
+		Remark:         remarkPtr,
+		Session:        sessionPtr,
+		FillOutsideRTH: fillOutsideRTH,
+	}
+
+	return normalizedExecutionPlaceOrder{
+		brokerID:  brokerID,
+		query:     placeQuery,
+		symbol:    symbol,
+		side:      side,
+		orderType: orderType,
+		remark:    remark,
+		session:   session,
 	}, nil
 }
 
@@ -356,29 +347,29 @@ func supportsExecutionFillOutsideRTH(orderType string) bool {
 	}
 }
 
-func normalizeExecutionSide(side string) (string, types.SideType, error) {
+func normalizeExecutionSide(side string) (string, error) {
 	switch strings.ToUpper(strings.TrimSpace(side)) {
 	case "BUY":
-		return "BUY", types.SideTypeBuy, nil
+		return "BUY", nil
 	case "SELL":
-		return "SELL", types.SideTypeSell, nil
+		return "SELL", nil
 	default:
-		return "", "", fmt.Errorf("unsupported side %q", side)
+		return "", fmt.Errorf("unsupported side %q", side)
 	}
 }
 
-func normalizeExecutionOrderType(orderType string) (string, types.OrderType, error) {
+func normalizeExecutionOrderType(orderType string) (string, error) {
 	switch strings.ToUpper(strings.TrimSpace(orderType)) {
 	case "", "LIMIT":
-		return "LIMIT", types.OrderTypeLimit, nil
+		return "LIMIT", nil
 	case "MARKET":
-		return "MARKET", types.OrderTypeMarket, nil
+		return "MARKET", nil
 	case "STOP":
-		return "STOP", types.OrderTypeStopMarket, nil
+		return "STOP", nil
 	case "STOP_LIMIT":
-		return "STOP_LIMIT", types.OrderTypeStopLimit, nil
+		return "STOP_LIMIT", nil
 	default:
-		return "", "", fmt.Errorf("unsupported orderType %q", orderType)
+		return "", fmt.Errorf("unsupported orderType %q", orderType)
 	}
 }
 
@@ -411,12 +402,4 @@ func executionCommandError(err error) (int, string) {
 	default:
 		return http.StatusBadGateway, "BROKER_COMMAND_FAILED"
 	}
-}
-
-func executionOptionalFixedpointValue(value fixedpoint.Value) *float64 {
-	if value.Sign() <= 0 {
-		return nil
-	}
-	floatValue := value.Float64()
-	return &floatValue
 }

@@ -19,6 +19,7 @@ import (
 
 	bbgotypes "github.com/c9s/bbgo/pkg/types"
 	"github.com/jftrade/jftrade-main/internal/buildinfo"
+	"github.com/jftrade/jftrade-main/pkg/broker"
 	"github.com/jftrade/jftrade-main/pkg/futu"
 )
 
@@ -62,6 +63,7 @@ type Server struct {
 	exchangeMu             sync.Mutex
 	exchange               *futu.Exchange
 	exchangeConfigKey      string
+	brokers                *broker.Registry // Unified broker registry for multi-broker support
 	frontend               *frontendServer
 	apiPort                int
 }
@@ -240,6 +242,7 @@ func newServerWithFrontend(store *SettingsStore, frontend *frontendServer) *Serv
 		brokerOrderUpdates:   newBrokerOrderUpdateWorker(),
 		marketSubscriptions:  newMarketSubscriptionManager(),
 		tickCache:            newTickSampleCacheManager(),
+		brokers:              broker.NewRegistry(),
 		apiPort:              portFromBind(defaultDevelopmentAPIBind, 3000),
 		frontend:             frontend,
 		upgrader: websocket.Upgrader{
@@ -285,7 +288,10 @@ func (s *Server) liveMarketExchange() bbgotypes.Exchange {
 			return exchange
 		}
 	}
-	return s.futuExchange()
+	return &strategyRuntimeBrokerBridge{
+		Exchange:    s.futuExchange(),
+		broker:      s.activeBroker(),
+	}
 }
 
 func (s *Server) brokerExecutionExchange() strategyRuntimeExchange {
@@ -294,7 +300,23 @@ func (s *Server) brokerExecutionExchange() strategyRuntimeExchange {
 			return exchange
 		}
 	}
-	return s.futuExchange()
+	return &strategyRuntimeBrokerBridge{
+		Exchange:    s.futuExchange(),
+		broker:      s.activeBroker(),
+	}
+}
+
+// activeBroker returns the currently active broker.Broker from the registry.
+// If no broker is registered yet, it triggers futuExchange() which lazily
+// creates and registers the default Futu broker.
+// This is the recommended entry point for all new broker-facing code.
+func (s *Server) activeBroker() broker.Broker {
+	if b := s.brokers.ActiveBroker(); b != nil {
+		return b
+	}
+	// Ensure the Futu exchange is initialized and registered.
+	s.futuExchange()
+	return s.brokers.ActiveBroker()
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {

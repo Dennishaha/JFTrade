@@ -1,112 +1,14 @@
 package jftradeapi
 
 import (
-	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 
-	"github.com/jftrade/jftrade-main/pkg/futu"
+	"github.com/jftrade/jftrade-main/pkg/broker"
 )
 
-type brokerOrderCommandResponse struct {
-	Accepted        bool    `json:"accepted"`
-	Operation       string  `json:"operation"`
-	InternalOrderID *string `json:"internalOrderId"`
-	BrokerOrderID   *string `json:"brokerOrderId"`
-	BrokerOrderIDEx *string `json:"brokerOrderIdEx"`
-	OrderStatus     *string `json:"orderStatus"`
-	BrokerErrorCode *string `json:"brokerErrorCode"`
-	Message         string  `json:"message"`
-	CheckedAt       string  `json:"checkedAt"`
-}
-
-type executionOrderSummaryResponse struct {
-	InternalOrderID    string   `json:"internalOrderId"`
-	BrokerID           string   `json:"brokerId"`
-	BrokerOrderID      *string  `json:"brokerOrderId"`
-	BrokerOrderIDEx    *string  `json:"brokerOrderIdEx"`
-	TradingEnvironment string   `json:"tradingEnvironment"`
-	AccountID          string   `json:"accountId"`
-	Market             string   `json:"market"`
-	Symbol             *string  `json:"symbol"`
-	Side               *string  `json:"side"`
-	OrderType          *string  `json:"orderType"`
-	Status             string   `json:"status"`
-	RequestedQuantity  *float64 `json:"requestedQuantity"`
-	RequestedPrice     *float64 `json:"requestedPrice"`
-	FilledQuantity     *float64 `json:"filledQuantity"`
-	FilledAveragePrice *float64 `json:"filledAveragePrice"`
-	Remark             *string  `json:"remark"`
-	LastError          *string  `json:"lastError"`
-	LastErrorCode      *string  `json:"lastErrorCode"`
-	LastErrorSource    *string  `json:"lastErrorSource"`
-	SubmittedAt        *string  `json:"submittedAt"`
-	UpdatedAt          string   `json:"updatedAt"`
-	CreatedAt          string   `json:"createdAt"`
-}
-
-type executionOrderEventResponse struct {
-	ID              string  `json:"id"`
-	InternalOrderID string  `json:"internalOrderId"`
-	EventType       string  `json:"eventType"`
-	PreviousStatus  *string `json:"previousStatus"`
-	NextStatus      string  `json:"nextStatus"`
-	PayloadJSON     string  `json:"payloadJson"`
-	CreatedAt       string  `json:"createdAt"`
-}
-
-type executionOrdersResponse struct {
-	Orders []executionOrderSummaryResponse `json:"orders"`
-}
-
-type executionOrderEventsResponse struct {
-	InternalOrderID string                        `json:"internalOrderId"`
-	Events          []executionOrderEventResponse `json:"events"`
-}
-
-type executionPlacedOrderRecord struct {
-	BrokerID           string
-	BrokerOrderID      string
-	BrokerOrderIDEx    string
-	TradingEnvironment string
-	AccountID          string
-	Market             string
-	Symbol             string
-	Side               string
-	OrderType          string
-	Status             string
-	RequestedQuantity  float64
-	RequestedPrice     *float64
-	Remark             string
-	SubmittedAt        string
-	Payload            any
-	EventType          string
-	Message            string
-}
-
-type executionOrderStore struct {
-	mu                 sync.RWMutex
-	nextOrderSeq       uint64
-	nextEventSeq       uint64
-	orders             map[string]executionOrderSummaryResponse
-	events             map[string][]executionOrderEventResponse
-	brokerOrderIndex   map[string]string
-	brokerOrderExIndex map[string]string
-	seenFillKeys       map[string]struct{}
-}
-
-func newExecutionOrderStore() *executionOrderStore {
-	return &executionOrderStore{
-		orders:             make(map[string]executionOrderSummaryResponse),
-		events:             make(map[string][]executionOrderEventResponse),
-		brokerOrderIndex:   make(map[string]string),
-		brokerOrderExIndex: make(map[string]string),
-		seenFillKeys:       make(map[string]struct{}),
-	}
-}
 
 func (s *executionOrderStore) listOrders() executionOrdersResponse {
 	s.mu.RLock()
@@ -291,7 +193,7 @@ func (s *executionOrderStore) markCancelRequested(internalOrderID string, payloa
 	return cloneExecutionOrderSummary(summary), true
 }
 
-func (s *executionOrderStore) upsertBrokerOrder(brokerID string, snapshot futu.BrokerOrderSnapshot, discoveredEventType string, updatedEventType string) (executionOrderSummaryResponse, *executionOrderEventResponse, bool) {
+func (s *executionOrderStore) upsertBrokerOrder(brokerID string, snapshot broker.OrderSnapshot, discoveredEventType string, updatedEventType string) (executionOrderSummaryResponse, *executionOrderEventResponse, bool) {
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -432,7 +334,7 @@ func (s *executionOrderStore) upsertBrokerOrder(brokerID string, snapshot futu.B
 	return cloneExecutionOrderSummary(summary), &clonedEvent, true
 }
 
-func (s *executionOrderStore) recordBrokerOrderFill(brokerID string, fill futu.BrokerOrderFillSnapshot) (executionOrderSummaryResponse, *executionOrderEventResponse, bool) {
+func (s *executionOrderStore) recordBrokerOrderFill(brokerID string, fill broker.OrderFillSnapshot) (executionOrderSummaryResponse, *executionOrderEventResponse, bool) {
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -581,138 +483,3 @@ func (s *executionOrderStore) linkBrokerOrderLocked(order executionOrderSummaryR
 	}
 }
 
-func executionBrokerLookupKey(brokerID string, tradingEnvironment string, accountID string, market string, brokerOrderID string) string {
-	brokerOrderID = strings.TrimSpace(brokerOrderID)
-	if brokerOrderID == "" {
-		return ""
-	}
-	return strings.Join([]string{
-		strings.ToUpper(strings.TrimSpace(brokerID)),
-		strings.ToUpper(strings.TrimSpace(tradingEnvironment)),
-		strings.TrimSpace(accountID),
-		strings.ToUpper(strings.TrimSpace(market)),
-		brokerOrderID,
-	}, "|")
-}
-
-func executionFillLookupKey(brokerID string, accountID string, tradingEnvironment string, market string, brokerFillID string, brokerFillIDEx *string) string {
-	fillID := strings.TrimSpace(brokerFillID)
-	if fillID == "" {
-		fillID = strings.TrimSpace(derefString(brokerFillIDEx))
-	}
-	if fillID == "" {
-		return ""
-	}
-	return strings.Join([]string{
-		strings.ToUpper(strings.TrimSpace(brokerID)),
-		strings.ToUpper(strings.TrimSpace(tradingEnvironment)),
-		strings.TrimSpace(accountID),
-		strings.ToUpper(strings.TrimSpace(market)),
-		fillID,
-	}, "|")
-}
-
-func marshalExecutionPayload(payload any) string {
-	if payload == nil {
-		return "{}"
-	}
-	encoded, err := json.Marshal(payload)
-	if err != nil {
-		return "{}"
-	}
-	return string(encoded)
-}
-
-func cloneExecutionOrderSummary(in executionOrderSummaryResponse) executionOrderSummaryResponse {
-	return executionOrderSummaryResponse{
-		InternalOrderID:    in.InternalOrderID,
-		BrokerID:           in.BrokerID,
-		BrokerOrderID:      cloneStringPointer(in.BrokerOrderID),
-		BrokerOrderIDEx:    cloneStringPointer(in.BrokerOrderIDEx),
-		TradingEnvironment: in.TradingEnvironment,
-		AccountID:          in.AccountID,
-		Market:             in.Market,
-		Symbol:             cloneStringPointer(in.Symbol),
-		Side:               cloneStringPointer(in.Side),
-		OrderType:          cloneStringPointer(in.OrderType),
-		Status:             in.Status,
-		RequestedQuantity:  cloneFloat64Pointer(in.RequestedQuantity),
-		RequestedPrice:     cloneFloat64Pointer(in.RequestedPrice),
-		FilledQuantity:     cloneFloat64Pointer(in.FilledQuantity),
-		FilledAveragePrice: cloneFloat64Pointer(in.FilledAveragePrice),
-		Remark:             cloneStringPointer(in.Remark),
-		LastError:          cloneStringPointer(in.LastError),
-		LastErrorCode:      cloneStringPointer(in.LastErrorCode),
-		LastErrorSource:    cloneStringPointer(in.LastErrorSource),
-		SubmittedAt:        cloneStringPointer(in.SubmittedAt),
-		UpdatedAt:          in.UpdatedAt,
-		CreatedAt:          in.CreatedAt,
-	}
-}
-
-func cloneExecutionOrderEvent(in executionOrderEventResponse) executionOrderEventResponse {
-	return executionOrderEventResponse{
-		ID:              in.ID,
-		InternalOrderID: in.InternalOrderID,
-		EventType:       in.EventType,
-		PreviousStatus:  cloneStringPointer(in.PreviousStatus),
-		NextStatus:      in.NextStatus,
-		PayloadJSON:     in.PayloadJSON,
-		CreatedAt:       in.CreatedAt,
-	}
-}
-
-func cloneStringPointer(value *string) *string {
-	if value == nil {
-		return nil
-	}
-	cloned := *value
-	return &cloned
-}
-
-func cloneFloat64Pointer(value *float64) *float64 {
-	if value == nil {
-		return nil
-	}
-	cloned := *value
-	return &cloned
-}
-
-func stringPointersDiffer(left *string, right *string) bool {
-	return derefString(left) != derefString(right)
-}
-
-func float64PointersDiffer(left *float64, right *float64) bool {
-	return optionalFloat64(left) != optionalFloat64(right)
-}
-
-func optionalFloat64(value *float64) float64 {
-	if value == nil {
-		return 0
-	}
-	return *value
-}
-
-func firstNonEmptyString(values ...string) string {
-	for _, value := range values {
-		if trimmed := strings.TrimSpace(value); trimmed != "" {
-			return trimmed
-		}
-	}
-	return ""
-}
-
-func executionStringPointerOrNil(value string) *string {
-	value = strings.TrimSpace(value)
-	if value == "" {
-		return nil
-	}
-	return &value
-}
-
-func derefString(value *string) string {
-	if value == nil {
-		return ""
-	}
-	return *value
-}

@@ -1,0 +1,89 @@
+package jftradeapi
+
+import (
+	"fmt"
+	"strings"
+
+	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
+	strategydsl "github.com/jftrade/jftrade-main/pkg/strategy/dsl"
+	strategyir "github.com/jftrade/jftrade-main/pkg/strategy/ir"
+)
+
+func buildStrategyInstanceParams(definition strategyDesignDefinition, compiledAt string) (map[string]any, error) {
+	sourceFormat := strategydefinition.NormalizeSourceFormat(definition.SourceFormat)
+	if sourceFormat != strategydefinition.SourceFormatDSLV1 {
+		return nil, fmt.Errorf("unsupported strategy source format: %s", sourceFormat)
+	}
+	symbol := strings.ToUpper(strings.TrimSpace(definition.Symbol))
+	interval := strings.TrimSpace(definition.Interval)
+	if interval == "" {
+		interval = "5m"
+	}
+	params := map[string]any{
+		"definitionId": definition.ID,
+		"sourceFormat": sourceFormat,
+		"symbol":       symbol,
+		"interval":     interval,
+		"script":       definition.Script,
+	}
+	program, err := strategydsl.ParseScript(definition.Script)
+	if err != nil {
+		return nil, err
+	}
+	requirements, err := strategyir.PlanRequirements(program)
+	if err != nil {
+		return nil, err
+	}
+	params["runtime"] = strategyRuntimeDSLPlan
+	params["compiledAt"] = compiledAt
+	params["compiledHooks"] = buildCompiledHookKinds(program)
+	params["compiledRequirements"] = buildCompiledRequirementsPayload(requirements)
+
+	return params, nil
+}
+
+func buildCompiledHookKinds(program *strategyir.Program) []string {
+	if program == nil {
+		return []string{}
+	}
+	result := make([]string, 0, len(program.Hooks))
+	for _, hook := range program.Hooks {
+		result = append(result, string(hook.Kind))
+	}
+	return result
+}
+
+func buildCompiledRequirementsPayload(requirements strategyir.Requirements) map[string]any {
+	indicators := make([]map[string]any, 0, len(requirements.Indicators))
+	for _, indicator := range requirements.Indicators {
+		indicators = append(indicators, map[string]any{
+			"alias": indicator.Alias,
+			"kind":  indicator.Kind,
+			"key":   indicator.Key,
+		})
+	}
+	return map[string]any{
+		"indicators":                indicators,
+		"requiresPosition":          requirements.RequiresPosition,
+		"requiresAvailableCash":     requirements.RequiresAvailableCash,
+		"requiresMarginBuyingPower": requirements.RequiresMarginBuyingPower,
+		"requiresShortSellingPower": requirements.RequiresShortSellingPower,
+		"requiresTotalAccountValue": requirements.RequiresTotalAccountValue,
+	}
+}
+
+func strategyDefinitionIDFromParams(params map[string]any) string {
+	definitionID, _ := params["definitionId"].(string)
+	return strings.TrimSpace(definitionID)
+}
+
+func strategyInstanceUsesDefinition(strategy managedStrategyInstance, definitionID string) bool {
+	definitionID = strings.TrimSpace(definitionID)
+	if definitionID == "" {
+		return false
+	}
+	if strategyDefinitionIDFromParams(strategy.Params) == definitionID {
+		return true
+	}
+	return strings.TrimSpace(strategy.Definition.StrategyID) == definitionID
+}

@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jftrade/jftrade-main/pkg/broker"
 	"github.com/jftrade/jftrade-main/pkg/futu"
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
 	trdcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdcommon"
@@ -57,8 +58,8 @@ func newBrokerOrderUpdateWorker() *brokerOrderUpdateWorker {
 	return &brokerOrderUpdateWorker{subscriptions: make(map[string]*brokerOrderUpdateSubscription)}
 }
 
-func buildBrokerOrderUpdateQueries(accounts []futu.RuntimeAccount, fallbackMarket string) []futu.BrokerReadQuery {
-	queries := make([]futu.BrokerReadQuery, 0, len(accounts))
+func buildBrokerOrderUpdateQueries(accounts []broker.Account, fallbackMarket string) []broker.ReadQuery {
+	queries := make([]broker.ReadQuery, 0, len(accounts))
 	seen := make(map[string]struct{})
 	for _, account := range accounts {
 		markets := append([]string(nil), account.MarketAuthorities...)
@@ -66,9 +67,10 @@ func buildBrokerOrderUpdateQueries(accounts []futu.RuntimeAccount, fallbackMarke
 			markets = []string{fallbackMarket}
 		}
 		for _, market := range markets {
-			query := futu.BrokerReadQuery{
+			query := broker.ReadQuery{
+				BrokerID:           account.BrokerID,
 				TradingEnvironment: strings.TrimSpace(account.TradingEnvironment),
-				AccountID:          strings.TrimSpace(account.AccountID),
+				AccountID:          strings.TrimSpace(account.ID),
 				Market:             strings.ToUpper(strings.TrimSpace(market)),
 			}
 			key := brokerOrderUpdateSubscriptionKey(query)
@@ -80,7 +82,7 @@ func buildBrokerOrderUpdateQueries(accounts []futu.RuntimeAccount, fallbackMarke
 		}
 	}
 	if len(queries) == 0 && strings.TrimSpace(fallbackMarket) != "" {
-		queries = append(queries, futu.BrokerReadQuery{TradingEnvironment: "SIMULATE", Market: fallbackMarket})
+		queries = append(queries, broker.ReadQuery{BrokerID: "futu", TradingEnvironment: "SIMULATE", Market: fallbackMarket})
 	}
 	sort.Slice(queries, func(i, j int) bool {
 		left := brokerOrderUpdateSubscriptionKey(queries[i])
@@ -90,9 +92,9 @@ func buildBrokerOrderUpdateQueries(accounts []futu.RuntimeAccount, fallbackMarke
 	return queries
 }
 
-func brokerOrderUpdateSubscriptionKey(query futu.BrokerReadQuery) string {
+func brokerOrderUpdateSubscriptionKey(query broker.ReadQuery) string {
 	return strings.Join([]string{
-		"futu",
+		query.BrokerID,
 		strings.ToUpper(strings.TrimSpace(query.TradingEnvironment)),
 		strings.TrimSpace(query.AccountID),
 		strings.ToUpper(strings.TrimSpace(query.Market)),
@@ -113,7 +115,7 @@ func (w *brokerOrderUpdateWorker) shouldSync(force bool) bool {
 	return true
 }
 
-func (w *brokerOrderUpdateWorker) markSubscriptions(queries []futu.BrokerReadQuery, status string, action string, err error) {
+func (w *brokerOrderUpdateWorker) markSubscriptions(queries []broker.ReadQuery, status string, action string, err error) {
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	w.mu.Lock()
 	defer w.mu.Unlock()
@@ -123,7 +125,7 @@ func (w *brokerOrderUpdateWorker) markSubscriptions(queries []futu.BrokerReadQue
 		if subscription == nil {
 			subscription = &brokerOrderUpdateSubscription{
 				SubscriptionKey:    key,
-				BrokerID:           "futu",
+				BrokerID:           query.BrokerID,
 				TradingEnvironment: stringPointerOrNil(query.TradingEnvironment),
 				AccountID:          stringPointerOrNil(query.AccountID),
 				Market:             stringPointerOrNil(query.Market),
@@ -147,7 +149,7 @@ func (w *brokerOrderUpdateWorker) markSubscriptions(queries []futu.BrokerReadQue
 			}
 			w.recentInvalidations = append(w.recentInvalidations, brokerOrderUpdateInvalidation{
 				SubscriptionKey:    key,
-				BrokerID:           "futu",
+				BrokerID:           query.BrokerID,
 				TradingEnvironment: stringPointerOrNil(query.TradingEnvironment),
 				AccountID:          stringPointerOrNil(query.AccountID),
 				Market:             stringPointerOrNil(query.Market),
@@ -200,8 +202,8 @@ func (w *brokerOrderUpdateWorker) markStopped() {
 	}
 }
 
-func (w *brokerOrderUpdateWorker) markPush(query futu.BrokerReadQuery, action string) {
-	w.markSubscriptions([]futu.BrokerReadQuery{query}, "active", action, nil)
+func (w *brokerOrderUpdateWorker) markPush(query broker.ReadQuery, action string) {
+	w.markSubscriptions([]broker.ReadQuery{query}, "active", action, nil)
 }
 
 func (w *brokerOrderUpdateWorker) snapshotResponse() map[string]any {
@@ -358,24 +360,36 @@ func (s *Server) syncBrokerOrderUpdates(ctx context.Context, force bool) {
 	if fallbackMarket == "" {
 		fallbackMarket = "HK"
 	}
-	accounts, err := s.futuExchange().DiscoverAccounts(ctx)
+
+	// Use the broker interface for account discovery.
+	activeBroker := s.activeBroker()
+	accounts, err := activeBroker.DiscoverAccounts(ctx)
 	if err != nil {
-		query := futu.BrokerReadQuery{TradingEnvironment: "SIMULATE", Market: fallbackMarket}
-		s.brokerOrderUpdates.markSubscriptions([]futu.BrokerReadQuery{query}, "inactive", "discover-accounts", err)
+		query := broker.ReadQuery{BrokerID: "futu", TradingEnvironment: "SIMULATE", Market: fallbackMarket}
+		s.brokerOrderUpdates.markSubscriptions([]broker.ReadQuery{query}, "inactive", "discover-accounts", err)
 		return
 	}
 	queries := buildBrokerOrderUpdateQueries(accounts, fallbackMarket)
 	s.brokerOrderUpdates.markDiscoveredAccounts(len(accounts), "connected")
-	if err := s.bindBrokerOrderUpdatePush(ctx, accounts, queries); err != nil {
+
+	// Bind push notifications — this still requires the Futu-specific client for now.
+	futuAccounts := convertBrokerAccountsToFutu(accounts)
+	if err := s.bindBrokerOrderUpdatePush(ctx, futuAccounts, convertBrokerReadQueriesToFutu(queries)); err != nil {
 		s.brokerOrderUpdates.markSubscriptions(queries, "inactive", "bind-push", err)
 	}
+
+	// Sync orders via broker interface.
+	reader := activeBroker.MarketData()
+	if reader == nil {
+		return
+	}
 	for _, query := range queries {
-		orders, err := s.futuExchange().QueryBrokerOrders(ctx, query, "")
+		orders, err := reader.QueryOrders(ctx, query, "")
 		if err != nil {
-			s.brokerOrderUpdates.markSubscriptions([]futu.BrokerReadQuery{query}, "inactive", "sync-orders", err)
+			s.brokerOrderUpdates.markSubscriptions([]broker.ReadQuery{query}, "inactive", "sync-orders", err)
 			continue
 		}
-		s.brokerOrderUpdates.markSubscriptions([]futu.BrokerReadQuery{query}, "active", "sync-orders", nil)
+		s.brokerOrderUpdates.markSubscriptions([]broker.ReadQuery{query}, "active", "sync-orders", nil)
 		for _, order := range orders {
 			updated, event, changed := s.executionOrders.upsertBrokerOrder("futu", order, "BROKER_SYNC_DISCOVERED", "BROKER_SYNC_UPDATED")
 			if changed {
@@ -415,13 +429,17 @@ func (s *Server) bindBrokerOrderUpdatePush(ctx context.Context, accounts []futu.
 			return err
 		}
 	}
-	s.brokerOrderUpdates.markSubscriptions(queries, "active", "subscribe-push", nil)
+	// Mark subscriptions using broker.ReadQuery types.
+	brokerQueries := convertFutuReadQueriesToBroker(queries)
+	s.brokerOrderUpdates.markSubscriptions(brokerQueries, "active", "subscribe-push", nil)
 	return nil
 }
 
 func (s *Server) handleFutuBrokerOrderPush(header *trdcommonpb.TrdHeader, order *trdcommonpb.Order) {
-	snapshot := futu.BrokerOrderSnapshotFromPush(header, order)
-	query := futu.BrokerReadQuery{
+	futuSnapshot := futu.BrokerOrderSnapshotFromPush(header, order)
+	snapshot := convertFutuOrderSnapshotToBroker(futuSnapshot)
+	query := broker.ReadQuery{
+		BrokerID:           "futu",
 		TradingEnvironment: snapshot.TradingEnvironment,
 		AccountID:          snapshot.AccountID,
 		Market:             snapshot.Market,
@@ -434,8 +452,10 @@ func (s *Server) handleFutuBrokerOrderPush(header *trdcommonpb.TrdHeader, order 
 }
 
 func (s *Server) handleFutuBrokerOrderFillPush(header *trdcommonpb.TrdHeader, fill *trdcommonpb.OrderFill) {
-	snapshot := futu.BrokerOrderFillSnapshotFromPush(header, fill)
-	query := futu.BrokerReadQuery{
+	futuSnapshot := futu.BrokerOrderFillSnapshotFromPush(header, fill)
+	snapshot := convertFutuOrderFillSnapshotToBroker(futuSnapshot)
+	query := broker.ReadQuery{
+		BrokerID:           "futu",
 		TradingEnvironment: snapshot.TradingEnvironment,
 		AccountID:          snapshot.AccountID,
 		Market:             snapshot.Market,
@@ -444,5 +464,92 @@ func (s *Server) handleFutuBrokerOrderFillPush(header *trdcommonpb.TrdHeader, fi
 	updated, event, changed := s.executionOrders.recordBrokerOrderFill("futu", snapshot)
 	if changed {
 		s.notifyExecutionOrderLifecycle(updated, event)
+	}
+}
+
+// --- Conversion helpers for the transition period ---
+
+func convertBrokerAccountsToFutu(accounts []broker.Account) []futu.RuntimeAccount {
+	result := make([]futu.RuntimeAccount, len(accounts))
+	for i, a := range accounts {
+		result[i] = futu.RuntimeAccount{
+			AccountID:            a.ID,
+			TradingEnvironment:   a.TradingEnvironment,
+			AccountType:          a.AccountType,
+			AccountRole:          a.AccountRole,
+			SecurityFirm:         a.SecurityFirm,
+			MarketAuthorities:    a.MarketAuthorities,
+			SimulatedAccountType: a.SimulatedAccountType,
+		}
+	}
+	return result
+}
+
+func convertBrokerReadQueriesToFutu(queries []broker.ReadQuery) []futu.BrokerReadQuery {
+	result := make([]futu.BrokerReadQuery, len(queries))
+	for i, q := range queries {
+		result[i] = futu.BrokerReadQuery{
+			AccountID:          q.AccountID,
+			TradingEnvironment: q.TradingEnvironment,
+			Market:             q.Market,
+		}
+	}
+	return result
+}
+
+func convertFutuReadQueriesToBroker(queries []futu.BrokerReadQuery) []broker.ReadQuery {
+	result := make([]broker.ReadQuery, len(queries))
+	for i, q := range queries {
+		result[i] = broker.ReadQuery{
+			BrokerID:           "futu",
+			AccountID:          q.AccountID,
+			TradingEnvironment: q.TradingEnvironment,
+			Market:             q.Market,
+		}
+	}
+	return result
+}
+
+func convertFutuOrderSnapshotToBroker(s futu.BrokerOrderSnapshot) broker.OrderSnapshot {
+	return broker.OrderSnapshot{
+		AccountID:          s.AccountID,
+		TradingEnvironment: s.TradingEnvironment,
+		Market:             s.Market,
+		BrokerOrderID:      s.BrokerOrderID,
+		BrokerOrderIDEx:    s.BrokerOrderIDEx,
+		Symbol:             s.Symbol,
+		SymbolName:         s.SymbolName,
+		Side:               s.Side,
+		OrderType:          s.OrderType,
+		Status:             s.Status,
+		Quantity:           s.Quantity,
+		FilledQuantity:     s.FilledQuantity,
+		Price:              s.Price,
+		FilledAveragePrice: s.FilledAveragePrice,
+		SubmittedAt:        s.SubmittedAt,
+		UpdatedAt:          s.UpdatedAt,
+		Remark:             s.Remark,
+		LastError:          s.LastError,
+		TimeInForce:        s.TimeInForce,
+		Currency:           s.Currency,
+	}
+}
+
+func convertFutuOrderFillSnapshotToBroker(s futu.BrokerOrderFillSnapshot) broker.OrderFillSnapshot {
+	return broker.OrderFillSnapshot{
+		AccountID:          s.AccountID,
+		TradingEnvironment: s.TradingEnvironment,
+		Market:             s.Market,
+		BrokerOrderID:      s.BrokerOrderID,
+		BrokerOrderIDEx:    s.BrokerOrderIDEx,
+		BrokerFillID:       s.BrokerFillID,
+		BrokerFillIDEx:     s.BrokerFillIDEx,
+		Symbol:             s.Symbol,
+		SymbolName:         s.SymbolName,
+		Side:               s.Side,
+		FilledQuantity:     s.FilledQuantity,
+		FillPrice:          s.FillPrice,
+		FilledAt:           s.FilledAt,
+		Status:             s.Status,
 	}
 }

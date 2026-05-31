@@ -241,5 +241,11 @@ func (s *Server) futuExchange() *futu.Exchange {
 	s.exchange = futu.NewExchangeWithConfig(config)
 	s.exchange.OnSystemNotify(s.handleFutuSystemNotify)
 	s.exchangeConfigKey = configKey
+
+	// Register the Futu broker adapter whenever a new exchange is created.
+	if s.brokers != nil && s.brokers.Lookup(string(futu.Name)) == nil {
+		s.brokers.Register(futu.NewBrokerAdapter(s.exchange))
+	}
+
 	return s.exchange
 }

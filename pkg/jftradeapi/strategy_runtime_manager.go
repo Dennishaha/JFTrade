@@ -14,6 +14,7 @@ import (
 	"github.com/c9s/bbgo/pkg/fixedpoint"
 	bbgotypes "github.com/c9s/bbgo/pkg/types"
 
+	"github.com/jftrade/jftrade-main/pkg/broker"
 	"github.com/jftrade/jftrade-main/pkg/futu"
 	"github.com/jftrade/jftrade-main/pkg/strategy/dslruntime"
 	strategyindicatorruntime "github.com/jftrade/jftrade-main/pkg/strategy/indicatorruntime"
@@ -26,9 +27,9 @@ var (
 
 type strategyRuntimeExchange interface {
 	bbgotypes.Exchange
-	QueryBrokerFunds(ctx context.Context, query futu.BrokerReadQuery) (*futu.BrokerFundsSnapshot, error)
-	QueryBrokerPositions(ctx context.Context, query futu.BrokerReadQuery) ([]futu.BrokerPositionSnapshot, error)
-	PlaceBrokerOrder(ctx context.Context, query futu.BrokerPlaceOrderQuery, submitOrder bbgotypes.SubmitOrder) (*futu.BrokerPlaceOrderResult, error)
+	QueryBrokerFunds(ctx context.Context, query broker.ReadQuery) (*broker.FundsSnapshot, error)
+	QueryBrokerPositions(ctx context.Context, query broker.ReadQuery) ([]broker.PositionSnapshot, error)
+	PlaceBrokerOrder(ctx context.Context, query broker.PlaceOrderQuery) (*broker.PlaceOrderResult, error)
 }
 
 type strategyRuntimeMarketEnsurer interface {
@@ -65,10 +66,10 @@ type strategySymbolRuntime struct {
 	exchange        bbgotypes.ExchangeName
 	ctx             context.Context
 	runtimeExchange strategyRuntimeExchange
-	brokerQuery     futu.BrokerReadQuery
+	brokerQuery     broker.ReadQuery
 	market          bbgotypes.Market
-	cachedFunds     *futu.BrokerFundsSnapshot
-	cachedPositions []futu.BrokerPositionSnapshot
+	cachedFunds     *broker.FundsSnapshot
+	cachedPositions []broker.PositionSnapshot
 	session         *bbgo.ExchangeSession
 	emitter         bbgotypes.StandardStreamEmitter
 	onClosedKLine   func(time.Time)
@@ -100,9 +101,44 @@ func newStrategyRuntimeManager(server *Server) *strategyRuntimeManager {
 		runtimes: map[string]*managedStrategyRuntime{},
 	}
 	manager.exchangeProvider = func() strategyRuntimeExchange {
-		return server.futuExchange()
+		return &strategyRuntimeBrokerBridge{
+			Exchange:    server.futuExchange(),
+			broker:      server.activeBroker(),
+		}
 	}
 	return manager
+}
+
+// strategyRuntimeBrokerBridge adapts a futu.Exchange (for bbgo Exchange interface)
+// with the broker.Broker abstraction (for broker-specific operations).
+// This bridges the gap during the transition from direct futu types to broker types.
+type strategyRuntimeBrokerBridge struct {
+	*futu.Exchange
+	broker broker.Broker
+}
+
+func (b *strategyRuntimeBrokerBridge) QueryBrokerFunds(ctx context.Context, query broker.ReadQuery) (*broker.FundsSnapshot, error) {
+	reader := b.broker.MarketData()
+	if reader == nil {
+		return nil, fmt.Errorf("broker market data not available")
+	}
+	return reader.QueryFunds(ctx, query)
+}
+
+func (b *strategyRuntimeBrokerBridge) QueryBrokerPositions(ctx context.Context, query broker.ReadQuery) ([]broker.PositionSnapshot, error) {
+	reader := b.broker.MarketData()
+	if reader == nil {
+		return nil, fmt.Errorf("broker market data not available")
+	}
+	return reader.QueryPositions(ctx, query)
+}
+
+func (b *strategyRuntimeBrokerBridge) PlaceBrokerOrder(ctx context.Context, query broker.PlaceOrderQuery) (*broker.PlaceOrderResult, error) {
+	trading := b.broker.Trading()
+	if trading == nil {
+		return nil, fmt.Errorf("broker trading not available")
+	}
+	return trading.PlaceOrder(ctx, query)
 }
 
 func (m *strategyRuntimeManager) activeInstrumentIDs() []string {
@@ -249,8 +285,8 @@ func (m *strategyRuntimeManager) buildSymbolRuntime(
 	runtimeCtx context.Context,
 	exchange strategyRuntimeExchange,
 	markets bbgotypes.MarketMap,
-	funds *futu.BrokerFundsSnapshot,
-	positions []futu.BrokerPositionSnapshot,
+	funds *broker.FundsSnapshot,
+	positions []broker.PositionSnapshot,
 	instance managedStrategyInstance,
 	script string,
 	symbol string,
@@ -600,15 +636,34 @@ func (e *strategyLiveOrderExecutor) SubmitOrders(ctx context.Context, orders ...
 	placedOrders := make(bbgotypes.OrderSlice, 0, len(orders))
 	for _, order := range orders {
 		e.manager.recordSignal(e.instance.ID, time.Now().UTC())
+
+		placeQuery := strategyRuntimeBrokerPlaceOrderQuery(e.instance.Binding, order.Symbol)
+		placeQuery.Side = strings.ToUpper(string(order.Side))
+		placeQuery.OrderType = strings.ToUpper(string(order.Type))
+		placeQuery.Quantity = order.Quantity.Float64()
+		if order.Price.Sign() > 0 {
+			price := order.Price.Float64()
+			placeQuery.Price = &price
+		}
+		timeInForce := strings.ToUpper(string(order.TimeInForce))
+		if timeInForce == "" {
+			timeInForce = "DAY"
+		}
+		placeQuery.TimeInForce = &timeInForce
+		remark := fmt.Sprintf("strategy runtime %s", e.instance.ID)
+		placeQuery.Remark = &remark
+		if order.ClientOrderID != "" {
+			placeQuery.ClientOrderID = order.ClientOrderID
+		}
+
 		placed, err := e.server.placeExecutionOrder(ctx, normalizedExecutionPlaceOrder{
-			brokerID:    strategyRuntimeBrokerID(e.instance.Binding),
-			query:       strategyRuntimeBrokerPlaceOrderQuery(e.instance.Binding, order.Symbol),
-			submitOrder: order,
-			symbol:      order.Symbol,
-			side:        strings.ToUpper(string(order.Side)),
-			orderType:   strings.ToUpper(string(order.Type)),
-			remark:      fmt.Sprintf("strategy runtime %s", e.instance.ID),
-			session:     "",
+			brokerID:  strategyRuntimeBrokerID(e.instance.Binding),
+			query:     placeQuery,
+			symbol:    order.Symbol,
+			side:      strings.ToUpper(string(order.Side)),
+			orderType: strings.ToUpper(string(order.Type)),
+			remark:    remark,
+			session:   "",
 		})
 		if err != nil {
 			e.manager.recordError(e.instance.ID, err.Error(), time.Now().UTC())
@@ -839,8 +894,8 @@ func strategyRuntimeTimePointerToString(value *time.Time) *string {
 	return &formatted
 }
 
-func strategyRuntimeBrokerReadQuery(binding strategyInstanceBinding) futu.BrokerReadQuery {
-	query := futu.BrokerReadQuery{}
+func strategyRuntimeBrokerReadQuery(binding strategyInstanceBinding) broker.ReadQuery {
+	query := broker.ReadQuery{}
 	if binding.BrokerAccount == nil {
 		return query
 	}
@@ -850,12 +905,15 @@ func strategyRuntimeBrokerReadQuery(binding strategyInstanceBinding) futu.Broker
 	return query
 }
 
-func strategyRuntimeBrokerPlaceOrderQuery(binding strategyInstanceBinding, symbol string) futu.BrokerPlaceOrderQuery {
-	query := futu.BrokerPlaceOrderQuery{BrokerReadQuery: strategyRuntimeBrokerReadQuery(binding)}
-	if strings.TrimSpace(query.Market) == "" {
-		query.Market = strategyRuntimeMarketFromSymbol(symbol, "")
+func strategyRuntimeBrokerPlaceOrderQuery(binding strategyInstanceBinding, symbol string) broker.PlaceOrderQuery {
+	readQuery := strategyRuntimeBrokerReadQuery(binding)
+	if strings.TrimSpace(readQuery.Market) == "" {
+		readQuery.Market = strategyRuntimeMarketFromSymbol(symbol, "")
 	}
-	return query
+	return broker.PlaceOrderQuery{
+		ReadQuery: readQuery,
+		Symbol:    symbol,
+	}
 }
 
 func strategyRuntimeBrokerID(binding strategyInstanceBinding) string {
@@ -944,23 +1002,23 @@ func strategyRuntimeTradeKLine(exchange bbgotypes.ExchangeName, symbol string, i
 	return kline
 }
 
-func cloneStrategyRuntimeFundsSnapshot(snapshot *futu.BrokerFundsSnapshot) *futu.BrokerFundsSnapshot {
+func cloneStrategyRuntimeFundsSnapshot(snapshot *broker.FundsSnapshot) *broker.FundsSnapshot {
 	if snapshot == nil {
 		return nil
 	}
 	copyValue := *snapshot
-	copyValue.CurrencyBalances = append([]futu.BrokerCurrencyBalanceSnapshot(nil), snapshot.CurrencyBalances...)
+	copyValue.CurrencyBalances = append([]broker.CurrencyBalanceSnapshot(nil), snapshot.CurrencyBalances...)
 	return &copyValue
 }
 
-func cloneStrategyRuntimePositions(positions []futu.BrokerPositionSnapshot) []futu.BrokerPositionSnapshot {
+func cloneStrategyRuntimePositions(positions []broker.PositionSnapshot) []broker.PositionSnapshot {
 	if len(positions) == 0 {
 		return nil
 	}
-	return append([]futu.BrokerPositionSnapshot(nil), positions...)
+	return append([]broker.PositionSnapshot(nil), positions...)
 }
 
-func strategyRuntimePositionMatchesSymbol(position futu.BrokerPositionSnapshot, symbol string) bool {
+func strategyRuntimePositionMatchesSymbol(position broker.PositionSnapshot, symbol string) bool {
 	strategySymbol := strings.TrimSpace(strings.ToUpper(symbol))
 	if strategySymbol == "" {
 		return false
@@ -992,7 +1050,7 @@ func strategyRuntimePositionMatchesSymbol(position futu.BrokerPositionSnapshot, 
 	return false
 }
 
-func buildStrategyRuntimeAccount(funds *futu.BrokerFundsSnapshot, positions []futu.BrokerPositionSnapshot, market bbgotypes.Market, symbol string) *bbgotypes.Account {
+func buildStrategyRuntimeAccount(funds *broker.FundsSnapshot, positions []broker.PositionSnapshot, market bbgotypes.Market, symbol string) *bbgotypes.Account {
 	account := bbgotypes.NewAccount()
 	account.CanDeposit = true
 	account.CanTrade = true

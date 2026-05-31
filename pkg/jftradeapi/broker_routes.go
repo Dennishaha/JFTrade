@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jftrade/jftrade-main/pkg/futu"
+	"github.com/jftrade/jftrade-main/pkg/broker"
 )
 
 func (s *Server) serveBrokerRoutes(w http.ResponseWriter, r *http.Request) bool {
@@ -17,8 +17,14 @@ func (s *Server) serveBrokerRoutes(w http.ResponseWriter, r *http.Request) bool 
 	if !ok || r.Method != http.MethodGet {
 		return false
 	}
-	if brokerID != "futu" {
-		return false
+
+	// Look up the broker by ID from the registry.
+	activeBroker := s.activeBroker()
+	if activeBroker == nil || activeBroker.ID() != brokerID {
+		// For backward compatibility, only "futu" is supported currently.
+		if brokerID != "futu" {
+			return false
+		}
 	}
 
 	query := s.brokerReadQueryFromRequest(r)
@@ -62,7 +68,7 @@ func parseBrokerRoute(path string) (brokerID string, resource string, ok bool) {
 	return parts[0], parts[1], true
 }
 
-func (s *Server) brokerReadQueryFromRequest(r *http.Request) futu.BrokerReadQuery {
+func (s *Server) brokerReadQueryFromRequest(r *http.Request) broker.ReadQuery {
 	query := r.URL.Query()
 	fallbackMarket := strings.TrimSpace(s.store.integration().Config.TradeMarket)
 	if fallbackMarket == "" {
@@ -72,15 +78,30 @@ func (s *Server) brokerReadQueryFromRequest(r *http.Request) futu.BrokerReadQuer
 	if market == "" {
 		market = fallbackMarket
 	}
-	return futu.BrokerReadQuery{
+	return broker.ReadQuery{
+		BrokerID:           "futu",
 		TradingEnvironment: strings.TrimSpace(query.Get("tradingEnvironment")),
 		AccountID:          strings.TrimSpace(query.Get("accountId")),
 		Market:             market,
 	}
 }
 
-func (s *Server) brokerFundsResponse(ctx context.Context, query futu.BrokerReadQuery) map[string]any {
-	snapshot, err := s.futuExchange().QueryBrokerFunds(ctx, query)
+// brokerMarketDataReader returns the MarketDataReader for the active broker,
+// or falls back to the legacy futuExchange() path if the broker does not support market data.
+func (s *Server) brokerMarketDataReader() broker.MarketDataReader {
+	b := s.activeBroker()
+	if b == nil {
+		return nil
+	}
+	return b.MarketData()
+}
+
+func (s *Server) brokerFundsResponse(ctx context.Context, query broker.ReadQuery) map[string]any {
+	reader := s.brokerMarketDataReader()
+	if reader == nil {
+		return brokerReadErrorResponse("summary", nil, fmt.Errorf("broker market data not available"), "currencyBalances", "marketAssets")
+	}
+	snapshot, err := reader.QueryFunds(ctx, query)
 	if err != nil {
 		return brokerReadErrorResponse("summary", nil, err, "currencyBalances", "marketAssets")
 	}
@@ -144,8 +165,12 @@ func (s *Server) brokerFundsResponse(ctx context.Context, query futu.BrokerReadQ
 	}
 }
 
-func (s *Server) brokerPositionsResponse(ctx context.Context, query futu.BrokerReadQuery) map[string]any {
-	positions, err := s.futuExchange().QueryBrokerPositions(ctx, query)
+func (s *Server) brokerPositionsResponse(ctx context.Context, query broker.ReadQuery) map[string]any {
+	reader := s.brokerMarketDataReader()
+	if reader == nil {
+		return brokerReadErrorResponse("positions", []any{}, fmt.Errorf("broker market data not available"))
+	}
+	positions, err := reader.QueryPositions(ctx, query)
 	if err != nil {
 		return brokerReadErrorResponse("positions", []any{}, err)
 	}
@@ -179,23 +204,28 @@ func (s *Server) brokerPositionsResponse(ctx context.Context, query futu.BrokerR
 	}
 }
 
-func (s *Server) brokerOrdersResponse(ctx context.Context, query futu.BrokerReadQuery, params url.Values) map[string]any {
+func (s *Server) brokerOrdersResponse(ctx context.Context, query broker.ReadQuery, params url.Values) map[string]any {
+	reader := s.brokerMarketDataReader()
+	if reader == nil {
+		return brokerReadErrorResponse("orders", []any{}, fmt.Errorf("broker market data not available"))
+	}
+
 	scope := strings.ToUpper(strings.TrimSpace(params.Get("scope")))
 	symbol := strings.TrimSpace(params.Get("symbol"))
 	var (
-		orders []futu.BrokerOrderSnapshot
+		orders []broker.OrderSnapshot
 		err    error
 	)
 	if scope == "HISTORY" {
-		orders, err = s.futuExchange().QueryBrokerHistoryOrders(ctx, futu.BrokerOrderHistoryQuery{
-			BrokerReadQuery: query,
-			Symbol:          symbol,
-			StartTime:       strings.TrimSpace(params.Get("startTime")),
-			EndTime:         strings.TrimSpace(params.Get("endTime")),
-			Statuses:        queryListValues(params, "status", "statuses"),
+		orders, err = reader.QueryHistoryOrders(ctx, broker.OrderHistoryQuery{
+			ReadQuery: query,
+			Symbol:    symbol,
+			StartTime: strings.TrimSpace(params.Get("startTime")),
+			EndTime:   strings.TrimSpace(params.Get("endTime")),
+			Statuses:  queryListValues(params, "status", "statuses"),
 		})
 	} else {
-		orders, err = s.futuExchange().QueryBrokerOrders(ctx, query, symbol)
+		orders, err = reader.QueryOrders(ctx, query, symbol)
 	}
 	if err != nil {
 		return brokerReadErrorResponse("orders", []any{}, err)
@@ -235,22 +265,27 @@ func (s *Server) brokerOrdersResponse(ctx context.Context, query futu.BrokerRead
 	}
 }
 
-func (s *Server) brokerFillsResponse(ctx context.Context, query futu.BrokerReadQuery, params url.Values) map[string]any {
+func (s *Server) brokerFillsResponse(ctx context.Context, query broker.ReadQuery, params url.Values) map[string]any {
+	reader := s.brokerMarketDataReader()
+	if reader == nil {
+		return brokerReadErrorResponse("fills", []any{}, fmt.Errorf("broker market data not available"))
+	}
+
 	scope := strings.ToUpper(strings.TrimSpace(params.Get("scope")))
-	fillQuery := futu.BrokerOrderFillQuery{
-		BrokerReadQuery: query,
-		Symbol:          strings.TrimSpace(params.Get("symbol")),
-		StartTime:       strings.TrimSpace(params.Get("startTime")),
-		EndTime:         strings.TrimSpace(params.Get("endTime")),
+	fillQuery := broker.OrderFillQuery{
+		ReadQuery: query,
+		Symbol:    strings.TrimSpace(params.Get("symbol")),
+		StartTime: strings.TrimSpace(params.Get("startTime")),
+		EndTime:   strings.TrimSpace(params.Get("endTime")),
 	}
 	var (
-		fills []futu.BrokerOrderFillSnapshot
+		fills []broker.OrderFillSnapshot
 		err   error
 	)
 	if scope == "HISTORY" {
-		fills, err = s.futuExchange().QueryBrokerHistoryOrderFills(ctx, futu.BrokerOrderFillHistoryQuery(fillQuery))
+		fills, err = reader.QueryHistoryOrderFills(ctx, broker.OrderFillHistoryQuery(fillQuery))
 	} else {
-		fills, err = s.futuExchange().QueryBrokerOrderFills(ctx, fillQuery)
+		fills, err = reader.QueryOrderFills(ctx, fillQuery)
 	}
 	if err != nil {
 		return brokerReadErrorResponse("fills", []any{}, err)
@@ -284,15 +319,20 @@ func (s *Server) brokerFillsResponse(ctx context.Context, query futu.BrokerReadQ
 	}
 }
 
-func (s *Server) brokerCashFlowsResponse(ctx context.Context, query futu.BrokerReadQuery, params url.Values) map[string]any {
+func (s *Server) brokerCashFlowsResponse(ctx context.Context, query broker.ReadQuery, params url.Values) map[string]any {
+	reader := s.brokerMarketDataReader()
+	if reader == nil {
+		return brokerReadErrorResponse("cashFlows", []any{}, fmt.Errorf("broker market data not available"))
+	}
+
 	clearingDate := strings.TrimSpace(params.Get("clearingDate"))
 	if clearingDate == "" {
 		return brokerReadErrorResponse("cashFlows", []any{}, fmt.Errorf("query parameter clearingDate is required"))
 	}
-	flows, err := s.futuExchange().QueryBrokerCashFlows(ctx, futu.BrokerCashFlowQuery{
-		BrokerReadQuery: query,
-		ClearingDate:    clearingDate,
-		Direction:       strings.TrimSpace(params.Get("direction")),
+	flows, err := reader.QueryCashFlows(ctx, broker.CashFlowQuery{
+		ReadQuery:    query,
+		ClearingDate: clearingDate,
+		Direction:    strings.TrimSpace(params.Get("direction")),
 	})
 	if err != nil {
 		return brokerReadErrorResponse("cashFlows", []any{}, err)
@@ -323,12 +363,17 @@ func (s *Server) brokerCashFlowsResponse(ctx context.Context, query futu.BrokerR
 	}
 }
 
-func (s *Server) brokerOrderFeesResponse(ctx context.Context, query futu.BrokerReadQuery, params url.Values) map[string]any {
+func (s *Server) brokerOrderFeesResponse(ctx context.Context, query broker.ReadQuery, params url.Values) map[string]any {
+	reader := s.brokerMarketDataReader()
+	if reader == nil {
+		return brokerReadErrorResponse("fees", []any{}, fmt.Errorf("broker market data not available"))
+	}
+
 	orderIDExList := queryListValues(params, "orderIdEx", "orderIdExList")
 	if len(orderIDExList) == 0 {
 		return brokerReadErrorResponse("fees", []any{}, fmt.Errorf("query parameter orderIdEx is required"))
 	}
-	fees, err := s.futuExchange().QueryBrokerOrderFees(ctx, futu.BrokerOrderFeeQuery{BrokerReadQuery: query, OrderIDExList: orderIDExList})
+	fees, err := reader.QueryOrderFees(ctx, broker.OrderFeeQuery{ReadQuery: query, OrderIDExList: orderIDExList})
 	if err != nil {
 		return brokerReadErrorResponse("fees", []any{}, err)
 	}
@@ -357,12 +402,17 @@ func (s *Server) brokerOrderFeesResponse(ctx context.Context, query futu.BrokerR
 	}
 }
 
-func (s *Server) brokerMarginRatiosResponse(ctx context.Context, query futu.BrokerReadQuery, params url.Values) map[string]any {
+func (s *Server) brokerMarginRatiosResponse(ctx context.Context, query broker.ReadQuery, params url.Values) map[string]any {
+	reader := s.brokerMarketDataReader()
+	if reader == nil {
+		return brokerReadErrorResponse("marginRatios", []any{}, fmt.Errorf("broker market data not available"))
+	}
+
 	symbols := queryListValues(params, "symbol", "symbols")
 	if len(symbols) == 0 {
 		return brokerReadErrorResponse("marginRatios", []any{}, fmt.Errorf("query parameter symbol is required"))
 	}
-	ratios, err := s.futuExchange().QueryBrokerMarginRatios(ctx, futu.BrokerMarginRatioQuery{BrokerReadQuery: query, Symbols: symbols})
+	ratios, err := reader.QueryMarginRatios(ctx, broker.MarginRatioQuery{ReadQuery: query, Symbols: symbols})
 	if err != nil {
 		return brokerReadErrorResponse("marginRatios", []any{}, err)
 	}
@@ -397,7 +447,12 @@ func (s *Server) brokerMarginRatiosResponse(ctx context.Context, query futu.Brok
 	}
 }
 
-func (s *Server) brokerMaxTradeQuantityResponse(ctx context.Context, query futu.BrokerReadQuery, params url.Values) map[string]any {
+func (s *Server) brokerMaxTradeQuantityResponse(ctx context.Context, query broker.ReadQuery, params url.Values) map[string]any {
+	reader := s.brokerMarketDataReader()
+	if reader == nil {
+		return brokerReadErrorResponse("maxTradeQuantity", nil, fmt.Errorf("broker market data not available"))
+	}
+
 	symbol := strings.TrimSpace(params.Get("symbol"))
 	orderType := strings.TrimSpace(params.Get("orderType"))
 	priceValue := strings.TrimSpace(params.Get("price"))
@@ -432,8 +487,8 @@ func (s *Server) brokerMaxTradeQuantityResponse(ctx context.Context, query futu.
 		positionID = &parsed
 	}
 
-	snapshot, err := s.futuExchange().QueryBrokerMaxTradeQuantity(ctx, futu.BrokerMaxTradeQuantityQuery{
-		BrokerReadQuery:    query,
+	snapshot, err := reader.QueryMaxTradeQuantity(ctx, broker.MaxTradeQuantityQuery{
+		ReadQuery:          query,
 		Symbol:             symbol,
 		OrderType:          orderType,
 		Price:              price,
