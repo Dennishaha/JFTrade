@@ -7,11 +7,16 @@ import PageHeader from "../components/PageHeader.vue";
 import { fetchEnvelope } from "../composables/apiClient";
 import { formatGenericStatusLabel } from "../composables/consoleDataFormatting";
 import { resolveInstrumentRef } from "../composables/instrumentRef";
-import { useBacktestRuns, type BacktestFormState } from "../composables/useBacktestRuns";
+import {
+  useBacktestRuns,
+  type BacktestFormState,
+} from "../composables/useBacktestRuns";
 import { useConsoleData } from "../composables/useConsoleData";
-import { useTheme } from "../composables/useTheme";
 import { formatLocalDateTime } from "../utils/dateTime";
-import { buildBacktestDayInclusiveEndTime, buildBacktestDayStartTime } from "./backtestTimeWindow";
+import {
+  buildBacktestDayInclusiveEndTime,
+  buildBacktestDayStartTime,
+} from "./backtestTimeWindow";
 import dayjs from "dayjs";
 
 const BACKTEST_FORM_STORAGE_KEY = "jftrade.backtest.form.v1";
@@ -38,37 +43,14 @@ const BACKTEST_MARKET_OPTIONS = [
 ];
 
 // ── Console data (reuse existing symbol search infrastructure) ──
-const {
-  loadMarketInstrumentReferences,
-  marketInstrumentSearchOptions,
-} = useConsoleData();
+const { loadMarketInstrumentReferences, marketInstrumentSearchOptions } =
+  useConsoleData();
 
-// ── Theme ──
-const { theme } = useTheme();
-
-const controlPanelClass = computed(() =>
-  theme.value === "light"
-    ? "rounded-lg border border-slate-200 bg-white"
-    : "rounded-lg border border-slate-700 bg-slate-900",
-);
-
-const emptyStateClass = computed(() =>
-  theme.value === "light"
-    ? "rounded-lg border border-slate-200 bg-white text-slate-500"
-    : "rounded-lg border border-slate-700 bg-slate-900 text-slate-400",
-);
-
-const statCardClass = computed(() =>
-  theme.value === "light"
-    ? "rounded-2xl bg-slate-50"
-    : "rounded-2xl bg-slate-800",
-);
-
-const cardBorderClass = computed(() =>
-  theme.value === "light"
-    ? "rounded-lg border border-slate-200"
-    : "rounded-lg border border-slate-700",
-);
+const controlPanelClass = "rounded-lg border bt-border bt-bg-surface";
+const emptyStateClass =
+  "rounded-lg border bt-border bt-bg-surface bt-text-muted";
+const statCardClass = "rounded-2xl bt-bg-muted";
+const cardBorderClass = "rounded-lg border bt-border";
 
 // ── Backtest run DTOs ──
 interface StrategyDefinition {
@@ -117,8 +99,12 @@ function readStoredBacktestFormPreferences(): StoredBacktestFormPreferences {
       return defaults;
     }
     const parsed = JSON.parse(raw) as Partial<StoredBacktestFormPreferences>;
-    const validMarkets = new Set(BACKTEST_MARKET_OPTIONS.map((option) => option.value));
-    const validIntervals = new Set<string>(KLINE_PERIODS.map((period) => period.value));
+    const validMarkets = new Set(
+      BACKTEST_MARKET_OPTIONS.map((option) => option.value),
+    );
+    const validIntervals = new Set<string>(
+      KLINE_PERIODS.map((period) => period.value),
+    );
     const validRehabTypes = new Set(["forward", "backward", "none"]);
     const normalizeDate = (value: unknown, fallback: string) => {
       if (typeof value !== "string") {
@@ -132,26 +118,37 @@ function readStoredBacktestFormPreferences(): StoredBacktestFormPreferences {
     };
 
     return {
-      selectedDefinitionId: typeof parsed.selectedDefinitionId === "string"
-        ? parsed.selectedDefinitionId.trim()
-        : defaults.selectedDefinitionId,
-      selectedMarket: typeof parsed.selectedMarket === "string" && validMarkets.has(parsed.selectedMarket.trim().toUpperCase())
-        ? parsed.selectedMarket.trim().toUpperCase()
-        : defaults.selectedMarket,
-      codeInput: typeof parsed.codeInput === "string" && parsed.codeInput.trim() !== ""
-        ? parsed.codeInput.trim().toUpperCase()
-        : defaults.codeInput,
-      interval: typeof parsed.interval === "string" && validIntervals.has(parsed.interval.trim())
-        ? parsed.interval.trim()
-        : defaults.interval,
+      selectedDefinitionId:
+        typeof parsed.selectedDefinitionId === "string"
+          ? parsed.selectedDefinitionId.trim()
+          : defaults.selectedDefinitionId,
+      selectedMarket:
+        typeof parsed.selectedMarket === "string" &&
+          validMarkets.has(parsed.selectedMarket.trim().toUpperCase())
+          ? parsed.selectedMarket.trim().toUpperCase()
+          : defaults.selectedMarket,
+      codeInput:
+        typeof parsed.codeInput === "string" && parsed.codeInput.trim() !== ""
+          ? parsed.codeInput.trim().toUpperCase()
+          : defaults.codeInput,
+      interval:
+        typeof parsed.interval === "string" &&
+          validIntervals.has(parsed.interval.trim())
+          ? parsed.interval.trim()
+          : defaults.interval,
       startDate: normalizeDate(parsed.startDate, defaults.startDate),
       endDate: normalizeDate(parsed.endDate, defaults.endDate),
-      initialBalance: typeof parsed.initialBalance === "number" && Number.isFinite(parsed.initialBalance) && parsed.initialBalance > 0
-        ? parsed.initialBalance
-        : defaults.initialBalance,
-      rehabType: typeof parsed.rehabType === "string" && validRehabTypes.has(parsed.rehabType.trim().toLowerCase())
-        ? parsed.rehabType.trim().toLowerCase()
-        : defaults.rehabType,
+      initialBalance:
+        typeof parsed.initialBalance === "number" &&
+          Number.isFinite(parsed.initialBalance) &&
+          parsed.initialBalance > 0
+          ? parsed.initialBalance
+          : defaults.initialBalance,
+      rehabType:
+        typeof parsed.rehabType === "string" &&
+          validRehabTypes.has(parsed.rehabType.trim().toLowerCase())
+          ? parsed.rehabType.trim().toLowerCase()
+          : defaults.rehabType,
       useExtendedHours: parsed.useExtendedHours === true,
     };
   } catch {
@@ -173,7 +170,9 @@ const resultsStatusFilter = ref("all");
 const resultsStrategyFilter = ref("all");
 
 // Form state
-const selectedDefinitionId = ref(storedBacktestFormPreferences.selectedDefinitionId);
+const selectedDefinitionId = ref(
+  storedBacktestFormPreferences.selectedDefinitionId,
+);
 const selectedMarket = ref(storedBacktestFormPreferences.selectedMarket);
 const codeInput = ref(storedBacktestFormPreferences.codeInput);
 const interval = ref(storedBacktestFormPreferences.interval);
@@ -199,10 +198,18 @@ const EXTENDED_HOURS_INTERVALS = new Set([
 ]);
 
 // Sync form (start/end time)
-const syncStartTime = computed(() => buildBacktestDayStartTime(startDate.value));
-const syncEndTime = computed(() => buildBacktestDayInclusiveEndTime(endDate.value));
-const backtestStartTime = computed(() => buildBacktestDayStartTime(startDate.value));
-const backtestEndTime = computed(() => buildBacktestDayInclusiveEndTime(endDate.value));
+const syncStartTime = computed(() =>
+  buildBacktestDayStartTime(startDate.value),
+);
+const syncEndTime = computed(() =>
+  buildBacktestDayInclusiveEndTime(endDate.value),
+);
+const backtestStartTime = computed(() =>
+  buildBacktestDayStartTime(startDate.value),
+);
+const backtestEndTime = computed(() =>
+  buildBacktestDayInclusiveEndTime(endDate.value),
+);
 
 // ── Derived ──
 const selectedDefinition = computed(() =>
@@ -215,31 +222,45 @@ const codeSuggestions = computed(() => {
     .filter((option) => option.market === market)
     .map((option) => ({
       value: option.symbol,
-      title: option.name == null ? option.instrumentId : `${option.symbol} · ${option.name}`,
+      title:
+        option.name == null
+          ? option.instrumentId
+          : `${option.symbol} · ${option.name}`,
     }));
 });
 
-const parsedInstrument = computed(() => resolveInstrumentRef(
-  {
-    market: selectedMarket.value,
-    code: codeInput.value,
-  },
-  selectedMarket.value,
-));
-
-const periodLabel = computed(() =>
-  KLINE_PERIODS.find((p) => p.value === interval.value)?.label ?? interval.value,
+const parsedInstrument = computed(() =>
+  resolveInstrumentRef(
+    {
+      market: selectedMarket.value,
+      code: codeInput.value,
+    },
+    selectedMarket.value,
+  ),
 );
 
-function supportsExtendedHoursForInterval(market: string, intervalValue: string) {
+const periodLabel = computed(
+  () =>
+    KLINE_PERIODS.find((p) => p.value === interval.value)?.label ??
+    interval.value,
+);
+
+function supportsExtendedHoursForInterval(
+  market: string,
+  intervalValue: string,
+) {
   if ((market ?? "").trim().toUpperCase() !== "US") {
     return false;
   }
-  return EXTENDED_HOURS_INTERVALS.has((intervalValue ?? "").trim().toLowerCase());
+  return EXTENDED_HOURS_INTERVALS.has(
+    (intervalValue ?? "").trim().toLowerCase(),
+  );
 }
 
 const extendedHoursSupported = computed(() => {
-  const market = (parsedInstrument.value?.market ?? selectedMarket.value).trim().toUpperCase();
+  const market = (parsedInstrument.value?.market ?? selectedMarket.value)
+    .trim()
+    .toUpperCase();
   return supportsExtendedHoursForInterval(market, interval.value);
 });
 
@@ -253,7 +274,9 @@ const extendedHoursHint = computed(() => {
 });
 
 const quoteCurrency = computed(() => {
-  const market = (parsedInstrument.value?.market ?? selectedMarket.value).toUpperCase();
+  const market = (
+    parsedInstrument.value?.market ?? selectedMarket.value
+  ).toUpperCase();
   if (market === "US") return "USD";
   if (["SH", "SZ", "CN"].includes(market)) return "CNY";
   if (market === "SG") return "SGD";
@@ -279,14 +302,18 @@ const warmupPreviewValue = computed(() => {
 
 const warmupPreviewNote = computed(() => {
   const previewInterval = warmupPreviewInterval.value || interval.value || "5m";
-  const sessionMode = extendedHoursSupported.value && useExtendedHours.value ? "扩展时段" : "当前时段口径";
+  const sessionMode =
+    extendedHoursSupported.value && useExtendedHours.value
+      ? "扩展时段"
+      : "当前时段口径";
   return `按当前标的与回测周期 ${previewInterval} 的${sessionMode}推导策略依赖的最大历史 bars。`;
 });
 
-const warmupPreviewSymbol = computed(() =>
-  parsedInstrument.value?.instrumentId
-  || selectedDefinition.value?.symbol?.trim()
-  || "",
+const warmupPreviewSymbol = computed(
+  () =>
+    parsedInstrument.value?.instrumentId ||
+    selectedDefinition.value?.symbol?.trim() ||
+    "",
 );
 
 function inferQuoteCurrencyFromInstrumentId(instrumentId: string | undefined) {
@@ -297,13 +324,20 @@ function inferQuoteCurrencyFromInstrumentId(instrumentId: string | undefined) {
   if (normalized.startsWith("HK.")) {
     return "HKD";
   }
-  if (normalized.startsWith("CN.") || normalized.startsWith("SH.") || normalized.startsWith("SZ.")) {
+  if (
+    normalized.startsWith("CN.") ||
+    normalized.startsWith("SH.") ||
+    normalized.startsWith("SZ.")
+  ) {
     return "CNY";
   }
   return "HKD";
 }
 
-function resolveRunQuoteCurrency(run: { request: { symbol: string }; result?: { quoteCurrency?: string | undefined } | undefined }) {
+function resolveRunQuoteCurrency(run: {
+  request: { symbol: string };
+  result?: { quoteCurrency?: string | undefined } | undefined;
+}) {
   const resultCurrency = run.result?.quoteCurrency?.trim();
   if (resultCurrency) {
     return resultCurrency;
@@ -311,9 +345,20 @@ function resolveRunQuoteCurrency(run: { request: { symbol: string }; result?: { 
   return inferQuoteCurrencyFromInstrumentId(run.request.symbol);
 }
 
-function resolveRunSessionMode(run: { request: { symbol: string; interval: string; useExtendedHours?: boolean | undefined } }) {
+function resolveRunSessionMode(run: {
+  request: {
+    symbol: string;
+    interval: string;
+    useExtendedHours?: boolean | undefined;
+  };
+}) {
   const normalizedSymbol = run.request.symbol.trim().toUpperCase();
-  if (!supportsExtendedHoursForInterval(normalizedSymbol.split(".")[0] ?? "", run.request.interval)) {
+  if (
+    !supportsExtendedHoursForInterval(
+      normalizedSymbol.split(".")[0] ?? "",
+      run.request.interval,
+    )
+  ) {
     return "常规时段";
   }
   return run.request.useExtendedHours ? "含扩展时段" : "仅常规时段";
@@ -331,7 +376,9 @@ function formatBacktestRehabType(rehabType: string | undefined) {
   }
 }
 
-function resolveBacktestPriceBasisNote(run: { request: { rehabType?: string; interval: string } }) {
+function resolveBacktestPriceBasisNote(run: {
+  request: { rehabType?: string; interval: string };
+}) {
   const rehabLabel = formatBacktestRehabType(run.request.rehabType);
   const intervalLabel = run.request.interval.trim() || "当前周期";
   if ((run.request.rehabType ?? "forward").trim().toLowerCase() === "none") {
@@ -344,14 +391,20 @@ function resolveStrategyName(definitionId: string | undefined) {
   if (!definitionId) {
     return "未命名策略";
   }
-  return definitions.value.find((definition) => definition.id === definitionId)?.name ?? definitionId;
+  return (
+    definitions.value.find((definition) => definition.id === definitionId)
+      ?.name ?? definitionId
+  );
 }
 
 function resolveStrategyDefinition(definitionId: string | undefined) {
   if (!definitionId) {
     return null;
   }
-  return definitions.value.find((definition) => definition.id === definitionId) ?? null;
+  return (
+    definitions.value.find((definition) => definition.id === definitionId) ??
+    null
+  );
 }
 
 function formatStrategyVersion(version: string | undefined) {
@@ -362,7 +415,9 @@ function formatStrategyVersion(version: string | undefined) {
   return `v${normalized}`;
 }
 
-function resolveBacktestStrategyVersionNotice(run: { request: { definitionId: string; definitionVersion?: string | undefined } }) {
+function resolveBacktestStrategyVersionNotice(run: {
+  request: { definitionId: string; definitionVersion?: string | undefined };
+}) {
   const recordedVersion = (run.request.definitionVersion ?? "").trim();
   if (recordedVersion === "") {
     return "";
@@ -384,7 +439,8 @@ function resolveBacktestStrategyVersionNotice(run: { request: { definitionId: st
 const backtestFormState = computed<BacktestFormState>(() => ({
   definitionId: selectedDefinitionId.value,
   definitionVersion: selectedDefinition.value?.version?.trim() ?? "",
-  market: parsedInstrument.value?.market ?? selectedMarket.value.trim().toUpperCase(),
+  market:
+    parsedInstrument.value?.market ?? selectedMarket.value.trim().toUpperCase(),
   code: parsedInstrument.value?.code ?? codeInput.value.trim().toUpperCase(),
   instrumentId: parsedInstrument.value?.instrumentId ?? "",
   interval: interval.value,
@@ -397,11 +453,15 @@ const backtestFormState = computed<BacktestFormState>(() => ({
   useExtendedHours: useExtendedHours.value,
 }));
 
-watch(extendedHoursSupported, (supported) => {
-	if (!supported) {
-		useExtendedHours.value = false;
-	}
-}, { immediate: true });
+watch(
+  extendedHoursSupported,
+  (supported) => {
+    if (!supported) {
+      useExtendedHours.value = false;
+    }
+  },
+  { immediate: true },
+);
 
 const {
   runs,
@@ -430,24 +490,34 @@ const resultStrategyOptions = computed(() => {
       continue;
     }
     seenDefinitionIDs.add(definitionID);
-    options.push({ value: definitionID, title: resolveStrategyName(definitionID) });
+    options.push({
+      value: definitionID,
+      title: resolveStrategyName(definitionID),
+    });
   }
   return options;
 });
 
-const hasResultsFilters = computed(() =>
-  resultsSearchQuery.value.trim() !== ""
-  || resultsStatusFilter.value !== "all"
-  || resultsStrategyFilter.value !== "all",
+const hasResultsFilters = computed(
+  () =>
+    resultsSearchQuery.value.trim() !== "" ||
+    resultsStatusFilter.value !== "all" ||
+    resultsStrategyFilter.value !== "all",
 );
 
 const filteredRuns = computed(() => {
   const normalizedQuery = resultsSearchQuery.value.trim().toLowerCase();
   return sortedRuns.value.filter((run) => {
-    if (resultsStatusFilter.value !== "all" && run.status !== resultsStatusFilter.value) {
+    if (
+      resultsStatusFilter.value !== "all" &&
+      run.status !== resultsStatusFilter.value
+    ) {
       return false;
     }
-    if (resultsStrategyFilter.value !== "all" && run.request.definitionId !== resultsStrategyFilter.value) {
+    if (
+      resultsStrategyFilter.value !== "all" &&
+      run.request.definitionId !== resultsStrategyFilter.value
+    ) {
       return false;
     }
     if (normalizedQuery === "") {
@@ -479,12 +549,18 @@ const emptyResultsMessage = computed(() => {
 });
 
 const resultsPageCount = computed(() =>
-  Math.max(1, Math.ceil(filteredRuns.value.length / BACKTEST_RESULTS_PAGE_SIZE)),
+  Math.max(
+    1,
+    Math.ceil(filteredRuns.value.length / BACKTEST_RESULTS_PAGE_SIZE),
+  ),
 );
 
 const pagedRuns = computed(() => {
   const startIndex = (resultsPage.value - 1) * BACKTEST_RESULTS_PAGE_SIZE;
-  return filteredRuns.value.slice(startIndex, startIndex + BACKTEST_RESULTS_PAGE_SIZE);
+  return filteredRuns.value.slice(
+    startIndex,
+    startIndex + BACKTEST_RESULTS_PAGE_SIZE,
+  );
 });
 
 const resultsPageSummary = computed(() => {
@@ -493,7 +569,10 @@ const resultsPageSummary = computed(() => {
   }
   const startIndex = (resultsPage.value - 1) * BACKTEST_RESULTS_PAGE_SIZE;
   const visibleStart = startIndex + 1;
-  const visibleEnd = Math.min(filteredRuns.value.length, startIndex + BACKTEST_RESULTS_PAGE_SIZE);
+  const visibleEnd = Math.min(
+    filteredRuns.value.length,
+    startIndex + BACKTEST_RESULTS_PAGE_SIZE,
+  );
   if (hasResultsFilters.value) {
     return `筛选后第 ${visibleStart}-${visibleEnd} 条，共 ${filteredRuns.value.length} 条；全部结果 ${sortedRuns.value.length} 条`;
   }
@@ -508,8 +587,28 @@ function resetResultsFilters() {
 }
 
 watch(
-  [selectedDefinitionId, selectedMarket, codeInput, interval, startDate, endDate, initialBalance, rehabType, useExtendedHours],
-  ([nextDefinitionId, nextMarket, nextCodeInput, nextInterval, nextStartDate, nextEndDate, nextInitialBalance, nextRehabType, nextUseExtendedHours]) => {
+  [
+    selectedDefinitionId,
+    selectedMarket,
+    codeInput,
+    interval,
+    startDate,
+    endDate,
+    initialBalance,
+    rehabType,
+    useExtendedHours,
+  ],
+  ([
+    nextDefinitionId,
+    nextMarket,
+    nextCodeInput,
+    nextInterval,
+    nextStartDate,
+    nextEndDate,
+    nextInitialBalance,
+    nextRehabType,
+    nextUseExtendedHours,
+  ]) => {
     if (typeof window === "undefined" || window.localStorage == null) {
       return;
     }
@@ -524,7 +623,10 @@ watch(
       rehabType: nextRehabType,
       useExtendedHours: nextUseExtendedHours,
     };
-    window.localStorage.setItem(BACKTEST_FORM_STORAGE_KEY, JSON.stringify(storedPreferences));
+    window.localStorage.setItem(
+      BACKTEST_FORM_STORAGE_KEY,
+      JSON.stringify(storedPreferences),
+    );
   },
   { immediate: true },
 );
@@ -551,7 +653,10 @@ watch(codeInput, (value) => {
   if (raw === "" || (!raw.includes(":") && !raw.includes("."))) {
     return;
   }
-  const resolved = resolveInstrumentRef({ instrumentId: raw }, selectedMarket.value);
+  const resolved = resolveInstrumentRef(
+    { instrumentId: raw },
+    selectedMarket.value,
+  );
   if (resolved == null) {
     return;
   }
@@ -626,7 +731,10 @@ async function loadWarmupPreview() {
     if (requestedSymbol !== "") {
       params.set("symbol", requestedSymbol);
     }
-    params.set("useExtendedHours", String(extendedHoursSupported.value && useExtendedHours.value));
+    params.set(
+      "useExtendedHours",
+      String(extendedHoursSupported.value && useExtendedHours.value),
+    );
     const detail = await fetchEnvelope<StrategyDefinition>(
       `/api/v1/strategy-definitions/${encodeURIComponent(definitionId)}?${params.toString()}`,
     );
@@ -634,9 +742,10 @@ async function loadWarmupPreview() {
       return;
     }
     warmupPreviewBars.value = Number.isFinite(detail.derivedWarmupBars)
-      ? detail.derivedWarmupBars ?? null
+      ? (detail.derivedWarmupBars ?? null)
       : null;
-    warmupPreviewInterval.value = detail.derivedWarmupInterval?.trim() || requestedInterval;
+    warmupPreviewInterval.value =
+      detail.derivedWarmupInterval?.trim() || requestedInterval;
   } catch {
     if (requestId !== warmupPreviewRequestId) {
       return;
@@ -679,13 +788,13 @@ function pnlPrefix(val: number) {
 
 function drawdownColor(value: number | undefined) {
   if ((value ?? 0) > 0) {
-    return "text-red-600 dark:text-red-400";
+    return "bt-metric-negative";
   }
-  return "text-slate-900 dark:text-slate-100";
+  return "bt-text";
 }
 
 function formatPercentMetric(value: number | undefined) {
-  const normalized = Number.isFinite(value) ? value ?? 0 : 0;
+  const normalized = Number.isFinite(value) ? (value ?? 0) : 0;
   return `${(normalized * 100).toFixed(2)}%`;
 }
 
@@ -723,7 +832,11 @@ function formatBacktestOrderStatus(status: string) {
   }
 }
 
-function formatBacktestOrderPrice(value: number | undefined, orderType?: string, raw?: string) {
+function formatBacktestOrderPrice(
+  value: number | undefined,
+  orderType?: string,
+  raw?: string,
+) {
   if (raw && raw.trim() !== "" && raw !== "0") {
     return raw;
   }
@@ -752,7 +865,9 @@ function formatBacktestQuantity(value: number | undefined, raw?: string) {
   });
 }
 
-function resolveQueriedCandleBounds(candles: Array<{ time: string }> | undefined) {
+function resolveQueriedCandleBounds(
+  candles: Array<{ time: string }> | undefined,
+) {
   if (!candles || candles.length === 0) {
     return null;
   }
@@ -762,7 +877,10 @@ function resolveQueriedCandleBounds(candles: Array<{ time: string }> | undefined
       const at = new Date(candle.time).getTime();
       return Number.isFinite(at);
     })
-    .sort((left, right) => new Date(left.time).getTime() - new Date(right.time).getTime());
+    .sort(
+      (left, right) =>
+        new Date(left.time).getTime() - new Date(right.time).getTime(),
+    );
 
   if (sorted.length === 0) {
     return null;
@@ -782,18 +900,21 @@ function resolveQueriedCandleBounds(candles: Array<{ time: string }> | undefined
 }
 
 // When definition changes, fill defaults only if user hasn't manually overridden
-watch([selectedDefinitionId, interval], () => {
-  void loadWarmupPreview();
-}, { immediate: true });
+watch(
+  [selectedDefinitionId, interval],
+  () => {
+    void loadWarmupPreview();
+  },
+  { immediate: true },
+);
 </script>
 
 <template>
-  <div class="grid gap-4">
+  <div class="backtest-page grid gap-4">
     <PageHeader eyebrow="模拟回测" title="回测" description="选择策略定义、标的和时段，同步历史K线后运行回测。" :stats="headerStats" />
 
     <!-- Error banner -->
-    <div v-if="error"
-      class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200">
+    <div v-if="error" class="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
       {{ error }}
       <button class="ml-3 underline" type="button" @click="error = ''">
         关闭
@@ -808,7 +929,7 @@ watch([selectedDefinitionId, interval], () => {
           <div class="space-y-2.5">
             <!-- Strategy -->
             <div class="grid gap-0.5">
-              <label class="text-xs font-semibold text-slate-700 dark:text-slate-200">策略定义</label>
+              <label class="text-xs font-semibold bt-text-strong">策略定义</label>
               <v-select v-model="selectedDefinitionId" :items="definitions" item-title="name" item-value="id"
                 density="compact" variant="outlined" placeholder="选择策略" />
             </div>
@@ -817,62 +938,66 @@ watch([selectedDefinitionId, interval], () => {
             <div class="grid gap-2">
               <div class="grid grid-cols-2 gap-2">
                 <div class="grid gap-0.5">
-                  <label class="text-xs font-semibold text-slate-700 dark:text-slate-200">市场</label>
-                  <v-select v-model="selectedMarket" :items="BACKTEST_MARKET_OPTIONS" item-title="title" item-value="value"
-                    density="compact" variant="outlined" />
+                  <label class="text-xs font-semibold bt-text-strong">市场</label>
+                  <v-select v-model="selectedMarket" :items="BACKTEST_MARKET_OPTIONS" item-title="title"
+                    item-value="value" density="compact" variant="outlined" />
                 </div>
                 <div class="grid gap-0.5">
-                  <label class="text-xs font-semibold text-slate-700 dark:text-slate-200">代码</label>
+                  <label class="text-xs font-semibold bt-text-strong">代码</label>
                   <v-combobox v-model="codeInput" :items="codeSuggestions" item-title="title" item-value="value"
                     density="compact" variant="outlined" placeholder="00700" clearable />
                 </div>
               </div>
-              <div class="text-xs text-slate-500 dark:text-slate-400">
+              <div class="text-xs bt-text-muted">
                 {{ parsedInstrument?.instrumentId || "请先输入市场与代码" }}
               </div>
             </div>
 
             <!-- Period -->
             <div class="grid gap-0.5">
-              <label class="text-xs font-semibold text-slate-700 dark:text-slate-200">K线周期</label>
+              <label class="text-xs font-semibold bt-text-strong">K线周期</label>
               <v-select v-model="interval" :items="KLINE_PERIODS" item-title="label" item-value="value"
                 density="compact" variant="outlined" />
-              <div class="text-xs text-slate-400 dark:text-slate-500">
+              <div class="text-xs bt-text-dim">
                 默认 5m，可按本次回测需要单独调整。
               </div>
             </div>
 
             <!-- Rehab type -->
             <div class="grid gap-0.5">
-              <label class="text-xs font-semibold text-slate-700 dark:text-slate-200">复权方式</label>
+              <label class="text-xs font-semibold bt-text-strong">复权方式</label>
               <v-select v-model="rehabType" :items="[
                 { value: 'forward', title: '前复权' },
                 { value: 'backward', title: '后复权' },
                 { value: 'none', title: '不复权' },
               ]" item-title="title" item-value="value" density="compact" variant="outlined" />
-              <div class="text-xs text-slate-400 dark:text-slate-500">前复权适合回测，后复权适合分析。</div>
+              <div class="text-xs bt-text-dim">
+                前复权适合回测，后复权适合分析。
+              </div>
             </div>
 
             <div v-if="extendedHoursSupported" class="grid gap-1">
-              <div class="flex items-start justify-between gap-3 rounded-lg border border-slate-200 px-3 py-2 dark:border-slate-700">
-                <div class="min-w-0">
-                  <div class="text-xs font-semibold text-slate-700 dark:text-slate-200">扩展交易时段</div>
-                  <div class="text-xs text-slate-400 dark:text-slate-500">
+              <div class="flex items-start gap-3 rounded-lg border bt-border px-3 py-2">
+                <v-switch v-model="useExtendedHours" color="teal" density="compact" hide-details class="self-center" />
+                <div class="min-w-0 flex-1">
+                  <div class="text-xs font-semibold bt-text-strong">
+                    扩展交易时段
+                  </div>
+                  <div class="text-xs bt-text-dim">
                     {{ extendedHoursHint }}
                   </div>
                 </div>
-                <v-switch v-model="useExtendedHours" color="teal" density="compact" hide-details inset />
               </div>
             </div>
 
             <!-- Date range -->
             <div class="grid grid-cols-2 gap-2">
               <div class="grid gap-0.5">
-                <label class="text-xs font-semibold text-slate-700 dark:text-slate-200">起始日期</label>
+                <label class="text-xs font-semibold bt-text-strong">起始日期</label>
                 <v-text-field v-model="startDate" type="date" density="compact" variant="outlined" />
               </div>
               <div class="grid gap-0.5">
-                <label class="text-xs font-semibold text-slate-700 dark:text-slate-200">结束日期</label>
+                <label class="text-xs font-semibold bt-text-strong">结束日期</label>
                 <v-text-field v-model="endDate" type="date" density="compact" variant="outlined" />
               </div>
             </div>
@@ -880,69 +1005,74 @@ watch([selectedDefinitionId, interval], () => {
             <!-- Initial balance & derived warmup -->
             <div class="grid grid-cols-2 gap-2">
               <div class="grid gap-0.5">
-                <label class="text-xs font-semibold text-slate-700 dark:text-slate-200">初始资金</label>
+                <label class="text-xs font-semibold bt-text-strong">初始资金</label>
                 <v-text-field v-model.number="initialBalance" type="number" :min="1000" density="compact"
                   variant="outlined" />
-                <div class="text-xs text-slate-400 dark:text-slate-500">{{ quoteCurrency }}</div>
+                <div class="text-xs bt-text-dim">{{ quoteCurrency }}</div>
               </div>
               <div class="grid gap-0.5">
-                <label class="text-xs font-semibold text-slate-700 dark:text-slate-200">预热K线</label>
-                <div
-                  class="min-h-[40px] rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                <label class="text-xs font-semibold bt-text-strong">预热K线</label>
+                <div class="min-h-[40px] rounded-md border bt-border bt-bg-muted px-3 py-2 text-sm bt-text">
                   {{ warmupPreviewValue }}
                 </div>
-                <div class="text-xs text-slate-400 dark:text-slate-500">{{ warmupPreviewNote }}</div>
+                <div class="text-xs bt-text-dim">{{ warmupPreviewNote }}</div>
               </div>
             </div>
 
             <!-- Sync section -->
             <div v-if="syncing && !syncProgress"
-              class="rounded-xl border border-teal-200 bg-teal-50/50 px-3 py-3 text-center dark:border-teal-800 dark:bg-teal-950/50">
-              <span class="text-sm text-teal-700 dark:text-teal-300">正在启动同步…</span>
+              class="rounded-xl border border-teal-200 bg-teal-50/50 px-3 py-3 text-center">
+              <span class="text-sm text-teal-700">正在启动同步…</span>
             </div>
             <div v-else-if="syncing && syncProgress"
-              class="rounded-xl border border-teal-200 bg-teal-50/50 px-3 py-3 space-y-2 dark:border-teal-800 dark:bg-teal-950/50">
+              class="rounded-xl border border-teal-200 bg-teal-50/50 px-3 py-3 space-y-2">
               <div class="flex items-center justify-between">
-                <span class="text-xs font-semibold text-teal-800 dark:text-teal-200">
+                <span class="text-xs font-semibold text-teal-800">
                   同步中 · {{ syncProgress.currentInterval || "准备" }}
                 </span>
                 <button
-                  class="rounded-full border border-red-200 px-2 py-0.5 text-xs text-red-600 hover:bg-red-50 transition dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950"
+                  class="rounded-full border border-red-200 px-2 py-0.5 text-xs text-red-600 hover:bg-red-50 transition"
                   type="button" @click="cancelSync">
                   取消
                 </button>
               </div>
-              <div class="h-2 rounded-full bg-teal-200 overflow-hidden dark:bg-teal-800">
-                <div class="h-full rounded-full bg-teal-500 transition-all duration-500 dark:bg-teal-400"
-                  :style="{ width: syncProgress.totalIntervals > 0 ? (syncProgress.completedIntervals / syncProgress.totalIntervals * 100) + '%' : '10%' }" />
+              <div class="h-2 rounded-full bg-teal-200 overflow-hidden">
+                <div class="h-full rounded-full bg-teal-500 transition-all duration-500" :style="{
+                  width:
+                    syncProgress.totalIntervals > 0
+                      ? (syncProgress.completedIntervals /
+                        syncProgress.totalIntervals) *
+                      100 +
+                      '%'
+                      : '10%',
+                }" />
               </div>
-              <div class="flex items-center justify-between text-xs text-teal-700 dark:text-teal-300">
+              <div class="flex items-center justify-between text-xs text-teal-700">
                 <span>{{ syncProgress.completedBatches }} 批</span>
-                <span v-if="syncProgress.retries > 0" class="text-amber-600 dark:text-amber-400">重试 {{
-                  syncProgress.retries }}</span>
+                <span v-if="syncProgress.retries > 0" class="text-amber-600">重试 {{ syncProgress.retries }}</span>
               </div>
             </div>
             <div v-else-if="syncProgress?.status === 'cancelled'"
-              class="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300">
+              class="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
               同步已取消 · {{ syncProgress.completedBatches }} 批已完成
             </div>
             <!-- Sync button -->
             <button v-else
-              class="w-full rounded-xl border border-teal-300 bg-teal-50 px-3 py-1.5 text-xs font-semibold text-teal-700 shadow-sm transition hover:bg-teal-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-teal-700 dark:bg-teal-950 dark:text-teal-300 dark:hover:bg-teal-900"
+              class="w-full rounded-xl border border-teal-300 bg-teal-50 px-3 py-1.5 text-xs font-semibold text-teal-700 shadow-sm transition hover:bg-teal-100 disabled:cursor-not-allowed disabled:opacity-50"
               :disabled="running" type="button" @click="syncKlines">
               ⬇ 同步历史K线
             </button>
 
             <!-- Run button -->
             <button
-              class="w-full rounded-xl bg-teal-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:bg-slate-300 flex items-center justify-center gap-2 dark:bg-teal-500 dark:hover:bg-teal-600 dark:disabled:bg-slate-600"
+              class="w-full rounded-xl bg-teal-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-teal-700 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              :class="{ 'bt-disabled-bg': running || !selectedDefinitionId }"
               :disabled="running || !selectedDefinitionId" type="button" @click="startBacktest">
               <v-progress-circular v-if="running" indeterminate :size="16" :width="2" color="white" />
               {{ running ? "启动中..." : "▶ 开始回测" }}
             </button>
 
-            <div
-              class="rounded-lg border border-teal-100 bg-teal-50 px-2 py-1.5 text-xs text-teal-800 dark:border-teal-900 dark:bg-teal-950 dark:text-teal-200">
+            <div class="rounded-lg border border-teal-100 bg-teal-50 px-2 py-1.5 text-xs text-teal-800">
               ⚡ 先同步K线，再开始回测。
             </div>
           </div>
@@ -957,7 +1087,7 @@ watch([selectedDefinitionId, interval], () => {
             {{ emptyResultsMessage }}
           </div>
 
-          <div v-else class="grid gap-3 rounded-lg border border-slate-200 bg-white px-3 py-3 dark:border-slate-700 dark:bg-slate-900">
+          <div v-else class="grid gap-3 rounded-lg border bt-border bt-bg-surface px-3 py-3">
             <div class="grid gap-3 lg:grid-cols-[minmax(0,1.7fr)_180px_220px_auto]">
               <v-text-field v-model="resultsSearchQuery" density="compact" variant="outlined" hide-details clearable
                 placeholder="搜索策略、标的、回测 ID" />
@@ -971,14 +1101,14 @@ watch([selectedDefinitionId, interval], () => {
                 </v-btn>
               </div>
             </div>
-            <div
-              class="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400">
+            <div class="flex flex-wrap items-center justify-between gap-3 text-xs bt-text-muted">
               <span>{{ resultsPageSummary }}</span>
               <span>最近使用的回测参数与已完成结果会保存在当前浏览器。</span>
             </div>
           </div>
 
-          <div v-if="sortedRuns.length > 0 && filteredRuns.length === 0" :class="[emptyStateClass, 'p-8 text-center text-sm']">
+          <div v-if="sortedRuns.length > 0 && filteredRuns.length === 0"
+            :class="[emptyStateClass, 'p-8 text-center text-sm']">
             {{ emptyResultsMessage }}
           </div>
 
@@ -990,26 +1120,45 @@ watch([selectedDefinitionId, interval], () => {
                 </v-chip>
               </template>
               <v-card-title>
-                {{ resolveStrategyName(run.request.definitionId) }} · {{ run.request.symbol }} · {{ dayjs(run.request.startTime).format('YYYY-MM-DD') }} → {{
-                  dayjs(run.request.endTime).format('YYYY-MM-DD') }}
+                <span :style="{ color: 'var(--tv-text-muted)', fontSize: '0.8em' }">
+                  {{ resolveStrategyName(run.request.definitionId) }} ·
+                  {{ run.request.symbol }} ·
+                  {{ dayjs(run.request.startTime).format("YYYY-MM-DD") }} →
+                  {{ dayjs(run.request.endTime).format("YYYY-MM-DD") }} ·
+                  {{ resolveRunSessionMode(run) }}
+                </span>
               </v-card-title>
               <v-card-subtitle>
-                {{ run.id }} · {{ run.request.interval }} · {{ formatBacktestRehabType(run.request.rehabType) }} · {{ resolveRunSessionMode(run) }} · {{ run.request.initialBalance.toLocaleString() }} {{
-                  resolveRunQuoteCurrency(run) }}<template v-if="run.request.definitionVersion"> · {{ formatStrategyVersion(run.request.definitionVersion) }}</template>
+                <span :style="{ color: 'var(--tv-text-muted)' }">
+                  {{ run.id }} · {{ run.request.interval }} ·
+                  {{ formatBacktestRehabType(run.request.rehabType) }} ·
+                  {{ run.request.initialBalance.toLocaleString() }}
+                  {{ resolveRunQuoteCurrency(run)
+                  }}<template v-if="run.request.definitionVersion">
+                    ·
+                    {{
+                      formatStrategyVersion(run.request.definitionVersion)
+                    }}</template>
+                </span>
               </v-card-subtitle>
               <template #append>
                 <div class="flex items-center gap-1">
-                  <v-btn v-if="run.status === 'completed' || run.status === 'failed'" icon="fa-solid fa-trash" size="small"
-                    variant="text" color="error" title="删除回测结果" @click="deleteRun(run.id)" />
-                  <v-btn v-if="run.result && (run.status === 'completed' || run.status === 'failed')"
-                    :icon="expandedRuns[run.id] ? 'fa-solid fa-chevron-up' : 'fa-solid fa-chevron-down'" size="small"
-                    variant="text" :title="expandedRuns[run.id] ? '收起结果' : '展开结果'" @click="toggleRun(run.id)" />
+                  <v-btn v-if="run.status === 'completed' || run.status === 'failed'" icon="fa-solid fa-trash"
+                    size="small" variant="text" color="error" title="删除回测结果" @click="deleteRun(run.id)" />
+                  <v-btn v-if="
+                    run.result &&
+                    (run.status === 'completed' || run.status === 'failed')
+                  " :icon="expandedRuns[run.id]
+                        ? 'fa-solid fa-chevron-up'
+                        : 'fa-solid fa-chevron-down'
+                      " size="small" variant="text" :title="expandedRuns[run.id] ? '收起结果' : '展开结果'"
+                    @click="toggleRun(run.id)" />
                 </div>
               </template>
             </v-card-item>
 
             <v-card-text v-if="resolveBacktestStrategyVersionNotice(run)" class="pb-0 pt-0">
-              <div class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300">
+              <div class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
                 {{ resolveBacktestStrategyVersionNotice(run) }}
               </div>
             </v-card-text>
@@ -1020,97 +1169,134 @@ watch([selectedDefinitionId, interval], () => {
                 <v-progress-linear v-if="run.status === 'running'" color="teal" indeterminate rounded :height="6"
                   class="flex-1" />
                 <v-progress-linear v-else color="warning" indeterminate rounded :height="6" class="flex-1" />
-                <span class="text-xs whitespace-nowrap"
-                  :class="run.status === 'running' ? 'text-teal-600 dark:text-teal-400' : 'text-amber-600 dark:text-amber-400'">
-                  {{ run.status === 'running' ? '回测运行中…' : '排队等待中…' }}
+                <span class="text-xs whitespace-nowrap" :class="run.status === 'running'
+                    ? 'text-teal-600'
+                    : 'text-amber-600'
+                  ">
+                  {{ run.status === "running" ? "回测运行中…" : "排队等待中…" }}
                 </span>
               </div>
             </v-card-text>
 
-            <v-card-text
-              v-if="expandedRuns[run.id] && run.result && (run.status === 'completed' || run.status === 'failed')">
+            <v-card-text v-if="
+              expandedRuns[run.id] &&
+              run.result &&
+              (run.status === 'completed' || run.status === 'failed')
+            ">
               <div class="grid grid-cols-2 gap-3 lg:grid-cols-6">
                 <div :class="[statCardClass, 'px-3 py-3']">
-                  <div class="text-xs uppercase tracking-[0.15em] text-slate-500 dark:text-slate-400">最终资金</div>
-                  <div class="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100">
-                    {{ run.result.finalBalance.toLocaleString(undefined, { minimumFractionDigits: 2 }) }}
+                  <div class="text-xs uppercase tracking-[0.15em] bt-text-muted">
+                    最终资金
                   </div>
-                  <div class="text-xs text-slate-500 dark:text-slate-400">{{ resolveRunQuoteCurrency(run)
-                  }}</div>
+                  <div class="mt-1 text-lg font-semibold bt-text">
+                    {{
+                      run.result.finalBalance.toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                      })
+                    }}
+                  </div>
+                  <div class="text-xs bt-text-muted">
+                    {{ resolveRunQuoteCurrency(run) }}
+                  </div>
                 </div>
                 <div :class="[statCardClass, 'px-3 py-3']">
-                  <div class="text-xs uppercase tracking-[0.15em] text-slate-500 dark:text-slate-400">收益</div>
+                  <div class="text-xs uppercase tracking-[0.15em] bt-text-muted">
+                    收益
+                  </div>
                   <div class="mt-1 text-lg font-semibold" :class="pnlColor(run.result.pnl)">
-                    {{ pnlPrefix(run.result.pnl) }}{{ run.result.pnl.toLocaleString(undefined, {
-                      minimumFractionDigits:
-                        2
-                    }) }}
+                    {{ pnlPrefix(run.result.pnl)
+                    }}{{
+                      run.result.pnl.toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                      })
+                    }}
                   </div>
-                  <div class="text-xs text-slate-500 dark:text-slate-400">{{ resolveRunQuoteCurrency(run)
-                  }}</div>
+                  <div class="text-xs bt-text-muted">
+                    {{ resolveRunQuoteCurrency(run) }}
+                  </div>
                 </div>
                 <div :class="[statCardClass, 'px-3 py-3']">
-                  <div class="text-xs uppercase tracking-[0.15em] text-slate-500 dark:text-slate-400">交易次数</div>
-                  <div class="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100">
+                  <div class="text-xs uppercase tracking-[0.15em] bt-text-muted">
+                    交易次数
+                  </div>
+                  <div class="mt-1 text-lg font-semibold bt-text">
                     {{ run.result.totalTrades }}
                   </div>
                 </div>
                 <div :class="[statCardClass, 'px-3 py-3']">
-                  <div class="text-xs uppercase tracking-[0.15em] text-slate-500 dark:text-slate-400">胜率</div>
-                  <div class="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100">
+                  <div class="text-xs uppercase tracking-[0.15em] bt-text-muted">
+                    胜率
+                  </div>
+                  <div class="mt-1 text-lg font-semibold bt-text">
                     {{ (run.result.winRate * 100).toFixed(1) }}%
                   </div>
                 </div>
                 <div :class="[statCardClass, 'px-3 py-3']">
-                  <div class="text-xs uppercase tracking-[0.15em] text-slate-500 dark:text-slate-400">最大回撤</div>
+                  <div class="text-xs uppercase tracking-[0.15em] bt-text-muted">
+                    最大回撤
+                  </div>
                   <div class="mt-1 text-lg font-semibold" :class="drawdownColor(run.result.maxDrawdown)">
                     {{ formatPercentMetric(run.result.maxDrawdown) }}
                   </div>
                 </div>
                 <div :class="[statCardClass, 'px-3 py-3']">
-                  <div class="text-xs uppercase tracking-[0.15em] text-slate-500 dark:text-slate-400">当前回撤</div>
+                  <div class="text-xs uppercase tracking-[0.15em] bt-text-muted">
+                    当前回撤
+                  </div>
                   <div class="mt-1 text-lg font-semibold" :class="drawdownColor(run.result.currentDrawdown)">
                     {{ formatPercentMetric(run.result.currentDrawdown) }}
                   </div>
                 </div>
               </div>
-              <div v-if="run.result && run.result.totalTrades === 0 && !run.result.error"
-                class="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300">
-                未产生任何交易。可能原因：策略未调用 placeOrder()，或订阅的K线周期未同步。
+              <div v-if="
+                run.result &&
+                run.result.totalTrades === 0 &&
+                !run.result.error
+              " class="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                未产生任何交易。可能原因：策略未调用
+                placeOrder()，或订阅的K线周期未同步。
               </div>
-              <div
-                class="mt-2 rounded border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300">
+              <div class="mt-2 rounded border bt-border bt-bg-muted px-2 py-1 text-xs bt-text">
                 <div class="mt-1">{{ resolveBacktestPriceBasisNote(run) }}</div>
                 <div v-if="resolveQueriedCandleBounds(run.result?.candles)" class="mt-1">
-                  查询到的周期边界：左边界 {{ resolveQueriedCandleBounds(run.result?.candles)?.left }} ｜ 右边界 {{
-                    resolveQueriedCandleBounds(run.result?.candles)?.right }} ｜ 共 {{
-                    resolveQueriedCandleBounds(run.result?.candles)?.count }} 根
+                  查询到的周期边界：左边界
+                  {{ resolveQueriedCandleBounds(run.result?.candles)?.left }} ｜
+                  右边界
+                  {{
+                    resolveQueriedCandleBounds(run.result?.candles)?.right
+                  }}
+                  ｜ 共
+                  {{
+                    resolveQueriedCandleBounds(run.result?.candles)?.count
+                  }}
+                  根
                 </div>
               </div>
 
               <!-- Backtest chart -->
-              <div v-if="run.status === 'completed' && run.result?.pnlCurve?.length" class="mt-2">
+              <div v-if="
+                run.status === 'completed' && run.result?.pnlCurve?.length
+              " class="mt-2">
                 <BacktestChart :candles="run.result.candles ?? []" :trades="run.result.trades ?? []"
                   :pnl-curve="run.result.pnlCurve" :drawdown-curve="run.result.drawdownCurve ?? []"
                   :initial-balance="run.request.initialBalance" :min-height="560"
-                  :currency-unit="resolveRunQuoteCurrency(run)"
-                  empty-text="暂无权益曲线数据" />
+                  :currency-unit="resolveRunQuoteCurrency(run)" empty-text="暂无权益曲线数据" />
               </div>
 
               <div v-if="run.result?.orderBook?.length" :class="[cardBorderClass, 'mt-3 overflow-hidden']">
                 <details>
                   <summary
-                    class="flex cursor-pointer items-center justify-between px-4 py-3 text-sm font-semibold text-slate-900 marker:content-none dark:text-slate-100">
+                    class="flex cursor-pointer items-center justify-between px-4 py-3 text-sm font-semibold bt-text marker:content-none">
                     <span>订单簿</span>
-                    <span class="text-xs font-medium text-slate-500 dark:text-slate-400">
+                    <span class="text-xs font-medium bt-text-muted">
                       {{ run.result.orderBook.length }} 笔 · 默认收起
                     </span>
                   </summary>
-                  <div class="border-t border-slate-200 dark:border-slate-700">
+                  <div class="border-t bt-border">
                     <div class="max-h-96 overflow-auto">
-                      <table class="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-700">
+                      <table class="min-w-full divide-y bt-divide text-sm">
                         <thead
-                          class="sticky top-0 bg-slate-50 text-left text-xs uppercase tracking-[0.14em] text-slate-500 dark:bg-slate-800/95 dark:text-slate-400">
+                          class="sticky top-0 bt-bg-muted text-left text-xs uppercase tracking-[0.14em] bt-text-muted">
                           <tr>
                             <th class="px-4 py-3 font-medium">下单</th>
                             <th class="px-4 py-3 font-medium">成交</th>
@@ -1121,35 +1307,63 @@ watch([selectedDefinitionId, interval], () => {
                             <th class="px-4 py-3 font-medium">状态</th>
                           </tr>
                         </thead>
-                        <tbody class="divide-y divide-slate-100 bg-white dark:divide-slate-800 dark:bg-slate-900/50">
+                        <tbody class="divide-y bt-divide-soft bt-bg-surface">
                           <tr v-for="entry in run.result.orderBook"
                             :key="`${entry.orderId}-${entry.filledAt ?? entry.submittedAt ?? ''}`">
-                            <td class="px-4 py-3 align-top text-slate-700 dark:text-slate-200">
-                              <div>{{ formatBacktestTimestamp(entry.submittedAt) }}</div>
-                              <div class="mt-1 text-xs text-slate-400 dark:text-slate-500">
-                                #{{ entry.orderId }}<span v-if="entry.clientOrderId"> · {{ entry.clientOrderId }}</span>
+                            <td class="px-4 py-3 align-top bt-text-strong">
+                              <div>
+                                {{ formatBacktestTimestamp(entry.submittedAt) }}
+                              </div>
+                              <div class="mt-1 text-xs bt-text-dim">
+                                #{{ entry.orderId
+                                }}<span v-if="entry.clientOrderId">
+                                  · {{ entry.clientOrderId }}</span>
                               </div>
                             </td>
-                            <td class="px-4 py-3 align-top text-slate-700 dark:text-slate-200">
+                            <td class="px-4 py-3 align-top bt-text-strong">
                               {{ formatBacktestTimestamp(entry.filledAt) }}
                             </td>
-                            <td class="px-4 py-3 align-top text-slate-700 dark:text-slate-200">
+                            <td class="px-4 py-3 align-top bt-text-strong">
                               {{ formatBacktestOrderSide(entry.side) }}
                             </td>
-                            <td class="px-4 py-3 align-top text-slate-700 dark:text-slate-200">
-                              <div>{{ formatBacktestQuantity(entry.quantity, entry.quantityText) }}</div>
-                              <div v-if="entry.filledQuantity !== undefined"
-                                class="mt-1 text-xs text-slate-400 dark:text-slate-500">
-                                成交 {{ formatBacktestQuantity(entry.filledQuantity, entry.filledQuantityText) }}
+                            <td class="px-4 py-3 align-top bt-text-strong">
+                              <div>
+                                {{
+                                  formatBacktestQuantity(
+                                    entry.quantity,
+                                    entry.quantityText,
+                                  )
+                                }}
+                              </div>
+                              <div v-if="entry.filledQuantity !== undefined" class="mt-1 text-xs bt-text-dim">
+                                成交
+                                {{
+                                  formatBacktestQuantity(
+                                    entry.filledQuantity,
+                                    entry.filledQuantityText,
+                                  )
+                                }}
                               </div>
                             </td>
-                            <td class="px-4 py-3 align-top text-slate-700 dark:text-slate-200">
-                              {{ formatBacktestOrderPrice(entry.orderPrice, entry.orderType, entry.orderPriceText) }}
+                            <td class="px-4 py-3 align-top bt-text-strong">
+                              {{
+                                formatBacktestOrderPrice(
+                                  entry.orderPrice,
+                                  entry.orderType,
+                                  entry.orderPriceText,
+                                )
+                              }}
                             </td>
-                            <td class="px-4 py-3 align-top text-slate-700 dark:text-slate-200">
-                              {{ formatBacktestOrderPrice(entry.filledPrice, undefined, entry.filledPriceText) }}
+                            <td class="px-4 py-3 align-top bt-text-strong">
+                              {{
+                                formatBacktestOrderPrice(
+                                  entry.filledPrice,
+                                  undefined,
+                                  entry.filledPriceText,
+                                )
+                              }}
                             </td>
-                            <td class="px-4 py-3 align-top text-slate-700 dark:text-slate-200">
+                            <td class="px-4 py-3 align-top bt-text-strong">
                               {{ formatBacktestOrderStatus(entry.status) }}
                             </td>
                           </tr>
@@ -1162,14 +1376,16 @@ watch([selectedDefinitionId, interval], () => {
             </v-card-text>
 
             <!-- Runtime errors (e.g. insufficient balance, order rejections) -->
-            <v-card-text v-if="run.result?.runtimeErrors && run.result.runtimeErrors.length > 0" class="pb-0">
-              <details class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 dark:border-red-800 dark:bg-red-950">
-                <summary class="cursor-pointer text-xs font-semibold text-red-700 select-none dark:text-red-300">
+            <v-card-text v-if="
+              run.result?.runtimeErrors && run.result.runtimeErrors.length > 0
+            " class="pb-0">
+              <details class="rounded-lg border border-red-200 bg-red-50 px-3 py-2">
+                <summary class="cursor-pointer text-xs font-semibold text-red-700 select-none">
                   ⚡ 运行时错误 ({{ run.result.runtimeErrors.length }})
                 </summary>
                 <div class="mt-2 space-y-1 max-h-48 overflow-y-auto">
                   <div v-for="(err, i) in run.result.runtimeErrors" :key="i"
-                    class="rounded border border-red-100 bg-white px-2 py-1 text-xs text-red-800 font-mono leading-relaxed dark:border-red-900 dark:bg-slate-800 dark:text-red-200">
+                    class="rounded border border-red-100 bt-bg-surface px-2 py-1 text-xs text-red-800 font-mono leading-relaxed">
                     {{ err }}
                   </div>
                 </div>
@@ -1178,14 +1394,15 @@ watch([selectedDefinitionId, interval], () => {
 
             <!-- Diagnostic logs (always visible when present) -->
             <v-card-text v-if="run.result?.logs && run.result.logs.length > 0" class="pb-0">
-              <div
-                class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 space-y-1 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300">
-                <div v-for="(log, i) in run.result.logs" :key="i">⚠ {{ log }}</div>
+              <div class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 space-y-1">
+                <div v-for="(log, i) in run.result.logs" :key="i">
+                  ⚠ {{ log }}
+                </div>
               </div>
             </v-card-text>
             <v-card-text v-if="run.result?.error" class="pb-0">
               <div
-                class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 whitespace-pre-wrap dark:border-red-800 dark:bg-red-950 dark:text-red-300">
+                class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 whitespace-pre-wrap">
                 {{ run.result.error }}
               </div>
             </v-card-text>
@@ -1199,3 +1416,95 @@ watch([selectedDefinitionId, interval], () => {
     </div>
   </div>
 </template>
+
+<style scoped>
+.backtest-page :deep(.v-field) {
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--tv-bg-elevated) 88%, transparent);
+}
+
+.backtest-page :deep(.v-field--variant-outlined .v-field__outline) {
+  --v-field-border-opacity: 1;
+  color: var(--tv-border);
+}
+
+.backtest-page :deep(.v-card) {
+  background: var(--tv-bg-surface);
+  border-color: var(--tv-border);
+}
+
+.backtest-page :deep(.v-select .v-field__input),
+.backtest-page :deep(.v-combobox .v-field__input),
+.backtest-page :deep(.v-text-field .v-field__input) {
+  color: var(--tv-text);
+}
+
+.backtest-page :deep(.v-input__details) {
+  color: var(--tv-text-dim);
+}
+
+.backtest-page :deep(.v-chip) {
+  border-color: var(--tv-border);
+}
+
+.backtest-page :deep(.v-pagination .v-btn) {
+  background: var(--tv-bg-surface-2);
+  color: var(--tv-text-muted);
+  border: 1px solid var(--tv-border);
+}
+
+.backtest-page :deep(.v-pagination .v-btn.v-btn--active) {
+  color: var(--tv-accent);
+  border-color: var(--tv-accent);
+}
+
+.backtest-page .bt-bg-surface {
+  background: var(--tv-bg-surface);
+}
+
+.backtest-page .bt-bg-muted {
+  background: var(--tv-bg-surface-2);
+}
+
+.backtest-page .bt-border {
+  border-color: var(--tv-border);
+}
+
+.backtest-page .bt-border-soft {
+  border-color: color-mix(in srgb, var(--tv-border) 70%, transparent);
+}
+
+.backtest-page .bt-text {
+  color: var(--tv-text);
+}
+
+.backtest-page .bt-text-strong {
+  color: var(--tv-text);
+}
+
+.backtest-page .bt-text-muted {
+  color: var(--tv-text-muted);
+}
+
+.backtest-page .bt-text-dim {
+  color: var(--tv-text-dim);
+}
+
+.backtest-page .bt-disabled-bg {
+  background: color-mix(in srgb,
+      var(--tv-bg-elevated) 60%,
+      var(--tv-border) 40%);
+}
+
+.backtest-page .bt-divide> :not([hidden])~ :not([hidden]) {
+  border-color: var(--tv-border);
+}
+
+.backtest-page .bt-divide-soft> :not([hidden])~ :not([hidden]) {
+  border-color: color-mix(in srgb, var(--tv-border) 70%, transparent);
+}
+
+.backtest-page .bt-metric-negative {
+  color: var(--tv-down);
+}
+</style>

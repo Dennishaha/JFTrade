@@ -928,6 +928,18 @@ export interface BrokerFundsResponse {
     maintenanceMargin: number | null;
     marginCallMargin: number | null;
     riskStatus: string | null;
+    // Margin & Financing 融资融券
+    debtCash: number | null;
+    isPdt: boolean | null;
+    pdtSeq: string | null;
+    beginningDTBP: number | null;
+    remainingDTBP: number | null;
+    dtCallAmount: number | null;
+    dtStatus: string | null;
+    exposureLevel: string | null;
+    exposureLimit: number | null;
+    usedLimit: number | null;
+    remainingLimit: number | null;
   } | null;
   currencyBalances: Array<{
     accountId: string;

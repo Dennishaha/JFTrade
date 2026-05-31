@@ -3,6 +3,7 @@ package futu
 import (
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/c9s/bbgo/pkg/fixedpoint"
 	"google.golang.org/protobuf/proto"
@@ -18,16 +19,37 @@ func brokerTradeFilterConditions(symbol string, startTime string, endTime string
 	if canonicalSymbol != "" {
 		filter.CodeList = []string{canonicalSymbol}
 	}
-	if trimmed := strings.TrimSpace(startTime); trimmed != "" {
+	if trimmed := normalizeTradeFilterTimeInput(startTime); trimmed != "" {
 		filter.BeginTime = proto.String(trimmed)
 	}
-	if trimmed := strings.TrimSpace(endTime); trimmed != "" {
+	if trimmed := normalizeTradeFilterTimeInput(endTime); trimmed != "" {
 		filter.EndTime = proto.String(trimmed)
 	}
 	if market != 0 {
 		filter.FilterMarket = proto.Int32(market)
 	}
 	return filter
+}
+
+func normalizeTradeFilterTimeInput(value string) string {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return ""
+	}
+	for _, layout := range []string{
+		"2006-01-02 15:04:05",
+		time.RFC3339Nano,
+		time.RFC3339,
+		"2006-01-02T15:04:05.000",
+		"2006-01-02T15:04:05",
+	} {
+		parsed, err := time.Parse(layout, trimmed)
+		if err != nil {
+			continue
+		}
+		return parsed.UTC().Format("2006-01-02 15:04:05")
+	}
+	return trimmed
 }
 
 func brokerOrderStatusFilterValues(statuses []string) []int32 {

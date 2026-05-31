@@ -39,6 +39,11 @@ func (a *futuAdapter) Descriptor() broker.Descriptor {
 				"orderFees":        map[string]any{"supportedEnvironments": []string{"REAL"}, "requiresOrderIdEx": true},
 				"marginRatios":     map[string]any{"supportedEnvironments": []string{"REAL"}, "requiresSymbols": true},
 				"maxTradeQuantity": map[string]any{"supportedEnvironments": []string{"SIMULATE", "REAL"}, "requiresPrice": true},
+				"quote":            map[string]any{"supportedEnvironments": []string{"SIMULATE", "REAL"}, "requiresSymbols": true},
+				"klines":           map[string]any{"supportedEnvironments": []string{"SIMULATE", "REAL"}, "requiresSymbol": true},
+				"securityInfo":     map[string]any{"supportedEnvironments": []string{"SIMULATE", "REAL"}, "requiresSymbols": true},
+				"securitySnapshot": map[string]any{"supportedEnvironments": []string{"SIMULATE", "REAL"}, "requiresSymbols": true},
+				"unlockTrade":      map[string]any{"supportedEnvironments": []string{"REAL"}, "requiresPassword": true},
 			},
 		}},
 		Notes: []string{

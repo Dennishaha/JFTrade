@@ -53,8 +53,20 @@ type FundsSnapshot struct {
 	MaintenanceMargin       *float64                  `json:"maintenanceMargin,omitempty"`
 	MarginCallMargin        *float64                  `json:"marginCallMargin,omitempty"`
 	RiskStatus              *string                   `json:"riskStatus,omitempty"`
-	CurrencyBalances        []CurrencyBalanceSnapshot `json:"currencyBalances,omitempty"`
-	MarketAssets            []MarketAssetSnapshot     `json:"marketAssets,omitempty"`
+	// Margin & Financing 融资融券
+	DebtCash              *float64                  `json:"debtCash,omitempty"`
+	IsPDT                 *bool                     `json:"isPdt,omitempty"`
+	PDTSeq                *string                   `json:"pdtSeq,omitempty"`
+	BeginningDTBP         *float64                  `json:"beginningDTBP,omitempty"`
+	RemainingDTBP         *float64                  `json:"remainingDTBP,omitempty"`
+	DTCallAmount          *float64                  `json:"dtCallAmount,omitempty"`
+	DTStatus              *string                   `json:"dtStatus,omitempty"`
+	ExposureLevel         *string                   `json:"exposureLevel,omitempty"`
+	ExposureLimit         *float64                  `json:"exposureLimit,omitempty"`
+	UsedLimit             *float64                  `json:"usedLimit,omitempty"`
+	RemainingLimit        *float64                  `json:"remainingLimit,omitempty"`
+	CurrencyBalances      []CurrencyBalanceSnapshot `json:"currencyBalances,omitempty"`
+	MarketAssets          []MarketAssetSnapshot     `json:"marketAssets,omitempty"`
 }
 
 type CurrencyBalanceSnapshot struct {
@@ -297,4 +309,131 @@ type OrderUpdateEvent struct {
 	Order   *OrderSnapshot
 	Fill    *OrderFillSnapshot
 	ReceivedAt time.Time
+}
+
+// --- Quote ---
+
+type QuoteQuery struct {
+	ReadQuery
+	Symbols []string `json:"symbols"`
+}
+
+type QuoteSnapshot struct {
+	AccountID    string          `json:"accountId"`
+	Symbol       string          `json:"symbol"`
+	SymbolName   *string         `json:"symbolName,omitempty"`
+	LastPrice    float64         `json:"lastPrice"`
+	OpenPrice    *float64        `json:"openPrice,omitempty"`
+	HighPrice    *float64        `json:"highPrice,omitempty"`
+	LowPrice     *float64        `json:"lowPrice,omitempty"`
+	LastClose    *float64        `json:"lastClose,omitempty"`
+	Volume       float64         `json:"volume"`
+	Turnover     *float64        `json:"turnover,omitempty"`
+	QuoteAt      string          `json:"quoteAt,omitempty"`
+	Quotes       []QuoteItem     `json:"quotes,omitempty"`
+}
+
+type QuoteItem struct {
+	Symbol     string  `json:"symbol"`
+	SymbolName *string `json:"symbolName,omitempty"`
+	LastPrice  float64 `json:"lastPrice"`
+	OpenPrice  *float64 `json:"openPrice,omitempty"`
+	HighPrice  *float64 `json:"highPrice,omitempty"`
+	LowPrice   *float64 `json:"lowPrice,omitempty"`
+	Volume     float64 `json:"volume"`
+	Turnover   *float64 `json:"turnover,omitempty"`
+}
+
+// --- K-Line ---
+
+type KLineQuery struct {
+	ReadQuery
+	Symbol  string `json:"symbol"`
+	Period  string `json:"period"`  // 1m, 5m, 15m, 30m, 60m, 1d, 1w, 1M
+	FromTime string `json:"fromTime,omitempty"`
+	ToTime   string `json:"toTime,omitempty"`
+	Limit    int32  `json:"limit,omitempty"`
+}
+
+type KLineSnapshot struct {
+	AccountID string        `json:"accountId"`
+	Symbol    string        `json:"symbol"`
+	Period    string        `json:"period"`
+	KLines    []KLineItem   `json:"klines"`
+}
+
+type KLineItem struct {
+	Time       string   `json:"time"`
+	Open       *float64 `json:"open,omitempty"`
+	Close      *float64 `json:"close,omitempty"`
+	High       *float64 `json:"high,omitempty"`
+	Low        *float64 `json:"low,omitempty"`
+	Volume     *float64 `json:"volume,omitempty"`
+	Turnover   *float64 `json:"turnover,omitempty"`
+	ChangeRate *float64 `json:"changeRate,omitempty"`
+}
+
+// --- Security Info ---
+
+type SecurityInfoQuery struct {
+	ReadQuery
+	Symbols []string `json:"symbols"`
+}
+
+type SecurityInfoSnapshot struct {
+	AccountID string           `json:"accountId"`
+	Securities []SecurityInfoItem `json:"securities"`
+}
+
+type SecurityInfoItem struct {
+	Symbol       string  `json:"symbol"`
+	Name         *string `json:"name,omitempty"`
+	SecurityType *string `json:"securityType,omitempty"`
+	LotSize      *int32  `json:"lotSize,omitempty"`
+	ListTime     *string `json:"listTime,omitempty"`
+	IsDelisted   *bool   `json:"isDelisted,omitempty"`
+}
+
+// --- Security Snapshot ---
+
+type SecuritySnapshotQuery struct {
+	ReadQuery
+	Symbols []string `json:"symbols"`
+}
+
+type SecuritySnapshotResult struct {
+	AccountID string             `json:"accountId"`
+	Snapshots []SecuritySnapshotItem `json:"snapshots"`
+}
+
+type SecuritySnapshotItem struct {
+	Symbol       string   `json:"symbol"`
+	Name         *string  `json:"name,omitempty"`
+	SecurityType *string  `json:"securityType,omitempty"`
+	IsSuspended  *bool    `json:"isSuspended,omitempty"`
+	LastPrice    *float64 `json:"lastPrice,omitempty"`
+	OpenPrice    *float64 `json:"openPrice,omitempty"`
+	HighPrice    *float64 `json:"highPrice,omitempty"`
+	LowPrice     *float64 `json:"lowPrice,omitempty"`
+	Volume       *float64 `json:"volume,omitempty"`
+	Turnover     *float64 `json:"turnover,omitempty"`
+	PERate       *float64 `json:"peRate,omitempty"`
+	PBRate       *float64 `json:"pbRate,omitempty"`
+	LotSize      *int32  `json:"lotSize,omitempty"`
+}
+
+// --- Quote Subscribe ---
+
+type QuoteSubscribeRequest struct {
+	ReadQuery
+	Symbols   []string `json:"symbols"`
+	SubTypes  []string `json:"subTypes,omitempty"`
+}
+
+// --- Unlock Trade ---
+
+type UnlockTradeRequest struct {
+	ReadQuery
+	Unlock       bool   `json:"unlock"`
+	PasswordMD5  string `json:"passwordMd5,omitempty"`
 }

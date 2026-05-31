@@ -284,6 +284,13 @@ const fundsSummaryRows = computed(() => [
   { label: "可取现金", value: brokerFunds.value.summary?.availableWithdrawalCash },
   { label: "证券市值", value: brokerFunds.value.summary?.marketValue ?? totalMarketValue.value },
   { label: "冻结资金", value: brokerFunds.value.summary?.frozenCash },
+  // 融资融券资金字段
+  { label: "融资可提", value: brokerFunds.value.summary?.maxWithdrawal },
+  { label: "卖空购买力", value: brokerFunds.value.summary?.shortSellingPower },
+  { label: "现金购买力", value: brokerFunds.value.summary?.netCashPower },
+  { label: "多头市值", value: brokerFunds.value.summary?.longMarketValue },
+  { label: "空头市值", value: brokerFunds.value.summary?.shortMarketValue },
+  { label: "计息金额", value: brokerFunds.value.summary?.debtCash },
 ]);
 
 const activeTradingEnvironment = computed(
@@ -604,7 +611,7 @@ watch(
               </v-chip>
             </div>
             <v-card-text>
-              <div class="grid gap-3 sm:grid-cols-4 xl:grid-cols-3">
+              <div class="grid gap-3 sm:grid-cols-4 xl:grid-cols-6">
                 <div
                   v-for="fact in accountFacts"
                   :key="fact.label"
@@ -704,6 +711,75 @@ watch(
             </v-card>
           </section>
 
+          <v-card v-if="brokerFunds.summary?.initialMargin != null || brokerFunds.summary?.riskStatus != null" flat class="card-shell border-0">
+            <div class="px-4 pt-4">
+              <SectionHeader title="保证金与风控" description="展示当前账户的保证金额度、风险等级与持仓限额信息。" />
+            </div>
+            <v-card-text>
+              <div class="grid gap-3 sm:grid-cols-4 xl:grid-cols-3">
+                <div v-if="brokerFunds.summary?.riskStatus" class="rounded-lg border border-slate-200 bg-white px-4 py-3">
+                  <div class="text-xs text-slate-500">风险等级</div>
+                  <div class="mt-2 text-base font-semibold text-slate-900">{{ brokerFunds.summary.riskStatus }}</div>
+                </div>
+                <div v-if="brokerFunds.summary?.initialMargin != null" class="rounded-lg bg-slate-50 px-4 py-3">
+                  <div class="text-xs text-slate-500">初始保证金</div>
+                  <div class="mt-2 text-lg font-semibold text-slate-900">
+                    {{ formatMoney(brokerFunds.summary.initialMargin, brokerFunds.summary?.currency) }}
+                  </div>
+                </div>
+                <div v-if="brokerFunds.summary?.maintenanceMargin != null" class="rounded-lg bg-slate-50 px-4 py-3">
+                  <div class="text-xs text-slate-500">维持保证金</div>
+                  <div class="mt-2 text-lg font-semibold text-slate-900">
+                    {{ formatMoney(brokerFunds.summary.maintenanceMargin, brokerFunds.summary?.currency) }}
+                  </div>
+                </div>
+                <div v-if="brokerFunds.summary?.marginCallMargin != null" class="rounded-lg bg-slate-50 px-4 py-3">
+                  <div class="text-xs text-slate-500">Margin Call 保证金</div>
+                  <div class="mt-2 text-lg font-semibold text-slate-900">
+                    {{ formatMoney(brokerFunds.summary.marginCallMargin, brokerFunds.summary?.currency) }}
+                  </div>
+                </div>
+              </div>
+              <!-- 持仓限额 -->
+              <div v-if="brokerFunds.summary?.exposureLevel != null" class="mt-4 grid gap-3 sm:grid-cols-3">
+                <div class="rounded-lg bg-slate-50 px-4 py-3">
+                  <div class="text-xs text-slate-500">限额等级</div>
+                  <div class="mt-2 text-base font-semibold text-slate-900">{{ brokerFunds.summary.exposureLevel }}</div>
+                </div>
+                <div v-if="brokerFunds.summary?.exposureLimit != null" class="rounded-lg bg-slate-50 px-4 py-3">
+                  <div class="text-xs text-slate-500">持仓限额</div>
+                  <div class="mt-2 text-base font-semibold text-slate-900">{{ formatMoney(brokerFunds.summary.exposureLimit, brokerFunds.summary?.currency) }}</div>
+                </div>
+                <div v-if="brokerFunds.summary?.remainingLimit != null" class="rounded-lg bg-slate-50 px-4 py-3">
+                  <div class="text-xs text-slate-500">剩余限额</div>
+                  <div class="mt-2 text-base font-semibold text-slate-900">{{ formatMoney(brokerFunds.summary.remainingLimit, brokerFunds.summary?.currency) }}</div>
+                </div>
+              </div>
+              <!-- PDT 日内交易（美股专用） -->
+              <div v-if="brokerFunds.summary?.isPdt != null || brokerFunds.summary?.dtStatus != null" class="mt-4 rounded-lg border border-amber-200 bg-amber-50/30 px-4 py-3">
+                <div class="text-xs font-semibold text-amber-700 uppercase tracking-wide">美股 PDT / 日内交易</div>
+                <div class="mt-2 grid gap-2 sm:grid-cols-4">
+                  <div v-if="brokerFunds.summary?.isPdt != null" class="text-sm">
+                    <span class="text-slate-500">PDT 账户：</span>
+                    <span class="font-medium text-slate-900">{{ brokerFunds.summary.isPdt ? '是' : '否' }}</span>
+                  </div>
+                  <div v-if="brokerFunds.summary?.pdtSeq != null" class="text-sm">
+                    <span class="text-slate-500">日内交易次数：</span>
+                    <span class="font-medium text-slate-900">{{ brokerFunds.summary.pdtSeq }}</span>
+                  </div>
+                  <div v-if="brokerFunds.summary?.remainingDTBP != null" class="text-sm">
+                    <span class="text-slate-500">剩余日内购买力：</span>
+                    <span class="font-medium text-slate-900">{{ formatMoney(brokerFunds.summary.remainingDTBP) }}</span>
+                  </div>
+                  <div v-if="brokerFunds.summary?.dtStatus != null" class="text-sm">
+                    <span class="text-slate-500">限制状态：</span>
+                    <span class="font-medium text-slate-900">{{ brokerFunds.summary.dtStatus }}</span>
+                  </div>
+                </div>
+              </div>
+            </v-card-text>
+          </v-card>
+
           <v-card flat class="card-shell border-0">
             <div class="flex flex-wrap items-center justify-between gap-3 px-4 pt-4">
               <div>
@@ -784,7 +860,7 @@ watch(
               />
               <v-empty-state
                 v-else-if="marginRatioSymbols.length === 0"
-                text="当前账户暂无持仓标的，暂不查询融资融券参数。"
+                text="当前账户暂无持仓标的，融资融券参数按持仓标的查询；账户级保证金与风控信息见上方卡片。"
               />
               <div v-else-if="isLoadingBrokerMarginRatios" class="text-sm text-slate-500">
                 正在加载融资融券参数...

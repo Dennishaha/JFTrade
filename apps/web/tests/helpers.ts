@@ -378,6 +378,7 @@ export async function mountApp(path = "/system") {
         "v-card-actions": passthroughStub,
         "v-chip": passthroughStub,
         "v-btn": buttonStub,
+        "v-btn-toggle": passthroughStub,
         "v-alert": passthroughStub,
         "v-progress-linear": passthroughStub,
         "v-progress-circular": passthroughStub,

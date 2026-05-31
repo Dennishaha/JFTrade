@@ -70,6 +70,9 @@ type Exchange struct {
 	// returned by QueryMarkets but should be known to the exchange — e.g.
 	// backtest symbols that the live OpenD connection hasn't discovered.
 	customMarkets types.MarketMap
+
+	marginRatioCacheMu sync.RWMutex
+	marginRatioCache   map[string]marginRatioCacheEntry
 }
 
 // NewExchange constructs an Exchange. It does not dial OpenD: bbgo expects
@@ -83,9 +86,10 @@ func NewExchange(addr string) *Exchange {
 // configuration.
 func NewExchangeWithConfig(cfg opend.Config) *Exchange {
 	return &Exchange{
-		addr:          cfg.Addr,
-		webSocketKey:  cfg.WebSocketKey,
-		subscriptions: newSubscriptionRegistry(),
+		addr:             cfg.Addr,
+		webSocketKey:     cfg.WebSocketKey,
+		subscriptions:    newSubscriptionRegistry(),
+		marginRatioCache: make(map[string]marginRatioCacheEntry),
 	}
 }
 

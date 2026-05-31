@@ -42,6 +42,18 @@ type MarketDataReader interface {
 	QueryMarginRatios(ctx context.Context, query MarginRatioQuery) ([]MarginRatioSnapshot, error)
 	QueryCashFlows(ctx context.Context, query CashFlowQuery) ([]CashFlowSnapshot, error)
 	QueryMaxTradeQuantity(ctx context.Context, query MaxTradeQuantityQuery) (*MaxTradeQuantitySnapshot, error)
+
+	// QueryQuote fetches basic quote snapshots for the given securities.
+	QueryQuote(ctx context.Context, query QuoteQuery) (*QuoteSnapshot, error)
+
+	// QueryKLines fetches historical K-lines for the given query window.
+	QueryKLines(ctx context.Context, query KLineQuery) (*KLineSnapshot, error)
+
+	// QuerySecurityInfo retrieves static info for the given securities.
+	QuerySecurityInfo(ctx context.Context, query SecurityInfoQuery) (*SecurityInfoSnapshot, error)
+
+	// QuerySecuritySnapshot retrieves full snapshots (basic + extended data).
+	QuerySecuritySnapshot(ctx context.Context, query SecuritySnapshotQuery) (*SecuritySnapshotResult, error)
 }
 
 // TradingService provides write-side broker operations: place and cancel orders.
@@ -65,4 +77,19 @@ type OrderPushSubscriber interface {
 type BrokerConnector interface {
 	Connect(ctx context.Context) error
 	Close() error
+}
+
+// QuoteSubscriber is an optional interface for brokers that support real-time
+// quote push subscriptions.
+type QuoteSubscriber interface {
+	// SubscribeQuotes subscribes to real-time quote pushes for the given securities.
+	// The reader is called with each push; it MUST return quickly.
+	SubscribeQuotes(ctx context.Context, req QuoteSubscribeRequest) error
+}
+
+// UnlockTrader is an optional interface for brokers that require explicit
+// trading session unlock before placing orders.
+type UnlockTrader interface {
+	// UnlockTrade unlocks the trading session with the given password (MD5 hex).
+	UnlockTrade(ctx context.Context, req UnlockTradeRequest) error
 }

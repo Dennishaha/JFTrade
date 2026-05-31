@@ -2,6 +2,7 @@ package jftradeapi
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -14,7 +15,7 @@ import (
 
 func (s *Server) serveBrokerRoutes(w http.ResponseWriter, r *http.Request) bool {
 	brokerID, resource, ok := parseBrokerRoute(r.URL.Path)
-	if !ok || r.Method != http.MethodGet {
+	if !ok {
 		return false
 	}
 
@@ -28,6 +29,16 @@ func (s *Server) serveBrokerRoutes(w http.ResponseWriter, r *http.Request) bool 
 	}
 
 	query := s.brokerReadQueryFromRequest(r)
+
+	// Handle write-side methods
+	if r.Method == http.MethodPost || r.Method == http.MethodDelete {
+		return s.serveBrokerWriteRoutes(w, r, resource, query)
+	}
+
+	if r.Method != http.MethodGet {
+		return false
+	}
+
 	switch resource {
 	case "runtime":
 		s.writeOK(w, s.brokerRuntime(r.Context()))
@@ -47,10 +58,34 @@ func (s *Server) serveBrokerRoutes(w http.ResponseWriter, r *http.Request) bool 
 		s.writeOK(w, s.brokerMarginRatiosResponse(r.Context(), query, r.URL.Query()))
 	case "max-trade-qtys":
 		s.writeOK(w, s.brokerMaxTradeQuantityResponse(r.Context(), query, r.URL.Query()))
+	case "quote":
+		s.writeOK(w, s.brokerQuoteResponse(r.Context(), query, r.URL.Query()))
+	case "klines":
+		s.writeOK(w, s.brokerKLinesResponse(r.Context(), query, r.URL.Query()))
+	case "securities":
+		s.writeOK(w, s.brokerSecuritiesSnapshotResponse(r.Context(), query, r.URL.Query()))
+	case "unlock":
+		return false // unlock is POST-only
 	default:
 		return false
 	}
 	return true
+}
+
+func (s *Server) serveBrokerWriteRoutes(w http.ResponseWriter, r *http.Request, resource string, query broker.ReadQuery) bool {
+	switch {
+	case resource == "orders" && r.Method == http.MethodPost:
+		s.handlePlaceOrder(w, r, query)
+		return true
+	case resource == "orders" && r.Method == http.MethodDelete:
+		s.handleCancelOrders(w, r, query)
+		return true
+	case resource == "unlock" && r.Method == http.MethodPost:
+		s.handleUnlockTrade(w, r, query)
+		return true
+	default:
+		return false
+	}
 }
 
 func parseBrokerRoute(path string) (brokerID string, resource string, ok bool) {
@@ -159,6 +194,18 @@ func (s *Server) brokerFundsResponse(ctx context.Context, query broker.ReadQuery
 			"maintenanceMargin":       snapshot.MaintenanceMargin,
 			"marginCallMargin":        snapshot.MarginCallMargin,
 			"riskStatus":              snapshot.RiskStatus,
+			// Margin & Financing 融资融券
+			"debtCash":       snapshot.DebtCash,
+			"isPdt":          snapshot.IsPDT,
+			"pdtSeq":         snapshot.PDTSeq,
+			"beginningDTBP":  snapshot.BeginningDTBP,
+			"remainingDTBP":  snapshot.RemainingDTBP,
+			"dtCallAmount":   snapshot.DTCallAmount,
+			"dtStatus":       snapshot.DTStatus,
+			"exposureLevel":  snapshot.ExposureLevel,
+			"exposureLimit":  snapshot.ExposureLimit,
+			"usedLimit":      snapshot.UsedLimit,
+			"remainingLimit": snapshot.RemainingLimit,
 		},
 		"currencyBalances": currencyBalances,
 		"marketAssets":     marketAssets,
@@ -408,7 +455,15 @@ func (s *Server) brokerMarginRatiosResponse(ctx context.Context, query broker.Re
 		return brokerReadErrorResponse("marginRatios", []any{}, fmt.Errorf("broker market data not available"))
 	}
 
-	symbols := queryListValues(params, "symbol", "symbols")
+	rawSymbols := queryListValues(params, "symbol", "symbols")
+	symbols := make([]string, 0, len(rawSymbols))
+	for _, symbol := range rawSymbols {
+		instrument, err := normalizeInstrumentInput(query.Market, symbol, "")
+		if err != nil {
+			return brokerReadErrorResponse("marginRatios", []any{}, fmt.Errorf("query parameter symbol %q is invalid: %w", symbol, err))
+		}
+		symbols = append(symbols, instrument.Symbol)
+	}
 	if len(symbols) == 0 {
 		return brokerReadErrorResponse("marginRatios", []any{}, fmt.Errorf("query parameter symbol is required"))
 	}
@@ -570,4 +625,194 @@ func connectivityFromBrokerReadError(err error) string {
 		}
 	}
 	return "degraded"
+}
+
+// --- New write-side handlers ---
+
+func (s *Server) handlePlaceOrder(w http.ResponseWriter, r *http.Request, query broker.ReadQuery) {
+	var req broker.PlaceOrderQuery
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "invalid request body: "+err.Error())
+		return
+	}
+	req.ReadQuery = query
+
+	activeBroker := s.activeBroker()
+	if activeBroker == nil {
+		s.writeError(w, http.StatusServiceUnavailable, "NO_BROKER", "no active broker")
+		return
+	}
+	trading := activeBroker.Trading()
+	if trading == nil {
+		s.writeError(w, http.StatusServiceUnavailable, "NO_TRADING", "broker does not support trading")
+		return
+	}
+	result, err := trading.PlaceOrder(r.Context(), req)
+	if err != nil {
+		s.writeError(w, http.StatusBadGateway, "PLACE_ORDER_FAILED", err.Error())
+		return
+	}
+	s.writeOK(w, map[string]any{
+		"placedAt": time.Now().UTC().Format(time.RFC3339Nano),
+		"order":    result,
+	})
+}
+
+func (s *Server) handleCancelOrders(w http.ResponseWriter, r *http.Request, query broker.ReadQuery) {
+	var req struct {
+		Orders []struct {
+			OrderID       uint64 `json:"orderId"`
+			BrokerOrderID string `json:"brokerOrderId"`
+			Symbol        string `json:"symbol"`
+		} `json:"orders"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "invalid request body: "+err.Error())
+		return
+	}
+
+	activeBroker := s.activeBroker()
+	if activeBroker == nil {
+		s.writeError(w, http.StatusServiceUnavailable, "NO_BROKER", "no active broker")
+		return
+	}
+	trading := activeBroker.Trading()
+	if trading == nil {
+		s.writeError(w, http.StatusServiceUnavailable, "NO_TRADING", "broker does not support trading")
+		return
+	}
+	orders := make([]broker.CancelOrder, len(req.Orders))
+	for i, o := range req.Orders {
+		orders[i] = broker.CancelOrder{
+			OrderID:       o.OrderID,
+			BrokerOrderID: o.BrokerOrderID,
+			Symbol:        o.Symbol,
+		}
+	}
+	if err := trading.CancelOrders(r.Context(), query, orders...); err != nil {
+		s.writeError(w, http.StatusBadGateway, "CANCEL_FAILED", err.Error())
+		return
+	}
+	s.writeOK(w, map[string]any{
+		"cancelledAt": time.Now().UTC().Format(time.RFC3339Nano),
+		"cancelled":   len(orders),
+	})
+}
+
+func (s *Server) handleUnlockTrade(w http.ResponseWriter, r *http.Request, query broker.ReadQuery) {
+	var req broker.UnlockTradeRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "invalid request body: "+err.Error())
+		return
+	}
+	req.ReadQuery = query
+
+	activeBroker := s.activeBroker()
+	if activeBroker == nil {
+		s.writeError(w, http.StatusServiceUnavailable, "NO_BROKER", "no active broker")
+		return
+	}
+	if unlocker, ok := activeBroker.(broker.UnlockTrader); ok {
+		if err := unlocker.UnlockTrade(r.Context(), req); err != nil {
+			s.writeError(w, http.StatusBadGateway, "UNLOCK_FAILED", err.Error())
+			return
+		}
+		s.writeOK(w, map[string]any{
+			"unlockedAt": time.Now().UTC().Format(time.RFC3339Nano),
+			"unlocked":   true,
+		})
+		return
+	}
+	s.writeError(w, http.StatusServiceUnavailable, "NOT_SUPPORTED", "broker does not support trade unlock")
+}
+
+// --- New read-side handlers ---
+
+func (s *Server) brokerQuoteResponse(ctx context.Context, query broker.ReadQuery, params url.Values) map[string]any {
+	reader := s.brokerMarketDataReader()
+	if reader == nil {
+		return brokerReadErrorResponse("quotes", []any{}, fmt.Errorf("broker market data not available"))
+	}
+	symbols := queryListValues(params, "symbol", "symbols")
+	if len(symbols) == 0 {
+		return brokerReadErrorResponse("quotes", []any{}, fmt.Errorf("query parameter symbol is required"))
+	}
+	quote, err := reader.QueryQuote(ctx, broker.QuoteQuery{
+		ReadQuery: query,
+		Symbols:   symbols,
+	})
+	if err != nil {
+		return brokerReadErrorResponse("quotes", []any{}, err)
+	}
+	return map[string]any{
+		"checkedAt":    time.Now().UTC().Format(time.RFC3339Nano),
+		"connectivity": "connected",
+		"lastError":    nil,
+		"quote":        quote,
+	}
+}
+
+func (s *Server) brokerKLinesResponse(ctx context.Context, query broker.ReadQuery, params url.Values) map[string]any {
+	reader := s.brokerMarketDataReader()
+	if reader == nil {
+		return brokerReadErrorResponse("klines", []any{}, fmt.Errorf("broker market data not available"))
+	}
+	symbol := strings.TrimSpace(params.Get("symbol"))
+	if symbol == "" {
+		return brokerReadErrorResponse("klines", []any{}, fmt.Errorf("query parameter symbol is required"))
+	}
+	period := strings.TrimSpace(params.Get("period"))
+	if period == "" {
+		period = "1d"
+	}
+	fromTime := strings.TrimSpace(params.Get("fromTime"))
+	toTime := strings.TrimSpace(params.Get("toTime"))
+	limitStr := strings.TrimSpace(params.Get("limit"))
+	var limit int32
+	if limitStr != "" {
+		if parsed, err := strconv.ParseInt(limitStr, 10, 32); err == nil {
+			limit = int32(parsed)
+		}
+	}
+	snapshot, err := reader.QueryKLines(ctx, broker.KLineQuery{
+		ReadQuery: query,
+		Symbol:    symbol,
+		Period:    period,
+		FromTime:  fromTime,
+		ToTime:    toTime,
+		Limit:     limit,
+	})
+	if err != nil {
+		return brokerReadErrorResponse("klines", []any{}, err)
+	}
+	return map[string]any{
+		"checkedAt":    time.Now().UTC().Format(time.RFC3339Nano),
+		"connectivity": "connected",
+		"lastError":    nil,
+		"klines":       snapshot,
+	}
+}
+
+func (s *Server) brokerSecuritiesSnapshotResponse(ctx context.Context, query broker.ReadQuery, params url.Values) map[string]any {
+	reader := s.brokerMarketDataReader()
+	if reader == nil {
+		return brokerReadErrorResponse("securities", []any{}, fmt.Errorf("broker market data not available"))
+	}
+	symbols := queryListValues(params, "symbol", "symbols")
+	if len(symbols) == 0 {
+		return brokerReadErrorResponse("securities", []any{}, fmt.Errorf("query parameter symbol is required"))
+	}
+	result, err := reader.QuerySecuritySnapshot(ctx, broker.SecuritySnapshotQuery{
+		ReadQuery: query,
+		Symbols:   symbols,
+	})
+	if err != nil {
+		return brokerReadErrorResponse("securities", []any{}, err)
+	}
+	return map[string]any{
+		"checkedAt":    time.Now().UTC().Format(time.RFC3339Nano),
+		"connectivity": "connected",
+		"lastError":    nil,
+		"securities":   result,
+	}
 }

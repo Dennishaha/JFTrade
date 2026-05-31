@@ -11,6 +11,7 @@ export interface WorkspacePreferences {
   market: string;
   period: string;
   selectedBrokerAccountKey: string | null;
+  favoriteBrokerAccountKeys: string[];
 }
 
 const defaults: WorkspacePreferences = {
@@ -20,7 +21,29 @@ const defaults: WorkspacePreferences = {
   market: "HK",
   period: "1m",
   selectedBrokerAccountKey: null,
+  favoriteBrokerAccountKeys: [],
 };
+
+function normalizeFavoriteBrokerAccountKeys(
+  keys: string[] | null | undefined,
+): string[] {
+  if (!Array.isArray(keys)) {
+    return [];
+  }
+
+  const deduped = new Set<string>();
+  for (const key of keys) {
+    if (typeof key !== "string") {
+      continue;
+    }
+    const normalized = key.trim();
+    if (normalized === "") {
+      continue;
+    }
+    deduped.add(normalized);
+  }
+  return Array.from(deduped);
+}
 
 export interface WorkspaceLayoutStore {
   prefs: Ref<WorkspacePreferences>;
@@ -42,6 +65,9 @@ function readInitial(): WorkspacePreferences {
       period: normalizeKlinePeriod(merged.period),
       market: merged.market.trim().toUpperCase(),
       symbol: merged.symbol.trim().toUpperCase(),
+      favoriteBrokerAccountKeys: normalizeFavoriteBrokerAccountKeys(
+        merged.favoriteBrokerAccountKeys,
+      ),
     };
   } catch {
     return { ...defaults };

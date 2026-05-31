@@ -43,6 +43,18 @@ func convertFundsSnapshot(s *BrokerFundsSnapshot) *broker.FundsSnapshot {
 		MaintenanceMargin:       s.MaintenanceMargin,
 		MarginCallMargin:        s.MarginCallMargin,
 		RiskStatus:              s.RiskStatus,
+		// Margin & Financing 融资融券
+		DebtCash:        s.DebtCash,
+		IsPDT:           s.IsPDT,
+		PDTSeq:          s.PDTSeq,
+		BeginningDTBP:   s.BeginningDTBP,
+		RemainingDTBP:   s.RemainingDTBP,
+		DTCallAmount:    s.DTCallAmount,
+		DTStatus:        s.DTStatus,
+		ExposureLevel:   s.ExposureLevel,
+		ExposureLimit:   s.ExposureLimit,
+		UsedLimit:       s.UsedLimit,
+		RemainingLimit:  s.RemainingLimit,
 	}
 	if len(s.CurrencyBalances) > 0 {
 		result.CurrencyBalances = make([]broker.CurrencyBalanceSnapshot, len(s.CurrencyBalances))

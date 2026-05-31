@@ -149,6 +149,10 @@ func TestBrokerReadEndpointsReturnExchangeBackedData(t *testing.T) {
 		IsShortPermit:  proto.Bool(false),
 		ShortFeeRate:   proto.Float64(1.25),
 		AlertLongRatio: proto.Float64(0.3),
+	}, {
+		Security:      &qotcommonpb.Security{Market: proto.Int32(int32(qotcommonpb.QotMarket_QotMarket_HK_Security)), Code: proto.String("07226")},
+		IsLongPermit:  proto.Bool(true),
+		IsShortPermit: proto.Bool(true),
 	}})
 	opendServer.setMaxTrdQtys(&trdcommonpb.MaxTrdQtys{
 		MaxCashBuy:          proto.Float64(1000),
@@ -289,6 +293,19 @@ func TestBrokerReadEndpointsReturnExchangeBackedData(t *testing.T) {
 	}
 	if got := ratio["symbol"]; got != "HK.00700" {
 		t.Fatalf("margin ratio symbol = %v, want HK.00700", got)
+	}
+
+	bareCodeMarginRatios := decodeBrokerEnvelope(t, srv.URL+"/api/v1/brokers/futu/margin-ratios"+realQuery+"&symbol=07226")
+	bareCodeEntries, ok := bareCodeMarginRatios["marginRatios"].([]any)
+	if !ok || len(bareCodeEntries) != 1 {
+		t.Fatalf("bare-code marginRatios entries = %#v", bareCodeMarginRatios["marginRatios"])
+	}
+	bareCodeRatio, ok := bareCodeEntries[0].(map[string]any)
+	if !ok {
+		t.Fatalf("bare-code margin ratio entry = %#v", bareCodeEntries[0])
+	}
+	if got := bareCodeRatio["symbol"]; got != "HK.07226" {
+		t.Fatalf("bare-code margin ratio symbol = %v, want HK.07226", got)
 	}
 
 	maxTradeQtys := decodeBrokerEnvelope(t, srv.URL+"/api/v1/brokers/futu/max-trade-qtys"+query+"&symbol=HK.00700&orderType=LIMIT&price=320.5")

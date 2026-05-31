@@ -109,29 +109,35 @@ export function resolveBrokerAccountOptions(context: {
   }
 
   for (const account of context.runtime.accounts) {
-    const market = account.marketAuthorities[0] ?? context.fallbackMarket;
-    const selectionKey = buildBrokerAccountSelectionKey({
-      brokerId: context.activeBrokerId,
-      tradingEnvironment: account.tradingEnvironment,
-      accountId: account.accountId,
-      market,
-    });
+    const markets =
+      account.marketAuthorities.length > 0
+        ? Array.from(new Set(account.marketAuthorities))
+        : [context.fallbackMarket];
 
-    if (seen.has(selectionKey)) {
-      continue;
+    for (const market of markets) {
+      const selectionKey = buildBrokerAccountSelectionKey({
+        brokerId: context.activeBrokerId,
+        tradingEnvironment: account.tradingEnvironment,
+        accountId: account.accountId,
+        market,
+      });
+
+      if (seen.has(selectionKey)) {
+        continue;
+      }
+
+      seen.add(selectionKey);
+      selectionOptions.push({
+        selectionKey,
+        source: "runtime",
+        brokerId: context.activeBrokerId,
+        accountId: account.accountId,
+        displayName: account.accountId,
+        tradingEnvironment: account.tradingEnvironment,
+        market,
+        securityFirm: account.securityFirm,
+      });
     }
-
-    seen.add(selectionKey);
-    selectionOptions.push({
-      selectionKey,
-      source: "runtime",
-      brokerId: context.activeBrokerId,
-      accountId: account.accountId,
-      displayName: account.accountId,
-      tradingEnvironment: account.tradingEnvironment,
-      market,
-      securityFirm: account.securityFirm,
-    });
   }
 
   return selectionOptions;

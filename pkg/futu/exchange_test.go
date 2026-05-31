@@ -507,6 +507,81 @@ func TestQueryBrokerMarginRatiosReturnsMarginData(t *testing.T) {
 	}
 }
 
+func TestQueryBrokerMarginRatiosSkipsUnknownStock(t *testing.T) {
+	server := startQuoteOpenDServer(t)
+	server.setAccounts([]*trdcommonpb.TrdAcc{{
+		TrdEnv:            proto.Int32(int32(trdcommonpb.TrdEnv_TrdEnv_Real)),
+		AccID:             proto.Uint64(1001),
+		TrdMarketAuthList: []int32{int32(trdcommonpb.TrdMarket_TrdMarket_HK)},
+		AccType:           proto.Int32(int32(trdcommonpb.TrdAccType_TrdAccType_Margin)),
+	}})
+	server.setMarginRatios([]*trdgetmarginratiopb.MarginRatioInfo{{
+		Security:        &qotcommonpb.Security{Market: proto.Int32(int32(qotcommonpb.QotMarket_QotMarket_HK_Security)), Code: proto.String("00700")},
+		IsLongPermit:    proto.Bool(true),
+		IsShortPermit:   proto.Bool(false),
+		ShortFeeRate:    proto.Float64(1.25),
+		AlertLongRatio:  proto.Float64(0.3),
+		AlertShortRatio: proto.Float64(0.4),
+	}})
+	server.setStrictMarginRatios(true)
+	defer server.stop()
+
+	ex := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
+	defer ex.Close()
+
+	ratios, err := ex.QueryBrokerMarginRatios(t.Context(), BrokerMarginRatioQuery{Symbols: []string{"HK.00700", "HK.07226"}})
+	if err != nil {
+		t.Fatalf("QueryBrokerMarginRatios: %v", err)
+	}
+	if len(ratios) != 1 {
+		t.Fatalf("expected one margin ratio entry, got %#v", ratios)
+	}
+	if got := ratios[0].Symbol; got != "HK.00700" {
+		t.Fatalf("Symbol = %q, want HK.00700", got)
+	}
+	if got := server.marginRatioCallCount(); got < 2 {
+		t.Fatalf("expected fallback retries, got %d Trd_GetMarginRatio calls", got)
+	}
+}
+
+func TestQueryBrokerMarginRatiosUsesCacheWithinTTL(t *testing.T) {
+	server := startQuoteOpenDServer(t)
+	server.setAccounts([]*trdcommonpb.TrdAcc{{
+		TrdEnv:            proto.Int32(int32(trdcommonpb.TrdEnv_TrdEnv_Real)),
+		AccID:             proto.Uint64(1001),
+		TrdMarketAuthList: []int32{int32(trdcommonpb.TrdMarket_TrdMarket_HK)},
+		AccType:           proto.Int32(int32(trdcommonpb.TrdAccType_TrdAccType_Margin)),
+	}})
+	server.setMarginRatios([]*trdgetmarginratiopb.MarginRatioInfo{{
+		Security:      &qotcommonpb.Security{Market: proto.Int32(int32(qotcommonpb.QotMarket_QotMarket_HK_Security)), Code: proto.String("00700")},
+		IsLongPermit:  proto.Bool(true),
+		IsShortPermit: proto.Bool(false),
+	}})
+	defer server.stop()
+
+	ex := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
+	defer ex.Close()
+
+	first, err := ex.QueryBrokerMarginRatios(t.Context(), BrokerMarginRatioQuery{Symbols: []string{"HK.00700"}})
+	if err != nil {
+		t.Fatalf("first QueryBrokerMarginRatios: %v", err)
+	}
+	if len(first) != 1 {
+		t.Fatalf("first result length = %d, want 1", len(first))
+	}
+
+	second, err := ex.QueryBrokerMarginRatios(t.Context(), BrokerMarginRatioQuery{Symbols: []string{"HK.00700"}})
+	if err != nil {
+		t.Fatalf("second QueryBrokerMarginRatios: %v", err)
+	}
+	if len(second) != 1 {
+		t.Fatalf("second result length = %d, want 1", len(second))
+	}
+	if got := server.marginRatioCallCount(); got != 1 {
+		t.Fatalf("expected one Trd_GetMarginRatio call due to cache, got %d", got)
+	}
+}
+
 func TestQueryBrokerCashFlowsReturnsFlowSummary(t *testing.T) {
 	server := startQuoteOpenDServer(t)
 	server.setAccounts([]*trdcommonpb.TrdAcc{{
@@ -1201,6 +1276,7 @@ type quoteOpenDServer struct {
 	historyFills          []*trdcommonpb.OrderFill
 	orderFees             []*trdcommonpb.OrderFee
 	marginRatios          []*trdgetmarginratiopb.MarginRatioInfo
+	strictMarginRatios    bool
 	cashFlows             []*trdflowsummarypb.FlowSummaryInfo
 	maxTrdQtys            *trdcommonpb.MaxTrdQtys
 	placedOrderID         uint64
@@ -1343,6 +1419,12 @@ func (s *quoteOpenDServer) setMarginRatios(ratios []*trdgetmarginratiopb.MarginR
 	s.tradeMu.Lock()
 	defer s.tradeMu.Unlock()
 	s.marginRatios = append([]*trdgetmarginratiopb.MarginRatioInfo(nil), ratios...)
+}
+
+func (s *quoteOpenDServer) setStrictMarginRatios(enabled bool) {
+	s.tradeMu.Lock()
+	defer s.tradeMu.Unlock()
+	s.strictMarginRatios = enabled
 }
 
 func (s *quoteOpenDServer) setCashFlows(flows []*trdflowsummarypb.FlowSummaryInfo) {
@@ -1916,7 +1998,26 @@ func (s *quoteOpenDServer) marginRatioResponse(body []byte) *trdgetmarginratiopb
 	}
 	s.tradeMu.Lock()
 	ratios := append([]*trdgetmarginratiopb.MarginRatioInfo(nil), s.marginRatios...)
+	strict := s.strictMarginRatios
 	s.tradeMu.Unlock()
+	if strict {
+		available := make(map[string]struct{}, len(ratios))
+		for _, ratio := range ratios {
+			if ratio == nil || ratio.GetSecurity() == nil {
+				continue
+			}
+			available[strings.ToUpper(strings.TrimSpace(ratio.GetSecurity().GetCode()))] = struct{}{}
+		}
+		for _, security := range request.GetC2S().GetSecurityList() {
+			code := strings.ToUpper(strings.TrimSpace(security.GetCode()))
+			if code == "" {
+				continue
+			}
+			if _, ok := available[code]; !ok {
+				return &trdgetmarginratiopb.Response{RetType: proto.Int32(-1), ErrCode: proto.Int32(0), RetMsg: proto.String("未知股票 " + code)}
+			}
+		}
+	}
 	return &trdgetmarginratiopb.Response{
 		RetType: proto.Int32(0),
 		S2C: &trdgetmarginratiopb.S2C{

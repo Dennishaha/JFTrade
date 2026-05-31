@@ -98,6 +98,68 @@ describe("consoleDataBrokerAccountSelection", () => {
     ]);
   });
 
+  it("expands runtime accounts into one option per market authority", () => {
+    const options = resolveBrokerAccountOptions({
+      activeBrokerId: "futu",
+      settings: {
+        ...emptyBrokerSettings,
+        accounts: [],
+      },
+      runtime: {
+        ...emptyBrokerRuntime,
+        descriptor: {
+          ...emptyBrokerRuntime.descriptor,
+          id: "futu",
+        },
+        accounts: [
+          {
+            accountId: "REAL-UTA-001",
+            tradingEnvironment: "REAL",
+            accountType: "UNKNOWN",
+            accountRole: null,
+            securityFirm: "FUTUSECURITIES",
+            marketAuthorities: ["HK", "US", "HK"],
+            simulatedAccountType: null,
+          },
+        ],
+      },
+      fallbackMarket: "HK",
+    });
+
+    expect(options).toEqual([
+      {
+        selectionKey: buildBrokerAccountSelectionKey({
+          brokerId: "futu",
+          tradingEnvironment: "REAL",
+          accountId: "REAL-UTA-001",
+          market: "HK",
+        }),
+        source: "runtime",
+        brokerId: "futu",
+        accountId: "REAL-UTA-001",
+        displayName: "REAL-UTA-001",
+        tradingEnvironment: "REAL",
+        market: "HK",
+        securityFirm: "FUTUSECURITIES",
+      },
+      {
+        selectionKey: buildBrokerAccountSelectionKey({
+          brokerId: "futu",
+          tradingEnvironment: "REAL",
+          accountId: "REAL-UTA-001",
+          market: "US",
+        }),
+        source: "runtime",
+        brokerId: "futu",
+        accountId: "REAL-UTA-001",
+        displayName: "REAL-UTA-001",
+        tradingEnvironment: "REAL",
+        market: "US",
+        securityFirm: "FUTUSECURITIES",
+      },
+    ]);
+  });
+
   it("prefers persisted selection and uses its broker as the active broker", () => {
     const selectionOptions = [
       {

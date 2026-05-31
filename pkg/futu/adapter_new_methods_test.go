@@ -1,0 +1,432 @@
+package futu
+
+import (
+	"testing"
+
+	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
+	trdcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdcommon"
+)
+
+// --- Test: convertFundsSnapshot with full margin fields ---
+
+func TestConvertFundsSnapshotFullMarginFields(t *testing.T) {
+	debtCash := 50000.0
+	isPDT := true
+	pdtSeq := "3"
+	beginningDTBP := 100000.0
+	remainingDTBP := 75000.0
+	dtCallAmount := 5000.0
+	dtStatus := "UNLIMITED"
+	exposureLevel := "NORMAL"
+	exposureLimit := 2000000.0
+	usedLimit := 800000.0
+	remainingLimit := 1200000.0
+	riskStatus := "LEVEL1"
+
+	src := &BrokerFundsSnapshot{
+		AccountID:        "12345",
+		TradingEnvironment: "REAL",
+		Market:           "HK",
+		AccountType:      "CASH",
+		TotalAssets:      f64(500000),
+		Cash:             f64(100000),
+		PurchasingPower:  f64(200000),
+		// Margin fields
+		DebtCash:        &debtCash,
+		IsPDT:           &isPDT,
+		PDTSeq:          &pdtSeq,
+		BeginningDTBP:   &beginningDTBP,
+		RemainingDTBP:   &remainingDTBP,
+		DTCallAmount:    &dtCallAmount,
+		DTStatus:        &dtStatus,
+		ExposureLevel:   &exposureLevel,
+		ExposureLimit:   &exposureLimit,
+		UsedLimit:       &usedLimit,
+		RemainingLimit:  &remainingLimit,
+		RiskStatus:      &riskStatus,
+		InitialMargin:   f64(50000),
+		MaintenanceMargin: f64(25000),
+		MarginCallMargin:  f64(15000),
+	}
+
+	result := convertFundsSnapshot(src)
+	if result == nil {
+		t.Fatal("expected non-nil result")
+	}
+
+	// Verify all margin fields passed through
+	assertFloatPtrEqual(t, "debtCash", &debtCash, result.DebtCash)
+	assertBoolPtrEqual(t, "isPdt", &isPDT, result.IsPDT)
+	assertStringPtrEqual(t, "pdtSeq", &pdtSeq, result.PDTSeq)
+	assertFloatPtrEqual(t, "beginningDTBP", &beginningDTBP, result.BeginningDTBP)
+	assertFloatPtrEqual(t, "remainingDTBP", &remainingDTBP, result.RemainingDTBP)
+	assertFloatPtrEqual(t, "dtCallAmount", &dtCallAmount, result.DTCallAmount)
+	assertStringPtrEqual(t, "dtStatus", &dtStatus, result.DTStatus)
+	assertStringPtrEqual(t, "exposureLevel", &exposureLevel, result.ExposureLevel)
+	assertFloatPtrEqual(t, "exposureLimit", &exposureLimit, result.ExposureLimit)
+	assertFloatPtrEqual(t, "usedLimit", &usedLimit, result.UsedLimit)
+	assertFloatPtrEqual(t, "remainingLimit", &remainingLimit, result.RemainingLimit)
+	assertFloatPtrEqual(t, "initialMargin", f64(50000), result.InitialMargin)
+	assertFloatPtrEqual(t, "maintenanceMargin", f64(25000), result.MaintenanceMargin)
+	assertFloatPtrEqual(t, "marginCallMargin", f64(15000), result.MarginCallMargin)
+	assertStringPtrEqual(t, "riskStatus", &riskStatus, result.RiskStatus)
+}
+
+func TestConvertFundsSnapshotNilMarginFields(t *testing.T) {
+	src := &BrokerFundsSnapshot{
+		AccountID:        "12345",
+		TradingEnvironment: "REAL",
+		Market:           "HK",
+	}
+
+	result := convertFundsSnapshot(src)
+	if result == nil {
+		t.Fatal("expected non-nil result")
+	}
+
+	// All margin fields should be nil
+	if result.DebtCash != nil {
+		t.Fatal("expected nil debtCash")
+	}
+	if result.IsPDT != nil {
+		t.Fatal("expected nil isPdt")
+	}
+	if result.ExposureLevel != nil {
+		t.Fatal("expected nil exposureLevel")
+	}
+}
+
+func TestConvertFundsSnapshotNilInput(t *testing.T) {
+	result := convertFundsSnapshot(nil)
+	if result != nil {
+		t.Fatal("expected nil for nil input")
+	}
+}
+
+// --- Test: currencies & market assets pass through ---
+
+func TestConvertFundsSnapshotCurrencyBalances(t *testing.T) {
+	hkdCash := 100000.0
+	usdCash := 50000.0
+	src := &BrokerFundsSnapshot{
+		AccountID:        "12345",
+		TradingEnvironment: "REAL",
+		Market:           "HK",
+		CurrencyBalances: []BrokerCurrencyBalanceSnapshot{
+			{Currency: "HKD", Cash: &hkdCash},
+			{Currency: "USD", Cash: &usdCash},
+		},
+		MarketAssets: []BrokerMarketAssetSnapshot{
+			{Market: "HK", Assets: f64(300000)},
+			{Market: "US", Assets: f64(200000)},
+		},
+	}
+	result := convertFundsSnapshot(src)
+	if len(result.CurrencyBalances) != 2 {
+		t.Fatalf("expected 2 currency balances, got %d", len(result.CurrencyBalances))
+	}
+	if result.CurrencyBalances[0].Currency != "HKD" {
+		t.Fatalf("expected HKD, got %s", result.CurrencyBalances[0].Currency)
+	}
+	if len(result.MarketAssets) != 2 {
+		t.Fatalf("expected 2 market assets, got %d", len(result.MarketAssets))
+	}
+}
+
+// --- Test: securitiesFromSymbols ---
+
+func TestSecuritiesFromSymbols(t *testing.T) {
+	securities, err := securitiesFromSymbols([]string{"HK.00700", "US.AAPL"})
+	if err != nil {
+		t.Fatalf("securitiesFromSymbols: %v", err)
+	}
+	if len(securities) != 2 {
+		t.Fatalf("expected 2 securities, got %d", len(securities))
+	}
+	if securities[0].GetCode() != "00700" {
+		t.Fatalf("expected 00700, got %q", securities[0].GetCode())
+	}
+	if securities[1].GetCode() != "AAPL" {
+		t.Fatalf("expected AAPL, got %q", securities[1].GetCode())
+	}
+}
+
+func TestSecuritiesFromSymbolsInvalid(t *testing.T) {
+	_, err := securitiesFromSymbols([]string{"INVALID"})
+	if err == nil {
+		t.Fatal("expected error for invalid symbol")
+	}
+}
+
+func TestSecuritiesFromSymbolsEmpty(t *testing.T) {
+	securities, err := securitiesFromSymbols([]string{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(securities) != 0 {
+		t.Fatal("expected empty list")
+	}
+}
+
+// --- Test: securitySymbol ---
+
+func TestSecuritySymbol(t *testing.T) {
+	result := securitySymbol(&qotcommonpb.Security{Market: fint32(1), Code: fstring("00700")})
+	if result != "HK.00700" {
+		t.Fatalf("expected HK.00700, got %q", result)
+	}
+}
+
+func TestSecuritySymbolNil(t *testing.T) {
+	result := securitySymbol(nil)
+	if result != "" {
+		t.Fatalf("expected empty for nil, got %q", result)
+	}
+}
+
+// --- Test: futuKLTypeFromIntervalString ---
+
+func TestFutuKLTypeFromIntervalStringAll(t *testing.T) {
+	tests := []struct {
+		period   string
+		expected qotcommonpb.KLType
+	}{
+		{"1m", qotcommonpb.KLType_KLType_1Min},
+		{"1min", qotcommonpb.KLType_KLType_1Min},
+		{"5m", qotcommonpb.KLType_KLType_5Min},
+		{"5min", qotcommonpb.KLType_KLType_5Min},
+		{"15m", qotcommonpb.KLType_KLType_15Min},
+		{"30m", qotcommonpb.KLType_KLType_30Min},
+		{"60m", qotcommonpb.KLType_KLType_60Min},
+		{"1h", qotcommonpb.KLType_KLType_60Min},
+		{"2h", qotcommonpb.KLType_KLType_120Min},
+		{"4h", qotcommonpb.KLType_KLType_240Min},
+		{"1d", qotcommonpb.KLType_KLType_Day},
+		{"day", qotcommonpb.KLType_KLType_Day},
+		{"1w", qotcommonpb.KLType_KLType_Week},
+		{"week", qotcommonpb.KLType_KLType_Week},
+		{"1M", qotcommonpb.KLType_KLType_Month},
+		{"month", qotcommonpb.KLType_KLType_Month},
+		{"quarter", qotcommonpb.KLType_KLType_Quarter},
+		{"1y", qotcommonpb.KLType_KLType_Year},
+	}
+	for _, tt := range tests {
+		t.Run(tt.period, func(t *testing.T) {
+			got, err := futuKLTypeFromIntervalString(tt.period)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got != tt.expected {
+				t.Fatalf("expected %v, got %v", tt.expected, got)
+			}
+		})
+	}
+}
+
+func TestFutuKLTypeFromIntervalStringInvalid(t *testing.T) {
+	_, err := futuKLTypeFromIntervalString("invalid")
+	if err == nil {
+		t.Fatal("expected error for invalid period")
+	}
+}
+
+// --- Test: int64AsFloat64Ptr ---
+
+func TestInt64AsFloat64Ptr(t *testing.T) {
+	val := int64(12345)
+	result := int64AsFloat64Ptr(&val)
+	if result == nil {
+		t.Fatal("expected non-nil")
+	}
+	if *result != 12345.0 {
+		t.Fatalf("expected 12345.0, got %f", *result)
+	}
+}
+
+func TestInt64AsFloat64PtrNil(t *testing.T) {
+	result := int64AsFloat64Ptr(nil)
+	if result != nil {
+		t.Fatal("expected nil")
+	}
+}
+
+// --- Test: brokerFundsSnapshotFromProto with full margin fields ---
+
+func TestBrokerFundsSnapshotFromProtoFullMargin(t *testing.T) {
+	account := resolvedTradeAccount{
+		AccountID:          "12345",
+		TradingEnvironment: "REAL",
+		Market:             "HK",
+		AccountType:        "MARGIN",
+		protoAccountID:     12345,
+		protoTrdEnv:        int32(trdcommonpb.TrdEnv_TrdEnv_Real),
+		protoTrdMarket:     int32(trdcommonpb.TrdMarket_TrdMarket_HK),
+	}
+
+	protoFunds := &trdcommonpb.Funds{
+		Power:              pf64(200000),
+		TotalAssets:        pf64(500000),
+		Cash:               pf64(100000),
+		MarketVal:          pf64(350000),
+		FrozenCash:         pf64(10000),
+		DebtCash:           pf64(50000),
+		AvlWithdrawalCash:  pf64(80000),
+		MaxPowerShort:      pf64(100000),
+		NetCashPower:       pf64(120000),
+		LongMv:             pf64(350000),
+		ShortMv:            pf64(0),
+		MaxWithdrawal:      pf64(150000),
+		InitialMargin:      pf64(50000),
+		MaintenanceMargin:  pf64(25000),
+		MarginCallMargin:   pf64(15000),
+		RiskStatus:         pi32(int32(trdcommonpb.CltRiskStatus_CltRiskStatus_Level1)),
+		SecuritiesAssets:   pf64(300000),
+		FundAssets:         pf64(50000),
+		BondAssets:         pf64(0),
+		// PDT fields
+		IsPdt:          pb(true),
+		PdtSeq:         ps("3/3"),
+		BeginningDTBP:  pf64(100000),
+		RemainingDTBP:  pf64(75000),
+		DtCallAmount:   pf64(5000),
+		DtStatus:       pi32(int32(trdcommonpb.DTStatus_DTStatus_Unlimited)),
+		// Exposure fields
+		ExposureLevel:  pi32(int32(trdcommonpb.ExposureLevel_ExposureLevel_Normal)),
+		ExposureLimit:  pf64(2000000),
+		UsedLimit:      pf64(800000),
+		RemainingLimit: pf64(1200000),
+	}
+
+	result := brokerFundsSnapshotFromProto(account, protoFunds)
+	if result == nil {
+		t.Fatal("expected non-nil result")
+	}
+
+	// Verify all margin fields are mapped
+	if result.DebtCash == nil || *result.DebtCash != 50000 {
+		t.Fatal("expected debtCash=50000")
+	}
+	if result.IsPDT == nil || !*result.IsPDT {
+		t.Fatal("expected isPdt=true")
+	}
+	if result.PDTSeq == nil || *result.PDTSeq != "3/3" {
+		t.Fatal("expected pdtSeq=3/3")
+	}
+	if result.BeginningDTBP == nil || *result.BeginningDTBP != 100000 {
+		t.Fatal("expected beginningDTBP=100000")
+	}
+	if result.RemainingDTBP == nil || *result.RemainingDTBP != 75000 {
+		t.Fatal("expected remainingDTBP=75000")
+	}
+	if result.DTCallAmount == nil || *result.DTCallAmount != 5000 {
+		t.Fatal("expected dtCallAmount=5000")
+	}
+	if result.DTStatus == nil || *result.DTStatus == "" {
+		t.Fatal("expected non-empty dtStatus")
+	}
+	if result.ExposureLevel == nil || *result.ExposureLevel == "" {
+		t.Fatal("expected non-empty exposureLevel")
+	}
+	if result.ExposureLimit == nil || *result.ExposureLimit != 2000000 {
+		t.Fatal("expected exposureLimit=2000000")
+	}
+	if result.UsedLimit == nil || *result.UsedLimit != 800000 {
+		t.Fatal("expected usedLimit=800000")
+	}
+	if result.RemainingLimit == nil || *result.RemainingLimit != 1200000 {
+		t.Fatal("expected remainingLimit=1200000")
+	}
+}
+
+func TestBrokerFundsSnapshotFromProtoNilFunds(t *testing.T) {
+	account := resolvedTradeAccount{
+		AccountID:          "0",
+		TradingEnvironment: "REAL",
+		Market:             "HK",
+	}
+	result := brokerFundsSnapshotFromProto(account, nil)
+	if result == nil {
+		t.Fatal("expected non-nil for nil funds")
+	}
+}
+
+// --- Test: broker.FundsSnapshot zero-value (no margin data) conversion round-trip ---
+
+func TestBrokerFundsSnapshotRoundTripNoMargin(t *testing.T) {
+	account := resolvedTradeAccount{
+		AccountID:          "1",
+		TradingEnvironment: "SIMULATE",
+		Market:             "HK",
+		protoAccountID:     1,
+		protoTrdEnv:        int32(trdcommonpb.TrdEnv_TrdEnv_Simulate),
+		protoTrdMarket:     int32(trdcommonpb.TrdMarket_TrdMarket_HK),
+	}
+	protoFunds := &trdcommonpb.Funds{
+		Power:     pf64(1000000),
+		Cash:      pf64(1000000),
+		MarketVal: pf64(0),
+	}
+
+	snapshot := brokerFundsSnapshotFromProto(account, protoFunds)
+	brokerSnapshot := convertFundsSnapshot(snapshot)
+
+	if brokerSnapshot.PurchasingPower == nil || *brokerSnapshot.PurchasingPower != 1000000 {
+		t.Fatal("purchasingPower mismatch")
+	}
+	// No margin data → all should be nil
+	if brokerSnapshot.DebtCash != nil {
+		t.Fatal("expected nil debtCash for simulate")
+	}
+	if brokerSnapshot.IsPDT != nil {
+		t.Fatal("expected nil isPdt for simulate")
+	}
+}
+
+// --- Helpers ---
+
+func f64(v float64) *float64 { return &v }
+func pf64(v float64) *float64 { return &v }
+func fint32(v int32) *int32 { return &v }
+func fstring(v string) *string { return &v }
+func pi32(v int32) *int32 { return &v }
+func pb(v bool) *bool { return &v }
+func ps(v string) *string { return &v }
+
+func assertFloatPtrEqual(t *testing.T, field string, expected, actual *float64) {
+	t.Helper()
+	if expected == nil && actual == nil {
+		return
+	}
+	if expected == nil || actual == nil {
+		t.Fatalf("%s: expected %v, got %v", field, expected, actual)
+	}
+	if *expected != *actual {
+		t.Fatalf("%s: expected %f, got %f", field, *expected, *actual)
+	}
+}
+
+func assertBoolPtrEqual(t *testing.T, field string, expected, actual *bool) {
+	t.Helper()
+	if expected == nil && actual == nil {
+		return
+	}
+	if expected == nil || actual == nil {
+		t.Fatalf("%s: expected %v, got %v", field, expected, actual)
+	}
+	if *expected != *actual {
+		t.Fatalf("%s: expected %v, got %v", field, *expected, *actual)
+	}
+}
+
+func assertStringPtrEqual(t *testing.T, field string, expected, actual *string) {
+	t.Helper()
+	if expected == nil && actual == nil {
+		return
+	}
+	if expected == nil || actual == nil {
+		t.Fatalf("%s: expected %v, got %v", field, expected, actual)
+	}
+	if *expected != *actual {
+		t.Fatalf("%s: expected %q, got %q", field, *expected, *actual)
+	}
+}

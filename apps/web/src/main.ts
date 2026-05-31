@@ -15,6 +15,25 @@ const vuetify = createVuetify({
   components,
   directives,
   icons: fontAwesomeIcons,
+  theme: {
+    defaultTheme: "dark",
+    themes: {
+      light: {
+        dark: false,
+        colors: {
+          background: "#f4f7fb",
+          surface: "#ffffff",
+        },
+      },
+      dark: {
+        dark: true,
+        colors: {
+          background: "#07111f",
+          surface: "#0d1729",
+        },
+      },
+    },
+  },
 });
 
 const app = createApp(App);

@@ -288,6 +288,18 @@ func buildOpenAPIPaths(genericObject map[string]any) map[string]any {
 		"/api/v1/brokers/{brokerId}/max-trade-qtys": map[string]any{
 			"get": operation("读取最大可交易数量", "返回给定下单参数下的最大可交易数量。", []string{"broker"}, []any{pathParameter("brokerId", "Broker 标识", "futu")}, nil, map[string]any{"200": jsonResponse("最大可交易数量", envelopeSchema(genericObject))}),
 		},
+		"/api/v1/brokers/{brokerId}/quote": map[string]any{
+			"get": operation("读取实时行情", "返回证券基本报价。需要 query 参数 symbol。", []string{"broker"}, []any{pathParameter("brokerId", "Broker 标识", "futu")}, nil, map[string]any{"200": jsonResponse("行情数据", envelopeSchema(genericObject))}),
+		},
+		"/api/v1/brokers/{brokerId}/klines": map[string]any{
+			"get": operation("读取K线", "返回历史K线数据。需要 query 参数 symbol、period。", []string{"broker"}, []any{pathParameter("brokerId", "Broker 标识", "futu")}, nil, map[string]any{"200": jsonResponse("K线数据", envelopeSchema(genericObject))}),
+		},
+		"/api/v1/brokers/{brokerId}/securities": map[string]any{
+			"get": operation("读取证券快照", "返回证券快照数据（基础行情+扩展信息）。需要 query 参数 symbol。", []string{"broker"}, []any{pathParameter("brokerId", "Broker 标识", "futu")}, nil, map[string]any{"200": jsonResponse("证券快照", envelopeSchema(genericObject))}),
+		},
+		"/api/v1/brokers/{brokerId}/unlock": map[string]any{
+			"post": operation("解锁/锁定交易", "解锁或锁定交易会话。请求体包含 unlock 布尔和 passwordMd5 字段。", []string{"broker"}, []any{pathParameter("brokerId", "Broker 标识", "futu")}, jsonRequestBody(genericObject, true), map[string]any{"200": jsonResponse("解锁结果", envelopeSchema(genericObject))}),
+		},
 		"/api/v1/plugins": map[string]any{
 			"get": operation("读取插件列表", "返回插件安装目标目录与插件列表。", []string{"strategy"}, nil, nil, map[string]any{"200": jsonResponse("插件列表", envelopeSchema(genericObject))}),
 		},

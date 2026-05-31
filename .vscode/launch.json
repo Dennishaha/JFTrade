@@ -22,7 +22,7 @@
             }
         },
         {
-            "name": "Launch Full Backend (bbgo run)",
+            "name": "Launch Backend",
             "type": "go",
             "request": "launch",
             "mode": "auto",
@@ -31,23 +31,6 @@
                 "run",
                 "--config",
                 "${workspaceFolder}/config/jftrade.yaml"
-            ],
-            "env": {
-                "JFTRADE_SETTINGS_PATH": "${workspaceFolder}/var/jftrade-api/settings.json",
-                "JFTRADE_BACKTEST_DB": "${workspaceFolder}/var/jftrade-api/backtest.db",
-                "DISABLE_MARKETS_CACHE": "1"
-            },
-            "buildFlags": "-tags=embed_zoneinfo",
-            "dlvFlags": ["--check-go-version=false"]
-        },
-        {
-            "name": "Launch API Server (dev)",
-            "type": "go",
-            "request": "launch",
-            "mode": "auto",
-            "program": "${workspaceFolder}/cmd/jftrade",
-            "args": [
-                "api"
             ],
             "env": {
                 "JFTRADE_SETTINGS_PATH": "${workspaceFolder}/var/jftrade-api/settings.json",

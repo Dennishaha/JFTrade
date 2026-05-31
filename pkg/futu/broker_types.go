@@ -38,8 +38,20 @@ type BrokerFundsSnapshot struct {
 	MaintenanceMargin       *float64
 	MarginCallMargin        *float64
 	RiskStatus              *string
-	CurrencyBalances        []BrokerCurrencyBalanceSnapshot
-	MarketAssets            []BrokerMarketAssetSnapshot
+	// --- Margin & Financing 融资融券 ---
+	DebtCash              *float64 // 计息金额
+	IsPDT                 *bool    // 是否PDT账户（美股日内交易限制）
+	PDTSeq                *string  // 剩余日内交易次数
+	BeginningDTBP         *float64 // 初始日内交易购买力
+	RemainingDTBP         *float64 // 剩余日内交易购买力
+	DTCallAmount          *float64 // 日内交易待缴金额
+	DTStatus              *string  // 日内交易限制状态
+	ExposureLevel         *string  // 持仓限额等级
+	ExposureLimit         *float64 // 持仓限额
+	UsedLimit             *float64 // 已用持仓限额
+	RemainingLimit        *float64 // 剩余持仓限额
+	CurrencyBalances      []BrokerCurrencyBalanceSnapshot
+	MarketAssets          []BrokerMarketAssetSnapshot
 }
 
 type BrokerCurrencyBalanceSnapshot struct {
