@@ -4,7 +4,11 @@ import (
 	"context"
 	"testing"
 
+	"github.com/c9s/bbgo/pkg/types"
+	"google.golang.org/protobuf/proto"
+
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
+	qotupdateorderbookpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotupdateorderbook"
 )
 
 // --- Test: order book request construction validates security typing ---
@@ -125,5 +129,85 @@ func TestSubscriptionRegistryOrderBookEnsure(t *testing.T) {
 	}
 	if r.orderBookPush == nil {
 		t.Error("orderBookPush map should be initialized after ensure")
+	}
+}
+
+func TestGroupOrderBookRequestsForPushSplitsHKAndNonHK(t *testing.T) {
+	requests := []orderBookRequest{
+		{
+			canonical: "HK.00700",
+			security: &qotcommonpb.Security{
+				Market: protoInt32(int32(qotcommonpb.QotMarket_QotMarket_HK_Security)),
+				Code:   protoString("00700"),
+			},
+		},
+		{
+			canonical: "US.AAPL",
+			security: &qotcommonpb.Security{
+				Market: protoInt32(int32(qotcommonpb.QotMarket_QotMarket_US_Security)),
+				Code:   protoString("AAPL"),
+			},
+		},
+	}
+
+	batches := groupOrderBookRequestsForPush(requests)
+	if len(batches) != 2 {
+		t.Fatalf("batch count = %d, want 2", len(batches))
+	}
+	if !batches[0].withDetail {
+		t.Fatal("first batch should enable HK order-book detail")
+	}
+	if len(batches[0].requests) != 1 || batches[0].requests[0].canonical != "HK.00700" {
+		t.Fatalf("unexpected HK batch: %#v", batches[0].requests)
+	}
+	if batches[1].withDetail {
+		t.Fatal("second batch should not enable HK order-book detail")
+	}
+	if len(batches[1].requests) != 1 || batches[1].requests[0].canonical != "US.AAPL" {
+		t.Fatalf("unexpected non-HK batch: %#v", batches[1].requests)
+	}
+}
+
+func TestHandleOrderBookPushEmitsSingleCompleteBookTicker(t *testing.T) {
+	stream := NewStream(NewExchange(DefaultOpenDAddr))
+	stream.ctx = context.Background()
+
+	bookTickers := make(chan types.BookTicker, 2)
+	stream.OnBookTickerUpdate(func(bookTicker types.BookTicker) {
+		bookTickers <- bookTicker
+	})
+
+	stream.handleOrderBookPush(&qotupdateorderbookpb.S2C{
+		Security: &qotcommonpb.Security{
+			Market: protoInt32(int32(qotcommonpb.QotMarket_QotMarket_HK_Security)),
+			Code:   protoString("00700"),
+		},
+		OrderBookBidList: []*qotcommonpb.OrderBook{
+			{Price: proto.Float64(700.1), Volume: proto.Int64(1200)},
+		},
+		OrderBookAskList: []*qotcommonpb.OrderBook{
+			{Price: proto.Float64(700.2), Volume: proto.Int64(800)},
+		},
+	})
+
+	select {
+	case ticker := <-bookTickers:
+		if ticker.Symbol != "HK.00700" {
+			t.Fatalf("Symbol = %q, want HK.00700", ticker.Symbol)
+		}
+		if ticker.Buy.Float64() != 700.1 || ticker.BuySize.Float64() != 1200 {
+			t.Fatalf("unexpected bid side: %+v", ticker)
+		}
+		if ticker.Sell.Float64() != 700.2 || ticker.SellSize.Float64() != 800 {
+			t.Fatalf("unexpected ask side: %+v", ticker)
+		}
+	default:
+		t.Fatal("expected one book ticker update")
+	}
+
+	select {
+	case ticker := <-bookTickers:
+		t.Fatalf("unexpected extra book ticker update: %+v", ticker)
+	default:
 	}
 }

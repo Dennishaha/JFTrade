@@ -5,7 +5,7 @@ import type {
   MarketDataDepthResponse,
 } from "@jftrade/ui-contracts";
 
-import { fetchEnvelope } from "../../composables/apiClient";
+import { fetchEnvelope, fetchEnvelopeWithInit } from "../../composables/apiClient";
 import { useConsoleData } from "../../composables/useConsoleData";
 import { useWorkspaceLayout } from "../../composables/useWorkspaceLayout";
 
@@ -22,6 +22,8 @@ const depthData = ref<MarketDataDepthResponse | null>(null);
 const isLoadingDepth = ref(false);
 const depthError = ref("");
 let pollTimer: ReturnType<typeof setInterval> | null = null;
+let depthRequestSeq = 0;
+let depthAbortController: AbortController | null = null;
 
 interface DepthLevel {
   price: number;
@@ -164,17 +166,40 @@ async function loadBrokerCapability(): Promise<void> {
 
 async function fetchDepth(): Promise<void> {
   const url = buildDepthUrl();
-  if (!url) return;
+  if (!url) {
+    depthAbortController?.abort();
+    depthAbortController = null;
+    depthData.value = null;
+    depthError.value = "";
+    isLoadingDepth.value = false;
+    return;
+  }
 
+  depthAbortController?.abort();
+  const controller = new AbortController();
+  depthAbortController = controller;
+  const requestSeq = ++depthRequestSeq;
   isLoadingDepth.value = true;
   depthError.value = "";
   try {
-    const data = await fetchEnvelope<MarketDataDepthResponse>(url);
+    const data = await fetchEnvelopeWithInit<MarketDataDepthResponse>(url, {
+      signal: controller.signal,
+    });
+    if (requestSeq !== depthRequestSeq) return;
     depthData.value = data;
   } catch (err: any) {
+    if (controller.signal.aborted) {
+      return;
+    }
+    if (requestSeq !== depthRequestSeq) return;
     depthError.value = err?.message ?? "获取盘口深度失败";
   } finally {
-    isLoadingDepth.value = false;
+    if (requestSeq === depthRequestSeq) {
+      isLoadingDepth.value = false;
+    }
+    if (depthAbortController === controller) {
+      depthAbortController = null;
+    }
   }
 }
 
@@ -207,6 +232,8 @@ onMounted(() => {
 
 onUnmounted(() => {
   stopPolling();
+  depthAbortController?.abort();
+  depthAbortController = null;
 });
 
 // Re-fetch when symbol changes

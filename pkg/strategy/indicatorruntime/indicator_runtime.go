@@ -2,6 +2,7 @@ package indicatorruntime
 
 import (
 	"math"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -83,20 +84,24 @@ type kdjSeries struct {
 }
 
 type rollingRSIState struct {
-	period    int
-	maxLength int
-	gains     []float64
-	losses    []float64
-	gainSum   float64
-	lossSum   float64
-	series    []float64
+	period            int
+	maxLength         int
+	tailLen           int
+	gains             rollingFloatWindow
+	losses            rollingFloatWindow
+	gainSum           float64
+	lossSum           float64
+	series            []float64
+	valueTail         []float64
+	closeTail         []float64
+	divergenceWindows map[int]*rollingDivergenceWindowState
 }
 
 type rollingMovingAverageSnapshotState struct {
 	kind        string
 	period      int
-	values      []float64
-	volumes     []float64
+	values      rollingFloatWindow
+	volumes     rollingFloatWindow
 	sum         float64
 	weightedSum float64
 	volumeSum   float64
@@ -122,6 +127,9 @@ type rollingMACDState struct {
 	minimum               int
 	fast                  *rollingEMATailState
 	slow                  *rollingEMATailState
+	closeTail             []float64
+	diffTail              []float64
+	divergenceWindows     map[int]*rollingDivergenceWindowState
 	signalAlpha           float64
 	signalBeta            float64
 	signalWeightedSum     float64
@@ -129,32 +137,34 @@ type rollingMACDState struct {
 }
 
 type rollingKDJState struct {
-	config       kdjConfig
-	limit        int
-	tailLen      int
-	windowLen    int
-	index        int
-	kAlpha       float64
-	kBeta        float64
-	dAlpha       float64
-	dBeta        float64
-	highDeque    []windowValue
-	lowDeque     []windowValue
-	kTail        []float64
-	dTail        []float64
-	jTail        []float64
-	prefixK      []float64
-	prefixD      []float64
-	prefixJ      []float64
-	boundaryK    []float64
-	boundaryDByK []float64
-	boundaryDByD []float64
-	prefixBuffer reusableKDJSeriesBuffer
+	config            kdjConfig
+	limit             int
+	tailLen           int
+	windowLen         int
+	index             int
+	kAlpha            float64
+	kBeta             float64
+	dAlpha            float64
+	dBeta             float64
+	highDeque         monotonicWindowValueDeque
+	lowDeque          monotonicWindowValueDeque
+	kTail             []float64
+	dTail             []float64
+	jTail             []float64
+	prefixK           []float64
+	prefixD           []float64
+	prefixJ           []float64
+	boundaryK         []float64
+	boundaryDByK      []float64
+	boundaryDByD      []float64
+	prefixBuffer      reusableKDJSeriesBuffer
+	closeTail         []float64
+	divergenceWindows map[int]*rollingDivergenceWindowState
 }
 
 type rollingATRState struct {
 	period    int
-	window    []float64
+	window    rollingFloatWindow
 	windowSum float64
 	current   float64
 	hasValue  bool
@@ -163,14 +173,14 @@ type rollingATRState struct {
 type rollingBollingerState struct {
 	period     int
 	multiplier float64
-	window     []float64
+	window     rollingFloatWindow
 	sum        float64
 	sumSquares float64
 }
 
 type rollingCCIState struct {
 	period   int
-	window   []float64
+	window   rollingFloatWindow
 	sum      float64
 	current  float64
 	hasValue bool
@@ -179,8 +189,8 @@ type rollingCCIState struct {
 type rollingWilliamsRState struct {
 	period    int
 	index     int
-	highDeque []windowValue
-	lowDeque  []windowValue
+	highDeque monotonicWindowValueDeque
+	lowDeque  monotonicWindowValueDeque
 	current   float64
 	hasValue  bool
 }
@@ -188,6 +198,28 @@ type rollingWilliamsRState struct {
 type windowValue struct {
 	index int
 	value float64
+}
+
+type rollingDivergenceWindowState struct {
+	lookback             int
+	currentPrice         float64
+	currentIndicator     float64
+	previousMaxPrice     float64
+	previousMinPrice     float64
+	previousMaxIndicator float64
+	previousMinIndicator float64
+	ready                bool
+}
+
+type monotonicWindowValueDeque struct {
+	values []windowValue
+	start  int
+}
+
+type rollingFloatWindow struct {
+	values []float64
+	start  int
+	count  int
 }
 
 type indicatorSeriesSnapshot struct {
@@ -835,6 +867,10 @@ func (r *indicatorRuntime) snapshot() map[string]any {
 		result[r.snapshotKeys.stopLoss[config]] = snapshot
 	}
 	for _, config := range r.requirements.rsiDivergence {
+		if state, ok := r.rsiStates[config.period]; ok {
+			result[r.snapshotKeys.rsiDivergence[config]] = state.detectDivergence(r.closes, config.direction, config.lookback)
+			continue
+		}
 		result[r.snapshotKeys.rsiDivergence[config]] = detectRSIDivergence(r.closes, r.rsiSeries(config.period), config.direction, config.lookback)
 	}
 	for _, config := range r.requirements.macdDivergence {
@@ -1019,6 +1055,200 @@ func trimWindowValuesInPlace(values []windowValue, windowStart int) []windowValu
 	return values[:len(values)-expired]
 }
 
+func (d *monotonicWindowValueDeque) compact() {
+	if d == nil || d.start == 0 {
+		return
+	}
+	if d.start >= len(d.values) {
+		d.values = d.values[:0]
+		d.start = 0
+		return
+	}
+	copy(d.values, d.values[d.start:])
+	d.values = d.values[:len(d.values)-d.start]
+	d.start = 0
+}
+
+func (d *monotonicWindowValueDeque) popExpired(windowStart int) {
+	if d == nil {
+		return
+	}
+	for d.start < len(d.values) && d.values[d.start].index < windowStart {
+		d.start++
+	}
+	if d.start > len(d.values)/2 {
+		d.compact()
+	}
+}
+
+func (d *monotonicWindowValueDeque) pushMax(index int, value float64) {
+	if d == nil {
+		return
+	}
+	if d.start >= len(d.values) {
+		d.values = d.values[:0]
+		d.start = 0
+	}
+	for len(d.values) > d.start && d.values[len(d.values)-1].value <= value {
+		d.values = d.values[:len(d.values)-1]
+	}
+	d.values = append(d.values, windowValue{index: index, value: value})
+}
+
+func (d *monotonicWindowValueDeque) pushMin(index int, value float64) {
+	if d == nil {
+		return
+	}
+	if d.start >= len(d.values) {
+		d.values = d.values[:0]
+		d.start = 0
+	}
+	for len(d.values) > d.start && d.values[len(d.values)-1].value >= value {
+		d.values = d.values[:len(d.values)-1]
+	}
+	d.values = append(d.values, windowValue{index: index, value: value})
+}
+
+func (d *monotonicWindowValueDeque) frontValue() (float64, bool) {
+	if d == nil || d.start >= len(d.values) {
+		return 0, false
+	}
+	return d.values[d.start].value, true
+}
+
+func (w *rollingFloatWindow) ensureCapacity(capacity int) {
+	if w == nil || capacity <= 0 {
+		return
+	}
+	if len(w.values) == capacity {
+		return
+	}
+	w.values = make([]float64, capacity)
+	w.start = 0
+	w.count = 0
+}
+
+func (w *rollingFloatWindow) push(value float64, capacity int) (float64, bool) {
+	if w == nil || capacity <= 0 {
+		return 0, false
+	}
+	w.ensureCapacity(capacity)
+	if w.count < capacity {
+		index := (w.start + w.count) % capacity
+		w.values[index] = value
+		w.count++
+		return 0, false
+	}
+	evicted := w.values[w.start]
+	w.values[w.start] = value
+	w.start = (w.start + 1) % capacity
+	return evicted, true
+}
+
+func (w *rollingFloatWindow) len() int {
+	if w == nil {
+		return 0
+	}
+	return w.count
+}
+
+func (w *rollingFloatWindow) last() (float64, bool) {
+	if w == nil || w.count == 0 || len(w.values) == 0 {
+		return 0, false
+	}
+	index := (w.start + w.count - 1) % len(w.values)
+	return w.values[index], true
+}
+
+func (w *rollingFloatWindow) at(offset int) (float64, bool) {
+	if w == nil || offset < 0 || offset >= w.count || len(w.values) == 0 {
+		return 0, false
+	}
+	index := (w.start + offset) % len(w.values)
+	return w.values[index], true
+}
+
+func appendTailValue(values []float64, value float64, limit int) []float64 {
+	if limit <= 0 {
+		return values[:0]
+	}
+	if len(values) < limit {
+		return append(values, value)
+	}
+	copy(values, values[1:])
+	values[len(values)-1] = value
+	return values
+}
+
+func sortedLookbacks(values map[int]struct{}) []int {
+	if len(values) == 0 {
+		return nil
+	}
+	result := make([]int, 0, len(values))
+	for lookback := range values {
+		if lookback > 0 {
+			result = append(result, lookback)
+		}
+	}
+	sort.Ints(result)
+	return result
+}
+
+func newRollingDivergenceWindowStates(lookbacks []int) map[int]*rollingDivergenceWindowState {
+	if len(lookbacks) == 0 {
+		return nil
+	}
+	result := make(map[int]*rollingDivergenceWindowState, len(lookbacks))
+	for _, lookback := range lookbacks {
+		if lookback <= 0 {
+			continue
+		}
+		result[lookback] = &rollingDivergenceWindowState{lookback: lookback}
+	}
+	if len(result) == 0 {
+		return nil
+	}
+	return result
+}
+
+func (s *rollingDivergenceWindowState) refresh(priceSeries, indicatorSeries []float64) {
+	if s == nil || s.lookback <= 0 || len(priceSeries) < s.lookback+1 || len(indicatorSeries) < s.lookback+1 {
+		if s != nil {
+			s.ready = false
+		}
+		return
+	}
+	priceStart := len(priceSeries) - s.lookback - 1
+	indicatorStart := len(indicatorSeries) - s.lookback - 1
+	s.currentPrice = priceSeries[len(priceSeries)-1]
+	s.currentIndicator = indicatorSeries[len(indicatorSeries)-1]
+	s.previousMaxPrice = priceSeries[priceStart]
+	s.previousMinPrice = priceSeries[priceStart]
+	s.previousMaxIndicator = indicatorSeries[indicatorStart]
+	s.previousMinIndicator = indicatorSeries[indicatorStart]
+	for index := 1; index < s.lookback; index++ {
+		s.previousMaxPrice = maxFloat(s.previousMaxPrice, priceSeries[priceStart+index])
+		s.previousMinPrice = minFloat(s.previousMinPrice, priceSeries[priceStart+index])
+		s.previousMaxIndicator = maxFloat(s.previousMaxIndicator, indicatorSeries[indicatorStart+index])
+		s.previousMinIndicator = minFloat(s.previousMinIndicator, indicatorSeries[indicatorStart+index])
+	}
+	s.ready = true
+}
+
+func (s *rollingDivergenceWindowState) detect(direction string) bool {
+	if s == nil || !s.ready {
+		return false
+	}
+	switch direction {
+	case "top":
+		return s.currentPrice > s.previousMaxPrice && s.currentIndicator < s.previousMaxIndicator
+	case "bottom":
+		return s.currentPrice < s.previousMinPrice && s.currentIndicator > s.previousMinIndicator
+	default:
+		return false
+	}
+}
+
 func newRollingMovingAverageStates(requirements indicatorRequirements, intervalMinutes int) map[movingAverageConfig]*rollingMovingAverageSnapshotState {
 	if len(requirements.ma) == 0 {
 		return nil
@@ -1066,23 +1296,30 @@ func newRollingEMAStates(requirements indicatorRequirements, intervalMinutes int
 }
 
 func newRollingMACDStates(requirements indicatorRequirements, seriesLimit int) map[macdConfig]*rollingMACDState {
-	lookbacks := map[macdConfig]int{}
+	lookbacks := map[macdConfig]map[int]struct{}{}
 	for _, config := range requirements.macd {
-		lookbacks[config] = max(lookbacks[config], 1)
+		if _, ok := lookbacks[config]; !ok {
+			lookbacks[config] = map[int]struct{}{}
+		}
 	}
 	for _, config := range requirements.macdDivergence {
 		base := macdConfig{fastPeriod: config.fastPeriod, slowPeriod: config.slowPeriod, signalPeriod: config.signalPeriod}
-		lookbacks[base] = max(lookbacks[base], config.lookback)
+		if _, ok := lookbacks[base]; !ok {
+			lookbacks[base] = map[int]struct{}{}
+		}
+		if config.lookback > 0 {
+			lookbacks[base][config.lookback] = struct{}{}
+		}
 	}
 	if len(lookbacks) == 0 {
 		return nil
 	}
 	states := make(map[macdConfig]*rollingMACDState, len(lookbacks))
-	for config, lookback := range lookbacks {
+	for config, lookbackSet := range lookbacks {
 		if config.fastPeriod <= 0 || config.slowPeriod <= 0 || config.signalPeriod <= 0 {
 			continue
 		}
-		states[config] = newRollingMACDState(config, seriesLimit, max(lookback+1, 2))
+		states[config] = newRollingMACDState(config, seriesLimit, sortedLookbacks(lookbackSet))
 	}
 	if len(states) == 0 {
 		return nil
@@ -1091,23 +1328,30 @@ func newRollingMACDStates(requirements indicatorRequirements, seriesLimit int) m
 }
 
 func newRollingKDJStates(requirements indicatorRequirements, seriesLimit int) map[kdjConfig]*rollingKDJState {
-	lookbacks := map[kdjConfig]int{}
+	lookbacks := map[kdjConfig]map[int]struct{}{}
 	for _, config := range requirements.kdj {
-		lookbacks[config] = max(lookbacks[config], 1)
+		if _, ok := lookbacks[config]; !ok {
+			lookbacks[config] = map[int]struct{}{}
+		}
 	}
 	for _, config := range requirements.kdjDivergence {
 		base := kdjConfig{period: config.period, m1: config.m1, m2: config.m2}
-		lookbacks[base] = max(lookbacks[base], config.lookback)
+		if _, ok := lookbacks[base]; !ok {
+			lookbacks[base] = map[int]struct{}{}
+		}
+		if config.lookback > 0 {
+			lookbacks[base][config.lookback] = struct{}{}
+		}
 	}
 	if len(lookbacks) == 0 {
 		return nil
 	}
 	states := make(map[kdjConfig]*rollingKDJState, len(lookbacks))
-	for config, lookback := range lookbacks {
+	for config, lookbackSet := range lookbacks {
 		if config.period <= 0 || config.m1 <= 0 || config.m2 <= 0 {
 			continue
 		}
-		states[config] = newRollingKDJState(config, seriesLimit, max(lookback+1, 2))
+		states[config] = newRollingKDJState(config, seriesLimit, sortedLookbacks(lookbackSet))
 	}
 	if len(states) == 0 {
 		return nil
@@ -1219,18 +1463,25 @@ func (s *rollingEMATailState) snapshotValues() (float64, float64, bool, bool) {
 	return current, previous, s.windowLen >= s.period, previousOK
 }
 
-func newRollingMACDState(config macdConfig, limit, tailLen int) *rollingMACDState {
+func newRollingMACDState(config macdConfig, limit int, lookbacks []int) *rollingMACDState {
 	if config.fastPeriod <= 0 || config.slowPeriod <= 0 || config.signalPeriod <= 0 {
 		return nil
 	}
 	if limit <= 0 {
 		limit = minimumIndicatorSeriesLimit
 	}
+	maxLookback := 1
+	for _, lookback := range lookbacks {
+		maxLookback = max(maxLookback, lookback)
+	}
+	tailLen := max(maxLookback+1, 2)
 	state := &rollingMACDState{
 		config:      config,
 		minimum:     max(config.fastPeriod, config.slowPeriod) + config.signalPeriod,
 		fast:        newRollingEMATailState(config.fastPeriod, limit, tailLen),
 		slow:        newRollingEMATailState(config.slowPeriod, limit, tailLen),
+		closeTail:   make([]float64, 0, tailLen),
+		diffTail:    make([]float64, 0, tailLen),
 		signalAlpha: 2 / float64(config.signalPeriod+1),
 	}
 	state.signalBeta = 1 - state.signalAlpha
@@ -1241,6 +1492,7 @@ func newRollingMACDState(config macdConfig, limit, tailLen int) *rollingMACDStat
 		}
 		state.signalShiftAdjustment = adjustment
 	}
+	state.divergenceWindows = newRollingDivergenceWindowStates(lookbacks)
 	return state
 }
 
@@ -1261,17 +1513,21 @@ func (s *rollingMACDState) push(value float64, trimmed bool, oldFirst, oldSecond
 	}
 	if s.signalBeta == 0 {
 		s.signalWeightedSum = 0
+		s.pushDivergenceSample(value)
 		return
 	}
 	if trimmed {
 		s.signalWeightedSum = shiftedWeightedSum*s.signalBeta + currentDiff
+		s.pushDivergenceSample(value)
 		return
 	}
 	if s.fast.windowLen == 1 {
 		s.signalWeightedSum = currentDiff
+		s.pushDivergenceSample(value)
 		return
 	}
 	s.signalWeightedSum = s.signalWeightedSum*s.signalBeta + currentDiff
+	s.pushDivergenceSample(value)
 }
 
 func (s *rollingMACDState) currentDiff() (float64, bool) {
@@ -1324,6 +1580,9 @@ func (s *rollingMACDState) snapshotValues() (float64, float64, float64, float64,
 }
 
 func (s *rollingMACDState) detectDivergence(closes []float64, direction string, lookback int) bool {
+	if window := s.divergenceWindows[lookback]; window != nil {
+		return window.detect(direction)
+	}
 	if s == nil || lookback <= 0 || len(closes) < lookback+1 || s.fast == nil || s.slow == nil || len(s.fast.tail) < lookback+1 || len(s.slow.tail) < lookback+1 {
 		return false
 	}
@@ -1356,7 +1615,27 @@ func (s *rollingMACDState) detectDivergence(closes []float64, direction string, 
 	}
 }
 
-func newRollingKDJState(config kdjConfig, limit, tailLen int) *rollingKDJState {
+func (s *rollingMACDState) pushDivergenceSample(price float64) {
+	if s == nil || len(s.divergenceWindows) == 0 {
+		return
+	}
+	s.closeTail = appendTailValue(s.closeTail, price, cap(s.fast.tail))
+	indicatorTail := reuseFloat64Slice(s.diffTail, len(s.fast.tail))
+	for index := range s.fast.tail {
+		indicatorTail[index] = s.fast.tail[index] - s.slow.tail[index]
+	}
+	s.diffTail = indicatorTail
+	for _, window := range s.divergenceWindows {
+		window.refresh(s.closeTail, indicatorTail)
+	}
+}
+
+func newRollingKDJState(config kdjConfig, limit int, lookbacks []int) *rollingKDJState {
+	maxLookback := 1
+	for _, lookback := range lookbacks {
+		maxLookback = max(maxLookback, lookback)
+	}
+	tailLen := max(maxLookback+1, 2)
 	if config.period <= 0 || config.m1 <= 0 || config.m2 <= 0 || tailLen <= 0 {
 		return nil
 	}
@@ -1365,22 +1644,22 @@ func newRollingKDJState(config kdjConfig, limit, tailLen int) *rollingKDJState {
 	}
 	prefixCap := min(limit, config.period+1)
 	state := &rollingKDJState{
-		config:       config,
-		limit:        limit,
-		tailLen:      max(tailLen, 1),
-		kAlpha:       1 / float64(config.m1),
-		dAlpha:       1 / float64(config.m2),
-		highDeque:    make([]windowValue, 0, min(config.period, limit)),
-		lowDeque:     make([]windowValue, 0, min(config.period, limit)),
-		kTail:        make([]float64, 0, max(tailLen, 1)),
-		dTail:        make([]float64, 0, max(tailLen, 1)),
-		jTail:        make([]float64, 0, max(tailLen, 1)),
-		prefixK:      make([]float64, 0, prefixCap),
-		prefixD:      make([]float64, 0, prefixCap),
-		prefixJ:      make([]float64, 0, prefixCap),
-		boundaryK:    make([]float64, limit),
-		boundaryDByK: make([]float64, limit),
-		boundaryDByD: make([]float64, limit),
+		config:            config,
+		limit:             limit,
+		tailLen:           max(tailLen, 1),
+		kAlpha:            1 / float64(config.m1),
+		dAlpha:            1 / float64(config.m2),
+		kTail:             make([]float64, 0, max(tailLen, 1)),
+		dTail:             make([]float64, 0, max(tailLen, 1)),
+		jTail:             make([]float64, 0, max(tailLen, 1)),
+		prefixK:           make([]float64, 0, prefixCap),
+		prefixD:           make([]float64, 0, prefixCap),
+		prefixJ:           make([]float64, 0, prefixCap),
+		boundaryK:         make([]float64, limit),
+		boundaryDByK:      make([]float64, limit),
+		boundaryDByD:      make([]float64, limit),
+		closeTail:         make([]float64, 0, tailLen),
+		divergenceWindows: newRollingDivergenceWindowStates(lookbacks),
 	}
 	state.kBeta = 1 - state.kAlpha
 	state.dBeta = 1 - state.dAlpha
@@ -1401,27 +1680,21 @@ func (s *rollingKDJState) push(highs, lows, closes []float64, high, low, closeVa
 		return
 	}
 	windowStart := s.index - s.config.period + 1
-	s.highDeque = trimWindowValuesInPlace(s.highDeque, windowStart)
-	s.lowDeque = trimWindowValuesInPlace(s.lowDeque, windowStart)
-	for len(s.highDeque) > 0 && s.highDeque[len(s.highDeque)-1].value <= high {
-		s.highDeque = s.highDeque[:len(s.highDeque)-1]
-	}
-	for len(s.lowDeque) > 0 && s.lowDeque[len(s.lowDeque)-1].value >= low {
-		s.lowDeque = s.lowDeque[:len(s.lowDeque)-1]
-	}
-	s.highDeque = append(s.highDeque, windowValue{index: s.index, value: high})
-	s.lowDeque = append(s.lowDeque, windowValue{index: s.index, value: low})
+	s.highDeque.popExpired(windowStart)
+	s.lowDeque.popExpired(windowStart)
+	s.highDeque.pushMax(s.index, high)
+	s.lowDeque.pushMin(s.index, low)
 	s.index++
 	if trimmed {
 		s.trimState(highs, lows, closes)
 	}
 	highestHigh := high
 	lowestLow := low
-	if len(s.highDeque) > 0 {
-		highestHigh = s.highDeque[0].value
+	if value, ok := s.highDeque.frontValue(); ok {
+		highestHigh = value
 	}
-	if len(s.lowDeque) > 0 {
-		lowestLow = s.lowDeque[0].value
+	if value, ok := s.lowDeque.frontValue(); ok {
+		lowestLow = value
 	}
 	rsv := calculateKDJRSV(highestHigh, lowestLow, closeValue)
 	previousK := 50.0
@@ -1444,9 +1717,11 @@ func (s *rollingKDJState) push(highs, lows, closes []float64, high, low, closeVa
 	}
 	if trimmed {
 		s.windowLen = s.limit
+		s.pushDivergenceSample(closeValue)
 		return
 	}
 	s.windowLen = min(s.windowLen+1, s.limit)
+	s.pushDivergenceSample(closeValue)
 }
 
 func (s *rollingKDJState) trimState(highs, lows, closes []float64) {
@@ -1556,11 +1831,24 @@ func (s *rollingKDJState) snapshotValues() (float64, float64, float64, float64, 
 }
 
 func (s *rollingKDJState) detectDivergence(closes []float64, direction string, lookback int) bool {
+	if window := s.divergenceWindows[lookback]; window != nil {
+		return window.detect(direction)
+	}
 	if s == nil || lookback <= 0 || len(s.jTail) < lookback+1 {
 		return false
 	}
 	alignedCloses, alignedJ := alignSeries(closes, s.jTail)
 	return detectDivergence(alignedCloses, alignedJ, direction, lookback)
+}
+
+func (s *rollingKDJState) pushDivergenceSample(price float64) {
+	if s == nil || len(s.divergenceWindows) == 0 {
+		return
+	}
+	s.closeTail = appendTailValue(s.closeTail, price, s.tailLen)
+	for _, window := range s.divergenceWindows {
+		window.refresh(s.closeTail, s.jTail)
+	}
 }
 
 func (s *rollingKDJState) boundaryKAt(step int) float64 {
@@ -1600,28 +1888,51 @@ func (s *rollingKDJState) boundaryDByDAt(step int) float64 {
 }
 
 func newRollingRSIStates(requirements indicatorRequirements, seriesLimit int) map[int]*rollingRSIState {
-	periodSet := map[int]struct{}{}
+	lookbacks := map[int]map[int]struct{}{}
 	for _, period := range requirements.rsi {
 		if period > 0 {
-			periodSet[period] = struct{}{}
+			if _, ok := lookbacks[period]; !ok {
+				lookbacks[period] = map[int]struct{}{}
+			}
 		}
 	}
 	for _, config := range requirements.rsiDivergence {
 		if config.period > 0 {
-			periodSet[config.period] = struct{}{}
+			if _, ok := lookbacks[config.period]; !ok {
+				lookbacks[config.period] = map[int]struct{}{}
+			}
+			if config.lookback > 0 {
+				lookbacks[config.period][config.lookback] = struct{}{}
+			}
 		}
 	}
-	if len(periodSet) == 0 {
+	if len(lookbacks) == 0 {
 		return nil
 	}
-	states := make(map[int]*rollingRSIState, len(periodSet))
-	for period := range periodSet {
-		states[period] = &rollingRSIState{
-			period:    period,
-			maxLength: max(seriesLimit-period, 0),
-		}
+	states := make(map[int]*rollingRSIState, len(lookbacks))
+	for period, lookbackSet := range lookbacks {
+		states[period] = newRollingRSIState(period, max(seriesLimit-period, 0), sortedLookbacks(lookbackSet))
+	}
+	if len(states) == 0 {
+		return nil
 	}
 	return states
+}
+
+func newRollingRSIState(period, maxLength int, lookbacks []int) *rollingRSIState {
+	if period <= 0 {
+		return nil
+	}
+	maxLookback := 0
+	for _, lookback := range lookbacks {
+		maxLookback = max(maxLookback, lookback)
+	}
+	return &rollingRSIState{
+		period:            period,
+		maxLength:         maxLength,
+		tailLen:           maxLookback + 1,
+		divergenceWindows: newRollingDivergenceWindowStates(lookbacks),
+	}
 }
 
 func newRollingATRStates(requirements indicatorRequirements) map[int]*rollingATRState {
@@ -1917,17 +2228,17 @@ func (s *rollingRSIState) push(currentClose, previousClose float64, hasPreviousC
 	} else {
 		loss = math.Abs(delta)
 	}
-	s.gains = append(s.gains, gain)
-	s.losses = append(s.losses, loss)
+	evictedGain, evictedGainOK := s.gains.push(gain, s.period)
+	evictedLoss, evictedLossOK := s.losses.push(loss, s.period)
 	s.gainSum += gain
 	s.lossSum += loss
-	if len(s.gains) > s.period {
-		s.gainSum -= s.gains[0]
-		s.lossSum -= s.losses[0]
-		s.gains = trimFloatSeriesInPlace(s.gains, s.period)
-		s.losses = trimFloatSeriesInPlace(s.losses, s.period)
+	if evictedGainOK {
+		s.gainSum -= evictedGain
 	}
-	if len(s.gains) < s.period {
+	if evictedLossOK {
+		s.lossSum -= evictedLoss
+	}
+	if s.gains.len() < s.period {
 		return
 	}
 	value := 100.0
@@ -1935,6 +2246,7 @@ func (s *rollingRSIState) push(currentClose, previousClose float64, hasPreviousC
 		relativeStrength := s.gainSum / s.lossSum
 		value = 100 - 100/(1+relativeStrength)
 	}
+	s.pushDivergenceSample(currentClose, value)
 	s.series = append(s.series, value)
 	if s.maxLength <= 0 {
 		s.series = s.series[:0]
@@ -1952,6 +2264,31 @@ func (s *rollingRSIState) seriesValues() []float64 {
 	return s.series
 }
 
+func (s *rollingRSIState) detectDivergence(closes []float64, direction string, lookback int) bool {
+	if s == nil {
+		return false
+	}
+	if window := s.divergenceWindows[lookback]; window != nil {
+		return window.detect(direction)
+	}
+	if lookback <= 0 {
+		return false
+	}
+	alignedCloses, alignedSeries := alignSeries(closes, s.series)
+	return detectDivergence(alignedCloses, alignedSeries, direction, lookback)
+}
+
+func (s *rollingRSIState) pushDivergenceSample(price, value float64) {
+	if s == nil || s.tailLen <= 0 || len(s.divergenceWindows) == 0 {
+		return
+	}
+	s.closeTail = appendTailValue(s.closeTail, price, s.tailLen)
+	s.valueTail = appendTailValue(s.valueTail, value, s.tailLen)
+	for _, window := range s.divergenceWindows {
+		window.refresh(s.closeTail, s.valueTail)
+	}
+}
+
 func (s *rollingRSIState) currentValue() (float64, bool) {
 	if s == nil || len(s.series) == 0 {
 		return 0, false
@@ -1965,27 +2302,25 @@ func (s *rollingMovingAverageSnapshotState) push(value, volume float64) {
 	}
 	previousCurrent := s.current
 	previousHasCurrent := s.hasCurrent
-	s.values = append(s.values, value)
+	evictedValue, evictedValueOK := s.values.push(value, s.period)
 	s.sum += value
 	if s.kind == "VWMA" {
-		s.volumes = append(s.volumes, volume)
+		evictedVolume, evictedVolumeOK := s.volumes.push(volume, s.period)
 		s.weightedSum += value * volume
 		s.volumeSum += volume
-	}
-	if len(s.values) > s.period {
-		outgoingValue := s.values[0]
-		s.sum -= outgoingValue
-		s.values = trimFloatSeriesInPlace(s.values, s.period)
-		if s.kind == "VWMA" {
-			outgoingVolume := s.volumes[0]
-			s.weightedSum -= outgoingValue * outgoingVolume
-			s.volumeSum -= outgoingVolume
-			s.volumes = trimFloatSeriesInPlace(s.volumes, s.period)
+		if evictedValueOK && evictedVolumeOK {
+			s.weightedSum -= evictedValue * evictedVolume
+			s.volumeSum -= evictedVolume
 		}
+	} else if evictedValueOK {
+		s.sum -= evictedValue
+	}
+	if s.kind == "VWMA" && evictedValueOK {
+		s.sum -= evictedValue
 	}
 	s.previous = previousCurrent
 	s.hasPrevious = previousHasCurrent
-	if len(s.values) < s.period {
+	if s.values.len() < s.period {
 		s.hasCurrent = false
 		return
 	}
@@ -2065,13 +2400,12 @@ func (s *rollingATRState) push(high, low, _ float64, previousClose float64, hasP
 	if hasPreviousClose {
 		trueRange = maxFloat(trueRange, maxFloat(math.Abs(high-previousClose), math.Abs(low-previousClose)))
 	}
-	s.window = append(s.window, trueRange)
+	evicted, evictedOK := s.window.push(trueRange, s.period)
 	s.windowSum += trueRange
-	if len(s.window) > s.period {
-		s.windowSum -= s.window[0]
-		s.window = trimFloatSeriesInPlace(s.window, s.period)
+	if evictedOK {
+		s.windowSum -= evicted
 	}
-	if len(s.window) < s.period {
+	if s.window.len() < s.period {
 		s.hasValue = false
 		return
 	}
@@ -2098,19 +2432,17 @@ func (s *rollingBollingerState) push(value float64) {
 	if s == nil || s.period <= 0 {
 		return
 	}
-	s.window = append(s.window, value)
+	evicted, evictedOK := s.window.push(value, s.period)
 	s.sum += value
 	s.sumSquares += value * value
-	if len(s.window) > s.period {
-		outgoing := s.window[0]
-		s.sum -= outgoing
-		s.sumSquares -= outgoing * outgoing
-		s.window = trimFloatSeriesInPlace(s.window, s.period)
+	if evictedOK {
+		s.sum -= evicted
+		s.sumSquares -= evicted * evicted
 	}
 }
 
 func (s *rollingBollingerState) snapshot() map[string]any {
-	if s == nil || len(s.window) < s.period {
+	if s == nil || s.window.len() < s.period {
 		return nil
 	}
 	middle := s.sum / float64(s.period)
@@ -2127,21 +2459,21 @@ func (s *rollingBollingerState) snapshot() map[string]any {
 }
 
 func (s *rollingBollingerState) snapshotValue() any {
-	if s == nil || len(s.window) < s.period {
+	if s == nil || s.window.len() < s.period {
 		return nil
 	}
 	return s
 }
 
 func (s *rollingBollingerState) PreferredScalarValue() (float64, bool) {
-	if s == nil || len(s.window) < s.period {
+	if s == nil || s.window.len() < s.period {
 		return 0, false
 	}
 	return s.sum / float64(s.period), true
 }
 
 func (s *rollingBollingerState) FieldValue(name string) (any, bool) {
-	if s == nil || len(s.window) < s.period {
+	if s == nil || s.window.len() < s.period {
 		return nil, false
 	}
 	middle := s.sum / float64(s.period)
@@ -2166,19 +2498,19 @@ func (s *rollingCCIState) push(typicalPrice float64) {
 	if s == nil || s.period <= 0 {
 		return
 	}
-	s.window = append(s.window, typicalPrice)
+	evicted, evictedOK := s.window.push(typicalPrice, s.period)
 	s.sum += typicalPrice
-	if len(s.window) > s.period {
-		s.sum -= s.window[0]
-		s.window = trimFloatSeriesInPlace(s.window, s.period)
+	if evictedOK {
+		s.sum -= evicted
 	}
-	if len(s.window) < s.period {
+	if s.window.len() < s.period {
 		s.hasValue = false
 		return
 	}
 	average := s.sum / float64(s.period)
 	meanDeviation := 0.0
-	for _, value := range s.window {
+	for index := 0; index < s.window.len(); index++ {
+		value, _ := s.window.at(index)
 		meanDeviation += math.Abs(value - average)
 	}
 	meanDeviation /= float64(s.period)
@@ -2187,7 +2519,7 @@ func (s *rollingCCIState) push(typicalPrice float64) {
 		s.hasValue = true
 		return
 	}
-	s.current = (s.window[len(s.window)-1] - average) / (0.015 * meanDeviation)
+	s.current = (typicalPrice - average) / (0.015 * meanDeviation)
 	s.hasValue = true
 }
 
@@ -2211,23 +2543,17 @@ func (s *rollingWilliamsRState) push(high, low, closeValue float64) {
 		return
 	}
 	windowStart := s.index - s.period + 1
-	s.highDeque = trimWindowValuesInPlace(s.highDeque, windowStart)
-	s.lowDeque = trimWindowValuesInPlace(s.lowDeque, windowStart)
-	for len(s.highDeque) > 0 && s.highDeque[len(s.highDeque)-1].value <= high {
-		s.highDeque = s.highDeque[:len(s.highDeque)-1]
-	}
-	for len(s.lowDeque) > 0 && s.lowDeque[len(s.lowDeque)-1].value >= low {
-		s.lowDeque = s.lowDeque[:len(s.lowDeque)-1]
-	}
-	s.highDeque = append(s.highDeque, windowValue{index: s.index, value: high})
-	s.lowDeque = append(s.lowDeque, windowValue{index: s.index, value: low})
+	s.highDeque.popExpired(windowStart)
+	s.lowDeque.popExpired(windowStart)
+	s.highDeque.pushMax(s.index, high)
+	s.lowDeque.pushMin(s.index, low)
 	s.index++
 	if s.index < s.period {
 		s.hasValue = false
 		return
 	}
-	highestHigh := s.highDeque[0].value
-	lowestLow := s.lowDeque[0].value
+	highestHigh, _ := s.highDeque.frontValue()
+	lowestLow, _ := s.lowDeque.frontValue()
 	if highestHigh == lowestLow {
 		s.current = -50
 		s.hasValue = true
@@ -2434,7 +2760,7 @@ func movingAverageSnapshotForSymbol(values, volumes []float64, endTimes []time.T
 }
 
 func buildMovingAverageSnapshotForTradingWindow(values, volumes []float64, endTimes []time.Time, config movingAverageConfig, symbol string, includeExtendedHours bool, cache *snapshotSeriesCache) any {
-	if current, previous, currentOK, previousOK, handled := calculateTradingWindowMovingAverageSnapshotOnline(values, volumes, endTimes, config, symbol, includeExtendedHours); handled {
+	if current, previous, currentOK, previousOK, handled := calculateTradingWindowMovingAverageSnapshotOnlineWithCache(values, volumes, endTimes, config, symbol, includeExtendedHours, cache); handled {
 		if !currentOK {
 			return nil
 		}
@@ -2453,6 +2779,16 @@ func calculateTradingWindowMovingAverageSnapshotOnline(values, volumes []float64
 }
 
 func calculateTradingWindowMovingAverageSnapshotOnlineWithCache(values, volumes []float64, endTimes []time.Time, config movingAverageConfig, symbol string, includeExtendedHours bool, cache *snapshotSeriesCache) (float64, float64, bool, bool, bool) {
+	normalizedType := normalizeMovingAverageType(config.averageType)
+	if normalizedType == "EMA" || normalizedType == "EXPMA" || normalizedType == "SMMA" || normalizedType == "TMA" || normalizedType == "HMA" {
+		labelKeys := cache.getTradingPeriodLabels(endTimes, symbol, config.timeUnit, includeExtendedHours)
+		current, currentOK, handled := calculateTradingWindowSequenceValueFromKeys(values, labelKeys, normalizedType, config.period, len(values))
+		if !handled {
+			return 0, 0, false, false, false
+		}
+		previous, previousOK, _ := calculateTradingWindowSequenceValueFromKeys(values, labelKeys, normalizedType, config.period, max(len(values)-1, 0))
+		return current, previous, currentOK, previousOK, true
+	}
 	aggregator, handled := newTradingWindowMovingAverageAggregator(config)
 	if !handled {
 		return 0, 0, false, false, false
@@ -2500,7 +2836,7 @@ func calculateMovingAverageCurrentValue(values, volumes []float64, config moving
 }
 
 func calculateTradingWindowMovingAverageCurrentValue(values, volumes []float64, endTimes []time.Time, config movingAverageConfig, symbol string, upperBound int, includeExtendedHours bool, cache *snapshotSeriesCache) (float64, bool) {
-	if current, currentOK, handled := calculateTradingWindowMovingAverageCurrentValueOnline(values, volumes, endTimes, config, symbol, upperBound, includeExtendedHours); handled {
+	if current, currentOK, handled := calculateTradingWindowMovingAverageCurrentValueOnlineWithCache(values, volumes, endTimes, config, symbol, upperBound, includeExtendedHours, cache); handled {
 		return current, currentOK
 	}
 	selected := selectTradingWindowIndicesWithCache(endTimes, config.period, config.timeUnit, symbol, upperBound, includeExtendedHours, cache)
@@ -2511,41 +2847,15 @@ func calculateTradingWindowMovingAverageCurrentValue(values, volumes []float64, 
 }
 
 func calculateTradingWindowMovingAverageCurrentValueOnline(values, volumes []float64, endTimes []time.Time, config movingAverageConfig, symbol string, upperBound int, includeExtendedHours bool) (float64, bool, bool) {
-	aggregator, handled := newTradingWindowMovingAverageAggregator(config)
-	if !handled {
-		return 0, false, false
-	}
-	if len(values) == 0 || len(values) != len(endTimes) || upperBound <= 0 {
-		return 0, false, true
-	}
-	limit := min(upperBound, len(endTimes))
-	orderedKeys := 0
-	lastKey := int64(0)
-	hasKey := false
-	normalizedUnit := normalizeIndicatorTimeUnit(config.timeUnit)
-	for index := limit - 1; index >= 0; index-- {
-		labelStart, ok := futu.TradingPeriodLabelStart(symbol, endTimes[index], normalizedUnit, includeExtendedHours)
-		if !ok {
-			continue
-		}
-		key := labelStart.Unix()
-		if !hasKey || key != lastKey {
-			if orderedKeys == config.period {
-				break
-			}
-			lastKey = key
-			hasKey = true
-			orderedKeys++
-		}
-		if !aggregator.push(values[index], volumes, index) {
-			return 0, false, true
-		}
-	}
-	current, currentOK := aggregator.value()
-	return current, currentOK, true
+	return calculateTradingWindowMovingAverageCurrentValueOnlineWithCache(values, volumes, endTimes, config, symbol, upperBound, includeExtendedHours, nil)
 }
 
 func calculateTradingWindowMovingAverageCurrentValueOnlineWithCache(values, volumes []float64, endTimes []time.Time, config movingAverageConfig, symbol string, upperBound int, includeExtendedHours bool, cache *snapshotSeriesCache) (float64, bool, bool) {
+	normalizedType := normalizeMovingAverageType(config.averageType)
+	if normalizedType == "EMA" || normalizedType == "EXPMA" || normalizedType == "SMMA" || normalizedType == "TMA" || normalizedType == "HMA" {
+		labelKeys := cache.getTradingPeriodLabels(endTimes, symbol, config.timeUnit, includeExtendedHours)
+		return calculateTradingWindowSequenceValueFromKeys(values, labelKeys, normalizedType, config.period, upperBound)
+	}
 	aggregator, handled := newTradingWindowMovingAverageAggregator(config)
 	if !handled {
 		return 0, false, false
@@ -2583,6 +2893,15 @@ func calculateTradingWindowMovingAverageCurrentValueOnlineWithCache(values, volu
 }
 
 func calculateTradingWindowMovingAverageSnapshotFromKeys(values, volumes []float64, labelKeys []int64, config movingAverageConfig) (float64, float64, bool, bool, bool) {
+	normalizedType := normalizeMovingAverageType(config.averageType)
+	if normalizedType == "EMA" || normalizedType == "EXPMA" || normalizedType == "SMMA" || normalizedType == "TMA" || normalizedType == "HMA" {
+		current, currentOK, handled := calculateTradingWindowSequenceValueFromKeys(values, labelKeys, normalizedType, config.period, len(values))
+		if !handled {
+			return 0, 0, false, false, false
+		}
+		previous, previousOK, _ := calculateTradingWindowSequenceValueFromKeys(values, labelKeys, normalizedType, config.period, max(len(values)-1, 0))
+		return current, previous, currentOK, previousOK, true
+	}
 	aggregator, handled := newTradingWindowMovingAverageAggregator(config)
 	if !handled {
 		return 0, 0, false, false, false
@@ -2611,6 +2930,178 @@ func calculateTradingWindowMovingAverageSnapshotFromKeys(values, volumes []float
 	current, currentOK := currentState.value()
 	previous, previousOK := previousState.value()
 	return current, previous, currentOK, previousOK, true
+}
+
+type tradingWindowSelectionSummary struct {
+	startKey   int64
+	startIndex int
+	endIndex   int
+	count      int
+	valid      bool
+}
+
+func summarizeTradingWindowSelectionFromKeys(labelKeys []int64, period int, upperBound int) tradingWindowSelectionSummary {
+	if period <= 0 || upperBound <= 0 || len(labelKeys) == 0 {
+		return tradingWindowSelectionSummary{}
+	}
+	limit := min(upperBound, len(labelKeys))
+	orderedKeys := 0
+	lastKey := int64(0)
+	hasKey := false
+	summary := tradingWindowSelectionSummary{startIndex: limit, endIndex: -1}
+	for index := limit - 1; index >= 0; index-- {
+		key := labelKeys[index]
+		if key == invalidTradingPeriodLabelKey {
+			continue
+		}
+		if summary.endIndex < 0 {
+			summary.endIndex = index
+		}
+		if !hasKey || key != lastKey {
+			if orderedKeys == period {
+				break
+			}
+			lastKey = key
+			hasKey = true
+			orderedKeys++
+		}
+		summary.startKey = key
+		summary.startIndex = index
+		summary.count++
+	}
+	if summary.count == 0 || summary.endIndex < 0 || summary.startIndex >= limit {
+		return tradingWindowSelectionSummary{}
+	}
+	summary.valid = true
+	return summary
+}
+
+func calculateEMAFromTradingWindowSelection(values []float64, labelKeys []int64, summary tradingWindowSelectionSummary) (float64, bool) {
+	if !summary.valid || summary.count <= 0 || len(values) == 0 || len(values) != len(labelKeys) {
+		return 0, false
+	}
+	alpha := 2 / float64(summary.count+1)
+	current := 0.0
+	count := 0
+	for index := summary.startIndex; index <= summary.endIndex && index < len(values); index++ {
+		key := labelKeys[index]
+		if key == invalidTradingPeriodLabelKey || key < summary.startKey {
+			continue
+		}
+		if count == 0 {
+			current = values[index]
+			count = 1
+			continue
+		}
+		current = current + (values[index]-current)*alpha
+		count++
+	}
+	if count != summary.count {
+		return 0, false
+	}
+	return current, true
+}
+
+func calculateTradingWindowEMAValueFromKeys(values []float64, labelKeys []int64, period int, upperBound int) (float64, bool, bool) {
+	if len(values) == 0 || len(values) != len(labelKeys) || upperBound <= 0 {
+		return 0, false, true
+	}
+	summary := summarizeTradingWindowSelectionFromKeys(labelKeys, period, upperBound)
+	if !summary.valid {
+		return 0, false, true
+	}
+	current, ok := calculateEMAFromTradingWindowSelection(values, labelKeys, summary)
+	return current, ok, true
+}
+
+func calculateSMMAFromTradingWindowSelection(values []float64, labelKeys []int64, summary tradingWindowSelectionSummary) (float64, bool) {
+	if !summary.valid || summary.count <= 0 || len(values) == 0 || len(values) != len(labelKeys) {
+		return 0, false
+	}
+	sum := 0.0
+	count := 0
+	for index := summary.startIndex; index <= summary.endIndex && index < len(values); index++ {
+		key := labelKeys[index]
+		if key == invalidTradingPeriodLabelKey || key < summary.startKey {
+			continue
+		}
+		sum += values[index]
+		count++
+	}
+	if count != summary.count || count == 0 {
+		return 0, false
+	}
+	return sum / float64(count), true
+}
+
+func calculateSingleValueFromTradingWindowSelection(values []float64, labelKeys []int64, summary tradingWindowSelectionSummary) (float64, bool) {
+	if !summary.valid || summary.count != 1 || len(values) == 0 || len(values) != len(labelKeys) {
+		return 0, false
+	}
+	for index := summary.startIndex; index <= summary.endIndex && index < len(values); index++ {
+		key := labelKeys[index]
+		if key == invalidTradingPeriodLabelKey || key < summary.startKey {
+			continue
+		}
+		return values[index], true
+	}
+	return 0, false
+}
+
+func calculateHMAFromTradingWindowSelection(values []float64, labelKeys []int64, summary tradingWindowSelectionSummary) (float64, bool) {
+	if !summary.valid || summary.count <= 0 || len(values) == 0 || len(values) != len(labelKeys) {
+		return 0, false
+	}
+	if summary.count == 1 {
+		return calculateSingleValueFromTradingWindowSelection(values, labelKeys, summary)
+	}
+	if summary.count != 2 {
+		return 0, false
+	}
+	collected := [2]float64{}
+	count := 0
+	for index := summary.startIndex; index <= summary.endIndex && index < len(values); index++ {
+		key := labelKeys[index]
+		if key == invalidTradingPeriodLabelKey || key < summary.startKey {
+			continue
+		}
+		if count >= len(collected) {
+			return 0, false
+		}
+		collected[count] = values[index]
+		count++
+	}
+	if count != summary.count {
+		return 0, false
+	}
+	slowWMA := (collected[0] + 2*collected[1]) / 3
+	return 2*collected[1] - slowWMA, true
+}
+
+func calculateTradingWindowSequenceValueFromKeys(values []float64, labelKeys []int64, averageType string, period int, upperBound int) (float64, bool, bool) {
+	if len(values) == 0 || len(values) != len(labelKeys) || upperBound <= 0 {
+		return 0, false, true
+	}
+	summary := summarizeTradingWindowSelectionFromKeys(labelKeys, period, upperBound)
+	if !summary.valid {
+		return 0, false, true
+	}
+	switch averageType {
+	case "EMA", "EXPMA":
+		current, ok := calculateEMAFromTradingWindowSelection(values, labelKeys, summary)
+		return current, ok, true
+	case "SMMA":
+		current, ok := calculateSMMAFromTradingWindowSelection(values, labelKeys, summary)
+		return current, ok, true
+	case "TMA":
+		current, ok := calculateSingleValueFromTradingWindowSelection(values, labelKeys, summary)
+		return current, ok, true
+	case "HMA":
+		current, ok := calculateHMAFromTradingWindowSelection(values, labelKeys, summary)
+		return current, ok, true
+	default:
+		return 0, false, false
+	}
 }
 
 func calculateMovingAverageCurrentValueFromSelected(values, volumes []float64, selected []int, config movingAverageConfig, cache *snapshotSeriesCache) (float64, bool) {

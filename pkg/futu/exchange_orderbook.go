@@ -96,22 +96,23 @@ func (e *Exchange) ensureOrderBookPushSubscriptions(ctx context.Context, client 
 		return nil
 	}
 
-	securityList := make([]*qotcommonpb.Security, 0, len(missing))
-	for _, req := range missing {
-		securityList = append(securityList, req.security)
-	}
-	// isSubOrderBookDetail is auto-managed: enabled for HK market (SF行情).
-	subReq := opend.QuoteSubRequest{
-		Securities:  securityList,
-		SubTypes:    []qotcommonpb.SubType{qotcommonpb.SubType_SubType_OrderBook},
-		IsSubscribe: true,
-		IsRegPush:   proto.Bool(true),
-	}
-	if isHKMarket(securityList) {
-		subReq.IsSubOrderBookDetail = proto.Bool(true)
-	}
-	if err := client.SubscribeQuotes(ctx, subReq); err != nil {
-		return err
+	for _, batch := range groupOrderBookRequestsForPush(missing) {
+		securityList := make([]*qotcommonpb.Security, 0, len(batch.requests))
+		for _, req := range batch.requests {
+			securityList = append(securityList, req.security)
+		}
+		subReq := opend.QuoteSubRequest{
+			Securities:  securityList,
+			SubTypes:    []qotcommonpb.SubType{qotcommonpb.SubType_SubType_OrderBook},
+			IsSubscribe: true,
+			IsRegPush:   proto.Bool(true),
+		}
+		if batch.withDetail {
+			subReq.IsSubOrderBookDetail = proto.Bool(true)
+		}
+		if err := client.SubscribeQuotes(ctx, subReq); err != nil {
+			return err
+		}
 	}
 
 	e.mu.Lock()
@@ -121,6 +122,32 @@ func (e *Exchange) ensureOrderBookPushSubscriptions(ctx context.Context, client 
 		e.subscriptions.markOrderBookPush(req.canonical)
 	}
 	return nil
+}
+
+type orderBookPushBatch struct {
+	requests   []orderBookRequest
+	withDetail bool
+}
+
+func groupOrderBookRequestsForPush(requests []orderBookRequest) []orderBookPushBatch {
+	hkRequests := make([]orderBookRequest, 0, len(requests))
+	otherRequests := make([]orderBookRequest, 0, len(requests))
+	for _, req := range requests {
+		if req.security != nil && req.security.GetMarket() == int32(qotcommonpb.QotMarket_QotMarket_HK_Security) {
+			hkRequests = append(hkRequests, req)
+			continue
+		}
+		otherRequests = append(otherRequests, req)
+	}
+
+	batches := make([]orderBookPushBatch, 0, 2)
+	if len(hkRequests) > 0 {
+		batches = append(batches, orderBookPushBatch{requests: hkRequests, withDetail: true})
+	}
+	if len(otherRequests) > 0 {
+		batches = append(batches, orderBookPushBatch{requests: otherRequests})
+	}
+	return batches
 }
 
 // isHKMarket returns true if any of the securities belongs to HK market,

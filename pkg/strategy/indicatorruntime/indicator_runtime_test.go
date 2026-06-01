@@ -13,6 +13,7 @@ import (
 )
 
 var benchmarkSnapshotSink map[string]any
+var benchmarkMovingAverageSnapshotSink any
 
 const benchmarkProtectSessionStrategyScript = `strategy DSL Indicator Protect Session Benchmark
 version 1
@@ -483,6 +484,169 @@ func TestBuildMovingAverageSnapshotHonorsEMAWarmup(t *testing.T) {
 	}
 }
 
+func TestTradingWindowEMASnapshotFromKeysMatchesMaterializedSelection(t *testing.T) {
+	values := []float64{1, 10, 20, 2, 30, 40}
+	volumes := []float64{1, 1, 1, 1, 1, 1}
+	endTimes := []time.Time{
+		time.Date(2026, time.May, 28, 12, 0, 0, 0, time.UTC),
+		time.Date(2026, time.May, 28, 15, 0, 0, 0, time.UTC),
+		time.Date(2026, time.May, 28, 19, 0, 0, 0, time.UTC),
+		time.Date(2026, time.May, 29, 12, 0, 0, 0, time.UTC),
+		time.Date(2026, time.May, 29, 15, 0, 0, 0, time.UTC),
+		time.Date(2026, time.May, 29, 19, 0, 0, 0, time.UTC),
+	}
+	config := movingAverageConfig{averageType: "EMA", period: 1, timeUnit: "day"}
+	cache := newSnapshotSeriesCache()
+	labelKeys := cache.getTradingPeriodLabels(endTimes, "US.AAPL", config.timeUnit, false)
+
+	current, previous, currentOK, previousOK, handled := calculateTradingWindowMovingAverageSnapshotFromKeys(values, volumes, labelKeys, config)
+	if !handled || !currentOK || !previousOK {
+		t.Fatalf("unexpected EMA trading-window snapshot flags: handled=%v currentOK=%v previousOK=%v", handled, currentOK, previousOK)
+	}
+
+	expectedCurrentValues, expectedCurrentVolumes := selectTradingWindowSeriesWithCache(values, volumes, endTimes, config.period, config.timeUnit, "US.AAPL", len(values), false, cache)
+	expectedCurrent, expectedPrevious, expectedCurrentOK, expectedPreviousOK := calculateMovingAverageSnapshotValuesWithCache(expectedCurrentValues, expectedCurrentVolumes, movingAverageConfig{averageType: "EMA", period: len(expectedCurrentValues)}, cache)
+	if !expectedCurrentOK {
+		t.Fatal("expected materialized current EMA value")
+	}
+	if expectedPreviousOK {
+		t.Fatalf("materialized current window should not expose previous, got %v", expectedPrevious)
+	}
+
+	expectedPreviousValues, expectedPreviousVolumes := selectTradingWindowSeriesWithCache(values, volumes, endTimes, config.period, config.timeUnit, "US.AAPL", len(values)-1, false, cache)
+	expectedPreviousCurrent, _, expectedPreviousCurrentOK, _ := calculateMovingAverageSnapshotValuesWithCache(expectedPreviousValues, expectedPreviousVolumes, movingAverageConfig{averageType: "EMA", period: len(expectedPreviousValues)}, cache)
+	if !expectedPreviousCurrentOK {
+		t.Fatal("expected materialized previous EMA value")
+	}
+
+	if math.Abs(current-expectedCurrent) > 1e-9 {
+		t.Fatalf("current EMA = %v, want %v", current, expectedCurrent)
+	}
+	if math.Abs(previous-expectedPreviousCurrent) > 1e-9 {
+		t.Fatalf("previous EMA = %v, want %v", previous, expectedPreviousCurrent)
+	}
+}
+
+func TestTradingWindowEMAValueOnlineWithCacheMatchesMaterializedSelection(t *testing.T) {
+	values := []float64{5, 10, 20, 50, 30, 40, 60, 80}
+	volumes := []float64{1, 1, 1, 1, 1, 1, 1, 1}
+	endTimes := []time.Time{
+		time.Date(2026, time.May, 28, 1, 0, 0, 0, time.UTC),
+		time.Date(2026, time.May, 28, 7, 0, 0, 0, time.UTC),
+		time.Date(2026, time.May, 28, 13, 0, 0, 0, time.UTC),
+		time.Date(2026, time.May, 28, 15, 0, 0, 0, time.UTC),
+		time.Date(2026, time.May, 29, 1, 0, 0, 0, time.UTC),
+		time.Date(2026, time.May, 29, 7, 0, 0, 0, time.UTC),
+		time.Date(2026, time.May, 29, 13, 0, 0, 0, time.UTC),
+		time.Date(2026, time.May, 29, 15, 0, 0, 0, time.UTC),
+	}
+	config := movingAverageConfig{averageType: "EXPMA", period: 1, timeUnit: "day"}
+	cache := newSnapshotSeriesCache()
+
+	actual, actualOK, handled := calculateTradingWindowMovingAverageCurrentValueOnlineWithCache(values, volumes, endTimes, config, "US.AAPL", len(values), true, cache)
+	if !handled || !actualOK {
+		t.Fatalf("unexpected EMA online flags: handled=%v ok=%v", handled, actualOK)
+	}
+
+	selectedValues, selectedVolumes := selectTradingWindowSeriesWithCache(values, volumes, endTimes, config.period, config.timeUnit, "US.AAPL", len(values), true, cache)
+	expected, _, expectedOK, _ := calculateMovingAverageSnapshotValuesWithCache(selectedValues, selectedVolumes, movingAverageConfig{averageType: "EXPMA", period: len(selectedValues)}, cache)
+	if !expectedOK {
+		t.Fatal("expected materialized extended-hours EMA value")
+	}
+	if math.Abs(actual-expected) > 1e-9 {
+		t.Fatalf("online EMA = %v, want %v", actual, expected)
+	}
+}
+
+func TestTradingWindowSMMASnapshotFromKeysMatchesMaterializedSelection(t *testing.T) {
+	values := []float64{10, 20, 30, 40, 50, 60}
+	volumes := []float64{1, 1, 1, 1, 1, 1}
+	endTimes := []time.Time{
+		time.Date(2026, time.May, 28, 12, 0, 0, 0, time.UTC),
+		time.Date(2026, time.May, 28, 15, 0, 0, 0, time.UTC),
+		time.Date(2026, time.May, 28, 19, 0, 0, 0, time.UTC),
+		time.Date(2026, time.May, 29, 12, 0, 0, 0, time.UTC),
+		time.Date(2026, time.May, 29, 15, 0, 0, 0, time.UTC),
+		time.Date(2026, time.May, 29, 19, 0, 0, 0, time.UTC),
+	}
+	config := movingAverageConfig{averageType: "SMMA", period: 1, timeUnit: "day"}
+	cache := newSnapshotSeriesCache()
+	labelKeys := cache.getTradingPeriodLabels(endTimes, "US.AAPL", config.timeUnit, false)
+
+	current, previous, currentOK, previousOK, handled := calculateTradingWindowMovingAverageSnapshotFromKeys(values, volumes, labelKeys, config)
+	if !handled || !currentOK || !previousOK {
+		t.Fatalf("unexpected SMMA trading-window snapshot flags: handled=%v currentOK=%v previousOK=%v", handled, currentOK, previousOK)
+	}
+
+	expectedCurrentValues, expectedCurrentVolumes := selectTradingWindowSeriesWithCache(values, volumes, endTimes, config.period, config.timeUnit, "US.AAPL", len(values), false, cache)
+	expectedCurrent, expectedCurrentOK := calculateMovingAverageCurrentValue(expectedCurrentValues, expectedCurrentVolumes, config)
+	if !expectedCurrentOK {
+		t.Fatal("expected materialized current SMMA value")
+	}
+	expectedPreviousValues, expectedPreviousVolumes := selectTradingWindowSeriesWithCache(values, volumes, endTimes, config.period, config.timeUnit, "US.AAPL", len(values)-1, false, cache)
+	expectedPrevious, expectedPreviousOK := calculateMovingAverageCurrentValue(expectedPreviousValues, expectedPreviousVolumes, config)
+	if !expectedPreviousOK {
+		t.Fatal("expected materialized previous SMMA value")
+	}
+
+	if math.Abs(current-expectedCurrent) > 1e-9 {
+		t.Fatalf("current SMMA = %v, want %v", current, expectedCurrent)
+	}
+	if math.Abs(previous-expectedPrevious) > 1e-9 {
+		t.Fatalf("previous SMMA = %v, want %v", previous, expectedPrevious)
+	}
+}
+
+func TestTradingWindowTMACurrentValueOnlineWithCacheMatchesMaterializedSelection(t *testing.T) {
+	values := []float64{10, 20, 30, 40}
+	volumes := []float64{1, 1, 1, 1}
+	endTimes := []time.Time{
+		time.Date(2026, time.May, 28, 12, 0, 0, 0, time.UTC),
+		time.Date(2026, time.May, 28, 15, 0, 0, 0, time.UTC),
+		time.Date(2026, time.May, 29, 12, 0, 0, 0, time.UTC),
+		time.Date(2026, time.May, 29, 15, 0, 0, 0, time.UTC),
+	}
+	config := movingAverageConfig{averageType: "TMA", period: 1, timeUnit: "day"}
+	cache := newSnapshotSeriesCache()
+
+	actual, actualOK, handled := calculateTradingWindowMovingAverageCurrentValueOnlineWithCache(values, volumes, endTimes, config, "US.AAPL", len(values), false, cache)
+	if !handled {
+		t.Fatal("expected TMA trading-window path to be handled")
+	}
+	selectedValues, selectedVolumes := selectTradingWindowSeriesWithCache(values, volumes, endTimes, config.period, config.timeUnit, "US.AAPL", len(values), false, cache)
+	expected, expectedOK := calculateMovingAverageCurrentValue(selectedValues, selectedVolumes, config)
+	if actualOK != expectedOK {
+		t.Fatalf("TMA ok = %v, want %v", actualOK, expectedOK)
+	}
+	if actualOK && math.Abs(actual-expected) > 1e-9 {
+		t.Fatalf("online TMA = %v, want %v", actual, expected)
+	}
+}
+
+func TestTradingWindowHMAValueOnlineWithCacheMatchesMaterializedSelection(t *testing.T) {
+	values := []float64{10, 16}
+	volumes := []float64{1, 1}
+	endTimes := []time.Time{
+		time.Date(2026, time.May, 28, 12, 0, 0, 0, time.UTC),
+		time.Date(2026, time.May, 28, 15, 0, 0, 0, time.UTC),
+	}
+	config := movingAverageConfig{averageType: "HMA", period: 1, timeUnit: "day"}
+	cache := newSnapshotSeriesCache()
+
+	actual, actualOK, handled := calculateTradingWindowMovingAverageCurrentValueOnlineWithCache(values, volumes, endTimes, config, "US.AAPL", len(values), false, cache)
+	if !handled || !actualOK {
+		t.Fatalf("unexpected HMA trading-window flags: handled=%v ok=%v", handled, actualOK)
+	}
+	selectedValues, selectedVolumes := selectTradingWindowSeriesWithCache(values, volumes, endTimes, config.period, config.timeUnit, "US.AAPL", len(values), false, cache)
+	expected, expectedOK := calculateMovingAverageCurrentValue(selectedValues, selectedVolumes, config)
+	if !expectedOK {
+		t.Fatal("expected materialized HMA value")
+	}
+	if math.Abs(actual-expected) > 1e-9 {
+		t.Fatalf("online HMA = %v, want %v", actual, expected)
+	}
+}
+
 func TestRollingMovingAverageStateMatchesBatchSnapshots(t *testing.T) {
 	state := &rollingMovingAverageSnapshotState{kind: "MA", period: 3}
 	vwmaState := &rollingMovingAverageSnapshotState{kind: "VWMA", period: 3}
@@ -521,6 +685,36 @@ func TestRollingRSIStateMatchesBatchSeriesWithTrim(t *testing.T) {
 	}
 	expectedCloses := closes[len(closes)-5:]
 	assertFloatSliceApproxEqual(t, state.seriesValues(), calculateRSISeries(expectedCloses, 3))
+}
+
+func TestRollingRSIStateMatchesBatchDivergenceWithTrim(t *testing.T) {
+	lookback := 3
+	state := newRollingRSIState(3, 4, []int{lookback})
+	window := make([]float64, 0, 7)
+	for _, closeValue := range []float64{10, 13, 12, 14, 15, 14, 16, 15, 17, 18, 16, 19} {
+		hasPrevious := len(window) > 0
+		previousClose := 0.0
+		if hasPrevious {
+			previousClose = window[len(window)-1]
+		}
+		state.push(closeValue, previousClose, hasPrevious)
+		window = append(window, closeValue)
+		if len(window) > 7 {
+			window = window[len(window)-7:]
+		}
+		expectedSeries := calculateRSISeries(window, 3)
+		expectedTail := expectedSeries
+		if len(expectedTail) > lookback+1 {
+			expectedTail = expectedTail[len(expectedTail)-(lookback+1):]
+		}
+		assertFloatSliceApproxEqual(t, state.valueTail, expectedTail)
+		if actual := state.detectDivergence(window, "top", lookback); actual != detectRSIDivergence(window, expectedSeries, "top", lookback) {
+			t.Fatalf("top divergence mismatch after close %v: actual=%v expected=%v", closeValue, actual, detectRSIDivergence(window, expectedSeries, "top", lookback))
+		}
+		if actual := state.detectDivergence(window, "bottom", lookback); actual != detectRSIDivergence(window, expectedSeries, "bottom", lookback) {
+			t.Fatalf("bottom divergence mismatch after close %v: actual=%v expected=%v", closeValue, actual, detectRSIDivergence(window, expectedSeries, "bottom", lookback))
+		}
+	}
 }
 
 func TestCalculateMACDSnapshotMatchesExpectedValues(t *testing.T) {
@@ -571,7 +765,7 @@ func TestRollingEMATailStateMatchesBatchSnapshotWithTrim(t *testing.T) {
 func TestRollingMACDStateMatchesBatchSnapshotAndDivergenceWithTrim(t *testing.T) {
 	config := macdConfig{fastPeriod: 3, slowPeriod: 5, signalPeriod: 2}
 	lookback := 3
-	state := newRollingMACDState(config, 7, lookback+1)
+	state := newRollingMACDState(config, 7, []int{lookback})
 	cache := newSnapshotSeriesCache()
 	window := make([]float64, 0, 7)
 	for _, closeValue := range []float64{10, 11, 12, 13, 12, 14, 16, 15, 17, 19, 18, 20} {
@@ -609,7 +803,7 @@ func TestRollingMACDStateMatchesBatchSnapshotAndDivergenceWithTrim(t *testing.T)
 func TestRollingKDJStateMatchesBatchSnapshotAndDivergenceWithTrim(t *testing.T) {
 	config := kdjConfig{period: 3, m1: 3, m2: 3}
 	lookback := 3
-	state := newRollingKDJState(config, 7, lookback+1)
+	state := newRollingKDJState(config, 7, []int{lookback})
 	cache := newSnapshotSeriesCache()
 	highWindow := make([]float64, 0, 7)
 	lowWindow := make([]float64, 0, 7)
@@ -1144,6 +1338,58 @@ func BenchmarkIndicatorRuntimePushAndSnapshot(b *testing.B) {
 		}, futu.MarketSessionRegular)
 		benchmarkSnapshotSink = runtime.snapshot()
 	}
+}
+
+func BenchmarkTradingWindowMovingAverageSnapshotFromKeys(b *testing.B) {
+	values := []float64{10, 20, 30, 40, 50, 60}
+	volumes := []float64{1, 1, 1, 1, 1, 1}
+	endTimes := []time.Time{
+		time.Date(2026, time.May, 28, 12, 0, 0, 0, time.UTC),
+		time.Date(2026, time.May, 28, 15, 0, 0, 0, time.UTC),
+		time.Date(2026, time.May, 28, 19, 0, 0, 0, time.UTC),
+		time.Date(2026, time.May, 29, 12, 0, 0, 0, time.UTC),
+		time.Date(2026, time.May, 29, 15, 0, 0, 0, time.UTC),
+		time.Date(2026, time.May, 29, 19, 0, 0, 0, time.UTC),
+	}
+	cache := newSnapshotSeriesCache()
+	labelKeys := cache.getTradingPeriodLabels(endTimes, "US.AAPL", "day", false)
+	configs := []movingAverageConfig{
+		{averageType: "EMA", period: 1, timeUnit: "day"},
+		{averageType: "SMMA", period: 1, timeUnit: "day"},
+		{averageType: "TMA", period: 1, timeUnit: "day"},
+	}
+	for _, config := range configs {
+		config := config
+		b.Run(config.averageType, func(b *testing.B) {
+			b.ReportAllocs()
+			for index := 0; index < b.N; index++ {
+				current, previous, currentOK, previousOK, _ := calculateTradingWindowMovingAverageSnapshotFromKeys(values, volumes, labelKeys, config)
+				benchmarkMovingAverageSnapshotSink = snapshotValueToMap(
+					cache.getMovingAverageSnapshot(config, current, previous, currentOK, previousOK),
+					[...]string{"value", "previous"},
+				)
+			}
+		})
+	}
+
+	hmaValues := []float64{10, 16}
+	hmaVolumes := []float64{1, 1}
+	hmaEndTimes := []time.Time{
+		time.Date(2026, time.May, 28, 12, 0, 0, 0, time.UTC),
+		time.Date(2026, time.May, 28, 15, 0, 0, 0, time.UTC),
+	}
+	hmaLabelKeys := cache.getTradingPeriodLabels(hmaEndTimes, "US.AAPL", "day", false)
+	hmaConfig := movingAverageConfig{averageType: "HMA", period: 1, timeUnit: "day"}
+	b.Run("HMA", func(b *testing.B) {
+		b.ReportAllocs()
+		for index := 0; index < b.N; index++ {
+			current, previous, currentOK, previousOK, _ := calculateTradingWindowMovingAverageSnapshotFromKeys(hmaValues, hmaVolumes, hmaLabelKeys, hmaConfig)
+			benchmarkMovingAverageSnapshotSink = snapshotValueToMap(
+				cache.getMovingAverageSnapshot(hmaConfig, current, previous, currentOK, previousOK),
+				[...]string{"value", "previous"},
+			)
+		}
+	})
 }
 
 func benchmarkIndicatorRuntime(b *testing.B) *indicatorRuntime {

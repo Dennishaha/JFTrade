@@ -321,20 +321,19 @@ func (s *Stream) handleOrderBookPush(s2c *qotupdateorderbookpb.S2C) {
 		return
 	}
 
-	// Emit best bid/ask as BookTicker update via the standard stream.
+	// Emit a single best bid/ask snapshot so downstream consumers never observe
+	// a half-empty BookTicker caused by split bid/ask events.
+	bookTicker := types.BookTicker{Symbol: canonical}
 	if bids := s2c.GetOrderBookBidList(); len(bids) > 0 {
-		s.EmitBookTickerUpdate(types.BookTicker{
-			Symbol:  canonical,
-			Buy:     fixedpoint.NewFromFloat(bids[0].GetPrice()),
-			BuySize: fixedpoint.NewFromFloat(float64(bids[0].GetVolume())),
-		})
+		bookTicker.Buy = fixedpoint.NewFromFloat(bids[0].GetPrice())
+		bookTicker.BuySize = fixedpoint.NewFromFloat(float64(bids[0].GetVolume()))
 	}
 	if asks := s2c.GetOrderBookAskList(); len(asks) > 0 {
-		s.EmitBookTickerUpdate(types.BookTicker{
-			Symbol:   canonical,
-			Sell:     fixedpoint.NewFromFloat(asks[0].GetPrice()),
-			SellSize: fixedpoint.NewFromFloat(float64(asks[0].GetVolume())),
-		})
+		bookTicker.Sell = fixedpoint.NewFromFloat(asks[0].GetPrice())
+		bookTicker.SellSize = fixedpoint.NewFromFloat(float64(asks[0].GetVolume()))
+	}
+	if !bookTicker.Buy.IsZero() || !bookTicker.Sell.IsZero() {
+		s.EmitBookTickerUpdate(bookTicker)
 	}
 }
 
