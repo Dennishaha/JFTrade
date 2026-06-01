@@ -15,7 +15,7 @@ export interface WorkspacePreferences {
 }
 
 const defaults: WorkspacePreferences = {
-  rightDockOpen: true,
+  rightDockOpen: false,
   rightDockTab: "notifications",
   symbol: "00700",
   market: "HK",

@@ -1,12 +1,27 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref, watch } from "vue";
+
+import {
+  type BrokerMarginRatiosResponse,
+  emptyBrokerMarginRatios,
+} from "@jftrade/ui-contracts";
 
 import { formatDateTime } from "../../composables/consoleDataFormatting";
 import type { MarketSecurityDetails } from "../../composables/marketDataRealtime";
+import { fetchEnvelope } from "../../composables/apiClient";
+import { resolveBrokerQuery } from "../../composables/consoleDataBrokerAccountSelection";
 import { useConsoleData } from "../../composables/useConsoleData";
 import { useWorkspaceLayout } from "../../composables/useWorkspaceLayout";
 
-const { marketDataSnapshot, marketSecurityDetails, marketInstrumentSearchOptions } = useConsoleData();
+const {
+  marketDataSnapshot,
+  marketSecurityDetails,
+  marketInstrumentSearchOptions,
+  selectedBrokerAccount,
+  brokerRuntime,
+  systemStatus,
+  supportsBrokerReadFeature,
+} = useConsoleData();
 const { prefs } = useWorkspaceLayout();
 
 const snapshot = computed(() => marketDataSnapshot.value?.snapshot ?? null);
@@ -164,6 +179,101 @@ const extendedCards = computed(() => {
 
   return cards;
 });
+
+// ---- 融资融券（Margin / Short Selling） ----
+const currentMarginRatio = ref<BrokerMarginRatiosResponse>(emptyBrokerMarginRatios);
+const isLoadingCurrentMarginRatio = ref(false);
+const marginHovered = ref(false);
+const marginTriggerRef = ref<HTMLElement | null>(null);
+const marginPopoverTop = ref(0);
+const marginPopoverRight = ref(0);
+let marginRatioFetchToken = 0;
+
+function updateMarginPopoverPosition(): void {
+  if (marginTriggerRef.value == null || typeof window === "undefined") return;
+  const rect = marginTriggerRef.value.getBoundingClientRect();
+  marginPopoverTop.value = rect.bottom + 8;
+  marginPopoverRight.value = window.innerWidth - rect.right;
+}
+
+watch(marginHovered, (hovered) => {
+  if (hovered) updateMarginPopoverPosition();
+});
+
+const marginRatioSupported = computed(() =>
+  supportsBrokerReadFeature("marginRatios"),
+);
+
+const marginRatioEntry = computed(() => {
+  const symbol = prefs.value.symbol;
+  if (!symbol) return null;
+  // 后端返回的 symbol 是带市场前缀的完整格式（如 HK.00700），
+  // 而 prefs.value.symbol 可能是裸代码（如 00700）或已含前缀。
+  const qualified = prefs.value.market ? `${prefs.value.market}.${symbol}` : symbol;
+  return currentMarginRatio.value.marginRatios.find(
+    (entry) => entry.symbol === symbol || entry.symbol === qualified,
+  ) ?? null;
+});
+
+const hasLongPermit = computed(() => marginRatioEntry.value?.isLongPermit === true);
+const hasShortPermit = computed(() => marginRatioEntry.value?.isShortPermit === true);
+const showMarginBadges = computed(
+  () => marginRatioSupported.value && (hasLongPermit.value || hasShortPermit.value),
+);
+
+async function fetchCurrentMarginRatio(): Promise<void> {
+  const token = ++marginRatioFetchToken;
+  const account = selectedBrokerAccount.value;
+  if (!account || !prefs.value.symbol) {
+    currentMarginRatio.value = emptyBrokerMarginRatios;
+    marginHovered.value = false;
+    return;
+  }
+
+  const brokerQuery = resolveBrokerQuery({
+    selection: account,
+    runtime: brokerRuntime.value,
+    status: systemStatus.value,
+  });
+  brokerQuery.set("symbol", prefs.value.symbol);
+
+  // 切换标的后立即清空，避免残留上一条标的的数据
+  currentMarginRatio.value = emptyBrokerMarginRatios;
+  isLoadingCurrentMarginRatio.value = true;
+
+  try {
+    const result = await fetchEnvelope<BrokerMarginRatiosResponse>(
+      `/api/v1/brokers/${encodeURIComponent(account.brokerId)}/margin-ratios?${brokerQuery.toString()}`,
+    );
+    if (token === marginRatioFetchToken) {
+      currentMarginRatio.value = result;
+    }
+  } catch {
+    if (token === marginRatioFetchToken) {
+      currentMarginRatio.value = emptyBrokerMarginRatios;
+    }
+  } finally {
+    if (token === marginRatioFetchToken) {
+      isLoadingCurrentMarginRatio.value = false;
+    }
+  }
+}
+
+watch(
+  () => [
+    prefs.value.symbol,
+    selectedBrokerAccount.value?.selectionKey,
+    brokerRuntime.value?.descriptor?.id,
+  ],
+  () => {
+    if (marginRatioSupported.value) {
+      fetchCurrentMarginRatio();
+    } else {
+      currentMarginRatio.value = emptyBrokerMarginRatios;
+    }
+  },
+  { immediate: true },
+);
 
 type DetailRow = {
   label: string;
@@ -343,7 +453,7 @@ function formatPercent(value: number | null | undefined): string {
 </script>
 
 <template>
-  <section class="tv-panel tv-grid-area-watchlist">
+  <section class="tv-panel">
     <div class="tv-panel-head">
       <span class="tv-panel-title">行情</span>
       <span style="font-weight: 600">{{ instrumentTitle }}</span>
@@ -374,6 +484,79 @@ function formatPercent(value: number | null | undefined): string {
               style="font-size: 11px; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--tv-border); white-space: nowrap"
               :style="snapshotSession === 'regular' ? 'color: var(--tv-accent); background: color-mix(in srgb, var(--tv-accent) 14%, var(--tv-bg-surface-2))' : 'color: var(--tv-text); background: var(--tv-bg-surface-2)'">
               {{ sessionLabel }}
+            </span>
+            <!-- 融资融券标志 -->
+            <span v-if="showMarginBadges" ref="marginTriggerRef"
+              style="display: inline-flex; align-items: center; gap: 4px" @mouseenter="marginHovered = true"
+              @mouseleave="marginHovered = false">
+              <span v-if="hasLongPermit"
+                style="font-size: 11px; padding: 3px 8px; border-radius: 999px; white-space: nowrap; cursor: default"
+                :style="{ color: 'var(--tv-up, #22c55e)', border: '1px solid var(--tv-up, #22c55e)', background: 'color-mix(in srgb, var(--tv-up, #22c55e) 12%, var(--tv-bg-surface-2))' }">融</span>
+              <span v-if="hasShortPermit"
+                style="font-size: 11px; padding: 3px 8px; border-radius: 999px; white-space: nowrap; cursor: default"
+                :style="{ color: 'var(--tv-down, #ef4444)', border: '1px solid var(--tv-down, #ef4444)', background: 'color-mix(in srgb, var(--tv-down, #ef4444) 12%, var(--tv-bg-surface-2))' }">沽</span>
+              <!-- 悬浮面板 -->
+              <Teleport to="body">
+                <div v-if="marginHovered && marginRatioEntry" :style="{
+                  position: 'fixed',
+                  top: `${marginPopoverTop}px`,
+                  right: `${marginPopoverRight}px`,
+                  zIndex: 9999,
+                  minWidth: '260px',
+                  background: 'var(--tv-bg-surface)',
+                  border: '1px solid var(--tv-border)',
+                  borderRadius: '8px',
+                  padding: '14px 16px',
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
+                  fontSize: '12px',
+                  lineHeight: 1.6,
+                  color: 'var(--tv-text)',
+                  whiteSpace: 'nowrap',
+                }">
+                  <div class="text-xs" 
+                    style="color: var(--tv-text); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px">
+                    融资融券信息
+                  </div>
+                  <div v-if="hasLongPermit" style="margin-bottom: 8px">
+                    <div style="font-weight: 600; color: var(--tv-up, #22c55e); margin-bottom: 4px">融资（做多）</div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2px 12px">
+                      <span style="color: var(--tv-text-dim)">初始保证金率</span>
+                      <span style="text-align: right">{{ formatPercentValue(marginRatioEntry.initialMarginLongRatio)
+                      }}</span>
+                      <span style="color: var(--tv-text-dim)">维持保证金率</span>
+                      <span style="text-align: right">{{ formatPercentValue(marginRatioEntry.maintenanceLongRatio)
+                      }}</span>
+                      <span style="color: var(--tv-text-dim)">预警比率</span>
+                      <span style="text-align: right">{{ formatPercentValue(marginRatioEntry.alertLongRatio) }}</span>
+                      <span style="color: var(--tv-text-dim)">Margin Call</span>
+                      <span style="text-align: right">{{ formatPercentValue(marginRatioEntry.marginCallLongRatio)
+                      }}</span>
+                    </div>
+                  </div>
+                  <div v-if="hasShortPermit">
+                    <div style="font-weight: 600; color: var(--tv-down, #ef4444); margin-bottom: 4px">融券（做空）</div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2px 12px">
+                      <span style="color: var(--tv-text-dim)">融券利率</span>
+                      <span style="text-align: right">{{ formatPercentValue(marginRatioEntry.shortFeeRate) }}</span>
+                      <span style="color: var(--tv-text-dim)">初始保证金率</span>
+                      <span style="text-align: right">{{ formatPercentValue(marginRatioEntry.initialMarginShortRatio)
+                      }}</span>
+                      <span style="color: var(--tv-text-dim)">维持保证金率</span>
+                      <span style="text-align: right">{{ formatPercentValue(marginRatioEntry.maintenanceShortRatio)
+                      }}</span>
+                      <span style="color: var(--tv-text-dim)">预警比率</span>
+                      <span style="text-align: right">{{ formatPercentValue(marginRatioEntry.alertShortRatio) }}</span>
+                      <span style="color: var(--tv-text-dim)">Margin Call</span>
+                      <span style="text-align: right">{{ formatPercentValue(marginRatioEntry.marginCallShortRatio)
+                      }}</span>
+                      <span v-if="marginRatioEntry.shortPoolRemain != null"
+                        style="color: var(--tv-text-dim)">卖空池剩余</span>
+                      <span v-if="marginRatioEntry.shortPoolRemain != null" style="text-align: right">{{
+                        marginRatioEntry.shortPoolRemain.toLocaleString("zh-CN") }}</span>
+                    </div>
+                  </div>
+                </div>
+              </Teleport>
             </span>
             <span style="font-size: 11px; color: var(--tv-text-dim)">
               {{ formatDateTime(snapshot.observedAt ?? snapshot.at) }}

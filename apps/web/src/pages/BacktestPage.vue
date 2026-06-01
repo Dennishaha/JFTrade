@@ -469,9 +469,7 @@ const {
   syncing,
   syncProgress,
   error,
-  expandedRuns,
   filteredRuns: sortedRuns,
-  toggleRun,
   deleteRun,
   loadRuns,
   syncKlines,
@@ -480,6 +478,8 @@ const {
 } = useBacktestRuns({
   formState: backtestFormState,
 });
+
+const expandedPanels = ref<string[]>([]);
 
 const resultStrategyOptions = computed(() => {
   const options = [{ value: "all", title: "全部策略" }];
@@ -1112,301 +1112,290 @@ watch(
             {{ emptyResultsMessage }}
           </div>
 
-          <v-card v-for="run in pagedRuns" :key="run.id" flat :class="cardBorderClass">
-            <v-card-item>
-              <template #prepend>
-                <v-chip :color="statusChip(run.status).color" size="small" variant="outlined">
-                  {{ statusChip(run.status).label }}
-                </v-chip>
-              </template>
-              <v-card-title>
-                <span :style="{ color: 'var(--tv-text-muted)', fontSize: '0.8em' }">
-                  {{ resolveStrategyName(run.request.definitionId) }} ·
-                  {{ run.request.symbol }} ·
-                  {{ dayjs(run.request.startTime).format("YYYY-MM-DD") }} →
-                  {{ dayjs(run.request.endTime).format("YYYY-MM-DD") }} ·
-                  {{ resolveRunSessionMode(run) }}
-                </span>
-              </v-card-title>
-              <v-card-subtitle>
-                <span :style="{ color: 'var(--tv-text-muted)' }">
-                  {{ run.id }} · {{ run.request.interval }} ·
-                  {{ formatBacktestRehabType(run.request.rehabType) }} ·
-                  {{ run.request.initialBalance.toLocaleString() }}
-                  {{ resolveRunQuoteCurrency(run)
-                  }}<template v-if="run.request.definitionVersion">
-                    ·
-                    {{
-                      formatStrategyVersion(run.request.definitionVersion)
-                    }}</template>
-                </span>
-              </v-card-subtitle>
-              <template #append>
-                <div class="flex items-center gap-1">
-                  <v-btn v-if="run.status === 'completed' || run.status === 'failed'" icon="fa-solid fa-trash"
-                    size="small" variant="text" color="error" title="删除回测结果" @click="deleteRun(run.id)" />
-                  <v-btn v-if="
-                    run.result &&
-                    (run.status === 'completed' || run.status === 'failed')
-                  " :icon="expandedRuns[run.id]
-                        ? 'fa-solid fa-chevron-up'
-                        : 'fa-solid fa-chevron-down'
-                      " size="small" variant="text" :title="expandedRuns[run.id] ? '收起结果' : '展开结果'"
-                    @click="toggleRun(run.id)" />
-                </div>
-              </template>
-            </v-card-item>
+          <v-expansion-panels v-model="expandedPanels" multiple variant="default" class="grid gap-3">
+            <v-expansion-panel v-for="run in pagedRuns" :key="run.id" :value="run.id" :class="cardBorderClass">
+              <v-expansion-panel-title class="pa-4">
+                <template #default>
+                  <div class="flex items-center gap-3 w-full min-w-0">
+                    <v-chip :color="statusChip(run.status).color" size="small" variant="outlined" class="shrink-0">
+                      {{ statusChip(run.status).label }}
+                    </v-chip>
+                    <div class="min-w-0 flex-1">
+                      <div class="text-base bt-text-strong truncate">
+                        {{ resolveStrategyName(run.request.definitionId) }} ·
+                        {{ run.request.symbol }} ·
+                        {{ dayjs(run.request.startTime).format("YYYY-MM-DD") }} →
+                        {{ dayjs(run.request.endTime).format("YYYY-MM-DD") }} ·
+                        {{ resolveRunSessionMode(run) }}
+                      </div>
+                      <div class="text-xs bt-text-muted mt-0.5">
+                        {{ run.id }} · {{ run.request.interval }} ·
+                        {{ formatBacktestRehabType(run.request.rehabType) }} ·
+                        {{ run.request.initialBalance.toLocaleString() }}
+                        {{ resolveRunQuoteCurrency(run)
+                        }}<template v-if="run.request.definitionVersion">
+                          ·
+                          {{
+                            formatStrategyVersion(run.request.definitionVersion)
+                          }}</template>
+                      </div>
+                      <!-- Running / Queued progress -->
+                      <div v-if="run.status === 'running' || run.status === 'queued'"
+                        class="mt-2 flex items-center gap-3">
+                        <v-progress-linear v-if="run.status === 'running'" color="teal" indeterminate rounded
+                          :height="6" class="flex-1" />
+                        <v-progress-linear v-else color="warning" indeterminate rounded :height="6" class="flex-1" />
+                        <span class="text-xs whitespace-nowrap shrink-0" :class="run.status === 'running'
+                          ? 'text-teal-600'
+                          : 'text-amber-600'
+                          ">
+                          {{ run.status === "running" ? "回测运行中…" : "排队等待中…" }}
+                        </span>
+                      </div>
+                    </div>
+                    <v-btn v-if="run.status === 'completed' || run.status === 'failed'" icon="fa-solid fa-trash"
+                      size="small" variant="text" color="error" title="删除回测结果" @click.stop="deleteRun(run.id)" />
+                  </div>
+                </template>
+              </v-expansion-panel-title>
 
-            <v-card-text v-if="resolveBacktestStrategyVersionNotice(run)" class="pb-0 pt-0">
-              <div class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-                {{ resolveBacktestStrategyVersionNotice(run) }}
-              </div>
-            </v-card-text>
+              <v-expansion-panel-text>
+                <div v-if="resolveBacktestStrategyVersionNotice(run)"
+                  class="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                  {{ resolveBacktestStrategyVersionNotice(run) }}
+                </div>
 
-            <!-- Running / Queued progress -->
-            <v-card-text v-if="run.status === 'running' || run.status === 'queued'" class="pb-0">
-              <div class="flex items-center gap-3">
-                <v-progress-linear v-if="run.status === 'running'" color="teal" indeterminate rounded :height="6"
-                  class="flex-1" />
-                <v-progress-linear v-else color="warning" indeterminate rounded :height="6" class="flex-1" />
-                <span class="text-xs whitespace-nowrap" :class="run.status === 'running'
-                    ? 'text-teal-600'
-                    : 'text-amber-600'
-                  ">
-                  {{ run.status === "running" ? "回测运行中…" : "排队等待中…" }}
-                </span>
-              </div>
-            </v-card-text>
-
-            <v-card-text v-if="
-              expandedRuns[run.id] &&
-              run.result &&
-              (run.status === 'completed' || run.status === 'failed')
-            ">
-              <div class="grid grid-cols-2 gap-3 lg:grid-cols-6">
-                <div :class="[statCardClass, 'px-3 py-3']">
-                  <div class="text-xs uppercase tracking-[0.15em] bt-text-muted">
-                    最终资金
-                  </div>
-                  <div class="mt-1 text-lg font-semibold bt-text">
-                    {{
-                      run.result.finalBalance.toLocaleString(undefined, {
-                        minimumFractionDigits: 2,
-                      })
-                    }}
-                  </div>
-                  <div class="text-xs bt-text-muted">
-                    {{ resolveRunQuoteCurrency(run) }}
-                  </div>
-                </div>
-                <div :class="[statCardClass, 'px-3 py-3']">
-                  <div class="text-xs uppercase tracking-[0.15em] bt-text-muted">
-                    收益
-                  </div>
-                  <div class="mt-1 text-lg font-semibold" :class="pnlColor(run.result.pnl)">
-                    {{ pnlPrefix(run.result.pnl)
-                    }}{{
-                      run.result.pnl.toLocaleString(undefined, {
-                        minimumFractionDigits: 2,
-                      })
-                    }}
-                  </div>
-                  <div class="text-xs bt-text-muted">
-                    {{ resolveRunQuoteCurrency(run) }}
-                  </div>
-                </div>
-                <div :class="[statCardClass, 'px-3 py-3']">
-                  <div class="text-xs uppercase tracking-[0.15em] bt-text-muted">
-                    交易次数
-                  </div>
-                  <div class="mt-1 text-lg font-semibold bt-text">
-                    {{ run.result.totalTrades }}
-                  </div>
-                </div>
-                <div :class="[statCardClass, 'px-3 py-3']">
-                  <div class="text-xs uppercase tracking-[0.15em] bt-text-muted">
-                    胜率
-                  </div>
-                  <div class="mt-1 text-lg font-semibold bt-text">
-                    {{ (run.result.winRate * 100).toFixed(1) }}%
-                  </div>
-                </div>
-                <div :class="[statCardClass, 'px-3 py-3']">
-                  <div class="text-xs uppercase tracking-[0.15em] bt-text-muted">
-                    最大回撤
-                  </div>
-                  <div class="mt-1 text-lg font-semibold" :class="drawdownColor(run.result.maxDrawdown)">
-                    {{ formatPercentMetric(run.result.maxDrawdown) }}
-                  </div>
-                </div>
-                <div :class="[statCardClass, 'px-3 py-3']">
-                  <div class="text-xs uppercase tracking-[0.15em] bt-text-muted">
-                    当前回撤
-                  </div>
-                  <div class="mt-1 text-lg font-semibold" :class="drawdownColor(run.result.currentDrawdown)">
-                    {{ formatPercentMetric(run.result.currentDrawdown) }}
-                  </div>
-                </div>
-              </div>
-              <div v-if="
-                run.result &&
-                run.result.totalTrades === 0 &&
-                !run.result.error
-              " class="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
-                未产生任何交易。可能原因：策略未调用
-                placeOrder()，或订阅的K线周期未同步。
-              </div>
-              <div class="mt-2 rounded border bt-border bt-bg-muted px-2 py-1 text-xs bt-text">
-                <div class="mt-1">{{ resolveBacktestPriceBasisNote(run) }}</div>
-                <div v-if="resolveQueriedCandleBounds(run.result?.candles)" class="mt-1">
-                  查询到的周期边界：左边界
-                  {{ resolveQueriedCandleBounds(run.result?.candles)?.left }} ｜
-                  右边界
-                  {{
-                    resolveQueriedCandleBounds(run.result?.candles)?.right
-                  }}
-                  ｜ 共
-                  {{
-                    resolveQueriedCandleBounds(run.result?.candles)?.count
-                  }}
-                  根
-                </div>
-              </div>
-
-              <!-- Backtest chart -->
-              <div v-if="
-                run.status === 'completed' && run.result?.pnlCurve?.length
-              " class="mt-2">
-                <BacktestChart :candles="run.result.candles ?? []" :trades="run.result.trades ?? []"
-                  :pnl-curve="run.result.pnlCurve" :drawdown-curve="run.result.drawdownCurve ?? []"
-                  :initial-balance="run.request.initialBalance" :min-height="560"
-                  :currency-unit="resolveRunQuoteCurrency(run)" empty-text="暂无权益曲线数据" />
-              </div>
-
-              <div v-if="run.result?.orderBook?.length" :class="[cardBorderClass, 'mt-3 overflow-hidden']">
-                <details>
-                  <summary
-                    class="flex cursor-pointer items-center justify-between px-4 py-3 text-sm font-semibold bt-text marker:content-none">
-                    <span>订单簿</span>
-                    <span class="text-xs font-medium bt-text-muted">
-                      {{ run.result.orderBook.length }} 笔 · 默认收起
-                    </span>
-                  </summary>
-                  <div class="border-t bt-border">
-                    <div class="max-h-96 overflow-auto">
-                      <table class="min-w-full divide-y bt-divide text-sm">
-                        <thead
-                          class="sticky top-0 bt-bg-muted text-left text-xs uppercase tracking-[0.14em] bt-text-muted">
-                          <tr>
-                            <th class="px-4 py-3 font-medium">下单</th>
-                            <th class="px-4 py-3 font-medium">成交</th>
-                            <th class="px-4 py-3 font-medium">方向</th>
-                            <th class="px-4 py-3 font-medium">数量</th>
-                            <th class="px-4 py-3 font-medium">委托价</th>
-                            <th class="px-4 py-3 font-medium">成交价</th>
-                            <th class="px-4 py-3 font-medium">状态</th>
-                          </tr>
-                        </thead>
-                        <tbody class="divide-y bt-divide-soft bt-bg-surface">
-                          <tr v-for="entry in run.result.orderBook"
-                            :key="`${entry.orderId}-${entry.filledAt ?? entry.submittedAt ?? ''}`">
-                            <td class="px-4 py-3 align-top bt-text-strong">
-                              <div>
-                                {{ formatBacktestTimestamp(entry.submittedAt) }}
-                              </div>
-                              <div class="mt-1 text-xs bt-text-dim">
-                                #{{ entry.orderId
-                                }}<span v-if="entry.clientOrderId">
-                                  · {{ entry.clientOrderId }}</span>
-                              </div>
-                            </td>
-                            <td class="px-4 py-3 align-top bt-text-strong">
-                              {{ formatBacktestTimestamp(entry.filledAt) }}
-                            </td>
-                            <td class="px-4 py-3 align-top bt-text-strong">
-                              {{ formatBacktestOrderSide(entry.side) }}
-                            </td>
-                            <td class="px-4 py-3 align-top bt-text-strong">
-                              <div>
-                                {{
-                                  formatBacktestQuantity(
-                                    entry.quantity,
-                                    entry.quantityText,
-                                  )
-                                }}
-                              </div>
-                              <div v-if="entry.filledQuantity !== undefined" class="mt-1 text-xs bt-text-dim">
-                                成交
-                                {{
-                                  formatBacktestQuantity(
-                                    entry.filledQuantity,
-                                    entry.filledQuantityText,
-                                  )
-                                }}
-                              </div>
-                            </td>
-                            <td class="px-4 py-3 align-top bt-text-strong">
-                              {{
-                                formatBacktestOrderPrice(
-                                  entry.orderPrice,
-                                  entry.orderType,
-                                  entry.orderPriceText,
-                                )
-                              }}
-                            </td>
-                            <td class="px-4 py-3 align-top bt-text-strong">
-                              {{
-                                formatBacktestOrderPrice(
-                                  entry.filledPrice,
-                                  undefined,
-                                  entry.filledPriceText,
-                                )
-                              }}
-                            </td>
-                            <td class="px-4 py-3 align-top bt-text-strong">
-                              {{ formatBacktestOrderStatus(entry.status) }}
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
+                <div v-if="
+                  run.result &&
+                  (run.status === 'completed' || run.status === 'failed')
+                ">
+                  <div class="grid grid-cols-2 gap-3 lg:grid-cols-6">
+                    <div :class="[statCardClass, 'px-3 py-3']">
+                      <div class="text-xs uppercase tracking-[0.15em] bt-text-muted">
+                        最终资金
+                      </div>
+                      <div class="mt-1 text-lg font-semibold bt-text">
+                        {{
+                          run.result.finalBalance.toLocaleString(undefined, {
+                            minimumFractionDigits: 2,
+                          })
+                        }}
+                      </div>
+                      <div class="text-xs bt-text-muted">
+                        {{ resolveRunQuoteCurrency(run) }}
+                      </div>
+                    </div>
+                    <div :class="[statCardClass, 'px-3 py-3']">
+                      <div class="text-xs uppercase tracking-[0.15em] bt-text-muted">
+                        收益
+                      </div>
+                      <div class="mt-1 text-lg font-semibold" :class="pnlColor(run.result.pnl)">
+                        {{ pnlPrefix(run.result.pnl)
+                        }}{{
+                          run.result.pnl.toLocaleString(undefined, {
+                            minimumFractionDigits: 2,
+                          })
+                        }}
+                      </div>
+                      <div class="text-xs bt-text-muted">
+                        {{ resolveRunQuoteCurrency(run) }}
+                      </div>
+                    </div>
+                    <div :class="[statCardClass, 'px-3 py-3']">
+                      <div class="text-xs uppercase tracking-[0.15em] bt-text-muted">
+                        交易次数
+                      </div>
+                      <div class="mt-1 text-lg font-semibold bt-text">
+                        {{ run.result.totalTrades }}
+                      </div>
+                    </div>
+                    <div :class="[statCardClass, 'px-3 py-3']">
+                      <div class="text-xs uppercase tracking-[0.15em] bt-text-muted">
+                        胜率
+                      </div>
+                      <div class="mt-1 text-lg font-semibold bt-text">
+                        {{ (run.result.winRate * 100).toFixed(1) }}%
+                      </div>
+                    </div>
+                    <div :class="[statCardClass, 'px-3 py-3']">
+                      <div class="text-xs uppercase tracking-[0.15em] bt-text-muted">
+                        最大回撤
+                      </div>
+                      <div class="mt-1 text-lg font-semibold" :class="drawdownColor(run.result.maxDrawdown)">
+                        {{ formatPercentMetric(run.result.maxDrawdown) }}
+                      </div>
+                    </div>
+                    <div :class="[statCardClass, 'px-3 py-3']">
+                      <div class="text-xs uppercase tracking-[0.15em] bt-text-muted">
+                        当前回撤
+                      </div>
+                      <div class="mt-1 text-lg font-semibold" :class="drawdownColor(run.result.currentDrawdown)">
+                        {{ formatPercentMetric(run.result.currentDrawdown) }}
+                      </div>
                     </div>
                   </div>
-                </details>
-              </div>
-            </v-card-text>
+                  <div v-if="
+                    run.result &&
+                    run.result.totalTrades === 0 &&
+                    !run.result.error
+                  " class="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                    未产生任何交易。可能原因：策略未调用
+                    placeOrder()，或订阅的K线周期未同步。
+                  </div>
+                  <div class="mt-2 rounded border bt-border bt-bg-muted px-2 py-1 text-xs bt-text">
+                    <div class="mt-1">{{ resolveBacktestPriceBasisNote(run) }}</div>
+                    <div v-if="resolveQueriedCandleBounds(run.result?.candles)" class="mt-1">
+                      查询到的周期边界：左边界
+                      {{ resolveQueriedCandleBounds(run.result?.candles)?.left }} ｜
+                      右边界
+                      {{
+                        resolveQueriedCandleBounds(run.result?.candles)?.right
+                      }}
+                      ｜ 共
+                      {{
+                        resolveQueriedCandleBounds(run.result?.candles)?.count
+                      }}
+                      根
+                    </div>
+                  </div>
 
-            <!-- Runtime errors (e.g. insufficient balance, order rejections) -->
-            <v-card-text v-if="
-              run.result?.runtimeErrors && run.result.runtimeErrors.length > 0
-            " class="pb-0">
-              <details class="rounded-lg border border-red-200 bg-red-50 px-3 py-2">
-                <summary class="cursor-pointer text-xs font-semibold text-red-700 select-none">
-                  ⚡ 运行时错误 ({{ run.result.runtimeErrors.length }})
-                </summary>
-                <div class="mt-2 space-y-1 max-h-48 overflow-y-auto">
-                  <div v-for="(err, i) in run.result.runtimeErrors" :key="i"
-                    class="rounded border border-red-100 bt-bg-surface px-2 py-1 text-xs text-red-800 font-mono leading-relaxed">
-                    {{ err }}
+                  <!-- Backtest chart -->
+                  <div v-if="
+                    run.status === 'completed' && run.result?.pnlCurve?.length
+                  " class="mt-2">
+                    <BacktestChart :candles="run.result.candles ?? []" :trades="run.result.trades ?? []"
+                      :pnl-curve="run.result.pnlCurve" :drawdown-curve="run.result.drawdownCurve ?? []"
+                      :initial-balance="run.request.initialBalance" :min-height="560"
+                      :currency-unit="resolveRunQuoteCurrency(run)" empty-text="暂无权益曲线数据" />
+                  </div>
+
+                  <div v-if="run.result?.orderBook?.length" :class="[cardBorderClass, 'mt-3 overflow-hidden']">
+                    <details>
+                      <summary
+                        class="flex cursor-pointer items-center justify-between px-4 py-3 text-sm font-semibold bt-text marker:content-none">
+                        <span>订单簿</span>
+                        <span class="text-xs font-medium bt-text-muted">
+                          {{ run.result.orderBook.length }} 笔 · 默认收起
+                        </span>
+                      </summary>
+                      <div class="border-t bt-border">
+                        <div class="max-h-96 overflow-auto">
+                          <table class="min-w-full divide-y bt-divide text-sm">
+                            <thead
+                              class="sticky top-0 bt-bg-muted text-left text-xs uppercase tracking-[0.14em] bt-text-muted">
+                              <tr>
+                                <th class="px-4 py-3 font-medium">下单</th>
+                                <th class="px-4 py-3 font-medium">成交</th>
+                                <th class="px-4 py-3 font-medium">方向</th>
+                                <th class="px-4 py-3 font-medium">数量</th>
+                                <th class="px-4 py-3 font-medium">委托价</th>
+                                <th class="px-4 py-3 font-medium">成交价</th>
+                                <th class="px-4 py-3 font-medium">状态</th>
+                              </tr>
+                            </thead>
+                            <tbody class="divide-y bt-divide-soft bt-bg-surface">
+                              <tr v-for="entry in run.result.orderBook"
+                                :key="`${entry.orderId}-${entry.filledAt ?? entry.submittedAt ?? ''}`">
+                                <td class="px-4 py-3 align-top bt-text-strong">
+                                  <div>
+                                    {{ formatBacktestTimestamp(entry.submittedAt) }}
+                                  </div>
+                                  <div class="mt-1 text-xs bt-text-dim">
+                                    #{{ entry.orderId
+                                    }}<span v-if="entry.clientOrderId">
+                                      · {{ entry.clientOrderId }}</span>
+                                  </div>
+                                </td>
+                                <td class="px-4 py-3 align-top bt-text-strong">
+                                  {{ formatBacktestTimestamp(entry.filledAt) }}
+                                </td>
+                                <td class="px-4 py-3 align-top bt-text-strong">
+                                  {{ formatBacktestOrderSide(entry.side) }}
+                                </td>
+                                <td class="px-4 py-3 align-top bt-text-strong">
+                                  <div>
+                                    {{
+                                      formatBacktestQuantity(
+                                        entry.quantity,
+                                        entry.quantityText,
+                                      )
+                                    }}
+                                  </div>
+                                  <div v-if="entry.filledQuantity !== undefined" class="mt-1 text-xs bt-text-dim">
+                                    成交
+                                    {{
+                                      formatBacktestQuantity(
+                                        entry.filledQuantity,
+                                        entry.filledQuantityText,
+                                      )
+                                    }}
+                                  </div>
+                                </td>
+                                <td class="px-4 py-3 align-top bt-text-strong">
+                                  {{
+                                    formatBacktestOrderPrice(
+                                      entry.orderPrice,
+                                      entry.orderType,
+                                      entry.orderPriceText,
+                                    )
+                                  }}
+                                </td>
+                                <td class="px-4 py-3 align-top bt-text-strong">
+                                  {{
+                                    formatBacktestOrderPrice(
+                                      entry.filledPrice,
+                                      undefined,
+                                      entry.filledPriceText,
+                                    )
+                                  }}
+                                </td>
+                                <td class="px-4 py-3 align-top bt-text-strong">
+                                  {{ formatBacktestOrderStatus(entry.status) }}
+                                </td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </details>
                   </div>
                 </div>
-              </details>
-            </v-card-text>
 
-            <!-- Diagnostic logs (always visible when present) -->
-            <v-card-text v-if="run.result?.logs && run.result.logs.length > 0" class="pb-0">
-              <div class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 space-y-1">
-                <div v-for="(log, i) in run.result.logs" :key="i">
-                  ⚠ {{ log }}
+                <!-- Runtime errors (e.g. insufficient balance, order rejections) -->
+                <div v-if="
+                  run.result?.runtimeErrors && run.result.runtimeErrors.length > 0
+                " class="mt-3">
+                  <details class="rounded-lg border border-red-200 bg-red-50 px-3 py-2">
+                    <summary class="cursor-pointer text-xs font-semibold text-red-700 select-none">
+                      ⚡ 运行时错误 ({{ run.result.runtimeErrors.length }})
+                    </summary>
+                    <div class="mt-2 space-y-1 max-h-48 overflow-y-auto">
+                      <div v-for="(err, i) in run.result.runtimeErrors" :key="i"
+                        class="rounded border border-red-100 bt-bg-surface px-2 py-1 text-xs text-red-800 font-mono leading-relaxed">
+                        {{ err }}
+                      </div>
+                    </div>
+                  </details>
                 </div>
-              </div>
-            </v-card-text>
-            <v-card-text v-if="run.result?.error" class="pb-0">
-              <div
-                class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 whitespace-pre-wrap">
-                {{ run.result.error }}
-              </div>
-            </v-card-text>
-          </v-card>
+
+                <!-- Diagnostic logs (always visible when present) -->
+                <div v-if="run.result?.logs && run.result.logs.length > 0" class="mt-3">
+                  <div
+                    class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 space-y-1">
+                    <div v-for="(log, i) in run.result.logs" :key="i">
+                      ⚠ {{ log }}
+                    </div>
+                  </div>
+                </div>
+                <div v-if="run.result?.error" class="mt-3">
+                  <div
+                    class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 whitespace-pre-wrap">
+                    {{ run.result.error }}
+                  </div>
+                </div>
+              </v-expansion-panel-text>
+            </v-expansion-panel>
+          </v-expansion-panels>
 
           <div v-if="resultsPageCount > 1" class="flex justify-center pt-2">
             <v-pagination v-model="resultsPage" :length="resultsPageCount" :total-visible="6" density="comfortable" />
@@ -1441,6 +1430,23 @@ watch(
 
 .backtest-page :deep(.v-input__details) {
   color: var(--tv-text-dim);
+}
+
+.backtest-page :deep(.v-expansion-panel) {
+  background: var(--tv-bg-surface);
+  border-color: var(--tv-border);
+}
+
+.backtest-page :deep(.v-expansion-panel--active > .v-expansion-panel-title) {
+  border-bottom: 1px solid var(--tv-border);
+}
+
+.backtest-page :deep(.v-expansion-panel-title) {
+  color: var(--tv-text);
+}
+
+.backtest-page :deep(.v-expansion-panel-text) {
+  color: var(--tv-text);
 }
 
 .backtest-page :deep(.v-chip) {

@@ -543,7 +543,7 @@ watch(
 </script>
 
 <template>
-  <section class="tv-panel tv-grid-area-order">
+  <section class="tv-panel">
     <div class="tv-panel-head">
       <span class="tv-panel-title">下单</span>
       <span style="color: var(--tv-text); font-weight: 600">{{ prefs.market }}:{{ prefs.symbol }}</span>

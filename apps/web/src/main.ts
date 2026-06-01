@@ -1,5 +1,6 @@
 import "@fortawesome/fontawesome-free/css/all.min.css";
 import { createPinia } from "pinia";
+import "splitpanes/dist/splitpanes.css";
 import { createApp, type Plugin } from "vue";
 import * as components from "vuetify/components";
 import * as directives from "vuetify/directives";

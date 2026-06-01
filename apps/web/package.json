@@ -17,13 +17,14 @@
     "@logicflow/core": "^2.2.3",
     "@logicflow/extension": "^2.2.3",
     "acorn": "^8.16.0",
+    "dayjs": "1.11.21",
     "lightweight-charts": "^5.2.0",
     "monaco-editor": "^0.55.1",
     "pinia": "^3.0.4",
+    "splitpanes": "^4.1.2",
     "vue": "^3.5.35",
     "vue-router": "^5.1.0",
-    "vuetify": "4.0.8",
-    "dayjs": "1.11.21"
+    "vuetify": "4.0.8"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.0",

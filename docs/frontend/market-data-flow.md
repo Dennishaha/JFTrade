@@ -10,6 +10,7 @@
 - 快照：`/api/v1/market-data/snapshots/*`
 - 证券基础信息 / typed security details：`/api/v1/market-data/securities/*`
 - 实时 tick：`/api/v1/ws/live`
+- 融资融券参数：`/api/v1/brokers/{brokerId}/margin-ratios`
 
 这些接口都由 sidecar 提供，不是 bbgo 原生 `/api/*`。
 
@@ -23,7 +24,7 @@
 | `marketDataQuery.ts` | 负责页面查询、订阅与初始装载 |
 | `marketDataRealtime.ts` | 负责实时状态机，是分桶与累计的主编排层 |
 | `marketDataRealtime*` 系列 | 分别处理 bucket、bar price、bar volume 等局部状态 |
-| `WatchlistPanel.vue` | 消费 snapshot + security details，渲染价格卡片与证券详情区 |
+| `WatchlistPanel.vue` | 消费 snapshot + security details + margin ratios，渲染价格卡片、融资融券标志与证券详情区 |
 | `charting/kline.ts` | 把历史与实时叠加为最终图表数据 |
 
 ## 合并顺序

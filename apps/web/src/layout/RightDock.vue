@@ -99,9 +99,8 @@ function toggle(): void {
     </div>
     <button
       v-else
-      class="tv-icon-btn"
+      class="tv-rightdock-toggle"
       title="打开侧栏"
-      style="position: fixed; right: 8px; top: 64px; z-index: 20; border: 1px solid var(--tv-border); background: var(--tv-bg-surface)"
       @click="toggle"
     >⟨</button>
   </aside>

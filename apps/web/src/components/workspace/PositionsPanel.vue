@@ -36,7 +36,7 @@ function sideClass(side: string | null | undefined): string {
 </script>
 
 <template>
-  <section class="tv-panel tv-grid-area-positions">
+  <section class="tv-panel">
     <div class="tv-panel-head">
       <div class="tv-seg">
         <button :class="{ 'is-active': tab === 'positions' }" @click="tab = 'positions'">持仓（{{ positions.length }}）</button>

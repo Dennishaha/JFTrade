@@ -465,12 +465,38 @@ body {
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+  transition: width 200ms ease, border-left 200ms ease;
 }
 
 .tv-rightdock.is-collapsed {
   width: 0;
   border-left: none;
   overflow: hidden;
+}
+
+.tv-rightdock-toggle {
+  position: fixed;
+  right: 8px;
+  top: 60px;
+  z-index: 20;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--tv-border);
+  border-radius: 6px;
+  background: var(--tv-bg-surface);
+  color: var(--tv-text-muted);
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+.tv-rightdock-toggle:hover {
+  background: var(--tv-bg-elevated);
+  color: var(--tv-text);
+  border-color: var(--tv-accent);
 }
 
 .tv-statusbar {
@@ -575,17 +601,77 @@ body {
   font-weight: 600;
 }
 
-/* Workspace grid */
+/* Workspace — SplitPane layout */
 .tv-workspace {
-  display: grid;
-  grid-template-columns: minmax(0, 3fr) minmax(280px, 1fr);
-  grid-template-rows: minmax(0, 1.65fr) minmax(0, 1fr);
-  gap: 6px;
-  padding: 6px;
   height: 100%;
   min-height: 0;
   min-width: 0;
   overflow: hidden;
+}
+
+/* ---------- Splitpanes theme overrides ---------- */
+.tv-splitpanes {
+  height: 100%;
+  width: 100%;
+}
+
+.tv-splitpanes .splitpanes__splitter {
+  background: var(--tv-bg-surface-2);
+  border-color: var(--tv-border);
+  position: relative;
+  transition: background 120ms ease;
+}
+
+.tv-splitpanes .splitpanes__splitter:hover {
+  background: var(--tv-bg-elevated);
+}
+
+/* Horizontal splitter (vertical layout → row-resize cursor) */
+.tv-splitpanes--horizontal > .splitpanes__splitter {
+  min-height: 6px;
+  border-top: 1px solid var(--tv-border);
+  border-bottom: 1px solid var(--tv-border);
+}
+
+.tv-splitpanes--horizontal > .splitpanes__splitter::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 32px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--tv-border-strong);
+  transition: background 120ms ease;
+}
+
+.tv-splitpanes--horizontal > .splitpanes__splitter:hover::before {
+  background: var(--tv-text-dim);
+}
+
+/* Vertical splitter (horizontal layout → col-resize cursor) */
+.tv-splitpanes--vertical > .splitpanes__splitter {
+  min-width: 6px;
+  border-left: 1px solid var(--tv-border);
+  border-right: 1px solid var(--tv-border);
+}
+
+.tv-splitpanes--vertical > .splitpanes__splitter::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 3px;
+  height: 32px;
+  border-radius: 2px;
+  background: var(--tv-border-strong);
+  transition: background 120ms ease;
+}
+
+.tv-splitpanes--vertical > .splitpanes__splitter:hover::before {
+  background: var(--tv-text-dim);
 }
 
 .tv-panel {
@@ -594,6 +680,7 @@ body {
   border-radius: 6px;
   display: flex;
   flex-direction: column;
+  height: 100%;
   min-height: 0;
   min-width: 0;
   overflow: hidden;
@@ -633,12 +720,6 @@ body {
   padding: 0;
 }
 
-.tv-grid-area-chart .tv-panel-body.is-flush {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-
 .tv-chart-host {
   display: flex;
   flex: 1;
@@ -651,23 +732,6 @@ body {
 .tv-chart-host > .kline-chart-shell {
   flex: 1 1 auto;
   border-radius: 0;
-}
-
-.tv-grid-area-chart {
-  grid-column: 1;
-  grid-row: 1;
-}
-.tv-grid-area-watchlist {
-  grid-column: 2;
-  grid-row: 1;
-}
-.tv-grid-area-positions {
-  grid-column: 1;
-  grid-row: 2;
-}
-.tv-grid-area-order {
-  grid-column: 2;
-  grid-row: 2;
 }
 
 /* Tables (lightweight) */
@@ -964,11 +1028,11 @@ body {
 
 @media (max-width: 1180px) {
   .tv-app-body {
-    grid-template-columns: 56px minmax(0, 1fr) clamp(280px, 32vw, 340px);
+    grid-template-columns: 56px minmax(0, 1fr) auto;
   }
 
-  .tv-workspace {
-    grid-template-columns: minmax(0, 1.7fr) minmax(240px, 1fr);
+  .tv-rightdock:not(.is-collapsed) {
+    width: clamp(280px, 32vw, 340px);
   }
 }
 
@@ -992,33 +1056,27 @@ body {
     box-shadow: none;
   }
 
+  /* On mobile, stack all panes vertically */
   .tv-workspace {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1.3fr) repeat(3, minmax(220px, 0.9fr));
     overflow: auto;
     scrollbar-gutter: stable both-edges;
   }
 
-  .tv-grid-area-chart,
-  .tv-grid-area-watchlist,
-  .tv-grid-area-positions,
-  .tv-grid-area-order {
-    grid-column: 1;
+  .tv-splitpanes--vertical {
+    flex-direction: column !important;
   }
 
-  .tv-grid-area-chart {
-    grid-row: 1;
+  .tv-splitpanes--vertical > .splitpanes__splitter {
+    width: auto !important;
+    min-height: 6px;
+    border-top: 1px solid var(--tv-border);
+    border-bottom: 1px solid var(--tv-border);
+    border-left: none;
+    border-right: none;
+    cursor: row-resize;
   }
 
-  .tv-grid-area-watchlist {
-    grid-row: 2;
-  }
-
-  .tv-grid-area-positions {
-    grid-row: 3;
-  }
-
-  .tv-grid-area-order {
-    grid-row: 4;
+  .tv-pane {
+    min-height: 220px;
   }
 }

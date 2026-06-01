@@ -177,7 +177,7 @@ watch(
 </script>
 
 <template>
-  <section class="tv-panel tv-grid-area-chart">
+  <section class="tv-panel">
     <div class="tv-panel-head">
       <span class="tv-panel-title">图表</span>
       <span style="color: var(--tv-text); font-weight: 600">{{ chartInstrumentTitle }}</span>
