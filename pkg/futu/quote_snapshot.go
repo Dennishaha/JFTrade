@@ -122,7 +122,7 @@ func quoteSnapshotFromBasicQot(basicQot *qotcommonpb.BasicQot, canonical string)
 	}
 
 	prevClosePrice := decimalPtrFromFloat64(basicQot.LastClosePrice)
-	if session != MarketSessionRegular && regularSessionClose.GreaterThan(decimal.Zero) {
+	if IsExtendedMarketSession(session) && regularSessionClose.GreaterThan(decimal.Zero) {
 		prevClosePrice = &regularSessionClose
 	}
 
