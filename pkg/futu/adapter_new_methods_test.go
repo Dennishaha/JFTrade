@@ -3,6 +3,8 @@ package futu
 import (
 	"testing"
 
+	"github.com/jftrade/jftrade-main/pkg/broker"
+	"github.com/jftrade/jftrade-main/pkg/futu/opend"
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
 	trdcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdcommon"
 )
@@ -24,27 +26,27 @@ func TestConvertFundsSnapshotFullMarginFields(t *testing.T) {
 	riskStatus := "LEVEL1"
 
 	src := &BrokerFundsSnapshot{
-		AccountID:        "12345",
+		AccountID:          "12345",
 		TradingEnvironment: "REAL",
-		Market:           "HK",
-		AccountType:      "CASH",
-		TotalAssets:      f64(500000),
-		Cash:             f64(100000),
-		PurchasingPower:  f64(200000),
+		Market:             "HK",
+		AccountType:        "CASH",
+		TotalAssets:        f64(500000),
+		Cash:               f64(100000),
+		PurchasingPower:    f64(200000),
 		// Margin fields
-		DebtCash:        &debtCash,
-		IsPDT:           &isPDT,
-		PDTSeq:          &pdtSeq,
-		BeginningDTBP:   &beginningDTBP,
-		RemainingDTBP:   &remainingDTBP,
-		DTCallAmount:    &dtCallAmount,
-		DTStatus:        &dtStatus,
-		ExposureLevel:   &exposureLevel,
-		ExposureLimit:   &exposureLimit,
-		UsedLimit:       &usedLimit,
-		RemainingLimit:  &remainingLimit,
-		RiskStatus:      &riskStatus,
-		InitialMargin:   f64(50000),
+		DebtCash:          &debtCash,
+		IsPDT:             &isPDT,
+		PDTSeq:            &pdtSeq,
+		BeginningDTBP:     &beginningDTBP,
+		RemainingDTBP:     &remainingDTBP,
+		DTCallAmount:      &dtCallAmount,
+		DTStatus:          &dtStatus,
+		ExposureLevel:     &exposureLevel,
+		ExposureLimit:     &exposureLimit,
+		UsedLimit:         &usedLimit,
+		RemainingLimit:    &remainingLimit,
+		RiskStatus:        &riskStatus,
+		InitialMargin:     f64(50000),
 		MaintenanceMargin: f64(25000),
 		MarginCallMargin:  f64(15000),
 	}
@@ -74,9 +76,9 @@ func TestConvertFundsSnapshotFullMarginFields(t *testing.T) {
 
 func TestConvertFundsSnapshotNilMarginFields(t *testing.T) {
 	src := &BrokerFundsSnapshot{
-		AccountID:        "12345",
+		AccountID:          "12345",
 		TradingEnvironment: "REAL",
-		Market:           "HK",
+		Market:             "HK",
 	}
 
 	result := convertFundsSnapshot(src)
@@ -109,9 +111,9 @@ func TestConvertFundsSnapshotCurrencyBalances(t *testing.T) {
 	hkdCash := 100000.0
 	usdCash := 50000.0
 	src := &BrokerFundsSnapshot{
-		AccountID:        "12345",
+		AccountID:          "12345",
 		TradingEnvironment: "REAL",
-		Market:           "HK",
+		Market:             "HK",
 		CurrencyBalances: []BrokerCurrencyBalanceSnapshot{
 			{Currency: "HKD", Cash: &hkdCash},
 			{Currency: "USD", Cash: &usdCash},
@@ -264,32 +266,32 @@ func TestBrokerFundsSnapshotFromProtoFullMargin(t *testing.T) {
 	}
 
 	protoFunds := &trdcommonpb.Funds{
-		Power:              pf64(200000),
-		TotalAssets:        pf64(500000),
-		Cash:               pf64(100000),
-		MarketVal:          pf64(350000),
-		FrozenCash:         pf64(10000),
-		DebtCash:           pf64(50000),
-		AvlWithdrawalCash:  pf64(80000),
-		MaxPowerShort:      pf64(100000),
-		NetCashPower:       pf64(120000),
-		LongMv:             pf64(350000),
-		ShortMv:            pf64(0),
-		MaxWithdrawal:      pf64(150000),
-		InitialMargin:      pf64(50000),
-		MaintenanceMargin:  pf64(25000),
-		MarginCallMargin:   pf64(15000),
-		RiskStatus:         pi32(int32(trdcommonpb.CltRiskStatus_CltRiskStatus_Level1)),
-		SecuritiesAssets:   pf64(300000),
-		FundAssets:         pf64(50000),
-		BondAssets:         pf64(0),
+		Power:             pf64(200000),
+		TotalAssets:       pf64(500000),
+		Cash:              pf64(100000),
+		MarketVal:         pf64(350000),
+		FrozenCash:        pf64(10000),
+		DebtCash:          pf64(50000),
+		AvlWithdrawalCash: pf64(80000),
+		MaxPowerShort:     pf64(100000),
+		NetCashPower:      pf64(120000),
+		LongMv:            pf64(350000),
+		ShortMv:           pf64(0),
+		MaxWithdrawal:     pf64(150000),
+		InitialMargin:     pf64(50000),
+		MaintenanceMargin: pf64(25000),
+		MarginCallMargin:  pf64(15000),
+		RiskStatus:        pi32(int32(trdcommonpb.CltRiskStatus_CltRiskStatus_Level1)),
+		SecuritiesAssets:  pf64(300000),
+		FundAssets:        pf64(50000),
+		BondAssets:        pf64(0),
 		// PDT fields
-		IsPdt:          pb(true),
-		PdtSeq:         ps("3/3"),
-		BeginningDTBP:  pf64(100000),
-		RemainingDTBP:  pf64(75000),
-		DtCallAmount:   pf64(5000),
-		DtStatus:       pi32(int32(trdcommonpb.DTStatus_DTStatus_Unlimited)),
+		IsPdt:         pb(true),
+		PdtSeq:        ps("3/3"),
+		BeginningDTBP: pf64(100000),
+		RemainingDTBP: pf64(75000),
+		DtCallAmount:  pf64(5000),
+		DtStatus:      pi32(int32(trdcommonpb.DTStatus_DTStatus_Unlimited)),
 		// Exposure fields
 		ExposureLevel:  pi32(int32(trdcommonpb.ExposureLevel_ExposureLevel_Normal)),
 		ExposureLimit:  pf64(2000000),
@@ -384,13 +386,13 @@ func TestBrokerFundsSnapshotRoundTripNoMargin(t *testing.T) {
 
 // --- Helpers ---
 
-func f64(v float64) *float64 { return &v }
-func pf64(v float64) *float64 { return &v }
-func fint32(v int32) *int32 { return &v }
+func f64(v float64) *float64   { return &v }
+func pf64(v float64) *float64  { return &v }
+func fint32(v int32) *int32    { return &v }
 func fstring(v string) *string { return &v }
-func pi32(v int32) *int32 { return &v }
-func pb(v bool) *bool { return &v }
-func ps(v string) *string { return &v }
+func pi32(v int32) *int32      { return &v }
+func pb(v bool) *bool          { return &v }
+func ps(v string) *string      { return &v }
 
 func assertFloatPtrEqual(t *testing.T, field string, expected, actual *float64) {
 	t.Helper()
@@ -428,5 +430,147 @@ func assertStringPtrEqual(t *testing.T, field string, expected, actual *string) 
 	}
 	if *expected != *actual {
 		t.Fatalf("%s: expected %q, got %q", field, *expected, *actual)
+	}
+}
+
+// --- Order Book conversion tests ---
+
+func TestOrderBookLevelFromPb(t *testing.T) {
+	detail := &qotcommonpb.OrderBookDetail{
+		OrderID: protoInt64(12345),
+		Volume:  protoInt64(1000),
+	}
+	pb := &qotcommonpb.OrderBook{
+		Price:       f64(175.5),
+		Volume:      protoInt64(5000),
+		OrederCount: fint32(3),
+		DetailList:  []*qotcommonpb.OrderBookDetail{detail},
+	}
+
+	level := orderBookLevelFromPb(pb)
+
+	if level.Price != 175.5 {
+		t.Errorf("Price = %v, want 175.5", level.Price)
+	}
+	if level.Volume != 5000 {
+		t.Errorf("Volume = %v, want 5000", level.Volume)
+	}
+	if level.OrderCount != 3 {
+		t.Errorf("OrderCount = %v, want 3", level.OrderCount)
+	}
+	if len(level.DetailList) != 1 {
+		t.Fatalf("DetailList len = %v, want 1", len(level.DetailList))
+	}
+	if level.DetailList[0].OrderID != 12345 {
+		t.Errorf("DetailList[0].OrderID = %v, want 12345", level.DetailList[0].OrderID)
+	}
+	if level.DetailList[0].Volume != 1000 {
+		t.Errorf("DetailList[0].Volume = %v, want 1000", level.DetailList[0].Volume)
+	}
+}
+
+func TestOrderBookLevelFromPbNil(t *testing.T) {
+	level := orderBookLevelFromPb(nil)
+	if level.Price != 0 || level.Volume != 0 || level.OrderCount != 0 {
+		t.Error("expected zero value for nil input")
+	}
+	if len(level.DetailList) != 0 {
+		t.Error("expected empty DetailList for nil input")
+	}
+}
+
+func TestOrderBookLevelFromPbEmptyDetails(t *testing.T) {
+	pb := &qotcommonpb.OrderBook{
+		Price:       f64(100.0),
+		Volume:      protoInt64(200),
+		OrederCount: fint32(1),
+	}
+
+	level := orderBookLevelFromPb(pb)
+
+	if level.Price != 100.0 {
+		t.Errorf("Price = %v, want 100.0", level.Price)
+	}
+	if len(level.DetailList) != 0 {
+		t.Errorf("DetailList should be empty, got %d", len(level.DetailList))
+	}
+}
+
+func TestOrderBookSnapshotFromOpendResult(t *testing.T) {
+	res := &opend.OrderBookResult{
+		Name:           "Tencent",
+		SvrRecvTimeBid: "2025-01-01 10:00:00.000",
+		SvrRecvTimeAsk: "2025-01-01 10:00:01.000",
+		AskList: []*qotcommonpb.OrderBook{
+			{Price: f64(320.0), Volume: protoInt64(100), OrederCount: fint32(1)},
+			{Price: f64(321.0), Volume: protoInt64(200), OrederCount: fint32(2)},
+		},
+		BidList: []*qotcommonpb.OrderBook{
+			{Price: f64(319.0), Volume: protoInt64(150), OrederCount: fint32(1)},
+		},
+	}
+
+	query := &broker.OrderBookQuery{
+		ReadQuery: broker.ReadQuery{AccountID: "test-account"},
+		Symbol:    "HK.00700",
+		Num:       10,
+	}
+
+	snapshot := orderBookSnapshotFromOpendResult(res, query)
+	if snapshot == nil {
+		t.Fatal("expected non-nil snapshot")
+	}
+
+	if snapshot.AccountID != "test-account" {
+		t.Errorf("AccountID = %q, want test-account", snapshot.AccountID)
+	}
+	if snapshot.Symbol != "HK.00700" {
+		t.Errorf("Symbol = %q, want HK.00700", snapshot.Symbol)
+	}
+	if snapshot.Name == nil || *snapshot.Name != "Tencent" {
+		t.Errorf("Name = %v, want Tencent", snapshot.Name)
+	}
+	if snapshot.SvrRecvTimeBid == nil || *snapshot.SvrRecvTimeBid != "2025-01-01 10:00:00.000" {
+		t.Errorf("SvrRecvTimeBid = %v", snapshot.SvrRecvTimeBid)
+	}
+	if snapshot.SvrRecvTimeAsk == nil || *snapshot.SvrRecvTimeAsk != "2025-01-01 10:00:01.000" {
+		t.Errorf("SvrRecvTimeAsk = %v", snapshot.SvrRecvTimeAsk)
+	}
+
+	if len(snapshot.Asks) != 2 {
+		t.Fatalf("Asks len = %d, want 2", len(snapshot.Asks))
+	}
+	if snapshot.Asks[0].Price != 320.0 {
+		t.Errorf("Asks[0].Price = %v, want 320.0", snapshot.Asks[0].Price)
+	}
+	if snapshot.Asks[1].Price != 321.0 {
+		t.Errorf("Asks[1].Price = %v, want 321.0", snapshot.Asks[1].Price)
+	}
+
+	if len(snapshot.Bids) != 1 {
+		t.Fatalf("Bids len = %d, want 1", len(snapshot.Bids))
+	}
+	if snapshot.Bids[0].Price != 319.0 {
+		t.Errorf("Bids[0].Price = %v, want 319.0", snapshot.Bids[0].Price)
+	}
+}
+
+func TestOrderBookSnapshotFromOpendResultNil(t *testing.T) {
+	snapshot := orderBookSnapshotFromOpendResult(nil, &broker.OrderBookQuery{})
+	if snapshot != nil {
+		t.Error("expected nil snapshot for nil result")
+	}
+}
+
+func TestOrderBookSnapshotFromOpendResultEmptyResult(t *testing.T) {
+	res := &opend.OrderBookResult{}
+	query := &broker.OrderBookQuery{Symbol: "HK.00700"}
+
+	snapshot := orderBookSnapshotFromOpendResult(res, query)
+	if snapshot == nil {
+		t.Fatal("expected non-nil snapshot")
+	}
+	if len(snapshot.Bids) != 0 || len(snapshot.Asks) != 0 {
+		t.Error("expected empty bids/asks for empty result")
 	}
 }

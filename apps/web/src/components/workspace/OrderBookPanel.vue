@@ -1,11 +1,27 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 
+import type {
+  MarketDataDepthResponse,
+} from "@jftrade/ui-contracts";
+
+import { fetchEnvelope } from "../../composables/apiClient";
 import { useConsoleData } from "../../composables/useConsoleData";
 import { useWorkspaceLayout } from "../../composables/useWorkspaceLayout";
 
 const { marketDataSnapshot, marketSecurityDetails } = useConsoleData();
 const { prefs } = useWorkspaceLayout();
+
+// --- Depth presets ---
+const DEPTH_PRESETS = [5, 10, 20, 50] as const;
+const DEFAULT_DEPTH_NUM = 10;
+
+// --- State ---
+const depthNum = ref(DEFAULT_DEPTH_NUM);
+const depthData = ref<MarketDataDepthResponse | null>(null);
+const isLoadingDepth = ref(false);
+const depthError = ref("");
+let pollTimer: ReturnType<typeof setInterval> | null = null;
 
 interface DepthLevel {
   price: number;
@@ -13,8 +29,28 @@ interface DepthLevel {
   askSize: number;
 }
 
-// TODO: 对接 ORDER_BOOK 频道 — 后端深度数据就绪后，通过 acquireMarketDataSubscription({ channel: "ORDER_BOOK" }) 订阅并填充
-const depthLevels = computed<DepthLevel[]>(() => []);
+// --- Derived: depth levels from API response ---
+const depthLevels = computed<DepthLevel[]>(() => {
+  const data = depthData.value;
+  if (!data?.depth) return [];
+
+  const bids = data.depth.bids ?? [];
+  const asks = data.depth.asks ?? [];
+  const maxLen = Math.max(bids.length, asks.length);
+  if (maxLen === 0) return [];
+
+  const levels: DepthLevel[] = [];
+  for (let i = 0; i < maxLen; i++) {
+    const bid = bids[i] ?? null;
+    const ask = asks[i] ?? null;
+    levels.push({
+      price: bid?.price ?? ask?.price ?? 0,
+      bidSize: bid?.volume ?? 0,
+      askSize: ask?.volume ?? 0,
+    });
+  }
+  return levels;
+});
 
 const maxBidSize = computed(() => {
   const levels = depthLevels.value;
@@ -98,6 +134,88 @@ function barWidth(max: number, v: number): string {
   if (max <= 0) return "0%";
   return ((v / max) * 100).toFixed(1) + "%";
 }
+
+// --- API calls ---
+
+function buildDepthUrl(): string | null {
+  const market = prefs.value?.market;
+  const symbol = prefs.value?.symbol;
+  if (!market || !symbol) return null;
+  return `/api/v1/market-data/depth/${market}/${symbol}?num=${depthNum.value}`;
+}
+
+async function loadBrokerCapability(): Promise<void> {
+  try {
+    const runtime = await fetchEnvelope<any>("/api/v1/brokers/futu/runtime");
+    const caps = runtime?.descriptor?.capabilities;
+    if (caps && caps.length > 0) {
+      const orderBook = caps[0]?.readFeatures?.orderBook;
+      if (orderBook?.numPresets) {
+        // Use broker default if available
+        if (orderBook.defaultNum && DEPTH_PRESETS.includes(orderBook.defaultNum as typeof DEPTH_PRESETS[number])) {
+          depthNum.value = orderBook.defaultNum;
+        }
+      }
+    }
+  } catch {
+    // Silently fall back to defaults
+  }
+}
+
+async function fetchDepth(): Promise<void> {
+  const url = buildDepthUrl();
+  if (!url) return;
+
+  isLoadingDepth.value = true;
+  depthError.value = "";
+  try {
+    const data = await fetchEnvelope<MarketDataDepthResponse>(url);
+    depthData.value = data;
+  } catch (err: any) {
+    depthError.value = err?.message ?? "获取盘口深度失败";
+  } finally {
+    isLoadingDepth.value = false;
+  }
+}
+
+function startPolling(): void {
+  stopPolling();
+  fetchDepth();
+  // Poll every 3 seconds for depth updates
+  pollTimer = setInterval(() => {
+    fetchDepth();
+  }, 3000);
+}
+
+function stopPolling(): void {
+  if (pollTimer != null) {
+    clearInterval(pollTimer);
+    pollTimer = null;
+  }
+}
+
+function setDepthNum(num: number): void {
+  if (depthNum.value === num) return;
+  depthNum.value = num;
+  fetchDepth();
+}
+
+// --- Lifecycle ---
+onMounted(() => {
+  loadBrokerCapability().then(() => startPolling());
+});
+
+onUnmounted(() => {
+  stopPolling();
+});
+
+// Re-fetch when symbol changes
+watch(
+  () => [prefs.value?.market, prefs.value?.symbol],
+  () => {
+    fetchDepth();
+  },
+);
 </script>
 
 <template>
@@ -116,6 +234,23 @@ function barWidth(max: number, v: number): string {
     </div>
 
     <div class="tv-panel-body is-flush">
+      <!-- Depth preset selector -->
+      <div class="tv-ob-presets">
+        <button
+          v-for="preset in DEPTH_PRESETS"
+          :key="preset"
+          class="tv-ob-preset-btn"
+          :class="{ 'is-active': depthNum === preset }"
+          @click="setDepthNum(preset)"
+        >
+          {{ preset }}档
+        </button>
+        <span v-if="isLoadingDepth" class="tv-ob-preset-spinner fa-solid fa-spinner fa-spin"></span>
+        <span v-if="depthError" class="tv-ob-preset-error" :title="depthError">
+          <span class="fa-solid fa-triangle-exclamation"></span>
+        </span>
+      </div>
+
       <!-- BBO ratio bar -->
       <div v-if="bidAskRatio != null" class="tv-ob-ratio-bar">
         <div class="tv-ob-ratio-bid" :style="{ width: bidRatioPercent + '%' }">
@@ -175,13 +310,28 @@ function barWidth(max: number, v: number): string {
         </div>
       </div>
 
-      <!-- Placeholder when depth not available -->
+      <!-- Loading / empty / error placeholder -->
       <div v-else class="tv-ob-depth-placeholder">
-        <div class="tv-ob-depth-placeholder-icon">
-          <span class="fa-solid fa-chart-bar"></span>
-        </div>
-        <div class="tv-ob-depth-placeholder-text">深度数据接入中…</div>
-        <div class="tv-ob-depth-placeholder-hint">当前展示最优买卖价，完整盘口将在 ORDER_BOOK 频道就绪后自动显示。</div>
+        <template v-if="isLoadingDepth && !depthError">
+          <div class="tv-ob-depth-placeholder-icon">
+            <span class="fa-solid fa-spinner fa-spin"></span>
+          </div>
+          <div class="tv-ob-depth-placeholder-text">加载盘口数据…</div>
+        </template>
+        <template v-else-if="depthError">
+          <div class="tv-ob-depth-placeholder-icon">
+            <span class="fa-solid fa-triangle-exclamation"></span>
+          </div>
+          <div class="tv-ob-depth-placeholder-text">数据获取失败</div>
+          <div class="tv-ob-depth-placeholder-hint">{{ depthError }}</div>
+        </template>
+        <template v-else>
+          <div class="tv-ob-depth-placeholder-icon">
+            <span class="fa-solid fa-chart-bar"></span>
+          </div>
+          <div class="tv-ob-depth-placeholder-text">暂无深度数据</div>
+          <div class="tv-ob-depth-placeholder-hint">请确保已连接行情并选择有效证券。</div>
+        </template>
       </div>
 
       <!-- Bottom summary -->
@@ -208,6 +358,52 @@ function barWidth(max: number, v: number): string {
 </template>
 
 <style scoped>
+/* ---------- Preset buttons ---------- */
+.tv-ob-presets {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--tv-border);
+  background: var(--tv-bg-surface-2);
+}
+
+.tv-ob-preset-btn {
+  padding: 2px 8px;
+  border: 1px solid var(--tv-border);
+  border-radius: 3px;
+  background: var(--tv-bg-surface);
+  color: var(--tv-text-dim);
+  font-size: 10px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+
+.tv-ob-preset-btn:hover {
+  border-color: var(--tv-accent);
+  color: var(--tv-accent);
+}
+
+.tv-ob-preset-btn.is-active {
+  background: var(--tv-accent);
+  border-color: var(--tv-accent);
+  color: #fff;
+}
+
+.tv-ob-preset-spinner {
+  font-size: 11px;
+  color: var(--tv-text-dim);
+  margin-left: 4px;
+}
+
+.tv-ob-preset-error {
+  font-size: 11px;
+  color: var(--tv-down);
+  margin-left: 4px;
+  cursor: help;
+}
+
 /* ---------- Ratio bar ---------- */
 .tv-ob-ratio-bar {
   display: flex;

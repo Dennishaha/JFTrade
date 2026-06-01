@@ -289,8 +289,8 @@ func (s *Server) liveMarketExchange() bbgotypes.Exchange {
 		}
 	}
 	return &strategyRuntimeBrokerBridge{
-		Exchange:    s.futuExchange(),
-		broker:      s.activeBroker(),
+		Exchange: s.futuExchange(),
+		broker:   s.activeBroker(),
 	}
 }
 
@@ -301,8 +301,8 @@ func (s *Server) brokerExecutionExchange() strategyRuntimeExchange {
 		}
 	}
 	return &strategyRuntimeBrokerBridge{
-		Exchange:    s.futuExchange(),
-		broker:      s.activeBroker(),
+		Exchange: s.futuExchange(),
+		broker:   s.activeBroker(),
 	}
 }
 
@@ -556,4 +556,29 @@ func decodePathSegment(value string) (string, error) {
 func pathMiddle(path string, prefix string, suffix string) string {
 	tail := strings.TrimPrefix(path, prefix)
 	return strings.TrimSuffix(tail, suffix)
+}
+
+// Close releases all resources held by the server, including database connections.
+// It is safe to call Close multiple times. After Close, the server should not be used.
+func (s *Server) Close() error {
+	if s == nil {
+		return nil
+	}
+	var errs []error
+	if s.backtestRuns != nil {
+		if err := s.backtestRuns.Close(); err != nil {
+			errs = append(errs, fmt.Errorf("backtestRuns close: %w", err))
+		}
+	}
+	if s.strategyStore != nil && s.strategyStore.runtimeStore != nil {
+		if err := s.strategyStore.runtimeStore.Close(); err != nil {
+			errs = append(errs, fmt.Errorf("strategyStore runtime close: %w", err))
+		}
+	}
+	if s.designStore != nil {
+		if err := s.designStore.Close(); err != nil {
+			errs = append(errs, fmt.Errorf("designStore close: %w", err))
+		}
+	}
+	return errors.Join(errs...)
 }

@@ -7,6 +7,8 @@ import (
 	bbgotypes "github.com/c9s/bbgo/pkg/types"
 
 	"github.com/jftrade/jftrade-main/pkg/broker"
+	"github.com/jftrade/jftrade-main/pkg/futu/opend"
+	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
 )
 
 // --- Futu → broker type converters ---
@@ -44,17 +46,17 @@ func convertFundsSnapshot(s *BrokerFundsSnapshot) *broker.FundsSnapshot {
 		MarginCallMargin:        s.MarginCallMargin,
 		RiskStatus:              s.RiskStatus,
 		// Margin & Financing 融资融券
-		DebtCash:        s.DebtCash,
-		IsPDT:           s.IsPDT,
-		PDTSeq:          s.PDTSeq,
-		BeginningDTBP:   s.BeginningDTBP,
-		RemainingDTBP:   s.RemainingDTBP,
-		DTCallAmount:    s.DTCallAmount,
-		DTStatus:        s.DTStatus,
-		ExposureLevel:   s.ExposureLevel,
-		ExposureLimit:   s.ExposureLimit,
-		UsedLimit:       s.UsedLimit,
-		RemainingLimit:  s.RemainingLimit,
+		DebtCash:       s.DebtCash,
+		IsPDT:          s.IsPDT,
+		PDTSeq:         s.PDTSeq,
+		BeginningDTBP:  s.BeginningDTBP,
+		RemainingDTBP:  s.RemainingDTBP,
+		DTCallAmount:   s.DTCallAmount,
+		DTStatus:       s.DTStatus,
+		ExposureLevel:  s.ExposureLevel,
+		ExposureLimit:  s.ExposureLimit,
+		UsedLimit:      s.UsedLimit,
+		RemainingLimit: s.RemainingLimit,
 	}
 	if len(s.CurrencyBalances) > 0 {
 		result.CurrencyBalances = make([]broker.CurrencyBalanceSnapshot, len(s.CurrencyBalances))
@@ -285,9 +287,58 @@ func brokerReadQueryFromFutu(q broker.ReadQuery) BrokerReadQuery {
 	}
 }
 
+// orderBookSnapshotFromOpendResult converts an opend.OrderBookResult into a broker.OrderBookSnapshot.
+func orderBookSnapshotFromOpendResult(res *opend.OrderBookResult, query *broker.OrderBookQuery) *broker.OrderBookSnapshot {
+	if res == nil {
+		return nil
+	}
+	snapshot := &broker.OrderBookSnapshot{
+		AccountID: query.AccountID,
+		Symbol:    query.Symbol,
+	}
+	if sym, err := futuSymbolFromSecurity(res.Security); err == nil && sym != "" {
+		snapshot.Symbol = sym
+	}
+	if res.Name != "" {
+		snapshot.Name = &res.Name
+	}
+	if res.SvrRecvTimeBid != "" {
+		snapshot.SvrRecvTimeBid = &res.SvrRecvTimeBid
+	}
+	if res.SvrRecvTimeAsk != "" {
+		snapshot.SvrRecvTimeAsk = &res.SvrRecvTimeAsk
+	}
+	for _, level := range res.BidList {
+		snapshot.Bids = append(snapshot.Bids, orderBookLevelFromPb(level))
+	}
+	for _, level := range res.AskList {
+		snapshot.Asks = append(snapshot.Asks, orderBookLevelFromPb(level))
+	}
+	return snapshot
+}
+
+// orderBookLevelFromPb converts a protobuf OrderBook to a broker.OrderBookLevel.
+func orderBookLevelFromPb(pb *qotcommonpb.OrderBook) broker.OrderBookLevel {
+	if pb == nil {
+		return broker.OrderBookLevel{}
+	}
+	level := broker.OrderBookLevel{
+		Price:      pb.GetPrice(),
+		Volume:     float64(pb.GetVolume()),
+		OrderCount: pb.GetOrederCount(),
+	}
+	for _, detail := range pb.GetDetailList() {
+		level.DetailList = append(level.DetailList, broker.OrderBookDetailItem{
+			OrderID: detail.GetOrderID(),
+			Volume:  float64(detail.GetVolume()),
+		})
+	}
+	return level
+}
+
 // Verify interface compliance at compile time.
 var (
-	_ broker.Broker         = (*futuAdapter)(nil)
-	_ broker.TradingService = (*futuTradingService)(nil)
+	_ broker.Broker           = (*futuAdapter)(nil)
+	_ broker.TradingService   = (*futuTradingService)(nil)
 	_ broker.MarketDataReader = (*futuMarketDataReader)(nil)
 )

@@ -237,6 +237,46 @@ func (r *futuMarketDataReader) QuerySecuritySnapshot(ctx context.Context, query 
 	return result, nil
 }
 
+func (r *futuMarketDataReader) QueryOrderBook(ctx context.Context, query broker.OrderBookQuery) (*broker.OrderBookSnapshot, error) {
+	if query.Symbol == "" {
+		return nil, fmt.Errorf("futu: QueryOrderBook requires a symbol")
+	}
+	num := query.Num
+	if num <= 0 {
+		num = 10 // default depth levels
+	}
+	var result *broker.OrderBookSnapshot
+	if err := r.exchange.withClient(ctx, func(client *opend.Client) error {
+		res, err := r.exchange.QueryOrderBook(ctx, query.Symbol, num)
+		if err != nil {
+			return err
+		}
+		snapshot := orderBookSnapshotFromOpendResult(res, &query)
+		result = snapshot
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+// --- broker.OrderBookSubscriber implementation ---
+
+func (a *futuAdapter) SubscribeOrderBook(ctx context.Context, req broker.OrderBookSubscribeRequest) error {
+	return a.exchange.withClient(ctx, func(client *opend.Client) error {
+		securities, err := securitiesFromSymbols(req.Symbols)
+		if err != nil {
+			return err
+		}
+		return client.SubscribeQuotes(ctx, opend.QuoteSubRequest{
+			Securities:  securities,
+			SubTypes:    []qotcommonpb.SubType{qotcommonpb.SubType_SubType_OrderBook},
+			IsSubscribe: true,
+			IsRegPush:   proto.Bool(true),
+		})
+	})
+}
+
 // --- internal helpers for the new adapter methods ---
 
 // securitiesFromSymbols parses a list of "MARKET.CODE" symbols into Security protobufs.
@@ -317,6 +357,7 @@ func int64AsFloat64Ptr(value *int64) *float64 {
 
 // Ensure adapter implements new interfaces at compile time.
 var (
-	_ broker.QuoteSubscriber = (*futuAdapter)(nil)
-	_ broker.UnlockTrader   = (*futuAdapter)(nil)
+	_ broker.QuoteSubscriber     = (*futuAdapter)(nil)
+	_ broker.UnlockTrader        = (*futuAdapter)(nil)
+	_ broker.OrderBookSubscriber = (*futuAdapter)(nil)
 )

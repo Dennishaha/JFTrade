@@ -13,6 +13,8 @@
 - `3004` GetBasicQot
 - `3005` Qot_UpdateBasicQot
 - `3006` GetKL
+- `3012` Qot_GetOrderBook（盘口深度拉取）
+- `3013` Qot_UpdateOrderBook（盘口实时推送）
 - `3103` RequestHistoryKL
 
 交易相关协议则按 bbgo/sidecar 需求逐步扩展。

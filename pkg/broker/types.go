@@ -4,10 +4,10 @@ import "time"
 
 // ReadQuery selects a specific broker trading account context for read/write operations.
 type ReadQuery struct {
-	BrokerID             string `json:"brokerId,omitempty"`
-	AccountID            string `json:"accountId"`
-	TradingEnvironment   string `json:"tradingEnvironment"` // "SIMULATE" | "REAL"
-	Market               string `json:"market"`             // "HK" | "US" | "SH" | "SZ" | ...
+	BrokerID           string `json:"brokerId,omitempty"`
+	AccountID          string `json:"accountId"`
+	TradingEnvironment string `json:"tradingEnvironment"` // "SIMULATE" | "REAL"
+	Market             string `json:"market"`             // "HK" | "US" | "SH" | "SZ" | ...
 }
 
 // Account represents a discovered trading account.
@@ -26,62 +26,62 @@ type Account struct {
 // --- Funds ---
 
 type FundsSnapshot struct {
-	AccountID               string                    `json:"accountId"`
-	TradingEnvironment      string                    `json:"tradingEnvironment"`
-	Market                  string                    `json:"market"`
-	AccountType             string                    `json:"accountType,omitempty"`
-	Currency                *string                   `json:"currency,omitempty"`
-	TotalAssets             *float64                  `json:"totalAssets,omitempty"`
-	SecuritiesAssets        *float64                  `json:"securitiesAssets,omitempty"`
-	FundAssets              *float64                  `json:"fundAssets,omitempty"`
-	BondAssets              *float64                  `json:"bondAssets,omitempty"`
-	Cash                    *float64                  `json:"cash,omitempty"`
-	MarketValue             *float64                  `json:"marketValue,omitempty"`
-	LongMarketValue         *float64                  `json:"longMarketValue,omitempty"`
-	ShortMarketValue        *float64                  `json:"shortMarketValue,omitempty"`
-	PurchasingPower         *float64                  `json:"purchasingPower,omitempty"`
-	ShortSellingPower       *float64                  `json:"shortSellingPower,omitempty"`
-	NetCashPower            *float64                  `json:"netCashPower,omitempty"`
-	AvailableWithdrawalCash *float64                  `json:"availableWithdrawalCash,omitempty"`
-	MaxWithdrawal           *float64                  `json:"maxWithdrawal,omitempty"`
-	AvailableFunds          *float64                  `json:"availableFunds,omitempty"`
-	FrozenCash              *float64                  `json:"frozenCash,omitempty"`
-	PendingAsset            *float64                  `json:"pendingAsset,omitempty"`
-	UnrealizedPnl           *float64                  `json:"unrealizedPnl,omitempty"`
-	RealizedPnl             *float64                  `json:"realizedPnl,omitempty"`
-	InitialMargin           *float64                  `json:"initialMargin,omitempty"`
-	MaintenanceMargin       *float64                  `json:"maintenanceMargin,omitempty"`
-	MarginCallMargin        *float64                  `json:"marginCallMargin,omitempty"`
-	RiskStatus              *string                   `json:"riskStatus,omitempty"`
+	AccountID               string   `json:"accountId"`
+	TradingEnvironment      string   `json:"tradingEnvironment"`
+	Market                  string   `json:"market"`
+	AccountType             string   `json:"accountType,omitempty"`
+	Currency                *string  `json:"currency,omitempty"`
+	TotalAssets             *float64 `json:"totalAssets,omitempty"`
+	SecuritiesAssets        *float64 `json:"securitiesAssets,omitempty"`
+	FundAssets              *float64 `json:"fundAssets,omitempty"`
+	BondAssets              *float64 `json:"bondAssets,omitempty"`
+	Cash                    *float64 `json:"cash,omitempty"`
+	MarketValue             *float64 `json:"marketValue,omitempty"`
+	LongMarketValue         *float64 `json:"longMarketValue,omitempty"`
+	ShortMarketValue        *float64 `json:"shortMarketValue,omitempty"`
+	PurchasingPower         *float64 `json:"purchasingPower,omitempty"`
+	ShortSellingPower       *float64 `json:"shortSellingPower,omitempty"`
+	NetCashPower            *float64 `json:"netCashPower,omitempty"`
+	AvailableWithdrawalCash *float64 `json:"availableWithdrawalCash,omitempty"`
+	MaxWithdrawal           *float64 `json:"maxWithdrawal,omitempty"`
+	AvailableFunds          *float64 `json:"availableFunds,omitempty"`
+	FrozenCash              *float64 `json:"frozenCash,omitempty"`
+	PendingAsset            *float64 `json:"pendingAsset,omitempty"`
+	UnrealizedPnl           *float64 `json:"unrealizedPnl,omitempty"`
+	RealizedPnl             *float64 `json:"realizedPnl,omitempty"`
+	InitialMargin           *float64 `json:"initialMargin,omitempty"`
+	MaintenanceMargin       *float64 `json:"maintenanceMargin,omitempty"`
+	MarginCallMargin        *float64 `json:"marginCallMargin,omitempty"`
+	RiskStatus              *string  `json:"riskStatus,omitempty"`
 	// Margin & Financing 融资融券
-	DebtCash              *float64                  `json:"debtCash,omitempty"`
-	IsPDT                 *bool                     `json:"isPdt,omitempty"`
-	PDTSeq                *string                   `json:"pdtSeq,omitempty"`
-	BeginningDTBP         *float64                  `json:"beginningDTBP,omitempty"`
-	RemainingDTBP         *float64                  `json:"remainingDTBP,omitempty"`
-	DTCallAmount          *float64                  `json:"dtCallAmount,omitempty"`
-	DTStatus              *string                   `json:"dtStatus,omitempty"`
-	ExposureLevel         *string                   `json:"exposureLevel,omitempty"`
-	ExposureLimit         *float64                  `json:"exposureLimit,omitempty"`
-	UsedLimit             *float64                  `json:"usedLimit,omitempty"`
-	RemainingLimit        *float64                  `json:"remainingLimit,omitempty"`
-	CurrencyBalances      []CurrencyBalanceSnapshot `json:"currencyBalances,omitempty"`
-	MarketAssets          []MarketAssetSnapshot     `json:"marketAssets,omitempty"`
+	DebtCash         *float64                  `json:"debtCash,omitempty"`
+	IsPDT            *bool                     `json:"isPdt,omitempty"`
+	PDTSeq           *string                   `json:"pdtSeq,omitempty"`
+	BeginningDTBP    *float64                  `json:"beginningDTBP,omitempty"`
+	RemainingDTBP    *float64                  `json:"remainingDTBP,omitempty"`
+	DTCallAmount     *float64                  `json:"dtCallAmount,omitempty"`
+	DTStatus         *string                   `json:"dtStatus,omitempty"`
+	ExposureLevel    *string                   `json:"exposureLevel,omitempty"`
+	ExposureLimit    *float64                  `json:"exposureLimit,omitempty"`
+	UsedLimit        *float64                  `json:"usedLimit,omitempty"`
+	RemainingLimit   *float64                  `json:"remainingLimit,omitempty"`
+	CurrencyBalances []CurrencyBalanceSnapshot `json:"currencyBalances,omitempty"`
+	MarketAssets     []MarketAssetSnapshot     `json:"marketAssets,omitempty"`
 }
 
 type CurrencyBalanceSnapshot struct {
-	AccountID               string  `json:"accountId"`
-	TradingEnvironment      string  `json:"tradingEnvironment"`
-	Currency                string  `json:"currency"`
+	AccountID               string   `json:"accountId"`
+	TradingEnvironment      string   `json:"tradingEnvironment"`
+	Currency                string   `json:"currency"`
 	Cash                    *float64 `json:"cash,omitempty"`
 	AvailableWithdrawalCash *float64 `json:"availableWithdrawalCash,omitempty"`
 	NetCashPower            *float64 `json:"netCashPower,omitempty"`
 }
 
 type MarketAssetSnapshot struct {
-	AccountID          string  `json:"accountId"`
-	TradingEnvironment string  `json:"tradingEnvironment"`
-	Market             string  `json:"market"`
+	AccountID          string   `json:"accountId"`
+	TradingEnvironment string   `json:"tradingEnvironment"`
+	Market             string   `json:"market"`
 	Assets             *float64 `json:"assets,omitempty"`
 }
 
@@ -184,11 +184,11 @@ type OrderFeeItemSnapshot struct {
 }
 
 type OrderFeeSnapshot struct {
-	AccountID          string                `json:"accountId"`
-	TradingEnvironment string                `json:"tradingEnvironment"`
-	Market             string                `json:"market"`
-	BrokerOrderIDEx    string                `json:"brokerOrderIdEx"`
-	FeeAmount          *float64              `json:"feeAmount,omitempty"`
+	AccountID          string                 `json:"accountId"`
+	TradingEnvironment string                 `json:"tradingEnvironment"`
+	Market             string                 `json:"market"`
+	BrokerOrderIDEx    string                 `json:"brokerOrderIdEx"`
+	FeeAmount          *float64               `json:"feeAmount,omitempty"`
 	FeeItems           []OrderFeeItemSnapshot `json:"feeItems,omitempty"`
 }
 
@@ -305,9 +305,9 @@ type CancelOrder struct {
 // --- Push Updates ---
 
 type OrderUpdateEvent struct {
-	Type    string      // "order" | "fill"
-	Order   *OrderSnapshot
-	Fill    *OrderFillSnapshot
+	Type       string // "order" | "fill"
+	Order      *OrderSnapshot
+	Fill       *OrderFillSnapshot
 	ReceivedAt time.Time
 }
 
@@ -319,28 +319,28 @@ type QuoteQuery struct {
 }
 
 type QuoteSnapshot struct {
-	AccountID    string          `json:"accountId"`
-	Symbol       string          `json:"symbol"`
-	SymbolName   *string         `json:"symbolName,omitempty"`
-	LastPrice    float64         `json:"lastPrice"`
-	OpenPrice    *float64        `json:"openPrice,omitempty"`
-	HighPrice    *float64        `json:"highPrice,omitempty"`
-	LowPrice     *float64        `json:"lowPrice,omitempty"`
-	LastClose    *float64        `json:"lastClose,omitempty"`
-	Volume       float64         `json:"volume"`
-	Turnover     *float64        `json:"turnover,omitempty"`
-	QuoteAt      string          `json:"quoteAt,omitempty"`
-	Quotes       []QuoteItem     `json:"quotes,omitempty"`
+	AccountID  string      `json:"accountId"`
+	Symbol     string      `json:"symbol"`
+	SymbolName *string     `json:"symbolName,omitempty"`
+	LastPrice  float64     `json:"lastPrice"`
+	OpenPrice  *float64    `json:"openPrice,omitempty"`
+	HighPrice  *float64    `json:"highPrice,omitempty"`
+	LowPrice   *float64    `json:"lowPrice,omitempty"`
+	LastClose  *float64    `json:"lastClose,omitempty"`
+	Volume     float64     `json:"volume"`
+	Turnover   *float64    `json:"turnover,omitempty"`
+	QuoteAt    string      `json:"quoteAt,omitempty"`
+	Quotes     []QuoteItem `json:"quotes,omitempty"`
 }
 
 type QuoteItem struct {
-	Symbol     string  `json:"symbol"`
-	SymbolName *string `json:"symbolName,omitempty"`
-	LastPrice  float64 `json:"lastPrice"`
+	Symbol     string   `json:"symbol"`
+	SymbolName *string  `json:"symbolName,omitempty"`
+	LastPrice  float64  `json:"lastPrice"`
 	OpenPrice  *float64 `json:"openPrice,omitempty"`
 	HighPrice  *float64 `json:"highPrice,omitempty"`
 	LowPrice   *float64 `json:"lowPrice,omitempty"`
-	Volume     float64 `json:"volume"`
+	Volume     float64  `json:"volume"`
 	Turnover   *float64 `json:"turnover,omitempty"`
 }
 
@@ -348,18 +348,18 @@ type QuoteItem struct {
 
 type KLineQuery struct {
 	ReadQuery
-	Symbol  string `json:"symbol"`
-	Period  string `json:"period"`  // 1m, 5m, 15m, 30m, 60m, 1d, 1w, 1M
+	Symbol   string `json:"symbol"`
+	Period   string `json:"period"` // 1m, 5m, 15m, 30m, 60m, 1d, 1w, 1M
 	FromTime string `json:"fromTime,omitempty"`
 	ToTime   string `json:"toTime,omitempty"`
 	Limit    int32  `json:"limit,omitempty"`
 }
 
 type KLineSnapshot struct {
-	AccountID string        `json:"accountId"`
-	Symbol    string        `json:"symbol"`
-	Period    string        `json:"period"`
-	KLines    []KLineItem   `json:"klines"`
+	AccountID string      `json:"accountId"`
+	Symbol    string      `json:"symbol"`
+	Period    string      `json:"period"`
+	KLines    []KLineItem `json:"klines"`
 }
 
 type KLineItem struct {
@@ -381,7 +381,7 @@ type SecurityInfoQuery struct {
 }
 
 type SecurityInfoSnapshot struct {
-	AccountID string           `json:"accountId"`
+	AccountID  string             `json:"accountId"`
 	Securities []SecurityInfoItem `json:"securities"`
 }
 
@@ -402,7 +402,7 @@ type SecuritySnapshotQuery struct {
 }
 
 type SecuritySnapshotResult struct {
-	AccountID string             `json:"accountId"`
+	AccountID string                 `json:"accountId"`
 	Snapshots []SecuritySnapshotItem `json:"snapshots"`
 }
 
@@ -419,21 +419,62 @@ type SecuritySnapshotItem struct {
 	Turnover     *float64 `json:"turnover,omitempty"`
 	PERate       *float64 `json:"peRate,omitempty"`
 	PBRate       *float64 `json:"pbRate,omitempty"`
-	LotSize      *int32  `json:"lotSize,omitempty"`
+	LotSize      *int32   `json:"lotSize,omitempty"`
 }
 
 // --- Quote Subscribe ---
 
 type QuoteSubscribeRequest struct {
 	ReadQuery
-	Symbols   []string `json:"symbols"`
-	SubTypes  []string `json:"subTypes,omitempty"`
+	Symbols  []string `json:"symbols"`
+	SubTypes []string `json:"subTypes,omitempty"`
+}
+
+// --- Order Book (Depth) ---
+
+// OrderBookQuery selects a security and the number of depth levels to retrieve.
+type OrderBookQuery struct {
+	ReadQuery
+	Symbol string `json:"symbol"`
+	Num    int32  `json:"num,omitempty"` // number of bid/ask levels, default 10
+}
+
+// OrderBookSnapshot holds the bid and ask depth for a single security.
+type OrderBookSnapshot struct {
+	AccountID      string           `json:"accountId"`
+	Symbol         string           `json:"symbol"`
+	Name           *string          `json:"name,omitempty"`
+	SvrRecvTimeBid *string          `json:"svrRecvTimeBid,omitempty"`
+	SvrRecvTimeAsk *string          `json:"svrRecvTimeAsk,omitempty"`
+	Bids           []OrderBookLevel `json:"bids"`
+	Asks           []OrderBookLevel `json:"asks"`
+}
+
+// OrderBookLevel represents one price level in the order book.
+type OrderBookLevel struct {
+	Price      float64               `json:"price"`
+	Volume     float64               `json:"volume"`
+	OrderCount int32                 `json:"orderCount"`
+	DetailList []OrderBookDetailItem `json:"detailList,omitempty"` // SF行情特有
+}
+
+// OrderBookDetailItem represents a single order within a price level.
+type OrderBookDetailItem struct {
+	OrderID int64   `json:"orderId"`
+	Volume  float64 `json:"volume"`
+}
+
+// OrderBookSubscribeRequest is a subscribe request for real-time order book pushes.
+type OrderBookSubscribeRequest struct {
+	ReadQuery
+	Symbols []string `json:"symbols"`
+	Num     int32    `json:"num,omitempty"` // number of levels
 }
 
 // --- Unlock Trade ---
 
 type UnlockTradeRequest struct {
 	ReadQuery
-	Unlock       bool   `json:"unlock"`
-	PasswordMD5  string `json:"passwordMd5,omitempty"`
+	Unlock      bool   `json:"unlock"`
+	PasswordMD5 string `json:"passwordMd5,omitempty"`
 }

@@ -54,7 +54,9 @@ PROTO_FILES=(
 
 EXTRA_PROTO_FILES=(
   Notify.proto
+  Qot_GetOrderBook.proto
   Qot_GetSecuritySnapshot.proto
+  Qot_UpdateOrderBook.proto
 )
 
 ALL_PROTO_FILES=("${PROTO_FILES[@]}" "${EXTRA_PROTO_FILES[@]}")

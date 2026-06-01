@@ -1,9 +1,11 @@
 package futu
 
 type subscriptionRegistry struct {
-	basicQot     map[string]struct{}
-	basicQotPush map[string]struct{}
-	kline        map[string]struct{}
+	basicQot      map[string]struct{}
+	basicQotPush  map[string]struct{}
+	kline         map[string]struct{}
+	orderBook     map[string]struct{}
+	orderBookPush map[string]struct{}
 }
 
 func newSubscriptionRegistry() subscriptionRegistry {
@@ -22,12 +24,20 @@ func (r *subscriptionRegistry) ensure() {
 	if r.kline == nil {
 		r.kline = map[string]struct{}{}
 	}
+	if r.orderBook == nil {
+		r.orderBook = map[string]struct{}{}
+	}
+	if r.orderBookPush == nil {
+		r.orderBookPush = map[string]struct{}{}
+	}
 }
 
 func (r *subscriptionRegistry) reset() {
 	r.basicQot = map[string]struct{}{}
 	r.basicQotPush = map[string]struct{}{}
 	r.kline = map[string]struct{}{}
+	r.orderBook = map[string]struct{}{}
+	r.orderBookPush = map[string]struct{}{}
 }
 
 func (r *subscriptionRegistry) hasBasicQot(key string) bool {
@@ -61,4 +71,26 @@ func (r *subscriptionRegistry) hasKLine(key string) bool {
 func (r *subscriptionRegistry) markKLine(key string) {
 	r.ensure()
 	r.kline[key] = struct{}{}
+}
+
+func (r *subscriptionRegistry) hasOrderBook(key string) bool {
+	r.ensure()
+	_, exists := r.orderBook[key]
+	return exists
+}
+
+func (r *subscriptionRegistry) markOrderBook(key string) {
+	r.ensure()
+	r.orderBook[key] = struct{}{}
+}
+
+func (r *subscriptionRegistry) hasOrderBookPush(key string) bool {
+	r.ensure()
+	_, exists := r.orderBookPush[key]
+	return exists
+}
+
+func (r *subscriptionRegistry) markOrderBookPush(key string) {
+	r.ensure()
+	r.orderBookPush[key] = struct{}{}
 }

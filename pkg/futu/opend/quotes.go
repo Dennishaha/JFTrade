@@ -16,15 +16,16 @@ import (
 
 // QuoteSubRequest aggregates the parameters for a QotSub (3001) call.
 type QuoteSubRequest struct {
-	Securities         []*qotcommonpb.Security
-	SubTypes           []qotcommonpb.SubType
-	IsSubscribe        bool
-	IsRegPush          *bool
-	RegPushRehabTypes  []qotcommonpb.RehabType
-	IsFirstPush        *bool
-	IsUnsubAll         bool
-	ExtendedTime       *bool
-	Session            *int32
+	Securities           []*qotcommonpb.Security
+	SubTypes             []qotcommonpb.SubType
+	IsSubscribe          bool
+	IsRegPush            *bool
+	RegPushRehabTypes    []qotcommonpb.RehabType
+	IsFirstPush          *bool
+	IsUnsubAll           bool
+	ExtendedTime         *bool
+	Session              *int32
+	IsSubOrderBookDetail *bool // 仅用于港股 SF 行情权限下订阅港股 ORDER_BOOK 类型
 }
 
 // Subscribe sends a quote subscription request (QotSub, 3001).
@@ -61,6 +62,9 @@ func (c *Client) SubscribeQuotes(ctx context.Context, req QuoteSubRequest) error
 	}
 	if req.Session != nil {
 		c2s.Session = proto.Int32(*req.Session)
+	}
+	if req.IsSubOrderBookDetail != nil {
+		c2s.IsSubOrderBookDetail = proto.Bool(*req.IsSubOrderBookDetail)
 	}
 
 	request := &qotsubpb.Request{C2S: c2s}

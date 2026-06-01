@@ -54,6 +54,9 @@ type MarketDataReader interface {
 
 	// QuerySecuritySnapshot retrieves full snapshots (basic + extended data).
 	QuerySecuritySnapshot(ctx context.Context, query SecuritySnapshotQuery) (*SecuritySnapshotResult, error)
+
+	// QueryOrderBook retrieves the order book depth (bid/ask) for a single security.
+	QueryOrderBook(ctx context.Context, query OrderBookQuery) (*OrderBookSnapshot, error)
 }
 
 // TradingService provides write-side broker operations: place and cancel orders.
@@ -85,6 +88,13 @@ type QuoteSubscriber interface {
 	// SubscribeQuotes subscribes to real-time quote pushes for the given securities.
 	// The reader is called with each push; it MUST return quickly.
 	SubscribeQuotes(ctx context.Context, req QuoteSubscribeRequest) error
+}
+
+// OrderBookSubscriber is an optional interface for brokers that support real-time
+// order book depth push subscriptions (e.g. Qot_UpdateOrderBook, 3013).
+type OrderBookSubscriber interface {
+	// SubscribeOrderBook subscribes to real-time order book push for the given securities.
+	SubscribeOrderBook(ctx context.Context, req OrderBookSubscribeRequest) error
 }
 
 // UnlockTrader is an optional interface for brokers that require explicit

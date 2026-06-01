@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
 
 	"github.com/jftrade/jftrade-main/pkg/futu/codec"
@@ -15,6 +16,7 @@ import (
 	initpb "github.com/jftrade/jftrade-main/pkg/futu/pb/initconnect"
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
 	qotgetbasicqotpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetbasicqot"
+	qotgetorderbookpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetorderbook"
 	qotgetsecuritysnapshotpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetsecuritysnapshot"
 	qotgetstaticinfopb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetstaticinfo"
 	qotsubpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotsub"
@@ -28,11 +30,16 @@ type marketDataQuoteOpenDServer struct {
 	basicQotCalls         atomic.Int32
 	securitySnapshotCalls atomic.Int32
 	staticInfoCalls       atomic.Int32
+	orderBookCalls        atomic.Int32
 	historyMu             sync.Mutex
 	historyPages          [][]*qotcommonpb.KLine
 	historyPagesBySession map[int32][][]*qotcommonpb.KLine
 	currentKLines         []*qotcommonpb.KLine
 	currentKLCalls        atomic.Int32
+	orderBookMu           sync.Mutex
+	orderBookBids         []*qotcommonpb.OrderBook
+	orderBookAsks         []*qotcommonpb.OrderBook
+	orderBookErr          error
 }
 
 func startMarketDataQuoteOpenDServer(t *testing.T) *marketDataQuoteOpenDServer {
@@ -100,6 +107,7 @@ func (s *marketDataQuoteOpenDServer) handleConn(conn net.Conn) {
 		}
 
 		var response proto.Message
+		var rawBody []byte
 		switch frame.Header.ProtoID {
 		case opend.ProtoInitConnect:
 			response = &initpb.Response{
@@ -128,13 +136,20 @@ func (s *marketDataQuoteOpenDServer) handleConn(conn net.Conn) {
 		case opend.ProtoGetKL:
 			s.currentKLCalls.Add(1)
 			response = s.currentKLResponse(frame.Body)
+		case opend.ProtoGetOrderBook:
+			s.orderBookCalls.Add(1)
+			rawBody = s.orderBookResponseBody(frame.Body)
 		default:
 			return
 		}
 
-		body, err := proto.Marshal(response)
-		if err != nil {
-			return
+		body := rawBody
+		if body == nil {
+			var err error
+			body, err = proto.Marshal(response)
+			if err != nil {
+				return
+			}
 		}
 		packet, err = codec.Encode(frame.Header.ProtoID, frame.Header.SerialNo, body)
 		if err != nil {
@@ -214,5 +229,111 @@ func (s *marketDataQuoteOpenDServer) basicQotResponse(body []byte) *qotgetbasicq
 		S2C: &qotgetbasicqotpb.S2C{
 			BasicQotList: quotes,
 		},
+	}
+}
+
+func (s *marketDataQuoteOpenDServer) orderBookCallCount() int {
+	return int(s.orderBookCalls.Load())
+}
+
+func (s *marketDataQuoteOpenDServer) setOrderBook(bids []*qotcommonpb.OrderBook, asks []*qotcommonpb.OrderBook) {
+	s.orderBookMu.Lock()
+	defer s.orderBookMu.Unlock()
+	s.orderBookBids = bids
+	s.orderBookAsks = asks
+	s.orderBookErr = nil
+}
+
+func (s *marketDataQuoteOpenDServer) setOrderBookErr(err error) {
+	s.orderBookMu.Lock()
+	defer s.orderBookMu.Unlock()
+	s.orderBookBids = nil
+	s.orderBookAsks = nil
+	s.orderBookErr = err
+}
+
+func (s *marketDataQuoteOpenDServer) orderBookResponseBody(body []byte) []byte {
+	s.orderBookMu.Lock()
+	bids := s.orderBookBids
+	asks := s.orderBookAsks
+	obErr := s.orderBookErr
+	s.orderBookMu.Unlock()
+
+	if obErr != nil {
+		var response []byte
+		response = protowire.AppendTag(response, 1, protowire.VarintType)
+		response = protowire.AppendVarint(response, 1)
+		response = protowire.AppendTag(response, 2, protowire.BytesType)
+		response = protowire.AppendBytes(response, []byte(obErr.Error()))
+		return response
+	}
+
+	request := &qotgetorderbookpb.Request{}
+	if err := proto.Unmarshal(body, request); err != nil {
+		var response []byte
+		response = protowire.AppendTag(response, 1, protowire.VarintType)
+		response = protowire.AppendVarint(response, 1)
+		response = protowire.AppendTag(response, 2, protowire.BytesType)
+		response = protowire.AppendBytes(response, []byte(err.Error()))
+		return response
+	}
+
+	if bids == nil {
+		bids = []*qotcommonpb.OrderBook{}
+	}
+	if asks == nil {
+		asks = []*qotcommonpb.OrderBook{}
+	}
+
+	securityBody, err := proto.Marshal(request.GetC2S().GetSecurity())
+	if err != nil {
+		return nil
+	}
+	bidTime := time.Now().UTC().Format("2006-01-02 15:04:05.000")
+	askTime := bidTime
+
+	var s2c []byte
+	s2c = protowire.AppendTag(s2c, 1, protowire.BytesType)
+	s2c = protowire.AppendBytes(s2c, securityBody)
+	for _, bid := range bids {
+		bidBody, err := proto.Marshal(bid)
+		if err != nil {
+			return nil
+		}
+		s2c = protowire.AppendTag(s2c, 2, protowire.BytesType)
+		s2c = protowire.AppendBytes(s2c, bidBody)
+	}
+	for _, ask := range asks {
+		askBody, err := proto.Marshal(ask)
+		if err != nil {
+			return nil
+		}
+		s2c = protowire.AppendTag(s2c, 3, protowire.BytesType)
+		s2c = protowire.AppendBytes(s2c, askBody)
+	}
+	s2c = protowire.AppendTag(s2c, 4, protowire.BytesType)
+	s2c = protowire.AppendBytes(s2c, []byte(bidTime))
+	s2c = protowire.AppendTag(s2c, 6, protowire.BytesType)
+	s2c = protowire.AppendBytes(s2c, []byte(askTime))
+	s2c = protowire.AppendTag(s2c, 8, protowire.BytesType)
+	s2c = protowire.AppendBytes(s2c, []byte(request.GetC2S().GetSecurity().GetCode()))
+
+	var response []byte
+	response = protowire.AppendTag(response, 1, protowire.VarintType)
+	response = protowire.AppendVarint(response, 0)
+	response = protowire.AppendTag(response, 2, protowire.BytesType)
+	response = protowire.AppendBytes(response, nil)
+	response = protowire.AppendTag(response, 3, protowire.VarintType)
+	response = protowire.AppendVarint(response, 0)
+	response = protowire.AppendTag(response, 4, protowire.BytesType)
+	response = protowire.AppendBytes(response, s2c)
+	return response
+}
+
+func marketDataDepthOrderBookFixture(price float64, volume int64, orderCount int32) *qotcommonpb.OrderBook {
+	return &qotcommonpb.OrderBook{
+		Price:       proto.Float64(price),
+		Volume:      proto.Int64(volume),
+		OrederCount: proto.Int32(orderCount),
 	}
 }

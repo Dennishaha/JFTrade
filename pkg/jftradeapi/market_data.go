@@ -11,6 +11,7 @@ import (
 
 	bbgotypes "github.com/c9s/bbgo/pkg/types"
 
+	"github.com/jftrade/jftrade-main/pkg/broker"
 	"github.com/jftrade/jftrade-main/pkg/futu"
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
 )
@@ -248,4 +249,69 @@ func (s *Server) futuExchange() *futu.Exchange {
 	}
 
 	return s.exchange
+}
+
+// --- Depth (Order Book) ---
+
+func (s *Server) handleMarketDepth(w http.ResponseWriter, r *http.Request) {
+	response, err := s.marketDepthResponse(r.Context(), r.URL.Path, r.URL.Query())
+	if err != nil {
+		s.writeError(w, http.StatusBadGateway, "OPEND_DEPTH_FAILED", err.Error())
+		return
+	}
+	s.writeOK(w, response)
+}
+
+func (s *Server) marketDepthResponse(ctx context.Context, path string, query map[string][]string) (map[string]any, error) {
+	market, symbol := pathTail(path, "/api/v1/market-data/depth/")
+	market = strings.ToUpper(strings.TrimSpace(market))
+	symbol = strings.ToUpper(strings.TrimSpace(symbol))
+	instrumentID := market + "." + symbol
+	num := int32(intQuery(query, "num", 10))
+	if num < 1 {
+		num = 1
+	}
+	if num > 50 {
+		num = 50
+	}
+
+	brokerResult, err := s.futuBroker().MarketData().QueryOrderBook(ctx, broker.OrderBookQuery{
+		ReadQuery: brokerReadQuery(instrumentID),
+		Symbol:    instrumentID,
+		Num:       num,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return map[string]any{
+		"request": map[string]any{"market": market, "symbol": symbol, "instrumentId": instrumentID, "num": num},
+		"depth":   brokerResult,
+		"meta": map[string]any{
+			"instrumentId": instrumentID,
+			"source":       "bbgo:futu",
+			"resolvedAt":   time.Now().UTC().Format(time.RFC3339Nano),
+			"fromCache":    false,
+		},
+	}, nil
+}
+
+func (s *Server) futuBroker() broker.Broker {
+	if s.brokers != nil {
+		if b := s.brokers.Lookup(string(futu.Name)); b != nil {
+			return b
+		}
+	}
+	return futu.NewBrokerAdapter(s.futuExchange())
+}
+
+func brokerReadQuery(instrumentID string) broker.ReadQuery {
+	parts := strings.SplitN(instrumentID, ".", 2)
+	market := ""
+	if len(parts) == 2 {
+		market = parts[0]
+	}
+	return broker.ReadQuery{
+		Market: market,
+	}
 }

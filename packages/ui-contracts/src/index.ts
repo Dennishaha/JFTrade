@@ -60,7 +60,8 @@ export type BrokerReadFeatureKey =
   | "cashFlows"
   | "orderFees"
   | "marginRatios"
-  | "maxTradeQuantity";
+  | "maxTradeQuantity"
+  | "orderBook";
 
 export interface BrokerReadFeatureCapability {
   supportedEnvironments: string[];
@@ -69,6 +70,14 @@ export interface BrokerReadFeatureCapability {
   requiresClearingDate?: boolean;
   requiresPrice?: boolean;
   requiresOrderIdEx?: boolean;
+  requiresSymbol?: boolean;
+  requiresPassword?: boolean;
+  // orderBook specific
+  defaultNum?: number;
+  minNum?: number;
+  maxNum?: number;
+  numPresets?: number[];
+  supportsRealTimePush?: boolean;
 }
 
 export interface BrokerMarketCapability {
@@ -1573,6 +1582,54 @@ export interface MarketDataTicksResponse {
   ticks: MarketDataTradeTickDto[];
   meta: MarketDataQueryMetaDto;
   error: string | null;
+}
+
+// --- Depth (Order Book) ---
+
+export interface OrderBookDetailItemDto {
+  orderId: number;
+  volume: number;
+}
+
+export interface OrderBookLevelDto {
+  price: number;
+  volume: number;
+  orderCount: number;
+  detailList?: OrderBookDetailItemDto[] | null;
+}
+
+export interface OrderBookSnapshotDto {
+  accountId: string;
+  symbol: string;
+  name?: string | null;
+  svrRecvTimeBid?: string | null;
+  svrRecvTimeAsk?: string | null;
+  bids: OrderBookLevelDto[];
+  asks: OrderBookLevelDto[];
+}
+
+export interface MarketDataDepthResponse {
+  request: {
+    market: string;
+    symbol: string;
+    instrumentId: string;
+    num: number;
+  };
+  depth: OrderBookSnapshotDto;
+  meta: MarketDataQueryMetaDto;
+}
+
+export interface OrderBookDepthPreset {
+  num: number;
+  label: string;
+}
+
+export interface BrokerOrderBookCapability {
+  defaultNum: number;
+  minNum: number;
+  maxNum: number;
+  numPresets: number[];
+  supportsRealTimePush: boolean;
 }
 
 export interface MarketDataSubscriptionEntryDto {

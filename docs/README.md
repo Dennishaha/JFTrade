@@ -93,3 +93,4 @@ docs/
 - `market_data_fixture_runtime_helpers_test.go`：集中行情测试运行时组装、tick cache seed 与 snapshot/tick 响应断言辅助。
 - `market_data_fixture_security_test.go`：聚焦行情测试的证券快照与静态信息 fixture 组装。
 - `market_data_fixture_kline_test.go`：聚焦行情测试的历史/当前 K 线响应夹具与 K 线 proto 构造辅助。
+- `market_data_depth_test.go`：聚焦盘口深度端点路由注册、HTTP 方法校验、num 参数钳位、市场/代码大小写归一、mock OpenD 响应校验、空盘口、OpenD 错误传播及路由防碰撞场景。

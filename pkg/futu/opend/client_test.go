@@ -333,3 +333,115 @@ func TestSubscribeNotifyReceivesSystemPush(t *testing.T) {
 		t.Fatal("timed out waiting for notify push")
 	}
 }
+
+func TestCallIgnoresMismatchedProtoOnSameSerial(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	notifyReceived := make(chan *notifypb.Response, 1)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		conn, err := ln.Accept()
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+
+		header := make([]byte, codec.HeaderLen)
+		for requestIndex := 0; ; requestIndex++ {
+			if _, err := io.ReadFull(conn, header); err != nil {
+				return
+			}
+			bodyLen := int(uint32(header[12]) | uint32(header[13])<<8 | uint32(header[14])<<16 | uint32(header[15])<<24)
+			packet := make([]byte, codec.HeaderLen+bodyLen)
+			copy(packet, header)
+			if _, err := io.ReadFull(conn, packet[codec.HeaderLen:]); err != nil {
+				return
+			}
+			frame, err := codec.Decode(packet)
+			if err != nil {
+				return
+			}
+
+			response := &initpb.Response{
+				RetType: proto.Int32(0),
+				S2C: &initpb.S2C{
+					ServerVer:         proto.Int32(700),
+					LoginUserID:       proto.Uint64(1),
+					ConnID:            proto.Uint64(42),
+					ConnAESKey:        proto.String("0123456789abcdef"),
+					KeepAliveInterval: proto.Int32(10),
+				},
+			}
+
+			if requestIndex == 1 {
+				notifyBody, _ := proto.Marshal(&notifypb.Response{
+					RetType: proto.Int32(0),
+					S2C: &notifypb.S2C{
+						Type: proto.Int32(int32(notifypb.NotifyType_NotifyType_ConnStatus)),
+						ConnectStatus: &notifypb.ConnectStatus{
+							QotLogined: proto.Bool(true),
+							TrdLogined: proto.Bool(false),
+						},
+					},
+				})
+				notifyPacket, _ := codec.Encode(ProtoNotify, frame.Header.SerialNo, notifyBody)
+				if _, err := conn.Write(notifyPacket); err != nil {
+					return
+				}
+			}
+
+			body, _ := proto.Marshal(response)
+			pkt, _ := codec.Encode(frame.Header.ProtoID, frame.Header.SerialNo, body)
+			if _, err := conn.Write(pkt); err != nil {
+				return
+			}
+		}
+	}()
+	defer func() { <-done }()
+
+	c := New(Config{Addr: ln.Addr().String(), RequestTimeout: 3 * time.Second})
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := c.Connect(ctx); err != nil {
+		t.Fatalf("connect: %v", err)
+	}
+	defer c.Close()
+
+	c.SubscribeNotify(func(response *notifypb.Response) {
+		select {
+		case notifyReceived <- response:
+		default:
+		}
+	})
+
+	request := &initpb.Request{C2S: &initpb.C2S{
+		ClientVer: proto.Int32(101),
+		ClientID:  proto.String("jftrade-test"),
+	}}
+	var initResp initpb.Response
+	if err := c.Call(ctx, ProtoInitConnect, request, &initResp); err != nil {
+		t.Fatalf("first init call: %v", err)
+	}
+
+	var secondResp initpb.Response
+	if err := c.Call(ctx, ProtoInitConnect, request, &secondResp); err != nil {
+		t.Fatalf("second init call with mismatched proto frame: %v", err)
+	}
+	if secondResp.GetS2C().GetConnID() != 42 {
+		t.Fatalf("unexpected second response: %+v", &secondResp)
+	}
+
+	select {
+	case response := <-notifyReceived:
+		if response.GetS2C().GetType() != int32(notifypb.NotifyType_NotifyType_ConnStatus) {
+			t.Fatalf("unexpected notify type: %d", response.GetS2C().GetType())
+		}
+	case <-ctx.Done():
+		t.Fatal("timed out waiting for mismatched proto push to be dispatched")
+	}
+}

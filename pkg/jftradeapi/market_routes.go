@@ -32,6 +32,8 @@ func (s *Server) serveMarketRoutes(w http.ResponseWriter, r *http.Request) bool 
 		s.handleMarketSnapshot(w, r)
 	case strings.HasPrefix(r.URL.Path, "/api/v1/market-data/candles/") && r.Method == http.MethodGet:
 		s.handleMarketCandles(w, r)
+	case strings.HasPrefix(r.URL.Path, "/api/v1/market-data/depth/") && r.Method == http.MethodGet:
+		s.handleMarketDepth(w, r)
 	default:
 		return false
 	}

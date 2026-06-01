@@ -254,6 +254,23 @@ func buildOpenAPIPaths(genericObject map[string]any) map[string]any {
 				},
 			),
 		},
+		"/api/v1/market-data/depth/{market}/{symbol}": map[string]any{
+			"get": operation(
+				"读取盘口深度",
+				"返回买卖盘口深度数据（bid/ask），num 控制档数（1-50，默认 10）。",
+				[]string{"market-data"},
+				[]any{
+					pathParameter("market", "市场代码", "HK"),
+					pathParameter("symbol", "证券代码", "00700"),
+					queryParameter("num", "请求档数，默认 10，最大 50", false, map[string]any{"type": "integer", "default": 10, "minimum": 1, "maximum": 50}),
+				},
+				nil,
+				map[string]any{
+					"200": jsonResponse("盘口深度数据", envelopeSchema(genericObject)),
+					"502": jsonResponse("OpenD 查询失败", envelopeSchema(nil)),
+				},
+			),
+		},
 		"/api/v1/brokers/{brokerId}/runtime": map[string]any{
 			"get": operation(
 				"读取 broker 运行时",

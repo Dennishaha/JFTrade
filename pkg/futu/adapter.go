@@ -23,8 +23,8 @@ func (a *futuAdapter) ID() string { return string(Name) }
 
 func (a *futuAdapter) Descriptor() broker.Descriptor {
 	return broker.Descriptor{
-		ID:          string(Name),
-		DisplayName: "Futu OpenAPI via OpenD",
+		ID:           string(Name),
+		DisplayName:  "Futu OpenAPI via OpenD",
 		Environments: []string{"SIMULATE", "REAL"},
 		Capabilities: []broker.MarketCapability{{
 			Market:        "HK",
@@ -44,6 +44,7 @@ func (a *futuAdapter) Descriptor() broker.Descriptor {
 				"securityInfo":     map[string]any{"supportedEnvironments": []string{"SIMULATE", "REAL"}, "requiresSymbols": true},
 				"securitySnapshot": map[string]any{"supportedEnvironments": []string{"SIMULATE", "REAL"}, "requiresSymbols": true},
 				"unlockTrade":      map[string]any{"supportedEnvironments": []string{"REAL"}, "requiresPassword": true},
+				"orderBook":        map[string]any{"defaultNum": 10, "minNum": 1, "maxNum": 50, "numPresets": []int32{5, 10, 20, 50}, "supportsRealTimePush": true},
 			},
 		}},
 		Notes: []string{

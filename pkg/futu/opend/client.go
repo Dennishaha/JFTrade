@@ -31,8 +31,10 @@ const (
 	ProtoQotUpdateBasicQot   uint32 = 3005
 	ProtoGetKL               uint32 = 3006
 	ProtoGetStaticInfo       uint32 = 3007
-	ProtoGetSecuritySnapshot uint32 = 3203
+	ProtoGetOrderBook        uint32 = 3012
+	ProtoQotUpdateOrderBook  uint32 = 3013
 	ProtoRequestHistoryKL    uint32 = 3103
+	ProtoGetSecuritySnapshot uint32 = 3203
 
 	ProtoTrdGetAccList              uint32 = 2001
 	ProtoTrdUnlockTrade             uint32 = 2005
@@ -77,7 +79,8 @@ var (
 )
 
 type pending struct {
-	ch chan codec.Frame
+	protoID uint32
+	ch      chan codec.Frame
 }
 
 // Client is a Futu OpenD client. Safe for concurrent use after Connect.
@@ -251,22 +254,33 @@ func (c *Client) SubscribeNotify(fn func(*notifypb.Response)) {
 
 // Call issues a request and waits for the response on the same serialNo.
 func (c *Client) Call(ctx context.Context, protoID uint32, req proto.Message, resp proto.Message) error {
+	f, err := c.callFrame(ctx, protoID, req)
+	if err != nil {
+		return err
+	}
+	if err := proto.Unmarshal(f.Body, resp); err != nil {
+		return fmt.Errorf("opend: unmarshal response: %w", err)
+	}
+	return nil
+}
+
+func (c *Client) callFrame(ctx context.Context, protoID uint32, req proto.Message) (codec.Frame, error) {
 	body, err := proto.Marshal(req)
 	if err != nil {
-		return fmt.Errorf("opend: marshal request: %w", err)
+		return codec.Frame{}, fmt.Errorf("opend: marshal request: %w", err)
 	}
 	serial := atomic.AddUint32(&c.serial, 1)
 	pkt, err := codec.Encode(protoID, serial, body)
 	if err != nil {
-		return err
+		return codec.Frame{}, err
 	}
 
-	p := &pending{ch: make(chan codec.Frame, 1)}
+	p := &pending{protoID: protoID, ch: make(chan codec.Frame, 1)}
 	c.mu.Lock()
 	conn := c.conn
 	if c.closed || conn == nil {
 		c.mu.Unlock()
-		return ErrClosed
+		return codec.Frame{}, ErrClosed
 	}
 	c.pend[serial] = p
 	c.mu.Unlock()
@@ -281,7 +295,7 @@ func (c *Client) Call(ctx context.Context, protoID uint32, req proto.Message, re
 	_, err = conn.Write(pkt)
 	c.writeMu.Unlock()
 	if err != nil {
-		return fmt.Errorf("opend: write: %w", err)
+		return codec.Frame{}, fmt.Errorf("opend: write: %w", err)
 	}
 
 	timer := time.NewTimer(c.cfg.RequestTimeout)
@@ -289,17 +303,14 @@ func (c *Client) Call(ctx context.Context, protoID uint32, req proto.Message, re
 
 	select {
 	case <-ctx.Done():
-		return ctx.Err()
+		return codec.Frame{}, ctx.Err()
 	case <-timer.C:
-		return ErrRequestTimeout
+		return codec.Frame{}, ErrRequestTimeout
 	case f, ok := <-p.ch:
 		if !ok {
-			return ErrClosed
+			return codec.Frame{}, ErrClosed
 		}
-		if err := proto.Unmarshal(f.Body, resp); err != nil {
-			return fmt.Errorf("opend: unmarshal response: %w", err)
-		}
-		return nil
+		return f, nil
 	}
 }
 
@@ -331,16 +342,23 @@ func (c *Client) readLoop(conn net.Conn) {
 func (c *Client) dispatch(f codec.Frame) {
 	c.mu.Lock()
 	p, ok := c.pend[f.Header.SerialNo]
-	if ok {
+	matchedPending := ok && p.protoID == f.Header.ProtoID
+	if matchedPending {
 		delete(c.pend, f.Header.SerialNo)
 	}
 	subs := append([]func(codec.Frame){}, c.subs[f.Header.ProtoID]...)
 	c.mu.Unlock()
 
-	if ok {
+	if matchedPending {
 		select {
 		case p.ch <- f:
 		default:
+		}
+		return
+	}
+	if ok {
+		for _, fn := range subs {
+			fn(f)
 		}
 		return
 	}

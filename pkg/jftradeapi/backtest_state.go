@@ -93,6 +93,15 @@ func newBacktestRunStoreWithDB(dbPath string) (*backtestRunStore, error) {
 	return store, nil
 }
 
+// Close releases the underlying SQLite database connection.
+// It is safe to call Close multiple times.
+func (s *backtestRunStore) Close() error {
+	if s == nil || s.db == nil {
+		return nil
+	}
+	return s.db.Close()
+}
+
 func (s *backtestRunStore) migrate() error {
 	if s == nil || s.db == nil {
 		return nil
