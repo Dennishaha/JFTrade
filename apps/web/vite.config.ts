@@ -32,9 +32,22 @@ if (typeof launchEditor === "string") {
   devToolsOptions = { launchEditor } as NonNullable<Parameters<typeof vueDevTools>[0]>;
 }
 
+const developmentApiTarget = "http://127.0.0.1:3000";
+const apiProxyTargets = ["/api", "/openapi.json", "/swagger"];
+
 export default defineConfig({
   plugins: [vue(), tailwindcss(), vueDevTools(devToolsOptions)],
   server: {
     port: 5173,
+    proxy: Object.fromEntries(
+      apiProxyTargets.map((path) => [
+        path,
+        {
+          changeOrigin: true,
+          target: developmentApiTarget,
+          ws: true,
+        },
+      ]),
+    ),
   },
 });

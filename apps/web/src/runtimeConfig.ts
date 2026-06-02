@@ -11,7 +11,6 @@ declare global {
 const buildTimeApiBaseUrl = (
   import.meta.env.VITE_API_BASE_URL as string | undefined
 )?.replace(/\/$/, "");
-const defaultDevelopmentApiBaseUrl = "http://127.0.0.1:3000";
 
 function normalizeApiBaseUrl(value: string | null | undefined): string | null {
   const trimmedValue = value?.trim().replace(/\/$/, "");
@@ -30,16 +29,23 @@ export function resolveApiBaseUrl(): string {
   return (
     resolveRuntimeApiBaseUrl() ??
     normalizeApiBaseUrl(buildTimeApiBaseUrl) ??
-    defaultDevelopmentApiBaseUrl
+    ""
   );
 }
 
 export function buildRuntimeApiUrl(path: string): string {
-  return `${resolveApiBaseUrl()}${path}`;
+  const apiBaseUrl = resolveApiBaseUrl();
+  return apiBaseUrl ? `${apiBaseUrl}${path}` : path;
 }
 
 export function buildRuntimeLiveSocketUrl(path: string): string {
-  const url = new URL(resolveApiBaseUrl());
+  const apiBaseUrl = resolveApiBaseUrl();
+  const url = new URL(
+    apiBaseUrl ||
+      (typeof window === "undefined"
+        ? "http://127.0.0.1"
+        : window.location.origin),
+  );
   url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
   url.pathname = path;
   url.search = "";

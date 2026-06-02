@@ -2,6 +2,7 @@ package futu
 
 import (
 	"testing"
+	"time"
 
 	"github.com/shopspring/decimal"
 
@@ -9,23 +10,24 @@ import (
 )
 
 func TestQuoteSnapshotPreviousClosePriceInClosedSession(t *testing.T) {
-	// Simulates a weekend scenario: Futu returns Friday's CurPrice (9.22) and
-	// LastClosePrice (Thursday's close = 9.09).  When session is "closed",
-	// PreviousClosePrice should use CurPrice so the frontend can display
-	// "最近盘中收盘" = Friday's close, not Thursday's.
+	// Simulates a closed-session snapshot: Futu returns Friday's CurPrice
+	// (9.22) and LastClosePrice (Thursday's close = 9.09). When the market is
+	// closed, PreviousClosePrice should still use CurPrice so the frontend can
+	// display the latest regular-session close.
 	basicQot := &qotcommonpb.BasicQot{
-		Security:       &qotcommonpb.Security{Market: protoInt32(1), Code: protoString("TME")},
-		CurPrice:       f64(9.22),
-		LastClosePrice: f64(9.09),
-		OpenPrice:      f64(9.02),
-		HighPrice:      f64(9.27),
-		LowPrice:       f64(9.00),
-		Volume:         protoInt64(13037749),
-		Turnover:       f64(119751018),
+		Security:        &qotcommonpb.Security{Market: protoInt32(1), Code: protoString("TME")},
+		CurPrice:        f64(9.22),
+		LastClosePrice:  f64(9.09),
+		OpenPrice:       f64(9.02),
+		HighPrice:       f64(9.27),
+		LowPrice:        f64(9.00),
+		Volume:          protoInt64(13037749),
+		Turnover:        f64(119751018),
 		UpdateTimestamp: f64(1748548799.998), // Friday 2026-05-29 19:59:59 UTC
 	}
 
-	snap := quoteSnapshotFromBasicQot(basicQot, "US.TME")
+	closedSessionAt := time.Date(2026, 5, 31, 12, 0, 0, 0, usEasternLocation)
+	snap := quoteSnapshotFromBasicQotAt(basicQot, "US.TME", closedSessionAt)
 
 	// On a Sunday (closed session), PreviousClosePrice must equal CurPrice
 	// (the most recent regular-session close), NOT LastClosePrice (previous
@@ -101,10 +103,10 @@ func TestPreviousClosePriceConditionBySessionType(t *testing.T) {
 	lastClosePrice := decimal.NewFromFloat(9.09)
 
 	cases := []struct {
-		name              string
-		session           MarketSession
-		expectCurPrice    bool
-		expectLastClose   bool
+		name            string
+		session         MarketSession
+		expectCurPrice  bool
+		expectLastClose bool
 	}{
 		{"regular uses LastClosePrice", MarketSessionRegular, false, true},
 		{"pre uses CurPrice", MarketSessionPre, true, false},
@@ -141,6 +143,6 @@ func TestPreviousClosePriceConditionBySessionType(t *testing.T) {
 	}
 }
 
-func protoInt32(v int32) *int32   { return &v }
-func protoInt64(v int64) *int64   { return &v }
+func protoInt32(v int32) *int32    { return &v }
+func protoInt64(v int64) *int64    { return &v }
 func protoString(v string) *string { return &v }

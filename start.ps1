@@ -4,6 +4,10 @@ chcp 65001 > $null
 $ErrorActionPreference = "Stop"
 Set-Location -LiteralPath $PSScriptRoot
 
+$webDistDir = Join-Path $PSScriptRoot "apps\web\dist"
+$embedDir = Join-Path $PSScriptRoot "internal\frontendassets\dist"
+$embedArchive = Join-Path $PSScriptRoot "internal\frontendassets\dist.zip"
+
 function Join-CharCodes {
     param([int[]]$Codes)
     return -join ($Codes | ForEach-Object { [char]$_ })
@@ -22,13 +26,13 @@ $cnFrontendBuildFailed = Join-CharCodes 0x524d,0x7aef,0x6784,0x5efa,0x5931,0x8d2
 $cnStartBackend = Join-CharCodes 0x542f,0x52a8,0x540e,0x7aef,0x670d,0x52a1
 $cnBackendBuildFailed = Join-CharCodes 0x540e,0x7aef,0x6784,0x5efa,0x5931,0x8d25
 $cnBackendAddress = Join-CharCodes 0x540e,0x7aef,0x5730,0x5740
-$cnFrontendPreview = Join-CharCodes 0x524d,0x7aef,0x9884,0x89c8
 $cnStopAllServices = Join-CharCodes 0x6309,0x20,0x43,0x74,0x72,0x6c,0x2b,0x43,0x20,0x7ec8,0x6b62,0x6240,0x6709,0x670d,0x52a1
 $cnStoppingBackend = Join-CharCodes 0x6b63,0x5728,0x505c,0x6b62,0x540e,0x7aef,0x670d,0x52a1
 $cnBackendStopped = Join-CharCodes 0x540e,0x7aef,0x670d,0x52a1,0x5df2,0x505c,0x6b62
 $cnAllExited = Join-CharCodes 0x6240,0x6709,0x670d,0x52a1,0x5df2,0x9000,0x51fa
 
-$env:JFTRADE_API_BIND = if ([string]::IsNullOrEmpty($env:JFTRADE_API_BIND)) { "127.0.0.1:3000" }
+$env:JFTRADE_API_BIND = if ([string]::IsNullOrEmpty($env:JFTRADE_API_BIND)) { "127.0.0.1:6699" }
+$env:JFTRADE_GUI_BIND = if ([string]::IsNullOrEmpty($env:JFTRADE_GUI_BIND)) { "127.0.0.1:6688" }
 $env:JFTRADE_FUTU_API_PORT = if ([string]::IsNullOrEmpty($env:JFTRADE_FUTU_API_PORT)) { "11110" }
 $env:JFTRADE_FUTU_WEBSOCKET_PORT = if ([string]::IsNullOrEmpty($env:JFTRADE_FUTU_WEBSOCKET_PORT)) { "11111" }
 $env:FUTU_OPEND_ADDR = if ([string]::IsNullOrEmpty($env:FUTU_OPEND_ADDR)) { "127.0.0.1:$($env:JFTRADE_FUTU_API_PORT)" }
@@ -79,11 +83,27 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
+Write-Host "`n=== Staging embedded frontend assets ===" -ForegroundColor Cyan
+if (Test-Path $embedDir) {
+    Remove-Item -LiteralPath $embedDir -Recurse -Force
+}
+if (Test-Path $embedArchive) {
+    Remove-Item -LiteralPath $embedArchive -Force
+}
+New-Item -ItemType Directory -Force -Path (Split-Path -Parent $embedDir) | Out-Null
+Copy-Item -LiteralPath $webDistDir -Destination $embedDir -Recurse
+go run ./scripts/archive_frontend_assets.go -src $webDistDir -dst $embedArchive
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Frontend asset archiving failed" -ForegroundColor Red
+    pause
+    exit 1
+}
+
 Write-Host ("`n=== Starting backend service / {0} ===" -f $cnStartBackend) -ForegroundColor Green
 $backendExe = Join-Path $PSScriptRoot "var\jftrade-api\jftrade-api-test.exe"
 New-Item -ItemType Directory -Force -Path (Split-Path -Parent $backendExe) | Out-Null
 
-go build -o $backendExe ./cmd/jftrade
+go build -tags release_assets -o $backendExe ./cmd/jftrade
 if ($LASTEXITCODE -ne 0) {
     Write-Host ("Backend build failed / {0}" -f $cnBackendBuildFailed) -ForegroundColor Red
     pause
@@ -113,11 +133,12 @@ $watchdogProcess = Start-Process -FilePath "powershell.exe" -WindowStyle hidden 
     $backendProcess.Id
 )
 
+Write-Host ("JFTrade GUI: http://$($env:JFTRADE_GUI_BIND)") -ForegroundColor Green
 Write-Host ("JFTrade API / {0}: http://$($env:JFTRADE_API_BIND)" -f $cnBackendAddress) -ForegroundColor Green
 Write-Host ("`n=== Press Ctrl+C to stop all services / {0} ===" -f $cnStopAllServices) -ForegroundColor Yellow
 
 try {
-    npm --workspace @jftrade/web run preview
+    Wait-Process -Id $backendProcess.Id
 }
 finally {
     Write-Host ("`n=== Stopping backend service / {0} ===" -f $cnStoppingBackend) -ForegroundColor Cyan

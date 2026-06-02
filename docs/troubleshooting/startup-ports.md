@@ -21,8 +21,8 @@
 | --- | --- | --- |
 | 开发态 Web GUI | `127.0.0.1:5173` | Vite dev server |
 | 开发态 JFTrade sidecar | `127.0.0.1:3000` | 前端 `/api/v1/*`、SSE、WS |
-| 发布态 Web GUI | `127.0.0.1:6688` | 内嵌前端静态入口 |
-| 发布态 JFTrade gateway | `127.0.0.1:6699` | 前端 `/api/v1/*`、SSE、WS、Swagger |
+| 发布态 Web GUI | `127.0.0.1:6688` | 内嵌前端、`/api/v1/*`、SSE、WS、Swagger 的同源入口 |
+| 发布态 JFTrade gateway | `127.0.0.1:6699` | API 直连与排障入口 |
 | Futu OpenD API | `127.0.0.1:11110` | Go 原生 TCP/protobuf 查询与探针 |
 | Futu OpenD WebSocket | `127.0.0.1:11111` | FTWebSocket / JavaScript API |
 
@@ -34,8 +34,7 @@
 {
 	"interfaces": {
 		"apiBind": "127.0.0.1:6699",
-		"guiBind": "127.0.0.1:6688",
-		"guiApiBaseUrl": "http://127.0.0.1:6699"
+		"guiBind": "127.0.0.1:6688"
 	}
 }
 ```
@@ -44,6 +43,7 @@
 
 ```bash
 curl -fsS http://127.0.0.1:3000/api/v1/system/status
+curl -fsS http://127.0.0.1:6688/api/v1/system/status
 curl -fsS http://127.0.0.1:6699/api/v1/system/status
 lsof -nP -iTCP:3000 -sTCP:LISTEN
 lsof -nP -iTCP:6699 -sTCP:LISTEN

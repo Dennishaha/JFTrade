@@ -122,10 +122,11 @@ func StartForRunArgs(ctx context.Context, args []string) (func(context.Context) 
 
 	if frontendFS != nil {
 		guiBind := envOrDefault("JFTRADE_GUI_BIND", interfaceSettings.GUIBind)
-		guiAPIBaseURL := resolveGUIAPIBaseURL(interfaceSettings, apiBind)
+		guiAPIBaseURL := resolveGUIRuntimeAPIBaseURL(interfaceSettings, apiBind)
+		apiHandler.frontend = newFrontendServerWithRuntimeConfig(frontendFS, guiAPIBaseURL)
 		guiServer := &http.Server{
 			Addr:              guiBind,
-			Handler:           newFrontendServerWithRuntimeConfig(frontendFS, guiAPIBaseURL),
+			Handler:           apiHandler,
 			ReadHeaderTimeout: 5 * time.Second,
 		}
 		servers = append(servers, guiServer)
@@ -174,6 +175,19 @@ func resolveGUIAPIBaseURL(interfaceSettings InterfaceSettings, apiBind string) s
 		return apiBaseURLForBind(apiBind)
 	}
 	return configuredValue
+}
+
+func resolveGUIRuntimeAPIBaseURL(interfaceSettings InterfaceSettings, apiBind string) string {
+	envValue := strings.TrimSpace(os.Getenv("JFTRADE_GUI_API_BASE_URL"))
+	if envValue != "" {
+		return envValue
+	}
+
+	guiAPIBaseURL := resolveGUIAPIBaseURL(interfaceSettings, apiBind)
+	if guiAPIBaseURL == apiBaseURLForBind(apiBind) {
+		return ""
+	}
+	return guiAPIBaseURL
 }
 
 func NewServer(store *SettingsStore) *Server {

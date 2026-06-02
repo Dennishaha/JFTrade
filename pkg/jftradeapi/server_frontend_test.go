@@ -215,3 +215,31 @@ func TestResolveGUIAPIBaseURLPreservesExplicitSetting(t *testing.T) {
 		t.Fatalf("resolveGUIAPIBaseURL() = %q", got)
 	}
 }
+
+func TestResolveGUIRuntimeAPIBaseURLDefaultsToSameOrigin(t *testing.T) {
+	t.Setenv("JFTRADE_GUI_API_BASE_URL", "")
+
+	settings := InterfaceSettings{
+		APIBind:       defaultReleaseAPIBind,
+		GUIAPIBaseURL: apiBaseURLForBind(defaultReleaseAPIBind),
+	}
+
+	got := resolveGUIRuntimeAPIBaseURL(settings, "127.0.0.1:16699")
+	if got != "" {
+		t.Fatalf("resolveGUIRuntimeAPIBaseURL() = %q, want same-origin empty value", got)
+	}
+}
+
+func TestResolveGUIRuntimeAPIBaseURLPreservesExplicitEnv(t *testing.T) {
+	t.Setenv("JFTRADE_GUI_API_BASE_URL", "http://127.0.0.1:18080")
+
+	settings := InterfaceSettings{
+		APIBind:       defaultReleaseAPIBind,
+		GUIAPIBaseURL: apiBaseURLForBind(defaultReleaseAPIBind),
+	}
+
+	got := resolveGUIRuntimeAPIBaseURL(settings, "127.0.0.1:16699")
+	if got != "http://127.0.0.1:18080" {
+		t.Fatalf("resolveGUIRuntimeAPIBaseURL() = %q", got)
+	}
+}

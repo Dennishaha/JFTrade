@@ -90,10 +90,14 @@ func tickerFromBasicQot(basicQot *qotcommonpb.BasicQot) *types.Ticker {
 }
 
 func quoteSnapshotFromBasicQot(basicQot *qotcommonpb.BasicQot, canonical string) *QuoteSnapshot {
+	return quoteSnapshotFromBasicQotAt(basicQot, canonical, time.Now().UTC())
+}
+
+func quoteSnapshotFromBasicQotAt(basicQot *qotcommonpb.BasicQot, canonical string, now time.Time) *QuoteSnapshot {
 	preMarket := extendedMarketQuoteFromProto(basicQot.GetPreMarket())
 	afterMarket := extendedMarketQuoteFromProto(basicQot.GetAfterMarket())
 	overnight := extendedMarketQuoteFromProto(basicQot.GetOvernight())
-	session := sessionFromExtendedBlocks(canonical, preMarket, afterMarket, overnight)
+	session := sessionFromExtendedBlocksAt(canonical, preMarket, afterMarket, overnight, now)
 	activeExtended := activeExtendedQuoteForSession(session, preMarket, afterMarket, overnight)
 
 	regularSessionClose := decimalFromFloat64(basicQot.GetCurPrice())
@@ -122,7 +126,7 @@ func quoteSnapshotFromBasicQot(basicQot *qotcommonpb.BasicQot, canonical string)
 	}
 
 	prevClosePrice := decimalPtrFromFloat64(basicQot.LastClosePrice)
-	if IsExtendedMarketSession(session) && regularSessionClose.GreaterThan(decimal.Zero) {
+	if session != MarketSessionRegular && regularSessionClose.GreaterThan(decimal.Zero) {
 		prevClosePrice = &regularSessionClose
 	}
 

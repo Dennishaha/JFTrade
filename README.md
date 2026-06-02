@@ -64,7 +64,7 @@ cd apps/web && npm install && npm run dev
 
 ## 生产部署
 
-发布构建会把前端静态资源嵌入 Go 二进制。发布态运行时会拆成两个默认端口：GUI 为 `127.0.0.1:6688`，API 网关为 `127.0.0.1:6699`；前端页面会在运行时自动指向对应网关，不再依赖单独的 `vite preview` 服务。
+发布构建会把前端静态资源嵌入 Go 二进制。发布态默认从 `127.0.0.1:6688` 提供同源 GUI、`/api/v1/*`、SSE、WS、Swagger；`127.0.0.1:6699` 仍保留为 API 直连接口，方便脚本和排障使用。
 
 ```bash
 # macOS / Linux
@@ -96,8 +96,7 @@ build-release.cmd
 {
   "interfaces": {
     "apiBind": "127.0.0.1:6699",
-    "guiBind": "127.0.0.1:6688",
-    "guiApiBaseUrl": "http://127.0.0.1:6699"
+    "guiBind": "127.0.0.1:6688"
   },
   "integration": {
     "brokerId": "futu",
@@ -133,10 +132,10 @@ go test ./...
 cd apps/web && npm run typecheck && npm run build
 ```
 
-也可以直接运行根目录的 `start.sh` 或 `start.cmd`，按顺序执行测试、前端类型检查、前端构建，然后启动后端和前端预览服务。
+也可以直接运行根目录的 `start.sh` 或 `start.cmd`，按顺序执行测试、前端类型检查、前端构建，然后启动带内嵌前端的 Go 服务。
 
 开发态后端 API 启动后，可直接打开 Swagger UI 进行调试：`http://127.0.0.1:3000/swagger/`。
-发布态默认从 `http://127.0.0.1:6688/` 打开控制台，Swagger UI 与 OpenAPI 分别位于 `http://127.0.0.1:6699/swagger/` 和 `http://127.0.0.1:6699/openapi.json`。
+发布态默认从 `http://127.0.0.1:6688/` 打开控制台，Swagger UI 与 OpenAPI 分别位于 `http://127.0.0.1:6688/swagger/` 和 `http://127.0.0.1:6688/openapi.json`；`6699` 仍可作为 API 直连地址使用。
 
 前端 K 线实时合成与防回归说明见 `docs/frontend-kline.md`。
 

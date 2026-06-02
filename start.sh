@@ -6,9 +6,10 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT_DIR"
 
 # --- Default runtime configuration ---------------------------------------
-# Default the sidecar to FutuOpenD's native API port. Full bbgo engine runs can
-# still use `go run ./cmd/jftrade run --config ./config/jftrade.yaml` directly.
-export JFTRADE_API_BIND="${JFTRADE_API_BIND:-127.0.0.1:3000}"
+# Default to the release-style GUI/API ports. Full bbgo engine runs can still use
+# `go run ./cmd/jftrade run --config ./config/jftrade.yaml` directly.
+export JFTRADE_API_BIND="${JFTRADE_API_BIND:-127.0.0.1:6699}"
+export JFTRADE_GUI_BIND="${JFTRADE_GUI_BIND:-127.0.0.1:6688}"
 export JFTRADE_FUTU_API_PORT="${JFTRADE_FUTU_API_PORT:-11110}"
 export JFTRADE_FUTU_WEBSOCKET_PORT="${JFTRADE_FUTU_WEBSOCKET_PORT:-11111}"
 export FUTU_OPEND_ADDR="${FUTU_OPEND_ADDR:-127.0.0.1:${JFTRADE_FUTU_API_PORT}}"
@@ -43,19 +44,14 @@ npm run typecheck
 echo "Building frontend / 构建前端..."
 npm run build:web
 
-echo "Starting backend service / 启动后端服务..."
-go run ./cmd/jftrade api &
-BACKEND_PID=$!
+echo "Staging embedded frontend assets / 暂存内嵌前端资源..."
+rm -rf "$ROOT_DIR/internal/frontendassets/dist" "$ROOT_DIR/internal/frontendassets/dist.zip"
+cp -R "$ROOT_DIR/apps/web/dist" "$ROOT_DIR/internal/frontendassets/dist"
+go run ./scripts/archive_frontend_assets.go \
+  -src "$ROOT_DIR/apps/web/dist" \
+  -dst "$ROOT_DIR/internal/frontendassets/dist.zip"
 
-cleanup() {
-  if kill -0 "$BACKEND_PID" >/dev/null 2>&1; then
-    kill "$BACKEND_PID"
-  fi
-}
-
-trap cleanup EXIT INT TERM
-
-echo "Backend PID / 后端 PID: $BACKEND_PID"
+echo "Starting JFTrade service / 启动 JFTrade 服务..."
+echo "JFTrade GUI / 前端地址: http://${JFTRADE_GUI_BIND}"
 echo "JFTrade API / 后端地址: http://${JFTRADE_API_BIND}"
-echo "Starting frontend preview service / 启动前端预览服务: http://127.0.0.1:6688"
-npm --workspace @jftrade/web run preview
+go run -tags release_assets ./cmd/jftrade api
