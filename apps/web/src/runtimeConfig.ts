@@ -37,18 +37,3 @@ export function buildRuntimeApiUrl(path: string): string {
   const apiBaseUrl = resolveApiBaseUrl();
   return apiBaseUrl ? `${apiBaseUrl}${path}` : path;
 }
-
-export function buildRuntimeLiveSocketUrl(path: string): string {
-  const apiBaseUrl = resolveApiBaseUrl();
-  const url = new URL(
-    apiBaseUrl ||
-      (typeof window === "undefined"
-        ? "http://127.0.0.1"
-        : window.location.origin),
-  );
-  url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
-  url.pathname = path;
-  url.search = "";
-  url.hash = "";
-  return url.toString();
-}

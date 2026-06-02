@@ -27,11 +27,16 @@ import type { SystemStatusResponse } from "@jftrade/ui-contracts";
 
 import {
   MockEventSource,
-  MockWebSocket,
   createResponse,
   flushRequests,
   mountApp,
 } from "./helpers";
+
+function findLiveEventStream(): MockEventSource | undefined {
+  return MockEventSource.instances.find((instance) =>
+    instance.url.includes("/api/v1/stream/live"),
+  );
+}
 
 const systemStatus: SystemStatusResponse = {
   defaultTradingEnvironment: "REAL",
@@ -74,7 +79,6 @@ const systemStatus: SystemStatusResponse = {
 afterEach(() => {
   vi.unstubAllGlobals();
   MockEventSource.instances = [];
-  MockWebSocket.instances = [];
 });
 
 describe("System page", () => {
@@ -258,11 +262,11 @@ describe("System page", () => {
     );
 
     const { wrapper } = await mountApp("/system");
-    const liveSocket = MockWebSocket.instances[0];
+    const liveStream = findLiveEventStream();
 
-    expect(liveSocket?.url).toBe("ws://127.0.0.1:3000/api/v1/ws/live");
+    expect(liveStream?.url).toContain("/api/v1/stream/live");
 
-    liveSocket?.emitMessage({
+    liveStream?.emitMessage({
       type: "heartbeat",
       at: "2026-05-16T00:30:00.000Z",
     });
@@ -420,9 +424,14 @@ describe("System page", () => {
     );
 
     const { wrapper } = await mountApp("/system");
-    const liveSocket = MockWebSocket.instances[0];
+    const liveStream = findLiveEventStream();
 
-    liveSocket?.emitMessage({
+    await wrapper.get(".tv-rightdock-toggle").trigger("click");
+    await wrapper.get('[data-testid="rightdock-tab-notifications"]').trigger(
+      "click",
+    );
+
+    liveStream?.emitMessage({
     type: "system.notification",
     id: "system-notification-1",
     at: "2026-05-16T00:31:00.000Z",

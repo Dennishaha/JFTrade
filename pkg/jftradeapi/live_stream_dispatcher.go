@@ -3,14 +3,16 @@ package jftradeapi
 import (
 	"context"
 	"time"
-
-	"github.com/gorilla/websocket"
 )
 
-type liveWebSocketDispatcher struct {
+type liveEventWriter interface {
+	WriteEvent(value any) error
+}
+
+type liveStreamDispatcher struct {
 	server                  *Server
 	requestCtx              context.Context
-	conn                    *websocket.Conn
+	writer                  liveEventWriter
 	clientClosed            <-chan struct{}
 	lastSentByInstrument    map[string]string
 	lastSentNotificationSeq uint64
@@ -18,11 +20,11 @@ type liveWebSocketDispatcher struct {
 	dataInterval            time.Duration
 }
 
-func newLiveWebSocketDispatcher(server *Server, requestCtx context.Context, conn *websocket.Conn, clientClosed <-chan struct{}) *liveWebSocketDispatcher {
-	return &liveWebSocketDispatcher{
+func newLiveStreamDispatcher(server *Server, requestCtx context.Context, writer liveEventWriter, clientClosed <-chan struct{}) *liveStreamDispatcher {
+	return &liveStreamDispatcher{
 		server:               server,
 		requestCtx:           requestCtx,
-		conn:                 conn,
+		writer:               writer,
 		clientClosed:         clientClosed,
 		lastSentByInstrument: map[string]string{},
 		heartbeatInterval:    15 * time.Second,
@@ -30,14 +32,14 @@ func newLiveWebSocketDispatcher(server *Server, requestCtx context.Context, conn
 	}
 }
 
-func (dispatcher *liveWebSocketDispatcher) writeInitialEvents() error {
+func (dispatcher *liveStreamDispatcher) writeInitialEvents() error {
 	if err := dispatcher.writeHeartbeat(); err != nil {
 		return err
 	}
 	return dispatcher.writeLiveData()
 }
 
-func (dispatcher *liveWebSocketDispatcher) run() error {
+func (dispatcher *liveStreamDispatcher) run() error {
 	heartbeatTicker := time.NewTicker(dispatcher.heartbeatInterval)
 	defer heartbeatTicker.Stop()
 	dataTicker := time.NewTicker(dispatcher.dataInterval)
@@ -61,15 +63,15 @@ func (dispatcher *liveWebSocketDispatcher) run() error {
 	}
 }
 
-func (dispatcher *liveWebSocketDispatcher) writeHeartbeat() error {
-	return writeHeartbeat(dispatcher.conn)
+func (dispatcher *liveStreamDispatcher) writeHeartbeat() error {
+	return writeHeartbeat(dispatcher.writer)
 }
 
-func (dispatcher *liveWebSocketDispatcher) writeLiveData() error {
-	if err := dispatcher.server.writeLiveMarketTicks(dispatcher.requestCtx, dispatcher.conn, dispatcher.lastSentByInstrument); err != nil {
+func (dispatcher *liveStreamDispatcher) writeLiveData() error {
+	if err := dispatcher.server.writeLiveMarketTicks(dispatcher.requestCtx, dispatcher.writer, dispatcher.lastSentByInstrument); err != nil {
 		return err
 	}
-	if err := dispatcher.server.writeLiveNotifications(dispatcher.conn, &dispatcher.lastSentNotificationSeq); err != nil {
+	if err := dispatcher.server.writeLiveNotifications(dispatcher.writer, &dispatcher.lastSentNotificationSeq); err != nil {
 		return err
 	}
 	return nil

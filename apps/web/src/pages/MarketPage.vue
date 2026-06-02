@@ -20,7 +20,7 @@ import {
 } from "../composables/consoleDataFormatting";
 import { resolveInstrumentRef } from "../composables/instrumentRef";
 import { useConsoleData } from "../composables/useConsoleData";
-import { useSharedLiveSocket } from "../composables/useSharedLiveSocket";
+import { useSharedLiveStream } from "../composables/useSharedLiveStream";
 
 const {
   isLoadingMarketData,
@@ -43,7 +43,7 @@ const {
   heartbeatMarketDataConsumer,
   releaseMarketDataSubscription,
 } = useConsoleData();
-const live = useSharedLiveSocket();
+const live = useSharedLiveStream();
 
 const marketOptions = ["HK", "US", "CN", "SG", "JP", "AU", "MY", "CA", "CRYPTO"].map(
   (market) => ({ value: market, title: formatMarketLabel(market) }),

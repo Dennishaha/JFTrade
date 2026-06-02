@@ -42,5 +42,5 @@ otp.png
 var/
 
 # local debug/build binaries
-cmd/jftrade/__debug_bin.exe*
+cmd/jftrade/__debug_bin*
 jftrade-api.exe

@@ -1,6 +1,6 @@
 // Package jftradeapi implements the JFTrade API sidecar server.
 //
-// This package serves as the HTTP/WebSocket API layer between the Vue3 frontend
+// This package serves as the HTTP/SSE API layer between the Vue3 frontend
 // and the broker abstraction layer (pkg/broker). It is organized by file prefix:
 //
 // # Server & Infrastructure
@@ -42,10 +42,10 @@
 //   - market_query_params.go: query parameter parsing
 //   - instrument_ref.go: instrument reference mapping
 //
-// # Live WebSocket
+// # Live Streams
 //
-//   - live_websocket_dispatcher.go: WebSocket event dispatcher
-//   - live_socket_pool.go: connection pool
+//   - live_stream_dispatcher.go: live event dispatcher
+//   - live_stream_pool.go: connection pool
 //   - live_notification_cache.go: notification buffer
 //   - live_runtime_state.go: runtime state queries
 //

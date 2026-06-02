@@ -7,7 +7,7 @@ import {
   formatTradingEnvironment,
 } from "../composables/consoleDataFormatting";
 import { useConsoleData } from "../composables/useConsoleData";
-import { useSharedLiveSocket } from "../composables/useSharedLiveSocket";
+import { useSharedLiveStream } from "../composables/useSharedLiveStream";
 
 const {
   selectedBrokerAccount,
@@ -16,7 +16,7 @@ const {
   liveStreamCheckedAt,
   realTradeKillSwitchState,
 } = useConsoleData();
-const { connectionState, lastHeartbeat } = useSharedLiveSocket();
+const { connectionState, lastHeartbeat } = useSharedLiveStream();
 
 const now = ref(new Date());
 let timer: ReturnType<typeof setInterval> | null = null;

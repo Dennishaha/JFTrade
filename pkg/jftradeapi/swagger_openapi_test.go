@@ -103,7 +103,7 @@ func TestOpenAPISpecExposesCorePaths(t *testing.T) {
 	if _, ok := spec.Paths["/api/v1/market-data/candles/{market}/{symbol}"]; !ok {
 		t.Fatalf("missing candle endpoint in spec")
 	}
-	if _, ok := spec.Paths["/api/v1/ws/live"]; !ok {
-		t.Fatalf("missing live websocket endpoint in spec")
+	if _, ok := spec.Paths["/api/v1/stream/live"]; !ok {
+		t.Fatalf("missing live sse endpoint in spec")
 	}
 }

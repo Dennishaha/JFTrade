@@ -36,6 +36,12 @@ import {
   mountApp,
 } from "./helpers";
 
+function findConsoleEventStream(): MockEventSource | undefined {
+  return MockEventSource.instances.find((instance) =>
+    instance.url.includes("/api/v1/streams/console"),
+  );
+}
+
 afterEach(() => {
   vi.unstubAllGlobals();
   MockEventSource.instances = [];
@@ -240,15 +246,13 @@ describe("Console Stream", () => {
     );
 
     const { wrapper } = await mountApp();
+    const consoleStream = findConsoleEventStream();
 
-    expect(MockEventSource.instances).toHaveLength(1);
-    expect(MockEventSource.instances[0]?.url).toContain(
-      "/api/v1/streams/console",
-    );
+    expect(consoleStream?.url).toContain("/api/v1/streams/console");
 
     const initialFetchCount = fetchMock.mock.calls.length;
 
-    MockEventSource.instances[0]?.emitMessage({
+    consoleStream?.emitMessage({
       revision: "r2",
       checkedAt: "2026-05-17T00:02:00.000Z",
     });
@@ -260,6 +264,6 @@ describe("Console Stream", () => {
     expect(wrapper.text()).toContain("2026-05-17T00:02:00.000Z");
 
     wrapper.unmount();
-    expect(MockEventSource.instances[0]?.closed).toBe(true);
+    expect(consoleStream?.closed).toBe(true);
   });
 });

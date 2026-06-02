@@ -14,7 +14,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gorilla/websocket"
 	"github.com/jmoiron/sqlx"
 
 	bbgotypes "github.com/c9s/bbgo/pkg/types"
@@ -53,10 +52,9 @@ type Server struct {
 	backtestSyncTasks      *backtestSyncTaskStore
 	executionOrders        *executionOrderStore
 	brokerOrderUpdates     *brokerOrderUpdateWorker
-	upgrader               websocket.Upgrader
 	marketSubscriptions    marketSubscriptionManager
 	tickCache              tickSampleCacheManager
-	liveSockets            liveSocketPool
+	liveStreams            liveStreamPool
 	liveNotifications      liveNotificationCache
 	liveQuoteState         liveQuoteRefreshState
 	liveStreamState        liveMarketStreamState
@@ -259,9 +257,6 @@ func newServerWithFrontend(store *SettingsStore, frontend *frontendServer) *Serv
 		brokers:              broker.NewRegistry(),
 		apiPort:              portFromBind(defaultDevelopmentAPIBind, 3000),
 		frontend:             frontend,
-		upgrader: websocket.Upgrader{
-			CheckOrigin: func(*http.Request) bool { return true },
-		},
 	}
 	server.strategyRuntimeManager = newStrategyRuntimeManager(server)
 	if reconciled, err := server.strategyStore.reconcileRuntimeStatesOnStartup(); err != nil {

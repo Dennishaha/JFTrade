@@ -10,10 +10,10 @@ import (
 
 func (s *Server) serveMarketRoutes(w http.ResponseWriter, r *http.Request) bool {
 	switch {
-	case r.URL.Path == "/api/v1/ws/live":
-		s.handleLiveWebSocket(w, r)
-	case r.URL.Path == "/api/v1/stream/live" || r.URL.Path == "/api/v1/streams/console":
-		s.handleEventStream(w, r)
+	case r.URL.Path == "/api/v1/stream/live":
+		s.handleLiveEventStream(w, r)
+	case r.URL.Path == "/api/v1/streams/console":
+		s.handleConsoleEventStream(w, r)
 	case r.URL.Path == "/api/v1/market-data/instruments" && r.Method == http.MethodGet:
 		s.writeOK(w, map[string]any{"query": r.URL.Query().Get("query"), "totalReturned": 0, "entries": []any{}})
 	case r.URL.Path == "/api/v1/market-data/subscriptions" && r.Method == http.MethodGet:
@@ -40,14 +40,18 @@ func (s *Server) serveMarketRoutes(w http.ResponseWriter, r *http.Request) bool 
 	return true
 }
 
-func (s *Server) handleEventStream(w http.ResponseWriter, r *http.Request) {
+func acceptsEventStream(r *http.Request) bool {
+	return strings.Contains(strings.ToLower(r.Header.Get("Accept")), "text/event-stream")
+}
+
+func (s *Server) handleConsoleEventStream(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
 	flusher, _ := w.(http.Flusher)
 
 	write := func() bool {
-		_, err := fmt.Fprintf(w, "data: %s\n\n", mustJSON(map[string]any{"type": "heartbeat", "at": time.Now().UTC().Format(time.RFC3339Nano)}))
+		_, err := fmt.Fprintf(w, "data: %s\n\n", mustJSON(map[string]any{"checkedAt": time.Now().UTC().Format(time.RFC3339Nano)}))
 		if flusher != nil {
 			flusher.Flush()
 		}

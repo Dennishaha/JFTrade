@@ -1,11 +1,13 @@
 package jftradeapi
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
@@ -225,6 +227,73 @@ func TestMarketDepthResponseWithMockOpenD(t *testing.T) {
 
 	if got := quoteServer.orderBookCallCount(); got != 1 {
 		t.Errorf("orderBook OpenD calls = %d, want 1", got)
+	}
+}
+
+func TestMarketDepthSSEStreamSendsInitialPayload(t *testing.T) {
+	quoteServer := startMarketDataQuoteOpenDServer(t)
+	defer quoteServer.stop()
+
+	quoteServer.setOrderBook(
+		[]*qotcommonpb.OrderBook{
+			marketDataDepthOrderBookFixture(154.9, 900, 4),
+		},
+		[]*qotcommonpb.OrderBook{
+			marketDataDepthOrderBookFixture(155.1, 850, 5),
+		},
+	)
+
+	host, port := splitHostPort(t, quoteServer.addr)
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	now := fmt.Sprintf("%d", 0)
+	store.mu.Lock()
+	store.data.Integration = &BrokerIntegration{
+		BrokerID: "futu",
+		Enabled:  true,
+		Config: normalizeFutuConfig(FutuIntegrationConfig{
+			Type:                    "futu",
+			Host:                    host,
+			APIPort:                 port,
+			WebSocketPort:           11111,
+			MaxWebSocketConnections: 20,
+			TradeMarket:             "US",
+			SecurityFirm:            "FUTUSECURITIES",
+		}),
+		UpdatedAt: now,
+		CreatedAt: now,
+	}
+	store.mu.Unlock()
+
+	server := NewServer(store)
+	srv := httptest.NewServer(server)
+	defer srv.Close()
+	defer server.Close()
+
+	response, err := liveSSERequest(t, srv.URL+"/api/v1/market-data/depth/US/TME?num=10")
+	if err != nil {
+		t.Fatalf("GET market depth SSE: %v", err)
+	}
+	defer response.Body.Close()
+
+	if got := response.Header.Get("Content-Type"); !strings.Contains(got, "text/event-stream") {
+		t.Fatalf("content type = %q, want text/event-stream", got)
+	}
+
+	event := readSSEEvent(t, bufio.NewReader(response.Body))
+	request, _ := event["request"].(map[string]any)
+	if request == nil || request["instrumentId"] != "US.TME" {
+		t.Fatalf("unexpected request payload: %+v", event["request"])
+	}
+	depth, _ := event["depth"].(map[string]any)
+	if depth == nil {
+		t.Fatalf("missing depth payload: %+v", event)
+	}
+	bids, _ := depth["bids"].([]any)
+	if len(bids) != 1 {
+		t.Fatalf("bids len = %d, want 1", len(bids))
 	}
 }
 

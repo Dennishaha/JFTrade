@@ -219,67 +219,12 @@ export class MockEventSource {
     this.onmessage?.({ data: JSON.stringify(data) } as MessageEvent<string>);
   }
 
-  close(): void {
-    this.closed = true;
-  }
-}
-
-export class MockWebSocket {
-  static readonly CONNECTING = 0;
-  static readonly OPEN = 1;
-  static readonly CLOSING = 2;
-  static readonly CLOSED = 3;
-  static instances: MockWebSocket[] = [];
-
-  readonly CONNECTING = MockWebSocket.CONNECTING;
-  readonly OPEN = MockWebSocket.OPEN;
-  readonly CLOSING = MockWebSocket.CLOSING;
-  readonly CLOSED = MockWebSocket.CLOSED;
-
-  onopen: ((event: Event) => void) | null = null;
-  onmessage: ((event: MessageEvent<string>) => void) | null = null;
-  onerror: ((event: Event) => void) | null = null;
-  onclose: ((event: CloseEvent) => void) | null = null;
-  readyState = MockWebSocket.CONNECTING;
-  closed = false;
-
-  constructor(public readonly url: string) {
-    MockWebSocket.instances.push(this);
-
-    queueMicrotask(() => {
-      this.readyState = MockWebSocket.OPEN;
-      this.onopen?.(new Event("open"));
-    });
-  }
-
-  addEventListener(
-    type: "open" | "message" | "error" | "close",
-    listener: EventListener,
-  ): void {
-    switch (type) {
-      case "open":
-        this.onopen = listener as (event: Event) => void;
-        break;
-      case "message":
-        this.onmessage = listener as (event: MessageEvent<string>) => void;
-        break;
-      case "error":
-        this.onerror = listener as (event: Event) => void;
-        break;
-      case "close":
-        this.onclose = listener as (event: CloseEvent) => void;
-        break;
-    }
-  }
-
-  emitMessage(data: unknown): void {
-    this.onmessage?.({ data: JSON.stringify(data) } as MessageEvent<string>);
+  emitError(): void {
+    this.onerror?.(new Event("error"));
   }
 
   close(): void {
-    this.readyState = MockWebSocket.CLOSED;
     this.closed = true;
-    this.onclose?.({ code: 1000, reason: "", wasClean: true } as CloseEvent);
   }
 }
 
@@ -307,8 +252,11 @@ export async function flushRequests(): Promise<void> {
 }
 
 export async function mountApp(path = "/system") {
-  MockWebSocket.instances = [];
-  vi.stubGlobal("WebSocket", MockWebSocket as unknown as typeof WebSocket);
+  MockEventSource.instances = [];
+  vi.stubGlobal(
+    "EventSource",
+    MockEventSource as unknown as typeof EventSource,
+  );
 
   const existingFetch = globalThis.fetch;
   if (existingFetch != null) {

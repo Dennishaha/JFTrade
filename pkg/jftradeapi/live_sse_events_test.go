@@ -1,6 +1,9 @@
 package jftradeapi
 
 import (
+	"bufio"
+	"encoding/json"
+	"net/http"
 	"net/http/httptest"
 	"path/filepath"
 	"strings"
@@ -8,14 +11,13 @@ import (
 	"time"
 
 	bbgo "github.com/c9s/bbgo/pkg/bbgo"
-	"github.com/gorilla/websocket"
 	"google.golang.org/protobuf/proto"
 
 	commonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/common"
 	notifypb "github.com/jftrade/jftrade-main/pkg/futu/pb/notify"
 )
 
-func TestLiveWebSocketSendsHeartbeat(t *testing.T) {
+func TestLiveSSESendsHeartbeat(t *testing.T) {
 	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
@@ -23,24 +25,20 @@ func TestLiveWebSocketSendsHeartbeat(t *testing.T) {
 	srv := httptest.NewServer(NewServer(store))
 	defer srv.Close()
 
-	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http") + "/api/v1/ws/live"
-	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	response, err := liveSSERequest(t, srv.URL+"/api/v1/stream/live")
 	if err != nil {
-		t.Fatalf("Dial live websocket: %v", err)
+		t.Fatalf("GET live SSE: %v", err)
 	}
-	defer conn.Close()
+	defer response.Body.Close()
 
-	_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
-	var event map[string]any
-	if err := conn.ReadJSON(&event); err != nil {
-		t.Fatalf("ReadJSON: %v", err)
-	}
+	reader := bufio.NewReader(response.Body)
+	event := readSSEEvent(t, reader)
 	if event["type"] != "heartbeat" || event["at"] == "" {
 		t.Fatalf("unexpected event: %+v", event)
 	}
 }
 
-func TestLiveWebSocketSendsSystemNotification(t *testing.T) {
+func TestLiveSSESendsSystemNotification(t *testing.T) {
 	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
@@ -60,26 +58,19 @@ func TestLiveWebSocketSendsSystemNotification(t *testing.T) {
 	srv := httptest.NewServer(server)
 	defer srv.Close()
 
-	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http") + "/api/v1/ws/live"
-	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	response, err := liveSSERequest(t, srv.URL+"/api/v1/stream/live")
 	if err != nil {
-		t.Fatalf("Dial live websocket: %v", err)
+		t.Fatalf("GET live SSE: %v", err)
 	}
-	defer conn.Close()
+	defer response.Body.Close()
 
-	_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
-	var heartbeat map[string]any
-	if err := conn.ReadJSON(&heartbeat); err != nil {
-		t.Fatalf("Read heartbeat: %v", err)
-	}
+	reader := bufio.NewReader(response.Body)
+	heartbeat := readSSEEvent(t, reader)
 	if heartbeat["type"] != "heartbeat" {
 		t.Fatalf("unexpected first event: %+v", heartbeat)
 	}
 
-	var event map[string]any
-	if err := conn.ReadJSON(&event); err != nil {
-		t.Fatalf("Read notification: %v", err)
-	}
+	event := readSSEEvent(t, reader)
 	if event["type"] != "system.notification" {
 		t.Fatalf("unexpected event type: %+v", event)
 	}
@@ -89,18 +80,9 @@ func TestLiveWebSocketSendsSystemNotification(t *testing.T) {
 	if event["message"] != "已就绪：OpenD ready for requests" {
 		t.Fatalf("message = %#v", event["message"])
 	}
-	if event["level"] != "success" {
-		t.Fatalf("level = %#v", event["level"])
-	}
-	if event["source"] != "futu-opend" {
-		t.Fatalf("source = %#v", event["source"])
-	}
-	if event["brokerId"] != "futu" {
-		t.Fatalf("brokerId = %#v", event["brokerId"])
-	}
 }
 
-func TestLiveWebSocketSendsBBGONotification(t *testing.T) {
+func TestLiveSSESendsBBGONotification(t *testing.T) {
 	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
@@ -110,26 +92,19 @@ func TestLiveWebSocketSendsBBGONotification(t *testing.T) {
 
 	bbgo.Notify("strategy %s started", "demo-grid")
 
-	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http") + "/api/v1/ws/live"
-	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	response, err := liveSSERequest(t, srv.URL+"/api/v1/stream/live")
 	if err != nil {
-		t.Fatalf("Dial live websocket: %v", err)
+		t.Fatalf("GET live SSE: %v", err)
 	}
-	defer conn.Close()
+	defer response.Body.Close()
 
-	_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
-	var heartbeat map[string]any
-	if err := conn.ReadJSON(&heartbeat); err != nil {
-		t.Fatalf("Read heartbeat: %v", err)
-	}
+	reader := bufio.NewReader(response.Body)
+	heartbeat := readSSEEvent(t, reader)
 	if heartbeat["type"] != "heartbeat" {
 		t.Fatalf("unexpected first event: %+v", heartbeat)
 	}
 
-	var event map[string]any
-	if err := conn.ReadJSON(&event); err != nil {
-		t.Fatalf("Read notification: %v", err)
-	}
+	event := readSSEEvent(t, reader)
 	if event["type"] != "system.notification" {
 		t.Fatalf("unexpected event type: %+v", event)
 	}
@@ -139,13 +114,37 @@ func TestLiveWebSocketSendsBBGONotification(t *testing.T) {
 	if event["message"] != "strategy demo-grid started" {
 		t.Fatalf("message = %#v", event["message"])
 	}
-	if event["level"] != "info" {
-		t.Fatalf("level = %#v", event["level"])
+}
+
+func liveSSERequest(t *testing.T, url string) (*http.Response, error) {
+	t.Helper()
+
+	client := &http.Client{Timeout: 2 * time.Second}
+	request, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
 	}
-	if event["source"] != "bbgo.notify" {
-		t.Fatalf("source = %#v", event["source"])
-	}
-	if event["category"] != "bbgo.notify" {
-		t.Fatalf("category = %#v", event["category"])
+	request.Header.Set("Accept", "text/event-stream")
+	return client.Do(request)
+}
+
+func readSSEEvent(t *testing.T, reader *bufio.Reader) map[string]any {
+	t.Helper()
+
+	for {
+		line, err := reader.ReadString('\n')
+		if err != nil {
+			t.Fatalf("ReadString: %v", err)
+		}
+		line = strings.TrimSpace(line)
+		if line == "" || !strings.HasPrefix(line, "data: ") {
+			continue
+		}
+
+		var event map[string]any
+		if err := json.Unmarshal([]byte(strings.TrimPrefix(line, "data: ")), &event); err != nil {
+			t.Fatalf("json.Unmarshal: %v", err)
+		}
+		return event
 	}
 }

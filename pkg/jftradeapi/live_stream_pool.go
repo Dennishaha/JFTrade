@@ -2,12 +2,12 @@ package jftradeapi
 
 import "sync"
 
-type liveSocketPool struct {
+type liveStreamPool struct {
 	mu      sync.Mutex
 	clients int
 }
 
-func (p *liveSocketPool) tryAcquire(limit int) bool {
+func (p *liveStreamPool) tryAcquire(limit int) bool {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if p.clients >= limit {
@@ -17,7 +17,7 @@ func (p *liveSocketPool) tryAcquire(limit int) bool {
 	return true
 }
 
-func (p *liveSocketPool) release() {
+func (p *liveStreamPool) release() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if p.clients > 0 {
@@ -25,7 +25,7 @@ func (p *liveSocketPool) release() {
 	}
 }
 
-func (p *liveSocketPool) count() int {
+func (p *liveStreamPool) count() int {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return p.clients

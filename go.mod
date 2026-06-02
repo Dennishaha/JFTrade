@@ -5,7 +5,6 @@ go 1.26.3
 require (
 	github.com/c9s/bbgo v1.64.2
 	github.com/expr-lang/expr v1.17.8
-	github.com/gorilla/websocket v1.5.3
 	github.com/jmoiron/sqlx v1.3.4
 	github.com/shopspring/decimal v1.4.0
 	github.com/swaggo/http-swagger/v2 v2.0.2
@@ -20,6 +19,7 @@ require (
 	github.com/go-openapi/jsonreference v0.20.0 // indirect
 	github.com/go-openapi/spec v0.20.6 // indirect
 	github.com/go-openapi/swag v0.19.15 // indirect
+	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/mailru/easyjson v0.7.6 // indirect
 	github.com/ncruces/go-strftime v1.0.0 // indirect

@@ -29,11 +29,16 @@ import type { MarketDataSubscriptionsResponse } from "@jftrade/ui-contracts";
 
 import {
   MockEventSource,
-  MockWebSocket,
   createResponse,
   flushRequests,
   mountApp,
 } from "./helpers";
+
+function findLiveEventStream(): MockEventSource | undefined {
+  return MockEventSource.instances.find((instance) =>
+    instance.url.includes("/api/v1/stream/live"),
+  );
+}
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -156,7 +161,10 @@ function buildStandardFetchMock(overrides: Record<string, unknown> = {}) {
     }
     if (url.includes("/api/v1/market-data/instruments")) {
       return createResponse({
-        query: new URL(url).searchParams.get("query") ?? "",
+        query:
+          new URL(String(url), "http://127.0.0.1:3000").searchParams.get(
+            "query",
+          ) ?? "",
         totalReturned: 1,
         entries: [
           {
@@ -238,6 +246,7 @@ describe("Market page", () => {
 
     const { wrapper } = await mountApp("/market");
 
+    await wrapper.get(".tv-rightdock-toggle").trigger("click");
     await wrapper.get('[data-testid="rightdock-tab-context"]').trigger("click");
     await flushRequests();
 
@@ -490,7 +499,7 @@ describe("Market page", () => {
     wrapper.unmount();
   });
 
-  it("applies backend websocket ticks to the market page snapshot", async () => {
+  it("applies backend live SSE ticks to the market page snapshot", async () => {
     vi.stubGlobal("fetch", buildStandardFetchMock());
     vi.stubGlobal(
       "EventSource",
@@ -498,9 +507,9 @@ describe("Market page", () => {
     );
 
     const { wrapper } = await mountApp("/market");
-    const liveSocket = MockWebSocket.instances[0];
+    const liveStream = findLiveEventStream();
 
-    liveSocket?.emitMessage({
+    liveStream?.emitMessage({
       type: "market-data.tick",
       at: "2026-05-17T01:31:30.000Z",
       brokerId: "futu",
@@ -532,7 +541,7 @@ describe("Market page", () => {
     wrapper.unmount();
   });
 
-  it("keeps applying websocket ticks after the live event buffer is full", async () => {
+  it("keeps applying live SSE ticks after the event buffer is full", async () => {
     vi.stubGlobal("fetch", buildStandardFetchMock());
     vi.stubGlobal(
       "EventSource",
@@ -540,10 +549,10 @@ describe("Market page", () => {
     );
 
     const { wrapper } = await mountApp("/market");
-    const liveSocket = MockWebSocket.instances[0];
+    const liveStream = findLiveEventStream();
 
     for (let index = 0; index < 25; index += 1) {
-      liveSocket?.emitMessage({
+      liveStream?.emitMessage({
         type: "market-data.tick",
         at: `2026-05-17T01:31:${String(index).padStart(2, "0")}.000Z`,
         brokerId: "futu",

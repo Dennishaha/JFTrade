@@ -10,7 +10,6 @@ import (
 
 	bbgo "github.com/c9s/bbgo/pkg/bbgo"
 	bbgotypes "github.com/c9s/bbgo/pkg/types"
-	"github.com/gorilla/websocket"
 
 	notifypb "github.com/jftrade/jftrade-main/pkg/futu/pb/notify"
 )
@@ -140,10 +139,10 @@ func (s *Server) liveNotificationsAfter(sequence uint64) []liveNotificationEvent
 	return s.liveNotifications.after(sequence)
 }
 
-func (s *Server) writeLiveNotifications(conn *websocket.Conn, lastSequence *uint64) error {
+func (s *Server) writeLiveNotifications(writer liveEventWriter, lastSequence *uint64) error {
 	events := s.liveNotificationsAfter(*lastSequence)
 	for _, event := range events {
-		if err := conn.WriteJSON(liveNotificationEventMap(event)); err != nil {
+		if err := writer.WriteEvent(liveNotificationEventMap(event)); err != nil {
 			return err
 		}
 		*lastSequence = event.Sequence

@@ -2,6 +2,7 @@ package jftradeapi
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -11,7 +12,6 @@ import (
 	"time"
 
 	bbgotypes "github.com/c9s/bbgo/pkg/types"
-	"github.com/gorilla/websocket"
 )
 
 const (
@@ -24,50 +24,57 @@ const (
 	liveStreamRetryMaxDelay      = 30 * time.Second
 )
 
-func (s *Server) handleLiveWebSocket(w http.ResponseWriter, r *http.Request) {
-	limit := s.effectiveLiveWebSocketLimit()
-	if !s.tryAcquireLiveWebSocketSlot(limit) {
-		s.writeError(w, http.StatusServiceUnavailable, "LIVE_WS_LIMIT_REACHED", fmt.Sprintf("live websocket connection limit reached (%d)", limit))
+type liveSSEWriter struct {
+	writer  http.ResponseWriter
+	flusher http.Flusher
+}
+
+func (writer liveSSEWriter) WriteEvent(value any) error {
+	data, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintf(writer.writer, "data: %s\n\n", data); err != nil {
+		return err
+	}
+	writer.flusher.Flush()
+	return nil
+}
+
+func (s *Server) handleLiveEventStream(w http.ResponseWriter, r *http.Request) {
+	limit := s.effectiveLiveStreamLimit()
+	if !s.tryAcquireLiveStreamSlot(limit) {
+		s.writeError(w, http.StatusServiceUnavailable, "LIVE_SSE_LIMIT_REACHED", fmt.Sprintf("live sse connection limit reached (%d)", limit))
+		return
+	}
+	defer s.releaseLiveStreamSlot()
+
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		s.writeError(w, http.StatusInternalServerError, "LIVE_SSE_UNSUPPORTED", "response writer does not support streaming")
 		return
 	}
 
-	conn, err := s.upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		s.releaseLiveWebSocketSlot()
-		return
-	}
-	defer func() {
-		s.releaseLiveWebSocketSlot()
-		_ = conn.Close()
-	}()
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
 
 	s.ensureLiveNotificationBridge(r.Context())
-	clientClosed := liveWebSocketClientClosed(conn)
-	dispatcher := newLiveWebSocketDispatcher(s, r.Context(), conn, clientClosed)
+	dispatcher := newLiveStreamDispatcher(s, r.Context(), liveSSEWriter{
+		writer:  w,
+		flusher: flusher,
+	}, nil)
 	if err := dispatcher.writeInitialEvents(); err != nil {
 		return
 	}
 	_ = dispatcher.run()
 }
 
-func liveWebSocketClientClosed(conn *websocket.Conn) <-chan struct{} {
-	closed := make(chan struct{})
-	go func() {
-		defer close(closed)
-		for {
-			if _, _, err := conn.NextReader(); err != nil {
-				return
-			}
-		}
-	}()
-	return closed
+func writeHeartbeat(writer liveEventWriter) error {
+	return writer.WriteEvent(map[string]any{"type": "heartbeat", "at": time.Now().UTC().Format(time.RFC3339Nano)})
 }
 
-func writeHeartbeat(conn *websocket.Conn) error {
-	return conn.WriteJSON(map[string]any{"type": "heartbeat", "at": time.Now().UTC().Format(time.RFC3339Nano)})
-}
-
-func (s *Server) effectiveLiveWebSocketLimit() int {
+func (s *Server) effectiveLiveStreamLimit() int {
 	limit := s.store.integration().Config.MaxWebSocketConnections
 	if limit <= 0 {
 		return defaultMaxWebSocketClients
@@ -75,17 +82,17 @@ func (s *Server) effectiveLiveWebSocketLimit() int {
 	return limit
 }
 
-func (s *Server) tryAcquireLiveWebSocketSlot(limit int) bool {
-	return s.liveSockets.tryAcquire(limit)
+func (s *Server) tryAcquireLiveStreamSlot(limit int) bool {
+	return s.liveStreams.tryAcquire(limit)
 }
 
-func (s *Server) releaseLiveWebSocketSlot() {
-	s.liveSockets.release()
+func (s *Server) releaseLiveStreamSlot() {
+	s.liveStreams.release()
 }
 
-func (s *Server) liveWebSocketStats() (count int, limit int, atLimit bool) {
-	limit = s.effectiveLiveWebSocketLimit()
-	count = s.liveSockets.count()
+func (s *Server) liveStreamStats() (count int, limit int, atLimit bool) {
+	limit = s.effectiveLiveStreamLimit()
+	count = s.liveStreams.count()
 	return count, limit, count >= limit
 }
 
@@ -176,7 +183,7 @@ func (s *Server) ensureLiveMarketStream(ctx context.Context, instrumentIDs []str
 	s.liveStreamState.streamKey = streamKey
 	s.liveStreamState.mu.Unlock()
 
-	// Run the OpenD push subscription handshake off the websocket dispatch
+	// Run the OpenD push subscription handshake off the live stream dispatch
 	// goroutine so a slow handshake cannot block live tick fan-out, and use a
 	// background context with a generous timeout so the connect is not bound
 	// to the 900ms fallback poll budget.
@@ -250,7 +257,7 @@ func liveMarketStreamKey(config FutuIntegrationConfig, instrumentIDs []string) (
 	}, "|"), symbols
 }
 
-func (s *Server) writeLiveMarketTicks(ctx context.Context, conn *websocket.Conn, lastSentByInstrument map[string]string) error {
+func (s *Server) writeLiveMarketTicks(ctx context.Context, writer liveEventWriter, lastSentByInstrument map[string]string) error {
 	s.refreshLiveMarketTicksIfNeeded(ctx)
 	for _, sample := range s.latestTickerSamples(s.activeMarketInstrumentIDs(), liveTickSampleFreshness) {
 		if sample == nil || lastSentByInstrument[sample.InstrumentID] == sample.ObservedAt {
@@ -260,7 +267,7 @@ func (s *Server) writeLiveMarketTicks(ctx context.Context, conn *websocket.Conn,
 		if event == nil {
 			continue
 		}
-		if err := conn.WriteJSON(event); err != nil {
+		if err := writer.WriteEvent(event); err != nil {
 			return err
 		}
 		lastSentByInstrument[sample.InstrumentID] = sample.ObservedAt

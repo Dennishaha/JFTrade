@@ -16,6 +16,9 @@ import (
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
 )
 
+const marketSecurityDetailsStreamInterval = 1 * time.Second
+const marketDepthStreamRefreshInterval = 15 * time.Second
+
 func (s *Server) handleMarketSnapshot(w http.ResponseWriter, r *http.Request) {
 	response, err := s.marketSnapshotResponse(r.Context(), r.URL.Path, r.URL.Query())
 	if err != nil {
@@ -26,12 +29,57 @@ func (s *Server) handleMarketSnapshot(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleMarketSecurityDetails(w http.ResponseWriter, r *http.Request) {
+	if acceptsEventStream(r) {
+		s.handleMarketSecurityDetailsEventStream(w, r)
+		return
+	}
 	response, err := s.marketSecurityDetailsResponse(r.Context(), r.URL.Path)
 	if err != nil {
 		s.writeError(w, http.StatusBadGateway, "MARKET_SECURITY_DETAILS_FAILED", err.Error())
 		return
 	}
 	s.writeOK(w, response)
+}
+
+func (s *Server) handleMarketSecurityDetailsEventStream(w http.ResponseWriter, r *http.Request) {
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		s.writeError(w, http.StatusInternalServerError, "MARKET_SECURITY_DETAILS_STREAM_UNSUPPORTED", "response writer does not support streaming")
+		return
+	}
+
+	response, err := s.marketSecurityDetailsResponse(r.Context(), r.URL.Path)
+	if err != nil {
+		s.writeError(w, http.StatusBadGateway, "MARKET_SECURITY_DETAILS_FAILED", err.Error())
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+
+	writer := liveSSEWriter{writer: w, flusher: flusher}
+	if err := writer.WriteEvent(response); err != nil {
+		return
+	}
+
+	ticker := time.NewTicker(marketSecurityDetailsStreamInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-r.Context().Done():
+			return
+		case <-ticker.C:
+			response, err := s.marketSecurityDetailsResponse(r.Context(), r.URL.Path)
+			if err != nil {
+				continue
+			}
+			if err := writer.WriteEvent(response); err != nil {
+				return
+			}
+		}
+	}
 }
 
 func (s *Server) marketSecurityDetailsResponse(ctx context.Context, path string) (map[string]any, error) {
@@ -254,12 +302,89 @@ func (s *Server) futuExchange() *futu.Exchange {
 // --- Depth (Order Book) ---
 
 func (s *Server) handleMarketDepth(w http.ResponseWriter, r *http.Request) {
+	if acceptsEventStream(r) {
+		s.handleMarketDepthEventStream(w, r)
+		return
+	}
 	response, err := s.marketDepthResponse(r.Context(), r.URL.Path, r.URL.Query())
 	if err != nil {
 		s.writeError(w, http.StatusBadGateway, "OPEND_DEPTH_FAILED", err.Error())
 		return
 	}
 	s.writeOK(w, response)
+}
+
+func (s *Server) handleMarketDepthEventStream(w http.ResponseWriter, r *http.Request) {
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		s.writeError(w, http.StatusInternalServerError, "MARKET_DEPTH_STREAM_UNSUPPORTED", "response writer does not support streaming")
+		return
+	}
+
+	response, err := s.marketDepthResponse(r.Context(), r.URL.Path, r.URL.Query())
+	if err != nil {
+		s.writeError(w, http.StatusBadGateway, "OPEND_DEPTH_FAILED", err.Error())
+		return
+	}
+
+	market, symbol := pathTail(r.URL.Path, "/api/v1/market-data/depth/")
+	instrumentID := strings.ToUpper(strings.TrimSpace(market)) + "." + strings.ToUpper(strings.TrimSpace(symbol))
+	num := int32(intQuery(r.URL.Query(), "num", 10))
+	if num < 1 {
+		num = 1
+	}
+	if num > 50 {
+		num = 50
+	}
+
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+
+	writer := liveSSEWriter{writer: w, flusher: flusher}
+	if err := writer.WriteEvent(response); err != nil {
+		return
+	}
+
+	if subscriber, ok := s.futuBroker().(broker.OrderBookSubscriber); ok {
+		_ = subscriber.SubscribeOrderBook(r.Context(), broker.OrderBookSubscribeRequest{
+			ReadQuery: brokerReadQuery(instrumentID),
+			Symbols:   []string{instrumentID},
+			Num:       num,
+		})
+	}
+
+	updateCh := make(chan struct{}, 1)
+	unsubscribe := s.futuExchange().OnOrderBookUpdate(func(updatedSymbol string) {
+		if !strings.EqualFold(updatedSymbol, instrumentID) {
+			return
+		}
+		select {
+		case updateCh <- struct{}{}:
+		default:
+		}
+	})
+	defer unsubscribe()
+
+	refreshTicker := time.NewTicker(marketDepthStreamRefreshInterval)
+	defer refreshTicker.Stop()
+
+	for {
+		select {
+		case <-r.Context().Done():
+			return
+		case <-updateCh:
+		case <-refreshTicker.C:
+		}
+
+		response, err := s.marketDepthResponse(r.Context(), r.URL.Path, r.URL.Query())
+		if err != nil {
+			continue
+		}
+		if err := writer.WriteEvent(response); err != nil {
+			return
+		}
+	}
 }
 
 func (s *Server) marketDepthResponse(ctx context.Context, path string, query map[string][]string) (map[string]any, error) {

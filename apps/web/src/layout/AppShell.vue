@@ -8,14 +8,16 @@ import {
 } from "../composables/useCommandPalette";
 import { provideConsoleDataStore } from "../composables/useConsoleData";
 import { useDocsLink } from "../composables/useDocsLink";
+import {
+  type SystemNotificationLiveStreamEvent,
+} from "../composables/useLiveStream";
 import { provideNotificationsStore } from "../composables/useNotifications";
-import { provideLiveSocketStore } from "../composables/useSharedLiveSocket";
+import { provideLiveStreamStore } from "../composables/useSharedLiveStream";
 import { provideThemeStore } from "../composables/useTheme";
 import { provideUIColorPreferencesStore } from "../composables/useUIColorPreferences";
 import { provideWorkspaceLayoutStore } from "../composables/useWorkspaceLayout";
 import CommandPalette from "./CommandPalette.vue";
 import IconRail from "./IconRail.vue";
-import type { SystemNotificationLiveSocketEvent } from "../composables/useLiveSocket";
 import RightDock from "./RightDock.vue";
 import StatusBar from "./StatusBar.vue";
 import TopBar from "./TopBar.vue";
@@ -26,7 +28,7 @@ const notifications = provideNotificationsStore();
 const workspaceLayout = provideWorkspaceLayoutStore();
 const palette = provideCommandPaletteStore();
 const console_ = provideConsoleDataStore(workspaceLayout);
-const live = provideLiveSocketStore();
+const live = provideLiveStreamStore();
 
 const router = useRouter();
 const { docsHomeUrl, openDocs } = useDocsLink();
@@ -75,7 +77,7 @@ palette.register({
   },
 });
 
-// Wire live socket events into the shared console store and notify only on
+// Wire live stream events into the shared console store and notify only on
 // non-market-data control events to avoid spamming the UI during live quotes.
 let lastSeenLiveEventKey = "";
 let lastSeenFutuOpenDIssueFingerprint = "";
@@ -85,7 +87,7 @@ let marketTickFlushTimer: ReturnType<typeof setTimeout> | null = null;
 
 function isSystemNotificationEvent(
   event: unknown,
-): event is SystemNotificationLiveSocketEvent {
+): event is SystemNotificationLiveStreamEvent {
   return (
     event != null &&
     typeof event === "object" &&
@@ -105,7 +107,7 @@ function formatLiveEventTypeLabel(type: string): string {
 }
 
 function shouldReloadSystemStateForNotification(
-  event: SystemNotificationLiveSocketEvent,
+  event: SystemNotificationLiveStreamEvent,
 ): boolean {
   const source = event.source?.trim().toLowerCase() ?? "";
   const category = event.category?.trim().toLowerCase() ?? "";
@@ -162,7 +164,7 @@ const stop = watch(
       notifications.push({
         level: ev.level,
         title: ev.title,
-        source: ev.source ?? ev.brokerId ?? "live-socket",
+        source: ev.source ?? ev.brokerId ?? "live-stream",
         at: ev.at,
         ...(ev.category ? { category: ev.category } : {}),
         ...(ev.message ? { message: ev.message } : {}),
@@ -183,7 +185,7 @@ const stop = watch(
       notifications.push({
         level: "info",
         title: `实时通道：${formatLiveEventTypeLabel(ev.type)}`,
-        source: "live-socket",
+        source: "live-stream",
         at: ev.at,
         category: `live.${ev.type}`,
       });

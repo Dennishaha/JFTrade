@@ -98,10 +98,7 @@ export function createMarketDataQueryController(
   }
   const { scheduleMarketSnapshotBackgroundRefresh } =
     createMarketDataSnapshotRefresher({
-      marketDataSnapshot,
       marketSecurityDetails,
-      fetchEnvelope: options.fetchEnvelope,
-      mergeRealtimeBarStateIntoSnapshot,
     });
 
   function applyTickEvent(event: unknown): void {

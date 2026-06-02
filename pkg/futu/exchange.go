@@ -25,6 +25,7 @@ import (
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
 	qotgetbasicqotpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetbasicqot"
 	qotsubpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotsub"
+	qotupdateorderbookpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotupdateorderbook"
 )
 
 // Name is the bbgo exchange name used in configs and env-var prefix.
@@ -56,15 +57,18 @@ type Exchange struct {
 	addr         string
 	webSocketKey string
 
-	mu                   sync.Mutex
-	sessionMu            sync.RWMutex
-	client               *opend.Client
-	ready                bool
-	subscriptions        subscriptionRegistry
-	systemNotifyClient   *opend.Client
-	systemNotifyHandlers []func(*notifypb.Response)
-	klineSessions        map[string]klineSessionRecord
-	marketSessionSamples map[string][]marketSessionSample
+	mu                      sync.Mutex
+	sessionMu               sync.RWMutex
+	client                  *opend.Client
+	ready                   bool
+	subscriptions           subscriptionRegistry
+	systemNotifyClient      *opend.Client
+	systemNotifyHandlers    []func(*notifypb.Response)
+	orderBookNotifyClient   *opend.Client
+	orderBookNotifyHandlers map[uint64]func(string)
+	nextOrderBookHandlerID  uint64
+	klineSessions           map[string]klineSessionRecord
+	marketSessionSamples    map[string][]marketSessionSample
 
 	// customMarkets holds market info for symbols that are not natively
 	// returned by QueryMarkets but should be known to the exchange — e.g.
@@ -112,6 +116,30 @@ func (e *Exchange) OnSystemNotify(fn func(*notifypb.Response)) {
 	defer e.mu.Unlock()
 	e.systemNotifyHandlers = append(e.systemNotifyHandlers, fn)
 	e.bindSystemNotifyLocked(e.client)
+}
+
+// OnOrderBookUpdate registers a handler for OpenD Qot_UpdateOrderBook pushes.
+// Handlers survive client reconnects and are rebound automatically.
+func (e *Exchange) OnOrderBookUpdate(fn func(string)) func() {
+	if fn == nil {
+		return func() {}
+	}
+
+	e.mu.Lock()
+	if e.orderBookNotifyHandlers == nil {
+		e.orderBookNotifyHandlers = make(map[uint64]func(string))
+	}
+	e.nextOrderBookHandlerID++
+	handlerID := e.nextOrderBookHandlerID
+	e.orderBookNotifyHandlers[handlerID] = fn
+	e.bindOrderBookNotifyLocked(e.client)
+	e.mu.Unlock()
+
+	return func() {
+		e.mu.Lock()
+		defer e.mu.Unlock()
+		delete(e.orderBookNotifyHandlers, handlerID)
+	}
 }
 
 // EnsureSystemNotifications brings up the shared OpenD session so registered
@@ -506,6 +534,7 @@ func (e *Exchange) ensureClient(ctx context.Context) (*opend.Client, error) {
 			_ = e.invalidateClientLocked()
 			e.client = e.newClient()
 		default:
+			e.bindOrderBookNotifyLocked(e.client)
 			e.bindSystemNotifyLocked(e.client)
 			return e.client, nil
 		}
@@ -548,10 +577,40 @@ func (e *Exchange) ensureClient(ctx context.Context) (*opend.Client, error) {
 		e.client.StartKeepAlive(time.Duration(keepAliveInterval) * time.Second)
 	}
 	e.subscriptions.ensure()
+	e.bindOrderBookNotifyLocked(e.client)
 	e.bindSystemNotifyLocked(e.client)
 	log.Printf("futu OpenD session established to %s (connect=%v init=%v total=%v)",
 		e.addr, connectElapsed, time.Since(initStart), time.Since(connectStart))
 	return e.client, nil
+}
+
+func (e *Exchange) bindOrderBookNotifyLocked(client *opend.Client) {
+	if client == nil || len(e.orderBookNotifyHandlers) == 0 || e.orderBookNotifyClient == client {
+		return
+	}
+	client.SubscribeOrderBook(e.dispatchOrderBookNotify)
+	e.orderBookNotifyClient = client
+}
+
+func (e *Exchange) dispatchOrderBookNotify(update *qotupdateorderbookpb.S2C) {
+	if update == nil {
+		return
+	}
+	symbol, err := futuSymbolFromSecurity(update.GetSecurity())
+	if err != nil || symbol == "" {
+		return
+	}
+
+	e.mu.Lock()
+	handlers := make([]func(string), 0, len(e.orderBookNotifyHandlers))
+	for _, handler := range e.orderBookNotifyHandlers {
+		handlers = append(handlers, handler)
+	}
+	e.mu.Unlock()
+
+	for _, handler := range handlers {
+		handler(symbol)
+	}
 }
 
 func (e *Exchange) bindSystemNotifyLocked(client *opend.Client) {
@@ -592,6 +651,7 @@ func (e *Exchange) invalidateClientLocked() error {
 	e.client = nil
 	e.ready = false
 	e.subscriptions.reset()
+	e.orderBookNotifyClient = nil
 	e.systemNotifyClient = nil
 	if client != nil {
 		return client.Close()

@@ -5,7 +5,7 @@ import type {
   MarketDataDepthResponse,
 } from "@jftrade/ui-contracts";
 
-import { fetchEnvelope, fetchEnvelopeWithInit } from "../../composables/apiClient";
+import { buildApiUrl, fetchEnvelope, fetchEnvelopeWithInit } from "../../composables/apiClient";
 import { useConsoleData } from "../../composables/useConsoleData";
 import { useWorkspaceLayout } from "../../composables/useWorkspaceLayout";
 
@@ -21,9 +21,10 @@ const depthNum = ref(DEFAULT_DEPTH_NUM);
 const depthData = ref<MarketDataDepthResponse | null>(null);
 const isLoadingDepth = ref(false);
 const depthError = ref("");
-let pollTimer: ReturnType<typeof setInterval> | null = null;
 let depthRequestSeq = 0;
 let depthAbortController: AbortController | null = null;
+let depthStream: EventSource | null = null;
+let depthStreamUrl = "";
 
 interface DepthLevel {
   bidPrice: number | null;
@@ -205,35 +206,83 @@ async function fetchDepth(): Promise<void> {
   }
 }
 
-function startPolling(): void {
-  stopPolling();
-  fetchDepth();
-  // Poll every 3 seconds for depth updates
-  pollTimer = setInterval(() => {
-    fetchDepth();
-  }, 3000);
+function closeDepthStream(): void {
+  depthStream?.close();
+  depthStream = null;
+  depthStreamUrl = "";
 }
 
-function stopPolling(): void {
-  if (pollTimer != null) {
-    clearInterval(pollTimer);
-    pollTimer = null;
+function connectDepthStream(): void {
+  const url = buildDepthUrl();
+  if (!url) {
+    closeDepthStream();
+    depthAbortController?.abort();
+    depthAbortController = null;
+    depthData.value = null;
+    depthError.value = "";
+    isLoadingDepth.value = false;
+    return;
   }
+
+  if (typeof EventSource === "undefined") {
+    closeDepthStream();
+    void fetchDepth();
+    return;
+  }
+
+  const absoluteUrl = buildApiUrl(url);
+  if (depthStream != null && depthStreamUrl === absoluteUrl) {
+    return;
+  }
+
+  closeDepthStream();
+  depthAbortController?.abort();
+  depthAbortController = null;
+  isLoadingDepth.value = true;
+  depthError.value = "";
+
+  const stream = new EventSource(absoluteUrl);
+  depthStream = stream;
+  depthStreamUrl = absoluteUrl;
+
+  stream.onmessage = (event) => {
+    if (depthStream !== stream) {
+      return;
+    }
+    try {
+      depthData.value = JSON.parse(event.data as string) as MarketDataDepthResponse;
+      depthError.value = "";
+      isLoadingDepth.value = false;
+    } catch {
+      depthError.value = "盘口 SSE 数据解析失败";
+      isLoadingDepth.value = false;
+    }
+  };
+
+  stream.onerror = () => {
+    if (depthStream !== stream) {
+      return;
+    }
+    if (depthData.value == null) {
+      depthError.value = "盘口 SSE 连接中断，正在重试";
+      isLoadingDepth.value = false;
+    }
+  };
 }
 
 function setDepthNum(num: number): void {
   if (depthNum.value === num) return;
   depthNum.value = num;
-  fetchDepth();
+  connectDepthStream();
 }
 
 // --- Lifecycle ---
 onMounted(() => {
-  loadBrokerCapability().then(() => startPolling());
+  loadBrokerCapability().then(() => connectDepthStream());
 });
 
 onUnmounted(() => {
-  stopPolling();
+  closeDepthStream();
   depthAbortController?.abort();
   depthAbortController = null;
 });
@@ -242,7 +291,7 @@ onUnmounted(() => {
 watch(
   () => [prefs.value?.market, prefs.value?.symbol],
   () => {
-    fetchDepth();
+    connectDepthStream();
   },
 );
 </script>

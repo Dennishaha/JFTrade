@@ -1,6 +1,11 @@
 package jftradeapi
 
-import "testing"
+import (
+	"bufio"
+	"net/http/httptest"
+	"strings"
+	"testing"
+)
 
 func TestMarketSecurityDetailsResponseQueriesSecuritySnapshot(t *testing.T) {
 	quoteServer := startMarketDataQuoteOpenDServer(t)
@@ -54,6 +59,41 @@ func TestMarketSecurityDetailsResponseQueriesSecuritySnapshot(t *testing.T) {
 	}
 	if got := quoteServer.staticInfoCallCount(); got != 1 {
 		t.Fatalf("expected one GetStaticInfo call, got %d", got)
+	}
+}
+
+func TestMarketSecurityDetailsSSEStreamSendsInitialPayload(t *testing.T) {
+	quoteServer := startMarketDataQuoteOpenDServer(t)
+	defer quoteServer.stop()
+
+	server := newMarketDataTestServerWithQuoteRuntime(t, quoteServer.addr)
+	srv := httptest.NewServer(server)
+	defer srv.Close()
+
+	response, err := liveSSERequest(t, srv.URL+"/api/v1/market-data/securities/HK/00700")
+	if err != nil {
+		t.Fatalf("GET market security details SSE: %v", err)
+	}
+	defer response.Body.Close()
+
+	if got := response.Header.Get("Content-Type"); !strings.Contains(got, "text/event-stream") {
+		t.Fatalf("Content-Type = %q", got)
+	}
+
+	event := readSSEEvent(t, bufio.NewReader(response.Body))
+	request, ok := event["request"].(map[string]any)
+	if !ok {
+		t.Fatalf("request payload type = %T", event["request"])
+	}
+	if got := request["instrumentId"]; got != "HK.00700" {
+		t.Fatalf("instrumentId = %v", got)
+	}
+	security, ok := event["security"].(map[string]any)
+	if !ok {
+		t.Fatalf("security payload type = %T", event["security"])
+	}
+	if got := security["name"]; got != "Tencent Holdings" {
+		t.Fatalf("security name = %v", got)
 	}
 }
 

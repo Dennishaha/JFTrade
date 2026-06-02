@@ -400,24 +400,11 @@ func buildOpenAPIPaths(genericObject map[string]any) map[string]any {
 				map[string]any{"200": jsonResponse("策略审计日志", envelopeSchema(schemaRef("StrategyAuditResponse")))},
 			),
 		},
-		"/api/v1/ws/live": map[string]any{
-			"get": operation(
-				"连接实时行情 WebSocket",
-				"升级为 WebSocket 后持续返回 heartbeat、实时行情事件与系统通知事件。Swagger UI 仅展示连接说明，不直接建立 WebSocket 交互。",
-				[]string{"streaming"},
-				nil,
-				nil,
-				map[string]any{
-					"101": map[string]any{"description": "协议已升级为 WebSocket"},
-					"503": jsonResponse("连接数已达上限", envelopeSchema(nil)),
-				},
-			),
-		},
 		"/api/v1/stream/live": map[string]any{
-			"get": streamOperation("连接实时 SSE 流", "返回 text/event-stream 格式的实时事件流。"),
+			"get": streamOperation("连接实时 SSE 流", "返回 text/event-stream 格式的实时事件流，包含 heartbeat、实时行情事件与系统通知事件。"),
 		},
 		"/api/v1/streams/console": map[string]any{
-			"get": streamOperation("连接控制台 SSE 流", "与 /api/v1/stream/live 指向同一 SSE 处理器。"),
+			"get": streamOperation("连接控制台 SSE 流", "返回控制台刷新用的 text/event-stream 快照事件。"),
 		},
 	}
 }

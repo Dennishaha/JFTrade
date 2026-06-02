@@ -49,7 +49,7 @@ const visible = computed<NotificationItem[]>(() =>
 
 const sourceLabels: Record<string, string> = {
   "futu-opend": "富途 OpenD",
-  "live-socket": "实时通道",
+  "live-stream": "实时通道",
   "order-entry": "下单面板",
   system: "系统",
 };

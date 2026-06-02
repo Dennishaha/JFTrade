@@ -10,7 +10,7 @@
 
 ```text
 历史 candles: /api/v1/market-data/candles/*
-实时 tick:    /api/v1/ws/live
+实时 tick:    /api/v1/stream/live
 快照:         /api/v1/market-data/snapshots/*
 
 apps/web
@@ -61,7 +61,7 @@ apps/web
   - 覆盖分钟 K 图表 series 时间使用桶结束展示时间。
 
 - `apps/web/tests/useConsoleData.klineRealtime.test.ts`
-  - 覆盖 websocket `event.at` 已跨分钟、但 `snapshot.at` 仍停在旧分钟时，前端仍应开启新桶。
+  - 覆盖实时事件 `event.at` 已跨分钟、但 `snapshot.at` 仍停在旧分钟时，前端仍应开启新桶。
   - 覆盖同一周期内多 tick 的 open/high/low/close 累计，以及 1m、5m 跨周期拆分。
   - 覆盖历史查询已经带回当前桶时，后续实时 tick 必须复用该当前桶的真实 open/high/low，而不是回退到上一根 close。
   - 覆盖首屏并行加载时，最新量柱必须复用当前桶 candle.volume，而不是 snapshot 累计 volume。

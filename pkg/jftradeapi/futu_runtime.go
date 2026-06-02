@@ -113,7 +113,7 @@ func (s *Server) brokerRuntime(ctx context.Context) map[string]any {
 			"markets":       probe.Markets,
 		}
 	}
-	count, limit, atLimit := s.liveWebSocketStats()
+	count, limit, atLimit := s.liveStreamStats()
 	return map[string]any{
 		"descriptor": s.descriptor(),
 		"session": map[string]any{
@@ -184,7 +184,7 @@ func (s *Server) futuOpenDHealth(ctx context.Context) map[string]any {
 }
 
 func (s *Server) liveSocketDiagnostics(config FutuIntegrationConfig) map[string]any {
-	count, limit, atLimit := s.liveWebSocketStats()
+	count, limit, atLimit := s.liveStreamStats()
 	s.liveQuoteState.mu.Lock()
 	quoteRetryAfter := s.liveQuoteState.retryAfter
 	quoteFailureCount := s.liveQuoteState.failureCount

@@ -46,7 +46,7 @@ func buildOpenAPISpec() map[string]any {
 		"info": map[string]any{
 			"title":       "JFTrade Debug API",
 			"version":     "1.0.0",
-			"description": "JFTrade sidecar API 的调试文档。Swagger UI 主要覆盖当前常用的 HTTP 调试入口；WebSocket 与 SSE 接口也会显示连接说明。",
+			"description": "JFTrade sidecar API 的调试文档。Swagger UI 主要覆盖当前常用的 HTTP 调试入口，并展示 SSE 实时流连接说明。",
 		},
 		"servers": []map[string]any{{
 			"url":         "/",
@@ -57,7 +57,7 @@ func buildOpenAPISpec() map[string]any {
 			{"name": "system", "description": "运行时与 OpenD 诊断"},
 			{"name": "market-data", "description": "行情订阅、快照与 K 线"},
 			{"name": "broker", "description": "Broker 运行态与账户视图"},
-			{"name": "streaming", "description": "WebSocket 与 SSE 实时流"},
+			{"name": "streaming", "description": "SSE 实时流"},
 			{"name": "strategy", "description": "策略与插件只读视图"},
 		},
 		"paths":      buildOpenAPIPaths(genericObject),
