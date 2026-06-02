@@ -26,7 +26,8 @@ let depthRequestSeq = 0;
 let depthAbortController: AbortController | null = null;
 
 interface DepthLevel {
-  price: number;
+  bidPrice: number | null;
+  askPrice: number | null;
   bidSize: number;
   askSize: number;
 }
@@ -46,7 +47,8 @@ const depthLevels = computed<DepthLevel[]>(() => {
     const bid = bids[i] ?? null;
     const ask = asks[i] ?? null;
     levels.push({
-      price: bid?.price ?? ask?.price ?? 0,
+      bidPrice: bid?.price ?? null,
+      askPrice: ask?.price ?? null,
       bidSize: bid?.volume ?? 0,
       askSize: ask?.volume ?? 0,
     });
@@ -309,29 +311,38 @@ watch(
             <div
               v-for="(row, idx) in depthLevels"
               :key="'b' + idx"
-              class="tv-ob-depth-row tv-ob-depth-row-bid"
+              class="tv-ob-depth-row tv-ob-depth-row-ask"
             >
-              <div class="tv-ob-depth-bar" :style="{ width: barWidth(maxBidSize, row.bidSize) }"></div>
-              <span class="tv-ob-depth-size">{{ fmtSize(row.bidSize) }}</span>
+              <span class="tv-ob-depth-size">{{ fmtSize(row.askSize) }}</span>
+              <div class="tv-ob-depth-bar" :style="{ width: barWidth(maxAskSize, row.askSize) }"></div>
             </div>
           </div>
-          <div class="tv-ob-depth-col tv-ob-depth-price-col">
+          <div class="tv-ob-depth-col tv-ob-depth-bid-price-col">
             <div
               v-for="(row, idx) in depthLevels"
-              :key="'p' + idx"
-              class="tv-ob-depth-row tv-ob-depth-price"
+              :key="'bp' + idx"
+              class="tv-ob-depth-row tv-ob-depth-price tv-ob-depth-bid-price"
             >
-              {{ fmtPrice(row.price) }}
+              {{ fmtPrice(row.askPrice) }}
+            </div>
+          </div>
+          <div class="tv-ob-depth-col tv-ob-depth-ask-price-col">
+            <div
+              v-for="(row, idx) in depthLevels"
+              :key="'ap' + idx"
+              class="tv-ob-depth-row tv-ob-depth-price tv-ob-depth-ask-price"
+            >
+              {{ fmtPrice(row.bidPrice) }}
             </div>
           </div>
           <div class="tv-ob-depth-col tv-ob-depth-ask-col">
             <div
               v-for="(row, idx) in depthLevels"
               :key="'a' + idx"
-              class="tv-ob-depth-row tv-ob-depth-row-ask"
+              class="tv-ob-depth-row tv-ob-depth-row-bid"
             >
-              <span class="tv-ob-depth-size">{{ fmtSize(row.askSize) }}</span>
-              <div class="tv-ob-depth-bar" :style="{ width: barWidth(maxAskSize, row.askSize) }"></div>
+              <div class="tv-ob-depth-bar" :style="{ width: barWidth(maxBidSize, row.bidSize) }"></div>
+              <span class="tv-ob-depth-size">{{ fmtSize(row.bidSize) }}</span>
             </div>
           </div>
         </div>
@@ -361,30 +372,18 @@ watch(
         </template>
       </div>
 
-      <!-- Bottom summary -->
-      <div class="tv-ob-footer">
-        <div class="tv-ob-footer-item">
-          <span class="tv-ob-footer-label">涨跌</span>
-          <span :class="sideClass(changeFromClose)" style="font-weight: 600">
-            {{ changeFromClose != null ? (changeFromClose >= 0 ? '+' : '') + changeFromClose.toFixed(3) : '—' }}
-          </span>
-        </div>
-        <div class="tv-ob-footer-item">
-          <span class="tv-ob-footer-label">涨幅</span>
-          <span :class="sideClass(changePercent)" style="font-weight: 600">
-            {{ changePercent != null ? (changePercent >= 0 ? '+' : '') + changePercent.toFixed(2) + '%' : '—' }}
-          </span>
-        </div>
-        <div class="tv-ob-footer-item">
-          <span class="tv-ob-footer-label">最新价</span>
-          <span style="font-weight: 600">{{ fmtPrice(lastPrice) }}</span>
-        </div>
-      </div>
     </div>
   </section>
 </template>
 
 <style scoped>
+.tv-panel-body.is-flush {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
 /* ---------- Preset buttons ---------- */
 .tv-ob-presets {
   display: flex;
@@ -466,9 +465,16 @@ watch(
 /* ---------- BBO cards ---------- */
 .tv-ob-bbo {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr auto auto 1fr;
   gap: 1px;
   background: var(--tv-border);
+  box-sizing: border-box;
+}
+
+.tv-ob-bbo::before,
+.tv-ob-bbo::after {
+  content: "";
+  background: var(--tv-bg-surface);
 }
 
 .tv-ob-bbo-card {
@@ -505,11 +511,12 @@ watch(
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
+  scrollbar-gutter: stable both-edges;
 }
 
 .tv-ob-depth-table {
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  grid-template-columns: 1fr auto auto 1fr;
   font-size: 11px;
   font-variant-numeric: tabular-nums;
 }
@@ -561,9 +568,18 @@ watch(
   font-weight: 600;
   padding: 0 10px;
   min-width: 64px;
+  background: var(--tv-bg-surface-2);
+}
+
+.tv-ob-depth-bid-price {
+  justify-content: flex-end;
   border-left: 1px solid var(--tv-border);
   border-right: 1px solid var(--tv-border);
-  background: var(--tv-bg-surface-2);
+}
+
+.tv-ob-depth-ask-price {
+  justify-content: flex-start;
+  border-right: 1px solid var(--tv-border);
 }
 
 .tv-ob-depth-size {
@@ -600,27 +616,4 @@ watch(
   line-height: 1.4;
 }
 
-/* ---------- Footer ---------- */
-.tv-ob-footer {
-  display: flex;
-  justify-content: space-around;
-  border-top: 1px solid var(--tv-border);
-  background: var(--tv-bg-surface-2);
-  padding: 6px 0;
-  font-size: 11px;
-  flex-shrink: 0;
-}
-
-.tv-ob-footer-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1px;
-}
-
-.tv-ob-footer-label {
-  font-size: 10px;
-  color: var(--tv-text-dim);
-  text-transform: uppercase;
-}
 </style>

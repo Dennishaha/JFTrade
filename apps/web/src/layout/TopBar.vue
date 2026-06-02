@@ -433,6 +433,16 @@ function onTradingEnvironmentSwitch(value: "REAL" | "SIMULATE" | null): void {
 </template>
 
 <style scoped>
+.tv-topbar-symbol__market {
+  color: var(--tv-text);
+  background: var(--tv-bg-surface-2);
+}
+
+.tv-topbar-symbol__market option {
+  color: var(--tv-text);
+  background: var(--tv-bg-surface);
+}
+
 .tv-topbar-account-picker {
   max-width: min(760px, 92vw);
 }

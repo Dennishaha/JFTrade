@@ -495,11 +495,21 @@ function handleBrokerQueryInput(event: Event): void {
 <style scoped>
 .strategy-instance-dialog {
     max-height: calc(100vh - 2rem);
-    overflow-y: auto;
     overflow-x: hidden;
-    border-color: var(--card-border);
-    background: var(--card-surface);
+    overflow-y: auto;
+    padding: 1.25rem;
+    border-radius: 1.75rem;
+    border: 1px solid var(--card-border);
+    background:
+        linear-gradient(
+            180deg,
+            color-mix(in srgb, var(--card-surface) 96%, transparent),
+            var(--card-surface)
+        );
     color: var(--card-text-1);
+    box-shadow: 0 24px 90px rgb(2 6 23 / 0.24);
+    backdrop-filter: blur(18px);
+    scrollbar-gutter: stable both-edges;
 }
 
 .strategy-instance-dialog .text-slate-900,
@@ -579,71 +589,17 @@ function handleBrokerQueryInput(event: Event): void {
     color: var(--card-active-text);
 }
 
-.strategy-account-picker__menu {
-    position: static;
-    top: auto;
-    left: auto;
-    right: auto;
-    z-index: auto;
-    margin-top: 0.45rem;
-    border-color: var(--card-border);
-    background: var(--card-surface);
-    box-shadow: 0 18px 40px rgb(15 23 42 / 0.14);
-}
-
-.strategy-account-picker__search {
-    border-color: var(--card-border);
-    background: var(--card-surface-raised);
-    color: var(--card-text-1);
-}
-
-.strategy-account-picker__search:focus {
-    border-color: color-mix(in srgb, var(--tv-accent) 72%, var(--card-border));
-    background: var(--card-surface);
-}
-
-.strategy-account-picker__option {
-    background: var(--card-surface-raised);
-    border-color: transparent;
-}
-
-.strategy-account-picker__option:hover {
-    border-color: var(--card-active-border);
-    background: color-mix(in srgb, var(--card-active-surface) 72%, var(--card-surface));
-}
-
-.strategy-account-picker__option.is-active {
-    border-color: var(--card-active-border);
-    background: color-mix(in srgb, var(--card-active-surface) 84%, var(--card-surface));
-}
-
-.strategy-account-picker__label,
-.strategy-account-picker__option-title,
-.strategy-account-picker__option-header {
-    color: var(--card-text-1);
-}
-
-.strategy-account-picker__meta,
-.strategy-account-picker__action,
-.strategy-account-picker__option-meta,
-.strategy-account-picker__empty {
-    color: var(--card-text-2);
-}
-
-.strategy-account-picker__tag--current {
-    border-color: var(--card-teal-border);
-    background: color-mix(in srgb, var(--card-teal-surface) 86%, transparent);
-    color: var(--card-teal-text);
-}
-
-.strategy-account-picker__empty {
-    border-color: var(--card-border);
-    background: color-mix(in srgb, var(--card-surface-raised) 88%, transparent);
-}
-
 .strategy-tag-input {
-    border-color: var(--card-border);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 3rem;
+    padding: 0.6rem 0.75rem;
+    border-radius: 1rem;
+    border: 1px solid var(--card-border);
     background: var(--card-surface);
+    transition: border-color 140ms ease, background-color 140ms ease;
 }
 
 .strategy-tag-input:focus-within {
@@ -660,91 +616,24 @@ function handleBrokerQueryInput(event: Event): void {
 }
 
 .strategy-tag-chip {
-    border-color: var(--card-active-border);
-    background: color-mix(in srgb, var(--card-active-surface) 88%, var(--card-surface));
-    color: var(--card-active-text);
-}
-
-.strategy-tag-chip__remove {
-    color: var(--card-text-2);
-}
-
-.strategy-tag-input__field {
-    color: var(--card-text-1);
-}
-
-.strategy-tag-input__field::placeholder {
-    color: var(--card-text-3);
-}
-
-.strategy-instance-dialog {
-    border-radius: 1.75rem;
-    border: 1px solid rgb(226 232 240);
-    background: white;
-    padding: 1.25rem;
-    box-shadow: 0 24px 90px rgb(15 23 42 / 0.2);
-}
-
-.strategy-tag-input {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.5rem;
-    min-height: 3rem;
-    padding: 0.6rem 0.75rem;
-    border-radius: 1rem;
-    border: 1px solid rgb(203 213 225);
-    background: white;
-    transition: border-color 140ms ease;
-}
-
-.strategy-tag-input:focus-within {
-    border-color: rgb(100 116 139);
-}
-
-.strategy-tag-input--invalid {
-    border-color: rgb(245 158 11);
-    background: rgb(255 251 235);
-}
-
-.strategy-tag-input--invalid:focus-within {
-    border-color: rgb(217 119 6);
-}
-
-.strategy-tag-chip {
     display: inline-flex;
     align-items: center;
     gap: 0.45rem;
     max-width: 100%;
     padding: 0.35rem 0.7rem;
     border-radius: 999px;
-    border: 1px solid rgb(191 219 254);
-    background: rgb(239 246 255);
-    color: rgb(30 64 175);
+    border: 1px solid var(--card-active-border);
+    background: color-mix(in srgb, var(--card-active-surface) 88%, var(--card-surface));
+    color: var(--card-active-text);
     font-size: 0.76rem;
     font-weight: 600;
     line-height: 1;
 }
 
 .strategy-tag-chip__remove {
-    color: rgb(71 85 105);
+    color: var(--card-text-2);
     font-size: 0.72rem;
     text-transform: uppercase;
-}
-
-.strategy-tag-input__field {
-    flex: 1 1 10rem;
-    min-width: 10rem;
-    border: 0;
-    outline: none;
-    background: transparent;
-    color: rgb(15 23 42);
-    font-size: 0.875rem;
-    padding: 0.1rem 0;
-}
-
-.strategy-tag-input__field::placeholder {
-    color: rgb(148 163 184);
 }
 
 .strategy-account-picker {
@@ -758,21 +647,21 @@ function handleBrokerQueryInput(event: Event): void {
     justify-content: space-between;
     gap: 0.75rem;
     border-radius: 1rem;
-    border: 1px solid rgb(203 213 225);
-    background: white;
+    border: 1px solid var(--card-border);
+    background: var(--card-surface);
     padding: 0.75rem 0.85rem;
     text-align: left;
-    transition: border-color 140ms ease, box-shadow 140ms ease;
+    transition: border-color 140ms ease, box-shadow 140ms ease, background-color 140ms ease;
 }
 
 .strategy-account-picker__trigger:hover {
-    border-color: rgb(148 163 184);
+    border-color: color-mix(in srgb, var(--card-text-3) 55%, var(--card-border));
 }
 
 .strategy-account-picker__trigger:focus-visible {
     outline: none;
-    border-color: rgb(100 116 139);
-    box-shadow: 0 0 0 3px rgb(226 232 240 / 0.9);
+    border-color: color-mix(in srgb, var(--tv-accent) 70%, var(--card-border));
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--tv-accent) 18%, transparent);
 }
 
 .strategy-account-picker__copy {
@@ -786,7 +675,7 @@ function handleBrokerQueryInput(event: Event): void {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    color: rgb(15 23 42);
+    color: var(--card-text-1);
     font-size: 0.875rem;
     font-weight: 600;
 }
@@ -796,14 +685,14 @@ function handleBrokerQueryInput(event: Event): void {
     flex-wrap: wrap;
     align-items: center;
     gap: 0.4rem;
-    color: rgb(100 116 139);
+    color: var(--card-text-2);
     font-size: 0.74rem;
     line-height: 1.3;
 }
 
 .strategy-account-picker__action {
     flex-shrink: 0;
-    color: rgb(71 85 105);
+    color: var(--card-text-2);
     font-size: 0.74rem;
     font-weight: 600;
 }
@@ -812,27 +701,29 @@ function handleBrokerQueryInput(event: Event): void {
     z-index: 20;
     display: grid;
     gap: 0.65rem;
+    position: static;
+    margin-top: 0.45rem;
     border-radius: 1.1rem;
-    border: 1px solid rgb(226 232 240);
-    background: white;
+    border: 1px solid var(--card-border);
+    background: var(--card-surface);
     padding: 0.8rem;
-    box-shadow: 0 18px 40px rgb(15 23 42 / 0.14);
+    box-shadow: 0 18px 40px rgb(2 6 23 / 0.24);
 }
 
 .strategy-account-picker__search {
     width: 100%;
     border-radius: 0.9rem;
-    border: 1px solid rgb(203 213 225);
-    background: rgb(248 250 252);
+    border: 1px solid var(--card-border);
+    background: var(--card-surface-raised);
     padding: 0.7rem 0.8rem;
-    color: rgb(15 23 42);
+    color: var(--card-text-1);
     font-size: 0.875rem;
     outline: none;
 }
 
 .strategy-account-picker__search:focus {
-    border-color: rgb(100 116 139);
-    background: white;
+    border-color: color-mix(in srgb, var(--tv-accent) 72%, var(--card-border));
+    background: var(--card-surface);
 }
 
 .strategy-account-picker__options {
@@ -848,20 +739,20 @@ function handleBrokerQueryInput(event: Event): void {
     width: 100%;
     border-radius: 0.95rem;
     border: 1px solid transparent;
-    background: rgb(248 250 252);
+    background: var(--card-surface-raised);
     padding: 0.7rem 0.8rem;
     text-align: left;
     transition: border-color 140ms ease, background-color 140ms ease;
 }
 
 .strategy-account-picker__option:hover {
-    border-color: rgb(191 219 254);
-    background: rgb(239 246 255);
+    border-color: var(--card-active-border);
+    background: color-mix(in srgb, var(--card-active-surface) 72%, var(--card-surface));
 }
 
 .strategy-account-picker__option.is-active {
-    border-color: rgb(59 130 246);
-    background: rgb(239 246 255);
+    border-color: var(--card-active-border);
+    background: color-mix(in srgb, var(--card-active-surface) 84%, var(--card-surface));
 }
 
 .strategy-account-picker__option-header {
@@ -873,13 +764,13 @@ function handleBrokerQueryInput(event: Event): void {
 }
 
 .strategy-account-picker__option-title {
-    color: rgb(15 23 42);
+    color: var(--card-text-1);
     font-size: 0.84rem;
     font-weight: 600;
 }
 
 .strategy-account-picker__option-meta {
-    color: rgb(100 116 139);
+    color: var(--card-text-2);
     font-size: 0.72rem;
     line-height: 1.35;
 }
@@ -896,16 +787,17 @@ function handleBrokerQueryInput(event: Event): void {
 }
 
 .strategy-account-picker__tag--current {
-    border: 1px solid rgb(167 243 208);
-    background: rgb(236 253 245);
-    color: rgb(4 120 87);
+    border: 1px solid var(--card-teal-border);
+    background: color-mix(in srgb, var(--card-teal-surface) 86%, transparent);
+    color: var(--card-teal-text);
 }
 
 .strategy-account-picker__empty {
     border-radius: 0.95rem;
-    border: 1px dashed rgb(203 213 225);
+    border: 1px dashed var(--card-border);
+    background: color-mix(in srgb, var(--card-surface-raised) 88%, transparent);
     padding: 0.9rem 0.8rem;
-    color: rgb(100 116 139);
+    color: var(--card-text-2);
     font-size: 0.78rem;
 }
 </style>
