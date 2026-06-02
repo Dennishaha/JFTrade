@@ -200,8 +200,7 @@ function openRightDock(tab: "notifications" | "ai" | "context"): void {
   update({ rightDockOpen: true, rightDockTab: tab });
 }
 
-function onSymbolSubmit(event: Event): void {
-  event.preventDefault();
+function submitSymbol(): void {
   const parsed = resolveInstrumentRef(
     {
       market: selectedMarket.value,
@@ -285,15 +284,24 @@ function onTradingEnvironmentSwitch(value: "REAL" | "SIMULATE" | null): void {
       JFTRADE
     </div>
 
-    <form class="tv-topbar-symbol" data-testid="topbar-instrument-form" @submit="onSymbolSubmit">
+    <form class="tv-topbar-symbol" data-testid="topbar-instrument-form" @submit.prevent="submitSymbol">
       <span style="color: var(--tv-text-muted); font-size: 11px">⌕</span>
       <select v-model="selectedMarket" class="tv-topbar-symbol__market" data-testid="topbar-instrument-market">
         <option v-for="option in TOPBAR_MARKET_OPTIONS" :key="option.value" :value="option.value">
           {{ option.title }}
         </option>
       </select>
-      <input v-model="codeInput" :placeholder="prefs.symbol" list="jftrade-symbol-search" spellcheck="false"
-        autocomplete="off" data-testid="topbar-instrument-code" />
+      <input
+        v-model="codeInput"
+        :placeholder="prefs.symbol"
+        list="jftrade-symbol-search"
+        spellcheck="false"
+        autocomplete="off"
+        enterkeyhint="search"
+        type="search"
+        data-testid="topbar-instrument-code"
+        @keydown.enter.prevent="submitSymbol"
+      />
       <datalist id="jftrade-symbol-search">
         <option v-for="option in codeSuggestions" :key="option.instrumentId" :value="option.symbol"
           :label="option.label" />

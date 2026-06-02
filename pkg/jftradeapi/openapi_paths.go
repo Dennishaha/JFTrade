@@ -2,6 +2,28 @@ package jftradeapi
 
 func buildOpenAPIPaths(genericObject map[string]any) map[string]any {
 	return map[string]any{
+		"/api/v1/settings/ui": map[string]any{
+			"get": operation(
+				"读取 UI 颜色配置",
+				"返回市场涨跌色配置，保存在 settings.json 中。",
+				[]string{"settings"},
+				nil,
+				nil,
+				map[string]any{"200": jsonResponse("当前 UI 配置", envelopeSchema(schemaRef("UIAppearanceSettingsResponse")))},
+			),
+			"put": operation(
+				"保存 UI 颜色配置",
+				"更新市场涨跌色并写入 settings.json。",
+				[]string{"settings"},
+				nil,
+				jsonRequestBody(schemaRef("UIAppearanceSettingsWriteRequest"), true),
+				map[string]any{
+					"200": jsonResponse("保存后的 UI 配置", envelopeSchema(schemaRef("UIAppearanceSettingsResponse"))),
+					"400": jsonResponse("请求体错误", envelopeSchema(nil)),
+					"500": jsonResponse("保存失败", envelopeSchema(nil)),
+				},
+			),
+		},
 		"/api/v1/settings/brokers": map[string]any{
 			"get": operation(
 				"读取 broker 设置",

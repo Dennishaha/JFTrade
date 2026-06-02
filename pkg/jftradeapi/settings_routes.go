@@ -7,6 +7,10 @@ import (
 
 func (s *Server) serveSettingsRoutes(w http.ResponseWriter, r *http.Request) bool {
 	switch {
+	case r.URL.Path == "/api/v1/settings/ui" && r.Method == http.MethodGet:
+		s.writeOK(w, map[string]any{"appearance": s.store.appearance()})
+	case r.URL.Path == "/api/v1/settings/ui" && r.Method == http.MethodPut:
+		s.handleSaveUIAppearance(w, r)
 	case r.URL.Path == "/api/v1/settings/brokers" && r.Method == http.MethodGet:
 		s.writeOK(w, s.brokerSettings())
 	case strings.HasPrefix(r.URL.Path, "/api/v1/settings/brokers/") && strings.HasSuffix(r.URL.Path, "/integration") && r.Method == http.MethodPut:

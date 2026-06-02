@@ -490,7 +490,7 @@ watch(
 }
 
 .tv-ob-ratio-bid {
-  background: rgba(22, 199, 132, 0.18);
+  background: color-mix(in srgb, var(--tv-up) 18%, transparent);
   color: var(--tv-up);
   text-align: left;
   padding-left: 6px;
@@ -501,7 +501,7 @@ watch(
 }
 
 .tv-ob-ratio-ask {
-  background: rgba(234, 57, 67, 0.15);
+  background: color-mix(in srgb, var(--tv-down) 18%, transparent);
   color: var(--tv-down);
   text-align: right;
   padding-right: 6px;

@@ -49,10 +49,16 @@ type InterfaceSettings struct {
 	GUIAPIBaseURL string `json:"guiApiBaseUrl,omitempty"`
 }
 
+type UIAppearanceSettings struct {
+	UpColor   string `json:"upColor"`
+	DownColor string `json:"downColor"`
+}
+
 type settingsFile struct {
 	Interfaces  *InterfaceSettings     `json:"interfaces,omitempty"`
 	Integration *BrokerIntegration     `json:"integration,omitempty"`
 	Accounts    []ManagedBrokerAccount `json:"accounts,omitempty"`
+	Appearance  *UIAppearanceSettings  `json:"appearance,omitempty"`
 }
 
 type SettingsStore struct {
@@ -71,12 +77,17 @@ func NewSettingsStore(path string) (*SettingsStore, error) {
 
 func (s *SettingsStore) ensureBootstrapFile(defaults launchDefaults) error {
 	if _, err := os.Stat(s.path); err == nil {
-		return nil
+		if s.hasAppearance() {
+			return nil
+		}
+		_, err := s.saveAppearance(defaultUIAppearanceSettings())
+		return err
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return err
 	}
 	s.mu.Lock()
 	s.data.Interfaces = interfaceSettingsPointer(normalizeInterfaceSettings(interfaceSettingsFromDefaults(defaults), defaults))
+	s.data.Appearance = uiAppearanceSettingsPointer(defaultUIAppearanceSettings())
 	s.mu.Unlock()
 	_, err := s.saveIntegration(s.integration())
 	return err
@@ -124,6 +135,40 @@ func (s *SettingsStore) interfaceSettings(defaults launchDefaults) InterfaceSett
 		return normalizeInterfaceSettings(*s.data.Interfaces, defaults)
 	}
 	return normalizeInterfaceSettings(interfaceSettingsFromDefaults(defaults), defaults)
+}
+
+func (s *SettingsStore) appearance() UIAppearanceSettings {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.data.Appearance != nil {
+		return normalizeUIAppearanceSettings(*s.data.Appearance)
+	}
+	return defaultUIAppearanceSettings()
+}
+
+func (s *SettingsStore) hasAppearance() bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.data.Appearance != nil
+}
+
+func (s *SettingsStore) saveAppearance(input UIAppearanceSettings) (UIAppearanceSettings, error) {
+	normalized := normalizeUIAppearanceSettings(input)
+
+	s.mu.Lock()
+	s.data.Appearance = uiAppearanceSettingsPointer(normalized)
+	data, err := json.MarshalIndent(s.data, "", "  ")
+	if err != nil {
+		s.mu.Unlock()
+		return normalized, err
+	}
+	if err := os.MkdirAll(filepath.Dir(s.path), 0o755); err != nil {
+		s.mu.Unlock()
+		return normalized, err
+	}
+	err = os.WriteFile(s.path, data, 0o600)
+	s.mu.Unlock()
+	return normalized, err
 }
 
 func (s *SettingsStore) saveIntegration(input BrokerIntegration) (BrokerIntegration, error) {
@@ -286,6 +331,43 @@ func normalizeInterfaceSettings(input InterfaceSettings, defaults launchDefaults
 }
 
 func interfaceSettingsPointer(value InterfaceSettings) *InterfaceSettings {
+	settings := value
+	return &settings
+}
+
+func defaultUIAppearanceSettings() UIAppearanceSettings {
+	return UIAppearanceSettings{
+		UpColor:   "#16c784",
+		DownColor: "#ea3943",
+	}
+}
+
+func normalizeUIAppearanceSettings(input UIAppearanceSettings) UIAppearanceSettings {
+	defaults := defaultUIAppearanceSettings()
+	return UIAppearanceSettings{
+		UpColor:   normalizeHexColor(input.UpColor, defaults.UpColor),
+		DownColor: normalizeHexColor(input.DownColor, defaults.DownColor),
+	}
+}
+
+func normalizeHexColor(value string, fallback string) string {
+	trimmed := strings.TrimSpace(value)
+	if len(trimmed) != 7 || !strings.HasPrefix(trimmed, "#") {
+		return fallback
+	}
+	for _, r := range trimmed[1:] {
+		switch {
+		case r >= '0' && r <= '9':
+		case r >= 'a' && r <= 'f':
+		case r >= 'A' && r <= 'F':
+		default:
+			return fallback
+		}
+	}
+	return strings.ToLower(trimmed)
+}
+
+func uiAppearanceSettingsPointer(value UIAppearanceSettings) *UIAppearanceSettings {
 	settings := value
 	return &settings
 }

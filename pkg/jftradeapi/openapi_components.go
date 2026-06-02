@@ -45,6 +45,28 @@ func buildOpenAPIComponents() map[string]any {
 				},
 				"required": []string{"enabled", "config"},
 			},
+			"UIAppearanceSettings": map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"upColor":   map[string]any{"type": "string", "example": "#16c784"},
+					"downColor": map[string]any{"type": "string", "example": "#ea3943"},
+				},
+				"required": []string{"upColor", "downColor"},
+			},
+			"UIAppearanceSettingsWriteRequest": map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"appearance": schemaRef("UIAppearanceSettings"),
+				},
+				"required": []string{"appearance"},
+			},
+			"UIAppearanceSettingsResponse": map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"appearance": schemaRef("UIAppearanceSettings"),
+				},
+				"required": []string{"appearance"},
+			},
 			"ManagedBrokerAccount": map[string]any{
 				"type": "object",
 				"properties": map[string]any{

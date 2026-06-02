@@ -27,7 +27,8 @@ func TestEnsureBootstrapFilePersistsInterfaceDefaults(t *testing.T) {
 		t.Fatalf("ReadFile settings: %v", err)
 	}
 	var decoded struct {
-		Interfaces InterfaceSettings `json:"interfaces"`
+		Interfaces InterfaceSettings    `json:"interfaces"`
+		Appearance UIAppearanceSettings `json:"appearance"`
 	}
 	if err := json.Unmarshal(rawSettings, &decoded); err != nil {
 		t.Fatalf("Unmarshal settings: %v", err)
@@ -40,6 +41,9 @@ func TestEnsureBootstrapFilePersistsInterfaceDefaults(t *testing.T) {
 	}
 	if decoded.Interfaces.GUIAPIBaseURL != apiBaseURLForBind(defaultReleaseAPIBind) {
 		t.Fatalf("guiApiBaseUrl = %q", decoded.Interfaces.GUIAPIBaseURL)
+	}
+	if decoded.Appearance.UpColor != "#16c784" || decoded.Appearance.DownColor != "#ea3943" {
+		t.Fatalf("appearance settings = %+v", decoded.Appearance)
 	}
 }
 

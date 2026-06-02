@@ -1,8 +1,7 @@
 import { computed, type ComputedRef, type InjectionKey, type Ref, inject, provide, ref, watch } from "vue";
 
+import { fetchEnvelope, fetchEnvelopeWithInit } from "./apiClient";
 import type { ThemeMode } from "./useTheme";
-
-const STORAGE_KEY = "jftrade.ui.colors.v1";
 
 export interface UIColorPreferences {
   upColor: string;
@@ -67,26 +66,6 @@ function normalizeHexColor(value: unknown, fallback: string): string {
   return fallback;
 }
 
-function readInitial(): UIColorPreferences {
-  if (typeof window === "undefined") {
-    return { ...fallbackPreferences };
-  }
-
-  try {
-    const raw = window.localStorage?.getItem(STORAGE_KEY);
-    if (raw == null || raw.trim() === "") {
-      return { ...fallbackPreferences };
-    }
-    const parsed = JSON.parse(raw) as Partial<UIColorPreferences>;
-    return {
-      upColor: normalizeHexColor(parsed.upColor, fallbackPreferences.upColor),
-      downColor: normalizeHexColor(parsed.downColor, fallbackPreferences.downColor),
-    };
-  } catch {
-    return { ...fallbackPreferences };
-  }
-}
-
 function applyDirectionalColorVariables(colors: UIColorPreferences): void {
   if (typeof document === "undefined") return;
   document.documentElement.style.setProperty("--tv-up", colors.upColor);
@@ -99,7 +78,8 @@ export function provideUIColorPreferencesStore(
   const theme = "theme" in (themeInput ?? {})
     ? (themeInput as { theme: Ref<ThemeMode> }).theme
     : themeInput as Ref<ThemeMode> | undefined;
-  const prefs = ref<UIColorPreferences>(readInitial());
+  const prefs = ref<UIColorPreferences>({ ...fallbackPreferences });
+  const isHydrating = ref(true);
   const resolved = computed(() => {
     const defaults = resolveDirectionalColors(theme?.value ?? "dark");
     return {
@@ -108,16 +88,46 @@ export function provideUIColorPreferencesStore(
     };
   });
 
+  async function persist(next: UIColorPreferences): Promise<void> {
+    await fetchEnvelopeWithInit("/api/v1/settings/ui", {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        appearance: next,
+      }),
+    });
+  }
+
+  async function hydrate(): Promise<void> {
+    try {
+      const response = await fetchEnvelope<{ appearance: UIColorPreferences }>("/api/v1/settings/ui");
+      const serverAppearance = response.appearance;
+      const next = {
+        upColor: normalizeHexColor(serverAppearance.upColor, fallbackPreferences.upColor),
+        downColor: normalizeHexColor(serverAppearance.downColor, fallbackPreferences.downColor),
+      };
+      prefs.value = next;
+    } catch {
+      prefs.value = { ...fallbackPreferences };
+    } finally {
+      isHydrating.value = false;
+    }
+  }
+
   watch(
     prefs,
     (next) => {
-      if (typeof window === "undefined" || window.localStorage == null) return;
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      if (isHydrating.value) return;
+      void persist(next).catch(() => {});
     },
     { deep: true },
   );
 
   watch(resolved, applyDirectionalColorVariables, { immediate: true });
+
+  void hydrate();
 
   const store: UIColorPreferencesStore = {
     prefs,

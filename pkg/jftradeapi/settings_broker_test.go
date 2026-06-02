@@ -207,3 +207,48 @@ func TestManagedBrokerAccountCRUDReflectsInBrokerSettings(t *testing.T) {
 		t.Fatalf("expected zero accounts after delete: %+v", settingsEnvelope.Data.Accounts)
 	}
 }
+
+func TestUIAppearanceSavePersistsToSettings(t *testing.T) {
+	settingsPath := filepath.Join(t.TempDir(), "settings.json")
+	store, err := NewSettingsStore(settingsPath)
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	srv := httptest.NewServer(NewServer(store))
+	defer srv.Close()
+
+	payload := map[string]any{
+		"appearance": map[string]any{
+			"upColor":   "#0055aa",
+			"downColor": "#aa2200",
+		},
+	}
+	body, _ := json.Marshal(payload)
+	req, err := http.NewRequest(http.MethodPut, srv.URL+"/api/v1/settings/ui", bytes.NewReader(body))
+	if err != nil {
+		t.Fatalf("NewRequest UI appearance: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("PUT UI appearance: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("PUT UI appearance status = %d", resp.StatusCode)
+	}
+
+	rawSettings, err := os.ReadFile(settingsPath)
+	if err != nil {
+		t.Fatalf("ReadFile settings: %v", err)
+	}
+	var decoded struct {
+		Appearance UIAppearanceSettings `json:"appearance"`
+	}
+	if err := json.Unmarshal(rawSettings, &decoded); err != nil {
+		t.Fatalf("Unmarshal settings: %v", err)
+	}
+	if decoded.Appearance.UpColor != "#0055aa" || decoded.Appearance.DownColor != "#aa2200" {
+		t.Fatalf("persisted appearance = %+v", decoded.Appearance)
+	}
+}

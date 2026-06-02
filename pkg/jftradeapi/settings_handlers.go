@@ -47,6 +47,24 @@ func (s *Server) handleSaveBrokerIntegration(w http.ResponseWriter, r *http.Requ
 	s.writeOK(w, integration)
 }
 
+func (s *Server) handleSaveUIAppearance(w http.ResponseWriter, r *http.Request) {
+	var payload struct {
+		Appearance UIAppearanceSettings `json:"appearance"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", err.Error())
+		return
+	}
+
+	appearance, err := s.store.saveAppearance(payload.Appearance)
+	if err != nil {
+		s.writeError(w, http.StatusInternalServerError, "SETTINGS_SAVE_FAILED", err.Error())
+		return
+	}
+
+	s.writeOK(w, map[string]any{"appearance": appearance})
+}
+
 func (s *Server) handleCreateManagedBrokerAccount(w http.ResponseWriter, r *http.Request) {
 	var payload managedBrokerAccountWriteRequest
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {

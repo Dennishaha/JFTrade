@@ -220,6 +220,13 @@ export interface BrokerSettingsResponse {
   }>;
 }
 
+export interface UIColorPreferencesResponse {
+  appearance: {
+    upColor: string;
+    downColor: string;
+  };
+}
+
 export type PluginInstallStatus =
   | "NOT_INSTALLED"
   | "INSTALLING"
