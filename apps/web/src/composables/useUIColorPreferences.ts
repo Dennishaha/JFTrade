@@ -80,6 +80,7 @@ export function provideUIColorPreferencesStore(
     : themeInput as Ref<ThemeMode> | undefined;
   const prefs = ref<UIColorPreferences>({ ...fallbackPreferences });
   const isHydrating = ref(true);
+  const hasLocalChangesDuringHydration = ref(false);
   const resolved = computed(() => {
     const defaults = resolveDirectionalColors(theme?.value ?? "dark");
     return {
@@ -108,11 +109,18 @@ export function provideUIColorPreferencesStore(
         upColor: normalizeHexColor(serverAppearance.upColor, fallbackPreferences.upColor),
         downColor: normalizeHexColor(serverAppearance.downColor, fallbackPreferences.downColor),
       };
-      prefs.value = next;
+      if (!hasLocalChangesDuringHydration.value) {
+        prefs.value = next;
+      }
     } catch {
-      prefs.value = { ...fallbackPreferences };
+      if (!hasLocalChangesDuringHydration.value) {
+        prefs.value = { ...fallbackPreferences };
+      }
     } finally {
       isHydrating.value = false;
+      if (hasLocalChangesDuringHydration.value) {
+        void persist(prefs.value).catch(() => {});
+      }
     }
   }
 
@@ -133,15 +141,24 @@ export function provideUIColorPreferencesStore(
     prefs,
     resolved,
     update: (patch) => {
+      if (isHydrating.value) {
+        hasLocalChangesDuringHydration.value = true;
+      }
       prefs.value = {
         upColor: normalizeHexColor(patch.upColor, prefs.value.upColor),
         downColor: normalizeHexColor(patch.downColor, prefs.value.downColor),
       };
     },
     setRiseIsRed: (enabled) => {
+      if (isHydrating.value) {
+        hasLocalChangesDuringHydration.value = true;
+      }
       prefs.value = resolveDirectionalColors(theme?.value ?? "dark", enabled);
     },
     reset: () => {
+      if (isHydrating.value) {
+        hasLocalChangesDuringHydration.value = true;
+      }
       prefs.value = resolveDirectionalColors(theme?.value ?? "dark");
     },
   };
