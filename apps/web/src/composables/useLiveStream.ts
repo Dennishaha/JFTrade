@@ -2,6 +2,10 @@ import { ref } from "vue";
 
 import { buildRuntimeApiUrl } from "../runtimeConfig";
 import {
+  createEventSourceStream,
+  type EventSourceConnectionState,
+} from "./eventSourceStream";
+import {
   normalizeMarketDataTickLiveEvent,
   type MarketDataTickLiveEvent,
 } from "./marketDataRealtime";
@@ -13,12 +17,7 @@ function buildEventStreamUrl(path: string): string {
 }
 
 export type LiveStreamConnectionState =
-  | "idle"
-  | "connecting"
-  | "connected"
-  | "disconnected"
-  | "error"
-  | "unsupported";
+  EventSourceConnectionState;
 
 export type MarketDataTickLiveStreamEvent = MarketDataTickLiveEvent;
 
@@ -43,96 +42,36 @@ export type LiveStreamEvent =
     };
 
 export function useLiveStream() {
-  const connectionState = ref<LiveStreamConnectionState>("idle");
   const lastHeartbeat = ref<string | null>(null);
   const events = ref<LiveStreamEvent[]>([]);
-  let stream: EventSource | null = null;
-  let activeUrl: string | null = null;
-  let currentAttemptConnected = false;
+  const stream = createEventSourceStream<LiveStreamEvent>({
+    parseEvent: (rawPayload) =>
+      normalizeMarketDataTickLiveEvent(rawPayload) ??
+      (rawPayload as LiveStreamEvent),
+    onMessage: (payload) => {
+      events.value = [
+        ...events.value.slice(-(MAX_BUFFERED_EVENTS - 1)),
+        payload,
+      ];
 
-  function closeActiveStream(markDisconnected: boolean): void {
-    const activeStream = stream;
-    stream = null;
-    activeStream?.close();
-
-    if (markDisconnected && connectionState.value !== "unsupported") {
-      connectionState.value = "disconnected";
-    }
-  }
+      if (payload.type === "heartbeat") {
+        lastHeartbeat.value = payload.at;
+      }
+    },
+  });
 
   function disconnect(): void {
-    activeUrl = null;
-    currentAttemptConnected = false;
-    closeActiveStream(true);
+    stream.activeUrl.value = null;
+    stream.disconnect(true);
   }
 
-  function connect(
-    url = buildEventStreamUrl("/api/v1/stream/live"),
-  ): EventSource | null {
-    if (typeof EventSource === "undefined") {
-      connectionState.value = "unsupported";
-      return null;
-    }
-
-    activeUrl = url;
-    currentAttemptConnected = false;
-    closeActiveStream(false);
-    connectionState.value = "connecting";
-
-    const nextStream = new EventSource(url);
-    stream = nextStream;
-
-    nextStream.onopen = () => {
-      if (stream !== nextStream) {
-        return;
-      }
-
-      connectionState.value = "connected";
-      currentAttemptConnected = true;
-    };
-
-    nextStream.onmessage = (event) => {
-      if (stream !== nextStream) {
-        return;
-      }
-
-      try {
-        const rawPayload = JSON.parse(event.data as string) as unknown;
-        const payload =
-          normalizeMarketDataTickLiveEvent(rawPayload) ??
-          (rawPayload as LiveStreamEvent);
-        events.value = [
-          ...events.value.slice(-(MAX_BUFFERED_EVENTS - 1)),
-          payload,
-        ];
-
-        if (payload.type === "heartbeat") {
-          lastHeartbeat.value = payload.at;
-        }
-
-        connectionState.value = "connected";
-        currentAttemptConnected = true;
-      } catch {
-        connectionState.value = "error";
-      }
-    };
-
-    nextStream.onerror = () => {
-      if (stream !== nextStream) {
-        return;
-      }
-
-      connectionState.value = currentAttemptConnected
-        ? "error"
-        : "disconnected";
-    };
-
-    return nextStream;
+  function connect(url = buildEventStreamUrl("/api/sse/live")): EventSource | null {
+    return stream.connect(url);
   }
 
   return {
     connect,
-    connectionState,
+    connectionState: stream.connectionState,
     disconnect,
     events,
     lastHeartbeat,

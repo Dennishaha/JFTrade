@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestMarketSecurityDetailsResponseQueriesSecuritySnapshot(t *testing.T) {
@@ -12,6 +13,7 @@ func TestMarketSecurityDetailsResponseQueriesSecuritySnapshot(t *testing.T) {
 	defer quoteServer.stop()
 
 	server := newMarketDataTestServerWithQuoteRuntime(t, quoteServer.addr)
+	defer server.Close()
 	response, err := server.marketSecurityDetailsResponse(
 		t.Context(),
 		"/api/v1/market-data/securities/HK/00700",
@@ -67,10 +69,11 @@ func TestMarketSecurityDetailsSSEStreamSendsInitialPayload(t *testing.T) {
 	defer quoteServer.stop()
 
 	server := newMarketDataTestServerWithQuoteRuntime(t, quoteServer.addr)
+	defer server.Close()
 	srv := httptest.NewServer(server)
 	defer srv.Close()
 
-	response, err := liveSSERequest(t, srv.URL+"/api/v1/market-data/securities/HK/00700")
+	response, err := liveSSERequest(t, srv.URL+"/api/sse/market/securities/HK/00700")
 	if err != nil {
 		t.Fatalf("GET market security details SSE: %v", err)
 	}
@@ -80,7 +83,11 @@ func TestMarketSecurityDetailsSSEStreamSendsInitialPayload(t *testing.T) {
 		t.Fatalf("Content-Type = %q", got)
 	}
 
-	event := readSSEEvent(t, bufio.NewReader(response.Body))
+	reader := bufio.NewReader(response.Body)
+	if retryMillis := readSSERetry(t, reader); retryMillis != int(defaultSSEClientRetry/time.Millisecond) {
+		t.Fatalf("retry = %d", retryMillis)
+	}
+	event := readSSEEvent(t, reader)
 	request, ok := event["request"].(map[string]any)
 	if !ok {
 		t.Fatalf("request payload type = %T", event["request"])
@@ -201,6 +208,7 @@ func marketSecurityDetailsResponseForPath(t *testing.T, path string) map[string]
 	defer quoteServer.stop()
 
 	server := newMarketDataTestServerWithQuoteRuntime(t, quoteServer.addr)
+	defer server.Close()
 	response, err := server.marketSecurityDetailsResponse(t.Context(), path)
 	if err != nil {
 		t.Fatalf("marketSecurityDetailsResponse(%s): %v", path, err)

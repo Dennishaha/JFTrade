@@ -6,6 +6,7 @@ import type {
 } from "@jftrade/ui-contracts";
 
 import { buildApiUrl, fetchEnvelope, fetchEnvelopeWithInit } from "../../composables/apiClient";
+import { createEventSourceStream } from "../../composables/eventSourceStream";
 import { useConsoleData } from "../../composables/useConsoleData";
 import { useWorkspaceLayout } from "../../composables/useWorkspaceLayout";
 
@@ -23,8 +24,20 @@ const isLoadingDepth = ref(false);
 const depthError = ref("");
 let depthRequestSeq = 0;
 let depthAbortController: AbortController | null = null;
-let depthStream: EventSource | null = null;
 let depthStreamUrl = "";
+const depthStream = createEventSourceStream<MarketDataDepthResponse>({
+  onMessage: (payload) => {
+    depthData.value = payload;
+    depthError.value = "";
+    isLoadingDepth.value = false;
+  },
+  onError: () => {
+    if (depthData.value == null) {
+      depthError.value = "盘口 SSE 连接中断，正在重试";
+      isLoadingDepth.value = false;
+    }
+  },
+});
 
 interface DepthLevel {
   bidPrice: number | null;
@@ -123,12 +136,12 @@ const sideClass = (val: number | null): string => {
 };
 
 function fmtPrice(v: number | null): string {
-  if (v == null) return "—";
+  if (v == null) return "--";
   return v.toFixed(v < 1 ? 4 : v < 10 ? 3 : 2);
 }
 
 function fmtSize(v: number | null): string {
-  if (v == null) return "—";
+  if (v == null) return "--";
   if (v >= 1_000_000_000) return (v / 1_000_000_000).toFixed(2) + "B";
   if (v >= 1_000_000) return (v / 1_000_000).toFixed(2) + "M";
   if (v >= 1_000) return (v / 1_000).toFixed(1) + "K";
@@ -147,6 +160,13 @@ function buildDepthUrl(): string | null {
   const symbol = prefs.value?.symbol;
   if (!market || !symbol) return null;
   return `/api/v1/market-data/depth/${market}/${symbol}?num=${depthNum.value}`;
+}
+
+function buildDepthStreamUrl(): string | null {
+  const market = prefs.value?.market;
+  const symbol = prefs.value?.symbol;
+  if (!market || !symbol) return null;
+  return `/api/sse/market/depth/${market}/${symbol}?num=${depthNum.value}`;
 }
 
 async function loadBrokerCapability(): Promise<void> {
@@ -207,13 +227,12 @@ async function fetchDepth(): Promise<void> {
 }
 
 function closeDepthStream(): void {
-  depthStream?.close();
-  depthStream = null;
+  depthStream.disconnect(false);
   depthStreamUrl = "";
 }
 
 function connectDepthStream(): void {
-  const url = buildDepthUrl();
+  const url = buildDepthStreamUrl();
   if (!url) {
     closeDepthStream();
     depthAbortController?.abort();
@@ -224,14 +243,8 @@ function connectDepthStream(): void {
     return;
   }
 
-  if (typeof EventSource === "undefined") {
-    closeDepthStream();
-    void fetchDepth();
-    return;
-  }
-
   const absoluteUrl = buildApiUrl(url);
-  if (depthStream != null && depthStreamUrl === absoluteUrl) {
+  if (depthStream.activeUrl.value != null && depthStreamUrl === absoluteUrl) {
     return;
   }
 
@@ -241,33 +254,26 @@ function connectDepthStream(): void {
   isLoadingDepth.value = true;
   depthError.value = "";
 
-  const stream = new EventSource(absoluteUrl);
-  depthStream = stream;
   depthStreamUrl = absoluteUrl;
+  if (depthStream.connect(absoluteUrl) == null) {
+    closeDepthStream();
+    void fetchDepth();
+    return;
+  }
+}
 
-  stream.onmessage = (event) => {
-    if (depthStream !== stream) {
-      return;
-    }
-    try {
-      depthData.value = JSON.parse(event.data as string) as MarketDataDepthResponse;
-      depthError.value = "";
-      isLoadingDepth.value = false;
-    } catch {
-      depthError.value = "盘口 SSE 数据解析失败";
-      isLoadingDepth.value = false;
-    }
-  };
+function handleDepthVisibilityChange(): void {
+  if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+    return;
+  }
 
-  stream.onerror = () => {
-    if (depthStream !== stream) {
-      return;
-    }
-    if (depthData.value == null) {
-      depthError.value = "盘口 SSE 连接中断，正在重试";
-      isLoadingDepth.value = false;
-    }
-  };
+  closeDepthStream();
+  connectDepthStream();
+}
+
+function handleDepthOnline(): void {
+  closeDepthStream();
+  connectDepthStream();
 }
 
 function setDepthNum(num: number): void {
@@ -278,10 +284,22 @@ function setDepthNum(num: number): void {
 
 // --- Lifecycle ---
 onMounted(() => {
+  if (typeof document !== "undefined") {
+    document.addEventListener("visibilitychange", handleDepthVisibilityChange);
+  }
+  if (typeof window !== "undefined") {
+    window.addEventListener("online", handleDepthOnline);
+  }
   loadBrokerCapability().then(() => connectDepthStream());
 });
 
 onUnmounted(() => {
+  if (typeof document !== "undefined") {
+    document.removeEventListener("visibilitychange", handleDepthVisibilityChange);
+  }
+  if (typeof window !== "undefined") {
+    window.removeEventListener("online", handleDepthOnline);
+  }
   closeDepthStream();
   depthAbortController?.abort();
   depthAbortController = null;
@@ -302,11 +320,7 @@ watch(
       <span class="tv-panel-title">盘口</span>
       <span style="color: var(--tv-text); font-weight: 600">{{ prefs.market }}:{{ prefs.symbol }}</span>
       <div style="flex: 1"></div>
-      <span
-        v-if="lastPrice"
-        style="font-size: 12px; font-weight: 700"
-        :class="sideClass(changeFromClose)"
-      >
+      <span v-if="lastPrice" style="font-size: 12px; font-weight: 700" :class="sideClass(changeFromClose)">
         {{ fmtPrice(lastPrice) }}
       </span>
     </div>
@@ -314,14 +328,9 @@ watch(
     <div class="tv-panel-body is-flush">
       <!-- Depth preset selector -->
       <div class="tv-ob-presets">
-        <button
-          v-for="preset in DEPTH_PRESETS"
-          :key="preset"
-          class="tv-ob-preset-btn"
-          :class="{ 'is-active': depthNum === preset }"
-          @click="setDepthNum(preset)"
-        >
-          {{ preset }}档
+        <button v-for="preset in DEPTH_PRESETS" :key="preset" class="tv-ob-preset-btn"
+          :class="{ 'is-active': depthNum === preset }" @click="setDepthNum(preset)">
+          {{ preset }}
         </button>
         <span v-if="isLoadingDepth" class="tv-ob-preset-spinner fa-solid fa-spinner fa-spin"></span>
         <span v-if="depthError" class="tv-ob-preset-error" :title="depthError">
@@ -332,10 +341,10 @@ watch(
       <!-- BBO ratio bar -->
       <div v-if="bidAskRatio != null" class="tv-ob-ratio-bar">
         <div class="tv-ob-ratio-bid" :style="{ width: bidRatioPercent + '%' }">
-          <span v-if="bidRatioPercent && parseFloat(bidRatioPercent) > 10">买 {{ bidRatioPercent }}%</span>
+          <span v-if="bidRatioPercent && parseFloat(bidRatioPercent) > 10">Bid {{ bidRatioPercent }}%</span>
         </div>
         <div class="tv-ob-ratio-ask" :style="{ width: askRatioPercent + '%' }">
-          <span v-if="askRatioPercent && parseFloat(askRatioPercent) > 10">卖 {{ askRatioPercent }}%</span>
+          <span v-if="askRatioPercent && parseFloat(askRatioPercent) > 10">Ask {{ askRatioPercent }}%</span>
         </div>
       </div>
 
@@ -357,39 +366,25 @@ watch(
       <div v-if="depthLevels.length > 0" class="tv-ob-depth-table-wrap">
         <div class="tv-ob-depth-table">
           <div class="tv-ob-depth-col tv-ob-depth-bid-col">
-            <div
-              v-for="(row, idx) in depthLevels"
-              :key="'b' + idx"
-              class="tv-ob-depth-row tv-ob-depth-row-ask"
-            >
+            <div v-for="(row, idx) in depthLevels" :key="'b' + idx" class="tv-ob-depth-row tv-ob-depth-row-ask">
               <span class="tv-ob-depth-size">{{ fmtSize(row.askSize) }}</span>
               <div class="tv-ob-depth-bar" :style="{ width: barWidth(maxAskSize, row.askSize) }"></div>
             </div>
           </div>
           <div class="tv-ob-depth-col tv-ob-depth-bid-price-col">
-            <div
-              v-for="(row, idx) in depthLevels"
-              :key="'bp' + idx"
-              class="tv-ob-depth-row tv-ob-depth-price tv-ob-depth-bid-price"
-            >
+            <div v-for="(row, idx) in depthLevels" :key="'bp' + idx"
+              class="tv-ob-depth-row tv-ob-depth-price tv-ob-depth-bid-price">
               {{ fmtPrice(row.askPrice) }}
             </div>
           </div>
           <div class="tv-ob-depth-col tv-ob-depth-ask-price-col">
-            <div
-              v-for="(row, idx) in depthLevels"
-              :key="'ap' + idx"
-              class="tv-ob-depth-row tv-ob-depth-price tv-ob-depth-ask-price"
-            >
+            <div v-for="(row, idx) in depthLevels" :key="'ap' + idx"
+              class="tv-ob-depth-row tv-ob-depth-price tv-ob-depth-ask-price">
               {{ fmtPrice(row.bidPrice) }}
             </div>
           </div>
           <div class="tv-ob-depth-col tv-ob-depth-ask-col">
-            <div
-              v-for="(row, idx) in depthLevels"
-              :key="'a' + idx"
-              class="tv-ob-depth-row tv-ob-depth-row-bid"
-            >
+            <div v-for="(row, idx) in depthLevels" :key="'a' + idx" class="tv-ob-depth-row tv-ob-depth-row-bid">
               <div class="tv-ob-depth-bar" :style="{ width: barWidth(maxBidSize, row.bidSize) }"></div>
               <span class="tv-ob-depth-size">{{ fmtSize(row.bidSize) }}</span>
             </div>
@@ -403,7 +398,7 @@ watch(
           <div class="tv-ob-depth-placeholder-icon">
             <span class="fa-solid fa-spinner fa-spin"></span>
           </div>
-          <div class="tv-ob-depth-placeholder-text">加载盘口数据…</div>
+          <div class="tv-ob-depth-placeholder-text">Loading order book…</div>
         </template>
         <template v-else-if="depthError">
           <div class="tv-ob-depth-placeholder-icon">
@@ -417,7 +412,7 @@ watch(
             <span class="fa-solid fa-chart-bar"></span>
           </div>
           <div class="tv-ob-depth-placeholder-text">暂无深度数据</div>
-          <div class="tv-ob-depth-placeholder-hint">请确保已连接行情并选择有效证券。</div>
+          <div class="tv-ob-depth-placeholder-hint">Connect market data and choose a valid instrument.</div>
         </template>
       </div>
 
@@ -664,5 +659,4 @@ watch(
   text-align: center;
   line-height: 1.4;
 }
-
 </style>

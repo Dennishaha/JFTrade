@@ -136,6 +136,13 @@ function scheduleMarketTickFlush(): void {
   }, Math.floor(1000 / 30));
 }
 
+function reconnectLiveStreamIfNeeded(): void {
+  if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+    return;
+  }
+  live.connect();
+}
+
 const stop = watch(
   () => live.events.value.at(-1),
   (ev) => {
@@ -230,6 +237,12 @@ const stopFutuOpenDMessages = watch(
 );
 
 onMounted(() => {
+  if (typeof document !== "undefined") {
+    document.addEventListener("visibilitychange", reconnectLiveStreamIfNeeded);
+  }
+  if (typeof window !== "undefined") {
+    window.addEventListener("online", reconnectLiveStreamIfNeeded);
+  }
   void console_.initialize();
   live.connect();
   notifications.push({
@@ -243,6 +256,12 @@ onMounted(() => {
 
 onUnmounted(() => {
   flushPendingMarketTickEvent();
+  if (typeof document !== "undefined") {
+    document.removeEventListener("visibilitychange", reconnectLiveStreamIfNeeded);
+  }
+  if (typeof window !== "undefined") {
+    window.removeEventListener("online", reconnectLiveStreamIfNeeded);
+  }
   live.disconnect();
   console_.dispose();
   stop();

@@ -64,7 +64,10 @@ func (dispatcher *liveStreamDispatcher) run() error {
 }
 
 func (dispatcher *liveStreamDispatcher) writeHeartbeat() error {
-	return writeHeartbeat(dispatcher.writer)
+	return writeHeartbeat(
+		dispatcher.writer,
+		dispatcher.server.liveHeartbeatEvent(dispatcher.heartbeatInterval),
+	)
 }
 
 func (dispatcher *liveStreamDispatcher) writeLiveData() error {

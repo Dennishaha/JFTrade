@@ -19,6 +19,20 @@ import (
 const marketSecurityDetailsStreamInterval = 1 * time.Second
 const marketDepthStreamRefreshInterval = 15 * time.Second
 
+func marketSecurityDetailsPathTail(path string) (string, string) {
+	if strings.HasPrefix(path, "/api/sse/market/securities/") {
+		return pathTail(path, "/api/sse/market/securities/")
+	}
+	return pathTail(path, "/api/v1/market-data/securities/")
+}
+
+func marketDepthPathTail(path string) (string, string) {
+	if strings.HasPrefix(path, "/api/sse/market/depth/") {
+		return pathTail(path, "/api/sse/market/depth/")
+	}
+	return pathTail(path, "/api/v1/market-data/depth/")
+}
+
 func (s *Server) handleMarketSnapshot(w http.ResponseWriter, r *http.Request) {
 	response, err := s.marketSnapshotResponse(r.Context(), r.URL.Path, r.URL.Query())
 	if err != nil {
@@ -29,10 +43,6 @@ func (s *Server) handleMarketSnapshot(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleMarketSecurityDetails(w http.ResponseWriter, r *http.Request) {
-	if acceptsEventStream(r) {
-		s.handleMarketSecurityDetailsEventStream(w, r)
-		return
-	}
 	response, err := s.marketSecurityDetailsResponse(r.Context(), r.URL.Path)
 	if err != nil {
 		s.writeError(w, http.StatusBadGateway, "MARKET_SECURITY_DETAILS_FAILED", err.Error())
@@ -42,7 +52,7 @@ func (s *Server) handleMarketSecurityDetails(w http.ResponseWriter, r *http.Requ
 }
 
 func (s *Server) handleMarketSecurityDetailsEventStream(w http.ResponseWriter, r *http.Request) {
-	flusher, ok := w.(http.Flusher)
+	writer, ok := prepareSSEWriter(w)
 	if !ok {
 		s.writeError(w, http.StatusInternalServerError, "MARKET_SECURITY_DETAILS_STREAM_UNSUPPORTED", "response writer does not support streaming")
 		return
@@ -54,36 +64,26 @@ func (s *Server) handleMarketSecurityDetailsEventStream(w http.ResponseWriter, r
 		return
 	}
 
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
-
-	writer := liveSSEWriter{writer: w, flusher: flusher}
-	if err := writer.WriteEvent(response); err != nil {
+	if err := writer.WriteRetryDirective(); err != nil {
 		return
 	}
-
-	ticker := time.NewTicker(marketSecurityDetailsStreamInterval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-r.Context().Done():
-			return
-		case <-ticker.C:
+	_ = runSSEStreamLoop(r.Context(), sseStreamLoopOptions{
+		initial: func(context.Context) error {
+			return writer.WriteEvent(response)
+		},
+		writeInterval: marketSecurityDetailsStreamInterval,
+		onTick: func(ctx context.Context) error {
 			response, err := s.marketSecurityDetailsResponse(r.Context(), r.URL.Path)
 			if err != nil {
-				continue
+				return nil
 			}
-			if err := writer.WriteEvent(response); err != nil {
-				return
-			}
-		}
-	}
+			return writer.WriteEvent(response)
+		},
+	})
 }
 
 func (s *Server) marketSecurityDetailsResponse(ctx context.Context, path string) (map[string]any, error) {
-	market, symbol := pathTail(path, "/api/v1/market-data/securities/")
+	market, symbol := marketSecurityDetailsPathTail(path)
 	market = strings.ToUpper(strings.TrimSpace(market))
 	symbol = strings.ToUpper(strings.TrimSpace(symbol))
 	instrumentID := market + "." + symbol
@@ -302,10 +302,6 @@ func (s *Server) futuExchange() *futu.Exchange {
 // --- Depth (Order Book) ---
 
 func (s *Server) handleMarketDepth(w http.ResponseWriter, r *http.Request) {
-	if acceptsEventStream(r) {
-		s.handleMarketDepthEventStream(w, r)
-		return
-	}
 	response, err := s.marketDepthResponse(r.Context(), r.URL.Path, r.URL.Query())
 	if err != nil {
 		s.writeError(w, http.StatusBadGateway, "OPEND_DEPTH_FAILED", err.Error())
@@ -315,7 +311,7 @@ func (s *Server) handleMarketDepth(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleMarketDepthEventStream(w http.ResponseWriter, r *http.Request) {
-	flusher, ok := w.(http.Flusher)
+	writer, ok := prepareSSEWriter(w)
 	if !ok {
 		s.writeError(w, http.StatusInternalServerError, "MARKET_DEPTH_STREAM_UNSUPPORTED", "response writer does not support streaming")
 		return
@@ -327,7 +323,7 @@ func (s *Server) handleMarketDepthEventStream(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	market, symbol := pathTail(r.URL.Path, "/api/v1/market-data/depth/")
+	market, symbol := marketDepthPathTail(r.URL.Path)
 	instrumentID := strings.ToUpper(strings.TrimSpace(market)) + "." + strings.ToUpper(strings.TrimSpace(symbol))
 	num := int32(intQuery(r.URL.Query(), "num", 10))
 	if num < 1 {
@@ -337,11 +333,9 @@ func (s *Server) handleMarketDepthEventStream(w http.ResponseWriter, r *http.Req
 		num = 50
 	}
 
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
-
-	writer := liveSSEWriter{writer: w, flusher: flusher}
+	if err := writer.WriteRetryDirective(); err != nil {
+		return
+	}
 	if err := writer.WriteEvent(response); err != nil {
 		return
 	}
@@ -388,7 +382,7 @@ func (s *Server) handleMarketDepthEventStream(w http.ResponseWriter, r *http.Req
 }
 
 func (s *Server) marketDepthResponse(ctx context.Context, path string, query map[string][]string) (map[string]any, error) {
-	market, symbol := pathTail(path, "/api/v1/market-data/depth/")
+	market, symbol := marketDepthPathTail(path)
 	market = strings.ToUpper(strings.TrimSpace(market))
 	symbol = strings.ToUpper(strings.TrimSpace(symbol))
 	instrumentID := market + "." + symbol

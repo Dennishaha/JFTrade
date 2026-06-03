@@ -1,6 +1,7 @@
 import type { Ref } from "vue";
 
 import { buildApiUrl } from "./apiClient";
+import { createEventSourceStream } from "./eventSourceStream";
 import type { MarketSecurityDetailsQueryResult } from "./marketDataRealtime";
 import { normalizeMarketSecurityDetailsQueryResult } from "./marketSecurityNormalization";
 
@@ -17,12 +18,24 @@ interface MarketDataSnapshotRefresherOptions {
 export function createMarketDataSnapshotRefresher(
   options: MarketDataSnapshotRefresherOptions,
 ) {
-  let marketSecurityDetailsStream: EventSource | null = null;
   let marketSecurityDetailsStreamInstrumentId = "";
+  const marketSecurityDetailsStream =
+    createEventSourceStream<MarketSecurityDetailsQueryResult>({
+      onMessage: (payload) => {
+        const activeTarget = resolveMarketSnapshotRefreshTarget();
+        if (
+          activeTarget == null ||
+          activeTarget.instrumentId !== marketSecurityDetailsStreamInstrumentId
+        ) {
+          return;
+        }
+        options.marketSecurityDetails.value =
+          normalizeMarketSecurityDetailsQueryResult(payload);
+      },
+    });
 
   function closeMarketSecurityDetailsStream(): void {
-    marketSecurityDetailsStream?.close();
-    marketSecurityDetailsStream = null;
+    marketSecurityDetailsStream.disconnect(false);
     marketSecurityDetailsStreamInstrumentId = "";
   }
 
@@ -53,7 +66,7 @@ export function createMarketDataSnapshotRefresher(
     }
 
     if (
-      marketSecurityDetailsStream != null &&
+      marketSecurityDetailsStream.activeUrl.value != null &&
       marketSecurityDetailsStreamInstrumentId === target.instrumentId
     ) {
       return;
@@ -61,48 +74,11 @@ export function createMarketDataSnapshotRefresher(
 
     closeMarketSecurityDetailsStream();
 
-    if (typeof EventSource === "undefined") {
-      return;
-    }
-
     const url = buildApiUrl(
-      `/api/v1/market-data/securities/${encodeURIComponent(target.market)}/${encodeURIComponent(target.symbol)}`,
+      `/api/sse/market/securities/${encodeURIComponent(target.market)}/${encodeURIComponent(target.symbol)}`,
     );
-    const stream = new EventSource(url);
-    marketSecurityDetailsStream = stream;
     marketSecurityDetailsStreamInstrumentId = target.instrumentId;
-
-    stream.onmessage = (event) => {
-      if (
-        marketSecurityDetailsStream !== stream ||
-        marketSecurityDetailsStreamInstrumentId !== target.instrumentId
-      ) {
-        return;
-      }
-
-      try {
-        const payload = JSON.parse(event.data as string) as MarketSecurityDetailsQueryResult;
-        const activeTarget = resolveMarketSnapshotRefreshTarget();
-        if (
-          activeTarget == null ||
-          activeTarget.instrumentId !== target.instrumentId
-        ) {
-          return;
-        }
-        options.marketSecurityDetails.value =
-          normalizeMarketSecurityDetailsQueryResult(payload);
-      } catch {
-        // Ignore malformed SSE payloads and keep the last known details.
-      }
-    };
-
-    stream.onerror = () => {
-      if (marketSecurityDetailsStream !== stream) {
-        return;
-      }
-      // Let the browser handle EventSource retries. We only reset local state
-      // when the active target changes or the stream is explicitly closed.
-    };
+    marketSecurityDetailsStream.connect(url);
   }
 
   return {

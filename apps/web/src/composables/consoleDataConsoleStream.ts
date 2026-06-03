@@ -1,6 +1,7 @@
 import type { Ref } from "vue";
 
 import { buildApiUrl } from "./apiClient";
+import { createEventSourceStream } from "./eventSourceStream";
 
 type LiveStreamStatus = "disconnected" | "connected" | "degraded";
 
@@ -16,35 +17,22 @@ interface CreateConsoleDataConsoleStreamControllerOptions {
 export function createConsoleDataConsoleStreamController(
   options: CreateConsoleDataConsoleStreamControllerOptions,
 ) {
-  let consoleStream: EventSource | null = null;
+  const consoleStream = createEventSourceStream<{ checkedAt?: string }>({
+    onOpen: () => {
+      options.liveStreamStatus.value = "connected";
+    },
+    onMessage: (payload) => {
+      options.liveStreamCheckedAt.value = payload.checkedAt ?? "";
+      void options.reloadSystemState({ background: true });
+    },
+    onError: () => {
+      options.liveStreamStatus.value = "degraded";
+    },
+  });
   let initialized = false;
 
   function openConsoleStream(): void {
-    if (typeof EventSource === "undefined") {
-      return;
-    }
-
-    consoleStream?.close();
-    consoleStream = new EventSource(buildApiUrl("/api/v1/streams/console"));
-
-    consoleStream.onopen = () => {
-      options.liveStreamStatus.value = "connected";
-    };
-
-    consoleStream.onmessage = (event) => {
-      try {
-        const payload = JSON.parse(event.data) as { checkedAt?: string };
-        options.liveStreamCheckedAt.value = payload.checkedAt ?? "";
-      } catch {
-        options.liveStreamCheckedAt.value = "";
-      }
-
-      void options.reloadSystemState({ background: true });
-    };
-
-    consoleStream.onerror = () => {
-      options.liveStreamStatus.value = "degraded";
-    };
+    consoleStream.connect(buildApiUrl("/api/sse/console"));
   }
 
   async function initialize(): Promise<void> {
@@ -58,8 +46,7 @@ export function createConsoleDataConsoleStreamController(
   }
 
   function dispose(): void {
-    consoleStream?.close();
-    consoleStream = null;
+    consoleStream.disconnect(false);
     initialized = false;
   }
 

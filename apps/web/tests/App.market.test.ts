@@ -36,8 +36,17 @@ import {
 
 function findLiveEventStream(): MockEventSource | undefined {
   return MockEventSource.instances.find((instance) =>
-    instance.url.includes("/api/v1/stream/live"),
+    instance.url.includes("/api/sse/live"),
   );
+}
+
+function countCallsMatching(
+  fetchMock: ReturnType<typeof vi.fn>,
+  pattern: string,
+): number {
+  return fetchMock.mock.calls.filter(([url]) =>
+    String(url).includes(pattern),
+  ).length;
 }
 
 afterEach(() => {
@@ -578,5 +587,60 @@ describe("Market page", () => {
     expect(wrapper.text()).toContain("323.4");
 
     wrapper.unmount();
+  });
+
+  it("reconnects the live SSE stream and refreshes candles when the page becomes visible again", async () => {
+    const fetchMock = buildStandardFetchMock();
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal(
+      "EventSource",
+      MockEventSource as unknown as typeof EventSource,
+    );
+
+    const originalVisibilityState = document.visibilityState;
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      value: "visible",
+    });
+
+    const { wrapper } = await mountApp("/market");
+    await flushRequests();
+
+    const initialLiveStreamCount = MockEventSource.instances.filter((instance) =>
+      instance.url.includes("/api/sse/live"),
+    ).length;
+    const initialCandleRequestCount = countCallsMatching(
+      fetchMock,
+      "/api/v1/market-data/candles/HK/00700",
+    );
+
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      value: "hidden",
+    });
+    document.dispatchEvent(new Event("visibilitychange"));
+    await flushRequests();
+
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      value: "visible",
+    });
+    document.dispatchEvent(new Event("visibilitychange"));
+    await flushRequests();
+
+    expect(
+      MockEventSource.instances.filter((instance) =>
+        instance.url.includes("/api/sse/live"),
+      ).length,
+    ).toBeGreaterThan(initialLiveStreamCount);
+    expect(
+      countCallsMatching(fetchMock, "/api/v1/market-data/candles/HK/00700"),
+    ).toBeGreaterThan(initialCandleRequestCount);
+
+    wrapper.unmount();
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      value: originalVisibilityState,
+    });
   });
 });

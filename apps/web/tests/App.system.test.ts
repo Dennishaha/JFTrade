@@ -34,7 +34,7 @@ import {
 
 function findLiveEventStream(): MockEventSource | undefined {
   return MockEventSource.instances.find((instance) =>
-    instance.url.includes("/api/v1/stream/live"),
+    instance.url.includes("/api/sse/live"),
   );
 }
 
@@ -264,7 +264,7 @@ describe("System page", () => {
     const { wrapper } = await mountApp("/system");
     const liveStream = findLiveEventStream();
 
-    expect(liveStream?.url).toContain("/api/v1/stream/live");
+    expect(liveStream?.url).toContain("/api/sse/live");
 
     liveStream?.emitMessage({
       type: "heartbeat",

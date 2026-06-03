@@ -1,8 +1,7 @@
 package jftradeapi
 
 import (
-	"encoding/json"
-	"fmt"
+	"context"
 	"net/http"
 	"strings"
 	"time"
@@ -10,10 +9,14 @@ import (
 
 func (s *Server) serveMarketRoutes(w http.ResponseWriter, r *http.Request) bool {
 	switch {
-	case r.URL.Path == "/api/v1/stream/live":
+	case r.URL.Path == "/api/sse/live":
 		s.handleLiveEventStream(w, r)
-	case r.URL.Path == "/api/v1/streams/console":
+	case r.URL.Path == "/api/sse/console":
 		s.handleConsoleEventStream(w, r)
+	case strings.HasPrefix(r.URL.Path, "/api/sse/market/securities/") && r.Method == http.MethodGet:
+		s.handleMarketSecurityDetailsEventStream(w, r)
+	case strings.HasPrefix(r.URL.Path, "/api/sse/market/depth/") && r.Method == http.MethodGet:
+		s.handleMarketDepthEventStream(w, r)
 	case r.URL.Path == "/api/v1/market-data/instruments" && r.Method == http.MethodGet:
 		s.writeOK(w, map[string]any{"query": r.URL.Query().Get("query"), "totalReturned": 0, "entries": []any{}})
 	case r.URL.Path == "/api/v1/market-data/subscriptions" && r.Method == http.MethodGet:
@@ -40,44 +43,25 @@ func (s *Server) serveMarketRoutes(w http.ResponseWriter, r *http.Request) bool 
 	return true
 }
 
-func acceptsEventStream(r *http.Request) bool {
-	return strings.Contains(strings.ToLower(r.Header.Get("Accept")), "text/event-stream")
-}
-
 func (s *Server) handleConsoleEventStream(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
-	flusher, _ := w.(http.Flusher)
-
-	write := func() bool {
-		_, err := fmt.Fprintf(w, "data: %s\n\n", mustJSON(map[string]any{"checkedAt": time.Now().UTC().Format(time.RFC3339Nano)}))
-		if flusher != nil {
-			flusher.Flush()
-		}
-		return err == nil
-	}
-	if !write() {
+	writer, ok := prepareSSEWriter(w)
+	if !ok {
 		return
 	}
-	ticker := time.NewTicker(15 * time.Second)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-r.Context().Done():
-			return
-		case <-ticker.C:
-			if !write() {
-				return
-			}
-		}
+	if err := writer.WriteRetryDirective(); err != nil {
+		return
 	}
-}
-
-func mustJSON(value any) string {
-	data, err := json.Marshal(value)
-	if err != nil {
-		return "{}"
-	}
-	return string(data)
+	_ = runSSEStreamLoop(r.Context(), sseStreamLoopOptions{
+		initial: func(context.Context) error {
+			return writer.WriteEvent(map[string]any{
+				"checkedAt": time.Now().UTC().Format(time.RFC3339Nano),
+			})
+		},
+		writeInterval: 15 * time.Second,
+		onTick: func(context.Context) error {
+			return writer.WriteEvent(map[string]any{
+				"checkedAt": time.Now().UTC().Format(time.RFC3339Nano),
+			})
+		},
+	})
 }

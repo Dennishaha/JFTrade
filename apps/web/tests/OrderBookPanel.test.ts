@@ -79,7 +79,7 @@ describe("OrderBookPanel", () => {
     expect(fetchEnvelopeMock).toHaveBeenCalledWith("/api/v1/brokers/futu/runtime");
     expect(fetchEnvelopeWithInitMock).not.toHaveBeenCalled();
     expect(MockEventSource.instances).toHaveLength(1);
-    expect(MockEventSource.instances[0]?.url).toBe("/api/v1/market-data/depth/US/TME?num=10");
+    expect(MockEventSource.instances[0]?.url).toBe("/api/sse/market/depth/US/TME?num=10");
 
     MockEventSource.instances[0]?.emitMessage({
       request: {
@@ -104,5 +104,42 @@ describe("OrderBookPanel", () => {
 
     expect(wrapper.text()).toContain("18.52");
     expect(wrapper.text()).toContain("220");
+  });
+
+  it("reconnects the depth SSE stream when the page becomes visible again", async () => {
+    const originalVisibilityState = document.visibilityState;
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      value: "visible",
+    });
+
+    const wrapper = mount(OrderBookPanel);
+
+    await Promise.resolve();
+    await nextTick();
+
+    const initialStreamCount = MockEventSource.instances.length;
+
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      value: "hidden",
+    });
+    document.dispatchEvent(new Event("visibilitychange"));
+    await nextTick();
+
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      value: "visible",
+    });
+    document.dispatchEvent(new Event("visibilitychange"));
+    await nextTick();
+
+    expect(MockEventSource.instances.length).toBeGreaterThan(initialStreamCount);
+
+    wrapper.unmount();
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      value: originalVisibilityState,
+    });
   });
 });

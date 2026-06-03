@@ -2,7 +2,6 @@ package jftradeapi
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -19,26 +18,21 @@ const (
 	liveTickFallbackPollInterval = 1 * time.Second
 	liveTickFallbackPollTimeout  = 900 * time.Millisecond
 	liveTickSampleFreshness      = 1500 * time.Millisecond
+	liveHeartbeatStaleThreshold  = liveTickFallbackPollInterval + liveTickSampleFreshness
 	liveStreamConnectTimeout     = 8 * time.Second
 	liveStreamRetryBaseDelay     = 5 * time.Second
 	liveStreamRetryMaxDelay      = 30 * time.Second
+	defaultSSEClientRetry        = liveStreamRetryBaseDelay
 )
 
 type liveSSEWriter struct {
-	writer  http.ResponseWriter
-	flusher http.Flusher
+	sseWriter
 }
 
-func (writer liveSSEWriter) WriteEvent(value any) error {
-	data, err := json.Marshal(value)
-	if err != nil {
-		return err
+func newLiveSSEWriter(w http.ResponseWriter, flusher http.Flusher) liveSSEWriter {
+	return liveSSEWriter{
+		sseWriter: newSSEWriter(w, flusher),
 	}
-	if _, err := fmt.Fprintf(writer.writer, "data: %s\n\n", data); err != nil {
-		return err
-	}
-	writer.flusher.Flush()
-	return nil
 }
 
 func (s *Server) handleLiveEventStream(w http.ResponseWriter, r *http.Request) {
@@ -55,23 +49,136 @@ func (s *Server) handleLiveEventStream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
+	writeSSEHeaders(w)
 
 	s.ensureLiveNotificationBridge(r.Context())
-	dispatcher := newLiveStreamDispatcher(s, r.Context(), liveSSEWriter{
-		writer:  w,
-		flusher: flusher,
-	}, nil)
+	writer := newLiveSSEWriter(w, flusher)
+	if err := writer.WriteRetryDirective(); err != nil {
+		return
+	}
+	dispatcher := newLiveStreamDispatcher(s, r.Context(), writer, nil)
 	if err := dispatcher.writeInitialEvents(); err != nil {
 		return
 	}
 	_ = dispatcher.run()
 }
 
-func writeHeartbeat(writer liveEventWriter) error {
-	return writer.WriteEvent(map[string]any{"type": "heartbeat", "at": time.Now().UTC().Format(time.RFC3339Nano)})
+func writeHeartbeat(writer liveEventWriter, payload map[string]any) error {
+	return writer.WriteEvent(payload)
+}
+
+func (s *Server) liveHeartbeatEvent(heartbeatInterval time.Duration) map[string]any {
+	now := time.Now().UTC()
+	activeInstrumentIDs := s.activeLiveStreamInstrumentIDs()
+
+	freshCount := 0
+	staleCount := 0
+	latestObservedAtText := any(nil)
+	var latestObservedAt time.Time
+	for _, instrumentID := range activeInstrumentIDs {
+		sample := s.latestTickerSample(instrumentID, tickCacheRetention)
+		if sample == nil {
+			staleCount++
+			continue
+		}
+		observedAt := parseQueryTime(sample.ObservedAt, time.Time{})
+		if observedAt.IsZero() {
+			staleCount++
+			continue
+		}
+		observedAt = observedAt.UTC()
+		if latestObservedAt.IsZero() || observedAt.After(latestObservedAt) {
+			latestObservedAt = observedAt
+			latestObservedAtText = observedAt.Format(time.RFC3339Nano)
+		}
+		if now.Sub(observedAt) <= liveHeartbeatStaleThreshold {
+			freshCount++
+			continue
+		}
+		staleCount++
+	}
+
+	s.liveQuoteState.mu.Lock()
+	liveQuoteLastRefreshAt := s.liveQuoteState.lastRefreshAt
+	liveQuoteRetryAfter := s.liveQuoteState.retryAfter
+	liveQuoteFailureCount := s.liveQuoteState.failureCount
+	liveQuoteLastError := s.liveQuoteState.lastError
+	s.liveQuoteState.mu.Unlock()
+
+	s.liveStreamState.mu.Lock()
+	liveStreamConnected := s.liveStreamState.stream != nil
+	liveStreamRetryAfter := s.liveStreamState.retryAfter
+	liveStreamFailureCount := s.liveStreamState.failureCount
+	liveStreamLastError := s.liveStreamState.lastError
+	s.liveStreamState.mu.Unlock()
+
+	liveQuoteRetryAfterText, liveQuoteBackoffActive := retryState(liveQuoteRetryAfter)
+	liveStreamRetryAfterText, liveStreamBackoffActive := retryState(liveStreamRetryAfter)
+	liveClients, liveClientLimit, liveClientLimitReached := s.liveStreamStats()
+
+	staleReasons := make([]any, 0, 4)
+	stale := len(activeInstrumentIDs) > 0 && staleCount > 0
+	if staleCount > 0 {
+		staleReasons = append(staleReasons, "market-data-samples-stale")
+	}
+	if liveQuoteBackoffActive {
+		staleReasons = append(staleReasons, "live-quote-backoff")
+	}
+	if liveStreamBackoffActive {
+		staleReasons = append(staleReasons, "live-stream-backoff")
+	}
+	if len(activeInstrumentIDs) > 0 && !liveStreamConnected {
+		staleReasons = append(staleReasons, "live-stream-disconnected")
+	}
+
+	liveQuoteLastRefreshAtText := any(nil)
+	if !liveQuoteLastRefreshAt.IsZero() {
+		liveQuoteLastRefreshAtText = liveQuoteLastRefreshAt.UTC().Format(time.RFC3339Nano)
+	}
+
+	transportMode := "idle"
+	if len(activeInstrumentIDs) > 0 {
+		transportMode = "snapshot-poll-fallback"
+	}
+	if liveStreamConnected {
+		transportMode = "push-stream"
+	}
+
+	return map[string]any{
+		"type":         "heartbeat",
+		"at":           now.Format(time.RFC3339Nano),
+		"intervalMs":   heartbeatInterval.Milliseconds(),
+		"retryMs":      int64(defaultSSEClientRetry / time.Millisecond),
+		"stale":        stale,
+		"staleReasons": staleReasons,
+		"transport": map[string]any{
+			"mode":              transportMode,
+			"activeInstruments": len(activeInstrumentIDs),
+			"freshInstruments":  freshCount,
+			"staleInstruments":  staleCount,
+			"sampleFreshnessMs": liveHeartbeatStaleThreshold.Milliseconds(),
+			"latestObservedAt":  latestObservedAtText,
+		},
+		"liveClients": map[string]any{
+			"connected": liveClients,
+			"limit":     liveClientLimit,
+			"atLimit":   liveClientLimitReached,
+		},
+		"liveQuote": map[string]any{
+			"lastRefreshAt": liveQuoteLastRefreshAtText,
+			"backoffActive": liveQuoteBackoffActive,
+			"retryAfter":    liveQuoteRetryAfterText,
+			"failureCount":  liveQuoteFailureCount,
+			"lastError":     stringPointerOrNil(liveQuoteLastError),
+		},
+		"liveStream": map[string]any{
+			"connected":     liveStreamConnected,
+			"backoffActive": liveStreamBackoffActive,
+			"retryAfter":    liveStreamRetryAfterText,
+			"failureCount":  liveStreamFailureCount,
+			"lastError":     stringPointerOrNil(liveStreamLastError),
+		},
+	}
 }
 
 func (s *Server) effectiveLiveStreamLimit() int {

@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
 )
@@ -272,7 +273,7 @@ func TestMarketDepthSSEStreamSendsInitialPayload(t *testing.T) {
 	defer srv.Close()
 	defer server.Close()
 
-	response, err := liveSSERequest(t, srv.URL+"/api/v1/market-data/depth/US/TME?num=10")
+	response, err := liveSSERequest(t, srv.URL+"/api/sse/market/depth/US/TME?num=10")
 	if err != nil {
 		t.Fatalf("GET market depth SSE: %v", err)
 	}
@@ -282,7 +283,11 @@ func TestMarketDepthSSEStreamSendsInitialPayload(t *testing.T) {
 		t.Fatalf("content type = %q, want text/event-stream", got)
 	}
 
-	event := readSSEEvent(t, bufio.NewReader(response.Body))
+	reader := bufio.NewReader(response.Body)
+	if retryMillis := readSSERetry(t, reader); retryMillis != int(defaultSSEClientRetry/time.Millisecond) {
+		t.Fatalf("retry = %d", retryMillis)
+	}
+	event := readSSEEvent(t, reader)
 	request, _ := event["request"].(map[string]any)
 	if request == nil || request["instrumentId"] != "US.TME" {
 		t.Fatalf("unexpected request payload: %+v", event["request"])

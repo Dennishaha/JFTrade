@@ -349,6 +349,48 @@ function scheduleMarketDataAutoRefresh(): void {
     })();
   }, resolveMarketDataAutoRefreshMs());
 }
+
+function handleMarketPageVisibilityChange(): void {
+  if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+    if (queryRefreshTimer != null) {
+      window.clearTimeout(queryRefreshTimer);
+      queryRefreshTimer = null;
+    }
+    return;
+  }
+
+  void (async () => {
+    await syncVisibleSubscription();
+    await loadMarketDataQuery();
+    scheduleMarketDataAutoRefresh();
+  })();
+}
+
+function handleMarketPageOnline(): void {
+  void (async () => {
+    await syncVisibleSubscription();
+    await loadMarketDataQuery();
+    scheduleMarketDataAutoRefresh();
+  })();
+}
+
+onMounted(() => {
+  if (typeof document !== "undefined") {
+    document.addEventListener("visibilitychange", handleMarketPageVisibilityChange);
+  }
+  if (typeof window !== "undefined") {
+    window.addEventListener("online", handleMarketPageOnline);
+  }
+});
+
+onUnmounted(() => {
+  if (typeof document !== "undefined") {
+    document.removeEventListener("visibilitychange", handleMarketPageVisibilityChange);
+  }
+  if (typeof window !== "undefined") {
+    window.removeEventListener("online", handleMarketPageOnline);
+  }
+});
 </script>
 
 <template>

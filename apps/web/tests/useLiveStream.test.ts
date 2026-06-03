@@ -18,13 +18,13 @@ describe("useLiveStream", () => {
     );
 
     const live = useLiveStream();
-    live.connect("http://127.0.0.1:3000/api/v1/stream/live");
+    live.connect("http://127.0.0.1:3000/api/sse/live");
     await Promise.resolve();
 
     expect(MockEventSource.instances).toHaveLength(1);
     expect(live.connectionState.value).toBe("connected");
     expect(MockEventSource.instances[0]?.url).toBe(
-      "http://127.0.0.1:3000/api/v1/stream/live",
+      "http://127.0.0.1:3000/api/sse/live",
     );
 
     MockEventSource.instances[0]?.emitMessage({
@@ -46,7 +46,7 @@ describe("useLiveStream", () => {
     );
 
     const live = useLiveStream();
-    live.connect("http://127.0.0.1:3000/api/v1/stream/live");
+    live.connect("http://127.0.0.1:3000/api/sse/live");
 
     const stream = MockEventSource.instances[0];
     stream?.emitError();

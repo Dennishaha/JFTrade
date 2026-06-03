@@ -38,7 +38,7 @@ import {
 
 function findConsoleEventStream(): MockEventSource | undefined {
   return MockEventSource.instances.find((instance) =>
-    instance.url.includes("/api/v1/streams/console"),
+    instance.url.includes("/api/sse/console"),
   );
 }
 
@@ -248,7 +248,7 @@ describe("Console Stream", () => {
     const { wrapper } = await mountApp();
     const consoleStream = findConsoleEventStream();
 
-    expect(consoleStream?.url).toContain("/api/v1/streams/console");
+    expect(consoleStream?.url).toContain("/api/sse/console");
 
     const initialFetchCount = fetchMock.mock.calls.length;
 

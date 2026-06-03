@@ -38,6 +38,7 @@ let heldChartSubscription: {
   interval: string;
 } | null = null;
 let heartbeatTimer: number | null = null;
+let reloadInFlight: Promise<void> | null = null;
 
 const periods = KLINE_PERIODS;
 const chartCandles = computed<KlineCandle[]>(() =>
@@ -86,11 +87,35 @@ const chartSessionTitle = computed(() => {
 });
 
 async function reload(): Promise<void> {
-  marketDataQueryMarket.value = prefs.value.market;
-  marketDataQuerySymbol.value = prefs.value.symbol;
-  marketDataQueryPeriod.value = normalizeKlinePeriod(prefs.value.period);
-  await syncChartSubscription();
-  await loadMarketDataQuery();
+  if (reloadInFlight != null) {
+    return reloadInFlight;
+  }
+
+  reloadInFlight = (async () => {
+    marketDataQueryMarket.value = prefs.value.market;
+    marketDataQuerySymbol.value = prefs.value.symbol;
+    marketDataQueryPeriod.value = normalizeKlinePeriod(prefs.value.period);
+    await syncChartSubscription();
+    await loadMarketDataQuery();
+  })();
+
+  try {
+    await reloadInFlight;
+  } finally {
+    reloadInFlight = null;
+  }
+}
+
+function handleChartVisibilityChange(): void {
+  if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+    return;
+  }
+
+  void reload();
+}
+
+function handleChartOnline(): void {
+  void reload();
 }
 
 async function syncChartSubscription(): Promise<void> {
@@ -143,6 +168,12 @@ function setPeriod(p: string): void {
 }
 
 onMounted(() => {
+  if (typeof document !== "undefined") {
+    document.addEventListener("visibilitychange", handleChartVisibilityChange);
+  }
+  if (typeof window !== "undefined") {
+    window.addEventListener("online", handleChartOnline);
+  }
   void reload();
   heartbeatTimer = window.setInterval(() => {
     void heartbeatMarketDataConsumer(chartConsumerId);
@@ -150,6 +181,12 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+  if (typeof document !== "undefined") {
+    document.removeEventListener("visibilitychange", handleChartVisibilityChange);
+  }
+  if (typeof window !== "undefined") {
+    window.removeEventListener("online", handleChartOnline);
+  }
   if (heartbeatTimer != null) {
     window.clearInterval(heartbeatTimer);
     heartbeatTimer = null;
