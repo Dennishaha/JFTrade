@@ -40,7 +40,7 @@ func TestMarketDepthEndpointRouting(t *testing.T) {
 	}
 	// 502 means the route matched but OpenD is unreachable.
 	if resp.StatusCode != http.StatusBadGateway {
-		t.Logf("depth endpoint returned %d (expected 502 without OpenD)", resp.StatusCode)
+		t.Fatalf("depth endpoint returned %d, want 502 without OpenD", resp.StatusCode)
 	}
 }
 
@@ -348,14 +348,15 @@ func TestMarketDepthNumClamping(t *testing.T) {
 		name       string
 		queryNum   string
 		expectCode int
+		expectNum  int
 	}{
-		{"num=0 clamps to 1", "0", http.StatusOK},
-		{"num=-5 clamps to 1", "-5", http.StatusOK},
-		{"num=100 clamps to 50", "100", http.StatusOK},
-		{"num=50 is max valid", "50", http.StatusOK},
-		{"no num defaults to 10", "", http.StatusOK},
-		{"num=5 is valid", "5", http.StatusOK},
-		{"non-numeric num defaults to 10", "abc", http.StatusOK},
+		{"num=0 clamps to 1", "0", http.StatusOK, 1},
+		{"num=-5 clamps to 1", "-5", http.StatusOK, 1},
+		{"num=100 clamps to 50", "100", http.StatusOK, 50},
+		{"num=50 is max valid", "50", http.StatusOK, 50},
+		{"no num defaults to 10", "", http.StatusOK, 10},
+		{"num=5 is valid", "5", http.StatusOK, 5},
+		{"non-numeric num defaults to 10", "abc", http.StatusOK, 10},
 	}
 
 	for _, tt := range tests {
@@ -372,6 +373,26 @@ func TestMarketDepthNumClamping(t *testing.T) {
 
 			if resp.StatusCode != tt.expectCode {
 				t.Errorf("status = %d, want %d", resp.StatusCode, tt.expectCode)
+			}
+			var envelope struct {
+				OK   bool `json:"ok"`
+				Data struct {
+					Request struct {
+						Num int `json:"num"`
+					} `json:"request"`
+				} `json:"data"`
+			}
+			if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
+				t.Fatalf("decode depth response: %v", err)
+			}
+			if !envelope.OK {
+				t.Fatal("expected ok=true")
+			}
+			if envelope.Data.Request.Num != tt.expectNum {
+				t.Errorf("response request.num = %d, want %d", envelope.Data.Request.Num, tt.expectNum)
+			}
+			if got := quoteServer.orderBookLastNum(); got != int32(tt.expectNum) {
+				t.Errorf("OpenD order book num = %d, want %d", got, tt.expectNum)
 			}
 		})
 	}

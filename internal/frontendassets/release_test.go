@@ -11,6 +11,9 @@ import (
 )
 
 func TestFileSystemEmbedsUnderscorePrefixedAssets(t *testing.T) {
+	// Vite/Rollup can emit chunk assets whose filenames start with "_".
+	// This release-only test guards the packaged zip filesystem from dropping
+	// those assets when they are present in a staged frontend build.
 	diskEntries, err := os.ReadDir("dist/assets")
 	if err != nil {
 		t.Fatalf("ReadDir dist/assets: %v", err)

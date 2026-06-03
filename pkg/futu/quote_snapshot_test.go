@@ -66,7 +66,8 @@ func TestQuoteSnapshotPreviousClosePriceInAfterHours(t *testing.T) {
 		},
 	}
 
-	snap := quoteSnapshotFromBasicQot(basicQot, "US.AAPL")
+	afterHoursAt := time.Date(2026, 6, 2, 17, 0, 0, 0, usEasternLocation)
+	snap := quoteSnapshotFromBasicQotAt(basicQot, "US.AAPL", afterHoursAt)
 
 	// After-hours: PreviousClosePrice = CurPrice = today's regular close.
 	if snap.PreviousClosePrice == nil {
@@ -74,6 +75,9 @@ func TestQuoteSnapshotPreviousClosePriceInAfterHours(t *testing.T) {
 	}
 	if !snap.PreviousClosePrice.Equal(decimal.NewFromFloat(195.50)) {
 		t.Errorf("PreviousClosePrice = %s, want 195.50 (today's regular close)", snap.PreviousClosePrice.String())
+	}
+	if snap.Session != MarketSessionAfter {
+		t.Errorf("Session = %s, want after", snap.Session)
 	}
 }
 

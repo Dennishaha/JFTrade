@@ -54,6 +54,11 @@ func getEnvelope(t *testing.T, url string) (int, map[string]any) {
 }
 
 func postEnvelope(t *testing.T, url string, body any) (int, map[string]any) {
+	status, data, _ := postEnvelopeWithError(t, url, body)
+	return status, data
+}
+
+func postEnvelopeWithError(t *testing.T, url string, body any) (int, map[string]any, *apiError) {
 	t.Helper()
 	payload, _ := json.Marshal(body)
 	resp, err := http.Post(url, "application/json", bytes.NewReader(payload))
@@ -62,13 +67,14 @@ func postEnvelope(t *testing.T, url string, body any) (int, map[string]any) {
 	}
 	defer resp.Body.Close()
 	var envelope struct {
-		OK   bool           `json:"ok"`
-		Data map[string]any `json:"data"`
+		OK    bool           `json:"ok"`
+		Data  map[string]any `json:"data"`
+		Error *apiError      `json:"error"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
 		t.Fatalf("decode: %v", err)
 	}
-	return resp.StatusCode, envelope.Data
+	return resp.StatusCode, envelope.Data, envelope.Error
 }
 
 // --- Test: funds response includes new margin fields ---
@@ -175,20 +181,27 @@ func TestBrokerSecuritiesMissingSymbol(t *testing.T) {
 	}
 }
 
-// --- Test: unlock endpoint without broker returns error ---
+// --- Test: unlock endpoint with disconnected OpenD returns error ---
 
-func TestBrokerUnlockNoBroker(t *testing.T) {
+func TestBrokerUnlockDisconnectedOpenD(t *testing.T) {
 	srv, _ := testServer(t)
 
-	status, data := postEnvelope(t, srv.URL+"/api/v1/brokers/futu/unlock", map[string]any{
+	status, _, errInfo := postEnvelopeWithError(t, srv.URL+"/api/v1/brokers/futu/unlock", map[string]any{
 		"unlock":      true,
 		"passwordMd5": "dummy",
 	})
-	// Without a connected broker, unlock should fail
-	if status == http.StatusOK {
-		t.Fatal("expected non-200 status for unlock without broker")
+	if status != http.StatusBadGateway {
+		t.Fatalf("status = %d, want 502 with disconnected OpenD", status)
 	}
-	_ = data
+	if errInfo == nil {
+		t.Fatal("expected error payload")
+	}
+	if errInfo.Code != "UNLOCK_FAILED" {
+		t.Fatalf("error code = %q, want UNLOCK_FAILED", errInfo.Code)
+	}
+	if !strings.Contains(errInfo.Message, "connect") {
+		t.Fatalf("error message = %q, want OpenD connection failure detail", errInfo.Message)
+	}
 }
 
 // --- Test: place order endpoint without broker returns error ---

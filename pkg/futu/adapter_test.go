@@ -51,29 +51,6 @@ func TestFutuAdapterCompileTimeChecks(t *testing.T) {
 	}
 }
 
-// TestFutuToBrokerTypeConversion verifies that the type conversion functions
-// produce correct broker types from Futu internal types.
-func TestFutuToBrokerTypeConversion(t *testing.T) {
-	// Test ReadQuery round-trip.
-	futuQuery := futu.BrokerReadQuery{
-		AccountID:          "123456",
-		TradingEnvironment: "SIMULATE",
-		Market:             "HK",
-	}
-	brokerQuery := broker.ReadQuery{
-		BrokerID:           "futu",
-		AccountID:          futuQuery.AccountID,
-		TradingEnvironment: futuQuery.TradingEnvironment,
-		Market:             futuQuery.Market,
-	}
-	if brokerQuery.AccountID != "123456" {
-		t.Fatalf("expected AccountID=123456, got %s", brokerQuery.AccountID)
-	}
-	if brokerQuery.BrokerID != "futu" {
-		t.Fatalf("expected BrokerID=futu, got %s", brokerQuery.BrokerID)
-	}
-}
-
 // TestBrokerRegistryWithFutu validates that the Futu broker can be registered
 // and discovered through the broker registry.
 func TestBrokerRegistryWithFutu(t *testing.T) {

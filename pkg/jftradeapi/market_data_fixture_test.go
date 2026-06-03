@@ -31,6 +31,7 @@ type marketDataQuoteOpenDServer struct {
 	securitySnapshotCalls atomic.Int32
 	staticInfoCalls       atomic.Int32
 	orderBookCalls        atomic.Int32
+	lastOrderBookNum      atomic.Int32
 	historyMu             sync.Mutex
 	historyPages          [][]*qotcommonpb.KLine
 	historyPagesBySession map[int32][][]*qotcommonpb.KLine
@@ -236,6 +237,10 @@ func (s *marketDataQuoteOpenDServer) orderBookCallCount() int {
 	return int(s.orderBookCalls.Load())
 }
 
+func (s *marketDataQuoteOpenDServer) orderBookLastNum() int32 {
+	return s.lastOrderBookNum.Load()
+}
+
 func (s *marketDataQuoteOpenDServer) setOrderBook(bids []*qotcommonpb.OrderBook, asks []*qotcommonpb.OrderBook) {
 	s.orderBookMu.Lock()
 	defer s.orderBookMu.Unlock()
@@ -277,6 +282,7 @@ func (s *marketDataQuoteOpenDServer) orderBookResponseBody(body []byte) []byte {
 		response = protowire.AppendBytes(response, []byte(err.Error()))
 		return response
 	}
+	s.lastOrderBookNum.Store(request.GetC2S().GetNum())
 
 	if bids == nil {
 		bids = []*qotcommonpb.OrderBook{}

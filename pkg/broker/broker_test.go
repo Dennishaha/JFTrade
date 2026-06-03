@@ -52,35 +52,20 @@ func TestRegistryDuplicatePanics(t *testing.T) {
 	r.Register(&mockBroker{id: "dup"})
 }
 
-func TestBrokerTypesFieldCompatibility(t *testing.T) {
-	// Verify that broker.ReadQuery has the expected fields.
-	q := broker.ReadQuery{
-		BrokerID:           "futu",
-		AccountID:          "123",
-		TradingEnvironment: "SIMULATE",
-		Market:             "HK",
-	}
-	if q.BrokerID != "futu" {
-		t.Fatalf("expected BrokerID=futu, got %s", q.BrokerID)
-	}
-}
+func TestConvertFutuReadQuery(t *testing.T) {
+	q := broker.ConvertFutuReadQuery("123", "SIMULATE", "HK")
 
-func TestDescriptorFields(t *testing.T) {
-	d := broker.Descriptor{
-		ID:          "test",
-		DisplayName: "Test Broker",
-		Environments: []string{"SIMULATE", "REAL"},
-		Capabilities: []broker.MarketCapability{{
-			Market:        "HK",
-			SupportsQuote: true,
-			SupportsTrade: true,
-		}},
+	if q.BrokerID != "futu" {
+		t.Fatalf("BrokerID = %q, want futu", q.BrokerID)
 	}
-	if d.ID != "test" {
-		t.Fatalf("expected ID=test, got %s", d.ID)
+	if q.AccountID != "123" {
+		t.Fatalf("AccountID = %q, want 123", q.AccountID)
 	}
-	if len(d.Capabilities) != 1 {
-		t.Fatalf("expected 1 capability, got %d", len(d.Capabilities))
+	if q.TradingEnvironment != "SIMULATE" {
+		t.Fatalf("TradingEnvironment = %q, want SIMULATE", q.TradingEnvironment)
+	}
+	if q.Market != "HK" {
+		t.Fatalf("Market = %q, want HK", q.Market)
 	}
 }
 
@@ -98,27 +83,12 @@ func TestBrokerError(t *testing.T) {
 	}
 }
 
-func TestHelperFunctions(t *testing.T) {
-	f := broker.Float64Ptr(3.14)
-	if f == nil || *f != 3.14 {
-		t.Fatalf("expected *3.14, got %v", f)
-	}
-	s := broker.StringPtr("hello")
-	if s == nil || *s != "hello" {
-		t.Fatalf("expected *hello, got %v", s)
-	}
-	b := broker.BoolPtr(true)
-	if b == nil || !*b {
-		t.Fatalf("expected *true, got %v", b)
-	}
-}
-
 type mockBroker struct {
 	id string
 }
 
-func (m *mockBroker) ID() string                                         { return m.id }
-func (m *mockBroker) Descriptor() broker.Descriptor                      { return broker.Descriptor{ID: m.id} }
+func (m *mockBroker) ID() string                                                 { return m.id }
+func (m *mockBroker) Descriptor() broker.Descriptor                              { return broker.Descriptor{ID: m.id} }
 func (m *mockBroker) DiscoverAccounts(context.Context) ([]broker.Account, error) { return nil, nil }
-func (m *mockBroker) Trading() broker.TradingService                     { return nil }
-func (m *mockBroker) MarketData() broker.MarketDataReader                { return nil }
+func (m *mockBroker) Trading() broker.TradingService                             { return nil }
+func (m *mockBroker) MarketData() broker.MarketDataReader                        { return nil }
