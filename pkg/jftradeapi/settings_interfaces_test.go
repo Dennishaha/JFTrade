@@ -27,8 +27,9 @@ func TestEnsureBootstrapFilePersistsInterfaceDefaults(t *testing.T) {
 		t.Fatalf("ReadFile settings: %v", err)
 	}
 	var decoded struct {
-		Interfaces InterfaceSettings    `json:"interfaces"`
-		Appearance UIAppearanceSettings `json:"appearance"`
+		Interfaces  InterfaceSettings    `json:"interfaces"`
+		Appearance  UIAppearanceSettings `json:"appearance"`
+		Integration *BrokerIntegration   `json:"integration"`
 	}
 	if err := json.Unmarshal(rawSettings, &decoded); err != nil {
 		t.Fatalf("Unmarshal settings: %v", err)
@@ -44,6 +45,9 @@ func TestEnsureBootstrapFilePersistsInterfaceDefaults(t *testing.T) {
 	}
 	if decoded.Appearance.UpColor != "#16c784" || decoded.Appearance.DownColor != "#ea3943" {
 		t.Fatalf("appearance settings = %+v", decoded.Appearance)
+	}
+	if decoded.Integration != nil {
+		t.Fatalf("expected bootstrap to avoid persisting integration, got %+v", decoded.Integration)
 	}
 }
 

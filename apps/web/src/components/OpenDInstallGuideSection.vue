@@ -9,8 +9,8 @@ const { futuOpenDInstallGuide } = useConsoleData();
   <div class="grid gap-6">
     <div class="settings-panel">
       <SectionHeader
-        title="OpenD 安装引导"
-        description="JFTrade 不安装 OpenD，只提供富途官方图形交互版与命令行版入口；安装完成后请回到富途接入填写连接信息。"
+        title="OpenD 安装指引"
+        description="JFTrade 不直接安装 OpenD；这里只提供富途官方图形版与命令行版入口，以及连接前的关键检查项。"
       >
         <template #extra>
           <v-chip variant="outlined" size="small">官方文档</v-chip>
@@ -18,9 +18,11 @@ const { futuOpenDInstallGuide } = useConsoleData();
       </SectionHeader>
 
       <div class="mt-4 grid gap-4">
-        <div class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+        <div
+          class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600"
+        >
           <div class="font-semibold text-slate-900">
-            {{ futuOpenDInstallGuide.title || "Futu OpenD 安装引导" }}
+            {{ futuOpenDInstallGuide.title || "Futu OpenD 安装指引" }}
           </div>
           <p class="mt-2 leading-6">
             {{ futuOpenDInstallGuide.description }}
@@ -39,7 +41,9 @@ const { futuOpenDInstallGuide } = useConsoleData();
                   {{ option.label }}
                 </div>
                 <div class="mt-1 text-xs text-slate-500">
-                  {{ option.id === "gui" ? "图形界面 / 桌面" : "命令行 / 服务器" }}
+                  {{
+                    option.id === "gui" ? "图形界面 / 桌面" : "命令行 / 服务器"
+                  }}
                 </div>
               </div>
               <v-chip
@@ -73,18 +77,15 @@ const { futuOpenDInstallGuide } = useConsoleData();
           <p class="mt-2 text-sm leading-6 text-slate-600">
             默认主机为 {{ futuOpenDInstallGuide.settings.host }}，API 端口为
             {{ futuOpenDInstallGuide.settings.apiPort }}，WebSocket 端口为
-            {{ futuOpenDInstallGuide.settings.websocketPort }}，加密连接：
-            {{ futuOpenDInstallGuide.settings.useEncryption ? "开启" : "关闭" }}。
-            安装并登录 OpenD 后，请先确认已开启 WebSocket；若 OpenD 配置了 WebSocket
-            密码，请在富途接入的 WebSocket 密码 / 密钥中填写同一明文密码。
-            命令行版 OpenD 可在 FutuOpenD.xml 或 <code>-cfg_file</code> 指定的参数文件中配置
+            {{ futuOpenDInstallGuide.settings.websocketPort }}。安装并登录 OpenD
+            后， 请先确认已经开启 WebSocket；若 OpenD 配置了 WebSocket 密码，
+            请在富途接入中的 WebSocket 密码 / 密钥里填写同一份明文密码。
+            命令行版 OpenD 可在 FutuOpenD.xml 或
+            <code>-cfg_file</code> 指定的参数文件中配置
             <code>websocket_key_md5</code>。
           </p>
           <ol class="mt-3 list-decimal space-y-1 pl-5 text-sm text-slate-600">
-            <li
-              v-for="step in futuOpenDInstallGuide.nextSteps"
-              :key="step"
-            >
+            <li v-for="step in futuOpenDInstallGuide.nextSteps" :key="step">
               {{ step }}
             </li>
           </ol>

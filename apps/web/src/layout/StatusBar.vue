@@ -62,7 +62,7 @@ const killActive = computed(
     <span style="color: var(--tv-text-dim)">{{ lastHeartbeat || "—" }}</span>
     <span>
       <span class="tv-status-dot" :class="killActive ? 'tv-dot-err' : 'tv-dot-ok'"></span>
-      交易网关 {{ killActive ? "已激活" : "正常" }}
+      风控状态 {{ killActive ? "已激活" : "正常" }}
     </span>
     <span>存储：{{ systemStatus.persistence.engine }} / {{ formatGenericStatusLabel(systemStatus.persistence.status) }}</span>
     <span style="flex: 1"></span>

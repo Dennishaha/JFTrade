@@ -90,19 +90,42 @@ export function createSettingsManagedAccountsController(
     accountForm.enabled = account.enabled;
   }
 
-  function importRuntimeAccount(
+  async function importRuntimeAccount(
     account: BrokerRuntimeResponse["accounts"][number],
-  ): void {
-    editingAccountId.value = null;
-    accountForm.brokerId = futuBroker.value?.descriptor.id ?? "futu";
-    accountForm.accountId = account.accountId;
-    accountForm.displayName = account.accountId;
-    accountForm.tradingEnvironment = account.tradingEnvironment;
-    accountForm.market =
-      account.marketAuthorities[0] ?? defaultFutuTradeMarket.value;
-    accountForm.securityFirm =
-      account.securityFirm ?? defaultFutuSecurityFirm.value;
-    accountForm.enabled = true;
+  ): Promise<void> {
+    const brokerId = futuBroker.value?.descriptor.id ?? "futu";
+    const market = account.marketAuthorities[0] ?? defaultFutuTradeMarket.value;
+    const payload: SettingsManagedAccountForm = {
+      brokerId,
+      accountId: account.accountId,
+      displayName: account.accountId,
+      tradingEnvironment: account.tradingEnvironment,
+      market,
+      securityFirm: account.securityFirm ?? defaultFutuSecurityFirm.value,
+      enabled: true,
+    };
+
+    const existingAccount = options.brokerSettings.value.accounts.find(
+      (savedAccount) =>
+        savedAccount.brokerId === payload.brokerId &&
+        savedAccount.accountId === payload.accountId &&
+        savedAccount.tradingEnvironment === payload.tradingEnvironment &&
+        savedAccount.market === payload.market,
+    );
+
+    savingAccount.value = true;
+
+    try {
+      if (existingAccount == null) {
+        await options.createManagedBrokerAccount(payload);
+      } else {
+        await options.updateManagedBrokerAccount(existingAccount.id, payload);
+      }
+
+      resetAccountForm();
+    } finally {
+      savingAccount.value = false;
+    }
   }
 
   async function submitAccount(): Promise<void> {

@@ -9,6 +9,17 @@ import {
 import SectionHeader from "./SectionHeader.vue";
 import { useConsoleData } from "../composables/useConsoleData";
 
+type StatusTagType = "success" | "warning" | "danger" | "info";
+
+const props = withDefaults(
+  defineProps<{
+    mode?: "oobe" | "settings";
+  }>(),
+  {
+    mode: "settings",
+  },
+);
+
 const {
   brokerRuntime,
   brokerSettings,
@@ -24,8 +35,6 @@ const savingIntegration = ref(false);
 const refreshingFutuConnection = ref(false);
 const cancellingSubscriptions = ref(false);
 
-type StatusTagType = "success" | "warning" | "danger" | "info";
-
 const futuBroker = computed(
   () =>
     brokerSettings.value.brokers.find(
@@ -33,7 +42,23 @@ const futuBroker = computed(
     ) ?? null,
 );
 
+const savedIntegration = computed(() => futuBroker.value?.integration ?? null);
+const integrationDefaults = computed(() => futuBroker.value?.defaults ?? null);
+const hasSavedIntegration = computed(() => savedIntegration.value != null);
+const isSavedEnabled = computed(() => savedIntegration.value?.enabled === true);
+const isPendingSetup = computed(() => !hasSavedIntegration.value);
+const isSavedDisabled = computed(
+  () => hasSavedIntegration.value && !isSavedEnabled.value,
+);
+const showRuntimeState = computed(() => isSavedEnabled.value);
+
 const futuConnectionTagType = computed<StatusTagType>(() => {
+  if (isPendingSetup.value) {
+    return "info";
+  }
+  if (isSavedDisabled.value) {
+    return "warning";
+  }
   switch (brokerRuntime.value.session.connectivity) {
     case "connected":
       return "success";
@@ -46,13 +71,18 @@ const futuConnectionTagType = computed<StatusTagType>(() => {
   }
 });
 
-const futuConnectionLabel = computed(() =>
-  formatConnectivityLabel(brokerRuntime.value.session.connectivity),
-);
+const futuConnectionLabel = computed(() => {
+  if (isPendingSetup.value) {
+    return "待保存";
+  }
+  if (isSavedDisabled.value) {
+    return "已停用";
+  }
+  return formatConnectivityLabel(brokerRuntime.value.session.connectivity);
+});
 
 const futuConnectionTarget = computed(
-  () =>
-    `${brokerRuntime.value.session.connection.host}:${brokerRuntime.value.session.connection.apiPort}`,
+  () => `${integrationForm.host}:${integrationForm.apiPort}`,
 );
 
 const futuConnectionCheckedAt = computed(() =>
@@ -62,22 +92,27 @@ const futuConnectionCheckedAt = computed(() =>
 );
 
 const futuQuoteLoginLabel = computed(() => {
+  if (!showRuntimeState.value) {
+    return "等待检测";
+  }
   const loggedIn = brokerRuntime.value.session.globalState?.quoteLoggedIn;
   return loggedIn == null ? "未知" : loggedIn ? "已登录" : "未登录";
 });
 
 const futuTradeLoginLabel = computed(() => {
+  if (!showRuntimeState.value) {
+    return "等待检测";
+  }
   const loggedIn = brokerRuntime.value.session.globalState?.tradeLoggedIn;
   return loggedIn == null ? "未知" : loggedIn ? "已登录" : "未登录";
 });
 
 const integrationForm = reactive({
-  enabled: true,
+  enabled: false,
   host: "127.0.0.1",
   apiPort: 11110,
   websocketPort: 11111,
   maxWebSocketConnections: 20,
-  useEncryption: false,
   websocketKey: "",
   tradeMarket: "HK",
   securityFirm: "FUTUSECURITIES",
@@ -86,15 +121,19 @@ const integrationForm = reactive({
 const websocketPasswordFormStatus = computed(() =>
   integrationForm.websocketKey.trim().length > 0
     ? "当前表单已填写，保存后生效"
-    : "当前表单未填写；OpenD 启用 WebSocket 密码时必须填写",
+    : "当前表单未填写；仅当 OpenD 启用 WebSocket 密码时需要填写",
 );
 
 const futuOpenDManualRetryRequired = computed(
-  () => futuOpenDHealth.value.diagnosis.manualRetryRequired,
+  () =>
+    showRuntimeState.value &&
+    futuOpenDHealth.value.diagnosis.manualRetryRequired,
 );
 
 const futuOpenDRestartRecommended = computed(
-  () => futuOpenDHealth.value.diagnosis.restartOpenDRecommended,
+  () =>
+    showRuntimeState.value &&
+    futuOpenDHealth.value.diagnosis.restartOpenDRecommended,
 );
 
 const futuOpenDTopClientSummary = computed(() =>
@@ -106,15 +145,49 @@ const futuOpenDTopClientSummary = computed(() =>
     .join(" / "),
 );
 
+const connectionSummary = computed(() => {
+  if (isPendingSetup.value) {
+    return props.mode === "oobe"
+      ? "填写并保存富途接入配置后，JFTrade 才会开始检测 OpenD，并解锁账户确认步骤。"
+      : "当前还没有已保存的富途接入配置。填写并保存后，JFTrade 才会开始检测 OpenD。";
+  }
+  if (isSavedDisabled.value) {
+    return "当前富途接入配置已保存，但处于停用状态。启用并保存后，JFTrade 才会检测 OpenD。";
+  }
+  return `当前检测目标：OpenD ${futuConnectionTarget.value}；检测时间：${futuConnectionCheckedAt.value}。保存参数后会自动重新检测，也可以手动刷新。`;
+});
+
+const neutralStatusMessage = computed(() => {
+  if (isPendingSetup.value) {
+    return props.mode === "oobe"
+      ? "先填写连接信息并保存，随后再继续下一步。"
+      : "填写并保存富途接入配置后，这里会显示 OpenD 连接状态与诊断信息。";
+  }
+  return "当前已保存但未启用。启用并保存后，JFTrade 才会开始检测 OpenD。";
+});
+
+const headerDescription = computed(() =>
+  props.mode === "oobe"
+    ? "先保存 OpenD 连接参数，再进行连接检测与账户确认。"
+    : "配置 OpenD 连接参数与默认账号信息。",
+);
+
+const saveButtonLabel = computed(() =>
+  props.mode === "oobe" ? "保存并检测 OpenD" : "保存富途配置",
+);
+
 watch(
   futuBroker,
   (broker) => {
-    const source = broker?.integration?.config ?? broker?.defaults;
+    const source =
+      broker?.integration?.config ??
+      broker?.defaults ??
+      integrationDefaults.value;
     if (source == null) {
       return;
     }
 
-    integrationForm.enabled = broker?.integration?.enabled ?? true;
+    integrationForm.enabled = broker?.integration?.enabled ?? false;
     integrationForm.host = source.host;
     integrationForm.apiPort =
       "apiPort" in source && typeof source.apiPort === "number"
@@ -129,7 +202,6 @@ watch(
       typeof source.maxWebSocketConnections === "number"
         ? source.maxWebSocketConnections
         : 20;
-    integrationForm.useEncryption = source.useEncryption;
     integrationForm.websocketKey = source.websocketKey;
     integrationForm.tradeMarket = source.tradeMarket;
     integrationForm.securityFirm = source.securityFirm;
@@ -149,7 +221,7 @@ async function submitIntegration(): Promise<void> {
         apiPort: integrationForm.apiPort,
         websocketPort: integrationForm.websocketPort,
         maxWebSocketConnections: integrationForm.maxWebSocketConnections,
-        useEncryption: integrationForm.useEncryption,
+        useEncryption: false,
         websocketKey: integrationForm.websocketKey,
         tradeMarket: integrationForm.tradeMarket,
         securityFirm: integrationForm.securityFirm,
@@ -164,7 +236,7 @@ async function refreshFutuConnection(): Promise<void> {
   refreshingFutuConnection.value = true;
 
   try {
-    await loadSystemState();
+    await loadSystemState({ bypassCooldown: true });
   } finally {
     refreshingFutuConnection.value = false;
   }
@@ -194,26 +266,32 @@ async function cancelAllMarketDataSubscriptions(): Promise<void> {
 <template>
   <div class="grid gap-6">
     <div class="settings-panel">
-      <SectionHeader
-        title="富途接入"
-        description="配置 OpenD 连接参数与默认账号信息。"
-      />
+      <SectionHeader title="富途接入" :description="headerDescription" />
 
       <div class="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-4">
         <div class="flex flex-wrap items-start justify-between gap-3">
           <div>
             <div class="flex flex-wrap items-center gap-2">
-              <span class="text-sm font-semibold text-slate-900">OpenD 连接状态</span>
-              <v-chip :color="futuConnectionTagType === 'danger' ? 'error' : futuConnectionTagType" variant="tonal" size="small">
+              <span class="text-sm font-semibold text-slate-900"
+                >OpenD 连接状态</span
+              >
+              <v-chip
+                :color="
+                  futuConnectionTagType === 'danger'
+                    ? 'error'
+                    : futuConnectionTagType
+                "
+                variant="tonal"
+                size="small"
+              >
                 {{ futuConnectionLabel }}
               </v-chip>
             </div>
             <p class="mt-2 text-sm leading-6 text-slate-600">
-              当前检测目标：WebSocket {{ futuConnectionTarget }}；检测时间：
-              {{ futuConnectionCheckedAt }}。保存参数后会自动重新检测，也可以手动刷新。
+              {{ connectionSummary }}
             </p>
           </div>
-          <div class="flex flex-wrap gap-2">
+          <div v-if="showRuntimeState" class="flex flex-wrap gap-2">
             <v-btn
               :loading="refreshingFutuConnection || isLoading"
               variant="outlined"
@@ -249,7 +327,13 @@ async function cancelAllMarketDataSubscriptions(): Promise<void> {
           <div class="rounded-xl bg-slate-50 px-3 py-3">
             <div class="text-xs text-slate-500">程序状态</div>
             <div class="mt-1 text-sm font-semibold text-slate-900">
-              {{ formatFutuProgramStatusLabel(brokerRuntime.session.globalState?.programStatus) }}
+              {{
+                showRuntimeState
+                  ? formatFutuProgramStatusLabel(
+                      brokerRuntime.session.globalState?.programStatus,
+                    )
+                  : "等待检测"
+              }}
             </div>
           </div>
           <div class="rounded-xl bg-slate-50 px-3 py-3">
@@ -261,7 +345,18 @@ async function cancelAllMarketDataSubscriptions(): Promise<void> {
         </div>
 
         <v-alert
-          v-if="futuOpenDManualRetryRequired"
+          v-if="isPendingSetup || isSavedDisabled"
+          class="mt-4"
+          type="info"
+          :closable="false"
+        >
+          <p class="leading-6">
+            {{ neutralStatusMessage }}
+          </p>
+        </v-alert>
+
+        <v-alert
+          v-else-if="futuOpenDManualRetryRequired"
           class="mt-4"
           type="error"
           :closable="false"
@@ -271,17 +366,24 @@ async function cancelAllMarketDataSubscriptions(): Promise<void> {
             {{ futuOpenDHealth.diagnosis.summary }}
           </p>
           <p class="mt-2 leading-6">
-            建议先检查并重启 OpenD，再点击上方"手动重试 OpenD"。
+            建议先检查并重启 OpenD，再点击上方“手动重试 OpenD”。
           </p>
           <p
-            v-if="futuOpenDHealth.localSocketDiagnostics.websocketEstablishedConnections > 0"
+            v-if="
+              futuOpenDHealth.localSocketDiagnostics
+                .websocketEstablishedConnections > 0
+            "
             class="mt-2 text-sm leading-6"
           >
             当前检测到
-            {{ futuOpenDHealth.localSocketDiagnostics.websocketEstablishedConnections }}
+            {{
+              futuOpenDHealth.localSocketDiagnostics
+                .websocketEstablishedConnections
+            }}
             条本地已建立 WebSocket 连接
-            <span v-if="futuOpenDTopClientSummary">（{{ futuOpenDTopClientSummary }}）</span>
-            。
+            <span v-if="futuOpenDTopClientSummary"
+              >（{{ futuOpenDTopClientSummary }}）</span
+            >。
           </p>
         </v-alert>
 
@@ -298,7 +400,11 @@ async function cancelAllMarketDataSubscriptions(): Promise<void> {
         </v-alert>
 
         <v-alert
-          v-if="!futuOpenDManualRetryRequired && futuOpenDRestartRecommended"
+          v-if="
+            showRuntimeState &&
+            !futuOpenDManualRetryRequired &&
+            futuOpenDRestartRecommended
+          "
           class="mt-4"
           type="warning"
           :closable="false"
@@ -310,30 +416,44 @@ async function cancelAllMarketDataSubscriptions(): Promise<void> {
         </v-alert>
 
         <v-alert
-          v-else-if="brokerRuntime.session.connectivity === 'connected'"
+          v-else-if="
+            showRuntimeState &&
+            brokerRuntime.session.connectivity === 'connected'
+          "
           class="mt-4"
           type="success"
           :closable="false"
         >
           <p class="leading-6">
-            <span class="font-semibold">OpenD WebSocket 已连接。</span>
-            当前参数已通过运行时检测，可以继续发现账号、查询行情或进行后续操作。
+            <span class="font-semibold">OpenD 已连接。</span>
+            当前参数已通过运行时检测，可以继续发现账户、查询行情或执行后续操作。
           </p>
         </v-alert>
       </div>
 
       <div class="mt-4 grid gap-4">
         <div class="grid gap-1">
-          <v-switch v-model="integrationForm.enabled" color="indigo" label="启用富途接入配置" hide-details />
+          <v-switch
+            v-model="integrationForm.enabled"
+            color="indigo"
+            label="启用富途接入配置"
+            hide-details
+          />
         </div>
 
         <div class="grid gap-4 md:grid-cols-2">
           <div class="grid gap-1">
             <label class="text-sm font-medium text-slate-700">OpenD 主机</label>
-            <v-text-field v-model="integrationForm.host" density="compact" variant="outlined" />
+            <v-text-field
+              v-model="integrationForm.host"
+              density="compact"
+              variant="outlined"
+            />
           </div>
           <div class="grid gap-1">
-            <label class="text-sm font-medium text-slate-700">OpenD API 端口</label>
+            <label class="text-sm font-medium text-slate-700"
+              >OpenD API 端口</label
+            >
             <v-text-field
               v-model.number="integrationForm.apiPort"
               type="number"
@@ -344,7 +464,9 @@ async function cancelAllMarketDataSubscriptions(): Promise<void> {
             />
           </div>
           <div class="grid gap-1">
-            <label class="text-sm font-medium text-slate-700">OpenD WebSocket 端口</label>
+            <label class="text-sm font-medium text-slate-700"
+              >OpenD WebSocket 端口</label
+            >
             <v-text-field
               v-model.number="integrationForm.websocketPort"
               type="number"
@@ -354,11 +476,14 @@ async function cancelAllMarketDataSubscriptions(): Promise<void> {
               variant="outlined"
             />
             <div class="mt-1 text-xs text-amber-700">
-              JFTrade 的 JavaScript 富途接入使用 WebSocket 端口；请先在 OpenD 中开启 WebSocket。
+              JFTrade 的 JavaScript 富途接入使用 WebSocket 端口；请先在 OpenD
+              中开启 WebSocket。
             </div>
           </div>
           <div class="grid gap-1">
-            <label class="text-sm font-medium text-slate-700">OpenD WebSocket 并发上限</label>
+            <label class="text-sm font-medium text-slate-700"
+              >OpenD WebSocket 并发上限</label
+            >
             <v-text-field
               v-model.number="integrationForm.maxWebSocketConnections"
               type="number"
@@ -368,34 +493,54 @@ async function cancelAllMarketDataSubscriptions(): Promise<void> {
               variant="outlined"
             />
             <div class="mt-1 text-xs text-slate-500">
-              默认 20。JFTrade 会复用请求级 WebSocket 连接池，并限制同时连接 OpenD 的客户端数量，避免反复登录或并发查询耗尽 OpenD 连接。
+              默认 20。JFTrade 会复用请求级 WebSocket 连接池，并限制同时连接
+              OpenD 的客户端数量，避免反复登录或并发查询耗尽 OpenD 连接。
             </div>
           </div>
           <div class="grid gap-1">
-            <label class="text-sm font-medium text-slate-700">默认账号市场</label>
-            <v-text-field v-model="integrationForm.tradeMarket" density="compact" variant="outlined" />
+            <label class="text-sm font-medium text-slate-700"
+              >默认账户市场</label
+            >
+            <v-text-field
+              v-model="integrationForm.tradeMarket"
+              density="compact"
+              variant="outlined"
+            />
             <div class="mt-1 text-xs text-slate-500">
-              仅用于手工创建账号时的默认值，不会限制 OpenD 可查询行情或账户授权市场。
+              仅用于手工创建账号时的默认值，不会限制 OpenD
+              可查询行情或账户授权市场。
             </div>
           </div>
           <div class="grid gap-1">
-            <label class="text-sm font-medium text-slate-700">默认券商标识</label>
-            <v-text-field v-model="integrationForm.securityFirm" density="compact" variant="outlined" />
+            <label class="text-sm font-medium text-slate-700"
+              >默认券商标识</label
+            >
+            <v-text-field
+              v-model="integrationForm.securityFirm"
+              density="compact"
+              variant="outlined"
+            />
             <div class="mt-1 text-xs text-slate-500">
-              仅作为手工账号默认值；从 OpenD 导入账号时优先使用运行时探测到的券商机构。
+              仅作为手工账号默认值；从 OpenD
+              导入账号时优先使用运行时探测到的券商机构。
             </div>
           </div>
         </div>
 
-        <div class="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-          请在 OpenD GUI 中确认 WebSocket 已开启；如果配置了 WebSocket 密码，请把这里的
-          WebSocket 密码 / 密钥与 OpenD 图形界面或命令行版 FutuOpenD.xml（或
-          <code>-cfg_file</code> 指定的参数文件）保持一致。API 端口主要用于记录当前 OpenD 的
-          TCP API 监听配置。
+        <div
+          class="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
+        >
+          请在 OpenD GUI 中确认 WebSocket 已开启；如果配置了 WebSocket
+          密码，请把这里的 WebSocket 密码 / 密钥与 OpenD 图形界面或命令行版
+          FutuOpenD.xml（或
+          <code>-cfg_file</code> 指定的参数文件）保持一致。API
+          端口主要用于记录当前 OpenD 的 TCP API 监听配置。
         </div>
 
         <div class="grid gap-1">
-          <label class="text-sm font-medium text-slate-700">WebSocket 密码 / 密钥</label>
+          <label class="text-sm font-medium text-slate-700"
+            >WebSocket 密码 / 密钥</label
+          >
           <v-text-field
             v-model="integrationForm.websocketKey"
             type="password"
@@ -404,18 +549,17 @@ async function cancelAllMarketDataSubscriptions(): Promise<void> {
             variant="outlined"
           />
           <div class="mt-1 text-xs text-slate-500">
-            如果 OpenD GUI 或命令行版 FutuOpenD.xml / <code>-cfg_file</code>
-            参数文件配置了 <code>websocket_key_md5</code>，请在这里填写对应的明文密码；也可通过
-            <code>JFTRADE_FUTU_WEBSOCKET_KEY</code> 配置。不要填写 32 位 MD5 密文。
+            如果 OpenD GUI 或命令行版 FutuOpenD.xml /
+            <code>-cfg_file</code> 参数文件配置了
+            <code>websocket_key_md5</code>，请在这里填写对应的明文密码；
+            也可通过 <code>JFTRADE_FUTU_WEBSOCKET_KEY</code> 配置。不要填写 32
+            位 MD5 密文。
           </div>
-        </div>
-
-        <div class="grid gap-1">
-          <v-switch v-model="integrationForm.useEncryption" color="indigo" label="启用加密连接" hide-details />
         </div>
 
         <div class="flex flex-wrap justify-end gap-3">
           <v-btn
+            v-if="props.mode === 'settings'"
             :loading="cancellingSubscriptions"
             variant="outlined"
             color="error"
@@ -423,11 +567,24 @@ async function cancelAllMarketDataSubscriptions(): Promise<void> {
           >
             取消全部实时行情订阅
           </v-btn>
-          <v-btn :loading="savingIntegration" color="primary" @click="submitIntegration">
-            保存富途配置
+          <v-btn
+            :loading="savingIntegration"
+            color="primary"
+            @click="submitIntegration"
+          >
+            {{ saveButtonLabel }}
           </v-btn>
         </div>
       </div>
     </div>
   </div>
 </template>
+
+<style scoped>
+.settings-panel {
+  border-radius: 1.25rem;
+  border: 1px solid var(--card-border);
+  background: var(--card-surface);
+  padding: 1.25rem 1.5rem;
+}
+</style>

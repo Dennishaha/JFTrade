@@ -17,7 +17,7 @@ func testServer(t *testing.T) (*httptest.Server, *SettingsStore) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	_, err = store.saveIntegration(BrokerIntegration{Config: normalizeFutuConfig(FutuIntegrationConfig{
+	_, err = store.saveIntegration(BrokerIntegration{Enabled: true, Config: normalizeFutuConfig(FutuIntegrationConfig{
 		Type:          "futu",
 		Host:          "127.0.0.1",
 		APIPort:       1,
@@ -27,7 +27,11 @@ func testServer(t *testing.T) (*httptest.Server, *SettingsStore) {
 	if err != nil {
 		t.Fatalf("saveIntegration: %v", err)
 	}
-	srv := httptest.NewServer(NewServer(store))
+	server := NewServer(store)
+	t.Cleanup(func() {
+		_ = server.Close()
+	})
+	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 	return srv, store
 }
@@ -306,10 +310,10 @@ func TestNewBrokerRoutesReturnJSON(t *testing.T) {
 
 func TestParseBrokerRouteNewResources(t *testing.T) {
 	tests := []struct {
-		path          string
-		wantBrokerID  string
-		wantResource  string
-		wantOK        bool
+		path         string
+		wantBrokerID string
+		wantResource string
+		wantOK       bool
 	}{
 		{"/api/v1/brokers/futu/quote", "futu", "quote", true},
 		{"/api/v1/brokers/futu/klines", "futu", "klines", true},
@@ -348,7 +352,7 @@ func TestBrokerReadQueryFromRequestDefaultMarket(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	_, err = store.saveIntegration(BrokerIntegration{Config: normalizeFutuConfig(FutuIntegrationConfig{
+	_, err = store.saveIntegration(BrokerIntegration{Enabled: true, Config: normalizeFutuConfig(FutuIntegrationConfig{
 		Type:          "futu",
 		Host:          "127.0.0.1",
 		APIPort:       1,

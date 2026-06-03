@@ -22,7 +22,9 @@ func TestBrokerIntegrationSavePersistsAndUpdatesRuntimeEnv(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	srv := httptest.NewServer(NewServer(store))
+	api := NewServer(store)
+	defer api.Close()
+	srv := httptest.NewServer(api)
 	defer srv.Close()
 
 	payload := map[string]any{
@@ -33,7 +35,7 @@ func TestBrokerIntegrationSavePersistsAndUpdatesRuntimeEnv(t *testing.T) {
 			"apiPort":                 11110,
 			"websocketPort":           11111,
 			"maxWebSocketConnections": 20,
-			"useEncryption":           false,
+			"useEncryption":           true,
 			"websocketKey":            "123456",
 			"tradeMarket":             "HK",
 			"securityFirm":            "FUTUSECURITIES",
@@ -85,6 +87,176 @@ func TestBrokerIntegrationSavePersistsAndUpdatesRuntimeEnv(t *testing.T) {
 	if config.APIPort != 11110 || config.WebSocketPort != 11111 || config.WebSocketKey != "123456" {
 		t.Fatalf("unexpected saved config: %+v", config)
 	}
+	if config.UseEncryption {
+		t.Fatalf("useEncryption should be forced false in saved config: %+v", config)
+	}
+}
+
+func TestBrokerSettingsExposeNullIntegrationUntilFirstSave(t *testing.T) {
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	api := NewServer(store)
+	defer api.Close()
+	srv := httptest.NewServer(api)
+	defer srv.Close()
+
+	resp, err := http.Get(srv.URL + "/api/v1/settings/brokers")
+	if err != nil {
+		t.Fatalf("GET settings: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("GET settings status = %d", resp.StatusCode)
+	}
+
+	var response struct {
+		OK   bool `json:"ok"`
+		Data struct {
+			Brokers []struct {
+				Integration *BrokerIntegration    `json:"integration"`
+				Defaults    FutuIntegrationConfig `json:"defaults"`
+			} `json:"brokers"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		t.Fatalf("decode settings: %v", err)
+	}
+	if !response.OK || len(response.Data.Brokers) != 1 {
+		t.Fatalf("unexpected response: %+v", response)
+	}
+	if response.Data.Brokers[0].Integration != nil {
+		t.Fatalf("expected nil integration before first save, got %+v", response.Data.Brokers[0].Integration)
+	}
+	if response.Data.Brokers[0].Defaults.APIPort != defaultFutuAPIPort {
+		t.Fatalf("defaults apiPort = %d", response.Data.Brokers[0].Defaults.APIPort)
+	}
+	if response.Data.Brokers[0].Defaults.WebSocketPort != defaultFutuWebSocketPort {
+		t.Fatalf("defaults websocketPort = %d", response.Data.Brokers[0].Defaults.WebSocketPort)
+	}
+}
+
+func TestFutuRuntimeAndHealthStayNeutralWithoutSavedEnabledIntegration(t *testing.T) {
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	api := NewServer(store)
+	defer api.Close()
+	srv := httptest.NewServer(api)
+	defer srv.Close()
+
+	runtimeResp, err := http.Get(srv.URL + "/api/v1/brokers/futu/runtime")
+	if err != nil {
+		t.Fatalf("GET runtime: %v", err)
+	}
+	defer runtimeResp.Body.Close()
+	if runtimeResp.StatusCode != http.StatusOK {
+		t.Fatalf("GET runtime status = %d", runtimeResp.StatusCode)
+	}
+
+	var runtimeEnvelope struct {
+		OK   bool `json:"ok"`
+		Data struct {
+			Session struct {
+				Connectivity string  `json:"connectivity"`
+				CheckedAt    string  `json:"checkedAt"`
+				LastError    *string `json:"lastError"`
+			} `json:"session"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(runtimeResp.Body).Decode(&runtimeEnvelope); err != nil {
+		t.Fatalf("decode runtime: %v", err)
+	}
+	if !runtimeEnvelope.OK {
+		t.Fatalf("unexpected runtime envelope: %+v", runtimeEnvelope)
+	}
+	if runtimeEnvelope.Data.Session.Connectivity != "disconnected" {
+		t.Fatalf("runtime connectivity = %q", runtimeEnvelope.Data.Session.Connectivity)
+	}
+	if runtimeEnvelope.Data.Session.CheckedAt != "" {
+		t.Fatalf("runtime checkedAt = %q", runtimeEnvelope.Data.Session.CheckedAt)
+	}
+	if runtimeEnvelope.Data.Session.LastError != nil {
+		t.Fatalf("runtime lastError = %v", *runtimeEnvelope.Data.Session.LastError)
+	}
+
+	healthResp, err := http.Get(srv.URL + "/api/v1/system/futu-opend")
+	if err != nil {
+		t.Fatalf("GET OpenD health: %v", err)
+	}
+	defer healthResp.Body.Close()
+	if healthResp.StatusCode != http.StatusOK {
+		t.Fatalf("GET OpenD health status = %d", healthResp.StatusCode)
+	}
+
+	var healthEnvelope struct {
+		OK   bool `json:"ok"`
+		Data struct {
+			CheckedAt string `json:"checkedAt"`
+			Diagnosis struct {
+				Code                string `json:"code"`
+				ManualRetryRequired bool   `json:"manualRetryRequired"`
+			} `json:"diagnosis"`
+			Runtime struct {
+				Connectivity string  `json:"connectivity"`
+				LastError    *string `json:"lastError"`
+			} `json:"runtime"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(healthResp.Body).Decode(&healthEnvelope); err != nil {
+		t.Fatalf("decode OpenD health: %v", err)
+	}
+	if !healthEnvelope.OK {
+		t.Fatalf("unexpected OpenD health envelope: %+v", healthEnvelope)
+	}
+	if healthEnvelope.Data.CheckedAt != "" {
+		t.Fatalf("health checkedAt = %q", healthEnvelope.Data.CheckedAt)
+	}
+	if healthEnvelope.Data.Runtime.Connectivity != "disconnected" {
+		t.Fatalf("health connectivity = %q", healthEnvelope.Data.Runtime.Connectivity)
+	}
+	if healthEnvelope.Data.Runtime.LastError != nil {
+		t.Fatalf("health lastError = %v", *healthEnvelope.Data.Runtime.LastError)
+	}
+	if healthEnvelope.Data.Diagnosis.Code != "NONE" {
+		t.Fatalf("health diagnosis code = %q", healthEnvelope.Data.Diagnosis.Code)
+	}
+	if healthEnvelope.Data.Diagnosis.ManualRetryRequired {
+		t.Fatal("expected manualRetryRequired=false without a saved enabled integration")
+	}
+
+	saved, err := store.saveIntegration(BrokerIntegration{
+		BrokerID: "futu",
+		Enabled:  false,
+		Config: normalizeFutuConfig(FutuIntegrationConfig{
+			Type:          "futu",
+			Host:          "127.0.0.1",
+			APIPort:       11110,
+			WebSocketPort: 11111,
+			TradeMarket:   "HK",
+			SecurityFirm:  "FUTUSECURITIES",
+		}),
+	})
+	if err != nil {
+		t.Fatalf("saveIntegration disabled: %v", err)
+	}
+	if saved.Enabled {
+		t.Fatal("expected saved integration to remain disabled")
+	}
+
+	healthResp, err = http.Get(srv.URL + "/api/v1/system/futu-opend")
+	if err != nil {
+		t.Fatalf("GET OpenD health after disabled save: %v", err)
+	}
+	defer healthResp.Body.Close()
+	if err := json.NewDecoder(healthResp.Body).Decode(&healthEnvelope); err != nil {
+		t.Fatalf("decode OpenD health after disabled save: %v", err)
+	}
+	if healthEnvelope.Data.Diagnosis.Code != "NONE" || healthEnvelope.Data.Runtime.LastError != nil {
+		t.Fatalf("expected disabled integration to stay neutral, got %+v", healthEnvelope.Data)
+	}
 }
 
 func TestManagedBrokerAccountCRUDReflectsInBrokerSettings(t *testing.T) {
@@ -92,7 +264,9 @@ func TestManagedBrokerAccountCRUDReflectsInBrokerSettings(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	srv := httptest.NewServer(NewServer(store))
+	api := NewServer(store)
+	defer api.Close()
+	srv := httptest.NewServer(api)
 	defer srv.Close()
 
 	payload := map[string]any{
@@ -214,7 +388,9 @@ func TestUIAppearanceSavePersistsToSettings(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	srv := httptest.NewServer(NewServer(store))
+	api := NewServer(store)
+	defer api.Close()
+	srv := httptest.NewServer(api)
 	defer srv.Close()
 
 	payload := map[string]any{

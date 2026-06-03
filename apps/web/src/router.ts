@@ -5,6 +5,8 @@ import {
   createWebHistory,
 } from "vue-router";
 
+import OobeOverlay from "./components/OobeOverlay.vue";
+
 export function createConsoleRouter(
   history: RouterHistory = createWebHistory(),
 ): Router {
@@ -12,6 +14,10 @@ export function createConsoleRouter(
     history,
     routes: [
       { path: "/", redirect: "/workspace" },
+      {
+        path: "/oobe",
+        component: OobeOverlay,
+      },
       {
         path: "/workspace",
         component: () => import("./pages/WorkspacePage.vue"),

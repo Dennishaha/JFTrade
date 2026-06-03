@@ -13,6 +13,7 @@ import {
   emptyBrokerRuntime,
   emptyBrokerSettings,
   emptyExecutionOrders,
+  emptyOnboardingState,
   emptyPluginCatalog,
   emptyPortfolioCashBalances,
   emptyPortfolioCashReconciliation,
@@ -271,6 +272,9 @@ export async function mountApp(path = "/system") {
       } catch (error) {
         if (url.includes("/api/v1/settings/brokers")) {
           return createResponse(emptyBrokerSettings);
+        }
+        if (url.includes("/api/v1/settings/onboarding")) {
+          return createResponse(emptyOnboardingState);
         }
         if (url.includes("/api/v1/plugins")) {
           return createResponse(emptyPluginCatalog);

@@ -25,6 +25,7 @@ import {
   type FutuOpenDHealthResponse,
   type FutuOpenDInstallGuideResponse,
   type MarketDataSubscriptionsResponse,
+  type OnboardingStateResponse,
   type PluginCatalogResponse,
   type PortfolioCashBalancesResponse,
   type PortfolioCashReconciliationResponse,
@@ -49,6 +50,7 @@ import {
   emptyFutuOpenDHealth,
   emptyFutuOpenDInstallGuide,
   emptyMarketDataSubscriptions,
+  emptyOnboardingState,
   emptyPluginCatalog,
   emptyPortfolioCashBalances,
   emptyPortfolioCashReconciliation,
@@ -59,6 +61,7 @@ import {
   emptyWorkerBrokerOrderUpdates,
 } from "@jftrade/ui-contracts";
 
+import { fetchEnvelopeWithInit } from "./apiClient";
 import {
   createConsoleDataBrokerSettingsController,
 } from "./consoleDataBrokerSettings";
@@ -118,6 +121,7 @@ function createConsoleDataStore(workspaceLayout: WorkspaceLayoutStore) {
   const systemStatus = ref<SystemStatusResponse>(emptySystemStatus);
   const storageOverview = ref<StorageOverviewResponse>(emptyStorageOverview);
   const brokerSettings = ref<BrokerSettingsResponse>(emptyBrokerSettings);
+  const onboardingState = ref<OnboardingStateResponse>(emptyOnboardingState);
   const pluginCatalog = ref<PluginCatalogResponse>(emptyPluginCatalog);
   const futuOpenDHealth = ref<FutuOpenDHealthResponse>(emptyFutuOpenDHealth);
   const futuOpenDInstallGuide = ref<FutuOpenDInstallGuideResponse>(
@@ -396,6 +400,7 @@ function createConsoleDataStore(workspaceLayout: WorkspaceLayoutStore) {
     systemStatus,
     storageOverview,
     brokerSettings,
+    onboardingState,
     pluginCatalog,
     futuOpenDHealth,
     futuOpenDInstallGuide,
@@ -426,6 +431,32 @@ function createConsoleDataStore(workspaceLayout: WorkspaceLayoutStore) {
     loadBrokerLiveData,
   });
   const { loadSystemState } = systemStateController;
+  async function loadOnboardingState(): Promise<OnboardingStateResponse> {
+    const response = await fetchEnvelopeWithInit<OnboardingStateResponse>(
+      "/api/v1/settings/onboarding",
+      { method: "GET" },
+    );
+    onboardingState.value = response;
+    return response;
+  }
+
+  async function saveOnboardingState(payload: {
+    completed: boolean;
+    dismissed?: boolean;
+    lastBrokerId?: string;
+  }): Promise<void> {
+    const response = await fetchEnvelopeWithInit<OnboardingStateResponse>(
+      "/api/v1/settings/onboarding",
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      },
+    );
+    onboardingState.value = response;
+  }
   const consoleStreamController = createConsoleDataConsoleStreamController({
     liveStreamStatus,
     liveStreamCheckedAt,
@@ -476,6 +507,7 @@ function createConsoleDataStore(workspaceLayout: WorkspaceLayoutStore) {
     loadMarketDataQuery,
     loadMarketInstrumentReferences,
     loadMarketDataSubscriptions,
+    loadOnboardingState,
     loadPluginUninstallGuidance,
     loadPlugins,
     loadSystemState,
@@ -491,6 +523,7 @@ function createConsoleDataStore(workspaceLayout: WorkspaceLayoutStore) {
     marketInstrumentSearchOptions,
     marketDataSnapshot,
     marketDataSubscriptions,
+    onboardingState,
     orderFeesError,
     portfolioCashBalances,
     portfolioCashReconciliation,
@@ -509,6 +542,7 @@ function createConsoleDataStore(workspaceLayout: WorkspaceLayoutStore) {
     realTradeRiskState,
     createStableWebConsumerId,
     saveBrokerIntegration,
+    saveOnboardingState,
     selectBrokerAccount,
     selectedBrokerAccount,
     selectedExecutionOrder,

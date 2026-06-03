@@ -87,7 +87,11 @@ func (s *Server) marketSecurityDetailsResponse(ctx context.Context, path string)
 	market = strings.ToUpper(strings.TrimSpace(market))
 	symbol = strings.ToUpper(strings.TrimSpace(symbol))
 	instrumentID := market + "." + symbol
-	details, err := s.futuExchange().QuerySecurityDetails(ctx, instrumentID)
+	exchange, err := s.futuExchangeOrError()
+	if err != nil {
+		return nil, err
+	}
+	details, err := exchange.QuerySecurityDetails(ctx, instrumentID)
 	if err != nil {
 		return nil, err
 	}
@@ -122,7 +126,11 @@ func (s *Server) resolveMarketSnapshotSample(ctx context.Context, instrumentID s
 	}
 	fromCache := sample != nil
 	if sample == nil {
-		snapshot, err := s.futuExchange().QueryQuoteSnapshot(ctx, instrumentID)
+		exchange, err := s.futuExchangeOrError()
+		if err != nil {
+			return nil, false, err
+		}
+		snapshot, err := exchange.QueryQuoteSnapshot(ctx, instrumentID)
 		if err != nil {
 			return nil, false, err
 		}
@@ -172,7 +180,11 @@ func (s *Server) buildTickCandlesResponse(ctx context.Context, market string, sy
 	request := marketCandlesRequest(market, symbol, instrumentID, period, limit)
 	fromLiveCache := s.latestTickerSample(instrumentID, liveTickSampleFreshness) != nil
 	if !fromLiveCache {
-		ticker, err := s.futuExchange().QueryTicker(ctx, instrumentID)
+		exchange, err := s.futuExchangeOrError()
+		if err != nil {
+			return nil, err
+		}
+		ticker, err := exchange.QueryTicker(ctx, instrumentID)
 		if err != nil {
 			cachedCandles := s.cachedTickCandles(instrumentID, query, limit)
 			if len(cachedCandles) == 0 {
@@ -201,7 +213,10 @@ func (s *Server) buildKLineCandlesResponse(ctx context.Context, market string, s
 	interval := bbgotypes.Interval(period)
 	includeSession := shouldAnnotateHistoricalKLineSession(market, interval)
 	beginAt, endAt := kLineQueryWindow(query, interval.Duration(), limit)
-	exchange := s.futuExchange()
+	exchange, err := s.futuExchangeOrError()
+	if err != nil {
+		return nil, err
+	}
 	klines, err := exchange.QueryKLines(ctx, instrumentID, interval, bbgotypes.KLineQueryOptions{Limit: limit, StartTime: &beginAt, EndTime: &endAt})
 	if err != nil {
 		return nil, err
@@ -273,6 +288,9 @@ func shouldAnnotateHistoricalKLineSession(market string, interval bbgotypes.Inte
 }
 
 func (s *Server) futuExchange() *futu.Exchange {
+	if !s.futuIntegrationEnabled() {
+		return nil
+	}
 	integration := s.store.integration()
 	config := opend.Config{
 		Addr:             net.JoinHostPort(integration.Config.Host, strconv.Itoa(integration.Config.APIPort)),
@@ -348,8 +366,14 @@ func (s *Server) handleMarketDepthEventStream(w http.ResponseWriter, r *http.Req
 		})
 	}
 
+	exchange, err := s.futuExchangeOrError()
+	if err != nil {
+		s.writeError(w, http.StatusBadGateway, "OPEND_DEPTH_FAILED", err.Error())
+		return
+	}
+
 	updateCh := make(chan struct{}, 1)
-	unsubscribe := s.futuExchange().OnOrderBookUpdate(func(updatedSymbol string) {
+	unsubscribe := exchange.OnOrderBookUpdate(func(updatedSymbol string) {
 		if !strings.EqualFold(updatedSymbol, instrumentID) {
 			return
 		}
@@ -394,7 +418,16 @@ func (s *Server) marketDepthResponse(ctx context.Context, path string, query map
 		num = 50
 	}
 
-	brokerResult, err := s.futuBroker().MarketData().QueryOrderBook(ctx, broker.OrderBookQuery{
+	b, err := s.futuBrokerOrError()
+	if err != nil {
+		return nil, err
+	}
+	reader := b.MarketData()
+	if reader == nil {
+		return nil, fmt.Errorf("broker market data not available")
+	}
+
+	brokerResult, err := reader.QueryOrderBook(ctx, broker.OrderBookQuery{
 		ReadQuery: brokerReadQuery(instrumentID),
 		Symbol:    instrumentID,
 		Num:       num,
@@ -416,12 +449,19 @@ func (s *Server) marketDepthResponse(ctx context.Context, path string, query map
 }
 
 func (s *Server) futuBroker() broker.Broker {
+	if !s.futuIntegrationEnabled() {
+		return nil
+	}
 	if s.brokers != nil {
 		if b := s.brokers.Lookup(string(futu.Name)); b != nil {
 			return b
 		}
 	}
-	return futu.NewBrokerAdapter(s.futuExchange())
+	exchange := s.futuExchange()
+	if exchange == nil {
+		return nil
+	}
+	return futu.NewBrokerAdapter(exchange)
 }
 
 func brokerReadQuery(instrumentID string) broker.ReadQuery {

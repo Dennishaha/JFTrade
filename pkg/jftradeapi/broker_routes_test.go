@@ -13,7 +13,7 @@ func TestBrokerFundsEndpointReturnsDisconnectedSummary(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	_, err = store.saveIntegration(BrokerIntegration{Config: normalizeFutuConfig(FutuIntegrationConfig{
+	_, err = store.saveIntegration(BrokerIntegration{Enabled: true, Config: normalizeFutuConfig(FutuIntegrationConfig{
 		Type:          "futu",
 		Host:          "127.0.0.1",
 		APIPort:       1,

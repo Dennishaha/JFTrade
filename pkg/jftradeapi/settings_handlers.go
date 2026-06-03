@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 )
 
 type managedBrokerAccountWriteRequest struct {
@@ -63,6 +64,46 @@ func (s *Server) handleSaveUIAppearance(w http.ResponseWriter, r *http.Request) 
 	}
 
 	s.writeOK(w, map[string]any{"appearance": appearance})
+}
+
+func (s *Server) handleSaveOnboarding(w http.ResponseWriter, r *http.Request) {
+	var payload struct {
+		Completed    bool   `json:"completed"`
+		Dismissed    bool   `json:"dismissed"`
+		LastBrokerID string `json:"lastBrokerId"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", err.Error())
+		return
+	}
+
+	existing := s.store.onboarding()
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	next := existing
+	next.LastBrokerID = payload.LastBrokerID
+	if strings.TrimSpace(next.LastBrokerID) == "" {
+		next.LastBrokerID = existing.LastBrokerID
+	}
+	if payload.Completed || payload.Dismissed {
+		next.Completed = true
+		if payload.Dismissed {
+			next.DismissedAt = now
+		}
+		if next.CompletedAt == "" {
+			next.CompletedAt = now
+		}
+	} else {
+		next.Completed = false
+		next.CompletedAt = ""
+		next.DismissedAt = ""
+	}
+
+	onboarding, err := s.store.saveOnboarding(next)
+	if err != nil {
+		s.writeError(w, http.StatusInternalServerError, "SETTINGS_SAVE_FAILED", err.Error())
+		return
+	}
+	s.writeOK(w, s.onboardingStateFromSettings(r.Context(), onboarding))
 }
 
 func (s *Server) handleCreateManagedBrokerAccount(w http.ResponseWriter, r *http.Request) {

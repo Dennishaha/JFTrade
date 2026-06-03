@@ -363,6 +363,10 @@ func (s *Server) syncBrokerOrderUpdates(ctx context.Context, force bool) {
 
 	// Use the broker interface for account discovery.
 	activeBroker := s.activeBroker()
+	if activeBroker == nil {
+		s.brokerOrderUpdates.markDiscoveredAccounts(0, "inactive")
+		return
+	}
 	accounts, err := activeBroker.DiscoverAccounts(ctx)
 	if err != nil {
 		query := broker.ReadQuery{BrokerID: "futu", TradingEnvironment: "SIMULATE", Market: fallbackMarket}
@@ -400,10 +404,14 @@ func (s *Server) syncBrokerOrderUpdates(ctx context.Context, force bool) {
 }
 
 func (s *Server) bindBrokerOrderUpdatePush(ctx context.Context, accounts []futu.RuntimeAccount, queries []futu.BrokerReadQuery) error {
-	if err := s.futuExchange().Connect(ctx); err != nil {
+	exchange := s.futuExchange()
+	if exchange == nil {
+		return nil
+	}
+	if err := exchange.Connect(ctx); err != nil {
 		return err
 	}
-	client := s.futuExchange().Client()
+	client := exchange.Client()
 	if client == nil {
 		return context.Canceled
 	}

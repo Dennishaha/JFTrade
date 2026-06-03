@@ -7,6 +7,7 @@ import {
   type ExecutionOrdersResponse,
   type FutuOpenDHealthResponse,
   type FutuOpenDInstallGuideResponse,
+  type OnboardingStateResponse,
   type PluginCatalogResponse,
   type RealTradeApprovalsResponse,
   type RealTradeHardStopEventsResponse,
@@ -19,9 +20,11 @@ import {
   type SystemStatusResponse,
   type WorkerBrokerOrderUpdatesResponse,
   emptyBrokerOrderFees,
+  emptyBrokerRuntime,
   emptyExecutionOrderEvents,
   emptyFutuOpenDHealth,
   emptyFutuOpenDInstallGuide,
+  emptyOnboardingState,
 } from "@jftrade/ui-contracts";
 
 import { fetchEnvelope } from "./apiClient";
@@ -66,6 +69,7 @@ interface CreateConsoleDataSystemStateControllerOptions {
   systemStatus: Ref<SystemStatusResponse>;
   storageOverview: Ref<StorageOverviewResponse>;
   brokerSettings: Ref<BrokerSettingsResponse>;
+  onboardingState: Ref<OnboardingStateResponse>;
   pluginCatalog: Ref<PluginCatalogResponse>;
   futuOpenDHealth: Ref<FutuOpenDHealthResponse>;
   futuOpenDInstallGuide: Ref<FutuOpenDInstallGuideResponse>;
@@ -165,6 +169,7 @@ export function createConsoleDataSystemStateController(
 
     try {
       const [
+        onboarding,
         status,
         overview,
         settingsSnapshot,
@@ -176,11 +181,13 @@ export function createConsoleDataSystemStateController(
         realTradeRiskStateSummary,
         realTradeRiskSummary,
         workerBrokerUpdates,
-        opendHealth,
         plugins,
         opendInstallGuide,
         instrumentReferenceSnapshot,
       ] = await Promise.all([
+        fetchEnvelope<OnboardingStateResponse>(
+          "/api/v1/settings/onboarding",
+        ).catch(() => emptyOnboardingState),
         fetchEnvelope<SystemStatusResponse>("/api/v1/system/status"),
         fetchEnvelope<StorageOverviewResponse>(
           "/api/v1/system/storage/overview",
@@ -210,9 +217,6 @@ export function createConsoleDataSystemStateController(
         fetchEnvelope<WorkerBrokerOrderUpdatesResponse>(
           "/api/v1/system/worker/broker-order-updates",
         ),
-        fetchEnvelope<FutuOpenDHealthResponse>(
-          "/api/v1/system/futu-opend",
-        ).catch(() => emptyFutuOpenDHealth),
         options.fetchPluginCatalog(),
         fetchEnvelope<FutuOpenDInstallGuideResponse>(
           "/api/v1/system/futu-opend/install-guide",
@@ -225,18 +229,32 @@ export function createConsoleDataSystemStateController(
           entries: [],
         })),
       ]);
+      const savedFutuIntegration =
+        settingsSnapshot.brokers.find(
+          (broker) => broker.descriptor.id === "futu",
+        )?.integration ?? null;
+      const shouldProbeFutu = savedFutuIntegration?.enabled === true;
+      const opendHealth = shouldProbeFutu
+        ? await fetchEnvelope<FutuOpenDHealthResponse>(
+            "/api/v1/system/futu-opend",
+          ).catch(() => emptyFutuOpenDHealth)
+        : emptyFutuOpenDHealth;
 
       const activeBrokerId = options.resolveActiveBrokerId({
         settings: settingsSnapshot,
         status,
       });
-      const broker = await fetchEnvelope<BrokerRuntimeResponse>(
-        `/api/v1/brokers/${encodeURIComponent(activeBrokerId)}/runtime`,
-      );
+      const broker =
+        shouldProbeFutu && activeBrokerId === "futu"
+          ? await fetchEnvelope<BrokerRuntimeResponse>(
+              `/api/v1/brokers/${encodeURIComponent(activeBrokerId)}/runtime`,
+            )
+          : emptyBrokerRuntime;
 
       options.systemStatus.value = status;
       options.storageOverview.value = overview;
       options.brokerSettings.value = settingsSnapshot;
+      options.onboardingState.value = onboarding;
       options.pluginCatalog.value = plugins;
       options.futuOpenDInstallGuide.value = opendInstallGuide;
       options.realTradeApprovals.value = realTradeApprovalSummary;
@@ -283,12 +301,16 @@ export function createConsoleDataSystemStateController(
         });
       }
 
-      const brokerQuery = options.resolveBrokerQuery(selectedAccount).toString();
-      await options.loadBrokerLiveData({
-        brokerId: brokerLiveSelection.brokerIdForQueries,
-        brokerQuery,
-        futuBrokerReadsPaused: brokerLiveSelection.futuBrokerReadsPaused,
-      });
+      const brokerQuery = options
+        .resolveBrokerQuery(selectedAccount)
+        .toString();
+      if (shouldProbeFutu && activeBrokerId === "futu") {
+        await options.loadBrokerLiveData({
+          brokerId: brokerLiveSelection.brokerIdForQueries,
+          brokerQuery,
+          futuBrokerReadsPaused: brokerLiveSelection.futuBrokerReadsPaused,
+        });
+      }
 
       const executionSelection = resolveConsoleDataExecutionSelection({
         currentSelectedExecutionOrderId: options.selectedExecutionOrderId.value,
@@ -308,9 +330,7 @@ export function createConsoleDataSystemStateController(
         options.liveStreamStatus.value = "degraded";
       } else {
         options.loadError.value =
-          error instanceof Error
-            ? error.message
-            : "系统状态加载失败。";
+          error instanceof Error ? error.message : "系统状态加载失败。";
       }
     } finally {
       if (background) {

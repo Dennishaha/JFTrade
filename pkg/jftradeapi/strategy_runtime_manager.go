@@ -101,9 +101,14 @@ func newStrategyRuntimeManager(server *Server) *strategyRuntimeManager {
 		runtimes: map[string]*managedStrategyRuntime{},
 	}
 	manager.exchangeProvider = func() strategyRuntimeExchange {
+		exchange := server.futuExchange()
+		activeBroker := server.activeBroker()
+		if exchange == nil || activeBroker == nil {
+			return nil
+		}
 		return &strategyRuntimeBrokerBridge{
-			Exchange:    server.futuExchange(),
-			broker:      server.activeBroker(),
+			Exchange: exchange,
+			broker:   activeBroker,
 		}
 	}
 	return manager

@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, watch } from "vue";
-import { RouterView, useRouter } from "vue-router";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { RouterView, useRoute, useRouter } from "vue-router";
 
 import {
   provideCommandPaletteStore,
@@ -29,8 +29,14 @@ const workspaceLayout = provideWorkspaceLayoutStore();
 const palette = provideCommandPaletteStore();
 const console_ = provideConsoleDataStore(workspaceLayout);
 const live = provideLiveStreamStore();
+const shouldShowOobe = computed(
+  () => console_.onboardingState.value.shouldShowOobe,
+);
 
 const router = useRouter();
+const route = useRoute();
+const isOobeRoute = computed(() => route.path === "/oobe");
+const onboardingGateReady = ref(false);
 const { docsHomeUrl, openDocs } = useDocsLink();
 
 const navTargets = [
@@ -143,6 +149,18 @@ function reconnectLiveStreamIfNeeded(): void {
   live.connect();
 }
 
+async function initializeConsoleShell(): Promise<void> {
+  try {
+    const onboarding = await console_.loadOnboardingState();
+    if (onboarding.shouldShowOobe && router.currentRoute.value.path !== "/oobe") {
+      await router.replace("/oobe");
+    }
+  } finally {
+    onboardingGateReady.value = true;
+  }
+  await console_.initialize();
+}
+
 const stop = watch(
   () => live.events.value.at(-1),
   (ev) => {
@@ -236,6 +254,16 @@ const stopFutuOpenDMessages = watch(
   },
 );
 
+const stopOobeRedirect = watch(
+  shouldShowOobe,
+  (show) => {
+    if (show && route.path !== "/oobe") {
+      void router.replace("/oobe");
+    }
+  },
+  { immediate: true },
+);
+
 onMounted(() => {
   if (typeof document !== "undefined") {
     document.addEventListener("visibilitychange", reconnectLiveStreamIfNeeded);
@@ -243,7 +271,7 @@ onMounted(() => {
   if (typeof window !== "undefined") {
     window.addEventListener("online", reconnectLiveStreamIfNeeded);
   }
-  void console_.initialize();
+  void initializeConsoleShell();
   live.connect();
   notifications.push({
     level: "info",
@@ -266,22 +294,23 @@ onUnmounted(() => {
   console_.dispose();
   stop();
   stopFutuOpenDMessages();
+  stopOobeRedirect();
 });
 </script>
 
 <template>
-  <div class="tv-app">
-    <TopBar />
-    <div class="tv-app-body">
-      <IconRail />
+  <div class="tv-app" :class="{ 'tv-app--oobe': isOobeRoute }">
+    <TopBar v-if="!isOobeRoute" />
+    <div class="tv-app-body" :class="{ 'tv-app-body--oobe': isOobeRoute }">
+      <IconRail v-if="!isOobeRoute" />
       <main class="tv-main">
         <div class="tv-main-scroll">
-          <RouterView />
+          <RouterView v-if="onboardingGateReady" />
         </div>
       </main>
-      <RightDock />
+      <RightDock v-if="!isOobeRoute" />
     </div>
-    <StatusBar />
+    <StatusBar v-if="!isOobeRoute" />
     <CommandPalette />
   </div>
 </template>

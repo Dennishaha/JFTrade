@@ -72,13 +72,13 @@ defineProps<{
       </div>
     </div>
 
-    <div class="settings-panel">
+    <div v-if="editingAccountId" class="settings-panel">
       <SectionHeader
-        :title="editingAccountId ? '编辑账户' : '新增账户'"
-        :description="editingAccountId ? undefined : '手工创建或导入一个新的托管账号。'"
+        title="编辑账户"
+        description="仅支持编辑已导入的托管账户，账户基础信息由券商提供。"
       >
         <template #extra>
-          <v-btn variant="text" color="primary" @click="resetAccountForm">重置</v-btn>
+          <v-btn variant="text" color="primary" @click="resetAccountForm">取消编辑</v-btn>
         </template>
       </SectionHeader>
 
@@ -124,7 +124,7 @@ defineProps<{
 
         <div class="flex justify-end">
           <v-btn :loading="savingAccount" color="primary" @click="submitAccount">
-            {{ editingAccountId ? "更新账号" : "新增账号" }}
+            更新账号
           </v-btn>
         </div>
       </div>

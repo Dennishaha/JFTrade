@@ -34,7 +34,7 @@ func TestNormalizeManagedBrokerAccountAppliesDefaults(t *testing.T) {
 }
 
 func TestNormalizeFutuConfigAppliesDefaults(t *testing.T) {
-	config := normalizeFutuConfig(FutuIntegrationConfig{})
+	config := normalizeFutuConfig(FutuIntegrationConfig{UseEncryption: true})
 
 	if config.Type != "futu" {
 		t.Fatalf("type = %q", config.Type)
@@ -56,5 +56,8 @@ func TestNormalizeFutuConfigAppliesDefaults(t *testing.T) {
 	}
 	if config.SecurityFirm != "FUTUSECURITIES" {
 		t.Fatalf("securityFirm = %q", config.SecurityFirm)
+	}
+	if config.UseEncryption {
+		t.Fatalf("useEncryption should be forced false")
 	}
 }

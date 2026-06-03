@@ -113,6 +113,9 @@ func dispatchBBGONotification(note liveNotification) {
 
 func (s *Server) ensureLiveNotificationBridge(ctx context.Context) {
 	exchange := s.futuExchange()
+	if exchange == nil {
+		return
+	}
 	go func() {
 		bridgeCtx, cancel := context.WithTimeout(ctx, liveStreamConnectTimeout)
 		defer cancel()

@@ -39,7 +39,7 @@ func defaultFutuConfig() FutuIntegrationConfig {
 		APIPort:                 intEnv("JFTRADE_FUTU_API_PORT", apiPort),
 		WebSocketPort:           intEnv("JFTRADE_FUTU_WEBSOCKET_PORT", webSocketPort),
 		MaxWebSocketConnections: intEnv("JFTRADE_FUTU_MAX_WEBSOCKET_CONNECTIONS", defaultMaxWebSocketClients),
-		UseEncryption:           boolEnv("JFTRADE_FUTU_USE_ENCRYPTION", false),
+		UseEncryption:           false,
 		WebSocketKey:            firstNonEmpty(os.Getenv("JFTRADE_FUTU_WEBSOCKET_KEY"), os.Getenv("FUTU_OPEND_WEBSOCKET_KEY")),
 		TradeMarket:             envOrDefault("JFTRADE_FUTU_TRADE_MARKET", "HK"),
 		SecurityFirm:            envOrDefault("JFTRADE_FUTU_SECURITY_FIRM", "FUTUSECURITIES"),
@@ -68,6 +68,7 @@ func normalizeFutuConfig(config FutuIntegrationConfig) FutuIntegrationConfig {
 	if strings.TrimSpace(config.SecurityFirm) == "" {
 		config.SecurityFirm = "FUTUSECURITIES"
 	}
+	config.UseEncryption = false
 	return config
 }
 

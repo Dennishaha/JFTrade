@@ -23,7 +23,7 @@
     "splitpanes": "^4.1.2",
     "vue": "^3.5.35",
     "vue-router": "^5.1.0",
-    "vuetify": "4.0.8"
+    "vuetify": "4.1.0"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.0",
@@ -32,9 +32,9 @@
     "jsdom": "^29.1.1",
     "tailwindcss": "^4.3.0",
     "typescript": "^6.0.3",
-    "vite": "^8.0.14",
+    "vite": "^8.0.16",
     "vite-plugin-vue-devtools": "^8.1.2",
-    "vitest": "^4.1.7",
+    "vitest": "^4.1.8",
     "vue-tsc": "^3.3.3"
   },
   "version": "0.0.0"

@@ -381,12 +381,20 @@ body {
   overflow: hidden;
 }
 
+.tv-app.tv-app--oobe {
+  grid-template-rows: 1fr;
+}
+
 .tv-app-body {
   display: grid;
   grid-template-columns: 64px minmax(0, 1fr) auto;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+}
+
+.tv-app-body.tv-app-body--oobe {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .tv-topbar {

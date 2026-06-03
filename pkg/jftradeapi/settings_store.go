@@ -54,11 +54,19 @@ type UIAppearanceSettings struct {
 	DownColor string `json:"downColor"`
 }
 
+type OnboardingSettings struct {
+	Completed    bool   `json:"completed"`
+	CompletedAt  string `json:"completedAt,omitempty"`
+	DismissedAt  string `json:"dismissedAt,omitempty"`
+	LastBrokerID string `json:"lastBrokerId"`
+}
+
 type settingsFile struct {
 	Interfaces  *InterfaceSettings     `json:"interfaces,omitempty"`
 	Integration *BrokerIntegration     `json:"integration,omitempty"`
 	Accounts    []ManagedBrokerAccount `json:"accounts,omitempty"`
 	Appearance  *UIAppearanceSettings  `json:"appearance,omitempty"`
+	Onboarding  *OnboardingSettings    `json:"onboarding,omitempty"`
 }
 
 type SettingsStore struct {
@@ -88,8 +96,8 @@ func (s *SettingsStore) ensureBootstrapFile(defaults launchDefaults) error {
 	s.mu.Lock()
 	s.data.Interfaces = interfaceSettingsPointer(normalizeInterfaceSettings(interfaceSettingsFromDefaults(defaults), defaults))
 	s.data.Appearance = uiAppearanceSettingsPointer(defaultUIAppearanceSettings())
+	err := s.persistLocked()
 	s.mu.Unlock()
-	_, err := s.saveIntegration(s.integration())
 	return err
 }
 
@@ -121,11 +129,21 @@ func (s *SettingsStore) integration() BrokerIntegration {
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	return BrokerIntegration{
 		BrokerID:  "futu",
-		Enabled:   true,
+		Enabled:   false,
 		Config:    defaultFutuConfig(),
 		UpdatedAt: now,
 		CreatedAt: now,
 	}
+}
+
+func (s *SettingsStore) savedIntegration() *BrokerIntegration {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.data.Integration == nil {
+		return nil
+	}
+	integration := *s.data.Integration
+	return &integration
 }
 
 func (s *SettingsStore) interfaceSettings(defaults launchDefaults) InterfaceSettings {
@@ -146,6 +164,15 @@ func (s *SettingsStore) appearance() UIAppearanceSettings {
 	return defaultUIAppearanceSettings()
 }
 
+func (s *SettingsStore) onboarding() OnboardingSettings {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.data.Onboarding != nil {
+		return normalizeOnboardingSettings(*s.data.Onboarding)
+	}
+	return defaultOnboardingSettings()
+}
+
 func (s *SettingsStore) hasAppearance() bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -157,16 +184,17 @@ func (s *SettingsStore) saveAppearance(input UIAppearanceSettings) (UIAppearance
 
 	s.mu.Lock()
 	s.data.Appearance = uiAppearanceSettingsPointer(normalized)
-	data, err := json.MarshalIndent(s.data, "", "  ")
-	if err != nil {
-		s.mu.Unlock()
-		return normalized, err
-	}
-	if err := os.MkdirAll(filepath.Dir(s.path), 0o755); err != nil {
-		s.mu.Unlock()
-		return normalized, err
-	}
-	err = os.WriteFile(s.path, data, 0o600)
+	err := s.persistLocked()
+	s.mu.Unlock()
+	return normalized, err
+}
+
+func (s *SettingsStore) saveOnboarding(input OnboardingSettings) (OnboardingSettings, error) {
+	normalized := normalizeOnboardingSettings(input)
+
+	s.mu.Lock()
+	s.data.Onboarding = onboardingSettingsPointer(normalized)
+	err := s.persistLocked()
 	s.mu.Unlock()
 	return normalized, err
 }
@@ -177,8 +205,9 @@ func (s *SettingsStore) saveIntegration(input BrokerIntegration) (BrokerIntegrat
 	input.Config = normalizeFutuConfig(input.Config)
 	input.UpdatedAt = now
 	if input.CreatedAt == "" {
-		existing := s.integration()
-		input.CreatedAt = existing.CreatedAt
+		if existing := s.savedIntegration(); existing != nil {
+			input.CreatedAt = existing.CreatedAt
+		}
 		if input.CreatedAt == "" {
 			input.CreatedAt = now
 		}
@@ -189,16 +218,7 @@ func (s *SettingsStore) saveIntegration(input BrokerIntegration) (BrokerIntegrat
 		s.data.Interfaces = interfaceSettingsPointer(normalizeInterfaceSettings(interfaceSettingsFromDefaults(launchDefaults{}), launchDefaults{}))
 	}
 	s.data.Integration = &input
-	data, err := json.MarshalIndent(s.data, "", "  ")
-	if err != nil {
-		s.mu.Unlock()
-		return input, err
-	}
-	if err := os.MkdirAll(filepath.Dir(s.path), 0o755); err != nil {
-		s.mu.Unlock()
-		return input, err
-	}
-	err = os.WriteFile(s.path, data, 0o600)
+	err := s.persistLocked()
 	s.mu.Unlock()
 	if err != nil {
 		return input, err
@@ -368,6 +388,27 @@ func normalizeHexColor(value string, fallback string) string {
 }
 
 func uiAppearanceSettingsPointer(value UIAppearanceSettings) *UIAppearanceSettings {
+	settings := value
+	return &settings
+}
+
+func defaultOnboardingSettings() OnboardingSettings {
+	return OnboardingSettings{
+		Completed:    false,
+		LastBrokerID: "",
+	}
+}
+
+func normalizeOnboardingSettings(input OnboardingSettings) OnboardingSettings {
+	settings := input
+	settings.LastBrokerID = strings.TrimSpace(settings.LastBrokerID)
+	if !settings.Completed {
+		settings.CompletedAt = ""
+	}
+	return settings
+}
+
+func onboardingSettingsPointer(value OnboardingSettings) *OnboardingSettings {
 	settings := value
 	return &settings
 }

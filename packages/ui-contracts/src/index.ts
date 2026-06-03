@@ -220,6 +220,35 @@ export interface BrokerSettingsResponse {
   }>;
 }
 
+export interface OnboardingReason {
+  code:
+    | "BROKER_DISCONNECTED"
+    | "QUOTE_NOT_LOGGED_IN"
+    | "TRADE_NOT_LOGGED_IN"
+    | "NO_MANAGED_ACCOUNTS"
+    | string;
+  severity: "info" | "warning" | "error";
+  message: string;
+}
+
+export interface OnboardingStateResponse {
+  state: {
+    completed: boolean;
+    completedAt?: string;
+    dismissedAt?: string;
+    lastBrokerId: string;
+  };
+  shouldShowOobe: boolean;
+  reasons: OnboardingReason[];
+  recommendedBrokerId: string;
+  brokers: Array<{
+    descriptor: BrokerDescriptor;
+    enabled: boolean;
+    available: boolean;
+    configured: boolean;
+  }>;
+}
+
 export interface UIColorPreferencesResponse {
   appearance: {
     upColor: string;
@@ -379,8 +408,7 @@ export interface StrategyRuntimeObservation {
   updatedAt?: string | null;
 }
 
-export interface StrategyRuntimeActiveInstanceSummary
-  extends StrategyRuntimeObservation {
+export interface StrategyRuntimeActiveInstanceSummary extends StrategyRuntimeObservation {
   instanceId: string;
   definitionName: string;
 }
@@ -499,7 +527,8 @@ export type FutuOpenDIssueCode =
   | "CONNECTION_LIMIT"
   | "PROTOCOL_PARSE_ERROR"
   | "WS_POOL_EXHAUSTED"
-  | "WEBSOCKET_AUTH";
+  | "WEBSOCKET_AUTH"
+  | "OPEND_API_CONNECTIVITY";
 
 export interface FutuOpenDHealthResponse {
   checkedAt: string;
@@ -1822,6 +1851,17 @@ export const emptyBrokerSettings: BrokerSettingsResponse = {
   accounts: [],
 };
 
+export const emptyOnboardingState: OnboardingStateResponse = {
+  state: {
+    completed: true,
+    lastBrokerId: "",
+  },
+  shouldShowOobe: false,
+  reasons: [],
+  recommendedBrokerId: "futu",
+  brokers: [],
+};
+
 export const emptyPluginCatalog: PluginCatalogResponse = {
   targetDir: "",
   plugins: [],
@@ -1844,7 +1884,7 @@ export const emptyFutuOpenDInstallGuide: FutuOpenDInstallGuideResponse = {
 };
 
 export const emptyFutuOpenDHealth: FutuOpenDHealthResponse = {
-  checkedAt: new Date(0).toISOString(),
+  checkedAt: "",
   status: "offline",
   runtime: {
     connectivity: "disconnected",
@@ -1996,7 +2036,7 @@ export const emptyBrokerRuntime: BrokerRuntimeResponse = {
       useEncryption: false,
     },
     connectivity: "disconnected",
-    checkedAt: new Date(0).toISOString(),
+    checkedAt: "",
     lastError: null,
     globalState: null,
     accountsDiscovered: 0,

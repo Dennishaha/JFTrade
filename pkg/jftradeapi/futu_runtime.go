@@ -48,19 +48,63 @@ func (s *Server) descriptor() map[string]any {
 }
 
 func (s *Server) brokerSettings() map[string]any {
-	integration := s.store.integration()
+	integration := s.store.savedIntegration()
+	defaults := defaultFutuConfig()
+	if integration != nil {
+		defaults = integration.Config
+	}
 	return map[string]any{
 		"brokers": []any{map[string]any{
 			"descriptor":  s.descriptor(),
 			"integration": integration,
-			"defaults":    integration.Config,
+			"defaults":    defaults,
 		}},
 		"accounts": s.store.managedAccounts(),
 	}
 }
 
+func (s *Server) onboardingState(ctx context.Context) map[string]any {
+	return s.onboardingStateFromSettings(ctx, s.store.onboarding())
+}
+
+func (s *Server) onboardingStateFromSettings(_ context.Context, onboarding OnboardingSettings) map[string]any {
+	integration := s.store.savedIntegration()
+	accounts := s.store.managedAccounts()
+	reasons := make([]map[string]any, 0, 4)
+
+	enabledAccounts := 0
+	for _, account := range accounts {
+		if account.Enabled {
+			enabledAccounts++
+		}
+	}
+	if enabledAccounts == 0 {
+		reasons = append(reasons, map[string]any{
+			"code":     "NO_MANAGED_ACCOUNTS",
+			"severity": "info",
+			"message":  "No managed broker accounts have been configured.",
+		})
+	}
+
+	return map[string]any{
+		"state":               onboarding,
+		"shouldShowOobe":      !onboarding.Completed && len(reasons) > 0,
+		"reasons":             reasons,
+		"recommendedBrokerId": "futu",
+		"brokers": []any{map[string]any{
+			"descriptor": s.descriptor(),
+			"enabled":    integration != nil && integration.Enabled,
+			"available":  true,
+			"configured": integration != nil,
+		}},
+	}
+}
+
 func (s *Server) futuOpenDInstallGuide() map[string]any {
-	config := s.store.integration().Config
+	config := defaultFutuConfig()
+	if integration := s.store.savedIntegration(); integration != nil {
+		config = integration.Config
+	}
 	return map[string]any{
 		"brokerId":    "futu",
 		"title":       "Futu OpenD",
@@ -81,11 +125,23 @@ func (s *Server) futuOpenDInstallGuide() map[string]any {
 }
 
 func (s *Server) brokerRuntime(ctx context.Context) map[string]any {
+	integration := s.store.savedIntegration()
+	config := defaultFutuConfig()
+	if integration != nil {
+		config = integration.Config
+	}
+	if integration == nil || !integration.Enabled {
+		return s.emptyBrokerRuntime(config)
+	}
+
 	probe := s.probeOpenD(ctx)
-	config := s.store.integration().Config
 	accounts := []any{}
 	if probe.Connectivity != "disconnected" {
-		discoveredAccounts, err := s.futuExchange().DiscoverAccounts(ctx)
+		exchange := s.futuExchange()
+		if exchange == nil {
+			return s.emptyBrokerRuntime(config)
+		}
+		discoveredAccounts, err := exchange.DiscoverAccounts(ctx)
 		if err != nil {
 			message := err.Error()
 			if probe.LastError == nil {
@@ -140,8 +196,16 @@ func boolValue(value *bool) bool {
 }
 
 func (s *Server) futuOpenDHealth(ctx context.Context) map[string]any {
+	integration := s.store.savedIntegration()
+	config := defaultFutuConfig()
+	if integration != nil {
+		config = integration.Config
+	}
+	if integration == nil || !integration.Enabled {
+		return s.emptyFutuOpenDHealth(config)
+	}
+
 	probe := s.probeOpenD(ctx)
-	config := s.store.integration().Config
 	summary := any(nil)
 	code := "NONE"
 	manualRetry := false
@@ -262,6 +326,9 @@ func (s *Server) resetFutuRuntime() {
 }
 
 func (s *Server) probeOpenD(ctx context.Context) opendProbe {
+	if !s.futuIntegrationEnabled() {
+		return opendProbe{}
+	}
 	config := s.store.integration().Config
 	checkedAt := time.Now().UTC().Format(time.RFC3339Nano)
 	probeCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
@@ -269,7 +336,7 @@ func (s *Server) probeOpenD(ctx context.Context) opendProbe {
 
 	client := opend.New(opend.Config{
 		Addr:             net.JoinHostPort(config.Host, strconv.Itoa(config.APIPort)),
-		TLS:              config.UseEncryption,
+		TLS:              false,
 		WebSocketKey:     config.WebSocketKey,
 		HandshakeTimeout: 2 * time.Second,
 		RequestTimeout:   3 * time.Second,
@@ -335,6 +402,63 @@ func (s *Server) probeOpenD(ctx context.Context) opendProbe {
 			{"market": "SH", "state": strconv.Itoa(int(s2c.GetMarketSH()))},
 			{"market": "SZ", "state": strconv.Itoa(int(s2c.GetMarketSZ()))},
 		},
+	}
+}
+
+func (s *Server) emptyBrokerRuntime(config FutuIntegrationConfig) map[string]any {
+	count, limit, atLimit := s.liveStreamStats()
+	return map[string]any{
+		"descriptor": s.descriptor(),
+		"session": map[string]any{
+			"brokerId":           "futu",
+			"displayName":        "Futu OpenAPI via OpenD",
+			"connection":         map[string]any{"host": config.Host, "apiPort": config.APIPort, "websocketPort": config.WebSocketPort, "port": config.APIPort, "useEncryption": config.UseEncryption, "marketDataTransport": liveQuoteTransportMode},
+			"connectivity":       "disconnected",
+			"checkedAt":          "",
+			"lastError":          nil,
+			"globalState":        nil,
+			"accountsDiscovered": 0,
+			"liveWebSocketClients": map[string]any{
+				"connected": count,
+				"limit":     limit,
+				"atLimit":   atLimit,
+			},
+		},
+		"accounts": []any{},
+	}
+}
+
+func (s *Server) emptyFutuOpenDHealth(config FutuIntegrationConfig) map[string]any {
+	return map[string]any{
+		"checkedAt": "",
+		"status":    "offline",
+		"runtime": map[string]any{
+			"connectivity":           "disconnected",
+			"host":                   config.Host,
+			"apiPort":                config.APIPort,
+			"websocketPort":          config.WebSocketPort,
+			"useEncryption":          config.UseEncryption,
+			"websocketKeyConfigured": strings.TrimSpace(config.WebSocketKey) != "",
+			"marketDataTransport":    liveQuoteTransportMode,
+			"quoteLoggedIn":          nil,
+			"tradeLoggedIn":          nil,
+			"programStatus":          nil,
+			"serverVersion":          nil,
+			"lastError":              nil,
+		},
+		"diagnosis": map[string]any{
+			"code":                    "NONE",
+			"summary":                 nil,
+			"manualRetryRequired":     false,
+			"restartOpenDRecommended": false,
+		},
+		"localSocketDiagnostics": s.liveSocketDiagnostics(config),
+		"localInstallation": map[string]any{
+			"platform": os.Getenv("GOOS"), "installed": false, "version": nil, "installPath": nil, "guiDetected": false,
+			"process": map[string]any{"running": false, "pid": nil, "executablePath": nil},
+		},
+		"latestVersion":   map[string]any{"value": nil, "sourceUrl": nil, "checkedAt": nil, "status": "unknown", "error": nil},
+		"recommendations": []any{},
 	}
 }
 

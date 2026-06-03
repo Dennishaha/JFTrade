@@ -42,6 +42,8 @@ type apiError struct {
 	Message string `json:"message"`
 }
 
+var errFutuIntegrationNotEnabled = errors.New("futu integration is not enabled")
+
 type Server struct {
 	store                  *SettingsStore
 	strategyStore          *strategyCatalogStore
@@ -297,6 +299,9 @@ func (s *Server) liveMarketExchange() bbgotypes.Exchange {
 			return exchange
 		}
 	}
+	if !s.futuIntegrationEnabled() {
+		return nil
+	}
 	return &strategyRuntimeBrokerBridge{
 		Exchange: s.futuExchange(),
 		broker:   s.activeBroker(),
@@ -309,10 +314,34 @@ func (s *Server) brokerExecutionExchange() strategyRuntimeExchange {
 			return exchange
 		}
 	}
+	if !s.futuIntegrationEnabled() {
+		return nil
+	}
 	return &strategyRuntimeBrokerBridge{
 		Exchange: s.futuExchange(),
 		broker:   s.activeBroker(),
 	}
+}
+
+func (s *Server) futuIntegrationEnabled() bool {
+	integration := s.store.savedIntegration()
+	return integration != nil && integration.Enabled
+}
+
+func (s *Server) futuExchangeOrError() (*futu.Exchange, error) {
+	exchange := s.futuExchange()
+	if exchange == nil {
+		return nil, errFutuIntegrationNotEnabled
+	}
+	return exchange, nil
+}
+
+func (s *Server) futuBrokerOrError() (broker.Broker, error) {
+	b := s.futuBroker()
+	if b == nil {
+		return nil, errFutuIntegrationNotEnabled
+	}
+	return b, nil
 }
 
 // activeBroker returns the currently active broker.Broker from the registry.
@@ -322,6 +351,9 @@ func (s *Server) brokerExecutionExchange() strategyRuntimeExchange {
 func (s *Server) activeBroker() broker.Broker {
 	if b := s.brokers.ActiveBroker(); b != nil {
 		return b
+	}
+	if !s.futuIntegrationEnabled() {
+		return nil
 	}
 	// Ensure the Futu exchange is initialized and registered.
 	s.futuExchange()

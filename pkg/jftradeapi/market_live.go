@@ -275,7 +275,12 @@ func (s *Server) ensureLiveMarketStream(ctx context.Context, instrumentIDs []str
 	if s.liveStreamState.stream != nil {
 		_ = s.liveStreamState.stream.Close()
 	}
-	stream := s.liveMarketExchange().NewStream()
+	exchange := s.liveMarketExchange()
+	if exchange == nil {
+		s.liveStreamState.mu.Unlock()
+		return
+	}
+	stream := exchange.NewStream()
 	stream.SetPublicOnly()
 	for _, symbol := range symbols {
 		stream.Subscribe(bbgotypes.MarketTradeChannel, symbol, bbgotypes.SubscribeOptions{})

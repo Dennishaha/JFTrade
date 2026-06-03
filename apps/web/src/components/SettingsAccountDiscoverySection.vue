@@ -8,42 +8,61 @@ import {
 } from "../composables/consoleDataFormatting";
 import SectionHeader from "./SectionHeader.vue";
 
-defineProps<{
+const props = defineProps<{
   accounts: BrokerRuntimeResponse["accounts"];
   importRuntimeAccount: (
     account: BrokerRuntimeResponse["accounts"][number],
-  ) => void;
+  ) => void | Promise<void>;
+  unavailableMessage?: string | undefined;
 }>();
 </script>
 
 <template>
   <div class="grid gap-6">
     <div class="settings-panel">
-      <SectionHeader title="OpenD 发现的账户" description="OpenD 实时探测到的账号；可一键导入到托管列表。" />
+      <SectionHeader
+        title="OpenD 发现的账户"
+        description="查看 OpenD 运行时发现的账户，并一键导入到托管账户列表。"
+      />
 
       <div class="mt-4 grid gap-3">
-        <template v-if="accounts.length">
+        <template v-if="props.accounts.length">
           <div
-            v-for="account in accounts"
+            v-for="account in props.accounts"
             :key="`${account.tradingEnvironment}-${account.accountId}`"
             class="rounded-2xl border border-slate-200 bg-white px-4 py-3"
           >
             <div class="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <div class="text-base font-semibold text-slate-900">{{ account.accountId }}</div>
+                <div class="text-base font-semibold text-slate-900">
+                  {{ account.accountId }}
+                </div>
                 <div class="mt-1 text-xs text-slate-500">
-                  {{ formatTradingEnvironment(account.tradingEnvironment) }} / {{ formatAccountTypeLabel(account.accountType) }} / {{ account.marketAuthorities.map(formatMarketLabel).join(", ") || "暂无" }}
+                  {{ formatTradingEnvironment(account.tradingEnvironment) }} /
+                  {{ formatAccountTypeLabel(account.accountType) }} /
+                  {{
+                    account.marketAuthorities
+                      .map(formatMarketLabel)
+                      .join(", ") || "暂无"
+                  }}
                 </div>
               </div>
-              <v-btn variant="text" color="primary" @click="importRuntimeAccount(account)">
-                导入到账号管理
+              <v-btn
+                variant="text"
+                color="primary"
+                @click="props.importRuntimeAccount(account)"
+              >
+                导入到账户管理
               </v-btn>
             </div>
           </div>
         </template>
         <v-empty-state
           v-else
-          text="当前没有从运行时探测到账号。OpenD 未登录时，这里会为空。"
+          :text="
+            props.unavailableMessage ||
+            '当前没有从运行时检测到账户。若 OpenD 未登录或未授权，这里会保持为空。'
+          "
         />
       </div>
     </div>
