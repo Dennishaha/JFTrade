@@ -232,7 +232,11 @@ func (s *Server) refreshLiveMarketTicksIfNeeded(ctx context.Context) {
 	defer cancel()
 
 	queryStart := time.Now()
-	tickers, err := s.liveMarketExchange().QueryTickers(refreshCtx, instrumentIDs...)
+	exchange := s.liveMarketExchange()
+	if exchange == nil {
+		return
+	}
+	tickers, err := exchange.QueryTickers(refreshCtx, instrumentIDs...)
 	queryElapsed := time.Since(queryStart)
 	if err != nil {
 		retryDelay := liveRetryDelay(s.liveQuoteState.failureCount)
@@ -369,13 +373,17 @@ func liveMarketStreamKey(config FutuIntegrationConfig, instrumentIDs []string) (
 	}, "|"), symbols
 }
 
-func (s *Server) writeLiveMarketTicks(ctx context.Context, writer liveEventWriter, lastSentByInstrument map[string]string) error {
+func (s *Server) writeLiveMarketTicks(ctx context.Context, writer liveEventWriter, lastSentByInstrument map[string]string, initial bool) error {
 	s.refreshLiveMarketTicksIfNeeded(ctx)
+	initialObservedAt := ""
+	if initial {
+		initialObservedAt = time.Now().UTC().Format(time.RFC3339Nano)
+	}
 	for _, sample := range s.latestTickerSamples(s.activeMarketInstrumentIDs(), liveTickSampleFreshness) {
 		if sample == nil || lastSentByInstrument[sample.InstrumentID] == sample.ObservedAt {
 			continue
 		}
-		event := liveTickEventFromSample(sample)
+		event := liveTickEventFromSampleAt(sample, initialObservedAt)
 		if event == nil {
 			continue
 		}

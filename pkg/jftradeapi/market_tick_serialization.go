@@ -1,6 +1,8 @@
 package jftradeapi
 
 import (
+	"strings"
+
 	"github.com/shopspring/decimal"
 
 	"github.com/jftrade/jftrade-main/pkg/futu"
@@ -41,6 +43,15 @@ func snapshotMapFromSample(sample *marketTickSample) map[string]any {
 	}
 }
 
+func cloneTickSampleWithObservedAt(sample *marketTickSample, observedAt string) *marketTickSample {
+	if sample == nil || strings.TrimSpace(observedAt) == "" {
+		return sample
+	}
+	cloned := *sample
+	cloned.ObservedAt = observedAt
+	return &cloned
+}
+
 func extendedMarketQuoteMap(quote *futu.ExtendedMarketQuote) map[string]any {
 	if quote == nil {
 		return nil
@@ -58,9 +69,14 @@ func extendedMarketQuoteMap(quote *futu.ExtendedMarketQuote) map[string]any {
 }
 
 func liveTickEventFromSample(sample *marketTickSample) map[string]any {
+	return liveTickEventFromSampleAt(sample, "")
+}
+
+func liveTickEventFromSampleAt(sample *marketTickSample, observedAt string) map[string]any {
 	if sample == nil {
 		return nil
 	}
+	sample = cloneTickSampleWithObservedAt(sample, observedAt)
 	return map[string]any{
 		"type":     "market-data.tick",
 		"at":       sample.ObservedAt,

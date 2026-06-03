@@ -37,6 +37,7 @@ function createConsoleStore() {
 }
 
 afterEach(() => {
+  vi.useRealTimers();
   window.localStorage?.clear();
   vi.unstubAllGlobals();
 });
@@ -599,6 +600,88 @@ describe("console data realtime kline overlay", () => {
         volume: 0,
       },
     ]);
+  });
+
+  it("keeps reconnect recovery ticks on the current 1m bucket", () => {
+    const store = createConsoleStore();
+
+    store.marketDataQueryMarket.value = "HK";
+    store.marketDataQuerySymbol.value = "00700";
+    store.marketDataQueryPeriod.value = "1m";
+    store.marketDataCandles.value = {
+      request: {
+        instrument: {
+          market: "HK",
+          symbol: "00700",
+          instrumentId: "HK.00700",
+        },
+        period: "1m",
+        limit: 3,
+      },
+      candles: [
+        {
+          period: "1m",
+          open: 320,
+          high: 320.8,
+          low: 319.9,
+          close: 320.5,
+          volume: 18000,
+          at: "2026-05-17T01:29:00.000Z",
+        },
+      ],
+      totalReturned: 1,
+      meta: {
+        instrumentId: "HK.00700",
+        source: "api-sample-cache",
+        resolvedAt: "2026-05-17T01:29:59.800Z",
+        fromCache: true,
+      },
+    };
+
+    store.applyMarketDataTickEvent({
+      type: "market-data.tick",
+      at: "2026-05-17T01:30:00.250Z",
+      brokerId: "futu",
+      instrument: {
+        market: "HK",
+        symbol: "00700",
+        instrumentId: "HK.00700",
+      },
+      snapshot: {
+        price: 321.8,
+        bid: 321.7,
+        ask: 321.9,
+        openPrice: 319.8,
+        highPrice: 322,
+        lowPrice: 319.6,
+        previousClosePrice: 318.9,
+        volume: 1282000,
+        turnover: 411000000,
+        at: "2026-05-17T01:29:59.800Z",
+        observedAt: "2026-05-17T01:30:00.250Z",
+      },
+      source: "futu",
+    });
+
+    expect(
+      store.marketDataCandles.value?.candles.find(
+        (candle) => candle.at === "2026-05-17T01:29:00.000Z",
+      )?.close,
+    ).toBe(320.5);
+    expect(
+      store.marketDataCandles.value?.candles.find(
+        (candle) => candle.at === "2026-05-17T01:30:00.000Z",
+      ),
+    ).toEqual({
+      period: "1m",
+      at: "2026-05-17T01:30:00.000Z",
+      displayAt: "2026-05-17T01:31:00.000Z",
+      open: 320.5,
+      high: 321.8,
+      low: 320.5,
+      close: 321.8,
+      volume: 0,
+    });
   });
 
   it("keeps the current 1m overlay high and low across multiple ticks in the same bucket", () => {

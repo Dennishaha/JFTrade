@@ -15,6 +15,7 @@ type liveStreamDispatcher struct {
 	writer                  liveEventWriter
 	clientClosed            <-chan struct{}
 	lastSentByInstrument    map[string]string
+	wroteLiveData           bool
 	lastSentNotificationSeq uint64
 	heartbeatInterval       time.Duration
 	dataInterval            time.Duration
@@ -71,9 +72,10 @@ func (dispatcher *liveStreamDispatcher) writeHeartbeat() error {
 }
 
 func (dispatcher *liveStreamDispatcher) writeLiveData() error {
-	if err := dispatcher.server.writeLiveMarketTicks(dispatcher.requestCtx, dispatcher.writer, dispatcher.lastSentByInstrument); err != nil {
+	if err := dispatcher.server.writeLiveMarketTicks(dispatcher.requestCtx, dispatcher.writer, dispatcher.lastSentByInstrument, !dispatcher.wroteLiveData); err != nil {
 		return err
 	}
+	dispatcher.wroteLiveData = true
 	if err := dispatcher.server.writeLiveNotifications(dispatcher.writer, &dispatcher.lastSentNotificationSeq); err != nil {
 		return err
 	}
