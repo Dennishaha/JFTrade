@@ -266,7 +266,55 @@ function createSystemFetchMock(
       return createResponse(emptyStorageOverview);
     }
     if (url.includes("/api/v1/settings/brokers")) {
-      return createResponse(emptyBrokerSettings);
+      return createResponse({
+        brokers: [
+          {
+            descriptor: {
+              id: "futu",
+              displayName: "Test Broker",
+              environments: ["SIMULATE", "REAL"],
+              capabilities: [
+                {
+                  market: "HK",
+                  supportsQuote: true,
+                  supportsTrade: true,
+                  readFeatures: createReadFeatures(readFeatureOverrides),
+                },
+              ],
+              notes: [],
+            },
+            integration: {
+              brokerId: "futu",
+              enabled: true,
+              config: {
+                type: "futu",
+                host: "127.0.0.1",
+                apiPort: 11110,
+                websocketPort: 11111,
+                maxWebSocketConnections: 20,
+                useEncryption: false,
+                websocketKey: "",
+                tradeMarket: "HK",
+                securityFirm: "FUTUSECURITIES",
+              },
+              updatedAt: "2026-05-27T00:00:00.000Z",
+              createdAt: "2026-05-27T00:00:00.000Z",
+            },
+            defaults: {
+              type: "futu",
+              host: "127.0.0.1",
+              apiPort: 11110,
+              websocketPort: 11111,
+              maxWebSocketConnections: 20,
+              useEncryption: false,
+              websocketKey: "",
+              tradeMarket: "HK",
+              securityFirm: "FUTUSECURITIES",
+            },
+          },
+        ],
+        accounts: [],
+      });
     }
     if (url.includes("/api/v1/plugins")) {
       return createResponse(emptyPluginCatalog);

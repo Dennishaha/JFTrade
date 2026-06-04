@@ -72,7 +72,13 @@ func (dispatcher *liveStreamDispatcher) writeHeartbeat() error {
 }
 
 func (dispatcher *liveStreamDispatcher) writeLiveData() error {
-	if err := dispatcher.server.writeLiveMarketTicks(dispatcher.requestCtx, dispatcher.writer, dispatcher.lastSentByInstrument, !dispatcher.wroteLiveData); err != nil {
+	if err := dispatcher.server.writeLiveMarketTicks(
+		dispatcher.requestCtx,
+		dispatcher.writer,
+		dispatcher.server.activeMarketInstrumentIDs(),
+		dispatcher.lastSentByInstrument,
+		!dispatcher.wroteLiveData,
+	); err != nil {
 		return err
 	}
 	dispatcher.wroteLiveData = true

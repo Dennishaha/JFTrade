@@ -5,8 +5,11 @@ import type {
   MarketDataDepthResponse,
 } from "@jftrade/ui-contracts";
 
-import { buildApiUrl, fetchEnvelope, fetchEnvelopeWithInit } from "../../composables/apiClient";
-import { createEventSourceStream } from "../../composables/eventSourceStream";
+import { fetchEnvelope, fetchEnvelopeWithInit } from "../../composables/apiClient";
+import {
+  getSharedLiveSocketHub,
+  type MarketDepthLiveStreamEvent,
+} from "../../composables/sharedLiveSocket";
 import { useConsoleData } from "../../composables/useConsoleData";
 import { useWorkspaceLayout } from "../../composables/useWorkspaceLayout";
 
@@ -27,23 +30,28 @@ const isLoadingDepth = ref(false);
 const depthError = ref("");
 let depthRequestSeq = 0;
 let depthAbortController: AbortController | null = null;
-let depthStreamUrl = "";
-const depthStream = createEventSourceStream<MarketDataDepthResponse>({
-  onMessage: (payload) => {
-    if (payload.meta.instrumentId.trim().toUpperCase() !== currentInstrumentId.value) {
-      return;
-    }
-    depthData.value = payload;
-    depthError.value = "";
-    isLoadingDepth.value = false;
-  },
-  onError: () => {
-    if (depthData.value == null) {
-      depthError.value = "盘口 SSE 连接中断，正在重试";
-      isLoadingDepth.value = false;
-    }
-  },
+const liveHub = getSharedLiveSocketHub();
+const depthSubscriptionOwnerId = liveHub.createOwnerId("order-book-depth");
+const removeDepthListener = liveHub.addEventListener((event) => {
+  if (!isMarketDepthEvent(event)) {
+    return;
+  }
+  if (event.meta.instrumentId.trim().toUpperCase() !== currentInstrumentId.value) {
+    return;
+  }
+  if (Math.trunc(event.request.num) !== depthNum.value) {
+    return;
+  }
+  depthData.value = event as unknown as MarketDataDepthResponse;
+  depthError.value = "";
+  isLoadingDepth.value = false;
 });
+
+function isMarketDepthEvent(
+  event: { type: string },
+): event is MarketDepthLiveStreamEvent {
+  return event.type === "market.depth";
+}
 
 interface DepthLevel {
   bidPrice: number | null;
@@ -173,13 +181,6 @@ function buildDepthUrl(): string | null {
   return `/api/v1/market-data/depth/${market}/${symbol}?num=${depthNum.value}`;
 }
 
-function buildDepthStreamUrl(): string | null {
-  const market = prefs.value?.market;
-  const symbol = prefs.value?.symbol;
-  if (!market || !symbol) return null;
-  return `/api/sse/market/depth/${market}/${symbol}?num=${depthNum.value}`;
-}
-
 async function loadBrokerCapability(): Promise<void> {
   try {
     const runtime = await fetchEnvelope<any>("/api/v1/brokers/futu/runtime");
@@ -241,8 +242,7 @@ async function fetchDepth(): Promise<void> {
 }
 
 function closeDepthStream(): void {
-  depthStream.disconnect(false);
-  depthStreamUrl = "";
+  liveHub.setDepthTarget(depthSubscriptionOwnerId, null);
 }
 
 function clearDepthData(): void {
@@ -255,15 +255,11 @@ function clearDepthData(): void {
 }
 
 function connectDepthStream(): void {
-  const url = buildDepthStreamUrl();
-  if (!url) {
+  const market = prefs.value?.market?.trim().toUpperCase() ?? "";
+  const symbol = prefs.value?.symbol?.trim().toUpperCase() ?? "";
+  if (market === "" || symbol === "") {
     closeDepthStream();
     clearDepthData();
-    return;
-  }
-
-  const absoluteUrl = buildApiUrl(url);
-  if (depthStream.activeUrl.value != null && depthStreamUrl === absoluteUrl) {
     return;
   }
 
@@ -271,13 +267,12 @@ function connectDepthStream(): void {
   clearDepthData();
   isLoadingDepth.value = true;
   depthError.value = "";
-
-  depthStreamUrl = absoluteUrl;
-  if (depthStream.connect(absoluteUrl) == null) {
-    closeDepthStream();
-    void fetchDepth();
-    return;
-  }
+  liveHub.setDepthTarget(depthSubscriptionOwnerId, {
+    market,
+    symbol,
+    instrumentId: `${market}.${symbol}`,
+    num: depthNum.value,
+  });
 }
 
 function handleDepthVisibilityChange(): void {
@@ -319,6 +314,7 @@ onUnmounted(() => {
     window.removeEventListener("online", handleDepthOnline);
   }
   closeDepthStream();
+  removeDepthListener();
   depthAbortController?.abort();
   depthAbortController = null;
 });

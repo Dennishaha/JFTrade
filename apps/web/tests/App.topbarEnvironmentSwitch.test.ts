@@ -27,7 +27,7 @@ import {
 } from "@jftrade/ui-contracts";
 
 import {
-  MockEventSource,
+  MockWebSocket,
   createResponse,
   flushRequests,
   mountApp,
@@ -35,7 +35,7 @@ import {
 
 afterEach(() => {
   vi.unstubAllGlobals();
-  MockEventSource.instances = [];
+  MockWebSocket.instances = [];
 });
 
 describe("TopBar trading environment switch", () => {
@@ -53,7 +53,51 @@ describe("TopBar trading environment switch", () => {
         return createResponse(emptyStorageOverview);
       }
       if (url.includes("/api/v1/settings/brokers")) {
-        return createResponse(emptyBrokerSettings);
+        return createResponse({
+          brokers: [
+            {
+              descriptor: {
+                id: "futu",
+                displayName: "Futu OpenAPI via OpenD",
+                environments: ["SIMULATE", "REAL"],
+                capabilities: [
+                  { market: "HK", supportsQuote: true, supportsTrade: true },
+                  { market: "US", supportsQuote: true, supportsTrade: true },
+                ],
+                notes: [],
+              },
+              integration: {
+                brokerId: "futu",
+                enabled: true,
+                config: {
+                  type: "futu",
+                  host: "127.0.0.1",
+                  apiPort: 11110,
+                  websocketPort: 11111,
+                  maxWebSocketConnections: 20,
+                  useEncryption: false,
+                  websocketKey: "",
+                  tradeMarket: "HK",
+                  securityFirm: "FUTUSECURITIES",
+                },
+                updatedAt: "2026-05-17T00:00:00.000Z",
+                createdAt: "2026-05-17T00:00:00.000Z",
+              },
+              defaults: {
+                type: "futu",
+                host: "127.0.0.1",
+                apiPort: 11110,
+                websocketPort: 11111,
+                maxWebSocketConnections: 20,
+                useEncryption: false,
+                websocketKey: "",
+                tradeMarket: "HK",
+                securityFirm: "FUTUSECURITIES",
+              },
+            },
+          ],
+          accounts: [],
+        });
       }
       if (url.includes("/api/v1/system/real-trade-approvals"))
         return createResponse(emptyRealTradeApprovals);
@@ -123,11 +167,12 @@ describe("TopBar trading environment switch", () => {
 
     vi.stubGlobal("fetch", fetchMock);
     vi.stubGlobal(
-      "EventSource",
-      MockEventSource as unknown as typeof EventSource,
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
     );
 
     const { wrapper } = await mountApp("/overview");
+    await flushRequests();
 
     const pickerOpenButton = wrapper.get(
       '[data-testid="topbar-broker-account-picker-open"]',
@@ -206,7 +251,51 @@ describe("TopBar trading environment switch", () => {
         return createResponse(emptyStorageOverview);
       }
       if (url.includes("/api/v1/settings/brokers")) {
-        return createResponse(emptyBrokerSettings);
+        return createResponse({
+          brokers: [
+            {
+              descriptor: {
+                id: "futu",
+                displayName: "Futu OpenAPI via OpenD",
+                environments: ["SIMULATE", "REAL"],
+                capabilities: [
+                  { market: "HK", supportsQuote: true, supportsTrade: true },
+                  { market: "US", supportsQuote: true, supportsTrade: true },
+                ],
+                notes: [],
+              },
+              integration: {
+                brokerId: "futu",
+                enabled: true,
+                config: {
+                  type: "futu",
+                  host: "127.0.0.1",
+                  apiPort: 11110,
+                  websocketPort: 11111,
+                  maxWebSocketConnections: 20,
+                  useEncryption: false,
+                  websocketKey: "",
+                  tradeMarket: "HK",
+                  securityFirm: "FUTUSECURITIES",
+                },
+                updatedAt: "2026-05-17T00:00:00.000Z",
+                createdAt: "2026-05-17T00:00:00.000Z",
+              },
+              defaults: {
+                type: "futu",
+                host: "127.0.0.1",
+                apiPort: 11110,
+                websocketPort: 11111,
+                maxWebSocketConnections: 20,
+                useEncryption: false,
+                websocketKey: "",
+                tradeMarket: "HK",
+                securityFirm: "FUTUSECURITIES",
+              },
+            },
+          ],
+          accounts: [],
+        });
       }
       if (url.includes("/api/v1/system/real-trade-approvals"))
         return createResponse(emptyRealTradeApprovals);
@@ -285,11 +374,12 @@ describe("TopBar trading environment switch", () => {
 
     vi.stubGlobal("fetch", fetchMock);
     vi.stubGlobal(
-      "EventSource",
-      MockEventSource as unknown as typeof EventSource,
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
     );
 
     const { wrapper } = await mountApp("/overview");
+    await flushRequests();
 
     const pickerOpenButton = wrapper.get(
       '[data-testid="topbar-broker-account-picker-open"]',
@@ -409,8 +499,8 @@ describe("TopBar trading environment switch", () => {
 
     vi.stubGlobal("fetch", fetchMock);
     vi.stubGlobal(
-      "EventSource",
-      MockEventSource as unknown as typeof EventSource,
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
     );
 
     const { wrapper } = await mountApp("/overview");

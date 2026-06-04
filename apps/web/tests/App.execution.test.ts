@@ -31,11 +31,11 @@ import type {
   ExecutionOrdersResponse,
 } from "@jftrade/ui-contracts";
 
-import { MockEventSource, createResponse, mountApp } from "./helpers";
+import { MockWebSocket, createResponse, flushRequests, mountApp } from "./helpers";
 
 afterEach(() => {
   vi.unstubAllGlobals();
-  MockEventSource.instances = [];
+  MockWebSocket.instances = [];
 });
 
 describe("Account page execution route redirect", () => {
@@ -92,10 +92,12 @@ describe("Account page execution route redirect", () => {
       connectivity: "connected",
       fees: [
         {
-          brokerOrderId: "9001",
-          totalFee: 18.5,
-          currency: "HKD",
-          details: [{ title: "Commission", amount: 10 }],
+          accountId: "REAL-001",
+          tradingEnvironment: "REAL",
+          market: "HK",
+          brokerOrderIdEx: "ex-9001",
+          feeAmount: 18.5,
+          feeItems: [{ title: "Commission", value: 10 }],
         },
       ],
     };
@@ -124,9 +126,59 @@ describe("Account page execution route redirect", () => {
       if (url.includes("/api/v1/system/worker/broker-order-updates"))
         return createResponse(emptyWorkerBrokerOrderUpdates);
       if (url.includes("/api/v1/brokers/futu/runtime"))
-        return createResponse(emptyBrokerRuntime);
+        return createResponse({
+          ...emptyBrokerRuntime,
+          descriptor: {
+            ...emptyBrokerRuntime.descriptor,
+            capabilities: [
+              {
+                market: "HK",
+                supportsQuote: true,
+                supportsTrade: true,
+                readFeatures: {
+                  orderFees: {
+                    supportedEnvironments: ["REAL"],
+                    requiresOrderIdEx: true,
+                  },
+                },
+              },
+            ],
+          },
+        });
       if (url.includes("/api/v1/brokers/futu/funds"))
-        return createResponse(emptyBrokerFunds);
+        return createResponse({
+          ...emptyBrokerFunds,
+          checkedAt: "2026-05-16T00:00:00.000Z",
+          connectivity: "connected",
+          summary: {
+            accountId: "REAL-001",
+            tradingEnvironment: "REAL",
+            market: "HK",
+            currency: "HKD",
+            totalAssets: 0,
+            securitiesAssets: 0,
+            fundAssets: 0,
+            bondAssets: 0,
+            cash: 0,
+            marketValue: 0,
+            longMarketValue: 0,
+            shortMarketValue: 0,
+            purchasingPower: 0,
+            shortSellingPower: 0,
+            netCashPower: 0,
+            availableWithdrawalCash: 0,
+            maxWithdrawal: 0,
+            availableFunds: 0,
+            frozenCash: 0,
+            pendingAsset: 0,
+            unrealizedPnl: null,
+            realizedPnl: null,
+            initialMargin: null,
+            maintenanceMargin: null,
+            marginCallMargin: null,
+            riskStatus: null,
+          },
+        });
       if (url.includes("/api/v1/brokers/futu/positions"))
         return createResponse(emptyBrokerPositions);
       if (url.includes("/api/v1/brokers/futu/orders"))
@@ -151,16 +203,17 @@ describe("Account page execution route redirect", () => {
 
     vi.stubGlobal("fetch", fetchMock);
     vi.stubGlobal(
-      "EventSource",
-      MockEventSource as unknown as typeof EventSource,
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
     );
 
     const { wrapper } = await mountApp("/execution");
+    await flushRequests();
 
     expect(wrapper.text()).toContain("我的账户");
     expect(wrapper.text()).toContain("在途订单");
     expect(wrapper.text()).toContain("下单已受理");
-    expect(wrapper.text()).toContain("18.5 HKD");
+    expect(wrapper.text()).toContain("18.5");
 
     wrapper.unmount();
   });

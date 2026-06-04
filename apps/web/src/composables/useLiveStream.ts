@@ -1,79 +1,31 @@
-import { ref } from "vue";
-
-import { buildRuntimeApiUrl } from "../runtimeConfig";
 import {
-  createEventSourceStream,
-  type EventSourceConnectionState,
-} from "./eventSourceStream";
-import {
-  normalizeMarketDataTickLiveEvent,
+  getSharedLiveSocketHub,
+  type LiveSocketConnectionState,
+  type LiveStreamEvent,
   type MarketDataTickLiveEvent,
-} from "./marketDataRealtime";
+  type SystemNotificationLiveStreamEvent,
+} from "./sharedLiveSocket";
 
-const MAX_BUFFERED_EVENTS = 20;
-
-function buildEventStreamUrl(path: string): string {
-  return buildRuntimeApiUrl(path);
-}
-
-export type LiveStreamConnectionState =
-  EventSourceConnectionState;
-
+export type LiveStreamConnectionState = LiveSocketConnectionState;
 export type MarketDataTickLiveStreamEvent = MarketDataTickLiveEvent;
-
-export type SystemNotificationLiveStreamEvent = {
-  type: "system.notification";
-  id: string;
-  at: string;
-  level: "info" | "success" | "warn" | "error";
-  title: string;
-  message?: string;
-  source?: string;
-  brokerId?: string;
-  category?: string;
-};
-
-export type LiveStreamEvent =
-  | SystemNotificationLiveStreamEvent
-  | MarketDataTickLiveStreamEvent
-  | {
-      type: string;
-      at: string;
-    };
+export type { LiveStreamEvent, SystemNotificationLiveStreamEvent };
 
 export function useLiveStream() {
-  const lastHeartbeat = ref<string | null>(null);
-  const events = ref<LiveStreamEvent[]>([]);
-  const stream = createEventSourceStream<LiveStreamEvent>({
-    parseEvent: (rawPayload) =>
-      normalizeMarketDataTickLiveEvent(rawPayload) ??
-      (rawPayload as LiveStreamEvent),
-    onMessage: (payload) => {
-      events.value = [
-        ...events.value.slice(-(MAX_BUFFERED_EVENTS - 1)),
-        payload,
-      ];
-
-      if (payload.type === "heartbeat") {
-        lastHeartbeat.value = payload.at;
-      }
-    },
-  });
-
-  function disconnect(): void {
-    stream.activeUrl.value = null;
-    stream.disconnect(true);
-  }
-
-  function connect(url = buildEventStreamUrl("/api/sse/live")): EventSource | null {
-    return stream.connect(url);
-  }
+  const hub = getSharedLiveSocketHub();
 
   return {
-    connect,
-    connectionState: stream.connectionState,
-    disconnect,
-    events,
-    lastHeartbeat,
+    addEventListener: hub.addEventListener.bind(hub),
+    connect: hub.connect.bind(hub),
+    connectionState: hub.connectionState,
+    createOwnerId: hub.createOwnerId.bind(hub),
+    disconnect: hub.disconnect.bind(hub),
+    events: hub.events,
+    lastHeartbeat: hub.lastHeartbeat,
+    reconnect: hub.reconnect.bind(hub),
+    setActiveInstrument: hub.setActiveInstrument.bind(hub),
+    setConsoleRefreshEnabled: hub.setConsoleRefreshEnabled.bind(hub),
+    setDepthTarget: hub.setDepthTarget.bind(hub),
+    setSecurityDetailsTarget: hub.setSecurityDetailsTarget.bind(hub),
+    snapshotSubscriptions: hub.snapshotSubscriptions.bind(hub),
   };
 }

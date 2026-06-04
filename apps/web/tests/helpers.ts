@@ -22,6 +22,7 @@ import {
 } from "@jftrade/ui-contracts";
 
 import App from "../src/App.vue";
+import { resetSharedLiveSocketHubForTests } from "../src/composables/sharedLiveSocket";
 import { createConsoleRouter } from "../src/router";
 
 export const passthroughStub = {
@@ -200,32 +201,84 @@ export const iconStub = defineComponent({
   },
 });
 
-export class MockEventSource {
-  static instances: MockEventSource[] = [];
+export class MockWebSocket {
+  static instances: MockWebSocket[] = [];
+  static readonly CONNECTING = 0;
+  static readonly OPEN = 1;
+  static readonly CLOSING = 2;
+  static readonly CLOSED = 3;
 
+  readonly sentMessages: string[] = [];
   onopen: ((event: Event) => void) | null = null;
   onmessage: ((event: MessageEvent<string>) => void) | null = null;
   onerror: ((event: Event) => void) | null = null;
+  onclose: ((event: CloseEvent) => void) | null = null;
   closed = false;
+  readyState = MockWebSocket.CONNECTING;
+  private readonly listeners = new Map<string, Set<(event: Event | MessageEvent<string>) => void>>();
 
   constructor(public readonly url: string) {
-    MockEventSource.instances.push(this);
+    MockWebSocket.instances.push(this);
 
     queueMicrotask(() => {
-      this.onopen?.(new Event("open"));
+      this.readyState = MockWebSocket.OPEN;
+      this.dispatchEvent("open", new Event("open"));
     });
   }
 
+  addEventListener(
+    type: string,
+    listener: (event: Event | MessageEvent<string>) => void,
+  ): void {
+    const listeners = this.listeners.get(type) ?? new Set();
+    listeners.add(listener);
+    this.listeners.set(type, listeners);
+  }
+
+  removeEventListener(
+    type: string,
+    listener: (event: Event | MessageEvent<string>) => void,
+  ): void {
+    this.listeners.get(type)?.delete(listener);
+  }
+
+  send(data: string): void {
+    this.sentMessages.push(data);
+  }
+
   emitMessage(data: unknown): void {
-    this.onmessage?.({ data: JSON.stringify(data) } as MessageEvent<string>);
+    this.dispatchEvent(
+      "message",
+      { data: JSON.stringify(data) } as MessageEvent<string>,
+    );
   }
 
   emitError(): void {
-    this.onerror?.(new Event("error"));
+    this.dispatchEvent("error", new Event("error"));
   }
 
   close(): void {
     this.closed = true;
+    this.readyState = MockWebSocket.CLOSED;
+    this.dispatchEvent("close", new CloseEvent("close"));
+  }
+
+  private dispatchEvent(
+    type: string,
+    event: Event | MessageEvent<string>,
+  ): void {
+    if (type === "open") {
+      this.onopen?.(event as Event);
+    } else if (type === "message") {
+      this.onmessage?.(event as MessageEvent<string>);
+    } else if (type === "error") {
+      this.onerror?.(event as Event);
+    } else if (type === "close") {
+      this.onclose?.(event as CloseEvent);
+    }
+    for (const listener of this.listeners.get(type) ?? []) {
+      listener(event);
+    }
   }
 }
 
@@ -253,10 +306,11 @@ export async function flushRequests(): Promise<void> {
 }
 
 export async function mountApp(path = "/system") {
-  MockEventSource.instances = [];
+  resetSharedLiveSocketHubForTests();
+  MockWebSocket.instances = [];
   vi.stubGlobal(
-    "EventSource",
-    MockEventSource as unknown as typeof EventSource,
+    "WebSocket",
+    MockWebSocket as unknown as typeof WebSocket,
   );
 
   const existingFetch = globalThis.fetch;

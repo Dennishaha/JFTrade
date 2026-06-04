@@ -39,7 +39,7 @@ import { provideWorkspaceLayoutStore } from "../src/composables/useWorkspaceLayo
 import StrategyPage from "../src/pages/StrategyPage.vue"
 
 import {
-  MockEventSource,
+  MockWebSocket,
   createResponse,
   dialogStub,
   flushRequests,
@@ -94,7 +94,7 @@ export async function mountStrategyPage(path = "/strategy") {
 export type StrategyPageWrapper = Awaited<ReturnType<typeof mountStrategyPage>>["wrapper"]
 
 export function resetStrategyPageTestState() {
-  MockEventSource.instances = []
+  MockWebSocket.instances = []
   currentStrategySystemStatus = emptySystemStatus
   currentConsoleDataStore = null
 }
@@ -1089,4 +1089,4 @@ export function buildRuntimeAccount(overrides?: Partial<BrokerRuntimeResponse>):
   }
 }
 
-export { MockEventSource, flushRequests }
+export { MockWebSocket, flushRequests }

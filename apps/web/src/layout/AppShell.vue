@@ -109,6 +109,9 @@ function formatLiveEventTypeLabel(type: string): string {
   if (type === "heartbeat") return "心跳";
   if (type === "market-data.tick") return "行情推送";
   if (type === "system.notification") return "系统通知";
+  if (type === "console.refresh") return "控制台刷新";
+  if (type === "market.security-details") return "证券详情";
+  if (type === "market.depth") return "盘口";
   return type;
 }
 
@@ -182,6 +185,14 @@ const stop = watch(
     if (ev.type === "market-data.tick") {
       pendingMarketTickEvent = ev;
       scheduleMarketTickFlush();
+      return;
+    }
+
+    if (
+      ev.type === "console.refresh" ||
+      ev.type === "market.security-details" ||
+      ev.type === "market.depth"
+    ) {
       return;
     }
 

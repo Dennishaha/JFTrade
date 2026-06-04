@@ -30,11 +30,11 @@ import type {
   RealTradeRiskStateResponse,
 } from "@jftrade/ui-contracts";
 
-import { MockEventSource, createResponse, mountApp } from "./helpers";
+import { MockWebSocket, createResponse, mountApp } from "./helpers";
 
 afterEach(() => {
   vi.unstubAllGlobals();
-  MockEventSource.instances = [];
+  MockWebSocket.instances = [];
 });
 
 function buildFetchMock(
@@ -103,8 +103,8 @@ describe("Risk page", () => {
   it("renders the risk page with nav item and section headings", async () => {
     vi.stubGlobal("fetch", buildFetchMock());
     vi.stubGlobal(
-      "EventSource",
-      MockEventSource as unknown as typeof EventSource,
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
     );
 
     const { wrapper } = await mountApp("/risk");
@@ -125,8 +125,8 @@ describe("Risk page", () => {
       buildFetchMock({ killSwitchState: { killSwitchActive: false } }),
     );
     vi.stubGlobal(
-      "EventSource",
-      MockEventSource as unknown as typeof EventSource,
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
     );
 
     const { wrapper } = await mountApp("/risk");
@@ -149,8 +149,8 @@ describe("Risk page", () => {
       }),
     );
     vi.stubGlobal(
-      "EventSource",
-      MockEventSource as unknown as typeof EventSource,
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
     );
 
     const { wrapper } = await mountApp("/risk");
@@ -187,8 +187,8 @@ describe("Risk page", () => {
       }),
     );
     vi.stubGlobal(
-      "EventSource",
-      MockEventSource as unknown as typeof EventSource,
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
     );
 
     const { wrapper } = await mountApp("/risk");
@@ -213,8 +213,8 @@ describe("Risk page", () => {
       }),
     );
     vi.stubGlobal(
-      "EventSource",
-      MockEventSource as unknown as typeof EventSource,
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
     );
 
     const { wrapper } = await mountApp("/risk");
@@ -228,8 +228,8 @@ describe("Risk page", () => {
   it("shows NONE for hard stops when no active stops", async () => {
     vi.stubGlobal("fetch", buildFetchMock());
     vi.stubGlobal(
-      "EventSource",
-      MockEventSource as unknown as typeof EventSource,
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
     );
 
     const { wrapper } = await mountApp("/risk");
@@ -242,8 +242,8 @@ describe("Risk page", () => {
   it("risk nav item appears in navigation", async () => {
     vi.stubGlobal("fetch", buildFetchMock());
     vi.stubGlobal(
-      "EventSource",
-      MockEventSource as unknown as typeof EventSource,
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
     );
 
     const { wrapper } = await mountApp("/system");

@@ -28,15 +28,15 @@ import {
 import type { MarketDataSubscriptionsResponse } from "@jftrade/ui-contracts";
 
 import {
-  MockEventSource,
+  MockWebSocket,
   createResponse,
   flushRequests,
   mountApp,
 } from "./helpers";
 
-function findLiveEventStream(): MockEventSource | undefined {
-  return MockEventSource.instances.find((instance) =>
-    instance.url.includes("/api/sse/live"),
+function findLiveEventStream(): MockWebSocket | undefined {
+  return MockWebSocket.instances.find((instance) =>
+    instance.url.includes("/api/v1/ws/live"),
   );
 }
 
@@ -51,7 +51,7 @@ function countCallsMatching(
 
 afterEach(() => {
   vi.unstubAllGlobals();
-  MockEventSource.instances = [];
+  MockWebSocket.instances = [];
   window.localStorage?.clear();
 });
 
@@ -250,8 +250,8 @@ describe("Market page", () => {
   it("updates the global workspace instrument from the top bar with explicit market and code fields", async () => {
     vi.stubGlobal("fetch", buildStandardFetchMock());
     vi.stubGlobal(
-      "EventSource",
-      MockEventSource as unknown as typeof EventSource,
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
     );
 
     const { wrapper } = await mountApp("/market");
@@ -276,8 +276,8 @@ describe("Market page", () => {
   it("shows empty state when no subscriptions are active", async () => {
     vi.stubGlobal("fetch", buildStandardFetchMock());
     vi.stubGlobal(
-      "EventSource",
-      MockEventSource as unknown as typeof EventSource,
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
     );
 
     const { wrapper } = await mountApp("/market");
@@ -340,8 +340,8 @@ describe("Market page", () => {
       }),
     );
     vi.stubGlobal(
-      "EventSource",
-      MockEventSource as unknown as typeof EventSource,
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
     );
 
     const { wrapper } = await mountApp("/market");
@@ -366,8 +366,8 @@ describe("Market page", () => {
   it("shows nav items for all six console sections", async () => {
     vi.stubGlobal("fetch", buildStandardFetchMock());
     vi.stubGlobal(
-      "EventSource",
-      MockEventSource as unknown as typeof EventSource,
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
     );
 
     const { wrapper } = await mountApp("/market");
@@ -386,8 +386,8 @@ describe("Market page", () => {
     const fetchMock = buildStandardFetchMock();
     vi.stubGlobal("fetch", fetchMock);
     vi.stubGlobal(
-      "EventSource",
-      MockEventSource as unknown as typeof EventSource,
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
     );
 
     const { wrapper } = await mountApp("/market");
@@ -441,8 +441,8 @@ describe("Market page", () => {
     const fetchMock = buildStandardFetchMock();
     vi.stubGlobal("fetch", fetchMock);
     vi.stubGlobal(
-      "EventSource",
-      MockEventSource as unknown as typeof EventSource,
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
     );
 
     const { wrapper } = await mountApp("/market");
@@ -496,8 +496,8 @@ describe("Market page", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
     vi.stubGlobal(
-      "EventSource",
-      MockEventSource as unknown as typeof EventSource,
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
     );
 
     const { wrapper } = await mountApp("/market");
@@ -513,8 +513,8 @@ describe("Market page", () => {
   it("applies backend live SSE ticks to the market page snapshot", async () => {
     vi.stubGlobal("fetch", buildStandardFetchMock());
     vi.stubGlobal(
-      "EventSource",
-      MockEventSource as unknown as typeof EventSource,
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
     );
 
     const { wrapper } = await mountApp("/market");
@@ -555,8 +555,8 @@ describe("Market page", () => {
   it("keeps applying live SSE ticks after the event buffer is full", async () => {
     vi.stubGlobal("fetch", buildStandardFetchMock());
     vi.stubGlobal(
-      "EventSource",
-      MockEventSource as unknown as typeof EventSource,
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
     );
 
     const { wrapper } = await mountApp("/market");
@@ -595,8 +595,8 @@ describe("Market page", () => {
     const fetchMock = buildStandardFetchMock();
     vi.stubGlobal("fetch", fetchMock);
     vi.stubGlobal(
-      "EventSource",
-      MockEventSource as unknown as typeof EventSource,
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
     );
 
     const originalVisibilityState = document.visibilityState;
@@ -608,8 +608,8 @@ describe("Market page", () => {
     const { wrapper } = await mountApp("/market");
     await flushRequests();
 
-    const initialLiveStreamCount = MockEventSource.instances.filter((instance) =>
-      instance.url.includes("/api/sse/live"),
+    const initialLiveStreamCount = MockWebSocket.instances.filter((instance) =>
+      instance.url.includes("/api/v1/ws/live"),
     ).length;
     const initialCandleRequestCount = countCallsMatching(
       fetchMock,
@@ -631,8 +631,8 @@ describe("Market page", () => {
     await flushRequests();
 
     expect(
-      MockEventSource.instances.filter((instance) =>
-        instance.url.includes("/api/sse/live"),
+      MockWebSocket.instances.filter((instance) =>
+        instance.url.includes("/api/v1/ws/live"),
       ).length,
     ).toBeGreaterThan(initialLiveStreamCount);
     expect(

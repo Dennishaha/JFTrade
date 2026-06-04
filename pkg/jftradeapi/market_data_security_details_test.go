@@ -1,11 +1,8 @@
 package jftradeapi
 
 import (
-	"bufio"
 	"net/http/httptest"
-	"strings"
 	"testing"
-	"time"
 )
 
 func TestMarketSecurityDetailsResponseQueriesSecuritySnapshot(t *testing.T) {
@@ -63,7 +60,7 @@ func TestMarketSecurityDetailsResponseQueriesSecuritySnapshot(t *testing.T) {
 	}
 }
 
-func TestMarketSecurityDetailsSSEStreamSendsInitialPayload(t *testing.T) {
+func TestMarketSecurityDetailsWebSocketSendsInitialPayload(t *testing.T) {
 	quoteServer := startMarketDataQuoteOpenDServer(t)
 	defer quoteServer.stop()
 
@@ -71,21 +68,27 @@ func TestMarketSecurityDetailsSSEStreamSendsInitialPayload(t *testing.T) {
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
-	response, err := liveSSERequest(t, srv.URL+"/api/sse/market/securities/HK/00700")
-	if err != nil {
-		t.Fatalf("GET market security details SSE: %v", err)
-	}
-	defer response.Body.Close()
+	conn := dialLiveWebSocket(t, srv.URL)
+	defer conn.Close()
 
-	if got := response.Header.Get("Content-Type"); !strings.Contains(got, "text/event-stream") {
-		t.Fatalf("Content-Type = %q", got)
+	if err := conn.WriteJSON(liveWebSocketClientMessage{
+		Type: "subscribe",
+		Subscriptions: liveWebSocketSubscriptions{
+			SecurityDetails: []liveWebSocketSecurityDetailsSubscription{{
+				Market:       "HK",
+				Symbol:       "00700",
+				InstrumentID: "HK.00700",
+			}},
+		},
+	}); err != nil {
+		t.Fatalf("subscribe security details websocket: %v", err)
 	}
 
-	reader := bufio.NewReader(response.Body)
-	if retryMillis := readSSERetry(t, reader); retryMillis != int(defaultSSEClientRetry/time.Millisecond) {
-		t.Fatalf("retry = %d", retryMillis)
+	_ = readLiveWebSocketEvent(t, conn)
+	event := readLiveWebSocketEvent(t, conn)
+	if event["type"] != "market.security-details" {
+		t.Fatalf("unexpected websocket event: %+v", event)
 	}
-	event := readSSEEvent(t, reader)
 	request, ok := event["request"].(map[string]any)
 	if !ok {
 		t.Fatalf("request payload type = %T", event["request"])

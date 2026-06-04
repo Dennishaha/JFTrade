@@ -20,16 +20,10 @@ const marketSecurityDetailsStreamInterval = 1 * time.Second
 const marketDepthStreamRefreshInterval = 15 * time.Second
 
 func marketSecurityDetailsPathTail(path string) (string, string) {
-	if strings.HasPrefix(path, "/api/sse/market/securities/") {
-		return pathTail(path, "/api/sse/market/securities/")
-	}
 	return pathTail(path, "/api/v1/market-data/securities/")
 }
 
 func marketDepthPathTail(path string) (string, string) {
-	if strings.HasPrefix(path, "/api/sse/market/depth/") {
-		return pathTail(path, "/api/sse/market/depth/")
-	}
 	return pathTail(path, "/api/v1/market-data/depth/")
 }
 
@@ -49,37 +43,6 @@ func (s *Server) handleMarketSecurityDetails(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	s.writeOK(w, response)
-}
-
-func (s *Server) handleMarketSecurityDetailsEventStream(w http.ResponseWriter, r *http.Request) {
-	writer, ok := prepareSSEWriter(w)
-	if !ok {
-		s.writeError(w, http.StatusInternalServerError, "MARKET_SECURITY_DETAILS_STREAM_UNSUPPORTED", "response writer does not support streaming")
-		return
-	}
-
-	response, err := s.marketSecurityDetailsResponse(r.Context(), r.URL.Path)
-	if err != nil {
-		s.writeError(w, http.StatusBadGateway, "MARKET_SECURITY_DETAILS_FAILED", err.Error())
-		return
-	}
-
-	if err := writer.WriteRetryDirective(); err != nil {
-		return
-	}
-	_ = runSSEStreamLoop(r.Context(), sseStreamLoopOptions{
-		initial: func(context.Context) error {
-			return writer.WriteEvent(response)
-		},
-		writeInterval: marketSecurityDetailsStreamInterval,
-		onTick: func(ctx context.Context) error {
-			response, err := s.marketSecurityDetailsResponse(r.Context(), r.URL.Path)
-			if err != nil {
-				return nil
-			}
-			return writer.WriteEvent(response)
-		},
-	})
 }
 
 func (s *Server) marketSecurityDetailsResponse(ctx context.Context, path string) (map[string]any, error) {
@@ -326,83 +289,6 @@ func (s *Server) handleMarketDepth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.writeOK(w, response)
-}
-
-func (s *Server) handleMarketDepthEventStream(w http.ResponseWriter, r *http.Request) {
-	writer, ok := prepareSSEWriter(w)
-	if !ok {
-		s.writeError(w, http.StatusInternalServerError, "MARKET_DEPTH_STREAM_UNSUPPORTED", "response writer does not support streaming")
-		return
-	}
-
-	response, err := s.marketDepthResponse(r.Context(), r.URL.Path, r.URL.Query())
-	if err != nil {
-		s.writeError(w, http.StatusBadGateway, "OPEND_DEPTH_FAILED", err.Error())
-		return
-	}
-
-	market, symbol := marketDepthPathTail(r.URL.Path)
-	instrumentID := strings.ToUpper(strings.TrimSpace(market)) + "." + strings.ToUpper(strings.TrimSpace(symbol))
-	num := int32(intQuery(r.URL.Query(), "num", 10))
-	if num < 1 {
-		num = 1
-	}
-	if num > 50 {
-		num = 50
-	}
-
-	if err := writer.WriteRetryDirective(); err != nil {
-		return
-	}
-	if err := writer.WriteEvent(response); err != nil {
-		return
-	}
-
-	if subscriber, ok := s.futuBroker().(broker.OrderBookSubscriber); ok {
-		_ = subscriber.SubscribeOrderBook(r.Context(), broker.OrderBookSubscribeRequest{
-			ReadQuery: brokerReadQuery(instrumentID),
-			Symbols:   []string{instrumentID},
-			Num:       num,
-		})
-	}
-
-	exchange, err := s.futuExchangeOrError()
-	if err != nil {
-		s.writeError(w, http.StatusBadGateway, "OPEND_DEPTH_FAILED", err.Error())
-		return
-	}
-
-	updateCh := make(chan struct{}, 1)
-	unsubscribe := exchange.OnOrderBookUpdate(func(updatedSymbol string) {
-		if !strings.EqualFold(updatedSymbol, instrumentID) {
-			return
-		}
-		select {
-		case updateCh <- struct{}{}:
-		default:
-		}
-	})
-	defer unsubscribe()
-
-	refreshTicker := time.NewTicker(marketDepthStreamRefreshInterval)
-	defer refreshTicker.Stop()
-
-	for {
-		select {
-		case <-r.Context().Done():
-			return
-		case <-updateCh:
-		case <-refreshTicker.C:
-		}
-
-		response, err := s.marketDepthResponse(r.Context(), r.URL.Path, r.URL.Query())
-		if err != nil {
-			continue
-		}
-		if err := writer.WriteEvent(response); err != nil {
-			return
-		}
-	}
 }
 
 func (s *Server) marketDepthResponse(ctx context.Context, path string, query map[string][]string) (map[string]any, error) {

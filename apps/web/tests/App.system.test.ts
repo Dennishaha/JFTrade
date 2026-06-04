@@ -26,15 +26,15 @@ import {
 import type { SystemStatusResponse } from "@jftrade/ui-contracts";
 
 import {
-  MockEventSource,
+  MockWebSocket,
   createResponse,
   flushRequests,
   mountApp,
 } from "./helpers";
 
-function findLiveEventStream(): MockEventSource | undefined {
-  return MockEventSource.instances.find((instance) =>
-    instance.url.includes("/api/sse/live"),
+function findLiveEventStream(): MockWebSocket | undefined {
+  return MockWebSocket.instances.find((instance) =>
+    instance.url.includes("/api/v1/ws/live"),
   );
 }
 
@@ -78,7 +78,7 @@ const systemStatus: SystemStatusResponse = {
 
 afterEach(() => {
   vi.unstubAllGlobals();
-  MockEventSource.instances = [];
+  MockWebSocket.instances = [];
 });
 
 describe("System page", () => {
@@ -257,14 +257,14 @@ describe("System page", () => {
 
     vi.stubGlobal("fetch", fetchMock);
     vi.stubGlobal(
-      "EventSource",
-      MockEventSource as unknown as typeof EventSource,
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
     );
 
     const { wrapper } = await mountApp("/system");
     const liveStream = findLiveEventStream();
 
-    expect(liveStream?.url).toContain("/api/sse/live");
+    expect(liveStream?.url).toContain("/api/v1/ws/live");
 
     liveStream?.emitMessage({
       type: "heartbeat",
@@ -354,8 +354,8 @@ describe("System page", () => {
 
     vi.stubGlobal("fetch", fetchMock);
     vi.stubGlobal(
-      "EventSource",
-      MockEventSource as unknown as typeof EventSource,
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
     );
 
     const { wrapper } = await mountApp("/system");
@@ -419,8 +419,8 @@ describe("System page", () => {
 
     vi.stubGlobal("fetch", fetchMock);
     vi.stubGlobal(
-    "EventSource",
-    MockEventSource as unknown as typeof EventSource,
+    "WebSocket",
+    MockWebSocket as unknown as typeof WebSocket,
     );
 
     const { wrapper } = await mountApp("/system");

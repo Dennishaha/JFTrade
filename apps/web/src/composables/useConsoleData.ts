@@ -5,6 +5,7 @@ import {
   markRaw,
   provide,
   ref,
+  watch,
 } from "vue";
 
 import {
@@ -97,6 +98,7 @@ import {
 import {
   type LoadMarketDataQueryOptions,
 } from "./marketDataQuery";
+import { getSharedLiveSocketHub } from "./sharedLiveSocket";
 import { normalizeKlinePeriod } from "../charting/kline";
 import {
   useWorkspaceLayout,
@@ -118,6 +120,8 @@ interface BrokerReadFeatureQueryRequirements {
 }
 
 function createConsoleDataStore(workspaceLayout: WorkspaceLayoutStore) {
+  const liveHub = getSharedLiveSocketHub();
+  const activeInstrumentOwnerId = liveHub.createOwnerId("active-market-instrument");
   const { prefs, update } = workspaceLayout;
   const systemStatus = ref<SystemStatusResponse>(emptySystemStatus);
   const storageOverview = ref<StorageOverviewResponse>(emptyStorageOverview);
@@ -475,6 +479,14 @@ function createConsoleDataStore(workspaceLayout: WorkspaceLayoutStore) {
     reloadSystemState,
   });
   const { dispose, initialize } = consoleStreamController;
+
+  watch(
+    activeMarketDataInstrumentId,
+    (instrumentId) => {
+      liveHub.setActiveInstrument(activeInstrumentOwnerId, instrumentId || null);
+    },
+    { immediate: true },
+  );
 
   function selectWorkspaceInstrument(input: {
     market: string;

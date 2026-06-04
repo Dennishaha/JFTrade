@@ -1,9 +1,11 @@
 import type { Ref } from "vue";
 
-import { buildApiUrl } from "./apiClient";
-import { createEventSourceStream } from "./eventSourceStream";
 import type { MarketSecurityDetailsQueryResult } from "./marketDataRealtime";
 import { normalizeMarketSecurityDetailsQueryResult } from "./marketSecurityNormalization";
+import {
+  getSharedLiveSocketHub,
+  type MarketSecurityDetailsLiveStreamEvent,
+} from "./sharedLiveSocket";
 
 interface MarketSnapshotRefreshTarget {
   market: string;
@@ -18,25 +20,22 @@ interface MarketDataSnapshotRefresherOptions {
 export function createMarketDataSnapshotRefresher(
   options: MarketDataSnapshotRefresherOptions,
 ) {
-  let marketSecurityDetailsStreamInstrumentId = "";
-  const marketSecurityDetailsStream =
-    createEventSourceStream<MarketSecurityDetailsQueryResult>({
-      onMessage: (payload) => {
-        const activeTarget = resolveMarketSnapshotRefreshTarget();
-        if (
-          activeTarget == null ||
-          activeTarget.instrumentId !== marketSecurityDetailsStreamInstrumentId
-        ) {
-          return;
-        }
-        options.marketSecurityDetails.value =
-          normalizeMarketSecurityDetailsQueryResult(payload);
-      },
-    });
+  const hub = getSharedLiveSocketHub();
+  const ownerId = hub.createOwnerId("security-details");
+  const removeListener = hub.addEventListener((event) => {
+    if (!isMarketSecurityDetailsEvent(event)) {
+      return;
+    }
+    const activeTarget = resolveMarketSnapshotRefreshTarget();
+    if (activeTarget == null || activeTarget.instrumentId !== event.request.instrumentId) {
+      return;
+    }
+    options.marketSecurityDetails.value =
+      normalizeMarketSecurityDetailsQueryResult(event);
+  });
 
   function closeMarketSecurityDetailsStream(): void {
-    marketSecurityDetailsStream.disconnect(false);
-    marketSecurityDetailsStreamInstrumentId = "";
+    hub.setSecurityDetailsTarget(ownerId, null);
   }
 
   function resolveMarketSnapshotRefreshTarget(): MarketSnapshotRefreshTarget | null {
@@ -65,24 +64,20 @@ export function createMarketDataSnapshotRefresher(
       return;
     }
 
-    if (
-      marketSecurityDetailsStream.activeUrl.value != null &&
-      marketSecurityDetailsStreamInstrumentId === target.instrumentId
-    ) {
-      return;
-    }
-
-    closeMarketSecurityDetailsStream();
-
-    const url = buildApiUrl(
-      `/api/sse/market/securities/${encodeURIComponent(target.market)}/${encodeURIComponent(target.symbol)}`,
-    );
-    marketSecurityDetailsStreamInstrumentId = target.instrumentId;
-    marketSecurityDetailsStream.connect(url);
+    hub.setSecurityDetailsTarget(ownerId, target);
   }
 
   return {
     scheduleMarketSnapshotBackgroundRefresh,
-    stopMarketSnapshotBackgroundRefresh: closeMarketSecurityDetailsStream,
+    stopMarketSnapshotBackgroundRefresh: () => {
+      closeMarketSecurityDetailsStream();
+      removeListener();
+    },
   };
+}
+
+function isMarketSecurityDetailsEvent(
+  event: { type: string },
+): event is MarketSecurityDetailsLiveStreamEvent {
+  return event.type === "market.security-details";
 }

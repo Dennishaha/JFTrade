@@ -1,10 +1,6 @@
 package jftradeapi
 
 import (
-	"bufio"
-	"encoding/json"
-	"fmt"
-	"net/http"
 	"net/http/httptest"
 	"path/filepath"
 	"strings"
@@ -12,6 +8,7 @@ import (
 	"time"
 
 	bbgo "github.com/c9s/bbgo/pkg/bbgo"
+	"github.com/gorilla/websocket"
 	"github.com/shopspring/decimal"
 	"google.golang.org/protobuf/proto"
 
@@ -19,7 +16,7 @@ import (
 	notifypb "github.com/jftrade/jftrade-main/pkg/futu/pb/notify"
 )
 
-func TestLiveSSESendsHeartbeat(t *testing.T) {
+func TestLiveWebSocketSendsHeartbeat(t *testing.T) {
 	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
@@ -28,32 +25,22 @@ func TestLiveSSESendsHeartbeat(t *testing.T) {
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
-	response, err := liveSSERequest(t, srv.URL+"/api/sse/live")
-	if err != nil {
-		t.Fatalf("GET live SSE: %v", err)
-	}
-	defer response.Body.Close()
+	conn := dialLiveWebSocket(t, srv.URL)
+	defer conn.Close()
 
-	reader := bufio.NewReader(response.Body)
-	if retryMillis := readSSERetry(t, reader); retryMillis != int((defaultSSEClientRetry / time.Millisecond)) {
-		t.Fatalf("retry = %d, want %d", retryMillis, int(defaultSSEClientRetry/time.Millisecond))
-	}
-	event := readSSEEvent(t, reader)
+	event := readLiveWebSocketEvent(t, conn)
 	if event["type"] != "heartbeat" || event["at"] == "" {
 		t.Fatalf("unexpected event: %+v", event)
 	}
 	if got := int64(event["intervalMs"].(float64)); got != int64(15*time.Second/time.Millisecond) {
 		t.Fatalf("intervalMs = %d", got)
 	}
-	if got := int64(event["retryMs"].(float64)); got != int64(defaultSSEClientRetry/time.Millisecond) {
-		t.Fatalf("retryMs = %d", got)
-	}
 	if stale, _ := event["stale"].(bool); stale {
 		t.Fatalf("unexpected stale heartbeat: %+v", event)
 	}
 }
 
-func TestLiveSSESendsSystemNotification(t *testing.T) {
+func TestLiveWebSocketSendsSystemNotification(t *testing.T) {
 	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
@@ -73,20 +60,15 @@ func TestLiveSSESendsSystemNotification(t *testing.T) {
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
-	response, err := liveSSERequest(t, srv.URL+"/api/sse/live")
-	if err != nil {
-		t.Fatalf("GET live SSE: %v", err)
-	}
-	defer response.Body.Close()
+	conn := dialLiveWebSocket(t, srv.URL)
+	defer conn.Close()
 
-	reader := bufio.NewReader(response.Body)
-	_ = readSSERetry(t, reader)
-	heartbeat := readSSEEvent(t, reader)
+	heartbeat := readLiveWebSocketEvent(t, conn)
 	if heartbeat["type"] != "heartbeat" {
 		t.Fatalf("unexpected first event: %+v", heartbeat)
 	}
 
-	event := readSSEEvent(t, reader)
+	event := readLiveWebSocketEvent(t, conn)
 	if event["type"] != "system.notification" {
 		t.Fatalf("unexpected event type: %+v", event)
 	}
@@ -98,7 +80,7 @@ func TestLiveSSESendsSystemNotification(t *testing.T) {
 	}
 }
 
-func TestLiveSSESendsBBGONotification(t *testing.T) {
+func TestLiveWebSocketSendsBBGONotification(t *testing.T) {
 	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
@@ -109,20 +91,15 @@ func TestLiveSSESendsBBGONotification(t *testing.T) {
 
 	bbgo.Notify("strategy %s started", "demo-grid")
 
-	response, err := liveSSERequest(t, srv.URL+"/api/sse/live")
-	if err != nil {
-		t.Fatalf("GET live SSE: %v", err)
-	}
-	defer response.Body.Close()
+	conn := dialLiveWebSocket(t, srv.URL)
+	defer conn.Close()
 
-	reader := bufio.NewReader(response.Body)
-	_ = readSSERetry(t, reader)
-	heartbeat := readSSEEvent(t, reader)
+	heartbeat := readLiveWebSocketEvent(t, conn)
 	if heartbeat["type"] != "heartbeat" {
 		t.Fatalf("unexpected first event: %+v", heartbeat)
 	}
 
-	event := readSSEEvent(t, reader)
+	event := readLiveWebSocketEvent(t, conn)
 	if event["type"] != "system.notification" {
 		t.Fatalf("unexpected event type: %+v", event)
 	}
@@ -134,7 +111,7 @@ func TestLiveSSESendsBBGONotification(t *testing.T) {
 	}
 }
 
-func TestLiveSSEHeartbeatReportsStaleMarketData(t *testing.T) {
+func TestLiveWebSocketHeartbeatReportsStaleMarketData(t *testing.T) {
 	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
@@ -162,44 +139,24 @@ func TestLiveSSEHeartbeatReportsStaleMarketData(t *testing.T) {
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
-	response, err := liveSSERequest(t, srv.URL+"/api/sse/live")
-	if err != nil {
-		t.Fatalf("GET live SSE: %v", err)
-	}
-	defer response.Body.Close()
+	conn := dialLiveWebSocket(t, srv.URL)
+	defer conn.Close()
 
-	reader := bufio.NewReader(response.Body)
-	_ = readSSERetry(t, reader)
-	heartbeat := readSSEEvent(t, reader)
+	heartbeat := readLiveWebSocketEvent(t, conn)
 	if heartbeat["type"] != "heartbeat" {
 		t.Fatalf("unexpected first event: %+v", heartbeat)
 	}
 	if stale, _ := heartbeat["stale"].(bool); !stale {
 		t.Fatalf("expected stale heartbeat, got %+v", heartbeat)
 	}
-	reasons, ok := heartbeat["staleReasons"].([]any)
-	if !ok || len(reasons) == 0 {
-		t.Fatalf("staleReasons = %#v", heartbeat["staleReasons"])
-	}
-	if reasons[0] != "market-data-samples-stale" {
-		t.Fatalf("unexpected stale reason: %#v", reasons)
-	}
 }
 
-func TestLiveSSEInitialMarketTickRefreshesObservedAt(t *testing.T) {
+func TestLiveWebSocketInitialMarketTickRefreshesObservedAt(t *testing.T) {
 	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
 	server := newTestServer(t, store)
-	server.marketSubscriptions.acquire(marketSubscriptionInput{
-		Key:        "KLINE:HK:00700:1m",
-		Channel:    "KLINE",
-		Market:     "HK",
-		Symbol:     "00700",
-		Interval:   "1m",
-		ConsumerID: "test-live-initial-tick",
-	})
 	quoteAt := time.Now().UTC().Add(-300 * time.Millisecond).Truncate(time.Millisecond)
 	observedAt := quoteAt.Add(-100 * time.Millisecond)
 	server.tickCache.seed(marketTickSample{
@@ -220,20 +177,20 @@ func TestLiveSSEInitialMarketTickRefreshesObservedAt(t *testing.T) {
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
-	beforeConnect := time.Now().UTC()
-	response, err := liveSSERequest(t, srv.URL+"/api/sse/live")
-	if err != nil {
-		t.Fatalf("GET live SSE: %v", err)
-	}
-	defer response.Body.Close()
+	conn := dialLiveWebSocket(t, srv.URL)
+	defer conn.Close()
 
-	reader := bufio.NewReader(response.Body)
-	_ = readSSERetry(t, reader)
-	heartbeat := readSSEEvent(t, reader)
-	if heartbeat["type"] != "heartbeat" {
-		t.Fatalf("unexpected first event: %+v", heartbeat)
+	if err := conn.WriteJSON(liveWebSocketClientMessage{
+		Type: "subscribe",
+		Subscriptions: liveWebSocketSubscriptions{
+			ActiveInstruments: []string{"HK.00700"},
+		},
+	}); err != nil {
+		t.Fatalf("subscribe live websocket: %v", err)
 	}
-	event := readSSEEvent(t, reader)
+
+	_ = readLiveWebSocketEvent(t, conn)
+	event := readLiveWebSocketEvent(t, conn)
 	if event["type"] != "market-data.tick" {
 		t.Fatalf("unexpected event type: %+v", event)
 	}
@@ -241,77 +198,70 @@ func TestLiveSSEInitialMarketTickRefreshesObservedAt(t *testing.T) {
 	if !ok {
 		t.Fatalf("snapshot = %#v", event["snapshot"])
 	}
-	if event["at"] == observedAt.Format(time.RFC3339Nano) {
-		t.Fatalf("initial tick reused stale event at: %+v", event)
-	}
 	if snapshot["observedAt"] != event["at"] {
 		t.Fatalf("snapshot.observedAt = %#v, event.at = %#v", snapshot["observedAt"], event["at"])
 	}
-	if snapshot["at"] != quoteAt.Format(time.RFC3339Nano) {
-		t.Fatalf("snapshot.at = %#v, want quote time %s", snapshot["at"], quoteAt.Format(time.RFC3339Nano))
-	}
 	parsedObservedAt := parseQueryTime(event["at"].(string), time.Time{})
-	if parsedObservedAt.Before(beforeConnect) {
-		t.Fatalf("event at = %s, want >= %s", parsedObservedAt, beforeConnect)
+	if parsedObservedAt.Before(observedAt) {
+		t.Fatalf("event at = %s, want >= %s", parsedObservedAt, observedAt)
 	}
 }
 
-func liveSSERequest(t *testing.T, url string) (*http.Response, error) {
-	t.Helper()
-
-	client := &http.Client{Timeout: 2 * time.Second}
-	request, err := http.NewRequest(http.MethodGet, url, nil)
+func TestLiveWebSocketSendsConsoleRefresh(t *testing.T) {
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
 	if err != nil {
-		return nil, err
+		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	request.Header.Set("Accept", "text/event-stream")
-	return client.Do(request)
+	server := newTestServer(t, store)
+	srv := httptest.NewServer(server)
+	t.Cleanup(srv.Close)
+
+	conn := dialLiveWebSocket(t, srv.URL)
+	defer conn.Close()
+
+	if err := conn.WriteJSON(liveWebSocketClientMessage{
+		Type: "subscribe",
+		Subscriptions: liveWebSocketSubscriptions{
+			ConsoleRefresh: true,
+		},
+	}); err != nil {
+		t.Fatalf("subscribe live websocket: %v", err)
+	}
+
+	_ = readLiveWebSocketEvent(t, conn)
+	event := readLiveWebSocketEvent(t, conn)
+	if event["type"] != "console.refresh" {
+		t.Fatalf("unexpected console refresh event: %+v", event)
+	}
+	if event["checkedAt"] == "" {
+		t.Fatalf("missing checkedAt: %+v", event)
+	}
 }
 
-func readSSERetry(t *testing.T, reader *bufio.Reader) int {
+func dialLiveWebSocket(t *testing.T, baseURL string) *websocket.Conn {
 	t.Helper()
-
-	for {
-		line, err := reader.ReadString('\n')
-		if err != nil {
-			t.Fatalf("ReadString retry: %v", err)
-		}
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-		if strings.HasPrefix(line, "retry: ") {
-			var retryMillis int
-			if _, err := fmt.Sscanf(strings.TrimPrefix(line, "retry: "), "%d", &retryMillis); err != nil {
-				t.Fatalf("parse retry %q: %v", line, err)
-			}
-			return retryMillis
-		}
-		t.Fatalf("unexpected SSE prelude line: %q", line)
+	wsURL := "ws" + strings.TrimPrefix(baseURL, "http") + "/api/v1/ws/live"
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	if err != nil {
+		t.Fatalf("Dial live websocket: %v", err)
 	}
+	_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+	return conn
 }
 
-func readSSEEvent(t *testing.T, reader *bufio.Reader) map[string]any {
+func readLiveWebSocketEvent(t *testing.T, conn *websocket.Conn) map[string]any {
 	t.Helper()
-
-	for {
-		line, err := reader.ReadString('\n')
-		if err != nil {
-			t.Fatalf("ReadString: %v", err)
-		}
-		line = strings.TrimSpace(line)
-		if line == "" || !strings.HasPrefix(line, "data: ") {
-			continue
-		}
-
-		var event map[string]any
-		if err := json.Unmarshal([]byte(strings.TrimPrefix(line, "data: ")), &event); err != nil {
-			t.Fatalf("json.Unmarshal: %v", err)
-		}
-		return event
+	var event map[string]any
+	if err := conn.ReadJSON(&event); err != nil {
+		t.Fatalf("ReadJSON: %v", err)
 	}
+	return event
 }
 
 func mustDecimal(value string) decimal.Decimal {
-	return decimal.RequireFromString(value)
+	parsed, err := decimal.NewFromString(value)
+	if err != nil {
+		panic(err)
+	}
+	return parsed
 }

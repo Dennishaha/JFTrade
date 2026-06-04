@@ -26,11 +26,11 @@ import type {
   PortfolioReconciliationResponse,
 } from "@jftrade/ui-contracts";
 
-import { MockEventSource, createResponse, mountApp } from "./helpers";
+import { MockWebSocket, createResponse, mountApp } from "./helpers";
 
 afterEach(() => {
   vi.unstubAllGlobals();
-  MockEventSource.instances = [];
+  MockWebSocket.instances = [];
 });
 
 describe("Account page portfolio route redirect", () => {
@@ -159,8 +159,8 @@ describe("Account page portfolio route redirect", () => {
 
     vi.stubGlobal("fetch", fetchMock);
     vi.stubGlobal(
-      "EventSource",
-      MockEventSource as unknown as typeof EventSource,
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
     );
 
     const { wrapper } = await mountApp("/portfolio");

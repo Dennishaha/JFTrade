@@ -58,7 +58,11 @@ describe("OrderEntryPanel", () => {
     await findPriceInput(wrapper).setValue(0);
     await findSubmitButton(wrapper).trigger("click");
 
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(
+      fetchMock.mock.calls.some(([request]) =>
+        String(request).includes("/api/v1/execution/orders"),
+      ),
+    ).toBe(false);
   });
 
   it("submits explicit market and code payloads", async () => {

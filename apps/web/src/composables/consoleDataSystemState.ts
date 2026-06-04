@@ -233,17 +233,16 @@ export function createConsoleDataSystemStateController(
         settingsSnapshot.brokers.find(
           (broker) => broker.descriptor.id === "futu",
         )?.integration ?? null;
+      const activeBrokerId = options.resolveActiveBrokerId({
+        settings: settingsSnapshot,
+        status,
+      });
       const shouldProbeFutu = savedFutuIntegration?.enabled === true;
       const opendHealth = shouldProbeFutu
         ? await fetchEnvelope<FutuOpenDHealthResponse>(
             "/api/v1/system/futu-opend",
           ).catch(() => emptyFutuOpenDHealth)
         : emptyFutuOpenDHealth;
-
-      const activeBrokerId = options.resolveActiveBrokerId({
-        settings: settingsSnapshot,
-        status,
-      });
       const broker =
         shouldProbeFutu && activeBrokerId === "futu"
           ? await fetchEnvelope<BrokerRuntimeResponse>(

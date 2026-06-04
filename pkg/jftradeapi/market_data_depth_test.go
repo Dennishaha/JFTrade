@@ -1,15 +1,12 @@
 package jftradeapi
 
 import (
-	"bufio"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
-	"strings"
 	"testing"
-	"time"
 
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
 )
@@ -227,7 +224,7 @@ func TestMarketDepthResponseWithMockOpenD(t *testing.T) {
 	}
 }
 
-func TestMarketDepthSSEStreamSendsInitialPayload(t *testing.T) {
+func TestMarketDepthWebSocketSendsInitialPayload(t *testing.T) {
 	quoteServer := startMarketDataQuoteOpenDServer(t)
 	defer quoteServer.stop()
 
@@ -268,21 +265,28 @@ func TestMarketDepthSSEStreamSendsInitialPayload(t *testing.T) {
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
-	response, err := liveSSERequest(t, srv.URL+"/api/sse/market/depth/US/TME?num=10")
-	if err != nil {
-		t.Fatalf("GET market depth SSE: %v", err)
-	}
-	defer response.Body.Close()
+	conn := dialLiveWebSocket(t, srv.URL)
+	defer conn.Close()
 
-	if got := response.Header.Get("Content-Type"); !strings.Contains(got, "text/event-stream") {
-		t.Fatalf("content type = %q, want text/event-stream", got)
+	if err := conn.WriteJSON(liveWebSocketClientMessage{
+		Type: "subscribe",
+		Subscriptions: liveWebSocketSubscriptions{
+			Depth: []liveWebSocketDepthSubscription{{
+				Market:       "US",
+				Symbol:       "TME",
+				InstrumentID: "US.TME",
+				Num:          10,
+			}},
+		},
+	}); err != nil {
+		t.Fatalf("subscribe depth websocket: %v", err)
 	}
 
-	reader := bufio.NewReader(response.Body)
-	if retryMillis := readSSERetry(t, reader); retryMillis != int(defaultSSEClientRetry/time.Millisecond) {
-		t.Fatalf("retry = %d", retryMillis)
+	_ = readLiveWebSocketEvent(t, conn)
+	event := readLiveWebSocketEvent(t, conn)
+	if event["type"] != "market.depth" {
+		t.Fatalf("unexpected websocket event: %+v", event)
 	}
-	event := readSSEEvent(t, reader)
 	request, _ := event["request"].(map[string]any)
 	if request == nil || request["instrumentId"] != "US.TME" {
 		t.Fatalf("unexpected request payload: %+v", event["request"])

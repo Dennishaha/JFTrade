@@ -2,6 +2,7 @@ package jftradeapi
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	bbgotypes "github.com/c9s/bbgo/pkg/types"
+	"github.com/gorilla/websocket"
 )
 
 const (
@@ -25,42 +27,86 @@ const (
 	defaultSSEClientRetry        = liveStreamRetryBaseDelay
 )
 
-type liveSSEWriter struct {
-	sseWriter
-}
-
-func newLiveSSEWriter(w http.ResponseWriter, flusher http.Flusher) liveSSEWriter {
-	return liveSSEWriter{
-		sseWriter: newSSEWriter(w, flusher),
-	}
-}
-
-func (s *Server) handleLiveEventStream(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleLiveWebSocket(w http.ResponseWriter, r *http.Request) {
 	limit := s.effectiveLiveStreamLimit()
 	if !s.tryAcquireLiveStreamSlot(limit) {
-		s.writeError(w, http.StatusServiceUnavailable, "LIVE_SSE_LIMIT_REACHED", fmt.Sprintf("live sse connection limit reached (%d)", limit))
+		s.writeError(w, http.StatusServiceUnavailable, "LIVE_WS_LIMIT_REACHED", fmt.Sprintf("live websocket connection limit reached (%d)", limit))
 		return
 	}
 	defer s.releaseLiveStreamSlot()
 
-	flusher, ok := w.(http.Flusher)
-	if !ok {
-		s.writeError(w, http.StatusInternalServerError, "LIVE_SSE_UNSUPPORTED", "response writer does not support streaming")
+	conn, err := s.upgrader.Upgrade(w, r, nil)
+	if err != nil {
 		return
 	}
-
-	writeSSEHeaders(w)
+	defer func() {
+		_ = conn.Close()
+	}()
 
 	s.ensureLiveNotificationBridge(r.Context())
-	writer := newLiveSSEWriter(w, flusher)
-	if err := writer.WriteRetryDirective(); err != nil {
-		return
-	}
-	dispatcher := newLiveStreamDispatcher(s, r.Context(), writer, nil)
+	client := s.liveSocketClients.register()
+	defer s.liveSocketClients.unregister(client.id)
+
+	clientClosed := liveWebSocketClientClosed(conn, client)
+	depthUpdated, unsubscribeDepth := s.subscribeLiveWebSocketDepthUpdates(client)
+	defer unsubscribeDepth()
+
+	dispatcher := newLiveWebSocketDispatcher(s, r.Context(), conn, client, clientClosed, depthUpdated)
 	if err := dispatcher.writeInitialEvents(); err != nil {
 		return
 	}
 	_ = dispatcher.run()
+}
+
+func liveWebSocketClientClosed(
+	conn *websocket.Conn,
+	client *liveWebSocketClient,
+) <-chan struct{} {
+	closed := make(chan struct{})
+	go func() {
+		defer close(closed)
+		for {
+			_, payload, err := conn.ReadMessage()
+			if err != nil {
+				return
+			}
+
+			var message liveWebSocketClientMessage
+			if err := json.Unmarshal(payload, &message); err != nil {
+				continue
+			}
+			if message.Type != "subscribe" {
+				continue
+			}
+			client.setSubscriptions(message.Subscriptions)
+		}
+	}()
+	return closed
+}
+
+func (s *Server) subscribeLiveWebSocketDepthUpdates(
+	client *liveWebSocketClient,
+) (<-chan struct{}, func()) {
+	updateCh := make(chan struct{}, 1)
+	exchange := s.futuExchange()
+	if exchange == nil {
+		return updateCh, func() {}
+	}
+
+	unsubscribe := exchange.OnOrderBookUpdate(func(updatedSymbol string) {
+		instrumentID := strings.ToUpper(strings.TrimSpace(updatedSymbol))
+		for _, depthSubscription := range client.snapshot().Depth {
+			if depthSubscription.InstrumentID != instrumentID {
+				continue
+			}
+			select {
+			case updateCh <- struct{}{}:
+			default:
+			}
+			return
+		}
+	})
+	return updateCh, unsubscribe
 }
 
 func writeHeartbeat(writer liveEventWriter, payload map[string]any) error {
@@ -148,7 +194,6 @@ func (s *Server) liveHeartbeatEvent(heartbeatInterval time.Duration) map[string]
 		"type":         "heartbeat",
 		"at":           now.Format(time.RFC3339Nano),
 		"intervalMs":   heartbeatInterval.Milliseconds(),
-		"retryMs":      int64(defaultSSEClientRetry / time.Millisecond),
 		"stale":        stale,
 		"staleReasons": staleReasons,
 		"transport": map[string]any{
@@ -373,13 +418,19 @@ func liveMarketStreamKey(config FutuIntegrationConfig, instrumentIDs []string) (
 	}, "|"), symbols
 }
 
-func (s *Server) writeLiveMarketTicks(ctx context.Context, writer liveEventWriter, lastSentByInstrument map[string]string, initial bool) error {
+func (s *Server) writeLiveMarketTicks(
+	ctx context.Context,
+	writer liveEventWriter,
+	instrumentIDs []string,
+	lastSentByInstrument map[string]string,
+	initial bool,
+) error {
 	s.refreshLiveMarketTicksIfNeeded(ctx)
 	initialObservedAt := ""
 	if initial {
 		initialObservedAt = time.Now().UTC().Format(time.RFC3339Nano)
 	}
-	for _, sample := range s.latestTickerSamples(s.activeMarketInstrumentIDs(), liveTickSampleFreshness) {
+	for _, sample := range s.latestTickerSamples(instrumentIDs, liveTickSampleFreshness) {
 		if sample == nil || lastSentByInstrument[sample.InstrumentID] == sample.ObservedAt {
 			continue
 		}
@@ -417,6 +468,13 @@ func (s *Server) activeLiveStreamInstrumentIDs() []string {
 			seen[instrumentID] = struct{}{}
 			result = append(result, instrumentID)
 		}
+	}
+	for _, instrumentID := range s.liveSocketClients.activeInstrumentIDs() {
+		if _, exists := seen[instrumentID]; exists {
+			continue
+		}
+		seen[instrumentID] = struct{}{}
+		result = append(result, instrumentID)
 	}
 	sort.Strings(result)
 	return result

@@ -1,22 +1,14 @@
 package jftradeapi
 
 import (
-	"context"
 	"net/http"
 	"strings"
-	"time"
 )
 
 func (s *Server) serveMarketRoutes(w http.ResponseWriter, r *http.Request) bool {
 	switch {
-	case r.URL.Path == "/api/sse/live":
-		s.handleLiveEventStream(w, r)
-	case r.URL.Path == "/api/sse/console":
-		s.handleConsoleEventStream(w, r)
-	case strings.HasPrefix(r.URL.Path, "/api/sse/market/securities/") && r.Method == http.MethodGet:
-		s.handleMarketSecurityDetailsEventStream(w, r)
-	case strings.HasPrefix(r.URL.Path, "/api/sse/market/depth/") && r.Method == http.MethodGet:
-		s.handleMarketDepthEventStream(w, r)
+	case r.URL.Path == "/api/v1/ws/live":
+		s.handleLiveWebSocket(w, r)
 	case r.URL.Path == "/api/v1/market-data/instruments" && r.Method == http.MethodGet:
 		s.writeOK(w, map[string]any{"query": r.URL.Query().Get("query"), "totalReturned": 0, "entries": []any{}})
 	case r.URL.Path == "/api/v1/market-data/subscriptions" && r.Method == http.MethodGet:
@@ -41,27 +33,4 @@ func (s *Server) serveMarketRoutes(w http.ResponseWriter, r *http.Request) bool 
 		return false
 	}
 	return true
-}
-
-func (s *Server) handleConsoleEventStream(w http.ResponseWriter, r *http.Request) {
-	writer, ok := prepareSSEWriter(w)
-	if !ok {
-		return
-	}
-	if err := writer.WriteRetryDirective(); err != nil {
-		return
-	}
-	_ = runSSEStreamLoop(r.Context(), sseStreamLoopOptions{
-		initial: func(context.Context) error {
-			return writer.WriteEvent(map[string]any{
-				"checkedAt": time.Now().UTC().Format(time.RFC3339Nano),
-			})
-		},
-		writeInterval: 15 * time.Second,
-		onTick: func(context.Context) error {
-			return writer.WriteEvent(map[string]any{
-				"checkedAt": time.Now().UTC().Format(time.RFC3339Nano),
-			})
-		},
-	})
 }

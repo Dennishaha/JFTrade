@@ -35,19 +35,23 @@ if (typeof launchEditor === "string") {
 const developmentApiTarget = "http://127.0.0.1:3000";
 const apiProxyTargets = ["/api", "/openapi.json", "/swagger"];
 
+function createProxyEntry(target: string) {
+  return {
+    changeOrigin: true,
+    target,
+    ws: true,
+    configure: (proxy: { on: (event: string, handler: (...args: unknown[]) => void) => void }) => {
+      proxy.on("error", () => {});
+    },
+  };
+}
+
 export default defineConfig({
   plugins: [vue(), tailwindcss(), vueDevTools(devToolsOptions)],
   server: {
     port: 5173,
     proxy: Object.fromEntries(
-      apiProxyTargets.map((path) => [
-        path,
-        {
-          changeOrigin: true,
-          target: developmentApiTarget,
-          ws: true,
-        },
-      ]),
+      apiProxyTargets.map((path) => [path, createProxyEntry(developmentApiTarget)]),
     ),
   },
 });

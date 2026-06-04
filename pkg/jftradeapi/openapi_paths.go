@@ -422,17 +422,8 @@ func buildOpenAPIPaths(genericObject map[string]any) map[string]any {
 				map[string]any{"200": jsonResponse("策略审计日志", envelopeSchema(schemaRef("StrategyAuditResponse")))},
 			),
 		},
-		"/api/sse/live": map[string]any{
-			"get": streamOperation("连接实时 SSE 流", "返回 text/event-stream 格式的实时事件流，包含 heartbeat、实时行情事件与系统通知事件。"),
-		},
-		"/api/sse/console": map[string]any{
-			"get": streamOperation("连接控制台 SSE 流", "返回控制台刷新用的 text/event-stream 快照事件。"),
-		},
-		"/api/sse/market/securities/{market}/{symbol}": map[string]any{
-			"get": streamOperation("连接证券详情 SSE 流", "返回单个证券详情的实时刷新事件流。"),
-		},
-		"/api/sse/market/depth/{market}/{symbol}": map[string]any{
-			"get": streamOperation("连接盘口 SSE 流", "返回单个证券盘口深度的实时刷新事件流。"),
+		"/api/v1/ws/live": map[string]any{
+			"get": streamOperation("连接实时 WebSocket", "升级到唯一实时 WebSocket 连接，返回 heartbeat、实时行情、系统通知、console refresh、security details 与 depth 事件。"),
 		},
 	}
 }

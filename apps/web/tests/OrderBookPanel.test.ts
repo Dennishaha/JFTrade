@@ -4,7 +4,11 @@ import { mount } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { nextTick, ref } from "vue";
 
-import { MockEventSource } from "./helpers";
+import {
+  getSharedLiveSocketHub,
+  resetSharedLiveSocketHubForTests,
+} from "../src/composables/sharedLiveSocket";
+import { MockWebSocket } from "./helpers";
 
 const marketDataSnapshot = ref<any>(null);
 const marketSecurityDetails = ref<any>(null);
@@ -14,7 +18,6 @@ const fetchEnvelopeMock = vi.fn();
 const fetchEnvelopeWithInitMock = vi.fn();
 
 vi.mock("../src/composables/apiClient", () => ({
-  buildApiUrl: (path: string) => path,
   fetchEnvelope: (...args: unknown[]) => fetchEnvelopeMock(...args),
   fetchEnvelopeWithInit: (...args: unknown[]) => fetchEnvelopeWithInitMock(...args),
 }));
@@ -36,7 +39,8 @@ import OrderBookPanel from "../src/components/workspace/OrderBookPanel.vue";
 
 describe("OrderBookPanel", () => {
   beforeEach(() => {
-    MockEventSource.instances = [];
+    resetSharedLiveSocketHubForTests();
+    MockWebSocket.instances = [];
     fetchEnvelopeMock.mockReset();
     fetchEnvelopeWithInitMock.mockReset();
     fetchEnvelopeMock.mockResolvedValue({
@@ -63,14 +67,17 @@ describe("OrderBookPanel", () => {
       },
     };
     marketSecurityDetails.value = null;
-    vi.stubGlobal("EventSource", MockEventSource as unknown as typeof EventSource);
+    vi.stubGlobal("WebSocket", MockWebSocket as unknown as typeof WebSocket);
   });
 
   afterEach(() => {
+    resetSharedLiveSocketHubForTests();
     vi.unstubAllGlobals();
+    document.body.innerHTML = "";
   });
 
-  it("streams depth updates over SSE instead of polling", async () => {
+  it("subscribes depth updates over the shared websocket", async () => {
+    const hub = getSharedLiveSocketHub();
     const wrapper = mount(OrderBookPanel);
 
     await Promise.resolve();
@@ -78,10 +85,23 @@ describe("OrderBookPanel", () => {
 
     expect(fetchEnvelopeMock).toHaveBeenCalledWith("/api/v1/brokers/futu/runtime");
     expect(fetchEnvelopeWithInitMock).not.toHaveBeenCalled();
-    expect(MockEventSource.instances).toHaveLength(1);
-    expect(MockEventSource.instances[0]?.url).toBe("/api/sse/market/depth/US/TME?num=10");
+    expect(hub.snapshotSubscriptions().depth).toEqual([
+      {
+        market: "US",
+        symbol: "TME",
+        instrumentId: "US.TME",
+        num: 10,
+      },
+    ]);
 
-    MockEventSource.instances[0]?.emitMessage({
+    hub.connect("ws://127.0.0.1:3000/api/v1/ws/live");
+    await Promise.resolve();
+    expect(MockWebSocket.instances).toHaveLength(1);
+    expect(MockWebSocket.instances[0]?.url).toBe("ws://127.0.0.1:3000/api/v1/ws/live");
+
+    MockWebSocket.instances[0]?.emitMessage({
+      type: "market.depth",
+      at: "2026-06-02T00:00:00Z",
       request: {
         market: "US",
         symbol: "TME",
@@ -108,7 +128,8 @@ describe("OrderBookPanel", () => {
     wrapper.unmount();
   });
 
-  it("reconnects the depth SSE stream when the page becomes visible again", async () => {
+  it("keeps one websocket connection when the page becomes visible again", async () => {
+    const hub = getSharedLiveSocketHub();
     const originalVisibilityState = document.visibilityState;
     Object.defineProperty(document, "visibilityState", {
       configurable: true,
@@ -116,11 +137,12 @@ describe("OrderBookPanel", () => {
     });
 
     const wrapper = mount(OrderBookPanel);
+    hub.connect("ws://127.0.0.1:3000/api/v1/ws/live");
 
     await Promise.resolve();
     await nextTick();
 
-    const initialStreamCount = MockEventSource.instances.length;
+    const initialStreamCount = MockWebSocket.instances.length;
 
     Object.defineProperty(document, "visibilityState", {
       configurable: true,
@@ -136,7 +158,13 @@ describe("OrderBookPanel", () => {
     document.dispatchEvent(new Event("visibilitychange"));
     await nextTick();
 
-    expect(MockEventSource.instances.length).toBeGreaterThan(initialStreamCount);
+    expect(MockWebSocket.instances.length).toBe(initialStreamCount);
+    expect(hub.snapshotSubscriptions().depth).toContainEqual({
+      market: "US",
+      symbol: "TME",
+      instrumentId: "US.TME",
+      num: 10,
+    });
 
     wrapper.unmount();
     Object.defineProperty(document, "visibilityState", {
@@ -146,12 +174,16 @@ describe("OrderBookPanel", () => {
   });
 
   it("clears depth data on instrument switch and ignores stale stream payloads", async () => {
+    const hub = getSharedLiveSocketHub();
     const wrapper = mount(OrderBookPanel);
+    hub.connect("ws://127.0.0.1:3000/api/v1/ws/live");
 
     await Promise.resolve();
     await nextTick();
 
-    MockEventSource.instances[0]?.emitMessage({
+    MockWebSocket.instances[0]?.emitMessage({
+      type: "market.depth",
+      at: "2026-06-02T00:00:00Z",
       request: {
         market: "US",
         symbol: "TME",
@@ -174,17 +206,22 @@ describe("OrderBookPanel", () => {
 
     expect(wrapper.text()).toContain("18.52");
 
-    const oldStream = MockEventSource.instances[0];
+    const oldStream = MockWebSocket.instances[0];
     prefs.value = { market: "US", symbol: "AAPL", period: "1m" };
     marketDataSnapshot.value = null;
     await nextTick();
 
     expect(wrapper.text()).not.toContain("18.52");
-    expect(MockEventSource.instances.at(-1)?.url).toBe(
-      "/api/sse/market/depth/US/AAPL?num=10",
-    );
+    expect(hub.snapshotSubscriptions().depth).toContainEqual({
+      market: "US",
+      symbol: "AAPL",
+      instrumentId: "US.AAPL",
+      num: 10,
+    });
 
     oldStream?.emitMessage({
+      type: "market.depth",
+      at: "2026-06-02T00:00:01Z",
       request: {
         market: "US",
         symbol: "TME",
@@ -211,13 +248,17 @@ describe("OrderBookPanel", () => {
     wrapper.unmount();
   });
 
-  it("keeps the depth SSE stream when only the chart period changes", async () => {
+  it("keeps the shared depth subscription when only the chart period changes", async () => {
+    const hub = getSharedLiveSocketHub();
     const wrapper = mount(OrderBookPanel);
+    hub.connect("ws://127.0.0.1:3000/api/v1/ws/live");
 
     await Promise.resolve();
     await nextTick();
 
-    MockEventSource.instances[0]?.emitMessage({
+    MockWebSocket.instances[0]?.emitMessage({
+      type: "market.depth",
+      at: "2026-06-02T00:00:00Z",
       request: {
         market: "US",
         symbol: "TME",
@@ -239,13 +280,18 @@ describe("OrderBookPanel", () => {
     await nextTick();
 
     expect(wrapper.text()).toContain("18.52");
-    expect(MockEventSource.instances).toHaveLength(1);
+    expect(MockWebSocket.instances).toHaveLength(1);
 
     prefs.value = { market: "US", symbol: "TME", period: "5m" };
     await nextTick();
 
-    expect(MockEventSource.instances).toHaveLength(1);
-    expect(MockEventSource.instances[0]?.url).toBe("/api/sse/market/depth/US/TME?num=10");
+    expect(MockWebSocket.instances).toHaveLength(1);
+    expect(hub.snapshotSubscriptions().depth).toContainEqual({
+      market: "US",
+      symbol: "TME",
+      instrumentId: "US.TME",
+      num: 10,
+    });
     expect(wrapper.text()).toContain("18.52");
 
     wrapper.unmount();

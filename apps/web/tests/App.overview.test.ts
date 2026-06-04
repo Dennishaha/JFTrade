@@ -27,11 +27,11 @@ import {
   emptyWorkerBrokerOrderUpdates,
 } from "@jftrade/ui-contracts";
 
-import { MockEventSource, createResponse, mountApp } from "./helpers";
+import { MockWebSocket, createResponse, mountApp } from "./helpers";
 
 afterEach(() => {
   vi.unstubAllGlobals();
-  MockEventSource.instances = [];
+  MockWebSocket.instances = [];
 });
 
 describe("Overview page", () => {
@@ -307,8 +307,8 @@ describe("Overview page", () => {
 
     vi.stubGlobal("fetch", fetchMock);
     vi.stubGlobal(
-      "EventSource",
-      MockEventSource as unknown as typeof EventSource,
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
     );
 
     const { wrapper } = await mountApp("/overview");

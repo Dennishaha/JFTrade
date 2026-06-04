@@ -30,7 +30,7 @@ import type {
 } from "@jftrade/ui-contracts";
 
 import {
-  MockEventSource,
+  MockWebSocket,
   createResponse,
   flushRequests,
   mountApp,
@@ -38,7 +38,7 @@ import {
 
 afterEach(() => {
   vi.unstubAllGlobals();
-  MockEventSource.instances = [];
+  MockWebSocket.instances = [];
 });
 
 describe("Account page broker route redirect", () => {
@@ -232,8 +232,8 @@ describe("Account page broker route redirect", () => {
 
     vi.stubGlobal("fetch", fetchMock);
     vi.stubGlobal(
-      "EventSource",
-      MockEventSource as unknown as typeof EventSource,
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
     );
 
     const { wrapper } = await mountApp("/broker");

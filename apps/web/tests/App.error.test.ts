@@ -2,11 +2,11 @@
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { MockEventSource, mountApp } from "./helpers";
+import { MockWebSocket, mountApp } from "./helpers";
 
 afterEach(() => {
   vi.unstubAllGlobals();
-  MockEventSource.instances = [];
+  MockWebSocket.instances = [];
 });
 
 describe("App error handling", () => {
@@ -18,8 +18,8 @@ describe("App error handling", () => {
       }),
     );
     vi.stubGlobal(
-      "EventSource",
-      MockEventSource as unknown as typeof EventSource,
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
     );
 
     const { wrapper } = await mountApp("/system");

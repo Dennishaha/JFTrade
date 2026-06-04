@@ -30,25 +30,25 @@ import {
 } from "@jftrade/ui-contracts";
 
 import {
-  MockEventSource,
+  MockWebSocket,
   createResponse,
   flushRequests,
   mountApp,
 } from "./helpers";
 
-function findConsoleEventStream(): MockEventSource | undefined {
-  return MockEventSource.instances.find((instance) =>
-    instance.url.includes("/api/sse/console"),
+function findConsoleEventStream(): MockWebSocket | undefined {
+  return MockWebSocket.instances.find((instance) =>
+    instance.url.includes("/api/v1/ws/live"),
   );
 }
 
 afterEach(() => {
   vi.unstubAllGlobals();
-  MockEventSource.instances = [];
+  MockWebSocket.instances = [];
 });
 
 describe("Console Stream", () => {
-  it("refreshes the console after receiving an SSE snapshot", async () => {
+  it("refreshes the console after receiving a websocket snapshot", async () => {
     const systemStatus: SystemStatusResponse = {
       ...emptySystemStatus,
       defaultTradingEnvironment: "SIMULATE",
@@ -241,19 +241,20 @@ describe("Console Stream", () => {
 
     vi.stubGlobal("fetch", fetchMock);
     vi.stubGlobal(
-      "EventSource",
-      MockEventSource as unknown as typeof EventSource,
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
     );
 
     const { wrapper } = await mountApp();
     const consoleStream = findConsoleEventStream();
 
-    expect(consoleStream?.url).toContain("/api/sse/console");
+    expect(consoleStream?.url).toContain("/api/v1/ws/live");
 
     const initialFetchCount = fetchMock.mock.calls.length;
 
     consoleStream?.emitMessage({
-      revision: "r2",
+      type: "console.refresh",
+      at: "2026-05-17T00:02:00.000Z",
       checkedAt: "2026-05-17T00:02:00.000Z",
     });
 

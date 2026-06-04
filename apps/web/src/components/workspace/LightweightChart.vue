@@ -39,7 +39,8 @@ let heldChartSubscription: {
   interval: string;
 } | null = null;
 let heartbeatTimer: number | null = null;
-let reloadInFlight: Promise<void> | null = null;
+let reloadInFlight: { key: string; promise: Promise<void> } | null = null;
+let chartReloadSeq = 0;
 
 const periods = KLINE_PERIODS;
 const chartCandles = computed<KlineCandle[]>(() =>
@@ -87,25 +88,52 @@ const chartSessionTitle = computed(() => {
     : "常规交易时段数据";
 });
 
+function resolveChartSubscriptionTarget() {
+  const interval = normalizeKlinePeriod(prefs.value.period);
+  const channel: "TICK" | "KLINE" = interval === "tick" ? "TICK" : "KLINE";
+  return {
+    market: prefs.value.market.trim().toUpperCase(),
+    symbol: prefs.value.symbol.trim().toUpperCase(),
+    period: interval,
+    channel,
+    interval,
+  };
+}
+
+function chartTargetKey(
+  target: ReturnType<typeof resolveChartSubscriptionTarget>,
+): string {
+  return JSON.stringify(target);
+}
+
 async function reload(): Promise<void> {
-  if (reloadInFlight != null) {
-    return reloadInFlight;
+  const target = resolveChartSubscriptionTarget();
+  const reloadKey = chartTargetKey(target);
+  if (reloadInFlight != null && reloadInFlight.key === reloadKey) {
+    return reloadInFlight.promise;
   }
 
-  reloadInFlight = (async () => {
+  const requestSeq = ++chartReloadSeq;
+  const promise = (async () => {
     selectWorkspaceInstrument({
-      market: prefs.value.market,
-      symbol: prefs.value.symbol,
-      period: prefs.value.period,
+      market: target.market,
+      symbol: target.symbol,
+      period: target.period,
     });
-    await syncChartSubscription();
+    await syncChartSubscription(target, requestSeq);
+    if (requestSeq !== chartReloadSeq) {
+      return;
+    }
     await loadMarketDataQuery();
   })();
+  reloadInFlight = { key: reloadKey, promise };
 
   try {
-    await reloadInFlight;
+    await promise;
   } finally {
-    reloadInFlight = null;
+    if (reloadInFlight?.promise === promise) {
+      reloadInFlight = null;
+    }
   }
 }
 
@@ -121,16 +149,10 @@ function handleChartOnline(): void {
   void reload();
 }
 
-async function syncChartSubscription(): Promise<void> {
-  const interval = normalizeKlinePeriod(prefs.value.period);
-  const channel: "TICK" | "KLINE" = interval === "tick" ? "TICK" : "KLINE";
-  const next = {
-    market: prefs.value.market.trim().toUpperCase(),
-    symbol: prefs.value.symbol.trim().toUpperCase(),
-    channel,
-    interval,
-  };
-
+async function syncChartSubscription(
+  next: ReturnType<typeof resolveChartSubscriptionTarget>,
+  requestSeq = chartReloadSeq,
+): Promise<void> {
   if (
     heldChartSubscription != null &&
     (heldChartSubscription.market !== next.market ||
@@ -161,7 +183,29 @@ async function syncChartSubscription(): Promise<void> {
     channel: next.channel,
     ...(next.channel === "KLINE" ? { interval: next.interval } : {}),
   });
+  if (requestSeq !== chartReloadSeq) {
+    await releaseMarketDataSubscription({
+      consumerId: chartConsumerId,
+      market: next.market,
+      symbol: next.symbol,
+      channel: next.channel,
+      ...(next.channel === "KLINE" ? { interval: next.interval } : {}),
+    });
+    return;
+  }
+
   await heartbeatMarketDataConsumer(chartConsumerId);
+  if (requestSeq !== chartReloadSeq) {
+    await releaseMarketDataSubscription({
+      consumerId: chartConsumerId,
+      market: next.market,
+      symbol: next.symbol,
+      channel: next.channel,
+      ...(next.channel === "KLINE" ? { interval: next.interval } : {}),
+    });
+    return;
+  }
+
   heldChartSubscription = next;
 }
 

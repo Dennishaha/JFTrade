@@ -3,31 +3,33 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { useLiveStream } from "../src/composables/useLiveStream";
-import { MockEventSource } from "./helpers";
+import { resetSharedLiveSocketHubForTests } from "../src/composables/sharedLiveSocket";
+import { MockWebSocket } from "./helpers";
 
 afterEach(() => {
+  resetSharedLiveSocketHubForTests();
   vi.unstubAllGlobals();
-  MockEventSource.instances = [];
+  MockWebSocket.instances = [];
 });
 
 describe("useLiveStream", () => {
-  it("connects to the live SSE endpoint and records events", async () => {
+  it("connects to the live websocket endpoint and records events", async () => {
     vi.stubGlobal(
-      "EventSource",
-      MockEventSource as unknown as typeof EventSource,
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
     );
 
     const live = useLiveStream();
-    live.connect("http://127.0.0.1:3000/api/sse/live");
+    live.connect("ws://127.0.0.1:3000/api/v1/ws/live");
     await Promise.resolve();
 
-    expect(MockEventSource.instances).toHaveLength(1);
+    expect(MockWebSocket.instances).toHaveLength(1);
     expect(live.connectionState.value).toBe("connected");
-    expect(MockEventSource.instances[0]?.url).toBe(
-      "http://127.0.0.1:3000/api/sse/live",
+    expect(MockWebSocket.instances[0]?.url).toBe(
+      "ws://127.0.0.1:3000/api/v1/ws/live",
     );
 
-    MockEventSource.instances[0]?.emitMessage({
+    MockWebSocket.instances[0]?.emitMessage({
       type: "heartbeat",
       at: "2026-05-17T00:00:00.000Z",
     });
@@ -39,20 +41,22 @@ describe("useLiveStream", () => {
     });
   });
 
-  it("treats initial SSE failures as disconnected and post-connect failures as error", async () => {
+  it("treats initial websocket failures as disconnected and post-connect failures as error", async () => {
     vi.stubGlobal(
-      "EventSource",
-      MockEventSource as unknown as typeof EventSource,
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
     );
 
     const live = useLiveStream();
-    live.connect("http://127.0.0.1:3000/api/sse/live");
+    live.connect("ws://127.0.0.1:3000/api/v1/ws/live");
 
-    const stream = MockEventSource.instances[0];
-    stream?.emitError();
+    const initialStream = MockWebSocket.instances[0];
+    initialStream?.emitError();
     expect(live.connectionState.value).toBe("disconnected");
 
-    stream?.onopen?.(new Event("open"));
+    live.connect("ws://127.0.0.1:3000/api/v1/ws/live");
+    await Promise.resolve();
+    const stream = MockWebSocket.instances.at(-1);
     expect(live.connectionState.value).toBe("connected");
 
     stream?.emitError();

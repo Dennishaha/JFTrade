@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { StrategyDefinitionDocument } from "@jftrade/ui-contracts";
 import StrategyLogicFlowDesigner from "../src/components/StrategyLogicFlowDesigner.vue";
 import {
-  MockEventSource,
+  MockWebSocket,
   buildDslScript,
   buildFetchMock,
   flushRequests,
@@ -45,8 +45,8 @@ describe("Strategy page", () => {
       }),
     );
     vi.stubGlobal(
-      "EventSource",
-      MockEventSource as unknown as typeof EventSource,
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
     );
 
     const { wrapper } = await mountStrategyPage("/strategy");
@@ -111,8 +111,8 @@ describe("Strategy page", () => {
       }),
     );
     vi.stubGlobal(
-      "EventSource",
-      MockEventSource as unknown as typeof EventSource,
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
     );
 
     const { wrapper } = await mountStrategyPage("/strategy");
@@ -178,8 +178,8 @@ describe("Strategy page", () => {
       }),
     );
     vi.stubGlobal(
-      "EventSource",
-      MockEventSource as unknown as typeof EventSource,
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
     );
 
     const { wrapper } = await mountStrategyPage("/strategy");
@@ -239,8 +239,8 @@ describe("Strategy page", () => {
       }),
     );
     vi.stubGlobal(
-      "EventSource",
-      MockEventSource as unknown as typeof EventSource,
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
     );
 
     const { wrapper } = await mountStrategyPage("/strategy");
@@ -308,8 +308,8 @@ describe("Strategy page", () => {
       }),
     );
     vi.stubGlobal(
-      "EventSource",
-      MockEventSource as unknown as typeof EventSource,
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
     );
 
     const { wrapper } = await mountStrategyPage("/strategy");
@@ -360,8 +360,8 @@ describe("Strategy page", () => {
       }),
     );
     vi.stubGlobal(
-      "EventSource",
-      MockEventSource as unknown as typeof EventSource,
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
     );
 
     const { wrapper } = await mountStrategyPage("/strategy");
@@ -417,8 +417,8 @@ describe("Strategy page", () => {
       }),
     );
     vi.stubGlobal(
-      "EventSource",
-      MockEventSource as unknown as typeof EventSource,
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
     );
 
     const { wrapper } = await mountStrategyPage("/strategy");
@@ -537,8 +537,8 @@ describe("Strategy page", () => {
       }),
     );
     vi.stubGlobal(
-      "EventSource",
-      MockEventSource as unknown as typeof EventSource,
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
     );
 
     const { wrapper } = await mountStrategyPage("/strategy");
@@ -660,8 +660,8 @@ describe("Strategy page", () => {
       }),
     );
     vi.stubGlobal(
-      "EventSource",
-      MockEventSource as unknown as typeof EventSource,
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
     );
 
     const { wrapper } = await mountStrategyPage("/strategy");
@@ -753,8 +753,8 @@ describe("Strategy page", () => {
       }),
     );
     vi.stubGlobal(
-      "EventSource",
-      MockEventSource as unknown as typeof EventSource,
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
     );
 
     const { wrapper } = await mountStrategyPage("/strategy");
@@ -855,8 +855,8 @@ describe("Strategy page", () => {
       }),
     );
     vi.stubGlobal(
-      "EventSource",
-      MockEventSource as unknown as typeof EventSource,
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
     );
 
     const { wrapper } = await mountStrategyPage("/strategy");
@@ -954,8 +954,8 @@ describe("Strategy page", () => {
       }),
     );
     vi.stubGlobal(
-      "EventSource",
-      MockEventSource as unknown as typeof EventSource,
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
     );
 
     const { wrapper } = await mountStrategyPage("/strategy");
@@ -1001,8 +1001,8 @@ describe("Strategy page", () => {
       }),
     );
     vi.stubGlobal(
-      "EventSource",
-      MockEventSource as unknown as typeof EventSource,
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
     );
 
     const { wrapper } = await mountStrategyPage("/strategy");
@@ -1121,8 +1121,8 @@ describe("Strategy page", () => {
       }),
     );
     vi.stubGlobal(
-      "EventSource",
-      MockEventSource as unknown as typeof EventSource,
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
     );
 
     const { wrapper } = await mountStrategyPage("/strategy");
@@ -1219,8 +1219,8 @@ describe("Strategy page", () => {
       }),
     );
     vi.stubGlobal(
-      "EventSource",
-      MockEventSource as unknown as typeof EventSource,
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
     );
 
     const { wrapper } = await mountStrategyPage("/strategy");
@@ -1263,8 +1263,8 @@ describe("Strategy page", () => {
       }),
     );
     vi.stubGlobal(
-      "EventSource",
-      MockEventSource as unknown as typeof EventSource,
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
     );
 
     const { wrapper } = await mountStrategyPage("/strategy");
@@ -1307,8 +1307,8 @@ describe("Strategy page", () => {
       }),
     );
     vi.stubGlobal(
-      "EventSource",
-      MockEventSource as unknown as typeof EventSource,
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
     );
 
     const { wrapper } = await mountStrategyPage("/strategy");
@@ -1363,8 +1363,8 @@ describe("Strategy page", () => {
       }),
     );
     vi.stubGlobal(
-      "EventSource",
-      MockEventSource as unknown as typeof EventSource,
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
     );
     vi.stubGlobal("confirm", confirmMock);
 
@@ -1404,8 +1404,8 @@ describe("Strategy page", () => {
       }),
     );
     vi.stubGlobal(
-      "EventSource",
-      MockEventSource as unknown as typeof EventSource,
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
     );
     vi.stubGlobal("confirm", confirmMock);
 
@@ -1467,8 +1467,8 @@ describe("Strategy page", () => {
       }),
     );
     vi.stubGlobal(
-      "EventSource",
-      MockEventSource as unknown as typeof EventSource,
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
     );
 
     const { wrapper } = await mountStrategyPage("/strategy");
@@ -1515,8 +1515,8 @@ describe("Strategy page", () => {
       }),
     );
     vi.stubGlobal(
-      "EventSource",
-      MockEventSource as unknown as typeof EventSource,
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
     );
 
     const { wrapper } = await mountStrategyPage("/strategy");
@@ -1562,8 +1562,8 @@ describe("Strategy page", () => {
       }),
     );
     vi.stubGlobal(
-      "EventSource",
-      MockEventSource as unknown as typeof EventSource,
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
     );
 
     const { wrapper } = await mountStrategyPage("/strategy");

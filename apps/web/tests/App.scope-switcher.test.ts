@@ -26,7 +26,7 @@ import {
 } from "@jftrade/ui-contracts";
 
 import {
-  MockEventSource,
+  MockWebSocket,
   createResponse,
   flushRequests,
   mountApp,
@@ -34,7 +34,7 @@ import {
 
 afterEach(() => {
   vi.unstubAllGlobals();
-  MockEventSource.instances = [];
+  MockWebSocket.instances = [];
 });
 
 function buildSelectionKey(
@@ -75,7 +75,23 @@ describe("Top bar scope switcher", () => {
                 ],
                 notes: [],
               },
-              integration: null,
+              integration: {
+                brokerId: "futu",
+                enabled: true,
+                config: {
+                  type: "futu",
+                  host: "127.0.0.1",
+                  apiPort: 11110,
+                  websocketPort: 11111,
+                  maxWebSocketConnections: 20,
+                  useEncryption: false,
+                  websocketKey: "",
+                  tradeMarket: "HK",
+                  securityFirm: "FUTUSECURITIES",
+                },
+                updatedAt: "2026-05-17T00:00:00.000Z",
+                createdAt: "2026-05-17T00:00:00.000Z",
+              },
               defaults: {
                 type: "futu",
                 host: "127.0.0.1",
@@ -194,20 +210,29 @@ describe("Top bar scope switcher", () => {
 
     vi.stubGlobal("fetch", fetchMock);
     vi.stubGlobal(
-      "EventSource",
-      MockEventSource as unknown as typeof EventSource,
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
     );
 
     const { wrapper } = await mountApp("/broker");
-    const scopeSelect = wrapper.find("header select.tv-select");
-    const realSelectionKey = buildSelectionKey(
-      "futu",
-      "REAL",
-      "REAL-001",
-      "US",
+    await flushRequests();
+    const switchToReal = wrapper.get(
+      '[data-testid="topbar-trading-environment-real"]',
     );
+    await switchToReal.trigger("click");
+    await flushRequests();
 
-    await scopeSelect.setValue(realSelectionKey);
+    const pickerOpenButton = wrapper.get(
+      '[data-testid="topbar-broker-account-picker-open"]',
+    );
+    await pickerOpenButton.trigger("click");
+    await flushRequests();
+    const realAccountItem = wrapper
+      .findAll('[data-testid="topbar-broker-account-item"]')
+      .find((item) => item.text().includes("REAL-001"));
+    expect(realAccountItem).toBeDefined();
+
+    await realAccountItem!.trigger("click");
     await flushRequests();
 
     expect(

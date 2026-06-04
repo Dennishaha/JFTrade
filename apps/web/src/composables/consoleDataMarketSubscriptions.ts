@@ -34,21 +34,40 @@ function createRandomConsumerSuffix(): string {
   return Math.random().toString(36).slice(2);
 }
 
+const consumerWindowSegment = "window";
+const pageConsumerInstanceSuffix = createRandomConsumerSuffix();
+
+function normalizeStoredConsumerBase(scope: string, value: string | null): string {
+  const trimmed = value?.trim() ?? "";
+  if (trimmed === "") {
+    return `web:${scope}:${createRandomConsumerSuffix()}`;
+  }
+
+  const windowSegmentIndex = trimmed.indexOf(`:${consumerWindowSegment}:`);
+  if (windowSegmentIndex >= 0) {
+    return trimmed.slice(0, windowSegmentIndex);
+  }
+
+  return trimmed;
+}
+
 export function createStableWebConsumerId(scope: string): string {
   const storageKey = `jftrade.market-data.consumer.${scope}`;
-  const fallback = `web:${scope}:${createRandomConsumerSuffix()}`;
 
   if (typeof window === "undefined" || window.sessionStorage == null) {
-    return fallback;
+    const fallback = normalizeStoredConsumerBase(scope, null);
+    return `${fallback}:${consumerWindowSegment}:${pageConsumerInstanceSuffix}`;
   }
 
-  const existing = window.sessionStorage.getItem(storageKey);
-  if (existing != null && existing.trim() !== "") {
-    return existing;
+  const consumerBase = normalizeStoredConsumerBase(
+    scope,
+    window.sessionStorage.getItem(storageKey),
+  );
+  if (window.sessionStorage.getItem(storageKey) !== consumerBase) {
+    window.sessionStorage.setItem(storageKey, consumerBase);
   }
 
-  window.sessionStorage.setItem(storageKey, fallback);
-  return fallback;
+  return `${consumerBase}:${consumerWindowSegment}:${pageConsumerInstanceSuffix}`;
 }
 
 export function createConsoleDataMarketSubscriptionsController(

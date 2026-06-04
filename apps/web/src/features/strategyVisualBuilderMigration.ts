@@ -73,3 +73,4 @@ function normalizeWindowSize(value: unknown): number {
   }
   return 0;
 }
+
