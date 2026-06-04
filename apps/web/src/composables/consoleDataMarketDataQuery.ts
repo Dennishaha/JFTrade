@@ -28,6 +28,12 @@ export function createConsoleDataMarketDataQuerySlice() {
   const marketDataCandles = ref<MarketDataCandlesQueryResult | null>(null);
   const isLoadingMarketDataQuery = ref(false);
   const marketDataQueryError = ref("");
+  const lastDataRefreshedAt = ref(0);
+
+  function isMarketDataStale(maxAgeMs = 30_000): boolean {
+    if (lastDataRefreshedAt.value === 0) return true;
+    return Date.now() - lastDataRefreshedAt.value > maxAgeMs;
+  }
 
   const marketDataQueryController = createMarketDataQueryController({
     state: {
@@ -42,6 +48,7 @@ export function createConsoleDataMarketDataQuerySlice() {
       marketDataCandles,
       isLoadingMarketDataQuery,
       marketDataQueryError,
+      lastDataRefreshedAt,
     },
     fetchEnvelope,
     normalizeInstrumentParts,
@@ -88,8 +95,14 @@ export function createConsoleDataMarketDataQuerySlice() {
 
   return {
     applyMarketDataTickEvent,
+    activeMarketDataInstrumentId,
+    currentMarketDataCandles,
+    currentMarketDataSnapshot,
+    currentMarketSecurityDetails,
+    isMarketDataStale,
     isLoadingMarketDataQuery,
     isMarketDataSwitching,
+    lastDataRefreshedAt,
     loadMarketDataQuery,
     marketDataCandles,
     marketDataQueryError,
@@ -99,10 +112,6 @@ export function createConsoleDataMarketDataQuerySlice() {
     marketDataQuerySymbol,
     marketSecurityDetails,
     marketDataSnapshot,
-    activeMarketDataInstrumentId,
-    currentMarketDataCandles,
-    currentMarketDataSnapshot,
-    currentMarketSecurityDetails,
     selectMarketDataInstrument,
   };
 }

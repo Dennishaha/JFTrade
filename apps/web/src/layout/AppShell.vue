@@ -149,6 +149,10 @@ function reconnectLiveStreamIfNeeded(): void {
   if (typeof document !== "undefined" && document.visibilityState === "hidden") {
     return;
   }
+  // Avoid tearing down an active connection — only reconnect when actually disconnected.
+  if (live.connectionState.value === "connected" || live.connectionState.value === "connecting") {
+    return;
+  }
   live.connect();
 }
 

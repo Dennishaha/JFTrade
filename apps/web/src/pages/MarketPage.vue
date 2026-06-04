@@ -19,6 +19,7 @@ import {
   formatMarketLabel,
 } from "../composables/consoleDataFormatting";
 import { resolveInstrumentRef } from "../composables/instrumentRef";
+import { getSharedLiveSocketHub } from "../composables/sharedLiveSocket";
 import { useConsoleData } from "../composables/useConsoleData";
 import { useSharedLiveStream } from "../composables/useSharedLiveStream";
 
@@ -43,6 +44,8 @@ const {
   createStableWebConsumerId,
   heartbeatMarketDataConsumer,
   releaseMarketDataSubscription,
+  isMarketDataStale,
+  isLiveStreamConnected,
 } = useConsoleData();
 const live = useSharedLiveStream();
 
@@ -366,18 +369,32 @@ function scheduleMarketDataAutoRefresh(): void {
 
 function handleMarketPageVisibilityChange(): void {
   if (typeof document !== "undefined" && document.visibilityState === "hidden") {
-    if (queryRefreshTimer != null) {
-      window.clearTimeout(queryRefreshTimer);
-      queryRefreshTimer = null;
-    }
     return;
   }
 
-  void (async () => {
-    await syncVisibleSubscription();
-    await loadMarketDataQuery();
+  // Smart recovery: if SSE is connected and data is fresh, just renew the auto-refresh timer
+  if (isLiveStreamConnected.value && !isMarketDataStale(30_000)) {
     scheduleMarketDataAutoRefresh();
-  })();
+    return;
+  }
+
+  // Wait for the WebSocket reconnect (triggered by AppShell) before deciding
+  // the recovery path, so we don't trigger a full reload while reconnecting.
+  const liveHub = getSharedLiveSocketHub();
+  void liveHub.waitForConnection(3_000).then((connected) => {
+    if (connected && !isMarketDataStale(30_000)) {
+      // Connection recovered and data still fresh — just restart auto-refresh
+      scheduleMarketDataAutoRefresh();
+      return;
+    }
+
+    // SSE still disconnected or data stale → full sync + reload
+    void (async () => {
+      await syncVisibleSubscription();
+      await loadMarketDataQuery({ preserveExisting: !isMarketDataStale(120_000) });
+      scheduleMarketDataAutoRefresh();
+    })();
+  });
 }
 
 function handleMarketPageOnline(): void {

@@ -9,6 +9,7 @@ import {
   overlayRealtimeTickCandle,
   type KlineCandle,
 } from "../../charting/kline";
+import { getSharedLiveSocketHub } from "../../composables/sharedLiveSocket";
 import { useConsoleData } from "../../composables/useConsoleData";
 import { useWorkspaceLayout } from "../../composables/useWorkspaceLayout";
 
@@ -29,6 +30,9 @@ const {
   createStableWebConsumerId,
   heartbeatMarketDataConsumer,
   releaseMarketDataSubscription,
+  activeMarketDataInstrumentId,
+  isMarketDataStale,
+  isLiveStreamConnected,
 } = useConsoleData();
 
 const chartConsumerId = createStableWebConsumerId("workspace-chart");
@@ -106,7 +110,7 @@ function chartTargetKey(
   return JSON.stringify(target);
 }
 
-async function reload(): Promise<void> {
+async function reload(options: { preserveExisting?: boolean } = {}): Promise<void> {
   const target = resolveChartSubscriptionTarget();
   const reloadKey = chartTargetKey(target);
   if (reloadInFlight != null && reloadInFlight.key === reloadKey) {
@@ -124,7 +128,7 @@ async function reload(): Promise<void> {
     if (requestSeq !== chartReloadSeq) {
       return;
     }
-    await loadMarketDataQuery();
+    await loadMarketDataQuery({ preserveExisting: options.preserveExisting });
   })();
   reloadInFlight = { key: reloadKey, promise };
 
@@ -142,7 +146,31 @@ function handleChartVisibilityChange(): void {
     return;
   }
 
-  void reload();
+  // Wait for the WebSocket reconnect (triggered by AppShell) before deciding
+  // the recovery path, so we don't trigger a full reload while reconnecting.
+  const liveHub = getSharedLiveSocketHub();
+  void liveHub.waitForConnection(3_000).then((connected) => {
+    // Smart recovery: if SSE is connected and data is fresh, only send heartbeat
+    if (
+      connected &&
+      isLiveStreamConnected.value &&
+      !isMarketDataStale(30_000) &&
+      activeMarketDataInstrumentId.value === `${prefs.value.market.trim().toUpperCase()}.${prefs.value.symbol.trim().toUpperCase()}` &&
+      marketDataCandles.value != null
+    ) {
+      void heartbeatMarketDataConsumer(chartConsumerId);
+      return;
+    }
+
+    // SSE connected but data stale → reload with preserveExisting to keep accumulated state
+    if (connected && isLiveStreamConnected.value && !isMarketDataStale(120_000)) {
+      void reload({ preserveExisting: true });
+      return;
+    }
+
+    // SSE disconnected or data very stale → full reload
+    void reload();
+  });
 }
 
 function handleChartOnline(): void {

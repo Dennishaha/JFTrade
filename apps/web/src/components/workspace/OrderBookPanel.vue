@@ -30,6 +30,7 @@ const isLoadingDepth = ref(false);
 const depthError = ref("");
 let depthRequestSeq = 0;
 let depthAbortController: AbortController | null = null;
+let lastDepthDataRefreshedAt = 0;
 const liveHub = getSharedLiveSocketHub();
 const depthSubscriptionOwnerId = liveHub.createOwnerId("order-book-depth");
 const removeDepthListener = liveHub.addEventListener((event) => {
@@ -45,6 +46,7 @@ const removeDepthListener = liveHub.addEventListener((event) => {
   depthData.value = event as unknown as MarketDataDepthResponse;
   depthError.value = "";
   isLoadingDepth.value = false;
+  lastDepthDataRefreshedAt = Date.now();
 });
 
 function isMarketDepthEvent(
@@ -225,6 +227,7 @@ async function fetchDepth(): Promise<void> {
       return;
     }
     depthData.value = data;
+    lastDepthDataRefreshedAt = Date.now();
   } catch (err: any) {
     if (controller.signal.aborted) {
       return;
@@ -252,9 +255,10 @@ function clearDepthData(): void {
   depthData.value = null;
   depthError.value = "";
   isLoadingDepth.value = false;
+  lastDepthDataRefreshedAt = 0;
 }
 
-function connectDepthStream(): void {
+function connectDepthStream(preserveData = false): void {
   const market = prefs.value?.market?.trim().toUpperCase() ?? "";
   const symbol = prefs.value?.symbol?.trim().toUpperCase() ?? "";
   if (market === "" || symbol === "") {
@@ -264,7 +268,9 @@ function connectDepthStream(): void {
   }
 
   closeDepthStream();
-  clearDepthData();
+  if (!preserveData) {
+    clearDepthData();
+  }
   isLoadingDepth.value = true;
   depthError.value = "";
   liveHub.setDepthTarget(depthSubscriptionOwnerId, {
@@ -275,13 +281,36 @@ function connectDepthStream(): void {
   });
 }
 
+function isDepthDataStale(maxAgeMs = 30_000): boolean {
+  if (lastDepthDataRefreshedAt === 0) return true;
+  return Date.now() - lastDepthDataRefreshedAt > maxAgeMs;
+}
+
+function isLiveHubConnected(): boolean {
+  return liveHub.connectionState.value === "connected";
+}
+
 function handleDepthVisibilityChange(): void {
   if (typeof document !== "undefined" && document.visibilityState === "hidden") {
     return;
   }
 
-  closeDepthStream();
-  connectDepthStream();
+  // Smart recovery: if SSE is connected and depth data is fresh, skip reconnection
+  if (isLiveHubConnected() && !isDepthDataStale(30_000)) {
+    return;
+  }
+
+  // Wait for the WebSocket reconnect (triggered by AppShell) before deciding
+  // the recovery path, so we don't tear down depth data while reconnecting.
+  void liveHub.waitForConnection(3_000).then((connected) => {
+    if (connected && !isDepthDataStale(30_000)) {
+      // Connection recovered and data still fresh — no action needed
+      return;
+    }
+    // SSE still disconnected or depth data stale → reconnect
+    closeDepthStream();
+    connectDepthStream(true);
+  });
 }
 
 function handleDepthOnline(): void {

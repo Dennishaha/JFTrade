@@ -1,4 +1,4 @@
-import { ref, type Ref } from "vue";
+import { ref, watch, type Ref } from "vue";
 
 import { buildRuntimeLiveSocketUrl } from "../runtimeConfig";
 import {
@@ -316,6 +316,41 @@ class SharedLiveSocketHub {
     };
   }
 
+  /**
+   * Wait for the WebSocket to reach "connected" state.
+   * Resolves `true` if connected within `timeoutMs`, `false` on timeout.
+   * Useful in visibility-change handlers to avoid acting on stale state
+   * while a reconnect is still in progress.
+   */
+  waitForConnection(timeoutMs = 3_000): Promise<boolean> {
+    if (this.connectionState.value === "connected") {
+      return Promise.resolve(true);
+    }
+
+    return new Promise((resolve) => {
+      let settled = false;
+      const finish = (result: boolean): void => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        stopWatch();
+        resolve(result);
+      };
+
+      const stopWatch = watch(
+        this.connectionState,
+        (state) => {
+          if (state === "connected") {
+            finish(true);
+          }
+        },
+        { immediate: false },
+      );
+
+      const timer = setTimeout(() => finish(false), timeoutMs);
+    });
+  }
+
   private clearReconnectTimer(): void {
     if (this.reconnectTimer == null) {
       return;
@@ -390,6 +425,7 @@ export type SharedLiveSocketHubStore = {
   connect: (url?: string) => WebSocket | null;
   disconnect: () => void;
   reconnect: () => WebSocket | null;
+  waitForConnection: (timeoutMs?: number) => Promise<boolean>;
   addEventListener: (listener: (event: LiveStreamEvent) => void) => () => void;
   createOwnerId: (prefix: string) => string;
   setActiveInstrument: (ownerId: string, instrumentId: string | null) => void;

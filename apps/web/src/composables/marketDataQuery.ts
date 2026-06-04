@@ -16,6 +16,8 @@ export interface LoadMarketDataQueryOptions {
   appendOlder?: boolean;
   fromTime?: string;
   toTime?: string;
+  /** When true, skip clearing existing data before loading (useful for visibility recovery). */
+  preserveExisting?: boolean;
 }
 
 interface NormalizeInstrumentInput {
@@ -40,6 +42,7 @@ interface MarketDataQueryStateRefs {
   marketDataCandles: Ref<MarketDataCandlesQueryResult | null>;
   isLoadingMarketDataQuery: Ref<boolean>;
   marketDataQueryError: Ref<string>;
+  lastDataRefreshedAt: Ref<number>;
 }
 
 interface MarketDataQueryControllerOptions {
@@ -76,6 +79,7 @@ export function createMarketDataQueryController(
     marketDataQuerySymbol,
     marketDataSnapshot,
     isLoadingMarketDataQuery,
+    lastDataRefreshedAt,
   } = options.state;
   const marketDataRealtime = createMarketDataRealtimeController();
 
@@ -170,6 +174,7 @@ export function createMarketDataQueryController(
 
     if (instrumentChanged) {
       isMarketDataSwitching.value = true;
+      lastDataRefreshedAt.value = 0;
       clearCurrentMarketDataResults();
       isMarketDataSwitching.value = false;
     } else if (periodChanged) {
@@ -203,6 +208,7 @@ export function createMarketDataQueryController(
 
     marketDataSnapshot.value = result.snapshot;
     marketDataCandles.value = result.candles;
+    lastDataRefreshedAt.value = Date.now();
     scheduleMarketSnapshotBackgroundRefresh();
   }
 
@@ -344,7 +350,7 @@ export function createMarketDataQueryController(
       marketDataQueryPeriod.value = period;
       marketDataQueryLimit.value = requestedLimit;
       activeMarketDataInstrumentId.value = requestInstrumentId;
-      if (queryOptions.appendOlder !== true) {
+      if (queryOptions.appendOlder !== true && queryOptions.preserveExisting !== true) {
         if (requestInstrumentChanged) {
           isMarketDataSwitching.value = true;
           clearCurrentMarketDataResults();
@@ -505,6 +511,7 @@ export function createMarketDataQueryController(
             instrumentId: requestInstrumentId,
             period,
           });
+          lastDataRefreshedAt.value = Date.now();
           isLoadingMarketDataQuery.value = false;
           isMarketDataSwitching.value = false;
         }
