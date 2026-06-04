@@ -3,7 +3,6 @@ package jftradeapi
 import (
 	"encoding/json"
 	"net/http"
-	"net/http/httptest"
 	"path/filepath"
 	"testing"
 )
@@ -13,8 +12,7 @@ func TestPortfolioCashBalancesEndpointReturnsEmptyBalances(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	srv := httptest.NewServer(NewServer(store))
-	defer srv.Close()
+	srv := newHTTPTestServer(t, store)
 
 	resp, err := http.Get(srv.URL + "/api/v1/portfolio/main/cash-balances")
 	if err != nil {

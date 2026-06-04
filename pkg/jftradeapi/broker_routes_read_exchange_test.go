@@ -1,7 +1,6 @@
 package jftradeapi
 
 import (
-	"net/http/httptest"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -181,8 +180,7 @@ func TestBrokerReadEndpointsReturnExchangeBackedData(t *testing.T) {
 		t.Fatalf("saveIntegration: %v", err)
 	}
 
-	srv := httptest.NewServer(NewServer(store))
-	defer srv.Close()
+	srv := newHTTPTestServer(t, store)
 
 	query := "?tradingEnvironment=SIMULATE&accountId=1001&market=HK"
 	realQuery := "?tradingEnvironment=REAL&accountId=2001&market=HK"

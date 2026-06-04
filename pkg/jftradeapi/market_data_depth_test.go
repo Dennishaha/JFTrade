@@ -23,10 +23,9 @@ func TestMarketDepthEndpointRouting(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	server := NewServer(store)
+	server := newTestServer(t, store)
 	srv := httptest.NewServer(server)
-	defer srv.Close()
-	defer server.Close()
+	t.Cleanup(srv.Close)
 
 	resp, err := http.Get(srv.URL + "/api/v1/market-data/depth/US/NVDA?num=5")
 	if err != nil {
@@ -49,10 +48,9 @@ func TestMarketDepthEndpointMethodNotAllowed(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	server := NewServer(store)
+	server := newTestServer(t, store)
 	srv := httptest.NewServer(server)
-	defer srv.Close()
-	defer server.Close()
+	t.Cleanup(srv.Close)
 
 	resp, err := http.Post(srv.URL+"/api/v1/market-data/depth/US/NVDA", "application/json", nil)
 	if err != nil {
@@ -70,10 +68,9 @@ func TestMarketDepthEndpointPutNotAllowed(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	server := NewServer(store)
+	server := newTestServer(t, store)
 	srv := httptest.NewServer(server)
-	defer srv.Close()
-	defer server.Close()
+	t.Cleanup(srv.Close)
 
 	req, _ := http.NewRequest(http.MethodPut, srv.URL+"/api/v1/market-data/depth/US/NVDA", nil)
 	resp, err := http.DefaultClient.Do(req)
@@ -130,10 +127,9 @@ func TestMarketDepthResponseWithMockOpenD(t *testing.T) {
 	}
 	store.mu.Unlock()
 
-	server := NewServer(store)
+	server := newTestServer(t, store)
 	srv := httptest.NewServer(server)
-	defer srv.Close()
-	defer server.Close()
+	t.Cleanup(srv.Close)
 
 	resp, err := http.Get(srv.URL + "/api/v1/market-data/depth/US/NVDA?num=10")
 	if err != nil {
@@ -268,10 +264,9 @@ func TestMarketDepthSSEStreamSendsInitialPayload(t *testing.T) {
 	}
 	store.mu.Unlock()
 
-	server := NewServer(store)
+	server := newTestServer(t, store)
 	srv := httptest.NewServer(server)
-	defer srv.Close()
-	defer server.Close()
+	t.Cleanup(srv.Close)
 
 	response, err := liveSSERequest(t, srv.URL+"/api/sse/market/depth/US/TME?num=10")
 	if err != nil {
@@ -339,10 +334,9 @@ func TestMarketDepthNumClamping(t *testing.T) {
 	}
 	store.mu.Unlock()
 
-	server := NewServer(store)
+	server := newTestServer(t, store)
 	srv := httptest.NewServer(server)
-	defer srv.Close()
-	defer server.Close()
+	t.Cleanup(srv.Close)
 
 	tests := []struct {
 		name       string
@@ -435,10 +429,9 @@ func TestMarketDepthSymbolCasing(t *testing.T) {
 	}
 	store.mu.Unlock()
 
-	server := NewServer(store)
+	server := newTestServer(t, store)
 	srv := httptest.NewServer(server)
-	defer srv.Close()
-	defer server.Close()
+	t.Cleanup(srv.Close)
 
 	resp, err := http.Get(srv.URL + "/api/v1/market-data/depth/us/nvda?num=5")
 	if err != nil {
@@ -518,10 +511,9 @@ func TestMarketDepthHKMarket(t *testing.T) {
 	}
 	store.mu.Unlock()
 
-	server := NewServer(store)
+	server := newTestServer(t, store)
 	srv := httptest.NewServer(server)
-	defer srv.Close()
-	defer server.Close()
+	t.Cleanup(srv.Close)
 
 	resp, err := http.Get(srv.URL + "/api/v1/market-data/depth/HK/00700?num=5")
 	if err != nil {
@@ -606,10 +598,9 @@ func TestMarketDepthEmptyOrderBook(t *testing.T) {
 	}
 	store.mu.Unlock()
 
-	server := NewServer(store)
+	server := newTestServer(t, store)
 	srv := httptest.NewServer(server)
-	defer srv.Close()
-	defer server.Close()
+	t.Cleanup(srv.Close)
 
 	resp, err := http.Get(srv.URL + "/api/v1/market-data/depth/US/AAPL?num=10")
 	if err != nil {
@@ -679,10 +670,9 @@ func TestMarketDepthOpenDError(t *testing.T) {
 	}
 	store.mu.Unlock()
 
-	server := NewServer(store)
+	server := newTestServer(t, store)
 	srv := httptest.NewServer(server)
-	defer srv.Close()
-	defer server.Close()
+	t.Cleanup(srv.Close)
 
 	resp, err := http.Get(srv.URL + "/api/v1/market-data/depth/US/NVDA?num=5")
 	if err != nil {
@@ -722,10 +712,9 @@ func TestMarketDepthRouteDoesNotCollide(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	server := NewServer(store)
+	server := newTestServer(t, store)
 	srv := httptest.NewServer(server)
-	defer srv.Close()
-	defer server.Close()
+	t.Cleanup(srv.Close)
 
 	// /api/v1/market-data/depths should NOT match the depth route (different prefix)
 	resp, err := http.Get(srv.URL + "/api/v1/market-data/depths")

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"math"
 	"net/http"
-	"net/http/httptest"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -41,8 +40,7 @@ func TestExecutionOrderRoutesNormalizeUSPricePrecision(t *testing.T) {
 	if err != nil {
 		t.Fatalf("saveIntegration: %v", err)
 	}
-	srv := httptest.NewServer(NewServer(store))
-	defer srv.Close()
+	srv := newHTTPTestServer(t, store)
 
 	payload, err := json.Marshal(map[string]any{
 		"brokerId":           "futu",
@@ -114,8 +112,7 @@ func TestExecutionOrderRoutesPropagateUSSessionSelection(t *testing.T) {
 	if err != nil {
 		t.Fatalf("saveIntegration: %v", err)
 	}
-	srv := httptest.NewServer(NewServer(store))
-	defer srv.Close()
+	srv := newHTTPTestServer(t, store)
 
 	payload, err := json.Marshal(map[string]any{
 		"brokerId":           "futu",
@@ -182,8 +179,7 @@ func TestExecutionOrderRoutesAcceptExplicitCodeWithMarket(t *testing.T) {
 	if err != nil {
 		t.Fatalf("saveIntegration: %v", err)
 	}
-	srv := httptest.NewServer(NewServer(store))
-	defer srv.Close()
+	srv := newHTTPTestServer(t, store)
 
 	payload, err := json.Marshal(map[string]any{
 		"brokerId":           "futu",
@@ -242,8 +238,7 @@ func TestExecutionOrderRoutesRejectBareSymbolWithoutMarket(t *testing.T) {
 	if err != nil {
 		t.Fatalf("saveIntegration: %v", err)
 	}
-	srv := httptest.NewServer(NewServer(store))
-	defer srv.Close()
+	srv := newHTTPTestServer(t, store)
 
 	payload, err := json.Marshal(map[string]any{
 		"brokerId":           "futu",

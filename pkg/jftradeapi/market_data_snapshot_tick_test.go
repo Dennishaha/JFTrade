@@ -14,8 +14,7 @@ func TestMarketSnapshotResponseUsesFreshCache(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	server := NewServer(store)
-	defer server.Close()
+	server := newTestServer(t, store)
 
 	instrumentID := "HK.00700"
 	now := time.Now().UTC().Truncate(time.Second)
@@ -58,7 +57,6 @@ func TestMarketSnapshotResponseQueriesQuoteSnapshotOnCacheMiss(t *testing.T) {
 	defer quoteServer.stop()
 
 	server := newMarketDataTestServerWithQuoteRuntime(t, quoteServer.addr)
-	defer server.Close()
 	response, err := server.marketSnapshotResponse(
 		t.Context(),
 		"/api/v1/market-data/snapshots/HK/00700",
@@ -82,7 +80,6 @@ func TestMarketSnapshotResponseForceRefreshBypassesCache(t *testing.T) {
 	defer quoteServer.stop()
 
 	server := newMarketDataTestServerWithQuoteRuntime(t, quoteServer.addr)
-	defer server.Close()
 	seedCachedTickSample(server, marketTickSample{
 		InstrumentID: "HK.00700",
 		Market:       "HK",
@@ -120,8 +117,7 @@ func TestMarketCandlesTickResponseUsesFreshCache(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	server := NewServer(store)
-	defer server.Close()
+	server := newTestServer(t, store)
 
 	instrumentID := "HK.00700"
 	now := time.Now().UTC().Truncate(time.Second)
@@ -159,7 +155,6 @@ func TestMarketCandlesTickResponseQueriesTickerOnCacheMiss(t *testing.T) {
 	defer quoteServer.stop()
 
 	server := newMarketDataTestServerWithQuoteRuntime(t, quoteServer.addr)
-	defer server.Close()
 	response, err := server.marketCandlesResponse(
 		t.Context(),
 		"/api/v1/market-data/candles/HK/00700",
@@ -180,7 +175,6 @@ func TestMarketCandlesTickResponseQueriesTickerOnCacheMiss(t *testing.T) {
 
 func TestMarketCandlesTickResponseFallsBackToCachedCandlesOnTickerError(t *testing.T) {
 	server := newMarketDataTestServerWithQuoteRuntime(t, "127.0.0.1:1")
-	defer server.Close()
 
 	instrumentID := "HK.00700"
 	observedAt := time.Now().UTC().Add(-1 * time.Minute).Truncate(time.Second)

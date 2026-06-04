@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"net/http"
-	"net/http/httptest"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -39,8 +38,7 @@ func TestExecutionOrderRoutesPlaceListEventsAndCancel(t *testing.T) {
 	if err != nil {
 		t.Fatalf("saveIntegration: %v", err)
 	}
-	srv := httptest.NewServer(NewServer(store))
-	defer srv.Close()
+	srv := newHTTPTestServer(t, store)
 
 	payload, err := json.Marshal(map[string]any{
 		"market":      "HK",

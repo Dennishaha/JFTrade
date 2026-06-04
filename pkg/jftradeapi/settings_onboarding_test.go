@@ -58,10 +58,9 @@ func TestOnboardingRoutesSuggestOobeUntilCompleted(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	api := NewServer(store)
-	defer api.Close()
+	api := newTestServer(t, store)
 	srv := httptest.NewServer(api)
-	defer srv.Close()
+	t.Cleanup(srv.Close)
 
 	resp, err := http.Get(srv.URL + "/api/v1/settings/onboarding")
 	if err != nil {

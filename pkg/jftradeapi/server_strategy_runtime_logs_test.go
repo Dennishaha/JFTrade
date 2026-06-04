@@ -14,7 +14,7 @@ func TestStrategiesEndpointReturnsList(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	server := NewServer(store)
+	server := newTestServer(t, store)
 	if err := server.strategyStore.saveStrategy(managedStrategyInstance{
 		ID:       "instance-1",
 		PluginID: "mean-revert",
@@ -33,7 +33,7 @@ func TestStrategiesEndpointReturnsList(t *testing.T) {
 		t.Fatalf("appendStrategyRuntimeEvent: %v", err)
 	}
 	srv := httptest.NewServer(server)
-	defer srv.Close()
+	t.Cleanup(srv.Close)
 
 	resp, err := http.Get(srv.URL + "/api/v1/strategies")
 	if err != nil {
@@ -101,7 +101,7 @@ func TestStrategiesEndpointIncludesPersistedRuntimeLogTail(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	server := NewServer(store)
+	server := newTestServer(t, store)
 	if err := server.strategyStore.saveStrategy(managedStrategyInstance{
 		ID: "instance-tail",
 		Definition: strategyDefinitionSummary{
@@ -120,7 +120,7 @@ func TestStrategiesEndpointIncludesPersistedRuntimeLogTail(t *testing.T) {
 	}
 
 	srv := httptest.NewServer(server)
-	defer srv.Close()
+	t.Cleanup(srv.Close)
 
 	resp, err := http.Get(srv.URL + "/api/v1/strategies")
 	if err != nil {
@@ -147,7 +147,7 @@ func TestStrategyLogsAndAuditEndpointsSupportPaginationAndFilters(t *testing.T) 
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	server := NewServer(store)
+	server := newTestServer(t, store)
 	if err := server.strategyStore.saveStrategy(managedStrategyInstance{
 		ID: "instance-logs",
 		Definition: strategyDefinitionSummary{
@@ -176,7 +176,7 @@ func TestStrategyLogsAndAuditEndpointsSupportPaginationAndFilters(t *testing.T) 
 	}
 
 	srv := httptest.NewServer(server)
-	defer srv.Close()
+	t.Cleanup(srv.Close)
 
 	logsResp, err := http.Get(srv.URL + "/api/v1/strategies/instance-logs/logs?limit=1&offset=1")
 	if err != nil {

@@ -283,12 +283,12 @@ func TestSyncKLinesSyncsAndSkipsCoveredBatch(t *testing.T) {
 
 func TestSyncKLinesPersistentRateLimitFailure(t *testing.T) {
 	prevPause := syncBatchPause
-	prevBaseWait := syncRetryBaseWait
+	prevBaseDelay := syncRetryBaseDelay
 	syncBatchPause = 0
-	syncRetryBaseWait = 0
+	syncRetryBaseDelay = 0
 	t.Cleanup(func() {
 		syncBatchPause = prevPause
-		syncRetryBaseWait = prevBaseWait
+		syncRetryBaseDelay = prevBaseDelay
 	})
 
 	server := startSyncHistoryOpenDServer(t, nil)
@@ -323,7 +323,7 @@ func TestSyncKLinesPersistentRateLimitFailure(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected persistent rate-limit failure")
 	}
-	if !strings.Contains(err.Error(), "rate-limit retry exhausted after 3 attempts") {
+	if !strings.Contains(err.Error(), "retry exhausted after 3 retries") {
 		t.Fatalf("expected retry exhaustion error, got %v", err)
 	}
 	if !strings.Contains(err.Error(), "retType=-1") {
@@ -340,7 +340,7 @@ func TestSyncKLinesPersistentRateLimitFailure(t *testing.T) {
 	if snapshot.Retries != 3 {
 		t.Fatalf("rate-limit retries = %d, want 3", snapshot.Retries)
 	}
-	if !strings.Contains(snapshot.Error, "rate-limit retry exhausted after 3 attempts") {
+	if !strings.Contains(snapshot.Error, "retry exhausted after 3 retries") {
 		t.Fatalf("unexpected progress error = %s", snapshot.Error)
 	}
 	if snapshot.CompletedBatches != 0 {

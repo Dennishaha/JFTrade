@@ -132,6 +132,7 @@ func TestStrategyCatalogStoreIgnoresLegacyJSONFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewStrategyCatalogStore: %v", err)
 	}
+	t.Cleanup(func() { _ = store.Close() })
 	if got := store.strategies(); len(got) != 0 {
 		t.Fatalf("expected legacy json catalog to be ignored, got %+v", got)
 	}
@@ -185,6 +186,7 @@ func TestRefreshStrategyDefinitionUpdatesSnapshotForStoppedInstance(t *testing.T
 	if err != nil {
 		t.Fatalf("NewStrategyCatalogStore: %v", err)
 	}
+	t.Cleanup(func() { _ = store.Close() })
 	if err := store.saveStrategy(managedStrategyInstance{
 		ID: "instance-1",
 		Definition: strategyDefinitionSummary{

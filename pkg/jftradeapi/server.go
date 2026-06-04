@@ -149,6 +149,9 @@ func StartForRunArgs(ctx context.Context, args []string) (func(context.Context) 
 					shutdownErr = err
 				}
 			}
+			if err := apiHandler.Close(); err != nil && shutdownErr == nil {
+				shutdownErr = err
+			}
 		})
 		return shutdownErr
 	}
@@ -611,9 +614,9 @@ func (s *Server) Close() error {
 			errs = append(errs, fmt.Errorf("backtestRuns close: %w", err))
 		}
 	}
-	if s.strategyStore != nil && s.strategyStore.runtimeStore != nil {
-		if err := s.strategyStore.runtimeStore.Close(); err != nil {
-			errs = append(errs, fmt.Errorf("strategyStore runtime close: %w", err))
+	if s.strategyStore != nil {
+		if err := s.strategyStore.Close(); err != nil {
+			errs = append(errs, fmt.Errorf("strategyStore close: %w", err))
 		}
 	}
 	if s.designStore != nil {

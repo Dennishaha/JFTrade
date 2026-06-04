@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"net/http"
-	"net/http/httptest"
 	"path/filepath"
 	"testing"
 )
@@ -14,8 +13,7 @@ func TestMarketDataSubscriptionHeartbeat(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	srv := httptest.NewServer(NewServer(store))
-	defer srv.Close()
+	srv := newHTTPTestServer(t, store)
 
 	postJSON := func(path string, payload map[string]any) map[string]any {
 		body, _ := json.Marshal(payload)

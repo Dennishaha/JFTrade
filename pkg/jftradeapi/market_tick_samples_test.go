@@ -17,7 +17,7 @@ func TestRecordTickerSampleDeduplicatesUnchangedQuote(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	server := NewServer(store)
+	server := newTestServer(t, store)
 	quoteTime := time.Date(2026, time.May, 19, 15, 24, 26, 0, time.UTC)
 	ticker := &bbgotypes.Ticker{
 		Time:   quoteTime,
@@ -49,7 +49,7 @@ func TestRecordTickerSampleInheritsLatestSnapshotFields(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	server := NewServer(store)
+	server := newTestServer(t, store)
 
 	previousClose := decimal.RequireFromString("698.9")
 	lastClose := decimal.RequireFromString("698.1")
@@ -113,7 +113,7 @@ func TestRecordTradeTickSampleInheritsLatestQuoteFields(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	server := NewServer(store)
+	server := newTestServer(t, store)
 
 	openPrice := decimal.RequireFromString("698.0")
 	highPrice := decimal.RequireFromString("705.0")

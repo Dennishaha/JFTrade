@@ -27,13 +27,7 @@ func testServer(t *testing.T) (*httptest.Server, *SettingsStore) {
 	if err != nil {
 		t.Fatalf("saveIntegration: %v", err)
 	}
-	server := NewServer(store)
-	t.Cleanup(func() {
-		_ = server.Close()
-	})
-	srv := httptest.NewServer(server)
-	t.Cleanup(srv.Close)
-	return srv, store
+	return newHTTPTestServer(t, store), store
 }
 
 func getEnvelope(t *testing.T, url string) (int, map[string]any) {
@@ -375,7 +369,7 @@ func TestBrokerReadQueryFromRequestDefaultMarket(t *testing.T) {
 	if err != nil {
 		t.Fatalf("saveIntegration: %v", err)
 	}
-	srv := NewServer(store)
+	srv := newTestServer(t, store)
 	req, _ := http.NewRequest(http.MethodGet, "/api/v1/brokers/futu/funds?accountId=123&tradingEnvironment=REAL", nil)
 	query := srv.brokerReadQueryFromRequest(req)
 	if query.Market != "US" {

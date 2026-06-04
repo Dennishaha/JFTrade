@@ -16,7 +16,7 @@ func TestInstantiateStoredDefinitionNormalizesLegacySourceFormatToDSL(t *testing
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	server := NewServer(store)
+	server := newTestServer(t, store)
 	if _, err := server.designStore.saveDefinition(strategyDesignDefinition{
 		ID:           "legacy-breakout",
 		Name:         "Legacy Breakout",
@@ -30,7 +30,7 @@ func TestInstantiateStoredDefinitionNormalizesLegacySourceFormatToDSL(t *testing
 		t.Fatalf("saveDefinition: %v", err)
 	}
 	srv := httptest.NewServer(server)
-	defer srv.Close()
+	t.Cleanup(srv.Close)
 
 	createResp, err := http.Post(srv.URL+"/api/v1/strategy-definitions/legacy-breakout/instantiate", "application/json", bytes.NewReader([]byte(`{}`)))
 	if err != nil {
@@ -60,7 +60,7 @@ func TestStrategyDefinitionPreviewUsesRequestedSymbolAndExtendedHours(t *testing
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	server := NewServer(store)
+	server := newTestServer(t, store)
 	if _, err := server.designStore.saveDefinition(strategyDesignDefinition{
 		ID:           "dsl-preview-day-window",
 		Name:         "DSL Preview Day Window",
@@ -80,7 +80,7 @@ on kline_close:
 	}
 
 	srv := httptest.NewServer(server)
-	defer srv.Close()
+	t.Cleanup(srv.Close)
 
 	defaultResp, err := http.Get(srv.URL + "/api/v1/strategy-definitions/dsl-preview-day-window?interval=5m")
 	if err != nil {

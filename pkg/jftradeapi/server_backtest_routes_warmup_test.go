@@ -25,7 +25,7 @@ func TestBacktestRouteUsesDerivedStrategyWarmup(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	server := NewServer(store)
+	server := newTestServer(t, store)
 	if _, err := server.designStore.saveDefinition(strategyDesignDefinition{
 		ID:           "dsl-auto-warmup-route",
 		Name:         "DSL Auto Warmup Route",
@@ -86,7 +86,7 @@ on kline_close:
 	}
 
 	srv := httptest.NewServer(server)
-	defer srv.Close()
+	t.Cleanup(srv.Close)
 
 	body, _ := json.Marshal(map[string]any{
 		"definitionId":   "dsl-auto-warmup-route",

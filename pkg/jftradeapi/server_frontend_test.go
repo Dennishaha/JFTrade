@@ -30,8 +30,10 @@ func TestServerServesFrontendAssetsAndSPAFallback(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	srv := httptest.NewServer(newServerWithFrontend(store, newFrontendServer(os.DirFS(frontendDir))))
-	defer srv.Close()
+	server := newServerWithFrontend(store, newFrontendServer(os.DirFS(frontendDir)))
+	t.Cleanup(func() { _ = server.Close() })
+	srv := httptest.NewServer(server)
+	t.Cleanup(srv.Close)
 
 	assertBodyContains := func(path string, accept string, want string) {
 		req, err := http.NewRequest(http.MethodGet, srv.URL+path, nil)
@@ -82,7 +84,7 @@ func TestServerServesFrontendAssetsAndSPAFallback(t *testing.T) {
 func TestFrontendServerServesRuntimeConfigScript(t *testing.T) {
 	frontendDir := t.TempDir()
 	srv := httptest.NewServer(newFrontendServerWithRuntimeConfig(os.DirFS(frontendDir), "http://127.0.0.1:6699"))
-	defer srv.Close()
+	t.Cleanup(srv.Close)
 
 	resp, err := http.Get(srv.URL + "/runtime-config.js")
 	if err != nil {

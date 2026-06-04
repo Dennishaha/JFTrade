@@ -18,8 +18,7 @@ func TestStrategyDefinitionEndpoints(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	srv := httptest.NewServer(NewServer(store))
-	defer srv.Close()
+	srv := newHTTPTestServer(t, store)
 
 	payload := map[string]any{
 		"id":           "dsl-mean-revert",
@@ -180,8 +179,7 @@ func TestStrategyDefinitionCreateGeneratesUUIDWhenIDMissing(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	srv := httptest.NewServer(NewServer(store))
-	defer srv.Close()
+	srv := newHTTPTestServer(t, store)
 
 	payload := map[string]any{
 		"name":         "UUID Strategy",
@@ -218,7 +216,7 @@ func TestDeleteStrategyDefinitionRequiresDeletingLinkedInstancesFirst(t *testing
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	server := NewServer(store)
+	server := newTestServer(t, store)
 	definition, err := server.designStore.saveDefinition(strategyDesignDefinition{
 		ID:           "dsl-delete-guard",
 		Name:         "Delete Guard",
@@ -240,7 +238,7 @@ func TestDeleteStrategyDefinitionRequiresDeletingLinkedInstancesFirst(t *testing
 	}
 
 	srv := httptest.NewServer(server)
-	defer srv.Close()
+	t.Cleanup(srv.Close)
 
 	deleteReq, err := http.NewRequest(http.MethodDelete, srv.URL+"/api/v1/strategy-definitions/"+definition.ID, nil)
 	if err != nil {

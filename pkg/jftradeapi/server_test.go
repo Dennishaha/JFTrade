@@ -3,7 +3,6 @@ package jftradeapi
 import (
 	"encoding/json"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"testing"
@@ -26,8 +25,7 @@ func TestBrokerRuntimeDescriptorIncludesReadFeatures(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	srv := httptest.NewServer(NewServer(store))
-	defer srv.Close()
+	srv := newHTTPTestServer(t, store)
 
 	resp, err := http.Get(srv.URL + "/api/v1/brokers/futu/runtime")
 	if err != nil {
@@ -90,7 +88,7 @@ func TestNewServerUsesStrategyRuntimeDBEnvOverride(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	server := NewServer(store)
+	server := newTestServer(t, store)
 	if server.strategyRuntimeStore == nil {
 		t.Fatal("expected strategy runtime store to be initialized with env override")
 	}

@@ -54,10 +54,9 @@ func TestExecutionOrdersSyncBrokerOrdersAndTracksWorkerState(t *testing.T) {
 	if err != nil {
 		t.Fatalf("saveIntegration: %v", err)
 	}
-	server := NewServer(store)
-	defer server.Close()
+	server := newTestServer(t, store)
 	srv := httptest.NewServer(server)
-	defer srv.Close()
+	t.Cleanup(srv.Close)
 
 	resp, err := http.Get(srv.URL + "/api/v1/execution/orders")
 	if err != nil {

@@ -3,7 +3,6 @@ package jftradeapi
 import (
 	"encoding/json"
 	"net/http"
-	"net/http/httptest"
 	"path/filepath"
 	"testing"
 )
@@ -23,8 +22,7 @@ func TestBrokerFundsEndpointReturnsDisconnectedSummary(t *testing.T) {
 	if err != nil {
 		t.Fatalf("saveIntegration: %v", err)
 	}
-	srv := httptest.NewServer(NewServer(store))
-	defer srv.Close()
+	srv := newHTTPTestServer(t, store)
 
 	resp, err := http.Get(srv.URL + "/api/v1/brokers/futu/funds")
 	if err != nil {

@@ -73,6 +73,7 @@ func TestStrategyDesignStoreIgnoresLegacyJSONFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewStrategyDesignStore: %v", err)
 	}
+	t.Cleanup(func() { store.Close() })
 
 	if got := store.listDefinitions(); len(got) != 0 {
 		t.Fatalf("expected legacy json definitions to be ignored, got %+v", got)
@@ -95,6 +96,7 @@ func TestStrategyDesignStoreSaveDefinitionManagesVersionAndScriptMetadata(t *tes
 	if err != nil {
 		t.Fatalf("NewStrategyDesignStore: %v", err)
 	}
+	t.Cleanup(func() { store.Close() })
 
 	created, err := store.saveDefinition(strategyDesignDefinition{
 		ID:           "dsl-versioned",
@@ -170,6 +172,7 @@ func TestStrategyDesignStoreGeneratesUUIDWhenIDMissing(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewStrategyDesignStore: %v", err)
 	}
+	t.Cleanup(func() { store.Close() })
 
 	created, err := store.saveDefinition(strategyDesignDefinition{
 		Name:         "UUID Strategy",
@@ -196,6 +199,7 @@ func TestStrategyDesignStoreDeleteDefinitionSoftDeletes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewStrategyDesignStore: %v", err)
 	}
+	t.Cleanup(func() { store.Close() })
 
 	created, err := store.saveDefinition(strategyDesignDefinition{
 		ID:           "dsl-delete-me",

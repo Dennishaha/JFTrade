@@ -15,7 +15,7 @@ func TestStrategyRuntimeObservationAppearsInStrategiesAndSystemStatus(t *testing
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	server := NewServer(store)
+	server := newTestServer(t, store)
 	stub := newStrategyRuntimeStubExchange()
 	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return stub }
 
@@ -41,7 +41,7 @@ func TestStrategyRuntimeObservationAppearsInStrategiesAndSystemStatus(t *testing
 	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 101, strategyRuntimeTestTime(10, 1, 0)))
 
 	srv := httptest.NewServer(server)
-	defer srv.Close()
+	t.Cleanup(srv.Close)
 
 	strategiesResp, err := http.Get(srv.URL + "/api/v1/strategies")
 	if err != nil {
@@ -116,7 +116,7 @@ func TestStrategyRuntimeObservationPersistsAcrossServerRestart(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	server := NewServer(store)
+	server := newTestServer(t, store)
 	stub := newStrategyRuntimeStubExchange()
 	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return stub }
 
@@ -147,7 +147,7 @@ func TestStrategyRuntimeObservationPersistsAcrossServerRestart(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore reload: %v", err)
 	}
-	reloadedServer := NewServer(reloadedStore)
+	reloadedServer := newTestServer(t, reloadedStore)
 	strategies := reloadedServer.enrichStrategyItems(reloadedServer.strategyStore.strategies())
 	if len(strategies) != 1 {
 		t.Fatalf("expected 1 strategy after reload, got %+v", strategies)
@@ -176,7 +176,7 @@ func TestStrategyRuntimePanicAutoReconcilesToStopped(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	server := NewServer(store)
+	server := newTestServer(t, store)
 	stub := newStrategyRuntimeStubExchange()
 	stub.panicOnPlaceOrder = true
 	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return stub }

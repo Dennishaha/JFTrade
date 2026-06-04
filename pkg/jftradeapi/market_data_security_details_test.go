@@ -13,7 +13,6 @@ func TestMarketSecurityDetailsResponseQueriesSecuritySnapshot(t *testing.T) {
 	defer quoteServer.stop()
 
 	server := newMarketDataTestServerWithQuoteRuntime(t, quoteServer.addr)
-	defer server.Close()
 	response, err := server.marketSecurityDetailsResponse(
 		t.Context(),
 		"/api/v1/market-data/securities/HK/00700",
@@ -69,9 +68,8 @@ func TestMarketSecurityDetailsSSEStreamSendsInitialPayload(t *testing.T) {
 	defer quoteServer.stop()
 
 	server := newMarketDataTestServerWithQuoteRuntime(t, quoteServer.addr)
-	defer server.Close()
 	srv := httptest.NewServer(server)
-	defer srv.Close()
+	t.Cleanup(srv.Close)
 
 	response, err := liveSSERequest(t, srv.URL+"/api/sse/market/securities/HK/00700")
 	if err != nil {
@@ -208,7 +206,6 @@ func marketSecurityDetailsResponseForPath(t *testing.T, path string) map[string]
 	defer quoteServer.stop()
 
 	server := newMarketDataTestServerWithQuoteRuntime(t, quoteServer.addr)
-	defer server.Close()
 	response, err := server.marketSecurityDetailsResponse(t.Context(), path)
 	if err != nil {
 		t.Fatalf("marketSecurityDetailsResponse(%s): %v", path, err)

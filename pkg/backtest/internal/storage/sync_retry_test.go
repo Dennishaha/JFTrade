@@ -7,28 +7,23 @@ import (
 	"time"
 
 	bbgotypes "github.com/c9s/bbgo/pkg/types"
+
+	"github.com/jftrade/jftrade-main/internal/retry"
 )
 
 func TestRateLimitRetryExhaustsAndTracksRetries(t *testing.T) {
-	prevMaxRetries := syncRetryMaxRetries
-	prevBaseWait := syncRetryBaseWait
-	syncRetryMaxRetries = 3
-	syncRetryBaseWait = 0
-	t.Cleanup(func() {
-		syncRetryMaxRetries = prevMaxRetries
-		syncRetryBaseWait = prevBaseWait
-	})
-
 	progress := NewSyncProgress("retry-exhaust", "HK.00700", time.Date(2026, time.May, 20, 9, 30, 0, 0, time.UTC))
 	calls := 0
-	err := rateLimitRetry(func() error {
+	cfg := syncRetryConfig(progress)
+	cfg.BaseDelay = 0 // eliminate sleeps in test
+	err := retry.Do(func() error {
 		calls++
 		return errors.New("retType=-1: 频率太高")
-	}, progress)
+	}, cfg)
 	if err == nil {
 		t.Fatal("expected rate-limit retry to fail")
 	}
-	if !strings.Contains(err.Error(), "rate-limit retry exhausted after 3 attempts") {
+	if !strings.Contains(err.Error(), "retry exhausted after 3 retries") {
 		t.Fatalf("unexpected retry exhaustion error: %v", err)
 	}
 	if calls != 4 {
@@ -45,25 +40,19 @@ func TestRateLimitRetryExhaustsAndTracksRetries(t *testing.T) {
 }
 
 func TestRateLimitRetryHandlesNilProgress(t *testing.T) {
-	prevMaxRetries := syncRetryMaxRetries
-	prevBaseWait := syncRetryBaseWait
-	syncRetryMaxRetries = 2
-	syncRetryBaseWait = 0
-	t.Cleanup(func() {
-		syncRetryMaxRetries = prevMaxRetries
-		syncRetryBaseWait = prevBaseWait
-	})
-
 	calls := 0
-	err := rateLimitRetry(func() error {
+	cfg := syncRetryConfig(nil)
+	cfg.BaseDelay = 0 // eliminate sleeps in test
+	cfg.MaxRetries = 2
+	err := retry.Do(func() error {
 		calls++
 		if calls == 1 {
 			return errors.New("retType=-1: 频率太高")
 		}
 		return nil
-	}, nil)
+	}, cfg)
 	if err != nil {
-		t.Fatalf("rateLimitRetry() with nil progress error = %v", err)
+		t.Fatalf("retry.Do() with nil progress error = %v", err)
 	}
 	if calls != 2 {
 		t.Fatalf("retry calls with nil progress = %d, want 2", calls)
@@ -71,24 +60,17 @@ func TestRateLimitRetryHandlesNilProgress(t *testing.T) {
 }
 
 func TestRateLimitRetryReturnsImmediatelyForNonRetryableError(t *testing.T) {
-	prevMaxRetries := syncRetryMaxRetries
-	prevBaseWait := syncRetryBaseWait
-	syncRetryMaxRetries = 3
-	syncRetryBaseWait = 0
-	t.Cleanup(func() {
-		syncRetryMaxRetries = prevMaxRetries
-		syncRetryBaseWait = prevBaseWait
-	})
-
 	progress := NewSyncProgress("retry-non-retryable", "HK.00700", time.Date(2026, time.May, 20, 9, 30, 0, 0, time.UTC))
 	wantErr := errors.New("temporary network reset")
 	calls := 0
-	err := rateLimitRetry(func() error {
+	cfg := syncRetryConfig(progress)
+	cfg.BaseDelay = 0 // eliminate sleeps in test
+	err := retry.Do(func() error {
 		calls++
 		return wantErr
-	}, progress)
+	}, cfg)
 	if !errors.Is(err, wantErr) {
-		t.Fatalf("rateLimitRetry() error = %v, want %v", err, wantErr)
+		t.Fatalf("retry.Do() error = %v, want %v", err, wantErr)
 	}
 	if calls != 1 {
 		t.Fatalf("non-retryable calls = %d, want 1", calls)

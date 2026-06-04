@@ -15,7 +15,7 @@ func TestPluginCatalogLifecycleEndpoints(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	server := NewServer(store)
+	server := newTestServer(t, store)
 	if err := server.strategyStore.savePlugin(managedStrategyPlugin{
 		Descriptor: strategyPluginDescriptor{
 			ID:          "demo-plugin",
@@ -38,7 +38,7 @@ func TestPluginCatalogLifecycleEndpoints(t *testing.T) {
 		t.Fatalf("savePlugin: %v", err)
 	}
 	srv := httptest.NewServer(server)
-	defer srv.Close()
+	t.Cleanup(srv.Close)
 
 	resp, err := http.Get(srv.URL + "/api/v1/plugins")
 	if err != nil {

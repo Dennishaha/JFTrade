@@ -14,7 +14,7 @@ func TestSystemStatusEndpointReturnsStatus(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	server := NewServer(store)
+	server := newTestServer(t, store)
 	if err := server.strategyStore.saveStrategy(managedStrategyInstance{
 		ID:       "instance-running",
 		PluginID: "demo-plugin",
@@ -28,7 +28,7 @@ func TestSystemStatusEndpointReturnsStatus(t *testing.T) {
 		t.Fatalf("saveStrategy: %v", err)
 	}
 	srv := httptest.NewServer(server)
-	defer srv.Close()
+	t.Cleanup(srv.Close)
 
 	resp, err := http.Get(srv.URL + "/api/v1/system/status")
 	if err != nil {
@@ -84,7 +84,7 @@ func TestNewServerReconcilesPersistedActiveStrategyStates(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore initial: %v", err)
 	}
-	initialServer := NewServer(initialStore)
+	initialServer := newTestServer(t, initialStore)
 	if err := initialServer.strategyStore.saveStrategy(managedStrategyInstance{
 		ID:       "instance-running",
 		PluginID: "demo-plugin",
@@ -102,7 +102,7 @@ func TestNewServerReconcilesPersistedActiveStrategyStates(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore reload: %v", err)
 	}
-	reloadedServer := NewServer(reloadedStore)
+	reloadedServer := newTestServer(t, reloadedStore)
 
 	strategy, ok := reloadedServer.strategyStore.strategy("instance-running")
 	if !ok {

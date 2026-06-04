@@ -49,6 +49,15 @@ func deriveStrategyCatalogDBPath(catalogPath string) string {
 	return deriveStrategyRuntimeDBPath(catalogPath)
 }
 
+// Close releases the underlying strategy runtime database connection.
+// It is safe to call Close multiple times and on a nil receiver.
+func (s *strategyCatalogStore) Close() error {
+	if s == nil || s.runtimeStore == nil {
+		return nil
+	}
+	return s.runtimeStore.Close()
+}
+
 func (s *strategyCatalogStore) load() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

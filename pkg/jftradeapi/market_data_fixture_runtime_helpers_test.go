@@ -46,7 +46,7 @@ func newMarketDataTestServerWithQuoteRuntime(t *testing.T, addr string) *Server 
 		CreatedAt: now,
 	}
 	store.mu.Unlock()
-	return NewServer(store)
+	return newTestServer(t, store)
 }
 
 func seedCachedTickSample(server *Server, sample marketTickSample) {

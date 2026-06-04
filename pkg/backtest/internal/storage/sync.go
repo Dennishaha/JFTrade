@@ -9,6 +9,7 @@ import (
 
 	bbgotypes "github.com/c9s/bbgo/pkg/types"
 
+	"github.com/jftrade/jftrade-main/internal/retry"
 	"github.com/jftrade/jftrade-main/pkg/futu"
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
 )
@@ -16,37 +17,23 @@ import (
 var (
 	syncBatchPause      = 2 * time.Second
 	syncBatchSize       = 100000
+	syncRetryBaseDelay  = 5 * time.Second
+	syncRetryMaxDelay   = 20 * time.Second
 	syncRetryMaxRetries = 3
-	syncRetryBaseWait   = 5 * time.Second
 )
 
-// rateLimitRetry checks if an error is an OpenD rate-limit error and
-// retries the operation with exponential backoff (up to maxRetries times).
-func rateLimitRetry(operation func() error, progress *SyncProgress) error {
-	var lastErr error
-	for attempt := 0; attempt <= syncRetryMaxRetries; attempt++ {
-		if attempt > 0 {
+func syncRetryConfig(progress *SyncProgress) retry.Config {
+	return retry.Config{
+		BaseDelay:   syncRetryBaseDelay,
+		MaxDelay:    syncRetryMaxDelay,
+		MaxRetries:  syncRetryMaxRetries,
+		ShouldRetry: retry.FutuRateLimitShouldRetry,
+		Notify: func(attempt int, err error, delay time.Duration) {
 			if progress != nil {
 				progress.IncrementRetries()
 			}
-			wait := syncRetryBaseWait * time.Duration(1<<(attempt-1)) // 5s, 10s, 20s
-			// Sleep in small increments so cancellation is responsive.
-			deadline := time.Now().Add(wait)
-			for time.Now().Before(deadline) {
-				time.Sleep(500 * time.Millisecond)
-			}
-		}
-		lastErr = operation()
-		if lastErr == nil {
-			return nil
-		}
-		// Only retry on rate-limit errors (retType=-1) or timeout-like messages.
-		errStr := lastErr.Error()
-		if !strings.Contains(errStr, "频率太高") && !strings.Contains(errStr, "retType=-1") {
-			return lastErr
-		}
+		},
 	}
-	return fmt.Errorf("rate-limit retry exhausted after %d attempts: %w", syncRetryMaxRetries, lastErr)
 }
 
 // SyncKLines pulls historical K-lines from Futu OpenD and stores them in the
@@ -146,13 +133,13 @@ func (s *FutuKLineStore) syncInterval(
 
 		var klines []bbgotypes.KLine
 		queryEnd := syncHistoryRequestEndTime(interval, batchEnd)
-		queryErr := rateLimitRetry(func() error {
+		queryErr := retry.Do(func() error {
 			var innerErr error
 			// QueryAllKLines does not set MaxAckKLNum — OpenD returns all data in the range
 			// using its internal page size. nextReqKey is followed until empty.
 			klines, innerErr = exchange.QueryAllKLines(ctx, symbol, interval, cursor, queryEnd, rehabType)
 			return innerErr
-		}, progress)
+		}, syncRetryConfig(progress))
 		if queryErr != nil {
 			return fmt.Errorf("query klines %s %s [%s, %s]: %w", symbol, interval, cursor, queryEnd, queryErr)
 		}

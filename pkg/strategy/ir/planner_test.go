@@ -121,3 +121,62 @@ func TestPlanRequirementsRejectsInvalidProtectTimeUnit(t *testing.T) {
 		t.Fatal("PlanRequirements() error = nil, want invalid protect time unit error")
 	}
 }
+
+func TestPlanRequirementsIndicatorKeysMatchRuntimeBindingParity(t *testing.T) {
+	// Same indicator expressions as dslruntime TestParseIndicatorBindingProducesExpectedKeys.
+	script := `strategy Parity
+version 1
+symbol 00700
+interval 1m
+
+on kline_close:
+  let fast    = ma(EMA,14,minute)
+  let slow    = ma(SMA,20)
+  let avg     = ma(ema,5,h)
+  let r       = rsi(14)
+  let m       = macd(12,26,9)
+  let k       = kdj(9,3,3)
+  let a       = atr(20)
+  let c       = cci(14)
+  let wr      = williams_r(14)
+  let bInt    = bollinger(20,2)
+  let bFloat  = bollinger(20,2.5)
+  if cross_over(fast, slow):
+    buy cash_percent 50 policy same_direction
+  else:
+    protect auto trailing_stop 2 day 4% window session`
+
+	program, err := strategydsl.ParseScript(script)
+	if err != nil {
+		t.Fatalf("ParseScript() error = %v", err)
+	}
+
+	requirements, err := strategyir.PlanRequirements(program)
+	if err != nil {
+		t.Fatalf("PlanRequirements() error = %v", err)
+	}
+
+	expectedKeys := map[string]bool{
+		"ma:EMA:14:minute":                       true,
+		"ma:SMA:20":                              true,
+		"ma:EMA:5:hour":                          true,
+		"rsi:14":                                 true,
+		"macd:12:26:9":                           true,
+		"kdj:9:3:3":                              true,
+		"atr:20":                                 true,
+		"cci:14":                                 true,
+		"williamsr:14":                           true,
+		"bollinger:20:2":                         true,
+		"bollinger:20:2.5":                       true,
+		"risk:trailingStop:auto:2:day:4:session": true,
+	}
+	for _, ind := range requirements.Indicators {
+		if !expectedKeys[ind.Key] {
+			t.Fatalf("unexpected indicator key %q in plan", ind.Key)
+		}
+		delete(expectedKeys, ind.Key)
+	}
+	for key := range expectedKeys {
+		t.Fatalf("missing indicator key %q in plan", key)
+	}
+}

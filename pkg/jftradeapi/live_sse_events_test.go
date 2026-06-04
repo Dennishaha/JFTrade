@@ -24,10 +24,9 @@ func TestLiveSSESendsHeartbeat(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	server := NewServer(store)
-	defer server.Close()
+	server := newTestServer(t, store)
 	srv := httptest.NewServer(server)
-	defer srv.Close()
+	t.Cleanup(srv.Close)
 
 	response, err := liveSSERequest(t, srv.URL+"/api/sse/live")
 	if err != nil {
@@ -59,7 +58,7 @@ func TestLiveSSESendsSystemNotification(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	server := NewServer(store)
+	server := newTestServer(t, store)
 	server.handleFutuSystemNotify(&notifypb.Response{
 		RetType: proto.Int32(0),
 		S2C: &notifypb.S2C{
@@ -72,8 +71,7 @@ func TestLiveSSESendsSystemNotification(t *testing.T) {
 	})
 
 	srv := httptest.NewServer(server)
-	defer srv.Close()
-	defer server.Close()
+	t.Cleanup(srv.Close)
 
 	response, err := liveSSERequest(t, srv.URL+"/api/sse/live")
 	if err != nil {
@@ -105,10 +103,9 @@ func TestLiveSSESendsBBGONotification(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	server := NewServer(store)
-	defer server.Close()
+	server := newTestServer(t, store)
 	srv := httptest.NewServer(server)
-	defer srv.Close()
+	t.Cleanup(srv.Close)
 
 	bbgo.Notify("strategy %s started", "demo-grid")
 
@@ -142,7 +139,7 @@ func TestLiveSSEHeartbeatReportsStaleMarketData(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	server := NewServer(store)
+	server := newTestServer(t, store)
 	server.marketSubscriptions.acquire(marketSubscriptionInput{
 		Key:        "SNAPSHOT:HK:00700",
 		Channel:    "SNAPSHOT",
@@ -163,8 +160,7 @@ func TestLiveSSEHeartbeatReportsStaleMarketData(t *testing.T) {
 	})
 
 	srv := httptest.NewServer(server)
-	defer srv.Close()
-	defer server.Close()
+	t.Cleanup(srv.Close)
 
 	response, err := liveSSERequest(t, srv.URL+"/api/sse/live")
 	if err != nil {
@@ -195,7 +191,7 @@ func TestLiveSSEInitialMarketTickRefreshesObservedAt(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	server := NewServer(store)
+	server := newTestServer(t, store)
 	server.marketSubscriptions.acquire(marketSubscriptionInput{
 		Key:        "KLINE:HK:00700:1m",
 		Channel:    "KLINE",
@@ -222,8 +218,7 @@ func TestLiveSSEInitialMarketTickRefreshesObservedAt(t *testing.T) {
 	})
 
 	srv := httptest.NewServer(server)
-	defer srv.Close()
-	defer server.Close()
+	t.Cleanup(srv.Close)
 
 	beforeConnect := time.Now().UTC()
 	response, err := liveSSERequest(t, srv.URL+"/api/sse/live")

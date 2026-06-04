@@ -16,7 +16,7 @@ func TestStrategyRuntimeLiveModeRecordsExecutionOrder(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	server := NewServer(store)
+	server := newTestServer(t, store)
 	stub := newStrategyRuntimeStubExchange()
 	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return stub }
 
@@ -90,7 +90,7 @@ func TestStrategyRuntimeRefreshesBrokerPositionsBeforeSellOnKLineClose(t *testin
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	server := NewServer(store)
+	server := newTestServer(t, store)
 	stub := newStrategyRuntimeStubExchange()
 	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return stub }
 
@@ -170,7 +170,7 @@ func TestStrategyRuntimeDisconnectedBrokerRefreshKeepsCachedState(t *testing.T) 
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	server := NewServer(store)
+	server := newTestServer(t, store)
 	stub := newStrategyRuntimeStubExchange()
 	stub.positions = []broker.PositionSnapshot{{
 		Symbol:           "US.AAPL",

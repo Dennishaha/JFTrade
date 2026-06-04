@@ -25,7 +25,6 @@ func TestMarketCandlesResponseUsesExchangeResolvedSessionsForUSIntraday(t *testi
 	})
 
 	server := newMarketDataTestServerWithQuoteRuntime(t, quoteServer.addr)
-	defer server.Close()
 	start := time.Date(2026, time.May, 20, 0, 0, 0, 0, time.UTC)
 	end := time.Date(2026, time.May, 20, 23, 0, 0, 0, time.UTC)
 	response, err := server.marketCandlesResponse(
@@ -92,7 +91,6 @@ func TestMarketCandlesResponseOmitsSessionMetadataForDailyCandles(t *testing.T) 
 	}})
 
 	server := newMarketDataTestServerWithQuoteRuntime(t, quoteServer.addr)
-	defer server.Close()
 	response, err := server.marketCandlesResponse(
 		t.Context(),
 		"/api/v1/market-data/candles/US/NVDA",

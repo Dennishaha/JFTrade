@@ -15,7 +15,7 @@ func TestExecutionPushHandlersWriteBackAndNotify(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	server := NewServer(store)
+	server := newTestServer(t, store)
 	price := 320.5
 	placed := server.executionOrders.recordPlacedOrder(executionPlacedOrderRecord{
 		BrokerID:           "futu",
@@ -133,7 +133,7 @@ func TestRecordPlacedOrderReusesExistingBrokerDiscoveredOrder(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	server := NewServer(store)
+	server := newTestServer(t, store)
 
 	server.handleFutuBrokerOrderPush(&trdcommonpb.TrdHeader{
 		TrdEnv:    proto.Int32(int32(trdcommonpb.TrdEnv_TrdEnv_Simulate)),

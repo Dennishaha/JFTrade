@@ -17,7 +17,7 @@ func TestStrategiesExposeDefinitionSyncAndRefreshDefinitionRoute(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	server := NewServer(store)
+	server := newTestServer(t, store)
 	definition, err := server.designStore.saveDefinition(strategyDesignDefinition{
 		ID:           "dsl-versioned",
 		Name:         "Versioned Strategy",
@@ -56,7 +56,7 @@ func TestStrategiesExposeDefinitionSyncAndRefreshDefinitionRoute(t *testing.T) {
 	}
 
 	srv := httptest.NewServer(server)
-	defer srv.Close()
+	t.Cleanup(srv.Close)
 
 	listResp, err := http.Get(srv.URL + "/api/v1/strategies")
 	if err != nil {

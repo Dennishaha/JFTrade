@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"net/http/httptest"
 	"net/url"
 	"path/filepath"
 	"testing"
@@ -50,8 +49,7 @@ func TestMarketCandlesEndpointIncludesCurrentRealtimeBucket(t *testing.T) {
 	}
 	store.mu.Unlock()
 
-	srv := httptest.NewServer(NewServer(store))
-	defer srv.Close()
+	srv := newHTTPTestServer(t, store)
 
 	requestURL := fmt.Sprintf(
 		"%s/api/v1/market-data/candles/HK/00700?period=1m&limit=2&fromTime=%s&toTime=%s",

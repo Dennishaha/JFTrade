@@ -12,7 +12,7 @@ func TestStrategyRuntimeNotifyOnlyEmitsSignalNotification(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	server := NewServer(store)
+	server := newTestServer(t, store)
 	stub := newStrategyRuntimeStubExchange()
 	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return stub }
 
@@ -78,7 +78,7 @@ func TestStrategyRuntimeStartEnsuresMissingMarketMetadata(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	server := NewServer(store)
+	server := newTestServer(t, store)
 	stub := newStrategyRuntimeStubExchange()
 	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return stub }
 

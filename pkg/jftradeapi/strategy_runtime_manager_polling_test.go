@@ -15,7 +15,7 @@ func TestStrategyRuntimePollsClosedKLinesWhenTradePushStalls(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	server := NewServer(store)
+	server := newTestServer(t, store)
 	stub := newStrategyRuntimeStubExchange()
 	stub.positions = []broker.PositionSnapshot{{
 		Market:           "US",

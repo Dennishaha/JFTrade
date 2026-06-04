@@ -33,8 +33,7 @@ func TestLiveStreamDiagnosticsUseConfiguredLimit(t *testing.T) {
 	}
 	store.mu.Unlock()
 
-	server := NewServer(store)
-	defer server.Close()
+	server := newTestServer(t, store)
 	limit := server.effectiveLiveStreamLimit()
 	if limit != 2 {
 		t.Fatalf("effectiveLiveStreamLimit = %d", limit)
@@ -91,8 +90,7 @@ func TestLiveMarketStreamConnectFailureBacksOff(t *testing.T) {
 	}
 	store.mu.Unlock()
 
-	server := NewServer(store)
-	defer server.Close()
+	server := newTestServer(t, store)
 	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
 	defer cancel()
 	server.ensureLiveMarketStream(ctx, []string{"HK.00700"})
@@ -169,8 +167,7 @@ func TestLiveQuoteRefreshFailureBacksOff(t *testing.T) {
 	}
 	store.mu.Unlock()
 
-	server := NewServer(store)
-	defer server.Close()
+	server := newTestServer(t, store)
 	server.marketSubscriptions.seed(&marketSubscription{
 		Key:          "tick:HK:00700",
 		Channel:      "TICK",

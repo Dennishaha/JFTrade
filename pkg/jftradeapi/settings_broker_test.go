@@ -22,10 +22,9 @@ func TestBrokerIntegrationSavePersistsAndUpdatesRuntimeEnv(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	api := NewServer(store)
-	defer api.Close()
+	api := newTestServer(t, store)
 	srv := httptest.NewServer(api)
-	defer srv.Close()
+	t.Cleanup(srv.Close)
 
 	payload := map[string]any{
 		"enabled": true,
@@ -97,10 +96,9 @@ func TestBrokerSettingsExposeNullIntegrationUntilFirstSave(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	api := NewServer(store)
-	defer api.Close()
+	api := newTestServer(t, store)
 	srv := httptest.NewServer(api)
-	defer srv.Close()
+	t.Cleanup(srv.Close)
 
 	resp, err := http.Get(srv.URL + "/api/v1/settings/brokers")
 	if err != nil {
@@ -142,10 +140,9 @@ func TestFutuRuntimeAndHealthStayNeutralWithoutSavedEnabledIntegration(t *testin
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	api := NewServer(store)
-	defer api.Close()
+	api := newTestServer(t, store)
 	srv := httptest.NewServer(api)
-	defer srv.Close()
+	t.Cleanup(srv.Close)
 
 	runtimeResp, err := http.Get(srv.URL + "/api/v1/brokers/futu/runtime")
 	if err != nil {
@@ -264,10 +261,9 @@ func TestManagedBrokerAccountCRUDReflectsInBrokerSettings(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	api := NewServer(store)
-	defer api.Close()
+	api := newTestServer(t, store)
 	srv := httptest.NewServer(api)
-	defer srv.Close()
+	t.Cleanup(srv.Close)
 
 	payload := map[string]any{
 		"brokerId":           "futu",
@@ -388,10 +384,9 @@ func TestUIAppearanceSavePersistsToSettings(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	api := NewServer(store)
-	defer api.Close()
+	api := newTestServer(t, store)
 	srv := httptest.NewServer(api)
-	defer srv.Close()
+	t.Cleanup(srv.Close)
 
 	payload := map[string]any{
 		"appearance": map[string]any{

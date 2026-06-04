@@ -16,7 +16,7 @@ func TestInstantiateDSLStrategyDefinitionBuildsCompiledPlan(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	server := NewServer(store)
+	server := newTestServer(t, store)
 	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return newStrategyRuntimeStubExchange() }
 	if _, err := server.designStore.saveDefinition(strategyDesignDefinition{
 		ID:           "dsl-breakout",
@@ -29,7 +29,7 @@ func TestInstantiateDSLStrategyDefinitionBuildsCompiledPlan(t *testing.T) {
 		t.Fatalf("saveDefinition: %v", err)
 	}
 	srv := httptest.NewServer(server)
-	defer srv.Close()
+	t.Cleanup(srv.Close)
 
 	resp, err := http.Post(srv.URL+"/api/v1/strategy-definitions/dsl-breakout/instantiate", "application/json", bytes.NewReader([]byte(`{"instruments":[{"market":"US","code":"AAPL"},{"market":"HK","code":"00700"}],"interval":"15m","executionMode":"notify_only","brokerAccount":{"brokerId":"futu","accountId":"123456","tradingEnvironment":"simulate","market":"us"}}`)))
 	if err != nil {

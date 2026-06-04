@@ -18,7 +18,7 @@ func TestNewServerReloadsPersistedBacktestRuns(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	server := NewServer(store)
+	server := newTestServer(t, store)
 
 	completedRun := &backtestRunState{
 		ID:     "bt-reload-completed",
@@ -60,11 +60,14 @@ func TestNewServerReloadsPersistedBacktestRuns(t *testing.T) {
 		t.Fatalf("persist running run: %v", err)
 	}
 
+	// Close the first server so the reloaded store can acquire the DB on Windows.
+	_ = server.Close()
+
 	reloadedStore, err := NewSettingsStore(settingsPath)
 	if err != nil {
 		t.Fatalf("NewSettingsStore reload: %v", err)
 	}
-	reloadedServer := NewServer(reloadedStore)
+	reloadedServer := newTestServer(t, reloadedStore)
 
 	runs := reloadedServer.backtestRuns.list()
 	if len(runs) != 2 {
@@ -92,7 +95,7 @@ func TestBacktestRouteDeletesTerminalRuns(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	server := NewServer(store)
+	server := newTestServer(t, store)
 
 	completedRun := &backtestRunState{
 		ID:     "bt-delete-completed",
@@ -126,7 +129,7 @@ func TestBacktestRouteDeletesTerminalRuns(t *testing.T) {
 	}
 
 	srv := httptest.NewServer(server)
-	defer srv.Close()
+	t.Cleanup(srv.Close)
 
 	deleteReq, err := http.NewRequest(http.MethodDelete, srv.URL+"/api/v1/backtests/"+completedRun.ID, nil)
 	if err != nil {

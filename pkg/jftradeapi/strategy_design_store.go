@@ -1,9 +1,7 @@
 package jftradeapi
 
 import (
-	"crypto/rand"
 	"database/sql"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 	"github.com/jmoiron/sqlx"
 	"golang.org/x/mod/semver"
@@ -440,14 +439,11 @@ func normalizeStrategyDesignDefinition(input strategyDesignDefinition) strategyD
 }
 
 func generateStrategyDefinitionID() string {
-	var bytes [16]byte
-	if _, err := rand.Read(bytes[:]); err != nil {
+	id, err := uuid.NewRandom()
+	if err != nil {
 		return "dsl-strategy-" + time.Now().UTC().Format("20060102150405.000000000")
 	}
-	bytes[6] = (bytes[6] & 0x0f) | 0x40
-	bytes[8] = (bytes[8] & 0x3f) | 0x80
-	encoded := hex.EncodeToString(bytes[:])
-	return encoded[0:8] + "-" + encoded[8:12] + "-" + encoded[12:16] + "-" + encoded[16:20] + "-" + encoded[20:32]
+	return id.String()
 }
 
 func defaultStrategyDesignScript(name string, sourceFormat string) string {

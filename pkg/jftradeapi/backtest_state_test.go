@@ -131,6 +131,7 @@ func TestBacktestRunStorePersistsAndRecoversTransientRuns(t *testing.T) {
 	if err != nil {
 		t.Fatalf("newBacktestRunStoreWithDB: %v", err)
 	}
+	t.Cleanup(func() { _ = store.Close() })
 
 	completedRun := &backtestRunState{
 		ID:     "bt-persist-completed",
@@ -172,10 +173,16 @@ func TestBacktestRunStorePersistsAndRecoversTransientRuns(t *testing.T) {
 		t.Fatalf("add running run: %v", err)
 	}
 
+	// Close the first store so the reopened connection can acquire the file on Windows.
+	if err := store.Close(); err != nil {
+		t.Fatalf("close store before reload: %v", err)
+	}
+
 	reloadedStore, err := newBacktestRunStoreWithDB(dbPath)
 	if err != nil {
 		t.Fatalf("reload store: %v", err)
 	}
+	t.Cleanup(func() { _ = reloadedStore.Close() })
 
 	reloadedCompleted, ok := reloadedStore.get(completedRun.ID)
 	if !ok {
@@ -205,10 +212,16 @@ func TestBacktestRunStorePersistsAndRecoversTransientRuns(t *testing.T) {
 		t.Fatal("expected completed run delete to succeed")
 	}
 
+	// Close before reopening so the next connection can acquire the file on Windows.
+	if err := reloadedStore.Close(); err != nil {
+		t.Fatalf("close reloadedStore before second reload: %v", err)
+	}
+
 	reloadedAgain, err := newBacktestRunStoreWithDB(dbPath)
 	if err != nil {
 		t.Fatalf("reload store after delete: %v", err)
 	}
+	t.Cleanup(func() { _ = reloadedAgain.Close() })
 	if _, ok := reloadedAgain.get(completedRun.ID); ok {
 		t.Fatal("expected deleted completed run to stay deleted after reload")
 	}

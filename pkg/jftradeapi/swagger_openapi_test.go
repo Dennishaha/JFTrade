@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
-	"net/http/httptest"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -15,8 +14,7 @@ func TestSwaggerUIAvailable(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	srv := httptest.NewServer(NewServer(store))
-	defer srv.Close()
+	srv := newHTTPTestServer(t, store)
 
 	resp, err := http.Get(srv.URL + "/swagger/")
 	if err != nil {
@@ -64,8 +62,7 @@ func TestOpenAPISpecExposesCorePaths(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
-	srv := httptest.NewServer(NewServer(store))
-	defer srv.Close()
+	srv := newHTTPTestServer(t, store)
 
 	resp, err := http.Get(srv.URL + "/openapi.json")
 	if err != nil {
