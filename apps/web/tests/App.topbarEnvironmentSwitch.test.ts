@@ -423,7 +423,7 @@ describe("TopBar trading environment switch", () => {
   });
 
   it("submits the instrument code when pressing Enter in the topbar input", async () => {
-    window.localStorage.removeItem("jftrade.workspace.layout.v1");
+    window.sessionStorage.removeItem("jftrade.workspace.layout.v1");
 
     const fetchMock = vi.fn(async (input: string | URL | Request) => {
       const url = String(input);
@@ -514,7 +514,7 @@ describe("TopBar trading environment switch", () => {
     await flushRequests();
 
     const storedPrefs = JSON.parse(
-      window.localStorage.getItem("jftrade.workspace.layout.v1") ?? "{}",
+      window.sessionStorage.getItem("jftrade.workspace.layout.v1") ?? "{}",
     ) as { market?: string; symbol?: string };
 
     expect(storedPrefs.market).toBe("HK");

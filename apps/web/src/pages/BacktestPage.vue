@@ -1103,7 +1103,7 @@ watch(
             </div>
             <div class="flex flex-wrap items-center justify-between gap-3 text-xs bt-text-muted">
               <span>{{ resultsPageSummary }}</span>
-              <span>最近使用的回测参数与已完成结果会保存在当前浏览器。</span>
+              <span>回测结果由服务端提供。</span>
             </div>
           </div>
 

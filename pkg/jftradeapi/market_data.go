@@ -16,7 +16,7 @@ import (
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
 )
 
-const marketSecurityDetailsStreamInterval = 1 * time.Second
+const marketSecurityDetailsStreamInterval = 3 * time.Second
 const marketDepthStreamRefreshInterval = 15 * time.Second
 
 func marketSecurityDetailsPathTail(path string) (string, string) {

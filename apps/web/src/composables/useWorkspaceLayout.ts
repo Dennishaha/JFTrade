@@ -56,7 +56,7 @@ const layoutKey: InjectionKey<WorkspaceLayoutStore> = Symbol("jftrade-layout");
 function readInitial(): WorkspacePreferences {
   if (typeof window === "undefined") return { ...defaults };
   try {
-    const raw = window.localStorage?.getItem(STORAGE_KEY);
+    const raw = window.sessionStorage?.getItem(STORAGE_KEY);
     if (!raw) return { ...defaults };
     const parsed = JSON.parse(raw) as Partial<WorkspacePreferences>;
     const merged = { ...defaults, ...parsed };
@@ -80,8 +80,8 @@ export function provideWorkspaceLayoutStore(): WorkspaceLayoutStore {
   watch(
     prefs,
     (next) => {
-      if (typeof window === "undefined" || window.localStorage == null) return;
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      if (typeof window === "undefined" || window.sessionStorage == null) return;
+      window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(next));
     },
     { deep: true },
   );

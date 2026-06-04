@@ -6,11 +6,6 @@ import type { BacktestTrade, BacktestPnlPoint, BacktestDrawdownPoint, BacktestCa
 import { fetchEnvelope, fetchEnvelopeWithInit } from "./apiClient";
 import { resolveInstrumentRef } from "./instrumentRef";
 
-const BACKTEST_RUNS_STORAGE_KEY = "jftrade.backtest.runs.v1";
-const BACKTEST_DELETED_RUN_IDS_STORAGE_KEY = "jftrade.backtest.deleted-runs.v1";
-const MAX_PERSISTED_BACKTEST_RUNS = 50;
-const MAX_DELETED_BACKTEST_RUN_IDS = 200;
-
 type BacktestDecimalTransport = string | number;
 
 interface BacktestTradeView extends BacktestTrade {
@@ -225,7 +220,6 @@ function resolveSyncSessionScope(formState: Pick<BacktestFormState, "useExtended
 
 export function useBacktestRuns(options: UseBacktestRunsOptions) {
   const runs = ref<BacktestRun[]>([]);
-  const deletedRunIds = ref<string[]>(readPersistedDeletedRunIds());
   const running = ref(false);
   const syncing = ref(false);
   const syncTaskId = ref("");
@@ -347,62 +341,6 @@ export function useBacktestRuns(options: UseBacktestRunsOptions) {
     };
   }
 
-  function getBrowserStorage(): Storage | null {
-    if (typeof window === "undefined" || window.localStorage == null) {
-      return null;
-    }
-    return window.localStorage;
-  }
-
-  function sortRunsByUpdatedAtDesc(nextRuns: BacktestRun[]) {
-    return [...nextRuns].sort(
-      (left, right) =>
-        new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime(),
-    );
-  }
-
-  function isTerminalRun(run: BacktestRun) {
-    return run.status === "completed" || run.status === "failed";
-  }
-
-  function readPersistedDeletedRunIds(): string[] {
-    const storage = getBrowserStorage();
-    if (storage == null) {
-      return [];
-    }
-
-    try {
-      const raw = storage.getItem(BACKTEST_DELETED_RUN_IDS_STORAGE_KEY);
-      if (raw == null || raw.trim() === "") {
-        return [];
-      }
-      const parsed = JSON.parse(raw);
-      if (!Array.isArray(parsed)) {
-        return [];
-      }
-      return Array.from(new Set(
-        parsed
-          .filter((value): value is string => typeof value === "string")
-          .map((value) => value.trim())
-          .filter((value) => value !== ""),
-      )).slice(-MAX_DELETED_BACKTEST_RUN_IDS);
-    } catch {
-      return [];
-    }
-  }
-
-  function persistDeletedRunIds(nextDeletedRunIds = deletedRunIds.value): void {
-    const storage = getBrowserStorage();
-    if (storage == null) {
-      return;
-    }
-
-    storage.setItem(
-      BACKTEST_DELETED_RUN_IDS_STORAGE_KEY,
-      JSON.stringify(nextDeletedRunIds.slice(-MAX_DELETED_BACKTEST_RUN_IDS)),
-    );
-  }
-
   function pickPreferredRun(existingRun: BacktestRun, candidateRun: BacktestRun): BacktestRun {
     const existingUpdatedAt = new Date(existingRun.updatedAt).getTime();
     const candidateUpdatedAt = new Date(candidateRun.updatedAt).getTime();
@@ -428,14 +366,10 @@ export function useBacktestRuns(options: UseBacktestRunsOptions) {
     return candidateRun;
   }
 
-  function dedupeRuns(nextRuns: BacktestRun[]): BacktestRun[] {
-    const hiddenRunIds = new Set(deletedRunIds.value);
+  function mergeRunsById(nextRuns: BacktestRun[]): BacktestRun[] {
     const merged = new Map<string, BacktestRun>();
 
     for (const run of nextRuns) {
-      if (hiddenRunIds.has(run.id)) {
-        continue;
-      }
       const existing = merged.get(run.id);
       merged.set(run.id, existing ? pickPreferredRun(existing, run) : run);
     }
@@ -443,65 +377,12 @@ export function useBacktestRuns(options: UseBacktestRunsOptions) {
     return Array.from(merged.values());
   }
 
-  function persistRuns(nextRuns = runs.value): void {
-    const storage = getBrowserStorage();
-    if (storage == null) {
-      return;
-    }
-
-    const persistedRuns = sortRunsByUpdatedAtDesc(dedupeRuns(nextRuns))
-      .filter(isTerminalRun)
-      .slice(0, MAX_PERSISTED_BACKTEST_RUNS);
-    storage.setItem(BACKTEST_RUNS_STORAGE_KEY, JSON.stringify(persistedRuns));
-  }
-
-  function readPersistedRuns(): BacktestRun[] {
-    const storage = getBrowserStorage();
-    if (storage == null) {
-      return [];
-    }
-
-    try {
-      const raw = storage.getItem(BACKTEST_RUNS_STORAGE_KEY);
-      if (raw == null || raw.trim() === "") {
-        return [];
-      }
-      const parsed = JSON.parse(raw);
-      if (!Array.isArray(parsed)) {
-        return [];
-      }
-      return dedupeRuns(
-        parsed
-          .map((item) => normalizeRun(item as BacktestRunTransport))
-          .filter(isTerminalRun),
-      );
-    } catch {
-      return [];
-    }
-  }
-
-  function setRuns(nextRuns: BacktestRun[]): void {
-    runs.value = dedupeRuns(nextRuns);
-    persistRuns();
-  }
-
-  function removeRunLocally(runId: string, persistDeletedId: boolean): void {
-    if (persistDeletedId && !deletedRunIds.value.includes(runId)) {
-      deletedRunIds.value = [...deletedRunIds.value, runId].slice(-MAX_DELETED_BACKTEST_RUN_IDS);
-      persistDeletedRunIds();
-    }
-    delete expandedRuns[runId];
-    setRuns(runs.value.filter((run) => run.id !== runId));
-  }
-
-  runs.value = readPersistedRuns();
-
   async function loadRuns() {
     try {
       const data = await fetchEnvelope<{ runs: BacktestRunTransport[] }>(
         "/api/v1/backtests",
       );
-      setRuns([
+      runs.value = mergeRunsById([
         ...runs.value,
         ...((data.runs ?? []).map(normalizeRun)),
       ]);
@@ -517,7 +398,8 @@ export function useBacktestRuns(options: UseBacktestRunsOptions) {
     }
 
     const targetRun = runs.value.find((run) => run.id === normalizedRunID);
-    if (targetRun && isTerminalRun(targetRun)) {
+    const isTerminal = targetRun != null && (targetRun.status === "completed" || targetRun.status === "failed");
+    if (isTerminal) {
       try {
         await fetchEnvelopeWithInit<{ deleted: boolean; id: string }>(
           `/api/v1/backtests/${encodeURIComponent(normalizedRunID)}`,
@@ -525,14 +407,13 @@ export function useBacktestRuns(options: UseBacktestRunsOptions) {
             method: "DELETE",
           },
         );
-        removeRunLocally(normalizedRunID, false);
-        return;
       } catch {
-        // Fallback to browser-local removal if the sidecar cannot delete this run.
+        // Fallback: remove from local list if the server cannot delete this run.
       }
     }
 
-    removeRunLocally(normalizedRunID, true);
+    delete expandedRuns[normalizedRunID];
+    runs.value = runs.value.filter((run) => run.id !== normalizedRunID);
   }
 
   async function syncKlines() {
