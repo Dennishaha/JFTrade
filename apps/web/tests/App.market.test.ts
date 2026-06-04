@@ -52,6 +52,7 @@ function countCallsMatching(
 afterEach(() => {
   vi.unstubAllGlobals();
   MockEventSource.instances = [];
+  window.localStorage?.clear();
 });
 
 function buildStandardFetchMock(overrides: Record<string, unknown> = {}) {
@@ -267,6 +268,7 @@ describe("Market page", () => {
     await flushRequests();
 
     expect(wrapper.get('[data-testid="rightdock-symbol-info"]').text()).toBe("US:TME");
+    expect(wrapper.text()).not.toContain("320.5");
 
     wrapper.unmount();
   });

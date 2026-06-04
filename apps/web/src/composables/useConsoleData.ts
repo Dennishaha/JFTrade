@@ -97,6 +97,7 @@ import {
 import {
   type LoadMarketDataQueryOptions,
 } from "./marketDataQuery";
+import { normalizeKlinePeriod } from "../charting/kline";
 import {
   useWorkspaceLayout,
   type WorkspaceLayoutStore,
@@ -179,7 +180,12 @@ function createConsoleDataStore(workspaceLayout: WorkspaceLayoutStore) {
 
   const {
     applyMarketDataTickEvent,
+    activeMarketDataInstrumentId,
+    currentMarketDataCandles,
+    currentMarketDataSnapshot,
+    currentMarketSecurityDetails,
     isLoadingMarketDataQuery,
+    isMarketDataSwitching,
     loadMarketDataQuery,
     marketDataCandles,
     marketDataQueryError,
@@ -189,7 +195,13 @@ function createConsoleDataStore(workspaceLayout: WorkspaceLayoutStore) {
     marketDataQuerySymbol,
     marketSecurityDetails,
     marketDataSnapshot,
+    selectMarketDataInstrument,
   } = createConsoleDataMarketDataQuerySlice();
+  selectMarketDataInstrument({
+    market: prefs.value.market,
+    symbol: prefs.value.symbol,
+    period: prefs.value.period,
+  });
   let systemStateController!: ReturnType<
     typeof createConsoleDataSystemStateController
   >;
@@ -464,6 +476,25 @@ function createConsoleDataStore(workspaceLayout: WorkspaceLayoutStore) {
   });
   const { dispose, initialize } = consoleStreamController;
 
+  function selectWorkspaceInstrument(input: {
+    market: string;
+    symbol: string;
+    period?: string;
+  }): void {
+    const period =
+      input.period == null ? prefs.value.period : normalizeKlinePeriod(input.period);
+    selectMarketDataInstrument({
+      market: input.market,
+      symbol: input.symbol,
+      period,
+    });
+    update({
+      market: marketDataQueryMarket.value,
+      symbol: marketDataQuerySymbol.value,
+      period,
+    });
+  }
+
   return {
     availableBrokerAccounts,
     brokerCashFlows,
@@ -477,6 +508,7 @@ function createConsoleDataStore(workspaceLayout: WorkspaceLayoutStore) {
     brokerSettings,
     brokerRuntime,
     acquireMarketDataSubscription,
+    activeMarketDataInstrumentId,
     applyMarketDataTickEvent,
     createManagedBrokerAccount,
     deleteManagedBrokerAccount,
@@ -497,6 +529,7 @@ function createConsoleDataStore(workspaceLayout: WorkspaceLayoutStore) {
     isLoadingExecutionEvents,
     isLoadingMarketData,
     isLoadingMarketDataQuery,
+    isMarketDataSwitching,
     isLoadingOrderFees,
     liveStreamCheckedAt,
     liveStreamStatus,
@@ -519,6 +552,9 @@ function createConsoleDataStore(workspaceLayout: WorkspaceLayoutStore) {
     marketDataQueryPeriod,
     marketDataQuerySymbol,
     marketSecurityDetails,
+    currentMarketDataCandles,
+    currentMarketDataSnapshot,
+    currentMarketSecurityDetails,
     marketInstrumentReferences,
     marketInstrumentSearchOptions,
     marketDataSnapshot,
@@ -543,6 +579,7 @@ function createConsoleDataStore(workspaceLayout: WorkspaceLayoutStore) {
     createStableWebConsumerId,
     saveBrokerIntegration,
     saveOnboardingState,
+    selectWorkspaceInstrument,
     selectBrokerAccount,
     selectedBrokerAccount,
     selectedExecutionOrder,

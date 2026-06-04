@@ -28,16 +28,17 @@ const {
   loadMarketDataQuery,
   loadMarketInstrumentReferences,
   loadMarketDataSubscriptions,
-  marketDataCandles,
+  currentMarketDataCandles: marketDataCandles,
   marketDataError,
   marketDataQueryError,
   marketDataQueryLimit,
   marketDataQueryMarket,
   marketDataQueryPeriod,
   marketDataQuerySymbol,
-  marketDataSnapshot,
+  currentMarketDataSnapshot: marketDataSnapshot,
   marketDataSubscriptions,
   marketInstrumentSearchOptions,
+  selectWorkspaceInstrument,
   acquireMarketDataSubscription,
   createStableWebConsumerId,
   heartbeatMarketDataConsumer,
@@ -74,10 +75,12 @@ async function syncVisibleSubscription(): Promise<void> {
 onMounted(() => {
   void (async () => {
     symbolSearchText.value = marketDataQuerySymbol.value;
-    await loadMarketInstrumentReferences();
-    await loadMarketDataSubscriptions();
-    await syncVisibleSubscription();
-    await loadMarketDataQuery();
+    await Promise.all([
+      loadMarketInstrumentReferences(),
+      loadMarketDataSubscriptions(),
+      syncVisibleSubscription(),
+      loadMarketDataQuery(),
+    ]);
     scheduleMarketDataAutoRefresh();
     marketDataSubscriptionScope.startHeartbeat();
   })();
@@ -297,13 +300,24 @@ async function runMarketDataQuery(): Promise<void> {
     },
     marketDataQueryMarket.value,
   );
+  let instrumentChanged = false;
   if (parsed != null) {
-    marketDataQueryMarket.value = parsed.market;
-    marketDataQuerySymbol.value = parsed.code;
+    instrumentChanged =
+      marketDataQueryMarket.value !== parsed.market ||
+      marketDataQuerySymbol.value !== parsed.code;
+    selectWorkspaceInstrument({
+      market: parsed.market,
+      symbol: parsed.code,
+      period: marketDataQueryPeriod.value,
+    });
     symbolSearchText.value = parsed.code;
   }
 
   await syncVisibleSubscription();
+  if (instrumentChanged) {
+    scheduleMarketDataAutoRefresh();
+    return;
+  }
   await loadMarketDataQuery();
   scheduleMarketDataAutoRefresh();
 }

@@ -10,7 +10,10 @@ import { createEventSourceStream } from "../../composables/eventSourceStream";
 import { useConsoleData } from "../../composables/useConsoleData";
 import { useWorkspaceLayout } from "../../composables/useWorkspaceLayout";
 
-const { marketDataSnapshot, marketSecurityDetails } = useConsoleData();
+const {
+  currentMarketDataSnapshot: marketDataSnapshot,
+  currentMarketSecurityDetails: marketSecurityDetails,
+} = useConsoleData();
 const { prefs } = useWorkspaceLayout();
 
 // --- Depth presets ---
@@ -27,6 +30,9 @@ let depthAbortController: AbortController | null = null;
 let depthStreamUrl = "";
 const depthStream = createEventSourceStream<MarketDataDepthResponse>({
   onMessage: (payload) => {
+    if (payload.meta.instrumentId.trim().toUpperCase() !== currentInstrumentId.value) {
+      return;
+    }
     depthData.value = payload;
     depthError.value = "";
     isLoadingDepth.value = false;
@@ -89,6 +95,11 @@ const snapshot = computed(() => {
 });
 
 const security = computed(() => marketSecurityDetails.value?.security ?? null);
+const currentInstrumentId = computed(() => {
+  const market = prefs.value?.market?.trim().toUpperCase() ?? "";
+  const symbol = prefs.value?.symbol?.trim().toUpperCase() ?? "";
+  return market === "" || symbol === "" ? "" : `${market}.${symbol}`;
+});
 
 const bidPrice = computed(() => security.value?.bidPrice ?? snapshot.value?.bid ?? null);
 const askPrice = computed(() => security.value?.askPrice ?? snapshot.value?.ask ?? null);
@@ -209,6 +220,9 @@ async function fetchDepth(): Promise<void> {
       signal: controller.signal,
     });
     if (requestSeq !== depthRequestSeq) return;
+    if (data.meta.instrumentId.trim().toUpperCase() !== currentInstrumentId.value) {
+      return;
+    }
     depthData.value = data;
   } catch (err: any) {
     if (controller.signal.aborted) {
@@ -231,15 +245,20 @@ function closeDepthStream(): void {
   depthStreamUrl = "";
 }
 
+function clearDepthData(): void {
+  depthRequestSeq += 1;
+  depthAbortController?.abort();
+  depthAbortController = null;
+  depthData.value = null;
+  depthError.value = "";
+  isLoadingDepth.value = false;
+}
+
 function connectDepthStream(): void {
   const url = buildDepthStreamUrl();
   if (!url) {
     closeDepthStream();
-    depthAbortController?.abort();
-    depthAbortController = null;
-    depthData.value = null;
-    depthError.value = "";
-    isLoadingDepth.value = false;
+    clearDepthData();
     return;
   }
 
@@ -249,8 +268,7 @@ function connectDepthStream(): void {
   }
 
   closeDepthStream();
-  depthAbortController?.abort();
-  depthAbortController = null;
+  clearDepthData();
   isLoadingDepth.value = true;
   depthError.value = "";
 
@@ -305,10 +323,12 @@ onUnmounted(() => {
   depthAbortController = null;
 });
 
-// Re-fetch when symbol changes
+// Re-fetch only when the instrument changes. Period changes update workspace
+// prefs too, but depth data is independent from the chart interval.
 watch(
-  () => [prefs.value?.market, prefs.value?.symbol],
+  () => currentInstrumentId.value,
   () => {
+    clearDepthData();
     connectDepthStream();
   },
 );

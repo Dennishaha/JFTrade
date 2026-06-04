@@ -14,8 +14,8 @@ import { useConsoleData } from "../../composables/useConsoleData";
 import { useWorkspaceLayout } from "../../composables/useWorkspaceLayout";
 
 const {
-  marketDataSnapshot,
-  marketSecurityDetails,
+  currentMarketDataSnapshot: marketDataSnapshot,
+  currentMarketSecurityDetails: marketSecurityDetails,
   marketInstrumentSearchOptions,
   selectedBrokerAccount,
   brokerRuntime,

@@ -1,4 +1,4 @@
-import { ref } from "vue";
+import { computed, ref } from "vue";
 
 import {
   fetchEnvelope,
@@ -21,6 +21,8 @@ export function createConsoleDataMarketDataQuerySlice() {
   const marketDataQuerySymbol = ref("00700");
   const marketDataQueryPeriod = ref("1m");
   const marketDataQueryLimit = ref(500);
+  const activeMarketDataInstrumentId = ref("HK.00700");
+  const isMarketDataSwitching = ref(false);
   const marketDataSnapshot = ref<MarketDataSnapshotQueryResult | null>(null);
   const marketSecurityDetails = ref<MarketSecurityDetailsQueryResult | null>(null);
   const marketDataCandles = ref<MarketDataCandlesQueryResult | null>(null);
@@ -33,6 +35,8 @@ export function createConsoleDataMarketDataQuerySlice() {
       marketDataQuerySymbol,
       marketDataQueryPeriod,
       marketDataQueryLimit,
+      activeMarketDataInstrumentId,
+      isMarketDataSwitching,
       marketDataSnapshot,
       marketSecurityDetails,
       marketDataCandles,
@@ -42,6 +46,35 @@ export function createConsoleDataMarketDataQuerySlice() {
     fetchEnvelope,
     normalizeInstrumentParts,
   });
+
+  const currentMarketDataSnapshot = computed(() =>
+    marketDataSnapshot.value?.request.instrumentId.trim().toUpperCase() ===
+    activeMarketDataInstrumentId.value
+      ? marketDataSnapshot.value
+      : null,
+  );
+  const currentMarketSecurityDetails = computed(() =>
+    marketSecurityDetails.value?.request.instrumentId.trim().toUpperCase() ===
+    activeMarketDataInstrumentId.value
+      ? marketSecurityDetails.value
+      : null,
+  );
+  const currentMarketDataCandles = computed(() => {
+    const result = marketDataCandles.value;
+    return result?.request.instrument.instrumentId.trim().toUpperCase() ===
+      activeMarketDataInstrumentId.value &&
+      result.request.period === marketDataQueryPeriod.value
+      ? result
+      : null;
+  });
+
+  function selectMarketDataInstrument(input: {
+    market: string;
+    symbol: string;
+    period?: string;
+  }): void {
+    marketDataQueryController.selectInstrument(input);
+  }
 
   function applyMarketDataTickEvent(event: unknown): void {
     marketDataQueryController.applyTickEvent(event);
@@ -56,6 +89,7 @@ export function createConsoleDataMarketDataQuerySlice() {
   return {
     applyMarketDataTickEvent,
     isLoadingMarketDataQuery,
+    isMarketDataSwitching,
     loadMarketDataQuery,
     marketDataCandles,
     marketDataQueryError,
@@ -65,5 +99,10 @@ export function createConsoleDataMarketDataQuerySlice() {
     marketDataQuerySymbol,
     marketSecurityDetails,
     marketDataSnapshot,
+    activeMarketDataInstrumentId,
+    currentMarketDataCandles,
+    currentMarketDataSnapshot,
+    currentMarketSecurityDetails,
+    selectMarketDataInstrument,
   };
 }

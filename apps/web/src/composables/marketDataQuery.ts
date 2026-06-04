@@ -33,6 +33,8 @@ interface MarketDataQueryStateRefs {
   marketDataQuerySymbol: Ref<string>;
   marketDataQueryPeriod: Ref<string>;
   marketDataQueryLimit: Ref<number>;
+  activeMarketDataInstrumentId: Ref<string>;
+  isMarketDataSwitching: Ref<boolean>;
   marketDataSnapshot: Ref<MarketDataSnapshotQueryResult | null>;
   marketSecurityDetails: Ref<MarketSecurityDetailsQueryResult | null>;
   marketDataCandles: Ref<MarketDataCandlesQueryResult | null>;
@@ -49,6 +51,11 @@ interface MarketDataQueryControllerOptions {
 export interface MarketDataQueryController {
   applyTickEvent(event: unknown): void;
   loadQuery(options?: LoadMarketDataQueryOptions): Promise<void>;
+  selectInstrument(input: {
+    market: string;
+    symbol: string;
+    period?: string;
+  }): void;
 }
 
 const DEFAULT_TICK_QUERY_LIMIT = 20_000;
@@ -63,6 +70,8 @@ export function createMarketDataQueryController(
     marketDataQueryLimit,
     marketDataQueryMarket,
     marketDataQueryPeriod,
+    activeMarketDataInstrumentId,
+    isMarketDataSwitching,
     marketSecurityDetails,
     marketDataQuerySymbol,
     marketDataSnapshot,
@@ -76,6 +85,8 @@ export function createMarketDataQueryController(
     requestId: number;
   } | null = null;
   let marketDataQueryRequestId = 0;
+  let marketDataBackgroundRefreshTimer: ReturnType<typeof setTimeout> | null =
+    null;
 
   function mergeMarketDataCandles(
     current: MarketDataCandlesQueryResult | null,
@@ -101,6 +112,71 @@ export function createMarketDataQueryController(
       marketSecurityDetails,
     });
 
+  function normalizeInstrumentId(market: string, symbol: string): string {
+    return `${market.trim().toUpperCase()}.${symbol.trim().toUpperCase()}`;
+  }
+
+  function clearCurrentMarketDataResults(): void {
+    if (marketDataBackgroundRefreshTimer != null) {
+      clearTimeout(marketDataBackgroundRefreshTimer);
+      marketDataBackgroundRefreshTimer = null;
+    }
+    marketDataSnapshot.value = null;
+    marketSecurityDetails.value = null;
+    marketDataCandles.value = null;
+    resetMarketDataRealtimeState();
+  }
+
+  function clearCurrentMarketDataCandles(): void {
+    marketDataCandles.value = null;
+    resetMarketDataRealtimeState();
+  }
+
+  function selectInstrument(input: {
+    market: string;
+    symbol: string;
+    period?: string;
+  }): void {
+    const parsedInstrument = options.normalizeInstrumentParts(
+      {
+        market: input.market,
+        symbol: input.symbol,
+      },
+      input.market,
+    );
+    if (parsedInstrument == null) {
+      return;
+    }
+
+    const nextPeriod =
+      input.period == null ? marketDataQueryPeriod.value : normalizeKlinePeriod(input.period);
+    const nextInstrumentId = normalizeInstrumentId(
+      parsedInstrument.market,
+      parsedInstrument.symbol,
+    );
+    const instrumentChanged =
+      activeMarketDataInstrumentId.value !== nextInstrumentId;
+    const periodChanged = marketDataQueryPeriod.value !== nextPeriod;
+
+    marketDataQueryMarket.value = parsedInstrument.market;
+    marketDataQuerySymbol.value = parsedInstrument.symbol;
+    marketDataQueryPeriod.value = nextPeriod;
+    activeMarketDataInstrumentId.value = nextInstrumentId;
+
+    if (instrumentChanged || periodChanged) {
+      marketDataQueryRequestId += 1;
+      activeMarketDataQuery = null;
+    }
+
+    if (instrumentChanged) {
+      isMarketDataSwitching.value = true;
+      clearCurrentMarketDataResults();
+      isMarketDataSwitching.value = false;
+    } else if (periodChanged) {
+      clearCurrentMarketDataCandles();
+    }
+  }
+
   function applyTickEvent(event: unknown): void {
     const currentInstrument = options.normalizeInstrumentParts(
       {
@@ -112,7 +188,7 @@ export function createMarketDataQueryController(
     const currentInstrumentId =
       currentInstrument == null
         ? ""
-        : `${currentInstrument.market}.${currentInstrument.symbol}`;
+        : normalizeInstrumentId(currentInstrument.market, currentInstrument.symbol);
 
     const result = marketDataRealtime.applyTickEvent({
       event,
@@ -128,6 +204,60 @@ export function createMarketDataQueryController(
     marketDataSnapshot.value = result.snapshot;
     marketDataCandles.value = result.candles;
     scheduleMarketSnapshotBackgroundRefresh();
+  }
+
+  function scheduleMarketDataBackgroundRefresh(input: {
+    market: string;
+    symbol: string;
+    instrumentId: string;
+    period: string;
+  }): void {
+    if (marketDataBackgroundRefreshTimer != null) {
+      return;
+    }
+
+    marketDataBackgroundRefreshTimer = setTimeout(() => {
+      marketDataBackgroundRefreshTimer = null;
+      void (async () => {
+        if (
+          activeMarketDataInstrumentId.value !== input.instrumentId ||
+          marketDataQueryPeriod.value !== input.period
+        ) {
+          return;
+        }
+
+        const encodedMarket = encodeURIComponent(input.market);
+        const encodedSymbol = encodeURIComponent(input.symbol);
+        const [snapshotResult, securityDetailsResult] = await Promise.allSettled([
+          options.fetchEnvelope<MarketDataSnapshotQueryResult>(
+            `/api/v1/market-data/snapshots/${encodedMarket}/${encodedSymbol}?refresh=true`,
+          ),
+          options.fetchEnvelope<MarketSecurityDetailsQueryResult>(
+            `/api/v1/market-data/securities/${encodedMarket}/${encodedSymbol}`,
+          ),
+        ]);
+
+        if (
+          activeMarketDataInstrumentId.value !== input.instrumentId ||
+          marketDataQueryPeriod.value !== input.period
+        ) {
+          return;
+        }
+
+        if (snapshotResult.status === "fulfilled") {
+          marketDataSnapshot.value = mergeRealtimeBarStateIntoSnapshot(
+            normalizeMarketDataSnapshotQueryResult(snapshotResult.value),
+          );
+        }
+        if (securityDetailsResult.status === "fulfilled") {
+          marketSecurityDetails.value = normalizeMarketSecurityDetailsQueryResult(
+            securityDetailsResult.value,
+          );
+        }
+
+        scheduleMarketSnapshotBackgroundRefresh();
+      })();
+    }, 1000);
   }
 
   async function loadQuery(
@@ -194,6 +324,18 @@ export function createMarketDataQueryController(
 
     const requestId = marketDataQueryRequestId + 1;
     marketDataQueryRequestId = requestId;
+    const requestInstrumentId = normalizeInstrumentId(market, symbol);
+    const requestInstrumentChanged =
+      activeMarketDataInstrumentId.value !== requestInstrumentId;
+    const requestPeriodChanged = marketDataQueryPeriod.value !== period;
+
+    function isCurrentRequest(): boolean {
+      return (
+        marketDataQueryRequestId === requestId &&
+        activeMarketDataInstrumentId.value === requestInstrumentId &&
+        marketDataQueryPeriod.value === period
+      );
+    }
 
     let promise: Promise<void>;
     promise = (async (): Promise<void> => {
@@ -201,6 +343,16 @@ export function createMarketDataQueryController(
       marketDataQuerySymbol.value = symbol;
       marketDataQueryPeriod.value = period;
       marketDataQueryLimit.value = requestedLimit;
+      activeMarketDataInstrumentId.value = requestInstrumentId;
+      if (queryOptions.appendOlder !== true) {
+        if (requestInstrumentChanged) {
+          isMarketDataSwitching.value = true;
+          clearCurrentMarketDataResults();
+          isMarketDataSwitching.value = false;
+        } else if (requestPeriodChanged || marketDataCandles.value != null) {
+          clearCurrentMarketDataCandles();
+        }
+      }
       isLoadingMarketDataQuery.value = true;
 
       try {
@@ -217,17 +369,76 @@ export function createMarketDataQueryController(
         if (queryOptions.toTime != null) {
           candleParams.set("toTime", queryOptions.toTime);
         }
-        const [snapshotResult, securityDetailsResult, candlesResult] = await Promise.allSettled([
+        const earlyErrors: string[] = [];
+        const recordEarlyError = (error: unknown): void => {
+          if (!isCurrentRequest()) {
+            return;
+          }
+          earlyErrors.push(
+            error instanceof Error
+              ? error.message
+              : "部分行情查询加载失败。",
+          );
+          marketDataQueryError.value = earlyErrors.join(" / ");
+        };
+        const snapshotQuery =
           options.fetchEnvelope<MarketDataSnapshotQueryResult>(
             `/api/v1/market-data/snapshots/${encodedMarket}/${encodedSymbol}?refresh=true`,
-          ),
+          );
+        const securityDetailsQuery =
           options.fetchEnvelope<MarketSecurityDetailsQueryResult>(
             `/api/v1/market-data/securities/${encodedMarket}/${encodedSymbol}`,
-          ),
+          );
+        const candlesQuery =
           options.fetchEnvelope<MarketDataCandlesQueryResult>(
             `/api/v1/market-data/candles/${encodedMarket}/${encodedSymbol}?${candleParams.toString()}`,
-          ),
+          );
+
+        void snapshotQuery
+          .then((result) => {
+            if (!isCurrentRequest()) {
+              return;
+            }
+            marketDataSnapshot.value = mergeRealtimeBarStateIntoSnapshot(
+              normalizeMarketDataSnapshotQueryResult(result),
+            );
+          })
+          .catch(recordEarlyError);
+        void securityDetailsQuery
+          .then((result) => {
+            if (!isCurrentRequest()) {
+              return;
+            }
+            marketSecurityDetails.value =
+              normalizeMarketSecurityDetailsQueryResult(result);
+          })
+          .catch(recordEarlyError);
+        void candlesQuery
+          .then((result) => {
+            if (!isCurrentRequest()) {
+              return;
+            }
+            if (queryOptions.appendOlder === true) {
+              return;
+            }
+            const normalized = normalizeMarketDataCandlesQueryResult(result);
+            marketDataCandles.value = normalized;
+            marketDataSnapshot.value = mergeRealtimeBarStateIntoSnapshot(
+              marketDataSnapshot.value,
+            );
+            resetMarketDataRealtimeState();
+          })
+          .catch(recordEarlyError);
+
+        const [snapshotResult, securityDetailsResult, candlesResult] = await Promise.allSettled([
+          snapshotQuery,
+          securityDetailsQuery,
+          candlesQuery,
         ]);
+
+        if (!isCurrentRequest()) {
+          return;
+        }
 
         marketDataSnapshot.value =
           snapshotResult.status === "fulfilled"
@@ -272,6 +483,9 @@ export function createMarketDataQueryController(
           marketDataQueryError.value = partialErrors.join(" / ");
         }
       } catch (error) {
+        if (!isCurrentRequest()) {
+          return;
+        }
         marketDataQueryError.value =
           error instanceof Error
             ? error.message
@@ -283,9 +497,16 @@ export function createMarketDataQueryController(
           resetMarketDataRealtimeState();
         }
       } finally {
-        scheduleMarketSnapshotBackgroundRefresh();
-        if (marketDataQueryRequestId === requestId) {
+        if (isCurrentRequest()) {
+          scheduleMarketSnapshotBackgroundRefresh();
+          scheduleMarketDataBackgroundRefresh({
+            market,
+            symbol,
+            instrumentId: requestInstrumentId,
+            period,
+          });
           isLoadingMarketDataQuery.value = false;
+          isMarketDataSwitching.value = false;
         }
         if (activeMarketDataQuery?.requestId === requestId) {
           activeMarketDataQuery = null;
@@ -300,5 +521,6 @@ export function createMarketDataQueryController(
   return {
     applyTickEvent,
     loadQuery,
+    selectInstrument,
   };
 }

@@ -104,6 +104,28 @@ describe("WatchlistPanel", () => {
     wrapper.unmount();
   });
 
+  it("does not render security details that belong to a previous instrument", () => {
+    const wrapper = mountWatchlistPanel({
+      market: "US",
+      symbol: "AAPL",
+      security: createSecurityDetails({
+        instrumentId: "HK.00700",
+        market: "HK",
+        symbol: "00700",
+        name: "Tencent Holdings",
+        securityType: "Eqty",
+        exchangeType: "HK_HKEX",
+      }),
+      snapshot: createSnapshotResult("HK", "00700", 321.4),
+    });
+
+    expect(wrapper.text()).toContain("US.AAPL");
+    expect(wrapper.text()).not.toContain("Tencent Holdings");
+    expect(wrapper.text()).not.toContain("321.400");
+
+    wrapper.unmount();
+  });
+
   it("renders warrant details", () => {
     const wrapper = mountWatchlistPanel({
       market: "HK",
@@ -307,6 +329,7 @@ function mountWatchlistPanel(options: {
       const workspaceLayout = provideWorkspaceLayoutStore();
       workspaceLayout.update({ market, symbol });
       const store = provideConsoleDataStore(workspaceLayout);
+      store.selectWorkspaceInstrument({ market, symbol, period: "1m" });
       store.marketDataSnapshot.value = snapshot;
       store.marketSecurityDetails.value = createSecurityResult(security);
       return () => h(WatchlistPanel);

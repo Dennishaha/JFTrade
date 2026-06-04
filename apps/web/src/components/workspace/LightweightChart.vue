@@ -14,8 +14,8 @@ import { useWorkspaceLayout } from "../../composables/useWorkspaceLayout";
 
 const { prefs, update } = useWorkspaceLayout();
 const {
-  marketDataCandles,
-  marketDataSnapshot,
+  currentMarketDataCandles: marketDataCandles,
+  currentMarketDataSnapshot: marketDataSnapshot,
   marketDataQueryMarket,
   marketDataQuerySymbol,
   marketDataQueryPeriod,
@@ -24,6 +24,7 @@ const {
   marketInstrumentSearchOptions,
   isLoadingMarketDataQuery,
   loadMarketDataQuery,
+  selectWorkspaceInstrument,
   acquireMarketDataSubscription,
   createStableWebConsumerId,
   heartbeatMarketDataConsumer,
@@ -92,9 +93,11 @@ async function reload(): Promise<void> {
   }
 
   reloadInFlight = (async () => {
-    marketDataQueryMarket.value = prefs.value.market;
-    marketDataQuerySymbol.value = prefs.value.symbol;
-    marketDataQueryPeriod.value = normalizeKlinePeriod(prefs.value.period);
+    selectWorkspaceInstrument({
+      market: prefs.value.market,
+      symbol: prefs.value.symbol,
+      period: prefs.value.period,
+    });
     await syncChartSubscription();
     await loadMarketDataQuery();
   })();

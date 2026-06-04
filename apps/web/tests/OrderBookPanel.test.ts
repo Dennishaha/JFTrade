@@ -8,7 +8,7 @@ import { MockEventSource } from "./helpers";
 
 const marketDataSnapshot = ref<any>(null);
 const marketSecurityDetails = ref<any>(null);
-const prefs = ref<{ market?: string; symbol?: string }>({});
+const prefs = ref<{ market?: string; symbol?: string; period?: string }>({});
 
 const fetchEnvelopeMock = vi.fn();
 const fetchEnvelopeWithInitMock = vi.fn();
@@ -21,8 +21,8 @@ vi.mock("../src/composables/apiClient", () => ({
 
 vi.mock("../src/composables/useConsoleData", () => ({
   useConsoleData: () => ({
-    marketDataSnapshot,
-    marketSecurityDetails,
+    currentMarketDataSnapshot: marketDataSnapshot,
+    currentMarketSecurityDetails: marketSecurityDetails,
   }),
 }));
 
@@ -53,7 +53,7 @@ describe("OrderBookPanel", () => {
         ],
       },
     });
-    prefs.value = { market: "US", symbol: "TME" };
+    prefs.value = { market: "US", symbol: "TME", period: "1m" };
     marketDataSnapshot.value = {
       snapshot: {
         price: 18.5,
@@ -104,6 +104,8 @@ describe("OrderBookPanel", () => {
 
     expect(wrapper.text()).toContain("18.52");
     expect(wrapper.text()).toContain("220");
+
+    wrapper.unmount();
   });
 
   it("reconnects the depth SSE stream when the page becomes visible again", async () => {
@@ -141,5 +143,111 @@ describe("OrderBookPanel", () => {
       configurable: true,
       value: originalVisibilityState,
     });
+  });
+
+  it("clears depth data on instrument switch and ignores stale stream payloads", async () => {
+    const wrapper = mount(OrderBookPanel);
+
+    await Promise.resolve();
+    await nextTick();
+
+    MockEventSource.instances[0]?.emitMessage({
+      request: {
+        market: "US",
+        symbol: "TME",
+        instrumentId: "US.TME",
+        num: 10,
+      },
+      depth: {
+        symbol: "US.TME",
+        bids: [{ price: 18.48, volume: 220, orderCount: 3 }],
+        asks: [{ price: 18.52, volume: 180, orderCount: 2 }],
+      },
+      meta: {
+        instrumentId: "US.TME",
+        source: "bbgo:futu",
+        resolvedAt: "2026-06-02T00:00:00Z",
+        fromCache: false,
+      },
+    });
+    await nextTick();
+
+    expect(wrapper.text()).toContain("18.52");
+
+    const oldStream = MockEventSource.instances[0];
+    prefs.value = { market: "US", symbol: "AAPL", period: "1m" };
+    marketDataSnapshot.value = null;
+    await nextTick();
+
+    expect(wrapper.text()).not.toContain("18.52");
+    expect(MockEventSource.instances.at(-1)?.url).toBe(
+      "/api/sse/market/depth/US/AAPL?num=10",
+    );
+
+    oldStream?.emitMessage({
+      request: {
+        market: "US",
+        symbol: "TME",
+        instrumentId: "US.TME",
+        num: 10,
+      },
+      depth: {
+        symbol: "US.TME",
+        bids: [{ price: 18.4, volume: 900, orderCount: 3 }],
+        asks: [{ price: 18.6, volume: 800, orderCount: 2 }],
+      },
+      meta: {
+        instrumentId: "US.TME",
+        source: "bbgo:futu",
+        resolvedAt: "2026-06-02T00:00:01Z",
+        fromCache: false,
+      },
+    });
+    await nextTick();
+
+    expect(wrapper.text()).not.toContain("18.60");
+    expect(wrapper.text()).not.toContain("900");
+
+    wrapper.unmount();
+  });
+
+  it("keeps the depth SSE stream when only the chart period changes", async () => {
+    const wrapper = mount(OrderBookPanel);
+
+    await Promise.resolve();
+    await nextTick();
+
+    MockEventSource.instances[0]?.emitMessage({
+      request: {
+        market: "US",
+        symbol: "TME",
+        instrumentId: "US.TME",
+        num: 10,
+      },
+      depth: {
+        symbol: "US.TME",
+        bids: [{ price: 18.48, volume: 220, orderCount: 3 }],
+        asks: [{ price: 18.52, volume: 180, orderCount: 2 }],
+      },
+      meta: {
+        instrumentId: "US.TME",
+        source: "bbgo:futu",
+        resolvedAt: "2026-06-02T00:00:00Z",
+        fromCache: false,
+      },
+    });
+    await nextTick();
+
+    expect(wrapper.text()).toContain("18.52");
+    expect(MockEventSource.instances).toHaveLength(1);
+
+    prefs.value = { market: "US", symbol: "TME", period: "5m" };
+    await nextTick();
+
+    expect(MockEventSource.instances).toHaveLength(1);
+    expect(MockEventSource.instances[0]?.url).toBe("/api/sse/market/depth/US/TME?num=10");
+    expect(wrapper.text()).toContain("18.52");
+
+    wrapper.unmount();
   });
 });

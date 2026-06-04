@@ -7,7 +7,7 @@ import AiAssistantPanel from "./AiAssistantPanel.vue";
 import NotificationCenter from "./NotificationCenter.vue";
 
 const { prefs, update } = useWorkspaceLayout();
-const { marketDataSnapshot, marketDataSubscriptions, systemStatus } =
+const { currentMarketDataSnapshot: marketDataSnapshot, marketDataSubscriptions, systemStatus } =
   useConsoleData();
 
 const symbolInfo = computed(

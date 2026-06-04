@@ -15,6 +15,7 @@ import { useWorkspaceLayout } from "../composables/useWorkspaceLayout";
 const {
   availableBrokerAccounts,
   marketInstrumentSearchOptions,
+  selectWorkspaceInstrument,
   selectBrokerAccount,
   selectedBrokerAccount,
   systemStatus, } = useConsoleData();
@@ -209,7 +210,7 @@ function submitSymbol(): void {
     selectedMarket.value,
   );
   if (parsed == null) return;
-  update({ market: parsed.market, symbol: parsed.code });
+  selectWorkspaceInstrument({ market: parsed.market, symbol: parsed.code });
   selectedMarket.value = parsed.market;
   codeInput.value = "";
 }
