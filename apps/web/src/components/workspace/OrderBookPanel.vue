@@ -11,13 +11,13 @@ import {
   type MarketDepthLiveStreamEvent,
 } from "../../composables/sharedLiveSocket";
 import { useConsoleData } from "../../composables/useConsoleData";
-import { useWorkspaceLayout } from "../../composables/useWorkspaceLayout";
+import { useWorkspaceTradingPrefs } from "../../composables/useWorkspaceLayout";
 
 const {
   currentMarketDataSnapshot: marketDataSnapshot,
   currentMarketSecurityDetails: marketSecurityDetails,
 } = useConsoleData();
-const { prefs } = useWorkspaceLayout();
+const { prefs } = useWorkspaceTradingPrefs();
 
 // --- Depth presets ---
 const DEPTH_PRESETS = [5, 10, 20, 50] as const;

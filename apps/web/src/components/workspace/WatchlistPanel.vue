@@ -11,7 +11,7 @@ import type { MarketSecurityDetails } from "../../composables/marketDataRealtime
 import { fetchEnvelope } from "../../composables/apiClient";
 import { resolveBrokerQuery } from "../../composables/consoleDataBrokerAccountSelection";
 import { useConsoleData } from "../../composables/useConsoleData";
-import { useWorkspaceLayout } from "../../composables/useWorkspaceLayout";
+import { useWorkspaceTradingPrefs } from "../../composables/useWorkspaceLayout";
 
 const {
   currentMarketDataSnapshot: marketDataSnapshot,
@@ -22,7 +22,7 @@ const {
   systemStatus,
   supportsBrokerReadFeature,
 } = useConsoleData();
-const { prefs } = useWorkspaceLayout();
+const { prefs } = useWorkspaceTradingPrefs();
 
 const snapshot = computed(() => marketDataSnapshot.value?.snapshot ?? null);
 const security = computed(() => marketSecurityDetails.value?.security ?? null);

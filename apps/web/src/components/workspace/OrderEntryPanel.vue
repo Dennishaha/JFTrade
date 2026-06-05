@@ -10,7 +10,7 @@ import {
 import { resolveInstrumentRef } from "../../composables/instrumentRef";
 import { useConsoleData } from "../../composables/useConsoleData";
 import { useNotifications } from "../../composables/useNotifications";
-import { useWorkspaceLayout } from "../../composables/useWorkspaceLayout";
+import { useWorkspaceTradingPrefs } from "../../composables/useWorkspaceLayout";
 
 const {
   brokerMaxTradeQuantity,
@@ -23,7 +23,7 @@ const {
   supportsBrokerReadFeature,
   systemStatus,
 } = useConsoleData();
-const { prefs } = useWorkspaceLayout();
+const { prefs } = useWorkspaceTradingPrefs();
 const notifications = useNotifications();
 
 type Side = "BUY" | "SELL";

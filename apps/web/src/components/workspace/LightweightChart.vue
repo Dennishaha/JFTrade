@@ -11,9 +11,9 @@ import {
 } from "../../charting/kline";
 import { getSharedLiveSocketHub } from "../../composables/sharedLiveSocket";
 import { useConsoleData } from "../../composables/useConsoleData";
-import { useWorkspaceLayout } from "../../composables/useWorkspaceLayout";
+import { useWorkspaceTradingPrefs } from "../../composables/useWorkspaceLayout";
 
-const { prefs, update } = useWorkspaceLayout();
+const { prefs, update } = useWorkspaceTradingPrefs();
 const {
   currentMarketDataCandles: marketDataCandles,
   currentMarketDataSnapshot: marketDataSnapshot,
@@ -47,6 +47,20 @@ let reloadInFlight: { key: string; promise: Promise<void> } | null = null;
 let chartReloadSeq = 0;
 
 const periods = KLINE_PERIODS;
+const chartTarget = computed(() => {
+  const period = normalizeKlinePeriod(prefs.value.period);
+  return {
+    market: prefs.value.market.trim().toUpperCase(),
+    symbol: prefs.value.symbol.trim().toUpperCase(),
+    period,
+    instrumentId:
+      prefs.value.market.trim() === "" || prefs.value.symbol.trim() === ""
+        ? ""
+        : `${prefs.value.market.trim().toUpperCase()}.${prefs.value.symbol.trim().toUpperCase()}`,
+    channel: (period === "tick" ? "TICK" : "KLINE") as "TICK" | "KLINE",
+    interval: period,
+  };
+});
 const chartCandles = computed<KlineCandle[]>(() =>
   overlayRealtimeTickCandle(
     marketDataCandles.value?.candles ?? [],
@@ -55,7 +69,7 @@ const chartCandles = computed<KlineCandle[]>(() =>
   ),
 );
 const chartInstrumentTitle = computed(() => {
-  const instrumentId = `${prefs.value.market}.${prefs.value.symbol}`;
+  const instrumentId = chartTarget.value.instrumentId;
   const option = marketInstrumentSearchOptions.value.find(
     (candidate) => candidate.instrumentId === instrumentId,
   );
@@ -93,15 +107,7 @@ const chartSessionTitle = computed(() => {
 });
 
 function resolveChartSubscriptionTarget() {
-  const interval = normalizeKlinePeriod(prefs.value.period);
-  const channel: "TICK" | "KLINE" = interval === "tick" ? "TICK" : "KLINE";
-  return {
-    market: prefs.value.market.trim().toUpperCase(),
-    symbol: prefs.value.symbol.trim().toUpperCase(),
-    period: interval,
-    channel,
-    interval,
-  };
+  return chartTarget.value;
 }
 
 function chartTargetKey(
@@ -149,6 +155,11 @@ function handleChartVisibilityChange(): void {
   if (typeof document !== "undefined" && document.visibilityState === "hidden") {
     return;
   }
+  const target = chartTarget.value;
+  const hasLoadedCurrentTarget =
+    target.instrumentId !== "" &&
+    activeMarketDataInstrumentId.value === target.instrumentId &&
+    marketDataCandles.value != null;
 
   // Wait for the WebSocket reconnect (triggered by AppShell) before deciding
   // the recovery path, so we don't trigger a full reload while reconnecting.
@@ -159,20 +170,29 @@ function handleChartVisibilityChange(): void {
       connected &&
       isLiveStreamConnected.value &&
       !isMarketDataStale(30_000) &&
-      activeMarketDataInstrumentId.value === `${prefs.value.market.trim().toUpperCase()}.${prefs.value.symbol.trim().toUpperCase()}` &&
-      marketDataCandles.value != null
+      hasLoadedCurrentTarget
     ) {
       void heartbeatMarketDataConsumer(chartConsumerId);
       return;
     }
 
     // SSE connected but data stale → reload with preserveExisting to keep accumulated state
-    if (connected && isLiveStreamConnected.value && !isMarketDataStale(120_000)) {
+    if (
+      connected &&
+      isLiveStreamConnected.value &&
+      hasLoadedCurrentTarget &&
+      !isMarketDataStale(120_000)
+    ) {
       void reload({ preserveExisting: true });
       return;
     }
 
     // SSE disconnected or data very stale → full reload
+    if (hasLoadedCurrentTarget) {
+      void heartbeatMarketDataConsumer(chartConsumerId);
+      return;
+    }
+
     void reload();
   });
 }
@@ -243,7 +263,6 @@ async function syncChartSubscription(
 
 function setPeriod(p: string): void {
   update({ period: normalizeKlinePeriod(p) });
-  void reload();
 }
 
 onMounted(() => {
@@ -285,7 +304,7 @@ onBeforeUnmount(() => {
 });
 
 watch(
-  () => [prefs.value.market, prefs.value.symbol] as const,
+  () => chartTargetKey(chartTarget.value),
   () => {
     void reload();
   },

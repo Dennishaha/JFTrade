@@ -9,11 +9,11 @@ import SplitPane from "../components/shared/SplitPane.vue";
 import SplitPaneItem from "../components/shared/SplitPaneItem.vue";
 import WatchlistPanel from "../components/workspace/WatchlistPanel.vue";
 import {
-  useWorkspaceLayout,
+  useWorkspaceViewState,
   type WorkspacePaneSizeKey,
 } from "../composables/useWorkspaceLayout";
 
-const { prefs, update } = useWorkspaceLayout();
+const { prefs, update } = useWorkspaceViewState();
 
 function handlePaneResized(
   key: WorkspacePaneSizeKey,

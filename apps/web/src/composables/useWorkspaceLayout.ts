@@ -2,7 +2,9 @@ import { type InjectionKey, type Ref, inject, provide, ref, watch } from "vue";
 
 import { normalizeKlinePeriod } from "../charting/kline";
 
-const STORAGE_KEY = "jftrade.workspace.layout.v1";
+const LEGACY_STORAGE_KEY = "jftrade.workspace.layout.v1";
+const VIEW_STORAGE_KEY = "jftrade.workspace.view.v1";
+const TRADING_STORAGE_KEY = "jftrade.workspace.trading.v1";
 
 export type WorkspacePaneSizeKey =
   | "main"
@@ -12,22 +14,30 @@ export type WorkspacePaneSizeKey =
 
 export type WorkspacePaneSizes = Record<WorkspacePaneSizeKey, [number, number]>;
 
-export interface WorkspacePreferences {
+export type WorkspaceRightDockTab = "notifications" | "ai" | "context";
+
+export interface WorkspaceViewState {
   rightDockOpen: boolean;
-  rightDockTab: "notifications" | "ai" | "context";
+  rightDockTab: WorkspaceRightDockTab;
+  paneSizes: WorkspacePaneSizes;
+}
+
+export type WorkspaceViewStatePatch = Partial<
+  Omit<WorkspaceViewState, "paneSizes">
+> & {
+  paneSizes?: Partial<WorkspacePaneSizes>;
+};
+
+export interface WorkspaceTradingPreferences {
   symbol: string;
   market: string;
   period: string;
   selectedBrokerAccountKey: string | null;
   favoriteBrokerAccountKeys: string[];
-  paneSizes: WorkspacePaneSizes;
 }
 
-export type WorkspacePreferencesPatch = Partial<
-  Omit<WorkspacePreferences, "paneSizes">
-> & {
-  paneSizes?: Partial<WorkspacePaneSizes>;
-};
+export type WorkspaceTradingPreferencesPatch =
+  Partial<WorkspaceTradingPreferences>;
 
 const defaultPaneSizes: WorkspacePaneSizes = {
   main: [72, 28],
@@ -36,15 +46,18 @@ const defaultPaneSizes: WorkspacePaneSizes = {
   rightColumn: [60, 40],
 };
 
-const defaults: WorkspacePreferences = {
+const defaultViewState: WorkspaceViewState = {
   rightDockOpen: false,
   rightDockTab: "notifications",
+  paneSizes: { ...defaultPaneSizes },
+};
+
+const defaultTradingPreferences: WorkspaceTradingPreferences = {
   symbol: "00700",
   market: "HK",
   period: "1m",
   selectedBrokerAccountKey: null,
   favoriteBrokerAccountKeys: [],
-  paneSizes: { ...defaultPaneSizes },
 };
 
 function normalizeFavoriteBrokerAccountKeys(
@@ -77,11 +90,19 @@ function clonePaneSizes(paneSizes: WorkspacePaneSizes): WorkspacePaneSizes {
   };
 }
 
-function createDefaults(): WorkspacePreferences {
+function createDefaultViewState(): WorkspaceViewState {
   return {
-    ...defaults,
-    favoriteBrokerAccountKeys: [...defaults.favoriteBrokerAccountKeys],
+    ...defaultViewState,
     paneSizes: clonePaneSizes(defaultPaneSizes),
+  };
+}
+
+function createDefaultTradingPreferences(): WorkspaceTradingPreferences {
+  return {
+    ...defaultTradingPreferences,
+    favoriteBrokerAccountKeys: [
+      ...defaultTradingPreferences.favoriteBrokerAccountKeys,
+    ],
   };
 }
 
@@ -128,25 +149,43 @@ function normalizePaneSizes(input: unknown): WorkspacePaneSizes {
   };
 }
 
-function normalizePreferences(
-  input: Partial<WorkspacePreferences>,
-): WorkspacePreferences {
-  const merged = { ...createDefaults(), ...input };
+function normalizeRightDockTab(input: unknown): WorkspaceRightDockTab {
+  return input === "ai" || input === "context" ? input : "notifications";
+}
+
+function normalizeViewState(
+  input: Partial<WorkspaceViewState>,
+): WorkspaceViewState {
+  const merged = { ...createDefaultViewState(), ...input };
   return {
-    ...merged,
-    period: normalizeKlinePeriod(merged.period),
-    market: merged.market.trim().toUpperCase(),
-    symbol: merged.symbol.trim().toUpperCase(),
-    favoriteBrokerAccountKeys: normalizeFavoriteBrokerAccountKeys(
-      merged.favoriteBrokerAccountKeys,
-    ),
+    rightDockOpen: merged.rightDockOpen === true,
+    rightDockTab: normalizeRightDockTab(merged.rightDockTab),
     paneSizes: normalizePaneSizes(input.paneSizes),
   };
 }
 
-function readStorage(storage: Storage | null | undefined): string | null {
+function normalizeTradingPreferences(
+  input: Partial<WorkspaceTradingPreferences>,
+): WorkspaceTradingPreferences {
+  const merged = { ...createDefaultTradingPreferences(), ...input };
+  return {
+    market: merged.market.trim().toUpperCase(),
+    symbol: merged.symbol.trim().toUpperCase(),
+    period: normalizeKlinePeriod(merged.period),
+    selectedBrokerAccountKey:
+      typeof merged.selectedBrokerAccountKey === "string" &&
+      merged.selectedBrokerAccountKey.trim() !== ""
+        ? merged.selectedBrokerAccountKey.trim()
+        : null,
+    favoriteBrokerAccountKeys: normalizeFavoriteBrokerAccountKeys(
+      merged.favoriteBrokerAccountKeys,
+    ),
+  };
+}
+
+function readStorage(storage: Storage | null | undefined, key: string): string | null {
   try {
-    return storage?.getItem(STORAGE_KEY) ?? null;
+    return storage?.getItem(key) ?? null;
   } catch {
     return null;
   }
@@ -154,53 +193,124 @@ function readStorage(storage: Storage | null | undefined): string | null {
 
 function writeStorage(
   storage: Storage | null | undefined,
-  prefs: WorkspacePreferences,
+  key: string,
+  value: WorkspaceViewState | WorkspaceTradingPreferences,
 ): void {
   try {
-    storage?.setItem(STORAGE_KEY, JSON.stringify(prefs));
+    storage?.setItem(key, JSON.stringify(value));
   } catch {
     // Ignore unavailable or full browser storage; the in-memory ref remains valid.
   }
 }
 
-export interface WorkspaceLayoutStore {
-  prefs: Ref<WorkspacePreferences>;
-  update: (patch: WorkspacePreferencesPatch) => void;
-  reset: () => void;
-}
+function readLegacyState():
+  | {
+      view: WorkspaceViewState;
+      trading: WorkspaceTradingPreferences;
+    }
+  | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
 
-const layoutKey: InjectionKey<WorkspaceLayoutStore> = Symbol("jftrade-layout");
-
-function readInitial(): WorkspacePreferences {
-  if (typeof window === "undefined") return createDefaults();
   try {
     const raw =
-      readStorage(window.sessionStorage) ?? readStorage(window.localStorage);
-    if (!raw) return createDefaults();
-    const parsed = JSON.parse(raw) as Partial<WorkspacePreferences>;
-    return normalizePreferences(parsed);
+      readStorage(window.sessionStorage, LEGACY_STORAGE_KEY) ??
+      readStorage(window.localStorage, LEGACY_STORAGE_KEY);
+    if (!raw) {
+      return null;
+    }
+
+    const parsed = JSON.parse(raw) as Partial<
+      WorkspaceViewState & WorkspaceTradingPreferences
+    >;
+    return {
+      view: normalizeViewState(parsed),
+      trading: normalizeTradingPreferences(parsed),
+    };
   } catch {
-    return createDefaults();
+    return null;
   }
 }
 
-export function provideWorkspaceLayoutStore(): WorkspaceLayoutStore {
-  const prefs = ref<WorkspacePreferences>(readInitial());
+function readInitialViewState(): WorkspaceViewState {
+  if (typeof window === "undefined") {
+    return createDefaultViewState();
+  }
+
+  try {
+    const raw =
+      readStorage(window.sessionStorage, VIEW_STORAGE_KEY) ??
+      readStorage(window.localStorage, VIEW_STORAGE_KEY);
+    if (raw) {
+      return normalizeViewState(JSON.parse(raw) as Partial<WorkspaceViewState>);
+    }
+  } catch {
+    // Fall back to legacy/default state below.
+  }
+
+  return readLegacyState()?.view ?? createDefaultViewState();
+}
+
+function readInitialTradingPreferences(): WorkspaceTradingPreferences {
+  if (typeof window === "undefined") {
+    return createDefaultTradingPreferences();
+  }
+
+  try {
+    const raw =
+      readStorage(window.sessionStorage, TRADING_STORAGE_KEY) ??
+      readStorage(window.localStorage, TRADING_STORAGE_KEY);
+    if (raw) {
+      return normalizeTradingPreferences(
+        JSON.parse(raw) as Partial<WorkspaceTradingPreferences>,
+      );
+    }
+  } catch {
+    // Fall back to legacy/default state below.
+  }
+
+  return readLegacyState()?.trading ?? createDefaultTradingPreferences();
+}
+
+export interface WorkspaceViewStateStore {
+  prefs: Ref<WorkspaceViewState>;
+  update: (patch: WorkspaceViewStatePatch) => void;
+  reset: () => void;
+}
+
+export interface WorkspaceTradingPreferencesStore {
+  prefs: Ref<WorkspaceTradingPreferences>;
+  update: (patch: WorkspaceTradingPreferencesPatch) => void;
+  reset: () => void;
+}
+
+const viewStateKey: InjectionKey<WorkspaceViewStateStore> = Symbol(
+  "jftrade-workspace-view-state",
+);
+const tradingPrefsKey: InjectionKey<WorkspaceTradingPreferencesStore> = Symbol(
+  "jftrade-workspace-trading-preferences",
+);
+
+export function provideWorkspaceViewStateStore(): WorkspaceViewStateStore {
+  const prefs = ref<WorkspaceViewState>(readInitialViewState());
 
   watch(
     prefs,
     (next) => {
-      if (typeof window === "undefined") return;
-      writeStorage(window.sessionStorage, next);
-      writeStorage(window.localStorage, next);
+      if (typeof window === "undefined") {
+        return;
+      }
+      writeStorage(window.sessionStorage, VIEW_STORAGE_KEY, next);
+      writeStorage(window.localStorage, VIEW_STORAGE_KEY, next);
     },
-    { deep: true },
+    { deep: true, immediate: true },
   );
 
-  const store: WorkspaceLayoutStore = {
+  const store: WorkspaceViewStateStore = {
     prefs,
     update: (patch) => {
-      prefs.value = normalizePreferences({
+      prefs.value = normalizeViewState({
         ...prefs.value,
         ...patch,
         paneSizes:
@@ -213,16 +323,59 @@ export function provideWorkspaceLayoutStore(): WorkspaceLayoutStore {
       });
     },
     reset: () => {
-      prefs.value = createDefaults();
+      prefs.value = createDefaultViewState();
     },
   };
 
-  provide(layoutKey, store);
+  provide(viewStateKey, store);
   return store;
 }
 
-export function useWorkspaceLayout(): WorkspaceLayoutStore {
-  const store = inject(layoutKey);
-  if (!store) throw new Error("Workspace layout store not provided.");
+export function provideWorkspaceTradingPreferencesStore():
+  WorkspaceTradingPreferencesStore {
+  const prefs = ref<WorkspaceTradingPreferences>(readInitialTradingPreferences());
+
+  watch(
+    prefs,
+    (next) => {
+      if (typeof window === "undefined") {
+        return;
+      }
+      writeStorage(window.sessionStorage, TRADING_STORAGE_KEY, next);
+      writeStorage(window.localStorage, TRADING_STORAGE_KEY, next);
+    },
+    { deep: true, immediate: true },
+  );
+
+  const store: WorkspaceTradingPreferencesStore = {
+    prefs,
+    update: (patch) => {
+      prefs.value = normalizeTradingPreferences({
+        ...prefs.value,
+        ...patch,
+      });
+    },
+    reset: () => {
+      prefs.value = createDefaultTradingPreferences();
+    },
+  };
+
+  provide(tradingPrefsKey, store);
+  return store;
+}
+
+export function useWorkspaceViewState(): WorkspaceViewStateStore {
+  const store = inject(viewStateKey);
+  if (!store) {
+    throw new Error("Workspace view state store not provided.");
+  }
+  return store;
+}
+
+export function useWorkspaceTradingPrefs(): WorkspaceTradingPreferencesStore {
+  const store = inject(tradingPrefsKey);
+  if (!store) {
+    throw new Error("Workspace trading preferences store not provided.");
+  }
   return store;
 }

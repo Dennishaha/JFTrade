@@ -33,7 +33,7 @@ import {
   resolveConsoleDataBrokerLiveSelection,
   resolveConsoleDataExecutionSelection,
 } from "./consoleDataSystemStateDecisions";
-import type { WorkspacePreferences } from "./useWorkspaceLayout";
+import type { WorkspaceTradingPreferences } from "./useWorkspaceLayout";
 
 export interface MarketInstrumentReference {
   market: string;
@@ -64,8 +64,8 @@ export interface MarketInstrumentReferenceResponse {
 }
 
 interface CreateConsoleDataSystemStateControllerOptions {
-  prefs: Ref<WorkspacePreferences>;
-  update: (patch: Partial<WorkspacePreferences>) => void;
+  prefs: Ref<WorkspaceTradingPreferences>;
+  update: (patch: Partial<WorkspaceTradingPreferences>) => void;
   systemStatus: Ref<SystemStatusResponse>;
   storageOverview: Ref<StorageOverviewResponse>;
   brokerSettings: Ref<BrokerSettingsResponse>;

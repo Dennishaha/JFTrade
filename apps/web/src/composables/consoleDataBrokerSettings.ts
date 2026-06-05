@@ -17,13 +17,13 @@ import {
   resolveBrokerQuery as resolveBrokerQueryFromSelection,
   resolveSelectedBrokerAccountOption as resolveSelectedBrokerAccountOptionFromSelection,
 } from "./consoleDataBrokerAccountSelection";
-import type { WorkspacePreferences } from "./useWorkspaceLayout";
+import type { WorkspaceTradingPreferences } from "./useWorkspaceLayout";
 
 export type { BrokerAccountSelectionOption } from "./consoleDataBrokerAccountSelection";
 
 interface CreateConsoleDataBrokerSettingsControllerOptions {
-  prefs: Ref<WorkspacePreferences>;
-  update: (patch: Partial<WorkspacePreferences>) => void;
+  prefs: Ref<WorkspaceTradingPreferences>;
+  update: (patch: Partial<WorkspaceTradingPreferences>) => void;
   brokerSettings: Ref<BrokerSettingsResponse>;
   brokerRuntime: Ref<BrokerRuntimeResponse>;
   systemStatus: Ref<SystemStatusResponse>;

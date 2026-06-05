@@ -102,8 +102,8 @@ import {
 import { getSharedLiveSocketHub } from "./sharedLiveSocket";
 import { normalizeKlinePeriod } from "../charting/kline";
 import {
-  useWorkspaceLayout,
-  type WorkspaceLayoutStore,
+  useWorkspaceTradingPrefs,
+  type WorkspaceTradingPreferencesStore,
 } from "./useWorkspaceLayout";
 
 export type {
@@ -120,10 +120,12 @@ interface BrokerReadFeatureQueryRequirements {
   requiresOrderIdEx: boolean;
 }
 
-function createConsoleDataStore(workspaceLayout: WorkspaceLayoutStore) {
+function createConsoleDataStore(
+  workspaceTradingPrefs: WorkspaceTradingPreferencesStore,
+) {
   const liveHub = getSharedLiveSocketHub();
   const activeInstrumentOwnerId = liveHub.createOwnerId("active-market-instrument");
-  const { prefs, update } = workspaceLayout;
+  const { prefs, update } = workspaceTradingPrefs;
   const systemStatus = ref<SystemStatusResponse>(emptySystemStatus);
   const storageOverview = ref<StorageOverviewResponse>(emptyStorageOverview);
   const brokerSettings = ref<BrokerSettingsResponse>(emptyBrokerSettings);
@@ -620,20 +622,23 @@ function createConsoleDataStore(workspaceLayout: WorkspaceLayoutStore) {
 type ConsoleDataStore = ReturnType<typeof createConsoleDataStore>;
 
 const consoleDataKey: InjectionKey<ConsoleDataStore> = Symbol("console-data");
-let providedWorkspaceLayout: WorkspaceLayoutStore | null = null;
+let providedWorkspaceTradingPrefs: WorkspaceTradingPreferencesStore | null = null;
 
 export const useConsoleDataStore = defineStore("console-data", () => {
-  const workspaceLayout = providedWorkspaceLayout ?? useWorkspaceLayout();
-  const legacy = markRaw(createConsoleDataStore(workspaceLayout)) as ConsoleDataStore;
+  const workspaceTradingPrefs =
+    providedWorkspaceTradingPrefs ?? useWorkspaceTradingPrefs();
+  const legacy = markRaw(
+    createConsoleDataStore(workspaceTradingPrefs),
+  ) as ConsoleDataStore;
   return {
     legacy,
   };
 });
 
 export function provideConsoleDataStore(
-  workspaceLayout: WorkspaceLayoutStore,
+  workspaceTradingPrefs: WorkspaceTradingPreferencesStore,
 ): ConsoleDataStore {
-  providedWorkspaceLayout = workspaceLayout;
+  providedWorkspaceTradingPrefs = workspaceTradingPrefs;
   const store = useConsoleDataStore().legacy as unknown as ConsoleDataStore;
   provide(consoleDataKey, store);
   return store;

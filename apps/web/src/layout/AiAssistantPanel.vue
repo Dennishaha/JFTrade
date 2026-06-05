@@ -7,7 +7,7 @@ import {
   formatTradingEnvironment,
 } from "../composables/consoleDataFormatting";
 import { useConsoleData } from "../composables/useConsoleData";
-import { useWorkspaceLayout } from "../composables/useWorkspaceLayout";
+import { useWorkspaceTradingPrefs } from "../composables/useWorkspaceLayout";
 
 interface Message {
   id: string;
@@ -38,7 +38,7 @@ const {
   storageOverview,
   marketDataSubscriptions,
 } = useConsoleData();
-const { prefs } = useWorkspaceLayout();
+const { prefs } = useWorkspaceTradingPrefs();
 
 const suggestions = computed(() => [
   "当前交易环境",

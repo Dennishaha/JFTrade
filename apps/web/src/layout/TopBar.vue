@@ -10,7 +10,10 @@ import { useCommandPalette } from "../composables/useCommandPalette";
 import { useConsoleData } from "../composables/useConsoleData";
 import { useNotifications } from "../composables/useNotifications";
 import { useTheme } from "../composables/useTheme";
-import { useWorkspaceLayout } from "../composables/useWorkspaceLayout";
+import {
+  useWorkspaceTradingPrefs,
+  useWorkspaceViewState,
+} from "../composables/useWorkspaceLayout";
 
 const {
   availableBrokerAccounts,
@@ -21,7 +24,8 @@ const {
   systemStatus, } = useConsoleData();
 const { theme, toggle: toggleTheme } = useTheme();
 const { unreadCount } = useNotifications();
-const { prefs, update } = useWorkspaceLayout();
+const { prefs, update } = useWorkspaceTradingPrefs();
+const { update: updateViewState } = useWorkspaceViewState();
 const palette = useCommandPalette();
 
 const TOPBAR_MARKET_OPTIONS = ["HK", "US", "SH", "SZ", "CN", "SG", "JP", "AU", "MY", "CA", "CRYPTO"].map(
@@ -198,7 +202,7 @@ watch(
 );
 
 function openRightDock(tab: "notifications" | "ai" | "context"): void {
-  update({ rightDockOpen: true, rightDockTab: tab });
+  updateViewState({ rightDockOpen: true, rightDockTab: tab });
 }
 
 function submitSymbol(): void {

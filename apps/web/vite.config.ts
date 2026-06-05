@@ -1,6 +1,6 @@
 import tailwindcss from "@tailwindcss/vite";
 import vue from "@vitejs/plugin-vue";
-import { defineConfig } from "vite";
+import { defineConfig, type ProxyOptions } from "vite";
 import vueDevTools from "vite-plugin-vue-devtools";
 
 type RuntimeProcess = {
@@ -35,13 +35,21 @@ if (typeof launchEditor === "string") {
 const developmentApiTarget = "http://127.0.0.1:3000";
 const apiProxyTargets = ["/api", "/openapi.json", "/swagger"];
 
-function createProxyEntry(target: string) {
+type ProxyServerInstance = Parameters<
+  NonNullable<ProxyOptions["configure"]>
+>[0];
+type ProxyEventEmitter = {
+  on: (event: string, handler: (...args: unknown[]) => void) => void;
+};
+
+function createProxyEntry(target: string): ProxyOptions {
   return {
     changeOrigin: true,
     target,
     ws: true,
-    configure: (proxy: { on: (event: string, handler: (...args: unknown[]) => void) => void }) => {
-      proxy.on("error", () => {});
+    configure: (proxy: ProxyServerInstance) => {
+      const eventProxy = proxy as ProxyServerInstance & Partial<ProxyEventEmitter>;
+      eventProxy.on?.("error", () => {});
     },
   };
 }

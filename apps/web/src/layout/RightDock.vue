@@ -2,16 +2,20 @@
 import { computed } from "vue";
 
 import { useConsoleData } from "../composables/useConsoleData";
-import { useWorkspaceLayout } from "../composables/useWorkspaceLayout";
+import {
+  useWorkspaceTradingPrefs,
+  useWorkspaceViewState,
+} from "../composables/useWorkspaceLayout";
 import AiAssistantPanel from "./AiAssistantPanel.vue";
 import NotificationCenter from "./NotificationCenter.vue";
 
-const { prefs, update } = useWorkspaceLayout();
+const { prefs: tradingPrefs } = useWorkspaceTradingPrefs();
+const { prefs, update } = useWorkspaceViewState();
 const { currentMarketDataSnapshot: marketDataSnapshot, marketDataSubscriptions, systemStatus } =
   useConsoleData();
 
 const symbolInfo = computed(
-  () => `${prefs.value.market}:${prefs.value.symbol}`,
+  () => `${tradingPrefs.value.market}:${tradingPrefs.value.symbol}`,
 );
 const snap = computed(() => marketDataSnapshot.value?.snapshot ?? null);
 const sessionLabels: Record<string, string> = {

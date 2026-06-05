@@ -15,7 +15,10 @@ import { provideNotificationsStore } from "../composables/useNotifications";
 import { provideLiveStreamStore } from "../composables/useSharedLiveStream";
 import { provideThemeStore } from "../composables/useTheme";
 import { provideUIColorPreferencesStore } from "../composables/useUIColorPreferences";
-import { provideWorkspaceLayoutStore } from "../composables/useWorkspaceLayout";
+import {
+  provideWorkspaceTradingPreferencesStore,
+  provideWorkspaceViewStateStore,
+} from "../composables/useWorkspaceLayout";
 import CommandPalette from "./CommandPalette.vue";
 import IconRail from "./IconRail.vue";
 import RightDock from "./RightDock.vue";
@@ -25,9 +28,10 @@ import TopBar from "./TopBar.vue";
 const themeStore = provideThemeStore();
 provideUIColorPreferencesStore(themeStore.theme);
 const notifications = provideNotificationsStore();
-const workspaceLayout = provideWorkspaceLayoutStore();
+provideWorkspaceViewStateStore();
+const workspaceTradingPrefs = provideWorkspaceTradingPreferencesStore();
 const palette = provideCommandPaletteStore();
-const console_ = provideConsoleDataStore(workspaceLayout);
+const console_ = provideConsoleDataStore(workspaceTradingPrefs);
 const live = provideLiveStreamStore();
 const shouldShowOobe = computed(
   () => console_.onboardingState.value.shouldShowOobe,
@@ -41,7 +45,7 @@ const { docsHomeUrl, openDocs } = useDocsLink();
 const documentTitleSuffix = "JFTrade Console";
 const activeWorkspaceInstrumentId = computed(
   () =>
-    `${workspaceLayout.prefs.value.market}.${workspaceLayout.prefs.value.symbol}`
+    `${workspaceTradingPrefs.prefs.value.market}.${workspaceTradingPrefs.prefs.value.symbol}`
       .trim()
       .toUpperCase(),
 );
