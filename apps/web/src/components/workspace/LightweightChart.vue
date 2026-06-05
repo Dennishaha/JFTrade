@@ -128,7 +128,11 @@ async function reload(options: { preserveExisting?: boolean } = {}): Promise<voi
     if (requestSeq !== chartReloadSeq) {
       return;
     }
-    await loadMarketDataQuery({ preserveExisting: options.preserveExisting });
+    await loadMarketDataQuery(
+      options.preserveExisting == null
+        ? {}
+        : { preserveExisting: options.preserveExisting },
+    );
   })();
   reloadInFlight = { key: reloadKey, promise };
 
@@ -310,7 +314,7 @@ watch(
       <span v-if="isLoadingMarketDataQuery" style="color: var(--tv-text-dim); font-size: 11px">加载中...</span>
       <span v-else-if="marketDataQueryError" style="color: var(--tv-accent); font-size: 11px" :title="marketDataQueryError">{{ marketDataQueryError }}</span>
       <span v-else style="color: var(--tv-text-dim); font-size: 11px">{{ marketDataCandles?.totalReturned ?? 0 }} 根 · {{ formatKlinePeriodLabel(prefs.period) }} · 上限 {{ marketDataQueryLimit }}</span>
-      <button class="tv-icon-btn" title="刷新" @click="reload">↻</button>
+      <button class="tv-icon-btn" title="刷新" @click="() => reload()">↻</button>
     </div>
     <div class="tv-panel-body is-flush">
       <div class="tv-chart-host">
@@ -326,3 +330,24 @@ watch(
     </div>
   </section>
 </template>
+
+<style scoped>
+.tv-panel-body.is-flush {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.tv-chart-host {
+  flex: 1;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.tv-chart-host :deep(.kline-chart-shell) {
+  height: 100%;
+  min-height: 0;
+}
+</style>

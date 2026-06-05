@@ -17,26 +17,32 @@ export function createConsoleRouter(
       {
         path: "/oobe",
         component: OobeOverlay,
+        meta: { title: "初始化" },
       },
       {
         path: "/workspace",
         component: () => import("./pages/WorkspacePage.vue"),
+        meta: { title: "交易" },
       },
       {
         path: "/overview",
         component: () => import("./pages/OverviewPage.vue"),
+        meta: { title: "概览" },
       },
       {
         path: "/system",
         component: () => import("./pages/SystemPage.vue"),
+        meta: { title: "系统" },
       },
       {
         path: "/settings",
         component: () => import("./pages/SettingsPage.vue"),
+        meta: { title: "设置" },
       },
       {
         path: "/account",
         component: () => import("./pages/AccountPage.vue"),
+        meta: { title: "账户" },
       },
       {
         path: "/broker",
@@ -53,18 +59,22 @@ export function createConsoleRouter(
       {
         path: "/market",
         component: () => import("./pages/MarketPage.vue"),
+        meta: { title: "行情" },
       },
       {
         path: "/strategy",
         component: () => import("./pages/StrategyPage.vue"),
+        meta: { title: "策略" },
       },
       {
         path: "/risk",
         component: () => import("./pages/RiskPage.vue"),
+        meta: { title: "风控" },
       },
       {
         path: "/backtest",
         component: () => import("./pages/BacktestPage.vue"),
+        meta: { title: "回测" },
       },
     ],
   });

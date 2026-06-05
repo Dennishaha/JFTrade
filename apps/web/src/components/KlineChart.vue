@@ -210,14 +210,16 @@ function refreshChartData(): void {
 }
 
 function measureChartSize(): { width: number; height: number } {
-  const target = shell.value ?? host.value;
+  const target = host.value ?? shell.value;
+  const fallbackTarget = target === host.value ? shell.value : host.value;
   const rect = target?.getBoundingClientRect();
+  const fallbackRect = fallbackTarget?.getBoundingClientRect();
+  const measuredWidth = rect?.width ?? target?.clientWidth ?? fallbackRect?.width ?? fallbackTarget?.clientWidth;
+  const measuredHeight = rect?.height ?? target?.clientHeight ?? fallbackRect?.height ?? fallbackTarget?.clientHeight;
+
   return {
-    width: Math.max(1, Math.floor(rect?.width ?? target?.clientWidth ?? 1)),
-    height: Math.max(
-      1,
-      Math.floor(rect?.height ?? target?.clientHeight ?? props.minHeight),
-    ),
+    width: Math.max(1, Math.floor(measuredWidth ?? 1)),
+    height: Math.max(1, Math.floor(measuredHeight ?? props.minHeight)),
   };
 }
 
@@ -293,11 +295,14 @@ onMounted(async () => {
     return;
   }
 
+  resizeObserver = new ResizeObserver(() => {
+    scheduleChartSync();
+  });
   if (shell.value != null) {
-    resizeObserver = new ResizeObserver(() => {
-      scheduleChartSync();
-    });
     resizeObserver.observe(shell.value);
+  }
+  if (host.value != null && host.value !== shell.value) {
+    resizeObserver.observe(host.value);
   }
 });
 

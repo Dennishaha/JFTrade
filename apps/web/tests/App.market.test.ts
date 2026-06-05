@@ -52,7 +52,9 @@ function countCallsMatching(
 afterEach(() => {
   vi.unstubAllGlobals();
   MockWebSocket.instances = [];
+  window.sessionStorage?.clear();
   window.localStorage?.clear();
+  document.title = "";
 });
 
 function buildStandardFetchMock(overrides: Record<string, unknown> = {}) {
@@ -247,6 +249,42 @@ function buildStandardFetchMock(overrides: Record<string, unknown> = {}) {
 }
 
 describe("Market page", () => {
+  it("sets the browser title from the current non-workspace route", async () => {
+    vi.stubGlobal("fetch", buildStandardFetchMock());
+
+    const { wrapper } = await mountApp("/market");
+
+    expect(document.title).toBe("行情 - JFTrade Console");
+
+    wrapper.unmount();
+  });
+
+  it("sets the workspace browser title from the active instrument name", async () => {
+    vi.stubGlobal("fetch", buildStandardFetchMock());
+
+    const { wrapper } = await mountApp("/workspace");
+    await flushRequests();
+
+    expect(document.title).toBe("HK.00700-Tencent Holdings - JFTrade Console");
+
+    wrapper.unmount();
+  });
+
+  it("updates the workspace browser title when the active instrument changes", async () => {
+    vi.stubGlobal("fetch", buildStandardFetchMock());
+
+    const { wrapper } = await mountApp("/workspace");
+
+    const codeInput = wrapper.get('[data-testid="topbar-instrument-code"]');
+    await codeInput.setValue("aapl");
+    await codeInput.trigger("keydown.enter");
+    await flushRequests();
+
+    expect(document.title).toBe("HK.AAPL - JFTrade Console");
+
+    wrapper.unmount();
+  });
+
   it("updates the global workspace instrument from the top bar with explicit market and code fields", async () => {
     vi.stubGlobal("fetch", buildStandardFetchMock());
     vi.stubGlobal(

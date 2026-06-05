@@ -38,6 +38,62 @@ const route = useRoute();
 const isOobeRoute = computed(() => route.path === "/oobe");
 const onboardingGateReady = ref(false);
 const { docsHomeUrl, openDocs } = useDocsLink();
+const documentTitleSuffix = "JFTrade Console";
+const activeWorkspaceInstrumentId = computed(
+  () =>
+    `${workspaceLayout.prefs.value.market}.${workspaceLayout.prefs.value.symbol}`
+      .trim()
+      .toUpperCase(),
+);
+const workspaceInstrumentName = computed(() => {
+  const instrumentId = activeWorkspaceInstrumentId.value;
+  const option = console_.marketInstrumentSearchOptions.value.find(
+    (candidate) =>
+      candidate.instrumentId.trim().toUpperCase() === instrumentId,
+  );
+  const optionName = option?.name?.trim() ?? "";
+  if (optionName !== "") {
+    return optionName;
+  }
+
+  const securityDetails = console_.currentMarketSecurityDetails.value;
+  if (
+    securityDetails?.request.instrumentId.trim().toUpperCase() !== instrumentId
+  ) {
+    return "";
+  }
+  return securityDetails.security?.name?.trim() ?? "";
+});
+const workspaceDocumentTitle = computed(() => {
+  const instrumentId = activeWorkspaceInstrumentId.value;
+  const name = workspaceInstrumentName.value;
+  const instrumentTitle = name === "" ? instrumentId : `${instrumentId}-${name}`;
+  return `${instrumentTitle} - ${documentTitleSuffix}`;
+});
+const routeDocumentTitle = computed(() => {
+  const matchedWithTitle = [...route.matched]
+    .reverse()
+    .find((record) => typeof record.meta.title === "string");
+  const pageTitle = matchedWithTitle?.meta.title;
+  return typeof pageTitle === "string" && pageTitle.trim() !== ""
+    ? `${pageTitle.trim()} - ${documentTitleSuffix}`
+    : documentTitleSuffix;
+});
+const documentTitle = computed(() =>
+  route.path === "/workspace"
+    ? workspaceDocumentTitle.value
+    : routeDocumentTitle.value,
+);
+
+watch(
+  documentTitle,
+  (nextTitle) => {
+    if (typeof document !== "undefined") {
+      document.title = nextTitle;
+    }
+  },
+  { immediate: true },
+);
 
 const navTargets = [
   { id: "nav.workspace", label: "打开交易工作台", to: "/workspace" },
