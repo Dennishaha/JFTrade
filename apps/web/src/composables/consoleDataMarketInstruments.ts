@@ -37,7 +37,7 @@ interface ConsoleDataMarketInstrumentsControllerOptions {
   portfolioPositions: Ref<PortfolioPositionsResponse>;
   brokerPositions: Ref<BrokerPositionsResponse>;
   brokerOrders: Ref<BrokerOrdersResponse>;
-  executionOrders: Ref<ExecutionOrdersResponse>;
+  activeExecutionOrders: Ref<ExecutionOrdersResponse>;
 }
 
 export function normalizeInstrumentParts(
@@ -128,7 +128,7 @@ export function createConsoleDataMarketInstrumentsController(
       for (const order of options.brokerOrders.value.orders) {
         addInstrument(order, "broker-order");
       }
-      for (const order of options.executionOrders.value.orders) {
+      for (const order of options.activeExecutionOrders.value.orders) {
         addInstrument(order, "execution-order");
       }
 

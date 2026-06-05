@@ -280,10 +280,13 @@ func (s *Server) brokerOrdersResponse(ctx context.Context, query broker.ReadQuer
 
 	entries := make([]any, 0, len(orders))
 	for _, order := range orders {
+		accountID := firstNonEmptyString(order.AccountID, query.AccountID)
+		tradingEnvironment := firstNonEmptyString(order.TradingEnvironment, query.TradingEnvironment)
+		market := firstNonEmptyString(order.Market, query.Market)
 		entries = append(entries, map[string]any{
-			"accountId":          order.AccountID,
-			"tradingEnvironment": order.TradingEnvironment,
-			"market":             order.Market,
+			"accountId":          accountID,
+			"tradingEnvironment": tradingEnvironment,
+			"market":             market,
 			"brokerOrderId":      order.BrokerOrderID,
 			"brokerOrderIdEx":    order.BrokerOrderIDEx,
 			"symbol":             order.Symbol,

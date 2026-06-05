@@ -15,6 +15,7 @@ import (
 )
 
 const brokerOrderUpdateSyncMinInterval = 1500 * time.Millisecond
+const brokerActiveOrdersCacheTTL = 60 * time.Second
 
 type brokerOrderUpdateSubscription struct {
 	SubscriptionKey     string
@@ -52,10 +53,17 @@ type brokerOrderUpdateWorker struct {
 	accountsDiscovered   int
 	connectivity         *string
 	boundClient          *opend.Client
+	// Active orders cache: keyed by subscription key, refreshed by push + periodic sync
+	activeOrdersCache     map[string][]broker.OrderSnapshot
+	activeOrdersCachedAt  map[string]time.Time
 }
 
 func newBrokerOrderUpdateWorker() *brokerOrderUpdateWorker {
-	return &brokerOrderUpdateWorker{subscriptions: make(map[string]*brokerOrderUpdateSubscription)}
+	return &brokerOrderUpdateWorker{
+		subscriptions:        make(map[string]*brokerOrderUpdateSubscription),
+		activeOrdersCache:    make(map[string][]broker.OrderSnapshot),
+		activeOrdersCachedAt: make(map[string]time.Time),
+	}
 }
 
 func buildBrokerOrderUpdateQueries(accounts []broker.Account, fallbackMarket string) []broker.ReadQuery {
@@ -113,6 +121,94 @@ func (w *brokerOrderUpdateWorker) shouldSync(force bool) bool {
 	}
 	w.lastSyncAt = time.Now().UTC()
 	return true
+}
+
+// updateActiveOrdersCache stores the active orders snapshot for a subscription key.
+func (w *brokerOrderUpdateWorker) updateActiveOrdersCache(key string, orders []broker.OrderSnapshot) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.activeOrdersCache[key] = orders
+	w.activeOrdersCachedAt[key] = time.Now().UTC()
+}
+
+// getActiveOrdersCache returns cached active orders if they are within TTL.
+// Returns nil if no valid cache exists.
+func (w *brokerOrderUpdateWorker) getActiveOrdersCache(key string) []broker.OrderSnapshot {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	cachedAt, ok := w.activeOrdersCachedAt[key]
+	if !ok || time.Since(cachedAt) > brokerActiveOrdersCacheTTL {
+		return nil
+	}
+	orders, ok := w.activeOrdersCache[key]
+	if !ok {
+		return nil
+	}
+	return orders
+}
+
+// updateActiveOrderInCache updates or adds a single order in the active orders cache.
+func (w *brokerOrderUpdateWorker) updateActiveOrderInCache(key string, order broker.OrderSnapshot) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	orders, ok := w.activeOrdersCache[key]
+	if !ok {
+		w.activeOrdersCache[key] = []broker.OrderSnapshot{order}
+		w.activeOrdersCachedAt[key] = time.Now().UTC()
+		return
+	}
+	// Check if order already exists in cache (by BrokerOrderIDEx or BrokerOrderID)
+	for i, existing := range orders {
+		if existing.BrokerOrderIDEx != nil && order.BrokerOrderIDEx != nil &&
+			strings.TrimSpace(*existing.BrokerOrderIDEx) == strings.TrimSpace(*order.BrokerOrderIDEx) {
+			orders[i] = order
+			w.activeOrdersCache[key] = orders
+			return
+		}
+		if strings.TrimSpace(existing.BrokerOrderID) == strings.TrimSpace(order.BrokerOrderID) &&
+			strings.TrimSpace(existing.BrokerOrderID) != "" {
+			orders[i] = order
+			w.activeOrdersCache[key] = orders
+			return
+		}
+	}
+	// Not found — append
+	w.activeOrdersCache[key] = append(orders, order)
+}
+
+// removeActiveOrderFromCache removes an order from the active orders cache when it reaches a terminal state.
+func (w *brokerOrderUpdateWorker) removeActiveOrderFromCache(key string, orderID string, orderIDEx *string) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	orders, ok := w.activeOrdersCache[key]
+	if !ok {
+		return
+	}
+	filtered := make([]broker.OrderSnapshot, 0, len(orders))
+	for _, existing := range orders {
+		match := false
+		if orderIDEx != nil && existing.BrokerOrderIDEx != nil &&
+			strings.TrimSpace(*existing.BrokerOrderIDEx) == strings.TrimSpace(*orderIDEx) {
+			match = true
+		}
+		if !match && strings.TrimSpace(existing.BrokerOrderID) == strings.TrimSpace(orderID) &&
+			strings.TrimSpace(orderID) != "" {
+			match = true
+		}
+		if !match {
+			filtered = append(filtered, existing)
+		}
+	}
+	w.activeOrdersCache[key] = filtered
+}
+
+func isTerminalOrderStatus(status string) bool {
+	switch strings.ToUpper(strings.TrimSpace(status)) {
+	case "FILLED_ALL", "CANCELLED_ALL", "CANCELLED_PART", "FAILED", "DELETED", "EXPIRED":
+		return true
+	default:
+		return false
+	}
 }
 
 func (w *brokerOrderUpdateWorker) markSubscriptions(queries []broker.ReadQuery, status string, action string, err error) {
@@ -195,6 +291,8 @@ func (w *brokerOrderUpdateWorker) markStopped() {
 	w.stoppedSubscriptions = &stopped
 	w.boundClient = nil
 	w.lastSyncAt = time.Time{}
+	w.activeOrdersCache = make(map[string][]broker.OrderSnapshot)
+	w.activeOrdersCachedAt = make(map[string]time.Time)
 	for _, subscription := range w.subscriptions {
 		subscription.Status = "inactive"
 		subscription.LastAction = "stopped"
@@ -353,6 +451,10 @@ func latestInvalidationAt(invalidations []brokerOrderUpdateInvalidation) any {
 }
 
 func (s *Server) syncBrokerOrderUpdates(ctx context.Context, force bool) {
+	s.syncBrokerOrderUpdatesWithScope(ctx, force, false)
+}
+
+func (s *Server) syncBrokerOrderUpdatesWithScope(ctx context.Context, force bool, skipHistory bool) {
 	if s.brokerOrderUpdates == nil || !s.brokerOrderUpdates.shouldSync(force) {
 		return
 	}
@@ -388,14 +490,58 @@ func (s *Server) syncBrokerOrderUpdates(ctx context.Context, force bool) {
 		return
 	}
 	for _, query := range queries {
+		key := brokerOrderUpdateSubscriptionKey(query)
+
+		// For active-only requests, try cache first to avoid querying Futu
+		if skipHistory {
+			if cached := s.brokerOrderUpdates.getActiveOrdersCache(key); cached != nil {
+				for _, order := range cached {
+					updated, event, changed := s.executionOrders.upsertBrokerOrderWithSource("futu", order, "BROKER_CACHE_DISCOVERED", "BROKER_CACHE_UPDATED", "broker", "broker.cache")
+					if changed {
+						s.notifyExecutionOrderLifecycle(updated, event)
+					}
+				}
+				continue
+			}
+		}
+
 		orders, err := reader.QueryOrders(ctx, query, "")
 		if err != nil {
 			s.brokerOrderUpdates.markSubscriptions([]broker.ReadQuery{query}, "inactive", "sync-orders", err)
 			continue
 		}
 		s.brokerOrderUpdates.markSubscriptions([]broker.ReadQuery{query}, "active", "sync-orders", nil)
+		// Update the active orders cache with fresh data
+		s.brokerOrderUpdates.updateActiveOrdersCache(key, orders)
 		for _, order := range orders {
-			updated, event, changed := s.executionOrders.upsertBrokerOrder("futu", order, "BROKER_SYNC_DISCOVERED", "BROKER_SYNC_UPDATED")
+			updated, event, changed := s.executionOrders.upsertBrokerOrderWithSource("futu", order, "BROKER_SYNC_DISCOVERED", "BROKER_SYNC_UPDATED", "broker", "broker.current")
+			if changed {
+				s.notifyExecutionOrderLifecycle(updated, event)
+			}
+		}
+
+		if skipHistory {
+			continue
+		}
+
+		endTime := time.Now().UTC()
+		lookbackDays := 3
+		if s != nil && s.store != nil {
+			lookbackDays = s.store.executionSettings().BrokerOrderHistoryLookbackDays
+		}
+		startTime := endTime.Add(-time.Duration(lookbackDays) * 24 * time.Hour)
+		historyOrders, err := reader.QueryHistoryOrders(ctx, broker.OrderHistoryQuery{
+			ReadQuery: query,
+			StartTime: startTime.Format(time.RFC3339Nano),
+			EndTime:   endTime.Format(time.RFC3339Nano),
+		})
+		if err != nil {
+			s.brokerOrderUpdates.markSubscriptions([]broker.ReadQuery{query}, "inactive", "sync-history-orders", err)
+			continue
+		}
+		s.brokerOrderUpdates.markSubscriptions([]broker.ReadQuery{query}, "active", "sync-history-orders", nil)
+		for _, order := range historyOrders {
+			updated, event, changed := s.executionOrders.upsertBrokerOrderWithSource("futu", order, "BROKER_HISTORY_DISCOVERED", "BROKER_HISTORY_UPDATED", "broker", "broker.history")
 			if changed {
 				s.notifyExecutionOrderLifecycle(updated, event)
 			}
@@ -452,8 +598,17 @@ func (s *Server) handleFutuBrokerOrderPush(header *trdcommonpb.TrdHeader, order 
 		AccountID:          snapshot.AccountID,
 		Market:             snapshot.Market,
 	}
+	key := brokerOrderUpdateSubscriptionKey(query)
 	s.brokerOrderUpdates.markPush(query, "push-order")
-	updated, event, changed := s.executionOrders.upsertBrokerOrder("futu", snapshot, "BROKER_PUSH_DISCOVERED", "BROKER_PUSH_ORDER")
+
+	// Update the active orders cache based on push
+	if isTerminalOrderStatus(snapshot.Status) {
+		s.brokerOrderUpdates.removeActiveOrderFromCache(key, snapshot.BrokerOrderID, snapshot.BrokerOrderIDEx)
+	} else {
+		s.brokerOrderUpdates.updateActiveOrderInCache(key, snapshot)
+	}
+
+	updated, event, changed := s.executionOrders.upsertBrokerOrderWithSource("futu", snapshot, "BROKER_PUSH_DISCOVERED", "BROKER_PUSH_ORDER", "broker", "broker.push")
 	if changed {
 		s.notifyExecutionOrderLifecycle(updated, event)
 	}

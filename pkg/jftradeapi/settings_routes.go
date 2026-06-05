@@ -15,6 +15,10 @@ func (s *Server) serveSettingsRoutes(w http.ResponseWriter, r *http.Request) boo
 		s.writeOK(w, s.onboardingState(r.Context()))
 	case r.URL.Path == "/api/v1/settings/onboarding" && r.Method == http.MethodPut:
 		s.handleSaveOnboarding(w, r)
+	case r.URL.Path == "/api/v1/settings/execution" && r.Method == http.MethodGet:
+		s.writeOK(w, s.store.executionSettings())
+	case r.URL.Path == "/api/v1/settings/execution" && r.Method == http.MethodPut:
+		s.handleSaveExecutionSettings(w, r)
 	case r.URL.Path == "/api/v1/settings/brokers" && r.Method == http.MethodGet:
 		s.writeOK(w, s.brokerSettings())
 	case strings.HasPrefix(r.URL.Path, "/api/v1/settings/brokers/") && strings.HasSuffix(r.URL.Path, "/integration") && r.Method == http.MethodPut:

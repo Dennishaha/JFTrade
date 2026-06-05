@@ -8,6 +8,7 @@ import { defineComponent, h, nextTick } from "vue";
 import {
   type BrokerMaxTradeQuantityResponse,
   type MarketSecurityDetails,
+  emptyBrokerMaxTradeQuantity,
 } from "@jftrade/ui-contracts";
 
 import OrderEntryPanel from "../src/components/workspace/OrderEntryPanel.vue";
@@ -18,7 +19,7 @@ import type {
 import { provideConsoleDataStore } from "../src/composables/useConsoleData";
 import { provideNotificationsStore } from "../src/composables/useNotifications";
 import { provideUIColorPreferencesStore } from "../src/composables/useUIColorPreferences";
-import { provideWorkspaceLayoutStore } from "../src/composables/useWorkspaceLayout";
+import { provideWorkspaceTradingPreferencesStore } from "../src/composables/useWorkspaceLayout";
 
 afterEach(() => {
   window.localStorage?.clear();
@@ -68,7 +69,10 @@ describe("OrderEntryPanel", () => {
   it("submits explicit market and code payloads", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({ ok: true, data: { internalOrderId: "io-1", brokerOrderId: "bo-1" } }),
+      json: async () => ({
+        ok: true,
+        data: { accepted: true, internalOrderId: "io-1", brokerOrderId: "bo-1" },
+      }),
     });
     vi.stubGlobal("fetch", fetchMock);
 
@@ -92,6 +96,82 @@ describe("OrderEntryPanel", () => {
     expect(payload.market).toBe("HK");
     expect(payload.code).toBe("00700");
     expect(payload.symbol).toBe("HK.00700");
+  });
+
+  it("treats missing accepted as a failed order response", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        ok: true,
+        data: { internalOrderId: "io-1", brokerOrderId: "bo-1" },
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { wrapper } = mountOrderEntryPanel({
+      snapshotPrice: 321.234,
+      priceSpread: 0.01,
+    });
+
+    await nextTick();
+    await findSubmitButton(wrapper).trigger("click");
+    await nextTick();
+    await nextTick();
+
+    expect(wrapper.text()).toContain("下单失败：券商未接受该订单。");
+  });
+
+  it("clears stale order feedback before a new submit finishes", async () => {
+    let resolveSecond: ((value: unknown) => void) | null = null;
+    let executionCalls = 0;
+    const fetchMock = vi.fn((input: string | URL | Request) => {
+      const url = String(input);
+      if (!url.includes("/api/v1/execution/orders")) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ ok: true, data: emptyBrokerMaxTradeQuantity }),
+        });
+      }
+      executionCalls += 1;
+      if (executionCalls === 1) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            ok: true,
+            data: { accepted: false, message: "first rejected" },
+          }),
+        });
+      }
+      return new Promise((resolve) => {
+        resolveSecond = resolve;
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { wrapper } = mountOrderEntryPanel({
+      snapshotPrice: 321.234,
+      priceSpread: 0.01,
+    });
+
+    await nextTick();
+    await findSubmitButton(wrapper).trigger("click");
+    await nextTick();
+    await nextTick();
+    expect(wrapper.text()).toContain("first rejected");
+
+    await findSubmitButton(wrapper).trigger("click");
+    await nextTick();
+    expect(wrapper.text()).not.toContain("first rejected");
+
+    resolveSecond?.({
+      ok: true,
+      json: async () => ({
+        ok: true,
+        data: { accepted: true, internalOrderId: "io-2" },
+      }),
+    });
+    await nextTick();
+    await nextTick();
   });
 
   it("explains max trade quantity session, unit, and empty IM values", async () => {
@@ -160,7 +240,7 @@ function mountOrderEntryPanel(options: {
 
   const Host = defineComponent({
     setup() {
-      const workspaceLayout = provideWorkspaceLayoutStore();
+      const workspaceLayout = provideWorkspaceTradingPreferencesStore();
       workspaceLayout.update({ market: "HK", symbol: "00700" });
       provideNotificationsStore();
       const colorStore = provideUIColorPreferencesStore();

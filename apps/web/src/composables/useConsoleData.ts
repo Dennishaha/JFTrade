@@ -166,11 +166,15 @@ function createConsoleDataStore(
   const portfolioReconciliation = ref<PortfolioReconciliationResponse>(
     emptyPortfolioReconciliation,
   );
-  const executionOrders = ref<ExecutionOrdersResponse>(emptyExecutionOrders);
+  const activeExecutionOrders = ref<ExecutionOrdersResponse>(emptyExecutionOrders);
+  const historicalExecutionOrders = ref<ExecutionOrdersResponse>(emptyExecutionOrders);
   const executionOrderEvents = ref<ExecutionOrderEventsResponse>(
     emptyExecutionOrderEvents,
   );
   const selectedExecutionOrderId = ref("");
+  const isLoadingBrokerOrders = ref(false);
+  const isLoadingHistoricalOrders = ref(false);
+  const historicalOrdersError = ref("");
   const isLoadingExecutionEvents = ref(false);
   const isLoadingBrokerFills = ref(false);
   const isLoadingBrokerMarginRatios = ref(false);
@@ -345,7 +349,7 @@ function createConsoleDataStore(
     portfolioPositions,
     brokerPositions,
     brokerOrders,
-    executionOrders,
+    activeExecutionOrders,
   });
   const pluginController = createConsoleDataPluginController({
     pluginCatalog,
@@ -361,7 +365,8 @@ function createConsoleDataStore(
     uninstallPlugin,
   } = pluginController;
   const executionOrdersController = createConsoleDataExecutionOrdersController({
-    executionOrders,
+    activeExecutionOrders,
+    historicalExecutionOrders,
     executionOrderEvents,
     selectedExecutionOrderId,
     isLoadingExecutionEvents,
@@ -402,7 +407,11 @@ function createConsoleDataStore(
       brokerMaxTradeQuantity,
       brokerPositions,
       brokerOrders,
-      executionOrders,
+      activeExecutionOrders,
+      historicalExecutionOrders,
+      isLoadingBrokerOrders,
+      isLoadingHistoricalOrders,
+      historicalOrdersError,
       isLoadingBrokerFills,
       isLoadingBrokerMarginRatios,
       isLoadingBrokerMaxTradeQuantity,
@@ -414,6 +423,7 @@ function createConsoleDataStore(
     clearBrokerMaxTradeQuantity,
     loadBrokerLiveData,
     loadBrokerMaxTradeQuantity,
+    loadHistoricalExecutionOrders,
   } = brokerLiveQueryController;
   systemStateController = createConsoleDataSystemStateController({
     prefs,
@@ -434,7 +444,7 @@ function createConsoleDataStore(
     realTradeRiskEvents,
     workerBrokerOrderUpdates,
     brokerRuntime,
-    executionOrders,
+    activeExecutionOrders,
     executionOrderEvents,
     selectedExecutionOrderId,
     executionEventsError,
@@ -532,7 +542,8 @@ function createConsoleDataStore(
     dispose,
     executionEventsError,
     executionOrderEvents,
-    executionOrders,
+    activeExecutionOrders,
+    historicalExecutionOrders,
     futuOpenDHealth,
     futuOpenDInstallGuide,
     initialize,
@@ -543,6 +554,9 @@ function createConsoleDataStore(
     isMarketDataStale,
     isLoading,
     lastDataRefreshedAt,
+    isLoadingBrokerOrders,
+    isLoadingHistoricalOrders,
+    historicalOrdersError,
     isLoadingBrokerFills,
     isLoadingBrokerMarginRatios,
     isLoadingBrokerMaxTradeQuantity,
@@ -557,6 +571,7 @@ function createConsoleDataStore(
     loadBrokerSettings,
     loadBrokerMaxTradeQuantity,
     loadExecutionOrderDetails,
+    loadHistoricalExecutionOrders,
     loadMarketDataQuery,
     loadMarketInstrumentReferences,
     loadMarketDataSubscriptions,

@@ -223,6 +223,8 @@ describe("Overview page", () => {
               brokerId: "futu",
               brokerOrderId: "9001",
               brokerOrderIdEx: "ex-9001",
+              source: "system",
+              sourceDetail: "command.place",
               tradingEnvironment: "SIMULATE",
               accountId: "SIM-001",
               market: "HK",

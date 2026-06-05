@@ -13,6 +13,7 @@ import {
   formatDateTime,
   formatExecutionEventTypeLabel,
   formatExecutionOrderStatusLabel,
+  formatExecutionOrderSourceLabel,
   formatMarketLabel,
   formatOrderSideLabel,
   formatOrderTypeLabel,
@@ -32,12 +33,17 @@ const {
   brokerRuntime,
   executionEventsError,
   executionOrderEvents,
-  executionOrders,
+  activeExecutionOrders,
+  historicalExecutionOrders,
   isLoadingBrokerFills,
   isLoadingBrokerMarginRatios,
+  isLoadingBrokerOrders,
+  isLoadingHistoricalOrders,
+  historicalOrdersError,
   isLoadingExecutionEvents,
   isLoadingOrderFees,
   loadExecutionOrderDetails,
+  loadHistoricalExecutionOrders,
   orderFeesError,
   portfolioCashBalances,
   portfolioPositions,
@@ -46,11 +52,14 @@ const {
   selectedExecutionOrder,
   selectedExecutionOrderId,
   supportsBrokerReadFeature,
+  systemStatus,
 } = useConsoleData();
 const notifications = useNotifications();
 
 const activeTab = ref("account");
 const cancellingOrderIds = ref<Set<string>>(new Set());
+const historicalOrdersDisplayLimit = ref(50);
+const hasLoadedHistoricalOrders = ref(false);
 
 type AccountExecutionOrder = ExecutionOrdersResponse["orders"][number];
 
@@ -103,37 +112,66 @@ const accountSubtitle = computed(() => {
   return "请先在顶部账户范围中选择一个账户，或到设置页导入 OpenD 探测到的账户。";
 });
 
-const scopedExecutionOrders = computed(() => {
+const scopedActiveExecutionOrders = computed(() => {
   const selected = selectedBrokerAccount.value;
-  const scoped = selected == null
-    ? executionOrders.value.orders
-    : executionOrders.value.orders.filter(
-      (order) =>
-        order.brokerId === selected.brokerId &&
-        order.accountId === selected.accountId &&
-        order.tradingEnvironment === selected.tradingEnvironment &&
-        order.market === selected.market,
+  const scoped = activeExecutionOrders.value.orders.filter((order) => {
+    if (selected == null) {
+      return orderMatchesTradingEnvironment(order.tradingEnvironment);
+    }
+    return (
+      order.brokerId === selected.brokerId &&
+      order.accountId === selected.accountId &&
+      order.tradingEnvironment === selected.tradingEnvironment &&
+      order.market === selected.market
     );
+  });
+
+  return dedupeExecutionOrders(scoped);
+});
+
+const scopedHistoricalExecutionOrders = computed(() => {
+  const selected = selectedBrokerAccount.value;
+  const scoped = historicalExecutionOrders.value.orders.filter((order) => {
+    if (selected == null) {
+      return orderMatchesTradingEnvironment(order.tradingEnvironment);
+    }
+    return (
+      order.brokerId === selected.brokerId &&
+      order.accountId === selected.accountId &&
+      order.tradingEnvironment === selected.tradingEnvironment &&
+      order.market === selected.market
+    );
+  });
 
   return dedupeExecutionOrders(scoped);
 });
 
 const pendingOrders = computed(() =>
-  scopedExecutionOrders.value.filter(
+  scopedActiveExecutionOrders.value.filter(
     (order) => !isFinalExecutionOrderStatus(order.status),
   ),
 );
 
 const historicalOrders = computed(() =>
-  scopedExecutionOrders.value.filter((order) =>
+  scopedHistoricalExecutionOrders.value.filter((order) =>
     isFinalExecutionOrderStatus(order.status),
   ),
+);
+
+const displayedHistoricalOrders = computed(() =>
+  historicalOrders.value.slice(0, historicalOrdersDisplayLimit.value),
+);
+
+const hasMoreHistoricalOrders = computed(
+  () => historicalOrdersDisplayLimit.value < historicalOrders.value.length,
 );
 
 const accountCashBalances = computed(() => {
   const selected = selectedBrokerAccount.value;
   if (selected == null) {
-    return portfolioCashBalances.value.balances;
+    return portfolioCashBalances.value.balances.filter((balance) =>
+      orderMatchesTradingEnvironment(balance.tradingEnvironment),
+    );
   }
 
   return portfolioCashBalances.value.balances.filter(
@@ -147,7 +185,9 @@ const accountCashBalances = computed(() => {
 const accountProjectedPositions = computed(() => {
   const selected = selectedBrokerAccount.value;
   if (selected == null) {
-    return portfolioPositions.value.positions;
+    return portfolioPositions.value.positions.filter((position) =>
+      orderMatchesTradingEnvironment(position.tradingEnvironment),
+    );
   }
 
   return portfolioPositions.value.positions.filter(
@@ -162,7 +202,9 @@ const accountProjectedPositions = computed(() => {
 const accountBrokerPositions = computed(() => {
   const selected = selectedBrokerAccount.value;
   if (selected == null) {
-    return brokerPositions.value.positions;
+    return brokerPositions.value.positions.filter((position) =>
+      orderMatchesTradingEnvironment(position.tradingEnvironment),
+    );
   }
 
   return brokerPositions.value.positions.filter(
@@ -298,8 +340,20 @@ const activeTradingEnvironment = computed(
     selectedBrokerAccount.value?.tradingEnvironment ??
     selectedRuntimeAccount.value?.tradingEnvironment ??
     brokerFunds.value.summary?.tradingEnvironment ??
+    systemStatus.value.defaultTradingEnvironment ??
     null,
 );
+
+function orderMatchesTradingEnvironment(tradingEnvironment: string): boolean {
+  const activeEnvironment = activeTradingEnvironment.value;
+  if (activeEnvironment == null || activeEnvironment.trim() === "") {
+    return false;
+  }
+  return (
+    tradingEnvironment.trim().toUpperCase() ===
+    activeEnvironment.trim().toUpperCase()
+  );
+}
 
 const activeBrokerReadContext = computed(() => {
   const selected = selectedBrokerAccount.value;
@@ -451,6 +505,7 @@ function selectOrder(internalOrderId: string): void {
 function openOrderEvents(internalOrderId: string): void {
   activeTab.value = "history";
   void loadExecutionOrderDetails(internalOrderId);
+  ensureHistoricalOrdersLoaded();
 }
 
 function isCancellingOrder(internalOrderId: string): boolean {
@@ -488,10 +543,45 @@ function formatExecutionStatusTransition(
   return `${formatExecutionOrderStatusLabel(previousStatus)} → ${nextLabel}`;
 }
 
+function executionOrdersUrl(): string {
+  const params = new URLSearchParams();
+  const context = activeBrokerReadContext.value;
+  if (context != null) {
+    params.set("brokerId", context.brokerId);
+    params.set("tradingEnvironment", context.tradingEnvironment);
+    params.set("accountId", context.accountId);
+    params.set("market", context.market);
+  } else if (activeTradingEnvironment.value != null) {
+    params.set("tradingEnvironment", activeTradingEnvironment.value);
+  }
+  const query = params.toString();
+  return query === "" ? "/api/v1/execution/orders" : `/api/v1/execution/orders?${query}`;
+}
+
 async function refreshExecutionOrders(): Promise<void> {
-  executionOrders.value = await fetchEnvelope<ExecutionOrdersResponse>(
-    "/api/v1/execution/orders",
+  activeExecutionOrders.value = await fetchEnvelope<ExecutionOrdersResponse>(
+    executionOrdersUrl(),
   );
+}
+
+function ensureHistoricalOrdersLoaded(): void {
+  if (hasLoadedHistoricalOrders.value) return;
+  hasLoadedHistoricalOrders.value = true;
+  const context = activeBrokerReadContext.value;
+  if (context == null) return;
+  const params = new URLSearchParams();
+  params.set("brokerId", context.brokerId);
+  params.set("tradingEnvironment", context.tradingEnvironment);
+  if (context.accountId) params.set("accountId", context.accountId);
+  if (context.market) params.set("market", context.market);
+  void loadHistoricalExecutionOrders({
+    brokerId: context.brokerId,
+    brokerQuery: params.toString(),
+  });
+}
+
+function loadMoreHistoricalOrders(): void {
+  historicalOrdersDisplayLimit.value += 50;
 }
 
 async function cancelOrder(order: AccountExecutionOrder): Promise<void> {
@@ -557,6 +647,13 @@ function resolveOrderChipColor(status: string): string {
 function isSelectedOrder(internalOrderId: string): boolean {
   return selectedExecutionOrderId.value === internalOrderId;
 }
+
+// When switching to history tab, lazy-load historical orders
+watch(activeTab, (tab) => {
+  if (tab === "history") {
+    ensureHistoricalOrdersLoaded();
+  }
+});
 
 watch(
   [pendingOrders, historicalOrders],
@@ -937,6 +1034,7 @@ watch(
                     <th class="px-4 py-3 text-left">标的</th>
                     <th class="px-4 py-3 text-left">方向</th>
                     <th class="px-4 py-3 text-left">类型</th>
+                    <th class="px-4 py-3 text-left">来源</th>
                     <th class="px-4 py-3 text-right">数量</th>
                     <th class="px-4 py-3 text-right">已成交</th>
                     <th class="px-4 py-3 text-left">状态</th>
@@ -957,6 +1055,11 @@ watch(
                     </td>
                     <td class="px-4 py-3">{{ formatOrderSideLabel(order.side) }}</td>
                     <td class="px-4 py-3">{{ formatOrderTypeLabel(order.orderType) }}</td>
+                    <td class="px-4 py-3">
+                      <v-chip variant="outlined" size="small">
+                        {{ formatExecutionOrderSourceLabel(order.source, order.sourceDetail) }}
+                      </v-chip>
+                    </td>
                     <td class="px-4 py-3 text-right">{{ formatNumber(order.requestedQuantity) }}</td>
                     <td class="px-4 py-3 text-right">{{ formatNumber(order.filledQuantity) }}</td>
                     <td class="px-4 py-3">
@@ -1001,9 +1104,26 @@ watch(
               <v-chip variant="outlined" size="small">{{ historicalOrders.length }} 笔</v-chip>
             </div>
             <v-card-text>
-              <div v-if="historicalOrders.length" class="grid gap-3">
+              <!-- Loading state -->
+              <div v-if="isLoadingHistoricalOrders && !hasLoadedHistoricalOrders" class="flex items-center justify-center gap-3 py-8">
+                <v-progress-circular indeterminate size="24" />
+                <span class="text-sm text-slate-500">正在加载历史订单...</span>
+              </div>
+
+              <!-- Error state -->
+              <v-alert
+                v-else-if="historicalOrdersError"
+                type="warning"
+                :closable="false"
+                title="历史订单加载提示"
+              >
+                {{ historicalOrdersError }}
+              </v-alert>
+
+              <!-- Data display -->
+              <div v-else-if="displayedHistoricalOrders.length" class="grid gap-3">
                 <button
-                  v-for="order in historicalOrders"
+                  v-for="order in displayedHistoricalOrders"
                   :key="order.internalOrderId"
                   type="button"
                   class="rounded-lg border px-4 py-3 text-left transition hover:border-teal-400"
@@ -1019,15 +1139,30 @@ watch(
                       {{ formatExecutionOrderStatusLabel(order.status) }}
                     </v-chip>
                   </div>
-                  <div class="mt-3 grid gap-2 text-sm text-slate-600 sm:grid-cols-4">
+                  <div class="mt-3 grid gap-2 text-sm text-slate-600 sm:grid-cols-5">
                     <span>{{ formatOrderSideLabel(order.side) }}</span>
                     <span>{{ formatOrderTypeLabel(order.orderType) }}</span>
+                    <span>{{ formatExecutionOrderSourceLabel(order.source, order.sourceDetail) }}</span>
                     <span>数量 {{ formatNumber(order.requestedQuantity) }}</span>
                     <span>成交 {{ formatNumber(order.filledQuantity) }}</span>
                   </div>
                   <div class="mt-2 text-xs text-slate-500">{{ formatDateTime(order.updatedAt) }}</div>
                 </button>
+
+                <!-- Load more button -->
+                <div v-if="hasMoreHistoricalOrders" class="flex justify-center pt-2">
+                  <v-btn variant="outlined" size="small" @click="loadMoreHistoricalOrders">
+                    加载更多（已显示 {{ displayedHistoricalOrders.length }} / {{ historicalOrders.length }}）
+                  </v-btn>
+                </div>
               </div>
+
+              <!-- Loading more indicator -->
+              <div v-else-if="isLoadingHistoricalOrders" class="flex items-center justify-center gap-3 py-8">
+                <v-progress-circular indeterminate size="24" />
+                <span class="text-sm text-slate-500">正在加载历史订单...</span>
+              </div>
+
               <v-empty-state v-else text="当前账户暂无历史订单。" />
             </v-card-text>
           </v-card>

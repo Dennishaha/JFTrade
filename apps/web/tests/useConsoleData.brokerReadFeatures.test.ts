@@ -43,7 +43,7 @@ import {
 } from "@jftrade/ui-contracts";
 
 import { provideConsoleDataStore } from "../src/composables/useConsoleData";
-import { provideWorkspaceLayoutStore } from "../src/composables/useWorkspaceLayout";
+import { provideWorkspaceTradingPreferencesStore } from "../src/composables/useWorkspaceLayout";
 import { createResponse } from "./helpers";
 
 function createConsoleStore() {
@@ -51,7 +51,7 @@ function createConsoleStore() {
 
   const Host = defineComponent({
     setup() {
-      const workspaceLayout = provideWorkspaceLayoutStore();
+      const workspaceLayout = provideWorkspaceTradingPreferencesStore();
       store = provideConsoleDataStore(workspaceLayout);
       return () => null;
     },
@@ -220,6 +220,8 @@ function createExecutionOrders(): ExecutionOrdersResponse {
         brokerId: "futu",
         brokerOrderId: "broker-1",
         brokerOrderIdEx: null,
+        source: "system",
+        sourceDetail: "command.place",
         tradingEnvironment: "REAL",
         accountId: "REAL-001",
         market: "HK",
@@ -475,7 +477,7 @@ describe("console data broker readFeatures consumption", () => {
 
   it("surfaces missing brokerOrderIdEx only when order-fees capability requires it", async () => {
     const store = createConsoleStore();
-    store.executionOrders.value = createExecutionOrders();
+    store.activeExecutionOrders.value = createExecutionOrders();
 
     const fetchMock = vi.fn(async (input: string | URL | Request) => {
       const url = String(input);

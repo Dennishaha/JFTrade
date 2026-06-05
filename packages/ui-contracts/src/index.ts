@@ -220,6 +220,12 @@ export interface BrokerSettingsResponse {
   }>;
 }
 
+export interface ExecutionSettingsResponse {
+  defaultTradingEnvironment: string;
+  brokerOrderHistoryLookbackDays: number;
+  seenFillRetentionDays: number;
+}
+
 export interface OnboardingReason {
   code:
     | "BROKER_DISCONNECTED"
@@ -1306,6 +1312,8 @@ export interface ExecutionOrderSummaryResponse {
   brokerId: string;
   brokerOrderId: string | null;
   brokerOrderIdEx: string | null;
+  source: ExecutionOrderSource;
+  sourceDetail: ExecutionOrderSourceDetail;
   tradingEnvironment: string;
   accountId: string;
   market: string;
@@ -1325,6 +1333,15 @@ export interface ExecutionOrderSummaryResponse {
   updatedAt: string;
   createdAt: string;
 }
+
+export type ExecutionOrderSource = "system" | "broker";
+
+export type ExecutionOrderSourceDetail =
+  | "command.place"
+  | "broker.current"
+  | "broker.history"
+  | "broker.push"
+  | "broker.fill";
 
 export type ExecutionOrderErrorSource =
   | "command.place"
@@ -1849,6 +1866,12 @@ export const emptyStorageOverview: StorageOverviewResponse = {
 export const emptyBrokerSettings: BrokerSettingsResponse = {
   brokers: [],
   accounts: [],
+};
+
+export const emptyExecutionSettings: ExecutionSettingsResponse = {
+  defaultTradingEnvironment: "SIMULATE",
+  brokerOrderHistoryLookbackDays: 30,
+  seenFillRetentionDays: 90,
 };
 
 export const emptyOnboardingState: OnboardingStateResponse = {

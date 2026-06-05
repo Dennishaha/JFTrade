@@ -4,10 +4,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   emptyBrokerFunds,
+  emptyBrokerSettings,
   emptyBrokerOrderFees,
   emptyBrokerOrders,
   emptyBrokerPositions,
   emptyBrokerRuntime,
+  emptyFutuOpenDHealth,
   emptyExecutionOrderEvents,
   emptyPortfolioCashBalances,
   emptyPortfolioCashReconciliation,
@@ -48,6 +50,8 @@ describe("Account page execution route redirect", () => {
           brokerId: "futu",
           brokerOrderId: "9001",
           brokerOrderIdEx: "ex-9001",
+          source: "system",
+          sourceDetail: "command.place",
           tradingEnvironment: "REAL",
           accountId: "REAL-001",
           market: "HK",
@@ -106,9 +110,59 @@ describe("Account page execution route redirect", () => {
       const url = String(input);
 
       if (url.includes("/api/v1/system/status"))
-        return createResponse(emptySystemStatus);
+        return createResponse({
+          ...emptySystemStatus,
+          defaultTradingEnvironment: "REAL",
+        });
       if (url.includes("/api/v1/system/storage/overview"))
         return createResponse(emptyStorageOverview);
+      if (url.includes("/api/v1/settings/brokers"))
+        return createResponse({
+          ...emptyBrokerSettings,
+          brokers: [
+            {
+              descriptor: {
+                ...emptyBrokerRuntime.descriptor,
+                id: "futu",
+                displayName: "Futu OpenAPI via OpenD",
+                environments: ["SIMULATE", "REAL"],
+                capabilities: [
+                  {
+                    market: "HK",
+                    supportsQuote: true,
+                    supportsTrade: true,
+                    readFeatures: {
+                      orderFees: {
+                        supportedEnvironments: ["REAL"],
+                        requiresOrderIdEx: true,
+                      },
+                    },
+                  },
+                ],
+                notes: [],
+              },
+              integration: {
+                brokerId: "futu",
+                enabled: true,
+                config: {
+                  type: "futu",
+                  host: "127.0.0.1",
+                  apiPort: 11110,
+                  websocketPort: 11111,
+                  maxWebSocketConnections: 20,
+                  useEncryption: false,
+                  websocketKey: "",
+                  tradeMarket: "HK",
+                  simulatedAccountType: "STOCK",
+                },
+                updatedAt: "2026-05-16T00:00:00.000Z",
+                createdAt: "2026-05-16T00:00:00.000Z",
+              },
+              accounts: [],
+              defaults: null,
+            },
+          ],
+        });
       if (url.includes("/api/v1/system/real-trade-approvals"))
         return createResponse(emptyRealTradeApprovals);
       if (url.includes("/api/v1/system/real-trade-hard-stops"))
@@ -125,9 +179,22 @@ describe("Account page execution route redirect", () => {
         return createResponse(emptyRealTradeRiskState);
       if (url.includes("/api/v1/system/worker/broker-order-updates"))
         return createResponse(emptyWorkerBrokerOrderUpdates);
+      if (url.includes("/api/v1/system/futu-opend"))
+        return createResponse(emptyFutuOpenDHealth);
       if (url.includes("/api/v1/brokers/futu/runtime"))
         return createResponse({
           ...emptyBrokerRuntime,
+          accounts: [
+            {
+              accountId: "REAL-001",
+              tradingEnvironment: "REAL",
+              accountType: "MARGIN",
+              accountRole: null,
+              securityFirm: "FUTUSECURITIES",
+              marketAuthorities: ["HK"],
+              simulatedAccountType: null,
+            },
+          ],
           descriptor: {
             ...emptyBrokerRuntime.descriptor,
             capabilities: [

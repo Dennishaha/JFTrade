@@ -18,6 +18,7 @@ import {
   emptyBrokerMaxTradeQuantity,
   emptyBrokerOrders,
   emptyBrokerPositions,
+  emptyExecutionOrders,
 } from "@jftrade/ui-contracts";
 
 import { fetchEnvelope } from "./apiClient";
@@ -31,7 +32,11 @@ interface CreateConsoleDataBrokerLiveQueryControllerOptions {
   brokerMaxTradeQuantity: Ref<BrokerMaxTradeQuantityResponse>;
   brokerPositions: Ref<BrokerPositionsResponse>;
   brokerOrders: Ref<BrokerOrdersResponse>;
-  executionOrders: Ref<ExecutionOrdersResponse>;
+  activeExecutionOrders: Ref<ExecutionOrdersResponse>;
+  historicalExecutionOrders: Ref<ExecutionOrdersResponse>;
+  isLoadingBrokerOrders: Ref<boolean>;
+  isLoadingHistoricalOrders: Ref<boolean>;
+  historicalOrdersError: Ref<string>;
   isLoadingBrokerFills: Ref<boolean>;
   isLoadingBrokerMarginRatios: Ref<boolean>;
   isLoadingBrokerMaxTradeQuantity: Ref<boolean>;
@@ -67,6 +72,7 @@ export function createConsoleDataBrokerLiveQueryController(
 ) {
   let peripheralRequestToken = 0;
   let maxTradeQuantityRequestToken = 0;
+  let historicalRequestToken = 0;
 
   function parseBrokerQueryContext(brokerQuery: string): {
     tradingEnvironment: string;
@@ -79,6 +85,31 @@ export function createConsoleDataBrokerLiveQueryController(
       accountId: params.get("accountId")?.trim() ?? "",
       market: params.get("market")?.trim() ?? "",
     };
+  }
+
+  function executionOrdersUrl(input: {
+    brokerId: string;
+    brokerQuery: string;
+    scope?: string;
+  }): string {
+    const brokerContext = parseBrokerQueryContext(input.brokerQuery);
+    const params = new URLSearchParams();
+    params.set("brokerId", input.brokerId);
+    params.set(
+      "tradingEnvironment",
+      brokerContext.tradingEnvironment ||
+        options.systemStatus.value.defaultTradingEnvironment,
+    );
+    if (brokerContext.accountId !== "") {
+      params.set("accountId", brokerContext.accountId);
+    }
+    if (brokerContext.market !== "") {
+      params.set("market", brokerContext.market);
+    }
+    if (input.scope) {
+      params.set("scope", input.scope);
+    }
+    return `/api/v1/execution/orders?${params.toString()}`;
   }
 
   function recentHistoryRange(): { startTime: string; endTime: string } {
@@ -351,49 +382,104 @@ export function createConsoleDataBrokerLiveQueryController(
     }
   }
 
+  async function loadHistoricalExecutionOrders(input: {
+    brokerId: string;
+    brokerQuery: string;
+  }): Promise<void> {
+    const requestToken = ++historicalRequestToken;
+    options.isLoadingHistoricalOrders.value = true;
+    options.historicalOrdersError.value = "";
+
+    try {
+      const allOrders = await fetchEnvelope<ExecutionOrdersResponse>(
+        executionOrdersUrl(input),
+      );
+      if (requestToken !== historicalRequestToken) {
+        return;
+      }
+
+      // Split results: active orders go to activeExecutionOrders, historical go to historicalExecutionOrders
+      options.historicalExecutionOrders.value = {
+        orders: allOrders.orders,
+      };
+
+      // Also update active orders from the full response (in case new active orders appeared)
+      options.activeExecutionOrders.value = {
+        orders: allOrders.orders,
+      };
+    } catch (error) {
+      if (requestToken !== historicalRequestToken) {
+        return;
+      }
+      options.historicalOrdersError.value =
+        error instanceof Error ? error.message : "历史订单加载失败。";
+      options.historicalExecutionOrders.value = emptyExecutionOrders;
+    } finally {
+      if (requestToken === historicalRequestToken) {
+        options.isLoadingHistoricalOrders.value = false;
+      }
+    }
+  }
+
   async function loadBrokerLiveData(input: {
     brokerId: string;
     brokerQuery: string;
     futuBrokerReadsPaused: boolean;
   }): Promise<void> {
-    const liveBrokerDataPromise: Promise<
-      readonly [
-        BrokerFundsResponse,
-        BrokerPositionsResponse,
-        BrokerOrdersResponse,
-      ]
-    > = input.futuBrokerReadsPaused
-      ? Promise.resolve([
-          emptyBrokerFunds,
-          emptyBrokerPositions,
-          emptyBrokerOrders,
-        ] as const)
-      : Promise.all([
-          fetchEnvelope<BrokerFundsResponse>(
-            `/api/v1/brokers/${encodeURIComponent(input.brokerId)}/funds?${input.brokerQuery}`,
-          ),
-          fetchEnvelope<BrokerPositionsResponse>(
-            `/api/v1/brokers/${encodeURIComponent(input.brokerId)}/positions?${input.brokerQuery}`,
-          ),
-          fetchEnvelope<BrokerOrdersResponse>(
-            `/api/v1/brokers/${encodeURIComponent(input.brokerId)}/orders?${input.brokerQuery}`,
-          ),
-        ]).then(([funds, positions, orders]) => [funds, positions, orders] as const);
+    let funds: BrokerFundsResponse = emptyBrokerFunds;
+    let positions: BrokerPositionsResponse = emptyBrokerPositions;
+    options.isLoadingBrokerOrders.value = true;
 
-    const [[funds, positions, orders], , executionOrderList] =
-      await Promise.all([
-      liveBrokerDataPromise,
-      options.loadPortfolioLiveData({
-        brokerId: input.brokerId,
-        brokerQuery: input.brokerQuery,
-      }),
-      fetchEnvelope<ExecutionOrdersResponse>("/api/v1/execution/orders"),
+    try {
+      const liveBrokerDataPromise: Promise<
+        readonly [
+          BrokerFundsResponse,
+          BrokerPositionsResponse,
+          BrokerOrdersResponse,
+        ]
+      > = input.futuBrokerReadsPaused
+        ? Promise.resolve([
+            emptyBrokerFunds,
+            emptyBrokerPositions,
+            emptyBrokerOrders,
+          ] as const)
+        : Promise.all([
+            fetchEnvelope<BrokerFundsResponse>(
+              `/api/v1/brokers/${encodeURIComponent(input.brokerId)}/funds?${input.brokerQuery}`,
+            ),
+            fetchEnvelope<BrokerPositionsResponse>(
+              `/api/v1/brokers/${encodeURIComponent(input.brokerId)}/positions?${input.brokerQuery}`,
+            ),
+            fetchEnvelope<BrokerOrdersResponse>(
+              `/api/v1/brokers/${encodeURIComponent(input.brokerId)}/orders?${input.brokerQuery}`,
+            ),
+          ]).then(([nextFunds, nextPositions, orders]) => [nextFunds, nextPositions, orders] as const);
+
+      // Phase 1: Load active orders only (fast, no history sync)
+      const [[nextFunds, nextPositions, orders], , activeOrders] =
+        await Promise.all([
+        liveBrokerDataPromise,
+        options.loadPortfolioLiveData({
+          brokerId: input.brokerId,
+          brokerQuery: input.brokerQuery,
+        }),
+        fetchEnvelope<ExecutionOrdersResponse>(executionOrdersUrl({ ...input, scope: "active" })),
       ]);
 
-    options.brokerFunds.value = funds;
-    options.brokerPositions.value = positions;
-    options.brokerOrders.value = orders;
-    options.executionOrders.value = executionOrderList;
+      funds = nextFunds;
+      positions = nextPositions;
+      options.brokerFunds.value = funds;
+      options.brokerPositions.value = positions;
+      options.brokerOrders.value = orders;
+      options.activeExecutionOrders.value = activeOrders;
+      options.isLoadingBrokerOrders.value = false;
+
+      // Phase 2: Load historical orders in the background (slower)
+      // Historical orders are now lazy-loaded — only triggered when user visits history tab
+      // via loadHistoricalExecutionOrders(). We no longer auto-load here.
+    } catch {
+      options.isLoadingBrokerOrders.value = false;
+    }
 
     if (input.futuBrokerReadsPaused) {
       resetPeripheralReads();
@@ -423,5 +509,6 @@ export function createConsoleDataBrokerLiveQueryController(
     clearBrokerMaxTradeQuantity,
     loadBrokerLiveData,
     loadBrokerMaxTradeQuantity,
+    loadHistoricalExecutionOrders,
   };
 }

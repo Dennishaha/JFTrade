@@ -106,6 +106,24 @@ func (s *Server) handleSaveOnboarding(w http.ResponseWriter, r *http.Request) {
 	s.writeOK(w, s.onboardingStateFromSettings(r.Context(), onboarding))
 }
 
+func (s *Server) handleSaveExecutionSettings(w http.ResponseWriter, r *http.Request) {
+	var payload ExecutionSettings
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", err.Error())
+		return
+	}
+
+	settings, err := s.store.saveExecutionSettings(payload)
+	if err != nil {
+		s.writeError(w, http.StatusInternalServerError, "SETTINGS_SAVE_FAILED", err.Error())
+		return
+	}
+	if s.executionOrders != nil {
+		s.executionOrders.configureSeenFillRetention(settings.SeenFillRetentionDays)
+	}
+	s.writeOK(w, settings)
+}
+
 func (s *Server) handleCreateManagedBrokerAccount(w http.ResponseWriter, r *http.Request) {
 	var payload managedBrokerAccountWriteRequest
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {

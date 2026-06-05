@@ -24,7 +24,7 @@ interface CreateConsoleDataMarketDataSliceOptions {
   portfolioPositions: Ref<PortfolioPositionsResponse>;
   brokerPositions: Ref<BrokerPositionsResponse>;
   brokerOrders: Ref<BrokerOrdersResponse>;
-  executionOrders: Ref<ExecutionOrdersResponse>;
+  activeExecutionOrders: Ref<ExecutionOrdersResponse>;
 }
 
 export function createConsoleDataMarketDataSlice(
@@ -46,7 +46,7 @@ export function createConsoleDataMarketDataSlice(
       portfolioPositions: options.portfolioPositions,
       brokerPositions: options.brokerPositions,
       brokerOrders: options.brokerOrders,
-      executionOrders: options.executionOrders,
+      activeExecutionOrders: options.activeExecutionOrders,
     });
   const { marketInstrumentSearchOptions } = marketInstrumentsController;
 

@@ -2,6 +2,7 @@ package jftradeapi
 
 import (
 	"fmt"
+	"log"
 	"sort"
 	"strings"
 	"time"
@@ -9,13 +10,19 @@ import (
 	"github.com/jftrade/jftrade-main/pkg/broker"
 )
 
-
 func (s *executionOrderStore) listOrders() executionOrdersResponse {
+	return s.listOrdersFiltered(executionOrderListFilter{})
+}
+
+func (s *executionOrderStore) listOrdersFiltered(filter executionOrderListFilter) executionOrdersResponse {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
 	orders := make([]executionOrderSummaryResponse, 0, len(s.orders))
 	for _, order := range s.orders {
+		if !executionOrderMatchesListFilter(order, filter) {
+			continue
+		}
 		orders = append(orders, cloneExecutionOrderSummary(order))
 	}
 	sort.Slice(orders, func(i, j int) bool {
@@ -28,6 +35,22 @@ func (s *executionOrderStore) listOrders() executionOrdersResponse {
 		return orders[i].InternalOrderID > orders[j].InternalOrderID
 	})
 	return executionOrdersResponse{Orders: orders}
+}
+
+func executionOrderMatchesListFilter(order executionOrderSummaryResponse, filter executionOrderListFilter) bool {
+	if filter.BrokerID != "" && !strings.EqualFold(strings.TrimSpace(order.BrokerID), filter.BrokerID) {
+		return false
+	}
+	if filter.TradingEnvironment != "" && !strings.EqualFold(strings.TrimSpace(order.TradingEnvironment), filter.TradingEnvironment) {
+		return false
+	}
+	if filter.AccountID != "" && strings.TrimSpace(order.AccountID) != filter.AccountID {
+		return false
+	}
+	if filter.Market != "" && !strings.EqualFold(strings.TrimSpace(order.Market), filter.Market) {
+		return false
+	}
+	return true
 }
 
 func (s *executionOrderStore) orderEvents(internalOrderID string) executionOrderEventsResponse {
@@ -75,6 +98,7 @@ func (s *executionOrderStore) recordPlacedOrder(input executionPlacedOrderRecord
 	}
 
 	s.nextOrderSeq++
+	s.persistSequenceLocked("orders", s.nextOrderSeq)
 	internalOrderID := fmt.Sprintf("exec-%06d", s.nextOrderSeq)
 	requestedQuantity := input.RequestedQuantity
 	filledQuantity := 0.0
@@ -83,6 +107,8 @@ func (s *executionOrderStore) recordPlacedOrder(input executionPlacedOrderRecord
 		BrokerID:           strings.TrimSpace(input.BrokerID),
 		BrokerOrderID:      stringPointerOrNil(input.BrokerOrderID),
 		BrokerOrderIDEx:    stringPointerOrNil(input.BrokerOrderIDEx),
+		Source:             "system",
+		SourceDetail:       "command.place",
 		TradingEnvironment: strings.TrimSpace(input.TradingEnvironment),
 		AccountID:          strings.TrimSpace(input.AccountID),
 		Market:             strings.TrimSpace(input.Market),
@@ -110,6 +136,7 @@ func (s *executionOrderStore) recordPlacedOrder(input executionPlacedOrderRecord
 	}
 	s.orders[internalOrderID] = summary
 	s.linkBrokerOrderLocked(summary)
+	s.persistOrderLocked(summary)
 	s.appendEventLocked(internalOrderID, nil, summary.Status, input.EventType, input.Payload, now)
 	return cloneExecutionOrderSummary(summary)
 }
@@ -169,9 +196,16 @@ func (s *executionOrderStore) mergePlacedOrderLocked(internalOrderID string, inp
 	if summary.CreatedAt == "" {
 		summary.CreatedAt = createdAt
 	}
+	if summary.Source == "" || summary.Source == "broker" {
+		summary.Source = "system"
+	}
+	if summary.SourceDetail == "" || strings.HasPrefix(summary.SourceDetail, "broker.") {
+		summary.SourceDetail = "command.place"
+	}
 
 	s.orders[internalOrderID] = summary
 	s.linkBrokerOrderLocked(summary)
+	s.persistOrderLocked(summary)
 	s.appendEventLocked(internalOrderID, stringPointerOrNil(previousStatus), summary.Status, input.EventType, input.Payload, createdAt)
 	return summary
 }
@@ -189,11 +223,16 @@ func (s *executionOrderStore) markCancelRequested(internalOrderID string, payloa
 	summary.Status = "CANCEL_REQUESTED"
 	summary.UpdatedAt = now
 	s.orders[internalOrderID] = summary
+	s.persistOrderLocked(summary)
 	s.appendEventLocked(internalOrderID, stringPointerOrNil(previousStatus), summary.Status, "COMMAND_CANCEL_ACCEPTED", payload, now)
 	return cloneExecutionOrderSummary(summary), true
 }
 
 func (s *executionOrderStore) upsertBrokerOrder(brokerID string, snapshot broker.OrderSnapshot, discoveredEventType string, updatedEventType string) (executionOrderSummaryResponse, *executionOrderEventResponse, bool) {
+	return s.upsertBrokerOrderWithSource(brokerID, snapshot, discoveredEventType, updatedEventType, "broker", "broker.current")
+}
+
+func (s *executionOrderStore) upsertBrokerOrderWithSource(brokerID string, snapshot broker.OrderSnapshot, discoveredEventType string, updatedEventType string, source string, sourceDetail string) (executionOrderSummaryResponse, *executionOrderEventResponse, bool) {
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -201,6 +240,7 @@ func (s *executionOrderStore) upsertBrokerOrder(brokerID string, snapshot broker
 	internalOrderID := s.findInternalOrderIDLocked(brokerID, snapshot.AccountID, snapshot.TradingEnvironment, snapshot.Market, snapshot.BrokerOrderID, snapshot.BrokerOrderIDEx)
 	if internalOrderID == "" {
 		s.nextOrderSeq++
+		s.persistSequenceLocked("orders", s.nextOrderSeq)
 		internalOrderID = fmt.Sprintf("exec-%06d", s.nextOrderSeq)
 		requestedQuantity := snapshot.Quantity
 		filledQuantity := cloneFloat64Pointer(snapshot.FilledQuantity)
@@ -213,6 +253,8 @@ func (s *executionOrderStore) upsertBrokerOrder(brokerID string, snapshot broker
 			BrokerID:           strings.TrimSpace(brokerID),
 			BrokerOrderID:      stringPointerOrNil(snapshot.BrokerOrderID),
 			BrokerOrderIDEx:    cloneStringPointer(snapshot.BrokerOrderIDEx),
+			Source:             firstNonEmptyString(source, "broker"),
+			SourceDetail:       firstNonEmptyString(sourceDetail, "broker.current"),
 			TradingEnvironment: snapshot.TradingEnvironment,
 			AccountID:          snapshot.AccountID,
 			Market:             snapshot.Market,
@@ -237,6 +279,7 @@ func (s *executionOrderStore) upsertBrokerOrder(brokerID string, snapshot broker
 		}
 		s.orders[internalOrderID] = summary
 		s.linkBrokerOrderLocked(summary)
+		s.persistOrderLocked(summary)
 		event := s.appendEventLocked(internalOrderID, nil, summary.Status, discoveredEventType, snapshot, firstNonEmptyString(summary.UpdatedAt, now))
 		clonedEvent := cloneExecutionOrderEvent(event)
 		return cloneExecutionOrderSummary(summary), &clonedEvent, true
@@ -327,8 +370,15 @@ func (s *executionOrderStore) upsertBrokerOrder(brokerID string, snapshot broker
 	if snapshot.LastError == nil {
 		summary.LastErrorCode = nil
 	}
+	if summary.Source == "" {
+		summary.Source = firstNonEmptyString(source, "broker")
+	}
+	if summary.SourceDetail == "" {
+		summary.SourceDetail = firstNonEmptyString(sourceDetail, "broker.current")
+	}
 	s.orders[internalOrderID] = summary
 	s.linkBrokerOrderLocked(summary)
+	s.persistOrderLocked(summary)
 	event := s.appendEventLocked(internalOrderID, stringPointerOrNil(previousStatus), summary.Status, updatedEventType, snapshot, summary.UpdatedAt)
 	clonedEvent := cloneExecutionOrderEvent(event)
 	return cloneExecutionOrderSummary(summary), &clonedEvent, true
@@ -344,12 +394,14 @@ func (s *executionOrderStore) recordBrokerOrderFill(brokerID string, fill broker
 		if _, exists := s.seenFillKeys[fillKey]; exists {
 			return executionOrderSummaryResponse{}, nil, false
 		}
-		s.seenFillKeys[fillKey] = struct{}{}
+		s.seenFillKeys[fillKey] = now
+		s.persistSeenFillKeyLocked(fillKey, now)
 	}
 
 	internalOrderID := s.findInternalOrderIDLocked(brokerID, fill.AccountID, fill.TradingEnvironment, fill.Market, fill.BrokerOrderID, fill.BrokerOrderIDEx)
 	if internalOrderID == "" {
 		s.nextOrderSeq++
+		s.persistSequenceLocked("orders", s.nextOrderSeq)
 		internalOrderID = fmt.Sprintf("exec-%06d", s.nextOrderSeq)
 		filledQuantity := fill.FilledQuantity
 		status := firstNonEmpty(derefString(fill.Status), "FILLED_PART")
@@ -361,6 +413,8 @@ func (s *executionOrderStore) recordBrokerOrderFill(brokerID string, fill broker
 			BrokerID:           strings.TrimSpace(brokerID),
 			BrokerOrderID:      stringPointerOrNil(fill.BrokerOrderID),
 			BrokerOrderIDEx:    cloneStringPointer(fill.BrokerOrderIDEx),
+			Source:             "broker",
+			SourceDetail:       "broker.fill",
 			TradingEnvironment: fill.TradingEnvironment,
 			AccountID:          fill.AccountID,
 			Market:             fill.Market,
@@ -385,6 +439,7 @@ func (s *executionOrderStore) recordBrokerOrderFill(brokerID string, fill broker
 		}
 		s.orders[internalOrderID] = summary
 		s.linkBrokerOrderLocked(summary)
+		s.persistOrderLocked(summary)
 		event := s.appendEventLocked(internalOrderID, nil, summary.Status, "BROKER_FILL_RECEIVED", fill, firstNonEmptyString(summary.UpdatedAt, now))
 		clonedEvent := cloneExecutionOrderEvent(event)
 		return cloneExecutionOrderSummary(summary), &clonedEvent, true
@@ -438,8 +493,15 @@ func (s *executionOrderStore) recordBrokerOrderFill(brokerID string, fill broker
 	if summary.SubmittedAt == nil {
 		summary.SubmittedAt = stringPointerOrNil(firstNonEmptyString(fill.FilledAt, now))
 	}
+	if summary.Source == "" {
+		summary.Source = "broker"
+	}
+	if summary.SourceDetail == "" {
+		summary.SourceDetail = "broker.fill"
+	}
 	s.orders[internalOrderID] = summary
 	s.linkBrokerOrderLocked(summary)
+	s.persistOrderLocked(summary)
 	event := s.appendEventLocked(internalOrderID, stringPointerOrNil(previousStatus), summary.Status, "BROKER_FILL_RECEIVED", fill, summary.UpdatedAt)
 	clonedEvent := cloneExecutionOrderEvent(event)
 	return cloneExecutionOrderSummary(summary), &clonedEvent, previousStatus != summary.Status || newFilled != previousFilled
@@ -447,6 +509,7 @@ func (s *executionOrderStore) recordBrokerOrderFill(brokerID string, fill broker
 
 func (s *executionOrderStore) appendEventLocked(internalOrderID string, previousStatus *string, nextStatus string, eventType string, payload any, createdAt string) executionOrderEventResponse {
 	s.nextEventSeq++
+	s.persistSequenceLocked("events", s.nextEventSeq)
 	event := executionOrderEventResponse{
 		ID:              fmt.Sprintf("evt-%06d", s.nextEventSeq),
 		InternalOrderID: internalOrderID,
@@ -457,7 +520,24 @@ func (s *executionOrderStore) appendEventLocked(internalOrderID string, previous
 		CreatedAt:       createdAt,
 	}
 	s.events[internalOrderID] = append(s.events[internalOrderID], event)
+	s.persistEventLocked(event)
 	return event
+}
+
+func (s *executionOrderStore) persistOrderLocked(order executionOrderSummaryResponse) {
+	s.enqueuePersistence(executionPersistenceItem{kind: "order", order: cloneExecutionOrderSummary(order)})
+}
+
+func (s *executionOrderStore) persistEventLocked(event executionOrderEventResponse) {
+	s.enqueuePersistence(executionPersistenceItem{kind: "event", event: cloneExecutionOrderEvent(event)})
+}
+
+func (s *executionOrderStore) persistSeenFillKeyLocked(fillKey string, createdAt string) {
+	s.enqueuePersistence(executionPersistenceItem{kind: "fill", fillKey: strings.TrimSpace(fillKey), createdAt: createdAt})
+}
+
+func (s *executionOrderStore) persistSequenceLocked(name string, value uint64) {
+	s.enqueuePersistence(executionPersistenceItem{kind: "sequence", seqName: name, seqValue: value})
 }
 
 func (s *executionOrderStore) findInternalOrderIDLocked(brokerID string, accountID string, tradingEnvironment string, market string, brokerOrderID string, brokerOrderIDEx *string) string {
@@ -483,3 +563,132 @@ func (s *executionOrderStore) linkBrokerOrderLocked(order executionOrderSummaryR
 	}
 }
 
+func (s *executionOrderStore) startPersistenceWorker() {
+	if s == nil || s.persistence == nil {
+		return
+	}
+	s.persistenceMu.Lock()
+	defer s.persistenceMu.Unlock()
+	if s.persistenceQueue != nil {
+		return
+	}
+	s.persistenceQueue = make(chan executionPersistenceItem, defaultExecutionPersistenceQueueSize)
+	s.persistenceWG.Add(1)
+	go s.runPersistenceWorker(s.persistenceQueue)
+}
+
+func (s *executionOrderStore) runPersistenceWorker(queue <-chan executionPersistenceItem) {
+	defer s.persistenceWG.Done()
+	for item := range queue {
+		s.writePersistenceItem(item)
+	}
+}
+
+func (s *executionOrderStore) enqueuePersistence(item executionPersistenceItem) {
+	if s == nil || s.persistence == nil {
+		return
+	}
+	s.persistenceMu.Lock()
+	if s.persistenceClosed || s.persistenceQueue == nil {
+		s.persistenceMu.Unlock()
+		return
+	}
+	select {
+	case s.persistenceQueue <- item:
+		s.persistenceMu.Unlock()
+	default:
+		s.persistenceWG.Add(1)
+		s.persistenceMu.Unlock()
+		go func() {
+			defer s.persistenceWG.Done()
+			s.writePersistenceItem(item)
+		}()
+	}
+}
+
+func (s *executionOrderStore) writePersistenceItem(item executionPersistenceItem) {
+	if s == nil || s.persistence == nil {
+		return
+	}
+	var err error
+	switch item.kind {
+	case "order":
+		err = s.persistence.persistOrder(item.order)
+	case "event":
+		err = s.persistence.persistEvent(item.event)
+	case "fill":
+		err = s.persistence.persistSeenFillKey(item.fillKey, item.createdAt)
+	case "sequence":
+		err = s.persistence.persistSequence(item.seqName, item.seqValue)
+	case "deleteSeenFillsBefore":
+		var cutoff time.Time
+		cutoff, err = time.Parse(time.RFC3339Nano, item.cutoff)
+		if err == nil {
+			err = s.persistence.deleteSeenFillKeysBefore(cutoff)
+		}
+	}
+	if err != nil {
+		log.Printf("JFTrade execution order persistence degraded (%s): %v", item.kind, err)
+	}
+}
+
+func (s *executionOrderStore) configureSeenFillRetention(days int) {
+	if s == nil {
+		return
+	}
+	normalized := days
+	if normalized < 1 {
+		normalized = 90
+	}
+	if normalized > 3650 {
+		normalized = 3650
+	}
+	cutoff := time.Now().UTC().Add(-time.Duration(normalized) * 24 * time.Hour)
+
+	s.mu.Lock()
+	s.seenFillRetentionDays = normalized
+	for key, createdAt := range s.seenFillKeys {
+		if executionTimestampBefore(createdAt, cutoff) {
+			delete(s.seenFillKeys, key)
+		}
+	}
+	s.enqueuePersistence(executionPersistenceItem{
+		kind:   "deleteSeenFillsBefore",
+		cutoff: cutoff.Format(time.RFC3339Nano),
+	})
+	s.mu.Unlock()
+}
+
+func executionTimestampBefore(value string, cutoff time.Time) bool {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return false
+	}
+	parsed, err := time.Parse(time.RFC3339Nano, trimmed)
+	if err != nil {
+		return false
+	}
+	return parsed.Before(cutoff)
+}
+
+func (s *executionOrderStore) Close() error {
+	if s == nil {
+		return nil
+	}
+	s.persistenceMu.Lock()
+	if s.persistenceClosed {
+		s.persistenceMu.Unlock()
+		return nil
+	}
+	s.persistenceClosed = true
+	if s.persistenceQueue != nil {
+		close(s.persistenceQueue)
+	}
+	s.persistenceMu.Unlock()
+
+	s.persistenceWG.Wait()
+	if s.persistence != nil {
+		return s.persistence.Close()
+	}
+	return nil
+}

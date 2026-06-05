@@ -251,6 +251,12 @@ func newServerWithFrontend(store *SettingsStore, frontend *frontendServer) *Serv
 			backtestRunStore = newBacktestRunStore()
 		}
 	}
+	executionOrderStore, err := newExecutionOrderStoreWithDB(deriveExecutionOrderDBPath(store.path))
+	if err != nil {
+		log.Printf("JFTrade execution order sqlite store degraded: %v", err)
+		executionOrderStore = newExecutionOrderStore()
+	}
+	executionOrderStore.configureSeenFillRetention(store.executionSettings().SeenFillRetentionDays)
 	server := &Server{
 		store:                store,
 		strategyStore:        strategyStore,
@@ -258,7 +264,7 @@ func newServerWithFrontend(store *SettingsStore, frontend *frontendServer) *Serv
 		designStore:          designStore,
 		backtestRuns:         backtestRunStore,
 		backtestSyncTasks:    newBacktestSyncTaskStore(),
-		executionOrders:      newExecutionOrderStore(),
+		executionOrders:      executionOrderStore,
 		brokerOrderUpdates:   newBrokerOrderUpdateWorker(),
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(_ *http.Request) bool {
@@ -420,7 +426,7 @@ func (s *Server) systemStatus() map[string]any {
 		"name":                      "JFTrade",
 		"apiPort":                   s.apiPort,
 		"defaultBroker":             "futu",
-		"defaultTradingEnvironment": "SIMULATE",
+		"defaultTradingEnvironment": s.defaultTradingEnvironment(),
 		"realTradingEnabled":        false,
 		"realTradingKillSwitch": map[string]any{
 			"active": false, "envConfiguredActive": false, "controlPlaneActive": false,
@@ -620,6 +626,11 @@ func (s *Server) Close() error {
 	if s.backtestRuns != nil {
 		if err := s.backtestRuns.Close(); err != nil {
 			errs = append(errs, fmt.Errorf("backtestRuns close: %w", err))
+		}
+	}
+	if s.executionOrders != nil {
+		if err := s.executionOrders.Close(); err != nil {
+			errs = append(errs, fmt.Errorf("executionOrders close: %w", err))
 		}
 	}
 	if s.strategyStore != nil {

@@ -30,6 +30,13 @@ type Side = "BUY" | "SELL";
 type OrderType = "LIMIT" | "MARKET" | "STOP" | "STOP_LIMIT";
 type TIF = "DAY" | "GTC" | "IOC" | "FOK";
 type OrderSession = "RTH" | "ETH" | "ALL" | "OVERNIGHT";
+type OrderFeedbackLevel = "success" | "error";
+
+interface OrderFeedback {
+  level: OrderFeedbackLevel;
+  title: string;
+  message: string;
+}
 
 const side = ref<Side>("BUY");
 const orderType = ref<OrderType>("LIMIT");
@@ -40,6 +47,7 @@ const price = ref<number>(0);
 const stopPrice = ref<number>(0);
 const hasEditedPrice = ref(false);
 const submitting = ref(false);
+const lastOrderFeedback = ref<OrderFeedback | null>(null);
 let maxTradeQuantityTimer: ReturnType<typeof setTimeout> | null = null;
 
 const isRealMode = computed(
@@ -367,6 +375,20 @@ function formatInitialMargin(value: number | null | undefined): string {
   return formatMetric(value);
 }
 
+function resolveOrderRequestTitle(): string {
+  const market = activeMarket.value.trim();
+  const symbol = prefs.value.symbol.trim();
+  const instrumentLabel = market && symbol ? `${market}:${symbol}` : symbol || "当前标的";
+  return `${formatOrderSideLabel(side.value)} ${quantity.value} ${instrumentLabel}`;
+}
+
+function resolveOrderFailureReason(error: unknown): string {
+  if (error instanceof Error && error.message.trim() !== "") {
+    return error.message.trim();
+  }
+  return "下单请求失败，请稍后重试。";
+}
+
 async function loadMaxTradeQuantity(): Promise<void> {
   const instrument = activeInstrument.value;
   if (instrument == null) {
@@ -387,6 +409,7 @@ async function loadMaxTradeQuantity(): Promise<void> {
 
 async function submit(): Promise<void> {
   if (submitting.value) return;
+  lastOrderFeedback.value = null;
   const instrument = activeInstrument.value;
   if (instrument == null) {
     notifications.push({
@@ -455,39 +478,49 @@ async function submit(): Promise<void> {
       env: activeTradingEnvironment.value,
     };
 
-    let placedRemotely = false;
-    let successMessage = `已提交订单（${formatOrderTypeLabel(orderType.value)}，${formatTimeInForceLabel(tif.value)}${isUSMarket.value ? `，${formatOrderSession(orderSession.value)}` : ""}）`;
-    let failureMessage = "下单请求未送达后端。";
+    const feedbackTitle = resolveOrderRequestTitle();
+    let feedbackLevel: OrderFeedbackLevel = "success";
+    let feedbackMessage = `下单成功：已提交订单（${formatOrderTypeLabel(orderType.value)}，${formatTimeInForceLabel(tif.value)}${isUSMarket.value ? `，${formatOrderSession(orderSession.value)}` : ""}）`;
     try {
       const body = await fetchEnvelopeWithInit<{
+        accepted?: boolean;
         internalOrderId?: string | null;
         brokerOrderId?: string | null;
+        brokerErrorCode?: string | null;
+        message?: string | null;
       }>("/api/v1/execution/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      placedRemotely = true;
+      if (body.accepted !== true) {
+        const reason = body.message?.trim() || body.brokerErrorCode?.trim() || "券商未接受该订单。";
+        feedbackLevel = "error";
+        feedbackMessage = `下单失败：${reason}`;
+      }
       const brokerOrderId = body.brokerOrderId?.trim();
       const internalOrderId = body.internalOrderId?.trim();
-      if (brokerOrderId) {
-        successMessage = `已提交订单，券商单号 ${brokerOrderId}`;
-      } else if (internalOrderId) {
-        successMessage = `已提交订单，内部单号 ${internalOrderId}`;
+      if (feedbackLevel === "success") {
+        if (brokerOrderId) {
+          feedbackMessage = `下单成功：已提交订单，券商单号 ${brokerOrderId}`;
+        } else if (internalOrderId) {
+          feedbackMessage = `下单成功：已提交订单，内部单号 ${internalOrderId}`;
+        }
       }
     } catch (error) {
-      placedRemotely = false;
-      if (error instanceof Error && error.message.trim() !== "") {
-        failureMessage = error.message;
-      }
+      feedbackLevel = "error";
+      feedbackMessage = `下单失败：${resolveOrderFailureReason(error)}`;
     }
 
+    lastOrderFeedback.value = {
+      level: feedbackLevel,
+      title: feedbackTitle,
+      message: feedbackMessage,
+    };
     notifications.push({
-      level: placedRemotely ? "success" : "warn",
-      title: `${formatOrderSideLabel(side.value)} ${quantity.value} ${activeMarket.value}:${prefs.value.symbol}`,
-      message: placedRemotely
-        ? successMessage
-        : failureMessage,
+      level: feedbackLevel,
+      title: feedbackTitle,
+      message: feedbackMessage,
       source: "order-entry",
     });
   } finally {
@@ -691,6 +724,47 @@ watch(
       >
         {{ submitting ? "提交中..." : `${formatOrderSideLabel(side)} ${prefs.symbol}` }}
       </button>
+      <div
+        v-if="lastOrderFeedback"
+        class="tv-order-feedback"
+        :class="`is-${lastOrderFeedback.level}`"
+        role="status"
+        aria-live="polite"
+      >
+        <div class="tv-order-feedback-title">{{ lastOrderFeedback.title }}</div>
+        <div class="tv-order-feedback-message">{{ lastOrderFeedback.message }}</div>
+      </div>
     </div>
   </section>
 </template>
+
+<style scoped>
+.tv-order-feedback {
+  margin-top: 10px;
+  border: 1px solid var(--tv-border);
+  border-radius: 6px;
+  padding: 9px 10px;
+  background: rgba(255, 255, 255, 0.03);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.tv-order-feedback.is-success {
+  border-left: 3px solid var(--tv-accent);
+}
+
+.tv-order-feedback.is-error {
+  border-left: 3px solid var(--tv-accent-strong);
+}
+
+.tv-order-feedback-title {
+  color: var(--tv-text);
+  font-weight: 600;
+}
+
+.tv-order-feedback-message {
+  margin-top: 3px;
+  color: var(--tv-text-muted);
+  overflow-wrap: anywhere;
+}
+</style>

@@ -82,7 +82,7 @@ interface CreateConsoleDataSystemStateControllerOptions {
   realTradeRiskEvents: Ref<RealTradeRiskEventsResponse>;
   workerBrokerOrderUpdates: Ref<WorkerBrokerOrderUpdatesResponse>;
   brokerRuntime: Ref<BrokerRuntimeResponse>;
-  executionOrders: Ref<ExecutionOrdersResponse>;
+  activeExecutionOrders: Ref<ExecutionOrdersResponse>;
   executionOrderEvents: Ref<ExecutionOrderEventsResponse>;
   selectedExecutionOrderId: Ref<string>;
   executionEventsError: Ref<string>;
@@ -313,7 +313,7 @@ export function createConsoleDataSystemStateController(
 
       const executionSelection = resolveConsoleDataExecutionSelection({
         currentSelectedExecutionOrderId: options.selectedExecutionOrderId.value,
-        executionOrders: options.executionOrders.value,
+        executionOrders: options.activeExecutionOrders.value,
       });
 
       if (

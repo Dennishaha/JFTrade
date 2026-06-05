@@ -3,6 +3,7 @@ package jftradeapi
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -41,11 +42,25 @@ type normalizedExecutionPlaceOrder struct {
 	session   string
 }
 
+type executionValidationError struct {
+	message string
+}
+
+func (e executionValidationError) Error() string {
+	return e.message
+}
+
+func executionValidationErrorf(format string, args ...any) error {
+	return executionValidationError{message: fmt.Sprintf(format, args...)}
+}
+
 func (s *Server) serveExecutionRoutes(w http.ResponseWriter, r *http.Request) bool {
 	switch {
 	case r.URL.Path == "/api/v1/execution/orders" && r.Method == http.MethodGet:
-		s.syncBrokerOrderUpdates(r.Context(), false)
-		s.writeOK(w, s.executionOrders.listOrders())
+		scope := strings.ToUpper(strings.TrimSpace(r.URL.Query().Get("scope")))
+		skipHistory := scope == "ACTIVE"
+		s.syncBrokerOrderUpdatesWithScope(r.Context(), false, skipHistory)
+		s.writeOK(w, s.executionOrders.listOrdersFiltered(s.executionOrderListFilterFromRequest(r)))
 	case (r.URL.Path == "/api/v1/execution/orders" || r.URL.Path == "/api/v1/execution/orders/preview") && r.Method == http.MethodPost:
 		s.handleExecutionPlaceOrder(w, r)
 	case strings.HasPrefix(r.URL.Path, "/api/v1/execution/orders/") && strings.HasSuffix(r.URL.Path, "/events") && r.Method == http.MethodGet:
@@ -56,6 +71,27 @@ func (s *Server) serveExecutionRoutes(w http.ResponseWriter, r *http.Request) bo
 		return false
 	}
 	return true
+}
+
+func (s *Server) executionOrderListFilterFromRequest(r *http.Request) executionOrderListFilter {
+	query := r.URL.Query()
+	tradingEnvironment := strings.TrimSpace(query.Get("tradingEnvironment"))
+	if tradingEnvironment == "" {
+		tradingEnvironment = s.defaultTradingEnvironment()
+	}
+	return executionOrderListFilter{
+		BrokerID:           strings.TrimSpace(query.Get("brokerId")),
+		TradingEnvironment: strings.ToUpper(strings.TrimSpace(tradingEnvironment)),
+		AccountID:          strings.TrimSpace(query.Get("accountId")),
+		Market:             strings.ToUpper(strings.TrimSpace(query.Get("market"))),
+	}
+}
+
+func (s *Server) defaultTradingEnvironment() string {
+	if s == nil || s.store == nil {
+		return "SIMULATE"
+	}
+	return s.store.executionSettings().DefaultTradingEnvironment
 }
 
 func (s *Server) handleExecutionOrderEvents(w http.ResponseWriter, r *http.Request) {
@@ -218,12 +254,12 @@ func (s *Server) normalizeExecutionPlaceOrder(payload executionPlaceOrderRequest
 		brokerID = "futu"
 	}
 	if brokerID != "futu" {
-		return normalizedExecutionPlaceOrder{}, fmt.Errorf("execution orders currently support brokerId=futu only")
+		return normalizedExecutionPlaceOrder{}, executionValidationErrorf("execution orders currently support brokerId=futu only")
 	}
 
 	instrument, err := normalizeInstrumentInput(payload.Market, payload.Symbol, payload.Code)
 	if err != nil {
-		return normalizedExecutionPlaceOrder{}, err
+		return normalizedExecutionPlaceOrder{}, executionValidationErrorf("%s", err.Error())
 	}
 	market := instrument.Market
 	symbol := instrument.Symbol
@@ -237,13 +273,13 @@ func (s *Server) normalizeExecutionPlaceOrder(payload executionPlaceOrderRequest
 		return normalizedExecutionPlaceOrder{}, err
 	}
 	if payload.Quantity <= 0 {
-		return normalizedExecutionPlaceOrder{}, fmt.Errorf("quantity must be greater than 0")
+		return normalizedExecutionPlaceOrder{}, executionValidationErrorf("quantity must be greater than 0")
 	}
 	if requiresExecutionLimitPrice(orderType) && (payload.Price == nil || *payload.Price <= 0) {
-		return normalizedExecutionPlaceOrder{}, fmt.Errorf("order type %s requires price", orderType)
+		return normalizedExecutionPlaceOrder{}, executionValidationErrorf("order type %s requires price", orderType)
 	}
 	if requiresExecutionStopPrice(orderType) && (payload.StopPrice == nil || *payload.StopPrice <= 0) {
-		return normalizedExecutionPlaceOrder{}, fmt.Errorf("order type %s requires stopPrice", orderType)
+		return normalizedExecutionPlaceOrder{}, executionValidationErrorf("order type %s requires stopPrice", orderType)
 	}
 
 	timeInForce := strings.ToUpper(strings.TrimSpace(payload.TimeInForce))
@@ -251,7 +287,7 @@ func (s *Server) normalizeExecutionPlaceOrder(payload executionPlaceOrderRequest
 		timeInForce = "DAY"
 	}
 	if timeInForce == "FOK" {
-		return normalizedExecutionPlaceOrder{}, fmt.Errorf("futu execution does not support timeInForce FOK")
+		return normalizedExecutionPlaceOrder{}, executionValidationErrorf("futu execution does not support timeInForce FOK")
 	}
 
 	tradingEnvironment := strings.ToUpper(strings.TrimSpace(payload.TradingEnvironment))
@@ -319,7 +355,7 @@ func normalizeExecutionOrderSession(market string, orderType string, rawSession 
 	session := strings.ToUpper(strings.TrimSpace(rawSession))
 	if market != "US" {
 		if session != "" {
-			return "", nil, fmt.Errorf("session is supported for US market orders only")
+			return "", nil, executionValidationErrorf("session is supported for US market orders only")
 		}
 		return "", nil, nil
 	}
@@ -329,7 +365,7 @@ func normalizeExecutionOrderSession(market string, orderType string, rawSession 
 	switch session {
 	case "RTH", "ETH", "ALL", "OVERNIGHT":
 	default:
-		return "", nil, fmt.Errorf("unsupported session %q", rawSession)
+		return "", nil, executionValidationErrorf("unsupported session %q", rawSession)
 	}
 	if !supportsExecutionFillOutsideRTH(orderType) {
 		return session, nil, nil
@@ -354,7 +390,7 @@ func normalizeExecutionSide(side string) (string, error) {
 	case "SELL":
 		return "SELL", nil
 	default:
-		return "", fmt.Errorf("unsupported side %q", side)
+		return "", executionValidationErrorf("unsupported side %q", side)
 	}
 }
 
@@ -369,7 +405,7 @@ func normalizeExecutionOrderType(orderType string) (string, error) {
 	case "STOP_LIMIT":
 		return "STOP_LIMIT", nil
 	default:
-		return "", fmt.Errorf("unsupported orderType %q", orderType)
+		return "", executionValidationErrorf("unsupported orderType %q", orderType)
 	}
 }
 
@@ -392,14 +428,24 @@ func requiresExecutionStopPrice(orderType string) bool {
 }
 
 func executionCommandError(err error) (int, string) {
-	message := strings.ToLower(strings.TrimSpace(err.Error()))
-	switch {
-	case strings.Contains(message, "required"),
-		strings.Contains(message, "unsupported"),
-		strings.Contains(message, "invalid"),
-		strings.Contains(message, "must be"):
+	var validationErr executionValidationError
+	if errors.As(err, &validationErr) {
 		return http.StatusBadRequest, "BAD_REQUEST"
-	default:
-		return http.StatusBadGateway, "BROKER_COMMAND_FAILED"
 	}
+	var brokerErr *broker.BrokerError
+	if errors.As(err, &brokerErr) {
+		switch strings.TrimSpace(brokerErr.Code) {
+		case broker.ErrCodeAccountNotFound, broker.ErrCodeMarketNotSupported, broker.ErrCodeOrderNotFound:
+			return http.StatusBadRequest, "BAD_REQUEST"
+		case broker.ErrCodeTimeout:
+			return http.StatusGatewayTimeout, "BROKER_TIMEOUT"
+		case broker.ErrCodeRateLimited:
+			return http.StatusTooManyRequests, "BROKER_RATE_LIMITED"
+		case broker.ErrCodeNotConnected:
+			return http.StatusBadGateway, "BROKER_NOT_CONNECTED"
+		default:
+			return http.StatusBadGateway, "BROKER_COMMAND_FAILED"
+		}
+	}
+	return http.StatusBadGateway, "BROKER_COMMAND_FAILED"
 }

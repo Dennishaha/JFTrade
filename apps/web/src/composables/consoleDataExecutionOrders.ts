@@ -12,7 +12,8 @@ import {
 import { fetchEnvelope } from "./apiClient";
 
 interface CreateConsoleDataExecutionOrdersControllerOptions {
-  executionOrders: Ref<ExecutionOrdersResponse>;
+  activeExecutionOrders: Ref<ExecutionOrdersResponse>;
+  historicalExecutionOrders: Ref<ExecutionOrdersResponse>;
   executionOrderEvents: Ref<ExecutionOrderEventsResponse>;
   selectedExecutionOrderId: Ref<string>;
   isLoadingExecutionEvents: Ref<boolean>;
@@ -46,12 +47,32 @@ interface CreateConsoleDataExecutionOrdersControllerOptions {
 export function createConsoleDataExecutionOrdersController(
   options: CreateConsoleDataExecutionOrdersControllerOptions,
 ) {
-  const selectedExecutionOrder = computed(
-    () =>
-      options.executionOrders.value.orders.find(
-        (order) => order.internalOrderId === options.selectedExecutionOrderId.value,
-      ) ?? null,
-  );
+  const selectedExecutionOrder = computed(() => {
+    const id = options.selectedExecutionOrderId.value;
+    if (id === "") return null;
+    // Search active first, then historical
+    return (
+      options.activeExecutionOrders.value.orders.find(
+        (order) => order.internalOrderId === id,
+      ) ??
+      options.historicalExecutionOrders.value.orders.find(
+        (order) => order.internalOrderId === id,
+      ) ??
+      null
+    );
+  });
+
+  function findOrderById(internalOrderId: string) {
+    return (
+      options.activeExecutionOrders.value.orders.find(
+        (candidate) => candidate.internalOrderId === internalOrderId,
+      ) ??
+      options.historicalExecutionOrders.value.orders.find(
+        (candidate) => candidate.internalOrderId === internalOrderId,
+      ) ??
+      null
+    );
+  }
 
   async function loadExecutionOrderEvents(
     internalOrderId: string,
@@ -84,9 +105,7 @@ export function createConsoleDataExecutionOrdersController(
     options.orderFeesError.value = "";
     options.brokerOrderFees.value = emptyBrokerOrderFees;
 
-    const order = options.executionOrders.value.orders.find(
-      (candidate) => candidate.internalOrderId === internalOrderId,
-    );
+    const order = findOrderById(internalOrderId);
     const brokerOrderIdEx = order?.brokerOrderIdEx?.trim();
 
     if (order == null) {

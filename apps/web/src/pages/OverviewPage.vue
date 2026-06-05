@@ -8,6 +8,7 @@ import {
   formatApprovalDecisionLabel,
   formatConnectivityLabel,
   formatExecutionOrderStatusLabel,
+  formatExecutionOrderSourceLabel,
   formatGenericStatusLabel,
   formatMarketLabel,
   formatOrderSideLabel,
@@ -24,7 +25,7 @@ const {
   brokerOrders,
   brokerPositions,
   brokerRuntime,
-  executionOrders,
+  activeExecutionOrders,
   loadMarketDataQuery,
   currentMarketDataCandles: marketDataCandles,
   currentMarketDataSnapshot: marketDataSnapshot,
@@ -63,7 +64,7 @@ const overviewStats = computed(() => [
   },
   {
     label: "订单流",
-    value: executionOrders.value.orders.length,
+    value: activeExecutionOrders.value.orders.length,
     hint: `券商侧可见 ${brokerOrders.value.orders.length} 个订单`,
   },
   {
@@ -84,7 +85,7 @@ const overviewCandles = computed<KlineCandle[]>(
 );
 
 const recentExecutionOrders = computed(() =>
-  executionOrders.value.orders.slice(0, 5),
+  activeExecutionOrders.value.orders.slice(0, 5),
 );
 const recentBrokerOrders = computed(() =>
   brokerOrders.value.orders.slice(0, 5),
@@ -537,6 +538,9 @@ function sessionLabel(session: string | null): string {
                       </div>
                       <div class="mt-1 text-xs text-slate-500">
                         {{ order.internalOrderId }}
+                      </div>
+                      <div class="mt-2 text-xs text-slate-500">
+                        {{ formatExecutionOrderSourceLabel(order.source, order.sourceDetail) }}
                       </div>
                     </div>
                     <v-chip variant="outlined" size="small">{{ formatExecutionOrderStatusLabel(order.status) }}</v-chip>

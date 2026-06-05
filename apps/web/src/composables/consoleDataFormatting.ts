@@ -103,6 +103,19 @@ const EXECUTION_EVENT_TYPE_LABELS: Record<string, string> = {
   BROKER_FILL_RECEIVED: "收到券商成交回报",
 };
 
+const EXECUTION_ORDER_SOURCE_LABELS: Record<string, string> = {
+  SYSTEM: "本系统",
+  BROKER: "券商",
+};
+
+const EXECUTION_ORDER_SOURCE_DETAIL_LABELS: Record<string, string> = {
+  "COMMAND.PLACE": "本系统下单",
+  "BROKER.CURRENT": "券商当前订单",
+  "BROKER.HISTORY": "券商历史订单",
+  "BROKER.PUSH": "券商推送",
+  "BROKER.FILL": "券商成交",
+};
+
 const ACCOUNT_TYPE_LABELS: Record<string, string> = {
   CASH: "现金账户",
   MARGIN: "保证金账户",
@@ -298,6 +311,19 @@ export function formatExecutionOrderStatusLabel(
   status: string | null | undefined,
 ): string {
   return resolveLabel(status, EXECUTION_ORDER_STATUS_LABELS);
+}
+
+export function formatExecutionOrderSourceLabel(
+  source: string | null | undefined,
+  sourceDetail?: string | null,
+): string {
+  if (sourceDetail != null && sourceDetail.trim() !== "") {
+    return (
+      EXECUTION_ORDER_SOURCE_DETAIL_LABELS[sourceDetail.trim().toUpperCase()] ??
+      sourceDetail
+    );
+  }
+  return resolveLabel(source, EXECUTION_ORDER_SOURCE_LABELS);
 }
 
 export function isFinalExecutionOrderStatus(

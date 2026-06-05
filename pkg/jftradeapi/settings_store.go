@@ -61,12 +61,19 @@ type OnboardingSettings struct {
 	LastBrokerID string `json:"lastBrokerId"`
 }
 
+type ExecutionSettings struct {
+	DefaultTradingEnvironment      string `json:"defaultTradingEnvironment"`
+	BrokerOrderHistoryLookbackDays int    `json:"brokerOrderHistoryLookbackDays"`
+	SeenFillRetentionDays          int    `json:"seenFillRetentionDays"`
+}
+
 type settingsFile struct {
 	Interfaces  *InterfaceSettings     `json:"interfaces,omitempty"`
 	Integration *BrokerIntegration     `json:"integration,omitempty"`
 	Accounts    []ManagedBrokerAccount `json:"accounts,omitempty"`
 	Appearance  *UIAppearanceSettings  `json:"appearance,omitempty"`
 	Onboarding  *OnboardingSettings    `json:"onboarding,omitempty"`
+	Execution   *ExecutionSettings     `json:"execution,omitempty"`
 }
 
 type SettingsStore struct {
@@ -173,6 +180,15 @@ func (s *SettingsStore) onboarding() OnboardingSettings {
 	return defaultOnboardingSettings()
 }
 
+func (s *SettingsStore) executionSettings() ExecutionSettings {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.data.Execution != nil {
+		return normalizeExecutionSettings(*s.data.Execution)
+	}
+	return defaultExecutionSettings()
+}
+
 func (s *SettingsStore) hasAppearance() bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -194,6 +210,16 @@ func (s *SettingsStore) saveOnboarding(input OnboardingSettings) (OnboardingSett
 
 	s.mu.Lock()
 	s.data.Onboarding = onboardingSettingsPointer(normalized)
+	err := s.persistLocked()
+	s.mu.Unlock()
+	return normalized, err
+}
+
+func (s *SettingsStore) saveExecutionSettings(input ExecutionSettings) (ExecutionSettings, error) {
+	normalized := normalizeExecutionSettings(input)
+
+	s.mu.Lock()
+	s.data.Execution = executionSettingsPointer(normalized)
 	err := s.persistLocked()
 	s.mu.Unlock()
 	return normalized, err
@@ -409,6 +435,50 @@ func normalizeOnboardingSettings(input OnboardingSettings) OnboardingSettings {
 }
 
 func onboardingSettingsPointer(value OnboardingSettings) *OnboardingSettings {
+	settings := value
+	return &settings
+}
+
+func defaultExecutionSettings() ExecutionSettings {
+	return ExecutionSettings{
+		DefaultTradingEnvironment:      "SIMULATE",
+		BrokerOrderHistoryLookbackDays: 30,
+		SeenFillRetentionDays:          90,
+	}
+}
+
+func normalizeExecutionSettings(input ExecutionSettings) ExecutionSettings {
+	defaults := defaultExecutionSettings()
+	settings := input
+	settings.DefaultTradingEnvironment = normalizeExecutionTradingEnvironment(settings.DefaultTradingEnvironment)
+	if settings.DefaultTradingEnvironment == "" {
+		settings.DefaultTradingEnvironment = defaults.DefaultTradingEnvironment
+	}
+	if settings.BrokerOrderHistoryLookbackDays < 1 {
+		settings.BrokerOrderHistoryLookbackDays = defaults.BrokerOrderHistoryLookbackDays
+	}
+	if settings.BrokerOrderHistoryLookbackDays > 365 {
+		settings.BrokerOrderHistoryLookbackDays = 365
+	}
+	if settings.SeenFillRetentionDays < 1 {
+		settings.SeenFillRetentionDays = defaults.SeenFillRetentionDays
+	}
+	if settings.SeenFillRetentionDays > 3650 {
+		settings.SeenFillRetentionDays = 3650
+	}
+	return settings
+}
+
+func normalizeExecutionTradingEnvironment(value string) string {
+	switch strings.ToUpper(strings.TrimSpace(value)) {
+	case "SIMULATE", "REAL":
+		return strings.ToUpper(strings.TrimSpace(value))
+	default:
+		return ""
+	}
+}
+
+func executionSettingsPointer(value ExecutionSettings) *ExecutionSettings {
 	settings := value
 	return &settings
 }

@@ -4,6 +4,8 @@ import (
 	"sync"
 )
 
+const defaultExecutionPersistenceQueueSize = 1024
+
 // brokerOrderCommandResponse is the JSON response for a broker command (place/cancel).
 type brokerOrderCommandResponse struct {
 	Accepted        bool    `json:"accepted"`
@@ -22,6 +24,8 @@ type executionOrderSummaryResponse struct {
 	BrokerID           string   `json:"brokerId"`
 	BrokerOrderID      *string  `json:"brokerOrderId"`
 	BrokerOrderIDEx    *string  `json:"brokerOrderIdEx"`
+	Source             string   `json:"source"`
+	SourceDetail       string   `json:"sourceDetail"`
 	TradingEnvironment string   `json:"tradingEnvironment"`
 	AccountID          string   `json:"accountId"`
 	Market             string   `json:"market"`
@@ -56,6 +60,13 @@ type executionOrdersResponse struct {
 	Orders []executionOrderSummaryResponse `json:"orders"`
 }
 
+type executionOrderListFilter struct {
+	BrokerID           string
+	TradingEnvironment string
+	AccountID          string
+	Market             string
+}
+
 type executionOrderEventsResponse struct {
 	InternalOrderID string                        `json:"internalOrderId"`
 	Events          []executionOrderEventResponse `json:"events"`
@@ -82,22 +93,40 @@ type executionPlacedOrderRecord struct {
 }
 
 type executionOrderStore struct {
-	mu                 sync.RWMutex
-	nextOrderSeq       uint64
-	nextEventSeq       uint64
-	orders             map[string]executionOrderSummaryResponse
-	events             map[string][]executionOrderEventResponse
-	brokerOrderIndex   map[string]string
-	brokerOrderExIndex map[string]string
-	seenFillKeys       map[string]struct{}
+	mu                    sync.RWMutex
+	persistenceMu         sync.Mutex
+	persistence           *executionOrderSQLiteStore
+	persistenceQueue      chan executionPersistenceItem
+	persistenceWG         sync.WaitGroup
+	persistenceClosed     bool
+	seenFillRetentionDays int
+	nextOrderSeq          uint64
+	nextEventSeq          uint64
+	orders                map[string]executionOrderSummaryResponse
+	events                map[string][]executionOrderEventResponse
+	brokerOrderIndex      map[string]string
+	brokerOrderExIndex    map[string]string
+	seenFillKeys          map[string]string
+}
+
+type executionPersistenceItem struct {
+	kind      string
+	order     executionOrderSummaryResponse
+	event     executionOrderEventResponse
+	fillKey   string
+	createdAt string
+	seqName   string
+	seqValue  uint64
+	cutoff    string
 }
 
 func newExecutionOrderStore() *executionOrderStore {
 	return &executionOrderStore{
-		orders:             make(map[string]executionOrderSummaryResponse),
-		events:             make(map[string][]executionOrderEventResponse),
-		brokerOrderIndex:   make(map[string]string),
-		brokerOrderExIndex: make(map[string]string),
-		seenFillKeys:       make(map[string]struct{}),
+		orders:                make(map[string]executionOrderSummaryResponse),
+		events:                make(map[string][]executionOrderEventResponse),
+		brokerOrderIndex:      make(map[string]string),
+		brokerOrderExIndex:    make(map[string]string),
+		seenFillKeys:          make(map[string]string),
+		seenFillRetentionDays: 90,
 	}
 }

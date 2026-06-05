@@ -53,6 +53,8 @@ func cloneExecutionOrderSummary(in executionOrderSummaryResponse) executionOrder
 		BrokerID:           in.BrokerID,
 		BrokerOrderID:      cloneStringPointer(in.BrokerOrderID),
 		BrokerOrderIDEx:    cloneStringPointer(in.BrokerOrderIDEx),
+		Source:             in.Source,
+		SourceDetail:       in.SourceDetail,
 		TradingEnvironment: in.TradingEnvironment,
 		AccountID:          in.AccountID,
 		Market:             in.Market,

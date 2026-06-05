@@ -61,3 +61,26 @@ func TestNormalizeFutuConfigAppliesDefaults(t *testing.T) {
 		t.Fatalf("useEncryption should be forced false")
 	}
 }
+
+func TestNormalizeExecutionSettingsAppliesDefaultsAndBounds(t *testing.T) {
+	settings := normalizeExecutionSettings(ExecutionSettings{
+		DefaultTradingEnvironment:      " real ",
+		BrokerOrderHistoryLookbackDays: 500,
+		SeenFillRetentionDays:          0,
+	})
+
+	if settings.DefaultTradingEnvironment != "REAL" {
+		t.Fatalf("defaultTradingEnvironment = %q", settings.DefaultTradingEnvironment)
+	}
+	if settings.BrokerOrderHistoryLookbackDays != 365 {
+		t.Fatalf("brokerOrderHistoryLookbackDays = %d", settings.BrokerOrderHistoryLookbackDays)
+	}
+	if settings.SeenFillRetentionDays != 90 {
+		t.Fatalf("seenFillRetentionDays = %d", settings.SeenFillRetentionDays)
+	}
+
+	settings = normalizeExecutionSettings(ExecutionSettings{DefaultTradingEnvironment: "paper"})
+	if settings.DefaultTradingEnvironment != "SIMULATE" {
+		t.Fatalf("invalid defaultTradingEnvironment = %q", settings.DefaultTradingEnvironment)
+	}
+}
