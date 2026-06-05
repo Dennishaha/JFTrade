@@ -59,17 +59,23 @@ func (e *Exchange) ensureOrderBookSubscriptions(ctx context.Context, client *ope
 		return nil
 	}
 
-	securityList := make([]*qotcommonpb.Security, 0, len(missing))
-	for _, req := range missing {
-		securityList = append(securityList, req.security)
-	}
-	if err := client.SubscribeQuotes(ctx, opend.QuoteSubRequest{
-		Securities:  securityList,
-		SubTypes:    []qotcommonpb.SubType{qotcommonpb.SubType_SubType_OrderBook},
-		IsSubscribe: true,
-		IsFirstPush: proto.Bool(false),
-	}); err != nil {
-		return err
+	for _, batch := range groupOrderBookRequestsForPush(missing) {
+		securityList := make([]*qotcommonpb.Security, 0, len(batch.requests))
+		for _, req := range batch.requests {
+			securityList = append(securityList, req.security)
+		}
+		subReq := opend.QuoteSubRequest{
+			Securities:  securityList,
+			SubTypes:    []qotcommonpb.SubType{qotcommonpb.SubType_SubType_OrderBook},
+			IsSubscribe: true,
+			IsFirstPush: proto.Bool(false),
+		}
+		if batch.withDetail {
+			subReq.IsSubOrderBookDetail = proto.Bool(true)
+		}
+		if err := client.SubscribeQuotes(ctx, subReq); err != nil {
+			return err
+		}
 	}
 
 	e.mu.Lock()

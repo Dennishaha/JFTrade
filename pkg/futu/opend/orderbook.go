@@ -131,7 +131,7 @@ func parseOrderBookS2C(body []byte, result *OrderBookResult) error {
 			if err != nil {
 				return err
 			}
-			result.BidList = append(result.BidList, level)
+			result.AskList = append(result.AskList, level)
 			body = body[m:]
 		case 3:
 			value, m, err := consumeBytesField(body, typ)
@@ -142,7 +142,7 @@ func parseOrderBookS2C(body []byte, result *OrderBookResult) error {
 			if err != nil {
 				return err
 			}
-			result.AskList = append(result.AskList, level)
+			result.BidList = append(result.BidList, level)
 			body = body[m:]
 		case 4:
 			value, m, err := consumeBytesField(body, typ)

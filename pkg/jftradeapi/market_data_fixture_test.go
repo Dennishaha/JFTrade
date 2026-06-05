@@ -306,7 +306,7 @@ func (s *marketDataQuoteOpenDServer) orderBookResponseBody(body []byte) []byte {
 		if err != nil {
 			return nil
 		}
-		s2c = protowire.AppendTag(s2c, 2, protowire.BytesType)
+		s2c = protowire.AppendTag(s2c, 3, protowire.BytesType)
 		s2c = protowire.AppendBytes(s2c, bidBody)
 	}
 	for _, ask := range asks {
@@ -314,7 +314,7 @@ func (s *marketDataQuoteOpenDServer) orderBookResponseBody(body []byte) []byte {
 		if err != nil {
 			return nil
 		}
-		s2c = protowire.AppendTag(s2c, 3, protowire.BytesType)
+		s2c = protowire.AppendTag(s2c, 2, protowire.BytesType)
 		s2c = protowire.AppendBytes(s2c, askBody)
 	}
 	s2c = protowire.AppendTag(s2c, 4, protowire.BytesType)

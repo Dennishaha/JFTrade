@@ -57,6 +57,25 @@ describe("OrderBookPanel", () => {
         ],
       },
     });
+    fetchEnvelopeWithInitMock.mockResolvedValue({
+      request: {
+        market: "US",
+        symbol: "TME",
+        instrumentId: "US.TME",
+        num: 10,
+      },
+      depth: {
+        symbol: "US.TME",
+        bids: [{ price: 18.48, volume: 220, orderCount: 3 }],
+        asks: [{ price: 18.52, volume: 180, orderCount: 2 }],
+      },
+      meta: {
+        instrumentId: "US.TME",
+        source: "bbgo:futu",
+        resolvedAt: "2026-06-02T00:00:00Z",
+        fromCache: false,
+      },
+    });
     prefs.value = { market: "US", symbol: "TME", period: "1m" };
     marketDataSnapshot.value = {
       snapshot: {
@@ -84,7 +103,12 @@ describe("OrderBookPanel", () => {
     await nextTick();
 
     expect(fetchEnvelopeMock).toHaveBeenCalledWith("/api/v1/brokers/futu/runtime");
-    expect(fetchEnvelopeWithInitMock).not.toHaveBeenCalled();
+    expect(fetchEnvelopeWithInitMock).toHaveBeenCalledWith(
+      "/api/v1/market-data/depth/US/TME?num=10",
+      expect.objectContaining({
+        signal: expect.any(AbortSignal),
+      }),
+    );
     expect(hub.snapshotSubscriptions().depth).toEqual([
       {
         market: "US",
@@ -124,6 +148,10 @@ describe("OrderBookPanel", () => {
 
     expect(wrapper.text()).toContain("18.52");
     expect(wrapper.text()).toContain("220");
+    expect(wrapper.get("[data-testid='depth-bid-price-col']").text()).toContain("18.48");
+    expect(wrapper.get("[data-testid='depth-bid-size-col']").text()).toContain("220");
+    expect(wrapper.get("[data-testid='depth-ask-price-col']").text()).toContain("18.52");
+    expect(wrapper.get("[data-testid='depth-ask-size-col']").text()).toContain("180");
 
     wrapper.unmount();
   });

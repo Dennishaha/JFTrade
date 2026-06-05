@@ -279,6 +279,7 @@ function connectDepthStream(preserveData = false): void {
     instrumentId: `${market}.${symbol}`,
     num: depthNum.value,
   });
+  void fetchDepth();
 }
 
 function isDepthDataStale(maxAgeMs = 30_000): boolean {
@@ -365,9 +366,6 @@ watch(
       <span class="tv-panel-title">盘口</span>
       <span style="color: var(--tv-text); font-weight: 600">{{ prefs.market }}:{{ prefs.symbol }}</span>
       <div style="flex: 1"></div>
-      <span v-if="lastPrice" style="font-size: 12px; font-weight: 700" :class="sideClass(changeFromClose)">
-        {{ fmtPrice(lastPrice) }}
-      </span>
     </div>
 
     <div class="tv-panel-body is-flush">
@@ -410,28 +408,28 @@ watch(
       <!-- Depth levels -->
       <div v-if="depthLevels.length > 0" class="tv-ob-depth-table-wrap">
         <div class="tv-ob-depth-table">
-          <div class="tv-ob-depth-col tv-ob-depth-bid-col">
-            <div v-for="(row, idx) in depthLevels" :key="'b' + idx" class="tv-ob-depth-row tv-ob-depth-row-ask">
-              <span class="tv-ob-depth-size">{{ fmtSize(row.askSize) }}</span>
-              <div class="tv-ob-depth-bar" :style="{ width: barWidth(maxAskSize, row.askSize) }"></div>
+          <div class="tv-ob-depth-col tv-ob-depth-bid-size-col" data-testid="depth-bid-size-col">
+            <div v-for="(row, idx) in depthLevels" :key="'b' + idx" class="tv-ob-depth-row tv-ob-depth-row-bid">
+              <span class="tv-ob-depth-size">{{ fmtSize(row.bidSize) }}</span>
+              <div class="tv-ob-depth-bar" :style="{ width: barWidth(maxBidSize, row.bidSize) }"></div>
             </div>
           </div>
-          <div class="tv-ob-depth-col tv-ob-depth-bid-price-col">
+          <div class="tv-ob-depth-col tv-ob-depth-bid-price-col" data-testid="depth-bid-price-col">
             <div v-for="(row, idx) in depthLevels" :key="'bp' + idx"
               class="tv-ob-depth-row tv-ob-depth-price tv-ob-depth-bid-price">
-              {{ fmtPrice(row.askPrice) }}
-            </div>
-          </div>
-          <div class="tv-ob-depth-col tv-ob-depth-ask-price-col">
-            <div v-for="(row, idx) in depthLevels" :key="'ap' + idx"
-              class="tv-ob-depth-row tv-ob-depth-price tv-ob-depth-ask-price">
               {{ fmtPrice(row.bidPrice) }}
             </div>
           </div>
-          <div class="tv-ob-depth-col tv-ob-depth-ask-col">
-            <div v-for="(row, idx) in depthLevels" :key="'a' + idx" class="tv-ob-depth-row tv-ob-depth-row-bid">
-              <div class="tv-ob-depth-bar" :style="{ width: barWidth(maxBidSize, row.bidSize) }"></div>
-              <span class="tv-ob-depth-size">{{ fmtSize(row.bidSize) }}</span>
+          <div class="tv-ob-depth-col tv-ob-depth-ask-price-col" data-testid="depth-ask-price-col">
+            <div v-for="(row, idx) in depthLevels" :key="'ap' + idx"
+              class="tv-ob-depth-row tv-ob-depth-price tv-ob-depth-ask-price">
+              {{ fmtPrice(row.askPrice) }}
+            </div>
+          </div>
+          <div class="tv-ob-depth-col tv-ob-depth-ask-size-col" data-testid="depth-ask-size-col">
+            <div v-for="(row, idx) in depthLevels" :key="'a' + idx" class="tv-ob-depth-row tv-ob-depth-row-ask">
+              <div class="tv-ob-depth-bar" :style="{ width: barWidth(maxAskSize, row.askSize) }"></div>
+              <span class="tv-ob-depth-size">{{ fmtSize(row.askSize) }}</span>
             </div>
           </div>
         </div>
@@ -633,7 +631,7 @@ watch(
   right: 0;
   top: 2px;
   bottom: 2px;
-  background: rgba(22, 199, 132, 0.12);
+  background: color-mix(in srgb, var(--tv-up) 12%, transparent);
   border-radius: 0 2px 2px 0;
 }
 
@@ -647,7 +645,7 @@ watch(
   left: 0;
   top: 2px;
   bottom: 2px;
-  background: rgba(234, 57, 67, 0.10);
+  background: color-mix(in srgb, var(--tv-down) 10%, transparent);
   border-radius: 2px 0 0 2px;
 }
 

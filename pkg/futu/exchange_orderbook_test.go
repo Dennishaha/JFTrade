@@ -168,6 +168,29 @@ func TestGroupOrderBookRequestsForPushSplitsHKAndNonHK(t *testing.T) {
 	}
 }
 
+func TestGroupOrderBookRequestsForPushSingleHKBatchNeedsDetail(t *testing.T) {
+	requests := []orderBookRequest{
+		{
+			canonical: "HK.00700",
+			security: &qotcommonpb.Security{
+				Market: protoInt32(int32(qotcommonpb.QotMarket_QotMarket_HK_Security)),
+				Code:   protoString("00700"),
+			},
+		},
+	}
+
+	batches := groupOrderBookRequestsForPush(requests)
+	if len(batches) != 1 {
+		t.Fatalf("batch count = %d, want 1", len(batches))
+	}
+	if !batches[0].withDetail {
+		t.Fatal("HK order-book batch should enable detail subscription")
+	}
+	if len(batches[0].requests) != 1 || batches[0].requests[0].canonical != "HK.00700" {
+		t.Fatalf("unexpected HK batch: %#v", batches[0].requests)
+	}
+}
+
 func TestHandleOrderBookPushEmitsSingleCompleteBookTicker(t *testing.T) {
 	stream := NewStream(NewExchange(DefaultOpenDAddr))
 	stream.ctx = context.Background()
