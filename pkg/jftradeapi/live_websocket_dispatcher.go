@@ -206,9 +206,9 @@ func (dispatcher *liveWebSocketDispatcher) writeDepthEvents(force bool) error {
 				Num:       subscription.Num,
 			})
 		}
-		path := "/api/v1/market-data/depth/" + subscription.Market + "/" + subscription.Symbol
-		query := map[string][]string{"num": {strconv.Itoa(int(subscription.Num))}}
-		response, err := dispatcher.server.marketDepthResponse(dispatcher.requestCtx, path, query)
+		response, err := dispatcher.server.marketDepthResponseForInstrument(dispatcher.requestCtx, subscription.Market, subscription.Symbol, marketDepthQuery{
+			Num: newOptionalIntValue(int(subscription.Num)),
+		})
 		if err != nil {
 			continue
 		}

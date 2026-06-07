@@ -2,18 +2,17 @@ package jftradeapi
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
 	"net/http"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"github.com/jmoiron/sqlx"
 
@@ -72,6 +71,7 @@ type Server struct {
 	frontend               *frontendServer
 	apiPort                int
 	auth                   *adminAuth
+	router                 *gin.Engine
 }
 
 type opendProbe struct {
@@ -315,6 +315,7 @@ func newServerWithFrontend(store *SettingsStore, frontend *frontendServer) *Serv
 		log.Printf("JFTrade reconciled %d stale strategy runtime state(s) to STOPPED during startup", reconciled)
 	}
 	registerBBGONotificationSink(server.recordLiveNotification)
+	server.router = server.buildRouter()
 	return server
 }
 
@@ -409,41 +410,11 @@ func (s *Server) activeBroker() broker.Broker {
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	s.writeCORS(w, r)
-	if r.Method == http.MethodOptions {
-		if requestOrigin(r) != "" && (s.auth == nil || !s.auth.originAllowed(requestOrigin(r))) {
-			w.WriteHeader(http.StatusForbidden)
-			return
-		}
-		w.WriteHeader(http.StatusNoContent)
+	if s == nil || s.router == nil {
+		http.NotFound(w, r)
 		return
 	}
-	if s.serveAuthRoutes(w, r) {
-		return
-	}
-	if s.requiresAuthentication(r) && !s.authorizeRequest(w, r) {
-		return
-	}
-
-	switch {
-	case r.URL.Path == "/swagger" || strings.HasPrefix(r.URL.Path, "/swagger/"):
-		s.handleSwaggerUI(w, r)
-	case r.URL.Path == "/openapi.json":
-		s.handleOpenAPISpec(w, r)
-	case s.serveMarketRoutes(w, r):
-	case s.serveSettingsRoutes(w, r):
-	case s.serveSystemRoutes(w, r):
-	case s.serveADKRoutes(w, r):
-	case s.servePluginRoutes(w, r):
-	case s.serveStrategyRoutes(w, r):
-	case s.serveBacktestRoutes(w, r):
-	case s.serveBrokerRoutes(w, r):
-	case s.servePortfolioRoutes(w, r):
-	case s.serveExecutionRoutes(w, r):
-	case s.frontend != nil && s.frontend.serveRequest(w, r):
-	default:
-		s.writeError(w, http.StatusNotFound, "NOT_FOUND", fmt.Sprintf("unknown endpoint %s", r.URL.Path))
-	}
+	s.router.ServeHTTP(w, r)
 }
 
 func (s *Server) isWriteMethod(r *http.Request) bool {
@@ -464,16 +435,20 @@ func (s *Server) requiresAuthentication(r *http.Request) bool {
 	if !strings.HasPrefix(r.URL.Path, "/api/") {
 		return false
 	}
+	if strings.HasPrefix(r.URL.Path, "/api/v1/auth/") {
+		return false
+	}
 	return r.URL.Path != "/api/v1/system/status"
 }
 
-func (s *Server) authorizeRequest(w http.ResponseWriter, r *http.Request) bool {
+func (s *Server) authorizeRequest(c *gin.Context) bool {
+	r := c.Request
 	if s.auth == nil || !s.auth.enabled {
 		return true
 	}
 	session, ok, bearer := s.auth.authenticate(r)
 	if !ok {
-		s.writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "administrator authentication is required")
+		s.writeError(c, http.StatusUnauthorized, "UNAUTHORIZED", "administrator authentication is required")
 		return false
 	}
 	if bearer {
@@ -481,62 +456,29 @@ func (s *Server) authorizeRequest(w http.ResponseWriter, r *http.Request) bool {
 	}
 	origin := requestOrigin(r)
 	if origin != "" && !s.auth.originAllowed(origin) {
-		s.writeError(w, http.StatusForbidden, "ORIGIN_FORBIDDEN", "request origin is not allowed")
+		s.writeError(c, http.StatusForbidden, "ORIGIN_FORBIDDEN", "request origin is not allowed")
 		return false
 	}
 	if !s.isWriteMethod(r) {
 		return true
 	}
 	if origin == "" {
-		s.writeError(w, http.StatusForbidden, "ORIGIN_FORBIDDEN", "write request origin is not allowed")
+		s.writeError(c, http.StatusForbidden, "ORIGIN_FORBIDDEN", "write request origin is not allowed")
 		return false
 	}
 	if !constantTimeEqual(strings.TrimSpace(r.Header.Get("X-CSRF-Token")), session.CSRF) {
-		s.writeError(w, http.StatusForbidden, "CSRF_FAILED", "valid CSRF token is required")
+		s.writeError(c, http.StatusForbidden, "CSRF_FAILED", "valid CSRF token is required")
 		return false
 	}
 	return true
 }
 
-func (s *Server) writeCORS(w http.ResponseWriter, r *http.Request) {
-	origin := requestOrigin(r)
-	if origin != "" && s.auth != nil && s.auth.originAllowed(origin) {
-		w.Header().Set("Access-Control-Allow-Origin", origin)
-		w.Header().Set("Vary", "Origin")
-		w.Header().Set("Access-Control-Allow-Credentials", "true")
-	}
-	w.Header().Set("Access-Control-Allow-Headers", "Origin, Content-Type, Authorization, X-CSRF-Token")
-	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+func (s *Server) writeOK(c *gin.Context, data any) {
+	c.JSON(http.StatusOK, envelope{OK: true, Data: data, Timestamp: time.Now().UTC().Format(time.RFC3339Nano)})
 }
 
-func (s *Server) serveAuthRoutes(w http.ResponseWriter, r *http.Request) bool {
-	switch {
-	case r.URL.Path == "/api/v1/auth/login" && r.Method == http.MethodPost:
-		s.auth.login(w, r)
-	case r.URL.Path == "/api/v1/auth/logout" && r.Method == http.MethodPost:
-		if !s.authorizeRequest(w, r) {
-			return true
-		}
-		s.auth.logout(w, r)
-	case r.URL.Path == "/api/v1/auth/session" && r.Method == http.MethodGet:
-		s.auth.status(w, r)
-	case r.URL.Path == "/api/v1/auth/token":
-		s.writeError(w, http.StatusGone, "AUTH_TOKEN_REMOVED", "use administrator login or a Bearer administrator key")
-	default:
-		return false
-	}
-	return true
-}
-
-func (s *Server) writeOK(w http.ResponseWriter, data any) {
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(envelope{OK: true, Data: data, Timestamp: time.Now().UTC().Format(time.RFC3339Nano)})
-}
-
-func (s *Server) writeError(w http.ResponseWriter, status int, code string, message string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(envelope{OK: false, Error: &apiError{Code: code, Message: message}, Timestamp: time.Now().UTC().Format(time.RFC3339Nano)})
+func (s *Server) writeError(c *gin.Context, status int, code string, message string) {
+	c.AbortWithStatusJSON(status, envelope{OK: false, Error: &apiError{Code: code, Message: message}, Timestamp: time.Now().UTC().Format(time.RFC3339Nano)})
 }
 
 func (s *Server) systemStatus() map[string]any {
@@ -716,22 +658,6 @@ func stringPointerOrNil(value string) *string {
 		return nil
 	}
 	return &value
-}
-
-func decodePathSegment(value string) (string, error) {
-	if value == "" {
-		return "", nil
-	}
-	decoded, err := url.PathUnescape(value)
-	if err != nil {
-		return "", err
-	}
-	return decoded, nil
-}
-
-func pathMiddle(path string, prefix string, suffix string) string {
-	tail := strings.TrimPrefix(path, prefix)
-	return strings.TrimSuffix(tail, suffix)
 }
 
 // Close releases all resources held by the server, including database connections.

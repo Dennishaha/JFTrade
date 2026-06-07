@@ -1,0 +1,3855 @@
+{
+    "schemes": [
+        "http",
+        "https"
+    ],
+    "swagger": "2.0",
+    "info": {
+        "description": "JFTrade sidecar API 的调试文档。Swagger UI 主要覆盖当前常用的 HTTP 调试入口，并展示实时接口的请求方式。",
+        "title": "JFTrade Debug API",
+        "contact": {},
+        "version": "1.0.0"
+    },
+    "basePath": "/",
+    "paths": {
+        "/api/v1/adk": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "adk"
+                ],
+                "summary": "读取 ADK 快照",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/adk/agents": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "adk"
+                ],
+                "summary": "读取 ADK Agent 列表",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Agent 状态过滤",
+                        "name": "status",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/adk/providers": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "adk"
+                ],
+                "summary": "读取 ADK Provider 列表",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/adk/runs": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "adk"
+                ],
+                "summary": "读取 ADK Run 列表",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "分页大小",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "分页偏移",
+                        "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Run 状态",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Agent ID",
+                        "name": "agentId",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Session ID",
+                        "name": "sessionId",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/adk/sessions": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "adk"
+                ],
+                "summary": "读取 ADK Session 列表",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "分页大小",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "分页偏移",
+                        "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Agent ID",
+                        "name": "agentId",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "搜索关键字",
+                        "name": "query",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/login": {
+            "post": {
+                "description": "使用单管理员密钥签发 HttpOnly、SameSite=Strict 会话。",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "管理员登录",
+                "parameters": [
+                    {
+                        "description": "管理员密钥",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.adminLoginRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/logout": {
+            "post": {
+                "description": "注销当前管理员会话。",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "管理员注销",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/session": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "读取管理员会话",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/token": {
+            "get": {
+                "description": "始终返回 410 Gone；CLI 请直接使用管理员密钥作为 Bearer token。",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "auth"
+                ],
+                "summary": "旧令牌入口（已退役）",
+                "responses": {
+                    "410": {
+                        "description": "Gone",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/backtests": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "backtest"
+                ],
+                "summary": "读取回测列表",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "backtest"
+                ],
+                "summary": "启动回测",
+                "parameters": [
+                    {
+                        "description": "回测请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.backtestStartRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/backtests/sync": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "backtest"
+                ],
+                "summary": "启动历史数据同步",
+                "parameters": [
+                    {
+                        "description": "同步请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.backtestSyncRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/backtests/{runId}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "backtest"
+                ],
+                "summary": "读取回测结果",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "回测运行 ID",
+                        "name": "runId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/jftradeapi.envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/jftradeapi.backtestRunState"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "backtest"
+                ],
+                "summary": "删除回测记录",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "回测运行 ID",
+                        "name": "runId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/backtests/{runId}/status": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "backtest"
+                ],
+                "summary": "读取回测状态",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "回测运行 ID",
+                        "name": "runId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/brokers/{brokerId}/cash-flows": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "broker"
+                ],
+                "summary": "读取券商资金流水",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "券商 ID",
+                        "name": "brokerId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "交易环境",
+                        "name": "tradingEnvironment",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "账户 ID",
+                        "name": "accountId",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "市场代码",
+                        "name": "market",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "清算日期",
+                        "name": "clearingDate",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "方向",
+                        "name": "direction",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/brokers/{brokerId}/fills": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "broker"
+                ],
+                "summary": "读取券商成交",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "券商 ID",
+                        "name": "brokerId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "交易环境",
+                        "name": "tradingEnvironment",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "账户 ID",
+                        "name": "accountId",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "市场代码",
+                        "name": "market",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "CURRENT 或 HISTORY",
+                        "name": "scope",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "证券代码",
+                        "name": "symbol",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "历史查询起始时间",
+                        "name": "startTime",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "历史查询结束时间",
+                        "name": "endTime",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/brokers/{brokerId}/funds": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "broker"
+                ],
+                "summary": "读取券商资金",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "券商 ID",
+                        "name": "brokerId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "交易环境",
+                        "name": "tradingEnvironment",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "账户 ID",
+                        "name": "accountId",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "市场代码",
+                        "name": "market",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/brokers/{brokerId}/klines": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "broker"
+                ],
+                "summary": "读取券商 K 线",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "券商 ID",
+                        "name": "brokerId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "交易环境",
+                        "name": "tradingEnvironment",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "账户 ID",
+                        "name": "accountId",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "市场代码",
+                        "name": "market",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "证券代码",
+                        "name": "symbol",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "K 线周期，默认 1d",
+                        "name": "period",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "起始时间",
+                        "name": "fromTime",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "结束时间",
+                        "name": "toTime",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "返回条数",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/brokers/{brokerId}/margin-ratios": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "broker"
+                ],
+                "summary": "读取券商融资融券比例",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "券商 ID",
+                        "name": "brokerId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "交易环境",
+                        "name": "tradingEnvironment",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "账户 ID",
+                        "name": "accountId",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "市场代码",
+                        "name": "market",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "证券代码",
+                        "name": "symbol",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "证券代码列表",
+                        "name": "symbols",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/brokers/{brokerId}/max-trade-qtys": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "broker"
+                ],
+                "summary": "读取券商最大可交易数量",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "券商 ID",
+                        "name": "brokerId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "交易环境",
+                        "name": "tradingEnvironment",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "账户 ID",
+                        "name": "accountId",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "市场代码",
+                        "name": "market",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "证券代码",
+                        "name": "symbol",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "订单类型",
+                        "name": "orderType",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "number",
+                        "description": "价格",
+                        "name": "price",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "订单扩展 ID",
+                        "name": "orderIdEx",
+                        "in": "query"
+                    },
+                    {
+                        "type": "number",
+                        "description": "调整系数",
+                        "name": "adjustSideAndLimit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "交易时段",
+                        "name": "session",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "持仓 ID",
+                        "name": "positionId",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/brokers/{brokerId}/order-fees": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "broker"
+                ],
+                "summary": "读取券商订单费用",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "券商 ID",
+                        "name": "brokerId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "交易环境",
+                        "name": "tradingEnvironment",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "账户 ID",
+                        "name": "accountId",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "市场代码",
+                        "name": "market",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "外部订单号",
+                        "name": "orderIdEx",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "外部订单号列表",
+                        "name": "orderIdExList",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/brokers/{brokerId}/orders": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "broker"
+                ],
+                "summary": "读取券商订单",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "券商 ID",
+                        "name": "brokerId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "交易环境",
+                        "name": "tradingEnvironment",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "账户 ID",
+                        "name": "accountId",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "市场代码",
+                        "name": "market",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "CURRENT 或 HISTORY",
+                        "name": "scope",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "证券代码",
+                        "name": "symbol",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "历史查询起始时间",
+                        "name": "startTime",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "历史查询结束时间",
+                        "name": "endTime",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "订单状态",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "订单状态，逗号分隔或重复参数",
+                        "name": "statuses",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/brokers/{brokerId}/positions": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "broker"
+                ],
+                "summary": "读取券商持仓",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "券商 ID",
+                        "name": "brokerId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "交易环境",
+                        "name": "tradingEnvironment",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "账户 ID",
+                        "name": "accountId",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "市场代码",
+                        "name": "market",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/brokers/{brokerId}/quote": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "broker"
+                ],
+                "summary": "读取券商行情",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "券商 ID",
+                        "name": "brokerId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "交易环境",
+                        "name": "tradingEnvironment",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "账户 ID",
+                        "name": "accountId",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "市场代码",
+                        "name": "market",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "证券代码",
+                        "name": "symbol",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "证券代码列表",
+                        "name": "symbols",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/brokers/{brokerId}/securities": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "broker"
+                ],
+                "summary": "读取券商证券快照",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "券商 ID",
+                        "name": "brokerId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "交易环境",
+                        "name": "tradingEnvironment",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "账户 ID",
+                        "name": "accountId",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "市场代码",
+                        "name": "market",
+                        "in": "query"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "证券代码",
+                        "name": "symbol",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "collectionFormat": "csv",
+                        "description": "证券代码列表",
+                        "name": "symbols",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/execution/orders": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "execution"
+                ],
+                "summary": "读取执行订单",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "ACTIVE 表示仅活动订单",
+                        "name": "scope",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Broker 标识",
+                        "name": "brokerId",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "交易环境",
+                        "name": "tradingEnvironment",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "账户 ID",
+                        "name": "accountId",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "市场",
+                        "name": "market",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/jftradeapi.envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/jftradeapi.executionOrdersResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "execution"
+                ],
+                "summary": "提交执行订单",
+                "parameters": [
+                    {
+                        "description": "执行订单",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.executionPlaceOrderRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/jftradeapi.envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/jftradeapi.brokerOrderCommandResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/execution/orders/{internalOrderId}/cancel": {
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "execution"
+                ],
+                "summary": "取消执行订单",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "内部订单 ID",
+                        "name": "internalOrderId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/jftradeapi.envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/jftradeapi.brokerOrderCommandResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/execution/orders/{internalOrderId}/events": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "execution"
+                ],
+                "summary": "读取执行订单事件",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "内部订单 ID",
+                        "name": "internalOrderId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/jftradeapi.envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/jftradeapi.executionOrderEventsResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/market-data/candles/{market}/{symbol}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "market-data"
+                ],
+                "summary": "读取 K 线",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "市场代码",
+                        "name": "market",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "证券代码",
+                        "name": "symbol",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "周期，默认 1m",
+                        "name": "period",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "返回条数，最大 1000",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "起始时间，RFC3339",
+                        "name": "fromTime",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "结束时间，RFC3339",
+                        "name": "toTime",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "502": {
+                        "description": "Bad Gateway",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/market-data/depth/{market}/{symbol}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "market-data"
+                ],
+                "summary": "读取盘口深度",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "市场代码",
+                        "name": "market",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "证券代码",
+                        "name": "symbol",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "档数，默认 10，最大 50",
+                        "name": "num",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "502": {
+                        "description": "Bad Gateway",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/market-data/instruments": {
+            "get": {
+                "description": "按关键字查询可用标的。当前实现返回空结果占位。",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "market-data"
+                ],
+                "summary": "检索行情标的",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "关键字",
+                        "name": "query",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/market-data/securities/{market}/{symbol}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "market-data"
+                ],
+                "summary": "读取证券详情",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "市场代码",
+                        "name": "market",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "证券代码",
+                        "name": "symbol",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "502": {
+                        "description": "Bad Gateway",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/market-data/snapshots/{market}/{symbol}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "market-data"
+                ],
+                "summary": "读取行情快照",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "市场代码",
+                        "name": "market",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "证券代码",
+                        "name": "symbol",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "是否绕过缓存强制刷新",
+                        "name": "refresh",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "502": {
+                        "description": "Bad Gateway",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/market-data/subscriptions": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "market-data"
+                ],
+                "summary": "申请行情订阅",
+                "parameters": [
+                    {
+                        "description": "订阅请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.marketSubscriptionPayload"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "market-data"
+                ],
+                "summary": "清空行情订阅",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "消费者 ID；为空时清空全部",
+                        "name": "consumerId",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/market-data/subscriptions/heartbeat": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "market-data"
+                ],
+                "summary": "刷新订阅心跳",
+                "parameters": [
+                    {
+                        "description": "订阅心跳",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.marketSubscriptionHeartbeatPayload"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/market-data/subscriptions/release": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "market-data"
+                ],
+                "summary": "释放行情订阅",
+                "parameters": [
+                    {
+                        "description": "订阅请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.marketSubscriptionPayload"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/settings/broker-accounts": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "创建托管账户",
+                "parameters": [
+                    {
+                        "description": "托管账户",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.managedBrokerAccountWriteRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/settings/broker-accounts/{accountRecordId}": {
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "更新托管账户",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "托管账户记录 ID",
+                        "name": "accountRecordId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "托管账户",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.managedBrokerAccountWriteRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "删除托管账户",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "托管账户记录 ID",
+                        "name": "accountRecordId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/settings/brokers": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "读取 broker 设置",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/settings/brokers/{brokerId}/integration": {
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "保存 broker 集成",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Broker 标识",
+                        "name": "brokerId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Broker 集成配置",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.brokerIntegrationSaveRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/settings/execution": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "读取执行设置",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "保存执行设置",
+                "parameters": [
+                    {
+                        "description": "执行设置",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.ExecutionSettings"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/settings/onboarding": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "读取新手引导状态",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "保存新手引导状态",
+                "parameters": [
+                    {
+                        "description": "引导状态",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.onboardingWriteRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/settings/security": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "读取安全设置",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "保存安全设置",
+                "parameters": [
+                    {
+                        "description": "安全设置",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.SecuritySettings"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/settings/ui": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "读取 UI 颜色配置",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "保存 UI 颜色配置",
+                "parameters": [
+                    {
+                        "description": "UI 配置",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.uiAppearanceSettingsWriteRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/strategies": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "strategy"
+                ],
+                "summary": "读取策略实例列表",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/strategies/{instanceId}/audit": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "strategy"
+                ],
+                "summary": "读取策略审计记录",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "策略实例 ID",
+                        "name": "instanceId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "分页大小",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "分页偏移",
+                        "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "审计类型",
+                        "name": "kind",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "起始时间",
+                        "name": "fromTime",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "结束时间",
+                        "name": "toTime",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/jftradeapi.envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/jftradeapi.strategyAuditResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/strategies/{instanceId}/logs": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "strategy"
+                ],
+                "summary": "读取策略运行日志",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "策略实例 ID",
+                        "name": "instanceId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "分页大小",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "分页偏移",
+                        "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "日志级别",
+                        "name": "level",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "起始时间",
+                        "name": "fromTime",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "结束时间",
+                        "name": "toTime",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/jftradeapi.envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/jftradeapi.strategyLogsResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/strategy-definitions": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "strategy"
+                ],
+                "summary": "读取策略定义列表",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "strategy"
+                ],
+                "summary": "创建策略定义",
+                "parameters": [
+                    {
+                        "description": "策略定义",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.strategyDesignDefinition"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/strategy-definitions/{definitionId}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "strategy"
+                ],
+                "summary": "读取策略定义",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "策略定义 ID",
+                        "name": "definitionId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "预览周期",
+                        "name": "interval",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "预览标的",
+                        "name": "symbol",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "是否包含盘前盘后",
+                        "name": "useExtendedHours",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/jftradeapi.envelope"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/jftradeapi.strategyDefinitionResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "strategy"
+                ],
+                "summary": "更新策略定义",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "策略定义 ID",
+                        "name": "definitionId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "策略定义",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.strategyDesignDefinition"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "strategy"
+                ],
+                "summary": "删除策略定义",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "策略定义 ID",
+                        "name": "definitionId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/system/futu-opend": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "system"
+                ],
+                "summary": "OpenD 健康检查",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/system/futu-opend/install-guide": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "system"
+                ],
+                "summary": "读取 OpenD 安装指南",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/system/futu-opend/manual-retry": {
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "system"
+                ],
+                "summary": "手动重置 OpenD 运行时",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/system/status": {
+            "get": {
+                "description": "返回 API、broker 与实时流状态摘要。",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "system"
+                ],
+                "summary": "读取系统状态",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ws/live": {
+            "get": {
+                "description": "建立行情与运行态实时推送连接。",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "streaming"
+                ],
+                "summary": "连接实时 WebSocket",
+                "responses": {
+                    "101": {
+                        "description": "Switching Protocols",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/jftradeapi.envelope"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "backtest.RunResult": {
+            "type": "object",
+            "properties": {
+                "candles": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/runmodel.Candle"
+                    }
+                },
+                "currentDrawdown": {
+                    "type": "number"
+                },
+                "drawdownCurve": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/runmodel.DrawdownPoint"
+                    }
+                },
+                "endTime": {
+                    "type": "string"
+                },
+                "error": {
+                    "type": "string"
+                },
+                "finalBalance": {
+                    "type": "number"
+                },
+                "interval": {
+                    "type": "string"
+                },
+                "logs": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "maxDrawdown": {
+                    "type": "number"
+                },
+                "orderBook": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/runmodel.OrderBookEntry"
+                    }
+                },
+                "pnl": {
+                    "type": "number"
+                },
+                "pnlCurve": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/runmodel.PnLPoint"
+                    }
+                },
+                "quoteCurrency": {
+                    "type": "string"
+                },
+                "runtimeErrors": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "startTime": {
+                    "type": "string"
+                },
+                "symbol": {
+                    "type": "string"
+                },
+                "totalTrades": {
+                    "type": "integer"
+                },
+                "trades": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/runmodel.TradeEvent"
+                    }
+                },
+                "winRate": {
+                    "type": "number"
+                }
+            }
+        },
+        "jftradeapi.ExecutionSettings": {
+            "type": "object",
+            "properties": {
+                "brokerOrderHistoryLookbackDays": {
+                    "type": "integer"
+                },
+                "defaultTradingEnvironment": {
+                    "type": "string"
+                },
+                "seenFillRetentionDays": {
+                    "type": "integer"
+                }
+            }
+        },
+        "jftradeapi.FutuIntegrationConfig": {
+            "type": "object",
+            "properties": {
+                "apiPort": {
+                    "type": "integer"
+                },
+                "host": {
+                    "type": "string"
+                },
+                "maxWebSocketConnections": {
+                    "type": "integer"
+                },
+                "securityFirm": {
+                    "type": "string"
+                },
+                "tradeMarket": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "useEncryption": {
+                    "type": "boolean"
+                },
+                "websocketKey": {
+                    "type": "string"
+                },
+                "websocketPort": {
+                    "type": "integer"
+                }
+            }
+        },
+        "jftradeapi.SecuritySettings": {
+            "type": "object",
+            "properties": {
+                "adminAuthRequired": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "jftradeapi.UIAppearanceSettings": {
+            "type": "object",
+            "properties": {
+                "downColor": {
+                    "type": "string"
+                },
+                "upColor": {
+                    "type": "string"
+                }
+            }
+        },
+        "jftradeapi.adminLoginRequest": {
+            "type": "object",
+            "properties": {
+                "key": {
+                    "type": "string"
+                }
+            }
+        },
+        "jftradeapi.apiError": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "jftradeapi.backtestRunState": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "request": {
+                    "$ref": "#/definitions/jftradeapi.backtestStartRequest"
+                },
+                "result": {
+                    "$ref": "#/definitions/backtest.RunResult"
+                },
+                "status": {
+                    "description": "\"queued\", \"running\", \"completed\", \"failed\"",
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
+                }
+            }
+        },
+        "jftradeapi.backtestStartRequest": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "definitionId": {
+                    "type": "string"
+                },
+                "definitionVersion": {
+                    "type": "string"
+                },
+                "endTime": {
+                    "type": "string"
+                },
+                "initialBalance": {
+                    "type": "number"
+                },
+                "interval": {
+                    "type": "string"
+                },
+                "market": {
+                    "type": "string"
+                },
+                "rehabType": {
+                    "description": "\"forward\" | \"backward\" | \"none\"",
+                    "type": "string"
+                },
+                "startTime": {
+                    "type": "string"
+                },
+                "symbol": {
+                    "type": "string"
+                },
+                "useExtendedHours": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "jftradeapi.backtestSyncRequest": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "intervals": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "market": {
+                    "type": "string"
+                },
+                "rehabType": {
+                    "description": "\"none\" | \"forward\" | \"backward\"",
+                    "type": "string"
+                },
+                "sessionScope": {
+                    "type": "string"
+                },
+                "since": {
+                    "type": "string"
+                },
+                "symbol": {
+                    "type": "string"
+                },
+                "until": {
+                    "type": "string"
+                }
+            }
+        },
+        "jftradeapi.brokerIntegrationSaveRequest": {
+            "type": "object",
+            "properties": {
+                "config": {
+                    "$ref": "#/definitions/jftradeapi.FutuIntegrationConfig"
+                },
+                "enabled": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "jftradeapi.brokerOrderCommandResponse": {
+            "type": "object",
+            "properties": {
+                "accepted": {
+                    "type": "boolean"
+                },
+                "brokerErrorCode": {
+                    "type": "string"
+                },
+                "brokerOrderId": {
+                    "type": "string"
+                },
+                "brokerOrderIdEx": {
+                    "type": "string"
+                },
+                "checkedAt": {
+                    "type": "string"
+                },
+                "internalOrderId": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "operation": {
+                    "type": "string"
+                },
+                "orderStatus": {
+                    "type": "string"
+                }
+            }
+        },
+        "jftradeapi.envelope": {
+            "type": "object",
+            "properties": {
+                "data": {},
+                "error": {
+                    "$ref": "#/definitions/jftradeapi.apiError"
+                },
+                "ok": {
+                    "type": "boolean"
+                },
+                "timestamp": {
+                    "type": "string"
+                }
+            }
+        },
+        "jftradeapi.executionOrderEventResponse": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "eventType": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "internalOrderId": {
+                    "type": "string"
+                },
+                "nextStatus": {
+                    "type": "string"
+                },
+                "payloadJson": {
+                    "type": "string"
+                },
+                "previousStatus": {
+                    "type": "string"
+                }
+            }
+        },
+        "jftradeapi.executionOrderEventsResponse": {
+            "type": "object",
+            "properties": {
+                "events": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/jftradeapi.executionOrderEventResponse"
+                    }
+                },
+                "internalOrderId": {
+                    "type": "string"
+                }
+            }
+        },
+        "jftradeapi.executionOrderSummaryResponse": {
+            "type": "object",
+            "properties": {
+                "accountId": {
+                    "type": "string"
+                },
+                "brokerId": {
+                    "type": "string"
+                },
+                "brokerOrderId": {
+                    "type": "string"
+                },
+                "brokerOrderIdEx": {
+                    "type": "string"
+                },
+                "createdAt": {
+                    "type": "string"
+                },
+                "filledAveragePrice": {
+                    "type": "number"
+                },
+                "filledQuantity": {
+                    "type": "number"
+                },
+                "internalOrderId": {
+                    "type": "string"
+                },
+                "lastError": {
+                    "type": "string"
+                },
+                "lastErrorCode": {
+                    "type": "string"
+                },
+                "lastErrorSource": {
+                    "type": "string"
+                },
+                "market": {
+                    "type": "string"
+                },
+                "orderType": {
+                    "type": "string"
+                },
+                "remark": {
+                    "type": "string"
+                },
+                "requestedPrice": {
+                    "type": "number"
+                },
+                "requestedQuantity": {
+                    "type": "number"
+                },
+                "side": {
+                    "type": "string"
+                },
+                "source": {
+                    "type": "string"
+                },
+                "sourceDetail": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "submittedAt": {
+                    "type": "string"
+                },
+                "symbol": {
+                    "type": "string"
+                },
+                "tradingEnvironment": {
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
+                }
+            }
+        },
+        "jftradeapi.executionOrdersResponse": {
+            "type": "object",
+            "properties": {
+                "orders": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/jftradeapi.executionOrderSummaryResponse"
+                    }
+                }
+            }
+        },
+        "jftradeapi.executionPlaceOrderRequest": {
+            "type": "object",
+            "properties": {
+                "accountId": {
+                    "type": "string"
+                },
+                "brokerId": {
+                    "type": "string"
+                },
+                "clientOrderId": {
+                    "type": "string"
+                },
+                "code": {
+                    "type": "string"
+                },
+                "env": {
+                    "type": "string"
+                },
+                "market": {
+                    "type": "string"
+                },
+                "orderType": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "number"
+                },
+                "quantity": {
+                    "type": "number"
+                },
+                "remark": {
+                    "type": "string"
+                },
+                "session": {
+                    "type": "string"
+                },
+                "side": {
+                    "type": "string"
+                },
+                "stopPrice": {
+                    "type": "number"
+                },
+                "symbol": {
+                    "type": "string"
+                },
+                "timeInForce": {
+                    "type": "string"
+                },
+                "tradingEnvironment": {
+                    "type": "string"
+                }
+            }
+        },
+        "jftradeapi.managedBrokerAccountWriteRequest": {
+            "type": "object",
+            "properties": {
+                "accountId": {
+                    "type": "string"
+                },
+                "brokerId": {
+                    "type": "string"
+                },
+                "displayName": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "market": {
+                    "type": "string"
+                },
+                "securityFirm": {
+                    "type": "string"
+                },
+                "tradingEnvironment": {
+                    "type": "string"
+                }
+            }
+        },
+        "jftradeapi.marketSubscriptionHeartbeatPayload": {
+            "type": "object",
+            "properties": {
+                "consumerId": {
+                    "type": "string"
+                }
+            }
+        },
+        "jftradeapi.marketSubscriptionPayload": {
+            "type": "object",
+            "properties": {
+                "channel": {
+                    "type": "string"
+                },
+                "consumerId": {
+                    "type": "string"
+                },
+                "interval": {
+                    "type": "string"
+                },
+                "market": {
+                    "type": "string"
+                },
+                "symbol": {
+                    "type": "string"
+                }
+            }
+        },
+        "jftradeapi.onboardingWriteRequest": {
+            "type": "object",
+            "properties": {
+                "completed": {
+                    "type": "boolean"
+                },
+                "dismissed": {
+                    "type": "boolean"
+                },
+                "lastBrokerId": {
+                    "type": "string"
+                }
+            }
+        },
+        "jftradeapi.strategyActivityPage": {
+            "type": "object",
+            "properties": {
+                "hasMore": {
+                    "type": "boolean"
+                },
+                "limit": {
+                    "type": "integer"
+                },
+                "offset": {
+                    "type": "integer"
+                },
+                "returned": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "jftradeapi.strategyAuditEntry": {
+            "type": "object",
+            "properties": {
+                "at": {
+                    "type": "string"
+                },
+                "detail": {
+                    "type": "string"
+                },
+                "instanceId": {
+                    "type": "string"
+                },
+                "kind": {
+                    "type": "string"
+                }
+            }
+        },
+        "jftradeapi.strategyAuditResponse": {
+            "type": "object",
+            "properties": {
+                "entries": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/jftradeapi.strategyAuditEntry"
+                    }
+                },
+                "instanceId": {
+                    "type": "string"
+                },
+                "page": {
+                    "$ref": "#/definitions/jftradeapi.strategyActivityPage"
+                }
+            }
+        },
+        "jftradeapi.strategyDefinitionResponse": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "derivedWarmupBars": {
+                    "type": "integer"
+                },
+                "derivedWarmupInterval": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "interval": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "runtime": {
+                    "type": "string"
+                },
+                "script": {
+                    "type": "string"
+                },
+                "sourceFormat": {
+                    "type": "string"
+                },
+                "symbol": {
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "string"
+                },
+                "visualModel": {
+                    "$ref": "#/definitions/jftradeapi.strategyVisualModel"
+                }
+            }
+        },
+        "jftradeapi.strategyDesignDefinition": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "interval": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "runtime": {
+                    "type": "string"
+                },
+                "script": {
+                    "type": "string"
+                },
+                "sourceFormat": {
+                    "type": "string"
+                },
+                "symbol": {
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "string"
+                },
+                "visualModel": {
+                    "$ref": "#/definitions/jftradeapi.strategyVisualModel"
+                }
+            }
+        },
+        "jftradeapi.strategyLogsResponse": {
+            "type": "object",
+            "properties": {
+                "instanceId": {
+                    "type": "string"
+                },
+                "logs": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "page": {
+                    "$ref": "#/definitions/jftradeapi.strategyActivityPage"
+                }
+            }
+        },
+        "jftradeapi.strategyVisualEdge": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "properties": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "sourceNodeId": {
+                    "type": "string"
+                },
+                "targetNodeId": {
+                    "type": "string"
+                },
+                "text": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "jftradeapi.strategyVisualModel": {
+            "type": "object",
+            "properties": {
+                "edges": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/jftradeapi.strategyVisualEdge"
+                    }
+                },
+                "engine": {
+                    "type": "string"
+                },
+                "nodes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/jftradeapi.strategyVisualNode"
+                    }
+                },
+                "version": {
+                    "type": "integer"
+                }
+            }
+        },
+        "jftradeapi.strategyVisualNode": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "properties": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "text": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "x": {
+                    "type": "number"
+                },
+                "y": {
+                    "type": "number"
+                }
+            }
+        },
+        "jftradeapi.uiAppearanceSettingsWriteRequest": {
+            "type": "object",
+            "properties": {
+                "appearance": {
+                    "$ref": "#/definitions/jftradeapi.UIAppearanceSettings"
+                }
+            }
+        },
+        "runmodel.Candle": {
+            "type": "object",
+            "properties": {
+                "close": {
+                    "type": "string"
+                },
+                "high": {
+                    "type": "string"
+                },
+                "low": {
+                    "type": "string"
+                },
+                "open": {
+                    "type": "string"
+                },
+                "time": {
+                    "type": "string"
+                },
+                "volume": {
+                    "type": "string"
+                }
+            }
+        },
+        "runmodel.DrawdownPoint": {
+            "type": "object",
+            "properties": {
+                "drawdown": {
+                    "type": "number"
+                },
+                "time": {
+                    "type": "string"
+                }
+            }
+        },
+        "runmodel.OrderBookEntry": {
+            "type": "object",
+            "properties": {
+                "clientOrderId": {
+                    "type": "string"
+                },
+                "filledAt": {
+                    "type": "string"
+                },
+                "filledPrice": {
+                    "type": "string"
+                },
+                "filledQuantity": {
+                    "type": "string"
+                },
+                "orderId": {
+                    "type": "string"
+                },
+                "orderPrice": {
+                    "type": "string"
+                },
+                "orderType": {
+                    "type": "string"
+                },
+                "quantity": {
+                    "type": "string"
+                },
+                "side": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "submittedAt": {
+                    "type": "string"
+                },
+                "symbol": {
+                    "type": "string"
+                }
+            }
+        },
+        "runmodel.PnLPoint": {
+            "type": "object",
+            "properties": {
+                "equity": {
+                    "type": "number"
+                },
+                "time": {
+                    "type": "string"
+                }
+            }
+        },
+        "runmodel.TradeEvent": {
+            "type": "object",
+            "properties": {
+                "pnl": {
+                    "type": "number"
+                },
+                "price": {
+                    "type": "string"
+                },
+                "qty": {
+                    "type": "string"
+                },
+                "side": {
+                    "type": "string"
+                },
+                "time": {
+                    "type": "string"
+                }
+            }
+        }
+    },
+    "securityDefinitions": {
+        "AdministratorBearer": {
+            "description": "Bearer \u003cJFTrade administrator key\u003e",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        },
+        "AdministratorSession": {
+            "type": "apiKey",
+            "name": "jftrade_admin_session",
+            "in": "cookie"
+        }
+    }
+}

@@ -2,7 +2,6 @@ package jftradeapi
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -10,35 +9,12 @@ import (
 	"time"
 
 	bbgotypes "github.com/c9s/bbgo/pkg/types"
+	"github.com/gin-gonic/gin"
 	"github.com/jftrade/jftrade-main/pkg/backtest"
 	"github.com/jftrade/jftrade-main/pkg/futu"
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 )
-
-func (s *Server) serveBacktestRoutes(w http.ResponseWriter, r *http.Request) bool {
-	switch {
-	case r.URL.Path == "/api/v1/backtests" && r.Method == http.MethodGet:
-		s.handleBacktestList(w, r)
-	case r.URL.Path == "/api/v1/backtests" && r.Method == http.MethodPost:
-		s.handleBacktestStart(w, r)
-	case r.URL.Path == "/api/v1/backtests/sync" && r.Method == http.MethodPost:
-		s.handleBacktestSync(w, r)
-	case strings.HasPrefix(r.URL.Path, "/api/v1/backtests/sync/") && r.Method == http.MethodGet:
-		s.handleBacktestSyncProgress(w, r)
-	case strings.HasPrefix(r.URL.Path, "/api/v1/backtests/sync/") && r.Method == http.MethodDelete:
-		s.handleBacktestSyncCancel(w, r)
-	case strings.HasPrefix(r.URL.Path, "/api/v1/backtests/") && strings.HasSuffix(r.URL.Path, "/status") && r.Method == http.MethodGet:
-		s.handleBacktestStatus(w, r)
-	case strings.HasPrefix(r.URL.Path, "/api/v1/backtests/") && r.Method == http.MethodDelete:
-		s.handleBacktestDelete(w, r)
-	case strings.HasPrefix(r.URL.Path, "/api/v1/backtests/") && r.Method == http.MethodGet:
-		s.handleBacktestResult(w, r)
-	default:
-		return false
-	}
-	return true
-}
 
 type backtestStartRequest struct {
 	DefinitionID      string  `json:"definitionId"`
@@ -63,14 +39,30 @@ type backtestRunState struct {
 	UpdatedAt string               `json:"updatedAt"`
 }
 
-func (s *Server) handleBacktestList(w http.ResponseWriter, r *http.Request) {
-	s.writeOK(w, map[string]any{"runs": s.backtestRuns.list()})
+// handleBacktestList godoc
+// @Summary 读取回测列表
+// @Tags backtest
+// @Produce json
+// @Success 200 {object} envelope
+// @Router /api/v1/backtests [get]
+func (s *Server) handleBacktestList(c *gin.Context) {
+	s.writeOK(c, map[string]any{"runs": s.backtestRuns.list()})
 }
 
-func (s *Server) handleBacktestStart(w http.ResponseWriter, r *http.Request) {
+// handleBacktestStart godoc
+// @Summary 启动回测
+// @Tags backtest
+// @Accept json
+// @Produce json
+// @Param request body backtestStartRequest true "回测请求"
+// @Success 200 {object} envelope
+// @Failure 400 {object} envelope
+// @Failure 404 {object} envelope
+// @Router /api/v1/backtests [post]
+func (s *Server) handleBacktestStart(c *gin.Context) {
 	var req backtestStartRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "invalid backtest request")
+	if err := c.ShouldBindJSON(&req); err != nil {
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid backtest request")
 		return
 	}
 	run, err := s.enqueueBacktest(req)
@@ -79,10 +71,10 @@ func (s *Server) handleBacktestStart(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(err.Error(), "not found") {
 			status = http.StatusNotFound
 		}
-		s.writeError(w, status, "BAD_REQUEST", err.Error())
+		s.writeError(c, status, "BAD_REQUEST", err.Error())
 		return
 	}
-	s.writeOK(w, map[string]any{
+	s.writeOK(c, map[string]any{
 		"id":      run.ID,
 		"status":  run.Status,
 		"message": "backtest queued",
@@ -187,63 +179,101 @@ func (s *Server) enqueueBacktest(req backtestStartRequest) (*backtestRunState, e
 	return run, nil
 }
 
-func (s *Server) handleBacktestStatus(w http.ResponseWriter, r *http.Request) {
-	runID := strings.TrimPrefix(r.URL.Path, "/api/v1/backtests/")
-	runID = strings.TrimSuffix(runID, "/status")
-	runID = strings.TrimSpace(runID)
+// handleBacktestStatus godoc
+// @Summary 读取回测状态
+// @Tags backtest
+// @Produce json
+// @Param runId path string true "回测运行 ID"
+// @Success 200 {object} envelope
+// @Failure 400 {object} envelope
+// @Failure 404 {object} envelope
+// @Router /api/v1/backtests/{runId}/status [get]
+func (s *Server) handleBacktestStatus(c *gin.Context) {
+	var uri backtestRunURI
+	if err := bindURI(c, &uri); err != nil {
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "backtest run id is invalid")
+		return
+	}
+	runID := strings.TrimSpace(uri.RunID)
 
 	run, ok := s.backtestRuns.get(runID)
 	if !ok {
-		s.writeError(w, http.StatusNotFound, "NOT_FOUND", "backtest run not found")
+		s.writeError(c, http.StatusNotFound, "NOT_FOUND", "backtest run not found")
 		return
 	}
 
-	s.writeOK(w, map[string]any{
+	s.writeOK(c, map[string]any{
 		"id":     run.ID,
 		"status": run.Status,
 	})
 }
 
-func (s *Server) handleBacktestResult(w http.ResponseWriter, r *http.Request) {
-	runID := strings.TrimPrefix(r.URL.Path, "/api/v1/backtests/")
-	runID = strings.TrimSpace(runID)
+// handleBacktestResult godoc
+// @Summary 读取回测结果
+// @Tags backtest
+// @Produce json
+// @Param runId path string true "回测运行 ID"
+// @Success 200 {object} envelope{data=backtestRunState}
+// @Failure 400 {object} envelope
+// @Failure 404 {object} envelope
+// @Router /api/v1/backtests/{runId} [get]
+func (s *Server) handleBacktestResult(c *gin.Context) {
+	var uri backtestRunURI
+	if err := bindURI(c, &uri); err != nil {
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "backtest run id is invalid")
+		return
+	}
+	runID := strings.TrimSpace(uri.RunID)
 
 	run, ok := s.backtestRuns.get(runID)
 	if !ok {
-		s.writeError(w, http.StatusNotFound, "NOT_FOUND", "backtest run not found")
+		s.writeError(c, http.StatusNotFound, "NOT_FOUND", "backtest run not found")
 		return
 	}
 
-	s.writeOK(w, run)
+	s.writeOK(c, run)
 }
 
-func (s *Server) handleBacktestDelete(w http.ResponseWriter, r *http.Request) {
-	runID := strings.TrimPrefix(r.URL.Path, "/api/v1/backtests/")
-	runID = strings.TrimSpace(runID)
+// handleBacktestDelete godoc
+// @Summary 删除回测记录
+// @Tags backtest
+// @Produce json
+// @Param runId path string true "回测运行 ID"
+// @Success 200 {object} envelope
+// @Failure 400 {object} envelope
+// @Failure 404 {object} envelope
+// @Router /api/v1/backtests/{runId} [delete]
+func (s *Server) handleBacktestDelete(c *gin.Context) {
+	var uri backtestRunURI
+	if err := bindURI(c, &uri); err != nil {
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "backtest run id is invalid")
+		return
+	}
+	runID := strings.TrimSpace(uri.RunID)
 	if runID == "" {
-		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "backtest run id is required")
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "backtest run id is required")
 		return
 	}
 
 	run, ok := s.backtestRuns.get(runID)
 	if !ok {
-		s.writeError(w, http.StatusNotFound, "NOT_FOUND", "backtest run not found")
+		s.writeError(c, http.StatusNotFound, "NOT_FOUND", "backtest run not found")
 		return
 	}
 	if run.Status != "completed" && run.Status != "failed" && run.Status != "cancelled" {
-		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "only completed, failed or cancelled backtest runs can be deleted")
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "only completed, failed or cancelled backtest runs can be deleted")
 		return
 	}
 
 	if _, deleted, err := s.backtestRuns.delete(runID); err != nil {
-		s.writeError(w, http.StatusInternalServerError, "BACKTEST_RUN_STORE_FAILED", "delete backtest run failed")
+		s.writeError(c, http.StatusInternalServerError, "BACKTEST_RUN_STORE_FAILED", "delete backtest run failed")
 		return
 	} else if !deleted {
-		s.writeError(w, http.StatusNotFound, "NOT_FOUND", "backtest run not found")
+		s.writeError(c, http.StatusNotFound, "NOT_FOUND", "backtest run not found")
 		return
 	}
 
-	s.writeOK(w, map[string]any{"deleted": true, "id": runID})
+	s.writeOK(c, map[string]any{"deleted": true, "id": runID})
 }
 
 func (s *Server) backtestDBPath() string {
@@ -261,10 +291,19 @@ type backtestSyncRequest struct {
 	SessionScope string   `json:"sessionScope,omitempty"`
 }
 
-func (s *Server) handleBacktestSync(w http.ResponseWriter, r *http.Request) {
+// handleBacktestSync godoc
+// @Summary 启动历史数据同步
+// @Tags backtest
+// @Accept json
+// @Produce json
+// @Param request body backtestSyncRequest true "同步请求"
+// @Success 200 {object} envelope
+// @Failure 400 {object} envelope
+// @Router /api/v1/backtests/sync [post]
+func (s *Server) handleBacktestSync(c *gin.Context) {
 	var req backtestSyncRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "invalid sync request")
+	if err := c.ShouldBindJSON(&req); err != nil {
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid sync request")
 		return
 	}
 	if strings.TrimSpace(req.Symbol) == "" && strings.TrimSpace(req.Code) == "" {
@@ -273,7 +312,7 @@ func (s *Server) handleBacktestSync(w http.ResponseWriter, r *http.Request) {
 	}
 	instrument, err := normalizeInstrumentInput(req.Market, req.Symbol, req.Code)
 	if err != nil {
-		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", err.Error())
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", err.Error())
 		return
 	}
 	req.Market = instrument.Market
@@ -288,7 +327,7 @@ func (s *Server) handleBacktestSync(w http.ResponseWriter, r *http.Request) {
 		var err error
 		sinceTime, err = time.Parse(time.RFC3339, req.Since)
 		if err != nil {
-			s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "invalid since time, use RFC3339")
+			s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid since time, use RFC3339")
 			return
 		}
 	}
@@ -297,7 +336,7 @@ func (s *Server) handleBacktestSync(w http.ResponseWriter, r *http.Request) {
 		var err error
 		untilTime, err = time.Parse(time.RFC3339, req.Until)
 		if err != nil {
-			s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "invalid until time, use RFC3339")
+			s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid until time, use RFC3339")
 			return
 		}
 	}
@@ -330,7 +369,7 @@ func (s *Server) handleBacktestSync(w http.ResponseWriter, r *http.Request) {
 	dbPath := s.backtestDBPath()
 	store, err := backtest.NewFutuKLineStore(dbPath)
 	if err != nil {
-		s.writeError(w, http.StatusInternalServerError, "STORE_ERROR", fmt.Sprintf("open store: %v", err))
+		s.writeError(c, http.StatusInternalServerError, "STORE_ERROR", fmt.Sprintf("open store: %v", err))
 		return
 	}
 	// Do not defer store.Close() here — the goroutine below owns the store lifetime.
@@ -356,7 +395,7 @@ func (s *Server) handleBacktestSync(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	s.writeOK(w, map[string]any{
+	s.writeOK(c, map[string]any{
 		"taskId":       taskID,
 		"symbol":       req.Symbol,
 		"intervals":    intervals,
@@ -406,28 +445,36 @@ func planBacktestSyncInterval(symbol string, interval bbgotypes.Interval, sessio
 	return interval
 }
 
-func (s *Server) handleBacktestSyncCancel(w http.ResponseWriter, r *http.Request) {
-	taskID := strings.TrimPrefix(r.URL.Path, "/api/v1/backtests/sync/")
-	taskID = strings.TrimSpace(taskID)
-	_, ok := s.backtestSyncTasks.cancel(taskID, time.Now().UTC())
-	if !ok {
-		s.writeError(w, http.StatusNotFound, "NOT_FOUND", "sync task not found or already completed")
+func (s *Server) handleBacktestSyncCancel(c *gin.Context) {
+	var uri taskURI
+	if err := bindURI(c, &uri); err != nil {
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "taskId is invalid")
 		return
 	}
-	s.writeOK(w, map[string]any{"taskId": taskID, "status": "cancelled"})
+	taskID := strings.TrimSpace(uri.TaskID)
+	_, ok := s.backtestSyncTasks.cancel(taskID, time.Now().UTC())
+	if !ok {
+		s.writeError(c, http.StatusNotFound, "NOT_FOUND", "sync task not found or already completed")
+		return
+	}
+	s.writeOK(c, map[string]any{"taskId": taskID, "status": "cancelled"})
 }
 
-func (s *Server) handleBacktestSyncProgress(w http.ResponseWriter, r *http.Request) {
-	taskID := strings.TrimPrefix(r.URL.Path, "/api/v1/backtests/sync/")
-	taskID = strings.TrimSpace(taskID)
+func (s *Server) handleBacktestSyncProgress(c *gin.Context) {
+	var uri taskURI
+	if err := bindURI(c, &uri); err != nil {
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "taskId is invalid")
+		return
+	}
+	taskID := strings.TrimSpace(uri.TaskID)
 	if taskID == "" {
-		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "taskId is required")
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "taskId is required")
 		return
 	}
 	progress, ok := s.backtestSyncTasks.get(taskID)
 	if !ok {
-		s.writeError(w, http.StatusNotFound, "NOT_FOUND", "sync task not found")
+		s.writeError(c, http.StatusNotFound, "NOT_FOUND", "sync task not found")
 		return
 	}
-	s.writeOK(w, progress)
+	s.writeOK(c, progress)
 }

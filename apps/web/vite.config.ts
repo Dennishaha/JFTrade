@@ -33,7 +33,7 @@ if (typeof launchEditor === "string") {
 }
 
 const developmentApiTarget = "http://127.0.0.1:3000";
-const apiProxyTargets = ["/api", "/openapi.json", "/swagger"];
+const apiProxyTargets = ["/api", "/swagger"];
 
 type ProxyEventEmitter = {
   on: (event: string, handler: (...args: unknown[]) => void) => void;

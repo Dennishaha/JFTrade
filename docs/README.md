@@ -19,6 +19,8 @@
 - [frontend-kline.md](frontend-kline.md)：前端行情与 K 线专题入口，包含实时合成与防回归约束。
 - [frontend/strategy-authoring.md](frontend/strategy-authoring.md)：前端 DSL 策略设计专题，覆盖 Logic Flow、Monaco、模板和 visualModel 同步约束。
 - [adk.md](adk.md)：GO-ADK / Agent 控制面、权限模式、内置 tools 与运行时文件。
+- [review-boundaries-2026-06.md](review-boundaries-2026-06.md)：当前 gin / Swagger / broker 收口变更的 review 分块说明。
+- [release-closeout-2026-06.md](release-closeout-2026-06.md)：当前发布候选的对外变化、固定验收和冻结规则。
 
 ### 3. 最后看参考资料
 
@@ -41,6 +43,8 @@ docs/
 ├── troubleshooting.md        排障入口
 ├── adk.md                    GO-ADK / Agent 控制面
 ├── frontend-kline.md         前端行情/K 线入口
+├── review-boundaries-2026-06.md 当前发布候选的 review 分块
+├── release-closeout-2026-06.md  当前发布候选的收口说明
 ├── troubleshooting/          排障专题
 ├── frontend/                 前端与行情专题
 	├── strategy-authoring.md   前端策略设计专题

@@ -2,7 +2,7 @@ package jftradeapi
 
 import "time"
 
-func (s *Server) cachedTickCandles(instrumentID string, query map[string][]string, limit int) []map[string]any {
+func (s *Server) cachedTickCandles(instrumentID string, query marketCandlesQuery, limit int) []map[string]any {
 	beginAt, endAt := tickCandleQueryRange(query)
 	samples := s.tickCache.snapshot(instrumentID)
 
@@ -13,15 +13,21 @@ func (s *Server) cachedTickCandles(instrumentID string, query map[string][]strin
 	return candles
 }
 
-func tickCandleQueryRange(query map[string][]string) (time.Time, time.Time) {
-	endAt := parseQueryTime(firstQuery(query, "toTime", ""), time.Now())
-	if queryEnd := firstQuery(query, "to", ""); queryEnd != "" {
-		endAt = parseQueryTime(queryEnd, endAt)
+func tickCandleQueryRange(query marketCandlesQuery) (time.Time, time.Time) {
+	endAt := time.Now()
+	if !query.ToTime.Time.IsZero() {
+		endAt = query.ToTime.Time
+	}
+	if !query.To.Time.IsZero() {
+		endAt = query.To.Time
 	}
 	defaultBegin := endAt.Add(-15 * time.Minute)
-	beginAt := parseQueryTime(firstQuery(query, "fromTime", ""), defaultBegin)
-	if queryBegin := firstQuery(query, "from", ""); queryBegin != "" {
-		beginAt = parseQueryTime(queryBegin, beginAt)
+	beginAt := defaultBegin
+	if !query.FromTime.Time.IsZero() {
+		beginAt = query.FromTime.Time
+	}
+	if !query.From.Time.IsZero() {
+		beginAt = query.From.Time
 	}
 	return beginAt, endAt
 }

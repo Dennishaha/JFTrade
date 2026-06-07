@@ -34,11 +34,8 @@ func TestSwaggerUIAvailable(t *testing.T) {
 		t.Fatalf("read swagger UI body: %v", err)
 	}
 	html := string(body)
-	if !strings.Contains(html, "SwaggerUIBundle") {
+	if !strings.Contains(html, "swagger-ui-bundle.js") {
 		t.Fatalf("swagger UI page missing bundle bootstrap: %s", html)
-	}
-	if !strings.Contains(html, "/openapi.json") {
-		t.Fatalf("swagger UI page missing openapi url: %s", html)
 	}
 	if strings.Contains(html, "cdn.jsdelivr.net") {
 		t.Fatalf("swagger UI page still references external CDN: %s", html)
@@ -55,6 +52,19 @@ func TestSwaggerUIAvailable(t *testing.T) {
 	if contentType := assetResp.Header.Get("Content-Type"); !strings.Contains(contentType, "text/css") {
 		t.Fatalf("swagger css content-type = %q", contentType)
 	}
+
+	initResp, err := http.Get(srv.URL + "/swagger/swagger-initializer.js")
+	if err != nil {
+		t.Fatalf("GET swagger initializer asset: %v", err)
+	}
+	defer initResp.Body.Close()
+	initBody, err := io.ReadAll(initResp.Body)
+	if err != nil {
+		t.Fatalf("read swagger initializer asset: %v", err)
+	}
+	if !strings.Contains(string(initBody), "doc.json") {
+		t.Fatalf("swagger initializer missing doc.json url: %s", string(initBody))
+	}
 }
 
 func TestOpenAPISpecExposesCorePaths(t *testing.T) {
@@ -64,35 +74,35 @@ func TestOpenAPISpecExposesCorePaths(t *testing.T) {
 	}
 	srv := newHTTPTestServer(t, store)
 
-	resp, err := http.Get(srv.URL + "/openapi.json")
+	resp, err := http.Get(srv.URL + "/swagger/doc.json")
 	if err != nil {
-		t.Fatalf("GET openapi spec: %v", err)
+		t.Fatalf("GET swagger doc json: %v", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("openapi status = %d", resp.StatusCode)
+		t.Fatalf("swagger doc status = %d", resp.StatusCode)
 	}
 	if contentType := resp.Header.Get("Content-Type"); !strings.Contains(contentType, "application/json") {
-		t.Fatalf("openapi content-type = %q", contentType)
+		t.Fatalf("swagger doc content-type = %q", contentType)
 	}
 
 	var spec struct {
-		OpenAPI string `json:"openapi"`
+		Swagger string `json:"swagger"`
 		Info    struct {
 			Title string `json:"title"`
 		} `json:"info"`
 		Paths map[string]json.RawMessage `json:"paths"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&spec); err != nil {
-		t.Fatalf("decode openapi spec: %v", err)
+		t.Fatalf("decode swagger doc json: %v", err)
 	}
 
-	if spec.OpenAPI != "3.0.3" {
-		t.Fatalf("openapi version = %q", spec.OpenAPI)
+	if spec.Swagger != "2.0" {
+		t.Fatalf("swagger version = %q", spec.Swagger)
 	}
 	if spec.Info.Title != "JFTrade Debug API" {
-		t.Fatalf("openapi title = %q", spec.Info.Title)
+		t.Fatalf("swagger title = %q", spec.Info.Title)
 	}
 	if _, ok := spec.Paths["/api/v1/system/status"]; !ok {
 		t.Fatalf("missing /api/v1/system/status in spec")

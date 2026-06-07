@@ -1,0 +1,2501 @@
+basePath: /
+definitions:
+  backtest.RunResult:
+    properties:
+      candles:
+        items:
+          $ref: '#/definitions/runmodel.Candle'
+        type: array
+      currentDrawdown:
+        type: number
+      drawdownCurve:
+        items:
+          $ref: '#/definitions/runmodel.DrawdownPoint'
+        type: array
+      endTime:
+        type: string
+      error:
+        type: string
+      finalBalance:
+        type: number
+      interval:
+        type: string
+      logs:
+        items:
+          type: string
+        type: array
+      maxDrawdown:
+        type: number
+      orderBook:
+        items:
+          $ref: '#/definitions/runmodel.OrderBookEntry'
+        type: array
+      pnl:
+        type: number
+      pnlCurve:
+        items:
+          $ref: '#/definitions/runmodel.PnLPoint'
+        type: array
+      quoteCurrency:
+        type: string
+      runtimeErrors:
+        items:
+          type: string
+        type: array
+      startTime:
+        type: string
+      symbol:
+        type: string
+      totalTrades:
+        type: integer
+      trades:
+        items:
+          $ref: '#/definitions/runmodel.TradeEvent'
+        type: array
+      winRate:
+        type: number
+    type: object
+  jftradeapi.ExecutionSettings:
+    properties:
+      brokerOrderHistoryLookbackDays:
+        type: integer
+      defaultTradingEnvironment:
+        type: string
+      seenFillRetentionDays:
+        type: integer
+    type: object
+  jftradeapi.FutuIntegrationConfig:
+    properties:
+      apiPort:
+        type: integer
+      host:
+        type: string
+      maxWebSocketConnections:
+        type: integer
+      securityFirm:
+        type: string
+      tradeMarket:
+        type: string
+      type:
+        type: string
+      useEncryption:
+        type: boolean
+      websocketKey:
+        type: string
+      websocketPort:
+        type: integer
+    type: object
+  jftradeapi.SecuritySettings:
+    properties:
+      adminAuthRequired:
+        type: boolean
+    type: object
+  jftradeapi.UIAppearanceSettings:
+    properties:
+      downColor:
+        type: string
+      upColor:
+        type: string
+    type: object
+  jftradeapi.adminLoginRequest:
+    properties:
+      key:
+        type: string
+    type: object
+  jftradeapi.apiError:
+    properties:
+      code:
+        type: string
+      message:
+        type: string
+    type: object
+  jftradeapi.backtestRunState:
+    properties:
+      createdAt:
+        type: string
+      id:
+        type: string
+      request:
+        $ref: '#/definitions/jftradeapi.backtestStartRequest'
+      result:
+        $ref: '#/definitions/backtest.RunResult'
+      status:
+        description: '"queued", "running", "completed", "failed"'
+        type: string
+      updatedAt:
+        type: string
+    type: object
+  jftradeapi.backtestStartRequest:
+    properties:
+      code:
+        type: string
+      definitionId:
+        type: string
+      definitionVersion:
+        type: string
+      endTime:
+        type: string
+      initialBalance:
+        type: number
+      interval:
+        type: string
+      market:
+        type: string
+      rehabType:
+        description: '"forward" | "backward" | "none"'
+        type: string
+      startTime:
+        type: string
+      symbol:
+        type: string
+      useExtendedHours:
+        type: boolean
+    type: object
+  jftradeapi.backtestSyncRequest:
+    properties:
+      code:
+        type: string
+      intervals:
+        items:
+          type: string
+        type: array
+      market:
+        type: string
+      rehabType:
+        description: '"none" | "forward" | "backward"'
+        type: string
+      sessionScope:
+        type: string
+      since:
+        type: string
+      symbol:
+        type: string
+      until:
+        type: string
+    type: object
+  jftradeapi.brokerIntegrationSaveRequest:
+    properties:
+      config:
+        $ref: '#/definitions/jftradeapi.FutuIntegrationConfig'
+      enabled:
+        type: boolean
+    type: object
+  jftradeapi.brokerOrderCommandResponse:
+    properties:
+      accepted:
+        type: boolean
+      brokerErrorCode:
+        type: string
+      brokerOrderId:
+        type: string
+      brokerOrderIdEx:
+        type: string
+      checkedAt:
+        type: string
+      internalOrderId:
+        type: string
+      message:
+        type: string
+      operation:
+        type: string
+      orderStatus:
+        type: string
+    type: object
+  jftradeapi.envelope:
+    properties:
+      data: {}
+      error:
+        $ref: '#/definitions/jftradeapi.apiError'
+      ok:
+        type: boolean
+      timestamp:
+        type: string
+    type: object
+  jftradeapi.executionOrderEventResponse:
+    properties:
+      createdAt:
+        type: string
+      eventType:
+        type: string
+      id:
+        type: string
+      internalOrderId:
+        type: string
+      nextStatus:
+        type: string
+      payloadJson:
+        type: string
+      previousStatus:
+        type: string
+    type: object
+  jftradeapi.executionOrderEventsResponse:
+    properties:
+      events:
+        items:
+          $ref: '#/definitions/jftradeapi.executionOrderEventResponse'
+        type: array
+      internalOrderId:
+        type: string
+    type: object
+  jftradeapi.executionOrderSummaryResponse:
+    properties:
+      accountId:
+        type: string
+      brokerId:
+        type: string
+      brokerOrderId:
+        type: string
+      brokerOrderIdEx:
+        type: string
+      createdAt:
+        type: string
+      filledAveragePrice:
+        type: number
+      filledQuantity:
+        type: number
+      internalOrderId:
+        type: string
+      lastError:
+        type: string
+      lastErrorCode:
+        type: string
+      lastErrorSource:
+        type: string
+      market:
+        type: string
+      orderType:
+        type: string
+      remark:
+        type: string
+      requestedPrice:
+        type: number
+      requestedQuantity:
+        type: number
+      side:
+        type: string
+      source:
+        type: string
+      sourceDetail:
+        type: string
+      status:
+        type: string
+      submittedAt:
+        type: string
+      symbol:
+        type: string
+      tradingEnvironment:
+        type: string
+      updatedAt:
+        type: string
+    type: object
+  jftradeapi.executionOrdersResponse:
+    properties:
+      orders:
+        items:
+          $ref: '#/definitions/jftradeapi.executionOrderSummaryResponse'
+        type: array
+    type: object
+  jftradeapi.executionPlaceOrderRequest:
+    properties:
+      accountId:
+        type: string
+      brokerId:
+        type: string
+      clientOrderId:
+        type: string
+      code:
+        type: string
+      env:
+        type: string
+      market:
+        type: string
+      orderType:
+        type: string
+      price:
+        type: number
+      quantity:
+        type: number
+      remark:
+        type: string
+      session:
+        type: string
+      side:
+        type: string
+      stopPrice:
+        type: number
+      symbol:
+        type: string
+      timeInForce:
+        type: string
+      tradingEnvironment:
+        type: string
+    type: object
+  jftradeapi.managedBrokerAccountWriteRequest:
+    properties:
+      accountId:
+        type: string
+      brokerId:
+        type: string
+      displayName:
+        type: string
+      enabled:
+        type: boolean
+      market:
+        type: string
+      securityFirm:
+        type: string
+      tradingEnvironment:
+        type: string
+    type: object
+  jftradeapi.marketSubscriptionHeartbeatPayload:
+    properties:
+      consumerId:
+        type: string
+    type: object
+  jftradeapi.marketSubscriptionPayload:
+    properties:
+      channel:
+        type: string
+      consumerId:
+        type: string
+      interval:
+        type: string
+      market:
+        type: string
+      symbol:
+        type: string
+    type: object
+  jftradeapi.onboardingWriteRequest:
+    properties:
+      completed:
+        type: boolean
+      dismissed:
+        type: boolean
+      lastBrokerId:
+        type: string
+    type: object
+  jftradeapi.strategyActivityPage:
+    properties:
+      hasMore:
+        type: boolean
+      limit:
+        type: integer
+      offset:
+        type: integer
+      returned:
+        type: integer
+      total:
+        type: integer
+    type: object
+  jftradeapi.strategyAuditEntry:
+    properties:
+      at:
+        type: string
+      detail:
+        type: string
+      instanceId:
+        type: string
+      kind:
+        type: string
+    type: object
+  jftradeapi.strategyAuditResponse:
+    properties:
+      entries:
+        items:
+          $ref: '#/definitions/jftradeapi.strategyAuditEntry'
+        type: array
+      instanceId:
+        type: string
+      page:
+        $ref: '#/definitions/jftradeapi.strategyActivityPage'
+    type: object
+  jftradeapi.strategyDefinitionResponse:
+    properties:
+      createdAt:
+        type: string
+      derivedWarmupBars:
+        type: integer
+      derivedWarmupInterval:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      interval:
+        type: string
+      name:
+        type: string
+      runtime:
+        type: string
+      script:
+        type: string
+      sourceFormat:
+        type: string
+      symbol:
+        type: string
+      updatedAt:
+        type: string
+      version:
+        type: string
+      visualModel:
+        $ref: '#/definitions/jftradeapi.strategyVisualModel'
+    type: object
+  jftradeapi.strategyDesignDefinition:
+    properties:
+      createdAt:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      interval:
+        type: string
+      name:
+        type: string
+      runtime:
+        type: string
+      script:
+        type: string
+      sourceFormat:
+        type: string
+      symbol:
+        type: string
+      updatedAt:
+        type: string
+      version:
+        type: string
+      visualModel:
+        $ref: '#/definitions/jftradeapi.strategyVisualModel'
+    type: object
+  jftradeapi.strategyLogsResponse:
+    properties:
+      instanceId:
+        type: string
+      logs:
+        items:
+          type: string
+        type: array
+      page:
+        $ref: '#/definitions/jftradeapi.strategyActivityPage'
+    type: object
+  jftradeapi.strategyVisualEdge:
+    properties:
+      id:
+        type: string
+      properties:
+        additionalProperties: {}
+        type: object
+      sourceNodeId:
+        type: string
+      targetNodeId:
+        type: string
+      text:
+        type: string
+      type:
+        type: string
+    type: object
+  jftradeapi.strategyVisualModel:
+    properties:
+      edges:
+        items:
+          $ref: '#/definitions/jftradeapi.strategyVisualEdge'
+        type: array
+      engine:
+        type: string
+      nodes:
+        items:
+          $ref: '#/definitions/jftradeapi.strategyVisualNode'
+        type: array
+      version:
+        type: integer
+    type: object
+  jftradeapi.strategyVisualNode:
+    properties:
+      id:
+        type: string
+      properties:
+        additionalProperties: {}
+        type: object
+      text:
+        type: string
+      type:
+        type: string
+      x:
+        type: number
+      "y":
+        type: number
+    type: object
+  jftradeapi.uiAppearanceSettingsWriteRequest:
+    properties:
+      appearance:
+        $ref: '#/definitions/jftradeapi.UIAppearanceSettings'
+    type: object
+  runmodel.Candle:
+    properties:
+      close:
+        type: string
+      high:
+        type: string
+      low:
+        type: string
+      open:
+        type: string
+      time:
+        type: string
+      volume:
+        type: string
+    type: object
+  runmodel.DrawdownPoint:
+    properties:
+      drawdown:
+        type: number
+      time:
+        type: string
+    type: object
+  runmodel.OrderBookEntry:
+    properties:
+      clientOrderId:
+        type: string
+      filledAt:
+        type: string
+      filledPrice:
+        type: string
+      filledQuantity:
+        type: string
+      orderId:
+        type: string
+      orderPrice:
+        type: string
+      orderType:
+        type: string
+      quantity:
+        type: string
+      side:
+        type: string
+      status:
+        type: string
+      submittedAt:
+        type: string
+      symbol:
+        type: string
+    type: object
+  runmodel.PnLPoint:
+    properties:
+      equity:
+        type: number
+      time:
+        type: string
+    type: object
+  runmodel.TradeEvent:
+    properties:
+      pnl:
+        type: number
+      price:
+        type: string
+      qty:
+        type: string
+      side:
+        type: string
+      time:
+        type: string
+    type: object
+info:
+  contact: {}
+  description: JFTrade sidecar API 的调试文档。Swagger UI 主要覆盖当前常用的 HTTP 调试入口，并展示实时接口的请求方式。
+  title: JFTrade Debug API
+  version: 1.0.0
+paths:
+  /api/v1/adk:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 读取 ADK 快照
+      tags:
+      - adk
+  /api/v1/adk/agents:
+    get:
+      parameters:
+      - description: Agent 状态过滤
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 读取 ADK Agent 列表
+      tags:
+      - adk
+  /api/v1/adk/providers:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 读取 ADK Provider 列表
+      tags:
+      - adk
+  /api/v1/adk/runs:
+    get:
+      parameters:
+      - description: 分页大小
+        in: query
+        name: limit
+        type: integer
+      - description: 分页偏移
+        in: query
+        name: offset
+        type: integer
+      - description: Run 状态
+        in: query
+        name: status
+        type: string
+      - description: Agent ID
+        in: query
+        name: agentId
+        type: string
+      - description: Session ID
+        in: query
+        name: sessionId
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 读取 ADK Run 列表
+      tags:
+      - adk
+  /api/v1/adk/sessions:
+    get:
+      parameters:
+      - description: 分页大小
+        in: query
+        name: limit
+        type: integer
+      - description: 分页偏移
+        in: query
+        name: offset
+        type: integer
+      - description: Agent ID
+        in: query
+        name: agentId
+        type: string
+      - description: 搜索关键字
+        in: query
+        name: query
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 读取 ADK Session 列表
+      tags:
+      - adk
+  /api/v1/auth/login:
+    post:
+      consumes:
+      - application/json
+      description: 使用单管理员密钥签发 HttpOnly、SameSite=Strict 会话。
+      parameters:
+      - description: 管理员密钥
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/jftradeapi.adminLoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 管理员登录
+      tags:
+      - auth
+  /api/v1/auth/logout:
+    post:
+      description: 注销当前管理员会话。
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 管理员注销
+      tags:
+      - auth
+  /api/v1/auth/session:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 读取管理员会话
+      tags:
+      - auth
+  /api/v1/auth/token:
+    get:
+      description: 始终返回 410 Gone；CLI 请直接使用管理员密钥作为 Bearer token。
+      produces:
+      - application/json
+      responses:
+        "410":
+          description: Gone
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 旧令牌入口（已退役）
+      tags:
+      - auth
+  /api/v1/backtests:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 读取回测列表
+      tags:
+      - backtest
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 回测请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/jftradeapi.backtestStartRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 启动回测
+      tags:
+      - backtest
+  /api/v1/backtests/{runId}:
+    delete:
+      parameters:
+      - description: 回测运行 ID
+        in: path
+        name: runId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 删除回测记录
+      tags:
+      - backtest
+    get:
+      parameters:
+      - description: 回测运行 ID
+        in: path
+        name: runId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/jftradeapi.envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/jftradeapi.backtestRunState'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 读取回测结果
+      tags:
+      - backtest
+  /api/v1/backtests/{runId}/status:
+    get:
+      parameters:
+      - description: 回测运行 ID
+        in: path
+        name: runId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 读取回测状态
+      tags:
+      - backtest
+  /api/v1/backtests/sync:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 同步请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/jftradeapi.backtestSyncRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 启动历史数据同步
+      tags:
+      - backtest
+  /api/v1/brokers/{brokerId}/cash-flows:
+    get:
+      parameters:
+      - description: 券商 ID
+        in: path
+        name: brokerId
+        required: true
+        type: string
+      - description: 交易环境
+        in: query
+        name: tradingEnvironment
+        type: string
+      - description: 账户 ID
+        in: query
+        name: accountId
+        type: string
+      - description: 市场代码
+        in: query
+        name: market
+        type: string
+      - description: 清算日期
+        in: query
+        name: clearingDate
+        required: true
+        type: string
+      - description: 方向
+        in: query
+        name: direction
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 读取券商资金流水
+      tags:
+      - broker
+  /api/v1/brokers/{brokerId}/fills:
+    get:
+      parameters:
+      - description: 券商 ID
+        in: path
+        name: brokerId
+        required: true
+        type: string
+      - description: 交易环境
+        in: query
+        name: tradingEnvironment
+        type: string
+      - description: 账户 ID
+        in: query
+        name: accountId
+        type: string
+      - description: 市场代码
+        in: query
+        name: market
+        type: string
+      - description: CURRENT 或 HISTORY
+        in: query
+        name: scope
+        type: string
+      - description: 证券代码
+        in: query
+        name: symbol
+        type: string
+      - description: 历史查询起始时间
+        in: query
+        name: startTime
+        type: string
+      - description: 历史查询结束时间
+        in: query
+        name: endTime
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 读取券商成交
+      tags:
+      - broker
+  /api/v1/brokers/{brokerId}/funds:
+    get:
+      parameters:
+      - description: 券商 ID
+        in: path
+        name: brokerId
+        required: true
+        type: string
+      - description: 交易环境
+        in: query
+        name: tradingEnvironment
+        type: string
+      - description: 账户 ID
+        in: query
+        name: accountId
+        type: string
+      - description: 市场代码
+        in: query
+        name: market
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 读取券商资金
+      tags:
+      - broker
+  /api/v1/brokers/{brokerId}/klines:
+    get:
+      parameters:
+      - description: 券商 ID
+        in: path
+        name: brokerId
+        required: true
+        type: string
+      - description: 交易环境
+        in: query
+        name: tradingEnvironment
+        type: string
+      - description: 账户 ID
+        in: query
+        name: accountId
+        type: string
+      - description: 市场代码
+        in: query
+        name: market
+        type: string
+      - description: 证券代码
+        in: query
+        name: symbol
+        required: true
+        type: string
+      - description: K 线周期，默认 1d
+        in: query
+        name: period
+        type: string
+      - description: 起始时间
+        in: query
+        name: fromTime
+        type: string
+      - description: 结束时间
+        in: query
+        name: toTime
+        type: string
+      - description: 返回条数
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 读取券商 K 线
+      tags:
+      - broker
+  /api/v1/brokers/{brokerId}/margin-ratios:
+    get:
+      parameters:
+      - description: 券商 ID
+        in: path
+        name: brokerId
+        required: true
+        type: string
+      - description: 交易环境
+        in: query
+        name: tradingEnvironment
+        type: string
+      - description: 账户 ID
+        in: query
+        name: accountId
+        type: string
+      - description: 市场代码
+        in: query
+        name: market
+        type: string
+      - collectionFormat: csv
+        description: 证券代码
+        in: query
+        items:
+          type: string
+        name: symbol
+        required: true
+        type: array
+      - collectionFormat: csv
+        description: 证券代码列表
+        in: query
+        items:
+          type: string
+        name: symbols
+        type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 读取券商融资融券比例
+      tags:
+      - broker
+  /api/v1/brokers/{brokerId}/max-trade-qtys:
+    get:
+      parameters:
+      - description: 券商 ID
+        in: path
+        name: brokerId
+        required: true
+        type: string
+      - description: 交易环境
+        in: query
+        name: tradingEnvironment
+        type: string
+      - description: 账户 ID
+        in: query
+        name: accountId
+        type: string
+      - description: 市场代码
+        in: query
+        name: market
+        type: string
+      - description: 证券代码
+        in: query
+        name: symbol
+        required: true
+        type: string
+      - description: 订单类型
+        in: query
+        name: orderType
+        required: true
+        type: string
+      - description: 价格
+        in: query
+        name: price
+        required: true
+        type: number
+      - description: 订单扩展 ID
+        in: query
+        name: orderIdEx
+        type: string
+      - description: 调整系数
+        in: query
+        name: adjustSideAndLimit
+        type: number
+      - description: 交易时段
+        in: query
+        name: session
+        type: string
+      - description: 持仓 ID
+        in: query
+        name: positionId
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 读取券商最大可交易数量
+      tags:
+      - broker
+  /api/v1/brokers/{brokerId}/order-fees:
+    get:
+      parameters:
+      - description: 券商 ID
+        in: path
+        name: brokerId
+        required: true
+        type: string
+      - description: 交易环境
+        in: query
+        name: tradingEnvironment
+        type: string
+      - description: 账户 ID
+        in: query
+        name: accountId
+        type: string
+      - description: 市场代码
+        in: query
+        name: market
+        type: string
+      - collectionFormat: csv
+        description: 外部订单号
+        in: query
+        items:
+          type: string
+        name: orderIdEx
+        required: true
+        type: array
+      - collectionFormat: csv
+        description: 外部订单号列表
+        in: query
+        items:
+          type: string
+        name: orderIdExList
+        type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 读取券商订单费用
+      tags:
+      - broker
+  /api/v1/brokers/{brokerId}/orders:
+    get:
+      parameters:
+      - description: 券商 ID
+        in: path
+        name: brokerId
+        required: true
+        type: string
+      - description: 交易环境
+        in: query
+        name: tradingEnvironment
+        type: string
+      - description: 账户 ID
+        in: query
+        name: accountId
+        type: string
+      - description: 市场代码
+        in: query
+        name: market
+        type: string
+      - description: CURRENT 或 HISTORY
+        in: query
+        name: scope
+        type: string
+      - description: 证券代码
+        in: query
+        name: symbol
+        type: string
+      - description: 历史查询起始时间
+        in: query
+        name: startTime
+        type: string
+      - description: 历史查询结束时间
+        in: query
+        name: endTime
+        type: string
+      - collectionFormat: csv
+        description: 订单状态
+        in: query
+        items:
+          type: string
+        name: status
+        type: array
+      - collectionFormat: csv
+        description: 订单状态，逗号分隔或重复参数
+        in: query
+        items:
+          type: string
+        name: statuses
+        type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 读取券商订单
+      tags:
+      - broker
+  /api/v1/brokers/{brokerId}/positions:
+    get:
+      parameters:
+      - description: 券商 ID
+        in: path
+        name: brokerId
+        required: true
+        type: string
+      - description: 交易环境
+        in: query
+        name: tradingEnvironment
+        type: string
+      - description: 账户 ID
+        in: query
+        name: accountId
+        type: string
+      - description: 市场代码
+        in: query
+        name: market
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 读取券商持仓
+      tags:
+      - broker
+  /api/v1/brokers/{brokerId}/quote:
+    get:
+      parameters:
+      - description: 券商 ID
+        in: path
+        name: brokerId
+        required: true
+        type: string
+      - description: 交易环境
+        in: query
+        name: tradingEnvironment
+        type: string
+      - description: 账户 ID
+        in: query
+        name: accountId
+        type: string
+      - description: 市场代码
+        in: query
+        name: market
+        type: string
+      - collectionFormat: csv
+        description: 证券代码
+        in: query
+        items:
+          type: string
+        name: symbol
+        required: true
+        type: array
+      - collectionFormat: csv
+        description: 证券代码列表
+        in: query
+        items:
+          type: string
+        name: symbols
+        type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 读取券商行情
+      tags:
+      - broker
+  /api/v1/brokers/{brokerId}/securities:
+    get:
+      parameters:
+      - description: 券商 ID
+        in: path
+        name: brokerId
+        required: true
+        type: string
+      - description: 交易环境
+        in: query
+        name: tradingEnvironment
+        type: string
+      - description: 账户 ID
+        in: query
+        name: accountId
+        type: string
+      - description: 市场代码
+        in: query
+        name: market
+        type: string
+      - collectionFormat: csv
+        description: 证券代码
+        in: query
+        items:
+          type: string
+        name: symbol
+        required: true
+        type: array
+      - collectionFormat: csv
+        description: 证券代码列表
+        in: query
+        items:
+          type: string
+        name: symbols
+        type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 读取券商证券快照
+      tags:
+      - broker
+  /api/v1/execution/orders:
+    get:
+      parameters:
+      - description: ACTIVE 表示仅活动订单
+        in: query
+        name: scope
+        type: string
+      - description: Broker 标识
+        in: query
+        name: brokerId
+        type: string
+      - description: 交易环境
+        in: query
+        name: tradingEnvironment
+        type: string
+      - description: 账户 ID
+        in: query
+        name: accountId
+        type: string
+      - description: 市场
+        in: query
+        name: market
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/jftradeapi.envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/jftradeapi.executionOrdersResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 读取执行订单
+      tags:
+      - execution
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 执行订单
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/jftradeapi.executionPlaceOrderRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/jftradeapi.envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/jftradeapi.brokerOrderCommandResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 提交执行订单
+      tags:
+      - execution
+  /api/v1/execution/orders/{internalOrderId}/cancel:
+    post:
+      parameters:
+      - description: 内部订单 ID
+        in: path
+        name: internalOrderId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/jftradeapi.envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/jftradeapi.brokerOrderCommandResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 取消执行订单
+      tags:
+      - execution
+  /api/v1/execution/orders/{internalOrderId}/events:
+    get:
+      parameters:
+      - description: 内部订单 ID
+        in: path
+        name: internalOrderId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/jftradeapi.envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/jftradeapi.executionOrderEventsResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 读取执行订单事件
+      tags:
+      - execution
+  /api/v1/market-data/candles/{market}/{symbol}:
+    get:
+      parameters:
+      - description: 市场代码
+        in: path
+        name: market
+        required: true
+        type: string
+      - description: 证券代码
+        in: path
+        name: symbol
+        required: true
+        type: string
+      - description: 周期，默认 1m
+        in: query
+        name: period
+        type: string
+      - description: 返回条数，最大 1000
+        in: query
+        name: limit
+        type: integer
+      - description: 起始时间，RFC3339
+        in: query
+        name: fromTime
+        type: string
+      - description: 结束时间，RFC3339
+        in: query
+        name: toTime
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "502":
+          description: Bad Gateway
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 读取 K 线
+      tags:
+      - market-data
+  /api/v1/market-data/depth/{market}/{symbol}:
+    get:
+      parameters:
+      - description: 市场代码
+        in: path
+        name: market
+        required: true
+        type: string
+      - description: 证券代码
+        in: path
+        name: symbol
+        required: true
+        type: string
+      - description: 档数，默认 10，最大 50
+        in: query
+        name: num
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "502":
+          description: Bad Gateway
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 读取盘口深度
+      tags:
+      - market-data
+  /api/v1/market-data/instruments:
+    get:
+      description: 按关键字查询可用标的。当前实现返回空结果占位。
+      parameters:
+      - description: 关键字
+        in: query
+        name: query
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 检索行情标的
+      tags:
+      - market-data
+  /api/v1/market-data/securities/{market}/{symbol}:
+    get:
+      parameters:
+      - description: 市场代码
+        in: path
+        name: market
+        required: true
+        type: string
+      - description: 证券代码
+        in: path
+        name: symbol
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "502":
+          description: Bad Gateway
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 读取证券详情
+      tags:
+      - market-data
+  /api/v1/market-data/snapshots/{market}/{symbol}:
+    get:
+      parameters:
+      - description: 市场代码
+        in: path
+        name: market
+        required: true
+        type: string
+      - description: 证券代码
+        in: path
+        name: symbol
+        required: true
+        type: string
+      - description: 是否绕过缓存强制刷新
+        in: query
+        name: refresh
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "502":
+          description: Bad Gateway
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 读取行情快照
+      tags:
+      - market-data
+  /api/v1/market-data/subscriptions:
+    delete:
+      parameters:
+      - description: 消费者 ID；为空时清空全部
+        in: query
+        name: consumerId
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 清空行情订阅
+      tags:
+      - market-data
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 订阅请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/jftradeapi.marketSubscriptionPayload'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 申请行情订阅
+      tags:
+      - market-data
+  /api/v1/market-data/subscriptions/heartbeat:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 订阅心跳
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/jftradeapi.marketSubscriptionHeartbeatPayload'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 刷新订阅心跳
+      tags:
+      - market-data
+  /api/v1/market-data/subscriptions/release:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 订阅请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/jftradeapi.marketSubscriptionPayload'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 释放行情订阅
+      tags:
+      - market-data
+  /api/v1/settings/broker-accounts:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 托管账户
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/jftradeapi.managedBrokerAccountWriteRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 创建托管账户
+      tags:
+      - settings
+  /api/v1/settings/broker-accounts/{accountRecordId}:
+    delete:
+      parameters:
+      - description: 托管账户记录 ID
+        in: path
+        name: accountRecordId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 删除托管账户
+      tags:
+      - settings
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 托管账户记录 ID
+        in: path
+        name: accountRecordId
+        required: true
+        type: string
+      - description: 托管账户
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/jftradeapi.managedBrokerAccountWriteRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 更新托管账户
+      tags:
+      - settings
+  /api/v1/settings/brokers:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 读取 broker 设置
+      tags:
+      - settings
+  /api/v1/settings/brokers/{brokerId}/integration:
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: Broker 标识
+        in: path
+        name: brokerId
+        required: true
+        type: string
+      - description: Broker 集成配置
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/jftradeapi.brokerIntegrationSaveRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 保存 broker 集成
+      tags:
+      - settings
+  /api/v1/settings/execution:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 读取执行设置
+      tags:
+      - settings
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 执行设置
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/jftradeapi.ExecutionSettings'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 保存执行设置
+      tags:
+      - settings
+  /api/v1/settings/onboarding:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 读取新手引导状态
+      tags:
+      - settings
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 引导状态
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/jftradeapi.onboardingWriteRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 保存新手引导状态
+      tags:
+      - settings
+  /api/v1/settings/security:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 读取安全设置
+      tags:
+      - settings
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 安全设置
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/jftradeapi.SecuritySettings'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 保存安全设置
+      tags:
+      - settings
+  /api/v1/settings/ui:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 读取 UI 颜色配置
+      tags:
+      - settings
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: UI 配置
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/jftradeapi.uiAppearanceSettingsWriteRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 保存 UI 颜色配置
+      tags:
+      - settings
+  /api/v1/strategies:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 读取策略实例列表
+      tags:
+      - strategy
+  /api/v1/strategies/{instanceId}/audit:
+    get:
+      parameters:
+      - description: 策略实例 ID
+        in: path
+        name: instanceId
+        required: true
+        type: string
+      - description: 分页大小
+        in: query
+        name: limit
+        type: integer
+      - description: 分页偏移
+        in: query
+        name: offset
+        type: integer
+      - description: 审计类型
+        in: query
+        name: kind
+        type: string
+      - description: 起始时间
+        in: query
+        name: fromTime
+        type: string
+      - description: 结束时间
+        in: query
+        name: toTime
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/jftradeapi.envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/jftradeapi.strategyAuditResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 读取策略审计记录
+      tags:
+      - strategy
+  /api/v1/strategies/{instanceId}/logs:
+    get:
+      parameters:
+      - description: 策略实例 ID
+        in: path
+        name: instanceId
+        required: true
+        type: string
+      - description: 分页大小
+        in: query
+        name: limit
+        type: integer
+      - description: 分页偏移
+        in: query
+        name: offset
+        type: integer
+      - description: 日志级别
+        in: query
+        name: level
+        type: string
+      - description: 起始时间
+        in: query
+        name: fromTime
+        type: string
+      - description: 结束时间
+        in: query
+        name: toTime
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/jftradeapi.envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/jftradeapi.strategyLogsResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 读取策略运行日志
+      tags:
+      - strategy
+  /api/v1/strategy-definitions:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 读取策略定义列表
+      tags:
+      - strategy
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 策略定义
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/jftradeapi.strategyDesignDefinition'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 创建策略定义
+      tags:
+      - strategy
+  /api/v1/strategy-definitions/{definitionId}:
+    delete:
+      parameters:
+      - description: 策略定义 ID
+        in: path
+        name: definitionId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 删除策略定义
+      tags:
+      - strategy
+    get:
+      parameters:
+      - description: 策略定义 ID
+        in: path
+        name: definitionId
+        required: true
+        type: string
+      - description: 预览周期
+        in: query
+        name: interval
+        type: string
+      - description: 预览标的
+        in: query
+        name: symbol
+        type: string
+      - description: 是否包含盘前盘后
+        in: query
+        name: useExtendedHours
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/jftradeapi.envelope'
+            - properties:
+                data:
+                  $ref: '#/definitions/jftradeapi.strategyDefinitionResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 读取策略定义
+      tags:
+      - strategy
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 策略定义 ID
+        in: path
+        name: definitionId
+        required: true
+        type: string
+      - description: 策略定义
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/jftradeapi.strategyDesignDefinition'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 更新策略定义
+      tags:
+      - strategy
+  /api/v1/system/futu-opend:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: OpenD 健康检查
+      tags:
+      - system
+  /api/v1/system/futu-opend/install-guide:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 读取 OpenD 安装指南
+      tags:
+      - system
+  /api/v1/system/futu-opend/manual-retry:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 手动重置 OpenD 运行时
+      tags:
+      - system
+  /api/v1/system/status:
+    get:
+      description: 返回 API、broker 与实时流状态摘要。
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 读取系统状态
+      tags:
+      - system
+  /api/v1/ws/live:
+    get:
+      description: 建立行情与运行态实时推送连接。
+      produces:
+      - application/json
+      responses:
+        "101":
+          description: Switching Protocols
+          schema:
+            type: string
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/jftradeapi.envelope'
+      summary: 连接实时 WebSocket
+      tags:
+      - streaming
+schemes:
+- http
+- https
+securityDefinitions:
+  AdministratorBearer:
+    description: Bearer <JFTrade administrator key>
+    in: header
+    name: Authorization
+    type: apiKey
+  AdministratorSession:
+    in: cookie
+    name: jftrade_admin_session
+    type: apiKey
+swagger: "2.0"

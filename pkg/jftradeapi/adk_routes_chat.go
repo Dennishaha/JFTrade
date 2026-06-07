@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/gin-gonic/gin"
 	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
 )
 
@@ -22,34 +23,34 @@ type adkChatStreamEvent struct {
 	Message        string              `json:"message,omitempty"`
 }
 
-func (s *Server) handleADKChat(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleADKChat(c *gin.Context) {
 	if s.adkRuntime == nil {
-		s.writeError(w, http.StatusServiceUnavailable, "ADK_UNAVAILABLE", "ADK runtime is unavailable")
+		s.writeError(c, http.StatusServiceUnavailable, "ADK_UNAVAILABLE", "ADK runtime is unavailable")
 		return
 	}
-	payload, err := decodeADKChatRequest(r.Body)
+	payload, err := decodeADKChatRequest(c.Request.Body)
 	if err != nil {
-		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "invalid chat payload")
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid chat payload")
 		return
 	}
-	response, err := s.adkRuntime.Chat(r.Context(), payload)
+	response, err := s.adkRuntime.Chat(c.Request.Context(), payload)
 	if err != nil {
-		s.writeError(w, http.StatusBadRequest, "ADK_CHAT_FAILED", err.Error())
+		s.writeError(c, http.StatusBadRequest, "ADK_CHAT_FAILED", err.Error())
 		return
 	}
-	s.writeOK(w, response)
+	s.writeOK(c, response)
 }
 
-func (s *Server) handleADKChatStream(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleADKChatStream(c *gin.Context) {
 	if s.adkRuntime == nil {
-		s.writeError(w, http.StatusServiceUnavailable, "ADK_UNAVAILABLE", "ADK runtime is unavailable")
+		s.writeError(c, http.StatusServiceUnavailable, "ADK_UNAVAILABLE", "ADK runtime is unavailable")
 		return
 	}
-	payload, err := decodeADKChatRequest(r.Body)
+	payload, err := decodeADKChatRequest(c.Request.Body)
 	if err != nil {
-		writer, ok := prepareSSEWriter(w)
+		writer, ok := prepareSSEWriter(c.Writer)
 		if !ok {
-			s.writeError(w, http.StatusInternalServerError, "SSE_UNSUPPORTED", "streaming is unavailable")
+			s.writeError(c, http.StatusInternalServerError, "SSE_UNSUPPORTED", "streaming is unavailable")
 			return
 		}
 		if err := writer.WriteRetryDirective(); err != nil {
@@ -58,9 +59,9 @@ func (s *Server) handleADKChatStream(w http.ResponseWriter, r *http.Request) {
 		_ = writer.WriteEvent(adkChatStreamEvent{Type: "error", Message: "invalid chat payload: " + err.Error()})
 		return
 	}
-	writer, ok := prepareSSEWriter(w)
+	writer, ok := prepareSSEWriter(c.Writer)
 	if !ok {
-		s.writeError(w, http.StatusInternalServerError, "SSE_UNSUPPORTED", "streaming is unavailable")
+		s.writeError(c, http.StatusInternalServerError, "SSE_UNSUPPORTED", "streaming is unavailable")
 		return
 	}
 	if err := writer.WriteRetryDirective(); err != nil {
@@ -69,14 +70,14 @@ func (s *Server) handleADKChatStream(w http.ResponseWriter, r *http.Request) {
 
 	sessionSent := false
 	var streamMu sync.Mutex
-	response, err := s.adkRuntime.ChatStream(r.Context(), payload, func(delta jfadk.ChatDelta) error {
+	response, err := s.adkRuntime.ChatStream(c.Request.Context(), payload, func(delta jfadk.ChatDelta) error {
 		streamMu.Lock()
 		defer streamMu.Unlock()
 		if delta.Run != nil {
 			return writer.WriteEvent(adkChatStreamEvent{Type: "run", Run: delta.Run})
 		}
 		if !sessionSent {
-			session, sessionErr := s.previewADKSession(r.Context(), payload)
+			session, sessionErr := s.previewADKSession(c.Request.Context(), payload)
 			if sessionErr == nil {
 				if err := writer.WriteEvent(adkChatStreamEvent{Type: "session", Session: &session}); err != nil {
 					return err

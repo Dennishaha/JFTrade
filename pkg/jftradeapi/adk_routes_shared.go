@@ -4,23 +4,26 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/gin-gonic/gin"
 	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
 )
 
-func writeADKListOrError[T any](s *Server, w http.ResponseWriter, code string, key string, items []T, err error) {
+func writeADKListOrError[T any](s *Server, c *gin.Context, code string, key string, items []T, err error) {
 	if err != nil {
-		s.writeError(w, http.StatusInternalServerError, code, err.Error())
+		s.writeError(c, http.StatusInternalServerError, code, err.Error())
 		return
 	}
-	s.writeOK(w, map[string]any{key: items})
+	s.writeOK(c, map[string]any{key: items})
 }
 
-func writeADKPagedListOrError[T any](s *Server, w http.ResponseWriter, code string, key string, items []T, err error, r *http.Request) {
+func writeADKPagedListOrError[T any](s *Server, c *gin.Context, code string, key string, items []T, err error) {
 	if err != nil {
-		s.writeError(w, http.StatusInternalServerError, code, err.Error())
+		s.writeError(c, http.StatusInternalServerError, code, err.Error())
 		return
 	}
-	limit, offset := adkPageBounds(r)
+	var query adkPageQuery
+	_ = c.ShouldBindQuery(&query)
+	limit, offset := adkPageBounds(query)
 	total := len(items)
 	if offset > total {
 		offset = total
@@ -29,22 +32,22 @@ func writeADKPagedListOrError[T any](s *Server, w http.ResponseWriter, code stri
 	if end > total {
 		end = total
 	}
-	s.writeOK(w, map[string]any{
+	s.writeOK(c, map[string]any{
 		key:    items[offset:end],
 		"page": map[string]any{"limit": limit, "offset": offset, "total": total, "returned": end - offset, "hasMore": end < total},
 	})
 }
 
-func writeADKPageOrError[T any](s *Server, w http.ResponseWriter, code string, key string, items []T, total int, limit int, offset int, err error) {
+func writeADKPageOrError[T any](s *Server, c *gin.Context, code string, key string, items []T, total int, limit int, offset int, err error) {
 	if err != nil {
-		s.writeError(w, http.StatusInternalServerError, code, err.Error())
+		s.writeError(c, http.StatusInternalServerError, code, err.Error())
 		return
 	}
 	if offset > total {
 		offset = total
 	}
 	returned := len(items)
-	s.writeOK(w, map[string]any{
+	s.writeOK(c, map[string]any{
 		key: items,
 		"page": map[string]any{
 			"limit": limit, "offset": offset, "total": total, "returned": returned, "hasMore": offset+returned < total,
@@ -52,19 +55,8 @@ func writeADKPageOrError[T any](s *Server, w http.ResponseWriter, code string, k
 	})
 }
 
-func adkPageBounds(r *http.Request) (int, int) {
-	limit := queryIntDefault(r, "limit", 100)
-	if limit < 1 {
-		limit = 1
-	}
-	if limit > 500 {
-		limit = 500
-	}
-	offset := queryIntDefault(r, "offset", 0)
-	if offset < 0 {
-		offset = 0
-	}
-	return limit, offset
+func adkPageBounds(query adkPageQuery) (int, int) {
+	return normalizeBoundPage(query.Limit.Int(), query.Offset.Int(), 100, 500)
 }
 
 func filterADKAgents(items []jfadk.Agent, status string) []jfadk.Agent {

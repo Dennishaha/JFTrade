@@ -2,7 +2,6 @@ package jftradeapi
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -10,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/jftrade/jftrade-main/pkg/broker"
 )
 
@@ -54,36 +54,40 @@ func executionValidationErrorf(format string, args ...any) error {
 	return executionValidationError{message: fmt.Sprintf(format, args...)}
 }
 
-func (s *Server) serveExecutionRoutes(w http.ResponseWriter, r *http.Request) bool {
-	switch {
-	case r.URL.Path == "/api/v1/execution/orders" && r.Method == http.MethodGet:
-		scope := strings.ToUpper(strings.TrimSpace(r.URL.Query().Get("scope")))
-		skipHistory := scope == "ACTIVE"
-		s.syncBrokerOrderUpdatesWithScope(r.Context(), false, skipHistory)
-		s.writeOK(w, s.executionOrders.listOrdersFiltered(s.executionOrderListFilterFromRequest(r)))
-	case (r.URL.Path == "/api/v1/execution/orders" || r.URL.Path == "/api/v1/execution/orders/preview") && r.Method == http.MethodPost:
-		s.handleExecutionPlaceOrder(w, r)
-	case strings.HasPrefix(r.URL.Path, "/api/v1/execution/orders/") && strings.HasSuffix(r.URL.Path, "/events") && r.Method == http.MethodGet:
-		s.handleExecutionOrderEvents(w, r)
-	case strings.HasPrefix(r.URL.Path, "/api/v1/execution/orders/") && strings.HasSuffix(r.URL.Path, "/cancel") && r.Method == http.MethodPost:
-		s.handleExecutionCancelOrder(w, r)
-	default:
-		return false
+// handleExecutionOrders godoc
+// @Summary 读取执行订单
+// @Tags execution
+// @Produce json
+// @Param scope query string false "ACTIVE 表示仅活动订单"
+// @Param brokerId query string false "Broker 标识"
+// @Param tradingEnvironment query string false "交易环境"
+// @Param accountId query string false "账户 ID"
+// @Param market query string false "市场"
+// @Success 200 {object} envelope{data=executionOrdersResponse}
+// @Failure 400 {object} envelope
+// @Router /api/v1/execution/orders [get]
+func (s *Server) handleExecutionOrders(c *gin.Context) {
+	var query executionOrdersQuery
+	if err := c.ShouldBindQuery(&query); err != nil {
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid execution query")
+		return
 	}
-	return true
+	scope := strings.ToUpper(strings.TrimSpace(query.Scope))
+	skipHistory := scope == "ACTIVE"
+	s.syncBrokerOrderUpdatesWithScope(c.Request.Context(), false, skipHistory)
+	s.writeOK(c, s.executionOrders.listOrdersFiltered(s.executionOrderListFilterFromQuery(query)))
 }
 
-func (s *Server) executionOrderListFilterFromRequest(r *http.Request) executionOrderListFilter {
-	query := r.URL.Query()
-	tradingEnvironment := strings.TrimSpace(query.Get("tradingEnvironment"))
+func (s *Server) executionOrderListFilterFromQuery(query executionOrdersQuery) executionOrderListFilter {
+	tradingEnvironment := strings.TrimSpace(query.TradingEnvironment)
 	if tradingEnvironment == "" {
 		tradingEnvironment = s.defaultTradingEnvironment()
 	}
 	return executionOrderListFilter{
-		BrokerID:           strings.TrimSpace(query.Get("brokerId")),
+		BrokerID:           strings.TrimSpace(query.BrokerID),
 		TradingEnvironment: strings.ToUpper(strings.TrimSpace(tradingEnvironment)),
-		AccountID:          strings.TrimSpace(query.Get("accountId")),
-		Market:             strings.ToUpper(strings.TrimSpace(query.Get("market"))),
+		AccountID:          strings.TrimSpace(query.AccountID),
+		Market:             strings.ToUpper(strings.TrimSpace(query.Market)),
 	}
 }
 
@@ -94,38 +98,58 @@ func (s *Server) defaultTradingEnvironment() string {
 	return s.store.executionSettings().DefaultTradingEnvironment
 }
 
-func (s *Server) handleExecutionOrderEvents(w http.ResponseWriter, r *http.Request) {
-	internalOrderID, err := decodePathSegment(pathMiddle(r.URL.Path, "/api/v1/execution/orders/", "/events"))
-	if err != nil {
-		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "internalOrderId is invalid")
+// handleExecutionOrderEvents godoc
+// @Summary 读取执行订单事件
+// @Tags execution
+// @Produce json
+// @Param internalOrderId path string true "内部订单 ID"
+// @Success 200 {object} envelope{data=executionOrderEventsResponse}
+// @Failure 400 {object} envelope
+// @Router /api/v1/execution/orders/{internalOrderId}/events [get]
+func (s *Server) handleExecutionOrderEvents(c *gin.Context) {
+	var uri internalOrderURI
+	if err := bindURI(c, &uri); err != nil {
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "internalOrderId is invalid")
 		return
 	}
-	s.writeOK(w, s.executionOrders.orderEvents(strings.TrimSpace(internalOrderID)))
+	internalOrderID := uri.InternalOrderID
+	s.writeOK(c, s.executionOrders.orderEvents(strings.TrimSpace(internalOrderID)))
 }
 
-func (s *Server) handleExecutionPlaceOrder(w http.ResponseWriter, r *http.Request) {
+// handleExecutionPlaceOrder godoc
+// @Summary 提交执行订单
+// @Tags execution
+// @Accept json
+// @Produce json
+// @Param request body executionPlaceOrderRequest true "执行订单"
+// @Success 200 {object} envelope{data=brokerOrderCommandResponse}
+// @Failure 400 {object} envelope
+// @Failure 409 {object} envelope
+// @Failure 500 {object} envelope
+// @Router /api/v1/execution/orders [post]
+func (s *Server) handleExecutionPlaceOrder(c *gin.Context) {
 	var payload executionPlaceOrderRequest
-	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "invalid execution order payload")
+	if err := c.ShouldBindJSON(&payload); err != nil {
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid execution order payload")
 		return
 	}
 	request, err := s.normalizeExecutionPlaceOrder(payload)
 	if err != nil {
-		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", err.Error())
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", err.Error())
 		return
 	}
 
-	placedRecord, err := s.placeExecutionOrder(r.Context(), request)
+	placedRecord, err := s.placeExecutionOrder(c.Request.Context(), request)
 	if err != nil {
 		status, code := executionCommandError(err)
-		s.writeError(w, status, code, err.Error())
+		s.writeError(c, status, code, err.Error())
 		return
 	}
 
 	message := "order submitted to broker"
 	internalOrderID := placedRecord.InternalOrderID
 	status := placedRecord.Status
-	s.writeOK(w, brokerOrderCommandResponse{
+	s.writeOK(c, brokerOrderCommandResponse{
 		Accepted:        true,
 		Operation:       "PLACE",
 		InternalOrderID: &internalOrderID,
@@ -186,34 +210,43 @@ func (s *Server) placeExecutionOrder(ctx context.Context, request normalizedExec
 	return placedRecord, nil
 }
 
-func (s *Server) handleExecutionCancelOrder(w http.ResponseWriter, r *http.Request) {
-	internalOrderID, err := decodePathSegment(pathMiddle(r.URL.Path, "/api/v1/execution/orders/", "/cancel"))
-	if err != nil {
-		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "internalOrderId is invalid")
+// handleExecutionCancelOrder godoc
+// @Summary 取消执行订单
+// @Tags execution
+// @Produce json
+// @Param internalOrderId path string true "内部订单 ID"
+// @Success 200 {object} envelope{data=brokerOrderCommandResponse}
+// @Failure 400 {object} envelope
+// @Failure 404 {object} envelope
+// @Router /api/v1/execution/orders/{internalOrderId}/cancel [post]
+func (s *Server) handleExecutionCancelOrder(c *gin.Context) {
+	var uri internalOrderURI
+	if err := bindURI(c, &uri); err != nil {
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "internalOrderId is invalid")
 		return
 	}
-	internalOrderID = strings.TrimSpace(internalOrderID)
+	internalOrderID := strings.TrimSpace(uri.InternalOrderID)
 	order, ok := s.executionOrders.order(internalOrderID)
 	if !ok {
-		s.writeError(w, http.StatusNotFound, "NOT_FOUND", "execution order not found")
+		s.writeError(c, http.StatusNotFound, "NOT_FOUND", "execution order not found")
 		return
 	}
 	if order.BrokerOrderID == nil || strings.TrimSpace(*order.BrokerOrderID) == "" {
-		s.writeError(w, http.StatusConflict, "BROKER_ORDER_ID_MISSING", "execution order is missing broker order id")
+		s.writeError(c, http.StatusConflict, "BROKER_ORDER_ID_MISSING", "execution order is missing broker order id")
 		return
 	}
 
 	brokerOrderID, err := strconv.ParseUint(strings.TrimSpace(*order.BrokerOrderID), 10, 64)
 	if err != nil {
-		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "execution order has invalid broker order id")
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "execution order has invalid broker order id")
 		return
 	}
 	if order.Symbol == nil || strings.TrimSpace(*order.Symbol) == "" {
-		s.writeError(w, http.StatusConflict, "SYMBOL_MISSING", "execution order is missing symbol")
+		s.writeError(c, http.StatusConflict, "SYMBOL_MISSING", "execution order is missing symbol")
 		return
 	}
 
-	err = s.activeBroker().Trading().CancelOrders(r.Context(), broker.ReadQuery{
+	err = s.activeBroker().Trading().CancelOrders(c.Request.Context(), broker.ReadQuery{
 		BrokerID:           "futu",
 		TradingEnvironment: order.TradingEnvironment,
 		AccountID:          order.AccountID,
@@ -224,7 +257,7 @@ func (s *Server) handleExecutionCancelOrder(w http.ResponseWriter, r *http.Reque
 	})
 	if err != nil {
 		status, code := executionCommandError(err)
-		s.writeError(w, status, code, err.Error())
+		s.writeError(c, status, code, err.Error())
 		return
 	}
 
@@ -235,7 +268,7 @@ func (s *Server) handleExecutionCancelOrder(w http.ResponseWriter, r *http.Reque
 		"symbol":          order.Symbol,
 	})
 	status := updatedOrder.Status
-	s.writeOK(w, brokerOrderCommandResponse{
+	s.writeOK(c, brokerOrderCommandResponse{
 		Accepted:        true,
 		Operation:       "CANCEL",
 		InternalOrderID: &internalOrderID,

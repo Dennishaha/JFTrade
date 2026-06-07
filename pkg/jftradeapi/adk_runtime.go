@@ -165,7 +165,7 @@ func registerJFTradeADKTools(server *Server, registry *jfadk.ToolRegistry) {
 		if market == "" || symbol == "" {
 			return nil, fmt.Errorf("market and symbol are required")
 		}
-		return server.marketSnapshotResponse(ctx, "/api/v1/market-data/snapshots/"+market+"/"+symbol, map[string][]string{"refresh": {"false"}})
+		return server.marketSnapshotResponseForInstrument(ctx, market, symbol, marketSnapshotQuery{Refresh: newOptionalBoolValue(false)})
 	})
 	registry.Register(jfadk.ToolDescriptor{Name: "market.candles", DisplayName: "K 线查询", Description: "读取指定标的近期 K 线；未指定时返回使用说明。", Category: "market", Permission: "read_internal", OutputSummary: "近期 1m K 线，默认最多 50 根。"}, func(ctx context.Context, input map[string]any) (any, error) {
 		market, symbol := inferMarketSymbol(input)
@@ -177,7 +177,14 @@ func registerJFTradeADKTools(server *Server, registry *jfadk.ToolRegistry) {
 		if limit < 1 || limit > 500 {
 			return nil, fmt.Errorf("limit must be between 1 and 500")
 		}
-		return server.marketCandlesResponse(ctx, "/api/v1/market-data/candles/"+market+"/"+symbol, map[string][]string{"period": {period}, "limit": {strconv.Itoa(limit)}})
+		normalizedPeriod, err := normalizeCandlePeriod(period)
+		if err != nil {
+			return nil, err
+		}
+		return server.marketCandlesResponseForInstrument(ctx, market, symbol, marketCandlesQuery{
+			Period: candlePeriodValue(normalizedPeriod),
+			Limit:  newOptionalIntValue(limit),
+		})
 	})
 	registry.Register(jfadk.ToolDescriptor{Name: "portfolio.summary", DisplayName: "组合摘要", Description: "读取托管账户、资金、订单和持仓的控制台摘要。", Category: "portfolio", Permission: "read_internal", OutputSummary: "托管账户、broker 状态、本地订单摘要和当前检查时间。"}, func(ctx context.Context, input map[string]any) (any, error) {
 		orders := []executionOrderSummaryResponse{}

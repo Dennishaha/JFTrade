@@ -47,6 +47,24 @@ func getEnvelope(t *testing.T, url string) (int, map[string]any) {
 	return resp.StatusCode, envelope.Data
 }
 
+func getEnvelopeWithError(t *testing.T, url string) (int, map[string]any, *apiError) {
+	t.Helper()
+	resp, err := http.Get(url)
+	if err != nil {
+		t.Fatalf("GET: %v", err)
+	}
+	defer resp.Body.Close()
+	var envelope struct {
+		OK    bool           `json:"ok"`
+		Data  map[string]any `json:"data"`
+		Error *apiError      `json:"error"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	return resp.StatusCode, envelope.Data, envelope.Error
+}
+
 func postEnvelope(t *testing.T, url string, body any) (int, map[string]any) {
 	status, data, _ := postEnvelopeWithError(t, url, body)
 	return status, data
@@ -114,12 +132,12 @@ func TestBrokerQuoteDisconnected(t *testing.T) {
 func TestBrokerQuoteMissingSymbol(t *testing.T) {
 	srv, _ := testServer(t)
 
-	status, data := getEnvelope(t, srv.URL+"/api/v1/brokers/futu/quote")
-	if status != http.StatusOK {
+	status, _, errInfo := getEnvelopeWithError(t, srv.URL+"/api/v1/brokers/futu/quote")
+	if status != http.StatusBadRequest {
 		t.Fatalf("unexpected status %d", status)
 	}
-	if data["connectivity"] != "degraded" {
-		t.Errorf("expected degraded for missing symbol, got %v", data["connectivity"])
+	if errInfo == nil || errInfo.Code != "BAD_REQUEST" || errInfo.Message != "query parameter symbol is required" {
+		t.Fatalf("quote missing symbol error = %+v", errInfo)
 	}
 }
 
@@ -140,12 +158,12 @@ func TestBrokerKLinesDisconnected(t *testing.T) {
 func TestBrokerKLinesMissingSymbol(t *testing.T) {
 	srv, _ := testServer(t)
 
-	status, data := getEnvelope(t, srv.URL+"/api/v1/brokers/futu/klines?period=1d")
-	if status != http.StatusOK {
+	status, _, errInfo := getEnvelopeWithError(t, srv.URL+"/api/v1/brokers/futu/klines?period=1d")
+	if status != http.StatusBadRequest {
 		t.Fatalf("unexpected status %d", status)
 	}
-	if data["connectivity"] != "degraded" {
-		t.Errorf("expected degraded for missing symbol, got %v", data["connectivity"])
+	if errInfo == nil || errInfo.Code != "BAD_REQUEST" || errInfo.Message != "query parameter symbol is required" {
+		t.Fatalf("klines missing symbol error = %+v", errInfo)
 	}
 }
 
@@ -166,12 +184,66 @@ func TestBrokerSecuritiesDisconnected(t *testing.T) {
 func TestBrokerSecuritiesMissingSymbol(t *testing.T) {
 	srv, _ := testServer(t)
 
-	status, data := getEnvelope(t, srv.URL+"/api/v1/brokers/futu/securities")
-	if status != http.StatusOK {
+	status, _, errInfo := getEnvelopeWithError(t, srv.URL+"/api/v1/brokers/futu/securities")
+	if status != http.StatusBadRequest {
 		t.Fatalf("unexpected status %d", status)
 	}
-	if data["connectivity"] != "degraded" {
-		t.Errorf("expected degraded for missing symbol, got %v", data["connectivity"])
+	if errInfo == nil || errInfo.Code != "BAD_REQUEST" || errInfo.Message != "query parameter symbol is required" {
+		t.Fatalf("securities missing symbol error = %+v", errInfo)
+	}
+}
+
+func TestBrokerReadRoutesRejectInvalidQueryShape(t *testing.T) {
+	srv, _ := testServer(t)
+
+	tests := []struct {
+		name        string
+		path        string
+		wantMessage string
+	}{
+		{"cash flows missing clearingDate", "/api/v1/brokers/futu/cash-flows", "query parameter clearingDate is required"},
+		{"order fees missing orderIdEx", "/api/v1/brokers/futu/order-fees", "query parameter orderIdEx is required"},
+		{"orders invalid scope", "/api/v1/brokers/futu/orders?scope=invalid", "query parameter scope is invalid"},
+		{"fills invalid scope", "/api/v1/brokers/futu/fills?scope=invalid", "query parameter scope is invalid"},
+		{"max trade qty missing required", "/api/v1/brokers/futu/max-trade-qtys?symbol=HK.00700&orderType=LIMIT", "query parameters symbol, orderType, and price are required"},
+		{"max trade qty invalid price", "/api/v1/brokers/futu/max-trade-qtys?symbol=HK.00700&orderType=LIMIT&price=abc", "query parameter price is invalid: strconv.ParseFloat: parsing \"abc\": invalid syntax"},
+		{"max trade qty invalid adjust", "/api/v1/brokers/futu/max-trade-qtys?symbol=HK.00700&orderType=LIMIT&price=320.5&adjustSideAndLimit=abc", "query parameter adjustSideAndLimit is invalid: strconv.ParseFloat: parsing \"abc\": invalid syntax"},
+		{"max trade qty invalid positionId", "/api/v1/brokers/futu/max-trade-qtys?symbol=HK.00700&orderType=LIMIT&price=320.5&positionId=abc", "query parameter positionId is invalid: strconv.ParseUint: parsing \"abc\": invalid syntax"},
+		{"klines invalid limit", "/api/v1/brokers/futu/klines?symbol=HK.00700&limit=abc", "query parameter limit is invalid: strconv.ParseInt: parsing \"abc\": invalid syntax"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			status, _, errInfo := getEnvelopeWithError(t, srv.URL+tt.path)
+			if status != http.StatusBadRequest {
+				t.Fatalf("status = %d, want 400", status)
+			}
+			if errInfo == nil || errInfo.Code != "BAD_REQUEST" || errInfo.Message != tt.wantMessage {
+				t.Fatalf("error = %+v, want BAD_REQUEST/%q", errInfo, tt.wantMessage)
+			}
+		})
+	}
+}
+
+func TestBrokerReadRoutesKeepValidDisconnectedShape(t *testing.T) {
+	srv, _ := testServer(t)
+
+	tests := []string{
+		"/api/v1/brokers/futu/quote?symbol=HK.00700,US.NVDA",
+		"/api/v1/brokers/futu/securities?symbol=HK.00700&symbol=US.NVDA",
+		"/api/v1/brokers/futu/klines?symbol=HK.00700",
+	}
+
+	for _, path := range tests {
+		t.Run(path, func(t *testing.T) {
+			status, data := getEnvelope(t, srv.URL+path)
+			if status != http.StatusOK {
+				t.Fatalf("status = %d, want 200", status)
+			}
+			if data["connectivity"] != "disconnected" {
+				t.Fatalf("connectivity = %v, want disconnected", data["connectivity"])
+			}
+		})
 	}
 }
 
@@ -198,6 +270,20 @@ func TestBrokerUnlockDisconnectedOpenD(t *testing.T) {
 	}
 }
 
+func TestBrokerUnlockInvalidPayload(t *testing.T) {
+	srv, _ := testServer(t)
+
+	status, _, errInfo := postEnvelopeWithError(t, srv.URL+"/api/v1/brokers/futu/unlock", map[string]any{
+		"unlock": map[string]any{"bad": true},
+	})
+	if status != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400", status)
+	}
+	if errInfo == nil || errInfo.Code != "BAD_REQUEST" || !strings.Contains(errInfo.Message, "invalid request body:") {
+		t.Fatalf("error = %+v, want BAD_REQUEST invalid request body", errInfo)
+	}
+}
+
 // --- Test: place order endpoint without broker returns error ---
 
 func TestBrokerPlaceOrderNoBroker(t *testing.T) {
@@ -214,6 +300,21 @@ func TestBrokerPlaceOrderNoBroker(t *testing.T) {
 	// (The broker is registered but can't reach OpenD)
 	if status != http.StatusBadGateway {
 		t.Fatalf("expected 502 (bad gateway), got %d", status)
+	}
+}
+
+func TestBrokerPlaceOrderInvalidPayload(t *testing.T) {
+	srv, _ := testServer(t)
+
+	status, _, errInfo := postEnvelopeWithError(t, srv.URL+"/api/v1/brokers/futu/orders", map[string]any{
+		"symbol":   123,
+		"quantity": "bad",
+	})
+	if status != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400", status)
+	}
+	if errInfo == nil || errInfo.Code != "BAD_REQUEST" || !strings.Contains(errInfo.Message, "invalid request body:") {
+		t.Fatalf("error = %+v, want BAD_REQUEST invalid request body", errInfo)
 	}
 }
 
@@ -237,6 +338,32 @@ func TestBrokerCancelOrdersNoBroker(t *testing.T) {
 	// Without a connected OpenD, cancellation returns 502
 	if resp.StatusCode != http.StatusBadGateway {
 		t.Fatalf("expected 502 (bad gateway), got %d", resp.StatusCode)
+	}
+}
+
+func TestBrokerCancelOrdersInvalidPayload(t *testing.T) {
+	srv, _ := testServer(t)
+
+	req, _ := http.NewRequest(http.MethodDelete, srv.URL+"/api/v1/brokers/futu/orders", strings.NewReader(`{"orders":`))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("DELETE: %v", err)
+	}
+	defer resp.Body.Close()
+
+	var envelope struct {
+		OK    bool      `json:"ok"`
+		Error *apiError `json:"error"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400", resp.StatusCode)
+	}
+	if envelope.Error == nil || envelope.Error.Code != "BAD_REQUEST" || !strings.Contains(envelope.Error.Message, "invalid request body:") {
+		t.Fatalf("error = %+v, want BAD_REQUEST invalid request body", envelope.Error)
 	}
 }
 
@@ -313,48 +440,34 @@ func TestNewBrokerRoutesReturnJSON(t *testing.T) {
 	}
 }
 
-// --- Test: parseBrokerRoute handles new resource names ---
+// --- Test: Gin broker routes reject incomplete resource paths ---
 
-func TestParseBrokerRouteNewResources(t *testing.T) {
-	tests := []struct {
-		path         string
-		wantBrokerID string
-		wantResource string
-		wantOK       bool
-	}{
-		{"/api/v1/brokers/futu/quote", "futu", "quote", true},
-		{"/api/v1/brokers/futu/klines", "futu", "klines", true},
-		{"/api/v1/brokers/futu/securities", "futu", "securities", true},
-		{"/api/v1/brokers/futu/unlock", "futu", "unlock", true},
-		{"/api/v1/brokers/other/funds", "other", "funds", true},
-		{"/api/v1/not-brokers/x/y", "", "", false},
-		{"/api/v1/brokers/", "", "", false},
-		{"/api/v1/brokers/x", "", "", false},
-		{"/api/v1/brokers//y", "", "", false},
+func TestBrokerGinRoutesRejectIncompletePaths(t *testing.T) {
+	srv, _ := testServer(t)
+	tests := []string{
+		"/api/v1/not-brokers/x/y",
+		"/api/v1/brokers/",
+		"/api/v1/brokers/x",
+		"/api/v1/brokers//y",
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.path, func(t *testing.T) {
-			brokerID, resource, ok := parseBrokerRoute(tt.path)
-			if ok != tt.wantOK {
-				t.Fatalf("ok=%v, want %v", ok, tt.wantOK)
+	for _, path := range tests {
+		t.Run(path, func(t *testing.T) {
+			resp, err := http.Get(srv.URL + path)
+			if err != nil {
+				t.Fatalf("request: %v", err)
 			}
-			if !ok {
-				return
-			}
-			if brokerID != tt.wantBrokerID {
-				t.Errorf("brokerID=%q, want %q", brokerID, tt.wantBrokerID)
-			}
-			if resource != tt.wantResource {
-				t.Errorf("resource=%q, want %q", resource, tt.wantResource)
+			defer resp.Body.Close()
+			if resp.StatusCode != http.StatusNotFound {
+				t.Fatalf("status=%d, want 404", resp.StatusCode)
 			}
 		})
 	}
 }
 
-// --- Test: brokerReadQueryFromRequest extracts new query params ---
+// --- Test: brokerReadQuery applies default market fallback ---
 
-func TestBrokerReadQueryFromRequestDefaultMarket(t *testing.T) {
+func TestBrokerReadQueryDefaultMarket(t *testing.T) {
 	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
@@ -370,8 +483,10 @@ func TestBrokerReadQueryFromRequestDefaultMarket(t *testing.T) {
 		t.Fatalf("saveIntegration: %v", err)
 	}
 	srv := newTestServer(t, store)
-	req, _ := http.NewRequest(http.MethodGet, "/api/v1/brokers/futu/funds?accountId=123&tradingEnvironment=REAL", nil)
-	query := srv.brokerReadQueryFromRequest(req)
+	query := srv.brokerReadQuery(brokerBaseReadQuery{
+		AccountID:          "123",
+		TradingEnvironment: "REAL",
+	})
 	if query.Market != "US" {
 		t.Errorf("expected market US (from settings), got %q", query.Market)
 	}

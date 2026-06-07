@@ -10,6 +10,7 @@ import (
 	"time"
 
 	bbgotypes "github.com/c9s/bbgo/pkg/types"
+	"github.com/gin-gonic/gin"
 
 	"github.com/jftrade/jftrade-main/pkg/broker"
 	"github.com/jftrade/jftrade-main/pkg/futu"
@@ -27,26 +28,66 @@ func marketDepthPathTail(path string) (string, string) {
 	return pathTail(path, "/api/v1/market-data/depth/")
 }
 
-func (s *Server) handleMarketSnapshot(w http.ResponseWriter, r *http.Request) {
-	response, err := s.marketSnapshotResponse(r.Context(), r.URL.Path, r.URL.Query())
-	if err != nil {
-		s.writeError(w, http.StatusBadGateway, "MARKET_SNAPSHOT_FAILED", err.Error())
+// handleMarketSnapshot godoc
+// @Summary 读取行情快照
+// @Tags market-data
+// @Produce json
+// @Param market path string true "市场代码"
+// @Param symbol path string true "证券代码"
+// @Param refresh query bool false "是否绕过缓存强制刷新"
+// @Success 200 {object} envelope
+// @Failure 400 {object} envelope
+// @Failure 502 {object} envelope
+// @Router /api/v1/market-data/snapshots/{market}/{symbol} [get]
+func (s *Server) handleMarketSnapshot(c *gin.Context) {
+	var uri marketInstrumentURI
+	if err := bindURI(c, &uri); err != nil {
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "market or symbol is invalid")
 		return
 	}
-	s.writeOK(w, response)
+	var query marketSnapshotQuery
+	if err := c.ShouldBindQuery(&query); err != nil {
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid snapshot query")
+		return
+	}
+	response, err := s.marketSnapshotResponseForInstrument(c.Request.Context(), uri.Market, uri.Symbol, query)
+	if err != nil {
+		s.writeError(c, http.StatusBadGateway, "MARKET_SNAPSHOT_FAILED", err.Error())
+		return
+	}
+	s.writeOK(c, response)
 }
 
-func (s *Server) handleMarketSecurityDetails(w http.ResponseWriter, r *http.Request) {
-	response, err := s.marketSecurityDetailsResponse(r.Context(), r.URL.Path)
-	if err != nil {
-		s.writeError(w, http.StatusBadGateway, "MARKET_SECURITY_DETAILS_FAILED", err.Error())
+// handleMarketSecurityDetails godoc
+// @Summary 读取证券详情
+// @Tags market-data
+// @Produce json
+// @Param market path string true "市场代码"
+// @Param symbol path string true "证券代码"
+// @Success 200 {object} envelope
+// @Failure 400 {object} envelope
+// @Failure 502 {object} envelope
+// @Router /api/v1/market-data/securities/{market}/{symbol} [get]
+func (s *Server) handleMarketSecurityDetails(c *gin.Context) {
+	var uri marketInstrumentURI
+	if err := bindURI(c, &uri); err != nil {
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "market or symbol is invalid")
 		return
 	}
-	s.writeOK(w, response)
+	response, err := s.marketSecurityDetailsResponseForInstrument(c.Request.Context(), uri.Market, uri.Symbol)
+	if err != nil {
+		s.writeError(c, http.StatusBadGateway, "MARKET_SECURITY_DETAILS_FAILED", err.Error())
+		return
+	}
+	s.writeOK(c, response)
 }
 
 func (s *Server) marketSecurityDetailsResponse(ctx context.Context, path string) (map[string]any, error) {
 	market, symbol := marketSecurityDetailsPathTail(path)
+	return s.marketSecurityDetailsResponseForInstrument(ctx, market, symbol)
+}
+
+func (s *Server) marketSecurityDetailsResponseForInstrument(ctx context.Context, market string, symbol string) (map[string]any, error) {
 	market = strings.ToUpper(strings.TrimSpace(market))
 	symbol = strings.ToUpper(strings.TrimSpace(symbol))
 	instrumentID := market + "." + symbol
@@ -67,10 +108,14 @@ func (s *Server) marketSecurityDetailsResponse(ctx context.Context, path string)
 
 func (s *Server) marketSnapshotResponse(ctx context.Context, path string, query map[string][]string) (map[string]any, error) {
 	market, symbol := pathTail(path, "/api/v1/market-data/snapshots/")
+	return s.marketSnapshotResponseForInstrument(ctx, market, symbol, decodeMarketSnapshotQuery(query))
+}
+
+func (s *Server) marketSnapshotResponseForInstrument(ctx context.Context, market string, symbol string, query marketSnapshotQuery) (map[string]any, error) {
 	market = strings.ToUpper(strings.TrimSpace(market))
 	symbol = strings.ToUpper(strings.TrimSpace(symbol))
 	instrumentID := market + "." + symbol
-	forceRefresh := boolQuery(query, "refresh", false)
+	forceRefresh := query.forceRefresh()
 	sample, fromCache, err := s.resolveMarketSnapshotSample(ctx, instrumentID, forceRefresh)
 	if err != nil {
 		return nil, err
@@ -105,31 +150,54 @@ func (s *Server) resolveMarketSnapshotSample(ctx context.Context, instrumentID s
 	return sample, fromCache, nil
 }
 
-func (s *Server) handleMarketCandles(w http.ResponseWriter, r *http.Request) {
-	response, err := s.marketCandlesResponse(r.Context(), r.URL.Path, r.URL.Query())
-	if err != nil {
-		s.writeError(w, http.StatusBadGateway, "OPEND_CANDLES_FAILED", err.Error())
+// handleMarketCandles godoc
+// @Summary 读取 K 线
+// @Tags market-data
+// @Produce json
+// @Param market path string true "市场代码"
+// @Param symbol path string true "证券代码"
+// @Param period query string false "周期，默认 1m"
+// @Param limit query int false "返回条数，最大 1000"
+// @Param fromTime query string false "起始时间，RFC3339"
+// @Param toTime query string false "结束时间，RFC3339"
+// @Success 200 {object} envelope
+// @Failure 400 {object} envelope
+// @Failure 502 {object} envelope
+// @Router /api/v1/market-data/candles/{market}/{symbol} [get]
+func (s *Server) handleMarketCandles(c *gin.Context) {
+	var uri marketInstrumentURI
+	if err := bindURI(c, &uri); err != nil {
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "market or symbol is invalid")
 		return
 	}
-	s.writeOK(w, response)
+	var query marketCandlesQuery
+	if err := c.ShouldBindQuery(&query); err != nil {
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid candle query")
+		return
+	}
+	response, err := s.marketCandlesResponseForInstrument(c.Request.Context(), uri.Market, uri.Symbol, query)
+	if err != nil {
+		s.writeError(c, http.StatusBadGateway, "OPEND_CANDLES_FAILED", err.Error())
+		return
+	}
+	s.writeOK(c, response)
 }
 
 func (s *Server) marketCandlesResponse(ctx context.Context, path string, query map[string][]string) (map[string]any, error) {
 	market, symbol := pathTail(path, "/api/v1/market-data/candles/")
-	market = strings.ToUpper(strings.TrimSpace(market))
-	symbol = strings.ToUpper(strings.TrimSpace(symbol))
-	instrumentID := market + "." + symbol
-	period, err := normalizeCandlePeriod(firstQuery(query, "period", "1m"))
+	decoded, err := decodeMarketCandlesQuery(query)
 	if err != nil {
 		return nil, err
 	}
-	limit := intQuery(query, "limit", 200)
-	if limit < 1 {
-		limit = 1
-	}
-	if limit > 1000 {
-		limit = 1000
-	}
+	return s.marketCandlesResponseForInstrument(ctx, market, symbol, decoded)
+}
+
+func (s *Server) marketCandlesResponseForInstrument(ctx context.Context, market string, symbol string, query marketCandlesQuery) (map[string]any, error) {
+	market = strings.ToUpper(strings.TrimSpace(market))
+	symbol = strings.ToUpper(strings.TrimSpace(symbol))
+	instrumentID := market + "." + symbol
+	period := query.normalizedPeriod()
+	limit := query.limitOrDefault(200, 1000)
 	if period == "tick" {
 		return s.buildTickCandlesResponse(ctx, market, symbol, instrumentID, period, limit, query)
 	}
@@ -137,7 +205,7 @@ func (s *Server) marketCandlesResponse(ctx context.Context, path string, query m
 	return s.buildKLineCandlesResponse(ctx, market, symbol, instrumentID, period, limit, query)
 }
 
-func (s *Server) buildTickCandlesResponse(ctx context.Context, market string, symbol string, instrumentID string, period string, limit int, query map[string][]string) (map[string]any, error) {
+func (s *Server) buildTickCandlesResponse(ctx context.Context, market string, symbol string, instrumentID string, period string, limit int, query marketCandlesQuery) (map[string]any, error) {
 	includeSession := market == "US"
 	extendedHours := includeSession
 	request := marketCandlesRequest(market, symbol, instrumentID, period, limit)
@@ -172,7 +240,7 @@ func (s *Server) buildTickCandlesResponse(ctx context.Context, market string, sy
 	}, nil
 }
 
-func (s *Server) buildKLineCandlesResponse(ctx context.Context, market string, symbol string, instrumentID string, period string, limit int, query map[string][]string) (map[string]any, error) {
+func (s *Server) buildKLineCandlesResponse(ctx context.Context, market string, symbol string, instrumentID string, period string, limit int, query marketCandlesQuery) (map[string]any, error) {
 	interval := bbgotypes.Interval(period)
 	includeSession := shouldAnnotateHistoricalKLineSession(market, interval)
 	beginAt, endAt := kLineQueryWindow(query, interval.Duration(), limit)
@@ -282,27 +350,46 @@ func (s *Server) futuExchange() *futu.Exchange {
 
 // --- Depth (Order Book) ---
 
-func (s *Server) handleMarketDepth(w http.ResponseWriter, r *http.Request) {
-	response, err := s.marketDepthResponse(r.Context(), r.URL.Path, r.URL.Query())
-	if err != nil {
-		s.writeError(w, http.StatusBadGateway, "OPEND_DEPTH_FAILED", err.Error())
+// handleMarketDepth godoc
+// @Summary 读取盘口深度
+// @Tags market-data
+// @Produce json
+// @Param market path string true "市场代码"
+// @Param symbol path string true "证券代码"
+// @Param num query int false "档数，默认 10，最大 50"
+// @Success 200 {object} envelope
+// @Failure 400 {object} envelope
+// @Failure 502 {object} envelope
+// @Router /api/v1/market-data/depth/{market}/{symbol} [get]
+func (s *Server) handleMarketDepth(c *gin.Context) {
+	var uri marketInstrumentURI
+	if err := bindURI(c, &uri); err != nil {
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "market or symbol is invalid")
 		return
 	}
-	s.writeOK(w, response)
+	var query marketDepthQuery
+	if err := c.ShouldBindQuery(&query); err != nil {
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid depth query")
+		return
+	}
+	response, err := s.marketDepthResponseForInstrument(c.Request.Context(), uri.Market, uri.Symbol, query)
+	if err != nil {
+		s.writeError(c, http.StatusBadGateway, "OPEND_DEPTH_FAILED", err.Error())
+		return
+	}
+	s.writeOK(c, response)
 }
 
 func (s *Server) marketDepthResponse(ctx context.Context, path string, query map[string][]string) (map[string]any, error) {
 	market, symbol := marketDepthPathTail(path)
+	return s.marketDepthResponseForInstrument(ctx, market, symbol, decodeMarketDepthQuery(query))
+}
+
+func (s *Server) marketDepthResponseForInstrument(ctx context.Context, market string, symbol string, query marketDepthQuery) (map[string]any, error) {
 	market = strings.ToUpper(strings.TrimSpace(market))
 	symbol = strings.ToUpper(strings.TrimSpace(symbol))
 	instrumentID := market + "." + symbol
-	num := int32(intQuery(query, "num", 10))
-	if num < 1 {
-		num = 1
-	}
-	if num > 50 {
-		num = 50
-	}
+	num := query.numOrDefault(10, 50)
 
 	b, err := s.futuBrokerOrError()
 	if err != nil {

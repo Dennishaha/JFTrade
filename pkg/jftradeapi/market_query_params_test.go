@@ -26,9 +26,9 @@ func TestKLineQueryWindowUsesExplicitBounds(t *testing.T) {
 	expectedBegin := time.Date(2026, time.May, 21, 9, 0, 0, 0, time.UTC)
 	expectedEnd := time.Date(2026, time.May, 21, 16, 0, 0, 0, time.UTC)
 
-	beginAt, endAt := kLineQueryWindow(map[string][]string{
-		"fromTime": {expectedBegin.Format(time.RFC3339Nano)},
-		"toTime":   {expectedEnd.Format(time.RFC3339Nano)},
+	beginAt, endAt := kLineQueryWindow(marketCandlesQuery{
+		FromTime: newOptionalTimeValue(expectedBegin),
+		ToTime:   newOptionalTimeValue(expectedEnd),
 	}, time.Minute, 10)
 
 	if !beginAt.Equal(expectedBegin) {
@@ -42,9 +42,9 @@ func TestKLineQueryWindowUsesExplicitBounds(t *testing.T) {
 func TestKLineQueryWindowResetsInvalidBeginToDefaultLookback(t *testing.T) {
 	endAt := time.Date(2026, time.May, 21, 16, 0, 0, 0, time.UTC)
 
-	beginAt, resolvedEndAt := kLineQueryWindow(map[string][]string{
-		"fromTime": {endAt.Add(time.Hour).Format(time.RFC3339Nano)},
-		"toTime":   {endAt.Format(time.RFC3339Nano)},
+	beginAt, resolvedEndAt := kLineQueryWindow(marketCandlesQuery{
+		FromTime: newOptionalTimeValue(endAt.Add(time.Hour)),
+		ToTime:   newOptionalTimeValue(endAt),
 	}, time.Minute, 2)
 
 	expectedBegin := endAt.Add(-36 * time.Hour)

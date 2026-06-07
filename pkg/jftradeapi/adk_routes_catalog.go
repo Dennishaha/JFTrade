@@ -2,168 +2,202 @@ package jftradeapi
 
 import (
 	"context"
-	"encoding/json"
 	"io"
 	"net/http"
 	"strings"
 
+	"github.com/gin-gonic/gin"
 	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
 )
 
-func (s *Server) handleADKSnapshot(w http.ResponseWriter, r *http.Request) {
-	snapshot, err := s.adkRuntime.Snapshot(r.Context())
+type adkInstallSkillRequest struct {
+	URL string `json:"url"`
+}
+
+// handleADKSnapshot godoc
+// @Summary 读取 ADK 快照
+// @Tags adk
+// @Produce json
+// @Success 200 {object} envelope
+// @Failure 500 {object} envelope
+// @Router /api/v1/adk [get]
+func (s *Server) handleADKSnapshot(c *gin.Context) {
+	snapshot, err := s.adkRuntime.Snapshot(c.Request.Context())
 	if err != nil {
-		s.writeError(w, http.StatusInternalServerError, "ADK_SNAPSHOT_FAILED", err.Error())
+		s.writeError(c, http.StatusInternalServerError, "ADK_SNAPSHOT_FAILED", err.Error())
 		return
 	}
-	s.writeOK(w, snapshot)
+	s.writeOK(c, snapshot)
 }
 
-func (s *Server) handleADKTools(w http.ResponseWriter, _ *http.Request) {
-	s.writeOK(w, map[string]any{"tools": s.adkRuntime.Tools().List()})
+func (s *Server) handleADKTools(c *gin.Context) {
+	s.writeOK(c, map[string]any{"tools": s.adkRuntime.Tools().List()})
 }
 
-func (s *Server) handleADKProviders(w http.ResponseWriter, r *http.Request) {
-	items, err := s.adkRuntime.Store().ListProviders(r.Context())
-	writeADKListOrError(s, w, "ADK_PROVIDER_LIST_FAILED", "providers", items, err)
+// handleADKProviders godoc
+// @Summary 读取 ADK Provider 列表
+// @Tags adk
+// @Produce json
+// @Success 200 {object} envelope
+// @Failure 500 {object} envelope
+// @Router /api/v1/adk/providers [get]
+func (s *Server) handleADKProviders(c *gin.Context) {
+	items, err := s.adkRuntime.Store().ListProviders(c.Request.Context())
+	writeADKListOrError(s, c, "ADK_PROVIDER_LIST_FAILED", "providers", items, err)
 }
 
-func (s *Server) handleADKTestProvider(w http.ResponseWriter, r *http.Request) {
-	id, err := decodePathSegment(pathMiddle(r.URL.Path, "/api/v1/adk/providers/", "/test"))
-	if err != nil || strings.TrimSpace(id) == "" {
-		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "providerId is invalid")
+func (s *Server) handleADKTestProvider(c *gin.Context) {
+	var uri providerURI
+	if err := bindURI(c, &uri); err != nil || strings.TrimSpace(uri.ProviderID) == "" {
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "providerId is invalid")
 		return
 	}
-	result, err := s.adkRuntime.TestProvider(r.Context(), id)
+	id := uri.ProviderID
+	result, err := s.adkRuntime.TestProvider(c.Request.Context(), id)
 	if err != nil {
-		s.writeError(w, http.StatusBadGateway, "ADK_PROVIDER_TEST_FAILED", err.Error())
+		s.writeError(c, http.StatusBadGateway, "ADK_PROVIDER_TEST_FAILED", err.Error())
 		return
 	}
-	s.writeOK(w, result)
+	s.writeOK(c, result)
 }
 
-func (s *Server) handleADKDeleteProvider(w http.ResponseWriter, r *http.Request) {
-	id, err := decodePathSegment(strings.TrimPrefix(r.URL.Path, "/api/v1/adk/providers/"))
-	if err != nil || strings.TrimSpace(id) == "" {
-		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "providerId is invalid")
+func (s *Server) handleADKDeleteProvider(c *gin.Context) {
+	var uri providerURI
+	if err := bindURI(c, &uri); err != nil || strings.TrimSpace(uri.ProviderID) == "" {
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "providerId is invalid")
 		return
 	}
-	if err := s.adkRuntime.Store().DeleteProvider(r.Context(), id); err != nil {
+	id := uri.ProviderID
+	if err := s.adkRuntime.Store().DeleteProvider(c.Request.Context(), id); err != nil {
 		status := http.StatusInternalServerError
 		if strings.Contains(err.Error(), "used by agent") {
 			status = http.StatusConflict
 		}
-		s.writeError(w, status, "ADK_PROVIDER_DELETE_FAILED", err.Error())
+		s.writeError(c, status, "ADK_PROVIDER_DELETE_FAILED", err.Error())
 		return
 	}
-	s.writeOK(w, map[string]any{"deleted": true, "id": id})
+	s.writeOK(c, map[string]any{"deleted": true, "id": id})
 }
 
-func (s *Server) handleADKAgents(w http.ResponseWriter, r *http.Request) {
-	items, err := s.adkRuntime.Store().ListAgents(r.Context())
+// handleADKAgents godoc
+// @Summary 读取 ADK Agent 列表
+// @Tags adk
+// @Produce json
+// @Param status query string false "Agent 状态过滤"
+// @Success 200 {object} envelope
+// @Failure 400 {object} envelope
+// @Failure 500 {object} envelope
+// @Router /api/v1/adk/agents [get]
+func (s *Server) handleADKAgents(c *gin.Context) {
+	var query adkAgentsQuery
+	if err := c.ShouldBindQuery(&query); err != nil {
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid agents query")
+		return
+	}
+	items, err := s.adkRuntime.Store().ListAgents(c.Request.Context())
 	if err == nil {
-		items = filterADKAgents(items, r.URL.Query().Get("status"))
+		items = filterADKAgents(items, query.Status)
 	}
-	writeADKPagedListOrError(s, w, "ADK_AGENT_LIST_FAILED", "agents", items, err, r)
+	writeADKPagedListOrError(s, c, "ADK_AGENT_LIST_FAILED", "agents", items, err)
 }
 
-func (s *Server) handleADKDeleteAgent(w http.ResponseWriter, r *http.Request) {
-	id, err := decodePathSegment(strings.TrimPrefix(r.URL.Path, "/api/v1/adk/agents/"))
-	if err != nil || strings.TrimSpace(id) == "" {
-		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "agentId is invalid")
+func (s *Server) handleADKDeleteAgent(c *gin.Context) {
+	var uri agentURI
+	if err := bindURI(c, &uri); err != nil || strings.TrimSpace(uri.AgentID) == "" {
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "agentId is invalid")
 		return
 	}
-	if err := s.adkRuntime.Store().DeleteAgent(r.Context(), id); err != nil {
-		s.writeError(w, http.StatusInternalServerError, "ADK_AGENT_DELETE_FAILED", err.Error())
+	id := uri.AgentID
+	if err := s.adkRuntime.Store().DeleteAgent(c.Request.Context(), id); err != nil {
+		s.writeError(c, http.StatusInternalServerError, "ADK_AGENT_DELETE_FAILED", err.Error())
 		return
 	}
-	s.writeOK(w, map[string]any{"deleted": true, "id": id})
+	s.writeOK(c, map[string]any{"deleted": true, "id": id})
 }
 
-func (s *Server) handleADKSkills(w http.ResponseWriter, r *http.Request) {
-	items, err := s.adkRuntime.Skills().List(r.Context())
-	writeADKListOrError(s, w, "ADK_SKILL_LIST_FAILED", "skills", items, err)
+func (s *Server) handleADKSkills(c *gin.Context) {
+	items, err := s.adkRuntime.Skills().List(c.Request.Context())
+	writeADKListOrError(s, c, "ADK_SKILL_LIST_FAILED", "skills", items, err)
 }
 
-func (s *Server) handleADKInstallSkill(w http.ResponseWriter, r *http.Request) {
-	var payload struct {
-		URL string `json:"url"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "invalid skill install payload")
+func (s *Server) handleADKInstallSkill(c *gin.Context) {
+	var payload adkInstallSkillRequest
+	if err := c.ShouldBindJSON(&payload); err != nil {
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid skill install payload")
 		return
 	}
-	skill, err := s.adkRuntime.Skills().InstallURL(r.Context(), payload.URL)
+	skill, err := s.adkRuntime.Skills().InstallURL(c.Request.Context(), payload.URL)
 	if err != nil {
-		s.writeError(w, http.StatusBadRequest, "ADK_SKILL_INSTALL_FAILED", err.Error())
+		s.writeError(c, http.StatusBadRequest, "ADK_SKILL_INSTALL_FAILED", err.Error())
 		return
 	}
-	s.adkRuntime.RecordAudit(r.Context(), "skill.installed", skill.ID, "ADK skill installed.", map[string]any{"source": skill.Source})
-	s.writeOK(w, skill)
+	s.adkRuntime.RecordAudit(c.Request.Context(), "skill.installed", skill.ID, "ADK skill installed.", map[string]any{"source": skill.Source})
+	s.writeOK(c, skill)
 }
 
-func (s *Server) handleADKDeleteSkill(w http.ResponseWriter, r *http.Request) {
-	id, err := decodePathSegment(strings.TrimPrefix(r.URL.Path, "/api/v1/adk/skills/"))
-	if err != nil || strings.TrimSpace(id) == "" {
-		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "skillId is invalid")
+func (s *Server) handleADKDeleteSkill(c *gin.Context) {
+	var uri skillURI
+	if err := bindURI(c, &uri); err != nil || strings.TrimSpace(uri.SkillID) == "" {
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "skillId is invalid")
 		return
 	}
-	if err := s.adkRuntime.Skills().Uninstall(r.Context(), id); err != nil {
-		s.writeError(w, http.StatusInternalServerError, "ADK_SKILL_UNINSTALL_FAILED", err.Error())
+	id := uri.SkillID
+	if err := s.adkRuntime.Skills().Uninstall(c.Request.Context(), id); err != nil {
+		s.writeError(c, http.StatusInternalServerError, "ADK_SKILL_UNINSTALL_FAILED", err.Error())
 		return
 	}
-	s.adkRuntime.RecordAudit(r.Context(), "skill.uninstalled", id, "ADK skill uninstalled.", nil)
-	s.writeOK(w, map[string]any{"deleted": true, "id": id})
+	s.adkRuntime.RecordAudit(c.Request.Context(), "skill.uninstalled", id, "ADK skill uninstalled.", nil)
+	s.writeOK(c, map[string]any{"deleted": true, "id": id})
 }
 
-func (s *Server) handleADKSaveProvider(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleADKSaveProvider(c *gin.Context) {
 	var payload jfadk.ProviderWriteRequest
-	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil && err != io.EOF {
-		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "invalid provider payload")
+	if err := c.ShouldBindJSON(&payload); err != nil && err != io.EOF {
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid provider payload")
 		return
 	}
-	if r.Method == http.MethodPut {
-		id, err := decodePathSegment(strings.TrimPrefix(r.URL.Path, "/api/v1/adk/providers/"))
-		if err != nil || strings.TrimSpace(id) == "" {
-			s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "providerId is invalid")
+	if c.Request.Method == http.MethodPut {
+		var uri providerURI
+		if err := bindURI(c, &uri); err != nil || strings.TrimSpace(uri.ProviderID) == "" {
+			s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "providerId is invalid")
 			return
 		}
-		payload.ID = id
+		payload.ID = uri.ProviderID
 	}
-	provider, err := s.adkRuntime.Store().SaveProvider(r.Context(), payload)
+	provider, err := s.adkRuntime.Store().SaveProvider(c.Request.Context(), payload)
 	if err != nil {
-		s.writeError(w, http.StatusInternalServerError, "ADK_PROVIDER_SAVE_FAILED", err.Error())
+		s.writeError(c, http.StatusInternalServerError, "ADK_PROVIDER_SAVE_FAILED", err.Error())
 		return
 	}
-	s.adkRuntime.RecordAudit(r.Context(), "provider.saved", provider.ID, "ADK provider saved.", map[string]any{"enabled": provider.Enabled})
-	s.writeOK(w, provider)
+	s.adkRuntime.RecordAudit(c.Request.Context(), "provider.saved", provider.ID, "ADK provider saved.", map[string]any{"enabled": provider.Enabled})
+	s.writeOK(c, provider)
 }
 
-func (s *Server) handleADKSaveAgent(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleADKSaveAgent(c *gin.Context) {
 	var payload jfadk.AgentWriteRequest
-	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil && err != io.EOF {
-		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "invalid agent payload")
+	if err := c.ShouldBindJSON(&payload); err != nil && err != io.EOF {
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid agent payload")
 		return
 	}
-	if r.Method == http.MethodPut {
-		id, err := decodePathSegment(strings.TrimPrefix(r.URL.Path, "/api/v1/adk/agents/"))
-		if err != nil || strings.TrimSpace(id) == "" {
-			s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "agentId is invalid")
+	if c.Request.Method == http.MethodPut {
+		var uri agentURI
+		if err := bindURI(c, &uri); err != nil || strings.TrimSpace(uri.AgentID) == "" {
+			s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "agentId is invalid")
 			return
 		}
-		payload.ID = id
+		payload.ID = uri.AgentID
 	}
-	if err := s.validateADKAgentPayload(r.Context(), payload); err != nil {
-		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", err.Error())
+	if err := s.validateADKAgentPayload(c.Request.Context(), payload); err != nil {
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", err.Error())
 		return
 	}
-	agent, err := s.adkRuntime.Store().SaveAgent(r.Context(), payload)
+	agent, err := s.adkRuntime.Store().SaveAgent(c.Request.Context(), payload)
 	if err != nil {
-		s.writeError(w, http.StatusInternalServerError, "ADK_AGENT_SAVE_FAILED", err.Error())
+		s.writeError(c, http.StatusInternalServerError, "ADK_AGENT_SAVE_FAILED", err.Error())
 		return
 	}
-	s.adkRuntime.RecordAudit(r.Context(), "agent.saved", agent.ID, "ADK agent saved.", map[string]any{"status": agent.Status, "permissionMode": agent.PermissionMode})
-	s.writeOK(w, agent)
+	s.adkRuntime.RecordAudit(c.Request.Context(), "agent.saved", agent.ID, "ADK agent saved.", map[string]any{"status": agent.Status, "permissionMode": agent.PermissionMode})
+	s.writeOK(c, agent)
 }
 
 func (s *Server) validateADKAgentPayload(ctx context.Context, payload jfadk.AgentWriteRequest) error {

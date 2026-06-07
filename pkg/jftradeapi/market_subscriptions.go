@@ -1,8 +1,9 @@
 package jftradeapi
 
 import (
-	"encoding/json"
 	"net/http"
+
+	"github.com/gin-gonic/gin"
 )
 
 type marketSubscriptionPayload struct {
@@ -17,41 +18,81 @@ type marketSubscriptionHeartbeatPayload struct {
 	ConsumerID string `json:"consumerId"`
 }
 
-func (s *Server) handleAcquireMarketSubscription(w http.ResponseWriter, r *http.Request) {
+// handleAcquireMarketSubscription godoc
+// @Summary 申请行情订阅
+// @Tags market-data
+// @Accept json
+// @Produce json
+// @Param request body marketSubscriptionPayload true "订阅请求"
+// @Success 200 {object} envelope
+// @Failure 400 {object} envelope
+// @Router /api/v1/market-data/subscriptions [post]
+func (s *Server) handleAcquireMarketSubscription(c *gin.Context) {
 	var payload marketSubscriptionPayload
-	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", err.Error())
+	if err := c.ShouldBindJSON(&payload); err != nil {
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", err.Error())
 		return
 	}
 	response, err := s.acquireMarketSubscription(payload)
 	if err != nil {
-		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "market and symbol are required")
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "market and symbol are required")
 		return
 	}
 
-	s.writeOK(w, response)
+	s.writeOK(c, response)
 }
 
-func (s *Server) handleReleaseMarketSubscription(w http.ResponseWriter, r *http.Request) {
+// handleReleaseMarketSubscription godoc
+// @Summary 释放行情订阅
+// @Tags market-data
+// @Accept json
+// @Produce json
+// @Param request body marketSubscriptionPayload true "订阅请求"
+// @Success 200 {object} envelope
+// @Failure 400 {object} envelope
+// @Router /api/v1/market-data/subscriptions/release [post]
+func (s *Server) handleReleaseMarketSubscription(c *gin.Context) {
 	var payload marketSubscriptionPayload
-	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", err.Error())
+	if err := c.ShouldBindJSON(&payload); err != nil {
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", err.Error())
 		return
 	}
 
-	s.writeOK(w, s.releaseMarketSubscription(payload))
+	s.writeOK(c, s.releaseMarketSubscription(payload))
 }
 
-func (s *Server) handleHeartbeatMarketSubscription(w http.ResponseWriter, r *http.Request) {
+// handleHeartbeatMarketSubscription godoc
+// @Summary 刷新订阅心跳
+// @Tags market-data
+// @Accept json
+// @Produce json
+// @Param request body marketSubscriptionHeartbeatPayload true "订阅心跳"
+// @Success 200 {object} envelope
+// @Failure 400 {object} envelope
+// @Router /api/v1/market-data/subscriptions/heartbeat [post]
+func (s *Server) handleHeartbeatMarketSubscription(c *gin.Context) {
 	var payload marketSubscriptionHeartbeatPayload
-	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", err.Error())
+	if err := c.ShouldBindJSON(&payload); err != nil {
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", err.Error())
 		return
 	}
 
-	s.writeOK(w, s.heartbeatMarketSubscriptions(payload.ConsumerID))
+	s.writeOK(c, s.heartbeatMarketSubscriptions(payload.ConsumerID))
 }
 
-func (s *Server) handleClearMarketSubscriptions(w http.ResponseWriter, r *http.Request) {
-	s.writeOK(w, s.clearMarketSubscriptions(r.URL.Query().Get("consumerId")))
+// handleClearMarketSubscriptions godoc
+// @Summary 清空行情订阅
+// @Tags market-data
+// @Produce json
+// @Param consumerId query string false "消费者 ID；为空时清空全部"
+// @Success 200 {object} envelope
+// @Failure 400 {object} envelope
+// @Router /api/v1/market-data/subscriptions [delete]
+func (s *Server) handleClearMarketSubscriptions(c *gin.Context) {
+	var query marketSubscriptionDeleteQuery
+	if err := c.ShouldBindQuery(&query); err != nil {
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid clear subscriptions query")
+		return
+	}
+	s.writeOK(c, s.clearMarketSubscriptions(query.ConsumerID))
 }

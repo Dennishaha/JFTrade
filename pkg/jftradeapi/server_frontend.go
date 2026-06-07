@@ -141,7 +141,7 @@ func shouldServeFrontendIndex(r *http.Request, cleanPath string) bool {
 	if cleanPath == "" {
 		return false
 	}
-	if cleanPath == "/openapi.json" || strings.HasPrefix(cleanPath, "/api/") || strings.HasPrefix(cleanPath, "/swagger") {
+	if strings.HasPrefix(cleanPath, "/api/") || strings.HasPrefix(cleanPath, "/swagger") {
 		return false
 	}
 	if cleanPath == "/assets" || strings.HasPrefix(cleanPath, "/assets/") {

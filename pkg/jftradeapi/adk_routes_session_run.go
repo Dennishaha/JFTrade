@@ -1,155 +1,197 @@
 package jftradeapi
 
 import (
-	"encoding/json"
 	"net/http"
 	"strings"
 
+	"github.com/gin-gonic/gin"
 	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
 )
 
-func (s *Server) handleADKSessions(w http.ResponseWriter, r *http.Request) {
-	limit, offset := adkPageBounds(r)
-	items, total, err := s.adkRuntime.Store().ListSessionsPage(r.Context(), r.URL.Query().Get("agentId"), r.URL.Query().Get("query"), limit, offset)
-	writeADKPageOrError(s, w, "ADK_SESSION_LIST_FAILED", "sessions", items, total, limit, offset, err)
+// handleADKSessions godoc
+// @Summary 读取 ADK Session 列表
+// @Tags adk
+// @Produce json
+// @Param limit query int false "分页大小"
+// @Param offset query int false "分页偏移"
+// @Param agentId query string false "Agent ID"
+// @Param query query string false "搜索关键字"
+// @Success 200 {object} envelope
+// @Failure 400 {object} envelope
+// @Failure 500 {object} envelope
+// @Router /api/v1/adk/sessions [get]
+func (s *Server) handleADKSessions(c *gin.Context) {
+	var query adkSessionsQuery
+	if err := c.ShouldBindQuery(&query); err != nil {
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid sessions query")
+		return
+	}
+	limit, offset := adkPageBounds(adkPageQuery{Limit: query.Limit, Offset: query.Offset})
+	items, total, err := s.adkRuntime.Store().ListSessionsPage(c.Request.Context(), query.AgentID, query.Query, limit, offset)
+	writeADKPageOrError(s, c, "ADK_SESSION_LIST_FAILED", "sessions", items, total, limit, offset, err)
 }
 
-func (s *Server) handleADKCreateSession(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleADKCreateSession(c *gin.Context) {
 	var payload struct {
 		AgentID string `json:"agentId"`
 		Title   string `json:"title"`
 	}
-	_ = json.NewDecoder(r.Body).Decode(&payload)
-	agent, ok, agentErr := s.adkRuntime.Store().Agent(r.Context(), payload.AgentID)
+	_ = c.ShouldBindJSON(&payload)
+	agent, ok, agentErr := s.adkRuntime.Store().Agent(c.Request.Context(), payload.AgentID)
 	if agentErr != nil || !ok || agent.Status != jfadk.AgentStatusEnabled || agent.DeletedAt != nil {
-		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "enabled agent is required")
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "enabled agent is required")
 		return
 	}
-	session, err := s.adkRuntime.Store().CreateSession(r.Context(), payload.AgentID, payload.Title)
+	session, err := s.adkRuntime.Store().CreateSession(c.Request.Context(), payload.AgentID, payload.Title)
 	if err != nil {
-		s.writeError(w, http.StatusInternalServerError, "ADK_SESSION_CREATE_FAILED", err.Error())
+		s.writeError(c, http.StatusInternalServerError, "ADK_SESSION_CREATE_FAILED", err.Error())
 		return
 	}
-	s.writeOK(w, session)
+	s.writeOK(c, session)
 }
 
-func (s *Server) handleADKSession(w http.ResponseWriter, r *http.Request) {
-	id, err := decodePathSegment(strings.TrimPrefix(r.URL.Path, "/api/v1/adk/sessions/"))
-	if err != nil || strings.TrimSpace(id) == "" {
-		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "sessionId is invalid")
+func (s *Server) handleADKSession(c *gin.Context) {
+	var uri sessionURI
+	if err := bindURI(c, &uri); err != nil || strings.TrimSpace(uri.SessionID) == "" {
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "sessionId is invalid")
 		return
 	}
-	session, ok, err := s.adkRuntime.Store().Session(r.Context(), id)
+	id := uri.SessionID
+	session, ok, err := s.adkRuntime.Store().Session(c.Request.Context(), id)
 	if err != nil {
-		s.writeError(w, http.StatusInternalServerError, "ADK_SESSION_GET_FAILED", err.Error())
+		s.writeError(c, http.StatusInternalServerError, "ADK_SESSION_GET_FAILED", err.Error())
 		return
 	}
 	if !ok {
-		s.writeError(w, http.StatusNotFound, "NOT_FOUND", "session not found")
+		s.writeError(c, http.StatusNotFound, "NOT_FOUND", "session not found")
 		return
 	}
-	messages, err := s.adkRuntime.Store().Messages(r.Context(), id)
+	messages, err := s.adkRuntime.Store().Messages(c.Request.Context(), id)
 	if err != nil {
-		s.writeError(w, http.StatusInternalServerError, "ADK_MESSAGES_GET_FAILED", err.Error())
+		s.writeError(c, http.StatusInternalServerError, "ADK_MESSAGES_GET_FAILED", err.Error())
 		return
 	}
-	s.writeOK(w, jfadk.SessionsResponse{Session: session, Messages: messages})
+	s.writeOK(c, jfadk.SessionsResponse{Session: session, Messages: messages})
 }
 
-func (s *Server) handleADKRenameSession(w http.ResponseWriter, r *http.Request) {
-	id, err := decodePathSegment(strings.TrimPrefix(r.URL.Path, "/api/v1/adk/sessions/"))
-	if err != nil || strings.TrimSpace(id) == "" {
-		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "sessionId is invalid")
+func (s *Server) handleADKRenameSession(c *gin.Context) {
+	var uri sessionURI
+	if err := bindURI(c, &uri); err != nil || strings.TrimSpace(uri.SessionID) == "" {
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "sessionId is invalid")
 		return
 	}
+	id := uri.SessionID
 	var payload struct {
 		Title string `json:"title"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "invalid session payload")
+	if err := c.ShouldBindJSON(&payload); err != nil {
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid session payload")
 		return
 	}
-	session, err := s.adkRuntime.Store().RenameSession(r.Context(), id, payload.Title)
+	session, err := s.adkRuntime.Store().RenameSession(c.Request.Context(), id, payload.Title)
 	if err != nil {
-		s.writeError(w, http.StatusBadRequest, "ADK_SESSION_RENAME_FAILED", err.Error())
+		s.writeError(c, http.StatusBadRequest, "ADK_SESSION_RENAME_FAILED", err.Error())
 		return
 	}
-	s.writeOK(w, session)
+	s.writeOK(c, session)
 }
 
-func (s *Server) handleADKDeleteSession(w http.ResponseWriter, r *http.Request) {
-	id, err := decodePathSegment(strings.TrimPrefix(r.URL.Path, "/api/v1/adk/sessions/"))
-	if err != nil || strings.TrimSpace(id) == "" {
-		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "sessionId is invalid")
+func (s *Server) handleADKDeleteSession(c *gin.Context) {
+	var uri sessionURI
+	if err := bindURI(c, &uri); err != nil || strings.TrimSpace(uri.SessionID) == "" {
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "sessionId is invalid")
 		return
 	}
-	if err := s.adkRuntime.DeleteSession(r.Context(), id); err != nil {
-		s.writeError(w, http.StatusInternalServerError, "ADK_SESSION_DELETE_FAILED", err.Error())
+	id := uri.SessionID
+	if err := s.adkRuntime.DeleteSession(c.Request.Context(), id); err != nil {
+		s.writeError(c, http.StatusInternalServerError, "ADK_SESSION_DELETE_FAILED", err.Error())
 		return
 	}
-	s.writeOK(w, map[string]any{"deleted": true, "id": id})
+	s.writeOK(c, map[string]any{"deleted": true, "id": id})
 }
 
-func (s *Server) handleADKRuns(w http.ResponseWriter, r *http.Request) {
-	s.adkRuntime.ReconcileExpiredRuns(r.Context())
-	limit, offset := adkPageBounds(r)
-	items, total, err := s.adkRuntime.Store().ListRunsPage(r.Context(), r.URL.Query().Get("status"), r.URL.Query().Get("agentId"), r.URL.Query().Get("sessionId"), limit, offset)
-	writeADKPageOrError(s, w, "ADK_RUN_LIST_FAILED", "runs", items, total, limit, offset, err)
-}
-
-func (s *Server) handleADKCancelRun(w http.ResponseWriter, r *http.Request) {
-	id, err := decodePathSegment(pathMiddle(r.URL.Path, "/api/v1/adk/runs/", "/cancel"))
-	if err != nil || strings.TrimSpace(id) == "" {
-		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "runId is invalid")
+// handleADKRuns godoc
+// @Summary 读取 ADK Run 列表
+// @Tags adk
+// @Produce json
+// @Param limit query int false "分页大小"
+// @Param offset query int false "分页偏移"
+// @Param status query string false "Run 状态"
+// @Param agentId query string false "Agent ID"
+// @Param sessionId query string false "Session ID"
+// @Success 200 {object} envelope
+// @Failure 400 {object} envelope
+// @Failure 500 {object} envelope
+// @Router /api/v1/adk/runs [get]
+func (s *Server) handleADKRuns(c *gin.Context) {
+	s.adkRuntime.ReconcileExpiredRuns(c.Request.Context())
+	var query adkRunsQuery
+	if err := c.ShouldBindQuery(&query); err != nil {
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid runs query")
 		return
 	}
-	run, err := s.adkRuntime.CancelRun(r.Context(), id)
+	limit, offset := adkPageBounds(adkPageQuery{Limit: query.Limit, Offset: query.Offset})
+	items, total, err := s.adkRuntime.Store().ListRunsPage(c.Request.Context(), query.Status, query.AgentID, query.SessionID, limit, offset)
+	writeADKPageOrError(s, c, "ADK_RUN_LIST_FAILED", "runs", items, total, limit, offset, err)
+}
+
+func (s *Server) handleADKCancelRun(c *gin.Context) {
+	var uri runURI
+	if err := bindURI(c, &uri); err != nil || strings.TrimSpace(uri.RunID) == "" {
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "runId is invalid")
+		return
+	}
+	id := uri.RunID
+	run, err := s.adkRuntime.CancelRun(c.Request.Context(), id)
 	if err != nil {
-		s.writeError(w, http.StatusNotFound, "ADK_RUN_CANCEL_FAILED", err.Error())
+		s.writeError(c, http.StatusNotFound, "ADK_RUN_CANCEL_FAILED", err.Error())
 		return
 	}
-	s.writeOK(w, run)
+	s.writeOK(c, run)
 }
 
-func (s *Server) handleADKRun(w http.ResponseWriter, r *http.Request) {
-	s.adkRuntime.ReconcileExpiredRuns(r.Context())
-	id, err := decodePathSegment(strings.TrimPrefix(r.URL.Path, "/api/v1/adk/runs/"))
-	if err != nil || strings.TrimSpace(id) == "" {
-		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "runId is invalid")
+func (s *Server) handleADKRun(c *gin.Context) {
+	s.adkRuntime.ReconcileExpiredRuns(c.Request.Context())
+	var uri runURI
+	if err := bindURI(c, &uri); err != nil || strings.TrimSpace(uri.RunID) == "" {
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "runId is invalid")
 		return
 	}
-	run, ok, err := s.adkRuntime.Store().Run(r.Context(), id)
+	id := uri.RunID
+	run, ok, err := s.adkRuntime.Store().Run(c.Request.Context(), id)
 	if err != nil {
-		s.writeError(w, http.StatusInternalServerError, "ADK_RUN_GET_FAILED", err.Error())
+		s.writeError(c, http.StatusInternalServerError, "ADK_RUN_GET_FAILED", err.Error())
 		return
 	}
 	if !ok {
-		s.writeError(w, http.StatusNotFound, "NOT_FOUND", "run not found")
+		s.writeError(c, http.StatusNotFound, "NOT_FOUND", "run not found")
 		return
 	}
-	s.writeOK(w, run)
+	s.writeOK(c, run)
 }
 
-func (s *Server) handleADKApprovals(w http.ResponseWriter, r *http.Request) {
-	limit, offset := adkPageBounds(r)
-	items, total, err := s.adkRuntime.Store().ListApprovalsPage(r.Context(), r.URL.Query().Get("status"), r.URL.Query().Get("agentId"), limit, offset)
-	writeADKPageOrError(s, w, "ADK_APPROVAL_LIST_FAILED", "approvals", items, total, limit, offset, err)
-}
-
-func (s *Server) handleADKApproval(w http.ResponseWriter, r *http.Request, approved bool) {
-	suffix := "/deny"
-	if approved {
-		suffix = "/approve"
-	}
-	id, err := decodePathSegment(pathMiddle(r.URL.Path, "/api/v1/adk/approvals/", suffix))
-	if err != nil || strings.TrimSpace(id) == "" {
-		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "approvalId is invalid")
+func (s *Server) handleADKApprovals(c *gin.Context) {
+	var query adkApprovalsQuery
+	if err := c.ShouldBindQuery(&query); err != nil {
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid approvals query")
 		return
 	}
-	resolution, err := s.adkRuntime.ResolveApproval(r.Context(), id, approved)
+	limit, offset := adkPageBounds(adkPageQuery{Limit: query.Limit, Offset: query.Offset})
+	items, total, err := s.adkRuntime.Store().ListApprovalsPage(c.Request.Context(), query.Status, query.AgentID, limit, offset)
+	writeADKPageOrError(s, c, "ADK_APPROVAL_LIST_FAILED", "approvals", items, total, limit, offset, err)
+}
+
+func (s *Server) handleADKApproval(c *gin.Context, approved bool) {
+	var uri approvalURI
+	if err := bindURI(c, &uri); err != nil || strings.TrimSpace(uri.ApprovalID) == "" {
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "approvalId is invalid")
+		return
+	}
+	id := uri.ApprovalID
+	resolution, err := s.adkRuntime.ResolveApproval(c.Request.Context(), id, approved)
 	if err != nil {
-		s.writeError(w, http.StatusInternalServerError, "ADK_APPROVAL_RESOLVE_FAILED", err.Error())
+		s.writeError(c, http.StatusInternalServerError, "ADK_APPROVAL_RESOLVE_FAILED", err.Error())
 		return
 	}
-	s.writeOK(w, resolution)
+	s.writeOK(c, resolution)
 }

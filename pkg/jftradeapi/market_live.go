@@ -12,6 +12,7 @@ import (
 	"time"
 
 	bbgotypes "github.com/c9s/bbgo/pkg/types"
+	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 )
 
@@ -27,10 +28,20 @@ const (
 	defaultSSEClientRetry        = liveStreamRetryBaseDelay
 )
 
-func (s *Server) handleLiveWebSocket(w http.ResponseWriter, r *http.Request) {
+// handleLiveWebSocket godoc
+// @Summary 连接实时 WebSocket
+// @Description 建立行情与运行态实时推送连接。
+// @Tags streaming
+// @Produce json
+// @Success 101 {string} string "Switching Protocols"
+// @Failure 503 {object} envelope
+// @Router /api/v1/ws/live [get]
+func (s *Server) handleLiveWebSocket(c *gin.Context) {
+	w := c.Writer
+	r := c.Request
 	limit := s.effectiveLiveStreamLimit()
 	if !s.tryAcquireLiveStreamSlot(limit) {
-		s.writeError(w, http.StatusServiceUnavailable, "LIVE_WS_LIMIT_REACHED", fmt.Sprintf("live websocket connection limit reached (%d)", limit))
+		s.writeError(c, http.StatusServiceUnavailable, "LIVE_WS_LIMIT_REACHED", fmt.Sprintf("live websocket connection limit reached (%d)", limit))
 		return
 	}
 	defer s.releaseLiveStreamSlot()

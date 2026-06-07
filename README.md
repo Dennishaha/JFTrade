@@ -53,7 +53,9 @@ go run ./cmd/jftrade api
 
 # Swagger 调试文档
 # Swagger UI: http://127.0.0.1:3000/swagger/
-# OpenAPI JSON: http://127.0.0.1:3000/openapi.json
+# Swagger JSON: http://127.0.0.1:3000/swagger/doc.json
+# 重新生成 Swagger 文档
+go generate ./cmd/jftrade-api
 
 # 如需完整 bbgo 引擎，再显式启动 bbgo run
 go run ./cmd/jftrade run --config ./config/jftrade.yaml
@@ -135,7 +137,7 @@ cd apps/web && npm run typecheck && npm run build
 也可以直接运行根目录的 `start.sh` 或 `start.cmd`，按顺序执行测试、前端类型检查、前端构建，然后启动带内嵌前端的 Go 服务。
 
 开发态后端 API 启动后，可直接打开 Swagger UI 进行调试：`http://127.0.0.1:3000/swagger/`。
-发布态默认从 `http://127.0.0.1:6688/` 打开控制台，Swagger UI 与 OpenAPI 分别位于 `http://127.0.0.1:6688/swagger/` 和 `http://127.0.0.1:6688/openapi.json`；`6699` 仍可作为 API 直连地址使用。
+发布态默认从 `http://127.0.0.1:6688/` 打开控制台，Swagger UI 与 Swagger JSON 分别位于 `http://127.0.0.1:6688/swagger/` 和 `http://127.0.0.1:6688/swagger/doc.json`；`6699` 仍可作为 API 直连地址使用。
 
 前端 K 线实时合成与防回归说明见 `docs/frontend-kline.md`。
 

@@ -3,35 +3,40 @@ package jftradeapi
 import (
 	"context"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
 )
 
-func (s *Server) handleADKAudit(w http.ResponseWriter, r *http.Request) {
-	items, err := s.adkRuntime.Store().ListAuditEvents(r.Context())
-	if err == nil {
-		items = filterADKAudit(items, r.URL.Query().Get("kind"), r.URL.Query().Get("subjectId"))
+func (s *Server) handleADKAudit(c *gin.Context) {
+	var query adkAuditQuery
+	if err := c.ShouldBindQuery(&query); err != nil {
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid audit query")
+		return
 	}
-	writeADKPagedListOrError(s, w, "ADK_AUDIT_LIST_FAILED", "events", items, err, r)
+	items, err := s.adkRuntime.Store().ListAuditEvents(c.Request.Context())
+	if err == nil {
+		items = filterADKAudit(items, query.Kind, query.SubjectID)
+	}
+	writeADKPagedListOrError(s, c, "ADK_AUDIT_LIST_FAILED", "events", items, err)
 }
 
-func (s *Server) handleADKMetrics(w http.ResponseWriter, r *http.Request) {
-	runs, err := s.adkRuntime.Store().ListRuns(r.Context())
+func (s *Server) handleADKMetrics(c *gin.Context) {
+	runs, err := s.adkRuntime.Store().ListRuns(c.Request.Context())
 	if err != nil {
-		s.writeError(w, http.StatusInternalServerError, "ADK_METRICS_FAILED", err.Error())
+		s.writeError(c, http.StatusInternalServerError, "ADK_METRICS_FAILED", err.Error())
 		return
 	}
-	agents, err := s.adkRuntime.Store().ListAllAgents(r.Context())
+	agents, err := s.adkRuntime.Store().ListAllAgents(c.Request.Context())
 	if err != nil {
-		s.writeError(w, http.StatusInternalServerError, "ADK_METRICS_FAILED", err.Error())
+		s.writeError(c, http.StatusInternalServerError, "ADK_METRICS_FAILED", err.Error())
 		return
 	}
-	approvals, err := s.adkRuntime.Store().ListApprovals(r.Context())
+	approvals, err := s.adkRuntime.Store().ListApprovals(c.Request.Context())
 	if err != nil {
-		s.writeError(w, http.StatusInternalServerError, "ADK_METRICS_FAILED", err.Error())
+		s.writeError(c, http.StatusInternalServerError, "ADK_METRICS_FAILED", err.Error())
 		return
 	}
 	statuses := map[string]int{}
@@ -159,7 +164,7 @@ func (s *Server) handleADKMetrics(w http.ResponseWriter, r *http.Request) {
 		tokensInAverage = tokensInTotal / tokenSamples
 		tokensOutAverage = tokensOutTotal / tokenSamples
 	}
-	s.writeOK(w, map[string]any{
+	s.writeOK(c, map[string]any{
 		"runs": map[string]any{
 			"total": len(runs), "byStatus": statuses, "byAgent": byAgent, "byProvider": byProvider,
 			"lifecycle": map[string]any{
@@ -209,59 +214,61 @@ func approvalWaitDurationMs(approval jfadk.Approval, now time.Time) int64 {
 	return endedAt.Sub(startedAt).Milliseconds()
 }
 
-func (s *Server) handleADKOptimizationTasks(w http.ResponseWriter, r *http.Request) {
-	tasks, err := s.adkRuntime.Store().ListOptimizationTasks(r.Context())
+func (s *Server) handleADKOptimizationTasks(c *gin.Context) {
+	tasks, err := s.adkRuntime.Store().ListOptimizationTasks(c.Request.Context())
 	if err != nil {
-		s.writeError(w, http.StatusInternalServerError, "ADK_OPTIMIZATION_LIST_FAILED", err.Error())
+		s.writeError(c, http.StatusInternalServerError, "ADK_OPTIMIZATION_LIST_FAILED", err.Error())
 		return
 	}
 	items := make([]map[string]any, 0, len(tasks))
 	for _, task := range tasks {
-		items = append(items, s.adkOptimizationTaskResponse(r.Context(), task))
+		items = append(items, s.adkOptimizationTaskResponse(c.Request.Context(), task))
 	}
-	writeADKPagedListOrError(s, w, "ADK_OPTIMIZATION_LIST_FAILED", "tasks", items, nil, r)
+	writeADKPagedListOrError(s, c, "ADK_OPTIMIZATION_LIST_FAILED", "tasks", items, nil)
 }
 
-func (s *Server) handleADKOptimizationTask(w http.ResponseWriter, r *http.Request) {
-	id, err := decodePathSegment(strings.TrimPrefix(r.URL.Path, "/api/v1/adk/optimization-tasks/"))
-	if err != nil || strings.TrimSpace(id) == "" {
-		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "taskId is invalid")
+func (s *Server) handleADKOptimizationTask(c *gin.Context) {
+	var uri taskURI
+	if err := bindURI(c, &uri); err != nil || strings.TrimSpace(uri.TaskID) == "" {
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "taskId is invalid")
 		return
 	}
-	task, ok, err := s.adkRuntime.Store().OptimizationTask(r.Context(), id)
+	id := uri.TaskID
+	task, ok, err := s.adkRuntime.Store().OptimizationTask(c.Request.Context(), id)
 	if err != nil {
-		s.writeError(w, http.StatusInternalServerError, "ADK_OPTIMIZATION_GET_FAILED", err.Error())
+		s.writeError(c, http.StatusInternalServerError, "ADK_OPTIMIZATION_GET_FAILED", err.Error())
 		return
 	}
 	if !ok {
-		s.writeError(w, http.StatusNotFound, "NOT_FOUND", "optimization task not found")
+		s.writeError(c, http.StatusNotFound, "NOT_FOUND", "optimization task not found")
 		return
 	}
-	s.writeOK(w, s.adkOptimizationTaskResponse(r.Context(), task))
+	s.writeOK(c, s.adkOptimizationTaskResponse(c.Request.Context(), task))
 }
 
-func (s *Server) handleADKOptimizationTaskCancel(w http.ResponseWriter, r *http.Request) {
-	id, err := decodePathSegment(pathMiddle(r.URL.Path, "/api/v1/adk/optimization-tasks/", "/cancel"))
-	if err != nil || strings.TrimSpace(id) == "" {
-		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "taskId is invalid")
+func (s *Server) handleADKOptimizationTaskCancel(c *gin.Context) {
+	var uri taskURI
+	if err := bindURI(c, &uri); err != nil || strings.TrimSpace(uri.TaskID) == "" {
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "taskId is invalid")
 		return
 	}
-	task, ok, err := s.adkRuntime.Store().OptimizationTask(r.Context(), id)
+	id := uri.TaskID
+	task, ok, err := s.adkRuntime.Store().OptimizationTask(c.Request.Context(), id)
 	if err != nil || !ok {
-		s.writeError(w, http.StatusNotFound, "NOT_FOUND", "optimization task not found")
+		s.writeError(c, http.StatusNotFound, "NOT_FOUND", "optimization task not found")
 		return
 	}
 	for _, ref := range task.Runs {
 		s.backtestRuns.cancel(ref.RunID)
 	}
 	task.Status = "cancelled"
-	task, err = s.adkRuntime.Store().SaveOptimizationTask(r.Context(), task)
+	task, err = s.adkRuntime.Store().SaveOptimizationTask(c.Request.Context(), task)
 	if err != nil {
-		s.writeError(w, http.StatusInternalServerError, "ADK_OPTIMIZATION_CANCEL_FAILED", err.Error())
+		s.writeError(c, http.StatusInternalServerError, "ADK_OPTIMIZATION_CANCEL_FAILED", err.Error())
 		return
 	}
-	s.adkRuntime.RecordAudit(r.Context(), "optimization.cancelled", task.ID, "Optimization task cancelled.", nil)
-	s.writeOK(w, s.adkOptimizationTaskResponse(r.Context(), task))
+	s.adkRuntime.RecordAudit(c.Request.Context(), "optimization.cancelled", task.ID, "Optimization task cancelled.", nil)
+	s.writeOK(c, s.adkOptimizationTaskResponse(c.Request.Context(), task))
 }
 
 func (s *Server) adkOptimizationTaskResponse(ctx context.Context, task jfadk.OptimizationTask) map[string]any {
@@ -315,16 +322,4 @@ func (s *Server) adkOptimizationTaskResponse(ctx context.Context, task jfadk.Opt
 		"progress":  map[string]any{"total": len(task.Runs), "running": running, "completed": completed, "failed": failed, "cancelled": cancelled},
 		"createdAt": task.CreatedAt, "updatedAt": task.UpdatedAt,
 	}
-}
-
-func queryIntDefault(r *http.Request, key string, fallback int) int {
-	raw := strings.TrimSpace(r.URL.Query().Get(key))
-	if raw == "" {
-		return fallback
-	}
-	value, err := strconv.Atoi(raw)
-	if err != nil {
-		return fallback
-	}
-	return value
 }

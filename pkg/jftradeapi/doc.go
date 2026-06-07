@@ -15,7 +15,6 @@
 //
 //   - settings_store.go: SettingsStore persistence (JSON file)
 //   - settings_handlers.go: HTTP handlers for settings CRUD
-//   - settings_routes.go: route dispatch
 //   - settings_futu_config.go: Futu-specific config normalization
 //   - settings_account_normalization.go: account ID normalization
 //
@@ -33,7 +32,6 @@
 // # Market Data (quote & kline serving)
 //
 //   - market_data.go: kline/snapshot/ticker query handlers
-//   - market_routes.go: market route dispatch
 //   - market_live.go: live market stream (SSE)
 //   - market_subscriptions.go: subscription manager
 //   - market_subscription_state.go: subscription state tracking
@@ -77,15 +75,12 @@
 //
 // # OpenAPI / Swagger
 //
-//   - openapi.go: spec builder & Swagger UI handler
-//   - openapi_paths.go: path definitions
-//   - openapi_components.go: component schemas
+//   - openapi.go: generated Swagger UI handler
 //
 // # Other
 //
 //   - plugin_routes.go: plugin catalog routes
-//   - portfolio_routes.go: portfolio summary routes
-//   - system_routes.go: system status routes
+//   - router.go: HTTP route registration and lightweight read-side handlers
 //
 // # Multi-Broker Architecture
 //

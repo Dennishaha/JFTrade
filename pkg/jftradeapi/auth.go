@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -16,6 +15,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/gin-gonic/gin"
 )
 
 const (
@@ -28,6 +29,10 @@ const (
 type adminSession struct {
 	CSRF      string
 	ExpiresAt time.Time
+}
+
+type adminLoginRequest struct {
+	Key string `json:"key"`
 }
 
 type loginAttempt struct {
@@ -197,17 +202,30 @@ func constantTimeEqual(left string, right string) bool {
 	return subtle.ConstantTimeCompare(leftHash[:], rightHash[:]) == 1
 }
 
-func (a *adminAuth) login(w http.ResponseWriter, r *http.Request) {
+// login godoc
+// @Summary 管理员登录
+// @Description 使用单管理员密钥签发 HttpOnly、SameSite=Strict 会话。
+// @Tags auth
+// @Accept json
+// @Produce json
+// @Param request body adminLoginRequest true "管理员密钥"
+// @Success 200 {object} envelope
+// @Failure 400 {object} envelope
+// @Failure 401 {object} envelope
+// @Failure 429 {object} envelope
+// @Router /api/v1/auth/login [post]
+func (a *adminAuth) login(c *gin.Context) {
+	r := c.Request
 	if a == nil || !a.enabled {
-		writeAuthJSON(w, http.StatusOK, map[string]any{"authenticated": true, "csrfToken": ""})
+		writeAuthJSON(c, http.StatusOK, map[string]any{"authenticated": true, "csrfToken": ""})
 		return
 	}
 	if a.unavailable {
-		writeAuthError(w, http.StatusServiceUnavailable, "AUTH_UNAVAILABLE", "administrator authentication is unavailable")
+		writeAuthError(c, http.StatusServiceUnavailable, "AUTH_UNAVAILABLE", "administrator authentication is unavailable")
 		return
 	}
 	if origin := requestOrigin(r); origin != "" && !a.originAllowed(origin) {
-		writeAuthError(w, http.StatusForbidden, "ORIGIN_FORBIDDEN", "request origin is not allowed")
+		writeAuthError(c, http.StatusForbidden, "ORIGIN_FORBIDDEN", "request origin is not allowed")
 		return
 	}
 	remote := requestRemoteIP(r)
@@ -216,38 +234,37 @@ func (a *adminAuth) login(w http.ResponseWriter, r *http.Request) {
 		remoteKey = remote.String()
 	}
 	if retryAfter, limited := a.loginRateLimited(remoteKey); limited {
-		w.Header().Set("Retry-After", fmt.Sprintf("%d", int(retryAfter.Seconds())+1))
-		writeAuthError(w, http.StatusTooManyRequests, "LOGIN_RATE_LIMITED", "too many failed login attempts")
+		c.Header("Retry-After", fmt.Sprintf("%d", int(retryAfter.Seconds())+1))
+		writeAuthError(c, http.StatusTooManyRequests, "LOGIN_RATE_LIMITED", "too many failed login attempts")
 		return
 	}
-	var payload struct {
-		Key string `json:"key"`
-	}
-	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 8<<10)).Decode(&payload); err != nil {
-		writeAuthError(w, http.StatusBadRequest, "BAD_REQUEST", "invalid login payload")
+	var payload adminLoginRequest
+	r.Body = http.MaxBytesReader(c.Writer, r.Body, 8<<10)
+	if err := c.ShouldBindJSON(&payload); err != nil {
+		writeAuthError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid login payload")
 		return
 	}
 	if !constantTimeEqual(strings.TrimSpace(payload.Key), a.key) {
 		a.recordLoginFailure(remoteKey)
-		writeAuthError(w, http.StatusUnauthorized, "UNAUTHORIZED", "invalid administrator key")
+		writeAuthError(c, http.StatusUnauthorized, "UNAUTHORIZED", "invalid administrator key")
 		return
 	}
 	a.clearLoginFailures(remoteKey)
 	sessionID, err := randomSecret(32)
 	if err != nil {
-		writeAuthError(w, http.StatusInternalServerError, "AUTH_FAILED", "failed to create session")
+		writeAuthError(c, http.StatusInternalServerError, "AUTH_FAILED", "failed to create session")
 		return
 	}
 	csrf, err := randomSecret(24)
 	if err != nil {
-		writeAuthError(w, http.StatusInternalServerError, "AUTH_FAILED", "failed to create session")
+		writeAuthError(c, http.StatusInternalServerError, "AUTH_FAILED", "failed to create session")
 		return
 	}
 	expires := a.now().Add(adminSessionTTL)
 	a.mu.Lock()
 	a.sessions[sessionID] = adminSession{CSRF: csrf, ExpiresAt: expires}
 	a.mu.Unlock()
-	http.SetCookie(w, &http.Cookie{
+	http.SetCookie(c.Writer, &http.Cookie{
 		Name:     adminSessionCookie,
 		Value:    sessionID,
 		Path:     "/",
@@ -257,20 +274,28 @@ func (a *adminAuth) login(w http.ResponseWriter, r *http.Request) {
 		Expires:  expires,
 		MaxAge:   int(adminSessionTTL.Seconds()),
 	})
-	writeAuthJSON(w, http.StatusOK, map[string]any{
+	writeAuthJSON(c, http.StatusOK, map[string]any{
 		"authenticated": true,
 		"csrfToken":     csrf,
 		"expiresAt":     expires.UTC().Format(time.RFC3339Nano),
 	})
 }
 
-func (a *adminAuth) logout(w http.ResponseWriter, r *http.Request) {
+// logout godoc
+// @Summary 管理员注销
+// @Description 注销当前管理员会话。
+// @Tags auth
+// @Produce json
+// @Success 200 {object} envelope
+// @Router /api/v1/auth/logout [post]
+func (a *adminAuth) logout(c *gin.Context) {
+	r := c.Request
 	if cookie, err := r.Cookie(adminSessionCookie); err == nil {
 		a.mu.Lock()
 		delete(a.sessions, cookie.Value)
 		a.mu.Unlock()
 	}
-	http.SetCookie(w, &http.Cookie{
+	http.SetCookie(c.Writer, &http.Cookie{
 		Name:     adminSessionCookie,
 		Value:    "",
 		Path:     "/",
@@ -280,17 +305,23 @@ func (a *adminAuth) logout(w http.ResponseWriter, r *http.Request) {
 		MaxAge:   -1,
 		Expires:  time.Unix(1, 0),
 	})
-	writeAuthJSON(w, http.StatusOK, map[string]any{"authenticated": false})
+	writeAuthJSON(c, http.StatusOK, map[string]any{"authenticated": false})
 }
 
-func (a *adminAuth) status(w http.ResponseWriter, r *http.Request) {
-	session, ok, bearer := a.authenticate(r)
+// status godoc
+// @Summary 读取管理员会话
+// @Tags auth
+// @Produce json
+// @Success 200 {object} envelope
+// @Router /api/v1/auth/session [get]
+func (a *adminAuth) status(c *gin.Context) {
+	session, ok, bearer := a.authenticate(c.Request)
 	data := map[string]any{"authenticated": ok}
 	if ok && !bearer {
 		data["csrfToken"] = session.CSRF
 		data["expiresAt"] = session.ExpiresAt.UTC().Format(time.RFC3339Nano)
 	}
-	writeAuthJSON(w, http.StatusOK, data)
+	writeAuthJSON(c, http.StatusOK, data)
 }
 
 func (a *adminAuth) loginRateLimited(remote string) (time.Duration, bool) {
@@ -334,20 +365,16 @@ func randomSecret(size int) (string, error) {
 	return hex.EncodeToString(raw), nil
 }
 
-func writeAuthJSON(w http.ResponseWriter, status int, data any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(envelope{
+func writeAuthJSON(c *gin.Context, status int, data any) {
+	c.JSON(status, envelope{
 		OK:        status >= 200 && status < 300,
 		Data:      data,
 		Timestamp: time.Now().UTC().Format(time.RFC3339Nano),
 	})
 }
 
-func writeAuthError(w http.ResponseWriter, status int, code string, message string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(envelope{
+func writeAuthError(c *gin.Context, status int, code string, message string) {
+	c.AbortWithStatusJSON(status, envelope{
 		OK:        false,
 		Error:     &apiError{Code: code, Message: message},
 		Timestamp: time.Now().UTC().Format(time.RFC3339Nano),
