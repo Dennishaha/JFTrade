@@ -26,7 +26,12 @@ import type {
   PortfolioReconciliationResponse,
 } from "@jftrade/ui-contracts";
 
-import { MockWebSocket, createResponse, mountApp } from "./helpers";
+import {
+  MockWebSocket,
+  createResponse,
+  enabledFutuBrokerSettings,
+  mountApp,
+} from "./helpers";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -117,6 +122,17 @@ describe("Account page portfolio route redirect", () => {
 
       if (url.includes("/api/v1/system/status"))
         return createResponse(emptySystemStatus);
+      if (url.includes("/api/v1/settings/brokers"))
+        return createResponse(
+          enabledFutuBrokerSettings([
+            {
+              accountId: "REAL-001",
+              displayName: "Futu Securities",
+              tradingEnvironment: "REAL",
+              market: "HK",
+            },
+          ]),
+        );
       if (url.includes("/api/v1/system/storage/overview"))
         return createResponse(emptyStorageOverview);
       if (url.includes("/api/v1/system/real-trade-approvals"))

@@ -1,4 +1,12 @@
-import { type InjectionKey, type Ref, inject, provide, ref, watch } from "vue";
+import {
+  type InjectionKey,
+  type Ref,
+  computed,
+  inject,
+  provide,
+  ref,
+  watch,
+} from "vue";
 
 import { normalizeKlinePeriod } from "../charting/kline";
 
@@ -285,6 +293,17 @@ export interface WorkspaceTradingPreferencesStore {
   reset: () => void;
 }
 
+export type WorkspaceLayoutPreferences = WorkspaceViewState &
+  WorkspaceTradingPreferences;
+export type WorkspaceLayoutPatch = WorkspaceViewStatePatch &
+  WorkspaceTradingPreferencesPatch;
+
+export interface WorkspaceLayoutStore {
+  prefs: Ref<WorkspaceLayoutPreferences>;
+  update: (patch: WorkspaceLayoutPatch) => void;
+  reset: () => void;
+}
+
 const viewStateKey: InjectionKey<WorkspaceViewStateStore> = Symbol(
   "jftrade-workspace-view-state",
 );
@@ -362,6 +381,39 @@ export function provideWorkspaceTradingPreferencesStore():
 
   provide(tradingPrefsKey, store);
   return store;
+}
+
+export function provideWorkspaceLayoutStore(): WorkspaceLayoutStore {
+  const view = provideWorkspaceViewStateStore();
+  const trading = provideWorkspaceTradingPreferencesStore();
+  const prefs = computed<WorkspaceLayoutPreferences>(() => ({
+    ...view.prefs.value,
+    ...trading.prefs.value,
+  }));
+
+  watch(
+    prefs,
+    (next) => {
+      if (typeof window === "undefined") {
+        return;
+      }
+      writeStorage(window.sessionStorage, LEGACY_STORAGE_KEY, next);
+      writeStorage(window.localStorage, LEGACY_STORAGE_KEY, next);
+    },
+    { deep: true, immediate: true },
+  );
+
+  return {
+    prefs,
+    update: (patch) => {
+      view.update(patch);
+      trading.update(patch);
+    },
+    reset: () => {
+      view.reset();
+      trading.reset();
+    },
+  };
 }
 
 export function useWorkspaceViewState(): WorkspaceViewStateStore {

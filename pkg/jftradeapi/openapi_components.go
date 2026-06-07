@@ -2,6 +2,18 @@ package jftradeapi
 
 func buildOpenAPIComponents() map[string]any {
 	return map[string]any{
+		"securitySchemes": map[string]any{
+			"administratorBearer": map[string]any{
+				"type":         "http",
+				"scheme":       "bearer",
+				"bearerFormat": "JFTrade administrator key",
+			},
+			"administratorSession": map[string]any{
+				"type": "apiKey",
+				"in":   "cookie",
+				"name": adminSessionCookie,
+			},
+		},
 		"schemas": map[string]any{
 			"ApiError": map[string]any{
 				"type": "object",
@@ -66,6 +78,13 @@ func buildOpenAPIComponents() map[string]any {
 					"appearance": schemaRef("UIAppearanceSettings"),
 				},
 				"required": []string{"appearance"},
+			},
+			"SecuritySettings": map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"adminAuthRequired": map[string]any{"type": "boolean", "example": false},
+				},
+				"required": []string{"adminAuthRequired"},
 			},
 			"ManagedBrokerAccount": map[string]any{
 				"type": "object",

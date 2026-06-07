@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 )
 
@@ -12,6 +13,7 @@ type sseWriter struct {
 	writer      http.ResponseWriter
 	flusher     http.Flusher
 	retryMillis int
+	mu          *sync.Mutex
 }
 
 type sseStreamLoopOptions struct {
@@ -32,6 +34,7 @@ func newSSEWriter(w http.ResponseWriter, flusher http.Flusher) sseWriter {
 		writer:      w,
 		flusher:     flusher,
 		retryMillis: int(defaultSSEClientRetry / time.Millisecond),
+		mu:          &sync.Mutex{},
 	}
 }
 
@@ -48,6 +51,10 @@ func (writer sseWriter) WriteRetryDirective() error {
 	if writer.retryMillis <= 0 {
 		return nil
 	}
+	if writer.mu != nil {
+		writer.mu.Lock()
+		defer writer.mu.Unlock()
+	}
 	if _, err := fmt.Fprintf(writer.writer, "retry: %d\n\n", writer.retryMillis); err != nil {
 		return err
 	}
@@ -59,6 +66,10 @@ func (writer sseWriter) WriteEvent(value any) error {
 	data, err := json.Marshal(value)
 	if err != nil {
 		return err
+	}
+	if writer.mu != nil {
+		writer.mu.Lock()
+		defer writer.mu.Unlock()
 	}
 	if _, err := fmt.Fprintf(writer.writer, "data: %s\n\n", data); err != nil {
 		return err

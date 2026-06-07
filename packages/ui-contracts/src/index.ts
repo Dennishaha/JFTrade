@@ -35,6 +35,191 @@ export interface ApiErrorEnvelope {
   timestamp: string;
 }
 
+export type ADKPermissionMode = "approval" | "sandbox_auto" | "high_auto";
+
+export interface ADKProvider {
+  id: string;
+  displayName: string;
+  baseUrl: string;
+  model: string;
+  defaultHeaders?: Record<string, string>;
+  enabled: boolean;
+  hasApiKey: boolean;
+  capabilities?: Record<string, boolean>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ADKAgent {
+  id: string;
+  name: string;
+  instruction: string;
+  providerId: string;
+  model: string;
+  tools: string[];
+  skills: string[];
+  permissionMode: ADKPermissionMode;
+  memoryEnabled: boolean;
+  status: "ENABLED" | "DISABLED" | string;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt?: string;
+}
+
+export interface ADKToolDescriptor {
+  name: string;
+  displayName: string;
+  description: string;
+  category: string;
+  permission: string;
+  allowedModes: ADKPermissionMode[];
+  requiresApprovalIn: ADKPermissionMode[];
+  inputSchema?: Record<string, unknown>;
+  outputSummary?: string;
+  riskLevel?: "low" | "medium" | "high" | "critical" | string;
+}
+
+export interface ADKSkill {
+  id: string;
+  displayName: string;
+  description: string;
+  source: string;
+  installPath: string;
+  version?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ADKToolCall {
+  id: string;
+  runId: string;
+  toolName: string;
+  permission: string;
+  status: string;
+  input?: Record<string, unknown>;
+  output?: unknown;
+  error?: string | null;
+  requiresUser: boolean;
+  idempotencyKey?: string;
+  createdAt: string;
+  startedAt?: string;
+  updatedAt: string;
+  completedAt?: string;
+  durationMs?: number;
+}
+
+export interface ADKApproval {
+  id: string;
+  runId: string;
+  agentId: string;
+  toolName: string;
+  input?: Record<string, unknown>;
+  status: "PENDING" | "APPROVED" | "DENIED" | string;
+  reason: string;
+  functionCallId?: string;
+  confirmationCallId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ADKSession {
+  id: string;
+  agentId: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ADKMessage {
+  id: string;
+  sessionId: string;
+  role: "user" | "assistant" | string;
+  content: string;
+  reasoningContent?: string;
+  createdAt: string;
+}
+
+export interface ADKRunUsage {
+  modelCalls?: number;
+  toolCallsTotal?: number;
+  durationMs?: number;
+  tokensIn?: number;
+  tokensOut?: number;
+}
+
+export interface ADKRun {
+  id: string;
+  sessionId: string;
+  agentId: string;
+  providerId?: string;
+  status: string;
+  message: string;
+  userMessage?: string;
+  preToolContent?: string;
+  preToolReasoning?: string;
+  toolSummaries?: string[];
+  failureReason?: string;
+  errorCode?: string;
+  degraded?: boolean;
+  optimizationTaskId?: string;
+  toolCalls: ADKToolCall[];
+  pendingApprovals: ADKApproval[];
+  resumeState?: string;
+  finalMessageId?: string;
+  usage?: ADKRunUsage;
+  createdAt: string;
+  startedAt?: string;
+  updatedAt: string;
+  completedAt?: string;
+  cancelledAt?: string;
+}
+
+export interface ADKChatResponse {
+  reply: string;
+  reasoningContent?: string;
+  session: ADKSession;
+  run: ADKRun;
+  pendingApprovals: ADKApproval[];
+}
+
+export interface ADKApprovalResolution {
+  approval: ADKApproval;
+  run?: ADKRun;
+  message?: ADKMessage;
+}
+
+export interface ADKAuditEvent {
+  id: string;
+  kind: string;
+  subjectId?: string;
+  detail: string;
+  metadata?: Record<string, unknown>;
+  createdAt: string;
+}
+
+export interface ADKOptimizationRun {
+  definitionId: string;
+  runId: string;
+  status: string;
+  result?: unknown;
+}
+
+export interface ADKOptimizationTask {
+  id: string;
+  status: string;
+  objective: string;
+  runs: ADKOptimizationRun[];
+  progress: {
+    total: number;
+    running: number;
+    completed: number;
+    failed: number;
+    cancelled: number;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface HealthResponse {
   service: {
     service: string;
@@ -260,6 +445,10 @@ export interface UIColorPreferencesResponse {
     upColor: string;
     downColor: string;
   };
+}
+
+export interface SecuritySettingsResponse {
+  adminAuthRequired: boolean;
 }
 
 export type PluginInstallStatus =

@@ -32,6 +32,7 @@ import type {
 import {
   MockWebSocket,
   createResponse,
+  enabledFutuBrokerSettings,
   flushRequests,
   mountApp,
 } from "./helpers";
@@ -188,6 +189,8 @@ describe("Account page broker route redirect", () => {
           },
         });
       }
+      if (url.includes("/api/v1/settings/brokers"))
+        return createResponse(enabledFutuBrokerSettings());
       if (url.includes("/api/v1/system/storage/overview"))
         return createResponse(emptyStorageOverview);
       if (url.includes("/api/v1/system/real-trade-approvals"))

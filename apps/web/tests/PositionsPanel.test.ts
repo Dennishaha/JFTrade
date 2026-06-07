@@ -7,6 +7,7 @@ import { defineComponent, h, nextTick } from "vue";
 
 import PositionsPanel from "../src/components/workspace/PositionsPanel.vue";
 import { provideConsoleDataStore } from "../src/composables/useConsoleData";
+import { provideNotificationsStore } from "../src/composables/useNotifications";
 import { provideWorkspaceTradingPreferencesStore } from "../src/composables/useWorkspaceLayout";
 
 afterEach(() => {
@@ -41,6 +42,7 @@ function mountPositionsPanel(options: {
 }) {
   const Host = defineComponent({
     setup() {
+      provideNotificationsStore();
       const workspaceLayout = provideWorkspaceTradingPreferencesStore();
       const store = provideConsoleDataStore(workspaceLayout);
       store.isLoadingBrokerOrders.value =

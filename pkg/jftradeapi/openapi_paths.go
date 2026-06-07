@@ -2,6 +2,18 @@ package jftradeapi
 
 func buildOpenAPIPaths(genericObject map[string]any) map[string]any {
 	return map[string]any{
+		"/api/v1/auth/login": map[string]any{
+			"post": operation("管理员登录", "使用单管理员密钥签发 HttpOnly、SameSite=Strict 会话。", []string{"auth"}, nil, jsonRequestBody(genericObject, true), map[string]any{"200": jsonResponse("会话和 CSRF token", envelopeSchema(genericObject)), "401": jsonResponse("密钥错误", envelopeSchema(nil)), "429": jsonResponse("登录限流", envelopeSchema(nil))}),
+		},
+		"/api/v1/auth/logout": map[string]any{
+			"post": operation("管理员注销", "注销当前管理员会话。cookie 会话调用需要可信 Origin 和 CSRF token。", []string{"auth"}, nil, nil, map[string]any{"200": jsonResponse("注销结果", envelopeSchema(genericObject))}),
+		},
+		"/api/v1/auth/session": map[string]any{
+			"get": operation("读取管理员会话", "返回当前会话状态、过期时间和 CSRF token。", []string{"auth"}, nil, nil, map[string]any{"200": jsonResponse("会话状态", envelopeSchema(genericObject))}),
+		},
+		"/api/v1/auth/token": map[string]any{
+			"get": operation("旧令牌入口（已退役）", "始终返回 410 Gone；CLI 请直接使用管理员密钥作为 Bearer token。", []string{"auth"}, nil, nil, map[string]any{"410": jsonResponse("入口已退役", envelopeSchema(nil))}),
+		},
 		"/api/v1/settings/ui": map[string]any{
 			"get": operation(
 				"读取 UI 颜色配置",
@@ -19,6 +31,28 @@ func buildOpenAPIPaths(genericObject map[string]any) map[string]any {
 				jsonRequestBody(schemaRef("UIAppearanceSettingsWriteRequest"), true),
 				map[string]any{
 					"200": jsonResponse("保存后的 UI 配置", envelopeSchema(schemaRef("UIAppearanceSettingsResponse"))),
+					"400": jsonResponse("请求体错误", envelopeSchema(nil)),
+					"500": jsonResponse("保存失败", envelopeSchema(nil)),
+				},
+			),
+		},
+		"/api/v1/settings/security": map[string]any{
+			"get": operation(
+				"读取安全设置",
+				"返回管理员认证开关配置，保存在 settings.json 中。",
+				[]string{"settings"},
+				nil,
+				nil,
+				map[string]any{"200": jsonResponse("当前安全设置", envelopeSchema(schemaRef("SecuritySettings")))},
+			),
+			"put": operation(
+				"保存安全设置",
+				"更新管理员认证开关并立即应用。",
+				[]string{"settings"},
+				nil,
+				jsonRequestBody(schemaRef("SecuritySettings"), true),
+				map[string]any{
+					"200": jsonResponse("保存后的安全设置", envelopeSchema(schemaRef("SecuritySettings"))),
 					"400": jsonResponse("请求体错误", envelopeSchema(nil)),
 					"500": jsonResponse("保存失败", envelopeSchema(nil)),
 				},
@@ -338,6 +372,67 @@ func buildOpenAPIPaths(genericObject map[string]any) map[string]any {
 		},
 		"/api/v1/brokers/{brokerId}/unlock": map[string]any{
 			"post": operation("解锁/锁定交易", "解锁或锁定交易会话。请求体包含 unlock 布尔和 passwordMd5 字段。", []string{"broker"}, []any{pathParameter("brokerId", "Broker 标识", "futu")}, jsonRequestBody(genericObject, true), map[string]any{"200": jsonResponse("解锁结果", envelopeSchema(genericObject))}),
+		},
+		"/api/v1/adk": map[string]any{
+			"get": operation("读取 ADK 总览", "返回 providers、agents、skills 与 tools 快照。", []string{"adk"}, nil, nil, map[string]any{"200": jsonResponse("ADK 总览", envelopeSchema(genericObject))}),
+		},
+		"/api/v1/adk/providers": map[string]any{
+			"get":  operation("读取 ADK Provider", "返回 OpenAI-compatible provider 列表，API key 不回显。", []string{"adk"}, nil, nil, map[string]any{"200": jsonResponse("Provider 列表", envelopeSchema(genericObject))}),
+			"post": operation("保存 ADK Provider", "创建或更新 OpenAI-compatible provider。", []string{"adk"}, nil, jsonRequestBody(genericObject, true), map[string]any{"200": jsonResponse("Provider", envelopeSchema(genericObject)), "400": jsonResponse("请求错误", envelopeSchema(nil))}),
+		},
+		"/api/v1/adk/providers/{providerId}/test": map[string]any{
+			"post": operation("测试 ADK Provider", "使用 provider 发起一次最小模型连通性测试。", []string{"adk"}, []any{pathParameter("providerId", "Provider ID", "openai")}, nil, map[string]any{"200": jsonResponse("测试结果", envelopeSchema(genericObject)), "502": jsonResponse("Provider 调用失败", envelopeSchema(nil))}),
+		},
+		"/api/v1/adk/agents": map[string]any{
+			"get":  operation("读取 ADK Agents", "返回 agent 定义列表。", []string{"adk"}, nil, nil, map[string]any{"200": jsonResponse("Agent 列表", envelopeSchema(genericObject))}),
+			"post": operation("保存 ADK Agent", "创建或更新 agent 定义、权限模式、tools 和 skills。", []string{"adk"}, nil, jsonRequestBody(genericObject, true), map[string]any{"200": jsonResponse("Agent", envelopeSchema(genericObject)), "400": jsonResponse("请求错误", envelopeSchema(nil))}),
+		},
+		"/api/v1/adk/sessions": map[string]any{
+			"get":  operation("读取 ADK Sessions", "返回会话列表。", []string{"adk"}, nil, nil, map[string]any{"200": jsonResponse("Session 列表", envelopeSchema(genericObject))}),
+			"post": operation("创建 ADK Session", "为指定 agent 创建新会话。", []string{"adk"}, nil, jsonRequestBody(genericObject, false), map[string]any{"200": jsonResponse("Session", envelopeSchema(genericObject))}),
+		},
+		"/api/v1/adk/chat": map[string]any{
+			"post": operation("ADK Chat", "发送消息给 agent，返回回复、run、tool calls 与待审批项。", []string{"adk"}, nil, jsonRequestBody(genericObject, true), map[string]any{"200": jsonResponse("Chat 结果", envelopeSchema(genericObject)), "400": jsonResponse("请求错误", envelopeSchema(nil))}),
+		},
+		"/api/v1/assistant/chat": map[string]any{
+			"post": operation("兼容 Assistant Chat", "兼容旧助手入口；返回非流式 JSON envelope。新的流式客户端应使用 /api/v1/adk/chat/stream。", []string{"adk"}, nil, jsonRequestBody(genericObject, true), map[string]any{"200": jsonResponse("Chat 结果", envelopeSchema(genericObject)), "400": jsonResponse("请求错误", envelopeSchema(nil))}),
+		},
+		"/api/v1/adk/runs/{runId}": map[string]any{
+			"get": operation("读取 ADK Run", "读取一次 agent run 的状态和 tool calls。", []string{"adk"}, []any{pathParameter("runId", "Run ID", "run-123")}, nil, map[string]any{"200": jsonResponse("Run", envelopeSchema(genericObject)), "404": jsonResponse("Run 不存在", envelopeSchema(nil))}),
+		},
+		"/api/v1/adk/runs/{runId}/cancel": map[string]any{
+			"post": operation("取消 ADK Run", "取消运行中或等待审批的 agent run。", []string{"adk"}, []any{pathParameter("runId", "Run ID", "run-123")}, nil, map[string]any{"200": jsonResponse("Run", envelopeSchema(genericObject)), "404": jsonResponse("Run 不存在", envelopeSchema(nil))}),
+		},
+		"/api/v1/adk/approvals": map[string]any{
+			"get": operation("读取 ADK 审批", "返回所有 agent 工具调用审批项。", []string{"adk"}, nil, nil, map[string]any{"200": jsonResponse("审批列表", envelopeSchema(genericObject))}),
+		},
+		"/api/v1/adk/approvals/{approvalId}/approve": map[string]any{
+			"post": operation("批准 ADK 工具调用", "批准一个待审批工具调用。", []string{"adk"}, []any{pathParameter("approvalId", "审批 ID", "approval-123")}, nil, map[string]any{"200": jsonResponse("审批结果", envelopeSchema(genericObject))}),
+		},
+		"/api/v1/adk/approvals/{approvalId}/deny": map[string]any{
+			"post": operation("拒绝 ADK 工具调用", "拒绝一个待审批工具调用。", []string{"adk"}, []any{pathParameter("approvalId", "审批 ID", "approval-123")}, nil, map[string]any{"200": jsonResponse("审批结果", envelopeSchema(genericObject))}),
+		},
+		"/api/v1/adk/skills": map[string]any{
+			"get":  operation("读取 ADK Skills", "返回内置和已安装 skill。", []string{"adk"}, nil, nil, map[string]any{"200": jsonResponse("Skill 列表", envelopeSchema(genericObject))}),
+			"post": operation("安装 ADK Skill", "从 URL 安装 skill 到本地 ADK skills 目录。", []string{"adk"}, nil, jsonRequestBody(genericObject, true), map[string]any{"200": jsonResponse("Skill", envelopeSchema(genericObject)), "400": jsonResponse("安装失败", envelopeSchema(nil))}),
+		},
+		"/api/v1/adk/tools": map[string]any{
+			"get": operation("读取 ADK Tools", "返回 JFTrade 暴露给 agent 的工具和权限要求。", []string{"adk"}, nil, nil, map[string]any{"200": jsonResponse("Tool 列表", envelopeSchema(genericObject))}),
+		},
+		"/api/v1/adk/audit": map[string]any{
+			"get": operation("读取 ADK 审计", "返回 Provider、Agent、Skill、审批和工具执行审计记录。", []string{"adk"}, nil, nil, map[string]any{"200": jsonResponse("审计列表", envelopeSchema(genericObject))}),
+		},
+		"/api/v1/adk/metrics": map[string]any{
+			"get": operation("读取 ADK 指标", "返回 Run、工具执行和审批聚合指标。", []string{"adk"}, nil, nil, map[string]any{"200": jsonResponse("指标", envelopeSchema(genericObject))}),
+		},
+		"/api/v1/adk/optimization-tasks": map[string]any{
+			"get": operation("读取优化任务", "返回 Agent 创建的异步策略优化任务。", []string{"adk"}, nil, nil, map[string]any{"200": jsonResponse("优化任务列表", envelopeSchema(genericObject))}),
+		},
+		"/api/v1/adk/optimization-tasks/{taskId}": map[string]any{
+			"get": operation("读取优化任务详情", "返回候选回测进度和结果。", []string{"adk"}, []any{pathParameter("taskId", "Optimization task ID", "opt-123")}, nil, map[string]any{"200": jsonResponse("优化任务", envelopeSchema(genericObject))}),
+		},
+		"/api/v1/adk/optimization-tasks/{taskId}/cancel": map[string]any{
+			"post": operation("取消优化任务", "取消仍在运行的候选回测。", []string{"adk"}, []any{pathParameter("taskId", "Optimization task ID", "opt-123")}, nil, map[string]any{"200": jsonResponse("优化任务", envelopeSchema(genericObject))}),
 		},
 		"/api/v1/plugins": map[string]any{
 			"get": operation("读取插件列表", "返回插件安装目标目录与插件列表。", []string{"strategy"}, nil, nil, map[string]any{"200": jsonResponse("插件列表", envelopeSchema(genericObject))}),

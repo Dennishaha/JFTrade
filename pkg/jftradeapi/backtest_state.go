@@ -22,9 +22,10 @@ const (
 )
 
 type backtestRunStore struct {
-	mu   sync.RWMutex
-	runs map[string]*backtestRunState
-	db   *sqlx.DB
+	mu      sync.RWMutex
+	runs    map[string]*backtestRunState
+	cancels map[string]context.CancelFunc
+	db      *sqlx.DB
 }
 
 type backtestRunStateRow struct {
@@ -58,7 +59,7 @@ func deriveBacktestRunDBPath(settingsPath string) string {
 }
 
 func newBacktestRunStore() *backtestRunStore {
-	return &backtestRunStore{runs: make(map[string]*backtestRunState)}
+	return &backtestRunStore{runs: make(map[string]*backtestRunState), cancels: make(map[string]context.CancelFunc)}
 }
 
 func newBacktestRunStoreWithDB(dbPath string) (*backtestRunStore, error) {
@@ -79,8 +80,9 @@ func newBacktestRunStoreWithDB(dbPath string) (*backtestRunStore, error) {
 	}
 
 	store := &backtestRunStore{
-		runs: make(map[string]*backtestRunState),
-		db:   db,
+		runs:    make(map[string]*backtestRunState),
+		cancels: make(map[string]context.CancelFunc),
+		db:      db,
 	}
 	if err := store.migrate(); err != nil {
 		_ = db.Close()
@@ -91,6 +93,27 @@ func newBacktestRunStoreWithDB(dbPath string) (*backtestRunStore, error) {
 		return nil, fmt.Errorf("load backtest run sqlite store: %w", err)
 	}
 	return store, nil
+}
+
+func (s *backtestRunStore) setCancel(runID string, cancel context.CancelFunc) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if cancel == nil {
+		delete(s.cancels, runID)
+		return
+	}
+	s.cancels[runID] = cancel
+}
+
+func (s *backtestRunStore) cancel(runID string) bool {
+	s.mu.RLock()
+	cancel := s.cancels[runID]
+	s.mu.RUnlock()
+	if cancel == nil {
+		return false
+	}
+	cancel()
+	return true
 }
 
 // Close releases the underlying SQLite database connection.

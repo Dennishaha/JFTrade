@@ -1,5 +1,6 @@
 type JFTradeRuntimeConfig = {
   apiBaseUrl?: string;
+  authRequired?: boolean;
 };
 
 declare global {
@@ -29,8 +30,22 @@ export function resolveApiBaseUrl(): string {
   return (
     resolveRuntimeApiBaseUrl() ??
     normalizeApiBaseUrl(buildTimeApiBaseUrl) ??
-    ""
+    (import.meta.env.PROD ? "" : resolveDevelopmentApiBaseUrl())
   );
+}
+
+function resolveDevelopmentApiBaseUrl(): string {
+  if (typeof window === "undefined" || window.location.hostname === "") {
+    return "http://127.0.0.1:3000";
+  }
+  return `http://${window.location.hostname}:3000`;
+}
+
+export function resolveAuthRequired(): boolean {
+  if (typeof window !== "undefined" && window.__JFTRADE_RUNTIME_CONFIG__?.authRequired !== undefined) {
+    return window.__JFTRADE_RUNTIME_CONFIG__.authRequired;
+  }
+  return import.meta.env.MODE !== "test";
 }
 
 export function buildRuntimeApiUrl(path: string): string {

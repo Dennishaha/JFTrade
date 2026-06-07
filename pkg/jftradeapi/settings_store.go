@@ -67,6 +67,10 @@ type ExecutionSettings struct {
 	SeenFillRetentionDays          int    `json:"seenFillRetentionDays"`
 }
 
+type SecuritySettings struct {
+	AdminAuthRequired bool `json:"adminAuthRequired"`
+}
+
 type settingsFile struct {
 	Interfaces  *InterfaceSettings     `json:"interfaces,omitempty"`
 	Integration *BrokerIntegration     `json:"integration,omitempty"`
@@ -74,6 +78,7 @@ type settingsFile struct {
 	Appearance  *UIAppearanceSettings  `json:"appearance,omitempty"`
 	Onboarding  *OnboardingSettings    `json:"onboarding,omitempty"`
 	Execution   *ExecutionSettings     `json:"execution,omitempty"`
+	Security    *SecuritySettings      `json:"security,omitempty"`
 }
 
 type SettingsStore struct {
@@ -189,6 +194,15 @@ func (s *SettingsStore) executionSettings() ExecutionSettings {
 	return defaultExecutionSettings()
 }
 
+func (s *SettingsStore) securitySettings() SecuritySettings {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.data.Security != nil {
+		return normalizeSecuritySettings(*s.data.Security)
+	}
+	return defaultSecuritySettings()
+}
+
 func (s *SettingsStore) hasAppearance() bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -220,6 +234,16 @@ func (s *SettingsStore) saveExecutionSettings(input ExecutionSettings) (Executio
 
 	s.mu.Lock()
 	s.data.Execution = executionSettingsPointer(normalized)
+	err := s.persistLocked()
+	s.mu.Unlock()
+	return normalized, err
+}
+
+func (s *SettingsStore) saveSecuritySettings(input SecuritySettings) (SecuritySettings, error) {
+	normalized := normalizeSecuritySettings(input)
+
+	s.mu.Lock()
+	s.data.Security = securitySettingsPointer(normalized)
 	err := s.persistLocked()
 	s.mu.Unlock()
 	return normalized, err
@@ -479,6 +503,23 @@ func normalizeExecutionTradingEnvironment(value string) string {
 }
 
 func executionSettingsPointer(value ExecutionSettings) *ExecutionSettings {
+	settings := value
+	return &settings
+}
+
+func defaultSecuritySettings() SecuritySettings {
+	return SecuritySettings{
+		AdminAuthRequired: false,
+	}
+}
+
+func normalizeSecuritySettings(input SecuritySettings) SecuritySettings {
+	return SecuritySettings{
+		AdminAuthRequired: input.AdminAuthRequired,
+	}
+}
+
+func securitySettingsPointer(value SecuritySettings) *SecuritySettings {
 	settings := value
 	return &settings
 }

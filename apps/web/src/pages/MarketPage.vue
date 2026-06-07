@@ -372,23 +372,8 @@ function handleMarketPageVisibilityChange(): void {
     return;
   }
 
-  // Smart recovery: if SSE is connected and data is fresh, just renew the auto-refresh timer
-  if (isLiveStreamConnected.value && !isMarketDataStale(30_000)) {
-    scheduleMarketDataAutoRefresh();
-    return;
-  }
-
-  // Wait for the WebSocket reconnect (triggered by AppShell) before deciding
-  // the recovery path, so we don't trigger a full reload while reconnecting.
   const liveHub = getSharedLiveSocketHub();
-  void liveHub.waitForConnection(3_000).then((connected) => {
-    if (connected && !isMarketDataStale(30_000)) {
-      // Connection recovered and data still fresh — just restart auto-refresh
-      scheduleMarketDataAutoRefresh();
-      return;
-    }
-
-    // SSE still disconnected or data stale → full sync + reload
+  void liveHub.waitForConnection(3_000).then(() => {
     void (async () => {
       await syncVisibleSubscription();
       await loadMarketDataQuery({ preserveExisting: !isMarketDataStale(120_000) });

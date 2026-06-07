@@ -73,14 +73,29 @@ func (s *Server) handleBacktestStart(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "invalid backtest request")
 		return
 	}
-	if strings.TrimSpace(req.DefinitionID) == "" {
-		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "definitionId is required")
+	run, err := s.enqueueBacktest(req)
+	if err != nil {
+		status := http.StatusBadRequest
+		if strings.Contains(err.Error(), "not found") {
+			status = http.StatusNotFound
+		}
+		s.writeError(w, status, "BAD_REQUEST", err.Error())
 		return
+	}
+	s.writeOK(w, map[string]any{
+		"id":      run.ID,
+		"status":  run.Status,
+		"message": "backtest queued",
+	})
+}
+
+func (s *Server) enqueueBacktest(req backtestStartRequest) (*backtestRunState, error) {
+	if strings.TrimSpace(req.DefinitionID) == "" {
+		return nil, fmt.Errorf("definitionId is required")
 	}
 	instrument, err := normalizeInstrumentInput(req.Market, req.Symbol, req.Code)
 	if err != nil {
-		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", err.Error())
-		return
+		return nil, err
 	}
 	req.Market = instrument.Market
 	req.Code = instrument.Code
@@ -95,27 +110,26 @@ func (s *Server) handleBacktestStart(w http.ResponseWriter, r *http.Request) {
 	// Look up the strategy definition for the script.
 	definition, ok := s.designStore.definition(req.DefinitionID)
 	if !ok {
-		s.writeError(w, http.StatusNotFound, "NOT_FOUND", "strategy definition not found")
-		return
+		return nil, fmt.Errorf("strategy definition not found")
 	}
 	if err := strategydefinition.ValidateScript(definition.SourceFormat, definition.Script); err != nil {
-		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", err.Error())
-		return
+		return nil, err
 	}
 	req.DefinitionVersion = definition.Version
 
 	startTime, err := time.Parse(time.RFC3339, req.StartTime)
 	if err != nil {
-		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "invalid startTime, use RFC3339 format")
-		return
+		return nil, fmt.Errorf("invalid startTime, use RFC3339 format")
 	}
 	endTime, err := time.Parse(time.RFC3339, req.EndTime)
 	if err != nil {
-		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "invalid endTime, use RFC3339 format")
-		return
+		return nil, fmt.Errorf("invalid endTime, use RFC3339 format")
+	}
+	if !endTime.After(startTime) {
+		return nil, fmt.Errorf("endTime must be after startTime")
 	}
 
-	runID := "bt-" + time.Now().UTC().Format("20060102T150405")
+	runID := "bt-" + time.Now().UTC().Format("20060102T150405.000000000")
 	dbPath := s.backtestDBPath()
 
 	run := &backtestRunState{
@@ -126,12 +140,15 @@ func (s *Server) handleBacktestStart(w http.ResponseWriter, r *http.Request) {
 		UpdatedAt: time.Now().UTC().Format(time.RFC3339Nano),
 	}
 	if err := s.backtestRuns.add(run); err != nil {
-		s.writeError(w, http.StatusInternalServerError, "BACKTEST_RUN_STORE_FAILED", "persist backtest run failed")
-		return
+		return nil, fmt.Errorf("persist backtest run: %w", err)
 	}
+	runCtx, cancel := context.WithCancel(context.Background())
+	s.backtestRuns.setCancel(runID, cancel)
 
 	// Start the backtest in a goroutine.
 	go func() {
+		defer s.backtestRuns.setCancel(runID, nil)
+		defer cancel()
 		if _, err := s.backtestRuns.update(runID, func(run *backtestRunState) {
 			run.Status = "running"
 			run.UpdatedAt = time.Now().UTC().Format(time.RFC3339Nano)
@@ -139,7 +156,7 @@ func (s *Server) handleBacktestStart(w http.ResponseWriter, r *http.Request) {
 			log.Printf("backtest run store update(%s running) failed: %v", runID, err)
 		}
 
-		result := backtest.Run(context.Background(), backtest.RunConfig{
+		result := backtest.Run(runCtx, backtest.RunConfig{
 			DBPath:           dbPath,
 			Symbol:           req.Symbol,
 			Interval:         req.Interval,
@@ -154,7 +171,9 @@ func (s *Server) handleBacktestStart(w http.ResponseWriter, r *http.Request) {
 
 		if _, err := s.backtestRuns.update(runID, func(run *backtestRunState) {
 			run.Result = result
-			if result.Error != "" {
+			if runCtx.Err() == context.Canceled {
+				run.Status = "cancelled"
+			} else if result.Error != "" {
 				run.Status = "failed"
 			} else {
 				run.Status = "completed"
@@ -165,11 +184,7 @@ func (s *Server) handleBacktestStart(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	s.writeOK(w, map[string]any{
-		"id":      run.ID,
-		"status":  run.Status,
-		"message": "backtest queued",
-	})
+	return run, nil
 }
 
 func (s *Server) handleBacktestStatus(w http.ResponseWriter, r *http.Request) {
@@ -215,8 +230,8 @@ func (s *Server) handleBacktestDelete(w http.ResponseWriter, r *http.Request) {
 		s.writeError(w, http.StatusNotFound, "NOT_FOUND", "backtest run not found")
 		return
 	}
-	if run.Status != "completed" && run.Status != "failed" {
-		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "only completed or failed backtest runs can be deleted")
+	if run.Status != "completed" && run.Status != "failed" && run.Status != "cancelled" {
+		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", "only completed, failed or cancelled backtest runs can be deleted")
 		return
 	}
 

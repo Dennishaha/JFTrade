@@ -31,6 +31,9 @@ func TestServerServesFrontendAssetsAndSPAFallback(t *testing.T) {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
 	server := newServerWithFrontend(store, newFrontendServer(os.DirFS(frontendDir)))
+	if server.auth != nil {
+		server.auth.enabled = false
+	}
 	t.Cleanup(func() { _ = server.Close() })
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)

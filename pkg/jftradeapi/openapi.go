@@ -53,6 +53,7 @@ func buildOpenAPISpec() map[string]any {
 			"description": "当前 JFTrade API 主机",
 		}},
 		"tags": []map[string]any{
+			{"name": "auth", "description": "单管理员登录、会话与注销"},
 			{"name": "settings", "description": "Broker 与账户设置"},
 			{"name": "system", "description": "运行时与 OpenD 诊断"},
 			{"name": "market-data", "description": "行情订阅、快照与 K 线"},

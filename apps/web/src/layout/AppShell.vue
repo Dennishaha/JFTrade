@@ -16,8 +16,7 @@ import { provideLiveStreamStore } from "../composables/useSharedLiveStream";
 import { provideThemeStore } from "../composables/useTheme";
 import { provideUIColorPreferencesStore } from "../composables/useUIColorPreferences";
 import {
-  provideWorkspaceTradingPreferencesStore,
-  provideWorkspaceViewStateStore,
+  provideWorkspaceLayoutStore,
 } from "../composables/useWorkspaceLayout";
 import CommandPalette from "./CommandPalette.vue";
 import IconRail from "./IconRail.vue";
@@ -28,8 +27,8 @@ import TopBar from "./TopBar.vue";
 const themeStore = provideThemeStore();
 provideUIColorPreferencesStore(themeStore.theme);
 const notifications = provideNotificationsStore();
-provideWorkspaceViewStateStore();
-const workspaceTradingPrefs = provideWorkspaceTradingPreferencesStore();
+const workspaceLayout = provideWorkspaceLayoutStore();
+const workspaceTradingPrefs = workspaceLayout;
 const palette = provideCommandPaletteStore();
 const console_ = provideConsoleDataStore(workspaceTradingPrefs);
 const live = provideLiveStreamStore();
@@ -104,6 +103,7 @@ const navTargets = [
   { id: "nav.overview", label: "打开概览", to: "/overview" },
   { id: "nav.market", label: "打开行情", to: "/market" },
   { id: "nav.strategy", label: "打开策略", to: "/strategy" },
+  { id: "nav.adk", label: "打开 Agents", to: "/adk" },
   { id: "nav.backtest", label: "打开回测", to: "/backtest" },
   { id: "nav.account", label: "打开我的账户", to: "/account" },
   { id: "nav.risk", label: "打开风控", to: "/risk" },
@@ -209,11 +209,7 @@ function reconnectLiveStreamIfNeeded(): void {
   if (typeof document !== "undefined" && document.visibilityState === "hidden") {
     return;
   }
-  // Avoid tearing down an active connection — only reconnect when actually disconnected.
-  if (live.connectionState.value === "connected" || live.connectionState.value === "connecting") {
-    return;
-  }
-  live.connect();
+  live.reconnect();
 }
 
 async function initializeConsoleShell(): Promise<void> {

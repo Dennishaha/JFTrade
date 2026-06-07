@@ -14,7 +14,11 @@ func ensureRuntimeLayout(settingsPath string, backtestDBPath string) error {
 		filepath.Dir(deriveStrategyRuntimeDBPath(settingsPath)),
 		filepath.Dir(deriveStrategyDesignPath(settingsPath)),
 		filepath.Dir(deriveBacktestRunDBPath(settingsPath)),
+		filepath.Dir(deriveADKDBPath(settingsPath)),
+		filepath.Dir(deriveADKSessionDBPath(settingsPath)),
+		filepath.Dir(deriveADKSecretsPath(settingsPath)),
 		deriveStrategyPluginTargetDir(settingsPath),
+		deriveADKSkillsDir(settingsPath),
 		filepath.Dir(strings.TrimSpace(backtestDBPath)),
 	}
 

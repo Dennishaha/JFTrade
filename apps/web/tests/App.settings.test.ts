@@ -789,4 +789,106 @@ describe("Settings page", () => {
 
     wrapper.unmount();
   });
+
+  it("renders and persists administrator authentication settings", async () => {
+    const fetchMock = vi.fn(
+      (input: string | URL | Request, init?: RequestInit) => {
+        const url = String(input);
+
+        if (
+          url.includes("/api/v1/settings/security") &&
+          (init?.method ?? "GET") === "GET"
+        ) {
+          return Promise.resolve(createResponse({ adminAuthRequired: false }));
+        }
+        if (
+          url.includes("/api/v1/settings/security") &&
+          init?.method === "PUT"
+        ) {
+          return Promise.resolve(createResponse({ adminAuthRequired: true }));
+        }
+        if (url.includes("/api/v1/system/status")) {
+          return Promise.resolve(createResponse(emptySystemStatus));
+        }
+        if (url.includes("/api/v1/system/storage/overview")) {
+          return Promise.resolve(createResponse(emptyStorageOverview));
+        }
+        if (url.includes("/api/v1/settings/brokers")) {
+          return Promise.resolve(createResponse({ brokers: [], accounts: [] }));
+        }
+        if (url.includes("/api/v1/settings/onboarding")) {
+          return Promise.resolve(createResponse(emptyOnboardingState));
+        }
+        if (url.includes("/api/v1/plugins")) {
+          return Promise.resolve(
+            createResponse({
+              targetDir: "/tmp/jftrade-settings-plugins",
+              plugins: [],
+            }),
+          );
+        }
+        if (url.includes("/api/v1/system/real-trade-approvals")) {
+          return Promise.resolve(createResponse(emptyRealTradeApprovals));
+        }
+        if (url.includes("/api/v1/system/real-trade-hard-stops")) {
+          return Promise.resolve(createResponse(emptyRealTradeHardStops));
+        }
+        if (url.includes("/api/v1/system/real-trade-hard-stop-events")) {
+          return Promise.resolve(createResponse(emptyRealTradeHardStopEvents));
+        }
+        if (url.includes("/api/v1/system/real-trade-kill-switch")) {
+          return Promise.resolve(createResponse(emptyRealTradeKillSwitchState));
+        }
+        if (url.includes("/api/v1/system/real-trade-kill-switch-events")) {
+          return Promise.resolve(createResponse(emptyRealTradeKillSwitchEvents));
+        }
+        if (url.includes("/api/v1/system/real-trade-risk")) {
+          return Promise.resolve(createResponse(emptyRealTradeRiskState));
+        }
+        if (url.includes("/api/v1/system/real-trade-risk-events")) {
+          return Promise.resolve(createResponse(emptyRealTradeRiskEvents));
+        }
+        if (url.includes("/api/v1/market-data/instruments")) {
+          return Promise.resolve(
+            createResponse({ query: "", totalReturned: 0, entries: [] }),
+          );
+        }
+        if (url.includes("/api/v1/execution/orders")) {
+          return Promise.resolve(createResponse(emptyExecutionOrders));
+        }
+        throw new Error(`Unexpected request: ${url}`);
+      },
+    );
+
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal(
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
+    );
+
+    const { wrapper } = await mountApp("/settings/security");
+    await flushRequests();
+
+    expect(wrapper.text()).toContain("安全");
+    expect(wrapper.text()).toContain("管理员认证");
+    expect(wrapper.text()).toContain("已关闭");
+
+    const checkbox = wrapper.find("[data-testid='admin-auth-required-toggle']");
+    expect(checkbox.exists()).toBe(true);
+    await checkbox.setValue(true);
+    await flushRequests();
+
+    const putCall = fetchMock.mock.calls.find(
+      ([url, init]) =>
+        String(url).includes("/api/v1/settings/security") &&
+        init?.method === "PUT",
+    );
+    expect(putCall).toBeTruthy();
+    expect(JSON.parse(String(putCall?.[1]?.body))).toEqual({
+      adminAuthRequired: true,
+    });
+    expect(wrapper.text()).toContain("已开启");
+
+    wrapper.unmount();
+  });
 });

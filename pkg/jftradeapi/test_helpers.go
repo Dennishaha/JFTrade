@@ -11,6 +11,9 @@ import (
 func newTestServer(t *testing.T, store *SettingsStore) *Server {
 	t.Helper()
 	server := NewServer(store)
+	if server.auth != nil {
+		server.auth.enabled = false
+	}
 	t.Cleanup(func() {
 		_ = server.Close()
 	})
@@ -25,6 +28,9 @@ func newTestServer(t *testing.T, store *SettingsStore) *Server {
 func newHTTPTestServer(t *testing.T, store *SettingsStore) *httptest.Server {
 	t.Helper()
 	server := NewServer(store)
+	if server.auth != nil {
+		server.auth.enabled = false
+	}
 	t.Cleanup(func() {
 		_ = server.Close()
 	})

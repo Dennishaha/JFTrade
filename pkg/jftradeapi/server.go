@@ -19,6 +19,7 @@ import (
 
 	bbgotypes "github.com/c9s/bbgo/pkg/types"
 	"github.com/jftrade/jftrade-main/internal/buildinfo"
+	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
 	"github.com/jftrade/jftrade-main/pkg/broker"
 	"github.com/jftrade/jftrade-main/pkg/futu"
 )
@@ -67,8 +68,10 @@ type Server struct {
 	exchange               *futu.Exchange
 	exchangeConfigKey      string
 	brokers                *broker.Registry // Unified broker registry for multi-broker support
+	adkRuntime             *jfadk.Runtime
 	frontend               *frontendServer
 	apiPort                int
+	auth                   *adminAuth
 }
 
 type opendProbe struct {
@@ -109,6 +112,7 @@ func StartForRunArgs(ctx context.Context, args []string) (func(context.Context) 
 	apiBind := envOrDefault("JFTRADE_API_BIND", interfaceSettings.APIBind)
 	apiHandler := newServerWithFrontend(store, nil)
 	apiHandler.apiPort = portFromBind(apiBind, portFromBind(defaults.apiBind, 3000))
+	apiHandler.auth.configureOrigins(apiBaseURLForBind(apiBind))
 	apiServer := &http.Server{
 		Addr:              apiBind,
 		Handler:           apiHandler,
@@ -127,6 +131,8 @@ func StartForRunArgs(ctx context.Context, args []string) (func(context.Context) 
 		guiBind := envOrDefault("JFTRADE_GUI_BIND", interfaceSettings.GUIBind)
 		guiAPIBaseURL := resolveGUIRuntimeAPIBaseURL(interfaceSettings, apiBind)
 		apiHandler.frontend = newFrontendServerWithRuntimeConfig(frontendFS, guiAPIBaseURL)
+		apiHandler.applySecuritySettings(store.securitySettings())
+		apiHandler.auth.configureOrigins("http://" + guiBind)
 		guiServer := &http.Server{
 			Addr:              guiBind,
 			Handler:           apiHandler,
@@ -257,6 +263,18 @@ func newServerWithFrontend(store *SettingsStore, frontend *frontendServer) *Serv
 		executionOrderStore = newExecutionOrderStore()
 	}
 	executionOrderStore.configureSeenFillRetention(store.executionSettings().SeenFillRetentionDays)
+	auth, authErr := newAdminAuth(store.path)
+	if authErr != nil {
+		log.Printf("JFTrade administrator authentication unavailable: %v", authErr)
+		auth = &adminAuth{
+			enabled:        true,
+			unavailable:    true,
+			allowedOrigins: map[string]struct{}{},
+			sessions:       map[string]adminSession{},
+			attempts:       map[string]loginAttempt{},
+			now:            time.Now,
+		}
+	}
 	server := &Server{
 		store:                store,
 		strategyStore:        strategyStore,
@@ -276,7 +294,20 @@ func newServerWithFrontend(store *SettingsStore, frontend *frontendServer) *Serv
 		brokers:             broker.NewRegistry(),
 		apiPort:             portFromBind(defaultDevelopmentAPIBind, 3000),
 		frontend:            frontend,
+		auth:                auth,
 	}
+	if server.auth != nil {
+		server.auth.configureOrigins(
+			apiBaseURLForBind(defaultDevelopmentAPIBind),
+			apiBaseURLForBind(defaultReleaseAPIBind),
+			"http://"+defaultReleaseGUIBind,
+			"http://127.0.0.1:5173",
+			"http://localhost:5173",
+		)
+		log.Printf("JFTrade administrator key file: %s", server.auth.keyPath)
+	}
+	server.applySecuritySettings(store.securitySettings())
+	server.adkRuntime = newADKRuntime(server, store.path)
 	server.strategyRuntimeManager = newStrategyRuntimeManager(server)
 	if reconciled, err := server.strategyStore.reconcileRuntimeStatesOnStartup(); err != nil {
 		log.Printf("JFTrade strategy runtime state reconciliation failed: %v", err)
@@ -378,9 +409,19 @@ func (s *Server) activeBroker() broker.Broker {
 }
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	s.writeCORS(w)
+	s.writeCORS(w, r)
 	if r.Method == http.MethodOptions {
+		if requestOrigin(r) != "" && (s.auth == nil || !s.auth.originAllowed(requestOrigin(r))) {
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
 		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	if s.serveAuthRoutes(w, r) {
+		return
+	}
+	if s.requiresAuthentication(r) && !s.authorizeRequest(w, r) {
 		return
 	}
 
@@ -392,6 +433,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case s.serveMarketRoutes(w, r):
 	case s.serveSettingsRoutes(w, r):
 	case s.serveSystemRoutes(w, r):
+	case s.serveADKRoutes(w, r):
 	case s.servePluginRoutes(w, r):
 	case s.serveStrategyRoutes(w, r):
 	case s.serveBacktestRoutes(w, r):
@@ -404,10 +446,86 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *Server) writeCORS(w http.ResponseWriter) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Headers", "Origin, Content-Type")
+func (s *Server) isWriteMethod(r *http.Request) bool {
+	return r.Method == http.MethodPost || r.Method == http.MethodPut || r.Method == http.MethodDelete
+}
+
+func (s *Server) applySecuritySettings(settings SecuritySettings) {
+	required := normalizeSecuritySettings(settings).AdminAuthRequired
+	if s.auth != nil {
+		s.auth.enabled = required
+	}
+	if s.frontend != nil {
+		s.frontend.setAuthRequired(required)
+	}
+}
+
+func (s *Server) requiresAuthentication(r *http.Request) bool {
+	if !strings.HasPrefix(r.URL.Path, "/api/") {
+		return false
+	}
+	return r.URL.Path != "/api/v1/system/status"
+}
+
+func (s *Server) authorizeRequest(w http.ResponseWriter, r *http.Request) bool {
+	if s.auth == nil || !s.auth.enabled {
+		return true
+	}
+	session, ok, bearer := s.auth.authenticate(r)
+	if !ok {
+		s.writeError(w, http.StatusUnauthorized, "UNAUTHORIZED", "administrator authentication is required")
+		return false
+	}
+	if bearer {
+		return true
+	}
+	origin := requestOrigin(r)
+	if origin != "" && !s.auth.originAllowed(origin) {
+		s.writeError(w, http.StatusForbidden, "ORIGIN_FORBIDDEN", "request origin is not allowed")
+		return false
+	}
+	if !s.isWriteMethod(r) {
+		return true
+	}
+	if origin == "" {
+		s.writeError(w, http.StatusForbidden, "ORIGIN_FORBIDDEN", "write request origin is not allowed")
+		return false
+	}
+	if !constantTimeEqual(strings.TrimSpace(r.Header.Get("X-CSRF-Token")), session.CSRF) {
+		s.writeError(w, http.StatusForbidden, "CSRF_FAILED", "valid CSRF token is required")
+		return false
+	}
+	return true
+}
+
+func (s *Server) writeCORS(w http.ResponseWriter, r *http.Request) {
+	origin := requestOrigin(r)
+	if origin != "" && s.auth != nil && s.auth.originAllowed(origin) {
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+		w.Header().Set("Vary", "Origin")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+	}
+	w.Header().Set("Access-Control-Allow-Headers", "Origin, Content-Type, Authorization, X-CSRF-Token")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+}
+
+func (s *Server) serveAuthRoutes(w http.ResponseWriter, r *http.Request) bool {
+	switch {
+	case r.URL.Path == "/api/v1/auth/login" && r.Method == http.MethodPost:
+		s.auth.login(w, r)
+	case r.URL.Path == "/api/v1/auth/logout" && r.Method == http.MethodPost:
+		if !s.authorizeRequest(w, r) {
+			return true
+		}
+		s.auth.logout(w, r)
+	case r.URL.Path == "/api/v1/auth/session" && r.Method == http.MethodGet:
+		s.auth.status(w, r)
+	case r.URL.Path == "/api/v1/auth/token":
+		s.writeError(w, http.StatusGone, "AUTH_TOKEN_REMOVED", "use administrator login or a Bearer administrator key")
+	default:
+		return false
+	}
+	return true
 }
 
 func (s *Server) writeOK(w http.ResponseWriter, data any) {
@@ -641,6 +759,11 @@ func (s *Server) Close() error {
 	if s.designStore != nil {
 		if err := s.designStore.Close(); err != nil {
 			errs = append(errs, fmt.Errorf("designStore close: %w", err))
+		}
+	}
+	if s.adkRuntime != nil && s.adkRuntime.Store() != nil {
+		if err := s.adkRuntime.Close(); err != nil {
+			errs = append(errs, fmt.Errorf("adkRuntime close: %w", err))
 		}
 	}
 	return errors.Join(errs...)

@@ -35,7 +35,7 @@ export function createConsoleRouter(
         meta: { title: "系统" },
       },
       {
-        path: "/settings",
+        path: "/settings/:section?",
         component: () => import("./pages/SettingsPage.vue"),
         meta: { title: "设置" },
       },
@@ -65,6 +65,11 @@ export function createConsoleRouter(
         path: "/strategy",
         component: () => import("./pages/StrategyPage.vue"),
         meta: { title: "策略" },
+      },
+      {
+        path: "/adk",
+        component: () => import("./pages/ADKPage.vue"),
+        meta: { title: "Agents" },
       },
       {
         path: "/risk",

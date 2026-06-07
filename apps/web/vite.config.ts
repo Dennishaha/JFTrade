@@ -1,7 +1,7 @@
 import tailwindcss from "@tailwindcss/vite";
 import vue from "@vitejs/plugin-vue";
-import { defineConfig, type ProxyOptions } from "vite";
 import vueDevTools from "vite-plugin-vue-devtools";
+import { defineConfig } from "vitest/config";
 
 type RuntimeProcess = {
   env?: Record<string, string | undefined>;
@@ -35,27 +35,34 @@ if (typeof launchEditor === "string") {
 const developmentApiTarget = "http://127.0.0.1:3000";
 const apiProxyTargets = ["/api", "/openapi.json", "/swagger"];
 
-type ProxyServerInstance = Parameters<
-  NonNullable<ProxyOptions["configure"]>
->[0];
 type ProxyEventEmitter = {
   on: (event: string, handler: (...args: unknown[]) => void) => void;
 };
 
-function createProxyEntry(target: string): ProxyOptions {
+function createProxyEntry(target: string) {
   return {
     changeOrigin: true,
     target,
     ws: true,
-    configure: (proxy: ProxyServerInstance) => {
-      const eventProxy = proxy as ProxyServerInstance & Partial<ProxyEventEmitter>;
-      eventProxy.on?.("error", () => {});
+    configure: (...args: unknown[]) => {
+      const proxy = args[0] as Partial<ProxyEventEmitter>;
+      proxy.on?.("error", () => {});
     },
   };
 }
 
 export default defineConfig({
   plugins: [vue(), tailwindcss(), vueDevTools(devToolsOptions)],
+  test: {
+    environmentOptions: {
+      jsdom: {
+        url: "http://localhost:5173/",
+      },
+    },
+    fileParallelism: false,
+    isolate: true,
+    setupFiles: ["./tests/setup.ts"],
+  },
   server: {
     port: 5173,
     proxy: Object.fromEntries(

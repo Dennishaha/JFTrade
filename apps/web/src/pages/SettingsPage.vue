@@ -1,14 +1,23 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, defineAsyncComponent, onMounted } from "vue";
+import { useRoute, useRouter } from "vue-router";
 
 import FutuIntegrationSection from "../components/FutuIntegrationSection.vue";
 import OpenDInstallGuideSection from "../components/OpenDInstallGuideSection.vue";
 import SettingsAccountDiscoverySection from "../components/SettingsAccountDiscoverySection.vue";
 import SettingsAppearanceSection from "../components/SettingsAppearanceSection.vue";
 import SettingsManagedAccountsSection from "../components/SettingsManagedAccountsSection.vue";
+import SettingsSecuritySection from "../components/SettingsSecuritySection.vue";
 import PageHeader from "../components/PageHeader.vue";
 import { createSettingsManagedAccountsController } from "../composables/settingsManagedAccounts";
+import { readLocalStorage, writeLocalStorage } from "../composables/safeStorage";
 import { useConsoleData } from "../composables/useConsoleData";
+
+const route = useRoute();
+const router = useRouter();
+const SettingsADKSection = defineAsyncComponent(() => import("../components/SettingsADKSection.vue"));
+
+const SETTINGS_LAST_KEY = "jft.settings.section";
 
 const {
   brokerRuntime,
@@ -40,15 +49,43 @@ const settingsMenu = [
     description: "设置 K 线、价格涨跌与买卖颜色。",
   },
   {
+    index: "security",
+    label: "安全",
+    description: "配置管理员认证与访问保护。",
+  },
+  {
     index: "plugin-manager",
     label: "OpenD 安装",
     description: "查看富途官方 OpenD 安装文档与配置指引。",
+  },
+  {
+    index: "adk",
+    label: "Agents",
+    description: "配置 AI 模型 Provider、Agent 定义与 Skill 安装。",
   },
 ] as const;
 
 type MenuIndex = (typeof settingsMenu)[number]["index"];
 
-const activeMenu = ref<MenuIndex>("futu-integration");
+const DEFAULT_SECTION: MenuIndex = "futu-integration";
+
+const activeMenu = computed<MenuIndex>(() => {
+  const s = route.params.section as string | undefined;
+  if (s && settingsMenu.some((e) => e.index === s)) {
+    return s as MenuIndex;
+  }
+  return DEFAULT_SECTION;
+});
+
+onMounted(() => {
+  if (!route.params.section) {
+    const stored = readLocalStorage(SETTINGS_LAST_KEY);
+    const last = settingsMenu.some((entry) => entry.index === stored)
+      ? stored as MenuIndex
+      : DEFAULT_SECTION;
+    void router.replace(`/settings/${last}`);
+  }
+});
 
 const activeMenuMeta = computed(
   () =>
@@ -77,7 +114,9 @@ const accountDiscoveryUnavailableMessage = computed(() => {
 });
 
 function handleMenuSelect(index: string): void {
-  activeMenu.value = index as MenuIndex;
+  if (!settingsMenu.some((entry) => entry.index === index)) return;
+  writeLocalStorage(SETTINGS_LAST_KEY, index);
+  void router.push(`/settings/${index}`);
 }
 
 const settingsHeaderStats = computed(() => [
@@ -193,7 +232,11 @@ const {
 
         <SettingsAppearanceSection v-show="activeMenu === 'appearance'" />
 
+        <SettingsSecuritySection v-if="activeMenu === 'security'" />
+
         <OpenDInstallGuideSection v-show="activeMenu === 'plugin-manager'" />
+
+        <SettingsADKSection v-show="activeMenu === 'adk'" />
       </div>
     </section>
   </div>

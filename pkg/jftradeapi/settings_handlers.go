@@ -124,6 +124,22 @@ func (s *Server) handleSaveExecutionSettings(w http.ResponseWriter, r *http.Requ
 	s.writeOK(w, settings)
 }
 
+func (s *Server) handleSaveSecuritySettings(w http.ResponseWriter, r *http.Request) {
+	var payload SecuritySettings
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		s.writeError(w, http.StatusBadRequest, "BAD_REQUEST", err.Error())
+		return
+	}
+
+	settings, err := s.store.saveSecuritySettings(payload)
+	if err != nil {
+		s.writeError(w, http.StatusInternalServerError, "SETTINGS_SAVE_FAILED", err.Error())
+		return
+	}
+	s.applySecuritySettings(settings)
+	s.writeOK(w, settings)
+}
+
 func (s *Server) handleCreateManagedBrokerAccount(w http.ResponseWriter, r *http.Request) {
 	var payload managedBrokerAccountWriteRequest
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {

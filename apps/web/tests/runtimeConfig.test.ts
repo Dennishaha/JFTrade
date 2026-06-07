@@ -10,9 +10,10 @@ afterEach(() => {
 
 describe("runtimeConfig", () => {
   it("falls back to the development API address when no runtime override exists", () => {
-    expect(resolveApiBaseUrl()).toBe("http://127.0.0.1:3000");
+    const hostname = window.location.hostname || "127.0.0.1";
+    expect(resolveApiBaseUrl()).toBe(`http://${hostname}:3000`);
     expect(buildRuntimeApiUrl("/api/v1/system/status")).toBe(
-      "http://127.0.0.1:3000/api/v1/system/status",
+      `http://${hostname}:3000/api/v1/system/status`,
     );
   });
 

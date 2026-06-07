@@ -27,6 +27,7 @@ const items: NavItem[] = [
   { type: "route", to: "/overview", label: "概览", icon: "fa-solid fa-chart-column" },
   { type: "route", to: "/market", label: "行情", icon: "fa-solid fa-chart-line" },
   { type: "route", to: "/strategy", label: "策略", icon: "fa-solid fa-wand-magic-sparkles" },
+  { type: "route", to: "/adk", label: "Agents", icon: "fa-solid fa-robot" },
   { type: "route", to: "/backtest", label: "回测", icon: "fa-solid fa-flask" },
   { type: "route", to: "/account", label: "我的账户", icon: "fa-solid fa-wallet" },
   { type: "route", to: "/risk", label: "风控", icon: "fa-solid fa-triangle-exclamation" },
@@ -56,7 +57,7 @@ function go(to: string): void {
         class="tv-iconrail-btn"
         :title="item.label"
       >
-        <v-icon class="tv-iconrail-glyph" :size="20">{{ item.icon }}</v-icon>
+        <v-icon class="tv-iconrail-glyph tv-iconrail-glyph--external">{{ item.icon }}</v-icon>
         <span>{{ item.label }}</span>
       </a>
       <button
@@ -67,7 +68,7 @@ function go(to: string): void {
         :title="item.label"
         @click="go(item.to)"
       >
-        <v-icon class="tv-iconrail-glyph" :size="18">{{ item.icon }}</v-icon>
+        <v-icon class="tv-iconrail-glyph">{{ item.icon }}</v-icon>
         <span>{{ item.label }}</span>
       </button>
     </template>

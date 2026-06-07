@@ -18,6 +18,7 @@
 - [troubleshooting.md](troubleshooting.md)：排障入口，按启动、实时 SSE、OpenD、行情时段分流。
 - [frontend-kline.md](frontend-kline.md)：前端行情与 K 线专题入口，包含实时合成与防回归约束。
 - [frontend/strategy-authoring.md](frontend/strategy-authoring.md)：前端 DSL 策略设计专题，覆盖 Logic Flow、Monaco、模板和 visualModel 同步约束。
+- [adk.md](adk.md)：GO-ADK / Agent 控制面、权限模式、内置 tools 与运行时文件。
 
 ### 3. 最后看参考资料
 
@@ -38,6 +39,7 @@ docs/
 ├── README.md                 文档导航
 ├── architecture.md           当前系统架构总览
 ├── troubleshooting.md        排障入口
+├── adk.md                    GO-ADK / Agent 控制面
 ├── frontend-kline.md         前端行情/K 线入口
 ├── troubleshooting/          排障专题
 ├── frontend/                 前端与行情专题
@@ -53,8 +55,17 @@ docs/
 1. 先读 [architecture.md](architecture.md)，确认是在改 sidecar、bbgo 运行时、前端，还是 Futu 适配层。
 2. 如果是启动、端口、连接问题，再进 [troubleshooting.md](troubleshooting.md)。
 3. 如果是策略定义、Logic Flow、DSL 脚本同步或编辑器问题，再进 [frontend/strategy-authoring.md](frontend/strategy-authoring.md)。
-4. 如果是实时行情、K 线、实时 SSE、快照合成问题，再进 [frontend-kline.md](frontend-kline.md)。
-5. 只有在需要协议或上游背景时，才进入 [reference/README.md](reference/README.md) 或 [reference/bbgo-doc/README.md](reference/bbgo-doc/README.md)。
+4. 如果是 GO-ADK、Agent、Skill、AI provider、审批或工具调用问题，再进 [adk.md](adk.md)。
+5. 如果是实时行情、K 线、实时 SSE、快照合成问题，再进 [frontend-kline.md](frontend-kline.md)。
+6. 只有在需要协议或上游背景时，才进入 [reference/README.md](reference/README.md) 或 [reference/bbgo-doc/README.md](reference/bbgo-doc/README.md)。
+
+## 管理员鉴权
+
+- 除 `/api/v1/system/status`、登录入口和前端静态资源外，sidecar API 默认要求管理员认证。
+- 首次启动会生成 `secrets/admin.key`（权限 `0600`）；也可通过 `JFTRADE_ADMIN_KEY` 或 `JFTRADE_ADMIN_KEY_FILE` 配置。
+- 浏览器登录后使用 `HttpOnly`、`SameSite=Strict` 会话 cookie；写请求同时要求可信 GUI Origin 和 `X-CSRF-Token`。
+- CLI 使用 `Authorization: Bearer <管理员密钥>`。密钥不再写入 `runtime-config.js`，`/api/v1/auth/token` 已退役。
+- 具体边界、ADK session/skill 目录模型说明见 [adk.md](adk.md)。
 
 ## 后端测试分层（持续更新）
 

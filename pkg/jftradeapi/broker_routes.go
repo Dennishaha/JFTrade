@@ -251,6 +251,46 @@ func (s *Server) brokerPositionsResponse(ctx context.Context, query broker.ReadQ
 	}
 }
 
+// brokerFundsResponseWithTimeout wraps brokerFundsResponse with a dedicated timeout.
+// On timeout it returns a degraded result instead of blocking indefinitely.
+func (s *Server) brokerFundsResponseWithTimeout(ctx context.Context, query broker.ReadQuery, timeout time.Duration) map[string]any {
+	fundsCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	type result struct {
+		value map[string]any
+	}
+	done := make(chan result, 1)
+	go func() {
+		done <- result{value: s.brokerFundsResponse(fundsCtx, query)}
+	}()
+	select {
+	case <-fundsCtx.Done():
+		return brokerReadErrorResponse("summary", nil, fmt.Errorf("funds query timed out after %s", timeout), "currencyBalances", "marketAssets")
+	case r := <-done:
+		return r.value
+	}
+}
+
+// brokerPositionsResponseWithTimeout wraps brokerPositionsResponse with a dedicated timeout.
+// On timeout it returns a degraded result instead of blocking indefinitely.
+func (s *Server) brokerPositionsResponseWithTimeout(ctx context.Context, query broker.ReadQuery, timeout time.Duration) map[string]any {
+	positionsCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	type result struct {
+		value map[string]any
+	}
+	done := make(chan result, 1)
+	go func() {
+		done <- result{value: s.brokerPositionsResponse(positionsCtx, query)}
+	}()
+	select {
+	case <-positionsCtx.Done():
+		return brokerReadErrorResponse("positions", []any{}, fmt.Errorf("positions query timed out after %s", timeout))
+	case r := <-done:
+		return r.value
+	}
+}
+
 func (s *Server) brokerOrdersResponse(ctx context.Context, query broker.ReadQuery, params url.Values) map[string]any {
 	reader := s.brokerMarketDataReader()
 	if reader == nil {

@@ -2,17 +2,20 @@
 
 import { mount } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { nextTick, ref } from "vue";
+import { defineComponent, h, nextTick, ref } from "vue";
 
 import {
   getSharedLiveSocketHub,
   resetSharedLiveSocketHubForTests,
 } from "../src/composables/sharedLiveSocket";
+import { provideWorkspaceTradingPreferencesStore } from "../src/composables/useWorkspaceLayout";
 import { MockWebSocket } from "./helpers";
 
 const marketDataSnapshot = ref<any>(null);
 const marketSecurityDetails = ref<any>(null);
-const prefs = ref<{ market?: string; symbol?: string; period?: string }>({});
+let workspacePrefs: ReturnType<
+  typeof provideWorkspaceTradingPreferencesStore
+>["prefs"] | null = null;
 
 const fetchEnvelopeMock = vi.fn();
 const fetchEnvelopeWithInitMock = vi.fn();
@@ -29,13 +32,19 @@ vi.mock("../src/composables/useConsoleData", () => ({
   }),
 }));
 
-vi.mock("../src/composables/useWorkspaceLayout", () => ({
-  useWorkspaceLayout: () => ({
-    prefs,
-  }),
-}));
-
 import OrderBookPanel from "../src/components/workspace/OrderBookPanel.vue";
+
+function mountOrderBookPanel() {
+  const Host = defineComponent({
+    setup() {
+      const store = provideWorkspaceTradingPreferencesStore();
+      store.update({ market: "US", symbol: "TME", period: "1m" });
+      workspacePrefs = store.prefs;
+      return () => h(OrderBookPanel);
+    },
+  });
+  return mount(Host);
+}
 
 describe("OrderBookPanel", () => {
   beforeEach(() => {
@@ -76,7 +85,6 @@ describe("OrderBookPanel", () => {
         fromCache: false,
       },
     });
-    prefs.value = { market: "US", symbol: "TME", period: "1m" };
     marketDataSnapshot.value = {
       snapshot: {
         price: 18.5,
@@ -97,7 +105,7 @@ describe("OrderBookPanel", () => {
 
   it("subscribes depth updates over the shared websocket", async () => {
     const hub = getSharedLiveSocketHub();
-    const wrapper = mount(OrderBookPanel);
+    const wrapper = mountOrderBookPanel();
 
     await Promise.resolve();
     await nextTick();
@@ -164,7 +172,7 @@ describe("OrderBookPanel", () => {
       value: "visible",
     });
 
-    const wrapper = mount(OrderBookPanel);
+    const wrapper = mountOrderBookPanel();
     hub.connect("ws://127.0.0.1:3000/api/v1/ws/live");
 
     await Promise.resolve();
@@ -203,7 +211,7 @@ describe("OrderBookPanel", () => {
 
   it("clears depth data on instrument switch and ignores stale stream payloads", async () => {
     const hub = getSharedLiveSocketHub();
-    const wrapper = mount(OrderBookPanel);
+    const wrapper = mountOrderBookPanel();
     hub.connect("ws://127.0.0.1:3000/api/v1/ws/live");
 
     await Promise.resolve();
@@ -235,7 +243,12 @@ describe("OrderBookPanel", () => {
     expect(wrapper.text()).toContain("18.52");
 
     const oldStream = MockWebSocket.instances[0];
-    prefs.value = { market: "US", symbol: "AAPL", period: "1m" };
+    workspacePrefs!.value = {
+      ...workspacePrefs!.value,
+      market: "US",
+      symbol: "AAPL",
+      period: "1m",
+    };
     marketDataSnapshot.value = null;
     await nextTick();
 
@@ -278,7 +291,7 @@ describe("OrderBookPanel", () => {
 
   it("keeps the shared depth subscription when only the chart period changes", async () => {
     const hub = getSharedLiveSocketHub();
-    const wrapper = mount(OrderBookPanel);
+    const wrapper = mountOrderBookPanel();
     hub.connect("ws://127.0.0.1:3000/api/v1/ws/live");
 
     await Promise.resolve();
@@ -310,7 +323,10 @@ describe("OrderBookPanel", () => {
     expect(wrapper.text()).toContain("18.52");
     expect(MockWebSocket.instances).toHaveLength(1);
 
-    prefs.value = { market: "US", symbol: "TME", period: "5m" };
+    workspacePrefs!.value = {
+      ...workspacePrefs!.value,
+      period: "5m",
+    };
     await nextTick();
 
     expect(MockWebSocket.instances).toHaveLength(1);

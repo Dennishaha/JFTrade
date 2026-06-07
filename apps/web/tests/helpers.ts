@@ -41,6 +41,59 @@ export const buttonStub = {
   template: "<button type='button' @click=\"$emit('click')\"><slot /></button>",
 };
 
+export function enabledFutuBrokerSettings(
+  accounts: Array<{
+    accountId: string;
+    displayName: string;
+    tradingEnvironment: string;
+    market: string;
+  }> = [],
+) {
+  return {
+    brokers: [
+      {
+        descriptor: {
+          id: "futu",
+          displayName: "Futu OpenAPI via OpenD",
+          environments: ["SIMULATE", "REAL"],
+          capabilities: [
+            { market: "HK", supportsQuote: true, supportsTrade: true },
+          ],
+          notes: [],
+        },
+        integration: {
+          brokerId: "futu",
+          enabled: true,
+          config: {
+            type: "futu",
+            host: "127.0.0.1",
+            apiPort: 11110,
+            websocketPort: 11111,
+            maxWebSocketConnections: 20,
+            useEncryption: false,
+            tradeMarket: "HK",
+            securityFirm: "FUTUSECURITIES",
+          },
+          createdAt: "2026-06-07T00:00:00Z",
+          updatedAt: "2026-06-07T00:00:00Z",
+        },
+      },
+    ],
+    accounts: accounts.map((account, index) => ({
+      id: `test-account-${index + 1}`,
+      brokerId: "futu",
+      accountId: account.accountId,
+      displayName: account.displayName,
+      tradingEnvironment: account.tradingEnvironment,
+      market: account.market,
+      securityFirm: "FUTUSECURITIES",
+      enabled: true,
+      createdAt: "2026-06-07T00:00:00Z",
+      updatedAt: "2026-06-07T00:00:00Z",
+    })),
+  };
+}
+
 export const inputStub = {
   props: ["modelValue"],
   emits: ["update:modelValue"],
