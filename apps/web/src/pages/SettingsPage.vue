@@ -53,7 +53,7 @@ const settingsMenu = [
   },
   {
     index: "adk",
-    label: "Agents",
+    label: "智能体",
     description: "配置 AI 模型 Provider、Agent 定义与 Skill 安装。",
   },
 ] as const;
@@ -128,9 +128,9 @@ const {
 </script>
 
 <template>
-  <div class="grid gap-6">
-    <section class="grid lg:grid-cols-[220px_1fr]">
-      <nav class="border border-slate-200 bg-white">
+  <div class="settings-page grid gap-6">
+    <section class="settings-page__layout grid lg:grid-cols-[220px_1fr]">
+      <nav class="settings-page__nav border border-slate-200 bg-white">
         <button
           v-for="entry in settingsMenu"
           :key="entry.index"
@@ -147,7 +147,7 @@ const {
         </button>
       </nav>
 
-      <div class="grid gap-6 p-5">
+      <div class="settings-page__content grid gap-6 p-5">
         <FutuIntegrationSection
           v-show="activeMenu === 'futu-integration'"
           mode="settings"
@@ -182,3 +182,40 @@ const {
     </section>
   </div>
 </template>
+
+<style scoped>
+.settings-page,
+.settings-page__layout {
+  min-height: calc(100dvh - 76px);
+}
+
+.settings-page__layout {
+  align-items: stretch;
+  flex: 1 1 auto;
+}
+
+.settings-page__nav {
+  align-self: stretch;
+  min-height: calc(100dvh - 76px);
+}
+
+.settings-page__content {
+  align-content: start;
+  min-width: 0;
+}
+
+@media (max-width: 1023px) {
+  .settings-page,
+  .settings-page__layout {
+    min-height: auto;
+  }
+
+  .settings-page__layout {
+    grid-template-rows: auto;
+  }
+
+  .settings-page__nav {
+    min-height: auto;
+  }
+}
+</style>

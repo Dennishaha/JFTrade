@@ -440,8 +440,13 @@ body {
 }
 
 .tv-main-scroll > * {
+  height: 100%;
   min-width: 0;
   min-height: 100%;
+}
+
+.tv-main-scroll > .grid {
+  align-content: start;
 }
 
 .tv-rightdock {

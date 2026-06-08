@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import { ref } from "vue";
+
 import type { ADKProvider } from "@jftrade/ui-contracts";
 
-defineProps<{
+const props = defineProps<{
   providerForm: {
     id: string;
     displayName: string;
@@ -23,41 +25,96 @@ defineProps<{
   testProvider: (providerId: string) => void | Promise<void>;
   deleteProvider: (providerId: string) => void | Promise<void>;
 }>();
+
+const providerDialogOpen = ref(false);
+
+function openNewProviderDialog(): void {
+  props.newProviderForm();
+  providerDialogOpen.value = true;
+}
+
+function openEditProviderDialog(provider: ADKProvider): void {
+  props.editProvider(provider);
+  providerDialogOpen.value = true;
+}
+
+async function submitProviderForm(): Promise<void> {
+  await props.saveProvider();
+  providerDialogOpen.value = false;
+}
 </script>
 
 <template>
-  <section class="grid gap-5 lg:grid-cols-[1fr_1.4fr]">
+  <section class="adk-provider-layout">
     <div class="grid auto-rows-max gap-5">
       <v-card flat class="card-shell border-0">
-        <v-card-title class="flex items-center justify-between gap-2">
-          <span>{{ providerForm.id ? "编辑模型服务" : "添加模型服务" }}</span>
-          <v-btn v-if="providerForm.id" size="x-small" variant="text" @click="newProviderForm">
-            新建
-          </v-btn>
+        <v-card-title class="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div class="text-base font-semibold text-slate-900">模型服务</div>
+            <div class="mt-1 text-xs text-slate-500">
+              默认展示已配置的模型服务；新增或编辑时再打开配置表单。
+            </div>
+          </div>
         </v-card-title>
-        <v-card-text class="grid gap-3">
-          <v-text-field v-model="providerForm.displayName" label="名称" density="comfortable" />
-          <v-text-field v-model="providerForm.baseUrl" label="服务地址" density="comfortable" />
-          <v-text-field v-model="providerForm.model" label="默认模型" density="comfortable" />
-          <v-text-field
-            v-model="providerForm.requestTimeoutSeconds"
-            label="请求超时（秒）"
-            type="number"
-            density="comfortable"
-          />
-          <v-text-field
-            v-model="providerForm.apiKey"
-            label="API 密钥"
-            type="password"
-            density="comfortable"
-            :hint="providerForm.id ? '留空则保留原密钥' : ''"
-            persistent-hint
-          />
-          <v-switch v-model="providerForm.enabled" label="启用" color="primary" hide-details />
-          <v-btn color="primary" block @click="saveProvider">保存模型服务</v-btn>
-        </v-card-text>
+        <v-card-actions>
+          <v-btn color="primary" size="small" @click="openNewProviderDialog">
+            新增模型服务
+          </v-btn>
+        </v-card-actions>
       </v-card>
 
+      <div class="grid auto-rows-max gap-3 md:grid-cols-2">
+        <v-card
+          v-for="provider in providers"
+          :key="provider.id"
+          flat
+          class="card-shell border-0"
+        >
+          <v-card-text>
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="font-semibold text-slate-900">{{ provider.displayName }}</span>
+                  <v-chip
+                    size="x-small"
+                    :color="provider.enabled ? 'success' : 'default'"
+                    variant="tonal"
+                  >
+                    {{ provider.enabled ? "启用" : "停用" }}
+                  </v-chip>
+                </div>
+                <div class="mt-0.5 text-xs text-slate-500">{{ provider.baseUrl }} · {{ provider.model }}</div>
+                <div class="text-xs text-slate-500">请求超时：{{ Math.round((provider.requestTimeoutMs ?? 180000) / 1000) }} 秒</div>
+                <div class="text-xs text-slate-500">密钥：{{ provider.hasApiKey ? "已配置" : "未配置" }}</div>
+                <div v-if="provider.capabilities" class="mt-1 flex flex-wrap gap-1">
+                  <v-chip
+                    v-for="(supported, capability) in provider.capabilities"
+                    :key="capability"
+                    size="x-small"
+                    :color="supported ? 'success' : 'default'"
+                    variant="tonal"
+                  >
+                    {{ capability }}：{{ supported ? "支持" : "不支持" }}
+                  </v-chip>
+                </div>
+              </div>
+              <div class="flex shrink-0 flex-col gap-1">
+                <v-btn size="x-small" variant="outlined" @click="openEditProviderDialog(provider)">编辑</v-btn>
+                <v-btn size="x-small" variant="outlined" @click="testProvider(provider.id)">测试</v-btn>
+                <v-btn size="x-small" variant="outlined" color="error" @click="deleteProvider(provider.id)">删除</v-btn>
+              </div>
+            </div>
+          </v-card-text>
+        </v-card>
+        <v-card v-if="providers.length === 0" flat class="card-shell border-0 md:col-span-2">
+          <v-card-text class="text-sm text-slate-500">
+            尚未配置任何模型服务。点击“新增模型服务”后，可以配置 OpenAI 兼容服务地址与默认模型。
+          </v-card-text>
+        </v-card>
+      </div>
+    </div>
+
+    <div class="grid auto-rows-max gap-5">
       <v-card flat class="card-shell border-0">
         <v-card-title>运行时超时</v-card-title>
         <v-card-text class="grid gap-3">
@@ -78,52 +135,72 @@ defineProps<{
       </v-card>
     </div>
 
-    <div class="grid auto-rows-max gap-3">
-      <v-card
-        v-for="provider in providers"
-        :key="provider.id"
-        flat
-        class="card-shell border-0"
-      >
-        <v-card-text>
-          <div class="flex items-start justify-between gap-3">
-            <div>
-              <div class="flex items-center gap-2">
-                <span class="font-semibold text-slate-900">{{ provider.displayName }}</span>
-                <v-chip
-                  size="x-small"
-                  :color="provider.enabled ? 'success' : 'default'"
-                  variant="tonal"
-                >
-                  {{ provider.enabled ? "启用" : "停用" }}
-                </v-chip>
-              </div>
-              <div class="mt-0.5 text-xs text-slate-500">{{ provider.baseUrl }} · {{ provider.model }}</div>
-              <div class="text-xs text-slate-500">请求超时：{{ Math.round((provider.requestTimeoutMs ?? 180000) / 1000) }} 秒</div>
-              <div class="text-xs text-slate-500">密钥：{{ provider.hasApiKey ? "已配置" : "未配置" }}</div>
-              <div v-if="provider.capabilities" class="mt-1 flex flex-wrap gap-1">
-                <v-chip
-                  v-for="(supported, capability) in provider.capabilities"
-                  :key="capability"
-                  size="x-small"
-                  :color="supported ? 'success' : 'default'"
-                  variant="tonal"
-                >
-                  {{ capability }}：{{ supported ? "支持" : "不支持" }}
-                </v-chip>
-              </div>
-            </div>
-            <div class="flex shrink-0 gap-2">
-              <v-btn size="x-small" variant="outlined" @click="editProvider(provider)">编辑</v-btn>
-              <v-btn size="x-small" variant="outlined" @click="testProvider(provider.id)">测试</v-btn>
-              <v-btn size="x-small" variant="outlined" color="error" @click="deleteProvider(provider.id)">删除</v-btn>
-            </div>
-          </div>
+    <v-dialog v-model="providerDialogOpen" max-width="720" content-class="adk-provider-dialog-overlay">
+      <v-card class="adk-provider-dialog">
+        <v-card-title class="flex items-center justify-between gap-3">
+          <span>{{ providerForm.id ? "编辑模型服务" : "新增模型服务" }}</span>
+          <v-btn icon="mdi-close" variant="text" size="small" @click="providerDialogOpen = false" />
+        </v-card-title>
+        <v-card-text class="adk-provider-dialog__body grid gap-3">
+          <v-switch v-model="providerForm.enabled" label="启用" color="primary" hide-details />
+          <v-text-field v-model="providerForm.displayName" label="名称" density="comfortable" />
+          <v-text-field v-model="providerForm.baseUrl" label="服务地址" density="comfortable" />
+          <v-text-field v-model="providerForm.model" label="默认模型" density="comfortable" />
+          <v-text-field
+            v-model="providerForm.apiKey"
+            label="API 密钥"
+            type="password"
+            density="comfortable"
+            :hint="providerForm.id ? '留空则保留原密钥' : ''"
+            persistent-hint
+          />
+          <v-text-field
+            v-model="providerForm.requestTimeoutSeconds"
+            label="请求超时（秒）"
+            type="number"
+            density="comfortable"
+          />
         </v-card-text>
+        <v-card-actions class="justify-end gap-2">
+          <v-btn variant="text" @click="providerDialogOpen = false">取消</v-btn>
+          <v-btn color="primary" @click="submitProviderForm">保存模型服务</v-btn>
+        </v-card-actions>
       </v-card>
-      <div v-if="providers.length === 0" class="text-sm text-slate-500">
-        尚未配置任何模型服务。
-      </div>
-    </div>
+    </v-dialog>
   </section>
 </template>
+
+<style scoped>
+.adk-provider-layout {
+  display: grid;
+  align-items: start;
+  gap: 1.25rem;
+}
+
+@media (min-width: 1024px) {
+  .adk-provider-layout {
+    grid-template-columns: minmax(0, 1.4fr) minmax(18rem, 0.6fr);
+  }
+}
+
+.adk-provider-dialog {
+  display: flex;
+  max-height: 80dvh;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--tv-bg-surface);
+  color: var(--card-text-1);
+}
+
+:global(.adk-provider-dialog-overlay) {
+  background: var(--tv-bg-surface);
+  border-radius: 4px;
+}
+
+.adk-provider-dialog__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  background: var(--tv-bg-surface);
+}
+</style>

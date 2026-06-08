@@ -6,6 +6,7 @@ import ADKAgentsPanel from "./adk-settings/ADKAgentsPanel.vue";
 import ADKProvidersPanel from "./adk-settings/ADKProvidersPanel.vue";
 import ADKRunsPanel from "./adk-settings/ADKRunsPanel.vue";
 import ADKSkillsPanel from "./adk-settings/ADKSkillsPanel.vue";
+import ADKToolsPanel from "./adk-settings/ADKToolsPanel.vue";
 import { useADKSettingsSectionState } from "../composables/useADKSettingsSectionState";
 
 const {
@@ -74,12 +75,18 @@ const {
   taskStatusFilter,
   tasks,
   testProvider,
+  toolDetailDialogOpen,
   toolCallStatusColor,
   toolCategoryFilter,
   toolCategoryOptions,
+  toolSearchQuery,
   toolOptions,
   toolRiskFilter,
   toolRiskOptions,
+  filteredTools,
+  openToolDetail,
+  closeToolDetail,
+  selectedTool,
   tools,
   uninstallSkill,
 } = useADKSettingsSectionState();
@@ -88,7 +95,7 @@ const observationTab = ref("workflow");
 const route = useRoute();
 const router = useRouter();
 
-const adkTabs = new Set(["providers", "agents", "skills", "observation"]);
+const adkTabs = new Set(["providers", "agents", "tools", "skills", "observation"]);
 const observationTabs = new Set(["workflow", "runs"]);
 
 function firstQueryValue(value: unknown): string | undefined {
@@ -212,7 +219,7 @@ function memoryScopeHint(scope: string): string {
 </script>
 
 <template>
-  <div class="grid gap-5">
+  <div class="adk-settings-section grid gap-5">
 
     <v-alert
       v-if="errorMessage"
@@ -220,6 +227,7 @@ function memoryScopeHint(scope: string): string {
       variant="tonal"
       density="compact"
       closable
+      class="adk-settings-alert"
       @click:close="errorMessage = ''"
     >
       {{ errorMessage }}
@@ -231,6 +239,7 @@ function memoryScopeHint(scope: string): string {
       variant="tonal"
       density="compact"
       closable
+      class="adk-settings-alert"
       @click:close="successMessage = ''"
     >
       {{ successMessage }}
@@ -239,13 +248,14 @@ function memoryScopeHint(scope: string): string {
     <v-tabs v-model="activeTab" class="tv-page-tabs">
       <v-tab value="providers">模型服务</v-tab>
       <v-tab value="agents">智能体</v-tab>
+      <v-tab value="tools">工具</v-tab>
       <v-tab value="skills">技能</v-tab>
 
       <!-- 观察放最后 -->
       <v-tab value="observation">观察</v-tab>
     </v-tabs>
 
-    <v-window v-model="activeTab">
+    <v-window v-model="activeTab" class="adk-settings-window">
 
       <!-- ─── Providers ─── -->
       <v-window-item value="providers">
@@ -292,19 +302,43 @@ function memoryScopeHint(scope: string): string {
         />
       </v-window-item>
 
+      <v-window-item value="tools">
+        <ADKToolsPanel
+          :tools="tools"
+          :filtered-tools="filteredTools"
+          :selected-tool="selectedTool"
+          :tool-category-filter="toolCategoryFilter"
+          :tool-category-options="toolCategoryOptions"
+          :tool-risk-filter="toolRiskFilter"
+          :tool-risk-options="toolRiskOptions"
+          :tool-search-query="toolSearchQuery"
+          :tool-detail-dialog-open="toolDetailDialogOpen"
+          :preview="preview"
+          :format-permission-mode="formatPermission"
+          :risk-color="riskColor"
+          :risk-label="riskLabel"
+          :open-tool-detail="openToolDetail"
+          :close-tool-detail="closeToolDetail"
+          @update:tool-category-filter="toolCategoryFilter = $event"
+          @update:tool-risk-filter="toolRiskFilter = $event"
+          @update:tool-search-query="toolSearchQuery = $event"
+          @update:tool-detail-dialog-open="toolDetailDialogOpen = $event"
+        />
+      </v-window-item>
+
       <v-window-item value="observation">
         <section class="grid gap-4">
           <v-tabs v-model="observationTab" class="tv-page-tabs">
             <v-tab value="workflow">工作流</v-tab>
             <v-tab value="runs">运行与审计</v-tab>
           </v-tabs>
-          <v-window v-model="observationTab">
+          <v-window v-model="observationTab" class="adk-settings-window">
             <v-window-item value="workflow">
               <section class="grid gap-5 lg:grid-cols-2">
                 <v-card flat class="card-shell border-0">
                   <v-card-title>智能体任务</v-card-title>
                   <v-card-text class="grid gap-3">
-                    <v-alert type="info" variant="tonal" density="compact">
+                    <v-alert type="info" variant="tonal" density="compact" class="adk-settings-alert">
                       任务由智能体在对话和工具执行中自动创建与更新，用于跟踪策略研究、诊断和待处理事项；这里仅用于观察，不需要手动配置。
                     </v-alert>
                     <div class="grid gap-3 md:grid-cols-2">
@@ -347,7 +381,7 @@ function memoryScopeHint(scope: string): string {
                 <v-card flat class="card-shell border-0">
                   <v-card-title>智能体记忆</v-card-title>
                   <v-card-text class="grid gap-3">
-                    <v-alert type="info" variant="tonal" density="compact">
+                    <v-alert type="info" variant="tonal" density="compact" class="adk-settings-alert">
                       记忆由智能体在对话中自动记录。只有开启记忆的智能体才会在提示词中读取工作区记忆和当前智能体记忆。
                     </v-alert>
                     <div class="grid gap-3 md:grid-cols-3">
@@ -441,3 +475,38 @@ function memoryScopeHint(scope: string): string {
     </v-window>
   </div>
 </template>
+
+<style scoped>
+.adk-settings-section {
+  align-content: start;
+}
+
+.adk-settings-alert {
+  align-self: start;
+  width: 100%;
+  min-height: 0;
+  max-height: 7.5rem;
+  overflow: auto;
+}
+
+.adk-settings-alert :deep(.v-alert__content) {
+  align-self: center;
+  min-width: 0;
+  line-height: 1.45;
+}
+
+.adk-settings-alert :deep(.v-alert__prepend),
+.adk-settings-alert :deep(.v-alert__close) {
+  align-self: center;
+}
+
+.adk-settings-window {
+  align-self: start;
+  width: 100%;
+}
+
+.adk-settings-window :deep(.v-window__container),
+.adk-settings-window :deep(.v-window-item) {
+  min-height: 0;
+}
+</style>

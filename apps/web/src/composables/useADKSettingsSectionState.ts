@@ -81,6 +81,9 @@ export function useADKSettingsSectionState() {
   const memoryKeyFilter = ref("");
   const toolCategoryFilter = ref("");
   const toolRiskFilter = ref("");
+  const toolSearchQuery = ref("");
+  const toolDetailDialogOpen = ref(false);
+  const selectedToolName = ref("");
   const agentTemplateNotice = ref("");
   const runPage = ref<PageEnvelope>({ limit: 20, offset: 0, total: 0, returned: 0, hasMore: false });
   const approvalPage = ref<PageEnvelope>({ limit: 10, offset: 0, total: 0, returned: 0, hasMore: false });
@@ -97,15 +100,37 @@ export function useADKSettingsSectionState() {
       value: p.id,
     })),
   );
-  const filteredTools = computed(() =>
+  const filteredToolsByFacet = computed(() =>
     tools.value.filter((tool) => {
       if (toolCategoryFilter.value && tool.category !== toolCategoryFilter.value) return false;
       if (toolRiskFilter.value && tool.riskLevel !== toolRiskFilter.value) return false;
       return true;
     }),
   );
+  const filteredTools = computed(() =>
+    filteredToolsByFacet.value.filter((tool) => {
+      const query = toolSearchQuery.value.trim().toLowerCase();
+      if (query !== "") {
+        const haystack = [
+          tool.name,
+          tool.displayName,
+          tool.description,
+          tool.category,
+          tool.permission,
+          tool.outputSummary ?? "",
+        ]
+          .join(" ")
+          .toLowerCase();
+        if (!haystack.includes(query)) return false;
+      }
+      return true;
+    }),
+  );
+  const selectedTool = computed(() =>
+    tools.value.find((tool) => tool.name === selectedToolName.value) ?? null,
+  );
   const toolOptions = computed(() =>
-    filteredTools.value.map((t) => ({ title: `${t.displayName} (${t.name})`, value: t.name })),
+    filteredToolsByFacet.value.map((t) => ({ title: `${t.displayName} (${t.name})`, value: t.name })),
   );
   const toolCategoryOptions = computed(() =>
     Array.from(new Set(tools.value.map((tool) => tool.category).filter(Boolean))).sort(),
@@ -285,6 +310,15 @@ export function useADKSettingsSectionState() {
     return refreshAuditEvents();
   }
 
+  function openToolDetail(toolName: string): void {
+    selectedToolName.value = toolName;
+    toolDetailDialogOpen.value = true;
+  }
+
+  function closeToolDetail(): void {
+    toolDetailDialogOpen.value = false;
+  }
+
   async function saveRuntimeSettings(): Promise<void> {
     try {
       const settings = await saveADKRuntimeSettings({
@@ -413,9 +447,15 @@ export function useADKSettingsSectionState() {
     toolCallStatusColor,
     toolCategoryFilter,
     toolCategoryOptions,
+    toolDetailDialogOpen,
     toolOptions,
     toolRiskFilter,
     toolRiskOptions,
+    toolSearchQuery,
+    openToolDetail,
+    closeToolDetail,
+    filteredTools,
+    selectedTool,
     tools,
     uninstallSkill,
   };

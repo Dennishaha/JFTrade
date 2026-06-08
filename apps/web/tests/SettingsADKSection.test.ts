@@ -7,8 +7,10 @@ import { createMemoryHistory, createRouter } from "vue-router";
 import SettingsADKSection from "../src/components/SettingsADKSection.vue";
 import {
   buttonStub,
+  dialogStub,
   iconStub,
   inputStub,
+  passthroughStub,
   selectStub,
   tabStub,
   tabsStub,
@@ -30,7 +32,7 @@ describe("SettingsADKSection", () => {
         return createResponse({
           providers: [buildProvider()],
           agents: [buildAgent()],
-          tools: [],
+          tools: [buildTool()],
           skills: [],
           runtimeSettings: {
             runTimeoutMs: 600_000,
@@ -91,9 +93,11 @@ describe("SettingsADKSection", () => {
           "v-alert": { template: "<div><slot /></div>" },
           "v-btn": buttonStub,
           "v-card": { template: "<section><slot /></section>" },
+          "v-card-actions": passthroughStub,
           "v-card-title": { template: "<div><slot /></div>" },
           "v-card-text": { template: "<div><slot /></div>" },
           "v-chip": { template: "<span><slot /></span>" },
+          "v-dialog": dialogStub,
           "v-icon": iconStub,
           "v-select": selectStub,
           "v-switch": { template: "<label><slot /></label>" },
@@ -143,6 +147,7 @@ describe("SettingsADKSection", () => {
     ).toBe(true);
 
     expect(wrapper.text()).toContain("观察");
+    expect(wrapper.text()).toContain("工具");
     expect(wrapper.text()).toContain("工作流");
     expect(wrapper.text()).toContain("运行与审计");
     expect(wrapper.text()).toContain("智能体任务");
@@ -162,7 +167,7 @@ describe("SettingsADKSection", () => {
         return createResponse({
           providers: [buildProvider()],
           agents: [buildAgent()],
-          tools: [],
+          tools: [buildTool()],
           skills: [],
           runtimeSettings: {
             runTimeoutMs: 600_000,
@@ -212,9 +217,11 @@ describe("SettingsADKSection", () => {
           "v-alert": { template: "<div><slot /></div>" },
           "v-btn": buttonStub,
           "v-card": { template: "<section><slot /></section>" },
+          "v-card-actions": passthroughStub,
           "v-card-title": { template: "<div><slot /></div>" },
           "v-card-text": { template: "<div><slot /></div>" },
           "v-chip": { template: "<span><slot /></span>" },
+          "v-dialog": dialogStub,
           "v-icon": iconStub,
           "v-select": selectStub,
           "v-switch": { template: "<label><slot /></label>" },
@@ -246,6 +253,198 @@ describe("SettingsADKSection", () => {
       runTimeoutMs: 720_000,
       streamIdleTimeoutMs: 450_000,
     });
+  });
+
+  it("syncs the tools tab from route query", async () => {
+    document.body.innerHTML = "<div id='root'></div>";
+    vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.endsWith("/api/v1/adk")) {
+        return createResponse({
+          providers: [buildProvider()],
+          agents: [buildAgent()],
+          tools: [buildTool()],
+          skills: [],
+          runtimeSettings: {
+            runTimeoutMs: 600_000,
+            streamIdleTimeoutMs: 300_000,
+          },
+        });
+      }
+      if (url.includes("/api/v1/adk/optimization-tasks")) {
+        return createResponse({ tasks: [] });
+      }
+      if (url.includes("/api/v1/adk/tasks")) {
+        return createResponse({ tasks: [], page: { limit: 20, offset: 0, total: 0, returned: 0, hasMore: false } });
+      }
+      if (url.includes("/api/v1/adk/memory")) {
+        return createResponse({ entries: [] });
+      }
+      if (url.includes("/api/v1/adk/agent-templates")) {
+        return createResponse({ templates: [] });
+      }
+      if (url.includes("/api/v1/adk/metrics")) {
+        return createResponse(buildMetrics());
+      }
+      if (url.includes("/api/v1/adk/runs")) {
+        return createResponse({ runs: [], page: { limit: 20, offset: 0, total: 0, returned: 0, hasMore: false } });
+      }
+      if (url.includes("/api/v1/adk/approvals")) {
+        return createResponse({ approvals: [], page: { limit: 10, offset: 0, total: 0, returned: 0, hasMore: false } });
+      }
+      if (url.includes("/api/v1/adk/audit")) {
+        return createResponse({ events: [], page: { limit: 12, offset: 0, total: 0, returned: 0, hasMore: false } });
+      }
+      return createResponse({});
+    }));
+
+    const router = createADKSettingsRouter("/settings/adk?tab=tools");
+    await router.isReady();
+
+    const wrapper = mount(SettingsADKSection, {
+      attachTo: "#root",
+      global: {
+        plugins: [router],
+        stubs: {
+          "v-alert": { template: "<div><slot /></div>" },
+          "v-btn": buttonStub,
+          "v-card": { template: "<section><slot /></section>" },
+          "v-card-actions": passthroughStub,
+          "v-card-title": { template: "<div><slot /></div>" },
+          "v-card-text": { template: "<div><slot /></div>" },
+          "v-chip": { template: "<span><slot /></span>" },
+          "v-dialog": dialogStub,
+          "v-icon": iconStub,
+          "v-select": selectStub,
+          "v-switch": { template: "<label><slot /></label>" },
+          "v-tab": tabStub,
+          "v-tabs": tabsStub,
+          "v-text-field": inputStub,
+          "v-textarea": inputStub,
+          "v-window": windowStub,
+          "v-window-item": windowItemStub,
+        },
+      },
+    });
+
+    await flushRequests();
+
+    expect(router.currentRoute.value.query).toEqual({ tab: "tools" });
+    expect(wrapper.text()).toContain("工具目录");
+    expect(wrapper.text()).toContain("system.status");
+    expect(wrapper.text()).toContain("读取系统状态摘要。");
+  });
+
+  it("filters tools by keyword, category, and risk on the tools tab", async () => {
+    document.body.innerHTML = "<div id='root'></div>";
+    vi.stubGlobal("fetch", vi.fn(async (input: string | URL | Request) => {
+      const url = String(input);
+      if (url.endsWith("/api/v1/adk")) {
+        return createResponse({
+          providers: [buildProvider()],
+          agents: [buildAgent()],
+          tools: [
+            buildTool(),
+            buildTool({
+              name: "trading.submit_order",
+              displayName: "提交订单",
+              description: "向交易系统提交订单。",
+              category: "trading",
+              permission: "trade_execute",
+              riskLevel: "high",
+            }),
+          ],
+          skills: [],
+          runtimeSettings: {
+            runTimeoutMs: 600_000,
+            streamIdleTimeoutMs: 300_000,
+          },
+        });
+      }
+      if (url.includes("/api/v1/adk/optimization-tasks")) {
+        return createResponse({ tasks: [] });
+      }
+      if (url.includes("/api/v1/adk/tasks")) {
+        return createResponse({ tasks: [], page: { limit: 20, offset: 0, total: 0, returned: 0, hasMore: false } });
+      }
+      if (url.includes("/api/v1/adk/memory")) {
+        return createResponse({ entries: [] });
+      }
+      if (url.includes("/api/v1/adk/agent-templates")) {
+        return createResponse({ templates: [] });
+      }
+      if (url.includes("/api/v1/adk/metrics")) {
+        return createResponse(buildMetrics());
+      }
+      if (url.includes("/api/v1/adk/runs")) {
+        return createResponse({ runs: [], page: { limit: 20, offset: 0, total: 0, returned: 0, hasMore: false } });
+      }
+      if (url.includes("/api/v1/adk/approvals")) {
+        return createResponse({ approvals: [], page: { limit: 10, offset: 0, total: 0, returned: 0, hasMore: false } });
+      }
+      if (url.includes("/api/v1/adk/audit")) {
+        return createResponse({ events: [], page: { limit: 12, offset: 0, total: 0, returned: 0, hasMore: false } });
+      }
+      return createResponse({});
+    }));
+
+    const router = createADKSettingsRouter("/settings/adk?tab=tools");
+    await router.isReady();
+
+    const wrapper = mount(SettingsADKSection, {
+      attachTo: "#root",
+      global: {
+        plugins: [router],
+        stubs: {
+          ADKProvidersPanel: { template: "<div />" },
+          ADKAgentsPanel: { template: "<div />" },
+          ADKSkillsPanel: { template: "<div />" },
+          "v-alert": { template: "<div><slot /></div>" },
+          "v-btn": buttonStub,
+          "v-card": { template: "<section><slot /></section>" },
+          "v-card-actions": passthroughStub,
+          "v-card-title": { template: "<div><slot /></div>" },
+          "v-card-text": { template: "<div><slot /></div>" },
+          "v-chip": { template: "<span><slot /></span>" },
+          "v-dialog": dialogStub,
+          "v-icon": iconStub,
+          "v-select": selectStub,
+          "v-switch": { template: "<label><slot /></label>" },
+          "v-tab": tabStub,
+          "v-tabs": tabsStub,
+          "v-text-field": inputStub,
+          "v-textarea": inputStub,
+          "v-window": windowStub,
+          "v-window-item": windowItemStub,
+        },
+      },
+    });
+
+    await flushRequests();
+
+    const toolsPanel = wrapper.findComponent({ name: "ADKToolsPanel" });
+    expect(toolsPanel.exists()).toBe(true);
+
+    const keywordInput = toolsPanel.find("input");
+    const selectInputs = toolsPanel.findAll("select");
+    expect(selectInputs).toHaveLength(2);
+
+    await keywordInput.setValue("订单");
+    await flushRequests();
+    expect(toolsPanel.text()).toContain("trading.submit_order");
+    expect(toolsPanel.text()).not.toContain("system.status");
+
+    await keywordInput.setValue("");
+    await selectInputs[0]!.setValue("system");
+    await flushRequests();
+    expect(toolsPanel.text()).toContain("system.status");
+    expect(toolsPanel.text()).not.toContain("trading.submit_order");
+
+    await selectInputs[0]!.setValue("");
+    await selectInputs[1]!.setValue("high");
+    await flushRequests();
+    expect(toolsPanel.text()).toContain("trading.submit_order");
+    expect(toolsPanel.text()).not.toContain("system.status");
   });
 });
 
@@ -338,6 +537,28 @@ function buildMemoryEntry() {
     scope: "workspace",
     createdAt: "2026-06-06T00:00:00Z",
     updatedAt: "2026-06-06T00:00:00Z",
+  };
+}
+
+function buildTool(overrides: Partial<ReturnType<typeof buildToolBase>> = {}) {
+  return {
+    ...buildToolBase(),
+    ...overrides,
+  };
+}
+
+function buildToolBase() {
+  return {
+    name: "system.status",
+    displayName: "系统状态",
+    description: "读取系统状态摘要。",
+    category: "system",
+    permission: "read_internal",
+    allowedModes: ["approval", "sandbox_auto", "high_auto"],
+    requiresApprovalIn: [],
+    inputSchema: { type: "object", properties: {} },
+    outputSummary: "系统健康摘要",
+    riskLevel: "low",
   };
 }
 
