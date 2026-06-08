@@ -68,8 +68,11 @@ export async function streamADKChat(
   let lastSession: ADKSession | null = null;
   let lastRun: ADKRun | null = null;
 
-  // Timeout guard: if no data arrives for 120s, abort the stream.
-  const SSE_IDLE_TIMEOUT_MS = 120_000;
+  const defaultIdleTimeoutMs = 300_000;
+  const headerIdleTimeoutMs = Number(response.headers?.get?.("X-ADK-Stream-Idle-Timeout-Ms") ?? "");
+  const SSE_IDLE_TIMEOUT_MS = Number.isFinite(headerIdleTimeoutMs) && headerIdleTimeoutMs > 0
+    ? headerIdleTimeoutMs
+    : defaultIdleTimeoutMs;
   let idleTimer: ReturnType<typeof setTimeout> | null = null;
 
   const resetIdleTimer = () => {

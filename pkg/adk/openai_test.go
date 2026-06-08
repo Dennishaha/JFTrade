@@ -459,3 +459,15 @@ func TestOpenAIProviderWithMultipleToolCallRounds(t *testing.T) {
 		t.Fatal("Chat hung for over 60 seconds — infinite tool call loop not prevented!")
 	}
 }
+
+func TestProviderRequestTimeoutUsesConfiguredValue(t *testing.T) {
+	if got := providerRequestTimeout(Provider{}); got != DefaultProviderRequestTimeout {
+		t.Fatalf("providerRequestTimeout(default) = %s, want %s", got, DefaultProviderRequestTimeout)
+	}
+	if got := providerRequestTimeout(Provider{RequestTimeoutMs: 240_000}); got != 240*time.Second {
+		t.Fatalf("providerRequestTimeout(configured) = %s, want 240s", got)
+	}
+	if got := providerRequestTimeout(Provider{RequestTimeoutMs: 1_000}); got != 15*time.Second {
+		t.Fatalf("providerRequestTimeout(clamped) = %s, want 15s", got)
+	}
+}

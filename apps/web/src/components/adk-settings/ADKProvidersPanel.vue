@@ -7,11 +7,17 @@ defineProps<{
     displayName: string;
     baseUrl: string;
     model: string;
+    requestTimeoutSeconds: number;
     apiKey: string;
     enabled: boolean;
   };
+  runtimeSettingsForm: {
+    runTimeoutSeconds: number;
+    streamIdleTimeoutSeconds: number;
+  };
   providers: ADKProvider[];
   saveProvider: () => void | Promise<void>;
+  saveRuntimeSettings: () => void | Promise<void>;
   newProviderForm: () => void;
   editProvider: (provider: ADKProvider) => void;
   testProvider: (providerId: string) => void | Promise<void>;
@@ -21,29 +27,56 @@ defineProps<{
 
 <template>
   <section class="grid gap-5 lg:grid-cols-[1fr_1.4fr]">
-    <v-card flat class="card-shell border-0">
-      <v-card-title class="flex items-center justify-between gap-2">
-        <span>{{ providerForm.id ? "编辑模型服务" : "添加模型服务" }}</span>
-        <v-btn v-if="providerForm.id" size="x-small" variant="text" @click="newProviderForm">
-          新建
-        </v-btn>
-      </v-card-title>
-      <v-card-text class="grid gap-3">
-        <v-text-field v-model="providerForm.displayName" label="名称" density="comfortable" />
-        <v-text-field v-model="providerForm.baseUrl" label="服务地址" density="comfortable" />
-        <v-text-field v-model="providerForm.model" label="默认模型" density="comfortable" />
-        <v-text-field
-          v-model="providerForm.apiKey"
-          label="API 密钥"
-          type="password"
-          density="comfortable"
-          :hint="providerForm.id ? '留空则保留原密钥' : ''"
-          persistent-hint
-        />
-        <v-switch v-model="providerForm.enabled" label="启用" color="primary" hide-details />
-        <v-btn color="primary" block @click="saveProvider">保存模型服务</v-btn>
-      </v-card-text>
-    </v-card>
+    <div class="grid auto-rows-max gap-5">
+      <v-card flat class="card-shell border-0">
+        <v-card-title class="flex items-center justify-between gap-2">
+          <span>{{ providerForm.id ? "编辑模型服务" : "添加模型服务" }}</span>
+          <v-btn v-if="providerForm.id" size="x-small" variant="text" @click="newProviderForm">
+            新建
+          </v-btn>
+        </v-card-title>
+        <v-card-text class="grid gap-3">
+          <v-text-field v-model="providerForm.displayName" label="名称" density="comfortable" />
+          <v-text-field v-model="providerForm.baseUrl" label="服务地址" density="comfortable" />
+          <v-text-field v-model="providerForm.model" label="默认模型" density="comfortable" />
+          <v-text-field
+            v-model="providerForm.requestTimeoutSeconds"
+            label="请求超时（秒）"
+            type="number"
+            density="comfortable"
+          />
+          <v-text-field
+            v-model="providerForm.apiKey"
+            label="API 密钥"
+            type="password"
+            density="comfortable"
+            :hint="providerForm.id ? '留空则保留原密钥' : ''"
+            persistent-hint
+          />
+          <v-switch v-model="providerForm.enabled" label="启用" color="primary" hide-details />
+          <v-btn color="primary" block @click="saveProvider">保存模型服务</v-btn>
+        </v-card-text>
+      </v-card>
+
+      <v-card flat class="card-shell border-0">
+        <v-card-title>运行时超时</v-card-title>
+        <v-card-text class="grid gap-3">
+          <v-text-field
+            v-model="runtimeSettingsForm.runTimeoutSeconds"
+            label="运行总时长（秒）"
+            type="number"
+            density="comfortable"
+          />
+          <v-text-field
+            v-model="runtimeSettingsForm.streamIdleTimeoutSeconds"
+            label="流空闲超时（秒）"
+            type="number"
+            density="comfortable"
+          />
+          <v-btn color="primary" block @click="saveRuntimeSettings">保存运行时设置</v-btn>
+        </v-card-text>
+      </v-card>
+    </div>
 
     <div class="grid auto-rows-max gap-3">
       <v-card
@@ -66,6 +99,7 @@ defineProps<{
                 </v-chip>
               </div>
               <div class="mt-0.5 text-xs text-slate-500">{{ provider.baseUrl }} · {{ provider.model }}</div>
+              <div class="text-xs text-slate-500">请求超时：{{ Math.round((provider.requestTimeoutMs ?? 180000) / 1000) }} 秒</div>
               <div class="text-xs text-slate-500">密钥：{{ provider.hasApiKey ? "已配置" : "未配置" }}</div>
               <div v-if="provider.capabilities" class="mt-1 flex flex-wrap gap-1">
                 <v-chip

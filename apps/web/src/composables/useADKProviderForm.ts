@@ -10,6 +10,7 @@ function createProviderForm() {
     displayName: "OpenAI Compatible",
     baseUrl: "https://api.openai.com/v1",
     model: "gpt-4o-mini",
+    requestTimeoutSeconds: 180,
     apiKey: "",
     enabled: true,
   };
@@ -24,7 +25,10 @@ export function useADKProviderForm(
 
   async function saveProvider(): Promise<void> {
     try {
-      const provider = await saveADKProvider(providerForm.value);
+      const provider = await saveADKProvider({
+        ...providerForm.value,
+        requestTimeoutMs: Math.max(1, Math.round(Number(providerForm.value.requestTimeoutSeconds || 0) * 1000)),
+      });
       providerForm.value.id = provider.id;
       providerForm.value.apiKey = "";
       successMessage.value = "Provider 已保存";
@@ -62,6 +66,7 @@ export function useADKProviderForm(
       displayName: provider.displayName,
       baseUrl: provider.baseUrl,
       model: provider.model,
+      requestTimeoutSeconds: Math.max(1, Math.round((provider.requestTimeoutMs ?? 180_000) / 1000)),
       apiKey: "",
       enabled: provider.enabled,
     };

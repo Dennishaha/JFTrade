@@ -87,6 +87,43 @@ func TestProviderSecretIsNotEchoed(t *testing.T) {
 	if encoded.DefaultHeaders != nil {
 		t.Fatalf("unexpected headers: %#v", encoded.DefaultHeaders)
 	}
+	if encoded.RequestTimeoutMs != int(DefaultProviderRequestTimeout/time.Millisecond) {
+		t.Fatalf("requestTimeoutMs = %d, want %d", encoded.RequestTimeoutMs, int(DefaultProviderRequestTimeout/time.Millisecond))
+	}
+}
+
+func TestProviderRequestTimeoutDefaultsAndClamp(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+
+	provider, err := runtime.Store().SaveProvider(ctx, ProviderWriteRequest{
+		ID:          "openai-clamped",
+		DisplayName: "OpenAI",
+		BaseURL:     "https://api.openai.com/v1",
+		Model:       "gpt-4o-mini",
+		Enabled:     true,
+	})
+	if err != nil {
+		t.Fatalf("SaveProvider default: %v", err)
+	}
+	if provider.RequestTimeoutMs != int(DefaultProviderRequestTimeout/time.Millisecond) {
+		t.Fatalf("default requestTimeoutMs = %d", provider.RequestTimeoutMs)
+	}
+
+	provider, err = runtime.Store().SaveProvider(ctx, ProviderWriteRequest{
+		ID:               provider.ID,
+		DisplayName:      provider.DisplayName,
+		BaseURL:          provider.BaseURL,
+		Model:            provider.Model,
+		RequestTimeoutMs: 1_000,
+		Enabled:          true,
+	})
+	if err != nil {
+		t.Fatalf("SaveProvider clamped: %v", err)
+	}
+	if provider.RequestTimeoutMs != 15_000 {
+		t.Fatalf("clamped requestTimeoutMs = %d, want 15000", provider.RequestTimeoutMs)
+	}
 }
 
 func TestApprovalModeCreatesPendingApprovalForWriteTool(t *testing.T) {
@@ -361,17 +398,35 @@ func TestGoogleADKExecutionRunHonorsContextDeadline(t *testing.T) {
 	}
 }
 
+func TestStartRunUsesConfiguredRuntimeTimeout(t *testing.T) {
+	runtime := newTestRuntime(t)
+	runtime.SetRuntimeLimitsProvider(func() RuntimeLimits {
+		return RuntimeLimits{RunTimeout: 12 * time.Minute}
+	})
+
+	run, _, finish, err := runtime.startRun(context.Background(), "session-1", Agent{ID: "agent-1"}, "hello")
+	if err != nil {
+		t.Fatalf("startRun: %v", err)
+	}
+	defer finish()
+
+	if run.MaxDurationMs != int64((12*time.Minute)/time.Millisecond) {
+		t.Fatalf("run.MaxDurationMs = %d, want %d", run.MaxDurationMs, int64((12*time.Minute)/time.Millisecond))
+	}
+}
+
 func TestReconcileExpiredRunsMarksHungRunTimedOut(t *testing.T) {
 	ctx := context.Background()
 	runtime := newTestRuntime(t)
 
-	startedAt := time.Now().UTC().Add(-MaxRunTimeout - time.Minute).Format(time.RFC3339Nano)
+	startedAt := time.Now().UTC().Add(-DefaultRunTimeout - time.Minute).Format(time.RFC3339Nano)
 	run := Run{
-		ID:        "run-hung",
-		SessionID: "session-1",
-		AgentID:   "agent-1",
-		Status:    RunStatusRunning,
-		Message:   "running",
+		ID:            "run-hung",
+		SessionID:     "session-1",
+		AgentID:       "agent-1",
+		MaxDurationMs: DefaultRunTimeout.Milliseconds(),
+		Status:        RunStatusRunning,
+		Message:       "running",
 		ToolCalls: []ToolCall{{
 			ID:        "tool-1",
 			RunID:     "run-hung",
@@ -405,7 +460,7 @@ func TestReconcileExpiredRunsMarksHungRunTimedOut(t *testing.T) {
 	if reloaded.CompletedAt == nil {
 		t.Fatal("expected completed_at to be set")
 	}
-	if !strings.Contains(reloaded.FailureReason, MaxRunTimeout.String()) {
+	if !strings.Contains(reloaded.FailureReason, DefaultRunTimeout.String()) {
 		t.Fatalf("failure reason = %q, want timeout detail", reloaded.FailureReason)
 	}
 	if len(reloaded.ToolCalls) != 1 || reloaded.ToolCalls[0].Status != "FAILED" {
@@ -413,6 +468,61 @@ func TestReconcileExpiredRunsMarksHungRunTimedOut(t *testing.T) {
 	}
 	if reloaded.ToolCalls[0].CompletedAt == nil {
 		t.Fatal("expected tool call completed_at to be set")
+	}
+}
+
+func TestReconcileExpiredRunsUsesRunSpecificTimeout(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+
+	startedAt := time.Now().UTC().Add(-2 * time.Minute).Format(time.RFC3339Nano)
+	shortRun := Run{
+		ID:            "run-short-timeout",
+		SessionID:     "session-1",
+		AgentID:       "agent-1",
+		MaxDurationMs: 60_000,
+		Status:        RunStatusRunning,
+		Message:       "running",
+		CreatedAt:     startedAt,
+		StartedAt:     startedAt,
+		UpdatedAt:     startedAt,
+		Usage:         &RunUsage{},
+	}
+	longRun := Run{
+		ID:            "run-long-timeout",
+		SessionID:     "session-1",
+		AgentID:       "agent-1",
+		MaxDurationMs: 300_000,
+		Status:        RunStatusRunning,
+		Message:       "running",
+		CreatedAt:     startedAt,
+		StartedAt:     startedAt,
+		UpdatedAt:     startedAt,
+		Usage:         &RunUsage{},
+	}
+	if err := runtime.Store().SaveRun(ctx, shortRun); err != nil {
+		t.Fatalf("SaveRun shortRun: %v", err)
+	}
+	if err := runtime.Store().SaveRun(ctx, longRun); err != nil {
+		t.Fatalf("SaveRun longRun: %v", err)
+	}
+
+	runtime.ReconcileExpiredRuns(ctx)
+
+	reloadedShort, ok, err := runtime.Store().Run(ctx, shortRun.ID)
+	if err != nil || !ok {
+		t.Fatalf("Run shortRun: %v ok=%v", err, ok)
+	}
+	if reloadedShort.Status != RunStatusTimedOut {
+		t.Fatalf("short run status = %q, want timed out", reloadedShort.Status)
+	}
+
+	reloadedLong, ok, err := runtime.Store().Run(ctx, longRun.ID)
+	if err != nil || !ok {
+		t.Fatalf("Run longRun: %v ok=%v", err, ok)
+	}
+	if reloadedLong.Status != RunStatusRunning {
+		t.Fatalf("long run status = %q, want running", reloadedLong.Status)
 	}
 }
 

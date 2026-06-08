@@ -22,7 +22,6 @@ type openAICompatibleADKModel struct {
 	provider Provider
 	apiKey   string
 	model    string
-	client   *http.Client
 }
 
 func newOpenAICompatibleADKModel(provider Provider, apiKey string, modelName string) model.LLM {
@@ -30,7 +29,6 @@ func newOpenAICompatibleADKModel(provider Provider, apiKey string, modelName str
 		provider: provider,
 		apiKey:   strings.TrimSpace(apiKey),
 		model:    defaultString(modelName, provider.Model),
-		client:   newOpenAIClient().httpClient,
 	}
 }
 
@@ -77,7 +75,7 @@ func (m *openAICompatibleADKModel) generateStream(
 	if err != nil {
 		return err
 	}
-	resp, err := m.client.Do(httpReq)
+	resp, err := newProviderHTTPClient(providerRequestTimeout(m.provider)).Do(httpReq)
 	if err != nil {
 		return err
 	}
@@ -200,7 +198,7 @@ func (m *openAICompatibleADKModel) doGenerate(ctx context.Context, payload openA
 	if err != nil {
 		return nil, err
 	}
-	resp, err := m.client.Do(httpReq)
+	resp, err := newProviderHTTPClient(providerRequestTimeout(m.provider)).Do(httpReq)
 	if err != nil {
 		return nil, err
 	}

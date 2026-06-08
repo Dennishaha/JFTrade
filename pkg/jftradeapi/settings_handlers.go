@@ -193,6 +193,30 @@ func (s *Server) handleSaveSecuritySettings(c *gin.Context) {
 	s.writeOK(c, settings)
 }
 
+// handleSaveADKRuntimeSettings godoc
+// @Summary 保存 ADK 运行时设置
+// @Tags settings
+// @Accept json
+// @Produce json
+// @Param request body ADKRuntimeSettings true "ADK 运行时设置"
+// @Success 200 {object} envelope
+// @Failure 400 {object} envelope
+// @Router /api/v1/settings/adk [put]
+func (s *Server) handleSaveADKRuntimeSettings(c *gin.Context) {
+	var payload ADKRuntimeSettings
+	if err := c.ShouldBindJSON(&payload); err != nil {
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", err.Error())
+		return
+	}
+
+	settings, err := s.store.saveADKSettings(payload)
+	if err != nil {
+		s.writeError(c, http.StatusInternalServerError, "SETTINGS_SAVE_FAILED", err.Error())
+		return
+	}
+	s.writeOK(c, settings)
+}
+
 // handleCreateManagedBrokerAccount godoc
 // @Summary 创建托管账户
 // @Tags settings

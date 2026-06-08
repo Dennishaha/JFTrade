@@ -612,15 +612,19 @@ func TestADKSnapshotAndToolsRoutesReturnCatalogData(t *testing.T) {
 	t.Cleanup(srv.Close)
 
 	provider, err := server.adkRuntime.Store().SaveProvider(t.Context(), jfadk.ProviderWriteRequest{
-		ID:          "provider-snapshot",
-		DisplayName: "Snapshot Provider",
-		BaseURL:     "https://api.openai.com/v1",
-		Model:       "gpt-4o-mini",
-		APIKey:      "sk-test",
-		Enabled:     true,
+		ID:               "provider-snapshot",
+		DisplayName:      "Snapshot Provider",
+		BaseURL:          "https://api.openai.com/v1",
+		Model:            "gpt-4o-mini",
+		RequestTimeoutMs: 240_000,
+		APIKey:           "sk-test",
+		Enabled:          true,
 	})
 	if err != nil {
 		t.Fatalf("SaveProvider: %v", err)
+	}
+	if _, err := server.store.saveADKSettings(ADKRuntimeSettings{RunTimeoutMs: 660_000, StreamIdleTimeoutMs: 420_000}); err != nil {
+		t.Fatalf("saveADKSettings: %v", err)
 	}
 	if _, err := server.adkRuntime.Store().SaveAgent(t.Context(), jfadk.AgentWriteRequest{
 		ID:             "agent-snapshot",
@@ -640,10 +644,11 @@ func TestADKSnapshotAndToolsRoutesReturnCatalogData(t *testing.T) {
 	var snapshotEnvelope struct {
 		OK   bool `json:"ok"`
 		Data struct {
-			Providers []jfadk.Provider       `json:"providers"`
-			Agents    []jfadk.Agent          `json:"agents"`
-			Skills    []jfadk.Skill          `json:"skills"`
-			Tools     []jfadk.ToolDescriptor `json:"tools"`
+			Providers       []jfadk.Provider       `json:"providers"`
+			Agents          []jfadk.Agent          `json:"agents"`
+			Skills          []jfadk.Skill          `json:"skills"`
+			Tools           []jfadk.ToolDescriptor `json:"tools"`
+			RuntimeSettings ADKRuntimeSettings     `json:"runtimeSettings"`
 		} `json:"data"`
 	}
 	if err := json.NewDecoder(snapshotResp.Body).Decode(&snapshotEnvelope); err != nil {
@@ -654,6 +659,12 @@ func TestADKSnapshotAndToolsRoutesReturnCatalogData(t *testing.T) {
 	}
 	if len(snapshotEnvelope.Data.Providers) == 0 || len(snapshotEnvelope.Data.Agents) == 0 || len(snapshotEnvelope.Data.Skills) == 0 || len(snapshotEnvelope.Data.Tools) == 0 {
 		t.Fatalf("snapshot data incomplete: %+v", snapshotEnvelope.Data)
+	}
+	if snapshotEnvelope.Data.Providers[0].RequestTimeoutMs != 240_000 {
+		t.Fatalf("provider requestTimeoutMs = %d, want 240000", snapshotEnvelope.Data.Providers[0].RequestTimeoutMs)
+	}
+	if snapshotEnvelope.Data.RuntimeSettings.RunTimeoutMs != 660_000 || snapshotEnvelope.Data.RuntimeSettings.StreamIdleTimeoutMs != 420_000 {
+		t.Fatalf("runtimeSettings = %+v", snapshotEnvelope.Data.RuntimeSettings)
 	}
 
 	toolsResp, err := http.Get(srv.URL + "/api/v1/adk/tools")
@@ -681,6 +692,9 @@ func TestADKSessionsCRUDAndFilteringRoutes(t *testing.T) {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
 	server := newTestServer(t, store)
+	if _, err := server.store.saveADKSettings(ADKRuntimeSettings{RunTimeoutMs: 720_000, StreamIdleTimeoutMs: 420_000}); err != nil {
+		t.Fatalf("saveADKSettings: %v", err)
+	}
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
@@ -890,8 +904,9 @@ func TestADKChatStreamEmitsSessionRunAndFinalEvents(t *testing.T) {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
 	server := newTestServer(t, store)
-	srv := httptest.NewServer(server)
-	t.Cleanup(srv.Close)
+	if _, err := server.store.saveADKSettings(ADKRuntimeSettings{RunTimeoutMs: 720_000, StreamIdleTimeoutMs: 420_000}); err != nil {
+		t.Fatalf("saveADKSettings: %v", err)
+	}
 
 	agent, err := server.adkRuntime.Store().SaveAgent(t.Context(), jfadk.AgentWriteRequest{
 		ID:             "stream-agent",
@@ -909,6 +924,9 @@ func TestADKChatStreamEmitsSessionRunAndFinalEvents(t *testing.T) {
 	server.ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("chat stream status = %d body=%q", rec.Code, rec.Body.String())
+	}
+	if rec.Header().Get("X-ADK-Stream-Idle-Timeout-Ms") != "420000" {
+		t.Fatalf("stream idle timeout header = %q, want 420000", rec.Header().Get("X-ADK-Stream-Idle-Timeout-Ms"))
 	}
 	frames := parseADKStreamFrames(t, rec.Body.String())
 	var eventTypes []string
@@ -928,6 +946,9 @@ func TestADKChatStreamEmitsSessionRunAndFinalEvents(t *testing.T) {
 	}
 	if finalEvent.Response.Run.AgentID != agent.ID {
 		t.Fatalf("final run agent = %q, want %q", finalEvent.Response.Run.AgentID, agent.ID)
+	}
+	if finalEvent.Response.Run.MaxDurationMs != 720_000 {
+		t.Fatalf("final run maxDurationMs = %d, want 720000", finalEvent.Response.Run.MaxDurationMs)
 	}
 }
 
@@ -973,6 +994,39 @@ func TestADKProviderSaveRejectsInvalidPayload(t *testing.T) {
 	status, code, message := decodeAPIErrorEnvelope(t, resp)
 	if status != http.StatusBadRequest || code != "BAD_REQUEST" || message != "invalid provider payload" {
 		t.Fatalf("provider validation error = %d/%s/%q, want 400/BAD_REQUEST/invalid provider payload", status, code, message)
+	}
+}
+
+func TestADKProviderSaveReturnsRequestTimeoutMs(t *testing.T) {
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	srv := newHTTPTestServer(t, store)
+
+	resp, err := http.Post(srv.URL+"/api/v1/adk/providers", "application/json", strings.NewReader(`{
+		"displayName":"Slow Provider",
+		"baseUrl":"https://api.openai.com/v1",
+		"model":"gpt-4o-mini",
+		"requestTimeoutMs":250000,
+		"enabled":true
+	}`))
+	if err != nil {
+		t.Fatalf("POST provider: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("POST provider status = %d", resp.StatusCode)
+	}
+	var envelope struct {
+		OK   bool           `json:"ok"`
+		Data jfadk.Provider `json:"data"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
+		t.Fatalf("decode provider save: %v", err)
+	}
+	if !envelope.OK || envelope.Data.RequestTimeoutMs != 250_000 {
+		t.Fatalf("provider save envelope = %+v", envelope)
 	}
 }
 

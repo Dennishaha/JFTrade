@@ -42,12 +42,18 @@ export interface ADKProvider {
   displayName: string;
   baseUrl: string;
   model: string;
+  requestTimeoutMs: number;
   defaultHeaders?: Record<string, string>;
   enabled: boolean;
   hasApiKey: boolean;
   capabilities?: Record<string, boolean>;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ADKRuntimeSettings {
+  runTimeoutMs: number;
+  streamIdleTimeoutMs: number;
 }
 
 export interface ADKAgent {
@@ -152,6 +158,7 @@ export interface ADKRun {
   sessionId: string;
   agentId: string;
   providerId?: string;
+  maxDurationMs?: number;
   status: string;
   message: string;
   userMessage?: string;

@@ -33,7 +33,13 @@ func (s *Server) handleADKSnapshot(c *gin.Context) {
 		s.writeError(c, http.StatusInternalServerError, "ADK_SNAPSHOT_FAILED", err.Error())
 		return
 	}
-	s.writeOK(c, snapshot)
+	s.writeOK(c, map[string]any{
+		"providers":       snapshot.Providers,
+		"agents":          snapshot.Agents,
+		"skills":          snapshot.Skills,
+		"tools":           snapshot.Tools,
+		"runtimeSettings": s.store.adkSettings(),
+	})
 }
 
 func (s *Server) handleADKTools(c *gin.Context) {

@@ -55,6 +55,7 @@ const {
   previousAuditPage,
   previousRunsPage,
   providerForm,
+  runtimeSettingsForm,
   providerOptions,
   providers,
   riskColor,
@@ -64,6 +65,7 @@ const {
   runTerminalMessage,
   saveAgent,
   saveProvider,
+  saveRuntimeSettings,
   skillOptions,
   skills,
   skillUrl,
@@ -249,8 +251,10 @@ function memoryScopeHint(scope: string): string {
       <v-window-item value="providers">
         <ADKProvidersPanel
           :provider-form="providerForm"
+          :runtime-settings-form="runtimeSettingsForm"
           :providers="providers"
           :save-provider="saveProvider"
+          :save-runtime-settings="saveRuntimeSettings"
           :new-provider-form="newProviderForm"
           :edit-provider="editProvider"
           :test-provider="testProvider"

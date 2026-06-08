@@ -71,6 +71,11 @@ type SecuritySettings struct {
 	AdminAuthRequired bool `json:"adminAuthRequired"`
 }
 
+type ADKRuntimeSettings struct {
+	RunTimeoutMs        int `json:"runTimeoutMs"`
+	StreamIdleTimeoutMs int `json:"streamIdleTimeoutMs"`
+}
+
 type settingsFile struct {
 	Interfaces  *InterfaceSettings     `json:"interfaces,omitempty"`
 	Integration *BrokerIntegration     `json:"integration,omitempty"`
@@ -79,6 +84,7 @@ type settingsFile struct {
 	Onboarding  *OnboardingSettings    `json:"onboarding,omitempty"`
 	Execution   *ExecutionSettings     `json:"execution,omitempty"`
 	Security    *SecuritySettings      `json:"security,omitempty"`
+	ADK         *ADKRuntimeSettings    `json:"adk,omitempty"`
 }
 
 type SettingsStore struct {
@@ -203,6 +209,15 @@ func (s *SettingsStore) securitySettings() SecuritySettings {
 	return defaultSecuritySettings()
 }
 
+func (s *SettingsStore) adkSettings() ADKRuntimeSettings {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if s.data.ADK != nil {
+		return normalizeADKRuntimeSettings(*s.data.ADK)
+	}
+	return defaultADKRuntimeSettings()
+}
+
 func (s *SettingsStore) hasAppearance() bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -244,6 +259,16 @@ func (s *SettingsStore) saveSecuritySettings(input SecuritySettings) (SecuritySe
 
 	s.mu.Lock()
 	s.data.Security = securitySettingsPointer(normalized)
+	err := s.persistLocked()
+	s.mu.Unlock()
+	return normalized, err
+}
+
+func (s *SettingsStore) saveADKSettings(input ADKRuntimeSettings) (ADKRuntimeSettings, error) {
+	normalized := normalizeADKRuntimeSettings(input)
+
+	s.mu.Lock()
+	s.data.ADK = adkRuntimeSettingsPointer(normalized)
 	err := s.persistLocked()
 	s.mu.Unlock()
 	return normalized, err
@@ -522,4 +547,37 @@ func normalizeSecuritySettings(input SecuritySettings) SecuritySettings {
 func securitySettingsPointer(value SecuritySettings) *SecuritySettings {
 	settings := value
 	return &settings
+}
+
+func defaultADKRuntimeSettings() ADKRuntimeSettings {
+	return ADKRuntimeSettings{
+		RunTimeoutMs:        600_000,
+		StreamIdleTimeoutMs: 300_000,
+	}
+}
+
+func normalizeADKRuntimeSettings(input ADKRuntimeSettings) ADKRuntimeSettings {
+	defaults := defaultADKRuntimeSettings()
+	return ADKRuntimeSettings{
+		RunTimeoutMs:        clampOrDefaultInt(input.RunTimeoutMs, defaults.RunTimeoutMs, 60_000, 1_800_000),
+		StreamIdleTimeoutMs: clampOrDefaultInt(input.StreamIdleTimeoutMs, defaults.StreamIdleTimeoutMs, 30_000, 900_000),
+	}
+}
+
+func adkRuntimeSettingsPointer(value ADKRuntimeSettings) *ADKRuntimeSettings {
+	settings := value
+	return &settings
+}
+
+func clampOrDefaultInt(value int, fallback int, min int, max int) int {
+	if value <= 0 {
+		return fallback
+	}
+	if value < min {
+		return min
+	}
+	if value > max {
+		return max
+	}
+	return value
 }

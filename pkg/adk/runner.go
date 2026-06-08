@@ -18,6 +18,7 @@ type Runtime struct {
 	skills         *SkillRegistry
 	sessionService adksession.Service
 	openai         openAIClient
+	limitsProvider RuntimeLimitsProvider
 	activeMu       sync.Mutex
 	activeRuns     map[string]context.CancelFunc
 	adkMu          sync.Mutex
@@ -44,6 +45,32 @@ func NewRuntimeWithSessionService(store *Store, tools *ToolRegistry, sessionServ
 	}
 	r.reconcileStaleRuns(context.Background())
 	return r
+}
+
+func (r *Runtime) SetRuntimeLimitsProvider(provider RuntimeLimitsProvider) {
+	if r == nil {
+		return
+	}
+	r.limitsProvider = provider
+}
+
+func (r *Runtime) runtimeLimits() RuntimeLimits {
+	limits := RuntimeLimits{RunTimeout: DefaultRunTimeout}
+	if r == nil || r.limitsProvider == nil {
+		return limits
+	}
+	updated := r.limitsProvider()
+	if updated.RunTimeout > 0 {
+		limits.RunTimeout = updated.RunTimeout
+	}
+	return limits
+}
+
+func runTimeoutForRun(run Run) time.Duration {
+	if run.MaxDurationMs > 0 {
+		return time.Duration(run.MaxDurationMs) * time.Millisecond
+	}
+	return DefaultRunTimeout
 }
 
 // reconcileStaleRuns reclassifies unfinished runs from a previous process
@@ -94,7 +121,6 @@ func (r *Runtime) ReconcileExpiredRuns(ctx context.Context) {
 		return
 	}
 	now := time.Now().UTC()
-	timeoutText := MaxRunTimeout.String()
 	for _, run := range runs {
 		if run.Status != RunStatusRunning {
 			continue
@@ -104,7 +130,8 @@ func (r *Runtime) ReconcileExpiredRuns(ctx context.Context) {
 			startedAt = strings.TrimSpace(run.CreatedAt)
 		}
 		started, parseErr := time.Parse(time.RFC3339Nano, startedAt)
-		if parseErr != nil || now.Sub(started) < MaxRunTimeout {
+		timeout := runTimeoutForRun(run)
+		if parseErr != nil || now.Sub(started) < timeout {
 			continue
 		}
 		r.activeMu.Lock()
@@ -125,6 +152,7 @@ func (r *Runtime) ReconcileExpiredRuns(ctx context.Context) {
 			finishToolCall(call)
 		}
 		completedAt := nowString()
+		timeoutText := timeout.String()
 		run.Status = RunStatusTimedOut
 		run.Message = "run timed out"
 		run.FailureReason = "run exceeded maximum duration of " + timeoutText
@@ -697,9 +725,11 @@ func (r *Runtime) agentMemoryPrompt(ctx context.Context, agentID string) (string
 
 func (r *Runtime) startRun(ctx context.Context, sessionID string, agent Agent, text string) (Run, context.Context, func(), error) {
 	now := nowString()
+	timeout := r.runtimeLimits().RunTimeout
 	run := Run{
 		ID: "run-" + uuid.NewString(), SessionID: sessionID, AgentID: agent.ID, ProviderID: strings.TrimSpace(agent.ProviderID),
-		Status: RunStatusRunning, UserMessage: text, Message: "running",
+		MaxDurationMs: timeout.Milliseconds(),
+		Status:        RunStatusRunning, UserMessage: text, Message: "running",
 		CreatedAt: now, StartedAt: now, UpdatedAt: now,
 		ToolCalls: []ToolCall{}, PendingApprovals: []Approval{},
 		Usage: &RunUsage{},
@@ -708,9 +738,8 @@ func (r *Runtime) startRun(ctx context.Context, sessionID string, agent Agent, t
 		return Run{}, nil, nil, err
 	}
 	r.audit(ctx, "run.started", run.ID, "Agent run started.", map[string]any{
-		"runId": run.ID, "agentId": run.AgentID, "providerId": run.ProviderID, "status": run.Status,
+		"runId": run.ID, "agentId": run.AgentID, "providerId": run.ProviderID, "status": run.Status, "maxDurationMs": run.MaxDurationMs,
 	})
-	timeout := MaxRunTimeout
 	runCtx, cancel := context.WithTimeout(ctx, timeout)
 	r.activeMu.Lock()
 	r.activeRuns[run.ID] = cancel

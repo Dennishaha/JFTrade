@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -137,6 +138,7 @@ func (s *Store) ListProviders(ctx context.Context) ([]Provider, error) {
 		return nil, err
 	}
 	for index := range items {
+		items[index] = normalizeProvider(items[index])
 		items[index].HasAPIKey = s.secrets.has(items[index].ID)
 	}
 	return items, nil
@@ -170,18 +172,23 @@ func (s *Store) SaveProvider(ctx context.Context, req ProviderWriteRequest) (Pro
 		createdAt = existing.CreatedAt
 	}
 	provider := Provider{
-		ID:             id,
-		DisplayName:    defaultString(req.DisplayName, id),
-		BaseURL:        normalizeBaseURL(req.BaseURL),
-		Model:          defaultString(req.Model, "gpt-4o-mini"),
-		DefaultHeaders: normalizeHeaders(req.DefaultHeaders),
-		Enabled:        req.Enabled,
-		CreatedAt:      createdAt,
-		UpdatedAt:      now,
+		ID:               id,
+		DisplayName:      defaultString(req.DisplayName, id),
+		BaseURL:          normalizeBaseURL(req.BaseURL),
+		Model:            defaultString(req.Model, "gpt-4o-mini"),
+		RequestTimeoutMs: normalizeProviderRequestTimeoutMs(req.RequestTimeoutMs),
+		DefaultHeaders:   normalizeHeaders(req.DefaultHeaders),
+		Enabled:          req.Enabled,
+		CreatedAt:        createdAt,
+		UpdatedAt:        now,
 	}
 	if ok {
 		provider.Capabilities = existing.Capabilities
+		if req.RequestTimeoutMs == 0 {
+			provider.RequestTimeoutMs = existing.RequestTimeoutMs
+		}
 	}
+	provider = normalizeProvider(provider)
 	if strings.TrimSpace(provider.BaseURL) == "" {
 		provider.BaseURL = "https://api.openai.com/v1"
 	}
@@ -213,6 +220,7 @@ func (s *Store) Provider(ctx context.Context, id string) (Provider, bool, error)
 	if err != nil || !ok {
 		return Provider{}, ok, err
 	}
+	provider = normalizeProvider(provider)
 	provider.HasAPIKey = s.secrets.has(provider.ID)
 	return provider, true, nil
 }
@@ -1162,6 +1170,28 @@ func defaultString(value string, fallback string) string {
 
 func normalizeBaseURL(value string) string {
 	return strings.TrimRight(strings.TrimSpace(value), "/")
+}
+
+func normalizeProvider(provider Provider) Provider {
+	provider.RequestTimeoutMs = normalizeProviderRequestTimeoutMs(provider.RequestTimeoutMs)
+	return provider
+}
+
+func normalizeProviderRequestTimeoutMs(value int) int {
+	const (
+		minProviderRequestTimeoutMs = 15_000
+		maxProviderRequestTimeoutMs = 600_000
+	)
+	if value <= 0 {
+		return int(DefaultProviderRequestTimeout / time.Millisecond)
+	}
+	if value < minProviderRequestTimeoutMs {
+		return minProviderRequestTimeoutMs
+	}
+	if value > maxProviderRequestTimeoutMs {
+		return maxProviderRequestTimeoutMs
+	}
+	return value
 }
 
 func normalizeHeaders(headers map[string]string) map[string]string {

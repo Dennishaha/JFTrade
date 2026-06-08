@@ -111,6 +111,8 @@ func (s *Server) registerSettingsRoutes(api *gin.RouterGroup) {
 	settings.PUT("/execution", s.handleSaveExecutionSettings)
 	settings.GET("/security", s.handleSecuritySettings)
 	settings.PUT("/security", s.handleSaveSecuritySettings)
+	settings.GET("/adk", s.handleADKRuntimeSettings)
+	settings.PUT("/adk", s.handleSaveADKRuntimeSettings)
 	settings.GET("/brokers", s.handleBrokerSettings)
 	settings.PUT("/brokers/:brokerId/integration", s.handleSaveBrokerIntegration)
 	settings.POST("/broker-accounts", s.handleCreateManagedBrokerAccount)
@@ -320,6 +322,16 @@ func (s *Server) handleExecutionSettings(c *gin.Context) {
 // @Router /api/v1/settings/security [get]
 func (s *Server) handleSecuritySettings(c *gin.Context) {
 	s.writeOK(c, s.store.securitySettings())
+}
+
+// handleADKRuntimeSettings godoc
+// @Summary 读取 ADK 运行时设置
+// @Tags settings
+// @Produce json
+// @Success 200 {object} envelope
+// @Router /api/v1/settings/adk [get]
+func (s *Server) handleADKRuntimeSettings(c *gin.Context) {
+	s.writeOK(c, s.store.adkSettings())
 }
 
 // handleBrokerSettings godoc

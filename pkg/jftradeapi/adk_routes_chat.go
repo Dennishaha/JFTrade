@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -46,6 +47,7 @@ func (s *Server) handleADKChatStream(c *gin.Context) {
 		s.writeError(c, http.StatusServiceUnavailable, "ADK_UNAVAILABLE", "ADK runtime is unavailable")
 		return
 	}
+	c.Header("X-ADK-Stream-Idle-Timeout-Ms", strconv.Itoa(s.store.adkSettings().StreamIdleTimeoutMs))
 	payload, err := decodeADKChatRequest(c.Request.Body)
 	if err != nil {
 		writer, ok := prepareSSEWriter(c.Writer)

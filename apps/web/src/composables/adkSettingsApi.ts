@@ -6,6 +6,7 @@ import type {
   ADKMemoryEntry,
   ADKOptimizationTask,
   ADKProvider,
+  ADKRuntimeSettings,
   ADKRun,
   ADKSkill,
   ADKTask,
@@ -63,9 +64,13 @@ export interface ADKMetricsResponse {
   };
 }
 
-interface ProvidersResponse { providers: ADKProvider[] }
-interface AgentsResponse { agents: ADKAgent[] }
-interface ToolsResponse { tools: ADKToolDescriptor[] }
+interface ADKSnapshotResponse {
+  providers: ADKProvider[];
+  agents: ADKAgent[];
+  tools: ADKToolDescriptor[];
+  skills: ADKSkill[];
+  runtimeSettings: ADKRuntimeSettings;
+}
 interface SkillsResponse { skills: ADKSkill[] }
 interface RunsResponse { runs: ADKRun[]; page?: PageEnvelope }
 interface ApprovalsResponse { approvals: ADKApproval[]; page?: PageEnvelope }
@@ -80,17 +85,15 @@ export async function fetchADKSettingsSnapshot(): Promise<{
   agents: ADKAgent[];
   tools: ADKToolDescriptor[];
   skills: ADKSkill[];
+  runtimeSettings: ADKRuntimeSettings;
   optimizationTasks: ADKOptimizationTask[];
   tasks: ADKTask[];
   memoryEntries: ADKMemoryEntry[];
   agentTemplates: Array<Omit<ADKAgent, "createdAt" | "updatedAt">>;
   metrics: ADKMetricsResponse;
 }> {
-  const [providers, agents, tools, skills, optimizationTasks, tasks, memory, templates, metrics] = await Promise.all([
-    fetchEnvelope<ProvidersResponse>("/api/v1/adk/providers"),
-    fetchEnvelope<AgentsResponse>("/api/v1/adk/agents"),
-    fetchEnvelope<ToolsResponse>("/api/v1/adk/tools"),
-    fetchEnvelope<SkillsResponse>("/api/v1/adk/skills"),
+  const [snapshot, optimizationTasks, tasks, memory, templates, metrics] = await Promise.all([
+    fetchEnvelope<ADKSnapshotResponse>("/api/v1/adk"),
     fetchEnvelope<OptimizationTasksResponse>("/api/v1/adk/optimization-tasks?limit=20"),
     fetchEnvelope<TasksResponse>("/api/v1/adk/tasks?limit=20"),
     fetchEnvelope<MemoryResponse>("/api/v1/adk/memory"),
@@ -99,10 +102,14 @@ export async function fetchADKSettingsSnapshot(): Promise<{
   ]);
 
   return {
-    providers: providers.providers,
-    agents: agents.agents,
-    tools: tools.tools,
-    skills: skills.skills,
+    providers: snapshot.providers,
+    agents: snapshot.agents,
+    tools: snapshot.tools,
+    skills: snapshot.skills,
+    runtimeSettings: snapshot.runtimeSettings ?? {
+      runTimeoutMs: 600_000,
+      streamIdleTimeoutMs: 300_000,
+    },
     optimizationTasks: optimizationTasks.tasks,
     tasks: tasks.tasks,
     memoryEntries: memory.entries,
@@ -212,6 +219,7 @@ export async function saveADKProvider(provider: {
   displayName: string;
   baseUrl: string;
   model: string;
+  requestTimeoutMs: number;
   apiKey: string;
   enabled: boolean;
 }): Promise<ADKProvider> {
@@ -219,6 +227,18 @@ export async function saveADKProvider(provider: {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(provider),
+  });
+}
+
+export async function fetchADKRuntimeSettings(): Promise<ADKRuntimeSettings> {
+  return fetchEnvelope<ADKRuntimeSettings>("/api/v1/settings/adk");
+}
+
+export async function saveADKRuntimeSettings(settings: ADKRuntimeSettings): Promise<ADKRuntimeSettings> {
+  return fetchEnvelopeWithInit<ADKRuntimeSettings>("/api/v1/settings/adk", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(settings),
   });
 }
 

@@ -23,35 +23,45 @@ const (
 	ApprovalStatusDenied   = "DENIED"
 
 	// Runtime safety limits
-	MaxRunTimeout      = 180 * time.Second // Maximum wall-clock time per run
-	MaxToolCallsPerRun = 20                // Maximum tool invocations per run
-	MaxConcurrentRuns  = 10                // Maximum simultaneous runs
-	MaxToolOutputBytes = 256 << 10         // Maximum tool output size (256 KiB)
-	MaxMessageLength   = 50000             // Maximum user message length in runes
+	DefaultProviderRequestTimeout = 180 * time.Second
+	DefaultRunTimeout             = 600 * time.Second
+	DefaultStreamIdleTimeout      = 300 * time.Second
+	MaxToolCallsPerRun            = 20        // Maximum tool invocations per run
+	MaxConcurrentRuns             = 10        // Maximum simultaneous runs
+	MaxToolOutputBytes            = 256 << 10 // Maximum tool output size (256 KiB)
+	MaxMessageLength              = 50000     // Maximum user message length in runes
 )
 
 type Provider struct {
-	ID             string            `json:"id"`
-	DisplayName    string            `json:"displayName"`
-	BaseURL        string            `json:"baseUrl"`
-	Model          string            `json:"model"`
-	DefaultHeaders map[string]string `json:"defaultHeaders,omitempty"`
-	Enabled        bool              `json:"enabled"`
-	HasAPIKey      bool              `json:"hasApiKey"`
-	Capabilities   map[string]bool   `json:"capabilities,omitempty"`
-	CreatedAt      string            `json:"createdAt"`
-	UpdatedAt      string            `json:"updatedAt"`
+	ID               string            `json:"id"`
+	DisplayName      string            `json:"displayName"`
+	BaseURL          string            `json:"baseUrl"`
+	Model            string            `json:"model"`
+	RequestTimeoutMs int               `json:"requestTimeoutMs"`
+	DefaultHeaders   map[string]string `json:"defaultHeaders,omitempty"`
+	Enabled          bool              `json:"enabled"`
+	HasAPIKey        bool              `json:"hasApiKey"`
+	Capabilities     map[string]bool   `json:"capabilities,omitempty"`
+	CreatedAt        string            `json:"createdAt"`
+	UpdatedAt        string            `json:"updatedAt"`
 }
 
 type ProviderWriteRequest struct {
-	ID             string            `json:"id,omitempty"`
-	DisplayName    string            `json:"displayName"`
-	BaseURL        string            `json:"baseUrl"`
-	Model          string            `json:"model"`
-	DefaultHeaders map[string]string `json:"defaultHeaders,omitempty"`
-	APIKey         string            `json:"apiKey,omitempty"`
-	Enabled        bool              `json:"enabled"`
+	ID               string            `json:"id,omitempty"`
+	DisplayName      string            `json:"displayName"`
+	BaseURL          string            `json:"baseUrl"`
+	Model            string            `json:"model"`
+	RequestTimeoutMs int               `json:"requestTimeoutMs,omitempty"`
+	DefaultHeaders   map[string]string `json:"defaultHeaders,omitempty"`
+	APIKey           string            `json:"apiKey,omitempty"`
+	Enabled          bool              `json:"enabled"`
 }
+
+type RuntimeLimits struct {
+	RunTimeout time.Duration
+}
+
+type RuntimeLimitsProvider func() RuntimeLimits
 
 type Agent struct {
 	ID             string   `json:"id"`
@@ -104,6 +114,7 @@ type Run struct {
 	SessionID          string     `json:"sessionId"`
 	AgentID            string     `json:"agentId"`
 	ProviderID         string     `json:"providerId,omitempty"`
+	MaxDurationMs      int64      `json:"maxDurationMs"`
 	Status             string     `json:"status"`
 	Message            string     `json:"message"`
 	UserMessage        string     `json:"userMessage,omitempty"`

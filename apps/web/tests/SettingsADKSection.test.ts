@@ -26,17 +26,17 @@ describe("SettingsADKSection", () => {
     document.body.innerHTML = "<div id='root'></div>";
     const fetchMock = vi.fn(async (input: string | URL | Request) => {
       const url = String(input);
-      if (url.includes("/api/v1/adk/providers")) {
-        return createResponse({ providers: [buildProvider()] });
-      }
-      if (url.includes("/api/v1/adk/agents")) {
-        return createResponse({ agents: [buildAgent()] });
-      }
-      if (url.includes("/api/v1/adk/tools")) {
-        return createResponse({ tools: [] });
-      }
-      if (url.includes("/api/v1/adk/skills")) {
-        return createResponse({ skills: [] });
+      if (url.endsWith("/api/v1/adk")) {
+        return createResponse({
+          providers: [buildProvider()],
+          agents: [buildAgent()],
+          tools: [],
+          skills: [],
+          runtimeSettings: {
+            runTimeoutMs: 600_000,
+            streamIdleTimeoutMs: 300_000,
+          },
+        });
       }
       if (url.includes("/api/v1/adk/optimization-tasks")) {
         return createResponse({ tasks: [] });
@@ -153,6 +153,100 @@ describe("SettingsADKSection", () => {
     expect(wrapper.text()).not.toContain("保存记忆");
     expect(wrapper.text()).not.toContain("Delete");
   });
+
+  it("saves runtime timeout settings in milliseconds", async () => {
+    document.body.innerHTML = "<div id='root'></div>";
+    const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/api/v1/adk")) {
+        return createResponse({
+          providers: [buildProvider()],
+          agents: [buildAgent()],
+          tools: [],
+          skills: [],
+          runtimeSettings: {
+            runTimeoutMs: 600_000,
+            streamIdleTimeoutMs: 300_000,
+          },
+        });
+      }
+      if (url.includes("/api/v1/adk/optimization-tasks")) {
+        return createResponse({ tasks: [] });
+      }
+      if (url.includes("/api/v1/adk/tasks")) {
+        return createResponse({ tasks: [], page: { limit: 20, offset: 0, total: 0, returned: 0, hasMore: false } });
+      }
+      if (url.includes("/api/v1/adk/memory")) {
+        return createResponse({ entries: [] });
+      }
+      if (url.includes("/api/v1/adk/agent-templates")) {
+        return createResponse({ templates: [] });
+      }
+      if (url.includes("/api/v1/adk/metrics")) {
+        return createResponse(buildMetrics());
+      }
+      if (url.includes("/api/v1/adk/runs")) {
+        return createResponse({ runs: [], page: { limit: 20, offset: 0, total: 0, returned: 0, hasMore: false } });
+      }
+      if (url.includes("/api/v1/adk/approvals")) {
+        return createResponse({ approvals: [], page: { limit: 10, offset: 0, total: 0, returned: 0, hasMore: false } });
+      }
+      if (url.includes("/api/v1/adk/audit")) {
+        return createResponse({ events: [], page: { limit: 12, offset: 0, total: 0, returned: 0, hasMore: false } });
+      }
+      if (url.endsWith("/api/v1/settings/adk") && init?.method === "PUT") {
+        return createResponse(JSON.parse(String(init.body)));
+      }
+      return createResponse({});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const router = createADKSettingsRouter("/settings/adk?tab=providers");
+    await router.isReady();
+
+    const wrapper = mount(SettingsADKSection, {
+      attachTo: "#root",
+      global: {
+        plugins: [router],
+        stubs: {
+          "v-alert": { template: "<div><slot /></div>" },
+          "v-btn": buttonStub,
+          "v-card": { template: "<section><slot /></section>" },
+          "v-card-title": { template: "<div><slot /></div>" },
+          "v-card-text": { template: "<div><slot /></div>" },
+          "v-chip": { template: "<span><slot /></span>" },
+          "v-icon": iconStub,
+          "v-select": selectStub,
+          "v-switch": { template: "<label><slot /></label>" },
+          "v-tab": tabStub,
+          "v-tabs": tabsStub,
+          "v-text-field": inputStub,
+          "v-textarea": inputStub,
+          "v-window": windowStub,
+          "v-window-item": windowItemStub,
+        },
+      },
+    });
+
+    await flushRequests();
+
+    const inputs = wrapper.findAll("input");
+    await inputs[5]!.setValue("720");
+    await inputs[6]!.setValue("450");
+    const saveButton = wrapper.findAll("button").find((button) => button.text().includes("保存运行时设置"));
+    expect(saveButton).toBeTruthy();
+    await saveButton!.trigger("click");
+    await flushRequests();
+
+    const putCall = fetchMock.mock.calls.find(
+      ([url, init]) => String(url).endsWith("/api/v1/settings/adk") && (init as RequestInit | undefined)?.method === "PUT",
+    );
+    expect(putCall).toBeTruthy();
+    expect(JSON.parse(String((putCall?.[1] as RequestInit).body))).toEqual({
+      runTimeoutMs: 720_000,
+      streamIdleTimeoutMs: 450_000,
+    });
+  });
 });
 
 function createADKSettingsRouter(path: string) {
@@ -170,6 +264,7 @@ function buildProvider() {
     displayName: "OpenAI",
     baseUrl: "https://api.openai.com/v1",
     model: "gpt-4o-mini",
+    requestTimeoutMs: 180_000,
     enabled: true,
     hasApiKey: true,
     createdAt: "2026-06-06T00:00:00Z",

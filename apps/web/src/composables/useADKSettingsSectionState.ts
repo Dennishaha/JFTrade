@@ -34,6 +34,7 @@ import {
   previousPage,
   saveADKAgent,
   saveADKProvider,
+  saveADKRuntimeSettings,
   testADKProvider,
   type ADKMetricsResponse,
   type PageEnvelope,
@@ -85,6 +86,10 @@ export function useADKSettingsSectionState() {
   const approvalPage = ref<PageEnvelope>({ limit: 10, offset: 0, total: 0, returned: 0, hasMore: false });
   const auditPage = ref<PageEnvelope>({ limit: 12, offset: 0, total: 0, returned: 0, hasMore: false });
   const skillUrl = ref("");
+  const runtimeSettingsForm = ref({
+    runTimeoutSeconds: 600,
+    streamIdleTimeoutSeconds: 300,
+  });
 
   const providerOptions = computed(() =>
     providers.value.map((p) => ({
@@ -129,6 +134,10 @@ export function useADKSettingsSectionState() {
       agents.value = snapshot.agents;
       tools.value = snapshot.tools;
       skills.value = snapshot.skills;
+      runtimeSettingsForm.value = {
+        runTimeoutSeconds: Math.max(1, Math.round((snapshot.runtimeSettings?.runTimeoutMs ?? 600_000) / 1000)),
+        streamIdleTimeoutSeconds: Math.max(1, Math.round((snapshot.runtimeSettings?.streamIdleTimeoutMs ?? 300_000) / 1000)),
+      };
       optimizationTasks.value = snapshot.optimizationTasks;
       tasks.value = snapshot.tasks;
       memoryEntries.value = snapshot.memoryEntries;
@@ -276,6 +285,23 @@ export function useADKSettingsSectionState() {
     return refreshAuditEvents();
   }
 
+  async function saveRuntimeSettings(): Promise<void> {
+    try {
+      const settings = await saveADKRuntimeSettings({
+        runTimeoutMs: Math.max(1, Math.round(Number(runtimeSettingsForm.value.runTimeoutSeconds || 0) * 1000)),
+        streamIdleTimeoutMs: Math.max(1, Math.round(Number(runtimeSettingsForm.value.streamIdleTimeoutSeconds || 0) * 1000)),
+      });
+      runtimeSettingsForm.value = {
+        runTimeoutSeconds: Math.max(1, Math.round(settings.runTimeoutMs / 1000)),
+        streamIdleTimeoutSeconds: Math.max(1, Math.round(settings.streamIdleTimeoutMs / 1000)),
+      };
+      successMessage.value = "ADK 运行时设置已保存";
+      await refreshAll();
+    } catch (error) {
+      errorMessage.value = error instanceof Error ? error.message : "保存运行时设置失败";
+    }
+  }
+
   const providerFormState = useADKProviderForm(refreshAll, successMessage, errorMessage);
   const agentFormState = useADKAgentForm(providers, tools, skills, refreshAll, successMessage, errorMessage);
 
@@ -363,6 +389,7 @@ export function useADKSettingsSectionState() {
     previousAuditPage,
     previousRunsPage,
     providerForm: providerFormState.providerForm,
+    runtimeSettingsForm,
     providerOptions,
     providers,
     refreshAll,
@@ -374,6 +401,7 @@ export function useADKSettingsSectionState() {
     runTerminalMessage,
     saveAgent: agentFormState.saveAgent,
     saveProvider: providerFormState.saveProvider,
+    saveRuntimeSettings,
     skillOptions,
     skills,
     skillUrl,

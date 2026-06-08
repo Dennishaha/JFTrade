@@ -78,14 +78,32 @@ func newADKRuntime(server *Server, settingsPath string) *jfadk.Runtime {
 	sessionService, err := jfadk.NewSQLiteSessionService(sessionDBPath)
 	if err != nil {
 		log.Printf("JFTrade ADK session store degraded: %v", err)
-		return jfadk.NewRuntime(store, registry)
+		runtime := jfadk.NewRuntime(store, registry)
+		configureADKRuntime(server, runtime)
+		return runtime
 	}
 	if err := jfadk.MigrateSQLiteSessionService(sessionService); err != nil {
 		log.Printf("JFTrade ADK session migration degraded: %v", err)
 		_ = sessionService.Close()
-		return jfadk.NewRuntime(store, registry)
+		runtime := jfadk.NewRuntime(store, registry)
+		configureADKRuntime(server, runtime)
+		return runtime
 	}
-	return jfadk.NewRuntimeWithSessionService(store, registry, sessionService)
+	runtime := jfadk.NewRuntimeWithSessionService(store, registry, sessionService)
+	configureADKRuntime(server, runtime)
+	return runtime
+}
+
+func configureADKRuntime(server *Server, runtime *jfadk.Runtime) {
+	if server == nil || runtime == nil || server.store == nil {
+		return
+	}
+	runtime.SetRuntimeLimitsProvider(func() jfadk.RuntimeLimits {
+		settings := server.store.adkSettings()
+		return jfadk.RuntimeLimits{
+			RunTimeout: time.Duration(settings.RunTimeoutMs) * time.Millisecond,
+		}
+	})
 }
 
 func backupSQLiteFiles(paths ...string) error {

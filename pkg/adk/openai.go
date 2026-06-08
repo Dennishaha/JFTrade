@@ -15,7 +15,6 @@ import (
 )
 
 type openAIClient struct {
-	httpClient *http.Client
 }
 
 type openAIChatMessage struct {
@@ -95,7 +94,16 @@ type openAIChatResult struct {
 }
 
 func newOpenAIClient() openAIClient {
-	return openAIClient{httpClient: newProviderHTTPClient(45 * time.Second)}
+	return openAIClient{}
+}
+
+func providerRequestTimeout(provider Provider) time.Duration {
+	timeoutMs := normalizeProviderRequestTimeoutMs(provider.RequestTimeoutMs)
+	return time.Duration(timeoutMs) * time.Millisecond
+}
+
+func (c openAIClient) httpClientForProvider(provider Provider) *http.Client {
+	return newProviderHTTPClient(providerRequestTimeout(provider))
 }
 
 const maxProviderPayloadBytes = 256 << 10 // Trim message content to stay under ~256KB JSON payload
@@ -259,7 +267,7 @@ func (c openAIClient) selectTools(
 			req.Header.Set(key, value)
 		}
 	}
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.httpClientForProvider(provider).Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -319,7 +327,7 @@ func (c openAIClient) chatStream(
 			req.Header.Set(key, value)
 		}
 	}
-	resp, err := c.httpClient.Do(req)
+	resp, err := c.httpClientForProvider(provider).Do(req)
 	if err != nil {
 		return openAIChatResult{}, err
 	}
