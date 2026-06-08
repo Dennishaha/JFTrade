@@ -192,6 +192,136 @@ func TestApprovalModeCreatesPendingApprovalForWriteTool(t *testing.T) {
 	}
 }
 
+func TestIdempotentApprovalRecoversPendingRunWithStaleEmbeddedApproval(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	registry := NewToolRegistry()
+	executed := false
+	registry.Register(ToolDescriptor{
+		Name:         "strategy.save_draft",
+		DisplayName:  "Save draft",
+		Description:  "test write tool",
+		Category:     "strategy",
+		Permission:   "write_strategy",
+		AllowedModes: []string{PermissionModeApproval, PermissionModeSandboxAuto, PermissionModeHighAuto},
+	}, func(context.Context, map[string]any) (any, error) {
+		executed = true
+		return map[string]any{"saved": true}, nil
+	})
+	runtime = newRuntimeWithRegistry(t, runtime.Store(), registry)
+	agent, err := runtime.Store().SaveAgent(ctx, AgentWriteRequest{
+		ID:             "agent-stale-approval",
+		Name:           "Agent",
+		Tools:          []string{"strategy.save_draft"},
+		PermissionMode: PermissionModeApproval,
+		Status:         AgentStatusEnabled,
+	})
+	if err != nil {
+		t.Fatalf("SaveAgent: %v", err)
+	}
+	response, err := runtime.Chat(ctx, ChatRequest{AgentID: agent.ID, Message: "@strategy.save_draft 保存策略"})
+	if err != nil {
+		t.Fatalf("Chat: %v", err)
+	}
+	if len(response.PendingApprovals) != 1 {
+		t.Fatalf("pending approvals = %d, want 1", len(response.PendingApprovals))
+	}
+	approvalID := response.PendingApprovals[0].ID
+	approval, changed, err := runtime.Store().ResolvePendingApproval(ctx, approvalID, ApprovalStatusApproved)
+	if err != nil {
+		t.Fatalf("ResolvePendingApproval: %v", err)
+	}
+	if !changed || approval.Status != ApprovalStatusApproved {
+		t.Fatalf("direct approval = %+v changed=%v, want approved change", approval, changed)
+	}
+	if executed {
+		t.Fatalf("write tool executed before runtime recovery")
+	}
+
+	resolution, err := runtime.ResolveApproval(ctx, approvalID, true)
+	if err != nil {
+		t.Fatalf("ResolveApproval retry: %v", err)
+	}
+	if !executed {
+		t.Fatalf("write tool was not executed by idempotent recovery")
+	}
+	if resolution.Run == nil || resolution.Run.Status != RunStatusCompleted {
+		t.Fatalf("resolution run = %+v, want completed", resolution.Run)
+	}
+	if len(resolution.Run.PendingApprovals) != 1 || resolution.Run.PendingApprovals[0].Status != ApprovalStatusApproved {
+		t.Fatalf("run approvals = %+v, want embedded approved approval", resolution.Run.PendingApprovals)
+	}
+	persistedRun, ok, err := runtime.Store().Run(ctx, response.Run.ID)
+	if err != nil || !ok {
+		t.Fatalf("persisted run ok=%v err=%v", ok, err)
+	}
+	if persistedRun.Status != RunStatusCompleted {
+		t.Fatalf("persisted run status = %q, want completed", persistedRun.Status)
+	}
+}
+
+func TestReconcileResolvedApprovalsRecoversPendingRun(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	registry := NewToolRegistry()
+	executed := false
+	registry.Register(ToolDescriptor{
+		Name:         "strategy.save_draft",
+		DisplayName:  "Save draft",
+		Description:  "test write tool",
+		Category:     "strategy",
+		Permission:   "write_strategy",
+		AllowedModes: []string{PermissionModeApproval, PermissionModeSandboxAuto, PermissionModeHighAuto},
+	}, func(context.Context, map[string]any) (any, error) {
+		executed = true
+		return map[string]any{"saved": true}, nil
+	})
+	runtime = newRuntimeWithRegistry(t, runtime.Store(), registry)
+	agent, err := runtime.Store().SaveAgent(ctx, AgentWriteRequest{
+		ID:             "agent-reconcile-approval",
+		Name:           "Agent",
+		Tools:          []string{"strategy.save_draft"},
+		PermissionMode: PermissionModeApproval,
+		Status:         AgentStatusEnabled,
+	})
+	if err != nil {
+		t.Fatalf("SaveAgent: %v", err)
+	}
+	response, err := runtime.Chat(ctx, ChatRequest{AgentID: agent.ID, Message: "@strategy.save_draft 保存策略"})
+	if err != nil {
+		t.Fatalf("Chat: %v", err)
+	}
+	approvalID := response.PendingApprovals[0].ID
+	if _, changed, err := runtime.Store().ResolvePendingApproval(ctx, approvalID, ApprovalStatusApproved); err != nil || !changed {
+		t.Fatalf("ResolvePendingApproval changed=%v err=%v", changed, err)
+	}
+
+	runtime.ReconcileResolvedApprovals(ctx)
+
+	var persistedRun Run
+	var ok bool
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		persistedRun, ok, err = runtime.Store().Run(ctx, response.Run.ID)
+		if err != nil || !ok {
+			t.Fatalf("persisted run ok=%v err=%v", ok, err)
+		}
+		if executed && persistedRun.Status == RunStatusCompleted {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if !executed {
+		t.Fatalf("write tool was not executed by resolved approval reconciliation")
+	}
+	if persistedRun.Status != RunStatusCompleted {
+		t.Fatalf("persisted run status = %q, want completed", persistedRun.Status)
+	}
+	if len(persistedRun.PendingApprovals) != 1 || persistedRun.PendingApprovals[0].Status != ApprovalStatusApproved {
+		t.Fatalf("persisted approvals = %+v, want approved", persistedRun.PendingApprovals)
+	}
+}
+
 func TestApprovalDenialCreatesAssistantSummary(t *testing.T) {
 	ctx := context.Background()
 	runtime := newTestRuntime(t)

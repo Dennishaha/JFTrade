@@ -2,11 +2,12 @@
 import MarkdownIt from "markdown-it";
 import { computed, nextTick, onMounted, reactive, ref } from "vue";
 
-import type { ADKApproval, ADKApprovalResolution } from "@jftrade/ui-contracts";
+import type { ADKApproval, ADKApprovalResolution, ADKMessage, ADKRun } from "@jftrade/ui-contracts";
 
 import ADKRunTrace from "../components/shared/ADKRunTrace.vue";
 import {
   createAssistantMessageState,
+  isTerminalRunStatus,
   runTerminalMessage,
   syncRunPresentationState,
   type ADKAssistantMessageState,
@@ -20,6 +21,7 @@ import {
   normalizeAssistantContent,
   streamADKChat,
 } from "../composables/adkChatStream";
+import { mergeAssistantFinalText } from "../composables/adkPageChatResults";
 import { fetchEnvelope, fetchEnvelopeWithInit } from "../composables/apiClient";
 import { useConsoleData } from "../composables/useConsoleData";
 import { useWorkspaceTradingPrefs } from "../composables/useWorkspaceLayout";
@@ -59,6 +61,9 @@ const scrollHost = ref<HTMLElement | null>(null);
 const pendingApprovals = ref<ADKApproval[]>([]);
 
 interface ApprovalsResponse { approvals: ADKApproval[] }
+interface SessionDetailResponse {
+  messages: ADKMessage[];
+}
 
 onMounted(() => {
   void refreshApprovals();
@@ -160,20 +165,13 @@ async function send(): Promise<void> {
         }
       }
       if (event.type === "final" && event.response) {
-        if (assistantMessage.preToolContent !== undefined) {
-          assistantMessage.content = event.response.reply.replace(assistantMessage.preToolContent, "").trim();
-          if (event.response.reasoningContent && assistantMessage.preToolReasoning) {
-            assistantMessage.reasoningContent = event.response.reasoningContent.replace(assistantMessage.preToolReasoning, "").trim();
-          }
-        } else {
-          assistantMessage.content = event.response.reply;
-          assistantMessage.reasoningContent = event.response.reasoningContent ?? assistantMessage.reasoningContent ?? "";
-        }
+        const normalized = normalizeAssistantContent(event.response.reply, event.response.reasoningContent);
+        mergeAssistantFinalText(assistantMessage, normalized.content, normalized.reasoningContent);
         syncRunPresentationState(assistantMessage, event.response.run);
         assistantMessage.toolProgress = "";
         const terminalMessage = runTerminalMessage(event.response.run);
         if (terminalMessage) {
-          assistantMessage.content += `\n\n⚠️ ${terminalMessage}`;
+          appendAssistantNotice(assistantMessage, terminalMessage);
         }
       }
       if (event.type === "error") {
@@ -184,27 +182,19 @@ async function send(): Promise<void> {
       response.reply,
       response.reasoningContent ?? assistantMessage.reasoningContent,
     );
-    if (assistantMessage.preToolContent !== undefined) {
-      assistantMessage.content = normalized.content.replace(assistantMessage.preToolContent, "").trim();
-      if (normalized.reasoningContent && assistantMessage.preToolReasoning) {
-        assistantMessage.reasoningContent = normalized.reasoningContent.replace(assistantMessage.preToolReasoning, "").trim();
-      }
-    } else {
-      assistantMessage.content = normalized.content;
-      assistantMessage.reasoningContent = normalized.reasoningContent;
-    }
+    mergeAssistantFinalText(assistantMessage, normalized.content, normalized.reasoningContent);
     syncRunPresentationState(assistantMessage, response.run);
     pendingApprovals.value = response.pendingApprovals;
     const terminalMessage = runTerminalMessage(response.run);
     if (terminalMessage) {
-      assistantMessage.content += `\n\n⚠️ ${terminalMessage}`;
+      appendAssistantNotice(assistantMessage, terminalMessage);
     }
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : "Agents chat failed";
     if (assistantMessage.content.trim() === "" && (assistantMessage.reasoningContent ?? "").trim() === "") {
       assistantMessage.content = errMsg;
     } else {
-      assistantMessage.content += `\n\n⚠️ ${errMsg}`;
+      appendAssistantNotice(assistantMessage, errMsg);
     }
   } finally {
     busy.value = false;
@@ -227,7 +217,7 @@ async function refreshApprovals(): Promise<void> {
 async function resolveApproval(approval: ADKApproval, approved: boolean): Promise<void> {
   const action = approved ? "approve" : "deny";
   try {
-      const resolution = await fetchEnvelopeWithInit<ADKApprovalResolution>(
+    const resolution = await fetchEnvelopeWithInit<ADKApprovalResolution>(
       `/api/v1/adk/approvals/${encodeURIComponent(approval.id)}/${action}`,
       { method: "POST" },
     );
@@ -248,25 +238,99 @@ async function resolveApproval(approval: ADKApproval, approved: boolean): Promis
         ? messages.value.findIndex((item) => item.run?.id === resolution.run?.id)
         : -1;
       if (messageIndex >= 0) {
+        const existingMessage = { ...messages.value[messageIndex]! };
+        mergeAssistantFinalText(existingMessage, message.content, message.reasoningContent);
         messages.value[messageIndex] = {
-          ...messages.value[messageIndex]!,
-          content: message.content,
-          reasoningContent: message.reasoningContent ?? "",
+          ...existingMessage,
           reasoningExpanded: false,
           run: resolution.run,
         };
       } else {
         messages.value.push(message);
       }
+    } else if (resolution.run) {
+      const messageIndex = messages.value.findIndex((item) => item.run?.id === resolution.run?.id);
+      if (messageIndex >= 0) {
+        messages.value[messageIndex] = {
+          ...messages.value[messageIndex]!,
+          run: resolution.run,
+        };
+      }
     }
     await refreshApprovals();
+    await waitForApprovalContinuation(resolution.run ?? undefined);
   } catch (error) {
+    await refreshApprovals();
     messages.value.push({
       id: `approval-error-${Date.now()}`,
       role: "assistant",
-      content: error instanceof Error ? error.message : "审批处理失败",
+      content: `审批处理失败：${error instanceof Error ? error.message : "请稍后重试"}`,
     });
   }
+}
+
+async function waitForApprovalContinuation(run: ADKRun | undefined): Promise<void> {
+  if (!run || isTerminalRunStatus(run.status)) return;
+  const deadline = Date.now() + 15_000;
+  let latestRun = run;
+  while (Date.now() < deadline) {
+    await delay(900);
+    try {
+      latestRun = await fetchEnvelope<ADKRun>(`/api/v1/adk/runs/${encodeURIComponent(run.id)}`);
+      updateMessageRun(latestRun);
+      if (isTerminalRunStatus(latestRun.status)) {
+        await appendFinalMessage(latestRun);
+        return;
+      }
+    } catch {
+      return;
+    }
+  }
+}
+
+function updateMessageRun(run: ADKRun): void {
+  const messageIndex = messages.value.findIndex((item) => item.run?.id === run.id);
+  if (messageIndex >= 0) {
+    messages.value[messageIndex] = { ...messages.value[messageIndex]!, run };
+  }
+}
+
+function appendAssistantNotice(message: Message, text: string): void {
+  const notice = `⚠️ ${text}`;
+  if (message.content.includes(notice)) return;
+  message.content = message.content.trim() === "" ? notice : `${message.content}\n\n${notice}`;
+}
+
+async function appendFinalMessage(run: ADKRun): Promise<void> {
+  if (!run.finalMessageId || !run.sessionId) return;
+  const detail = await fetchEnvelope<SessionDetailResponse>(`/api/v1/adk/sessions/${encodeURIComponent(run.sessionId)}`);
+  const finalMessage = detail.messages.find((message) => message.id === run.finalMessageId);
+  if (!finalMessage) return;
+  const normalized = normalizeAssistantContent(finalMessage.content, finalMessage.reasoningContent);
+  const messageIndex = messages.value.findIndex((item) => item.run?.id === run.id);
+  const nextMessage: Message = {
+    ...(createAssistantMessageState(finalMessage.id)),
+    id: finalMessage.id,
+    role: "assistant",
+    content: normalized.content,
+    reasoningContent: normalized.reasoningContent,
+    run,
+  };
+  if (messageIndex >= 0) {
+    const existingMessage = { ...messages.value[messageIndex]! };
+    mergeAssistantFinalText(existingMessage, nextMessage.content, nextMessage.reasoningContent);
+    messages.value[messageIndex] = {
+      ...existingMessage,
+      reasoningExpanded: false,
+      run,
+    };
+  } else if (!messages.value.some((item) => item.id === finalMessage.id)) {
+    messages.value.push(nextMessage);
+  }
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
 function pick(s: string): void {

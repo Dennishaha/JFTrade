@@ -282,8 +282,8 @@ func TestCompleteChatRunFailureUsesFallbackReplyAndPersistsTerminalState(t *test
 	if response.Run.Status != RunStatusFailed || response.Run.ErrorCode != "MODEL_CALL_FAILED" || response.Run.FinalMessageID == "" {
 		t.Fatalf("response run = %+v", response.Run)
 	}
-	if !strings.Contains(response.Reply, "本地兜底回复") || !strings.Contains(response.Reply, "provider down") {
-		t.Fatalf("reply = %q, want fallback reply with cause", response.Reply)
+	if !strings.Contains(response.Reply, "本地兜底回复") || strings.Contains(response.Reply, "provider down") {
+		t.Fatalf("reply = %q, want user-friendly fallback reply without raw cause", response.Reply)
 	}
 
 	stored, ok, err := runtime.Store().Run(ctx, run.ID)

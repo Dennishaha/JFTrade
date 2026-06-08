@@ -43,12 +43,23 @@ export function applyPersistedRunState(message: ChatMessage, run: ADKRun | undef
   const preToolReasoning = (run.preToolReasoning ?? "").trim();
   if (preToolContent !== "") {
     message.preToolContent = preToolContent;
-    message.content = message.content.replace(preToolContent, "").trim();
+    message.content = stripKnownPrefix(message.content, preToolContent);
   }
   if (preToolReasoning !== "") {
     message.preToolReasoning = preToolReasoning;
-    message.reasoningContent = (message.reasoningContent ?? "").replace(preToolReasoning, "").trim();
+    message.reasoningContent = stripKnownPrefix(message.reasoningContent ?? "", preToolReasoning);
   }
+}
+
+function stripKnownPrefix(value: string, prefix: string): string {
+  const normalizedValue = value.trim();
+  const normalizedPrefix = prefix.trim();
+  if (normalizedValue === "" || normalizedPrefix === "") return normalizedValue;
+  if (normalizedValue === normalizedPrefix) return "";
+  if (normalizedValue.startsWith(normalizedPrefix)) {
+    return normalizedValue.slice(normalizedPrefix.length).trim();
+  }
+  return normalizedValue;
 }
 
 export async function scrollToBottom(threadRef: Ref<HTMLElement | null>): Promise<void> {

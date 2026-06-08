@@ -14,13 +14,16 @@ type SQLiteSessionService struct {
 }
 
 func NewSQLiteSessionService(path string) (*SQLiteSessionService, error) {
-	db, err := sql.Open(sqliteDriverName, path)
+	dsn := path + "?_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)&_pragma=busy_timeout(10000)"
+	db, err := sql.Open(sqliteDriverName, dsn)
 	if err != nil {
 		return nil, err
 	}
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(1)
 	service, err := adksessiondb.NewSessionService(sqliteDialector{
 		DriverName: sqliteDriverName,
-		DSN:        path,
+		DSN:        dsn,
 		Conn:       db,
 	})
 	if err != nil {

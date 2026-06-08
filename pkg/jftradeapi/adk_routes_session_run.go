@@ -1,6 +1,7 @@
 package jftradeapi
 
 import (
+	"context"
 	"net/http"
 	"strings"
 
@@ -125,6 +126,7 @@ func (s *Server) handleADKDeleteSession(c *gin.Context) {
 // @Router /api/v1/adk/runs [get]
 func (s *Server) handleADKRuns(c *gin.Context) {
 	s.adkRuntime.ReconcileExpiredRuns(c.Request.Context())
+	s.adkRuntime.ReconcileResolvedApprovals(context.WithoutCancel(c.Request.Context()))
 	var query adkRunsQuery
 	if err := c.ShouldBindQuery(&query); err != nil {
 		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid runs query")
@@ -152,6 +154,7 @@ func (s *Server) handleADKCancelRun(c *gin.Context) {
 
 func (s *Server) handleADKRun(c *gin.Context) {
 	s.adkRuntime.ReconcileExpiredRuns(c.Request.Context())
+	s.adkRuntime.ReconcileResolvedApprovals(context.WithoutCancel(c.Request.Context()))
 	var uri runURI
 	if err := bindURI(c, &uri); err != nil || strings.TrimSpace(uri.RunID) == "" {
 		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "runId is invalid")
@@ -171,6 +174,7 @@ func (s *Server) handleADKRun(c *gin.Context) {
 }
 
 func (s *Server) handleADKApprovals(c *gin.Context) {
+	s.adkRuntime.ReconcileResolvedApprovals(context.WithoutCancel(c.Request.Context()))
 	var query adkApprovalsQuery
 	if err := c.ShouldBindQuery(&query); err != nil {
 		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid approvals query")
@@ -188,7 +192,7 @@ func (s *Server) handleADKApproval(c *gin.Context, approved bool) {
 		return
 	}
 	id := uri.ApprovalID
-	resolution, err := s.adkRuntime.ResolveApproval(c.Request.Context(), id, approved)
+	resolution, err := s.adkRuntime.ResolveApprovalAsync(context.WithoutCancel(c.Request.Context()), id, approved)
 	if err != nil {
 		s.writeError(c, http.StatusInternalServerError, "ADK_APPROVAL_RESOLVE_FAILED", err.Error())
 		return

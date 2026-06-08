@@ -82,11 +82,26 @@ func TestADKApprovalRouteReturnsResolutionEnvelope(t *testing.T) {
 	if denyEnvelope.Data.Approval.Status != jfadk.ApprovalStatusDenied {
 		t.Fatalf("approval status = %q, want denied", denyEnvelope.Data.Approval.Status)
 	}
-	if denyEnvelope.Data.Run == nil || denyEnvelope.Data.Run.Status != jfadk.RunStatusDenied {
-		t.Fatalf("resolution run = %+v, want denied", denyEnvelope.Data.Run)
+	if denyEnvelope.Data.Run == nil || denyEnvelope.Data.Run.Status != jfadk.RunStatusPending || denyEnvelope.Data.Run.ResumeState != "approval_resuming" {
+		t.Fatalf("resolution run = %+v, want pending background continuation", denyEnvelope.Data.Run)
 	}
-	if denyEnvelope.Data.Message == nil || denyEnvelope.Data.Message.Role != "assistant" {
-		t.Fatalf("resolution message = %+v, want assistant summary", denyEnvelope.Data.Message)
+	if denyEnvelope.Data.Message != nil {
+		t.Fatalf("resolution message = %+v, want no synchronous assistant summary", denyEnvelope.Data.Message)
+	}
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		run, ok, err := server.adkRuntime.Store().Run(t.Context(), chatEnvelope.Data.Run.ID)
+		if err != nil || !ok {
+			t.Fatalf("stored run ok=%v err=%v", ok, err)
+		}
+		if run.Status == jfadk.RunStatusDenied {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	run, ok, err := server.adkRuntime.Store().Run(t.Context(), chatEnvelope.Data.Run.ID)
+	if err != nil || !ok || run.Status != jfadk.RunStatusDenied {
+		t.Fatalf("stored run after async denial = %+v ok=%v err=%v, want denied", run, ok, err)
 	}
 }
 
@@ -1400,8 +1415,8 @@ func TestADKApprovalNegativeAndIdempotentRoutes(t *testing.T) {
 	if err := json.NewDecoder(secondResp.Body).Decode(&secondEnvelope); err != nil {
 		t.Fatalf("decode second approval envelope: %v", err)
 	}
-	if !secondEnvelope.OK || secondEnvelope.Data.Approval.Status != jfadk.ApprovalStatusApproved || secondEnvelope.Data.Run != nil {
-		t.Fatalf("second approval envelope = %+v, want idempotent approved result without run mutation", secondEnvelope)
+	if !secondEnvelope.OK || secondEnvelope.Data.Approval.Status != jfadk.ApprovalStatusApproved {
+		t.Fatalf("second approval envelope = %+v, want idempotent approved result", secondEnvelope)
 	}
 }
 

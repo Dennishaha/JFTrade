@@ -54,7 +54,7 @@ func NewStore(dbPath string, secretsPath string, skillsPath string) (*Store, err
 	if err := os.MkdirAll(skillsPath, 0o755); err != nil {
 		return nil, fmt.Errorf("create adk skills directory: %w", err)
 	}
-	db, err := sqlx.Open("sqlite", dbPath+"?_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)")
+	db, err := sqlx.Open("sqlite", dbPath+"?_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)&_pragma=busy_timeout(10000)")
 	if err != nil {
 		return nil, fmt.Errorf("open adk sqlite store: %w", err)
 	}

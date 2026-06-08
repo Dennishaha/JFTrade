@@ -9,13 +9,14 @@ import type {
 
 import {
   createAssistantMessageState,
+  isTerminalRunStatus,
   runTerminalMessage,
   syncRunPresentationState,
   type ADKAssistantMessageState,
 } from "./adkChatPresentation";
 import { applyApprovalResolutionToChat, applyFinalResponse } from "./adkPageChatResults";
 import { streamADKChat } from "./adkChatStream";
-import { fetchEnvelopeWithInit } from "./apiClient";
+import { fetchEnvelope, fetchEnvelopeWithInit } from "./apiClient";
 import { scrollToBottom, type ChatMessage } from "./adkPageMessages";
 import { loadSessionChatHistory } from "./adkPageRunHistory";
 
@@ -153,19 +154,29 @@ export function useADKPageChatState(
   }
 
   async function resolveApproval(approval: ADKApproval): Promise<void> {
-    const resolution = await fetchEnvelopeWithInit<ADKApprovalResolution>(
-      `/api/v1/adk/approvals/${encodeURIComponent(approval.id)}/approve`,
-      { method: "POST" },
-    );
-    applyApprovalResolution(approval, resolution);
+    try {
+      const resolution = await fetchEnvelopeWithInit<ADKApprovalResolution>(
+        `/api/v1/adk/approvals/${encodeURIComponent(approval.id)}/approve`,
+        { method: "POST" },
+      );
+      applyApprovalResolution(approval, resolution);
+    } catch (error) {
+      sessionState.errorMessage.value = error instanceof Error ? error.message : "审批处理失败";
+      await sessionState.refreshAll();
+    }
   }
 
   async function denyApproval(approval: ADKApproval): Promise<void> {
-    const resolution = await fetchEnvelopeWithInit<ADKApprovalResolution>(
-      `/api/v1/adk/approvals/${encodeURIComponent(approval.id)}/deny`,
-      { method: "POST" },
-    );
-    applyApprovalResolution(approval, resolution);
+    try {
+      const resolution = await fetchEnvelopeWithInit<ADKApprovalResolution>(
+        `/api/v1/adk/approvals/${encodeURIComponent(approval.id)}/deny`,
+        { method: "POST" },
+      );
+      applyApprovalResolution(approval, resolution);
+    } catch (error) {
+      sessionState.errorMessage.value = error instanceof Error ? error.message : "审批处理失败";
+      await sessionState.refreshAll();
+    }
   }
 
   function handleComposerKeydown(event: KeyboardEvent): void {
@@ -192,6 +203,52 @@ export function useADKPageChatState(
 
   function applyApprovalResolution(_approval: ADKApproval, resolution: ADKApprovalResolution): void | Promise<void> {
     chatMessages.value = applyApprovalResolutionToChat(chatMessages.value, resolution);
-    return scrollToBottom(threadRef).then(sessionState.refreshAll);
+    return scrollToBottom(threadRef)
+      .then(sessionState.refreshAll)
+      .then(() => waitForApprovalContinuation(resolution.run ?? undefined));
   }
+
+  async function waitForApprovalContinuation(run: ADKRun | undefined): Promise<void> {
+    if (!run || isTerminalRunStatus(run.status)) {
+      return;
+    }
+    const sessionId = run.sessionId || sessionState.selectedSessionId.value;
+    if (!sessionId) {
+      return;
+    }
+    const deadline = Date.now() + 15_000;
+    let latestRun = run;
+    while (Date.now() < deadline) {
+      await delay(900);
+      try {
+        latestRun = await fetchEnvelope<ADKRun>(`/api/v1/adk/runs/${encodeURIComponent(run.id)}`);
+        chatMessages.value = chatMessages.value.map((message) =>
+          message.run?.id === latestRun.id ? { ...message, run: latestRun } : message,
+        );
+        if (isTerminalRunStatus(latestRun.status)) {
+          await reloadSessionMessages(sessionId);
+          const failMsg = runTerminalMessage(latestRun);
+          if (failMsg) {
+            sessionState.errorMessage.value = failMsg;
+          }
+          return;
+        }
+      } catch {
+        return;
+      }
+    }
+  }
+
+  async function reloadSessionMessages(sessionId: string): Promise<void> {
+    if (sessionState.selectedSessionId.value !== sessionId) {
+      return;
+    }
+    const detail = await loadSessionChatHistory(sessionId);
+    chatMessages.value = detail.chatMessages;
+    await scrollToBottom(threadRef);
+  }
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
