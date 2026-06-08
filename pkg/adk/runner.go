@@ -304,7 +304,7 @@ func (r *Runtime) executeToolInvocations(ctx context.Context, agent Agent, runID
 			result.calls = append(result.calls, call)
 			continue
 		}
-		output, err := executeRegisteredTool(ctx, registered, input)
+		output, err := executeRegisteredTool(contextWithToolAgent(ctx, agent), registered, input)
 		if err != nil {
 			errText := err.Error()
 			call.Status = "FAILED"
@@ -553,7 +553,7 @@ func (r *Runtime) ResolveApproval(ctx context.Context, approvalID string, approv
 							call.Status = "FAILED"
 							call.Error = &errText
 						} else {
-							output, execErr := executeRegisteredTool(ctx, registered, item.Input)
+							output, execErr := executeRegisteredTool(contextWithToolAgent(ctx, agent), registered, item.Input)
 							if execErr != nil {
 								errText := execErr.Error()
 								call.Status = "FAILED"
@@ -656,7 +656,43 @@ func (r *Runtime) prepareAgent(ctx context.Context, agent Agent) (Agent, error) 
 			return Agent{}, fmt.Errorf("skill not found: %s", strings.TrimSpace(id))
 		}
 	}
+	if agent.MemoryEnabled {
+		memoryPrompt, err := r.agentMemoryPrompt(ctx, agent.ID)
+		if err != nil {
+			return Agent{}, err
+		}
+		if memoryPrompt != "" {
+			agent.Instruction = strings.TrimSpace(agent.Instruction) + "\n\nJFTrade memory:\n" + memoryPrompt
+		}
+	}
 	return agent, nil
+}
+
+func (r *Runtime) agentMemoryPrompt(ctx context.Context, agentID string) (string, error) {
+	if r == nil || r.store == nil {
+		return "", nil
+	}
+	entries, err := r.store.ListMemory(ctx, agentID)
+	if err != nil {
+		return "", err
+	}
+	if len(entries) == 0 {
+		return "", nil
+	}
+	lines := make([]string, 0, len(entries))
+	remaining := 4000
+	for _, entry := range entries {
+		line := fmt.Sprintf("- [%s] %s: %s", entry.Scope, entry.Key, strings.TrimSpace(entry.Value))
+		if len([]rune(line)) > remaining {
+			line = string([]rune(line)[:remaining])
+		}
+		lines = append(lines, line)
+		remaining -= len([]rune(line))
+		if remaining <= 0 {
+			break
+		}
+	}
+	return strings.Join(lines, "\n"), nil
 }
 
 func (r *Runtime) startRun(ctx context.Context, sessionID string, agent Agent, text string) (Run, context.Context, func(), error) {

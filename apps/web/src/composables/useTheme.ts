@@ -31,7 +31,7 @@ function applyTheme(mode: ThemeMode): void {
 function applyVuetifyTheme(mode: ThemeMode): void {
   try {
     const vuetifyTheme = useVuetifyTheme();
-    vuetifyTheme.global.name.value = mode;
+    vuetifyTheme.change(mode);
   } catch {
     // No Vuetify theme context in this component tree (e.g. isolated tests).
   }

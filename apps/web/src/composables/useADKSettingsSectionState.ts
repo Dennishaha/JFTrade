@@ -4,10 +4,12 @@ import type {
   ADKAgent,
   ADKApproval,
   ADKAuditEvent,
+  ADKMemoryEntry,
   ADKOptimizationTask,
   ADKProvider,
   ADKRun,
   ADKSkill,
+  ADKTask,
   ADKToolDescriptor,
 } from "@jftrade/ui-contracts";
 
@@ -20,10 +22,12 @@ import {
   fetchADKApprovalsPage,
   fetchADKAuditPage,
   fetchADKMetrics,
+  fetchADKMemory,
   fetchADKOptimizationTasks,
   fetchADKRunsPage,
   fetchADKSettingsSnapshot,
   fetchADKSkills,
+  fetchADKTasks,
   installADKSkill,
   nextPage,
   pageSummary,
@@ -57,6 +61,9 @@ export function useADKSettingsSectionState() {
   const runs = ref<ADKRun[]>([]);
   const approvals = ref<ADKApproval[]>([]);
   const optimizationTasks = ref<ADKOptimizationTask[]>([]);
+  const tasks = ref<ADKTask[]>([]);
+  const memoryEntries = ref<ADKMemoryEntry[]>([]);
+  const agentTemplates = ref<Array<Omit<ADKAgent, "createdAt" | "updatedAt">>>([]);
   const auditEvents = ref<ADKAuditEvent[]>([]);
   const metrics = ref<ADKMetricsResponse | null>(null);
   const loading = ref(false);
@@ -66,6 +73,14 @@ export function useADKSettingsSectionState() {
   const runStatusFilter = ref("attention");
   const approvalStatusFilter = ref("PENDING");
   const auditKindFilter = ref("");
+  const taskStatusFilter = ref("");
+  const taskAgentFilter = ref("");
+  const memoryScopeFilter = ref("");
+  const memoryAgentFilter = ref("");
+  const memoryKeyFilter = ref("");
+  const toolCategoryFilter = ref("");
+  const toolRiskFilter = ref("");
+  const agentTemplateNotice = ref("");
   const runPage = ref<PageEnvelope>({ limit: 20, offset: 0, total: 0, returned: 0, hasMore: false });
   const approvalPage = ref<PageEnvelope>({ limit: 10, offset: 0, total: 0, returned: 0, hasMore: false });
   const auditPage = ref<PageEnvelope>({ limit: 12, offset: 0, total: 0, returned: 0, hasMore: false });
@@ -73,12 +88,25 @@ export function useADKSettingsSectionState() {
 
   const providerOptions = computed(() =>
     providers.value.map((p) => ({
-      title: `${p.displayName} · ${p.model}${p.hasApiKey ? "" : " · 未配置 Key"}`,
+      title: `${p.displayName} · ${p.model}${p.hasApiKey ? "" : " · 未配置密钥"}`,
       value: p.id,
     })),
   );
+  const filteredTools = computed(() =>
+    tools.value.filter((tool) => {
+      if (toolCategoryFilter.value && tool.category !== toolCategoryFilter.value) return false;
+      if (toolRiskFilter.value && tool.riskLevel !== toolRiskFilter.value) return false;
+      return true;
+    }),
+  );
   const toolOptions = computed(() =>
-    tools.value.map((t) => ({ title: `${t.displayName} (${t.name})`, value: t.name })),
+    filteredTools.value.map((t) => ({ title: `${t.displayName} (${t.name})`, value: t.name })),
+  );
+  const toolCategoryOptions = computed(() =>
+    Array.from(new Set(tools.value.map((tool) => tool.category).filter(Boolean))).sort(),
+  );
+  const toolRiskOptions = computed(() =>
+    Array.from(new Set(tools.value.map((tool) => tool.riskLevel).filter(Boolean))).sort(),
   );
   const skillOptions = computed(() =>
     skills.value.map((s) => ({ title: s.displayName, value: s.id })),
@@ -102,10 +130,13 @@ export function useADKSettingsSectionState() {
       tools.value = snapshot.tools;
       skills.value = snapshot.skills;
       optimizationTasks.value = snapshot.optimizationTasks;
+      tasks.value = snapshot.tasks;
+      memoryEntries.value = snapshot.memoryEntries;
+      agentTemplates.value = snapshot.agentTemplates;
       metrics.value = snapshot.metrics;
       await Promise.all([refreshRuns(), refreshApprovals(), refreshAuditEvents()]);
     } catch (error) {
-      errorMessage.value = error instanceof Error ? error.message : "加载 Agents 配置失败";
+      errorMessage.value = error instanceof Error ? error.message : "加载智能体配置失败";
     } finally {
       loading.value = false;
     }
@@ -135,6 +166,21 @@ export function useADKSettingsSectionState() {
 
   async function refreshOptimizationTasks(): Promise<void> {
     optimizationTasks.value = await fetchADKOptimizationTasks();
+  }
+
+  async function refreshTasks(): Promise<void> {
+    tasks.value = await fetchADKTasks({
+      status: taskStatusFilter.value,
+      agentId: taskAgentFilter.value,
+    });
+  }
+
+  async function refreshMemory(): Promise<void> {
+    memoryEntries.value = await fetchADKMemory({
+      scope: memoryScopeFilter.value,
+      agentId: memoryAgentFilter.value,
+      key: memoryKeyFilter.value,
+    });
   }
 
   async function refreshMetrics(): Promise<void> {
@@ -171,9 +217,25 @@ export function useADKSettingsSectionState() {
     }
   }
 
+  function applyAgentTemplate(template: Omit<ADKAgent, "createdAt" | "updatedAt">): void {
+    agentFormState.agentForm.value = {
+      id: "",
+      name: template.name,
+      instruction: template.instruction,
+      providerId: providers.value[0]?.id ?? "",
+      model: template.model ?? "",
+      tools: [...template.tools],
+      skills: [...template.skills],
+      permissionMode: template.permissionMode,
+      memoryEnabled: template.memoryEnabled,
+      status: template.status,
+    };
+    agentTemplateNotice.value = `已载入「${template.name}」模板。保存智能体表单后生效。`;
+  }
+
   async function uninstallSkill(skill: ADKSkill): Promise<void> {
     if (isInternalSkill(skill)) {
-      errorMessage.value = "内部来源的 Skill 不允许卸载";
+      errorMessage.value = "内部来源的技能不允许卸载";
       return;
     }
     try {
@@ -246,6 +308,14 @@ export function useADKSettingsSectionState() {
     void refreshAuditEvents();
   });
 
+  watch([taskStatusFilter, taskAgentFilter], () => {
+    void refreshTasks();
+  });
+
+  watch([memoryScopeFilter, memoryAgentFilter, memoryKeyFilter], () => {
+    void refreshMemory();
+  });
+
   return {
     activeTab,
     agents,
@@ -256,6 +326,9 @@ export function useADKSettingsSectionState() {
     auditEvents,
     auditKindFilter,
     auditPage,
+    agentTemplates,
+    agentTemplateNotice,
+    applyAgentTemplate,
     cancelOptimizationTask,
     cancelRun,
     deleteAgent: agentFormState.deleteAgent,
@@ -272,6 +345,10 @@ export function useADKSettingsSectionState() {
     isInternalSkill,
     loading,
     metrics,
+    memoryAgentFilter,
+    memoryEntries,
+    memoryKeyFilter,
+    memoryScopeFilter,
     newAgentForm: agentFormState.newAgentForm,
     newProviderForm: providerFormState.newProviderForm,
     nextApprovalsPage,
@@ -302,8 +379,15 @@ export function useADKSettingsSectionState() {
     skillUrl,
     successMessage,
     testProvider: providerFormState.testProvider,
+    taskAgentFilter,
+    taskStatusFilter,
+    tasks,
     toolCallStatusColor,
+    toolCategoryFilter,
+    toolCategoryOptions,
     toolOptions,
+    toolRiskFilter,
+    toolRiskOptions,
     tools,
     uninstallSkill,
   };

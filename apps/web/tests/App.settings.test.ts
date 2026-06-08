@@ -301,10 +301,7 @@ describe("Settings page", () => {
     expect(wrapper.text()).toContain("设置");
     expect(wrapper.text()).toContain("富途接入");
     expect(wrapper.text()).toContain("OpenD 连接状态");
-    expect(wrapper.text()).toContain("OpenD 安装指引");
     expect(wrapper.text()).toContain("WebSocket 密码 / 密钥");
-    expect(wrapper.text()).toContain("图形交互版 OpenD");
-    expect(wrapper.text()).toContain("命令行版 OpenD");
     expect(wrapper.text()).toContain("Primary sim");
     expect(wrapper.text()).toContain("OpenD 发现的账户");
 
@@ -315,12 +312,6 @@ describe("Settings page", () => {
     expect(wrapper.text()).toContain("OpenD 127.0.0.1:11110");
     expect(wrapper.text()).toContain("已登录");
 
-    expect(wrapper.html()).toContain(
-      "https://openapi.futunn.com/futu-api-doc/quick/opend-base.html",
-    );
-    expect(wrapper.html()).toContain(
-      "https://openapi.futunn.com/futu-api-doc/opend/opend-cmd.html",
-    );
     expect(fetchMock).not.toHaveBeenCalledWith(
       expect.stringContaining("/api/v1/plugins/install-futu-opend/install"),
       expect.anything(),

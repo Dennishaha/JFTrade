@@ -3,12 +3,10 @@ import { computed, defineAsyncComponent, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 import FutuIntegrationSection from "../components/FutuIntegrationSection.vue";
-import OpenDInstallGuideSection from "../components/OpenDInstallGuideSection.vue";
 import SettingsAccountDiscoverySection from "../components/SettingsAccountDiscoverySection.vue";
 import SettingsAppearanceSection from "../components/SettingsAppearanceSection.vue";
 import SettingsManagedAccountsSection from "../components/SettingsManagedAccountsSection.vue";
 import SettingsSecuritySection from "../components/SettingsSecuritySection.vue";
-import PageHeader from "../components/PageHeader.vue";
 import { createSettingsManagedAccountsController } from "../composables/settingsManagedAccounts";
 import { readLocalStorage, writeLocalStorage } from "../composables/safeStorage";
 import { useConsoleData } from "../composables/useConsoleData";
@@ -54,11 +52,6 @@ const settingsMenu = [
     description: "配置管理员认证与访问保护。",
   },
   {
-    index: "plugin-manager",
-    label: "OpenD 安装",
-    description: "查看富途官方 OpenD 安装文档与配置指引。",
-  },
-  {
     index: "adk",
     label: "Agents",
     description: "配置 AI 模型 Provider、Agent 定义与 Skill 安装。",
@@ -87,12 +80,6 @@ onMounted(() => {
   }
 });
 
-const activeMenuMeta = computed(
-  () =>
-    settingsMenu.find((entry) => entry.index === activeMenu.value) ??
-    settingsMenu[0],
-);
-
 const futuIntegration = computed(
   () =>
     brokerSettings.value.brokers.find(
@@ -119,21 +106,6 @@ function handleMenuSelect(index: string): void {
   void router.push(`/settings/${index}`);
 }
 
-const settingsHeaderStats = computed(() => [
-  {
-    label: "托管券商",
-    value: brokerSettings.value.brokers.length,
-  },
-  {
-    label: "托管账户",
-    value: brokerSettings.value.accounts.length,
-  },
-  {
-    label: "运行时账户",
-    value: brokerRuntime.value.accounts.length,
-  },
-]);
-
 const managedAccountsController = createSettingsManagedAccountsController({
   brokerRuntime,
   brokerSettings,
@@ -157,37 +129,8 @@ const {
 
 <template>
   <div class="grid gap-6">
-    <PageHeader
-      eyebrow="控制台"
-      title="设置"
-      description="统一维护券商接入配置与账户资料；顶部账户范围会基于这里的账户清单切换查询上下文。"
-      :stats="settingsHeaderStats"
-    />
-
-    <v-breadcrumbs class="p-0 text-sm text-slate-500">
-      <v-breadcrumbs-item :to="{ path: '/settings' }"
-        >控制台</v-breadcrumbs-item
-      >
-      <v-breadcrumbs-item>设置</v-breadcrumbs-item>
-      <v-breadcrumbs-item>{{ activeMenuMeta.label }}</v-breadcrumbs-item>
-    </v-breadcrumbs>
-
-    <div class="settings-page-header flex items-center justify-between gap-3">
-      <div>
-        <div class="text-lg font-semibold text-slate-900">
-          {{ activeMenuMeta.label }}
-        </div>
-        <div class="mt-1 text-xs text-slate-500">
-          {{ activeMenuMeta.description }}
-        </div>
-      </div>
-      <v-chip variant="outlined" size="small">{{
-        activeMenuMeta.label
-      }}</v-chip>
-    </div>
-
-    <section class="grid gap-5 lg:grid-cols-[220px_1fr]">
-      <nav class="rounded-lg border border-slate-200 bg-white">
+    <section class="grid lg:grid-cols-[220px_1fr]">
+      <nav class="border border-slate-200 bg-white">
         <button
           v-for="entry in settingsMenu"
           :key="entry.index"
@@ -204,7 +147,7 @@ const {
         </button>
       </nav>
 
-      <div class="grid gap-6">
+      <div class="grid gap-6 p-5">
         <FutuIntegrationSection
           v-show="activeMenu === 'futu-integration'"
           mode="settings"
@@ -233,8 +176,6 @@ const {
         <SettingsAppearanceSection v-show="activeMenu === 'appearance'" />
 
         <SettingsSecuritySection v-if="activeMenu === 'security'" />
-
-        <OpenDInstallGuideSection v-show="activeMenu === 'plugin-manager'" />
 
         <SettingsADKSection v-show="activeMenu === 'adk'" />
       </div>

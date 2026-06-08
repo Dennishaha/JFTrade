@@ -220,6 +220,51 @@ export interface ADKOptimizationTask {
   updatedAt: string;
 }
 
+export interface ADKTask {
+  id: string;
+  title: string;
+  description?: string;
+  status: string;
+  agentId?: string;
+  runId?: string;
+  dependsOn?: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ADKTaskFilters {
+  status?: string;
+  agentId?: string;
+  runId?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export interface ADKTaskPatch {
+  title?: string;
+  description?: string;
+  status?: string;
+  agentId?: string;
+  runId?: string;
+  dependsOn?: string[];
+}
+
+export interface ADKMemoryEntry {
+  id: string;
+  agentId?: string;
+  key: string;
+  value: string;
+  scope: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ADKMemoryFilters {
+  scope?: string;
+  agentId?: string;
+  key?: string;
+}
+
 export interface HealthResponse {
   service: {
     service: string;

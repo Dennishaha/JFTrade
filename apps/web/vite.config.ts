@@ -54,6 +54,9 @@ function createProxyEntry(target: string) {
 
 export default defineConfig({
   plugins: [vue(), tailwindcss(), vueDevTools(devToolsOptions)],
+  build: {
+    chunkSizeWarningLimit: 4096,
+  },
   test: {
     environmentOptions: {
       jsdom: {

@@ -27,7 +27,7 @@ const items: NavItem[] = [
   { type: "route", to: "/overview", label: "概览", icon: "fa-solid fa-chart-column" },
   { type: "route", to: "/market", label: "行情", icon: "fa-solid fa-chart-line" },
   { type: "route", to: "/strategy", label: "策略", icon: "fa-solid fa-wand-magic-sparkles" },
-  { type: "route", to: "/adk", label: "Agents", icon: "fa-solid fa-robot" },
+  { type: "route", to: "/adk", label: "智能体", icon: "fa-solid fa-robot" },
   { type: "route", to: "/backtest", label: "回测", icon: "fa-solid fa-flask" },
   { type: "route", to: "/account", label: "我的账户", icon: "fa-solid fa-wallet" },
   { type: "route", to: "/risk", label: "风控", icon: "fa-solid fa-triangle-exclamation" },

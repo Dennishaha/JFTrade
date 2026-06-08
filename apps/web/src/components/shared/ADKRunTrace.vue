@@ -3,6 +3,8 @@ import { computed } from "vue";
 
 import type { ADKRun } from "@jftrade/ui-contracts";
 
+import type { ADKToolVisualization as ADKToolVisualizationModel } from "../../composables/adkToolVisualizations";
+import { buildADKToolVisualization } from "../../composables/adkToolVisualizations";
 import { formatGenericStatusLabel } from "../../composables/consoleDataFormatting";
 import {
   isActiveRunStatus,
@@ -10,6 +12,7 @@ import {
   runStatusTone,
   runTerminalMessage,
 } from "../../composables/adkChatPresentation";
+import ADKToolVisualization from "./ADKToolVisualization.vue";
 
 const props = withDefaults(defineProps<{
   run?: ADKRun | undefined;
@@ -45,6 +48,17 @@ const showProgress = computed(() =>
 );
 const showSummary = computed(() => !showProgress.value && hasToolCalls.value);
 const useSingleToolSummary = computed(() => showSummary.value && toolCalls.value.length === 1);
+const toolVisualizationMap = computed(() => {
+  const visualizations = new Map<string, ADKToolVisualizationModel>();
+  for (const toolCall of toolCalls.value) {
+    if (toolCall.output === undefined) continue;
+    const visualization = buildADKToolVisualization(toolCall.toolName, toolCall.output);
+    if (visualization) {
+      visualizations.set(toolCall.id, visualization);
+    }
+  }
+  return visualizations;
+});
 
 function isTerminalToolStatus(status: string | undefined): boolean {
   const normalized = (status ?? "").trim().toUpperCase();
@@ -91,6 +105,10 @@ function preview(value: unknown): string {
   } catch {
     return String(value);
   }
+}
+
+function toolVisualization(toolCall: ADKRun["toolCalls"][number]) {
+  return toolVisualizationMap.value.get(toolCall.id);
 }
 
 function durationLabel(durationMs: number | undefined): string {
@@ -156,6 +174,10 @@ function toggleTool(toolCallId: string): void {
         <pre class="adk-json">{{ preview(toolCalls[0]!.input) }}</pre>
         <template v-if="toolCalls[0]!.output !== undefined">
           <div class="adk-json-label mt-2">输出结果</div>
+          <ADKToolVisualization
+            v-if="toolVisualization(toolCalls[0]!)"
+            :visualization="toolVisualization(toolCalls[0]!)!"
+          />
           <pre class="adk-json">{{ preview(toolCalls[0]!.output) }}</pre>
         </template>
         <template v-if="toolCalls[0]!.error">
@@ -211,6 +233,10 @@ function toggleTool(toolCallId: string): void {
             <pre class="adk-json">{{ preview(toolCall.input) }}</pre>
             <template v-if="toolCall.output !== undefined">
               <div class="adk-json-label mt-2">输出结果</div>
+              <ADKToolVisualization
+                v-if="toolVisualization(toolCall)"
+                :visualization="toolVisualization(toolCall)!"
+              />
               <pre class="adk-json">{{ preview(toolCall.output) }}</pre>
             </template>
             <template v-if="toolCall.error">

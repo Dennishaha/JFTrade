@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -386,6 +387,108 @@ func TestADKOptimizationTaskCanBeQueriedAndCancelled(t *testing.T) {
 	stored, ok, err := server.adkRuntime.Store().OptimizationTask(t.Context(), task.ID)
 	if err != nil || !ok || stored.Status != "cancelled" {
 		t.Fatalf("cancelled task = %+v ok=%v err=%v", stored, ok, err)
+	}
+}
+
+func TestADKTaskAndMemoryWorkflowRoutes(t *testing.T) {
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	server := newTestServer(t, store)
+	srv := httptest.NewServer(server)
+	t.Cleanup(srv.Close)
+
+	agent, err := server.adkRuntime.Store().SaveAgent(t.Context(), jfadk.AgentWriteRequest{ID: "workflow-agent", Name: "Workflow", Status: jfadk.AgentStatusEnabled})
+	if err != nil {
+		t.Fatalf("SaveAgent: %v", err)
+	}
+	createResp, err := http.Post(srv.URL+"/api/v1/adk/tasks", "application/json", strings.NewReader(`{"id":"task-route","title":"Route task","status":"TODO","agentId":"`+agent.ID+`"}`))
+	if err != nil {
+		t.Fatalf("POST task: %v", err)
+	}
+	defer createResp.Body.Close()
+	if createResp.StatusCode != http.StatusOK {
+		t.Fatalf("POST task status = %d", createResp.StatusCode)
+	}
+	patchReq, err := http.NewRequest(http.MethodPut, srv.URL+"/api/v1/adk/tasks/task-route", strings.NewReader(`{"status":"DONE"}`))
+	if err != nil {
+		t.Fatalf("NewRequest patch task: %v", err)
+	}
+	patchReq.Header.Set("Content-Type", "application/json")
+	patchResp, err := http.DefaultClient.Do(patchReq)
+	if err != nil {
+		t.Fatalf("PUT task: %v", err)
+	}
+	defer patchResp.Body.Close()
+	if patchResp.StatusCode != http.StatusOK {
+		t.Fatalf("PUT task status = %d", patchResp.StatusCode)
+	}
+	var patchEnvelope struct {
+		OK   bool       `json:"ok"`
+		Data jfadk.Task `json:"data"`
+	}
+	if err := json.NewDecoder(patchResp.Body).Decode(&patchEnvelope); err != nil {
+		t.Fatalf("decode patch task: %v", err)
+	}
+	if !patchEnvelope.OK || patchEnvelope.Data.Title != "Route task" || patchEnvelope.Data.Status != "DONE" {
+		t.Fatalf("patch envelope = %+v, want preserved title and DONE", patchEnvelope)
+	}
+	listResp, err := http.Get(srv.URL + "/api/v1/adk/tasks?status=DONE&agentId=" + agent.ID)
+	if err != nil {
+		t.Fatalf("GET tasks: %v", err)
+	}
+	defer listResp.Body.Close()
+	if listResp.StatusCode != http.StatusOK {
+		t.Fatalf("GET tasks status = %d", listResp.StatusCode)
+	}
+	deleteReq, err := http.NewRequest(http.MethodDelete, srv.URL+"/api/v1/adk/tasks/task-route", nil)
+	if err != nil {
+		t.Fatalf("NewRequest delete task: %v", err)
+	}
+	deleteResp, err := http.DefaultClient.Do(deleteReq)
+	if err != nil {
+		t.Fatalf("DELETE task: %v", err)
+	}
+	defer deleteResp.Body.Close()
+	if deleteResp.StatusCode != http.StatusOK {
+		t.Fatalf("DELETE task status = %d", deleteResp.StatusCode)
+	}
+
+	memoryResp, err := http.Post(srv.URL+"/api/v1/adk/memory", "application/json", strings.NewReader(`{"scope":"agent","agentId":"`+agent.ID+`","key":"style","value":"risk first"}`))
+	if err != nil {
+		t.Fatalf("POST memory: %v", err)
+	}
+	defer memoryResp.Body.Close()
+	if memoryResp.StatusCode != http.StatusOK {
+		t.Fatalf("POST memory status = %d", memoryResp.StatusCode)
+	}
+	var memoryEnvelope struct {
+		OK   bool              `json:"ok"`
+		Data jfadk.MemoryEntry `json:"data"`
+	}
+	if err := json.NewDecoder(memoryResp.Body).Decode(&memoryEnvelope); err != nil {
+		t.Fatalf("decode memory: %v", err)
+	}
+	filterResp, err := http.Get(srv.URL + "/api/v1/adk/memory?scope=agent&agentId=" + agent.ID + "&key=style")
+	if err != nil {
+		t.Fatalf("GET memory: %v", err)
+	}
+	defer filterResp.Body.Close()
+	if filterResp.StatusCode != http.StatusOK {
+		t.Fatalf("GET memory status = %d", filterResp.StatusCode)
+	}
+	deleteMemoryReq, err := http.NewRequest(http.MethodDelete, srv.URL+"/api/v1/adk/memory/"+memoryEnvelope.Data.ID, nil)
+	if err != nil {
+		t.Fatalf("NewRequest delete memory: %v", err)
+	}
+	deleteMemoryResp, err := http.DefaultClient.Do(deleteMemoryReq)
+	if err != nil {
+		t.Fatalf("DELETE memory: %v", err)
+	}
+	defer deleteMemoryResp.Body.Close()
+	if deleteMemoryResp.StatusCode != http.StatusOK {
+		t.Fatalf("DELETE memory status = %d", deleteMemoryResp.StatusCode)
 	}
 }
 
@@ -977,6 +1080,52 @@ func TestADKSkillInstallAndUninstallFailureRoutes(t *testing.T) {
 	status, code, message = decodeAPIErrorEnvelope(t, deleteResp)
 	if status != http.StatusInternalServerError || code != "ADK_SKILL_UNINSTALL_FAILED" || !strings.Contains(strings.ToLower(message), "builtin") {
 		t.Fatalf("skill uninstall error = %d/%s/%q, want 500/ADK_SKILL_UNINSTALL_FAILED/*builtin*", status, code, message)
+	}
+}
+
+func TestADKBindAgentWithPreinstalledNeodataFinancialSearch(t *testing.T) {
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	server := newTestServer(t, store)
+	srv := httptest.NewServer(server)
+	t.Cleanup(srv.Close)
+
+	skillDir := filepath.Join(server.adkRuntime.Store().SkillsPath(), "neodata-financial-search")
+	if err := os.MkdirAll(skillDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll skill dir: %v", err)
+	}
+	skillPath := filepath.Join(skillDir, "SKILL.md")
+	if err := os.WriteFile(skillPath, []byte(`---
+name: neodata-financial-search
+description: Search NeoData financial filings and earnings materials.
+allowed-tools: [http.fetch]
+metadata:
+  version: 2026.06
+---
+Use NeoData search results as reference material and cite the source URL.`), 0o644); err != nil {
+		t.Fatalf("WriteFile skill doc: %v", err)
+	}
+
+	createBody := `{"id":"agent-neodata","name":"Agent NeoData","permissionMode":"approval","status":"ENABLED","tools":["http.fetch"],"skills":["neodata-financial-search"]}`
+	createResp, err := http.Post(srv.URL+"/api/v1/adk/agents", "application/json", strings.NewReader(createBody))
+	if err != nil {
+		t.Fatalf("POST create agent: %v", err)
+	}
+	defer createResp.Body.Close()
+	if createResp.StatusCode != http.StatusOK {
+		t.Fatalf("POST create agent status = %d", createResp.StatusCode)
+	}
+	var agentEnvelope struct {
+		OK   bool        `json:"ok"`
+		Data jfadk.Agent `json:"data"`
+	}
+	if err := json.NewDecoder(createResp.Body).Decode(&agentEnvelope); err != nil {
+		t.Fatalf("decode agent envelope: %v", err)
+	}
+	if !agentEnvelope.OK || !containsString(agentEnvelope.Data.Skills, "neodata-financial-search") {
+		t.Fatalf("agent envelope = %+v", agentEnvelope)
 	}
 }
 

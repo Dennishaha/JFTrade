@@ -1167,6 +1167,223 @@ body {
   padding: 0 4px 0 10px;
 }
 
+.adk-tool-visual {
+  display: grid;
+  gap: 10px;
+  margin: 6px 0 8px;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--tv-accent) 18%, var(--tv-border));
+  border-radius: 10px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--tv-accent) 8%, transparent), transparent 70%),
+    color-mix(in srgb, var(--tv-surface) 78%, transparent);
+}
+
+.adk-tool-visual__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: baseline;
+}
+
+.adk-tool-visual__title {
+  color: var(--tv-text);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.adk-tool-visual__subtitle {
+  color: var(--tv-text-dim);
+  font-size: 10px;
+}
+
+.adk-tool-visual__summary {
+  display: grid;
+  gap: 8px;
+}
+
+.adk-tool-visual__cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: 8px;
+}
+
+.adk-tool-visual-card {
+  display: grid;
+  gap: 3px;
+  padding: 8px;
+  border: 1px solid var(--tv-border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--tv-surface) 82%, transparent);
+}
+
+.adk-tool-visual-card.is-ok {
+  border-color: color-mix(in srgb, #4caf50 45%, transparent);
+}
+
+.adk-tool-visual-card.is-warning {
+  border-color: color-mix(in srgb, #ffb300 50%, transparent);
+}
+
+.adk-tool-visual-card.is-danger {
+  border-color: color-mix(in srgb, #ef5350 50%, transparent);
+}
+
+.adk-tool-visual-card__label {
+  color: var(--tv-text-dim);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.adk-tool-visual-card__value {
+  color: var(--tv-text);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.adk-tool-visual__rows {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 4px 10px;
+  margin: 0;
+  font-size: 11px;
+}
+
+.adk-tool-visual__rows dt {
+  color: var(--tv-text-dim);
+}
+
+.adk-tool-visual__rows dd {
+  margin: 0;
+  color: var(--tv-text);
+  overflow-wrap: anywhere;
+}
+
+.adk-tool-visual-table-wrap {
+  overflow-x: auto;
+}
+
+.adk-tool-visual-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.adk-tool-visual-table th,
+.adk-tool-visual-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid color-mix(in srgb, var(--tv-border) 72%, transparent);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.adk-tool-visual-table th {
+  color: var(--tv-text-dim);
+  font-weight: 700;
+}
+
+.adk-tool-visual-table td {
+  color: var(--tv-text);
+}
+
+.adk-tool-visual-depth {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+}
+
+.adk-tool-visual-depth__label {
+  margin-bottom: 5px;
+  color: var(--tv-text-dim);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.adk-tool-visual-depth-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 4px 6px;
+  overflow: hidden;
+  border-radius: 5px;
+  color: var(--tv-text);
+  font-size: 11px;
+}
+
+.adk-tool-visual-depth-row span {
+  position: relative;
+  z-index: 1;
+}
+
+.adk-tool-visual-depth-row i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  opacity: 0.24;
+}
+
+.adk-tool-visual-depth-row.is-bid i {
+  background: #4caf50;
+}
+
+.adk-tool-visual-depth-row.is-ask i {
+  background: #ef5350;
+}
+
+.adk-tool-visual-timeline {
+  display: grid;
+  gap: 8px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.adk-tool-visual-timeline__item {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr);
+  gap: 8px;
+  color: var(--tv-text);
+}
+
+.adk-tool-visual-timeline__dot {
+  width: 8px;
+  height: 8px;
+  margin-top: 4px;
+  border-radius: 999px;
+  background: var(--tv-text-dim);
+}
+
+.adk-tool-visual-timeline__item.is-ok .adk-tool-visual-timeline__dot {
+  background: #4caf50;
+}
+
+.adk-tool-visual-timeline__item.is-warning .adk-tool-visual-timeline__dot {
+  background: #ffb300;
+}
+
+.adk-tool-visual-timeline__item.is-danger .adk-tool-visual-timeline__dot {
+  background: #ef5350;
+}
+
+.adk-tool-visual-timeline__main {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.adk-tool-visual-timeline__main strong {
+  font-size: 12px;
+}
+
+.adk-tool-visual-timeline__main small,
+.adk-tool-visual-timeline__main span {
+  color: var(--tv-text-dim);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
 .adk-json-label--error {
   color: #f4a4a1;
 }

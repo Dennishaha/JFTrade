@@ -258,6 +258,54 @@ type OptimizationTask struct {
 	UpdatedAt string               `json:"updatedAt"`
 }
 
+type Task struct {
+	ID          string   `json:"id"`
+	Title       string   `json:"title"`
+	Description string   `json:"description,omitempty"`
+	Status      string   `json:"status"`
+	AgentID     string   `json:"agentId,omitempty"`
+	RunID       string   `json:"runId,omitempty"`
+	DependsOn   []string `json:"dependsOn,omitempty"`
+	CreatedAt   string   `json:"createdAt"`
+	UpdatedAt   string   `json:"updatedAt"`
+}
+
+type TaskWriteRequest struct {
+	ID          string   `json:"id,omitempty"`
+	Title       string   `json:"title"`
+	Description string   `json:"description,omitempty"`
+	Status      string   `json:"status,omitempty"`
+	AgentID     string   `json:"agentId,omitempty"`
+	RunID       string   `json:"runId,omitempty"`
+	DependsOn   []string `json:"dependsOn,omitempty"`
+}
+
+type TaskPatchRequest struct {
+	Title       *string  `json:"title,omitempty"`
+	Description *string  `json:"description,omitempty"`
+	Status      *string  `json:"status,omitempty"`
+	AgentID     *string  `json:"agentId,omitempty"`
+	RunID       *string  `json:"runId,omitempty"`
+	DependsOn   []string `json:"dependsOn,omitempty"`
+}
+
+type MemoryEntry struct {
+	ID        string `json:"id"`
+	AgentID   string `json:"agentId,omitempty"`
+	Key       string `json:"key"`
+	Value     string `json:"value"`
+	Scope     string `json:"scope"`
+	CreatedAt string `json:"createdAt"`
+	UpdatedAt string `json:"updatedAt"`
+}
+
+type MemoryWriteRequest struct {
+	AgentID string `json:"agentId,omitempty"`
+	Key     string `json:"key"`
+	Value   string `json:"value"`
+	Scope   string `json:"scope,omitempty"`
+}
+
 func nowString() string {
 	return time.Now().UTC().Format(time.RFC3339Nano)
 }

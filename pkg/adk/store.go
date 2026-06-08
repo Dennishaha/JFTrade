@@ -28,6 +28,8 @@ const (
 	tableSkills        = "adk_skills"
 	tableAudit         = "adk_audit_events"
 	tableOptimizations = "adk_optimization_tasks"
+	tableTasks         = "adk_tasks"
+	tableMemory        = "adk_memory"
 )
 
 type Store struct {
@@ -105,6 +107,11 @@ func (s *Store) migrate() error {
 		{12, `CREATE INDEX IF NOT EXISTS idx_adk_runs_session ON ` + tableRuns + ` (session_id, created_at DESC)`},
 		{13, `CREATE INDEX IF NOT EXISTS idx_adk_approvals_status ON ` + tableApprovals + ` (status, updated_at DESC)`},
 		{14, `CREATE INDEX IF NOT EXISTS idx_adk_audit_kind ON ` + tableAudit + ` (kind, created_at DESC)`},
+		{15, `CREATE TABLE IF NOT EXISTS ` + tableTasks + ` (id TEXT PRIMARY KEY, status TEXT NOT NULL, agent_id TEXT NOT NULL, run_id TEXT NOT NULL, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`},
+		{16, `CREATE INDEX IF NOT EXISTS idx_adk_tasks_status ON ` + tableTasks + ` (status, updated_at DESC)`},
+		{17, `CREATE INDEX IF NOT EXISTS idx_adk_tasks_agent ON ` + tableTasks + ` (agent_id, updated_at DESC)`},
+		{18, `CREATE TABLE IF NOT EXISTS ` + tableMemory + ` (id TEXT PRIMARY KEY, agent_id TEXT NOT NULL, scope TEXT NOT NULL, memory_key TEXT NOT NULL, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`},
+		{19, `CREATE UNIQUE INDEX IF NOT EXISTS idx_adk_memory_agent_scope_key ON ` + tableMemory + ` (agent_id, scope, memory_key)`},
 	}
 	for _, m := range migrations {
 		var count int
@@ -298,6 +305,19 @@ func (s *Store) SaveAgent(ctx context.Context, req AgentWriteRequest) (Agent, er
 	return agent, s.saveJSON(ctx, tableAgents, agent.ID, agent.CreatedAt, agent.UpdatedAt, agent)
 }
 
+func (s *Store) EnsureAgent(ctx context.Context, req AgentWriteRequest) (Agent, error) {
+	id := normalizeID(req.ID)
+	if id == "" {
+		id = normalizeID(req.Name)
+	}
+	if id != "" {
+		if existing, ok, err := s.Agent(ctx, id); err != nil || ok {
+			return existing, err
+		}
+	}
+	return s.SaveAgent(ctx, req)
+}
+
 func (s *Store) Agent(ctx context.Context, id string) (Agent, bool, error) {
 	var agent Agent
 	ok, err := s.getJSON(ctx, tableAgents, id, &agent)
@@ -314,16 +334,10 @@ func (s *Store) DefaultAgent(ctx context.Context) (Agent, error) {
 			return agent, nil
 		}
 	}
-	return s.SaveAgent(ctx, AgentWriteRequest{
-		ID:             "investment-analyst",
-		Name:           "投资分析助手",
-		Instruction:    defaultAgentInstruction(),
-		PermissionMode: PermissionModeApproval,
-		Status:         AgentStatusEnabled,
-		Tools:          []string{"system.status", "market.subscriptions", "portfolio.summary", "account.orders", "strategy.definitions", "backtest.runs", "http.fetch"},
-		Skills:         []string{"jftrade-market", "jftrade-portfolio", "jftrade-strategy", "external-http"},
-		MemoryEnabled:  true,
-	})
+	if template, ok := BuiltinAgentTemplate("investment-analyst"); ok {
+		return s.SaveAgent(ctx, template)
+	}
+	return s.SaveAgent(ctx, AgentWriteRequest{ID: "investment-analyst", Name: "投资分析助手", Instruction: defaultAgentInstruction(), PermissionMode: PermissionModeApproval, Status: AgentStatusEnabled})
 }
 
 func (s *Store) DeleteAgent(ctx context.Context, id string) error {
@@ -691,6 +705,257 @@ func (s *Store) ListOptimizationTasks(ctx context.Context) ([]OptimizationTask, 
 	return tasks, s.listJSON(ctx, tableOptimizations, "updated_at DESC, id ASC", &tasks)
 }
 
+func (s *Store) SaveTask(ctx context.Context, req TaskWriteRequest) (Task, error) {
+	id := normalizeID(req.ID)
+	if id == "" {
+		id = "task-" + uuid.NewString()
+	}
+	title := strings.TrimSpace(req.Title)
+	if title == "" {
+		return Task{}, fmt.Errorf("task title is required")
+	}
+	status, err := normalizeTaskStatus(req.Status)
+	if err != nil {
+		return Task{}, err
+	}
+	dependsOn, err := normalizeTaskDependsOn(id, req.DependsOn)
+	if err != nil {
+		return Task{}, err
+	}
+	now := nowString()
+	existing, ok, err := s.Task(ctx, id)
+	if err != nil {
+		return Task{}, err
+	}
+	createdAt := now
+	if ok {
+		createdAt = existing.CreatedAt
+	}
+	task := Task{
+		ID: id, Title: title, Description: strings.TrimSpace(req.Description), Status: status,
+		AgentID: strings.TrimSpace(req.AgentID), RunID: strings.TrimSpace(req.RunID),
+		DependsOn: dependsOn, CreatedAt: createdAt, UpdatedAt: now,
+	}
+	return s.saveTask(ctx, task)
+}
+
+func (s *Store) UpdateTask(ctx context.Context, id string, req TaskPatchRequest) (Task, error) {
+	id = normalizeID(id)
+	if id == "" {
+		return Task{}, os.ErrNotExist
+	}
+	task, ok, err := s.Task(ctx, id)
+	if err != nil {
+		return Task{}, err
+	}
+	if !ok {
+		return Task{}, os.ErrNotExist
+	}
+	if req.Title != nil {
+		title := strings.TrimSpace(*req.Title)
+		if title == "" {
+			return Task{}, fmt.Errorf("task title is required")
+		}
+		task.Title = title
+	}
+	if req.Description != nil {
+		task.Description = strings.TrimSpace(*req.Description)
+	}
+	if req.Status != nil {
+		status, err := normalizeTaskStatus(*req.Status)
+		if err != nil {
+			return Task{}, err
+		}
+		task.Status = status
+	}
+	if req.AgentID != nil {
+		task.AgentID = strings.TrimSpace(*req.AgentID)
+	}
+	if req.RunID != nil {
+		task.RunID = strings.TrimSpace(*req.RunID)
+	}
+	if req.DependsOn != nil {
+		dependsOn, err := normalizeTaskDependsOn(id, req.DependsOn)
+		if err != nil {
+			return Task{}, err
+		}
+		task.DependsOn = dependsOn
+	}
+	task.UpdatedAt = nowString()
+	return s.saveTask(ctx, task)
+}
+
+func (s *Store) saveTask(ctx context.Context, task Task) (Task, error) {
+	payload, err := json.Marshal(task)
+	if err != nil {
+		return Task{}, err
+	}
+	_, err = s.db.ExecContext(ctx, `INSERT INTO `+tableTasks+` (id, status, agent_id, run_id, payload_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET status = excluded.status, agent_id = excluded.agent_id, run_id = excluded.run_id, payload_json = excluded.payload_json, updated_at = excluded.updated_at`, task.ID, task.Status, task.AgentID, task.RunID, string(payload), task.CreatedAt, task.UpdatedAt)
+	return task, err
+}
+
+func (s *Store) Task(ctx context.Context, id string) (Task, bool, error) {
+	var task Task
+	ok, err := s.getJSON(ctx, tableTasks, id, &task)
+	return task, ok, err
+}
+
+func (s *Store) ListTasksPage(ctx context.Context, status string, agentID string, runID string, limit int, offset int) ([]Task, int, error) {
+	clauses := make([]string, 0, 3)
+	args := make([]any, 0, 3)
+	if status = strings.ToUpper(strings.TrimSpace(status)); status != "" {
+		if _, err := normalizeTaskStatus(status); err != nil {
+			return nil, 0, err
+		}
+		clauses = append(clauses, "status = ?")
+		args = append(args, status)
+	}
+	if agentID = strings.TrimSpace(agentID); agentID != "" {
+		clauses = append(clauses, "agent_id = ?")
+		args = append(args, agentID)
+	}
+	if runID = strings.TrimSpace(runID); runID != "" {
+		clauses = append(clauses, "run_id = ?")
+		args = append(args, runID)
+	}
+	var tasks []Task
+	total, err := s.listJSONPage(ctx, tableTasks, clauses, args, "updated_at DESC, id ASC", limit, offset, &tasks)
+	return tasks, total, err
+}
+
+func (s *Store) DeleteTask(ctx context.Context, id string) error {
+	id = normalizeID(id)
+	if id == "" {
+		return os.ErrNotExist
+	}
+	result, err := s.db.ExecContext(ctx, `DELETE FROM `+tableTasks+` WHERE id = ?`, id)
+	if err != nil {
+		return err
+	}
+	if rows, rowErr := result.RowsAffected(); rowErr == nil && rows == 0 {
+		return os.ErrNotExist
+	}
+	return nil
+}
+
+func (s *Store) SaveMemory(ctx context.Context, req MemoryWriteRequest) (MemoryEntry, error) {
+	key := normalizeMemoryKey(req.Key)
+	if key == "" {
+		return MemoryEntry{}, fmt.Errorf("memory key is required")
+	}
+	value := strings.TrimSpace(req.Value)
+	if len([]rune(value)) > 2000 {
+		value = string([]rune(value)[:2000])
+	}
+	scope := strings.ToLower(strings.TrimSpace(req.Scope))
+	if scope == "" {
+		scope = "workspace"
+	}
+	if scope != "workspace" && scope != "agent" {
+		return MemoryEntry{}, fmt.Errorf("memory scope must be workspace or agent")
+	}
+	agentID := strings.TrimSpace(req.AgentID)
+	if scope == "workspace" {
+		agentID = ""
+	} else if agentID == "" {
+		return MemoryEntry{}, fmt.Errorf("agent memory requires agentId")
+	} else if _, ok, err := s.Agent(ctx, agentID); err != nil {
+		return MemoryEntry{}, err
+	} else if !ok {
+		return MemoryEntry{}, fmt.Errorf("agent not found")
+	}
+	id := normalizeID(scope + "-" + agentID + "-" + key)
+	now := nowString()
+	existing, ok, err := s.Memory(ctx, id)
+	if err != nil {
+		return MemoryEntry{}, err
+	}
+	createdAt := now
+	if ok {
+		createdAt = existing.CreatedAt
+	}
+	entry := MemoryEntry{ID: id, AgentID: agentID, Key: key, Value: value, Scope: scope, CreatedAt: createdAt, UpdatedAt: now}
+	payload, err := json.Marshal(entry)
+	if err != nil {
+		return MemoryEntry{}, err
+	}
+	_, err = s.db.ExecContext(ctx, `INSERT INTO `+tableMemory+` (id, agent_id, scope, memory_key, payload_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(agent_id, scope, memory_key) DO UPDATE SET payload_json = excluded.payload_json, updated_at = excluded.updated_at`, entry.ID, entry.AgentID, entry.Scope, entry.Key, string(payload), entry.CreatedAt, entry.UpdatedAt)
+	return entry, err
+}
+
+func (s *Store) Memory(ctx context.Context, id string) (MemoryEntry, bool, error) {
+	var entry MemoryEntry
+	ok, err := s.getJSON(ctx, tableMemory, id, &entry)
+	return entry, ok, err
+}
+
+func (s *Store) ListMemory(ctx context.Context, agentID string) ([]MemoryEntry, error) {
+	return s.ListMemoryFiltered(ctx, "", agentID, "")
+}
+
+func (s *Store) ListMemoryFiltered(ctx context.Context, scope string, agentID string, key string) ([]MemoryEntry, error) {
+	scope = strings.ToLower(strings.TrimSpace(scope))
+	agentID = strings.TrimSpace(agentID)
+	key = normalizeMemoryKey(key)
+	clauses := make([]string, 0, 3)
+	args := make([]any, 0, 3)
+	if scope != "" {
+		if scope != "workspace" && scope != "agent" {
+			return nil, fmt.Errorf("memory scope must be workspace or agent")
+		}
+		clauses = append(clauses, "scope = ?")
+		args = append(args, scope)
+	} else if agentID != "" {
+		clauses = append(clauses, "(scope = 'workspace' OR agent_id = ?)")
+		args = append(args, agentID)
+	}
+	if scope == "agent" && agentID != "" {
+		clauses = append(clauses, "agent_id = ?")
+		args = append(args, agentID)
+	}
+	if scope == "workspace" {
+		clauses = append(clauses, "agent_id = ''")
+	}
+	if key != "" {
+		clauses = append(clauses, "memory_key = ?")
+		args = append(args, key)
+	}
+	whereSQL := ""
+	if len(clauses) > 0 {
+		whereSQL = " WHERE " + strings.Join(clauses, " AND ")
+	}
+	rows := []struct {
+		PayloadJSON string `db:"payload_json"`
+	}{}
+	if err := s.db.SelectContext(ctx, &rows, `SELECT payload_json FROM `+tableMemory+whereSQL+` ORDER BY updated_at DESC, id ASC`, args...); err != nil {
+		return nil, err
+	}
+	entries := make([]MemoryEntry, 0, len(rows))
+	for _, row := range rows {
+		var entry MemoryEntry
+		if err := json.Unmarshal([]byte(row.PayloadJSON), &entry); err != nil {
+			return nil, err
+		}
+		entries = append(entries, entry)
+	}
+	return entries, nil
+}
+
+func (s *Store) DeleteMemory(ctx context.Context, id string) error {
+	id = normalizeID(id)
+	if id == "" {
+		return os.ErrNotExist
+	}
+	result, err := s.db.ExecContext(ctx, `DELETE FROM `+tableMemory+` WHERE id = ?`, id)
+	if err != nil {
+		return err
+	}
+	if rows, rowErr := result.RowsAffected(); rowErr == nil && rows == 0 {
+		return os.ErrNotExist
+	}
+	return nil
+}
+
 func (s *Store) ensureBuiltins(ctx context.Context) error {
 	builtins := []Skill{
 		{ID: "jftrade-market", DisplayName: "JFTrade 行情资源", Description: "使用行情工具回答时必须明确市场、代码、周期和数据时间；缺少标的时先要求用户补充。", Source: "builtin", Enabled: true, Builtin: true, Tools: []string{"market.snapshot", "market.candles", "market.depth", "market.subscriptions"}, Version: "1", ValidationStatus: "VALID"},
@@ -944,6 +1209,50 @@ func normalizePermissionMode(value string) string {
 	default:
 		return PermissionModeApproval
 	}
+}
+
+func normalizeTaskStatus(value string) (string, error) {
+	switch strings.ToUpper(strings.TrimSpace(value)) {
+	case "TODO", "IN_PROGRESS", "BLOCKED", "DONE", "CANCELLED":
+		return strings.ToUpper(strings.TrimSpace(value)), nil
+	case "":
+		return "TODO", nil
+	default:
+		return "", fmt.Errorf("invalid task status %q", value)
+	}
+}
+
+func normalizeTaskDependsOn(taskID string, values []string) ([]string, error) {
+	taskID = normalizeID(taskID)
+	normalized := normalizeStringSlice(values)
+	for _, value := range normalized {
+		if normalizeID(value) == taskID {
+			return nil, fmt.Errorf("task cannot depend on itself")
+		}
+	}
+	return normalized, nil
+}
+
+func normalizeMemoryKey(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	if value == "" {
+		return ""
+	}
+	var builder strings.Builder
+	lastDash := false
+	for _, r := range value {
+		ok := (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '_' || r == '-'
+		if ok {
+			builder.WriteRune(r)
+			lastDash = false
+			continue
+		}
+		if !lastDash {
+			builder.WriteByte('-')
+			lastDash = true
+		}
+	}
+	return strings.Trim(builder.String(), "-_")
 }
 
 func defaultAgentInstruction() string {

@@ -74,7 +74,7 @@ func newADKRuntime(server *Server, settingsPath string) *jfadk.Runtime {
 		return nil
 	}
 	registry := jfadk.NewToolRegistry()
-	registerJFTradeADKTools(server, registry)
+	registerJFTradeADKTools(server, store, registry)
 	sessionService, err := jfadk.NewSQLiteSessionService(sessionDBPath)
 	if err != nil {
 		log.Printf("JFTrade ADK session store degraded: %v", err)
@@ -139,7 +139,7 @@ func backupSQLiteFile(path string, retain int) error {
 	return nil
 }
 
-func registerJFTradeADKTools(server *Server, registry *jfadk.ToolRegistry) {
+func registerJFTradeADKTools(server *Server, store *jfadk.Store, registry *jfadk.ToolRegistry) {
 	registry.Register(jfadk.ToolDescriptor{Name: "system.status", DisplayName: "系统状态", Description: "读取 JFTrade API、持久层、broker、策略运行时和 ADK 状态摘要。", Category: "system", Permission: "read_internal", OutputSummary: "系统健康、持久化、broker、策略运行时与 ADK 状态。"}, func(context.Context, map[string]any) (any, error) {
 		status := server.systemStatus()
 		if server.adkRuntime != nil {
@@ -216,6 +216,8 @@ func registerJFTradeADKTools(server *Server, registry *jfadk.ToolRegistry) {
 		}
 		return map[string]any{"orders": orders, "count": len(orders), "checkedAt": nowStringRFC3339Nano()}, nil
 	})
+	registerJFTradeADKWorkflowTools(server, store, registry)
+	registerJFTradeADKReadTools(server, registry)
 	registry.Register(jfadk.ToolDescriptor{Name: "strategy.definitions", DisplayName: "策略定义", Description: "读取当前策略定义和策略实例摘要。", Category: "strategy", Permission: "read_internal", OutputSummary: "策略定义、运行实例和数量摘要。"}, func(context.Context, map[string]any) (any, error) {
 		definitions := server.designStore.listDefinitions()
 		instances := server.enrichStrategyItems(server.strategyStore.strategies())
@@ -307,6 +309,191 @@ func registerJFTradeADKTools(server *Server, registry *jfadk.ToolRegistry) {
 
 func nowStringRFC3339Nano() string {
 	return time.Now().UTC().Format(time.RFC3339Nano)
+}
+
+func registerJFTradeADKReadTools(server *Server, registry *jfadk.ToolRegistry) {
+	registry.Register(jfadk.ToolDescriptor{Name: "broker.orders", DisplayName: "Broker orders", Description: "Read broker current or historical orders for the selected account scope.", Category: "portfolio", Permission: "read_internal", OutputSummary: "Broker order list and connectivity status."}, func(ctx context.Context, input map[string]any) (any, error) {
+		request, err := server.brokerOrdersRequest(brokerOrdersReadQuery{
+			brokerBaseReadQuery: adkBrokerBaseReadQuery(server, input),
+			Scope:               defaultStringLocal(stringValue(input, "scope"), "CURRENT"),
+			Symbol:              stringValue(input, "symbol"),
+			StartTime:           stringValue(input, "startTime"),
+			EndTime:             stringValue(input, "endTime"),
+			Status:              stringSliceValue(input, "status"),
+			Statuses:            stringSliceValue(input, "statuses"),
+		})
+		if err != nil {
+			return nil, err
+		}
+		return server.brokerOrdersResponse(ctx, request), nil
+	})
+	registry.Register(jfadk.ToolDescriptor{Name: "broker.fills", DisplayName: "Broker fills", Description: "Read broker current or historical order fills for the selected account scope.", Category: "portfolio", Permission: "read_internal", OutputSummary: "Broker fill list and connectivity status."}, func(ctx context.Context, input map[string]any) (any, error) {
+		request, err := server.brokerFillsRequest(brokerFillsReadQuery{
+			brokerBaseReadQuery: adkBrokerBaseReadQuery(server, input),
+			Scope:               defaultStringLocal(stringValue(input, "scope"), "CURRENT"),
+			Symbol:              stringValue(input, "symbol"),
+			StartTime:           stringValue(input, "startTime"),
+			EndTime:             stringValue(input, "endTime"),
+		})
+		if err != nil {
+			return nil, err
+		}
+		return server.brokerFillsResponse(ctx, request), nil
+	})
+	registry.Register(jfadk.ToolDescriptor{Name: "broker.cash_flows", DisplayName: "Broker cash flows", Description: "Read broker cash flow records by clearing date.", Category: "portfolio", Permission: "read_internal", OutputSummary: "Cash flow list and connectivity status."}, func(ctx context.Context, input map[string]any) (any, error) {
+		request, err := server.brokerCashFlowsRequest(brokerCashFlowsReadQuery{brokerBaseReadQuery: adkBrokerBaseReadQuery(server, input), ClearingDate: stringValue(input, "clearingDate"), Direction: stringValue(input, "direction")})
+		if err != nil {
+			return nil, err
+		}
+		return server.brokerCashFlowsResponse(ctx, request), nil
+	})
+	registry.Register(jfadk.ToolDescriptor{Name: "broker.fees", DisplayName: "Broker order fees", Description: "Read broker fee details for one or more external order IDs.", Category: "portfolio", Permission: "read_internal", OutputSummary: "Order fee list and connectivity status."}, func(ctx context.Context, input map[string]any) (any, error) {
+		request, err := server.brokerOrderFeesRequest(brokerOrderFeesReadQuery{brokerBaseReadQuery: adkBrokerBaseReadQuery(server, input), OrderIDEx: stringSliceValue(input, "orderIdEx"), OrderIDExList: stringSliceValue(input, "orderIdExList")})
+		if err != nil {
+			return nil, err
+		}
+		return server.brokerOrderFeesResponse(ctx, request), nil
+	})
+	registry.Register(jfadk.ToolDescriptor{Name: "broker.margin_ratios", DisplayName: "Broker margin ratios", Description: "Read financing and short-selling margin ratios for one or more symbols.", Category: "portfolio", Permission: "read_internal", OutputSummary: "Margin ratio list and connectivity status."}, func(ctx context.Context, input map[string]any) (any, error) {
+		symbols := stringSliceValue(input, "symbols")
+		if symbol := strings.TrimSpace(stringValue(input, "symbol")); symbol != "" {
+			symbols = append(symbols, symbol)
+		}
+		request, err := server.brokerMarginRatiosRequest(brokerMarginRatiosReadQuery{brokerBaseReadQuery: adkBrokerBaseReadQuery(server, input), Symbol: symbols})
+		if err != nil {
+			return nil, err
+		}
+		return server.brokerMarginRatiosResponse(ctx, request), nil
+	})
+	registry.Register(jfadk.ToolDescriptor{Name: "market.depth", DisplayName: "Market depth", Description: "Read order book depth for a concrete instrument.", Category: "market", Permission: "read_internal", OutputSummary: "Bid and ask order book levels."}, func(ctx context.Context, input map[string]any) (any, error) {
+		market, symbol := inferMarketSymbol(input)
+		if market == "" || symbol == "" {
+			return nil, fmt.Errorf("market and symbol are required")
+		}
+		return server.marketDepthResponseForInstrument(ctx, market, symbol, marketDepthQuery{Num: newOptionalIntValue(intValue(input, "num", 10))})
+	})
+	registry.Register(jfadk.ToolDescriptor{Name: "risk.state", DisplayName: "Risk state", Description: "Read real-trade kill switch and risk limit state.", Category: "risk", Permission: "read_internal", OutputSummary: "Current kill switch and real-trade risk state."}, func(context.Context, map[string]any) (any, error) {
+		return map[string]any{"killSwitch": server.realTradeKillSwitch(), "riskLimits": server.realTradeRiskState(), "checkedAt": nowStringRFC3339Nano()}, nil
+	})
+	registry.Register(jfadk.ToolDescriptor{Name: "risk.events", DisplayName: "Risk events", Description: "Read recent real-trade risk event state.", Category: "risk", Permission: "read_internal", OutputSummary: "Risk event summary."}, func(context.Context, map[string]any) (any, error) {
+		return server.realTradeRiskEvents(), nil
+	})
+	registry.Register(jfadk.ToolDescriptor{Name: "execution.order_events", DisplayName: "Execution order events", Description: "Read local execution order event history by internal order ID, or return the order list when no ID is provided.", Category: "portfolio", Permission: "read_internal", OutputSummary: "Execution order event timeline."}, func(_ context.Context, input map[string]any) (any, error) {
+		internalOrderID := strings.TrimSpace(stringValue(input, "internalOrderId"))
+		if internalOrderID == "" {
+			return server.executionOrders.listOrders(), nil
+		}
+		return server.executionOrders.orderEvents(internalOrderID), nil
+	})
+}
+
+func registerJFTradeADKWorkflowTools(server *Server, store *jfadk.Store, registry *jfadk.ToolRegistry) {
+	registry.Register(jfadk.ToolDescriptor{Name: "tasks.list", DisplayName: "List ADK tasks", Description: "List ADK task records used to track agent work.", Category: "workflow", Permission: "read_internal", OutputSummary: "Task page."}, func(ctx context.Context, input map[string]any) (any, error) {
+		limit, offset := normalizeBoundPage(intValue(input, "limit", 20), intValue(input, "offset", 0), 20, 100)
+		tasks, total, err := store.ListTasksPage(ctx, stringValue(input, "status"), stringValue(input, "agentId"), stringValue(input, "runId"), limit, offset)
+		if err != nil {
+			return nil, err
+		}
+		return map[string]any{"tasks": tasks, "page": pageEnvelope(limit, offset, total, len(tasks))}, nil
+	})
+	registry.Register(jfadk.ToolDescriptor{Name: "tasks.create", DisplayName: "Create ADK task", Description: "Create a lightweight ADK task for follow-up work.", Category: "workflow", Permission: "write_task", OutputSummary: "Created task."}, func(ctx context.Context, input map[string]any) (any, error) {
+		task, err := store.SaveTask(ctx, jfadk.TaskWriteRequest{Title: stringValue(input, "title"), Description: stringValue(input, "description"), Status: stringValue(input, "status"), AgentID: stringValue(input, "agentId"), RunID: stringValue(input, "runId"), DependsOn: stringSliceValue(input, "dependsOn")})
+		if err == nil {
+			recordADKWorkflowAudit(ctx, server, "task.saved", task.ID, "ADK task saved.", map[string]any{"status": task.Status})
+		}
+		return task, err
+	})
+	registry.Register(jfadk.ToolDescriptor{Name: "tasks.update", DisplayName: "Update ADK task", Description: "Update a lightweight ADK task status or details.", Category: "workflow", Permission: "write_task", OutputSummary: "Updated task."}, func(ctx context.Context, input map[string]any) (any, error) {
+		task, err := store.UpdateTask(ctx, stringValue(input, "id"), taskPatchFromInput(input))
+		if err == nil {
+			recordADKWorkflowAudit(ctx, server, "task.updated", task.ID, "ADK task updated.", map[string]any{"status": task.Status})
+		}
+		return task, err
+	})
+	registry.Register(jfadk.ToolDescriptor{Name: "tasks.delete", DisplayName: "Delete ADK task", Description: "Delete a lightweight ADK task record.", Category: "workflow", Permission: "write_task", OutputSummary: "Deleted task."}, func(ctx context.Context, input map[string]any) (any, error) {
+		id := stringValue(input, "id")
+		if err := store.DeleteTask(ctx, id); err != nil {
+			return nil, err
+		}
+		recordADKWorkflowAudit(ctx, server, "task.deleted", id, "ADK task deleted.", nil)
+		return map[string]any{"deleted": true, "id": id}, nil
+	})
+	registry.Register(jfadk.ToolDescriptor{Name: "memory.list", DisplayName: "List ADK memory", Description: "List workspace and agent memory entries from the ADK database.", Category: "workflow", Permission: "read_internal", OutputSummary: "Memory entries."}, func(ctx context.Context, input map[string]any) (any, error) {
+		entries, err := store.ListMemoryFiltered(ctx, stringValue(input, "scope"), stringValue(input, "agentId"), stringValue(input, "key"))
+		if err != nil {
+			return nil, err
+		}
+		return map[string]any{"entries": entries, "totalReturned": len(entries)}, nil
+	})
+	registry.Register(jfadk.ToolDescriptor{Name: "memory.remember", DisplayName: "Remember ADK preference", Description: "Store a short workspace or agent memory entry in the ADK database.", Category: "workflow", Permission: "write_memory", OutputSummary: "Saved memory entry."}, func(ctx context.Context, input map[string]any) (any, error) {
+		entry, err := store.SaveMemory(ctx, jfadk.MemoryWriteRequest{AgentID: stringValue(input, "agentId"), Key: stringValue(input, "key"), Value: stringValue(input, "value"), Scope: stringValue(input, "scope")})
+		if err == nil {
+			recordADKWorkflowAudit(ctx, server, "memory.saved", entry.ID, "ADK memory saved.", map[string]any{"scope": entry.Scope, "key": entry.Key})
+		}
+		return entry, err
+	})
+	registry.Register(jfadk.ToolDescriptor{Name: "memory.forget", DisplayName: "Forget ADK memory", Description: "Delete a workspace or agent memory entry from the ADK database.", Category: "workflow", Permission: "write_memory", OutputSummary: "Deleted memory entry."}, func(ctx context.Context, input map[string]any) (any, error) {
+		id := stringValue(input, "id")
+		if err := store.DeleteMemory(ctx, id); err != nil {
+			return nil, err
+		}
+		recordADKWorkflowAudit(ctx, server, "memory.deleted", id, "ADK memory deleted.", nil)
+		return map[string]any{"deleted": true, "id": id}, nil
+	})
+}
+
+func recordADKWorkflowAudit(ctx context.Context, server *Server, kind string, subjectID string, detail string, metadata map[string]any) {
+	if server == nil || server.adkRuntime == nil {
+		return
+	}
+	server.adkRuntime.RecordAudit(ctx, kind, subjectID, detail, metadata)
+}
+
+func taskPatchFromInput(input map[string]any) jfadk.TaskPatchRequest {
+	return jfadk.TaskPatchRequest{
+		Title:       stringPtrFromInput(input, "title"),
+		Description: stringPtrFromInput(input, "description"),
+		Status:      stringPtrFromInput(input, "status"),
+		AgentID:     stringPtrFromInput(input, "agentId"),
+		RunID:       stringPtrFromInput(input, "runId"),
+		DependsOn:   stringSliceFromPresentInput(input, "dependsOn"),
+	}
+}
+
+func stringPtrFromInput(input map[string]any, key string) *string {
+	value, ok := input[key]
+	if !ok {
+		return nil
+	}
+	switch typed := value.(type) {
+	case string:
+		return &typed
+	case nil:
+		empty := ""
+		return &empty
+	default:
+		text := fmt.Sprint(typed)
+		return &text
+	}
+}
+
+func stringSliceFromPresentInput(input map[string]any, key string) []string {
+	if _, ok := input[key]; !ok {
+		return nil
+	}
+	return stringSliceValue(input, key)
+}
+
+func adkBrokerBaseReadQuery(server *Server, input map[string]any) brokerBaseReadQuery {
+	market := stringValue(input, "market")
+	if market == "" && server != nil && server.store != nil {
+		market = server.store.integration().Config.TradeMarket
+	}
+	return brokerBaseReadQuery{TradingEnvironment: stringValue(input, "tradingEnvironment"), AccountID: stringValue(input, "accountId"), Market: market}
+}
+
+func pageEnvelope(limit int, offset int, total int, returned int) map[string]any {
+	return map[string]any{"limit": limit, "offset": offset, "total": total, "returned": returned, "hasMore": offset+returned < total}
 }
 
 var adkInstrumentPattern = regexp.MustCompile(`(?i)\b(HK|US|SH|SZ|CN|JP|SG)\.([A-Z0-9._-]+)\b`)

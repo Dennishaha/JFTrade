@@ -38,6 +38,9 @@ func (s *SQLiteSessionService) Close() error {
 }
 
 func MigrateSQLiteSessionService(service adksession.Service) error {
+	if wrapper, ok := service.(*SQLiteSessionService); ok && wrapper != nil {
+		service = wrapper.Service
+	}
 	err := adksessiondb.AutoMigrate(service)
 	if err == nil {
 		return nil

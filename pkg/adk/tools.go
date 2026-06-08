@@ -19,6 +19,19 @@ import (
 
 type ToolFunc func(context.Context, map[string]any) (any, error)
 
+type toolContextKey string
+
+const toolContextAgentKey toolContextKey = "adkToolAgent"
+
+func contextWithToolAgent(ctx context.Context, agent Agent) context.Context {
+	return context.WithValue(ctx, toolContextAgentKey, agent)
+}
+
+func toolAgentFromContext(ctx context.Context) (Agent, bool) {
+	agent, ok := ctx.Value(toolContextAgentKey).(Agent)
+	return agent, ok
+}
+
 type RegisteredTool struct {
 	Descriptor ToolDescriptor
 	Handler    ToolFunc
@@ -39,6 +52,57 @@ func NewToolRegistry() *ToolRegistry {
 		AllowedModes:       []string{PermissionModeApproval, PermissionModeSandboxAuto, PermissionModeHighAuto},
 		RequiresApprovalIn: nil,
 	}, httpFetchTool)
+	registry.Register(ToolDescriptor{
+		Name:               "tools.search",
+		DisplayName:        "Search ADK tools",
+		Description:        "Search currently registered JFTrade ADK tools by name, category, permission, risk, or description.",
+		Category:           "system",
+		Permission:         "read_internal",
+		AllowedModes:       []string{PermissionModeApproval, PermissionModeSandboxAuto, PermissionModeHighAuto},
+		RequiresApprovalIn: nil,
+		OutputSummary:      "Matching tool descriptors with risk level and input schema.",
+		RiskLevel:          "low",
+	}, func(ctx context.Context, input map[string]any) (any, error) {
+		query := strings.ToLower(strings.TrimSpace(toolStringValue(input, "query")))
+		category := strings.ToLower(strings.TrimSpace(toolStringValue(input, "category")))
+		limit := toolIntValue(input, "limit", 12)
+		if limit < 1 {
+			limit = 1
+		}
+		if limit > 50 {
+			limit = 50
+		}
+		descriptors := registry.List()
+		if agent, ok := toolAgentFromContext(ctx); ok {
+			descriptors = ToolDescriptorsForAgent(agent, registry)
+		}
+		matches := make([]map[string]any, 0)
+		for _, descriptor := range descriptors {
+			if descriptor.Name == "tools.search" {
+				continue
+			}
+			if category != "" && strings.ToLower(descriptor.Category) != category {
+				continue
+			}
+			haystack := strings.ToLower(strings.Join([]string{
+				descriptor.Name, descriptor.DisplayName, descriptor.Description, descriptor.Category,
+				descriptor.Permission, descriptor.OutputSummary, descriptor.RiskLevel,
+			}, " "))
+			if query != "" && !strings.Contains(haystack, query) {
+				continue
+			}
+			matches = append(matches, map[string]any{
+				"name": descriptor.Name, "displayName": descriptor.DisplayName, "category": descriptor.Category,
+				"permission": descriptor.Permission, "riskLevel": descriptor.RiskLevel, "description": descriptor.Description,
+				"inputSchema": descriptor.InputSchema, "outputSummary": descriptor.OutputSummary,
+				"requiresApprovalIn": descriptor.RequiresApprovalIn,
+			})
+			if len(matches) >= limit {
+				break
+			}
+		}
+		return map[string]any{"query": query, "category": category, "tools": matches, "totalReturned": len(matches)}, nil
+	})
 	return registry
 }
 
@@ -177,6 +241,34 @@ func SelectToolInvocations(question string, agent Agent, registry *ToolRegistry)
 	if strings.Contains(lower, "http") || strings.Contains(lower, "https://") || strings.Contains(lower, "http://") || strings.Contains(lower, "外部") || strings.Contains(lower, "网页") {
 		add("http.fetch", nil)
 	}
+	if strings.Contains(lower, "depth") || strings.Contains(lower, "order book") || strings.Contains(lower, "盘口") {
+		add("market.depth", nil)
+	}
+	if strings.Contains(lower, "broker") || strings.Contains(lower, "order") || strings.Contains(lower, "订单") {
+		add("broker.orders", nil)
+	}
+	if strings.Contains(lower, "fill") || strings.Contains(lower, "成交") {
+		add("broker.fills", nil)
+	}
+	if strings.Contains(lower, "fee") || strings.Contains(lower, "费用") {
+		add("broker.fees", nil)
+	}
+	if strings.Contains(lower, "margin") || strings.Contains(lower, "保证金") || strings.Contains(lower, "融资") {
+		add("broker.margin_ratios", nil)
+	}
+	if strings.Contains(lower, "risk") || strings.Contains(lower, "风控") || strings.Contains(lower, "kill switch") {
+		add("risk.state", nil)
+		add("risk.events", nil)
+	}
+	if strings.Contains(lower, "task") || strings.Contains(lower, "任务") {
+		add("tasks.list", nil)
+	}
+	if strings.Contains(lower, "memory") || strings.Contains(lower, "记忆") || strings.Contains(lower, "偏好") {
+		add("memory.list", nil)
+	}
+	if strings.Contains(lower, "tool") || strings.Contains(lower, "工具") || strings.Contains(lower, "search") {
+		add("tools.search", nil)
+	}
 	if len(candidates) == 0 {
 		add("system.status", nil)
 	}
@@ -243,7 +335,7 @@ func ToolRequiresApproval(descriptor ToolDescriptor, mode string) bool {
 		}
 	}
 	switch descriptor.Permission {
-	case "install_skill", "write_strategy", "optimize_strategy":
+	case "install_skill", "write_strategy", "optimize_strategy", "write_task", "write_memory":
 		return mode == PermissionModeApproval
 	case "create_strategy_instance":
 		return mode != PermissionModeHighAuto
@@ -424,6 +516,99 @@ func defaultToolInputSchema(name string) map[string]any {
 			"required":             []string{"url"},
 			"additionalProperties": false,
 		}
+	case "tools.search":
+		return map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"query":    map[string]any{"type": "string"},
+				"category": map[string]any{"type": "string"},
+				"limit":    map[string]any{"type": "integer", "minimum": 1, "maximum": 50},
+			},
+			"additionalProperties": false,
+		}
+	case "tasks.create", "tasks.update":
+		properties := map[string]any{
+			"title":       map[string]any{"type": "string"},
+			"description": map[string]any{"type": "string"},
+			"status":      map[string]any{"type": "string", "enum": []string{"TODO", "IN_PROGRESS", "BLOCKED", "DONE", "CANCELLED"}},
+			"agentId":     map[string]any{"type": "string"},
+			"runId":       map[string]any{"type": "string"},
+			"dependsOn":   map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+		}
+		required := []string{"title"}
+		if name == "tasks.update" {
+			properties["id"] = map[string]any{"type": "string"}
+			required = []string{"id"}
+		}
+		return map[string]any{"type": "object", "properties": properties, "required": required, "additionalProperties": false}
+	case "tasks.delete":
+		return map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"id": map[string]any{"type": "string"},
+			},
+			"required":             []string{"id"},
+			"additionalProperties": false,
+		}
+	case "tasks.list":
+		return map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"status":  map[string]any{"type": "string"},
+				"agentId": map[string]any{"type": "string"},
+				"runId":   map[string]any{"type": "string"},
+				"limit":   map[string]any{"type": "integer", "minimum": 1, "maximum": 100},
+				"offset":  map[string]any{"type": "integer", "minimum": 0},
+			},
+			"additionalProperties": false,
+		}
+	case "memory.remember":
+		return map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"key":     map[string]any{"type": "string"},
+				"value":   map[string]any{"type": "string"},
+				"scope":   map[string]any{"type": "string", "enum": []string{"workspace", "agent"}},
+				"agentId": map[string]any{"type": "string"},
+			},
+			"required":             []string{"key", "value"},
+			"additionalProperties": false,
+		}
+	case "memory.list":
+		return map[string]any{"type": "object", "properties": map[string]any{"scope": map[string]any{"type": "string", "enum": []string{"workspace", "agent"}}, "agentId": map[string]any{"type": "string"}, "key": map[string]any{"type": "string"}}, "additionalProperties": false}
+	case "memory.forget":
+		return map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"id": map[string]any{"type": "string"},
+			},
+			"required":             []string{"id"},
+			"additionalProperties": false,
+		}
+	case "broker.orders", "broker.fills":
+		return map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"tradingEnvironment": map[string]any{"type": "string", "enum": []string{"SIMULATE", "REAL"}},
+				"accountId":          map[string]any{"type": "string"},
+				"market":             map[string]any{"type": "string"},
+				"scope":              map[string]any{"type": "string", "enum": []string{"CURRENT", "HISTORY"}},
+				"symbol":             map[string]any{"type": "string"},
+				"startTime":          map[string]any{"type": "string"},
+				"endTime":            map[string]any{"type": "string"},
+			},
+			"additionalProperties": false,
+		}
+	case "broker.cash_flows":
+		return map[string]any{"type": "object", "properties": map[string]any{"clearingDate": map[string]any{"type": "string"}, "direction": map[string]any{"type": "string"}, "tradingEnvironment": map[string]any{"type": "string"}, "accountId": map[string]any{"type": "string"}, "market": map[string]any{"type": "string"}}, "required": []string{"clearingDate"}, "additionalProperties": false}
+	case "broker.fees":
+		return map[string]any{"type": "object", "properties": map[string]any{"orderIdEx": map[string]any{"type": "array", "items": map[string]any{"type": "string"}}, "orderIdExList": map[string]any{"type": "array", "items": map[string]any{"type": "string"}}, "tradingEnvironment": map[string]any{"type": "string"}, "accountId": map[string]any{"type": "string"}, "market": map[string]any{"type": "string"}}, "additionalProperties": false}
+	case "broker.margin_ratios":
+		return map[string]any{"type": "object", "properties": map[string]any{"symbol": map[string]any{"type": "string"}, "symbols": map[string]any{"type": "array", "items": map[string]any{"type": "string"}}, "tradingEnvironment": map[string]any{"type": "string"}, "accountId": map[string]any{"type": "string"}, "market": map[string]any{"type": "string"}}, "additionalProperties": false}
+	case "market.depth":
+		return map[string]any{"type": "object", "properties": map[string]any{"market": map[string]any{"type": "string"}, "symbol": map[string]any{"type": "string"}, "query": map[string]any{"type": "string"}, "num": map[string]any{"type": "integer", "minimum": 1, "maximum": 50}}, "required": []string{"market", "symbol"}, "additionalProperties": false}
+	case "execution.order_events":
+		return map[string]any{"type": "object", "properties": map[string]any{"internalOrderId": map[string]any{"type": "string"}}, "additionalProperties": false}
 	case "market.snapshot", "market.candles":
 		properties := map[string]any{
 			"query":  map[string]any{"type": "string", "description": "Original user request containing a symbol like HK.00700 or US.AAPL."},
@@ -499,6 +684,26 @@ func defaultToolRiskLevel(permission string) string {
 	default:
 		return "medium"
 	}
+}
+
+func toolStringValue(input map[string]any, key string) string {
+	value, _ := input[key].(string)
+	return value
+}
+
+func toolIntValue(input map[string]any, key string, fallback int) int {
+	switch value := input[key].(type) {
+	case float64:
+		return int(value)
+	case int:
+		return value
+	case string:
+		var parsed int
+		if _, err := fmt.Sscanf(strings.TrimSpace(value), "%d", &parsed); err == nil {
+			return parsed
+		}
+	}
+	return fallback
 }
 
 var (

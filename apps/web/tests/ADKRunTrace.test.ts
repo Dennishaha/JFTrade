@@ -78,6 +78,45 @@ describe("ADKRunTrace", () => {
     expect(wrapper.text()).toContain("运行中");
     expect(wrapper.text()).not.toContain("已完成 展开查看本轮工具调用轨迹");
   });
+
+  it("renders known tool output as an inline visualization and keeps raw JSON", () => {
+    const wrapper = mount(ADKRunTrace, {
+      props: {
+        run: buildRun([
+          buildToolCall("tool-1", "portfolio.summary", "SUCCEEDED", {
+            brokerStatus: "connected",
+            accountCount: 2,
+            orderCount: 3,
+          }),
+        ]),
+        busy: false,
+        expandedToolCallIds: ["tool-1"],
+      },
+    });
+
+    expect(wrapper.text()).toContain("Portfolio summary");
+    expect(wrapper.text()).toContain("Broker");
+    expect(wrapper.text()).toContain("connected");
+    expect(wrapper.text()).toContain('"brokerStatus": "connected"');
+  });
+
+  it("falls back to raw JSON for unknown tool output", () => {
+    const wrapper = mount(ADKRunTrace, {
+      props: {
+        run: buildRun([
+          buildToolCall("tool-1", "unknown.tool", "SUCCEEDED", {
+            ok: true,
+            detail: "raw fallback",
+          }),
+        ]),
+        busy: false,
+        expandedToolCallIds: ["tool-1"],
+      },
+    });
+
+    expect(wrapper.text()).not.toContain("Portfolio summary");
+    expect(wrapper.text()).toContain('"detail": "raw fallback"');
+  });
 });
 
 function buildRun(toolCalls: ADKRun["toolCalls"], status = "COMPLETED"): ADKRun {
@@ -94,7 +133,12 @@ function buildRun(toolCalls: ADKRun["toolCalls"], status = "COMPLETED"): ADKRun 
   };
 }
 
-function buildToolCall(id: string, toolName: string, status = "SUCCEEDED"): ADKRun["toolCalls"][number] {
+function buildToolCall(
+  id: string,
+  toolName: string,
+  status = "SUCCEEDED",
+  output: unknown = { ok: true },
+): ADKRun["toolCalls"][number] {
   return {
     id,
     runId: "run-1",
@@ -102,7 +146,7 @@ function buildToolCall(id: string, toolName: string, status = "SUCCEEDED"): ADKR
     permission: "read",
     status,
     input: { query: toolName },
-    output: { ok: true },
+    output,
     requiresUser: false,
     createdAt: "2026-06-06T00:00:00Z",
     updatedAt: "2026-06-06T00:00:00Z",

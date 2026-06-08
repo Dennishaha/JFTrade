@@ -2,6 +2,7 @@
 
 import { mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { createMemoryHistory, createRouter } from "vue-router";
 
 import SettingsADKSection from "../src/components/SettingsADKSection.vue";
 import {
@@ -40,6 +41,18 @@ describe("SettingsADKSection", () => {
       if (url.includes("/api/v1/adk/optimization-tasks")) {
         return createResponse({ tasks: [] });
       }
+      if (url.includes("/api/v1/adk/tasks")) {
+        return createResponse({
+          tasks: [buildTask()],
+          page: { limit: 20, offset: 0, total: 1, returned: 1, hasMore: false },
+        });
+      }
+      if (url.includes("/api/v1/adk/memory")) {
+        return createResponse({ entries: [buildMemoryEntry()] });
+      }
+      if (url.includes("/api/v1/adk/agent-templates")) {
+        return createResponse({ templates: [] });
+      }
       if (url.includes("/api/v1/adk/metrics")) {
         return createResponse(buildMetrics());
       }
@@ -65,9 +78,15 @@ describe("SettingsADKSection", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
+    const router = createADKSettingsRouter(
+      "/settings/adk?tab=observation&view=workflow",
+    );
+    await router.isReady();
+
     const wrapper = mount(SettingsADKSection, {
       attachTo: "#root",
       global: {
+        plugins: [router],
         stubs: {
           "v-alert": { template: "<div><slot /></div>" },
           "v-btn": buttonStub,
@@ -89,6 +108,11 @@ describe("SettingsADKSection", () => {
     });
 
     await flushRequests();
+
+    expect(router.currentRoute.value.query).toEqual({
+      tab: "observation",
+      view: "workflow",
+    });
 
     const nextButtons = wrapper
       .findAll("button")
@@ -117,8 +141,28 @@ describe("SettingsADKSection", () => {
         url.endsWith("/api/v1/adk/audit?limit=12&offset=12"),
       ),
     ).toBe(true);
+
+    expect(wrapper.text()).toContain("观察");
+    expect(wrapper.text()).toContain("工作流");
+    expect(wrapper.text()).toContain("运行与审计");
+    expect(wrapper.text()).toContain("智能体任务");
+    expect(wrapper.text()).toContain("智能体记忆");
+    expect(wrapper.text()).toContain("Follow-up review");
+    expect(wrapper.text()).toContain("preferred_market");
+    expect(wrapper.text()).not.toContain("创建任务");
+    expect(wrapper.text()).not.toContain("保存记忆");
+    expect(wrapper.text()).not.toContain("Delete");
   });
 });
+
+function createADKSettingsRouter(path: string) {
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [{ path: "/settings/:section?", component: { template: "<div />" } }],
+  });
+  void router.push(path);
+  return router;
+}
 
 function buildProvider() {
   return {
@@ -172,6 +216,31 @@ function buildApproval() {
     toolName: "strategy.save_draft",
     status: "PENDING",
     reason: "needs approval",
+    createdAt: "2026-06-06T00:00:00Z",
+    updatedAt: "2026-06-06T00:00:00Z",
+  };
+}
+
+function buildTask() {
+  return {
+    id: "task-1",
+    title: "Follow-up review",
+    description: "Review risk state after the run.",
+    status: "TODO",
+    agentId: "agent-1",
+    runId: "run-1",
+    dependsOn: [],
+    createdAt: "2026-06-06T00:00:00Z",
+    updatedAt: "2026-06-06T00:00:00Z",
+  };
+}
+
+function buildMemoryEntry() {
+  return {
+    id: "memory-1",
+    key: "preferred_market",
+    value: "HK",
+    scope: "workspace",
     createdAt: "2026-06-06T00:00:00Z",
     updatedAt: "2026-06-06T00:00:00Z",
   };

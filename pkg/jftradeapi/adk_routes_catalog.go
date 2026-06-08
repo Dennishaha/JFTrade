@@ -2,8 +2,10 @@ package jftradeapi
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -12,6 +14,10 @@ import (
 
 type adkInstallSkillRequest struct {
 	URL string `json:"url"`
+}
+
+func (s *Server) handleADKAgentTemplates(c *gin.Context) {
+	s.writeOK(c, map[string]any{"templates": jfadk.BuiltinAgentTemplates()})
 }
 
 // handleADKSnapshot godoc
@@ -32,6 +38,151 @@ func (s *Server) handleADKSnapshot(c *gin.Context) {
 
 func (s *Server) handleADKTools(c *gin.Context) {
 	s.writeOK(c, map[string]any{"tools": s.adkRuntime.Tools().List()})
+}
+
+func (s *Server) handleADKTasks(c *gin.Context) {
+	var query adkTasksQuery
+	if err := c.ShouldBindQuery(&query); err != nil {
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid tasks query")
+		return
+	}
+	limit, offset := normalizeBoundPage(query.Limit.Int(), query.Offset.Int(), 20, 100)
+	tasks, total, err := s.adkRuntime.Store().ListTasksPage(c.Request.Context(), query.Status, query.AgentID, query.RunID, limit, offset)
+	if err != nil {
+		if strings.Contains(err.Error(), "invalid task status") {
+			s.writeError(c, http.StatusBadRequest, "ADK_TASK_LIST_FAILED", err.Error())
+			return
+		}
+		s.writeError(c, http.StatusInternalServerError, "ADK_TASK_LIST_FAILED", err.Error())
+		return
+	}
+	s.writeOK(c, map[string]any{"tasks": tasks, "page": pageEnvelope(limit, offset, total, len(tasks))})
+}
+
+func (s *Server) handleADKTask(c *gin.Context) {
+	var uri taskURI
+	if err := bindURI(c, &uri); err != nil || strings.TrimSpace(uri.TaskID) == "" {
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "taskId is invalid")
+		return
+	}
+	task, ok, err := s.adkRuntime.Store().Task(c.Request.Context(), uri.TaskID)
+	if err != nil {
+		s.writeError(c, http.StatusInternalServerError, "ADK_TASK_GET_FAILED", err.Error())
+		return
+	}
+	if !ok {
+		s.writeError(c, http.StatusNotFound, "ADK_TASK_NOT_FOUND", "task not found")
+		return
+	}
+	s.writeOK(c, task)
+}
+
+func (s *Server) handleADKSaveTask(c *gin.Context) {
+	if c.Request.Method == http.MethodPut {
+		s.handleADKPatchTask(c)
+		return
+	}
+	var payload jfadk.TaskWriteRequest
+	if err := c.ShouldBindJSON(&payload); err != nil && err != io.EOF {
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid task payload")
+		return
+	}
+	task, err := s.adkRuntime.Store().SaveTask(c.Request.Context(), payload)
+	if err != nil {
+		s.writeError(c, http.StatusBadRequest, "ADK_TASK_SAVE_FAILED", err.Error())
+		return
+	}
+	s.adkRuntime.RecordAudit(c.Request.Context(), "task.saved", task.ID, "ADK task saved.", map[string]any{"status": task.Status})
+	s.writeOK(c, task)
+}
+
+func (s *Server) handleADKPatchTask(c *gin.Context) {
+	var uri taskURI
+	if err := bindURI(c, &uri); err != nil || strings.TrimSpace(uri.TaskID) == "" {
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "taskId is invalid")
+		return
+	}
+	var payload jfadk.TaskPatchRequest
+	if err := c.ShouldBindJSON(&payload); err != nil && err != io.EOF {
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid task payload")
+		return
+	}
+	task, err := s.adkRuntime.Store().UpdateTask(c.Request.Context(), uri.TaskID, payload)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			s.writeError(c, http.StatusNotFound, "ADK_TASK_NOT_FOUND", "task not found")
+			return
+		}
+		s.writeError(c, http.StatusBadRequest, "ADK_TASK_SAVE_FAILED", err.Error())
+		return
+	}
+	s.adkRuntime.RecordAudit(c.Request.Context(), "task.updated", task.ID, "ADK task updated.", map[string]any{"status": task.Status})
+	s.writeOK(c, task)
+}
+
+func (s *Server) handleADKDeleteTask(c *gin.Context) {
+	var uri taskURI
+	if err := bindURI(c, &uri); err != nil || strings.TrimSpace(uri.TaskID) == "" {
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "taskId is invalid")
+		return
+	}
+	if err := s.adkRuntime.Store().DeleteTask(c.Request.Context(), uri.TaskID); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			s.writeError(c, http.StatusNotFound, "ADK_TASK_NOT_FOUND", "task not found")
+			return
+		}
+		s.writeError(c, http.StatusInternalServerError, "ADK_TASK_DELETE_FAILED", err.Error())
+		return
+	}
+	s.adkRuntime.RecordAudit(c.Request.Context(), "task.deleted", uri.TaskID, "ADK task deleted.", nil)
+	s.writeOK(c, map[string]any{"deleted": true, "id": uri.TaskID})
+}
+
+func (s *Server) handleADKMemory(c *gin.Context) {
+	var query adkMemoryQuery
+	if err := c.ShouldBindQuery(&query); err != nil {
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid memory query")
+		return
+	}
+	entries, err := s.adkRuntime.Store().ListMemoryFiltered(c.Request.Context(), query.Scope, query.AgentID, query.Key)
+	if err != nil {
+		s.writeError(c, http.StatusBadRequest, "ADK_MEMORY_LIST_FAILED", err.Error())
+		return
+	}
+	s.writeOK(c, map[string]any{"entries": entries})
+}
+
+func (s *Server) handleADKSaveMemory(c *gin.Context) {
+	var payload jfadk.MemoryWriteRequest
+	if err := c.ShouldBindJSON(&payload); err != nil && err != io.EOF {
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid memory payload")
+		return
+	}
+	entry, err := s.adkRuntime.Store().SaveMemory(c.Request.Context(), payload)
+	if err != nil {
+		s.writeError(c, http.StatusBadRequest, "ADK_MEMORY_SAVE_FAILED", err.Error())
+		return
+	}
+	s.adkRuntime.RecordAudit(c.Request.Context(), "memory.saved", entry.ID, "ADK memory saved.", map[string]any{"scope": entry.Scope, "key": entry.Key})
+	s.writeOK(c, entry)
+}
+
+func (s *Server) handleADKDeleteMemory(c *gin.Context) {
+	var uri memoryURI
+	if err := bindURI(c, &uri); err != nil || strings.TrimSpace(uri.MemoryID) == "" {
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "memoryId is invalid")
+		return
+	}
+	if err := s.adkRuntime.Store().DeleteMemory(c.Request.Context(), uri.MemoryID); err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			s.writeError(c, http.StatusNotFound, "ADK_MEMORY_NOT_FOUND", "memory not found")
+			return
+		}
+		s.writeError(c, http.StatusInternalServerError, "ADK_MEMORY_DELETE_FAILED", err.Error())
+		return
+	}
+	s.adkRuntime.RecordAudit(c.Request.Context(), "memory.deleted", uri.MemoryID, "ADK memory deleted.", nil)
+	s.writeOK(c, map[string]any{"deleted": true, "id": uri.MemoryID})
 }
 
 // handleADKProviders godoc

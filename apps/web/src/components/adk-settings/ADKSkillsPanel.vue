@@ -13,16 +13,16 @@ defineProps<{
 <template>
   <section class="grid gap-4">
     <v-card flat class="card-shell border-0">
-      <v-card-title>安装 Skill</v-card-title>
+      <v-card-title>安装技能</v-card-title>
       <v-card-text>
         <v-alert type="info" variant="tonal" density="compact" class="mb-3">
-          Skill 现在直接使用 ADK 原生目录模型。Agent 绑定的是 Skill 目录名，模型会通过 ADK 的
-          `list_skills / load_skill / load_skill_resource` 原生流程按需加载说明与资源。
+          技能现在直接使用 ADK 原生目录模型。智能体绑定的是技能目录名，模型会通过 ADK 的
+          `list_skills / load_skill / load_skill_resource` 原生流程按需加载说明和资源。
         </v-alert>
         <form class="flex gap-2" @submit.prevent="installSkill">
           <v-text-field
             :model-value="skillUrl"
-            label="Skill URL"
+            label="技能 URL"
             density="compact"
             hide-details
             placeholder="https://example.com/skill.json"
@@ -54,7 +54,7 @@ defineProps<{
               variant="outlined"
               color="error"
               :disabled="isInternalSkill(skill)"
-              :title="isInternalSkill(skill) ? '内部来源的 Skill 不允许卸载' : '卸载 Skill'"
+              :title="isInternalSkill(skill) ? '内部来源的技能不允许卸载' : '卸载技能'"
               @click="uninstallSkill(skill)"
             >
               {{ isInternalSkill(skill) ? "不可卸载" : "卸载" }}

@@ -6,14 +6,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"google.golang.org/genai"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
-
-	adksessiondb "google.golang.org/adk/session/database"
-	"google.golang.org/genai"
 )
 
 func newTestRuntime(t *testing.T) *Runtime {
@@ -23,11 +23,12 @@ func newTestRuntime(t *testing.T) *Runtime {
 	if err != nil {
 		t.Fatalf("NewStore: %v", err)
 	}
-	t.Cleanup(func() { _ = store.Close() })
-	sessionService, err := adksessiondb.NewSessionService(OpenSQLiteDialector(filepath.Join(dir, "adk-session.db")))
+	sessionService, err := NewSQLiteSessionService(filepath.Join(dir, "adk-session.db"))
 	if err != nil {
 		t.Fatalf("NewSessionService: %v", err)
 	}
+	t.Cleanup(func() { _ = CloseSessionService(sessionService) })
+	t.Cleanup(func() { _ = store.Close() })
 	if err := MigrateSQLiteSessionService(sessionService); err != nil {
 		t.Fatalf("AutoMigrate: %v", err)
 	}
@@ -36,10 +37,11 @@ func newTestRuntime(t *testing.T) *Runtime {
 
 func newRuntimeWithRegistry(t *testing.T, store *Store, registry *ToolRegistry) *Runtime {
 	t.Helper()
-	sessionService, err := adksessiondb.NewSessionService(OpenSQLiteDialector(filepath.Join(filepath.Dir(store.SkillsPath()), "adk-session.db")))
+	sessionService, err := NewSQLiteSessionService(filepath.Join(filepath.Dir(store.SkillsPath()), "adk-session.db"))
 	if err != nil {
 		t.Fatalf("NewSessionService: %v", err)
 	}
+	t.Cleanup(func() { _ = CloseSessionService(sessionService) })
 	if err := MigrateSQLiteSessionService(sessionService); err != nil {
 		t.Fatalf("AutoMigrate: %v", err)
 	}
@@ -873,6 +875,62 @@ func TestInstallSkillArchivePreservesResources(t *testing.T) {
 	}
 }
 
+func TestInstallSkillURLInstallsNeodataFinancialSearch(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	originalValidator := skillInstallHostValidator
+	skillInstallHostValidator = func(context.Context, string) error { return nil }
+	t.Cleanup(func() { skillInstallHostValidator = originalValidator })
+	skillServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/skills/neodata-financial-search/SKILL.md" {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
+		_, _ = w.Write([]byte(`---
+name: neodata-financial-search
+description: Search NeoData financial filings and earnings materials.
+allowed-tools: [http.fetch]
+metadata:
+  version: 2026.06
+---
+Use NeoData search results as reference material and cite the source URL.`))
+	}))
+	t.Cleanup(skillServer.Close)
+
+	skillURL := skillServer.URL + "/skills/neodata-financial-search/SKILL.md"
+	skill, err := runtime.Skills().InstallURL(ctx, skillURL)
+	if err != nil {
+		t.Fatalf("InstallURL: %v", err)
+	}
+	if skill.ID != "neodata-financial-search" {
+		t.Fatalf("skill ID = %q, want neodata-financial-search", skill.ID)
+	}
+	if skill.Source != skillURL {
+		t.Fatalf("skill source = %q, want %q", skill.Source, skillURL)
+	}
+	if skill.Version != "2026.06" {
+		t.Fatalf("skill version = %q, want 2026.06", skill.Version)
+	}
+	if len(skill.Tools) != 1 || skill.Tools[0] != "http.fetch" {
+		t.Fatalf("skill tools = %+v, want [http.fetch]", skill.Tools)
+	}
+	installedPath := filepath.Join(runtime.Store().SkillsPath(), "neodata-financial-search", "SKILL.md")
+	if _, err := os.Stat(installedPath); err != nil {
+		t.Fatalf("installed skill path stat: %v", err)
+	}
+	stored, ok, err := runtime.Skills().Get(ctx, "neodata-financial-search")
+	if err != nil {
+		t.Fatalf("Get installed skill: %v", err)
+	}
+	if !ok {
+		t.Fatal("installed skill not found in registry")
+	}
+	if stored.ContentHash == "" || stored.ValidationStatus != "VALID" {
+		t.Fatalf("stored skill metadata = %+v", stored)
+	}
+}
+
 func TestResolveSessionRejectsDifferentAgent(t *testing.T) {
 	ctx := context.Background()
 	runtime := newTestRuntime(t)
@@ -1288,5 +1346,172 @@ func TestMultipleApprovalsExecuteOnlyAfterAllApproved(t *testing.T) {
 	}
 	if second.Run == nil || second.Run.Status != RunStatusCompleted {
 		t.Fatalf("second approval run = %+v, want completed", second.Run)
+	}
+}
+
+func TestADKTaskUpdateDeleteAndValidation(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	task, err := runtime.Store().SaveTask(ctx, TaskWriteRequest{
+		ID: "task-a", Title: "Original", Status: "TODO", AgentID: "agent-a", DependsOn: []string{"task-b", "task-b"},
+	})
+	if err != nil {
+		t.Fatalf("SaveTask: %v", err)
+	}
+	if len(task.DependsOn) != 1 || task.DependsOn[0] != "task-b" {
+		t.Fatalf("dependsOn = %+v, want deduplicated task-b", task.DependsOn)
+	}
+	description := "kept details"
+	status := "IN_PROGRESS"
+	updated, err := runtime.Store().UpdateTask(ctx, task.ID, TaskPatchRequest{Description: &description, Status: &status})
+	if err != nil {
+		t.Fatalf("UpdateTask: %v", err)
+	}
+	if updated.Title != "Original" || updated.Description != description || updated.Status != status {
+		t.Fatalf("updated task = %+v, want partial update preserving title", updated)
+	}
+	if _, err := runtime.Store().SaveTask(ctx, TaskWriteRequest{ID: "bad-status", Title: "Bad", Status: "NOPE"}); err == nil {
+		t.Fatalf("SaveTask invalid status err = nil, want error")
+	}
+	if _, err := runtime.Store().SaveTask(ctx, TaskWriteRequest{ID: "self", Title: "Self", DependsOn: []string{"self"}}); err == nil {
+		t.Fatalf("SaveTask self dependency err = nil, want error")
+	}
+	tasks, total, err := runtime.Store().ListTasksPage(ctx, "IN_PROGRESS", "agent-a", "", 20, 0)
+	if err != nil {
+		t.Fatalf("ListTasksPage: %v", err)
+	}
+	if total != 1 || len(tasks) != 1 || tasks[0].ID != task.ID {
+		t.Fatalf("filtered tasks total=%d tasks=%+v, want task-a", total, tasks)
+	}
+	if err := runtime.Store().DeleteTask(ctx, task.ID); err != nil {
+		t.Fatalf("DeleteTask: %v", err)
+	}
+	if _, ok, err := runtime.Store().Task(ctx, task.ID); err != nil || ok {
+		t.Fatalf("Task after delete ok=%v err=%v, want missing", ok, err)
+	}
+}
+
+func TestADKMemoryFiltersDeleteAndAgentValidation(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	agent, err := runtime.Store().SaveAgent(ctx, AgentWriteRequest{ID: "agent-memory", Name: "Agent", Status: AgentStatusEnabled})
+	if err != nil {
+		t.Fatalf("SaveAgent: %v", err)
+	}
+	workspace, err := runtime.Store().SaveMemory(ctx, MemoryWriteRequest{Scope: "workspace", Key: "Market", Value: "HK"})
+	if err != nil {
+		t.Fatalf("SaveMemory workspace: %v", err)
+	}
+	agentEntry, err := runtime.Store().SaveMemory(ctx, MemoryWriteRequest{Scope: "agent", AgentID: agent.ID, Key: "Style", Value: "risk first"})
+	if err != nil {
+		t.Fatalf("SaveMemory agent: %v", err)
+	}
+	if _, err := runtime.Store().SaveMemory(ctx, MemoryWriteRequest{Scope: "agent", Key: "missing", Value: "bad"}); err == nil {
+		t.Fatalf("SaveMemory agent without agentId err = nil, want error")
+	}
+	entries, err := runtime.Store().ListMemoryFiltered(ctx, "agent", agent.ID, "style")
+	if err != nil {
+		t.Fatalf("ListMemoryFiltered: %v", err)
+	}
+	if len(entries) != 1 || entries[0].ID != agentEntry.ID {
+		t.Fatalf("agent memory entries = %+v, want style entry", entries)
+	}
+	promptEntries, err := runtime.Store().ListMemory(ctx, agent.ID)
+	if err != nil {
+		t.Fatalf("ListMemory: %v", err)
+	}
+	if len(promptEntries) != 2 {
+		t.Fatalf("prompt memory len=%d entries=%+v, want workspace + agent", len(promptEntries), promptEntries)
+	}
+	if err := runtime.Store().DeleteMemory(ctx, workspace.ID); err != nil {
+		t.Fatalf("DeleteMemory: %v", err)
+	}
+	if _, ok, err := runtime.Store().Memory(ctx, workspace.ID); err != nil || ok {
+		t.Fatalf("Memory after delete ok=%v err=%v, want missing", ok, err)
+	}
+}
+
+func TestPrepareAgentInjectsMemoryOnlyWhenEnabled(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	if _, err := runtime.Store().SaveMemory(ctx, MemoryWriteRequest{Scope: "workspace", Key: "preference", Value: "use HK market"}); err != nil {
+		t.Fatalf("SaveMemory: %v", err)
+	}
+	disabled, err := runtime.prepareAgent(ctx, Agent{ID: "agent", Instruction: "base", MemoryEnabled: false})
+	if err != nil {
+		t.Fatalf("prepareAgent disabled: %v", err)
+	}
+	if strings.Contains(disabled.Instruction, "JFTrade memory") {
+		t.Fatalf("disabled instruction = %q, want no memory", disabled.Instruction)
+	}
+	enabled, err := runtime.prepareAgent(ctx, Agent{ID: "agent", Instruction: "base", MemoryEnabled: true})
+	if err != nil {
+		t.Fatalf("prepareAgent enabled: %v", err)
+	}
+	if !strings.Contains(enabled.Instruction, "use HK market") {
+		t.Fatalf("enabled instruction = %q, want memory", enabled.Instruction)
+	}
+}
+
+func TestToolsSearchReturnsOnlyCurrentAgentTools(t *testing.T) {
+	ctx := context.Background()
+	registry := NewToolRegistry()
+	registry.Register(ToolDescriptor{Name: "visible.read", DisplayName: "Visible", Category: "test", Permission: "read_internal"}, func(context.Context, map[string]any) (any, error) {
+		return nil, nil
+	})
+	registry.Register(ToolDescriptor{Name: "hidden.read", DisplayName: "Hidden", Category: "test", Permission: "read_internal"}, func(context.Context, map[string]any) (any, error) {
+		return nil, nil
+	})
+	registered, ok := registry.Get("tools.search")
+	if !ok {
+		t.Fatalf("tools.search not registered")
+	}
+	output, err := executeRegisteredTool(contextWithToolAgent(ctx, Agent{ID: "agent", Tools: []string{"tools.search", "visible.read"}}), registered, map[string]any{"query": "read"})
+	if err != nil {
+		t.Fatalf("execute tools.search: %v", err)
+	}
+	payload, ok := output.(map[string]any)
+	if !ok {
+		t.Fatalf("output = %T, want map", output)
+	}
+	tools, ok := payload["tools"].([]map[string]any)
+	if !ok {
+		t.Fatalf("tools payload = %T, want []map[string]any", payload["tools"])
+	}
+	if len(tools) != 1 || tools[0]["name"] != "visible.read" {
+		t.Fatalf("tools.search tools = %+v, want only visible.read", tools)
+	}
+	if _, ok := tools[0]["requiresApprovalIn"]; !ok {
+		t.Fatalf("tools.search result lacks requiresApprovalIn: %+v", tools[0])
+	}
+}
+
+func TestWorkflowWriteToolsRequireApproval(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	registry := NewToolRegistry()
+	registry.Register(ToolDescriptor{Name: "tasks.create", Permission: "write_task", AllowedModes: []string{PermissionModeApproval}}, func(context.Context, map[string]any) (any, error) {
+		return map[string]any{"created": true}, nil
+	})
+	registry.Register(ToolDescriptor{Name: "memory.remember", Permission: "write_memory", AllowedModes: []string{PermissionModeApproval}}, func(context.Context, map[string]any) (any, error) {
+		return map[string]any{"remembered": true}, nil
+	})
+	runtime = newRuntimeWithRegistry(t, runtime.Store(), registry)
+	agent, err := runtime.Store().SaveAgent(ctx, AgentWriteRequest{
+		ID: "workflow-agent", Name: "Workflow", Tools: []string{"tasks.create", "memory.remember"},
+		PermissionMode: PermissionModeApproval, Status: AgentStatusEnabled,
+	})
+	if err != nil {
+		t.Fatalf("SaveAgent: %v", err)
+	}
+	response, err := runtime.Chat(ctx, ChatRequest{
+		AgentID: agent.ID,
+		Message: `<execute-tool name="tasks.create" title="Follow up" /><execute-tool name="memory.remember" key="market" value="HK" />`,
+	})
+	if err != nil {
+		t.Fatalf("Chat: %v", err)
+	}
+	if len(response.PendingApprovals) != 2 {
+		t.Fatalf("pending approvals = %d, want 2", len(response.PendingApprovals))
 	}
 }

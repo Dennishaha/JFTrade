@@ -2,10 +2,15 @@ import type {
   ADKAgent,
   ADKApproval,
   ADKAuditEvent,
+  ADKMemoryFilters,
+  ADKMemoryEntry,
   ADKOptimizationTask,
   ADKProvider,
   ADKRun,
   ADKSkill,
+  ADKTask,
+  ADKTaskFilters,
+  ADKTaskPatch,
   ADKToolDescriptor,
 } from "@jftrade/ui-contracts";
 
@@ -66,6 +71,9 @@ interface RunsResponse { runs: ADKRun[]; page?: PageEnvelope }
 interface ApprovalsResponse { approvals: ADKApproval[]; page?: PageEnvelope }
 interface OptimizationTasksResponse { tasks: ADKOptimizationTask[] }
 interface AuditResponse { events: ADKAuditEvent[]; page?: PageEnvelope }
+interface TasksResponse { tasks: ADKTask[]; page?: PageEnvelope }
+interface MemoryResponse { entries: ADKMemoryEntry[] }
+interface AgentTemplatesResponse { templates: Array<Omit<ADKAgent, "createdAt" | "updatedAt">> }
 
 export async function fetchADKSettingsSnapshot(): Promise<{
   providers: ADKProvider[];
@@ -73,14 +81,20 @@ export async function fetchADKSettingsSnapshot(): Promise<{
   tools: ADKToolDescriptor[];
   skills: ADKSkill[];
   optimizationTasks: ADKOptimizationTask[];
+  tasks: ADKTask[];
+  memoryEntries: ADKMemoryEntry[];
+  agentTemplates: Array<Omit<ADKAgent, "createdAt" | "updatedAt">>;
   metrics: ADKMetricsResponse;
 }> {
-  const [providers, agents, tools, skills, optimizationTasks, metrics] = await Promise.all([
+  const [providers, agents, tools, skills, optimizationTasks, tasks, memory, templates, metrics] = await Promise.all([
     fetchEnvelope<ProvidersResponse>("/api/v1/adk/providers"),
     fetchEnvelope<AgentsResponse>("/api/v1/adk/agents"),
     fetchEnvelope<ToolsResponse>("/api/v1/adk/tools"),
     fetchEnvelope<SkillsResponse>("/api/v1/adk/skills"),
     fetchEnvelope<OptimizationTasksResponse>("/api/v1/adk/optimization-tasks?limit=20"),
+    fetchEnvelope<TasksResponse>("/api/v1/adk/tasks?limit=20"),
+    fetchEnvelope<MemoryResponse>("/api/v1/adk/memory"),
+    fetchEnvelope<AgentTemplatesResponse>("/api/v1/adk/agent-templates"),
     fetchEnvelope<ADKMetricsResponse>("/api/v1/adk/metrics"),
   ]);
 
@@ -90,6 +104,9 @@ export async function fetchADKSettingsSnapshot(): Promise<{
     tools: tools.tools,
     skills: skills.skills,
     optimizationTasks: optimizationTasks.tasks,
+    tasks: tasks.tasks,
+    memoryEntries: memory.entries,
+    agentTemplates: templates.templates,
     metrics,
   };
 }
@@ -114,6 +131,76 @@ export async function fetchADKSkills(): Promise<ADKSkill[]> {
 export async function fetchADKOptimizationTasks(): Promise<ADKOptimizationTask[]> {
   const response = await fetchEnvelope<OptimizationTasksResponse>("/api/v1/adk/optimization-tasks?limit=20");
   return response.tasks;
+}
+
+export async function fetchADKTasks(filters: ADKTaskFilters = {}): Promise<ADKTask[]> {
+  const params = new URLSearchParams();
+  params.set("limit", String(filters.limit ?? 20));
+  if (filters.offset !== undefined) params.set("offset", String(filters.offset));
+  if (filters.status) params.set("status", filters.status);
+  if (filters.agentId) params.set("agentId", filters.agentId);
+  if (filters.runId) params.set("runId", filters.runId);
+  const response = await fetchEnvelope<TasksResponse>(`/api/v1/adk/tasks?${params.toString()}`);
+  return response.tasks;
+}
+
+export async function saveADKTask(task: {
+  id?: string;
+  title: string;
+  description?: string;
+  status?: string;
+  agentId?: string;
+  runId?: string;
+  dependsOn?: string[];
+}): Promise<ADKTask> {
+  return fetchEnvelopeWithInit<ADKTask>("/api/v1/adk/tasks", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(task),
+  });
+}
+
+export async function updateADKTask(taskId: string, patch: ADKTaskPatch): Promise<ADKTask> {
+  return fetchEnvelopeWithInit<ADKTask>(`/api/v1/adk/tasks/${encodeURIComponent(taskId)}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+}
+
+export async function deleteADKTask(taskId: string): Promise<void> {
+  await fetchEnvelopeWithInit(`/api/v1/adk/tasks/${encodeURIComponent(taskId)}`, {
+    method: "DELETE",
+  });
+}
+
+export async function fetchADKMemory(filters: ADKMemoryFilters = {}): Promise<ADKMemoryEntry[]> {
+  const params = new URLSearchParams();
+  if (filters.scope) params.set("scope", filters.scope);
+  if (filters.agentId) params.set("agentId", filters.agentId);
+  if (filters.key) params.set("key", filters.key);
+  const suffix = params.toString();
+  const response = await fetchEnvelope<MemoryResponse>(`/api/v1/adk/memory${suffix ? `?${suffix}` : ""}`);
+  return response.entries;
+}
+
+export async function saveADKMemory(entry: {
+  agentId?: string;
+  key: string;
+  value: string;
+  scope?: string;
+}): Promise<ADKMemoryEntry> {
+  return fetchEnvelopeWithInit<ADKMemoryEntry>("/api/v1/adk/memory", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(entry),
+  });
+}
+
+export async function deleteADKMemory(memoryId: string): Promise<void> {
+  await fetchEnvelopeWithInit(`/api/v1/adk/memory/${encodeURIComponent(memoryId)}`, {
+    method: "DELETE",
+  });
 }
 
 export async function fetchADKMetrics(): Promise<ADKMetricsResponse> {

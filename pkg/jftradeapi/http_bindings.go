@@ -263,6 +263,24 @@ type adkAuditQuery struct {
 	SubjectID string `form:"subjectId"`
 }
 
+type adkTasksQuery struct {
+	Limit   optionalIntValue `form:"limit,parser=encoding.TextUnmarshaler"`
+	Offset  optionalIntValue `form:"offset,parser=encoding.TextUnmarshaler"`
+	Status  string           `form:"status"`
+	AgentID string           `form:"agentId"`
+	RunID   string           `form:"runId"`
+}
+
+type adkMemoryQuery struct {
+	Scope   string `form:"scope"`
+	AgentID string `form:"agentId"`
+	Key     string `form:"key"`
+}
+
+type memoryURI struct {
+	MemoryID string `uri:"memoryId" binding:"required"`
+}
+
 type marketSubscriptionDeleteQuery struct {
 	ConsumerID string `form:"consumerId"`
 }

@@ -28,7 +28,7 @@ defineEmits<{
   <div>
     <div v-if="chatMessages.length === 0 && !sendingChat" class="adk-empty">
       <v-icon size="52" class="adk-empty-icon">fa-solid fa-robot</v-icon>
-      <p class="adk-empty-title">开始与 Agent 对话</p>
+      <p class="adk-empty-title">开始与智能体对话</p>
       <p class="adk-empty-hint">
         可直接输入问题，也可以用 @tool_name 显式调用内置工具
       </p>

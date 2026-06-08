@@ -24,6 +24,8 @@ import (
 const maxSkillFileSize = 512 << 10
 const maxSkillArchiveSize = 4 << 20
 
+var skillInstallHostValidator = rejectUnsafeHost
+
 type SkillRegistry struct {
 	skillsPath string
 }
@@ -152,13 +154,13 @@ func (r *SkillRegistry) InstallURL(ctx context.Context, rawURL string) (Skill, e
 	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") {
 		return Skill{}, fmt.Errorf("valid http/https skill URL is required")
 	}
-	if err := rejectUnsafeHost(ctx, parsed.Hostname()); err != nil {
+	if err := skillInstallHostValidator(ctx, parsed.Hostname()); err != nil {
 		return Skill{}, err
 	}
 	client := &http.Client{
 		Timeout: 20 * time.Second,
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
-			if err := rejectUnsafeHost(req.Context(), req.URL.Hostname()); err != nil {
+			if err := skillInstallHostValidator(req.Context(), req.URL.Hostname()); err != nil {
 				return fmt.Errorf("redirect to unsafe host %q blocked: %w", req.URL.Hostname(), err)
 			}
 			if len(via) >= 5 {
