@@ -33,10 +33,44 @@ function authHeaders(method = "GET"): Record<string, string> {
 }
 
 async function parseEnvelope<T>(response: Response): Promise<T> {
-  const body = (await response.json()) as ApiSuccessEnvelope<T> | ApiErrorEnvelope;
-  if (!response.ok || !body.ok) {
-    throw new Error(body.ok ? "未知 API 错误" : body.error.message);
+  let body: ApiSuccessEnvelope<T> | ApiErrorEnvelope | null = null;
+  let rawBody = "";
+
+  if (typeof response.text === "function") {
+    rawBody = await response.text();
+  } else if (typeof response.json === "function") {
+    body = (await response.json()) as ApiSuccessEnvelope<T> | ApiErrorEnvelope;
   }
+
+  if (body == null && rawBody.trim() !== "") {
+    try {
+      body = JSON.parse(rawBody) as ApiSuccessEnvelope<T> | ApiErrorEnvelope;
+    } catch {
+      if (!response.ok) {
+        throw new Error(
+          `${response.status} ${response.statusText}: ${rawBody.trim()}`,
+        );
+      }
+      throw new Error("API response is not valid JSON");
+    }
+  }
+
+  if (!response.ok) {
+    const message =
+      body != null && !body.ok
+        ? body.error.message
+        : `${response.status} ${response.statusText}`;
+    throw new Error(message);
+  }
+
+  if (body == null) {
+    throw new Error("API response body is empty");
+  }
+
+  if (!body.ok) {
+    throw new Error(body.error.message || "Unknown API error");
+  }
+
   return body.data;
 }
 
@@ -47,7 +81,9 @@ export async function administratorSession(): Promise<AdministratorSession> {
   return parseEnvelope<AdministratorSession>(response);
 }
 
-export async function administratorLogin(key: string): Promise<AdministratorSession> {
+export async function administratorLogin(
+  key: string,
+): Promise<AdministratorSession> {
   const response = await fetch(buildApiUrl("/api/v1/auth/login"), {
     method: "POST",
     credentials: "include",

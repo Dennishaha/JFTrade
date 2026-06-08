@@ -17,8 +17,6 @@ $cnGoNotInstalled = Join-CharCodes 0x672a,0x5b89,0x88c5,0x6216,0x4e0d,0x5728,0x2
 $cnNpmNotInstalled = Join-CharCodes 0x672a,0x5b89,0x88c5,0x6216,0x4e0d,0x5728,0x20,0x50,0x41,0x54,0x48,0x20,0x4e2d
 $cnInstallFrontend = Join-CharCodes 0x5b89,0x88c5,0x524d,0x7aef,0x4f9d,0x8d56
 $cnDependencyFailed = Join-CharCodes 0x4f9d,0x8d56,0x5b89,0x88c5,0x5931,0x8d25
-$cnRunGoTests = Join-CharCodes 0x8fd0,0x884c,0x20,0x47,0x6f,0x20,0x6d4b,0x8bd5
-$cnGoTestsFailed = Join-CharCodes 0x47,0x6f,0x20,0x6d4b,0x8bd5,0x5931,0x8d25
 $cnRunTypecheck = Join-CharCodes 0x8fd0,0x884c,0x524d,0x7aef,0x7c7b,0x578b,0x68c0,0x67e5
 $cnTypecheckFailed = Join-CharCodes 0x7c7b,0x578b,0x68c0,0x67e5,0x5931,0x8d25
 $cnBuildFrontend = Join-CharCodes 0x6784,0x5efa,0x524d,0x7aef
@@ -31,13 +29,24 @@ $cnStoppingBackend = Join-CharCodes 0x6b63,0x5728,0x505c,0x6b62,0x540e,0x7aef,0x
 $cnBackendStopped = Join-CharCodes 0x540e,0x7aef,0x670d,0x52a1,0x5df2,0x505c,0x6b62
 $cnAllExited = Join-CharCodes 0x6240,0x6709,0x670d,0x52a1,0x5df2,0x9000,0x51fa
 
-$env:JFTRADE_API_BIND = if ([string]::IsNullOrEmpty($env:JFTRADE_API_BIND)) { "127.0.0.1:6699" }
-$env:JFTRADE_GUI_BIND = if ([string]::IsNullOrEmpty($env:JFTRADE_GUI_BIND)) { "127.0.0.1:6688" }
-$env:JFTRADE_FUTU_API_PORT = if ([string]::IsNullOrEmpty($env:JFTRADE_FUTU_API_PORT)) { "11110" }
-$env:JFTRADE_FUTU_WEBSOCKET_PORT = if ([string]::IsNullOrEmpty($env:JFTRADE_FUTU_WEBSOCKET_PORT)) { "11111" }
-$env:FUTU_OPEND_ADDR = if ([string]::IsNullOrEmpty($env:FUTU_OPEND_ADDR)) { "127.0.0.1:$($env:JFTRADE_FUTU_API_PORT)" }
-$env:DISABLE_MARKETS_CACHE = if ([string]::IsNullOrEmpty($env:DISABLE_MARKETS_CACHE)) { "1" }
-$env:NODE_OPTIONS = if ([string]::IsNullOrEmpty($env:NODE_OPTIONS)) { "--no-deprecation" }
+function Set-DefaultEnv {
+    param(
+        [string]$Name,
+        [string]$Value
+    )
+
+    if ([string]::IsNullOrEmpty([Environment]::GetEnvironmentVariable($Name))) {
+        [Environment]::SetEnvironmentVariable($Name, $Value, "Process")
+    }
+}
+
+Set-DefaultEnv "JFTRADE_API_BIND" "127.0.0.1:6699"
+Set-DefaultEnv "JFTRADE_GUI_BIND" "127.0.0.1:6688"
+Set-DefaultEnv "JFTRADE_FUTU_API_PORT" "11110"
+Set-DefaultEnv "JFTRADE_FUTU_WEBSOCKET_PORT" "11111"
+Set-DefaultEnv "FUTU_OPEND_ADDR" "127.0.0.1:$($env:JFTRADE_FUTU_API_PORT)"
+Set-DefaultEnv "DISABLE_MARKETS_CACHE" "1"
+Set-DefaultEnv "NODE_OPTIONS" "--no-deprecation"
 
 if (-not (Get-Command "go" -ErrorAction SilentlyContinue)) {
     Write-Host ("go is not installed or not on PATH / {0}" -f $cnGoNotInstalled) -ForegroundColor Red
@@ -55,14 +64,6 @@ Write-Host ("`n=== Installing frontend dependencies / {0} ===" -f $cnInstallFron
 npm install
 if ($LASTEXITCODE -ne 0) {
     Write-Host ("Dependency installation failed / {0}" -f $cnDependencyFailed) -ForegroundColor Red
-    pause
-    exit 1
-}
-
-Write-Host ("`n=== Running Go tests / {0} ===" -f $cnRunGoTests) -ForegroundColor Cyan
-go test ./...
-if ($LASTEXITCODE -ne 0) {
-    Write-Host ("Go tests failed / {0}" -f $cnGoTestsFailed) -ForegroundColor Red
     pause
     exit 1
 }

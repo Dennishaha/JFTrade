@@ -177,6 +177,7 @@ func TestCORSOnlyReflectsConfiguredOrigins(t *testing.T) {
 		want   string
 	}{
 		{origin: "http://localhost:5173", want: "http://localhost:5173"},
+		{origin: "http://localhost:5174", want: "http://localhost:5174"},
 		{origin: "https://evil.example.com", want: ""},
 	} {
 		req, _ := http.NewRequest(http.MethodGet, srv.URL+"/api/v1/system/status", nil)

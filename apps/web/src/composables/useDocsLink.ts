@@ -1,6 +1,4 @@
-const docsBaseUrl = import.meta.env.DEV
-  ? "http://localhost:5174/docs/"
-  : "/docs/";
+const docsBaseUrl = "/docs/";
 
 export function resolveDocsHref(path = "index.html"): string {
   if (docsBaseUrl.startsWith("http")) {

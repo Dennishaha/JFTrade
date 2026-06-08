@@ -72,6 +72,10 @@ install_frontend_dependencies
 echo "Building frontend bundle..."
 npm run build:web
 
+echo "Building documentation bundle..."
+npm run build:docs
+npm run stage:docs
+
 echo "Staging embedded frontend assets..."
 rm -rf "$EMBED_DIR" "$EMBED_ARCHIVE" "$OUTPUT_DIR"
 mkdir -p "$(dirname "$EMBED_DIR")" "$OUTPUT_DIR"

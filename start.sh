@@ -35,9 +35,6 @@ fi
 echo "Installing frontend dependencies / 安装前端依赖..."
 npm install
 
-echo "Running Go tests / 运行 Go 测试..."
-go test ./...
-
 echo "Running frontend typecheck / 运行前端类型检查..."
 npm run typecheck
 

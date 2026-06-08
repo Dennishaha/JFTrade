@@ -302,7 +302,9 @@ func newServerWithFrontend(store *SettingsStore, frontend *frontendServer) *Serv
 			apiBaseURLForBind(defaultReleaseAPIBind),
 			"http://"+defaultReleaseGUIBind,
 			"http://127.0.0.1:5173",
+			"http://127.0.0.1:5174",
 			"http://localhost:5173",
+			"http://localhost:5174",
 		)
 		log.Printf("JFTrade administrator key file: %s", server.auth.keyPath)
 	}

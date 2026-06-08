@@ -30,15 +30,15 @@ export function resolveApiBaseUrl(): string {
   return (
     resolveRuntimeApiBaseUrl() ??
     normalizeApiBaseUrl(buildTimeApiBaseUrl) ??
-    (import.meta.env.PROD ? "" : resolveDevelopmentApiBaseUrl())
+    resolveDevelopmentApiBaseUrl()
   );
 }
 
 function resolveDevelopmentApiBaseUrl(): string {
-  if (typeof window === "undefined" || window.location.hostname === "") {
-    return "http://127.0.0.1:3000";
+  if (import.meta.env.PROD) {
+    return "";
   }
-  return `http://${window.location.hostname}:3000`;
+  return "";
 }
 
 export function resolveAuthRequired(): boolean {

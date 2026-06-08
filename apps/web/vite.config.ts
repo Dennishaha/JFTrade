@@ -33,6 +33,7 @@ if (typeof launchEditor === "string") {
 }
 
 const developmentApiTarget = "http://127.0.0.1:3000";
+const developmentDocsTarget = "http://127.0.0.1:3001";
 const apiProxyTargets = ["/api", "/swagger"];
 
 type ProxyEventEmitter = {
@@ -65,8 +66,11 @@ export default defineConfig({
   },
   server: {
     port: 5173,
-    proxy: Object.fromEntries(
-      apiProxyTargets.map((path) => [path, createProxyEntry(developmentApiTarget)]),
-    ),
+    proxy: {
+      ...Object.fromEntries(
+        apiProxyTargets.map((path) => [path, createProxyEntry(developmentApiTarget)]),
+      ),
+      "/docs": createProxyEntry(developmentDocsTarget),
+    },
   },
 });

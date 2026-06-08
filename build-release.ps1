@@ -140,6 +140,16 @@ if ($LASTEXITCODE -ne 0) {
     throw "frontend build failed"
 }
 
+Write-Host "Building documentation bundle..." -ForegroundColor Cyan
+npm run build:docs
+if ($LASTEXITCODE -ne 0) {
+    throw "documentation build failed"
+}
+npm run stage:docs
+if ($LASTEXITCODE -ne 0) {
+    throw "documentation staging failed"
+}
+
 Write-Host "Staging embedded frontend assets..." -ForegroundColor Cyan
 if (Test-Path $embedDir) {
     Remove-Item -LiteralPath $embedDir -Recurse -Force

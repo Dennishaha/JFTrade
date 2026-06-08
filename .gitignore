@@ -13,6 +13,9 @@ node_modules/
 .pnpm-store/
 .vite/
 .vite-cache/
+docs/.vitepress/cache/
+docs/.vitepress/dist/
+docs/.vitepress/.temp/
 
 # IDE / OS
 .DS_Store

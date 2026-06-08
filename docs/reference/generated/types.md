@@ -1,0 +1,2461 @@
+# 数据类型
+
+> 自动生成，请勿手改。来源：`packages/ui-contracts/src/index.ts`。
+
+## `ArchitectureCard`
+
+```ts
+export interface ArchitectureCard {
+  title: string;
+  owner: string;
+  status: string;
+  summary: string;
+  bullets: string[];
+}
+```
+
+## `RoadmapPhase`
+
+```ts
+export interface RoadmapPhase {
+  key: string;
+  title: string;
+  target: string;
+  summary: string;
+}
+```
+
+## `ConsolePanel`
+
+```ts
+export interface ConsolePanel {
+  name: string;
+  state: string;
+  description: string;
+}
+```
+
+## `ApiSuccessEnvelope`
+
+```ts
+export interface ApiSuccessEnvelope<T> {
+  ok: true;
+  data: T;
+  timestamp: string;
+}
+```
+
+## `ApiErrorEnvelope`
+
+```ts
+export interface ApiErrorEnvelope {
+  ok: false;
+  error: {
+    code: string;
+    message: string;
+    details?: unknown;
+  };
+  timestamp: string;
+}
+```
+
+## `ADKPermissionMode`
+
+```ts
+export type ADKPermissionMode = "approval" | "sandbox_auto" | "high_auto";
+```
+
+## `ADKProvider`
+
+```ts
+export interface ADKProvider {
+  id: string;
+  displayName: string;
+  baseUrl: string;
+  model: string;
+  defaultHeaders?: Record<string, string>;
+  enabled: boolean;
+  hasApiKey: boolean;
+  capabilities?: Record<string, boolean>;
+  createdAt: string;
+  updatedAt: string;
+}
+```
+
+## `ADKAgent`
+
+```ts
+export interface ADKAgent {
+  id: string;
+  name: string;
+  instruction: string;
+  providerId: string;
+  model: string;
+  tools: string[];
+  skills: string[];
+  permissionMode: ADKPermissionMode;
+  memoryEnabled: boolean;
+  status: "ENABLED" | "DISABLED" | string;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt?: string;
+}
+```
+
+## `ADKToolDescriptor`
+
+```ts
+export interface ADKToolDescriptor {
+  name: string;
+  displayName: string;
+  description: string;
+  category: string;
+  permission: string;
+  allowedModes: ADKPermissionMode[];
+  requiresApprovalIn: ADKPermissionMode[];
+  inputSchema?: Record<string, unknown>;
+  outputSummary?: string;
+  riskLevel?: "low" | "medium" | "high" | "critical" | string;
+}
+```
+
+## `ADKSkill`
+
+```ts
+export interface ADKSkill {
+  id: string;
+  displayName: string;
+  description: string;
+  source: string;
+  installPath: string;
+  version?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+```
+
+## `ADKToolCall`
+
+```ts
+export interface ADKToolCall {
+  id: string;
+  runId: string;
+  toolName: string;
+  permission: string;
+  status: string;
+  input?: Record<string, unknown>;
+  output?: unknown;
+  error?: string | null;
+  requiresUser: boolean;
+  idempotencyKey?: string;
+  createdAt: string;
+  startedAt?: string;
+  updatedAt: string;
+  completedAt?: string;
+  durationMs?: number;
+}
+```
+
+## `ADKApproval`
+
+```ts
+export interface ADKApproval {
+  id: string;
+  runId: string;
+  agentId: string;
+  toolName: string;
+  input?: Record<string, unknown>;
+  status: "PENDING" | "APPROVED" | "DENIED" | string;
+  reason: string;
+  functionCallId?: string;
+  confirmationCallId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+```
+
+## `ADKSession`
+
+```ts
+export interface ADKSession {
+  id: string;
+  agentId: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+}
+```
+
+## `ADKMessage`
+
+```ts
+export interface ADKMessage {
+  id: string;
+  sessionId: string;
+  role: "user" | "assistant" | string;
+  content: string;
+  reasoningContent?: string;
+  createdAt: string;
+}
+```
+
+## `ADKRunUsage`
+
+```ts
+export interface ADKRunUsage {
+  modelCalls?: number;
+  toolCallsTotal?: number;
+  durationMs?: number;
+  tokensIn?: number;
+  tokensOut?: number;
+}
+```
+
+## `ADKRun`
+
+```ts
+export interface ADKRun {
+  id: string;
+  sessionId: string;
+  agentId: string;
+  providerId?: string;
+  status: string;
+  message: string;
+  userMessage?: string;
+  preToolContent?: string;
+  preToolReasoning?: string;
+  toolSummaries?: string[];
+  failureReason?: string;
+  errorCode?: string;
+  degraded?: boolean;
+  optimizationTaskId?: string;
+  toolCalls: ADKToolCall[];
+  pendingApprovals: ADKApproval[];
+  resumeState?: string;
+  finalMessageId?: string;
+  usage?: ADKRunUsage;
+  createdAt: string;
+  startedAt?: string;
+  updatedAt: string;
+  completedAt?: string;
+  cancelledAt?: string;
+}
+```
+
+## `ADKChatResponse`
+
+```ts
+export interface ADKChatResponse {
+  reply: string;
+  reasoningContent?: string;
+  session: ADKSession;
+  run: ADKRun;
+  pendingApprovals: ADKApproval[];
+}
+```
+
+## `ADKApprovalResolution`
+
+```ts
+export interface ADKApprovalResolution {
+  approval: ADKApproval;
+  run?: ADKRun;
+  message?: ADKMessage;
+}
+```
+
+## `ADKAuditEvent`
+
+```ts
+export interface ADKAuditEvent {
+  id: string;
+  kind: string;
+  subjectId?: string;
+  detail: string;
+  metadata?: Record<string, unknown>;
+  createdAt: string;
+}
+```
+
+## `ADKOptimizationRun`
+
+```ts
+export interface ADKOptimizationRun {
+  definitionId: string;
+  runId: string;
+  status: string;
+  result?: unknown;
+}
+```
+
+## `ADKOptimizationTask`
+
+```ts
+export interface ADKOptimizationTask {
+  id: string;
+  status: string;
+  objective: string;
+  runs: ADKOptimizationRun[];
+  progress: {
+    total: number;
+    running: number;
+    completed: number;
+    failed: number;
+    cancelled: number;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+```
+
+## `HealthResponse`
+
+```ts
+export interface HealthResponse {
+  service: {
+    service: string;
+    status: string;
+    checkedAt: string;
+  };
+  persistence: {
+    engine: string;
+    databasePath: string;
+    status: string;
+    migrated: boolean;
+    pendingMigrations: string[];
+    tables: string[];
+    checkedAt: string;
+  };
+}
+```
+
+## `BrokerReadFeatureKey`
+
+```ts
+export type BrokerReadFeatureKey =
+  | "funds"
+  | "positions"
+  | "orders"
+  | "fills"
+  | "cashFlows"
+  | "orderFees"
+  | "marginRatios"
+  | "maxTradeQuantity"
+  | "orderBook";
+```
+
+## `BrokerReadFeatureCapability`
+
+```ts
+export interface BrokerReadFeatureCapability {
+  supportedEnvironments: string[];
+  supportsHistory?: boolean;
+  requiresSymbols?: boolean;
+  requiresClearingDate?: boolean;
+  requiresPrice?: boolean;
+  requiresOrderIdEx?: boolean;
+  requiresSymbol?: boolean;
+  requiresPassword?: boolean;
+  // orderBook specific
+  defaultNum?: number;
+  minNum?: number;
+  maxNum?: number;
+  numPresets?: number[];
+  supportsRealTimePush?: boolean;
+}
+```
+
+## `BrokerMarketCapability`
+
+```ts
+export interface BrokerMarketCapability {
+  market: string;
+  supportsQuote: boolean;
+  supportsTrade: boolean;
+  readFeatures: Record<BrokerReadFeatureKey, BrokerReadFeatureCapability>;
+}
+```
+
+## `BrokerDescriptor`
+
+```ts
+export interface BrokerDescriptor {
+  id: string;
+  displayName: string;
+  environments: string[];
+  capabilities: BrokerMarketCapability[];
+  notes: string[];
+}
+```
+
+## `SystemStatusResponse`
+
+```ts
+export interface SystemStatusResponse {
+  name: string;
+  apiPort: number;
+  defaultBroker: string;
+  defaultTradingEnvironment: string;
+  realTradingEnabled: boolean;
+  realTradingKillSwitch: {
+    active: boolean;
+    envConfiguredActive: boolean;
+    controlPlaneActive: boolean;
+    blockedOperations: string[];
+    allowsCancel: boolean;
+  };
+  realTradingRisk: {
+    enabled: boolean;
+    maxOrderQuantity: number | null;
+    maxOrderNotional: number | null;
+    envConfiguredMaxOrderQuantity: number | null;
+    envConfiguredMaxOrderNotional: number | null;
+    controlPlaneActive: boolean;
+    controlPlaneMaxOrderQuantity: number | null;
+    controlPlaneMaxOrderNotional: number | null;
+    riskConfigSource: "ENV" | "CONTROL_PLANE" | "MERGED" | null;
+  };
+  realTradeAccess?: {
+    approverAllowlistEnabled: boolean;
+    approverCount: number;
+    adminAllowlistEnabled: boolean;
+    adminCount: number;
+  };
+  broker: BrokerDescriptor;
+  persistence: {
+    engine: string;
+    databasePath: string;
+    status: string;
+    migrated: boolean;
+    pendingMigrations: string[];
+    tables: string[];
+    checkedAt: string;
+  };
+  strategyRuntime: {
+    status: string;
+    activeStrategies: number;
+    supportsBacktestParity: boolean;
+    activeInstances?: StrategyRuntimeActiveInstanceSummary[];
+  };
+  message: string;
+}
+```
+
+## `StorageOverviewResponse`
+
+```ts
+export interface StorageOverviewResponse {
+  pendingOutbox: Array<{
+    id: string;
+    topic: string;
+    status: string;
+    availableAt: string;
+    createdAt: string;
+  }>;
+  recentJobs: Array<{
+    id: string;
+    queue: string;
+    kind: string;
+    status: string;
+    scheduledAt: string;
+    updatedAt: string;
+  }>;
+  recentAuditLogs: Array<{
+    id: string;
+    action: string;
+    targetType: string;
+    targetId: string;
+    createdAt: string;
+  }>;
+  recentExecutionCommands: Array<{
+    id: string;
+    brokerId: string;
+    operation: string;
+    idempotencyKey: string;
+    actorType: string;
+    actorId: string;
+    internalOrderId: string | null;
+    completedAt: string | null;
+    createdAt: string;
+  }>;
+}
+```
+
+## `FutuBrokerIntegrationConfig`
+
+```ts
+export interface FutuBrokerIntegrationConfig {
+  type: "futu";
+  host: string;
+  apiPort: number;
+  websocketPort: number;
+  maxWebSocketConnections: number;
+  useEncryption: boolean;
+  websocketKey: string;
+  tradeMarket: string;
+  securityFirm: string;
+}
+```
+
+## `BrokerIntegrationConfig`
+
+```ts
+export type BrokerIntegrationConfig = FutuBrokerIntegrationConfig;
+```
+
+## `BrokerSettingsResponse`
+
+```ts
+export interface BrokerSettingsResponse {
+  brokers: Array<{
+    descriptor: BrokerDescriptor;
+    integration: {
+      brokerId: string;
+      enabled: boolean;
+      config: BrokerIntegrationConfig;
+      updatedAt: string;
+      createdAt: string;
+    } | null;
+    defaults: BrokerIntegrationConfig | null;
+  }>;
+  accounts: Array<{
+    id: string;
+    brokerId: string;
+    accountId: string;
+    displayName: string;
+    tradingEnvironment: string;
+    market: string;
+    securityFirm: string | null;
+    enabled: boolean;
+    updatedAt: string;
+    createdAt: string;
+  }>;
+}
+```
+
+## `ExecutionSettingsResponse`
+
+```ts
+export interface ExecutionSettingsResponse {
+  defaultTradingEnvironment: string;
+  brokerOrderHistoryLookbackDays: number;
+  seenFillRetentionDays: number;
+}
+```
+
+## `OnboardingReason`
+
+```ts
+export interface OnboardingReason {
+  code:
+    | "BROKER_DISCONNECTED"
+    | "QUOTE_NOT_LOGGED_IN"
+    | "TRADE_NOT_LOGGED_IN"
+    | "NO_MANAGED_ACCOUNTS"
+    | string;
+  severity: "info" | "warning" | "error";
+  message: string;
+}
+```
+
+## `OnboardingStateResponse`
+
+```ts
+export interface OnboardingStateResponse {
+  state: {
+    completed: boolean;
+    completedAt?: string;
+    dismissedAt?: string;
+    lastBrokerId: string;
+  };
+  shouldShowOobe: boolean;
+  reasons: OnboardingReason[];
+  recommendedBrokerId: string;
+  brokers: Array<{
+    descriptor: BrokerDescriptor;
+    enabled: boolean;
+    available: boolean;
+    configured: boolean;
+  }>;
+}
+```
+
+## `UIColorPreferencesResponse`
+
+```ts
+export interface UIColorPreferencesResponse {
+  appearance: {
+    upColor: string;
+    downColor: string;
+  };
+}
+```
+
+## `SecuritySettingsResponse`
+
+```ts
+export interface SecuritySettingsResponse {
+  adminAuthRequired: boolean;
+}
+```
+
+## `PluginInstallStatus`
+
+```ts
+export type PluginInstallStatus =
+  | "NOT_INSTALLED"
+  | "INSTALLING"
+  | "INSTALLED"
+  | "FAILED";
+```
+
+## `PluginOperationStatus`
+
+```ts
+export type PluginOperationStatus =
+  | "QUEUED"
+  | "RUNNING"
+  | "SUCCEEDED"
+  | "FAILED";
+```
+
+## `PluginDescriptorDto`
+
+```ts
+export interface PluginDescriptorDto {
+  id: string;
+  type: string;
+  displayName: string;
+  version: string;
+  description: string;
+  keywords: string[];
+}
+```
+
+## `PluginOperationDto`
+
+```ts
+export interface PluginOperationDto {
+  operationId: string;
+  pluginId: string;
+  status: PluginOperationStatus;
+  phase: string;
+  progress: number;
+  message: string;
+  targetDir: string;
+  installPath: string;
+  startedAt: string;
+  updatedAt: string;
+  completedAt: string | null;
+  error: string | null;
+}
+```
+
+## `PluginUninstallGuidanceDto`
+
+```ts
+export interface PluginUninstallGuidanceDto {
+  pluginId: string;
+  path: string;
+  exists: boolean;
+  commands: {
+    posix: string;
+    powershell: string;
+  };
+}
+```
+
+## `PluginBuildTupleDto`
+
+```ts
+export interface PluginBuildTupleDto {
+  jftradeVersion: string;
+  goVersion: string;
+  goos: string;
+  goarch: string;
+  buildMode: string;
+  buildTags?: string[];
+}
+```
+
+## `PluginCompatibilityDto`
+
+```ts
+export interface PluginCompatibilityDto {
+  mode: string;
+  supported: boolean;
+  requiresRebuild: boolean;
+  reason?: string | null;
+  host: PluginBuildTupleDto;
+  artifact?: PluginBuildTupleDto | null;
+}
+```
+
+## `PluginInstallationDto`
+
+```ts
+export interface PluginInstallationDto {
+  status: PluginInstallStatus;
+  installed: boolean;
+  installPath: string;
+  targetDir: string;
+  markerPath: string;
+  currentOperation: PluginOperationDto | null;
+  lastOperation: PluginOperationDto | null;
+  uninstallGuidance: PluginUninstallGuidanceDto;
+}
+```
+
+## `PluginCatalogResponse`
+
+```ts
+export interface PluginCatalogResponse {
+  targetDir: string;
+  plugins: Array<{
+    descriptor: PluginDescriptorDto;
+    installation: PluginInstallationDto;
+    compatibility?: PluginCompatibilityDto;
+  }>;
+}
+```
+
+## `StrategyVisualNodeDocument`
+
+```ts
+export interface StrategyVisualNodeDocument {
+  id: string;
+  type: string;
+  x: number;
+  y: number;
+  text: string;
+  properties: Record<string, unknown>;
+}
+```
+
+## `StrategyVisualEdgeDocument`
+
+```ts
+export interface StrategyVisualEdgeDocument {
+  id?: string | undefined;
+  type: string;
+  sourceNodeId: string;
+  targetNodeId: string;
+  text?: string | undefined;
+  properties?: Record<string, unknown> | undefined;
+}
+```
+
+## `StrategyVisualModelDocument`
+
+```ts
+export interface StrategyVisualModelDocument {
+  engine: "logic-flow";
+  version: number;
+  nodes: StrategyVisualNodeDocument[];
+  edges: StrategyVisualEdgeDocument[];
+}
+```
+
+## `StrategySourceFormat`
+
+```ts
+export type StrategySourceFormat = "dsl-v1";
+```
+
+## `StrategyInstanceStatus`
+
+```ts
+export type StrategyInstanceStatus = "RUNNING" | "PAUSED" | "STOPPED";
+```
+
+## `StrategyExecutionMode`
+
+```ts
+export type StrategyExecutionMode = "live" | "notify_only";
+```
+
+## `StrategyDefinitionSummaryDocument`
+
+```ts
+export interface StrategyDefinitionSummaryDocument {
+  strategyId: string;
+  name: string;
+  version: string;
+}
+```
+
+## `StrategyBrokerAccountBinding`
+
+```ts
+export interface StrategyBrokerAccountBinding {
+  brokerId: string;
+  accountId: string;
+  tradingEnvironment: string;
+  market: string;
+}
+```
+
+## `StrategyBindingInstrumentDocument`
+
+```ts
+export interface StrategyBindingInstrumentDocument {
+  market: string;
+  code: string;
+}
+```
+
+## `StrategyInstanceBindingDocument`
+
+```ts
+export interface StrategyInstanceBindingDocument {
+  instruments?: StrategyBindingInstrumentDocument[];
+  symbols: string[];
+  interval: string;
+  executionMode: StrategyExecutionMode;
+  brokerAccount?: StrategyBrokerAccountBinding | null;
+}
+```
+
+## `StrategyRuntimeObservation`
+
+```ts
+export interface StrategyRuntimeObservation {
+  actualStatus: StrategyInstanceStatus;
+  activeSymbols: string[];
+  lastClosedKlineAt?: string | null;
+  lastSignalAt?: string | null;
+  lastOrderAt?: string | null;
+  lastErrorAt?: string | null;
+  lastError?: string | null;
+  updatedAt?: string | null;
+}
+```
+
+## `StrategyRuntimeActiveInstanceSummary`
+
+```ts
+export interface StrategyRuntimeActiveInstanceSummary extends StrategyRuntimeObservation {
+  instanceId: string;
+  definitionName: string;
+}
+```
+
+## `StrategyDefinitionSyncStatus`
+
+```ts
+export interface StrategyDefinitionSyncStatus {
+  definitionId: string;
+  appliedVersion: string;
+  latestVersion: string;
+  isLatest: boolean;
+  canApplyLatest: boolean;
+  blockedReason?: string | null;
+}
+```
+
+## `StrategyApplyLinkedInstancesResponse`
+
+```ts
+export interface StrategyApplyLinkedInstancesResponse {
+  definitionId: string;
+  latestVersion: string;
+  totalLinked: number;
+  applied: string[];
+  alreadyLatest: string[];
+  skippedBusy: string[];
+}
+```
+
+## `StrategyActivityPage`
+
+```ts
+export interface StrategyActivityPage {
+  limit: number;
+  offset: number;
+  total: number;
+  returned: number;
+  hasMore: boolean;
+}
+```
+
+## `StrategyLogListResponse`
+
+```ts
+export interface StrategyLogListResponse {
+  instanceId: string;
+  logs: string[];
+  page: StrategyActivityPage;
+}
+```
+
+## `StrategyAuditEntryDocument`
+
+```ts
+export interface StrategyAuditEntryDocument {
+  instanceId: string;
+  kind: string;
+  detail?: string;
+  at: string;
+}
+```
+
+## `StrategyAuditListResponse`
+
+```ts
+export interface StrategyAuditListResponse {
+  instanceId: string;
+  entries: StrategyAuditEntryDocument[];
+  page: StrategyActivityPage;
+}
+```
+
+## `StrategyInstanceItem`
+
+```ts
+export interface StrategyInstanceItem {
+  id: string;
+  pluginId?: string;
+  definition: StrategyDefinitionSummaryDocument;
+  runtime: string;
+  sourceFormat: StrategySourceFormat;
+  startable: boolean;
+  binding?: StrategyInstanceBindingDocument;
+  params: Record<string, unknown>;
+  status: StrategyInstanceStatus;
+  createdAt: string;
+  logs: string[];
+  definitionSync?: StrategyDefinitionSyncStatus | null;
+  runtimeObservation?: StrategyRuntimeObservation | null;
+}
+```
+
+## `StrategyDefinitionDocument`
+
+```ts
+export interface StrategyDefinitionDocument {
+  id: string;
+  name: string;
+  version: string;
+  description: string;
+  runtime: string;
+  sourceFormat?: StrategySourceFormat;
+  symbol?: string;
+  interval?: string;
+  script: string;
+  visualModel?: StrategyVisualModelDocument | null;
+  createdAt: string;
+  updatedAt: string;
+  derivedWarmupBars?: number;
+  derivedWarmupInterval?: string;
+}
+```
+
+## `PluginInstallResponse`
+
+```ts
+export interface PluginInstallResponse {
+  operation: PluginOperationDto;
+}
+```
+
+## `FutuOpenDInstallOptionId`
+
+```ts
+export type FutuOpenDInstallOptionId = "gui" | "command-line";
+```
+
+## `FutuOpenDInstallOptionDto`
+
+```ts
+export interface FutuOpenDInstallOptionDto {
+  id: FutuOpenDInstallOptionId;
+  label: string;
+  description: string;
+  url: string;
+  recommended: boolean;
+}
+```
+
+## `FutuOpenDInstallGuideResponse`
+
+```ts
+export interface FutuOpenDInstallGuideResponse {
+  brokerId: "futu";
+  title: string;
+  description: string;
+  options: FutuOpenDInstallOptionDto[];
+  nextSteps: string[];
+  settings: {
+    host: string;
+    apiPort: number;
+    websocketPort: number;
+    maxWebSocketConnections: number;
+    useEncryption: boolean;
+    websocketKeyRequired: boolean;
+  };
+}
+```
+
+## `FutuOpenDIssueCode`
+
+```ts
+export type FutuOpenDIssueCode =
+  | "NONE"
+  | "LOGIN_TIMEOUT"
+  | "CONNECTION_LIMIT"
+  | "PROTOCOL_PARSE_ERROR"
+  | "WS_POOL_EXHAUSTED"
+  | "WEBSOCKET_AUTH"
+  | "OPEND_API_CONNECTIVITY";
+```
+
+## `FutuOpenDHealthResponse`
+
+```ts
+export interface FutuOpenDHealthResponse {
+  checkedAt: string;
+  status: "healthy" | "degraded" | "offline";
+  runtime: {
+    connectivity: "connected" | "degraded" | "disconnected";
+    host: string;
+    port: number;
+    useEncryption: boolean;
+    websocketKeyConfigured: boolean;
+    quoteLoggedIn: boolean | null;
+    tradeLoggedIn: boolean | null;
+    programStatus: string | null;
+    serverVersion: string | null;
+    lastError: string | null;
+  };
+  diagnosis: {
+    code: FutuOpenDIssueCode;
+    summary: string | null;
+    manualRetryRequired: boolean;
+    restartOpenDRecommended: boolean;
+  };
+  localSocketDiagnostics: {
+    websocketEstablishedConnections: number;
+    likelyConnectionSaturation: boolean;
+    topClientProcesses: Array<{
+      processName: string;
+      pid: number;
+      establishedConnections: number;
+    }>;
+  };
+  localInstallation: {
+    platform: string;
+    installed: boolean;
+    version: string | null;
+    installPath: string | null;
+    guiDetected: boolean;
+    process: {
+      running: boolean;
+      pid: number | null;
+      executablePath: string | null;
+    };
+  };
+  latestVersion: {
+    value: string | null;
+    sourceUrl: string | null;
+    checkedAt: string | null;
+    status:
+      | "unknown"
+      | "not_installed"
+      | "up_to_date"
+      | "outdated"
+      | "ahead_of_latest";
+    error: string | null;
+  };
+  recommendations: string[];
+}
+```
+
+## `WorkerBrokerOrderUpdateSubscriptionStatus`
+
+```ts
+export type WorkerBrokerOrderUpdateSubscriptionStatus =
+  | "active"
+  | "retrying"
+  | "inactive";
+```
+
+## `WorkerBrokerOrderUpdateErrorContext`
+
+```ts
+export interface WorkerBrokerOrderUpdateErrorContext {
+  summary: string;
+  rawMessage: string | null;
+  code: string | null;
+  reason: string | null;
+  category: "connection" | "broker" | "subscription" | "unknown";
+}
+```
+
+## `WorkerBrokerOrderUpdatesResponse`
+
+```ts
+export interface WorkerBrokerOrderUpdatesResponse {
+  subscriptions: Array<{
+    subscriptionKey: string;
+    brokerId: string;
+    tradingEnvironment: string | null;
+    accountId: string | null;
+    market: string | null;
+    status: WorkerBrokerOrderUpdateSubscriptionStatus;
+    lastAction: string;
+    lastActionAt: string;
+    lastError: string | null;
+    lastErrorContext: WorkerBrokerOrderUpdateErrorContext | null;
+    consecutiveFailures: number | null;
+    retryDelayMs: number | null;
+    backoffUntil: string | null;
+  }>;
+  recentInvalidations: Array<{
+    subscriptionKey: string;
+    brokerId: string;
+    tradingEnvironment: string | null;
+    accountId: string | null;
+    market: string | null;
+    kind: "DISCONNECTED" | "ERROR";
+    message: string | null;
+    errorContext: WorkerBrokerOrderUpdateErrorContext | null;
+    consecutiveFailures: number | null;
+    retryDelayMs: number | null;
+    backoffUntil: string | null;
+    createdAt: string;
+  }>;
+  brokers: Array<{
+    brokerId: string;
+    lastAction: string;
+    lastActionAt: string;
+    connectivity: string | null;
+    lastError: string | null;
+    accountsDiscovered: number | null;
+    activeSubscriptions: number;
+    retryingSubscriptions: number;
+    inactiveSubscriptions: number;
+    backoffSubscriptions: number;
+    disconnectedBackoffSubscriptions: number;
+    subscribeFailedBackoffSubscriptions: number;
+    errorBackoffSubscriptions: number;
+    dominantBackoffSource: "SUBSCRIBE_FAILED" | "DISCONNECTED" | "ERROR" | null;
+    dominantBackoffCount: number;
+    longestBackoffSource: "SUBSCRIBE_FAILED" | "DISCONNECTED" | "ERROR" | null;
+    longestBackoffRemainingMs: number | null;
+    longestBackoffSubscriptionKey: string | null;
+    longestBackoffMarket: string | null;
+    longestBackoffTradingEnvironment: string | null;
+    longestBackoffAccountId: string | null;
+    topBackoffHotspots: Array<{
+      subscriptionKey: string;
+      source: "SUBSCRIBE_FAILED" | "DISCONNECTED" | "ERROR";
+      remainingMs: number;
+      backoffUntil: string;
+      lastActionAt: string;
+      tradingEnvironment: string | null;
+      accountId: string | null;
+      market: string | null;
+      reason: string | null;
+      reasonContext: WorkerBrokerOrderUpdateErrorContext | null;
+    }>;
+    layeredBackoffSummaries: Array<{
+      tradingEnvironment: string | null;
+      accountId: string | null;
+      activeSubscriptions: number;
+      retryingSubscriptions: number;
+      inactiveSubscriptions: number;
+      backoffSubscriptions: number;
+      dominantBackoffSource:
+        | "SUBSCRIBE_FAILED"
+        | "DISCONNECTED"
+        | "ERROR"
+        | null;
+      dominantBackoffCount: number;
+      longestBackoffRemainingMs: number | null;
+      topBackoffMarket: string | null;
+    }>;
+    recentInvalidationCount: number;
+    lastInvalidationKind: "DISCONNECTED" | "ERROR" | null;
+    lastInvalidationAt: string | null;
+    backoffActive: boolean;
+    backoffSource: "SUBSCRIBE_FAILED" | "DISCONNECTED" | "ERROR" | null;
+    backoffUntil: string | null;
+    backoffRemainingMs: number | null;
+  }>;
+  runtime: {
+    lastStoppedAt: string | null;
+    stoppedSubscriptions: number | null;
+  };
+}
+```
+
+## `RealTradeApprovalDecision`
+
+```ts
+export type RealTradeApprovalDecision = "approved" | "rejected";
+```
+
+## `RealTradeApprovalsResponse`
+
+```ts
+export interface RealTradeApprovalsResponse {
+  realTradingEnabled: boolean;
+  requiredConfirmationText: string;
+  maxApprovalAgeMs: number;
+  approvalPolicy?: {
+    approverAllowlistEnabled: boolean;
+    approverCount: number;
+  };
+  entries: Array<{
+    id: string;
+    decision: RealTradeApprovalDecision;
+    action: string;
+    brokerId: string;
+    operation: string;
+    tradingEnvironment: string | null;
+    accountId: string | null;
+    market: string | null;
+    symbol: string | null;
+    orderId: string | null;
+    operatorId: string | null;
+    ticketId: string | null;
+    reason: string | null;
+    approvedAt: string | null;
+    gateReason: string | null;
+    errorCode: string | null;
+    createdAt: string;
+  }>;
+}
+```
+
+## `RealTradeRiskEventsResponse`
+
+```ts
+export interface RealTradeRiskEventsResponse {
+  realTradingEnabled: boolean;
+  riskEnabled: boolean;
+  riskConfigSource: "ENV" | "CONTROL_PLANE" | "MERGED" | null;
+  envConfiguredMaxOrderQuantity: number | null;
+  envConfiguredMaxOrderNotional: number | null;
+  controlPlaneActive: boolean;
+  controlPlaneMaxOrderQuantity: number | null;
+  controlPlaneMaxOrderNotional: number | null;
+  effectiveMaxOrderQuantity: number | null;
+  effectiveMaxOrderNotional: number | null;
+  maxOrderQuantity: number | null;
+  maxOrderNotional: number | null;
+  entries: Array<{
+    id: string;
+    eventType: "activated" | "released" | "rejected";
+    action: string;
+    brokerId: string;
+    operation: string | null;
+    tradingEnvironment: string | null;
+    accountId: string | null;
+    market: string | null;
+    symbol: string | null;
+    orderId: string | null;
+    quantity: number | null;
+    price: number | null;
+    riskConfigSource: "ENV" | "CONTROL_PLANE" | "MERGED" | null;
+    operatorId: string | null;
+    reason: string | null;
+    errorCode: string | null;
+    configuredMaxOrderQuantity: number | null;
+    configuredMaxOrderNotional: number | null;
+    envConfiguredMaxOrderQuantity: number | null;
+    envConfiguredMaxOrderNotional: number | null;
+    controlPlaneMaxOrderQuantity: number | null;
+    controlPlaneMaxOrderNotional: number | null;
+    activatedAt: string | null;
+    createdAt: string;
+  }>;
+}
+```
+
+## `RealTradeRiskStateResponse`
+
+```ts
+export interface RealTradeRiskStateResponse {
+  realTradingEnabled: boolean;
+  riskEnabled: boolean;
+  riskConfigSource: "ENV" | "CONTROL_PLANE" | "MERGED" | null;
+  envConfiguredMaxOrderQuantity: number | null;
+  envConfiguredMaxOrderNotional: number | null;
+  controlPlaneActive: boolean;
+  controlPlaneMaxOrderQuantity: number | null;
+  controlPlaneMaxOrderNotional: number | null;
+  effectiveMaxOrderQuantity: number | null;
+  effectiveMaxOrderNotional: number | null;
+  entry: {
+    id: string;
+    tradingEnvironment: string;
+    maxOrderQuantity: number | null;
+    maxOrderNotional: number | null;
+    operatorId: string;
+    reason: string;
+    activatedAt: string;
+    updatedAt: string;
+  } | null;
+}
+```
+
+## `RealTradeKillSwitchEventsResponse`
+
+```ts
+export interface RealTradeKillSwitchEventsResponse {
+  realTradingEnabled: boolean;
+  killSwitchActive: boolean;
+  envConfiguredActive: boolean;
+  controlPlaneActive: boolean;
+  blockedOperations: string[];
+  allowsCancel: boolean;
+  entries: Array<{
+    id: string;
+    eventType: "activated" | "released" | "rejected";
+    action: string;
+    brokerId: string;
+    operation: string | null;
+    tradingEnvironment: string | null;
+    accountId: string | null;
+    market: string | null;
+    symbol: string | null;
+    orderId: string | null;
+    quantity: number | null;
+    price: number | null;
+    killSwitchSource: "ENV" | "CONTROL_PLANE" | null;
+    operatorId: string | null;
+    reason: string | null;
+    errorCode: string | null;
+    activatedAt: string | null;
+    createdAt: string;
+  }>;
+}
+```
+
+## `RealTradeKillSwitchStateResponse`
+
+```ts
+export interface RealTradeKillSwitchStateResponse {
+  realTradingEnabled: boolean;
+  envConfiguredActive: boolean;
+  controlPlaneActive: boolean;
+  killSwitchActive: boolean;
+  killSwitchSource: "ENV" | "CONTROL_PLANE" | null;
+  blockedOperations: string[];
+  allowsCancel: boolean;
+  entry: {
+    id: string;
+    tradingEnvironment: string;
+    operatorId: string;
+    reason: string;
+    activatedAt: string;
+    updatedAt: string;
+  } | null;
+}
+```
+
+## `RealTradeHardStopsResponse`
+
+```ts
+export interface RealTradeHardStopsResponse {
+  blockedOperations: string[];
+  allowsCancel: boolean;
+  entries: Array<{
+    id: string;
+    brokerId: string;
+    tradingEnvironment: string;
+    accountId: string;
+    market: string | null;
+    symbol: string | null;
+    operatorId: string;
+    reason: string;
+    activatedAt: string;
+    updatedAt: string;
+  }>;
+}
+```
+
+## `RealTradeHardStopEventsResponse`
+
+```ts
+export interface RealTradeHardStopEventsResponse {
+  realTradingEnabled: boolean;
+  blockedOperations: string[];
+  allowsCancel: boolean;
+  entries: Array<{
+    id: string;
+    eventType: "activated" | "released" | "rejected";
+    action: string;
+    brokerId: string;
+    operation: string | null;
+    tradingEnvironment: string | null;
+    accountId: string | null;
+    market: string | null;
+    symbol: string | null;
+    orderId: string | null;
+    quantity: number | null;
+    price: number | null;
+    hardStopScope: "ACCOUNT" | "MARKET" | "SYMBOL" | null;
+    operatorId: string | null;
+    reason: string | null;
+    errorCode: string | null;
+    hardStopId: string | null;
+    activatedAt: string | null;
+    createdAt: string;
+  }>;
+}
+```
+
+## `BrokerRuntimeResponse`
+
+```ts
+export interface BrokerRuntimeResponse {
+  descriptor: BrokerDescriptor;
+  session: {
+    brokerId: string;
+    displayName: string;
+    connection: {
+      host: string;
+      apiPort: number;
+      websocketPort: number;
+      port: number;
+      useEncryption: boolean;
+    };
+    connectivity: string;
+    checkedAt: string;
+    lastError: string | null;
+    globalState: {
+      quoteLoggedIn: boolean;
+      tradeLoggedIn: boolean;
+      serverVersion: string | null;
+      programStatus: string | null;
+      timestamp: string | null;
+      markets: Array<{
+        market: string;
+        state: string;
+      }>;
+    } | null;
+    accountsDiscovered: number;
+  };
+  accounts: Array<{
+    accountId: string;
+    tradingEnvironment: string;
+    accountType: string;
+    accountRole: string | null;
+    securityFirm: string | null;
+    marketAuthorities: string[];
+    simulatedAccountType: string | null;
+  }>;
+}
+```
+
+## `BrokerPositionsResponse`
+
+```ts
+export interface BrokerPositionsResponse {
+  checkedAt: string;
+  connectivity: string;
+  lastError: string | null;
+  positions: Array<{
+    accountId: string;
+    tradingEnvironment: string;
+    market: string;
+    symbol: string;
+    symbolName: string | null;
+    quantity: number;
+    sellableQuantity: number;
+    lastPrice: number;
+    costPrice: number | null;
+    averageCostPrice: number | null;
+    marketValue: number;
+    unrealizedPnl: number | null;
+    realizedPnl: number | null;
+    pnlRatio: number | null;
+    currency: string | null;
+  }>;
+}
+```
+
+## `BrokerFundsResponse`
+
+```ts
+export interface BrokerFundsResponse {
+  checkedAt: string;
+  connectivity: string;
+  lastError: string | null;
+  summary: {
+    accountId: string;
+    tradingEnvironment: string;
+    market: string;
+    currency: string | null;
+    totalAssets: number | null;
+    securitiesAssets: number | null;
+    fundAssets: number | null;
+    bondAssets: number | null;
+    cash: number | null;
+    marketValue: number | null;
+    longMarketValue: number | null;
+    shortMarketValue: number | null;
+    purchasingPower: number | null;
+    shortSellingPower: number | null;
+    netCashPower: number | null;
+    availableWithdrawalCash: number | null;
+    maxWithdrawal: number | null;
+    availableFunds: number | null;
+    frozenCash: number | null;
+    pendingAsset: number | null;
+    unrealizedPnl: number | null;
+    realizedPnl: number | null;
+    initialMargin: number | null;
+    maintenanceMargin: number | null;
+    marginCallMargin: number | null;
+    riskStatus: string | null;
+    // Margin & Financing 融资融券
+    debtCash: number | null;
+    isPdt: boolean | null;
+    pdtSeq: string | null;
+    beginningDTBP: number | null;
+    remainingDTBP: number | null;
+    dtCallAmount: number | null;
+    dtStatus: string | null;
+    exposureLevel: string | null;
+    exposureLimit: number | null;
+    usedLimit: number | null;
+    remainingLimit: number | null;
+  } | null;
+  currencyBalances: Array<{
+    accountId: string;
+    tradingEnvironment: string;
+    currency: string;
+    cash: number | null;
+    availableWithdrawalCash: number | null;
+    netCashPower: number | null;
+  }>;
+  marketAssets: Array<{
+    accountId: string;
+    tradingEnvironment: string;
+    market: string;
+    assets: number | null;
+  }>;
+}
+```
+
+## `BrokerCashFlowsResponse`
+
+```ts
+export interface BrokerCashFlowsResponse {
+  checkedAt: string;
+  connectivity: string;
+  lastError: string | null;
+  cashFlows: Array<{
+    accountId: string;
+    tradingEnvironment: string;
+    market: string;
+    cashFlowId: string | null;
+    clearingDate: string | null;
+    settlementDate: string | null;
+    currency: string | null;
+    cashFlowType: string | null;
+    cashFlowDirection: string | null;
+    cashFlowAmount: number | null;
+    cashFlowRemark: string | null;
+  }>;
+}
+```
+
+## `BrokerOrderFeesResponse`
+
+```ts
+export interface BrokerOrderFeesResponse {
+  checkedAt: string;
+  connectivity: string;
+  lastError: string | null;
+  fees: Array<{
+    accountId: string;
+    tradingEnvironment: string;
+    market: string;
+    brokerOrderIdEx: string;
+    feeAmount: number | null;
+    feeItems: Array<{
+      title: string;
+      value: number;
+    }>;
+  }>;
+}
+```
+
+## `BrokerFillsResponse`
+
+```ts
+export interface BrokerFillsResponse {
+  checkedAt: string;
+  connectivity: string;
+  lastError: string | null;
+  fills: Array<{
+    accountId: string;
+    tradingEnvironment: string;
+    market: string;
+    brokerOrderId: string;
+    brokerOrderIdEx: string | null;
+    brokerFillId: string;
+    brokerFillIdEx: string | null;
+    symbol: string;
+    symbolName: string | null;
+    side: string;
+    filledQuantity: number;
+    fillPrice: number | null;
+    filledAt: string;
+    status: string | null;
+  }>;
+}
+```
+
+## `BrokerMarginRatiosResponse`
+
+```ts
+export interface BrokerMarginRatiosResponse {
+  checkedAt: string;
+  connectivity: string;
+  lastError: string | null;
+  marginRatios: Array<{
+    accountId: string;
+    tradingEnvironment: string;
+    market: string;
+    symbol: string;
+    isLongPermit: boolean | null;
+    isShortPermit: boolean | null;
+    shortPoolRemain: number | null;
+    shortFeeRate: number | null;
+    alertLongRatio: number | null;
+    alertShortRatio: number | null;
+    initialMarginLongRatio: number | null;
+    initialMarginShortRatio: number | null;
+    marginCallLongRatio: number | null;
+    marginCallShortRatio: number | null;
+    maintenanceLongRatio: number | null;
+    maintenanceShortRatio: number | null;
+  }>;
+}
+```
+
+## `BrokerMaxTradeQuantityResponse`
+
+```ts
+export interface BrokerMaxTradeQuantityResponse {
+  checkedAt: string;
+  connectivity: string;
+  lastError: string | null;
+  maxTradeQuantity: {
+    accountId: string;
+    tradingEnvironment: string;
+    market: string;
+    symbol: string;
+    orderType: string;
+    price: number;
+    maxCashBuy: number;
+    maxCashAndMarginBuy: number | null;
+    maxPositionSell: number;
+    maxSellShort: number | null;
+    maxBuyBack: number | null;
+    longRequiredIM: number | null;
+    shortRequiredIM: number | null;
+    session: string | null;
+  } | null;
+}
+```
+
+## `BrokerOrdersResponse`
+
+```ts
+export interface BrokerOrdersResponse {
+  checkedAt: string;
+  connectivity: string;
+  lastError: string | null;
+  orders: Array<{
+    accountId: string;
+    tradingEnvironment: string;
+    market: string;
+    brokerOrderId: string;
+    brokerOrderIdEx: string | null;
+    symbol: string;
+    symbolName: string | null;
+    side: string;
+    orderType: string;
+    status: string;
+    quantity: number;
+    filledQuantity: number | null;
+    price: number | null;
+    filledAveragePrice: number | null;
+    submittedAt: string;
+    updatedAt: string;
+    remark: string | null;
+    lastError: string | null;
+    timeInForce: string | null;
+    currency: string | null;
+  }>;
+}
+```
+
+## `PortfolioPositionsResponse`
+
+```ts
+export interface PortfolioPositionsResponse {
+  positions: Array<{
+    brokerId: string;
+    tradingEnvironment: string;
+    accountId: string;
+    market: string;
+    symbol: string;
+    quantity: number;
+    averagePrice: number;
+    marketValue: number;
+    updatedAt: string;
+    createdAt: string;
+  }>;
+}
+```
+
+## `PortfolioCashBalancesResponse`
+
+```ts
+export interface PortfolioCashBalancesResponse {
+  balances: Array<{
+    brokerId: string;
+    tradingEnvironment: string;
+    accountId: string;
+    currency: string;
+    cashBalance: number;
+    updatedAt: string;
+    createdAt: string;
+  }>;
+}
+```
+
+## `PortfolioReconciliationStatus`
+
+```ts
+export type PortfolioReconciliationStatus =
+  | "matched"
+  | "different"
+  | "missing-in-projection"
+  | "missing-at-broker";
+```
+
+## `PortfolioReconciliationResponse`
+
+```ts
+export interface PortfolioReconciliationResponse {
+  checkedAt: string;
+  connectivity: string;
+  lastError: string | null;
+  positions: Array<{
+    brokerId: string;
+    tradingEnvironment: string;
+    accountId: string;
+    market: string;
+    symbol: string;
+    symbolName: string | null;
+    status: PortfolioReconciliationStatus;
+    projectedQuantity: number | null;
+    brokerQuantity: number | null;
+    quantityDelta: number;
+    projectedAveragePrice: number | null;
+    brokerAverageCostPrice: number | null;
+    averagePriceDelta: number | null;
+    projectedRealizedPnl: number | null;
+    brokerRealizedPnl: number | null;
+    realizedPnlDelta: number | null;
+    projectedUpdatedAt: string | null;
+  }>;
+}
+```
+
+## `PortfolioCashReconciliationResponse`
+
+```ts
+export interface PortfolioCashReconciliationResponse {
+  checkedAt: string;
+  connectivity: string;
+  lastError: string | null;
+  balances: Array<{
+    brokerId: string;
+    tradingEnvironment: string;
+    accountId: string;
+    currency: string;
+    status: PortfolioReconciliationStatus;
+    projectedCashBalance: number | null;
+    brokerCash: number | null;
+    cashDelta: number;
+    brokerAvailableWithdrawalCash: number | null;
+    brokerNetCashPower: number | null;
+    projectedUpdatedAt: string | null;
+  }>;
+}
+```
+
+## `BrokerPlaceOrderRequestPayload`
+
+```ts
+export interface BrokerPlaceOrderRequestPayload {
+  tradingEnvironment: string;
+  accountId: string;
+  market: string;
+  code?: string;
+  symbol?: string;
+  side: string;
+  quantity: number;
+  idempotencyKey?: string;
+  price?: number;
+  orderType?: string;
+  remark?: string;
+  timeInForce?: string;
+}
+```
+
+## `BacktestStartRequestPayload`
+
+```ts
+export interface BacktestStartRequestPayload {
+  definitionId: string;
+  definitionVersion?: string;
+  market?: string;
+  code?: string;
+  symbol?: string;
+  interval: string;
+  startTime: string;
+  endTime: string;
+  initialBalance: number;
+  rehabType?: string;
+  useExtendedHours?: boolean;
+}
+```
+
+## `BacktestSyncRequestPayload`
+
+```ts
+export interface BacktestSyncRequestPayload {
+  market?: string;
+  code?: string;
+  symbol?: string;
+  intervals: string[];
+  since: string;
+  until: string;
+  rehabType?: string;
+  sessionScope?: "legacy" | "regular" | "extended";
+}
+```
+
+## `BrokerCancelOrderRequestPayload`
+
+```ts
+export interface BrokerCancelOrderRequestPayload {
+  tradingEnvironment: string;
+  accountId: string;
+  market: string;
+  orderId: string;
+  idempotencyKey?: string;
+  quantity?: number;
+  price?: number;
+}
+```
+
+## `BrokerModifyOrderRequestPayload`
+
+```ts
+export interface BrokerModifyOrderRequestPayload {
+  tradingEnvironment: string;
+  accountId: string;
+  market: string;
+  orderId: string;
+  idempotencyKey?: string;
+  quantity?: number;
+  price?: number;
+}
+```
+
+## `BrokerOrderSyncRequestPayload`
+
+```ts
+export interface BrokerOrderSyncRequestPayload {
+  tradingEnvironment: string;
+  accountId: string;
+  market: string;
+  symbol?: string;
+  orderId?: string;
+}
+```
+
+## `BrokerOrderSyncResponse`
+
+```ts
+export interface BrokerOrderSyncResponse {
+  brokerId: string;
+  request: BrokerOrderSyncRequestPayload;
+  snapshot: BrokerOrdersResponse;
+  syncedOrders: number;
+  auditLogId: string;
+  auditAction: string;
+  outboxEventId: string;
+}
+```
+
+## `BrokerOrderCommandResponse`
+
+```ts
+export interface BrokerOrderCommandResponse {
+  accepted: boolean;
+  operation: string;
+  internalOrderId?: string;
+  brokerOrderId: string | null;
+  brokerOrderIdEx: string | null;
+  orderStatus: string | null;
+  brokerErrorCode: string | null;
+  message: string;
+  checkedAt: string;
+}
+```
+
+## `ExecutionOrderSummaryResponse`
+
+```ts
+export interface ExecutionOrderSummaryResponse {
+  internalOrderId: string;
+  brokerId: string;
+  brokerOrderId: string | null;
+  brokerOrderIdEx: string | null;
+  source: ExecutionOrderSource;
+  sourceDetail: ExecutionOrderSourceDetail;
+  tradingEnvironment: string;
+  accountId: string;
+  market: string;
+  symbol: string | null;
+  side: string | null;
+  orderType: string | null;
+  status: string;
+  requestedQuantity: number | null;
+  requestedPrice: number | null;
+  filledQuantity: number | null;
+  filledAveragePrice: number | null;
+  remark: string | null;
+  lastError: string | null;
+  lastErrorCode: string | null;
+  lastErrorSource: ExecutionOrderErrorSource | null;
+  submittedAt: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+```
+
+## `ExecutionOrderSource`
+
+```ts
+export type ExecutionOrderSource = "system" | "broker";
+```
+
+## `ExecutionOrderSourceDetail`
+
+```ts
+export type ExecutionOrderSourceDetail =
+  | "command.place"
+  | "broker.current"
+  | "broker.history"
+  | "broker.push"
+  | "broker.fill";
+```
+
+## `ExecutionOrderErrorSource`
+
+```ts
+export type ExecutionOrderErrorSource =
+  | "command.place"
+  | "command.cancel"
+  | "command.modify"
+  | "command.modify.local"
+  | "command.modify.broker"
+  | "command.modify.fallback"
+  | "broker.sync"
+  | "broker.push";
+```
+
+## `ExecutionOrderEventResponse`
+
+```ts
+export interface ExecutionOrderEventResponse {
+  id: string;
+  internalOrderId: string;
+  eventType: string;
+  previousStatus: string | null;
+  nextStatus: string;
+  payloadJson: string;
+  createdAt: string;
+}
+```
+
+## `ExecutionOrdersResponse`
+
+```ts
+export interface ExecutionOrdersResponse {
+  orders: ExecutionOrderSummaryResponse[];
+}
+```
+
+## `ExecutionOrderEventsResponse`
+
+```ts
+export interface ExecutionOrderEventsResponse {
+  internalOrderId: string;
+  events: ExecutionOrderEventResponse[];
+}
+```
+
+## `MarketDataQuoteSnapshotDto`
+
+```ts
+export interface MarketDataQuoteSnapshotDto {
+  lastPrice: number | null;
+  openPrice: number | null;
+  highPrice: number | null;
+  lowPrice: number | null;
+  previousClosePrice: number | null;
+  volume: number | null;
+  turnover: number | null;
+  bidPrice: number | null;
+  bidSize: number | null;
+  askPrice: number | null;
+  askSize: number | null;
+  quoteCurrency: string | null;
+  marketPhase: string;
+}
+```
+
+## `MarketDataCandleDto`
+
+```ts
+export interface MarketDataCandleDto {
+  interval: string;
+  openTime: string;
+  closeTime: string;
+  openPrice: number;
+  highPrice: number;
+  lowPrice: number;
+  closePrice: number;
+  volume: number | null;
+  turnover: number | null;
+  closed: boolean;
+}
+```
+
+## `MarketDataTradeTickDto`
+
+```ts
+export interface MarketDataTradeTickDto {
+  price: number;
+  size: number | null;
+  turnover: number | null;
+  side: string;
+  tradeId: string | null;
+}
+```
+
+## `MarketDataQueryMetaDto`
+
+```ts
+export interface MarketDataQueryMetaDto {
+  instrumentId: string;
+  source: string | null;
+  resolvedAt: string;
+  fromCache: boolean;
+}
+```
+
+## `MarketDataExtendedQuote`
+
+```ts
+export interface MarketDataExtendedQuote {
+  price?: number | null;
+  highPrice?: number | null;
+  lowPrice?: number | null;
+  volume?: number | null;
+  turnover?: number | null;
+  changeVal?: number | null;
+  changeRate?: number | null;
+  amplitude?: number | null;
+}
+```
+
+## `MarketDataExtendedQuoteBlocks`
+
+```ts
+export interface MarketDataExtendedQuoteBlocks {
+  preMarket?: MarketDataExtendedQuote | null;
+  afterMarket?: MarketDataExtendedQuote | null;
+  overnight?: MarketDataExtendedQuote | null;
+}
+```
+
+## `MarketSecurityRef`
+
+```ts
+export interface MarketSecurityRef {
+  instrumentId: string;
+  market: string;
+  symbol: string;
+}
+```
+
+## `MarketSecurityEquityDetails`
+
+```ts
+export interface MarketSecurityEquityDetails {
+  issuedShares: number;
+  issuedMarketValue: number;
+  netAsset: number;
+  netProfit: number;
+  earningsPerShare: number;
+  outstandingShares: number;
+  outstandingMarketVal: number;
+  netAssetPerShare: number;
+  earningsYieldRate: number;
+  peRate: number;
+  pbRate: number;
+  peTTMRate: number;
+  dividendTTM?: number | null;
+  dividendRatioTTM?: number | null;
+  dividendLFY?: number | null;
+  dividendLFYRatio?: number | null;
+}
+```
+
+## `MarketSecurityWarrantDetails`
+
+```ts
+export interface MarketSecurityWarrantDetails {
+  conversionRate: number;
+  warrantType: string;
+  strikePrice: number;
+  maturityTime: string;
+  endTradeTime: string;
+  owner?: MarketSecurityRef | null;
+  recoveryPrice: number;
+  streetVolume: number;
+  issueVolume: number;
+  streetRate: number;
+  delta: number;
+  impliedVolatility: number;
+  premium: number;
+  maturityTimestamp?: number | null;
+  endTradeTimestamp?: number | null;
+  leverage?: number | null;
+  inOutPriceRatio?: number | null;
+  breakEvenPoint?: number | null;
+  conversionPrice?: number | null;
+  priceRecoveryRatio?: number | null;
+  score?: number | null;
+  upperStrikePrice?: number | null;
+  lowerStrikePrice?: number | null;
+  inLinePriceStatus?: string | null;
+  issuerCode?: string | null;
+}
+```
+
+## `MarketSecurityOptionDetails`
+
+```ts
+export interface MarketSecurityOptionDetails {
+  optionType: string;
+  owner?: MarketSecurityRef | null;
+  strikeTime: string;
+  strikePrice: number;
+  contractSize: number;
+  contractSizeFloat?: number | null;
+  openInterest: number;
+  impliedVolatility: number;
+  premium: number;
+  delta: number;
+  gamma: number;
+  vega: number;
+  theta: number;
+  rho: number;
+  strikeTimestamp?: number | null;
+  indexOptionType?: string | null;
+  netOpenInterest?: number | null;
+  expiryDateDistance?: number | null;
+  contractNominalValue?: number | null;
+  ownerLotMultiplier?: number | null;
+  optionAreaType?: string | null;
+  contractMultiplier?: number | null;
+}
+```
+
+## `MarketSecurityIndexDetails`
+
+```ts
+export interface MarketSecurityIndexDetails {
+  raiseCount: number;
+  fallCount: number;
+  equalCount: number;
+}
+```
+
+## `MarketSecurityPlateDetails`
+
+```ts
+export interface MarketSecurityPlateDetails {
+  raiseCount: number;
+  fallCount: number;
+  equalCount: number;
+}
+```
+
+## `MarketSecurityFutureDetails`
+
+```ts
+export interface MarketSecurityFutureDetails {
+  lastSettlePrice: number;
+  position: number;
+  positionChange: number;
+  lastTradeTime: string;
+  lastTradeTimestamp?: number | null;
+  isMainContract: boolean;
+}
+```
+
+## `MarketSecurityTrustDetails`
+
+```ts
+export interface MarketSecurityTrustDetails {
+  dividendYield: number;
+  aum: number;
+  outstandingUnit: number;
+  netAssetValue: number;
+  premium: number;
+  assetClass: string;
+}
+```
+
+## `MarketSecurityDetails`
+
+```ts
+export interface MarketSecurityDetails {
+  instrumentId: string;
+  market: string;
+  symbol: string;
+  securityId?: number | null;
+  name: string;
+  securityType: string;
+  exchangeType: string;
+  listTime: string;
+  listTimestamp?: number | null;
+  delisting?: boolean | null;
+  lotSize: number;
+  isSuspend: boolean;
+  priceSpread: number;
+  updateTime: string;
+  updateTimestamp?: number | null;
+  highPrice: number;
+  openPrice: number;
+  lowPrice: number;
+  lastClosePrice: number;
+  currentPrice: number;
+  volume: number;
+  turnover: number;
+  turnoverRate: number;
+  askPrice?: number | null;
+  bidPrice?: number | null;
+  askVolume?: number | null;
+  bidVolume?: number | null;
+  amplitude?: number | null;
+  averagePrice?: number | null;
+  bidAskRatio?: number | null;
+  volumeRatio?: number | null;
+  highest52WeeksPrice?: number | null;
+  lowest52WeeksPrice?: number | null;
+  highestHistoryPrice?: number | null;
+  lowestHistoryPrice?: number | null;
+  sessionStatus?: string | null;
+  closePrice5Minute?: number | null;
+  highPrecisionVolume?: number | null;
+  highPrecisionAskVol?: number | null;
+  highPrecisionBidVol?: number | null;
+  extended?: MarketDataExtendedQuoteBlocks | null;
+  equity?: MarketSecurityEquityDetails | null;
+  warrant?: MarketSecurityWarrantDetails | null;
+  option?: MarketSecurityOptionDetails | null;
+  index?: MarketSecurityIndexDetails | null;
+  plate?: MarketSecurityPlateDetails | null;
+  future?: MarketSecurityFutureDetails | null;
+  trust?: MarketSecurityTrustDetails | null;
+}
+```
+
+## `MarketSecurityDetailsQueryResult`
+
+```ts
+export interface MarketSecurityDetailsQueryResult {
+  request: {
+    market: string;
+    symbol: string;
+    instrumentId: string;
+  };
+  security: MarketSecurityDetails | null;
+  meta: MarketDataQueryMetaDto;
+}
+```
+
+## `MarketDataSnapshotResponse`
+
+```ts
+export interface MarketDataSnapshotResponse {
+  ok: boolean;
+  instrumentId: string;
+  snapshot: MarketDataQuoteSnapshotDto | null;
+  meta: MarketDataQueryMetaDto;
+  error: string | null;
+}
+```
+
+## `MarketDataCandlesResponse`
+
+```ts
+export interface MarketDataCandlesResponse {
+  ok: boolean;
+  instrumentId: string;
+  interval: string;
+  fromTime: string | null;
+  toTime: string | null;
+  totalReturned: number;
+  candles: MarketDataCandleDto[];
+  meta: MarketDataQueryMetaDto;
+  error: string | null;
+}
+```
+
+## `MarketDataTicksResponse`
+
+```ts
+export interface MarketDataTicksResponse {
+  ok: boolean;
+  instrumentId: string;
+  fromTime: string;
+  toTime: string;
+  totalReturned: number;
+  ticks: MarketDataTradeTickDto[];
+  meta: MarketDataQueryMetaDto;
+  error: string | null;
+}
+```
+
+## `OrderBookDetailItemDto`
+
+```ts
+export interface OrderBookDetailItemDto {
+  orderId: number;
+  volume: number;
+}
+```
+
+## `OrderBookLevelDto`
+
+```ts
+export interface OrderBookLevelDto {
+  price: number;
+  volume: number;
+  orderCount: number;
+  detailList?: OrderBookDetailItemDto[] | null;
+}
+```
+
+## `OrderBookSnapshotDto`
+
+```ts
+export interface OrderBookSnapshotDto {
+  accountId: string;
+  symbol: string;
+  name?: string | null;
+  svrRecvTimeBid?: string | null;
+  svrRecvTimeAsk?: string | null;
+  bids: OrderBookLevelDto[];
+  asks: OrderBookLevelDto[];
+}
+```
+
+## `MarketDataDepthResponse`
+
+```ts
+export interface MarketDataDepthResponse {
+  request: {
+    market: string;
+    symbol: string;
+    instrumentId: string;
+    num: number;
+  };
+  depth: OrderBookSnapshotDto;
+  meta: MarketDataQueryMetaDto;
+}
+```
+
+## `OrderBookDepthPreset`
+
+```ts
+export interface OrderBookDepthPreset {
+  num: number;
+  label: string;
+}
+```
+
+## `BrokerOrderBookCapability`
+
+```ts
+export interface BrokerOrderBookCapability {
+  defaultNum: number;
+  minNum: number;
+  maxNum: number;
+  numPresets: number[];
+  supportsRealTimePush: boolean;
+}
+```
+
+## `MarketDataSubscriptionEntryDto`
+
+```ts
+export interface MarketDataSubscriptionEntryDto {
+  key: string;
+  channel: string;
+  market: string;
+  symbol: string;
+  instrumentId: string;
+  interval: string | null;
+  depthLevel: number | null;
+  consumers: string[];
+  refCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+```
+
+## `MarketDataSubscriptionQuotaBucketDto`
+
+```ts
+export interface MarketDataSubscriptionQuotaBucketDto {
+  market: string;
+  used: number;
+  limit: number | null;
+  remaining: number | null;
+}
+```
+
+## `MarketDataSubscriptionsResponse`
+
+```ts
+export interface MarketDataSubscriptionsResponse {
+  totalActiveSubscriptions: number;
+  quota: {
+    totalUsed: number;
+    totalLimit: number | null;
+    totalRemaining: number | null;
+    byMarket: MarketDataSubscriptionQuotaBucketDto[];
+  };
+  entries: MarketDataSubscriptionEntryDto[];
+}
+```
