@@ -369,7 +369,7 @@ func (c openAIClient) readStreamingResponse(body io.Reader, onDelta func(ChatDel
 	scanner := bufio.NewScanner(body)
 	scanner.Buffer(make([]byte, 0, 64<<10), 2<<20)
 
-	var splitter assistantContentSplitter
+	var splitter legacyAssistantContentSplitter
 	var replyBuilder strings.Builder
 	var reasoningBuilder strings.Builder
 	var dataLines []string
@@ -450,13 +450,7 @@ func (c openAIClient) readStreamingResponse(body io.Reader, onDelta func(ChatDel
 }
 
 func (c openAIClient) emitStructuredMessage(message openAIChatMessage, onDelta func(ChatDelta) error) (openAIChatResult, error) {
-	reply, reasoning := splitAssistantContent(message.Content)
-	if strings.TrimSpace(message.ReasoningContent) != "" {
-		reasoning = mergeReasoningBlocks(reasoning, message.ReasoningContent)
-	}
-	if strings.TrimSpace(message.Reasoning) != "" {
-		reasoning = mergeReasoningBlocks(reasoning, message.Reasoning)
-	}
+	reply, reasoning := extractVisibleAndReasoningText(message.Content, message.ReasoningContent, message.Reasoning)
 	result := openAIChatResult{
 		Reply:            strings.TrimSpace(reply),
 		ReasoningContent: strings.TrimSpace(reasoning),
@@ -473,7 +467,7 @@ func (c openAIClient) emitStructuredMessage(message openAIChatMessage, onDelta f
 }
 
 func appendStreamChoice(
-	splitter *assistantContentSplitter,
+	splitter *legacyAssistantContentSplitter,
 	replyBuilder *strings.Builder,
 	reasoningBuilder *strings.Builder,
 	content string,
@@ -502,15 +496,4 @@ func appendStreamChoice(
 		Reply:            replyDelta,
 		ReasoningContent: reasoningFromContent + reasoningDelta,
 	})
-}
-
-func mergeReasoningBlocks(parts ...string) string {
-	values := make([]string, 0, len(parts))
-	for _, part := range parts {
-		part = strings.TrimSpace(part)
-		if part != "" {
-			values = append(values, part)
-		}
-	}
-	return strings.Join(values, "\n")
 }

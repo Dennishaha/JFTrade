@@ -16,6 +16,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	adksession "google.golang.org/adk/session"
 	_ "modernc.org/sqlite"
 )
 
@@ -23,7 +24,6 @@ const (
 	tableProviders          = "adk_providers"
 	tableAgents             = "adk_agents"
 	tableSessions           = "adk_sessions"
-	tableMessages           = "adk_messages"
 	tableRuns               = "adk_runs"
 	tableApprovals          = "adk_approvals"
 	tableSkills             = "adk_skills"
@@ -32,7 +32,6 @@ const (
 	tableTasks              = "adk_tasks"
 	tableMemory             = "adk_memory"
 	tableSessionContexts    = "adk_session_contexts"
-	tableTranscriptEntries  = "adk_transcript_entries"
 	tableHandoffSegments    = "adk_handoff_segments"
 	tableSessionContextLive = "adk_session_context_state"
 )
@@ -42,6 +41,7 @@ type Store struct {
 	db         *sqlx.DB
 	secrets    secretStore
 	skillsPath string
+	sessions   adksession.Service
 }
 
 func NewStore(dbPath string, secretsPath string, skillsPath string) (*Store, error) {
@@ -88,6 +88,15 @@ func (s *Store) SkillsPath() string {
 	return s.skillsPath
 }
 
+func (s *Store) SetSessionService(service adksession.Service) {
+	if s == nil {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.sessions = service
+}
+
 func (s *Store) migrate() error {
 	// Create schema_migrations table for version tracking
 	if _, err := s.db.Exec(`CREATE TABLE IF NOT EXISTS adk_schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL)`); err != nil {
@@ -101,14 +110,12 @@ func (s *Store) migrate() error {
 		{1, `CREATE TABLE IF NOT EXISTS ` + tableProviders + ` (id TEXT PRIMARY KEY, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`},
 		{2, `CREATE TABLE IF NOT EXISTS ` + tableAgents + ` (id TEXT PRIMARY KEY, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`},
 		{3, `CREATE TABLE IF NOT EXISTS ` + tableSessions + ` (id TEXT PRIMARY KEY, agent_id TEXT NOT NULL, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`},
-		{4, `CREATE TABLE IF NOT EXISTS ` + tableMessages + ` (id TEXT PRIMARY KEY, session_id TEXT NOT NULL, role TEXT NOT NULL, payload_json TEXT NOT NULL, created_at TEXT NOT NULL)`},
 		{5, `CREATE TABLE IF NOT EXISTS ` + tableRuns + ` (id TEXT PRIMARY KEY, session_id TEXT NOT NULL, agent_id TEXT NOT NULL, status TEXT NOT NULL, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`},
 		{6, `CREATE TABLE IF NOT EXISTS ` + tableApprovals + ` (id TEXT PRIMARY KEY, run_id TEXT NOT NULL, agent_id TEXT NOT NULL, status TEXT NOT NULL, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`},
 		{7, `CREATE TABLE IF NOT EXISTS ` + tableSkills + ` (id TEXT PRIMARY KEY, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`},
 		{8, `CREATE TABLE IF NOT EXISTS ` + tableAudit + ` (id TEXT PRIMARY KEY, kind TEXT NOT NULL, subject_id TEXT NOT NULL, payload_json TEXT NOT NULL, created_at TEXT NOT NULL)`},
 		{9, `CREATE TABLE IF NOT EXISTS ` + tableOptimizations + ` (id TEXT PRIMARY KEY, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`},
 		{10, `CREATE INDEX IF NOT EXISTS idx_adk_sessions_agent ON ` + tableSessions + ` (agent_id, updated_at DESC)`},
-		{11, `CREATE INDEX IF NOT EXISTS idx_adk_messages_session ON ` + tableMessages + ` (session_id, created_at ASC)`},
 		{12, `CREATE INDEX IF NOT EXISTS idx_adk_runs_session ON ` + tableRuns + ` (session_id, created_at DESC)`},
 		{13, `CREATE INDEX IF NOT EXISTS idx_adk_approvals_status ON ` + tableApprovals + ` (status, updated_at DESC)`},
 		{14, `CREATE INDEX IF NOT EXISTS idx_adk_audit_kind ON ` + tableAudit + ` (kind, created_at DESC)`},
@@ -119,12 +126,12 @@ func (s *Store) migrate() error {
 		{19, `CREATE UNIQUE INDEX IF NOT EXISTS idx_adk_memory_agent_scope_key ON ` + tableMemory + ` (agent_id, scope, memory_key)`},
 		{20, `CREATE TABLE IF NOT EXISTS ` + tableSessionContexts + ` (id TEXT PRIMARY KEY, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`},
 		{21, `CREATE INDEX IF NOT EXISTS idx_adk_session_contexts_updated ON ` + tableSessionContexts + ` (updated_at DESC)`},
-		{22, `CREATE TABLE IF NOT EXISTS ` + tableTranscriptEntries + ` (id TEXT PRIMARY KEY, session_id TEXT NOT NULL, run_id TEXT NOT NULL, role TEXT NOT NULL, kind TEXT NOT NULL, payload_json TEXT NOT NULL, created_at TEXT NOT NULL)`},
-		{23, `CREATE INDEX IF NOT EXISTS idx_adk_transcript_entries_session ON ` + tableTranscriptEntries + ` (session_id, created_at ASC)`},
 		{24, `CREATE TABLE IF NOT EXISTS ` + tableHandoffSegments + ` (id TEXT PRIMARY KEY, session_id TEXT NOT NULL, active INTEGER NOT NULL, sequence_no INTEGER NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, payload_json TEXT NOT NULL)`},
 		{25, `CREATE INDEX IF NOT EXISTS idx_adk_handoff_segments_session ON ` + tableHandoffSegments + ` (session_id, sequence_no ASC)`},
 		{26, `CREATE TABLE IF NOT EXISTS ` + tableSessionContextLive + ` (id TEXT PRIMARY KEY, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`},
 		{27, `CREATE INDEX IF NOT EXISTS idx_adk_session_context_state_updated ON ` + tableSessionContextLive + ` (updated_at DESC)`},
+		{28, `DROP TABLE IF EXISTS adk_messages`},
+		{29, `DROP TABLE IF EXISTS adk_transcript_entries`},
 	}
 	for _, m := range migrations {
 		var count int
@@ -452,12 +459,6 @@ func (s *Store) DeleteSession(ctx context.Context, id string) error {
 		return os.ErrNotExist
 	}
 	if _, err := s.db.ExecContext(ctx, `DELETE FROM `+tableApprovals+` WHERE run_id IN (SELECT id FROM `+tableRuns+` WHERE session_id = ?)`, id); err != nil {
-		return err
-	}
-	if _, err := s.db.ExecContext(ctx, `DELETE FROM `+tableMessages+` WHERE session_id = ?`, id); err != nil {
-		return err
-	}
-	if _, err := s.db.ExecContext(ctx, `DELETE FROM `+tableTranscriptEntries+` WHERE session_id = ?`, id); err != nil {
 		return err
 	}
 	if _, err := s.db.ExecContext(ctx, `DELETE FROM `+tableRuns+` WHERE session_id = ?`, id); err != nil {

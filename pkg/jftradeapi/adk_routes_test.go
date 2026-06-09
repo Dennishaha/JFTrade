@@ -680,6 +680,7 @@ func TestADKSessionsCRUDAndFilteringRoutes(t *testing.T) {
 	agent, err := server.adkRuntime.Store().SaveAgent(t.Context(), jfadk.AgentWriteRequest{
 		ID:             "session-agent",
 		Name:           "Session Agent",
+		Tools:          []string{"strategy.save_draft"},
 		PermissionMode: jfadk.PermissionModeApproval,
 		Status:         jfadk.AgentStatusEnabled,
 	})
@@ -704,8 +705,13 @@ func TestADKSessionsCRUDAndFilteringRoutes(t *testing.T) {
 		t.Fatalf("create session envelope = %+v", createEnvelope)
 	}
 
-	if _, err := server.adkRuntime.Store().AddMessage(t.Context(), createEnvelope.Data.ID, "assistant", "已创建", ""); err != nil {
-		t.Fatalf("AddMessage: %v", err)
+	chatResp, err := http.Post(srv.URL+"/api/v1/adk/chat", "application/json", bytes.NewReader([]byte(`{"agentId":"`+agent.ID+`","sessionId":"`+createEnvelope.Data.ID+`","message":"@strategy.save_draft 保存会话草稿"}`)))
+	if err != nil {
+		t.Fatalf("POST session chat: %v", err)
+	}
+	defer chatResp.Body.Close()
+	if chatResp.StatusCode != http.StatusOK {
+		t.Fatalf("POST session chat status = %d", chatResp.StatusCode)
 	}
 
 	listResp, err := http.Get(srv.URL + "/api/v1/adk/sessions?agentId=" + agent.ID + "&query=组合&limit=5")
@@ -746,7 +752,7 @@ func TestADKSessionsCRUDAndFilteringRoutes(t *testing.T) {
 	if err := json.NewDecoder(getResp.Body).Decode(&getEnvelope); err != nil {
 		t.Fatalf("decode session detail: %v", err)
 	}
-	if !getEnvelope.OK || getEnvelope.Data.Session.ID != createEnvelope.Data.ID || len(getEnvelope.Data.Messages) != 1 {
+	if !getEnvelope.OK || getEnvelope.Data.Session.ID != createEnvelope.Data.ID || len(getEnvelope.Data.Messages) == 0 {
 		t.Fatalf("session detail envelope = %+v", getEnvelope)
 	}
 

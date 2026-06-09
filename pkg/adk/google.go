@@ -258,10 +258,9 @@ func (m *openAICompatibleADKModel) decodeChatResponse(body io.Reader) (*model.LL
 }
 
 func openAIMessageToADKResponse(message openAIChatMessage, partial bool) (*model.LLMResponse, error) {
-	parts := make([]*genai.Part, 0, len(message.ToolCalls)+1)
-	if strings.TrimSpace(message.Content) != "" {
-		parts = append(parts, genai.NewPartFromText(message.Content))
-	}
+	replyText, reasoningText := extractVisibleAndReasoningText(message.Content, message.ReasoningContent, message.Reasoning)
+	parts := make([]*genai.Part, 0, len(message.ToolCalls)+2)
+	parts = append(parts, partsFromReplyAndReasoning(replyText, reasoningText)...)
 	for _, call := range message.ToolCalls {
 		args := map[string]any{}
 		if strings.TrimSpace(call.Function.Arguments) != "" {
@@ -286,13 +285,19 @@ func openAIMessageToADKResponse(message openAIChatMessage, partial bool) (*model
 
 type openAIStreamAggregationState struct {
 	content   strings.Builder
+	reasoning strings.Builder
 	toolCalls []openAIToolCall
 }
 
 func (s *openAIStreamAggregationState) consume(delta openAIChatStreamDelta, yield func(*model.LLMResponse, error) bool) error {
-	if delta.Content != "" {
-		s.content.WriteString(delta.Content)
-		response, err := openAIMessageToADKResponse(openAIChatMessage{Content: delta.Content}, true)
+	if delta.Content != "" || delta.ReasoningContent != "" || delta.Reasoning != "" {
+		replyText, reasoningText := extractVisibleAndReasoningText(delta.Content, delta.ReasoningContent, delta.Reasoning)
+		s.content.WriteString(replyText)
+		s.reasoning.WriteString(reasoningText)
+		response, err := openAIMessageToADKResponse(openAIChatMessage{
+			Content:          replyText,
+			ReasoningContent: reasoningText,
+		}, true)
 		if err != nil {
 			return err
 		}
@@ -307,9 +312,14 @@ func (s *openAIStreamAggregationState) consume(delta openAIChatStreamDelta, yiel
 }
 
 func (s *openAIStreamAggregationState) consumeMessage(message openAIChatMessage, yield func(*model.LLMResponse, error) bool) error {
-	if message.Content != "" {
-		s.content.WriteString(message.Content)
-		response, err := openAIMessageToADKResponse(openAIChatMessage{Content: message.Content}, true)
+	if message.Content != "" || message.ReasoningContent != "" || message.Reasoning != "" {
+		replyText, reasoningText := extractVisibleAndReasoningText(message.Content, message.ReasoningContent, message.Reasoning)
+		s.content.WriteString(replyText)
+		s.reasoning.WriteString(reasoningText)
+		response, err := openAIMessageToADKResponse(openAIChatMessage{
+			Content:          replyText,
+			ReasoningContent: reasoningText,
+		}, true)
 		if err != nil {
 			return err
 		}
@@ -350,11 +360,17 @@ func (s *openAIStreamAggregationState) mergeToolCalls(chunks []openAIToolCall) {
 
 func (s *openAIStreamAggregationState) finalResponse() (*model.LLMResponse, error) {
 	if s.content.Len() == 0 && len(s.toolCalls) == 0 {
+		if s.reasoning.Len() == 0 {
+			return nil, nil
+		}
+	}
+	if s.content.Len() == 0 && s.reasoning.Len() == 0 && len(s.toolCalls) == 0 {
 		return nil, nil
 	}
 	return openAIMessageToADKResponse(openAIChatMessage{
-		Content:   s.content.String(),
-		ToolCalls: s.toolCalls,
+		Content:          s.content.String(),
+		ReasoningContent: s.reasoning.String(),
+		ToolCalls:        s.toolCalls,
 	}, false)
 }
 
@@ -416,11 +432,16 @@ func openAIMessagesFromGenAI(content *genai.Content) []openAIChatMessage {
 		role = "assistant"
 	}
 	var text strings.Builder
+	var reasoning strings.Builder
 	var calls []openAIToolCall
 	var messages []openAIChatMessage
 	for _, part := range content.Parts {
 		if part.Text != "" {
-			text.WriteString(part.Text)
+			if part.Thought {
+				reasoning.WriteString(part.Text)
+			} else {
+				text.WriteString(part.Text)
+			}
 		}
 		if part.FunctionCall != nil {
 			rawArgs, _ := json.Marshal(part.FunctionCall.Args)
@@ -439,9 +460,12 @@ func openAIMessagesFromGenAI(content *genai.Content) []openAIChatMessage {
 			})
 		}
 	}
-	if text.Len() > 0 || len(calls) > 0 {
+	if text.Len() > 0 || reasoning.Len() > 0 || len(calls) > 0 {
 		messages = append([]openAIChatMessage{{
-			Role: role, Content: text.String(), ToolCalls: calls,
+			Role:             role,
+			Content:          text.String(),
+			ReasoningContent: reasoning.String(),
+			ToolCalls:        calls,
 		}}, messages...)
 	}
 	return messages

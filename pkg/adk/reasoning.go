@@ -2,7 +2,10 @@ package adk
 
 import "strings"
 
-var reasoningTags = map[string]reasoningMode{
+// Legacy providers may inline reasoning inside assistant text using custom tags.
+// The ADK-native path should rely on genai.Part.Thought instead; this parser is
+// retained only as a narrow provider compatibility shim.
+var legacyReasoningTags = map[string]reasoningMode{
 	"<think>":      reasoningModeReasoning,
 	"</think>":     reasoningModeReply,
 	"<reasoning>":  reasoningModeReasoning,
@@ -18,12 +21,12 @@ const (
 	reasoningModeReasoning
 )
 
-type assistantContentSplitter struct {
+type legacyAssistantContentSplitter struct {
 	mode      reasoningMode
 	tagBuffer strings.Builder
 }
 
-func (splitter *assistantContentSplitter) Push(chunk string) (string, string) {
+func (splitter *legacyAssistantContentSplitter) Push(chunk string) (string, string) {
 	if chunk == "" {
 		return "", ""
 	}
@@ -38,7 +41,7 @@ func (splitter *assistantContentSplitter) Push(chunk string) (string, string) {
 			splitter.tagBuffer.WriteRune(r)
 			candidate := splitter.tagBuffer.String()
 			lowered := strings.ToLower(candidate)
-			if mode, ok := reasoningTags[lowered]; ok && strings.HasSuffix(candidate, ">") {
+			if mode, ok := legacyReasoningTags[lowered]; ok && strings.HasSuffix(candidate, ">") {
 				splitter.mode = mode
 				splitter.tagBuffer.Reset()
 				continue
@@ -58,7 +61,7 @@ func (splitter *assistantContentSplitter) Push(chunk string) (string, string) {
 	return reply.String(), reasoning.String()
 }
 
-func (splitter *assistantContentSplitter) Flush() (string, string) {
+func (splitter *legacyAssistantContentSplitter) Flush() (string, string) {
 	if splitter.tagBuffer.Len() == 0 {
 		return "", ""
 	}
@@ -78,15 +81,36 @@ func (splitter *assistantContentSplitter) Flush() (string, string) {
 	return value, ""
 }
 
-func splitAssistantContent(content string) (string, string) {
-	var splitter assistantContentSplitter
+func splitLegacyAssistantContent(content string) (string, string) {
+	var splitter legacyAssistantContentSplitter
 	reply, reasoning := splitter.Push(content)
 	replyTail, reasoningTail := splitter.Flush()
 	return reply + replyTail, reasoning + reasoningTail
 }
 
+func extractVisibleAndReasoningText(content string, reasoningParts ...string) (string, string) {
+	replyText := strings.TrimSpace(content)
+	reasoningText := mergeReasoningBlocks(reasoningParts...)
+	if reasoningText != "" {
+		return replyText, reasoningText
+	}
+	replyText, reasoningText = splitLegacyAssistantContent(content)
+	return strings.TrimSpace(replyText), strings.TrimSpace(reasoningText)
+}
+
+func mergeReasoningBlocks(parts ...string) string {
+	values := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part != "" {
+			values = append(values, part)
+		}
+	}
+	return strings.Join(values, "\n")
+}
+
 func isReasoningTagPrefix(candidate string) bool {
-	for tag := range reasoningTags {
+	for tag := range legacyReasoningTags {
 		if strings.HasPrefix(tag, candidate) {
 			return true
 		}

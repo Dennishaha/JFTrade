@@ -31,6 +31,18 @@ func mustMessages(t *testing.T, runtime *Runtime, sessionID string) []Message {
 	return messages
 }
 
+func mustAssistantMessages(t *testing.T, runtime *Runtime, sessionID string) []Message {
+	t.Helper()
+	messages := mustMessages(t, runtime, sessionID)
+	filtered := make([]Message, 0, len(messages))
+	for _, message := range messages {
+		if message.Role == "assistant" {
+			filtered = append(filtered, message)
+		}
+	}
+	return filtered
+}
+
 func mustAuditEvents(t *testing.T, runtime *Runtime) []AuditEvent {
 	t.Helper()
 	events, err := runtime.Store().ListAuditEvents(context.Background())

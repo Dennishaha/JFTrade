@@ -48,6 +48,18 @@ func newRuntimeWithRegistry(t *testing.T, store *Store, registry *ToolRegistry) 
 	return NewRuntimeWithSessionService(store, registry, sessionService)
 }
 
+func TestNewStoreDropsLegacyMessageTables(t *testing.T) {
+	runtime := newTestRuntime(t)
+
+	var count int
+	if err := runtime.Store().db.Get(&count, `SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name IN ('adk_messages', 'adk_transcript_entries')`); err != nil {
+		t.Fatalf("legacy table lookup: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("legacy table count = %d, want 0", count)
+	}
+}
+
 func TestProviderSecretIsNotEchoed(t *testing.T) {
 	ctx := context.Background()
 	runtime := newTestRuntime(t)
@@ -727,10 +739,7 @@ func TestDeleteSessionRemovesApprovals(t *testing.T) {
 	if err := runtime.Store().SaveApproval(ctx, approval); err != nil {
 		t.Fatalf("SaveApproval: %v", err)
 	}
-	message, err := runtime.Store().AddMessage(ctx, session.ID, "assistant", "done", "")
-	if err != nil {
-		t.Fatalf("AddMessage: %v", err)
-	}
+	appendADKEvent(t, runtime, "agent", session.ID, newAssistantEvent(run.ID, []*genai.Part{{Text: "done"}}, time.Unix(40, 0)))
 
 	if err := runtime.Store().DeleteSession(ctx, session.ID); err != nil {
 		t.Fatalf("DeleteSession: %v", err)
@@ -748,7 +757,6 @@ func TestDeleteSessionRemovesApprovals(t *testing.T) {
 	if _, ok, err := runtime.Store().Session(ctx, session.ID); err != nil || ok {
 		t.Fatalf("session still exists: ok=%v err=%v", ok, err)
 	}
-	_ = message
 }
 
 func TestListSessionsPageFiltersQueryAndPaginates(t *testing.T) {

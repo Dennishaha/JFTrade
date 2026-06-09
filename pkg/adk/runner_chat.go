@@ -4,6 +4,10 @@ import (
 	"context"
 	"fmt"
 	"strings"
+
+	adkmodel "google.golang.org/adk/model"
+	adksession "google.golang.org/adk/session"
+	"google.golang.org/genai"
 )
 
 func (r *Runtime) runChat(ctx context.Context, req ChatRequest, onDelta func(ChatDelta) error, emitRun bool) (ChatResponse, error) {
@@ -36,9 +40,6 @@ func (r *Runtime) runChat(ctx context.Context, req ChatRequest, onDelta func(Cha
 		}
 	}
 	toolContext, approvals, replyResult, preToolContent, preToolReasoning, adkErr := r.executeGoogleADK(runCtx, agent, session, run.ID, text, onDelta)
-	if _, err := r.store.AddTranscriptEntry(ctx, session.ID, run.ID, "user", transcriptKindMessage, text, ""); err != nil {
-		return ChatResponse{}, err
-	}
 	run = hydrateRunExecutionResult(run, toolContext, approvals, preToolContent, preToolReasoning)
 	return r.completeChatRun(ctx, session, run, text, toolContext, approvals, replyResult, adkErr)
 }
@@ -73,14 +74,7 @@ func (r *Runtime) completeChatRun(
 	if err != nil {
 		return ChatResponse{}, err
 	}
-	return ChatResponse{
-		Reply:            replyResult.Reply,
-		ReasoningContent: replyResult.ReasoningContent,
-		Session:          session,
-		Run:              run,
-		PendingApprovals: approvals,
-		Context:          r.contextSnapshotOrNil(ctx, session.ID),
-	}, nil
+	return r.projectedChatResponse(ctx, session, run, approvals, replyResult), nil
 }
 
 func (r *Runtime) finishPendingApprovalRun(ctx context.Context, session Session, run Run, approvals []Approval) (ChatResponse, error) {
@@ -94,10 +88,7 @@ func (r *Runtime) finishPendingApprovalRun(ctx context.Context, session Session,
 		"runId": run.ID, "agentId": run.AgentID, "status": run.Status, "pendingApprovals": len(approvals),
 	})
 	reply := "我已经准备好执行需要授权的操作，请先在 ADK 审批队列里确认或拒绝。"
-	if _, err := r.store.AddTranscriptEntry(ctx, session.ID, run.ID, "assistant", transcriptKindMessage, reply, ""); err != nil {
-		return ChatResponse{}, err
-	}
-	return ChatResponse{Reply: reply, Session: session, Run: run, PendingApprovals: approvals, Context: r.contextSnapshotOrNil(ctx, session.ID)}, nil
+	return r.projectedChatResponse(ctx, session, run, approvals, openAIChatResult{Reply: reply}), nil
 }
 
 func (r *Runtime) prepareChatRequest(ctx context.Context, req ChatRequest) (string, error) {
@@ -177,7 +168,7 @@ func (r *Runtime) attachFinalAssistantMessage(
 	run Run,
 	replyResult openAIChatResult,
 ) (Run, error) {
-	message, err := r.store.AddTranscriptEntry(ctx, session.ID, run.ID, "assistant", transcriptKindMessage, replyResult.Reply, replyResult.ReasoningContent)
+	message, err := r.ensureAssistantMessage(ctx, session, run, replyResult)
 	if err != nil {
 		return run, err
 	}
@@ -186,6 +177,170 @@ func (r *Runtime) attachFinalAssistantMessage(
 		return run, err
 	}
 	return run, nil
+}
+
+func (r *Runtime) ensureAssistantMessage(
+	ctx context.Context,
+	session Session,
+	run Run,
+	replyResult openAIChatResult,
+) (Message, error) {
+	if r != nil && r.store != nil {
+		if projection, ok, err := r.store.SessionProjection(ctx, session.ID); err != nil {
+			return Message{}, err
+		} else if ok && projection.LatestAssistant != nil && projectedMessageMatchesReply(*projection.LatestAssistant, replyResult) {
+			return *projection.LatestAssistant, nil
+		}
+	}
+	return r.appendAssistantMessageEvent(ctx, session, run, replyResult)
+}
+
+func (r *Runtime) appendAssistantMessageEvent(
+	ctx context.Context,
+	session Session,
+	run Run,
+	replyResult openAIChatResult,
+) (Message, error) {
+	if r == nil || r.rawSessionService == nil {
+		return Message{}, fmt.Errorf("adk session service is unavailable")
+	}
+	response, err := r.rawSessionService.Get(ctx, &adksession.GetRequest{
+		AppName:   googleADKAppName(defaultString(session.AgentID, run.AgentID)),
+		UserID:    googleADKUserID,
+		SessionID: session.ID,
+	})
+	if err != nil {
+		created, createErr := r.rawSessionService.Create(ctx, &adksession.CreateRequest{
+			AppName:   googleADKAppName(defaultString(session.AgentID, run.AgentID)),
+			UserID:    googleADKUserID,
+			SessionID: session.ID,
+		})
+		if createErr != nil {
+			return Message{}, createErr
+		}
+		response = &adksession.GetResponse{Session: created.Session}
+	}
+	event := adksession.NewEvent(run.ID)
+	event.Author = googleADKAgentName(defaultString(run.AgentID, session.AgentID))
+	event.LLMResponse = adkmodel.LLMResponse{
+		Content:      genai.NewContentFromParts(partsFromReplyAndReasoning(replyResult.Reply, replyResult.ReasoningContent), genai.RoleModel),
+		TurnComplete: true,
+	}
+	if err := r.rawSessionService.AppendEvent(ctx, response.Session, event); err != nil {
+		return Message{}, err
+	}
+	message, _ := transcriptEntryFromADKEvent(event)
+	message.SessionID = session.ID
+	message.RunID = run.ID
+	return message, nil
+}
+
+func projectedMessageMatchesReply(message Message, replyResult openAIChatResult) bool {
+	return strings.TrimSpace(message.Content) == strings.TrimSpace(replyResult.Reply) &&
+		strings.TrimSpace(message.ReasoningContent) == strings.TrimSpace(replyResult.ReasoningContent)
+}
+
+func (r *Runtime) projectedChatResponse(
+	ctx context.Context,
+	session Session,
+	run Run,
+	approvals []Approval,
+	fallback openAIChatResult,
+) ChatResponse {
+	response := ChatResponse{
+		Reply:            fallback.Reply,
+		ReasoningContent: fallback.ReasoningContent,
+		Session:          session,
+		Run:              run,
+		PendingApprovals: append([]Approval(nil), approvals...),
+		Context:          r.contextSnapshotOrNil(ctx, session.ID),
+	}
+	if r == nil || r.store == nil {
+		return response
+	}
+	projection, ok, err := r.store.SessionProjection(ctx, session.ID)
+	if err != nil || !ok {
+		return response
+	}
+	if projection.LatestAssistant != nil {
+		response.Reply = projection.LatestAssistant.Content
+		response.ReasoningContent = projection.LatestAssistant.ReasoningContent
+	}
+	if len(response.PendingApprovals) == 0 && len(projection.PendingApprovals) > 0 {
+		response.PendingApprovals = append([]Approval(nil), projection.PendingApprovals...)
+	}
+	if len(response.PendingApprovals) > 0 {
+		response.Run.PendingApprovals = append([]Approval(nil), response.PendingApprovals...)
+	}
+	response.Run = applySessionProjectionToRun(response.Run, projection)
+	return response
+}
+
+func applySessionProjectionToRun(run Run, projection SessionProjection) Run {
+	if strings.TrimSpace(projection.FinalMessageID) != "" {
+		run.FinalMessageID = projection.FinalMessageID
+	}
+	if strings.TrimSpace(projection.PreToolContent) != "" {
+		run.PreToolContent = projection.PreToolContent
+	}
+	if strings.TrimSpace(projection.PreToolReasoning) != "" {
+		run.PreToolReasoning = projection.PreToolReasoning
+	}
+	if len(projection.PendingApprovals) > 0 {
+		run.PendingApprovals = append([]Approval(nil), projection.PendingApprovals...)
+	}
+	if shouldPreferProjectedToolCalls(run.ToolCalls, projection.ToolCalls) {
+		run.ToolCalls = append([]ToolCall(nil), projection.ToolCalls...)
+	}
+	if len(run.ToolCalls) > 0 {
+		run.ToolSummaries = toolSummariesForRun(run)
+		run.OptimizationTaskID = optimizationTaskID(run.ToolCalls)
+		if run.Usage != nil {
+			run.Usage.ToolCallsTotal = len(run.ToolCalls)
+		}
+	}
+	return run
+}
+
+func shouldPreferProjectedToolCalls(current []ToolCall, projected []ToolCall) bool {
+	if len(projected) == 0 {
+		return false
+	}
+	if len(current) == 0 {
+		return true
+	}
+	projectedTerminal := terminalToolCallCount(projected)
+	currentTerminal := terminalToolCallCount(current)
+	if projectedTerminal != currentTerminal {
+		return projectedTerminal > currentTerminal
+	}
+	projectedPending := pendingApprovalToolCallCount(projected)
+	currentPending := pendingApprovalToolCallCount(current)
+	if projectedPending != currentPending {
+		return projectedPending > currentPending
+	}
+	return len(projected) > len(current)
+}
+
+func terminalToolCallCount(calls []ToolCall) int {
+	count := 0
+	for _, call := range calls {
+		switch call.Status {
+		case "SUCCEEDED", "FAILED", "DENIED", "COMPLETED", "CANCELLED", "TIMED_OUT":
+			count++
+		}
+	}
+	return count
+}
+
+func pendingApprovalToolCallCount(calls []ToolCall) int {
+	count := 0
+	for _, call := range calls {
+		if call.Status == "PENDING_APPROVAL" {
+			count++
+		}
+	}
+	return count
 }
 
 func terminalAuditMessage(status string) string {

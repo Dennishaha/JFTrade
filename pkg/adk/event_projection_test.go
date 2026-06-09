@@ -1,0 +1,214 @@
+package adk
+
+import (
+	"context"
+	"errors"
+	"os"
+	"path/filepath"
+	"testing"
+	"time"
+
+	adkmodel "google.golang.org/adk/model"
+	adksession "google.golang.org/adk/session"
+	adkskill "google.golang.org/adk/tool/skilltoolset/skill"
+	"google.golang.org/genai"
+)
+
+func TestFilteredSkillSourceForAgentHonorsAllowedToolsAndPermissionMode(t *testing.T) {
+	ctx := context.Background()
+	runtime := newRuntimeWithRegistry(t, newTestRuntime(t).Store(), NewToolRegistry())
+	registry := NewToolRegistry()
+	registry.Register(ToolDescriptor{
+		Name:         "restricted.tool",
+		DisplayName:  "Restricted",
+		Description:  "high-auto only tool",
+		Permission:   "write_strategy",
+		AllowedModes: []string{PermissionModeHighAuto},
+	}, func(context.Context, map[string]any) (any, error) {
+		return map[string]any{"ok": true}, nil
+	})
+	runtime = newRuntimeWithRegistry(t, runtime.Store(), registry)
+
+	writeSkillDir := filepath.Join(runtime.Store().SkillsPath(), "write-skill")
+	if err := os.MkdirAll(writeSkillDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll write-skill: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(writeSkillDir, "SKILL.md"), []byte("---\nname: write-skill\ndescription: write skill\nallowed-tools: [restricted.tool]\n---\nUse the restricted tool.\n"), 0o644); err != nil {
+		t.Fatalf("WriteFile write-skill: %v", err)
+	}
+	readSkillDir := filepath.Join(runtime.Store().SkillsPath(), "read-skill")
+	if err := os.MkdirAll(readSkillDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll read-skill: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(readSkillDir, "SKILL.md"), []byte("---\nname: read-skill\ndescription: read skill\nallowed-tools: [tools.search]\n---\nUse the read tool.\n"), 0o644); err != nil {
+		t.Fatalf("WriteFile read-skill: %v", err)
+	}
+
+	source, err := runtime.Skills().Source(ctx, []string{"write-skill", "read-skill"})
+	if err != nil {
+		t.Fatalf("Source: %v", err)
+	}
+	filtered, err := runtime.filteredSkillSourceForAgent(ctx, source, Agent{
+		ID:             "agent",
+		Tools:          []string{"restricted.tool", "tools.search"},
+		Skills:         []string{"write-skill", "read-skill"},
+		PermissionMode: PermissionModeApproval,
+	})
+	if err != nil {
+		t.Fatalf("filteredSkillSourceForAgent: %v", err)
+	}
+
+	frontmatters, err := filtered.ListFrontmatters(ctx)
+	if err != nil {
+		t.Fatalf("ListFrontmatters: %v", err)
+	}
+	if len(frontmatters) != 1 || frontmatters[0].Name != "read-skill" {
+		t.Fatalf("frontmatters = %#v, want only read-skill", frontmatters)
+	}
+	if _, err := filtered.LoadFrontmatter(ctx, "write-skill"); !errors.Is(err, adkskill.ErrSkillNotFound) {
+		t.Fatalf("LoadFrontmatter(write-skill) err = %v, want ErrSkillNotFound", err)
+	}
+}
+
+func TestSessionProjectionRestoresMessagesFromADKEvents(t *testing.T) {
+	runtime := newTestRuntime(t)
+	agent := mustSaveAgent(t, runtime, AgentWriteRequest{
+		ID:             "agent-events",
+		Name:           "Agent",
+		PermissionMode: PermissionModeApproval,
+		Status:         AgentStatusEnabled,
+	})
+	session := mustCreateSession(t, runtime, agent.ID, "事件恢复")
+	appendADKEvent(t, runtime, agent.ID, session.ID, newUserEvent("run-1", "用户问题", time.Unix(10, 0)))
+	appendADKEvent(t, runtime, agent.ID, session.ID, newAssistantEvent("run-1", []*genai.Part{
+		{Text: "先分析上下文。", Thought: true},
+		{Text: "这是答案。"},
+	}, time.Unix(11, 0)))
+
+	restarted := newRuntimeWithRegistry(t, runtime.Store(), NewToolRegistry())
+	messages := mustMessages(t, restarted, session.ID)
+	if len(messages) != 2 {
+		t.Fatalf("messages = %#v, want 2", messages)
+	}
+	if messages[0].Role != "user" || messages[0].Content != "用户问题" {
+		t.Fatalf("user message = %+v", messages[0])
+	}
+	if messages[1].Role != "assistant" || messages[1].Content != "这是答案。" || messages[1].ReasoningContent != "先分析上下文。" {
+		t.Fatalf("assistant message = %+v", messages[1])
+	}
+}
+
+func TestSessionProjectionRecoversPreToolContentAndToolOrder(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	agent := mustSaveAgent(t, runtime, AgentWriteRequest{
+		ID:             "agent-tool-order",
+		Name:           "Agent",
+		PermissionMode: PermissionModeApproval,
+		Status:         AgentStatusEnabled,
+	})
+	session := mustCreateSession(t, runtime, agent.ID, "工具恢复")
+
+	appendADKEvent(t, runtime, agent.ID, session.ID, newUserEvent("run-2", "帮我执行", time.Unix(20, 0)))
+	appendADKEvent(t, runtime, agent.ID, session.ID, newAssistantEvent("run-2", []*genai.Part{{Text: "先分析市场。"}}, time.Unix(21, 0)))
+	appendADKEvent(t, runtime, agent.ID, session.ID, newToolCallEvent("run-2", "call-1", "market.snapshot", time.Unix(22, 0)))
+	appendADKEvent(t, runtime, agent.ID, session.ID, newToolResponseEvent("run-2", "call-1", "market.snapshot", map[string]any{"ok": true}, time.Unix(23, 0)))
+	appendADKEvent(t, runtime, agent.ID, session.ID, newToolCallEvent("run-2", "call-2", "portfolio.summary", time.Unix(24, 0)))
+	appendADKEvent(t, runtime, agent.ID, session.ID, newToolResponseEvent("run-2", "call-2", "portfolio.summary", map[string]any{"ok": true}, time.Unix(25, 0)))
+	appendADKEvent(t, runtime, agent.ID, session.ID, newAssistantEvent("run-2", []*genai.Part{{Text: "完成。"}}, time.Unix(26, 0)))
+
+	projection, ok, err := runtime.Store().SessionProjection(ctx, session.ID)
+	if err != nil {
+		t.Fatalf("SessionProjection: %v", err)
+	}
+	if !ok {
+		t.Fatal("expected session projection from events")
+	}
+	if projection.PreToolContent != "先分析市场。" {
+		t.Fatalf("preToolContent = %q, want 先分析市场。", projection.PreToolContent)
+	}
+	if len(projection.ToolCalls) != 2 {
+		t.Fatalf("tool calls = %#v, want 2", projection.ToolCalls)
+	}
+	if projection.ToolCalls[0].ToolName != "market.snapshot" || projection.ToolCalls[1].ToolName != "portfolio.summary" {
+		t.Fatalf("tool call order = %#v", projection.ToolCalls)
+	}
+	if projection.ToolCalls[0].Status != "SUCCEEDED" || projection.ToolCalls[1].Status != "SUCCEEDED" {
+		t.Fatalf("tool call statuses = %#v", projection.ToolCalls)
+	}
+	if projection.Reply != "先分析市场。完成。" {
+		t.Fatalf("reply = %q, want 先分析市场。完成。", projection.Reply)
+	}
+}
+
+func appendADKEvent(t *testing.T, runtime *Runtime, agentID string, sessionID string, event *adksession.Event) {
+	t.Helper()
+	response, err := runtime.rawSessionService.Get(context.Background(), &adksession.GetRequest{
+		AppName:   googleADKAppName(agentID),
+		UserID:    googleADKUserID,
+		SessionID: sessionID,
+	})
+	if err != nil {
+		created, createErr := runtime.rawSessionService.Create(context.Background(), &adksession.CreateRequest{
+			AppName:   googleADKAppName(agentID),
+			UserID:    googleADKUserID,
+			SessionID: sessionID,
+		})
+		if createErr != nil {
+			t.Fatalf("Create session service session: %v", createErr)
+		}
+		response = &adksession.GetResponse{Session: created.Session}
+	}
+	if err := runtime.rawSessionService.AppendEvent(context.Background(), response.Session, event); err != nil {
+		t.Fatalf("AppendEvent: %v", err)
+	}
+}
+
+func newUserEvent(runID string, text string, ts time.Time) *adksession.Event {
+	event := adksession.NewEvent(runID)
+	event.ID = "user-" + runID + "-" + ts.UTC().Format(time.RFC3339Nano)
+	event.Author = "user"
+	event.Timestamp = ts
+	event.LLMResponse = adkmodel.LLMResponse{
+		Content: genai.NewContentFromText(text, genai.RoleUser),
+	}
+	return event
+}
+
+func newAssistantEvent(runID string, parts []*genai.Part, ts time.Time) *adksession.Event {
+	event := adksession.NewEvent(runID)
+	event.ID = "assistant-" + runID + "-" + ts.UTC().Format(time.RFC3339Nano)
+	event.Author = googleADKAgentName("agent")
+	event.Timestamp = ts
+	event.LLMResponse = adkmodel.LLMResponse{
+		Content:      genai.NewContentFromParts(parts, genai.RoleModel),
+		TurnComplete: true,
+	}
+	return event
+}
+
+func newToolCallEvent(runID string, callID string, name string, ts time.Time) *adksession.Event {
+	event := adksession.NewEvent(runID)
+	event.ID = "tool-call-" + callID
+	event.Author = googleADKAgentName("agent")
+	event.Timestamp = ts
+	event.LLMResponse = adkmodel.LLMResponse{
+		Content: genai.NewContentFromParts([]*genai.Part{{
+			FunctionCall: &genai.FunctionCall{ID: callID, Name: name, Args: map[string]any{"input": name}},
+		}}, genai.RoleModel),
+	}
+	return event
+}
+
+func newToolResponseEvent(runID string, callID string, name string, response map[string]any, ts time.Time) *adksession.Event {
+	event := adksession.NewEvent(runID)
+	event.ID = "tool-response-" + callID
+	event.Author = googleADKAgentName("agent")
+	event.Timestamp = ts
+	event.LLMResponse = adkmodel.LLMResponse{
+		Content: genai.NewContentFromParts([]*genai.Part{{
+			FunctionResponse: &genai.FunctionResponse{ID: callID, Name: name, Response: response},
+		}}, genai.RoleModel),
+	}
+	return event
+}

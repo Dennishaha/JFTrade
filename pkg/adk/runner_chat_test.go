@@ -8,6 +8,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"google.golang.org/genai"
 )
 
 func TestPrepareChatRequestValidationAndConcurrency(t *testing.T) {
@@ -175,7 +177,7 @@ func TestAttachFinalAssistantMessagePersistsMessageAndRunLink(t *testing.T) {
 		t.Fatalf("updated run = %+v, want final message id", updated)
 	}
 
-	messages := mustMessages(t, runtime, session.ID)
+	messages := mustAssistantMessages(t, runtime, session.ID)
 	if len(messages) != 1 {
 		t.Fatalf("messages len = %d, want 1", len(messages))
 	}
@@ -230,8 +232,8 @@ func TestFinishPendingApprovalRunPersistsPendingStateAndAssistantPrompt(t *testi
 	}
 
 	messages := mustMessages(t, runtime, session.ID)
-	if len(messages) != 1 || !strings.Contains(messages[0].Content, "审批队列") {
-		t.Fatalf("messages = %+v, want assistant approval message", messages)
+	if len(messages) != 0 {
+		t.Fatalf("messages = %+v, want no persisted assistant placeholder", messages)
 	}
 
 	events := mustAuditEvents(t, runtime)
@@ -295,7 +297,7 @@ func TestCompleteChatRunFailureUsesFallbackReplyAndPersistsTerminalState(t *test
 		t.Fatalf("stored run = %+v", stored)
 	}
 
-	messages := mustMessages(t, runtime, session.ID)
+	messages := mustAssistantMessages(t, runtime, session.ID)
 	if len(messages) != 1 || !strings.Contains(messages[0].Content, "本地兜底回复") {
 		t.Fatalf("messages = %+v, want fallback assistant message", messages)
 	}
@@ -342,9 +344,57 @@ func TestCompleteChatRunSuccessPersistsCompletedRunAndAssistantReply(t *testing.
 		t.Fatalf("stored run = %+v", stored)
 	}
 
-	messages := mustMessages(t, runtime, session.ID)
+	messages := mustAssistantMessages(t, runtime, session.ID)
 	if len(messages) != 1 || messages[0].Content != "final answer" || messages[0].ReasoningContent != "because data" {
 		t.Fatalf("messages = %+v", messages)
+	}
+}
+
+func TestProjectedChatResponseAppliesProjectionToRunFields(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	agent := mustSaveAgent(t, runtime, AgentWriteRequest{
+		ID:             "agent-projection-run",
+		Name:           "Agent",
+		PermissionMode: PermissionModeApproval,
+		Status:         AgentStatusEnabled,
+	})
+	session := mustCreateSession(t, runtime, agent.ID, "projection run")
+	run := mustSaveRun(t, runtime, Run{
+		ID:        "run-projection-run",
+		SessionID: session.ID,
+		AgentID:   agent.ID,
+		Status:    RunStatusCompleted,
+		CreatedAt: nowString(),
+		UpdatedAt: nowString(),
+		Usage:     &RunUsage{},
+	})
+	appendADKEvent(t, runtime, agent.ID, session.ID, newAssistantEvent(run.ID, []*genai.Part{{Text: "先说明一下。"}}, time.Unix(30, 0)))
+	appendADKEvent(t, runtime, agent.ID, session.ID, newToolCallEvent(run.ID, "call-opt", "strategy.optimize", time.Unix(31, 0)))
+	appendADKEvent(t, runtime, agent.ID, session.ID, newToolResponseEvent(run.ID, "call-opt", "strategy.optimize", map[string]any{"taskId": "opt-999", "status": "started"}, time.Unix(32, 0)))
+	appendADKEvent(t, runtime, agent.ID, session.ID, newAssistantEvent(run.ID, []*genai.Part{{Text: "优化已启动。"}}, time.Unix(33, 0)))
+
+	response := runtime.projectedChatResponse(ctx, session, run, nil, openAIChatResult{Reply: "fallback"})
+	if response.Reply != "先说明一下。优化已启动。" {
+		t.Fatalf("reply = %q, want 先说明一下。优化已启动。", response.Reply)
+	}
+	if response.Run.PreToolContent != "先说明一下。" {
+		t.Fatalf("preToolContent = %q, want 先说明一下。", response.Run.PreToolContent)
+	}
+	if len(response.Run.ToolCalls) != 1 || response.Run.ToolCalls[0].ToolName != "strategy.optimize" {
+		t.Fatalf("tool calls = %+v, want projected optimize call", response.Run.ToolCalls)
+	}
+	if len(response.Run.ToolSummaries) != 1 || !strings.Contains(response.Run.ToolSummaries[0], "strategy.optimize") {
+		t.Fatalf("tool summaries = %+v, want projected optimize summary", response.Run.ToolSummaries)
+	}
+	if response.Run.OptimizationTaskID != "opt-999" {
+		t.Fatalf("optimizationTaskID = %q, want opt-999", response.Run.OptimizationTaskID)
+	}
+	if response.Run.Usage == nil || response.Run.Usage.ToolCallsTotal != 1 {
+		t.Fatalf("usage = %+v, want tool call total 1", response.Run.Usage)
+	}
+	if response.Run.FinalMessageID == "" {
+		t.Fatalf("finalMessageID = %q, want projected final message id", response.Run.FinalMessageID)
 	}
 }
 

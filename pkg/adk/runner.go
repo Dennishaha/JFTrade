@@ -38,6 +38,9 @@ func NewRuntimeWithSessionService(store *Store, tools *ToolRegistry, sessionServ
 	if tools == nil {
 		tools = NewToolRegistry()
 	}
+	if sessionService == nil {
+		sessionService = adksession.InMemoryService()
+	}
 	skillsPath := ""
 	if store != nil {
 		skillsPath = store.SkillsPath()
@@ -47,9 +50,13 @@ func NewRuntimeWithSessionService(store *Store, tools *ToolRegistry, sessionServ
 		activeRuns: map[string]context.CancelFunc{}, adkRuns: map[string]*googleADKExecution{}, approvalRuns: map[string]struct{}{},
 		runSem: make(chan struct{}, MaxConcurrentRuns),
 	}
-	if sessionService != nil && store != nil {
+	if store != nil {
+		store.SetSessionService(sessionService)
+	}
+	if store != nil {
 		r.contextManager = NewSessionContextManager(store, sessionService, r.openai, tools)
 		r.sessionService = r.contextManager.WrapService(sessionService)
+		store.SetSessionService(sessionService)
 	}
 	r.reconcileStaleRuns(context.Background())
 	return r
@@ -667,7 +674,8 @@ func (r *Runtime) markApprovalContinuationFailed(ctx context.Context, runID stri
 	run.CompletedAt = &completedAt
 	finalizeRunUsage(&run)
 	_ = r.store.SaveRun(ctx, run)
-	if saved, msgErr := r.store.AddTranscriptEntry(ctx, run.SessionID, run.ID, "assistant", transcriptKindMessage, localReply(run.UserMessage, toolSummariesForRun(run), cause), ""); msgErr == nil {
+	replyResult := openAIChatResult{Reply: localReply(run.UserMessage, toolSummariesForRun(run), cause)}
+	if saved, msgErr := r.ensureAssistantMessage(ctx, Session{ID: run.SessionID, AgentID: run.AgentID}, run, replyResult); msgErr == nil {
 		run.FinalMessageID = saved.ID
 		_ = r.store.SaveRun(ctx, run)
 	}

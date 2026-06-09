@@ -67,12 +67,16 @@ func (s *Server) handleADKSession(c *gin.Context) {
 		s.writeError(c, http.StatusNotFound, "NOT_FOUND", "session not found")
 		return
 	}
-	transcriptEntries, err := s.adkRuntime.Store().TranscriptEntries(c.Request.Context(), id)
+	projection, _, err := s.adkRuntime.Store().SessionProjection(c.Request.Context(), id)
 	if err != nil {
 		s.writeError(c, http.StatusInternalServerError, "ADK_MESSAGES_GET_FAILED", err.Error())
 		return
 	}
-	s.writeOK(c, jfadk.SessionsResponse{Session: session, TranscriptEntries: transcriptEntries, Messages: transcriptEntries})
+	s.writeOK(c, jfadk.SessionsResponse{
+		Session:           session,
+		TranscriptEntries: projection.Messages,
+		Messages:          projection.Messages,
+	})
 }
 
 func (s *Server) handleADKSessionContext(c *gin.Context) {
