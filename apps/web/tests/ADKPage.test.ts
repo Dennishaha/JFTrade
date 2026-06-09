@@ -8,8 +8,8 @@ import { createMemoryHistory, createRouter } from "vue-router";
 import type {
   ADKApproval,
   ADKChatResponse,
-  ADKMessage,
   ADKRun,
+  ADKTimelineEntry,
 } from "@jftrade/ui-contracts";
 
 import ADKPage from "../src/pages/ADKPage.vue";
@@ -51,7 +51,7 @@ describe("ADKPage", () => {
     expect(document.body.textContent).toContain("当前 Provider 未配置 API Key");
   });
 
-  it("renders final run tool calls and updates the pending message after approval", async () => {
+  it("renders final run tool calls and refreshes the timeline after approval", async () => {
     const pendingApproval: ADKApproval = {
       id: "approval-1",
       runId: "run-1",
@@ -88,13 +88,44 @@ describe("ADKPage", () => {
       }],
       pendingApprovals: [{ ...pendingApproval, status: "APPROVED" }],
     });
-    const finalMessage: ADKMessage = {
-      id: "msg-final",
-      sessionId: "session-1",
-      role: "assistant",
-      content: "策略草稿已保存，并已基于工具结果完成分析。",
-      createdAt: "2026-06-06T00:00:01Z",
-    };
+    const pendingTimeline = [
+      buildTimelineEntry("user_message", {
+        id: "entry-user",
+        text: "@strategy.save_draft 保存策略",
+        createdAt: "2026-06-06T00:00:00Z",
+      }),
+      buildTimelineEntry("tool_group", {
+        id: "entry-tools",
+        runId: pendingRun.id,
+        toolCalls: pendingRun.toolCalls,
+        createdAt: "2026-06-06T00:00:01Z",
+      }),
+      buildTimelineEntry("approval_group", {
+        id: "entry-approvals",
+        runId: pendingRun.id,
+        approvals: [pendingApproval],
+        createdAt: "2026-06-06T00:00:02Z",
+      }),
+    ];
+    const completedTimeline = [
+      buildTimelineEntry("user_message", {
+        id: "entry-user",
+        text: "@strategy.save_draft 保存策略",
+        createdAt: "2026-06-06T00:00:00Z",
+      }),
+      buildTimelineEntry("tool_group", {
+        id: "entry-tools",
+        runId: completedRun.id,
+        toolCalls: completedRun.toolCalls,
+        createdAt: "2026-06-06T00:00:01Z",
+      }),
+      buildTimelineEntry("assistant_message", {
+        id: "entry-final",
+        runId: completedRun.id,
+        text: "策略草稿已保存，并已基于工具结果完成分析。",
+        createdAt: "2026-06-06T00:00:03Z",
+      }),
+    ];
 
     streamADKChatMock.mockImplementation(async (_payload, onEvent) => {
       const response: ADKChatResponse = {
@@ -102,6 +133,7 @@ describe("ADKPage", () => {
         session: buildSession(),
         run: pendingRun,
         pendingApprovals: [pendingApproval],
+        timeline: pendingTimeline,
       };
       await onEvent({ type: "session", session: response.session });
       await onEvent({ type: "final", response });
@@ -113,7 +145,10 @@ describe("ADKPage", () => {
       approvalResolution: {
         approval: { ...pendingApproval, status: "APPROVED" },
         run: completedRun,
-        message: finalMessage,
+      },
+      sessionDetail: {
+        session: buildSession(),
+        timeline: completedTimeline,
       },
     });
     await flushRequests();
@@ -138,10 +173,9 @@ describe("ADKPage", () => {
       expect.objectContaining({ method: "POST" }),
     );
     expect(document.body.textContent).toContain("策略草稿已保存");
-    expect(document.body.textContent).toContain("已完成");
   });
 
-  it("approves all pending approvals from the approval bar", async () => {
+  it("approves all pending approvals from the inline approval group", async () => {
     const approvalA: ADKApproval = {
       id: "approval-1",
       runId: "run-1",
@@ -170,6 +204,18 @@ describe("ADKPage", () => {
           pendingApprovals: [approvalA, approvalB],
         }),
         pendingApprovals: [approvalA, approvalB],
+        timeline: [
+          buildTimelineEntry("user_message", {
+            id: "entry-user",
+            text: "batch approve",
+            createdAt: "2026-06-06T00:00:00Z",
+          }),
+          buildTimelineEntry("approval_group", {
+            id: "entry-approvals",
+            approvals: [approvalA, approvalB],
+            createdAt: "2026-06-06T00:00:01Z",
+          }),
+        ],
       };
       await onEvent({ type: "session", session: response.session });
       await onEvent({ type: "final", response });
@@ -181,11 +227,11 @@ describe("ADKPage", () => {
       approvalResolutionById: {
         "approval-1": {
           approval: { ...approvalA, status: "APPROVED" },
-          run: buildRun({ status: "RUNNING" }),
+          run: buildRun({ status: "COMPLETED" }),
         },
         "approval-2": {
           approval: { ...approvalB, status: "APPROVED" },
-          run: buildRun({ status: "RUNNING" }),
+          run: buildRun({ status: "COMPLETED" }),
         },
       },
     });
@@ -211,12 +257,10 @@ describe("ADKPage", () => {
     );
   });
 
-  it("restores persisted pre-tool content from saved runs", async () => {
+  it("restores persisted timeline entries for saved sessions", async () => {
     const savedRun = buildRun({
       id: "run-restored",
-      finalMessageId: "msg-restored",
       status: "COMPLETED",
-      preToolContent: "先查组合，再整理系统状态。",
       toolCalls: [{
         id: "tool-restored",
         runId: "run-restored",
@@ -230,20 +274,35 @@ describe("ADKPage", () => {
         updatedAt: "2026-06-06T00:00:00Z",
       }],
     });
-    const savedMessage: ADKMessage = {
-      id: "msg-restored",
-      sessionId: "session-1",
-      role: "assistant",
-      content: "先查组合，再整理系统状态。最终结论已经整理完成。",
-      createdAt: "2026-06-06T00:00:02Z",
-    };
-
     mountADKPage({
       sessionDetail: {
         session: buildSession(),
-        messages: [{ id: "msg-user", sessionId: "session-1", role: "user", content: "查看系统状态", createdAt: "2026-06-06T00:00:01Z" }, savedMessage],
+        timeline: [
+          buildTimelineEntry("user_message", {
+            id: "msg-user",
+            text: "查看系统状态",
+            createdAt: "2026-06-06T00:00:01Z",
+          }),
+          buildTimelineEntry("assistant_message", {
+            id: "entry-pre",
+            runId: savedRun.id,
+            text: "先查组合，再整理系统状态。",
+            createdAt: "2026-06-06T00:00:02Z",
+          }),
+          buildTimelineEntry("tool_group", {
+            id: "entry-tools",
+            runId: savedRun.id,
+            toolCalls: savedRun.toolCalls,
+            createdAt: "2026-06-06T00:00:03Z",
+          }),
+          buildTimelineEntry("assistant_message", {
+            id: "entry-final",
+            runId: savedRun.id,
+            text: "最终结论已经整理完成。",
+            createdAt: "2026-06-06T00:00:04Z",
+          }),
+        ],
       },
-      runs: [savedRun],
     });
     await flushRequests();
 
@@ -258,7 +317,6 @@ describe("ADKPage", () => {
   it("renders chat alerts inside the chat thread", async () => {
     streamADKChatMock.mockImplementation(async (_payload, onEvent) => {
       await onEvent({ type: "session", session: buildSession() });
-      await onEvent({ type: "delta", delta: "Partial reply before failure." });
       await onEvent({ type: "error", message: "stream exploded" });
       throw new Error("stream exploded");
     });
@@ -286,6 +344,23 @@ describe("ADKPage", () => {
         session: buildSession(),
         run: buildRun({ status: "COMPLETED" }),
         pendingApprovals: [],
+        timeline: [
+          buildTimelineEntry("user_message", {
+            id: "entry-user",
+            text: "show reasoning",
+            createdAt: "2026-06-06T00:00:00Z",
+          }),
+          buildTimelineEntry("assistant_reasoning", {
+            id: "entry-reasoning",
+            text: "Detailed chain of thought preview.",
+            createdAt: "2026-06-06T00:00:01Z",
+          }),
+          buildTimelineEntry("assistant_message", {
+            id: "entry-answer",
+            text: "Final answer.",
+            createdAt: "2026-06-06T00:00:02Z",
+          }),
+        ],
       };
       await onEvent({ type: "session", session: response.session });
       await onEvent({ type: "final", response });
@@ -320,10 +395,13 @@ function mountADKPage(options: {
   approvals?: ADKApproval[];
   approvalResolution?: unknown;
   approvalResolutionById?: Record<string, unknown>;
-  sessionDetail?: { session: ReturnType<typeof buildSession>; messages: ADKMessage[] };
-  runs?: ADKRun[];
+  sessionDetail?: { session: ReturnType<typeof buildSession>; timeline: ADKTimelineEntry[] };
 } = {}) {
   document.body.innerHTML = "<div id='root'></div>";
+  const state = {
+    approvals: [...(options.approvals ?? [])],
+    sessionDetail: options.sessionDetail ?? { session: buildSession(), timeline: [] },
+  };
   const fetchMock = vi.fn(async (input: string | URL | Request) => {
     const url = String(input);
     if (url.includes("/api/v1/adk/agents")) {
@@ -334,35 +412,21 @@ function mountADKPage(options: {
     }
     if (url.includes("/api/v1/adk/sessions")) {
       if (/\/api\/v1\/adk\/sessions\/[^/]+$/.test(url)) {
-        return createResponse(options.sessionDetail ?? { session: buildSession(), messages: [] });
+        return createResponse(state.sessionDetail);
       }
       return createResponse({ sessions: [buildSession()] });
-    }
-    if (url.includes("/api/v1/adk/runs?sessionId=")) {
-      const offsetMatch = url.match(/[?&]offset=(\d+)/);
-      const offset = offsetMatch ? Number(offsetMatch[1]) : 0;
-      const runs = offset === 0 ? (options.runs ?? []) : [];
-      return createResponse({
-        runs,
-        page: {
-          limit: 100,
-          offset,
-          total: options.runs?.length ?? 0,
-          returned: runs.length,
-          hasMore: false,
-        },
-      });
     }
     const approvalActionMatch = url.match(/\/api\/v1\/adk\/approvals\/([^/]+)\/(approve|deny)$/);
     if (approvalActionMatch) {
       const approvalId = approvalActionMatch[1]!;
+      state.approvals = state.approvals.filter((approval) => approval.id !== approvalId);
       if (options.approvalResolutionById?.[approvalId] !== undefined) {
         return createResponse(options.approvalResolutionById[approvalId]);
       }
       return createResponse(options.approvalResolution);
     }
     if (url.includes("/api/v1/adk/approvals")) {
-      return createResponse({ approvals: options.approvals ?? [] });
+      return createResponse({ approvals: state.approvals });
     }
     return createResponse({});
   });
@@ -437,6 +501,24 @@ function buildRun(overrides: Partial<ADKRun>): ADKRun {
     createdAt: "2026-06-06T00:00:00Z",
     updatedAt: "2026-06-06T00:00:00Z",
     ...overrides,
+  };
+}
+
+function buildTimelineEntry(
+  kind: ADKTimelineEntry["kind"],
+  overrides: Partial<ADKTimelineEntry> = {},
+): ADKTimelineEntry {
+  return {
+    id: overrides.id ?? `entry-${kind}`,
+    sessionId: overrides.sessionId ?? "session-1",
+    kind,
+    createdAt: overrides.createdAt ?? "2026-06-06T00:00:00Z",
+    sequence: overrides.sequence ?? 1,
+    status: overrides.status ?? "final",
+    runId: overrides.runId,
+    text: overrides.text,
+    toolCalls: overrides.toolCalls,
+    approvals: overrides.approvals,
   };
 }
 

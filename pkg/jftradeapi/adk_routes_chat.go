@@ -3,26 +3,38 @@ package jftradeapi
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
 )
 
 type adkChatStreamEvent struct {
-	Type           string                        `json:"type"`
-	Delta          string                        `json:"delta,omitempty"`
-	ReasoningDelta string                        `json:"reasoningDelta,omitempty"`
-	ToolProgress   string                        `json:"toolProgress,omitempty"`
-	Response       *jfadk.ChatResponse           `json:"response,omitempty"`
-	Session        *jfadk.Session                `json:"session,omitempty"`
-	Run            *jfadk.Run                    `json:"run,omitempty"`
-	Context        *jfadk.SessionContextSnapshot `json:"context,omitempty"`
-	Message        string                        `json:"message,omitempty"`
+	Type     string                        `json:"type"`
+	Timeline *jfadk.TimelineEntry          `json:"timeline,omitempty"`
+	Response *jfadk.ChatResponse           `json:"response,omitempty"`
+	Session  *jfadk.Session                `json:"session,omitempty"`
+	Run      *jfadk.Run                    `json:"run,omitempty"`
+	Context  *jfadk.SessionContextSnapshot `json:"context,omitempty"`
+	Message  string                        `json:"message,omitempty"`
+}
+
+type adkTimelineStreamState struct {
+	sessionID      string
+	runID          string
+	nextSequence   int
+	reasoningIndex int
+	messageIndex   int
+	toolIndex      int
+	reasoning      *jfadk.TimelineEntry
+	message        *jfadk.TimelineEntry
+	toolGroup      *jfadk.TimelineEntry
 }
 
 func (s *Server) handleADKChat(c *gin.Context) {
@@ -74,11 +86,21 @@ func (s *Server) handleADKChatStream(c *gin.Context) {
 	sessionSent := false
 	contextSent := false
 	var streamMu sync.Mutex
+	timelineState := &adkTimelineStreamState{}
 	response, err := s.adkRuntime.ChatStream(c.Request.Context(), payload, func(delta jfadk.ChatDelta) error {
 		streamMu.Lock()
 		defer streamMu.Unlock()
 		if delta.Run != nil {
-			return writer.WriteEvent(adkChatStreamEvent{Type: "run", Run: delta.Run})
+			timelineState.observeRun(delta.Run)
+			if err := writer.WriteEvent(adkChatStreamEvent{Type: "run", Run: delta.Run}); err != nil {
+				return err
+			}
+			if timeline := timelineState.toolGroupSnapshot(); timeline != nil {
+				if err := writer.WriteEvent(adkChatStreamEvent{Type: "timeline", Timeline: timeline}); err != nil {
+					return err
+				}
+			}
+			return nil
 		}
 		if delta.Context != nil {
 			contextSent = true
@@ -93,6 +115,7 @@ func (s *Server) handleADKChatStream(c *gin.Context) {
 					return err
 				}
 				sessionSent = true
+				timelineState.observeSession(session)
 				if !contextSent && strings.TrimSpace(session.ID) != "" {
 					if snapshot, snapshotErr := s.adkRuntime.SessionContext(c.Request.Context(), session.ID); snapshotErr == nil {
 						if err := writer.WriteEvent(adkChatStreamEvent{Type: "context", Context: &snapshot}); err != nil {
@@ -103,17 +126,20 @@ func (s *Server) handleADKChatStream(c *gin.Context) {
 				}
 			}
 		}
-		if delta.ToolProgress != "" {
-			return writer.WriteEvent(adkChatStreamEvent{Type: "delta", ToolProgress: delta.ToolProgress})
-		}
 		if delta.Reply == "" && delta.ReasoningContent == "" {
 			return nil
 		}
-		return writer.WriteEvent(adkChatStreamEvent{
-			Type:           "delta",
-			Delta:          delta.Reply,
-			ReasoningDelta: delta.ReasoningContent,
-		})
+		if reasoningTimeline := timelineState.appendReasoning(delta.Run, delta.ReasoningContent); reasoningTimeline != nil {
+			if err := writer.WriteEvent(adkChatStreamEvent{Type: "timeline", Timeline: reasoningTimeline}); err != nil {
+				return err
+			}
+		}
+		if messageTimeline := timelineState.appendMessage(delta.Run, delta.Reply); messageTimeline != nil {
+			if err := writer.WriteEvent(adkChatStreamEvent{Type: "timeline", Timeline: messageTimeline}); err != nil {
+				return err
+			}
+		}
+		return nil
 	})
 	if err != nil {
 		_ = writer.WriteEvent(adkChatStreamEvent{Type: "error", Message: err.Error()})
@@ -121,6 +147,7 @@ func (s *Server) handleADKChatStream(c *gin.Context) {
 	}
 	if !sessionSent {
 		_ = writer.WriteEvent(adkChatStreamEvent{Type: "session", Session: &response.Session})
+		timelineState.observeSession(response.Session)
 	}
 	if !contextSent && response.Context != nil {
 		_ = writer.WriteEvent(adkChatStreamEvent{Type: "context", Context: response.Context})
@@ -137,6 +164,7 @@ func (s *Server) handleADKChatStream(c *gin.Context) {
 		Session:          response.Session,
 		Run:              trimmedRun,
 		PendingApprovals: response.PendingApprovals,
+		Timeline:         response.Timeline,
 		Context:          response.Context,
 	}})
 }
@@ -199,4 +227,145 @@ func (s *Server) previewADKSession(ctx context.Context, payload jfadk.ChatReques
 		AgentID: agent.ID,
 		Title:   title,
 	}, nil
+}
+
+func (s *adkTimelineStreamState) observeSession(session jfadk.Session) {
+	if strings.TrimSpace(session.ID) != "" {
+		s.sessionID = session.ID
+	}
+}
+
+func (s *adkTimelineStreamState) observeRun(run *jfadk.Run) {
+	if run == nil {
+		return
+	}
+	if strings.TrimSpace(run.SessionID) != "" {
+		s.sessionID = run.SessionID
+	}
+	if strings.TrimSpace(run.ID) != "" {
+		s.runID = run.ID
+	}
+	if len(run.ToolCalls) == 0 {
+		return
+	}
+	s.reasoning = nil
+	s.message = nil
+	if s.toolGroup == nil {
+		s.toolIndex++
+		s.toolGroup = &jfadk.TimelineEntry{
+			ID:        fmt.Sprintf("stream-tool-group:%s:%d", defaultTimelineRunID(s.runID), s.toolIndex),
+			SessionID: s.sessionID,
+			RunID:     defaultTimelineRunID(s.runID),
+			Kind:      jfadk.TimelineKindToolGroup,
+			CreatedAt: firstTimelineToolTime(run.ToolCalls, streamTimelineNow()),
+			Sequence:  s.nextTimelineSequence(),
+			Status:    jfadk.TimelineStatusStreaming,
+		}
+	}
+	s.toolGroup.SessionID = defaultTimelineSessionID(s.sessionID)
+	s.toolGroup.RunID = defaultTimelineRunID(s.runID)
+	s.toolGroup.CreatedAt = firstTimelineToolTime(run.ToolCalls, s.toolGroup.CreatedAt)
+	s.toolGroup.ToolCalls = append([]jfadk.ToolCall(nil), run.ToolCalls...)
+	s.toolGroup.Status = jfadk.TimelineStatusStreaming
+}
+
+func (s *adkTimelineStreamState) appendReasoning(run *jfadk.Run, delta string) *jfadk.TimelineEntry {
+	if delta == "" {
+		return nil
+	}
+	s.observeRun(run)
+	s.toolGroup = nil
+	if s.reasoning == nil {
+		s.reasoningIndex++
+		s.reasoning = &jfadk.TimelineEntry{
+			ID:        fmt.Sprintf("stream-reasoning:%s:%d", defaultTimelineRunID(s.runID), s.reasoningIndex),
+			SessionID: defaultTimelineSessionID(s.sessionID),
+			RunID:     defaultTimelineRunID(s.runID),
+			Kind:      jfadk.TimelineKindAssistantReasoning,
+			CreatedAt: streamTimelineNow(),
+			Sequence:  s.nextTimelineSequence(),
+			Status:    jfadk.TimelineStatusStreaming,
+		}
+	}
+	s.reasoning.Text += delta
+	return cloneTimelineEntry(s.reasoning)
+}
+
+func (s *adkTimelineStreamState) appendMessage(run *jfadk.Run, delta string) *jfadk.TimelineEntry {
+	if delta == "" {
+		return nil
+	}
+	s.observeRun(run)
+	s.toolGroup = nil
+	if s.message == nil {
+		s.messageIndex++
+		s.message = &jfadk.TimelineEntry{
+			ID:        fmt.Sprintf("stream-message:%s:%d", defaultTimelineRunID(s.runID), s.messageIndex),
+			SessionID: defaultTimelineSessionID(s.sessionID),
+			RunID:     defaultTimelineRunID(s.runID),
+			Kind:      jfadk.TimelineKindAssistantMessage,
+			CreatedAt: streamTimelineNow(),
+			Sequence:  s.nextTimelineSequence(),
+			Status:    jfadk.TimelineStatusStreaming,
+		}
+	}
+	s.message.Text += delta
+	return cloneTimelineEntry(s.message)
+}
+
+func (s *adkTimelineStreamState) toolGroupSnapshot() *jfadk.TimelineEntry {
+	if s.toolGroup == nil {
+		return nil
+	}
+	return cloneTimelineEntry(s.toolGroup)
+}
+
+func (s *adkTimelineStreamState) nextTimelineSequence() int {
+	s.nextSequence++
+	return s.nextSequence
+}
+
+func cloneTimelineEntry(entry *jfadk.TimelineEntry) *jfadk.TimelineEntry {
+	if entry == nil {
+		return nil
+	}
+	cloned := *entry
+	cloned.ToolCalls = append([]jfadk.ToolCall(nil), entry.ToolCalls...)
+	cloned.Approvals = append([]jfadk.Approval(nil), entry.Approvals...)
+	return &cloned
+}
+
+func defaultTimelineSessionID(sessionID string) string {
+	return strings.TrimSpace(sessionID)
+}
+
+func defaultTimelineRunID(runID string) string {
+	if trimmed := strings.TrimSpace(runID); trimmed != "" {
+		return trimmed
+	}
+	return "stream"
+}
+
+func firstTimelineToolTime(toolCalls []jfadk.ToolCall, fallback string) string {
+	best := strings.TrimSpace(fallback)
+	for _, toolCall := range toolCalls {
+		candidate := strings.TrimSpace(toolCall.CreatedAt)
+		if candidate == "" {
+			candidate = strings.TrimSpace(toolCall.UpdatedAt)
+		}
+		if candidate == "" {
+			continue
+		}
+		if best == "" || candidate < best {
+			best = candidate
+		}
+	}
+	if best == "" {
+		return streamTimelineNow()
+	}
+	return best
+}
+
+func streamTimelineNow() string {
+	return time.Now().UTC().Format(time.RFC3339Nano)
 }

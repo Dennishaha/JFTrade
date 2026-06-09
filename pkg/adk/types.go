@@ -106,6 +106,17 @@ type Session struct {
 
 const transcriptKindMessage = "message"
 
+const (
+	TimelineKindUserMessage       = "user_message"
+	TimelineKindAssistantMessage  = "assistant_message"
+	TimelineKindAssistantReasoning = "assistant_reasoning"
+	TimelineKindToolGroup         = "tool_group"
+	TimelineKindApprovalGroup     = "approval_group"
+
+	TimelineStatusStreaming = "streaming"
+	TimelineStatusFinal     = "final"
+)
+
 type TranscriptEntry struct {
 	ID               string `json:"id"`
 	SessionID        string `json:"sessionId"`
@@ -118,6 +129,19 @@ type TranscriptEntry struct {
 }
 
 type Message = TranscriptEntry
+
+type TimelineEntry struct {
+	ID        string     `json:"id"`
+	SessionID string     `json:"sessionId"`
+	RunID     string     `json:"runId,omitempty"`
+	Kind      string     `json:"kind"`
+	CreatedAt string     `json:"createdAt"`
+	Sequence  int        `json:"sequence"`
+	Status    string     `json:"status,omitempty"`
+	Text      string     `json:"text,omitempty"`
+	ToolCalls []ToolCall `json:"toolCalls,omitempty"`
+	Approvals []Approval `json:"approvals,omitempty"`
+}
 
 type Run struct {
 	ID                 string     `json:"id"`
@@ -237,6 +261,7 @@ type ChatResponse struct {
 	Session          Session                 `json:"session"`
 	Run              Run                     `json:"run"`
 	PendingApprovals []Approval              `json:"pendingApprovals"`
+	Timeline         []TimelineEntry         `json:"timeline,omitempty"`
 	Context          *SessionContextSnapshot `json:"context,omitempty"`
 }
 
@@ -247,9 +272,8 @@ type ApprovalResolution struct {
 }
 
 type SessionsResponse struct {
-	Session           Session           `json:"session"`
-	TranscriptEntries []TranscriptEntry `json:"transcriptEntries"`
-	Messages          []TranscriptEntry `json:"messages,omitempty"`
+	Session  Session         `json:"session"`
+	Timeline []TimelineEntry `json:"timeline,omitempty"`
 }
 
 type Snapshot struct {

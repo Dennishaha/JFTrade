@@ -1,35 +1,26 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 
 import type {
   ADKApproval,
   ADKApprovalResolution,
+  ADKChatResponse,
   ADKRun,
   ADKSessionContextSnapshot,
-  ADKTranscriptEntry,
 } from "@jftrade/ui-contracts";
 
 import ADKChatComposer from "../components/adk-page/ADKChatComposer.vue";
 import ADKChatThread from "../components/adk-page/ADKChatThread.vue";
+import { isTerminalRunStatus, runTerminalMessage } from "../composables/adkChatPresentation";
+import { streamADKChat } from "../composables/adkChatStream";
+import { scrollToBottom } from "../composables/adkThreadScroll";
+import { loadSessionChatHistory } from "../composables/adkPageRunHistory";
 import {
-  createAssistantMessageState,
-  isTerminalRunStatus,
-  runTerminalMessage,
-  syncRunPresentationState,
-} from "../composables/adkChatPresentation";
-import {
-  normalizeAssistantContent,
-  streamADKChat,
-} from "../composables/adkChatStream";
-import {
-  applyApprovalResolutionToChat,
-  applyFinalResponse,
-  mergeAssistantFinalText,
-} from "../composables/adkPageChatResults";
-import {
-  scrollToBottom,
-  type ChatMessage,
-} from "../composables/adkPageMessages";
+  createTimelineEntryState,
+  replaceTimelineEntries,
+  upsertTimelineEntry,
+  type ADKTimelineEntryState,
+} from "../composables/adkTimeline";
 import {
   compactADKSessionContext,
   fetchADKSessionContext,
@@ -42,13 +33,9 @@ interface ApprovalsResponse {
   approvals: ADKApproval[];
 }
 
-interface SessionDetailResponse {
-  transcriptEntries: ADKTranscriptEntry[];
-}
-
 const { renderMarkdown } = useADKMarkdownRenderer();
 
-const messages = ref<ChatMessage[]>([]);
+const timelineEntries = ref<ADKTimelineEntryState[]>([]);
 const draft = ref("");
 const busy = ref(false);
 const approvalsBusy = ref(false);
@@ -71,21 +58,10 @@ const suggestions = [
 const canSendChat = computed(() => draft.value.trim() !== "" && !busy.value);
 const showTypingIndicator = computed(() => {
   if (!busy.value) return false;
-  const lastMessage = messages.value.at(-1);
-  if (!lastMessage || lastMessage.role !== "assistant") return true;
-  if (
-    lastMessage.content.trim() !== "" ||
-    (lastMessage.reasoningContent ?? "").trim() !== ""
-  ) {
-    return false;
-  }
-  if (
-    lastMessage.run &&
-    lastMessage.run.status !== "RUNNING" &&
-    lastMessage.run.status !== "PENDING"
-  ) {
-    return false;
-  }
+  const lastEntry = timelineEntries.value.at(-1);
+  if (!lastEntry) return true;
+  if (lastEntry.kind === "tool_group") return false;
+  if ((lastEntry.text ?? "").trim() !== "") return false;
   return true;
 });
 const slashCommands = computed<SlashCommandItem[]>(() => {
@@ -136,15 +112,18 @@ async function send(): Promise<void> {
 
   draft.value = "";
   errorMessage.value = "";
-  messages.value.push({
-    id: `dock-user-${Date.now()}`,
-    role: "user",
-    content: text,
-  });
-  const assistantMessage = reactive<ChatMessage>(
-    createAssistantMessageState(`dock-assistant-${Date.now()}`),
-  );
-  messages.value.push(assistantMessage);
+  timelineEntries.value = [
+    ...timelineEntries.value,
+    createTimelineEntryState({
+      id: `dock-user-${Date.now()}`,
+      sessionId: sessionId.value,
+      kind: "user_message",
+      createdAt: new Date().toISOString(),
+      sequence: timelineEntries.value.length + 1,
+      status: "streaming",
+      text,
+    }),
+  ];
   await scrollToBottom(scrollHost);
   busy.value = true;
 
@@ -158,40 +137,18 @@ async function send(): Promise<void> {
         if (event.type === "context" && event.context) {
           sessionContext.value = event.context;
         }
-        if (event.type === "run" && event.run) {
+        if (event.type === "run" && event.run?.id) {
           activeRunId.value = event.run.id;
-          syncRunPresentationState(assistantMessage, event.run);
         }
-        if (event.type === "delta") {
-          if (event.delta) {
-            assistantMessage.content += event.delta;
-          }
-          if (event.reasoningDelta) {
-            assistantMessage.reasoningContent =
-              (assistantMessage.reasoningContent ?? "") + event.reasoningDelta;
-          }
-          if (event.toolProgress) {
-            if (
-              assistantMessage.preToolContent === undefined &&
-              assistantMessage.content.trim() !== ""
-            ) {
-              assistantMessage.preToolContent = assistantMessage.content;
-              assistantMessage.content = "";
-            }
-            if (
-              assistantMessage.preToolReasoning === undefined &&
-              (assistantMessage.reasoningContent ?? "").trim() !== ""
-            ) {
-              assistantMessage.preToolReasoning =
-                assistantMessage.reasoningContent;
-              assistantMessage.reasoningContent = "";
-            }
-            assistantMessage.toolProgress = event.toolProgress;
-          }
+        if (event.type === "timeline" && event.timeline) {
+          timelineEntries.value = upsertTimelineEntry(
+            timelineEntries.value,
+            event.timeline,
+          );
           await scrollToBottom(scrollHost);
         }
         if (event.type === "final" && event.response) {
-          applyFinalResponse(assistantMessage, event.response);
+          await applyAuthoritativeTimeline(event.response, event.response.session.id);
           pendingApprovals.value = event.response.pendingApprovals;
           if (event.response.context) {
             sessionContext.value = event.response.context;
@@ -208,7 +165,7 @@ async function send(): Promise<void> {
     );
 
     sessionId.value = response.session.id;
-    applyFinalResponse(assistantMessage, response);
+    await applyAuthoritativeTimeline(response, response.session.id);
     pendingApprovals.value = response.pendingApprovals;
     if (response.context) {
       sessionContext.value = response.context;
@@ -220,16 +177,8 @@ async function send(): Promise<void> {
       errorMessage.value = failMsg;
     }
   } catch (error) {
-    const fallbackMessage =
+    errorMessage.value =
       error instanceof Error ? error.message : "Agents chat failed";
-    if (
-      assistantMessage.content.trim() === "" &&
-      (assistantMessage.reasoningContent ?? "").trim() === ""
-    ) {
-      assistantMessage.content = fallbackMessage;
-    } else {
-      errorMessage.value = fallbackMessage;
-    }
   } finally {
     busy.value = false;
     activeRunId.value = "";
@@ -296,30 +245,35 @@ async function resolveApproval(
   approval: ADKApproval,
   approved: boolean,
 ): Promise<void> {
-  if (approvalsBusy.value) return;
+  await resolveApprovalGroup([approval], approved);
+}
+
+async function resolveApprovalGroup(
+  approvals: ADKApproval[],
+  approved: boolean,
+): Promise<void> {
+  if (approvals.length === 0 || approvalsBusy.value) return;
   approvalsBusy.value = true;
   errorMessage.value = "";
+  const action = approved ? "approve" : "deny";
+  const resolutions: ADKApprovalResolution[] = [];
+  const errors: string[] = [];
   try {
-    const resolution = await submitApproval(
-      approval,
-      approved ? "approve" : "deny",
-    );
-    await finalizeApprovalBatch([resolution]);
-  } catch (error) {
-    errorMessage.value =
-      error instanceof Error ? error.message : "审批处理失败";
-    await refreshApprovals();
+    for (const approval of approvals) {
+      try {
+        resolutions.push(await submitApproval(approval, action));
+      } catch (error) {
+        errors.push(error instanceof Error ? error.message : "审批处理失败");
+      }
+    }
+    await finalizeApprovalBatch(resolutions);
+    if (errors.length > 0) {
+      errorMessage.value =
+        errors.length === 1 ? errors[0]! : `批量审批部分失败：${errors[0]}`;
+    }
   } finally {
     approvalsBusy.value = false;
   }
-}
-
-async function resolveAllApprovals(): Promise<void> {
-  await resolveApprovalsBatch("approve");
-}
-
-async function denyAllApprovals(): Promise<void> {
-  await resolveApprovalsBatch("deny");
 }
 
 function clearErrorMessage(): void {
@@ -354,41 +308,10 @@ async function submitApproval(
   approval: ADKApproval,
   action: "approve" | "deny",
 ): Promise<ADKApprovalResolution> {
-  const resolution = await fetchEnvelopeWithInit<ADKApprovalResolution>(
+  return fetchEnvelopeWithInit<ADKApprovalResolution>(
     `/api/v1/adk/approvals/${encodeURIComponent(approval.id)}/${action}`,
     { method: "POST" },
   );
-  messages.value = applyApprovalResolutionToChat(messages.value, resolution);
-  await scrollToBottom(scrollHost);
-  return resolution;
-}
-
-async function resolveApprovalsBatch(
-  action: "approve" | "deny",
-): Promise<void> {
-  if (pendingApprovals.value.length === 0 || approvalsBusy.value) return;
-  approvalsBusy.value = true;
-  errorMessage.value = "";
-  const resolutions: ADKApprovalResolution[] = [];
-  const errors: string[] = [];
-
-  try {
-    for (const approval of pendingApprovals.value) {
-      try {
-        resolutions.push(await submitApproval(approval, action));
-      } catch (error) {
-        errors.push(error instanceof Error ? error.message : "审批处理失败");
-      }
-    }
-
-    await finalizeApprovalBatch(resolutions);
-    if (errors.length > 0) {
-      errorMessage.value =
-        errors.length === 1 ? errors[0]! : `批量审批部分失败：${errors[0]}`;
-    }
-  } finally {
-    approvalsBusy.value = false;
-  }
 }
 
 async function finalizeApprovalBatch(
@@ -407,6 +330,7 @@ async function finalizeApprovalBatch(
 
   for (const run of runs) {
     if (isTerminalRunStatus(run.status)) {
+      await reloadTimeline();
       const failMsg = runTerminalMessage(run);
       if (failMsg) {
         errorMessage.value = failMsg;
@@ -425,20 +349,14 @@ async function waitForApprovalContinuation(
   }
 
   const deadline = Date.now() + 15_000;
-  let latestRun = run;
   while (Date.now() < deadline) {
     await delay(900);
     try {
-      latestRun = await fetchEnvelope<ADKRun>(
+      const latestRun = await fetchEnvelope<ADKRun>(
         `/api/v1/adk/runs/${encodeURIComponent(run.id)}`,
       );
-      messages.value = messages.value.map((message) =>
-        message.run?.id === latestRun.id
-          ? { ...message, run: latestRun }
-          : message,
-      );
       if (isTerminalRunStatus(latestRun.status)) {
-        await appendFinalMessage(latestRun);
+        await reloadTimeline();
         const failMsg = runTerminalMessage(latestRun);
         if (failMsg) {
           errorMessage.value = failMsg;
@@ -451,46 +369,23 @@ async function waitForApprovalContinuation(
   }
 }
 
-async function appendFinalMessage(run: ADKRun): Promise<void> {
-  if (!run.finalMessageId || !run.sessionId) return;
-  const detail = await fetchEnvelope<SessionDetailResponse>(
-    `/api/v1/adk/sessions/${encodeURIComponent(run.sessionId)}`,
-  );
-  const finalMessage = detail.transcriptEntries.find(
-    (message) => message.id === run.finalMessageId,
-  );
-  if (!finalMessage) return;
+async function reloadTimeline(): Promise<void> {
+  if (!sessionId.value) return;
+  const detail = await loadSessionChatHistory(sessionId.value);
+  timelineEntries.value = detail.timelineEntries;
+  await scrollToBottom(scrollHost);
+}
 
-  const normalized = normalizeAssistantContent(
-    finalMessage.content,
-    finalMessage.reasoningContent,
-  );
-  const messageIndex = messages.value.findIndex(
-    (message) => message.run?.id === run.id,
-  );
-  const nextMessage: ChatMessage = {
-    ...createAssistantMessageState(finalMessage.id),
-    id: finalMessage.id,
-    role: "assistant",
-    content: normalized.content,
-    reasoningContent: normalized.reasoningContent,
-    run,
-  };
-
-  if (messageIndex >= 0) {
-    const existingMessage = { ...messages.value[messageIndex]! };
-    mergeAssistantFinalText(
-      existingMessage,
-      nextMessage.content,
-      nextMessage.reasoningContent,
-    );
-    messages.value[messageIndex] = {
-      ...existingMessage,
-      reasoningExpanded: false,
-      run,
-    };
-  } else if (!messages.value.some((message) => message.id === finalMessage.id)) {
-    messages.value.push(nextMessage);
+async function applyAuthoritativeTimeline(
+  response: ADKChatResponse,
+  nextSessionId: string,
+): Promise<void> {
+  if (response.timeline && response.timeline.length > 0) {
+    timelineEntries.value = replaceTimelineEntries(response.timeline, timelineEntries.value);
+  } else if (nextSessionId) {
+    sessionId.value = nextSessionId;
+    await reloadTimeline();
+    return;
   }
   await scrollToBottom(scrollHost);
 }
@@ -507,11 +402,10 @@ function delay(ms: number): Promise<void> {
     <div ref="scrollHost" class="adk-thread adk-thread--dock">
       <ADKChatThread
         variant="dock"
-        :chat-messages="messages"
+        :timeline-entries="timelineEntries"
         :sending-chat="busy"
         :show-typing-indicator="showTypingIndicator"
         :error-message="errorMessage"
-        :pending-approvals="pendingApprovals"
         :approvals-busy="approvalsBusy"
         :suggestions="suggestions"
         empty-state-title="开始与侧栏助手对话"
@@ -520,9 +414,8 @@ function delay(ms: number): Promise<void> {
         :clear-error-message="clearErrorMessage"
         :preview="preview"
         :render-markdown="renderMarkdown"
-        :resolve-all-approvals="resolveAllApprovals"
+        :resolve-approval-group="resolveApprovalGroup"
         :resolve-approval="resolveApproval"
-        :deny-all-approvals="denyAllApprovals"
         @update:chat-draft="draft = $event"
       />
     </div>

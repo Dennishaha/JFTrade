@@ -17,7 +17,7 @@ import {
   updateADKPageAgentProvider,
 } from "./adkPageSessionApi";
 import { formatDateTime } from "./consoleDataFormatting";
-import { scrollToBottom } from "./adkPageMessages";
+import { scrollToBottom } from "./adkThreadScroll";
 
 export function useADKPageSessionState(router: Router, threadRef: Ref<HTMLElement | null>) {
   const agents = ref<ADKAgent[]>([]);

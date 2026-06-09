@@ -745,14 +745,14 @@ func TestADKSessionsCRUDAndFilteringRoutes(t *testing.T) {
 	var getEnvelope struct {
 		OK   bool `json:"ok"`
 		Data struct {
-			Session  jfadk.Session   `json:"session"`
-			Messages []jfadk.Message `json:"messages"`
+			Session  jfadk.Session         `json:"session"`
+			Timeline []jfadk.TimelineEntry `json:"timeline"`
 		} `json:"data"`
 	}
 	if err := json.NewDecoder(getResp.Body).Decode(&getEnvelope); err != nil {
 		t.Fatalf("decode session detail: %v", err)
 	}
-	if !getEnvelope.OK || getEnvelope.Data.Session.ID != createEnvelope.Data.ID || len(getEnvelope.Data.Messages) == 0 {
+	if !getEnvelope.OK || getEnvelope.Data.Session.ID != createEnvelope.Data.ID || len(getEnvelope.Data.Timeline) == 0 {
 		t.Fatalf("session detail envelope = %+v", getEnvelope)
 	}
 

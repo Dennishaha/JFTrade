@@ -22,13 +22,12 @@ const {
   approvalsBusy,
   canSendChat,
   chatDraft,
-  chatMessages,
+  timelineEntries,
   composerBlockMessage,
   contextBusy,
   contextDetailsOpen,
   createNewSession,
   deleteSession,
-  denyAllApprovals,
   errorMessage,
   formatPermission,
   handleAgentChange,
@@ -36,13 +35,12 @@ const {
   handleProviderChange,
   loading,
   openProviderSettings,
-  pendingApprovals,
   preview,
   providerOptions,
   providers,
   runSlashCommand,
   renameSession,
-  resolveAllApprovals,
+  resolveApprovalGroup,
   resolveApproval,
   savingProviderSelection,
   selectedAgent,
@@ -81,7 +79,7 @@ onBeforeUnmount(() => {
 });
 
 watch(
-  chatMessages,
+  timelineEntries,
   () => {
     scheduleMermaidRender();
   },
@@ -138,11 +136,10 @@ function clearErrorMessage(): void {
       <div ref="threadRef" class="adk-thread">
         <ADKChatThread
           variant="page"
-          :chat-messages="chatMessages"
+          :timeline-entries="timelineEntries"
           :sending-chat="sendingChat"
           :show-typing-indicator="showTypingIndicator"
           :error-message="errorMessage"
-          :pending-approvals="pendingApprovals"
           :approvals-busy="approvalsBusy"
           :suggestions="SUGGESTIONS"
           empty-state-title="开始与智能体对话"
@@ -158,9 +155,8 @@ function clearErrorMessage(): void {
           :clear-error-message="clearErrorMessage"
           :preview="preview"
           :render-markdown="renderMarkdown"
-          :resolve-all-approvals="resolveAllApprovals"
+          :resolve-approval-group="resolveApprovalGroup"
           :resolve-approval="resolveApproval"
-          :deny-all-approvals="denyAllApprovals"
           @update:chat-draft="chatDraft = $event"
         />
       </div>

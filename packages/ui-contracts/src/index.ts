@@ -190,6 +190,28 @@ export interface ADKTranscriptEntry {
 
 export type ADKMessage = ADKTranscriptEntry;
 
+export type ADKTimelineEntryKind =
+  | "user_message"
+  | "assistant_reasoning"
+  | "tool_group"
+  | "approval_group"
+  | "assistant_message";
+
+export type ADKTimelineEntryStatus = "streaming" | "final" | string;
+
+export interface ADKTimelineEntry {
+  id: string;
+  sessionId: string;
+  runId?: string;
+  kind: ADKTimelineEntryKind | string;
+  createdAt: string;
+  sequence: number;
+  status?: ADKTimelineEntryStatus;
+  text?: string;
+  toolCalls?: ADKToolCall[];
+  approvals?: ADKApproval[];
+}
+
 export interface ADKRunUsage {
   modelCalls?: number;
   toolCallsTotal?: number;
@@ -232,6 +254,7 @@ export interface ADKChatResponse {
   session: ADKSession;
   run: ADKRun;
   pendingApprovals: ADKApproval[];
+  timeline?: ADKTimelineEntry[];
   context?: ADKSessionContextSnapshot;
 }
 

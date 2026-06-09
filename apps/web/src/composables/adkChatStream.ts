@@ -6,6 +6,7 @@ import type {
   ADKRun,
   ADKSession,
   ADKSessionContextSnapshot,
+  ADKTimelineEntry,
 } from "@jftrade/ui-contracts";
 
 export interface ADKChatStreamResponse {
@@ -14,41 +15,18 @@ export interface ADKChatStreamResponse {
   session: ADKSession;
   run: ADKRun;
   pendingApprovals: ADKApproval[];
+  timeline?: ADKTimelineEntry[];
   context?: ADKSessionContextSnapshot;
 }
 
 export interface ADKChatStreamEvent {
-  type: "session" | "run" | "delta" | "context" | "final" | "error";
-  delta?: string;
-  reasoningDelta?: string;
-  toolProgress?: string;
+  type: "session" | "run" | "timeline" | "context" | "final" | "error";
+  timeline?: ADKTimelineEntry;
   response?: ADKChatStreamResponse;
   session?: ADKSession;
   run?: ADKRun;
   context?: ADKSessionContextSnapshot;
   message?: string;
-}
-
-export function normalizeAssistantContent(
-  content: string,
-  reasoningContent?: string,
-): {
-  content: string;
-  reasoningContent: string;
-} {
-  if ((reasoningContent ?? "").trim() !== "") {
-    return { content, reasoningContent: reasoningContent ?? "" };
-  }
-  const match =
-    content.match(/<think>([\s\S]*?)<\/think>/i) ??
-    content.match(/<reasoning>([\s\S]*?)<\/reasoning>/i);
-  if (!match) {
-    return { content, reasoningContent: "" };
-  }
-  return {
-    content: content.replace(match[0], "").trim(),
-    reasoningContent: (match[1] ?? "").trim(),
-  };
 }
 
 export async function streamADKChat(

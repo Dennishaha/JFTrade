@@ -1,38 +1,5 @@
 import type { ADKRun } from "@jftrade/ui-contracts";
 
-export interface ADKAssistantMessageState {
-  id: string;
-  role: "assistant";
-  content: string;
-  reasoningContent?: string;
-  reasoningExpanded?: boolean;
-  toolProgress?: string;
-  preToolContent?: string | undefined;
-  preToolReasoning?: string | undefined;
-  run?: ADKRun | undefined;
-  toolSummaryExpanded?: boolean | undefined;
-  expandedToolCallIds?: string[] | undefined;
-}
-
-export interface ADKRunPresentationStateTarget {
-  run?: ADKRun | undefined;
-  toolSummaryExpanded?: boolean | undefined;
-  expandedToolCallIds?: string[] | undefined;
-}
-
-export function createAssistantMessageState(id: string): ADKAssistantMessageState {
-  return {
-    id,
-    role: "assistant",
-    content: "",
-    reasoningContent: "",
-    reasoningExpanded: false,
-    toolProgress: "",
-    toolSummaryExpanded: false,
-    expandedToolCallIds: [],
-  };
-}
-
 export function isActiveRunStatus(status: string | undefined): boolean {
   return status === "RUNNING" || status === "PENDING" || status === "PENDING_APPROVAL";
 }
@@ -85,26 +52,4 @@ export function runTerminalMessage(run: ADKRun | undefined): string {
     default:
       return "";
   }
-}
-
-export function syncRunPresentationState(
-  message: ADKRunPresentationStateTarget,
-  run: ADKRun | undefined,
-): void {
-  message.run = run;
-  const toolCalls = run?.toolCalls ?? [];
-  const validIds = new Set(toolCalls.map((toolCall) => toolCall.id));
-  const expandedToolCallIds = (message.expandedToolCallIds ?? []).filter((id) => validIds.has(id));
-
-  if (toolCalls.length === 0) {
-    message.toolSummaryExpanded = false;
-    message.expandedToolCallIds = [];
-    return;
-  }
-
-  if (message.toolSummaryExpanded === undefined) {
-    message.toolSummaryExpanded = false;
-  }
-
-  message.expandedToolCallIds = expandedToolCallIds;
 }

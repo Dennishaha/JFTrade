@@ -54,20 +54,19 @@ export function useADKPageController(
     agentOptions: sessionState.agentOptions,
     approvalTool: sessionState.approvalTool,
     approvalsBusy: chatState.approvalsBusy,
-    approvals: sessionState.approvals,
     canSendChat: chatState.canSendChat,
     chatDraft: chatState.chatDraft,
-    chatMessages: chatState.chatMessages,
+    timelineEntries: chatState.timelineEntries,
     composerBlockMessage,
     contextBusy: chatState.contextBusy,
     contextDetailsOpen: chatState.contextDetailsOpen,
     createNewSession: () =>
       sessionState.createNewSession(() => {
-        chatState.chatMessages.value = [];
+        chatState.timelineEntries.value = [];
       }),
     deleteSession: (sessionId: string) =>
       sessionState.deleteSession(sessionId, () => {
-        chatState.chatMessages.value = [];
+        chatState.timelineEntries.value = [];
       }),
     errorMessage: sessionState.errorMessage,
     formatPermission,
@@ -76,16 +75,15 @@ export function useADKPageController(
     handleProviderChange: sessionState.handleProviderChange,
     loading: sessionState.loading,
     openProviderSettings: sessionState.openProviderSettings,
-    pendingApprovals: sessionState.pendingApprovals,
     preview,
     providerOptions: sessionState.providerOptions,
     providers: sessionState.providers,
     runSlashCommand: chatState.runSlashCommand,
     renameSession: sessionState.renameSession,
-    denyAllApprovals: () =>
-      chatState.denyAllApprovals(sessionState.pendingApprovals.value),
-    resolveAllApprovals: () =>
-      chatState.resolveAllApprovals(sessionState.pendingApprovals.value),
+    resolveApprovalGroup: (approvals: ADKApproval[], approved: boolean) =>
+      approved
+        ? chatState.resolveAllApprovals(approvals)
+        : chatState.denyAllApprovals(approvals),
     resolveApproval: (approval: ADKApproval, approved: boolean) =>
       approved
         ? chatState.resolveApproval(approval)
@@ -107,7 +105,6 @@ export function useADKPageController(
     slashCommands: chatState.slashCommands,
     selectSession: chatState.selectSession,
     sendChat: chatState.sendChat,
-    tools: sessionState.tools,
     visibleSessions: sessionState.visibleSessions,
     cancelActiveRun: chatState.cancelActiveRun,
     openContextDetails: chatState.openContextDetails,

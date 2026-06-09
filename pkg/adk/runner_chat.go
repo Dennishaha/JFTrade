@@ -273,6 +273,9 @@ func (r *Runtime) projectedChatResponse(
 		response.Run.PendingApprovals = append([]Approval(nil), response.PendingApprovals...)
 	}
 	response.Run = applySessionProjectionToRun(response.Run, projection)
+	if timeline, ok, timelineErr := r.store.SessionTimeline(ctx, session.ID); timelineErr == nil && ok {
+		response.Timeline = timeline
+	}
 	return response
 }
 

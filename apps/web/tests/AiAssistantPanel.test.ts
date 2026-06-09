@@ -9,6 +9,7 @@ import type {
   ADKApprovalResolution,
   ADKChatResponse,
   ADKRun,
+  ADKTimelineEntry,
 } from "@jftrade/ui-contracts";
 
 import AiAssistantPanel from "../src/layout/AiAssistantPanel.vue";
@@ -72,6 +73,37 @@ describe("AiAssistantPanel", () => {
           updatedAt: "2026-06-09T00:00:00Z",
         },
         pendingApprovals: [approval],
+        timeline: [
+          buildTimelineEntry("user_message", {
+            id: "entry-user",
+            text: "check dock flow",
+            createdAt: "2026-06-09T00:00:00Z",
+          }),
+          buildTimelineEntry("assistant_reasoning", {
+            id: "entry-reasoning",
+            runId: run.id,
+            text: "Detailed reasoning for the sidebar assistant.",
+            createdAt: "2026-06-09T00:00:01Z",
+          }),
+          buildTimelineEntry("tool_group", {
+            id: "entry-tools",
+            runId: run.id,
+            toolCalls: run.toolCalls,
+            createdAt: "2026-06-09T00:00:02Z",
+          }),
+          buildTimelineEntry("approval_group", {
+            id: "entry-approvals",
+            runId: run.id,
+            approvals: [approval],
+            createdAt: "2026-06-09T00:00:03Z",
+          }),
+          buildTimelineEntry("assistant_message", {
+            id: "entry-answer",
+            runId: run.id,
+            text: "Here is the next step.",
+            createdAt: "2026-06-09T00:00:04Z",
+          }),
+        ],
       };
       await onEvent({ type: "final", response });
       return response;
@@ -139,6 +171,42 @@ describe("AiAssistantPanel", () => {
     const approvalA = buildApproval("approval-1", "strategy.save_draft");
     const approvalB = buildApproval("approval-2", "strategy.publish");
 
+    streamADKChatMock.mockImplementation(async (_payload, onEvent) => {
+      const response: ADKChatResponse = {
+        reply: "waiting for approvals",
+        run: buildRun({
+          status: "PENDING_APPROVAL",
+          toolCalls: [
+            buildToolCall("tool-1", "strategy.save_draft", "PENDING_APPROVAL"),
+            buildToolCall("tool-2", "strategy.publish", "PENDING_APPROVAL"),
+          ],
+          pendingApprovals: [approvalA, approvalB],
+        }),
+        session: {
+          id: "session-1",
+          agentId: "agent-1",
+          title: "Dock Session",
+          createdAt: "2026-06-09T00:00:00Z",
+          updatedAt: "2026-06-09T00:00:00Z",
+        },
+        pendingApprovals: [approvalA, approvalB],
+        timeline: [
+          buildTimelineEntry("user_message", {
+            id: "entry-user",
+            text: "batch dock approvals",
+            createdAt: "2026-06-09T00:00:00Z",
+          }),
+          buildTimelineEntry("approval_group", {
+            id: "entry-approvals",
+            approvals: [approvalA, approvalB],
+            createdAt: "2026-06-09T00:00:01Z",
+          }),
+        ],
+      };
+      await onEvent({ type: "final", response });
+      return response;
+    });
+
     const fetchMock = mountPanel({
       approvals: [approvalA, approvalB],
       approvalResolutionById: {
@@ -152,6 +220,17 @@ describe("AiAssistantPanel", () => {
         },
       },
     });
+    await flushRequests();
+
+    const input = document.querySelector("input");
+    expect(input).not.toBeNull();
+    input!.value = "batch dock approvals";
+    input!.dispatchEvent(new Event("input"));
+    await nextTick();
+
+    Array.from(document.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.includes("发送"))
+      ?.click();
     await flushRequests();
 
     document.querySelector<HTMLButtonElement>(".adk-approvals-approve-all")?.click();
@@ -171,10 +250,12 @@ describe("AiAssistantPanel", () => {
 function mountPanel(options: {
   approvals?: ADKApproval[];
   approvalResolutionById?: Record<string, ADKApprovalResolution>;
+  sessionDetail?: { session: ReturnType<typeof buildSession>; timeline: ADKTimelineEntry[] };
 } = {}) {
   document.body.innerHTML = "<div id='root'></div>";
   const state = {
     approvals: [...(options.approvals ?? [])],
+    sessionDetail: options.sessionDetail ?? { session: buildSession(), timeline: [] },
   };
 
   const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
@@ -195,7 +276,7 @@ function mountPanel(options: {
       return createResponse(buildRun({ status: "COMPLETED", pendingApprovals: [] }));
     }
     if (/\/api\/v1\/adk\/sessions\/[^/]+$/.test(url)) {
-      return createResponse({ messages: [] });
+      return createResponse(state.sessionDetail);
     }
     return createResponse({});
   });
@@ -253,6 +334,34 @@ function buildRun(overrides: Partial<ADKRun>): ADKRun {
     createdAt: "2026-06-09T00:00:00Z",
     updatedAt: "2026-06-09T00:00:00Z",
     ...overrides,
+  };
+}
+
+function buildSession() {
+  return {
+    id: "session-1",
+    agentId: "agent-1",
+    title: "Dock Session",
+    createdAt: "2026-06-09T00:00:00Z",
+    updatedAt: "2026-06-09T00:00:00Z",
+  };
+}
+
+function buildTimelineEntry(
+  kind: ADKTimelineEntry["kind"],
+  overrides: Partial<ADKTimelineEntry> = {},
+): ADKTimelineEntry {
+  return {
+    id: overrides.id ?? `entry-${kind}`,
+    sessionId: overrides.sessionId ?? "session-1",
+    kind,
+    createdAt: overrides.createdAt ?? "2026-06-09T00:00:00Z",
+    sequence: overrides.sequence ?? 1,
+    status: overrides.status ?? "final",
+    runId: overrides.runId,
+    text: overrides.text,
+    toolCalls: overrides.toolCalls,
+    approvals: overrides.approvals,
   };
 }
 
