@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -344,6 +345,84 @@ func TestCompleteChatRunSuccessPersistsCompletedRunAndAssistantReply(t *testing.
 	messages := mustMessages(t, runtime, session.ID)
 	if len(messages) != 1 || messages[0].Content != "final answer" || messages[0].ReasoningContent != "because data" {
 		t.Fatalf("messages = %+v", messages)
+	}
+}
+
+func TestResolveApprovalAsyncDetachesClosedStreamBeforeBackgroundResume(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	executions := 0
+	registry := NewToolRegistry()
+	registry.Register(ToolDescriptor{
+		Name: "strategy.save_draft", Permission: "write_strategy",
+		AllowedModes: []string{PermissionModeApproval},
+	}, func(context.Context, map[string]any) (any, error) {
+		executions++
+		return map[string]any{"saved": true}, nil
+	})
+	runtime = newRuntimeWithRegistry(t, runtime.Store(), registry)
+	agent, err := runtime.Store().SaveAgent(ctx, AgentWriteRequest{
+		ID: "agent", Name: "Agent", Tools: []string{"strategy.save_draft"},
+		PermissionMode: PermissionModeApproval, Status: AgentStatusEnabled,
+	})
+	if err != nil {
+		t.Fatalf("SaveAgent: %v", err)
+	}
+
+	var streamClosed atomic.Bool
+	var lateDeltaCalls atomic.Int32
+	response, err := runtime.ChatStream(ctx, ChatRequest{
+		AgentID: agent.ID, Message: "@strategy.save_draft save",
+	}, func(delta ChatDelta) error {
+		if streamClosed.Load() {
+			lateDeltaCalls.Add(1)
+			return errors.New("stale stream callback invoked after request completed")
+		}
+		_ = delta
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("ChatStream: %v", err)
+	}
+	if len(response.PendingApprovals) != 1 {
+		t.Fatalf("pending approvals = %d, want 1", len(response.PendingApprovals))
+	}
+
+	streamClosed.Store(true)
+	resolution, err := runtime.ResolveApprovalAsync(ctx, response.PendingApprovals[0].ID, true)
+	if err != nil {
+		t.Fatalf("ResolveApprovalAsync: %v", err)
+	}
+	if resolution.Run == nil || resolution.Run.Status != RunStatusPending || resolution.Run.ResumeState != "approval_resuming" {
+		t.Fatalf("initial async resolution = %+v, want pending approval_resuming", resolution.Run)
+	}
+
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		stored, ok, err := runtime.Store().Run(ctx, response.Run.ID)
+		if err != nil || !ok {
+			t.Fatalf("Run lookup err=%v ok=%v", err, ok)
+		}
+		if stored.Status != RunStatusPending {
+			if stored.Status != RunStatusCompleted {
+				t.Fatalf("final run status = %q, want %q; run=%+v", stored.Status, RunStatusCompleted, stored)
+			}
+			if stored.ResumeState != "adk_confirmation_resolved" {
+				t.Fatalf("resume state = %q, want adk_confirmation_resolved", stored.ResumeState)
+			}
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("run stayed pending after async approval: %+v", stored)
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+
+	if executions != 1 {
+		t.Fatalf("executions = %d, want 1", executions)
+	}
+	if lateDeltaCalls.Load() != 0 {
+		t.Fatalf("late delta callback count = %d, want 0", lateDeltaCalls.Load())
 	}
 }
 

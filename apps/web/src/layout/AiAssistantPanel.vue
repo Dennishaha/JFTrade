@@ -1,143 +1,91 @@
 <script setup lang="ts">
-import MarkdownIt from "markdown-it";
-import { computed, nextTick, onMounted, reactive, ref } from "vue";
+import { computed, onMounted, reactive, ref } from "vue";
 
 import type { ADKApproval, ADKApprovalResolution, ADKMessage, ADKRun } from "@jftrade/ui-contracts";
 
-import ADKRunTrace from "../components/shared/ADKRunTrace.vue";
+import ADKChatComposer from "../components/adk-page/ADKChatComposer.vue";
+import ADKChatThread from "../components/adk-page/ADKChatThread.vue";
 import {
   createAssistantMessageState,
   isTerminalRunStatus,
   runTerminalMessage,
   syncRunPresentationState,
-  type ADKAssistantMessageState,
 } from "../composables/adkChatPresentation";
+import { normalizeAssistantContent, streamADKChat } from "../composables/adkChatStream";
 import {
-  formatGenericStatusLabel,
-  formatMarketLabel,
-  formatTradingEnvironment,
-} from "../composables/consoleDataFormatting";
-import {
-  normalizeAssistantContent,
-  streamADKChat,
-} from "../composables/adkChatStream";
-import { mergeAssistantFinalText } from "../composables/adkPageChatResults";
+  applyApprovalResolutionToChat,
+  applyFinalResponse,
+  mergeAssistantFinalText,
+} from "../composables/adkPageChatResults";
+import { scrollToBottom, type ChatMessage } from "../composables/adkPageMessages";
 import { fetchEnvelope, fetchEnvelopeWithInit } from "../composables/apiClient";
-import { useConsoleData } from "../composables/useConsoleData";
-import { useWorkspaceTradingPrefs } from "../composables/useWorkspaceLayout";
+import { useADKMarkdownRenderer } from "../composables/useADKMarkdownRenderer";
 
-interface Message {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  reasoningContent?: string | undefined;
-  reasoningExpanded?: boolean | undefined;
-  toolProgress?: string | undefined;
-  preToolContent?: string | undefined;
-  preToolReasoning?: string | undefined;
-  run?: ADKAssistantMessageState["run"];
-  toolSummaryExpanded?: boolean | undefined;
-  expandedToolCallIds?: string[] | undefined;
+interface ApprovalsResponse {
+  approvals: ADKApproval[];
 }
 
-const markdown = new MarkdownIt({
-  html: false,
-  linkify: true,
-  breaks: true,
-});
-
-const messages = ref<Message[]>([
-  {
-    id: "welcome",
-    role: "assistant",
-    content:
-      "嗨，我是 JFTrade 助手。可以问我当前自选行情、风控状态、订单情况等问题。例如：「当前持仓盈亏」、「风控是否启用」、「最近的审计动作」。",
-  },
-]);
-
-const draft = ref("");
-const busy = ref(false);
-const scrollHost = ref<HTMLElement | null>(null);
-const pendingApprovals = ref<ADKApproval[]>([]);
-
-interface ApprovalsResponse { approvals: ADKApproval[] }
 interface SessionDetailResponse {
   messages: ADKMessage[];
 }
+
+const { renderMarkdown } = useADKMarkdownRenderer();
+
+const messages = ref<ChatMessage[]>([]);
+const draft = ref("");
+const busy = ref(false);
+const approvalsBusy = ref(false);
+const errorMessage = ref("");
+const scrollHost = ref<HTMLElement | null>(null);
+const pendingApprovals = ref<ADKApproval[]>([]);
+
+const suggestions = [
+  "查看系统状态",
+  "查看待审批动作",
+  "分析最近一次运行",
+  "总结当前智能体进展",
+];
+
+const canSendChat = computed(() =>
+  draft.value.trim() !== "" && !busy.value,
+);
+const showTypingIndicator = computed(() => {
+  if (!busy.value) return false;
+  const lastMessage = messages.value.at(-1);
+  if (!lastMessage || lastMessage.role !== "assistant") return true;
+  if (lastMessage.content.trim() !== "" || (lastMessage.reasoningContent ?? "").trim() !== "") return false;
+  if (lastMessage.run && lastMessage.run.status !== "RUNNING" && lastMessage.run.status !== "PENDING") return false;
+  return true;
+});
 
 onMounted(() => {
   void refreshApprovals();
 });
 
-const {
-  selectedBrokerAccount,
-  systemStatus,
-  realTradeKillSwitchState,
-  realTradeRiskState,
-  brokerOrders,
-  portfolioPositions,
-  storageOverview,
-  marketDataSubscriptions,
-} = useConsoleData();
-const { prefs } = useWorkspaceTradingPrefs();
-
-const suggestions = computed(() => [
-  "当前交易环境",
-  "风控状态",
-  "持仓概览",
-  "最近订单",
-  "活跃行情订阅",
-]);
-
-function localReply(question: string): string {
-  const q = question.toLowerCase();
-  if (q.includes("环境") || q.includes("env") || q.includes("trading")) {
-    return selectedBrokerAccount.value == null
-      ? `当前默认交易环境：${formatTradingEnvironment(systemStatus.value.defaultTradingEnvironment)}，券商层：${systemStatus.value.broker.displayName}。`
-      : `当前查询作用域：${selectedBrokerAccount.value.brokerId} / ${selectedBrokerAccount.value.accountId} / ${formatTradingEnvironment(selectedBrokerAccount.value.tradingEnvironment)} / ${formatMarketLabel(selectedBrokerAccount.value.market)}。`;
-  }
-  if (q.includes("风控") || q.includes("kill") || q.includes("risk")) {
-    return `熔断开关：${formatGenericStatusLabel(realTradeKillSwitchState.value.killSwitchActive ? "ACTIVE" : "CLEAR")}；风控限额：${realTradeRiskState.value.riskEnabled ? "已启用" : "未启用"}。`;
-  }
-  if (q.includes("持仓") || q.includes("position") || q.includes("portfolio")) {
-    const n = portfolioPositions.value.positions.length;
-    return `投影层共 ${n} 条持仓记录。打开账户页查看明细。`;
-  }
-  if (q.includes("订单") || q.includes("order")) {
-    const n = brokerOrders.value.orders.length;
-    return `券商订单视图共 ${n} 条记录。可在执行相关页面查看详情。`;
-  }
-  if (q.includes("订阅") || q.includes("sub") || q.includes("market")) {
-    return `当前行情活跃订阅 ${marketDataSubscriptions.value.totalActiveSubscriptions} 条，配额 ${marketDataSubscriptions.value.quota.totalUsed}/${marketDataSubscriptions.value.quota.totalLimit ?? "∞"}。`;
-  }
-  if (q.includes("审计") || q.includes("audit") || q.includes("log")) {
-    const n = storageOverview.value.recentAuditLogs.length;
-    return `最近 ${n} 条审计日志可在右栏或系统页查看。`;
-  }
-  if (q.includes("标的") || q.includes("symbol")) {
-    return `当前工作区标的：${formatMarketLabel(prefs.value.market)}:${prefs.value.symbol}，周期 ${prefs.value.period}。`;
-  }
-  return "（本地助手）目前我可以回答关于交易环境、风控、持仓、订单、订阅、审计的问题。后续会接入大模型 / 策略生成能力。";
-}
-
 async function send(): Promise<void> {
   const text = draft.value.trim();
   if (!text || busy.value) return;
+
   draft.value = "";
-  messages.value.push({ id: `u-${Date.now()}`, role: "user", content: text });
-  busy.value = true;
-  const assistantMessage = reactive<Message>(createAssistantMessageState(`a-${Date.now()}`));
+  errorMessage.value = "";
+  messages.value.push({ id: `dock-user-${Date.now()}`, role: "user", content: text });
+  const assistantMessage = reactive<ChatMessage>(createAssistantMessageState(`dock-assistant-${Date.now()}`));
   messages.value.push(assistantMessage);
+  await scrollToBottom(scrollHost);
+  busy.value = true;
 
   try {
     const response = await streamADKChat({ message: text }, async (event) => {
-      if (event.type === "session" && event.session?.id) {
-        // Session created or resolved — no action needed in panel mode
-      }
       if (event.type === "run" && event.run) {
         syncRunPresentationState(assistantMessage, event.run);
       }
       if (event.type === "delta") {
+        if (event.delta) {
+          assistantMessage.content += event.delta;
+        }
+        if (event.reasoningDelta) {
+          assistantMessage.reasoningContent = (assistantMessage.reasoningContent ?? "") + event.reasoningDelta;
+        }
         if (event.toolProgress) {
           if (assistantMessage.preToolContent === undefined && assistantMessage.content.trim() !== "") {
             assistantMessage.preToolContent = assistantMessage.content;
@@ -149,59 +97,37 @@ async function send(): Promise<void> {
           }
           assistantMessage.toolProgress = event.toolProgress;
         }
-        if (event.delta) {
-          assistantMessage.content += event.delta;
-          assistantMessage.toolProgress = "";
-        }
-        if (event.reasoningDelta) {
-          assistantMessage.reasoningContent = (assistantMessage.reasoningContent ?? "") + event.reasoningDelta;
-          if (!assistantMessage.reasoningExpanded && assistantMessage.reasoningContent.length > 0) {
-            assistantMessage.reasoningExpanded = true;
-          }
-        }
-        await nextTick();
-        if (scrollHost.value) {
-          scrollHost.value.scrollTop = scrollHost.value.scrollHeight;
-        }
+        await scrollToBottom(scrollHost);
       }
       if (event.type === "final" && event.response) {
-        const normalized = normalizeAssistantContent(event.response.reply, event.response.reasoningContent);
-        mergeAssistantFinalText(assistantMessage, normalized.content, normalized.reasoningContent);
-        syncRunPresentationState(assistantMessage, event.response.run);
-        assistantMessage.toolProgress = "";
-        const terminalMessage = runTerminalMessage(event.response.run);
-        if (terminalMessage) {
-          appendAssistantNotice(assistantMessage, terminalMessage);
+        applyFinalResponse(assistantMessage, event.response);
+        pendingApprovals.value = event.response.pendingApprovals;
+        const failMsg = runTerminalMessage(event.response.run);
+        if (failMsg) {
+          errorMessage.value = failMsg;
         }
       }
       if (event.type === "error") {
         throw new Error(event.message || "Agents chat failed");
       }
     });
-    const normalized = normalizeAssistantContent(
-      response.reply,
-      response.reasoningContent ?? assistantMessage.reasoningContent,
-    );
-    mergeAssistantFinalText(assistantMessage, normalized.content, normalized.reasoningContent);
-    syncRunPresentationState(assistantMessage, response.run);
+
+    applyFinalResponse(assistantMessage, response);
     pendingApprovals.value = response.pendingApprovals;
-    const terminalMessage = runTerminalMessage(response.run);
-    if (terminalMessage) {
-      appendAssistantNotice(assistantMessage, terminalMessage);
+    const failMsg = runTerminalMessage(response.run);
+    if (failMsg) {
+      errorMessage.value = failMsg;
     }
-  } catch (err) {
-    const errMsg = err instanceof Error ? err.message : "Agents chat failed";
+  } catch (error) {
+    const fallbackMessage = error instanceof Error ? error.message : "Agents chat failed";
     if (assistantMessage.content.trim() === "" && (assistantMessage.reasoningContent ?? "").trim() === "") {
-      assistantMessage.content = errMsg;
+      assistantMessage.content = fallbackMessage;
     } else {
-      appendAssistantNotice(assistantMessage, errMsg);
+      errorMessage.value = fallbackMessage;
     }
   } finally {
     busy.value = false;
-    await nextTick();
-    if (scrollHost.value) {
-      scrollHost.value.scrollTop = scrollHost.value.scrollHeight;
-    }
+    await scrollToBottom(scrollHost);
   }
 }
 
@@ -215,71 +141,135 @@ async function refreshApprovals(): Promise<void> {
 }
 
 async function resolveApproval(approval: ADKApproval, approved: boolean): Promise<void> {
-  const action = approved ? "approve" : "deny";
+  if (approvalsBusy.value) return;
+  approvalsBusy.value = true;
+  errorMessage.value = "";
   try {
-    const resolution = await fetchEnvelopeWithInit<ADKApprovalResolution>(
-      `/api/v1/adk/approvals/${encodeURIComponent(approval.id)}/${action}`,
-      { method: "POST" },
-    );
-    if (resolution.message) {
-      const message: Message = {
-        ...(createAssistantMessageState(resolution.message.id)),
-        id: resolution.message.id,
-        role: "assistant",
-        content: resolution.message.content,
-      };
-      if (resolution.message.reasoningContent !== undefined) {
-        message.reasoningContent = resolution.message.reasoningContent;
-      }
-      if (resolution.run) {
-        syncRunPresentationState(message, resolution.run);
-      }
-      const messageIndex = resolution.run
-        ? messages.value.findIndex((item) => item.run?.id === resolution.run?.id)
-        : -1;
-      if (messageIndex >= 0) {
-        const existingMessage = { ...messages.value[messageIndex]! };
-        mergeAssistantFinalText(existingMessage, message.content, message.reasoningContent);
-        messages.value[messageIndex] = {
-          ...existingMessage,
-          reasoningExpanded: false,
-          run: resolution.run,
-        };
-      } else {
-        messages.value.push(message);
-      }
-    } else if (resolution.run) {
-      const messageIndex = messages.value.findIndex((item) => item.run?.id === resolution.run?.id);
-      if (messageIndex >= 0) {
-        messages.value[messageIndex] = {
-          ...messages.value[messageIndex]!,
-          run: resolution.run,
-        };
+    const resolution = await submitApproval(approval, approved ? "approve" : "deny");
+    await finalizeApprovalBatch([resolution]);
+  } catch (error) {
+    errorMessage.value = error instanceof Error ? error.message : "审批处理失败";
+    await refreshApprovals();
+  } finally {
+    approvalsBusy.value = false;
+  }
+}
+
+async function resolveAllApprovals(): Promise<void> {
+  await resolveApprovalsBatch("approve");
+}
+
+async function denyAllApprovals(): Promise<void> {
+  await resolveApprovalsBatch("deny");
+}
+
+function clearErrorMessage(): void {
+  errorMessage.value = "";
+}
+
+function handleComposerKeydown(event: KeyboardEvent): void {
+  if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
+    event.preventDefault();
+    void send();
+  }
+}
+
+function applySuggestion(suggestion: string): void {
+  draft.value = suggestion;
+  void send();
+}
+
+function preview(value: unknown): string {
+  try {
+    return JSON.stringify(value ?? {}, null, 2);
+  } catch {
+    return String(value);
+  }
+}
+
+async function submitApproval(
+  approval: ADKApproval,
+  action: "approve" | "deny",
+): Promise<ADKApprovalResolution> {
+  const resolution = await fetchEnvelopeWithInit<ADKApprovalResolution>(
+    `/api/v1/adk/approvals/${encodeURIComponent(approval.id)}/${action}`,
+    { method: "POST" },
+  );
+  messages.value = applyApprovalResolutionToChat(messages.value, resolution);
+  await scrollToBottom(scrollHost);
+  return resolution;
+}
+
+async function resolveApprovalsBatch(action: "approve" | "deny"): Promise<void> {
+  if (pendingApprovals.value.length === 0 || approvalsBusy.value) return;
+  approvalsBusy.value = true;
+  errorMessage.value = "";
+  const resolutions: ADKApprovalResolution[] = [];
+  const errors: string[] = [];
+
+  try {
+    for (const approval of pendingApprovals.value) {
+      try {
+        resolutions.push(await submitApproval(approval, action));
+      } catch (error) {
+        errors.push(error instanceof Error ? error.message : "审批处理失败");
       }
     }
-    await refreshApprovals();
-    await waitForApprovalContinuation(resolution.run ?? undefined);
-  } catch (error) {
-    await refreshApprovals();
-    messages.value.push({
-      id: `approval-error-${Date.now()}`,
-      role: "assistant",
-      content: `审批处理失败：${error instanceof Error ? error.message : "请稍后重试"}`,
-    });
+
+    await finalizeApprovalBatch(resolutions);
+    if (errors.length > 0) {
+      errorMessage.value = errors.length === 1
+        ? errors[0]!
+        : `批量审批部分失败：${errors[0]}`;
+    }
+  } finally {
+    approvalsBusy.value = false;
+  }
+}
+
+async function finalizeApprovalBatch(resolutions: ADKApprovalResolution[]): Promise<void> {
+  await refreshApprovals();
+  const runs = Array.from(
+    new Map(
+      resolutions
+        .map((resolution) => resolution.run)
+        .filter((run): run is ADKRun => run != null)
+        .map((run) => [run.id, run]),
+    ).values(),
+  );
+
+  for (const run of runs) {
+    if (isTerminalRunStatus(run.status)) {
+      const failMsg = runTerminalMessage(run);
+      if (failMsg) {
+        errorMessage.value = failMsg;
+      }
+      continue;
+    }
+    await waitForApprovalContinuation(run);
   }
 }
 
 async function waitForApprovalContinuation(run: ADKRun | undefined): Promise<void> {
-  if (!run || isTerminalRunStatus(run.status)) return;
+  if (!run || isTerminalRunStatus(run.status)) {
+    return;
+  }
+
   const deadline = Date.now() + 15_000;
   let latestRun = run;
   while (Date.now() < deadline) {
     await delay(900);
     try {
       latestRun = await fetchEnvelope<ADKRun>(`/api/v1/adk/runs/${encodeURIComponent(run.id)}`);
-      updateMessageRun(latestRun);
+      messages.value = messages.value.map((message) =>
+        message.run?.id === latestRun.id ? { ...message, run: latestRun } : message,
+      );
       if (isTerminalRunStatus(latestRun.status)) {
         await appendFinalMessage(latestRun);
+        const failMsg = runTerminalMessage(latestRun);
+        if (failMsg) {
+          errorMessage.value = failMsg;
+        }
         return;
       }
     } catch {
@@ -288,27 +278,15 @@ async function waitForApprovalContinuation(run: ADKRun | undefined): Promise<voi
   }
 }
 
-function updateMessageRun(run: ADKRun): void {
-  const messageIndex = messages.value.findIndex((item) => item.run?.id === run.id);
-  if (messageIndex >= 0) {
-    messages.value[messageIndex] = { ...messages.value[messageIndex]!, run };
-  }
-}
-
-function appendAssistantNotice(message: Message, text: string): void {
-  const notice = `⚠️ ${text}`;
-  if (message.content.includes(notice)) return;
-  message.content = message.content.trim() === "" ? notice : `${message.content}\n\n${notice}`;
-}
-
 async function appendFinalMessage(run: ADKRun): Promise<void> {
   if (!run.finalMessageId || !run.sessionId) return;
   const detail = await fetchEnvelope<SessionDetailResponse>(`/api/v1/adk/sessions/${encodeURIComponent(run.sessionId)}`);
   const finalMessage = detail.messages.find((message) => message.id === run.finalMessageId);
   if (!finalMessage) return;
+
   const normalized = normalizeAssistantContent(finalMessage.content, finalMessage.reasoningContent);
-  const messageIndex = messages.value.findIndex((item) => item.run?.id === run.id);
-  const nextMessage: Message = {
+  const messageIndex = messages.value.findIndex((message) => message.run?.id === run.id);
+  const nextMessage: ChatMessage = {
     ...(createAssistantMessageState(finalMessage.id)),
     id: finalMessage.id,
     role: "assistant",
@@ -316,6 +294,7 @@ async function appendFinalMessage(run: ADKRun): Promise<void> {
     reasoningContent: normalized.reasoningContent,
     run,
   };
+
   if (messageIndex >= 0) {
     const existingMessage = { ...messages.value[messageIndex]! };
     mergeAssistantFinalText(existingMessage, nextMessage.content, nextMessage.reasoningContent);
@@ -324,123 +303,53 @@ async function appendFinalMessage(run: ADKRun): Promise<void> {
       reasoningExpanded: false,
       run,
     };
-  } else if (!messages.value.some((item) => item.id === finalMessage.id)) {
+  } else if (!messages.value.some((message) => message.id === finalMessage.id)) {
     messages.value.push(nextMessage);
   }
+  await scrollToBottom(scrollHost);
 }
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
-
-function pick(s: string): void {
-  draft.value = s;
-  void send();
-}
-
-function renderMarkdown(content: string): string {
-  return markdown
-    .render(content)
-    .replace(/<a /g, '<a target="_blank" rel="noopener noreferrer" ');
-}
 </script>
 
 <template>
   <div style="display: flex; flex-direction: column; height: 100%; min-height: 0">
-    <div ref="scrollHost" style="flex: 1; overflow-y: auto; padding: 10px">
-      <div v-for="m in messages" :key="m.id" class="tv-ai-msg" :class="{ 'is-user': m.role === 'user' }">
-        <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--tv-text-muted); margin-bottom: 4px">
-          {{ m.role === "user" ? "你" : "助手" }}
-        </div>
-        <button
-          v-if="m.role === 'assistant' && m.preToolContent === undefined && (m.reasoningContent ?? '').trim() !== ''"
-          type="button"
-          class="tv-ai-reasoning-toggle"
-          @click="m.reasoningExpanded = !m.reasoningExpanded"
-        >
-          {{ m.reasoningExpanded ? "隐藏深度思考" : "查看深度思考" }}
-        </button>
-        <div
-          v-if="m.role === 'assistant' && m.preToolContent === undefined && m.reasoningExpanded && (m.reasoningContent ?? '').trim() !== ''"
-          class="tv-ai-reasoning-body"
-          v-html="renderMarkdown(m.reasoningContent ?? '')"
-        />
-        <div
-          v-if="m.role === 'assistant' && (m.preToolContent ?? '').trim() !== ''"
-          v-html="renderMarkdown(m.preToolContent ?? '')"
-        />
-        <button
-          v-if="m.role === 'assistant' && (m.preToolReasoning ?? '').trim() !== ''"
-          type="button"
-          class="tv-ai-reasoning-toggle"
-          @click="m.reasoningExpanded = !m.reasoningExpanded"
-        >
-          {{ m.reasoningExpanded ? "隐藏深度思考" : "查看深度思考" }}
-        </button>
-        <div
-          v-if="m.role === 'assistant' && m.reasoningExpanded && (m.preToolReasoning ?? '').trim() !== ''"
-          class="tv-ai-reasoning-body"
-          v-html="renderMarkdown(m.preToolReasoning ?? '')"
-        />
-        <div
-          v-if="m.role === 'assistant' && busy && !m.toolProgress && !m.run && m.content === '' && (m.reasoningContent ?? '') === '' && messages[messages.length - 1] === m"
-          class="tv-ai-tool-progress"
-        >
-          <span class="tv-ai-thinking-dot"></span>
-          思考中…
-        </div>
-        <ADKRunTrace
-          v-if="m.role === 'assistant'"
-          :run="m.run"
-          :tool-progress="m.toolProgress"
-          :busy="busy && messages[messages.length - 1] === m"
-          compact
-          :summary-expanded="m.toolSummaryExpanded"
-          :expanded-tool-call-ids="m.expandedToolCallIds"
-          @update:summary-expanded="m.toolSummaryExpanded = $event"
-          @update:expanded-tool-call-ids="m.expandedToolCallIds = $event"
-        />
-        <div
-          v-if="m.role === 'assistant'"
-          v-html="renderMarkdown(m.content)"
-        />
-        <div v-if="m.role === 'user'">{{ m.content }}</div>
-      </div>
-      <div v-if="pendingApprovals.length > 0" class="tv-ai-approvals">
-        <div class="tv-ai-approval-title">待审批动作</div>
-        <div v-for="approval in pendingApprovals" :key="approval.id" class="tv-ai-approval-card">
-          <strong>{{ approval.toolName }}</strong>
-          <span>{{ approval.reason }}</span>
-          <div class="tv-ai-approval-actions">
-            <button type="button" @click="resolveApproval(approval, true)">批准</button>
-            <button type="button" @click="resolveApproval(approval, false)">拒绝</button>
-          </div>
-        </div>
-      </div>
+    <div ref="scrollHost" class="adk-thread adk-thread--dock">
+      <ADKChatThread
+        variant="dock"
+        :chat-messages="messages"
+        :sending-chat="busy"
+        :show-typing-indicator="showTypingIndicator"
+        :error-message="errorMessage"
+        :pending-approvals="pendingApprovals"
+        :approvals-busy="approvalsBusy"
+        :suggestions="suggestions"
+        empty-state-title="开始与侧栏助手对话"
+        empty-state-hint="直接提问，或点击建议词快速发起一轮智能体对话。"
+        :approval-tool="() => undefined"
+        :clear-error-message="clearErrorMessage"
+        :preview="preview"
+        :render-markdown="renderMarkdown"
+        :resolve-all-approvals="resolveAllApprovals"
+        :resolve-approval="resolveApproval"
+        :deny-all-approvals="denyAllApprovals"
+        @update:chat-draft="draft = $event"
+      />
     </div>
-    <div style="border-top: 1px solid var(--tv-border); padding: 8px 10px">
-      <div style="display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 6px">
-        <button
-          v-for="s in suggestions"
-          :key="s"
-          class="tv-btn tv-btn-ghost"
-          style="height: 22px; font-size: 10px; padding: 0 8px"
-          @click="pick(s)"
-        >
-          {{ s }}
-        </button>
-      </div>
-      <form style="display: flex; gap: 6px" @submit.prevent="send">
-        <input
-          v-model="draft"
-          class="tv-input"
-          placeholder="问点什么…"
-          :disabled="busy"
-        />
-        <button type="submit" class="tv-btn" :disabled="busy || !draft.trim()">
-          {{ busy ? "…" : "发送" }}
-        </button>
-      </form>
-    </div>
+
+    <ADKChatComposer
+      variant="dock"
+      :can-send-chat="canSendChat"
+      :chat-draft="draft"
+      :sending-chat="busy"
+      :suggestions="suggestions"
+      placeholder="问点什么..."
+      :handle-composer-keydown="handleComposerKeydown"
+      :send-chat="send"
+      :apply-suggestion="applySuggestion"
+      @update:chat-draft="draft = $event"
+    />
   </div>
 </template>

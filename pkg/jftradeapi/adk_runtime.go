@@ -241,10 +241,13 @@ func registerJFTradeADKTools(server *Server, store *jfadk.Store, registry *jfadk
 		instances := server.enrichStrategyItems(server.strategyStore.strategies())
 		return map[string]any{"definitions": definitions, "definitionCount": len(definitions), "instances": instances, "instanceCount": len(instances)}, nil
 	})
-	registry.Register(jfadk.ToolDescriptor{Name: "strategy.save_draft", DisplayName: "保存策略草稿", Description: "把 agent 生成的 DSL 保存为策略定义草稿。", Category: "strategy", Permission: "write_strategy", RequiresApprovalIn: []string{jfadk.PermissionModeApproval}, OutputSummary: "保存后的策略定义。"}, func(_ context.Context, input map[string]any) (any, error) {
+	registry.Register(jfadk.ToolDescriptor{Name: "strategy.save_draft", DisplayName: "保存策略草稿", Description: "把 agent 生成的 JFTrade DSL v1 策略脚本保存为策略定义草稿；不接受 TradingView Pine Script。", Category: "strategy", Permission: "write_strategy", RequiresApprovalIn: []string{jfadk.PermissionModeApproval}, OutputSummary: "保存后的策略定义。"}, func(_ context.Context, input map[string]any) (any, error) {
 		script := strings.TrimSpace(stringValue(input, "script"))
 		if script == "" {
 			script = "# ADK strategy draft\n"
+		}
+		if err := validateADKStrategyDraftScript(script); err != nil {
+			return nil, err
 		}
 		definition := strategyDesignDefinition{
 			Name:         defaultStringLocal(stringValue(input, "name"), "ADK 策略草稿"),
@@ -323,6 +326,43 @@ func registerJFTradeADKTools(server *Server, store *jfadk.Store, registry *jfadk
 			"message":   "候选策略已进入真实回测队列；使用 backtest.runs 查询进度和结果。",
 		}, nil
 	})
+}
+
+func validateADKStrategyDraftScript(script string) error {
+	trimmed := strings.TrimSpace(script)
+	if trimmed == "" {
+		return nil
+	}
+	if looksLikeTradingViewPineScript(trimmed) {
+		return fmt.Errorf("strategy.save_draft only accepts JFTrade DSL v1, not TradingView Pine Script; rewrite the script using top-level statements like `strategy NAME`, `symbol US.TME`, `interval 1m`, and hook blocks such as `on kline_close:`")
+	}
+	if err := strategydefinition.ValidateScript(strategydefinition.SourceFormatDSLV1, trimmed); err != nil {
+		return fmt.Errorf("strategy.save_draft requires valid JFTrade DSL v1: %w", err)
+	}
+	return nil
+}
+
+func looksLikeTradingViewPineScript(script string) bool {
+	for _, rawLine := range strings.Split(strings.ReplaceAll(script, "\r\n", "\n"), "\n") {
+		line := strings.TrimSpace(rawLine)
+		if line == "" {
+			continue
+		}
+		lower := strings.ToLower(line)
+		if strings.HasPrefix(lower, "//@version") ||
+			strings.HasPrefix(lower, "strategy(") ||
+			strings.HasPrefix(lower, "indicator(") ||
+			strings.HasPrefix(lower, "study(") ||
+			strings.Contains(lower, "ta.") ||
+			strings.Contains(lower, "request.security(") {
+			return true
+		}
+		if strings.HasPrefix(line, "//") {
+			continue
+		}
+		break
+	}
+	return false
 }
 
 func nowStringRFC3339Nano() string {

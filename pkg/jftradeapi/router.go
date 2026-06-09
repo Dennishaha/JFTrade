@@ -138,8 +138,6 @@ func (s *Server) registerSystemRoutes(api *gin.RouterGroup) {
 }
 
 func (s *Server) registerADKRoutes(api *gin.RouterGroup) {
-	api.POST("/assistant/chat", s.handleADKChat)
-
 	adk := api.Group("/adk", s.adkAvailabilityMiddleware())
 	adk.GET("", s.handleADKSnapshot)
 	adk.GET("/tools", s.handleADKTools)

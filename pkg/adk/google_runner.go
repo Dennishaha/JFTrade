@@ -73,6 +73,7 @@ func (r *Runtime) executeGoogleADK(
 		return execution.toolContext(), nil, execution.result(), preToolContent, preToolReasoning, err
 	}
 	if len(approvals) > 0 {
+		execution.detachDeltaSink()
 		r.adkMu.Lock()
 		r.adkRuns[runID] = execution
 		r.adkMu.Unlock()
@@ -95,6 +96,7 @@ func (r *Runtime) resumeGoogleADK(ctx context.Context, run Run) (Run, *Message, 
 			return run, nil, false, nil
 		}
 	}
+	execution.detachDeltaSink()
 	parts := approvalResolutionParts(run.PendingApprovals)
 	if len(parts) == 0 {
 		return run, nil, false, nil
@@ -102,9 +104,6 @@ func (r *Runtime) resumeGoogleADK(ctx context.Context, run Run) (Run, *Message, 
 	execution.reply.Reset()
 	execution.reasoning.Reset()
 	if err := execution.run(ctx, genai.NewContentFromParts(parts, genai.RoleUser)); err != nil {
-		if fallbackRun, message, ok, fallbackErr := r.persistResumedRunFallback(ctx, run, execution, err); ok {
-			return fallbackRun, message, true, fallbackErr
-		}
 		return run, nil, true, err
 	}
 	run, denied := hydrateResumedRun(run, execution)
@@ -125,74 +124,6 @@ func (r *Runtime) resumeGoogleADK(ctx context.Context, run Run) (Run, *Message, 
 	delete(r.adkRuns, run.ID)
 	r.adkMu.Unlock()
 	return run, message, true, nil
-}
-
-func (r *Runtime) persistResumedRunFallback(
-	ctx context.Context,
-	run Run,
-	execution *googleADKExecution,
-	cause error,
-) (Run, *Message, bool, error) {
-	fallbackRun, _ := hydrateResumedRun(run, execution)
-	if !resumedApprovalsReachedTerminalTools(fallbackRun) {
-		return run, nil, false, nil
-	}
-	fallbackRun.Degraded = true
-	if fallbackRun.Status == RunStatusCompleted {
-		fallbackRun.ResumeState = "adk_confirmation_resolved_with_local_reply"
-		fallbackRun.Message = "completed with local fallback reply"
-	}
-	fallbackRun.CompletedAt = ptrString(nowString())
-	summary := localReply(fallbackRun.UserMessage, fallbackRun.ToolSummaries, cause)
-	if fallbackRun.Status == RunStatusFailed {
-		summary = approvalResolutionSummary(fallbackRun, firstResolvedApproval(fallbackRun.PendingApprovals), true)
-	}
-	message, err := r.persistResumedRunResult(ctx, fallbackRun, openAIChatResult{Reply: summary})
-	if err != nil {
-		return fallbackRun, nil, true, err
-	}
-	r.auditResumedRun(ctx, fallbackRun)
-	r.adkMu.Lock()
-	delete(r.adkRuns, fallbackRun.ID)
-	r.adkMu.Unlock()
-	return fallbackRun, message, true, nil
-}
-
-func resumedApprovalsReachedTerminalTools(run Run) bool {
-	for _, approval := range run.PendingApprovals {
-		if approval.Status != ApprovalStatusApproved {
-			continue
-		}
-		if !approvalHasTerminalToolCall(approval, run.ToolCalls) {
-			return false
-		}
-	}
-	return true
-}
-
-func approvalHasTerminalToolCall(approval Approval, calls []ToolCall) bool {
-	for _, call := range calls {
-		if approval.FunctionCallID != "" && call.IdempotencyKey != approval.FunctionCallID {
-			continue
-		}
-		if approval.FunctionCallID == "" && call.ToolName != approval.ToolName {
-			continue
-		}
-		switch call.Status {
-		case "SUCCEEDED", "FAILED", "DENIED":
-			return true
-		}
-	}
-	return false
-}
-
-func firstResolvedApproval(approvals []Approval) Approval {
-	for _, approval := range approvals {
-		if approval.Status != ApprovalStatusPending {
-			return approval
-		}
-	}
-	return Approval{}
 }
 
 func (r *Runtime) rehydrateGoogleADKExecution(ctx context.Context, run Run) (*googleADKExecution, error) {
@@ -827,6 +758,12 @@ func (e *googleADKExecution) toolCallCount() int {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	return len(e.calls)
+}
+
+func (e *googleADKExecution) detachDeltaSink() {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.onDelta = nil
 }
 
 func (e *googleADKExecution) emitToolProgress(callID string, toolName string) {

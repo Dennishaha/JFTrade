@@ -40,6 +40,7 @@ export function useADKPageController(router: Router, threadRef: Ref<HTMLElement 
     agentName: sessionState.agentName,
     agentOptions: sessionState.agentOptions,
     approvalTool: sessionState.approvalTool,
+    approvalsBusy: chatState.approvalsBusy,
     approvals: sessionState.approvals,
     canSendChat: chatState.canSendChat,
     chatDraft: chatState.chatDraft,
@@ -63,6 +64,8 @@ export function useADKPageController(router: Router, threadRef: Ref<HTMLElement 
     providerOptions: sessionState.providerOptions,
     providers: sessionState.providers,
     renameSession: sessionState.renameSession,
+    denyAllApprovals: () => chatState.denyAllApprovals(sessionState.pendingApprovals.value),
+    resolveAllApprovals: () => chatState.resolveAllApprovals(sessionState.pendingApprovals.value),
     resolveApproval: (approval: ADKApproval, approved: boolean) =>
       approved ? chatState.resolveApproval(approval) : chatState.denyApproval(approval),
     selectedAgent,

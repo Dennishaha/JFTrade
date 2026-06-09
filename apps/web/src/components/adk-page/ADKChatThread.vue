@@ -1,44 +1,59 @@
 <script setup lang="ts">
-import type { ADKApproval, ADKProvider, ADKToolDescriptor } from "@jftrade/ui-contracts";
+import { computed } from "vue";
 
-import ADKRunTrace from "../shared/ADKRunTrace.vue";
+import type { ADKApproval, ADKToolDescriptor } from "@jftrade/ui-contracts";
+
 import type { ChatMessage } from "../../composables/adkPageMessages";
+import ADKRunTrace from "../shared/ADKRunTrace.vue";
 
-defineProps<{
+const props = withDefaults(defineProps<{
+  variant?: "page" | "dock";
   chatMessages: ChatMessage[];
   sendingChat: boolean;
   showTypingIndicator: boolean;
-  providers: ADKProvider[];
-  selectedProvider: ADKProvider | null;
+  errorMessage: string;
   pendingApprovals: ADKApproval[];
+  approvalsBusy: boolean;
   suggestions: string[];
-  chatDraft: string;
+  emptyStateTitle: string;
+  emptyStateHint: string;
+  emptyStateProviderHint?: string;
   approvalTool: (approval: ADKApproval) => ADKToolDescriptor | undefined;
+  clearErrorMessage: () => void;
   preview: (value: unknown) => string;
   renderMarkdown: (content: string) => string;
+  resolveAllApprovals: () => void | Promise<void>;
   resolveApproval: (approval: ADKApproval, approved: boolean) => void | Promise<void>;
-}>();
+  denyAllApprovals: () => void | Promise<void>;
+}>(), {
+  variant: "page",
+  emptyStateProviderHint: "",
+});
 
 defineEmits<{
   "update:chatDraft": [value: string];
 }>();
+
+const threadClass = computed(() => ({
+  "adk-chat-thread": true,
+  "adk-chat-thread--dock": props.variant === "dock",
+  "adk-chat-thread--page": props.variant === "page",
+}));
+
+const emptyClass = computed(() => ({
+  "adk-empty": true,
+  "adk-empty--dock": props.variant === "dock",
+}));
 </script>
 
 <template>
-  <div>
-    <div v-if="chatMessages.length === 0 && !sendingChat" class="adk-empty">
+  <div :class="threadClass">
+    <div v-if="chatMessages.length === 0 && !sendingChat" :class="emptyClass">
       <v-icon size="52" class="adk-empty-icon">fa-solid fa-robot</v-icon>
-      <p class="adk-empty-title">开始与智能体对话</p>
-      <p class="adk-empty-hint">
-        可直接输入问题，也可以用 @tool_name 显式调用内置工具
-      </p>
-      <p v-if="providers.length === 0" class="adk-empty-hint">
-        尚未添加模型提供商，请先前往 Agents 配置添加。
-      </p>
-      <p v-else-if="selectedProvider" class="adk-empty-hint">
-        当前模型提供商：{{ selectedProvider.displayName }} · {{ selectedProvider.model }}
-      </p>
-      <div class="adk-suggestions">
+      <p class="adk-empty-title">{{ emptyStateTitle }}</p>
+      <p class="adk-empty-hint">{{ emptyStateHint }}</p>
+      <p v-if="emptyStateProviderHint" class="adk-empty-hint">{{ emptyStateProviderHint }}</p>
+      <div v-if="suggestions.length > 0" class="adk-suggestions">
         <v-chip
           v-for="hint in suggestions"
           :key="hint"
@@ -64,6 +79,7 @@ defineEmits<{
           class="adk-bubble adk-bubble--assistant adk-markdown"
           v-html="renderMarkdown(message.preToolContent!)"
         />
+
         <div
           v-if="(message.preToolReasoning ?? '').trim() !== ''"
           class="adk-reasoning"
@@ -71,12 +87,13 @@ defineEmits<{
           <button
             type="button"
             class="adk-reasoning-toggle"
+            :aria-expanded="message.reasoningExpanded ? 'true' : 'false'"
             @click="message.reasoningExpanded = !message.reasoningExpanded"
           >
             <v-icon size="12">
               {{ message.reasoningExpanded ? "fa-solid fa-chevron-down" : "fa-solid fa-chevron-right" }}
             </v-icon>
-            <span>深度思考</span>
+            <span>{{ message.reasoningExpanded ? "隐藏深度思考" : "查看深度思考" }}</span>
           </button>
           <div
             v-if="message.reasoningExpanded"
@@ -89,6 +106,7 @@ defineEmits<{
           :run="message.run"
           :tool-progress="message.toolProgress"
           :busy="sendingChat && chatMessages[chatMessages.length - 1] === message"
+          :compact="variant === 'dock'"
           :summary-expanded="message.toolSummaryExpanded"
           :expanded-tool-call-ids="message.expandedToolCallIds"
           @update:summary-expanded="message.toolSummaryExpanded = $event"
@@ -103,12 +121,13 @@ defineEmits<{
             <button
               type="button"
               class="adk-reasoning-toggle"
+              :aria-expanded="message.reasoningExpanded ? 'true' : 'false'"
               @click="message.reasoningExpanded = !message.reasoningExpanded"
             >
               <v-icon size="12">
                 {{ message.reasoningExpanded ? "fa-solid fa-chevron-down" : "fa-solid fa-chevron-right" }}
               </v-icon>
-              <span>深度思考</span>
+              <span>{{ message.reasoningExpanded ? "隐藏深度思考" : "查看深度思考" }}</span>
             </button>
             <div
               v-if="message.reasoningExpanded"
@@ -132,12 +151,13 @@ defineEmits<{
             <button
               type="button"
               class="adk-reasoning-toggle"
+              :aria-expanded="message.reasoningExpanded ? 'true' : 'false'"
               @click="message.reasoningExpanded = !message.reasoningExpanded"
             >
               <v-icon size="12">
                 {{ message.reasoningExpanded ? "fa-solid fa-chevron-down" : "fa-solid fa-chevron-right" }}
               </v-icon>
-              <span>深度思考</span>
+              <span>{{ message.reasoningExpanded ? "隐藏深度思考" : "查看深度思考" }}</span>
             </button>
             <div
               v-if="message.reasoningExpanded"
@@ -149,6 +169,19 @@ defineEmits<{
       </div>
     </template>
 
+    <div v-if="errorMessage" class="adk-msg adk-msg--assistant adk-msg--notice">
+      <v-alert
+        type="warning"
+        variant="tonal"
+        density="compact"
+        closable
+        class="adk-inline-alert"
+        @click:close="clearErrorMessage"
+      >
+        {{ errorMessage }}
+      </v-alert>
+    </div>
+
     <div v-if="showTypingIndicator" class="adk-msg adk-msg--assistant">
       <div class="adk-typing">
         <span class="adk-dot" />
@@ -159,33 +192,80 @@ defineEmits<{
 
     <div v-if="pendingApprovals.length > 0 && !sendingChat" class="adk-approvals">
       <div class="adk-approvals-header">
-        <v-icon size="16" color="warning">fa-solid fa-shield-halved</v-icon>
-        <span>需要批准以下工具调用</span>
+        <div class="adk-approvals-header__title">
+          <v-icon size="16" color="warning">fa-solid fa-shield-halved</v-icon>
+          <span>待审批工具调用</span>
+          <span class="adk-approvals-count">{{ pendingApprovals.length }}</span>
+        </div>
+        <div class="adk-approvals-bulk">
+          <v-btn
+            class="adk-approvals-approve-all"
+            color="primary"
+            size="x-small"
+            :disabled="approvalsBusy"
+            @click="resolveAllApprovals"
+          >
+            全部审批
+          </v-btn>
+          <v-btn
+            class="adk-approvals-deny-all"
+            variant="outlined"
+            color="error"
+            size="x-small"
+            :disabled="approvalsBusy"
+            @click="denyAllApprovals"
+          >
+            全部拒绝
+          </v-btn>
+        </div>
       </div>
       <div
         v-for="approval in pendingApprovals"
         :key="approval.id"
         class="adk-approval-card"
       >
-        <div class="adk-approval-tool">
-          <v-icon size="14" class="mr-1">fa-solid fa-code</v-icon>
-          <strong>{{ approval.toolName }}</strong>
-          <v-chip
-            v-if="approvalTool(approval)"
-            size="x-small"
-            :color="approvalTool(approval)?.riskLevel === 'critical' ? 'error' : 'warning'"
-            variant="tonal"
-          >
-            {{ approvalTool(approval)?.riskLevel ?? "unknown" }} risk
-          </v-chip>
+        <div class="adk-approval-row">
+          <div class="adk-approval-main">
+            <div class="adk-approval-tool">
+              <v-icon size="14" class="mr-1">fa-solid fa-code</v-icon>
+              <strong>{{ approval.toolName }}</strong>
+              <v-chip
+                v-if="approvalTool(approval)"
+                size="x-small"
+                :color="approvalTool(approval)?.riskLevel === 'critical' ? 'error' : 'warning'"
+                variant="tonal"
+              >
+                {{ approvalTool(approval)?.riskLevel ?? "unknown" }} risk
+              </v-chip>
+            </div>
+            <div class="adk-approval-meta">
+              <span v-if="approval.reason">{{ approval.reason }}</span>
+              <span>Run: {{ approval.runId }}</span>
+            </div>
+          </div>
+          <div class="adk-approval-actions">
+            <v-btn
+              class="adk-approval-btn--approve"
+              color="primary"
+              size="x-small"
+              :disabled="approvalsBusy"
+              @click="resolveApproval(approval, true)"
+            >
+              批准
+            </v-btn>
+            <v-btn
+              class="adk-approval-btn--deny"
+              variant="outlined"
+              color="error"
+              size="x-small"
+              :disabled="approvalsBusy"
+              @click="resolveApproval(approval, false)"
+            >
+              拒绝
+            </v-btn>
+          </div>
         </div>
-        <p v-if="approval.reason" class="adk-approval-reason">{{ approval.reason }}</p>
-        <p class="adk-approval-reason">Run: {{ approval.runId }}</p>
-        <pre class="adk-json mt-2">{{ preview(approval.input) }}</pre>
-        <div class="adk-approval-actions">
-          <v-btn color="primary" size="small" @click="resolveApproval(approval, true)">批准</v-btn>
-          <v-btn variant="outlined" color="error" size="small" @click="resolveApproval(approval, false)">拒绝</v-btn>
-        </div>
+        <pre class="adk-json adk-approval-input">{{ preview(approval.input) }}</pre>
       </div>
     </div>
   </div>

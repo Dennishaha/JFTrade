@@ -36,6 +36,7 @@ const emit = defineEmits<{
 
 const toolCalls = computed(() => props.run?.toolCalls ?? []);
 const hasToolCalls = computed(() => toolCalls.value.length > 0);
+const hasMultipleToolCalls = computed(() => toolCalls.value.length > 1);
 const hasActiveToolCalls = computed(() =>
   toolCalls.value.some((toolCall) => !isTerminalToolStatus(toolCall.status)),
 );
@@ -45,7 +46,24 @@ const showProgress = computed(() =>
   && props.toolProgress.trim() !== ""
   && (!hasToolCalls.value || hasActiveToolCalls.value),
 );
-const showToolCalls = computed(() => hasToolCalls.value);
+const showSummaryCard = computed(() => hasMultipleToolCalls.value);
+const showExpandedToolCalls = computed(() =>
+  hasToolCalls.value && (!showSummaryCard.value || props.summaryExpanded),
+);
+const summaryStatus = computed(() => {
+  if (hasActiveToolCalls.value) return "RUNNING";
+  const runStatus = normalizedDisplayStatus(props.run?.status);
+  if (runStatus === "FAILED" || runStatus === "TIMED_OUT" || runStatus === "CANCELLED" || runStatus === "DENIED") {
+    return runStatus;
+  }
+  return "COMPLETED";
+});
+const summaryTitle = computed(() => `调用了 ${toolCalls.value.length} 个工具`);
+const summaryHint = computed(() => {
+  const terminalMessage = runTerminalMessage(props.run);
+  if (terminalMessage) return terminalMessage;
+  return props.summaryExpanded ? "收起本轮工具调用轨迹" : "展开查看本轮工具调用轨迹";
+});
 const toolVisualizationMap = computed(() => {
   const visualizations = new Map<string, ADKToolVisualizationModel>();
   for (const toolCall of toolCalls.value) {
@@ -90,6 +108,10 @@ function isToolExpanded(toolCallId: string): boolean {
   return props.expandedToolCallIds.includes(toolCallId);
 }
 
+function toggleSummary(): void {
+  emit("update:summaryExpanded", !props.summaryExpanded);
+}
+
 function toggleTool(toolCallId: string): void {
   const ids = new Set(props.expandedToolCallIds);
   if (ids.has(toolCallId)) {
@@ -108,14 +130,32 @@ function toggleTool(toolCallId: string): void {
       <span class="adk-run-trace-card__main">
         <span class="adk-run-trace-card__title">{{ toolProgress }}</span>
         <span v-if="run?.status" class="adk-run-trace-card__meta">
-            <span class="adk-status-pill" :class="`is-${runStatusTone(run.status)}`">
+          <span class="adk-status-pill" :class="`is-${runStatusTone(run.status)}`">
             {{ formatGenericStatusLabel(run.status) }}
           </span>
         </span>
       </span>
     </div>
 
-    <div v-if="showToolCalls" class="adk-run-trace-tools">
+    <button
+      v-if="showSummaryCard"
+      type="button"
+      class="adk-run-trace-card adk-run-trace-card--summary"
+      @click="toggleSummary"
+    >
+      <span class="adk-run-trace-card__main">
+        <span class="adk-run-trace-card__title">{{ summaryTitle }}</span>
+        <span class="adk-run-trace-card__meta">
+          <span class="adk-status-pill" :class="`is-${runStatusTone(summaryStatus)}`">
+            {{ formatGenericStatusLabel(summaryStatus) }}
+          </span>
+          <span class="adk-run-trace-card__hint">{{ summaryHint }}</span>
+        </span>
+      </span>
+      <span class="adk-run-trace-card__chevron">{{ summaryExpanded ? "-" : "+" }}</span>
+    </button>
+
+    <div v-if="showExpandedToolCalls" class="adk-run-trace-tools">
       <div class="adk-run-trace-list">
         <div
           v-for="(toolCall, index) in toolCalls"
@@ -140,7 +180,7 @@ function toggleTool(toolCallId: string): void {
                 <span v-if="index === toolCalls.length - 1 && runTerminalMessage(run)">{{ runTerminalMessage(run) }}</span>
               </span>
             </span>
-            <span class="adk-run-trace-card__chevron">{{ isToolExpanded(toolCall.id) ? "−" : "+" }}</span>
+            <span class="adk-run-trace-card__chevron">{{ isToolExpanded(toolCall.id) ? "-" : "+" }}</span>
           </button>
 
           <div v-if="isToolExpanded(toolCall.id)" class="adk-run-trace-detail">

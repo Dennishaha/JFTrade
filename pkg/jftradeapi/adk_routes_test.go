@@ -561,7 +561,7 @@ func TestADKOptimizationTaskNegativeRoutes(t *testing.T) {
 	}
 }
 
-func TestAssistantChatCompatibilityRouteReturnsJSONEnvelope(t *testing.T) {
+func TestAssistantChatCompatibilityRouteIsGone(t *testing.T) {
 	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
@@ -570,50 +570,14 @@ func TestAssistantChatCompatibilityRouteReturnsJSONEnvelope(t *testing.T) {
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
-	agent, err := server.adkRuntime.Store().SaveAgent(t.Context(), jfadk.AgentWriteRequest{
-		ID:             "assistant-compat-agent",
-		Name:           "Assistant Compat Agent",
-		PermissionMode: jfadk.PermissionModeApproval,
-		Status:         jfadk.AgentStatusEnabled,
-	})
-	if err != nil {
-		t.Fatalf("SaveAgent: %v", err)
-	}
-
-	resp, err := http.Post(srv.URL+"/api/v1/assistant/chat", "application/json", bytes.NewReader([]byte(`{"agentId":"`+agent.ID+`","prompt":"你好"}`)))
+	resp, err := http.Post(srv.URL+"/api/v1/assistant/chat", "application/json", bytes.NewReader([]byte(`{"prompt":"hello"}`)))
 	if err != nil {
 		t.Fatalf("POST assistant chat: %v", err)
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("assistant chat status = %d", resp.StatusCode)
-	}
-	if contentType := resp.Header.Get("Content-Type"); !strings.Contains(contentType, "application/json") {
-		t.Fatalf("assistant chat content-type = %q, want application/json", contentType)
-	}
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		t.Fatalf("ReadAll: %v", err)
-	}
-	if strings.HasPrefix(string(body), "data:") {
-		t.Fatalf("assistant chat returned SSE payload: %q", string(body))
-	}
 
-	var envelope struct {
-		OK   bool `json:"ok"`
-		Data struct {
-			Reply string    `json:"reply"`
-			Run   jfadk.Run `json:"run"`
-		} `json:"data"`
-	}
-	if err := json.Unmarshal(body, &envelope); err != nil {
-		t.Fatalf("decode assistant envelope: %v; body=%q", err, string(body))
-	}
-	if !envelope.OK {
-		t.Fatalf("assistant envelope = %+v, want ok=true", envelope)
-	}
-	if envelope.Data.Run.AgentID != agent.ID {
-		t.Fatalf("assistant run agent = %q, want %q", envelope.Data.Run.AgentID, agent.ID)
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("assistant chat status = %d, want %d", resp.StatusCode, http.StatusNotFound)
 	}
 }
 

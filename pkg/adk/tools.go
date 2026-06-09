@@ -656,7 +656,7 @@ func defaultToolInputSchema(name string) map[string]any {
 			"type": "object",
 			"properties": map[string]any{
 				"name":   map[string]any{"type": "string"},
-				"script": map[string]any{"type": "string", "description": "DSL strategy source."},
+				"script": map[string]any{"type": "string", "description": "JFTrade DSL v1 strategy source. Do not send TradingView Pine Script."},
 			},
 			"additionalProperties": false,
 		}

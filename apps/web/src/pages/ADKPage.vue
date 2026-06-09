@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import MarkdownIt from "markdown-it";
 import mermaid from "mermaid";
 import { onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
@@ -7,32 +6,11 @@ import { useRouter } from "vue-router";
 import ADKChatComposer from "../components/adk-page/ADKChatComposer.vue";
 import ADKChatThread from "../components/adk-page/ADKChatThread.vue";
 import ADKSessionSidebar from "../components/adk-page/ADKSessionSidebar.vue";
+import { useADKMarkdownRenderer } from "../composables/useADKMarkdownRenderer";
 import { useADKPageController } from "../composables/useADKPageController";
 
 const router = useRouter();
-const markdown = new MarkdownIt({
-  html: false,
-  linkify: true,
-  breaks: true,
-});
-
-const defaultFenceRenderer = markdown.renderer.rules.fence;
-markdown.renderer.rules.fence = (tokens, idx, options, env, self) => {
-  const token = tokens[idx];
-  if (!token) {
-    return defaultFenceRenderer
-      ? defaultFenceRenderer(tokens, idx, options, env, self)
-      : self.renderToken(tokens, idx, options);
-  }
-  const language = token.info.trim().split(/\s+/)[0];
-  if (language === "mermaid") {
-    return `<div class="mermaid">${markdown.utils.escapeHtml(token.content.trim())}</div>`;
-  }
-  if (defaultFenceRenderer) {
-    return defaultFenceRenderer(tokens, idx, options, env, self);
-  }
-  return self.renderToken(tokens, idx, options);
-};
+const { renderMarkdown } = useADKMarkdownRenderer({ enableMermaid: true });
 
 const threadRef = ref<HTMLElement | null>(null);
 let mermaidRenderFrame: number | null = null;
@@ -41,12 +19,14 @@ const {
   agentName,
   agentOptions,
   approvalTool,
+  approvalsBusy,
   canSendChat,
   chatDraft,
   chatMessages,
   composerBlockMessage,
   createNewSession,
   deleteSession,
+  denyAllApprovals,
   errorMessage,
   formatPermission,
   handleAgentChange,
@@ -59,7 +39,9 @@ const {
   providerOptions,
   providers,
   renameSession,
+  resolveAllApprovals,
   resolveApproval,
+  savingProviderSelection,
   selectedAgent,
   selectedAgentId,
   selectedProvider,
@@ -72,10 +54,8 @@ const {
   sessionTitle,
   showTypingIndicator,
   SUGGESTIONS,
-  savingProviderSelection,
   selectSession,
   sendChat,
-  tools,
   visibleSessions,
   cancelActiveRun,
 } = useADKPageController(router, threadRef);
@@ -116,10 +96,8 @@ async function renderMermaidDiagrams(): Promise<void> {
   }
 }
 
-function renderMarkdown(content: string): string {
-  return markdown
-    .render(content)
-    .replace(/<a /g, '<a target="_blank" rel="noopener noreferrer" ');
+function clearErrorMessage(): void {
+  errorMessage.value = "";
 }
 </script>
 
@@ -148,35 +126,32 @@ function renderMarkdown(content: string): string {
     <div class="adk-main">
       <div ref="threadRef" class="adk-thread">
         <ADKChatThread
+          variant="page"
           :chat-messages="chatMessages"
           :sending-chat="sendingChat"
           :show-typing-indicator="showTypingIndicator"
-          :providers="providers"
-          :selected-provider="selectedProvider"
+          :error-message="errorMessage"
           :pending-approvals="pendingApprovals"
+          :approvals-busy="approvalsBusy"
           :suggestions="SUGGESTIONS"
-          :chat-draft="chatDraft"
+          empty-state-title="开始与智能体对话"
+          empty-state-hint="可直接输入问题，也可以用 @tool_name 显式调用内置工具"
+          :empty-state-provider-hint="providers.length === 0
+            ? '尚未添加模型提供商，请先前往 Agents 配置添加。'
+            : (selectedProvider ? `当前模型提供商：${selectedProvider.displayName} · ${selectedProvider.model}` : '')"
           :approval-tool="approvalTool"
+          :clear-error-message="clearErrorMessage"
           :preview="preview"
           :render-markdown="renderMarkdown"
+          :resolve-all-approvals="resolveAllApprovals"
           :resolve-approval="resolveApproval"
+          :deny-all-approvals="denyAllApprovals"
           @update:chat-draft="chatDraft = $event"
         />
       </div>
 
-      <v-alert
-        v-if="errorMessage"
-        type="warning"
-        variant="tonal"
-        density="compact"
-        closable
-        class="adk-error-bar"
-        @click:close="errorMessage = ''"
-      >
-        {{ errorMessage }}
-      </v-alert>
-
       <ADKChatComposer
+        variant="page"
         :active-run-id="activeRunId"
         :agent-options="agentOptions"
         :can-send-chat="canSendChat"

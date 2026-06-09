@@ -300,90 +300,6 @@ type toolExecutionContext struct {
 	summaries []string
 }
 
-// executeSelectedTools is a legacy compatibility path retained for deterministic
-// tests and fallback experiments. Production chat execution must continue to
-// flow through executeGoogleADK via Chat/ChatStream.
-func (r *Runtime) executeSelectedTools(ctx context.Context, agent Agent, runID string, text string, history []openAIChatMessage) (toolExecutionContext, []Approval) {
-	selected := r.selectToolInvocations(ctx, agent, text, history)
-	return r.executeToolInvocations(ctx, agent, runID, text, selected)
-}
-
-func (r *Runtime) selectToolInvocations(ctx context.Context, agent Agent, text string, history []openAIChatMessage) []ToolInvocation {
-	if strings.TrimSpace(agent.ProviderID) != "" {
-		if provider, ok, err := r.store.Provider(ctx, agent.ProviderID); err == nil && ok && provider.Enabled {
-			if apiKey, _, keyErr := r.store.ProviderAPIKey(provider.ID); keyErr == nil {
-				messages := buildPromptMessages(agent, text, nil, history)
-				selected, selectErr := r.openai.selectTools(ctx, provider, apiKey, defaultString(agent.Model, provider.Model), messages, ToolDescriptorsForAgent(agent, r.tools))
-				if selectErr == nil && len(selected) > 0 {
-					return normalizeToolInvocations(selected, agent, r.tools, text)
-				}
-			}
-		}
-	}
-	return SelectToolInvocations(text, agent, r.tools)
-}
-
-func (r *Runtime) executeToolInvocations(ctx context.Context, agent Agent, runID string, text string, selected []ToolInvocation) (toolExecutionContext, []Approval) {
-	result := toolExecutionContext{calls: []ToolCall{}, summaries: []string{}}
-	approvals := []Approval{}
-	for _, invocation := range selected {
-		name := invocation.Name
-		registered, ok := r.tools.Get(name)
-		if !ok {
-			continue
-		}
-		input := invocation.Input
-		if input == nil {
-			input = inferToolInput(name, text)
-		}
-		call := buildToolCall(runID, registered.Descriptor, input, "RUNNING")
-		if !ToolAllowedInMode(registered.Descriptor, agent.PermissionMode) {
-			errText := "tool is not allowed in permission mode " + agent.PermissionMode
-			call.Status = "FAILED"
-			call.Error = &errText
-			finishToolCall(&call)
-			result.calls = append(result.calls, call)
-			continue
-		}
-		if ToolRequiresApproval(registered.Descriptor, agent.PermissionMode) {
-			call.Status = "PENDING_APPROVAL"
-			call.RequiresUser = true
-			call.UpdatedAt = nowString()
-			approval := Approval{
-				ID:        "approval-" + uuid.NewString(),
-				RunID:     runID,
-				AgentID:   agent.ID,
-				ToolName:  name,
-				Input:     input,
-				Status:    ApprovalStatusPending,
-				Reason:    "当前权限模式要求用户审批该工具调用。",
-				CreatedAt: nowString(),
-				UpdatedAt: nowString(),
-			}
-			_ = r.store.SaveApproval(ctx, approval)
-			approvals = append(approvals, approval)
-			result.calls = append(result.calls, call)
-			continue
-		}
-		output, err := executeRegisteredTool(contextWithToolAgent(ctx, agent), registered, input)
-		if err != nil {
-			errText := err.Error()
-			call.Status = "FAILED"
-			call.Error = &errText
-		} else {
-			call.Status = "SUCCEEDED"
-			call.Output = limitToolOutput(output)
-			result.summaries = append(result.summaries, summarizeToolOutput(name, output))
-		}
-		finishToolCall(&call)
-		r.audit(ctx, "tool.executed", runID, "Agent tool execution completed.", map[string]any{
-			"toolName": name, "status": call.Status, "durationMs": call.DurationMs,
-		})
-		result.calls = append(result.calls, call)
-	}
-	return result, approvals
-}
-
 func (r *Runtime) resolveAgent(ctx context.Context, agentID string) (Agent, error) {
 	agentID = strings.TrimSpace(agentID)
 	if agentID == "" {
@@ -758,123 +674,16 @@ func (r *Runtime) continueResolvedApproval(ctx context.Context, approval Approva
 			updatedRun = &run
 			return ApprovalResolution{Approval: approval, Run: updatedRun}, nil
 		}
-		if resumedRun, message, handled, resumeErr := r.resumeGoogleADKWithBusyRetry(ctx, run); handled {
-			if resumeErr != nil {
-				return ApprovalResolution{}, resumeErr
-			}
-			updatedRun = &resumedRun
-			createdMessage = message
-			return ApprovalResolution{Approval: approval, Run: updatedRun, Message: createdMessage}, nil
+		resumedRun, message, handled, resumeErr := r.resumeGoogleADKWithBusyRetry(ctx, run)
+		if resumeErr != nil {
+			return ApprovalResolution{}, resumeErr
 		}
-		if approved {
-			agent, agentOK, agentErr := r.store.Agent(ctx, run.AgentID)
-			if agentErr != nil || !agentOK || agent.Status != AgentStatusEnabled || agent.DeletedAt != nil {
-				for index := range run.ToolCalls {
-					call := &run.ToolCalls[index]
-					if call.Status == "PENDING_APPROVAL" {
-						errText := "agent is no longer available"
-						call.Status = "FAILED"
-						call.Error = &errText
-						call.RequiresUser = false
-						finishToolCall(call)
-					}
-				}
-			} else {
-				for _, item := range run.PendingApprovals {
-					if item.Status != ApprovalStatusApproved {
-						continue
-					}
-					for index := range run.ToolCalls {
-						call := &run.ToolCalls[index]
-						if call.ToolName != item.ToolName || call.Status != "PENDING_APPROVAL" {
-							continue
-						}
-						registered, registeredOK := r.tools.Get(item.ToolName)
-						if !registeredOK {
-							errText := "tool is no longer registered"
-							call.Status = "FAILED"
-							call.Error = &errText
-						} else {
-							output, execErr := executeRegisteredTool(contextWithToolAgent(ctx, agent), registered, item.Input)
-							if execErr != nil {
-								errText := execErr.Error()
-								call.Status = "FAILED"
-								call.Error = &errText
-							} else {
-								call.Status = "SUCCEEDED"
-								call.Output = limitToolOutput(output)
-							}
-						}
-						call.RequiresUser = false
-						finishToolCall(call)
-						break
-					}
-				}
-			}
+		if !handled {
+			return ApprovalResolution{}, fmt.Errorf("approval context is unavailable for run %s", run.ID)
 		}
-		if !hasPending {
-			completedAt := nowString()
-			run.CompletedAt = &completedAt
-			run.ToolSummaries = toolSummariesForRun(run)
-			summary := approvalResolutionSummary(run, approval, approved)
-			if approved {
-				run.Status = RunStatusCompleted
-				run.ResumeState = "approval_resolved"
-				run.Message = "approvals resolved"
-				for _, call := range run.ToolCalls {
-					if call.Status == "FAILED" {
-						run.Status = RunStatusFailed
-						run.ErrorCode = "TOOL_EXECUTION_FAILED"
-						run.Message = "approved tool execution failed"
-						if call.Error != nil {
-							run.FailureReason = *call.Error
-						}
-						break
-					}
-				}
-				agent, agentErr := r.resolveAgent(ctx, run.AgentID)
-				if agentErr == nil {
-					agent, agentErr = r.prepareAgent(ctx, agent)
-				}
-				if agentErr == nil {
-					history, _ := r.conversationHistory(ctx, run.SessionID, agent.MemoryEnabled)
-					question := strings.TrimSpace(run.UserMessage)
-					if question == "" {
-						question = approval.ToolName
-					}
-					replyResult, replyErr := r.generateReply(ctx, agent, question, run.ToolSummaries, history)
-					if replyErr != nil {
-						run.Status = RunStatusFailed
-						run.Message = replyErr.Error()
-						run.FailureReason = replyErr.Error()
-						replyResult = openAIChatResult{Reply: localReply(question, run.ToolSummaries, replyErr)}
-					}
-					summary = replyResult.Reply
-					if message, msgErr := r.store.AddMessage(ctx, run.SessionID, "assistant", summary, replyResult.ReasoningContent); msgErr == nil {
-						run.FinalMessageID = message.ID
-						createdMessage = &message
-					}
-					_ = r.store.SaveRun(ctx, run)
-					updatedRun = &run
-					return ApprovalResolution{Approval: approval, Run: updatedRun, Message: createdMessage}, nil
-				}
-				run.Status = RunStatusFailed
-				run.ErrorCode = "AGENT_UNAVAILABLE"
-				run.FailureReason = agentErr.Error()
-				run.Message = agentErr.Error()
-				summary = localReply(run.UserMessage, run.ToolSummaries, agentErr)
-			} else {
-				run.Status = RunStatusDenied
-				run.ResumeState = "approval_denied"
-				run.Message = "approval denied"
-			}
-			if message, msgErr := r.store.AddMessage(ctx, run.SessionID, "assistant", summary, ""); msgErr == nil {
-				run.FinalMessageID = message.ID
-				createdMessage = &message
-			}
-			_ = r.store.SaveRun(ctx, run)
-		}
-		updatedRun = &run
+		updatedRun = &resumedRun
+		createdMessage = message
+		return ApprovalResolution{Approval: approval, Run: updatedRun, Message: createdMessage}, nil
 	}
 	return ApprovalResolution{Approval: approval, Run: updatedRun, Message: createdMessage}, nil
 }
@@ -1096,8 +905,8 @@ func recentOpenAIMessages(messages []Message, maxMessages int, maxChars int) []o
 }
 
 func isIntermediateApprovalMessage(content string) bool {
-	return strings.Contains(content, "等待用户审批") ||
-		strings.Contains(content, "请先在 ADK 审批队列")
+	return strings.Contains(content, "绛夊緟鐢ㄦ埛瀹℃壒") ||
+		strings.Contains(content, "璇峰厛鍦?ADK 瀹℃壒闃熷垪")
 }
 
 func runStatusForContext(ctx context.Context, err error) string {
@@ -1173,48 +982,17 @@ func buildPromptMessages(agent Agent, question string, toolSummaries []string, h
 	}
 	messages := []openAIChatMessage{{Role: "system", Content: system}}
 	messages = append(messages, history...)
-	prompt := "用户问题：\n" + question
+	prompt := "鐢ㄦ埛闂锛歕n" + question
 	if len(toolSummaries) > 0 {
-		prompt += "\n\nJFTrade 工具输出：\n" + strings.Join(toolSummaries, "\n\n")
+		prompt += "\n\nJFTrade 宸ュ叿杈撳嚭锛歕n" + strings.Join(toolSummaries, "\n\n")
 	}
 	messages = append(messages, openAIChatMessage{Role: "user", Content: prompt})
 	return messages
 }
 
-func normalizeToolInvocations(invocations []ToolInvocation, agent Agent, registry *ToolRegistry, question string) []ToolInvocation {
-	out := make([]ToolInvocation, 0, len(invocations))
-	allowed := map[string]struct{}{}
-	for _, descriptor := range ToolDescriptorsForAgent(agent, registry) {
-		allowed[descriptor.Name] = struct{}{}
-	}
-	seen := map[string]struct{}{}
-	for _, invocation := range invocations {
-		canonical, ok := registry.CanonicalName(invocation.Name)
-		if !ok {
-			continue
-		}
-		if _, ok := allowed[canonical]; !ok {
-			continue
-		}
-		if _, ok := seen[canonical]; ok {
-			continue
-		}
-		input := invocation.Input
-		if len(input) == 0 {
-			input = inferToolInput(canonical, question)
-		}
-		out = append(out, ToolInvocation{Name: canonical, Input: input})
-		seen[canonical] = struct{}{}
-		if len(out) >= 5 {
-			break
-		}
-	}
-	return out
-}
-
 func approvalResolutionSummary(run Run, approval Approval, approved bool) string {
 	if !approved {
-		return fmt.Sprintf("已拒绝工具调用 `%s`。本次 run 已结束，没有执行该操作。", approval.ToolName)
+		return fmt.Sprintf("已拒绝工具调用 `%s`。本次 run 已结束，未执行该操作。", approval.ToolName)
 	}
 	var lines []string
 	lines = append(lines, fmt.Sprintf("已批准并执行工具调用 `%s`。", approval.ToolName))
@@ -1268,7 +1046,7 @@ func inferToolInput(name string, text string) map[string]any {
 	if name == "http.fetch" {
 		fields := strings.Fields(text)
 		for _, field := range fields {
-			field = strings.Trim(field, "，。,.()[]{}<>\"'")
+			field = strings.Trim(field, "锛屻€?.()[]{}<>\"'")
 			if strings.HasPrefix(field, "http://") || strings.HasPrefix(field, "https://") {
 				input["url"] = field
 				break
@@ -1292,7 +1070,7 @@ func localReply(question string, toolSummaries []string, cause error) string {
 			builder.WriteString("\n")
 		}
 	} else {
-		builder.WriteString(" 目前没有触发内部工具；你可以询问行情、账户、策略、回测、系统状态，或使用 @toolName 指定工具。")
+		builder.WriteString(" 当前没有触发内部工具；你可以询问行情、账户、策略、回测、系统状态，或使用 @toolName 指定工具。")
 	}
 	if strings.TrimSpace(question) != "" {
 		builder.WriteString("\n\n问题摘要：")

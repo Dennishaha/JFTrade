@@ -57,7 +57,8 @@ var builtinSkillSpecs = []builtinSkillSpec{
 		Name:        "jftrade-strategy",
 		Description: "Use JFTrade strategy tools carefully and distinguish drafts, backtests, and running strategies.",
 		Instructions: "When working on strategies, clearly separate draft ideas, saved definitions, backtests, and running strategies. " +
-			"Do not promise returns, and treat optimization or write operations as privileged actions that must follow the current permission mode.",
+			"Do not promise returns, and treat optimization or write operations as privileged actions that must follow the current permission mode. " +
+			"When using strategy.save_draft, emit JFTrade DSL v1 only; do not output TradingView Pine Script syntax such as //@version, strategy(...), or indicator(...).",
 		AllowedTools: []string{"strategy.definitions", "strategy.save_draft", "backtest.runs", "strategy.optimize"},
 	},
 	{

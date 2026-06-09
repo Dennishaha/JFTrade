@@ -973,64 +973,6 @@ body {
   border-left-color: var(--tv-accent);
 }
 
-.tv-ai-msg {
-  border-radius: 8px;
-  padding: 10px 12px;
-  margin-bottom: 14px;
-  font-size: 13px;
-  line-height: 1.5;
-  background: var(--tv-bg-surface-2);
-}
-.tv-ai-msg.is-user {
-  background: color-mix(in srgb, var(--tv-accent) 14%, transparent);
-}
-
-.tv-ai-msg a {
-  color: var(--tv-accent);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-.tv-ai-reasoning-toggle {
-  padding: 0;
-  margin: 0 0 6px;
-  border: 0;
-  background: transparent;
-  color: var(--tv-text-muted);
-  font-size: 11px;
-  cursor: pointer;
-}
-
-.tv-ai-reasoning-toggle:hover {
-  color: var(--tv-text);
-}
-
-.tv-ai-reasoning-body {
-  margin-bottom: 8px;
-  padding-left: 8px;
-  border-left: 2px solid var(--tv-border);
-  color: var(--tv-text-muted);
-}
-
-.tv-ai-tool-progress {
-  margin-top: 4px;
-  margin-bottom: 6px;
-  font-size: 11px;
-  color: var(--tv-text-muted);
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.tv-ai-thinking-dot {
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--tv-accent, #6c8eef);
-  animation: tv-ai-pulse 1.4s ease-in-out infinite;
-}
-
 .adk-run-trace {
   display: grid;
   gap: 8px;
@@ -1170,6 +1112,12 @@ body {
   font-size: 11px;
   color: var(--tv-text-dim);
   min-width: 0;
+}
+
+.adk-run-trace-card__hint {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .adk-run-trace-card__chevron {
@@ -1404,60 +1352,9 @@ body {
   color: #f4a4a1;
 }
 
-@keyframes tv-ai-pulse {
-  0%, 100% { opacity: 0.3; transform: scale(0.85); }
-  50% { opacity: 1; transform: scale(1.15); }
-}
-
 @keyframes adk-run-spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
-}
-
-.tv-ai-approvals {
-  display: grid;
-  gap: 8px;
-  margin-top: 12px;
-}
-
-.tv-ai-approval-title {
-  color: var(--tv-text-muted);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.tv-ai-approval-card {
-  display: grid;
-  gap: 5px;
-  padding: 9px;
-  border: 1px solid color-mix(in srgb, var(--tv-warning, #d99a28) 40%, transparent);
-  background: color-mix(in srgb, var(--tv-warning, #d99a28) 8%, transparent);
-  color: var(--tv-text-muted);
-  font-size: 11px;
-}
-
-.tv-ai-approval-actions {
-  display: flex;
-  gap: 6px;
-}
-
-.tv-ai-approval-actions button {
-  padding: 4px 8px;
-  border: 1px solid var(--tv-border);
-  color: var(--tv-text);
-}
-
-.tv-ai-reasoning-body p,
-.tv-ai-reasoning-body ul,
-.tv-ai-reasoning-body ol,
-.tv-ai-reasoning-body pre {
-  margin: 0 0 0.75em;
-}
-
-.tv-ai-reasoning-body > :last-child {
-  margin-bottom: 0;
 }
 
 .tv-main-scroll::-webkit-scrollbar,
@@ -1673,6 +1570,27 @@ body {
   scrollbar-color: color-mix(in srgb, var(--tv-text-dim) 50%, transparent) transparent;
 }
 
+.adk-thread--dock {
+  padding: 12px 10px 8px;
+}
+
+.adk-chat-thread--dock .adk-msg {
+  max-width: 100%;
+  margin-bottom: 12px;
+}
+
+.adk-chat-thread--dock .adk-msg--notice,
+.adk-chat-thread--dock .adk-reasoning,
+.adk-chat-thread--dock .adk-approvals {
+  width: 100%;
+  max-width: 100%;
+}
+
+.adk-chat-thread--dock .adk-bubble {
+  font-size: 13px;
+  line-height: 1.55;
+}
+
 /* === Empty state === */
 .adk-empty {
   flex: 1;
@@ -1683,6 +1601,11 @@ body {
   text-align: center;
   padding: 48px 24px;
   gap: 10px;
+}
+
+.adk-empty--dock {
+  padding: 24px 12px;
+  gap: 8px;
 }
 
 .adk-empty-icon {
@@ -1703,6 +1626,15 @@ body {
   max-width: 440px;
   margin: 0;
   line-height: 1.6;
+}
+
+.adk-empty--dock .adk-empty-title {
+  font-size: 14px;
+}
+
+.adk-empty--dock .adk-empty-hint {
+  font-size: 12px;
+  max-width: 100%;
 }
 
 .adk-suggestions {
@@ -1729,6 +1661,11 @@ body {
 .adk-msg--assistant {
   align-self: flex-start;
   align-items: flex-start;
+}
+
+.adk-msg--notice {
+  width: min(100%, 720px);
+  max-width: 100%;
 }
 
 .adk-bubble {
@@ -1916,7 +1853,9 @@ body {
 .adk-approvals-header {
   display: flex;
   align-items: center;
-  gap: 6px;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
   font-size: 12px;
   font-weight: 600;
   color: var(--tv-warn);
@@ -1925,12 +1864,53 @@ body {
   letter-spacing: 0.06em;
 }
 
+.adk-approvals-header__title,
+.adk-approvals-bulk,
+.adk-approval-row,
+.adk-approval-actions {
+  display: flex;
+  align-items: center;
+}
+
+.adk-approvals-header__title {
+  gap: 6px;
+}
+
+.adk-approvals-bulk {
+  gap: 6px;
+}
+
+.adk-approvals-count {
+  display: inline-flex;
+  min-width: 18px;
+  height: 18px;
+  justify-content: center;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--tv-warn) 18%, transparent);
+  color: var(--tv-text);
+  font-size: 11px;
+  line-height: 18px;
+}
+
 .adk-approval-card {
+  display: grid;
+  gap: 8px;
   background: color-mix(in srgb, var(--tv-warn) 8%, var(--tv-bg-elevated));
   border: 1px solid color-mix(in srgb, var(--tv-warn) 35%, transparent);
   border-radius: 12px;
-  padding: 12px 14px;
+  padding: 10px 12px;
   margin-bottom: 8px;
+}
+
+.adk-approval-row {
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.adk-approval-main {
+  min-width: 0;
 }
 
 .adk-approval-tool {
@@ -1938,26 +1918,32 @@ body {
   font-weight: 600;
   display: flex;
   align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
   color: var(--tv-text);
-  margin-bottom: 4px;
 }
 
-.adk-approval-reason {
-  font-size: 12px;
+.adk-approval-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin-top: 4px;
+  font-size: 11px;
   color: var(--tv-text-muted);
-  margin: 0 0 4px;
 }
 
 .adk-approval-actions {
-  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 8px;
-  margin-top: 10px;
 }
 
-/* === Error bar === */
-.adk-error-bar {
-  margin: 0 16px 8px;
-  flex-shrink: 0;
+.adk-approval-input {
+  margin-top: 0;
+}
+
+.adk-inline-alert {
+  width: 100%;
 }
 
 /* === Composer === */
@@ -1971,6 +1957,12 @@ body {
   flex-shrink: 0;
 }
 
+.adk-composer--dock {
+  padding: 8px 10px 10px;
+  background: transparent;
+  border-top: 1px solid var(--tv-border);
+}
+
 .adk-composer-card {
   max-width: 980px;
   margin: 0 auto;
@@ -1979,6 +1971,13 @@ body {
   background: color-mix(in srgb, var(--tv-bg-surface) 94%, transparent);
   box-shadow: 0 18px 56px rgba(2, 6, 23, 0.22);
   overflow: visible;
+}
+
+.adk-composer--dock .adk-composer-card {
+  max-width: none;
+  margin: 0;
+  border-radius: 16px;
+  box-shadow: none;
 }
 
 .adk-composer-block {
@@ -2001,6 +2000,11 @@ body {
   padding-top: 0;
   mask-image: none;
   -webkit-mask-image: none;
+}
+
+.adk-composer-input--dock {
+  min-height: 0;
+  padding: 8px 12px 6px;
 }
 
 .adk-composer-controls {
@@ -2038,6 +2042,29 @@ body {
 
 .adk-composer-send {
   flex-shrink: 0;
+}
+
+.adk-composer-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 8px 10px 0;
+}
+
+.adk-composer-suggestion {
+  min-height: 24px;
+  font-size: 11px;
+}
+
+.adk-composer-dock-form {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px 8px;
+}
+
+.adk-composer-send--dock {
+  min-width: 72px;
 }
 
 /* === Config drawer === */

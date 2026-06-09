@@ -38,6 +38,7 @@ export function useADKPageChatState(
   const chatDraft = ref("");
   const sendingChat = ref(false);
   const activeRunId = ref("");
+  const approvalsBusy = ref(false);
 
   const canSendChat = computed(() =>
     chatDraft.value.trim() !== "" && sessionState.selectedAgentId.value !== "" && !sendingChat.value && composerBlockMessage.value === "",
@@ -154,29 +155,37 @@ export function useADKPageChatState(
   }
 
   async function resolveApproval(approval: ADKApproval): Promise<void> {
+    approvalsBusy.value = true;
     try {
-      const resolution = await fetchEnvelopeWithInit<ADKApprovalResolution>(
-        `/api/v1/adk/approvals/${encodeURIComponent(approval.id)}/approve`,
-        { method: "POST" },
-      );
-      applyApprovalResolution(approval, resolution);
+      const resolution = await submitApproval(approval, "approve");
+      await finalizeApprovalBatch([resolution]);
     } catch (error) {
       sessionState.errorMessage.value = error instanceof Error ? error.message : "审批处理失败";
       await sessionState.refreshAll();
+    } finally {
+      approvalsBusy.value = false;
     }
   }
 
   async function denyApproval(approval: ADKApproval): Promise<void> {
+    approvalsBusy.value = true;
     try {
-      const resolution = await fetchEnvelopeWithInit<ADKApprovalResolution>(
-        `/api/v1/adk/approvals/${encodeURIComponent(approval.id)}/deny`,
-        { method: "POST" },
-      );
-      applyApprovalResolution(approval, resolution);
+      const resolution = await submitApproval(approval, "deny");
+      await finalizeApprovalBatch([resolution]);
     } catch (error) {
       sessionState.errorMessage.value = error instanceof Error ? error.message : "审批处理失败";
       await sessionState.refreshAll();
+    } finally {
+      approvalsBusy.value = false;
     }
+  }
+
+  async function resolveAllApprovals(approvals: ADKApproval[]): Promise<void> {
+    await resolveApprovalsBatch(approvals, "approve");
+  }
+
+  async function denyAllApprovals(approvals: ADKApproval[]): Promise<void> {
+    await resolveApprovalsBatch(approvals, "deny");
   }
 
   function handleComposerKeydown(event: KeyboardEvent): void {
@@ -188,12 +197,15 @@ export function useADKPageChatState(
 
   return {
     activeRunId,
+    approvalsBusy,
     canSendChat,
     chatDraft,
     chatMessages,
     handleComposerKeydown,
     cancelActiveRun,
+    denyAllApprovals,
     denyApproval,
+    resolveAllApprovals,
     resolveApproval,
     selectSession,
     sendChat,
@@ -201,11 +213,70 @@ export function useADKPageChatState(
     showTypingIndicator,
   };
 
-  function applyApprovalResolution(_approval: ADKApproval, resolution: ADKApprovalResolution): void | Promise<void> {
+  function applyApprovalResolution(resolution: ADKApprovalResolution): void {
     chatMessages.value = applyApprovalResolutionToChat(chatMessages.value, resolution);
-    return scrollToBottom(threadRef)
-      .then(sessionState.refreshAll)
-      .then(() => waitForApprovalContinuation(resolution.run ?? undefined));
+  }
+
+  async function submitApproval(
+    approval: ADKApproval,
+    action: "approve" | "deny",
+  ): Promise<ADKApprovalResolution> {
+    const resolution = await fetchEnvelopeWithInit<ADKApprovalResolution>(
+      `/api/v1/adk/approvals/${encodeURIComponent(approval.id)}/${action}`,
+      { method: "POST" },
+    );
+    applyApprovalResolution(resolution);
+    return resolution;
+  }
+
+  async function resolveApprovalsBatch(
+    approvals: ADKApproval[],
+    action: "approve" | "deny",
+  ): Promise<void> {
+    if (approvals.length === 0) return;
+    approvalsBusy.value = true;
+    const resolutions: ADKApprovalResolution[] = [];
+    const errors: string[] = [];
+    try {
+      for (const approval of approvals) {
+        try {
+          resolutions.push(await submitApproval(approval, action));
+        } catch (error) {
+          errors.push(error instanceof Error ? error.message : "审批处理失败");
+        }
+      }
+      await finalizeApprovalBatch(resolutions);
+      if (errors.length > 0) {
+        sessionState.errorMessage.value = errors.length === 1
+          ? errors[0]!
+          : `批量审批部分失败：${errors[0]}`;
+      }
+    } finally {
+      approvalsBusy.value = false;
+    }
+  }
+
+  async function finalizeApprovalBatch(resolutions: ADKApprovalResolution[]): Promise<void> {
+    await scrollToBottom(threadRef);
+    await sessionState.refreshAll();
+    const runs = Array.from(
+      new Map(
+        resolutions
+          .map((resolution) => resolution.run)
+          .filter((run): run is ADKRun => run != null)
+          .map((run) => [run.id, run]),
+      ).values(),
+    );
+    for (const run of runs) {
+      if (isTerminalRunStatus(run.status)) {
+        const failMsg = runTerminalMessage(run);
+        if (failMsg) {
+          sessionState.errorMessage.value = failMsg;
+        }
+        continue;
+      }
+      await waitForApprovalContinuation(run);
+    }
   }
 
   async function waitForApprovalContinuation(run: ADKRun | undefined): Promise<void> {

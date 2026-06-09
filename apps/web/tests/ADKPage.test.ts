@@ -141,6 +141,76 @@ describe("ADKPage", () => {
     expect(document.body.textContent).toContain("已完成");
   });
 
+  it("approves all pending approvals from the approval bar", async () => {
+    const approvalA: ADKApproval = {
+      id: "approval-1",
+      runId: "run-1",
+      agentId: "agent-1",
+      toolName: "strategy.save_draft",
+      input: { query: "@strategy.save_draft" },
+      status: "PENDING",
+      reason: "needs approval",
+      createdAt: "2026-06-06T00:00:00Z",
+      updatedAt: "2026-06-06T00:00:00Z",
+    };
+    const approvalB: ADKApproval = {
+      ...approvalA,
+      id: "approval-2",
+      toolName: "strategy.publish",
+      input: { query: "@strategy.publish" },
+    };
+
+    streamADKChatMock.mockImplementation(async (_payload, onEvent) => {
+      const response: ADKChatResponse = {
+        reply: "waiting for approvals",
+        session: buildSession(),
+        run: buildRun({
+          status: "PENDING_APPROVAL",
+          toolCalls: [],
+          pendingApprovals: [approvalA, approvalB],
+        }),
+        pendingApprovals: [approvalA, approvalB],
+      };
+      await onEvent({ type: "session", session: response.session });
+      await onEvent({ type: "final", response });
+      return response;
+    });
+
+    const fetchMock = mountADKPage({
+      approvals: [approvalA, approvalB],
+      approvalResolutionById: {
+        "approval-1": {
+          approval: { ...approvalA, status: "APPROVED" },
+          run: buildRun({ status: "RUNNING" }),
+        },
+        "approval-2": {
+          approval: { ...approvalB, status: "APPROVED" },
+          run: buildRun({ status: "RUNNING" }),
+        },
+      },
+    });
+    await flushRequests();
+
+    const textarea = document.querySelector("textarea")!;
+    textarea.value = "batch approve";
+    textarea.dispatchEvent(new Event("input"));
+    await nextTick();
+    document.querySelector<HTMLButtonElement>(".adk-composer-send")?.click();
+    await flushRequests();
+
+    document.querySelector<HTMLButtonElement>(".adk-approvals-approve-all")?.click();
+    await flushRequests();
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/api/v1/adk/approvals/approval-1/approve"),
+      expect.objectContaining({ method: "POST" }),
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/api/v1/adk/approvals/approval-2/approve"),
+      expect.objectContaining({ method: "POST" }),
+    );
+  });
+
   it("restores persisted pre-tool content from saved runs", async () => {
     const savedRun = buildRun({
       id: "run-restored",
@@ -184,12 +254,72 @@ describe("ADKPage", () => {
     expect(document.body.textContent).toContain("最终结论已经整理完成。");
     expect(document.body.textContent).toContain("portfolio.summary");
   });
+
+  it("renders chat alerts inside the chat thread", async () => {
+    streamADKChatMock.mockImplementation(async (_payload, onEvent) => {
+      await onEvent({ type: "session", session: buildSession() });
+      await onEvent({ type: "delta", delta: "Partial reply before failure." });
+      await onEvent({ type: "error", message: "stream exploded" });
+      throw new Error("stream exploded");
+    });
+
+    mountADKPage();
+    await flushRequests();
+
+    const textarea = document.querySelector("textarea")!;
+    textarea.value = "check failed run";
+    textarea.dispatchEvent(new Event("input"));
+    await nextTick();
+    document.querySelector<HTMLButtonElement>(".adk-composer-send")?.click();
+    await flushRequests();
+
+    expect(document.querySelector(".adk-thread")?.textContent).toContain("stream exploded");
+    expect(document.querySelector(".adk-inline-alert")?.textContent).toContain("stream exploded");
+    expect(document.querySelector(".adk-composer")?.textContent).not.toContain("stream exploded");
+  });
+
+  it("keeps deep reasoning collapsed until the user expands it", async () => {
+    streamADKChatMock.mockImplementation(async (_payload, onEvent) => {
+      const response: ADKChatResponse = {
+        reply: "Final answer.",
+        reasoningContent: "Detailed chain of thought preview.",
+        session: buildSession(),
+        run: buildRun({ status: "COMPLETED" }),
+        pendingApprovals: [],
+      };
+      await onEvent({ type: "session", session: response.session });
+      await onEvent({ type: "final", response });
+      return response;
+    });
+
+    mountADKPage();
+    await flushRequests();
+
+    const textarea = document.querySelector("textarea")!;
+    textarea.value = "show reasoning";
+    textarea.dispatchEvent(new Event("input"));
+    await nextTick();
+    document.querySelector<HTMLButtonElement>(".adk-composer-send")?.click();
+    await flushRequests();
+
+    expect(document.body.textContent).toContain("查看深度思考");
+    expect(document.body.textContent).not.toContain("Detailed chain of thought preview.");
+
+    Array.from(document.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent?.includes("查看深度思考"))
+      ?.click();
+    await nextTick();
+
+    expect(document.body.textContent).toContain("隐藏深度思考");
+    expect(document.body.textContent).toContain("Detailed chain of thought preview.");
+  });
 });
 
 function mountADKPage(options: {
   providerHasKey?: boolean;
   approvals?: ADKApproval[];
   approvalResolution?: unknown;
+  approvalResolutionById?: Record<string, unknown>;
   sessionDetail?: { session: ReturnType<typeof buildSession>; messages: ADKMessage[] };
   runs?: ADKRun[];
 } = {}) {
@@ -223,7 +353,12 @@ function mountADKPage(options: {
         },
       });
     }
-    if (url.includes("/api/v1/adk/approvals/approval-1/approve")) {
+    const approvalActionMatch = url.match(/\/api\/v1\/adk\/approvals\/([^/]+)\/(approve|deny)$/);
+    if (approvalActionMatch) {
+      const approvalId = approvalActionMatch[1]!;
+      if (options.approvalResolutionById?.[approvalId] !== undefined) {
+        return createResponse(options.approvalResolutionById[approvalId]);
+      }
       return createResponse(options.approvalResolution);
     }
     if (url.includes("/api/v1/adk/approvals")) {

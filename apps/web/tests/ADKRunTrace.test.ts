@@ -21,7 +21,7 @@ describe("ADKRunTrace", () => {
       },
     });
 
-    expect(wrapper.text()).toContain("已调用工具 2 个");
+    expect(wrapper.text()).toContain("调用了 2 个工具");
     expect(wrapper.text()).toContain("已完成");
     expect(wrapper.text()).not.toContain("portfolio.summary");
   });
@@ -38,7 +38,7 @@ describe("ADKRunTrace", () => {
 
     expect(wrapper.text()).toContain("portfolio.summary");
     expect(wrapper.text()).toContain("已完成");
-    expect(wrapper.text()).not.toContain("已调用工具 1 个");
+    expect(wrapper.text()).not.toContain("调用了 1 个工具");
   });
 
   it("switches to completed summary as soon as tool calls finish even if llm is still busy", () => {
@@ -55,7 +55,7 @@ describe("ADKRunTrace", () => {
       },
     });
 
-    expect(wrapper.text()).toContain("已调用工具 2 个");
+    expect(wrapper.text()).toContain("调用了 2 个工具");
     expect(wrapper.text()).toContain("已完成");
     expect(wrapper.text()).not.toContain("正在调用 portfolio.summary");
   });
@@ -74,9 +74,31 @@ describe("ADKRunTrace", () => {
       },
     });
 
-    expect(wrapper.text()).toContain("已调用工具 3 个");
+    expect(wrapper.text()).toContain("调用了 3 个工具");
     expect(wrapper.text()).toContain("运行中");
-    expect(wrapper.text()).not.toContain("已完成 展开查看本轮工具调用轨迹");
+    expect(wrapper.text()).not.toContain("已完成展开查看本轮工具调用轨迹");
+  });
+
+  it("expands the multi-tool summary to show individual calls", async () => {
+    const wrapper = mount(ADKRunTrace, {
+      props: {
+        run: buildRun([
+          buildToolCall("tool-1", "portfolio.summary"),
+          buildToolCall("tool-2", "orders.latest"),
+        ]),
+        busy: false,
+        summaryExpanded: false,
+        expandedToolCallIds: [],
+        "onUpdate:summaryExpanded": (value: boolean) => {
+          void wrapper.setProps({ summaryExpanded: value });
+        },
+      },
+    });
+
+    expect(wrapper.text()).not.toContain("portfolio.summary");
+    await wrapper.find(".adk-run-trace-card--summary").trigger("click");
+    expect(wrapper.text()).toContain("portfolio.summary");
+    expect(wrapper.text()).toContain("orders.latest");
   });
 
   it("renders known tool output as an inline visualization and keeps raw JSON", () => {
