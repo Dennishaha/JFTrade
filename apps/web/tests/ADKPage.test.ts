@@ -406,6 +406,7 @@ function buildAgent() {
     skills: [],
     permissionMode: "approval",
     memoryEnabled: true,
+    recentUserWindow: 6,
     status: "ENABLED",
     createdAt: "2026-06-06T00:00:00Z",
     updatedAt: "2026-06-06T00:00:00Z",
@@ -448,12 +449,18 @@ function vuetifyStubs() {
       template:
         "<button type='button' :disabled='disabled' :class='$attrs.class' @click=\"$emit('click')\"><slot /></button>",
     },
+    "v-card": { template: "<div><slot /></div>" },
+    "v-card-text": { template: "<div><slot /></div>" },
+    "v-card-title": { template: "<div><slot /></div>" },
     "v-chip": { template: "<span><slot /></span>" },
     "v-expansion-panel": { template: "<div><slot /></div>" },
     "v-expansion-panel-text": { template: "<div><slot /></div>" },
     "v-expansion-panel-title": { template: "<div><slot /></div>" },
     "v-expansion-panels": { template: "<div><slot /></div>" },
     "v-icon": { template: "<span><slot /></span>" },
+    "v-menu": {
+      template: "<div><slot name='activator' :props='{}' /><slot /></div>",
+    },
     "v-progress-circular": { template: "<span />" },
     "v-select": {
       props: ["modelValue", "items"],

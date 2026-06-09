@@ -24,6 +24,7 @@ func (r *Runtime) runChat(ctx context.Context, req ChatRequest, onDelta func(Cha
 	if err != nil {
 		return ChatResponse{}, err
 	}
+	r.maybeAutoCompactSession(ctx, session, agent, text)
 	run, runCtx, finishRun, err := r.startRun(ctx, session.ID, agent, text)
 	if err != nil {
 		return ChatResponse{}, err
@@ -35,7 +36,7 @@ func (r *Runtime) runChat(ctx context.Context, req ChatRequest, onDelta func(Cha
 		}
 	}
 	toolContext, approvals, replyResult, preToolContent, preToolReasoning, adkErr := r.executeGoogleADK(runCtx, agent, session, run.ID, text, onDelta)
-	if _, err := r.store.AddMessage(ctx, session.ID, "user", text, ""); err != nil {
+	if _, err := r.store.AddTranscriptEntry(ctx, session.ID, run.ID, "user", transcriptKindMessage, text, ""); err != nil {
 		return ChatResponse{}, err
 	}
 	run = hydrateRunExecutionResult(run, toolContext, approvals, preToolContent, preToolReasoning)
@@ -78,6 +79,7 @@ func (r *Runtime) completeChatRun(
 		Session:          session,
 		Run:              run,
 		PendingApprovals: approvals,
+		Context:          r.contextSnapshotOrNil(ctx, session.ID),
 	}, nil
 }
 
@@ -92,10 +94,10 @@ func (r *Runtime) finishPendingApprovalRun(ctx context.Context, session Session,
 		"runId": run.ID, "agentId": run.AgentID, "status": run.Status, "pendingApprovals": len(approvals),
 	})
 	reply := "我已经准备好执行需要授权的操作，请先在 ADK 审批队列里确认或拒绝。"
-	if _, err := r.store.AddMessage(ctx, session.ID, "assistant", reply, ""); err != nil {
+	if _, err := r.store.AddTranscriptEntry(ctx, session.ID, run.ID, "assistant", transcriptKindMessage, reply, ""); err != nil {
 		return ChatResponse{}, err
 	}
-	return ChatResponse{Reply: reply, Session: session, Run: run, PendingApprovals: approvals}, nil
+	return ChatResponse{Reply: reply, Session: session, Run: run, PendingApprovals: approvals, Context: r.contextSnapshotOrNil(ctx, session.ID)}, nil
 }
 
 func (r *Runtime) prepareChatRequest(ctx context.Context, req ChatRequest) (string, error) {
@@ -175,7 +177,7 @@ func (r *Runtime) attachFinalAssistantMessage(
 	run Run,
 	replyResult openAIChatResult,
 ) (Run, error) {
-	message, err := r.store.AddMessage(ctx, session.ID, "assistant", replyResult.Reply, replyResult.ReasoningContent)
+	message, err := r.store.AddTranscriptEntry(ctx, session.ID, run.ID, "assistant", transcriptKindMessage, replyResult.Reply, replyResult.ReasoningContent)
 	if err != nil {
 		return run, err
 	}
@@ -206,4 +208,42 @@ func terminalAuditFields(run Run) map[string]any {
 		fields["failureReason"] = run.FailureReason
 	}
 	return fields
+}
+
+func (r *Runtime) maybeAutoCompactSession(ctx context.Context, session Session, agent Agent, pendingUserText string) {
+	if r == nil || r.contextManager == nil || strings.TrimSpace(session.ID) == "" {
+		return
+	}
+	snapshot, err := r.contextManager.ProjectedSnapshot(ctx, session, agent, pendingUserText)
+	if err != nil {
+		return
+	}
+	mode, shouldCompact := r.contextManager.ShouldAutoCompact(snapshot)
+	if !shouldCompact {
+		return
+	}
+	active, err := r.contextManager.HasActiveRun(ctx, session.ID)
+	if err != nil || active {
+		return
+	}
+	reason := "context usage exceeded automatic compaction threshold"
+	if mode == "aggressive" {
+		reason = "context usage exceeded aggressive failsafe threshold"
+	}
+	_, _ = r.contextManager.Compact(ctx, session, agent, SessionCompactRequest{
+		Mode:    mode,
+		Trigger: "auto",
+		Reason:  reason,
+	})
+}
+
+func (r *Runtime) contextSnapshotOrNil(ctx context.Context, sessionID string) *SessionContextSnapshot {
+	if r == nil || r.contextManager == nil || strings.TrimSpace(sessionID) == "" {
+		return nil
+	}
+	snapshot, err := r.SessionContext(ctx, sessionID)
+	if err != nil {
+		return nil
+	}
+	return &snapshot
 }

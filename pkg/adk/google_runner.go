@@ -252,7 +252,7 @@ func markFailedResumedRunIfNeeded(run Run) Run {
 }
 
 func (r *Runtime) persistResumedRunResult(ctx context.Context, run Run, result openAIChatResult) (*Message, error) {
-	message, err := r.store.AddMessage(ctx, run.SessionID, "assistant", result.Reply, result.ReasoningContent)
+	message, err := r.store.AddTranscriptEntry(ctx, run.SessionID, run.ID, "assistant", transcriptKindMessage, result.Reply, result.ReasoningContent)
 	if err != nil {
 		return nil, err
 	}
@@ -317,13 +317,26 @@ func (r *Runtime) newGoogleADKExecution(
 		return nil, err
 	}
 	adkAgent, err := llmagent.New(llmagent.Config{
-		Name:                googleADKAgentName(definition.ID),
-		Description:         definition.Name,
-		InstructionProvider: func(adkagent.ReadonlyContext) (string, error) { return definition.Instruction, nil },
-		Model:               llm,
-		Tools:               tools,
-		Toolsets:            toolsets,
-		IncludeContents:     llmagent.IncludeContentsDefault,
+		Name:        googleADKAgentName(definition.ID),
+		Description: definition.Name,
+		InstructionProvider: func(ctx adkagent.ReadonlyContext) (string, error) {
+			instruction := strings.TrimSpace(definition.Instruction)
+			if r.contextManager == nil || ctx == nil {
+				return instruction, nil
+			}
+			suffix, err := r.contextManager.InstructionSuffix(ctx, ctx.SessionID())
+			if err != nil || strings.TrimSpace(suffix) == "" {
+				return instruction, nil
+			}
+			if instruction == "" {
+				return suffix, nil
+			}
+			return instruction + "\n\n" + suffix, nil
+		},
+		Model:           llm,
+		Tools:           tools,
+		Toolsets:        toolsets,
+		IncludeContents: llmagent.IncludeContentsDefault,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create GO-ADK agent: %w", err)
@@ -353,6 +366,9 @@ func (r *Runtime) newGoogleADKExecution(
 	}
 	execution.runner = adkRunner
 	execution.sessionService = service
+	if r.rawSessionService != nil {
+		execution.sessionService = r.rawSessionService
+	}
 	return execution, nil
 }
 

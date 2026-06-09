@@ -20,17 +20,21 @@ import (
 )
 
 const (
-	tableProviders     = "adk_providers"
-	tableAgents        = "adk_agents"
-	tableSessions      = "adk_sessions"
-	tableMessages      = "adk_messages"
-	tableRuns          = "adk_runs"
-	tableApprovals     = "adk_approvals"
-	tableSkills        = "adk_skills"
-	tableAudit         = "adk_audit_events"
-	tableOptimizations = "adk_optimization_tasks"
-	tableTasks         = "adk_tasks"
-	tableMemory        = "adk_memory"
+	tableProviders          = "adk_providers"
+	tableAgents             = "adk_agents"
+	tableSessions           = "adk_sessions"
+	tableMessages           = "adk_messages"
+	tableRuns               = "adk_runs"
+	tableApprovals          = "adk_approvals"
+	tableSkills             = "adk_skills"
+	tableAudit              = "adk_audit_events"
+	tableOptimizations      = "adk_optimization_tasks"
+	tableTasks              = "adk_tasks"
+	tableMemory             = "adk_memory"
+	tableSessionContexts    = "adk_session_contexts"
+	tableTranscriptEntries  = "adk_transcript_entries"
+	tableHandoffSegments    = "adk_handoff_segments"
+	tableSessionContextLive = "adk_session_context_state"
 )
 
 type Store struct {
@@ -113,6 +117,14 @@ func (s *Store) migrate() error {
 		{17, `CREATE INDEX IF NOT EXISTS idx_adk_tasks_agent ON ` + tableTasks + ` (agent_id, updated_at DESC)`},
 		{18, `CREATE TABLE IF NOT EXISTS ` + tableMemory + ` (id TEXT PRIMARY KEY, agent_id TEXT NOT NULL, scope TEXT NOT NULL, memory_key TEXT NOT NULL, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`},
 		{19, `CREATE UNIQUE INDEX IF NOT EXISTS idx_adk_memory_agent_scope_key ON ` + tableMemory + ` (agent_id, scope, memory_key)`},
+		{20, `CREATE TABLE IF NOT EXISTS ` + tableSessionContexts + ` (id TEXT PRIMARY KEY, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`},
+		{21, `CREATE INDEX IF NOT EXISTS idx_adk_session_contexts_updated ON ` + tableSessionContexts + ` (updated_at DESC)`},
+		{22, `CREATE TABLE IF NOT EXISTS ` + tableTranscriptEntries + ` (id TEXT PRIMARY KEY, session_id TEXT NOT NULL, run_id TEXT NOT NULL, role TEXT NOT NULL, kind TEXT NOT NULL, payload_json TEXT NOT NULL, created_at TEXT NOT NULL)`},
+		{23, `CREATE INDEX IF NOT EXISTS idx_adk_transcript_entries_session ON ` + tableTranscriptEntries + ` (session_id, created_at ASC)`},
+		{24, `CREATE TABLE IF NOT EXISTS ` + tableHandoffSegments + ` (id TEXT PRIMARY KEY, session_id TEXT NOT NULL, active INTEGER NOT NULL, sequence_no INTEGER NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, payload_json TEXT NOT NULL)`},
+		{25, `CREATE INDEX IF NOT EXISTS idx_adk_handoff_segments_session ON ` + tableHandoffSegments + ` (session_id, sequence_no ASC)`},
+		{26, `CREATE TABLE IF NOT EXISTS ` + tableSessionContextLive + ` (id TEXT PRIMARY KEY, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`},
+		{27, `CREATE INDEX IF NOT EXISTS idx_adk_session_context_state_updated ON ` + tableSessionContextLive + ` (updated_at DESC)`},
 	}
 	for _, m := range migrations {
 		var count int
@@ -172,20 +184,24 @@ func (s *Store) SaveProvider(ctx context.Context, req ProviderWriteRequest) (Pro
 		createdAt = existing.CreatedAt
 	}
 	provider := Provider{
-		ID:               id,
-		DisplayName:      defaultString(req.DisplayName, id),
-		BaseURL:          normalizeBaseURL(req.BaseURL),
-		Model:            defaultString(req.Model, "gpt-4o-mini"),
-		RequestTimeoutMs: normalizeProviderRequestTimeoutMs(req.RequestTimeoutMs),
-		DefaultHeaders:   normalizeHeaders(req.DefaultHeaders),
-		Enabled:          req.Enabled,
-		CreatedAt:        createdAt,
-		UpdatedAt:        now,
+		ID:                  id,
+		DisplayName:         defaultString(req.DisplayName, id),
+		BaseURL:             normalizeBaseURL(req.BaseURL),
+		Model:               defaultString(req.Model, "gpt-4o-mini"),
+		ContextWindowTokens: normalizeContextWindowTokens(req.ContextWindowTokens),
+		RequestTimeoutMs:    normalizeProviderRequestTimeoutMs(req.RequestTimeoutMs),
+		DefaultHeaders:      normalizeHeaders(req.DefaultHeaders),
+		Enabled:             req.Enabled,
+		CreatedAt:           createdAt,
+		UpdatedAt:           now,
 	}
 	if ok {
 		provider.Capabilities = existing.Capabilities
 		if req.RequestTimeoutMs == 0 {
 			provider.RequestTimeoutMs = existing.RequestTimeoutMs
+		}
+		if req.ContextWindowTokens == 0 {
+			provider.ContextWindowTokens = existing.ContextWindowTokens
 		}
 	}
 	provider = normalizeProvider(provider)
@@ -294,21 +310,25 @@ func (s *Store) SaveAgent(ctx context.Context, req AgentWriteRequest) (Agent, er
 		return Agent{}, fmt.Errorf("invalid agent status %q", req.Status)
 	}
 	agent := Agent{
-		ID:             id,
-		Name:           defaultString(req.Name, id),
-		Instruction:    strings.TrimSpace(req.Instruction),
-		ProviderID:     strings.TrimSpace(req.ProviderID),
-		Model:          strings.TrimSpace(req.Model),
-		Tools:          normalizeStringSlice(req.Tools),
-		Skills:         normalizeStringSlice(req.Skills),
-		PermissionMode: normalizePermissionMode(req.PermissionMode),
-		MemoryEnabled:  req.MemoryEnabled,
-		Status:         status,
-		CreatedAt:      createdAt,
-		UpdatedAt:      now,
+		ID:               id,
+		Name:             defaultString(req.Name, id),
+		Instruction:      strings.TrimSpace(req.Instruction),
+		ProviderID:       strings.TrimSpace(req.ProviderID),
+		Model:            strings.TrimSpace(req.Model),
+		Tools:            normalizeStringSlice(req.Tools),
+		Skills:           normalizeStringSlice(req.Skills),
+		PermissionMode:   normalizePermissionMode(req.PermissionMode),
+		MemoryEnabled:    req.MemoryEnabled,
+		RecentUserWindow: normalizeRecentUserWindow(req.RecentUserWindow),
+		Status:           status,
+		CreatedAt:        createdAt,
+		UpdatedAt:        now,
 	}
 	if agent.Instruction == "" {
 		agent.Instruction = defaultAgentInstruction()
+	}
+	if ok && req.RecentUserWindow == 0 {
+		agent.RecentUserWindow = normalizeRecentUserWindow(existing.RecentUserWindow)
 	}
 	return agent, s.saveJSON(ctx, tableAgents, agent.ID, agent.CreatedAt, agent.UpdatedAt, agent)
 }
@@ -437,52 +457,25 @@ func (s *Store) DeleteSession(ctx context.Context, id string) error {
 	if _, err := s.db.ExecContext(ctx, `DELETE FROM `+tableMessages+` WHERE session_id = ?`, id); err != nil {
 		return err
 	}
+	if _, err := s.db.ExecContext(ctx, `DELETE FROM `+tableTranscriptEntries+` WHERE session_id = ?`, id); err != nil {
+		return err
+	}
 	if _, err := s.db.ExecContext(ctx, `DELETE FROM `+tableRuns+` WHERE session_id = ?`, id); err != nil {
+		return err
+	}
+	if _, err := s.db.ExecContext(ctx, `DELETE FROM `+tableSessionContexts+` WHERE id = ?`, id); err != nil {
+		return err
+	}
+	if _, err := s.db.ExecContext(ctx, `DELETE FROM `+tableSessionContextLive+` WHERE id = ?`, id); err != nil {
+		return err
+	}
+	if _, err := s.db.ExecContext(ctx, `DELETE FROM `+tableHandoffSegments+` WHERE session_id = ?`, id); err != nil {
 		return err
 	}
 	if _, err := s.db.ExecContext(ctx, `DELETE FROM `+tableSessions+` WHERE id = ?`, id); err != nil {
 		return err
 	}
 	return nil
-}
-
-func (s *Store) AddMessage(ctx context.Context, sessionID string, role string, content string, reasoningContent string) (Message, error) {
-	now := nowString()
-	message := Message{
-		ID:               "msg-" + uuid.NewString(),
-		SessionID:        strings.TrimSpace(sessionID),
-		Role:             strings.TrimSpace(role),
-		Content:          content,
-		ReasoningContent: reasoningContent,
-		CreatedAt:        now,
-	}
-	payload, err := json.Marshal(message)
-	if err != nil {
-		return Message{}, err
-	}
-	if _, err := s.db.ExecContext(ctx, `INSERT INTO `+tableMessages+` (id, session_id, role, payload_json, created_at) VALUES (?, ?, ?, ?, ?)`, message.ID, message.SessionID, message.Role, string(payload), message.CreatedAt); err != nil {
-		return Message{}, err
-	}
-	_, _ = s.db.ExecContext(ctx, `UPDATE `+tableSessions+` SET updated_at = ? WHERE id = ?`, now, sessionID)
-	return message, nil
-}
-
-func (s *Store) Messages(ctx context.Context, sessionID string) ([]Message, error) {
-	rows := []struct {
-		PayloadJSON string `db:"payload_json"`
-	}{}
-	if err := s.db.SelectContext(ctx, &rows, `SELECT payload_json FROM `+tableMessages+` WHERE session_id = ? ORDER BY created_at ASC`, strings.TrimSpace(sessionID)); err != nil {
-		return nil, err
-	}
-	messages := make([]Message, 0, len(rows))
-	for _, row := range rows {
-		var message Message
-		if err := json.Unmarshal([]byte(row.PayloadJSON), &message); err != nil {
-			return nil, err
-		}
-		messages = append(messages, message)
-	}
-	return messages, nil
 }
 
 func (s *Store) SaveRun(ctx context.Context, run Run) error {
@@ -1174,7 +1167,34 @@ func normalizeBaseURL(value string) string {
 
 func normalizeProvider(provider Provider) Provider {
 	provider.RequestTimeoutMs = normalizeProviderRequestTimeoutMs(provider.RequestTimeoutMs)
+	provider.ContextWindowTokens = normalizeContextWindowTokens(provider.ContextWindowTokens)
 	return provider
+}
+
+func normalizeContextWindowTokens(value int) int {
+	if value <= 0 {
+		return 0
+	}
+	if value < 1_024 {
+		return 1_024
+	}
+	if value > 10_000_000 {
+		return 10_000_000
+	}
+	return value
+}
+
+func normalizeRecentUserWindow(value int) int {
+	switch {
+	case value <= 0:
+		return 6
+	case value < 2:
+		return 2
+	case value > 100:
+		return 100
+	default:
+		return value
+	}
 }
 
 func normalizeProviderRequestTimeoutMs(value int) int {

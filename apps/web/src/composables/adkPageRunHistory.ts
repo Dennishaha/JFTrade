@@ -1,11 +1,12 @@
-import type { ADKMessage, ADKRun, ADKSession } from "@jftrade/ui-contracts";
+import type { ADKRun, ADKSession, ADKTranscriptEntry } from "@jftrade/ui-contracts";
 
 import { fetchEnvelope } from "./apiClient";
 import { applyPersistedRunState, toChatMessage, type ChatMessage } from "./adkPageMessages";
 
 interface SessionDetailResponse {
   session: ADKSession;
-  messages: ADKMessage[];
+  transcriptEntries: ADKTranscriptEntry[];
+  messages?: ADKTranscriptEntry[];
 }
 
 interface PageEnvelope {
@@ -35,11 +36,13 @@ export async function loadSessionChatHistory(sessionId: string): Promise<{
 
   return {
     session: detail.session,
-    chatMessages: detail.messages.map((message) => {
-      const chatMessage = toChatMessage(message);
-      applyPersistedRunState(chatMessage, runsByMessageId.get(message.id));
-      return chatMessage;
-    }),
+    chatMessages: (detail.transcriptEntries ?? detail.messages ?? [])
+      .filter((entry) => !entry.kind || entry.kind === "message")
+      .map((entry) => {
+        const chatMessage = toChatMessage(entry);
+        applyPersistedRunState(chatMessage, runsByMessageId.get(entry.id));
+        return chatMessage;
+      }),
   };
 }
 

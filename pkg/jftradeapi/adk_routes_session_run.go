@@ -67,12 +67,57 @@ func (s *Server) handleADKSession(c *gin.Context) {
 		s.writeError(c, http.StatusNotFound, "NOT_FOUND", "session not found")
 		return
 	}
-	messages, err := s.adkRuntime.Store().Messages(c.Request.Context(), id)
+	transcriptEntries, err := s.adkRuntime.Store().TranscriptEntries(c.Request.Context(), id)
 	if err != nil {
 		s.writeError(c, http.StatusInternalServerError, "ADK_MESSAGES_GET_FAILED", err.Error())
 		return
 	}
-	s.writeOK(c, jfadk.SessionsResponse{Session: session, Messages: messages})
+	s.writeOK(c, jfadk.SessionsResponse{Session: session, TranscriptEntries: transcriptEntries, Messages: transcriptEntries})
+}
+
+func (s *Server) handleADKSessionContext(c *gin.Context) {
+	var uri sessionURI
+	if err := bindURI(c, &uri); err != nil || strings.TrimSpace(uri.SessionID) == "" {
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "sessionId is invalid")
+		return
+	}
+	snapshot, err := s.adkRuntime.SessionContext(c.Request.Context(), uri.SessionID)
+	if err != nil {
+		status := http.StatusInternalServerError
+		if strings.Contains(strings.ToLower(err.Error()), "not found") {
+			status = http.StatusNotFound
+		}
+		s.writeError(c, status, "ADK_SESSION_CONTEXT_FAILED", err.Error())
+		return
+	}
+	s.writeOK(c, snapshot)
+}
+
+func (s *Server) handleADKCompactSessionContext(c *gin.Context) {
+	var uri sessionURI
+	if err := bindURI(c, &uri); err != nil || strings.TrimSpace(uri.SessionID) == "" {
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "sessionId is invalid")
+		return
+	}
+	var payload struct {
+		Mode   string `json:"mode"`
+		Reason string `json:"reason"`
+	}
+	_ = c.ShouldBindJSON(&payload)
+	snapshot, err := s.adkRuntime.CompactSessionContext(c.Request.Context(), uri.SessionID, payload.Mode, "manual", defaultStringLocal(payload.Reason, "manual context compaction requested"))
+	if err != nil {
+		status := http.StatusInternalServerError
+		lower := strings.ToLower(err.Error())
+		switch {
+		case strings.Contains(lower, "active or pending run"):
+			status = http.StatusConflict
+		case strings.Contains(lower, "not found"):
+			status = http.StatusNotFound
+		}
+		s.writeError(c, status, "ADK_SESSION_CONTEXT_COMPACT_FAILED", err.Error())
+		return
+	}
+	s.writeOK(c, snapshot)
 }
 
 func (s *Server) handleADKRenameSession(c *gin.Context) {

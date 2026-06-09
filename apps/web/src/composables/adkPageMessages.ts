@@ -1,6 +1,6 @@
 import { nextTick, type Ref } from "vue";
 
-import type { ADKMessage, ADKRun } from "@jftrade/ui-contracts";
+import type { ADKRun, ADKTranscriptEntry } from "@jftrade/ui-contracts";
 
 import {
   createAssistantMessageState,
@@ -23,7 +23,7 @@ export interface ChatMessage {
   expandedToolCallIds?: string[] | undefined;
 }
 
-export function toChatMessage(message: ADKMessage): ChatMessage {
+export function toChatMessage(message: ADKTranscriptEntry): ChatMessage {
   const normalized = normalizeAssistantContent(message.content, message.reasoningContent);
   return {
     ...(message.role === "assistant" ? createAssistantMessageState(message.id) : {}),

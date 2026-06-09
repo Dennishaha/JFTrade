@@ -18,6 +18,7 @@ const props = defineProps<{
     skills: string[];
     permissionMode: ADKPermissionMode;
     memoryEnabled: boolean;
+    recentUserWindow: number;
     status: string;
   };
   agents: ADKAgent[];
@@ -261,6 +262,14 @@ watch(
               clearable />
             <v-text-field v-model="agentForm.model" label="覆盖模型（可选）" density="comfortable" />
             <v-select v-model="agentForm.permissionMode" :items="permissionModes" label="权限模式" density="comfortable" />
+            <v-text-field
+              v-model.number="agentForm.recentUserWindow"
+              label="保留最近用户消息条数"
+              type="number"
+              density="comfortable"
+              min="2"
+              max="100"
+            />
           </div>
 
           <div class="adk-tool-transfer rounded-lg border p-3">

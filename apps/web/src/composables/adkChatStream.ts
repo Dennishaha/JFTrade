@@ -1,7 +1,12 @@
 import { buildApiUrl, csrfHeaders } from "./apiClient";
 import { runTerminalMessage } from "./adkChatPresentation";
 
-import type { ADKApproval, ADKRun, ADKSession } from "@jftrade/ui-contracts";
+import type {
+  ADKApproval,
+  ADKRun,
+  ADKSession,
+  ADKSessionContextSnapshot,
+} from "@jftrade/ui-contracts";
 
 export interface ADKChatStreamResponse {
   reply: string;
@@ -9,27 +14,34 @@ export interface ADKChatStreamResponse {
   session: ADKSession;
   run: ADKRun;
   pendingApprovals: ADKApproval[];
+  context?: ADKSessionContextSnapshot;
 }
 
 export interface ADKChatStreamEvent {
-  type: "session" | "run" | "delta" | "final" | "error";
+  type: "session" | "run" | "delta" | "context" | "final" | "error";
   delta?: string;
   reasoningDelta?: string;
   toolProgress?: string;
   response?: ADKChatStreamResponse;
   session?: ADKSession;
   run?: ADKRun;
+  context?: ADKSessionContextSnapshot;
   message?: string;
 }
 
-export function normalizeAssistantContent(content: string, reasoningContent?: string): {
+export function normalizeAssistantContent(
+  content: string,
+  reasoningContent?: string,
+): {
   content: string;
   reasoningContent: string;
 } {
   if ((reasoningContent ?? "").trim() !== "") {
     return { content, reasoningContent: reasoningContent ?? "" };
   }
-  const match = content.match(/<think>([\s\S]*?)<\/think>/i) ?? content.match(/<reasoning>([\s\S]*?)<\/reasoning>/i);
+  const match =
+    content.match(/<think>([\s\S]*?)<\/think>/i) ??
+    content.match(/<reasoning>([\s\S]*?)<\/reasoning>/i);
   if (!match) {
     return { content, reasoningContent: "" };
   }
@@ -54,7 +66,7 @@ export async function streamADKChat(
     body: JSON.stringify(payload),
   });
   if (!response.ok) {
-    throw new Error(await response.text() || "Agents chat failed");
+    throw new Error((await response.text()) || "Agents chat failed");
   }
   if (!response.body) {
     throw new Error("流式响应不可用");
@@ -69,16 +81,23 @@ export async function streamADKChat(
   let lastRun: ADKRun | null = null;
 
   const defaultIdleTimeoutMs = 300_000;
-  const headerIdleTimeoutMs = Number(response.headers?.get?.("X-ADK-Stream-Idle-Timeout-Ms") ?? "");
-  const SSE_IDLE_TIMEOUT_MS = Number.isFinite(headerIdleTimeoutMs) && headerIdleTimeoutMs > 0
-    ? headerIdleTimeoutMs
-    : defaultIdleTimeoutMs;
+  const headerIdleTimeoutMs = Number(
+    response.headers?.get?.("X-ADK-Stream-Idle-Timeout-Ms") ?? "",
+  );
+  const SSE_IDLE_TIMEOUT_MS =
+    Number.isFinite(headerIdleTimeoutMs) && headerIdleTimeoutMs > 0
+      ? headerIdleTimeoutMs
+      : defaultIdleTimeoutMs;
   let idleTimer: ReturnType<typeof setTimeout> | null = null;
 
   const resetIdleTimer = () => {
     if (idleTimer) clearTimeout(idleTimer);
     idleTimer = setTimeout(() => {
-      console.warn("[ADK SSE] Idle timeout — no data for", SSE_IDLE_TIMEOUT_MS, "ms, aborting stream");
+      console.warn(
+        "[ADK SSE] Idle timeout - no data for",
+        SSE_IDLE_TIMEOUT_MS,
+        "ms, aborting stream",
+      );
       reader.cancel();
     }, SSE_IDLE_TIMEOUT_MS);
   };
@@ -160,8 +179,10 @@ function parseSSEFrame(frame: string): ADKChatStreamEvent | null {
   try {
     return JSON.parse(data) as ADKChatStreamEvent;
   } catch {
-    // Malformed/truncated JSON — skip this frame rather than crashing the stream.
-    console.warn("[ADK SSE] Failed to parse frame, skipping:", data.slice(0, 200));
+    console.warn(
+      "[ADK SSE] Failed to parse frame, skipping:",
+      data.slice(0, 200),
+    );
     return null;
   }
 }

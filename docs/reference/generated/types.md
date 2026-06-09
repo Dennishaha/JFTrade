@@ -73,12 +73,23 @@ export interface ADKProvider {
   displayName: string;
   baseUrl: string;
   model: string;
+  contextWindowTokens?: number;
+  requestTimeoutMs: number;
   defaultHeaders?: Record<string, string>;
   enabled: boolean;
   hasApiKey: boolean;
   capabilities?: Record<string, boolean>;
   createdAt: string;
   updatedAt: string;
+}
+```
+
+## `ADKRuntimeSettings`
+
+```ts
+export interface ADKRuntimeSettings {
+  runTimeoutMs: number;
+  streamIdleTimeoutMs: number;
 }
 ```
 
@@ -186,6 +197,34 @@ export interface ADKSession {
 }
 ```
 
+## `ADKSessionContextSnapshot`
+
+```ts
+export interface ADKSessionContextSnapshot {
+  sessionId: string;
+  estimatedInputTokens: number;
+  contextWindowTokens: number;
+  usageRatio: number;
+  status:
+    | "unknown"
+    | "healthy"
+    | "warning"
+    | "near_limit"
+    | "critical"
+    | string;
+  summaryPreview?: string;
+  protectedRecentCount: number;
+  rawEventCount: number;
+  compactedEventCount: number;
+  summaryBoundaryEventIndex: number;
+  lastCompactedAt?: string;
+  lastCompactionMode?: "manual" | "auto" | "aggressive" | string;
+  lastCompactionReason?: string;
+  autoCompacted: boolean;
+  degradedSummary: boolean;
+}
+```
+
 ## `ADKMessage`
 
 ```ts
@@ -219,6 +258,7 @@ export interface ADKRun {
   sessionId: string;
   agentId: string;
   providerId?: string;
+  maxDurationMs?: number;
   status: string;
   message: string;
   userMessage?: string;
@@ -251,6 +291,7 @@ export interface ADKChatResponse {
   session: ADKSession;
   run: ADKRun;
   pendingApprovals: ADKApproval[];
+  context?: ADKSessionContextSnapshot;
 }
 ```
 
@@ -305,6 +346,71 @@ export interface ADKOptimizationTask {
   };
   createdAt: string;
   updatedAt: string;
+}
+```
+
+## `ADKTask`
+
+```ts
+export interface ADKTask {
+  id: string;
+  title: string;
+  description?: string;
+  status: string;
+  agentId?: string;
+  runId?: string;
+  dependsOn?: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+```
+
+## `ADKTaskFilters`
+
+```ts
+export interface ADKTaskFilters {
+  status?: string;
+  agentId?: string;
+  runId?: string;
+  limit?: number;
+  offset?: number;
+}
+```
+
+## `ADKTaskPatch`
+
+```ts
+export interface ADKTaskPatch {
+  title?: string;
+  description?: string;
+  status?: string;
+  agentId?: string;
+  runId?: string;
+  dependsOn?: string[];
+}
+```
+
+## `ADKMemoryEntry`
+
+```ts
+export interface ADKMemoryEntry {
+  id: string;
+  agentId?: string;
+  key: string;
+  value: string;
+  scope: string;
+  createdAt: string;
+  updatedAt: string;
+}
+```
+
+## `ADKMemoryFilters`
+
+```ts
+export interface ADKMemoryFilters {
+  scope?: string;
+  agentId?: string;
+  key?: string;
 }
 ```
 

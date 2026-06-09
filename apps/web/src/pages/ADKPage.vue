@@ -24,6 +24,8 @@ const {
   chatDraft,
   chatMessages,
   composerBlockMessage,
+  contextBusy,
+  contextDetailsOpen,
   createNewSession,
   deleteSession,
   denyAllApprovals,
@@ -38,6 +40,7 @@ const {
   preview,
   providerOptions,
   providers,
+  runSlashCommand,
   renameSession,
   resolveAllApprovals,
   resolveApproval,
@@ -48,16 +51,19 @@ const {
   selectedProviderId,
   selectedSessionId,
   sendingChat,
+  sessionContext,
   sessionAgentFilter,
   sessionSearch,
   sessions,
   sessionTitle,
   showTypingIndicator,
   SUGGESTIONS,
+  slashCommands,
   selectSession,
   sendChat,
   visibleSessions,
   cancelActiveRun,
+  openContextDetails,
 } = useADKPageController(router, threadRef);
 
 onMounted(() => {
@@ -74,9 +80,13 @@ onBeforeUnmount(() => {
   }
 });
 
-watch(chatMessages, () => {
-  scheduleMermaidRender();
-}, { deep: true, flush: "post" });
+watch(
+  chatMessages,
+  () => {
+    scheduleMermaidRender();
+  },
+  { deep: true, flush: "post" },
+);
 
 function scheduleMermaidRender(): void {
   if (typeof window === "undefined" || mermaidRenderFrame !== null) return;
@@ -87,7 +97,8 @@ function scheduleMermaidRender(): void {
 }
 
 async function renderMermaidDiagrams(): Promise<void> {
-  const mermaidBlocks = threadRef.value?.querySelectorAll<HTMLElement>(".mermaid");
+  const mermaidBlocks =
+    threadRef.value?.querySelectorAll<HTMLElement>(".mermaid");
   if (!mermaidBlocks || mermaidBlocks.length === 0) return;
   try {
     await mermaid.run({ nodes: mermaidBlocks, suppressErrors: true });
@@ -136,9 +147,13 @@ function clearErrorMessage(): void {
           :suggestions="SUGGESTIONS"
           empty-state-title="开始与智能体对话"
           empty-state-hint="可直接输入问题，也可以用 @tool_name 显式调用内置工具"
-          :empty-state-provider-hint="providers.length === 0
-            ? '尚未添加模型提供商，请先前往 Agents 配置添加。'
-            : (selectedProvider ? `当前模型提供商：${selectedProvider.displayName} · ${selectedProvider.model}` : '')"
+          :empty-state-provider-hint="
+            providers.length === 0
+              ? '尚未添加模型提供商，请先前往 Agents 配置添加。'
+              : selectedProvider
+                ? `当前模型提供商：${selectedProvider.displayName} · ${selectedProvider.model}`
+                : ''
+          "
           :approval-tool="approvalTool"
           :clear-error-message="clearErrorMessage"
           :preview="preview"
@@ -157,8 +172,12 @@ function clearErrorMessage(): void {
         :can-send-chat="canSendChat"
         :chat-draft="chatDraft"
         :composer-block-message="composerBlockMessage"
+        :context-busy="contextBusy"
+        :context-details-open="contextDetailsOpen"
+        :context-snapshot="sessionContext"
         :loading="loading"
         :provider-options="providerOptions"
+        :slash-commands="slashCommands"
         :saving-provider-selection="savingProviderSelection"
         :selected-agent-id="selectedAgentId"
         :selected-provider-id="selectedProviderId"
@@ -167,9 +186,12 @@ function clearErrorMessage(): void {
         :handle-agent-change="handleAgentChange"
         :handle-composer-keydown="handleComposerKeydown"
         :handle-provider-change="handleProviderChange"
+        :open-context-details="openContextDetails"
         :open-provider-settings="openProviderSettings"
+        :run-slash-command="runSlashCommand"
         :send-chat="sendChat"
         @update:chat-draft="chatDraft = $event"
+        @update:context-details-open="contextDetailsOpen = $event"
         @update:selected-agent-id="selectedAgentId = $event"
         @update:selected-provider-id="selectedProviderId = $event"
       />

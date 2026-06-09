@@ -97,6 +97,7 @@ describe("SettingsADKSection", () => {
           "v-card-title": { template: "<div><slot /></div>" },
           "v-card-text": { template: "<div><slot /></div>" },
           "v-chip": { template: "<span><slot /></span>" },
+          "v-checkbox": { template: "<label><slot /></label>" },
           "v-dialog": dialogStub,
           "v-icon": iconStub,
           "v-select": selectStub,
@@ -214,6 +215,10 @@ describe("SettingsADKSection", () => {
       global: {
         plugins: [router],
         stubs: {
+          ADKAgentsPanel: { template: "<div />" },
+          ADKRunsPanel: { template: "<div />" },
+          ADKSkillsPanel: { template: "<div />" },
+          ADKToolsPanel: { template: "<div />" },
           "v-alert": { template: "<div><slot /></div>" },
           "v-btn": buttonStub,
           "v-card": { template: "<section><slot /></section>" },
@@ -221,6 +226,7 @@ describe("SettingsADKSection", () => {
           "v-card-title": { template: "<div><slot /></div>" },
           "v-card-text": { template: "<div><slot /></div>" },
           "v-chip": { template: "<span><slot /></span>" },
+          "v-checkbox": { template: "<label><slot /></label>" },
           "v-dialog": dialogStub,
           "v-icon": iconStub,
           "v-select": selectStub,
@@ -238,8 +244,9 @@ describe("SettingsADKSection", () => {
     await flushRequests();
 
     const inputs = wrapper.findAll("input");
-    await inputs[5]!.setValue("720");
-    await inputs[6]!.setValue("450");
+    expect(inputs.length).toBeGreaterThanOrEqual(2);
+    await inputs[0]!.setValue("720");
+    await inputs[1]!.setValue("450");
     const saveButton = wrapper.findAll("button").find((button) => button.text().includes("保存运行时设置"));
     expect(saveButton).toBeTruthy();
     await saveButton!.trigger("click");
@@ -313,6 +320,7 @@ describe("SettingsADKSection", () => {
           "v-card-title": { template: "<div><slot /></div>" },
           "v-card-text": { template: "<div><slot /></div>" },
           "v-chip": { template: "<span><slot /></span>" },
+          "v-checkbox": { template: "<label><slot /></label>" },
           "v-dialog": dialogStub,
           "v-icon": iconStub,
           "v-select": selectStub,
@@ -406,6 +414,7 @@ describe("SettingsADKSection", () => {
           "v-card-title": { template: "<div><slot /></div>" },
           "v-card-text": { template: "<div><slot /></div>" },
           "v-chip": { template: "<span><slot /></span>" },
+          "v-checkbox": { template: "<label><slot /></label>" },
           "v-dialog": dialogStub,
           "v-icon": iconStub,
           "v-select": selectStub,

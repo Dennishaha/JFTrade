@@ -21,6 +21,7 @@ function createAgentForm(providers: ADKProvider[], tools: ADKToolDescriptor[], s
     skills: skills.map((skill) => skill.id),
     permissionMode: "approval" as ADKPermissionMode,
     memoryEnabled: true,
+    recentUserWindow: 6,
     status: "ENABLED",
   };
 }
@@ -44,6 +45,7 @@ export function useADKAgentForm(
     skills: [] as string[],
     permissionMode: "approval" as ADKPermissionMode,
     memoryEnabled: true,
+    recentUserWindow: 6,
     status: "ENABLED",
   });
 
@@ -72,6 +74,7 @@ export function useADKAgentForm(
       skills: [...agent.skills],
       permissionMode: agent.permissionMode,
       memoryEnabled: agent.memoryEnabled,
+      recentUserWindow: agent.recentUserWindow ?? 6,
       status: agent.status,
     };
   }
@@ -91,6 +94,7 @@ export function useADKAgentForm(
       skills: [...agent.skills],
       permissionMode: agent.permissionMode,
       memoryEnabled: agent.memoryEnabled,
+      recentUserWindow: agent.recentUserWindow ?? 6,
       status: "ENABLED",
     };
   }

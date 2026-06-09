@@ -167,6 +167,8 @@ func (s *Server) registerADKRoutes(api *gin.RouterGroup) {
 	adk.GET("/sessions", s.handleADKSessions)
 	adk.POST("/sessions", s.handleADKCreateSession)
 	adk.GET("/sessions/:sessionId", s.handleADKSession)
+	adk.GET("/sessions/:sessionId/context", s.handleADKSessionContext)
+	adk.POST("/sessions/:sessionId/context/compact", s.handleADKCompactSessionContext)
 	adk.PUT("/sessions/:sessionId", s.handleADKRenameSession)
 	adk.DELETE("/sessions/:sessionId", s.handleADKDeleteSession)
 	adk.POST("/chat", s.handleADKChat)

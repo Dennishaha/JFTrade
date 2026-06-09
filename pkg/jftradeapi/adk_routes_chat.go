@@ -14,14 +14,15 @@ import (
 )
 
 type adkChatStreamEvent struct {
-	Type           string              `json:"type"`
-	Delta          string              `json:"delta,omitempty"`
-	ReasoningDelta string              `json:"reasoningDelta,omitempty"`
-	ToolProgress   string              `json:"toolProgress,omitempty"`
-	Response       *jfadk.ChatResponse `json:"response,omitempty"`
-	Session        *jfadk.Session      `json:"session,omitempty"`
-	Run            *jfadk.Run          `json:"run,omitempty"`
-	Message        string              `json:"message,omitempty"`
+	Type           string                        `json:"type"`
+	Delta          string                        `json:"delta,omitempty"`
+	ReasoningDelta string                        `json:"reasoningDelta,omitempty"`
+	ToolProgress   string                        `json:"toolProgress,omitempty"`
+	Response       *jfadk.ChatResponse           `json:"response,omitempty"`
+	Session        *jfadk.Session                `json:"session,omitempty"`
+	Run            *jfadk.Run                    `json:"run,omitempty"`
+	Context        *jfadk.SessionContextSnapshot `json:"context,omitempty"`
+	Message        string                        `json:"message,omitempty"`
 }
 
 func (s *Server) handleADKChat(c *gin.Context) {
@@ -71,12 +72,19 @@ func (s *Server) handleADKChatStream(c *gin.Context) {
 	}
 
 	sessionSent := false
+	contextSent := false
 	var streamMu sync.Mutex
 	response, err := s.adkRuntime.ChatStream(c.Request.Context(), payload, func(delta jfadk.ChatDelta) error {
 		streamMu.Lock()
 		defer streamMu.Unlock()
 		if delta.Run != nil {
 			return writer.WriteEvent(adkChatStreamEvent{Type: "run", Run: delta.Run})
+		}
+		if delta.Context != nil {
+			contextSent = true
+			if err := writer.WriteEvent(adkChatStreamEvent{Type: "context", Context: delta.Context}); err != nil {
+				return err
+			}
 		}
 		if !sessionSent {
 			session, sessionErr := s.previewADKSession(c.Request.Context(), payload)
@@ -85,6 +93,14 @@ func (s *Server) handleADKChatStream(c *gin.Context) {
 					return err
 				}
 				sessionSent = true
+				if !contextSent && strings.TrimSpace(session.ID) != "" {
+					if snapshot, snapshotErr := s.adkRuntime.SessionContext(c.Request.Context(), session.ID); snapshotErr == nil {
+						if err := writer.WriteEvent(adkChatStreamEvent{Type: "context", Context: &snapshot}); err != nil {
+							return err
+						}
+						contextSent = true
+					}
+				}
 			}
 		}
 		if delta.ToolProgress != "" {
@@ -106,6 +122,9 @@ func (s *Server) handleADKChatStream(c *gin.Context) {
 	if !sessionSent {
 		_ = writer.WriteEvent(adkChatStreamEvent{Type: "session", Session: &response.Session})
 	}
+	if !contextSent && response.Context != nil {
+		_ = writer.WriteEvent(adkChatStreamEvent{Type: "context", Context: response.Context})
+	}
 	trimmedRun := response.Run
 	for i := range trimmedRun.ToolCalls {
 		if trimmedRun.ToolCalls[i].Output != nil {
@@ -118,6 +137,7 @@ func (s *Server) handleADKChatStream(c *gin.Context) {
 		Session:          response.Session,
 		Run:              trimmedRun,
 		PendingApprovals: response.PendingApprovals,
+		Context:          response.Context,
 	}})
 }
 

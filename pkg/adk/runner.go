@@ -13,19 +13,21 @@ import (
 )
 
 type Runtime struct {
-	store          *Store
-	tools          *ToolRegistry
-	skills         *SkillRegistry
-	sessionService adksession.Service
-	openai         openAIClient
-	limitsProvider RuntimeLimitsProvider
-	activeMu       sync.Mutex
-	activeRuns     map[string]context.CancelFunc
-	adkMu          sync.Mutex
-	adkRuns        map[string]*googleADKExecution
-	approvalMu     sync.Mutex
-	approvalRuns   map[string]struct{}
-	runSem         chan struct{} // Concurrency limiter for active runs
+	store             *Store
+	tools             *ToolRegistry
+	skills            *SkillRegistry
+	sessionService    adksession.Service
+	rawSessionService adksession.Service
+	contextManager    *SessionContextManager
+	openai            openAIClient
+	limitsProvider    RuntimeLimitsProvider
+	activeMu          sync.Mutex
+	activeRuns        map[string]context.CancelFunc
+	adkMu             sync.Mutex
+	adkRuns           map[string]*googleADKExecution
+	approvalMu        sync.Mutex
+	approvalRuns      map[string]struct{}
+	runSem            chan struct{} // Concurrency limiter for active runs
 }
 
 func NewRuntime(store *Store, tools *ToolRegistry) *Runtime {
@@ -41,9 +43,13 @@ func NewRuntimeWithSessionService(store *Store, tools *ToolRegistry, sessionServ
 		skillsPath = store.SkillsPath()
 	}
 	r := &Runtime{
-		store: store, tools: tools, skills: NewSkillRegistry(skillsPath), sessionService: sessionService, openai: newOpenAIClient(),
+		store: store, tools: tools, skills: NewSkillRegistry(skillsPath), sessionService: sessionService, rawSessionService: sessionService, openai: newOpenAIClient(),
 		activeRuns: map[string]context.CancelFunc{}, adkRuns: map[string]*googleADKExecution{}, approvalRuns: map[string]struct{}{},
 		runSem: make(chan struct{}, MaxConcurrentRuns),
+	}
+	if sessionService != nil && store != nil {
+		r.contextManager = NewSessionContextManager(store, sessionService, r.openai, tools)
+		r.sessionService = r.contextManager.WrapService(sessionService)
 	}
 	r.reconcileStaleRuns(context.Background())
 	return r
@@ -207,6 +213,61 @@ func (r *Runtime) Store() *Store {
 	return r.store
 }
 
+func (r *Runtime) SessionContext(ctx context.Context, sessionID string) (SessionContextSnapshot, error) {
+	if r == nil || r.store == nil || r.contextManager == nil {
+		return SessionContextSnapshot{}, fmt.Errorf("adk runtime is unavailable")
+	}
+	session, ok, err := r.store.Session(ctx, strings.TrimSpace(sessionID))
+	if err != nil {
+		return SessionContextSnapshot{}, err
+	}
+	if !ok {
+		return SessionContextSnapshot{}, fmt.Errorf("session not found")
+	}
+	agent, err := r.resolveAgent(ctx, session.AgentID)
+	if err != nil {
+		return SessionContextSnapshot{}, err
+	}
+	agent, err = r.prepareAgent(ctx, agent)
+	if err != nil {
+		return SessionContextSnapshot{}, err
+	}
+	return r.contextManager.Snapshot(ctx, session, agent)
+}
+
+func (r *Runtime) CompactSessionContext(ctx context.Context, sessionID string, mode string, trigger string, reason string) (SessionContextSnapshot, error) {
+	if r == nil || r.store == nil || r.contextManager == nil {
+		return SessionContextSnapshot{}, fmt.Errorf("adk runtime is unavailable")
+	}
+	session, ok, err := r.store.Session(ctx, strings.TrimSpace(sessionID))
+	if err != nil {
+		return SessionContextSnapshot{}, err
+	}
+	if !ok {
+		return SessionContextSnapshot{}, fmt.Errorf("session not found")
+	}
+	active, err := r.contextManager.HasActiveRun(ctx, session.ID)
+	if err != nil {
+		return SessionContextSnapshot{}, err
+	}
+	if active {
+		return SessionContextSnapshot{}, fmt.Errorf("session has an active or pending run")
+	}
+	agent, err := r.resolveAgent(ctx, session.AgentID)
+	if err != nil {
+		return SessionContextSnapshot{}, err
+	}
+	agent, err = r.prepareAgent(ctx, agent)
+	if err != nil {
+		return SessionContextSnapshot{}, err
+	}
+	return r.contextManager.Compact(ctx, session, agent, SessionCompactRequest{
+		Mode:    normalizeCompactMode(mode),
+		Trigger: defaultString(strings.TrimSpace(trigger), "manual"),
+		Reason:  reason,
+	})
+}
+
 func (r *Runtime) Close() error {
 	if r == nil {
 		return nil
@@ -217,7 +278,11 @@ func (r *Runtime) Close() error {
 		delete(r.activeRuns, id)
 	}
 	r.activeMu.Unlock()
-	return errors.Join(CloseSessionService(r.sessionService), r.store.Close())
+	sessionErr := CloseSessionService(r.sessionService)
+	if r.rawSessionService != nil && r.rawSessionService != r.sessionService {
+		sessionErr = errors.Join(sessionErr, CloseSessionService(r.rawSessionService))
+	}
+	return errors.Join(sessionErr, r.store.Close())
 }
 
 func (r *Runtime) Tools() *ToolRegistry {
@@ -602,7 +667,7 @@ func (r *Runtime) markApprovalContinuationFailed(ctx context.Context, runID stri
 	run.CompletedAt = &completedAt
 	finalizeRunUsage(&run)
 	_ = r.store.SaveRun(ctx, run)
-	if saved, msgErr := r.store.AddMessage(ctx, run.SessionID, "assistant", localReply(run.UserMessage, toolSummariesForRun(run), cause), ""); msgErr == nil {
+	if saved, msgErr := r.store.AddTranscriptEntry(ctx, run.SessionID, run.ID, "assistant", transcriptKindMessage, localReply(run.UserMessage, toolSummariesForRun(run), cause), ""); msgErr == nil {
 		run.FinalMessageID = saved.ID
 		_ = r.store.SaveRun(ctx, run)
 	}

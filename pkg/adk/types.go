@@ -33,28 +33,30 @@ const (
 )
 
 type Provider struct {
-	ID               string            `json:"id"`
-	DisplayName      string            `json:"displayName"`
-	BaseURL          string            `json:"baseUrl"`
-	Model            string            `json:"model"`
-	RequestTimeoutMs int               `json:"requestTimeoutMs"`
-	DefaultHeaders   map[string]string `json:"defaultHeaders,omitempty"`
-	Enabled          bool              `json:"enabled"`
-	HasAPIKey        bool              `json:"hasApiKey"`
-	Capabilities     map[string]bool   `json:"capabilities,omitempty"`
-	CreatedAt        string            `json:"createdAt"`
-	UpdatedAt        string            `json:"updatedAt"`
+	ID                  string            `json:"id"`
+	DisplayName         string            `json:"displayName"`
+	BaseURL             string            `json:"baseUrl"`
+	Model               string            `json:"model"`
+	ContextWindowTokens int               `json:"contextWindowTokens,omitempty"`
+	RequestTimeoutMs    int               `json:"requestTimeoutMs"`
+	DefaultHeaders      map[string]string `json:"defaultHeaders,omitempty"`
+	Enabled             bool              `json:"enabled"`
+	HasAPIKey           bool              `json:"hasApiKey"`
+	Capabilities        map[string]bool   `json:"capabilities,omitempty"`
+	CreatedAt           string            `json:"createdAt"`
+	UpdatedAt           string            `json:"updatedAt"`
 }
 
 type ProviderWriteRequest struct {
-	ID               string            `json:"id,omitempty"`
-	DisplayName      string            `json:"displayName"`
-	BaseURL          string            `json:"baseUrl"`
-	Model            string            `json:"model"`
-	RequestTimeoutMs int               `json:"requestTimeoutMs,omitempty"`
-	DefaultHeaders   map[string]string `json:"defaultHeaders,omitempty"`
-	APIKey           string            `json:"apiKey,omitempty"`
-	Enabled          bool              `json:"enabled"`
+	ID                  string            `json:"id,omitempty"`
+	DisplayName         string            `json:"displayName"`
+	BaseURL             string            `json:"baseUrl"`
+	Model               string            `json:"model"`
+	ContextWindowTokens int               `json:"contextWindowTokens,omitempty"`
+	RequestTimeoutMs    int               `json:"requestTimeoutMs,omitempty"`
+	DefaultHeaders      map[string]string `json:"defaultHeaders,omitempty"`
+	APIKey              string            `json:"apiKey,omitempty"`
+	Enabled             bool              `json:"enabled"`
 }
 
 type RuntimeLimits struct {
@@ -64,32 +66,34 @@ type RuntimeLimits struct {
 type RuntimeLimitsProvider func() RuntimeLimits
 
 type Agent struct {
-	ID             string   `json:"id"`
-	Name           string   `json:"name"`
-	Instruction    string   `json:"instruction"`
-	ProviderID     string   `json:"providerId"`
-	Model          string   `json:"model"`
-	Tools          []string `json:"tools"`
-	Skills         []string `json:"skills"`
-	PermissionMode string   `json:"permissionMode"`
-	MemoryEnabled  bool     `json:"memoryEnabled"`
-	Status         string   `json:"status"`
-	CreatedAt      string   `json:"createdAt"`
-	UpdatedAt      string   `json:"updatedAt"`
-	DeletedAt      *string  `json:"deletedAt,omitempty"`
+	ID               string   `json:"id"`
+	Name             string   `json:"name"`
+	Instruction      string   `json:"instruction"`
+	ProviderID       string   `json:"providerId"`
+	Model            string   `json:"model"`
+	Tools            []string `json:"tools"`
+	Skills           []string `json:"skills"`
+	PermissionMode   string   `json:"permissionMode"`
+	MemoryEnabled    bool     `json:"memoryEnabled"`
+	RecentUserWindow int      `json:"recentUserWindow"`
+	Status           string   `json:"status"`
+	CreatedAt        string   `json:"createdAt"`
+	UpdatedAt        string   `json:"updatedAt"`
+	DeletedAt        *string  `json:"deletedAt,omitempty"`
 }
 
 type AgentWriteRequest struct {
-	ID             string   `json:"id,omitempty"`
-	Name           string   `json:"name"`
-	Instruction    string   `json:"instruction"`
-	ProviderID     string   `json:"providerId"`
-	Model          string   `json:"model,omitempty"`
-	Tools          []string `json:"tools,omitempty"`
-	Skills         []string `json:"skills,omitempty"`
-	PermissionMode string   `json:"permissionMode"`
-	MemoryEnabled  bool     `json:"memoryEnabled"`
-	Status         string   `json:"status"`
+	ID               string   `json:"id,omitempty"`
+	Name             string   `json:"name"`
+	Instruction      string   `json:"instruction"`
+	ProviderID       string   `json:"providerId"`
+	Model            string   `json:"model,omitempty"`
+	Tools            []string `json:"tools,omitempty"`
+	Skills           []string `json:"skills,omitempty"`
+	PermissionMode   string   `json:"permissionMode"`
+	MemoryEnabled    bool     `json:"memoryEnabled"`
+	RecentUserWindow int      `json:"recentUserWindow,omitempty"`
+	Status           string   `json:"status"`
 }
 
 type Session struct {
@@ -100,14 +104,18 @@ type Session struct {
 	UpdatedAt string `json:"updatedAt"`
 }
 
-type Message struct {
+type TranscriptEntry struct {
 	ID               string `json:"id"`
 	SessionID        string `json:"sessionId"`
+	RunID            string `json:"runId,omitempty"`
 	Role             string `json:"role"`
+	Kind             string `json:"kind"`
 	Content          string `json:"content"`
 	ReasoningContent string `json:"reasoningContent,omitempty"`
 	CreatedAt        string `json:"createdAt"`
 }
+
+type Message = TranscriptEntry
 
 type Run struct {
 	ID                 string     `json:"id"`
@@ -214,29 +222,32 @@ type ChatRequest struct {
 }
 
 type ChatDelta struct {
-	Reply            string `json:"reply,omitempty"`
-	ReasoningContent string `json:"reasoningContent,omitempty"`
-	ToolProgress     string `json:"toolProgress,omitempty"`
-	Run              *Run   `json:"run,omitempty"`
+	Reply            string                  `json:"reply,omitempty"`
+	ReasoningContent string                  `json:"reasoningContent,omitempty"`
+	ToolProgress     string                  `json:"toolProgress,omitempty"`
+	Run              *Run                    `json:"run,omitempty"`
+	Context          *SessionContextSnapshot `json:"context,omitempty"`
 }
 
 type ChatResponse struct {
-	Reply            string     `json:"reply"`
-	ReasoningContent string     `json:"reasoningContent,omitempty"`
-	Session          Session    `json:"session"`
-	Run              Run        `json:"run"`
-	PendingApprovals []Approval `json:"pendingApprovals"`
+	Reply            string                  `json:"reply"`
+	ReasoningContent string                  `json:"reasoningContent,omitempty"`
+	Session          Session                 `json:"session"`
+	Run              Run                     `json:"run"`
+	PendingApprovals []Approval              `json:"pendingApprovals"`
+	Context          *SessionContextSnapshot `json:"context,omitempty"`
 }
 
 type ApprovalResolution struct {
-	Approval Approval `json:"approval"`
-	Run      *Run     `json:"run,omitempty"`
-	Message  *Message `json:"message,omitempty"`
+	Approval Approval         `json:"approval"`
+	Run      *Run             `json:"run,omitempty"`
+	Message  *TranscriptEntry `json:"message,omitempty"`
 }
 
 type SessionsResponse struct {
-	Session  Session   `json:"session"`
-	Messages []Message `json:"messages"`
+	Session           Session           `json:"session"`
+	TranscriptEntries []TranscriptEntry `json:"transcriptEntries"`
+	Messages          []TranscriptEntry `json:"messages,omitempty"`
 }
 
 type Snapshot struct {
@@ -315,6 +326,77 @@ type MemoryWriteRequest struct {
 	Key     string `json:"key"`
 	Value   string `json:"value"`
 	Scope   string `json:"scope,omitempty"`
+}
+
+type HandoffSegment struct {
+	ID              string `json:"id"`
+	SessionID       string `json:"sessionId"`
+	Sequence        int    `json:"sequence"`
+	StartEventIndex int    `json:"startEventIndex"`
+	EndEventIndex   int    `json:"endEventIndex"`
+	Summary         string `json:"summary"`
+	Mode            string `json:"mode"`
+	Reason          string `json:"reason,omitempty"`
+	EstimatedTokens int    `json:"estimatedTokens"`
+	Active          bool   `json:"active"`
+	SupersededBy    string `json:"supersededBy,omitempty"`
+	CreatedAt       string `json:"createdAt"`
+	UpdatedAt       string `json:"updatedAt"`
+}
+
+type SessionContextBreakdown struct {
+	InstructionTokens     int `json:"instructionTokens"`
+	HandoffTokens         int `json:"handoffTokens"`
+	RecentUserTokens      int `json:"recentUserTokens"`
+	ProtectedTailTokens   int `json:"protectedTailTokens"`
+	OtherVisibleTokens    int `json:"otherVisibleTokens"`
+	PendingUserTokens     int `json:"pendingUserTokens"`
+	ToolDeclarationTokens int `json:"toolDeclarationTokens"`
+}
+
+type SessionContextState struct {
+	SessionID               string                  `json:"sessionId"`
+	RecentUserWindow        int                     `json:"recentUserWindow"`
+	RetainedRecentUserCount int                     `json:"retainedRecentUserCount"`
+	ActiveHandoffCount      int                     `json:"activeHandoffCount"`
+	CurrentInputTokens      int                     `json:"currentInputTokens"`
+	ProjectedNextTurnTokens int                     `json:"projectedNextTurnTokens"`
+	ContextWindowTokens     int                     `json:"contextWindowTokens"`
+	UsageRatio              float64                 `json:"usageRatio"`
+	LatestHandoffPreview    string                  `json:"latestHandoffPreview,omitempty"`
+	Breakdown               SessionContextBreakdown `json:"breakdown"`
+	LastCompactedAt         string                  `json:"lastCompactedAt,omitempty"`
+	LastCompactionMode      string                  `json:"lastCompactionMode,omitempty"`
+	LastCompactionReason    string                  `json:"lastCompactionReason,omitempty"`
+	AutoCompacted           bool                    `json:"autoCompacted,omitempty"`
+	DegradedSummary         bool                    `json:"degradedSummary,omitempty"`
+	CreatedAt               string                  `json:"createdAt"`
+	UpdatedAt               string                  `json:"updatedAt"`
+}
+
+type SessionContextSnapshot struct {
+	SessionID               string                  `json:"sessionId"`
+	CurrentInputTokens      int                     `json:"currentInputTokens"`
+	ProjectedNextTurnTokens int                     `json:"projectedNextTurnTokens"`
+	EstimatedInputTokens    int                     `json:"estimatedInputTokens,omitempty"`
+	ContextWindowTokens     int                     `json:"contextWindowTokens"`
+	UsageRatio              float64                 `json:"usageRatio"`
+	Status                  string                  `json:"status"`
+	RecentUserWindow        int                     `json:"recentUserWindow"`
+	RetainedRecentUserCount int                     `json:"retainedRecentUserCount"`
+	ProtectedRecentCount    int                     `json:"protectedRecentCount,omitempty"`
+	ActiveHandoffCount      int                     `json:"activeHandoffCount"`
+	LatestHandoffPreview    string                  `json:"latestHandoffPreview,omitempty"`
+	SummaryPreview          string                  `json:"summaryPreview,omitempty"`
+	RawEventCount           int                     `json:"rawEventCount,omitempty"`
+	CompactedEventCount     int                     `json:"compactedEventCount,omitempty"`
+	SummaryBoundaryEventIndex int                   `json:"summaryBoundaryEventIndex,omitempty"`
+	Breakdown               SessionContextBreakdown `json:"breakdown"`
+	LastCompactedAt         string                  `json:"lastCompactedAt,omitempty"`
+	LastCompactionMode      string                  `json:"lastCompactionMode,omitempty"`
+	LastCompactionReason    string                  `json:"lastCompactionReason,omitempty"`
+	AutoCompacted           bool                    `json:"autoCompacted"`
+	DegradedSummary         bool                    `json:"degradedSummary"`
 }
 
 func nowString() string {

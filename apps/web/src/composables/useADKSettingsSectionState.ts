@@ -262,6 +262,7 @@ export function useADKSettingsSectionState() {
       skills: [...template.skills],
       permissionMode: template.permissionMode,
       memoryEnabled: template.memoryEnabled,
+      recentUserWindow: template.recentUserWindow ?? 6,
       status: template.status,
     };
     agentTemplateNotice.value = `已载入「${template.name}」模板。保存智能体表单后生效。`;

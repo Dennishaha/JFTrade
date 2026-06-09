@@ -42,6 +42,7 @@ export interface ADKProvider {
   displayName: string;
   baseUrl: string;
   model: string;
+  contextWindowTokens?: number;
   requestTimeoutMs: number;
   defaultHeaders?: Record<string, string>;
   enabled: boolean;
@@ -66,6 +67,7 @@ export interface ADKAgent {
   skills: string[];
   permissionMode: ADKPermissionMode;
   memoryEnabled: boolean;
+  recentUserWindow: number;
   status: "ENABLED" | "DISABLED" | string;
   createdAt: string;
   updatedAt: string;
@@ -136,14 +138,57 @@ export interface ADKSession {
   updatedAt: string;
 }
 
-export interface ADKMessage {
+export interface ADKSessionContextSnapshot {
+  sessionId: string;
+  currentInputTokens: number;
+  projectedNextTurnTokens: number;
+  estimatedInputTokens?: number;
+  contextWindowTokens: number;
+  usageRatio: number;
+  status:
+    | "unknown"
+    | "healthy"
+    | "warning"
+    | "near_limit"
+    | "critical"
+    | string;
+  recentUserWindow: number;
+  retainedRecentUserCount: number;
+  protectedRecentCount?: number;
+  activeHandoffCount: number;
+  latestHandoffPreview?: string;
+  summaryPreview?: string;
+  rawEventCount?: number;
+  compactedEventCount?: number;
+  summaryBoundaryEventIndex?: number;
+  breakdown: {
+    instructionTokens: number;
+    handoffTokens: number;
+    recentUserTokens: number;
+    protectedTailTokens: number;
+    otherVisibleTokens: number;
+    pendingUserTokens: number;
+    toolDeclarationTokens: number;
+  };
+  lastCompactedAt?: string;
+  lastCompactionMode?: "manual" | "auto" | "aggressive" | string;
+  lastCompactionReason?: string;
+  autoCompacted: boolean;
+  degradedSummary: boolean;
+}
+
+export interface ADKTranscriptEntry {
   id: string;
   sessionId: string;
+  runId?: string;
   role: "user" | "assistant" | string;
+  kind: string;
   content: string;
   reasoningContent?: string;
   createdAt: string;
 }
+
+export type ADKMessage = ADKTranscriptEntry;
 
 export interface ADKRunUsage {
   modelCalls?: number;
@@ -187,6 +232,7 @@ export interface ADKChatResponse {
   session: ADKSession;
   run: ADKRun;
   pendingApprovals: ADKApproval[];
+  context?: ADKSessionContextSnapshot;
 }
 
 export interface ADKApprovalResolution {

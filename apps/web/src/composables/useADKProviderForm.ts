@@ -2,7 +2,11 @@ import { ref } from "vue";
 
 import type { ADKProvider } from "@jftrade/ui-contracts";
 
-import { deleteADKProvider, saveADKProvider, testADKProvider } from "./adkSettingsApi";
+import {
+  deleteADKProvider,
+  saveADKProvider,
+  testADKProvider,
+} from "./adkSettingsApi";
 
 function createProviderForm() {
   return {
@@ -10,6 +14,7 @@ function createProviderForm() {
     displayName: "OpenAI Compatible",
     baseUrl: "https://api.openai.com/v1",
     model: "gpt-4o-mini",
+    contextWindowTokens: 0,
     requestTimeoutSeconds: 180,
     apiKey: "",
     enabled: true,
@@ -27,7 +32,16 @@ export function useADKProviderForm(
     try {
       const provider = await saveADKProvider({
         ...providerForm.value,
-        requestTimeoutMs: Math.max(1, Math.round(Number(providerForm.value.requestTimeoutSeconds || 0) * 1000)),
+        contextWindowTokens: Math.max(
+          0,
+          Math.round(Number(providerForm.value.contextWindowTokens || 0)),
+        ),
+        requestTimeoutMs: Math.max(
+          1,
+          Math.round(
+            Number(providerForm.value.requestTimeoutSeconds || 0) * 1000,
+          ),
+        ),
       });
       providerForm.value.id = provider.id;
       providerForm.value.apiKey = "";
@@ -66,7 +80,11 @@ export function useADKProviderForm(
       displayName: provider.displayName,
       baseUrl: provider.baseUrl,
       model: provider.model,
-      requestTimeoutSeconds: Math.max(1, Math.round((provider.requestTimeoutMs ?? 180_000) / 1000)),
+      contextWindowTokens: provider.contextWindowTokens ?? 0,
+      requestTimeoutSeconds: Math.max(
+        1,
+        Math.round((provider.requestTimeoutMs ?? 180_000) / 1000),
+      ),
       apiKey: "",
       enabled: provider.enabled,
     };
