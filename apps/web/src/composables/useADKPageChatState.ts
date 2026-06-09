@@ -297,14 +297,9 @@ export function useADKPageChatState(
 
   async function applyAuthoritativeTimeline(
     response: ADKChatResponse,
-    sessionId: string,
+    _sessionId: string,
   ): Promise<void> {
-    if (response.timeline && response.timeline.length > 0) {
-      timelineEntries.value = replaceTimelineEntries(response.timeline, timelineEntries.value);
-    } else if (sessionId) {
-      await reloadSessionTimeline(sessionId);
-      return;
-    }
+    timelineEntries.value = replaceTimelineEntries(response.timeline, timelineEntries.value);
     await scrollToBottom(threadRef);
   }
 

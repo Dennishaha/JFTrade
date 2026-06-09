@@ -253,6 +253,7 @@ func (r *Runtime) projectedChatResponse(
 		Session:          session,
 		Run:              run,
 		PendingApprovals: append([]Approval(nil), approvals...),
+		Timeline:         []TimelineEntry{},
 		Context:          r.contextSnapshotOrNil(ctx, session.ID),
 	}
 	if r == nil || r.store == nil {
@@ -274,9 +275,16 @@ func (r *Runtime) projectedChatResponse(
 	}
 	response.Run = applySessionProjectionToRun(response.Run, projection)
 	if timeline, ok, timelineErr := r.store.SessionTimeline(ctx, session.ID); timelineErr == nil && ok {
-		response.Timeline = timeline
+		response.Timeline = normalizedTimelineEntries(timeline)
 	}
 	return response
+}
+
+func normalizedTimelineEntries(entries []TimelineEntry) []TimelineEntry {
+	if len(entries) == 0 {
+		return []TimelineEntry{}
+	}
+	return append([]TimelineEntry(nil), entries...)
 }
 
 func applySessionProjectionToRun(run Run, projection SessionProjection) Run {

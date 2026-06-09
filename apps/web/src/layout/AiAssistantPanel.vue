@@ -378,15 +378,9 @@ async function reloadTimeline(): Promise<void> {
 
 async function applyAuthoritativeTimeline(
   response: ADKChatResponse,
-  nextSessionId: string,
+  _nextSessionId: string,
 ): Promise<void> {
-  if (response.timeline && response.timeline.length > 0) {
-    timelineEntries.value = replaceTimelineEntries(response.timeline, timelineEntries.value);
-  } else if (nextSessionId) {
-    sessionId.value = nextSessionId;
-    await reloadTimeline();
-    return;
-  }
+  timelineEntries.value = replaceTimelineEntries(response.timeline, timelineEntries.value);
   await scrollToBottom(scrollHost);
 }
 

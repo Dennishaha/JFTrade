@@ -261,7 +261,7 @@ type ChatResponse struct {
 	Session          Session                 `json:"session"`
 	Run              Run                     `json:"run"`
 	PendingApprovals []Approval              `json:"pendingApprovals"`
-	Timeline         []TimelineEntry         `json:"timeline,omitempty"`
+	Timeline         []TimelineEntry         `json:"timeline"`
 	Context          *SessionContextSnapshot `json:"context,omitempty"`
 }
 
@@ -273,7 +273,7 @@ type ApprovalResolution struct {
 
 type SessionsResponse struct {
 	Session  Session         `json:"session"`
-	Timeline []TimelineEntry `json:"timeline,omitempty"`
+	Timeline []TimelineEntry `json:"timeline"`
 }
 
 type Snapshot struct {

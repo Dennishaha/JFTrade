@@ -13,7 +13,7 @@ describe("streamADKChat", () => {
   it("prefers the server-provided idle timeout header", async () => {
     const timeoutSpy = vi.spyOn(globalThis, "setTimeout");
     const body = [
-      'data: {"type":"final","response":{"reply":"ok","session":{"id":"session-1","agentId":"agent-1","title":"Test","createdAt":"2026-06-08T00:00:00Z","updatedAt":"2026-06-08T00:00:00Z"},"run":{"id":"run-1","sessionId":"session-1","agentId":"agent-1","status":"COMPLETED","message":"completed","toolCalls":[],"pendingApprovals":[],"createdAt":"2026-06-08T00:00:00Z","updatedAt":"2026-06-08T00:00:00Z"},"pendingApprovals":[]}}',
+      'data: {"type":"final","response":{"reply":"ok","session":{"id":"session-1","agentId":"agent-1","title":"Test","createdAt":"2026-06-08T00:00:00Z","updatedAt":"2026-06-08T00:00:00Z"},"run":{"id":"run-1","sessionId":"session-1","agentId":"agent-1","status":"COMPLETED","message":"completed","toolCalls":[],"pendingApprovals":[],"createdAt":"2026-06-08T00:00:00Z","updatedAt":"2026-06-08T00:00:00Z"},"pendingApprovals":[],"timeline":[]}}',
       "",
       "",
     ].join("\n");
@@ -33,6 +33,7 @@ describe("streamADKChat", () => {
     );
 
     expect(response.reply).toBe("ok");
+    expect(response.timeline).toEqual([]);
     expect(timeoutSpy).toHaveBeenCalled();
     const delays = timeoutSpy.mock.calls
       .map((call) => call[1])

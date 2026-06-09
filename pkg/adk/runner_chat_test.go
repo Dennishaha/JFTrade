@@ -396,6 +396,9 @@ func TestProjectedChatResponseAppliesProjectionToRunFields(t *testing.T) {
 	if response.Run.FinalMessageID == "" {
 		t.Fatalf("finalMessageID = %q, want projected final message id", response.Run.FinalMessageID)
 	}
+	if len(response.Timeline) == 0 {
+		t.Fatalf("timeline = %+v, want projected timeline entries", response.Timeline)
+	}
 }
 
 func TestResolveApprovalAsyncDetachesClosedStreamBeforeBackgroundResume(t *testing.T) {

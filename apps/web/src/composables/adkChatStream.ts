@@ -15,7 +15,7 @@ export interface ADKChatStreamResponse {
   session: ADKSession;
   run: ADKRun;
   pendingApprovals: ADKApproval[];
-  timeline?: ADKTimelineEntry[];
+  timeline: ADKTimelineEntry[];
   context?: ADKSessionContextSnapshot;
 }
 

@@ -72,6 +72,9 @@ func (s *Server) handleADKSession(c *gin.Context) {
 		s.writeError(c, http.StatusInternalServerError, "ADK_MESSAGES_GET_FAILED", err.Error())
 		return
 	}
+	if timeline == nil {
+		timeline = []jfadk.TimelineEntry{}
+	}
 	s.writeOK(c, jfadk.SessionsResponse{
 		Session:  session,
 		Timeline: timeline,

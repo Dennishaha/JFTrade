@@ -254,7 +254,7 @@ export interface ADKChatResponse {
   session: ADKSession;
   run: ADKRun;
   pendingApprovals: ADKApproval[];
-  timeline?: ADKTimelineEntry[];
+  timeline: ADKTimelineEntry[];
   context?: ADKSessionContextSnapshot;
 }
 
