@@ -1,4 +1,4 @@
-import type { StrategyVisualModelDocument } from "@jftrade/ui-contracts";
+import type { StrategyVisualModelDocument } from "@/contracts";
 
 export function createDefaultStrategyVisualModel(): StrategyVisualModelDocument {
   return {

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { StrategyDefinitionDocument } from "@jftrade/ui-contracts";
+import type { StrategyDefinitionDocument } from "@/contracts";
 import StrategyLogicFlowDesigner from "../src/components/StrategyLogicFlowDesigner.vue";
 import {
   MockWebSocket,

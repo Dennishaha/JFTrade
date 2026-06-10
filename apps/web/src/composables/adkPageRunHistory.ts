@@ -1,4 +1,4 @@
-import type { ADKSession, ADKTimelineEntry } from "@jftrade/ui-contracts";
+import type { ADKSession, ADKTimelineEntry } from "@/contracts";
 
 import { fetchEnvelope } from "./apiClient";
 import {

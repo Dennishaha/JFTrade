@@ -1,7 +1,7 @@
 import {
   type ApiErrorEnvelope,
   type ApiSuccessEnvelope,
-} from "@jftrade/ui-contracts";
+} from "@/contracts";
 
 import { buildRuntimeApiUrl } from "../runtimeConfig";
 

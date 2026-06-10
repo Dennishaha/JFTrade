@@ -2,7 +2,7 @@ import type {
   StrategyVisualEdgeDocument,
   StrategyVisualModelDocument,
   StrategyVisualNodeDocument,
-} from "@jftrade/ui-contracts";
+} from "@/contracts";
 
 import { getStrategyBlockKind } from "./strategyVisualBuilderCatalog";
 import {

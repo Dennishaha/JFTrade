@@ -1,4 +1,4 @@
-import type { StrategyVisualModelDocument } from "@jftrade/ui-contracts";
+import type { StrategyVisualModelDocument } from "@/contracts";
 import { computed, type ComputedRef, type Ref } from "vue";
 
 import {

@@ -3,7 +3,7 @@ import { computed, reactive, ref, watch, type Ref } from "vue";
 import {
   type BrokerRuntimeResponse,
   type BrokerSettingsResponse,
-} from "@jftrade/ui-contracts";
+} from "@/contracts";
 
 export interface SettingsManagedAccountForm {
   brokerId: string;

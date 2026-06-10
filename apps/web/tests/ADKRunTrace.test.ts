@@ -3,7 +3,7 @@
 import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
 
-import type { ADKRun } from "@jftrade/ui-contracts";
+import type { ADKRun } from "@/contracts";
 
 import ADKRunTrace from "../src/components/shared/ADKRunTrace.vue";
 

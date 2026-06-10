@@ -6,7 +6,7 @@ import type {
   ADKProvider,
   ADKSkill,
   ADKToolDescriptor,
-} from "@jftrade/ui-contracts";
+} from "@/contracts";
 
 import { deleteADKAgent, saveADKAgent } from "./adkSettingsApi";
 

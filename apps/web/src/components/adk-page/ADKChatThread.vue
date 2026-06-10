@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 
-import type { ADKApproval, ADKRun, ADKToolDescriptor } from "@jftrade/ui-contracts";
+import type { ADKApproval, ADKRun, ADKToolDescriptor } from "@/contracts";
 
 import {
   approvalsForGroup,

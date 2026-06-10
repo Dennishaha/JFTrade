@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 
-import type { ADKSessionContextSnapshot } from "@jftrade/ui-contracts";
+import type { ADKSessionContextSnapshot } from "@/contracts";
 
 import type { QueuedChatMessage } from "../../composables/adkChatRuntime";
 

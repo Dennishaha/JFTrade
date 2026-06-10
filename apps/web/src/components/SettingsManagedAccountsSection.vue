@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { BrokerSettingsResponse } from "@jftrade/ui-contracts";
+import type { BrokerSettingsResponse } from "@/contracts";
 
 import {
   formatGenericStatusLabel,

@@ -3,7 +3,7 @@ import type {
     StrategyDefinitionDocument,
     StrategySourceFormat,
     StrategyVisualModelDocument,
-} from "@jftrade/ui-contracts";
+} from "@/contracts";
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 
 import StrategyLogicFlowDesigner from "./StrategyLogicFlowDesigner.vue";

@@ -2,7 +2,7 @@ import {
   type BrokerRuntimeResponse,
   type BrokerSettingsResponse,
   type SystemStatusResponse,
-} from "@jftrade/ui-contracts";
+} from "@/contracts";
 
 export interface BrokerAccountSelectionOption {
   selectionKey: string;

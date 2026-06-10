@@ -2,7 +2,7 @@ import type {
     StrategyApplyLinkedInstancesResponse,
     StrategyDefinitionDocument,
     StrategyInstanceItem,
-} from "@jftrade/ui-contracts";
+} from "@/contracts";
 import type { ComputedRef, Ref } from "vue";
 import { onBeforeUnmount, onMounted, ref } from "vue";
 import { onBeforeRouteLeave } from "vue-router";

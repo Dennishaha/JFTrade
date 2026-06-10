@@ -3,7 +3,7 @@
 import type {
   MarketSecurityDetails,
   MarketSecurityDetailsQueryResult,
-} from "@jftrade/ui-contracts";
+} from "@/contracts";
 import { mount } from "@vue/test-utils";
 import { createPinia } from "pinia";
 import { afterEach, describe, expect, it } from "vitest";

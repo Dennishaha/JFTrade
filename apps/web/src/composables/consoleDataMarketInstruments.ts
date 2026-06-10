@@ -6,7 +6,7 @@ import {
   type ExecutionOrdersResponse,
   type MarketDataSubscriptionsResponse,
   type PortfolioPositionsResponse,
-} from "@jftrade/ui-contracts";
+} from "@/contracts";
 
 import type { MarketInstrumentReference } from "./consoleDataSystemState";
 import { resolveInstrumentRef } from "./instrumentRef";

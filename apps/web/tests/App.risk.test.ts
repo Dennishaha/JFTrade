@@ -23,12 +23,12 @@ import {
   emptyStorageOverview,
   emptySystemStatus,
   emptyWorkerBrokerOrderUpdates,
-} from "@jftrade/ui-contracts";
+} from "@/contracts";
 import type {
   RealTradeHardStopsResponse,
   RealTradeKillSwitchStateResponse,
   RealTradeRiskStateResponse,
-} from "@jftrade/ui-contracts";
+} from "@/contracts";
 
 import { MockWebSocket, createResponse, mountApp } from "./helpers";
 

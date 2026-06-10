@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { BrokerRuntimeResponse } from "@jftrade/ui-contracts";
+import type { BrokerRuntimeResponse } from "@/contracts";
 
 import {
   formatAccountTypeLabel,

@@ -55,7 +55,7 @@
 - [../../pkg/jftradeapi/strategy_design_store.go](../../pkg/jftradeapi/strategy_design_store.go)：策略定义文件存储，包含 DSL runtime/sourceFormat 归一化、旧记录迁移、`visualModel` 归一化和落盘。
 - [../../pkg/jftradeapi/strategy_catalog_store.go](../../pkg/jftradeapi/strategy_catalog_store.go)：策略实例目录，实例化时编译 DSL、记录 compiled hooks 和 compiled requirements。
 - [../../pkg/jftradeapi/openapi_components.go](../../pkg/jftradeapi/openapi_components.go)：`StrategyDefinition`、`StrategyVisualModel` 等 OpenAPI 契约。
-- [../../packages/ui-contracts/src/index.ts](../../packages/ui-contracts/src/index.ts)：前后端共享 DTO，前端页面和测试都依赖这里的 `visualModel` 结构。
+- [../../apps/web/src/contracts/index.ts](../../apps/web/src/contracts/index.ts)：前端页面和测试共享的 DTO 与默认模型都在这里，`visualModel` 结构也以这里为准。
 
 ### 运行时
 

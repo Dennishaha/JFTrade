@@ -2,7 +2,7 @@
 import type {
   StrategyDefinitionDocument,
   StrategyVisualNodeDocument,
-} from "@jftrade/ui-contracts";
+} from "@/contracts";
 import { computed, type Ref } from "vue";
 
 import type {

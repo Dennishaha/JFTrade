@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { StrategyInstanceItem } from "@jftrade/ui-contracts";
+import type { StrategyInstanceItem } from "@/contracts";
 
 import {
   buildStrategyBindingPayload,

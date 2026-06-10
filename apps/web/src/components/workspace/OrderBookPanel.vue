@@ -3,7 +3,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 
 import type {
   MarketDataDepthResponse,
-} from "@jftrade/ui-contracts";
+} from "@/contracts";
 
 import { fetchEnvelope, fetchEnvelopeWithInit } from "../../composables/apiClient";
 import {

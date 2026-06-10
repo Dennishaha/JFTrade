@@ -1,6 +1,6 @@
 import { computed, reactive, ref, type ComputedRef } from "vue";
 
-import type { BacktestStartRequestPayload, BacktestSyncRequestPayload } from "@jftrade/ui-contracts";
+import type { BacktestStartRequestPayload, BacktestSyncRequestPayload } from "@/contracts";
 
 import type { BacktestTrade, BacktestPnlPoint, BacktestDrawdownPoint, BacktestCandle } from "../components/BacktestChart.vue";
 import { fetchEnvelope, fetchEnvelopeWithInit } from "./apiClient";

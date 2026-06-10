@@ -2,7 +2,7 @@
 import { computed, ref, watch } from "vue";
 import type {
     StrategyAuditEntryDocument,
-} from "@jftrade/ui-contracts";
+} from "@/contracts";
 
 import MonacoCodeEditor from "../MonacoCodeEditor.vue";
 

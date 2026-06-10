@@ -1,6 +1,6 @@
 import type { Ref } from "vue";
 
-import { type MarketDataSubscriptionsResponse } from "@jftrade/ui-contracts";
+import { type MarketDataSubscriptionsResponse } from "@/contracts";
 
 import { normalizeKlinePeriod } from "../charting/kline";
 import {

@@ -4,7 +4,7 @@ import {
   emptyBrokerRuntime,
   emptyExecutionOrders,
   emptyFutuOpenDHealth,
-} from "@jftrade/ui-contracts";
+} from "@/contracts";
 
 import {
   resolveConsoleDataBrokerLiveSelection,

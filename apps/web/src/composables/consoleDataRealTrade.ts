@@ -15,7 +15,7 @@ import {
   emptyRealTradeKillSwitchState,
   emptyRealTradeRiskEvents,
   emptyRealTradeRiskState,
-} from "@jftrade/ui-contracts";
+} from "@/contracts";
 
 export function createConsoleDataRealTradeController() {
   const realTradeApprovals = ref<RealTradeApprovalsResponse>(

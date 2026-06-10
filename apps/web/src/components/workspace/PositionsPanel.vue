@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 
-import type { ExecutionOrdersResponse } from "@jftrade/ui-contracts";
+import type { ExecutionOrdersResponse } from "@/contracts";
 
 import { fetchEnvelopeWithInit } from "../../composables/apiClient";
 import {

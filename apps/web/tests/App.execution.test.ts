@@ -25,13 +25,13 @@ import {
   emptyStorageOverview,
   emptySystemStatus,
   emptyWorkerBrokerOrderUpdates,
-} from "@jftrade/ui-contracts";
+} from "@/contracts";
 import type {
   BrokerOrderFeesResponse,
   ExecutionOrderEventsResponse,
   ExecutionOrderSummaryResponse,
   ExecutionOrdersResponse,
-} from "@jftrade/ui-contracts";
+} from "@/contracts";
 
 import { MockWebSocket, createResponse, flushRequests, mountApp } from "./helpers";
 

@@ -53,6 +53,11 @@ function createProxyEntry(target: string) {
 }
 
 export default defineConfig({
+  resolve: {
+    alias: {
+      "@": new URL("./src", import.meta.url).pathname,
+    },
+  },
   plugins: [vue(), tailwindcss(), vueDevTools(devToolsOptions)],
   build: {
     chunkSizeWarningLimit: 4096,

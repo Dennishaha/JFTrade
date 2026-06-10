@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ADKAgent, ADKSession } from "@jftrade/ui-contracts";
+import type { ADKAgent, ADKSession } from "@/contracts";
 
 defineProps<{
   selectedAgentId: string;

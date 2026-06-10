@@ -9,7 +9,7 @@ import type {
   RealTradeRiskStateResponse,
   WorkerBrokerOrderUpdateErrorContext,
   WorkerBrokerOrderUpdatesResponse,
-} from "@jftrade/ui-contracts";
+} from "@/contracts";
 
 type RealTradeHardStopScope = "ACCOUNT" | "MARKET" | "SYMBOL";
 

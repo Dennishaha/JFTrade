@@ -5,7 +5,7 @@ import {
   type PluginInstallResponse,
   type PluginOperationDto,
   type PluginUninstallGuidanceDto,
-} from "@jftrade/ui-contracts";
+} from "@/contracts";
 
 import {
   fetchEnvelope,

@@ -1,4 +1,4 @@
-import type { StrategyVisualNodeDocument } from "@jftrade/ui-contracts";
+import type { StrategyVisualNodeDocument } from "@/contracts";
 
 import {
   nextGetTechnicalIndicatorNodeText,

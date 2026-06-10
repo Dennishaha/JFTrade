@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ADKToolDescriptor } from "@jftrade/ui-contracts";
+import type { ADKToolDescriptor } from "@/contracts";
 
 defineProps<{
   tools: ADKToolDescriptor[];

@@ -40,7 +40,7 @@ import {
   emptyStorageOverview,
   emptySystemStatus,
   emptyWorkerBrokerOrderUpdates,
-} from "@jftrade/ui-contracts";
+} from "@/contracts";
 
 import { provideConsoleDataStore } from "../src/composables/useConsoleData";
 import { provideWorkspaceTradingPreferencesStore } from "../src/composables/useWorkspaceLayout";

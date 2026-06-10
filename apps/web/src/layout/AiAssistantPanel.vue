@@ -7,7 +7,7 @@ import type {
   ADKChatResponse,
   ADKRun,
   ADKSessionContextSnapshot,
-} from "@jftrade/ui-contracts";
+} from "@/contracts";
 
 import ADKChatComposer from "../components/adk-page/ADKChatComposer.vue";
 import ADKChatThread from "../components/adk-page/ADKChatThread.vue";

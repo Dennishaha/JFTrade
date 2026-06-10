@@ -19,7 +19,7 @@ import {
   emptyPortfolioCashReconciliation,
   emptyPortfolioPositions,
   emptyPortfolioReconciliation,
-} from "@jftrade/ui-contracts";
+} from "@/contracts";
 
 import App from "../src/App.vue";
 import { resetSharedLiveSocketHubForTests } from "../src/composables/sharedLiveSocket";

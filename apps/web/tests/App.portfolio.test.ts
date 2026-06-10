@@ -18,13 +18,13 @@ import {
   emptyStorageOverview,
   emptySystemStatus,
   emptyWorkerBrokerOrderUpdates,
-} from "@jftrade/ui-contracts";
+} from "@/contracts";
 import type {
   PortfolioCashBalancesResponse,
   PortfolioCashReconciliationResponse,
   PortfolioPositionsResponse,
   PortfolioReconciliationResponse,
-} from "@jftrade/ui-contracts";
+} from "@/contracts";
 
 import {
   MockWebSocket,

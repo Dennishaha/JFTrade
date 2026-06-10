@@ -11,7 +11,7 @@ import type {
   MarketSecurityRef,
   MarketSecurityTrustDetails,
   MarketSecurityWarrantDetails,
-} from "@jftrade/ui-contracts";
+} from "@/contracts";
 
 const extendedQuoteNumberKeys = [
   "price",

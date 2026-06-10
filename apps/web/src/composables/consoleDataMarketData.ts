@@ -7,7 +7,7 @@ import {
   type MarketDataSubscriptionsResponse,
   type PortfolioPositionsResponse,
   emptyMarketDataSubscriptions,
-} from "@jftrade/ui-contracts";
+} from "@/contracts";
 
 import {
   createConsoleDataMarketInstrumentsController,

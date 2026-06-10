@@ -3,7 +3,7 @@ import type {
   ADKApprovalResolution,
   ADKRun,
   ADKTimelineEntry,
-} from "@jftrade/ui-contracts";
+} from "@/contracts";
 
 export interface ADKTimelineEntryState extends ADKTimelineEntry {
   reasoningExpanded?: boolean;

@@ -26,12 +26,12 @@ import {
   emptyStorageOverview,
   emptySystemStatus,
   emptyWorkerBrokerOrderUpdates,
-} from "@jftrade/ui-contracts"
+} from "@/contracts"
 import type {
   BrokerRuntimeResponse,
   StrategyDefinitionDocument,
   SystemStatusResponse,
-} from "@jftrade/ui-contracts"
+} from "@/contracts"
 import { provideConsoleDataStore } from "../src/composables/useConsoleData"
 import { provideThemeStore } from "../src/composables/useTheme"
 import { provideUIColorPreferencesStore } from "../src/composables/useUIColorPreferences"

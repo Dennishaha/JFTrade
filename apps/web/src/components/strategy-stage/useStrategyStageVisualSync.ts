@@ -2,7 +2,7 @@ import type {
     StrategyDefinitionDocument,
     StrategyVisualModelDocument,
     StrategyVisualNodeDocument,
-} from "@jftrade/ui-contracts";
+} from "@/contracts";
 import { computed, onBeforeUnmount, ref, watch, type Ref } from "vue";
 
 import { reconcileStrategyVisualModelIndicatorBindings } from "../../features/strategyVisualBuilderIndicatorReferences";

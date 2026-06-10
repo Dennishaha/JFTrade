@@ -25,7 +25,7 @@ import {
   emptyFutuOpenDHealth,
   emptyFutuOpenDInstallGuide,
   emptyOnboardingState,
-} from "@jftrade/ui-contracts";
+} from "@/contracts";
 
 import { fetchEnvelope } from "./apiClient";
 import type { BrokerAccountSelectionOption } from "./consoleDataBrokerSettings";

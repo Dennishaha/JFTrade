@@ -1,4 +1,4 @@
-import type { ADKRun } from "@jftrade/ui-contracts";
+import type { ADKRun } from "@/contracts";
 
 import { isActiveRunStatus, isTerminalRunStatus } from "./adkChatPresentation";
 

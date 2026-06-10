@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 
-import type { ExecutionOrdersResponse } from "@jftrade/ui-contracts";
+import type { ExecutionOrdersResponse } from "@/contracts";
 
 import PageHeader from "../components/PageHeader.vue";
 import SectionHeader from "../components/SectionHeader.vue";

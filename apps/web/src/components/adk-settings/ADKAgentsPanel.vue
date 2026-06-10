@@ -5,7 +5,7 @@ import type {
   ADKAgent,
   ADKPermissionMode,
   ADKToolDescriptor,
-} from "@jftrade/ui-contracts";
+} from "@/contracts";
 
 const props = defineProps<{
   agentForm: {

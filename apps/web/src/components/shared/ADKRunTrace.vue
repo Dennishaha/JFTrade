@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 
-import type { ADKRun } from "@jftrade/ui-contracts";
+import type { ADKRun } from "@/contracts";
 
 import type { ADKToolVisualization as ADKToolVisualizationModel } from "../../composables/adkToolVisualizations";
 import { buildADKToolVisualization } from "../../composables/adkToolVisualizations";

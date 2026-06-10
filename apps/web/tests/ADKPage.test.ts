@@ -10,7 +10,7 @@ import type {
   ADKChatResponse,
   ADKRun,
   ADKTimelineEntry,
-} from "@jftrade/ui-contracts";
+} from "@/contracts";
 
 import ADKPage from "../src/pages/ADKPage.vue";
 import { createResponse, flushRequests } from "./helpers";

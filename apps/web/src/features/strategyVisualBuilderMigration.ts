@@ -2,7 +2,7 @@ import type {
   StrategyDefinitionDocument,
   StrategyVisualModelDocument,
   StrategyVisualNodeDocument,
-} from "@jftrade/ui-contracts";
+} from "@/contracts";
 
 import { nextGetTechnicalIndicatorNodeText } from "./strategyVisualBuilderIndicatorBlock";
 import { cloneStrategyVisualModel } from "./strategyVisualBuilderShared";

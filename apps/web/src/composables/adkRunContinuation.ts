@@ -1,4 +1,4 @@
-import type { ADKRun } from "@jftrade/ui-contracts";
+import type { ADKRun } from "@/contracts";
 
 import { fetchEnvelope } from "./apiClient";
 import { buildRunObservationSignature } from "./adkChatRuntime";

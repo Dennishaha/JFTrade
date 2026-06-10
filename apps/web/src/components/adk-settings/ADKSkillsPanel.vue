@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ADKSkill } from "@jftrade/ui-contracts";
+import type { ADKSkill } from "@/contracts";
 
 defineProps<{
   skillUrl: string;

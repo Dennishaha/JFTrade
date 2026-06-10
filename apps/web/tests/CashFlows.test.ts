@@ -14,7 +14,7 @@ import type {
   PortfolioReconciliationResponse,
   StorageOverviewResponse,
   SystemStatusResponse,
-} from "@jftrade/ui-contracts";
+} from "@/contracts";
 import {
   emptyBrokerFunds,
   emptyBrokerOrders,
@@ -27,7 +27,7 @@ import {
   emptyPortfolioReconciliation,
   emptyStorageOverview,
   emptySystemStatus,
-} from "@jftrade/ui-contracts";
+} from "@/contracts";
 
 import {
   MockWebSocket,

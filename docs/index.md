@@ -9,4 +9,4 @@
 - [使用指南](./usage.md)：从控制台进入常用功能。
 - [排障](./troubleshooting.md)：定位启动、端口、实时连接和 OpenD 问题。
 - [HTTP API](./reference/generated/api.md)：从 Swagger 自动生成的接口参考。
-- [数据类型](./reference/generated/types.md)：从 `packages/ui-contracts` 自动生成的数据类型参考。
+- [数据类型](./reference/generated/types.md)：从 `apps/web/src/contracts` 自动生成的数据类型参考。

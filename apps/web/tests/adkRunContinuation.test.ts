@@ -2,7 +2,7 @@
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { ADKRun } from "@jftrade/ui-contracts";
+import type { ADKRun } from "@/contracts";
 
 import { monitorADKRunContinuation } from "../src/composables/adkRunContinuation";
 

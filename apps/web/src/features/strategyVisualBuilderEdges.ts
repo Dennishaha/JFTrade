@@ -1,4 +1,4 @@
-import type { StrategyVisualEdgeDocument } from "@jftrade/ui-contracts";
+import type { StrategyVisualEdgeDocument } from "@/contracts";
 
 import type { TechnicalIndicatorInputSlot } from "./strategyVisualBuilderIndicatorBlock";
 

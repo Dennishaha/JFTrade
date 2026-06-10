@@ -22,7 +22,7 @@
 
 如果券商适配层提供事件驱动的 order book push，就优先走 push 驱动刷新；Futu/OpenD 当前已经接入 `Qot_UpdateOrderBook`。如果后端拿不到推送能力，前端会回退到一次性 HTTP 请求，至少保持页面可用。
 
-`snapshot`、`security details`、`depth` 以及 candles 查询响应的共享 DTO 当前统一收敛在 `packages/ui-contracts`，前端 composable 主要负责状态编排，不再重复定义 rich security details 结构。
+`snapshot`、`security details`、`depth` 以及 candles 查询响应的共享 DTO 当前统一收敛在 `apps/web/src/contracts`，前端 composable 主要负责状态编排，不再重复定义 rich security details 结构。
 
 ## 主要模块
 
@@ -63,7 +63,7 @@
 ## 维护建议
 
 - 改数据请求逻辑，先看 `marketDataQuery.ts`
-- 改 security details 结构或前后端字段契约，先看 `packages/ui-contracts`
+- 改 security details 结构或前后端字段契约，先看 `apps/web/src/contracts`
 - 改实时状态机，先看 `marketDataRealtime.ts`
 - 改价格面板的 typed block 展示，先看 `WatchlistPanel.vue`
 - 改盘口深度档数、显示或 SSE / 回退策略，先看 `OrderBookPanel.vue` 和 `pkg/futu/adapter.go` 的 `ReadFeatures.orderBook`

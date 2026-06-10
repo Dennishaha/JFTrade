@@ -4,7 +4,7 @@ import {
   type BrokerRuntimeResponse,
   type BrokerSettingsResponse,
   type SystemStatusResponse,
-} from "@jftrade/ui-contracts";
+} from "@/contracts";
 
 import {
   fetchEnvelope,

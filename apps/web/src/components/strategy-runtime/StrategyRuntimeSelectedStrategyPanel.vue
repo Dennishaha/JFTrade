@@ -6,7 +6,7 @@ import type {
     StrategyInstanceBindingDocument,
     StrategyInstanceItem,
     StrategyRuntimeObservation,
-} from "@jftrade/ui-contracts";
+} from "@/contracts";
 
 type StrategyAction = "start" | "pause" | "stop";
 

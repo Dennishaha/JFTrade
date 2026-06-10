@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { StrategyDefinitionDocument } from "@jftrade/ui-contracts";
+import type { StrategyDefinitionDocument } from "@/contracts";
 import { ref, type Ref } from "vue";
 
 import MonacoCodeEditor from "../MonacoCodeEditor.vue";

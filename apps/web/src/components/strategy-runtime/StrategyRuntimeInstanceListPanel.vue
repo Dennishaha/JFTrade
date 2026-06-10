@@ -5,7 +5,7 @@ import type {
     StrategyExecutionMode,
     StrategyInstanceBindingDocument,
     StrategyInstanceItem,
-} from "@jftrade/ui-contracts";
+} from "@/contracts";
 
 const props = defineProps<{
     isCreateMenuOpen: boolean;

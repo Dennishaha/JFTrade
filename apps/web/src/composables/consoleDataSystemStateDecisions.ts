@@ -2,7 +2,7 @@ import type {
   BrokerRuntimeResponse,
   ExecutionOrdersResponse,
   FutuOpenDHealthResponse,
-} from "@jftrade/ui-contracts";
+} from "@/contracts";
 
 import type { BrokerAccountSelectionOption } from "./consoleDataBrokerAccountSelection";
 

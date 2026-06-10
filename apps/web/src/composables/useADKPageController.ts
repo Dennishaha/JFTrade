@@ -1,7 +1,7 @@
 import { computed, type Ref } from "vue";
 import type { Router } from "vue-router";
 
-import type { ADKApproval } from "@jftrade/ui-contracts";
+import type { ADKApproval } from "@/contracts";
 
 import { useADKPageChatState } from "./useADKPageChatState";
 import { useADKPageSessionState } from "./useADKPageSessionState";

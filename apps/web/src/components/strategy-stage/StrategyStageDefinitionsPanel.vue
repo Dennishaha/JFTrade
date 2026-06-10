@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { StrategyDefinitionDocument } from "@jftrade/ui-contracts";
+import type { StrategyDefinitionDocument } from "@/contracts";
 
 import "./strategyStageShared.css";
 

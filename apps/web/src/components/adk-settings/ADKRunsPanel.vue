@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 
-import type { ADKAgent, ADKApproval, ADKAuditEvent, ADKOptimizationTask, ADKProvider, ADKRun } from "@jftrade/ui-contracts";
+import type { ADKAgent, ADKApproval, ADKAuditEvent, ADKOptimizationTask, ADKProvider, ADKRun } from "@/contracts";
 import type { PageEnvelope, ADKMetricsResponse } from "../../composables/adkSettingsApi";
 
 import ADKRunTrace from "../shared/ADKRunTrace.vue";

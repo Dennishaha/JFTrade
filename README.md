@@ -162,7 +162,7 @@ pkg/futu/           Futu 交易所适配器
 config/             bbgo 运行配置
 docs/               架构与设计文档
 apps/web/           Vue3 前端（保留 TradingView 风味）
-packages/ui-contracts/  前端类型契约
+apps/web/src/contracts/  前端类型契约
 scripts/            proto 生成等工具脚本
 ```
 

@@ -1,4 +1,4 @@
-import type { ADKPermissionMode, ADKSkill } from "@jftrade/ui-contracts";
+import type { ADKPermissionMode, ADKSkill } from "@/contracts";
 
 import { runStatusTone } from "./adkChatPresentation";
 

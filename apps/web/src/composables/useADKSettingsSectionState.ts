@@ -11,7 +11,7 @@ import type {
   ADKSkill,
   ADKTask,
   ADKToolDescriptor,
-} from "@jftrade/ui-contracts";
+} from "@/contracts";
 
 import {
   cancelADKOptimizationTask,

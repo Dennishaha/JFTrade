@@ -24,8 +24,8 @@ import {
   emptyStorageOverview,
   emptySystemStatus,
   emptyWorkerBrokerOrderUpdates,
-} from "@jftrade/ui-contracts";
-import type { MarketDataSubscriptionsResponse } from "@jftrade/ui-contracts";
+} from "@/contracts";
+import type { MarketDataSubscriptionsResponse } from "@/contracts";
 
 import {
   MockWebSocket,

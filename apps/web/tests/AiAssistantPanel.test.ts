@@ -10,7 +10,7 @@ import type {
   ADKChatResponse,
   ADKRun,
   ADKTimelineEntry,
-} from "@jftrade/ui-contracts";
+} from "@/contracts";
 
 import AiAssistantPanel from "../src/layout/AiAssistantPanel.vue";
 import { createResponse, flushRequests } from "./helpers";

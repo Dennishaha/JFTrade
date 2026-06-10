@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { StrategyInstanceItem, SystemStatusResponse } from "@jftrade/ui-contracts";
+import type { StrategyInstanceItem, SystemStatusResponse } from "@/contracts";
 
 defineProps<{
     activeStrategyCount: number;

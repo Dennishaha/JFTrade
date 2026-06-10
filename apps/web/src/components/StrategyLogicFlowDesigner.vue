@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { StrategyVisualModelDocument } from "@jftrade/ui-contracts";
+import type { StrategyVisualModelDocument } from "@/contracts";
 
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 

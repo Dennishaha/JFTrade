@@ -13,7 +13,7 @@ import type {
   ADKTaskFilters,
   ADKTaskPatch,
   ADKToolDescriptor,
-} from "@jftrade/ui-contracts";
+} from "@/contracts";
 
 import { fetchEnvelope, fetchEnvelopeWithInit } from "./apiClient";
 

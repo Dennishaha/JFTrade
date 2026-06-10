@@ -4,7 +4,7 @@ import {
   emptyBrokerRuntime,
   emptyBrokerSettings,
   emptySystemStatus,
-} from "@jftrade/ui-contracts";
+} from "@/contracts";
 
 import {
   buildBrokerAccountSelectionKey,

@@ -9,7 +9,7 @@ import {
   type BrokerMaxTradeQuantityResponse,
   type MarketSecurityDetails,
   emptyBrokerMaxTradeQuantity,
-} from "@jftrade/ui-contracts";
+} from "@/contracts";
 
 import OrderEntryPanel from "../src/components/workspace/OrderEntryPanel.vue";
 import type {

@@ -1,8 +1,8 @@
-import { emptyBrokerRuntime, emptyBrokerSettings } from "@jftrade/ui-contracts";
+import { emptyBrokerRuntime, emptyBrokerSettings } from "@/contracts";
 import type {
   BrokerRuntimeResponse,
   BrokerSettingsResponse,
-} from "@jftrade/ui-contracts";
+} from "@/contracts";
 import { describe, expect, it, vi } from "vitest";
 import { ref } from "vue";
 

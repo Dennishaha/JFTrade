@@ -1,7 +1,7 @@
 import type {
   StrategyVisualEdgeDocument,
   StrategyVisualNodeDocument,
-} from "@jftrade/ui-contracts";
+} from "@/contracts";
 
 import {
   buildStrategyVisualControlEdgeProperties,

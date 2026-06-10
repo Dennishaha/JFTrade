@@ -4,7 +4,7 @@ import { computed, ref, watch } from "vue";
 import {
   type BrokerMarginRatiosResponse,
   emptyBrokerMarginRatios,
-} from "@jftrade/ui-contracts";
+} from "@/contracts";
 
 import { formatDateTime } from "../../composables/consoleDataFormatting";
 import type { MarketSecurityDetails } from "../../composables/marketDataRealtime";

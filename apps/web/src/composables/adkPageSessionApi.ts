@@ -4,7 +4,7 @@ import type {
   ADKProvider,
   ADKSession,
   ADKToolDescriptor,
-} from "@jftrade/ui-contracts";
+} from "@/contracts";
 
 import { fetchEnvelope, fetchEnvelopeWithInit } from "./apiClient";
 

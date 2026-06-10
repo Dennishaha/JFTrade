@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { StrategyDefinitionDocument } from "@jftrade/ui-contracts";
+import type { StrategyDefinitionDocument } from "@/contracts";
 
 import { migrateLegacyMovingAverageDefinition } from "../src/features/strategyVisualBuilderMigration";
 

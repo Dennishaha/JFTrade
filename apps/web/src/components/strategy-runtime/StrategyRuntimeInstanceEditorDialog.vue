@@ -4,7 +4,7 @@ import type {
     StrategyDefinitionDocument,
     StrategyExecutionMode,
     StrategyInstanceItem,
-} from "@jftrade/ui-contracts";
+} from "@/contracts";
 
 import type { BrokerAccountSelectionOption } from "../../composables/consoleDataBrokerAccountSelection";
 import { brokerAccountOptionSubtitle } from "./strategyRuntimeInstanceBinding";

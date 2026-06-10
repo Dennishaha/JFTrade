@@ -1,4 +1,4 @@
-import type { ADKSessionContextSnapshot } from "@jftrade/ui-contracts";
+import type { ADKSessionContextSnapshot } from "@/contracts";
 
 import { fetchEnvelope, fetchEnvelopeWithInit } from "./apiClient";
 

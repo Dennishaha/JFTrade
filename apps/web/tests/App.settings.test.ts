@@ -25,7 +25,7 @@ import {
   emptyStorageOverview,
   emptySystemStatus,
   emptyWorkerBrokerOrderUpdates,
-} from "@jftrade/ui-contracts";
+} from "@/contracts";
 
 import {
   MockWebSocket,

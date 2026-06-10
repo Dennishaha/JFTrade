@@ -1,6 +1,6 @@
 # 数据类型
 
-> 自动生成，请勿手改。来源：`packages/ui-contracts/src/index.ts`。
+> 自动生成，请勿手改。来源：`apps/web/src/contracts/index.ts`。
 
 ## `ArchitectureCard`
 
@@ -106,6 +106,7 @@ export interface ADKAgent {
   skills: string[];
   permissionMode: ADKPermissionMode;
   memoryEnabled: boolean;
+  recentUserWindow: number;
   status: "ENABLED" | "DISABLED" | string;
   createdAt: string;
   updatedAt: string;
@@ -202,7 +203,9 @@ export interface ADKSession {
 ```ts
 export interface ADKSessionContextSnapshot {
   sessionId: string;
-  estimatedInputTokens: number;
+  currentInputTokens: number;
+  projectedNextTurnTokens: number;
+  estimatedInputTokens?: number;
   contextWindowTokens: number;
   usageRatio: number;
   status:
@@ -212,11 +215,24 @@ export interface ADKSessionContextSnapshot {
     | "near_limit"
     | "critical"
     | string;
+  recentUserWindow: number;
+  retainedRecentUserCount: number;
+  protectedRecentCount?: number;
+  activeHandoffCount: number;
+  latestHandoffPreview?: string;
   summaryPreview?: string;
-  protectedRecentCount: number;
-  rawEventCount: number;
-  compactedEventCount: number;
-  summaryBoundaryEventIndex: number;
+  rawEventCount?: number;
+  compactedEventCount?: number;
+  summaryBoundaryEventIndex?: number;
+  breakdown: {
+    instructionTokens: number;
+    handoffTokens: number;
+    recentUserTokens: number;
+    protectedTailTokens: number;
+    otherVisibleTokens: number;
+    pendingUserTokens: number;
+    toolDeclarationTokens: number;
+  };
   lastCompactedAt?: string;
   lastCompactionMode?: "manual" | "auto" | "aggressive" | string;
   lastCompactionReason?: string;
@@ -225,16 +241,58 @@ export interface ADKSessionContextSnapshot {
 }
 ```
 
-## `ADKMessage`
+## `ADKTranscriptEntry`
 
 ```ts
-export interface ADKMessage {
+export interface ADKTranscriptEntry {
   id: string;
   sessionId: string;
+  runId?: string;
   role: "user" | "assistant" | string;
+  kind: string;
   content: string;
   reasoningContent?: string;
   createdAt: string;
+}
+```
+
+## `ADKMessage`
+
+```ts
+export type ADKMessage = ADKTranscriptEntry;
+```
+
+## `ADKTimelineEntryKind`
+
+```ts
+export type ADKTimelineEntryKind =
+  | "user_message"
+  | "assistant_reasoning"
+  | "tool_group"
+  | "approval_group"
+  | "assistant_message";
+```
+
+## `ADKTimelineEntryStatus`
+
+```ts
+export type ADKTimelineEntryStatus = "streaming" | "final" | string;
+```
+
+## `ADKTimelineEntry`
+
+```ts
+export interface ADKTimelineEntry {
+  id: string;
+  sessionId: string;
+  runId?: string;
+  kind: ADKTimelineEntryKind | string;
+  createdAt: string;
+  sequence: number;
+  status?: ADKTimelineEntryStatus;
+  text?: string;
+  toolCalls?: ADKToolCall[];
+  approvals?: ADKApproval[];
 }
 ```
 
@@ -291,6 +349,7 @@ export interface ADKChatResponse {
   session: ADKSession;
   run: ADKRun;
   pendingApprovals: ADKApproval[];
+  timeline: ADKTimelineEntry[];
   context?: ADKSessionContextSnapshot;
 }
 ```

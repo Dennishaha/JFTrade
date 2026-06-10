@@ -5,7 +5,7 @@ import ts from "typescript";
 const rootDir = process.cwd();
 const generatedDir = path.join(rootDir, "docs", "reference", "generated");
 const swaggerPath = path.join(rootDir, "docs", "swagger", "swagger.json");
-const contractsPath = path.join(rootDir, "packages", "ui-contracts", "src", "index.ts");
+const contractsPath = path.join(rootDir, "apps", "web", "src", "contracts", "index.ts");
 
 await fs.mkdir(generatedDir, { recursive: true });
 await Promise.all([generateApiDocs(), generateTypeDocs()]);
@@ -96,7 +96,7 @@ async function generateTypeDocs() {
   const lines = [
     "# 数据类型",
     "",
-    "> 自动生成，请勿手改。来源：`packages/ui-contracts/src/index.ts`。",
+    "> 自动生成，请勿手改。来源：`apps/web/src/contracts/index.ts`。",
     "",
   ];
 

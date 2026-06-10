@@ -6,8 +6,8 @@ import {
   emptyBrokerSettings,
   emptyBrokerRuntime,
   emptySystemStatus,
-} from "@jftrade/ui-contracts"
-import type { SystemStatusResponse } from "@jftrade/ui-contracts"
+} from "@/contracts"
+import type { SystemStatusResponse } from "@/contracts"
 
 import {
   MockWebSocket,

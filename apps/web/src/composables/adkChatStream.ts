@@ -7,7 +7,7 @@ import type {
   ADKSession,
   ADKSessionContextSnapshot,
   ADKTimelineEntry,
-} from "@jftrade/ui-contracts";
+} from "@/contracts";
 
 export interface ADKChatStreamResponse {
   reply: string;

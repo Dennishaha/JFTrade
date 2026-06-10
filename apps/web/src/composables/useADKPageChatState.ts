@@ -7,7 +7,7 @@ import type {
   ADKChatResponse,
   ADKRun,
   ADKSessionContextSnapshot,
-} from "@jftrade/ui-contracts";
+} from "@/contracts";
 
 import { isTerminalRunStatus, runTerminalMessage } from "./adkChatPresentation";
 import { streamADKChat } from "./adkChatStream";

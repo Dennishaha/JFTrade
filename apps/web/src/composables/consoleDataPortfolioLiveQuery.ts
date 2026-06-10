@@ -5,7 +5,7 @@ import type {
   PortfolioCashReconciliationResponse,
   PortfolioPositionsResponse,
   PortfolioReconciliationResponse,
-} from "@jftrade/ui-contracts";
+} from "@/contracts";
 
 import { fetchEnvelope } from "./apiClient";
 

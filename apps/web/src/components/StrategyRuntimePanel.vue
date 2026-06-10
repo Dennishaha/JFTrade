@@ -36,7 +36,7 @@ import type {
     StrategyLogListResponse,
     StrategyRuntimeObservation,
     StrategySourceFormat,
-} from "@jftrade/ui-contracts";
+} from "@/contracts";
 
 import { fetchEnvelope, fetchEnvelopeWithInit } from "../composables/apiClient";
 import {

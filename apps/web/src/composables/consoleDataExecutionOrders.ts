@@ -7,7 +7,7 @@ import {
   type ExecutionOrdersResponse,
   emptyBrokerOrderFees,
   emptyExecutionOrderEvents,
-} from "@jftrade/ui-contracts";
+} from "@/contracts";
 
 import { fetchEnvelope } from "./apiClient";
 

@@ -1,4 +1,4 @@
-import type { ADKRun } from "@jftrade/ui-contracts";
+import type { ADKRun } from "@/contracts";
 
 export function isActiveRunStatus(status: string | undefined): boolean {
   return (
