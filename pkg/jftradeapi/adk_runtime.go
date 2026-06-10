@@ -14,6 +14,7 @@ import (
 	"time"
 
 	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
+	"github.com/jftrade/jftrade-main/pkg/backtest"
 	"github.com/jftrade/jftrade-main/pkg/broker"
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 )
@@ -239,7 +240,7 @@ func registerJFTradeADKTools(server *Server, store *jfadk.Store, registry *jfadk
 	registry.Register(jfadk.ToolDescriptor{Name: "strategy.definitions", DisplayName: "策略定义", Description: "读取当前策略定义和策略实例摘要。", Category: "strategy", Permission: "read_internal", OutputSummary: "策略定义、运行实例和数量摘要。"}, func(context.Context, map[string]any) (any, error) {
 		definitions := server.designStore.listDefinitions()
 		instances := server.enrichStrategyItems(server.strategyStore.strategies())
-		return map[string]any{"definitions": definitions, "definitionCount": len(definitions), "instances": instances, "instanceCount": len(instances)}, nil
+		return summarizeADKStrategyDefinitions(definitions, instances), nil
 	})
 	registry.Register(jfadk.ToolDescriptor{Name: "strategy.save_draft", DisplayName: "保存策略草稿", Description: "把 agent 生成的 JFTrade DSL v1 策略脚本保存为策略定义草稿；不接受 TradingView Pine Script。", Category: "strategy", Permission: "write_strategy", RequiresApprovalIn: []string{jfadk.PermissionModeApproval}, OutputSummary: "保存后的策略定义。"}, func(_ context.Context, input map[string]any) (any, error) {
 		script := strings.TrimSpace(stringValue(input, "script"))
@@ -267,7 +268,7 @@ func registerJFTradeADKTools(server *Server, store *jfadk.Store, registry *jfadk
 		return saved, nil
 	})
 	registry.Register(jfadk.ToolDescriptor{Name: "backtest.runs", DisplayName: "回测结果", Description: "读取最近回测运行结果。", Category: "strategy", Permission: "read_internal", OutputSummary: "最近回测运行和数量。"}, func(context.Context, map[string]any) (any, error) {
-		return map[string]any{"runs": server.backtestRuns.list()}, nil
+		return summarizeADKBacktestRuns(server.backtestRuns.list()), nil
 	})
 	registry.Register(jfadk.ToolDescriptor{Name: "strategy.optimize", DisplayName: "策略优化", Description: "为多个候选策略定义创建真实异步回测任务，并返回任务引用。", Category: "strategy", Permission: "optimize_strategy", RequiresApprovalIn: []string{jfadk.PermissionModeApproval}, OutputSummary: "优化任务 ID 与候选回测 Run。"}, func(_ context.Context, input map[string]any) (any, error) {
 		definitionIDs := stringSliceValue(input, "definitionIds")
@@ -340,6 +341,215 @@ func validateADKStrategyDraftScript(script string) error {
 		return fmt.Errorf("strategy.save_draft requires valid JFTrade DSL v1: %w", err)
 	}
 	return nil
+}
+
+func summarizeADKStrategyDefinitions(definitions []strategyDesignDefinition, instances []strategyListItem) map[string]any {
+	linkedInstanceCountByDefinition := make(map[string]int, len(instances))
+	instanceSummaries := make([]map[string]any, 0, len(instances))
+	for _, item := range instances {
+		definitionID := strings.TrimSpace(item.Definition.StrategyID)
+		if definitionID == "" {
+			definitionID = strategyDefinitionIDFromParams(item.Params)
+		}
+		if definitionID != "" {
+			linkedInstanceCountByDefinition[definitionID]++
+		}
+		instanceSummaries = append(instanceSummaries, summarizeADKStrategyInstance(item, definitionID))
+	}
+
+	definitionSummaries := make([]map[string]any, 0, len(definitions))
+	for _, definition := range definitions {
+		definitionSummaries = append(definitionSummaries, summarizeADKStrategyDefinition(definition, linkedInstanceCountByDefinition[definition.ID]))
+	}
+
+	return map[string]any{
+		"definitions":     definitionSummaries,
+		"definitionCount": len(definitionSummaries),
+		"instances":       instanceSummaries,
+		"instanceCount":   len(instanceSummaries),
+	}
+}
+
+func summarizeADKStrategyDefinition(definition strategyDesignDefinition, linkedInstanceCount int) map[string]any {
+	summary := map[string]any{
+		"id":                  definition.ID,
+		"name":                definition.Name,
+		"version":             definition.Version,
+		"description":         definition.Description,
+		"runtime":             definition.Runtime,
+		"sourceFormat":        definition.SourceFormat,
+		"symbol":              definition.Symbol,
+		"interval":            definition.Interval,
+		"createdAt":           definition.CreatedAt,
+		"updatedAt":           definition.UpdatedAt,
+		"scriptPreview":       summarizeADKText(definition.Script, 280),
+		"scriptBytes":         len([]byte(definition.Script)),
+		"linkedInstanceCount": linkedInstanceCount,
+	}
+	if definition.VisualModel != nil {
+		summary["visualNodeCount"] = len(definition.VisualModel.Nodes)
+		summary["visualEdgeCount"] = len(definition.VisualModel.Edges)
+	}
+	return summary
+}
+
+func summarizeADKStrategyInstance(item strategyListItem, definitionID string) map[string]any {
+	symbols := append([]string(nil), item.Binding.Symbols...)
+	activeSymbols := []string{}
+	actualStatus := ""
+	lastError := ""
+	lastLog := ""
+	if item.RuntimeObservation != nil {
+		activeSymbols = append(activeSymbols, item.RuntimeObservation.ActiveSymbols...)
+		actualStatus = strings.TrimSpace(item.RuntimeObservation.ActualStatus)
+		if item.RuntimeObservation.LastError != nil {
+			lastError = strings.TrimSpace(*item.RuntimeObservation.LastError)
+		}
+	}
+	if len(item.Logs) > 0 {
+		lastLog = strings.TrimSpace(item.Logs[len(item.Logs)-1])
+	}
+	return map[string]any{
+		"id":                item.ID,
+		"definitionId":      definitionID,
+		"definitionName":    item.Definition.Name,
+		"definitionVersion": item.Definition.Version,
+		"runtime":           item.Runtime,
+		"sourceFormat":      item.SourceFormat,
+		"status":            item.Status,
+		"actualStatus":      actualStatus,
+		"startable":         item.Startable,
+		"symbols":           symbols,
+		"symbolCount":       len(symbols),
+		"activeSymbols":     activeSymbols,
+		"activeSymbolCount": len(activeSymbols),
+		"interval":          item.Binding.Interval,
+		"executionMode":     item.Binding.ExecutionMode,
+		"market":            brokerBindingMarket(item.Binding.BrokerAccount),
+		"accountId":         brokerBindingAccountID(item.Binding.BrokerAccount),
+		"createdAt":         item.CreatedAt,
+		"logCount":          len(item.Logs),
+		"latestLog":         summarizeADKText(lastLog, 220),
+		"lastError":         summarizeADKText(lastError, 220),
+	}
+}
+
+func summarizeADKBacktestRuns(runs []*backtestRunState) map[string]any {
+	items := make([]map[string]any, 0, len(runs))
+	for _, run := range runs {
+		if run == nil {
+			continue
+		}
+		items = append(items, summarizeADKBacktestRun(run))
+	}
+	return map[string]any{"runs": items, "runCount": len(items)}
+}
+
+func summarizeADKBacktestRun(run *backtestRunState) map[string]any {
+	summary := map[string]any{
+		"id":                run.ID,
+		"status":            run.Status,
+		"definitionId":      run.Request.DefinitionID,
+		"definitionVersion": run.Request.DefinitionVersion,
+		"market":            run.Request.Market,
+		"code":              run.Request.Code,
+		"symbol":            run.Request.Symbol,
+		"interval":          run.Request.Interval,
+		"startTime":         run.Request.StartTime,
+		"endTime":           run.Request.EndTime,
+		"initialBalance":    run.Request.InitialBalance,
+		"rehabType":         run.Request.RehabType,
+		"createdAt":         run.CreatedAt,
+		"updatedAt":         run.UpdatedAt,
+	}
+	if run.Request.UseExtendedHours != nil {
+		summary["useExtendedHours"] = *run.Request.UseExtendedHours
+	}
+	if run.Result == nil {
+		return summary
+	}
+
+	tradeCount := run.Result.TotalTrades
+	totalReturn := 0.0
+	if run.Request.InitialBalance > 0 {
+		totalReturn = run.Result.PnL / run.Request.InitialBalance
+	}
+	summary["quoteCurrency"] = run.Result.QuoteCurrency
+	summary["finalBalance"] = run.Result.FinalBalance
+	summary["pnl"] = run.Result.PnL
+	summary["totalReturn"] = totalReturn
+	summary["maxDrawdown"] = run.Result.MaxDrawdown
+	summary["currentDrawdown"] = run.Result.CurrentDrawdown
+	summary["totalTrades"] = run.Result.TotalTrades
+	summary["tradeCount"] = tradeCount
+	summary["winRate"] = run.Result.WinRate
+	summary["orderBookCount"] = len(run.Result.OrderBook)
+	summary["tradesCount"] = len(run.Result.Trades)
+	summary["candlesCount"] = len(run.Result.Candles)
+	summary["pnlCurveCount"] = len(run.Result.PnLCurve)
+	summary["drawdownCurveCount"] = len(run.Result.DrawdownCurve)
+	summary["logsCount"] = len(run.Result.Logs)
+	summary["runtimeErrorCount"] = len(run.Result.RuntimeErrors)
+	summary["error"] = summarizeADKText(run.Result.Error, 220)
+	summary["latestLog"] = summarizeADKText(lastString(run.Result.Logs), 220)
+	summary["latestRuntimeError"] = summarizeADKText(lastString(run.Result.RuntimeErrors), 220)
+	if latestTrade := lastBacktestTrade(run.Result.Trades); latestTrade != nil {
+		summary["latestTradeAt"] = latestTrade.Time
+		summary["latestTradeSide"] = latestTrade.Side
+		summary["latestTradePrice"] = latestTrade.Price
+	}
+	if latestCandle := lastBacktestCandle(run.Result.Candles); latestCandle != nil {
+		summary["latestCandleAt"] = latestCandle.Time
+		summary["latestClose"] = latestCandle.Close
+	}
+	return summary
+}
+
+func summarizeADKText(text string, limit int) string {
+	trimmed := strings.Join(strings.Fields(strings.TrimSpace(text)), " ")
+	if trimmed == "" || limit <= 0 {
+		return trimmed
+	}
+	runes := []rune(trimmed)
+	if len(runes) <= limit {
+		return trimmed
+	}
+	return string(runes[:limit]) + "..."
+}
+
+func brokerBindingMarket(binding *strategyBrokerAccountBinding) string {
+	if binding == nil {
+		return ""
+	}
+	return binding.Market
+}
+
+func brokerBindingAccountID(binding *strategyBrokerAccountBinding) string {
+	if binding == nil {
+		return ""
+	}
+	return binding.AccountID
+}
+
+func lastString(items []string) string {
+	if len(items) == 0 {
+		return ""
+	}
+	return items[len(items)-1]
+}
+
+func lastBacktestTrade(items []backtest.TradeEvent) *backtest.TradeEvent {
+	if len(items) == 0 {
+		return nil
+	}
+	return &items[len(items)-1]
+}
+
+func lastBacktestCandle(items []backtest.Candle) *backtest.Candle {
+	if len(items) == 0 {
+		return nil
+	}
+	return &items[len(items)-1]
 }
 
 func looksLikeTradingViewPineScript(script string) bool {

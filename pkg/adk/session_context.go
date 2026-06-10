@@ -44,6 +44,28 @@ type projectionState struct {
 	compactionCutoff int
 }
 
+type contextProjectionBucket int
+
+const (
+	contextProjectionBucketOtherVisible contextProjectionBucket = iota
+	contextProjectionBucketRecentUser
+	contextProjectionBucketProtectedTail
+)
+
+type projectedVisibleEvent struct {
+	raw          *adksession.Event
+	effective    *adksession.Event
+	bucket       contextProjectionBucket
+	trimmedCount int
+}
+
+type projectedVisibleSession struct {
+	events                   []*adksession.Event
+	rawBreakdown             SessionContextBreakdown
+	effectiveBreakdown       SessionContextBreakdown
+	trimmedToolResponseCount int
+}
+
 func NewSessionContextManager(store *Store, rawService adksession.Service, openai openAIClient, tools *ToolRegistry) *SessionContextManager {
 	if store == nil || rawService == nil {
 		return nil
@@ -265,30 +287,25 @@ func (m *SessionContextManager) projectSnapshot(raw adksession.Session, state Se
 		recentStart = currentCutoff
 	}
 
-	breakdown := SessionContextBreakdown{
+	rawBreakdown := SessionContextBreakdown{
 		InstructionTokens:     estimateInstructionTokens(agent),
 		HandoffTokens:         estimateHandoffTokens(segments),
 		PendingUserTokens:     estimatePendingUserTokens(pendingUserText),
 		ToolDeclarationTokens: estimateToolDeclarationTokens(agent, m.tools),
 	}
-	if len(segments) == 0 {
-		for _, event := range events {
-			breakdown.OtherVisibleTokens += estimateEventTokens(event)
-		}
-	} else {
-		for index := currentCutoff; index < len(events); index++ {
-			tokens := estimateEventTokens(events[index])
-			switch {
-			case index >= protectedStart:
-				breakdown.ProtectedTailTokens += tokens
-			case index >= recentStart && isUserEvent(events[index]):
-				breakdown.RecentUserTokens += tokens
-			}
-		}
-	}
+	effectiveBreakdown := rawBreakdown
+	projectedEvents := projectVisibleSessionEvents(events, len(segments) > 0, currentCutoff, recentStart, protectedStart)
+	rawBreakdown.RecentUserTokens += projectedEvents.rawBreakdown.RecentUserTokens
+	rawBreakdown.ProtectedTailTokens += projectedEvents.rawBreakdown.ProtectedTailTokens
+	rawBreakdown.OtherVisibleTokens += projectedEvents.rawBreakdown.OtherVisibleTokens
+	effectiveBreakdown.RecentUserTokens += projectedEvents.effectiveBreakdown.RecentUserTokens
+	effectiveBreakdown.ProtectedTailTokens += projectedEvents.effectiveBreakdown.ProtectedTailTokens
+	effectiveBreakdown.OtherVisibleTokens += projectedEvents.effectiveBreakdown.OtherVisibleTokens
 
-	currentInputTokens := breakdown.InstructionTokens + breakdown.HandoffTokens + breakdown.RecentUserTokens + breakdown.ProtectedTailTokens + breakdown.OtherVisibleTokens + breakdown.ToolDeclarationTokens
-	projectedNextTurnTokens := currentInputTokens + breakdown.PendingUserTokens
+	rawCurrentInputTokens := rawBreakdown.InstructionTokens + rawBreakdown.HandoffTokens + rawBreakdown.RecentUserTokens + rawBreakdown.ProtectedTailTokens + rawBreakdown.OtherVisibleTokens + rawBreakdown.ToolDeclarationTokens
+	rawProjectedNextTurnTokens := rawCurrentInputTokens + rawBreakdown.PendingUserTokens
+	currentInputTokens := effectiveBreakdown.InstructionTokens + effectiveBreakdown.HandoffTokens + effectiveBreakdown.RecentUserTokens + effectiveBreakdown.ProtectedTailTokens + effectiveBreakdown.OtherVisibleTokens + effectiveBreakdown.ToolDeclarationTokens
+	projectedNextTurnTokens := currentInputTokens + effectiveBreakdown.PendingUserTokens
 	windowTokens := m.contextWindowTokens(agent)
 	ratio := 0.0
 	if windowTokens > 0 {
@@ -298,28 +315,32 @@ func (m *SessionContextManager) projectSnapshot(raw adksession.Session, state Se
 	return projectionState{
 		compactionCutoff: potentialCutoff,
 		snapshot: SessionContextSnapshot{
-			SessionID:                 raw.ID(),
-			CurrentInputTokens:        currentInputTokens,
-			ProjectedNextTurnTokens:   projectedNextTurnTokens,
-			EstimatedInputTokens:      currentInputTokens,
-			ContextWindowTokens:       windowTokens,
-			UsageRatio:                ratio,
-			Status:                    contextStatus(projectedNextTurnTokens, windowTokens),
-			RecentUserWindow:          recentWindow,
-			RetainedRecentUserCount:   retainedRecentUserCount(events, recentStart, protectedStart),
-			ProtectedRecentCount:      retainedRecentUserCount(events, recentStart, protectedStart),
-			ActiveHandoffCount:        len(segments),
-			LatestHandoffPreview:      latestSegmentPreview(segments),
-			SummaryPreview:            latestSegmentPreview(segments),
-			RawEventCount:             len(events),
-			CompactedEventCount:       currentCutoff,
-			SummaryBoundaryEventIndex: currentCutoff,
-			Breakdown:                 breakdown,
-			LastCompactedAt:           state.LastCompactedAt,
-			LastCompactionMode:        state.LastCompactionMode,
-			LastCompactionReason:      state.LastCompactionReason,
-			AutoCompacted:             state.AutoCompacted,
-			DegradedSummary:           state.DegradedSummary,
+			SessionID:                  raw.ID(),
+			CurrentInputTokens:         currentInputTokens,
+			ProjectedNextTurnTokens:    projectedNextTurnTokens,
+			EstimatedInputTokens:       currentInputTokens,
+			RawCurrentInputTokens:      rawCurrentInputTokens,
+			RawProjectedNextTurnTokens: rawProjectedNextTurnTokens,
+			ContextWindowTokens:        windowTokens,
+			UsageRatio:                 ratio,
+			Status:                     contextStatus(projectedNextTurnTokens, windowTokens),
+			RecentUserWindow:           recentWindow,
+			RetainedRecentUserCount:    retainedRecentUserCount(events, recentStart, protectedStart),
+			ProtectedRecentCount:       retainedRecentUserCount(events, recentStart, protectedStart),
+			ActiveHandoffCount:         len(segments),
+			LatestHandoffPreview:       latestSegmentPreview(segments),
+			SummaryPreview:             latestSegmentPreview(segments),
+			RawEventCount:              len(events),
+			CompactedEventCount:        currentCutoff,
+			SummaryBoundaryEventIndex:  currentCutoff,
+			Breakdown:                  effectiveBreakdown,
+			RawBreakdown:               rawBreakdown,
+			TrimmedToolResponseCount:   projectedEvents.trimmedToolResponseCount,
+			LastCompactedAt:            state.LastCompactedAt,
+			LastCompactionMode:         state.LastCompactionMode,
+			LastCompactionReason:       state.LastCompactionReason,
+			AutoCompacted:              state.AutoCompacted,
+			DegradedSummary:            state.DegradedSummary,
 		},
 	}
 }
@@ -382,6 +403,113 @@ func mergeStateMetrics(state SessionContextState, snapshot SessionContextSnapsho
 	state.Breakdown = snapshot.Breakdown
 	state.DegradedSummary = snapshot.DegradedSummary
 	return state
+}
+
+func projectVisibleSessionEvents(events []*adksession.Event, compacted bool, currentCutoff int, recentStart int, protectedStart int) projectedVisibleSession {
+	if len(events) == 0 {
+		return projectedVisibleSession{}
+	}
+	if currentCutoff < 0 {
+		currentCutoff = 0
+	}
+	if recentStart < currentCutoff {
+		recentStart = currentCutoff
+	}
+	if protectedStart < currentCutoff {
+		protectedStart = currentCutoff
+	}
+
+	projected := make([]projectedVisibleEvent, 0, len(events))
+	appendEvent := func(bucket contextProjectionBucket, event *adksession.Event) {
+		effective, trimmedCount := limitVisibleEventForContext(event)
+		projected = append(projected, projectedVisibleEvent{raw: event, effective: effective, bucket: bucket, trimmedCount: trimmedCount})
+	}
+
+	if !compacted {
+		for _, event := range events {
+			appendEvent(contextProjectionBucketOtherVisible, event)
+		}
+	} else {
+		for index := recentStart; index < minInt(protectedStart, len(events)); index++ {
+			if isUserEvent(events[index]) {
+				appendEvent(contextProjectionBucketRecentUser, events[index])
+			}
+		}
+		if protectedStart < len(events) {
+			for _, event := range events[protectedStart:] {
+				appendEvent(contextProjectionBucketProtectedTail, event)
+			}
+		}
+	}
+
+	result := projectedVisibleSession{events: make([]*adksession.Event, 0, len(projected))}
+	for _, item := range projected {
+		result.events = append(result.events, item.effective)
+		addProjectedEventTokens(&result.rawBreakdown, item.bucket, item.raw)
+		addProjectedEventTokens(&result.effectiveBreakdown, item.bucket, item.effective)
+		result.trimmedToolResponseCount += item.trimmedCount
+	}
+	return result
+}
+
+func addProjectedEventTokens(breakdown *SessionContextBreakdown, bucket contextProjectionBucket, event *adksession.Event) {
+	if breakdown == nil || event == nil {
+		return
+	}
+	tokens := estimateEventTokens(event)
+	switch bucket {
+	case contextProjectionBucketRecentUser:
+		breakdown.RecentUserTokens += tokens
+	case contextProjectionBucketProtectedTail:
+		breakdown.ProtectedTailTokens += tokens
+	default:
+		breakdown.OtherVisibleTokens += tokens
+	}
+}
+
+func limitVisibleEventForContext(event *adksession.Event) (*adksession.Event, int) {
+	if event == nil || event.Content == nil || len(event.Content.Parts) == 0 {
+		return event, 0
+	}
+	parts := make([]*genai.Part, len(event.Content.Parts))
+	trimmedCount := 0
+	needsClone := false
+	for index, part := range event.Content.Parts {
+		if part == nil {
+			continue
+		}
+		partCopy := *part
+		if part.FunctionCall != nil {
+			functionCallCopy := *part.FunctionCall
+			partCopy.FunctionCall = &functionCallCopy
+		}
+		if part.FunctionResponse != nil {
+			functionResponseCopy := *part.FunctionResponse
+			limitedResponse, trimmed := limitToolOutputWithMetadata(part.FunctionResponse.Response)
+			if trimmed {
+				functionResponseCopy.Response = asToolResponseMap(limitedResponse)
+				trimmedCount++
+				needsClone = true
+			}
+			partCopy.FunctionResponse = &functionResponseCopy
+		}
+		parts[index] = &partCopy
+	}
+	if !needsClone {
+		return event, 0
+	}
+	contentCopy := *event.Content
+	contentCopy.Parts = parts
+	eventCopy := *event
+	eventCopy.Content = &contentCopy
+	return &eventCopy, trimmedCount
+}
+
+func asToolResponseMap(value any) map[string]any {
+	if mapped, ok := value.(map[string]any); ok {
+		return mapped
+	}
+	return map[string]any{"result": value}
 }
 
 func contextStatus(tokens int, windowTokens int) string {
@@ -718,7 +846,7 @@ func (s *compactingSessionService) Get(ctx context.Context, req *adksession.GetR
 		return response, storeErr
 	}
 	segments, stateErr := s.manager.store.HandoffSegments(ctx, req.SessionID, true)
-	if stateErr != nil || len(segments) == 0 {
+	if stateErr != nil {
 		return response, stateErr
 	}
 	events := eventSlice(response.Session.Events())
@@ -731,8 +859,11 @@ func (s *compactingSessionService) Get(ctx context.Context, req *adksession.GetR
 	if protectedStart < cutoff {
 		protectedStart = cutoff
 	}
-	filtered := projectVisibleEvents(events, recentStart, protectedStart)
-	filtered = filterEvents(filtered, req.After, req.NumRecentEvents)
+	projected := projectVisibleSessionEvents(events, len(segments) > 0, cutoff, recentStart, protectedStart)
+	if len(segments) == 0 && projected.trimmedToolResponseCount == 0 {
+		return response, nil
+	}
+	filtered := filterEvents(projected.events, req.After, req.NumRecentEvents)
 	response.Session = &wrappedSession{
 		base:   response.Session,
 		events: &wrappedEvents{items: filtered},
@@ -770,28 +901,6 @@ func filterEvents(events []*adksession.Event, after time.Time, numRecent int) []
 		filtered = filtered[len(filtered)-numRecent:]
 	}
 	return filtered
-}
-
-func projectVisibleEvents(events []*adksession.Event, recentStart int, protectedStart int) []*adksession.Event {
-	if len(events) == 0 {
-		return nil
-	}
-	if recentStart < 0 {
-		recentStart = 0
-	}
-	if protectedStart < recentStart {
-		protectedStart = recentStart
-	}
-	visible := make([]*adksession.Event, 0, len(events)-recentStart)
-	for index := recentStart; index < minInt(protectedStart, len(events)); index++ {
-		if isUserEvent(events[index]) {
-			visible = append(visible, events[index])
-		}
-	}
-	if protectedStart < len(events) {
-		visible = append(visible, events[protectedStart:]...)
-	}
-	return visible
 }
 
 type wrappedSession struct {

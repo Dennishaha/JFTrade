@@ -420,15 +420,20 @@ func executeRegisteredTool(ctx context.Context, registered RegisteredTool, input
 	}
 }
 
-func limitToolOutput(output any) any {
+func limitToolOutputWithMetadata(output any) (any, bool) {
 	raw, err := json.Marshal(output)
 	if err != nil || len(raw) <= MaxToolOutputBytes {
-		return output
+		return output, false
 	}
 	return map[string]any{
 		"truncated": true,
 		"preview":   string(raw[:MaxToolOutputBytes]),
-	}
+	}, true
+}
+
+func limitToolOutput(output any) any {
+	limited, _ := limitToolOutputWithMetadata(output)
+	return limited
 }
 
 func summarizeToolOutput(toolName string, output any) string {

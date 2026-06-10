@@ -107,11 +107,11 @@ type Session struct {
 const transcriptKindMessage = "message"
 
 const (
-	TimelineKindUserMessage       = "user_message"
-	TimelineKindAssistantMessage  = "assistant_message"
+	TimelineKindUserMessage        = "user_message"
+	TimelineKindAssistantMessage   = "assistant_message"
 	TimelineKindAssistantReasoning = "assistant_reasoning"
-	TimelineKindToolGroup         = "tool_group"
-	TimelineKindApprovalGroup     = "approval_group"
+	TimelineKindToolGroup          = "tool_group"
+	TimelineKindApprovalGroup      = "approval_group"
 
 	TimelineStatusStreaming = "streaming"
 	TimelineStatusFinal     = "final"
@@ -401,28 +401,32 @@ type SessionContextState struct {
 }
 
 type SessionContextSnapshot struct {
-	SessionID                 string                  `json:"sessionId"`
-	CurrentInputTokens        int                     `json:"currentInputTokens"`
-	ProjectedNextTurnTokens   int                     `json:"projectedNextTurnTokens"`
-	EstimatedInputTokens      int                     `json:"estimatedInputTokens,omitempty"`
-	ContextWindowTokens       int                     `json:"contextWindowTokens"`
-	UsageRatio                float64                 `json:"usageRatio"`
-	Status                    string                  `json:"status"`
-	RecentUserWindow          int                     `json:"recentUserWindow"`
-	RetainedRecentUserCount   int                     `json:"retainedRecentUserCount"`
-	ProtectedRecentCount      int                     `json:"protectedRecentCount,omitempty"`
-	ActiveHandoffCount        int                     `json:"activeHandoffCount"`
-	LatestHandoffPreview      string                  `json:"latestHandoffPreview,omitempty"`
-	SummaryPreview            string                  `json:"summaryPreview,omitempty"`
-	RawEventCount             int                     `json:"rawEventCount,omitempty"`
-	CompactedEventCount       int                     `json:"compactedEventCount,omitempty"`
-	SummaryBoundaryEventIndex int                     `json:"summaryBoundaryEventIndex,omitempty"`
-	Breakdown                 SessionContextBreakdown `json:"breakdown"`
-	LastCompactedAt           string                  `json:"lastCompactedAt,omitempty"`
-	LastCompactionMode        string                  `json:"lastCompactionMode,omitempty"`
-	LastCompactionReason      string                  `json:"lastCompactionReason,omitempty"`
-	AutoCompacted             bool                    `json:"autoCompacted"`
-	DegradedSummary           bool                    `json:"degradedSummary"`
+	SessionID                  string                  `json:"sessionId"`
+	CurrentInputTokens         int                     `json:"currentInputTokens"`
+	ProjectedNextTurnTokens    int                     `json:"projectedNextTurnTokens"`
+	EstimatedInputTokens       int                     `json:"estimatedInputTokens,omitempty"`
+	RawCurrentInputTokens      int                     `json:"rawCurrentInputTokens,omitempty"`
+	RawProjectedNextTurnTokens int                     `json:"rawProjectedNextTurnTokens,omitempty"`
+	ContextWindowTokens        int                     `json:"contextWindowTokens"`
+	UsageRatio                 float64                 `json:"usageRatio"`
+	Status                     string                  `json:"status"`
+	RecentUserWindow           int                     `json:"recentUserWindow"`
+	RetainedRecentUserCount    int                     `json:"retainedRecentUserCount"`
+	ProtectedRecentCount       int                     `json:"protectedRecentCount,omitempty"`
+	ActiveHandoffCount         int                     `json:"activeHandoffCount"`
+	LatestHandoffPreview       string                  `json:"latestHandoffPreview,omitempty"`
+	SummaryPreview             string                  `json:"summaryPreview,omitempty"`
+	RawEventCount              int                     `json:"rawEventCount,omitempty"`
+	CompactedEventCount        int                     `json:"compactedEventCount,omitempty"`
+	SummaryBoundaryEventIndex  int                     `json:"summaryBoundaryEventIndex,omitempty"`
+	Breakdown                  SessionContextBreakdown `json:"breakdown"`
+	RawBreakdown               SessionContextBreakdown `json:"rawBreakdown,omitempty"`
+	TrimmedToolResponseCount   int                     `json:"trimmedToolResponseCount,omitempty"`
+	LastCompactedAt            string                  `json:"lastCompactedAt,omitempty"`
+	LastCompactionMode         string                  `json:"lastCompactionMode,omitempty"`
+	LastCompactionReason       string                  `json:"lastCompactionReason,omitempty"`
+	AutoCompacted              bool                    `json:"autoCompacted"`
+	DegradedSummary            bool                    `json:"degradedSummary"`
 }
 
 func nowString() string {

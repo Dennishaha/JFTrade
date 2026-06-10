@@ -214,6 +214,30 @@ const breakdownRows = computed(() => {
     { label: "待发送输入", value: breakdown.pendingUserTokens },
   ];
 });
+const rawBreakdownRows = computed(() => {
+  const breakdown = props.contextSnapshot?.rawBreakdown;
+  if (!breakdown) return [];
+  return [
+    { label: "系统指令", value: breakdown.instructionTokens },
+    { label: "handoff 摘要", value: breakdown.handoffTokens },
+    { label: "近期用户原文", value: breakdown.recentUserTokens },
+    { label: "受保护尾部", value: breakdown.protectedTailTokens },
+    { label: "工具声明", value: breakdown.toolDeclarationTokens },
+    { label: "其他可见内容", value: breakdown.otherVisibleTokens },
+    { label: "待发送输入", value: breakdown.pendingUserTokens },
+  ];
+});
+const rawContextDiagnosticsVisible = computed(() => {
+  const snapshot = props.contextSnapshot;
+  if (!snapshot) return false;
+  return (
+    (snapshot.trimmedToolResponseCount ?? 0) > 0 ||
+    (snapshot.rawCurrentInputTokens ?? snapshot.currentInputTokens) >
+      snapshot.currentInputTokens ||
+    (snapshot.rawProjectedNextTurnTokens ?? snapshot.projectedNextTurnTokens) >
+      snapshot.projectedNextTurnTokens
+  );
+});
 
 watch(filteredSlashCommands, (items) => {
   if (items.length === 0) {
@@ -435,11 +459,53 @@ function canRevokeQueueItem(item: QueuedChatMessage): boolean {
                 <span>降级摘要</span>
                 <strong>{{ contextSnapshot?.degradedSummary ? "是" : "否" }}</strong>
               </div>
+              <template v-if="rawContextDiagnosticsVisible">
+                <div class="adk-context-stat">
+                  <span>原始当前估算</span>
+                  <strong>{{
+                    formatTokenCount(
+                      contextSnapshot?.rawCurrentInputTokens ??
+                        contextSnapshot?.currentInputTokens ??
+                        0,
+                    )
+                  }}</strong>
+                </div>
+                <div class="adk-context-stat">
+                  <span>原始下一轮估算</span>
+                  <strong>{{
+                    formatTokenCount(
+                      contextSnapshot?.rawProjectedNextTurnTokens ??
+                        contextSnapshot?.projectedNextTurnTokens ??
+                        0,
+                    )
+                  }}</strong>
+                </div>
+                <div class="adk-context-stat">
+                  <span>已裁剪工具响应</span>
+                  <strong>{{
+                    contextSnapshot?.trimmedToolResponseCount ?? 0
+                  }}</strong>
+                </div>
+              </template>
               <div class="adk-context-breakdown">
                 <div class="adk-context-summary__title">Token 构成</div>
                 <div
                   v-for="item in breakdownRows"
                   :key="item.label"
+                  class="adk-context-stat"
+                >
+                  <span>{{ item.label }}</span>
+                  <strong>{{ formatTokenCount(item.value) }}</strong>
+                </div>
+              </div>
+              <div
+                v-if="rawContextDiagnosticsVisible && rawBreakdownRows.length > 0"
+                class="adk-context-breakdown"
+              >
+                <div class="adk-context-summary__title">原始 Token 构成</div>
+                <div
+                  v-for="item in rawBreakdownRows"
+                  :key="`raw-${item.label}`"
                   class="adk-context-stat"
                 >
                   <span>{{ item.label }}</span>
@@ -658,11 +724,58 @@ function canRevokeQueueItem(item: QueuedChatMessage): boolean {
                       contextSnapshot?.degradedSummary ? "是" : "否"
                     }}</strong>
                   </div>
+                  <template v-if="rawContextDiagnosticsVisible">
+                    <div class="adk-context-stat">
+                      <span>原始当前估算</span>
+                      <strong>{{
+                        formatTokenCount(
+                          contextSnapshot?.rawCurrentInputTokens ??
+                            contextSnapshot?.currentInputTokens ??
+                            0,
+                        )
+                      }}</strong>
+                    </div>
+                    <div class="adk-context-stat">
+                      <span>原始下一轮估算</span>
+                      <strong>{{
+                        formatTokenCount(
+                          contextSnapshot?.rawProjectedNextTurnTokens ??
+                            contextSnapshot?.projectedNextTurnTokens ??
+                            0,
+                        )
+                      }}</strong>
+                    </div>
+                    <div class="adk-context-stat">
+                      <span>已裁剪工具响应</span>
+                      <strong>{{
+                        contextSnapshot?.trimmedToolResponseCount ?? 0
+                      }}</strong>
+                    </div>
+                  </template>
                   <div class="adk-context-breakdown">
                     <div class="adk-context-summary__title">Token 构成</div>
                     <div
                       v-for="item in breakdownRows"
                       :key="item.label"
+                      class="adk-context-stat"
+                    >
+                      <span>{{ item.label }}</span>
+                      <strong>{{ formatTokenCount(item.value) }}</strong>
+                    </div>
+                  </div>
+                  <div
+                    v-if="
+                      rawContextDiagnosticsVisible &&
+                      rawBreakdownRows.length > 0
+                    "
+                    class="adk-context-breakdown"
+                  >
+                    <div class="adk-context-summary__title">
+                      原始 Token 构成
+                    </div>
+                    <div
+                      v-for="item in rawBreakdownRows"
+                      :key="`page-raw-${item.label}`"
                       class="adk-context-stat"
                     >
                       <span>{{ item.label }}</span>

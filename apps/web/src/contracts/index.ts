@@ -143,6 +143,8 @@ export interface ADKSessionContextSnapshot {
   currentInputTokens: number;
   projectedNextTurnTokens: number;
   estimatedInputTokens?: number;
+  rawCurrentInputTokens?: number;
+  rawProjectedNextTurnTokens?: number;
   contextWindowTokens: number;
   usageRatio: number;
   status:
@@ -170,6 +172,16 @@ export interface ADKSessionContextSnapshot {
     pendingUserTokens: number;
     toolDeclarationTokens: number;
   };
+  rawBreakdown?: {
+    instructionTokens: number;
+    handoffTokens: number;
+    recentUserTokens: number;
+    protectedTailTokens: number;
+    otherVisibleTokens: number;
+    pendingUserTokens: number;
+    toolDeclarationTokens: number;
+  };
+  trimmedToolResponseCount?: number;
   lastCompactedAt?: string;
   lastCompactionMode?: "manual" | "auto" | "aggressive" | string;
   lastCompactionReason?: string;
