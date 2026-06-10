@@ -48,110 +48,237 @@ export function buildADKToolVisualization(toolName: string, output: unknown): AD
   if (!isRecord(output)) return null;
 
   switch (normalizedToolName) {
+    case "strategy.dsl_spec":
+      return buildStrategyDSLSpec(output);
+    case "strategy.validate_dsl":
+      return buildStrategyValidateDSL(output);
+    case "strategy.save_definition":
+      return buildStrategySaveDefinition(output);
+    case "strategy.update_instance_mode":
+      return buildStrategyUpdateInstanceMode(output);
     case "portfolio.summary":
       return buildPortfolioSummary(output);
     case "broker.orders":
-      return buildToolTable("Broker orders", output, ["orders", "items", "data"], [
-        ["symbol", "Symbol"],
-        ["side", "Side"],
-        ["status", "Status"],
-        ["quantity", "Qty"],
-        ["price", "Price"],
-        ["orderIdEx", "Order ID"],
-        ["createdAt", "Created"],
-        ["updatedAt", "Updated"],
+      return buildToolTable("经纪商订单", output, ["orders", "items", "data"], [
+        ["symbol", "标的"],
+        ["side", "方向"],
+        ["status", "状态"],
+        ["quantity", "数量"],
+        ["price", "价格"],
+        ["orderIdEx", "订单号"],
+        ["createdAt", "创建时间"],
+        ["updatedAt", "更新时间"],
       ]);
     case "broker.fills":
-      return buildToolTable("Broker fills", output, ["fills", "items", "data"], [
-        ["symbol", "Symbol"],
-        ["side", "Side"],
-        ["quantity", "Qty"],
-        ["price", "Price"],
-        ["amount", "Amount"],
-        ["fillId", "Fill ID"],
-        ["createdAt", "Created"],
+      return buildToolTable("经纪商成交", output, ["fills", "items", "data"], [
+        ["symbol", "标的"],
+        ["side", "方向"],
+        ["quantity", "数量"],
+        ["price", "价格"],
+        ["amount", "金额"],
+        ["fillId", "成交号"],
+        ["createdAt", "创建时间"],
       ]);
     case "broker.fees":
-      return buildToolTable("Broker fees", output, ["fees", "items", "data"], [
-        ["orderIdEx", "Order ID"],
-        ["feeType", "Type"],
-        ["amount", "Amount"],
-        ["currency", "Currency"],
-        ["description", "Description"],
+      return buildToolTable("订单费用", output, ["fees", "items", "data"], [
+        ["orderIdEx", "订单号"],
+        ["feeType", "类型"],
+        ["amount", "金额"],
+        ["currency", "币种"],
+        ["description", "说明"],
       ]);
     case "broker.cash_flows":
-      return buildToolTable("Cash flows", output, ["cashFlows", "flows", "items", "data"], [
-        ["clearingDate", "Date"],
-        ["direction", "Direction"],
-        ["amount", "Amount"],
-        ["currency", "Currency"],
-        ["description", "Description"],
+      return buildToolTable("资金流水", output, ["cashFlows", "flows", "items", "data"], [
+        ["clearingDate", "日期"],
+        ["direction", "方向"],
+        ["amount", "金额"],
+        ["currency", "币种"],
+        ["description", "说明"],
       ]);
     case "market.depth":
       return buildDepth(output);
     case "risk.state":
       return buildRiskState(output);
     case "risk.events":
-      return buildTimeline("Risk events", output, ["events", "riskEvents", "items", "data"]);
+      return buildTimeline("风险事件", output, ["events", "riskEvents", "items", "data"]);
     case "execution.order_events":
-      return buildTimeline("Order events", output, ["events", "orderEvents", "items", "data", "orders"]);
+      return buildTimeline("订单事件", output, ["events", "orderEvents", "items", "data", "orders"]);
     case "backtest.runs":
-      return buildToolTable("Backtest runs", output, ["runs", "items", "data"], [
-        ["id", "Run"],
-        ["status", "Status"],
-        ["symbol", "Symbol"],
-        ["interval", "Interval"],
-        ["totalReturn", "Return"],
-        ["maxDrawdown", "Drawdown"],
-        ["tradeCount", "Trades"],
-        ["createdAt", "Created"],
+      return buildToolTable("回测运行", output, ["runs", "items", "data"], [
+        ["id", "运行 ID"],
+        ["status", "状态"],
+        ["symbol", "标的"],
+        ["interval", "周期"],
+        ["totalReturn", "收益"],
+        ["maxDrawdown", "回撤"],
+        ["tradeCount", "成交笔数"],
+        ["createdAt", "创建时间"],
       ]);
     case "strategy.optimize":
-      return buildToolTable("Optimization candidates", output, ["runs", "candidates", "tasks", "items", "data"], [
-        ["definitionId", "Definition"],
-        ["runId", "Run"],
-        ["status", "Status"],
-        ["totalReturn", "Return"],
-        ["maxDrawdown", "Drawdown"],
-        ["tradeCount", "Trades"],
+      return buildToolTable("优化候选", output, ["runs", "candidates", "tasks", "items", "data"], [
+        ["definitionId", "策略定义"],
+        ["runId", "运行 ID"],
+        ["status", "状态"],
+        ["totalReturn", "收益"],
+        ["maxDrawdown", "回撤"],
+        ["tradeCount", "成交笔数"],
       ]);
     default:
       return null;
   }
 }
 
-function buildPortfolioSummary(output: UnknownRecord): ADKToolVisualization | null {
+function buildStrategyDSLSpec(output: UnknownRecord): ADKToolVisualization | null {
+  const sections = findArray(output, ["sections"]);
+  const hooks = findArray(output, ["supportedHooks"]);
+  const unsupportedPatterns = findArray(output, ["unsupportedPatterns"]);
+  const examples = findArray(output, ["examples"]);
+  const selectedSection = optionalValue(output.selectedSection);
   const cards = [
-    summaryCard("Broker", pick(output, ["brokerStatus", "brokerEnabled", "connected", "status"])),
-    summaryCard("Accounts", pick(output, ["accountCount", "accountsTotal", "accounts"])),
-    summaryCard("Orders", pick(output, ["orderCount", "ordersTotal", "orders"])),
-    summaryCard("Positions", pick(output, ["positionCount", "positionsTotal", "positions"])),
+    summaryCard("版本", output.version),
+    summaryCard("格式", output.sourceFormat),
+    summaryCard("运行时", output.runtime),
+    summaryCard("章节数", sections.length),
+    summaryCard("Hook 数", hooks.length),
   ].filter((card): card is NonNullable<typeof card> => card !== null);
   const rows = [
-    row("Checked at", pick(output, ["checkedAt", "updatedAt", "at"])),
-    row("Trading environment", pick(output, ["tradingEnvironment", "environment"])),
-    row("Account", pick(output, ["accountId", "accountName"])),
+    row("当前章节", selectedSection ? translateDSLSection(selectedSection) : undefined),
+    row("返回示例数", examples.length),
+    row("不支持写法数", unsupportedPatterns.length),
+  ].filter((item): item is { label: string; value: string } => item !== null);
+  if (cards.length === 0 && rows.length === 0) return null;
+  return {
+    kind: "summary",
+    title: "JFTrade DSL v1 规范",
+    subtitle: selectedSection ? `章节：${translateDSLSection(selectedSection)}` : "结构化 DSL 定义",
+    cards,
+    rows,
+  };
+}
+
+function buildStrategyValidateDSL(output: UnknownRecord): ADKToolVisualization | null {
+  const metadata = isRecord(output.metadata) ? output.metadata : null;
+  const requirements = isRecord(output.requirements) ? output.requirements : null;
+  const indicators = requirements ? findArray(requirements, ["indicators"]) : [];
+  const hooks = findArray(output, ["hooks"]);
+  const errors = findArray(output, ["errors"]);
+  const ok = output.ok === true;
+  const cards = [
+    { label: "校验结果", value: ok ? "有效" : "无效", tone: ok ? "ok" : "danger" as const },
+    summaryCard("运行时", output.runtime),
+    summaryCard("Hook 数", hooks.length),
+    summaryCard("指标数", indicators.length),
+  ].filter((card): card is ADKSummaryVisualization["cards"][number] => card !== null);
+  const rows = [
+    row("策略名", metadata?.name),
+    row("版本", metadata?.version),
+    row("标的", metadata?.symbol),
+    row("周期", metadata?.interval),
+    row("首个错误", errors[0]),
+  ].filter((item): item is { label: string; value: string } => item !== null);
+  if (cards.length === 0 && rows.length === 0) return null;
+  return {
+    kind: "summary",
+    title: "DSL 校验",
+    subtitle: ok ? "可以继续保存策略定义" : "请先修正脚本后再保存",
+    cards,
+    rows,
+  };
+}
+
+function buildStrategySaveDefinition(output: UnknownRecord): ADKToolVisualization | null {
+  const definition = isRecord(output.definition)
+    ? output.definition
+    : isRecord(output)
+      ? output
+      : null;
+  if (!definition) return null;
+  const operation = optionalValue(output.operation);
+  const cards = [
+    operation
+      ? ({ label: "操作", value: formatOperation(operation), tone: "ok" } satisfies ADKSummaryVisualization["cards"][number])
+      : null,
+    summaryCard("策略定义", definition.name),
+    summaryCard("版本", definition.version),
+    summaryCard("标的", definition.symbol),
+    summaryCard("周期", definition.interval),
+  ].filter((card): card is ADKSummaryVisualization["cards"][number] => card !== null);
+  const rows = [
+    row("ID", definition.id),
+    row("运行时", definition.runtime),
+    row("来源格式", definition.sourceFormat),
+    row("更新时间", definition.updatedAt),
+  ].filter((item): item is { label: string; value: string } => item !== null);
+  if (cards.length === 0 && rows.length === 0) return null;
+  return {
+    kind: "summary",
+    title: "策略定义已保存",
+    subtitle: operation ? `本次操作：${formatOperation(operation)}` : "策略定义已更新",
+    cards,
+    rows,
+  };
+}
+
+function buildStrategyUpdateInstanceMode(output: UnknownRecord): ADKToolVisualization | null {
+  const instance = isRecord(output.instance) ? output.instance : null;
+  if (!instance) return null;
+  const binding = isRecord(instance.binding) ? instance.binding : null;
+  const definition = isRecord(instance.definition) ? instance.definition : null;
+  const updatedFields = findArray(output, ["updatedFields"]);
+  const cards = [
+    summaryCard("模式", binding?.executionMode, toneForValue(binding?.executionMode)),
+    summaryCard("状态", instance.status),
+    summaryCard("运行时", instance.runtime),
+    summaryCard("标的数", Array.isArray(binding?.symbols) ? binding?.symbols.length : undefined),
+  ].filter((card): card is NonNullable<typeof card> => card !== null);
+  const rows = [
+    row("实例 ID", instance.id),
+    row("策略定义", definition?.name),
+    row("周期", binding?.interval),
+    row("已修改字段", updatedFields.map((field) => translateUpdatedFieldName(field)).join("、")),
+  ].filter((item): item is { label: string; value: string } => item !== null);
+  if (cards.length === 0 && rows.length === 0) return null;
+  return {
+    kind: "summary",
+    title: "策略实例模式已更新",
+    subtitle: optionalValue(binding?.executionMode) ?? "执行模式已修改",
+    cards,
+    rows,
+  };
+}
+
+function buildPortfolioSummary(output: UnknownRecord): ADKToolVisualization | null {
+  const cards = [
+    summaryCard("经纪通道", pick(output, ["brokerStatus", "brokerEnabled", "connected", "status"])),
+    summaryCard("账户数", pick(output, ["accountCount", "accountsTotal", "accounts"])),
+    summaryCard("订单数", pick(output, ["orderCount", "ordersTotal", "orders"])),
+    summaryCard("持仓数", pick(output, ["positionCount", "positionsTotal", "positions"])),
+  ].filter((card): card is NonNullable<typeof card> => card !== null);
+  const rows = [
+    row("检查时间", pick(output, ["checkedAt", "updatedAt", "at"])),
+    row("交易环境", pick(output, ["tradingEnvironment", "environment"])),
+    row("账户", pick(output, ["accountId", "accountName"])),
   ].filter((item): item is { label: string; value: string } => item !== null);
 
   if (cards.length === 0 && rows.length === 0) return null;
-  return { kind: "summary", title: "Portfolio summary", cards, rows };
+  return { kind: "summary", title: "组合摘要", cards, rows };
 }
 
 function buildRiskState(output: UnknownRecord): ADKToolVisualization | null {
   const killSwitch = pick(output, ["killSwitch", "kill_switch"]);
   const riskLimits = pick(output, ["riskLimits", "limits"]);
   const cards = [
-    summaryCard("Kill switch", killSwitch, toneForKillSwitch(killSwitch)),
-    summaryCard("Risk limits", riskLimits),
-    summaryCard("Real trading", pick(output, ["realTradingEnabled", "realTrading", "enabled"]), toneForValue(pick(output, ["realTradingEnabled", "realTrading", "enabled"]))),
+    summaryCard("熔断开关", killSwitch, toneForKillSwitch(killSwitch)),
+    summaryCard("风险限制", riskLimits),
+    summaryCard("实盘交易", pick(output, ["realTradingEnabled", "realTrading", "enabled"]), toneForValue(pick(output, ["realTradingEnabled", "realTrading", "enabled"]))),
   ].filter((card): card is NonNullable<typeof card> => card !== null);
   const rows = [
-    row("Checked at", pick(output, ["checkedAt", "updatedAt", "at"])),
-    row("Source", pick(output, ["riskConfigSource", "source"])),
+    row("检查时间", pick(output, ["checkedAt", "updatedAt", "at"])),
+    row("来源", pick(output, ["riskConfigSource", "source"])),
   ].filter((item): item is { label: string; value: string } => item !== null);
 
   if (cards.length === 0 && rows.length === 0) return null;
-  return { kind: "summary", title: "Risk state", cards, rows };
+  return { kind: "summary", title: "风险状态", cards, rows };
 }
 
 function buildToolTable(
@@ -173,7 +300,7 @@ function buildToolTable(
   return {
     kind: "table",
     title,
-    subtitle: `${records.length}${items.length > records.length ? ` of ${items.length}` : ""} rows`,
+    subtitle: `${records.length}${items.length > records.length ? ` / ${items.length}` : ""} 行`,
     columns: columns.map(([key, label]) => ({ key, label })),
     rows: records.map((record) => Object.fromEntries(columns.map(([key]) => [key, formatValue(record[key])]))),
   };
@@ -188,7 +315,7 @@ function buildDepth(output: UnknownRecord): ADKDepthVisualization | null {
   const maxQuantity = Math.max(...[...bids, ...asks].map((item) => Number.parseFloat(item.quantity.replace(/,/g, ""))).filter(Number.isFinite), 1);
   return {
     kind: "depth",
-    title: "Market depth",
+    title: "盘口深度",
     subtitle: formatValue(pick(output, ["symbol", "instrumentId", "market"])),
     bids: bids.map((row) => ({ ...row, percent: depthPercent(row, maxQuantity) })),
     asks: asks.map((row) => ({ ...row, percent: depthPercent(row, maxQuantity) })),
@@ -210,7 +337,7 @@ function buildTimeline(title: string, output: UnknownRecord, arrayKeys: string[]
     return event;
   });
   if (events.length === 0) return null;
-  return { kind: "timeline", title, subtitle: `${events.length}${items.length > events.length ? ` of ${items.length}` : ""} events`, events };
+  return { kind: "timeline", title, subtitle: `${events.length}${items.length > events.length ? ` / ${items.length}` : ""} 条事件`, events };
 }
 
 function normalizeDepthRows(items: unknown[]): ADKDepthRow[] {
@@ -282,9 +409,12 @@ function hasDisplayValue(value: unknown): boolean {
 
 function formatValue(value: unknown): string {
   if (value === null || value === undefined) return "-";
-  if (typeof value === "boolean") return value ? "Yes" : "No";
+  if (typeof value === "boolean") return value ? "是" : "否";
   if (typeof value === "number") return Number.isFinite(value) ? value.toLocaleString(undefined, { maximumFractionDigits: 4 }) : "-";
-  if (typeof value === "string") return value.trim() || "-";
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed ? translateDisplayText(trimmed) : "-";
+  }
   if (Array.isArray(value)) return String(value.length);
   if (isRecord(value)) {
     const status = pick(value, ["status", "state", "enabled", "active", "value"]);
@@ -296,19 +426,102 @@ function formatValue(value: unknown): string {
 
 function toneForValue(value: unknown): "ok" | "warning" | "danger" | "muted" | undefined {
   const text = formatValue(value).toLowerCase();
-  if (["yes", "enabled", "active", "ok", "healthy", "connected", "succeeded", "completed", "done"].includes(text)) return "ok";
-  if (["no", "disabled", "inactive", "pending", "running", "todo"].includes(text)) return "muted";
-  if (text.includes("warn") || text.includes("blocked") || text.includes("limited")) return "warning";
-  if (text.includes("error") || text.includes("failed") || text.includes("denied") || text.includes("kill")) return "danger";
+  if (["yes", "是", "enabled", "已启用", "active", "活跃", "ok", "healthy", "正常", "connected", "已连接", "succeeded", "success", "成功", "completed", "已完成", "done"].includes(text)) return "ok";
+  if (["no", "否", "disabled", "未启用", "inactive", "未激活", "pending", "待处理", "running", "运行中", "todo", "已停止"].includes(text)) return "muted";
+  if (text.includes("warn") || text.includes("warning") || text.includes("警告") || text.includes("blocked") || text.includes("limited") || text.includes("受限")) return "warning";
+  if (text.includes("error") || text.includes("failed") || text.includes("失败") || text.includes("denied") || text.includes("拒绝") || text.includes("kill")) return "danger";
   return undefined;
 }
 
 function toneForKillSwitch(value: unknown): "ok" | "warning" | "danger" | "muted" | undefined {
   if (typeof value === "boolean") return value ? "danger" : "ok";
   const text = formatValue(value).toLowerCase();
-  if (["yes", "true", "enabled", "active", "on", "engaged"].includes(text)) return "danger";
-  if (["no", "false", "disabled", "inactive", "off"].includes(text)) return "ok";
+  if (["yes", "是", "true", "enabled", "已启用", "active", "活跃", "on", "engaged"].includes(text)) return "danger";
+  if (["no", "否", "false", "disabled", "未启用", "inactive", "未激活", "off"].includes(text)) return "ok";
   return toneForValue(value);
+}
+
+function translateDSLSection(section: string): string {
+  switch (section.trim().toLowerCase()) {
+    case "overview":
+      return "概览";
+    case "syntax":
+      return "语法";
+    case "expressions":
+      return "表达式";
+    case "indicators":
+      return "指标";
+    case "orders":
+      return "下单";
+    case "protect":
+      return "保护";
+    case "examples":
+      return "示例";
+    default:
+      return section;
+  }
+}
+
+function formatOperation(operation: string): string {
+  switch (operation.trim().toLowerCase()) {
+    case "created":
+      return "已创建";
+    case "updated":
+      return "已更新";
+    default:
+      return operation;
+  }
+}
+
+function translateUpdatedFieldName(field: unknown): string {
+  const text = typeof field === "string" ? field.trim() : "";
+  switch (text) {
+    case "executionMode":
+      return "执行模式";
+    default:
+      return text;
+  }
+}
+
+function translateDisplayText(text: string): string {
+  const key = text.trim().toLowerCase();
+  const exactMap: Record<string, string> = {
+    connected: "已连接",
+    disconnected: "未连接",
+    enabled: "已启用",
+    disabled: "未启用",
+    active: "活跃",
+    inactive: "未激活",
+    valid: "有效",
+    invalid: "无效",
+    created: "已创建",
+    updated: "已更新",
+    live: "实盘",
+    notify_only: "仅通知",
+    stopped: "已停止",
+    running: "运行中",
+    pending: "待处理",
+    submitted: "已提交",
+    succeeded: "成功",
+    success: "成功",
+    failed: "失败",
+    rejected: "已拒绝",
+    completed: "已完成",
+    buy: "买入",
+    sell: "卖出",
+    short: "做空",
+    long: "做多",
+    allow: "允许",
+    market: "市价",
+    limit: "限价",
+    current: "当前",
+    current_day: "当日",
+    true: "是",
+    false: "否",
+    yes: "是",
+    no: "否",
+  };
+  return exactMap[key] ?? text;
 }
 
 function labelFromKey(key: string): string {

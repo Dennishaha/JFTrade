@@ -54,13 +54,13 @@ func NewToolRegistry() *ToolRegistry {
 	}, httpFetchTool)
 	registry.Register(ToolDescriptor{
 		Name:               "tools.search",
-		DisplayName:        "Search ADK tools",
-		Description:        "Search currently registered JFTrade ADK tools by name, category, permission, risk, or description.",
+		DisplayName:        "搜索 ADK 工具",
+		Description:        "按名称、分类、权限、风险等级或描述搜索当前已注册的 JFTrade ADK 工具。",
 		Category:           "system",
 		Permission:         "read_internal",
 		AllowedModes:       []string{PermissionModeApproval, PermissionModeSandboxAuto, PermissionModeHighAuto},
 		RequiresApprovalIn: nil,
-		OutputSummary:      "Matching tool descriptors with risk level and input schema.",
+		OutputSummary:      "匹配到的工具 descriptor、风险等级与输入 schema。",
 		RiskLevel:          "low",
 	}, func(ctx context.Context, input map[string]any) (any, error) {
 		query := strings.ToLower(strings.TrimSpace(toolStringValue(input, "query")))
@@ -227,6 +227,23 @@ func SelectToolInvocations(question string, agent Agent, registry *ToolRegistry)
 	}
 	if strings.Contains(lower, "策略") || strings.Contains(lower, "strategy") || strings.Contains(lower, "定义") {
 		add("strategy.definitions", nil)
+	}
+	if strings.Contains(lower, "dsl") || strings.Contains(lower, "语法") || strings.Contains(lower, "spec") {
+		add("strategy.dsl_spec", nil)
+	}
+	if (strings.Contains(lower, "dsl") || strings.Contains(lower, "语法") || strings.Contains(lower, "脚本") || strings.Contains(lower, "script")) &&
+		(strings.Contains(lower, "校验") || strings.Contains(lower, "验证") || strings.Contains(lower, "检查") || strings.Contains(lower, "validate")) {
+		add("strategy.validate_dsl", nil)
+	}
+	if strings.Contains(lower, "修改策略定义") || strings.Contains(lower, "save definition") || strings.Contains(lower, "update definition") ||
+		((strings.Contains(lower, "保存") || strings.Contains(lower, "save") || strings.Contains(lower, "更新") || strings.Contains(lower, "update")) &&
+			(strings.Contains(lower, "策略") || strings.Contains(lower, "strategy") || strings.Contains(lower, "定义") || strings.Contains(lower, "definition"))) {
+		add("strategy.save_definition", nil)
+	}
+	if strings.Contains(lower, "notify_only") || strings.Contains(lower, "executionmode") || strings.Contains(lower, "执行模式") ||
+		strings.Contains(lower, "切换模式") || strings.Contains(lower, "修改模式") ||
+		((strings.Contains(lower, "live") || strings.Contains(lower, "mode")) && strings.Contains(lower, "instance")) {
+		add("strategy.update_instance_mode", nil)
 	}
 	if strings.Contains(lower, "回测") || strings.Contains(lower, "backtest") || strings.Contains(lower, "优化") || strings.Contains(lower, "optimize") {
 		add("backtest.runs", nil)
@@ -616,12 +633,12 @@ func defaultToolInputSchema(name string) map[string]any {
 		return map[string]any{"type": "object", "properties": map[string]any{"internalOrderId": map[string]any{"type": "string"}}, "additionalProperties": false}
 	case "market.snapshot", "market.candles":
 		properties := map[string]any{
-			"query":  map[string]any{"type": "string", "description": "Original user request containing a symbol like HK.00700 or US.AAPL."},
+			"query":  map[string]any{"type": "string", "description": "原始用户请求，可包含类似 HK.00700 或 US.AAPL 的标的。"},
 			"market": map[string]any{"type": "string", "enum": []string{"HK", "US", "SH", "SZ", "CN", "JP", "SG"}},
 			"symbol": map[string]any{"type": "string"},
 		}
 		if name == "market.candles" {
-			properties["period"] = map[string]any{"type": "string", "description": "Candle interval such as 1m, 5m, 1d."}
+			properties["period"] = map[string]any{"type": "string", "description": "K 线周期，例如 1m、5m、1d。"}
 			properties["limit"] = map[string]any{"type": "integer", "minimum": 1, "maximum": 500}
 		}
 		return map[string]any{
@@ -656,20 +673,64 @@ func defaultToolInputSchema(name string) map[string]any {
 			"required":             []string{"definitionIds", "market", "symbol", "startTime", "endTime"},
 			"additionalProperties": false,
 		}
+	case "strategy.dsl_spec":
+		return map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"section":         map[string]any{"type": "string", "enum": []string{"overview", "syntax", "expressions", "indicators", "orders", "protect", "examples"}},
+				"includeExamples": map[string]any{"type": "boolean"},
+			},
+			"additionalProperties": false,
+		}
+	case "strategy.validate_dsl":
+		return map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"script":              map[string]any{"type": "string", "description": "待校验的 JFTrade DSL v1 策略脚本。"},
+				"includeRequirements": map[string]any{"type": "boolean"},
+			},
+			"required":             []string{"script"},
+			"additionalProperties": false,
+		}
 	case "strategy.save_draft":
 		return map[string]any{
 			"type": "object",
 			"properties": map[string]any{
 				"name":   map[string]any{"type": "string"},
-				"script": map[string]any{"type": "string", "description": "JFTrade DSL v1 strategy source. Do not send TradingView Pine Script."},
+				"script": map[string]any{"type": "string", "description": "JFTrade DSL v1 策略脚本，不要传入 TradingView Pine Script。"},
 			},
+			"additionalProperties": false,
+		}
+	case "strategy.save_definition":
+		return map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"definitionId": map[string]any{"type": "string"},
+				"name":         map[string]any{"type": "string"},
+				"description":  map[string]any{"type": "string"},
+				"script":       map[string]any{"type": "string", "description": "JFTrade DSL v1 策略脚本，不要传入 TradingView Pine Script。"},
+				"symbol":       map[string]any{"type": "string"},
+				"interval":     map[string]any{"type": "string"},
+				"visualModel":  map[string]any{"type": "object"},
+			},
+			"required":             []string{"name", "script"},
+			"additionalProperties": false,
+		}
+	case "strategy.update_instance_mode":
+		return map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"instanceId":    map[string]any{"type": "string"},
+				"executionMode": map[string]any{"type": "string", "enum": []string{"live", "notify_only"}},
+			},
+			"required":             []string{"instanceId", "executionMode"},
 			"additionalProperties": false,
 		}
 	default:
 		return map[string]any{
 			"type": "object",
 			"properties": map[string]any{
-				"query": map[string]any{"type": "string", "description": "Original user request or extracted query."},
+				"query": map[string]any{"type": "string", "description": "原始用户请求或提取后的查询内容。"},
 			},
 			"additionalProperties": false,
 		}

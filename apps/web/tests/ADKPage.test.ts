@@ -63,6 +63,26 @@ describe("ADKPage", () => {
     expect(document.body.textContent).toContain("API Key");
   });
 
+  it("keeps generic hints even when the selected agent exposes strategy DSL tools", async () => {
+    mountADKPage({
+      agent: {
+        tools: [
+          "strategy.dsl_spec",
+          "strategy.validate_dsl",
+          "strategy.save_definition",
+          "strategy.update_instance_mode",
+        ],
+        skills: ["jftrade-strategy"],
+      },
+    });
+    await flushRequests();
+
+    expect(document.body.textContent).toContain("查看系统状态");
+    expect(document.body.textContent).toContain("当前行情订阅");
+    expect(document.body.textContent).not.toContain("解释当前 JFTrade DSL v1 定义");
+    expect(document.querySelector("textarea")?.getAttribute("placeholder")).toBe("输入问题或任务...");
+  });
+
   it("refreshes approval state to RUNNING, hides the approval bar, and keeps input editable", async () => {
     const pendingApproval = buildApproval("approval-1", "run-approval");
     const pendingRun = buildRun({
@@ -606,6 +626,7 @@ describe("ADKPage", () => {
 
 function mountADKPage(options: {
   providerHasKey?: boolean;
+  agent?: Partial<ReturnType<typeof buildAgentBase>>;
   approvals?: ADKApproval[];
   approvalResolution?: unknown;
   approvalResolutionById?: Record<string, unknown>;
@@ -632,7 +653,7 @@ function mountADKPage(options: {
   const fetchMock = vi.fn(async (input: string | URL | Request) => {
     const url = String(input);
     if (url.includes("/api/v1/adk/agents")) {
-      return createResponse({ agents: [buildAgent()] });
+      return createResponse({ agents: [buildAgent(options.agent)] });
     }
     if (url.includes("/api/v1/adk/providers")) {
       return createResponse({ providers: [buildProvider(options.providerHasKey ?? true)] });
@@ -712,7 +733,14 @@ function buildApproval(id: string, runId = "run-1"): ADKApproval {
   };
 }
 
-function buildAgent() {
+function buildAgent(overrides: Partial<ReturnType<typeof buildAgentBase>> = {}) {
+  return {
+    ...buildAgentBase(),
+    ...overrides,
+  };
+}
+
+function buildAgentBase() {
   return {
     id: "agent-1",
     name: "投资分析助手",

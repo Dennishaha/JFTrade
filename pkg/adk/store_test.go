@@ -14,6 +14,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	strategydslspec "github.com/jftrade/jftrade-main/pkg/strategy/dslspec"
 )
 
 func newTestRuntime(t *testing.T) *Runtime {
@@ -1065,12 +1067,12 @@ func TestPreparedAgentLoadsOnlyEnabledBoundSkillsAndTools(t *testing.T) {
 func TestSkillRegistryReportsMetadataAndAllowedTools(t *testing.T) {
 	ctx := context.Background()
 	runtime := newTestRuntime(t)
-	skill, ok, err := runtime.Skills().Get(ctx, "jftrade-market")
+	skill, ok, err := runtime.Skills().Get(ctx, strategydslspec.BuiltinSkillName)
 	if err != nil {
-		t.Fatalf("Get builtin skill: %v", err)
+		t.Fatalf("Get builtin strategy skill: %v", err)
 	}
 	if !ok {
-		t.Fatal("builtin skill jftrade-market not found")
+		t.Fatalf("builtin skill %s not found", strategydslspec.BuiltinSkillName)
 	}
 	if !skill.Builtin || skill.Source != "builtin" {
 		t.Fatalf("skill source metadata = %+v", skill)
@@ -1078,8 +1080,118 @@ func TestSkillRegistryReportsMetadataAndAllowedTools(t *testing.T) {
 	if skill.ValidationStatus != "VALID" || skill.ContentHash == "" {
 		t.Fatalf("skill validation metadata = %+v", skill)
 	}
-	if len(skill.Tools) == 0 || skill.Tools[0] == "" {
-		t.Fatalf("skill tools = %+v, want allowed tools", skill.Tools)
+	if skill.Version != strategydslspec.BuiltinSkillVersion {
+		t.Fatalf("skill version = %q, want %q", skill.Version, strategydslspec.BuiltinSkillVersion)
+	}
+	for _, toolName := range []string{
+		strategydslspec.ToolName,
+		"strategy.validate_dsl",
+		"strategy.save_definition",
+		"strategy.update_instance_mode",
+	} {
+		if !containsString(skill.Tools, toolName) {
+			t.Fatalf("skill tools = %+v, want %s", skill.Tools, toolName)
+		}
+	}
+	specPath := filepath.Join(runtime.Store().SkillsPath(), strategydslspec.BuiltinSkillName, "references", "dsl-v1-spec.md")
+	examplePath := filepath.Join(runtime.Store().SkillsPath(), strategydslspec.BuiltinSkillName, "references", "dsl-v1-examples.md")
+	if _, err := os.Stat(specPath); err != nil {
+		t.Fatalf("spec resource stat: %v", err)
+	}
+	if _, err := os.Stat(examplePath); err != nil {
+		t.Fatalf("examples resource stat: %v", err)
+	}
+}
+
+func TestBuiltinStrategySkillRefreshesOutdatedBundle(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	skillDir := filepath.Join(runtime.Store().SkillsPath(), strategydslspec.BuiltinSkillName)
+	skillPath := filepath.Join(skillDir, "SKILL.md")
+	if err := os.WriteFile(skillPath, []byte(`---
+name: jftrade-strategy
+description: outdated builtin
+allowed-tools: [strategy.definitions]
+metadata:
+  source: builtin
+  version: 1
+---
+Old strategy instructions.
+`), 0o644); err != nil {
+		t.Fatalf("WriteFile outdated strategy skill: %v", err)
+	}
+	if err := os.Remove(filepath.Join(skillDir, "references", "dsl-v1-spec.md")); err != nil {
+		t.Fatalf("Remove spec resource: %v", err)
+	}
+
+	if err := runtime.Skills().ensureBuiltins(); err != nil {
+		t.Fatalf("ensureBuiltins: %v", err)
+	}
+
+	skill, ok, err := runtime.Skills().Get(ctx, strategydslspec.BuiltinSkillName)
+	if err != nil || !ok {
+		t.Fatalf("Get refreshed strategy skill ok=%v err=%v", ok, err)
+	}
+	if skill.Version != strategydslspec.BuiltinSkillVersion {
+		t.Fatalf("refreshed strategy skill version = %q, want %q", skill.Version, strategydslspec.BuiltinSkillVersion)
+	}
+	raw, err := os.ReadFile(filepath.Join(skillDir, "references", "dsl-v1-spec.md"))
+	if err != nil {
+		t.Fatalf("ReadFile restored spec: %v", err)
+	}
+	if !strings.Contains(string(raw), "# JFTrade DSL v1 规范") {
+		t.Fatalf("restored spec content = %q, want DSL heading", string(raw))
+	}
+}
+
+func TestBuiltinStrategyAgentTemplatesExposeExplicitStrategyTools(t *testing.T) {
+	for _, agentID := range []string{"investment-analyst", "strategy-researcher", "risk-reviewer"} {
+		template, ok := BuiltinAgentTemplate(agentID)
+		if !ok {
+			t.Fatalf("BuiltinAgentTemplate(%q) not found", agentID)
+		}
+		for _, toolName := range []string{"strategy.validate_dsl", "strategy.save_definition", "strategy.update_instance_mode"} {
+			if !containsString(template.Tools, toolName) {
+				t.Fatalf("template %q tools = %+v, want %s", agentID, template.Tools, toolName)
+			}
+		}
+	}
+}
+
+func TestBuiltinRefreshDoesNotOverrideNonBuiltinSkill(t *testing.T) {
+	runtime := newTestRuntime(t)
+	skillDir := filepath.Join(runtime.Store().SkillsPath(), strategydslspec.BuiltinSkillName)
+	if err := os.RemoveAll(skillDir); err != nil {
+		t.Fatalf("RemoveAll skillDir: %v", err)
+	}
+	if err := os.MkdirAll(skillDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll skillDir: %v", err)
+	}
+	skillPath := filepath.Join(skillDir, "SKILL.md")
+	externalSkill := `---
+name: jftrade-strategy
+description: custom external strategy skill
+allowed-tools: [strategy.definitions]
+metadata:
+  source: https://example.com/jftrade-strategy/SKILL.md
+  version: custom
+---
+Use the custom external strategy instructions.
+`
+	if err := os.WriteFile(skillPath, []byte(externalSkill), 0o644); err != nil {
+		t.Fatalf("WriteFile external strategy skill: %v", err)
+	}
+
+	if err := runtime.Skills().ensureBuiltins(); err != nil {
+		t.Fatalf("ensureBuiltins: %v", err)
+	}
+
+	raw, err := os.ReadFile(skillPath)
+	if err != nil {
+		t.Fatalf("ReadFile strategy skill: %v", err)
+	}
+	if string(raw) != externalSkill {
+		t.Fatalf("external skill was overwritten:\n%s", string(raw))
 	}
 }
 
@@ -1854,6 +1966,36 @@ func TestToolsSearchReturnsOnlyCurrentAgentTools(t *testing.T) {
 	if _, ok := tools[0]["requiresApprovalIn"]; !ok {
 		t.Fatalf("tools.search result lacks requiresApprovalIn: %+v", tools[0])
 	}
+}
+
+func TestSelectToolInvocationsAddsStrategyDSLSpecForSyntaxQueries(t *testing.T) {
+	registry := NewToolRegistry()
+	registry.Register(ToolDescriptor{Name: strategydslspec.ToolName, DisplayName: "DSL 定义", Category: "strategy", Permission: "read_internal"}, func(context.Context, map[string]any) (any, error) {
+		return nil, nil
+	})
+	invocations := SelectToolInvocations("请解释 DSL 语法定义和 spec", Agent{
+		ID:    "agent",
+		Tools: []string{strategydslspec.ToolName, "strategy.definitions"},
+	}, registry)
+	found := false
+	for _, invocation := range invocations {
+		if invocation.Name == strategydslspec.ToolName {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("invocations = %+v, want %s", invocations, strategydslspec.ToolName)
+	}
+}
+
+func containsString(values []string, target string) bool {
+	for _, value := range values {
+		if value == target {
+			return true
+		}
+	}
+	return false
 }
 
 func TestWorkflowWriteToolsRequireApproval(t *testing.T) {

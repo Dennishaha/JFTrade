@@ -6,7 +6,7 @@ import type { ADKApproval } from "@/contracts";
 import { useADKPageChatState } from "./useADKPageChatState";
 import { useADKPageSessionState } from "./useADKPageSessionState";
 
-const SUGGESTIONS = [
+const DEFAULT_SUGGESTIONS = [
   "查看系统状态",
   "当前行情订阅",
   "投资组合摘要",
@@ -46,6 +46,11 @@ export function useADKPageController(
       selectedSessionId: sessionState.selectedSessionId,
     },
     composerBlockMessage,
+  );
+  const suggestions = computed(() => DEFAULT_SUGGESTIONS);
+  const composerPlaceholder = computed(() => "输入问题或任务...");
+  const emptyStateHint = computed(
+    () => "可直接输入问题，也可以用 @tool_name 显式调用内置工具",
   );
 
   return {
@@ -108,7 +113,9 @@ export function useADKPageController(
     sessionSearch: sessionState.sessionSearch,
     sessionTitle: sessionState.sessionTitle,
     showTypingIndicator: chatState.showTypingIndicator,
-    SUGGESTIONS,
+    suggestions,
+    composerPlaceholder,
+    emptyStateHint,
     savingProviderSelection: sessionState.savingProviderSelection,
     slashCommands: chatState.slashCommands,
     selectSession: chatState.selectSession,

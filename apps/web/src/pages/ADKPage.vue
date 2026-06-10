@@ -64,7 +64,9 @@ const {
   sessions,
   sessionTitle,
   showTypingIndicator,
-  SUGGESTIONS,
+  suggestions,
+  composerPlaceholder,
+  emptyStateHint,
   slashCommands,
   selectSession,
   sendChat,
@@ -152,9 +154,9 @@ function clearErrorMessage(): void {
           :show-typing-indicator="showTypingIndicator"
           :error-message="errorMessage"
           :approvals-busy="approvalsBusy"
-          :suggestions="SUGGESTIONS"
+          :suggestions="suggestions"
           empty-state-title="开始与智能体对话"
-          empty-state-hint="可直接输入问题，也可以用 @tool_name 显式调用内置工具"
+          :empty-state-hint="emptyStateHint"
           :empty-state-provider-hint="
             providers.length === 0
               ? '尚未添加模型提供商，请先前往 Agents 配置添加。'
@@ -187,6 +189,7 @@ function clearErrorMessage(): void {
         :has-blocking-run="hasBlockingRun"
         :interrupting-run-id="interruptingRunId"
         :loading="loading"
+        :placeholder="composerPlaceholder"
         :provider-options="providerOptions"
         :queued-messages="queuedMessages"
         :queue-dispatching-id="queueDispatchingId"

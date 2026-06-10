@@ -16,7 +16,6 @@ import (
 	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
 	"github.com/jftrade/jftrade-main/pkg/backtest"
 	"github.com/jftrade/jftrade-main/pkg/broker"
-	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 )
 
 func deriveADKDBPath(settingsPath string) string {
@@ -242,30 +241,50 @@ func registerJFTradeADKTools(server *Server, store *jfadk.Store, registry *jfadk
 		instances := server.enrichStrategyItems(server.strategyStore.strategies())
 		return summarizeADKStrategyDefinitions(definitions, instances), nil
 	})
+	registry.Register(jfadk.ToolDescriptor{
+		Name:          "strategy.dsl_spec",
+		DisplayName:   "DSL 定义",
+		Description:   "读取当前 JFTrade DSL v1 的结构化定义、最小骨架、支持清单和示例。",
+		Category:      "strategy",
+		Permission:    "read_internal",
+		OutputSummary: "JFTrade DSL v1 的章节摘要、支持语法与可选示例。",
+	}, func(_ context.Context, input map[string]any) (any, error) {
+		return strategyDSLSpecToolPayload(input)
+	})
+	registry.Register(jfadk.ToolDescriptor{
+		Name:          "strategy.validate_dsl",
+		DisplayName:   "校验 DSL",
+		Description:   "校验 JFTrade DSL v1 是否可被当前 parser、planner 和 runtime 接受，并返回结构化元数据与 requirements。",
+		Category:      "strategy",
+		Permission:    "read_internal",
+		OutputSummary: "校验结果、元数据、hooks、编译后的 requirements，以及失败时的保存提示。",
+	}, func(_ context.Context, input map[string]any) (any, error) {
+		return strategyValidateDSLToolPayload(input), nil
+	})
 	registry.Register(jfadk.ToolDescriptor{Name: "strategy.save_draft", DisplayName: "保存策略草稿", Description: "把 agent 生成的 JFTrade DSL v1 策略脚本保存为策略定义草稿；不接受 TradingView Pine Script。", Category: "strategy", Permission: "write_strategy", RequiresApprovalIn: []string{jfadk.PermissionModeApproval}, OutputSummary: "保存后的策略定义。"}, func(_ context.Context, input map[string]any) (any, error) {
-		script := strings.TrimSpace(stringValue(input, "script"))
-		if script == "" {
-			script = "# ADK strategy draft\n"
-		}
-		if err := validateADKStrategyDraftScript(script); err != nil {
-			return nil, err
-		}
-		definition := strategyDesignDefinition{
-			Name:         defaultStringLocal(stringValue(input, "name"), "ADK 策略草稿"),
-			Description:  "由 ADK agent 生成的策略草稿。",
-			SourceFormat: strategydefinition.SourceFormatDSLV1,
-			Runtime:      strategyRuntimeDSLPlan,
-			Version:      defaultStrategyVersion,
-			Script:       script,
-		}
-		if err := strategydefinition.ValidateScript(definition.SourceFormat, definition.Script); err != nil {
-			return nil, err
-		}
-		saved, err := server.designStore.saveDefinition(definition)
-		if err != nil {
-			return nil, err
-		}
-		return saved, nil
+		return strategySaveDraftToolPayload(server, input)
+	})
+	registry.Register(jfadk.ToolDescriptor{
+		Name:               "strategy.save_definition",
+		DisplayName:        "保存策略定义",
+		Description:        "新建或更新 JFTrade DSL v1 策略定义；保存前会强制校验 DSL，并拒绝 TradingView Pine Script。",
+		Category:           "strategy",
+		Permission:         "write_strategy",
+		RequiresApprovalIn: []string{jfadk.PermissionModeApproval},
+		OutputSummary:      "保存后的策略定义，以及本次是创建还是更新。",
+	}, func(_ context.Context, input map[string]any) (any, error) {
+		return strategySaveDefinitionToolPayload(server, input)
+	})
+	registry.Register(jfadk.ToolDescriptor{
+		Name:               "strategy.update_instance_mode",
+		DisplayName:        "修改实例模式",
+		Description:        "按 strategy instanceId 修改单个实例的 executionMode，仅允许在实例处于 STOPPED 时执行。",
+		Category:           "strategy",
+		Permission:         "write_strategy",
+		RequiresApprovalIn: []string{jfadk.PermissionModeApproval},
+		OutputSummary:      "更新后的策略实例，以及本次实际修改的字段。",
+	}, func(_ context.Context, input map[string]any) (any, error) {
+		return strategyUpdateInstanceModeToolPayload(server, input)
 	})
 	registry.Register(jfadk.ToolDescriptor{Name: "backtest.runs", DisplayName: "回测结果", Description: "读取最近回测运行结果。", Category: "strategy", Permission: "read_internal", OutputSummary: "最近回测运行和数量。"}, func(context.Context, map[string]any) (any, error) {
 		return summarizeADKBacktestRuns(server.backtestRuns.list()), nil
@@ -327,20 +346,6 @@ func registerJFTradeADKTools(server *Server, store *jfadk.Store, registry *jfadk
 			"message":   "候选策略已进入真实回测队列；使用 backtest.runs 查询进度和结果。",
 		}, nil
 	})
-}
-
-func validateADKStrategyDraftScript(script string) error {
-	trimmed := strings.TrimSpace(script)
-	if trimmed == "" {
-		return nil
-	}
-	if looksLikeTradingViewPineScript(trimmed) {
-		return fmt.Errorf("strategy.save_draft only accepts JFTrade DSL v1, not TradingView Pine Script; rewrite the script using top-level statements like `strategy NAME`, `symbol US.TME`, `interval 1m`, and hook blocks such as `on kline_close:`")
-	}
-	if err := strategydefinition.ValidateScript(strategydefinition.SourceFormatDSLV1, trimmed); err != nil {
-		return fmt.Errorf("strategy.save_draft requires valid JFTrade DSL v1: %w", err)
-	}
-	return nil
 }
 
 func summarizeADKStrategyDefinitions(definitions []strategyDesignDefinition, instances []strategyListItem) map[string]any {
@@ -580,7 +585,7 @@ func nowStringRFC3339Nano() string {
 }
 
 func registerJFTradeADKReadTools(server *Server, registry *jfadk.ToolRegistry) {
-	registry.Register(jfadk.ToolDescriptor{Name: "broker.orders", DisplayName: "Broker orders", Description: "Read broker current or historical orders for the selected account scope.", Category: "portfolio", Permission: "read_internal", OutputSummary: "Broker order list and connectivity status."}, func(ctx context.Context, input map[string]any) (any, error) {
+	registry.Register(jfadk.ToolDescriptor{Name: "broker.orders", DisplayName: "经纪商订单", Description: "读取所选账户范围下经纪商当前或历史订单。", Category: "portfolio", Permission: "read_internal", OutputSummary: "经纪商订单列表与连接状态。"}, func(ctx context.Context, input map[string]any) (any, error) {
 		request, err := server.brokerOrdersRequest(brokerOrdersReadQuery{
 			brokerBaseReadQuery: adkBrokerBaseReadQuery(server, input),
 			Scope:               defaultStringLocal(stringValue(input, "scope"), "CURRENT"),
@@ -595,7 +600,7 @@ func registerJFTradeADKReadTools(server *Server, registry *jfadk.ToolRegistry) {
 		}
 		return server.brokerOrdersResponse(ctx, request), nil
 	})
-	registry.Register(jfadk.ToolDescriptor{Name: "broker.fills", DisplayName: "Broker fills", Description: "Read broker current or historical order fills for the selected account scope.", Category: "portfolio", Permission: "read_internal", OutputSummary: "Broker fill list and connectivity status."}, func(ctx context.Context, input map[string]any) (any, error) {
+	registry.Register(jfadk.ToolDescriptor{Name: "broker.fills", DisplayName: "经纪商成交", Description: "读取所选账户范围下经纪商当前或历史成交记录。", Category: "portfolio", Permission: "read_internal", OutputSummary: "经纪商成交列表与连接状态。"}, func(ctx context.Context, input map[string]any) (any, error) {
 		request, err := server.brokerFillsRequest(brokerFillsReadQuery{
 			brokerBaseReadQuery: adkBrokerBaseReadQuery(server, input),
 			Scope:               defaultStringLocal(stringValue(input, "scope"), "CURRENT"),
@@ -608,21 +613,21 @@ func registerJFTradeADKReadTools(server *Server, registry *jfadk.ToolRegistry) {
 		}
 		return server.brokerFillsResponse(ctx, request), nil
 	})
-	registry.Register(jfadk.ToolDescriptor{Name: "broker.cash_flows", DisplayName: "Broker cash flows", Description: "Read broker cash flow records by clearing date.", Category: "portfolio", Permission: "read_internal", OutputSummary: "Cash flow list and connectivity status."}, func(ctx context.Context, input map[string]any) (any, error) {
+	registry.Register(jfadk.ToolDescriptor{Name: "broker.cash_flows", DisplayName: "资金流水", Description: "按清算日期读取经纪商资金流水记录。", Category: "portfolio", Permission: "read_internal", OutputSummary: "资金流水列表与连接状态。"}, func(ctx context.Context, input map[string]any) (any, error) {
 		request, err := server.brokerCashFlowsRequest(brokerCashFlowsReadQuery{brokerBaseReadQuery: adkBrokerBaseReadQuery(server, input), ClearingDate: stringValue(input, "clearingDate"), Direction: stringValue(input, "direction")})
 		if err != nil {
 			return nil, err
 		}
 		return server.brokerCashFlowsResponse(ctx, request), nil
 	})
-	registry.Register(jfadk.ToolDescriptor{Name: "broker.fees", DisplayName: "Broker order fees", Description: "Read broker fee details for one or more external order IDs.", Category: "portfolio", Permission: "read_internal", OutputSummary: "Order fee list and connectivity status."}, func(ctx context.Context, input map[string]any) (any, error) {
+	registry.Register(jfadk.ToolDescriptor{Name: "broker.fees", DisplayName: "订单费用", Description: "按一个或多个外部订单号读取经纪商费用明细。", Category: "portfolio", Permission: "read_internal", OutputSummary: "订单费用列表与连接状态。"}, func(ctx context.Context, input map[string]any) (any, error) {
 		request, err := server.brokerOrderFeesRequest(brokerOrderFeesReadQuery{brokerBaseReadQuery: adkBrokerBaseReadQuery(server, input), OrderIDEx: stringSliceValue(input, "orderIdEx"), OrderIDExList: stringSliceValue(input, "orderIdExList")})
 		if err != nil {
 			return nil, err
 		}
 		return server.brokerOrderFeesResponse(ctx, request), nil
 	})
-	registry.Register(jfadk.ToolDescriptor{Name: "broker.margin_ratios", DisplayName: "Broker margin ratios", Description: "Read financing and short-selling margin ratios for one or more symbols.", Category: "portfolio", Permission: "read_internal", OutputSummary: "Margin ratio list and connectivity status."}, func(ctx context.Context, input map[string]any) (any, error) {
+	registry.Register(jfadk.ToolDescriptor{Name: "broker.margin_ratios", DisplayName: "融资融券比率", Description: "读取一个或多个标的的融资与融券保证金比率。", Category: "portfolio", Permission: "read_internal", OutputSummary: "融资融券比率列表与连接状态。"}, func(ctx context.Context, input map[string]any) (any, error) {
 		symbols := stringSliceValue(input, "symbols")
 		if symbol := strings.TrimSpace(stringValue(input, "symbol")); symbol != "" {
 			symbols = append(symbols, symbol)
@@ -633,20 +638,20 @@ func registerJFTradeADKReadTools(server *Server, registry *jfadk.ToolRegistry) {
 		}
 		return server.brokerMarginRatiosResponse(ctx, request), nil
 	})
-	registry.Register(jfadk.ToolDescriptor{Name: "market.depth", DisplayName: "Market depth", Description: "Read order book depth for a concrete instrument.", Category: "market", Permission: "read_internal", OutputSummary: "Bid and ask order book levels."}, func(ctx context.Context, input map[string]any) (any, error) {
+	registry.Register(jfadk.ToolDescriptor{Name: "market.depth", DisplayName: "盘口深度", Description: "读取指定标的的买卖盘深度。", Category: "market", Permission: "read_internal", OutputSummary: "买卖盘档位数据。"}, func(ctx context.Context, input map[string]any) (any, error) {
 		market, symbol := inferMarketSymbol(input)
 		if market == "" || symbol == "" {
 			return nil, fmt.Errorf("market and symbol are required")
 		}
 		return server.marketDepthResponseForInstrument(ctx, market, symbol, marketDepthQuery{Num: newOptionalIntValue(intValue(input, "num", 10))})
 	})
-	registry.Register(jfadk.ToolDescriptor{Name: "risk.state", DisplayName: "Risk state", Description: "Read real-trade kill switch and risk limit state.", Category: "risk", Permission: "read_internal", OutputSummary: "Current kill switch and real-trade risk state."}, func(context.Context, map[string]any) (any, error) {
+	registry.Register(jfadk.ToolDescriptor{Name: "risk.state", DisplayName: "风险状态", Description: "读取实盘 kill switch 与风险限制状态。", Category: "risk", Permission: "read_internal", OutputSummary: "当前 kill switch 与实盘风险状态。"}, func(context.Context, map[string]any) (any, error) {
 		return map[string]any{"killSwitch": server.realTradeKillSwitch(), "riskLimits": server.realTradeRiskState(), "checkedAt": nowStringRFC3339Nano()}, nil
 	})
-	registry.Register(jfadk.ToolDescriptor{Name: "risk.events", DisplayName: "Risk events", Description: "Read recent real-trade risk event state.", Category: "risk", Permission: "read_internal", OutputSummary: "Risk event summary."}, func(context.Context, map[string]any) (any, error) {
+	registry.Register(jfadk.ToolDescriptor{Name: "risk.events", DisplayName: "风险事件", Description: "读取近期实盘风险事件状态。", Category: "risk", Permission: "read_internal", OutputSummary: "风险事件摘要。"}, func(context.Context, map[string]any) (any, error) {
 		return server.realTradeRiskEvents(), nil
 	})
-	registry.Register(jfadk.ToolDescriptor{Name: "execution.order_events", DisplayName: "Execution order events", Description: "Read local execution order event history by internal order ID, or return the order list when no ID is provided.", Category: "portfolio", Permission: "read_internal", OutputSummary: "Execution order event timeline."}, func(_ context.Context, input map[string]any) (any, error) {
+	registry.Register(jfadk.ToolDescriptor{Name: "execution.order_events", DisplayName: "执行订单事件", Description: "按内部订单 ID 读取本地执行订单事件历史；未提供 ID 时返回订单列表。", Category: "portfolio", Permission: "read_internal", OutputSummary: "执行订单事件时间线。"}, func(_ context.Context, input map[string]any) (any, error) {
 		internalOrderID := strings.TrimSpace(stringValue(input, "internalOrderId"))
 		if internalOrderID == "" {
 			return server.executionOrders.listOrders(), nil
@@ -656,7 +661,7 @@ func registerJFTradeADKReadTools(server *Server, registry *jfadk.ToolRegistry) {
 }
 
 func registerJFTradeADKWorkflowTools(server *Server, store *jfadk.Store, registry *jfadk.ToolRegistry) {
-	registry.Register(jfadk.ToolDescriptor{Name: "tasks.list", DisplayName: "List ADK tasks", Description: "List ADK task records used to track agent work.", Category: "workflow", Permission: "read_internal", OutputSummary: "Task page."}, func(ctx context.Context, input map[string]any) (any, error) {
+	registry.Register(jfadk.ToolDescriptor{Name: "tasks.list", DisplayName: "ADK 任务列表", Description: "列出用于跟踪 agent 工作的 ADK 任务记录。", Category: "workflow", Permission: "read_internal", OutputSummary: "任务分页结果。"}, func(ctx context.Context, input map[string]any) (any, error) {
 		limit, offset := normalizeBoundPage(intValue(input, "limit", 20), intValue(input, "offset", 0), 20, 100)
 		tasks, total, err := store.ListTasksPage(ctx, stringValue(input, "status"), stringValue(input, "agentId"), stringValue(input, "runId"), limit, offset)
 		if err != nil {
@@ -664,21 +669,21 @@ func registerJFTradeADKWorkflowTools(server *Server, store *jfadk.Store, registr
 		}
 		return map[string]any{"tasks": tasks, "page": pageEnvelope(limit, offset, total, len(tasks))}, nil
 	})
-	registry.Register(jfadk.ToolDescriptor{Name: "tasks.create", DisplayName: "Create ADK task", Description: "Create a lightweight ADK task for follow-up work.", Category: "workflow", Permission: "write_task", OutputSummary: "Created task."}, func(ctx context.Context, input map[string]any) (any, error) {
+	registry.Register(jfadk.ToolDescriptor{Name: "tasks.create", DisplayName: "创建 ADK 任务", Description: "创建一个用于后续跟进的轻量 ADK 任务。", Category: "workflow", Permission: "write_task", OutputSummary: "已创建的任务。"}, func(ctx context.Context, input map[string]any) (any, error) {
 		task, err := store.SaveTask(ctx, jfadk.TaskWriteRequest{Title: stringValue(input, "title"), Description: stringValue(input, "description"), Status: stringValue(input, "status"), AgentID: stringValue(input, "agentId"), RunID: stringValue(input, "runId"), DependsOn: stringSliceValue(input, "dependsOn")})
 		if err == nil {
 			recordADKWorkflowAudit(ctx, server, "task.saved", task.ID, "ADK task saved.", map[string]any{"status": task.Status})
 		}
 		return task, err
 	})
-	registry.Register(jfadk.ToolDescriptor{Name: "tasks.update", DisplayName: "Update ADK task", Description: "Update a lightweight ADK task status or details.", Category: "workflow", Permission: "write_task", OutputSummary: "Updated task."}, func(ctx context.Context, input map[string]any) (any, error) {
+	registry.Register(jfadk.ToolDescriptor{Name: "tasks.update", DisplayName: "更新 ADK 任务", Description: "更新轻量 ADK 任务的状态或详情。", Category: "workflow", Permission: "write_task", OutputSummary: "已更新的任务。"}, func(ctx context.Context, input map[string]any) (any, error) {
 		task, err := store.UpdateTask(ctx, stringValue(input, "id"), taskPatchFromInput(input))
 		if err == nil {
 			recordADKWorkflowAudit(ctx, server, "task.updated", task.ID, "ADK task updated.", map[string]any{"status": task.Status})
 		}
 		return task, err
 	})
-	registry.Register(jfadk.ToolDescriptor{Name: "tasks.delete", DisplayName: "Delete ADK task", Description: "Delete a lightweight ADK task record.", Category: "workflow", Permission: "write_task", OutputSummary: "Deleted task."}, func(ctx context.Context, input map[string]any) (any, error) {
+	registry.Register(jfadk.ToolDescriptor{Name: "tasks.delete", DisplayName: "删除 ADK 任务", Description: "删除轻量 ADK 任务记录。", Category: "workflow", Permission: "write_task", OutputSummary: "删除结果。"}, func(ctx context.Context, input map[string]any) (any, error) {
 		id := stringValue(input, "id")
 		if err := store.DeleteTask(ctx, id); err != nil {
 			return nil, err
@@ -686,21 +691,21 @@ func registerJFTradeADKWorkflowTools(server *Server, store *jfadk.Store, registr
 		recordADKWorkflowAudit(ctx, server, "task.deleted", id, "ADK task deleted.", nil)
 		return map[string]any{"deleted": true, "id": id}, nil
 	})
-	registry.Register(jfadk.ToolDescriptor{Name: "memory.list", DisplayName: "List ADK memory", Description: "List workspace and agent memory entries from the ADK database.", Category: "workflow", Permission: "read_internal", OutputSummary: "Memory entries."}, func(ctx context.Context, input map[string]any) (any, error) {
+	registry.Register(jfadk.ToolDescriptor{Name: "memory.list", DisplayName: "ADK 记忆列表", Description: "列出 ADK 数据库中的工作区和 agent 记忆条目。", Category: "workflow", Permission: "read_internal", OutputSummary: "记忆条目列表。"}, func(ctx context.Context, input map[string]any) (any, error) {
 		entries, err := store.ListMemoryFiltered(ctx, stringValue(input, "scope"), stringValue(input, "agentId"), stringValue(input, "key"))
 		if err != nil {
 			return nil, err
 		}
 		return map[string]any{"entries": entries, "totalReturned": len(entries)}, nil
 	})
-	registry.Register(jfadk.ToolDescriptor{Name: "memory.remember", DisplayName: "Remember ADK preference", Description: "Store a short workspace or agent memory entry in the ADK database.", Category: "workflow", Permission: "write_memory", OutputSummary: "Saved memory entry."}, func(ctx context.Context, input map[string]any) (any, error) {
+	registry.Register(jfadk.ToolDescriptor{Name: "memory.remember", DisplayName: "写入 ADK 记忆", Description: "将简短的工作区或 agent 记忆条目保存到 ADK 数据库。", Category: "workflow", Permission: "write_memory", OutputSummary: "已保存的记忆条目。"}, func(ctx context.Context, input map[string]any) (any, error) {
 		entry, err := store.SaveMemory(ctx, jfadk.MemoryWriteRequest{AgentID: stringValue(input, "agentId"), Key: stringValue(input, "key"), Value: stringValue(input, "value"), Scope: stringValue(input, "scope")})
 		if err == nil {
 			recordADKWorkflowAudit(ctx, server, "memory.saved", entry.ID, "ADK memory saved.", map[string]any{"scope": entry.Scope, "key": entry.Key})
 		}
 		return entry, err
 	})
-	registry.Register(jfadk.ToolDescriptor{Name: "memory.forget", DisplayName: "Forget ADK memory", Description: "Delete a workspace or agent memory entry from the ADK database.", Category: "workflow", Permission: "write_memory", OutputSummary: "Deleted memory entry."}, func(ctx context.Context, input map[string]any) (any, error) {
+	registry.Register(jfadk.ToolDescriptor{Name: "memory.forget", DisplayName: "删除 ADK 记忆", Description: "从 ADK 数据库删除工作区或 agent 记忆条目。", Category: "workflow", Permission: "write_memory", OutputSummary: "删除结果。"}, func(ctx context.Context, input map[string]any) (any, error) {
 		id := stringValue(input, "id")
 		if err := store.DeleteMemory(ctx, id); err != nil {
 			return nil, err

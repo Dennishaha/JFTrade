@@ -347,7 +347,7 @@ func (r *Runtime) TestProvider(ctx context.Context, providerID string) (map[stri
 	_, toolErr := r.openai.selectTools(ctx, provider, apiKey, provider.Model, []openAIChatMessage{
 		{Role: "user", Content: "Do not call a tool."},
 	}, []ToolDescriptor{{
-		Name: "system.health_probe", DisplayName: "Health probe", Description: "Provider capability probe.", Permission: "read_internal",
+		Name: "system.health_probe", DisplayName: "健康探测", Description: "用于探测 provider 工具能力的内部工具。", Permission: "read_internal",
 	}})
 	capabilities := map[string]bool{
 		"streaming": true,

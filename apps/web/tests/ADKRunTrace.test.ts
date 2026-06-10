@@ -122,9 +122,9 @@ describe("ADKRunTrace", () => {
       },
     });
 
-    expect(wrapper.text()).toContain("Portfolio summary");
-    expect(wrapper.text()).toContain("Broker");
-    expect(wrapper.text()).toContain("connected");
+    expect(wrapper.text()).toContain("组合摘要");
+    expect(wrapper.text()).toContain("经纪通道");
+    expect(wrapper.text()).toContain("已连接");
     expect(wrapper.text()).toContain('"brokerStatus": "connected"');
   });
 
@@ -142,7 +142,7 @@ describe("ADKRunTrace", () => {
       },
     });
 
-    expect(wrapper.text()).not.toContain("Portfolio summary");
+    expect(wrapper.text()).not.toContain("组合摘要");
     expect(wrapper.text()).toContain('"detail": "raw fallback"');
   });
 

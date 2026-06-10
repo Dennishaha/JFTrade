@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/jftrade/jftrade-main/pkg/backtest"
+	strategydslspec "github.com/jftrade/jftrade-main/pkg/strategy/dslspec"
 )
 
 func TestValidateADKStrategyDraftScriptRejectsTradingViewPineScript(t *testing.T) {
@@ -19,7 +20,7 @@ plot(close)`
 	if err == nil {
 		t.Fatal("validateADKStrategyDraftScript() error = nil, want pine rejection")
 	}
-	if !strings.Contains(err.Error(), "JFTrade DSL v1") || !strings.Contains(err.Error(), "TradingView Pine Script") {
+	if !strings.Contains(err.Error(), "JFTrade DSL v1") || !strings.Contains(err.Error(), "不支持 TradingView Pine Script") {
 		t.Fatalf("validateADKStrategyDraftScript() error = %q, want DSL/Pine hint", err)
 	}
 }
@@ -35,6 +36,327 @@ on kline_close:
 
 	if err := validateADKStrategyDraftScript(script); err != nil {
 		t.Fatalf("validateADKStrategyDraftScript() error = %v", err)
+	}
+}
+
+func TestValidateADKStrategyDraftScriptReturnsSharedHintForInvalidDSL(t *testing.T) {
+	err := validateADKStrategyDraftScript(`strategy Broken
+on kline_close:
+  let fast =`)
+	if err == nil {
+		t.Fatal("validateADKStrategyDraftScript() error = nil, want invalid DSL error")
+	}
+	if !strings.Contains(err.Error(), "可以先查询看 DSL 规范和示例，确认脚本格式正确。也可以从下面这个 JFTrade DSL v1 骨架开始") {
+		t.Fatalf("validateADKStrategyDraftScript() error = %q, want shared skeleton hint", err)
+	}
+}
+
+func TestADKStrategyDSLSpecToolReturnsStructuredPayload(t *testing.T) {
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	server := newTestServer(t, store)
+
+	tool, ok := server.adkRuntime.Tools().Get(strategydslspec.ToolName)
+	if !ok {
+		t.Fatalf("%s tool not registered", strategydslspec.ToolName)
+	}
+	if tool.Descriptor.Category != "strategy" || tool.Descriptor.Permission != "read_internal" {
+		t.Fatalf("descriptor = %+v, want strategy/read_internal", tool.Descriptor)
+	}
+	if tool.Descriptor.InputSchema == nil {
+		t.Fatalf("descriptor input schema = nil")
+	}
+
+	output, err := tool.Handler(context.Background(), map[string]any{})
+	if err != nil {
+		t.Fatalf("tool.Handler: %v", err)
+	}
+	payload, ok := output.(map[string]any)
+	if !ok {
+		t.Fatalf("tool output type = %T, want map", output)
+	}
+	if got := payload["sourceFormat"]; got != strategydslspec.SourceFormat {
+		t.Fatalf("sourceFormat = %#v, want %q", got, strategydslspec.SourceFormat)
+	}
+	if got := payload["runtime"]; got != strategydslspec.Runtime {
+		t.Fatalf("runtime = %#v, want %q", got, strategydslspec.Runtime)
+	}
+	examples, ok := payload["examples"].([]map[string]any)
+	if !ok {
+		t.Fatalf("examples payload = %T, want []map[string]any", payload["examples"])
+	}
+	if len(examples) != 0 {
+		t.Fatalf("default examples len = %d, want 0", len(examples))
+	}
+
+	output, err = tool.Handler(context.Background(), map[string]any{
+		"section":         "orders",
+		"includeExamples": true,
+	})
+	if err != nil {
+		t.Fatalf("tool.Handler orders: %v", err)
+	}
+	payload, ok = output.(map[string]any)
+	if !ok {
+		t.Fatalf("tool output type = %T, want map", output)
+	}
+	if got := payload["selectedSection"]; got != "orders" {
+		t.Fatalf("selectedSection = %#v, want orders", got)
+	}
+	examples, ok = payload["examples"].([]map[string]any)
+	if !ok || len(examples) == 0 {
+		t.Fatalf("examples payload = %#v, want populated examples", payload["examples"])
+	}
+}
+
+func TestADKStrategyValidateDSLToolReturnsValidationPayload(t *testing.T) {
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	server := newTestServer(t, store)
+
+	tool, ok := server.adkRuntime.Tools().Get("strategy.validate_dsl")
+	if !ok {
+		t.Fatal("strategy.validate_dsl tool not registered")
+	}
+	if tool.Descriptor.Category != "strategy" || tool.Descriptor.Permission != "read_internal" {
+		t.Fatalf("descriptor = %+v, want strategy/read_internal", tool.Descriptor)
+	}
+	if tool.Descriptor.InputSchema == nil {
+		t.Fatal("strategy.validate_dsl input schema = nil")
+	}
+
+	output, err := tool.Handler(context.Background(), map[string]any{
+		"script": strategydslspec.Skeleton(),
+	})
+	if err != nil {
+		t.Fatalf("tool.Handler(valid): %v", err)
+	}
+	payload, ok := output.(map[string]any)
+	if !ok {
+		t.Fatalf("tool output type = %T, want map", output)
+	}
+	if got := payload["ok"]; got != true {
+		t.Fatalf("ok = %#v, want true", got)
+	}
+	metadata, ok := payload["metadata"].(map[string]any)
+	if !ok || metadata["symbol"] != "US.TME" || metadata["interval"] != "1m" {
+		t.Fatalf("metadata = %#v, want parsed symbol/interval", payload["metadata"])
+	}
+	hooks, ok := payload["hooks"].([]string)
+	if !ok || len(hooks) == 0 {
+		t.Fatalf("hooks = %#v, want non-empty []string", payload["hooks"])
+	}
+	requirements, ok := payload["requirements"].(map[string]any)
+	if !ok {
+		t.Fatalf("requirements = %T, want map[string]any", payload["requirements"])
+	}
+	if _, ok := requirements["indicators"]; !ok {
+		t.Fatalf("requirements = %#v, want indicators field", requirements)
+	}
+
+	output, err = tool.Handler(context.Background(), map[string]any{
+		"script": `//@version=6
+strategy("pine")
+plot(close)`,
+		"includeRequirements": false,
+	})
+	if err != nil {
+		t.Fatalf("tool.Handler(pine): %v", err)
+	}
+	payload, ok = output.(map[string]any)
+	if !ok {
+		t.Fatalf("pine payload type = %T, want map", output)
+	}
+	if got := payload["ok"]; got != false {
+		t.Fatalf("ok = %#v, want false", got)
+	}
+	errors, ok := payload["errors"].([]string)
+	if !ok || len(errors) == 0 || !strings.Contains(errors[0], "TradingView Pine Script") {
+		t.Fatalf("errors = %#v, want pine rejection", payload["errors"])
+	}
+	if payload["saveHint"] == nil {
+		t.Fatalf("saveHint = nil, want shared hint payload")
+	}
+	if payload["requirements"] != nil {
+		t.Fatalf("requirements = %#v, want nil when includeRequirements=false and validation fails", payload["requirements"])
+	}
+}
+
+func TestADKStrategySaveDefinitionToolCreateAndUpdate(t *testing.T) {
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	server := newTestServer(t, store)
+
+	tool, ok := server.adkRuntime.Tools().Get("strategy.save_definition")
+	if !ok {
+		t.Fatal("strategy.save_definition tool not registered")
+	}
+	if tool.Descriptor.Permission != "write_strategy" {
+		t.Fatalf("descriptor permission = %q, want write_strategy", tool.Descriptor.Permission)
+	}
+
+	createOutput, err := tool.Handler(context.Background(), map[string]any{
+		"name":        "ADK Saved Strategy",
+		"description": "created via ADK tool",
+		"script": `strategy ADK Saved Strategy
+version 0.1.0
+symbol US.TME
+interval 5m
+
+on kline_close:
+  log "created"`,
+		"visualModel": map[string]any{
+			"engine":  "logic-flow",
+			"version": 1,
+			"nodes":   []map[string]any{{"id": "n1", "type": "note"}},
+		},
+	})
+	if err != nil {
+		t.Fatalf("tool.Handler(create): %v", err)
+	}
+	createPayload, ok := createOutput.(map[string]any)
+	if !ok {
+		t.Fatalf("create output type = %T, want map", createOutput)
+	}
+	if got := createPayload["operation"]; got != "created" {
+		t.Fatalf("operation = %#v, want created", got)
+	}
+	created, ok := createPayload["definition"].(strategyDesignDefinition)
+	if !ok {
+		t.Fatalf("definition payload = %T, want strategyDesignDefinition", createPayload["definition"])
+	}
+	if created.ID == "" {
+		t.Fatalf("created definition id = empty")
+	}
+	if created.Symbol != "US.TME" || created.Interval != "5m" {
+		t.Fatalf("created definition symbol/interval = %q/%q, want US.TME/5m", created.Symbol, created.Interval)
+	}
+	if created.VisualModel == nil || len(created.VisualModel.Nodes) != 1 {
+		t.Fatalf("created visualModel = %#v, want populated model", created.VisualModel)
+	}
+
+	updateOutput, err := tool.Handler(context.Background(), map[string]any{
+		"definitionId": created.ID,
+		"name":         "ADK Saved Strategy Updated",
+		"description":  "updated via ADK tool",
+		"script": `strategy ADK Saved Strategy Updated
+version 0.1.0
+symbol US.TME
+interval 15m
+
+on kline_close:
+  notify "updated"`,
+	})
+	if err != nil {
+		t.Fatalf("tool.Handler(update): %v", err)
+	}
+	updatePayload, ok := updateOutput.(map[string]any)
+	if !ok {
+		t.Fatalf("update output type = %T, want map", updateOutput)
+	}
+	if got := updatePayload["operation"]; got != "updated" {
+		t.Fatalf("operation = %#v, want updated", got)
+	}
+	updated, ok := updatePayload["definition"].(strategyDesignDefinition)
+	if !ok {
+		t.Fatalf("updated definition payload = %T, want strategyDesignDefinition", updatePayload["definition"])
+	}
+	if updated.ID != created.ID {
+		t.Fatalf("updated definition id = %q, want %q", updated.ID, created.ID)
+	}
+	if updated.Name != "ADK Saved Strategy Updated" || updated.Interval != "15m" {
+		t.Fatalf("updated definition = %+v, want updated name/interval", updated)
+	}
+
+	if _, err := tool.Handler(context.Background(), map[string]any{
+		"definitionId": "missing-definition",
+		"name":         "Missing",
+		"script":       strategydslspec.Skeleton(),
+	}); err == nil || !strings.Contains(err.Error(), "不存在") {
+		t.Fatalf("tool.Handler(update missing) error = %v, want not found", err)
+	}
+}
+
+func TestADKStrategyUpdateInstanceModeToolUpdatesStoppedInstance(t *testing.T) {
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	server := newTestServer(t, store)
+
+	definition, err := server.designStore.saveDefinition(strategyDesignDefinition{
+		Name:         "Mode Test",
+		Description:  "mode update test",
+		Runtime:      strategyRuntimeDSLPlan,
+		SourceFormat: "dsl-v1",
+		Symbol:       "US.TME",
+		Interval:     "5m",
+		Script: `strategy Mode Test
+version 0.1.0
+symbol US.TME
+interval 5m
+
+on kline_close:
+  log "ready"`,
+	})
+	if err != nil {
+		t.Fatalf("saveDefinition: %v", err)
+	}
+	instance, err := server.strategyStore.instantiateStrategy(definition, strategyInstanceBinding{
+		Symbols:       []string{"US.TME"},
+		Interval:      "5m",
+		ExecutionMode: strategyExecutionModeLive,
+	})
+	if err != nil {
+		t.Fatalf("instantiateStrategy: %v", err)
+	}
+
+	tool, ok := server.adkRuntime.Tools().Get("strategy.update_instance_mode")
+	if !ok {
+		t.Fatal("strategy.update_instance_mode tool not registered")
+	}
+	output, err := tool.Handler(context.Background(), map[string]any{
+		"instanceId":    instance.ID,
+		"executionMode": strategyExecutionModeNotifyOnly,
+	})
+	if err != nil {
+		t.Fatalf("tool.Handler(update mode): %v", err)
+	}
+	payload, ok := output.(map[string]any)
+	if !ok {
+		t.Fatalf("output type = %T, want map", output)
+	}
+	updated, ok := payload["instance"].(strategyListItem)
+	if !ok {
+		t.Fatalf("instance payload = %T, want strategyListItem", payload["instance"])
+	}
+	if updated.Binding.ExecutionMode != strategyExecutionModeNotifyOnly {
+		t.Fatalf("executionMode = %q, want %q", updated.Binding.ExecutionMode, strategyExecutionModeNotifyOnly)
+	}
+	updatedFields, ok := payload["updatedFields"].([]string)
+	if !ok || len(updatedFields) != 1 || updatedFields[0] != "executionMode" {
+		t.Fatalf("updatedFields = %#v, want [executionMode]", payload["updatedFields"])
+	}
+
+	stored, exists := server.strategyStore.strategy(instance.ID)
+	if !exists {
+		t.Fatalf("strategyStore.strategy(%q) not found after update", instance.ID)
+	}
+	stored.Status = strategyStatusRunning
+	if err := server.strategyStore.saveStrategy(stored); err != nil {
+		t.Fatalf("saveStrategy(running): %v", err)
+	}
+	if _, err := tool.Handler(context.Background(), map[string]any{
+		"instanceId":    instance.ID,
+		"executionMode": strategyExecutionModeLive,
+	}); err != errStrategyInstanceBusy {
+		t.Fatalf("tool.Handler(non-stopped) error = %v, want %v", err, errStrategyInstanceBusy)
 	}
 }
 

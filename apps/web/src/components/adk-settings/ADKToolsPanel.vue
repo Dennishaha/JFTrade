@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ADKToolDescriptor } from "@/contracts";
 
-defineProps<{
+const props = defineProps<{
   tools: ADKToolDescriptor[];
   filteredTools: ADKToolDescriptor[];
   selectedTool: ADKToolDescriptor | null;
@@ -36,6 +36,14 @@ function requiresApprovalText(tool: ADKToolDescriptor | null): string[] {
     return ["无额外审批模式限制"];
   }
   return tool.requiresApprovalIn;
+}
+
+function handleToolCardKeydown(event: KeyboardEvent, toolName: string): void {
+  if (event.key !== "Enter" && event.key !== " ") {
+    return;
+  }
+  event.preventDefault();
+  props.openToolDetail(toolName);
 }
 </script>
 
@@ -91,8 +99,7 @@ function requiresApprovalText(tool: ADKToolDescriptor | null): string[] {
         role="button"
         tabindex="0"
         @click="openToolDetail(tool.name)"
-        @keydown.enter.prevent="openToolDetail(tool.name)"
-        @keydown.space.prevent="openToolDetail(tool.name)"
+        @keydown="handleToolCardKeydown($event, tool.name)"
       >
         <v-card-text>
           <div class="min-w-0">
