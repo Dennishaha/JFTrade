@@ -16,28 +16,37 @@ const threadRef = ref<HTMLElement | null>(null);
 let mermaidRenderFrame: number | null = null;
 const {
   activeRunId,
+  activeRunStatus,
   agentName,
   agentOptions,
   approvalTool,
   approvalsBusy,
+  canInterruptChat,
   canSendChat,
   chatDraft,
   timelineEntries,
   composerBlockMessage,
+  cancelActiveRun,
   contextBusy,
   contextDetailsOpen,
   createNewSession,
   deleteSession,
   errorMessage,
   formatPermission,
+  hasBlockingRun,
   handleAgentChange,
   handleComposerKeydown,
   handleProviderChange,
+  interruptAndQueueChat,
+  interruptingRunId,
   loading,
   openProviderSettings,
   preview,
   providerOptions,
   providers,
+  queueDispatchingId,
+  queuedMessages,
+  revokeQueuedMessage,
   runSlashCommand,
   renameSession,
   resolveApprovalGroup,
@@ -60,7 +69,6 @@ const {
   selectSession,
   sendChat,
   visibleSessions,
-  cancelActiveRun,
   openContextDetails,
 } = useADKPageController(router, threadRef);
 
@@ -136,6 +144,9 @@ function clearErrorMessage(): void {
       <div ref="threadRef" class="adk-thread">
         <ADKChatThread
           variant="page"
+          :active-run-id="activeRunId"
+          :active-run-status="activeRunStatus"
+          :has-blocking-run="hasBlockingRun"
           :timeline-entries="timelineEntries"
           :sending-chat="sendingChat"
           :show-typing-indicator="showTypingIndicator"
@@ -164,15 +175,21 @@ function clearErrorMessage(): void {
       <ADKChatComposer
         variant="page"
         :active-run-id="activeRunId"
+        :active-run-status="activeRunStatus"
         :agent-options="agentOptions"
+        :can-interrupt-chat="canInterruptChat"
         :can-send-chat="canSendChat"
         :chat-draft="chatDraft"
         :composer-block-message="composerBlockMessage"
         :context-busy="contextBusy"
         :context-details-open="contextDetailsOpen"
         :context-snapshot="sessionContext"
+        :has-blocking-run="hasBlockingRun"
+        :interrupting-run-id="interruptingRunId"
         :loading="loading"
         :provider-options="providerOptions"
+        :queued-messages="queuedMessages"
+        :queue-dispatching-id="queueDispatchingId"
         :slash-commands="slashCommands"
         :saving-provider-selection="savingProviderSelection"
         :selected-agent-id="selectedAgentId"
@@ -182,8 +199,10 @@ function clearErrorMessage(): void {
         :handle-agent-change="handleAgentChange"
         :handle-composer-keydown="handleComposerKeydown"
         :handle-provider-change="handleProviderChange"
+        :interrupt-and-queue-chat="interruptAndQueueChat"
         :open-context-details="openContextDetails"
         :open-provider-settings="openProviderSettings"
+        :revoke-queued-message="revokeQueuedMessage"
         :run-slash-command="runSlashCommand"
         :send-chat="sendChat"
         @update:chat-draft="chatDraft = $event"

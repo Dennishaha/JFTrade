@@ -2,6 +2,7 @@ package adk
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -64,7 +65,11 @@ func (r *Runtime) completeChatRun(
 		}
 		replyResult = openAIChatResult{Reply: localReply(text, toolContext.summaries, adkErr)}
 	} else {
-		run = markCompletedChatRun(run)
+		var toolFailure error
+		run, toolFailure = markCompletedChatRun(run)
+		if toolFailure != nil && strings.TrimSpace(replyResult.Reply) == "" {
+			replyResult = openAIChatResult{Reply: localReply(text, toolContext.summaries, toolFailure)}
+		}
 		if err := r.persistRunTerminalState(ctx, run); err != nil {
 			return ChatResponse{}, err
 		}
@@ -145,13 +150,100 @@ func markFailedChatRun(ctx context.Context, run Run, adkErr error) Run {
 	return run
 }
 
-func markCompletedChatRun(run Run) Run {
+func markCompletedChatRun(run Run) (Run, error) {
+	if applyRunFailureFromToolCalls(&run) {
+		return run, errors.New(run.FailureReason)
+	}
 	completedAt := nowString()
 	run.Status = RunStatusCompleted
 	run.CompletedAt = &completedAt
 	run.Message = "completed"
 	finalizeRunUsage(&run)
-	return run
+	return run, nil
+}
+
+func (r *Runtime) persistRunActivitySnapshot(ctx context.Context, snapshot Run) error {
+	if r == nil || r.store == nil || strings.TrimSpace(snapshot.ID) == "" {
+		return nil
+	}
+	run, ok, err := r.store.Run(ctx, snapshot.ID)
+	if err != nil {
+		return err
+	}
+	if ok {
+		mergeRunActivitySnapshot(&run, snapshot)
+		return r.store.SaveRun(ctx, run)
+	}
+	return r.store.SaveRun(ctx, snapshot)
+}
+
+func mergeRunActivitySnapshot(run *Run, snapshot Run) {
+	if run == nil {
+		return
+	}
+	if strings.TrimSpace(snapshot.SessionID) != "" {
+		run.SessionID = snapshot.SessionID
+	}
+	if strings.TrimSpace(snapshot.AgentID) != "" {
+		run.AgentID = snapshot.AgentID
+	}
+	if strings.TrimSpace(snapshot.ProviderID) != "" {
+		run.ProviderID = snapshot.ProviderID
+	}
+	if strings.TrimSpace(snapshot.Status) != "" {
+		run.Status = snapshot.Status
+	}
+	if strings.TrimSpace(snapshot.Message) != "" {
+		run.Message = snapshot.Message
+	}
+	if strings.TrimSpace(snapshot.FailureReason) != "" {
+		run.FailureReason = snapshot.FailureReason
+	}
+	if strings.TrimSpace(snapshot.ErrorCode) != "" {
+		run.ErrorCode = snapshot.ErrorCode
+	}
+	if snapshot.Degraded {
+		run.Degraded = true
+	}
+	if strings.TrimSpace(snapshot.PreToolContent) != "" {
+		run.PreToolContent = snapshot.PreToolContent
+	}
+	if strings.TrimSpace(snapshot.PreToolReasoning) != "" {
+		run.PreToolReasoning = snapshot.PreToolReasoning
+	}
+	if len(snapshot.ToolSummaries) > 0 {
+		run.ToolSummaries = append([]string(nil), snapshot.ToolSummaries...)
+	}
+	if len(snapshot.ToolCalls) > 0 {
+		run.ToolCalls = append([]ToolCall(nil), snapshot.ToolCalls...)
+	}
+	if len(snapshot.PendingApprovals) > 0 {
+		run.PendingApprovals = append([]Approval(nil), snapshot.PendingApprovals...)
+	}
+	if strings.TrimSpace(snapshot.ResumeState) != "" {
+		run.ResumeState = snapshot.ResumeState
+	}
+	if strings.TrimSpace(snapshot.FinalMessageID) != "" {
+		run.FinalMessageID = snapshot.FinalMessageID
+	}
+	if snapshot.Usage != nil {
+		cloned := *snapshot.Usage
+		run.Usage = &cloned
+	}
+	if strings.TrimSpace(snapshot.StartedAt) != "" {
+		run.StartedAt = snapshot.StartedAt
+	}
+	if snapshot.CompletedAt != nil {
+		completedAt := *snapshot.CompletedAt
+		run.CompletedAt = &completedAt
+	}
+	if snapshot.CancelledAt != nil {
+		cancelledAt := *snapshot.CancelledAt
+		run.CancelledAt = &cancelledAt
+	}
+	if strings.TrimSpace(snapshot.OptimizationTaskID) != "" {
+		run.OptimizationTaskID = snapshot.OptimizationTaskID
+	}
 }
 
 func (r *Runtime) persistRunTerminalState(ctx context.Context, run Run) error {
@@ -252,7 +344,7 @@ func (r *Runtime) projectedChatResponse(
 		ReasoningContent: fallback.ReasoningContent,
 		Session:          session,
 		Run:              run,
-		PendingApprovals: append([]Approval(nil), approvals...),
+		PendingApprovals: pendingApprovalsOnly(approvals),
 		Timeline:         []TimelineEntry{},
 		Context:          r.contextSnapshotOrNil(ctx, session.ID),
 	}
@@ -268,12 +360,10 @@ func (r *Runtime) projectedChatResponse(
 		response.ReasoningContent = projection.LatestAssistant.ReasoningContent
 	}
 	if len(response.PendingApprovals) == 0 && len(projection.PendingApprovals) > 0 {
-		response.PendingApprovals = append([]Approval(nil), projection.PendingApprovals...)
-	}
-	if len(response.PendingApprovals) > 0 {
-		response.Run.PendingApprovals = append([]Approval(nil), response.PendingApprovals...)
+		response.PendingApprovals = pendingApprovalsOnly(projection.PendingApprovals)
 	}
 	response.Run = applySessionProjectionToRun(response.Run, projection)
+	response.Run.PendingApprovals = append([]Approval(nil), response.PendingApprovals...)
 	if timeline, ok, timelineErr := r.store.SessionTimeline(ctx, session.ID); timelineErr == nil && ok {
 		response.Timeline = normalizedTimelineEntries(timeline)
 	}
@@ -288,6 +378,7 @@ func normalizedTimelineEntries(entries []TimelineEntry) []TimelineEntry {
 }
 
 func applySessionProjectionToRun(run Run, projection SessionProjection) Run {
+	run.PendingApprovals = pendingApprovalsOnly(run.PendingApprovals)
 	if strings.TrimSpace(projection.FinalMessageID) != "" {
 		run.FinalMessageID = projection.FinalMessageID
 	}
@@ -297,8 +388,9 @@ func applySessionProjectionToRun(run Run, projection SessionProjection) Run {
 	if strings.TrimSpace(projection.PreToolReasoning) != "" {
 		run.PreToolReasoning = projection.PreToolReasoning
 	}
-	if len(projection.PendingApprovals) > 0 {
-		run.PendingApprovals = append([]Approval(nil), projection.PendingApprovals...)
+	projectedPendingApprovals := pendingApprovalsOnly(projection.PendingApprovals)
+	if len(projectedPendingApprovals) > 0 {
+		run.PendingApprovals = projectedPendingApprovals
 	}
 	if shouldPreferProjectedToolCalls(run.ToolCalls, projection.ToolCalls) {
 		run.ToolCalls = append([]ToolCall(nil), projection.ToolCalls...)

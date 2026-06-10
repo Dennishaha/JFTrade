@@ -350,6 +350,68 @@ func TestCompleteChatRunSuccessPersistsCompletedRunAndAssistantReply(t *testing.
 	}
 }
 
+func TestCompleteChatRunUsesFailedToolCallsAsTerminalFailure(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+
+	session := mustCreateSession(t, runtime, "agent-1", "tool failure")
+	toolErr := "disk full"
+	run := mustSaveRun(t, runtime, Run{
+		ID:        "run-complete-tool-failed",
+		SessionID: session.ID,
+		AgentID:   "agent-1",
+		Status:    RunStatusRunning,
+		StartedAt: time.Now().UTC().Add(-time.Second).Format(time.RFC3339Nano),
+		CreatedAt: nowString(),
+		UpdatedAt: nowString(),
+		ToolCalls: []ToolCall{{
+			ID:         "tool-1",
+			RunID:      "run-complete-tool-failed",
+			ToolName:   "strategy.save_draft",
+			Permission: "write_strategy",
+			Status:     "FAILED",
+			Error:      &toolErr,
+			CreatedAt:  nowString(),
+			UpdatedAt:  nowString(),
+		}},
+		Usage: &RunUsage{},
+	})
+
+	response, err := runtime.completeChatRun(
+		ctx,
+		session,
+		run,
+		"save this strategy",
+		toolExecutionContext{calls: run.ToolCalls},
+		nil,
+		openAIChatResult{},
+		nil,
+	)
+	if err != nil {
+		t.Fatalf("completeChatRun tool failure: %v", err)
+	}
+	if response.Run.Status != RunStatusFailed {
+		t.Fatalf("response status = %q, want %q", response.Run.Status, RunStatusFailed)
+	}
+	if response.Run.ErrorCode != "TOOL_EXECUTION_FAILED" {
+		t.Fatalf("response error code = %q, want TOOL_EXECUTION_FAILED", response.Run.ErrorCode)
+	}
+	if response.Run.FailureReason != toolErr {
+		t.Fatalf("response failure reason = %q, want %q", response.Run.FailureReason, toolErr)
+	}
+
+	stored, ok, err := runtime.Store().Run(ctx, run.ID)
+	if err != nil || !ok {
+		t.Fatalf("Run lookup err=%v ok=%v", err, ok)
+	}
+	if stored.Status != RunStatusFailed || stored.ErrorCode != "TOOL_EXECUTION_FAILED" {
+		t.Fatalf("stored run = %+v", stored)
+	}
+	if stored.FailureReason != toolErr {
+		t.Fatalf("stored failure reason = %q, want %q", stored.FailureReason, toolErr)
+	}
+}
+
 func TestProjectedChatResponseAppliesProjectionToRunFields(t *testing.T) {
 	ctx := context.Background()
 	runtime := newTestRuntime(t)
@@ -401,6 +463,51 @@ func TestProjectedChatResponseAppliesProjectionToRunFields(t *testing.T) {
 	}
 }
 
+func TestProjectedChatResponseDoesNotExposeResolvedApprovals(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	agent := mustSaveAgent(t, runtime, AgentWriteRequest{
+		ID:             "agent-approved-response",
+		Name:           "Agent",
+		PermissionMode: PermissionModeApproval,
+		Status:         AgentStatusEnabled,
+	})
+	session := mustCreateSession(t, runtime, agent.ID, "projection approvals")
+	run := mustSaveRun(t, runtime, Run{
+		ID:        "run-approved-response",
+		SessionID: session.ID,
+		AgentID:   agent.ID,
+		Status:    RunStatusCompleted,
+		PendingApprovals: []Approval{{
+			ID:        "approval-approved",
+			RunID:     "run-approved-response",
+			AgentID:   agent.ID,
+			ToolName:  "strategy.save_draft",
+			Status:    ApprovalStatusApproved,
+			Reason:    "resolved",
+			CreatedAt: nowString(),
+			UpdatedAt: nowString(),
+		}},
+		CreatedAt: nowString(),
+		UpdatedAt: nowString(),
+		Usage:     &RunUsage{},
+	})
+	appendADKEvent(t, runtime, agent.ID, session.ID, newAssistantEvent(run.ID, []*genai.Part{{Text: "done"}}, time.Unix(41, 0)))
+
+	response := runtime.projectedChatResponse(ctx, session, run, nil, openAIChatResult{Reply: "fallback"})
+	if len(response.PendingApprovals) != 0 {
+		t.Fatalf("response pending approvals = %+v, want none", response.PendingApprovals)
+	}
+	if len(response.Run.PendingApprovals) != 0 {
+		t.Fatalf("response run pending approvals = %+v, want none", response.Run.PendingApprovals)
+	}
+	for _, entry := range response.Timeline {
+		if entry.Kind == TimelineKindApprovalGroup {
+			t.Fatalf("timeline approval group = %+v, want none", entry)
+		}
+	}
+}
+
 func TestResolveApprovalAsyncDetachesClosedStreamBeforeBackgroundResume(t *testing.T) {
 	ctx := context.Background()
 	runtime := newTestRuntime(t)
@@ -446,8 +553,11 @@ func TestResolveApprovalAsyncDetachesClosedStreamBeforeBackgroundResume(t *testi
 	if err != nil {
 		t.Fatalf("ResolveApprovalAsync: %v", err)
 	}
-	if resolution.Run == nil || resolution.Run.Status != RunStatusPending || resolution.Run.ResumeState != "approval_resuming" {
-		t.Fatalf("initial async resolution = %+v, want pending approval_resuming", resolution.Run)
+	if resolution.Run == nil || resolution.Run.Status != RunStatusRunning || resolution.Run.ResumeState != "approval_resuming" {
+		t.Fatalf("initial async resolution = %+v, want running approval_resuming", resolution.Run)
+	}
+	if len(resolution.Run.ToolCalls) != 1 || resolution.Run.ToolCalls[0].Status != "RUNNING" {
+		t.Fatalf("resolution tool calls = %+v, want approved tool resuming as running", resolution.Run.ToolCalls)
 	}
 
 	deadline := time.Now().Add(2 * time.Second)
@@ -456,7 +566,7 @@ func TestResolveApprovalAsyncDetachesClosedStreamBeforeBackgroundResume(t *testi
 		if err != nil || !ok {
 			t.Fatalf("Run lookup err=%v ok=%v", err, ok)
 		}
-		if stored.Status != RunStatusPending {
+		if stored.Status != RunStatusRunning {
 			if stored.Status != RunStatusCompleted {
 				t.Fatalf("final run status = %q, want %q; run=%+v", stored.Status, RunStatusCompleted, stored)
 			}

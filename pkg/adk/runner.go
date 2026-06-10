@@ -107,6 +107,9 @@ func (r *Runtime) reconcileStaleRuns(ctx context.Context) {
 		if originalStatus == RunStatusPending && runHasRecoverableApprovalContext(run) {
 			continue
 		}
+		if originalStatus == RunStatusRunning && runHasRecoverableResolvedApprovalContext(run) {
+			continue
+		}
 		now := nowString()
 		run.Status = RunStatusFailed
 		run.ErrorCode = "RUN_ORPHANED"
@@ -191,7 +194,7 @@ func (r *Runtime) ReconcileResolvedApprovals(ctx context.Context) {
 		return
 	}
 	for _, run := range runs {
-		if run.Status != RunStatusPending {
+		if !runCanContinueResolvedApproval(run) {
 			continue
 		}
 		hasPending := false
@@ -604,6 +607,16 @@ func (r *Runtime) stageResolvedApproval(ctx context.Context, approval Approval, 
 	}
 	run.ResumeState = "approval_resuming"
 	if approved {
+		run.Status = RunStatusRunning
+		for index := range run.ToolCalls {
+			call := &run.ToolCalls[index]
+			if call.Status != "PENDING_APPROVAL" {
+				continue
+			}
+			call.Status = "RUNNING"
+			call.RequiresUser = false
+			call.UpdatedAt = nowString()
+		}
 		run.Message = "审批已通过，正在后台继续执行。"
 	} else {
 		run.Message = "审批已拒绝，正在后台结束运行。"
@@ -661,7 +674,7 @@ func (r *Runtime) continueResolvedApprovalRun(ctx context.Context, runID string)
 
 func (r *Runtime) markApprovalContinuationFailed(ctx context.Context, runID string, cause error) {
 	run, ok, err := r.store.Run(ctx, runID)
-	if err != nil || !ok || run.Status != RunStatusPending || runHasPendingApproval(run.PendingApprovals) {
+	if err != nil || !ok || !runCanContinueResolvedApproval(run) || runHasPendingApproval(run.PendingApprovals) {
 		return
 	}
 	completedAt := nowString()
@@ -698,7 +711,7 @@ func (r *Runtime) continueResolvedApproval(ctx context.Context, approval Approva
 	var createdMessage *Message
 	run, ok, err := r.store.Run(ctx, approval.RunID)
 	if err == nil && ok {
-		if run.Status != RunStatusPending {
+		if !runCanContinueResolvedApproval(run) {
 			return ApprovalResolution{Approval: approval}, nil
 		}
 		replacedApproval := false
@@ -1018,6 +1031,28 @@ func runHasRecoverableApprovalContext(run Run) bool {
 		}
 	}
 	return false
+}
+
+func runHasRecoverableResolvedApprovalContext(run Run) bool {
+	if strings.TrimSpace(run.ResumeState) != "approval_resuming" {
+		return false
+	}
+	for _, approval := range run.PendingApprovals {
+		if approval.Status == ApprovalStatusPending {
+			continue
+		}
+		if strings.TrimSpace(approval.FunctionCallID) != "" && strings.TrimSpace(approval.ConfirmationCallID) != "" {
+			return true
+		}
+	}
+	return false
+}
+
+func runCanContinueResolvedApproval(run Run) bool {
+	if run.Status == RunStatusPending {
+		return true
+	}
+	return run.Status == RunStatusRunning && runHasRecoverableResolvedApprovalContext(run)
 }
 
 func runLifecycleAuditKind(status string) string {

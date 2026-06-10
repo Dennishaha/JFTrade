@@ -26,25 +26,26 @@ import (
 const googleADKUserID = "jftrade-user"
 
 type googleADKExecution struct {
-	mu                sync.Mutex
-	runner            *adkrunner.Runner
-	sessionService    adksession.Service
-	sessionID         string
-	appName           string
-	agent             Agent
-	runID             string
-	descriptors       map[string]ToolDescriptor
-	calls             []ToolCall
-	summaries         []string
-	reply             strings.Builder
-	reasoning         strings.Builder
-	preToolContent    strings.Builder
-	preToolReasoning  strings.Builder
-	bufferedReply     strings.Builder
-	bufferedReasoning strings.Builder
-	onDelta           func(ChatDelta) error
-	sawPartialText    bool
-	runBlocking       func(context.Context, *genai.Content) error
+	mu                 sync.Mutex
+	runner             *adkrunner.Runner
+	sessionService     adksession.Service
+	sessionID          string
+	appName            string
+	agent              Agent
+	runID              string
+	descriptors        map[string]ToolDescriptor
+	calls              []ToolCall
+	summaries          []string
+	reply              strings.Builder
+	reasoning          strings.Builder
+	preToolContent     strings.Builder
+	preToolReasoning   strings.Builder
+	bufferedReply      strings.Builder
+	bufferedReasoning  strings.Builder
+	onDelta            func(ChatDelta) error
+	sawPartialText     bool
+	runBlocking        func(context.Context, *genai.Content) error
+	persistRunSnapshot func(Run) error
 }
 
 type googleADKTool struct {
@@ -243,19 +244,120 @@ func markDeniedResumedRun(run Run) Run {
 }
 
 func markFailedResumedRunIfNeeded(run Run) Run {
-	for _, call := range run.ToolCalls {
-		if call.Status != "FAILED" {
-			continue
-		}
-		run.Status = RunStatusFailed
-		run.ErrorCode = "TOOL_EXECUTION_FAILED"
-		run.Message = "confirmed tool execution failed"
-		if call.Error != nil {
-			run.FailureReason = *call.Error
-		}
-		break
+	if !applyRunFailureFromToolCalls(&run) {
+		return run
 	}
 	return run
+}
+
+func classifyToolExecutionError(err error) (string, string) {
+	if err == nil {
+		return "SUCCEEDED", ""
+	}
+	return classifyToolErrorText(err.Error())
+}
+
+func classifyToolErrorText(text string) (string, string) {
+	trimmed := strings.TrimSpace(text)
+	lower := strings.ToLower(trimmed)
+	switch {
+	case strings.Contains(lower, "context deadline exceeded"):
+		return "TIMED_OUT", prefixedToolError(trimmed, "tool execution timed out")
+	case strings.Contains(lower, "context canceled"):
+		return "CANCELLED", prefixedToolError(trimmed, "tool execution cancelled")
+	default:
+		return "FAILED", trimmed
+	}
+}
+
+func prefixedToolError(text string, prefix string) string {
+	trimmed := strings.TrimSpace(text)
+	if trimmed == "" {
+		return prefix
+	}
+	lower := strings.ToLower(trimmed)
+	if strings.Contains(lower, prefix) {
+		return trimmed
+	}
+	return prefix + ": " + trimmed
+}
+
+func firstToolCallByStatus(calls []ToolCall, statuses ...string) *ToolCall {
+	if len(calls) == 0 || len(statuses) == 0 {
+		return nil
+	}
+	allowed := make(map[string]struct{}, len(statuses))
+	for _, status := range statuses {
+		allowed[strings.ToUpper(strings.TrimSpace(status))] = struct{}{}
+	}
+	for index := range calls {
+		if _, ok := allowed[strings.ToUpper(strings.TrimSpace(calls[index].Status))]; ok {
+			return &calls[index]
+		}
+	}
+	return nil
+}
+
+func toolCallFailureMessage(call *ToolCall) string {
+	if call == nil {
+		return ""
+	}
+	if call.Error != nil && strings.TrimSpace(*call.Error) != "" {
+		return strings.TrimSpace(*call.Error)
+	}
+	switch strings.ToUpper(strings.TrimSpace(call.Status)) {
+	case "TIMED_OUT":
+		return "tool execution timed out"
+	case "CANCELLED":
+		return "tool execution cancelled"
+	default:
+		return "tool execution failed"
+	}
+}
+
+func applyRunFailureFromToolCalls(run *Run) bool {
+	if run == nil {
+		return false
+	}
+	call := firstToolCallByStatus(run.ToolCalls, "TIMED_OUT")
+	errorCode := "TOOL_EXECUTION_TIMED_OUT"
+	status := RunStatusFailed
+	if call == nil {
+		call = firstToolCallByStatus(run.ToolCalls, "FAILED")
+		errorCode = "TOOL_EXECUTION_FAILED"
+	}
+	if call == nil {
+		allCancelled := len(run.ToolCalls) > 0
+		for _, toolCall := range run.ToolCalls {
+			if strings.ToUpper(strings.TrimSpace(toolCall.Status)) != "CANCELLED" {
+				allCancelled = false
+				break
+			}
+		}
+		if allCancelled {
+			call = &ToolCall{Status: "CANCELLED"}
+			errorCode = runErrorCode(RunStatusCancelled)
+			status = RunStatusCancelled
+		}
+	}
+	if call == nil {
+		return false
+	}
+	message := toolCallFailureMessage(call)
+	run.Status = status
+	run.ErrorCode = errorCode
+	run.Message = message
+	run.FailureReason = message
+	run.Degraded = true
+	completedAt := nowString()
+	if run.CompletedAt == nil {
+		run.CompletedAt = &completedAt
+	}
+	if run.Status == RunStatusCancelled && run.CancelledAt == nil {
+		run.CancelledAt = &completedAt
+	}
+	finalizeRunUsage(run)
+	return true
 }
 
 func (r *Runtime) persistResumedRunResult(ctx context.Context, run Run, result openAIChatResult) (*Message, error) {
@@ -315,6 +417,9 @@ func (r *Runtime) newGoogleADKExecution(
 		calls:       []ToolCall{},
 		summaries:   []string{},
 		onDelta:     onDelta,
+		persistRunSnapshot: func(snapshot Run) error {
+			return r.persistRunActivitySnapshot(context.Background(), snapshot)
+		},
 	}
 	toolsets, err := r.googleADKToolsets(ctx, definition)
 	if err != nil {
@@ -842,12 +947,15 @@ func (e *googleADKExecution) finishCall(callID string, output any, err error) {
 			continue
 		}
 		if err != nil {
-			errText := err.Error()
-			call.Status = "FAILED"
+			var errText string
+			call.Status, errText = classifyToolExecutionError(err)
 			call.Error = &errText
+			call.RequiresUser = false
 		} else {
 			call.Status = "SUCCEEDED"
 			call.Output = limitToolOutput(output)
+			call.Error = nil
+			call.RequiresUser = false
 			e.summaries = append(e.summaries, summarizeToolOutput(call.ToolName, output))
 		}
 		finishToolCall(call)
@@ -876,7 +984,7 @@ func (e *googleADKExecution) consumeFunctionResponse(response *genai.FunctionRes
 			break
 		}
 		if errorValue, ok := response.Response["error"]; ok {
-			errText := fmt.Sprint(errorValue)
+			errText := strings.TrimSpace(fmt.Sprint(errorValue))
 			if strings.Contains(errText, adktool.ErrConfirmationRequired.Error()) {
 				call.Status = "PENDING_APPROVAL"
 				call.RequiresUser = true
@@ -884,13 +992,16 @@ func (e *googleADKExecution) consumeFunctionResponse(response *genai.FunctionRes
 				changed = true
 				break
 			}
-			call.Status = "FAILED"
+			call.Status, errText = classifyToolErrorText(errText)
 			call.Error = &errText
+			call.RequiresUser = false
 			finishToolCall(call)
 			changed = true
 		} else {
 			call.Status = "SUCCEEDED"
 			call.Output = limitToolOutput(response.Response)
+			call.Error = nil
+			call.RequiresUser = false
 			e.summaries = append(e.summaries, summarizeToolOutput(call.ToolName, response.Response))
 			finishToolCall(call)
 			changed = true
@@ -1054,9 +1165,6 @@ func (e *googleADKExecution) activeToolCallCount() int {
 }
 
 func (e *googleADKExecution) emitRunSnapshotLocked() {
-	if e.onDelta == nil {
-		return
-	}
 	run := Run{
 		ID:               e.runID,
 		SessionID:        e.sessionID,
@@ -1064,11 +1172,30 @@ func (e *googleADKExecution) emitRunSnapshotLocked() {
 		Status:           e.derivedRunStatusLocked(),
 		Message:          "",
 		ToolCalls:        append([]ToolCall(nil), e.calls...),
+		ToolSummaries:    append([]string(nil), e.summaries...),
 		PendingApprovals: []Approval{},
 		CreatedAt:        "",
 		UpdatedAt:        nowString(),
 	}
-	_ = e.onDelta(ChatDelta{Run: &run})
+	applyRunFailureFromToolCalls(&run)
+	if e.persistRunSnapshot != nil {
+		persisted := run
+		persisted.Status = e.persistedRunStatusLocked()
+		if persisted.Status == RunStatusRunning || persisted.Status == RunStatusPending {
+			persisted.CompletedAt = nil
+			persisted.CancelledAt = nil
+			persisted.Degraded = false
+			if persisted.Status != RunStatusFailed {
+				persisted.Message = ""
+				persisted.FailureReason = ""
+				persisted.ErrorCode = ""
+			}
+		}
+		_ = e.persistRunSnapshot(persisted)
+	}
+	if e.onDelta != nil {
+		_ = e.onDelta(ChatDelta{Run: &run})
+	}
 }
 
 func (e *googleADKExecution) derivedRunStatusLocked() string {
@@ -1105,6 +1232,37 @@ func (e *googleADKExecution) derivedRunStatusLocked() string {
 	}
 	if allCompleted {
 		return RunStatusCompleted
+	}
+	return RunStatusRunning
+}
+
+func (e *googleADKExecution) persistedRunStatusLocked() string {
+	if len(e.calls) == 0 {
+		return RunStatusRunning
+	}
+	allCancelled := true
+	hasFailure := false
+	for _, call := range e.calls {
+		switch call.Status {
+		case "PENDING_APPROVAL":
+			return RunStatusPending
+		case "RUNNING", "PENDING":
+			return RunStatusRunning
+		case "FAILED", "TIMED_OUT", "DENIED":
+			hasFailure = true
+			allCancelled = false
+		case "SUCCEEDED", "COMPLETED":
+			allCancelled = false
+		case "CANCELLED":
+		default:
+			allCancelled = false
+		}
+	}
+	if hasFailure {
+		return RunStatusFailed
+	}
+	if allCancelled {
+		return RunStatusCancelled
 	}
 	return RunStatusRunning
 }

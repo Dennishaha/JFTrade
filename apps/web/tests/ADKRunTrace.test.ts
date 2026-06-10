@@ -45,11 +45,14 @@ describe("ADKRunTrace", () => {
     const wrapper = mount(ADKRunTrace, {
       props: {
         run: buildRun(
-          [buildToolCall("tool-1", "portfolio.summary"), buildToolCall("tool-2", "orders.latest")],
+          [
+            buildToolCall("tool-1", "portfolio.summary"),
+            buildToolCall("tool-2", "orders.latest"),
+          ],
           "RUNNING",
         ),
         busy: true,
-        toolProgress: "正在调用 portfolio.summary",
+        toolProgress: "Calling portfolio.summary",
         summaryExpanded: false,
         expandedToolCallIds: [],
       },
@@ -57,17 +60,20 @@ describe("ADKRunTrace", () => {
 
     expect(wrapper.text()).toContain("调用了 2 个工具");
     expect(wrapper.text()).toContain("已完成");
-    expect(wrapper.text()).not.toContain("正在调用 portfolio.summary");
+    expect(wrapper.text()).not.toContain("Calling portfolio.summary");
   });
 
   it("keeps the summary in running state while any tool call is still running", () => {
     const wrapper = mount(ADKRunTrace, {
       props: {
-        run: buildRun([
-          buildToolCall("tool-1", "load_skill", "RUNNING"),
-          buildToolCall("tool-2", "portfolio.summary"),
-          buildToolCall("tool-3", "account.orders"),
-        ], "COMPLETED"),
+        run: buildRun(
+          [
+            buildToolCall("tool-1", "load_skill", "RUNNING"),
+            buildToolCall("tool-2", "portfolio.summary"),
+            buildToolCall("tool-3", "account.orders"),
+          ],
+          "COMPLETED",
+        ),
         busy: false,
         summaryExpanded: false,
         expandedToolCallIds: [],
@@ -76,7 +82,7 @@ describe("ADKRunTrace", () => {
 
     expect(wrapper.text()).toContain("调用了 3 个工具");
     expect(wrapper.text()).toContain("运行中");
-    expect(wrapper.text()).not.toContain("已完成展开查看本轮工具调用轨迹");
+    expect(wrapper.text()).not.toContain("Collapse this tool trace");
   });
 
   it("expands the multi-tool summary to show individual calls", async () => {
@@ -139,15 +145,77 @@ describe("ADKRunTrace", () => {
     expect(wrapper.text()).not.toContain("Portfolio summary");
     expect(wrapper.text()).toContain('"detail": "raw fallback"');
   });
+
+  it("shows the failed tool and error summary without expanding the multi-tool trace", () => {
+    const wrapper = mount(ADKRunTrace, {
+      props: {
+        run: buildRun(
+          [
+            buildToolCall("tool-1", "portfolio.summary"),
+            buildToolCall(
+              "tool-2",
+              "strategy.save_draft",
+              "FAILED",
+              undefined,
+              "disk full",
+            ),
+          ],
+          "FAILED",
+          "disk full",
+        ),
+        busy: false,
+        summaryExpanded: false,
+        expandedToolCallIds: [],
+      },
+    });
+
+    expect(wrapper.text()).toContain("调用了 2 个工具");
+    expect(wrapper.text()).toContain("strategy.save_draft: disk full");
+    expect(wrapper.text()).not.toContain('"query": "strategy.save_draft"');
+  });
+
+  it("shows a collapsed single-tool error summary before expansion", () => {
+    const wrapper = mount(ADKRunTrace, {
+      props: {
+        run: buildRun(
+          [
+            buildToolCall(
+              "tool-1",
+              "strategy.save_draft",
+              "TIMED_OUT",
+              undefined,
+              "tool execution timed out: context deadline exceeded",
+            ),
+          ],
+          "FAILED",
+          "tool execution timed out: context deadline exceeded",
+        ),
+        busy: false,
+        summaryExpanded: true,
+        expandedToolCallIds: [],
+      },
+    });
+
+    expect(wrapper.text()).toContain("strategy.save_draft");
+    expect(wrapper.text()).toContain(
+      "tool execution timed out: context deadline exceeded",
+    );
+    expect(wrapper.find(".adk-run-trace-detail").exists()).toBe(false);
+  });
 });
 
-function buildRun(toolCalls: ADKRun["toolCalls"], status = "COMPLETED"): ADKRun {
+function buildRun(
+  toolCalls: ADKRun["toolCalls"],
+  status = "COMPLETED",
+  failureReason = "",
+): ADKRun {
   return {
     id: "run-1",
     sessionId: "session-1",
     agentId: "agent-1",
     status,
-    message: "completed",
+    message: status === "COMPLETED" ? "completed" : failureReason,
+    failureReason,
     toolCalls,
     pendingApprovals: [],
     createdAt: "2026-06-06T00:00:00Z",
@@ -160,6 +228,7 @@ function buildToolCall(
   toolName: string,
   status = "SUCCEEDED",
   output: unknown = { ok: true },
+  error?: string,
 ): ADKRun["toolCalls"][number] {
   return {
     id,
@@ -169,6 +238,7 @@ function buildToolCall(
     status,
     input: { query: toolName },
     output,
+    error,
     requiresUser: false,
     createdAt: "2026-06-06T00:00:00Z",
     updatedAt: "2026-06-06T00:00:00Z",

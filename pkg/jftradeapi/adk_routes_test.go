@@ -2,6 +2,7 @@ package jftradeapi
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -16,6 +17,169 @@ import (
 
 	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
 )
+
+func TestADKApprovalApproveRouteReturnsRunningResolutionEnvelope(t *testing.T) {
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	server := newTestServer(t, store)
+	releaseTool := make(chan struct{})
+	toolStarted := make(chan struct{}, 1)
+	server.adkRuntime.Tools().Register(jfadk.ToolDescriptor{
+		Name: "strategy.save_draft", Permission: "write_strategy",
+		AllowedModes: []string{jfadk.PermissionModeApproval},
+	}, func(ctx context.Context, _ map[string]any) (any, error) {
+		select {
+		case toolStarted <- struct{}{}:
+		default:
+		}
+		select {
+		case <-releaseTool:
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+		return map[string]any{"saved": true}, nil
+	})
+	srv := httptest.NewServer(server)
+	t.Cleanup(srv.Close)
+
+	agent, err := server.adkRuntime.Store().SaveAgent(t.Context(), jfadk.AgentWriteRequest{
+		ID:             "approval-agent-running",
+		Name:           "Approval Agent",
+		Tools:          []string{"strategy.save_draft"},
+		PermissionMode: jfadk.PermissionModeApproval,
+		Status:         jfadk.AgentStatusEnabled,
+	})
+	if err != nil {
+		t.Fatalf("SaveAgent: %v", err)
+	}
+
+	chatPayload := []byte(`{"agentId":"` + agent.ID + `","message":"@strategy.save_draft save"}`)
+	chatResp, err := http.Post(srv.URL+"/api/v1/adk/chat", "application/json", bytes.NewReader(chatPayload))
+	if err != nil {
+		t.Fatalf("POST adk chat: %v", err)
+	}
+	defer chatResp.Body.Close()
+	if chatResp.StatusCode != http.StatusOK {
+		t.Fatalf("POST adk chat status = %d", chatResp.StatusCode)
+	}
+	var chatEnvelope struct {
+		OK   bool `json:"ok"`
+		Data struct {
+			Run              jfadk.Run        `json:"run"`
+			PendingApprovals []jfadk.Approval `json:"pendingApprovals"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(chatResp.Body).Decode(&chatEnvelope); err != nil {
+		t.Fatalf("decode chat envelope: %v", err)
+	}
+	if !chatEnvelope.OK || chatEnvelope.Data.Run.Status != jfadk.RunStatusPending || len(chatEnvelope.Data.PendingApprovals) != 1 {
+		t.Fatalf("chat envelope = %+v, want pending approval", chatEnvelope)
+	}
+
+	approvalID := chatEnvelope.Data.PendingApprovals[0].ID
+	approveResp, err := http.Post(srv.URL+"/api/v1/adk/approvals/"+approvalID+"/approve", "application/json", nil)
+	if err != nil {
+		t.Fatalf("POST approve approval: %v", err)
+	}
+	defer approveResp.Body.Close()
+	if approveResp.StatusCode != http.StatusOK {
+		t.Fatalf("POST approve approval status = %d", approveResp.StatusCode)
+	}
+	var approveEnvelope struct {
+		OK   bool                     `json:"ok"`
+		Data jfadk.ApprovalResolution `json:"data"`
+	}
+	if err := json.NewDecoder(approveResp.Body).Decode(&approveEnvelope); err != nil {
+		t.Fatalf("decode approve envelope: %v", err)
+	}
+	if !approveEnvelope.OK {
+		t.Fatal("expected approve envelope ok=true")
+	}
+	if approveEnvelope.Data.Approval.Status != jfadk.ApprovalStatusApproved {
+		t.Fatalf("approval status = %q, want approved", approveEnvelope.Data.Approval.Status)
+	}
+	if approveEnvelope.Data.Run == nil || approveEnvelope.Data.Run.Status != jfadk.RunStatusRunning || approveEnvelope.Data.Run.ResumeState != "approval_resuming" {
+		t.Fatalf("resolution run = %+v, want running background continuation", approveEnvelope.Data.Run)
+	}
+	if len(approveEnvelope.Data.Run.ToolCalls) != 1 || approveEnvelope.Data.Run.ToolCalls[0].Status != "RUNNING" {
+		t.Fatalf("resolution tool calls = %+v, want running", approveEnvelope.Data.Run.ToolCalls)
+	}
+
+	select {
+	case <-toolStarted:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for approved continuation to resume")
+	}
+
+	runResp, err := http.Get(srv.URL + "/api/v1/adk/runs/" + chatEnvelope.Data.Run.ID)
+	if err != nil {
+		t.Fatalf("GET run: %v", err)
+	}
+	defer runResp.Body.Close()
+	if runResp.StatusCode != http.StatusOK {
+		t.Fatalf("GET run status = %d", runResp.StatusCode)
+	}
+	var runEnvelope struct {
+		OK   bool      `json:"ok"`
+		Data jfadk.Run `json:"data"`
+	}
+	if err := json.NewDecoder(runResp.Body).Decode(&runEnvelope); err != nil {
+		t.Fatalf("decode run envelope: %v", err)
+	}
+	if !runEnvelope.OK || runEnvelope.Data.Status != jfadk.RunStatusRunning {
+		t.Fatalf("run envelope = %+v, want running", runEnvelope)
+	}
+
+	sessionResp, err := http.Get(srv.URL + "/api/v1/adk/sessions/" + runEnvelope.Data.SessionID)
+	if err != nil {
+		t.Fatalf("GET session detail: %v", err)
+	}
+	defer sessionResp.Body.Close()
+	if sessionResp.StatusCode != http.StatusOK {
+		t.Fatalf("GET session detail status = %d", sessionResp.StatusCode)
+	}
+	var sessionEnvelope struct {
+		OK   bool `json:"ok"`
+		Data struct {
+			Timeline []jfadk.TimelineEntry `json:"timeline"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(sessionResp.Body).Decode(&sessionEnvelope); err != nil {
+		t.Fatalf("decode session envelope: %v", err)
+	}
+	toolGroupSeen := false
+	for _, entry := range sessionEnvelope.Data.Timeline {
+		if entry.Kind == jfadk.TimelineKindApprovalGroup {
+			t.Fatalf("timeline approval group = %+v, want resolved approval omitted", entry)
+		}
+		if entry.Kind == jfadk.TimelineKindToolGroup && entry.RunID == chatEnvelope.Data.Run.ID {
+			if len(entry.ToolCalls) == 1 && entry.ToolCalls[0].Status == "RUNNING" {
+				toolGroupSeen = true
+			}
+		}
+	}
+	if !toolGroupSeen {
+		t.Fatalf("session timeline = %+v, want running tool group for run %s", sessionEnvelope.Data.Timeline, chatEnvelope.Data.Run.ID)
+	}
+
+	close(releaseTool)
+
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		run, ok, err := server.adkRuntime.Store().Run(t.Context(), chatEnvelope.Data.Run.ID)
+		if err != nil || !ok {
+			t.Fatalf("stored run ok=%v err=%v", ok, err)
+		}
+		if run.Status == jfadk.RunStatusCompleted {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	run, ok, err := server.adkRuntime.Store().Run(t.Context(), chatEnvelope.Data.Run.ID)
+	t.Fatalf("stored run after async approval = %+v ok=%v err=%v, want completed", run, ok, err)
+}
 
 func TestADKApprovalRouteReturnsResolutionEnvelope(t *testing.T) {
 	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
@@ -797,6 +961,138 @@ func TestADKSessionsCRUDAndFilteringRoutes(t *testing.T) {
 	defer missingResp.Body.Close()
 	if missingResp.StatusCode != http.StatusNotFound {
 		t.Fatalf("deleted session status = %d, want 404", missingResp.StatusCode)
+	}
+}
+
+func TestADKSessionDetailOmitsResolvedApprovalGroups(t *testing.T) {
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	server := newTestServer(t, store)
+	srv := httptest.NewServer(server)
+	t.Cleanup(srv.Close)
+
+	agent, err := server.adkRuntime.Store().SaveAgent(t.Context(), jfadk.AgentWriteRequest{
+		ID:             "session-approval-agent",
+		Name:           "Session Approval Agent",
+		Tools:          []string{"strategy.save_draft"},
+		PermissionMode: jfadk.PermissionModeApproval,
+		Status:         jfadk.AgentStatusEnabled,
+	})
+	if err != nil {
+		t.Fatalf("SaveAgent: %v", err)
+	}
+	session, err := server.adkRuntime.Store().CreateSession(t.Context(), agent.ID, "approval cleanup")
+	if err != nil {
+		t.Fatalf("CreateSession: %v", err)
+	}
+
+	chatResp, err := http.Post(
+		srv.URL+"/api/v1/adk/chat",
+		"application/json",
+		strings.NewReader(`{"agentId":"`+agent.ID+`","sessionId":"`+session.ID+`","message":"@strategy.save_draft 保存草稿"}`),
+	)
+	if err != nil {
+		t.Fatalf("POST session chat: %v", err)
+	}
+	defer chatResp.Body.Close()
+	if chatResp.StatusCode != http.StatusOK {
+		t.Fatalf("POST session chat status = %d", chatResp.StatusCode)
+	}
+	var chatEnvelope struct {
+		OK   bool `json:"ok"`
+		Data struct {
+			Run              jfadk.Run        `json:"run"`
+			PendingApprovals []jfadk.Approval `json:"pendingApprovals"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(chatResp.Body).Decode(&chatEnvelope); err != nil {
+		t.Fatalf("decode session chat: %v", err)
+	}
+	if !chatEnvelope.OK || len(chatEnvelope.Data.PendingApprovals) != 1 {
+		t.Fatalf("chat envelope = %+v, want one pending approval", chatEnvelope)
+	}
+	approvalID := chatEnvelope.Data.PendingApprovals[0].ID
+
+	approveResp, err := http.Post(srv.URL+"/api/v1/adk/approvals/"+approvalID+"/approve", "application/json", nil)
+	if err != nil {
+		t.Fatalf("POST approve: %v", err)
+	}
+	defer approveResp.Body.Close()
+	if approveResp.StatusCode != http.StatusOK {
+		t.Fatalf("approve status = %d", approveResp.StatusCode)
+	}
+
+	deadline := time.Now().Add(2 * time.Second)
+	terminal := false
+	for time.Now().Before(deadline) {
+		run, ok, err := server.adkRuntime.Store().Run(t.Context(), chatEnvelope.Data.Run.ID)
+		if err != nil || !ok {
+			t.Fatalf("Run lookup err=%v ok=%v", err, ok)
+		}
+		if run.Status != jfadk.RunStatusPending && run.Status != jfadk.RunStatusRunning {
+			terminal = true
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if !terminal {
+		run, ok, err := server.adkRuntime.Store().Run(t.Context(), chatEnvelope.Data.Run.ID)
+		t.Fatalf("run did not reach terminal status after approval: run=%+v ok=%v err=%v", run, ok, err)
+	}
+
+	getResp, err := http.Get(srv.URL + "/api/v1/adk/sessions/" + session.ID)
+	if err != nil {
+		t.Fatalf("GET session detail: %v", err)
+	}
+	defer getResp.Body.Close()
+	if getResp.StatusCode != http.StatusOK {
+		t.Fatalf("GET session detail status = %d", getResp.StatusCode)
+	}
+	var getEnvelope struct {
+		OK   bool `json:"ok"`
+		Data struct {
+			Session  jfadk.Session         `json:"session"`
+			Timeline []jfadk.TimelineEntry `json:"timeline"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(getResp.Body).Decode(&getEnvelope); err != nil {
+		t.Fatalf("decode session detail: %v", err)
+	}
+	if !getEnvelope.OK {
+		t.Fatalf("session detail envelope = %+v", getEnvelope)
+	}
+	for _, entry := range getEnvelope.Data.Timeline {
+		if entry.Kind == jfadk.TimelineKindApprovalGroup {
+			t.Fatalf("timeline approval group = %+v, want resolved approval omitted", entry)
+		}
+	}
+
+	listResp, err := http.Get(srv.URL + "/api/v1/adk/approvals?status=PENDING")
+	if err != nil {
+		t.Fatalf("GET pending approvals: %v", err)
+	}
+	defer listResp.Body.Close()
+	if listResp.StatusCode != http.StatusOK {
+		t.Fatalf("GET pending approvals status = %d", listResp.StatusCode)
+	}
+	var listEnvelope struct {
+		OK   bool `json:"ok"`
+		Data struct {
+			Approvals []jfadk.Approval `json:"approvals"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(listResp.Body).Decode(&listEnvelope); err != nil {
+		t.Fatalf("decode pending approvals: %v", err)
+	}
+	if !listEnvelope.OK {
+		t.Fatalf("pending approvals envelope = %+v", listEnvelope)
+	}
+	for _, approval := range listEnvelope.Data.Approvals {
+		if approval.ID == approvalID {
+			t.Fatalf("pending approvals = %+v, want resolved approval %q omitted", listEnvelope.Data.Approvals, approvalID)
+		}
 	}
 }
 

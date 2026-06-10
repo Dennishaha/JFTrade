@@ -1500,6 +1500,128 @@ func TestPendingApprovalResumesThroughGoogleADKAfterRuntimeRestart(t *testing.T)
 	}
 }
 
+func TestApprovalResumingRunIsRecoveredAfterRuntimeRestart(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	releaseTool := make(chan struct{})
+	toolStarted := make(chan struct{}, 1)
+	executions := 0
+	registry := NewToolRegistry()
+	registry.Register(ToolDescriptor{
+		Name: "strategy.save_draft", Permission: "write_strategy",
+		AllowedModes: []string{PermissionModeApproval},
+	}, func(ctx context.Context, _ map[string]any) (any, error) {
+		executions++
+		select {
+		case toolStarted <- struct{}{}:
+		default:
+		}
+		select {
+		case <-releaseTool:
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+		return map[string]any{"saved": true}, nil
+	})
+	runtime = newRuntimeWithRegistry(t, runtime.Store(), registry)
+	agent, err := runtime.Store().SaveAgent(ctx, AgentWriteRequest{
+		ID: "agent", Name: "Agent", Tools: []string{"strategy.save_draft"},
+		PermissionMode: PermissionModeApproval, Status: AgentStatusEnabled,
+	})
+	if err != nil {
+		t.Fatalf("SaveAgent: %v", err)
+	}
+	response, err := runtime.Chat(ctx, ChatRequest{
+		AgentID: agent.ID, Message: "@strategy.save_draft save",
+	})
+	if err != nil {
+		t.Fatalf("Chat: %v", err)
+	}
+	approval := response.PendingApprovals[0]
+	approvedApproval, changed, err := runtime.Store().ResolvePendingApproval(ctx, approval.ID, ApprovalStatusApproved)
+	if err != nil || !changed {
+		t.Fatalf("ResolvePendingApproval changed=%v err=%v", changed, err)
+	}
+	run, ok, err := runtime.Store().Run(ctx, response.Run.ID)
+	if err != nil || !ok {
+		t.Fatalf("Run lookup err=%v ok=%v", err, ok)
+	}
+	run.Status = RunStatusRunning
+	run.ResumeState = "approval_resuming"
+	for index := range run.PendingApprovals {
+		if run.PendingApprovals[index].ID == approvedApproval.ID {
+			run.PendingApprovals[index] = approvedApproval
+		}
+	}
+	for index := range run.ToolCalls {
+		if run.ToolCalls[index].Status != "PENDING_APPROVAL" {
+			continue
+		}
+		run.ToolCalls[index].Status = "RUNNING"
+		run.ToolCalls[index].RequiresUser = false
+		run.ToolCalls[index].UpdatedAt = nowString()
+	}
+	if err := runtime.Store().SaveRun(ctx, run); err != nil {
+		t.Fatalf("SaveRun: %v", err)
+	}
+
+	restarted := newRuntimeWithRegistry(t, runtime.Store(), registry)
+	restartedRun, ok, err := restarted.Store().Run(ctx, response.Run.ID)
+	if err != nil || !ok {
+		t.Fatalf("restarted run lookup err=%v ok=%v", err, ok)
+	}
+	if restartedRun.Status != RunStatusRunning || restartedRun.ResumeState != "approval_resuming" {
+		t.Fatalf("restarted run = %+v, want running approval_resuming", restartedRun)
+	}
+
+	restarted.ReconcileResolvedApprovals(ctx)
+
+	select {
+	case <-toolStarted:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for recovered approval continuation to resume")
+	}
+
+	timeline, ok, err := restarted.Store().SessionTimeline(ctx, response.Run.SessionID)
+	if err != nil || !ok {
+		t.Fatalf("SessionTimeline ok=%v err=%v", ok, err)
+	}
+	toolGroupSeen := false
+	for _, entry := range timeline {
+		if entry.Kind == TimelineKindApprovalGroup {
+			t.Fatalf("timeline approval group = %+v, want resolved approval omitted", entry)
+		}
+		if entry.Kind == TimelineKindToolGroup && entry.RunID == response.Run.ID {
+			toolGroupSeen = true
+			if len(entry.ToolCalls) != 1 || entry.ToolCalls[0].Status != "RUNNING" {
+				t.Fatalf("timeline tool group = %+v, want running tool call", entry)
+			}
+		}
+	}
+	if !toolGroupSeen {
+		t.Fatalf("timeline = %+v, want tool group for run %s", timeline, response.Run.ID)
+	}
+
+	close(releaseTool)
+
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		stored, ok, err := restarted.Store().Run(ctx, response.Run.ID)
+		if err != nil || !ok {
+			t.Fatalf("stored run lookup err=%v ok=%v", err, ok)
+		}
+		if stored.Status == RunStatusCompleted {
+			if executions != 1 {
+				t.Fatalf("executions = %d, want 1", executions)
+			}
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	stored, ok, err := restarted.Store().Run(ctx, response.Run.ID)
+	t.Fatalf("stored run after recovered continuation = %+v ok=%v err=%v, want completed", stored, ok, err)
+}
+
 func TestUnrecoverablePendingApprovalRunIsMarkedOrphanedOnRestart(t *testing.T) {
 	ctx := context.Background()
 	runtime := newTestRuntime(t)

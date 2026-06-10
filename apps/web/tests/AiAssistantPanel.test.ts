@@ -15,7 +15,8 @@ import type {
 import AiAssistantPanel from "../src/layout/AiAssistantPanel.vue";
 import { createResponse, flushRequests } from "./helpers";
 
-const { streamADKChatMock } = vi.hoisted(() => ({
+const { monitorADKRunContinuationMock, streamADKChatMock } = vi.hoisted(() => ({
+  monitorADKRunContinuationMock: vi.fn(),
   streamADKChatMock: vi.fn(),
 }));
 
@@ -29,9 +30,22 @@ vi.mock("../src/composables/adkChatStream", async () => {
   };
 });
 
+vi.mock("../src/composables/adkRunContinuation", async () => {
+  const actual =
+    await vi.importActual<typeof import("../src/composables/adkRunContinuation")>(
+      "../src/composables/adkRunContinuation",
+    );
+  return {
+    ...actual,
+    monitorADKRunContinuation: monitorADKRunContinuationMock,
+  };
+});
+
 afterEach(() => {
   vi.unstubAllGlobals();
   streamADKChatMock.mockReset();
+  monitorADKRunContinuationMock.mockReset();
+  monitorADKRunContinuationMock.mockImplementation(async (run) => run);
 });
 
 describe("AiAssistantPanel", () => {
@@ -46,216 +60,379 @@ describe("AiAssistantPanel", () => {
     expect(document.querySelector(".adk-agent-select")).toBeNull();
     expect(document.querySelector(".adk-provider-select")).toBeNull();
     expect(document.body.textContent).toContain("开始与侧栏助手对话");
-    expect(document.body.textContent).toContain("查看系统状态");
   });
 
-  it("renders dock chat messages, reasoning, tool summary, and single approval actions", async () => {
-    const approval = buildApproval("approval-1", "strategy.save_draft");
-    const run = buildRun({
+  it("refreshes dock approval state to RUNNING and keeps the composer editable", async () => {
+    const approval = buildApproval("approval-1", "run-dock");
+    const pendingRun = buildRun({
+      id: "run-dock",
       status: "PENDING_APPROVAL",
       toolCalls: [
-        buildToolCall("tool-1", "strategy.load_context", "SUCCEEDED"),
-        buildToolCall("tool-2", "strategy.save_draft", "PENDING_APPROVAL"),
+        buildToolCall("tool-dock", "run-dock", "strategy.save_draft", "PENDING_APPROVAL"),
       ],
       pendingApprovals: [approval],
     });
+    const runningRun = buildRun({
+      id: "run-dock",
+      status: "RUNNING",
+      toolCalls: [
+        buildToolCall("tool-dock", "run-dock", "strategy.save_draft", "RUNNING"),
+      ],
+      pendingApprovals: [],
+    });
+    const completedRun = buildRun({
+      id: "run-dock",
+      status: "COMPLETED",
+      toolCalls: [
+        buildToolCall("tool-dock", "run-dock", "strategy.save_draft", "SUCCEEDED"),
+      ],
+      pendingApprovals: [],
+    });
 
-    streamADKChatMock.mockImplementation(async (_payload, onEvent) => {
+    let finishContinuation!: () => void;
+    monitorADKRunContinuationMock.mockImplementationOnce(async (run, options) => {
+      await options?.onProgress?.(runningRun, run!);
+      await new Promise<void>((resolve) => {
+        finishContinuation = resolve;
+      });
+      await options?.onTerminal?.(completedRun);
+      return completedRun;
+    });
+
+    streamADKChatMock.mockImplementationOnce(async (_payload, onEvent) => {
       const response: ADKChatResponse = {
-        reply: "Here is the next step.",
-        reasoningContent: "Detailed reasoning for the sidebar assistant.",
-        run,
-        session: {
-          id: "session-1",
-          agentId: "agent-1",
-          title: "Dock Session",
-          createdAt: "2026-06-09T00:00:00Z",
-          updatedAt: "2026-06-09T00:00:00Z",
-        },
+        reply: "waiting",
+        run: pendingRun,
+        session: buildSession(),
         pendingApprovals: [approval],
-        timeline: [
-          buildTimelineEntry("user_message", {
-            id: "entry-user",
-            text: "check dock flow",
-            createdAt: "2026-06-09T00:00:00Z",
-          }),
-          buildTimelineEntry("assistant_reasoning", {
-            id: "entry-reasoning",
-            runId: run.id,
-            text: "Detailed reasoning for the sidebar assistant.",
-            createdAt: "2026-06-09T00:00:01Z",
-          }),
-          buildTimelineEntry("tool_group", {
-            id: "entry-tools",
-            runId: run.id,
-            toolCalls: run.toolCalls,
-            createdAt: "2026-06-09T00:00:02Z",
-          }),
-          buildTimelineEntry("approval_group", {
-            id: "entry-approvals",
-            runId: run.id,
-            approvals: [approval],
-            createdAt: "2026-06-09T00:00:03Z",
-          }),
-          buildTimelineEntry("assistant_message", {
-            id: "entry-answer",
-            runId: run.id,
-            text: "Here is the next step.",
-            createdAt: "2026-06-09T00:00:04Z",
-          }),
-        ],
+        timeline: pendingApprovalTimeline(pendingRun, [approval], "dock approval"),
       };
+      await onEvent({ type: "session", session: response.session });
       await onEvent({ type: "final", response });
       return response;
     });
 
-    const fetchMock = mountPanel({
+    mountPanel({
       approvals: [approval],
       approvalResolutionById: {
         "approval-1": {
           approval: { ...approval, status: "APPROVED" },
-          run: buildRun({
-            status: "COMPLETED",
-            toolCalls: run.toolCalls,
-            pendingApprovals: [],
-          }),
+          run: runningRun,
         },
       },
+      sessionDetailSequence: [
+        {
+          session: buildSession(),
+          timeline: [
+            buildTimelineEntry("tool_group", {
+              id: "dock-running-tools",
+              runId: runningRun.id,
+              toolCalls: runningRun.toolCalls,
+              createdAt: "2026-06-09T00:00:02Z",
+            }),
+          ],
+        },
+        {
+          session: buildSession(),
+          timeline: [
+            buildTimelineEntry("tool_group", {
+              id: "dock-running-tools-2",
+              runId: runningRun.id,
+              toolCalls: runningRun.toolCalls,
+              createdAt: "2026-06-09T00:00:02Z",
+            }),
+          ],
+        },
+        {
+          session: buildSession(),
+          timeline: [
+            buildTimelineEntry("tool_group", {
+              id: "dock-completed-tools",
+              runId: completedRun.id,
+              toolCalls: completedRun.toolCalls,
+              createdAt: "2026-06-09T00:00:02Z",
+            }),
+            buildTimelineEntry("assistant_message", {
+              id: "dock-answer",
+              runId: completedRun.id,
+              text: "dock approval completed",
+              createdAt: "2026-06-09T00:00:03Z",
+            }),
+          ],
+        },
+      ],
     });
     await flushRequests();
 
-    const input = document.querySelector("input");
-    expect(input).not.toBeNull();
-    input!.value = "check dock flow";
-    input!.dispatchEvent(new Event("input"));
-    await nextTick();
+    await sendDockMessage("dock approval");
 
-    Array.from(document.querySelectorAll<HTMLButtonElement>("button"))
-      .find((button) => button.textContent?.includes("发送"))
-      ?.click();
+    expect(document.body.textContent).toContain("PENDING_APPROVAL");
+    expect(document.querySelector("input")?.hasAttribute("disabled")).toBe(false);
+
+    clickButtonByText("批准");
     await flushRequests();
 
-    expect(document.body.textContent).toContain("check dock flow");
-    expect(document.body.textContent).toContain("Here is the next step.");
-    expect(document.body.textContent).toContain("调用了 2 个工具");
-    expect(document.querySelector(".adk-approvals-approve-all")).not.toBeNull();
-    expect(document.querySelector(".adk-approvals-deny-all")).not.toBeNull();
+    expect(document.querySelector(".adk-run-spinner")).not.toBeNull();
+    expect(document.querySelector(".adk-approvals-approve-all")).toBeNull();
+    expect(document.querySelector("input")?.hasAttribute("disabled")).toBe(false);
+    expect(document.body.textContent).not.toContain("dock approval completed");
 
-    Array.from(document.querySelectorAll<HTMLButtonElement>("button"))
-      .find((button) => button.textContent?.includes("查看深度思考"))
-      ?.click();
-    await nextTick();
-
-    expect(document.body.textContent).toContain("Detailed reasoning for the sidebar assistant.");
-
-    Array.from(document.querySelectorAll<HTMLButtonElement>("button"))
-      .find((button) => button.textContent?.includes("调用了 2 个工具"))
-      ?.click();
-    await nextTick();
-
-    expect(document.body.textContent).toContain("strategy.load_context");
-    expect(document.body.textContent).toContain("strategy.save_draft");
-
-    Array.from(document.querySelectorAll<HTMLButtonElement>("button"))
-      .find((button) => button.textContent?.includes("批准"))
-      ?.click();
+    finishContinuation();
     await flushRequests();
 
-    expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringContaining("/api/v1/adk/approvals/approval-1/approve"),
-      expect.objectContaining({ method: "POST" }),
-    );
+    expect(document.body.textContent).toContain("dock approval completed");
   });
 
-  it("approves all pending dock approvals through the shared approval bar", async () => {
-    const approvalA = buildApproval("approval-1", "strategy.save_draft");
-    const approvalB = buildApproval("approval-2", "strategy.publish");
-
-    streamADKChatMock.mockImplementation(async (_payload, onEvent) => {
-      const response: ADKChatResponse = {
-        reply: "waiting for approvals",
-        run: buildRun({
-          status: "PENDING_APPROVAL",
-          toolCalls: [
-            buildToolCall("tool-1", "strategy.save_draft", "PENDING_APPROVAL"),
-            buildToolCall("tool-2", "strategy.publish", "PENDING_APPROVAL"),
-          ],
-          pendingApprovals: [approvalA, approvalB],
-        }),
-        session: {
-          id: "session-1",
-          agentId: "agent-1",
-          title: "Dock Session",
-          createdAt: "2026-06-09T00:00:00Z",
-          updatedAt: "2026-06-09T00:00:00Z",
-        },
-        pendingApprovals: [approvalA, approvalB],
-        timeline: [
-          buildTimelineEntry("user_message", {
-            id: "entry-user",
-            text: "batch dock approvals",
-            createdAt: "2026-06-09T00:00:00Z",
-          }),
-          buildTimelineEntry("approval_group", {
-            id: "entry-approvals",
-            approvals: [approvalA, approvalB],
-            createdAt: "2026-06-09T00:00:01Z",
-          }),
-        ],
-      };
-      await onEvent({ type: "final", response });
-      return response;
+  it("queues dock messages and auto-dispatches them after the blocking run completes", async () => {
+    const approval = buildApproval("approval-queue", "run-queue");
+    const pendingRun = buildRun({
+      id: "run-queue",
+      status: "PENDING_APPROVAL",
+      toolCalls: [
+        buildToolCall("tool-queue", "run-queue", "strategy.save_draft", "PENDING_APPROVAL"),
+      ],
+      pendingApprovals: [approval],
+    });
+    const completedRun = buildRun({
+      id: "run-queue",
+      status: "COMPLETED",
+      toolCalls: [
+        buildToolCall("tool-queue", "run-queue", "strategy.save_draft", "SUCCEEDED"),
+      ],
+      pendingApprovals: [],
+    });
+    const queuedRun = buildRun({
+      id: "run-queue-next",
+      status: "COMPLETED",
+      userMessage: "dock follow-up",
     });
 
-    const fetchMock = mountPanel({
-      approvals: [approvalA, approvalB],
+    streamADKChatMock
+      .mockImplementationOnce(async (_payload, onEvent) => {
+        const response: ADKChatResponse = {
+          reply: "waiting",
+          run: pendingRun,
+          session: buildSession(),
+          pendingApprovals: [approval],
+          timeline: pendingApprovalTimeline(pendingRun, [approval], "dock first"),
+        };
+        await onEvent({ type: "session", session: response.session });
+        await onEvent({ type: "final", response });
+        return response;
+      })
+      .mockImplementationOnce(async (payload, onEvent) => {
+        const response: ADKChatResponse = {
+          reply: "queued sent",
+          run: queuedRun,
+          session: buildSession(),
+          pendingApprovals: [],
+          timeline: [
+            buildTimelineEntry("user_message", {
+              id: "dock-queued-user",
+              text: String(payload.message),
+              createdAt: "2026-06-09T00:00:04Z",
+            }),
+            buildTimelineEntry("assistant_message", {
+              id: "dock-queued-answer",
+              runId: queuedRun.id,
+              text: "dock follow-up completed",
+              createdAt: "2026-06-09T00:00:05Z",
+            }),
+          ],
+        };
+        await onEvent({ type: "session", session: response.session });
+        await onEvent({ type: "final", response });
+        return response;
+      });
+
+    mountPanel({
+      approvals: [approval],
       approvalResolutionById: {
-        "approval-1": {
-          approval: { ...approvalA, status: "APPROVED" },
-          run: buildRun({ id: "run-1", status: "COMPLETED", pendingApprovals: [] }),
+        "approval-queue": {
+          approval: { ...approval, status: "APPROVED" },
+          run: completedRun,
         },
-        "approval-2": {
-          approval: { ...approvalB, status: "APPROVED" },
-          run: buildRun({ id: "run-2", status: "COMPLETED", pendingApprovals: [] }),
-        },
+      },
+      sessionDetail: {
+        session: buildSession(),
+        timeline: [
+          buildTimelineEntry("assistant_message", {
+            id: "dock-complete",
+            runId: completedRun.id,
+            text: "dock first completed",
+            createdAt: "2026-06-09T00:00:03Z",
+          }),
+        ],
       },
     });
     await flushRequests();
 
-    const input = document.querySelector("input");
-    expect(input).not.toBeNull();
-    input!.value = "batch dock approvals";
-    input!.dispatchEvent(new Event("input"));
+    await sendDockMessage("dock first");
+    await sendDockMessage("dock follow-up");
+
+    expect(streamADKChatMock).toHaveBeenCalledTimes(1);
+    expect(document.body.textContent).toContain("dock follow-up");
+
+    clickButtonByText("批准");
+    await flushRequests();
+
+    expect(streamADKChatMock).toHaveBeenCalledTimes(2);
+    expect(streamADKChatMock.mock.calls[1]?.[0]).toMatchObject({
+      message: "dock follow-up",
+    });
+    expect(document.body.textContent).toContain("dock follow-up completed");
+  });
+
+  it("cancels the current dock run and sends the interrupt message before the rest of the queue", async () => {
+    const approval = buildApproval("approval-interrupt", "run-interrupt");
+    const pendingRun = buildRun({
+      id: "run-interrupt",
+      status: "PENDING_APPROVAL",
+      toolCalls: [
+        buildToolCall("tool-interrupt", "run-interrupt", "strategy.save_draft", "PENDING_APPROVAL"),
+      ],
+      pendingApprovals: [approval],
+    });
+    const cancelledRun = buildRun({
+      id: "run-interrupt",
+      status: "CANCELLED",
+      pendingApprovals: [],
+    });
+    const urgentRun = buildRun({
+      id: "run-urgent",
+      status: "COMPLETED",
+      userMessage: "dock urgent",
+    });
+    const normalRun = buildRun({
+      id: "run-normal",
+      status: "COMPLETED",
+      userMessage: "dock normal",
+    });
+
+    streamADKChatMock
+      .mockImplementationOnce(async (_payload, onEvent) => {
+        const response: ADKChatResponse = {
+          reply: "waiting",
+          run: pendingRun,
+          session: buildSession(),
+          pendingApprovals: [approval],
+          timeline: pendingApprovalTimeline(pendingRun, [approval], "dock first"),
+        };
+        await onEvent({ type: "session", session: response.session });
+        await onEvent({ type: "final", response });
+        return response;
+      })
+      .mockImplementationOnce(async (payload, onEvent) => {
+        const response: ADKChatResponse = {
+          reply: "urgent done",
+          run: urgentRun,
+          session: buildSession(),
+          pendingApprovals: [],
+          timeline: [
+            buildTimelineEntry("user_message", {
+              id: "dock-urgent-user",
+              text: String(payload.message),
+              createdAt: "2026-06-09T00:00:04Z",
+            }),
+            buildTimelineEntry("assistant_message", {
+              id: "dock-urgent-answer",
+              runId: urgentRun.id,
+              text: "dock urgent completed",
+              createdAt: "2026-06-09T00:00:05Z",
+            }),
+          ],
+        };
+        await onEvent({ type: "session", session: response.session });
+        await onEvent({ type: "final", response });
+        return response;
+      })
+      .mockImplementationOnce(async (payload, onEvent) => {
+        const response: ADKChatResponse = {
+          reply: "normal done",
+          run: normalRun,
+          session: buildSession(),
+          pendingApprovals: [],
+          timeline: [
+            buildTimelineEntry("user_message", {
+              id: "dock-normal-user",
+              text: String(payload.message),
+              createdAt: "2026-06-09T00:00:06Z",
+            }),
+            buildTimelineEntry("assistant_message", {
+              id: "dock-normal-answer",
+              runId: normalRun.id,
+              text: "dock normal completed",
+              createdAt: "2026-06-09T00:00:07Z",
+            }),
+          ],
+        };
+        await onEvent({ type: "session", session: response.session });
+        await onEvent({ type: "final", response });
+        return response;
+      });
+
+    const fetchMock = mountPanel({
+      approvals: [approval],
+      cancelRunById: {
+        "run-interrupt": cancelledRun,
+      },
+      sessionDetail: {
+        session: buildSession(),
+        timeline: [
+          buildTimelineEntry("assistant_message", {
+            id: "dock-cancelled",
+            runId: cancelledRun.id,
+            text: "dock first cancelled",
+            createdAt: "2026-06-09T00:00:03Z",
+          }),
+        ],
+      },
+    });
+    await flushRequests();
+
+    await sendDockMessage("dock first");
+    await sendDockMessage("dock normal");
+
+    const input = document.querySelector("input")!;
+    input.value = "dock urgent";
+    input.dispatchEvent(new Event("input"));
     await nextTick();
-
-    Array.from(document.querySelectorAll<HTMLButtonElement>("button"))
-      .find((button) => button.textContent?.includes("发送"))
-      ?.click();
-    await flushRequests();
-
-    document.querySelector<HTMLButtonElement>(".adk-approvals-approve-all")?.click();
+    clickButtonByText("打断后发送");
     await flushRequests();
 
     expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringContaining("/api/v1/adk/approvals/approval-1/approve"),
+      expect.stringContaining("/api/v1/adk/runs/run-interrupt/cancel"),
       expect.objectContaining({ method: "POST" }),
     );
-    expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringContaining("/api/v1/adk/approvals/approval-2/approve"),
-      expect.objectContaining({ method: "POST" }),
-    );
+    expect(streamADKChatMock).toHaveBeenCalledTimes(3);
+    expect(streamADKChatMock.mock.calls[1]?.[0]).toMatchObject({
+      message: "dock urgent",
+    });
+    expect(streamADKChatMock.mock.calls[2]?.[0]).toMatchObject({
+      message: "dock normal",
+    });
+    expect(document.body.textContent).toContain("dock normal completed");
   });
 });
 
 function mountPanel(options: {
   approvals?: ADKApproval[];
   approvalResolutionById?: Record<string, ADKApprovalResolution>;
+  cancelRunById?: Record<string, ADKRun>;
   sessionDetail?: { session: ReturnType<typeof buildSession>; timeline: ADKTimelineEntry[] };
+  sessionDetailSequence?: Array<{
+    session: ReturnType<typeof buildSession>;
+    timeline: ADKTimelineEntry[];
+  }>;
 } = {}) {
   document.body.innerHTML = "<div id='root'></div>";
   const state = {
     approvals: [...(options.approvals ?? [])],
-    sessionDetail: options.sessionDetail ?? { session: buildSession(), timeline: [] },
+    sessionDetailSequence: [
+      ...(options.sessionDetailSequence ?? [
+        options.sessionDetail ?? { session: buildSession(), timeline: [] },
+      ]),
+    ],
   };
 
   const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
@@ -264,19 +441,33 @@ function mountPanel(options: {
     if (approvalActionMatch) {
       const approvalId = approvalActionMatch[1]!;
       state.approvals = state.approvals.filter((approval) => approval.id !== approvalId);
-      return createResponse(options.approvalResolutionById?.[approvalId] ?? {
-        approval: { ...buildApproval(approvalId, "unknown"), status: init?.method === "POST" ? "APPROVED" : "DENIED" },
-        run: buildRun({ status: "COMPLETED", pendingApprovals: [] }),
-      });
+      return createResponse(
+        options.approvalResolutionById?.[approvalId] ?? {
+          approval: {
+            ...buildApproval(approvalId, "run-1"),
+            status: init?.method === "POST" ? "APPROVED" : "DENIED",
+          },
+          run: buildRun({ status: "COMPLETED", pendingApprovals: [] }),
+        },
+      );
     }
     if (url.includes("/api/v1/adk/approvals")) {
       return createResponse({ approvals: state.approvals });
     }
-    if (/\/api\/v1\/adk\/runs\/[^/]+$/.test(url)) {
-      return createResponse(buildRun({ status: "COMPLETED", pendingApprovals: [] }));
+    const cancelRunMatch = url.match(/\/api\/v1\/adk\/runs\/([^/]+)\/cancel$/);
+    if (cancelRunMatch) {
+      const runId = decodeURIComponent(cancelRunMatch[1]!);
+      return createResponse(
+        options.cancelRunById?.[runId] ??
+          buildRun({ id: runId, status: "CANCELLED", pendingApprovals: [] }),
+      );
     }
     if (/\/api\/v1\/adk\/sessions\/[^/]+$/.test(url)) {
-      return createResponse(state.sessionDetail);
+      const detail =
+        state.sessionDetailSequence.length > 1
+          ? state.sessionDetailSequence.shift()!
+          : state.sessionDetailSequence[0]!;
+      return createResponse(detail);
     }
     return createResponse({});
   });
@@ -292,13 +483,13 @@ function mountPanel(options: {
   return fetchMock;
 }
 
-function buildApproval(id: string, toolName: string): ADKApproval {
+function buildApproval(id: string, runId: string): ADKApproval {
   return {
     id,
-    runId: "run-1",
+    runId,
     agentId: "agent-1",
-    toolName,
-    input: { prompt: toolName },
+    toolName: "strategy.save_draft",
+    input: { prompt: "save" },
     status: "PENDING",
     reason: "Needs review",
     createdAt: "2026-06-09T00:00:00Z",
@@ -306,10 +497,15 @@ function buildApproval(id: string, toolName: string): ADKApproval {
   };
 }
 
-function buildToolCall(id: string, toolName: string, status: string) {
+function buildToolCall(
+  id: string,
+  runId: string,
+  toolName: string,
+  status: string,
+) {
   return {
     id,
-    runId: "run-1",
+    runId,
     toolName,
     permission: "write_strategy",
     status,
@@ -365,6 +561,47 @@ function buildTimelineEntry(
   };
 }
 
+function pendingApprovalTimeline(
+  run: ADKRun,
+  approvals: ADKApproval[],
+  userText: string,
+): ADKTimelineEntry[] {
+  return [
+    buildTimelineEntry("user_message", {
+      id: `user-${run.id}`,
+      text: userText,
+      createdAt: "2026-06-09T00:00:00Z",
+    }),
+    buildTimelineEntry("tool_group", {
+      id: `tools-${run.id}`,
+      runId: run.id,
+      toolCalls: run.toolCalls,
+      createdAt: "2026-06-09T00:00:01Z",
+    }),
+    buildTimelineEntry("approval_group", {
+      id: `approvals-${run.id}`,
+      runId: run.id,
+      approvals,
+      createdAt: "2026-06-09T00:00:02Z",
+    }),
+  ];
+}
+
+async function sendDockMessage(text: string): Promise<void> {
+  const input = document.querySelector("input")!;
+  input.value = text;
+  input.dispatchEvent(new Event("input"));
+  await nextTick();
+  document.querySelector<HTMLButtonElement>(".adk-composer-send--dock")?.click();
+  await flushRequests();
+}
+
+function clickButtonByText(text: string): void {
+  Array.from(document.querySelectorAll<HTMLButtonElement>("button"))
+    .find((button) => button.textContent?.includes(text))
+    ?.click();
+}
+
 function vuetifyStubs() {
   return {
     "v-alert": {
@@ -381,7 +618,13 @@ function vuetifyStubs() {
       emits: ["click"],
       template: "<button type='button' :class='$attrs.class' @click=\"$emit('click')\"><slot /></button>",
     },
+    "v-card": { template: "<div><slot /></div>" },
+    "v-card-text": { template: "<div><slot /></div>" },
+    "v-card-title": { template: "<div><slot /></div>" },
     "v-icon": { template: "<span><slot /></span>" },
+    "v-menu": {
+      template: "<div><slot name='activator' :props='{}' /><slot /></div>",
+    },
     "v-progress-circular": { template: "<span />" },
     "v-select": {
       props: ["modelValue", "items"],
@@ -390,16 +633,16 @@ function vuetifyStubs() {
         "<select :value='modelValue' :class='$attrs.class' @change=\"$emit('update:modelValue', $event.target.value)\"><option v-for='item in items' :key='item.value' :value='item.value'>{{ item.title }}</option></select>",
     },
     "v-textarea": {
-      props: ["modelValue"],
+      props: ["modelValue", "disabled"],
       emits: ["update:modelValue"],
       template:
-        "<textarea :value='modelValue' :class='$attrs.class' @input=\"$emit('update:modelValue', $event.target.value)\" />",
+        "<textarea :value='modelValue' :disabled='disabled' :class='$attrs.class' @input=\"$emit('update:modelValue', $event.target.value)\" />",
     },
     "v-text-field": {
-      props: ["modelValue"],
+      props: ["modelValue", "disabled"],
       emits: ["update:modelValue"],
       template:
-        "<input :value='modelValue' :class='$attrs.class' @input=\"$emit('update:modelValue', $event.target.value)\" />",
+        "<input :value='modelValue' :disabled='disabled' :class='$attrs.class' @input=\"$emit('update:modelValue', $event.target.value)\" />",
     },
   };
 }

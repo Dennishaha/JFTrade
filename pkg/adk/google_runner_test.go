@@ -134,3 +134,55 @@ func TestGoogleADKExecutionMarksToolsetFunctionResponseAsSucceeded(t *testing.T)
 		t.Fatal("expected completed timestamp to be recorded")
 	}
 }
+
+func TestGoogleADKExecutionPersistsTimedOutToolFailureSnapshot(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	run := mustSaveRun(t, runtime, Run{
+		ID:        "run-tool-timeout",
+		SessionID: "session-1",
+		AgentID:   "agent-1",
+		Status:    RunStatusRunning,
+		Message:   "running",
+		CreatedAt: nowString(),
+		UpdatedAt: nowString(),
+		StartedAt: nowString(),
+		Usage:     &RunUsage{},
+	})
+	execution := &googleADKExecution{
+		sessionID: "session-1",
+		agent:     Agent{ID: "agent-1"},
+		runID:     run.ID,
+		persistRunSnapshot: func(snapshot Run) error {
+			return runtime.persistRunActivitySnapshot(ctx, snapshot)
+		},
+	}
+
+	call := execution.ensureCall("call-timeout", ToolDescriptor{
+		Name:       "portfolio.summary",
+		Permission: "read",
+	}, map[string]any{"scope": "all"})
+	execution.finishCall(call.ID, nil, context.DeadlineExceeded)
+
+	stored, ok, err := runtime.Store().Run(ctx, run.ID)
+	if err != nil || !ok {
+		t.Fatalf("Run lookup err=%v ok=%v", err, ok)
+	}
+	if stored.Status != RunStatusFailed {
+		t.Fatalf("stored status = %q, want %q", stored.Status, RunStatusFailed)
+	}
+	if stored.ErrorCode != "TOOL_EXECUTION_TIMED_OUT" {
+		t.Fatalf("stored error code = %q, want TOOL_EXECUTION_TIMED_OUT", stored.ErrorCode)
+	}
+	if len(stored.ToolCalls) != 1 || stored.ToolCalls[0].Status != "TIMED_OUT" {
+		t.Fatalf("stored tool calls = %+v, want timed out call", stored.ToolCalls)
+	}
+	if stored.ToolCalls[0].Error == nil || *stored.ToolCalls[0].Error != "tool execution timed out: context deadline exceeded" {
+		t.Fatalf("stored tool error = %#v, want explicit timeout message", stored.ToolCalls[0].Error)
+	}
+	if stored.FailureReason != "tool execution timed out: context deadline exceeded" {
+		t.Fatalf("stored failure reason = %q, want timeout message", stored.FailureReason)
+	}
+}

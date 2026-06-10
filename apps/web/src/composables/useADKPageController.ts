@@ -50,14 +50,16 @@ export function useADKPageController(
 
   return {
     activeRunId: chatState.activeRunId,
+    activeRunStatus: chatState.activeRunStatus,
     agentName: sessionState.agentName,
     agentOptions: sessionState.agentOptions,
     approvalTool: sessionState.approvalTool,
     approvalsBusy: chatState.approvalsBusy,
+    canInterruptChat: chatState.canInterruptChat,
     canSendChat: chatState.canSendChat,
     chatDraft: chatState.chatDraft,
-    timelineEntries: chatState.timelineEntries,
     composerBlockMessage,
+    cancelActiveRun: chatState.cancelActiveRun,
     contextBusy: chatState.contextBusy,
     contextDetailsOpen: chatState.contextDetailsOpen,
     createNewSession: () =>
@@ -70,14 +72,20 @@ export function useADKPageController(
       }),
     errorMessage: sessionState.errorMessage,
     formatPermission,
+    hasBlockingRun: chatState.hasBlockingRun,
     handleAgentChange: sessionState.handleAgentChange,
     handleComposerKeydown: chatState.handleComposerKeydown,
     handleProviderChange: sessionState.handleProviderChange,
+    interruptAndQueueChat: chatState.interruptAndQueueChat,
+    interruptingRunId: chatState.interruptingRunId,
     loading: sessionState.loading,
     openProviderSettings: sessionState.openProviderSettings,
     preview,
     providerOptions: sessionState.providerOptions,
     providers: sessionState.providers,
+    queueDispatchingId: chatState.queueDispatchingId,
+    queuedMessages: chatState.queuedMessages,
+    revokeQueuedMessage: chatState.revokeQueuedMessage,
     runSlashCommand: chatState.runSlashCommand,
     renameSession: sessionState.renameSession,
     resolveApprovalGroup: (approvals: ADKApproval[], approved: boolean) =>
@@ -105,8 +113,8 @@ export function useADKPageController(
     slashCommands: chatState.slashCommands,
     selectSession: chatState.selectSession,
     sendChat: chatState.sendChat,
+    timelineEntries: chatState.timelineEntries,
     visibleSessions: sessionState.visibleSessions,
-    cancelActiveRun: chatState.cancelActiveRun,
     openContextDetails: chatState.openContextDetails,
   };
 }

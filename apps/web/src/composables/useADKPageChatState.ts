@@ -9,14 +9,21 @@ import type {
   ADKSessionContextSnapshot,
 } from "@jftrade/ui-contracts";
 
-import {
-  isTerminalRunStatus,
-  runTerminalMessage,
-} from "./adkChatPresentation";
+import { isTerminalRunStatus, runTerminalMessage } from "./adkChatPresentation";
 import { streamADKChat } from "./adkChatStream";
+import {
+  buildActiveChatRunState,
+  buildQueueSessionKey,
+  createQueuedChatMessage,
+  isBlockingRunStatus,
+  type ActiveChatRunState,
+  type QueuedChatMessage,
+} from "./adkChatRuntime";
+import { monitorADKRunContinuation } from "./adkRunContinuation";
 import { scrollToBottom } from "./adkThreadScroll";
 import { loadSessionChatHistory } from "./adkPageRunHistory";
 import {
+  applyApprovalResolutions,
   createTimelineEntryState,
   replaceTimelineEntries,
   upsertTimelineEntry,
@@ -26,7 +33,7 @@ import {
   compactADKSessionContext,
   fetchADKSessionContext,
 } from "./adkSessionContextApi";
-import { fetchEnvelope, fetchEnvelopeWithInit } from "./apiClient";
+import { fetchEnvelopeWithInit } from "./apiClient";
 
 interface SessionState {
   agents: Ref<ADKAgent[]>;
@@ -53,18 +60,36 @@ export function useADKPageChatState(
   const timelineEntries = ref<ADKTimelineEntryState[]>([]);
   const chatDraft = ref("");
   const sendingChat = ref(false);
-  const activeRunId = ref("");
+  const activeRun = ref<ActiveChatRunState | null>(null);
+  const queuedChatMessages = ref<QueuedChatMessage[]>([]);
+  const queueDispatchingId = ref("");
+  const interruptingRunId = ref("");
   const approvalsBusy = ref(false);
   const contextBusy = ref(false);
   const contextDetailsOpen = ref(false);
   const sessionContext = ref<ADKSessionContextSnapshot | null>(null);
 
+  const activeRunId = computed(() => activeRun.value?.runId ?? "");
+  const activeRunStatus = computed(() => activeRun.value?.status ?? "");
+  const hasBlockingRun = computed(() =>
+    isBlockingRunStatus(activeRun.value?.status),
+  );
+  const currentQueueSessionKey = computed(() =>
+    buildQueueSessionKey(sessionState.selectedSessionId.value),
+  );
+  const queuedMessages = computed(() =>
+    queuedChatMessages.value.filter(
+      (message) => message.sessionKey === currentQueueSessionKey.value,
+    ),
+  );
   const canSendChat = computed(
     () =>
       chatDraft.value.trim() !== "" &&
       sessionState.selectedAgentId.value !== "" &&
-      !sendingChat.value &&
       composerBlockMessage.value === "",
+  );
+  const canInterruptChat = computed(
+    () => canSendChat.value && hasBlockingRun.value,
   );
   const showTypingIndicator = computed(() => {
     if (!sendingChat.value) return false;
@@ -109,6 +134,13 @@ export function useADKPageChatState(
 
   async function selectSession(sessionId: string): Promise<void> {
     if (sessionState.selectedSessionId.value === sessionId) return;
+    if (
+      activeRun.value &&
+      activeRun.value.sessionId &&
+      activeRun.value.sessionId !== sessionId
+    ) {
+      activeRun.value = null;
+    }
     sessionState.selectedSessionId.value = sessionId;
     timelineEntries.value = [];
     try {
@@ -116,9 +148,10 @@ export function useADKPageChatState(
       timelineEntries.value = detail.timelineEntries;
       await sessionState.finishSessionSelection(detail.session.agentId);
     } catch {
-      // session may not have timeline entries yet
+      // Session may not have timeline entries yet.
     }
     await refreshSessionContext(sessionId);
+    await dispatchQueuedMessagesIfIdle();
   }
 
   async function sendChat(): Promise<void> {
@@ -126,7 +159,6 @@ export function useADKPageChatState(
     if (
       text === "" ||
       sessionState.selectedAgentId.value === "" ||
-      sendingChat.value ||
       composerBlockMessage.value !== ""
     ) {
       return;
@@ -136,94 +168,65 @@ export function useADKPageChatState(
       return;
     }
 
-    chatDraft.value = "";
-    const optimisticUserEntry = createTimelineEntryState({
-      id: `local-user-${Date.now()}`,
-      sessionId: sessionState.selectedSessionId.value,
-      kind: "user_message",
-      createdAt: new Date().toISOString(),
-      sequence: timelineEntries.value.length + 1,
-      status: "streaming",
-      text,
-    });
-    timelineEntries.value = [...timelineEntries.value, optimisticUserEntry];
-    await scrollToBottom(threadRef);
-    sendingChat.value = true;
-
-    try {
-      const response = await streamADKChat(
-        {
-          agentId: sessionState.selectedAgentId.value,
-          sessionId: sessionState.selectedSessionId.value,
-          message: text,
-        },
-        async (event) => {
-          if (event.type === "session" && event.session?.id) {
-            sessionState.selectedSessionId.value = event.session.id;
-          }
-          if (event.type === "context" && event.context) {
-            sessionContext.value = event.context;
-          }
-          if (event.type === "run" && event.run?.id) {
-            activeRunId.value = event.run.id;
-          }
-          if (event.type === "timeline" && event.timeline) {
-            timelineEntries.value = upsertTimelineEntry(
-              timelineEntries.value,
-              event.timeline,
-            );
-            await scrollToBottom(threadRef);
-          }
-          if (event.type === "final" && event.response) {
-            await applyAuthoritativeTimeline(event.response, event.response.session.id);
-            if (event.response.context) {
-              sessionContext.value = event.response.context;
-            }
-            const failMsg = runTerminalMessage(event.response.run);
-            if (failMsg) {
-              sessionState.errorMessage.value = failMsg;
-            }
-          }
-          if (event.type === "error") {
-            throw new Error(event.message || "Agents chat failed");
-          }
-        },
-      );
-
-      sessionState.selectedSessionId.value = response.session.id;
-      await applyAuthoritativeTimeline(response, response.session.id);
-      if (response.context) {
-        sessionContext.value = response.context;
-      } else {
-        await refreshSessionContext(response.session.id);
-      }
-      const failMsg = runTerminalMessage(response.run);
-      if (failMsg) {
-        sessionState.errorMessage.value = failMsg;
-      }
-      await sessionState.refreshAll();
+    if (hasBlockingRun.value || sendingChat.value) {
+      enqueueChatMessage(text, "queued");
+      chatDraft.value = "";
       await scrollToBottom(threadRef);
-    } catch (error) {
-      sessionState.errorMessage.value =
-        error instanceof Error ? error.message : "Agents chat failed";
-      await scrollToBottom(threadRef);
-    } finally {
-      sendingChat.value = false;
-      activeRunId.value = "";
+      return;
     }
+
+    chatDraft.value = "";
+    await executeChatMessage(text);
   }
 
-  async function cancelActiveRun(): Promise<void> {
-    if (!activeRunId.value) return;
+  async function interruptAndQueueChat(): Promise<void> {
+    const text = chatDraft.value.trim();
+    if (
+      text === "" ||
+      sessionState.selectedAgentId.value === "" ||
+      composerBlockMessage.value !== ""
+    ) {
+      return;
+    }
+    if (!hasBlockingRun.value && !sendingChat.value) {
+      await sendChat();
+      return;
+    }
+
+    const currentRunId = activeRunId.value;
+    enqueueChatMessage(text, "interrupt");
+    chatDraft.value = "";
+    await scrollToBottom(threadRef);
+    if (!currentRunId || interruptingRunId.value === currentRunId) {
+      return;
+    }
+    interruptingRunId.value = currentRunId;
+    await cancelActiveRun(currentRunId);
+  }
+
+  async function cancelActiveRun(runId = activeRunId.value): Promise<void> {
+    if (!runId) return;
     try {
-      await fetchEnvelopeWithInit<ADKRun>(
-        `/api/v1/adk/runs/${encodeURIComponent(activeRunId.value)}/cancel`,
+      const run = await fetchEnvelopeWithInit<ADKRun>(
+        `/api/v1/adk/runs/${encodeURIComponent(runId)}/cancel`,
         { method: "POST" },
       );
-      await reloadSessionTimeline(sessionState.selectedSessionId.value);
+      syncActiveRun(run, !isTerminalRunStatus(run.status));
+      await reloadSessionTimeline(
+        run.sessionId || sessionState.selectedSessionId.value,
+      );
+      if (isTerminalRunStatus(run.status)) {
+        await handleTerminalRun(run);
+        return;
+      }
+      await waitForRunContinuation(run);
     } catch (error) {
       sessionState.errorMessage.value =
         error instanceof Error ? error.message : "取消运行失败";
+    } finally {
+      if (interruptingRunId.value === runId) {
+        interruptingRunId.value = "";
+      }
     }
   }
 
@@ -241,6 +244,12 @@ export function useADKPageChatState(
 
   async function denyAllApprovals(approvals: ADKApproval[]): Promise<void> {
     await resolveApprovalsBatch(approvals, "deny");
+  }
+
+  function revokeQueuedMessage(messageId: string): void {
+    queuedChatMessages.value = queuedChatMessages.value.filter(
+      (message) => message.id !== messageId,
+    );
   }
 
   function handleComposerKeydown(event: KeyboardEvent): void {
@@ -273,14 +282,22 @@ export function useADKPageChatState(
 
   return {
     activeRunId,
+    activeRunStatus,
     approvalsBusy,
+    canInterruptChat,
     canSendChat,
     chatDraft,
     contextBusy,
     contextDetailsOpen,
+    hasBlockingRun,
+    interruptingRunId,
+    queuedMessages,
+    queueDispatchingId,
+    revokeQueuedMessage,
     sessionContext,
     slashCommands,
     handleComposerKeydown,
+    interruptAndQueueChat,
     openContextDetails,
     runSlashCommand,
     cancelActiveRun,
@@ -295,11 +312,97 @@ export function useADKPageChatState(
     timelineEntries,
   };
 
+  async function executeChatMessage(text: string): Promise<boolean> {
+    const optimisticUserEntry = createTimelineEntryState({
+      id: `local-user-${Date.now()}`,
+      sessionId: sessionState.selectedSessionId.value,
+      kind: "user_message",
+      createdAt: new Date().toISOString(),
+      sequence: timelineEntries.value.length + 1,
+      status: "streaming",
+      text,
+    });
+    timelineEntries.value = [...timelineEntries.value, optimisticUserEntry];
+    await scrollToBottom(threadRef);
+    sendingChat.value = true;
+
+    try {
+      const response = await streamADKChat(
+        {
+          agentId: sessionState.selectedAgentId.value,
+          sessionId: sessionState.selectedSessionId.value,
+          message: text,
+        },
+        async (event) => {
+          if (event.type === "session" && event.session?.id) {
+            setSelectedSessionId(event.session.id);
+          }
+          if (event.type === "context" && event.context) {
+            sessionContext.value = event.context;
+          }
+          if (event.type === "run" && event.run?.id) {
+            syncActiveRun(event.run);
+          }
+          if (event.type === "timeline" && event.timeline) {
+            timelineEntries.value = upsertTimelineEntry(
+              timelineEntries.value,
+              event.timeline,
+            );
+            await scrollToBottom(threadRef);
+          }
+          if (event.type === "final" && event.response) {
+            await applyAuthoritativeTimeline(event.response);
+            syncActiveRun(
+              event.response.run,
+              !isTerminalRunStatus(event.response.run.status),
+            );
+            if (event.response.context) {
+              sessionContext.value = event.response.context;
+            }
+            const failMsg = runTerminalMessage(event.response.run);
+            if (failMsg) {
+              sessionState.errorMessage.value = failMsg;
+            }
+          }
+          if (event.type === "error") {
+            throw new Error(event.message || "Agents chat failed");
+          }
+        },
+      );
+
+      setSelectedSessionId(response.session.id);
+      await applyAuthoritativeTimeline(response);
+      syncActiveRun(response.run, !isTerminalRunStatus(response.run.status));
+      if (response.context) {
+        sessionContext.value = response.context;
+      } else {
+        await refreshSessionContext(response.session.id);
+      }
+      const failMsg = runTerminalMessage(response.run);
+      if (failMsg) {
+        sessionState.errorMessage.value = failMsg;
+      }
+      await sessionState.refreshAll();
+      await scrollToBottom(threadRef);
+      return true;
+    } catch (error) {
+      sessionState.errorMessage.value =
+        error instanceof Error ? error.message : "Agents chat failed";
+      await scrollToBottom(threadRef);
+      return false;
+    } finally {
+      sendingChat.value = false;
+      await dispatchQueuedMessagesIfIdle();
+    }
+  }
+
   async function applyAuthoritativeTimeline(
     response: ADKChatResponse,
-    _sessionId: string,
   ): Promise<void> {
-    timelineEntries.value = replaceTimelineEntries(response.timeline, timelineEntries.value);
+    timelineEntries.value = replaceTimelineEntries(
+      response.timeline,
+      timelineEntries.value,
+    );
     await scrollToBottom(threadRef);
   }
 
@@ -324,7 +427,18 @@ export function useADKPageChatState(
     try {
       for (const approval of approvals) {
         try {
-          resolutions.push(await submitApproval(approval, action));
+          const resolution = await submitApproval(approval, action);
+          resolutions.push(resolution);
+          timelineEntries.value = applyApprovalResolutions(
+            timelineEntries.value,
+            [resolution],
+          );
+          if (resolution.run) {
+            syncActiveRun(
+              resolution.run,
+              !isTerminalRunStatus(resolution.run.status),
+            );
+          }
         } catch (error) {
           errors.push(error instanceof Error ? error.message : "审批处理失败");
         }
@@ -344,6 +458,7 @@ export function useADKPageChatState(
   ): Promise<void> {
     await sessionState.refreshAll();
     await refreshSessionContext();
+    await reloadSessionTimeline(sessionState.selectedSessionId.value);
     const runs = Array.from(
       new Map(
         resolutions
@@ -353,19 +468,16 @@ export function useADKPageChatState(
       ).values(),
     );
     for (const run of runs) {
+      syncActiveRun(run, !isTerminalRunStatus(run.status));
       if (isTerminalRunStatus(run.status)) {
-        await reloadSessionTimeline(run.sessionId || sessionState.selectedSessionId.value);
-        const failMsg = runTerminalMessage(run);
-        if (failMsg) {
-          sessionState.errorMessage.value = failMsg;
-        }
+        await handleTerminalRun(run);
         continue;
       }
-      await waitForApprovalContinuation(run);
+      await waitForRunContinuation(run);
     }
   }
 
-  async function waitForApprovalContinuation(
+  async function waitForRunContinuation(
     run: ADKRun | undefined,
   ): Promise<void> {
     if (!run || isTerminalRunStatus(run.status)) {
@@ -375,25 +487,43 @@ export function useADKPageChatState(
     if (!sessionId) {
       return;
     }
-    const deadline = Date.now() + 15_000;
-    while (Date.now() < deadline) {
-      await delay(900);
-      try {
-        const latestRun = await fetchEnvelope<ADKRun>(
-          `/api/v1/adk/runs/${encodeURIComponent(run.id)}`,
-        );
-        if (isTerminalRunStatus(latestRun.status)) {
-          await reloadSessionTimeline(sessionId);
-          const failMsg = runTerminalMessage(latestRun);
+    try {
+      const latestRun = await monitorADKRunContinuation(run, {
+        onProgress: async (nextRun) => {
+          syncActiveRun(nextRun, true);
+          const failMsg = runTerminalMessage(nextRun);
           if (failMsg) {
             sessionState.errorMessage.value = failMsg;
           }
-          return;
+          await reloadSessionTimeline(sessionId);
+        },
+        onTerminal: async (terminalRun) => {
+          await reloadSessionTimeline(sessionId);
+          await handleTerminalRun(terminalRun);
+        },
+      });
+      if (latestRun && !isTerminalRunStatus(latestRun.status)) {
+        syncActiveRun(latestRun, true);
+        const failMsg = runTerminalMessage(latestRun);
+        if (failMsg) {
+          sessionState.errorMessage.value = failMsg;
         }
-      } catch {
-        return;
       }
+    } catch {
+      // Ignore polling failures and keep the latest visible state.
     }
+  }
+
+  async function handleTerminalRun(run: ADKRun): Promise<void> {
+    syncActiveRun(run);
+    const failMsg = runTerminalMessage(run);
+    if (failMsg) {
+      sessionState.errorMessage.value = failMsg;
+    }
+    if (interruptingRunId.value === run.id) {
+      interruptingRunId.value = "";
+    }
+    await dispatchQueuedMessagesIfIdle();
   }
 
   async function reloadSessionTimeline(sessionId: string): Promise<void> {
@@ -449,8 +579,83 @@ export function useADKPageChatState(
     await runSlashCommand(match.id);
     return true;
   }
-}
 
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => window.setTimeout(resolve, ms));
+  function setSelectedSessionId(sessionId: string): void {
+    const normalized = sessionId.trim();
+    if (normalized === "") return;
+    const previousSessionId = sessionState.selectedSessionId.value.trim();
+    sessionState.selectedSessionId.value = normalized;
+    if (previousSessionId !== "") {
+      return;
+    }
+    const previousQueueKey = buildQueueSessionKey(previousSessionId);
+    const nextQueueKey = buildQueueSessionKey(normalized);
+    if (previousQueueKey === nextQueueKey) {
+      return;
+    }
+    queuedChatMessages.value = queuedChatMessages.value.map((message) =>
+      message.sessionKey === previousQueueKey
+        ? { ...message, sessionKey: nextQueueKey }
+        : message,
+    );
+  }
+
+  function enqueueChatMessage(
+    text: string,
+    mode: "queued" | "interrupt",
+  ): QueuedChatMessage {
+    const message = createQueuedChatMessage(
+      text,
+      currentQueueSessionKey.value,
+      mode,
+    );
+    queuedChatMessages.value =
+      mode === "interrupt"
+        ? [message, ...queuedChatMessages.value]
+        : [...queuedChatMessages.value, message];
+    return message;
+  }
+
+  async function dispatchQueuedMessagesIfIdle(): Promise<void> {
+    if (
+      sendingChat.value ||
+      hasBlockingRun.value ||
+      queueDispatchingId.value !== "" ||
+      composerBlockMessage.value !== "" ||
+      sessionState.selectedAgentId.value === ""
+    ) {
+      return;
+    }
+    const nextMessage = queuedMessages.value[0];
+    if (!nextMessage) {
+      return;
+    }
+    queueDispatchingId.value = nextMessage.id;
+    const sent = await executeChatMessage(nextMessage.text);
+    if (sent) {
+      queuedChatMessages.value = queuedChatMessages.value.filter(
+        (message) => message.id !== nextMessage.id,
+      );
+    }
+    queueDispatchingId.value = "";
+    if (sent) {
+      await dispatchQueuedMessagesIfIdle();
+    }
+  }
+
+  function syncActiveRun(
+    run: ADKRun | undefined,
+    waitingForContinuation = false,
+  ): void {
+    if (!run) {
+      return;
+    }
+    if (isTerminalRunStatus(run.status)) {
+      if (!activeRun.value || activeRun.value.runId === run.id) {
+        activeRun.value = null;
+      }
+      return;
+    }
+    activeRun.value = buildActiveChatRunState(run, waitingForContinuation);
+  }
 }

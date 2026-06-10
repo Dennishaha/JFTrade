@@ -7,27 +7,32 @@ import type { ADKToolVisualization as ADKToolVisualizationModel } from "../../co
 import { buildADKToolVisualization } from "../../composables/adkToolVisualizations";
 import { formatGenericStatusLabel } from "../../composables/consoleDataFormatting";
 import {
+  firstFailedToolCall,
   isActiveRunStatus,
   normalizedDisplayStatus,
   runStatusTone,
   runTerminalMessage,
+  toolCallErrorSummary,
 } from "../../composables/adkChatPresentation";
 import ADKToolVisualization from "./ADKToolVisualization.vue";
 
-const props = withDefaults(defineProps<{
-  run?: ADKRun | undefined;
-  toolProgress?: string | undefined;
-  busy?: boolean;
-  compact?: boolean;
-  summaryExpanded?: boolean | undefined;
-  expandedToolCallIds?: string[] | undefined;
-}>(), {
-  toolProgress: "",
-  busy: false,
-  compact: false,
-  summaryExpanded: false,
-  expandedToolCallIds: () => [],
-});
+const props = withDefaults(
+  defineProps<{
+    run?: ADKRun | undefined;
+    toolProgress?: string | undefined;
+    busy?: boolean;
+    compact?: boolean;
+    summaryExpanded?: boolean | undefined;
+    expandedToolCallIds?: string[] | undefined;
+  }>(),
+  {
+    toolProgress: "",
+    busy: false,
+    compact: false,
+    summaryExpanded: false,
+    expandedToolCallIds: () => [],
+  },
+);
 
 const emit = defineEmits<{
   "update:summaryExpanded": [value: boolean];
@@ -37,38 +42,57 @@ const emit = defineEmits<{
 const toolCalls = computed(() => props.run?.toolCalls ?? []);
 const hasToolCalls = computed(() => toolCalls.value.length > 0);
 const hasMultipleToolCalls = computed(() => toolCalls.value.length > 1);
+const failedToolCall = computed(() => firstFailedToolCall(props.run));
 const hasActiveToolCalls = computed(() =>
   toolCalls.value.some((toolCall) => !isTerminalToolStatus(toolCall.status)),
 );
-const isRunning = computed(() => props.busy && (props.run == null || isActiveRunStatus(props.run?.status)));
-const showProgress = computed(() =>
-  isRunning.value
-  && props.toolProgress.trim() !== ""
-  && (!hasToolCalls.value || hasActiveToolCalls.value),
+const isRunning = computed(
+  () =>
+    props.busy && (props.run == null || isActiveRunStatus(props.run?.status)),
+);
+const showProgress = computed(
+  () =>
+    isRunning.value &&
+    props.toolProgress.trim() !== "" &&
+    (!hasToolCalls.value || hasActiveToolCalls.value),
 );
 const showSummaryCard = computed(() => hasMultipleToolCalls.value);
-const showExpandedToolCalls = computed(() =>
-  hasToolCalls.value && (!showSummaryCard.value || props.summaryExpanded),
+const showExpandedToolCalls = computed(
+  () => hasToolCalls.value && (!showSummaryCard.value || props.summaryExpanded),
 );
 const summaryStatus = computed(() => {
   if (hasActiveToolCalls.value) return "RUNNING";
   const runStatus = normalizedDisplayStatus(props.run?.status);
-  if (runStatus === "FAILED" || runStatus === "TIMED_OUT" || runStatus === "CANCELLED" || runStatus === "DENIED") {
+  if (
+    runStatus === "FAILED" ||
+    runStatus === "TIMED_OUT" ||
+    runStatus === "CANCELLED" ||
+    runStatus === "DENIED"
+  ) {
     return runStatus;
   }
   return "COMPLETED";
 });
 const summaryTitle = computed(() => `调用了 ${toolCalls.value.length} 个工具`);
 const summaryHint = computed(() => {
+  if (failedToolCall.value) {
+    const errorSummary = toolCallErrorSummary(failedToolCall.value);
+    return `${failedToolCall.value.toolName}: ${truncate(errorSummary, 140)}`;
+  }
   const terminalMessage = runTerminalMessage(props.run);
   if (terminalMessage) return terminalMessage;
-  return props.summaryExpanded ? "收起本轮工具调用轨迹" : "展开查看本轮工具调用轨迹";
+  return props.summaryExpanded
+    ? "Collapse this tool trace"
+    : "Expand this tool trace";
 });
 const toolVisualizationMap = computed(() => {
   const visualizations = new Map<string, ADKToolVisualizationModel>();
   for (const toolCall of toolCalls.value) {
     if (toolCall.output === undefined) continue;
-    const visualization = buildADKToolVisualization(toolCall.toolName, toolCall.output);
+    const visualization = buildADKToolVisualization(
+      toolCall.toolName,
+      toolCall.output,
+    );
     if (visualization) {
       visualizations.set(toolCall.id, visualization);
     }
@@ -78,12 +102,14 @@ const toolVisualizationMap = computed(() => {
 
 function isTerminalToolStatus(status: string | undefined): boolean {
   const normalized = (status ?? "").trim().toUpperCase();
-  return normalized === "SUCCEEDED"
-    || normalized === "COMPLETED"
-    || normalized === "FAILED"
-    || normalized === "TIMED_OUT"
-    || normalized === "DENIED"
-    || normalized === "CANCELLED";
+  return (
+    normalized === "SUCCEEDED" ||
+    normalized === "COMPLETED" ||
+    normalized === "FAILED" ||
+    normalized === "TIMED_OUT" ||
+    normalized === "DENIED" ||
+    normalized === "CANCELLED"
+  );
 }
 
 function preview(value: unknown): string {
@@ -121,16 +147,45 @@ function toggleTool(toolCallId: string): void {
   }
   emit("update:expandedToolCallIds", Array.from(ids));
 }
+
+function collapsedToolHint(
+  toolCall: ADKRun["toolCalls"][number],
+  index: number,
+): string {
+  const toolError = toolCallErrorSummary(toolCall);
+  if (toolError) {
+    return truncate(toolError, 140);
+  }
+  if (index === toolCalls.value.length - 1) {
+    return runTerminalMessage(props.run);
+  }
+  return "";
+}
+
+function truncate(value: string, maxLength: number): string {
+  if (value.length <= maxLength) return value;
+  return `${value.slice(0, Math.max(0, maxLength - 3))}...`;
+}
 </script>
 
 <template>
-  <div v-if="run || toolProgress.trim() !== ''" class="adk-run-trace" :class="{ 'adk-run-trace--compact': compact }">
-    <div v-if="showProgress" class="adk-run-trace-card adk-run-trace-card--progress">
+  <div
+    v-if="run || toolProgress.trim() !== ''"
+    class="adk-run-trace"
+    :class="{ 'adk-run-trace--compact': compact }"
+  >
+    <div
+      v-if="showProgress"
+      class="adk-run-trace-card adk-run-trace-card--progress"
+    >
       <span class="adk-run-spinner" />
       <span class="adk-run-trace-card__main">
         <span class="adk-run-trace-card__title">{{ toolProgress }}</span>
         <span v-if="run?.status" class="adk-run-trace-card__meta">
-          <span class="adk-status-pill" :class="`is-${runStatusTone(run.status)}`">
+          <span
+            class="adk-status-pill"
+            :class="`is-${runStatusTone(run.status)}`"
+          >
             {{ formatGenericStatusLabel(run.status) }}
           </span>
         </span>
@@ -146,13 +201,18 @@ function toggleTool(toolCallId: string): void {
       <span class="adk-run-trace-card__main">
         <span class="adk-run-trace-card__title">{{ summaryTitle }}</span>
         <span class="adk-run-trace-card__meta">
-          <span class="adk-status-pill" :class="`is-${runStatusTone(summaryStatus)}`">
+          <span
+            class="adk-status-pill"
+            :class="`is-${runStatusTone(summaryStatus)}`"
+          >
             {{ formatGenericStatusLabel(summaryStatus) }}
           </span>
           <span class="adk-run-trace-card__hint">{{ summaryHint }}</span>
         </span>
       </span>
-      <span class="adk-run-trace-card__chevron">{{ summaryExpanded ? "-" : "+" }}</span>
+      <span class="adk-run-trace-card__chevron">{{
+        summaryExpanded ? "-" : "+"
+      }}</span>
     </button>
 
     <div v-if="showExpandedToolCalls" class="adk-run-trace-tools">
@@ -173,21 +233,34 @@ function toggleTool(toolCallId: string): void {
                 {{ toolCall.toolName }}
               </span>
               <span class="adk-run-trace-card__meta">
-                <span class="adk-status-pill" :class="`is-${runStatusTone(normalizedDisplayStatus(toolCall.status))}`">
-                  {{ formatGenericStatusLabel(normalizedDisplayStatus(toolCall.status)) }}
+                <span
+                  class="adk-status-pill"
+                  :class="`is-${runStatusTone(normalizedDisplayStatus(toolCall.status))}`"
+                >
+                  {{
+                    formatGenericStatusLabel(
+                      normalizedDisplayStatus(toolCall.status),
+                    )
+                  }}
                 </span>
-                <span v-if="durationLabel(toolCall.durationMs)">{{ durationLabel(toolCall.durationMs) }}</span>
-                <span v-if="index === toolCalls.length - 1 && runTerminalMessage(run)">{{ runTerminalMessage(run) }}</span>
+                <span v-if="durationLabel(toolCall.durationMs)">{{
+                  durationLabel(toolCall.durationMs)
+                }}</span>
+                <span v-if="collapsedToolHint(toolCall, index)">{{
+                  collapsedToolHint(toolCall, index)
+                }}</span>
               </span>
             </span>
-            <span class="adk-run-trace-card__chevron">{{ isToolExpanded(toolCall.id) ? "-" : "+" }}</span>
+            <span class="adk-run-trace-card__chevron">{{
+              isToolExpanded(toolCall.id) ? "-" : "+"
+            }}</span>
           </button>
 
           <div v-if="isToolExpanded(toolCall.id)" class="adk-run-trace-detail">
-            <div class="adk-json-label">输入参数</div>
+            <div class="adk-json-label">Input</div>
             <pre class="adk-json">{{ preview(toolCall.input) }}</pre>
             <template v-if="toolCall.output !== undefined">
-              <div class="adk-json-label mt-2">输出结果</div>
+              <div class="adk-json-label mt-2">Output</div>
               <ADKToolVisualization
                 v-if="toolVisualization(toolCall)"
                 :visualization="toolVisualization(toolCall)!"
@@ -195,7 +268,7 @@ function toggleTool(toolCallId: string): void {
               <pre class="adk-json">{{ preview(toolCall.output) }}</pre>
             </template>
             <template v-if="toolCall.error">
-              <div class="adk-json-label mt-2 adk-json-label--error">错误信息</div>
+              <div class="adk-json-label mt-2 adk-json-label--error">Error</div>
               <pre class="adk-json">{{ toolCall.error }}</pre>
             </template>
           </div>

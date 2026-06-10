@@ -7,6 +7,9 @@ Set-Location -LiteralPath $PSScriptRoot
 $webDistDir = Join-Path $PSScriptRoot "apps\web\dist"
 $embedDir = Join-Path $PSScriptRoot "internal\frontendassets\dist"
 $embedArchive = Join-Path $PSScriptRoot "internal\frontendassets\dist.zip"
+$runtimeDir = Join-Path $PSScriptRoot "var\jftrade-api"
+$settingsPath = Join-Path $runtimeDir "settings.json"
+$backtestDBPath = Join-Path $runtimeDir "backtest.db"
 
 function Join-CharCodes {
     param([int[]]$Codes)
@@ -42,6 +45,8 @@ function Set-DefaultEnv {
 
 Set-DefaultEnv "JFTRADE_API_BIND" "127.0.0.1:6699"
 Set-DefaultEnv "JFTRADE_GUI_BIND" "127.0.0.1:6688"
+Set-DefaultEnv "JFTRADE_SETTINGS_PATH" $settingsPath
+Set-DefaultEnv "JFTRADE_BACKTEST_DB" $backtestDBPath
 Set-DefaultEnv "JFTRADE_FUTU_API_PORT" "11110"
 Set-DefaultEnv "JFTRADE_FUTU_WEBSOCKET_PORT" "11111"
 Set-DefaultEnv "FUTU_OPEND_ADDR" "127.0.0.1:$($env:JFTRADE_FUTU_API_PORT)"
@@ -101,7 +106,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host ("`n=== Starting backend service / {0} ===" -f $cnStartBackend) -ForegroundColor Green
-$backendExe = Join-Path $PSScriptRoot "var\jftrade-api\jftrade-api-test.exe"
+$backendExe = Join-Path $PSScriptRoot "dist\jftrade-api-test.exe"
 New-Item -ItemType Directory -Force -Path (Split-Path -Parent $backendExe) | Out-Null
 
 go build -tags release_assets -o $backendExe ./cmd/jftrade

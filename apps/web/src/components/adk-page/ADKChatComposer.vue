@@ -3,6 +3,8 @@ import { computed, ref, watch } from "vue";
 
 import type { ADKSessionContextSnapshot } from "@jftrade/ui-contracts";
 
+import type { QueuedChatMessage } from "../../composables/adkChatRuntime";
+
 interface SlashCommandItem {
   id: "context" | "compact" | "compact-aggressive";
   command: string;
@@ -15,16 +17,23 @@ const props = withDefaults(
   defineProps<{
     variant?: "page" | "dock";
     activeRunId?: string;
+    activeRunStatus?: string;
     agentOptions?: { title: string; value: string }[];
+    canInterruptChat?: boolean;
     canSendChat: boolean;
     chatDraft: string;
     composerBlockMessage?: string;
     contextBusy?: boolean;
     contextDetailsOpen?: boolean;
     contextSnapshot?: ADKSessionContextSnapshot | null;
+    hasBlockingRun?: boolean;
+    interruptingRunId?: string;
     loading?: boolean;
     placeholder?: string;
     providerOptions?: { title: string; value: string }[];
+    queuedMessages?: QueuedChatMessage[];
+    queueDispatchingId?: string;
+    revokeQueuedMessage?: (messageId: string) => void | Promise<void>;
     savingProviderSelection?: boolean;
     selectedAgentId?: string;
     selectedProviderId?: string;
@@ -35,6 +44,7 @@ const props = withDefaults(
     handleAgentChange?: () => void;
     handleComposerKeydown?: (event: KeyboardEvent) => void;
     handleProviderChange?: (providerId: string) => void | Promise<void>;
+    interruptAndQueueChat?: () => void | Promise<void>;
     openContextDetails?: () => void;
     openProviderSettings?: () => void;
     runSlashCommand?: (command: SlashCommandItem["id"]) => void | Promise<void>;
@@ -44,14 +54,20 @@ const props = withDefaults(
   {
     variant: "page",
     activeRunId: "",
+    activeRunStatus: "",
     agentOptions: () => [],
+    canInterruptChat: false,
     composerBlockMessage: "",
     contextBusy: false,
     contextDetailsOpen: false,
     contextSnapshot: null,
+    hasBlockingRun: false,
+    interruptingRunId: "",
     loading: false,
     placeholder: "输入问题或任务...",
     providerOptions: () => [],
+    queuedMessages: () => [],
+    queueDispatchingId: "",
     savingProviderSelection: false,
     selectedAgentId: "",
     selectedProviderId: "",
@@ -107,6 +123,16 @@ const exactSlashCommand = computed(
     props.slashCommands.find(
       (item) => item.command.toLowerCase() === slashDraft.value.toLowerCase(),
     ) ?? null,
+);
+const queueItems = computed(() => props.queuedMessages ?? []);
+const sendButtonLoading = computed(
+  () => props.sendingChat && !props.hasBlockingRun && props.chatDraft.trim() === "",
+);
+const showInterruptButton = computed(
+  () => props.canInterruptChat && props.chatDraft.trim() !== "",
+);
+const showStopButton = computed(
+  () => props.activeRunId !== "" && (props.hasBlockingRun || props.sendingChat),
 );
 
 const contextTone = computed(() => {
@@ -280,7 +306,9 @@ function formatTokenCount(value: number): string {
   return Math.max(0, value).toLocaleString("zh-CN");
 }
 
-function contextWindowLabel(snapshot: ADKSessionContextSnapshot | null | undefined): string {
+function contextWindowLabel(
+  snapshot: ADKSessionContextSnapshot | null | undefined,
+): string {
   if (!snapshot || snapshot.contextWindowTokens <= 0) {
     return "未配置";
   }
@@ -298,6 +326,27 @@ function compactionModeLabel(mode?: string): string {
     default:
       return "未执行";
   }
+}
+
+function queueItemBadge(item: QueuedChatMessage, index: number): string {
+  if (props.queueDispatchingId === item.id) {
+    return "sending next";
+  }
+  if (index === 0 && item.mode === "interrupt" && props.hasBlockingRun) {
+    return "interrupting";
+  }
+  if (item.mode === "interrupt") {
+    return "interrupt";
+  }
+  return "queued";
+}
+
+function queueItemStateClass(item: QueuedChatMessage, index: number): string {
+  return `is-${queueItemBadge(item, index).replace(/\s+/g, "-")}`;
+}
+
+function canRevokeQueueItem(item: QueuedChatMessage): boolean {
+  return props.queueDispatchingId !== item.id;
 }
 </script>
 
@@ -426,6 +475,39 @@ function compactionModeLabel(mode?: string): string {
         </v-menu>
       </div>
 
+      <div v-if="queueItems.length > 0" class="adk-queue-strip">
+        <div class="adk-queue-strip__header">
+          <span class="adk-queue-strip__title">待发送队列</span>
+          <span v-if="hasBlockingRun" class="adk-queue-strip__hint">
+            当前运行结束后自动发送
+          </span>
+        </div>
+        <div class="adk-queue-list">
+          <div
+            v-for="(item, index) in queueItems"
+            :key="item.id"
+            class="adk-queue-item"
+          >
+            <span class="adk-queue-item__index">#{{ index + 1 }}</span>
+            <span
+              class="adk-queue-item__badge"
+              :class="queueItemStateClass(item, index)"
+            >
+              {{ queueItemBadge(item, index) }}
+            </span>
+            <span class="adk-queue-item__text" :title="item.text">{{ item.text }}</span>
+            <button
+              type="button"
+              class="adk-queue-item__remove"
+              :disabled="!canRevokeQueueItem(item)"
+              @click="void revokeQueuedMessage?.(item.id)"
+            >
+              撤回
+            </button>
+          </div>
+        </div>
+      </div>
+
       <template v-if="variant === 'page'">
         <div class="adk-composer-input-wrap">
           <v-textarea
@@ -437,7 +519,6 @@ function compactionModeLabel(mode?: string): string {
             auto-grow
             :max-rows="6"
             hide-details
-            :disabled="sendingChat"
             class="adk-composer-input"
             @update:model-value="$emit('update:chatDraft', $event ?? '')"
             @keydown="handleKeydown"
@@ -519,9 +600,9 @@ function compactionModeLabel(mode?: string): string {
               </template>
 
               <v-card min-width="360" class="adk-context-card">
-                <v-card-title class="text-subtitle-2"
-                  >上下文使用情况</v-card-title
-                >
+                <v-card-title class="text-subtitle-2">
+                  上下文使用情况
+                </v-card-title>
                 <v-card-text class="adk-context-card__body">
                   <div class="adk-context-stat">
                     <span>当前输入 Token</span>
@@ -646,7 +727,7 @@ function compactionModeLabel(mode?: string): string {
               @click="openProviderSettings?.()"
             />
             <v-btn
-              v-if="sendingChat && activeRunId"
+              v-if="showStopButton"
               icon="fa-solid fa-stop"
               variant="text"
               color="error"
@@ -655,8 +736,18 @@ function compactionModeLabel(mode?: string): string {
               @click="cancelActiveRun?.()"
             />
             <v-btn
+              v-if="showInterruptButton"
+              class="adk-composer-interrupt"
+              variant="outlined"
+              color="warning"
+              :disabled="!canInterruptChat"
+              @click="void interruptAndQueueChat?.()"
+            >
+              打断后发送
+            </v-btn>
+            <v-btn
               color="primary"
-              :loading="sendingChat"
+              :loading="sendButtonLoading"
               :disabled="!canSendChat"
               icon="fa-solid fa-paper-plane"
               class="adk-composer-send"
@@ -695,14 +786,32 @@ function compactionModeLabel(mode?: string): string {
               variant="plain"
               density="compact"
               hide-details
-              :disabled="sendingChat"
               class="adk-composer-input adk-composer-input--dock"
               @update:model-value="$emit('update:chatDraft', $event ?? '')"
               @keydown="handleKeydown"
             />
             <v-btn
+              v-if="showInterruptButton"
+              class="adk-composer-interrupt adk-composer-interrupt--dock"
+              variant="outlined"
+              color="warning"
+              :disabled="!canInterruptChat"
+              @click="void interruptAndQueueChat?.()"
+            >
+              打断后发送
+            </v-btn>
+            <v-btn
+              v-if="showStopButton"
+              variant="text"
+              color="error"
+              class="adk-composer-stop adk-composer-stop--dock"
+              @click="cancelActiveRun?.()"
+            >
+              停止
+            </v-btn>
+            <v-btn
               color="primary"
-              :loading="sendingChat"
+              :loading="sendButtonLoading"
               :disabled="!canSendChat"
               class="adk-composer-send adk-composer-send--dock"
               @click="void handlePrimaryAction()"
@@ -785,8 +894,115 @@ function compactionModeLabel(mode?: string): string {
   word-break: break-word;
 }
 
+.adk-queue-strip {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  border: 1px solid rgb(226 232 240);
+  border-radius: 14px;
+  background: rgb(248 250 252);
+}
+
+.adk-queue-strip__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.adk-queue-strip__title {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgb(15 23 42);
+}
+
+.adk-queue-strip__hint {
+  font-size: 12px;
+  color: rgb(100 116 139);
+}
+
+.adk-queue-list {
+  display: grid;
+  gap: 8px;
+}
+
+.adk-queue-item {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+
+.adk-queue-item__index {
+  font-size: 12px;
+  color: rgb(100 116 139);
+}
+
+.adk-queue-item__badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 1.4;
+  text-transform: lowercase;
+  color: rgb(15 23 42);
+  background: rgb(226 232 240);
+}
+
+.adk-queue-item__badge.is-queued {
+  background: rgb(226 232 240);
+}
+
+.adk-queue-item__badge.is-interrupt,
+.adk-queue-item__badge.is-interrupting {
+  color: rgb(146 64 14);
+  background: rgb(254 215 170);
+}
+
+.adk-queue-item__badge.is-sending-next {
+  color: rgb(29 78 216);
+  background: rgb(191 219 254);
+}
+
+.adk-queue-item__text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  color: rgb(15 23 42);
+}
+
+.adk-queue-item__remove {
+  border: 0;
+  background: transparent;
+  color: rgb(220 38 38);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.adk-queue-item__remove:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
 .adk-composer-input-wrap {
   position: relative;
+}
+
+.adk-composer-dock-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.adk-composer-interrupt {
+  text-transform: none;
+}
+
+.adk-composer-interrupt--dock,
+.adk-composer-stop--dock {
+  flex-shrink: 0;
 }
 
 .adk-slash-menu {

@@ -92,8 +92,9 @@ func (s *Store) SessionProjection(ctx context.Context, sessionID string) (Sessio
 		return SessionProjection{}, false, err
 	}
 	if hasRun {
-		if len(projection.PendingApprovals) == 0 && len(latestRun.PendingApprovals) > 0 {
-			projection.PendingApprovals = append([]Approval(nil), latestRun.PendingApprovals...)
+		latestPendingApprovals := pendingApprovalsOnly(latestRun.PendingApprovals)
+		if len(projection.PendingApprovals) == 0 && len(latestPendingApprovals) > 0 {
+			projection.PendingApprovals = latestPendingApprovals
 		}
 		if len(projection.ToolCalls) == 0 && len(latestRun.ToolCalls) > 0 {
 			projection.ToolCalls = append([]ToolCall(nil), latestRun.ToolCalls...)

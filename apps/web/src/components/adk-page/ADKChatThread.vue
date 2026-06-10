@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 
-import type { ADKApproval, ADKToolDescriptor } from "@jftrade/ui-contracts";
+import type { ADKApproval, ADKRun, ADKToolDescriptor } from "@jftrade/ui-contracts";
 
 import {
   approvalsForGroup,
@@ -10,27 +10,42 @@ import {
 } from "../../composables/adkTimeline";
 import ADKRunTrace from "../shared/ADKRunTrace.vue";
 
-const props = withDefaults(defineProps<{
-  variant?: "page" | "dock";
-  timelineEntries: ADKTimelineEntryState[];
-  sendingChat: boolean;
-  showTypingIndicator: boolean;
-  errorMessage: string;
-  approvalsBusy: boolean;
-  suggestions: string[];
-  emptyStateTitle: string;
-  emptyStateHint: string;
-  emptyStateProviderHint?: string;
-  approvalTool: (approval: ADKApproval) => ADKToolDescriptor | undefined;
-  clearErrorMessage: () => void;
-  preview: (value: unknown) => string;
-  renderMarkdown: (content: string) => string;
-  resolveApprovalGroup: (approvals: ADKApproval[], approved: boolean) => void | Promise<void>;
-  resolveApproval: (approval: ADKApproval, approved: boolean) => void | Promise<void>;
-}>(), {
-  variant: "page",
-  emptyStateProviderHint: "",
-});
+const props = withDefaults(
+  defineProps<{
+    variant?: "page" | "dock";
+    activeRunId?: string;
+    activeRunStatus?: string;
+    hasBlockingRun?: boolean;
+    timelineEntries: ADKTimelineEntryState[];
+    sendingChat: boolean;
+    showTypingIndicator: boolean;
+    errorMessage: string;
+    approvalsBusy: boolean;
+    suggestions: string[];
+    emptyStateTitle: string;
+    emptyStateHint: string;
+    emptyStateProviderHint?: string;
+    approvalTool: (approval: ADKApproval) => ADKToolDescriptor | undefined;
+    clearErrorMessage: () => void;
+    preview: (value: unknown) => string;
+    renderMarkdown: (content: string) => string;
+    resolveApprovalGroup: (
+      approvals: ADKApproval[],
+      approved: boolean,
+    ) => void | Promise<void>;
+    resolveApproval: (
+      approval: ADKApproval,
+      approved: boolean,
+    ) => void | Promise<void>;
+  }>(),
+  {
+    variant: "page",
+    activeRunId: "",
+    activeRunStatus: "",
+    hasBlockingRun: false,
+    emptyStateProviderHint: "",
+  },
+);
 
 defineEmits<{
   "update:chatDraft": [value: string];
@@ -47,12 +62,52 @@ const emptyClass = computed(() => ({
   "adk-empty--dock": props.variant === "dock",
 }));
 
-function entryToolRun(entry: ADKTimelineEntryState) {
-  return buildTimelineRun(entry);
+function isEntryActiveRun(entry: ADKTimelineEntryState): boolean {
+  return !!entry.runId && props.hasBlockingRun && entry.runId === props.activeRunId;
+}
+
+function entryToolRun(entry: ADKTimelineEntryState): ADKRun {
+  const run = buildTimelineRun(entry);
+  if (!isEntryActiveRun(entry)) {
+    return run;
+  }
+  return {
+    ...run,
+    status: props.activeRunStatus || run.status,
+    toolCalls: run.toolCalls.map((toolCall) => {
+      if (
+        props.activeRunStatus === "RUNNING" &&
+        (toolCall.status === "PENDING_APPROVAL" || toolCall.status === "PENDING")
+      ) {
+        return { ...toolCall, status: "RUNNING" };
+      }
+      return toolCall;
+    }),
+  };
 }
 
 function entryApprovals(entry: ADKTimelineEntryState) {
   return approvalsForGroup(entry);
+}
+
+function entryToolProgress(entry: ADKTimelineEntryState): string {
+  if (isEntryActiveRun(entry)) {
+    if (props.activeRunStatus === "PENDING_APPROVAL") {
+      return "等待审批...";
+    }
+    if (props.activeRunStatus === "PENDING") {
+      return "等待执行...";
+    }
+    return "工具执行中...";
+  }
+  return entry.status === "streaming" ? "工具执行中..." : "";
+}
+
+function entryToolBusy(entry: ADKTimelineEntryState): boolean {
+  return (
+    isEntryActiveRun(entry) ||
+    (props.sendingChat && props.timelineEntries[props.timelineEntries.length - 1] === entry)
+  );
 }
 </script>
 
@@ -107,8 +162,8 @@ function entryApprovals(entry: ADKTimelineEntryState) {
       <div v-else-if="entry.kind === 'tool_group'" class="adk-msg adk-msg--assistant">
         <ADKRunTrace
           :run="entryToolRun(entry)"
-          :tool-progress="entry.status === 'streaming' ? '工具执行中...' : ''"
-          :busy="sendingChat && timelineEntries[timelineEntries.length - 1] === entry"
+          :tool-progress="entryToolProgress(entry)"
+          :busy="entryToolBusy(entry)"
           :compact="variant === 'dock'"
           :summary-expanded="entry.toolSummaryExpanded"
           :expanded-tool-call-ids="entry.expandedToolCallIds"
@@ -117,7 +172,10 @@ function entryApprovals(entry: ADKTimelineEntryState) {
         />
       </div>
 
-      <div v-else-if="entry.kind === 'approval_group'" class="adk-msg adk-msg--assistant">
+      <div
+        v-else-if="entry.kind === 'approval_group' && entryApprovals(entry).length > 0"
+        class="adk-msg adk-msg--assistant"
+      >
         <div class="adk-approvals">
           <div class="adk-approvals-header">
             <div class="adk-approvals-header__title">

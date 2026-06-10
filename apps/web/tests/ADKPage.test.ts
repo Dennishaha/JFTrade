@@ -15,7 +15,8 @@ import type {
 import ADKPage from "../src/pages/ADKPage.vue";
 import { createResponse, flushRequests } from "./helpers";
 
-const { streamADKChatMock } = vi.hoisted(() => ({
+const { monitorADKRunContinuationMock, streamADKChatMock } = vi.hoisted(() => ({
+  monitorADKRunContinuationMock: vi.fn(),
   streamADKChatMock: vi.fn(),
 }));
 
@@ -36,167 +37,163 @@ vi.mock("../src/composables/adkChatStream", async () => {
   };
 });
 
+vi.mock("../src/composables/adkRunContinuation", async () => {
+  const actual =
+    await vi.importActual<typeof import("../src/composables/adkRunContinuation")>(
+      "../src/composables/adkRunContinuation",
+    );
+  return {
+    ...actual,
+    monitorADKRunContinuation: monitorADKRunContinuationMock,
+  };
+});
+
 afterEach(() => {
   vi.unstubAllGlobals();
   streamADKChatMock.mockReset();
+  monitorADKRunContinuationMock.mockReset();
+  monitorADKRunContinuationMock.mockImplementation(async (run) => run);
 });
 
 describe("ADKPage", () => {
   it("shows a composer block when the selected provider has no API key", async () => {
-    mountADKPage({
-      providerHasKey: false,
-    });
+    mountADKPage({ providerHasKey: false });
     await flushRequests();
 
-    expect(document.body.textContent).toContain("当前 Provider 未配置 API Key");
+    expect(document.body.textContent).toContain("API Key");
   });
 
-  it("renders final run tool calls and refreshes the timeline after approval", async () => {
-    const pendingApproval: ADKApproval = {
-      id: "approval-1",
-      runId: "run-1",
-      agentId: "agent-1",
-      toolName: "strategy.save_draft",
-      input: { query: "@strategy.save_draft" },
-      status: "PENDING",
-      reason: "需要审批",
-      createdAt: "2026-06-06T00:00:00Z",
-      updatedAt: "2026-06-06T00:00:00Z",
-    };
+  it("refreshes approval state to RUNNING, hides the approval bar, and keeps input editable", async () => {
+    const pendingApproval = buildApproval("approval-1", "run-approval");
     const pendingRun = buildRun({
+      id: "run-approval",
       status: "PENDING_APPROVAL",
-      toolCalls: [{
-        id: "tool-1",
-        runId: "run-1",
-        toolName: "strategy.save_draft",
-        permission: "write_strategy",
-        status: "PENDING_APPROVAL",
-        input: { query: "@strategy.save_draft" },
-        requiresUser: true,
-        createdAt: "2026-06-06T00:00:00Z",
-        updatedAt: "2026-06-06T00:00:00Z",
-      }],
+      toolCalls: [
+        buildToolCall("tool-1", "run-approval", "strategy.save_draft", "PENDING_APPROVAL"),
+      ],
       pendingApprovals: [pendingApproval],
     });
-    const completedRun = buildRun({
-      status: "COMPLETED",
-      toolCalls: [{
-        ...pendingRun.toolCalls[0]!,
-        status: "SUCCEEDED",
-        output: { saved: true },
-        requiresUser: false,
-      }],
-      pendingApprovals: [{ ...pendingApproval, status: "APPROVED" }],
+    const runningRun = buildRun({
+      id: "run-approval",
+      status: "RUNNING",
+      toolCalls: [
+        buildToolCall("tool-1", "run-approval", "strategy.save_draft", "RUNNING"),
+      ],
+      pendingApprovals: [],
     });
-    const pendingTimeline = [
-      buildTimelineEntry("user_message", {
-        id: "entry-user",
-        text: "@strategy.save_draft 保存策略",
-        createdAt: "2026-06-06T00:00:00Z",
-      }),
-      buildTimelineEntry("tool_group", {
-        id: "entry-tools",
-        runId: pendingRun.id,
-        toolCalls: pendingRun.toolCalls,
-        createdAt: "2026-06-06T00:00:01Z",
-      }),
-      buildTimelineEntry("approval_group", {
-        id: "entry-approvals",
-        runId: pendingRun.id,
-        approvals: [pendingApproval],
-        createdAt: "2026-06-06T00:00:02Z",
-      }),
-    ];
-    const completedTimeline = [
-      buildTimelineEntry("user_message", {
-        id: "entry-user",
-        text: "@strategy.save_draft 保存策略",
-        createdAt: "2026-06-06T00:00:00Z",
-      }),
-      buildTimelineEntry("tool_group", {
-        id: "entry-tools",
-        runId: completedRun.id,
-        toolCalls: completedRun.toolCalls,
-        createdAt: "2026-06-06T00:00:01Z",
-      }),
-      buildTimelineEntry("assistant_message", {
-        id: "entry-final",
-        runId: completedRun.id,
-        text: "策略草稿已保存，并已基于工具结果完成分析。",
-        createdAt: "2026-06-06T00:00:03Z",
-      }),
-    ];
+    const completedRun = buildRun({
+      id: "run-approval",
+      status: "COMPLETED",
+      toolCalls: [
+        buildToolCall("tool-1", "run-approval", "strategy.save_draft", "SUCCEEDED"),
+      ],
+      pendingApprovals: [],
+    });
 
-    streamADKChatMock.mockImplementation(async (_payload, onEvent) => {
+    let finishContinuation!: () => void;
+    monitorADKRunContinuationMock.mockImplementationOnce(async (run, options) => {
+      await options?.onProgress?.(runningRun, run!);
+      await new Promise<void>((resolve) => {
+        finishContinuation = resolve;
+      });
+      await options?.onTerminal?.(completedRun);
+      return completedRun;
+    });
+
+    streamADKChatMock.mockImplementationOnce(async (_payload, onEvent) => {
       const response: ADKChatResponse = {
-        reply: "等待审批",
+        reply: "waiting",
         session: buildSession(),
         run: pendingRun,
         pendingApprovals: [pendingApproval],
-        timeline: pendingTimeline,
+        timeline: pendingApprovalTimeline(pendingRun, [pendingApproval], "approve this"),
       };
       await onEvent({ type: "session", session: response.session });
       await onEvent({ type: "final", response });
       return response;
     });
 
-    const fetchMock = mountADKPage({
+    mountADKPage({
       approvals: [pendingApproval],
       approvalResolution: {
         approval: { ...pendingApproval, status: "APPROVED" },
-        run: completedRun,
+        run: runningRun,
       },
-      sessionDetail: {
-        session: buildSession(),
-        timeline: completedTimeline,
-      },
+      sessionDetailSequence: [
+        {
+          session: buildSession(),
+          timeline: [
+            buildTimelineEntry("tool_group", {
+              id: "running-tools",
+              runId: runningRun.id,
+              toolCalls: runningRun.toolCalls,
+              createdAt: "2026-06-06T00:00:02Z",
+            }),
+          ],
+        },
+        {
+          session: buildSession(),
+          timeline: [
+            buildTimelineEntry("tool_group", {
+              id: "running-tools-2",
+              runId: runningRun.id,
+              toolCalls: runningRun.toolCalls,
+              createdAt: "2026-06-06T00:00:02Z",
+            }),
+          ],
+        },
+        {
+          session: buildSession(),
+          timeline: [
+            buildTimelineEntry("tool_group", {
+              id: "completed-tools",
+              runId: completedRun.id,
+              toolCalls: completedRun.toolCalls,
+              createdAt: "2026-06-06T00:00:02Z",
+            }),
+            buildTimelineEntry("assistant_message", {
+              id: "completed-answer",
+              runId: completedRun.id,
+              text: "approved and finished",
+              createdAt: "2026-06-06T00:00:03Z",
+            }),
+          ],
+        },
+      ],
     });
     await flushRequests();
 
-    const textarea = document.querySelector("textarea")!;
-    textarea.value = "@strategy.save_draft 保存策略";
-    textarea.dispatchEvent(new Event("input"));
-    await nextTick();
-    document.querySelector<HTMLButtonElement>(".adk-composer-send")?.click();
-    await flushRequests();
+    await sendPageMessage("approve this");
 
     expect(document.body.textContent).toContain("PENDING_APPROVAL");
-    expect(document.body.textContent).toContain("strategy.save_draft");
+    expect(document.querySelector("textarea")?.hasAttribute("disabled")).toBe(false);
 
-    Array.from(document.querySelectorAll<HTMLButtonElement>("button"))
-      .find((button) => button.textContent?.includes("批准"))
-      ?.click();
+    clickButtonByText("批准");
     await flushRequests();
 
-    expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringContaining("/api/v1/adk/approvals/approval-1/approve"),
-      expect.objectContaining({ method: "POST" }),
-    );
-    expect(document.body.textContent).toContain("策略草稿已保存");
+    expect(document.querySelector(".adk-run-spinner")).not.toBeNull();
+    expect(document.querySelector(".adk-approvals-approve-all")).toBeNull();
+    expect(document.querySelector("textarea")?.hasAttribute("disabled")).toBe(false);
+    expect(document.body.textContent).not.toContain("approved and finished");
+
+    finishContinuation();
+    await flushRequests();
+
+    expect(document.body.textContent).toContain("approved and finished");
   });
 
   it("approves all pending approvals from the inline approval group", async () => {
-    const approvalA: ADKApproval = {
-      id: "approval-1",
-      runId: "run-1",
-      agentId: "agent-1",
-      toolName: "strategy.save_draft",
-      input: { query: "@strategy.save_draft" },
-      status: "PENDING",
-      reason: "needs approval",
-      createdAt: "2026-06-06T00:00:00Z",
-      updatedAt: "2026-06-06T00:00:00Z",
-    };
-    const approvalB: ADKApproval = {
+    const approvalA = buildApproval("approval-1");
+    const approvalB = {
       ...approvalA,
       id: "approval-2",
       toolName: "strategy.publish",
       input: { query: "@strategy.publish" },
     };
 
-    streamADKChatMock.mockImplementation(async (_payload, onEvent) => {
+    streamADKChatMock.mockImplementationOnce(async (_payload, onEvent) => {
       const response: ADKChatResponse = {
-        reply: "waiting for approvals",
+        reply: "waiting",
         session: buildSession(),
         run: buildRun({
           status: "PENDING_APPROVAL",
@@ -227,24 +224,18 @@ describe("ADKPage", () => {
       approvalResolutionById: {
         "approval-1": {
           approval: { ...approvalA, status: "APPROVED" },
-          run: buildRun({ status: "COMPLETED" }),
+          run: buildRun({ id: "run-a", status: "COMPLETED" }),
         },
         "approval-2": {
           approval: { ...approvalB, status: "APPROVED" },
-          run: buildRun({ status: "COMPLETED" }),
+          run: buildRun({ id: "run-b", status: "COMPLETED" }),
         },
       },
     });
     await flushRequests();
 
-    const textarea = document.querySelector("textarea")!;
-    textarea.value = "batch approve";
-    textarea.dispatchEvent(new Event("input"));
-    await nextTick();
-    document.querySelector<HTMLButtonElement>(".adk-composer-send")?.click();
-    await flushRequests();
-
-    document.querySelector<HTMLButtonElement>(".adk-approvals-approve-all")?.click();
+    await sendPageMessage("batch approve");
+    clickButtonByText("全部批准");
     await flushRequests();
 
     expect(fetchMock).toHaveBeenCalledWith(
@@ -257,22 +248,257 @@ describe("ADKPage", () => {
     );
   });
 
+  it("queues, revokes, and auto-dispatches messages while a blocking run is active", async () => {
+    const pendingApproval = buildApproval("approval-queue", "run-queue");
+    const pendingRun = buildRun({
+      id: "run-queue",
+      status: "PENDING_APPROVAL",
+      toolCalls: [
+        buildToolCall("tool-queue", "run-queue", "strategy.save_draft", "PENDING_APPROVAL"),
+      ],
+      pendingApprovals: [pendingApproval],
+    });
+    const completedRun = buildRun({
+      id: "run-queue",
+      status: "COMPLETED",
+      toolCalls: [
+        buildToolCall("tool-queue", "run-queue", "strategy.save_draft", "SUCCEEDED"),
+      ],
+      pendingApprovals: [],
+    });
+    const queuedRun = buildRun({
+      id: "run-queue-2",
+      status: "COMPLETED",
+      userMessage: "queued follow-up",
+    });
+
+    streamADKChatMock
+      .mockImplementationOnce(async (_payload, onEvent) => {
+        const response: ADKChatResponse = {
+          reply: "waiting",
+          session: buildSession(),
+          run: pendingRun,
+          pendingApprovals: [pendingApproval],
+          timeline: pendingApprovalTimeline(pendingRun, [pendingApproval], "first request"),
+        };
+        await onEvent({ type: "session", session: response.session });
+        await onEvent({ type: "final", response });
+        return response;
+      })
+      .mockImplementationOnce(async (payload, onEvent) => {
+        const response: ADKChatResponse = {
+          reply: "queued done",
+          session: buildSession(),
+          run: queuedRun,
+          pendingApprovals: [],
+          timeline: [
+            buildTimelineEntry("user_message", {
+              id: "queued-user",
+              text: String(payload.message),
+              createdAt: "2026-06-06T00:00:04Z",
+            }),
+            buildTimelineEntry("assistant_message", {
+              id: "queued-answer",
+              runId: queuedRun.id,
+              text: "queued follow-up completed",
+              createdAt: "2026-06-06T00:00:05Z",
+            }),
+          ],
+        };
+        await onEvent({ type: "session", session: response.session });
+        await onEvent({ type: "final", response });
+        return response;
+      });
+
+    mountADKPage({
+      approvals: [pendingApproval],
+      approvalResolution: {
+        approval: { ...pendingApproval, status: "APPROVED" },
+        run: completedRun,
+      },
+      sessionDetail: {
+        session: buildSession(),
+        timeline: [
+          buildTimelineEntry("tool_group", {
+            id: "entry-tools-done",
+            runId: completedRun.id,
+            toolCalls: completedRun.toolCalls,
+            createdAt: "2026-06-06T00:00:02Z",
+          }),
+          buildTimelineEntry("assistant_message", {
+            id: "entry-answer",
+            runId: completedRun.id,
+            text: "first request done",
+            createdAt: "2026-06-06T00:00:03Z",
+          }),
+        ],
+      },
+    });
+    await flushRequests();
+
+    await sendPageMessage("first request");
+    expect(document.querySelector("textarea")?.hasAttribute("disabled")).toBe(false);
+
+    await sendPageMessage("revoke me");
+    expect(document.body.textContent).toContain("revoke me");
+    clickButtonByText("撤回");
+    await flushRequests();
+    expect(document.body.textContent).not.toContain("revoke me");
+    expect(streamADKChatMock).toHaveBeenCalledTimes(1);
+
+    await sendPageMessage("queued follow-up");
+    expect(document.body.textContent).toContain("queued follow-up");
+    expect(streamADKChatMock).toHaveBeenCalledTimes(1);
+
+    clickButtonByText("批准");
+    await flushRequests();
+
+    expect(streamADKChatMock).toHaveBeenCalledTimes(2);
+    expect(streamADKChatMock.mock.calls[1]?.[0]).toMatchObject({
+      message: "queued follow-up",
+    });
+    expect(document.body.textContent).toContain("queued follow-up completed");
+  });
+
+  it("interrupts the active run and sends the interrupt message before the rest of the queue", async () => {
+    const pendingApproval = buildApproval("approval-interrupt", "run-interrupt");
+    const pendingRun = buildRun({
+      id: "run-interrupt",
+      status: "PENDING_APPROVAL",
+      toolCalls: [
+        buildToolCall("tool-interrupt", "run-interrupt", "strategy.save_draft", "PENDING_APPROVAL"),
+      ],
+      pendingApprovals: [pendingApproval],
+    });
+    const cancelledRun = buildRun({
+      id: "run-interrupt",
+      status: "CANCELLED",
+      pendingApprovals: [],
+    });
+    const urgentRun = buildRun({
+      id: "run-urgent",
+      status: "COMPLETED",
+      userMessage: "urgent request",
+    });
+    const normalRun = buildRun({
+      id: "run-normal",
+      status: "COMPLETED",
+      userMessage: "normal queued request",
+    });
+
+    streamADKChatMock
+      .mockImplementationOnce(async (_payload, onEvent) => {
+        const response: ADKChatResponse = {
+          reply: "waiting",
+          session: buildSession(),
+          run: pendingRun,
+          pendingApprovals: [pendingApproval],
+          timeline: pendingApprovalTimeline(pendingRun, [pendingApproval], "first request"),
+        };
+        await onEvent({ type: "session", session: response.session });
+        await onEvent({ type: "final", response });
+        return response;
+      })
+      .mockImplementationOnce(async (payload, onEvent) => {
+        const response: ADKChatResponse = {
+          reply: "urgent done",
+          session: buildSession(),
+          run: urgentRun,
+          pendingApprovals: [],
+          timeline: [
+            buildTimelineEntry("user_message", {
+              id: "urgent-user",
+              text: String(payload.message),
+              createdAt: "2026-06-06T00:00:04Z",
+            }),
+            buildTimelineEntry("assistant_message", {
+              id: "urgent-answer",
+              runId: urgentRun.id,
+              text: "urgent completed",
+              createdAt: "2026-06-06T00:00:05Z",
+            }),
+          ],
+        };
+        await onEvent({ type: "session", session: response.session });
+        await onEvent({ type: "final", response });
+        return response;
+      })
+      .mockImplementationOnce(async (payload, onEvent) => {
+        const response: ADKChatResponse = {
+          reply: "normal done",
+          session: buildSession(),
+          run: normalRun,
+          pendingApprovals: [],
+          timeline: [
+            buildTimelineEntry("user_message", {
+              id: "normal-user",
+              text: String(payload.message),
+              createdAt: "2026-06-06T00:00:06Z",
+            }),
+            buildTimelineEntry("assistant_message", {
+              id: "normal-answer",
+              runId: normalRun.id,
+              text: "normal completed",
+              createdAt: "2026-06-06T00:00:07Z",
+            }),
+          ],
+        };
+        await onEvent({ type: "session", session: response.session });
+        await onEvent({ type: "final", response });
+        return response;
+      });
+
+    const fetchMock = mountADKPage({
+      approvals: [pendingApproval],
+      cancelRunById: {
+        "run-interrupt": cancelledRun,
+      },
+      sessionDetail: {
+        session: buildSession(),
+        timeline: [
+          buildTimelineEntry("assistant_message", {
+            id: "cancelled-answer",
+            runId: cancelledRun.id,
+            text: "first request cancelled",
+            createdAt: "2026-06-06T00:00:03Z",
+          }),
+        ],
+      },
+    });
+    await flushRequests();
+
+    await sendPageMessage("first request");
+    await sendPageMessage("normal queued request");
+    expect(document.body.textContent).toContain("normal queued request");
+
+    const textarea = document.querySelector("textarea")!;
+    textarea.value = "urgent request";
+    textarea.dispatchEvent(new Event("input"));
+    await nextTick();
+    clickButtonByText("打断后发送");
+    await flushRequests();
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("/api/v1/adk/runs/run-interrupt/cancel"),
+      expect.objectContaining({ method: "POST" }),
+    );
+    expect(streamADKChatMock).toHaveBeenCalledTimes(3);
+    expect(streamADKChatMock.mock.calls[1]?.[0]).toMatchObject({
+      message: "urgent request",
+    });
+    expect(streamADKChatMock.mock.calls[2]?.[0]).toMatchObject({
+      message: "normal queued request",
+    });
+    expect(document.body.textContent).toContain("normal completed");
+  });
+
   it("restores persisted timeline entries for saved sessions", async () => {
     const savedRun = buildRun({
       id: "run-restored",
       status: "COMPLETED",
-      toolCalls: [{
-        id: "tool-restored",
-        runId: "run-restored",
-        toolName: "portfolio.summary",
-        permission: "read",
-        status: "SUCCEEDED",
-        input: { scope: "all" },
-        output: { ok: true },
-        requiresUser: false,
-        createdAt: "2026-06-06T00:00:00Z",
-        updatedAt: "2026-06-06T00:00:00Z",
-      }],
+      toolCalls: [
+        buildToolCall("tool-restored", "run-restored", "portfolio.summary", "SUCCEEDED"),
+      ],
     });
     mountADKPage({
       sessionDetail: {
@@ -315,7 +541,7 @@ describe("ADKPage", () => {
   });
 
   it("renders chat alerts inside the chat thread", async () => {
-    streamADKChatMock.mockImplementation(async (_payload, onEvent) => {
+    streamADKChatMock.mockImplementationOnce(async (_payload, onEvent) => {
       await onEvent({ type: "session", session: buildSession() });
       await onEvent({ type: "error", message: "stream exploded" });
       throw new Error("stream exploded");
@@ -324,12 +550,7 @@ describe("ADKPage", () => {
     mountADKPage();
     await flushRequests();
 
-    const textarea = document.querySelector("textarea")!;
-    textarea.value = "check failed run";
-    textarea.dispatchEvent(new Event("input"));
-    await nextTick();
-    document.querySelector<HTMLButtonElement>(".adk-composer-send")?.click();
-    await flushRequests();
+    await sendPageMessage("check failed run");
 
     expect(document.querySelector(".adk-thread")?.textContent).toContain("stream exploded");
     expect(document.querySelector(".adk-inline-alert")?.textContent).toContain("stream exploded");
@@ -337,7 +558,7 @@ describe("ADKPage", () => {
   });
 
   it("keeps deep reasoning collapsed until the user expands it", async () => {
-    streamADKChatMock.mockImplementation(async (_payload, onEvent) => {
+    streamADKChatMock.mockImplementationOnce(async (_payload, onEvent) => {
       const response: ADKChatResponse = {
         reply: "Final answer.",
         reasoningContent: "Detailed chain of thought preview.",
@@ -370,19 +591,12 @@ describe("ADKPage", () => {
     mountADKPage();
     await flushRequests();
 
-    const textarea = document.querySelector("textarea")!;
-    textarea.value = "show reasoning";
-    textarea.dispatchEvent(new Event("input"));
-    await nextTick();
-    document.querySelector<HTMLButtonElement>(".adk-composer-send")?.click();
-    await flushRequests();
+    await sendPageMessage("show reasoning");
 
     expect(document.body.textContent).toContain("查看深度思考");
     expect(document.body.textContent).not.toContain("Detailed chain of thought preview.");
 
-    Array.from(document.querySelectorAll<HTMLButtonElement>("button"))
-      .find((button) => button.textContent?.includes("查看深度思考"))
-      ?.click();
+    clickButtonByText("查看深度思考");
     await nextTick();
 
     expect(document.body.textContent).toContain("隐藏深度思考");
@@ -395,13 +609,26 @@ function mountADKPage(options: {
   approvals?: ADKApproval[];
   approvalResolution?: unknown;
   approvalResolutionById?: Record<string, unknown>;
-  sessionDetail?: { session: ReturnType<typeof buildSession>; timeline: ADKTimelineEntry[] };
+  cancelRunById?: Record<string, ADKRun>;
+  sessionDetail?: {
+    session: ReturnType<typeof buildSession>;
+    timeline: ADKTimelineEntry[];
+  };
+  sessionDetailSequence?: Array<{
+    session: ReturnType<typeof buildSession>;
+    timeline: ADKTimelineEntry[];
+  }>;
 } = {}) {
   document.body.innerHTML = "<div id='root'></div>";
   const state = {
     approvals: [...(options.approvals ?? [])],
-    sessionDetail: options.sessionDetail ?? { session: buildSession(), timeline: [] },
+    sessionDetailSequence: [
+      ...(options.sessionDetailSequence ?? [
+        options.sessionDetail ?? { session: buildSession(), timeline: [] },
+      ]),
+    ],
   };
+
   const fetchMock = vi.fn(async (input: string | URL | Request) => {
     const url = String(input);
     if (url.includes("/api/v1/adk/agents")) {
@@ -412,9 +639,21 @@ function mountADKPage(options: {
     }
     if (url.includes("/api/v1/adk/sessions")) {
       if (/\/api\/v1\/adk\/sessions\/[^/]+$/.test(url)) {
-        return createResponse(state.sessionDetail);
+        const detail =
+          state.sessionDetailSequence.length > 1
+            ? state.sessionDetailSequence.shift()!
+            : state.sessionDetailSequence[0]!;
+        return createResponse(detail);
       }
       return createResponse({ sessions: [buildSession()] });
+    }
+    const cancelRunMatch = url.match(/\/api\/v1\/adk\/runs\/([^/]+)\/cancel$/);
+    if (cancelRunMatch) {
+      const runId = decodeURIComponent(cancelRunMatch[1]!);
+      return createResponse(
+        options.cancelRunById?.[runId] ??
+          buildRun({ id: runId, status: "CANCELLED", pendingApprovals: [] }),
+      );
     }
     const approvalActionMatch = url.match(/\/api\/v1\/adk\/approvals\/([^/]+)\/(approve|deny)$/);
     if (approvalActionMatch) {
@@ -459,6 +698,20 @@ function buildProvider(hasApiKey: boolean) {
   };
 }
 
+function buildApproval(id: string, runId = "run-1"): ADKApproval {
+  return {
+    id,
+    runId,
+    agentId: "agent-1",
+    toolName: "strategy.save_draft",
+    input: { query: "@strategy.save_draft" },
+    status: "PENDING",
+    reason: "needs approval",
+    createdAt: "2026-06-06T00:00:00Z",
+    updatedAt: "2026-06-06T00:00:00Z",
+  };
+}
+
 function buildAgent() {
   return {
     id: "agent-1",
@@ -482,6 +735,25 @@ function buildSession() {
     id: "session-1",
     agentId: "agent-1",
     title: "测试会话",
+    createdAt: "2026-06-06T00:00:00Z",
+    updatedAt: "2026-06-06T00:00:00Z",
+  };
+}
+
+function buildToolCall(
+  id: string,
+  runId: string,
+  toolName: string,
+  status: string,
+) {
+  return {
+    id,
+    runId,
+    toolName,
+    permission: "write_strategy",
+    status,
+    input: { toolName },
+    requiresUser: status === "PENDING_APPROVAL",
     createdAt: "2026-06-06T00:00:00Z",
     updatedAt: "2026-06-06T00:00:00Z",
   };
@@ -522,11 +794,52 @@ function buildTimelineEntry(
   };
 }
 
+function pendingApprovalTimeline(
+  run: ADKRun,
+  approvals: ADKApproval[],
+  userText: string,
+): ADKTimelineEntry[] {
+  return [
+    buildTimelineEntry("user_message", {
+      id: `user-${run.id}`,
+      text: userText,
+      createdAt: "2026-06-06T00:00:00Z",
+    }),
+    buildTimelineEntry("tool_group", {
+      id: `tools-${run.id}`,
+      runId: run.id,
+      toolCalls: run.toolCalls,
+      createdAt: "2026-06-06T00:00:01Z",
+    }),
+    buildTimelineEntry("approval_group", {
+      id: `approvals-${run.id}`,
+      runId: run.id,
+      approvals,
+      createdAt: "2026-06-06T00:00:02Z",
+    }),
+  ];
+}
+
+async function sendPageMessage(text: string): Promise<void> {
+  const textarea = document.querySelector("textarea")!;
+  textarea.value = text;
+  textarea.dispatchEvent(new Event("input"));
+  await nextTick();
+  document.querySelector<HTMLButtonElement>(".adk-composer-send")?.click();
+  await flushRequests();
+}
+
+function clickButtonByText(text: string): void {
+  Array.from(document.querySelectorAll<HTMLButtonElement>("button"))
+    .find((button) => button.textContent?.includes(text))
+    ?.click();
+}
+
 function vuetifyStubs() {
   return {
     "v-alert": { template: "<div><slot /></div>" },
     "v-btn": {
-      props: ["disabled"],
+      props: ["disabled", "loading"],
       emits: ["click"],
       template:
         "<button type='button' :disabled='disabled' :class='$attrs.class' @click=\"$emit('click')\"><slot /></button>",
@@ -550,14 +863,14 @@ function vuetifyStubs() {
       template: "<select :value='modelValue' @change=\"$emit('update:modelValue', $event.target.value)\"><option v-for='item in items' :key='item.value' :value='item.value'>{{ item.title }}</option></select>",
     },
     "v-textarea": {
-      props: ["modelValue"],
+      props: ["modelValue", "disabled"],
       emits: ["update:modelValue"],
-      template: "<textarea :value='modelValue' @input=\"$emit('update:modelValue', $event.target.value)\" />",
+      template: "<textarea :value='modelValue' :disabled='disabled' @input=\"$emit('update:modelValue', $event.target.value)\" />",
     },
     "v-text-field": {
-      props: ["modelValue"],
+      props: ["modelValue", "disabled"],
       emits: ["update:modelValue"],
-      template: "<input :value='modelValue' @input=\"$emit('update:modelValue', $event.target.value)\" />",
+      template: "<input :value='modelValue' :disabled='disabled' @input=\"$emit('update:modelValue', $event.target.value)\" />",
     },
   };
 }

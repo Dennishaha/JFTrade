@@ -1,5 +1,6 @@
 import type {
   ADKApproval,
+  ADKApprovalResolution,
   ADKRun,
   ADKTimelineEntry,
 } from "@jftrade/ui-contracts";
@@ -86,7 +87,53 @@ export function buildTimelineRun(entry: ADKTimelineEntryState): ADKRun {
 export function approvalsForGroup(
   entry: ADKTimelineEntryState,
 ): ADKApproval[] {
-  return [...(entry.approvals ?? [])];
+  return [...(entry.approvals ?? [])].filter(isPendingApproval);
+}
+
+export function applyApprovalResolutions(
+  entries: ADKTimelineEntryState[],
+  resolutions: ADKApprovalResolution[],
+): ADKTimelineEntryState[] {
+  if (resolutions.length === 0) {
+    return entries;
+  }
+  const resolvedApprovalIds = new Set<string>();
+  const pendingApprovalIdsByRun = new Map<string, Set<string>>();
+  for (const resolution of resolutions) {
+    if (resolution.approval?.id) {
+      resolvedApprovalIds.add(resolution.approval.id);
+    }
+    if (resolution.run?.id) {
+      pendingApprovalIdsByRun.set(
+        resolution.run.id,
+        new Set(
+          (resolution.run.pendingApprovals ?? [])
+            .filter(isPendingApproval)
+            .map((approval) => approval.id),
+        ),
+      );
+    }
+  }
+  return sortTimelineEntries(
+    entries.flatMap((entry) => {
+      if (entry.kind !== "approval_group" || !entry.approvals?.length) {
+        return [entry];
+      }
+      const pendingApprovalIds = entry.runId
+        ? pendingApprovalIdsByRun.get(entry.runId)
+        : undefined;
+      const approvals = entry.approvals.filter((approval) => {
+        if (pendingApprovalIds) {
+          return pendingApprovalIds.has(approval.id);
+        }
+        return !resolvedApprovalIds.has(approval.id) && isPendingApproval(approval);
+      });
+      if (approvals.length === 0) {
+        return [];
+      }
+      return [{ ...entry, approvals }];
+    }),
+  );
 }
 
 function mergeTimelineEntry(
@@ -106,6 +153,11 @@ function mergeTimelineEntry(
     next.approvals = [...base.approvals];
   }
   return next;
+}
+
+function isPendingApproval(approval: Pick<ADKApproval, "status">): boolean {
+  const status = String(approval.status ?? "").trim().toUpperCase();
+  return status === "" || status === "PENDING" || status === "PENDING_APPROVAL";
 }
 
 function deriveToolGroupStatus(toolCalls: ADKRun["toolCalls"]): string {

@@ -141,6 +141,49 @@ func TestSessionProjectionRecoversPreToolContentAndToolOrder(t *testing.T) {
 	}
 }
 
+func TestSessionProjectionDoesNotFallbackToResolvedApprovals(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	agent := mustSaveAgent(t, runtime, AgentWriteRequest{
+		ID:             "agent-approved-fallback",
+		Name:           "Agent",
+		PermissionMode: PermissionModeApproval,
+		Status:         AgentStatusEnabled,
+	})
+	session := mustCreateSession(t, runtime, agent.ID, "approved fallback")
+	run := mustSaveRun(t, runtime, Run{
+		ID:        "run-approved-fallback",
+		SessionID: session.ID,
+		AgentID:   agent.ID,
+		Status:    RunStatusCompleted,
+		PendingApprovals: []Approval{{
+			ID:        "approval-approved",
+			RunID:     "run-approved-fallback",
+			AgentID:   agent.ID,
+			ToolName:  "strategy.save_draft",
+			Status:    ApprovalStatusApproved,
+			Reason:    "resolved",
+			CreatedAt: nowString(),
+			UpdatedAt: nowString(),
+		}},
+		CreatedAt: nowString(),
+		UpdatedAt: nowString(),
+	})
+
+	appendADKEvent(t, runtime, agent.ID, session.ID, newAssistantEvent(run.ID, []*genai.Part{{Text: "done"}}, time.Unix(40, 0)))
+
+	projection, ok, err := runtime.Store().SessionProjection(ctx, session.ID)
+	if err != nil {
+		t.Fatalf("SessionProjection: %v", err)
+	}
+	if !ok {
+		t.Fatal("expected session projection")
+	}
+	if len(projection.PendingApprovals) != 0 {
+		t.Fatalf("projection pending approvals = %+v, want none", projection.PendingApprovals)
+	}
+}
+
 func appendADKEvent(t *testing.T, runtime *Runtime, agentID string, sessionID string, event *adksession.Event) {
 	t.Helper()
 	response, err := runtime.rawSessionService.Get(context.Background(), &adksession.GetRequest{

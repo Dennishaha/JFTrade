@@ -87,7 +87,7 @@ func buildSessionTimeline(session Session, messages []TranscriptEntry, runs []Ru
 		}
 	}
 
-	raw := make([]timelinePrimitive, 0, len(sortedMessages)+(len(sortedRuns) * 3))
+	raw := make([]timelinePrimitive, 0, len(sortedMessages)+(len(sortedRuns)*3))
 	processedRuns := map[string]struct{}{}
 	for _, message := range sortedMessages {
 		switch strings.ToLower(strings.TrimSpace(message.Role)) {
@@ -235,7 +235,8 @@ func timelinePrimitivesForOrphanRun(sessionID string, run Run) []timelinePrimiti
 }
 
 func timelinePrimitivesForRunActivity(sessionID string, run Run) []timelinePrimitive {
-	primitives := make([]timelinePrimitive, 0, len(run.ToolCalls)+len(run.PendingApprovals))
+	approvals := pendingApprovalsOnly(run.PendingApprovals)
+	primitives := make([]timelinePrimitive, 0, len(run.ToolCalls)+len(approvals))
 	toolCalls := append([]ToolCall(nil), run.ToolCalls...)
 	sort.SliceStable(toolCalls, func(i, j int) bool {
 		return compareTimelineKeys(toolCalls[i].CreatedAt, 40, toolCalls[i].ID, toolCalls[j].CreatedAt, 40, toolCalls[j].ID)
@@ -252,7 +253,7 @@ func timelinePrimitivesForRunActivity(sessionID string, run Run) []timelinePrimi
 			toolCall:  &call,
 		})
 	}
-	approvals := append([]Approval(nil), run.PendingApprovals...)
+	approvals = append([]Approval(nil), approvals...)
 	sort.SliceStable(approvals, func(i, j int) bool {
 		return compareTimelineKeys(approvals[i].CreatedAt, 50, approvals[i].ID, approvals[j].CreatedAt, 50, approvals[j].ID)
 	})
@@ -357,7 +358,7 @@ func firstRunToolTime(run Run) string {
 
 func firstRunApprovalTime(run Run) string {
 	earliest := ""
-	for _, approval := range run.PendingApprovals {
+	for _, approval := range pendingApprovalsOnly(run.PendingApprovals) {
 		candidate := firstNonEmpty(approval.CreatedAt, approval.UpdatedAt)
 		if candidate == "" {
 			continue
