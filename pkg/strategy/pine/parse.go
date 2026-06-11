@@ -35,17 +35,29 @@ type parseState struct {
 
 var (
 	strategyTitlePattern    = regexp.MustCompile(`(?i)^strategy\s*\(\s*("[^"]*"|'[^']*'|[^,\)]*)`)
-	assignmentPattern       = regexp.MustCompile(`^(?:var\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*(?::=|=)\s*(.+)$`)
-	tupleAssignmentPattern  = regexp.MustCompile(`^\[\s*([A-Za-z_][A-Za-z0-9_]*)(?:\s*,\s*([A-Za-z_][A-Za-z0-9_]*))?(?:\s*,\s*([A-Za-z_][A-Za-z0-9_]*))?\s*\]\s*(?::=|=)\s*(.+)$`)
+	assignmentPattern       = regexp.MustCompile(`^(var\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*(:=|=)\s*(.+)$`)
+	tupleAssignmentPattern  = regexp.MustCompile(`^\[\s*([A-Za-z_][A-Za-z0-9_]*)(?:\s*,\s*([A-Za-z_][A-Za-z0-9_]*))?(?:\s*,\s*([A-Za-z_][A-Za-z0-9_]*))?\s*\]\s*(:=|=)\s*(.+)$`)
 	inputCallPattern        = regexp.MustCompile(`(?i)^input\.[A-Za-z_][A-Za-z0-9_]*\s*\(\s*([^,\)]+)`)
 	equityQuantityPattern   = regexp.MustCompile(`(?i)^\(?\s*strategy\.equity\s*\*\s*([0-9]+(?:\.[0-9]+)?)\s*/\s*100\s*\)?\s*/\s*close$`)
 	amountQuantityPattern   = regexp.MustCompile(`(?i)^\(?\s*([0-9]+(?:\.[0-9]+)?)\s*/\s*close\s*\)?$`)
 	entryPolicyAnnotPattern = regexp.MustCompile(`@entry_policy\s+(\S+)`)
 	exitPricePattern        = regexp.MustCompile(`(?i)^close\s*\*\s*\(?\s*1\s*[+-]\s*([0-9]+(?:\.[0-9]+)?)\s*/\s*100\s*\)?$`)
 	exitTrailPattern        = regexp.MustCompile(`(?i)^close\s*\*\s*([0-9]+(?:\.[0-9]+)?)\s*/\s*100$`)
+	historyReferencePattern = regexp.MustCompile(`\b([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?)\s*\[\s*([0-9]+)\s*\]`)
 )
 
 func Compile(script string) (Compilation, error) {
+	analysis := AnalyzeScript(script, AnalysisOptions{})
+	if !analysis.OK {
+		if err := diagnosticError(analysis.Diagnostics); err != nil {
+			return Compilation{}, err
+		}
+		return Compilation{}, fmt.Errorf("pine script is not valid")
+	}
+	return Compilation{Program: analysis.Program, Warnings: analysis.Warnings}, nil
+}
+
+func compileLoweredAST(script string, _ *AST) (Compilation, error) {
 	state := &parseState{
 		lines:             nil,
 		longEntryIDs:      map[string]bool{},
@@ -289,7 +301,7 @@ func (s *parseState) parseTupleAssignment(line parsedLine) (strategyir.Statement
 	if match == nil {
 		return nil, false, nil
 	}
-	expression := strings.TrimSpace(match[4])
+	expression := strings.TrimSpace(match[5])
 	lower := strings.ToLower(expression)
 	if !strings.HasPrefix(lower, "ta.macd(") {
 		return nil, true, fmt.Errorf("pine line %d: tuple assignment is supported only for ta.macd(...)", line.number)
@@ -320,8 +332,9 @@ func (s *parseState) parseAssignment(line parsedLine) (strategyir.Statement, boo
 	if match == nil {
 		return nil, false, nil
 	}
-	name := strings.TrimSpace(match[1])
-	expression := s.normalizeExpression(strings.TrimSpace(match[2]))
+	name := strings.TrimSpace(match[2])
+	operator := strings.TrimSpace(match[3])
+	expression := s.normalizeExpression(strings.TrimSpace(match[4]))
 	if expression == "" {
 		return nil, true, fmt.Errorf("pine line %d: assignment expression is required", line.number)
 	}
@@ -332,7 +345,19 @@ func (s *parseState) parseAssignment(line parsedLine) (strategyir.Statement, boo
 		Range:      strategyir.SourceRange{StartLine: line.number, EndLine: line.number},
 		Name:       name,
 		Expression: expression,
+		Mode:       assignmentMode(strings.TrimSpace(match[1]) != "", operator),
 	}, true, nil
+}
+
+func assignmentMode(isVar bool, operator string) strategyir.AssignmentMode {
+	switch {
+	case isVar:
+		return strategyir.AssignmentModeVar
+	case operator == ":=":
+		return strategyir.AssignmentModeReassign
+	default:
+		return strategyir.AssignmentModeLet
+	}
 }
 
 func (s *parseState) parseStrategyCall(line parsedLine) (strategyir.Statement, bool, error) {
@@ -501,9 +526,115 @@ func (s *parseState) normalizeExpression(expression string) string {
 	for alias, target := range s.expressionAliases {
 		result = regexp.MustCompile(`\b`+regexp.QuoteMeta(alias)+`\b`).ReplaceAllString(result, target)
 	}
+	result = normalizeHistoryReferences(result)
+	result = normalizeTernaryExpression(result)
 	result = strings.ReplaceAll(result, " and ", " && ")
 	result = strings.ReplaceAll(result, " or ", " || ")
 	return strings.TrimSpace(result)
+}
+
+func normalizeHistoryReferences(expression string) string {
+	return rewriteOutsideStringLiterals(expression, func(segment string) string {
+		return historyReferencePattern.ReplaceAllStringFunc(segment, func(match string) string {
+			parts := historyReferencePattern.FindStringSubmatch(match)
+			if len(parts) != 3 || strings.TrimSpace(parts[2]) != "1" {
+				return match
+			}
+			return "previous(" + strings.TrimSpace(parts[1]) + ")"
+		})
+	})
+}
+
+func rewriteOutsideStringLiterals(expression string, rewrite func(string) string) string {
+	if expression == "" {
+		return expression
+	}
+	var builder strings.Builder
+	segmentStart := 0
+	inString := byte(0)
+	for index := 0; index < len(expression); index++ {
+		ch := expression[index]
+		if (ch != '"' && ch != '\'') || (index > 0 && expression[index-1] == '\\') {
+			continue
+		}
+		if inString == 0 {
+			builder.WriteString(rewrite(expression[segmentStart:index]))
+			inString = ch
+			segmentStart = index
+			continue
+		}
+		if inString == ch {
+			builder.WriteString(expression[segmentStart : index+1])
+			inString = 0
+			segmentStart = index + 1
+		}
+	}
+	if inString == 0 {
+		builder.WriteString(rewrite(expression[segmentStart:]))
+	} else {
+		builder.WriteString(expression[segmentStart:])
+	}
+	return builder.String()
+}
+
+func historyReferenceMatchesOutsideStringLiterals(expression string) [][]string {
+	matches := make([][]string, 0)
+	rewriteOutsideStringLiterals(expression, func(segment string) string {
+		matches = append(matches, historyReferencePattern.FindAllStringSubmatch(segment, -1)...)
+		return segment
+	})
+	return matches
+}
+
+func normalizeTernaryExpression(expression string) string {
+	question, colon := topLevelTernaryIndexes(expression)
+	if question < 0 || colon < 0 {
+		return expression
+	}
+	condition := strings.TrimSpace(expression[:question])
+	whenTrue := strings.TrimSpace(expression[question+1 : colon])
+	whenFalse := strings.TrimSpace(expression[colon+1:])
+	if condition == "" || whenTrue == "" || whenFalse == "" {
+		return expression
+	}
+	return "ifelse(" + condition + ", " + whenTrue + ", " + whenFalse + ")"
+}
+
+func topLevelTernaryIndexes(expression string) (int, int) {
+	depth := 0
+	inString := byte(0)
+	question := -1
+	for index := 0; index < len(expression); index++ {
+		ch := expression[index]
+		if (ch == '"' || ch == '\'') && (index == 0 || expression[index-1] != '\\') {
+			if inString == 0 {
+				inString = ch
+			} else if inString == ch {
+				inString = 0
+			}
+			continue
+		}
+		if inString != 0 {
+			continue
+		}
+		switch ch {
+		case '(', '[':
+			depth++
+		case ')', ']':
+			if depth > 0 {
+				depth--
+			}
+		case '?':
+			if depth == 0 && question < 0 {
+				question = index
+			}
+		case ':':
+			if depth == 0 && question >= 0 {
+				return question, index
+			}
+		}
+	}
+	return -1, -1
 }
 
 func replaceTAMacd(expression string) string {
@@ -659,6 +790,9 @@ func replaceTAFunction(expression string, name string, template string) string {
 }
 
 func rejectUnsupported(line parsedLine) error {
+	if diagnostic, ok := unsupportedSyntaxDiagnostic(line); ok {
+		return fmt.Errorf("pine line %d: %s", diagnostic.Line, diagnostic.Message)
+	}
 	lower := strings.ToLower(line.trimmed)
 	switch {
 	case strings.Contains(lower, "request.security("):
@@ -675,6 +809,37 @@ func rejectUnsupported(line parsedLine) error {
 		return nil
 	}
 	return nil
+}
+
+func unsupportedSyntaxDiagnostic(line parsedLine) (Diagnostic, bool) {
+	lower := strings.ToLower(strings.TrimSpace(line.trimmed))
+	switch {
+	case strings.HasPrefix(lower, "for "):
+		return diagnosticForLine(DiagnosticSeverityError, "PINE_FOR_UNSUPPORTED", "for loops are parsed but not executable in this JFTrade Pine v6 version", line), true
+	case strings.HasPrefix(lower, "while "):
+		return diagnosticForLine(DiagnosticSeverityError, "PINE_WHILE_UNSUPPORTED", "while loops are parsed but not executable in this JFTrade Pine v6 version", line), true
+	case strings.HasPrefix(lower, "switch"):
+		return diagnosticForLine(DiagnosticSeverityError, "PINE_SWITCH_UNSUPPORTED", "switch statements are parsed but not executable in this JFTrade Pine v6 version", line), true
+	case strings.HasPrefix(lower, "type "), strings.HasPrefix(lower, "method "), strings.HasPrefix(lower, "import "):
+		return diagnosticForLine(DiagnosticSeverityError, "PINE_DECLARATION_UNSUPPORTED", "Pine declarations, libraries, and methods are not executable in this JFTrade Pine v6 version", line), true
+	case strings.Contains(lower, "array."), strings.Contains(lower, "matrix."), strings.Contains(lower, "map."):
+		return diagnosticForLine(DiagnosticSeverityError, "PINE_COLLECTION_UNSUPPORTED", "Pine collection namespaces array/matrix/map are not executable in this JFTrade Pine v6 version", line), true
+	case regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*\s*\([^)]*\)\s*=>`).MatchString(line.trimmed):
+		return diagnosticForLine(DiagnosticSeverityError, "PINE_FUNCTION_UNSUPPORTED", "user-defined functions are parsed but not executable in this JFTrade Pine v6 version", line), true
+	case hasUnsupportedHistoryReference(line.trimmed):
+		return diagnosticForLine(DiagnosticSeverityError, "PINE_HISTORY_REF_UNSUPPORTED", "only one-bar history references like close[1] are supported in this JFTrade Pine v6 version", line), true
+	default:
+		return Diagnostic{}, false
+	}
+}
+
+func hasUnsupportedHistoryReference(expression string) bool {
+	for _, match := range historyReferenceMatchesOutsideStringLiterals(expression) {
+		if len(match) == 3 && strings.TrimSpace(match[2]) != "1" {
+			return true
+		}
+	}
+	return false
 }
 
 func validateExpression(lineNumber int, label string, expression string) error {

@@ -132,3 +132,78 @@ strategy.exit("Long trail", "Long", trail_points=close * 4 / 100, trail_offset=c
 		t.Fatalf("trailing statement = %#v", compilation.Program.Hooks[0].Statements[2])
 	}
 }
+
+func TestCompileSupportsFrameworkLanguageFeatures(t *testing.T) {
+	compilation, err := Compile(`//@version=6
+strategy("Framework", overlay=true)
+var count = 0
+count := count + 1
+signal = close[1] == na ? 0 : nz(close[1], close)
+if close > close[1]
+    log.info("up")`)
+	if err != nil {
+		t.Fatalf("Compile() error = %v", err)
+	}
+	statements := compilation.Program.Hooks[0].Statements
+	if got := statements[0].(*strategyir.LetStmt).Mode; got != strategyir.AssignmentModeVar {
+		t.Fatalf("first assignment mode = %q", got)
+	}
+	if got := statements[1].(*strategyir.LetStmt).Mode; got != strategyir.AssignmentModeReassign {
+		t.Fatalf("second assignment mode = %q", got)
+	}
+	if got := statements[2].(*strategyir.LetStmt).Expression; got != "ifelse(previous(close) == na, 0, nz(previous(close), close))" {
+		t.Fatalf("signal expression = %q", got)
+	}
+	ifStmt := statements[3].(*strategyir.IfStmt)
+	if ifStmt.Condition != "close > previous(close)" {
+		t.Fatalf("condition = %q", ifStmt.Condition)
+	}
+}
+
+func TestAnalyzeScriptReturnsStructuredUnsupportedDiagnostics(t *testing.T) {
+	analysis := AnalyzeScript(`//@version=6
+strategy("Loop", overlay=true)
+for i = 0 to 10
+    log.info("nope")`, AnalysisOptions{IncludeAST: true})
+	if analysis.OK {
+		t.Fatal("AnalyzeScript().OK = true, want false")
+	}
+	if len(analysis.Diagnostics) == 0 || analysis.Diagnostics[0].Code != "PINE_FOR_UNSUPPORTED" {
+		t.Fatalf("diagnostics = %#v", analysis.Diagnostics)
+	}
+	if analysis.AST == nil || len(analysis.AST.Lines) == 0 {
+		t.Fatalf("AST = %#v", analysis.AST)
+	}
+}
+
+func TestAnalyzeScriptPreservesOriginalLineNumbers(t *testing.T) {
+	analysis := AnalyzeScript(`
+
+//@version=6
+strategy("Loop", overlay=true)
+for i = 0 to 10
+    log.info("nope")`, AnalysisOptions{})
+	if analysis.OK {
+		t.Fatal("AnalyzeScript().OK = true, want false")
+	}
+	if len(analysis.Diagnostics) == 0 || analysis.Diagnostics[0].Line != 5 {
+		t.Fatalf("diagnostics = %#v, want first diagnostic on line 5", analysis.Diagnostics)
+	}
+}
+
+func TestHistoryReferencesIgnoreStringLiterals(t *testing.T) {
+	compilation, err := Compile(`//@version=6
+strategy("Strings", overlay=true)
+label = "close[1]"
+deeper = "close[2]"`)
+	if err != nil {
+		t.Fatalf("Compile() error = %v", err)
+	}
+	statements := compilation.Program.Hooks[0].Statements
+	if got := statements[0].(*strategyir.LetStmt).Expression; got != `"close[1]"` {
+		t.Fatalf("label expression = %q", got)
+	}
+	if got := statements[1].(*strategyir.LetStmt).Expression; got != `"close[2]"` {
+		t.Fatalf("deeper expression = %q", got)
+	}
+}

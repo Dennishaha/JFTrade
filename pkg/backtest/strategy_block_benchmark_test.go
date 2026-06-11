@@ -123,7 +123,7 @@ strategy("Pine Block Matrix Breakout", overlay=true)
 alert("breakout matrix init")
 if close > 101
     alert("breakout hit")
-    strategy.entry("Long", strategy.long, qty_percent=2)
+    strategy.entry("Long", strategy.long, qty=(strategy.equity * 2 / 100) / close)
 else
     log.info("breakout idle")`,
 		},

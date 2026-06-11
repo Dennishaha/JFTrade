@@ -50,7 +50,7 @@ func evaluateBoolExpression(expression string, scope *evaluationScope) (bool, er
 	if err != nil {
 		return false, err
 	}
-	result, ok := coerceBoolValue(value)
+	result, ok := strictBoolValue(value)
 	if !ok {
 		return false, fmt.Errorf("expression %q is not boolean", expression)
 	}
@@ -122,7 +122,7 @@ func evaluateIdentifier(identifier *exprast.IdentifierNode, scope *evaluationSco
 		return true, nil
 	case "false":
 		return false, nil
-	case "nil", "null":
+	case "nil", "null", "na":
 		return nil, nil
 	default:
 		return nil, fmt.Errorf("unknown identifier %q", identifier.Value)
@@ -161,7 +161,7 @@ func evaluateUnaryExpression(expression *exprast.UnaryNode, scope *evaluationSco
 func evaluateBinaryExpression(expression *exprast.BinaryNode, scope *evaluationScope) (any, error) {
 	switch expression.Operator {
 	case "&&", "and", "||", "or":
-		leftValue, ok, err := evaluateBoolOperand(expression.Left, scope)
+		leftValue, ok, err := evaluateStrictBoolOperand(expression.Left, scope)
 		if err != nil {
 			return nil, err
 		}
@@ -172,7 +172,7 @@ func evaluateBinaryExpression(expression *exprast.BinaryNode, scope *evaluationS
 			if !leftValue {
 				return false, nil
 			}
-			rightValue, ok, err := evaluateBoolOperand(expression.Right, scope)
+			rightValue, ok, err := evaluateStrictBoolOperand(expression.Right, scope)
 			if err != nil {
 				return nil, err
 			}
@@ -184,7 +184,7 @@ func evaluateBinaryExpression(expression *exprast.BinaryNode, scope *evaluationS
 		if leftValue {
 			return true, nil
 		}
-		rightValue, ok, err := evaluateBoolOperand(expression.Right, scope)
+		rightValue, ok, err := evaluateStrictBoolOperand(expression.Right, scope)
 		if err != nil {
 			return nil, err
 		}
@@ -221,34 +221,6 @@ func evaluateBinaryExpression(expression *exprast.BinaryNode, scope *evaluationS
 			return leftValue / rightValue, nil
 		}
 	case ">", ">=", "<", "<=", "==", "!=":
-		leftFloat, leftFloatOK, err := evaluateFloatOperand(expression.Left, scope)
-		if err != nil {
-			return nil, err
-		}
-		if leftFloatOK {
-			rightFloat, rightFloatOK, err := evaluateFloatOperand(expression.Right, scope)
-			if err != nil {
-				return nil, err
-			}
-			if rightFloatOK {
-				return compareFloatValues(leftFloat, rightFloat, expression.Operator), nil
-			}
-		}
-		if expression.Operator == "==" || expression.Operator == "!=" {
-			leftBool, leftBoolOK, err := evaluateBoolOperand(expression.Left, scope)
-			if err != nil {
-				return nil, err
-			}
-			if leftBoolOK {
-				rightBool, rightBoolOK, err := evaluateBoolOperand(expression.Right, scope)
-				if err != nil {
-					return nil, err
-				}
-				if rightBoolOK {
-					return compareBoolValues(leftBool, rightBool, expression.Operator), nil
-				}
-			}
-		}
 		left, err := evaluateAST(expression.Left, scope)
 		if err != nil {
 			return nil, err
@@ -331,6 +303,15 @@ func evaluateBoolOperand(node exprast.Node, scope *evaluationScope) (bool, bool,
 		return false, false, err
 	}
 	result, ok := coerceBoolValue(value)
+	return result, ok, nil
+}
+
+func evaluateStrictBoolOperand(node exprast.Node, scope *evaluationScope) (bool, bool, error) {
+	value, err := evaluateAST(node, scope)
+	if err != nil {
+		return false, false, err
+	}
+	result, ok := strictBoolValue(value)
 	return result, ok, nil
 }
 
@@ -440,6 +421,12 @@ func evaluateCallExpression(expression *exprast.CallNode, scope *evaluationScope
 		return evaluateDivergenceExpression(expression.Arguments, scope, "top")
 	case "divergence_bottom":
 		return evaluateDivergenceExpression(expression.Arguments, scope, "bottom")
+	case "previous":
+		return evaluatePreviousExpression(expression.Arguments, scope)
+	case "ifelse":
+		return evaluateIfElseExpression(expression.Arguments, scope)
+	case "nz":
+		return evaluateNZExpression(expression.Arguments, scope)
 	case "abs":
 		if len(expression.Arguments) != 1 {
 			return nil, fmt.Errorf("abs() requires 1 argument")
@@ -455,6 +442,59 @@ func evaluateCallExpression(expression *exprast.CallNode, scope *evaluationScope
 	default:
 		return nil, fmt.Errorf("unsupported function %q", name.Value)
 	}
+}
+
+func evaluatePreviousExpression(arguments []exprast.Node, scope *evaluationScope) (any, error) {
+	if len(arguments) != 1 {
+		return nil, fmt.Errorf("previous() requires 1 argument")
+	}
+	value, err := evaluateAST(arguments[0], scope)
+	if err != nil {
+		return nil, err
+	}
+	series, ok := coerceSeriesNumber(value)
+	if !ok || !series.HasPrevious {
+		return nil, nil
+	}
+	return series.Previous, nil
+}
+
+func evaluateIfElseExpression(arguments []exprast.Node, scope *evaluationScope) (any, error) {
+	if len(arguments) != 3 {
+		return nil, fmt.Errorf("ifelse() requires 3 arguments")
+	}
+	conditionValue, err := evaluateAST(arguments[0], scope)
+	if err != nil {
+		return nil, err
+	}
+	condition, ok := strictBoolValue(conditionValue)
+	if !ok {
+		return nil, fmt.Errorf("ifelse() condition must be boolean")
+	}
+	if condition {
+		return evaluateAST(arguments[1], scope)
+	}
+	return evaluateAST(arguments[2], scope)
+}
+
+func evaluateNZExpression(arguments []exprast.Node, scope *evaluationScope) (any, error) {
+	if len(arguments) < 1 || len(arguments) > 2 {
+		return nil, fmt.Errorf("nz() requires 1 or 2 arguments")
+	}
+	value, err := evaluateAST(arguments[0], scope)
+	if err != nil {
+		return nil, err
+	}
+	if _, ok := coerceFloatValue(value); ok {
+		return value, nil
+	}
+	if value != nil {
+		return value, nil
+	}
+	if len(arguments) == 2 {
+		return evaluateAST(arguments[1], scope)
+	}
+	return float64(0), nil
 }
 
 func evaluateCrossExpression(arguments []exprast.Node, scope *evaluationScope, isCrossOver bool) (bool, error) {
@@ -528,6 +568,16 @@ func evaluateDivergenceExpression(arguments []exprast.Node, scope *evaluationSco
 }
 
 func compareValues(left any, right any, operator string) (bool, error) {
+	if left == nil || right == nil {
+		switch operator {
+		case "==":
+			return left == nil && right == nil, nil
+		case "!=":
+			return !(left == nil && right == nil), nil
+		default:
+			return false, fmt.Errorf("operator %s requires numeric operands", operator)
+		}
+	}
 	leftFloat, leftFloatOK := coerceFloatValue(left)
 	rightFloat, rightFloatOK := coerceFloatValue(right)
 	if leftFloatOK && rightFloatOK {
@@ -672,6 +722,17 @@ func coerceBoolValue(value any) (bool, bool) {
 		if numeric, ok := coerceFloatValue(value); ok {
 			return numeric != 0, true
 		}
+		return false, false
+	}
+}
+
+func strictBoolValue(value any) (bool, bool) {
+	switch typed := value.(type) {
+	case bool:
+		return typed, true
+	case nil:
+		return false, true
+	default:
 		return false, false
 	}
 }

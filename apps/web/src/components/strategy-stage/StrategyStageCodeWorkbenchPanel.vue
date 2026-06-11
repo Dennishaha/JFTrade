@@ -5,6 +5,7 @@ import { ref, type Ref } from "vue";
 import MonacoCodeEditor from "../MonacoCodeEditor.vue";
 import type {
   MonacoCompletionDefinition,
+  MonacoDiagnosticMarker,
   MonacoExtraLibDefinition,
   MonacoHoverDefinition,
 } from "../../features/strategyMonacoIntelliSenseTypes";
@@ -19,8 +20,10 @@ const props = defineProps<{
   bindings: StrategyCodeWorkbenchBindings;
   strategyDisplayMode: "canvas" | "split" | "code";
   completionItems: MonacoCompletionDefinition[];
+  diagnosticMarkers?: MonacoDiagnosticMarker[];
   extraLibs: MonacoExtraLibDefinition[];
   hoverItems: MonacoHoverDefinition[];
+  supportFeatureCount?: number;
 }>();
 
 const emit = defineEmits<{
@@ -50,6 +53,9 @@ defineExpose({
 <template>
   <div class="strategy-stage__panel-head strategy-stage__drag-handle" @mousedown="emit('drag-start', $event)">
     <div class="strategy-stage__section-title">Pine 策略工作台</div>
+    <div v-if="(props.supportFeatureCount ?? 0) > 0" class="strategy-stage__section-meta">
+      Pine v6 子集 · {{ props.supportFeatureCount }} 项能力
+    </div>
   </div>
 
   <div class="strategy-stage__panel-body strategy-stage__panel-body--editor">
@@ -57,6 +63,7 @@ defineExpose({
       ref="monacoEditorRef"
       v-model="definitionForm.script"
       :completion-items="props.completionItems"
+      :diagnostic-markers="props.diagnosticMarkers ?? []"
       :extra-libs="props.extraLibs"
       :hover-items="props.hoverItems"
       :resizable="false"

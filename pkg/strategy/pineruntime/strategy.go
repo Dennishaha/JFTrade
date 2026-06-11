@@ -59,9 +59,14 @@ type strategyRuntime struct {
 	executor         bbgo2.OrderExecutor
 	baseScope        *evaluationScope
 	reusableScope    *evaluationScope
+	persistentValues map[string]any
 	variableCapacity int
 	bindingCapacity  int
 	previousClose    float64
+	previousOpen     float64
+	previousHigh     float64
+	previousLow      float64
+	previousVolume   float64
 	hasPreviousClose bool
 	positionCache    cachedPositionSnapshot
 }
@@ -124,10 +129,10 @@ type evaluationScope struct {
 	currentSession     futu.MarketSession
 	klinePayload       klinePayloadView
 	closeSeries        seriesNumber
-	openValue          float64
-	highValue          float64
-	lowValue           float64
-	volumeValue        float64
+	openSeries         seriesNumber
+	highSeries         seriesNumber
+	lowSeries          seriesNumber
+	volumeSeries       seriesNumber
 	hasBarData         bool
 }
 
@@ -183,22 +188,22 @@ func (s *evaluationScope) reservedVariable(name string) (any, bool) {
 		if !s.hasBarData {
 			return nil, false
 		}
-		return s.openValue, true
+		return &s.openSeries, true
 	case "high":
 		if !s.hasBarData {
 			return nil, false
 		}
-		return s.highValue, true
+		return &s.highSeries, true
 	case "low":
 		if !s.hasBarData {
 			return nil, false
 		}
-		return s.lowValue, true
+		return &s.lowSeries, true
 	case "volume":
 		if !s.hasBarData {
 			return nil, false
 		}
-		return s.volumeValue, true
+		return &s.volumeSeries, true
 	default:
 		return nil, false
 	}
@@ -212,6 +217,22 @@ func (s *evaluationScope) setVariable(name string, value any) {
 		s.variables = map[string]any{}
 	}
 	s.variables[name] = value
+}
+
+func (s *evaluationScope) assignVariable(name string, value any) {
+	if s == nil {
+		return
+	}
+	for current := s; current != nil; current = current.parent {
+		if current.variables == nil {
+			continue
+		}
+		if _, ok := current.variables[name]; ok {
+			current.variables[name] = value
+			return
+		}
+	}
+	s.setVariable(name, value)
 }
 
 func (s *evaluationScope) binding(name string) (indicatorBinding, bool) {
@@ -308,22 +329,23 @@ func newStrategyRuntime(
 		return nil, fmt.Errorf("create pine indicator engine: %w", err)
 	}
 	runtime := &strategyRuntime{
-		ctx:             ctx,
-		strategy:        strategy,
-		program:         program,
-		plan:            plan,
-		ifScopePlans:    buildIfScopePlans(program),
-		displayName:     displayName,
-		definitionID:    definitionID,
-		symbol:          symbol,
-		interval:        interval,
-		expressionCache: map[string]exprast.Node{},
-		bindingCache:    map[*strategyir.LetStmt]cachedIndicatorBinding{},
-		protectCache:    map[*strategyir.ProtectStmt]cachedProtectRequirement{},
-		divergenceCache: map[divergenceRequirementCacheKey]string{},
-		engine:          engine,
-		session:         session,
-		executor:        orderExecutor,
+		ctx:              ctx,
+		strategy:         strategy,
+		program:          program,
+		plan:             plan,
+		ifScopePlans:     buildIfScopePlans(program),
+		displayName:      displayName,
+		definitionID:     definitionID,
+		symbol:           symbol,
+		interval:         interval,
+		expressionCache:  map[string]exprast.Node{},
+		bindingCache:     map[*strategyir.LetStmt]cachedIndicatorBinding{},
+		protectCache:     map[*strategyir.ProtectStmt]cachedProtectRequirement{},
+		divergenceCache:  map[divergenceRequirementCacheKey]string{},
+		persistentValues: map[string]any{},
+		engine:           engine,
+		session:          session,
+		executor:         orderExecutor,
 		baseScope: &evaluationScope{
 			variables: map[string]any{
 				"id":           displayName,
@@ -393,6 +415,10 @@ func (r *strategyRuntime) handleKLineClosed(kline types.KLine) {
 		}
 	}
 	r.previousClose = kline.Close.Float64()
+	r.previousOpen = kline.Open.Float64()
+	r.previousHigh = kline.High.Float64()
+	r.previousLow = kline.Low.Float64()
+	r.previousVolume = kline.Volume.Float64()
 	r.hasPreviousClose = true
 }
 
@@ -498,20 +524,20 @@ func (r *strategyRuntime) newScope(kline *types.KLine, session futu.MarketSessio
 	scope.currentKlineSymbol = ""
 	scope.klinePayload = klinePayloadView{}
 	scope.closeSeries = seriesNumber{}
-	scope.openValue = 0
-	scope.highValue = 0
-	scope.lowValue = 0
-	scope.volumeValue = 0
+	scope.openSeries = seriesNumber{}
+	scope.highSeries = seriesNumber{}
+	scope.lowSeries = seriesNumber{}
+	scope.volumeSeries = seriesNumber{}
 	scope.hasBarData = false
 	if kline != nil {
 		scope.currentKlineTime = kline.EndTime.Time()
 		scope.currentKlineSymbol = kline.Symbol
 		scope.klinePayload = klinePayloadView{kline: kline, session: session}
 		scope.closeSeries = seriesNumber{Current: kline.Close.Float64(), Previous: r.previousClose, HasCurrent: true, HasPrevious: r.hasPreviousClose}
-		scope.openValue = kline.Open.Float64()
-		scope.highValue = kline.High.Float64()
-		scope.lowValue = kline.Low.Float64()
-		scope.volumeValue = kline.Volume.Float64()
+		scope.openSeries = seriesNumber{Current: kline.Open.Float64(), Previous: r.previousOpen, HasCurrent: true, HasPrevious: r.hasPreviousClose}
+		scope.highSeries = seriesNumber{Current: kline.High.Float64(), Previous: r.previousHigh, HasCurrent: true, HasPrevious: r.hasPreviousClose}
+		scope.lowSeries = seriesNumber{Current: kline.Low.Float64(), Previous: r.previousLow, HasCurrent: true, HasPrevious: r.hasPreviousClose}
+		scope.volumeSeries = seriesNumber{Current: kline.Volume.Float64(), Previous: r.previousVolume, HasCurrent: true, HasPrevious: r.hasPreviousClose}
 		scope.hasBarData = true
 	}
 	return scope
@@ -588,12 +614,49 @@ func (r *strategyRuntime) executeLetStatement(statement *strategyir.LetStmt, sco
 		}
 		return nil
 	}
+	if statement.Mode == strategyir.AssignmentModeVar {
+		if r != nil && r.persistentValues != nil {
+			if value, ok := r.persistentValues[statement.Name]; ok {
+				scope.setVariable(statement.Name, value)
+				return nil
+			}
+		}
+	}
 	value, err := evaluateExpression(statement.Expression, scope)
 	if err != nil {
 		return fmt.Errorf("pine line %d: %w", statement.Range.StartLine, err)
 	}
-	scope.setVariable(statement.Name, value)
+	switch statement.Mode {
+	case strategyir.AssignmentModeVar:
+		if r != nil && r.persistentValues != nil {
+			r.persistentValues[statement.Name] = persistentValue(nil, value)
+		}
+		scope.setVariable(statement.Name, value)
+	case strategyir.AssignmentModeReassign:
+		if r != nil && r.persistentValues != nil {
+			if previous, ok := r.persistentValues[statement.Name]; ok {
+				value = persistentValue(previous, value)
+				r.persistentValues[statement.Name] = value
+			}
+		}
+		scope.assignVariable(statement.Name, value)
+	default:
+		scope.setVariable(statement.Name, value)
+	}
 	return nil
+}
+
+func persistentValue(previous any, current any) any {
+	currentFloat, currentOK := coerceFloatValue(current)
+	if !currentOK {
+		return current
+	}
+	result := seriesNumber{Current: currentFloat, HasCurrent: true}
+	if previousFloat, previousOK := coerceFloatValue(previous); previousOK {
+		result.Previous = previousFloat
+		result.HasPrevious = true
+	}
+	return result
 }
 
 func (r *strategyRuntime) executeOrderStatement(statement *strategyir.OrderStmt, scope *evaluationScope) error {
@@ -1154,10 +1217,10 @@ func (s *evaluationScope) clone() *evaluationScope {
 		currentSession:     s.currentSession,
 		klinePayload:       s.klinePayload,
 		closeSeries:        s.closeSeries,
-		openValue:          s.openValue,
-		highValue:          s.highValue,
-		lowValue:           s.lowValue,
-		volumeValue:        s.volumeValue,
+		openSeries:         s.openSeries,
+		highSeries:         s.highSeries,
+		lowSeries:          s.lowSeries,
+		volumeSeries:       s.volumeSeries,
 		hasBarData:         s.hasBarData,
 	}
 }

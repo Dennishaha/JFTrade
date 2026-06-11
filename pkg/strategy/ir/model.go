@@ -51,6 +51,7 @@ type LetStmt struct {
 	Range      SourceRange
 	Name       string
 	Expression string
+	Mode       AssignmentMode
 }
 
 func (s *LetStmt) Kind() StatementKind {
@@ -60,6 +61,14 @@ func (s *LetStmt) Kind() StatementKind {
 func (s *LetStmt) SourceRange() SourceRange {
 	return s.Range
 }
+
+type AssignmentMode string
+
+const (
+	AssignmentModeLet      AssignmentMode = "let"
+	AssignmentModeVar      AssignmentMode = "var"
+	AssignmentModeReassign AssignmentMode = "reassign"
+)
 
 type IfStmt struct {
 	Range     SourceRange

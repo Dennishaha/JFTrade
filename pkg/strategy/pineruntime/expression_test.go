@@ -241,6 +241,60 @@ func TestEvaluateExpressionSupportsSeriesFieldReaders(t *testing.T) {
 	}
 }
 
+func TestEvaluateExpressionComparesNAWithoutBoolCoercion(t *testing.T) {
+	scope := &evaluationScope{variables: map[string]any{}}
+	cases := []struct {
+		expression string
+		want       bool
+	}{
+		{expression: "0 == na", want: false},
+		{expression: "0 != na", want: true},
+		{expression: "na == na", want: true},
+		{expression: "na != na", want: false},
+	}
+	for _, tc := range cases {
+		value, err := evaluateExpression(tc.expression, scope)
+		if err != nil {
+			t.Fatalf("evaluateExpression(%q) error = %v", tc.expression, err)
+		}
+		if value != tc.want {
+			t.Fatalf("evaluateExpression(%q) = %#v, want %v", tc.expression, value, tc.want)
+		}
+	}
+}
+
+func TestExecuteLetSupportsPersistentVarReassignAndPrevious(t *testing.T) {
+	runtime := &strategyRuntime{
+		expressionCache:  map[string]exprast.Node{},
+		bindingCache:     map[*strategyir.LetStmt]cachedIndicatorBinding{},
+		persistentValues: map[string]any{},
+	}
+	statements := []strategyir.Statement{
+		&strategyir.LetStmt{Range: strategyir.SourceRange{StartLine: 1}, Name: "count", Expression: "0", Mode: strategyir.AssignmentModeVar},
+		&strategyir.LetStmt{Range: strategyir.SourceRange{StartLine: 2}, Name: "count", Expression: "count + 1", Mode: strategyir.AssignmentModeReassign},
+		&strategyir.LetStmt{Range: strategyir.SourceRange{StartLine: 3}, Name: "prev", Expression: "nz(previous(count), -1)"},
+	}
+
+	firstScope := &evaluationScope{runtime: runtime, variables: map[string]any{}}
+	if _, err := runtime.executeStatements(statements, firstScope); err != nil {
+		t.Fatalf("first executeStatements() error = %v", err)
+	}
+	if got, _ := coerceFloatValue(firstScope.variables["prev"]); got != 0 {
+		t.Fatalf("first prev = %v, want 0", firstScope.variables["prev"])
+	}
+
+	secondScope := &evaluationScope{runtime: runtime, variables: map[string]any{}}
+	if _, err := runtime.executeStatements(statements, secondScope); err != nil {
+		t.Fatalf("second executeStatements() error = %v", err)
+	}
+	if got, _ := coerceFloatValue(secondScope.variables["prev"]); got != 1 {
+		t.Fatalf("second prev = %v, want 1", secondScope.variables["prev"])
+	}
+	if got, _ := coerceFloatValue(secondScope.variables["count"]); got != 2 {
+		t.Fatalf("second count = %v, want 2", secondScope.variables["count"])
+	}
+}
+
 func BenchmarkEvaluateExpressionBinaryHeavy(b *testing.B) {
 	runtime := &strategyRuntime{expressionCache: map[string]exprast.Node{}}
 	scope := newBarExpressionScope(runtime)
@@ -338,10 +392,10 @@ func newBarExpressionScope(runtime *strategyRuntime) *evaluationScope {
 		currentSession:     futu.MarketSessionRegular,
 		klinePayload:       klinePayloadView{kline: &bar, session: futu.MarketSessionRegular},
 		closeSeries:        seriesNumber{Current: bar.Close.Float64(), Previous: 100.0, HasCurrent: true, HasPrevious: true},
-		openValue:          bar.Open.Float64(),
-		highValue:          bar.High.Float64(),
-		lowValue:           bar.Low.Float64(),
-		volumeValue:        bar.Volume.Float64(),
+		openSeries:         seriesNumber{Current: bar.Open.Float64(), Previous: 99.0, HasCurrent: true, HasPrevious: true},
+		highSeries:         seriesNumber{Current: bar.High.Float64(), Previous: 101.0, HasCurrent: true, HasPrevious: true},
+		lowSeries:          seriesNumber{Current: bar.Low.Float64(), Previous: 98.0, HasCurrent: true, HasPrevious: true},
+		volumeSeries:       seriesNumber{Current: bar.Volume.Float64(), Previous: 900.0, HasCurrent: true, HasPrevious: true},
 		hasBarData:         true,
 	}
 }

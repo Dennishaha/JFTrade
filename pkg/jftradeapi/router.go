@@ -194,6 +194,7 @@ func (s *Server) registerPluginRoutes(api *gin.RouterGroup) {
 }
 
 func (s *Server) registerStrategyRoutes(api *gin.RouterGroup) {
+	api.POST("/strategy-pine/analyze", s.handleAnalyzeStrategyPine)
 	api.GET("/strategy-definitions", s.handleStrategyDefinitions)
 	api.POST("/strategy-definitions", s.handleCreateStrategyDefinition)
 	api.GET("/strategy-definitions/:definitionId", s.handleStrategyDefinition)

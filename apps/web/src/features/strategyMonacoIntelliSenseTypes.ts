@@ -18,3 +18,12 @@ export interface MonacoHoverDefinition {
   signature: string;
   documentation: string;
 }
+
+export interface MonacoDiagnosticMarker {
+  severity: "error" | "warning" | "info";
+  message: string;
+  line: number;
+  column: number;
+  endLine: number;
+  endColumn: number;
+}

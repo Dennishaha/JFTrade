@@ -248,6 +248,9 @@ func supportedHooks() []string {
 func supportedStatements() []string {
 	return []string{
 		"<name> = ta.ema(close, period) / ta.sma(close, period) / ta.rsi(close, period)",
+		"var <name> = <expression> / <name> := <expression>",
+		"<series>[1] 一阶历史引用；可配合 nz(<series>[1], fallback)",
+		"<condition> ? <trueExpr> : <falseExpr>",
 		"[macdLine, signalLine, histLine] = ta.macd(close, fast, slow, signal)",
 		"if ta.crossover(left, right) / if ta.crossunder(left, right)",
 		"else",
@@ -262,10 +265,10 @@ func supportedStatements() []string {
 func reservedVariables() []map[string]any {
 	return []map[string]any{
 		{"name": "close", "description": "当前及历史 close 序列值，可用于比较和 cross 类辅助函数。"},
-		{"name": "open", "description": "当前 bar 的开盘价。"},
-		{"name": "high", "description": "当前 bar 的最高价。"},
-		{"name": "low", "description": "当前 bar 的最低价。"},
-		{"name": "volume", "description": "当前 bar 的成交量。"},
+		{"name": "open", "description": "当前及历史 open 序列值。"},
+		{"name": "high", "description": "当前及历史 high 序列值。"},
+		{"name": "low", "description": "当前及历史 low 序列值。"},
+		{"name": "volume", "description": "当前及历史 volume 序列值。"},
 		{"name": "kline", "description": "当前 K 线载荷视图。"},
 		{"name": "strategy.equity", "description": "用于下单数量表达式时按账户权益百分比估算股数。"},
 		{"name": "strategy.position_size", "description": "当前 compiler 暂按 0 处理；完整仓位条件请使用 JFTrade 运行实例状态。"},
@@ -310,6 +313,8 @@ func unsupportedPatterns() []string {
 		"indicator()、study()、library() 脚本不能作为 JFTrade 可执行策略。",
 		"request.security() 仅支持 syminfo.tickerid + ta.sma/ema/rma/wma/hma/vwma(close, n) 的受限多周期均线子集。",
 		"array.*、matrix.*、map.* 集合命名空间暂不支持。",
+		"for/while/switch、用户自定义函数、type/method 会被解析为明确诊断，但本版本不可执行。",
+		"历史引用仅支持一阶 `[1]`；更深 lookback 暂不支持。",
 		"strategy.exit() 支持基础 stop、limit、trail_points/trail_offset；高级 broker emulator 语义暂不支持。",
 		"plot/hline/bgcolor/barcolor 等视觉调用会被解析为 warning 并忽略。",
 		"除文档列出的 ta.*、math.abs、strategy.entry、strategy.close、alert/log 外的 built-ins 不应假定可执行。",
@@ -381,11 +386,15 @@ func sectionDetails(section string) []string {
 			"脚本必须包含 //@version=6 和 strategy(...)。",
 			"空行与普通 // 注释会被忽略；// @jftradeFlow* 注释用于前端流程图双向同步。",
 			"if/else 使用 Pine 风格缩进块；顶层可执行语句统一按 K 线收盘逻辑 lower。",
+			"支持 var 持久变量、:= 重赋值、基础三元表达式、一阶历史引用和 na/nz。",
 			"JFTrade 会把顶层可执行语句作为 K 线收盘逻辑执行。",
 		}
 	case "expressions":
 		return []string{
 			"支持 close/open/high/low/volume、算术、比较和布尔表达式。",
+			"close[1]/open[1]/high[1]/low[1]/volume[1] 会 lower 为上一根 K 线值。",
+			"条件表达式要求严格 bool；数值不能直接作为 if 条件。",
+			"支持 na 常量、nz(value, fallback?) 和基础三元表达式。",
 			"ta.crossover/ta.crossunder 会映射到 JFTrade cross_over/cross_under。",
 			"math.abs 会映射到 JFTrade abs。",
 			"未知 built-ins 可能无法 lower，应先调用 strategy.validate_pine。",
@@ -409,6 +418,7 @@ func sectionDetails(section string) []string {
 	case "unsupported":
 		return []string{
 			"plot/hline/bgcolor/barcolor 等视觉调用会返回 warning 并忽略。",
+			"for/while/switch、用户自定义函数和 Pine 类型系统会返回结构化诊断。",
 			"除受限均线子集以外的 request.security、import/library、array/matrix/map 会返回错误。",
 			"strategy.exit 的 OCA、partial fill、intrabar broker emulator 等高级语义会给出明确诊断。",
 			"完整 TradingView broker emulator 行为不属于当前 JFTrade runtime。",

@@ -30,6 +30,15 @@ interface MonacoHoverConfig {
   documentation: string;
 }
 
+interface MonacoDiagnosticMarkerConfig {
+  severity: "error" | "warning" | "info";
+  message: string;
+  line: number;
+  column: number;
+  endLine: number;
+  endColumn: number;
+}
+
 interface Props {
   modelValue: string;
   language?: string;
@@ -42,6 +51,7 @@ interface Props {
   extraLibs?: MonacoExtraLibConfig[];
   completionItems?: MonacoCompletionConfig[];
   hoverItems?: MonacoHoverConfig[];
+  diagnosticMarkers?: MonacoDiagnosticMarkerConfig[];
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -55,6 +65,7 @@ const props = withDefaults(defineProps<Props>(), {
   extraLibs: () => [],
   completionItems: () => [],
   hoverItems: () => [],
+  diagnosticMarkers: () => [],
 });
 
 const emit = defineEmits<{
@@ -188,6 +199,14 @@ watch(
   },
 );
 
+watch(
+  () => props.diagnosticMarkers,
+  () => {
+    applyDiagnosticMarkers();
+  },
+  { deep: true },
+);
+
 onMounted(() => {
   isUnmounted = false;
   if (isFallbackMode.value) {
@@ -259,6 +278,40 @@ function resolveCompletionKind(
     default:
       return monaco!.languages.CompletionItemKind.Snippet;
   }
+}
+
+function resolveMarkerSeverity(severity: MonacoDiagnosticMarkerConfig["severity"]) {
+  switch (severity) {
+    case "error":
+      return monaco!.MarkerSeverity.Error;
+    case "warning":
+      return monaco!.MarkerSeverity.Warning;
+    case "info":
+    default:
+      return monaco!.MarkerSeverity.Info;
+  }
+}
+
+function applyDiagnosticMarkers(): void {
+  if (isFallbackMode.value || monaco === null || editor === null) {
+    return;
+  }
+  const model = editor.getModel();
+  if (model === null) {
+    return;
+  }
+  monaco.editor.setModelMarkers(
+    model,
+    "jftrade-pine",
+    props.diagnosticMarkers.map((marker) => ({
+      severity: resolveMarkerSeverity(marker.severity),
+      message: marker.message,
+      startLineNumber: Math.max(1, marker.line),
+      startColumn: Math.max(1, marker.column),
+      endLineNumber: Math.max(1, marker.endLine || marker.line),
+      endColumn: Math.max(1, marker.endColumn || marker.column + 1),
+    })),
+  );
 }
 
 
@@ -548,6 +601,7 @@ function ensurePineV6Language(monacoInstance: MonacoModule): void {
       "not",
       "true",
       "false",
+      "na",
     ],
     functions: [
       "ta.ema",
@@ -560,9 +614,12 @@ function ensurePineV6Language(monacoInstance: MonacoModule): void {
       "ta.cci",
       "strategy.entry",
       "strategy.close",
+      "strategy.exit",
       "log.info",
       "alert",
       "math.abs",
+      "nz",
+      "request.security",
     ],
     tokenizer: {
       root: [
@@ -571,8 +628,9 @@ function ensurePineV6Language(monacoInstance: MonacoModule): void {
         [/"([^"\\]|\\.)*"/, "string"],
         [/'([^'\\]|\\.)*'/, "string"],
         [/\b\d+(?:\.\d+)?%?\b/, "number"],
-        [/[()]/, "delimiter.parenthesis"],
-        [/[<>!=]=?|[-+*/]/, "operator"],
+        [/[()[\]]/, "delimiter.parenthesis"],
+        [/[?:]/, "operator"],
+        [/[<>!:]=?|[-+*/]/, "operator"],
         [/[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?/, {
           cases: {
             "@keywords": "keyword",
@@ -746,6 +804,7 @@ async function initializeMonaco(): Promise<void> {
         bottom: 16,
       },
     });
+    applyDiagnosticMarkers();
 
     if (shouldAbortInitialization(generation, target)) {
       editor.dispose();

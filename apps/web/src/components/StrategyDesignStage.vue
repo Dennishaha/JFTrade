@@ -26,6 +26,7 @@ import {
     strategyPineEditorExtraLibs,
     strategyPineEditorHoverItems,
 } from "../features/strategyPineEditorIntelliSense";
+import type { MonacoDiagnosticMarker } from "../features/strategyMonacoIntelliSenseTypes";
 import {
     buildStrategyScriptFromVisualModel,
     cloneStrategyVisualModel,
@@ -116,6 +117,11 @@ const definitionsPanelDrag = useDraggable();
 const codePanelDrag = useDraggable();
 const codeWorkbenchRef = ref<InstanceType<typeof StrategyStageCodeWorkbenchPanel> | null>(null);
 const logicFlowDesignerRef = ref<InstanceType<typeof StrategyLogicFlowDesigner> | null>(null);
+const pineDiagnosticMarkers = ref<MonacoDiagnosticMarker[]>([]);
+const pineFeatureCount = ref(0);
+let pineAnalyzeTimer: ReturnType<typeof setTimeout> | null = null;
+let pineAnalyzeSequence = 0;
+let pineAnalyzeAbortController: AbortController | null = null;
 
 // ── Undo / Redo ──
 const undoRedo = useStrategyUndoRedo({ maxDepth: 80 });
@@ -351,6 +357,103 @@ const codeWorkbenchBindings = {
     definitionForm,
 } as const;
 
+interface StrategyPineAnalyzeDiagnostic {
+    severity: "error" | "warning" | "info";
+    message: string;
+    line: number;
+    column: number;
+    endLine: number;
+    endColumn: number;
+}
+
+interface StrategyPineAnalyzeResponse {
+    ok: boolean;
+    diagnostics: StrategyPineAnalyzeDiagnostic[];
+    features: string[];
+}
+
+function normalizePineDiagnosticMarker(
+    diagnostic: StrategyPineAnalyzeDiagnostic,
+): MonacoDiagnosticMarker {
+    const line = Math.max(1, Number(diagnostic.line) || 1);
+    const column = Math.max(1, Number(diagnostic.column) || 1);
+    return {
+        severity: diagnostic.severity,
+        message: diagnostic.message,
+        line,
+        column,
+        endLine: Math.max(1, Number(diagnostic.endLine) || line),
+        endColumn: Math.max(column + 1, Number(diagnostic.endColumn) || column + 1),
+    };
+}
+
+function schedulePineAnalysis(): void {
+    if (pineAnalyzeTimer !== null) {
+        clearTimeout(pineAnalyzeTimer);
+    }
+    pineAnalyzeTimer = setTimeout(() => {
+        pineAnalyzeTimer = null;
+        void analyzeCurrentPineScript();
+    }, 500);
+}
+
+async function analyzeCurrentPineScript(): Promise<void> {
+    const script = definitionForm.value.script;
+    const sourceFormat = normalizeSourceFormat(definitionForm.value.sourceFormat);
+    const sequence = ++pineAnalyzeSequence;
+    abortPendingPineAnalysis();
+    if (script.trim() === "" || sourceFormat !== "pine-v6") {
+        pineDiagnosticMarkers.value = [];
+        pineFeatureCount.value = 0;
+        return;
+    }
+
+    const abortController = new AbortController();
+    pineAnalyzeAbortController = abortController;
+    try {
+        const result = await fetchEnvelopeWithInit<StrategyPineAnalyzeResponse>(
+            "/api/v1/strategy-pine/analyze",
+            {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                signal: abortController.signal,
+                body: JSON.stringify({
+                    script,
+                    sourceFormat,
+                    includeAst: false,
+                }),
+            },
+        );
+        if (sequence !== pineAnalyzeSequence || abortController.signal.aborted) {
+            return;
+        }
+        pineDiagnosticMarkers.value = (result.diagnostics ?? []).map(normalizePineDiagnosticMarker);
+        pineFeatureCount.value = (result.features ?? []).length;
+    } catch (error) {
+        if (isAbortError(error)) {
+            return;
+        }
+        if (sequence !== pineAnalyzeSequence) {
+            return;
+        }
+        pineDiagnosticMarkers.value = [];
+        pineFeatureCount.value = 0;
+    } finally {
+        if (pineAnalyzeAbortController === abortController) {
+            pineAnalyzeAbortController = null;
+        }
+    }
+}
+
+function abortPendingPineAnalysis(): void {
+    pineAnalyzeAbortController?.abort();
+    pineAnalyzeAbortController = null;
+}
+
+function isAbortError(error: unknown): boolean {
+    return error instanceof DOMException && error.name === "AbortError";
+}
+
 const hasDesignOverlayDeck = computed(
     () =>
         !isTemplatesSectionCollapsed.value ||
@@ -479,6 +582,14 @@ watch(
     { flush: "post" },
 );
 
+watch(
+    () => [definitionForm.value.script, definitionForm.value.sourceFormat] as const,
+    () => {
+        schedulePineAnalysis();
+    },
+    { immediate: true },
+);
+
 onMounted(() => {
     if (typeof window !== "undefined") {
         window.addEventListener("keydown", handleDesignKeydown);
@@ -493,6 +604,11 @@ onBeforeUnmount(() => {
     if (typeof window !== "undefined") {
         window.removeEventListener("keydown", handleDesignKeydown);
     }
+    if (pineAnalyzeTimer !== null) {
+        clearTimeout(pineAnalyzeTimer);
+        pineAnalyzeTimer = null;
+    }
+    abortPendingPineAnalysis();
 });
 
 function startDefinitionsPanelDrag(event: MouseEvent): void {
@@ -1098,7 +1214,8 @@ const {
             :class="{ 'strategy-stage__panel--code-pure': strategyDisplayMode === 'code' }" :style="codePanelStyle">
             <StrategyStageCodeWorkbenchPanel ref="codeWorkbenchRef" :bindings="codeWorkbenchBindings"
                 :completion-items="strategyPineEditorCompletions" :extra-libs="strategyPineEditorExtraLibs"
-                :hover-items="strategyPineEditorHoverItems" :strategy-display-mode="strategyDisplayMode"
+                :diagnostic-markers="pineDiagnosticMarkers" :hover-items="strategyPineEditorHoverItems"
+                :strategy-display-mode="strategyDisplayMode" :support-feature-count="pineFeatureCount"
                 @drag-start="startCodePanelDrag" @script-blur="handleScriptWorkbenchBlur"
                 @cursor-offset="handleCodeCursorOffset" />
         </div>
