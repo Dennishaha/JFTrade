@@ -413,6 +413,54 @@ describe("AiAssistantPanel", () => {
     });
     expect(document.body.textContent).toContain("dock normal completed");
   });
+
+  it("keeps rendering when the final response contains null ADK arrays", async () => {
+    streamADKChatMock.mockImplementationOnce(async (_payload, onEvent) => {
+      const response: ADKChatResponse = {
+        reply: "你好！我是JFTrade投资分析助手。",
+        session: buildSession(),
+        run: {
+          ...buildRun({ id: "run-null-arrays", status: "COMPLETED" }),
+          toolCalls: null as unknown as ADKRun["toolCalls"],
+          pendingApprovals: null as unknown as ADKRun["pendingApprovals"],
+        },
+        pendingApprovals: null as unknown as ADKApproval[],
+        timeline: [
+          buildTimelineEntry("assistant_reasoning", {
+            id: "dock-reasoning",
+            text: "深度思考内容",
+            createdAt: "2026-06-09T00:00:01Z",
+          }),
+          buildTimelineEntry("tool_group", {
+            id: "dock-null-tools",
+            runId: "run-null-arrays",
+            toolCalls: null as unknown as ADKTimelineEntry["toolCalls"],
+            createdAt: "2026-06-09T00:00:02Z",
+          }),
+          buildTimelineEntry("assistant_message", {
+            id: "dock-null-answer",
+            runId: "run-null-arrays",
+            text: "你好！我是JFTrade投资分析助手。",
+            createdAt: "2026-06-09T00:00:03Z",
+          }),
+        ],
+      };
+      await onEvent({ type: "session", session: response.session });
+      await onEvent({ type: "final", response });
+      return response;
+    });
+
+    mountPanel();
+    await flushRequests();
+
+    await sendDockMessage("你好");
+
+    expect(document.body.textContent).toContain("查看深度思考");
+    expect(document.body.textContent).toContain("你好！我是JFTrade投资分析助手。");
+    expect(document.body.textContent).not.toContain(
+      "Cannot read properties of null",
+    );
+  });
 });
 
 function mountPanel(options: {

@@ -15,6 +15,12 @@ import {
   isTerminalRunStatus,
   runTerminalMessage,
 } from "../composables/adkChatPresentation";
+import {
+  normalizeADKApprovalResolution,
+  normalizeADKChatResponse,
+  normalizeADKRun,
+  normalizeADKTimelineEntry,
+} from "../composables/adkNormalization";
 import { streamADKChat } from "../composables/adkChatStream";
 import {
   buildActiveChatRunState,
@@ -311,9 +317,11 @@ async function submitApproval(
   approval: ADKApproval,
   action: "approve" | "deny",
 ): Promise<ADKApprovalResolution> {
-  return fetchEnvelopeWithInit<ADKApprovalResolution>(
-    `/api/v1/adk/approvals/${encodeURIComponent(approval.id)}/${action}`,
-    { method: "POST" },
+  return normalizeADKApprovalResolution(
+    await fetchEnvelopeWithInit<ADKApprovalResolution>(
+      `/api/v1/adk/approvals/${encodeURIComponent(approval.id)}/${action}`,
+      { method: "POST" },
+    ),
   );
 }
 
@@ -376,10 +384,10 @@ async function waitForRunContinuation(run: ADKRun | undefined): Promise<void> {
 async function cancelActiveRun(runId = activeRunId.value): Promise<void> {
   if (!runId) return;
   try {
-    const run = await fetchEnvelopeWithInit<ADKRun>(
+    const run = normalizeADKRun(await fetchEnvelopeWithInit<ADKRun>(
       `/api/v1/adk/runs/${encodeURIComponent(runId)}/cancel`,
       { method: "POST" },
-    );
+    ));
     syncActiveRun(run, !isTerminalRunStatus(run.status));
     await reloadTimeline();
     if (isTerminalRunStatus(run.status)) {
@@ -408,8 +416,9 @@ async function reloadTimeline(): Promise<void> {
 async function applyAuthoritativeTimeline(
   response: ADKChatResponse,
 ): Promise<void> {
+  const normalizedResponse = normalizeADKChatResponse(response);
   timelineEntries.value = replaceTimelineEntries(
-    response.timeline,
+    normalizedResponse.timeline,
     timelineEntries.value,
   );
   await scrollToBottom(scrollHost);
@@ -443,25 +452,26 @@ async function executeChatMessage(text: string): Promise<boolean> {
           sessionContext.value = event.context;
         }
         if (event.type === "run" && event.run?.id) {
-          syncActiveRun(event.run);
+          syncActiveRun(normalizeADKRun(event.run));
         }
         if (event.type === "timeline" && event.timeline) {
           timelineEntries.value = upsertTimelineEntry(
             timelineEntries.value,
-            event.timeline,
+            normalizeADKTimelineEntry(event.timeline),
           );
           await scrollToBottom(scrollHost);
         }
         if (event.type === "final" && event.response) {
-          await applyAuthoritativeTimeline(event.response);
+          const response = normalizeADKChatResponse(event.response);
+          await applyAuthoritativeTimeline(response);
           syncActiveRun(
-            event.response.run,
-            !isTerminalRunStatus(event.response.run.status),
+            response.run,
+            !isTerminalRunStatus(response.run.status),
           );
-          if (event.response.context) {
-            sessionContext.value = event.response.context;
+          if (response.context) {
+            sessionContext.value = response.context;
           }
-          const failMsg = runTerminalMessage(event.response.run);
+          const failMsg = runTerminalMessage(response.run);
           if (failMsg) {
             errorMessage.value = failMsg;
           }
@@ -472,15 +482,19 @@ async function executeChatMessage(text: string): Promise<boolean> {
       },
     );
 
-    setSessionId(response.session.id);
-    await applyAuthoritativeTimeline(response);
-    syncActiveRun(response.run, !isTerminalRunStatus(response.run.status));
-    if (response.context) {
-      sessionContext.value = response.context;
+    const normalizedResponse = normalizeADKChatResponse(response);
+    setSessionId(normalizedResponse.session.id);
+    await applyAuthoritativeTimeline(normalizedResponse);
+    syncActiveRun(
+      normalizedResponse.run,
+      !isTerminalRunStatus(normalizedResponse.run.status),
+    );
+    if (normalizedResponse.context) {
+      sessionContext.value = normalizedResponse.context;
     } else {
       await refreshSessionContext();
     }
-    const failMsg = runTerminalMessage(response.run);
+    const failMsg = runTerminalMessage(normalizedResponse.run);
     if (failMsg) {
       errorMessage.value = failMsg;
     }

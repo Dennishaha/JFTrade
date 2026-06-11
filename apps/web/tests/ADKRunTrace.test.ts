@@ -202,6 +202,23 @@ describe("ADKRunTrace", () => {
     );
     expect(wrapper.find(".adk-run-trace-detail").exists()).toBe(false);
   });
+
+  it("does not crash when the run contains null toolCalls", () => {
+    const wrapper = mount(ADKRunTrace, {
+      props: {
+        run: {
+          ...buildRun([]),
+          toolCalls: null as unknown as ADKRun["toolCalls"],
+        },
+        busy: false,
+        summaryExpanded: false,
+        expandedToolCallIds: [],
+      },
+    });
+
+    expect(wrapper.find(".adk-run-trace").exists()).toBe(true);
+    expect(wrapper.text()).not.toContain("Cannot read properties of null");
+  });
 });
 
 function buildRun(

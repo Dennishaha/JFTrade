@@ -1,6 +1,7 @@
 import type { ADKSession, ADKTimelineEntry } from "@/contracts";
 
 import { fetchEnvelope } from "./apiClient";
+import { normalizeADKTimelineEntries } from "./adkNormalization";
 import {
   replaceTimelineEntries,
   type ADKTimelineEntryState,
@@ -20,6 +21,8 @@ export async function loadSessionChatHistory(sessionId: string): Promise<{
   );
   return {
     session: detail.session,
-    timelineEntries: replaceTimelineEntries(detail.timeline),
+    timelineEntries: replaceTimelineEntries(
+      normalizeADKTimelineEntries(detail.timeline),
+    ),
   };
 }

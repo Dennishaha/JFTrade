@@ -50,7 +50,7 @@ export function firstFailedToolCall(
   run: ADKRun | undefined,
 ): ADKRun["toolCalls"][number] | undefined {
   if (!run) return undefined;
-  return run.toolCalls.find(
+  return (run.toolCalls ?? []).find(
     (toolCall) =>
       toolCall.status === "TIMED_OUT" ||
       toolCall.status === "FAILED" ||

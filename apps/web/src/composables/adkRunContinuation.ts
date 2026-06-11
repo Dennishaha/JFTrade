@@ -3,6 +3,7 @@ import type { ADKRun } from "@/contracts";
 import { fetchEnvelope } from "./apiClient";
 import { buildRunObservationSignature } from "./adkChatRuntime";
 import { isTerminalRunStatus } from "./adkChatPresentation";
+import { normalizeADKRun } from "./adkNormalization";
 
 export interface ADKRunContinuationOptions {
   pollIntervalMs?: number;
@@ -68,7 +69,9 @@ function delay(ms: number): Promise<void> {
 }
 
 async function fetchLatestRun(runId: string): Promise<ADKRun> {
-  return fetchEnvelope<ADKRun>(`/api/v1/adk/runs/${encodeURIComponent(runId)}`);
+  return normalizeADKRun(
+    await fetchEnvelope<ADKRun>(`/api/v1/adk/runs/${encodeURIComponent(runId)}`),
+  );
 }
 
 async function publishProgressIfChanged(
@@ -89,7 +92,7 @@ async function publishProgressIfChanged(
 
 function hasFailedToolSnapshot(run: ADKRun | undefined): boolean {
   if (!run) return false;
-  return run.toolCalls.some(
+  return (run.toolCalls ?? []).some(
     (toolCall) =>
       toolCall.status === "FAILED" || toolCall.status === "TIMED_OUT",
   );

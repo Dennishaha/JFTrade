@@ -1,5 +1,10 @@
 import { buildApiUrl, csrfHeaders } from "./apiClient";
 import { runTerminalMessage } from "./adkChatPresentation";
+import {
+  normalizeADKChatResponse,
+  normalizeADKRun,
+  normalizeADKTimelineEntry,
+} from "./adkNormalization";
 
 import type {
   ADKApproval,
@@ -155,7 +160,17 @@ function parseSSEFrame(frame: string): ADKChatStreamEvent | null {
     .join("\n");
   if (data === "") return null;
   try {
-    return JSON.parse(data) as ADKChatStreamEvent;
+    const event = JSON.parse(data) as ADKChatStreamEvent;
+    if (event.run) {
+      event.run = normalizeADKRun(event.run);
+    }
+    if (event.timeline) {
+      event.timeline = normalizeADKTimelineEntry(event.timeline);
+    }
+    if (event.response) {
+      event.response = normalizeADKChatResponse(event.response);
+    }
+    return event;
   } catch {
     console.warn(
       "[ADK SSE] Failed to parse frame, skipping:",

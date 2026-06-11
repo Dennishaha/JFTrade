@@ -75,10 +75,10 @@ func (s *Server) handleADKSession(c *gin.Context) {
 	if timeline == nil {
 		timeline = []jfadk.TimelineEntry{}
 	}
-	s.writeOK(c, jfadk.SessionsResponse{
+	s.writeOK(c, jfadk.NormalizeSessionsResponse(jfadk.SessionsResponse{
 		Session:  session,
 		Timeline: timeline,
-	})
+	}))
 }
 
 func (s *Server) handleADKSessionContext(c *gin.Context) {
@@ -185,6 +185,9 @@ func (s *Server) handleADKRuns(c *gin.Context) {
 	}
 	limit, offset := adkPageBounds(adkPageQuery{Limit: query.Limit, Offset: query.Offset})
 	items, total, err := s.adkRuntime.Store().ListRunsPage(c.Request.Context(), query.Status, query.AgentID, query.SessionID, limit, offset)
+	for index := range items {
+		items[index] = jfadk.NormalizeRun(items[index])
+	}
 	writeADKPageOrError(s, c, "ADK_RUN_LIST_FAILED", "runs", items, total, limit, offset, err)
 }
 
@@ -200,7 +203,7 @@ func (s *Server) handleADKCancelRun(c *gin.Context) {
 		s.writeError(c, http.StatusNotFound, "ADK_RUN_CANCEL_FAILED", err.Error())
 		return
 	}
-	s.writeOK(c, run)
+	s.writeOK(c, jfadk.NormalizeRun(run))
 }
 
 func (s *Server) handleADKRun(c *gin.Context) {
@@ -221,7 +224,7 @@ func (s *Server) handleADKRun(c *gin.Context) {
 		s.writeError(c, http.StatusNotFound, "NOT_FOUND", "run not found")
 		return
 	}
-	s.writeOK(c, run)
+	s.writeOK(c, jfadk.NormalizeRun(run))
 }
 
 func (s *Server) handleADKApprovals(c *gin.Context) {
@@ -248,5 +251,5 @@ func (s *Server) handleADKApproval(c *gin.Context, approved bool) {
 		s.writeError(c, http.StatusInternalServerError, "ADK_APPROVAL_RESOLVE_FAILED", err.Error())
 		return
 	}
-	s.writeOK(c, resolution)
+	s.writeOK(c, jfadk.NormalizeApprovalResolution(resolution))
 }

@@ -68,13 +68,14 @@ function isEntryActiveRun(entry: ADKTimelineEntryState): boolean {
 
 function entryToolRun(entry: ADKTimelineEntryState): ADKRun {
   const run = buildTimelineRun(entry);
+  const toolCalls = run.toolCalls ?? [];
   if (!isEntryActiveRun(entry)) {
-    return run;
+    return { ...run, toolCalls };
   }
   return {
     ...run,
     status: props.activeRunStatus || run.status,
-    toolCalls: run.toolCalls.map((toolCall) => {
+    toolCalls: toolCalls.map((toolCall) => {
       if (
         props.activeRunStatus === "RUNNING" &&
         (toolCall.status === "PENDING_APPROVAL" || toolCall.status === "PENDING")

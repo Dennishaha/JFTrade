@@ -367,14 +367,11 @@ func (r *Runtime) projectedChatResponse(
 	if timeline, ok, timelineErr := r.store.SessionTimeline(ctx, session.ID); timelineErr == nil && ok {
 		response.Timeline = normalizedTimelineEntries(timeline)
 	}
-	return response
+	return NormalizeChatResponse(response)
 }
 
 func normalizedTimelineEntries(entries []TimelineEntry) []TimelineEntry {
-	if len(entries) == 0 {
-		return []TimelineEntry{}
-	}
-	return append([]TimelineEntry(nil), entries...)
+	return normalizeTimelineEntries(entries)
 }
 
 func applySessionProjectionToRun(run Run, projection SessionProjection) Run {
@@ -402,7 +399,7 @@ func applySessionProjectionToRun(run Run, projection SessionProjection) Run {
 			run.Usage.ToolCallsTotal = len(run.ToolCalls)
 		}
 	}
-	return run
+	return NormalizeRun(run)
 }
 
 func shouldPreferProjectedToolCalls(current []ToolCall, projected []ToolCall) bool {

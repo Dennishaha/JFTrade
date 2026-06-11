@@ -43,7 +43,7 @@ func (s *Store) SessionTimeline(ctx context.Context, sessionID string) ([]Timeli
 	if len(timeline) == 0 {
 		return nil, false, nil
 	}
-	return timeline, true, nil
+	return normalizeTimelineEntries(timeline), true, nil
 }
 
 func (s *Store) sessionRuns(ctx context.Context, sessionID string) ([]Run, error) {
@@ -122,7 +122,7 @@ func buildSessionTimeline(session Session, messages []TranscriptEntry, runs []Ru
 		raw = append(raw, timelinePrimitivesForOrphanRun(session.ID, run)...)
 	}
 
-	return groupTimelinePrimitives(raw)
+	return normalizeTimelineEntries(groupTimelinePrimitives(raw))
 }
 
 func timelinePrimitivesForRunMessage(sessionID string, run Run, message TranscriptEntry) []timelinePrimitive {

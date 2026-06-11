@@ -12,6 +12,12 @@ import type {
 import { isTerminalRunStatus, runTerminalMessage } from "./adkChatPresentation";
 import { streamADKChat } from "./adkChatStream";
 import {
+  normalizeADKApprovalResolution,
+  normalizeADKChatResponse,
+  normalizeADKRun,
+  normalizeADKTimelineEntry,
+} from "./adkNormalization";
+import {
   buildActiveChatRunState,
   buildQueueSessionKey,
   createQueuedChatMessage,
@@ -207,10 +213,10 @@ export function useADKPageChatState(
   async function cancelActiveRun(runId = activeRunId.value): Promise<void> {
     if (!runId) return;
     try {
-      const run = await fetchEnvelopeWithInit<ADKRun>(
+      const run = normalizeADKRun(await fetchEnvelopeWithInit<ADKRun>(
         `/api/v1/adk/runs/${encodeURIComponent(runId)}/cancel`,
         { method: "POST" },
-      );
+      ));
       syncActiveRun(run, !isTerminalRunStatus(run.status));
       await reloadSessionTimeline(
         run.sessionId || sessionState.selectedSessionId.value,
@@ -341,25 +347,26 @@ export function useADKPageChatState(
             sessionContext.value = event.context;
           }
           if (event.type === "run" && event.run?.id) {
-            syncActiveRun(event.run);
+            syncActiveRun(normalizeADKRun(event.run));
           }
           if (event.type === "timeline" && event.timeline) {
             timelineEntries.value = upsertTimelineEntry(
               timelineEntries.value,
-              event.timeline,
+              normalizeADKTimelineEntry(event.timeline),
             );
             await scrollToBottom(threadRef);
           }
           if (event.type === "final" && event.response) {
-            await applyAuthoritativeTimeline(event.response);
+            const response = normalizeADKChatResponse(event.response);
+            await applyAuthoritativeTimeline(response);
             syncActiveRun(
-              event.response.run,
-              !isTerminalRunStatus(event.response.run.status),
+              response.run,
+              !isTerminalRunStatus(response.run.status),
             );
-            if (event.response.context) {
-              sessionContext.value = event.response.context;
+            if (response.context) {
+              sessionContext.value = response.context;
             }
-            const failMsg = runTerminalMessage(event.response.run);
+            const failMsg = runTerminalMessage(response.run);
             if (failMsg) {
               sessionState.errorMessage.value = failMsg;
             }
@@ -370,15 +377,19 @@ export function useADKPageChatState(
         },
       );
 
-      setSelectedSessionId(response.session.id);
-      await applyAuthoritativeTimeline(response);
-      syncActiveRun(response.run, !isTerminalRunStatus(response.run.status));
-      if (response.context) {
-        sessionContext.value = response.context;
+      const normalizedResponse = normalizeADKChatResponse(response);
+      setSelectedSessionId(normalizedResponse.session.id);
+      await applyAuthoritativeTimeline(normalizedResponse);
+      syncActiveRun(
+        normalizedResponse.run,
+        !isTerminalRunStatus(normalizedResponse.run.status),
+      );
+      if (normalizedResponse.context) {
+        sessionContext.value = normalizedResponse.context;
       } else {
-        await refreshSessionContext(response.session.id);
+        await refreshSessionContext(normalizedResponse.session.id);
       }
-      const failMsg = runTerminalMessage(response.run);
+      const failMsg = runTerminalMessage(normalizedResponse.run);
       if (failMsg) {
         sessionState.errorMessage.value = failMsg;
       }
@@ -399,8 +410,9 @@ export function useADKPageChatState(
   async function applyAuthoritativeTimeline(
     response: ADKChatResponse,
   ): Promise<void> {
+    const normalizedResponse = normalizeADKChatResponse(response);
     timelineEntries.value = replaceTimelineEntries(
-      response.timeline,
+      normalizedResponse.timeline,
       timelineEntries.value,
     );
     await scrollToBottom(threadRef);
@@ -410,9 +422,11 @@ export function useADKPageChatState(
     approval: ADKApproval,
     action: "approve" | "deny",
   ): Promise<ADKApprovalResolution> {
-    return fetchEnvelopeWithInit<ADKApprovalResolution>(
-      `/api/v1/adk/approvals/${encodeURIComponent(approval.id)}/${action}`,
-      { method: "POST" },
+    return normalizeADKApprovalResolution(
+      await fetchEnvelopeWithInit<ADKApprovalResolution>(
+        `/api/v1/adk/approvals/${encodeURIComponent(approval.id)}/${action}`,
+        { method: "POST" },
+      ),
     );
   }
 

@@ -142,12 +142,12 @@ function mergeTimelineEntry(
 ): ADKTimelineEntryState {
   const base = existing ?? createTimelineEntryState(incoming);
   const next: ADKTimelineEntryState = { ...base, ...incoming };
-  if (incoming.toolCalls) {
+  if (incoming.toolCalls !== undefined) {
     next.toolCalls = [...incoming.toolCalls];
   } else if (base.toolCalls) {
     next.toolCalls = [...base.toolCalls];
   }
-  if (incoming.approvals) {
+  if (incoming.approvals !== undefined) {
     next.approvals = [...incoming.approvals];
   } else if (base.approvals) {
     next.approvals = [...base.approvals];

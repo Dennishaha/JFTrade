@@ -16,6 +16,7 @@ import type {
 } from "@/contracts";
 
 import { fetchEnvelope, fetchEnvelopeWithInit } from "./apiClient";
+import { normalizeADKRun, normalizeADKRunList } from "./adkNormalization";
 
 export interface PageEnvelope {
   limit: number;
@@ -145,7 +146,13 @@ export async function fetchADKRunsPage(
   page: PageEnvelope,
   runStatusFilter: string,
 ): Promise<RunsResponse> {
-  return fetchEnvelope<RunsResponse>(buildRunsURL(page, runStatusFilter));
+  const response = await fetchEnvelope<RunsResponse>(
+    buildRunsURL(page, runStatusFilter),
+  );
+  return {
+    ...response,
+    runs: normalizeADKRunList(response.runs),
+  };
 }
 
 export async function fetchADKApprovalsPage(
@@ -352,11 +359,13 @@ export async function deleteADKAgent(agentId: string): Promise<void> {
 }
 
 export async function cancelADKRun(runId: string): Promise<ADKRun> {
-  return fetchEnvelopeWithInit<ADKRun>(
-    `/api/v1/adk/runs/${encodeURIComponent(runId)}/cancel`,
-    {
-      method: "POST",
-    },
+  return normalizeADKRun(
+    await fetchEnvelopeWithInit<ADKRun>(
+      `/api/v1/adk/runs/${encodeURIComponent(runId)}/cancel`,
+      {
+        method: "POST",
+      },
+    ),
   );
 }
 

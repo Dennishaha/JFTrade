@@ -622,6 +622,48 @@ describe("ADKPage", () => {
     expect(document.body.textContent).toContain("隐藏深度思考");
     expect(document.body.textContent).toContain("Detailed chain of thought preview.");
   });
+
+  it("restores persisted timeline entries even when tool and approval arrays are null", async () => {
+    mountADKPage({
+      sessionDetail: {
+        session: buildSession(),
+        timeline: [
+          buildTimelineEntry("user_message", {
+            id: "msg-user-null",
+            text: "你好",
+            createdAt: "2026-06-06T00:00:01Z",
+          }),
+          buildTimelineEntry("tool_group", {
+            id: "entry-tools-null",
+            runId: "run-null-history",
+            toolCalls: null as unknown as ADKTimelineEntry["toolCalls"],
+            createdAt: "2026-06-06T00:00:02Z",
+          }),
+          buildTimelineEntry("approval_group", {
+            id: "entry-approvals-null",
+            runId: "run-null-history",
+            approvals: null as unknown as ADKTimelineEntry["approvals"],
+            createdAt: "2026-06-06T00:00:03Z",
+          }),
+          buildTimelineEntry("assistant_message", {
+            id: "entry-answer-null",
+            runId: "run-null-history",
+            text: "历史记录已恢复。",
+            createdAt: "2026-06-06T00:00:04Z",
+          }),
+        ],
+      },
+    });
+    await flushRequests();
+
+    document.querySelector<HTMLElement>(".adk-session-item")?.click();
+    await flushRequests();
+
+    expect(document.body.textContent).toContain("历史记录已恢复。");
+    expect(document.body.textContent).not.toContain(
+      "Cannot read properties of null",
+    );
+  });
 });
 
 function mountADKPage(options: {

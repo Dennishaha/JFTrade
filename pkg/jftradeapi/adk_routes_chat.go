@@ -52,7 +52,7 @@ func (s *Server) handleADKChat(c *gin.Context) {
 		s.writeError(c, http.StatusBadRequest, "ADK_CHAT_FAILED", err.Error())
 		return
 	}
-	s.writeOK(c, response)
+	s.writeOK(c, jfadk.NormalizeChatResponse(response))
 }
 
 func (s *Server) handleADKChatStream(c *gin.Context) {
@@ -91,6 +91,8 @@ func (s *Server) handleADKChatStream(c *gin.Context) {
 		streamMu.Lock()
 		defer streamMu.Unlock()
 		if delta.Run != nil {
+			normalizedRun := jfadk.NormalizeRun(*delta.Run)
+			delta.Run = &normalizedRun
 			timelineState.observeRun(delta.Run)
 			if err := writer.WriteEvent(adkChatStreamEvent{Type: "run", Run: delta.Run}); err != nil {
 				return err
@@ -158,7 +160,7 @@ func (s *Server) handleADKChatStream(c *gin.Context) {
 			trimmedRun.ToolCalls[i].Output = nil
 		}
 	}
-	_ = writer.WriteEvent(adkChatStreamEvent{Type: "final", Response: &jfadk.ChatResponse{
+	finalResponse := jfadk.NormalizeChatResponse(jfadk.ChatResponse{
 		Reply:            response.Reply,
 		ReasoningContent: response.ReasoningContent,
 		Session:          response.Session,
@@ -166,7 +168,8 @@ func (s *Server) handleADKChatStream(c *gin.Context) {
 		PendingApprovals: response.PendingApprovals,
 		Timeline:         response.Timeline,
 		Context:          response.Context,
-	}})
+	})
+	_ = writer.WriteEvent(adkChatStreamEvent{Type: "final", Response: &finalResponse})
 }
 
 func decodeADKChatRequest(body io.Reader) (jfadk.ChatRequest, error) {
@@ -329,9 +332,7 @@ func cloneTimelineEntry(entry *jfadk.TimelineEntry) *jfadk.TimelineEntry {
 	if entry == nil {
 		return nil
 	}
-	cloned := *entry
-	cloned.ToolCalls = append([]jfadk.ToolCall(nil), entry.ToolCalls...)
-	cloned.Approvals = append([]jfadk.Approval(nil), entry.Approvals...)
+	cloned := jfadk.NormalizeTimelineEntry(*entry)
 	return &cloned
 }
 
