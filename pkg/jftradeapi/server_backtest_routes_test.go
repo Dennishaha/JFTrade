@@ -25,19 +25,15 @@ func TestBacktestRouteAcceptsExplicitMarketAndCode(t *testing.T) {
 	server := newTestServer(t, store)
 	if _, err := server.designStore.saveDefinition(strategyDesignDefinition{
 		ID:           "dsl-market-code-route",
-		Name:         "DSL Market Code Route",
+		Name:         "Pine Market Code Route",
 		Version:      "0.1.0",
-		Runtime:      strategyRuntimeDSLPlan,
-		SourceFormat: strategydefinition.SourceFormatDSLV1,
+		Runtime:      strategyRuntimePinePlan,
+		SourceFormat: strategydefinition.SourceFormatPineV6,
 		Symbol:       "US.AAPL",
 		Interval:     "1m",
-		Script: `strategy DSL Market Code Route
-version 1
-symbol US.AAPL
-interval 1m
-
-on kline_close:
-  buy shares 1`,
+		Script: `//@version=6
+strategy("Pine Market Code Route", overlay=true)
+strategy.entry("Long", strategy.long, qty=1)`,
 	}); err != nil {
 		t.Fatalf("saveDefinition: %v", err)
 	}

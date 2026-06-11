@@ -20,26 +20,19 @@ import (
 
 var benchmarkBacktestResult *RunResult
 
-const benchmarkBacktestStrategyScript = `strategy DSL Indicator Heavy Benchmark
-version 1
-symbol US.AAPL
-interval 1m
+const benchmarkBacktestStrategyScript = `//@version=6
+strategy("Pine Indicator Heavy Benchmark", overlay=true)
 
-on kline_close:
-	let fast = ma(MA, 20)
-	let trend = ma(EMA, 55)
-	let volumeTrend = ma(VWMA, 20)
-	let momentum = rsi(14)
-	let flow = macd(12, 26, 9)
-	let band = bollinger(20, 2)
-	let swing = kdj(9, 3, 3)
-	let range = atr(14)
-	let channel = cci(20)
-	let exhaustion = williams_r(14)
-	if cross_over(fast, trend) and momentum > 50 and flow.histogram > 0 and swing.j > 45 and close > band.middle and close > volumeTrend.value and range > 0 and channel > -100 and exhaustion > -85 and not divergence_top(flow, 6):
-		buy shares 1
-	if cross_under(fast, trend) or (divergence_top(flow, 6) and close < band.middle):
-		sell shares 1`
+fast = ta.sma(close, 20)
+trend = ta.ema(close, 55)
+momentum = ta.rsi(close, 14)
+[macdLine, signalLine, histLine] = ta.macd(close, 12, 26, 9)
+range = ta.atr(14)
+channel = ta.cci(close, 20)
+if ta.crossover(fast, trend) and close > fast
+    strategy.entry("Long", strategy.long, qty=1)
+if ta.crossunder(fast, trend) or close < trend
+    strategy.close("Long")`
 
 func TestRunExecutesLocalBacktestSmoke(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
@@ -99,19 +92,12 @@ func TestRunExecutesLocalBacktestSmoke(t *testing.T) {
 		DBPath:       dbPath,
 		Symbol:       "US.AAPL",
 		Interval:     string(types.Interval1m),
-		SourceFormat: strategydefinition.SourceFormatDSLV1,
+		SourceFormat: strategydefinition.SourceFormatPineV6,
 		StartTime:    klines[1].StartTime.Time(),
 		EndTime:      klines[2].EndTime.Time(),
-		StrategyScript: `strategy DSL Smoke
-version 1
-symbol US.AAPL
-interval 1m
-
-on init:
-  log "dsl smoke init"
-
-on kline_close:
-  log "dsl smoke kline"`,
+		StrategyScript: `//@version=6
+strategy("Pine Smoke", overlay=true)
+log.info("pine smoke kline")`,
 		InitialBalance: 10000,
 		WarmupCandles:  1,
 	})
@@ -726,22 +712,14 @@ func TestRunExecutesDSLBacktestSmoke(t *testing.T) {
 		DBPath:       dbPath,
 		Symbol:       "US.AAPL",
 		Interval:     string(types.Interval1m),
-		SourceFormat: strategydefinition.SourceFormatDSLV1,
+		SourceFormat: strategydefinition.SourceFormatPineV6,
 		StartTime:    klines[1].StartTime.Time(),
 		EndTime:      klines[3].EndTime.Time(),
-		StrategyScript: `strategy DSL Cross
-version 1
-symbol US.AAPL
-interval 1m
-
-on init:
-  log "dsl init"
-
-on kline_close:
-  let fast = ma(MA, 1)
-  let slow = ma(MA, 2)
-  if cross_over(fast, slow):
-    buy shares 1`,
+		StrategyScript: `//@version=6
+strategy("Pine Cross", overlay=true)
+fast = ta.sma(close, 1)
+slow = ta.sma(close, 2)
+strategy.entry("Long", strategy.long, qty=1)`,
 		InitialBalance: 10000,
 		WarmupCandles:  1,
 	})
@@ -800,19 +778,12 @@ func TestRunUsesOneMinuteDataForFiveMinuteBacktest(t *testing.T) {
 		DBPath:       dbPath,
 		Symbol:       "US.AAPL",
 		Interval:     string(types.Interval5m),
-		SourceFormat: strategydefinition.SourceFormatDSLV1,
+		SourceFormat: strategydefinition.SourceFormatPineV6,
 		StartTime:    baseStart.Add(5 * time.Minute),
 		EndTime:      baseStart.Add(15*time.Minute - time.Millisecond),
-		StrategyScript: `strategy DSL Five Minute
-version 1
-symbol US.AAPL
-interval 5m
-
-on init:
-  log "dsl 5m init"
-
-on kline_close:
-  log "dsl 5m kline"`,
+		StrategyScript: `//@version=6
+strategy("Pine Five Minute", overlay=true)
+log.info("pine 5m kline")`,
 		InitialBalance: 10000,
 		WarmupCandles:  1,
 	})
@@ -865,16 +836,12 @@ func TestRunAllowsBoundaryCoveredOneMinuteDataForSyntheticFiveMinuteBacktest(t *
 		DBPath:       dbPath,
 		Symbol:       "US.AAPL",
 		Interval:     string(types.Interval5m),
-		SourceFormat: strategydefinition.SourceFormatDSLV1,
+		SourceFormat: strategydefinition.SourceFormatPineV6,
 		StartTime:    baseStart.Add(5 * time.Minute),
 		EndTime:      baseStart.Add(15*time.Minute - time.Millisecond),
-		StrategyScript: `strategy DSL Five Minute Missing
-version 1
-symbol US.AAPL
-interval 5m
-
-on init:
-  log "dsl 5m init"`,
+		StrategyScript: `//@version=6
+strategy("Pine Five Minute Missing", overlay=true)
+log.info("pine 5m init")`,
 		InitialBalance: 10000,
 		WarmupCandles:  1,
 	})
@@ -924,19 +891,12 @@ func TestRunUsesFiveMinuteDataForFifteenMinuteBacktest(t *testing.T) {
 		DBPath:       dbPath,
 		Symbol:       "US.AAPL",
 		Interval:     string(types.Interval15m),
-		SourceFormat: strategydefinition.SourceFormatDSLV1,
+		SourceFormat: strategydefinition.SourceFormatPineV6,
 		StartTime:    baseStart.Add(15 * time.Minute),
 		EndTime:      baseStart.Add(30*time.Minute - time.Millisecond),
-		StrategyScript: `strategy DSL Fifteen Minute
-version 1
-symbol US.AAPL
-interval 15m
-
-on init:
-  log "dsl 15m init"
-
-on kline_close:
-  log "dsl 15m kline"`,
+		StrategyScript: `//@version=6
+strategy("Pine Fifteen Minute", overlay=true)
+log.info("pine 15m kline")`,
 		InitialBalance: 10000,
 		WarmupCandles:  1,
 	})
@@ -991,17 +951,13 @@ func TestRunLogsDerivedStrategyWarmup(t *testing.T) {
 		DBPath:       dbPath,
 		Symbol:       "US.AAPL",
 		Interval:     string(types.Interval1m),
-		SourceFormat: strategydefinition.SourceFormatDSLV1,
+		SourceFormat: strategydefinition.SourceFormatPineV6,
 		StartTime:    currentKLine.StartTime.Time(),
 		EndTime:      currentKLine.EndTime.Time(),
-		StrategyScript: `strategy DSL Auto Warmup
-version 1
-symbol US.AAPL
-interval 1m
-
-on kline_close:
-  let slow = ma(MA, 20)
-  log "auto warmup"`,
+		StrategyScript: `//@version=6
+strategy("Pine Auto Warmup", overlay=true)
+slow = ta.sma(close, 20)
+log.info("auto warmup")`,
 		InitialBalance: 10000,
 	})
 
@@ -1032,7 +988,7 @@ func BenchmarkRunExecutesIndicatorHeavyDSLBacktest(b *testing.B) {
 		DBPath:         dbPath,
 		Symbol:         "US.AAPL",
 		Interval:       string(types.Interval1m),
-		SourceFormat:   strategydefinition.SourceFormatDSLV1,
+		SourceFormat:   strategydefinition.SourceFormatPineV6,
 		StartTime:      startTime,
 		EndTime:        endTime,
 		StrategyScript: benchmarkBacktestStrategyScript,

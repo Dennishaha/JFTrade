@@ -13,7 +13,7 @@ func TestNormalizeStrategyDoesNotShareReferenceFields(t *testing.T) {
 	store := &strategyCatalogStore{}
 	input := managedStrategyInstance{
 		ID:       "instance-1",
-		PluginID: IDDSLPlanPlugin(),
+		PluginID: IDPinePlanPlugin(),
 		Definition: strategyDefinitionSummary{
 			StrategyID: "mean-revert",
 			Name:       "Mean Revert",
@@ -162,21 +162,21 @@ func TestNormalizeStrategyMigratesRemovedRuntimeInstanceToDSL(t *testing.T) {
 
 	normalized := store.normalizeStrategy(input)
 
-	if normalized.PluginID != IDDSLPlanPlugin() {
-		t.Fatalf("expected DSL plugin, got %q", normalized.PluginID)
+	if normalized.PluginID != IDPinePlanPlugin() {
+		t.Fatalf("expected Pine plugin, got %q", normalized.PluginID)
 	}
-	if got := strategyRuntimeFromParams(normalized.Params); got != strategyRuntimeDSLPlan {
-		t.Fatalf("expected DSL runtime, got %q", got)
+	if got := strategyRuntimeFromParams(normalized.Params); got != strategyRuntimePinePlan {
+		t.Fatalf("expected Pine runtime, got %q", got)
 	}
-	if got := strategySourceFormatFromParams(normalized.Params); got != strategydefinition.SourceFormatDSLV1 {
-		t.Fatalf("expected DSL source format, got %q", got)
+	if got := strategySourceFormatFromParams(normalized.Params); got != strategydefinition.SourceFormatPineV6 {
+		t.Fatalf("expected Pine source format, got %q", got)
 	}
 	script, _ := normalized.Params["script"].(string)
 	if strings.Contains(script, "function onInit") {
 		t.Fatalf("expected removed runtime script to be replaced, got %q", script)
 	}
-	if !strings.Contains(script, "strategy Removed Runtime Strategy") {
-		t.Fatalf("expected DSL skeleton, got %q", script)
+	if !strings.Contains(script, "strategy(\"Removed Runtime Strategy\"") {
+		t.Fatalf("expected Pine skeleton, got %q", script)
 	}
 }
 
@@ -201,12 +201,12 @@ func TestRefreshStrategyDefinitionUpdatesSnapshotForStoppedInstance(t *testing.T
 		},
 		Params: map[string]any{
 			"definitionId": "dsl-mean-revert",
-			"runtime":      strategyRuntimeDSLPlan,
-			"sourceFormat": strategydefinition.SourceFormatDSLV1,
+			"runtime":      strategyRuntimePinePlan,
+			"sourceFormat": strategydefinition.SourceFormatPineV6,
 			"interval":     "1m",
 			"symbols":      []string{"US.AAPL"},
 			"symbol":       "US.AAPL",
-			"script":       "strategy Mean Revert\nversion 0.1.0\non init:\n  log \"init\"\non kline_close:\n  log \"old\"",
+			"script":       "//@version=6\nstrategy(\"Mean Revert\", overlay=true)\nlog.info(\"old\")",
 		},
 		Status:    strategyStatusStopped,
 		CreatedAt: "2026-05-29T00:00:00Z",
@@ -218,9 +218,9 @@ func TestRefreshStrategyDefinitionUpdatesSnapshotForStoppedInstance(t *testing.T
 		ID:           "dsl-mean-revert",
 		Name:         "Mean Revert v2",
 		Version:      "0.1.1",
-		Runtime:      strategyRuntimeDSLPlan,
-		SourceFormat: strategydefinition.SourceFormatDSLV1,
-		Script:       "strategy Mean Revert\nversion 0.1.1\non init:\n  log \"init\"\non kline_close:\n  let fast = ma(MA, 10)\n  log \"new\"",
+		Runtime:      strategyRuntimePinePlan,
+		SourceFormat: strategydefinition.SourceFormatPineV6,
+		Script:       "//@version=6\nstrategy(\"Mean Revert\", overlay=true)\nfast = ta.sma(close, 10)\nlog.info(\"new\")",
 	})
 	if err != nil {
 		t.Fatalf("refreshStrategyDefinition: %v", err)
@@ -234,7 +234,7 @@ func TestRefreshStrategyDefinitionUpdatesSnapshotForStoppedInstance(t *testing.T
 	if got := strategyDefinitionIDFromParams(item.Params); got != "dsl-mean-revert" {
 		t.Fatalf("definitionId = %q, want dsl-mean-revert", got)
 	}
-	if script, _ := item.Params["script"].(string); !strings.Contains(script, "let fast = ma(MA, 10)") {
+	if script, _ := item.Params["script"].(string); !strings.Contains(script, "fast = ta.sma(close, 10)") {
 		t.Fatalf("expected refreshed script snapshot, got %q", script)
 	}
 	if symbols, ok := item.Params["symbols"].([]string); !ok || len(symbols) != 1 || symbols[0] != "US.AAPL" {
@@ -251,9 +251,9 @@ func TestRefreshStrategyDefinitionUpdatesSnapshotForStoppedInstance(t *testing.T
 		ID:           "dsl-mean-revert",
 		Name:         "Mean Revert v3",
 		Version:      "0.1.2",
-		Runtime:      strategyRuntimeDSLPlan,
-		SourceFormat: strategydefinition.SourceFormatDSLV1,
-		Script:       "strategy Mean Revert\nversion 0.1.2\non init:\n  log \"init\"\non kline_close:\n  log \"busy\"",
+		Runtime:      strategyRuntimePinePlan,
+		SourceFormat: strategydefinition.SourceFormatPineV6,
+		Script:       "//@version=6\nstrategy(\"Mean Revert\", overlay=true)\nlog.info(\"busy\")",
 	}); err != nil {
 		t.Fatalf("second refreshStrategyDefinition: %v", err)
 	}
@@ -263,9 +263,9 @@ func TestRefreshStrategyDefinitionUpdatesSnapshotForStoppedInstance(t *testing.T
 		Definition: strategyDefinitionSummary{StrategyID: "dsl-mean-revert", Name: "Mean Revert", Version: "0.1.0"},
 		Params: map[string]any{
 			"definitionId": "dsl-mean-revert",
-			"runtime":      strategyRuntimeDSLPlan,
-			"sourceFormat": strategydefinition.SourceFormatDSLV1,
-			"script":       "strategy Mean Revert\nversion 0.1.0\non init:\n  log \"init\"\non kline_close:\n  log \"busy\"",
+			"runtime":      strategyRuntimePinePlan,
+			"sourceFormat": strategydefinition.SourceFormatPineV6,
+			"script":       "//@version=6\nstrategy(\"Mean Revert\", overlay=true)\nlog.info(\"busy\")",
 		},
 		Status:    strategyStatusRunning,
 		CreatedAt: "2026-05-29T00:01:00Z",
@@ -276,9 +276,9 @@ func TestRefreshStrategyDefinitionUpdatesSnapshotForStoppedInstance(t *testing.T
 		ID:           "dsl-mean-revert",
 		Name:         "Mean Revert v4",
 		Version:      "0.1.3",
-		Runtime:      strategyRuntimeDSLPlan,
-		SourceFormat: strategydefinition.SourceFormatDSLV1,
-		Script:       "strategy Mean Revert\nversion 0.1.3\non init:\n  log \"init\"\non kline_close:\n  log \"busy\"",
+		Runtime:      strategyRuntimePinePlan,
+		SourceFormat: strategydefinition.SourceFormatPineV6,
+		Script:       "//@version=6\nstrategy(\"Mean Revert\", overlay=true)\nlog.info(\"busy\")",
 	}); err != errStrategyInstanceBusy {
 		t.Fatalf("refresh busy instance error = %v, want errStrategyInstanceBusy", err)
 	}

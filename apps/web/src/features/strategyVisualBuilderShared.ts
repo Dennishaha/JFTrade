@@ -128,7 +128,7 @@ export function buildStrategyFlowNodeJsDoc(
   return lines;
 }
 
-export function buildStrategyFlowNodeDslComment(
+export function buildStrategyFlowNodeAnnotation(
   node: StrategyVisualNodeDocument,
   depth: number,
   extra: Partial<Pick<
@@ -136,34 +136,34 @@ export function buildStrategyFlowNodeDslComment(
     "variableName" | "inputPrimaryNodeId" | "inputFastNodeId" | "inputSlowNodeId"
   >> = {},
 ): string[] {
-  const annotation = buildStrategyFlowNodeAnnotation(node, extra);
+  const annotation = buildStrategyFlowNodeAnnotationPayload(node, extra);
   if (annotation === null) {
     return [];
   }
 
   const indent = "  ".repeat(depth);
   const lines = [
-    `${indent}# @${STRATEGY_FLOW_JSDOC_TAGS.nodeId} ${annotation.nodeId}`,
-    `${indent}# @${STRATEGY_FLOW_JSDOC_TAGS.blockKind} ${annotation.blockKind}`,
+    `${indent}// @${STRATEGY_FLOW_JSDOC_TAGS.nodeId} ${annotation.nodeId}`,
+    `${indent}// @${STRATEGY_FLOW_JSDOC_TAGS.blockKind} ${annotation.blockKind}`,
   ];
 
   if (annotation.nodeText !== undefined) {
-    lines.push(`${indent}# @${STRATEGY_FLOW_JSDOC_TAGS.nodeText} ${annotation.nodeText}`);
+    lines.push(`${indent}// @${STRATEGY_FLOW_JSDOC_TAGS.nodeText} ${annotation.nodeText}`);
   }
   if (annotation.codeScope !== undefined) {
-    lines.push(`${indent}# @${STRATEGY_FLOW_JSDOC_TAGS.codeScope} ${annotation.codeScope}`);
+    lines.push(`${indent}// @${STRATEGY_FLOW_JSDOC_TAGS.codeScope} ${annotation.codeScope}`);
   }
   if (annotation.variableName !== undefined) {
-    lines.push(`${indent}# @${STRATEGY_FLOW_JSDOC_TAGS.variableName} ${annotation.variableName}`);
+    lines.push(`${indent}// @${STRATEGY_FLOW_JSDOC_TAGS.variableName} ${annotation.variableName}`);
   }
   if (annotation.inputPrimaryNodeId !== undefined) {
-    lines.push(`${indent}# @${STRATEGY_FLOW_JSDOC_TAGS.inputPrimaryNodeId} ${annotation.inputPrimaryNodeId}`);
+    lines.push(`${indent}// @${STRATEGY_FLOW_JSDOC_TAGS.inputPrimaryNodeId} ${annotation.inputPrimaryNodeId}`);
   }
   if (annotation.inputFastNodeId !== undefined) {
-    lines.push(`${indent}# @${STRATEGY_FLOW_JSDOC_TAGS.inputFastNodeId} ${annotation.inputFastNodeId}`);
+    lines.push(`${indent}// @${STRATEGY_FLOW_JSDOC_TAGS.inputFastNodeId} ${annotation.inputFastNodeId}`);
   }
   if (annotation.inputSlowNodeId !== undefined) {
-    lines.push(`${indent}# @${STRATEGY_FLOW_JSDOC_TAGS.inputSlowNodeId} ${annotation.inputSlowNodeId}`);
+    lines.push(`${indent}// @${STRATEGY_FLOW_JSDOC_TAGS.inputSlowNodeId} ${annotation.inputSlowNodeId}`);
   }
 
   return lines;
@@ -231,16 +231,16 @@ export function parseStrategyFlowNodeJsDocComment(
   };
 }
 
-export function parseStrategyFlowNodeDslCommentLines(
+export function parseStrategyFlowNodeAnnotationLines(
   commentLines: string[],
 ): StrategyFlowNodeJsDoc | null {
   const normalized = commentLines
-    .map((line) => line.trim().replace(/^#\s?/, ""))
+    .map((line) => line.trim().replace(/^(?:#|\/\/)\s?/, ""))
     .join("\n");
   return parseStrategyFlowNodeJsDocComment(normalized);
 }
 
-function buildStrategyFlowNodeAnnotation(
+function buildStrategyFlowNodeAnnotationPayload(
   node: StrategyVisualNodeDocument,
   extra: Partial<Pick<
     StrategyFlowNodeJsDoc,

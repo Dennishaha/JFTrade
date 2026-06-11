@@ -5,11 +5,11 @@ import (
 
 	"github.com/c9s/bbgo/pkg/types"
 	"github.com/jftrade/jftrade-main/pkg/futu"
-	strategydsl "github.com/jftrade/jftrade-main/pkg/strategy/dsl"
 	strategyir "github.com/jftrade/jftrade-main/pkg/strategy/ir"
+	strategypine "github.com/jftrade/jftrade-main/pkg/strategy/pine"
 )
 
-// WarmupBarsFromScript parses a DSL strategy script and returns the minimum
+// WarmupBarsFromScript parses a Pine strategy script and returns the minimum
 // number of bars that should be loaded before the first replay bar.
 func WarmupBarsFromScript(script string, interval types.Interval) (int, error) {
 	return WarmupBarsFromScriptForSymbol(script, interval, "")
@@ -20,7 +20,7 @@ func WarmupBarsFromScriptForSymbol(script string, interval types.Interval, symbo
 }
 
 func WarmupBarsFromScriptForSymbolWithOptions(script string, interval types.Interval, symbol string, options RuntimeOptions) (int, error) {
-	program, err := strategydsl.ParseScript(script)
+	program, err := strategypine.ParseScript(script)
 	if err != nil {
 		return 0, err
 	}

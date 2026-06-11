@@ -31,11 +31,11 @@ describe("strategyRuntimeInstanceBinding", () => {
       id: "instance-1",
       definition: {
         strategyId: "dsl-breakout",
-        name: "DSL Breakout",
+        name: "Pine Breakout",
         version: "0.1.0",
       },
-      runtime: "dsl-go-plan",
-      sourceFormat: "dsl-v1",
+      runtime: "pine-go-plan",
+      sourceFormat: "pine-v6",
       startable: true,
       binding: {
         instruments: [

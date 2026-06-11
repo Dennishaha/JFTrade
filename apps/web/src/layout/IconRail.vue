@@ -26,8 +26,8 @@ const items: NavItem[] = [
   { type: "route", to: "/workspace", label: "交易", icon: "fa-solid fa-display" },
   { type: "route", to: "/overview", label: "概览", icon: "fa-solid fa-chart-column" },
   { type: "route", to: "/market", label: "行情", icon: "fa-solid fa-chart-line" },
-  { type: "route", to: "/strategy", label: "策略", icon: "fa-solid fa-wand-magic-sparkles" },
   { type: "route", to: "/adk", label: "智能体", icon: "fa-solid fa-robot" },
+  { type: "route", to: "/strategy", label: "策略", icon: "fa-solid fa-wand-magic-sparkles" },
   { type: "route", to: "/backtest", label: "回测", icon: "fa-solid fa-flask" },
   { type: "route", to: "/account", label: "我的账户", icon: "fa-solid fa-wallet" },
   { type: "route", to: "/risk", label: "风控", icon: "fa-solid fa-triangle-exclamation" },
@@ -49,25 +49,13 @@ function go(to: string): void {
 <template>
   <nav class="tv-iconrail" aria-label="主导航">
     <template v-for="item in items" :key="item.label">
-      <a
-        v-if="item.type === 'external'"
-        :href="item.href"
-        target="_blank"
-        rel="noopener noreferrer"
-        class="tv-iconrail-btn"
-        :title="item.label"
-      >
+      <a v-if="item.type === 'external'" :href="item.href" target="_blank" rel="noopener noreferrer"
+        class="tv-iconrail-btn" :title="item.label">
         <v-icon class="tv-iconrail-glyph tv-iconrail-glyph--external">{{ item.icon }}</v-icon>
         <span>{{ item.label }}</span>
       </a>
-      <button
-        v-else
-        type="button"
-        class="tv-iconrail-btn"
-        :class="{ 'is-active': activeTo === item.to }"
-        :title="item.label"
-        @click="go(item.to)"
-      >
+      <button v-else type="button" class="tv-iconrail-btn" :class="{ 'is-active': activeTo === item.to }"
+        :title="item.label" @click="go(item.to)">
         <v-icon class="tv-iconrail-glyph">{{ item.icon }}</v-icon>
         <span>{{ item.label }}</span>
       </button>

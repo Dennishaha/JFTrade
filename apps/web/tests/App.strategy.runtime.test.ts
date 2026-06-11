@@ -12,7 +12,7 @@ import type { SystemStatusResponse } from "@/contracts"
 import {
   MockWebSocket,
   appendInstrumentTags,
-  buildDslScript,
+  buildPineScript,
   buildFetchMock,
   buildRuntimeAccount,
   flushRequests,
@@ -279,11 +279,11 @@ describe("Strategy page", () => {
       definitions: [
         {
           id: "dsl-breakout",
-          name: "DSL Breakout",
+          name: "Pine Breakout",
           version: "0.1.0",
-          description: "dsl strategy",
-          runtime: "dsl-go-plan",
-          script: buildDslScript("DSL Breakout"),
+          description: "pine strategy",
+          runtime: "pine-go-plan",
+          script: buildPineScript("Pine Breakout"),
           createdAt: "2026-05-23T00:00:00.000Z",
           updatedAt: "2026-05-23T00:00:00.000Z",
         },
@@ -334,7 +334,7 @@ describe("Strategy page", () => {
     ])
     expect(instantiatePayload.symbols).toEqual(["US.AAPL", "HK.00700"])
 
-    expect(wrapper.text()).toContain("DSL Breakout")
+    expect(wrapper.text()).toContain("Pine Breakout")
     expect(wrapper.text()).toContain("US.AAPL, HK.00700")
     expect(wrapper.text()).toContain("15m")
     expect(wrapper.text()).toContain("仅通知")
@@ -393,11 +393,11 @@ describe("Strategy page", () => {
         definitions: [
           {
             id: "dsl-breakout",
-            name: "DSL Breakout",
+            name: "Pine Breakout",
             version: "0.1.0",
-            description: "dsl strategy",
-            runtime: "dsl-go-plan",
-            script: buildDslScript("DSL Breakout"),
+            description: "pine strategy",
+            runtime: "pine-go-plan",
+            script: buildPineScript("Pine Breakout"),
             createdAt: "2026-05-23T00:00:00.000Z",
             updatedAt: "2026-05-23T00:00:00.000Z",
           },
@@ -442,11 +442,11 @@ describe("Strategy page", () => {
         definitions: [
           {
             id: "dsl-breakout",
-            name: "DSL Breakout",
+            name: "Pine Breakout",
             version: "0.1.0",
-            description: "dsl strategy",
-            runtime: "dsl-go-plan",
-            script: buildDslScript("DSL Breakout"),
+            description: "pine strategy",
+            runtime: "pine-go-plan",
+            script: buildPineScript("Pine Breakout"),
             createdAt: "2026-05-23T00:00:00.000Z",
             updatedAt: "2026-05-23T00:00:00.000Z",
           },
@@ -503,11 +503,11 @@ describe("Strategy page", () => {
         definitions: [
           {
             id: "dsl-breakout",
-            name: "DSL Breakout",
+            name: "Pine Breakout",
             version: "0.1.0",
-            description: "dsl strategy",
-            runtime: "dsl-go-plan",
-            script: buildDslScript("DSL Breakout"),
+            description: "pine strategy",
+            runtime: "pine-go-plan",
+            script: buildPineScript("Pine Breakout"),
             createdAt: "2026-05-23T00:00:00.000Z",
             updatedAt: "2026-05-23T00:00:00.000Z",
           },
@@ -600,11 +600,11 @@ describe("Strategy page", () => {
       definitions: [
         {
           id: "dsl-breakout",
-          name: "DSL Breakout",
+          name: "Pine Breakout",
           version: "0.1.0",
-          description: "dsl strategy",
-          runtime: "dsl-go-plan",
-          script: buildDslScript("DSL Breakout"),
+          description: "pine strategy",
+          runtime: "pine-go-plan",
+          script: buildPineScript("Pine Breakout"),
           createdAt: "2026-05-23T00:00:00.000Z",
           updatedAt: "2026-05-23T00:00:00.000Z",
         },
@@ -788,8 +788,8 @@ describe("Strategy page", () => {
         name: "Alpha",
         version: "1.0.0",
       },
-      runtime: "dsl-go-plan",
-      sourceFormat: "dsl-v1" as const,
+      runtime: "pine-go-plan",
+      sourceFormat: "pine-v6" as const,
       startable: true,
       binding: {
         symbols: ["US.TME"],
@@ -950,11 +950,11 @@ describe("Strategy page", () => {
         definitions: [
           {
             id: "dsl-breakout",
-            name: "DSL Breakout",
+            name: "Pine Breakout",
             version: "0.1.1",
-            description: "latest dsl strategy",
-            runtime: "dsl-go-plan",
-            script: buildDslScript("DSL Breakout", ['log "latest"'], { version: "0.1.1" }),
+            description: "latest pine strategy",
+            runtime: "pine-go-plan",
+            script: buildPineScript("Pine Breakout", ['log "latest"'], { version: "0.1.1" }),
             createdAt: "2026-05-23T00:00:00.000Z",
             updatedAt: "2026-05-23T00:05:00.000Z",
           },
@@ -964,7 +964,7 @@ describe("Strategy page", () => {
             id: "dsl-breakout-instance",
             definition: {
               strategyId: "dsl-breakout",
-              name: "DSL Breakout",
+              name: "Pine Breakout",
               version: "0.1.0",
             },
             binding: {
@@ -974,7 +974,7 @@ describe("Strategy page", () => {
             },
             params: {
               definitionId: "dsl-breakout",
-              script: buildDslScript("DSL Breakout", ['log "old"'], { version: "0.1.0" }),
+              script: buildPineScript("Pine Breakout", ['log "old"'], { version: "0.1.0" }),
             },
             status: "STOPPED",
             createdAt: "2026-05-23T00:01:00.000Z",
@@ -999,7 +999,7 @@ describe("Strategy page", () => {
     await wrapper.get('[data-testid="strategy-refresh-definition"]').trigger("click")
     await settleStrategyWorkspace()
 
-    expect(wrapper.text()).toContain("已刷新实例策略到最新版本：DSL Breakout / v0.1.1")
+    expect(wrapper.text()).toContain("已刷新实例策略到最新版本：Pine Breakout / v0.1.1")
     expect(wrapper.get('[data-testid="strategy-definition-sync-badge"]').text()).toContain("已同步至 v0.1.1")
     expect(wrapper.find('[data-testid="strategy-definition-stale-dsl-breakout-instance"]').exists()).toBe(false)
 

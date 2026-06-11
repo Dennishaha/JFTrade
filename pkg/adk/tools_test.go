@@ -295,7 +295,7 @@ func TestSelectToolInvocationsAccountOrders(t *testing.T) {
 func TestSelectToolInvocationsAddsExplicitStrategyWorkflowTools(t *testing.T) {
 	registry := NewToolRegistry()
 	for _, descriptor := range []ToolDescriptor{
-		{Name: "strategy.validate_dsl", DisplayName: "校验 DSL", Category: "strategy", Permission: "read_internal"},
+		{Name: "strategy.validate_pine", DisplayName: "校验 Pine", Category: "strategy", Permission: "read_internal"},
 		{Name: "strategy.save_definition", DisplayName: "保存策略定义", Category: "strategy", Permission: "write_strategy"},
 		{Name: "strategy.update_instance_mode", DisplayName: "修改实例模式", Category: "strategy", Permission: "write_strategy"},
 		{Name: "system.status", DisplayName: "系统状态", Category: "system", Permission: "read_internal"},
@@ -310,14 +310,14 @@ func TestSelectToolInvocationsAddsExplicitStrategyWorkflowTools(t *testing.T) {
 		message  string
 		expected string
 	}{
-		{message: "请先校验这个 DSL 语法有没有问题", expected: "strategy.validate_dsl"},
+		{message: "请先校验这个 Pine 语法有没有问题", expected: "strategy.validate_pine"},
 		{message: "把这个策略定义保存起来，并更新已有定义", expected: "strategy.save_definition"},
 		{message: "把实例切到 notify_only 执行模式", expected: "strategy.update_instance_mode"},
 	}
 
 	agent := Agent{
 		ID:    "agent",
-		Tools: []string{"strategy.validate_dsl", "strategy.save_definition", "strategy.update_instance_mode"},
+		Tools: []string{"strategy.validate_pine", "strategy.save_definition", "strategy.update_instance_mode"},
 	}
 	for _, test := range tests {
 		t.Run(test.expected, func(t *testing.T) {

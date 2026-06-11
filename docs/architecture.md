@@ -68,7 +68,7 @@ flowchart LR
 - `/api/v1/settings/*`：Broker 配置持久化和运行时注入
 - `/api/v1/system/*`：状态、诊断、OpenD 探针、通知
 - `/api/v1/market-data/*`：订阅、快照、K 线查询
-- `/api/v1/strategy-definitions/*`：DSL 策略定义、实例化、visualModel 持久化
+- `/api/v1/strategy-definitions/*`：Pine 策略定义、实例化、visualModel 持久化
 - `/api/v1/stream/live`：实时心跳、tick、系统通知
 - 与 bbgo notifier 的桥接缓存
 
@@ -105,7 +105,7 @@ flowchart LR
 - 行情快照和 K 线查询来自 sidecar
 - 实时 tick 来自 `/api/v1/stream/live`
 - 交易环境、市场、连接状态、订单状态和风控状态等枚举值在前端展示时通过 `apps/web/src/composables/consoleDataFormatting.ts` 统一转成中文标签，避免修改 API 原始值
-- 策略设计工作区同时承载 Logic Flow visualModel 与 DSL script，浏览器内代码编辑使用 Monaco，测试环境回退 textarea
+- 策略设计工作区同时承载 Logic Flow visualModel 与 Pine script，浏览器内代码编辑使用 Monaco，测试环境回退 textarea
 
 ## 请求与数据流
 
@@ -127,14 +127,14 @@ apps/web
   -> /api/v1/strategy-definitions/*
   -> pkg/jftradeapi/strategy_routes.go
   -> strategy_design_store / strategy_catalog_store
-  -> DSL strategy definition + optional visualModel persistence
+  -> Pine strategy definition + optional visualModel persistence
 ```
 
 这条链路当前有四个重要约束：
 
-- 策略定义同时保存 DSL 源码和可选 `visualModel`，二者都属于控制平面数据。
-- 前端支持 Logic Flow 可视化编辑和纯代码编辑，图块不变；可视模型会生成 DSL，DSL 会统一交给后端解析、规划并编译成 Go runtime 可消费的 IR。
-- 加载已有定义时优先保留已保存的 `visualModel`；只有显式同步或修改图块参数后，才会重新生成 DSL。
+- 策略定义同时保存 Pine 源码和可选 `visualModel`，二者都属于控制平面数据。
+- 前端支持 Logic Flow 可视化编辑和纯代码编辑，图块不变；可视模型会生成 Pine，Pine 会统一交给后端解析、规划并编译成 Go runtime 可消费的 IR。
+- 加载已有定义时优先保留已保存的 `visualModel`；只有显式同步或修改图块参数后，才会重新生成 Pine。
 - 设计页的浏览器代码编辑器使用 Monaco，但前端测试仍走 textarea 回退，避免 jsdom 初始化重量级编辑器。
 
 ### 实时行情链路
@@ -215,7 +215,7 @@ sidecar 当前负责把 Futu 系统通知和 bbgo 通知收束到同一条前端
 
 1. 改启动方式、运行模式、环境变量：先看 [../cmd/jftrade/main.go](../cmd/jftrade/main.go)
 2. 改前端 API、系统状态、设置：先看 [../pkg/jftradeapi/server.go](../pkg/jftradeapi/server.go)
-3. 改策略定义、模板、DSL/Logic Flow 同步：先看 [../pkg/jftradeapi/strategy_routes.go](../pkg/jftradeapi/strategy_routes.go)、[../pkg/jftradeapi/strategy_design_store.go](../pkg/jftradeapi/strategy_design_store.go)、[../apps/web/src/pages/StrategyPage.vue](../apps/web/src/pages/StrategyPage.vue) 和 [../apps/web/src/features/strategyVisualBuilder.ts](../apps/web/src/features/strategyVisualBuilder.ts)
+3. 改策略定义、模板、Pine/Logic Flow 同步：先看 [../pkg/jftradeapi/strategy_routes.go](../pkg/jftradeapi/strategy_routes.go)、[../pkg/jftradeapi/strategy_design_store.go](../pkg/jftradeapi/strategy_design_store.go)、[../apps/web/src/pages/StrategyPage.vue](../apps/web/src/pages/StrategyPage.vue) 和 [../apps/web/src/features/strategyVisualBuilder.ts](../apps/web/src/features/strategyVisualBuilder.ts)
 4. 改行情订阅、实时推送、通知：先看 [../pkg/jftradeapi/market_routes.go](../pkg/jftradeapi/market_routes.go) 和 [../pkg/jftradeapi/market_live.go](../pkg/jftradeapi/market_live.go)
 5. 改 Futu 协议、映射、连接：先看 [../pkg/futu/exchange.go](../pkg/futu/exchange.go) 与 reference 层文档
 6. 改实时 K 线：先看 [frontend-kline.md](frontend-kline.md)
@@ -236,7 +236,7 @@ sidecar 当前负责把 Futu 系统通知和 bbgo 通知收束到同一条前端
 
 - `store.go` — 实现 `service.BackTestable` 接口，管理 `local_klines` 表
 - `sync.go` — 从 Futu OpenD 增量同步 K 线数据到 SQLite
-- `runner.go` — 回测执行编排，创建 bbgo backtest.Exchange，并运行纯 Go DSL 策略
+- `runner.go` — 回测执行编排，创建 bbgo backtest.Exchange，并运行 Pine lowering 后的 Go 策略
 
 ### 6.2 历史数据管线
 
@@ -248,7 +248,7 @@ OpenD Qot_RequestHistoryKL (3103)
         → backtest.FutuKLineStore.QueryKLinesBackward/Forward()
           → bbgo backtest.Exchange
             → SimplePriceMatching (bar close 撮合)
-              → DSL Go executor → placeOrder/cancelOrder
+              → Pine-lowered Go executor → placeOrder/cancelOrder
 ```
 
 ### 6.3 操作入口
@@ -282,20 +282,17 @@ OpenD Qot_RequestHistoryKL (3103)
 - sync 入口会把需要合成的高周期自动规划到基础同步周期：`2h` / `4h` / `6h` / `12h` 映射到 `1h`，US extended 的 `1d` / `1w` / `1mo` 也会落到 `1h` 基础数据，避免把 native regular-only 日线误写进 extended 版本。
 - backtest SQLite 的 OHLCV 仍以 `fixedpoint.Value.String()` 形式存为 TEXT；读取侧对这种 plain decimal 存储格式走本地 fast path，只有遇到科学计数、百分号或 `inf` 之类的非常规输入时才回退上游 `fixedpoint.NewFromString`，以控制 `QueryKLinesBackward/Forward` 的解析开销。
 - session-aware higher intraday 的 backward 查询按时间窗口分页拉取后，会先批量合并本批结果再一次性 prepend 到最终序列，避免逐条前插造成的重复切片拷贝和额外分配。
-- 单标的单周期的回测回放现在会在 `QueryKLinesCh` 走 fast path：direct stored-range 查询会按行直接流到 replay channel，而不再先整段收集和排序；single-series path 的 channel buffer 也已收紧到较小固定值，避免为每次回放预留过大的 channel backing array。regular-only 的 replay wrapper 同样会直接边读边过滤 regular session bar，不再先把底层 channel 全量收集成切片再过滤。`resultCollector` 同时会按预计 bar 数预分配 `candles/pnlCurve`，并在权益计算时直接读取单币种余额，避免每根 bar 复制整张 `BalanceMap`。DSL runtime 同时会缓存 divergence requirement key，并且仅在 `if` 分支内存在 `let` 时才为该分支创建子作用域，避免无意义的字符串构造和 scope clone；表达式层面对 moving-average / MACD / KDJ 这类快照对象新增了序列直读和首选标量快路径，`cross_over(ma, slow)`、`ma.value`、`ma > 10` 之类路径不再反复通过字符串 `FieldValue` 探测。
+- 单标的单周期的回测回放现在会在 `QueryKLinesCh` 走 fast path：direct stored-range 查询会按行直接流到 replay channel，而不再先整段收集和排序；single-series path 的 channel buffer 也已收紧到较小固定值，避免为每次回放预留过大的 channel backing array。regular-only 的 replay wrapper 同样会直接边读边过滤 regular session bar，不再先把底层 channel 全量收集成切片再过滤。`resultCollector` 同时会按预计 bar 数预分配 `candles/pnlCurve`，并在权益计算时直接读取单币种余额，避免每根 bar 复制整张 `BalanceMap`。内部 runtime 同时会缓存 divergence requirement key，并且仅在 `if` 分支内存在 `let` 时才为该分支创建子作用域，避免无意义的字符串构造和 scope clone；表达式层面对 moving-average / MACD / KDJ 这类快照对象新增了序列直读和首选标量快路径，`cross_over(ma, slow)`、`ma.value`、`ma > 10` 之类路径不再反复通过字符串 `FieldValue` 探测。
 
-- `useExtendedHours=true` 不再只影响 replay 数据版本和 higher-period K 线 synthesis。对 US backtest，DSL indicatorruntime 的 moving-average 与 stop-loss `day/week/month` 窗口现在都会切到 extended trading-period 口径，并且回测 warmup 会按 extended trading day 分钟数放大；这样 MA/保护条件/runtime warmup 三者的 trading-window 语义已经对齐。
+- `useExtendedHours=true` 不再只影响 replay 数据版本和 higher-period K 线 synthesis。对 US backtest，Pine-lowered indicatorruntime 的 moving-average 与 stop-loss `day/week/month` 窗口现在都会切到 extended trading-period 口径，并且回测 warmup 会按 extended trading day 分钟数放大；这样 MA/保护条件/runtime warmup 三者的 trading-window 语义已经对齐。
 
 ### 6.5 策略回测感知
 
-DSL 策略通过纯 Go executor 在回测和实盘泵线里执行同一套条件判断与下单逻辑：
+Pine 策略 lowering 后通过纯 Go executor 在回测和实盘泵线里执行同一套条件判断与下单逻辑：
 ```text
-strategy BacktestAware
-version 0.1.0
+//@version=6
+strategy("Backtest Aware", overlay=true)
 
-on init:
-  log "strategy initialized"
-
-on kline_close:
-  log "kline closed"
+log.info("strategy initialized")
+log.info("kline closed")
 ```

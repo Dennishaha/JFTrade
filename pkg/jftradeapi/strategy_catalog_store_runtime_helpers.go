@@ -9,27 +9,27 @@ import (
 
 func strategyPluginIDForDefinition(definition strategyDesignDefinition) string {
 	_ = definition
-	return IDDSLPlanPlugin()
+	return IDPinePlanPlugin()
 }
 
 func strategyRuntimeFromParams(params map[string]any) string {
 	if runtime, ok := params["runtime"].(string); ok {
 		return normalizeStrategyRuntime(runtime)
 	}
-	return strategyRuntimeDSLPlan
+	return strategyRuntimePinePlan
 }
 
 func strategySourceFormatFromParams(params map[string]any) string {
 	if sourceFormat, ok := params["sourceFormat"].(string); ok {
 		return strategydefinition.NormalizeSourceFormat(sourceFormat)
 	}
-	return strategydefinition.SourceFormatDSLV1
+	return strategydefinition.SourceFormatPineV6
 }
 
 func strategyInstanceStartable(instance managedStrategyInstance) bool {
 	sourceFormat := strategySourceFormatFromParams(instance.Params)
 	runtime := strategyRuntimeFromParams(instance.Params)
-	return sourceFormat == strategydefinition.SourceFormatDSLV1 && runtime == strategyRuntimeDSLPlan
+	return sourceFormat == strategydefinition.SourceFormatPineV6 && runtime == strategyRuntimePinePlan
 }
 
 func strategyToListItem(strategy managedStrategyInstance) strategyListItem {
@@ -60,11 +60,11 @@ func normalizeManagedStrategyInstance(input managedStrategyInstance) managedStra
 func buildStrategyInstanceID(definitionID string) string {
 	definitionID = strings.TrimSpace(definitionID)
 	if definitionID == "" {
-		definitionID = IDDSLPlanPlugin()
+		definitionID = IDPinePlanPlugin()
 	}
 	return definitionID + "-" + time.Now().UTC().Format("20060102150405.000000000")
 }
 
-func IDDSLPlanPlugin() string {
-	return "dsl-go-plan"
+func IDPinePlanPlugin() string {
+	return "pine-go-plan"
 }

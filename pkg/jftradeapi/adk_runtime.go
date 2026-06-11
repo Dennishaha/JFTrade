@@ -16,6 +16,7 @@ import (
 	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
 	"github.com/jftrade/jftrade-main/pkg/backtest"
 	"github.com/jftrade/jftrade-main/pkg/broker"
+	strategypinespec "github.com/jftrade/jftrade-main/pkg/strategy/pinespec"
 )
 
 func deriveADKDBPath(settingsPath string) string {
@@ -242,32 +243,32 @@ func registerJFTradeADKTools(server *Server, store *jfadk.Store, registry *jfadk
 		return summarizeADKStrategyDefinitions(definitions, instances), nil
 	})
 	registry.Register(jfadk.ToolDescriptor{
-		Name:          "strategy.dsl_spec",
-		DisplayName:   "DSL 定义",
-		Description:   "读取当前 JFTrade DSL v1 的结构化定义、最小骨架、支持清单和示例。",
+		Name:          strategypinespec.ToolName,
+		DisplayName:   "Pine 定义",
+		Description:   "读取当前 JFTrade Pine Script v6 的结构化定义、最小骨架、支持清单和示例。",
 		Category:      "strategy",
 		Permission:    "read_internal",
-		OutputSummary: "JFTrade DSL v1 的章节摘要、支持语法与可选示例。",
+		OutputSummary: "JFTrade Pine Script v6 的章节摘要、支持语法与可选示例。",
 	}, func(_ context.Context, input map[string]any) (any, error) {
-		return strategyDSLSpecToolPayload(input)
+		return strategyPineSpecToolPayload(input)
 	})
 	registry.Register(jfadk.ToolDescriptor{
-		Name:          "strategy.validate_dsl",
-		DisplayName:   "校验 DSL",
-		Description:   "校验 JFTrade DSL v1 是否可被当前 parser、planner 和 runtime 接受，并返回结构化元数据与 requirements。",
+		Name:          "strategy.validate_pine",
+		DisplayName:   "校验 Pine",
+		Description:   "校验 Pine Script v6 是否可被当前 parser、lowerer、planner 和 runtime 接受，并返回结构化元数据、warnings 与 requirements。",
 		Category:      "strategy",
 		Permission:    "read_internal",
-		OutputSummary: "校验结果、元数据、hooks、编译后的 requirements，以及失败时的保存提示。",
+		OutputSummary: "校验结果、元数据、hooks、warnings、编译后的 requirements，以及失败时的保存提示。",
 	}, func(_ context.Context, input map[string]any) (any, error) {
-		return strategyValidateDSLToolPayload(input), nil
+		return strategyValidatePineToolPayload(input), nil
 	})
-	registry.Register(jfadk.ToolDescriptor{Name: "strategy.save_draft", DisplayName: "保存策略草稿", Description: "把 agent 生成的 JFTrade DSL v1 策略脚本保存为策略定义草稿；不接受 TradingView Pine Script。", Category: "strategy", Permission: "write_strategy", RequiresApprovalIn: []string{jfadk.PermissionModeApproval}, OutputSummary: "保存后的策略定义。"}, func(_ context.Context, input map[string]any) (any, error) {
+	registry.Register(jfadk.ToolDescriptor{Name: "strategy.save_draft", DisplayName: "保存策略草稿", Description: "把 agent 生成的 Pine Script v6 策略脚本保存为策略定义草稿。", Category: "strategy", Permission: "write_strategy", RequiresApprovalIn: []string{jfadk.PermissionModeApproval}, OutputSummary: "保存后的策略定义。"}, func(_ context.Context, input map[string]any) (any, error) {
 		return strategySaveDraftToolPayload(server, input)
 	})
 	registry.Register(jfadk.ToolDescriptor{
 		Name:               "strategy.save_definition",
 		DisplayName:        "保存策略定义",
-		Description:        "新建或更新 JFTrade DSL v1 策略定义；保存前会强制校验 DSL，并拒绝 TradingView Pine Script。",
+		Description:        "新建或更新 Pine Script v6 策略定义；保存前会强制校验 Pine 并拒绝 JFTrade 暂不支持的执行语义。",
 		Category:           "strategy",
 		Permission:         "write_strategy",
 		RequiresApprovalIn: []string{jfadk.PermissionModeApproval},

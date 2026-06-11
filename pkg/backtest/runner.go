@@ -18,8 +18,8 @@ import (
 
 	"github.com/jftrade/jftrade-main/pkg/futu"
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
-	"github.com/jftrade/jftrade-main/pkg/strategy/dslruntime"
 	"github.com/jftrade/jftrade-main/pkg/strategy/indicatorruntime"
+	"github.com/jftrade/jftrade-main/pkg/strategy/pineruntime"
 )
 
 // Run executes a backtest with the given configuration.
@@ -55,7 +55,7 @@ func Run(ctx context.Context, cfg RunConfig) *RunResult {
 	store.SetReadSessionScope(resolveBacktestReadSessionScope(cfg.UseExtendedHours))
 
 	sourceFormat := strategydefinition.NormalizeSourceFormat(cfg.SourceFormat)
-	if sourceFormat != strategydefinition.SourceFormatDSLV1 {
+	if sourceFormat != strategydefinition.SourceFormatPineV6 {
 		result.Error = fmt.Sprintf("unsupported strategy source format: %s", sourceFormat)
 		return result
 	}
@@ -189,7 +189,7 @@ func Run(ctx context.Context, cfg RunConfig) *RunResult {
 		Run(ctx context.Context, orderExecutor bbgo2.OrderExecutor, session *bbgo2.ExchangeSession) error
 	}
 
-	strategy := &dslruntime.Strategy{
+	strategy := &pineruntime.Strategy{
 		Name:             "backtest-strategy",
 		Symbol:           cfg.Symbol,
 		Interval:         types.Interval(cfg.Interval),

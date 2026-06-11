@@ -28,22 +28,17 @@ func TestBacktestRouteUsesDerivedStrategyWarmup(t *testing.T) {
 	server := newTestServer(t, store)
 	if _, err := server.designStore.saveDefinition(strategyDesignDefinition{
 		ID:           "dsl-auto-warmup-route",
-		Name:         "DSL Auto Warmup Route",
+		Name:         "Pine Auto Warmup Route",
 		Version:      "0.1.0",
-		Runtime:      strategyRuntimeDSLPlan,
-		SourceFormat: strategydefinition.SourceFormatDSLV1,
+		Runtime:      strategyRuntimePinePlan,
+		SourceFormat: strategydefinition.SourceFormatPineV6,
 		Symbol:       "US.AAPL",
 		Interval:     "1m",
-		Script: `strategy DSL Auto Warmup Route
-version 1
-symbol US.AAPL
-interval 1m
-
-on kline_close:
-  let fast = ma(MA, 1)
-  let slow = ma(MA, 20)
-  if cross_over(fast, slow):
-    buy shares 1`,
+		Script: `//@version=6
+strategy("Pine Auto Warmup Route", overlay=true)
+fast = ta.sma(close, 1)
+slow = ta.sma(close, 20)
+strategy.entry("Long", strategy.long, qty=1)`,
 	}); err != nil {
 		t.Fatalf("saveDefinition: %v", err)
 	}

@@ -40,23 +40,23 @@ func TestStrategyCatalogNormalizeStrategyAppliesDefaults(t *testing.T) {
 
 	normalized := store.normalizeStrategy(managedStrategyInstance{})
 
-	if normalized.PluginID != IDDSLPlanPlugin() {
-		t.Fatalf("expected plugin id %q, got %q", IDDSLPlanPlugin(), normalized.PluginID)
+	if normalized.PluginID != IDPinePlanPlugin() {
+		t.Fatalf("expected plugin id %q, got %q", IDPinePlanPlugin(), normalized.PluginID)
 	}
 	if normalized.Status != strategyStatusStopped {
 		t.Fatalf("expected status %q, got %q", strategyStatusStopped, normalized.Status)
 	}
-	if normalized.Definition.StrategyID != IDDSLPlanPlugin() {
-		t.Fatalf("expected definition strategy id %q, got %q", IDDSLPlanPlugin(), normalized.Definition.StrategyID)
+	if normalized.Definition.StrategyID != IDPinePlanPlugin() {
+		t.Fatalf("expected definition strategy id %q, got %q", IDPinePlanPlugin(), normalized.Definition.StrategyID)
 	}
-	if normalized.Definition.Name != IDDSLPlanPlugin() {
-		t.Fatalf("expected default definition name %q, got %q", IDDSLPlanPlugin(), normalized.Definition.Name)
+	if normalized.Definition.Name != IDPinePlanPlugin() {
+		t.Fatalf("expected default definition name %q, got %q", IDPinePlanPlugin(), normalized.Definition.Name)
 	}
 	if normalized.Definition.Version != "0.1.0" {
 		t.Fatalf("expected default definition version 0.1.0, got %q", normalized.Definition.Version)
 	}
-	if runtime, _ := normalized.Params["runtime"].(string); runtime != strategyRuntimeDSLPlan {
-		t.Fatalf("expected runtime %q, got %q", strategyRuntimeDSLPlan, runtime)
+	if runtime, _ := normalized.Params["runtime"].(string); runtime != strategyRuntimePinePlan {
+		t.Fatalf("expected runtime %q, got %q", strategyRuntimePinePlan, runtime)
 	}
 	if sourceFormat, _ := normalized.Params["sourceFormat"].(string); sourceFormat == "" {
 		t.Fatalf("expected non-empty source format")

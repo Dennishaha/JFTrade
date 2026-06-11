@@ -1,4 +1,4 @@
-package dslruntime
+package pineruntime
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	exprast "github.com/expr-lang/expr/ast"
-	strategydsl "github.com/jftrade/jftrade-main/pkg/strategy/dsl"
+	strategyexpression "github.com/jftrade/jftrade-main/pkg/strategy/expression"
 )
 
 type seriesNumber struct {
@@ -71,14 +71,14 @@ func parseExpression(expression string, scope *evaluationScope) (exprast.Node, e
 		if cached, ok := scope.runtime.expressionCache[trimmed]; ok {
 			return cached, nil
 		}
-		parsed, err := strategydsl.ParseExpression(trimmed)
+		parsed, err := strategyexpression.ParseExpression(trimmed)
 		if err != nil {
 			return nil, err
 		}
 		scope.runtime.expressionCache[trimmed] = parsed
 		return parsed, nil
 	}
-	return strategydsl.ParseExpression(trimmed)
+	return strategyexpression.ParseExpression(trimmed)
 }
 
 func evaluateAST(node exprast.Node, scope *evaluationScope) (any, error) {

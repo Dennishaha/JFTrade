@@ -1,18 +1,18 @@
-package dslspec
+package pinespec
 
 import (
 	"strings"
 	"testing"
 
-	strategydsl "github.com/jftrade/jftrade-main/pkg/strategy/dsl"
 	strategyir "github.com/jftrade/jftrade-main/pkg/strategy/ir"
+	strategypine "github.com/jftrade/jftrade-main/pkg/strategy/pine"
 )
 
 func TestExamplesParseAndPlan(t *testing.T) {
 	for _, example := range Examples() {
 		example := example
 		t.Run(example.ID, func(t *testing.T) {
-			program, err := strategydsl.ParseScript(example.Script)
+			program, err := strategypine.ParseScript(example.Script)
 			if err != nil {
 				t.Fatalf("ParseScript(%s): %v", example.ID, err)
 			}
@@ -57,11 +57,11 @@ func TestBuildToolPayloadSectionsAndExamples(t *testing.T) {
 
 func TestSkillResourcesContainSpecAndExamples(t *testing.T) {
 	files := SkillResourceFiles()
-	spec := files["references/dsl-v1-spec.md"]
-	if !strings.Contains(spec, "# JFTrade DSL v1 规范") {
+	spec := files["references/pine-v6-spec.md"]
+	if !strings.Contains(spec, "# JFTrade Pine Script v6 规范") {
 		t.Fatalf("spec resource missing heading: %q", spec)
 	}
-	examples := files["references/dsl-v1-examples.md"]
+	examples := files["references/pine-v6-examples.md"]
 	if !strings.Contains(examples, "## 最小可保存草稿") {
 		t.Fatalf("examples resource missing expected example heading: %q", examples)
 	}

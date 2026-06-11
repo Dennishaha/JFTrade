@@ -264,9 +264,9 @@ func instantiateStrategyRuntimeTestInstance(t *testing.T, server *Server, bindin
 		ID:           "runtime-test",
 		Name:         "Runtime Test",
 		Version:      "0.1.0",
-		Runtime:      strategyRuntimeDSLPlan,
-		SourceFormat: strategydefinition.SourceFormatDSLV1,
-		Script:       "strategy Runtime Test\non kline_close:\n  buy shares 10",
+		Runtime:      strategyRuntimePinePlan,
+		SourceFormat: strategydefinition.SourceFormatPineV6,
+		Script:       "//@version=6\nstrategy(\"Runtime Test\", overlay=true)\nstrategy.entry(\"Long\", strategy.long, qty=10)",
 	}
 	instance, err := server.strategyStore.instantiateStrategy(definition, binding)
 	if err != nil {

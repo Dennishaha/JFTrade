@@ -924,7 +924,7 @@ export interface StrategyVisualModelDocument {
 ## `StrategySourceFormat`
 
 ```ts
-export type StrategySourceFormat = "dsl-v1";
+export type StrategySourceFormat = "pine-v6";
 ```
 
 ## `StrategyInstanceStatus`

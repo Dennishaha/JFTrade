@@ -15,9 +15,6 @@ var divergenceCallPattern = regexp.MustCompile(`divergence_(top|bottom)\s*\(\s*(
 type Requirements struct {
 	Indicators                []IndicatorRequirement
 	RequiresPosition          bool
-	RequiresAvailableCash     bool
-	RequiresMarginBuyingPower bool
-	RequiresShortSellingPower bool
 	RequiresTotalAccountValue bool
 }
 
@@ -100,16 +97,10 @@ func planStatements(
 		case *OrderStmt:
 			quantityMode, ok := indicatorbinding.ParseQuantityMode(typed.QuantityMode)
 			if !ok {
-				return fmt.Errorf("dsl line %d: unsupported order quantity mode %q", typed.Range.StartLine, typed.QuantityMode)
+				return fmt.Errorf("pine line %d: unsupported order quantity mode %q", typed.Range.StartLine, typed.QuantityMode)
 			}
 			result.RequiresPosition = true
 			switch quantityMode {
-			case "cash_percent":
-				result.RequiresAvailableCash = true
-			case "margin_buying_power_percent":
-				result.RequiresMarginBuyingPower = true
-			case "short_selling_power_percent":
-				result.RequiresShortSellingPower = true
 			case "account_position_percent":
 				result.RequiresTotalAccountValue = true
 			}
@@ -139,21 +130,21 @@ func parseIndicatorBinding(statement *LetStmt) (plannedBinding, bool, error) {
 	switch indicatorbinding.NormalizeFunctionName(name) {
 	case "ma":
 		if len(args) < 2 || len(args) > 3 {
-			return plannedBinding{}, false, fmt.Errorf("dsl line %d: ma() requires type, period, and optional time unit", statement.Range.StartLine)
+			return plannedBinding{}, false, fmt.Errorf("pine line %d: ma() requires type, period, and optional time unit", statement.Range.StartLine)
 		}
 		averageType, ok := indicatorbinding.ParseMovingAverageType(args[0])
 		if !ok {
-			return plannedBinding{}, false, fmt.Errorf("dsl line %d: ma() type %q is not supported", statement.Range.StartLine, strings.TrimSpace(args[0]))
+			return plannedBinding{}, false, fmt.Errorf("pine line %d: ma() type %q is not supported", statement.Range.StartLine, strings.TrimSpace(args[0]))
 		}
 		period, err := indicatorbinding.ParsePositiveInt(args[1])
 		if err != nil {
-			return plannedBinding{}, false, fmt.Errorf("dsl line %d: ma() period must be a positive integer", statement.Range.StartLine)
+			return plannedBinding{}, false, fmt.Errorf("pine line %d: ma() period must be a positive integer", statement.Range.StartLine)
 		}
 		timeUnit := ""
 		if len(args) == 3 {
 			parsedTimeUnit, ok := indicatorbinding.ParseIndicatorTimeUnitValue(args[2])
 			if !ok {
-				return plannedBinding{}, false, fmt.Errorf("dsl line %d: ma() time unit %q is not supported", statement.Range.StartLine, strings.TrimSpace(args[2]))
+				return plannedBinding{}, false, fmt.Errorf("pine line %d: ma() time unit %q is not supported", statement.Range.StartLine, strings.TrimSpace(args[2]))
 			}
 			timeUnit = parsedTimeUnit
 		}
@@ -199,15 +190,15 @@ func parseIndicatorBinding(statement *LetStmt) (plannedBinding, bool, error) {
 		return plannedBinding{Alias: statement.Name, Kind: "williamsr", Key: "williamsr:" + strconv.Itoa(period), Args: []string{strconv.Itoa(period)}}, true, nil
 	case "bollinger":
 		if len(args) != 2 {
-			return plannedBinding{}, false, fmt.Errorf("dsl line %d: bollinger() requires period and multiplier", statement.Range.StartLine)
+			return plannedBinding{}, false, fmt.Errorf("pine line %d: bollinger() requires period and multiplier", statement.Range.StartLine)
 		}
 		period, err := indicatorbinding.ParsePositiveInt(args[0])
 		if err != nil {
-			return plannedBinding{}, false, fmt.Errorf("dsl line %d: bollinger() period must be a positive integer", statement.Range.StartLine)
+			return plannedBinding{}, false, fmt.Errorf("pine line %d: bollinger() period must be a positive integer", statement.Range.StartLine)
 		}
 		multiplier, err := indicatorbinding.ParsePositiveFloat(args[1])
 		if err != nil {
-			return plannedBinding{}, false, fmt.Errorf("dsl line %d: bollinger() multiplier must be a positive number", statement.Range.StartLine)
+			return plannedBinding{}, false, fmt.Errorf("pine line %d: bollinger() multiplier must be a positive number", statement.Range.StartLine)
 		}
 		key := "bollinger:" + strconv.Itoa(period) + ":" + strconv.FormatFloat(multiplier, 'f', -1, 64)
 		return plannedBinding{Alias: statement.Name, Kind: "bollinger", Key: key, Args: []string{strconv.Itoa(period), strconv.FormatFloat(multiplier, 'f', -1, 64)}}, true, nil
@@ -266,30 +257,30 @@ func buildDivergenceRequirementKey(binding plannedBinding, direction string, loo
 func buildProtectRequirementKey(statement *ProtectStmt) (string, error) {
 	mode, ok := indicatorbinding.ParseProtectMode(statement.Mode)
 	if !ok {
-		return "", fmt.Errorf("dsl line %d: protect mode %q is not supported", statement.Range.StartLine, strings.TrimSpace(statement.Mode))
+		return "", fmt.Errorf("pine line %d: protect mode %q is not supported", statement.Range.StartLine, strings.TrimSpace(statement.Mode))
 	}
 	direction, ok := indicatorbinding.ParseProtectDirection(statement.Direction)
 	if !ok {
-		return "", fmt.Errorf("dsl line %d: protect direction %q is not supported", statement.Range.StartLine, strings.TrimSpace(statement.Direction))
+		return "", fmt.Errorf("pine line %d: protect direction %q is not supported", statement.Range.StartLine, strings.TrimSpace(statement.Direction))
 	}
 	timeValue, err := indicatorbinding.ParsePositiveInt(statement.TimeValueExpression)
 	if err != nil {
-		return "", fmt.Errorf("dsl line %d: protect time value must be a positive integer", statement.Range.StartLine)
+		return "", fmt.Errorf("pine line %d: protect time value must be a positive integer", statement.Range.StartLine)
 	}
 	timeUnit, ok := indicatorbinding.ParseIndicatorTimeUnitValue(statement.TimeUnit)
 	if !ok {
-		return "", fmt.Errorf("dsl line %d: protect time unit %q is not supported", statement.Range.StartLine, strings.TrimSpace(statement.TimeUnit))
+		return "", fmt.Errorf("pine line %d: protect time unit %q is not supported", statement.Range.StartLine, strings.TrimSpace(statement.TimeUnit))
 	}
 	if timeUnit == "" {
 		timeUnit = "bar"
 	}
 	percentage, err := indicatorbinding.ParsePercentage(statement.PercentageExpression)
 	if err != nil {
-		return "", fmt.Errorf("dsl line %d: protect percentage must be a positive number", statement.Range.StartLine)
+		return "", fmt.Errorf("pine line %d: protect percentage must be a positive number", statement.Range.StartLine)
 	}
 	windowPolicy, ok := indicatorbinding.ParseProtectWindowPolicy(statement.WindowPolicy)
 	if !ok {
-		return "", fmt.Errorf("dsl line %d: protect window policy %q is not supported", statement.Range.StartLine, strings.TrimSpace(statement.WindowPolicy))
+		return "", fmt.Errorf("pine line %d: protect window policy %q is not supported", statement.Range.StartLine, strings.TrimSpace(statement.WindowPolicy))
 	}
 	if mode == "stopLoss" && windowPolicy == "continuous" {
 		return fmt.Sprintf("sl:%s:%d:%s:%s", direction, timeValue, timeUnit, strconv.FormatFloat(percentage, 'f', -1, 64)), nil

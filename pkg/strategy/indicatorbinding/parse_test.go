@@ -354,12 +354,6 @@ func TestParseQuantityMode(t *testing.T) {
 		{"symbol_position_percent", "symbol_position_percent"},
 		{"position_percent", "symbol_position_percent"},
 		{"positionPercent", "symbol_position_percent"},
-		{"cash_percent", "cash_percent"},
-		{"cashPercent", "cash_percent"},
-		{"margin_buying_power_percent", "margin_buying_power_percent"},
-		{"marginBuyingPowerPercent", "margin_buying_power_percent"},
-		{"short_selling_power_percent", "short_selling_power_percent"},
-		{"shortSellingPowerPercent", "short_selling_power_percent"},
 		{"amount", "amount"},
 		{"shares", "shares"},
 		{"share", "shares"},
@@ -376,7 +370,7 @@ func TestParseQuantityMode(t *testing.T) {
 		})
 	}
 
-	invalid := []string{"bananas", "percent", "", "  "}
+	invalid := []string{"bananas", "percent", "", "  ", "cash_percent", "cashPercent", "margin_buying_power_percent", "short_selling_power_percent"}
 	for _, it := range invalid {
 		t.Run("invalid "+it, func(t *testing.T) {
 			_, ok := ParseQuantityMode(it)
@@ -391,8 +385,8 @@ func TestNormalizeQuantityMode(t *testing.T) {
 	if got := NormalizeQuantityMode("bananas"); got != "shares" {
 		t.Fatalf("NormalizeQuantityMode(bananas) = %q, want shares", got)
 	}
-	if got := NormalizeQuantityMode("cashPercent"); got != "cash_percent" {
-		t.Fatalf("NormalizeQuantityMode(cashPercent) = %q, want cash_percent", got)
+	if got := NormalizeQuantityMode("cashPercent"); got != "shares" {
+		t.Fatalf("NormalizeQuantityMode(cashPercent) = %q, want shares", got)
 	}
 }
 

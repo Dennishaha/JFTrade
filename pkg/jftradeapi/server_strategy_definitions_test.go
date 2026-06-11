@@ -21,15 +21,15 @@ func TestStrategyDefinitionEndpoints(t *testing.T) {
 	srv := newHTTPTestServer(t, store)
 
 	payload := map[string]any{
-		"id":           "dsl-mean-revert",
-		"name":         "DSL Mean Revert",
+		"id":           "pine-mean-revert",
+		"name":         "Pine Mean Revert",
 		"version":      "0.1.0",
-		"description":  "dsl strategy",
-		"runtime":      strategyRuntimeDSLPlan,
-		"sourceFormat": strategydefinition.SourceFormatDSLV1,
+		"description":  "pine strategy",
+		"runtime":      strategyRuntimePinePlan,
+		"sourceFormat": strategydefinition.SourceFormatPineV6,
 		"symbol":       "00700",
 		"interval":     "1m",
-		"script":       "strategy DSL Mean Revert\nversion 0.1.0\non init:\n  log \"init\"\non kline_close:\n  let slow = ma(EMA, 2, hour)\n  log \"close\"",
+		"script":       "//@version=6\nstrategy(\"Pine Mean Revert\", overlay=true)\nslow = ta.ema(close, 24)\nlog.info(\"close\")",
 		"visualModel": map[string]any{
 			"engine":  "logic-flow",
 			"version": 1,
@@ -106,10 +106,10 @@ func TestStrategyDefinitionEndpoints(t *testing.T) {
 	if err := json.NewDecoder(detailResp.Body).Decode(&detailEnvelope); err != nil {
 		t.Fatalf("decode strategy definition detail: %v", err)
 	}
-	if detailEnvelope.Data.Runtime != strategyRuntimeDSLPlan {
+	if detailEnvelope.Data.Runtime != strategyRuntimePinePlan {
 		t.Fatalf("unexpected strategy runtime: %+v", detailEnvelope.Data)
 	}
-	if detailEnvelope.Data.SourceFormat != strategydefinition.SourceFormatDSLV1 {
+	if detailEnvelope.Data.SourceFormat != strategydefinition.SourceFormatPineV6 {
 		t.Fatalf("unexpected strategy source format: %+v", detailEnvelope.Data)
 	}
 	if detailEnvelope.Data.VisualModel == nil || len(detailEnvelope.Data.VisualModel.Nodes) != 1 {
@@ -144,7 +144,7 @@ func TestStrategyDefinitionEndpoints(t *testing.T) {
 		t.Fatalf("preview derivedWarmupInterval = %q, want 5m", previewEnvelope.Data.DerivedWarmupInterval)
 	}
 
-	payload["description"] = "updated dsl strategy"
+	payload["description"] = "updated pine strategy"
 	updateBody, _ := json.Marshal(payload)
 	request, err := http.NewRequest(http.MethodPut, srv.URL+"/api/v1/strategy-definitions/"+createEnvelope.Data.ID, bytes.NewReader(updateBody))
 	if err != nil {
@@ -166,7 +166,7 @@ func TestStrategyDefinitionEndpoints(t *testing.T) {
 	if err := json.NewDecoder(updateResp.Body).Decode(&updateEnvelope); err != nil {
 		t.Fatalf("decode updated strategy definition: %v", err)
 	}
-	if updateEnvelope.Data.Description != "updated dsl strategy" {
+	if updateEnvelope.Data.Description != "updated pine strategy" {
 		t.Fatalf("unexpected updated definition: %+v", updateEnvelope.Data)
 	}
 	if updateEnvelope.Data.ID != createEnvelope.Data.ID {
@@ -184,9 +184,9 @@ func TestStrategyDefinitionCreateGeneratesUUIDWhenIDMissing(t *testing.T) {
 	payload := map[string]any{
 		"name":         "UUID Strategy",
 		"description":  "strategy without explicit id",
-		"runtime":      strategyRuntimeDSLPlan,
-		"sourceFormat": strategydefinition.SourceFormatDSLV1,
-		"script":       "strategy UUID Strategy\nversion 0.1.0\non init:\n  log \"init\"\non kline_close:\n  log \"close\"",
+		"runtime":      strategyRuntimePinePlan,
+		"sourceFormat": strategydefinition.SourceFormatPineV6,
+		"script":       "//@version=6\nstrategy(\"UUID Strategy\", overlay=true)\nlog.info(\"close\")",
 	}
 	body, _ := json.Marshal(payload)
 	createResp, err := http.Post(srv.URL+"/api/v1/strategy-definitions", "application/json", bytes.NewReader(body))
@@ -218,12 +218,12 @@ func TestDeleteStrategyDefinitionRequiresDeletingLinkedInstancesFirst(t *testing
 	}
 	server := newTestServer(t, store)
 	definition, err := server.designStore.saveDefinition(strategyDesignDefinition{
-		ID:           "dsl-delete-guard",
+		ID:           "pine-delete-guard",
 		Name:         "Delete Guard",
 		Description:  "delete guard",
-		Runtime:      strategyRuntimeDSLPlan,
-		SourceFormat: strategydefinition.SourceFormatDSLV1,
-		Script:       "strategy Delete Guard\nversion 0.1.0\non init:\n  log \"init\"\non kline_close:\n  log \"close\"",
+		Runtime:      strategyRuntimePinePlan,
+		SourceFormat: strategydefinition.SourceFormatPineV6,
+		Script:       "//@version=6\nstrategy(\"Delete Guard\", overlay=true)\nlog.info(\"close\")",
 	})
 	if err != nil {
 		t.Fatalf("saveDefinition: %v", err)

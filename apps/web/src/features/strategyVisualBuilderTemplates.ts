@@ -14,9 +14,9 @@ import {
   createWilliamsRReversionStrategyVisualModel,
 } from "./strategyVisualBuilderModels";
 import {
-  buildStrategyDslFromVisualModel,
+  buildStrategyPineFromVisualModel,
   type StrategyScriptContext,
-} from "./strategyVisualBuilderDsl";
+} from "./strategyVisualBuilderPine";
 
 export interface StrategyAuthoringTemplate {
   id: string;
@@ -44,13 +44,13 @@ export function getStrategyAuthoringTemplates(): StrategyAuthoringTemplate[] {
       defaultId: "dsl-logic-flow-starter",
       defaultName: "逻辑流起步骨架",
       defaultVersion: "0.1.0",
-      defaultDescription: "用流程图拖拽块，快速搭一个可保存的 DSL 策略骨架。",
+      defaultDescription: "用流程图拖拽块，快速搭一个可保存的 Pine 策略骨架。",
       defaultSymbol: "00700",
       defaultInterval: "1m",
       visualModel: createDefaultStrategyVisualModel(),
       syncVisualToCode: true,
       buildScript: (context) =>
-        buildStrategyDslFromVisualModel(createDefaultStrategyVisualModel(), context),
+        buildStrategyPineFromVisualModel(createDefaultStrategyVisualModel(), context),
     },
     {
       id: "double-moving-average",
@@ -66,7 +66,7 @@ export function getStrategyAuthoringTemplates(): StrategyAuthoringTemplate[] {
       visualModel: createDoubleMovingAverageStrategyVisualModel(),
       syncVisualToCode: true,
       buildScript: (context) =>
-        buildStrategyDslFromVisualModel(createDoubleMovingAverageStrategyVisualModel(), context),
+        buildStrategyPineFromVisualModel(createDoubleMovingAverageStrategyVisualModel(), context),
     },
     {
       id: "rsi-reversion",
@@ -82,7 +82,7 @@ export function getStrategyAuthoringTemplates(): StrategyAuthoringTemplate[] {
       visualModel: createRSIReversionStrategyVisualModel(),
       syncVisualToCode: true,
       buildScript: (context) =>
-        buildStrategyDslFromVisualModel(createRSIReversionStrategyVisualModel(), context),
+        buildStrategyPineFromVisualModel(createRSIReversionStrategyVisualModel(), context),
     },
     {
       id: "macd-momentum",
@@ -98,7 +98,7 @@ export function getStrategyAuthoringTemplates(): StrategyAuthoringTemplate[] {
       visualModel: createMACDMomentumStrategyVisualModel(),
       syncVisualToCode: true,
       buildScript: (context) =>
-        buildStrategyDslFromVisualModel(createMACDMomentumStrategyVisualModel(), context),
+        buildStrategyPineFromVisualModel(createMACDMomentumStrategyVisualModel(), context),
     },
     {
       id: "kdj-reversion",
@@ -114,7 +114,7 @@ export function getStrategyAuthoringTemplates(): StrategyAuthoringTemplate[] {
       visualModel: createKDJReversionStrategyVisualModel(),
       syncVisualToCode: true,
       buildScript: (context) =>
-        buildStrategyDslFromVisualModel(createKDJReversionStrategyVisualModel(), context),
+        buildStrategyPineFromVisualModel(createKDJReversionStrategyVisualModel(), context),
     },
     {
       id: "bollinger-reversion",
@@ -130,7 +130,7 @@ export function getStrategyAuthoringTemplates(): StrategyAuthoringTemplate[] {
       visualModel: createBollingerReversionStrategyVisualModel(),
       syncVisualToCode: true,
       buildScript: (context) =>
-        buildStrategyDslFromVisualModel(createBollingerReversionStrategyVisualModel(), context),
+        buildStrategyPineFromVisualModel(createBollingerReversionStrategyVisualModel(), context),
     },
     {
       id: "atr-volatility",
@@ -146,7 +146,7 @@ export function getStrategyAuthoringTemplates(): StrategyAuthoringTemplate[] {
       visualModel: createATRVolatilityStrategyVisualModel(),
       syncVisualToCode: true,
       buildScript: (context) =>
-        buildStrategyDslFromVisualModel(createATRVolatilityStrategyVisualModel(), context),
+        buildStrategyPineFromVisualModel(createATRVolatilityStrategyVisualModel(), context),
     },
     {
       id: "cci-reversion",
@@ -162,7 +162,7 @@ export function getStrategyAuthoringTemplates(): StrategyAuthoringTemplate[] {
       visualModel: createCCIReversionStrategyVisualModel(),
       syncVisualToCode: true,
       buildScript: (context) =>
-        buildStrategyDslFromVisualModel(createCCIReversionStrategyVisualModel(), context),
+        buildStrategyPineFromVisualModel(createCCIReversionStrategyVisualModel(), context),
     },
     {
       id: "williamsr-reversion",
@@ -178,7 +178,7 @@ export function getStrategyAuthoringTemplates(): StrategyAuthoringTemplate[] {
       visualModel: createWilliamsRReversionStrategyVisualModel(),
       syncVisualToCode: true,
       buildScript: (context) =>
-        buildStrategyDslFromVisualModel(createWilliamsRReversionStrategyVisualModel(), context),
+        buildStrategyPineFromVisualModel(createWilliamsRReversionStrategyVisualModel(), context),
     },
     {
       id: "breakout-alert",
@@ -194,7 +194,7 @@ export function getStrategyAuthoringTemplates(): StrategyAuthoringTemplate[] {
       visualModel: createBreakoutStrategyVisualModel(),
       syncVisualToCode: true,
       buildScript: (context) =>
-        buildStrategyDslFromVisualModel(createBreakoutStrategyVisualModel(), context),
+        buildStrategyPineFromVisualModel(createBreakoutStrategyVisualModel(), context),
     },
     {
       id: "mean-reversion-alert",
@@ -210,7 +210,7 @@ export function getStrategyAuthoringTemplates(): StrategyAuthoringTemplate[] {
       visualModel: createMeanReversionStrategyVisualModel(),
       syncVisualToCode: true,
       buildScript: (context) =>
-        buildStrategyDslFromVisualModel(createMeanReversionStrategyVisualModel(), context),
+        buildStrategyPineFromVisualModel(createMeanReversionStrategyVisualModel(), context),
     },
   ];
 }

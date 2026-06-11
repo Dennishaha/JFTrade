@@ -5,7 +5,7 @@ import type { StrategyDefinitionDocument } from "@/contracts";
 import StrategyLogicFlowDesigner from "../src/components/StrategyLogicFlowDesigner.vue";
 import {
   MockWebSocket,
-  buildDslScript,
+  buildPineScript,
   buildFetchMock,
   flushRequests,
   mountStrategyPage,
@@ -24,20 +24,20 @@ afterEach(() => {
 });
 
 describe("Strategy page", () => {
-  it("shows the DSL strategy design workspace", async () => {
+  it("shows the Pine strategy design workspace", async () => {
     vi.stubGlobal(
       "fetch",
       buildFetchMock({
         definitions: [
           {
             id: "dsl-mean-revert",
-            name: "DSL Mean Revert",
+            name: "Pine Mean Revert",
             version: "0.1.0",
-            description: "dsl strategy",
-            runtime: "dsl-go-plan",
+            description: "pine strategy",
+            runtime: "pine-go-plan",
             symbol: "00700",
             interval: "1m",
-            script: buildDslScript("DSL Mean Revert"),
+            script: buildPineScript("Pine Mean Revert"),
             createdAt: "2026-05-23T00:00:00.000Z",
             updatedAt: "2026-05-23T00:00:00.000Z",
           },
@@ -58,8 +58,8 @@ describe("Strategy page", () => {
 
     expect(wrapper.text()).toContain("设计");
     expect(wrapper.text()).toContain("策略定义");
-    expect(wrapper.text()).toContain("DSL Mean Revert");
-    expect(wrapper.text()).toContain("dsl-go-plan");
+    expect(wrapper.text()).toContain("Pine Mean Revert");
+    expect(wrapper.text()).toContain("pine-go-plan");
     expect(wrapper.find('[data-testid="strategy-logic-flow-canvas"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="strategy-visual-builder-section"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="strategy-logic-flow-zoom-fit"]').exists()).toBe(true);
@@ -77,9 +77,9 @@ describe("Strategy page", () => {
 
     await showStrategyCodeEditor(wrapper, "code");
 
-    expect(wrapper.text()).toContain("DSL 策略工作台");
+    expect(wrapper.text()).toContain("Pine 策略工作台");
     expect(wrapper.get('[data-testid="strategy-script-editor"]').element).toBeTruthy();
-    expect(wrapper.html()).toContain("on kline_close:");
+    expect(wrapper.html()).toContain("//@version=6");
 
     expect(wrapper.find('[data-testid="strategy-templates-section"]').exists()).toBe(false);
     await openStrategyTemplatesPanel(wrapper);
@@ -97,13 +97,13 @@ describe("Strategy page", () => {
         definitions: [
           {
             id: "dsl-mean-revert",
-            name: "DSL Mean Revert",
+            name: "Pine Mean Revert",
             version: "0.1.0",
-            description: "dsl strategy",
-            runtime: "dsl-go-plan",
+            description: "pine strategy",
+            runtime: "pine-go-plan",
             symbol: "00700",
             interval: "1m",
-            script: buildDslScript("DSL Mean Revert"),
+            script: buildPineScript("Pine Mean Revert"),
             createdAt: "2026-05-23T00:00:00.000Z",
             updatedAt: "2026-05-23T00:00:00.000Z",
           },
@@ -164,13 +164,13 @@ describe("Strategy page", () => {
         definitions: [
           {
             id: "dsl-mean-revert",
-            name: "DSL Mean Revert",
+            name: "Pine Mean Revert",
             version: "0.1.0",
-            description: "dsl strategy",
-            runtime: "dsl-go-plan",
+            description: "pine strategy",
+            runtime: "pine-go-plan",
             symbol: "00700",
             interval: "1m",
-            script: buildDslScript("DSL Mean Revert"),
+            script: buildPineScript("Pine Mean Revert"),
             createdAt: "2026-05-23T00:00:00.000Z",
             updatedAt: "2026-05-23T00:00:00.000Z",
           },
@@ -217,21 +217,21 @@ describe("Strategy page", () => {
         definitions: [
           {
             id: "dsl-mean-revert",
-            name: "DSL Mean Revert",
+            name: "Pine Mean Revert",
             version: "0.1.0",
-            description: "dsl strategy",
-            runtime: "dsl-go-plan",
-            script: buildDslScript("DSL Mean Revert"),
+            description: "pine strategy",
+            runtime: "pine-go-plan",
+            script: buildPineScript("Pine Mean Revert"),
             createdAt: "2026-05-23T00:00:00.000Z",
             updatedAt: "2026-05-23T00:00:00.000Z",
           },
           {
             id: "dsl-breakout",
-            name: "DSL Breakout",
+            name: "Pine Breakout",
             version: "0.1.0",
-            description: "second dsl strategy",
-            runtime: "dsl-go-plan",
-            script: buildDslScript("DSL Breakout"),
+            description: "second pine strategy",
+            runtime: "pine-go-plan",
+            script: buildPineScript("Pine Breakout"),
             createdAt: "2026-05-23T00:01:00.000Z",
             updatedAt: "2026-05-23T00:01:00.000Z",
           },
@@ -253,13 +253,13 @@ describe("Strategy page", () => {
     await settleStrategyWorkspace();
 
     expect(wrapper.find('[data-testid="strategy-delete-definition-dialog"]').exists()).toBe(true);
-    expect(wrapper.get('[data-testid="strategy-delete-definition-summary"]').text()).toContain("DSL Mean Revert");
+    expect(wrapper.get('[data-testid="strategy-delete-definition-summary"]').text()).toContain("Pine Mean Revert");
     expect(wrapper.find('[data-testid="confirm-delete-strategy-definition"]').exists()).toBe(true);
 
     await wrapper.get('[data-testid="confirm-delete-strategy-definition"]').trigger("click");
     await settleStrategyWorkspace();
 
-    expect(wrapper.text()).toContain("策略已删除：DSL Mean Revert。");
+    expect(wrapper.text()).toContain("策略已删除：Pine Mean Revert。");
     expect(wrapper.find('[data-testid="strategy-definition-dsl-mean-revert"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="strategy-definition-dsl-breakout"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="strategy-delete-definition-dialog"]').exists()).toBe(false);
@@ -274,11 +274,11 @@ describe("Strategy page", () => {
         definitions: [
           {
             id: "dsl-breakout",
-            name: "DSL Breakout",
+            name: "Pine Breakout",
             version: "0.1.0",
-            description: "dsl strategy",
-            runtime: "dsl-go-plan",
-            script: buildDslScript("DSL Breakout"),
+            description: "pine strategy",
+            runtime: "pine-go-plan",
+            script: buildPineScript("Pine Breakout"),
             createdAt: "2026-05-23T00:00:00.000Z",
             updatedAt: "2026-05-23T00:00:00.000Z",
           },
@@ -288,7 +288,7 @@ describe("Strategy page", () => {
             id: "dsl-breakout-instance",
             definition: {
               strategyId: "dsl-breakout",
-              name: "DSL Breakout",
+              name: "Pine Breakout",
               version: "0.1.0",
             },
             binding: {
@@ -298,7 +298,7 @@ describe("Strategy page", () => {
             },
             params: {
               definitionId: "dsl-breakout",
-              script: buildDslScript("DSL Breakout"),
+              script: buildPineScript("Pine Breakout"),
             },
             status: "STOPPED",
             createdAt: "2026-05-23T00:01:00.000Z",
@@ -333,7 +333,7 @@ describe("Strategy page", () => {
 
     expect(wrapper.find('[data-testid="strategy-delete-definition-dialog"]').exists()).toBe(false);
     expect(wrapper.find('[data-testid="strategy-definitions-panel"]').exists()).toBe(false);
-    expect(wrapper.text()).toContain("已切换到运行面板，请先删除策略「DSL Breakout」关联的 1 个实例");
+    expect(wrapper.text()).toContain("已切换到运行面板，请先删除策略「Pine Breakout」关联的 1 个实例");
     expect(wrapper.find('[data-testid="strategy-create-instance-panel"]').exists()).toBe(true);
 
     wrapper.unmount();
@@ -346,13 +346,13 @@ describe("Strategy page", () => {
         definitions: [
           {
             id: "dsl-mean-revert",
-            name: "DSL Mean Revert",
+            name: "Pine Mean Revert",
             version: "0.1.0",
-            description: "dsl strategy",
-            runtime: "dsl-go-plan",
+            description: "pine strategy",
+            runtime: "pine-go-plan",
             symbol: "00700",
             interval: "1m",
-            script: buildDslScript("DSL Mean Revert"),
+            script: buildPineScript("Pine Mean Revert"),
             createdAt: "2026-05-23T00:00:00.000Z",
             updatedAt: "2026-05-23T00:00:00.000Z",
           },
@@ -403,13 +403,13 @@ describe("Strategy page", () => {
         definitions: [
           {
             id: "dsl-mean-revert",
-            name: "DSL Mean Revert",
+            name: "Pine Mean Revert",
             version: "0.1.0",
-            description: "dsl strategy",
-            runtime: "dsl-go-plan",
+            description: "pine strategy",
+            runtime: "pine-go-plan",
             symbol: "00700",
             interval: "1m",
-            script: buildDslScript("DSL Mean Revert"),
+            script: buildPineScript("Pine Mean Revert"),
             createdAt: "2026-05-23T00:00:00.000Z",
             updatedAt: "2026-05-23T00:00:00.000Z",
           },
@@ -479,10 +479,10 @@ describe("Strategy page", () => {
             name: "RSI Visual",
             version: "0.2.0",
             description: "visual strategy",
-            runtime: "dsl-go-plan",
+            runtime: "pine-go-plan",
             symbol: "00700",
             interval: "1m",
-            script: buildDslScript(
+            script: buildPineScript(
               "RSI Visual",
               [
                 "let rsi_calc_node = rsi(14)",
@@ -569,13 +569,13 @@ describe("Strategy page", () => {
         definitions: [
           {
             id: "dsl-indicator-bindings",
-            name: "DSL Indicator Bindings",
+            name: "Pine Indicator Bindings",
             version: "0.2.0",
             description: "indicator binding inspector",
-            runtime: "dsl-go-plan",
+            runtime: "pine-go-plan",
             symbol: "00700",
             interval: "1m",
-            script: buildDslScript("DSL Indicator Bindings", ['log "seed"'], { version: "0.2.0" }),
+            script: buildPineScript("Pine Indicator Bindings", ['log "seed"'], { version: "0.2.0" }),
             visualModel: {
               engine: "logic-flow",
               version: 1,
@@ -703,13 +703,13 @@ describe("Strategy page", () => {
         definitions: [
           {
             id: "dsl-place-order-policy",
-            name: "DSL Place Order Policy",
+            name: "Pine Place Order Policy",
             version: "0.2.0",
             description: "place order policy inspector",
-            runtime: "dsl-go-plan",
+            runtime: "pine-go-plan",
             symbol: "00700",
             interval: "1m",
-            script: buildDslScript("DSL Place Order Policy", ['log "seed"'], { version: "0.2.0" }),
+            script: buildPineScript("Pine Place Order Policy", ['log "seed"'], { version: "0.2.0" }),
             visualModel: {
               engine: "logic-flow",
               version: 1,
@@ -765,27 +765,22 @@ describe("Strategy page", () => {
     await flushRequests();
 
     expect(wrapper.find('[data-testid="strategy-place-order-entry-position-policy"]').exists()).toBe(true);
-    expect(wrapper.text()).toContain("账户仓位百分比");
-    expect(wrapper.text()).toContain("当前标的仓位百分比");
-    expect(wrapper.text()).toContain("融资可用百分比");
-    expect(wrapper.text()).toContain("融券可用百分比");
-
-    expect((wrapper.get('option[value="marginBuyingPowerPercent"]').element as HTMLOptionElement).disabled).toBe(false);
-    expect((wrapper.get('option[value="shortSellingPowerPercent"]').element as HTMLOptionElement).disabled).toBe(true);
+    expect(wrapper.text()).toContain("账户权益百分比");
+    expect(wrapper.text()).not.toContain("当前标的仓位百分比");
+    expect(wrapper.text()).not.toContain("融资可用百分比");
+    expect(wrapper.text()).not.toContain("融券可用百分比");
+    expect(wrapper.find('option[value="marginBuyingPowerPercent"]').exists()).toBe(false);
+    expect(wrapper.find('option[value="shortSellingPowerPercent"]').exists()).toBe(false);
 
     await wrapper.find('[data-testid="strategy-place-order-side"]').setValue("SELL_SHORT");
     await flushRequests();
 
     expect(wrapper.find('[data-testid="strategy-place-order-entry-position-policy"]').exists()).toBe(true);
-    expect((wrapper.get('option[value="marginBuyingPowerPercent"]').element as HTMLOptionElement).disabled).toBe(true);
-    expect((wrapper.get('option[value="shortSellingPowerPercent"]').element as HTMLOptionElement).disabled).toBe(false);
 
     await wrapper.find('[data-testid="strategy-place-order-side"]').setValue("SELL");
     await flushRequests();
 
     expect(wrapper.find('[data-testid="strategy-place-order-entry-position-policy"]').exists()).toBe(false);
-    expect((wrapper.get('option[value="marginBuyingPowerPercent"]').element as HTMLOptionElement).disabled).toBe(true);
-    expect((wrapper.get('option[value="shortSellingPowerPercent"]').element as HTMLOptionElement).disabled).toBe(true);
 
     wrapper.unmount();
   });
@@ -797,13 +792,13 @@ describe("Strategy page", () => {
         definitions: [
           {
             id: "dsl-edge-disconnect",
-            name: "DSL Edge Disconnect",
+            name: "Pine Edge Disconnect",
             version: "0.2.0",
             description: "edge disconnect inspector",
-            runtime: "dsl-go-plan",
+            runtime: "pine-go-plan",
             symbol: "00700",
             interval: "1m",
-            script: buildDslScript("DSL Edge Disconnect", ['log "seed"'], { version: "0.2.0" }),
+            script: buildPineScript("Pine Edge Disconnect", ['log "seed"'], { version: "0.2.0" }),
             visualModel: {
               engine: "logic-flow",
               version: 1,
@@ -896,7 +891,7 @@ describe("Strategy page", () => {
     wrapper.unmount();
   });
 
-  it("auto syncs a saved logic flow model back into DSL", async () => {
+  it("auto syncs a saved logic flow model back into Pine", async () => {
     const visualModel = {
       engine: "logic-flow" as const,
       version: 1,
@@ -939,13 +934,13 @@ describe("Strategy page", () => {
         definitions: [
           {
             id: "dsl-logic-flow",
-            name: "DSL Logic Flow",
+            name: "Pine Logic Flow",
             version: "0.2.0",
             description: "visual strategy",
-            runtime: "dsl-go-plan",
+            runtime: "pine-go-plan",
             symbol: "00700",
             interval: "1m",
-            script: buildDslScript("DSL Logic Flow", ['log "seed"'], { version: "0.2.0" }),
+            script: buildPineScript("Pine Logic Flow", ['log "seed"'], { version: "0.2.0" }),
             visualModel,
             createdAt: "2026-05-23T00:00:00.000Z",
             updatedAt: "2026-05-23T00:00:00.000Z",
@@ -968,32 +963,32 @@ describe("Strategy page", () => {
 
     const scriptEditor = wrapper.get('[data-testid="strategy-script-editor"]')
       .element as HTMLTextAreaElement;
-    expect(scriptEditor.value).toContain("strategy DSL Logic Flow");
+    expect(scriptEditor.value).toContain('strategy("Pine Logic Flow"');
     expect(scriptEditor.value).not.toContain("manualOnly");
 
     wrapper.findComponent(StrategyLogicFlowDesigner).vm.$emit("update:modelValue", visualModel);
     await flushRequests();
 
-    expect(scriptEditor.value).toContain("on kline_close:");
-    expect(scriptEditor.value).toContain('notify "收盘价触发视觉策略"');
+    expect(scriptEditor.value).toContain("//@version=6");
+    expect(scriptEditor.value).toContain('alert("收盘价触发视觉策略")');
 
     wrapper.unmount();
   });
 
-  it("syncs handwritten DSL back into flow on blur", async () => {
+  it("syncs handwritten Pine back into flow on blur", async () => {
     vi.stubGlobal(
       "fetch",
       buildFetchMock({
         definitions: [
           {
             id: "dsl-handwritten",
-            name: "DSL Handwritten",
+            name: "Pine Handwritten",
             version: "0.2.0",
             description: "code-first strategy",
-            runtime: "dsl-go-plan",
+            runtime: "pine-go-plan",
             symbol: "00700",
             interval: "1m",
-            script: buildDslScript("DSL Handwritten", ['notify "close seed"'], { version: "0.2.0" }),
+            script: buildPineScript("Pine Handwritten", ['notify "close seed"'], { version: "0.2.0" }),
             createdAt: "2026-05-23T00:00:00.000Z",
             updatedAt: "2026-05-23T00:00:00.000Z",
           },
@@ -1011,13 +1006,12 @@ describe("Strategy page", () => {
     await showStrategyCodeEditor(wrapper, "split");
 
     const nextScript = [
-      "strategy DSL Handwritten",
-      "version 0.2.0",
-      "on kline_close:",
-      "  notify \"close signal\"",
-      "  let rsi14 = rsi(14)",
-      "  if rsi14 < 30:",
-      "    buy shares 100 policy same_direction type MARKET",
+      "//@version=6",
+      'strategy("Pine Handwritten", overlay=true)',
+      'alert("close signal")',
+      "rsi14 = ta.rsi(close, 14)",
+      "if rsi14 < 30",
+      '    strategy.entry("Long", strategy.long, qty=100)',
     ].join("\n");
 
     await wrapper.get('[data-testid="strategy-script-editor"]').setValue(nextScript);
@@ -1031,12 +1025,12 @@ describe("Strategy page", () => {
     expect(visualModel.nodes.some((node) => node.properties.blockKind === "getTechnicalIndicator")).toBe(true);
     expect(visualModel.nodes.some((node) => node.properties.blockKind === "technicalIndicatorCondition")).toBe(true);
     expect(visualModel.nodes.some((node) => node.properties.blockKind === "placeOrder")).toBe(true);
-    expect(wrapper.get('[data-testid="strategy-visual-sync-status"]').text()).toContain("DSL 已同步");
+    expect(wrapper.get('[data-testid="strategy-visual-sync-status"]').text()).toContain("Pine 已同步");
 
     wrapper.unmount();
   });
 
-  it("rewrites DSL when a visual block parameter changes", async () => {
+  it("rewrites Pine when a visual block parameter changes", async () => {
     vi.stubGlobal(
       "fetch",
       buildFetchMock({
@@ -1046,10 +1040,10 @@ describe("Strategy page", () => {
             name: "RSI Visual",
             version: "0.2.0",
             description: "visual strategy",
-            runtime: "dsl-go-plan",
+            runtime: "pine-go-plan",
             symbol: "00700",
             interval: "1m",
-            script: buildDslScript(
+            script: buildPineScript(
               "RSI Visual",
               [
                 "let rsi_calc_node = rsi(14)",
@@ -1133,7 +1127,7 @@ describe("Strategy page", () => {
     const designer = wrapper.findComponent(StrategyLogicFlowDesigner);
     const scriptEditor = wrapper.get('[data-testid="strategy-script-editor"]')
       .element as HTMLTextAreaElement;
-    expect(scriptEditor.value).toContain("let rsi_calc_node = rsi(14)");
+    expect(scriptEditor.value).toContain("rsi_calc_node = ta.rsi(close, 14)");
 
     const visualModel = JSON.parse(
       JSON.stringify(
@@ -1153,7 +1147,7 @@ describe("Strategy page", () => {
     designer.vm.$emit("update:modelValue", visualModel);
     await flushRequests();
 
-    expect(scriptEditor.value).toContain("let rsi_calc_node = rsi(21)");
+    expect(scriptEditor.value).toContain("rsi_calc_node = ta.rsi(close, 21)");
 
     wrapper.unmount();
   });
@@ -1168,10 +1162,10 @@ describe("Strategy page", () => {
             name: "Risk Inspector",
             version: "0.2.0",
             description: "risk block inspector",
-            runtime: "dsl-go-plan",
+            runtime: "pine-go-plan",
             symbol: "US.AAPL",
             interval: "5m",
-            script: buildDslScript("Risk Inspector", ['log "seed"'], { version: "0.2.0", symbol: "US.AAPL", interval: "5m" }),
+            script: buildPineScript("Risk Inspector", ['log "seed"'], { version: "0.2.0", symbol: "US.AAPL", interval: "5m" }),
             visualModel: {
               engine: "logic-flow",
               version: 1,
@@ -1250,7 +1244,7 @@ describe("Strategy page", () => {
 
     const scriptEditor = wrapper.get('[data-testid="strategy-script-editor"]')
       .element as HTMLTextAreaElement;
-    expect(scriptEditor.value).toContain("protect auto trailingStop 1 day 2 window session");
+    expect(scriptEditor.value).toContain("JFTrade Pine 暂不支持带时间窗口或交易时段感知的自动退出图块");
 
     wrapper.unmount();
   });
@@ -1291,9 +1285,9 @@ describe("Strategy page", () => {
     expect(wrapper.find('[data-testid="strategy-code-editor-section"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="strategy-visual-builder-section"]').exists()).toBe(true);
     expect(wrapper.text()).toContain("已基于「双均线系统」创建新草稿");
-    expect(scriptEditor.value).toContain("let dma_fast_ma = ma(MA, 5, day)");
-    expect(scriptEditor.value).toContain("let dma_slow_ma = ma(MA, 20, day)");
-    expect(scriptEditor.value).toContain("if cross_over(dma_fast_ma, dma_slow_ma):");
+    expect(scriptEditor.value).toContain('dma_fast_ma = request.security(syminfo.tickerid, "D", ta.sma(close, 5))');
+    expect(scriptEditor.value).toContain('dma_slow_ma = request.security(syminfo.tickerid, "D", ta.sma(close, 20))');
+    expect(scriptEditor.value).toContain("if ta.crossover(dma_fast_ma, dma_slow_ma)");
     expect(scriptEditor.value).toContain("金叉");
 
     wrapper.unmount();
@@ -1433,11 +1427,11 @@ describe("Strategy page", () => {
         definitions: [
           {
             id: "dsl-breakout",
-            name: "DSL Breakout",
+            name: "Pine Breakout",
             version: "0.1.0",
-            description: "dsl strategy",
-            runtime: "dsl-go-plan",
-            script: buildDslScript("DSL Breakout"),
+            description: "pine strategy",
+            runtime: "pine-go-plan",
+            script: buildPineScript("Pine Breakout"),
             createdAt: "2026-05-23T00:00:00.000Z",
             updatedAt: "2026-05-23T00:00:00.000Z",
           },
@@ -1447,7 +1441,7 @@ describe("Strategy page", () => {
             id: "dsl-breakout-instance",
             definition: {
               strategyId: "dsl-breakout",
-              name: "DSL Breakout",
+              name: "Pine Breakout",
               version: "0.1.0",
             },
             binding: {
@@ -1457,7 +1451,7 @@ describe("Strategy page", () => {
             },
             params: {
               definitionId: "dsl-breakout",
-              script: buildDslScript("DSL Breakout"),
+              script: buildPineScript("Pine Breakout"),
             },
             status: "STOPPED",
             createdAt: "2026-05-23T00:01:00.000Z",
@@ -1503,11 +1497,11 @@ describe("Strategy page", () => {
             id: "dsl-existing",
             name: "Existing Strategy",
             version: "0.1.0",
-            description: "existing dsl strategy",
-            runtime: "dsl-go-plan",
+            description: "existing pine strategy",
+            runtime: "pine-go-plan",
             symbol: "00700",
             interval: "1m",
-            script: buildDslScript("Existing Strategy"),
+            script: buildPineScript("Existing Strategy"),
             createdAt: "2026-05-23T00:00:00.000Z",
             updatedAt: "2026-05-23T00:00:00.000Z",
           },
@@ -1580,9 +1574,9 @@ describe("Strategy page", () => {
     const scriptEditor = wrapper.get('[data-testid="strategy-script-editor"]')
       .element as HTMLTextAreaElement;
     expect(wrapper.text()).toContain("已基于「RSI 反转交易」创建新草稿");
-    expect(scriptEditor.value).toContain("let rsi_getter = rsi(14)");
-    expect(scriptEditor.value).toContain("if rsi_getter < 30:");
-    expect(scriptEditor.value).toContain("if rsi_getter > 70:");
+    expect(scriptEditor.value).toContain("rsi_getter = ta.rsi(close, 14)");
+    expect(scriptEditor.value).toContain("if rsi_getter < 30");
+    expect(scriptEditor.value).toContain("if rsi_getter > 70");
 
     wrapper.unmount();
   });

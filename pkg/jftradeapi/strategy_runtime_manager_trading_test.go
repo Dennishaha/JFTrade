@@ -98,9 +98,9 @@ func TestStrategyRuntimeRefreshesBrokerPositionsBeforeSellOnKLineClose(t *testin
 		ID:           "runtime-sell-test",
 		Name:         "Runtime Sell Test",
 		Version:      "0.1.0",
-		Runtime:      strategyRuntimeDSLPlan,
-		SourceFormat: strategydefinition.SourceFormatDSLV1,
-		Script:       "strategy Runtime Sell Test\non kline_close:\n  sell shares 1 policy same_direction type MARKET",
+		Runtime:      strategyRuntimePinePlan,
+		SourceFormat: strategydefinition.SourceFormatPineV6,
+		Script:       "//@version=6\nstrategy(\"Runtime Sell Test\", overlay=true)\nstrategy.close(\"Long\")",
 	}
 	instance, err := server.strategyStore.instantiateStrategy(definition, strategyInstanceBinding{
 		Symbols:       []string{"US.AAPL"},
@@ -183,9 +183,9 @@ func TestStrategyRuntimeDisconnectedBrokerRefreshKeepsCachedState(t *testing.T) 
 		ID:           "runtime-disconnected-refresh-test",
 		Name:         "Runtime Disconnected Refresh Test",
 		Version:      "0.1.0",
-		Runtime:      strategyRuntimeDSLPlan,
-		SourceFormat: strategydefinition.SourceFormatDSLV1,
-		Script:       "strategy Runtime Disconnected Refresh Test\non kline_close:\n  sell shares 1 policy same_direction type MARKET",
+		Runtime:      strategyRuntimePinePlan,
+		SourceFormat: strategydefinition.SourceFormatPineV6,
+		Script:       "//@version=6\nstrategy(\"Runtime Disconnected Refresh Test\", overlay=true)\nstrategy.close(\"Long\")",
 	}
 	instance, err := server.strategyStore.instantiateStrategy(definition, strategyInstanceBinding{
 		Symbols:       []string{"US.AAPL"},

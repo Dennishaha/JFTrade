@@ -1,4 +1,4 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { computed, onMounted } from "vue";
 
 import type { KlineCandle } from "../charting/kline";

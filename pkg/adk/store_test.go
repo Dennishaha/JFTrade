@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	strategydslspec "github.com/jftrade/jftrade-main/pkg/strategy/dslspec"
+	strategypinespec "github.com/jftrade/jftrade-main/pkg/strategy/pinespec"
 )
 
 func newTestRuntime(t *testing.T) *Runtime {
@@ -1067,12 +1067,12 @@ func TestPreparedAgentLoadsOnlyEnabledBoundSkillsAndTools(t *testing.T) {
 func TestSkillRegistryReportsMetadataAndAllowedTools(t *testing.T) {
 	ctx := context.Background()
 	runtime := newTestRuntime(t)
-	skill, ok, err := runtime.Skills().Get(ctx, strategydslspec.BuiltinSkillName)
+	skill, ok, err := runtime.Skills().Get(ctx, strategypinespec.BuiltinSkillName)
 	if err != nil {
 		t.Fatalf("Get builtin strategy skill: %v", err)
 	}
 	if !ok {
-		t.Fatalf("builtin skill %s not found", strategydslspec.BuiltinSkillName)
+		t.Fatalf("builtin skill %s not found", strategypinespec.BuiltinSkillName)
 	}
 	if !skill.Builtin || skill.Source != "builtin" {
 		t.Fatalf("skill source metadata = %+v", skill)
@@ -1080,12 +1080,12 @@ func TestSkillRegistryReportsMetadataAndAllowedTools(t *testing.T) {
 	if skill.ValidationStatus != "VALID" || skill.ContentHash == "" {
 		t.Fatalf("skill validation metadata = %+v", skill)
 	}
-	if skill.Version != strategydslspec.BuiltinSkillVersion {
-		t.Fatalf("skill version = %q, want %q", skill.Version, strategydslspec.BuiltinSkillVersion)
+	if skill.Version != strategypinespec.BuiltinSkillVersion {
+		t.Fatalf("skill version = %q, want %q", skill.Version, strategypinespec.BuiltinSkillVersion)
 	}
 	for _, toolName := range []string{
-		strategydslspec.ToolName,
-		"strategy.validate_dsl",
+		strategypinespec.ToolName,
+		"strategy.validate_pine",
 		"strategy.save_definition",
 		"strategy.update_instance_mode",
 	} {
@@ -1093,8 +1093,8 @@ func TestSkillRegistryReportsMetadataAndAllowedTools(t *testing.T) {
 			t.Fatalf("skill tools = %+v, want %s", skill.Tools, toolName)
 		}
 	}
-	specPath := filepath.Join(runtime.Store().SkillsPath(), strategydslspec.BuiltinSkillName, "references", "dsl-v1-spec.md")
-	examplePath := filepath.Join(runtime.Store().SkillsPath(), strategydslspec.BuiltinSkillName, "references", "dsl-v1-examples.md")
+	specPath := filepath.Join(runtime.Store().SkillsPath(), strategypinespec.BuiltinSkillName, "references", "pine-v6-spec.md")
+	examplePath := filepath.Join(runtime.Store().SkillsPath(), strategypinespec.BuiltinSkillName, "references", "pine-v6-examples.md")
 	if _, err := os.Stat(specPath); err != nil {
 		t.Fatalf("spec resource stat: %v", err)
 	}
@@ -1106,7 +1106,7 @@ func TestSkillRegistryReportsMetadataAndAllowedTools(t *testing.T) {
 func TestBuiltinStrategySkillRefreshesOutdatedBundle(t *testing.T) {
 	ctx := context.Background()
 	runtime := newTestRuntime(t)
-	skillDir := filepath.Join(runtime.Store().SkillsPath(), strategydslspec.BuiltinSkillName)
+	skillDir := filepath.Join(runtime.Store().SkillsPath(), strategypinespec.BuiltinSkillName)
 	skillPath := filepath.Join(skillDir, "SKILL.md")
 	if err := os.WriteFile(skillPath, []byte(`---
 name: jftrade-strategy
@@ -1120,7 +1120,7 @@ Old strategy instructions.
 `), 0o644); err != nil {
 		t.Fatalf("WriteFile outdated strategy skill: %v", err)
 	}
-	if err := os.Remove(filepath.Join(skillDir, "references", "dsl-v1-spec.md")); err != nil {
+	if err := os.Remove(filepath.Join(skillDir, "references", "pine-v6-spec.md")); err != nil {
 		t.Fatalf("Remove spec resource: %v", err)
 	}
 
@@ -1128,18 +1128,18 @@ Old strategy instructions.
 		t.Fatalf("ensureBuiltins: %v", err)
 	}
 
-	skill, ok, err := runtime.Skills().Get(ctx, strategydslspec.BuiltinSkillName)
+	skill, ok, err := runtime.Skills().Get(ctx, strategypinespec.BuiltinSkillName)
 	if err != nil || !ok {
 		t.Fatalf("Get refreshed strategy skill ok=%v err=%v", ok, err)
 	}
-	if skill.Version != strategydslspec.BuiltinSkillVersion {
-		t.Fatalf("refreshed strategy skill version = %q, want %q", skill.Version, strategydslspec.BuiltinSkillVersion)
+	if skill.Version != strategypinespec.BuiltinSkillVersion {
+		t.Fatalf("refreshed strategy skill version = %q, want %q", skill.Version, strategypinespec.BuiltinSkillVersion)
 	}
-	raw, err := os.ReadFile(filepath.Join(skillDir, "references", "dsl-v1-spec.md"))
+	raw, err := os.ReadFile(filepath.Join(skillDir, "references", "pine-v6-spec.md"))
 	if err != nil {
 		t.Fatalf("ReadFile restored spec: %v", err)
 	}
-	if !strings.Contains(string(raw), "# JFTrade DSL v1 规范") {
+	if !strings.Contains(string(raw), "# JFTrade Pine Script v6 规范") {
 		t.Fatalf("restored spec content = %q, want DSL heading", string(raw))
 	}
 }
@@ -1150,7 +1150,7 @@ func TestBuiltinStrategyAgentTemplatesExposeExplicitStrategyTools(t *testing.T) 
 		if !ok {
 			t.Fatalf("BuiltinAgentTemplate(%q) not found", agentID)
 		}
-		for _, toolName := range []string{"strategy.validate_dsl", "strategy.save_definition", "strategy.update_instance_mode"} {
+		for _, toolName := range []string{"strategy.validate_pine", "strategy.save_definition", "strategy.update_instance_mode"} {
 			if !containsString(template.Tools, toolName) {
 				t.Fatalf("template %q tools = %+v, want %s", agentID, template.Tools, toolName)
 			}
@@ -1160,7 +1160,7 @@ func TestBuiltinStrategyAgentTemplatesExposeExplicitStrategyTools(t *testing.T) 
 
 func TestBuiltinRefreshDoesNotOverrideNonBuiltinSkill(t *testing.T) {
 	runtime := newTestRuntime(t)
-	skillDir := filepath.Join(runtime.Store().SkillsPath(), strategydslspec.BuiltinSkillName)
+	skillDir := filepath.Join(runtime.Store().SkillsPath(), strategypinespec.BuiltinSkillName)
 	if err := os.RemoveAll(skillDir); err != nil {
 		t.Fatalf("RemoveAll skillDir: %v", err)
 	}
@@ -1968,24 +1968,24 @@ func TestToolsSearchReturnsOnlyCurrentAgentTools(t *testing.T) {
 	}
 }
 
-func TestSelectToolInvocationsAddsStrategyDSLSpecForSyntaxQueries(t *testing.T) {
+func TestSelectToolInvocationsAddsStrategyPineSpecForSyntaxQueries(t *testing.T) {
 	registry := NewToolRegistry()
-	registry.Register(ToolDescriptor{Name: strategydslspec.ToolName, DisplayName: "DSL 定义", Category: "strategy", Permission: "read_internal"}, func(context.Context, map[string]any) (any, error) {
+	registry.Register(ToolDescriptor{Name: strategypinespec.ToolName, DisplayName: "Pine 规范", Category: "strategy", Permission: "read_internal"}, func(context.Context, map[string]any) (any, error) {
 		return nil, nil
 	})
-	invocations := SelectToolInvocations("请解释 DSL 语法定义和 spec", Agent{
+	invocations := SelectToolInvocations("请解释 Pine 语法定义和 spec", Agent{
 		ID:    "agent",
-		Tools: []string{strategydslspec.ToolName, "strategy.definitions"},
+		Tools: []string{strategypinespec.ToolName, "strategy.definitions"},
 	}, registry)
 	found := false
 	for _, invocation := range invocations {
-		if invocation.Name == strategydslspec.ToolName {
+		if invocation.Name == strategypinespec.ToolName {
 			found = true
 			break
 		}
 	}
 	if !found {
-		t.Fatalf("invocations = %+v, want %s", invocations, strategydslspec.ToolName)
+		t.Fatalf("invocations = %+v, want %s", invocations, strategypinespec.ToolName)
 	}
 }
 

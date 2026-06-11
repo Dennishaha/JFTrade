@@ -22,10 +22,10 @@ import { useStrategyIndicatorVariables } from "../composables/useStrategyIndicat
 import { useStrategyUndoRedo } from "../composables/useStrategyUndoRedo";
 import { useStrategyVisualNodeInspector } from "../composables/useStrategyVisualNodeInspector";
 import {
-    strategyDslEditorCompletions,
-    strategyDslEditorExtraLibs,
-    strategyDslEditorHoverItems,
-} from "../features/strategyDslEditorIntelliSense";
+    strategyPineEditorCompletions,
+    strategyPineEditorExtraLibs,
+    strategyPineEditorHoverItems,
+} from "../features/strategyPineEditorIntelliSense";
 import {
     buildStrategyScriptFromVisualModel,
     cloneStrategyVisualModel,
@@ -57,7 +57,7 @@ const fallbackTemplate: StrategyAuthoringTemplate = {
     defaultId: "dsl-logic-flow-starter",
     defaultName: "逻辑流起步骨架",
     defaultVersion: "0.1.0",
-    defaultDescription: "用流程图拖拽块，快速搭一个可保存的 DSL 策略骨架。",
+    defaultDescription: "用流程图拖拽块，快速搭一个可保存的 Pine 策略骨架。",
     defaultSymbol: "00700",
     defaultInterval: "5m",
     visualModel: createDefaultStrategyVisualModel(),
@@ -413,7 +413,7 @@ const visualSyncLabel = computed(() => {
         case "synced":
             return "已同步";
         case "partial":
-            return "DSL 提示";
+            return "Pine 提示";
         case "error":
             return "同步提示";
         default:
@@ -562,8 +562,8 @@ function createDefinitionFromTemplate(
         name: template.defaultName,
         version: template.defaultVersion,
         description: template.defaultDescription,
-        runtime: "dsl-go-plan",
-        sourceFormat: "dsl-v1",
+        runtime: "pine-go-plan",
+        sourceFormat: "pine-v6",
         script: template.buildScript({
             name: template.defaultName,
             version: template.defaultVersion,
@@ -578,7 +578,7 @@ function normalizeSourceFormat(
     value: StrategySourceFormat | string | null | undefined,
 ): StrategySourceFormat {
     void value;
-    return "dsl-v1";
+    return "pine-v6";
 }
 
 function normalizeDefinition(
@@ -593,8 +593,8 @@ function normalizeDefinition(
 
     return {
         ...migrated,
-        runtime: "dsl-go-plan",
-        sourceFormat: "dsl-v1",
+        runtime: "pine-go-plan",
+        sourceFormat: "pine-v6",
         version,
         script: buildStrategyScriptFromVisualModel(visualModel, {
             name,
@@ -612,7 +612,7 @@ function serializeDefinitionSnapshot(
         name: definition.name.trim(),
         version: definition.version.trim(),
         description: definition.description.trim(),
-        runtime: "dsl-go-plan",
+        runtime: "pine-go-plan",
         sourceFormat: normalizeSourceFormat(definition.sourceFormat),
         script: definition.script,
         visualModel:
@@ -766,7 +766,7 @@ function buildStrategyDefinitionSavePayload(): StrategyDefinitionDocument {
         name: definitionForm.value.name.trim(),
         version: definitionForm.value.version.trim(),
         description: definitionForm.value.description.trim(),
-        runtime: "dsl-go-plan",
+        runtime: "pine-go-plan",
         sourceFormat: normalizeSourceFormat(definitionForm.value.sourceFormat),
         script: definitionForm.value.script,
         visualModel: cloneStrategyVisualModel(definitionForm.value.visualModel),
@@ -930,13 +930,13 @@ const {
                     <div class="strategy-stage__toolbar-main">
                         <div class="strategy-stage__toolbar-title-row">
                             <div class="strategy-stage__toolbar-title">
-                                {{ definitionForm.name || "未命名 DSL 策略" }}
+                                {{ definitionForm.name || "未命名 Pine 策略" }}
                             </div>
                             <span class="strategy-page__pill">
                                 {{ activeStrategyTemplate?.mode === "visual" ? "图优先" : "代码优先" }}
                             </span>
                             <div class="strategy-stage__toolbar-meta">
-                                <span>{{ definitionForm.runtime || "dsl-go-plan" }}</span>
+                                <span>{{ definitionForm.runtime || "pine-go-plan" }}</span>
                                 <span>v{{ definitionForm.version || "0.1.0" }}</span>
                             </div>
                         </div>
@@ -1068,7 +1068,7 @@ const {
             <StrategyStageOverlayDeck :active-strategy-template-mode="activeStrategyTemplate?.mode ?? null"
                 :bindings="overlayDeckBindings" :created-at-text="formatTimestamp(definitionForm.createdAt)"
                 :selected-strategy-template-id="selectedStrategyTemplateId"
-                :selected-visual-block-description="selectedVisualBlock?.description ?? '调整图块参数并同步 DSL。'"
+                :selected-visual-block-description="selectedVisualBlock?.description ?? '调整图块参数并同步 Pine。'"
                 :selected-visual-block-label="selectedVisualBlock?.label ?? (selectedVisualNode?.text ?? '')"
                 :selected-visual-kind="selectedVisualKind" :selected-visual-node="selectedVisualNode"
                 :show-basic-info-section="!isBasicInfoSectionCollapsed"
@@ -1097,8 +1097,8 @@ const {
             class="strategy-stage__panel strategy-stage__panel--code"
             :class="{ 'strategy-stage__panel--code-pure': strategyDisplayMode === 'code' }" :style="codePanelStyle">
             <StrategyStageCodeWorkbenchPanel ref="codeWorkbenchRef" :bindings="codeWorkbenchBindings"
-                :completion-items="strategyDslEditorCompletions" :extra-libs="strategyDslEditorExtraLibs"
-                :hover-items="strategyDslEditorHoverItems" :strategy-display-mode="strategyDisplayMode"
+                :completion-items="strategyPineEditorCompletions" :extra-libs="strategyPineEditorExtraLibs"
+                :hover-items="strategyPineEditorHoverItems" :strategy-display-mode="strategyDisplayMode"
                 @drag-start="startCodePanelDrag" @script-blur="handleScriptWorkbenchBlur"
                 @cursor-offset="handleCodeCursorOffset" />
         </div>

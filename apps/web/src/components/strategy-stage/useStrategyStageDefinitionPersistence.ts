@@ -222,7 +222,7 @@ export function useStrategyStageDefinitionPersistence(
         }
 
         if (payload.script.trim() === "") {
-            options.definitionError.value = "策略 DSL 不能为空。";
+            options.definitionError.value = "策略 Pine 脚本不能为空。";
             return false;
         }
 
@@ -245,7 +245,7 @@ export function useStrategyStageDefinitionPersistence(
             return;
         }
         if (payload.script.trim() === "") {
-            options.definitionError.value = "策略 DSL 不能为空。";
+            options.definitionError.value = "策略 Pine 脚本不能为空。";
             return;
         }
 

@@ -1,0 +1,169 @@
+import type {
+  MonacoCompletionDefinition,
+  MonacoExtraLibDefinition,
+  MonacoHoverDefinition,
+} from "./strategyMonacoIntelliSenseTypes";
+
+export type {
+  MonacoCompletionDefinition,
+  MonacoExtraLibDefinition,
+  MonacoHoverDefinition,
+} from "./strategyMonacoIntelliSenseTypes";
+
+export const strategyPineEditorExtraLibs: MonacoExtraLibDefinition[] = [];
+
+export const strategyPineEditorCompletions: MonacoCompletionDefinition[] = [
+  {
+    label: "//@version=6",
+    detail: "Pine version",
+    documentation: "声明 Pine Script v6。",
+    kind: "snippet",
+    insertTextRule: "snippet",
+    sortText: "01",
+    insertText: "//@version=6",
+  },
+  {
+    label: "strategy",
+    detail: "Pine strategy declaration",
+    documentation: "声明可由 JFTrade 编译的 Pine 策略。",
+    kind: "snippet",
+    insertTextRule: "snippet",
+    sortText: "02",
+    insertText: "strategy(\"${1:策略名称}\", overlay=true)",
+  },
+  {
+    label: "ta.ema",
+    detail: "indicator",
+    documentation: "EMA 指标。",
+    kind: "function",
+    insertTextRule: "snippet",
+    sortText: "03",
+    insertText: "ta.ema(close, ${1:20})",
+  },
+  {
+    label: "ta.sma",
+    detail: "indicator",
+    documentation: "SMA 指标。",
+    kind: "function",
+    insertTextRule: "snippet",
+    sortText: "04",
+    insertText: "ta.sma(close, ${1:20})",
+  },
+  {
+    label: "ta.rsi",
+    detail: "indicator",
+    documentation: "RSI 指标。",
+    kind: "function",
+    insertTextRule: "snippet",
+    sortText: "05",
+    insertText: "ta.rsi(close, ${1:14})",
+  },
+  {
+    label: "ta.macd",
+    detail: "indicator",
+    documentation: "MACD 指标三元组。",
+    kind: "snippet",
+    insertTextRule: "snippet",
+    sortText: "06",
+    insertText: "[${1:macdLine}, ${2:signalLine}, ${3:histLine}] = ta.macd(close, ${4:12}, ${5:26}, ${6:9})",
+  },
+  {
+    label: "ta.crossover",
+    detail: "condition",
+    documentation: "判断左侧序列上穿右侧序列。",
+    kind: "function",
+    insertTextRule: "snippet",
+    sortText: "07",
+    insertText: "ta.crossover(${1:fast}, ${2:slow})",
+  },
+  {
+    label: "ta.crossunder",
+    detail: "condition",
+    documentation: "判断左侧序列下穿右侧序列。",
+    kind: "function",
+    insertTextRule: "snippet",
+    sortText: "08",
+    insertText: "ta.crossunder(${1:fast}, ${2:slow})",
+  },
+  {
+    label: "if crossover entry",
+    detail: "strategy pattern",
+    documentation: "均线上穿后开多。",
+    kind: "snippet",
+    insertTextRule: "snippet",
+    sortText: "09",
+    insertText: [
+      "if ta.crossover(${1:fast}, ${2:slow})",
+      "    strategy.entry(\"${3:Long}\", strategy.long, qty=${4:1})",
+    ].join("\n"),
+  },
+  {
+    label: "strategy.entry long",
+    detail: "order",
+    documentation: "开多。",
+    kind: "snippet",
+    insertTextRule: "snippet",
+    sortText: "10",
+    insertText: "strategy.entry(\"${1:Long}\", strategy.long, qty=${2:1})",
+  },
+  {
+    label: "strategy.entry short",
+    detail: "order",
+    documentation: "开空。",
+    kind: "snippet",
+    insertTextRule: "snippet",
+    sortText: "11",
+    insertText: "strategy.entry(\"${1:Short}\", strategy.short, qty=${2:1})",
+  },
+  {
+    label: "strategy.close",
+    detail: "order",
+    documentation: "按 entry id 平仓。",
+    kind: "snippet",
+    insertTextRule: "snippet",
+    sortText: "12",
+    insertText: "strategy.close(\"${1:Long}\")",
+  },
+  {
+    label: "alert",
+    detail: "notification",
+    documentation: "写入策略通知通道。",
+    kind: "snippet",
+    insertTextRule: "snippet",
+    sortText: "13",
+    insertText: "alert(\"${1:message}\")",
+  },
+];
+
+export const strategyPineEditorHoverItems: MonacoHoverDefinition[] = [
+  {
+    target: "ta.crossover",
+    signature: "ta.crossover(left, right) -> bool",
+    documentation: "JFTrade 会 lower 为 cross_over(left, right)。",
+  },
+  {
+    target: "ta.crossunder",
+    signature: "ta.crossunder(left, right) -> bool",
+    documentation: "JFTrade 会 lower 为 cross_under(left, right)。",
+  },
+  {
+    target: "strategy.entry",
+    signature: "strategy.entry(id, direction, qty)",
+    documentation: "qty 对齐 Pine 股数表达式；金额可写 qty=金额/close，账户权益百分比可写 qty=(strategy.equity*pct/100)/close。",
+  },
+  {
+    target: "strategy.close",
+    signature: "strategy.close(id)",
+    documentation: "当前映射为 JFTrade 平仓。",
+  },
+  {
+    target: "request.security",
+    signature: "request.security(syminfo.tickerid, timeframe, ta.*(close, n))",
+    documentation: "JFTrade 支持受限多周期均线子集；多标的、任意表达式和其它 request.security 语义会被明确诊断。",
+  },
+  {
+    target: "strategy.exit",
+    signature: "strategy.exit(id, from_entry, stop/limit/trail_points/trail_offset)",
+    documentation: "支持基础止损、止盈和追踪止损；高级 broker emulator 语义不会静默执行。",
+  },
+];

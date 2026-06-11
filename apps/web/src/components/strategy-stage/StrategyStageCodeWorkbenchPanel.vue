@@ -31,7 +31,7 @@ const emit = defineEmits<{
 
 const definitionForm = props.bindings.definitionForm;
 const monacoEditorRef = ref<InstanceType<typeof MonacoCodeEditor> | null>(null);
-const dslEditorPlaceholder = 'on kline_close:\n  log "kline closed"';
+const pineEditorPlaceholder = '//@version=6\nstrategy("My Strategy", overlay=true)\nfast = ta.ema(close, 8)';
 
 interface CodeOffsetRange {
   start: number;
@@ -49,7 +49,7 @@ defineExpose({
 
 <template>
   <div class="strategy-stage__panel-head strategy-stage__drag-handle" @mousedown="emit('drag-start', $event)">
-    <div class="strategy-stage__section-title">DSL 策略工作台</div>
+    <div class="strategy-stage__section-title">Pine 策略工作台</div>
   </div>
 
   <div class="strategy-stage__panel-body strategy-stage__panel-body--editor">
@@ -62,9 +62,9 @@ defineExpose({
       :resizable="false"
       class="flex-1 min-h-0"
       height="100%"
-      language="jftrade-dsl"
+      language="pine-v6"
       min-height="280px"
-      :placeholder="dslEditorPlaceholder"
+      :placeholder="pineEditorPlaceholder"
       test-id="strategy-script-editor"
       @blur="emit('script-blur')"
       @cursor-offset="emit('cursor-offset', $event)"

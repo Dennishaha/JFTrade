@@ -72,75 +72,21 @@ describe("strategyVisualBuilderNodePresentation", () => {
     });
   });
 
-  it("builds a place-order summary for current symbol position sizing", () => {
+  it("builds a place-order summary for equity percent sizing", () => {
     const summary = buildStrategyVisualNodeSummary({
-      text: "下单 · 卖出平多 · 25% 当前标的仓位",
-      properties: {
-        blockKind: "placeOrder",
-        side: "SELL",
-        orderType: "MARKET",
-        quantityMode: "symbolPositionPercent",
-        quantityValue: 25,
-      },
-    });
-
-    expect(summary.details).toContainEqual({
-      label: "数量",
-      value: "25% 当前标的仓位",
-    });
-  });
-
-  it("builds a place-order summary for account position sizing", () => {
-    const summary = buildStrategyVisualNodeSummary({
-      text: "下单 · 买入开多 · 10% 账户仓位",
+      text: "下单 · 买入开多 · 10% 账户权益",
       properties: {
         blockKind: "placeOrder",
         side: "BUY",
         orderType: "MARKET",
-        quantityMode: "accountPositionPercent",
+        quantityMode: "equityPercent",
         quantityValue: 10,
       },
     });
 
     expect(summary.details).toContainEqual({
       label: "数量",
-      value: "10% 账户仓位",
-    });
-  });
-
-  it("builds a place-order summary for margin buying power sizing", () => {
-    const summary = buildStrategyVisualNodeSummary({
-      text: "下单 · 买入开多 · 15% 融资可用",
-      properties: {
-        blockKind: "placeOrder",
-        side: "BUY",
-        orderType: "MARKET",
-        quantityMode: "marginBuyingPowerPercent",
-        quantityValue: 15,
-      },
-    });
-
-    expect(summary.details).toContainEqual({
-      label: "数量",
-      value: "15% 融资可用",
-    });
-  });
-
-  it("builds a place-order summary for short selling power sizing", () => {
-    const summary = buildStrategyVisualNodeSummary({
-      text: "下单 · 卖出开空 · 20% 融券可用",
-      properties: {
-        blockKind: "placeOrder",
-        side: "SELL_SHORT",
-        orderType: "MARKET",
-        quantityMode: "shortSellingPowerPercent",
-        quantityValue: 20,
-      },
-    });
-
-    expect(summary.details).toContainEqual({
-      label: "数量",
-      value: "20% 融券可用",
+      value: "10% 账户权益",
     });
   });
 

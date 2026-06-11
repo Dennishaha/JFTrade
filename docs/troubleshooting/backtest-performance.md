@@ -5,7 +5,7 @@
 ## 先分两段，不要混着看
 
 - sync：`pkg/backtest/internal/storage` 从 OpenD 拉历史 K 线并落 SQLite。
-- replay：`pkg/backtest.Run` 把 SQLite 里的 K 线回放给 bbgo backtest.Exchange 和 DSL runtime。
+- replay：`pkg/backtest.Run` 把 SQLite 里的 K 线回放给 bbgo backtest.Exchange 和 Pine-lowered runtime。
 
 如果不先把两段拆开，只看一份混合 benchmark，容易把 OpenD/SQLite 成本和策略运行时成本混在一起。
 
@@ -16,7 +16,7 @@
 它的用途是：
 
 - 用真实 OpenD 拉 US.TME 的 2026-03 K 线
-- 用前端双均线模板的真实 DSL 语义回放
+- 用前端双均线模板的真实 Pine 语义回放
 - 支持一次性全链路 test
 - 支持复用已有 SQLite，只测 replay benchmark
 - 支持单独诊断“0 trades 是无信号，还是 runtime 漏单”以及 `1m` prepare warning 的来源
@@ -96,7 +96,7 @@ go test ./pkg/backtest -run '^TestRealUSMarch2026DoubleMATemplateDiagnostics$' -
 如果改动会影响共享的 replay 执行路径，例如：
 
 - `pkg/backtest.Run`
-- `pkg/strategy/dslruntime`
+- `pkg/strategy/pineruntime`
 - `pkg/strategy/indicatorruntime`
 - 前端策略设计器当前支持的指标/价格判断/通知/下单/风控图块
 
@@ -153,7 +153,7 @@ JFTRADE_ENFORCE_STRATEGY_BLOCK_BASELINE=1 \
 
 - 它故意固定在 synthetic `US.AAPL / 1m / useExtendedHours=true` 连续输入上，避免把 US regular session filter 的时段缺口混进图块 replay 基线。
 - 指标型场景加了短路保护，warmup 阶段不会因为快照尚未就绪把 benchmark 污染成 runtime error。
-- 已废弃的 `codeBlock` 没有单独列入矩阵，因为当前 DSL 生成器会把它降级成普通 `log` 语句，它不再是主 authoring path。
+- 已废弃的 `codeBlock` 没有单独列入矩阵，因为当前 Pine 生成器会把它降级成普通 `log` 语句，它不再是主 authoring path。
 
 当前这套矩阵在 Apple A18 Pro 的基线量级以 `pkg/backtest/testdata/strategy_block_benchmark_baseline.json` 为准，当前一轮参考值约为：
 
@@ -174,7 +174,7 @@ JFTRADE_ENFORCE_STRATEGY_BLOCK_BASELINE=1 \
 ## 结果怎么解释
 
 - 如果 sync 明显慢：先看 OpenD 查询窗口、分页、重试和 SQLite 落盘。
-- 如果 replay 明显慢：优先看 `pkg/strategy/dslruntime`、`pkg/strategy/indicatorruntime`、`pkg/backtest/result_collector.go`。
+- 如果 replay 明显慢：优先看 `pkg/strategy/pineruntime`、`pkg/strategy/indicatorruntime`、`pkg/backtest/result_collector.go`。其中 `dslruntime` 是内部包名，不代表 public authoring 仍使用 DSL。
 - `trades=0` 不等于性能问题；它只说明这段真实数据下模板没有成交，或 warmup/信号本身不满足。
 - `backtest prepare warning: no kline data found for symbol ... 1m before start time` 目前在这条真实链路里只是告警，不会阻止 5m replay 跑完。
 - 现有 US.TME 2026-03 diagnostics 已验证：`oneMinuteRowsBeforeStart=0`，因为这条 harness 只同步了 `5m`；同时 `crossoverCount=0`、`crossunderCount=0`，所以当前 `0 trades` 是真实“无信号”，不是 replay 漏单。
@@ -269,7 +269,7 @@ go test ./pkg/backtest -run '^$' \
 Apple A18 Pro 本地复测量级：
 
 - `BenchmarkFutuKLineStoreQueryBackwardSessionAwareTwoHour`：约 `1.19ms/op` 降到约 `0.63ms/op`，`325KB/op -> 324KB/op`，`6489 allocs/op -> 6458 allocs/op`
-- `BenchmarkRunExecutesIndicatorHeavyDSLBacktest`：约 `11.02ms/op` 降到约 `10.56ms/op`，`2.99MB/op` 基本持平，`73579 allocs/op -> 73553 allocs/op`
+- `BenchmarkRunExecutesIndicatorHeavyDSLBacktest`：约 `11.02ms/op` 降到约 `10.56ms/op`，`2.99MB/op` 基本持平，`73579 allocs/op -> 73553 allocs/op`。测试名保留历史命名，场景语义已走 Pine lowering 后的运行路径。
 
 这说明当前确实有一部分 slowdown 来自实现上的重复 probe，而不是新语义本身；但 end-to-end 只拿回了几百分之几，也说明更大的账仍在 SQLite scan、bbgo replay 和 trading-period 指标路径上。
 

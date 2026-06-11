@@ -21,11 +21,11 @@ func TestInstantiateStoredDefinitionNormalizesLegacySourceFormatToDSL(t *testing
 		ID:           "legacy-breakout",
 		Name:         "Legacy Breakout",
 		Version:      "0.1.0",
-		Runtime:      strategyRuntimeDSLPlan,
+		Runtime:      strategyRuntimePinePlan,
 		SourceFormat: "legacy-v0",
 		Symbol:       "00700",
 		Interval:     "1m",
-		Script:       "strategy Legacy Breakout\non kline_close:\n  log \"close\"",
+		Script:       "//@version=6\nstrategy(\"Legacy Breakout\", overlay=true)\nlog.info(\"close\")",
 	}); err != nil {
 		t.Fatalf("saveDefinition: %v", err)
 	}
@@ -47,11 +47,11 @@ func TestInstantiateStoredDefinitionNormalizesLegacySourceFormatToDSL(t *testing
 	if err := json.NewDecoder(createResp.Body).Decode(&createEnvelope); err != nil {
 		t.Fatalf("decode normalized instantiate: %v", err)
 	}
-	if createEnvelope.Data.SourceFormat != strategydefinition.SourceFormatDSLV1 {
-		t.Fatalf("expected normalized DSL source format, got %+v", createEnvelope.Data)
+	if createEnvelope.Data.SourceFormat != strategydefinition.SourceFormatPineV6 {
+		t.Fatalf("expected normalized Pine source format, got %+v", createEnvelope.Data)
 	}
-	if createEnvelope.Data.Runtime != strategyRuntimeDSLPlan {
-		t.Fatalf("expected normalized DSL runtime, got %+v", createEnvelope.Data)
+	if createEnvelope.Data.Runtime != strategyRuntimePinePlan {
+		t.Fatalf("expected normalized Pine runtime, got %+v", createEnvelope.Data)
 	}
 }
 
@@ -63,18 +63,17 @@ func TestStrategyDefinitionPreviewUsesRequestedSymbolAndExtendedHours(t *testing
 	server := newTestServer(t, store)
 	if _, err := server.designStore.saveDefinition(strategyDesignDefinition{
 		ID:           "dsl-preview-day-window",
-		Name:         "DSL Preview Day Window",
+		Name:         "Pine Preview Window",
 		Version:      "0.1.0",
 		Description:  "preview route should respect symbol and extended-hours",
-		Runtime:      strategyRuntimeDSLPlan,
-		SourceFormat: strategydefinition.SourceFormatDSLV1,
+		Runtime:      strategyRuntimePinePlan,
+		SourceFormat: strategydefinition.SourceFormatPineV6,
 		Symbol:       "HK.00700",
 		Interval:     "5m",
-		Script: `strategy DSL Preview Day Window
-version 0.1.0
-on kline_close:
-  let slow = ma(MA, 1, day)
-  log "close"`,
+		Script: `//@version=6
+strategy("Pine Preview Window", overlay=true)
+slow = ta.sma(close, 66)
+log.info("close")`,
 	}); err != nil {
 		t.Fatalf("saveDefinition: %v", err)
 	}
@@ -116,8 +115,8 @@ on kline_close:
 	if err := json.NewDecoder(previewResp.Body).Decode(&previewEnvelope); err != nil {
 		t.Fatalf("decode extended strategy preview: %v", err)
 	}
-	if previewEnvelope.Data.DerivedWarmupBars != 288 {
-		t.Fatalf("extended derivedWarmupBars = %d, want 288", previewEnvelope.Data.DerivedWarmupBars)
+	if previewEnvelope.Data.DerivedWarmupBars != 66 {
+		t.Fatalf("extended derivedWarmupBars = %d, want 66", previewEnvelope.Data.DerivedWarmupBars)
 	}
 	if previewEnvelope.Data.DerivedWarmupInterval != "5m" {
 		t.Fatalf("extended derivedWarmupInterval = %q, want 5m", previewEnvelope.Data.DerivedWarmupInterval)

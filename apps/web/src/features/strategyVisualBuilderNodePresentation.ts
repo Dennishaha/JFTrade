@@ -620,16 +620,8 @@ function formatQuantity(
   switch (quantityMode) {
     case "amount":
       return `金额 ${formatNumber(quantityValue)}`;
-    case "accountPositionPercent":
-      return `${formatNumber(quantityValue)}% 账户仓位`;
-    case "symbolPositionPercent":
-      return `${formatNumber(quantityValue)}% 当前标的仓位`;
-    case "cashPercent":
-      return `${formatNumber(quantityValue)}% 可用现金`;
-    case "marginBuyingPowerPercent":
-      return `${formatNumber(quantityValue)}% 融资可用`;
-    case "shortSellingPowerPercent":
-      return `${formatNumber(quantityValue)}% 融券可用`;
+    case "equityPercent":
+      return `${formatNumber(quantityValue)}% 账户权益`;
     case "shares":
     default:
       return `${formatNumber(quantityValue)} 股`;

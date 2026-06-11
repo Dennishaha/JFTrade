@@ -2,7 +2,7 @@
 
 本文只回答三件事：
 
-- DSL 策略定义和 Logic Flow `visualModel` 分别落在哪一层
+- Pine v6 策略定义和 Logic Flow `visualModel` 分别落在哪一层
 - Logic Flow、Monaco 和模板生成各自负责什么
 - 后续改模板、图块、同步行为时，应该先从哪个文件进入
 
@@ -11,27 +11,27 @@
 策略工作区分成两个横向 tab：
 
 - `/strategy` 默认先进入运行态；这里负责查看实例状态、日志、审计，并对已保存定义做实例化和启停。
-- 设计态在固定高度的画布式 SPA 内同时编辑 `visualModel` 和 DSL script，页面本身不滚动。
+- 设计态在固定高度的画布式 SPA 内同时编辑 `visualModel` 和 Pine v6 script，页面本身不滚动。
 - 从运行态点击顶部“设计”会进入已有定义编辑；点击“新增策略”会直接进入设计态的模板选择模式。
 - 已保存定义列表、样板策略、基本信息、Block Inspector、代码编辑框和元信息都作为悬浮面板叠在画布上。
 - Logic Flow 是设计态底层画布，拖拽、连线和节点选择都发生在画布内部；外层 SPA 只负责固定高度和浮层编排。
-- 顶部工具栏承载标题、保存、创建运行实例、显示模式切换、面板开关，以及 DSL/流程图同步状态提示。
+- 顶部工具栏承载标题、保存、创建运行实例、显示模式切换、面板开关，以及 Pine/流程图同步状态提示。
 - 设计态使用 `画布`、`双栏`、`代码` 三态显示切换；纯代码模式下仍可打开样板策略、基本信息、元信息和图块详情等悬浮工具卡。
 - 新增草稿和未保存修改离开设计态时会触发确认流程；页内切回运行态、路由离开和浏览器刷新都会走同一套保护。
 
 设计态支持两种协作方式：
 
-- 图优先：通过 Logic Flow 拖拽图块、改 Inspector 参数，系统自动异步回写 DSL。
-- 码优先：直接在代码区修改 DSL，系统会在防抖和失焦时自动尝试反解回流程图。
-- 混合模式：无法反解成标准图块的 DSL 片段会保留为 `codeBlock`，继续留在流程图里和标准块并存。
+- 图优先：通过 Logic Flow 拖拽图块、改 Inspector 参数，系统自动异步回写 Pine。
+- 码优先：直接在代码区修改 Pine，系统会在防抖和失焦时自动尝试反解回流程图。
+- 混合模式：无法反解成标准图块的 Pine 片段会保留为 `codeBlock`，继续留在流程图里和标准块并存。
 
 当前约束必须明确：
 
-- 系统只持久化 DSL v1 源码和可选 `visualModel`。
+- 系统只持久化 Pine v6 源码和可选 `visualModel`。
 - 新建策略定义的 `id` 现在默认生成 GUID；设计页只展示该 ID，不允许手工修改。策略 `version` 仍由系统在每次有意义保存时自动递增。
-- 图块语义保持不变；`visualModel -> script` 由前端生成 DSL，后端只接收 DSL v1。
-- 后端不会执行文本脚本；DSL 会先解析为策略 IR/规划结果，再由 Go executor 消费。
-- 加载旧定义时会统一归一到 `sourceFormat: "dsl-v1"` 和 `runtime: "dsl-go-plan"`。
+- 图块语义保持不变；`visualModel -> script` 由前端生成 Pine v6，后端只接收 `sourceFormat: "pine-v6"`。
+- 后端不会直接执行文本脚本；Pine 会先解析为策略 IR/规划结果，再由 Go executor 消费。
+- 加载旧定义时会统一归一到 `sourceFormat: "pine-v6"` 和 `runtime: "pine-go-plan"`。
 - 如果定义已经保存了 `visualModel`，页面优先保留已保存图结构，直到用户继续改图或改代码。
 
 ## 关键职责分层
@@ -42,27 +42,28 @@
 - [../../apps/web/src/components/StrategyDesignStage.vue](../../apps/web/src/components/StrategyDesignStage.vue)：设计态主体，负责 Logic Flow 画布、悬浮 definitions/code workbench、模板选择、图块详情、同步和保存流程。
 - [../../apps/web/src/components/StrategyRuntimePanel.vue](../../apps/web/src/components/StrategyRuntimePanel.vue)：运行态主体，负责实例列表、启停控制、日志和审计，并提供“进入设计”和“新增策略模板草稿”两个设计态入口。
 - [../../apps/web/src/components/StrategyLogicFlowDesigner.vue](../../apps/web/src/components/StrategyLogicFlowDesigner.vue)：Logic Flow 画布封装，负责图块渲染、选择、图结构更新、视口安全区、缩放 HUD、图块创建器和连线断开。
-- [../../apps/web/src/components/MonacoCodeEditor.vue](../../apps/web/src/components/MonacoCodeEditor.vue)：浏览器内 Monaco 包装；注册 `jftrade-dsl` 语言、DSL token、缩进规则、completion 和 hover，测试环境回退 textarea。
-- [../../apps/web/src/features/strategyDslEditorIntelliSense.ts](../../apps/web/src/features/strategyDslEditorIntelliSense.ts)：DSL 编辑器的 completion、snippet 和 hover 元数据。
-- [../../apps/web/src/features/strategyVisualBuilder.ts](../../apps/web/src/features/strategyVisualBuilder.ts)：图块目录、内置模板、visualModel 克隆/初始化，以及 DSL 和 graph 双向转换的统一导出入口。
-- [../../apps/web/src/features/strategyVisualBuilderDsl.ts](../../apps/web/src/features/strategyVisualBuilderDsl.ts)：`visualModel -> DSL` 生成器，负责把图块、连线、条件、下单、保护和指标节点渲染为 DSL。
-- [../../apps/web/src/features/strategyVisualBuilderDslParser.ts](../../apps/web/src/features/strategyVisualBuilderDslParser.ts)：`DSL -> visualModel` 解析器，负责恢复常见 hook、指标、条件、动作和 `codeBlock` 兜底节点。
+- [../../apps/web/src/components/MonacoCodeEditor.vue](../../apps/web/src/components/MonacoCodeEditor.vue)：浏览器内 Monaco 包装；注册 `pine-v6` 语言、Pine token、缩进规则、completion 和 hover，测试环境回退 textarea。
+- [../../apps/web/src/features/strategyPineEditorIntelliSense.ts](../../apps/web/src/features/strategyPineEditorIntelliSense.ts)：Pine 编辑器的 completion、snippet 和 hover 元数据。
+- [../../apps/web/src/features/strategyVisualBuilder.ts](../../apps/web/src/features/strategyVisualBuilder.ts)：图块目录、内置模板、visualModel 克隆/初始化，以及 Pine 和 graph 双向转换的统一导出入口。
+- [../../apps/web/src/features/strategyVisualBuilderPine.ts](../../apps/web/src/features/strategyVisualBuilderPine.ts)：`visualModel -> Pine` 生成器，负责把图块、连线、条件、下单、保护和指标节点渲染为 Pine。
+- [../../apps/web/src/features/strategyVisualBuilderPineParser.ts](../../apps/web/src/features/strategyVisualBuilderPineParser.ts)：`Pine -> visualModel` 解析器，负责恢复常见指标、条件、动作和 `codeBlock` 兜底节点。
 - [../../apps/web/src/composables/useDraggable.ts](../../apps/web/src/composables/useDraggable.ts)：设计态悬浮面板拖动能力，基于 transform 偏移，不破坏原有绝对定位基线。
 
 ### sidecar 持久化与契约
 
-- [../../pkg/jftradeapi/strategy_routes.go](../../pkg/jftradeapi/strategy_routes.go)：`/api/v1/strategy-definitions/*` 路由、DSL 校验和实例化入口。
-- [../../pkg/jftradeapi/strategy_design_store.go](../../pkg/jftradeapi/strategy_design_store.go)：策略定义文件存储，包含 DSL runtime/sourceFormat 归一化、旧记录迁移、`visualModel` 归一化和落盘。
-- [../../pkg/jftradeapi/strategy_catalog_store.go](../../pkg/jftradeapi/strategy_catalog_store.go)：策略实例目录，实例化时编译 DSL、记录 compiled hooks 和 compiled requirements。
+- [../../pkg/jftradeapi/strategy_routes.go](../../pkg/jftradeapi/strategy_routes.go)：`/api/v1/strategy-definitions/*` 路由、Pine 校验和实例化入口。
+- [../../pkg/jftradeapi/strategy_design_store.go](../../pkg/jftradeapi/strategy_design_store.go)：策略定义文件存储，包含 Pine runtime/sourceFormat 归一化、旧记录迁移、`visualModel` 归一化和落盘。
+- [../../pkg/jftradeapi/strategy_catalog_store.go](../../pkg/jftradeapi/strategy_catalog_store.go)：策略实例目录，实例化时编译 Pine、记录 compiled hooks 和 compiled requirements。
 - [../../pkg/jftradeapi/openapi_components.go](../../pkg/jftradeapi/openapi_components.go)：`StrategyDefinition`、`StrategyVisualModel` 等 OpenAPI 契约。
 - [../../apps/web/src/contracts/index.ts](../../apps/web/src/contracts/index.ts)：前端页面和测试共享的 DTO 与默认模型都在这里，`visualModel` 结构也以这里为准。
 
 ### 运行时
 
-- [../../pkg/strategy/dsl](../../pkg/strategy/dsl)：DSL 行级解析器和表达式语法校验；表达式子语言使用 `expr` parser。
+- [../../pkg/strategy/pine](../../pkg/strategy/pine)：Pine v6 前端，负责语法解析、诊断、warning 和 lowering 到策略 IR。
+- [../../pkg/strategy/dsl](../../pkg/strategy/dsl)：内部旧 DSL/表达式解析器；当前 Pine lowering 后仍复用表达式子语言校验。
 - [../../pkg/strategy/ir](../../pkg/strategy/ir)：策略 IR 模型和需求规划，提取指标、账户能力、仓位和资金依赖。
-- [../../pkg/strategy/dslruntime](../../pkg/strategy/dslruntime)：Go 策略执行器，直接消费 DSL/IR 语义并执行 hook、条件、通知和下单。
-- [../../pkg/strategy/indicatorruntime](../../pkg/strategy/indicatorruntime)：指标预计算运行时，为 DSL executor 提供 MA、RSI、MACD、KDJ、布林带、ATR、CCI、Williams %R 等序列值。
+- [../../pkg/strategy/pineruntime](../../pkg/strategy/pineruntime)：Go 策略执行器，直接消费 Pine lowering 后的 IR 语义并执行条件、通知和下单。
+- [../../pkg/strategy/indicatorruntime](../../pkg/strategy/indicatorruntime)：指标预计算运行时，为 Pine lowering 后的 executor 提供 MA、RSI、MACD、KDJ、布林带、ATR、CCI、Williams %R 等序列值。
 
 当前和策略 timeUnit 直接相关的运行时约束需要单独记住：
 
@@ -70,7 +71,7 @@
 - 对 `2h`、`4h`、`6h`、`12h` 这类 intraday higher-period，backtest store 现在也会按 market session 起点切 bucket：US regular 从 `09:30` 起桶，HK/SH/SZ 会在午休前后分别重置，不再沿用 UTC floor 把不同时段硬拼进同一根 bar。
 - warmup 估算已经改成 symbol-aware：常规情况下 US/HK/SH/SZ 会按各自 regular session 分钟数推导预热 bars；backtest 打开 extended-hours 后，US 的 moving-average trading-period window 会按 extended trading day 分钟数放大 warmup。策略详情预览和实盘 seed 目前仍保持 regular 口径。
 - backtest store 的 `1d`、`1w`、`1mo` synthetic path 已改成 market-aware trading period bucket：当原生 higher-period K 线缺失时，会按 trading profile 从 sub-daily 或 daily label 合成真实交易日/周/月；regular-only 模式只取 regular session，HK/SH/SZ 会正确跨午休拼接同一交易日。
-- 回测页现在提供“是否包含扩展交易时段”的开关，并把它同时带到 sync 与 run 两条链路。对 US 回测，关闭时会同步/读取 regular-only 数据版本，`2h`/`4h`/`6h`/`12h` 的 synthetic intraday bar 与 `1d`/`1w`/`1mo` synthesis 都只统计 regular session；打开时会同步/读取 extended 数据版本，US 会按 pre/regular/after/overnight 的 session-aware bucket 从 `60m` 及以下 sub-daily 数据合成更高周期 bar，而且 backtest DSL indicatorruntime 的 moving-average 与 stop-loss `day/week/month` 窗口都会切到 extended trading-period 口径。SQLite 现在已用紧凑的表级 session tag 区分 `legacy` / `regular` / `extended` 三套版本，regular-only 与 regular+extended 可以并存。
+- 回测页现在提供“是否包含扩展交易时段”的开关，并把它同时带到 sync 与 run 两条链路。对 US 回测，关闭时会同步/读取 regular-only 数据版本，`2h`/`4h`/`6h`/`12h` 的 synthetic intraday bar 与 `1d`/`1w`/`1mo` synthesis 都只统计 regular session；打开时会同步/读取 extended 数据版本，US 会按 pre/regular/after/overnight 的 session-aware bucket 从 `60m` 及以下 sub-daily 数据合成更高周期 bar，而且 backtest Pine indicatorruntime 的 moving-average 与 stop-loss `day/week/month` 窗口都会切到 extended trading-period 口径。SQLite 现在已用紧凑的表级 session tag 区分 `legacy` / `regular` / `extended` 三套版本，regular-only 与 regular+extended 可以并存。
 
 ## 当前内置模板与经典块
 
@@ -99,11 +100,12 @@
 - CCI 块：CCI 计算、高于阈值、低于阈值
 - Williams %R 块：Williams %R 计算、超买、超卖
 - 布林带块：布林带计算、收盘价突破上轨、收盘价跌破下轨
-- 交易块：下单；支持按 `shares`、`cashPercent`、`marginBuyingPowerPercent`、`shortSellingPowerPercent`、`positionPercent`、`accountPositionPercent` 定义数量，其中融资可用和融券可用会按 side 做合法性约束
+- 交易块：下单；支持 Pine 可表达的固定股数 `shares`、固定金额 `amount`（生成 `qty=amount/close`）和账户权益百分比 `equityPercent`（生成 `qty=(strategy.equity*pct/100)/close`）
 - 动作块：日志、通知
-- 兜底块：`codeBlock`，用于承载当前不能稳定映射成标准语义块的 DSL 片段
+- 退出块：基础止损、止盈和追踪止损优先生成 `strategy.exit`；带交易时段窗口的复杂风控当前会明确标为 unsupported
+- 兜底块：`codeBlock`，用于承载当前不能稳定映射成标准语义块的 Pine 片段
 
-这些语义都在 [../../apps/web/src/features/strategyVisualBuilder.ts](../../apps/web/src/features/strategyVisualBuilder.ts) 里定义，并直接决定生成的 DSL 结构。
+这些语义都在 [../../apps/web/src/features/strategyVisualBuilder.ts](../../apps/web/src/features/strategyVisualBuilder.ts) 里定义，并直接决定生成的 Pine 结构。
 
 ## 同步与编辑器约束
 
@@ -116,16 +118,16 @@
 当前同步策略是双向自动的，但能力并不对称：
 
 - `visualModel -> script`：支持，拖拽建块、连线变化和 Inspector 改参数后都会自动异步刷新代码区。
-- `script -> visualModel`：支持常见 DSL hook、内置模板导出的条件分支、日志、通知、下单、保护和指标语句；无法稳定归一化的片段会降级为 `codeBlock`。
+- `script -> visualModel`：支持常见 Pine v6 子集、内置模板导出的条件分支、日志、通知、下单和指标语句；无法稳定归一化的片段会降级为 `codeBlock`。
 - 无法反解的代码不会直接丢失；工具栏会显示当前是否存在 code block 兜底或解析失败。
 - 已保存且自带 `visualModel` 的定义，打开时仍以现有保存内容为准；只有后续发生图编辑或代码编辑时，才会触发新的自动同步。
 
 代码编辑器当前采用两层实现：
 
-- 浏览器运行时使用 Monaco，语言 ID 为 `jftrade-dsl`。
+- 浏览器运行时使用 Monaco，语言 ID 为 `pine-v6`。
 - 单元测试和 jsdom 环境使用 textarea 回退，保持测试稳定和可操作性；失焦事件同样会触发 code -> flow 自动同步。
-- Completion 覆盖策略元数据、hook、`let`、`if`、订单、保护、日志、通知和常用指标函数。
-- Hover 覆盖 `close`、`open`、`high`、`low`、指标变量、账户能力和下单相关 DSL 片段。
+- Completion 覆盖 `//@version=6`、`strategy(...)`、`if`、订单、日志、通知和常用 `ta.*` 指标函数。
+- Hover 覆盖 `close`、`open`、`high`、`low`、`ta.*` 和下单相关 Pine 片段。
 
 设计页当前还支持双向跳转：
 
@@ -143,7 +145,7 @@
 
 - 浏览器里的 Monaco worker 仍然可初始化。
 - 测试里的 `strategy-script-editor` 仍然是可输入、可断言的 DOM 控件。
-- DSL parser、IR planner 和 Go executor 的窄测试仍然通过。
+- Pine parser、IR planner 和 Go executor 的窄测试仍然通过。
 
 ## 回归检查
 
@@ -158,7 +160,7 @@
 npm --workspace @jftrade/web run test -- --run tests/App.strategy.test.ts tests/App.strategy.runtime.test.ts
 ```
 
-如果改了 DSL 编辑器或图块转换，再补：
+如果改了 Pine 编辑器或图块转换，再补：
 
 ```bash
 npm --workspace @jftrade/web run typecheck
@@ -167,7 +169,7 @@ npm --workspace @jftrade/web run typecheck
 如果还涉及后端策略定义、解析、规划或执行器，再补：
 
 ```bash
-go test ./pkg/jftradeapi ./pkg/strategy/dsl ./pkg/strategy/dslruntime ./pkg/strategy/ir
+go test ./pkg/jftradeapi ./pkg/strategy/dsl ./pkg/strategy/pineruntime ./pkg/strategy/ir
 ```
 
 如果改动会影响共享 Go 运行时，且希望确认“当前策略设计器里各图块”的成本有没有一起回升，再补：

@@ -53,7 +53,7 @@ JFTrade 的 Run、Approval、Audit 和前端 SSE 是产品控制面，不替代 
 - 系统：`system.status`、`system.futu_opend`、`plugins.catalog`
 - 行情：`market.subscriptions`、`market.snapshot`、`market.candles`
 - 账户：`portfolio.summary`、`account.orders`
-- 策略：`strategy.definitions`、`strategy.save_draft`、`strategy.optimize`
+- 策略：`strategy.definitions`、`strategy.pine_spec`、`strategy.validate_pine`、`strategy.save_draft`、`strategy.save_definition`、`strategy.update_instance_mode`、`strategy.optimize`
 - 回测：`backtest.runs`
 - 外部：`http.fetch`
 

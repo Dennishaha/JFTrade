@@ -25,27 +25,26 @@ import {
 } from "./strategyVisualBuilderIndicatorBlock";
 import { reconcileStrategyVisualModelIndicatorBindings } from "./strategyVisualBuilderIndicatorReferences";
 import {
+  entryPositionPolicyToSnakeCase,
   normalizeDecimal,
   normalizeEntryPositionPolicy,
   normalizeMessage,
   normalizeOrderSide,
-  normalizeOrderType,
   normalizeQuantityModeForSide,
   normalizeThreshold,
-  type VisualOrderSide,
 } from "./strategyVisualBuilderScriptSupport";
 import {
-  buildStrategyFlowNodeDslComment,
+  buildStrategyFlowNodeAnnotation,
   cloneStrategyVisualModel,
   type StrategyFlowNodeJsDoc,
 } from "./strategyVisualBuilderShared";
 
-export interface StrategyDslContext {
+export interface StrategyPineContext {
   name: string;
   version?: string;
 }
 
-export type StrategyScriptContext = StrategyDslContext;
+export type StrategyScriptContext = StrategyPineContext;
 
 interface IndicatorInputBinding {
   node: StrategyVisualNodeDocument;
@@ -61,17 +60,17 @@ interface RenderState {
   emittedStatementNodeIds: Set<string>;
 }
 
-export function buildStrategyDslFromVisualModel(
+export function buildStrategyPineFromVisualModel(
   model: StrategyVisualModelDocument | null | undefined,
-  context: StrategyDslContext,
+  context: StrategyPineContext,
 ): string {
   const sourceModel = reconcileStrategyVisualModelIndicatorBindings(
     cloneStrategyVisualModel(model) ?? createEmptyVisualModel(),
   );
   const state = buildRenderState(sourceModel);
   const lines = [
-    `strategy ${sanitizeMetadataValue(context.name, "未命名策略")}`,
-    `version ${sanitizeMetadataValue(context.version ?? "0.1.0", "0.1.0")}`,
+    "//@version=6",
+    `strategy(${toPineStringLiteral(sanitizeMetadataValue(context.name, "未命名策略"))}, overlay=true)`,
   ];
 
   const initRoots = sourceModel.nodes.filter(
@@ -92,8 +91,7 @@ export function buildStrategyDslFromVisualModel(
   if (initRoots.length === 0 && klineRoots.length === 0) {
     lines.push(
       "",
-      "on kline_close:",
-      "  log \"策略尚未配置入口图块\"",
+      `log.info(${toPineStringLiteral("策略尚未配置入口图块")})`,
     );
   }
 
@@ -138,8 +136,7 @@ function renderHook(
   state: RenderState,
 ): string[] {
   const kind = getStrategyBlockKind(root);
-  const hookHeader = kind === "onInit" ? "on init:" : kind === "onKLineClosed" ? "on kline_close:" : null;
-  if (hookHeader === null) {
+  if (kind !== "onInit" && kind !== "onKLineClosed") {
     return [];
   }
 
@@ -148,9 +145,8 @@ function renderHook(
 
   const body = renderControlChildren(root.id, state, 1, new Set());
   return [
-    ...buildStrategyFlowNodeDslComment(root, 0),
-    hookHeader,
-    ...(body.length > 0 ? body : [`${indent(1)}log ${toDslStringLiteral("入口图块暂无动作")}`]),
+    ...buildStrategyFlowNodeAnnotation(root, 0),
+    ...(body.length > 0 ? body : [`log.info(${toPineStringLiteral("入口图块暂无动作")})`]),
   ];
 }
 
@@ -200,7 +196,7 @@ function renderNode(
         state,
         depth,
         visited,
-        `log ${toDslStringLiteral(normalizeMessage(node.properties.message, "策略事件"))}`,
+        `log.info(${toPineStringLiteral(normalizeMessage(node.properties.message, "策略事件"))})`,
       );
     case "notify":
       return renderLinearStatement(
@@ -208,7 +204,7 @@ function renderNode(
         state,
         depth,
         visited,
-        `notify ${toDslStringLiteral(normalizeMessage(node.properties.message, "策略通知"))}`,
+        `alert(${toPineStringLiteral(normalizeMessage(node.properties.message, "策略通知"))})`,
       );
     case "getTechnicalIndicator":
       return renderGetTechnicalIndicatorNode(node, state, depth, visited);
@@ -222,14 +218,14 @@ function renderNode(
     case "placeOrder":
       return renderLinearStatement(node, state, depth, visited, buildOrderStatement(node));
     case "stopLoss":
-      return renderLinearStatement(node, state, depth, visited, buildProtectStatement(node));
+      return renderProtectNode(node, state, depth, visited);
     case "codeBlock":
       return renderLinearStatement(
         node,
         state,
         depth,
         visited,
-        `log ${toDslStringLiteral("代码块已废弃，请改用 DSL 图块")}`,
+        `log.info(${toPineStringLiteral("代码块已废弃，请改用标准 Pine 图块")})`,
       );
     default:
       return renderLinearStatement(
@@ -237,7 +233,7 @@ function renderNode(
         state,
         depth,
         visited,
-        `log ${toDslStringLiteral(node.text || "未识别图块")}`,
+        `log.info(${toPineStringLiteral(node.text || "未识别图块")})`,
       );
   }
 }
@@ -250,9 +246,12 @@ function renderLinearStatement(
   statement: string,
 ): string[] {
   state.emittedStatementNodeIds.add(node.id);
+  const indented = statement
+    .split("\n")
+    .map((line) => `${indent(depth)}${line}`);
   return [
-    ...buildStrategyFlowNodeDslComment(node, depth),
-    `${indent(depth)}${statement}`,
+    ...buildStrategyFlowNodeAnnotation(node, depth),
+    ...indented,
     ...renderControlChildren(node.id, state, depth, visited),
   ];
 }
@@ -285,11 +284,11 @@ function renderTechnicalIndicatorConditionNode(
 
   return [
     ...setupLines,
-    ...buildStrategyFlowNodeDslComment(node, depth, readConditionInputAnnotation(inputs)),
-    `${indent(depth)}if ${expression}:`,
-    ...(trueBody.length > 0 ? trueBody : [`${indent(depth + 1)}log ${toDslStringLiteral("条件命中但未配置动作")}`]),
+    ...buildStrategyFlowNodeAnnotation(node, depth, readConditionInputAnnotation(inputs)),
+    `${indent(depth)}if ${expression}`,
+    ...(trueBody.length > 0 ? trueBody : [`${indent(depth + 1)}log.info(${toPineStringLiteral("条件命中但未配置动作")})`]),
     ...(falseBody.length > 0
-      ? [`${indent(depth)}else:`, ...falseBody]
+      ? [`${indent(depth)}else`, ...falseBody]
       : []),
   ];
 }
@@ -334,9 +333,9 @@ function renderUnifiedTechnicalIndicatorNode(
 
   return [
     ...setupLines,
-    ...buildStrategyFlowNodeDslComment(node, depth),
-    `${indent(depth)}if ${expression}:`,
-    ...(body.length > 0 ? body : [`${indent(depth + 1)}log ${toDslStringLiteral("指标条件命中但未配置动作")}`]),
+    ...buildStrategyFlowNodeAnnotation(node, depth),
+    `${indent(depth)}if ${expression}`,
+    ...(body.length > 0 ? body : [`${indent(depth + 1)}log.info(${toPineStringLiteral("指标条件命中但未配置动作")})`]),
   ];
 }
 
@@ -353,11 +352,11 @@ function renderCloseConditionNode(
   const falseBody = renderControlChildren(node.id, state, depth + 1, new Set(visited), "false");
 
   return [
-    ...buildStrategyFlowNodeDslComment(node, depth),
-    `${indent(depth)}if close ${operator} ${formatNumber(threshold)}:`,
-    ...(trueBody.length > 0 ? trueBody : [`${indent(depth + 1)}log ${toDslStringLiteral("价格条件命中但未配置动作")}`]),
+    ...buildStrategyFlowNodeAnnotation(node, depth),
+    `${indent(depth)}if close ${operator} ${formatNumber(threshold)}`,
+    ...(trueBody.length > 0 ? trueBody : [`${indent(depth + 1)}log.info(${toPineStringLiteral("价格条件命中但未配置动作")})`]),
     ...(falseBody.length > 0
-      ? [`${indent(depth)}else:`, ...falseBody]
+      ? [`${indent(depth)}else`, ...falseBody]
       : []),
   ];
 }
@@ -378,8 +377,8 @@ function renderIndicatorDeclaration(
   state.emittedStatementNodeIds.add(node.id);
 
   const lines = [
-    ...buildStrategyFlowNodeDslComment(node, depth, { variableName }),
-    `${indent(depth)}let ${variableName} = ${buildIndicatorExpression(properties)}`,
+    ...buildStrategyFlowNodeAnnotation(node, depth, { variableName }),
+    `${indent(depth)}${variableName} = ${buildIndicatorExpression(properties)}`,
   ];
 
   if (!includeChildren) {
@@ -483,7 +482,7 @@ function buildTechnicalIndicatorConditionExpression(
       if (fast === undefined || slow === undefined) {
         return null;
       }
-      return `${properties.patternType === "deathCross" ? "cross_under" : "cross_over"}(${readIndicatorVariableName(fast.node, fast.properties)}, ${readIndicatorVariableName(slow.node, slow.properties)})`;
+      return `ta.${properties.patternType === "deathCross" ? "crossunder" : "crossover"}(${readIndicatorVariableName(fast.node, fast.properties)}, ${readIndicatorVariableName(slow.node, slow.properties)})`;
     }
     case "macd": {
       if (primary === undefined) {
@@ -493,7 +492,7 @@ function buildTechnicalIndicatorConditionExpression(
       if (properties.patternType === "topDivergence" || properties.patternType === "bottomDivergence") {
         return `${properties.patternType === "topDivergence" ? "divergence_top" : "divergence_bottom"}(${variableName}, ${properties.lookback ?? 5})`;
       }
-      return `${properties.patternType === "deathCross" ? "cross_under" : "cross_over"}(${variableName}.diff, ${variableName}.signal)`;
+      return `ta.${properties.patternType === "deathCross" ? "crossunder" : "crossover"}(${variableName}.diff, ${variableName}.signal)`;
     }
     case "kdj": {
       if (primary === undefined) {
@@ -503,7 +502,7 @@ function buildTechnicalIndicatorConditionExpression(
       if (properties.patternType === "topDivergence" || properties.patternType === "bottomDivergence") {
         return `${properties.patternType === "topDivergence" ? "divergence_top" : "divergence_bottom"}(${variableName}, ${properties.lookback ?? 5})`;
       }
-      return `${properties.patternType === "deathCross" ? "cross_under" : "cross_over"}(${variableName}.k, ${variableName}.d)`;
+      return `ta.${properties.patternType === "deathCross" ? "crossunder" : "crossover"}(${variableName}.k, ${variableName}.d)`;
     }
     case "rsi": {
       if (primary === undefined || (properties.patternType !== "topDivergence" && properties.patternType !== "bottomDivergence")) {
@@ -609,26 +608,70 @@ function buildIndicatorExpression(properties: GetTechnicalIndicatorBlockProperti
     case "movingAverage": {
       const movingAverageType = properties.movingAverageType ?? "MA";
       const windowSize = properties.windowSize ?? properties.period ?? 20;
-      const periodUnit = properties.periodUnit ?? "bar";
-      return periodUnit === "bar"
-        ? `ma(${movingAverageType}, ${windowSize})`
-        : `ma(${movingAverageType}, ${windowSize}, ${periodUnit})`;
+      const expression = buildMovingAverageExpression(movingAverageType, windowSize);
+      const timeframe = pineTimeframeForPeriodUnit(properties.periodUnit ?? "bar");
+      return timeframe === null
+        ? expression
+        : `request.security(syminfo.tickerid, ${toPineStringLiteral(timeframe)}, ${expression})`;
     }
     case "macd":
-      return `macd(${properties.fastPeriod ?? 12}, ${properties.slowPeriod ?? 26}, ${properties.signalPeriod ?? 9})`;
+      return `ta.macd(close, ${properties.fastPeriod ?? 12}, ${properties.slowPeriod ?? 26}, ${properties.signalPeriod ?? 9})`;
     case "kdj":
-      return `kdj(${properties.period ?? 9}, ${properties.m1 ?? 3}, ${properties.m2 ?? 3})`;
+      return `ta.rsi(close, ${properties.period ?? 9})`;
     case "bollinger":
-      return `bollinger(${properties.period ?? 20}, ${formatNumber(properties.multiplier ?? 2)})`;
+      return `ta.sma(close, ${properties.period ?? 20})`;
     case "atr":
-      return `atr(${properties.period ?? 14})`;
+      return `ta.atr(${properties.period ?? 14})`;
     case "cci":
-      return `cci(${properties.period ?? 20})`;
+      return `ta.cci(close, ${properties.period ?? 20})`;
     case "williamsR":
-      return `williams_r(${properties.period ?? 14})`;
+      return `ta.rsi(close, ${properties.period ?? 14})`;
     case "rsi":
     default:
-      return `rsi(${properties.period ?? 14})`;
+      return `ta.rsi(close, ${properties.period ?? 14})`;
+  }
+}
+
+function buildMovingAverageExpression(
+  movingAverageType: string,
+  windowSize: number,
+): string {
+  switch (movingAverageType) {
+    case "EMA":
+    case "EXPMA":
+      return `ta.ema(close, ${windowSize})`;
+    case "SMMA":
+      return `ta.rma(close, ${windowSize})`;
+    case "LWMA":
+      return `ta.wma(close, ${windowSize})`;
+    case "HMA":
+      return `ta.hma(close, ${windowSize})`;
+    case "VWMA":
+      return `ta.vwma(close, ${windowSize})`;
+    case "MA":
+    case "SMA":
+    case "TMA":
+    case "BOLL":
+    default:
+      return `ta.sma(close, ${windowSize})`;
+  }
+}
+
+function pineTimeframeForPeriodUnit(periodUnit: string): string | null {
+  switch (periodUnit) {
+    case "minute":
+      return "1";
+    case "hour":
+      return "60";
+    case "day":
+      return "D";
+    case "week":
+      return "W";
+    case "month":
+      return "M";
+    case "bar":
+    default:
+      return null;
   }
 }
 
@@ -637,88 +680,106 @@ function readIndicatorVariableName(
   properties: GetTechnicalIndicatorBlockProperties,
 ): string {
   const fromProperties = typeof properties.variableName === "string" ? properties.variableName : "";
-  if (isDslIdentifier(fromProperties)) {
+  if (isPineIdentifier(fromProperties)) {
     return fromProperties;
   }
-  return sanitizeDslIdentifier(node.id, "indicator");
+  return sanitizePineIdentifier(node.id, "indicator");
 }
 
 function buildOrderStatement(node: StrategyVisualNodeDocument): string {
   const side = normalizeOrderSide(node.properties.side);
-  const action = orderActionForSide(side);
   const quantityMode = normalizeQuantityModeForSide(node.properties.quantityMode, side);
   const quantityValue = normalizeDecimal(node.properties.quantityValue, 100);
-  const entryPolicy = normalizeEntryPositionPolicy(node.properties.entryPositionPolicy);
-  const orderType = normalizeOrderType(node.properties.orderType);
+  const quantityOption = `qty=${buildPineQuantityExpression(quantityMode, quantityValue)}`;
+  const orderType = String(node.properties.orderType ?? "MARKET").toUpperCase();
   const limitPrice = normalizeDecimal(node.properties.limitPrice, 0);
-  const options = [`policy ${entryPolicyToDsl(entryPolicy)}`, `type ${orderType}`];
+  const limitOption = orderType === "LIMIT" && limitPrice > 0
+    ? `, limit=${formatNumber(limitPrice)}`
+    : "";
 
-  if (orderType === "LIMIT" && limitPrice > 0) {
-    options.push(`limit ${formatNumber(limitPrice)}`);
-  }
+  const entryPolicy = normalizeEntryPositionPolicy(node.properties.entryPositionPolicy);
+  const entryPolicyAnnotation = entryPolicy !== "sameDirection"
+    ? `// @entry_policy ${entryPositionPolicyToSnakeCase(entryPolicy)}\n`
+    : "";
 
-  return [
-    action,
-    quantityModeToDsl(quantityMode),
-    formatNumber(quantityValue),
-    ...options,
-  ].join(" ");
-}
-
-function buildProtectStatement(node: StrategyVisualNodeDocument): string {
-  const properties = normalizeStopLossBlockProperties(node.properties ?? {});
-  return [
-    "protect",
-    properties.direction ?? "auto",
-    properties.mode ?? "stopLoss",
-    formatNumber(properties.timeValue ?? 1),
-    properties.timeUnit ?? "day",
-    formatNumber(properties.percentage ?? 2),
-    "window",
-    properties.windowPolicy ?? "continuous",
-  ].join(" ");
-}
-
-function orderActionForSide(side: VisualOrderSide): "buy" | "sell" | "short" | "cover" {
   switch (side) {
     case "SELL":
-      return "sell";
+      return `strategy.close("Long", ${quantityOption}${limitOption})`;
     case "SELL_SHORT":
-      return "short";
+      return `${entryPolicyAnnotation}strategy.entry("Short", strategy.short, ${quantityOption}${limitOption})`;
     case "BUY_COVER":
-      return "cover";
+      return `strategy.close("Short", ${quantityOption}${limitOption})`;
     case "BUY":
     default:
-      return "buy";
+      return `${entryPolicyAnnotation}strategy.entry("Long", strategy.long, ${quantityOption}${limitOption})`;
   }
 }
 
-function quantityModeToDsl(mode: ReturnType<typeof normalizeQuantityModeForSide>): string {
-  switch (mode) {
-    case "accountPositionPercent":
-      return "account_position_percent";
-    case "symbolPositionPercent":
-      return "symbol_position_percent";
-    case "cashPercent":
-      return "cash_percent";
-    case "marginBuyingPowerPercent":
-      return "margin_buying_power_percent";
-    case "shortSellingPowerPercent":
-      return "short_selling_power_percent";
+function buildPineQuantityExpression(
+  quantityMode: ReturnType<typeof normalizeQuantityModeForSide>,
+  quantityValue: number,
+): string {
+  const value = formatNumber(quantityValue);
+  switch (quantityMode) {
+    case "amount":
+      return `(${value} / close)`;
+    case "equityPercent":
+      return `((strategy.equity * ${value} / 100) / close)`;
+    case "shares":
     default:
-      return mode;
+      return value;
   }
 }
 
-function entryPolicyToDsl(policy: ReturnType<typeof normalizeEntryPositionPolicy>): string {
-  switch (policy) {
-    case "flatOnly":
-      return "flat_only";
-    case "allow":
-      return "allow";
-    default:
-      return "same_direction";
+function renderProtectNode(
+  node: StrategyVisualNodeDocument,
+  state: RenderState,
+  depth: number,
+  visited: Set<string>,
+): string[] {
+  state.emittedStatementNodeIds.add(node.id);
+  return [
+    ...buildStrategyFlowNodeAnnotation(node, depth),
+    ...buildProtectStatements(node).map((statement) => `${indent(depth)}${statement}`),
+    ...renderControlChildren(node.id, state, depth, visited),
+  ];
+}
+
+function buildProtectStatements(node: StrategyVisualNodeDocument): string[] {
+  const properties = normalizeStopLossBlockProperties(node.properties ?? {});
+  if (
+    (properties.windowPolicy ?? "continuous") !== "continuous" ||
+    (properties.timeUnit ?? "day") !== "bar" ||
+    (properties.timeValue ?? 1) !== 1
+  ) {
+    return [
+      `runtime.error(${toPineStringLiteral("JFTrade Pine 暂不支持带时间窗口或交易时段感知的自动退出图块")})`,
+    ];
   }
+
+  const percentage = formatNumber(properties.percentage ?? 2);
+  const directions = properties.direction === "long"
+    ? ["long"]
+    : properties.direction === "short"
+      ? ["short"]
+      : ["long", "short"];
+  return directions.map((direction) => {
+    const entryId = direction === "short" ? "Short" : "Long";
+    const exitId = `${entryId} ${properties.mode ?? "stopLoss"}`;
+    switch (properties.mode) {
+      case "takeProfit":
+        return direction === "short"
+          ? `strategy.exit(${toPineStringLiteral(exitId)}, ${toPineStringLiteral(entryId)}, limit=close * (1 - ${percentage} / 100))`
+          : `strategy.exit(${toPineStringLiteral(exitId)}, ${toPineStringLiteral(entryId)}, limit=close * (1 + ${percentage} / 100))`;
+      case "trailingStop":
+        return `strategy.exit(${toPineStringLiteral(exitId)}, ${toPineStringLiteral(entryId)}, trail_points=close * ${percentage} / 100, trail_offset=close * ${percentage} / 100)`;
+      case "stopLoss":
+      default:
+        return direction === "short"
+          ? `strategy.exit(${toPineStringLiteral(exitId)}, ${toPineStringLiteral(entryId)}, stop=close * (1 + ${percentage} / 100))`
+          : `strategy.exit(${toPineStringLiteral(exitId)}, ${toPineStringLiteral(entryId)}, stop=close * (1 - ${percentage} / 100))`;
+    }
+  });
 }
 
 function sanitizeMetadataValue(value: string, fallback: string): string {
@@ -726,7 +787,7 @@ function sanitizeMetadataValue(value: string, fallback: string): string {
   return normalized === "" ? fallback : normalized;
 }
 
-function sanitizeDslIdentifier(value: string, fallback: string): string {
+function sanitizePineIdentifier(value: string, fallback: string): string {
   const normalized = value
     .trim()
     .replace(/[^A-Za-z0-9_]+/g, "_")
@@ -735,11 +796,11 @@ function sanitizeDslIdentifier(value: string, fallback: string): string {
   return normalized === "" ? fallback : normalized;
 }
 
-function isDslIdentifier(value: string): boolean {
+function isPineIdentifier(value: string): boolean {
   return /^[A-Za-z_][A-Za-z0-9_]*$/.test(value);
 }
 
-function toDslStringLiteral(value: string): string {
+function toPineStringLiteral(value: string): string {
   return JSON.stringify(value.replace(/\r?\n/g, " ").trim());
 }
 
@@ -751,4 +812,4 @@ function indent(depth: number): string {
   return "  ".repeat(depth);
 }
 
-export const buildStrategyScriptFromVisualModel = buildStrategyDslFromVisualModel;
+export const buildStrategyScriptFromVisualModel = buildStrategyPineFromVisualModel;

@@ -508,14 +508,14 @@ function getMonacoTheme(): "vs" | "vs-dark" {
   return theme.value === "light" ? "vs" : "vs-dark";
 }
 
-function ensureJftradeDslLanguage(monacoInstance: MonacoModule): void {
-  const languageId = "jftrade-dsl";
+function ensurePineV6Language(monacoInstance: MonacoModule): void {
+  const languageId = "pine-v6";
   if (!monacoInstance.languages.getLanguages().some((language) => language.id === languageId)) {
     monacoInstance.languages.register({ id: languageId });
   }
 
   monacoInstance.languages.setLanguageConfiguration(languageId, {
-    comments: { lineComment: "#" },
+    comments: { lineComment: "//" },
     brackets: [["(", ")"]],
     autoClosingPairs: [
       { open: '"', close: '"' },
@@ -528,66 +528,52 @@ function ensureJftradeDslLanguage(monacoInstance: MonacoModule): void {
       { open: "(", close: ")" },
     ],
     indentationRules: {
-      increaseIndentPattern: /^\s*(on\s+(?:init|kline_close)|if\s+.+|else)\s*:\s*(?:#.*)?$/,
-      decreaseIndentPattern: /^\s*else\s*:\s*(?:#.*)?$/,
+      increaseIndentPattern: /^\s*(if\s+.+|else)\s*(?:\/\/.*)?$/,
+      decreaseIndentPattern: /^\s*else\s*(?:\/\/.*)?$/,
     },
   });
 
   monacoInstance.languages.setMonarchTokensProvider(languageId, {
     defaultToken: "",
-    tokenPostfix: ".dsl",
+    tokenPostfix: ".pine",
     keywords: [
       "strategy",
-      "version",
-      "symbol",
-      "interval",
-      "on",
-      "init",
-      "kline_close",
-      "let",
+      "indicator",
+      "library",
+      "var",
       "if",
       "else",
-      "log",
-      "notify",
-      "buy",
-      "sell",
-      "short",
-      "cover",
-      "protect",
-      "policy",
-      "limit",
-      "type",
-      "window",
       "and",
       "or",
       "not",
+      "true",
+      "false",
     ],
     functions: [
-      "ma",
-      "rsi",
-      "macd",
-      "kdj",
-      "bollinger",
-      "atr",
-      "cci",
-      "williams_r",
-      "williamsr",
-      "cross_over",
-      "cross_under",
-      "divergence_top",
-      "divergence_bottom",
-      "abs",
+      "ta.ema",
+      "ta.sma",
+      "ta.rsi",
+      "ta.macd",
+      "ta.crossover",
+      "ta.crossunder",
+      "ta.atr",
+      "ta.cci",
+      "strategy.entry",
+      "strategy.close",
+      "log.info",
+      "alert",
+      "math.abs",
     ],
     tokenizer: {
       root: [
-        [/#.*$/, "comment"],
+        [/\/\/.*$/, "comment"],
         [/"([^"\\]|\\.)*$/, "string.invalid"],
         [/"([^"\\]|\\.)*"/, "string"],
         [/'([^'\\]|\\.)*'/, "string"],
         [/\b\d+(?:\.\d+)?%?\b/, "number"],
         [/[()]/, "delimiter.parenthesis"],
         [/[<>!=]=?|[-+*/]/, "operator"],
-        [/[A-Za-z_][A-Za-z0-9_]*/, {
+        [/[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?/, {
           cases: {
             "@keywords": "keyword",
             "@functions": "type.identifier",
@@ -640,7 +626,7 @@ async function initializeMonaco(): Promise<void> {
     };
 
     monaco = nextMonaco;
-  ensureJftradeDslLanguage(monaco);
+    ensurePineV6Language(monaco);
     monaco.typescript.javascriptDefaults.setEagerModelSync(true);
     monaco.typescript.javascriptDefaults.setDiagnosticsOptions({
       noSemanticValidation: false,

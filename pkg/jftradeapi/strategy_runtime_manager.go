@@ -16,8 +16,8 @@ import (
 
 	"github.com/jftrade/jftrade-main/pkg/broker"
 	"github.com/jftrade/jftrade-main/pkg/futu"
-	"github.com/jftrade/jftrade-main/pkg/strategy/dslruntime"
 	strategyindicatorruntime "github.com/jftrade/jftrade-main/pkg/strategy/indicatorruntime"
+	"github.com/jftrade/jftrade-main/pkg/strategy/pineruntime"
 )
 
 var (
@@ -343,7 +343,7 @@ func (m *strategyRuntimeManager) buildSymbolRuntime(
 		},
 	}
 
-	strategy := &dslruntime.Strategy{
+	strategy := &pineruntime.Strategy{
 		StrategyID:   strings.TrimSpace(instance.Definition.StrategyID),
 		Name:         strings.TrimSpace(instance.Definition.Name),
 		Symbol:       symbol,
@@ -370,7 +370,7 @@ func (m *strategyRuntimeManager) buildSymbolRuntime(
 	return runner, nil
 }
 
-func (m *strategyRuntimeManager) seedSymbolRuntime(ctx context.Context, exchange strategyRuntimeExchange, strategy *dslruntime.Strategy, runner *strategySymbolRuntime) error {
+func (m *strategyRuntimeManager) seedSymbolRuntime(ctx context.Context, exchange strategyRuntimeExchange, strategy *pineruntime.Strategy, runner *strategySymbolRuntime) error {
 	warmupBars, err := strategyindicatorruntime.WarmupBarsFromScriptForSymbol(strategy.Script, strategy.Interval, runner.symbol)
 	if err != nil {
 		return fmt.Errorf("analyze strategy warmup for %s: %w", runner.symbol, err)

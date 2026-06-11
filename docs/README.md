@@ -17,7 +17,7 @@
 
 - [troubleshooting.md](troubleshooting.md)：排障入口，按启动、实时 SSE、OpenD、行情时段分流。
 - [frontend-kline.md](frontend-kline.md)：前端行情与 K 线专题入口，包含实时合成与防回归约束。
-- [frontend/strategy-authoring.md](frontend/strategy-authoring.md)：前端 DSL 策略设计专题，覆盖 Logic Flow、Monaco、模板和 visualModel 同步约束。
+- [frontend/strategy-authoring.md](frontend/strategy-authoring.md)：前端 Pine 策略设计专题，覆盖 Logic Flow、Monaco、模板和 visualModel 同步约束。
 - [adk.md](adk.md)：GO-ADK / Agent 控制面、权限模式、内置 tools 与运行时文件。
 - [review-boundaries-2026-06.md](review-boundaries-2026-06.md)：当前 gin / Swagger / broker 收口变更的 review 分块说明。
 - [release-closeout-2026-06.md](release-closeout-2026-06.md)：当前发布候选的对外变化、固定验收和冻结规则。
@@ -58,7 +58,7 @@ docs/
 
 1. 先读 [architecture.md](architecture.md)，确认是在改 sidecar、bbgo 运行时、前端，还是 Futu 适配层。
 2. 如果是启动、端口、连接问题，再进 [troubleshooting.md](troubleshooting.md)。
-3. 如果是策略定义、Logic Flow、DSL 脚本同步或编辑器问题，再进 [frontend/strategy-authoring.md](frontend/strategy-authoring.md)。
+3. 如果是策略定义、Logic Flow、Pine 脚本同步或编辑器问题，再进 [frontend/strategy-authoring.md](frontend/strategy-authoring.md)。
 4. 如果是 GO-ADK、Agent、Skill、AI provider、审批或工具调用问题，再进 [adk.md](adk.md)。
 5. 如果是实时行情、K 线、实时 SSE、快照合成问题，再进 [frontend-kline.md](frontend-kline.md)。
 6. 只有在需要协议或上游背景时，才进入 [reference/README.md](reference/README.md) 或 [reference/bbgo-doc/README.md](reference/bbgo-doc/README.md)。

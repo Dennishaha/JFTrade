@@ -4,25 +4,25 @@ import (
 	"fmt"
 	"strings"
 
-	strategydsl "github.com/jftrade/jftrade-main/pkg/strategy/dsl"
+	strategypine "github.com/jftrade/jftrade-main/pkg/strategy/pine"
 )
 
 const (
-	SourceFormatDSLV1 = "dsl-v1"
+	SourceFormatPineV6 = strategypine.SourceFormatPineV6
 )
 
 func NormalizeSourceFormat(value string) string {
 	normalized := strings.TrimSpace(strings.ToLower(value))
 	if normalized == "" {
-		return SourceFormatDSLV1
+		return SourceFormatPineV6
 	}
 	return normalized
 }
 
 func ValidateScript(sourceFormat string, script string) error {
 	switch normalized := NormalizeSourceFormat(sourceFormat); normalized {
-	case SourceFormatDSLV1:
-		return strategydsl.ValidateScript(script)
+	case SourceFormatPineV6:
+		return strategypine.ValidateScript(script)
 	default:
 		return fmt.Errorf("unsupported strategy source format: %s", normalized)
 	}
@@ -30,7 +30,7 @@ func ValidateScript(sourceFormat string, script string) error {
 
 func SupportsInstantiation(sourceFormat string) bool {
 	switch NormalizeSourceFormat(sourceFormat) {
-	case SourceFormatDSLV1:
+	case SourceFormatPineV6:
 		return true
 	default:
 		return false

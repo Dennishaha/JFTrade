@@ -1,4 +1,4 @@
-package dslruntime
+package pineruntime
 
 import (
 	"context"
@@ -10,20 +10,16 @@ import (
 	"github.com/c9s/bbgo/pkg/fixedpoint"
 	"github.com/c9s/bbgo/pkg/types"
 	"github.com/jftrade/jftrade-main/pkg/futu"
-	strategydsl "github.com/jftrade/jftrade-main/pkg/strategy/dsl"
 	strategyir "github.com/jftrade/jftrade-main/pkg/strategy/ir"
+	strategypine "github.com/jftrade/jftrade-main/pkg/strategy/pine"
 )
 
 func TestNewStrategyRuntimeUsesExtendedTradingWindowWhenEnabled(t *testing.T) {
-	script := `strategy Extended MA
-version 1
-symbol US.AAPL
-interval 1h
+	script := `//@version=6
+strategy("Extended MA", overlay=true)
+slow = request.security(syminfo.tickerid, "D", ta.sma(close, 1))`
 
-on kline_close:
-  let slow = ma(MA, 1, day)`
-
-	program, err := strategydsl.ParseScript(script)
+	program, err := strategypine.ParseScript(script)
 	if err != nil {
 		t.Fatalf("ParseScript() error = %v", err)
 	}
@@ -278,29 +274,37 @@ func TestParseIndicatorBindingProducesExpectedKeys(t *testing.T) {
 }
 
 func TestRuntimeAndPlannerIndicatorKeysMatch(t *testing.T) {
-	script := `strategy Protect Auto
-version 1
-symbol 00700
-interval 1m
-
-on kline_close:
-  let fast    = ma(EMA,14,minute)
-  let slow    = ma(SMA,20)
-  let avg     = ma(ema,5,h)
-  let r       = rsi(14)
-  let m       = macd(12,26,9)
-  let k       = kdj(9,3,3)
-  let a       = atr(20)
-  let c       = cci(14)
-  let wr      = williams_r(14)
-  let bInt    = bollinger(20,2)
-  let bFloat  = bollinger(20,2.5)
-  if close > 0:
-    protect both trailing_stop 2 day 4% window session`
-
-	program, err := strategydsl.ParseScript(script)
-	if err != nil {
-		t.Fatalf("ParseScript() error = %v", err)
+	program := &strategyir.Program{
+		SourceFormat: strategypine.SourceFormatPineV6,
+		Hooks: []strategyir.HookBlock{{
+			Kind: strategyir.HookKLineClose,
+			Statements: []strategyir.Statement{
+				&strategyir.LetStmt{Range: strategyir.SourceRange{StartLine: 1}, Name: "fast", Expression: "ma(EMA,14,minute)"},
+				&strategyir.LetStmt{Range: strategyir.SourceRange{StartLine: 2}, Name: "slow", Expression: "ma(SMA,20)"},
+				&strategyir.LetStmt{Range: strategyir.SourceRange{StartLine: 3}, Name: "avg", Expression: "ma(ema,5,h)"},
+				&strategyir.LetStmt{Range: strategyir.SourceRange{StartLine: 4}, Name: "r", Expression: "rsi(14)"},
+				&strategyir.LetStmt{Range: strategyir.SourceRange{StartLine: 5}, Name: "m", Expression: "macd(12,26,9)"},
+				&strategyir.LetStmt{Range: strategyir.SourceRange{StartLine: 6}, Name: "k", Expression: "kdj(9,3,3)"},
+				&strategyir.LetStmt{Range: strategyir.SourceRange{StartLine: 7}, Name: "a", Expression: "atr(20)"},
+				&strategyir.LetStmt{Range: strategyir.SourceRange{StartLine: 8}, Name: "c", Expression: "cci(14)"},
+				&strategyir.LetStmt{Range: strategyir.SourceRange{StartLine: 9}, Name: "wr", Expression: "williams_r(14)"},
+				&strategyir.LetStmt{Range: strategyir.SourceRange{StartLine: 10}, Name: "bInt", Expression: "bollinger(20,2)"},
+				&strategyir.LetStmt{Range: strategyir.SourceRange{StartLine: 11}, Name: "bFloat", Expression: "bollinger(20,2.5)"},
+				&strategyir.IfStmt{
+					Range:     strategyir.SourceRange{StartLine: 12},
+					Condition: "close > 0",
+					Then: []strategyir.Statement{&strategyir.ProtectStmt{
+						Range:                strategyir.SourceRange{StartLine: 13},
+						Direction:            "both",
+						Mode:                 "trailing_stop",
+						TimeValueExpression:  "2",
+						TimeUnit:             "day",
+						PercentageExpression: "4%",
+						WindowPolicy:         "session",
+					}},
+				},
+			},
+		}},
 	}
 	plan, err := strategyir.PlanRequirements(program)
 	if err != nil {

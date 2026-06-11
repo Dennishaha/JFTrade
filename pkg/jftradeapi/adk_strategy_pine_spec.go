@@ -6,35 +6,37 @@ import (
 	"strings"
 
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
-	strategydsl "github.com/jftrade/jftrade-main/pkg/strategy/dsl"
-	strategydslspec "github.com/jftrade/jftrade-main/pkg/strategy/dslspec"
 	strategyir "github.com/jftrade/jftrade-main/pkg/strategy/ir"
+	strategypine "github.com/jftrade/jftrade-main/pkg/strategy/pine"
+	strategypinespec "github.com/jftrade/jftrade-main/pkg/strategy/pinespec"
 )
 
-type strategyDSLValidation struct {
+type strategyPineValidation struct {
 	NormalizedScript string
 	Program          *strategyir.Program
 	Requirements     strategyir.Requirements
+	Warnings         []string
 }
 
-func strategyDSLSpecToolPayload(input map[string]any) (map[string]any, error) {
-	return strategydslspec.BuildToolPayload(
+func strategyPineSpecToolPayload(input map[string]any) (map[string]any, error) {
+	return strategypinespec.BuildToolPayload(
 		stringValue(input, "section"),
 		boolInputValue(input, "includeExamples"),
 	)
 }
 
-func strategyValidateDSLToolPayload(input map[string]any) map[string]any {
+func strategyValidatePineToolPayload(input map[string]any) map[string]any {
 	script := strings.TrimSpace(stringValue(input, "script"))
 	includeRequirements := boolInputValueDefault(input, "includeRequirements", true)
 	payload := map[string]any{
 		"ok":               false,
-		"sourceFormat":     strategydslspec.SourceFormat,
-		"runtime":          strategydslspec.Runtime,
+		"sourceFormat":     strategypinespec.SourceFormat,
+		"runtime":          strategypinespec.Runtime,
 		"normalizedScript": script,
 		"metadata":         strategyMetadataPayload(nil),
 		"hooks":            []string{},
 		"requirements":     nil,
+		"warnings":         []string{},
 		"errors":           []string{},
 		"saveHint":         nil,
 	}
@@ -43,7 +45,7 @@ func strategyValidateDSLToolPayload(input map[string]any) map[string]any {
 		payload["saveHint"] = strategySaveHintPayload()
 		return payload
 	}
-	validation, err := validateADKStrategyScript("strategy.validate_dsl", script)
+	validation, err := validateADKStrategyScript("strategy.validate_pine", script)
 	if err != nil {
 		payload["errors"] = []string{err.Error()}
 		payload["saveHint"] = strategySaveHintPayload()
@@ -53,6 +55,7 @@ func strategyValidateDSLToolPayload(input map[string]any) map[string]any {
 	payload["normalizedScript"] = validation.NormalizedScript
 	payload["metadata"] = strategyMetadataPayload(validation.Program)
 	payload["hooks"] = buildCompiledHookKinds(validation.Program)
+	payload["warnings"] = validation.Warnings
 	if includeRequirements {
 		payload["requirements"] = buildCompiledRequirementsPayload(validation.Requirements)
 	}
@@ -67,29 +70,27 @@ func validateADKStrategyDraftScript(script string) error {
 	return err
 }
 
-func validateADKStrategyScript(toolName string, script string) (strategyDSLValidation, error) {
+func validateADKStrategyScript(toolName string, script string) (strategyPineValidation, error) {
 	trimmed := strings.TrimSpace(script)
 	if trimmed == "" {
-		return strategyDSLValidation{}, fmt.Errorf("%s 需要提供非空的 JFTrade DSL v1 脚本", strings.TrimSpace(toolName))
+		return strategyPineValidation{}, fmt.Errorf("%s 需要提供非空的 Pine Script v6 策略脚本", strings.TrimSpace(toolName))
 	}
-	if looksLikeTradingViewPineScript(trimmed) {
-		return strategyDSLValidation{}, fmt.Errorf("%s 只接受 JFTrade DSL v1，不支持 TradingView Pine Script。%s", strings.TrimSpace(toolName), strategydslspec.SaveDraftUsageHint())
+	if err := strategydefinition.ValidateScript(strategydefinition.SourceFormatPineV6, trimmed); err != nil {
+		return strategyPineValidation{}, fmt.Errorf("%s 需要合法的 Pine Script v6 策略脚本：%w\n\n%s", strings.TrimSpace(toolName), err, strategypinespec.SaveDraftUsageHint())
 	}
-	if err := strategydefinition.ValidateScript(strategydefinition.SourceFormatDSLV1, trimmed); err != nil {
-		return strategyDSLValidation{}, fmt.Errorf("%s 需要合法的 JFTrade DSL v1：%w\n\n%s", strings.TrimSpace(toolName), err, strategydslspec.SaveDraftUsageHint())
-	}
-	program, err := strategydsl.ParseScript(trimmed)
+	compilation, err := strategypine.Compile(trimmed)
 	if err != nil {
-		return strategyDSLValidation{}, fmt.Errorf("%s 需要合法的 JFTrade DSL v1：%w\n\n%s", strings.TrimSpace(toolName), err, strategydslspec.SaveDraftUsageHint())
+		return strategyPineValidation{}, fmt.Errorf("%s 需要合法的 Pine Script v6 策略脚本：%w\n\n%s", strings.TrimSpace(toolName), err, strategypinespec.SaveDraftUsageHint())
 	}
-	requirements, err := strategyir.PlanRequirements(program)
+	requirements, err := strategyir.PlanRequirements(compilation.Program)
 	if err != nil {
-		return strategyDSLValidation{}, fmt.Errorf("%s 需要可规划的 JFTrade DSL v1：%w\n\n%s", strings.TrimSpace(toolName), err, strategydslspec.SaveDraftUsageHint())
+		return strategyPineValidation{}, fmt.Errorf("%s 需要可规划的 Pine Script v6 策略脚本：%w\n\n%s", strings.TrimSpace(toolName), err, strategypinespec.SaveDraftUsageHint())
 	}
-	return strategyDSLValidation{
+	return strategyPineValidation{
 		NormalizedScript: trimmed,
-		Program:          program,
+		Program:          compilation.Program,
 		Requirements:     requirements,
+		Warnings:         compilation.Warnings,
 	}, nil
 }
 
@@ -121,8 +122,8 @@ func strategySaveDefinitionToolPayload(server *Server, input map[string]any) (ma
 		ID:           definitionID,
 		Name:         name,
 		Description:  strings.TrimSpace(stringValue(input, "description")),
-		Runtime:      strategyRuntimeDSLPlan,
-		SourceFormat: strategydefinition.SourceFormatDSLV1,
+		Runtime:      strategyRuntimePinePlan,
+		SourceFormat: strategydefinition.SourceFormatPineV6,
 		Symbol:       defaultStringLocal(strings.TrimSpace(stringValue(input, "symbol")), strings.TrimSpace(validation.Program.Metadata.Symbol)),
 		Interval:     defaultStringLocal(strings.TrimSpace(stringValue(input, "interval")), strings.TrimSpace(validation.Program.Metadata.Interval)),
 		Script:       validation.NormalizedScript,
@@ -144,7 +145,7 @@ func strategySaveDraftToolPayload(server *Server, input map[string]any) (strateg
 	}
 	script := strings.TrimSpace(stringValue(input, "script"))
 	if script == "" {
-		script = "# ADK strategy draft\n"
+		script = strategypinespec.Skeleton()
 	}
 	validation, err := validateADKStrategyScript("strategy.save_draft", script)
 	if err != nil {
@@ -153,8 +154,8 @@ func strategySaveDraftToolPayload(server *Server, input map[string]any) (strateg
 	definition := strategyDesignDefinition{
 		Name:         defaultStringLocal(stringValue(input, "name"), "ADK 策略草稿"),
 		Description:  "由 ADK agent 生成的策略草稿。",
-		SourceFormat: strategydefinition.SourceFormatDSLV1,
-		Runtime:      strategyRuntimeDSLPlan,
+		SourceFormat: strategydefinition.SourceFormatPineV6,
+		Runtime:      strategyRuntimePinePlan,
 		Version:      defaultStrategyVersion,
 		Symbol:       strings.TrimSpace(validation.Program.Metadata.Symbol),
 		Interval:     strings.TrimSpace(validation.Program.Metadata.Interval),
@@ -195,10 +196,10 @@ func strategyUpdateInstanceModeToolPayload(server *Server, input map[string]any)
 
 func strategySaveHintPayload() map[string]any {
 	return map[string]any{
-		"message":       strategydslspec.SaveDraftUsageHint(),
-		"specTool":      strategydslspec.ToolName,
-		"resourceFiles": []string{"references/dsl-v1-spec.md", "references/dsl-v1-examples.md"},
-		"skeleton":      strategydslspec.Skeleton(),
+		"message":       strategypinespec.SaveDraftUsageHint(),
+		"specTool":      strategypinespec.ToolName,
+		"resourceFiles": []string{"references/pine-v6-spec.md", "references/pine-v6-examples.md"},
+		"skeleton":      strategypinespec.Skeleton(),
 	}
 }
 

@@ -259,14 +259,14 @@ const selectedStrategyStartHint = computed(() => {
     if (selectedStrategy.value.startable) {
         return "当前实例已接入策略控制面生命周期，可启动、暂停、停止。";
     }
-    if (selectedStrategy.value.runtime === "dsl-go-plan") {
-        return "当前实例已完成 DSL 编译与 requirements 规划，但暂不可启动。";
+    if (selectedStrategy.value.runtime === "pine-go-plan") {
+        return "当前实例已完成 Pine 编译与 requirements 规划，但暂不可启动。";
     }
     return "当前实例暂不可启动。";
 });
 
 const selectedStrategyCompiledSummary = computed(() => {
-    if (selectedStrategy.value === null || selectedStrategy.value.runtime !== "dsl-go-plan") {
+    if (selectedStrategy.value === null || selectedStrategy.value.runtime !== "pine-go-plan") {
         return "";
     }
     const hookCount = readCompiledHookCount(selectedStrategy.value);
@@ -274,8 +274,8 @@ const selectedStrategyCompiledSummary = computed(() => {
     const parts: string[] = [];
     if (hookCount !== null) parts.push(`${hookCount} 个 hook`);
     if (indicatorCount !== null) parts.push(`${indicatorCount} 项依赖`);
-    if (parts.length === 0) return "已完成 DSL 编译计划。";
-    return `已完成 DSL 编译计划，包含 ${parts.join(" / ")}。`;
+    if (parts.length === 0) return "已完成 Pine 编译计划。";
+    return `已完成 Pine 编译计划，包含 ${parts.join(" / ")}。`;
 });
 
 const canRefreshSelectedStrategyDefinition = computed(
@@ -570,8 +570,8 @@ function strategyStatusCardClass(strategy: StrategyInstanceItem): string {
 
 function formatStrategyRuntime(runtime: unknown): string {
     switch (normalizeText(runtime)) {
-        case "dsl-go-plan":
-            return "DSL 编译计划";
+        case "pine-go-plan":
+            return "Pine 编译计划";
         default:
             return "未知 / 受限";
     }
@@ -579,8 +579,8 @@ function formatStrategyRuntime(runtime: unknown): string {
 
 function formatSourceFormat(sourceFormat: StrategySourceFormat | string | null | undefined): string {
     switch (normalizeText(sourceFormat)) {
-        case "dsl-v1":
-            return "DSL v1";
+        case "pine-v6":
+            return "Pine v6";
         default:
             return "未知 / 受限";
     }
@@ -588,7 +588,7 @@ function formatSourceFormat(sourceFormat: StrategySourceFormat | string | null |
 
 function formatStrategyEligibility(strategy: StrategyInstanceItem): string {
     if (strategy.startable) return "可启动";
-    if (strategy.runtime === "dsl-go-plan") return "待启用";
+    if (strategy.runtime === "pine-go-plan") return "待启用";
     return "受限";
 }
 

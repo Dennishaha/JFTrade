@@ -89,10 +89,10 @@ describe("buildADKToolVisualization", () => {
     expect(visualization.events[1]).toMatchObject({ label: "失败", detail: "已拒绝", tone: "danger" });
   });
 
-  it("builds strategy DSL workflow summaries for new strategy tools", () => {
-    const validation = buildADKToolVisualization("strategy.validate_dsl", {
+  it("builds strategy Pine workflow summaries for new strategy tools", () => {
+    const validation = buildADKToolVisualization("strategy.validate_pine", {
       ok: true,
-      runtime: "dsl-go-plan",
+      runtime: "pine-go-plan",
       hooks: ["on_kline_close"],
       metadata: {
         name: "Mean Revert",
@@ -106,7 +106,7 @@ describe("buildADKToolVisualization", () => {
     });
     expect(validation?.kind).toBe("summary");
     if (validation?.kind !== "summary") return;
-    expect(validation.title).toBe("DSL 校验");
+    expect(validation.title).toBe("Pine 校验");
     expect(validation.cards.find((card) => card.label === "校验结果")).toMatchObject({
       value: "有效",
       tone: "ok",
@@ -120,8 +120,8 @@ describe("buildADKToolVisualization", () => {
         version: "0.1.2",
         symbol: "US.TME",
         interval: "15m",
-        runtime: "dsl-go-plan",
-        sourceFormat: "dsl-v1",
+        runtime: "pine-go-plan",
+        sourceFormat: "pine-v6",
         updatedAt: "2026-06-10T10:00:00Z",
       },
     });
@@ -134,7 +134,7 @@ describe("buildADKToolVisualization", () => {
       updatedFields: ["executionMode"],
       instance: {
         id: "inst-1",
-        runtime: "dsl-go-plan",
+        runtime: "pine-go-plan",
         status: "STOPPED",
         definition: { name: "Mean Revert" },
         binding: {

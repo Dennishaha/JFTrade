@@ -265,27 +265,31 @@ export function entryPositionPolicyLabel(value: EntryPositionPolicy): string {
   }
 }
 
+export function entryPositionPolicyToSnakeCase(value: EntryPositionPolicy): string {
+  switch (value) {
+    case "flatOnly":
+      return "flat_only";
+    case "allow":
+      return "allow";
+    case "sameDirection":
+    default:
+      return "same_direction";
+  }
+}
+
 export type QuantityMode =
   | "shares"
   | "amount"
-  | "accountPositionPercent"
-  | "symbolPositionPercent"
-  | "cashPercent"
-  | "marginBuyingPowerPercent"
-  | "shortSellingPowerPercent";
+  | "equityPercent";
 
 export function normalizeQuantityMode(value: unknown): QuantityMode {
   if (
     value === "shares" ||
     value === "amount" ||
-    value === "accountPositionPercent" ||
-    value === "positionPercent" ||
-    value === "symbolPositionPercent" ||
-		value === "cashPercent" ||
-		value === "marginBuyingPowerPercent" ||
-		value === "shortSellingPowerPercent"
+    value === "equityPercent" ||
+    value === "accountPositionPercent"
   ) {
-    return value === "positionPercent" ? "symbolPositionPercent" : value;
+    return value === "accountPositionPercent" ? "equityPercent" : value;
   }
   return "shares";
 }
@@ -294,14 +298,9 @@ export function isQuantityModeAllowedForSide(
   quantityMode: QuantityMode,
   visualSide: VisualOrderSide,
 ): boolean {
-  switch (quantityMode) {
-    case "marginBuyingPowerPercent":
-      return visualSide === "BUY";
-    case "shortSellingPowerPercent":
-      return visualSide === "SELL_SHORT";
-    default:
-      return true;
-  }
+  void quantityMode;
+  void visualSide;
+  return true;
 }
 
 export function normalizeQuantityModeForSide(
@@ -311,12 +310,6 @@ export function normalizeQuantityModeForSide(
   const quantityMode = normalizeQuantityMode(value);
   if (isQuantityModeAllowedForSide(quantityMode, visualSide)) {
     return quantityMode;
-  }
-  if (visualSide === "BUY" && quantityMode === "shortSellingPowerPercent") {
-    return "marginBuyingPowerPercent";
-  }
-  if (visualSide === "SELL_SHORT" && quantityMode === "marginBuyingPowerPercent") {
-    return "shortSellingPowerPercent";
   }
   return "shares";
 }

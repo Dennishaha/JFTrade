@@ -11,7 +11,7 @@ import {
   type StrategyVisualEdgeBranch,
 } from "./strategyVisualBuilderEdges";
 import {
-  parseStrategyFlowNodeDslCommentLines,
+  parseStrategyFlowNodeAnnotationLines,
   type StrategyFlowNodeJsDoc,
 } from "./strategyVisualBuilderShared";
 
@@ -30,7 +30,7 @@ export type StrategyScriptParseResult =
   | StrategyScriptParseSuccess
   | StrategyScriptParseFailure;
 
-interface ParsedDslEntry {
+interface ParsedPineEntry {
   lineNumber: number;
   raw: string;
   trimmed: string;
@@ -42,7 +42,7 @@ interface ParsedDslEntry {
 }
 
 interface ParseState {
-  entries: ParsedDslEntry[];
+  entries: ParsedPineEntry[];
   index: number;
   nodes: StrategyVisualNodeDocument[];
   edges: StrategyVisualEdgeDocument[];
@@ -69,13 +69,13 @@ const ROOT_LAYOUT = {
   onKLineClosed: { x: 180, y: 320 },
 };
 
-export function buildStrategyVisualModelFromDsl(
+export function buildStrategyVisualModelFromPine(
   script: string,
   existingModel?: StrategyVisualModelDocument | null,
 ): StrategyScriptParseResult {
-  const entries = tokenizeDsl(script);
+  const entries = tokenizePine(script);
   if (entries.length === 0) {
-    return { ok: false, error: "DSL 代码为空，无法转换回流程图。" };
+    return { ok: false, error: "Pine 代码为空，无法转换回流程图。" };
   }
 
   const state: ParseState = {
@@ -92,33 +92,21 @@ export function buildStrategyVisualModelFromDsl(
     codeBlockCount: 0,
   };
 
+  const root = createSyntheticRoot(state);
+  addNode(state, root);
+
   while (state.index < entries.length) {
     const entry = entries[state.index]!;
-    if (entry.indent > 0) {
-      return {
-        ok: false,
-        error: `DSL 第 ${entry.lineNumber} 行缩进语句必须位于 hook 内。`,
-      };
-    }
-
     if (isMetadataLine(entry.trimmed)) {
       state.index += 1;
       continue;
     }
 
-    if (entry.trimmed === "on init:" || entry.trimmed === "on kline_close:") {
-      parseHook(entry, state);
-      continue;
-    }
-
-    return {
-      ok: false,
-      error: `DSL 第 ${entry.lineNumber} 行暂不支持顶层语句：${entry.trimmed}`,
-    };
+    parseBlock(state, -1, root.id);
   }
 
   if (state.nodes.length === 0) {
-    return { ok: false, error: "DSL 策略至少需要一个 hook。" };
+    return { ok: false, error: "Pine 策略至少需要一个可映射语句。" };
   }
 
   return {
@@ -133,21 +121,16 @@ export function buildStrategyVisualModelFromDsl(
   };
 }
 
-function parseHook(entry: ParsedDslEntry, state: ParseState): void {
-  const kind = entry.trimmed === "on init:" ? "onInit" : "onKLineClosed";
-  const defaultText = kind === "onInit" ? "策略启动" : "K 线收盘";
-  const node = createNodeFromParts({
-    state,
-    entry,
-    kind,
-    defaultText,
-    defaultType: "circle",
-    properties: { blockKind: kind },
-    sourceStart: entry.annotationStart ?? entry.start,
-  });
-  addNode(state, node);
-  state.index += 1;
-  parseBlock(state, entry.indent, node.id);
+function createSyntheticRoot(state: ParseState): StrategyVisualNodeDocument {
+  const existing = state.existingNodeById.get("on-kline-root");
+  return {
+    id: "on-kline-root",
+    type: existing?.type ?? "circle",
+    x: existing?.x ?? ROOT_LAYOUT.onKLineClosed.x,
+    y: existing?.y ?? ROOT_LAYOUT.onKLineClosed.y,
+    text: existing?.text ?? "K 线收盘",
+    properties: { blockKind: "onKLineClosed" },
+  };
 }
 
 function parseBlock(
@@ -176,7 +159,7 @@ function parseBlock(
     if (entry.indent < blockIndent || entry.indent > blockIndent) {
       return;
     }
-    if (entry.trimmed === "else:") {
+    if (isElseLine(entry.trimmed)) {
       return;
     }
 
@@ -196,7 +179,7 @@ function parseBlock(
       if (
         state.index < state.entries.length &&
         state.entries[state.index]!.indent === entry.indent &&
-        state.entries[state.index]!.trimmed === "else:"
+        isElseLine(state.entries[state.index]!.trimmed)
       ) {
         state.index += 1;
         parseBlock(state, entry.indent, result.node.id, "false");
@@ -209,14 +192,14 @@ function parseBlock(
   }
 }
 
-function parseStatementNode(entry: ParsedDslEntry, state: ParseState): ParsedNodeResult {
+function parseStatementNode(entry: ParsedPineEntry, state: ParseState): ParsedNodeResult {
   const annotation = entry.annotation;
   const explicitKind = annotation?.blockKind;
 
-  if (entry.trimmed.startsWith("let ")) {
+  if (isAssignmentLine(entry.trimmed)) {
     return parseLetNode(entry, state, explicitKind);
   }
-  if (entry.trimmed.startsWith("log ")) {
+  if (entry.trimmed.startsWith("log.info(")) {
     return {
       node: createNodeFromParts({
         state,
@@ -226,13 +209,13 @@ function parseStatementNode(entry: ParsedDslEntry, state: ParseState): ParsedNod
         defaultType: defaultTypeForKind(explicitKind ?? "log"),
         properties: {
           blockKind: explicitKind ?? "log",
-          message: readDslLiteral(entry.trimmed.slice(4).trim()),
+          message: readMessageCallOrLiteral(entry.trimmed, "log"),
         },
       }),
       isCondition: false,
     };
   }
-  if (entry.trimmed.startsWith("notify ")) {
+  if (entry.trimmed.startsWith("alert(")) {
     return {
       node: createNodeFromParts({
         state,
@@ -242,20 +225,20 @@ function parseStatementNode(entry: ParsedDslEntry, state: ParseState): ParsedNod
         defaultType: defaultTypeForKind(explicitKind ?? "notify"),
         properties: {
           blockKind: explicitKind ?? "notify",
-          message: readDslLiteral(entry.trimmed.slice(7).trim()),
+          message: readMessageCallOrLiteral(entry.trimmed, "notify"),
         },
       }),
       isCondition: false,
     };
   }
-  if (entry.trimmed.startsWith("if ") && entry.trimmed.endsWith(":")) {
+  if (entry.trimmed.startsWith("if ")) {
     return parseIfNode(entry, state, explicitKind);
   }
   if (isOrderLine(entry.trimmed)) {
     return parseOrderNode(entry, state, explicitKind);
   }
-  if (entry.trimmed.startsWith("protect ")) {
-    return parseProtectNode(entry, state, explicitKind);
+  if (entry.trimmed.startsWith("strategy.exit")) {
+    return parsePineExitNode(entry, state, explicitKind);
   }
 
   state.codeBlockCount += 1;
@@ -264,7 +247,7 @@ function parseStatementNode(entry: ParsedDslEntry, state: ParseState): ParsedNod
       state,
       entry,
       kind: "codeBlock",
-      defaultText: annotation?.nodeText ?? "DSL 片段",
+      defaultText: annotation?.nodeText ?? "Pine 片段",
       defaultType: "rect",
       properties: {
         blockKind: "codeBlock",
@@ -276,11 +259,11 @@ function parseStatementNode(entry: ParsedDslEntry, state: ParseState): ParsedNod
 }
 
 function parseLetNode(
-  entry: ParsedDslEntry,
+  entry: ParsedPineEntry,
   state: ParseState,
   explicitKind: StrategyBlockKind | undefined,
 ): ParsedNodeResult {
-  const match = entry.trimmed.match(/^let\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+)$/);
+  const match = entry.trimmed.match(/^(?:var\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*(?::=|=)\s*(.+)$/);
   if (match === null) {
     state.codeBlockCount += 1;
     return createCodeBlockResult(entry, state);
@@ -315,7 +298,7 @@ function parseLetNode(
 }
 
 function parseIfNode(
-  entry: ParsedDslEntry,
+  entry: ParsedPineEntry,
   state: ParseState,
   explicitKind: StrategyBlockKind | undefined,
 ): ParsedNodeResult {
@@ -363,7 +346,7 @@ function parseIfNode(
       state,
       entry,
       kind: explicitKind ?? "codeBlock",
-      defaultText: entry.annotation?.nodeText ?? "DSL 条件",
+      defaultText: entry.annotation?.nodeText ?? "Pine 条件",
       defaultType: defaultTypeForKind(explicitKind ?? "codeBlock"),
       properties: {
         blockKind: explicitKind ?? "codeBlock",
@@ -375,71 +358,136 @@ function parseIfNode(
 }
 
 function parseOrderNode(
-  entry: ParsedDslEntry,
+  entry: ParsedPineEntry,
   state: ParseState,
   explicitKind: StrategyBlockKind | undefined,
 ): ParsedNodeResult {
-  const parts = entry.trimmed.split(/\s+/);
-  const action = parts[0] ?? "buy";
-  const quantityMode = parts[1] ?? "shares";
-  const quantityValue = Number(parts[2] ?? "100");
-  const options = parseOptionPairs(parts.slice(3));
-  const side = sideFromAction(action);
-  const orderType = String(options.get("type") ?? (options.has("limit") ? "LIMIT" : "MARKET")).toUpperCase() === "LIMIT"
-    ? "LIMIT"
-    : "MARKET";
-  const limitPrice = Number(options.get("limit") ?? 0);
-
+  const pineOrder = parsePineOrder(entry.trimmed);
+  if (pineOrder !== null) {
+    return {
+      node: createNodeFromParts({
+        state,
+        entry,
+        kind: explicitKind ?? "placeOrder",
+        defaultText: entry.annotation?.nodeText ?? "下单",
+        defaultType: "rect",
+        properties: {
+          blockKind: explicitKind ?? "placeOrder",
+          ...pineOrder,
+        },
+      }),
+      isCondition: false,
+    };
+  }
+  if (entry.trimmed.startsWith("strategy.")) {
+    state.codeBlockCount += 1;
+    return createCodeBlockResult(entry, state);
+  }
   return {
     node: createNodeFromParts({
       state,
       entry,
-      kind: explicitKind ?? "placeOrder",
-      defaultText: entry.annotation?.nodeText ?? "下单",
+      kind: explicitKind ?? "codeBlock",
+      defaultText: entry.annotation?.nodeText ?? "Pine 片段",
       defaultType: "rect",
       properties: {
-        blockKind: explicitKind ?? "placeOrder",
-        side,
-        orderType,
-        entryPositionPolicy: entryPolicyFromDsl(options.get("policy")),
-        quantityMode: quantityModeFromDsl(quantityMode),
-        quantityValue: Number.isFinite(quantityValue) ? quantityValue : 100,
-        limitPrice: Number.isFinite(limitPrice) ? limitPrice : 0,
+        blockKind: explicitKind ?? "codeBlock",
+        code: entry.trimmed,
       },
     }),
     isCondition: false,
   };
 }
 
-function parseProtectNode(
-  entry: ParsedDslEntry,
+function parsePineExitNode(
+  entry: ParsedPineEntry,
   state: ParseState,
   explicitKind: StrategyBlockKind | undefined,
 ): ParsedNodeResult {
-  const parts = entry.trimmed.split(/\s+/);
-  const options = parseOptionPairs(parts.slice(6));
-  const timeValue = Number(parts[3] ?? "1");
-  const percentage = Number(String(parts[5] ?? "2").replace(/%$/, ""));
-
+  const properties = parsePineExit(entry.trimmed);
+  if (properties === null) {
+    state.codeBlockCount += 1;
+    return createCodeBlockResult(entry, state);
+  }
   return {
     node: createNodeFromParts({
       state,
       entry,
       kind: explicitKind ?? "stopLoss",
-      defaultText: entry.annotation?.nodeText ?? "止损",
+      defaultText: entry.annotation?.nodeText ?? "风控退出",
       defaultType: "rect",
       properties: {
         blockKind: explicitKind ?? "stopLoss",
-        direction: protectDirectionFromDsl(parts[1]),
-        mode: protectModeFromDsl(parts[2]),
-        timeValue: Number.isFinite(timeValue) ? timeValue : 1,
-        timeUnit: protectTimeUnitFromDsl(parts[4]),
-        percentage: Number.isFinite(percentage) ? percentage : 2,
-        windowPolicy: options.get("window") === "session" ? "session" : "continuous",
+        ...properties,
       },
     }),
     isCondition: false,
   };
+}
+
+function parsePineExit(trimmed: string): Record<string, unknown> | null {
+  const args = splitArguments(readCallArgs(trimmed));
+  if (args.length < 2) {
+    return null;
+  }
+  const fromEntry = readPineLiteral(args[1] ?? "").toLowerCase();
+  const direction = fromEntry.includes("short") ? "short" : "long";
+  const namedArgs = parseNamedArgs(args.slice(2));
+  const stop = namedArgs.get("stop");
+  if (stop !== undefined) {
+    const percentage = parsePineExitPricePercent(stop);
+    return percentage === null ? null : pineExitProperties(direction, "stopLoss", percentage);
+  }
+  const limit = namedArgs.get("limit");
+  if (limit !== undefined) {
+    const percentage = parsePineExitPricePercent(limit);
+    return percentage === null ? null : pineExitProperties(direction, "takeProfit", percentage);
+  }
+  const trailPoints = namedArgs.get("trail_points");
+  const trailOffset = namedArgs.get("trail_offset");
+  if (trailPoints !== undefined && trailOffset !== undefined) {
+    const percentage = parsePineExitTrailPercent(trailPoints);
+    const offsetPercentage = parsePineExitTrailPercent(trailOffset);
+    return percentage === null || offsetPercentage === null || percentage !== offsetPercentage
+      ? null
+      : pineExitProperties(direction, "trailingStop", percentage);
+  }
+  return null;
+}
+
+function pineExitProperties(
+  direction: "long" | "short",
+  mode: "stopLoss" | "takeProfit" | "trailingStop",
+  percentage: number,
+): Record<string, unknown> {
+  return {
+    direction,
+    mode,
+    timeValue: 1,
+    timeUnit: "bar",
+    percentage,
+    windowPolicy: "continuous",
+  };
+}
+
+function parsePineExitPricePercent(value: string): number | null {
+  const normalized = stripWrappingParens(value).replace(/\s+/g, " ");
+  const match = normalized.match(/^close \* \(?1 [+-] (-?\d+(?:\.\d+)?) \/ 100\)?$/i);
+  if (match === null) {
+    return null;
+  }
+  const parsed = Number(match[1]);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+}
+
+function parsePineExitTrailPercent(value: string): number | null {
+  const normalized = stripWrappingParens(value).replace(/\s+/g, " ");
+  const match = normalized.match(/^close \* (-?\d+(?:\.\d+)?) \/ 100$/i);
+  if (match === null) {
+    return null;
+  }
+  const parsed = Number(match[1]);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
 
 function parseIndicatorCondition(
@@ -468,10 +516,11 @@ function parseIndicatorCondition(
     };
   }
 
-  const crossMatch = condition.match(/^cross_(over|under)\(([^,]+),\s*([^\)]+)\)$/);
+  const crossMatch = condition.match(/^(?:cross_(over|under)|ta\.cross(over|under))\(([^,]+),\s*([^\)]+)\)$/);
   if (crossMatch !== null) {
-    const leftAlias = crossMatch[2]!.trim().split(".")[0]!;
-    const rightAlias = crossMatch[3]!.trim().split(".")[0]!;
+    const direction = crossMatch[1] ?? crossMatch[2];
+    const leftAlias = crossMatch[3]!.trim().split(".")[0]!;
+    const rightAlias = crossMatch[4]!.trim().split(".")[0]!;
     const leftBinding = state.aliasByName.get(leftAlias);
     const rightBinding = state.aliasByName.get(rightAlias);
     if (leftBinding === undefined || rightBinding === undefined) {
@@ -487,7 +536,7 @@ function parseIndicatorCondition(
         blockKind: "technicalIndicatorCondition",
         indicatorType: indicatorTypeForCondition(indicatorType),
         conditionMode: "pattern",
-        patternType: crossMatch[1] === "under" ? "deathCross" : "goldenCross",
+        patternType: direction === "under" ? "deathCross" : "goldenCross",
         ...(isMovingAverage
           ? { inputFastNodeId: fastNodeId, inputSlowNodeId: slowNodeId }
           : { inputPrimaryNodeId: primaryNodeId }),
@@ -564,66 +613,130 @@ function parseCloseCondition(
 }
 
 function parseIndicatorExpression(expression: string): Record<string, unknown> | null {
-  const call = expression.match(/^([A-Za-z_][A-Za-z0-9_]*)\((.*)\)$/);
+  const call = expression.match(/^([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?)\((.*)\)$/);
   if (call === null) {
     return null;
   }
   const functionName = call[1]!.toLowerCase();
   const args = splitArguments(call[2] ?? "");
 
+  if (functionName === "request.security") {
+    return parseRequestSecurityIndicator(args);
+  }
+
   switch (functionName) {
-    case "ma":
+    case "ta.ema":
       return {
         blockKind: "getTechnicalIndicator",
         indicatorType: "movingAverage",
-        movingAverageType: String(args[0] ?? "MA").toUpperCase(),
-        windowSize: readNumber(args[1], 20),
-        periodUnit: periodUnitFromDsl(args[2]),
+        movingAverageType: "EMA",
+        windowSize: readNumber(args[1] ?? args[0], 20),
+        periodUnit: "bar",
       };
-    case "rsi":
-      return { blockKind: "getTechnicalIndicator", indicatorType: "rsi", period: readNumber(args[0], 14) };
-    case "macd":
+    case "ta.rma":
+      return {
+        blockKind: "getTechnicalIndicator",
+        indicatorType: "movingAverage",
+        movingAverageType: "SMMA",
+        windowSize: readNumber(args[1] ?? args[0], 20),
+        periodUnit: "bar",
+      };
+    case "ta.wma":
+      return {
+        blockKind: "getTechnicalIndicator",
+        indicatorType: "movingAverage",
+        movingAverageType: "LWMA",
+        windowSize: readNumber(args[1] ?? args[0], 20),
+        periodUnit: "bar",
+      };
+    case "ta.hma":
+      return {
+        blockKind: "getTechnicalIndicator",
+        indicatorType: "movingAverage",
+        movingAverageType: "HMA",
+        windowSize: readNumber(args[1] ?? args[0], 20),
+        periodUnit: "bar",
+      };
+    case "ta.vwma":
+      return {
+        blockKind: "getTechnicalIndicator",
+        indicatorType: "movingAverage",
+        movingAverageType: "VWMA",
+        windowSize: readNumber(args[1] ?? args[0], 20),
+        periodUnit: "bar",
+      };
+    case "ta.sma":
+      return {
+        blockKind: "getTechnicalIndicator",
+        indicatorType: "movingAverage",
+        movingAverageType: "SMA",
+        windowSize: readNumber(args[1] ?? args[0], 20),
+        periodUnit: "bar",
+      };
+    case "ta.rsi":
+      return { blockKind: "getTechnicalIndicator", indicatorType: "rsi", period: readNumber(args[1] ?? args[0], 14) };
+    case "ta.macd":
       return {
         blockKind: "getTechnicalIndicator",
         indicatorType: "macd",
-        fastPeriod: readNumber(args[0], 12),
-        slowPeriod: readNumber(args[1], 26),
-        signalPeriod: readNumber(args[2], 9),
+        fastPeriod: readNumber(args[1], 12),
+        slowPeriod: readNumber(args[2], 26),
+        signalPeriod: readNumber(args[3], 9),
       };
-    case "kdj":
-      return {
-        blockKind: "getTechnicalIndicator",
-        indicatorType: "kdj",
-        period: readNumber(args[0], 9),
-        m1: readNumber(args[1], 3),
-        m2: readNumber(args[2], 3),
-      };
-    case "bollinger":
-      return {
-        blockKind: "getTechnicalIndicator",
-        indicatorType: "bollinger",
-        period: readNumber(args[0], 20),
-        multiplier: readNumber(args[1], 2),
-      };
-    case "atr":
+    case "ta.atr":
       return { blockKind: "getTechnicalIndicator", indicatorType: "atr", period: readNumber(args[0], 14) };
-    case "cci":
-      return { blockKind: "getTechnicalIndicator", indicatorType: "cci", period: readNumber(args[0], 20) };
-    case "williams_r":
-    case "williamsr":
-      return { blockKind: "getTechnicalIndicator", indicatorType: "williamsR", period: readNumber(args[0], 14) };
+    case "ta.cci":
+      return { blockKind: "getTechnicalIndicator", indicatorType: "cci", period: readNumber(args[1] ?? args[0], 20) };
     default:
       return null;
   }
 }
 
-function createCodeBlockResult(entry: ParsedDslEntry, state: ParseState): ParsedNodeResult {
+function parseRequestSecurityIndicator(args: string[]): Record<string, unknown> | null {
+  if (args.length < 3 || args[0]?.trim() !== "syminfo.tickerid") {
+    return null;
+  }
+  const periodUnit = periodUnitFromPineTimeframe(readPineLiteral(args[1] ?? ""));
+  if (periodUnit === null) {
+    return null;
+  }
+  const inner = parseIndicatorExpression(args[2] ?? "");
+  if (inner === null || inner.indicatorType !== "movingAverage") {
+    return null;
+  }
+  return {
+    ...inner,
+    periodUnit,
+  };
+}
+
+function periodUnitFromPineTimeframe(value: string): string | null {
+  switch (value.trim().toUpperCase()) {
+    case "1":
+      return "minute";
+    case "60":
+      return "hour";
+    case "D":
+    case "1D":
+      return "day";
+    case "W":
+    case "1W":
+      return "week";
+    case "M":
+    case "1M":
+      return "month";
+    default:
+      return null;
+  }
+}
+
+function createCodeBlockResult(entry: ParsedPineEntry, state: ParseState): ParsedNodeResult {
   return {
     node: createNodeFromParts({
       state,
       entry,
       kind: "codeBlock",
-      defaultText: entry.annotation?.nodeText ?? "DSL 片段",
+      defaultText: entry.annotation?.nodeText ?? "Pine 片段",
       defaultType: "rect",
       properties: {
         blockKind: "codeBlock",
@@ -636,7 +749,7 @@ function createCodeBlockResult(entry: ParsedDslEntry, state: ParseState): Parsed
 
 function createNodeFromParts(options: {
   state: ParseState;
-  entry: ParsedDslEntry;
+  entry: ParsedPineEntry;
   kind: StrategyBlockKind;
   defaultText: string;
   defaultType: StrategyVisualNodeDocument["type"];
@@ -750,7 +863,7 @@ function buildEdgeId(sourceNodeId: string, targetNodeId: string, suffix: string)
 }
 
 function ensureUniqueNodeId(state: ParseState, preferredId: string): string {
-  const base = preferredId.trim() === "" ? "dsl-node" : preferredId.trim();
+  const base = preferredId.trim() === "" ? "pine-node" : preferredId.trim();
   if (!state.nodeIds.has(base)) {
     return base;
   }
@@ -762,10 +875,10 @@ function ensureUniqueNodeId(state: ParseState, preferredId: string): string {
   }
 }
 
-function tokenizeDsl(script: string): ParsedDslEntry[] {
+function tokenizePine(script: string): ParsedPineEntry[] {
   const normalized = script.replace(/\r\n/g, "\n");
   const lines = normalized.split("\n");
-  const entries: ParsedDslEntry[] = [];
+  const entries: ParsedPineEntry[] = [];
   let offset = 0;
   let pendingComments: string[] = [];
   let pendingStart: number | null = null;
@@ -776,11 +889,16 @@ function tokenizeDsl(script: string): ParsedDslEntry[] {
     const end = start + raw.length;
     const trimmed = raw.trim();
 
-    if (trimmed.startsWith("#")) {
+    if (trimmed.startsWith("#") || trimmed.startsWith("// @jftradeFlow")) {
       if (pendingComments.length === 0) {
         pendingStart = start;
       }
       pendingComments.push(trimmed);
+      offset = end + 1;
+      continue;
+    }
+
+    if (trimmed.startsWith("//")) {
       offset = end + 1;
       continue;
     }
@@ -794,7 +912,7 @@ function tokenizeDsl(script: string): ParsedDslEntry[] {
         start,
         end,
         annotation: pendingComments.length > 0
-          ? parseStrategyFlowNodeDslCommentLines(pendingComments)
+          ? parseStrategyFlowNodeAnnotationLines(pendingComments)
           : null,
         annotationStart: pendingStart,
       });
@@ -809,7 +927,8 @@ function tokenizeDsl(script: string): ParsedDslEntry[] {
 }
 
 function isMetadataLine(trimmed: string): boolean {
-  return /^(strategy|version|symbol|interval)\s+/.test(trimmed);
+  return /^\/\/@version\s*=/.test(trimmed)
+    || /^strategy\s*\(/.test(trimmed);
 }
 
 function defaultTypeForKind(kind: StrategyBlockKind): StrategyVisualNodeDocument["type"] {
@@ -827,15 +946,120 @@ function defaultTypeForKind(kind: StrategyBlockKind): StrategyVisualNodeDocument
 }
 
 function isOrderLine(trimmed: string): boolean {
-  return /^(buy|sell|short|cover)\s+/.test(trimmed);
+  return /^strategy\.(entry|close)\s*\(/.test(trimmed);
 }
 
-function parseOptionPairs(parts: string[]): Map<string, string> {
-  const result = new Map<string, string>();
-  for (let index = 0; index + 1 < parts.length; index += 2) {
-    result.set(parts[index]!, parts[index + 1]!);
+function isAssignmentLine(trimmed: string): boolean {
+  return /^(?:var\s+)?[A-Za-z_][A-Za-z0-9_]*\s*(?::=|=)\s*/.test(trimmed);
+}
+
+function isElseLine(trimmed: string): boolean {
+  return trimmed === "else" || trimmed === "else:";
+}
+
+function readMessageCallOrLiteral(trimmed: string, kind: "log" | "notify"): string {
+  if (trimmed.includes("(")) {
+    const args = splitArguments(readCallArgs(trimmed));
+    return readPineLiteral(args[0] ?? "");
+  }
+  return readPineLiteral(kind === "log" ? trimmed.slice(4).trim() : trimmed.slice(7).trim());
+}
+
+function parsePineOrder(trimmed: string): Record<string, unknown> | null {
+  if (trimmed.startsWith("strategy.close")) {
+    const args = splitArguments(readCallArgs(trimmed));
+    const id = readPineLiteral(args[0] ?? "");
+    return {
+      side: id.toLowerCase().includes("short") ? "BUY_COVER" : "SELL",
+      orderType: "MARKET",
+      entryPositionPolicy: "sameDirection",
+      quantityMode: "shares",
+      quantityValue: 100,
+      limitPrice: 0,
+    };
+  }
+  if (!trimmed.startsWith("strategy.entry")) {
+    return null;
+  }
+  const args = splitArguments(readCallArgs(trimmed));
+  const direction = String(args[1] ?? "strategy.long").toLowerCase();
+  const namedArgs = parseNamedArgs(args.slice(2));
+  if (namedArgs.has("qty_percent")) {
+    return null;
+  }
+  const quantity = parsePineQuantity(namedArgs.get("qty"));
+  const limitPrice = readNumber(namedArgs.get("limit"), 0);
+  return {
+    side: direction.includes("short") ? "SELL_SHORT" : "BUY",
+    orderType: limitPrice > 0 ? "LIMIT" : "MARKET",
+    entryPositionPolicy: "sameDirection",
+    quantityMode: quantity.mode,
+    quantityValue: quantity.value,
+    limitPrice,
+  };
+}
+
+function parsePineQuantity(
+  qty: string | undefined,
+): { mode: "shares" | "amount" | "equityPercent"; value: number } {
+  const normalized = stripWrappingParens(qty ?? "").replace(/\s+/g, " ");
+  if (normalized === "") {
+    return { mode: "shares", value: 100 };
+  }
+  const equityMatch = normalized.match(/^strategy\.equity\s*\*\s*(-?\d+(?:\.\d+)?)\s*\/\s*100\s*\/\s*close$/i)
+    ?? normalized.match(/^\(?\s*strategy\.equity\s*\*\s*(-?\d+(?:\.\d+)?)\s*\/\s*100\s*\)?\s*\/\s*close$/i);
+  if (equityMatch !== null) {
+    return { mode: "equityPercent", value: readNumber(equityMatch[1], 100) };
+  }
+  const amountMatch = normalized.match(/^(-?\d+(?:\.\d+)?)\s*\/\s*close$/i);
+  if (amountMatch !== null) {
+    return { mode: "amount", value: readNumber(amountMatch[1], 100) };
+  }
+  return { mode: "shares", value: readNumber(normalized, 100) };
+}
+
+function stripWrappingParens(value: string): string {
+  let result = value.trim();
+  while (result.startsWith("(") && result.endsWith(")") && wrappingParensCoverExpression(result)) {
+    result = result.slice(1, -1).trim();
   }
   return result;
+}
+
+function wrappingParensCoverExpression(value: string): boolean {
+  let depth = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    const char = value[index];
+    if (char === "(") {
+      depth += 1;
+    } else if (char === ")") {
+      depth -= 1;
+      if (depth === 0 && index < value.length - 1) {
+        return false;
+      }
+    }
+  }
+  return depth === 0;
+}
+
+function parseNamedArgs(args: string[]): Map<string, string> {
+  const result = new Map<string, string>();
+  for (const arg of args) {
+    const [key, ...rest] = arg.split("=");
+    if (key !== undefined && rest.length > 0) {
+      result.set(key.trim(), rest.join("=").trim());
+    }
+  }
+  return result;
+}
+
+function readCallArgs(value: string): string {
+  const open = value.indexOf("(");
+  const close = value.lastIndexOf(")");
+  if (open < 0 || close <= open) {
+    return "";
+  }
+  return value.slice(open + 1, close);
 }
 
 function splitArguments(value: string): string[] {
@@ -865,7 +1089,7 @@ function readNumber(value: string | undefined, fallback: number): number {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
-function readDslLiteral(value: string): string {
+function readPineLiteral(value: string): string {
   const trimmed = value.trim();
   if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
     try {
@@ -909,90 +1133,4 @@ function indicatorTypeForCondition(value: string): string {
   return value === "ma" ? "movingAverage" : value;
 }
 
-function periodUnitFromDsl(value: string | undefined): string {
-  switch ((value ?? "bar").toLowerCase()) {
-    case "minute":
-    case "hour":
-    case "day":
-    case "week":
-    case "month":
-      return value!.toLowerCase();
-    default:
-      return "bar";
-  }
-}
-
-function sideFromAction(action: string): string {
-  switch (action) {
-    case "sell":
-      return "SELL";
-    case "short":
-      return "SELL_SHORT";
-    case "cover":
-      return "BUY_COVER";
-    default:
-      return "BUY";
-  }
-}
-
-function quantityModeFromDsl(value: string): string {
-  switch (value) {
-    case "account_position_percent":
-      return "accountPositionPercent";
-    case "symbol_position_percent":
-    case "position_percent":
-      return "symbolPositionPercent";
-    case "cash_percent":
-      return "cashPercent";
-    case "margin_buying_power_percent":
-      return "marginBuyingPowerPercent";
-    case "short_selling_power_percent":
-      return "shortSellingPowerPercent";
-    default:
-      return value;
-  }
-}
-
-function entryPolicyFromDsl(value: string | undefined): string {
-  switch (value) {
-    case "flat_only":
-    case "flatOnly":
-      return "flatOnly";
-    case "allow":
-      return "allow";
-    default:
-      return "sameDirection";
-  }
-}
-
-function protectDirectionFromDsl(value: string | undefined): string {
-  return value === "long" || value === "short" ? value : "auto";
-}
-
-function protectModeFromDsl(value: string | undefined): string {
-  switch (value) {
-    case "takeProfit":
-    case "take_profit":
-      return "takeProfit";
-    case "trailingStop":
-    case "trailing_stop":
-      return "trailingStop";
-    default:
-      return "stopLoss";
-  }
-}
-
-function protectTimeUnitFromDsl(value: string | undefined): string {
-  switch (value) {
-    case "minute":
-    case "hour":
-    case "day":
-    case "week":
-    case "month":
-      return value;
-    default:
-      return "day";
-  }
-}
-
-export const buildStrategyVisualModelFromScript = buildStrategyVisualModelFromDsl;
+export const buildStrategyVisualModelFromScript = buildStrategyVisualModelFromPine;

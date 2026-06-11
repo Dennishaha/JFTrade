@@ -22,9 +22,9 @@ func TestStrategiesExposeDefinitionSyncAndRefreshDefinitionRoute(t *testing.T) {
 		ID:           "dsl-versioned",
 		Name:         "Versioned Strategy",
 		Description:  "first save",
-		Runtime:      strategyRuntimeDSLPlan,
-		SourceFormat: strategydefinition.SourceFormatDSLV1,
-		Script:       "strategy Versioned Strategy\nversion 0.1.0\non init:\n  log \"init\"\non kline_close:\n  log \"old\"",
+		Runtime:      strategyRuntimePinePlan,
+		SourceFormat: strategydefinition.SourceFormatPineV6,
+		Script:       "//@version=6\nstrategy(\"Versioned Strategy\", overlay=true)\nlog.info(\"old\")",
 	})
 	if err != nil {
 		t.Fatalf("saveDefinition(create): %v", err)
@@ -45,7 +45,7 @@ func TestStrategiesExposeDefinitionSyncAndRefreshDefinitionRoute(t *testing.T) {
 		SourceFormat: definition.SourceFormat,
 		Symbol:       definition.Symbol,
 		Interval:     definition.Interval,
-		Script:       "strategy Versioned Strategy\nversion 0.1.0\non init:\n  log \"init\"\non kline_close:\n  let fast = ma(MA, 10)\n  log \"new\"",
+		Script:       "//@version=6\nstrategy(\"Versioned Strategy\", overlay=true)\nfast = ta.sma(close, 10)\nlog.info(\"new\")",
 		VisualModel:  definition.VisualModel,
 	})
 	if err != nil {
@@ -107,7 +107,7 @@ func TestStrategiesExposeDefinitionSyncAndRefreshDefinitionRoute(t *testing.T) {
 	if refreshEnvelope.Data.DefinitionSync == nil || !refreshEnvelope.Data.DefinitionSync.IsLatest {
 		t.Fatalf("expected refreshed strategy to be latest, got %+v", refreshEnvelope.Data.DefinitionSync)
 	}
-	if script, _ := refreshEnvelope.Data.Params["script"].(string); !strings.Contains(script, "let fast = ma(MA, 10)") {
+	if script, _ := refreshEnvelope.Data.Params["script"].(string); !strings.Contains(script, "fast = ta.sma(close, 10)") {
 		t.Fatalf("expected refreshed script snapshot, got %q", script)
 	}
 }

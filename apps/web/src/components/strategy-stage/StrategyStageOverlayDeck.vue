@@ -20,8 +20,6 @@ import {
 } from "../../features/strategyVisualBuilderIndicatorBlock";
 import {
   entryPositionPolicyLabel,
-  isQuantityModeAllowedForSide,
-  normalizeOrderSide,
 } from "../../features/strategyVisualBuilderScriptSupport";
 import {
   STOP_LOSS_MODE_OPTIONS,
@@ -150,18 +148,6 @@ const placeOrderEntryPositionPolicyOptions = [
   { value: "flatOnly", label: entryPositionPolicyLabel("flatOnly") },
   { value: "allow", label: entryPositionPolicyLabel("allow") },
 ] as const;
-
-const normalizedSelectedPlaceOrderSide = computed(() =>
-  normalizeOrderSide(selectedPlaceOrderSide.value),
-);
-
-const canUseMarginBuyingPower = computed(() =>
-  isQuantityModeAllowedForSide("marginBuyingPowerPercent", normalizedSelectedPlaceOrderSide.value),
-);
-
-const canUseShortSellingPower = computed(() =>
-  isQuantityModeAllowedForSide("shortSellingPowerPercent", normalizedSelectedPlaceOrderSide.value),
-);
 
 const indicatorOptions = computed(() => (
   props.selectedVisualKind === "getTechnicalIndicator"
@@ -653,11 +639,7 @@ function toTemplateTypeLabel(mode: StrategyAuthoringTemplate["mode"]): string {
             >
               <option value="shares">固定股票数</option>
               <option value="amount">固定金额</option>
-              <option value="accountPositionPercent">账户仓位百分比</option>
-              <option value="symbolPositionPercent">当前标的仓位百分比</option>
-              <option value="cashPercent">可用现金百分比</option>
-              <option value="marginBuyingPowerPercent" :disabled="!canUseMarginBuyingPower">融资可用百分比（仅买入开多）</option>
-              <option value="shortSellingPowerPercent" :disabled="!canUseShortSellingPower">融券可用百分比（仅卖出开空）</option>
+              <option value="equityPercent">账户权益百分比</option>
             </select>
           </label>
 
@@ -665,11 +647,7 @@ function toTemplateTypeLabel(mode: StrategyAuthoringTemplate["mode"]): string {
             <span class="font-medium">
               <template v-if="selectedPlaceOrderQuantityMode === 'shares'">股票数量（股）</template>
               <template v-else-if="selectedPlaceOrderQuantityMode === 'amount'">金额</template>
-              <template v-else-if="selectedPlaceOrderQuantityMode === 'accountPositionPercent'">账户仓位百分比（%）</template>
-              <template v-else-if="selectedPlaceOrderQuantityMode === 'symbolPositionPercent'">当前标的仓位百分比（%）</template>
-              <template v-else-if="selectedPlaceOrderQuantityMode === 'cashPercent'">可用现金百分比（%）</template>
-              <template v-else-if="selectedPlaceOrderQuantityMode === 'marginBuyingPowerPercent'">融资可用百分比（%）</template>
-              <template v-else-if="selectedPlaceOrderQuantityMode === 'shortSellingPowerPercent'">融券可用百分比（%）</template>
+              <template v-else-if="selectedPlaceOrderQuantityMode === 'equityPercent'">账户权益百分比（%）</template>
             </span>
             <input
               v-model="selectedPlaceOrderQuantityValue"
@@ -680,22 +658,10 @@ function toTemplateTypeLabel(mode: StrategyAuthoringTemplate["mode"]): string {
             />
             <span class="text-xs text-slate-400">
               <template v-if="selectedPlaceOrderQuantityMode === 'amount'">
-                股票数量以实际为准，不超过输入金额
+                生成 qty = 金额 / close，最终股数按运行时向下取整
               </template>
-              <template v-else-if="selectedPlaceOrderQuantityMode === 'accountPositionPercent'">
-                基于账户总资产计算目标股数，适合统一资金规模下的开仓控制
-              </template>
-              <template v-else-if="selectedPlaceOrderQuantityMode === 'symbolPositionPercent'">
-                基于当前标的持仓市值计算目标股数，无持仓时结果为 0
-              </template>
-              <template v-else-if="selectedPlaceOrderQuantityMode === 'cashPercent'">
-                基于当前策略标的报价币种的可用资金计算目标股数
-              </template>
-              <template v-else-if="selectedPlaceOrderQuantityMode === 'marginBuyingPowerPercent'">
-                基于保证金账户融资可用额度计算买入开多目标股数，仅适用于买入开多
-              </template>
-              <template v-else-if="selectedPlaceOrderQuantityMode === 'shortSellingPowerPercent'">
-                基于保证金账户融券可用额度计算卖出开空目标股数，仅适用于卖出开空
+              <template v-else-if="selectedPlaceOrderQuantityMode === 'equityPercent'">
+                对齐 Pine 的 strategy.percent_of_equity 语义，按账户权益估算 qty
               </template>
             </span>
           </label>

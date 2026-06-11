@@ -22,7 +22,7 @@ import (
 const (
 	defaultStrategyDesignFilename = "strategy-definitions.json"
 	strategyDesignDefinitionTable = "strategy_design_definitions"
-	strategyRuntimeDSLPlan        = "dsl-go-plan"
+	strategyRuntimePinePlan        = "pine-go-plan"
 	defaultStrategyVersion        = "0.1.0"
 )
 
@@ -242,7 +242,7 @@ func (s *strategyDesignStore) saveDefinitionToDBLocked(normalized strategyDesign
 		}
 		normalized.CreatedAt = existing.CreatedAt
 		normalized.Version = existing.Version
-		normalized.Script = syncStrategyDSLVersion(normalized.Script, normalized.Version)
+		normalized.Script = syncStrategyScriptVersion(normalized.Script, normalized.Version)
 		deleted := row.DeletedAt.Valid && strings.TrimSpace(row.DeletedAt.String) != ""
 		changed := strategyDesignDefinitionMeaningfullyChanged(existing, normalized)
 		if !changed && !deleted {
@@ -250,7 +250,7 @@ func (s *strategyDesignStore) saveDefinitionToDBLocked(normalized strategyDesign
 		}
 		if changed {
 			normalized.Version = nextStrategyDefinitionVersion(existing.Version)
-			normalized.Script = syncStrategyDSLVersion(normalized.Script, normalized.Version)
+			normalized.Script = syncStrategyScriptVersion(normalized.Script, normalized.Version)
 		}
 		normalized.UpdatedAt = time.Now().UTC().Format(time.RFC3339Nano)
 		if err := s.upsertDefinitionLocked(normalized, nil); err != nil {
@@ -260,7 +260,7 @@ func (s *strategyDesignStore) saveDefinitionToDBLocked(normalized strategyDesign
 	}
 
 	normalized.Version = defaultStrategyVersion
-	normalized.Script = syncStrategyDSLVersion(normalized.Script, normalized.Version)
+	normalized.Script = syncStrategyScriptVersion(normalized.Script, normalized.Version)
 	if err := s.upsertDefinitionLocked(normalized, nil); err != nil {
 		return strategyDesignDefinition{}, err
 	}
@@ -425,10 +425,10 @@ func normalizeStrategyDesignDefinition(input strategyDesignDefinition) strategyD
 	input.Symbol = strings.ToUpper(strings.TrimSpace(input.Symbol))
 	input.Interval = strings.TrimSpace(input.Interval)
 	input.VisualModel = normalizeStrategyVisualModel(input.VisualModel)
-	if shouldReplaceWithDefaultDSLScript(rawSourceFormat, rawRuntime, input.Script) {
+	if shouldReplaceWithDefaultScript(rawSourceFormat, rawRuntime, input.Script) {
 		input.Script = defaultStrategyDesignScript(input.Name, input.SourceFormat)
 	}
-	input.Script = syncStrategyDSLVersion(input.Script, input.Version)
+	input.Script = syncStrategyScriptVersion(input.Script, input.Version)
 	if input.CreatedAt == "" {
 		input.CreatedAt = now
 	}
@@ -441,27 +441,29 @@ func normalizeStrategyDesignDefinition(input strategyDesignDefinition) strategyD
 func generateStrategyDefinitionID() string {
 	id, err := uuid.NewRandom()
 	if err != nil {
-		return "dsl-strategy-" + time.Now().UTC().Format("20060102150405.000000000")
+		return "pine-strategy-" + time.Now().UTC().Format("20060102150405.000000000")
 	}
 	return id.String()
 }
 
 func defaultStrategyDesignScript(name string, sourceFormat string) string {
 	_ = sourceFormat
-	return defaultStrategyDesignDSL(name)
+	return defaultStrategyDesignPine(name)
 }
 
-func defaultStrategyDesignDSL(name string) string {
+func defaultStrategyDesignPine(name string) string {
 	name = strings.TrimSpace(name)
 	if name == "" {
-		name = "dsl-strategy"
+		name = "Pine Strategy"
 	}
-	return "strategy " + name + "\n" +
-		"version " + defaultStrategyVersion + "\n\n" +
-		"on init:\n" +
-		"  log \"init strategy\"\n\n" +
-		"on kline_close:\n" +
-		"  log \"kline closed\"\n"
+	escapedName := strings.ReplaceAll(name, `"`, `\"`)
+	return "//@version=6\n" +
+		"strategy(\"" + escapedName + "\", overlay=true)\n\n" +
+		"// JFTrade executes supported Pine strategy statements on each closed K line.\n" +
+		"fast = ta.ema(close, 8)\n" +
+		"slow = ta.ema(close, 21)\n" +
+		"if ta.crossover(fast, slow)\n" +
+		"    strategy.entry(\"Long\", strategy.long, qty=1)\n"
 }
 
 func normalizeStrategySemanticVersion(value string) string {
@@ -501,24 +503,9 @@ func nextStrategyDefinitionVersion(current string) string {
 	return fmt.Sprintf("%d.%d.%d", major, minor, patch+1)
 }
 
-func syncStrategyDSLVersion(script string, version string) string {
+func syncStrategyScriptVersion(script string, version string) string {
 	if strings.TrimSpace(script) == "" {
 		return script
-	}
-	version = normalizeStrategySemanticVersion(version)
-	lines := strings.Split(script, "\n")
-	for index, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if !strings.HasPrefix(trimmed, "version ") {
-			continue
-		}
-		leadingWidth := len(line) - len(strings.TrimLeft(line, " \t"))
-		leading := ""
-		if leadingWidth > 0 {
-			leading = line[:leadingWidth]
-		}
-		lines[index] = leading + "version " + version
-		return strings.Join(lines, "\n")
 	}
 	return script
 }
@@ -527,19 +514,19 @@ func strategyDesignDefinitionMeaningfullyChanged(left, right strategyDesignDefin
 	left.CreatedAt = ""
 	left.UpdatedAt = ""
 	left.Version = ""
-	left.Script = syncStrategyDSLVersion(left.Script, defaultStrategyVersion)
+	left.Script = syncStrategyScriptVersion(left.Script, defaultStrategyVersion)
 	right.CreatedAt = ""
 	right.UpdatedAt = ""
 	right.Version = ""
-	right.Script = syncStrategyDSLVersion(right.Script, defaultStrategyVersion)
+	right.Script = syncStrategyScriptVersion(right.Script, defaultStrategyVersion)
 	return !strategyDesignDefinitionsEqual(left, right)
 }
 
 func normalizeStrategyRuntime(runtime string) string {
-	if strings.TrimSpace(runtime) == strategyRuntimeDSLPlan {
-		return strategyRuntimeDSLPlan
+	if strings.TrimSpace(runtime) == strategyRuntimePinePlan {
+		return strategyRuntimePinePlan
 	}
-	return strategyRuntimeDSLPlan
+	return strategyRuntimePinePlan
 }
 
 func normalizeStrategyRuntimeForSource(runtime string, sourceFormat string) string {
@@ -550,26 +537,26 @@ func normalizeStrategyRuntimeForSource(runtime string, sourceFormat string) stri
 func normalizeStrategyDesignSourceFormat(sourceFormat string, runtime string, script string) string {
 	_ = runtime
 	_ = script
-	return strategydefinition.SourceFormatDSLV1
+	return strategydefinition.SourceFormatPineV6
 }
 
-func shouldReplaceWithDefaultDSLScript(sourceFormat string, runtime string, script string) bool {
+func shouldReplaceWithDefaultScript(sourceFormat string, runtime string, script string) bool {
 	if strings.TrimSpace(script) == "" {
 		return true
 	}
-	if usesNonDSLStrategyRuntimeOrSource(sourceFormat, runtime) {
+	if usesNonPineStrategyRuntimeOrSource(sourceFormat, runtime) {
 		return true
 	}
-	return strategydefinition.ValidateScript(strategydefinition.SourceFormatDSLV1, script) != nil
+	return strategydefinition.ValidateScript(strategydefinition.SourceFormatPineV6, script) != nil
 }
 
-func usesNonDSLStrategyRuntimeOrSource(sourceFormat string, runtime string) bool {
+func usesNonPineStrategyRuntimeOrSource(sourceFormat string, runtime string) bool {
 	normalizedSourceFormat := strings.TrimSpace(strings.ToLower(sourceFormat))
-	if normalizedSourceFormat != "" && normalizedSourceFormat != strategydefinition.SourceFormatDSLV1 {
+	if normalizedSourceFormat != "" && normalizedSourceFormat != strategydefinition.SourceFormatPineV6 {
 		return true
 	}
 	normalizedRuntime := strings.TrimSpace(strings.ToLower(runtime))
-	return normalizedRuntime != "" && normalizedRuntime != strategyRuntimeDSLPlan
+	return normalizedRuntime != "" && normalizedRuntime != strategyRuntimePinePlan
 }
 
 func normalizeStrategyVisualModel(model *strategyVisualModel) *strategyVisualModel {

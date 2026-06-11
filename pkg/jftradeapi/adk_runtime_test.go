@@ -7,60 +7,54 @@ import (
 	"testing"
 
 	"github.com/jftrade/jftrade-main/pkg/backtest"
-	strategydslspec "github.com/jftrade/jftrade-main/pkg/strategy/dslspec"
+	strategypinespec "github.com/jftrade/jftrade-main/pkg/strategy/pinespec"
 )
 
-func TestValidateADKStrategyDraftScriptRejectsTradingViewPineScript(t *testing.T) {
+func TestValidateADKStrategyDraftScriptRejectsUnsupportedPineRuntimeSemantics(t *testing.T) {
 	script := `//@version=6
 strategy("TME_Bollinger_RSI_V1")
-// TME Bollinger Bands + RSI Mean Reversion Strategy
-plot(close)`
+htfClose = request.security(syminfo.tickerid, "1D", close)`
 
 	err := validateADKStrategyDraftScript(script)
 	if err == nil {
-		t.Fatal("validateADKStrategyDraftScript() error = nil, want pine rejection")
+		t.Fatal("validateADKStrategyDraftScript() error = nil, want unsupported Pine rejection")
 	}
-	if !strings.Contains(err.Error(), "JFTrade DSL v1") || !strings.Contains(err.Error(), "不支持 TradingView Pine Script") {
-		t.Fatalf("validateADKStrategyDraftScript() error = %q, want DSL/Pine hint", err)
+	if !strings.Contains(err.Error(), "Pine Script v6") || !strings.Contains(err.Error(), "request.security") {
+		t.Fatalf("validateADKStrategyDraftScript() error = %q, want Pine unsupported-feature hint", err)
 	}
 }
 
-func TestValidateADKStrategyDraftScriptAcceptsJFTradeDSL(t *testing.T) {
-	script := `strategy Mean Revert
-version 0.1.0
-symbol US.TME
-interval 1m
-
-on kline_close:
-  log "ready"`
+func TestValidateADKStrategyDraftScriptAcceptsJFTradePine(t *testing.T) {
+	script := `//@version=6
+strategy("Mean Revert", overlay=true)
+log.info("ready")`
 
 	if err := validateADKStrategyDraftScript(script); err != nil {
 		t.Fatalf("validateADKStrategyDraftScript() error = %v", err)
 	}
 }
 
-func TestValidateADKStrategyDraftScriptReturnsSharedHintForInvalidDSL(t *testing.T) {
-	err := validateADKStrategyDraftScript(`strategy Broken
-on kline_close:
-  let fast =`)
+func TestValidateADKStrategyDraftScriptReturnsSharedHintForInvalidPine(t *testing.T) {
+	err := validateADKStrategyDraftScript(`strategy("Broken")
+fast =`)
 	if err == nil {
-		t.Fatal("validateADKStrategyDraftScript() error = nil, want invalid DSL error")
+		t.Fatal("validateADKStrategyDraftScript() error = nil, want invalid Pine error")
 	}
-	if !strings.Contains(err.Error(), "可以先查询看 DSL 规范和示例，确认脚本格式正确。也可以从下面这个 JFTrade DSL v1 骨架开始") {
+	if !strings.Contains(err.Error(), "可以先查询 Pine v6 规范和示例，确认脚本格式正确。也可以从下面这个 JFTrade Pine v6 骨架开始") {
 		t.Fatalf("validateADKStrategyDraftScript() error = %q, want shared skeleton hint", err)
 	}
 }
 
-func TestADKStrategyDSLSpecToolReturnsStructuredPayload(t *testing.T) {
+func TestADKStrategyPineSpecToolReturnsStructuredPayload(t *testing.T) {
 	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
 	server := newTestServer(t, store)
 
-	tool, ok := server.adkRuntime.Tools().Get(strategydslspec.ToolName)
+	tool, ok := server.adkRuntime.Tools().Get(strategypinespec.ToolName)
 	if !ok {
-		t.Fatalf("%s tool not registered", strategydslspec.ToolName)
+		t.Fatalf("%s tool not registered", strategypinespec.ToolName)
 	}
 	if tool.Descriptor.Category != "strategy" || tool.Descriptor.Permission != "read_internal" {
 		t.Fatalf("descriptor = %+v, want strategy/read_internal", tool.Descriptor)
@@ -77,11 +71,11 @@ func TestADKStrategyDSLSpecToolReturnsStructuredPayload(t *testing.T) {
 	if !ok {
 		t.Fatalf("tool output type = %T, want map", output)
 	}
-	if got := payload["sourceFormat"]; got != strategydslspec.SourceFormat {
-		t.Fatalf("sourceFormat = %#v, want %q", got, strategydslspec.SourceFormat)
+	if got := payload["sourceFormat"]; got != strategypinespec.SourceFormat {
+		t.Fatalf("sourceFormat = %#v, want %q", got, strategypinespec.SourceFormat)
 	}
-	if got := payload["runtime"]; got != strategydslspec.Runtime {
-		t.Fatalf("runtime = %#v, want %q", got, strategydslspec.Runtime)
+	if got := payload["runtime"]; got != strategypinespec.Runtime {
+		t.Fatalf("runtime = %#v, want %q", got, strategypinespec.Runtime)
 	}
 	examples, ok := payload["examples"].([]map[string]any)
 	if !ok {
@@ -118,19 +112,19 @@ func TestADKStrategyValidateDSLToolReturnsValidationPayload(t *testing.T) {
 	}
 	server := newTestServer(t, store)
 
-	tool, ok := server.adkRuntime.Tools().Get("strategy.validate_dsl")
+	tool, ok := server.adkRuntime.Tools().Get("strategy.validate_pine")
 	if !ok {
-		t.Fatal("strategy.validate_dsl tool not registered")
+		t.Fatal("strategy.validate_pine tool not registered")
 	}
 	if tool.Descriptor.Category != "strategy" || tool.Descriptor.Permission != "read_internal" {
 		t.Fatalf("descriptor = %+v, want strategy/read_internal", tool.Descriptor)
 	}
 	if tool.Descriptor.InputSchema == nil {
-		t.Fatal("strategy.validate_dsl input schema = nil")
+		t.Fatal("strategy.validate_pine input schema = nil")
 	}
 
 	output, err := tool.Handler(context.Background(), map[string]any{
-		"script": strategydslspec.Skeleton(),
+		"script": strategypinespec.Skeleton(),
 	})
 	if err != nil {
 		t.Fatalf("tool.Handler(valid): %v", err)
@@ -143,8 +137,8 @@ func TestADKStrategyValidateDSLToolReturnsValidationPayload(t *testing.T) {
 		t.Fatalf("ok = %#v, want true", got)
 	}
 	metadata, ok := payload["metadata"].(map[string]any)
-	if !ok || metadata["symbol"] != "US.TME" || metadata["interval"] != "1m" {
-		t.Fatalf("metadata = %#v, want parsed symbol/interval", payload["metadata"])
+	if !ok || metadata["name"] != "Minimal Draft" {
+		t.Fatalf("metadata = %#v, want parsed Pine strategy name", payload["metadata"])
 	}
 	hooks, ok := payload["hooks"].([]string)
 	if !ok || len(hooks) == 0 {
@@ -165,24 +159,45 @@ plot(close)`,
 		"includeRequirements": false,
 	})
 	if err != nil {
-		t.Fatalf("tool.Handler(pine): %v", err)
+		t.Fatalf("tool.Handler(plot warning): %v", err)
 	}
 	payload, ok = output.(map[string]any)
 	if !ok {
 		t.Fatalf("pine payload type = %T, want map", output)
 	}
+	if got := payload["ok"]; got != true {
+		t.Fatalf("ok = %#v, want true", got)
+	}
+	warnings, ok := payload["warnings"].([]string)
+	if !ok || len(warnings) == 0 || !strings.Contains(warnings[0], "visual-only call") {
+		t.Fatalf("warnings = %#v, want visual-only warning", payload["warnings"])
+	}
+	if payload["saveHint"] != nil {
+		t.Fatalf("saveHint = %#v, want nil on valid warning-only Pine", payload["saveHint"])
+	}
+	if payload["requirements"] != nil {
+		t.Fatalf("requirements = %#v, want nil when includeRequirements=false", payload["requirements"])
+	}
+
+	output, err = tool.Handler(context.Background(), map[string]any{
+		"script": `//@version=6
+strategy("unsupported")
+dailyClose = request.security(syminfo.tickerid, "1D", close)`,
+		"includeRequirements": false,
+	})
+	if err != nil {
+		t.Fatalf("tool.Handler(unsupported): %v", err)
+	}
+	payload, ok = output.(map[string]any)
+	if !ok {
+		t.Fatalf("unsupported payload type = %T, want map", output)
+	}
 	if got := payload["ok"]; got != false {
 		t.Fatalf("ok = %#v, want false", got)
 	}
 	errors, ok := payload["errors"].([]string)
-	if !ok || len(errors) == 0 || !strings.Contains(errors[0], "TradingView Pine Script") {
-		t.Fatalf("errors = %#v, want pine rejection", payload["errors"])
-	}
-	if payload["saveHint"] == nil {
-		t.Fatalf("saveHint = nil, want shared hint payload")
-	}
-	if payload["requirements"] != nil {
-		t.Fatalf("requirements = %#v, want nil when includeRequirements=false and validation fails", payload["requirements"])
+	if !ok || len(errors) == 0 || !strings.Contains(errors[0], "request.security") {
+		t.Fatalf("errors = %#v, want request.security rejection", payload["errors"])
 	}
 }
 
@@ -204,13 +219,11 @@ func TestADKStrategySaveDefinitionToolCreateAndUpdate(t *testing.T) {
 	createOutput, err := tool.Handler(context.Background(), map[string]any{
 		"name":        "ADK Saved Strategy",
 		"description": "created via ADK tool",
-		"script": `strategy ADK Saved Strategy
-version 0.1.0
-symbol US.TME
-interval 5m
-
-on kline_close:
-  log "created"`,
+		"symbol":      "US.TME",
+		"interval":    "5m",
+		"script": `//@version=6
+strategy("ADK Saved Strategy", overlay=true)
+log.info("created")`,
 		"visualModel": map[string]any{
 			"engine":  "logic-flow",
 			"version": 1,
@@ -245,13 +258,10 @@ on kline_close:
 		"definitionId": created.ID,
 		"name":         "ADK Saved Strategy Updated",
 		"description":  "updated via ADK tool",
-		"script": `strategy ADK Saved Strategy Updated
-version 0.1.0
-symbol US.TME
-interval 15m
-
-on kline_close:
-  notify "updated"`,
+		"interval":     "15m",
+		"script": `//@version=6
+strategy("ADK Saved Strategy Updated", overlay=true)
+alert("updated")`,
 	})
 	if err != nil {
 		t.Fatalf("tool.Handler(update): %v", err)
@@ -277,7 +287,7 @@ on kline_close:
 	if _, err := tool.Handler(context.Background(), map[string]any{
 		"definitionId": "missing-definition",
 		"name":         "Missing",
-		"script":       strategydslspec.Skeleton(),
+		"script":       strategypinespec.Skeleton(),
 	}); err == nil || !strings.Contains(err.Error(), "不存在") {
 		t.Fatalf("tool.Handler(update missing) error = %v, want not found", err)
 	}
@@ -293,17 +303,13 @@ func TestADKStrategyUpdateInstanceModeToolUpdatesStoppedInstance(t *testing.T) {
 	definition, err := server.designStore.saveDefinition(strategyDesignDefinition{
 		Name:         "Mode Test",
 		Description:  "mode update test",
-		Runtime:      strategyRuntimeDSLPlan,
-		SourceFormat: "dsl-v1",
+		Runtime:      strategyRuntimePinePlan,
+		SourceFormat: "pine-v6",
 		Symbol:       "US.TME",
 		Interval:     "5m",
-		Script: `strategy Mode Test
-version 0.1.0
-symbol US.TME
-interval 5m
-
-on kline_close:
-  log "ready"`,
+		Script: `//@version=6
+strategy("Mode Test", overlay=true)
+log.info("ready")`,
 	})
 	if err != nil {
 		t.Fatalf("saveDefinition: %v", err)
@@ -371,17 +377,13 @@ func TestADKStrategyDefinitionsToolReturnsCompactSummaries(t *testing.T) {
 		Name:         "TME Demo",
 		Version:      "0.1.1",
 		Description:  "ADK summary test definition",
-		Runtime:      strategyRuntimeDSLPlan,
-		SourceFormat: "dsl-v1",
+		Runtime:      strategyRuntimePinePlan,
+		SourceFormat: "pine-v6",
 		Symbol:       "US.TME",
 		Interval:     "1d",
-		Script: `strategy TME Demo
-version 0.1.1
-symbol US.TME
-interval 1d
-
-on kline_close:
-  log "demo"`,
+		Script: `//@version=6
+strategy("TME Demo", overlay=true)
+log.info("demo")`,
 		VisualModel: &strategyVisualModel{
 			Nodes: []strategyVisualNode{{ID: "n1"}, {ID: "n2"}},
 			Edges: []strategyVisualEdge{{ID: "e1", SourceNodeID: "n1", TargetNodeID: "n2"}},

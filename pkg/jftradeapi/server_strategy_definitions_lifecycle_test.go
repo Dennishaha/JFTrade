@@ -11,7 +11,7 @@ import (
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 )
 
-func TestInstantiateDSLStrategyDefinitionBuildsCompiledPlan(t *testing.T) {
+func TestInstantiatePineStrategyDefinitionBuildsCompiledPlan(t *testing.T) {
 	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
@@ -19,25 +19,25 @@ func TestInstantiateDSLStrategyDefinitionBuildsCompiledPlan(t *testing.T) {
 	server := newTestServer(t, store)
 	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return newStrategyRuntimeStubExchange() }
 	if _, err := server.designStore.saveDefinition(strategyDesignDefinition{
-		ID:           "dsl-breakout",
-		Name:         "DSL Breakout",
+		ID:           "pine-breakout",
+		Name:         "Pine Breakout",
 		Version:      "0.1.0",
-		Runtime:      strategyRuntimeDSLPlan,
-		SourceFormat: strategydefinition.SourceFormatDSLV1,
-		Script:       "strategy DSL Breakout\non kline_close:\n  let fast = ma(EMA, 5, day)\n  if cross_over(fast, fast):\n    buy cash_percent 50\n  else:\n    protect auto trailing_stop 2 day 4% window session",
+		Runtime:      strategyRuntimePinePlan,
+		SourceFormat: strategydefinition.SourceFormatPineV6,
+		Script:       "//@version=6\nstrategy(\"Pine Breakout\", overlay=true)\nfast = ta.ema(close, 5)\nslow = ta.ema(close, 21)\nif ta.crossover(fast, slow)\n    strategy.entry(\"Long\", strategy.long, qty=(strategy.equity * 50 / 100) / close)\nelse\n    alert(\"no signal\")",
 	}); err != nil {
 		t.Fatalf("saveDefinition: %v", err)
 	}
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
-	resp, err := http.Post(srv.URL+"/api/v1/strategy-definitions/dsl-breakout/instantiate", "application/json", bytes.NewReader([]byte(`{"instruments":[{"market":"US","code":"AAPL"},{"market":"HK","code":"00700"}],"interval":"15m","executionMode":"notify_only","brokerAccount":{"brokerId":"futu","accountId":"123456","tradingEnvironment":"simulate","market":"us"}}`)))
+	resp, err := http.Post(srv.URL+"/api/v1/strategy-definitions/pine-breakout/instantiate", "application/json", bytes.NewReader([]byte(`{"instruments":[{"market":"US","code":"AAPL"},{"market":"HK","code":"00700"}],"interval":"15m","executionMode":"notify_only","brokerAccount":{"brokerId":"futu","accountId":"123456","tradingEnvironment":"simulate","market":"us"}}`)))
 	if err != nil {
-		t.Fatalf("POST instantiate DSL strategy: %v", err)
+		t.Fatalf("POST instantiate Pine strategy: %v", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("POST instantiate DSL strategy status = %d, want %d", resp.StatusCode, http.StatusOK)
+		t.Fatalf("POST instantiate Pine strategy status = %d, want %d", resp.StatusCode, http.StatusOK)
 	}
 
 	var envelope struct {
@@ -45,19 +45,19 @@ func TestInstantiateDSLStrategyDefinitionBuildsCompiledPlan(t *testing.T) {
 		Data strategyListItem `json:"data"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
-		t.Fatalf("decode DSL instantiate response: %v", err)
+		t.Fatalf("decode Pine instantiate response: %v", err)
 	}
-	if envelope.Data.PluginID != IDDSLPlanPlugin() {
-		t.Fatalf("unexpected DSL plugin id: %+v", envelope.Data)
+	if envelope.Data.PluginID != IDPinePlanPlugin() {
+		t.Fatalf("unexpected Pine plugin id: %+v", envelope.Data)
 	}
-	if envelope.Data.Runtime != strategyRuntimeDSLPlan {
-		t.Fatalf("unexpected DSL runtime field: %+v", envelope.Data)
+	if envelope.Data.Runtime != strategyRuntimePinePlan {
+		t.Fatalf("unexpected Pine runtime field: %+v", envelope.Data)
 	}
-	if envelope.Data.SourceFormat != strategydefinition.SourceFormatDSLV1 {
-		t.Fatalf("unexpected DSL source format field: %+v", envelope.Data)
+	if envelope.Data.SourceFormat != strategydefinition.SourceFormatPineV6 {
+		t.Fatalf("unexpected Pine source format field: %+v", envelope.Data)
 	}
 	if !envelope.Data.Startable {
-		t.Fatalf("expected DSL compiled instance to be startable: %+v", envelope.Data)
+		t.Fatalf("expected Pine compiled instance to be startable: %+v", envelope.Data)
 	}
 	if len(envelope.Data.Binding.Symbols) != 2 || envelope.Data.Binding.Symbols[0] != "US.AAPL" || envelope.Data.Binding.Symbols[1] != "HK.00700" {
 		t.Fatalf("unexpected binding symbols: %+v", envelope.Data.Binding)
@@ -74,30 +74,30 @@ func TestInstantiateDSLStrategyDefinitionBuildsCompiledPlan(t *testing.T) {
 	if envelope.Data.Binding.BrokerAccount == nil || envelope.Data.Binding.BrokerAccount.BrokerID != "futu" || envelope.Data.Binding.BrokerAccount.AccountID != "123456" || envelope.Data.Binding.BrokerAccount.TradingEnvironment != "SIMULATE" || envelope.Data.Binding.BrokerAccount.Market != "US" {
 		t.Fatalf("unexpected binding broker account: %+v", envelope.Data.Binding)
 	}
-	if got := envelope.Data.Params["runtime"]; got != strategyRuntimeDSLPlan {
-		t.Fatalf("unexpected DSL runtime params: %+v", envelope.Data.Params)
+	if got := envelope.Data.Params["runtime"]; got != strategyRuntimePinePlan {
+		t.Fatalf("unexpected Pine runtime params: %+v", envelope.Data.Params)
 	}
-	if got := envelope.Data.Params["sourceFormat"]; got != strategydefinition.SourceFormatDSLV1 {
-		t.Fatalf("unexpected DSL source format params: %+v", envelope.Data.Params)
+	if got := envelope.Data.Params["sourceFormat"]; got != strategydefinition.SourceFormatPineV6 {
+		t.Fatalf("unexpected Pine source format params: %+v", envelope.Data.Params)
 	}
 	if got := envelope.Data.Params["interval"]; got != "15m" {
-		t.Fatalf("unexpected DSL binding interval params: %+v", envelope.Data.Params)
+		t.Fatalf("unexpected Pine binding interval params: %+v", envelope.Data.Params)
 	}
 	if got := envelope.Data.Params["executionMode"]; got != strategyExecutionModeNotifyOnly {
-		t.Fatalf("unexpected DSL execution mode params: %+v", envelope.Data.Params)
+		t.Fatalf("unexpected Pine execution mode params: %+v", envelope.Data.Params)
 	}
 	if got, ok := envelope.Data.Params["brokerAccount"].(map[string]any); !ok || got["brokerId"] != "futu" {
-		t.Fatalf("unexpected DSL broker account params: %+v", envelope.Data.Params)
+		t.Fatalf("unexpected Pine broker account params: %+v", envelope.Data.Params)
 	}
 	if got, ok := envelope.Data.Params["instruments"].([]any); !ok || len(got) != 2 {
-		t.Fatalf("unexpected DSL binding instruments params: %+v", envelope.Data.Params)
+		t.Fatalf("unexpected Pine binding instruments params: %+v", envelope.Data.Params)
 	}
 	compiledRequirements, ok := envelope.Data.Params["compiledRequirements"].(map[string]any)
 	if !ok {
 		t.Fatalf("compiledRequirements type = %T", envelope.Data.Params["compiledRequirements"])
 	}
-	if compiledRequirements["requiresAvailableCash"] != true {
-		t.Fatalf("expected compiled requirements to request available cash, got %+v", compiledRequirements)
+	if compiledRequirements["requiresTotalAccountValue"] != true {
+		t.Fatalf("expected compiled requirements to request total account value, got %+v", compiledRequirements)
 	}
 	indicators, ok := compiledRequirements["indicators"].([]any)
 	if !ok || len(indicators) != 2 {
@@ -141,24 +141,24 @@ func TestInstantiateDSLStrategyDefinitionBuildsCompiledPlan(t *testing.T) {
 	assertTransition := func(action string, expectedStatus string) {
 		transitionResp, transitionErr := http.Post(srv.URL+"/api/v1/strategies/"+instanceID+"/"+action, "application/json", bytes.NewReader([]byte(`{}`)))
 		if transitionErr != nil {
-			t.Fatalf("POST DSL %s: %v", action, transitionErr)
+			t.Fatalf("POST Pine %s: %v", action, transitionErr)
 		}
 		defer transitionResp.Body.Close()
 		if transitionResp.StatusCode != http.StatusOK {
-			t.Fatalf("POST DSL %s status = %d, want %d", action, transitionResp.StatusCode, http.StatusOK)
+			t.Fatalf("POST Pine %s status = %d, want %d", action, transitionResp.StatusCode, http.StatusOK)
 		}
 		var transitionEnvelope struct {
 			OK   bool             `json:"ok"`
 			Data strategyListItem `json:"data"`
 		}
 		if err := json.NewDecoder(transitionResp.Body).Decode(&transitionEnvelope); err != nil {
-			t.Fatalf("decode DSL %s response: %v", action, err)
+			t.Fatalf("decode Pine %s response: %v", action, err)
 		}
 		if transitionEnvelope.Data.Status != expectedStatus {
-			t.Fatalf("DSL %s status = %s, want %s", action, transitionEnvelope.Data.Status, expectedStatus)
+			t.Fatalf("Pine %s status = %s, want %s", action, transitionEnvelope.Data.Status, expectedStatus)
 		}
 		if !transitionEnvelope.Data.Startable {
-			t.Fatalf("expected transitioned DSL instance to remain startable: %+v", transitionEnvelope.Data)
+			t.Fatalf("expected transitioned Pine instance to remain startable: %+v", transitionEnvelope.Data)
 		}
 	}
 

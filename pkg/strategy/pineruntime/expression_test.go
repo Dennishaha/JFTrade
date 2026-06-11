@@ -1,4 +1,4 @@
-package dslruntime
+package pineruntime
 
 import (
 	"testing"

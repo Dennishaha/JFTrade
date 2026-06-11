@@ -63,12 +63,12 @@ describe("ADKPage", () => {
     expect(document.body.textContent).toContain("API Key");
   });
 
-  it("keeps generic hints even when the selected agent exposes strategy DSL tools", async () => {
+  it("keeps generic hints even when the selected agent exposes strategy Pine tools", async () => {
     mountADKPage({
       agent: {
         tools: [
-          "strategy.dsl_spec",
-          "strategy.validate_dsl",
+          "strategy.pine_spec",
+          "strategy.validate_pine",
           "strategy.save_definition",
           "strategy.update_instance_mode",
         ],
@@ -79,7 +79,7 @@ describe("ADKPage", () => {
 
     expect(document.body.textContent).toContain("查看系统状态");
     expect(document.body.textContent).toContain("当前行情订阅");
-    expect(document.body.textContent).not.toContain("解释当前 JFTrade DSL v1 定义");
+    expect(document.body.textContent).not.toContain("解释当前 JFTrade Pine Script v6 定义");
     expect(document.querySelector("textarea")?.getAttribute("placeholder")).toBe("输入问题或任务...");
   });
 

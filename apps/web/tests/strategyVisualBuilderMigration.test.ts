@@ -11,7 +11,7 @@ describe("migrateLegacyMovingAverageDefinition", () => {
       name: "Legacy MA",
       version: "0.1.0",
       description: "legacy MA definition",
-      runtime: "dsl-go-plan",
+      runtime: "pine-go-plan",
       symbol: "00700",
       interval: "1m",
       script: 'function onKLineClosed(ctx) { const fast = ctx.indicators["ma:EMA:5"]; const slow = ctx.indicators["ma:20"]; return fast && slow; }',

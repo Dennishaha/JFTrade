@@ -45,7 +45,7 @@ const SCRIPT_TO_VISUAL_SYNC_DELAY = 650;
 
 export function useStrategyStageVisualSync(options: UseStrategyStageVisualSyncOptions) {
     const visualSyncStatus = ref<StrategyVisualSyncStatus>("ready");
-    const visualSyncMessage = ref("图形与 DSL 会自动异步同步。\n修改 DSL 后会尝试反解回流程图。");
+    const visualSyncMessage = ref("图形与 Pine 会自动异步同步。\n修改 Pine 后会尝试反解回流程图。");
     const visualSyncCodeBlockCount = ref(0);
     const selectedVisualNodeId = ref("");
     const codeContextNodeId = ref("");
@@ -83,7 +83,7 @@ export function useStrategyStageVisualSync(options: UseStrategyStageVisualSyncOp
     function resetVisualSyncStatus(): void {
         setVisualSyncState(
             "ready",
-            "图形与 DSL 会自动同步。修改 DSL 后会尝试反解回流程图。",
+            "图形与 Pine 会自动同步。修改 Pine 后会尝试反解回流程图。",
             0,
         );
     }
@@ -118,7 +118,7 @@ export function useStrategyStageVisualSync(options: UseStrategyStageVisualSyncOp
 
     function scheduleScriptToVisualModelSync(delay = SCRIPT_TO_VISUAL_SYNC_DELAY): void {
         clearPendingScriptToVisualSync();
-        setVisualSyncState("syncing", "正在把 DSL 异步转换回流程图…", visualSyncCodeBlockCount.value);
+        setVisualSyncState("syncing", "正在把 Pine 异步转换回流程图…", visualSyncCodeBlockCount.value);
 
         scriptToVisualSyncTimer = setTimeout(() => {
             scriptToVisualSyncTimer = null;
@@ -131,11 +131,11 @@ export function useStrategyStageVisualSync(options: UseStrategyStageVisualSyncOp
 
         const script = options.definitionForm.value.script;
         if (script.trim() === "") {
-            setVisualSyncState("error", "DSL 为空，无法转换回流程图。已保留当前流程图。", 0);
+            setVisualSyncState("error", "Pine 为空，无法转换回流程图。已保留当前流程图。", 0);
             return;
         }
 
-        setVisualSyncState("syncing", "正在把 DSL 异步转换回流程图…", visualSyncCodeBlockCount.value);
+        setVisualSyncState("syncing", "正在把 Pine 异步转换回流程图…", visualSyncCodeBlockCount.value);
 
         const parseResult = buildStrategyVisualModelFromScript(
             script,
@@ -168,13 +168,13 @@ export function useStrategyStageVisualSync(options: UseStrategyStageVisualSyncOp
         if (parseResult.codeBlockCount > 0) {
             setVisualSyncState(
                 "partial",
-                `DSL 已同步回流程图，其中 ${parseResult.codeBlockCount} 段无法标准化。`,
+                `Pine 已同步回流程图，其中 ${parseResult.codeBlockCount} 段无法标准化。`,
                 parseResult.codeBlockCount,
             );
             return;
         }
 
-        setVisualSyncState("synced", "DSL 已同步回流程图。", 0);
+        setVisualSyncState("synced", "Pine 已同步回流程图。", 0);
     }
 
     function attachSourceRangesFromScript(
@@ -242,7 +242,7 @@ export function useStrategyStageVisualSync(options: UseStrategyStageVisualSyncOp
             },
         );
         selectedVisualNodeId.value = nextSelectedNodeId;
-        setVisualSyncState("synced", "流程图已异步同步到 DSL。", visualSyncCodeBlockCount.value);
+        setVisualSyncState("synced", "流程图已异步同步到 Pine。", visualSyncCodeBlockCount.value);
 
         if (applyOptions?.notice) {
             options.definitionNotice.value = applyOptions.notice;

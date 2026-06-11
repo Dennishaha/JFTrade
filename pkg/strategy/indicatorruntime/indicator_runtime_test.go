@@ -8,22 +8,12 @@ import (
 	"github.com/c9s/bbgo/pkg/fixedpoint"
 	"github.com/c9s/bbgo/pkg/types"
 	"github.com/jftrade/jftrade-main/pkg/futu"
-	strategydsl "github.com/jftrade/jftrade-main/pkg/strategy/dsl"
 	strategyir "github.com/jftrade/jftrade-main/pkg/strategy/ir"
+	strategypine "github.com/jftrade/jftrade-main/pkg/strategy/pine"
 )
 
 var benchmarkSnapshotSink map[string]any
 var benchmarkMovingAverageSnapshotSink any
-
-const benchmarkProtectSessionStrategyScript = `strategy DSL Indicator Protect Session Benchmark
-version 1
-symbol US.AAPL
-interval 1m
-
-on kline_close:
-	protect auto stopLoss 2 hour 2 window session
-	protect auto takeProfit 2 hour 3 window session
-	protect auto trailingStop 2 hour 1.5 window session`
 
 func TestParseIndicatorRequirements(t *testing.T) {
 	requirements := parseIndicatorRequirements(`
@@ -104,18 +94,24 @@ func TestParseIndicatorRequirements(t *testing.T) {
 }
 
 func TestNewIndicatorRuntimeFromPlan(t *testing.T) {
-	script := `on kline_close:
-  let fast = ma(EMA, 3)
-  let signal = macd(3, 5, 2)
-  if divergence_top(signal, 3):
-    notify "top"
-  else:
-    protect auto stop_loss 2 minute 1%`
-
-	program, err := strategydsl.ParseScript(script)
-	if err != nil {
-		t.Fatalf("ParseScript() error = %v", err)
-	}
+	program := indicatorTestProgram(
+		&strategyir.LetStmt{Range: strategyir.SourceRange{StartLine: 1}, Name: "fast", Expression: "ma(EMA, 3)"},
+		&strategyir.LetStmt{Range: strategyir.SourceRange{StartLine: 2}, Name: "signal", Expression: "macd(3, 5, 2)"},
+		&strategyir.IfStmt{
+			Range:     strategyir.SourceRange{StartLine: 3},
+			Condition: "divergence_top(signal, 3)",
+			Then:      []strategyir.Statement{&strategyir.NotifyStmt{Range: strategyir.SourceRange{StartLine: 4}, Message: "top"}},
+			Else: []strategyir.Statement{&strategyir.ProtectStmt{
+				Range:                strategyir.SourceRange{StartLine: 5},
+				Direction:            "auto",
+				Mode:                 "stop_loss",
+				TimeValueExpression:  "2",
+				TimeUnit:             "minute",
+				PercentageExpression: "1%",
+				WindowPolicy:         "continuous",
+			}},
+		},
+	)
 
 	plan, err := strategyir.PlanRequirements(program)
 	if err != nil {
@@ -162,19 +158,13 @@ func TestNewIndicatorRuntimeFromPlan(t *testing.T) {
 }
 
 func TestWarmupBarsFromPlanUsesLargestIndicatorRequirement(t *testing.T) {
-	script := `strategy Warmup Max
-version 1
-symbol US.AAPL
-interval 1m
-
-on kline_close:
-  let fast = ma(MA, 5)
-  let slow = ma(MA, 20, day)
-  let signal = macd(12, 26, 9)
-  if cross_over(fast, signal):
-    notify "go"`
-
-	program, err := strategydsl.ParseScript(script)
+	program, err := strategypine.ParseScript(`//@version=6
+strategy("Warmup Max", overlay=true)
+fast = ta.sma(close, 5)
+slow = request.security(syminfo.tickerid, "D", ta.sma(close, 20))
+signal = ta.macd(close, 12, 26, 9)
+if ta.crossover(fast, signal)
+    alert("go")`)
 	if err != nil {
 		t.Fatalf("ParseScript() error = %v", err)
 	}
@@ -196,15 +186,9 @@ on kline_close:
 }
 
 func TestWarmupBarsFromPlanForSymbolUsesMarketTradingProfiles(t *testing.T) {
-	script := `strategy Warmup Markets
-version 1
-symbol HK.00700
-interval 1m
-
-on kline_close:
-  let slow = ma(MA, 20, day)`
-
-	program, err := strategydsl.ParseScript(script)
+	program, err := strategypine.ParseScript(`//@version=6
+strategy("Warmup Markets", overlay=true)
+slow = request.security(syminfo.tickerid, "D", ta.sma(close, 20))`)
 	if err != nil {
 		t.Fatalf("ParseScript() error = %v", err)
 	}
@@ -236,15 +220,9 @@ on kline_close:
 }
 
 func TestWarmupBarsFromPlanForSymbolUsesExtendedTradingDayWhenEnabled(t *testing.T) {
-	script := `strategy Warmup Extended
-version 1
-symbol US.AAPL
-interval 1m
-
-on kline_close:
-  let slow = ma(MA, 5, day)`
-
-	program, err := strategydsl.ParseScript(script)
+	program, err := strategypine.ParseScript(`//@version=6
+strategy("Warmup Extended", overlay=true)
+slow = request.security(syminfo.tickerid, "D", ta.sma(close, 5))`)
 	if err != nil {
 		t.Fatalf("ParseScript() error = %v", err)
 	}
@@ -266,15 +244,9 @@ on kline_close:
 }
 
 func TestWarmupBarsFromPlanDoesNotApplyRuntimeSeriesFloor(t *testing.T) {
-	script := `strategy Warmup Small
-version 1
-symbol US.AAPL
-interval 1m
-
-on kline_close:
-  let fast = ma(MA, 5)`
-
-	program, err := strategydsl.ParseScript(script)
+	program, err := strategypine.ParseScript(`//@version=6
+strategy("Warmup Small", overlay=true)
+fast = ta.sma(close, 5)`)
 	if err != nil {
 		t.Fatalf("ParseScript() error = %v", err)
 	}
@@ -298,20 +270,22 @@ on kline_close:
 }
 
 func TestWarmupBarsFromPlanHandlesDivergenceAndProtectLookback(t *testing.T) {
-	script := `strategy Warmup Protect
-version 1
-symbol US.AAPL
-interval 5m
-
-on kline_close:
-  let signal = rsi(14)
-  if divergence_top(signal, 8):
-    protect auto stop_loss 2 hour 1%`
-
-	program, err := strategydsl.ParseScript(script)
-	if err != nil {
-		t.Fatalf("ParseScript() error = %v", err)
-	}
+	program := indicatorTestProgram(
+		&strategyir.LetStmt{Range: strategyir.SourceRange{StartLine: 1}, Name: "signal", Expression: "rsi(14)"},
+		&strategyir.IfStmt{
+			Range:     strategyir.SourceRange{StartLine: 2},
+			Condition: "divergence_top(signal, 8)",
+			Then: []strategyir.Statement{&strategyir.ProtectStmt{
+				Range:                strategyir.SourceRange{StartLine: 3},
+				Direction:            "auto",
+				Mode:                 "stop_loss",
+				TimeValueExpression:  "2",
+				TimeUnit:             "hour",
+				PercentageExpression: "1%",
+				WindowPolicy:         "continuous",
+			}},
+		},
+	)
 
 	plan, err := strategyir.PlanRequirements(program)
 	if err != nil {
@@ -1101,10 +1075,9 @@ func TestIndicatorRuntimeSnapshotIncludesTimeBoundIndicators(t *testing.T) {
 }
 
 func TestIndicatorEngineSnapshotReturnsIndependentMap(t *testing.T) {
-	script := `on kline_close:
-  let momentum = rsi(2)`
-
-	program, err := strategydsl.ParseScript(script)
+	program, err := strategypine.ParseScript(`//@version=6
+strategy("Snapshot", overlay=true)
+momentum = ta.rsi(close, 2)`)
 	if err != nil {
 		t.Fatalf("ParseScript() error = %v", err)
 	}
@@ -1434,10 +1407,35 @@ func benchmarkIndicatorRuntime(b *testing.B) *indicatorRuntime {
 
 func benchmarkProtectSessionIndicatorRuntime(b *testing.B) *indicatorRuntime {
 	b.Helper()
-	program, err := strategydsl.ParseScript(benchmarkProtectSessionStrategyScript)
-	if err != nil {
-		b.Fatalf("ParseScript() error = %v", err)
-	}
+	program := indicatorTestProgram(
+		&strategyir.ProtectStmt{
+			Range:                strategyir.SourceRange{StartLine: 1},
+			Direction:            "auto",
+			Mode:                 "stopLoss",
+			TimeValueExpression:  "2",
+			TimeUnit:             "hour",
+			PercentageExpression: "2",
+			WindowPolicy:         "session",
+		},
+		&strategyir.ProtectStmt{
+			Range:                strategyir.SourceRange{StartLine: 2},
+			Direction:            "auto",
+			Mode:                 "takeProfit",
+			TimeValueExpression:  "2",
+			TimeUnit:             "hour",
+			PercentageExpression: "3",
+			WindowPolicy:         "session",
+		},
+		&strategyir.ProtectStmt{
+			Range:                strategyir.SourceRange{StartLine: 3},
+			Direction:            "auto",
+			Mode:                 "trailingStop",
+			TimeValueExpression:  "2",
+			TimeUnit:             "hour",
+			PercentageExpression: "1.5",
+			WindowPolicy:         "session",
+		},
+	)
 	plan, err := strategyir.PlanRequirements(program)
 	if err != nil {
 		b.Fatalf("PlanRequirements() error = %v", err)
@@ -1464,4 +1462,14 @@ func benchmarkProtectSessionIndicatorRuntime(b *testing.B) *indicatorRuntime {
 		}, futu.MarketSessionUnknown)
 	}
 	return runtime
+}
+
+func indicatorTestProgram(statements ...strategyir.Statement) *strategyir.Program {
+	return &strategyir.Program{
+		SourceFormat: strategypine.SourceFormatPineV6,
+		Hooks: []strategyir.HookBlock{{
+			Kind:       strategyir.HookKLineClose,
+			Statements: statements,
+		}},
+	}
 }

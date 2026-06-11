@@ -48,9 +48,9 @@ export function buildADKToolVisualization(toolName: string, output: unknown): AD
   if (!isRecord(output)) return null;
 
   switch (normalizedToolName) {
-    case "strategy.dsl_spec":
-      return buildStrategyDSLSpec(output);
-    case "strategy.validate_dsl":
+    case "strategy.pine_spec":
+      return buildStrategyPineSpec(output);
+    case "strategy.validate_pine":
       return buildStrategyValidateDSL(output);
     case "strategy.save_definition":
       return buildStrategySaveDefinition(output);
@@ -128,7 +128,7 @@ export function buildADKToolVisualization(toolName: string, output: unknown): AD
   }
 }
 
-function buildStrategyDSLSpec(output: UnknownRecord): ADKToolVisualization | null {
+function buildStrategyPineSpec(output: UnknownRecord): ADKToolVisualization | null {
   const sections = findArray(output, ["sections"]);
   const hooks = findArray(output, ["supportedHooks"]);
   const unsupportedPatterns = findArray(output, ["unsupportedPatterns"]);
@@ -149,8 +149,8 @@ function buildStrategyDSLSpec(output: UnknownRecord): ADKToolVisualization | nul
   if (cards.length === 0 && rows.length === 0) return null;
   return {
     kind: "summary",
-    title: "JFTrade DSL v1 规范",
-    subtitle: selectedSection ? `章节：${translateDSLSection(selectedSection)}` : "结构化 DSL 定义",
+    title: "JFTrade Pine Script v6 规范",
+    subtitle: selectedSection ? `章节：${translateDSLSection(selectedSection)}` : "结构化 Pine 定义",
     cards,
     rows,
   };
@@ -179,7 +179,7 @@ function buildStrategyValidateDSL(output: UnknownRecord): ADKToolVisualization |
   if (cards.length === 0 && rows.length === 0) return null;
   return {
     kind: "summary",
-    title: "DSL 校验",
+    title: "Pine 校验",
     subtitle: ok ? "可以继续保存策略定义" : "请先修正脚本后再保存",
     cards,
     rows,

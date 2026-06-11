@@ -18,7 +18,7 @@ import (
 	"strings"
 	"time"
 
-	strategydslspec "github.com/jftrade/jftrade-main/pkg/strategy/dslspec"
+	strategypinespec "github.com/jftrade/jftrade-main/pkg/strategy/pinespec"
 	adkskill "google.golang.org/adk/tool/skilltoolset/skill"
 )
 
@@ -65,7 +65,7 @@ var builtinSkillSpecs = []builtinSkillSpec{
 		},
 	},
 	{
-		Name: strategydslspec.BuiltinSkillName,
+		Name: strategypinespec.BuiltinSkillName,
 		BuildBundle: func() (map[string]string, error) {
 			return buildStrategyBuiltinSkillBundle()
 		},
@@ -377,16 +377,16 @@ func buildSingleFileBuiltinSkill(name string, description string, instructions s
 
 func buildStrategyBuiltinSkillBundle() (map[string]string, error) {
 	bundle, err := buildSingleFileBuiltinSkill(
-		strategydslspec.BuiltinSkillName,
-		strategydslspec.SkillDescription(),
-		strategydslspec.SkillInstructions(),
-		strategydslspec.SkillAllowedTools(),
-		strategydslspec.BuiltinSkillVersion,
+		strategypinespec.BuiltinSkillName,
+		strategypinespec.SkillDescription(),
+		strategypinespec.SkillInstructions(),
+		strategypinespec.SkillAllowedTools(),
+		strategypinespec.BuiltinSkillVersion,
 	)
 	if err != nil {
 		return nil, err
 	}
-	for relativePath, content := range strategydslspec.SkillResourceFiles() {
+	for relativePath, content := range strategypinespec.SkillResourceFiles() {
 		bundle[relativePath] = content
 	}
 	return bundle, nil

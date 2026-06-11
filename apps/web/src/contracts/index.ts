@@ -693,7 +693,7 @@ export interface StrategyVisualModelDocument {
   edges: StrategyVisualEdgeDocument[];
 }
 
-export type StrategySourceFormat = "dsl-v1";
+export type StrategySourceFormat = "pine-v6";
 
 export type StrategyInstanceStatus = "RUNNING" | "PAUSED" | "STOPPED";
 

@@ -1,4 +1,4 @@
-package dslruntime
+package pineruntime
 
 import (
 	"context"
@@ -15,13 +15,13 @@ import (
 	exprast "github.com/expr-lang/expr/ast"
 	"github.com/jftrade/jftrade-main/pkg/futu"
 	trdcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdcommon"
-	strategydsl "github.com/jftrade/jftrade-main/pkg/strategy/dsl"
 	"github.com/jftrade/jftrade-main/pkg/strategy/indicatorbinding"
 	strategyindicatorruntime "github.com/jftrade/jftrade-main/pkg/strategy/indicatorruntime"
 	strategyir "github.com/jftrade/jftrade-main/pkg/strategy/ir"
+	strategypine "github.com/jftrade/jftrade-main/pkg/strategy/pine"
 )
 
-const ID = "dsl-go-plan"
+const ID = "pine-go-plan"
 
 func init() {
 	bbgo2.RegisterStrategy(ID, &Strategy{})
@@ -261,13 +261,13 @@ func (s *Strategy) Subscribe(session *bbgo2.ExchangeSession) {
 }
 
 func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo2.OrderExecutor, session *bbgo2.ExchangeSession) error {
-	program, err := strategydsl.ParseScript(s.Script)
+	program, err := strategypine.ParseScript(s.Script)
 	if err != nil {
-		return fmt.Errorf("parse dsl strategy: %w", err)
+		return fmt.Errorf("parse pine strategy: %w", err)
 	}
 	plan, err := strategyir.PlanRequirements(program)
 	if err != nil {
-		return fmt.Errorf("plan dsl strategy: %w", err)
+		return fmt.Errorf("plan pine strategy: %w", err)
 	}
 	runtime, err := newStrategyRuntime(ctx, s, program, plan, orderExecutor, session)
 	if err != nil {
@@ -305,7 +305,7 @@ func newStrategyRuntime(
 		strategyindicatorruntime.RuntimeOptions{IncludeExtendedHours: strategy.UseExtendedHours},
 	)
 	if err != nil {
-		return nil, fmt.Errorf("create dsl indicator engine: %w", err)
+		return nil, fmt.Errorf("create pine indicator engine: %w", err)
 	}
 	runtime := &strategyRuntime{
 		ctx:             ctx,
@@ -387,7 +387,7 @@ func (r *strategyRuntime) handleKLineClosed(kline types.KLine) {
 	}
 	if err := r.runHookLocked(strategyir.HookKLineClose, &kline, resolvedSession); err != nil {
 		errMsg := err.Error()
-		bbgo2.Notify("dsl strategy %s onKLineClosed error: %s", r.displayName, errMsg)
+		bbgo2.Notify("pine strategy %s onKLineClosed error: %s", r.displayName, errMsg)
 		if r.strategy.OnError != nil {
 			r.strategy.OnError(errMsg)
 		}
@@ -527,7 +527,7 @@ func (r *strategyRuntime) executeStatements(statements []strategyir.Statement, s
 		case *strategyir.IfStmt:
 			condition, err := evaluateBoolExpression(typed.Condition, scope)
 			if err != nil {
-				return false, fmt.Errorf("dsl line %d: %w", typed.Range.StartLine, err)
+				return false, fmt.Errorf("pine line %d: %w", typed.Range.StartLine, err)
 			}
 			plan := ifScopePlan{thenNeedsClone: true, elseNeedsClone: true}
 			if r != nil && r.ifScopePlans != nil {
@@ -590,7 +590,7 @@ func (r *strategyRuntime) executeLetStatement(statement *strategyir.LetStmt, sco
 	}
 	value, err := evaluateExpression(statement.Expression, scope)
 	if err != nil {
-		return fmt.Errorf("dsl line %d: %w", statement.Range.StartLine, err)
+		return fmt.Errorf("pine line %d: %w", statement.Range.StartLine, err)
 	}
 	scope.setVariable(statement.Name, value)
 	return nil
@@ -626,24 +626,24 @@ func (r *strategyRuntime) executeOrderStatement(statement *strategyir.OrderStmt,
 			return nil
 		}
 	default:
-		return fmt.Errorf("dsl line %d: unsupported order action %q", statement.Range.StartLine, statement.Action)
+		return fmt.Errorf("pine line %d: unsupported order action %q", statement.Range.StartLine, statement.Action)
 	}
 
 	orderPrice, limitPrice, err := r.resolveOrderPrice(statement, scope)
 	if err != nil {
-		return fmt.Errorf("dsl line %d: %w", statement.Range.StartLine, err)
+		return fmt.Errorf("pine line %d: %w", statement.Range.StartLine, err)
 	}
 	if orderPrice <= 0 || math.IsNaN(orderPrice) || math.IsInf(orderPrice, 0) {
-		return fmt.Errorf("dsl line %d: order price must be positive", statement.Range.StartLine)
+		return fmt.Errorf("pine line %d: order price must be positive", statement.Range.StartLine)
 	}
 
 	quantityMode, ok := indicatorbinding.ParseQuantityMode(statement.QuantityMode)
 	if !ok {
-		return fmt.Errorf("dsl line %d: unsupported order quantity mode %q", statement.Range.StartLine, statement.QuantityMode)
+		return fmt.Errorf("pine line %d: unsupported order quantity mode %q", statement.Range.StartLine, statement.QuantityMode)
 	}
 	quantity, err := r.resolveOrderQuantity(statement, scope, position, availablePositionQty, orderPrice, quantityMode)
 	if err != nil {
-		return fmt.Errorf("dsl line %d: %w", statement.Range.StartLine, err)
+		return fmt.Errorf("pine line %d: %w", statement.Range.StartLine, err)
 	}
 	if quantity <= 0 {
 		return nil
@@ -655,10 +655,10 @@ func (r *strategyRuntime) executeOrderStatement(statement *strategyir.OrderStmt,
 
 	orderSide, err := exchangeSideForAction(statement.Action)
 	if err != nil {
-		return fmt.Errorf("dsl line %d: %w", statement.Range.StartLine, err)
+		return fmt.Errorf("pine line %d: %w", statement.Range.StartLine, err)
 	}
 	if err := r.submitOrder(orderSide, normalizeOrderType(statement.OrderType), quantity, limitPrice); err != nil {
-		return fmt.Errorf("dsl line %d: %w", statement.Range.StartLine, err)
+		return fmt.Errorf("pine line %d: %w", statement.Range.StartLine, err)
 	}
 	return nil
 }
@@ -689,7 +689,7 @@ func (r *strategyRuntime) executeProtectStatement(statement *strategyir.ProtectS
 			return true, nil
 		}
 		if err := r.submitOrder(types.SideTypeSell, types.OrderTypeMarket, quantity, 0); err != nil {
-			return false, fmt.Errorf("dsl line %d: %w", statement.Range.StartLine, err)
+			return false, fmt.Errorf("pine line %d: %w", statement.Range.StartLine, err)
 		}
 		return true, nil
 	}
@@ -699,7 +699,7 @@ func (r *strategyRuntime) executeProtectStatement(statement *strategyir.ProtectS
 			return true, nil
 		}
 		if err := r.submitOrder(types.SideTypeBuy, types.OrderTypeMarket, quantity, 0); err != nil {
-			return false, fmt.Errorf("dsl line %d: %w", statement.Range.StartLine, err)
+			return false, fmt.Errorf("pine line %d: %w", statement.Range.StartLine, err)
 		}
 		return true, nil
 	}
@@ -788,33 +788,6 @@ func (r *strategyRuntime) resolveOrderQuantity(
 			rawQuantity = math.Floor(targetValue / orderPrice)
 		}
 		return clampPercentBasedQuantity(rawQuantity, availablePositionQty, closingAction), nil
-	case "cash_percent":
-		availableCash := r.getAvailableCash()
-		targetAmount := availableCash * value / 100
-		quantity := math.Floor(targetAmount / orderPrice)
-		if quantity <= 0 {
-			r.internalLog("cash_percent quantity computed as 0, skipping order")
-			return 0, nil
-		}
-		return quantity, nil
-	case "margin_buying_power_percent":
-		marginBuyingPower := r.getMarginBuyingPower()
-		targetAmount := marginBuyingPower * value / 100
-		quantity := math.Floor(targetAmount / orderPrice)
-		if quantity <= 0 {
-			r.internalLog("margin_buying_power_percent quantity computed as 0, skipping order")
-			return 0, nil
-		}
-		return quantity, nil
-	case "short_selling_power_percent":
-		shortSellingPower := r.getShortSellingPower()
-		targetAmount := shortSellingPower * value / 100
-		quantity := math.Floor(targetAmount / orderPrice)
-		if quantity <= 0 {
-			r.internalLog("short_selling_power_percent quantity computed as 0, skipping order")
-			return 0, nil
-		}
-		return quantity, nil
 	default:
 		quantity := math.Floor(value)
 		if quantity <= 0 {
@@ -850,7 +823,7 @@ func (r *strategyRuntime) submitOrder(side types.SideType, orderType types.Order
 		return fmt.Errorf("market %s is not loaded in this session", symbol)
 	}
 	order := types.SubmitOrder{
-		ClientOrderID: fmt.Sprintf("dsl-go-%d", time.Now().UnixNano()),
+		ClientOrderID: fmt.Sprintf("pine-go-%d", time.Now().UnixNano()),
 		Symbol:        symbol,
 		Side:          side,
 		Type:          orderType,
@@ -1037,7 +1010,7 @@ func (r *strategyRuntime) isPlaceBlockedDuringWarmup(currentKlineTime time.Time)
 }
 
 func (r *strategyRuntime) log(message string) {
-	bbgo2.Notify("dsl strategy %s: %s", r.displayName, strings.TrimSpace(message))
+	bbgo2.Notify("pine strategy %s: %s", r.displayName, strings.TrimSpace(message))
 }
 
 func (r *strategyRuntime) internalLog(message string) {
@@ -1048,7 +1021,7 @@ func (r *strategyRuntime) internalLog(message string) {
 }
 
 func (r *strategyRuntime) notify(message string) {
-	bbgo2.Notify("dsl strategy %s: %s", r.displayName, strings.TrimSpace(message))
+	bbgo2.Notify("pine strategy %s: %s", r.displayName, strings.TrimSpace(message))
 }
 
 func (r *strategyRuntime) cachedPosition(symbol string, barTime time.Time) (*positionSnapshot, bool) {
@@ -1294,21 +1267,21 @@ func parseIndicatorBinding(statement *strategyir.LetStmt) (indicatorBinding, boo
 	switch indicatorbinding.NormalizeFunctionName(name) {
 	case "ma":
 		if len(args) < 2 || len(args) > 3 {
-			return indicatorBinding{}, false, fmt.Errorf("dsl line %d: ma() requires type, period, and optional time unit", statement.Range.StartLine)
+			return indicatorBinding{}, false, fmt.Errorf("pine line %d: ma() requires type, period, and optional time unit", statement.Range.StartLine)
 		}
 		averageType, ok := indicatorbinding.ParseMovingAverageType(args[0])
 		if !ok {
-			return indicatorBinding{}, false, fmt.Errorf("dsl line %d: ma() type %q is not supported", statement.Range.StartLine, strings.TrimSpace(args[0]))
+			return indicatorBinding{}, false, fmt.Errorf("pine line %d: ma() type %q is not supported", statement.Range.StartLine, strings.TrimSpace(args[0]))
 		}
 		period, err := indicatorbinding.ParsePositiveInt(args[1])
 		if err != nil {
-			return indicatorBinding{}, false, fmt.Errorf("dsl line %d: ma() period must be a positive integer", statement.Range.StartLine)
+			return indicatorBinding{}, false, fmt.Errorf("pine line %d: ma() period must be a positive integer", statement.Range.StartLine)
 		}
 		timeUnit := ""
 		if len(args) == 3 {
 			parsedTimeUnit, ok := indicatorbinding.ParseIndicatorTimeUnitValue(args[2])
 			if !ok {
-				return indicatorBinding{}, false, fmt.Errorf("dsl line %d: ma() time unit %q is not supported", statement.Range.StartLine, strings.TrimSpace(args[2]))
+				return indicatorBinding{}, false, fmt.Errorf("pine line %d: ma() time unit %q is not supported", statement.Range.StartLine, strings.TrimSpace(args[2]))
 			}
 			timeUnit = parsedTimeUnit
 		}
@@ -1351,15 +1324,15 @@ func parseIndicatorBinding(statement *strategyir.LetStmt) (indicatorBinding, boo
 		return indicatorBinding{Alias: statement.Name, Kind: "williamsr", Key: "williamsr:" + strconv.Itoa(period), Args: []string{strconv.Itoa(period)}}, true, nil
 	case "bollinger":
 		if len(args) != 2 {
-			return indicatorBinding{}, false, fmt.Errorf("dsl line %d: bollinger() requires period and multiplier", statement.Range.StartLine)
+			return indicatorBinding{}, false, fmt.Errorf("pine line %d: bollinger() requires period and multiplier", statement.Range.StartLine)
 		}
 		period, err := indicatorbinding.ParsePositiveInt(args[0])
 		if err != nil {
-			return indicatorBinding{}, false, fmt.Errorf("dsl line %d: bollinger() period must be a positive integer", statement.Range.StartLine)
+			return indicatorBinding{}, false, fmt.Errorf("pine line %d: bollinger() period must be a positive integer", statement.Range.StartLine)
 		}
 		multiplier, err := indicatorbinding.ParsePositiveFloat(args[1])
 		if err != nil {
-			return indicatorBinding{}, false, fmt.Errorf("dsl line %d: bollinger() multiplier must be a positive number", statement.Range.StartLine)
+			return indicatorBinding{}, false, fmt.Errorf("pine line %d: bollinger() multiplier must be a positive number", statement.Range.StartLine)
 		}
 		multiplierText := strconv.FormatFloat(multiplier, 'f', -1, 64)
 		return indicatorBinding{Alias: statement.Name, Kind: "bollinger", Key: "bollinger:" + strconv.Itoa(period) + ":" + multiplierText, Args: []string{strconv.Itoa(period), multiplierText}}, true, nil
@@ -1384,30 +1357,30 @@ func buildDivergenceRequirementKey(binding indicatorBinding, direction string, l
 func buildProtectRequirementKey(statement *strategyir.ProtectStmt) (string, error) {
 	mode, ok := indicatorbinding.ParseProtectMode(statement.Mode)
 	if !ok {
-		return "", fmt.Errorf("dsl line %d: protect mode %q is not supported", statement.Range.StartLine, strings.TrimSpace(statement.Mode))
+		return "", fmt.Errorf("pine line %d: protect mode %q is not supported", statement.Range.StartLine, strings.TrimSpace(statement.Mode))
 	}
 	direction, ok := indicatorbinding.ParseProtectDirection(statement.Direction)
 	if !ok {
-		return "", fmt.Errorf("dsl line %d: protect direction %q is not supported", statement.Range.StartLine, strings.TrimSpace(statement.Direction))
+		return "", fmt.Errorf("pine line %d: protect direction %q is not supported", statement.Range.StartLine, strings.TrimSpace(statement.Direction))
 	}
 	timeValue, err := indicatorbinding.ParsePositiveInt(statement.TimeValueExpression)
 	if err != nil {
-		return "", fmt.Errorf("dsl line %d: protect time value must be a positive integer", statement.Range.StartLine)
+		return "", fmt.Errorf("pine line %d: protect time value must be a positive integer", statement.Range.StartLine)
 	}
 	timeUnit, ok := indicatorbinding.ParseIndicatorTimeUnitValue(statement.TimeUnit)
 	if !ok {
-		return "", fmt.Errorf("dsl line %d: protect time unit %q is not supported", statement.Range.StartLine, strings.TrimSpace(statement.TimeUnit))
+		return "", fmt.Errorf("pine line %d: protect time unit %q is not supported", statement.Range.StartLine, strings.TrimSpace(statement.TimeUnit))
 	}
 	if timeUnit == "" {
 		timeUnit = "bar"
 	}
 	percentage, err := indicatorbinding.ParsePercentage(statement.PercentageExpression)
 	if err != nil {
-		return "", fmt.Errorf("dsl line %d: protect percentage must be a positive number", statement.Range.StartLine)
+		return "", fmt.Errorf("pine line %d: protect percentage must be a positive number", statement.Range.StartLine)
 	}
 	windowPolicy, ok := indicatorbinding.ParseProtectWindowPolicy(statement.WindowPolicy)
 	if !ok {
-		return "", fmt.Errorf("dsl line %d: protect window policy %q is not supported", statement.Range.StartLine, strings.TrimSpace(statement.WindowPolicy))
+		return "", fmt.Errorf("pine line %d: protect window policy %q is not supported", statement.Range.StartLine, strings.TrimSpace(statement.WindowPolicy))
 	}
 	if mode == "stopLoss" && windowPolicy == "continuous" {
 		return fmt.Sprintf("sl:%s:%d:%s:%s", direction, timeValue, timeUnit, strconv.FormatFloat(percentage, 'f', -1, 64)), nil

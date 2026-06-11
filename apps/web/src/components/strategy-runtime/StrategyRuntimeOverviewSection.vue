@@ -41,7 +41,7 @@ defineProps<{
                 </div>
             </div>
             <div class="mt-4 text-sm text-slate-600">
-                运行面板负责实例控制、日志和审计；新策略统一使用 DSL 编译计划生命周期。
+                运行面板负责实例控制、日志和审计；新策略统一使用 Pine 编译计划生命周期。
             </div>
         </div>
 

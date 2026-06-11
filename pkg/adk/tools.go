@@ -229,11 +229,11 @@ func SelectToolInvocations(question string, agent Agent, registry *ToolRegistry)
 		add("strategy.definitions", nil)
 	}
 	if strings.Contains(lower, "dsl") || strings.Contains(lower, "语法") || strings.Contains(lower, "spec") {
-		add("strategy.dsl_spec", nil)
+		add("strategy.pine_spec", nil)
 	}
 	if (strings.Contains(lower, "dsl") || strings.Contains(lower, "语法") || strings.Contains(lower, "脚本") || strings.Contains(lower, "script")) &&
 		(strings.Contains(lower, "校验") || strings.Contains(lower, "验证") || strings.Contains(lower, "检查") || strings.Contains(lower, "validate")) {
-		add("strategy.validate_dsl", nil)
+		add("strategy.validate_pine", nil)
 	}
 	if strings.Contains(lower, "修改策略定义") || strings.Contains(lower, "save definition") || strings.Contains(lower, "update definition") ||
 		((strings.Contains(lower, "保存") || strings.Contains(lower, "save") || strings.Contains(lower, "更新") || strings.Contains(lower, "update")) &&
@@ -673,20 +673,20 @@ func defaultToolInputSchema(name string) map[string]any {
 			"required":             []string{"definitionIds", "market", "symbol", "startTime", "endTime"},
 			"additionalProperties": false,
 		}
-	case "strategy.dsl_spec":
+	case "strategy.pine_spec":
 		return map[string]any{
 			"type": "object",
 			"properties": map[string]any{
-				"section":         map[string]any{"type": "string", "enum": []string{"overview", "syntax", "expressions", "indicators", "orders", "protect", "examples"}},
+				"section":         map[string]any{"type": "string", "enum": []string{"overview", "syntax", "expressions", "indicators", "orders", "unsupported", "examples"}},
 				"includeExamples": map[string]any{"type": "boolean"},
 			},
 			"additionalProperties": false,
 		}
-	case "strategy.validate_dsl":
+	case "strategy.validate_pine":
 		return map[string]any{
 			"type": "object",
 			"properties": map[string]any{
-				"script":              map[string]any{"type": "string", "description": "待校验的 JFTrade DSL v1 策略脚本。"},
+				"script":              map[string]any{"type": "string", "description": "待校验的 Pine Script v6 策略脚本。"},
 				"includeRequirements": map[string]any{"type": "boolean"},
 			},
 			"required":             []string{"script"},
@@ -697,7 +697,7 @@ func defaultToolInputSchema(name string) map[string]any {
 			"type": "object",
 			"properties": map[string]any{
 				"name":   map[string]any{"type": "string"},
-				"script": map[string]any{"type": "string", "description": "JFTrade DSL v1 策略脚本，不要传入 TradingView Pine Script。"},
+				"script": map[string]any{"type": "string", "description": "Pine Script v6 策略脚本。"},
 			},
 			"additionalProperties": false,
 		}
@@ -708,7 +708,7 @@ func defaultToolInputSchema(name string) map[string]any {
 				"definitionId": map[string]any{"type": "string"},
 				"name":         map[string]any{"type": "string"},
 				"description":  map[string]any{"type": "string"},
-				"script":       map[string]any{"type": "string", "description": "JFTrade DSL v1 策略脚本，不要传入 TradingView Pine Script。"},
+				"script":       map[string]any{"type": "string", "description": "Pine Script v6 策略脚本。"},
 				"symbol":       map[string]any{"type": "string"},
 				"interval":     map[string]any{"type": "string"},
 				"visualModel":  map[string]any{"type": "object"},

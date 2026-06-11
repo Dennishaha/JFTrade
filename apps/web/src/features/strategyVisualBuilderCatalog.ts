@@ -35,7 +35,7 @@ export type StopLossDirection = "auto" | "long" | "short";
 
 export type StopLossMode = "stopLoss" | "takeProfit" | "trailingStop";
 
-export type StopLossTimeUnit = "minute" | "hour" | "day" | "week" | "month";
+export type StopLossTimeUnit = "bar" | "minute" | "hour" | "day" | "week" | "month";
 
 export type StopLossWindowPolicy = "continuous" | "session";
 
@@ -62,6 +62,7 @@ export const STOP_LOSS_DIRECTION_OPTIONS: Array<{ value: StopLossDirection; labe
 ];
 
 export const STOP_LOSS_TIME_UNIT_OPTIONS: Array<{ value: StopLossTimeUnit; label: string }> = [
+  { value: "bar", label: "柱" },
   { value: "minute", label: "分钟" },
   { value: "hour", label: "小时" },
   { value: "day", label: "日" },
@@ -98,7 +99,7 @@ const STRATEGY_BLOCK_CATALOG: StrategyBlockDefinition[] = [
   {
     kind: "onKLineClosed",
     label: "K 线收盘",
-    description: "每次 K 线收盘触发，是当前 DSL 策略的核心入口。",
+    description: "每次 K 线收盘触发，是当前 Pine 策略的核心入口。",
     shape: "circle",
     text: "K 线收盘",
     properties: { blockKind: "onKLineClosed" },
@@ -171,7 +172,7 @@ const STRATEGY_BLOCK_CATALOG: StrategyBlockDefinition[] = [
   {
     kind: "codeBlock",
     label: "代码块",
-    description: "旧版自定义代码块已废弃，请改用标准 DSL 图块表达策略逻辑。",
+    description: "旧版自定义代码块已废弃，请改用 JFTrade Pine 图块表达策略逻辑。",
     shape: "rect",
     text: "代码块",
     properties: {
@@ -231,7 +232,7 @@ const STRATEGY_BLOCK_CATALOG: StrategyBlockDefinition[] = [
   {
     kind: "placeOrder",
     label: "下单",
-    description: "向券商提交买入或卖出订单，支持固定股数、固定金额、仓位百分比或可用现金百分比四种数量模式。",
+    description: "向券商提交买入或卖出订单，支持固定股数、固定金额和账户权益百分比三种 Pine 对齐数量模式。",
     shape: "rect",
     text: "下单",
     properties: {
@@ -242,7 +243,6 @@ const STRATEGY_BLOCK_CATALOG: StrategyBlockDefinition[] = [
       quantityMode: "shares",
       quantityValue: 100,
       limitPrice: 0,
-      referenceCash: 100000,
     },
     accent: "#0f766e",
   },
@@ -326,6 +326,8 @@ export function stopLossDirectionLabel(direction: StopLossDirection): string {
 
 export function stopLossTimeUnitLabel(unit: StopLossTimeUnit): string {
   switch (unit) {
+    case "bar":
+      return "柱";
     case "minute":
       return "分钟";
     case "hour":

@@ -35,9 +35,9 @@ func TestStrategyRuntimePollsClosedKLinesWhenTradePushStalls(t *testing.T) {
 		ID:           "runtime-poll-kline-test",
 		Name:         "Runtime Poll KLine Test",
 		Version:      "0.1.0",
-		Runtime:      strategyRuntimeDSLPlan,
-		SourceFormat: strategydefinition.SourceFormatDSLV1,
-		Script:       "strategy Runtime Poll KLine Test\non kline_close:\n  sell shares 1 policy same_direction type MARKET",
+		Runtime:      strategyRuntimePinePlan,
+		SourceFormat: strategydefinition.SourceFormatPineV6,
+		Script:       "//@version=6\nstrategy(\"Runtime Poll KLine Test\", overlay=true)\nstrategy.close(\"Long\")",
 	}
 	instance, err := server.strategyStore.instantiateStrategy(definition, strategyInstanceBinding{
 		Symbols:       []string{"US.AAPL"},

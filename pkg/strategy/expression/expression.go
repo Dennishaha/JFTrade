@@ -1,4 +1,4 @@
-package dsl
+package expression
 
 import (
 	"fmt"
@@ -18,11 +18,4 @@ func ParseExpression(expression string) (exprast.Node, error) {
 		return nil, err
 	}
 	return tree.Node, nil
-}
-
-func validateExpression(lineNumber int, label string, expression string) error {
-	if _, err := ParseExpression(expression); err != nil {
-		return fmt.Errorf("dsl line %d: invalid %s %q: %w", lineNumber, label, strings.TrimSpace(expression), err)
-	}
-	return nil
 }

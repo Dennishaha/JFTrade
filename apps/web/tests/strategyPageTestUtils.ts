@@ -267,7 +267,7 @@ type BuildFetchMockOptions = {
       version: string;
     };
     runtime?: string;
-    sourceFormat?: "dsl-v1";
+    sourceFormat?: "pine-v6";
     startable?: boolean;
     binding?: {
       instruments?: {
@@ -329,7 +329,7 @@ export function buildFetchMock(options: BuildFetchMockOptions) {
     return `${match[1]}.${match[2]}.${Number.parseInt(match[3], 10) + 1}`
   }
 
-  function syncDslVersion(script: string, version: string) {
+  function syncPineVersion(script: string, version: string) {
     if (script.trim() === "") {
       return script
     }
@@ -347,8 +347,8 @@ export function buildFetchMock(options: BuildFetchMockOptions) {
   function cloneDefinition(definition: StrategyDefinitionDocument): StrategyDefinitionDocument {
     return {
       ...definition,
-      runtime: definition.runtime ?? "dsl-go-plan",
-      sourceFormat: definition.sourceFormat ?? "dsl-v1",
+      runtime: definition.runtime ?? "pine-go-plan",
+      sourceFormat: definition.sourceFormat ?? "pine-v6",
       visualModel: definition.visualModel ?? null,
     }
   }
@@ -526,7 +526,7 @@ export function buildFetchMock(options: BuildFetchMockOptions) {
     strategy: {
       definition: { strategyId: string; name: string; version: string };
       runtime?: string;
-      sourceFormat?: "dsl-v1";
+      sourceFormat?: "pine-v6";
       binding?: {
         symbols?: string[];
         interval?: string;
@@ -548,8 +548,8 @@ export function buildFetchMock(options: BuildFetchMockOptions) {
       name: definition.name,
       version: definition.version,
     }
-    strategy.runtime = definition.runtime ?? "dsl-go-plan"
-    strategy.sourceFormat = definition.sourceFormat ?? "dsl-v1"
+    strategy.runtime = definition.runtime ?? "pine-go-plan"
+    strategy.sourceFormat = definition.sourceFormat ?? "pine-v6"
     strategy.params = {
       ...strategy.params,
       runtime: strategy.runtime,
@@ -634,11 +634,11 @@ export function buildFetchMock(options: BuildFetchMockOptions) {
     definitions: runtimeDefinitions,
     strategies: strategies.map((strategy) => ({
       ...(() => {
-        const runtime = strategy.runtime ?? "dsl-go-plan"
-        const sourceFormat = strategy.sourceFormat ?? "dsl-v1"
+        const runtime = strategy.runtime ?? "pine-go-plan"
+        const sourceFormat = strategy.sourceFormat ?? "pine-v6"
         const startable =
           strategy.startable
-          ?? (sourceFormat === "dsl-v1" && runtime === "dsl-go-plan")
+          ?? (sourceFormat === "pine-v6" && runtime === "pine-go-plan")
         const binding = normalizeBinding(strategy.binding, strategy.params)
         return {
           ...strategy,
@@ -723,15 +723,15 @@ export function buildFetchMock(options: BuildFetchMockOptions) {
       return createResponse(emptyExecutionOrders)
     if (url.endsWith("/api/v1/strategy-definitions") && method === "POST") {
       const payload = await readJsonBody(init, request)
-      const definitionId = String(payload.id ?? "").trim() || `dsl-strategy-${runtimeState.definitions.length + 1}`
+      const definitionId = String(payload.id ?? "").trim() || `pine-strategy-${runtimeState.definitions.length + 1}`
       const saved: StrategyDefinitionDocument = {
         id: definitionId,
         name: String(payload.name ?? "").trim(),
         version: "0.1.0",
         description: String(payload.description ?? "").trim(),
-        runtime: "dsl-go-plan",
-        sourceFormat: "dsl-v1",
-        script: syncDslVersion(String(payload.script ?? ""), "0.1.0"),
+        runtime: "pine-go-plan",
+        sourceFormat: "pine-v6",
+        script: syncPineVersion(String(payload.script ?? ""), "0.1.0"),
         visualModel: payload.visualModel ?? null,
         createdAt: mutationTimestamp,
         updatedAt: mutationTimestamp,
@@ -762,9 +762,9 @@ export function buildFetchMock(options: BuildFetchMockOptions) {
         id: definitionId,
         name,
         description,
-        runtime: "dsl-go-plan",
-        sourceFormat: "dsl-v1",
-        script: syncDslVersion(scriptCandidate, nextVersion),
+        runtime: "pine-go-plan",
+        sourceFormat: "pine-v6",
+        script: syncPineVersion(scriptCandidate, nextVersion),
         visualModel,
         version: nextVersion,
         updatedAt: changed ? mutationTimestamp : existing.updatedAt,
@@ -795,18 +795,18 @@ export function buildFetchMock(options: BuildFetchMockOptions) {
       }
       const payload = await readJsonBody(init, request)
       const instanceId = `${definitionId}-instance`
-      const sourceFormat = definition.sourceFormat ?? "dsl-v1"
-      const runtime = sourceFormat === "dsl-v1" ? "dsl-go-plan" : definition.runtime
+      const sourceFormat = definition.sourceFormat ?? "pine-v6"
+      const runtime = sourceFormat === "pine-v6" ? "pine-go-plan" : definition.runtime
       const startable =
-        (sourceFormat === "dsl-v1" && runtime === "dsl-go-plan")
-        || (sourceFormat === "dsl-v1" && runtime === "dsl-go-plan")
+        (sourceFormat === "pine-v6" && runtime === "pine-go-plan")
+        || (sourceFormat === "pine-v6" && runtime === "pine-go-plan")
       const binding = normalizeBinding(payload, {
         symbol: definition.symbol ?? "",
         interval: definition.interval ?? "5m",
       })
       const instance = {
         id: instanceId,
-        pluginId: "dsl-go-plan",
+        pluginId: "pine-go-plan",
         definition: {
           strategyId: definition.id,
           name: definition.name,
@@ -831,7 +831,7 @@ export function buildFetchMock(options: BuildFetchMockOptions) {
                 brokerAccount: { ...binding.brokerAccount },
               }),
           script: definition.script,
-          ...(sourceFormat === "dsl-v1"
+          ...(sourceFormat === "pine-v6"
             ? {
                 compiledAt: definition.updatedAt,
                 compiledHooks: ["on_kline_close"],
@@ -1057,7 +1057,7 @@ export function buildFetchMock(options: BuildFetchMockOptions) {
   })
 }
 
-export function buildDslScript(
+export function buildPineScript(
   name: string,
   body: string[] = ['log "close"'],
   options?: {
@@ -1071,14 +1071,52 @@ export function buildDslScript(
   const interval = options?.interval ?? "1m"
 
   return [
-    `strategy ${name}`,
-    `version ${version}`,
-    `symbol ${symbol}`,
-    `interval ${interval}`,
+    "//@version=6",
+    `strategy("${name}", overlay=true)`,
+    `// test metadata version=${version} symbol=${symbol} interval=${interval}`,
     "",
-    "on kline_close:",
-    ...body.map((line) => `  ${line}`),
+    ...body.map((line) => normalizeTestPineLine(line)),
   ].join("\n")
+}
+
+function normalizeTestPineLine(line: string): string {
+  const leadingWhitespace = line.match(/^\s*/)?.[0] ?? ""
+  const trimmed = line.trim()
+  if (trimmed === "") {
+    return ""
+  }
+  const logMatch = trimmed.match(/^log\s+"(.*)"$/)
+  if (logMatch !== null) {
+    return `${leadingWhitespace}log.info("${logMatch[1]}")`
+  }
+  const notifyMatch = trimmed.match(/^notify\s+"(.*)"$/)
+  if (notifyMatch !== null) {
+    return `${leadingWhitespace}alert("${notifyMatch[1]}")`
+  }
+  const letMatch = trimmed.match(/^let\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+)$/)
+  if (letMatch !== null) {
+    return `${leadingWhitespace}${letMatch[1]} = ${normalizeTestPineExpression(letMatch[2])}`
+  }
+  const ifMatch = trimmed.match(/^if\s+(.+):$/)
+  if (ifMatch !== null) {
+    return `${leadingWhitespace}if ${normalizeTestPineExpression(ifMatch[1])}`
+  }
+  const buyMatch = trimmed.match(/^buy\s+shares\s+([0-9.]+)/)
+  if (buyMatch !== null) {
+    return `${leadingWhitespace}strategy.entry("Long", strategy.long, qty=${buyMatch[1]})`
+  }
+  if (trimmed.startsWith("sell shares")) {
+    return `${leadingWhitespace}strategy.close("Long")`
+  }
+  return `${leadingWhitespace}// ${trimmed}`
+}
+
+function normalizeTestPineExpression(expression: string): string {
+  return expression
+    .replace(/\brsi\(([^)]+)\)/g, "ta.rsi(close, $1)")
+    .replace(/\bma\([^,]+,\s*([^,)]+)(?:,[^)]+)?\)/g, "ta.ema(close, $1)")
+    .replace(/\bcross_over\(([^,]+),\s*([^)]+)\)/g, "ta.crossover($1, $2)")
+    .replace(/\bcross_under\(([^,]+),\s*([^)]+)\)/g, "ta.crossunder($1, $2)")
 }
 
 export function buildRuntimeAccount(overrides?: Partial<BrokerRuntimeResponse>): BrokerRuntimeResponse {

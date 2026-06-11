@@ -58,7 +58,7 @@ func (s *strategyCatalogStore) normalizeStrategy(input managedStrategyInstance) 
 	if input.ID == "" {
 		input.ID = "strategy-" + time.Now().UTC().Format("20060102150405.000000000")
 	}
-	input.PluginID = IDDSLPlanPlugin()
+	input.PluginID = IDPinePlanPlugin()
 	if input.Params == nil {
 		input.Params = map[string]any{}
 	}
@@ -67,9 +67,9 @@ func (s *strategyCatalogStore) normalizeStrategy(input managedStrategyInstance) 
 	if runtime, ok := input.Params["runtime"].(string); ok {
 		input.Params["runtime"] = normalizeStrategyRuntime(runtime)
 	} else {
-		input.Params["runtime"] = strategyRuntimeDSLPlan
+		input.Params["runtime"] = strategyRuntimePinePlan
 	}
-	input.Params["sourceFormat"] = strategydefinition.SourceFormatDSLV1
+	input.Params["sourceFormat"] = strategydefinition.SourceFormatPineV6
 	if input.Definition.StrategyID == "" {
 		input.Definition.StrategyID = input.PluginID
 	}
@@ -79,8 +79,8 @@ func (s *strategyCatalogStore) normalizeStrategy(input managedStrategyInstance) 
 	if input.Definition.Version == "" {
 		input.Definition.Version = "0.1.0"
 	}
-	if script, _ := input.Params["script"].(string); shouldReplaceWithDefaultDSLScript(rawSourceFormat, rawRuntime, script) {
-		input.Params["script"] = defaultStrategyDesignDSL(input.Definition.Name)
+	if script, _ := input.Params["script"].(string); shouldReplaceWithDefaultScript(rawSourceFormat, rawRuntime, script) {
+		input.Params["script"] = defaultStrategyDesignPine(input.Definition.Name)
 	}
 	if input.Status == "" {
 		input.Status = strategyStatusStopped

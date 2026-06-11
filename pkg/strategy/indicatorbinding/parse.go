@@ -1,7 +1,7 @@
 // Package indicatorbinding provides shared parsing and normalization
-// helpers for DSL indicator bindings.  These functions were previously
+// helpers for Pine indicator bindings.  These functions were previously
 // duplicated between pkg/strategy/ir (planner) and
-// pkg/strategy/dslruntime (runtime); they are now the single source of
+// pkg/strategy/pineruntime (runtime); they are now the single source of
 // truth for indicator configuration parsing - runtime calculation
 // remains in its owning package.
 package indicatorbinding
@@ -143,12 +143,6 @@ func ParseQuantityMode(value string) (string, bool) {
 		return "account_position_percent", true
 	case "symbolpositionpercent", "symbol_position_percent", "positionpercent", "position_percent":
 		return "symbol_position_percent", true
-	case "cashpercent", "cash_percent":
-		return "cash_percent", true
-	case "marginbuyingpowerpercent", "margin_buying_power_percent":
-		return "margin_buying_power_percent", true
-	case "shortsellingpowerpercent", "short_selling_power_percent":
-		return "short_selling_power_percent", true
 	case "amount":
 		return "amount", true
 	case "share", "shares":
@@ -269,11 +263,11 @@ func ParsePercentage(value string) (float64, error) {
 // integer and returns it.
 func ExpectOnePositiveIntArg(line int, name string, args []string) (int, error) {
 	if len(args) != 1 {
-		return 0, fmt.Errorf("dsl line %d: %s() requires exactly 1 positive integer argument", line, NormalizeFunctionName(name))
+		return 0, fmt.Errorf("pine line %d: %s() requires exactly 1 positive integer argument", line, NormalizeFunctionName(name))
 	}
 	value, err := ParsePositiveInt(args[0])
 	if err != nil {
-		return 0, fmt.Errorf("dsl line %d: %s() argument must be a positive integer", line, NormalizeFunctionName(name))
+		return 0, fmt.Errorf("pine line %d: %s() argument must be a positive integer", line, NormalizeFunctionName(name))
 	}
 	return value, nil
 }
@@ -282,13 +276,13 @@ func ExpectOnePositiveIntArg(line int, name string, args []string) (int, error) 
 // integers and returns them.
 func ExpectPositiveIntArgs(line int, name string, args []string, count int) ([]int, error) {
 	if len(args) != count {
-		return nil, fmt.Errorf("dsl line %d: %s() requires %d positive integer arguments", line, NormalizeFunctionName(name), count)
+		return nil, fmt.Errorf("pine line %d: %s() requires %d positive integer arguments", line, NormalizeFunctionName(name), count)
 	}
 	values := make([]int, 0, count)
 	for _, arg := range args {
 		value, err := ParsePositiveInt(arg)
 		if err != nil {
-			return nil, fmt.Errorf("dsl line %d: %s() arguments must be positive integers", line, NormalizeFunctionName(name))
+			return nil, fmt.Errorf("pine line %d: %s() arguments must be positive integers", line, NormalizeFunctionName(name))
 		}
 		values = append(values, value)
 	}

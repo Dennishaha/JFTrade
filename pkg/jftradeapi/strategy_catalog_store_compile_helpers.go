@@ -5,13 +5,13 @@ import (
 	"strings"
 
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
-	strategydsl "github.com/jftrade/jftrade-main/pkg/strategy/dsl"
 	strategyir "github.com/jftrade/jftrade-main/pkg/strategy/ir"
+	strategypine "github.com/jftrade/jftrade-main/pkg/strategy/pine"
 )
 
 func buildStrategyInstanceParams(definition strategyDesignDefinition, compiledAt string) (map[string]any, error) {
 	sourceFormat := strategydefinition.NormalizeSourceFormat(definition.SourceFormat)
-	if sourceFormat != strategydefinition.SourceFormatDSLV1 {
+	if sourceFormat != strategydefinition.SourceFormatPineV6 {
 		return nil, fmt.Errorf("unsupported strategy source format: %s", sourceFormat)
 	}
 	symbol := strings.ToUpper(strings.TrimSpace(definition.Symbol))
@@ -26,7 +26,7 @@ func buildStrategyInstanceParams(definition strategyDesignDefinition, compiledAt
 		"interval":     interval,
 		"script":       definition.Script,
 	}
-	program, err := strategydsl.ParseScript(definition.Script)
+	program, err := strategypine.ParseScript(definition.Script)
 	if err != nil {
 		return nil, err
 	}
@@ -34,7 +34,7 @@ func buildStrategyInstanceParams(definition strategyDesignDefinition, compiledAt
 	if err != nil {
 		return nil, err
 	}
-	params["runtime"] = strategyRuntimeDSLPlan
+	params["runtime"] = strategyRuntimePinePlan
 	params["compiledAt"] = compiledAt
 	params["compiledHooks"] = buildCompiledHookKinds(program)
 	params["compiledRequirements"] = buildCompiledRequirementsPayload(requirements)
@@ -65,9 +65,6 @@ func buildCompiledRequirementsPayload(requirements strategyir.Requirements) map[
 	return map[string]any{
 		"indicators":                indicators,
 		"requiresPosition":          requirements.RequiresPosition,
-		"requiresAvailableCash":     requirements.RequiresAvailableCash,
-		"requiresMarginBuyingPower": requirements.RequiresMarginBuyingPower,
-		"requiresShortSellingPower": requirements.RequiresShortSellingPower,
 		"requiresTotalAccountValue": requirements.RequiresTotalAccountValue,
 	}
 }
