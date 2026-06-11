@@ -135,7 +135,7 @@ func TestGoogleADKExecutionMarksToolsetFunctionResponseAsSucceeded(t *testing.T)
 	}
 }
 
-func TestGoogleADKExecutionPersistsTimedOutToolFailureSnapshot(t *testing.T) {
+func TestGoogleADKExecutionPersistsTimedOutToolFailureOnRunningSnapshot(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
@@ -170,11 +170,11 @@ func TestGoogleADKExecutionPersistsTimedOutToolFailureSnapshot(t *testing.T) {
 	if err != nil || !ok {
 		t.Fatalf("Run lookup err=%v ok=%v", err, ok)
 	}
-	if stored.Status != RunStatusFailed {
-		t.Fatalf("stored status = %q, want %q", stored.Status, RunStatusFailed)
+	if stored.Status != RunStatusRunning {
+		t.Fatalf("stored status = %q, want %q", stored.Status, RunStatusRunning)
 	}
-	if stored.ErrorCode != "TOOL_EXECUTION_TIMED_OUT" {
-		t.Fatalf("stored error code = %q, want TOOL_EXECUTION_TIMED_OUT", stored.ErrorCode)
+	if stored.ErrorCode != "" {
+		t.Fatalf("stored error code = %q, want empty for activity snapshot", stored.ErrorCode)
 	}
 	if len(stored.ToolCalls) != 1 || stored.ToolCalls[0].Status != "TIMED_OUT" {
 		t.Fatalf("stored tool calls = %+v, want timed out call", stored.ToolCalls)
@@ -182,7 +182,10 @@ func TestGoogleADKExecutionPersistsTimedOutToolFailureSnapshot(t *testing.T) {
 	if stored.ToolCalls[0].Error == nil || *stored.ToolCalls[0].Error != "tool execution timed out: context deadline exceeded" {
 		t.Fatalf("stored tool error = %#v, want explicit timeout message", stored.ToolCalls[0].Error)
 	}
-	if stored.FailureReason != "tool execution timed out: context deadline exceeded" {
-		t.Fatalf("stored failure reason = %q, want timeout message", stored.FailureReason)
+	if stored.FailureReason != "" {
+		t.Fatalf("stored failure reason = %q, want empty for activity snapshot", stored.FailureReason)
+	}
+	if stored.Degraded {
+		t.Fatalf("stored degraded = %v, want false for activity snapshot", stored.Degraded)
 	}
 }

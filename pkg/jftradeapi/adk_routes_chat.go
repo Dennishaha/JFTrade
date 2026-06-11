@@ -144,6 +144,10 @@ func (s *Server) handleADKChatStream(c *gin.Context) {
 		return nil
 	})
 	if err != nil {
+		if finalResponse, finalErr := s.recoverADKTerminalChatResponse(context.WithoutCancel(c.Request.Context()), timelineState.runID); finalErr == nil && finalResponse != nil {
+			_ = writer.WriteEvent(adkChatStreamEvent{Type: "final", Response: finalResponse})
+			return
+		}
 		_ = writer.WriteEvent(adkChatStreamEvent{Type: "error", Message: err.Error()})
 		return
 	}
@@ -170,6 +174,80 @@ func (s *Server) handleADKChatStream(c *gin.Context) {
 		Context:          response.Context,
 	})
 	_ = writer.WriteEvent(adkChatStreamEvent{Type: "final", Response: &finalResponse})
+}
+
+func (s *Server) recoverADKTerminalChatResponse(ctx context.Context, runID string) (*jfadk.ChatResponse, error) {
+	if s == nil || s.adkRuntime == nil {
+		return nil, nil
+	}
+	runID = strings.TrimSpace(runID)
+	if runID == "" {
+		return nil, nil
+	}
+	run, ok, err := s.adkRuntime.Store().Run(ctx, runID)
+	if err != nil || !ok || !isADKTerminalRunStatus(run.Status) {
+		return nil, err
+	}
+	session, ok, err := s.adkRuntime.Store().Session(ctx, run.SessionID)
+	if err != nil || !ok {
+		return nil, err
+	}
+	timeline, _, err := s.adkRuntime.Store().SessionTimeline(ctx, session.ID)
+	if err != nil {
+		return nil, err
+	}
+	if timeline == nil {
+		timeline = []jfadk.TimelineEntry{}
+	}
+	reply, reasoning := s.recoverADKAssistantReply(ctx, run)
+	response := jfadk.ChatResponse{
+		Reply:            reply,
+		ReasoningContent: reasoning,
+		Session:          session,
+		Run:              run,
+		PendingApprovals: run.PendingApprovals,
+		Timeline:         timeline,
+	}
+	if snapshot, snapshotErr := s.adkRuntime.SessionContext(ctx, session.ID); snapshotErr == nil {
+		response.Context = &snapshot
+	}
+	normalized := jfadk.NormalizeChatResponse(response)
+	return &normalized, nil
+}
+
+func (s *Server) recoverADKAssistantReply(ctx context.Context, run jfadk.Run) (string, string) {
+	if s == nil || s.adkRuntime == nil {
+		return "", ""
+	}
+	projection, ok, err := s.adkRuntime.Store().SessionProjection(ctx, run.SessionID)
+	if err != nil || !ok {
+		return "", ""
+	}
+	finalMessageID := strings.TrimSpace(run.FinalMessageID)
+	if finalMessageID != "" {
+		for _, message := range projection.Messages {
+			if message.ID == finalMessageID && strings.EqualFold(strings.TrimSpace(message.Role), "assistant") {
+				return message.Content, message.ReasoningContent
+			}
+		}
+	}
+	if projection.LatestAssistant != nil {
+		return projection.LatestAssistant.Content, projection.LatestAssistant.ReasoningContent
+	}
+	return "", ""
+}
+
+func isADKTerminalRunStatus(status string) bool {
+	switch strings.ToUpper(strings.TrimSpace(status)) {
+	case jfadk.RunStatusCompleted,
+		jfadk.RunStatusFailed,
+		jfadk.RunStatusTimedOut,
+		jfadk.RunStatusCancelled,
+		jfadk.RunStatusDenied:
+		return true
+	default:
+		return false
+	}
 }
 
 func decodeADKChatRequest(body io.Reader) (jfadk.ChatRequest, error) {

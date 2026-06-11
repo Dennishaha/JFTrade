@@ -126,7 +126,7 @@ const exactSlashCommand = computed(
 );
 const queueItems = computed(() => props.queuedMessages ?? []);
 const sendButtonLoading = computed(
-  () => props.sendingChat && !props.hasBlockingRun && props.chatDraft.trim() === "",
+  () => (props.sendingChat || props.hasBlockingRun) && props.chatDraft.trim() === "",
 );
 const showInterruptButton = computed(
   () => props.canInterruptChat && props.chatDraft.trim() !== "",

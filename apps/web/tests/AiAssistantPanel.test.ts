@@ -21,9 +21,9 @@ const { monitorADKRunContinuationMock, streamADKChatMock } = vi.hoisted(() => ({
 }));
 
 vi.mock("../src/composables/adkChatStream", async () => {
-  const actual = await vi.importActual<typeof import("../src/composables/adkChatStream")>(
-    "../src/composables/adkChatStream",
-  );
+  const actual = await vi.importActual<
+    typeof import("../src/composables/adkChatStream")
+  >("../src/composables/adkChatStream");
   return {
     ...actual,
     streamADKChat: streamADKChatMock,
@@ -31,10 +31,9 @@ vi.mock("../src/composables/adkChatStream", async () => {
 });
 
 vi.mock("../src/composables/adkRunContinuation", async () => {
-  const actual =
-    await vi.importActual<typeof import("../src/composables/adkRunContinuation")>(
-      "../src/composables/adkRunContinuation",
-    );
+  const actual = await vi.importActual<
+    typeof import("../src/composables/adkRunContinuation")
+  >("../src/composables/adkRunContinuation");
   return {
     ...actual,
     monitorADKRunContinuation: monitorADKRunContinuationMock,
@@ -68,7 +67,12 @@ describe("AiAssistantPanel", () => {
       id: "run-dock",
       status: "PENDING_APPROVAL",
       toolCalls: [
-        buildToolCall("tool-dock", "run-dock", "strategy.save_draft", "PENDING_APPROVAL"),
+        buildToolCall(
+          "tool-dock",
+          "run-dock",
+          "strategy.save_draft",
+          "PENDING_APPROVAL",
+        ),
       ],
       pendingApprovals: [approval],
     });
@@ -76,7 +80,12 @@ describe("AiAssistantPanel", () => {
       id: "run-dock",
       status: "RUNNING",
       toolCalls: [
-        buildToolCall("tool-dock", "run-dock", "strategy.save_draft", "RUNNING"),
+        buildToolCall(
+          "tool-dock",
+          "run-dock",
+          "strategy.save_draft",
+          "RUNNING",
+        ),
       ],
       pendingApprovals: [],
     });
@@ -84,20 +93,27 @@ describe("AiAssistantPanel", () => {
       id: "run-dock",
       status: "COMPLETED",
       toolCalls: [
-        buildToolCall("tool-dock", "run-dock", "strategy.save_draft", "SUCCEEDED"),
+        buildToolCall(
+          "tool-dock",
+          "run-dock",
+          "strategy.save_draft",
+          "SUCCEEDED",
+        ),
       ],
       pendingApprovals: [],
     });
 
     let finishContinuation!: () => void;
-    monitorADKRunContinuationMock.mockImplementationOnce(async (run, options) => {
-      await options?.onProgress?.(runningRun, run!);
-      await new Promise<void>((resolve) => {
-        finishContinuation = resolve;
-      });
-      await options?.onTerminal?.(completedRun);
-      return completedRun;
-    });
+    monitorADKRunContinuationMock.mockImplementationOnce(
+      async (run, options) => {
+        await options?.onProgress?.(runningRun, run!);
+        await new Promise<void>((resolve) => {
+          finishContinuation = resolve;
+        });
+        await options?.onTerminal?.(completedRun);
+        return completedRun;
+      },
+    );
 
     streamADKChatMock.mockImplementationOnce(async (_payload, onEvent) => {
       const response: ADKChatResponse = {
@@ -105,7 +121,11 @@ describe("AiAssistantPanel", () => {
         run: pendingRun,
         session: buildSession(),
         pendingApprovals: [approval],
-        timeline: pendingApprovalTimeline(pendingRun, [approval], "dock approval"),
+        timeline: pendingApprovalTimeline(
+          pendingRun,
+          [approval],
+          "dock approval",
+        ),
       };
       await onEvent({ type: "session", session: response.session });
       await onEvent({ type: "final", response });
@@ -167,14 +187,18 @@ describe("AiAssistantPanel", () => {
     await sendDockMessage("dock approval");
 
     expect(document.body.textContent).toContain("PENDING_APPROVAL");
-    expect(document.querySelector("input")?.hasAttribute("disabled")).toBe(false);
+    expect(document.querySelector("input")?.hasAttribute("disabled")).toBe(
+      false,
+    );
 
     clickButtonByText("批准");
     await flushRequests();
 
     expect(document.querySelector(".adk-run-spinner")).not.toBeNull();
     expect(document.querySelector(".adk-approvals-approve-all")).toBeNull();
-    expect(document.querySelector("input")?.hasAttribute("disabled")).toBe(false);
+    expect(document.querySelector("input")?.hasAttribute("disabled")).toBe(
+      false,
+    );
     expect(document.body.textContent).not.toContain("dock approval completed");
 
     finishContinuation();
@@ -189,7 +213,12 @@ describe("AiAssistantPanel", () => {
       id: "run-queue",
       status: "PENDING_APPROVAL",
       toolCalls: [
-        buildToolCall("tool-queue", "run-queue", "strategy.save_draft", "PENDING_APPROVAL"),
+        buildToolCall(
+          "tool-queue",
+          "run-queue",
+          "strategy.save_draft",
+          "PENDING_APPROVAL",
+        ),
       ],
       pendingApprovals: [approval],
     });
@@ -197,7 +226,12 @@ describe("AiAssistantPanel", () => {
       id: "run-queue",
       status: "COMPLETED",
       toolCalls: [
-        buildToolCall("tool-queue", "run-queue", "strategy.save_draft", "SUCCEEDED"),
+        buildToolCall(
+          "tool-queue",
+          "run-queue",
+          "strategy.save_draft",
+          "SUCCEEDED",
+        ),
       ],
       pendingApprovals: [],
     });
@@ -214,7 +248,11 @@ describe("AiAssistantPanel", () => {
           run: pendingRun,
           session: buildSession(),
           pendingApprovals: [approval],
-          timeline: pendingApprovalTimeline(pendingRun, [approval], "dock first"),
+          timeline: pendingApprovalTimeline(
+            pendingRun,
+            [approval],
+            "dock first",
+          ),
         };
         await onEvent({ type: "session", session: response.session });
         await onEvent({ type: "final", response });
@@ -289,7 +327,12 @@ describe("AiAssistantPanel", () => {
       id: "run-interrupt",
       status: "PENDING_APPROVAL",
       toolCalls: [
-        buildToolCall("tool-interrupt", "run-interrupt", "strategy.save_draft", "PENDING_APPROVAL"),
+        buildToolCall(
+          "tool-interrupt",
+          "run-interrupt",
+          "strategy.save_draft",
+          "PENDING_APPROVAL",
+        ),
       ],
       pendingApprovals: [approval],
     });
@@ -316,7 +359,11 @@ describe("AiAssistantPanel", () => {
           run: pendingRun,
           session: buildSession(),
           pendingApprovals: [approval],
-          timeline: pendingApprovalTimeline(pendingRun, [approval], "dock first"),
+          timeline: pendingApprovalTimeline(
+            pendingRun,
+            [approval],
+            "dock first",
+          ),
         };
         await onEvent({ type: "session", session: response.session });
         await onEvent({ type: "final", response });
@@ -456,23 +503,104 @@ describe("AiAssistantPanel", () => {
     await sendDockMessage("你好");
 
     expect(document.body.textContent).toContain("查看深度思考");
-    expect(document.body.textContent).toContain("你好！我是JFTrade投资分析助手。");
+    expect(document.body.textContent).toContain(
+      "你好！我是JFTrade投资分析助手。",
+    );
     expect(document.body.textContent).not.toContain(
       "Cannot read properties of null",
     );
   });
+
+  it("treats failed final runs as terminal responses instead of stream errors", async () => {
+    streamADKChatMock.mockImplementationOnce(async (_payload, onEvent) => {
+      const response: ADKChatResponse = {
+        reply: "侧栏本地兜底回复。",
+        session: buildSession(),
+        run: buildRun({
+          id: "run-dock-failed-final",
+          status: "FAILED",
+          message: "disk full",
+          failureReason: "disk full",
+          errorCode: "TOOL_EXECUTION_FAILED",
+          toolCalls: [
+            {
+              ...buildToolCall(
+                "tool-dock-failed",
+                "run-dock-failed-final",
+                "strategy.save_draft",
+                "FAILED",
+              ),
+              error: "disk full",
+            },
+          ],
+        }),
+        pendingApprovals: [],
+        timeline: [
+          buildTimelineEntry("user_message", {
+            id: "dock-user-failed",
+            runId: "run-dock-failed-final",
+            text: "dock failed run",
+            createdAt: "2026-06-09T00:00:00Z",
+          }),
+          buildTimelineEntry("tool_group", {
+            id: "dock-tool-failed",
+            runId: "run-dock-failed-final",
+            toolCalls: [
+              {
+                ...buildToolCall(
+                  "tool-dock-failed",
+                  "run-dock-failed-final",
+                  "strategy.save_draft",
+                  "FAILED",
+                ),
+                error: "disk full",
+              },
+            ],
+            createdAt: "2026-06-09T00:00:01Z",
+          }),
+          buildTimelineEntry("assistant_message", {
+            id: "dock-answer-failed",
+            runId: "run-dock-failed-final",
+            text: "侧栏本地兜底回复。",
+            createdAt: "2026-06-09T00:00:02Z",
+          }),
+        ],
+      };
+      await onEvent({ type: "session", session: response.session });
+      await onEvent({ type: "final", response });
+      return response;
+    });
+
+    mountPanel();
+    await flushRequests();
+
+    await sendDockMessage("dock failed run");
+
+    expect(document.body.textContent).toContain("侧栏本地兜底回复。");
+    expect(document.querySelector(".adk-inline-alert")?.textContent).toContain(
+      "disk full",
+    );
+    expect(
+      document.querySelector<HTMLInputElement>("input, textarea")?.disabled,
+    ).toBe(false);
+  });
 });
 
-function mountPanel(options: {
-  approvals?: ADKApproval[];
-  approvalResolutionById?: Record<string, ADKApprovalResolution>;
-  cancelRunById?: Record<string, ADKRun>;
-  sessionDetail?: { session: ReturnType<typeof buildSession>; timeline: ADKTimelineEntry[] };
-  sessionDetailSequence?: Array<{
-    session: ReturnType<typeof buildSession>;
-    timeline: ADKTimelineEntry[];
-  }>;
-} = {}) {
+function mountPanel(
+  options: {
+    approvals?: ADKApproval[];
+    approvalResolutionById?: Record<string, ADKApprovalResolution>;
+    cancelRunById?: Record<string, ADKRun>;
+    sessionDetail?: {
+      session: ReturnType<typeof buildSession>;
+      timeline: ADKTimelineEntry[];
+    };
+    sessionDetailSequence?: Array<{
+      session: ReturnType<typeof buildSession>;
+      timeline: ADKTimelineEntry[];
+    }>;
+  } = {},
+) {
   document.body.innerHTML = "<div id='root'></div>";
   const state = {
     approvals: [...(options.approvals ?? [])],
@@ -483,42 +611,50 @@ function mountPanel(options: {
     ],
   };
 
-  const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
-    const url = String(input);
-    const approvalActionMatch = url.match(/\/api\/v1\/adk\/approvals\/([^/]+)\/(approve|deny)$/);
-    if (approvalActionMatch) {
-      const approvalId = approvalActionMatch[1]!;
-      state.approvals = state.approvals.filter((approval) => approval.id !== approvalId);
-      return createResponse(
-        options.approvalResolutionById?.[approvalId] ?? {
-          approval: {
-            ...buildApproval(approvalId, "run-1"),
-            status: init?.method === "POST" ? "APPROVED" : "DENIED",
+  const fetchMock = vi.fn(
+    async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input);
+      const approvalActionMatch = url.match(
+        /\/api\/v1\/adk\/approvals\/([^/]+)\/(approve|deny)$/,
+      );
+      if (approvalActionMatch) {
+        const approvalId = approvalActionMatch[1]!;
+        state.approvals = state.approvals.filter(
+          (approval) => approval.id !== approvalId,
+        );
+        return createResponse(
+          options.approvalResolutionById?.[approvalId] ?? {
+            approval: {
+              ...buildApproval(approvalId, "run-1"),
+              status: init?.method === "POST" ? "APPROVED" : "DENIED",
+            },
+            run: buildRun({ status: "COMPLETED", pendingApprovals: [] }),
           },
-          run: buildRun({ status: "COMPLETED", pendingApprovals: [] }),
-        },
+        );
+      }
+      if (url.includes("/api/v1/adk/approvals")) {
+        return createResponse({ approvals: state.approvals });
+      }
+      const cancelRunMatch = url.match(
+        /\/api\/v1\/adk\/runs\/([^/]+)\/cancel$/,
       );
-    }
-    if (url.includes("/api/v1/adk/approvals")) {
-      return createResponse({ approvals: state.approvals });
-    }
-    const cancelRunMatch = url.match(/\/api\/v1\/adk\/runs\/([^/]+)\/cancel$/);
-    if (cancelRunMatch) {
-      const runId = decodeURIComponent(cancelRunMatch[1]!);
-      return createResponse(
-        options.cancelRunById?.[runId] ??
-          buildRun({ id: runId, status: "CANCELLED", pendingApprovals: [] }),
-      );
-    }
-    if (/\/api\/v1\/adk\/sessions\/[^/]+$/.test(url)) {
-      const detail =
-        state.sessionDetailSequence.length > 1
-          ? state.sessionDetailSequence.shift()!
-          : state.sessionDetailSequence[0]!;
-      return createResponse(detail);
-    }
-    return createResponse({});
-  });
+      if (cancelRunMatch) {
+        const runId = decodeURIComponent(cancelRunMatch[1]!);
+        return createResponse(
+          options.cancelRunById?.[runId] ??
+            buildRun({ id: runId, status: "CANCELLED", pendingApprovals: [] }),
+        );
+      }
+      if (/\/api\/v1\/adk\/sessions\/[^/]+$/.test(url)) {
+        const detail =
+          state.sessionDetailSequence.length > 1
+            ? state.sessionDetailSequence.shift()!
+            : state.sessionDetailSequence[0]!;
+        return createResponse(detail);
+      }
+      return createResponse({});
+    },
+  );
   vi.stubGlobal("fetch", fetchMock);
 
   mount(AiAssistantPanel, {
@@ -640,7 +776,9 @@ async function sendDockMessage(text: string): Promise<void> {
   input.value = text;
   input.dispatchEvent(new Event("input"));
   await nextTick();
-  document.querySelector<HTMLButtonElement>(".adk-composer-send--dock")?.click();
+  document
+    .querySelector<HTMLButtonElement>(".adk-composer-send--dock")
+    ?.click();
   await flushRequests();
 }
 
@@ -664,7 +802,8 @@ function vuetifyStubs() {
     },
     "v-chip": {
       emits: ["click"],
-      template: "<button type='button' :class='$attrs.class' @click=\"$emit('click')\"><slot /></button>",
+      template:
+        "<button type='button' :class='$attrs.class' @click=\"$emit('click')\"><slot /></button>",
     },
     "v-card": { template: "<div><slot /></div>" },
     "v-card-text": { template: "<div><slot /></div>" },

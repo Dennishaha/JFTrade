@@ -490,14 +490,17 @@ func TestApprovedPendingRunMarksFailureWhenToolExecutionFails(t *testing.T) {
 	if resolution.Run == nil {
 		t.Fatal("expected run in approval resolution")
 	}
-	if resolution.Run.Status != RunStatusFailed {
-		t.Fatalf("run status = %q, want %q", resolution.Run.Status, RunStatusFailed)
+	if resolution.Run.Status != RunStatusCompleted {
+		t.Fatalf("run status = %q, want %q", resolution.Run.Status, RunStatusCompleted)
 	}
-	if resolution.Run.ErrorCode != "TOOL_EXECUTION_FAILED" {
-		t.Fatalf("run error code = %q, want TOOL_EXECUTION_FAILED", resolution.Run.ErrorCode)
+	if resolution.Run.ErrorCode != "" {
+		t.Fatalf("run error code = %q, want empty", resolution.Run.ErrorCode)
 	}
-	if resolution.Run.FailureReason != "disk full" {
-		t.Fatalf("run failure reason = %q, want disk full", resolution.Run.FailureReason)
+	if resolution.Run.FailureReason != "" {
+		t.Fatalf("run failure reason = %q, want empty", resolution.Run.FailureReason)
+	}
+	if !resolution.Run.Degraded {
+		t.Fatalf("run degraded = %v, want true", resolution.Run.Degraded)
 	}
 	if resolution.Message == nil || strings.TrimSpace(resolution.Message.Content) == "" {
 		t.Fatalf("resolution message = %+v, want assistant summary", resolution.Message)
@@ -507,19 +510,16 @@ func TestApprovedPendingRunMarksFailureWhenToolExecutionFails(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListAuditEvents: %v", err)
 	}
-	var failedEvent *AuditEvent
+	var completedEvent *AuditEvent
 	for i := range events {
 		event := &events[i]
-		if event.SubjectID == resolution.Run.ID && event.Kind == "run.failed" {
-			failedEvent = event
+		if event.SubjectID == resolution.Run.ID && event.Kind == "run.completed" {
+			completedEvent = event
 			break
 		}
 	}
-	if failedEvent == nil {
-		t.Fatalf("expected run.failed audit event for run %s", resolution.Run.ID)
-	}
-	if failedEvent.Metadata["failureReason"] != "disk full" {
-		t.Fatalf("run.failed failureReason = %#v, want disk full", failedEvent.Metadata["failureReason"])
+	if completedEvent == nil {
+		t.Fatalf("expected run.completed audit event for run %s", resolution.Run.ID)
 	}
 }
 

@@ -77,24 +77,26 @@ export function toolCallErrorSummary(
 
 export function runTerminalMessage(run: ADKRun | undefined): string {
   if (!run) return "";
-  const toolFailureMessage = toolCallErrorSummary(firstFailedToolCall(run));
   switch (run.status) {
     case "FAILED":
       return (
-        run.failureReason || run.message || toolFailureMessage || "Run failed"
+        run.failureReason ||
+        run.message ||
+        toolCallErrorSummary(firstFailedToolCall(run)) ||
+        "Run failed"
       );
     case "TIMED_OUT":
       return (
         run.failureReason ||
         run.message ||
-        toolFailureMessage ||
+        toolCallErrorSummary(firstFailedToolCall(run)) ||
         "Run timed out"
       );
     case "CANCELLED":
       return (
         run.failureReason ||
         run.message ||
-        toolFailureMessage ||
+        toolCallErrorSummary(firstFailedToolCall(run)) ||
         "Run cancelled"
       );
     case "DENIED":
@@ -104,6 +106,6 @@ export function runTerminalMessage(run: ADKRun | undefined): string {
         "Approval denied and the run did not continue"
       );
     default:
-      return toolFailureMessage;
+      return "";
   }
 }

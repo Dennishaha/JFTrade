@@ -2,7 +2,6 @@ package adk
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 
@@ -65,10 +64,10 @@ func (r *Runtime) completeChatRun(
 		}
 		replyResult = openAIChatResult{Reply: localReply(text, toolContext.summaries, adkErr)}
 	} else {
-		var toolFailure error
+		var toolFailure string
 		run, toolFailure = markCompletedChatRun(run)
-		if toolFailure != nil && strings.TrimSpace(replyResult.Reply) == "" {
-			replyResult = openAIChatResult{Reply: localReply(text, toolContext.summaries, toolFailure)}
+		if toolFailure != "" && strings.TrimSpace(replyResult.Reply) == "" {
+			replyResult = openAIChatResult{Reply: localReply(text, toolSummariesForRun(run), nil)}
 		}
 		if err := r.persistRunTerminalState(ctx, run); err != nil {
 			return ChatResponse{}, err
@@ -150,16 +149,17 @@ func markFailedChatRun(ctx context.Context, run Run, adkErr error) Run {
 	return run
 }
 
-func markCompletedChatRun(run Run) (Run, error) {
-	if applyRunFailureFromToolCalls(&run) {
-		return run, errors.New(run.FailureReason)
-	}
+func markCompletedChatRun(run Run) (Run, string) {
 	completedAt := nowString()
 	run.Status = RunStatusCompleted
 	run.CompletedAt = &completedAt
 	run.Message = "completed"
+	run.FailureReason = ""
+	run.ErrorCode = ""
+	toolFailure := firstToolCallFailure(&run)
+	run.Degraded = toolFailure != ""
 	finalizeRunUsage(&run)
-	return run, nil
+	return run, toolFailure
 }
 
 func (r *Runtime) persistRunActivitySnapshot(ctx context.Context, snapshot Run) error {

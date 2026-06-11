@@ -2,6 +2,7 @@ package adk
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"sync"
 	"testing"
@@ -238,6 +239,66 @@ func TestAccountOrdersWithSlowPortfolioSummary(t *testing.T) {
 		t.Fatalf("Chat error: %v", chatErr)
 	case <-time.After(60 * time.Second):
 		t.Fatal("Chat hung for over 60 seconds — stuck on slow portfolio.summary?")
+	}
+}
+
+func TestChatContinuesAfterToolFailure(t *testing.T) {
+	ctx := context.Background()
+	dir := t.TempDir()
+	store, err := NewStore(dir+"/adk.db", dir+"/secrets/adk.json", dir+"/skills")
+	if err != nil {
+		t.Fatalf("NewStore: %v", err)
+	}
+	t.Cleanup(func() { _ = store.Close() })
+
+	registry := NewToolRegistry()
+	registry.Register(ToolDescriptor{
+		Name:        "strategy.save_draft",
+		DisplayName: "保存草稿",
+		Description: "保存策略草稿。",
+		Category:    "strategy",
+		Permission:  "write_strategy",
+		AllowedModes: []string{
+			PermissionModeSandboxAuto,
+			PermissionModeHighAuto,
+		},
+	}, func(context.Context, map[string]any) (any, error) {
+		return nil, fmt.Errorf("disk full")
+	})
+
+	runtime := newRuntimeWithRegistry(t, store, registry)
+	agent, err := store.SaveAgent(ctx, AgentWriteRequest{
+		ID:             "agent",
+		Name:           "投资分析助手",
+		Tools:          []string{"strategy.save_draft"},
+		PermissionMode: PermissionModeSandboxAuto,
+		Status:         AgentStatusEnabled,
+	})
+	if err != nil {
+		t.Fatalf("SaveAgent: %v", err)
+	}
+
+	resp, chatErr := runtime.Chat(ctx, ChatRequest{
+		AgentID: agent.ID,
+		Message: "@strategy.save_draft 保存策略草稿",
+	})
+	if chatErr != nil {
+		t.Fatalf("Chat error: %v", chatErr)
+	}
+	if resp.Run.Status != RunStatusCompleted {
+		t.Fatalf("run status = %q, want %q; run=%+v", resp.Run.Status, RunStatusCompleted, resp.Run)
+	}
+	if !resp.Run.Degraded {
+		t.Fatalf("run degraded = %v, want true", resp.Run.Degraded)
+	}
+	if len(resp.Run.ToolCalls) != 1 || resp.Run.ToolCalls[0].Status != "FAILED" {
+		t.Fatalf("tool calls = %+v, want failed tool call", resp.Run.ToolCalls)
+	}
+	if resp.Run.ToolCalls[0].Error == nil || !strings.Contains(*resp.Run.ToolCalls[0].Error, "disk full") {
+		t.Fatalf("tool error = %#v, want disk full", resp.Run.ToolCalls[0].Error)
+	}
+	if strings.TrimSpace(resp.Reply) == "" {
+		t.Fatalf("reply = %q, want assistant follow-up reply", resp.Reply)
 	}
 }
 

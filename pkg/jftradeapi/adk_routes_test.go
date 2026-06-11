@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -16,6 +17,7 @@ import (
 	"time"
 
 	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
+	adksession "google.golang.org/adk/session"
 )
 
 func TestADKApprovalApproveRouteReturnsRunningResolutionEnvelope(t *testing.T) {
@@ -1233,6 +1235,185 @@ func TestADKChatStreamEmitsSessionRunAndFinalEvents(t *testing.T) {
 	}
 }
 
+func TestADKChatReturnsCompletedEnvelopeWithVisibleToolFailure(t *testing.T) {
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	server := newTestServer(t, store)
+	server.adkRuntime.Tools().Register(jfadk.ToolDescriptor{
+		Name: "strategy.save_draft", Permission: "write_strategy",
+		AllowedModes: []string{jfadk.PermissionModeApproval, jfadk.PermissionModeSandboxAuto},
+	}, func(context.Context, map[string]any) (any, error) {
+		return nil, errors.New("disk full")
+	})
+
+	agent, err := server.adkRuntime.Store().SaveAgent(t.Context(), jfadk.AgentWriteRequest{
+		ID:             "chat-failed-run-agent",
+		Name:           "Failed Run Agent",
+		Tools:          []string{"strategy.save_draft"},
+		PermissionMode: jfadk.PermissionModeSandboxAuto,
+		Status:         jfadk.AgentStatusEnabled,
+	})
+	if err != nil {
+		t.Fatalf("SaveAgent: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/adk/chat", strings.NewReader(`{"agentId":"`+agent.ID+`","message":"@strategy.save_draft 保存失败草稿"}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	server.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("chat status = %d body=%q", rec.Code, rec.Body.String())
+	}
+	var envelope struct {
+		OK   bool               `json:"ok"`
+		Data jfadk.ChatResponse `json:"data"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &envelope); err != nil {
+		t.Fatalf("decode chat envelope: %v body=%q", err, rec.Body.String())
+	}
+	if !envelope.OK {
+		t.Fatalf("chat envelope = %+v, want ok=true", envelope)
+	}
+	if envelope.Data.Run.Status != jfadk.RunStatusCompleted {
+		t.Fatalf("run status = %q, want %q", envelope.Data.Run.Status, jfadk.RunStatusCompleted)
+	}
+	if envelope.Data.Run.FailureReason != "" {
+		t.Fatalf("failureReason = %q, want empty", envelope.Data.Run.FailureReason)
+	}
+	if envelope.Data.Run.ErrorCode != "" {
+		t.Fatalf("errorCode = %q, want empty", envelope.Data.Run.ErrorCode)
+	}
+	if !envelope.Data.Run.Degraded {
+		t.Fatalf("run degraded = %v, want true", envelope.Data.Run.Degraded)
+	}
+	if len(envelope.Data.Run.ToolCalls) != 1 || envelope.Data.Run.ToolCalls[0].Error == nil || !strings.Contains(*envelope.Data.Run.ToolCalls[0].Error, "disk full") {
+		t.Fatalf("toolCalls = %+v, want failed tool error containing 'disk full'", envelope.Data.Run.ToolCalls)
+	}
+}
+
+func TestADKChatStreamReturnsFinalEventForCompletedRunWithToolFailure(t *testing.T) {
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	server := newTestServer(t, store)
+	server.adkRuntime.Tools().Register(jfadk.ToolDescriptor{
+		Name: "strategy.save_draft", Permission: "write_strategy",
+		AllowedModes: []string{jfadk.PermissionModeApproval, jfadk.PermissionModeSandboxAuto},
+	}, func(context.Context, map[string]any) (any, error) {
+		return nil, errors.New("disk full")
+	})
+
+	agent, err := server.adkRuntime.Store().SaveAgent(t.Context(), jfadk.AgentWriteRequest{
+		ID:             "stream-failed-run-agent",
+		Name:           "Stream Failed Run Agent",
+		Tools:          []string{"strategy.save_draft"},
+		PermissionMode: jfadk.PermissionModeSandboxAuto,
+		Status:         jfadk.AgentStatusEnabled,
+	})
+	if err != nil {
+		t.Fatalf("SaveAgent: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/adk/chat/stream", strings.NewReader(`{"agentId":"`+agent.ID+`","message":"@strategy.save_draft 保存失败草稿"}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	server.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("chat stream status = %d body=%q", rec.Code, rec.Body.String())
+	}
+	frames := parseADKStreamFrames(t, rec.Body.String())
+	if len(frames) == 0 {
+		t.Fatalf("expected SSE frames, raw=%q", rec.Body.String())
+	}
+	last := frames[len(frames)-1]
+	if last.Type != "final" || last.Response == nil {
+		t.Fatalf("last event = %+v, want final response", last)
+	}
+	if last.Response.Run.Status != jfadk.RunStatusCompleted {
+		t.Fatalf("run status = %q, want completed", last.Response.Run.Status)
+	}
+	if last.Response.Run.FailureReason != "" {
+		t.Fatalf("failureReason = %q, want empty", last.Response.Run.FailureReason)
+	}
+	if !last.Response.Run.Degraded {
+		t.Fatalf("run degraded = %v, want true", last.Response.Run.Degraded)
+	}
+	if len(last.Response.Run.ToolCalls) != 1 || last.Response.Run.ToolCalls[0].Error == nil || !strings.Contains(*last.Response.Run.ToolCalls[0].Error, "disk full") {
+		t.Fatalf("toolCalls = %+v, want failed tool error containing 'disk full'", last.Response.Run.ToolCalls)
+	}
+	for _, frame := range frames {
+		if frame.Type == "error" {
+			t.Fatalf("frames = %+v, want failed run to end with final instead of error", frames)
+		}
+	}
+}
+
+func TestADKChatStreamRecoversCompletedRunAsFinalEventWhenFinalMessageAppendFails(t *testing.T) {
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	server := newTestServer(t, store)
+	failingService := &failingAppendSessionService{
+		base:     adksession.InMemoryService(),
+		failText: "问题摘要：attach final failure",
+	}
+	server.adkRuntime = jfadk.NewRuntimeWithSessionService(server.adkRuntime.Store(), server.adkRuntime.Tools(), failingService)
+	t.Cleanup(func() {
+		_ = server.adkRuntime.Close()
+	})
+	server.adkRuntime.Tools().Register(jfadk.ToolDescriptor{
+		Name: "strategy.save_draft", Permission: "write_strategy",
+		AllowedModes: []string{jfadk.PermissionModeApproval, jfadk.PermissionModeSandboxAuto},
+	}, func(context.Context, map[string]any) (any, error) {
+		return nil, errors.New("disk full")
+	})
+
+	agent, err := server.adkRuntime.Store().SaveAgent(t.Context(), jfadk.AgentWriteRequest{
+		ID:             "stream-recover-failed-run-agent",
+		Name:           "Stream Recover Failed Run Agent",
+		Tools:          []string{"strategy.save_draft"},
+		PermissionMode: jfadk.PermissionModeSandboxAuto,
+		Status:         jfadk.AgentStatusEnabled,
+	})
+	if err != nil {
+		t.Fatalf("SaveAgent: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/adk/chat/stream", strings.NewReader(`{"agentId":"`+agent.ID+`","message":"@strategy.save_draft attach final failure"}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	server.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("chat stream status = %d body=%q", rec.Code, rec.Body.String())
+	}
+	frames := parseADKStreamFrames(t, rec.Body.String())
+	if len(frames) == 0 {
+		t.Fatalf("expected SSE frames, raw=%q", rec.Body.String())
+	}
+	last := frames[len(frames)-1]
+	if last.Type != "final" || last.Response == nil {
+		t.Fatalf("last event = %+v, want recovered final response", last)
+	}
+	if last.Response.Run.Status != jfadk.RunStatusCompleted {
+		t.Fatalf("run status = %q, want completed", last.Response.Run.Status)
+	}
+	if last.Response.Run.FailureReason != "" {
+		t.Fatalf("failureReason = %q, want empty", last.Response.Run.FailureReason)
+	}
+	if !last.Response.Run.Degraded {
+		t.Fatalf("run degraded = %v, want true", last.Response.Run.Degraded)
+	}
+	for _, frame := range frames {
+		if frame.Type == "error" {
+			t.Fatalf("frames = %+v, want recovered terminal run to emit final without error", frames)
+		}
+	}
+}
+
 func TestADKChatStreamReturnsErrorEventForInvalidPayload(t *testing.T) {
 	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
 	if err != nil {
@@ -1750,4 +1931,54 @@ func decodeAPIErrorRecorder(t *testing.T, rec *httptest.ResponseRecorder) (int, 
 		t.Fatalf("decode recorder error envelope: %v body=%q", err, rec.Body.String())
 	}
 	return rec.Code, envelope.Error.Code, envelope.Error.Message
+}
+
+type failingAppendSessionService struct {
+	base     adksession.Service
+	failText string
+}
+
+func (s *failingAppendSessionService) Create(ctx context.Context, req *adksession.CreateRequest) (*adksession.CreateResponse, error) {
+	return s.base.Create(ctx, req)
+}
+
+func (s *failingAppendSessionService) Get(ctx context.Context, req *adksession.GetRequest) (*adksession.GetResponse, error) {
+	return s.base.Get(ctx, req)
+}
+
+func (s *failingAppendSessionService) List(ctx context.Context, req *adksession.ListRequest) (*adksession.ListResponse, error) {
+	return s.base.List(ctx, req)
+}
+
+func (s *failingAppendSessionService) Delete(ctx context.Context, req *adksession.DeleteRequest) error {
+	return s.base.Delete(ctx, req)
+}
+
+func (s *failingAppendSessionService) AppendEvent(ctx context.Context, session adksession.Session, event *adksession.Event) error {
+	if strings.Contains(sessionEventText(event), s.failText) {
+		return errors.New("simulated append failure")
+	}
+	return s.base.AppendEvent(ctx, session, event)
+}
+
+func sessionEventText(event *adksession.Event) string {
+	if event == nil {
+		return ""
+	}
+	var parts []string
+	if event.Content != nil {
+		for _, part := range event.Content.Parts {
+			if part != nil && strings.TrimSpace(part.Text) != "" {
+				parts = append(parts, part.Text)
+			}
+		}
+	}
+	if event.LLMResponse.Content != nil {
+		for _, part := range event.LLMResponse.Content.Parts {
+			if part != nil && strings.TrimSpace(part.Text) != "" {
+				parts = append(parts, part.Text)
+			}
+		}
+	}
+	return strings.Join(parts, "\n")
 }

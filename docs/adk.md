@@ -88,11 +88,14 @@ Provider 默认允许局域网和本机模型地址，但始终拒绝 link-local
 ## 前端入口
 
 - `/adk`：Provider、Agent、Skill、会话、审批和运行记录工作台。
-- 右侧 AI 助手：调用 `/api/v1/adk/chat`，失败时保留本地兜底回答。
+- 右侧 AI 助手：调用 `/api/v1/adk/chat/stream`，与 `/adk` 页面共享相同的运行、工具和终态失败展示语义。
 
 ## ADK 聊天与审批前端交互约定
 
 这部分是回归保护规则，修改 `/adk` 页面、右侧 AI 助手、审批队列或运行轨迹时必须优先遵守。
+
+- 工具调用失败、run 超时、run 取消或审批拒绝都属于业务终态。调用方应收到正常的终态 `ChatResponse` / SSE `final`，并从 `run.status`、`run.failureReason`、`run.errorCode` 与 `toolCalls[].error` 读取失败信息；不要把这类场景当成传输层错误。
+- 只有请求体非法、Agent/Session 前置校验失败、运行时不可用、SSE 不支持，或流式连接在没有终态结果时中断，才应该返回 HTTP 错误或 SSE `error` 事件。
 
 - 已经展示给用户的 assistant 文本不能被后续 SSE、run snapshot、final response 或工具进度覆盖掉；最终响应只能补齐、归一或追加新内容，不能用 `preToolContent` 或 final reply 的差异直接清空已渲染内容。
 - 工具调用期间的进度、审批状态和后续模型输出必须是增量式呈现；如果模型先输出文字、再调用工具、再继续输出文字，前面已经出现的文字仍要保留在聊天记录中。

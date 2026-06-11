@@ -350,7 +350,7 @@ func TestCompleteChatRunSuccessPersistsCompletedRunAndAssistantReply(t *testing.
 	}
 }
 
-func TestCompleteChatRunUsesFailedToolCallsAsTerminalFailure(t *testing.T) {
+func TestCompleteChatRunKeepsFailedToolCallsVisibleWithoutFailingRun(t *testing.T) {
 	ctx := context.Background()
 	runtime := newTestRuntime(t)
 
@@ -390,25 +390,31 @@ func TestCompleteChatRunUsesFailedToolCallsAsTerminalFailure(t *testing.T) {
 	if err != nil {
 		t.Fatalf("completeChatRun tool failure: %v", err)
 	}
-	if response.Run.Status != RunStatusFailed {
-		t.Fatalf("response status = %q, want %q", response.Run.Status, RunStatusFailed)
+	if response.Run.Status != RunStatusCompleted {
+		t.Fatalf("response status = %q, want %q", response.Run.Status, RunStatusCompleted)
 	}
-	if response.Run.ErrorCode != "TOOL_EXECUTION_FAILED" {
-		t.Fatalf("response error code = %q, want TOOL_EXECUTION_FAILED", response.Run.ErrorCode)
+	if response.Run.ErrorCode != "" {
+		t.Fatalf("response error code = %q, want empty", response.Run.ErrorCode)
 	}
-	if response.Run.FailureReason != toolErr {
-		t.Fatalf("response failure reason = %q, want %q", response.Run.FailureReason, toolErr)
+	if response.Run.FailureReason != "" {
+		t.Fatalf("response failure reason = %q, want empty", response.Run.FailureReason)
+	}
+	if !response.Run.Degraded {
+		t.Fatalf("response degraded = %v, want true", response.Run.Degraded)
 	}
 
 	stored, ok, err := runtime.Store().Run(ctx, run.ID)
 	if err != nil || !ok {
 		t.Fatalf("Run lookup err=%v ok=%v", err, ok)
 	}
-	if stored.Status != RunStatusFailed || stored.ErrorCode != "TOOL_EXECUTION_FAILED" {
+	if stored.Status != RunStatusCompleted || stored.ErrorCode != "" {
 		t.Fatalf("stored run = %+v", stored)
 	}
-	if stored.FailureReason != toolErr {
-		t.Fatalf("stored failure reason = %q, want %q", stored.FailureReason, toolErr)
+	if stored.FailureReason != "" {
+		t.Fatalf("stored failure reason = %q, want empty", stored.FailureReason)
+	}
+	if !stored.Degraded {
+		t.Fatalf("stored degraded = %v, want true", stored.Degraded)
 	}
 }
 

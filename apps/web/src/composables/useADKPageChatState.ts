@@ -98,12 +98,7 @@ export function useADKPageChatState(
     () => canSendChat.value && hasBlockingRun.value,
   );
   const showTypingIndicator = computed(() => {
-    if (!sendingChat.value) return false;
-    const lastEntry = timelineEntries.value.at(-1);
-    if (!lastEntry) return true;
-    if (lastEntry.kind === "tool_group") return false;
-    if ((lastEntry.text ?? "").trim() !== "") return false;
-    return true;
+    return sendingChat.value || hasBlockingRun.value;
   });
   const slashCommands = computed<SlashCommandItem[]>(() => {
     const hasSession = sessionState.selectedSessionId.value.trim() !== "";

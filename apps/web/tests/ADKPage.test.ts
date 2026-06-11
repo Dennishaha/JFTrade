@@ -28,9 +28,9 @@ vi.mock("mermaid", () => ({
 }));
 
 vi.mock("../src/composables/adkChatStream", async () => {
-  const actual = await vi.importActual<typeof import("../src/composables/adkChatStream")>(
-    "../src/composables/adkChatStream",
-  );
+  const actual = await vi.importActual<
+    typeof import("../src/composables/adkChatStream")
+  >("../src/composables/adkChatStream");
   return {
     ...actual,
     streamADKChat: streamADKChatMock,
@@ -38,10 +38,9 @@ vi.mock("../src/composables/adkChatStream", async () => {
 });
 
 vi.mock("../src/composables/adkRunContinuation", async () => {
-  const actual =
-    await vi.importActual<typeof import("../src/composables/adkRunContinuation")>(
-      "../src/composables/adkRunContinuation",
-    );
+  const actual = await vi.importActual<
+    typeof import("../src/composables/adkRunContinuation")
+  >("../src/composables/adkRunContinuation");
   return {
     ...actual,
     monitorADKRunContinuation: monitorADKRunContinuationMock,
@@ -79,8 +78,12 @@ describe("ADKPage", () => {
 
     expect(document.body.textContent).toContain("查看系统状态");
     expect(document.body.textContent).toContain("当前行情订阅");
-    expect(document.body.textContent).not.toContain("解释当前 JFTrade Pine Script v6 定义");
-    expect(document.querySelector("textarea")?.getAttribute("placeholder")).toBe("输入问题或任务...");
+    expect(document.body.textContent).not.toContain(
+      "解释当前 JFTrade Pine Script v6 定义",
+    );
+    expect(
+      document.querySelector("textarea")?.getAttribute("placeholder"),
+    ).toBe("输入问题或任务...");
   });
 
   it("refreshes approval state to RUNNING, hides the approval bar, and keeps input editable", async () => {
@@ -89,7 +92,12 @@ describe("ADKPage", () => {
       id: "run-approval",
       status: "PENDING_APPROVAL",
       toolCalls: [
-        buildToolCall("tool-1", "run-approval", "strategy.save_draft", "PENDING_APPROVAL"),
+        buildToolCall(
+          "tool-1",
+          "run-approval",
+          "strategy.save_draft",
+          "PENDING_APPROVAL",
+        ),
       ],
       pendingApprovals: [pendingApproval],
     });
@@ -97,7 +105,12 @@ describe("ADKPage", () => {
       id: "run-approval",
       status: "RUNNING",
       toolCalls: [
-        buildToolCall("tool-1", "run-approval", "strategy.save_draft", "RUNNING"),
+        buildToolCall(
+          "tool-1",
+          "run-approval",
+          "strategy.save_draft",
+          "RUNNING",
+        ),
       ],
       pendingApprovals: [],
     });
@@ -105,20 +118,27 @@ describe("ADKPage", () => {
       id: "run-approval",
       status: "COMPLETED",
       toolCalls: [
-        buildToolCall("tool-1", "run-approval", "strategy.save_draft", "SUCCEEDED"),
+        buildToolCall(
+          "tool-1",
+          "run-approval",
+          "strategy.save_draft",
+          "SUCCEEDED",
+        ),
       ],
       pendingApprovals: [],
     });
 
     let finishContinuation!: () => void;
-    monitorADKRunContinuationMock.mockImplementationOnce(async (run, options) => {
-      await options?.onProgress?.(runningRun, run!);
-      await new Promise<void>((resolve) => {
-        finishContinuation = resolve;
-      });
-      await options?.onTerminal?.(completedRun);
-      return completedRun;
-    });
+    monitorADKRunContinuationMock.mockImplementationOnce(
+      async (run, options) => {
+        await options?.onProgress?.(runningRun, run!);
+        await new Promise<void>((resolve) => {
+          finishContinuation = resolve;
+        });
+        await options?.onTerminal?.(completedRun);
+        return completedRun;
+      },
+    );
 
     streamADKChatMock.mockImplementationOnce(async (_payload, onEvent) => {
       const response: ADKChatResponse = {
@@ -126,7 +146,11 @@ describe("ADKPage", () => {
         session: buildSession(),
         run: pendingRun,
         pendingApprovals: [pendingApproval],
-        timeline: pendingApprovalTimeline(pendingRun, [pendingApproval], "approve this"),
+        timeline: pendingApprovalTimeline(
+          pendingRun,
+          [pendingApproval],
+          "approve this",
+        ),
       };
       await onEvent({ type: "session", session: response.session });
       await onEvent({ type: "final", response });
@@ -186,14 +210,18 @@ describe("ADKPage", () => {
     await sendPageMessage("approve this");
 
     expect(document.body.textContent).toContain("PENDING_APPROVAL");
-    expect(document.querySelector("textarea")?.hasAttribute("disabled")).toBe(false);
+    expect(document.querySelector("textarea")?.hasAttribute("disabled")).toBe(
+      false,
+    );
 
     clickButtonByText("批准");
     await flushRequests();
 
     expect(document.querySelector(".adk-run-spinner")).not.toBeNull();
     expect(document.querySelector(".adk-approvals-approve-all")).toBeNull();
-    expect(document.querySelector("textarea")?.hasAttribute("disabled")).toBe(false);
+    expect(document.querySelector("textarea")?.hasAttribute("disabled")).toBe(
+      false,
+    );
     expect(document.body.textContent).not.toContain("approved and finished");
 
     finishContinuation();
@@ -274,7 +302,12 @@ describe("ADKPage", () => {
       id: "run-queue",
       status: "PENDING_APPROVAL",
       toolCalls: [
-        buildToolCall("tool-queue", "run-queue", "strategy.save_draft", "PENDING_APPROVAL"),
+        buildToolCall(
+          "tool-queue",
+          "run-queue",
+          "strategy.save_draft",
+          "PENDING_APPROVAL",
+        ),
       ],
       pendingApprovals: [pendingApproval],
     });
@@ -282,7 +315,12 @@ describe("ADKPage", () => {
       id: "run-queue",
       status: "COMPLETED",
       toolCalls: [
-        buildToolCall("tool-queue", "run-queue", "strategy.save_draft", "SUCCEEDED"),
+        buildToolCall(
+          "tool-queue",
+          "run-queue",
+          "strategy.save_draft",
+          "SUCCEEDED",
+        ),
       ],
       pendingApprovals: [],
     });
@@ -299,7 +337,11 @@ describe("ADKPage", () => {
           session: buildSession(),
           run: pendingRun,
           pendingApprovals: [pendingApproval],
-          timeline: pendingApprovalTimeline(pendingRun, [pendingApproval], "first request"),
+          timeline: pendingApprovalTimeline(
+            pendingRun,
+            [pendingApproval],
+            "first request",
+          ),
         };
         await onEvent({ type: "session", session: response.session });
         await onEvent({ type: "final", response });
@@ -357,7 +399,9 @@ describe("ADKPage", () => {
     await flushRequests();
 
     await sendPageMessage("first request");
-    expect(document.querySelector("textarea")?.hasAttribute("disabled")).toBe(false);
+    expect(document.querySelector("textarea")?.hasAttribute("disabled")).toBe(
+      false,
+    );
 
     await sendPageMessage("revoke me");
     expect(document.body.textContent).toContain("revoke me");
@@ -381,12 +425,20 @@ describe("ADKPage", () => {
   });
 
   it("interrupts the active run and sends the interrupt message before the rest of the queue", async () => {
-    const pendingApproval = buildApproval("approval-interrupt", "run-interrupt");
+    const pendingApproval = buildApproval(
+      "approval-interrupt",
+      "run-interrupt",
+    );
     const pendingRun = buildRun({
       id: "run-interrupt",
       status: "PENDING_APPROVAL",
       toolCalls: [
-        buildToolCall("tool-interrupt", "run-interrupt", "strategy.save_draft", "PENDING_APPROVAL"),
+        buildToolCall(
+          "tool-interrupt",
+          "run-interrupt",
+          "strategy.save_draft",
+          "PENDING_APPROVAL",
+        ),
       ],
       pendingApprovals: [pendingApproval],
     });
@@ -413,7 +465,11 @@ describe("ADKPage", () => {
           session: buildSession(),
           run: pendingRun,
           pendingApprovals: [pendingApproval],
-          timeline: pendingApprovalTimeline(pendingRun, [pendingApproval], "first request"),
+          timeline: pendingApprovalTimeline(
+            pendingRun,
+            [pendingApproval],
+            "first request",
+          ),
         };
         await onEvent({ type: "session", session: response.session });
         await onEvent({ type: "final", response });
@@ -517,7 +573,12 @@ describe("ADKPage", () => {
       id: "run-restored",
       status: "COMPLETED",
       toolCalls: [
-        buildToolCall("tool-restored", "run-restored", "portfolio.summary", "SUCCEEDED"),
+        buildToolCall(
+          "tool-restored",
+          "run-restored",
+          "portfolio.summary",
+          "SUCCEEDED",
+        ),
       ],
     });
     mountADKPage({
@@ -572,9 +633,91 @@ describe("ADKPage", () => {
 
     await sendPageMessage("check failed run");
 
-    expect(document.querySelector(".adk-thread")?.textContent).toContain("stream exploded");
-    expect(document.querySelector(".adk-inline-alert")?.textContent).toContain("stream exploded");
-    expect(document.querySelector(".adk-composer")?.textContent).not.toContain("stream exploded");
+    expect(document.querySelector(".adk-thread")?.textContent).toContain(
+      "stream exploded",
+    );
+    expect(document.querySelector(".adk-inline-alert")?.textContent).toContain(
+      "stream exploded",
+    );
+    expect(document.querySelector(".adk-composer")?.textContent).not.toContain(
+      "stream exploded",
+    );
+  });
+
+  it("treats failed final runs as terminal responses instead of stream errors", async () => {
+    streamADKChatMock.mockImplementationOnce(async (_payload, onEvent) => {
+      const response: ADKChatResponse = {
+        reply: "本地兜底回复。",
+        session: buildSession(),
+        run: buildRun({
+          id: "run-failed-final",
+          status: "FAILED",
+          message: "disk full",
+          failureReason: "disk full",
+          errorCode: "TOOL_EXECUTION_FAILED",
+          toolCalls: [
+            {
+              ...buildToolCall(
+                "tool-failed",
+                "run-failed-final",
+                "strategy.save_draft",
+                "FAILED",
+              ),
+              error: "disk full",
+            },
+          ],
+        }),
+        pendingApprovals: [],
+        timeline: [
+          buildTimelineEntry("user_message", {
+            id: "entry-user-failed",
+            runId: "run-failed-final",
+            text: "保存失败草稿",
+            createdAt: "2026-06-06T00:00:00Z",
+          }),
+          buildTimelineEntry("tool_group", {
+            id: "entry-tool-failed",
+            runId: "run-failed-final",
+            toolCalls: [
+              {
+                ...buildToolCall(
+                  "tool-failed",
+                  "run-failed-final",
+                  "strategy.save_draft",
+                  "FAILED",
+                ),
+                error: "disk full",
+              },
+            ],
+            createdAt: "2026-06-06T00:00:01Z",
+          }),
+          buildTimelineEntry("assistant_message", {
+            id: "entry-answer-failed",
+            runId: "run-failed-final",
+            text: "本地兜底回复。",
+            createdAt: "2026-06-06T00:00:02Z",
+          }),
+        ],
+      };
+      await onEvent({ type: "session", session: response.session });
+      await onEvent({ type: "final", response });
+      return response;
+    });
+
+    mountADKPage();
+    await flushRequests();
+
+    await sendPageMessage("保存失败草稿");
+
+    expect(document.querySelector(".adk-thread")?.textContent).toContain(
+      "本地兜底回复。",
+    );
+    expect(document.body.textContent).toContain("disk full");
+    expect(
+      document.querySelector<HTMLTextAreaElement>(
+        ".adk-composer textarea, .adk-composer input",
+      )?.disabled,
+    ).toBe(false);
   });
 
   it("keeps deep reasoning collapsed until the user expands it", async () => {
@@ -614,13 +757,17 @@ describe("ADKPage", () => {
     await sendPageMessage("show reasoning");
 
     expect(document.body.textContent).toContain("查看深度思考");
-    expect(document.body.textContent).not.toContain("Detailed chain of thought preview.");
+    expect(document.body.textContent).not.toContain(
+      "Detailed chain of thought preview.",
+    );
 
     clickButtonByText("查看深度思考");
     await nextTick();
 
     expect(document.body.textContent).toContain("隐藏深度思考");
-    expect(document.body.textContent).toContain("Detailed chain of thought preview.");
+    expect(document.body.textContent).toContain(
+      "Detailed chain of thought preview.",
+    );
   });
 
   it("restores persisted timeline entries even when tool and approval arrays are null", async () => {
@@ -666,22 +813,24 @@ describe("ADKPage", () => {
   });
 });
 
-function mountADKPage(options: {
-  providerHasKey?: boolean;
-  agent?: Partial<ReturnType<typeof buildAgentBase>>;
-  approvals?: ADKApproval[];
-  approvalResolution?: unknown;
-  approvalResolutionById?: Record<string, unknown>;
-  cancelRunById?: Record<string, ADKRun>;
-  sessionDetail?: {
-    session: ReturnType<typeof buildSession>;
-    timeline: ADKTimelineEntry[];
-  };
-  sessionDetailSequence?: Array<{
-    session: ReturnType<typeof buildSession>;
-    timeline: ADKTimelineEntry[];
-  }>;
-} = {}) {
+function mountADKPage(
+  options: {
+    providerHasKey?: boolean;
+    agent?: Partial<ReturnType<typeof buildAgentBase>>;
+    approvals?: ADKApproval[];
+    approvalResolution?: unknown;
+    approvalResolutionById?: Record<string, unknown>;
+    cancelRunById?: Record<string, ADKRun>;
+    sessionDetail?: {
+      session: ReturnType<typeof buildSession>;
+      timeline: ADKTimelineEntry[];
+    };
+    sessionDetailSequence?: Array<{
+      session: ReturnType<typeof buildSession>;
+      timeline: ADKTimelineEntry[];
+    }>;
+  } = {},
+) {
   document.body.innerHTML = "<div id='root'></div>";
   const state = {
     approvals: [...(options.approvals ?? [])],
@@ -698,7 +847,9 @@ function mountADKPage(options: {
       return createResponse({ agents: [buildAgent(options.agent)] });
     }
     if (url.includes("/api/v1/adk/providers")) {
-      return createResponse({ providers: [buildProvider(options.providerHasKey ?? true)] });
+      return createResponse({
+        providers: [buildProvider(options.providerHasKey ?? true)],
+      });
     }
     if (url.includes("/api/v1/adk/sessions")) {
       if (/\/api\/v1\/adk\/sessions\/[^/]+$/.test(url)) {
@@ -718,10 +869,14 @@ function mountADKPage(options: {
           buildRun({ id: runId, status: "CANCELLED", pendingApprovals: [] }),
       );
     }
-    const approvalActionMatch = url.match(/\/api\/v1\/adk\/approvals\/([^/]+)\/(approve|deny)$/);
+    const approvalActionMatch = url.match(
+      /\/api\/v1\/adk\/approvals\/([^/]+)\/(approve|deny)$/,
+    );
     if (approvalActionMatch) {
       const approvalId = approvalActionMatch[1]!;
-      state.approvals = state.approvals.filter((approval) => approval.id !== approvalId);
+      state.approvals = state.approvals.filter(
+        (approval) => approval.id !== approvalId,
+      );
       if (options.approvalResolutionById?.[approvalId] !== undefined) {
         return createResponse(options.approvalResolutionById[approvalId]);
       }
@@ -775,7 +930,9 @@ function buildApproval(id: string, runId = "run-1"): ADKApproval {
   };
 }
 
-function buildAgent(overrides: Partial<ReturnType<typeof buildAgentBase>> = {}) {
+function buildAgent(
+  overrides: Partial<ReturnType<typeof buildAgentBase>> = {},
+) {
   return {
     ...buildAgentBase(),
     ...overrides,
@@ -930,17 +1087,20 @@ function vuetifyStubs() {
     "v-select": {
       props: ["modelValue", "items"],
       emits: ["update:modelValue"],
-      template: "<select :value='modelValue' @change=\"$emit('update:modelValue', $event.target.value)\"><option v-for='item in items' :key='item.value' :value='item.value'>{{ item.title }}</option></select>",
+      template:
+        "<select :value='modelValue' @change=\"$emit('update:modelValue', $event.target.value)\"><option v-for='item in items' :key='item.value' :value='item.value'>{{ item.title }}</option></select>",
     },
     "v-textarea": {
       props: ["modelValue", "disabled"],
       emits: ["update:modelValue"],
-      template: "<textarea :value='modelValue' :disabled='disabled' @input=\"$emit('update:modelValue', $event.target.value)\" />",
+      template:
+        "<textarea :value='modelValue' :disabled='disabled' @input=\"$emit('update:modelValue', $event.target.value)\" />",
     },
     "v-text-field": {
       props: ["modelValue", "disabled"],
       emits: ["update:modelValue"],
-      template: "<input :value='modelValue' :disabled='disabled' @input=\"$emit('update:modelValue', $event.target.value)\" />",
+      template:
+        "<input :value='modelValue' :disabled='disabled' @input=\"$emit('update:modelValue', $event.target.value)\" />",
     },
   };
 }

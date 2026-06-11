@@ -26,26 +26,27 @@ import (
 const googleADKUserID = "jftrade-user"
 
 type googleADKExecution struct {
-	mu                 sync.Mutex
-	runner             *adkrunner.Runner
-	sessionService     adksession.Service
-	sessionID          string
-	appName            string
-	agent              Agent
-	runID              string
-	descriptors        map[string]ToolDescriptor
-	calls              []ToolCall
-	summaries          []string
-	reply              strings.Builder
-	reasoning          strings.Builder
-	preToolContent     strings.Builder
-	preToolReasoning   strings.Builder
-	bufferedReply      strings.Builder
-	bufferedReasoning  strings.Builder
-	onDelta            func(ChatDelta) error
-	sawPartialText     bool
-	runBlocking        func(context.Context, *genai.Content) error
-	persistRunSnapshot func(Run) error
+	mu                       sync.Mutex
+	runner                   *adkrunner.Runner
+	sessionService           adksession.Service
+	sessionID                string
+	appName                  string
+	agent                    Agent
+	runID                    string
+	descriptors              map[string]ToolDescriptor
+	calls                    []ToolCall
+	summaries                []string
+	reply                    strings.Builder
+	reasoning                strings.Builder
+	preToolContent           strings.Builder
+	preToolReasoning         strings.Builder
+	bufferedReply            strings.Builder
+	bufferedReasoning        strings.Builder
+	onDelta                  func(ChatDelta) error
+	sawPartialText           bool
+	runBlocking              func(context.Context, *genai.Content) error
+	persistRunSnapshot       func(Run) error
+	processedConfirmationIDs map[string]struct{}
 }
 
 type googleADKTool struct {
@@ -109,11 +110,59 @@ func (r *Runtime) resumeGoogleADK(ctx context.Context, run Run) (Run, *Message, 
 	if len(parts) == 0 {
 		return run, nil, false, nil
 	}
-	execution.reply.Reset()
-	execution.reasoning.Reset()
+	// Only reset reply buffers when this is a fresh (rehydrated) execution.
+	// When the execution carries over from a previous approval round we
+	// keep accumulating text so the final assistant message contains the
+	// full conversation.
+	rehydrated := execution.reply.Len() == 0 && execution.reasoning.Len() == 0
+	if rehydrated {
+		execution.reply.Reset()
+		execution.reasoning.Reset()
+	}
 	if err := execution.run(ctx, genai.NewContentFromParts(parts, genai.RoleUser)); err != nil {
 		return run, nil, true, err
 	}
+
+	// The resumed execution may have produced *new* tool calls that require
+	// confirmation.  Seed the execution's dedup map with every
+	// ConfirmationCallID that already has a corresponding approval so
+	// pendingApprovals only creates fresh records.
+	if execution.processedConfirmationIDs == nil {
+		execution.processedConfirmationIDs = make(map[string]struct{})
+	}
+	for _, approval := range run.PendingApprovals {
+		if approval.ConfirmationCallID != "" {
+			execution.processedConfirmationIDs[approval.ConfirmationCallID] = struct{}{}
+		}
+	}
+
+	newApprovals, approvalErr := execution.pendingApprovals(ctx, r.store)
+	if approvalErr != nil {
+		return run, nil, true, approvalErr
+	}
+	if len(newApprovals) > 0 {
+		// Save the assistant message accumulated so far so the timeline
+		// renders the LLM's analysis between approval rounds.
+		result := execution.result()
+		if strings.TrimSpace(result.Reply) != "" || strings.TrimSpace(result.ReasoningContent) != "" {
+			message, msgErr := r.ensureAssistantMessage(ctx, Session{ID: run.SessionID, AgentID: run.AgentID}, run, result)
+			if msgErr == nil {
+				run.FinalMessageID = message.ID
+			}
+		}
+		run = hydrateResumedRunWithApprovals(run, execution, newApprovals)
+		run.Status = RunStatusPending
+		run.ResumeState = "waiting_approval"
+		run.Message = "等待用户审批后继续执行。"
+		if err := r.store.SaveRun(ctx, run); err != nil {
+			return run, nil, true, err
+		}
+		r.audit(ctx, "run.awaiting_approval", run.ID, "Agent run is waiting for approval.", map[string]any{
+			"runId": run.ID, "agentId": run.AgentID, "status": run.Status, "pendingApprovals": len(run.PendingApprovals),
+		})
+		return run, nil, true, nil
+	}
+
 	run, denied := hydrateResumedRun(run, execution)
 	result := execution.result()
 	if denied {
@@ -216,6 +265,20 @@ func hydrateResumedRun(run Run, execution *googleADKExecution) (Run, bool) {
 	return run, denied
 }
 
+// hydrateResumedRunWithApprovals updates the run with the execution state
+// while keeping the run in a pending-approval state so further confirmation
+// rounds can be processed.
+func hydrateResumedRunWithApprovals(run Run, execution *googleADKExecution, newApprovals []Approval) Run {
+	toolContext := execution.toolContext()
+	run.ToolCalls = toolContext.calls
+	run.ToolSummaries = toolContext.summaries
+	run.PreToolContent, run.PreToolReasoning = execution.preToolState()
+	run.OptimizationTaskID = optimizationTaskID(toolContext.calls)
+	run.PendingApprovals = newApprovals
+	run.ResumeState = "waiting_approval"
+	return run
+}
+
 func runHasDeniedApproval(approvals []Approval) bool {
 	for _, approval := range approvals {
 		if approval.Status == ApprovalStatusDenied {
@@ -244,9 +307,9 @@ func markDeniedResumedRun(run Run) Run {
 }
 
 func markFailedResumedRunIfNeeded(run Run) Run {
-	if !applyRunFailureFromToolCalls(&run) {
-		return run
-	}
+	run.FailureReason = ""
+	run.ErrorCode = ""
+	run.Degraded = firstToolCallFailure(&run) != ""
 	return run
 }
 
@@ -313,6 +376,14 @@ func toolCallFailureMessage(call *ToolCall) string {
 	default:
 		return "tool execution failed"
 	}
+}
+
+func firstToolCallFailure(run *Run) string {
+	if run == nil {
+		return ""
+	}
+	call := firstToolCallByStatus(run.ToolCalls, "TIMED_OUT", "FAILED", "CANCELLED")
+	return toolCallFailureMessage(call)
 }
 
 func applyRunFailureFromToolCalls(run *Run) bool {
@@ -745,12 +816,86 @@ func (t *googleADKTool) Run(ctx adktool.Context, args any) (map[string]any, erro
 	}
 	output, execErr := executeRegisteredTool(ctx, t.registered, input)
 	if execErr != nil {
-		return nil, execErr
+		if errors.Is(execErr, adktool.ErrConfirmationRequired) || errors.Is(execErr, adktool.ErrConfirmationRejected) {
+			return nil, execErr
+		}
+		// Return the error as a structured message rather than a bare
+		// {"error":"..."} map.  The LLM-native conversation contract uses
+		// the "message" field (which the LLM reads as a natural-language
+		// explanation) together with "success":false so our call-tracking
+		// can detect the failure without relying on the ADK framework's
+		// interpretation of an "error" key.
+		return map[string]any{
+			"success": false,
+			"message": fmt.Sprintf("工具 %s 执行失败: %s", t.Name(), execErr.Error()),
+		}, nil
 	}
 	if mapped, ok := output.(map[string]any); ok {
+		if structuredErr, ok := structuredToolError(mapped); ok {
+			return map[string]any{
+				"success": false,
+				"message": fmt.Sprintf("工具 %s 返回错误: %s", t.Name(), structuredErr),
+			}, nil
+		}
 		return mapped, nil
 	}
 	return map[string]any{"result": output}, nil
+}
+
+func structuredToolError(result map[string]any) (string, bool) {
+	if len(result) == 0 {
+		return "", false
+	}
+	// New format: {"success":false, "message":"..."}
+	if success, ok := result["success"]; ok {
+		if boolVal, _ := success.(bool); !boolVal {
+			if msg, ok := result["message"]; ok {
+				return strings.TrimSpace(fmt.Sprint(msg)), true
+			}
+			return "tool execution failed", true
+		}
+		return "", false
+	}
+	// Legacy format: {"error":"..."}
+	errValue, ok := result["error"]
+	if !ok {
+		return "", false
+	}
+	errText := strings.TrimSpace(fmt.Sprint(errValue))
+	if errText == "" || strings.EqualFold(errText, "<nil>") {
+		return "", false
+	}
+	return errText, true
+}
+
+// isToolResponseError reports whether the tool response map signals a failure,
+// either via the new {"success":false} contract or the legacy {"error":"..."} key.
+func isToolResponseError(response map[string]any) bool {
+	if len(response) == 0 {
+		return false
+	}
+	if success, ok := response["success"]; ok {
+		if boolVal, _ := success.(bool); !boolVal {
+			return true
+		}
+		return false
+	}
+	_, hasError := response["error"]
+	return hasError
+}
+
+// toolResponseErrorMessage extracts a human-readable error message from a tool
+// response map that was determined to be a failure.
+func toolResponseErrorMessage(response map[string]any) string {
+	if msg, ok := response["message"]; ok {
+		if text := strings.TrimSpace(fmt.Sprint(msg)); text != "" {
+			return text
+		}
+	}
+	if errValue, ok := response["error"]; ok {
+		return strings.TrimSpace(fmt.Sprint(errValue))
+	}
+	return "tool execution failed"
 }
 
 func (e *googleADKExecution) beforeToolCallback(ctx adktool.Context, tool adktool.Tool, args map[string]any) (map[string]any, error) {
@@ -783,7 +928,15 @@ func (e *googleADKExecution) afterToolCallback(
 	call := e.ensureCall(ctx.FunctionCallID(), descriptor, args)
 	switch {
 	case err == nil:
+		if structuredErr, ok := structuredToolError(result); ok {
+			e.finishCall(call.ID, nil, errors.New(structuredErr))
+			// Return the result with the error so the ADK includes it in the
+			// function response content.  This lets the LLM see the failure and
+			// decide whether to retry, use a different tool or report to the user.
+			return result, nil
+		}
 		e.finishCall(call.ID, result, nil)
+		return result, nil
 	case errors.Is(err, adktool.ErrConfirmationRequired):
 		// ADK will emit a tool confirmation function response that transitions the
 		// tracked call into PENDING_APPROVAL; keep the call open until then.
@@ -983,8 +1136,10 @@ func (e *googleADKExecution) consumeFunctionResponse(response *genai.FunctionRes
 		if call.Status != "RUNNING" && call.Status != "PENDING" {
 			break
 		}
-		if errorValue, ok := response.Response["error"]; ok {
-			errText := strings.TrimSpace(fmt.Sprint(errorValue))
+		// Detect failure via the new {"success":false} contract or the legacy
+		// {"error":"..."} key so that ADK-built-in tools keep working.
+		if isToolResponseError(response.Response) {
+			errText := toolResponseErrorMessage(response.Response)
 			if strings.Contains(errText, adktool.ErrConfirmationRequired.Error()) {
 				call.Status = "PENDING_APPROVAL"
 				call.RequiresUser = true
@@ -1058,7 +1213,14 @@ func (e *googleADKExecution) pendingApprovals(ctx context.Context, store *Store)
 }
 
 func (e *googleADKExecution) hasApprovalForConfirmation(id string) bool {
-	return id == ""
+	if id == "" {
+		return true
+	}
+	if e.processedConfirmationIDs != nil {
+		_, ok := e.processedConfirmationIDs[id]
+		return ok
+	}
+	return false
 }
 
 func (e *googleADKExecution) markCallPending(functionCallID string) {
@@ -1177,7 +1339,6 @@ func (e *googleADKExecution) emitRunSnapshotLocked() {
 		CreatedAt:        "",
 		UpdatedAt:        nowString(),
 	}
-	applyRunFailureFromToolCalls(&run)
 	if e.persistRunSnapshot != nil {
 		persisted := run
 		persisted.Status = e.persistedRunStatusLocked()
@@ -1204,7 +1365,6 @@ func (e *googleADKExecution) derivedRunStatusLocked() string {
 	}
 	allCancelled := true
 	allCompleted := true
-	hasFailed := false
 	for _, call := range e.calls {
 		switch call.Status {
 		case "PENDING_APPROVAL":
@@ -1212,7 +1372,6 @@ func (e *googleADKExecution) derivedRunStatusLocked() string {
 		case "RUNNING", "PENDING":
 			return RunStatusRunning
 		case "FAILED", "TIMED_OUT", "DENIED":
-			hasFailed = true
 			allCompleted = false
 			allCancelled = false
 		case "SUCCEEDED", "COMPLETED":
@@ -1223,9 +1382,6 @@ func (e *googleADKExecution) derivedRunStatusLocked() string {
 			allCompleted = false
 			allCancelled = false
 		}
-	}
-	if hasFailed {
-		return RunStatusFailed
 	}
 	if allCancelled {
 		return RunStatusCancelled
@@ -1241,7 +1397,6 @@ func (e *googleADKExecution) persistedRunStatusLocked() string {
 		return RunStatusRunning
 	}
 	allCancelled := true
-	hasFailure := false
 	for _, call := range e.calls {
 		switch call.Status {
 		case "PENDING_APPROVAL":
@@ -1249,7 +1404,6 @@ func (e *googleADKExecution) persistedRunStatusLocked() string {
 		case "RUNNING", "PENDING":
 			return RunStatusRunning
 		case "FAILED", "TIMED_OUT", "DENIED":
-			hasFailure = true
 			allCancelled = false
 		case "SUCCEEDED", "COMPLETED":
 			allCancelled = false
@@ -1257,9 +1411,6 @@ func (e *googleADKExecution) persistedRunStatusLocked() string {
 		default:
 			allCancelled = false
 		}
-	}
-	if hasFailure {
-		return RunStatusFailed
 	}
 	if allCancelled {
 		return RunStatusCancelled

@@ -1,5 +1,5 @@
 import { buildApiUrl, csrfHeaders } from "./apiClient";
-import { runTerminalMessage } from "./adkChatPresentation";
+import { isTerminalRunStatus } from "./adkChatPresentation";
 import {
   normalizeADKChatResponse,
   normalizeADKRun,
@@ -138,11 +138,33 @@ export async function streamADKChat(
   }
 
   if (!finalResponse) {
-    if (lastRun) {
-      const terminalMessage = runTerminalMessage(lastRun);
-      if (terminalMessage) {
-        throw new Error(terminalMessage);
-      }
+    if (lastRun && isTerminalRunStatus(lastRun.status)) {
+      // The run reached a terminal state (FAILED / TIMED_OUT / CANCELLED /
+      // DENIED) before the final SSE frame could be delivered.  Treat this
+      // as a valid terminal result rather than a transport error so callers
+      // can display failure details from the run / toolCalls and keep the
+      // conversation usable.
+      const response: ADKChatStreamResponse = {
+        reply: lastSession?.title ?? "",
+        session: lastSession ?? {
+          id: lastRun.sessionId ?? "",
+          agentId: lastRun.agentId ?? "",
+          title: "",
+          createdAt: lastRun.createdAt ?? new Date().toISOString(),
+          updatedAt: lastRun.updatedAt ?? new Date().toISOString(),
+        },
+        run: lastRun,
+        pendingApprovals: lastRun.toolCalls
+          ?.filter((tc) => tc.status === "PENDING_APPROVAL")
+          .map((tc) => ({
+            id: tc.id,
+            runId: lastRun.id,
+            toolName: tc.toolName,
+            status: "PENDING" as const,
+          })) ?? [],
+        timeline: [],
+      };
+      return response;
     }
     if (sawAnyFrame) {
       throw new Error("流式连接中断，未收到最终结果。");
