@@ -26,6 +26,7 @@ import {
   buildActiveChatRunState,
   buildQueueSessionKey,
   createQueuedChatMessage,
+  hasPendingRunApproval,
   isBlockingRunStatus,
   type ActiveChatRunState,
   type QueuedChatMessage,
@@ -369,6 +370,9 @@ async function waitForRunContinuation(run: ADKRun | undefined): Promise<void> {
       const failMsg = runTerminalMessage(latestRun);
       if (failMsg) {
         errorMessage.value = failMsg;
+      }
+      if (hasPendingRunApproval(latestRun)) {
+        await reloadTimeline();
       }
     }
   } catch {

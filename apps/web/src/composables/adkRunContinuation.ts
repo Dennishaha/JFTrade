@@ -1,9 +1,14 @@
 import type { ADKRun } from "@/contracts";
 
 import { fetchEnvelope } from "./apiClient";
-import { buildRunObservationSignature } from "./adkChatRuntime";
+import {
+  buildRunObservationSignature,
+  hasPendingRunApproval,
+} from "./adkChatRuntime";
 import { isTerminalRunStatus } from "./adkChatPresentation";
 import { normalizeADKRun } from "./adkNormalization";
+
+const DEFAULT_CONTINUATION_TIMEOUT_MS = 300_000;
 
 export interface ADKRunContinuationOptions {
   pollIntervalMs?: number;
@@ -20,7 +25,7 @@ export async function monitorADKRunContinuation(
     return run;
   }
   const pollIntervalMs = options.pollIntervalMs ?? 900;
-  const timeoutMs = options.timeoutMs ?? 15_000;
+  const timeoutMs = continuationTimeoutMs(run, options);
   const deadline = Date.now() + timeoutMs;
   let previousRun = run;
   let previousSignature = buildRunObservationSignature(run);
@@ -42,6 +47,9 @@ export async function monitorADKRunContinuation(
       await options.onTerminal?.(latestRun);
       return latestRun;
     }
+    if (hasPendingRunApproval(latestRun)) {
+      return latestRun;
+    }
   }
 
   const latestRun = await fetchLatestRun(run.id);
@@ -58,10 +66,25 @@ export async function monitorADKRunContinuation(
     await options.onTerminal?.(latestRun);
     return latestRun;
   }
+  if (hasPendingRunApproval(latestRun)) {
+    return latestRun;
+  }
   if (hasFailedToolSnapshot(latestRun)) {
     return latestRun;
   }
   return previousRun;
+}
+
+function continuationTimeoutMs(
+  run: ADKRun,
+  options: ADKRunContinuationOptions,
+): number {
+  if (options.timeoutMs !== undefined) {
+    return options.timeoutMs;
+  }
+  return Number.isFinite(run.maxDurationMs) && (run.maxDurationMs ?? 0) > 0
+    ? run.maxDurationMs!
+    : DEFAULT_CONTINUATION_TIMEOUT_MS;
 }
 
 function delay(ms: number): Promise<void> {

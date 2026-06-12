@@ -230,6 +230,113 @@ describe("ADKPage", () => {
     expect(document.body.textContent).toContain("approved and finished");
   });
 
+  it("shows a second approval produced during continuation without refreshing", async () => {
+    const runId = "run-second-approval";
+    const firstApproval = buildApproval("approval-first", runId);
+    const firstPendingRun = buildRun({
+      id: runId,
+      status: "PENDING_APPROVAL",
+      toolCalls: [
+        buildToolCall("tool-first", runId, "strategy.save_draft", "PENDING_APPROVAL"),
+      ],
+      pendingApprovals: [firstApproval],
+    });
+    const runningRun = buildRun({
+      id: runId,
+      status: "RUNNING",
+      toolCalls: [
+        buildToolCall("tool-first", runId, "strategy.save_draft", "RUNNING"),
+      ],
+      pendingApprovals: [],
+    });
+    const secondApproval = {
+      ...buildApproval("approval-second", runId),
+      reason: "second approval required",
+      input: { query: "second-draft" },
+      createdAt: "2026-06-06T00:00:04Z",
+      updatedAt: "2026-06-06T00:00:04Z",
+    };
+    const secondPendingRun = buildRun({
+      id: runId,
+      status: "PENDING_APPROVAL",
+      toolCalls: [
+        buildToolCall("tool-first", runId, "strategy.save_draft", "SUCCEEDED"),
+        buildToolCall("tool-second", runId, "strategy.save_draft", "PENDING_APPROVAL"),
+      ],
+      pendingApprovals: [secondApproval],
+      resumeState: "waiting_approval",
+      updatedAt: "2026-06-06T00:00:04Z",
+    });
+
+    monitorADKRunContinuationMock.mockImplementationOnce(
+      async (run, options) => {
+        await options?.onProgress?.(secondPendingRun, run!);
+        return secondPendingRun;
+      },
+    );
+    streamADKChatMock.mockImplementationOnce(async (_payload, onEvent) => {
+      const response: ADKChatResponse = {
+        reply: "waiting",
+        session: buildSession(),
+        run: firstPendingRun,
+        pendingApprovals: [firstApproval],
+        timeline: pendingApprovalTimeline(
+          firstPendingRun,
+          [firstApproval],
+          "first approval request",
+        ),
+      };
+      await onEvent({ type: "session", session: response.session });
+      await onEvent({ type: "final", response });
+      return response;
+    });
+
+    mountADKPage({
+      approvals: [firstApproval],
+      approvalResolutionById: {
+        "approval-first": {
+          approval: { ...firstApproval, status: "APPROVED" },
+          run: runningRun,
+        },
+      },
+      sessionDetailSequence: [
+        {
+          session: buildSession(),
+          timeline: [
+            buildTimelineEntry("tool_group", {
+              id: "tools-running",
+              runId,
+              toolCalls: runningRun.toolCalls,
+              createdAt: "2026-06-06T00:00:02Z",
+            }),
+          ],
+        },
+        {
+          session: buildSession(),
+          timeline: pendingApprovalTimeline(
+            secondPendingRun,
+            [secondApproval],
+            "first approval request",
+          ),
+        },
+      ],
+    });
+    await flushRequests();
+
+    await sendPageMessage("first approval request");
+    await sendPageMessage("queued follow-up");
+    expect(streamADKChatMock).toHaveBeenCalledTimes(1);
+
+    clickButtonByText("批准");
+    await flushRequests();
+    await flushRequests();
+
+    expect(document.body.textContent).toContain("second approval required");
+    expect(document.body.textContent).toContain("second-draft");
+    expect(document.body.textContent).toContain("queued follow-up");
+    expect(streamADKChatMock).toHaveBeenCalledTimes(1);
+  });
+
   it("approves all pending approvals from the inline approval group", async () => {
     const approvalA = buildApproval("approval-1");
     const approvalB = {

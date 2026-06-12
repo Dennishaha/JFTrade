@@ -21,6 +21,7 @@ import {
   buildActiveChatRunState,
   buildQueueSessionKey,
   createQueuedChatMessage,
+  hasPendingRunApproval,
   isBlockingRunStatus,
   type ActiveChatRunState,
   type QueuedChatMessage,
@@ -516,6 +517,9 @@ export function useADKPageChatState(
         const failMsg = runTerminalMessage(latestRun);
         if (failMsg) {
           sessionState.errorMessage.value = failMsg;
+        }
+        if (hasPendingRunApproval(latestRun)) {
+          await reloadSessionTimeline(sessionId);
         }
       }
     } catch {

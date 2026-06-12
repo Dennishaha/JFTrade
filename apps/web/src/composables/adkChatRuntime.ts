@@ -57,6 +57,7 @@ export function buildRunObservationSignature(run: ADKRun | undefined): string {
   if (!run) return "";
   return JSON.stringify({
     status: run.status,
+    resumeState: run.resumeState ?? "",
     updatedAt: run.updatedAt ?? "",
     toolCalls: (run.toolCalls ?? []).map((toolCall) => ({
       id: toolCall.id,
@@ -64,9 +65,26 @@ export function buildRunObservationSignature(run: ADKRun | undefined): string {
       updatedAt: toolCall.updatedAt ?? "",
       completedAt: toolCall.completedAt ?? "",
     })),
+    pendingApprovals: (run.pendingApprovals ?? []).map((approval) => ({
+      id: approval.id,
+      toolName: approval.toolName,
+      status: approval.status,
+      updatedAt: approval.updatedAt ?? "",
+    })),
   });
 }
 
 export function isBlockingRunStatus(status: string | undefined): boolean {
   return isActiveRunStatus(status) && !isTerminalRunStatus(status);
+}
+
+export function hasPendingRunApproval(run: ADKRun | undefined): boolean {
+  if (!run) return false;
+  if (run.status === "PENDING_APPROVAL") {
+    return true;
+  }
+  return (run.pendingApprovals ?? []).some((approval) => {
+    const status = String(approval.status ?? "").trim().toUpperCase();
+    return status === "" || status === "PENDING" || status === "PENDING_APPROVAL";
+  });
 }

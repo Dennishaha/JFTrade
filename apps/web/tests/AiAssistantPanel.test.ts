@@ -207,6 +207,113 @@ describe("AiAssistantPanel", () => {
     expect(document.body.textContent).toContain("dock approval completed");
   });
 
+  it("shows a second dock approval produced during continuation without refreshing", async () => {
+    const runId = "run-dock-second-approval";
+    const firstApproval = buildApproval("approval-first", runId);
+    const firstPendingRun = buildRun({
+      id: runId,
+      status: "PENDING_APPROVAL",
+      toolCalls: [
+        buildToolCall("tool-first", runId, "strategy.save_draft", "PENDING_APPROVAL"),
+      ],
+      pendingApprovals: [firstApproval],
+    });
+    const runningRun = buildRun({
+      id: runId,
+      status: "RUNNING",
+      toolCalls: [
+        buildToolCall("tool-first", runId, "strategy.save_draft", "RUNNING"),
+      ],
+      pendingApprovals: [],
+    });
+    const secondApproval = {
+      ...buildApproval("approval-second", runId),
+      reason: "dock second approval required",
+      input: { prompt: "dock-second-draft" },
+      createdAt: "2026-06-09T00:00:04Z",
+      updatedAt: "2026-06-09T00:00:04Z",
+    };
+    const secondPendingRun = buildRun({
+      id: runId,
+      status: "PENDING_APPROVAL",
+      toolCalls: [
+        buildToolCall("tool-first", runId, "strategy.save_draft", "SUCCEEDED"),
+        buildToolCall("tool-second", runId, "strategy.save_draft", "PENDING_APPROVAL"),
+      ],
+      pendingApprovals: [secondApproval],
+      resumeState: "waiting_approval",
+      updatedAt: "2026-06-09T00:00:04Z",
+    });
+
+    monitorADKRunContinuationMock.mockImplementationOnce(
+      async (run, options) => {
+        await options?.onProgress?.(secondPendingRun, run!);
+        return secondPendingRun;
+      },
+    );
+    streamADKChatMock.mockImplementationOnce(async (_payload, onEvent) => {
+      const response: ADKChatResponse = {
+        reply: "waiting",
+        run: firstPendingRun,
+        session: buildSession(),
+        pendingApprovals: [firstApproval],
+        timeline: pendingApprovalTimeline(
+          firstPendingRun,
+          [firstApproval],
+          "dock first approval",
+        ),
+      };
+      await onEvent({ type: "session", session: response.session });
+      await onEvent({ type: "final", response });
+      return response;
+    });
+
+    mountPanel({
+      approvals: [firstApproval],
+      approvalResolutionById: {
+        "approval-first": {
+          approval: { ...firstApproval, status: "APPROVED" },
+          run: runningRun,
+        },
+      },
+      sessionDetailSequence: [
+        {
+          session: buildSession(),
+          timeline: [
+            buildTimelineEntry("tool_group", {
+              id: "dock-tools-running",
+              runId,
+              toolCalls: runningRun.toolCalls,
+              createdAt: "2026-06-09T00:00:02Z",
+            }),
+          ],
+        },
+        {
+          session: buildSession(),
+          timeline: pendingApprovalTimeline(
+            secondPendingRun,
+            [secondApproval],
+            "dock first approval",
+          ),
+        },
+      ],
+    });
+    await flushRequests();
+
+    await sendDockMessage("dock first approval");
+    await sendDockMessage("dock queued follow-up");
+    expect(streamADKChatMock).toHaveBeenCalledTimes(1);
+
+    clickButtonByText("批准");
+    await flushRequests();
+    await flushRequests();
+
+    expect(document.body.textContent).toContain("dock second approval required");
+    expect(document.body.textContent).toContain("dock-second-draft");
+    expect(document.body.textContent).toContain("dock queued follow-up");
+    expect(streamADKChatMock).toHaveBeenCalledTimes(1);
+  });
+
   it("queues dock messages and auto-dispatches them after the blocking run completes", async () => {
     const approval = buildApproval("approval-queue", "run-queue");
     const pendingRun = buildRun({
