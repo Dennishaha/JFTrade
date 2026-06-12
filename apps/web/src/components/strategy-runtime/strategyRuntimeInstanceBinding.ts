@@ -10,10 +10,20 @@ import {
     buildBrokerAccountSelectionKey,
     type BrokerAccountSelectionOption,
 } from "../../composables/consoleDataBrokerAccountSelection";
-import { normalizeInstrumentId, resolveInstrumentRef } from "../../composables/instrumentRef";
 
 export function normalizeText(value: unknown): string {
     return typeof value === "string" ? value.trim() : "";
+}
+
+function normalizeInstrumentId(value: string): string {
+    const normalized = normalizeText(value).toUpperCase();
+    if (normalized.includes(":")) {
+        const [market, code] = normalized.split(":", 2);
+        if ((market ?? "") !== "" && (code ?? "") !== "") {
+            return `${market}.${code}`;
+        }
+    }
+    return normalized;
 }
 
 function normalizeSymbols(values: string[]): string[] {
@@ -30,20 +40,10 @@ function normalizeSymbols(values: string[]): string[] {
     return result;
 }
 
-function normalizeDraftSymbol(value: string, fallbackMarket?: string): string {
-    const resolved = resolveInstrumentRef(
-        { instrumentId: normalizeText(value) },
-        normalizeText(fallbackMarket),
-    );
-    return resolved?.instrumentId ?? normalizeInstrumentId(value);
-}
-
 function instrumentIdFromBindingInstrument(value: StrategyBindingInstrumentDocument): string {
-    const resolved = resolveInstrumentRef({
-        market: normalizeText(value.market),
-        code: normalizeText(value.code),
-    }, normalizeText(value.market));
-    return resolved?.instrumentId ?? "";
+    const market = normalizeText(value.market).toUpperCase();
+    const code = normalizeText(value.code).toUpperCase();
+    return market === "" || code === "" ? "" : `${market}.${code}`;
 }
 
 export function normalizeBindingInstruments(values: StrategyBindingInstrumentDocument[]): StrategyBindingInstrumentDocument[] {
@@ -75,57 +75,6 @@ export function splitSymbolsText(value: string): string[] {
     .split(/[\n\r\t,，;；]+/)
         .map((segment) => segment.trim())
         .filter((segment) => segment !== "");
-}
-
-export function parseSymbolsText(value: string): string[] {
-    return parseSymbolsTextWithFallbackMarket(value);
-}
-
-export function parseSymbolsTextWithFallbackMarket(value: string, fallbackMarket?: string): string[] {
-    return normalizeSymbols(
-        splitSymbolsText(value).map((segment) => normalizeDraftSymbol(segment, fallbackMarket)),
-    );
-}
-
-function isValidNormalizedInstrumentId(value: string): boolean {
-    return /^[A-Z0-9_-]+\.[A-Z0-9._-]+$/.test(value);
-}
-
-export function parseValidatedSymbolsText(value: string): string[] {
-    return parseValidatedSymbolsTextWithFallbackMarket(value);
-}
-
-export function parseValidatedSymbolsTextWithFallbackMarket(value: string, fallbackMarket?: string): string[] {
-    return normalizeSymbols(
-        splitSymbolsText(value)
-            .map((segment) => normalizeDraftSymbol(segment, fallbackMarket))
-            .filter((segment) => isValidNormalizedInstrumentId(segment)),
-    );
-}
-
-export function parseBindingInstrumentsTextWithFallbackMarket(
-    value: string,
-    fallbackMarket?: string,
-): StrategyBindingInstrumentDocument[] {
-    return symbolsToBindingInstruments(parseValidatedSymbolsTextWithFallbackMarket(value, fallbackMarket));
-}
-
-export function invalidSymbolsFromText(value: string): string[] {
-    return invalidSymbolsFromTextWithFallbackMarket(value);
-}
-
-export function invalidSymbolsFromTextWithFallbackMarket(value: string, fallbackMarket?: string): string[] {
-    const seen = new Set<string>();
-    const invalidSymbols: string[] = [];
-    for (const segment of splitSymbolsText(value)) {
-        const normalized = normalizeDraftSymbol(segment, fallbackMarket);
-        if (normalized === "" || isValidNormalizedInstrumentId(normalized) || seen.has(normalized)) {
-            continue;
-        }
-        seen.add(normalized);
-        invalidSymbols.push(normalized);
-    }
-    return invalidSymbols;
 }
 
 function formatTradingEnvironment(value: unknown): string {
@@ -203,13 +152,14 @@ function readStrategyInstrumentsFromParams(params: Record<string, unknown> | nul
 }
 
 function bindingInstrumentFromSymbol(symbol: string): StrategyBindingInstrumentDocument | null {
-    const resolved = resolveInstrumentRef({ instrumentId: symbol });
-    if (resolved == null) {
+    const normalized = normalizeInstrumentId(symbol);
+    const [market, code] = normalized.split(".", 2);
+    if ((market ?? "") === "" || (code ?? "") === "") {
         return null;
     }
     return {
-        market: resolved.market,
-        code: resolved.code,
+        market: market ?? "",
+        code: code ?? "",
     };
 }
 
@@ -347,17 +297,14 @@ export function resolveBrokerAccountOption(
 
 export function buildStrategyBindingPayload(input: {
     brokerAccountOptions: BrokerAccountSelectionOption[];
-    symbolsText?: string;
-    instruments?: StrategyBindingInstrumentDocument[];
+    instruments: StrategyBindingInstrumentDocument[];
     interval: string;
     executionMode: StrategyExecutionMode;
     brokerAccountKey: string;
     fallbackBrokerAccount?: StrategyBrokerAccountBinding | null;
 }): StrategyInstanceBindingDocument {
     const selectedAccount = resolveBrokerAccountOption(input.brokerAccountOptions, input.brokerAccountKey);
-    const instruments = input.instruments == null
-        ? symbolsToBindingInstruments(parseValidatedSymbolsText(input.symbolsText ?? ""))
-        : normalizeBindingInstruments(input.instruments);
+    const instruments = normalizeBindingInstruments(input.instruments);
     const symbols = bindingInstrumentsToSymbols(instruments);
     return {
         instruments,

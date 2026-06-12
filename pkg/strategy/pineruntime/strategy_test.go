@@ -9,7 +9,7 @@ import (
 
 	"github.com/c9s/bbgo/pkg/fixedpoint"
 	"github.com/c9s/bbgo/pkg/types"
-	"github.com/jftrade/jftrade-main/pkg/futu"
+	"github.com/jftrade/jftrade-main/pkg/market"
 	strategyir "github.com/jftrade/jftrade-main/pkg/strategy/ir"
 	strategypine "github.com/jftrade/jftrade-main/pkg/strategy/pine"
 )
@@ -56,16 +56,16 @@ slow = request.security(syminfo.tickerid, "D", ta.sma(close, 1))`
 		bars := []struct {
 			endTime time.Time
 			close   float64
-			session futu.MarketSession
+			session market.Session
 		}{
-			{endTime: time.Date(2026, time.May, 28, 1, 0, 0, 0, time.UTC), close: 1, session: futu.MarketSessionOvernight},
-			{endTime: time.Date(2026, time.May, 28, 7, 0, 0, 0, time.UTC), close: 2, session: futu.MarketSessionOvernight},
-			{endTime: time.Date(2026, time.May, 28, 13, 0, 0, 0, time.UTC), close: 3, session: futu.MarketSessionPre},
-			{endTime: time.Date(2026, time.May, 28, 15, 0, 0, 0, time.UTC), close: 4, session: futu.MarketSessionRegular},
-			{endTime: time.Date(2026, time.May, 29, 1, 0, 0, 0, time.UTC), close: 10, session: futu.MarketSessionOvernight},
-			{endTime: time.Date(2026, time.May, 29, 7, 0, 0, 0, time.UTC), close: 20, session: futu.MarketSessionOvernight},
-			{endTime: time.Date(2026, time.May, 29, 13, 0, 0, 0, time.UTC), close: 30, session: futu.MarketSessionPre},
-			{endTime: time.Date(2026, time.May, 29, 15, 0, 0, 0, time.UTC), close: 40, session: futu.MarketSessionRegular},
+			{endTime: time.Date(2026, time.May, 28, 1, 0, 0, 0, time.UTC), close: 1, session: market.SessionOvernight},
+			{endTime: time.Date(2026, time.May, 28, 7, 0, 0, 0, time.UTC), close: 2, session: market.SessionOvernight},
+			{endTime: time.Date(2026, time.May, 28, 13, 0, 0, 0, time.UTC), close: 3, session: market.SessionPre},
+			{endTime: time.Date(2026, time.May, 28, 15, 0, 0, 0, time.UTC), close: 4, session: market.SessionRegular},
+			{endTime: time.Date(2026, time.May, 29, 1, 0, 0, 0, time.UTC), close: 10, session: market.SessionOvernight},
+			{endTime: time.Date(2026, time.May, 29, 7, 0, 0, 0, time.UTC), close: 20, session: market.SessionOvernight},
+			{endTime: time.Date(2026, time.May, 29, 13, 0, 0, 0, time.UTC), close: 30, session: market.SessionPre},
+			{endTime: time.Date(2026, time.May, 29, 15, 0, 0, 0, time.UTC), close: 40, session: market.SessionRegular},
 		}
 		for _, bar := range bars {
 			runtime.engine.Push(types.KLine{

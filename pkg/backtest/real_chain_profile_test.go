@@ -19,6 +19,7 @@ import (
 
 	"github.com/jftrade/jftrade-main/pkg/futu"
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
+	"github.com/jftrade/jftrade-main/pkg/market"
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 )
 
@@ -450,7 +451,7 @@ func realChainTradingWindowSMA(klines []types.KLine, symbol string, currentIndex
 	sum := 0.0
 	count := 0
 	for index := currentIndex; index >= 0; index-- {
-		labelStart, ok := futu.TradingDayLabelStart(symbol, time.Time(klines[index].EndTime), false)
+		labelStart, ok := market.TradingDayLabelStart(symbol, time.Time(klines[index].EndTime), false)
 		if !ok {
 			continue
 		}

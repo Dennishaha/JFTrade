@@ -13,8 +13,8 @@ import (
 	"github.com/c9s/bbgo/pkg/fixedpoint"
 	"github.com/c9s/bbgo/pkg/types"
 	exprast "github.com/expr-lang/expr/ast"
-	"github.com/jftrade/jftrade-main/pkg/futu"
 	trdcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdcommon"
+	"github.com/jftrade/jftrade-main/pkg/market"
 	"github.com/jftrade/jftrade-main/pkg/strategy/indicatorbinding"
 	strategyindicatorruntime "github.com/jftrade/jftrade-main/pkg/strategy/indicatorruntime"
 	strategyir "github.com/jftrade/jftrade-main/pkg/strategy/ir"
@@ -126,7 +126,7 @@ type evaluationScope struct {
 	currentKline       *types.KLine
 	currentKlineTime   time.Time
 	currentKlineSymbol string
-	currentSession     futu.MarketSession
+	currentSession     market.Session
 	klinePayload       klinePayloadView
 	closeSeries        seriesNumber
 	openSeries         seriesNumber
@@ -138,7 +138,7 @@ type evaluationScope struct {
 
 type klinePayloadView struct {
 	kline         *types.KLine
-	session       futu.MarketSession
+	session       market.Session
 	startTimeText string
 	endTimeText   string
 	hasStartTime  bool
@@ -259,7 +259,7 @@ func (s *evaluationScope) setBinding(name string, binding indicatorBinding) {
 }
 
 type klineSessionResolver interface {
-	ResolveKLineSession(kline types.KLine) (futu.MarketSession, bool)
+	ResolveKLineSession(kline types.KLine) (market.Session, bool)
 }
 
 func (s *Strategy) ID() string {
@@ -389,7 +389,7 @@ func (r *strategyRuntime) cachedDivergenceRequirementKey(binding indicatorBindin
 func (r *strategyRuntime) runInit() error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	return r.runHookLocked(strategyir.HookInit, nil, futu.MarketSessionUnknown)
+	return r.runHookLocked(strategyir.HookInit, nil, market.SessionUnknown)
 }
 
 func (r *strategyRuntime) handleKLineClosed(kline types.KLine) {
@@ -422,7 +422,7 @@ func (r *strategyRuntime) handleKLineClosed(kline types.KLine) {
 	r.hasPreviousClose = true
 }
 
-func (r *strategyRuntime) runHookLocked(kind strategyir.HookKind, kline *types.KLine, session futu.MarketSession) error {
+func (r *strategyRuntime) runHookLocked(kind strategyir.HookKind, kline *types.KLine, session market.Session) error {
 	hook, ok := findHook(r.program, kind)
 	if !ok {
 		return nil
@@ -495,7 +495,7 @@ func collectIfScopePlans(statements []strategyir.Statement, plans map[*strategyi
 	}
 }
 
-func (r *strategyRuntime) newScope(kline *types.KLine, session futu.MarketSession) *evaluationScope {
+func (r *strategyRuntime) newScope(kline *types.KLine, session market.Session) *evaluationScope {
 	var indicators map[string]any
 	if r.engine != nil {
 		indicators = r.engine.SnapshotBorrowed()
@@ -1042,7 +1042,7 @@ func (r *strategyRuntime) strategyQuoteCurrency() string {
 	return strings.ToUpper(strings.TrimSpace(market.QuoteCurrency))
 }
 
-func (r *strategyRuntime) resolveKLineSession(kline types.KLine) futu.MarketSession {
+func (r *strategyRuntime) resolveKLineSession(kline types.KLine) market.Session {
 	if r.session != nil && r.session.Exchange != nil {
 		if resolver, ok := r.session.Exchange.(klineSessionResolver); ok {
 			if session, ok := resolver.ResolveKLineSession(kline); ok {
@@ -1063,9 +1063,9 @@ func (r *strategyRuntime) resolveKLineSession(kline types.KLine) futu.MarketSess
 		observedAt = kline.EndTime.Time().UTC()
 	}
 	if resolvedSymbol == "" || observedAt.IsZero() {
-		return futu.MarketSessionUnknown
+		return market.SessionUnknown
 	}
-	return futu.ClassifyMarketSession(resolvedSymbol, observedAt)
+	return market.ClassifySession(resolvedSymbol, observedAt)
 }
 
 func (r *strategyRuntime) isPlaceBlockedDuringWarmup(currentKlineTime time.Time) bool {
@@ -1157,7 +1157,7 @@ func strategyName(strategy *Strategy) string {
 	return ID
 }
 
-func klinePayload(kline types.KLine, session futu.MarketSession) *klinePayloadView {
+func klinePayload(kline types.KLine, session market.Session) *klinePayloadView {
 	return &klinePayloadView{kline: &kline, session: session}
 }
 
@@ -1197,7 +1197,7 @@ func (p *klinePayloadView) FieldValue(name string) (any, bool) {
 	case "closed":
 		return p.kline.Closed, true
 	case "session":
-		if p.session == futu.MarketSessionUnknown {
+		if p.session == market.SessionUnknown {
 			return nil, true
 		}
 		return string(p.session), true

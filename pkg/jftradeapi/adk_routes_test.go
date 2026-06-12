@@ -1361,6 +1361,9 @@ func TestADKChatStreamRecoversCompletedRunAsFinalEventWhenFinalMessageAppendFail
 		base:     adksession.InMemoryService(),
 		failText: "问题摘要：attach final failure",
 	}
+	if err := server.adkRuntime.CloseSessionServices(); err != nil {
+		t.Fatalf("CloseSessionServices: %v", err)
+	}
 	server.adkRuntime = jfadk.NewRuntimeWithSessionService(server.adkRuntime.Store(), server.adkRuntime.Tools(), failingService)
 	t.Cleanup(func() {
 		_ = server.adkRuntime.Close()

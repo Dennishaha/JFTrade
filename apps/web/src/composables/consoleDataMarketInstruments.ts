@@ -9,7 +9,6 @@ import {
 } from "@/contracts";
 
 import type { MarketInstrumentReference } from "./consoleDataSystemState";
-import { resolveInstrumentRef } from "./instrumentRef";
 
 interface MarketInstrumentInput {
   market?: string | null;
@@ -44,17 +43,19 @@ export function normalizeInstrumentParts(
   input: MarketInstrumentInput,
   fallbackMarket?: string,
 ): { market: string; symbol: string } | null {
-  const resolved = resolveInstrumentRef(
-    {
-      market: input.market ?? null,
-      symbol: input.symbol ?? null,
-    },
-    fallbackMarket,
-  );
-  if (resolved == null) {
+  const market = (input.market ?? fallbackMarket ?? "").trim().toUpperCase();
+  const symbol = (input.symbol ?? "").trim().toUpperCase().replace(":", ".");
+  if (symbol.includes(".")) {
+    const [embeddedMarket, embeddedSymbol] = symbol.split(".", 2);
+    if ((embeddedMarket ?? "") === "" || (embeddedSymbol ?? "") === "") {
+      return null;
+    }
+    return { market: embeddedMarket ?? "", symbol: embeddedSymbol ?? "" };
+  }
+  if (market === "" || symbol === "") {
     return null;
   }
-  return { market: resolved.market, symbol: resolved.symbol };
+  return { market, symbol };
 }
 
 export function createConsoleDataMarketInstrumentsController(

@@ -1,7 +1,6 @@
 package futu
 
 import (
-	"strings"
 	"time"
 
 	"github.com/c9s/bbgo/pkg/fixedpoint"
@@ -9,18 +8,7 @@ import (
 	"github.com/shopspring/decimal"
 
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
-)
-
-// MarketSession identifies the active US equity trading session.
-type MarketSession string
-
-const (
-	MarketSessionUnknown   MarketSession = "unknown"
-	MarketSessionClosed    MarketSession = "closed"
-	MarketSessionPre       MarketSession = "pre"
-	MarketSessionRegular   MarketSession = "regular"
-	MarketSessionAfter     MarketSession = "after"
-	MarketSessionOvernight MarketSession = "overnight"
+	"github.com/jftrade/jftrade-main/pkg/market"
 )
 
 // ExtendedMarketQuote holds a Futu BasicQot pre-market, after-hours, or
@@ -51,20 +39,12 @@ type QuoteSnapshot struct {
 	Volume             float64
 	Turnover           decimal.Decimal
 	QuoteAt            time.Time
-	Session            MarketSession
+	Session            market.Session
 	ExtendedHours      bool
 	PreMarket          *ExtendedMarketQuote
 	AfterMarket        *ExtendedMarketQuote
 	Overnight          *ExtendedMarketQuote
 }
-
-var usEasternLocation = func() *time.Location {
-	loc, err := time.LoadLocation("America/New_York")
-	if err != nil {
-		return time.UTC
-	}
-	return loc
-}()
 
 func tickerFromBasicQot(basicQot *qotcommonpb.BasicQot) *types.Ticker {
 	if basicQot == nil {
@@ -126,7 +106,7 @@ func quoteSnapshotFromBasicQotAt(basicQot *qotcommonpb.BasicQot, canonical strin
 	}
 
 	prevClosePrice := decimalPtrFromFloat64(basicQot.LastClosePrice)
-	if isUSSymbol(canonical) && session != MarketSessionRegular && regularSessionClose.GreaterThan(decimal.Zero) {
+	if market.ShouldUseRegularCloseAsPreviousClose(canonical, session, regularSessionClose) {
 		prevClosePrice = &regularSessionClose
 	}
 
@@ -144,7 +124,7 @@ func quoteSnapshotFromBasicQotAt(basicQot *qotcommonpb.BasicQot, canonical strin
 		Turnover:           turnover,
 		QuoteAt:            futuQuoteTime(basicQot.GetUpdateTimestamp(), basicQot.GetUpdateTime()).UTC(),
 		Session:            session,
-		ExtendedHours:      IsExtendedMarketSession(session),
+		ExtendedHours:      market.IsExtendedSession(session),
 		PreMarket:          preMarket,
 		AfterMarket:        afterMarket,
 		Overnight:          overnight,
@@ -167,13 +147,13 @@ func extendedMarketQuoteFromProto(data *qotcommonpb.PreAfterMarketData) *Extende
 	}
 }
 
-func activeExtendedQuoteForSession(session MarketSession, preMarket *ExtendedMarketQuote, afterMarket *ExtendedMarketQuote, overnight *ExtendedMarketQuote) *ExtendedMarketQuote {
+func activeExtendedQuoteForSession(session market.Session, preMarket *ExtendedMarketQuote, afterMarket *ExtendedMarketQuote, overnight *ExtendedMarketQuote) *ExtendedMarketQuote {
 	switch session {
-	case MarketSessionPre:
+	case market.SessionPre:
 		return preMarket
-	case MarketSessionAfter:
+	case market.SessionAfter:
 		return afterMarket
-	case MarketSessionOvernight:
+	case market.SessionOvernight:
 		return overnight
 	default:
 		return nil
@@ -191,72 +171,27 @@ func cloneInt64AsFloat64(value *int64) *float64 {
 // sessionFromExtendedBlocks derives the current market session from Futu's
 // extended-data blocks rather than the wall clock. This correctly handles
 // market holidays and early-close sessions without an external holiday calendar.
-func sessionFromExtendedBlocks(canonical string, preMarket, afterMarket, overnight *ExtendedMarketQuote) MarketSession {
+func sessionFromExtendedBlocks(canonical string, preMarket, afterMarket, overnight *ExtendedMarketQuote) market.Session {
 	return sessionFromExtendedBlocksAt(canonical, preMarket, afterMarket, overnight, time.Now().UTC())
 }
 
-func sessionFromExtendedBlocksAt(canonical string, preMarket, afterMarket, overnight *ExtendedMarketQuote, now time.Time) MarketSession {
-	clockSession := ClassifyMarketSession(canonical, now)
+func sessionFromExtendedBlocksAt(canonical string, preMarket, afterMarket, overnight *ExtendedMarketQuote, now time.Time) market.Session {
+	clockSession := market.ClassifySession(canonical, now)
 	switch clockSession {
-	case MarketSessionOvernight:
+	case market.SessionOvernight:
 		if overnight != nil && decimalPositive(overnight.Price) {
-			return MarketSessionOvernight
+			return market.SessionOvernight
 		}
-	case MarketSessionAfter:
+	case market.SessionAfter:
 		if afterMarket != nil && decimalPositive(afterMarket.Price) {
-			return MarketSessionAfter
+			return market.SessionAfter
 		}
-	case MarketSessionPre:
+	case market.SessionPre:
 		if preMarket != nil && decimalPositive(preMarket.Price) {
-			return MarketSessionPre
+			return market.SessionPre
 		}
 	}
 	return clockSession
-}
-
-// ClassifyMarketSession classifies US equities into regular, pre-market,
-// after-hours, or overnight sessions using America/New_York clock time.
-func ClassifyMarketSession(symbol string, at time.Time) MarketSession {
-	if !isUSSymbol(symbol) {
-		return MarketSessionUnknown
-	}
-	local := at.In(usEasternLocation)
-	weekday := local.Weekday()
-	minutes := local.Hour()*60 + local.Minute()
-
-	if weekday == time.Saturday {
-		return MarketSessionClosed
-	}
-	if weekday == time.Sunday {
-		if minutes >= 20*60 {
-			return MarketSessionOvernight
-		}
-		return MarketSessionClosed
-	}
-	if weekday == time.Friday && minutes >= 20*60 {
-		return MarketSessionClosed
-	}
-
-	switch {
-	case minutes < 4*60:
-		return MarketSessionOvernight
-	case minutes < 9*60+30:
-		return MarketSessionPre
-	case minutes < 16*60:
-		return MarketSessionRegular
-	case minutes < 20*60:
-		return MarketSessionAfter
-	default:
-		return MarketSessionOvernight
-	}
-}
-
-func isUSSymbol(symbol string) bool {
-	return strings.HasPrefix(strings.ToUpper(strings.TrimSpace(symbol)), "US.")
-}
-
-func IsExtendedMarketSession(session MarketSession) bool {
-	return session == MarketSessionPre || session == MarketSessionAfter || session == MarketSessionOvernight
 }
 
 func futuQuoteTime(timestamp float64, fallback string) time.Time {

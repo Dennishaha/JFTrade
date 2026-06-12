@@ -159,8 +159,13 @@ export async function streamADKChat(
           .map((tc) => ({
             id: tc.id,
             runId: lastRun.id,
+            agentId: lastRun.agentId,
             toolName: tc.toolName,
+            ...(tc.input !== undefined ? { input: tc.input } : {}),
             status: "PENDING" as const,
+            reason: tc.permission ?? "",
+            createdAt: tc.createdAt ?? lastRun.createdAt ?? new Date().toISOString(),
+            updatedAt: tc.updatedAt ?? lastRun.updatedAt ?? new Date().toISOString(),
           })) ?? [],
         timeline: [],
       };

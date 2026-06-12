@@ -2,7 +2,7 @@ package indicatorruntime
 
 import (
 	"github.com/c9s/bbgo/pkg/types"
-	"github.com/jftrade/jftrade-main/pkg/futu"
+	"github.com/jftrade/jftrade-main/pkg/market"
 	strategyir "github.com/jftrade/jftrade-main/pkg/strategy/ir"
 )
 
@@ -28,7 +28,7 @@ func NewIndicatorEngineForPlanWithOptions(plan strategyir.Requirements, interval
 	return &IndicatorEngine{runtime: runtime}, nil
 }
 
-func (e *IndicatorEngine) Push(kline types.KLine, session futu.MarketSession) {
+func (e *IndicatorEngine) Push(kline types.KLine, session market.Session) {
 	if e == nil || e.runtime == nil {
 		return
 	}

@@ -306,6 +306,18 @@ describe("Strategy page", () => {
 
     await openCreateInstancePanel(wrapper)
 
+    const marketSelect = wrapper.get('[data-testid="strategy-instance-symbol-market"]')
+    const marketOptionValues = marketSelect
+      .findAll("option")
+      .map((option) => (option.element as HTMLOptionElement).value)
+    const marketOptionLabels = marketSelect
+      .findAll("option")
+      .map((option) => option.text())
+    expect(marketOptionValues).toEqual(["HK", "US", "SH", "SZ"])
+    expect(marketOptionLabels).toEqual(["港股 HK", "美股 US", "上交所 SH", "深交所 SZ"])
+    expect(marketOptionValues).not.toContain("SG")
+    expect(marketOptionValues).not.toContain("JP")
+
     await appendInstrumentTags(
       wrapper,
       {

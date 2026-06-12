@@ -35,6 +35,53 @@ export interface ApiErrorEnvelope {
   timestamp: string;
 }
 
+export interface MarketTradingWindowDto {
+  startMinute: number;
+  endMinute: number;
+  label: string;
+}
+
+export interface MarketPrecisionDto {
+  price: number;
+  quote: number;
+}
+
+export interface MarketProfileDto {
+  code: string;
+  resolvedMarket: string;
+  preferredPrefix: string;
+  displayName: string;
+  quoteCurrency: string;
+  supportsExtendedHours: boolean;
+  requiresExchangePrefix: boolean;
+  aliases: string[];
+  regularSessions: MarketTradingWindowDto[];
+  precision: MarketPrecisionDto;
+  tickSize: number;
+}
+
+export interface MarketProfilesResponse {
+  markets: MarketProfileDto[];
+  defaultMarket: string;
+  updatedAt: string;
+}
+
+export interface NormalizeInstrumentRequest {
+  market?: string;
+  symbol?: string;
+  code?: string;
+  instrumentId?: string;
+}
+
+export interface NormalizeInstrumentResponse {
+  market: string;
+  prefix: string;
+  code: string;
+  symbol: string;
+  instrumentId: string;
+  resolvedMarket: string;
+}
+
 export type ADKPermissionMode = "approval" | "sandbox_auto" | "high_auto";
 
 export interface ADKProvider {

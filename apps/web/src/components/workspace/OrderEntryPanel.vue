@@ -7,7 +7,7 @@ import {
   formatOrderTypeLabel,
   formatTimeInForceLabel,
 } from "../../composables/consoleDataFormatting";
-import { resolveInstrumentRef } from "../../composables/instrumentRef";
+import { useMarketProfiles } from "../../composables/marketProfiles";
 import { useConsoleData } from "../../composables/useConsoleData";
 import { useNotifications } from "../../composables/useNotifications";
 import { useWorkspaceTradingPrefs } from "../../composables/useWorkspaceLayout";
@@ -25,6 +25,7 @@ const {
 } = useConsoleData();
 const { prefs } = useWorkspaceTradingPrefs();
 const notifications = useNotifications();
+const { findMarketProfile, supportsExtendedHoursForMarket } = useMarketProfiles();
 
 type Side = "BUY" | "SELL";
 type OrderType = "LIMIT" | "MARKET" | "STOP" | "STOP_LIMIT";
@@ -136,18 +137,26 @@ const activeAccountId = computed(
 const activeMarket = computed(
   () => prefs.value.market.trim() || selectedBrokerAccount.value?.market || "",
 );
-const activeInstrument = computed(() =>
-  resolveInstrumentRef(
-    {
-      market: activeMarket.value,
-      code: prefs.value.symbol,
-    },
-    activeMarket.value,
-  ),
-);
-const isUSMarket = computed(
-  () => activeMarket.value.trim().toUpperCase() === "US",
-);
+const activeInstrument = computed(() => {
+  const market = activeMarket.value.trim().toUpperCase();
+  const symbol = prefs.value.symbol.trim().toUpperCase();
+  const profile = findMarketProfile(market);
+  if (
+    market === "" ||
+    symbol === "" ||
+    profile == null ||
+    profile.preferredPrefix.trim() === ""
+  ) {
+    return null;
+  }
+  return {
+    market,
+    code: symbol,
+    symbol,
+    instrumentId: `${market}.${symbol}`,
+  };
+});
+const supportsOrderSessionSelection = computed(() => supportsExtendedHoursForMarket(activeMarket.value));
 const supportsBrokerMaxTradeQuantity = computed(() =>
   supportsBrokerReadFeature("maxTradeQuantity", {
     market: activeMarket.value,
@@ -221,7 +230,7 @@ const currentMarketSessionLabel = computed(() => {
   return formatCurrentMarketSession(session);
 });
 const orderSessionSummary = computed(() => {
-  if (!isUSMarket.value) {
+  if (!supportsOrderSessionSelection.value) {
     return "";
   }
   const summary: string[] = [];
@@ -232,7 +241,7 @@ const orderSessionSummary = computed(() => {
   return summary.join(" · ");
 });
 const orderSessionCaution = computed(() => {
-  if (!isUSMarket.value) {
+  if (!supportsOrderSessionSelection.value) {
     return "";
   }
   const currentSession = (latestSnapshot.value?.session ?? "").toString().trim().toLowerCase();
@@ -402,7 +411,7 @@ async function loadMaxTradeQuantity(): Promise<void> {
     symbol: instrument.instrumentId,
     orderType: orderType.value,
     price: maxTradeQuantityReferencePrice.value,
-    ...(isUSMarket.value ? { session: orderSession.value } : {}),
+    ...(supportsOrderSessionSelection.value ? { session: orderSession.value } : {}),
   };
   await loadBrokerMaxTradeQuantity(request);
 }
@@ -471,7 +480,7 @@ async function submit(): Promise<void> {
       side: side.value,
       orderType: orderType.value,
       timeInForce: tif.value,
-      session: isUSMarket.value ? orderSession.value : undefined,
+      session: supportsOrderSessionSelection.value ? orderSession.value : undefined,
       quantity: quantity.value,
       price: isLimit.value ? price.value : undefined,
       stopPrice: isStop.value ? stopPrice.value : undefined,
@@ -480,7 +489,7 @@ async function submit(): Promise<void> {
 
     const feedbackTitle = resolveOrderRequestTitle();
     let feedbackLevel: OrderFeedbackLevel = "success";
-    let feedbackMessage = `下单成功：已提交订单（${formatOrderTypeLabel(orderType.value)}，${formatTimeInForceLabel(tif.value)}${isUSMarket.value ? `，${formatOrderSession(orderSession.value)}` : ""}）`;
+    let feedbackMessage = `下单成功：已提交订单（${formatOrderTypeLabel(orderType.value)}，${formatTimeInForceLabel(tif.value)}${supportsOrderSessionSelection.value ? `，${formatOrderSession(orderSession.value)}` : ""}）`;
     try {
       const body = await fetchEnvelopeWithInit<{
         accepted?: boolean;
@@ -640,7 +649,7 @@ watch(
         </select>
       </div>
 
-      <div v-if="isUSMarket" class="tv-form-row">
+      <div v-if="supportsOrderSessionSelection" class="tv-form-row">
         <label>时段</label>
         <select v-model="orderSession" class="tv-select">
           <option value="RTH">常规交易时段（RTH）</option>
@@ -650,11 +659,11 @@ watch(
         </select>
       </div>
 
-      <div v-if="isUSMarket && orderSessionSummary" style="margin: -2px 0 8px; font-size: 11px; color: var(--tv-text-dim)">
+      <div v-if="supportsOrderSessionSelection && orderSessionSummary" style="margin: -2px 0 8px; font-size: 11px; color: var(--tv-text-dim)">
         {{ orderSessionSummary }}
       </div>
 
-      <div v-if="isUSMarket && orderSessionCaution" style="margin: 0 0 10px; font-size: 11px; color: var(--tv-accent)">
+      <div v-if="supportsOrderSessionSelection && orderSessionCaution" style="margin: 0 0 10px; font-size: 11px; color: var(--tv-accent)">
         {{ orderSessionCaution }}
       </div>
 

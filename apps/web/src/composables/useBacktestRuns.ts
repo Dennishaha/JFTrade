@@ -4,7 +4,6 @@ import type { BacktestStartRequestPayload, BacktestSyncRequestPayload } from "@/
 
 import type { BacktestTrade, BacktestPnlPoint, BacktestDrawdownPoint, BacktestCandle } from "../components/BacktestChart.vue";
 import { fetchEnvelope, fetchEnvelopeWithInit } from "./apiClient";
-import { resolveInstrumentRef } from "./instrumentRef";
 
 type BacktestDecimalTransport = string | number;
 
@@ -191,27 +190,23 @@ export interface BacktestFormState {
 
 interface UseBacktestRunsOptions {
   formState: ComputedRef<BacktestFormState>;
+  normalizeInstrument: (
+    input: Pick<BacktestFormState, "market" | "code" | "instrumentId">,
+  ) => Promise<{ market: string; prefix: string; code: string; instrumentId: string }>;
 }
 
-export function buildBacktestInstrumentPayload(
+async function resolveBacktestInstrumentPayload(
   formState: Pick<BacktestFormState, "market" | "code" | "instrumentId">,
-): { market: string; code: string; symbol: string } | null {
-  const instrument = resolveInstrumentRef(
-    {
-      market: formState.market,
-      code: formState.code,
-      instrumentId: formState.instrumentId,
-    },
-    formState.market,
-  );
-  if (instrument == null) {
+  resolver: UseBacktestRunsOptions["normalizeInstrument"],
+): Promise<{ market: string; code: string; symbol: string } | null> {
+  const normalized = await resolver(formState);
+  const market = normalized.prefix.trim().toUpperCase();
+  const code = normalized.code.trim().toUpperCase();
+  const symbol = normalized.instrumentId.trim().toUpperCase();
+  if (market === "" || code === "" || symbol === "") {
     return null;
   }
-  return {
-    market: instrument.market,
-    code: instrument.code,
-    symbol: instrument.instrumentId,
-  };
+  return { market, code, symbol };
 }
 
 function resolveSyncSessionScope(formState: Pick<BacktestFormState, "useExtendedHours">): "regular" | "extended" {
@@ -418,11 +413,6 @@ export function useBacktestRuns(options: UseBacktestRunsOptions) {
 
   async function syncKlines() {
     const formState = options.formState.value;
-    const instrument = buildBacktestInstrumentPayload(formState);
-    if (instrument == null) {
-      error.value = "同步启动失败: 请先输入有效的市场与代码";
-      return;
-    }
     syncing.value = true;
     error.value = "";
     syncTaskId.value = "";
@@ -430,6 +420,15 @@ export function useBacktestRuns(options: UseBacktestRunsOptions) {
     stopSyncPolling();
 
     try {
+      const instrument = await resolveBacktestInstrumentPayload(
+        formState,
+        options.normalizeInstrument,
+      );
+      if (instrument == null) {
+        error.value = "同步启动失败: 请先输入有效的市场与代码";
+        syncing.value = false;
+        return;
+      }
       const payload: BacktestSyncRequestPayload = {
         market: instrument.market,
         code: instrument.code,
@@ -509,15 +508,18 @@ export function useBacktestRuns(options: UseBacktestRunsOptions) {
   async function startBacktest() {
     const formState = options.formState.value;
     if (!formState.definitionId) return;
-    const instrument = buildBacktestInstrumentPayload(formState);
-    if (instrument == null) {
-      error.value = "启动回测失败: 请先输入有效的市场与代码";
-      return;
-    }
 
     running.value = true;
     error.value = "";
     try {
+      const instrument = await resolveBacktestInstrumentPayload(
+        formState,
+        options.normalizeInstrument,
+      );
+      if (instrument == null) {
+        error.value = "启动回测失败: 请先输入有效的市场与代码";
+        return;
+      }
       const payload: BacktestStartRequestPayload = {
         definitionId: formState.definitionId,
         definitionVersion: formState.definitionVersion,

@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	bbgotypes "github.com/c9s/bbgo/pkg/types"
@@ -12,6 +11,7 @@ import (
 	"github.com/jftrade/jftrade-main/internal/retry"
 	"github.com/jftrade/jftrade-main/pkg/futu"
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
+	"github.com/jftrade/jftrade-main/pkg/market"
 )
 
 var (
@@ -197,7 +197,7 @@ func syncWriteSessionScope(symbol string, interval bbgotypes.Interval, requested
 	if scope != klineSessionScopeExtended {
 		return scope
 	}
-	if strings.HasPrefix(strings.ToUpper(strings.TrimSpace(symbol)), "US.") && interval.Duration() <= time.Hour {
+	if market.IsUSSymbol(symbol) && interval.Duration() <= time.Hour {
 		return klineSessionScopeExtended
 	}
 	return klineSessionScopeRegular
@@ -209,7 +209,7 @@ func filterSyncedKLinesBySessionScope(symbol string, interval bbgotypes.Interval
 	}
 	filtered := klines[:0]
 	for _, kline := range klines {
-		if futu.IsRegularTradingTime(symbol, kline.StartTime.Time()) {
+		if market.IsRegularTradingTime(symbol, kline.StartTime.Time()) {
 			filtered = append(filtered, kline)
 		}
 	}

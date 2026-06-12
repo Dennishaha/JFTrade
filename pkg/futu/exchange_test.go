@@ -42,6 +42,7 @@ import (
 	trdgetpositionlistpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdgetpositionlist"
 	trdmodifyorderpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdmodifyorder"
 	trdplaceorderpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdplaceorder"
+	"github.com/jftrade/jftrade-main/pkg/market"
 )
 
 func TestRegistration(t *testing.T) {
@@ -80,6 +81,63 @@ func TestQueryMarketsReturnsBootstrapMarket(t *testing.T) {
 	}
 	if market.Exchange != Name || market.QuoteCurrency != "HKD" {
 		t.Fatalf("unexpected bootstrap market: %#v", market)
+	}
+}
+
+func TestInferMarketUsesMarketProfiles(t *testing.T) {
+	cases := []struct {
+		symbol          string
+		wantSymbol      string
+		wantQuote       string
+		wantPriceDigits int
+		wantTick        float64
+	}{
+		{"US.AAPL", "US.AAPL", "USD", 2, 0.01},
+		{"HK.00700", "HK.00700", "HKD", 3, 0.001},
+		{"SH.600519", "SH.600519", "CNY", 2, 0.01},
+		{"SZ.000001", "SZ.000001", "CNY", 2, 0.01},
+		{"CNSH.600519", "SH.600519", "CNY", 2, 0.01},
+	}
+	for _, tc := range cases {
+		t.Run(tc.symbol, func(t *testing.T) {
+			got := inferMarket(tc.symbol)
+			if got.Symbol != tc.wantSymbol || got.QuoteCurrency != tc.wantQuote || got.PricePrecision != tc.wantPriceDigits {
+				t.Fatalf("inferMarket = %#v", got)
+			}
+			if got.TickSize.Float64() != tc.wantTick {
+				t.Fatalf("TickSize = %s, want %v", got.TickSize.String(), tc.wantTick)
+			}
+		})
+	}
+}
+
+func TestFutuSecurityFromSymbolUsesMarketParser(t *testing.T) {
+	cases := []struct {
+		symbol        string
+		wantMarket    qotcommonpb.QotMarket
+		wantCode      string
+		wantCanonical string
+	}{
+		{"HK.00700", qotcommonpb.QotMarket_QotMarket_HK_Security, "00700", "HK.00700"},
+		{"HK:00700", qotcommonpb.QotMarket_QotMarket_HK_Security, "00700", "HK.00700"},
+		{"US.AAPL", qotcommonpb.QotMarket_QotMarket_US_Security, "AAPL", "US.AAPL"},
+		{"SH.600519", qotcommonpb.QotMarket_QotMarket_CNSH_Security, "600519", "SH.600519"},
+		{"SZ.000001", qotcommonpb.QotMarket_QotMarket_CNSZ_Security, "000001", "SZ.000001"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.symbol, func(t *testing.T) {
+			security, canonical, err := futuSecurityFromSymbol(tc.symbol)
+			if err != nil {
+				t.Fatalf("futuSecurityFromSymbol: %v", err)
+			}
+			if canonical != tc.wantCanonical || qotcommonpb.QotMarket(security.GetMarket()) != tc.wantMarket || security.GetCode() != tc.wantCode {
+				t.Fatalf("security=%#v canonical=%s", security, canonical)
+			}
+		})
+	}
+
+	if _, _, err := futuSecurityFromSymbol("CN.600519"); err == nil || !strings.Contains(err.Error(), "requires an exchange-qualified symbol") {
+		t.Fatalf("CN.600519 error = %v", err)
 	}
 }
 
@@ -899,13 +957,13 @@ func TestQueryKLinesSplitsUSHistoricalRequestsBySessionAndMergesResults(t *testi
 	if got := klines[2].Open.Float64(); got != 110 {
 		t.Fatalf("expected RTH route candle to win over ALL duplicate, got %v", got)
 	}
-	if session, ok := ex.ResolveKLineSession(klines[0]); !ok || session != MarketSessionOvernight {
+	if session, ok := ex.ResolveKLineSession(klines[0]); !ok || session != market.SessionOvernight {
 		t.Fatalf("expected overnight session tag, got %s ok=%v", session, ok)
 	}
-	if session, ok := ex.ResolveKLineSession(klines[1]); !ok || session != MarketSessionPre {
+	if session, ok := ex.ResolveKLineSession(klines[1]); !ok || session != market.SessionPre {
 		t.Fatalf("expected ETH route to resolve pre session, got %s ok=%v", session, ok)
 	}
-	if session, ok := ex.ResolveKLineSession(klines[2]); !ok || session != MarketSessionRegular {
+	if session, ok := ex.ResolveKLineSession(klines[2]); !ok || session != market.SessionRegular {
 		t.Fatalf("expected RTH route to resolve regular session, got %s ok=%v", session, ok)
 	}
 }
@@ -916,10 +974,10 @@ func TestResolveHistoricalRequestSessionUsesRouteForRTHAndOvernight(t *testing.T
 		StartTime: types.Time(time.Date(2026, time.May, 20, 10, 0, 0, 0, time.UTC)),
 		EndTime:   types.Time(time.Date(2026, time.May, 20, 10, 0, 59, 0, time.UTC)),
 	}
-	if session := resolveHistoricalMarketSession(commonpb.Session_Session_RTH, "US.AAPL", preClockKLine); session != MarketSessionRegular {
+	if session := resolveHistoricalMarketSession(commonpb.Session_Session_RTH, "US.AAPL", preClockKLine); session != market.SessionRegular {
 		t.Fatalf("expected RTH route to force regular session, got %s", session)
 	}
-	if session := resolveHistoricalMarketSession(commonpb.Session_Session_OVERNIGHT, "US.AAPL", preClockKLine); session != MarketSessionOvernight {
+	if session := resolveHistoricalMarketSession(commonpb.Session_Session_OVERNIGHT, "US.AAPL", preClockKLine); session != market.SessionOvernight {
 		t.Fatalf("expected overnight route to force overnight session, got %s", session)
 	}
 }
@@ -956,7 +1014,7 @@ func TestQueryKLinesFallsBackToSessionAllWhenHistoricalRouteUnsupported(t *testi
 	if got := server.historySessionCalls(); len(got) != 3 || got[0] != int32(commonpb.Session_Session_RTH) || got[1] != int32(commonpb.Session_Session_ETH) || got[2] != int32(commonpb.Session_Session_ALL) {
 		t.Fatalf("expected RTH/ETH then fallback Session_ALL, got %#v", got)
 	}
-	if session, ok := ex.ResolveKLineSession(klines[0]); !ok || session != MarketSessionOvernight {
+	if session, ok := ex.ResolveKLineSession(klines[0]); !ok || session != market.SessionOvernight {
 		t.Fatalf("expected fallback ALL route to classify overnight candle, got %s ok=%v", session, ok)
 	}
 }
@@ -2484,7 +2542,7 @@ func TestSessionFromExtendedBlocksClockGuardsStaleExtendedData(t *testing.T) {
 		pre       *ExtendedMarketQuote
 		after     *ExtendedMarketQuote
 		overnight *ExtendedMarketQuote
-		want      MarketSession
+		want      market.Session
 	}{
 		{
 			name:      "regular clock ignores stale overnight and after blocks",
@@ -2492,7 +2550,7 @@ func TestSessionFromExtendedBlocksClockGuardsStaleExtendedData(t *testing.T) {
 			pre:       stalePre,
 			after:     staleAfter,
 			overnight: staleOvernight,
-			want:      MarketSessionRegular,
+			want:      market.SessionRegular,
 		},
 		{
 			name:      "pre-market clock ignores stale overnight block",
@@ -2500,7 +2558,7 @@ func TestSessionFromExtendedBlocksClockGuardsStaleExtendedData(t *testing.T) {
 			pre:       priceOf(196.5),
 			after:     staleAfter,
 			overnight: staleOvernight,
-			want:      MarketSessionPre,
+			want:      market.SessionPre,
 		},
 		{
 			name:      "after clock with after data returns after",
@@ -2508,7 +2566,7 @@ func TestSessionFromExtendedBlocksClockGuardsStaleExtendedData(t *testing.T) {
 			pre:       stalePre,
 			after:     priceOf(199.5),
 			overnight: staleOvernight,
-			want:      MarketSessionAfter,
+			want:      market.SessionAfter,
 		},
 		{
 			name:      "overnight clock with overnight data returns overnight",
@@ -2516,7 +2574,7 @@ func TestSessionFromExtendedBlocksClockGuardsStaleExtendedData(t *testing.T) {
 			pre:       stalePre,
 			after:     staleAfter,
 			overnight: priceOf(201.25),
-			want:      MarketSessionOvernight,
+			want:      market.SessionOvernight,
 		},
 		{
 			name:      "after clock without after data falls back to clock",
@@ -2524,7 +2582,7 @@ func TestSessionFromExtendedBlocksClockGuardsStaleExtendedData(t *testing.T) {
 			pre:       nil,
 			after:     nil,
 			overnight: nil,
-			want:      MarketSessionAfter,
+			want:      market.SessionAfter,
 		},
 	}
 	for _, tc := range cases {

@@ -9,7 +9,7 @@ import (
 	"github.com/c9s/bbgo/pkg/service"
 	"github.com/c9s/bbgo/pkg/types"
 
-	"github.com/jftrade/jftrade-main/pkg/futu"
+	"github.com/jftrade/jftrade-main/pkg/market"
 )
 
 var maxBacktestQueryTime = time.Date(9999, time.December, 31, 23, 59, 59, 0, time.UTC)
@@ -383,11 +383,11 @@ func filteredKLineChannelBufferSize(symbols []string, intervals []types.Interval
 }
 
 func (s *sessionFilteredBacktestStore) shouldUseCustomTradingPeriodAggregation(symbol string, interval types.Interval) bool {
-	return s.includeExtendedHours && isCustomTradingPeriodInterval(interval) && strings.HasPrefix(strings.ToUpper(strings.TrimSpace(symbol)), "US.")
+	return s.includeExtendedHours && isCustomTradingPeriodInterval(interval) && market.IsUSSymbol(symbol)
 }
 
 func (s *sessionFilteredBacktestStore) shouldUseCustomSessionAwareIntradayAggregation(symbol string, interval types.Interval) bool {
-	return s.includeExtendedHours && isCustomSessionAwareIntradayInterval(interval) && strings.HasPrefix(strings.ToUpper(strings.TrimSpace(symbol)), "US.")
+	return s.includeExtendedHours && isCustomSessionAwareIntradayInterval(interval) && market.IsUSSymbol(symbol)
 }
 
 func (s *sessionFilteredBacktestStore) needsCustomHandling(symbols []string, intervals []types.Interval) bool {
@@ -406,7 +406,7 @@ func (s *sessionFilteredBacktestStore) needsCustomHandling(symbols []string, int
 
 func (s *sessionFilteredBacktestStore) queryCustomTradingPeriodForward(symbol string, interval types.Interval, startTime time.Time, limit int) ([]types.KLine, error) {
 	normalizedLimit := normalizeKLineLimit(limit)
-	labelSince, ok := futu.TradingPeriodLabelStartForDate(symbol, startTime, tradingPeriodUnit(interval))
+	labelSince, ok := market.TradingPeriodLabelStartForDate(symbol, startTime, tradingPeriodUnit(interval))
 	if !ok {
 		return nil, nil
 	}
@@ -427,7 +427,7 @@ func (s *sessionFilteredBacktestStore) queryCustomTradingPeriodForward(symbol st
 func (s *sessionFilteredBacktestStore) queryCustomTradingPeriodBackward(symbol string, interval types.Interval, endTime time.Time, limit int) ([]types.KLine, error) {
 	normalizedLimit := normalizeKLineLimit(limit)
 	effectiveUntil := endTime.Add(-time.Millisecond)
-	labelStart, ok := futu.TradingPeriodLabelStartForDate(symbol, effectiveUntil, tradingPeriodUnit(interval))
+	labelStart, ok := market.TradingPeriodLabelStartForDate(symbol, effectiveUntil, tradingPeriodUnit(interval))
 	if !ok {
 		return nil, nil
 	}
@@ -593,7 +593,7 @@ func emitKLinesFromStoreChannels(ch chan types.KLine, errCh chan error, emit fun
 }
 
 func shouldFilterExtendedHours(symbol string, interval types.Interval) bool {
-	if !strings.HasPrefix(strings.ToUpper(strings.TrimSpace(symbol)), "US.") {
+	if !market.IsUSSymbol(symbol) {
 		return false
 	}
 	duration := interval.Duration()
@@ -604,8 +604,8 @@ func keepRegularSessionKLine(kline types.KLine) bool {
 	if !shouldFilterExtendedHours(kline.Symbol, kline.Interval) {
 		return true
 	}
-	return futu.IsRegularTradingTime(kline.Symbol, kline.StartTime.Time()) ||
-		futu.IsRegularTradingTime(kline.Symbol, kline.EndTime.Time())
+	return market.IsRegularTradingTime(kline.Symbol, kline.StartTime.Time()) ||
+		market.IsRegularTradingTime(kline.Symbol, kline.EndTime.Time())
 }
 
 func needsExtendedHoursFilter(symbols []string, intervals []types.Interval) bool {

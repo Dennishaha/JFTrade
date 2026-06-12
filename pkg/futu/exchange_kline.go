@@ -18,15 +18,24 @@ import (
 	qotgetklpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetkl"
 	historypb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotrequesthistorykl"
 	qotsubpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotsub"
+	"github.com/jftrade/jftrade-main/pkg/market"
 )
 
 const maxHistoryKLinePages = 32 // OpenD can paginate valid recent intraday windows into more than 8 history pages.
 const maxSyncKLinePages = 200   // unlimited: loop until OpenD nextReqKey is empty
 
+var usEasternLocation = func() *time.Location {
+	profile, ok := market.ProfileForSymbol("US.AAPL")
+	if !ok {
+		return time.UTC
+	}
+	return profile.Location
+}()
+
 type historicalKLineRequestPlan struct {
 	extendedTime bool
 	session      *commonpb.Session
-	keepSessions []MarketSession
+	keepSessions []market.Session
 }
 
 type historicalKLineRequestError struct {
@@ -250,14 +259,14 @@ func (e *Exchange) queryCurrentKLines(ctx context.Context, security *qotcommonpb
 	return klines, nil
 }
 
-func (plan historicalKLineRequestPlan) resolveMarketSession(symbol string, kline types.KLine) MarketSession {
+func (plan historicalKLineRequestPlan) resolveMarketSession(symbol string, kline types.KLine) market.Session {
 	if plan.session == nil {
 		return resolveKLineSessionByClock(symbol, kline)
 	}
 	return resolveHistoricalMarketSession(*plan.session, symbol, kline)
 }
 
-func (plan historicalKLineRequestPlan) shouldKeepMarketSession(session MarketSession) bool {
+func (plan historicalKLineRequestPlan) shouldKeepMarketSession(session market.Session) bool {
 	if len(plan.keepSessions) == 0 {
 		return true
 	}
@@ -275,9 +284,9 @@ func buildHistoricalKLineRequestPlans(symbol string, interval types.Interval) []
 		eth := commonpb.Session_Session_ETH
 		all := commonpb.Session_Session_ALL
 		return []historicalKLineRequestPlan{
-			{extendedTime: true, session: &rth, keepSessions: []MarketSession{MarketSessionRegular}},
-			{extendedTime: true, session: &eth, keepSessions: []MarketSession{MarketSessionPre, MarketSessionAfter}},
-			{extendedTime: true, session: &all, keepSessions: []MarketSession{MarketSessionOvernight}},
+			{extendedTime: true, session: &rth, keepSessions: []market.Session{market.SessionRegular}},
+			{extendedTime: true, session: &eth, keepSessions: []market.Session{market.SessionPre, market.SessionAfter}},
+			{extendedTime: true, session: &all, keepSessions: []market.Session{market.SessionOvernight}},
 		}
 	}
 	if shouldRequestExtendedKLines(symbol, interval) {
@@ -320,12 +329,12 @@ func shouldFallbackHistoricalKLineSplit(err error, plan historicalKLineRequestPl
 	return false
 }
 
-func resolveHistoricalMarketSession(requestSession commonpb.Session, symbol string, kline types.KLine) MarketSession {
+func resolveHistoricalMarketSession(requestSession commonpb.Session, symbol string, kline types.KLine) market.Session {
 	switch requestSession {
 	case commonpb.Session_Session_RTH:
-		return MarketSessionRegular
+		return market.SessionRegular
 	case commonpb.Session_Session_OVERNIGHT:
-		return MarketSessionOvernight
+		return market.SessionOvernight
 	case commonpb.Session_Session_ETH:
 		return resolveETHHistoricalKLineSession(symbol, kline)
 	default:
@@ -333,12 +342,12 @@ func resolveHistoricalMarketSession(requestSession commonpb.Session, symbol stri
 	}
 }
 
-func resolveETHHistoricalKLineSession(symbol string, kline types.KLine) MarketSession {
+func resolveETHHistoricalKLineSession(symbol string, kline types.KLine) market.Session {
 	clockSession := resolveKLineSessionByClock(symbol, kline)
-	if clockSession == MarketSessionPre || clockSession == MarketSessionAfter {
+	if clockSession == market.SessionPre || clockSession == market.SessionAfter {
 		return clockSession
 	}
-	if !strings.HasPrefix(strings.ToUpper(strings.TrimSpace(symbol)), "US.") {
+	if !market.IsUSSymbol(symbol) {
 		return clockSession
 	}
 	observedAt := kline.StartTime.Time().UTC()
@@ -346,14 +355,14 @@ func resolveETHHistoricalKLineSession(symbol string, kline types.KLine) MarketSe
 		observedAt = kline.EndTime.Time().UTC()
 	}
 	if observedAt.IsZero() {
-		return MarketSessionUnknown
+		return market.SessionUnknown
 	}
 	local := observedAt.In(usEasternLocation)
 	minutes := local.Hour()*60 + local.Minute()
 	if minutes < 12*60 {
-		return MarketSessionPre
+		return market.SessionPre
 	}
-	return MarketSessionAfter
+	return market.SessionAfter
 }
 
 func (e *Exchange) ensureKLineSubscription(ctx context.Context, client *opend.Client, request klineSubscriptionRequest) error {
@@ -546,5 +555,5 @@ func futuHistoryKLineStartTime(labelAt time.Time, interval types.Interval) time.
 }
 
 func shouldRequestExtendedKLines(symbol string, interval types.Interval) bool {
-	return strings.HasPrefix(strings.ToUpper(strings.TrimSpace(symbol)), "US.") && interval.Duration() <= time.Hour
+	return market.IsUSSymbol(symbol) && interval.Duration() <= time.Hour
 }

@@ -249,6 +249,40 @@ describe("Overview page", () => {
       }
       if (url.includes("/api/v1/market-data/subscriptions"))
         return createResponse(emptyMarketDataSubscriptions);
+      if (url.includes("/api/v1/market-data/markets")) {
+        return createResponse({
+          markets: [
+            {
+              code: "HK",
+              resolvedMarket: "HK",
+              preferredPrefix: "HK",
+              displayName: "Hong Kong",
+              quoteCurrency: "HKD",
+              supportsExtendedHours: false,
+              requiresExchangePrefix: false,
+              aliases: ["HKEX"],
+              regularSessions: [],
+              precision: { price: 3, quote: 3 },
+              tickSize: 0.001,
+            },
+            {
+              code: "US",
+              resolvedMarket: "US",
+              preferredPrefix: "US",
+              displayName: "US",
+              quoteCurrency: "USD",
+              supportsExtendedHours: true,
+              requiresExchangePrefix: false,
+              aliases: ["NYSE", "NASDAQ"],
+              regularSessions: [],
+              precision: { price: 2, quote: 2 },
+              tickSize: 0.01,
+            },
+          ],
+          defaultMarket: "HK",
+          updatedAt: "2026-06-12T00:00:00Z",
+        });
+      }
       if (url.includes("/api/v1/market-data/snapshots/HK/00700")) {
         return createResponse({
           request: {

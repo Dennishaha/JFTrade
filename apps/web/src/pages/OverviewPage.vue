@@ -16,10 +16,12 @@ import {
   formatRealTradeOperationLabel,
   formatTradingEnvironment,
 } from "../composables/consoleDataFormatting";
+import { useMarketProfiles } from "../composables/marketProfiles";
 import { useConsoleData } from "../composables/useConsoleData";
 import { useDocsLink } from "../composables/useDocsLink";
 
 const { resolveDocsHref } = useDocsLink();
+const { loadMarketProfiles, supportsExtendedHoursForMarket } = useMarketProfiles();
 
 const {
   brokerOrders,
@@ -140,6 +142,7 @@ const docsCards = [
 ];
 
 onMounted(() => {
+  void loadMarketProfiles();
   void loadMarketDataQuery();
 });
 
@@ -147,8 +150,8 @@ const priceInstrumentId = computed(
   () => marketDataSnapshot.value?.request.instrumentId ?? "—",
 );
 
-const isUSMarket = computed(
-  () => marketDataSnapshot.value?.request.market?.toUpperCase() === "US",
+const supportsExtendedHoursMarket = computed(
+  () => supportsExtendedHoursForMarket(marketDataSnapshot.value?.request.market),
 );
 
 const snapshotSession = computed(
@@ -160,7 +163,7 @@ const isInRegularSession = computed(
 );
 
 const mainDisplayLabel = computed(() => {
-  if (!isUSMarket.value) return "最新价";
+  if (!supportsExtendedHoursMarket.value) return "最新价";
   return isInRegularSession.value ? "最新价" : "最近盘中收盘";
 });
 
@@ -168,7 +171,7 @@ const mainDisplayLabel = computed(() => {
 const mainDisplayPrice = computed((): number | null => {
   const snap = watchlistSnapshot.value;
   if (!snap) return null;
-  if (!isUSMarket.value) return snap.price;
+  if (!supportsExtendedHoursMarket.value) return snap.price;
   if (isInRegularSession.value) return snap.price;
   return snap.previousClosePrice ?? snap.price;
 });
@@ -179,7 +182,7 @@ const mainDisplayPrice = computed((): number | null => {
 const priceChangePercent = computed((): number | null => {
   const snap = watchlistSnapshot.value;
   if (!snap) return null;
-  if (!isUSMarket.value || isInRegularSession.value) {
+  if (!supportsExtendedHoursMarket.value || isInRegularSession.value) {
     if (snap.previousClosePrice == null || snap.previousClosePrice === 0) return null;
     return ((snap.price - snap.previousClosePrice) / snap.previousClosePrice) * 100;
   }
@@ -313,7 +316,7 @@ function sessionLabel(session: string | null): string {
                 </div>
 
                 <!-- Session indicator (US only) -->
-                <div v-if="isUSMarket && snapshotSession" class="mt-3">
+                <div v-if="supportsExtendedHoursMarket && snapshotSession" class="mt-3">
                   <v-chip
                     :color="isInRegularSession ? 'success' : 'default'"
                     variant="outlined"
@@ -324,7 +327,7 @@ function sessionLabel(session: string | null): string {
                 </div>
 
                 <!-- US extended hours -->
-                <template v-if="isUSMarket">
+                <template v-if="supportsExtendedHoursMarket">
                   <!-- Pre-market -->
                   <div
                     v-if="snapshotSession === 'pre' && extendedPreMarketDisplay != null"

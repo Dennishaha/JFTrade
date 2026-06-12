@@ -26,6 +26,7 @@ import (
 	qotgetbasicqotpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetbasicqot"
 	qotsubpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotsub"
 	qotupdateorderbookpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotupdateorderbook"
+	"github.com/jftrade/jftrade-main/pkg/market"
 )
 
 // Name is the bbgo exchange name used in configs and env-var prefix.
@@ -211,24 +212,24 @@ func inferMarket(symbol string) types.Market {
 		MinQuantity:     fixedpoint.One,
 		StepSize:        fixedpoint.One,
 	}
-	switch {
-	case strings.HasPrefix(sym, "US."):
-		m.QuoteCurrency = "USD"
-		m.BaseCurrency = sym
-		m.TickSize = fixedpoint.NewFromFloat(0.01)
-	case strings.HasPrefix(sym, "HK."):
-		m.QuoteCurrency = "HKD"
-		m.BaseCurrency = sym
-		m.PricePrecision = 3
-		m.QuotePrecision = 3
-		m.TickSize = fixedpoint.NewFromFloat(0.001)
-	default:
-		m.QuoteCurrency = "HKD"
-		m.BaseCurrency = sym
-		m.PricePrecision = 3
-		m.QuotePrecision = 3
-		m.TickSize = fixedpoint.NewFromFloat(0.001)
+	if instrument, err := market.ParseInstrument(market.InstrumentInput{Symbol: sym}); err == nil {
+		m.Symbol = instrument.Symbol
+		m.LocalSymbol = instrument.Symbol
+		sym = instrument.Symbol
 	}
+	if profile, ok := market.ProfileForSymbol(sym); ok {
+		m.QuoteCurrency = profile.QuoteCurrency
+		m.BaseCurrency = sym
+		m.PricePrecision = profile.PricePrecision
+		m.QuotePrecision = profile.QuotePrecision
+		m.TickSize = fixedpoint.NewFromFloat(profile.TickSize)
+		return m
+	}
+	m.QuoteCurrency = "HKD"
+	m.BaseCurrency = sym
+	m.PricePrecision = 3
+	m.QuotePrecision = 3
+	m.TickSize = fixedpoint.NewFromFloat(0.001)
 	return m
 }
 
@@ -704,24 +705,21 @@ func futuMarketCodeFromQotMarket(market qotcommonpb.QotMarket) (string, error) {
 }
 
 func futuSecurityFromSymbol(symbol string) (*qotcommonpb.Security, string, error) {
-	trimmed := strings.TrimSpace(strings.ToUpper(symbol))
-	if trimmed == "" {
+	instrument, err := market.ParseInstrument(market.InstrumentInput{Symbol: symbol})
+	if err != nil {
+		if strings.TrimSpace(symbol) == "" {
+			return nil, "", fmt.Errorf("futu exchange: symbol is required")
+		}
+		return nil, "", err
+	}
+	if instrument.Symbol == "" || instrument.Prefix == "" || instrument.Code == "" {
 		return nil, "", fmt.Errorf("futu exchange: symbol is required")
 	}
-	separator := "."
-	if strings.Contains(trimmed, ":") {
-		separator = ":"
-	}
-	parts := strings.SplitN(trimmed, separator, 2)
-	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-		return nil, "", fmt.Errorf("futu exchange: symbol %q must be in MARKET.CODE form", symbol)
-	}
-	qotMarket, err := futuQotMarketForCode(parts[0])
+	qotMarket, err := futuQotMarketForCode(instrument.Prefix)
 	if err != nil {
 		return nil, "", err
 	}
-	canonical := parts[0] + "." + parts[1]
-	return &qotcommonpb.Security{Market: proto.Int32(int32(qotMarket)), Code: proto.String(parts[1])}, canonical, nil
+	return &qotcommonpb.Security{Market: proto.Int32(int32(qotMarket)), Code: proto.String(instrument.Code)}, instrument.Symbol, nil
 }
 
 func futuQotMarketForCode(market string) (qotcommonpb.QotMarket, error) {

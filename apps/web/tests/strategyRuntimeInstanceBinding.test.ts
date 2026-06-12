@@ -4,16 +4,17 @@ import type { StrategyInstanceItem } from "@/contracts";
 
 import {
   buildStrategyBindingPayload,
-  invalidSymbolsFromTextWithFallbackMarket,
-  parseValidatedSymbolsTextWithFallbackMarket,
   readStrategyBinding,
 } from "../src/components/strategy-runtime/strategyRuntimeInstanceBinding";
 
 describe("strategyRuntimeInstanceBinding", () => {
-  it("builds explicit instruments alongside legacy symbols", () => {
+  it("builds payloads from normalized instruments", () => {
     const payload = buildStrategyBindingPayload({
       brokerAccountOptions: [],
-      symbolsText: "us:aapl\nhk:00700",
+      instruments: [
+        { market: "US", code: "AAPL" },
+        { market: "HK", code: "00700" },
+      ],
       interval: "15m",
       executionMode: "notify_only",
       brokerAccountKey: "",
@@ -64,11 +65,4 @@ describe("strategyRuntimeInstanceBinding", () => {
     });
   });
 
-  it("parses bare codes with the selected fallback market", () => {
-    expect(parseValidatedSymbolsTextWithFallbackMarket("tme\n00700", "US")).toEqual([
-      "US.TME",
-      "US.00700",
-    ]);
-    expect(invalidSymbolsFromTextWithFallbackMarket("bad input", "US")).toEqual(["US.BAD INPUT"]);
-  });
 });

@@ -89,7 +89,9 @@ func (s *Server) registerMarketRoutes(api *gin.RouterGroup) {
 	api.GET("/ws/live", s.handleLiveWebSocket)
 
 	market := api.Group("/market-data")
+	market.GET("/markets", s.handleMarketProfiles)
 	market.GET("/instruments", s.handleMarketInstrumentSearch)
+	market.POST("/instruments/normalize", s.handleNormalizeMarketInstrument)
 	market.GET("/subscriptions", s.handleMarketSubscriptions)
 	market.POST("/subscriptions", s.handleAcquireMarketSubscription)
 	market.DELETE("/subscriptions", s.handleClearMarketSubscriptions)

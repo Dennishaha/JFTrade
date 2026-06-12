@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/c9s/bbgo/pkg/types"
-	"github.com/jftrade/jftrade-main/pkg/futu"
+	"github.com/jftrade/jftrade-main/pkg/market"
 	strategyir "github.com/jftrade/jftrade-main/pkg/strategy/ir"
 )
 
@@ -41,7 +41,7 @@ type indicatorRuntime struct {
 	closes               []float64
 	volumes              []float64
 	endTimes             []time.Time
-	sessions             []futu.MarketSession
+	sessions             []market.Session
 }
 
 type snapshotSeriesCache struct {
@@ -726,7 +726,7 @@ func newIndicatorRuntimeWithRequirements(requirements indicatorRequirements, int
 		runtime.closes = make([]float64, 0, seriesLimit)
 		runtime.volumes = make([]float64, 0, seriesLimit)
 		runtime.endTimes = make([]time.Time, 0, seriesLimit)
-		runtime.sessions = make([]futu.MarketSession, 0, seriesLimit)
+		runtime.sessions = make([]market.Session, 0, seriesLimit)
 		for _, unit := range runtime.tradingPeriodUnits {
 			runtime.tradingPeriodLabels[unit] = make([]int64, 0, seriesLimit)
 		}
@@ -734,7 +734,7 @@ func newIndicatorRuntimeWithRequirements(requirements indicatorRequirements, int
 	return runtime
 }
 
-func (r *indicatorRuntime) push(kline types.KLine, session futu.MarketSession) {
+func (r *indicatorRuntime) push(kline types.KLine, session market.Session) {
 	if r == nil {
 		return
 	}
@@ -755,7 +755,7 @@ func (r *indicatorRuntime) push(kline types.KLine, session futu.MarketSession) {
 		previousClose = r.closes[len(r.closes)-1]
 	}
 	resolvedSession := session
-	if resolvedSession == futu.MarketSessionUnknown {
+	if resolvedSession == market.SessionUnknown {
 		resolvedSession = classifyKLineSession(r.symbol, kline)
 	}
 	seriesLimit := r.seriesLimit
@@ -985,7 +985,7 @@ func collectTradingPeriodUnits(requirements indicatorRequirements, intervalMinut
 	if len(requirements.ma) == 0 || strings.TrimSpace(symbol) == "" {
 		return nil
 	}
-	dayMinutes, ok := futu.TradingMinutesPerTradingDay(symbol, includeExtendedHours)
+	dayMinutes, ok := market.TradingMinutesPerTradingDay(symbol, includeExtendedHours)
 	if !ok || intervalMinutes <= 0 || intervalMinutes >= dayMinutes {
 		return nil
 	}
@@ -1025,7 +1025,7 @@ func trimTimeSeriesInPlace(values []time.Time, limit int) []time.Time {
 	return values[:limit]
 }
 
-func trimSessionSeriesInPlace(values []futu.MarketSession, limit int) []futu.MarketSession {
+func trimSessionSeriesInPlace(values []market.Session, limit int) []market.Session {
 	if limit <= 0 || len(values) <= limit {
 		return values
 	}
@@ -2140,7 +2140,7 @@ func (r *indicatorRuntime) appendTradingPeriodLabels(endTime time.Time) {
 		return
 	}
 	for _, unit := range r.tradingPeriodUnits {
-		labelStart, ok := futu.TradingPeriodLabelStart(r.symbol, endTime, unit, r.includeExtendedHours)
+		labelStart, ok := market.TradingPeriodLabelStart(r.symbol, endTime, unit, r.includeExtendedHours)
 		key := invalidTradingPeriodLabelKey
 		if ok {
 			key = labelStart.Unix()
@@ -2718,7 +2718,7 @@ func (s *indicatorKDJSnapshot) FieldValue(name string) (any, bool) {
 	}
 }
 
-func classifyKLineSession(symbol string, kline types.KLine) futu.MarketSession {
+func classifyKLineSession(symbol string, kline types.KLine) market.Session {
 	resolvedSymbol := strings.ToUpper(strings.TrimSpace(symbol))
 	if resolvedSymbol == "" {
 		resolvedSymbol = strings.ToUpper(strings.TrimSpace(kline.Symbol))
@@ -2728,9 +2728,9 @@ func classifyKLineSession(symbol string, kline types.KLine) futu.MarketSession {
 		observedAt = kline.EndTime.Time().UTC()
 	}
 	if resolvedSymbol == "" || observedAt.IsZero() {
-		return futu.MarketSessionUnknown
+		return market.SessionUnknown
 	}
-	return futu.ClassifyMarketSession(resolvedSymbol, observedAt)
+	return market.ClassifySession(resolvedSymbol, observedAt)
 }
 
 func buildMovingAverageSnapshot(values, volumes []float64, config movingAverageConfig, intervalMinutes int) map[string]any {
@@ -3360,7 +3360,7 @@ func selectTradingWindowIndicesInto(destination []int, endTimes []time.Time, per
 	hasKey := false
 	normalizedUnit := normalizeIndicatorTimeUnit(timeUnit)
 	for index := limit - 1; index >= 0; index-- {
-		labelStart, ok := futu.TradingPeriodLabelStart(symbol, endTimes[index], normalizedUnit, includeExtendedHours)
+		labelStart, ok := market.TradingPeriodLabelStart(symbol, endTimes[index], normalizedUnit, includeExtendedHours)
 		if !ok {
 			continue
 		}
@@ -3388,7 +3388,7 @@ func selectTradingWindowIndices(endTimes []time.Time, period int, timeUnit strin
 	orderedKeys := 0
 	normalizedUnit := normalizeIndicatorTimeUnit(timeUnit)
 	for index := limit - 1; index >= 0; index-- {
-		key, ok := futu.TradingPeriodKey(symbol, endTimes[index], normalizedUnit, includeExtendedHours)
+		key, ok := market.TradingPeriodKey(symbol, endTimes[index], normalizedUnit, includeExtendedHours)
 		if !ok {
 			continue
 		}
@@ -3413,7 +3413,7 @@ func usesTradingPeriodWindow(timeUnit string, intervalMinutes int, symbol string
 	if len(endTimes) == 0 || strings.TrimSpace(symbol) == "" {
 		return false
 	}
-	dayMinutes, ok := futu.TradingMinutesPerTradingDay(symbol, includeExtendedHours)
+	dayMinutes, ok := market.TradingMinutesPerTradingDay(symbol, includeExtendedHours)
 	if !ok {
 		return false
 	}
@@ -3498,19 +3498,19 @@ func lastTwoSequenceValues(sequence []float64) (float64, float64, bool, bool) {
 	return current, previous, true, previousOK
 }
 
-func buildStopLossSnapshot(closes []float64, endTimes []time.Time, sessions []futu.MarketSession, config stopLossConfig, intervalMinutes int) map[string]any {
+func buildStopLossSnapshot(closes []float64, endTimes []time.Time, sessions []market.Session, config stopLossConfig, intervalMinutes int) map[string]any {
 	return buildStopLossSnapshotForSymbol(closes, endTimes, sessions, config, intervalMinutes, "")
 }
 
-func buildStopLossSnapshotForSymbol(closes []float64, endTimes []time.Time, sessions []futu.MarketSession, config stopLossConfig, intervalMinutes int, symbol string) map[string]any {
+func buildStopLossSnapshotForSymbol(closes []float64, endTimes []time.Time, sessions []market.Session, config stopLossConfig, intervalMinutes int, symbol string) map[string]any {
 	return buildStopLossSnapshotForSymbolWithOptions(closes, endTimes, sessions, config, intervalMinutes, symbol, false)
 }
 
-func buildStopLossSnapshotForSymbolWithOptions(closes []float64, endTimes []time.Time, sessions []futu.MarketSession, config stopLossConfig, intervalMinutes int, symbol string, includeExtendedHours bool) map[string]any {
+func buildStopLossSnapshotForSymbolWithOptions(closes []float64, endTimes []time.Time, sessions []market.Session, config stopLossConfig, intervalMinutes int, symbol string, includeExtendedHours bool) map[string]any {
 	return buildStopLossSnapshotForSymbolWithOptionsAndCache(closes, endTimes, sessions, config, intervalMinutes, symbol, includeExtendedHours, nil)
 }
 
-func buildStopLossSnapshotForSymbolWithOptionsAndCache(closes []float64, endTimes []time.Time, sessions []futu.MarketSession, config stopLossConfig, intervalMinutes int, symbol string, includeExtendedHours bool, cache *snapshotSeriesCache) map[string]any {
+func buildStopLossSnapshotForSymbolWithOptionsAndCache(closes []float64, endTimes []time.Time, sessions []market.Session, config stopLossConfig, intervalMinutes int, symbol string, includeExtendedHours bool, cache *snapshotSeriesCache) map[string]any {
 	if usesTradingPeriodWindow(config.timeUnit, intervalMinutes, symbol, endTimes, includeExtendedHours) {
 		return buildStopLossSnapshotForTradingWindowWithCache(closes, endTimes, sessions, config, intervalMinutes, symbol, includeExtendedHours, cache)
 	}
@@ -3601,11 +3601,11 @@ func buildStopLossSnapshotForSymbolWithOptionsAndCache(closes []float64, endTime
 	)
 }
 
-func buildStopLossSnapshotForTradingWindow(closes []float64, endTimes []time.Time, sessions []futu.MarketSession, config stopLossConfig, intervalMinutes int, symbol string, includeExtendedHours bool) map[string]any {
+func buildStopLossSnapshotForTradingWindow(closes []float64, endTimes []time.Time, sessions []market.Session, config stopLossConfig, intervalMinutes int, symbol string, includeExtendedHours bool) map[string]any {
 	return buildStopLossSnapshotForTradingWindowWithCache(closes, endTimes, sessions, config, intervalMinutes, symbol, includeExtendedHours, nil)
 }
 
-func buildStopLossSnapshotForTradingWindowWithCache(closes []float64, endTimes []time.Time, sessions []futu.MarketSession, config stopLossConfig, intervalMinutes int, symbol string, includeExtendedHours bool, cache *snapshotSeriesCache) map[string]any {
+func buildStopLossSnapshotForTradingWindowWithCache(closes []float64, endTimes []time.Time, sessions []market.Session, config stopLossConfig, intervalMinutes int, symbol string, includeExtendedHours bool, cache *snapshotSeriesCache) map[string]any {
 	selectedIndices := selectStopLossTradingWindowIndicesWithCache(endTimes, config.timeValue, config.timeUnit, symbol, len(closes), includeExtendedHours, cache)
 	if len(selectedIndices) < 2 {
 		return nil
@@ -3734,7 +3734,7 @@ func selectStopLossTradingWindowIndicesWithCache(endTimes []time.Time, period in
 	return selection.indices
 }
 
-func resolveSessionAwareWindowStartWithCache(endTimes []time.Time, sessions []futu.MarketSession, windowStart int, intervalMinutes int, cache *snapshotSeriesCache) int {
+func resolveSessionAwareWindowStartWithCache(endTimes []time.Time, sessions []market.Session, windowStart int, intervalMinutes int, cache *snapshotSeriesCache) int {
 	if cache == nil {
 		return resolveSessionAwareWindowStart(endTimes, sessions, windowStart, intervalMinutes)
 	}
@@ -3783,7 +3783,7 @@ func maxMinSelectedCloses(closes []float64, selectedIndices []int) (float64, flo
 	return peakClose, troughClose
 }
 
-func sessionAwareSeriesLength(endTimes []time.Time, sessions []futu.MarketSession) int {
+func sessionAwareSeriesLength(endTimes []time.Time, sessions []market.Session) int {
 	seriesLength := len(endTimes)
 	if len(sessions) > seriesLength {
 		seriesLength = len(sessions)
@@ -3791,7 +3791,7 @@ func sessionAwareSeriesLength(endTimes []time.Time, sessions []futu.MarketSessio
 	return seriesLength
 }
 
-func resolveSessionAwareWindowStart(endTimes []time.Time, sessions []futu.MarketSession, windowStart int, intervalMinutes int) int {
+func resolveSessionAwareWindowStart(endTimes []time.Time, sessions []market.Session, windowStart int, intervalMinutes int) int {
 	if windowStart < 0 {
 		return -1
 	}
@@ -3819,9 +3819,9 @@ func resolveSessionAwareWindowStart(endTimes []time.Time, sessions []futu.Market
 	return windowStart
 }
 
-func readMarketSessionAt(sessions []futu.MarketSession, index int) futu.MarketSession {
+func readMarketSessionAt(sessions []market.Session, index int) market.Session {
 	if index < 0 || index >= len(sessions) {
-		return futu.MarketSessionUnknown
+		return market.SessionUnknown
 	}
 	return sessions[index]
 }
@@ -3833,8 +3833,8 @@ func readTimeAt(values []time.Time, index int) time.Time {
 	return values[index]
 }
 
-func isSessionBoundary(previousSession, currentSession futu.MarketSession, previousTime, currentTime time.Time, intervalMinutes int) bool {
-	if previousSession != futu.MarketSessionUnknown && currentSession != futu.MarketSessionUnknown && previousSession != currentSession {
+func isSessionBoundary(previousSession, currentSession market.Session, previousTime, currentTime time.Time, intervalMinutes int) bool {
+	if previousSession != market.SessionUnknown && currentSession != market.SessionUnknown && previousSession != currentSession {
 		return true
 	}
 	return isSessionBreak(previousTime, currentTime, intervalMinutes)
@@ -4574,7 +4574,7 @@ func buildTradingPeriodLabels(destination []int64, endTimes []time.Time, symbol 
 	}
 	labels := reuseInt64Slice(destination, len(endTimes))
 	for index, endTime := range endTimes {
-		labelStart, ok := futu.TradingPeriodLabelStart(symbol, endTime, normalizedUnit, includeExtendedHours)
+		labelStart, ok := market.TradingPeriodLabelStart(symbol, endTime, normalizedUnit, includeExtendedHours)
 		if !ok {
 			labels[index] = invalidTradingPeriodLabelKey
 			continue

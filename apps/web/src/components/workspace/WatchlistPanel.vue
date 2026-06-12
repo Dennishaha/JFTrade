@@ -10,6 +10,7 @@ import { formatDateTime } from "../../composables/consoleDataFormatting";
 import type { MarketSecurityDetails } from "../../composables/marketDataRealtime";
 import { fetchEnvelope } from "../../composables/apiClient";
 import { resolveBrokerQuery } from "../../composables/consoleDataBrokerAccountSelection";
+import { useMarketProfiles } from "../../composables/marketProfiles";
 import { useConsoleData } from "../../composables/useConsoleData";
 import { useWorkspaceTradingPrefs } from "../../composables/useWorkspaceLayout";
 
@@ -23,6 +24,7 @@ const {
   supportsBrokerReadFeature,
 } = useConsoleData();
 const { prefs } = useWorkspaceTradingPrefs();
+const { supportsExtendedHoursForMarket } = useMarketProfiles();
 
 const snapshot = computed(() => marketDataSnapshot.value?.snapshot ?? null);
 const security = computed(() => marketSecurityDetails.value?.security ?? null);
@@ -36,20 +38,20 @@ const instrumentTitle = computed(() => {
     ? instrumentId.value
     : `${instrumentId.value} · ${resolvedName}`;
 });
-const isUSMarket = computed(() => prefs.value.market.trim().toUpperCase() === "US");
+const supportsExtendedHoursMarket = computed(() => supportsExtendedHoursForMarket(prefs.value.market));
 const snapshotSession = computed(() => {
   const session = snapshot.value?.session;
   return typeof session === "string" && session !== "" ? session : null;
 });
 const mainPriceLabel = computed(() => {
-  if (!isUSMarket.value) return "最新价";
+  if (!supportsExtendedHoursMarket.value) return "最新价";
   return snapshotSession.value === "regular" ? "最新价" : "最近盘中收盘";
 });
 // 大字展示逻辑：盘中展示实时价，非盘中（盘前/盘后/夜盘）展示最近盘中收盘价
 const mainDisplayPrice = computed(() => {
   const snap = snapshot.value;
   if (!snap) return null;
-  if (!isUSMarket.value) return snap.price;
+  if (!supportsExtendedHoursMarket.value) return snap.price;
   if (snapshotSession.value === "regular") return snap.price;
   // 非盘中时段：previousClosePrice = 最近盘中收盘（盘前→昨日收盘，盘后/夜盘→今日4PM收盘）
   return snap.previousClosePrice ?? snap.price;
@@ -60,7 +62,7 @@ const mainDisplayPrice = computed(() => {
 const mainChangePercent = computed(() => {
   const snap = snapshot.value;
   if (!snap) return null;
-  if (!isUSMarket.value || snapshotSession.value === "regular") {
+  if (!supportsExtendedHoursMarket.value || snapshotSession.value === "regular") {
     const livePrice = snap.price;
     const previousClosePrice = snap.previousClosePrice;
     if (livePrice == null || previousClosePrice == null || previousClosePrice === 0) return null;
@@ -97,7 +99,7 @@ const sessionLabel = computed(() => {
   return snapshotSession.value ?? "";
 });
 const extendedCards = computed(() => {
-  if (!isUSMarket.value || snapshot.value?.extended == null) {
+  if (!supportsExtendedHoursMarket.value || snapshot.value?.extended == null) {
     return [] as Array<{
       key: string;
       label: string;
@@ -480,7 +482,7 @@ function formatPercent(value: number | null | undefined): string {
             </div>
           </div>
           <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 10px">
-            <span v-if="isUSMarket && sessionLabel"
+            <span v-if="supportsExtendedHoursMarket && sessionLabel"
               style="font-size: 11px; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--tv-border); white-space: nowrap"
               :style="snapshotSession === 'regular' ? 'color: var(--tv-accent); background: color-mix(in srgb, var(--tv-accent) 14%, var(--tv-bg-surface-2))' : 'color: var(--tv-text); background: var(--tv-bg-surface-2)'">
               {{ sessionLabel }}
@@ -621,7 +623,7 @@ function formatPercent(value: number | null | undefined): string {
           </div>
         </div>
 
-        <div v-if="!isUSMarket" style="margin-top: auto; font-size: 11px; color: var(--tv-text-dim); line-height: 1.5">
+        <div v-if="!supportsExtendedHoursMarket" style="margin-top: auto; font-size: 11px; color: var(--tv-text-dim); line-height: 1.5">
           非美股当前先按底层快照展示主价格；扩展时段数据是否可用，后续再按实际行情源补齐。
         </div>
       </div>

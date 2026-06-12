@@ -7,7 +7,7 @@ import (
 	"github.com/c9s/bbgo/pkg/fixedpoint"
 	"github.com/c9s/bbgo/pkg/types"
 	exprast "github.com/expr-lang/expr/ast"
-	"github.com/jftrade/jftrade-main/pkg/futu"
+	"github.com/jftrade/jftrade-main/pkg/market"
 	strategyir "github.com/jftrade/jftrade-main/pkg/strategy/ir"
 )
 
@@ -389,8 +389,8 @@ func newBarExpressionScope(runtime *strategyRuntime) *evaluationScope {
 		currentKline:       &bar,
 		currentKlineTime:   bar.EndTime.Time(),
 		currentKlineSymbol: bar.Symbol,
-		currentSession:     futu.MarketSessionRegular,
-		klinePayload:       klinePayloadView{kline: &bar, session: futu.MarketSessionRegular},
+		currentSession:     market.SessionRegular,
+		klinePayload:       klinePayloadView{kline: &bar, session: market.SessionRegular},
 		closeSeries:        seriesNumber{Current: bar.Close.Float64(), Previous: 100.0, HasCurrent: true, HasPrevious: true},
 		openSeries:         seriesNumber{Current: bar.Open.Float64(), Previous: 99.0, HasCurrent: true, HasPrevious: true},
 		highSeries:         seriesNumber{Current: bar.High.Float64(), Previous: 101.0, HasCurrent: true, HasPrevious: true},

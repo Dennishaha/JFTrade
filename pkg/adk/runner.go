@@ -288,11 +288,19 @@ func (r *Runtime) Close() error {
 		delete(r.activeRuns, id)
 	}
 	r.activeMu.Unlock()
+	sessionErr := r.CloseSessionServices()
+	return errors.Join(sessionErr, r.store.Close())
+}
+
+func (r *Runtime) CloseSessionServices() error {
+	if r == nil {
+		return nil
+	}
 	sessionErr := CloseSessionService(r.sessionService)
 	if r.rawSessionService != nil && r.rawSessionService != r.sessionService {
 		sessionErr = errors.Join(sessionErr, CloseSessionService(r.rawSessionService))
 	}
-	return errors.Join(sessionErr, r.store.Close())
+	return sessionErr
 }
 
 func (r *Runtime) Tools() *ToolRegistry {

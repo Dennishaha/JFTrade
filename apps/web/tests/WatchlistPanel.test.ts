@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import type {
+  MarketProfileDto,
   MarketSecurityDetails,
   MarketSecurityDetailsQueryResult,
 } from "@/contracts";
@@ -11,11 +12,13 @@ import { defineComponent, h } from "vue";
 
 import WatchlistPanel from "../src/components/workspace/WatchlistPanel.vue";
 import type { MarketDataSnapshotQueryResult } from "../src/composables/marketDataRealtime";
+import { useMarketProfiles } from "../src/composables/marketProfiles";
 import { provideConsoleDataStore } from "../src/composables/useConsoleData";
 import { provideWorkspaceLayoutStore } from "../src/composables/useWorkspaceLayout";
 
 afterEach(() => {
   window.localStorage?.clear();
+  useMarketProfiles().marketProfiles.value = [];
 });
 
 describe("WatchlistPanel", () => {
@@ -102,6 +105,42 @@ describe("WatchlistPanel", () => {
     expect(wrapper.text()).toContain("24.20%");
 
     wrapper.unmount();
+  });
+
+  it("renders extended session cards only for markets that support extended hours", () => {
+    const usWrapper = mountWatchlistPanel({
+      market: "US",
+      symbol: "AAPL",
+      security: createSecurityDetails({
+        instrumentId: "US.AAPL",
+        market: "US",
+        symbol: "AAPL",
+        name: "Apple",
+        securityType: "Eqty",
+        exchangeType: "US_NASDAQ",
+      }),
+      snapshot: createExtendedSnapshotResult("US", "AAPL", "pre"),
+    });
+
+    expect(usWrapper.text()).toContain("盘前价格");
+    usWrapper.unmount();
+
+    const hkWrapper = mountWatchlistPanel({
+      market: "HK",
+      symbol: "00700",
+      security: createSecurityDetails({
+        instrumentId: "HK.00700",
+        market: "HK",
+        symbol: "00700",
+        name: "Tencent Holdings",
+        securityType: "Eqty",
+        exchangeType: "HK_HKEX",
+      }),
+      snapshot: createExtendedSnapshotResult("HK", "00700", "pre"),
+    });
+
+    expect(hkWrapper.text()).not.toContain("盘前价格");
+    hkWrapper.unmount();
   });
 
   it("does not render security details that belong to a previous instrument", () => {
@@ -326,6 +365,7 @@ function mountWatchlistPanel(options: {
 
   const Host = defineComponent({
     setup() {
+      useMarketProfiles().marketProfiles.value = testMarketProfiles;
       const workspaceLayout = provideWorkspaceLayoutStore();
       workspaceLayout.update({ market, symbol });
       const store = provideConsoleDataStore(workspaceLayout);
@@ -342,6 +382,35 @@ function mountWatchlistPanel(options: {
     },
   });
 }
+
+const testMarketProfiles: MarketProfileDto[] = [
+  {
+    code: "HK",
+    resolvedMarket: "HK",
+    preferredPrefix: "HK",
+    displayName: "Hong Kong",
+    quoteCurrency: "HKD",
+    supportsExtendedHours: false,
+    requiresExchangePrefix: false,
+    aliases: ["HKEX"],
+    regularSessions: [],
+    precision: { price: 3, quote: 3 },
+    tickSize: 0.001,
+  },
+  {
+    code: "US",
+    resolvedMarket: "US",
+    preferredPrefix: "US",
+    displayName: "US",
+    quoteCurrency: "USD",
+    supportsExtendedHours: true,
+    requiresExchangePrefix: false,
+    aliases: ["NYSE", "NASDAQ"],
+    regularSessions: [],
+    precision: { price: 2, quote: 2 },
+    tickSize: 0.01,
+  },
+];
 
 function createSnapshotResult(
   market: string,
@@ -376,6 +445,30 @@ function createSnapshotResult(
       fromCache: false,
     },
   };
+}
+
+function createExtendedSnapshotResult(
+  market: string,
+  symbol: string,
+  session: "pre" | "after" | "overnight",
+): MarketDataSnapshotQueryResult {
+  const result = createSnapshotResult(market, symbol, 190);
+  result.snapshot.session = session;
+  result.snapshot.extended = {
+    preMarket: {
+      price: 191,
+      changeRate: 1.2,
+    },
+    afterMarket: {
+      price: 192,
+      changeRate: 1.8,
+    },
+    overnight: {
+      price: 193,
+      changeRate: 2.3,
+    },
+  };
+  return result;
 }
 
 function createSecurityResult(

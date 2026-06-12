@@ -9,6 +9,7 @@ import (
 	"github.com/shopspring/decimal"
 
 	"github.com/jftrade/jftrade-main/pkg/futu"
+	"github.com/jftrade/jftrade-main/pkg/market"
 )
 
 const (
@@ -49,9 +50,9 @@ func tickerTimestamp(ticker *bbgotypes.Ticker) string {
 }
 
 func resolveLiveTickSampleSession(instrumentID string, observedAt time.Time, latest *marketTickSample) (string, bool) {
-	session := futu.ClassifyMarketSession(instrumentID, observedAt)
-	if session != futu.MarketSessionUnknown || latest == nil {
-		return string(session), futu.IsExtendedMarketSession(session)
+	session := market.ClassifySession(instrumentID, observedAt)
+	if session != market.SessionUnknown || latest == nil {
+		return string(session), market.IsExtendedSession(session)
 	}
 	return latest.Session, latest.ExtendedHours
 }

@@ -18,7 +18,7 @@ import {
   formatMarketDataChannelLabel,
   formatMarketLabel,
 } from "../composables/consoleDataFormatting";
-import { resolveInstrumentRef } from "../composables/instrumentRef";
+import { useMarketProfiles } from "../composables/marketProfiles";
 import { getSharedLiveSocketHub } from "../composables/sharedLiveSocket";
 import { useConsoleData } from "../composables/useConsoleData";
 import { useSharedLiveStream } from "../composables/useSharedLiveStream";
@@ -48,15 +48,19 @@ const {
   isLiveStreamConnected,
 } = useConsoleData();
 const live = useSharedLiveStream();
+const {
+  marketOptions,
+  loadMarketProfiles,
+  normalizeInstrumentRefWithMarketApi,
+} = useMarketProfiles();
 
-const marketOptions = ["HK", "US", "CN", "SG", "JP", "AU", "MY", "CA", "CRYPTO"].map(
-  (market) => ({ value: market, title: formatMarketLabel(market) }),
-);
 const marketPageConsumerId = createStableWebConsumerId("market-page");
 const symbolSearchText = ref(marketDataQuerySymbol.value);
 const activeResultPanels = ref(["query-results"]);
 const isLoadingOlderCandles = ref(false);
+const marketNormalizeError = ref("");
 let queryRefreshTimer: number | null = null;
+let marketDataQuerySequence = 0;
 const marketDataSubscriptionScope = createMarketDataSubscriptionScope({
   consumerId: marketPageConsumerId,
   acquireMarketDataSubscription,
@@ -79,6 +83,7 @@ onMounted(() => {
   void (async () => {
     symbolSearchText.value = marketDataQuerySymbol.value;
     await Promise.all([
+      loadMarketProfiles(),
       loadMarketInstrumentReferences(),
       loadMarketDataSubscriptions(),
       syncVisibleSubscription(),
@@ -144,6 +149,12 @@ const chartCandles = computed<KlineCandle[]>(() =>
     marketDataQueryPeriod.value,
   ),
 );
+const marketDataQueryAlertTitle = computed(() =>
+  marketNormalizeError.value ? "标的解析提示" : "行情查询提示",
+);
+const marketDataQueryAlertMessage = computed(() =>
+  marketNormalizeError.value || marketDataQueryError.value,
+);
 const periods = KLINE_PERIODS;
 
 const codeSuggestions = computed(() => {
@@ -154,23 +165,6 @@ const codeSuggestions = computed(() => {
       value: option.symbol,
       title: option.name == null ? option.instrumentId : `${option.symbol} · ${option.name}`,
     }));
-});
-
-watch(symbolSearchText, (value) => {
-  const raw = value.trim();
-  if (raw === "" || (!raw.includes(":") && !raw.includes("."))) {
-    return;
-  }
-  const resolved = resolveInstrumentRef({ instrumentId: raw }, marketDataQueryMarket.value);
-  if (resolved == null) {
-    return;
-  }
-  if (marketDataQueryMarket.value !== resolved.market) {
-    marketDataQueryMarket.value = resolved.market;
-  }
-  if (symbolSearchText.value.trim().toUpperCase() !== resolved.code) {
-    symbolSearchText.value = resolved.code;
-  }
 });
 
 const selectedInstrumentParts = computed(() => currentVisibleSubscription());
@@ -296,20 +290,37 @@ function normalizeManualSymbolInput(value: string): string {
 }
 
 async function runMarketDataQuery(): Promise<void> {
-  const parsed = resolveInstrumentRef(
-    {
-      market: marketDataQueryMarket.value,
-      code: normalizeManualSymbolInput(symbolSearchText.value),
-    },
-    marketDataQueryMarket.value,
-  );
+  const querySequence = ++marketDataQuerySequence;
+  marketNormalizeError.value = "";
+  let parsed: { prefix: string; code: string; instrumentId: string } | null = null;
+  const manualSymbol = normalizeManualSymbolInput(symbolSearchText.value);
+  const normalizeRequest =
+    manualSymbol.includes(".") || manualSymbol.includes(":")
+      ? { instrumentId: manualSymbol }
+      : {
+          market: marketDataQueryMarket.value,
+          code: manualSymbol,
+        };
+  try {
+    parsed = await normalizeInstrumentRefWithMarketApi(normalizeRequest);
+  } catch (cause) {
+    if (querySequence !== marketDataQuerySequence) {
+      return;
+    }
+    marketNormalizeError.value =
+      cause instanceof Error ? cause.message : String(cause);
+    return;
+  }
+  if (querySequence !== marketDataQuerySequence) {
+    return;
+  }
   let instrumentChanged = false;
   if (parsed != null) {
     instrumentChanged =
-      marketDataQueryMarket.value !== parsed.market ||
+      marketDataQueryMarket.value !== parsed.prefix ||
       marketDataQuerySymbol.value !== parsed.code;
     selectWorkspaceInstrument({
-      market: parsed.market,
+      market: parsed.prefix,
       symbol: parsed.code,
       period: marketDataQueryPeriod.value,
     });
@@ -317,6 +328,9 @@ async function runMarketDataQuery(): Promise<void> {
   }
 
   await syncVisibleSubscription();
+  if (querySequence !== marketDataQuerySequence) {
+    return;
+  }
   if (instrumentChanged) {
     scheduleMarketDataAutoRefresh();
     return;
@@ -616,12 +630,12 @@ onUnmounted(() => {
               </template>
 
               <v-alert
-                v-if="marketDataQueryError"
+                v-if="marketDataQueryAlertMessage"
                 type="warning"
                 class="mb-4"
                 :closable="false"
-                title="行情查询提示"
-              >{{ marketDataQueryError }}</v-alert>
+                :title="marketDataQueryAlertTitle"
+              >{{ marketDataQueryAlertMessage }}</v-alert>
 
               <div class="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
                 <!-- Snapshot Card -->

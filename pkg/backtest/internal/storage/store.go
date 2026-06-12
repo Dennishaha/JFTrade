@@ -16,7 +16,7 @@ import (
 	_ "modernc.org/sqlite"
 
 	"github.com/c9s/bbgo/pkg/types"
-	"github.com/jftrade/jftrade-main/pkg/futu"
+	"github.com/jftrade/jftrade-main/pkg/market"
 )
 
 // FutuKLineStore implements service.BackTestable for Futu data stored in
@@ -1344,7 +1344,7 @@ func prioritizeDailyAggregationBaseIntervals(candidates []types.Interval, includ
 func dailyAggregationBaseRange(symbol string, since, until time.Time, includeExtendedHours bool) (time.Time, time.Time) {
 	baseSince := alignTimeToIntervalStart(since, types.Interval1d)
 	baseUntil := latestClosedKLineEndAtOrBefore(until, types.Interval1d)
-	if includeExtendedHours && strings.HasPrefix(strings.ToUpper(strings.TrimSpace(symbol)), "US.") {
+	if includeExtendedHours && market.IsUSSymbol(symbol) {
 		baseSince = baseSince.Add(-6 * time.Hour)
 		baseUntil = baseUntil.Add(6 * time.Hour)
 	}
@@ -1354,12 +1354,12 @@ func dailyAggregationBaseRange(symbol string, since, until time.Time, includeExt
 func tradingPeriodAggregationBaseRange(symbol string, interval types.Interval, since, until time.Time, includeExtendedHours bool) (time.Time, time.Time) {
 	baseSince := alignTimeToIntervalStart(since, types.Interval1d)
 	if interval != types.Interval1d {
-		if labelStart, ok := futu.TradingPeriodLabelStartForDate(symbol, since, tradingPeriodUnit(interval)); ok {
+		if labelStart, ok := market.TradingPeriodLabelStartForDate(symbol, since, tradingPeriodUnit(interval)); ok {
 			baseSince = labelStart
 		}
 	}
 	baseUntil := latestClosedKLineEndAtOrBefore(until, types.Interval1d)
-	if includeExtendedHours && strings.HasPrefix(strings.ToUpper(strings.TrimSpace(symbol)), "US.") {
+	if includeExtendedHours && market.IsUSSymbol(symbol) {
 		baseSince = baseSince.Add(-6 * time.Hour)
 		baseUntil = baseUntil.Add(6 * time.Hour)
 	}
@@ -1368,7 +1368,7 @@ func tradingPeriodAggregationBaseRange(symbol string, interval types.Interval, s
 
 func sessionAwareIntradayAggregationBaseRange(symbol string, interval types.Interval, since, until time.Time, includeExtendedHours bool) (time.Time, time.Time) {
 	baseSince := since
-	if bucketStart, _, ok := futu.SessionAwareIntradayBucketBounds(symbol, since, interval.Duration(), includeExtendedHours); ok {
+	if bucketStart, _, ok := market.SessionAwareIntradayBucketBounds(symbol, since, interval.Duration(), includeExtendedHours); ok {
 		baseSince = bucketStart
 	}
 	return baseSince, until
@@ -1395,7 +1395,7 @@ func aggregateDailyKLinesFromBase(symbol string, baseRows []types.KLine, since, 
 	}
 
 	for _, base := range baseRows {
-		labelAt, ok := futu.TradingDayLabelStart(symbol, dailyAggregationObservedAt(base), includeExtendedHours)
+		labelAt, ok := market.TradingDayLabelStart(symbol, dailyAggregationObservedAt(base), includeExtendedHours)
 		if !ok {
 			continue
 		}
@@ -1533,7 +1533,7 @@ func aggregateSessionAwareIntradayKLinesFromBase(symbol string, interval types.I
 		observedAt := dailyAggregationObservedAt(base)
 		bucketStart, bucketEnd, ok := currentBucketStart, currentBucketEnd, !currentBucketStart.IsZero() && !observedAt.Before(currentBucketStart) && !observedAt.After(currentBucketEnd)
 		if !ok {
-			bucketStart, bucketEnd, ok = futu.SessionAwareIntradayBucketBounds(symbol, observedAt, bucketDuration, includeExtendedHours)
+			bucketStart, bucketEnd, ok = market.SessionAwareIntradayBucketBounds(symbol, observedAt, bucketDuration, includeExtendedHours)
 			if !ok {
 				continue
 			}
@@ -1572,9 +1572,9 @@ func aggregateSessionAwareIntradayKLinesFromBase(symbol string, interval types.I
 
 func tradingPeriodLabelForBaseKLine(symbol string, kline types.KLine, unit string, includeExtendedHours bool) (time.Time, bool) {
 	if kline.Interval == types.Interval1d {
-		return futu.TradingPeriodLabelStartForDate(symbol, kline.StartTime.Time(), unit)
+		return market.TradingPeriodLabelStartForDate(symbol, kline.StartTime.Time(), unit)
 	}
-	return futu.TradingPeriodLabelStart(symbol, dailyAggregationObservedAt(kline), unit, includeExtendedHours)
+	return market.TradingPeriodLabelStart(symbol, dailyAggregationObservedAt(kline), unit, includeExtendedHours)
 }
 
 func (s *FutuKLineStore) queryAggregatedTradingPeriodKLinesForwardLocked(symbol string, interval types.Interval, startTime time.Time, limit int) ([]types.KLine, error) {
@@ -1583,7 +1583,7 @@ func (s *FutuKLineStore) queryAggregatedTradingPeriodKLinesForwardLocked(symbol 
 		normalizedLimit = 1
 	}
 
-	labelStart, ok := futu.TradingPeriodLabelStartForDate(symbol, startTime, tradingPeriodUnit(interval))
+	labelStart, ok := market.TradingPeriodLabelStartForDate(symbol, startTime, tradingPeriodUnit(interval))
 	if !ok {
 		return nil, nil
 	}
@@ -1615,7 +1615,7 @@ func (s *FutuKLineStore) queryAggregatedTradingPeriodKLinesBackwardLocked(symbol
 	}
 
 	anchor := endTime.Add(-time.Millisecond)
-	labelStart, ok := futu.TradingPeriodLabelStartForDate(symbol, anchor, tradingPeriodUnit(interval))
+	labelStart, ok := market.TradingPeriodLabelStartForDate(symbol, anchor, tradingPeriodUnit(interval))
 	if !ok {
 		return nil, nil
 	}
@@ -1783,7 +1783,7 @@ func shouldUseSessionAwareIntradayAggregation(symbol string, interval types.Inte
 	if !isSessionAwareIntradayAggregationInterval(interval) {
 		return false
 	}
-	_, ok := futu.TradingProfileForSymbol(symbol)
+	_, ok := market.ProfileForSymbol(symbol)
 	return ok
 }
 

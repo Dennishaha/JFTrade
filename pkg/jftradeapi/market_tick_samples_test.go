@@ -10,6 +10,7 @@ import (
 	"github.com/shopspring/decimal"
 
 	"github.com/jftrade/jftrade-main/pkg/futu"
+	"github.com/jftrade/jftrade-main/pkg/market"
 )
 
 func TestRecordTickerSampleDeduplicatesUnchangedQuote(t *testing.T) {
@@ -108,6 +109,60 @@ func TestRecordTickerSampleInheritsLatestSnapshotFields(t *testing.T) {
 	}
 }
 
+func TestRecordTickerSamplePreservesHKPreviousCloseDuringLunchBreak(t *testing.T) {
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	server := newTestServer(t, store)
+
+	previousClose := decimal.RequireFromString("698.9")
+	lastClose := decimal.RequireFromString("698.1")
+	seedCachedTickSample(server, marketTickSample{
+		InstrumentID:       "HK.00700",
+		Market:             "HK",
+		Symbol:             "00700",
+		Price:              decimal.RequireFromString("700.1"),
+		PreviousClosePrice: &previousClose,
+		LastClosePrice:     &lastClose,
+		QuoteAt:            time.Date(2026, time.June, 12, 11, 59, 0, 0, time.FixedZone("HKT", 8*60*60)).UTC().Format(time.RFC3339Nano),
+		ObservedAt:         time.Now().UTC().Format(time.RFC3339Nano),
+		Source:             "bbgo:futu",
+		Session:            string(market.SessionUnknown),
+		ExtendedHours:      false,
+	})
+
+	lunchAt := time.Date(2026, time.June, 12, 12, 30, 0, 0, time.FixedZone("HKT", 8*60*60))
+	session, extendedHours := resolveLiveTickSampleSession("HK.00700", lunchAt, server.latestTickerSample("HK.00700", tickCacheRetention))
+	if session != string(market.SessionUnknown) {
+		t.Fatalf("session = %s, want unknown", session)
+	}
+	if extendedHours {
+		t.Fatal("HK lunch break must not be treated as extended hours")
+	}
+
+	ticker := &bbgotypes.Ticker{
+		Time:   lunchAt.UTC(),
+		Last:   fixedpoint.NewFromFloat(701.1),
+		Buy:    fixedpoint.NewFromFloat(701.0),
+		Sell:   fixedpoint.NewFromFloat(701.2),
+		Volume: fixedpoint.NewFromFloat(22222),
+	}
+	sample := server.recordTickerSample("HK.00700", ticker)
+	if sample == nil {
+		t.Fatal("expected sample to be recorded")
+	}
+	if sample.PreviousClosePrice == nil || !sample.PreviousClosePrice.Equal(previousClose) {
+		t.Fatalf("PreviousClosePrice = %#v, want %s", sample.PreviousClosePrice, previousClose)
+	}
+	if sample.PreviousClosePrice.Equal(sample.Price) {
+		t.Fatalf("PreviousClosePrice was overwritten by current price %s", sample.Price)
+	}
+	if sample.ExtendedHours {
+		t.Fatal("HK live tick should not be marked extended hours")
+	}
+}
+
 func TestRecordTradeTickSampleInheritsLatestQuoteFields(t *testing.T) {
 	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
 	if err != nil {
@@ -183,13 +238,13 @@ func TestRecordTradeTickSampleInheritsLatestQuoteFields(t *testing.T) {
 func TestResolveLiveTickSampleSessionReclassifiesUSBoundary(t *testing.T) {
 	latest := &marketTickSample{
 		InstrumentID:  "US.AAPL",
-		Session:       string(futu.MarketSessionPre),
+		Session:       string(market.SessionPre),
 		ExtendedHours: true,
 	}
 
 	regularClock := time.Date(2026, time.January, 7, 16, 0, 0, 0, time.UTC)
 	session, extendedHours := resolveLiveTickSampleSession("US.AAPL", regularClock, latest)
-	if session != string(futu.MarketSessionRegular) {
+	if session != string(market.SessionRegular) {
 		t.Fatalf("session = %s", session)
 	}
 	if extendedHours {

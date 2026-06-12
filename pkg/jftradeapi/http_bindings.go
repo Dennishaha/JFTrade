@@ -85,6 +85,13 @@ type instrumentSearchQuery struct {
 	Query string `form:"query"`
 }
 
+type normalizeMarketInstrumentRequest struct {
+	Market       string `json:"market"`
+	Symbol       string `json:"symbol"`
+	Code         string `json:"code"`
+	InstrumentID string `json:"instrumentId"`
+}
+
 type marketSnapshotQuery struct {
 	Refresh optionalBoolValue `form:"refresh,parser=encoding.TextUnmarshaler"`
 }

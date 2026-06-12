@@ -15,6 +15,7 @@ import (
 	"github.com/jftrade/jftrade-main/pkg/broker"
 	"github.com/jftrade/jftrade-main/pkg/futu"
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
+	marketpkg "github.com/jftrade/jftrade-main/pkg/market"
 )
 
 const marketSecurityDetailsStreamInterval = 3 * time.Second
@@ -206,7 +207,7 @@ func (s *Server) marketCandlesResponseForInstrument(ctx context.Context, market 
 }
 
 func (s *Server) buildTickCandlesResponse(ctx context.Context, market string, symbol string, instrumentID string, period string, limit int, query marketCandlesQuery) (map[string]any, error) {
-	includeSession := market == "US"
+	includeSession := marketpkg.IsUSSymbol(instrumentID)
 	extendedHours := includeSession
 	request := marketCandlesRequest(market, symbol, instrumentID, period, limit)
 	fromLiveCache := s.latestTickerSample(instrumentID, liveTickSampleFreshness) != nil
@@ -266,9 +267,9 @@ func (s *Server) buildKLineCandlesResponse(ctx context.Context, market string, s
 		if includeSession {
 			session, ok := exchange.ResolveKLineSession(kline)
 			if !ok {
-				session = futu.ClassifyMarketSession(instrumentID, kline.StartTime.Time().UTC())
+				session = marketpkg.ClassifySession(instrumentID, kline.StartTime.Time().UTC())
 			}
-			if session != futu.MarketSessionUnknown && session != futu.MarketSessionClosed {
+			if session != marketpkg.SessionUnknown && session != marketpkg.SessionClosed {
 				candle["session"] = string(session)
 			}
 		}
@@ -315,7 +316,8 @@ func candleMeta(instrumentID string, fromCache bool, extendedHours bool, include
 }
 
 func shouldAnnotateHistoricalKLineSession(market string, interval bbgotypes.Interval) bool {
-	return strings.EqualFold(strings.TrimSpace(market), "US") && interval.Duration() > 0 && interval.Duration() <= time.Hour
+	resolvedMarket, preferredPrefix, err := marketpkg.NormalizeMarketInput(market)
+	return err == nil && resolvedMarket == "US" && preferredPrefix == "US" && interval.Duration() > 0 && interval.Duration() <= time.Hour
 }
 
 func (s *Server) futuExchange() *futu.Exchange {

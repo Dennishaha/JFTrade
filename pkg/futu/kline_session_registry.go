@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/c9s/bbgo/pkg/types"
+	"github.com/jftrade/jftrade-main/pkg/market"
 )
 
 const (
@@ -16,19 +17,19 @@ const (
 )
 
 type klineSessionRecord struct {
-	session    MarketSession
+	session    market.Session
 	recordedAt time.Time
 }
 
 type marketSessionSample struct {
 	at      time.Time
-	session MarketSession
+	session market.Session
 }
 
 // RegisterKLineSession stores a session label for a concrete kline so runtime
 // consumers can reuse the exchange-layer result instead of re-classifying it.
-func (e *Exchange) RegisterKLineSession(kline types.KLine, session MarketSession) {
-	if e == nil || session == MarketSessionUnknown {
+func (e *Exchange) RegisterKLineSession(kline types.KLine, session market.Session) {
+	if e == nil || session == market.SessionUnknown {
 		return
 	}
 	key := klineSessionCacheKey(kline)
@@ -48,8 +49,8 @@ func (e *Exchange) RegisterKLineSession(kline types.KLine, session MarketSession
 
 // RecordMarketSessionSample stores a live quote/session observation from the
 // market-data layer so closed kline callbacks can reuse the latest session tag.
-func (e *Exchange) RecordMarketSessionSample(symbol string, session MarketSession, observedAt time.Time) {
-	if e == nil || session == MarketSessionUnknown {
+func (e *Exchange) RecordMarketSessionSample(symbol string, session market.Session, observedAt time.Time) {
+	if e == nil || session == market.SessionUnknown {
 		return
 	}
 	normalizedSymbol := strings.ToUpper(strings.TrimSpace(symbol))
@@ -73,9 +74,9 @@ func (e *Exchange) RecordMarketSessionSample(symbol string, session MarketSessio
 
 // ResolveKLineSession returns the exchange-layer session tag for the provided
 // kline when an exact historical record or a nearby live quote sample exists.
-func (e *Exchange) ResolveKLineSession(kline types.KLine) (MarketSession, bool) {
+func (e *Exchange) ResolveKLineSession(kline types.KLine) (market.Session, bool) {
 	if e == nil {
-		return MarketSessionUnknown, false
+		return market.SessionUnknown, false
 	}
 	key := klineSessionCacheKey(kline)
 	normalizedSymbol := strings.ToUpper(strings.TrimSpace(kline.Symbol))
@@ -94,10 +95,10 @@ func (e *Exchange) ResolveKLineSession(kline types.KLine) (MarketSession, bool) 
 	if session, ok := resolveSessionFromSamples(samples, startAt, endAt, kline.Interval.Duration()); ok {
 		return session, true
 	}
-	return MarketSessionUnknown, false
+	return market.SessionUnknown, false
 }
 
-func resolveKLineSessionByClock(symbol string, kline types.KLine) MarketSession {
+func resolveKLineSessionByClock(symbol string, kline types.KLine) market.Session {
 	resolvedSymbol := strings.ToUpper(strings.TrimSpace(symbol))
 	if resolvedSymbol == "" {
 		resolvedSymbol = strings.ToUpper(strings.TrimSpace(kline.Symbol))
@@ -107,9 +108,9 @@ func resolveKLineSessionByClock(symbol string, kline types.KLine) MarketSession 
 		observedAt = kline.EndTime.Time().UTC()
 	}
 	if resolvedSymbol == "" || observedAt.IsZero() {
-		return MarketSessionUnknown
+		return market.SessionUnknown
 	}
-	return ClassifyMarketSession(resolvedSymbol, observedAt)
+	return market.ClassifySession(resolvedSymbol, observedAt)
 }
 
 func klineSessionCacheKey(kline types.KLine) string {
@@ -153,7 +154,7 @@ func pruneMarketSessionSamples(samples []marketSessionSample, now time.Time) []m
 	}
 	keep := samples[:0]
 	for _, sample := range samples {
-		if sample.session == MarketSessionUnknown {
+		if sample.session == market.SessionUnknown {
 			continue
 		}
 		if now.Sub(sample.at.UTC()) > marketSessionSampleTTL {
@@ -168,9 +169,9 @@ func pruneMarketSessionSamples(samples []marketSessionSample, now time.Time) []m
 	return append([]marketSessionSample(nil), keep...)
 }
 
-func resolveSessionFromSamples(samples []marketSessionSample, startAt, endAt time.Time, interval time.Duration) (MarketSession, bool) {
+func resolveSessionFromSamples(samples []marketSessionSample, startAt, endAt time.Time, interval time.Duration) (market.Session, bool) {
 	if len(samples) == 0 {
-		return MarketSessionUnknown, false
+		return market.SessionUnknown, false
 	}
 	if interval <= 0 {
 		interval = 15 * time.Minute
@@ -200,7 +201,7 @@ func resolveSessionFromSamples(samples []marketSessionSample, startAt, endAt tim
 		}
 	}
 	if !matched {
-		return MarketSessionUnknown, false
+		return market.SessionUnknown, false
 	}
 	return best.session, true
 }

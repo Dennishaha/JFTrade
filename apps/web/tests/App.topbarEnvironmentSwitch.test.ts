@@ -40,7 +40,7 @@ afterEach(() => {
 
 describe("TopBar trading environment switch", () => {
   it("filters account list in picker by environment and auto-selects the first available account", async () => {
-    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+    const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
       const url = String(input);
 
       if (url.includes("/api/v1/system/status")) {
@@ -161,6 +161,44 @@ describe("TopBar trading environment switch", () => {
         return createResponse(emptyPortfolioReconciliation);
       if (url.includes("/api/v1/execution/orders"))
         return createResponse(emptyExecutionOrders);
+      if (url.includes("/api/v1/market-data/markets")) {
+        return createResponse({
+          defaultMarket: "HK",
+          updatedAt: "2026-06-12T00:00:00.000Z",
+          markets: [
+            {
+              code: "HK",
+              resolvedMarket: "HK",
+              preferredPrefix: "HK",
+              displayName: "Hong Kong",
+              quoteCurrency: "HKD",
+              supportsExtendedHours: false,
+              requiresExchangePrefix: false,
+              aliases: ["HKEX"],
+              regularSessions: [],
+              precision: { price: 3, quote: 3 },
+              tickSize: 0.001,
+            },
+          ],
+        });
+      }
+      if (url.includes("/api/v1/market-data/instruments/normalize")) {
+        const body = JSON.parse(String(init?.body ?? "{}")) as {
+          market?: string;
+          code?: string;
+          instrumentId?: string;
+        };
+        const market = (body.market ?? "HK").trim().toUpperCase();
+        const code = (body.instrumentId ?? body.code ?? "").trim().toUpperCase();
+        return createResponse({
+          market,
+          prefix: market,
+          code,
+          symbol: `${market}.${code}`,
+          instrumentId: `${market}.${code}`,
+          resolvedMarket: market,
+        });
+      }
 
       throw new Error(`Unexpected request: ${url}`);
     });
@@ -238,7 +276,7 @@ describe("TopBar trading environment switch", () => {
   });
 
   it("prefers the first favorite account when switching environment", async () => {
-    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+    const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
       const url = String(input);
 
       if (url.includes("/api/v1/system/status")) {
@@ -368,6 +406,51 @@ describe("TopBar trading environment switch", () => {
         return createResponse(emptyPortfolioReconciliation);
       if (url.includes("/api/v1/execution/orders"))
         return createResponse(emptyExecutionOrders);
+      if (url.includes("/api/v1/market-data/markets")) {
+        return createResponse({
+          defaultMarket: "HK",
+          updatedAt: "2026-06-12T00:00:00.000Z",
+          markets: [
+            {
+              code: "HK",
+              resolvedMarket: "HK",
+              preferredPrefix: "HK",
+              displayName: "Hong Kong",
+              quoteCurrency: "HKD",
+              supportsExtendedHours: false,
+              requiresExchangePrefix: false,
+              aliases: ["HKEX"],
+              regularSessions: [],
+              precision: { price: 3, quote: 3 },
+              tickSize: 0.001,
+            },
+          ],
+        });
+      }
+      if (url.includes("/api/v1/market-data/instruments/normalize")) {
+        const body = JSON.parse(String(init?.body ?? "{}")) as {
+          market?: string;
+          code?: string;
+          instrumentId?: string;
+        };
+        const rawInstrument = (body.instrumentId ?? body.code ?? "")
+          .trim()
+          .toUpperCase()
+          .replace(":", ".");
+        const embedded = rawInstrument.includes(".")
+          ? rawInstrument.split(".", 2)
+          : null;
+        const market = (embedded?.[0] ?? body.market ?? "HK").trim().toUpperCase();
+        const code = (embedded?.[1] ?? rawInstrument).trim().toUpperCase();
+        return createResponse({
+          market,
+          prefix: market,
+          code,
+          symbol: `${market}.${code}`,
+          instrumentId: `${market}.${code}`,
+          resolvedMarket: market,
+        });
+      }
 
       throw new Error(`Unexpected request: ${url}`);
     });
@@ -425,7 +508,7 @@ describe("TopBar trading environment switch", () => {
   it("submits the instrument code when pressing Enter in the topbar input", async () => {
     window.sessionStorage.removeItem("jftrade.workspace.layout.v1");
 
-    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+    const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
       const url = String(input);
 
       if (url.includes("/api/v1/system/status")) {
@@ -493,6 +576,51 @@ describe("TopBar trading environment switch", () => {
         return createResponse(emptyPortfolioReconciliation);
       if (url.includes("/api/v1/execution/orders"))
         return createResponse(emptyExecutionOrders);
+      if (url.includes("/api/v1/market-data/markets")) {
+        return createResponse({
+          defaultMarket: "HK",
+          updatedAt: "2026-06-12T00:00:00.000Z",
+          markets: [
+            {
+              code: "HK",
+              resolvedMarket: "HK",
+              preferredPrefix: "HK",
+              displayName: "Hong Kong",
+              quoteCurrency: "HKD",
+              supportsExtendedHours: false,
+              requiresExchangePrefix: false,
+              aliases: ["HKEX"],
+              regularSessions: [],
+              precision: { price: 3, quote: 3 },
+              tickSize: 0.001,
+            },
+          ],
+        });
+      }
+      if (url.includes("/api/v1/market-data/instruments/normalize")) {
+        const body = JSON.parse(String(init?.body ?? "{}")) as {
+          market?: string;
+          code?: string;
+          instrumentId?: string;
+        };
+        const rawInstrument = (body.instrumentId ?? body.code ?? "")
+          .trim()
+          .toUpperCase()
+          .replace(":", ".");
+        const embedded = rawInstrument.includes(".")
+          ? rawInstrument.split(".", 2)
+          : null;
+        const market = (embedded?.[0] ?? body.market ?? "HK").trim().toUpperCase();
+        const code = (embedded?.[1] ?? rawInstrument).trim().toUpperCase();
+        return createResponse({
+          market,
+          prefix: market,
+          code,
+          symbol: `${market}.${code}`,
+          instrumentId: `${market}.${code}`,
+          resolvedMarket: market,
+        });
+      }
 
       throw new Error(`Unexpected request: ${url}`);
     });

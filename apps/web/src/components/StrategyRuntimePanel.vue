@@ -14,10 +14,8 @@ import {
     formatRuntimeObservationSymbols,
     formatStrategyInterval,
     formatStrategySymbols,
-    invalidSymbolsFromTextWithFallbackMarket,
     normalizeText,
     normalizeBindingInstruments,
-    parseBindingInstrumentsTextWithFallbackMarket,
     readStrategyBinding,
     resolveBrokerAccountOption,
     resolveBrokerAccountSelectionKey,
@@ -42,23 +40,12 @@ import { fetchEnvelope, fetchEnvelopeWithInit } from "../composables/apiClient";
 import {
     type BrokerAccountSelectionOption,
 } from "../composables/consoleDataBrokerAccountSelection";
+import { useMarketProfiles } from "../composables/marketProfiles";
 import { useConsoleData } from "../composables/useConsoleData";
 
 type StrategyLogsResponse = StrategyLogListResponse;
 type StrategyAuditEntry = StrategyAuditEntryDocument;
 type StrategyAuditResponse = StrategyAuditListResponse;
-
-const STRATEGY_INSTRUMENT_MARKET_OPTIONS = [
-    { value: "HK", title: "港股 HK" },
-    { value: "US", title: "美股 US" },
-    { value: "SH", title: "沪市 SH" },
-    { value: "SZ", title: "深市 SZ" },
-    { value: "SG", title: "新加坡 SG" },
-    { value: "JP", title: "日本 JP" },
-    { value: "AU", title: "澳洲 AU" },
-    { value: "MY", title: "马来西亚 MY" },
-    { value: "CA", title: "加拿大 CA" },
-];
 
 const STRATEGY_RUNTIME_ACTIVE_REFRESH_MS = 1_000;
 const STRATEGY_RUNTIME_IDLE_REFRESH_MS = 3_000;
@@ -83,6 +70,11 @@ const emit = defineEmits<{
 }>();
 
 const { systemStatus, availableBrokerAccounts, selectedBrokerAccount } = useConsoleData();
+const {
+    marketOptions: strategyInstrumentMarketOptions,
+    loadMarketProfiles,
+    normalizeInstrumentRefWithMarketApi,
+} = useMarketProfiles();
 
 const strategyDefinitions = ref<StrategyDefinitionDocument[]>([]);
 const strategies = ref<StrategyInstanceItem[]>([]);
@@ -124,6 +116,7 @@ const editBrokerAccountKey = ref("");
 const editBrokerAccountQuery = ref("");
 const activeBrokerAccountPicker = ref<StrategySymbolEditorMode | null>(null);
 let strategyRuntimeRefreshTimer: number | null = null;
+const pendingSymbolDraftCommits = new Map<StrategySymbolEditorMode, Promise<boolean>>();
 
 const selectedStrategy = computed(
     () => strategies.value.find((item) => item.id === selectedStrategyId.value) ?? null,
@@ -353,7 +346,7 @@ onMounted(() => {
     if (typeof document !== "undefined") {
         document.addEventListener("visibilitychange", handleStrategyRuntimeVisibilityChange);
     }
-    void Promise.all([loadStrategyDefinitions(), loadStrategies()]);
+    void Promise.all([loadMarketProfiles(), loadStrategyDefinitions(), loadStrategies()]);
 });
 
 onUnmounted(() => {
@@ -687,28 +680,63 @@ function bindingInstrumentId(value: StrategyBindingInstrumentDocument): string {
     return bindingInstrumentsToSymbols([value])[0] ?? "";
 }
 
-function commitSymbolDraft(mode: StrategySymbolEditorMode, draft = symbolDraftFor(mode)): boolean {
-    const fallbackMarket = symbolDraftMarketFor(mode);
-    const parsed = parseBindingInstrumentsTextWithFallbackMarket(draft, fallbackMarket);
-    const invalidSymbols = invalidSymbolsFromTextWithFallbackMarket(draft, fallbackMarket);
-    if (parsed.length === 0) {
-        setSymbolDraft(mode, "");
-    } else {
-        setBindingInstruments(mode, [...bindingInstrumentsFor(mode), ...parsed]);
-        const last = parsed[parsed.length - 1];
-        if (last != null) {
-            setSymbolDraftMarket(mode, last.market);
+async function commitSymbolDraft(mode: StrategySymbolEditorMode, draft = symbolDraftFor(mode)): Promise<boolean> {
+    const pending = pendingSymbolDraftCommits.get(mode);
+    if (pending != null) {
+        return pending;
+    }
+    const commit = (async () => {
+        const draftSegments = splitSymbolsText(draft);
+        const parsed: StrategyBindingInstrumentDocument[] = [];
+        const invalidSymbols: string[] = [];
+        const fallbackMarket = symbolDraftMarketFor(mode).trim().toUpperCase();
+        for (const segment of draftSegments) {
+            const raw = normalizeText(segment);
+            if (raw === "") {
+                continue;
+            }
+            const request =
+                raw.includes(".") || raw.includes(":")
+                    ? { instrumentId: raw }
+                    : { market: fallbackMarket, code: raw };
+            try {
+                const normalized = await normalizeInstrumentRefWithMarketApi(request);
+                const market = normalized.prefix.trim().toUpperCase();
+                const code = normalized.code.trim().toUpperCase();
+                if (market === "" || code === "") {
+                    invalidSymbols.push(raw.toUpperCase());
+                    continue;
+                }
+                parsed.push({ market, code });
+            } catch {
+                invalidSymbols.push(raw.toUpperCase());
+            }
         }
+        if (parsed.length === 0) {
+            setSymbolDraft(mode, "");
+        } else {
+            setBindingInstruments(mode, [...bindingInstrumentsFor(mode), ...parsed]);
+            const last = parsed[parsed.length - 1];
+            if (last != null) {
+                setSymbolDraftMarket(mode, last.market);
+            }
+        }
+        if (invalidSymbols.length > 0) {
+            setSymbolValidationMessage(
+                mode,
+                `已忽略无效交易代码：${invalidSymbols.join("、")}。请选择市场后输入代码，或直接使用 US.TME、HK.00700 这类完整格式。`,
+            );
+            return false;
+        }
+        setSymbolValidationMessage(mode, "");
+        return true;
+    })();
+    pendingSymbolDraftCommits.set(mode, commit);
+    try {
+        return await commit;
+    } finally {
+        pendingSymbolDraftCommits.delete(mode);
     }
-    if (invalidSymbols.length > 0) {
-        setSymbolValidationMessage(
-            mode,
-            `已忽略无效交易代码：${invalidSymbols.join("、")}。请选择市场后输入代码，或直接使用 US.TME、HK.00700 这类完整格式。`,
-        );
-        return false;
-    }
-    setSymbolValidationMessage(mode, "");
-    return true;
 }
 
 function removeSymbolTag(mode: StrategySymbolEditorMode, symbol: string): void {
@@ -724,7 +752,7 @@ function handleSymbolDraftKeydown(event: KeyboardEvent, mode: StrategySymbolEdit
     }
     if (event.key === "Enter" || event.key === "," || event.key === "Tab") {
         event.preventDefault();
-        commitSymbolDraft(mode);
+        void commitSymbolDraft(mode);
         return;
     }
     if (event.key === "Backspace" && normalizeText(symbolDraftFor(mode)) === "") {
@@ -743,7 +771,7 @@ function handleSymbolDraftPaste(event: ClipboardEvent, mode: StrategySymbolEdito
         return;
     }
     event.preventDefault();
-    commitSymbolDraft(mode, pastedText);
+    void commitSymbolDraft(mode, pastedText);
 }
 
 function brokerAccountQueryFor(mode: StrategySymbolEditorMode): string {
@@ -863,8 +891,8 @@ function updateActiveSymbolDraftMarket(value: string): void {
     setSymbolDraftMarket(activeInstanceEditorMode.value, value);
 }
 
-function commitActiveSymbolDraft(): boolean {
-    return commitSymbolDraft(activeInstanceEditorMode.value);
+function commitActiveSymbolDraft(): void {
+    void commitSymbolDraft(activeInstanceEditorMode.value);
 }
 
 function handleActiveSymbolDraftKeydown(event: KeyboardEvent): void {
@@ -1102,7 +1130,7 @@ async function createStrategyInstance(): Promise<void> {
         instanceMutationError.value = createSymbolValidationMessage.value;
         return;
     }
-    if (!commitSymbolDraft("create")) {
+    if (!await commitSymbolDraft("create")) {
         instanceMutationError.value = createSymbolValidationMessage.value;
         return;
     }
@@ -1190,7 +1218,7 @@ async function updateSelectedStrategyBinding(): Promise<void> {
         instanceMutationError.value = editSymbolValidationMessage.value;
         return;
     }
-    if (!commitSymbolDraft("edit")) {
+    if (!await commitSymbolDraft("edit")) {
         instanceMutationError.value = editSymbolValidationMessage.value;
         return;
     }
@@ -1440,7 +1468,7 @@ async function refreshSelectedStrategyDefinition(): Promise<void> {
                         :symbol-market="activeSymbolDraftMarket"
                         :symbol-draft="activeSymbolDraft"
                         :symbol-validation-message="activeSymbolValidationMessage"
-                        :market-options="STRATEGY_INSTRUMENT_MARKET_OPTIONS"
+                        :market-options="strategyInstrumentMarketOptions"
                         :interval-value="activeIntervalValue"
                         :execution-mode="activeExecutionMode"
                         :selected-broker-account-option="activeSelectedBrokerAccountOption"

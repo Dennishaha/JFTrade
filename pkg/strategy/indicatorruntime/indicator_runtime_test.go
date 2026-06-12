@@ -7,7 +7,7 @@ import (
 
 	"github.com/c9s/bbgo/pkg/fixedpoint"
 	"github.com/c9s/bbgo/pkg/types"
-	"github.com/jftrade/jftrade-main/pkg/futu"
+	"github.com/jftrade/jftrade-main/pkg/market"
 	strategyir "github.com/jftrade/jftrade-main/pkg/strategy/ir"
 	strategypine "github.com/jftrade/jftrade-main/pkg/strategy/pine"
 )
@@ -132,7 +132,7 @@ func TestNewIndicatorRuntimeFromPlan(t *testing.T) {
 			Low:    fixedpoint.NewFromFloat(closePrice - 1),
 			Close:  fixedpoint.NewFromFloat(closePrice),
 			Volume: fixedpoint.NewFromFloat(1000),
-		}, futu.MarketSessionRegular)
+		}, market.SessionRegular)
 	}
 
 	snapshot := runtime.snapshot()
@@ -954,10 +954,10 @@ func TestBuildStopLossSnapshotSupportsSessionAwareWindow(t *testing.T) {
 		time.Date(2026, 5, 27, 13, 34, 59, 0, time.UTC),
 		time.Date(2026, 5, 27, 13, 39, 59, 0, time.UTC),
 	}
-	sessions := []futu.MarketSession{
-		futu.MarketSessionPre,
-		futu.MarketSessionRegular,
-		futu.MarketSessionRegular,
+	sessions := []market.Session{
+		market.SessionPre,
+		market.SessionRegular,
+		market.SessionRegular,
 	}
 	snapshot := buildStopLossSnapshot([]float64{100, 99, 98}, endTimes, sessions, stopLossConfig{mode: "stopLoss", direction: "auto", timeValue: 10, timeUnit: "minute", percentage: 1, windowPolicy: "session"}, 5)
 	if snapshot != nil {
@@ -1045,7 +1045,7 @@ func TestIndicatorRuntimeSnapshotIncludesTimeBoundIndicators(t *testing.T) {
 			Low:    fixedpoint.NewFromFloat(closePrice - 1),
 			Close:  fixedpoint.NewFromFloat(closePrice),
 			Volume: fixedpoint.NewFromFloat(1000),
-		}, futu.MarketSessionRegular)
+		}, market.SessionRegular)
 	}
 
 	snapshot := runtime.snapshot()
@@ -1101,7 +1101,7 @@ momentum = ta.rsi(close, 2)`)
 			Low:      fixedpoint.NewFromFloat(closeValue - 1),
 			Close:    fixedpoint.NewFromFloat(closeValue),
 			Volume:   fixedpoint.NewFromFloat(1000),
-		}, futu.MarketSessionRegular)
+		}, market.SessionRegular)
 	}
 
 	pushClose(100)
@@ -1308,7 +1308,7 @@ func BenchmarkIndicatorRuntimePushAndSnapshot(b *testing.B) {
 			Low:       fixedpoint.NewFromFloat(closeValue - 1),
 			Close:     fixedpoint.NewFromFloat(closeValue),
 			Volume:    fixedpoint.NewFromFloat(1000 + float64(index%100)),
-		}, futu.MarketSessionRegular)
+		}, market.SessionRegular)
 		benchmarkSnapshotSink = runtime.snapshot()
 	}
 }
@@ -1400,7 +1400,7 @@ func benchmarkIndicatorRuntime(b *testing.B) *indicatorRuntime {
 			Low:       fixedpoint.NewFromFloat(closeValue - 1),
 			Close:     fixedpoint.NewFromFloat(closeValue),
 			Volume:    fixedpoint.NewFromFloat(1000 + float64(index%100)),
-		}, futu.MarketSessionRegular)
+		}, market.SessionRegular)
 	}
 	return runtime
 }
@@ -1459,7 +1459,7 @@ func benchmarkProtectSessionIndicatorRuntime(b *testing.B) *indicatorRuntime {
 			Low:       fixedpoint.NewFromFloat(closeValue - 1),
 			Close:     fixedpoint.NewFromFloat(closeValue),
 			Volume:    fixedpoint.NewFromFloat(1000 + float64(index%100)),
-		}, futu.MarketSessionUnknown)
+		}, market.SessionUnknown)
 	}
 	return runtime
 }

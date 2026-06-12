@@ -171,6 +171,122 @@ function buildStandardFetchMock(overrides: Record<string, unknown> = {}) {
         },
       });
     }
+    if (url.includes("/api/v1/market-data/markets")) {
+      return createResponse({
+        defaultMarket: "HK",
+        updatedAt: "2026-06-12T00:00:00.000Z",
+        markets: [
+          {
+            code: "HK",
+            resolvedMarket: "HK",
+            preferredPrefix: "HK",
+            displayName: "Hong Kong",
+            quoteCurrency: "HKD",
+            supportsExtendedHours: false,
+            requiresExchangePrefix: false,
+            aliases: ["HKEX"],
+            regularSessions: [],
+            precision: { price: 3, quote: 3 },
+            tickSize: 0.001,
+          },
+          {
+            code: "US",
+            resolvedMarket: "US",
+            preferredPrefix: "US",
+            displayName: "US",
+            quoteCurrency: "USD",
+            supportsExtendedHours: true,
+            requiresExchangePrefix: false,
+            aliases: ["NYSE", "NASDAQ"],
+            regularSessions: [],
+            precision: { price: 2, quote: 2 },
+            tickSize: 0.01,
+          },
+          {
+            code: "CN",
+            resolvedMarket: "CN",
+            preferredPrefix: "",
+            displayName: "China",
+            quoteCurrency: "CNY",
+            supportsExtendedHours: false,
+            requiresExchangePrefix: true,
+            aliases: [],
+            regularSessions: [],
+            precision: { price: 2, quote: 2 },
+            tickSize: 0.01,
+          },
+          {
+            code: "SH",
+            resolvedMarket: "CN",
+            preferredPrefix: "SH",
+            displayName: "Shanghai",
+            quoteCurrency: "CNY",
+            supportsExtendedHours: false,
+            requiresExchangePrefix: true,
+            aliases: ["CNSH"],
+            regularSessions: [],
+            precision: { price: 2, quote: 2 },
+            tickSize: 0.01,
+          },
+          {
+            code: "SZ",
+            resolvedMarket: "CN",
+            preferredPrefix: "SZ",
+            displayName: "Shenzhen",
+            quoteCurrency: "CNY",
+            supportsExtendedHours: false,
+            requiresExchangePrefix: true,
+            aliases: ["CNSZ"],
+            regularSessions: [],
+            precision: { price: 2, quote: 2 },
+            tickSize: 0.01,
+          },
+        ],
+      });
+    }
+    if (url.includes("/api/v1/market-data/instruments/normalize")) {
+      const body = JSON.parse(String(init?.body ?? "{}")) as {
+        market?: string;
+        code?: string;
+        symbol?: string;
+        instrumentId?: string;
+      };
+      const rawInstrument = (
+        body.instrumentId ??
+        body.symbol ??
+        body.code ??
+        ""
+      ).trim().toUpperCase().replace(":", ".");
+      const embedded = rawInstrument.includes(".")
+        ? rawInstrument.split(".", 2)
+        : null;
+      const market = (embedded?.[0] ?? body.market ?? "HK").trim().toUpperCase();
+      const code = (embedded?.[1] ?? rawInstrument).trim().toUpperCase();
+      const prefix = market === "CN" ? "" : market;
+      if (prefix === "") {
+        return {
+          ok: false,
+          status: 400,
+          statusText: "Bad Request",
+          json: async () => ({
+            ok: false,
+            error: {
+              code: "MARKET_INSTRUMENT_INVALID",
+              message: "market \"CN\" requires an exchange-qualified symbol",
+            },
+            timestamp: "2026-06-12T00:00:00.000Z",
+          }),
+        } as Response;
+      }
+      return createResponse({
+        market: market === "SH" || market === "SZ" ? "CN" : market,
+        prefix,
+        code,
+        symbol: `${prefix}.${code}`,
+        instrumentId: `${prefix}.${code}`,
+        resolvedMarket: market === "SH" || market === "SZ" ? "CN" : market,
+      });
+    }
     if (url.includes("/api/v1/market-data/instruments")) {
       return createResponse({
         query:
@@ -271,7 +387,8 @@ describe("Market page", () => {
   });
 
   it("updates the workspace browser title when the active instrument changes", async () => {
-    vi.stubGlobal("fetch", buildStandardFetchMock());
+    const fetchMock = buildStandardFetchMock();
+    vi.stubGlobal("fetch", fetchMock);
 
     const { wrapper } = await mountApp("/workspace");
 
@@ -281,6 +398,78 @@ describe("Market page", () => {
     await flushRequests();
 
     expect(document.title).toBe("HK.AAPL - JFTrade Console");
+    expect(countCallsMatching(fetchMock, "/api/v1/market-data/instruments/normalize")).toBeGreaterThan(0);
+
+    wrapper.unmount();
+  });
+
+  it("normalizes prefixed top bar instruments through the backend before switching workspace", async () => {
+    const fetchMock = buildStandardFetchMock();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { wrapper } = await mountApp("/workspace");
+    const codeInput = wrapper.get('[data-testid="topbar-instrument-code"]');
+
+    await codeInput.setValue("SH.600519");
+    await codeInput.trigger("keydown.enter");
+    await flushRequests();
+
+    let storedPrefs = JSON.parse(
+      window.sessionStorage.getItem("jftrade.workspace.layout.v1") ?? "{}",
+    ) as { market?: string; symbol?: string };
+    expect(storedPrefs.market).toBe("SH");
+    expect(storedPrefs.symbol).toBe("600519");
+
+    await codeInput.setValue("SZ.000001");
+    await codeInput.trigger("keydown.enter");
+    await flushRequests();
+
+    storedPrefs = JSON.parse(
+      window.sessionStorage.getItem("jftrade.workspace.layout.v1") ?? "{}",
+    ) as { market?: string; symbol?: string };
+    expect(storedPrefs.market).toBe("SZ");
+    expect(storedPrefs.symbol).toBe("000001");
+
+    await codeInput.setValue("HK:00700");
+    await codeInput.trigger("keydown.enter");
+    await flushRequests();
+
+    storedPrefs = JSON.parse(
+      window.sessionStorage.getItem("jftrade.workspace.layout.v1") ?? "{}",
+    ) as { market?: string; symbol?: string };
+    expect(storedPrefs.market).toBe("HK");
+    expect(storedPrefs.symbol).toBe("00700");
+
+    const normalizeBodies = fetchMock.mock.calls
+      .filter(([url]) => String(url).includes("/api/v1/market-data/instruments/normalize"))
+      .map(([, init]) => JSON.parse(String(init?.body ?? "{}")));
+    expect(normalizeBodies).toEqual(
+      expect.arrayContaining([
+        { instrumentId: "SH.600519" },
+        { instrumentId: "SZ.000001" },
+        { instrumentId: "HK:00700" },
+      ]),
+    );
+
+    wrapper.unmount();
+  });
+
+  it("does not switch the workspace from the top bar for bare CN-qualified symbols", async () => {
+    const fetchMock = buildStandardFetchMock();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { wrapper } = await mountApp("/workspace");
+    const codeInput = wrapper.get('[data-testid="topbar-instrument-code"]');
+
+    await codeInput.setValue("CN.600519");
+    await codeInput.trigger("keydown.enter");
+    await flushRequests();
+
+    const storedPrefs = JSON.parse(
+      window.sessionStorage.getItem("jftrade.workspace.layout.v1") ?? "{}",
+    ) as { market?: string; symbol?: string };
+    expect(storedPrefs.market).toBe("HK");
+    expect(storedPrefs.symbol).toBe("00700");
 
     wrapper.unmount();
   });

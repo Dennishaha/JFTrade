@@ -4,7 +4,7 @@ import (
 	"math"
 
 	"github.com/c9s/bbgo/pkg/types"
-	"github.com/jftrade/jftrade-main/pkg/futu"
+	"github.com/jftrade/jftrade-main/pkg/market"
 	strategyir "github.com/jftrade/jftrade-main/pkg/strategy/ir"
 	strategypine "github.com/jftrade/jftrade-main/pkg/strategy/pine"
 )
@@ -98,7 +98,7 @@ func estimateTradingPeriodBars(period int, timeUnit string, intervalMinutes int,
 	if intervalMinutes <= 0 {
 		intervalMinutes = 1
 	}
-	minutesPerDay, ok := futu.TradingMinutesPerTradingDay(symbol, includeExtendedHours)
+	minutesPerDay, ok := market.TradingMinutesPerTradingDay(symbol, includeExtendedHours)
 	if !ok {
 		return resolveBarCount(period, timeUnit, intervalMinutes)
 	}

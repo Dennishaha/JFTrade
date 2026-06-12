@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 
 import {
   formatMarketLabel,
   formatTradingEnvironment,
 } from "../composables/consoleDataFormatting";
-import { resolveInstrumentRef } from "../composables/instrumentRef";
+import { useMarketProfiles } from "../composables/marketProfiles";
 import { useCommandPalette } from "../composables/useCommandPalette";
 import { useConsoleData } from "../composables/useConsoleData";
 import { useNotifications } from "../composables/useNotifications";
@@ -27,10 +27,11 @@ const { unreadCount } = useNotifications();
 const { prefs, update } = useWorkspaceTradingPrefs();
 const { update: updateViewState } = useWorkspaceViewState();
 const palette = useCommandPalette();
-
-const TOPBAR_MARKET_OPTIONS = ["HK", "US", "SH", "SZ", "CN", "SG", "JP", "AU", "MY", "CA", "CRYPTO"].map(
-  (market) => ({ value: market, title: formatMarketLabel(market) }),
-);
+const {
+  marketOptions: topbarMarketOptions,
+  loadMarketProfiles,
+  normalizeInstrumentRefWithMarketApi,
+} = useMarketProfiles();
 
 const selectedMarket = ref(prefs.value.market);
 const codeInput = ref("");
@@ -159,23 +160,6 @@ watch(
   { immediate: true },
 );
 
-watch(codeInput, (value) => {
-  const raw = value.trim();
-  if (raw === "" || (!raw.includes(":") && !raw.includes("."))) {
-    return;
-  }
-  const resolved = resolveInstrumentRef({ instrumentId: raw }, selectedMarket.value);
-  if (resolved == null) {
-    return;
-  }
-  if (selectedMarket.value !== resolved.market) {
-    selectedMarket.value = resolved.market;
-  }
-  if (codeInput.value.trim().toUpperCase() !== resolved.code) {
-    codeInput.value = resolved.code;
-  }
-});
-
 watch(
   () => selectedBrokerAccount.value?.tradingEnvironment,
   (tradingEnvironment) => {
@@ -205,17 +189,29 @@ function openRightDock(tab: "notifications" | "ai" | "context"): void {
   updateViewState({ rightDockOpen: true, rightDockTab: tab });
 }
 
-function submitSymbol(): void {
-  const parsed = resolveInstrumentRef(
-    {
-      market: selectedMarket.value,
-      code: codeInput.value,
-    },
-    selectedMarket.value,
-  );
-  if (parsed == null) return;
-  selectWorkspaceInstrument({ market: parsed.market, symbol: parsed.code });
-  selectedMarket.value = parsed.market;
+async function submitSymbol(): Promise<void> {
+  const rawCode = codeInput.value.trim().toUpperCase();
+  if (rawCode === "") {
+    return;
+  }
+  const request =
+    rawCode.includes(".") || rawCode.includes(":")
+      ? { instrumentId: rawCode }
+      : {
+          market: selectedMarket.value,
+          code: rawCode,
+        };
+  let parsed: { prefix: string; code: string } | null = null;
+  try {
+    parsed = await normalizeInstrumentRefWithMarketApi(request);
+  } catch {
+    return;
+  }
+  if (parsed == null || parsed.prefix === "" || parsed.code === "") {
+    return;
+  }
+  selectWorkspaceInstrument({ market: parsed.prefix, symbol: parsed.code });
+  selectedMarket.value = parsed.prefix;
   codeInput.value = "";
 }
 
@@ -281,6 +277,10 @@ function onTradingEnvironmentSwitch(value: "REAL" | "SIMULATE" | null): void {
   tradingEnvironmentFilter.value = value;
   applyPreferredBrokerAccountSelection(value);
 }
+
+onMounted(() => {
+  void loadMarketProfiles();
+});
 </script>
 
 <template>
@@ -292,7 +292,7 @@ function onTradingEnvironmentSwitch(value: "REAL" | "SIMULATE" | null): void {
     <form class="tv-topbar-symbol" data-testid="topbar-instrument-form" @submit.prevent="submitSymbol">
       <span style="color: var(--tv-text-muted); font-size: 11px">⌕</span>
       <select v-model="selectedMarket" class="tv-topbar-symbol__market" data-testid="topbar-instrument-market">
-        <option v-for="option in TOPBAR_MARKET_OPTIONS" :key="option.value" :value="option.value">
+        <option v-for="option in topbarMarketOptions" :key="option.value" :value="option.value">
           {{ option.title }}
         </option>
       </select>

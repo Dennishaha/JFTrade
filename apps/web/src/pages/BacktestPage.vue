@@ -6,7 +6,7 @@ import BacktestChart from "../components/BacktestChart.vue";
 import PageHeader from "../components/PageHeader.vue";
 import { fetchEnvelope } from "../composables/apiClient";
 import { formatGenericStatusLabel } from "../composables/consoleDataFormatting";
-import { resolveInstrumentRef } from "../composables/instrumentRef";
+import { useMarketProfiles } from "../composables/marketProfiles";
 import {
   useBacktestRuns,
   type BacktestFormState,
@@ -30,21 +30,18 @@ const BACKTEST_RESULT_STATUS_OPTIONS = [
   { value: "failed", title: "失败" },
 ];
 
-const BACKTEST_MARKET_OPTIONS = [
-  { value: "HK", title: "港股 HK" },
-  { value: "US", title: "美股 US" },
-  { value: "SH", title: "沪市 SH" },
-  { value: "SZ", title: "深市 SZ" },
-  { value: "SG", title: "新加坡 SG" },
-  { value: "JP", title: "日本 JP" },
-  { value: "AU", title: "澳洲 AU" },
-  { value: "MY", title: "马来西亚 MY" },
-  { value: "CA", title: "加拿大 CA" },
-];
-
 // ── Console data (reuse existing symbol search infrastructure) ──
 const { loadMarketInstrumentReferences, marketInstrumentSearchOptions } =
   useConsoleData();
+const {
+  marketOptions: backtestMarketOptions,
+  defaultMarket,
+  loadMarketProfiles,
+  findMarketProfile,
+  quoteCurrencyForMarket,
+  supportsExtendedHoursForMarket,
+  normalizeInstrumentRefWithMarketApi,
+} = useMarketProfiles();
 
 const controlPanelClass = "rounded-lg border bt-border bt-bg-surface";
 const emptyStateClass =
@@ -99,9 +96,6 @@ function readStoredBacktestFormPreferences(): StoredBacktestFormPreferences {
       return defaults;
     }
     const parsed = JSON.parse(raw) as Partial<StoredBacktestFormPreferences>;
-    const validMarkets = new Set(
-      BACKTEST_MARKET_OPTIONS.map((option) => option.value),
-    );
     const validIntervals = new Set<string>(
       KLINE_PERIODS.map((period) => period.value),
     );
@@ -124,7 +118,7 @@ function readStoredBacktestFormPreferences(): StoredBacktestFormPreferences {
           : defaults.selectedDefinitionId,
       selectedMarket:
         typeof parsed.selectedMarket === "string" &&
-          validMarkets.has(parsed.selectedMarket.trim().toUpperCase())
+          parsed.selectedMarket.trim() !== ""
           ? parsed.selectedMarket.trim().toUpperCase()
           : defaults.selectedMarket,
       codeInput:
@@ -229,15 +223,17 @@ const codeSuggestions = computed(() => {
     }));
 });
 
-const parsedInstrument = computed(() =>
-  resolveInstrumentRef(
-    {
-      market: selectedMarket.value,
-      code: codeInput.value,
-    },
-    selectedMarket.value,
-  ),
-);
+const displayInstrumentId = computed(() => {
+  const market = selectedMarket.value.trim().toUpperCase();
+  const code = codeInput.value.trim().toUpperCase();
+  if (code === "") {
+    return "";
+  }
+  if (code.includes(".") || code.includes(":")) {
+    return code.replace(":", ".");
+  }
+  return market === "" ? code : `${market}.${code}`;
+});
 
 const periodLabel = computed(
   () =>
@@ -249,7 +245,7 @@ function supportsExtendedHoursForInterval(
   market: string,
   intervalValue: string,
 ) {
-  if ((market ?? "").trim().toUpperCase() !== "US") {
+  if (!supportsExtendedHoursForMarket(market)) {
     return false;
   }
   return EXTENDED_HOURS_INTERVALS.has(
@@ -258,9 +254,7 @@ function supportsExtendedHoursForInterval(
 }
 
 const extendedHoursSupported = computed(() => {
-  const market = (parsedInstrument.value?.market ?? selectedMarket.value)
-    .trim()
-    .toUpperCase();
+  const market = selectedMarket.value.trim().toUpperCase();
   return supportsExtendedHoursForInterval(market, interval.value);
 });
 
@@ -270,21 +264,11 @@ const extendedHoursHint = computed(() => {
       ? "US 盘前、盘后与夜盘数据会写入 extended 版本，并参与本次回测回放/高周期合成。"
       : "仅使用 US regular session 数据；同步会写入 regular-only 版本，回测不会混入扩展时段 bar。";
   }
-  return "当前仅 US 的 1m/5m/15m/30m/1h/2h/4h/6h/12h/1d/1w/1mo 支持扩展交易时段回放与对应同步版本。";
+  return "当前市场或周期不支持扩展交易时段回放与对应同步版本。";
 });
 
 const quoteCurrency = computed(() => {
-  const market = (
-    parsedInstrument.value?.market ?? selectedMarket.value
-  ).toUpperCase();
-  if (market === "US") return "USD";
-  if (["SH", "SZ", "CN"].includes(market)) return "CNY";
-  if (market === "SG") return "SGD";
-  if (market === "JP") return "JPY";
-  if (market === "AU") return "AUD";
-  if (market === "MY") return "MYR";
-  if (market === "CA") return "CAD";
-  return "HKD";
+  return quoteCurrencyForMarket(selectedMarket.value);
 });
 
 const warmupPreviewValue = computed(() => {
@@ -311,27 +295,15 @@ const warmupPreviewNote = computed(() => {
 
 const warmupPreviewSymbol = computed(
   () =>
-    parsedInstrument.value?.instrumentId ||
+    displayInstrumentId.value ||
     selectedDefinition.value?.symbol?.trim() ||
     "",
 );
 
-function inferQuoteCurrencyFromInstrumentId(instrumentId: string | undefined) {
+function quoteCurrencyFromInstrumentId(instrumentId: string | undefined) {
   const normalized = (instrumentId ?? "").trim().toUpperCase();
-  if (normalized.startsWith("US.")) {
-    return "USD";
-  }
-  if (normalized.startsWith("HK.")) {
-    return "HKD";
-  }
-  if (
-    normalized.startsWith("CN.") ||
-    normalized.startsWith("SH.") ||
-    normalized.startsWith("SZ.")
-  ) {
-    return "CNY";
-  }
-  return "HKD";
+  const market = normalized.split(".")[0] ?? "";
+  return quoteCurrencyForMarket(market);
 }
 
 function resolveRunQuoteCurrency(run: {
@@ -342,7 +314,7 @@ function resolveRunQuoteCurrency(run: {
   if (resultCurrency) {
     return resultCurrency;
   }
-  return inferQuoteCurrencyFromInstrumentId(run.request.symbol);
+  return quoteCurrencyFromInstrumentId(run.request.symbol);
 }
 
 function resolveRunSessionMode(run: {
@@ -439,10 +411,12 @@ function resolveBacktestStrategyVersionNotice(run: {
 const backtestFormState = computed<BacktestFormState>(() => ({
   definitionId: selectedDefinitionId.value,
   definitionVersion: selectedDefinition.value?.version?.trim() ?? "",
-  market:
-    parsedInstrument.value?.market ?? selectedMarket.value.trim().toUpperCase(),
-  code: parsedInstrument.value?.code ?? codeInput.value.trim().toUpperCase(),
-  instrumentId: parsedInstrument.value?.instrumentId ?? "",
+  market: selectedMarket.value.trim().toUpperCase(),
+  code: codeInput.value.trim().toUpperCase(),
+  instrumentId:
+    codeInput.value.includes(".") || codeInput.value.includes(":")
+      ? codeInput.value.trim().toUpperCase()
+      : "",
   interval: interval.value,
   syncStartTime: syncStartTime.value,
   syncEndTime: syncEndTime.value,
@@ -477,6 +451,23 @@ const {
   startBacktest,
 } = useBacktestRuns({
   formState: backtestFormState,
+  normalizeInstrument: async (input) => {
+    const candidate = (input.instrumentId || input.code).trim();
+    const request =
+      candidate.includes(".") || candidate.includes(":")
+        ? { instrumentId: candidate }
+        : {
+            market: input.market,
+            code: input.code,
+          };
+    const normalized = await normalizeInstrumentRefWithMarketApi(request);
+    return {
+      market: normalized.market,
+      prefix: normalized.prefix,
+      code: normalized.code,
+      instrumentId: normalized.instrumentId,
+    };
+  },
 });
 
 const expandedPanels = ref<string[]>([]);
@@ -648,26 +639,6 @@ watch([resultsSearchQuery, resultsStatusFilter, resultsStrategyFilter], () => {
   resultsPage.value = 1;
 });
 
-watch(codeInput, (value) => {
-  const raw = value.trim();
-  if (raw === "" || (!raw.includes(":") && !raw.includes("."))) {
-    return;
-  }
-  const resolved = resolveInstrumentRef(
-    { instrumentId: raw },
-    selectedMarket.value,
-  );
-  if (resolved == null) {
-    return;
-  }
-  if (selectedMarket.value !== resolved.market) {
-    selectedMarket.value = resolved.market;
-  }
-  if (codeInput.value.trim().toUpperCase() !== resolved.code) {
-    codeInput.value = resolved.code;
-  }
-});
-
 const headerStats = computed(() => [
   {
     label: "策略数",
@@ -690,12 +661,21 @@ const headerStats = computed(() => [
 ]);
 
 // ── Loaders ──
+function ensureSelectedMarketProfile() {
+  if (findMarketProfile(selectedMarket.value) != null) {
+    return;
+  }
+  selectedMarket.value = defaultMarket.value.trim().toUpperCase() || "HK";
+}
+
 onMounted(async () => {
   await Promise.all([
+    loadMarketProfiles(),
     loadDefinitions(),
     loadRuns(),
     loadMarketInstrumentReferences(),
   ]);
+  ensureSelectedMarketProfile();
 });
 
 async function loadDefinitions() {
@@ -939,7 +919,7 @@ watch(
               <div class="grid grid-cols-2 gap-2">
                 <div class="grid gap-0.5">
                   <label class="text-xs font-semibold bt-text-strong">市场</label>
-                  <v-select v-model="selectedMarket" :items="BACKTEST_MARKET_OPTIONS" item-title="title"
+                  <v-select v-model="selectedMarket" :items="backtestMarketOptions" item-title="title"
                     item-value="value" density="compact" variant="outlined" />
                 </div>
                 <div class="grid gap-0.5">
@@ -949,7 +929,7 @@ watch(
                 </div>
               </div>
               <div class="text-xs bt-text-muted">
-                {{ parsedInstrument?.instrumentId || "请先输入市场与代码" }}
+                {{ displayInstrumentId || "请先输入市场与代码" }}
               </div>
             </div>
 

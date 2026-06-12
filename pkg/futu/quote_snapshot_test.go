@@ -7,6 +7,7 @@ import (
 	"github.com/shopspring/decimal"
 
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
+	"github.com/jftrade/jftrade-main/pkg/market"
 )
 
 func TestQuoteSnapshotPreviousClosePriceInClosedSession(t *testing.T) {
@@ -48,7 +49,7 @@ func TestQuoteSnapshotPreviousClosePriceInClosedSession(t *testing.T) {
 	}
 
 	// Session should be closed on a weekend.
-	if snap.Session != MarketSessionClosed {
+	if snap.Session != market.SessionClosed {
 		t.Errorf("Session = %s, want closed", snap.Session)
 	}
 }
@@ -76,7 +77,7 @@ func TestQuoteSnapshotPreviousClosePriceInAfterHours(t *testing.T) {
 	if !snap.PreviousClosePrice.Equal(decimal.NewFromFloat(195.50)) {
 		t.Errorf("PreviousClosePrice = %s, want 195.50 (today's regular close)", snap.PreviousClosePrice.String())
 	}
-	if snap.Session != MarketSessionAfter {
+	if snap.Session != market.SessionAfter {
 		t.Errorf("Session = %s, want after", snap.Session)
 	}
 }
@@ -120,7 +121,7 @@ func TestQuoteSnapshotPreviousClosePriceForHKLunchBreak(t *testing.T) {
 	lunchBreakAt := time.Date(2026, 6, 12, 12, 30, 0, 0, time.FixedZone("HKT", 8*60*60))
 	snap := quoteSnapshotFromBasicQotAt(basicQot, "HK.00700", lunchBreakAt)
 
-	if snap.Session != MarketSessionUnknown {
+	if snap.Session != market.SessionUnknown {
 		t.Errorf("Session = %s, want unknown", snap.Session)
 	}
 	if snap.PreviousClosePrice == nil {
@@ -135,42 +136,36 @@ func TestQuoteSnapshotPreviousClosePriceForHKLunchBreak(t *testing.T) {
 }
 
 func TestPreviousClosePriceConditionBySessionType(t *testing.T) {
-	// Verify the core condition: session != MarketSessionRegular
+	// Verify the core condition: session != market.SessionRegular
 	// should cause PreviousClosePrice to use CurPrice instead of LastClosePrice.
 	regularSessionClose := decimal.NewFromFloat(9.22)
 	lastClosePrice := decimal.NewFromFloat(9.09)
 
 	cases := []struct {
 		name            string
-		session         MarketSession
+		session         market.Session
 		expectCurPrice  bool
 		expectLastClose bool
 	}{
-		{"regular uses LastClosePrice", MarketSessionRegular, false, true},
-		{"pre uses CurPrice", MarketSessionPre, true, false},
-		{"after uses CurPrice", MarketSessionAfter, true, false},
-		{"overnight uses CurPrice", MarketSessionOvernight, true, false},
-		{"closed uses CurPrice", MarketSessionClosed, true, false},
-		{"unknown uses CurPrice for US only", MarketSessionUnknown, true, false},
+		{"regular uses LastClosePrice", market.SessionRegular, false, true},
+		{"pre uses CurPrice", market.SessionPre, true, false},
+		{"after uses CurPrice", market.SessionAfter, true, false},
+		{"overnight uses CurPrice", market.SessionOvernight, true, false},
+		{"closed uses CurPrice", market.SessionClosed, true, false},
+		{"unknown uses CurPrice for US only", market.SessionUnknown, true, false},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			useCurPrice := isUSSymbol("US.TME") && tc.session != MarketSessionRegular && regularSessionClose.GreaterThan(decimal.Zero)
+			useCurPrice := market.ShouldUseRegularCloseAsPreviousClose("US.TME", tc.session, regularSessionClose)
 			if tc.expectCurPrice && !useCurPrice {
 				t.Errorf("session=%s: expected to use CurPrice, but condition is false", tc.session)
 			}
 			if tc.expectLastClose && useCurPrice {
 				t.Errorf("session=%s: expected to use LastClosePrice, but condition is true", tc.session)
 			}
-			// Also verify the old condition (IsExtendedMarketSession) would have
-			// incorrectly excluded "closed" and "unknown":
-			oldCondition := IsExtendedMarketSession(tc.session)
-			if tc.session == MarketSessionClosed && oldCondition {
-				t.Errorf("session=closed: old IsExtendedMarketSession incorrectly returns true")
-			}
-			if tc.session == MarketSessionClosed && !useCurPrice {
-				t.Errorf("session=closed: new condition should use CurPrice but doesn't")
+			if tc.session == market.SessionClosed && !useCurPrice {
+				t.Errorf("session=closed: condition should use CurPrice but doesn't")
 			}
 		})
 	}
@@ -184,9 +179,7 @@ func TestPreviousClosePriceConditionBySessionType(t *testing.T) {
 func TestPreviousClosePriceConditionDoesNotRewriteNonUSUnknownSession(t *testing.T) {
 	regularSessionClose := decimal.NewFromFloat(321.40)
 
-	useCurPrice := isUSSymbol("HK.00700") &&
-		MarketSessionUnknown != MarketSessionRegular &&
-		regularSessionClose.GreaterThan(decimal.Zero)
+	useCurPrice := market.ShouldUseRegularCloseAsPreviousClose("HK.00700", market.SessionUnknown, regularSessionClose)
 	if useCurPrice {
 		t.Fatal("HK unknown session should not rewrite PreviousClosePrice to CurPrice")
 	}

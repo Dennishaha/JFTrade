@@ -382,6 +382,35 @@ export function buildFetchMock(options: BuildFetchMockOptions) {
     return normalized
   }
 
+  function normalizeMarketInstrumentRequest(payload: Record<string, unknown>) {
+    const candidate = normalizeInstrumentId(payload.instrumentId)
+    const marketAndCode = candidate.includes(".")
+      ? candidate.split(".", 2)
+      : [
+          String(payload.market ?? "HK").trim().toUpperCase(),
+          String(payload.code ?? "").trim().toUpperCase(),
+        ]
+    const market = marketAndCode[0] ?? ""
+    const code = marketAndCode[1] ?? ""
+    if (
+      market === ""
+      || code === ""
+      || market === "CN"
+      || /\s/.test(market)
+      || /\s/.test(code)
+    ) {
+      return null
+    }
+    return {
+      market: market === "SH" || market === "SZ" ? "CN" : market,
+      prefix: market,
+      code,
+      symbol: `${market}.${code}`,
+      instrumentId: `${market}.${code}`,
+      resolvedMarket: market === "SH" || market === "SZ" ? "CN" : market,
+    }
+  }
+
   function normalizeBindingInstrument(value: unknown) {
     if (value == null || typeof value !== "object" || Array.isArray(value)) {
       return null
@@ -683,6 +712,74 @@ export function buildFetchMock(options: BuildFetchMockOptions) {
 
     if (url.includes("/api/v1/market-data/subscriptions"))
       return createResponse(emptyMarketDataSubscriptions)
+    if (url.includes("/api/v1/market-data/markets")) {
+      return createResponse({
+        markets: [
+          {
+            code: "HK",
+            resolvedMarket: "HK",
+            preferredPrefix: "HK",
+            displayName: "Hong Kong",
+            quoteCurrency: "HKD",
+            supportsExtendedHours: false,
+            requiresExchangePrefix: false,
+            aliases: ["HKEX"],
+            regularSessions: [],
+            precision: { price: 3, quote: 3 },
+            tickSize: 0.001,
+          },
+          {
+            code: "US",
+            resolvedMarket: "US",
+            preferredPrefix: "US",
+            displayName: "US",
+            quoteCurrency: "USD",
+            supportsExtendedHours: true,
+            requiresExchangePrefix: false,
+            aliases: ["NYSE", "NASDAQ"],
+            regularSessions: [],
+            precision: { price: 2, quote: 2 },
+            tickSize: 0.01,
+          },
+          {
+            code: "SH",
+            resolvedMarket: "CN",
+            preferredPrefix: "SH",
+            displayName: "Shanghai",
+            quoteCurrency: "CNY",
+            supportsExtendedHours: false,
+            requiresExchangePrefix: true,
+            aliases: ["CNSH"],
+            regularSessions: [],
+            precision: { price: 2, quote: 2 },
+            tickSize: 0.01,
+          },
+          {
+            code: "SZ",
+            resolvedMarket: "CN",
+            preferredPrefix: "SZ",
+            displayName: "Shenzhen",
+            quoteCurrency: "CNY",
+            supportsExtendedHours: false,
+            requiresExchangePrefix: true,
+            aliases: ["CNSZ"],
+            regularSessions: [],
+            precision: { price: 2, quote: 2 },
+            tickSize: 0.01,
+          },
+        ],
+        defaultMarket: "HK",
+        updatedAt: "2026-06-12T00:00:00Z",
+      })
+    }
+    if (url.includes("/api/v1/market-data/instruments/normalize")) {
+      const payload = await readJsonBody(init, request)
+      const normalized = normalizeMarketInstrumentRequest(payload)
+      if (normalized === null) {
+        return createErrorResponse("invalid instrument")
+      }
+      return createResponse(normalized)
+    }
     if (url.includes("/api/v1/system/status"))
       return createResponse(systemStatus)
     if (url.includes("/api/v1/system/storage/overview"))
