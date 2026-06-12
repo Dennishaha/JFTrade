@@ -74,7 +74,7 @@ const emit = defineEmits<{
           </button>
           <button
             :data-testid="`delete-strategy-definition-${definition.id}`"
-            class="rounded-full border border-rose-200 px-3 py-1.5 text-xs font-semibold text-rose-700 transition hover:border-rose-300 hover:text-rose-900 disabled:cursor-not-allowed disabled:opacity-50"
+            class="strategy-definition-delete-btn"
             :disabled="props.deletingDefinitionId === definition.id"
             type="button"
             @click="emit('delete-definition', definition)"

@@ -993,7 +993,7 @@ body {
   padding: 0 8px;
   border-radius: 999px;
   border: 1px solid var(--tv-border);
-  background: color-mix(in srgb, var(--tv-surface) 82%, transparent);
+  background: color-mix(in srgb, var(--tv-bg-surface) 82%, transparent);
   color: var(--tv-text-muted);
   font-size: 11px;
   line-height: 1;
@@ -1027,7 +1027,7 @@ body {
   width: 100%;
   border: 1px solid var(--tv-border);
   border-radius: 10px;
-  background: color-mix(in srgb, var(--tv-surface) 72%, transparent);
+  background: color-mix(in srgb, var(--tv-bg-surface) 72%, transparent);
   color: var(--tv-text);
 }
 
@@ -1077,7 +1077,7 @@ body {
 .adk-run-trace-card--summary {
   background:
     linear-gradient(135deg, color-mix(in srgb, var(--tv-accent) 12%, transparent), transparent 58%),
-    color-mix(in srgb, var(--tv-surface) 72%, transparent);
+    color-mix(in srgb, var(--tv-bg-surface) 72%, transparent);
 }
 
 .adk-run-trace-card__main {
@@ -1140,7 +1140,7 @@ body {
   border-radius: 10px;
   background:
     linear-gradient(135deg, color-mix(in srgb, var(--tv-accent) 8%, transparent), transparent 70%),
-    color-mix(in srgb, var(--tv-surface) 78%, transparent);
+    color-mix(in srgb, var(--tv-bg-surface) 78%, transparent);
 }
 
 .adk-tool-visual__header {
@@ -1178,7 +1178,7 @@ body {
   padding: 8px;
   border: 1px solid var(--tv-border);
   border-radius: 8px;
-  background: color-mix(in srgb, var(--tv-surface) 82%, transparent);
+  background: color-mix(in srgb, var(--tv-bg-surface) 82%, transparent);
 }
 
 .adk-tool-visual-card.is-ok {
@@ -1985,7 +1985,7 @@ body {
   align-items: center;
   gap: 6px;
   padding: 9px 16px 0;
-  color: var(--tv-warning);
+  color: var(--tv-warn);
   font-size: 12px;
 }
 

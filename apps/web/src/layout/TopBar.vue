@@ -458,6 +458,9 @@ function onTradingEnvironmentSwitch(value: "REAL" | "SIMULATE" | null): void {
 
 .tv-topbar-account-picker {
   max-width: min(760px, 92vw);
+  border: 1px solid var(--tv-border);
+  background: var(--tv-bg-surface);
+  color: var(--tv-text);
 }
 
 .tv-topbar-account-picker__header {
@@ -470,6 +473,7 @@ function onTradingEnvironmentSwitch(value: "REAL" | "SIMULATE" | null): void {
 .tv-topbar-account-picker__body {
   display: grid;
   gap: 10px;
+  background: var(--tv-bg-surface);
 }
 
 .tv-topbar-account-picker__list {
@@ -493,7 +497,7 @@ function onTradingEnvironmentSwitch(value: "REAL" | "SIMULATE" | null): void {
   gap: 8px;
   border: 1px solid var(--tv-border);
   border-radius: 8px;
-  background: var(--tv-panel);
+  background: var(--tv-bg-surface-2);
 }
 
 .tv-topbar-account-picker__item.is-selected {
@@ -546,7 +550,7 @@ function onTradingEnvironmentSwitch(value: "REAL" | "SIMULATE" | null): void {
     color-mix(in srgb, #facc15 75%, transparent),
     var(--tv-border)
   );
-  color: var(--tv-panel);
+  color: var(--tv-bg-surface);
 }
 
 :deep(.tv-topbar-env-toggle .tv-topbar-env-btn--real.v-btn--active) {

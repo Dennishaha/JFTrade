@@ -136,9 +136,9 @@ const extendedCards = computed(() => {
       label: "盘前价格",
       price: livePrice ?? extended.preMarket.price,
       changeRate: liveChangeRate ?? extended.preMarket.changeRate ?? null,
-      border: "var(--card-blue-border)",
-      surface: "var(--card-blue-surface)",
-      accent: "var(--card-blue-text)",
+      border: "var(--card-sky-border)",
+      surface: "var(--card-sky-surface)",
+      accent: "var(--card-sky-text)",
     });
   }
 
@@ -171,9 +171,9 @@ const extendedCards = computed(() => {
       label: "夜盘价格",
       price: livePrice ?? extended.overnight.price,
       changeRate: liveChangeRate ?? extended.overnight.changeRate ?? null,
-      border: "var(--card-purple-border)",
-      surface: "var(--card-purple-surface)",
-      accent: "var(--card-purple-text)",
+      border: "var(--card-violet-border)",
+      surface: "var(--card-violet-surface)",
+      accent: "var(--card-violet-text)",
     });
   }
 

@@ -559,11 +559,22 @@ function buildAuditActivityDetail(entry: StrategyAuditViewEntry): StrategyActivi
 
 <style scoped>
 .strategy-instance-dialog {
+    max-height: calc(100vh - 2rem);
+    overflow-y: auto;
+    overflow-x: hidden;
     border-radius: 1.75rem;
-    border: 1px solid rgb(226 232 240);
-    background: white;
+    border: 1px solid var(--card-border);
+    background:
+        linear-gradient(
+            180deg,
+            color-mix(in srgb, var(--card-surface) 96%, transparent),
+            var(--card-surface)
+        );
+    color: var(--card-text-1);
     padding: 1.25rem;
-    box-shadow: 0 24px 90px rgb(15 23 42 / 0.2);
+    box-shadow: 0 24px 90px rgb(2 6 23 / 0.24);
+    backdrop-filter: blur(18px);
+    scrollbar-gutter: stable both-edges;
 }
 
 .tv-main .strategy-activity-panel {
@@ -617,7 +628,7 @@ function buildAuditActivityDetail(entry: StrategyAuditViewEntry): StrategyActivi
     outline-offset: 2px;
 }
 
-.tv-main .strategy-params-dialog-close {
+.strategy-params-dialog-close {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
@@ -650,7 +661,7 @@ function buildAuditActivityDetail(entry: StrategyAuditViewEntry): StrategyActivi
 }
 
 .tv-main .strategy-runtime-params-trigger,
-.tv-main .strategy-params-dialog-close {
+.strategy-params-dialog-close {
     padding: 0.55rem 0.95rem;
     font-size: 0.8rem;
     font-weight: 700;
@@ -663,7 +674,7 @@ function buildAuditActivityDetail(entry: StrategyAuditViewEntry): StrategyActivi
 .tv-main .strategy-activity-tab:hover,
 .tv-main .strategy-activity-filter:hover,
 .tv-main .strategy-runtime-params-trigger:hover,
-.tv-main .strategy-params-dialog-close:hover {
+.strategy-params-dialog-close:hover {
     border-color: var(--card-border);
     background: var(--card-surface-raised);
     color: var(--card-text-1);
@@ -791,71 +802,62 @@ function buildAuditActivityDetail(entry: StrategyAuditViewEntry): StrategyActivi
     font-size: 0.92rem;
 }
 
-.tv-main .strategy-params-dialog {
+.strategy-params-dialog {
     border-color: var(--card-border);
     background: var(--card-surface);
 }
 
-.tv-main .strategy-params-editor {
+.strategy-params-editor {
     overflow: hidden;
     border-radius: 1.25rem;
 }
 
-.tv-main .strategy-activity-detail-dialog {
+.strategy-activity-detail-dialog {
     border-color: var(--card-border);
     background: var(--card-surface);
 }
 
-.tv-main .strategy-activity-detail-dialog .bg-slate-50 {
+.strategy-activity-detail-dialog .bg-slate-50 {
     background: var(--card-surface-raised);
 }
 
-.tv-main .strategy-activity-detail-dialog .text-slate-900,
-.tv-main .strategy-activity-detail-dialog .text-slate-800,
-.tv-main .strategy-activity-detail-dialog .text-slate-700 {
+.strategy-activity-detail-dialog .text-slate-900,
+.strategy-activity-detail-dialog .text-slate-800,
+.strategy-activity-detail-dialog .text-slate-700 {
     color: var(--card-text-1);
 }
 
-.tv-main .strategy-activity-detail-dialog .text-slate-600,
-.tv-main .strategy-activity-detail-dialog .text-slate-500 {
+.strategy-activity-detail-dialog .text-slate-600,
+.strategy-activity-detail-dialog .text-slate-500 {
     color: var(--card-text-2);
 }
 
-.tv-main .strategy-activity-detail-dialog .text-slate-400 {
+.strategy-activity-detail-dialog .text-slate-400 {
     color: var(--card-text-3);
 }
 
-.tv-main .strategy-instance-dialog {
-    max-height: calc(100vh - 2rem);
-    overflow-y: auto;
-    overflow-x: hidden;
-    border-color: var(--card-border);
-    background: var(--card-surface);
+.strategy-instance-dialog .text-slate-900,
+.strategy-instance-dialog .text-slate-800,
+.strategy-instance-dialog .text-slate-700 {
     color: var(--card-text-1);
 }
 
-.tv-main .strategy-instance-dialog .text-slate-900,
-.tv-main .strategy-instance-dialog .text-slate-800,
-.tv-main .strategy-instance-dialog .text-slate-700 {
-    color: var(--card-text-1);
-}
-
-.tv-main .strategy-instance-dialog .text-slate-600,
-.tv-main .strategy-instance-dialog .text-slate-500 {
+.strategy-instance-dialog .text-slate-600,
+.strategy-instance-dialog .text-slate-500 {
     color: var(--card-text-2);
 }
 
-.tv-main .strategy-instance-dialog .text-slate-400 {
+.strategy-instance-dialog .text-slate-400 {
     color: var(--card-text-3);
 }
 
-.tv-main .strategy-instance-dialog .bg-white,
-.tv-main .strategy-instance-dialog .bg-slate-50 {
+.strategy-instance-dialog .bg-white,
+.strategy-instance-dialog .bg-slate-50 {
     background: var(--card-surface-raised);
 }
 
-.tv-main .strategy-instance-dialog .border-slate-200,
-.tv-main .strategy-instance-dialog .border-slate-300 {
+.strategy-instance-dialog .border-slate-200,
+.strategy-instance-dialog .border-slate-300 {
     border-color: var(--card-border);
 }
 </style>

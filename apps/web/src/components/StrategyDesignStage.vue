@@ -968,7 +968,7 @@ const {
         </v-dialog>
 
         <v-dialog v-model="isDeleteDefinitionDialogOpen" max-width="620">
-            <div class="strategy-save-dialog" data-testid="strategy-delete-definition-dialog">
+            <div class="strategy-save-dialog strategy-save-dialog--delete" data-testid="strategy-delete-definition-dialog">
                 <div class="strategy-save-dialog__eyebrow">删除策略</div>
                 <div class="strategy-save-dialog__title">
                     {{ pendingDeleteDefinition?.linkedStrategies.length ? "当前还有实例引用该策略" : "确认删除当前策略定义" }}
@@ -1014,7 +1014,7 @@ const {
                         去运行面板删除实例
                     </button>
                     <button v-if="pendingDeleteDefinition !== null && pendingDeleteDefinition.linkedStrategies.length === 0"
-                        class="strategy-btn strategy-btn--primary" data-testid="confirm-delete-strategy-definition"
+                        class="strategy-btn strategy-btn--danger-confirm" data-testid="confirm-delete-strategy-definition"
                         :disabled="deletingDefinitionId !== ''" type="button"
                         @click="void confirmDeleteStrategyDefinition()">
                         {{ deletingDefinitionId === pendingDeleteDefinition.definition.id ? "删除中…" : "确认删除" }}
@@ -1337,11 +1337,26 @@ const {
     display: grid;
     gap: 0.9rem;
     padding: 1.35rem;
-    border: 1px solid rgba(15, 23, 42, 0.1);
+    border: 1px solid var(--tv-border);
     border-radius: 1.5rem;
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.98));
-    box-shadow: 0 24px 80px rgba(15, 23, 42, 0.18);
-    color: var(--tv-text-main);
+    background:
+        linear-gradient(
+            180deg,
+            color-mix(in srgb, var(--tv-bg-surface) 98%, transparent),
+            color-mix(in srgb, var(--tv-bg-surface-2) 98%, transparent)
+        );
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.34);
+    color: var(--tv-text);
+}
+
+.strategy-save-dialog--delete {
+    border-color: color-mix(in srgb, var(--card-red-border) 62%, var(--tv-border));
+    background:
+        linear-gradient(
+            180deg,
+            color-mix(in srgb, var(--tv-bg-surface) 94%, var(--card-red-surface)),
+            color-mix(in srgb, var(--tv-bg-surface-2) 96%, var(--card-red-surface))
+        );
 }
 
 .strategy-save-dialog__eyebrow {
@@ -1355,20 +1370,27 @@ const {
 .strategy-save-dialog__title {
     font-size: 1.1rem;
     font-weight: 700;
-    color: var(--tv-text-main);
+    color: var(--tv-text);
 }
 
 .strategy-save-dialog__body {
     line-height: 1.7;
-    color: var(--tv-text-subtle);
+    color: var(--tv-text-muted);
 }
 
 .strategy-save-dialog__hint {
     padding: 0.8rem 0.95rem;
     border-radius: 1rem;
-    background: rgba(15, 23, 42, 0.05);
+    border: 1px solid color-mix(in srgb, var(--tv-border) 72%, transparent);
+    background: color-mix(in srgb, var(--tv-bg-elevated) 48%, transparent);
     font-size: 0.85rem;
     color: var(--tv-text-muted);
+}
+
+.strategy-save-dialog--delete .strategy-save-dialog__hint {
+    border-color: color-mix(in srgb, var(--card-red-border) 44%, var(--tv-border));
+    background: color-mix(in srgb, var(--card-red-surface) 66%, transparent);
+    color: color-mix(in srgb, var(--card-red-text) 76%, var(--tv-text));
 }
 
 .strategy-save-dialog__actions {
@@ -1388,13 +1410,14 @@ const {
     gap: 0.2rem;
     padding: 0.8rem 0.95rem;
     border-radius: 1rem;
-    background: rgba(15, 23, 42, 0.05);
+    border: 1px solid color-mix(in srgb, var(--tv-border) 74%, transparent);
+    background: color-mix(in srgb, var(--tv-bg-elevated) 58%, transparent);
 }
 
 .strategy-save-dialog__linked-item-id {
     font-size: 0.92rem;
     font-weight: 700;
-    color: var(--tv-text-main);
+    color: var(--tv-text);
 }
 
 .strategy-save-dialog__linked-item-meta {
@@ -1415,7 +1438,7 @@ const {
 
 .strategy-save-dialog__close:hover,
 .strategy-save-dialog__close:focus-visible {
-    color: var(--tv-text-main);
+    color: var(--tv-text);
     outline: none;
 }
 
@@ -1589,8 +1612,8 @@ const {
 }
 
 .strategy-stage__toolbar-status--partial {
-    border-color: color-mix(in srgb, var(--tv-warning, var(--card-amber-text)) 52%, transparent);
-    color: color-mix(in srgb, var(--tv-warning, var(--card-amber-text)) 78%, var(--tv-text));
+    border-color: color-mix(in srgb, var(--tv-warn, var(--card-amber-text)) 52%, transparent);
+    color: color-mix(in srgb, var(--tv-warn, var(--card-amber-text)) 78%, var(--tv-text));
 }
 
 .strategy-stage__toolbar-status--error {
@@ -1966,12 +1989,60 @@ const {
     color: var(--card-active-text);
 }
 
+.strategy-btn--danger-confirm {
+    border-color: color-mix(in srgb, var(--card-red-border) 72%, transparent);
+    background: color-mix(in srgb, var(--card-red-surface) 84%, var(--tv-bg-elevated));
+    color: var(--card-red-text);
+}
+
+.strategy-btn--danger-confirm:hover {
+    border-color: color-mix(in srgb, var(--card-red-text) 62%, var(--card-red-border));
+    background: color-mix(in srgb, var(--card-red-surface) 72%, var(--tv-bg-surface));
+    color: color-mix(in srgb, var(--card-red-text) 84%, var(--tv-text));
+}
+
 .strategy-btn--ghost {
     background: transparent;
 }
 
 .strategy-btn--danger {
     color: var(--tv-accent);
+}
+
+.strategy-definition-delete-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2rem;
+    flex: 0 0 auto;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--card-red-border) 72%, transparent);
+    background: color-mix(in srgb, var(--card-red-surface) 54%, transparent);
+    padding: 0.38rem 0.75rem;
+    color: var(--card-red-text);
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    transition:
+        border-color 140ms ease,
+        background-color 140ms ease,
+        color 140ms ease,
+        opacity 140ms ease,
+        transform 140ms ease;
+}
+
+.strategy-definition-delete-btn:hover {
+    border-color: color-mix(in srgb, var(--card-red-text) 58%, var(--card-red-border));
+    background: color-mix(in srgb, var(--card-red-surface) 74%, transparent);
+    color: color-mix(in srgb, var(--card-red-text) 84%, var(--tv-text));
+    transform: translateY(-1px);
+}
+
+.strategy-definition-delete-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+    transform: none;
 }
 
 .strategy-tool-switch.is-active {
