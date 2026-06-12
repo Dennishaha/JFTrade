@@ -28,6 +28,7 @@ const BACKTEST_RESULT_STATUS_OPTIONS = [
   { value: "running", title: "运行中" },
   { value: "completed", title: "已完成" },
   { value: "failed", title: "失败" },
+  { value: "cancelled", title: "已取消" },
 ];
 
 // ── Console data (reuse existing symbol search infrastructure) ──
@@ -443,7 +444,10 @@ const {
   syncing,
   syncProgress,
   error,
+  detailLoading,
+  detailErrors,
   filteredRuns: sortedRuns,
+  toggleRun,
   deleteRun,
   loadRuns,
   syncKlines,
@@ -471,6 +475,15 @@ const {
 });
 
 const expandedPanels = ref<string[]>([]);
+
+watch(expandedPanels, (nextPanels, previousPanels) => {
+  const previous = new Set(previousPanels ?? []);
+  for (const runID of nextPanels) {
+    if (!previous.has(runID)) {
+      void toggleRun(runID);
+    }
+  }
+});
 
 const resultStrategyOptions = computed(() => {
   const options = [{ value: "all", title: "全部策略" }];
@@ -746,6 +759,8 @@ const statusChip = (status: string) => {
       return { color: "success", label: formatGenericStatusLabel(status) };
     case "failed":
       return { color: "error", label: formatGenericStatusLabel(status) };
+    case "cancelled":
+      return { color: "warning", label: formatGenericStatusLabel(status) };
     case "running":
       return { color: "info", label: formatGenericStatusLabel(status) };
     case "queued":
@@ -760,6 +775,37 @@ function pnlColor(val: number) {
     return "tv-up";
   }
   return "tv-down";
+}
+
+function isTerminalBacktestStatus(status: string) {
+  return status === "completed" || status === "failed" || status === "cancelled";
+}
+
+function runtimeErrorTotal(result: {
+  runtimeErrors?: string[] | undefined;
+  runtimeErrorTotal?: number | undefined;
+}) {
+  return result.runtimeErrorTotal ?? result.runtimeErrors?.length ?? 0;
+}
+
+function runtimeErrorRepeatCount(
+  result: { runtimeErrorCounts?: Record<string, number> | undefined },
+  message: string,
+) {
+  return result.runtimeErrorCounts?.[message] ?? 1;
+}
+
+function runtimeErrorSummary(result: {
+  runtimeErrors?: string[] | undefined;
+  runtimeErrorTotal?: number | undefined;
+  runtimeErrorsTruncated?: boolean | undefined;
+}) {
+  const shown = result.runtimeErrors?.length ?? 0;
+  const total = runtimeErrorTotal(result);
+  if (result.runtimeErrorsTruncated || total > shown) {
+    return `运行时错误 ${total} 次，仅显示 ${shown} 条样本`;
+  }
+  return `运行时错误 (${total})`;
 }
 
 function pnlPrefix(val: number) {
@@ -1133,7 +1179,7 @@ watch(
                         </span>
                       </div>
                     </div>
-                    <v-btn v-if="run.status === 'completed' || run.status === 'failed'" icon="fa-solid fa-trash"
+                    <v-btn v-if="isTerminalBacktestStatus(run.status)" icon="fa-solid fa-trash"
                       size="small" variant="text" color="error" title="删除回测结果" @click.stop="deleteRun(run.id)" />
                   </div>
                 </template>
@@ -1145,9 +1191,18 @@ watch(
                   {{ resolveBacktestStrategyVersionNotice(run) }}
                 </div>
 
+                <div v-if="detailLoading[run.id]"
+                  class="mb-3 rounded-lg border bt-border bt-bg-muted px-3 py-2 text-xs bt-text-muted">
+                  正在加载完整回测详情…
+                </div>
+                <div v-if="detailErrors[run.id]"
+                  class="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+                  {{ detailErrors[run.id] }}
+                </div>
+
                 <div v-if="
                   run.result &&
-                  (run.status === 'completed' || run.status === 'failed')
+                  isTerminalBacktestStatus(run.status)
                 ">
                   <div class="grid grid-cols-2 gap-3 lg:grid-cols-6">
                     <div :class="[statCardClass, 'px-3 py-3']">
@@ -1347,11 +1402,14 @@ watch(
                 " class="mt-3">
                   <details class="rounded-lg border border-red-200 bg-red-50 px-3 py-2">
                     <summary class="cursor-pointer text-xs font-semibold text-red-700 select-none">
-                      ⚡ 运行时错误 ({{ run.result.runtimeErrors.length }})
+                      ⚡ {{ runtimeErrorSummary(run.result) }}
                     </summary>
                     <div class="mt-2 space-y-1 max-h-48 overflow-y-auto">
                       <div v-for="(err, i) in run.result.runtimeErrors" :key="i"
                         class="rounded border border-red-100 bt-bg-surface px-2 py-1 text-xs text-red-800 font-mono leading-relaxed">
+                        <span v-if="runtimeErrorRepeatCount(run.result, err) > 1" class="font-semibold">
+                          x{{ runtimeErrorRepeatCount(run.result, err) }}
+                        </span>
                         {{ err }}
                       </div>
                     </div>

@@ -191,8 +191,15 @@ func TestBacktestRunStorePersistsAndRecoversTransientRuns(t *testing.T) {
 	if reloadedCompleted.Status != "completed" {
 		t.Fatalf("completed run status = %s, want completed", reloadedCompleted.Status)
 	}
-	if reloadedCompleted.Result == nil || reloadedCompleted.Result.FinalBalance != 123456 {
-		t.Fatalf("completed run result lost after reload: %+v", reloadedCompleted.Result)
+	if reloadedCompleted.Result != nil {
+		t.Fatalf("lightweight completed run should not load full result: %+v", reloadedCompleted.Result)
+	}
+	reloadedCompletedFull, ok, err := reloadedStore.getFull(completedRun.ID)
+	if err != nil {
+		t.Fatalf("getFull completed run: %v", err)
+	}
+	if !ok || reloadedCompletedFull.Result == nil || reloadedCompletedFull.Result.FinalBalance != 123456 {
+		t.Fatalf("completed run full result lost after reload: %+v", reloadedCompletedFull)
 	}
 
 	reloadedRunning, ok := reloadedStore.get(runningRun.ID)

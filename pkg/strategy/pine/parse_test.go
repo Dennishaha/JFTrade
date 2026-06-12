@@ -78,6 +78,40 @@ slow = request.security(syminfo.tickerid, "60", ta.sma(close, 20))`)
 	}
 }
 
+func TestCompileSupportsPineStdev(t *testing.T) {
+	compilation, err := Compile(`//@version=6
+strategy("Stdev", overlay=true)
+dev = 2.0 * ta.stdev(close, 20)
+if close > dev
+    strategy.entry("Long", strategy.long, qty=1)`)
+	if err != nil {
+		t.Fatalf("Compile() error = %v", err)
+	}
+	stmt, ok := compilation.Program.Hooks[0].Statements[0].(*strategyir.LetStmt)
+	if !ok || stmt.Expression != "2.0 * stdev(20)" {
+		t.Fatalf("first statement = %#v", compilation.Program.Hooks[0].Statements[0])
+	}
+}
+
+func TestCompileSupportsPineStrategyPositionVariables(t *testing.T) {
+	compilation, err := Compile(`//@version=6
+strategy("Position vars", overlay=true)
+stopPrice = strategy.position_avg_price * 0.95
+if strategy.position_size > 0 and close < stopPrice
+    strategy.close("Long")`)
+	if err != nil {
+		t.Fatalf("Compile() error = %v", err)
+	}
+	stmt, ok := compilation.Program.Hooks[0].Statements[0].(*strategyir.LetStmt)
+	if !ok || stmt.Expression != "position_avg_price * 0.95" {
+		t.Fatalf("first statement = %#v", compilation.Program.Hooks[0].Statements[0])
+	}
+	ifStmt, ok := compilation.Program.Hooks[0].Statements[1].(*strategyir.IfStmt)
+	if !ok || ifStmt.Condition != "position_size > 0 && close < stopPrice" {
+		t.Fatalf("if statement = %#v", compilation.Program.Hooks[0].Statements[1])
+	}
+}
+
 func TestValidateScriptRejectsQtyPercent(t *testing.T) {
 	err := ValidateScript(`//@version=6
 strategy("Sizing", overlay=true)

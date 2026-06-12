@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -46,7 +47,7 @@ type backtestRunState struct {
 // @Success 200 {object} envelope
 // @Router /api/v1/backtests [get]
 func (s *Server) handleBacktestList(c *gin.Context) {
-	s.writeOK(c, map[string]any{"runs": s.backtestRuns.list()})
+	s.writeOK(c, map[string]any{"runs": s.backtestRuns.listLightweight()})
 }
 
 // handleBacktestStart godoc
@@ -141,6 +142,12 @@ func (s *Server) enqueueBacktest(req backtestStartRequest) (*backtestRunState, e
 	go func() {
 		defer s.backtestRuns.setCancel(runID, nil)
 		defer cancel()
+		defer func() {
+			if recovered := recover(); recovered != nil {
+				log.Printf("backtest run %s panicked: %v\n%s", runID, recovered, string(debug.Stack()))
+				s.finishBacktestRun(runID, "failed", backtestFailureResult(req, fmt.Sprintf("backtest panic: %v", recovered)))
+			}
+		}()
 		if _, err := s.backtestRuns.update(runID, func(run *backtestRunState) {
 			run.Status = "running"
 			run.UpdatedAt = time.Now().UTC().Format(time.RFC3339Nano)
@@ -161,22 +168,42 @@ func (s *Server) enqueueBacktest(req backtestStartRequest) (*backtestRunState, e
 			UseExtendedHours: req.UseExtendedHours,
 		})
 
-		if _, err := s.backtestRuns.update(runID, func(run *backtestRunState) {
-			run.Result = result
-			if runCtx.Err() == context.Canceled {
-				run.Status = "cancelled"
-			} else if result.Error != "" {
-				run.Status = "failed"
-			} else {
-				run.Status = "completed"
-			}
-			run.UpdatedAt = time.Now().UTC().Format(time.RFC3339Nano)
-		}); err != nil {
-			log.Printf("backtest run store update(%s terminal) failed: %v", runID, err)
+		if result == nil {
+			result = backtestFailureResult(req, "backtest returned no result")
 		}
+		status := "completed"
+		if runCtx.Err() == context.Canceled {
+			status = "cancelled"
+		} else if strings.TrimSpace(result.Error) != "" {
+			status = "failed"
+		}
+		s.finishBacktestRun(runID, status, result)
 	}()
 
 	return run, nil
+}
+
+func backtestFailureResult(req backtestStartRequest, message string) *backtest.RunResult {
+	return &backtest.RunResult{
+		Symbol:       req.Symbol,
+		Interval:     req.Interval,
+		StartTime:    req.StartTime,
+		EndTime:      req.EndTime,
+		FinalBalance: req.InitialBalance,
+		Error:        message,
+	}
+}
+
+func (s *Server) finishBacktestRun(runID string, status string, result *backtest.RunResult) {
+	mutate := func(run *backtestRunState) {
+		run.Result = result
+		run.Status = status
+		run.UpdatedAt = time.Now().UTC().Format(time.RFC3339Nano)
+	}
+	if _, err := s.backtestRuns.update(runID, mutate); err != nil {
+		log.Printf("backtest run store update(%s %s) failed: %v", runID, status, err)
+		s.backtestRuns.updateMemoryOnly(runID, mutate)
+	}
 }
 
 // handleBacktestStatus godoc
@@ -225,7 +252,11 @@ func (s *Server) handleBacktestResult(c *gin.Context) {
 	}
 	runID := strings.TrimSpace(uri.RunID)
 
-	run, ok := s.backtestRuns.get(runID)
+	run, ok, err := s.backtestRuns.getFull(runID)
+	if err != nil {
+		s.writeError(c, http.StatusInternalServerError, "BACKTEST_RUN_STORE_FAILED", "load backtest result failed")
+		return
+	}
 	if !ok {
 		s.writeError(c, http.StatusNotFound, "NOT_FOUND", "backtest run not found")
 		return

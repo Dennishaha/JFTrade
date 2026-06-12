@@ -90,6 +90,9 @@ interface BacktestRunResult {
   candles?: BacktestCandleView[] | undefined;
   logs?: string[] | undefined;
   runtimeErrors?: string[] | undefined;
+  runtimeErrorCounts?: Record<string, number> | undefined;
+  runtimeErrorTotal?: number | undefined;
+  runtimeErrorsTruncated?: boolean | undefined;
   error?: string | undefined;
 }
 
@@ -112,6 +115,9 @@ interface BacktestRunResultTransport {
   candles?: BacktestCandleTransport[] | undefined;
   logs?: string[] | undefined;
   runtimeErrors?: string[] | undefined;
+  runtimeErrorCounts?: Record<string, number> | undefined;
+  runtimeErrorTotal?: number | undefined;
+  runtimeErrorsTruncated?: boolean | undefined;
   error?: string | undefined;
 }
 
@@ -224,6 +230,8 @@ export function useBacktestRuns(options: UseBacktestRunsOptions) {
   const error = ref("");
 
   const expandedRuns = reactive<Record<string, boolean>>({});
+  const detailLoading = reactive<Record<string, boolean>>({});
+  const detailErrors = reactive<Record<string, string>>({});
 
   const filteredRuns = computed(() =>
     [...runs.value].sort(
@@ -232,8 +240,30 @@ export function useBacktestRuns(options: UseBacktestRunsOptions) {
     ),
   );
 
-  function toggleRun(runId: string) {
-    expandedRuns[runId] = !expandedRuns[runId];
+  async function toggleRun(runId: string) {
+    expandedRuns[runId] = true;
+    const current = runs.value.find((run) => run.id === runId);
+    if (current?.result) {
+      return;
+    }
+    if (detailLoading[runId]) {
+      return;
+    }
+    detailLoading[runId] = true;
+    detailErrors[runId] = "";
+    try {
+      const detail = await fetchEnvelope<BacktestRunTransport>(
+        `/api/v1/backtests/${encodeURIComponent(runId)}`,
+      );
+      runs.value = mergeRunsById([
+        ...runs.value.filter((run) => run.id !== runId),
+        normalizeRun(detail),
+      ]);
+    } catch (cause) {
+      detailErrors[runId] = `加载回测详情失败: ${cause instanceof Error ? cause.message : String(cause)}`;
+    } finally {
+      detailLoading[runId] = false;
+    }
   }
 
   function normalizeDecimalTransport(value: BacktestDecimalTransport | undefined): {
@@ -393,7 +423,7 @@ export function useBacktestRuns(options: UseBacktestRunsOptions) {
     }
 
     const targetRun = runs.value.find((run) => run.id === normalizedRunID);
-    const isTerminal = targetRun != null && (targetRun.status === "completed" || targetRun.status === "failed");
+    const isTerminal = targetRun != null && isTerminalBacktestStatus(targetRun.status);
     if (isTerminal) {
       try {
         await fetchEnvelopeWithInit<{ deleted: boolean; id: string }>(
@@ -552,17 +582,23 @@ export function useBacktestRuns(options: UseBacktestRunsOptions) {
 
   function startPolling(runId: string) {
     stopPolling();
+    let consecutiveFailures = 0;
     polling.value = setInterval(async () => {
       try {
         const data = await fetchEnvelope<{ id: string; status: string }>(
           `/api/v1/backtests/${runId}/status`,
         );
-        if (data.status === "completed" || data.status === "failed") {
+        consecutiveFailures = 0;
+        if (isTerminalBacktestStatus(data.status)) {
           stopPolling();
           await loadRuns();
         }
-      } catch {
-        // ignore poll errors
+      } catch (cause) {
+        consecutiveFailures += 1;
+        if (consecutiveFailures >= 3) {
+          stopPolling();
+          error.value = `回测状态轮询失败: ${cause instanceof Error ? cause.message : String(cause)}`;
+        }
       }
     }, 2000);
   }
@@ -581,6 +617,8 @@ export function useBacktestRuns(options: UseBacktestRunsOptions) {
     syncProgress,
     error,
     expandedRuns,
+    detailLoading,
+    detailErrors,
     filteredRuns,
     toggleRun,
     deleteRun,
@@ -589,4 +627,8 @@ export function useBacktestRuns(options: UseBacktestRunsOptions) {
     cancelSync,
     startBacktest,
   };
+}
+
+function isTerminalBacktestStatus(status: string | undefined): boolean {
+  return status === "completed" || status === "failed" || status === "cancelled";
 }

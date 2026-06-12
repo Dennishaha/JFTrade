@@ -37,6 +37,8 @@ type resultCollector struct {
 	pnlCurve            []PnLPoint
 	candles             []Candle
 	warnedBadClose      bool
+	lastCashTotal       fixedpoint.Value
+	hasLastCashTotal    bool
 }
 
 func newResultCollector(symbol string, strategyInterval types.Interval, quoteCurrency string, warmupUntil time.Time, result *RunResult) *resultCollector {
@@ -81,6 +83,7 @@ func (c *resultCollector) onOrderUpdate(order types.Order) {
 	case types.SideTypeSell:
 		c.netPosition = c.netPosition.Sub(order.Quantity)
 	}
+	c.hasLastCashTotal = false
 }
 
 func (c *resultCollector) recordOrderBookEntry(order types.Order) {
@@ -176,14 +179,19 @@ func (c *resultCollector) onKLineClosed(ctx context.Context, exchange accountQue
 		})
 	}
 
-	account, err := exchange.QueryAccount(ctx)
-	if err != nil {
-		return
-	}
-
 	total := fixedpoint.Zero
-	if balance, ok := account.Balance(c.quoteCurrency); ok {
-		total = balance.Total()
+	if c.hasLastCashTotal {
+		total = c.lastCashTotal
+	} else {
+		account, err := exchange.QueryAccount(ctx)
+		if err != nil {
+			return
+		}
+		if balance, ok := account.Balance(c.quoteCurrency); ok {
+			total = balance.Total()
+			c.lastCashTotal = total
+			c.hasLastCashTotal = true
+		}
 	}
 	if !c.netPosition.IsZero() && kline.Close.Sign() > 0 {
 		total = total.Add(c.netPosition.Mul(kline.Close))
@@ -240,6 +248,8 @@ func (c *resultCollector) finalize(ctx context.Context, exchange accountQuerier,
 		total := fixedpoint.Zero
 		if balance, ok := account.Balance(c.quoteCurrency); ok {
 			total = balance.Total()
+			c.lastCashTotal = total
+			c.hasLastCashTotal = true
 		}
 		if !c.netPosition.IsZero() && len(c.candles) > 0 {
 			lastClose, err := fixedpoint.NewFromString(c.candles[len(c.candles)-1].Close)

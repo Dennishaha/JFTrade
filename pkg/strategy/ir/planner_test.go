@@ -98,6 +98,28 @@ func TestPlanRequirementsRejectsInvalidProtectTimeUnit(t *testing.T) {
 	}
 }
 
+func TestPlanRequirementsDetectsPositionVariablesInExpressions(t *testing.T) {
+	program := programWithStatements(
+		&strategyir.LetStmt{
+			Range:      strategyir.SourceRange{StartLine: 1},
+			Name:       "stopPrice",
+			Expression: "position_avg_price * 0.95",
+		},
+		&strategyir.IfStmt{
+			Range:     strategyir.SourceRange{StartLine: 2},
+			Condition: "position_size > 0",
+		},
+	)
+
+	requirements, err := strategyir.PlanRequirements(program)
+	if err != nil {
+		t.Fatalf("PlanRequirements() error = %v", err)
+	}
+	if !requirements.RequiresPosition {
+		t.Fatal("RequiresPosition = false, want true")
+	}
+}
+
 func TestPlanRequirementsIndicatorKeysMatchRuntimeBindingParity(t *testing.T) {
 	program := programWithStatements(
 		&strategyir.LetStmt{Range: strategyir.SourceRange{StartLine: 1}, Name: "fast", Expression: "ma(EMA,14,minute)"},
@@ -111,11 +133,12 @@ func TestPlanRequirementsIndicatorKeysMatchRuntimeBindingParity(t *testing.T) {
 		&strategyir.LetStmt{Range: strategyir.SourceRange{StartLine: 9}, Name: "wr", Expression: "williams_r(14)"},
 		&strategyir.LetStmt{Range: strategyir.SourceRange{StartLine: 10}, Name: "bInt", Expression: "bollinger(20,2)"},
 		&strategyir.LetStmt{Range: strategyir.SourceRange{StartLine: 11}, Name: "bFloat", Expression: "bollinger(20,2.5)"},
+		&strategyir.LetStmt{Range: strategyir.SourceRange{StartLine: 12}, Name: "sd", Expression: "stdev(20)"},
 		&strategyir.IfStmt{
-			Range:     strategyir.SourceRange{StartLine: 12},
+			Range:     strategyir.SourceRange{StartLine: 13},
 			Condition: "cross_over(fast, slow)",
 			Then: []strategyir.Statement{&strategyir.ProtectStmt{
-				Range:                strategyir.SourceRange{StartLine: 13},
+				Range:                strategyir.SourceRange{StartLine: 14},
 				Direction:            "auto",
 				Mode:                 "trailing_stop",
 				TimeValueExpression:  "2",
@@ -143,6 +166,7 @@ func TestPlanRequirementsIndicatorKeysMatchRuntimeBindingParity(t *testing.T) {
 		"williamsr:14":                           true,
 		"bollinger:20:2":                         true,
 		"bollinger:20:2.5":                       true,
+		"stdev:20":                               true,
 		"risk:trailingStop:auto:2:day:4:session": true,
 	}
 	for _, ind := range requirements.Indicators {

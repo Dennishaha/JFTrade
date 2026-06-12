@@ -114,6 +114,7 @@ type positionSnapshot struct {
 	Quantity          float64
 	AvailableQuantity float64
 	MarketValue       float64
+	AveragePrice      float64
 	Direction         string
 }
 
@@ -204,9 +205,35 @@ func (s *evaluationScope) reservedVariable(name string) (any, bool) {
 			return nil, false
 		}
 		return &s.volumeSeries, true
+	case "position_size":
+		position := s.currentPosition()
+		if position == nil {
+			return 0.0, true
+		}
+		return position.Quantity, true
+	case "position_avg_price":
+		position := s.currentPosition()
+		if position == nil || position.Quantity == 0 || position.AveragePrice <= 0 {
+			return nil, true
+		}
+		return position.AveragePrice, true
 	default:
 		return nil, false
 	}
+}
+
+func (s *evaluationScope) currentPosition() *positionSnapshot {
+	if s == nil || s.runtime == nil {
+		return nil
+	}
+	symbol := strings.TrimSpace(s.currentKlineSymbol)
+	if symbol == "" {
+		symbol = s.runtime.symbol
+	}
+	if symbol == "" {
+		return nil
+	}
+	return s.runtime.getPosition(symbol, s.currentKlineTime)
 }
 
 func (s *evaluationScope) setVariable(name string, value any) {
@@ -937,6 +964,10 @@ func (r *strategyRuntime) getPosition(symbol string, barTime time.Time) *positio
 	if marketPrice.IsZero() && position != nil {
 		marketPrice = position.AverageCost
 	}
+	averagePrice := 0.0
+	if position != nil {
+		averagePrice = position.AverageCost.Float64()
+	}
 	direction := "FLAT"
 	if baseQuantity.Sign() > 0 {
 		direction = "LONG"
@@ -948,6 +979,7 @@ func (r *strategyRuntime) getPosition(symbol string, barTime time.Time) *positio
 		Quantity:          baseQuantity.Float64(),
 		AvailableQuantity: availableQuantity.Float64(),
 		MarketValue:       marketPrice.Mul(baseQuantity).Float64(),
+		AveragePrice:      averagePrice,
 		Direction:         direction,
 	}
 	r.storeCachedPosition(symbol, barTime, snapshot)
@@ -1373,6 +1405,12 @@ func parseIndicatorBinding(statement *strategyir.LetStmt) (indicatorBinding, boo
 			return indicatorBinding{}, false, err
 		}
 		return indicatorBinding{Alias: statement.Name, Kind: "atr", Key: "atr:" + strconv.Itoa(period), Args: []string{strconv.Itoa(period)}}, true, nil
+	case "stdev":
+		period, err := indicatorbinding.ExpectOnePositiveIntArg(statement.Range.StartLine, name, args)
+		if err != nil {
+			return indicatorBinding{}, false, err
+		}
+		return indicatorBinding{Alias: statement.Name, Kind: "stdev", Key: "stdev:" + strconv.Itoa(period), Args: []string{strconv.Itoa(period)}}, true, nil
 	case "cci":
 		period, err := indicatorbinding.ExpectOnePositiveIntArg(statement.Range.StartLine, name, args)
 		if err != nil {

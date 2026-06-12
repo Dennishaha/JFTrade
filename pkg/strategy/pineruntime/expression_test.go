@@ -173,6 +173,34 @@ func TestEvaluateExpressionSupportsReservedBarVariablesAndShadowing(t *testing.T
 	}
 }
 
+func TestEvaluateExpressionSupportsPositionVariables(t *testing.T) {
+	runtime := &strategyRuntime{symbol: "US.AAPL", expressionCache: map[string]exprast.Node{}}
+	scope := newBarExpressionScope(runtime)
+	runtime.storeCachedPosition("US.AAPL", scope.currentKlineTime, &positionSnapshot{
+		Symbol:       "US.AAPL",
+		Quantity:     3,
+		AveragePrice: 101.25,
+		Direction:    "LONG",
+	})
+
+	value, err := evaluateExpression("position_size == 3 and position_avg_price == 101.25", scope)
+	if err != nil {
+		t.Fatalf("position variable expression error = %v", err)
+	}
+	if value != true {
+		t.Fatalf("position variable expression = %#v, want true", value)
+	}
+
+	runtime.storeCachedPosition("US.AAPL", scope.currentKlineTime, nil)
+	value, err = evaluateExpression("position_size == 0 and position_avg_price == na", scope)
+	if err != nil {
+		t.Fatalf("flat position expression error = %v", err)
+	}
+	if value != true {
+		t.Fatalf("flat position expression = %#v, want true", value)
+	}
+}
+
 func TestExecuteStatementsKeepsBranchLetScoped(t *testing.T) {
 	ifStmt := &strategyir.IfStmt{
 		Range:     strategyir.SourceRange{StartLine: 1, EndLine: 2},

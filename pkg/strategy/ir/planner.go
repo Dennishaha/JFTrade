@@ -11,6 +11,8 @@ import (
 )
 
 var divergenceCallPattern = regexp.MustCompile(`divergence_(top|bottom)\s*\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*,\s*([0-9]+)\s*\)`)
+var stdevCallPattern = regexp.MustCompile(`\bstdev\s*\(\s*([0-9]+)\s*\)`)
+var positionVariablePattern = regexp.MustCompile(`\b(position_size|position_avg_price)\b`)
 
 type Requirements struct {
 	Indicators                []IndicatorRequirement
@@ -68,6 +70,9 @@ func planStatements(
 	for _, statement := range statements {
 		switch typed := statement.(type) {
 		case *LetStmt:
+			if expressionRequiresPosition(typed.Expression) {
+				result.RequiresPosition = true
+			}
 			binding, recognized, err := parseIndicatorBinding(typed)
 			if err != nil {
 				return err
@@ -80,7 +85,16 @@ func planStatements(
 					Key:   binding.Key,
 				}
 			}
+			for _, requirement := range collectExpressionRequirements(typed.Expression) {
+				indicatorByKey[requirement.Key] = requirement
+			}
 		case *IfStmt:
+			if expressionRequiresPosition(typed.Condition) {
+				result.RequiresPosition = true
+			}
+			for _, requirement := range collectExpressionRequirements(typed.Condition) {
+				indicatorByKey[requirement.Key] = requirement
+			}
 			for _, requirement := range collectConditionRequirements(typed.Condition, bindings) {
 				indicatorByKey[requirement.Key] = requirement
 			}
@@ -103,6 +117,12 @@ func planStatements(
 			switch quantityMode {
 			case "account_position_percent":
 				result.RequiresTotalAccountValue = true
+			}
+			for _, requirement := range collectExpressionRequirements(typed.QuantityExpression) {
+				indicatorByKey[requirement.Key] = requirement
+			}
+			for _, requirement := range collectExpressionRequirements(typed.LimitExpression) {
+				indicatorByKey[requirement.Key] = requirement
 			}
 		case *ProtectStmt:
 			result.RequiresPosition = true
@@ -176,6 +196,12 @@ func parseIndicatorBinding(statement *LetStmt) (plannedBinding, bool, error) {
 			return plannedBinding{}, false, err
 		}
 		return plannedBinding{Alias: statement.Name, Kind: "atr", Key: "atr:" + strconv.Itoa(period), Args: []string{strconv.Itoa(period)}}, true, nil
+	case "stdev":
+		period, err := indicatorbinding.ExpectOnePositiveIntArg(statement.Range.StartLine, name, args)
+		if err != nil {
+			return plannedBinding{}, false, err
+		}
+		return plannedBinding{Alias: statement.Name, Kind: "stdev", Key: "stdev:" + strconv.Itoa(period), Args: []string{strconv.Itoa(period)}}, true, nil
 	case "cci":
 		period, err := indicatorbinding.ExpectOnePositiveIntArg(statement.Range.StartLine, name, args)
 		if err != nil {
@@ -205,6 +231,28 @@ func parseIndicatorBinding(statement *LetStmt) (plannedBinding, bool, error) {
 	default:
 		return plannedBinding{}, false, nil
 	}
+}
+
+func collectExpressionRequirements(expression string) []IndicatorRequirement {
+	requirements := make([]IndicatorRequirement, 0)
+	seen := map[string]struct{}{}
+	for _, match := range stdevCallPattern.FindAllStringSubmatch(expression, -1) {
+		period, err := indicatorbinding.ParsePositiveInt(match[1])
+		if err != nil {
+			continue
+		}
+		key := "stdev:" + strconv.Itoa(period)
+		if _, exists := seen[key]; exists {
+			continue
+		}
+		seen[key] = struct{}{}
+		requirements = append(requirements, IndicatorRequirement{Kind: "stdev", Key: key})
+	}
+	return requirements
+}
+
+func expressionRequiresPosition(expression string) bool {
+	return positionVariablePattern.MatchString(expression)
 }
 
 func collectConditionRequirements(condition string, bindings map[string]plannedBinding) []IndicatorRequirement {

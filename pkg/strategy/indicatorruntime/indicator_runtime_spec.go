@@ -26,6 +26,7 @@ type indicatorRequirements struct {
 	bollinger      []bollingerConfig
 	kdj            []kdjConfig
 	atr            []int
+	stdev          []int
 	cci            []int
 	williamsR      []int
 	stopLoss       []stopLossConfig
@@ -122,6 +123,7 @@ func parseIndicatorRequirementKeys(keys []string, strict bool) (indicatorRequire
 	bollingerSet := map[bollingerConfig]struct{}{}
 	kdjSet := map[kdjConfig]struct{}{}
 	atrSet := map[int]struct{}{}
+	stdevSet := map[int]struct{}{}
 	cciSet := map[int]struct{}{}
 	williamsRSet := map[int]struct{}{}
 	stopLossSet := map[stopLossConfig]struct{}{}
@@ -231,6 +233,21 @@ func parseIndicatorRequirementKeys(keys []string, strict bool) (indicatorRequire
 			}
 			if strict {
 				return indicatorRequirements{}, fmt.Errorf("invalid atr key: %s", key)
+			}
+		case "stdev":
+			if len(parts) != 2 {
+				if strict {
+					return indicatorRequirements{}, fmt.Errorf("invalid stdev key: %s", key)
+				}
+				continue
+			}
+			period, ok := parsePositiveInt(parts[1])
+			if ok {
+				stdevSet[period] = struct{}{}
+				continue
+			}
+			if strict {
+				return indicatorRequirements{}, fmt.Errorf("invalid stdev key: %s", key)
 			}
 		case "cci":
 			if len(parts) != 2 {
@@ -355,6 +372,7 @@ func parseIndicatorRequirementKeys(keys []string, strict bool) (indicatorRequire
 		bollinger:      sortedBollingerConfigs(bollingerSet),
 		kdj:            sortedKDJConfigs(kdjSet),
 		atr:            sortedInts(atrSet),
+		stdev:          sortedInts(stdevSet),
 		cci:            sortedInts(cciSet),
 		williamsR:      sortedInts(williamsRSet),
 		stopLoss:       sortedStopLossConfigs(stopLossSet),
@@ -371,6 +389,7 @@ func (r indicatorRequirements) isEmpty() bool {
 		len(r.bollinger) == 0 &&
 		len(r.kdj) == 0 &&
 		len(r.atr) == 0 &&
+		len(r.stdev) == 0 &&
 		len(r.cci) == 0 &&
 		len(r.williamsR) == 0 &&
 		len(r.stopLoss) == 0 &&
@@ -410,6 +429,10 @@ func kdjIndicatorKey(period, m1, m2 int) string {
 
 func atrIndicatorKey(period int) string {
 	return "atr:" + strconv.Itoa(period)
+}
+
+func stdevIndicatorKey(period int) string {
+	return "stdev:" + strconv.Itoa(period)
 }
 
 func cciIndicatorKey(period int) string {

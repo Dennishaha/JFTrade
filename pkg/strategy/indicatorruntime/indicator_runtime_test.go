@@ -27,6 +27,7 @@ func TestParseIndicatorRequirements(t *testing.T) {
 			const latestBollinger = ctx.indicators["bollinger:20:2"];
 			const latestKdj = ctx.indicators["kdj:9:3:3"];
 			const latestAtr = ctx.indicators["atr:14"];
+			const latestStdDev = ctx.indicators["stdev:20"];
 			const latestCci = ctx.indicators["cci:20"];
 			const latestWilliamsR = ctx.indicators["williamsr:14"];
 			const sessionStopLoss = ctx.indicators["sl:auto:1:day:10"];
@@ -66,6 +67,9 @@ func TestParseIndicatorRequirements(t *testing.T) {
 	}
 	if len(requirements.atr) != 1 || requirements.atr[0] != 14 {
 		t.Fatalf("atr requirements = %#v", requirements.atr)
+	}
+	if len(requirements.stdev) != 1 || requirements.stdev[0] != 20 {
+		t.Fatalf("stdev requirements = %#v", requirements.stdev)
 	}
 	if len(requirements.cci) != 1 || requirements.cci[0] != 20 {
 		t.Fatalf("cci requirements = %#v", requirements.cci)
@@ -867,6 +871,20 @@ func TestRollingBollingerStateMatchesBatchSnapshot(t *testing.T) {
 		state.push(value)
 	}
 	assertSnapshotMapApproxEqual(t, state.snapshot(), calculateBollingerSnapshot(values, bollingerConfig{period: 3, multiplier: 2}))
+}
+
+func TestRollingStdDevStateMatchesBatchValue(t *testing.T) {
+	state := &rollingStdDevState{period: 3}
+	values := []float64{10, 12, 14, 16}
+	for _, value := range values {
+		state.push(value)
+	}
+	actual, actualOK := state.currentValue()
+	expected, expectedOK := calculateStdDev(values, 3)
+	if !actualOK || !expectedOK {
+		t.Fatalf("stddev ok = (%v, %v), want true", actualOK, expectedOK)
+	}
+	assertOptionalNumberApproxEqual(t, actual, expected)
 }
 
 func TestRollingWilliamsRStateMatchesBatchCurrentValue(t *testing.T) {

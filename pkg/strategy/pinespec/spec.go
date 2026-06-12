@@ -271,7 +271,8 @@ func reservedVariables() []map[string]any {
 		{"name": "volume", "description": "当前及历史 volume 序列值。"},
 		{"name": "kline", "description": "当前 K 线载荷视图。"},
 		{"name": "strategy.equity", "description": "用于下单数量表达式时按账户权益百分比估算股数。"},
-		{"name": "strategy.position_size", "description": "当前 compiler 暂按 0 处理；完整仓位条件请使用 JFTrade 运行实例状态。"},
+		{"name": "strategy.position_size", "description": "当前策略持仓数量；多头为正，空头为负，空仓为 0。"},
+		{"name": "strategy.position_avg_price", "description": "当前策略持仓均价；空仓时为 na。"},
 	}
 }
 
@@ -282,6 +283,7 @@ func indicatorFunctions() []map[string]any {
 		{"name": "ta.rsi", "signature": "ta.rsi(close, period)", "notes": "lower 到 JFTrade RSI 指标。"},
 		{"name": "ta.macd", "signature": "ta.macd(close, fast, slow, signal)", "notes": "支持三元组赋值，signal/hist 变量会映射到 MACD 字段。"},
 		{"name": "ta.atr", "signature": "ta.atr(period)", "notes": "lower 到 JFTrade ATR 指标。"},
+		{"name": "ta.stdev", "signature": "ta.stdev(close, period)", "notes": "lower 到 JFTrade rolling standard deviation 指标。"},
 		{"name": "ta.cci", "signature": "ta.cci(close, period)", "notes": "lower 到 JFTrade CCI 指标。"},
 		{"name": "ta.crossover", "signature": "ta.crossover(left, right)", "notes": "lower 到 cross_over。"},
 		{"name": "ta.crossunder", "signature": "ta.crossunder(left, right)", "notes": "lower 到 cross_under。"},

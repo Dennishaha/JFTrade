@@ -177,3 +177,80 @@ func TestBacktestRouteDeletesTerminalRuns(t *testing.T) {
 		t.Fatal("running backtest run should not be deleted")
 	}
 }
+
+func TestBacktestListReturnsLightweightRunsAndResultReturnsDetail(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	server := newTestServer(t, store)
+
+	run := &backtestRunState{
+		ID:     "bt-summary-detail",
+		Status: "completed",
+		Request: backtestStartRequest{
+			DefinitionID:   "dsl-summary-detail",
+			Symbol:         "US.NVDA",
+			Interval:       "5m",
+			InitialBalance: 10000,
+		},
+		Result: &backtest.RunResult{
+			Symbol:       "US.NVDA",
+			Interval:     "5m",
+			FinalBalance: 10001,
+			PnLCurve:     []backtest.PnLPoint{{Time: "2026-01-01T00:00:00Z", Equity: 10001}},
+			Candles:      []backtest.Candle{{Time: "2026-01-01T00:00:00Z", Open: "1", High: "2", Low: "1", Close: "2", Volume: "100"}},
+		},
+		CreatedAt: time.Now().UTC().Format(time.RFC3339Nano),
+		UpdatedAt: time.Now().UTC().Format(time.RFC3339Nano),
+	}
+	if err := server.backtestRuns.add(run); err != nil {
+		t.Fatalf("persist run: %v", err)
+	}
+
+	srv := httptest.NewServer(server)
+	t.Cleanup(srv.Close)
+
+	listResp, err := http.Get(srv.URL + "/api/v1/backtests")
+	if err != nil {
+		t.Fatalf("GET backtests: %v", err)
+	}
+	defer listResp.Body.Close()
+	if listResp.StatusCode != http.StatusOK {
+		t.Fatalf("GET backtests status = %d", listResp.StatusCode)
+	}
+	var listEnvelope struct {
+		Data struct {
+			Runs []backtestRunState `json:"runs"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(listResp.Body).Decode(&listEnvelope); err != nil {
+		t.Fatalf("decode list response: %v", err)
+	}
+	if len(listEnvelope.Data.Runs) != 1 {
+		t.Fatalf("unexpected list response: %+v", listEnvelope.Data.Runs)
+	}
+	if listEnvelope.Data.Runs[0].Result != nil {
+		t.Fatalf("list response included result: %+v", listEnvelope.Data.Runs[0].Result)
+	}
+
+	detailResp, err := http.Get(srv.URL + "/api/v1/backtests/" + run.ID)
+	if err != nil {
+		t.Fatalf("GET backtest detail: %v", err)
+	}
+	defer detailResp.Body.Close()
+	if detailResp.StatusCode != http.StatusOK {
+		t.Fatalf("GET backtest detail status = %d", detailResp.StatusCode)
+	}
+	var detailEnvelope struct {
+		Data backtestRunState `json:"data"`
+	}
+	if err := json.NewDecoder(detailResp.Body).Decode(&detailEnvelope); err != nil {
+		t.Fatalf("decode detail response: %v", err)
+	}
+	if detailEnvelope.Data.Result == nil || len(detailEnvelope.Data.Result.Candles) != 1 || len(detailEnvelope.Data.Result.PnLCurve) != 1 {
+		t.Fatalf("detail response missing full series: %+v", detailEnvelope.Data.Result)
+	}
+}

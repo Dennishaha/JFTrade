@@ -2,7 +2,9 @@ package jftradeapi
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -144,7 +146,9 @@ func (s *backtestRunStore) migrate() error {
 		`CREATE INDEX IF NOT EXISTS idx_backtest_runs_status ON ` + backtestRunTable + ` (status, updated_at DESC)`,
 	} {
 		if _, err := s.db.Exec(statement); err != nil {
-			return err
+			if !strings.Contains(strings.ToLower(err.Error()), "duplicate column name") {
+				return err
+			}
 		}
 	}
 	return nil
@@ -157,7 +161,7 @@ func (s *backtestRunStore) loadFromDB() error {
 
 	rows := []backtestRunStateRow{}
 	if err := s.db.Select(&rows,
-		`SELECT id, status, request_json, result_json, created_at, updated_at `+
+		`SELECT id, status, request_json, '' AS result_json, created_at, updated_at `+
 			`FROM `+backtestRunTable+` `+
 			`ORDER BY updated_at DESC, id ASC`); err != nil {
 		return err
@@ -188,13 +192,9 @@ func backtestRunStateFromRow(row backtestRunStateRow) (*backtestRunState, error)
 		return nil, fmt.Errorf("decode backtest request %s: %w", row.ID, err)
 	}
 
-	var result *backtest.RunResult
-	if trimmed := strings.TrimSpace(row.ResultJSON); trimmed != "" && trimmed != "null" {
-		decoded := &backtest.RunResult{}
-		if err := json.Unmarshal([]byte(trimmed), decoded); err != nil {
-			return nil, fmt.Errorf("decode backtest result %s: %w", row.ID, err)
-		}
-		result = decoded
+	result, err := decodeBacktestResultJSON(row.ID, row.ResultJSON)
+	if err != nil {
+		return nil, err
 	}
 
 	return &backtestRunState{
@@ -205,6 +205,17 @@ func backtestRunStateFromRow(row backtestRunStateRow) (*backtestRunState, error)
 		CreatedAt: row.CreatedAt,
 		UpdatedAt: row.UpdatedAt,
 	}, nil
+}
+
+func decodeBacktestResultJSON(runID string, resultJSON string) (*backtest.RunResult, error) {
+	if trimmed := strings.TrimSpace(resultJSON); trimmed != "" && trimmed != "null" {
+		decoded := &backtest.RunResult{}
+		if err := json.Unmarshal([]byte(trimmed), decoded); err != nil {
+			return nil, fmt.Errorf("decode backtest result %s: %w", runID, err)
+		}
+		return decoded, nil
+	}
+	return nil, nil
 }
 
 func markRecoveredBacktestRun(run *backtestRunState, recoveredAt string) bool {
@@ -308,6 +319,19 @@ func (s *backtestRunStore) list() []*backtestRunState {
 	return runs
 }
 
+func (s *backtestRunStore) listLightweight() []*backtestRunState {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	runs := make([]*backtestRunState, 0, len(s.runs))
+	for _, run := range s.runs {
+		snapshot := cloneBacktestRunState(run)
+		snapshot.Result = nil
+		runs = append(runs, snapshot)
+	}
+	return runs
+}
+
 func (s *backtestRunStore) get(runID string) (*backtestRunState, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -317,6 +341,28 @@ func (s *backtestRunStore) get(runID string) (*backtestRunState, bool) {
 		return nil, false
 	}
 	return cloneBacktestRunState(run), true
+}
+
+func (s *backtestRunStore) getFull(runID string) (*backtestRunState, bool, error) {
+	snapshot, ok := s.get(runID)
+	if !ok || s == nil || s.db == nil {
+		return snapshot, ok, nil
+	}
+	var resultJSON string
+	if err := s.db.QueryRow(`SELECT result_json FROM `+backtestRunTable+` WHERE id = ?`, runID).Scan(&resultJSON); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return snapshot, true, nil
+		}
+		return nil, true, err
+	}
+	result, err := decodeBacktestResultJSON(runID, resultJSON)
+	if err != nil {
+		return nil, true, err
+	}
+	if result != nil {
+		snapshot.Result = result
+	}
+	return snapshot, true, nil
 }
 
 func (s *backtestRunStore) update(runID string, mutate func(*backtestRunState)) (bool, error) {
@@ -334,6 +380,18 @@ func (s *backtestRunStore) update(runID string, mutate func(*backtestRunState)) 
 		return true, err
 	}
 	return true, nil
+}
+
+func (s *backtestRunStore) updateMemoryOnly(runID string, mutate func(*backtestRunState)) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	run, ok := s.runs[runID]
+	if !ok {
+		return false
+	}
+	mutate(run)
+	return true
 }
 
 func (s *backtestRunStore) delete(runID string) (*backtestRunState, bool, error) {

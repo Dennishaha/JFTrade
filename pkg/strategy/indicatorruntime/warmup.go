@@ -64,6 +64,9 @@ func calculateIndicatorWarmupBars(requirements indicatorRequirements, intervalMi
 	for _, config := range requirements.bollinger {
 		warmup = max(warmup, config.period)
 	}
+	for _, period := range requirements.stdev {
+		warmup = max(warmup, period)
+	}
 	for _, config := range requirements.kdj {
 		warmup = max(warmup, config.period+config.m1+config.m2)
 	}

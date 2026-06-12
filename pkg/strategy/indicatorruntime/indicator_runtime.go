@@ -33,6 +33,7 @@ type indicatorRuntime struct {
 	kdjStates            map[kdjConfig]*rollingKDJState
 	rsiStates            map[int]*rollingRSIState
 	atrStates            map[int]*rollingATRState
+	stdevStates          map[int]*rollingStdDevState
 	bollingerStates      map[bollingerConfig]*rollingBollingerState
 	cciStates            map[int]*rollingCCIState
 	williamsRStates      map[int]*rollingWilliamsRState
@@ -170,6 +171,15 @@ type rollingATRState struct {
 	hasValue  bool
 }
 
+type rollingStdDevState struct {
+	period     int
+	window     rollingFloatWindow
+	sum        float64
+	sumSquares float64
+	current    float64
+	hasValue   bool
+}
+
 type rollingBollingerState struct {
 	period     int
 	multiplier float64
@@ -300,6 +310,7 @@ type snapshotKeyCache struct {
 	bollinger      map[bollingerConfig]string
 	kdj            map[kdjConfig]string
 	atr            map[int]string
+	stdev          map[int]string
 	cci            map[int]string
 	williamsR      map[int]string
 	stopLoss       map[stopLossConfig]string
@@ -716,6 +727,7 @@ func newIndicatorRuntimeWithRequirements(requirements indicatorRequirements, int
 		kdjStates:            newRollingKDJStates(requirements, seriesLimit),
 		rsiStates:            newRollingRSIStates(requirements, seriesLimit),
 		atrStates:            newRollingATRStates(requirements),
+		stdevStates:          newRollingStdDevStates(requirements),
 		bollingerStates:      newRollingBollingerStates(requirements),
 		cciStates:            newRollingCCIStates(requirements),
 		williamsRStates:      newRollingWilliamsRStates(requirements),
@@ -787,6 +799,7 @@ func (r *indicatorRuntime) push(kline types.KLine, session market.Session) {
 	r.pushMACDStates(closeValue, trimmed, oldFirstClose, oldSecondClose, hasOldFirstClose, hasOldSecondClose)
 	r.pushRSIStates(closeValue, previousClose, hasPreviousClose)
 	r.pushATRStates(kline.High.Float64(), kline.Low.Float64(), closeValue, previousClose, hasPreviousClose)
+	r.pushStdDevStates(closeValue)
 	r.pushBollingerStates(closeValue)
 	r.pushCCIStates(kline.High.Float64(), kline.Low.Float64(), closeValue)
 	r.pushWilliamsRStates(kline.High.Float64(), kline.Low.Float64(), closeValue)
@@ -849,6 +862,11 @@ func (r *indicatorRuntime) snapshot() map[string]any {
 		current, currentOK := r.atrSnapshotValue(period)
 		result[key] = cache.getScalarSnapshot(key, current, currentOK)
 	}
+	for _, period := range r.requirements.stdev {
+		key := r.snapshotKeys.stdev[period]
+		current, currentOK := r.stdDevSnapshotValue(period)
+		result[key] = cache.getScalarSnapshot(key, current, currentOK)
+	}
 	for _, period := range r.requirements.cci {
 		key := r.snapshotKeys.cci[period]
 		current, currentOK := r.cciSnapshotValue(period)
@@ -897,7 +915,7 @@ func (r *indicatorRuntime) snapshot() map[string]any {
 
 func buildSnapshotKeyCache(requirements indicatorRequirements) snapshotKeyCache {
 	cache := snapshotKeyCache{
-		resultCapacity: len(requirements.ma) + len(requirements.rsi) + len(requirements.macd) + len(requirements.bollinger) + len(requirements.kdj) + len(requirements.atr) + len(requirements.cci) + len(requirements.williamsR) + len(requirements.stopLoss) + len(requirements.rsiDivergence) + len(requirements.macdDivergence) + len(requirements.kdjDivergence),
+		resultCapacity: len(requirements.ma) + len(requirements.rsi) + len(requirements.macd) + len(requirements.bollinger) + len(requirements.kdj) + len(requirements.atr) + len(requirements.stdev) + len(requirements.cci) + len(requirements.williamsR) + len(requirements.stopLoss) + len(requirements.rsiDivergence) + len(requirements.macdDivergence) + len(requirements.kdjDivergence),
 	}
 	if len(requirements.ma) > 0 {
 		cache.ma = make(map[movingAverageConfig]string, len(requirements.ma))
@@ -940,6 +958,12 @@ func buildSnapshotKeyCache(requirements indicatorRequirements) snapshotKeyCache 
 		cache.atr = make(map[int]string, len(requirements.atr))
 		for _, period := range requirements.atr {
 			cache.atr[period] = atrIndicatorKey(period)
+		}
+	}
+	if len(requirements.stdev) > 0 {
+		cache.stdev = make(map[int]string, len(requirements.stdev))
+		for _, period := range requirements.stdev {
+			cache.stdev[period] = stdevIndicatorKey(period)
 		}
 	}
 	if len(requirements.cci) > 0 {
@@ -1949,6 +1973,20 @@ func newRollingATRStates(requirements indicatorRequirements) map[int]*rollingATR
 	return states
 }
 
+func newRollingStdDevStates(requirements indicatorRequirements) map[int]*rollingStdDevState {
+	if len(requirements.stdev) == 0 {
+		return nil
+	}
+	states := make(map[int]*rollingStdDevState, len(requirements.stdev))
+	for _, period := range requirements.stdev {
+		if period <= 0 {
+			continue
+		}
+		states[period] = &rollingStdDevState{period: period}
+	}
+	return states
+}
+
 func newRollingBollingerStates(requirements indicatorRequirements) map[bollingerConfig]*rollingBollingerState {
 	if len(requirements.bollinger) == 0 {
 		return nil
@@ -2042,6 +2080,15 @@ func (r *indicatorRuntime) pushATRStates(high, low, closeValue, previousClose fl
 	}
 	for _, state := range r.atrStates {
 		state.push(high, low, closeValue, previousClose, hasPreviousClose)
+	}
+}
+
+func (r *indicatorRuntime) pushStdDevStates(closeValue float64) {
+	if r == nil || len(r.stdevStates) == 0 {
+		return
+	}
+	for _, state := range r.stdevStates {
+		state.push(closeValue)
 	}
 }
 
@@ -2166,6 +2213,16 @@ func (r *indicatorRuntime) atrSnapshotValue(period int) (float64, bool) {
 	}
 	value, ok := calculateATR(r.highs, r.lows, r.closes, period).(float64)
 	return value, ok
+}
+
+func (r *indicatorRuntime) stdDevSnapshotValue(period int) (float64, bool) {
+	if r == nil {
+		return 0, false
+	}
+	if state, ok := r.stdevStates[period]; ok {
+		return state.currentValue()
+	}
+	return calculateStdDev(r.closes, period)
 }
 
 func (r *indicatorRuntime) bollingerSnapshot(config bollingerConfig) any {
@@ -2422,6 +2479,37 @@ func (s *rollingATRState) value() any {
 }
 
 func (s *rollingATRState) currentValue() (float64, bool) {
+	if s == nil || !s.hasValue {
+		return 0, false
+	}
+	return s.current, true
+}
+
+func (s *rollingStdDevState) push(value float64) {
+	if s == nil || s.period <= 0 {
+		return
+	}
+	evicted, evictedOK := s.window.push(value, s.period)
+	s.sum += value
+	s.sumSquares += value * value
+	if evictedOK {
+		s.sum -= evicted
+		s.sumSquares -= evicted * evicted
+	}
+	if s.window.len() < s.period {
+		s.hasValue = false
+		return
+	}
+	mean := s.sum / float64(s.period)
+	variance := s.sumSquares/float64(s.period) - mean*mean
+	if variance < 0 {
+		variance = 0
+	}
+	s.current = math.Sqrt(variance)
+	s.hasValue = true
+}
+
+func (s *rollingStdDevState) currentValue() (float64, bool) {
 	if s == nil || !s.hasValue {
 		return 0, false
 	}
@@ -3878,6 +3966,9 @@ func calculateIndicatorSeriesLimit(requirements indicatorRequirements, intervalM
 	for _, config := range requirements.bollinger {
 		limit = max(limit, config.period+1)
 	}
+	for _, period := range requirements.stdev {
+		limit = max(limit, period+1)
+	}
 	for _, config := range requirements.kdj {
 		limit = max(limit, config.period+config.m1+config.m2+1)
 	}
@@ -4294,6 +4385,23 @@ func calculateBollingerSnapshot(values []float64, config bollingerConfig) map[st
 		"upper":  middle + standardDeviation*config.multiplier,
 		"lower":  middle - standardDeviation*config.multiplier,
 	}
+}
+
+func calculateStdDev(values []float64, period int) (float64, bool) {
+	if period <= 0 || len(values) < period {
+		return 0, false
+	}
+	windowValues := values[len(values)-period:]
+	middle, ok := simpleMovingAverage(windowValues, period)
+	if !ok {
+		return 0, false
+	}
+	variance := 0.0
+	for _, value := range windowValues {
+		delta := value - middle
+		variance += delta * delta
+	}
+	return math.Sqrt(variance / float64(period)), true
 }
 
 func calculateKDJSnapshot(highs, lows, closes []float64, config kdjConfig) map[string]any {

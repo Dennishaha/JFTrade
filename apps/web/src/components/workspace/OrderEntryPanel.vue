@@ -25,7 +25,7 @@ const {
 } = useConsoleData();
 const { prefs } = useWorkspaceTradingPrefs();
 const notifications = useNotifications();
-const { findMarketProfile, supportsExtendedHoursForMarket } = useMarketProfiles();
+const { supportsExtendedHoursForMarket } = useMarketProfiles();
 
 type Side = "BUY" | "SELL";
 type OrderType = "LIMIT" | "MARKET" | "STOP" | "STOP_LIMIT";
@@ -140,13 +140,7 @@ const activeMarket = computed(
 const activeInstrument = computed(() => {
   const market = activeMarket.value.trim().toUpperCase();
   const symbol = prefs.value.symbol.trim().toUpperCase();
-  const profile = findMarketProfile(market);
-  if (
-    market === "" ||
-    symbol === "" ||
-    profile == null ||
-    profile.preferredPrefix.trim() === ""
-  ) {
+  if (market === "" || symbol === "") {
     return null;
   }
   return {

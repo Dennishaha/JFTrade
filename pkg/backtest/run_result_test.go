@@ -1,21 +1,27 @@
 package backtest
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+)
 
 func TestRunResultSnapshotReturnsIndependentCopy(t *testing.T) {
 	original := &RunResult{
-		Symbol:          "HK.00700",
-		Interval:        "1m",
-		FinalBalance:    123456,
-		MaxDrawdown:     0.12,
-		CurrentDrawdown: 0.03,
-		Trades:          []TradeEvent{{Time: "2026-01-02T00:00:00Z", Side: "BUY", Price: "100", Qty: "1"}},
-		OrderBook:       []OrderBookEntry{{OrderID: "1", Side: "BUY", Quantity: "1", Status: "FILLED", FilledPrice: "100"}},
-		PnLCurve:        []PnLPoint{{Time: "2026-01-02T00:00:00Z", Equity: 100000}},
-		DrawdownCurve:   []DrawdownPoint{{Time: "2026-01-02T00:00:00Z", Drawdown: 0.12}},
-		Candles:         []Candle{{Time: "2026-01-02T00:00:00Z", Open: "100", High: "101", Low: "99", Close: "100.5", Volume: "10"}},
-		Logs:            []string{"warmup complete"},
-		RuntimeErrors:   []string{"risk warning"},
+		Symbol:                 "HK.00700",
+		Interval:               "1m",
+		FinalBalance:           123456,
+		MaxDrawdown:            0.12,
+		CurrentDrawdown:        0.03,
+		Trades:                 []TradeEvent{{Time: "2026-01-02T00:00:00Z", Side: "BUY", Price: "100", Qty: "1"}},
+		OrderBook:              []OrderBookEntry{{OrderID: "1", Side: "BUY", Quantity: "1", Status: "FILLED", FilledPrice: "100"}},
+		PnLCurve:               []PnLPoint{{Time: "2026-01-02T00:00:00Z", Equity: 100000}},
+		DrawdownCurve:          []DrawdownPoint{{Time: "2026-01-02T00:00:00Z", Drawdown: 0.12}},
+		Candles:                []Candle{{Time: "2026-01-02T00:00:00Z", Open: "100", High: "101", Low: "99", Close: "100.5", Volume: "10"}},
+		Logs:                   []string{"warmup complete"},
+		RuntimeErrors:          []string{"risk warning"},
+		RuntimeErrorCounts:     map[string]int{"risk warning": 3},
+		RuntimeErrorTotal:      3,
+		RuntimeErrorsTruncated: true,
 	}
 
 	snapshot := original.Snapshot()
@@ -33,6 +39,7 @@ func TestRunResultSnapshotReturnsIndependentCopy(t *testing.T) {
 	snapshot.Candles[0].Close = "1"
 	snapshot.Logs[0] = "changed"
 	snapshot.RuntimeErrors[0] = "changed"
+	snapshot.RuntimeErrorCounts["risk warning"] = 99
 
 	if original.FinalBalance != 123456 {
 		t.Fatalf("original final balance mutated: %f", original.FinalBalance)
@@ -63,5 +70,34 @@ func TestRunResultSnapshotReturnsIndependentCopy(t *testing.T) {
 	}
 	if original.RuntimeErrors[0] != "risk warning" {
 		t.Fatalf("original runtime errors mutated: %s", original.RuntimeErrors[0])
+	}
+	if original.RuntimeErrorCounts["risk warning"] != 3 {
+		t.Fatalf("original runtime error counts mutated: %#v", original.RuntimeErrorCounts)
+	}
+	if original.RuntimeErrorTotal != 3 || !original.RuntimeErrorsTruncated {
+		t.Fatalf("runtime error metadata lost: total=%d truncated=%v", original.RuntimeErrorTotal, original.RuntimeErrorsTruncated)
+	}
+}
+
+func TestRunResultAddRuntimeErrorAggregatesCountsAndCapsSamples(t *testing.T) {
+	result := &RunResult{}
+
+	result.AddRuntimeError("repeat")
+	result.AddRuntimeError("repeat")
+	for index := 0; index < 105; index++ {
+		result.AddRuntimeError(fmt.Sprintf("unique-%d", index))
+	}
+
+	if result.RuntimeErrorTotal != 107 {
+		t.Fatalf("RuntimeErrorTotal = %d, want 107", result.RuntimeErrorTotal)
+	}
+	if result.RuntimeErrorCounts["repeat"] != 2 {
+		t.Fatalf("repeat count = %d, want 2", result.RuntimeErrorCounts["repeat"])
+	}
+	if len(result.RuntimeErrors) != 100 {
+		t.Fatalf("RuntimeErrors len = %d, want 100", len(result.RuntimeErrors))
+	}
+	if !result.RuntimeErrorsTruncated {
+		t.Fatal("expected RuntimeErrorsTruncated")
 	}
 }

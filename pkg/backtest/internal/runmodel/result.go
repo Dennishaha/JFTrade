@@ -71,8 +71,12 @@ type RunResult struct {
 	Logs            []string         `json:"logs"`
 	Error           string           `json:"error,omitempty"`
 
-	mu            sync.Mutex
-	RuntimeErrors []string `json:"runtimeErrors,omitempty"`
+	mu                     sync.Mutex
+	RuntimeErrors          []string       `json:"runtimeErrors,omitempty"`
+	RuntimeErrorCounts     map[string]int `json:"runtimeErrorCounts,omitempty"`
+	RuntimeErrorTotal      int            `json:"runtimeErrorTotal,omitempty"`
+	RuntimeErrorsTruncated bool           `json:"runtimeErrorsTruncated,omitempty"`
+	runtimeErrorSeen       map[string]struct{}
 }
 
 func (r *RunResult) Snapshot() *RunResult {
@@ -84,30 +88,62 @@ func (r *RunResult) Snapshot() *RunResult {
 	defer r.mu.Unlock()
 
 	return &RunResult{
-		Symbol:          r.Symbol,
-		Interval:        r.Interval,
-		StartTime:       r.StartTime,
-		EndTime:         r.EndTime,
-		QuoteCurrency:   r.QuoteCurrency,
-		FinalBalance:    r.FinalBalance,
-		PnL:             r.PnL,
-		MaxDrawdown:     r.MaxDrawdown,
-		CurrentDrawdown: r.CurrentDrawdown,
-		TotalTrades:     r.TotalTrades,
-		WinRate:         r.WinRate,
-		Trades:          append([]TradeEvent(nil), r.Trades...),
-		OrderBook:       append([]OrderBookEntry(nil), r.OrderBook...),
-		PnLCurve:        append([]PnLPoint(nil), r.PnLCurve...),
-		DrawdownCurve:   append([]DrawdownPoint(nil), r.DrawdownCurve...),
-		Candles:         append([]Candle(nil), r.Candles...),
-		Logs:            append([]string(nil), r.Logs...),
-		Error:           r.Error,
-		RuntimeErrors:   append([]string(nil), r.RuntimeErrors...),
+		Symbol:                 r.Symbol,
+		Interval:               r.Interval,
+		StartTime:              r.StartTime,
+		EndTime:                r.EndTime,
+		QuoteCurrency:          r.QuoteCurrency,
+		FinalBalance:           r.FinalBalance,
+		PnL:                    r.PnL,
+		MaxDrawdown:            r.MaxDrawdown,
+		CurrentDrawdown:        r.CurrentDrawdown,
+		TotalTrades:            r.TotalTrades,
+		WinRate:                r.WinRate,
+		Trades:                 append([]TradeEvent(nil), r.Trades...),
+		OrderBook:              append([]OrderBookEntry(nil), r.OrderBook...),
+		PnLCurve:               append([]PnLPoint(nil), r.PnLCurve...),
+		DrawdownCurve:          append([]DrawdownPoint(nil), r.DrawdownCurve...),
+		Candles:                append([]Candle(nil), r.Candles...),
+		Logs:                   append([]string(nil), r.Logs...),
+		Error:                  r.Error,
+		RuntimeErrors:          append([]string(nil), r.RuntimeErrors...),
+		RuntimeErrorTotal:      r.RuntimeErrorTotal,
+		RuntimeErrorsTruncated: r.RuntimeErrorsTruncated,
+		RuntimeErrorCounts: func() map[string]int {
+			if len(r.RuntimeErrorCounts) == 0 {
+				return nil
+			}
+			clone := make(map[string]int, len(r.RuntimeErrorCounts))
+			for key, value := range r.RuntimeErrorCounts {
+				clone[key] = value
+			}
+			return clone
+		}(),
 	}
 }
 
 func (r *RunResult) AddRuntimeError(msg string) {
 	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.RuntimeErrorCounts == nil {
+		r.RuntimeErrorCounts = map[string]int{}
+	}
+	r.RuntimeErrorTotal++
+	r.RuntimeErrorCounts[msg]++
+	if r.runtimeErrorSeen == nil {
+		r.runtimeErrorSeen = map[string]struct{}{}
+		for _, existing := range r.RuntimeErrors {
+			r.runtimeErrorSeen[existing] = struct{}{}
+		}
+	}
+	if _, exists := r.runtimeErrorSeen[msg]; exists {
+		return
+	}
+	const maxRuntimeErrorSamples = 100
+	if len(r.RuntimeErrors) >= maxRuntimeErrorSamples {
+		r.RuntimeErrorsTruncated = true
+		return
+	}
+	r.runtimeErrorSeen[msg] = struct{}{}
 	r.RuntimeErrors = append(r.RuntimeErrors, msg)
-	r.mu.Unlock()
 }

@@ -508,7 +508,8 @@ func (s *parseState) normalizeExpression(expression string) string {
 	if match := inputCallPattern.FindStringSubmatch(result); match != nil {
 		result = strings.TrimSpace(match[1])
 	}
-	result = strings.ReplaceAll(result, "strategy.position_size", "0")
+	result = strings.ReplaceAll(result, "strategy.position_avg_price", "position_avg_price")
+	result = strings.ReplaceAll(result, "strategy.position_size", "position_size")
 	result = replaceSupportedRequestSecurity(result)
 	result = replaceTAFunction(result, "ema", "ma(EMA, ${period})")
 	result = replaceTAFunction(result, "sma", "ma(SMA, ${period})")
@@ -519,6 +520,7 @@ func (s *parseState) normalizeExpression(expression string) string {
 	result = replaceTAFunction(result, "rsi", "rsi(${period})")
 	result = replaceTAMacd(result)
 	result = replaceTAFunction(result, "atr", "atr(${period})")
+	result = replaceTAFunction(result, "stdev", "stdev(${period})")
 	result = replaceTAFunction(result, "cci", "cci(${period})")
 	result = replaceTAFunction(result, "crossover", "cross_over(${left}, ${right})")
 	result = replaceTAFunction(result, "crossunder", "cross_under(${left}, ${right})")

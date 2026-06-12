@@ -193,17 +193,22 @@ func evaluateBinaryExpression(expression *exprast.BinaryNode, scope *evaluationS
 		}
 		return leftValue || rightValue, nil
 	case "+", "-", "*", "/":
-		leftValue, ok, err := evaluateFloatOperand(expression.Left, scope)
+		leftRaw, err := evaluateAST(expression.Left, scope)
 		if err != nil {
 			return nil, err
 		}
+		rightRaw, err := evaluateAST(expression.Right, scope)
+		if err != nil {
+			return nil, err
+		}
+		if leftRaw == nil || rightRaw == nil {
+			return nil, nil
+		}
+		leftValue, ok := coerceFloatValue(leftRaw)
 		if !ok {
 			return nil, fmt.Errorf("arithmetic operator %s requires numeric operands", expression.Operator)
 		}
-		rightValue, ok, err := evaluateFloatOperand(expression.Right, scope)
-		if err != nil {
-			return nil, err
-		}
+		rightValue, ok := coerceFloatValue(rightRaw)
 		if !ok {
 			return nil, fmt.Errorf("arithmetic operator %s requires numeric operands", expression.Operator)
 		}
@@ -228,6 +233,9 @@ func evaluateBinaryExpression(expression *exprast.BinaryNode, scope *evaluationS
 		right, err := evaluateAST(expression.Right, scope)
 		if err != nil {
 			return nil, err
+		}
+		if (left == nil || right == nil) && expression.Operator != "==" && expression.Operator != "!=" {
+			return false, nil
 		}
 		return compareValues(left, right, expression.Operator)
 	default:
@@ -439,9 +447,32 @@ func evaluateCallExpression(expression *exprast.CallNode, scope *evaluationScope
 			return nil, fmt.Errorf("abs() requires a numeric argument")
 		}
 		return math.Abs(floatValue), nil
+	case "stdev":
+		return evaluateStdDevExpression(expression.Arguments, scope)
 	default:
 		return nil, fmt.Errorf("unsupported function %q", name.Value)
 	}
+}
+
+func evaluateStdDevExpression(arguments []exprast.Node, scope *evaluationScope) (any, error) {
+	if len(arguments) != 1 {
+		return nil, fmt.Errorf("stdev() requires 1 argument")
+	}
+	period, ok, err := evaluateFloatOperand(arguments[0], scope)
+	if err != nil {
+		return nil, err
+	}
+	if !ok || period <= 0 || math.Trunc(period) != period {
+		return nil, fmt.Errorf("stdev() period must be a positive integer")
+	}
+	if scope == nil || scope.indicators == nil {
+		return nil, nil
+	}
+	value, ok := scope.indicators["stdev:"+strconv.Itoa(int(period))]
+	if !ok || value == nil {
+		return nil, nil
+	}
+	return value, nil
 }
 
 func evaluatePreviousExpression(arguments []exprast.Node, scope *evaluationScope) (any, error) {
