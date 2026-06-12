@@ -126,7 +126,7 @@ func quoteSnapshotFromBasicQotAt(basicQot *qotcommonpb.BasicQot, canonical strin
 	}
 
 	prevClosePrice := decimalPtrFromFloat64(basicQot.LastClosePrice)
-	if session != MarketSessionRegular && regularSessionClose.GreaterThan(decimal.Zero) {
+	if isUSSymbol(canonical) && session != MarketSessionRegular && regularSessionClose.GreaterThan(decimal.Zero) {
 		prevClosePrice = &regularSessionClose
 	}
 
@@ -217,7 +217,7 @@ func sessionFromExtendedBlocksAt(canonical string, preMarket, afterMarket, overn
 // ClassifyMarketSession classifies US equities into regular, pre-market,
 // after-hours, or overnight sessions using America/New_York clock time.
 func ClassifyMarketSession(symbol string, at time.Time) MarketSession {
-	if !strings.HasPrefix(strings.ToUpper(strings.TrimSpace(symbol)), "US.") {
+	if !isUSSymbol(symbol) {
 		return MarketSessionUnknown
 	}
 	local := at.In(usEasternLocation)
@@ -249,6 +249,10 @@ func ClassifyMarketSession(symbol string, at time.Time) MarketSession {
 	default:
 		return MarketSessionOvernight
 	}
+}
+
+func isUSSymbol(symbol string) bool {
+	return strings.HasPrefix(strings.ToUpper(strings.TrimSpace(symbol)), "US.")
 }
 
 func IsExtendedMarketSession(session MarketSession) bool {

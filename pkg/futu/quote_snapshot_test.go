@@ -100,6 +100,40 @@ func TestQuoteSnapshotPreviousClosePriceZeroCurPrice(t *testing.T) {
 	}
 }
 
+func TestQuoteSnapshotPreviousClosePriceForHKLunchBreak(t *testing.T) {
+	// HK symbols do not use the US extended-hours session model. During the
+	// lunch break Futu can still return CurPrice as the latest traded price,
+	// but PreviousClosePrice must remain LastClosePrice so change percent does
+	// not collapse to 0%.
+	basicQot := &qotcommonpb.BasicQot{
+		Security:        &qotcommonpb.Security{Market: protoInt32(2), Code: protoString("00700")},
+		CurPrice:        f64(321.40),
+		LastClosePrice:  f64(318.90),
+		OpenPrice:       f64(320.00),
+		HighPrice:       f64(322.20),
+		LowPrice:        f64(319.80),
+		Volume:          protoInt64(12345678),
+		Turnover:        f64(3955555555),
+		UpdateTimestamp: f64(1781238600), // 2026-06-12 12:30:00 Asia/Hong_Kong
+	}
+
+	lunchBreakAt := time.Date(2026, 6, 12, 12, 30, 0, 0, time.FixedZone("HKT", 8*60*60))
+	snap := quoteSnapshotFromBasicQotAt(basicQot, "HK.00700", lunchBreakAt)
+
+	if snap.Session != MarketSessionUnknown {
+		t.Errorf("Session = %s, want unknown", snap.Session)
+	}
+	if snap.PreviousClosePrice == nil {
+		t.Fatal("PreviousClosePrice is nil, expected 318.90")
+	}
+	if !snap.PreviousClosePrice.Equal(decimal.NewFromFloat(318.90)) {
+		t.Errorf("PreviousClosePrice = %s, want 318.90", snap.PreviousClosePrice.String())
+	}
+	if snap.Price.Equal(*snap.PreviousClosePrice) {
+		t.Fatalf("Price and PreviousClosePrice unexpectedly match: %s", snap.Price.String())
+	}
+}
+
 func TestPreviousClosePriceConditionBySessionType(t *testing.T) {
 	// Verify the core condition: session != MarketSessionRegular
 	// should cause PreviousClosePrice to use CurPrice instead of LastClosePrice.
@@ -117,12 +151,12 @@ func TestPreviousClosePriceConditionBySessionType(t *testing.T) {
 		{"after uses CurPrice", MarketSessionAfter, true, false},
 		{"overnight uses CurPrice", MarketSessionOvernight, true, false},
 		{"closed uses CurPrice", MarketSessionClosed, true, false},
-		{"unknown uses CurPrice", MarketSessionUnknown, true, false},
+		{"unknown uses CurPrice for US only", MarketSessionUnknown, true, false},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			useCurPrice := tc.session != MarketSessionRegular && regularSessionClose.GreaterThan(decimal.Zero)
+			useCurPrice := isUSSymbol("US.TME") && tc.session != MarketSessionRegular && regularSessionClose.GreaterThan(decimal.Zero)
 			if tc.expectCurPrice && !useCurPrice {
 				t.Errorf("session=%s: expected to use CurPrice, but condition is false", tc.session)
 			}
@@ -144,6 +178,17 @@ func TestPreviousClosePriceConditionBySessionType(t *testing.T) {
 	// Sanity: ensure the result matches LastClosePrice when regular.
 	if regularSessionClose.Equal(lastClosePrice) {
 		t.Fatal("test data sanity: regularSessionClose should differ from lastClosePrice")
+	}
+}
+
+func TestPreviousClosePriceConditionDoesNotRewriteNonUSUnknownSession(t *testing.T) {
+	regularSessionClose := decimal.NewFromFloat(321.40)
+
+	useCurPrice := isUSSymbol("HK.00700") &&
+		MarketSessionUnknown != MarketSessionRegular &&
+		regularSessionClose.GreaterThan(decimal.Zero)
+	if useCurPrice {
+		t.Fatal("HK unknown session should not rewrite PreviousClosePrice to CurPrice")
 	}
 }
 
