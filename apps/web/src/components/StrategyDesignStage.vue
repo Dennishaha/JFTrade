@@ -701,21 +701,23 @@ function normalizeDefinition(
     definition: StrategyDefinitionDocument,
 ): StrategyDefinitionDocument {
     const migrated = migrateLegacyMovingAverageDefinition(definition);
-    const visualModel =
-        cloneStrategyVisualModel(migrated.visualModel) ??
-        createDefaultStrategyVisualModel();
+    const visualModel = cloneStrategyVisualModel(migrated.visualModel);
     const name = migrated.name.trim();
     const version = migrated.version.trim() || "0.1.0";
+    const script =
+        visualModel === null
+            ? migrated.script
+            : buildStrategyScriptFromVisualModel(visualModel, {
+                name,
+                version,
+            });
 
     return {
         ...migrated,
         runtime: "pine-go-plan",
         sourceFormat: "pine-v6",
         version,
-        script: buildStrategyScriptFromVisualModel(visualModel, {
-            name,
-            version,
-        }),
+        script,
         visualModel,
     };
 }

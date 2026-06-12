@@ -1030,6 +1030,89 @@ describe("Strategy page", () => {
     wrapper.unmount();
   });
 
+  it("keeps ADK saved Pine drafts when no visual model is stored", async () => {
+    const adkScript = [
+      "//@version=6",
+      'strategy("TME 超跌反弹策略", overlay=true, margin_long=100, margin_short=0)',
+      "",
+      'log.info("TME 策略已加载")',
+      "",
+      "rsi = ta.rsi(close, 14)",
+      "basis = ta.sma(close, 20)",
+      "dev = 2.0 * ta.stdev(close, 20)",
+      "upper = basis + dev",
+      "lower = basis - dev",
+      "",
+      "percentB = (close - lower) / (upper - lower)",
+      "avgVol = ta.sma(volume, 20)",
+      "volOk = volume > avgVol * 1.2",
+      "",
+      "longCond = rsi < 28 and percentB < 0.15 and volOk",
+      "exitCond = rsi > 52 or close >= basis",
+      "",
+      "if longCond and strategy.position_size == 0",
+      '    strategy.entry("Long", strategy.long, qty=100)',
+      "",
+      "if exitCond and strategy.position_size > 0",
+      '    strategy.close("Long")',
+      "",
+      "if strategy.position_size > 0",
+      '    strategy.exit("Stop", "Long", stop=close * (1 - 5.0 / 100))',
+    ].join("\n");
+
+    vi.stubGlobal(
+      "fetch",
+      buildFetchMock({
+        definitions: [
+          {
+            id: "adk-tme-draft",
+            name: "TME 超跌反弹策略",
+            version: "0.1.0",
+            description: "由 ADK agent 生成的策略草稿。",
+            runtime: "pine-go-plan",
+            sourceFormat: "pine-v6",
+            symbol: "TME",
+            interval: "1d",
+            script: adkScript,
+            visualModel: null,
+            createdAt: "2026-06-12T13:09:29.7381Z",
+            updatedAt: "2026-06-12T13:09:29.7381Z",
+          },
+        ],
+      }),
+    );
+    vi.stubGlobal(
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
+    );
+
+    const { wrapper } = await mountStrategyPage("/strategy");
+
+    await openStrategyDesignWorkspace(wrapper);
+    await showStrategyCodeEditor(wrapper, "split");
+
+    const scriptEditor = wrapper.get('[data-testid="strategy-script-editor"]')
+      .element as HTMLTextAreaElement;
+
+    expect(scriptEditor.value).toContain("TME 超跌反弹策略");
+    expect(scriptEditor.value).toContain("rsi = ta.rsi(close, 14)");
+    expect(scriptEditor.value).toContain('strategy.exit("Stop", "Long"');
+    expect(scriptEditor.value).not.toContain("策略启动，等待市场数据输入");
+    expect(scriptEditor.value).not.toContain("收盘价更新");
+
+    const visualModel = wrapper.findComponent(StrategyLogicFlowDesigner)
+      .props("modelValue") as NonNullable<StrategyDefinitionDocument["visualModel"]>;
+    expect(
+      visualModel.nodes.some((node) =>
+        ["codeBlock", "getTechnicalIndicator", "placeOrder", "stopLoss"].includes(
+          String(node.properties.blockKind),
+        ),
+      ),
+    ).toBe(true);
+
+    wrapper.unmount();
+  });
+
   it("rewrites Pine when a visual block parameter changes", async () => {
     vi.stubGlobal(
       "fetch",
