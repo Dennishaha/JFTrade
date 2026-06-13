@@ -26,18 +26,15 @@ func buildStrategyInstanceParams(definition strategyDesignDefinition, compiledAt
 		"interval":     interval,
 		"script":       definition.Script,
 	}
-	program, err := strategypine.ParseScript(definition.Script)
+	compilation, err := strategypine.Compile(definition.Script)
 	if err != nil {
 		return nil, err
 	}
-	requirements, err := strategyir.PlanRequirements(program)
-	if err != nil {
-		return nil, err
-	}
+	program := compilation.Program
 	params["runtime"] = strategyRuntimePinePlan
 	params["compiledAt"] = compiledAt
 	params["compiledHooks"] = buildCompiledHookKinds(program)
-	params["compiledRequirements"] = buildCompiledRequirementsPayload(requirements)
+	params["compiledRequirements"] = buildCompiledRequirementsPayload(compilation.Requirements)
 
 	return params, nil
 }

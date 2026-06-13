@@ -26,6 +26,8 @@ const (
 	defaultStrategyVersion        = "0.1.0"
 )
 
+var errUnsupportedLegacyStrategyDefinition = errors.New("unsupported legacy strategy definition")
+
 type strategyVisualNode struct {
 	ID         string         `json:"id"`
 	Type       string         `json:"type"`
@@ -207,23 +209,26 @@ func (s *strategyDesignStore) listDefinitionsFromDBLocked() []strategyDesignDefi
 	return items
 }
 
-func (s *strategyDesignStore) definition(id string) (strategyDesignDefinition, bool) {
+func (s *strategyDesignStore) definition(id string) (strategyDesignDefinition, bool, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	id = strings.TrimSpace(id)
 	row, ok, err := s.definitionRowLocked(id, false)
 	if err != nil || !ok {
-		return strategyDesignDefinition{}, false
+		return strategyDesignDefinition{}, false, err
 	}
 	definition, defErr := strategyDesignDefinitionFromRow(row)
 	if defErr != nil {
-		return strategyDesignDefinition{}, false
+		return strategyDesignDefinition{}, false, defErr
 	}
-	return definition, true
+	return definition, true, nil
 }
 
 func (s *strategyDesignStore) saveDefinition(input strategyDesignDefinition) (strategyDesignDefinition, error) {
-	normalized := normalizeStrategyDesignDefinition(input)
+	normalized, err := normalizeStrategyDesignDefinition(input)
+	if err != nil {
+		return strategyDesignDefinition{}, err
+	}
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -378,7 +383,7 @@ func strategyDesignDefinitionFromRow(row strategyDesignDefinitionRow) (strategyD
 		VisualModel:  visualModel,
 		CreatedAt:    row.CreatedAt,
 		UpdatedAt:    row.UpdatedAt,
-	}), nil
+	})
 }
 
 func strategyDesignDefinitionRowFromDefinition(definition strategyDesignDefinition) (strategyDesignDefinitionRow, error) {
@@ -406,7 +411,7 @@ func strategyDesignDefinitionRowFromDefinition(definition strategyDesignDefiniti
 	}, nil
 }
 
-func normalizeStrategyDesignDefinition(input strategyDesignDefinition) strategyDesignDefinition {
+func normalizeStrategyDesignDefinition(input strategyDesignDefinition) (strategyDesignDefinition, error) {
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	input.ID = strings.TrimSpace(input.ID)
 	if input.ID == "" {
@@ -418,14 +423,24 @@ func normalizeStrategyDesignDefinition(input strategyDesignDefinition) strategyD
 	}
 	input.Version = normalizeStrategySemanticVersion(input.Version)
 	input.Description = strings.TrimSpace(input.Description)
-	rawSourceFormat := strings.TrimSpace(input.SourceFormat)
-	rawRuntime := strings.TrimSpace(input.Runtime)
-	input.SourceFormat = normalizeStrategyDesignSourceFormat(rawSourceFormat, rawRuntime, input.Script)
-	input.Runtime = normalizeStrategyRuntimeForSource(rawRuntime, input.SourceFormat)
+	sourceFormat, err := normalizeStrategyDesignSourceFormat(input.SourceFormat)
+	if err != nil {
+		return strategyDesignDefinition{}, err
+	}
+	runtime, err := normalizeStrategyRuntime(input.Runtime)
+	if err != nil {
+		return strategyDesignDefinition{}, err
+	}
+	input.SourceFormat = sourceFormat
+	input.Runtime = runtime
 	input.Symbol = strings.ToUpper(strings.TrimSpace(input.Symbol))
 	input.Interval = strings.TrimSpace(input.Interval)
-	input.VisualModel = normalizeStrategyVisualModel(input.VisualModel)
-	if shouldReplaceWithDefaultScript(rawSourceFormat, rawRuntime, input.Script) {
+	visualModel, err := normalizeStrategyVisualModel(input.VisualModel)
+	if err != nil {
+		return strategyDesignDefinition{}, err
+	}
+	input.VisualModel = visualModel
+	if strings.TrimSpace(input.Script) == "" {
 		input.Script = defaultStrategyDesignScript(input.Name, input.SourceFormat)
 	}
 	input.Script = syncStrategyScriptVersion(input.Script, input.Version)
@@ -435,7 +450,7 @@ func normalizeStrategyDesignDefinition(input strategyDesignDefinition) strategyD
 	if input.UpdatedAt == "" {
 		input.UpdatedAt = now
 	}
-	return input
+	return input, nil
 }
 
 func generateStrategyDefinitionID() string {
@@ -522,46 +537,25 @@ func strategyDesignDefinitionMeaningfullyChanged(left, right strategyDesignDefin
 	return !strategyDesignDefinitionsEqual(left, right)
 }
 
-func normalizeStrategyRuntime(runtime string) string {
-	if strings.TrimSpace(runtime) == strategyRuntimePinePlan {
-		return strategyRuntimePinePlan
+func normalizeStrategyRuntime(runtime string) (string, error) {
+	normalized := strings.TrimSpace(strings.ToLower(runtime))
+	if normalized == "" || normalized == strategyRuntimePinePlan {
+		return strategyRuntimePinePlan, nil
 	}
-	return strategyRuntimePinePlan
+	return "", fmt.Errorf("%w: runtime %q is no longer supported; use %s", errUnsupportedLegacyStrategyDefinition, runtime, strategyRuntimePinePlan)
 }
 
-func normalizeStrategyRuntimeForSource(runtime string, sourceFormat string) string {
-	_ = sourceFormat
-	return normalizeStrategyRuntime(runtime)
-}
-
-func normalizeStrategyDesignSourceFormat(sourceFormat string, runtime string, script string) string {
-	_ = runtime
-	_ = script
-	return strategydefinition.SourceFormatPineV6
-}
-
-func shouldReplaceWithDefaultScript(sourceFormat string, runtime string, script string) bool {
-	if strings.TrimSpace(script) == "" {
-		return true
+func normalizeStrategyDesignSourceFormat(sourceFormat string) (string, error) {
+	normalized := strings.TrimSpace(strings.ToLower(sourceFormat))
+	if normalized == "" || normalized == strategydefinition.SourceFormatPineV6 {
+		return strategydefinition.SourceFormatPineV6, nil
 	}
-	if usesNonPineStrategyRuntimeOrSource(sourceFormat, runtime) {
-		return true
-	}
-	return strategydefinition.ValidateScript(strategydefinition.SourceFormatPineV6, script) != nil
+	return "", fmt.Errorf("%w: sourceFormat %q is no longer supported; use %s", errUnsupportedLegacyStrategyDefinition, sourceFormat, strategydefinition.SourceFormatPineV6)
 }
 
-func usesNonPineStrategyRuntimeOrSource(sourceFormat string, runtime string) bool {
-	normalizedSourceFormat := strings.TrimSpace(strings.ToLower(sourceFormat))
-	if normalizedSourceFormat != "" && normalizedSourceFormat != strategydefinition.SourceFormatPineV6 {
-		return true
-	}
-	normalizedRuntime := strings.TrimSpace(strings.ToLower(runtime))
-	return normalizedRuntime != "" && normalizedRuntime != strategyRuntimePinePlan
-}
-
-func normalizeStrategyVisualModel(model *strategyVisualModel) *strategyVisualModel {
+func normalizeStrategyVisualModel(model *strategyVisualModel) (*strategyVisualModel, error) {
 	if model == nil {
-		return nil
+		return nil, nil
 	}
 	normalized := *model
 	if strings.TrimSpace(normalized.Engine) == "" {
@@ -577,9 +571,9 @@ func normalizeStrategyVisualModel(model *strategyVisualModel) *strategyVisualMod
 		if normalized.Nodes[index].Properties == nil {
 			normalized.Nodes[index].Properties = map[string]any{}
 		}
-		normalized.Nodes[index].Properties = migrateLegacyMovingAverageNodeProperties(
-			normalized.Nodes[index].Properties,
-		)
+		if err := validateStrategyVisualNodeProperties(normalized.Nodes[index].Properties); err != nil {
+			return nil, err
+		}
 	}
 	if normalized.Edges == nil {
 		normalized.Edges = []strategyVisualEdge{}
@@ -592,7 +586,17 @@ func normalizeStrategyVisualModel(model *strategyVisualModel) *strategyVisualMod
 			normalized.Edges[index].Properties = map[string]any{}
 		}
 	}
-	return &normalized
+	return &normalized, nil
+}
+
+func validateStrategyVisualNodeProperties(properties map[string]any) error {
+	blockKind, _ := properties["blockKind"].(string)
+	switch strings.TrimSpace(blockKind) {
+	case "codeBlock", "technicalIndicator":
+		return fmt.Errorf("%w: visual block %q is no longer supported; rebuild it with Pine v6 blocks or pineSnippet", errUnsupportedLegacyStrategyDefinition, blockKind)
+	default:
+		return nil
+	}
 }
 
 func strategyDesignDefinitionsEqual(left, right strategyDesignDefinition) bool {
@@ -602,65 +606,4 @@ func strategyDesignDefinitionsEqual(left, right strategyDesignDefinition) bool {
 		return false
 	}
 	return string(leftJSON) == string(rightJSON)
-}
-
-func migrateLegacyMovingAverageNodeProperties(properties map[string]any) map[string]any {
-	if properties == nil {
-		return map[string]any{}
-	}
-	blockKind, _ := properties["blockKind"].(string)
-	indicatorType, _ := properties["indicatorType"].(string)
-	if blockKind != "getTechnicalIndicator" || indicatorType != "movingAverage" {
-		return properties
-	}
-	if unit, ok := properties["periodUnit"].(string); ok && strings.TrimSpace(unit) != "" {
-		return properties
-	}
-	period := normalizeLegacyMovingAveragePeriod(properties["windowSize"])
-	if period != 5 && period != 20 {
-		return properties
-	}
-	next := cloneStringAnyMap(properties)
-	next["periodUnit"] = "day"
-	return next
-}
-
-func normalizeLegacyMovingAveragePeriod(value any) int {
-	switch typed := value.(type) {
-	case float64:
-		return int(typed)
-	case float32:
-		return int(typed)
-	case int:
-		return typed
-	case int32:
-		return int(typed)
-	case int64:
-		return int(typed)
-	case json.Number:
-		parsed, err := typed.Int64()
-		if err != nil {
-			return 0
-		}
-		return int(parsed)
-	case string:
-		parsed, err := strconv.Atoi(strings.TrimSpace(typed))
-		if err != nil {
-			return 0
-		}
-		return parsed
-	default:
-		return 0
-	}
-}
-
-func cloneStringAnyMap(input map[string]any) map[string]any {
-	if input == nil {
-		return map[string]any{}
-	}
-	cloned := make(map[string]any, len(input))
-	for key, value := range input {
-		cloned[key] = value
-	}
-	return cloned
 }

@@ -70,6 +70,47 @@ strategy.entry("Long", strategy.long)`)
 	}
 }
 
+func TestCompileParsesBacktestStrategyMetadata(t *testing.T) {
+	compilation, err := Compile(`//@version=6
+strategy("Costs", initial_capital=250000, commission_type=strategy.commission.percent, commission_value=0.15, slippage=3, process_orders_on_close=true)
+strategy.entry("Long", strategy.long, qty=1)`)
+	if err != nil {
+		t.Fatalf("Compile() error = %v", err)
+	}
+	metadata := compilation.Program.Metadata
+	if metadata.InitialCapital != 250000 {
+		t.Fatalf("InitialCapital = %v, want 250000", metadata.InitialCapital)
+	}
+	if metadata.CommissionType != "percent" || metadata.CommissionValue != 0.15 {
+		t.Fatalf("commission metadata = %q/%v", metadata.CommissionType, metadata.CommissionValue)
+	}
+	if metadata.Slippage != 3 {
+		t.Fatalf("Slippage = %d, want 3", metadata.Slippage)
+	}
+	if !metadata.ProcessOnClose {
+		t.Fatal("ProcessOnClose = false, want true")
+	}
+}
+
+func TestCompilePreservesOrderNotificationMetadataAndImmediateClose(t *testing.T) {
+	compilation, err := Compile(`//@version=6
+strategy("Order Metadata")
+strategy.entry("Long", strategy.long, qty=1, comment="entry", alert_message="opened", disable_alert=false)
+strategy.close("Long", immediately=true, comment="close", alert_message="closed", disable_alert=true)`)
+	if err != nil {
+		t.Fatalf("Compile() error = %v", err)
+	}
+	statements := compilation.Program.Hooks[0].Statements
+	entry := statements[0].(*strategyir.OrderStmt)
+	if entry.Comment != "entry" || entry.AlertMessage != "opened" || entry.DisableAlert {
+		t.Fatalf("entry metadata = %#v", entry)
+	}
+	closeOrder := statements[1].(*strategyir.OrderStmt)
+	if !closeOrder.Immediate || closeOrder.Comment != "close" || closeOrder.AlertMessage != "closed" || !closeOrder.DisableAlert {
+		t.Fatalf("close metadata = %#v", closeOrder)
+	}
+}
+
 func TestCompileExplicitEntryQtyOverridesStrategyDefaultQuantity(t *testing.T) {
 	compilation, err := Compile(`//@version=6
 strategy("Explicit Qty", overlay=true, default_qty_type=strategy.percent_of_equity, default_qty_value=10)

@@ -21,9 +21,9 @@ v0.8 锁定的是 JFTrade 可执行 Pine v6 策略子集，不追 TradingView Pi
 ## 迁移注意
 
 - 旧 `codeBlock` 只作为历史 visual model 只读兼容；新的 Pine 反解兜底统一生成 `pineSnippet`。
-- 旧合并式 `technicalIndicator` 块保留导入解析；新建和模板路径应使用 `getTechnicalIndicator` + `technicalIndicatorCondition`。
+- 旧合并式 `technicalIndicator` 块在 v0.9 迁移线中已知指标会自动拆成 `getTechnicalIndicator` + `technicalIndicatorCondition`；未知或无法无损识别的旧块只读保留，新建和模板路径不得再生成旧合并块。
 - close/默认源指标继续保留 legacy key，例如 `ma:SMA:20`、`rsi:14`、`cci:20`；volume、hlc3 等新增 source 必须走 source-aware key，避免指标串线。
-- 历史非 Pine source/runtime 后续只做默认 Pine 替换或只读展示，不再扩展旧 runtime。
+- 此 v0.8 迁移说明已被 v1.0 主路径取代：显式旧 source/runtime 与旧 visual model 现在会被拒绝，不再自动替换。
 
 ## 黄金脚本与验收
 

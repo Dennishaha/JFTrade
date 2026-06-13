@@ -578,7 +578,10 @@ func (s *Server) buildStrategyDefinitionSyncStatus(item strategyListItem) *strat
 	if s == nil || s.designStore == nil {
 		return status
 	}
-	definition, ok := s.designStore.definition(definitionID)
+	definition, ok, err := s.designStore.definition(definitionID)
+	if err != nil {
+		return status
+	}
 	if !ok {
 		return status
 	}

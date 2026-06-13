@@ -2,6 +2,7 @@ package jftradeapi
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -43,6 +44,10 @@ func (s *Server) handleCreateStrategyDefinition(c *gin.Context) {
 	}
 	definition, err := s.designStore.saveDefinition(payload)
 	if err != nil {
+		if errors.Is(err, errUnsupportedLegacyStrategyDefinition) {
+			s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", err.Error())
+			return
+		}
 		s.writeError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to save strategy definition")
 		return
 	}
@@ -66,7 +71,11 @@ func (s *Server) handleStrategyDefinition(c *gin.Context) {
 	if !ok {
 		return
 	}
-	definition, exists := s.designStore.definition(definitionID)
+	definition, exists, err := s.designStore.definition(definitionID)
+	if err != nil {
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", err.Error())
+		return
+	}
 	if !exists {
 		s.writeError(c, http.StatusNotFound, "NOT_FOUND", "strategy definition not found")
 		return
@@ -107,6 +116,10 @@ func (s *Server) handleUpdateStrategyDefinition(c *gin.Context) {
 	payload.ID = definitionID
 	definition, err := s.designStore.saveDefinition(payload)
 	if err != nil {
+		if errors.Is(err, errUnsupportedLegacyStrategyDefinition) {
+			s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", err.Error())
+			return
+		}
 		s.writeError(c, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to save strategy definition")
 		return
 	}
@@ -150,7 +163,11 @@ func (s *Server) handleApplyLinkedStrategyInstances(c *gin.Context) {
 	if !ok {
 		return
 	}
-	definition, exists := s.designStore.definition(definitionID)
+	definition, exists, err := s.designStore.definition(definitionID)
+	if err != nil {
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", err.Error())
+		return
+	}
 	if !exists {
 		s.writeError(c, http.StatusNotFound, "NOT_FOUND", "strategy definition not found")
 		return
@@ -168,7 +185,11 @@ func (s *Server) handleInstantiateStrategyDefinition(c *gin.Context) {
 	if !ok {
 		return
 	}
-	definition, exists := s.designStore.definition(definitionID)
+	definition, exists, err := s.designStore.definition(definitionID)
+	if err != nil {
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", err.Error())
+		return
+	}
 	if !exists {
 		s.writeError(c, http.StatusNotFound, "NOT_FOUND", "strategy definition not found")
 		return
@@ -302,7 +323,11 @@ func (s *Server) handleRefreshStrategyDefinition(c *gin.Context) {
 		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "strategy instance is not linked to a saved definition")
 		return
 	}
-	definition, exists := s.designStore.definition(definitionID)
+	definition, exists, err := s.designStore.definition(definitionID)
+	if err != nil {
+		s.writeError(c, http.StatusBadRequest, "BAD_REQUEST", err.Error())
+		return
+	}
 	if !exists {
 		s.writeError(c, http.StatusNotFound, "NOT_FOUND", "strategy definition not found")
 		return

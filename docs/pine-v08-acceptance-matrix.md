@@ -30,7 +30,7 @@
 | close legacy indicator keys | close/default source keeps legacy keys; volume/hlc3/open/high/low use source-aware keys | `TestPlanRequirementsPreservesLegacyCloseKeysAndSourceAwareKeys` |
 | `pineSnippet` fallback | unsupported Pine lines and old codeBlock annotations become `pineSnippet` in Pine reverse parsing | `strategyVisualBuilderPine.test.ts` snippet tests |
 | legacy `codeBlock` visual model | old visual model still reads and renders a deprecation log; custom JS is not emitted | `strategyVisualBuilderPine.test.ts` legacy codeBlock test |
-| legacy unified `technicalIndicator` | old block remains readable; new palette/shortcut paths create standard getter + condition nodes | `strategyVisualBuilderPine.test.ts` new path test |
+| legacy unified `technicalIndicator` | known old blocks auto-migrate to `getTechnicalIndicator` + `technicalIndicatorCondition`; unknown old blocks remain read-only | `strategyVisualBuilderMigration.test.ts` fixture matrix |
 | ADK/spec payload | `supportMatrix`、`compatibilityLayers`、`unsupportedPatterns`、`goldenScripts` survive the tool layer | `TestADKStrategyPineSpecToolReturnsStructuredPayload` |
 
 ## Remaining Gaps Before v1.0

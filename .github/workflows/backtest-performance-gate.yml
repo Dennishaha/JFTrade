@@ -6,12 +6,17 @@ on:
       baseline_mode:
         description: Strategy block baseline mode
         required: true
-        default: enforce
+        default: skip
         type: choice
         options:
           - skip
           - enforce
           - update
+      compare_ref:
+        description: Git ref used as the same-runner performance baseline
+        required: true
+        default: main
+        type: string
       run_real_tme:
         description: Run the real US.TME protect-session replay benchmark
         required: true
@@ -42,8 +47,91 @@ jobs:
           go-version-file: go.mod
           cache: true
 
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
       - name: Prepare artifact directory
         run: mkdir -p artifacts/performance
+
+      - name: Install benchstat
+        run: go install golang.org/x/perf/cmd/benchstat@latest
+
+      - name: Capture current revision
+        id: revision
+        run: |
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          mkdir -p /tmp/jftrade-pine-bench
+          cp pkg/strategy/pine/public_benchmark_test.go /tmp/jftrade-pine-bench/
+          cp pkg/strategy/pineruntime/runtime_benchmark_test.go /tmp/jftrade-pine-bench/
+          cp pkg/backtest/pine_golden_benchmark_test.go /tmp/jftrade-pine-bench/
+
+      - name: Run base Pine benchmarks
+        env:
+          COMPARE_REF: ${{ inputs.compare_ref }}
+        run: |
+          git fetch --no-tags origin "${COMPARE_REF}"
+          git checkout --detach FETCH_HEAD
+          cp /tmp/jftrade-pine-bench/public_benchmark_test.go pkg/strategy/pine/
+          cp /tmp/jftrade-pine-bench/runtime_benchmark_test.go pkg/strategy/pineruntime/
+          cp /tmp/jftrade-pine-bench/pine_golden_benchmark_test.go pkg/backtest/
+          go test ./pkg/strategy/pine -run '^$' \
+            -bench '^BenchmarkPine(AnalyzeScript|PlanRequirements)$' \
+            -benchmem -count 8 | tee artifacts/performance/pine_compile_base.txt
+          go test ./pkg/strategy/pineruntime -run '^$' \
+            -bench '^BenchmarkPineRuntimePushKLines$' \
+            -benchmem -count 8 | tee artifacts/performance/pine_runtime_base.txt
+          go test ./pkg/backtest -run '^$' \
+            -bench '^BenchmarkRunExecutesPineGoldenMatrix$' \
+            -benchmem -benchtime 3x -count 8 | tee artifacts/performance/pine_golden_base.txt
+
+      - name: Run head Pine benchmarks
+        env:
+          HEAD_SHA: ${{ steps.revision.outputs.sha }}
+        run: |
+          rm -f pkg/strategy/pine/public_benchmark_test.go
+          rm -f pkg/strategy/pineruntime/runtime_benchmark_test.go
+          rm -f pkg/backtest/pine_golden_benchmark_test.go
+          git checkout --detach "${HEAD_SHA}"
+          go test ./pkg/strategy/pine -run '^$' \
+            -bench '^BenchmarkPine(AnalyzeScript|PlanRequirements)$' \
+            -benchmem -count 8 | tee artifacts/performance/pine_compile_head.txt
+          go test ./pkg/strategy/pineruntime -run '^$' \
+            -bench '^BenchmarkPineRuntimePushKLines$' \
+            -benchmem -count 8 | tee artifacts/performance/pine_runtime_head.txt
+          go test ./pkg/backtest -run '^$' \
+            -bench '^BenchmarkRunExecutesPineGoldenMatrix$' \
+            -benchmem -benchtime 3x -count 8 | tee artifacts/performance/pine_golden_head.txt
+
+      - name: Compare Pine benchmarks
+        run: |
+          node --test scripts/check-pine-benchmark-gates.test.mjs
+          benchstat artifacts/performance/pine_compile_base.txt artifacts/performance/pine_compile_head.txt \
+            | tee artifacts/performance/pine_compile_compare.txt
+          benchstat artifacts/performance/pine_runtime_base.txt artifacts/performance/pine_runtime_head.txt \
+            | tee artifacts/performance/pine_runtime_compare.txt
+          benchstat artifacts/performance/pine_golden_base.txt artifacts/performance/pine_golden_head.txt \
+            | tee artifacts/performance/pine_golden_compare.txt
+          node scripts/check-pine-benchmark-gates.mjs compile \
+            artifacts/performance/pine_compile_base.txt artifacts/performance/pine_compile_head.txt
+          node scripts/check-pine-benchmark-gates.mjs runtime \
+            artifacts/performance/pine_runtime_base.txt artifacts/performance/pine_runtime_head.txt
+          node scripts/check-pine-benchmark-gates.mjs golden \
+            artifacts/performance/pine_golden_base.txt artifacts/performance/pine_golden_head.txt
+
+      - name: Profile Pine runtime and golden backtest
+        run: |
+          go test ./pkg/strategy/pineruntime -run '^$' \
+            -bench '^BenchmarkPineRuntimePushKLines/stateful_10000$' \
+            -benchtime 1x -cpuprofile artifacts/performance/pine_runtime_cpu.pprof
+          go test ./pkg/backtest -run '^$' \
+            -bench '^BenchmarkRunExecutesPineGoldenMatrix$' \
+            -benchtime 1x -memprofile artifacts/performance/pine_golden_alloc.pprof
+          go tool pprof -top -sample_index=alloc_space artifacts/performance/pine_golden_alloc.pprof \
+            > artifacts/performance/pine_golden_alloc_space.txt
+          go tool pprof -top -sample_index=alloc_objects artifacts/performance/pine_golden_alloc.pprof \
+            > artifacts/performance/pine_golden_alloc_objects.txt
 
       - name: Run strategy block smoke test
         run: |

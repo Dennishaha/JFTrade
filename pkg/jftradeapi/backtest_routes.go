@@ -15,6 +15,7 @@ import (
 	"github.com/jftrade/jftrade-main/pkg/futu"
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
+	strategypine "github.com/jftrade/jftrade-main/pkg/strategy/pine"
 )
 
 type backtestStartRequest struct {
@@ -96,17 +97,26 @@ func (s *Server) enqueueBacktest(req backtestStartRequest) (*backtestRunState, e
 	if strings.TrimSpace(req.Interval) == "" {
 		req.Interval = "1m"
 	}
-	if req.InitialBalance <= 0 {
-		req.InitialBalance = 100000
-	}
-
 	// Look up the strategy definition for the script.
-	definition, ok := s.designStore.definition(req.DefinitionID)
+	definition, ok, err := s.designStore.definition(req.DefinitionID)
+	if err != nil {
+		return nil, err
+	}
 	if !ok {
 		return nil, fmt.Errorf("strategy definition not found")
 	}
-	if err := strategydefinition.ValidateScript(definition.SourceFormat, definition.Script); err != nil {
+	if strategydefinition.NormalizeSourceFormat(definition.SourceFormat) != strategydefinition.SourceFormatPineV6 {
+		return nil, fmt.Errorf("unsupported strategy source format: %s", definition.SourceFormat)
+	}
+	compilation, err := strategypine.Compile(definition.Script)
+	if err != nil {
 		return nil, err
+	}
+	if req.InitialBalance <= 0 {
+		req.InitialBalance = compilation.Program.Metadata.InitialCapital
+	}
+	if req.InitialBalance <= 0 {
+		req.InitialBalance = 100000
 	}
 	req.DefinitionVersion = definition.Version
 

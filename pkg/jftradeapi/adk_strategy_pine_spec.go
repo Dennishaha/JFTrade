@@ -75,21 +75,14 @@ func validateADKStrategyScript(toolName string, script string) (strategyPineVali
 	if trimmed == "" {
 		return strategyPineValidation{}, fmt.Errorf("%s 需要提供非空的 Pine Script v6 策略脚本", strings.TrimSpace(toolName))
 	}
-	if err := strategydefinition.ValidateScript(strategydefinition.SourceFormatPineV6, trimmed); err != nil {
-		return strategyPineValidation{}, fmt.Errorf("%s 需要合法的 Pine Script v6 策略脚本：%w\n\n%s", strings.TrimSpace(toolName), err, strategypinespec.SaveDraftUsageHint())
-	}
 	compilation, err := strategypine.Compile(trimmed)
 	if err != nil {
 		return strategyPineValidation{}, fmt.Errorf("%s 需要合法的 Pine Script v6 策略脚本：%w\n\n%s", strings.TrimSpace(toolName), err, strategypinespec.SaveDraftUsageHint())
 	}
-	requirements, err := strategyir.PlanRequirements(compilation.Program)
-	if err != nil {
-		return strategyPineValidation{}, fmt.Errorf("%s 需要可规划的 Pine Script v6 策略脚本：%w\n\n%s", strings.TrimSpace(toolName), err, strategypinespec.SaveDraftUsageHint())
-	}
 	return strategyPineValidation{
 		NormalizedScript: trimmed,
 		Program:          compilation.Program,
-		Requirements:     requirements,
+		Requirements:     compilation.Requirements,
 		Warnings:         compilation.Warnings,
 	}, nil
 }
@@ -109,7 +102,9 @@ func strategySaveDefinitionToolPayload(server *Server, input map[string]any) (ma
 	definitionID := strings.TrimSpace(stringValue(input, "definitionId"))
 	operation := "created"
 	if definitionID != "" {
-		if _, ok := server.designStore.definition(definitionID); !ok {
+		if _, ok, err := server.designStore.definition(definitionID); err != nil {
+			return nil, err
+		} else if !ok {
 			return nil, fmt.Errorf("策略定义 %q 不存在", definitionID)
 		}
 		operation = "updated"
@@ -247,7 +242,7 @@ func strategyVisualModelFromInput(value any) (*strategyVisualModel, error) {
 	if err := json.Unmarshal(data, &model); err != nil {
 		return nil, fmt.Errorf("visualModel must be a valid object: %w", err)
 	}
-	return normalizeStrategyVisualModel(&model), nil
+	return normalizeStrategyVisualModel(&model)
 }
 
 func boolInputValue(input map[string]any, key string) bool {

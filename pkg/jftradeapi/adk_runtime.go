@@ -315,7 +315,7 @@ func registerJFTradeADKTools(server *Server, store *jfadk.Store, registry *jfadk
 				Interval:       defaultStringLocal(stringValue(input, "interval"), "1m"),
 				StartTime:      stringValue(input, "startTime"),
 				EndTime:        stringValue(input, "endTime"),
-				InitialBalance: floatValue(input, "initialBalance", 100000),
+				InitialBalance: floatValue(input, "initialBalance", 0),
 				RehabType:      defaultStringLocal(stringValue(input, "rehabType"), "forward"),
 			})
 			if err != nil {

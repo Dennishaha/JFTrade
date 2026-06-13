@@ -19,9 +19,7 @@ import {
 import {
   nextGetTechnicalIndicatorNodeText,
   nextTechnicalIndicatorConditionNodeText,
-  nextTechnicalIndicatorNodeText,
   normalizeGetTechnicalIndicatorProperties,
-  normalizeTechnicalIndicatorProperties,
   normalizeTechnicalIndicatorConditionProperties,
 } from "./strategyVisualBuilderIndicatorBlock";
 import { createDefaultStrategyVisualModel } from "./strategyVisualBuilderModels";
@@ -199,10 +197,6 @@ function normalizeNodeProperties(
     return { ...rawProperties };
   }
 
-  if (blockKind === "technicalIndicator") {
-    return normalizeTechnicalIndicatorProperties(rawProperties) as unknown as Record<string, unknown>;
-  }
-
   if (blockKind === "getTechnicalIndicator") {
     return normalizeGetTechnicalIndicatorProperties(rawProperties) as unknown as Record<string, unknown>;
   }
@@ -231,10 +225,6 @@ function normalizeNodeText(
   }
 
   const blockKind = readBlockKind(properties.blockKind);
-  if (blockKind === "technicalIndicator") {
-    return nextTechnicalIndicatorNodeText(properties);
-  }
-
   if (blockKind === "getTechnicalIndicator") {
     return nextGetTechnicalIndicatorNodeText(properties);
   }

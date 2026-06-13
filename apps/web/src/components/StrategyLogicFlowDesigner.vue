@@ -14,10 +14,6 @@ import {
   fromStrategyCanvasGraphData,
   toStrategyCanvasGraphData,
 } from "../features/strategyVisualBuilder";
-import {
-  expandTechnicalIndicatorShortcutNode,
-  isTechnicalIndicatorShortcutCreation,
-} from "../features/strategyVisualBuilderIndicatorShortcut";
 import type { GetTechnicalIndicatorBlockProperties } from "../features/strategyVisualBuilderIndicatorBlock";
 import {
   registerStrategyLogicFlowNodes,
@@ -181,7 +177,6 @@ let logicFlowInstance: {
 
 let logicFlowPluginsInstalled = false;
 let lastGraphSignature = "";
-let isApplyingShortcutExpansion = false;
 
 const {
   zoomPercent,
@@ -215,9 +210,6 @@ const emitGraphChange = () => {
   if (logicFlowInstance === null) {
     return;
   }
-  if (isApplyingShortcutExpansion) {
-    return;
-  }
   emitGraphChangeFromCanvasGraphData(
     logicFlowInstance.getGraphData() as ReturnType<typeof toStrategyCanvasGraphData>,
   );
@@ -241,63 +233,6 @@ const handleEdgeSelected = (payload: { data?: { id?: string } }) => {
 
 const handleEdgeDeleted = () => {
   selectedEdgeId.value = null;
-};
-
-const handleNodeDndAdd = (payload: {
-  data?: {
-    id?: string;
-    x?: number;
-    y?: number;
-    properties?: Record<string, unknown>;
-  };
-}) => {
-  if (logicFlowInstance === null || payload.data === undefined) {
-    return;
-  }
-
-  if (!isTechnicalIndicatorShortcutCreation(payload.data.properties)) {
-    return;
-  }
-
-  const shortcutNode = payload.data;
-  const shortcutNodeId = shortcutNode.id;
-  if (typeof shortcutNodeId !== "string" || shortcutNodeId === "") {
-    return;
-  }
-
-  const expansion = expandTechnicalIndicatorShortcutNode(shortcutNode);
-
-  isApplyingShortcutExpansion = true;
-  try {
-    logicFlowInstance.deleteNode(shortcutNodeId);
-
-    for (const node of expansion.nodes) {
-      logicFlowInstance.addNode({
-        id: node.id,
-        type: toStrategyLogicFlowDisplayNodeType(node.type),
-        x: node.x,
-        y: node.y,
-        text: node.text,
-        properties: { ...node.properties },
-      });
-    }
-
-    for (const edge of expansion.edges) {
-      logicFlowInstance.addEdge({
-        ...(edge.id === undefined ? {} : { id: edge.id }),
-        ...(edge.type === undefined ? {} : { type: edge.type }),
-        ...(edge.sourceNodeId === undefined ? {} : { sourceNodeId: edge.sourceNodeId }),
-        ...(edge.targetNodeId === undefined ? {} : { targetNodeId: edge.targetNodeId }),
-        ...(edge.text === undefined ? {} : { text: edge.text }),
-        ...(edge.properties === undefined ? {} : { properties: { ...edge.properties } }),
-      });
-    }
-  } finally {
-    isApplyingShortcutExpansion = false;
-  }
-
-  emitGraphChange();
-  emit("select-node", expansion.focusNodeId);
 };
 
 const togglePaletteExpanded = () => {
@@ -554,7 +489,6 @@ onMounted(async () => {
   queueResizeLogicFlowCanvas(true);
   queueAlignLogicFlowViewport();
 
-  nextLogicFlowInstance.on("node:dnd-add", handleNodeDndAdd);
 
   for (const eventName of graphMutationEvents) {
     nextLogicFlowInstance.on(eventName, emitGraphChange);
@@ -573,7 +507,6 @@ onBeforeUnmount(() => {
   if (logicFlowInstance === null) {
     return;
   }
-  logicFlowInstance.off?.("node:dnd-add", handleNodeDndAdd);
   for (const eventName of graphMutationEvents) {
     logicFlowInstance.off?.(eventName, emitGraphChange);
   }

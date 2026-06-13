@@ -17,6 +17,15 @@ const emit = defineEmits<{
   "select-definition": [definition: StrategyDefinitionDocument];
   "delete-definition": [definition: StrategyDefinitionDocument];
 }>();
+
+function formatDefinitionRuntime(definition: StrategyDefinitionDocument): string {
+  const sourceFormat = definition.sourceFormat ?? "pine-v6";
+  const runtime = definition.runtime || "pine-go-plan";
+  if (sourceFormat === "pine-v6" && runtime === "pine-go-plan") {
+    return "Pine v6 / pine-go-plan";
+  }
+  return `${sourceFormat} / ${runtime}`;
+}
 </script>
 
 <template>
@@ -70,7 +79,7 @@ const emit = defineEmits<{
           >
             <div class="text-base font-semibold">{{ definition.name }}</div>
             <div class="mt-2 text-sm text-slate-500">版本 {{ definition.version }}</div>
-            <div class="mt-2 text-xs uppercase tracking-[0.2em] text-slate-500">{{ definition.runtime }}</div>
+            <div class="mt-2 text-xs uppercase tracking-[0.2em] text-slate-500">{{ formatDefinitionRuntime(definition) }}</div>
           </button>
           <button
             :data-testid="`delete-strategy-definition-${definition.id}`"

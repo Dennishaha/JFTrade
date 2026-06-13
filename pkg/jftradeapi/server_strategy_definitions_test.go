@@ -277,7 +277,7 @@ func TestDeleteStrategyDefinitionRequiresDeletingLinkedInstancesFirst(t *testing
 	if blockedEnvelope.Error == nil || !strings.Contains(blockedEnvelope.Error.Message, "请先删除对应实例再删除") {
 		t.Fatalf("unexpected blocked delete response: %+v", blockedEnvelope)
 	}
-	if _, ok := server.designStore.definition(definition.ID); !ok {
+	if _, ok, err := server.designStore.definition(definition.ID); err != nil || !ok {
 		t.Fatal("definition should still exist after blocked delete")
 	}
 
@@ -306,7 +306,7 @@ func TestDeleteStrategyDefinitionRequiresDeletingLinkedInstancesFirst(t *testing
 	if deleteResp.StatusCode != http.StatusOK {
 		t.Fatalf("delete definition after removing instances status = %d, want %d", deleteResp.StatusCode, http.StatusOK)
 	}
-	if _, ok := server.designStore.definition(definition.ID); ok {
+	if _, ok, err := server.designStore.definition(definition.ID); err != nil || ok {
 		t.Fatal("definition should be hidden after soft delete")
 	}
 	definitions := server.designStore.listDefinitions()

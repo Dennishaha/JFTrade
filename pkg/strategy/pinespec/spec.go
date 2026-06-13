@@ -10,11 +10,12 @@ import (
 
 const (
 	PineVersion         = "v6"
+	ProductVersion      = "v1.1"
 	SourceFormat        = strategydefinition.SourceFormatPineV6
 	Runtime             = strategypineruntime.ID
 	ToolName            = "strategy.pine_spec"
 	BuiltinSkillName    = "jftrade-strategy"
-	BuiltinSkillVersion = "5"
+	BuiltinSkillVersion = "6"
 )
 
 type Section struct {
@@ -37,8 +38,7 @@ var sections = []Section{
 	{ID: "expressions", Title: "表达式", Summary: "支持的 Pine 表达式、OHLCV 序列和函数映射。"},
 	{ID: "indicators", Title: "指标", Summary: "当前 compiler、planner 与 runtime 能识别的 ta.* 指标。"},
 	{ID: "orders", Title: "下单", Summary: "strategy.entry/strategy.close 到 JFTrade 订单 IR 的映射。"},
-	{ID: "support-matrix", Title: "支持矩阵", Summary: "按 parser、planner、runtime、JFTrade 集成和前端覆盖当前 v0.8 能力。"},
-	{ID: "compatibility", Title: "兼容迁移", Summary: "列出长期保留、v1.0 前迁移和可删除的兼容层。"},
+	{ID: "support-matrix", Title: "支持矩阵", Summary: "按 parser、planner、runtime、JFTrade 集成和前端锁定 v1.0 Pine v6 主路径能力。"},
 	{ID: "unsupported", Title: "不支持项", Summary: "已解析但不能在 JFTrade 中执行的 Pine v6 行为。"},
 	{ID: "examples", Title: "示例", Summary: "当前实现下可以成功 parse、lower 并完成 requirements planning 的 Pine v6 脚本。"},
 }
@@ -81,11 +81,11 @@ else
     log.info("RSI condition not met")`,
 	},
 	{
-		ID:          "v08-golden-capability-set",
-		Title:       "v0.8 能力黄金脚本",
-		Description: "覆盖当前 v0.8 锁定能力的可执行 smoke：source-aware 指标、MTF、SAR、UDF、静态 for、qty_percent、net order、bracket exit 和 cancel。",
+		ID:          "v10-golden-capability-set",
+		Title:       "v1.0 主路径黄金脚本",
+		Description: "覆盖当前 v1.0 Pine v6 主路径的可执行 smoke：source-aware 指标、MTF、SAR、UDF、静态 for、qty_percent、net order、bracket exit 和 cancel。",
 		Script: `//@version=6
-strategy("v0.8 Golden", overlay=true, default_qty_type=strategy.percent_of_equity, default_qty_value=10, pyramiding=2)
+strategy("v1.0 Golden", overlay=true, default_qty_type=strategy.percent_of_equity, default_qty_value=10, pyramiding=2)
 
 len = input.int(3, "Length")
 tf = input.timeframe("15", "MTF")
@@ -286,6 +286,7 @@ func BuildToolPayload(section string, includeExamples bool) (map[string]any, err
 
 	payload := map[string]any{
 		"version":                     PineVersion,
+		"productVersion":              ProductVersion,
 		"sourceFormat":                SourceFormat,
 		"runtime":                     Runtime,
 		"sections":                    sectionPayloads(),
@@ -298,7 +299,6 @@ func BuildToolPayload(section string, includeExamples bool) (map[string]any, err
 		"orderModes":                  orderModes(),
 		"protectModes":                protectModes(),
 		"supportMatrix":               supportMatrix(),
-		"compatibilityLayers":         compatibilityLayers(),
 		"unsupportedPatterns":         unsupportedPatterns(),
 		"goldenScripts":               goldenExamplePayloads(),
 		"skeleton":                    Skeleton(),
@@ -327,6 +327,9 @@ func BuildSpecMarkdown() string {
 	builder.WriteString("`\n")
 	builder.WriteString("- `pineVersion`: `")
 	builder.WriteString(PineVersion)
+	builder.WriteString("`\n")
+	builder.WriteString("- `productVersion`: `")
+	builder.WriteString(ProductVersion)
 	builder.WriteString("`\n\n")
 
 	writeMarkdownSection(&builder, "概览", sectionDetails("overview"))
@@ -339,9 +342,7 @@ func BuildSpecMarkdown() string {
 	writeMarkdownSection(&builder, "下单", sectionDetails("orders"))
 	writeMarkdownList(&builder, "数量与下单模式", flattenNamedItems(orderModes()))
 	writeMarkdownSection(&builder, "支持矩阵", sectionDetails("support-matrix"))
-	writeMarkdownList(&builder, "v0.8 能力覆盖", flattenMatrixItems(supportMatrix()))
-	writeMarkdownSection(&builder, "兼容迁移", sectionDetails("compatibility"))
-	writeMarkdownList(&builder, "兼容层清单", flattenCompatibilityItems(compatibilityLayers()))
+	writeMarkdownList(&builder, "v1.0 主路径能力覆盖", flattenMatrixItems(supportMatrix()))
 	writeMarkdownSection(&builder, "不支持项", sectionDetails("unsupported"))
 	writeMarkdownList(&builder, "明确不支持的写法", unsupportedPatterns())
 	builder.WriteString("## 最小骨架\n\n```text\n")
@@ -365,7 +366,7 @@ func BuildExamplesMarkdown() string {
 		builder.WriteString(example.Script)
 		builder.WriteString("\n```\n\n")
 	}
-	builder.WriteString("## v0.8 黄金脚本\n\n")
+	builder.WriteString("## v1.0 黄金脚本\n\n")
 	for _, example := range goldenExamples {
 		builder.WriteString("### ")
 		builder.WriteString(example.Title)
@@ -386,12 +387,12 @@ func BuildExamplesMarkdown() string {
 func supportedTopLevelStatements() []string {
 	return []string{
 		"//@version=6",
-		"strategy(\"<name>\", overlay=true[, default_qty_type=strategy.fixed|strategy.cash|strategy.percent_of_equity, default_qty_value=<number>, pyramiding=<integer>])",
+		"strategy(\"<name>\", overlay=true[, default_qty_type=..., default_qty_value=<number>, pyramiding=<integer>, initial_capital=<number>, commission_type=strategy.commission.percent|cash_per_order|cash_per_contract, commission_value=<number>, slippage=<ticks>, process_orders_on_close=<bool>])",
 		"<name> = <expression>",
 		"if <condition>",
 		"strategy.entry(\"<id>\", strategy.long|strategy.short[, qty=<expression>|qty_percent=<number>][, limit=<expression>])",
 		"strategy.order(\"<id>\", strategy.long|strategy.short[, qty=<expression>|qty_percent=<number>][, limit=<expression>])",
-		"strategy.close(\"<id>\"[, qty=<expression>|qty_percent=<number>][, limit=<expression>]) / strategy.close_all()",
+		"strategy.close(\"<id>\"[, qty=<expression>|qty_percent=<number>][, limit=<expression>, immediately=<bool>]) / strategy.close_all(immediately=<bool>)",
 	}
 }
 
@@ -491,6 +492,8 @@ func orderModes() []map[string]any {
 		{"name": "strategy.entry amount", "description": "固定金额可写为 qty=amount/close。"},
 		{"name": "strategy.entry equity percent", "description": "账户权益百分比可写为 qty=(strategy.equity*pct/100)/close。"},
 		{"name": "strategy.close/close_all", "description": "平仓；不指定数量默认平 100% 持仓，close 的 qty_percent 表示当前 symbol 持仓百分比。"},
+		{"name": "strategy metadata costs", "description": "initial_capital、percent/cash commission、slippage ticks 与 process_orders_on_close=true 进入 JFTrade 回测配置；API initialBalance 优先。"},
+		{"name": "order event metadata", "description": "comment 写入策略运行日志；alert_message 在 disable_alert=false 时发出策略通知；close/close_all 接受 immediately=true。"},
 		{"name": "strategy.exit bracket", "description": "支持 stop、limit、stop+limit bracket；stop/limit 可使用普通数值表达式，qty/qty_percent 可部分退出。"},
 		{"name": "pending entry/order", "description": "strategy.entry/order 支持基础 stop 或 limit pending；stop+limit 组合仍明确诊断。"},
 		{"name": "strategy.cancel/cancel_all", "description": "取消当前策略 symbol 尚未触发的内部 pending orders。"},
@@ -510,22 +513,14 @@ func protectModes() []map[string]any {
 
 func supportMatrix() []map[string]any {
 	return []map[string]any{
+		{"capability": "JFTrade Pine v6 main path", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": true, "notes": "新建、保存、预览、回测、实例化和启动统一使用 sourceFormat=pine-v6 + runtime=pine-go-plan；旧 source/runtime 与旧 visual model 明确拒绝。"},
+		{"capability": "Backtest capital and trading costs", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": true, "notes": "API initialBalance > Pine initial_capital > 系统默认；支持 percent/cash commission 与按最小价格单位计算的 slippage ticks，仅作用于回测。"},
 		{"capability": "Pine metadata and diagnostics", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": true, "notes": "统一通过 AnalyzeScript、strategy.pine_spec、编辑器提示和结构化 diagnostics 暴露。"},
 		{"capability": "Source-aware indicators", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": true, "notes": "MA/RSI/stdev/variance/CCI/rolling/source-aware MTF 使用稳定 key；close 保留 legacy key。"},
 		{"capability": "Rolling and stateful indicators", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": false, "notes": "highest/lowest/change/mom/roc/rising/falling/sum、barssince、valuewhen 已可执行；前端只覆盖常用子集。"},
 		{"capability": "MTF request.security subset", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": true, "notes": "仅同标的 source/source[n]/source-aware MA，禁止 lookahead_on/gaps_on 和任意表达式。"},
 		{"capability": "Orders and exits", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": true, "notes": "entry/order/close/close_all/exit/cancel 的可执行子集已贯通，完整 broker emulator 不属于当前目标。"},
 		{"capability": "UDF and static for", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": false, "notes": "单表达式 UDF 与静态整数 for 编译期展开；动态循环、多语句/递归 UDF 诊断失败。"},
-	}
-}
-
-func compatibilityLayers() []map[string]any {
-	return []map[string]any{
-		{"name": "close legacy indicator keys", "category": "long_term", "status": "keep", "notes": "close-source MA/RSI/stdev/CCI 继续保留历史 key，避免已有回测和运行实例断裂；新增 source 使用 source-aware key。"},
-		{"name": "visual-only Pine calls", "category": "long_term", "status": "keep", "notes": "plot/hline/bgcolor/label/table 等 TradingView 视觉调用作为 warning no-op 保留，降低模板迁移成本。"},
-		{"name": "legacy visual codeBlock", "category": "migrate_before_v1", "status": "read_only", "notes": "旧 codeBlock 只作为历史模型兼容；Pine 反解兜底应生成 pineSnippet，保存时不再产生 JS 代码块。"},
-		{"name": "unified technicalIndicator block", "category": "migrate_before_v1", "status": "read_only", "notes": "旧合并式指标块保留读取和迁移；新建路径使用 getTechnicalIndicator + technicalIndicatorCondition。"},
-		{"name": "non-Pine source/runtime defaults", "category": "remove_after_migration", "status": "replace_with_default_pine", "notes": "历史非 Pine 定义只做默认 Pine 脚本替换或只读展示，不扩展旧 runtime。"},
 	}
 }
 
@@ -663,18 +658,14 @@ func sectionDetails(section string) []string {
 			"strategy.close(id, qty=n, limit=price) 根据已知 entry id 映射为平多或平空，支持部分平仓与限价。",
 			"strategy.exit(id, from_entry, stop=..., limit=..., qty/qty_percent=...) 映射为 closed-bar bracket；同 bar 两侧触发时采用保守 stop-first。",
 			"strategy.cancel(id)/cancel_all() 取消当前策略 symbol 尚未触发的 pending orders。",
+			"strategy() 支持 initial_capital、commission_type/value、slippage 与 process_orders_on_close；API initialBalance 优先于脚本资金。",
+			"strategy.close/close_all 支持 immediately=true；comment、alert_message、disable_alert 会进入日志/通知元数据。",
 		}
 	case "support-matrix":
 		return []string{
-			"v0.8 将当前 Pine v6 子集按 parser、planner、runtime、JFTrade API/ADK 和前端五个面向锁定。",
+			"v1.0 将 JFTrade 可执行 Pine v6 子集正式锁定为策略定义、预览、回测、实例化、运行和 ADK 工具的主路径。",
 			"新增 Pine 能力必须同步更新 parser lowering、IR requirements、indicator/runtime lookup、规范输出和至少一层可执行测试。",
 			"前端不是完整 Pine IDE；流程图覆盖常用策略 authoring，无法标准化的 Pine 行保留为 pineSnippet。",
-		}
-	case "compatibility":
-		return []string{
-			"兼容层分为长期保留、v1.0 前迁移和迁移后删除三类，避免历史策略被一次性破坏。",
-			"生成路径优先切到 Pine v6 标准图块；旧模型保留只读迁移和导入解析。",
-			"close legacy key 是运行时稳定性兼容，不代表新增指标继续使用旧 key 形态。",
 		}
 	case "unsupported":
 		return []string{
@@ -710,18 +701,6 @@ func flattenMatrixItems(items []map[string]any) []string {
 		capability, _ := item["capability"].(string)
 		notes, _ := item["notes"].(string)
 		out = append(out, capability+" — "+notes)
-	}
-	return out
-}
-
-func flattenCompatibilityItems(items []map[string]any) []string {
-	out := make([]string, 0, len(items))
-	for _, item := range items {
-		name, _ := item["name"].(string)
-		category, _ := item["category"].(string)
-		status, _ := item["status"].(string)
-		notes, _ := item["notes"].(string)
-		out = append(out, name+" ["+category+"/"+status+"] — "+notes)
 	}
 	return out
 }

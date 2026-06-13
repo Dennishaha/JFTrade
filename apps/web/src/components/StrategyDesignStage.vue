@@ -35,7 +35,6 @@ import {
     getStrategyBlockKind,
     type StrategyAuthoringTemplate,
 } from "../features/strategyVisualBuilder";
-import { migrateLegacyMovingAverageDefinition } from "../features/strategyVisualBuilderMigration";
 
 const props = withDefaults(defineProps<{
     entryMode?: "existing" | "new";
@@ -241,7 +240,7 @@ const {
     selectedVisualNodeId,
     syncScriptToVisualModelNow,
     updateCommittedDefinitionSignature,
-    visualSyncCodeBlockCount,
+    visualSyncPineSnippetCount,
     visualSyncMessage,
     visualSyncStatus,
 } = useStrategyStageVisualSync({
@@ -697,23 +696,34 @@ function normalizeSourceFormat(
     return "pine-v6";
 }
 
+function formatDefinitionMainPath(
+    sourceFormat: StrategySourceFormat | string | null | undefined,
+    runtime: string | null | undefined,
+): string {
+    const normalizedSourceFormat = normalizeSourceFormat(sourceFormat);
+    const normalizedRuntime = runtime || "pine-go-plan";
+    if (normalizedSourceFormat === "pine-v6" && normalizedRuntime === "pine-go-plan") {
+        return "Pine v6 / pine-go-plan";
+    }
+    return `${normalizedSourceFormat} / ${normalizedRuntime}`;
+}
+
 function normalizeDefinition(
     definition: StrategyDefinitionDocument,
 ): StrategyDefinitionDocument {
-    const migrated = migrateLegacyMovingAverageDefinition(definition);
-    const visualModel = cloneStrategyVisualModel(migrated.visualModel);
-    const name = migrated.name.trim();
-    const version = migrated.version.trim() || "0.1.0";
+    const visualModel = cloneStrategyVisualModel(definition.visualModel);
+    const name = definition.name.trim();
+    const version = definition.version.trim() || "0.1.0";
     const script =
         visualModel === null
-            ? migrated.script
+            ? definition.script
             : buildStrategyScriptFromVisualModel(visualModel, {
                 name,
                 version,
             });
 
     return {
-        ...migrated,
+        ...definition,
         runtime: "pine-go-plan",
         sourceFormat: "pine-v6",
         version,
@@ -887,7 +897,7 @@ function buildStrategyDefinitionSavePayload(): StrategyDefinitionDocument {
         runtime: "pine-go-plan",
         sourceFormat: normalizeSourceFormat(definitionForm.value.sourceFormat),
         script: definitionForm.value.script,
-        visualModel: cloneStrategyVisualModel(definitionForm.value.visualModel),
+        visualModel: definitionForm.value.visualModel ?? null,
         createdAt: definitionForm.value.createdAt,
         updatedAt: definitionForm.value.updatedAt,
     };
@@ -1054,7 +1064,7 @@ const {
                                 {{ activeStrategyTemplate?.mode === "visual" ? "图优先" : "代码优先" }}
                             </span>
                             <div class="strategy-stage__toolbar-meta">
-                                <span>{{ definitionForm.runtime || "pine-go-plan" }}</span>
+                                <span>{{ formatDefinitionMainPath(definitionForm.sourceFormat, definitionForm.runtime) }}</span>
                                 <span>v{{ definitionForm.version || "0.1.0" }}</span>
                             </div>
                         </div>

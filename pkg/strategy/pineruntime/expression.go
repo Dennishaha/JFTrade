@@ -925,7 +925,7 @@ func evaluateValueWhenExpression(expression *exprast.CallNode, scope *evaluation
 	occurrence := int(occurrenceValue)
 	if state.hasCached && state.lastBarIndex == scope.barIndex {
 		if occurrence < len(state.values) {
-			return state.values[occurrence], nil
+			return state.values[len(state.values)-1-occurrence], nil
 		}
 		return nil, nil
 	}
@@ -942,12 +942,12 @@ func evaluateValueWhenExpression(expression *exprast.CallNode, scope *evaluation
 		if sourceErr != nil {
 			return nil, sourceErr
 		}
-		state.values = append([]any{snapshotExpressionValue(sourceValue)}, state.values...)
+		state.values = append(state.values, snapshotExpressionValue(sourceValue))
 	}
 	state.lastBarIndex = scope.barIndex
 	state.hasCached = true
 	if occurrence < len(state.values) {
-		state.cached = state.values[occurrence]
+		state.cached = state.values[len(state.values)-1-occurrence]
 		return state.cached, nil
 	}
 	state.cached = nil
@@ -1132,11 +1132,11 @@ func evaluateHistoryExpression(expression *exprast.CallNode, scope *evaluationSc
 		return nil, nil
 	}
 	key := expressionNodeKey(expression.Arguments[0])
-	values := scope.runtime.historyValues[key]
-	if lookback > len(values) {
+	value, ok := scope.runtime.historyValues[key].lookup(lookback)
+	if !ok {
 		return nil, nil
 	}
-	return values[len(values)-lookback], nil
+	return value, nil
 }
 
 func evaluateIfElseExpression(arguments []exprast.Node, scope *evaluationScope) (any, error) {

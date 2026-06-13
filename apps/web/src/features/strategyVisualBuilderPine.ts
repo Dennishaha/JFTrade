@@ -18,9 +18,7 @@ import {
 import {
   normalizeGetTechnicalIndicatorProperties,
   normalizeTechnicalIndicatorConditionProperties,
-  normalizeTechnicalIndicatorProperties,
   type GetTechnicalIndicatorBlockProperties,
-  type TechnicalIndicatorBlockProperties,
   type TechnicalIndicatorConditionBlockProperties,
 } from "./strategyVisualBuilderIndicatorBlock";
 import { reconcileStrategyVisualModelIndicatorBindings } from "./strategyVisualBuilderIndicatorReferences";
@@ -186,6 +184,9 @@ function renderNode(
   visited.add(node.id);
 
   const kind = getStrategyBlockKind(node);
+  if (node.properties.blockKind === "codeBlock" || node.properties.blockKind === "technicalIndicator") {
+    return [];
+  }
   switch (kind) {
     case "onInit":
     case "onKLineClosed":
@@ -210,8 +211,6 @@ function renderNode(
       return renderGetTechnicalIndicatorNode(node, state, depth, visited);
     case "technicalIndicatorCondition":
       return renderTechnicalIndicatorConditionNode(node, state, depth, visited);
-    case "technicalIndicator":
-      return renderUnifiedTechnicalIndicatorNode(node, state, depth, visited);
     case "ifCloseAbove":
     case "ifCloseBelow":
       return renderCloseConditionNode(node, state, depth, visited, kind);
@@ -226,14 +225,6 @@ function renderNode(
         depth,
         visited,
         readPineSnippetCode(node.properties.code),
-      );
-    case "codeBlock":
-      return renderLinearStatement(
-        node,
-        state,
-        depth,
-        visited,
-        `log.info(${toPineStringLiteral("代码块已废弃，请改用标准 Pine 图块")})`,
       );
     default:
       return renderLinearStatement(
@@ -305,52 +296,6 @@ function renderTechnicalIndicatorConditionNode(
     ...(falseBody.length > 0
       ? [`${indent(depth)}else`, ...falseBody]
       : []),
-  ];
-}
-
-function renderUnifiedTechnicalIndicatorNode(
-  node: StrategyVisualNodeDocument,
-  state: RenderState,
-  depth: number,
-  visited: Set<string>,
-): string[] {
-  const properties = normalizeTechnicalIndicatorProperties(node.properties ?? {});
-  const getterNodes = buildSyntheticGetterNodes(node, properties);
-  const setupLines = getterNodes.flatMap((getterNode) =>
-    renderIndicatorDeclaration(getterNode, state, depth, false),
-  );
-
-  if (properties.conditionMode === "none") {
-    return [
-      ...setupLines,
-      ...renderControlChildren(node.id, state, depth, visited),
-    ];
-  }
-
-  const inputs: IndicatorInputBinding[] = getterNodes.map((getterNode, index) => ({
-    node: getterNode,
-    slot: properties.indicatorType === "movingAverage"
-      ? index === 0 ? "fast" : "slow"
-      : "primary",
-    properties: normalizeGetTechnicalIndicatorProperties(getterNode.properties),
-  }));
-  const conditionProperties: TechnicalIndicatorConditionBlockProperties = {
-    blockKind: "technicalIndicatorCondition",
-    indicatorType: properties.indicatorType,
-    conditionMode: properties.conditionMode,
-    ...(properties.operator !== undefined ? { operator: properties.operator } : {}),
-    ...(properties.threshold !== undefined ? { threshold: properties.threshold } : {}),
-    ...(properties.patternType !== undefined ? { patternType: properties.patternType } : {}),
-    ...(properties.lookback !== undefined ? { lookback: properties.lookback } : {}),
-  };
-  const expression = buildTechnicalIndicatorConditionExpression(conditionProperties, inputs) ?? "false";
-  const body = renderControlChildren(node.id, state, depth + 1, new Set(visited));
-
-  return [
-    ...setupLines,
-    ...buildStrategyFlowNodeAnnotation(node, depth),
-    `${indent(depth)}if ${expression}`,
-    ...(body.length > 0 ? body : [`${indent(depth + 1)}log.info(${toPineStringLiteral("指标条件命中但未配置动作")})`]),
   ];
 }
 
@@ -550,53 +495,6 @@ function numericConditionTargetExpression(input: IndicatorInputBinding): string 
     default:
       return variableName;
   }
-}
-
-function buildSyntheticGetterNodes(
-  node: StrategyVisualNodeDocument,
-  properties: TechnicalIndicatorBlockProperties,
-): StrategyVisualNodeDocument[] {
-  if (properties.indicatorType === "movingAverage") {
-    return [
-      {
-        ...node,
-        id: `${node.id}-fast`,
-        properties: {
-          blockKind: "getTechnicalIndicator",
-          indicatorType: "movingAverage",
-          movingAverageType: properties.movingAverageType,
-          windowSize: properties.fastPeriod,
-        },
-      },
-      {
-        ...node,
-        id: `${node.id}-slow`,
-        properties: {
-          blockKind: "getTechnicalIndicator",
-          indicatorType: "movingAverage",
-          movingAverageType: properties.movingAverageType,
-          windowSize: properties.slowPeriod,
-        },
-      },
-    ];
-  }
-
-  return [
-    {
-      ...node,
-      properties: {
-        blockKind: "getTechnicalIndicator",
-        indicatorType: properties.indicatorType,
-        ...(properties.period !== undefined ? { period: properties.period } : {}),
-        ...(properties.fastPeriod !== undefined ? { fastPeriod: properties.fastPeriod } : {}),
-        ...(properties.slowPeriod !== undefined ? { slowPeriod: properties.slowPeriod } : {}),
-        ...(properties.signalPeriod !== undefined ? { signalPeriod: properties.signalPeriod } : {}),
-        ...(properties.m1 !== undefined ? { m1: properties.m1 } : {}),
-        ...(properties.m2 !== undefined ? { m2: properties.m2 } : {}),
-        ...(properties.multiplier !== undefined ? { multiplier: properties.multiplier } : {}),
-      },
-    },
-  ];
 }
 
 function controlOutgoingEdges(

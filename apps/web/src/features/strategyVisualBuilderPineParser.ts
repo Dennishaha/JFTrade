@@ -18,7 +18,7 @@ import {
 export interface StrategyScriptParseSuccess {
   ok: true;
   model: StrategyVisualModelDocument;
-  codeBlockCount: number;
+  pineSnippetCount: number;
 }
 
 export interface StrategyScriptParseFailure {
@@ -50,7 +50,7 @@ interface ParseState {
   existingNodeById: Map<string, StrategyVisualNodeDocument>;
   aliasByName: Map<string, IndicatorAliasBinding>;
   sequence: number;
-  codeBlockCount: number;
+  pineSnippetCount: number;
 }
 
 interface IndicatorAliasBinding {
@@ -73,6 +73,12 @@ export function buildStrategyVisualModelFromPine(
   script: string,
   existingModel?: StrategyVisualModelDocument | null,
 ): StrategyScriptParseResult {
+  if (hasLegacyFlowBlockAnnotation(script)) {
+    return {
+      ok: false,
+      error: "旧 codeBlock / technicalIndicator 流程图注解不再支持，请用 Pine v6 标准图块或 Pine 片段重建。",
+    };
+  }
   const entries = tokenizePine(script);
   if (entries.length === 0) {
     return { ok: false, error: "Pine 代码为空，无法转换回流程图。" };
@@ -89,7 +95,7 @@ export function buildStrategyVisualModelFromPine(
     ),
     aliasByName: new Map(),
     sequence: 0,
-    codeBlockCount: 0,
+    pineSnippetCount: 0,
   };
 
   const root = createSyntheticRoot(state);
@@ -117,7 +123,7 @@ export function buildStrategyVisualModelFromPine(
       nodes: state.nodes,
       edges: state.edges,
     },
-    codeBlockCount: state.codeBlockCount,
+    pineSnippetCount: state.pineSnippetCount,
   };
 }
 
@@ -241,7 +247,7 @@ function parseStatementNode(entry: ParsedPineEntry, state: ParseState): ParsedNo
     return parsePineExitNode(entry, state, explicitKind);
   }
 
-  state.codeBlockCount += 1;
+  state.pineSnippetCount += 1;
   return {
     node: createNodeFromParts({
       state,
@@ -265,7 +271,7 @@ function parseLetNode(
 ): ParsedNodeResult {
   const match = entry.trimmed.match(/^(?:var\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*(?::=|=)\s*(.+)$/);
   if (match === null) {
-    state.codeBlockCount += 1;
+    state.pineSnippetCount += 1;
     return createCodeBlockResult(entry, state);
   }
 
@@ -273,7 +279,7 @@ function parseLetNode(
   const expression = match[2]!.trim();
   const indicatorProperties = parseIndicatorExpression(expression);
   if (indicatorProperties === null) {
-    state.codeBlockCount += 1;
+    state.pineSnippetCount += 1;
     return createCodeBlockResult(entry, state);
   }
 
@@ -323,14 +329,15 @@ function parseIfNode(
 
   const indicatorCondition = parseIndicatorCondition(condition, state, entry.annotation);
   if (indicatorCondition !== null) {
+    const indicatorConditionKind = explicitKind ?? "technicalIndicatorCondition";
     const node = createNodeFromParts({
       state,
       entry,
-      kind: explicitKind ?? "technicalIndicatorCondition",
+      kind: indicatorConditionKind,
       defaultText: entry.annotation?.nodeText ?? "指标条件判断",
       defaultType: "diamond",
       properties: {
-        blockKind: explicitKind ?? "technicalIndicatorCondition",
+        blockKind: indicatorConditionKind,
         ...indicatorCondition.properties,
       },
     });
@@ -340,7 +347,7 @@ function parseIfNode(
     return { node, isCondition: true };
   }
 
-  state.codeBlockCount += 1;
+  state.pineSnippetCount += 1;
   return {
     node: createNodeFromParts({
       state,
@@ -380,7 +387,7 @@ function parseOrderNode(
     };
   }
   if (entry.trimmed.startsWith("strategy.")) {
-    state.codeBlockCount += 1;
+    state.pineSnippetCount += 1;
     return createSnippetFallbackResult(entry, state, explicitKind);
   }
   return {
@@ -406,7 +413,7 @@ function parsePineExitNode(
 ): ParsedNodeResult {
   const properties = parsePineExit(entry.trimmed);
   if (properties === null) {
-    state.codeBlockCount += 1;
+    state.pineSnippetCount += 1;
     return createSnippetFallbackResult(entry, state, explicitKind);
   }
   return {
@@ -775,9 +782,13 @@ function createSnippetFallbackResult(
 }
 
 function snippetFallbackKind(explicitKind: StrategyBlockKind | undefined): StrategyBlockKind {
-  return explicitKind === undefined || explicitKind === "codeBlock"
+  return explicitKind === undefined
     ? "pineSnippet"
     : explicitKind;
+}
+
+function hasLegacyFlowBlockAnnotation(script: string): boolean {
+  return /@jftradeFlowBlockKind\s+(?:codeBlock|technicalIndicator)(?:\s|$)/.test(script);
 }
 
 function createNodeFromParts(options: {

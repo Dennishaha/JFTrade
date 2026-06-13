@@ -6,18 +6,20 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 )
 
-func TestInstantiateStoredDefinitionNormalizesLegacySourceFormatToDSL(t *testing.T) {
+func TestInstantiateStoredDefinitionRejectsLegacySourceFormat(t *testing.T) {
 	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
 	server := newTestServer(t, store)
-	if _, err := server.designStore.saveDefinition(strategyDesignDefinition{
+
+	legacyDefinition := strategyDesignDefinition{
 		ID:           "legacy-breakout",
 		Name:         "Legacy Breakout",
 		Version:      "0.1.0",
@@ -26,9 +28,16 @@ func TestInstantiateStoredDefinitionNormalizesLegacySourceFormatToDSL(t *testing
 		Symbol:       "00700",
 		Interval:     "1m",
 		Script:       "//@version=6\nstrategy(\"Legacy Breakout\", overlay=true)\nlog.info(\"close\")",
-	}); err != nil {
-		t.Fatalf("saveDefinition: %v", err)
+		CreatedAt:    "2026-06-13T00:00:00Z",
+		UpdatedAt:    "2026-06-13T00:00:00Z",
 	}
+	server.designStore.mu.Lock()
+	if err := server.designStore.upsertDefinitionLocked(legacyDefinition, nil); err != nil {
+		server.designStore.mu.Unlock()
+		t.Fatalf("upsert legacy definition: %v", err)
+	}
+	server.designStore.mu.Unlock()
+
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
@@ -37,27 +46,15 @@ func TestInstantiateStoredDefinitionNormalizesLegacySourceFormatToDSL(t *testing
 		t.Fatalf("POST instantiate: %v", err)
 	}
 	defer createResp.Body.Close()
-	if createResp.StatusCode != http.StatusOK {
-		t.Fatalf("POST normalized legacy source format instantiate status = %d, want %d", createResp.StatusCode, http.StatusOK)
+	if createResp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("POST legacy source format instantiate status = %d, want %d", createResp.StatusCode, http.StatusBadRequest)
 	}
-	var createEnvelope struct {
-		OK   bool             `json:"ok"`
-		Data strategyListItem `json:"data"`
-	}
+	var createEnvelope envelope
 	if err := json.NewDecoder(createResp.Body).Decode(&createEnvelope); err != nil {
-		t.Fatalf("decode normalized instantiate: %v", err)
+		t.Fatalf("decode legacy instantiate: %v", err)
 	}
-	if createEnvelope.Data.SourceFormat != strategydefinition.SourceFormatPineV6 {
-		t.Fatalf("expected normalized Pine source format, got %+v", createEnvelope.Data)
-	}
-	if createEnvelope.Data.Runtime != strategyRuntimePinePlan {
-		t.Fatalf("expected normalized Pine runtime, got %+v", createEnvelope.Data)
-	}
-	if got := createEnvelope.Data.Params["sourceFormat"]; got != strategydefinition.SourceFormatPineV6 {
-		t.Fatalf("expected normalized Pine source format params, got %+v", createEnvelope.Data.Params)
-	}
-	if got := createEnvelope.Data.Params["runtime"]; got != strategyRuntimePinePlan {
-		t.Fatalf("expected normalized Pine runtime params, got %+v", createEnvelope.Data.Params)
+	if createEnvelope.Error == nil || !strings.Contains(createEnvelope.Error.Message, "unsupported legacy strategy definition") {
+		t.Fatalf("unexpected legacy instantiate response: %+v", createEnvelope)
 	}
 }
 

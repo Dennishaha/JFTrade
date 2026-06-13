@@ -18,8 +18,9 @@ const maxStaticForIterations = 100
 const maxStaticForDepth = 2
 
 type Compilation struct {
-	Program  *strategyir.Program
-	Warnings []string
+	Program      *strategyir.Program
+	Requirements strategyir.Requirements
+	Warnings     []string
 }
 
 type parsedLine struct {
@@ -43,6 +44,7 @@ type parseState struct {
 	normalizationErr  error
 	entryPolicyCache  map[int]string
 	strategyMetadata  strategyir.StrategyMetadata
+	regexpCache       map[string]*regexp.Regexp
 }
 
 type pineUDF struct {
@@ -50,6 +52,21 @@ type pineUDF struct {
 	Args []string
 	Body string
 	Line int
+}
+
+func (s *parseState) cachedRegexp(key string, pattern string) *regexp.Regexp {
+	if s == nil {
+		return regexp.MustCompile(pattern)
+	}
+	if compiled, ok := s.regexpCache[key]; ok {
+		return compiled
+	}
+	if s.regexpCache == nil {
+		s.regexpCache = map[string]*regexp.Regexp{}
+	}
+	compiled := regexp.MustCompile(pattern)
+	s.regexpCache[key] = compiled
+	return compiled
 }
 
 var (
@@ -66,6 +83,10 @@ var (
 	callHistoryPattern      = regexp.MustCompile(`\)\s*\[\s*[0-9]+\s*\]`)
 	udfPattern              = regexp.MustCompile(`^([A-Za-z_][A-Za-z0-9_]*)\s*\(([^)]*)\)\s*=>\s*(.*)$`)
 	forLoopPattern          = regexp.MustCompile(`(?i)^for\s+([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.+?)\s+to\s+(.+?)(?:\s+by\s+(.+))?\s*$`)
+	identifierPattern       = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
+	memberPattern           = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?$`)
+	numberPattern           = regexp.MustCompile(`^-?[0-9]+(?:\.[0-9]+)?$`)
+	taTRPattern             = regexp.MustCompile(`(?i)\bta\.tr\b`)
 )
 
 func Compile(script string) (Compilation, error) {
@@ -76,10 +97,14 @@ func Compile(script string) (Compilation, error) {
 		}
 		return Compilation{}, fmt.Errorf("pine script is not valid")
 	}
-	return Compilation{Program: analysis.Program, Warnings: analysis.Warnings}, nil
+	return Compilation{
+		Program:      analysis.Program,
+		Requirements: analysis.Requirements,
+		Warnings:     analysis.Warnings,
+	}, nil
 }
 
-func compileLoweredAST(script string, _ *AST) (Compilation, error) {
+func compileLoweredAST(script string, lines []parsedLine, _ *AST) (Compilation, error) {
 	state := &parseState{
 		lines:             nil,
 		longEntryIDs:      map[string]bool{},
@@ -90,8 +115,9 @@ func compileLoweredAST(script string, _ *AST) (Compilation, error) {
 		valueAliases:      map[string]string{},
 		loopVariables:     map[string]bool{},
 		entryPolicyCache:  buildEntryPolicyCache(script),
+		regexpCache:       map[string]*regexp.Regexp{},
 	}
-	state.lines = tokenizeScript(script)
+	state.lines = lines
 	if len(state.lines) == 0 {
 		return Compilation{}, fmt.Errorf("pine script is required")
 	}
@@ -167,11 +193,7 @@ func ParseScript(script string) (*strategyir.Program, error) {
 }
 
 func ValidateScript(script string) error {
-	program, err := ParseScript(script)
-	if err != nil {
-		return err
-	}
-	_, err = strategyir.PlanRequirements(program)
+	_, err := Compile(script)
 	return err
 }
 
@@ -404,7 +426,7 @@ func parseUDFArgs(lineNumber int, raw string) ([]string, error) {
 	seen := map[string]bool{}
 	for _, part := range parts {
 		name := strings.TrimSpace(part)
-		if !regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`).MatchString(name) {
+		if !identifierPattern.MatchString(name) {
 			return nil, fmt.Errorf("pine line %d: invalid user-defined function argument %q", lineNumber, part)
 		}
 		if seen[name] {
@@ -680,6 +702,10 @@ func (s *parseState) parseStrategyCall(line parsedLine) (strategyir.Statement, b
 		if err := rejectUnsupportedOrderArgs(line.number, "strategy.entry", args[2:]); err != nil {
 			return nil, true, err
 		}
+		comment, alertMessage, disableAlert, err := pineOrderMetadata(line.number, "strategy.entry", args[2:], false)
+		if err != nil {
+			return nil, true, err
+		}
 		quantityMode, quantityExpr := s.pineEntryQuantity(args[2:])
 		orderType, limitExpr, stopExpr := pineOrderPrices(args[2:])
 		if strings.TrimSpace(limitExpr) != "" && strings.TrimSpace(stopExpr) != "" {
@@ -728,6 +754,9 @@ func (s *parseState) parseStrategyCall(line parsedLine) (strategyir.Statement, b
 			OrderType:          orderType,
 			LimitExpression:    limitExpr,
 			StopExpression:     stopExpr,
+			Comment:            comment,
+			AlertMessage:       alertMessage,
+			DisableAlert:       disableAlert,
 		}, true, nil
 	case strings.HasPrefix(lower, "strategy.order("):
 		args := splitArguments(callArgs(line.trimmed))
@@ -736,6 +765,10 @@ func (s *parseState) parseStrategyCall(line parsedLine) (strategyir.Statement, b
 		}
 		id := unquote(strings.TrimSpace(args[0]))
 		if err := rejectUnsupportedOrderArgs(line.number, "strategy.order", args[2:]); err != nil {
+			return nil, true, err
+		}
+		comment, alertMessage, disableAlert, err := pineOrderMetadata(line.number, "strategy.order", args[2:], false)
+		if err != nil {
 			return nil, true, err
 		}
 		direction := strings.ToLower(strings.TrimSpace(args[1]))
@@ -784,11 +817,15 @@ func (s *parseState) parseStrategyCall(line parsedLine) (strategyir.Statement, b
 			OrderType:          orderType,
 			LimitExpression:    limitExpr,
 			StopExpression:     stopExpr,
+			Comment:            comment,
+			AlertMessage:       alertMessage,
+			DisableAlert:       disableAlert,
 		}, true, nil
 	case strings.HasPrefix(lower, "strategy.close_all("):
 		args := splitArguments(callArgs(line.trimmed))
-		if len(args) > 0 {
-			return nil, true, fmt.Errorf("pine line %d: strategy.close_all arguments are not supported by JFTrade yet", line.number)
+		comment, alertMessage, disableAlert, immediate, err := pineCloseMetadata(line.number, "strategy.close_all", args)
+		if err != nil {
+			return nil, true, err
 		}
 		return &strategyir.OrderStmt{
 			Range:              strategyir.SourceRange{StartLine: line.number, EndLine: line.number},
@@ -797,13 +834,18 @@ func (s *parseState) parseStrategyCall(line parsedLine) (strategyir.Statement, b
 			QuantityExpression: "100",
 			EntryPolicy:        "same_direction",
 			OrderType:          "MARKET",
+			Comment:            comment,
+			AlertMessage:       alertMessage,
+			DisableAlert:       disableAlert,
+			Immediate:          immediate,
 		}, true, nil
 	case strings.HasPrefix(lower, "strategy.close("):
 		args := splitArguments(callArgs(line.trimmed))
 		if len(args) == 0 {
 			return nil, true, fmt.Errorf("pine line %d: strategy.close(id) requires an entry id", line.number)
 		}
-		if err := rejectUnsupportedCloseArgs(line.number, args[1:]); err != nil {
+		comment, alertMessage, disableAlert, immediate, err := pineCloseMetadata(line.number, "strategy.close", args[1:])
+		if err != nil {
 			return nil, true, err
 		}
 		id := unquote(strings.TrimSpace(args[0]))
@@ -839,6 +881,10 @@ func (s *parseState) parseStrategyCall(line parsedLine) (strategyir.Statement, b
 			EntryPolicy:        "same_direction",
 			OrderType:          orderType,
 			LimitExpression:    limitExpr,
+			Comment:            comment,
+			AlertMessage:       alertMessage,
+			DisableAlert:       disableAlert,
+			Immediate:          immediate,
 		}, true, nil
 	case strings.HasPrefix(lower, "strategy.exit("):
 		statement, err := s.parseStrategyExit(line)
@@ -929,6 +975,10 @@ func (s *parseState) parseStrategyExit(line parsedLine) (strategyir.Statement, e
 		}
 	}
 	if stopExpr != "" || limitExpr != "" {
+		comment, alertMessage, disableAlert, err := pineOrderMetadata(line.number, "strategy.exit", orderArgs, false)
+		if err != nil {
+			return nil, err
+		}
 		return &strategyir.ExitStmt{
 			Range:              strategyir.SourceRange{StartLine: line.number, EndLine: line.number},
 			ID:                 exitID,
@@ -938,6 +988,9 @@ func (s *parseState) parseStrategyExit(line parsedLine) (strategyir.Statement, e
 			QuantityExpression: quantityExpr,
 			StopExpression:     stopExpr,
 			LimitExpression:    limitExpr,
+			Comment:            comment,
+			AlertMessage:       alertMessage,
+			DisableAlert:       disableAlert,
 		}, nil
 	}
 	if trailPoints, ok := namedArgValue(orderArgs, "trail_points"); ok {
@@ -950,7 +1003,15 @@ func (s *parseState) parseStrategyExit(line parsedLine) (strategyir.Statement, e
 		if !ok || !offsetOK || percentage != offsetPercentage {
 			return nil, fmt.Errorf("pine line %d: strategy.exit trailing stop is supported only as matching close * pct / 100 trail_points and trail_offset", line.number)
 		}
-		return pineProtectStatement(line.number, direction, "trailingStop", percentage, quantityMode, quantityExpr), nil
+		comment, alertMessage, disableAlert, err := pineOrderMetadata(line.number, "strategy.exit", orderArgs, false)
+		if err != nil {
+			return nil, err
+		}
+		statement := pineProtectStatement(line.number, direction, "trailingStop", percentage, quantityMode, quantityExpr)
+		statement.Comment = comment
+		statement.AlertMessage = alertMessage
+		statement.DisableAlert = disableAlert
+		return statement, nil
 	}
 	return nil, fmt.Errorf("pine line %d: strategy.exit advanced exit semantics are not supported by JFTrade yet", line.number)
 }
@@ -1053,7 +1114,7 @@ func (s *parseState) normalizeExpressionDepth(expression string, depth int, stac
 	result = replaceTAFunction(result, "cross", "(cross_over(${left}, ${right}) || cross_under(${left}, ${right}))")
 	result = replaceMathNamespace(result)
 	for alias, target := range s.expressionAliases {
-		result = regexp.MustCompile(`\b`+regexp.QuoteMeta(alias)+`\b`).ReplaceAllString(result, target)
+		result = s.cachedRegexp("word:"+alias, `\b`+regexp.QuoteMeta(alias)+`\b`).ReplaceAllString(result, target)
 	}
 	result = normalizeHistoryReferences(result)
 	result = normalizeTernaryExpression(result)
@@ -1073,7 +1134,7 @@ func (s *parseState) expandUDFCalls(expression string, depth int, stack map[stri
 	for {
 		changed := false
 		for name, udf := range s.udfs {
-			start := findUDFCallStart(result, name)
+			start := s.findUDFCallStart(result, name)
 			if start < 0 {
 				continue
 			}
@@ -1107,7 +1168,7 @@ func (s *parseState) expandUDFCalls(expression string, depth int, stack map[stri
 			}
 			body := udf.Body
 			for _, argName := range udf.Args {
-				body = regexp.MustCompile(`\b`+regexp.QuoteMeta(argName)+`\b`).ReplaceAllString(body, replacements[argName])
+				body = s.cachedRegexp("word:"+argName, `\b`+regexp.QuoteMeta(argName)+`\b`).ReplaceAllString(body, replacements[argName])
 			}
 			expanded, err := s.expandUDFCalls(body, depth+1, stack)
 			delete(stack, name)
@@ -1124,8 +1185,8 @@ func (s *parseState) expandUDFCalls(expression string, depth int, stack map[stri
 	}
 }
 
-func findUDFCallStart(expression string, name string) int {
-	pattern := regexp.MustCompile(`\b` + regexp.QuoteMeta(name) + `\s*\(`)
+func (s *parseState) findUDFCallStart(expression string, name string) int {
+	pattern := s.cachedRegexp("call:"+name, `\b`+regexp.QuoteMeta(name)+`\s*\(`)
 	matches := pattern.FindAllStringIndex(expression, -1)
 	for _, match := range matches {
 		if match[0] > 0 && expression[match[0]-1] == '.' {
@@ -1138,8 +1199,8 @@ func findUDFCallStart(expression string, name string) int {
 
 func udfArgumentReplacement(value string) string {
 	trimmed := strings.TrimSpace(value)
-	if regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?$`).MatchString(trimmed) ||
-		regexp.MustCompile(`^-?[0-9]+(?:\.[0-9]+)?$`).MatchString(trimmed) ||
+	if memberPattern.MatchString(trimmed) ||
+		numberPattern.MatchString(trimmed) ||
 		trimmed == "true" || trimmed == "false" || trimmed == "na" {
 		return trimmed
 	}
@@ -1152,7 +1213,7 @@ func (s *parseState) resolveSourceAliases(expression string) string {
 	}
 	result := expression
 	for alias, source := range s.sourceAliases {
-		result = regexp.MustCompile(`\b`+regexp.QuoteMeta(alias)+`\b`).ReplaceAllString(result, source)
+		result = s.cachedRegexp("word:"+alias, `\b`+regexp.QuoteMeta(alias)+`\b`).ReplaceAllString(result, source)
 	}
 	return result
 }
@@ -1163,7 +1224,7 @@ func (s *parseState) resolveValueAliases(expression string) string {
 	}
 	result := expression
 	for alias, value := range s.valueAliases {
-		result = regexp.MustCompile(`\b`+regexp.QuoteMeta(alias)+`\b`).ReplaceAllString(result, value)
+		result = s.cachedRegexp("word:"+alias, `\b`+regexp.QuoteMeta(alias)+`\b`).ReplaceAllString(result, value)
 	}
 	return result
 }
@@ -1578,7 +1639,7 @@ func replaceTATr(expression string) string {
 		}
 		expression = expression[:start] + "tr()" + expression[close+1:]
 	}
-	return regexp.MustCompile(`(?i)\bta\.tr\b`).ReplaceAllString(expression, "tr()")
+	return taTRPattern.ReplaceAllString(expression, "tr()")
 }
 
 func replaceTAWindowFunction(expression string, name string) string {
@@ -1652,7 +1713,7 @@ func isSimpleAliasExpression(expression string) bool {
 	if trimmed == "true" || trimmed == "false" || trimmed == "na" {
 		return true
 	}
-	if regexp.MustCompile(`^-?[0-9]+(?:\.[0-9]+)?$`).MatchString(trimmed) {
+	if numberPattern.MatchString(trimmed) {
 		return true
 	}
 	if len(trimmed) >= 2 && ((trimmed[0] == '"' && trimmed[len(trimmed)-1] == '"') || (trimmed[0] == '\'' && trimmed[len(trimmed)-1] == '\'')) {
@@ -2036,7 +2097,7 @@ func requestSecurityUsesTimeframeAlias(expression string) bool {
 		return false
 	}
 	timeframe := strings.TrimSpace(args[1])
-	return regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`).MatchString(timeframe)
+	return identifierPattern.MatchString(timeframe)
 }
 
 func unsupportedTAFunctionName(lower string) string {
@@ -2150,11 +2211,76 @@ func parseStrategyDeclaration(line string) (strategyir.StrategyMetadata, []strin
 			} else {
 				warnings = append(warnings, fmt.Sprintf("pine strategy pyramiding %q is not a supported constant integer; using 1", strings.TrimSpace(value)))
 			}
-		case "initial_capital", "commission_type", "commission_value", "slippage", "process_orders_on_close":
-			warnings = append(warnings, fmt.Sprintf("pine strategy parameter %q is parsed but not executed by JFTrade yet", strings.TrimSpace(key)))
+		case "initial_capital":
+			if parsed, ok := parsePositiveFloatConstant(value); ok {
+				metadata.InitialCapital = parsed
+			} else {
+				warnings = append(warnings, fmt.Sprintf("pine strategy initial_capital %q must be a positive constant number", strings.TrimSpace(value)))
+			}
+		case "commission_type":
+			if parsed, ok := normalizeStrategyCommissionType(value); ok {
+				metadata.CommissionType = parsed
+			} else {
+				warnings = append(warnings, fmt.Sprintf("pine strategy commission_type %q is not supported by JFTrade", strings.TrimSpace(value)))
+			}
+		case "commission_value":
+			if parsed, ok := parseNonNegativeFloatConstant(value); ok {
+				metadata.CommissionValue = parsed
+			} else {
+				warnings = append(warnings, fmt.Sprintf("pine strategy commission_value %q must be a non-negative constant number", strings.TrimSpace(value)))
+			}
+		case "slippage":
+			if parsed, ok := parseNonNegativeIntConstant(value); ok {
+				metadata.Slippage = parsed
+			} else {
+				warnings = append(warnings, fmt.Sprintf("pine strategy slippage %q must be a non-negative constant integer", strings.TrimSpace(value)))
+			}
+		case "process_orders_on_close":
+			if parsed, ok := parseBoolConstant(value); ok {
+				metadata.ProcessOnClose = parsed
+			} else {
+				warnings = append(warnings, fmt.Sprintf("pine strategy process_orders_on_close %q must be true or false", strings.TrimSpace(value)))
+			}
 		}
 	}
 	return metadata, warnings
+}
+
+func parsePositiveFloatConstant(value string) (float64, bool) {
+	parsed, ok := parseNonNegativeFloatConstant(value)
+	return parsed, ok && parsed > 0
+}
+
+func parseNonNegativeFloatConstant(value string) (float64, bool) {
+	parsed, err := strconv.ParseFloat(strings.TrimSpace(stripWrappingParens(value)), 64)
+	return parsed, err == nil && parsed >= 0
+}
+
+func parseNonNegativeIntConstant(value string) (int, bool) {
+	parsed, err := strconv.Atoi(strings.TrimSpace(stripWrappingParens(value)))
+	return parsed, err == nil && parsed >= 0
+}
+
+func parseBoolConstant(value string) (bool, bool) {
+	switch strings.ToLower(strings.TrimSpace(stripWrappingParens(value))) {
+	case "true":
+		return true, true
+	case "false":
+		return false, true
+	default:
+		return false, false
+	}
+}
+
+func normalizeStrategyCommissionType(value string) (string, bool) {
+	normalized := strings.ToLower(strings.TrimSpace(value))
+	normalized = strings.TrimPrefix(normalized, "strategy.commission.")
+	switch normalized {
+	case "percent", "cash_per_order", "cash_per_contract":
+		return normalized, true
+	default:
+		return "", false
+	}
 }
 
 func normalizeStrategyDefaultQtyMode(value string) (string, bool) {
@@ -2266,7 +2392,7 @@ func pineExitQuantity(args []string) (string, string) {
 }
 
 func rejectUnsupportedOrderArgs(lineNumber int, functionName string, args []string) error {
-	for _, name := range []string{"oca_name", "oca_type", "comment", "alert_message", "disable_alert"} {
+	for _, name := range []string{"oca_name", "oca_type"} {
 		if hasNamedArg(args, name) {
 			return fmt.Errorf("pine line %d: %s argument %s is parsed but not executable by JFTrade yet", lineNumber, functionName, name)
 		}
@@ -2274,13 +2400,43 @@ func rejectUnsupportedOrderArgs(lineNumber int, functionName string, args []stri
 	return nil
 }
 
-func rejectUnsupportedCloseArgs(lineNumber int, args []string) error {
-	for _, name := range []string{"comment", "alert_message", "immediately", "disable_alert"} {
-		if hasNamedArg(args, name) {
-			return fmt.Errorf("pine line %d: strategy.close argument %s is parsed but not executable by JFTrade yet", lineNumber, name)
-		}
+func pineOrderMetadata(lineNumber int, functionName string, args []string, allowImmediate bool) (string, string, bool, error) {
+	comment := ""
+	if raw, ok := namedArgValue(args, "comment"); ok {
+		comment = unquote(strings.TrimSpace(raw))
 	}
-	return nil
+	alertMessage := ""
+	if raw, ok := namedArgValue(args, "alert_message"); ok {
+		alertMessage = unquote(strings.TrimSpace(raw))
+	}
+	disableAlert := false
+	if raw, ok := namedArgValue(args, "disable_alert"); ok {
+		value, valid := parseBoolConstant(raw)
+		if !valid {
+			return "", "", false, fmt.Errorf("pine line %d: %s disable_alert must be true or false", lineNumber, functionName)
+		}
+		disableAlert = value
+	}
+	if hasNamedArg(args, "immediately") && !allowImmediate {
+		return "", "", false, fmt.Errorf("pine line %d: %s does not support immediately", lineNumber, functionName)
+	}
+	return comment, alertMessage, disableAlert, nil
+}
+
+func pineCloseMetadata(lineNumber int, functionName string, args []string) (string, string, bool, bool, error) {
+	comment, alertMessage, disableAlert, err := pineOrderMetadata(lineNumber, functionName, args, true)
+	if err != nil {
+		return "", "", false, false, err
+	}
+	immediate := false
+	if raw, ok := namedArgValue(args, "immediately"); ok {
+		value, valid := parseBoolConstant(raw)
+		if !valid {
+			return "", "", false, false, fmt.Errorf("pine line %d: %s immediately must be true or false", lineNumber, functionName)
+		}
+		immediate = value
+	}
+	return comment, alertMessage, disableAlert, immediate, nil
 }
 
 func hasNamedArg(args []string, name string) bool {

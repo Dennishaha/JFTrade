@@ -58,18 +58,22 @@ func (s *strategyCatalogStore) normalizeStrategy(input managedStrategyInstance) 
 	if input.ID == "" {
 		input.ID = "strategy-" + time.Now().UTC().Format("20060102150405.000000000")
 	}
-	input.PluginID = IDPinePlanPlugin()
+	if input.PluginID == "" {
+		input.PluginID = IDPinePlanPlugin()
+	}
 	if input.Params == nil {
 		input.Params = map[string]any{}
 	}
-	rawRuntime, _ := input.Params["runtime"].(string)
-	rawSourceFormat, _ := input.Params["sourceFormat"].(string)
-	if runtime, ok := input.Params["runtime"].(string); ok {
-		input.Params["runtime"] = normalizeStrategyRuntime(runtime)
-	} else {
+	if runtime, _ := input.Params["runtime"].(string); strings.TrimSpace(runtime) == "" {
 		input.Params["runtime"] = strategyRuntimePinePlan
+	} else {
+		input.Params["runtime"] = strings.TrimSpace(strings.ToLower(runtime))
 	}
-	input.Params["sourceFormat"] = strategydefinition.SourceFormatPineV6
+	if sourceFormat, _ := input.Params["sourceFormat"].(string); strings.TrimSpace(sourceFormat) == "" {
+		input.Params["sourceFormat"] = strategydefinition.SourceFormatPineV6
+	} else {
+		input.Params["sourceFormat"] = strings.TrimSpace(sourceFormat)
+	}
 	if input.Definition.StrategyID == "" {
 		input.Definition.StrategyID = input.PluginID
 	}
@@ -79,7 +83,7 @@ func (s *strategyCatalogStore) normalizeStrategy(input managedStrategyInstance) 
 	if input.Definition.Version == "" {
 		input.Definition.Version = "0.1.0"
 	}
-	if script, _ := input.Params["script"].(string); shouldReplaceWithDefaultScript(rawSourceFormat, rawRuntime, script) {
+	if script, _ := input.Params["script"].(string); strings.TrimSpace(script) == "" {
 		input.Params["script"] = defaultStrategyDesignPine(input.Definition.Name)
 	}
 	if input.Status == "" {

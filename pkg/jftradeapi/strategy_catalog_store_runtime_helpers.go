@@ -14,7 +14,10 @@ func strategyPluginIDForDefinition(definition strategyDesignDefinition) string {
 
 func strategyRuntimeFromParams(params map[string]any) string {
 	if runtime, ok := params["runtime"].(string); ok {
-		return normalizeStrategyRuntime(runtime)
+		normalized := strings.TrimSpace(strings.ToLower(runtime))
+		if normalized != "" {
+			return normalized
+		}
 	}
 	return strategyRuntimePinePlan
 }

@@ -143,7 +143,7 @@ func TestStrategyCatalogStoreIgnoresLegacyJSONFile(t *testing.T) {
 	}
 }
 
-func TestNormalizeStrategyMigratesRemovedRuntimeInstanceToDSL(t *testing.T) {
+func TestNormalizeStrategyKeepsExplicitLegacyRuntimeInstanceUnsupported(t *testing.T) {
 	store := &strategyCatalogStore{}
 	input := managedStrategyInstance{
 		ID:       "legacy-instance-1",
@@ -162,21 +162,21 @@ func TestNormalizeStrategyMigratesRemovedRuntimeInstanceToDSL(t *testing.T) {
 
 	normalized := store.normalizeStrategy(input)
 
-	if normalized.PluginID != IDPinePlanPlugin() {
-		t.Fatalf("expected Pine plugin, got %q", normalized.PluginID)
+	if normalized.PluginID != "removed-script-runtime" {
+		t.Fatalf("expected explicit legacy plugin to be preserved, got %q", normalized.PluginID)
 	}
-	if got := strategyRuntimeFromParams(normalized.Params); got != strategyRuntimePinePlan {
-		t.Fatalf("expected Pine runtime, got %q", got)
+	if got := strategyRuntimeFromParams(normalized.Params); got != "removed-script-runtime" {
+		t.Fatalf("expected explicit legacy runtime to be preserved, got %q", got)
 	}
-	if got := strategySourceFormatFromParams(normalized.Params); got != strategydefinition.SourceFormatPineV6 {
-		t.Fatalf("expected Pine source format, got %q", got)
+	if got := strategySourceFormatFromParams(normalized.Params); got != "removed-script-source" {
+		t.Fatalf("expected explicit legacy source format to be preserved, got %q", got)
 	}
 	script, _ := normalized.Params["script"].(string)
-	if strings.Contains(script, "function onInit") {
-		t.Fatalf("expected removed runtime script to be replaced, got %q", script)
+	if !strings.Contains(script, "function onInit") {
+		t.Fatalf("expected explicit legacy script to be preserved, got %q", script)
 	}
-	if !strings.Contains(script, "strategy(\"Removed Runtime Strategy\"") {
-		t.Fatalf("expected Pine skeleton, got %q", script)
+	if strategyInstanceStartable(normalized) {
+		t.Fatalf("legacy runtime/source instance should not be startable: %+v", normalized.Params)
 	}
 }
 

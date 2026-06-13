@@ -3,7 +3,6 @@ import type { StrategyVisualNodeDocument } from "@/contracts";
 import {
   nextGetTechnicalIndicatorNodeText,
   nextTechnicalIndicatorConditionNodeText,
-  nextTechnicalIndicatorNodeText,
   type TechnicalIndicatorConditionMode,
   type TechnicalIndicatorOperator,
   type TechnicalIndicatorPatternType,
@@ -14,10 +13,8 @@ export type StrategyBlockKind =
   | "onInit"
   | "onKLineClosed"
   | "pineSnippet"
-  | "codeBlock"
   | "getTechnicalIndicator"
   | "technicalIndicatorCondition"
-  | "technicalIndicator"
   | "ifCloseAbove"
   | "ifCloseBelow"
   | "log"
@@ -147,30 +144,6 @@ const STRATEGY_BLOCK_CATALOG: StrategyBlockDefinition[] = [
     paletteVisible: true,
   },
   {
-    kind: "technicalIndicator",
-    label: "技术指标（兼容）",
-    description: "旧版合并式技术指标图块，仅保留给兼容解析和历史模型使用。",
-    shape: "rect",
-    text: nextTechnicalIndicatorNodeText({
-      blockKind: "technicalIndicator",
-      indicatorType: "rsi",
-      conditionMode: "numeric",
-      operator: "<",
-      threshold: 30,
-      period: 14,
-    }),
-    properties: {
-      blockKind: "technicalIndicator",
-      indicatorType: "rsi",
-      period: 14,
-      conditionMode: "numeric",
-      operator: "<",
-      threshold: 30,
-    },
-    accent: "#ca8a04",
-    paletteVisible: false,
-  },
-  {
     kind: "pineSnippet",
     label: "Pine 片段",
     description: "保留当前不能稳定映射成标准图块的 Pine v6 语句；保存时会原样写回 Pine。",
@@ -179,19 +152,6 @@ const STRATEGY_BLOCK_CATALOG: StrategyBlockDefinition[] = [
     properties: {
       blockKind: "pineSnippet",
       code: "log.info(\"保留 Pine 片段\")",
-    },
-    accent: "#475569",
-    paletteVisible: false,
-  },
-  {
-    kind: "codeBlock",
-    label: "代码块",
-    description: "旧版自定义代码块已废弃，请改用 JFTrade Pine 图块表达策略逻辑。",
-    shape: "rect",
-    text: "代码块",
-    properties: {
-      blockKind: "codeBlock",
-      code: "console.log(\"补充自定义逻辑\");",
     },
     accent: "#475569",
     paletteVisible: false,

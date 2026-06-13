@@ -19,6 +19,11 @@ type StrategyMetadata struct {
 	DefaultQtyMode  string
 	DefaultQtyValue string
 	Pyramiding      int
+	InitialCapital  float64
+	CommissionType  string
+	CommissionValue float64
+	Slippage        int
+	ProcessOnClose  bool
 }
 
 type HookKind string
@@ -145,6 +150,10 @@ type OrderStmt struct {
 	OrderType          string
 	LimitExpression    string
 	StopExpression     string
+	Comment            string
+	AlertMessage       string
+	DisableAlert       bool
+	Immediate          bool
 }
 
 func (s *OrderStmt) Kind() StatementKind {
@@ -166,6 +175,9 @@ type ExitStmt struct {
 	LimitExpression    string
 	TrailPoints        string
 	TrailOffset        string
+	Comment            string
+	AlertMessage       string
+	DisableAlert       bool
 }
 
 func (s *ExitStmt) Kind() StatementKind {
@@ -200,6 +212,9 @@ type ProtectStmt struct {
 	TimeUnit             string
 	PercentageExpression string
 	WindowPolicy         string
+	Comment              string
+	AlertMessage         string
+	DisableAlert         bool
 }
 
 func (s *ProtectStmt) Kind() StatementKind {

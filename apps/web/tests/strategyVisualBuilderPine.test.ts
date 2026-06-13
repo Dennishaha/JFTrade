@@ -4,10 +4,6 @@ import type { StrategyVisualModelDocument } from "@/contracts";
 
 import { createStrategyPaletteItems } from "../src/features/strategyVisualBuilderCatalog";
 import {
-  expandTechnicalIndicatorShortcutNode,
-  STRATEGY_TECHNICAL_INDICATOR_SHORTCUT_CREATION_MODE,
-} from "../src/features/strategyVisualBuilderIndicatorShortcut";
-import {
   getStrategyAuthoringTemplates,
 } from "../src/features/strategyVisualBuilder";
 import {
@@ -122,7 +118,7 @@ strategy.close_all()`);
     expect(orderNodes[2]?.properties.quantityMode).toBe("equityPercent");
     expect(orderNodes[2]?.properties.quantityValue).toBe(50);
     expect(orderNodes[3]?.properties.pineOrderFunction).toBe("strategy.close_all");
-    expect(parsed.codeBlockCount).toBe(0);
+    expect(parsed.pineSnippetCount).toBe(0);
   });
 
   it("keeps unsupported Pine lines as Pine snippet nodes", () => {
@@ -139,14 +135,14 @@ plot(close)
     const snippet = parsed.model.nodes.find((node) => node.properties?.blockKind === "pineSnippet");
     expect(snippet?.properties.code).toBe("plot(close)");
     expect(parsed.model.nodes.some((node) => node.properties?.blockKind === "codeBlock")).toBe(false);
-    expect(parsed.codeBlockCount).toBe(1);
+    expect(parsed.pineSnippetCount).toBe(1);
 
     const script = buildStrategyPineFromVisualModel(parsed.model, { name: "Snippet" });
     expect(script).toContain("plot(close)");
     expect(script).not.toContain("代码块已废弃");
   });
 
-  it("converts old codeBlock Pine annotations to Pine snippet fallbacks", () => {
+  it("rejects old codeBlock Pine annotations instead of converting them", () => {
     const parsed = buildStrategyVisualModelFromPine(`//@version=6
 strategy("Legacy Annotation", overlay=true)
 // @jftradeFlowNodeId legacy-code
@@ -155,19 +151,11 @@ strategy("Legacy Annotation", overlay=true)
 plot(close)
 `);
 
-    expect(parsed.ok).toBe(true);
-    if (!parsed.ok) {
-      return;
-    }
-
-    const node = parsed.model.nodes.find((item) => item.id === "legacy-code");
-    expect(node?.properties.blockKind).toBe("pineSnippet");
-    expect(node?.properties.code).toBe("plot(close)");
-    expect(parsed.model.nodes.some((item) => item.properties?.blockKind === "codeBlock")).toBe(false);
-    expect(parsed.codeBlockCount).toBe(1);
+    expect(parsed.ok).toBe(false);
+    expect(parsed.error).toContain("旧 codeBlock / technicalIndicator");
   });
 
-  it("keeps legacy codeBlock visual models read-only instead of writing custom code", () => {
+  it("omits legacy codeBlock visual models when generating Pine", () => {
     const model: StrategyVisualModelDocument = {
       engine: "logic-flow",
       version: 1,
@@ -203,33 +191,77 @@ plot(close)
     };
 
     const script = buildStrategyPineFromVisualModel(model, { name: "Legacy Code" });
-    expect(script).toContain("代码块已废弃，请改用标准 Pine 图块");
+    expect(script).not.toContain("@jftradeFlowBlockKind codeBlock");
     expect(script).not.toContain("console.log('legacy')");
+  });
+
+  it("omits legacy unified technicalIndicator visual models when generating Pine", () => {
+    const model: StrategyVisualModelDocument = {
+      engine: "logic-flow",
+      version: 1,
+      nodes: [
+        {
+          id: "on-kline-root",
+          type: "circle",
+          x: 120,
+          y: 120,
+          text: "K 线收盘",
+          properties: { blockKind: "onKLineClosed" },
+        },
+        {
+          id: "legacy-rsi",
+          type: "rect",
+          x: 360,
+          y: 120,
+          text: "RSI < 30",
+          properties: {
+            blockKind: "technicalIndicator",
+            indicatorType: "rsi",
+            conditionMode: "numeric",
+            operator: "<",
+            threshold: 30,
+            period: 14,
+          },
+        },
+      ],
+      edges: [
+        {
+          id: "edge-root-rsi",
+          type: "polyline",
+          sourceNodeId: "on-kline-root",
+          targetNodeId: "legacy-rsi",
+        },
+      ],
+    };
+
+    const script = buildStrategyPineFromVisualModel(model, { name: "Legacy Indicator" });
+    expect(script).not.toContain("legacy_rsi = ta.rsi");
+    expect(script).not.toContain("if legacy_rsi < 30");
+    expect(script).not.toMatch(/@jftradeFlowBlockKind technicalIndicator\s*$/m);
   });
 
   it("does not expose legacy codeBlock or unified technicalIndicator in new palette paths", () => {
     const paletteKinds = createStrategyPaletteItems().map((item) => item.properties.blockKind);
     expect(paletteKinds).not.toContain("codeBlock");
     expect(paletteKinds).not.toContain("technicalIndicator");
+  });
 
-    const expansion = expandTechnicalIndicatorShortcutNode({
-      id: "rsi-shortcut",
-      x: 120,
-      y: 120,
-      properties: {
-        blockKind: "technicalIndicator",
-        creationMode: STRATEGY_TECHNICAL_INDICATOR_SHORTCUT_CREATION_MODE,
-        indicatorType: "rsi",
-        conditionMode: "numeric",
-        operator: "<",
-        threshold: 30,
-        period: 14,
-      },
-    });
-    expect(expansion.nodes.map((node) => node.properties.blockKind)).toEqual([
-      "getTechnicalIndicator",
-      "technicalIndicatorCondition",
-    ]);
+  it("rejects old technicalIndicator annotations instead of migrating them", () => {
+    const parsed = buildStrategyVisualModelFromPine(`//@version=6
+strategy("Legacy Indicator Annotation", overlay=true)
+// @jftradeFlowNodeId old-rsi
+// @jftradeFlowBlockKind technicalIndicator
+// @jftradeFlowNodeText RSI
+rsiValue = ta.rsi(close, 14)
+// @jftradeFlowNodeId old-rsi-condition
+// @jftradeFlowBlockKind technicalIndicator
+// @jftradeFlowNodeText RSI < 30
+if rsiValue < 30
+    alert("buy")
+`);
+
+    expect(parsed.ok).toBe(false);
+    expect(parsed.error).toContain("旧 codeBlock / technicalIndicator");
   });
 
   it("keeps built-in visual templates on standard Pine visual blocks", () => {

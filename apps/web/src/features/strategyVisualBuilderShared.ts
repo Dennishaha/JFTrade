@@ -83,7 +83,7 @@ export function buildStrategyFlowNodeJsDoc(
     );
   }
 
-  if (blockKind === "codeBlock" || blockKind === "pineSnippet") {
+  if (blockKind === "pineSnippet") {
     const codeScope = sanitizeFlowTagValue(
       typeof node.properties.codeScope === "string"
         ? node.properties.codeScope
@@ -262,7 +262,7 @@ function buildStrategyFlowNodeAnnotationPayload(
     annotation.nodeText = nodeText;
   }
 
-  if (blockKind === "codeBlock" || blockKind === "pineSnippet") {
+  if (blockKind === "pineSnippet") {
     const codeScope = sanitizeFlowTagValue(
       typeof node.properties.codeScope === "string"
         ? node.properties.codeScope
@@ -309,10 +309,8 @@ function isStrategyBlockKind(value: string): value is StrategyBlockKind {
     case "onInit":
     case "onKLineClosed":
     case "pineSnippet":
-    case "codeBlock":
     case "getTechnicalIndicator":
     case "technicalIndicatorCondition":
-    case "technicalIndicator":
     case "ifCloseAbove":
     case "ifCloseBelow":
     case "log":

@@ -103,7 +103,8 @@
 - 交易块：下单；支持 Pine 可表达的固定股数 `shares`、固定金额 `amount`（生成 `qty=amount/close`）和账户权益百分比 `equityPercent`（生成 `qty=(strategy.equity*pct/100)/close`）
 - 动作块：日志、通知
 - 退出块：基础止损、止盈和追踪止损优先生成 `strategy.exit`；带交易时段窗口的复杂风控当前会明确标为 unsupported
-- 兜底块：`pineSnippet`，用于承载当前不能稳定映射成标准语义块的 Pine 片段；旧 `codeBlock` 只作为历史 visualModel 兼容读取
+- 兜底块：`pineSnippet`，用于承载当前不能稳定映射成标准语义块的 Pine 片段。
+- 旧 `codeBlock` 和旧合并式 `technicalIndicator` 不再支持；打开、保存或反解时应提示用户用 Pine v6 标准图块或 Pine 片段重建。
 
 这些语义都在 [../../apps/web/src/features/strategyVisualBuilder.ts](../../apps/web/src/features/strategyVisualBuilder.ts) 里定义，并直接决定生成的 Pine 结构。
 
@@ -120,7 +121,15 @@
 - `visualModel -> script`：支持，拖拽建块、连线变化和 Inspector 改参数后都会自动异步刷新代码区。
 - `script -> visualModel`：支持常见 Pine v6 子集、内置模板导出的条件分支、日志、通知、下单和指标语句；无法稳定归一化的片段会保留为 `pineSnippet`。
 - 无法反解的代码不会直接丢失；工具栏会显示当前是否存在 Pine 片段兜底或解析失败。
-- 已保存且自带 `visualModel` 的定义，打开时仍以现有保存内容为准；只有后续发生图编辑或代码编辑时，才会触发新的自动同步。
+- 已保存且自带 `visualModel` 的定义不再执行旧模型迁移；旧 `codeBlock` 或旧合并式 `technicalIndicator` 会被拒绝。
+
+## v1.0 主路径与旧路径清理
+
+- Pine 编辑器是策略 authoring 主路径；保存、预览、回测、实例化和运行统一使用 `sourceFormat: "pine-v6"` + `runtime: "pine-go-plan"`。
+- 显式非 Pine source/runtime 不再默认替换为 Pine；后端会返回明确错误。
+- 旧 `codeBlock` / 旧合并式 `technicalIndicator` 不再作为类型定义、读取兼容或迁移路径保留。
+- Pine 反解遇到旧流程图注解会失败；无法标准化但合法的普通 Pine 行仍会落到 `pineSnippet`。
+- 内部统计字段已统一为 `pineSnippetCount`。
 
 代码编辑器当前采用两层实现：
 

@@ -29,15 +29,17 @@ func init() {
 }
 
 type Strategy struct {
-	StrategyID       string         `json:"strategyId"`
-	Name             string         `json:"name"`
-	Symbol           string         `json:"symbol"`
-	Interval         types.Interval `json:"interval"`
-	Script           string         `json:"script"`
-	DefinitionID     string         `json:"definitionId"`
-	UseExtendedHours bool           `json:"-"`
-	WarmupUntil      time.Time      `json:"-"`
-	OnError          func(string)   `json:"-"`
+	StrategyID       string                   `json:"strategyId"`
+	Name             string                   `json:"name"`
+	Symbol           string                   `json:"symbol"`
+	Interval         types.Interval           `json:"interval"`
+	Script           string                   `json:"script"`
+	DefinitionID     string                   `json:"definitionId"`
+	UseExtendedHours bool                     `json:"-"`
+	WarmupUntil      time.Time                `json:"-"`
+	OnError          func(string)             `json:"-"`
+	Program          *strategyir.Program      `json:"-"`
+	Requirements     *strategyir.Requirements `json:"-"`
 }
 
 type strategyRuntime struct {
@@ -46,6 +48,7 @@ type strategyRuntime struct {
 	strategy         *Strategy
 	program          *strategyir.Program
 	plan             strategyir.Requirements
+	hooks            map[strategyir.HookKind]*strategyir.HookBlock
 	ifScopePlans     map[*strategyir.IfStmt]ifScopePlan
 	displayName      string
 	definitionID     string
@@ -78,7 +81,42 @@ type strategyRuntime struct {
 	barssinceStates  map[string]*barssinceState
 	valuewhenStates  map[string]*valuewhenState
 	historyTargets   map[string]historyTarget
-	historyValues    map[string][]any
+	historyValues    map[string]*historyBuffer
+}
+
+type historyBuffer struct {
+	values []any
+	next   int
+	count  int
+}
+
+func newHistoryBuffer(capacity int) *historyBuffer {
+	if capacity < 1 {
+		capacity = 1
+	}
+	return &historyBuffer{values: make([]any, capacity)}
+}
+
+func (b *historyBuffer) push(value any) {
+	if b == nil || len(b.values) == 0 {
+		return
+	}
+	b.values[b.next] = value
+	b.next = (b.next + 1) % len(b.values)
+	if b.count < len(b.values) {
+		b.count++
+	}
+}
+
+func (b *historyBuffer) lookup(lookback int) (any, bool) {
+	if b == nil || lookback <= 0 || lookback > b.count {
+		return nil, false
+	}
+	index := b.next - lookback
+	if index < 0 {
+		index += len(b.values)
+	}
+	return b.values[index], true
 }
 
 type cachedIndicatorBinding struct {
@@ -125,6 +163,9 @@ type pendingOrder struct {
 	stopPrice  float64
 	hasLimit   bool
 	hasStop    bool
+	comment    string
+	alert      string
+	disable    bool
 }
 
 type ifScopePlan struct {
@@ -472,13 +513,18 @@ func (s *Strategy) Subscribe(session *bbgo2.ExchangeSession) {
 }
 
 func (s *Strategy) Run(ctx context.Context, orderExecutor bbgo2.OrderExecutor, session *bbgo2.ExchangeSession) error {
-	program, err := strategypine.ParseScript(s.Script)
-	if err != nil {
-		return fmt.Errorf("parse pine strategy: %w", err)
+	program := s.Program
+	var plan strategyir.Requirements
+	if s.Requirements != nil {
+		plan = *s.Requirements
 	}
-	plan, err := strategyir.PlanRequirements(program)
-	if err != nil {
-		return fmt.Errorf("plan pine strategy: %w", err)
+	if program == nil || s.Requirements == nil {
+		compilation, err := strategypine.Compile(s.Script)
+		if err != nil {
+			return fmt.Errorf("parse pine strategy: %w", err)
+		}
+		program = compilation.Program
+		plan = compilation.Requirements
 	}
 	runtime, err := newStrategyRuntime(ctx, s, program, plan, orderExecutor, session)
 	if err != nil {
@@ -523,6 +569,7 @@ func newStrategyRuntime(
 		strategy:         strategy,
 		program:          program,
 		plan:             plan,
+		hooks:            buildHookCache(program),
 		ifScopePlans:     buildIfScopePlans(program),
 		displayName:      displayName,
 		definitionID:     definitionID,
@@ -542,7 +589,6 @@ func newStrategyRuntime(
 		barssinceStates:  map[string]*barssinceState{},
 		valuewhenStates:  map[string]*valuewhenState{},
 		historyTargets:   collectProgramHistoryTargets(program),
-		historyValues:    map[string][]any{},
 		barIndex:         -1,
 		baseScope: &evaluationScope{
 			variables: map[string]any{
@@ -557,6 +603,7 @@ func newStrategyRuntime(
 		variableCapacity: letCount,
 		bindingCapacity:  letCount,
 	}
+	runtime.historyValues = buildHistoryBuffers(runtime.historyTargets)
 	runtime.baseScope.runtime = runtime
 	runtime.reusableScope = &evaluationScope{
 		runtime:   runtime,
@@ -565,6 +612,9 @@ func newStrategyRuntime(
 	}
 	if runtime.bindingCapacity > 0 {
 		runtime.reusableScope.bindings = make(map[string]indicatorBinding, runtime.bindingCapacity)
+	}
+	if err := runtime.preparseProgramExpressions(); err != nil {
+		return nil, fmt.Errorf("preparse pine expressions: %w", err)
 	}
 	return runtime, nil
 }
@@ -629,8 +679,8 @@ func (r *strategyRuntime) handleKLineClosed(kline types.KLine) {
 }
 
 func (r *strategyRuntime) runHookLocked(kind strategyir.HookKind, kline *types.KLine, session market.Session) error {
-	hook, ok := findHook(r.program, kind)
-	if !ok {
+	hook := r.hooks[kind]
+	if hook == nil {
 		return nil
 	}
 	scope := r.newScope(kline, session)
@@ -640,6 +690,18 @@ func (r *strategyRuntime) runHookLocked(kind strategyir.HookKind, kline *types.K
 	}
 	r.recordHistorySnapshots(scope)
 	return nil
+}
+
+func buildHookCache(program *strategyir.Program) map[strategyir.HookKind]*strategyir.HookBlock {
+	hooks := make(map[strategyir.HookKind]*strategyir.HookBlock)
+	if program == nil {
+		return hooks
+	}
+	for index := range program.Hooks {
+		hook := &program.Hooks[index]
+		hooks[hook.Kind] = hook
+	}
+	return hooks
 }
 
 func findHook(program *strategyir.Program, kind strategyir.HookKind) (strategyir.HookBlock, bool) {
@@ -736,10 +798,57 @@ func collectStatementHistoryTargets(statements []strategyir.Statement, targets m
 			collectExpressionHistoryTargets(typed.TrailPoints, targets)
 			collectExpressionHistoryTargets(typed.TrailOffset, targets)
 		case *strategyir.ProtectStmt:
+			collectExpressionHistoryTargets(typed.QuantityExpression, targets)
 			collectExpressionHistoryTargets(typed.TimeValueExpression, targets)
 			collectExpressionHistoryTargets(typed.PercentageExpression, targets)
 		}
 	}
+}
+
+func (r *strategyRuntime) preparseProgramExpressions() error {
+	if r == nil || r.program == nil {
+		return nil
+	}
+	scope := &evaluationScope{runtime: r}
+	for _, hook := range r.program.Hooks {
+		if err := preparseStatementExpressions(hook.Statements, scope); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func preparseStatementExpressions(statements []strategyir.Statement, scope *evaluationScope) error {
+	for _, statement := range statements {
+		var expressions []string
+		switch typed := statement.(type) {
+		case *strategyir.LetStmt:
+			expressions = []string{typed.Expression}
+		case *strategyir.IfStmt:
+			expressions = []string{typed.Condition}
+			if err := preparseStatementExpressions(typed.Then, scope); err != nil {
+				return err
+			}
+			if err := preparseStatementExpressions(typed.Else, scope); err != nil {
+				return err
+			}
+		case *strategyir.OrderStmt:
+			expressions = []string{typed.QuantityExpression, typed.LimitExpression, typed.StopExpression}
+		case *strategyir.ExitStmt:
+			expressions = []string{typed.QuantityExpression, typed.StopExpression, typed.LimitExpression, typed.TrailPoints, typed.TrailOffset}
+		case *strategyir.ProtectStmt:
+			expressions = []string{typed.QuantityExpression, typed.TimeValueExpression, typed.PercentageExpression}
+		}
+		for _, expression := range expressions {
+			if strings.TrimSpace(expression) == "" {
+				continue
+			}
+			if _, err := parseExpression(expression, scope); err != nil {
+				return fmt.Errorf("line %d: %w", statement.SourceRange().StartLine, err)
+			}
+		}
+	}
+	return nil
 }
 
 func collectExpressionHistoryTargets(expression string, targets map[string]historyTarget) {
@@ -799,19 +908,28 @@ func (r *strategyRuntime) recordHistorySnapshots(scope *evaluationScope) {
 		return
 	}
 	if r.historyValues == nil {
-		r.historyValues = map[string][]any{}
+		r.historyValues = buildHistoryBuffers(r.historyTargets)
 	}
 	for key, target := range r.historyTargets {
 		value, err := evaluateAST(target.expression, scope)
 		if err != nil {
 			value = nil
 		}
-		values := append(r.historyValues[key], snapshotExpressionValue(value))
-		if target.maxLookback > 0 && len(values) > target.maxLookback {
-			values = values[len(values)-target.maxLookback:]
+		buffer := r.historyValues[key]
+		if buffer == nil {
+			buffer = newHistoryBuffer(target.maxLookback)
+			r.historyValues[key] = buffer
 		}
-		r.historyValues[key] = values
+		buffer.push(snapshotExpressionValue(value))
 	}
+}
+
+func buildHistoryBuffers(targets map[string]historyTarget) map[string]*historyBuffer {
+	buffers := make(map[string]*historyBuffer, len(targets))
+	for key, target := range targets {
+		buffers[key] = newHistoryBuffer(target.maxLookback)
+	}
+	return buffers
 }
 
 func (r *strategyRuntime) newScope(kline *types.KLine, session market.Session) *evaluationScope {
@@ -1151,6 +1269,7 @@ func (r *strategyRuntime) executeOrderStatement(statement *strategyir.OrderStmt,
 	if err := r.submitOrder(orderSide, normalizeOrderType(statement.OrderType), quantity, limitPrice); err != nil {
 		return fmt.Errorf("pine line %d: %w", statement.Range.StartLine, err)
 	}
+	r.emitOrderMetadata(statement.Comment, statement.AlertMessage, statement.DisableAlert)
 	switch intent {
 	case strategyir.OrderIntentNet:
 		r.resetEntrySubmitCount("LONG")
@@ -1200,6 +1319,9 @@ func (r *strategyRuntime) storePendingOrder(statement *strategyir.OrderStmt, act
 		stopPrice:  stopPrice,
 		hasLimit:   strings.TrimSpace(statement.LimitExpression) != "",
 		hasStop:    strings.TrimSpace(statement.StopExpression) != "",
+		comment:    statement.Comment,
+		alert:      statement.AlertMessage,
+		disable:    statement.DisableAlert,
 	}
 	if !pending.hasLimit {
 		pending.limitPrice = 0
@@ -1242,6 +1364,7 @@ func (r *strategyRuntime) triggerPendingOrders(kline *types.KLine) error {
 		if err := r.submitOrder(side, orderType, order.quantity, limitPrice); err != nil {
 			return err
 		}
+		r.emitOrderMetadata(order.comment, order.alert, order.disable)
 		switch order.intent {
 		case strategyir.OrderIntentNet:
 			r.resetEntrySubmitCount("LONG")
@@ -1335,6 +1458,7 @@ func (r *strategyRuntime) executeProtectStatement(statement *strategyir.ProtectS
 		if err := r.submitOrder(types.SideTypeSell, types.OrderTypeMarket, quantity, 0); err != nil {
 			return false, fmt.Errorf("pine line %d: %w", statement.Range.StartLine, err)
 		}
+		r.emitOrderMetadata(statement.Comment, statement.AlertMessage, statement.DisableAlert)
 		r.resetEntrySubmitCount("LONG")
 		return true, nil
 	}
@@ -1346,6 +1470,7 @@ func (r *strategyRuntime) executeProtectStatement(statement *strategyir.ProtectS
 		if err := r.submitOrder(types.SideTypeBuy, types.OrderTypeMarket, quantity, 0); err != nil {
 			return false, fmt.Errorf("pine line %d: %w", statement.Range.StartLine, err)
 		}
+		r.emitOrderMetadata(statement.Comment, statement.AlertMessage, statement.DisableAlert)
 		r.resetEntrySubmitCount("SHORT")
 		return true, nil
 	}
@@ -1450,6 +1575,7 @@ func (r *strategyRuntime) executeExitStatement(statement *strategyir.ExitStmt, s
 		if err := r.submitOrder(types.SideTypeSell, types.OrderTypeMarket, quantity, 0); err != nil {
 			return false, fmt.Errorf("pine line %d: %w", statement.Range.StartLine, err)
 		}
+		r.emitOrderMetadata(statement.Comment, statement.AlertMessage, statement.DisableAlert)
 		r.resetEntrySubmitCount("LONG")
 		return true, nil
 	}
@@ -1457,6 +1583,7 @@ func (r *strategyRuntime) executeExitStatement(statement *strategyir.ExitStmt, s
 		if err := r.submitOrder(types.SideTypeBuy, types.OrderTypeMarket, quantity, 0); err != nil {
 			return false, fmt.Errorf("pine line %d: %w", statement.Range.StartLine, err)
 		}
+		r.emitOrderMetadata(statement.Comment, statement.AlertMessage, statement.DisableAlert)
 		r.resetEntrySubmitCount("SHORT")
 		return true, nil
 	}
@@ -1669,6 +1796,18 @@ func (r *strategyRuntime) submitOrder(side types.SideType, orderType types.Order
 	}
 	r.clearPositionCache()
 	return nil
+}
+
+func (r *strategyRuntime) emitOrderMetadata(comment string, alertMessage string, disableAlert bool) {
+	if trimmed := strings.TrimSpace(comment); trimmed != "" {
+		r.internalLog("order comment: " + trimmed)
+	}
+	if disableAlert {
+		return
+	}
+	if trimmed := strings.TrimSpace(alertMessage); trimmed != "" {
+		r.notify(trimmed)
+	}
 }
 
 func (r *strategyRuntime) getPosition(symbol string, barTime time.Time) *positionSnapshot {

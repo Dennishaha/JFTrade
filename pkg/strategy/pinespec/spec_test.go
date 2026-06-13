@@ -66,6 +66,9 @@ func TestBuildToolPayloadSectionsAndExamples(t *testing.T) {
 	if got := payload["runtime"]; got != Runtime {
 		t.Fatalf("runtime = %#v, want %q", got, Runtime)
 	}
+	if got := payload["productVersion"]; got != ProductVersion {
+		t.Fatalf("productVersion = %#v, want %q", got, ProductVersion)
+	}
 	if got := payload["selectedSection"]; got != "orders" {
 		t.Fatalf("selectedSection = %#v, want orders", got)
 	}
@@ -91,7 +94,7 @@ func TestBuildToolPayloadSectionsAndExamples(t *testing.T) {
 	}
 }
 
-func TestBuildToolPayloadIncludesSupportMatrixAndCompatibilityLayers(t *testing.T) {
+func TestBuildToolPayloadIncludesSupportMatrix(t *testing.T) {
 	payload, err := BuildToolPayload("support-matrix", false)
 	if err != nil {
 		t.Fatalf("BuildToolPayload support-matrix: %v", err)
@@ -103,23 +106,17 @@ func TestBuildToolPayloadIncludesSupportMatrixAndCompatibilityLayers(t *testing.
 	if got := payload["selectedSection"]; got != "support-matrix" {
 		t.Fatalf("selectedSection = %#v, want support-matrix", got)
 	}
-
-	payload, err = BuildToolPayload("compatibility", false)
-	if err != nil {
-		t.Fatalf("BuildToolPayload compatibility: %v", err)
-	}
-	layers, ok := payload["compatibilityLayers"].([]map[string]any)
-	if !ok || len(layers) == 0 {
-		t.Fatalf("compatibilityLayers = %#v, want non-empty layers", payload["compatibilityLayers"])
-	}
-	foundPineSnippetMigration := false
-	for _, layer := range layers {
-		if layer["name"] == "legacy visual codeBlock" && strings.Contains(layer["notes"].(string), "pineSnippet") {
-			foundPineSnippetMigration = true
+	foundMainPathGate := false
+	for _, item := range matrix {
+		if item["capability"] == "JFTrade Pine v6 main path" && strings.Contains(item["notes"].(string), "sourceFormat=pine-v6") && strings.Contains(item["notes"].(string), "runtime=pine-go-plan") {
+			foundMainPathGate = true
 		}
 	}
-	if !foundPineSnippetMigration {
-		t.Fatalf("compatibility layers missing codeBlock -> pineSnippet migration note: %#v", layers)
+	if !foundMainPathGate {
+		t.Fatalf("support matrix missing v1.0 Pine main path gate: %#v", matrix)
+	}
+	if _, ok := payload["compatibilityLayers"]; ok {
+		t.Fatalf("compatibilityLayers should not be present in v1.0 payload: %#v", payload["compatibilityLayers"])
 	}
 }
 
@@ -129,14 +126,14 @@ func TestSkillResourcesContainSpecAndExamples(t *testing.T) {
 	if !strings.Contains(spec, "# JFTrade Pine Script v6 规范") {
 		t.Fatalf("spec resource missing heading: %q", spec)
 	}
-	if !strings.Contains(spec, "## 支持矩阵") || !strings.Contains(spec, "## 兼容迁移") {
-		t.Fatalf("spec resource missing support matrix or compatibility sections: %q", spec)
+	if !strings.Contains(spec, "## 支持矩阵") || strings.Contains(spec, "## 兼容迁移") {
+		t.Fatalf("spec resource missing support matrix or still exposing compatibility section: %q", spec)
 	}
 	examples := files["references/pine-v6-examples.md"]
 	if !strings.Contains(examples, "### 最小可保存草稿") {
 		t.Fatalf("examples resource missing expected example heading: %q", examples)
 	}
-	if !strings.Contains(examples, "## v0.8 黄金脚本") || !strings.Contains(examples, "### UDF 与静态 for") {
+	if !strings.Contains(examples, "## v1.0 黄金脚本") || !strings.Contains(examples, "### UDF 与静态 for") {
 		t.Fatalf("examples resource missing golden scripts: %q", examples)
 	}
 }

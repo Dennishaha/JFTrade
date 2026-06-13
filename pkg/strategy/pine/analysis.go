@@ -51,7 +51,7 @@ func AnalyzeScript(script string, options AnalysisOptions) AnalysisResult {
 	if diagnosticError(result.Diagnostics) != nil {
 		return result
 	}
-	compilation, err := compileLoweredAST(script, ast)
+	compilation, err := compileLoweredAST(script, lines, ast)
 	if err != nil {
 		result.Diagnostics = append(result.Diagnostics, diagnosticFromError(err))
 		return result
@@ -75,6 +75,8 @@ func SupportedFeatureIDs() []string {
 	return []string{
 		"metadata.version6",
 		"metadata.strategy",
+		"metadata.backtest_costs",
+		"metadata.process_orders_on_close",
 		"syntax.if_else",
 		"syntax.assignment",
 		"syntax.var",
@@ -126,6 +128,8 @@ func SupportedFeatureIDs() []string {
 		"order.strategy_order_net",
 		"order.qty_percent",
 		"order.close_all",
+		"order.close_immediately",
+		"order.comment_alert_metadata",
 		"order.exit_quantity",
 		"order.exit_bracket",
 		"order.exit_price_expressions",

@@ -25,11 +25,11 @@ export const strategyPineEditorCompletions: MonacoCompletionDefinition[] = [
   {
     label: "strategy",
     detail: "Pine strategy declaration",
-    documentation: "声明可由 JFTrade 编译的 Pine 策略；default_qty_type/default_qty_value 会作为未写 qty 的 entry 默认仓位。",
+    documentation: "声明可由 JFTrade 编译的 Pine 策略；支持默认仓位、initial_capital、commission_type/value、slippage 和 process_orders_on_close。",
     kind: "snippet",
     insertTextRule: "snippet",
     sortText: "02",
-    insertText: "strategy(\"${1:策略名称}\", overlay=true, default_qty_type=strategy.percent_of_equity, default_qty_value=${2:10})",
+    insertText: "strategy(\"${1:策略名称}\", overlay=true, default_qty_type=strategy.percent_of_equity, default_qty_value=${2:10}, initial_capital=${3:100000}, commission_type=strategy.commission.percent, commission_value=${4:0.1}, slippage=${5:0}, process_orders_on_close=true)",
   },
   {
     label: "ta.ema",
@@ -810,13 +810,13 @@ export const strategyPineEditorHoverItems: MonacoHoverDefinition[] = [
   },
   {
     target: "strategy.close",
-    signature: "strategy.close(id, qty?, qty_percent?)",
-    documentation: "映射为 JFTrade 平仓；qty_percent 表示当前 symbol 持仓百分比。",
+    signature: "strategy.close(id, qty?, qty_percent?, immediately?, comment?, alert_message?, disable_alert?)",
+    documentation: "映射为 JFTrade 平仓；支持立即平仓和订单日志/通知元数据。",
   },
   {
     target: "strategy.close_all",
-    signature: "strategy.close_all()",
-    documentation: "按当前实际持仓方向 flatten 当前策略 symbol。",
+    signature: "strategy.close_all(immediately?, comment?, alert_message?, disable_alert?)",
+    documentation: "按当前实际持仓方向 flatten 当前策略 symbol；支持 immediately=true。",
   },
   {
     target: "var",

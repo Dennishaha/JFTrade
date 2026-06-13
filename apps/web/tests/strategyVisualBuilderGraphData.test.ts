@@ -70,34 +70,6 @@ describe("strategyVisualBuilderGraphData", () => {
     expect(node?.properties.threshold).toBe(1);
   });
 
-  it("normalizes freshly created technical indicator nodes from graph data", () => {
-    const model = fromLogicFlowGraphData({
-      nodes: [
-        {
-          id: "indicator-node",
-          type: "rect",
-          x: 420,
-          y: 260,
-          text: "",
-          properties: {
-            blockKind: "technicalIndicator",
-          },
-        },
-      ],
-      edges: [],
-    });
-
-    const node = model.nodes[0];
-    expect(node).toBeDefined();
-    expect(getStrategyBlockKind(node)).toBe("technicalIndicator");
-    expect(node?.text).toBe("RSI 14 < 30");
-    expect(node?.properties.indicatorType).toBe("rsi");
-    expect(node?.properties.conditionMode).toBe("numeric");
-    expect(node?.properties.operator).toBe("<");
-    expect(node?.properties.threshold).toBe(30);
-    expect(node?.properties.period).toBe(14);
-  });
-
   it("fills missing defaults for non-indicator palette nodes", () => {
     const model = fromLogicFlowGraphData({
       nodes: [

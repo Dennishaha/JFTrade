@@ -153,7 +153,7 @@ JFTRADE_ENFORCE_STRATEGY_BLOCK_BASELINE=1 \
 
 - 它故意固定在 synthetic `US.AAPL / 1m / useExtendedHours=true` 连续输入上，避免把 US regular session filter 的时段缺口混进图块 replay 基线。
 - 指标型场景加了短路保护，warmup 阶段不会因为快照尚未就绪把 benchmark 污染成 runtime error。
-- 已废弃的 `codeBlock` 没有单独列入矩阵，因为当前 Pine 生成器会把它降级成普通 `log` 语句，它不再是主 authoring path。
+- 已删除的 `codeBlock` 不列入矩阵；v1.0+ 会明确拒绝旧 visual model，不再降级或迁移。
 
 当前这套矩阵在 Apple A18 Pro 的基线量级以 `pkg/backtest/testdata/strategy_block_benchmark_baseline.json` 为准，当前一轮参考值约为：
 

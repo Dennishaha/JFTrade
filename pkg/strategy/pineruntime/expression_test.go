@@ -199,13 +199,13 @@ func TestEvaluateExpressionSupportsMathAndTimeVariables(t *testing.T) {
 func TestEvaluateExpressionSupportsHistoryFunction(t *testing.T) {
 	runtime := &strategyRuntime{
 		expressionCache: map[string]exprast.Node{},
-		historyValues: map[string][]any{
-			"id:close":                        {98.0, 99.0, 100.0},
-			"id:hlc3":                         {97.0, 98.0, 99.0},
-			"member:id:bands.string:upper":    {101.0, 102.0, 103.0},
-			"member:id:macd.string:histogram": {1.0, 2.0, 3.0},
-			"id:time":                         {float64(time.Date(2026, time.May, 28, 9, 28, 0, 0, time.UTC).UnixMilli())},
-			"id:bar_index":                    {18.0, 19.0},
+		historyValues: map[string]*historyBuffer{
+			"id:close":                        historyBufferForTest(98.0, 99.0, 100.0),
+			"id:hlc3":                         historyBufferForTest(97.0, 98.0, 99.0),
+			"member:id:bands.string:upper":    historyBufferForTest(101.0, 102.0, 103.0),
+			"member:id:macd.string:histogram": historyBufferForTest(1.0, 2.0, 3.0),
+			"id:time":                         historyBufferForTest(float64(time.Date(2026, time.May, 28, 9, 28, 0, 0, time.UTC).UnixMilli())),
+			"id:bar_index":                    historyBufferForTest(18.0, 19.0),
 		},
 	}
 	scope := newBarExpressionScope(runtime)
@@ -227,6 +227,14 @@ func TestEvaluateExpressionSupportsHistoryFunction(t *testing.T) {
 	if value != nil {
 		t.Fatalf("missing history expression = %#v, want nil", value)
 	}
+}
+
+func historyBufferForTest(values ...any) *historyBuffer {
+	buffer := newHistoryBuffer(len(values))
+	for _, value := range values {
+		buffer.push(value)
+	}
+	return buffer
 }
 
 func TestEvaluateExpressionSupportsDerivedSourcesEnvironmentTimestampAndTR(t *testing.T) {

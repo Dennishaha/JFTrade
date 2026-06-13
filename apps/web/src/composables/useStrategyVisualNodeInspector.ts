@@ -18,13 +18,10 @@ import {
   isDivergencePattern,
   nextGetTechnicalIndicatorNodeText,
   nextTechnicalIndicatorConditionNodeText,
-  nextTechnicalIndicatorNodeText,
   normalizeIndicatorPeriodUnit,
   normalizeGetTechnicalIndicatorProperties,
   normalizeTechnicalIndicatorConditionProperties,
-  normalizeTechnicalIndicatorProperties,
   type GetTechnicalIndicatorBlockProperties,
-  type TechnicalIndicatorBlockProperties,
   type TechnicalIndicatorConditionBlockProperties,
 } from "../features/strategyVisualBuilderIndicatorBlock";
 import {
@@ -83,7 +80,7 @@ export function useStrategyVisualNodeInspector(
   });
 
   const showsCodeInput = computed(() =>
-    selectedVisualKind.value === "codeBlock" || selectedVisualKind.value === "pineSnippet",
+    selectedVisualKind.value === "pineSnippet",
   );
 
   const selectedVisualNodeCode = computed({
@@ -95,7 +92,7 @@ export function useStrategyVisualNodeInspector(
       mutateSelectedVisualNode((node) => ({
         ...node,
         text: value.trim() === ""
-          ? selectedVisualKind.value === "pineSnippet" ? "Pine 片段" : "代码块"
+          ? "Pine 片段"
           : node.text,
         properties: {
           ...node.properties,
@@ -110,13 +107,6 @@ export function useStrategyVisualNodeInspector(
       return null;
     }
     return normalizeStopLossBlockProperties(selectedVisualNode.value?.properties ?? {});
-  });
-
-  const technicalIndicator = computed<TechnicalIndicatorBlockProperties | null>(() => {
-    if (selectedVisualKind.value !== "technicalIndicator") {
-      return null;
-    }
-    return normalizeTechnicalIndicatorProperties(selectedVisualNode.value?.properties ?? {});
   });
 
   const technicalIndicatorGetter = computed<GetTechnicalIndicatorBlockProperties | null>(() => {
@@ -136,16 +126,11 @@ export function useStrategyVisualNodeInspector(
   const selectedIndicatorTypeValue = computed(() =>
     technicalIndicatorGetter.value?.indicatorType
     ?? technicalIndicatorCondition.value?.indicatorType
-    ?? technicalIndicator.value?.indicatorType
     ?? "rsi",
   );
 
   const selectedIndicatorDefinition = computed(() =>
     getTechnicalIndicatorDefinition(selectedIndicatorTypeValue.value),
-  );
-
-  const isLegacyTechnicalIndicator = computed(
-    () => selectedVisualKind.value === "technicalIndicator",
   );
 
   const isTechnicalIndicatorGetter = computed(
@@ -157,8 +142,7 @@ export function useStrategyVisualNodeInspector(
   );
 
   const isAnyTechnicalIndicator = computed(() =>
-    isLegacyTechnicalIndicator.value
-    || isTechnicalIndicatorGetter.value
+    isTechnicalIndicatorGetter.value
     || isTechnicalIndicatorCondition.value,
   );
 
@@ -167,13 +151,10 @@ export function useStrategyVisualNodeInspector(
   );
 
   const showsConditionModeInput = computed(
-    () => isLegacyTechnicalIndicator.value || isTechnicalIndicatorCondition.value,
+    () => isTechnicalIndicatorCondition.value,
   );
 
   const showsThresholdInput = computed(() => {
-    if (isLegacyTechnicalIndicator.value) {
-      return technicalIndicator.value?.conditionMode === "numeric";
-    }
     if (isTechnicalIndicatorCondition.value) {
       return technicalIndicatorCondition.value?.conditionMode === "numeric";
     }
@@ -189,10 +170,6 @@ export function useStrategyVisualNodeInspector(
         || selectedIndicatorDefinition.value.parameterShape === "windowSize"
         || selectedIndicatorDefinition.value.parameterShape === "bollinger";
     }
-    if (isLegacyTechnicalIndicator.value) {
-      const indicatorType = technicalIndicator.value?.indicatorType;
-      return indicatorType !== "movingAverage" && indicatorType !== "macd";
-    }
     if (selectedVisualKind.value === "stopLoss") {
       return true;
     }
@@ -205,16 +182,12 @@ export function useStrategyVisualNodeInspector(
       return selectedIndicatorDefinition.value.parameterShape === "macd"
         || selectedIndicatorDefinition.value.parameterShape === "kdj";
     }
-    if (isLegacyTechnicalIndicator.value) {
-      const indicatorType = technicalIndicator.value?.indicatorType;
-      return indicatorType === "movingAverage" || indicatorType === "macd" || indicatorType === "kdj";
-    }
     return false;
   });
 
   const showsMovingAverageTypeInput = computed(() =>
     selectedIndicatorTypeValue.value === "movingAverage"
-    && (isLegacyTechnicalIndicator.value || isTechnicalIndicatorGetter.value),
+    && isTechnicalIndicatorGetter.value,
   );
 
   const showsIndicatorVariableNameInput = computed(
@@ -244,17 +217,16 @@ export function useStrategyVisualNodeInspector(
 
   const showsMultiplierInput = computed(
     () => selectedIndicatorTypeValue.value === "bollinger"
-      && (isLegacyTechnicalIndicator.value || isTechnicalIndicatorGetter.value),
+      && isTechnicalIndicatorGetter.value,
   );
 
   const showsPatternTypeInput = computed(
-    () => technicalIndicatorCondition.value?.conditionMode === "pattern"
-      || technicalIndicator.value?.conditionMode === "pattern",
+    () => technicalIndicatorCondition.value?.conditionMode === "pattern",
   );
 
   const showsLookbackInput = computed(() =>
     isDivergencePattern(
-      technicalIndicatorCondition.value?.patternType ?? technicalIndicator.value?.patternType,
+      technicalIndicatorCondition.value?.patternType,
     ),
   );
 
@@ -273,80 +245,55 @@ export function useStrategyVisualNodeInspector(
           ...properties,
           indicatorType: value,
         }));
-        return;
       }
-      updateTechnicalIndicator((properties) => ({
-        ...properties,
-        indicatorType: value,
-      }));
     },
   });
 
   const selectedIndicatorConditionMode = computed({
-    get: () => technicalIndicatorCondition.value?.conditionMode ?? technicalIndicator.value?.conditionMode ?? "numeric",
+    get: () => technicalIndicatorCondition.value?.conditionMode ?? "numeric",
     set: (value: string) => {
       if (isTechnicalIndicatorCondition.value) {
         updateTechnicalIndicatorCondition((properties) => ({
           ...properties,
           conditionMode: value,
         }));
-        return;
       }
-      updateTechnicalIndicator((properties) => ({
-        ...properties,
-        conditionMode: value,
-      }));
     },
   });
 
   const selectedIndicatorOperator = computed({
-    get: () => technicalIndicatorCondition.value?.operator ?? technicalIndicator.value?.operator ?? ">",
+    get: () => technicalIndicatorCondition.value?.operator ?? ">",
     set: (value: string) => {
       if (isTechnicalIndicatorCondition.value) {
         updateTechnicalIndicatorCondition((properties) => ({
           ...properties,
           operator: value,
         }));
-        return;
       }
-      updateTechnicalIndicator((properties) => ({
-        ...properties,
-        operator: value,
-      }));
     },
   });
 
   const selectedIndicatorPatternType = computed({
-    get: () => technicalIndicatorCondition.value?.patternType ?? technicalIndicator.value?.patternType ?? "goldenCross",
+    get: () => technicalIndicatorCondition.value?.patternType ?? "goldenCross",
     set: (value: string) => {
       if (isTechnicalIndicatorCondition.value) {
         updateTechnicalIndicatorCondition((properties) => ({
           ...properties,
           patternType: value,
         }));
-        return;
       }
-      updateTechnicalIndicator((properties) => ({
-        ...properties,
-        patternType: value,
-      }));
     },
   });
 
   const selectedIndicatorLookback = computed({
-    get: () => readNumberString(technicalIndicatorCondition.value?.lookback ?? technicalIndicator.value?.lookback),
+    get: () => readNumberString(technicalIndicatorCondition.value?.lookback),
     set: (value: string) => {
       if (isTechnicalIndicatorCondition.value) {
         updateTechnicalIndicatorCondition((properties) => ({
           ...properties,
           lookback: normalizeInteger(value, 5),
         }));
-        return;
       }
-      updateTechnicalIndicator((properties) => ({
-        ...properties,
-        lookback: normalizeInteger(value, 5),
-      }));
     },
   });
 
@@ -374,13 +321,6 @@ export function useStrategyVisualNodeInspector(
         }));
         return;
       }
-      if (isLegacyTechnicalIndicator.value) {
-        updateTechnicalIndicator((properties) => ({
-          ...properties,
-          threshold,
-        }));
-        return;
-      }
       mutateSelectedVisualNode((node) => ({
         ...node,
         text: nextPriceConditionNodeText(selectedVisualKind.value, threshold),
@@ -402,13 +342,6 @@ export function useStrategyVisualNodeInspector(
           return readNumberString(technicalIndicatorGetter.value?.windowSize);
         }
         return readNumberString(technicalIndicatorGetter.value?.period);
-      }
-      if (isLegacyTechnicalIndicator.value) {
-        const indicator = technicalIndicator.value;
-        if (indicator === null) {
-          return "";
-        }
-        return readNumberString(indicator.period);
       }
       return "";
     },
@@ -435,19 +368,12 @@ export function useStrategyVisualNodeInspector(
         });
         return;
       }
-      if (!isLegacyTechnicalIndicator.value) {
-        return;
-      }
-      updateTechnicalIndicator((properties) => ({
-        ...properties,
-        period: normalizeInteger(value, 14),
-      }));
     },
   });
 
   const selectedMacdFastPeriod = computed({
     get: () => {
-      const indicator = technicalIndicatorGetter.value ?? technicalIndicator.value;
+      const indicator = technicalIndicatorGetter.value;
       if (indicator === null) {
         return "";
       }
@@ -462,18 +388,13 @@ export function useStrategyVisualNodeInspector(
           ...properties,
           fastPeriod: normalizeInteger(value, 12),
         }));
-        return;
       }
-      updateTechnicalIndicator((properties) => ({
-        ...properties,
-        fastPeriod: normalizeInteger(value, properties.indicatorType === "movingAverage" ? 5 : 12),
-      }));
     },
   });
 
   const selectedMacdSlowPeriod = computed({
     get: () => {
-      const indicator = technicalIndicatorGetter.value ?? technicalIndicator.value;
+      const indicator = technicalIndicatorGetter.value;
       if (indicator === null) {
         return "";
       }
@@ -499,26 +420,13 @@ export function useStrategyVisualNodeInspector(
             slowPeriod: normalizeInteger(value, 26),
           };
         });
-        return;
       }
-      updateTechnicalIndicator((properties) => {
-        if (properties.indicatorType === "kdj") {
-          return {
-            ...properties,
-            m1: normalizeInteger(value, 3),
-          };
-        }
-        return {
-          ...properties,
-          slowPeriod: normalizeInteger(value, properties.indicatorType === "movingAverage" ? 20 : 26),
-        };
-      });
     },
   });
 
   const selectedMacdSignalPeriod = computed({
     get: () => {
-      const indicator = technicalIndicatorGetter.value ?? technicalIndicator.value;
+      const indicator = technicalIndicatorGetter.value;
       if (indicator === null) {
         return "";
       }
@@ -544,54 +452,31 @@ export function useStrategyVisualNodeInspector(
             signalPeriod: normalizeInteger(value, 9),
           };
         });
-        return;
       }
-      updateTechnicalIndicator((properties) => {
-        if (properties.indicatorType === "kdj") {
-          return {
-            ...properties,
-            m2: normalizeInteger(value, 3),
-          };
-        }
-        return {
-          ...properties,
-          signalPeriod: normalizeInteger(value, 9),
-        };
-      });
     },
   });
 
   const selectedBollingerMultiplier = computed({
-    get: () => readNumberString(technicalIndicatorGetter.value?.multiplier ?? technicalIndicator.value?.multiplier),
+    get: () => readNumberString(technicalIndicatorGetter.value?.multiplier),
     set: (value: string) => {
       if (isTechnicalIndicatorGetter.value) {
         updateTechnicalIndicatorGetter((properties) => ({
           ...properties,
           multiplier: normalizeDecimal(value, 2),
         }));
-        return;
       }
-      updateTechnicalIndicator((properties) => ({
-        ...properties,
-        multiplier: normalizeDecimal(value, 2),
-      }));
     },
   });
 
   const selectedMovingAverageType = computed({
-    get: () => technicalIndicatorGetter.value?.movingAverageType ?? technicalIndicator.value?.movingAverageType ?? "MA",
+    get: () => technicalIndicatorGetter.value?.movingAverageType ?? "MA",
     set: (value: string) => {
       if (isTechnicalIndicatorGetter.value) {
         updateTechnicalIndicatorGetter((properties) => ({
           ...properties,
           movingAverageType: value,
         }));
-        return;
       }
-      updateTechnicalIndicator((properties) => ({
-        ...properties,
-        movingAverageType: value,
-      }));
     },
   });
 
@@ -797,23 +682,6 @@ export function useStrategyVisualNodeInspector(
     const side = normalizeOrderSide(selectedPlaceOrderSide.value);
     return side === "BUY" || side === "SELL_SHORT";
   });
-
-  function updateTechnicalIndicator(
-    mutator: (properties: Record<string, unknown>) => Record<string, unknown>,
-  ): void {
-    if (selectedVisualKind.value !== "technicalIndicator") {
-      return;
-    }
-
-    mutateSelectedVisualNode((node) => {
-      const nextProperties = normalizeTechnicalIndicatorProperties(mutator({ ...node.properties }));
-      return {
-        ...node,
-        text: nextTechnicalIndicatorNodeText(nextProperties as unknown as Record<string, unknown>),
-        properties: nextProperties as unknown as Record<string, unknown>,
-      };
-    });
-  }
 
   function updateTechnicalIndicatorGetter(
     mutator: (properties: Record<string, unknown>) => Record<string, unknown>,

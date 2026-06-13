@@ -41,25 +41,6 @@ export type TechnicalIndicatorPatternType =
   | "closeAboveUpperBand"
   | "closeBelowLowerBand";
 
-export interface TechnicalIndicatorBlockProperties {
-  blockKind: "technicalIndicator";
-  indicatorType: TechnicalIndicatorType;
-  conditionMode: TechnicalIndicatorConditionMode;
-  movingAverageType?: MovingAverageIndicatorType;
-  operator?: TechnicalIndicatorOperator;
-  threshold?: number;
-  patternType?: TechnicalIndicatorPatternType;
-  lookback?: number;
-  period?: number;
-  windowSize?: number;
-  fastPeriod?: number;
-  slowPeriod?: number;
-  signalPeriod?: number;
-  m1?: number;
-  m2?: number;
-  multiplier?: number;
-}
-
 export interface GetTechnicalIndicatorBlockProperties {
   blockKind: "getTechnicalIndicator";
   indicatorType: TechnicalIndicatorType;
@@ -417,68 +398,6 @@ export function normalizeTechnicalIndicatorPatternType(
   }
 }
 
-export function normalizeTechnicalIndicatorProperties(
-  properties: Record<string, unknown>,
-): TechnicalIndicatorBlockProperties {
-  const indicatorType = normalizeTechnicalIndicatorType(properties.indicatorType);
-  const conditionMode = normalizeTechnicalIndicatorConditionMode(
-    properties.conditionMode,
-    indicatorType,
-  );
-  const normalized: TechnicalIndicatorBlockProperties = {
-    blockKind: "technicalIndicator",
-    indicatorType,
-    conditionMode,
-  };
-
-  switch (indicatorType) {
-    case "movingAverage":
-      normalized.movingAverageType = normalizeMovingAverageIndicatorType(
-        properties.movingAverageType,
-      );
-      normalized.fastPeriod = normalizeInteger(properties.fastPeriod, 5);
-      normalized.slowPeriod = normalizeInteger(properties.slowPeriod, 20);
-      break;
-    case "macd":
-      normalized.fastPeriod = normalizeInteger(properties.fastPeriod, 12);
-      normalized.slowPeriod = normalizeInteger(properties.slowPeriod, 26);
-      normalized.signalPeriod = normalizeInteger(properties.signalPeriod, 9);
-      break;
-    case "kdj":
-      normalized.period = normalizeInteger(properties.period, 9);
-      normalized.m1 = normalizeInteger(properties.m1, 3);
-      normalized.m2 = normalizeInteger(properties.m2, 3);
-      break;
-    case "bollinger":
-      normalized.period = normalizeInteger(properties.period, 20);
-      normalized.multiplier = normalizeDecimal(properties.multiplier, 2);
-      break;
-    default:
-      normalized.period = normalizeInteger(properties.period ?? properties.windowSize, defaultPeriodForIndicator(indicatorType));
-      break;
-  }
-
-  if (conditionMode === "numeric") {
-    normalized.operator = normalizeTechnicalIndicatorOperator(properties.operator);
-    normalized.threshold = normalizeDecimal(
-      properties.threshold,
-      defaultThresholdForIndicator(indicatorType, normalized.operator),
-    );
-  }
-
-  if (conditionMode === "pattern") {
-    normalized.patternType = normalizeTechnicalIndicatorPatternType(
-      indicatorType,
-      properties.patternType,
-    );
-    if (isDivergencePattern(normalized.patternType)) {
-      normalized.lookback = normalizeInteger(properties.lookback, 5);
-    }
-  }
-
-  return normalized;
-}
-
 export function normalizeGetTechnicalIndicatorProperties(
   properties: Record<string, unknown>,
 ): GetTechnicalIndicatorBlockProperties {
@@ -612,27 +531,6 @@ export function normalizeTechnicalIndicatorConditionProperties(
   return normalized;
 }
 
-export function nextTechnicalIndicatorNodeText(
-  rawProperties: Record<string, unknown>,
-): string {
-  const properties = normalizeTechnicalIndicatorProperties(rawProperties);
-  const indicatorLabel = indicatorTypeLabel(properties.indicatorType);
-
-  if (properties.conditionMode === "none") {
-    return `${indicatorLabel} ${indicatorParameterText(properties)}`.trim();
-  }
-
-  if (properties.conditionMode === "numeric") {
-    return `${indicatorLabel} ${indicatorParameterText(properties)} ${properties.operator} ${formatThreshold(properties.threshold ?? 0)}`.trim();
-  }
-
-  const patternLabel = patternTypeLabel(properties.patternType ?? "goldenCross");
-  if (isDivergencePattern(properties.patternType)) {
-    return `${indicatorLabel} ${indicatorParameterText(properties)} ${patternLabel} (${properties.lookback ?? 5})`.trim();
-  }
-  return `${indicatorLabel} ${indicatorParameterText(properties)} ${patternLabel}`.trim();
-}
-
 export function nextGetTechnicalIndicatorNodeText(
   rawProperties: Record<string, unknown>,
 ): string {
@@ -700,21 +598,6 @@ export function patternTypeLabel(patternType: TechnicalIndicatorPatternType): st
       return "跌破下轨";
     default:
       return "形态";
-  }
-}
-
-function indicatorParameterText(properties: TechnicalIndicatorBlockProperties): string {
-  switch (properties.indicatorType) {
-    case "movingAverage":
-      return `${properties.fastPeriod ?? 5}/${properties.slowPeriod ?? 20}`;
-    case "macd":
-      return `${properties.fastPeriod ?? 12}/${properties.slowPeriod ?? 26}/${properties.signalPeriod ?? 9}`;
-    case "kdj":
-      return `${properties.period ?? 9}/${properties.m1 ?? 3}/${properties.m2 ?? 3}`;
-    case "bollinger":
-      return `${properties.period ?? 20}x${formatThreshold(properties.multiplier ?? 2)}`;
-    default:
-      return String(properties.period ?? defaultPeriodForIndicator(properties.indicatorType));
   }
 }
 

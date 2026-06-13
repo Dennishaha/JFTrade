@@ -267,8 +267,8 @@ const selectedStrategyCompiledSummary = computed(() => {
     const parts: string[] = [];
     if (hookCount !== null) parts.push(`${hookCount} 个 hook`);
     if (indicatorCount !== null) parts.push(`${indicatorCount} 项依赖`);
-    if (parts.length === 0) return "已完成 Pine 编译计划。";
-    return `已完成 Pine 编译计划，包含 ${parts.join(" / ")}。`;
+    if (parts.length === 0) return "已完成 Pine v6 主路径编译规划。";
+    return `已完成 Pine v6 主路径编译规划，包含 ${parts.join(" / ")}。`;
 });
 
 const canRefreshSelectedStrategyDefinition = computed(
@@ -564,7 +564,7 @@ function strategyStatusCardClass(strategy: StrategyInstanceItem): string {
 function formatStrategyRuntime(runtime: unknown): string {
     switch (normalizeText(runtime)) {
         case "pine-go-plan":
-            return "Pine 编译计划";
+            return "Pine v6 主路径";
         default:
             return "未知 / 受限";
     }

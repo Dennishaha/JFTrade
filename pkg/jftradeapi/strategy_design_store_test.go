@@ -1,6 +1,7 @@
 package jftradeapi
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -46,6 +47,25 @@ func readStrategyDesignDefinitionRow(t *testing.T, dbPath string, id string) str
 	return row
 }
 
+func legacyVisualModelWithBlockKind(blockKind string) *strategyVisualModel {
+	return &strategyVisualModel{
+		Engine:  "logic-flow",
+		Version: 1,
+		Nodes: []strategyVisualNode{
+			{
+				ID:   "legacy-node",
+				Type: "rect",
+				X:    260,
+				Y:    100,
+				Text: "Legacy Node",
+				Properties: map[string]any{
+					"blockKind": blockKind,
+				},
+			},
+		},
+	}
+}
+
 func TestStrategyDesignStoreIgnoresLegacyJSONFile(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "strategy-definitions.json")
 	legacy := `{
@@ -78,7 +98,7 @@ func TestStrategyDesignStoreIgnoresLegacyJSONFile(t *testing.T) {
 	if got := store.listDefinitions(); len(got) != 0 {
 		t.Fatalf("expected legacy json definitions to be ignored, got %+v", got)
 	}
-	if _, ok := store.definition("legacy-ma-strategy"); ok {
+	if _, ok, err := store.definition("legacy-ma-strategy"); err != nil || ok {
 		t.Fatal("expected legacy json definition to be ignored")
 	}
 	if got := countStrategyDesignDefinitionRows(t, store.dbPath); got != 0 {
@@ -167,6 +187,73 @@ func TestStrategyDesignStoreSaveDefinitionManagesVersionAndScriptMetadata(t *tes
 	}
 }
 
+func TestStrategyDesignStoreRejectsLegacyRuntimeSourceAndVisualBlocks(t *testing.T) {
+	store, err := NewStrategyDesignStore(filepath.Join(t.TempDir(), "strategy-definitions.json"))
+	if err != nil {
+		t.Fatalf("NewStrategyDesignStore: %v", err)
+	}
+	t.Cleanup(func() { store.Close() })
+
+	tests := []struct {
+		name       string
+		definition strategyDesignDefinition
+	}{
+		{
+			name: "explicit legacy runtime",
+			definition: strategyDesignDefinition{
+				ID:           "legacy-runtime",
+				Name:         "Legacy Runtime",
+				Runtime:      "legacy-runtime",
+				SourceFormat: strategydefinition.SourceFormatPineV6,
+				Script:       "//@version=6\nstrategy(\"Legacy Runtime\", overlay=true)\nlog.info(\"close\")",
+			},
+		},
+		{
+			name: "explicit legacy source format",
+			definition: strategyDesignDefinition{
+				ID:           "legacy-source",
+				Name:         "Legacy Source",
+				Runtime:      strategyRuntimePinePlan,
+				SourceFormat: "legacy-js",
+				Script:       "//@version=6\nstrategy(\"Legacy Source\", overlay=true)\nlog.info(\"close\")",
+			},
+		},
+		{
+			name: "legacy codeBlock",
+			definition: strategyDesignDefinition{
+				ID:           "legacy-codeblock",
+				Name:         "Legacy CodeBlock",
+				Runtime:      strategyRuntimePinePlan,
+				SourceFormat: strategydefinition.SourceFormatPineV6,
+				Script:       "//@version=6\nstrategy(\"Legacy CodeBlock\", overlay=true)\nlog.info(\"close\")",
+				VisualModel:  legacyVisualModelWithBlockKind("codeBlock"),
+			},
+		},
+		{
+			name: "legacy unified technicalIndicator",
+			definition: strategyDesignDefinition{
+				ID:           "legacy-indicator",
+				Name:         "Legacy Indicator",
+				Runtime:      strategyRuntimePinePlan,
+				SourceFormat: strategydefinition.SourceFormatPineV6,
+				Script:       "//@version=6\nstrategy(\"Legacy Indicator\", overlay=true)\nlog.info(\"close\")",
+				VisualModel:  legacyVisualModelWithBlockKind("technicalIndicator"),
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if _, err := store.saveDefinition(test.definition); !errors.Is(err, errUnsupportedLegacyStrategyDefinition) {
+				t.Fatalf("saveDefinition error = %v, want unsupported legacy strategy definition", err)
+			}
+		})
+	}
+	if got := countStrategyDesignDefinitionRows(t, store.dbPath); got != 0 {
+		t.Fatalf("db definition row count = %d, want 0", got)
+	}
+}
+
 func TestStrategyDesignStoreGeneratesUUIDWhenIDMissing(t *testing.T) {
 	store, err := NewStrategyDesignStore(filepath.Join(t.TempDir(), "strategy-definitions.json"))
 	if err != nil {
@@ -220,7 +307,7 @@ func TestStrategyDesignStoreDeleteDefinitionSoftDeletes(t *testing.T) {
 	if deleted.ID != created.ID {
 		t.Fatalf("deleted id = %q, want %q", deleted.ID, created.ID)
 	}
-	if _, ok := store.definition(created.ID); ok {
+	if _, ok, err := store.definition(created.ID); err != nil || ok {
 		t.Fatal("expected soft-deleted definition to be hidden from definition lookup")
 	}
 	if got := store.listDefinitions(); len(got) != 0 {

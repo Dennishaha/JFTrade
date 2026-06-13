@@ -59,6 +59,7 @@ describe("Strategy page", () => {
     expect(wrapper.text()).toContain("设计");
     expect(wrapper.text()).toContain("策略定义");
     expect(wrapper.text()).toContain("Pine Mean Revert");
+    expect(wrapper.text()).toContain("Pine v6 / pine-go-plan");
     expect(wrapper.text()).toContain("pine-go-plan");
     expect(wrapper.find('[data-testid="strategy-logic-flow-canvas"]').exists()).toBe(true);
     expect(wrapper.find('[data-testid="strategy-visual-builder-section"]').exists()).toBe(true);
@@ -496,18 +497,31 @@ describe("Strategy page", () => {
               version: 1,
               nodes: [
                 {
-                  id: "rsi-calc-node",
+                  id: "rsi-calc-node-getter",
                   type: "rect",
                   x: 420,
                   y: 200,
-                  text: "RSI 14 < 30",
+                  text: "获取 RSI 14",
                   properties: {
-                    blockKind: "technicalIndicator",
+                    blockKind: "getTechnicalIndicator",
+                    indicatorType: "rsi",
+                    period: 14,
+                    variableName: "rsi_calc_node",
+                  },
+                },
+                {
+                  id: "rsi-calc-node",
+                  type: "diamond",
+                  x: 620,
+                  y: 200,
+                  text: "RSI < 30",
+                  properties: {
+                    blockKind: "technicalIndicatorCondition",
                     indicatorType: "rsi",
                     conditionMode: "numeric",
                     operator: "<",
                     threshold: 30,
-                    period: 14,
+                    inputPrimaryNodeId: "rsi-calc-node-getter",
                   },
                 },
                 {
@@ -526,7 +540,21 @@ describe("Strategy page", () => {
                   id: "edge-1",
                   type: "polyline",
                   sourceNodeId: "on-kline-root",
+                  targetNodeId: "rsi-calc-node-getter",
+                },
+                {
+                  id: "edge-rsi-data",
+                  type: "polyline",
+                  sourceNodeId: "rsi-calc-node-getter",
                   targetNodeId: "rsi-calc-node",
+                  properties: { role: "data", slot: "primary" },
+                },
+                {
+                  id: "edge-rsi-control",
+                  type: "polyline",
+                  sourceNodeId: "on-kline-root",
+                  targetNodeId: "rsi-calc-node",
+                  properties: { role: "control" },
                 },
               ],
             },
@@ -690,8 +718,8 @@ describe("Strategy page", () => {
 
     expect((wrapper.get('[data-testid="strategy-block-indicator-input-fast-select"]').element as HTMLSelectElement).value).toBe("fast-ma");
     expect((wrapper.get('[data-testid="strategy-block-indicator-input-slow-select"]').element as HTMLSelectElement).value).toBe("slow-ma");
-    expect(wrapper.text()).toContain("EMA5 · 获取 均线 EMA 5日");
-    expect(wrapper.text()).toContain("EMA20 · 获取 均线 EMA 20日");
+    expect(wrapper.text()).toContain("EMA5 · 获取 均线 EMA 5");
+    expect(wrapper.text()).toContain("EMA20 · 获取 均线 EMA 20");
 
     wrapper.unmount();
   });
@@ -1104,7 +1132,7 @@ describe("Strategy page", () => {
       .props("modelValue") as NonNullable<StrategyDefinitionDocument["visualModel"]>;
     expect(
       visualModel.nodes.some((node) =>
-        ["codeBlock", "getTechnicalIndicator", "placeOrder", "stopLoss"].includes(
+        ["getTechnicalIndicator", "placeOrder", "stopLoss"].includes(
           String(node.properties.blockKind),
         ),
       ),
@@ -1140,18 +1168,31 @@ describe("Strategy page", () => {
               version: 1,
               nodes: [
                 {
-                  id: "rsi-calc-node",
+                  id: "rsi-calc-node-getter",
                   type: "rect",
                   x: 420,
                   y: 200,
-                  text: "RSI 14 < 30",
+                  text: "获取 RSI 14",
                   properties: {
-                    blockKind: "technicalIndicator",
+                    blockKind: "getTechnicalIndicator",
+                    indicatorType: "rsi",
+                    period: 14,
+                    variableName: "rsi_calc_node",
+                  },
+                },
+                {
+                  id: "rsi-calc-node",
+                  type: "diamond",
+                  x: 620,
+                  y: 200,
+                  text: "RSI < 30",
+                  properties: {
+                    blockKind: "technicalIndicatorCondition",
                     indicatorType: "rsi",
                     conditionMode: "numeric",
                     operator: "<",
                     threshold: 30,
-                    period: 14,
+                    inputPrimaryNodeId: "rsi-calc-node-getter",
                   },
                 },
                 {
@@ -1181,7 +1222,21 @@ describe("Strategy page", () => {
                   id: "edge-1",
                   type: "polyline",
                   sourceNodeId: "on-kline-root",
+                  targetNodeId: "rsi-calc-node-getter",
+                },
+                {
+                  id: "edge-rsi-data",
+                  type: "polyline",
+                  sourceNodeId: "rsi-calc-node-getter",
                   targetNodeId: "rsi-calc-node",
+                  properties: { role: "data", slot: "primary" },
+                },
+                {
+                  id: "edge-rsi-control",
+                  type: "polyline",
+                  sourceNodeId: "on-kline-root",
+                  targetNodeId: "rsi-calc-node",
+                  properties: { role: "control" },
                 },
                 {
                   id: "edge-2",
@@ -1217,11 +1272,13 @@ describe("Strategy page", () => {
         designer.props("modelValue") as NonNullable<StrategyDefinitionDocument["visualModel"]>,
       ),
     ) as NonNullable<StrategyDefinitionDocument["visualModel"]>;
-    const indicatorNode = visualModel.nodes.find((node) => node.id === "rsi-calc-node");
+    expect(visualModel.nodes.some((node) => node.properties.blockKind === "technicalIndicator")).toBe(false);
+    const indicatorNode = visualModel.nodes.find((node) => node.id === "rsi-calc-node-getter");
     expect(indicatorNode).toBeDefined();
     if (indicatorNode === undefined) {
       return;
     }
+    expect(indicatorNode.properties.blockKind).toBe("getTechnicalIndicator");
 
     indicatorNode.properties = {
       ...indicatorNode.properties,

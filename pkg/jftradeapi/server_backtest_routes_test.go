@@ -32,7 +32,7 @@ func TestBacktestRouteAcceptsExplicitMarketAndCode(t *testing.T) {
 		Symbol:       "US.AAPL",
 		Interval:     "1m",
 		Script: `//@version=6
-strategy("Pine Market Code Route", overlay=true)
+strategy("Pine Market Code Route", overlay=true, initial_capital=25000)
 strategy.entry("Long", strategy.long, qty=1)`,
 	}); err != nil {
 		t.Fatalf("saveDefinition: %v", err)
@@ -73,5 +73,46 @@ strategy.entry("Long", strategy.long, qty=1)`,
 	}
 	if runs[0].Request.DefinitionVersion != "0.1.0" {
 		t.Fatalf("expected definitionVersion to be snapshotted: %+v", runs[0].Request)
+	}
+	if runs[0].Request.InitialBalance != 10000 {
+		t.Fatalf("explicit initialBalance = %v, want 10000", runs[0].Request.InitialBalance)
+	}
+}
+
+func TestEnqueueBacktestUsesPineInitialCapitalWhenRequestOmitsBalance(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("JFTRADE_BACKTEST_DB", filepath.Join(t.TempDir(), "missing.db"))
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	server := newTestServer(t, store)
+	if _, err := server.designStore.saveDefinition(strategyDesignDefinition{
+		ID:           "pine-initial-capital",
+		Name:         "Pine Initial Capital",
+		Version:      "0.1.0",
+		Runtime:      strategyRuntimePinePlan,
+		SourceFormat: strategydefinition.SourceFormatPineV6,
+		Symbol:       "US.AAPL",
+		Interval:     "1m",
+		Script: `//@version=6
+strategy("Pine Initial Capital", initial_capital=250000)
+log.info("ready")`,
+	}); err != nil {
+		t.Fatalf("saveDefinition: %v", err)
+	}
+	run, err := server.enqueueBacktest(backtestStartRequest{
+		DefinitionID: "pine-initial-capital",
+		Symbol:       "US.AAPL",
+		Interval:     "1m",
+		StartTime:    time.Date(2026, time.May, 26, 9, 30, 0, 0, time.UTC).Format(time.RFC3339),
+		EndTime:      time.Date(2026, time.May, 26, 9, 31, 0, 0, time.UTC).Format(time.RFC3339),
+	})
+	if err != nil {
+		t.Fatalf("enqueueBacktest: %v", err)
+	}
+	server.backtestRuns.cancel(run.ID)
+	if run.Request.InitialBalance != 250000 {
+		t.Fatalf("initialBalance = %v, want 250000", run.Request.InitialBalance)
 	}
 }

@@ -19,6 +19,8 @@ import (
 	"github.com/jftrade/jftrade-main/pkg/futu"
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 	"github.com/jftrade/jftrade-main/pkg/strategy/indicatorruntime"
+	strategyir "github.com/jftrade/jftrade-main/pkg/strategy/ir"
+	strategypine "github.com/jftrade/jftrade-main/pkg/strategy/pine"
 	"github.com/jftrade/jftrade-main/pkg/strategy/pineruntime"
 )
 
@@ -59,8 +61,19 @@ func Run(ctx context.Context, cfg RunConfig) *RunResult {
 		result.Error = fmt.Sprintf("unsupported strategy source format: %s", sourceFormat)
 		return result
 	}
+	compilation, err := strategypine.Compile(cfg.StrategyScript)
+	if err != nil {
+		result.Error = fmt.Sprintf("compile pine strategy: %v", err)
+		return result
+	}
+	cfg.InitialBalance = resolvePineInitialBalance(cfg.InitialBalance, compilation.Program.Metadata)
 
-	derivedWarmupCandles, err := deriveStrategyWarmupCandles(cfg.StrategyScript, types.Interval(cfg.Interval), cfg.Symbol, cfg.UseExtendedHours)
+	derivedWarmupCandles, err := indicatorruntime.WarmupBarsFromPlanForSymbolWithOptions(
+		compilation.Requirements,
+		types.Interval(cfg.Interval),
+		cfg.Symbol,
+		indicatorruntime.RuntimeOptions{IncludeExtendedHours: cfg.UseExtendedHours != nil && *cfg.UseExtendedHours},
+	)
 	if err != nil {
 		result.Error = fmt.Sprintf("derive strategy warmup: %v", err)
 		return result
@@ -129,6 +142,8 @@ func Run(ctx context.Context, cfg RunConfig) *RunResult {
 		Sessions:  []string{"futu"},
 		Accounts: map[string]bbgo2.BacktestAccount{
 			"futu": {
+				MakerFeeRate: pineCommissionRate(compilation.Program.Metadata),
+				TakerFeeRate: pineCommissionRate(compilation.Program.Metadata),
 				Balances: bbgo2.BacktestAccountBalanceMap{
 					quoteCurrency: fixedpoint.NewFromFloat(cfg.InitialBalance),
 				},
@@ -194,12 +209,24 @@ func Run(ctx context.Context, cfg RunConfig) *RunResult {
 		Symbol:           cfg.Symbol,
 		Interval:         types.Interval(cfg.Interval),
 		Script:           cfg.StrategyScript,
+		Program:          compilation.Program,
+		Requirements:     &compilation.Requirements,
 		UseExtendedHours: cfg.UseExtendedHours != nil && *cfg.UseExtendedHours,
 		WarmupUntil:      warmupUntil,
 		OnError: func(errMsg string) {
 			result.AddRuntimeError(errMsg)
 			log.Printf("backtest runtime error: %s", errMsg)
 		},
+	}
+	executor := bbgo2.OrderExecutor(session.OrderExecutor)
+	if compilation.Program.Metadata.Slippage > 0 {
+		slippageExecutor := newBacktestSlippageExecutor(
+			session.OrderExecutor,
+			session,
+			compilation.Program.Metadata.Slippage,
+		)
+		session.MarketDataStream.OnKLineClosed(slippageExecutor.onKLineClosed)
+		executor = slippageExecutor
 	}
 	strategy.Subscribe(session)
 
@@ -216,7 +243,7 @@ func Run(ctx context.Context, cfg RunConfig) *RunResult {
 		return result
 	}
 	log.Printf("backtest: strategy starting, executor=%T symbol=%s interval=%s", session.OrderExecutor, cfg.Symbol, cfg.Interval)
-	if err := strategy.Run(ctx, session.OrderExecutor, session); err != nil {
+	if err := strategy.Run(ctx, executor, session); err != nil {
 		result.Error = fmt.Sprintf("strategy run: %v", err)
 		return result
 	}
@@ -237,6 +264,7 @@ func Run(ctx context.Context, cfg RunConfig) *RunResult {
 	}
 
 	session.UserDataStream.OnOrderUpdate(collector.onOrderUpdate)
+	bindCashCommission(session, quoteCurrency, compilation.Program.Metadata)
 
 	session.MarketDataStream.OnKLineClosed(func(kline types.KLine) {
 		collector.onKLineClosed(ctx, btExchange, kline)
@@ -293,6 +321,16 @@ func Run(ctx context.Context, cfg RunConfig) *RunResult {
 	log.Printf("backtest: done totalOrders=%d filledOrders=%d finalBalance=%.2f", totalOrders, filledOrders, result.FinalBalance)
 
 	return result
+}
+
+func resolvePineInitialBalance(requested float64, metadata strategyir.StrategyMetadata) float64 {
+	if requested > 0 {
+		return requested
+	}
+	if metadata.InitialCapital > 0 {
+		return metadata.InitialCapital
+	}
+	return 100000
 }
 
 func deriveStrategyWarmupCandles(script string, interval types.Interval, symbol string, useExtendedHours *bool) (int, error) {

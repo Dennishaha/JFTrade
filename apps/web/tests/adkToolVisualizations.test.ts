@@ -98,7 +98,6 @@ describe("buildADKToolVisualization", () => {
       sections: [{ id: "support-matrix", title: "支持矩阵" }],
       supportedHooks: ["on_kline_close"],
       supportMatrix: [{ capability: "Source-aware indicators", parser: true }],
-      compatibilityLayers: [{ name: "legacy visual codeBlock", status: "read_only" }],
       unsupportedPatterns: ["array.* 暂不支持"],
       goldenScripts: [{ id: "golden-ma-cross", title: "均线交叉" }],
       examples: [],

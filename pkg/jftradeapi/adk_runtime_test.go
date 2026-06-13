@@ -89,9 +89,8 @@ func TestADKStrategyPineSpecToolReturnsStructuredPayload(t *testing.T) {
 	if !ok || len(supportMatrix) == 0 {
 		t.Fatalf("supportMatrix payload = %#v, want non-empty support matrix", payload["supportMatrix"])
 	}
-	compatibilityLayers, ok := payload["compatibilityLayers"].([]map[string]any)
-	if !ok || len(compatibilityLayers) == 0 {
-		t.Fatalf("compatibilityLayers payload = %#v, want non-empty compatibility layers", payload["compatibilityLayers"])
+	if _, ok := payload["compatibilityLayers"]; ok {
+		t.Fatalf("compatibilityLayers should not be present in v1.0 payload: %#v", payload["compatibilityLayers"])
 	}
 	unsupportedPatterns, ok := payload["unsupportedPatterns"].([]string)
 	if !ok || len(unsupportedPatterns) == 0 {

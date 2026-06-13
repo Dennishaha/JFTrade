@@ -8,10 +8,8 @@ import {
   isDivergencePattern,
   nextGetTechnicalIndicatorNodeText,
   nextTechnicalIndicatorConditionNodeText,
-  nextTechnicalIndicatorNodeText,
   normalizeGetTechnicalIndicatorProperties,
   normalizeTechnicalIndicatorConditionProperties,
-  normalizeTechnicalIndicatorProperties,
   patternTypeLabel,
   type TechnicalIndicatorConditionBlockProperties,
   type TechnicalIndicatorType,
@@ -130,17 +128,6 @@ export function buildStrategyVisualNodeSummary(
         chips: ["True", "False"],
       };
     }
-    case "technicalIndicator": {
-      const normalized = normalizeTechnicalIndicatorProperties(properties);
-      return {
-        eyebrow: "技术指标（兼容）",
-        title: resolveNodeTitle(input.text, nextTechnicalIndicatorNodeText(properties)),
-        tone: "condition",
-        variant: variantOverride ?? "card",
-        details: buildLegacyIndicatorDetails(normalized),
-        chips: ["兼容"],
-      };
-    }
     case "placeOrder":
       return {
         eyebrow: "交易动作",
@@ -188,18 +175,6 @@ export function buildStrategyVisualNodeSummary(
           { label: "内容", value: previewText(properties.message, 60, "策略条件命中，准备处理后续动作") },
         ],
         chips: [],
-      };
-    case "codeBlock":
-      return {
-        eyebrow: "历史代码块",
-        title: resolveNodeTitle(input.text, "代码块（只读）"),
-        tone: "code",
-        variant: variantOverride ?? "card",
-        details: [
-          { label: "状态", value: "已废弃，请改用 Pine 片段或标准 Pine 图块" },
-          { label: "原片段", value: previewCodeText(properties.code) },
-        ],
-        chips: ["只读"],
       };
     case "pineSnippet":
       return {
@@ -454,31 +429,6 @@ function buildIndicatorConditionDetails(
     details.push({
       label: "回看",
       value: `${properties.lookback ?? 5} 根`,
-    });
-  }
-
-  return details;
-}
-
-function buildLegacyIndicatorDetails(
-  properties: ReturnType<typeof normalizeTechnicalIndicatorProperties>,
-): StrategyVisualNodeSummaryDetail[] {
-  const details: StrategyVisualNodeSummaryDetail[] = [
-    {
-      label: "来源",
-      value: indicatorTypeLabel(properties.indicatorType),
-    },
-  ];
-
-  if (properties.conditionMode === "numeric") {
-    details.push({
-      label: "判断",
-      value: `${properties.operator ?? "<"} ${formatNumber(properties.threshold ?? 0)}`,
-    });
-  } else if (properties.conditionMode === "pattern") {
-    details.push({
-      label: "形态",
-      value: patternTypeLabel(properties.patternType ?? "goldenCross"),
     });
   }
 
