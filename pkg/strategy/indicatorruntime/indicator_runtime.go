@@ -34,9 +34,13 @@ type indicatorRuntime struct {
 	rsiStates            map[int]*rollingRSIState
 	atrStates            map[int]*rollingATRState
 	stdevStates          map[int]*rollingStdDevState
+	windowStates         map[windowConfig]*rollingWindowState
+	cumStates            map[sourceConfig]*rollingCumState
+	stochStates          map[sourcePeriodConfig]*rollingStochState
 	bollingerStates      map[bollingerConfig]*rollingBollingerState
 	cciStates            map[int]*rollingCCIState
 	williamsRStates      map[int]*rollingWilliamsRState
+	opens                []float64
 	highs                []float64
 	lows                 []float64
 	closes               []float64
@@ -61,6 +65,8 @@ type snapshotSeriesCache struct {
 	tradingPeriodLabels   map[tradingPeriodLabelCacheKey][]int64
 	tradingPeriodBuffers  map[tradingPeriodLabelCacheKey][]int64
 	maSnapshots           map[movingAverageConfig]*indicatorSeriesSnapshot
+	seriesSnapshots       map[string]*indicatorSeriesSnapshot
+	windowSnapshots       map[windowConfig]*indicatorSeriesSnapshot
 	macdSnapshots         map[macdConfig]*indicatorMACDSnapshot
 	kdjSnapshots          map[kdjConfig]*indicatorKDJSnapshot
 	scalarValues          map[string]*indicatorScalarSnapshot
@@ -106,6 +112,35 @@ type rollingMovingAverageSnapshotState struct {
 	sum         float64
 	weightedSum float64
 	volumeSum   float64
+	current     float64
+	previous    float64
+	hasCurrent  bool
+	hasPrevious bool
+}
+
+type rollingWindowState struct {
+	config      windowConfig
+	values      rollingFloatWindow
+	current     float64
+	previous    float64
+	boolCurrent bool
+	hasCurrent  bool
+	hasPrevious bool
+}
+
+type rollingCumState struct {
+	current     float64
+	previous    float64
+	hasCurrent  bool
+	hasPrevious bool
+}
+
+type rollingStochState struct {
+	source      string
+	period      int
+	index       int
+	highDeque   monotonicWindowValueDeque
+	lowDeque    monotonicWindowValueDeque
 	current     float64
 	previous    float64
 	hasCurrent  bool
@@ -305,14 +340,27 @@ type stopLossWindowExtremaCacheEntry struct {
 type snapshotKeyCache struct {
 	ma             map[movingAverageConfig]string
 	maLegacy       map[movingAverageConfig]string
+	securitySource map[securitySourceConfig]string
 	rsi            map[int]string
+	rsiSource      map[sourcePeriodConfig]string
 	macd           map[macdConfig]string
 	bollinger      map[bollingerConfig]string
 	kdj            map[kdjConfig]string
 	atr            map[int]string
 	stdev          map[int]string
+	stdevSource    map[sourcePeriodConfig]string
+	variance       map[sourcePeriodConfig]string
+	windows        map[windowConfig]string
+	cum            map[sourceConfig]string
+	stoch          map[sourcePeriodConfig]string
 	cci            map[int]string
+	cciSource      map[sourcePeriodConfig]string
 	williamsR      map[int]string
+	vwap           map[sourceConfig]string
+	mfi            map[sourcePeriodConfig]string
+	dmi            map[dmiConfig]string
+	supertrend     map[supertrendConfig]string
+	sar            map[sarConfig]string
 	stopLoss       map[stopLossConfig]string
 	rsiDivergence  map[rsiDivergenceConfig]string
 	macdDivergence map[macdDivergenceConfig]string
@@ -337,6 +385,8 @@ func newSnapshotSeriesCache() *snapshotSeriesCache {
 		tradingPeriodLabels:  map[tradingPeriodLabelCacheKey][]int64{},
 		tradingPeriodBuffers: map[tradingPeriodLabelCacheKey][]int64{},
 		maSnapshots:          map[movingAverageConfig]*indicatorSeriesSnapshot{},
+		seriesSnapshots:      map[string]*indicatorSeriesSnapshot{},
+		windowSnapshots:      map[windowConfig]*indicatorSeriesSnapshot{},
 		macdSnapshots:        map[macdConfig]*indicatorMACDSnapshot{},
 		kdjSnapshots:         map[kdjConfig]*indicatorKDJSnapshot{},
 		scalarValues:         map[string]*indicatorScalarSnapshot{},
@@ -521,6 +571,25 @@ func (c *snapshotSeriesCache) getScalarSnapshot(key string, current float64, cur
 	return snapshot
 }
 
+func (c *snapshotSeriesCache) getSeriesSnapshot(key string, current, previous float64, currentOK, previousOK bool) any {
+	if !currentOK && !previousOK {
+		return nil
+	}
+	if c == nil {
+		return &indicatorSeriesSnapshot{current: current, previous: previous, hasCurrent: currentOK, hasPrevious: previousOK}
+	}
+	snapshot, ok := c.seriesSnapshots[key]
+	if !ok {
+		snapshot = &indicatorSeriesSnapshot{}
+		c.seriesSnapshots[key] = snapshot
+	}
+	snapshot.current = current
+	snapshot.previous = previous
+	snapshot.hasCurrent = currentOK
+	snapshot.hasPrevious = previousOK
+	return snapshot
+}
+
 func (c *snapshotSeriesCache) getStopLossSnapshot(config stopLossConfig) map[string]any {
 	if c == nil {
 		return make(map[string]any, 18)
@@ -544,6 +613,25 @@ func (c *snapshotSeriesCache) getMovingAverageSnapshot(config movingAverageConfi
 	if !ok {
 		snapshot = &indicatorSeriesSnapshot{}
 		c.maSnapshots[config] = snapshot
+	}
+	snapshot.current = current
+	snapshot.previous = previous
+	snapshot.hasCurrent = currentOK
+	snapshot.hasPrevious = previousOK
+	return snapshot
+}
+
+func (c *snapshotSeriesCache) getWindowSnapshot(config windowConfig, current, previous float64, currentOK, previousOK bool) any {
+	if !currentOK && !previousOK {
+		return nil
+	}
+	if c == nil {
+		return &indicatorSeriesSnapshot{current: current, previous: previous, hasCurrent: currentOK, hasPrevious: previousOK}
+	}
+	snapshot, ok := c.windowSnapshots[config]
+	if !ok {
+		snapshot = &indicatorSeriesSnapshot{}
+		c.windowSnapshots[config] = snapshot
 	}
 	snapshot.current = current
 	snapshot.previous = previous
@@ -728,11 +816,15 @@ func newIndicatorRuntimeWithRequirements(requirements indicatorRequirements, int
 		rsiStates:            newRollingRSIStates(requirements, seriesLimit),
 		atrStates:            newRollingATRStates(requirements),
 		stdevStates:          newRollingStdDevStates(requirements),
+		windowStates:         newRollingWindowStates(requirements),
+		cumStates:            newRollingCumStates(requirements),
+		stochStates:          newRollingStochStates(requirements),
 		bollingerStates:      newRollingBollingerStates(requirements),
 		cciStates:            newRollingCCIStates(requirements),
 		williamsRStates:      newRollingWilliamsRStates(requirements),
 	}
 	if seriesLimit > 0 {
+		runtime.opens = make([]float64, 0, seriesLimit)
 		runtime.highs = make([]float64, 0, seriesLimit)
 		runtime.lows = make([]float64, 0, seriesLimit)
 		runtime.closes = make([]float64, 0, seriesLimit)
@@ -751,16 +843,16 @@ func (r *indicatorRuntime) push(kline types.KLine, session market.Session) {
 		return
 	}
 	closeValue := kline.Close.Float64()
-	oldFirstClose := 0.0
-	oldSecondClose := 0.0
+	openValue := kline.Open.Float64()
+	highValue := kline.High.Float64()
+	lowValue := kline.Low.Float64()
+	volumeValue := kline.Volume.Float64()
+	oldFirst := r.oldSourceValuesAt(0)
+	oldSecond := r.oldSourceValuesAt(1)
+	oldFirstClose := oldFirst["close"]
+	oldSecondClose := oldSecond["close"]
 	hasOldFirstClose := len(r.closes) > 0
 	hasOldSecondClose := len(r.closes) > 1
-	if hasOldFirstClose {
-		oldFirstClose = r.closes[0]
-	}
-	if hasOldSecondClose {
-		oldSecondClose = r.closes[1]
-	}
 	previousClose := 0.0
 	hasPreviousClose := len(r.closes) > 0
 	if hasPreviousClose {
@@ -775,15 +867,17 @@ func (r *indicatorRuntime) push(kline types.KLine, session market.Session) {
 		seriesLimit = minimumIndicatorSeriesLimit
 	}
 	trimmed := len(r.closes)+1 > seriesLimit
-	r.pushKDJStates(r.highs, r.lows, r.closes, kline.High.Float64(), kline.Low.Float64(), closeValue, trimmed)
-	r.highs = append(r.highs, kline.High.Float64())
-	r.lows = append(r.lows, kline.Low.Float64())
+	r.pushKDJStates(r.highs, r.lows, r.closes, highValue, lowValue, closeValue, trimmed)
+	r.opens = append(r.opens, openValue)
+	r.highs = append(r.highs, highValue)
+	r.lows = append(r.lows, lowValue)
 	r.closes = append(r.closes, closeValue)
-	r.volumes = append(r.volumes, kline.Volume.Float64())
+	r.volumes = append(r.volumes, volumeValue)
 	r.endTimes = append(r.endTimes, kline.EndTime.Time())
 	r.sessions = append(r.sessions, resolvedSession)
 	r.appendTradingPeriodLabels(kline.EndTime.Time())
 	if trimmed {
+		r.opens = trimFloatSeriesInPlace(r.opens, seriesLimit)
 		r.highs = trimFloatSeriesInPlace(r.highs, seriesLimit)
 		r.lows = trimFloatSeriesInPlace(r.lows, seriesLimit)
 		r.closes = trimFloatSeriesInPlace(r.closes, seriesLimit)
@@ -794,15 +888,18 @@ func (r *indicatorRuntime) push(kline types.KLine, session market.Session) {
 			r.tradingPeriodLabels[unit] = trimInt64SeriesInPlace(r.tradingPeriodLabels[unit], seriesLimit)
 		}
 	}
-	r.pushMovingAverageStates(closeValue, kline.Volume.Float64())
-	r.pushEMAStates(closeValue, trimmed, oldFirstClose, oldSecondClose, hasOldFirstClose, hasOldSecondClose)
+	r.pushMovingAverageStates(openValue, highValue, lowValue, closeValue, volumeValue)
+	r.pushEMAStates(openValue, highValue, lowValue, closeValue, volumeValue, trimmed, oldFirst, oldSecond, hasOldFirstClose, hasOldSecondClose)
 	r.pushMACDStates(closeValue, trimmed, oldFirstClose, oldSecondClose, hasOldFirstClose, hasOldSecondClose)
 	r.pushRSIStates(closeValue, previousClose, hasPreviousClose)
-	r.pushATRStates(kline.High.Float64(), kline.Low.Float64(), closeValue, previousClose, hasPreviousClose)
+	r.pushATRStates(highValue, lowValue, closeValue, previousClose, hasPreviousClose)
 	r.pushStdDevStates(closeValue)
+	r.pushWindowStates(openValue, highValue, lowValue, closeValue, volumeValue)
+	r.pushCumStates(openValue, highValue, lowValue, closeValue, volumeValue)
+	r.pushStochStates(openValue, highValue, lowValue, closeValue, volumeValue)
 	r.pushBollingerStates(closeValue)
-	r.pushCCIStates(kline.High.Float64(), kline.Low.Float64(), closeValue)
-	r.pushWilliamsRStates(kline.High.Float64(), kline.Low.Float64(), closeValue)
+	r.pushCCIStates(highValue, lowValue, closeValue)
+	r.pushWilliamsRStates(highValue, lowValue, closeValue)
 }
 
 func (r *indicatorRuntime) snapshot() map[string]any {
@@ -832,9 +929,22 @@ func (r *indicatorRuntime) snapshot() map[string]any {
 			result[legacyKey] = snapshot
 		}
 	}
+	for _, config := range r.requirements.securitySource {
+		key := r.snapshotKeys.securitySource[config]
+		current, previous, currentOK, previousOK := r.securitySourceSnapshotValues(config, cache)
+		snapshot := cache.getSeriesSnapshot(key, current, previous, currentOK, previousOK)
+		if snapshot != nil {
+			result[key] = snapshot
+		}
+	}
 	for _, period := range r.requirements.rsi {
 		key := r.snapshotKeys.rsi[period]
 		current, currentOK := r.rsiSnapshotValue(period, cache)
+		result[key] = cache.getScalarSnapshot(key, current, currentOK)
+	}
+	for _, config := range r.requirements.rsiSource {
+		key := r.snapshotKeys.rsiSource[config]
+		current, currentOK := calculateRSIValueFromSeries(calculateRSISeries(r.seriesForSource(config.source), config.period))
 		result[key] = cache.getScalarSnapshot(key, current, currentOK)
 	}
 	for _, config := range r.requirements.macd {
@@ -867,15 +977,80 @@ func (r *indicatorRuntime) snapshot() map[string]any {
 		current, currentOK := r.stdDevSnapshotValue(period)
 		result[key] = cache.getScalarSnapshot(key, current, currentOK)
 	}
+	for _, config := range r.requirements.stdevSource {
+		key := r.snapshotKeys.stdevSource[config]
+		current, currentOK := calculateStdDevValue(r.seriesForSource(config.source), config.period)
+		result[key] = cache.getScalarSnapshot(key, current, currentOK)
+	}
+	for _, config := range r.requirements.variance {
+		key := r.snapshotKeys.variance[config]
+		current, currentOK := calculateVarianceValue(r.seriesForSource(config.source), config.period)
+		result[key] = cache.getScalarSnapshot(key, current, currentOK)
+	}
+	for _, config := range r.requirements.windows {
+		key := r.snapshotKeys.windows[config]
+		state := r.windowStates[config]
+		if config.function == "rising" || config.function == "falling" {
+			if state != nil && state.hasCurrent {
+				result[key] = state.boolCurrent
+			}
+			continue
+		}
+		if state != nil {
+			result[key] = cache.getWindowSnapshot(config, state.current, state.previous, state.hasCurrent, state.hasPrevious)
+		}
+	}
+	for _, config := range r.requirements.cum {
+		key := r.snapshotKeys.cum[config]
+		if state := r.cumStates[config]; state != nil {
+			result[key] = cache.getSeriesSnapshot(key, state.current, state.previous, state.hasCurrent, state.hasPrevious)
+		}
+	}
+	for _, config := range r.requirements.stoch {
+		key := r.snapshotKeys.stoch[config]
+		if state := r.stochStates[config]; state != nil {
+			result[key] = cache.getSeriesSnapshot(key, state.current, state.previous, state.hasCurrent, state.hasPrevious)
+		}
+	}
 	for _, period := range r.requirements.cci {
 		key := r.snapshotKeys.cci[period]
 		current, currentOK := r.cciSnapshotValue(period)
+		result[key] = cache.getScalarSnapshot(key, current, currentOK)
+	}
+	for _, config := range r.requirements.cciSource {
+		key := r.snapshotKeys.cciSource[config]
+		current, currentOK := calculateCCIFromValues(r.seriesForSource(config.source), config.period)
 		result[key] = cache.getScalarSnapshot(key, current, currentOK)
 	}
 	for _, period := range r.requirements.williamsR {
 		key := r.snapshotKeys.williamsR[period]
 		current, currentOK := r.williamsRSnapshotValue(period)
 		result[key] = cache.getScalarSnapshot(key, current, currentOK)
+	}
+	for _, config := range r.requirements.vwap {
+		key := r.snapshotKeys.vwap[config]
+		current, currentOK := calculateSessionVWAP(r.seriesForSource(config.source), r.volumes, r.endTimes)
+		result[key] = cache.getScalarSnapshot(key, current, currentOK)
+	}
+	for _, config := range r.requirements.mfi {
+		key := r.snapshotKeys.mfi[config]
+		current, currentOK := calculateMFIValue(r.seriesForSource(config.source), r.volumes, config.period)
+		result[key] = cache.getScalarSnapshot(key, current, currentOK)
+	}
+	for _, config := range r.requirements.dmi {
+		if snapshot := calculateDMISnapshot(r.highs, r.lows, r.closes, config); snapshot != nil {
+			result[r.snapshotKeys.dmi[config]] = snapshot
+		}
+	}
+	for _, config := range r.requirements.supertrend {
+		if snapshot := calculateSupertrendSnapshot(r.highs, r.lows, r.closes, config); snapshot != nil {
+			result[r.snapshotKeys.supertrend[config]] = snapshot
+		}
+	}
+	for _, config := range r.requirements.sar {
+		key := r.snapshotKeys.sar[config]
+		current, previous, currentOK, previousOK := calculateSARSnapshotValues(r.highs, r.lows, r.closes, config)
+		result[key] = cache.getSeriesSnapshot(key, current, previous, currentOK, previousOK)
 	}
 	for _, config := range r.requirements.stopLoss {
 		snapshot := buildStopLossSnapshotForSymbolWithOptionsAndCache(r.closes, r.endTimes, r.sessions, config, r.intervalMinutes, r.symbol, r.includeExtendedHours, cache)
@@ -915,13 +1090,13 @@ func (r *indicatorRuntime) snapshot() map[string]any {
 
 func buildSnapshotKeyCache(requirements indicatorRequirements) snapshotKeyCache {
 	cache := snapshotKeyCache{
-		resultCapacity: len(requirements.ma) + len(requirements.rsi) + len(requirements.macd) + len(requirements.bollinger) + len(requirements.kdj) + len(requirements.atr) + len(requirements.stdev) + len(requirements.cci) + len(requirements.williamsR) + len(requirements.stopLoss) + len(requirements.rsiDivergence) + len(requirements.macdDivergence) + len(requirements.kdjDivergence),
+		resultCapacity: len(requirements.ma) + len(requirements.securitySource) + len(requirements.rsi) + len(requirements.rsiSource) + len(requirements.macd) + len(requirements.bollinger) + len(requirements.kdj) + len(requirements.atr) + len(requirements.stdev) + len(requirements.stdevSource) + len(requirements.variance) + len(requirements.windows) + len(requirements.cum) + len(requirements.stoch) + len(requirements.cci) + len(requirements.cciSource) + len(requirements.williamsR) + len(requirements.vwap) + len(requirements.mfi) + len(requirements.dmi) + len(requirements.supertrend) + len(requirements.sar) + len(requirements.stopLoss) + len(requirements.rsiDivergence) + len(requirements.macdDivergence) + len(requirements.kdjDivergence),
 	}
 	if len(requirements.ma) > 0 {
 		cache.ma = make(map[movingAverageConfig]string, len(requirements.ma))
 		for _, config := range requirements.ma {
 			cache.ma[config] = maIndicatorKey(config)
-			if config.averageType == "MA" && normalizeIndicatorTimeUnit(config.timeUnit) == "" {
+			if config.averageType == "MA" && normalizeIndicatorTimeUnit(config.timeUnit) == "" && normalizeSourceOrClose(config.source) == "close" {
 				if cache.maLegacy == nil {
 					cache.maLegacy = make(map[movingAverageConfig]string)
 				}
@@ -930,10 +1105,22 @@ func buildSnapshotKeyCache(requirements indicatorRequirements) snapshotKeyCache 
 			}
 		}
 	}
+	if len(requirements.securitySource) > 0 {
+		cache.securitySource = make(map[securitySourceConfig]string, len(requirements.securitySource))
+		for _, config := range requirements.securitySource {
+			cache.securitySource[config] = securitySourceIndicatorKey(config)
+		}
+	}
 	if len(requirements.rsi) > 0 {
 		cache.rsi = make(map[int]string, len(requirements.rsi))
 		for _, period := range requirements.rsi {
 			cache.rsi[period] = rsiIndicatorKey(period)
+		}
+	}
+	if len(requirements.rsiSource) > 0 {
+		cache.rsiSource = make(map[sourcePeriodConfig]string, len(requirements.rsiSource))
+		for _, config := range requirements.rsiSource {
+			cache.rsiSource[config] = sourcePeriodIndicatorKey("rsi", config, "close")
 		}
 	}
 	if len(requirements.macd) > 0 {
@@ -966,16 +1153,82 @@ func buildSnapshotKeyCache(requirements indicatorRequirements) snapshotKeyCache 
 			cache.stdev[period] = stdevIndicatorKey(period)
 		}
 	}
+	if len(requirements.stdevSource) > 0 {
+		cache.stdevSource = make(map[sourcePeriodConfig]string, len(requirements.stdevSource))
+		for _, config := range requirements.stdevSource {
+			cache.stdevSource[config] = sourcePeriodIndicatorKey("stdev", config, "close")
+		}
+	}
+	if len(requirements.variance) > 0 {
+		cache.variance = make(map[sourcePeriodConfig]string, len(requirements.variance))
+		for _, config := range requirements.variance {
+			cache.variance[config] = varianceIndicatorKey(config)
+		}
+	}
+	if len(requirements.windows) > 0 {
+		cache.windows = make(map[windowConfig]string, len(requirements.windows))
+		for _, config := range requirements.windows {
+			cache.windows[config] = windowIndicatorKey(config)
+		}
+	}
+	if len(requirements.cum) > 0 {
+		cache.cum = make(map[sourceConfig]string, len(requirements.cum))
+		for _, config := range requirements.cum {
+			cache.cum[config] = sourceIndicatorKey("cum", config)
+		}
+	}
+	if len(requirements.stoch) > 0 {
+		cache.stoch = make(map[sourcePeriodConfig]string, len(requirements.stoch))
+		for _, config := range requirements.stoch {
+			cache.stoch[config] = stochIndicatorKey(config)
+		}
+	}
 	if len(requirements.cci) > 0 {
 		cache.cci = make(map[int]string, len(requirements.cci))
 		for _, period := range requirements.cci {
 			cache.cci[period] = cciIndicatorKey(period)
 		}
 	}
+	if len(requirements.cciSource) > 0 {
+		cache.cciSource = make(map[sourcePeriodConfig]string, len(requirements.cciSource))
+		for _, config := range requirements.cciSource {
+			cache.cciSource[config] = sourcePeriodIndicatorKey("cci", config, "hlc3")
+		}
+	}
 	if len(requirements.williamsR) > 0 {
 		cache.williamsR = make(map[int]string, len(requirements.williamsR))
 		for _, period := range requirements.williamsR {
 			cache.williamsR[period] = williamsRIndicatorKey(period)
+		}
+	}
+	if len(requirements.vwap) > 0 {
+		cache.vwap = make(map[sourceConfig]string, len(requirements.vwap))
+		for _, config := range requirements.vwap {
+			cache.vwap[config] = sourceIndicatorKey("vwap", config)
+		}
+	}
+	if len(requirements.mfi) > 0 {
+		cache.mfi = make(map[sourcePeriodConfig]string, len(requirements.mfi))
+		for _, config := range requirements.mfi {
+			cache.mfi[config] = "mfi:" + normalizeSourceOrClose(config.source) + ":" + strconv.Itoa(config.period)
+		}
+	}
+	if len(requirements.dmi) > 0 {
+		cache.dmi = make(map[dmiConfig]string, len(requirements.dmi))
+		for _, config := range requirements.dmi {
+			cache.dmi[config] = dmiIndicatorKey(config)
+		}
+	}
+	if len(requirements.supertrend) > 0 {
+		cache.supertrend = make(map[supertrendConfig]string, len(requirements.supertrend))
+		for _, config := range requirements.supertrend {
+			cache.supertrend[config] = supertrendIndicatorKey(config)
+		}
+	}
+	if len(requirements.sar) > 0 {
+		cache.sar = make(map[sarConfig]string, len(requirements.sar))
+		for _, config := range requirements.sar {
+			cache.sar[config] = sarIndicatorKey(config)
 		}
 	}
 	if len(requirements.stopLoss) > 0 {
@@ -1006,7 +1259,7 @@ func buildSnapshotKeyCache(requirements indicatorRequirements) snapshotKeyCache 
 }
 
 func collectTradingPeriodUnits(requirements indicatorRequirements, intervalMinutes int, symbol string, includeExtendedHours bool) []string {
-	if len(requirements.ma) == 0 || strings.TrimSpace(symbol) == "" {
+	if (len(requirements.ma) == 0 && len(requirements.securitySource) == 0) || strings.TrimSpace(symbol) == "" {
 		return nil
 	}
 	dayMinutes, ok := market.TradingMinutesPerTradingDay(symbol, includeExtendedHours)
@@ -1016,6 +1269,19 @@ func collectTradingPeriodUnits(requirements indicatorRequirements, intervalMinut
 	units := make([]string, 0, 3)
 	seen := map[string]struct{}{}
 	for _, config := range requirements.ma {
+		unit := normalizeIndicatorTimeUnit(config.timeUnit)
+		switch unit {
+		case "day", "week", "month":
+		default:
+			continue
+		}
+		if _, ok := seen[unit]; ok {
+			continue
+		}
+		seen[unit] = struct{}{}
+		units = append(units, unit)
+	}
+	for _, config := range requirements.securitySource {
 		unit := normalizeIndicatorTimeUnit(config.timeUnit)
 		switch unit {
 		case "day", "week", "month":
@@ -1065,6 +1331,38 @@ func trimInt64SeriesInPlace(values []int64, limit int) []int64 {
 	start := len(values) - limit
 	copy(values, values[start:])
 	return values[:limit]
+}
+
+func (r *indicatorRuntime) oldSourceValuesAt(index int) map[string]float64 {
+	values := map[string]float64{}
+	if r == nil || index < 0 {
+		return values
+	}
+	if index < len(r.opens) {
+		values["open"] = r.opens[index]
+	}
+	if index < len(r.highs) {
+		values["high"] = r.highs[index]
+	}
+	if index < len(r.lows) {
+		values["low"] = r.lows[index]
+	}
+	if index < len(r.closes) {
+		values["close"] = r.closes[index]
+	}
+	if index < len(r.volumes) {
+		values["volume"] = r.volumes[index]
+	}
+	if index < len(r.highs) && index < len(r.lows) {
+		values["hl2"] = (r.highs[index] + r.lows[index]) / 2
+	}
+	if index < len(r.highs) && index < len(r.lows) && index < len(r.closes) {
+		values["hlc3"] = (r.highs[index] + r.lows[index] + r.closes[index]) / 3
+	}
+	if index < len(r.opens) && index < len(r.highs) && index < len(r.lows) && index < len(r.closes) {
+		values["ohlc4"] = (r.opens[index] + r.highs[index] + r.lows[index] + r.closes[index]) / 4
+	}
+	return values
 }
 
 func trimWindowValuesInPlace(values []windowValue, windowStart int) []windowValue {
@@ -1192,6 +1490,359 @@ func (w *rollingFloatWindow) at(offset int) (float64, bool) {
 	return w.values[index], true
 }
 
+func (s *rollingWindowState) push(value float64) {
+	if s == nil || s.config.period <= 0 {
+		return
+	}
+	function := normalizeWindowFunction(s.config.function)
+	capacity := s.config.period
+	switch function {
+	case "change", "mom", "roc", "rising", "falling":
+		capacity = s.config.period + 1
+	}
+	s.values.push(value, capacity)
+	switch function {
+	case "highest":
+		s.pushNumeric(s.calculateHighest())
+	case "lowest":
+		s.pushNumeric(s.calculateLowest())
+	case "sum":
+		s.pushNumeric(s.calculateSum())
+	case "change", "mom":
+		s.pushNumeric(s.calculateMomentum())
+	case "roc":
+		s.pushNumeric(s.calculateRateOfChange())
+	case "rising":
+		s.pushBool(s.calculateRising())
+	case "falling":
+		s.pushBool(s.calculateFalling())
+	}
+}
+
+func (s *rollingWindowState) pushNumeric(value float64, ok bool) {
+	if s == nil {
+		return
+	}
+	if !ok {
+		s.hasCurrent = false
+		return
+	}
+	if s.hasCurrent {
+		s.previous = s.current
+		s.hasPrevious = true
+	}
+	s.current = value
+	s.hasCurrent = true
+}
+
+func (s *rollingWindowState) pushBool(value bool, ok bool) {
+	if s == nil {
+		return
+	}
+	if !ok {
+		s.hasCurrent = false
+		return
+	}
+	s.boolCurrent = value
+	s.hasCurrent = true
+}
+
+func (s *rollingWindowState) calculateSum() (float64, bool) {
+	if s == nil || s.values.len() < s.config.period {
+		return 0, false
+	}
+	total := 0.0
+	for index := 0; index < s.values.len(); index++ {
+		value, _ := s.values.at(index)
+		total += value
+	}
+	return total, true
+}
+
+func (s *rollingWindowState) calculateHighest() (float64, bool) {
+	if s == nil || s.values.len() < s.config.period {
+		return 0, false
+	}
+	value, _ := s.values.at(0)
+	for index := 1; index < s.values.len(); index++ {
+		next, _ := s.values.at(index)
+		value = maxFloat(value, next)
+	}
+	return value, true
+}
+
+func (s *rollingWindowState) calculateLowest() (float64, bool) {
+	if s == nil || s.values.len() < s.config.period {
+		return 0, false
+	}
+	value, _ := s.values.at(0)
+	for index := 1; index < s.values.len(); index++ {
+		next, _ := s.values.at(index)
+		value = minFloat(value, next)
+	}
+	return value, true
+}
+
+func (s *rollingWindowState) calculateMomentum() (float64, bool) {
+	if s == nil || s.values.len() < s.config.period+1 {
+		return 0, false
+	}
+	base, _ := s.values.at(0)
+	current, _ := s.values.last()
+	return current - base, true
+}
+
+func (s *rollingWindowState) calculateRateOfChange() (float64, bool) {
+	baseChange, ok := s.calculateMomentum()
+	if !ok {
+		return 0, false
+	}
+	base, _ := s.values.at(0)
+	if base == 0 {
+		return 0, false
+	}
+	return baseChange / base * 100, true
+}
+
+func (s *rollingWindowState) calculateRising() (bool, bool) {
+	if s == nil || s.values.len() < s.config.period+1 {
+		return false, false
+	}
+	current, _ := s.values.last()
+	for index := 0; index < s.values.len()-1; index++ {
+		previous, _ := s.values.at(index)
+		if current <= previous {
+			return false, true
+		}
+	}
+	return true, true
+}
+
+func (s *rollingWindowState) calculateFalling() (bool, bool) {
+	if s == nil || s.values.len() < s.config.period+1 {
+		return false, false
+	}
+	current, _ := s.values.last()
+	for index := 0; index < s.values.len()-1; index++ {
+		previous, _ := s.values.at(index)
+		if current >= previous {
+			return false, true
+		}
+	}
+	return true, true
+}
+
+func (s *rollingCumState) push(value float64) {
+	if s == nil {
+		return
+	}
+	if s.hasCurrent {
+		s.previous = s.current
+		s.hasPrevious = true
+	}
+	s.current += value
+	s.hasCurrent = true
+}
+
+func (s *rollingStochState) push(high, low, sourceValue float64) {
+	if s == nil || s.period <= 0 {
+		return
+	}
+	windowStart := s.index - s.period + 1
+	s.highDeque.popExpired(windowStart)
+	s.lowDeque.popExpired(windowStart)
+	s.highDeque.pushMax(s.index, high)
+	s.lowDeque.pushMin(s.index, low)
+	s.index++
+	if s.index < s.period {
+		s.hasCurrent = false
+		return
+	}
+	highestHigh, _ := s.highDeque.frontValue()
+	lowestLow, _ := s.lowDeque.frontValue()
+	if s.hasCurrent {
+		s.previous = s.current
+		s.hasPrevious = true
+	}
+	if highestHigh == lowestLow {
+		s.current = 50
+		s.hasCurrent = true
+		return
+	}
+	s.current = 100 * (sourceValue - lowestLow) / (highestHigh - lowestLow)
+	s.hasCurrent = true
+}
+
+func ohlcvSourceValue(source string, openValue, high, low, closeValue, volume float64) (float64, bool) {
+	switch strings.ToLower(strings.TrimSpace(source)) {
+	case "open":
+		return openValue, true
+	case "high":
+		return high, true
+	case "low":
+		return low, true
+	case "close":
+		return closeValue, true
+	case "volume":
+		return volume, true
+	case "hl2":
+		return (high + low) / 2, true
+	case "hlc3":
+		return (high + low + closeValue) / 3, true
+	case "ohlc4":
+		return (openValue + high + low + closeValue) / 4, true
+	default:
+		return 0, false
+	}
+}
+
+func calculateTradingPeriodSourceSnapshot(opens, highs, lows, closes, volumes []float64, labelKeys []int64, source string) (float64, float64, bool, bool) {
+	return calculateTradingPeriodSourceSnapshotWithLookback(opens, highs, lows, closes, volumes, labelKeys, source, 0)
+}
+
+func calculateTradingPeriodSourceSnapshotWithLookback(opens, highs, lows, closes, volumes []float64, labelKeys []int64, source string, lookback int) (float64, float64, bool, bool) {
+	if len(closes) == 0 || len(labelKeys) == 0 {
+		return 0, 0, false, false
+	}
+	limit := min(len(closes), len(labelKeys))
+	orderedKeys := make([]int64, 0, lookback+2)
+	seen := map[int64]struct{}{}
+	for index := limit - 1; index >= 0; index-- {
+		key := labelKeys[index]
+		if key == invalidTradingPeriodLabelKey {
+			continue
+		}
+		if _, ok := seen[key]; ok {
+			continue
+		}
+		seen[key] = struct{}{}
+		orderedKeys = append(orderedKeys, key)
+		if len(orderedKeys) >= lookback+2 {
+			break
+		}
+	}
+	if lookback < 0 || len(orderedKeys) <= lookback {
+		return 0, 0, false, false
+	}
+	currentKey := orderedKeys[lookback]
+	currentStart, currentEnd := periodBoundsForKey(labelKeys, currentKey, limit)
+	current, currentOK := aggregateSourceWindow(opens, highs, lows, closes, volumes, currentStart, currentEnd, source)
+	if len(orderedKeys) <= lookback+1 {
+		return current, 0, currentOK, false
+	}
+	previousKey := orderedKeys[lookback+1]
+	previousStart, previousEnd := periodBoundsForKey(labelKeys, previousKey, currentStart)
+	previous, previousOK := aggregateSourceWindow(opens, highs, lows, closes, volumes, previousStart, previousEnd, source)
+	return current, previous, currentOK, previousOK
+}
+
+func periodBoundsForKey(labelKeys []int64, key int64, upperBound int) (int, int) {
+	limit := min(upperBound, len(labelKeys))
+	start := limit
+	end := limit
+	hasEnd := false
+	for index := limit - 1; index >= 0; index-- {
+		if labelKeys[index] != key {
+			if hasEnd {
+				break
+			}
+			continue
+		}
+		if !hasEnd {
+			end = index + 1
+			hasEnd = true
+		}
+		start = index
+	}
+	if start == limit {
+		return 0, 0
+	}
+	return start, end
+}
+
+func aggregateSourceWindow(opens, highs, lows, closes, volumes []float64, start, end int, source string) (float64, bool) {
+	limit := min(len(opens), len(highs), len(lows), len(closes), len(volumes))
+	if limit == 0 {
+		return 0, false
+	}
+	start = max(start, 0)
+	end = min(end, limit)
+	if start >= end {
+		return 0, false
+	}
+	openValue := opens[start]
+	highValue := highs[start]
+	lowValue := lows[start]
+	closeValue := closes[end-1]
+	volumeValue := 0.0
+	for index := start; index < end; index++ {
+		highValue = max(highValue, highs[index])
+		lowValue = min(lowValue, lows[index])
+		volumeValue += volumes[index]
+	}
+	return ohlcvSourceValue(source, openValue, highValue, lowValue, closeValue, volumeValue)
+}
+
+func aggregateFixedBarSeries(opens, highs, lows, closes, volumes []float64, windowBars int, source string) ([]float64, []float64, bool) {
+	limit := min(len(opens), len(highs), len(lows), len(closes), len(volumes))
+	if limit == 0 || windowBars <= 0 {
+		return nil, nil, false
+	}
+	values := make([]float64, 0, int(math.Ceil(float64(limit)/float64(windowBars))))
+	aggregatedVolumes := make([]float64, 0, cap(values))
+	for start := 0; start < limit; start += windowBars {
+		end := min(start+windowBars, limit)
+		value, ok := aggregateSourceWindow(opens, highs, lows, closes, volumes, start, end, source)
+		if !ok {
+			continue
+		}
+		volume, volumeOK := aggregateSourceWindow(opens, highs, lows, closes, volumes, start, end, "volume")
+		if !volumeOK {
+			volume = 0
+		}
+		values = append(values, value)
+		aggregatedVolumes = append(aggregatedVolumes, volume)
+	}
+	return values, aggregatedVolumes, len(values) > 0
+}
+
+func aggregateTimeBucketSeries(opens, highs, lows, closes, volumes []float64, endTimes []time.Time, targetMinutes int, source string) ([]float64, []float64, bool) {
+	limit := min(len(opens), len(highs), len(lows), len(closes), len(volumes), len(endTimes))
+	if limit == 0 || targetMinutes <= 0 {
+		return nil, nil, false
+	}
+	values := make([]float64, 0)
+	aggregatedVolumes := make([]float64, 0)
+	bucketStart := 0
+	currentBucket := timeframeBucketKey(endTimes[0], targetMinutes)
+	for index := 1; index <= limit; index++ {
+		if index < limit && timeframeBucketKey(endTimes[index], targetMinutes) == currentBucket {
+			continue
+		}
+		value, ok := aggregateSourceWindow(opens, highs, lows, closes, volumes, bucketStart, index, source)
+		if ok {
+			volume, volumeOK := aggregateSourceWindow(opens, highs, lows, closes, volumes, bucketStart, index, "volume")
+			if !volumeOK {
+				volume = 0
+			}
+			values = append(values, value)
+			aggregatedVolumes = append(aggregatedVolumes, volume)
+		}
+		if index < limit {
+			bucketStart = index
+			currentBucket = timeframeBucketKey(endTimes[index], targetMinutes)
+		}
+	}
+	return values, aggregatedVolumes, len(values) > 0
+}
+
+func timeframeBucketKey(value time.Time, targetMinutes int) int64 {
+	if targetMinutes <= 0 {
+		return value.Unix()
+	}
+	return value.Unix() / int64(targetMinutes*60)
+}
+
 func appendTailValue(values []float64, value float64, limit int) []float64 {
 	if limit <= 0 {
 		return values[:0]
@@ -1279,6 +1930,9 @@ func newRollingMovingAverageStates(requirements indicatorRequirements, intervalM
 	}
 	states := map[movingAverageConfig]*rollingMovingAverageSnapshotState{}
 	for _, config := range requirements.ma {
+		if isNumericMinuteTimeUnit(config.timeUnit) {
+			continue
+		}
 		resolved := config
 		resolved.period = resolveBarCount(config.period, config.timeUnit, intervalMinutes)
 		resolved.timeUnit = ""
@@ -1303,6 +1957,9 @@ func newRollingEMAStates(requirements indicatorRequirements, intervalMinutes int
 	}
 	states := map[movingAverageConfig]*rollingEMATailState{}
 	for _, config := range requirements.ma {
+		if isNumericMinuteTimeUnit(config.timeUnit) {
+			continue
+		}
 		kind := normalizeMovingAverageType(config.averageType)
 		if kind != "EMA" && kind != "EXPMA" {
 			continue
@@ -1987,6 +2644,65 @@ func newRollingStdDevStates(requirements indicatorRequirements) map[int]*rolling
 	return states
 }
 
+func newRollingWindowStates(requirements indicatorRequirements) map[windowConfig]*rollingWindowState {
+	if len(requirements.windows) == 0 {
+		return nil
+	}
+	states := make(map[windowConfig]*rollingWindowState, len(requirements.windows))
+	for _, config := range requirements.windows {
+		if config.period <= 0 || normalizeWindowFunction(config.function) == "" {
+			continue
+		}
+		if _, ok := parseOHLCVSource(config.source); !ok {
+			continue
+		}
+		resolved := config
+		resolved.function = normalizeWindowFunction(config.function)
+		resolved.source, _ = parseOHLCVSource(config.source)
+		states[config] = &rollingWindowState{config: resolved}
+	}
+	if len(states) == 0 {
+		return nil
+	}
+	return states
+}
+
+func newRollingCumStates(requirements indicatorRequirements) map[sourceConfig]*rollingCumState {
+	if len(requirements.cum) == 0 {
+		return nil
+	}
+	states := make(map[sourceConfig]*rollingCumState, len(requirements.cum))
+	for _, config := range requirements.cum {
+		if _, ok := parseOHLCVSource(config.source); !ok {
+			continue
+		}
+		states[config] = &rollingCumState{}
+	}
+	if len(states) == 0 {
+		return nil
+	}
+	return states
+}
+
+func newRollingStochStates(requirements indicatorRequirements) map[sourcePeriodConfig]*rollingStochState {
+	if len(requirements.stoch) == 0 {
+		return nil
+	}
+	states := make(map[sourcePeriodConfig]*rollingStochState, len(requirements.stoch))
+	for _, config := range requirements.stoch {
+		source, ok := parseOHLCVSource(config.source)
+		if !ok || source == "volume" || config.period <= 0 {
+			continue
+		}
+		resolved := sourcePeriodConfig{source: source, period: config.period}
+		states[resolved] = &rollingStochState{source: source, period: config.period}
+	}
+	if len(states) == 0 {
+		return nil
+	}
+	return states
+}
+
 func newRollingBollingerStates(requirements indicatorRequirements) map[bollingerConfig]*rollingBollingerState {
 	if len(requirements.bollinger) == 0 {
 		return nil
@@ -2038,21 +2754,30 @@ func (r *indicatorRuntime) pushRSIStates(closeValue, previousClose float64, hasP
 	}
 }
 
-func (r *indicatorRuntime) pushMovingAverageStates(closeValue, volume float64) {
+func (r *indicatorRuntime) pushMovingAverageStates(openValue, high, low, closeValue, volume float64) {
 	if r == nil || len(r.maStates) == 0 {
 		return
 	}
-	for _, state := range r.maStates {
-		state.push(closeValue, volume)
+	for config, state := range r.maStates {
+		value, ok := ohlcvSourceValue(normalizeSourceOrClose(config.source), openValue, high, low, closeValue, volume)
+		if !ok {
+			continue
+		}
+		state.push(value, volume)
 	}
 }
 
-func (r *indicatorRuntime) pushEMAStates(closeValue float64, trimmed bool, oldFirstClose, oldSecondClose float64, hasOldFirstClose, hasOldSecondClose bool) {
+func (r *indicatorRuntime) pushEMAStates(openValue, high, low, closeValue, volume float64, trimmed bool, oldFirst, oldSecond map[string]float64, hasOldFirst, hasOldSecond bool) {
 	if r == nil || len(r.emaStates) == 0 {
 		return
 	}
-	for _, state := range r.emaStates {
-		state.push(closeValue, trimmed, oldFirstClose, oldSecondClose, hasOldFirstClose, hasOldSecondClose)
+	for config, state := range r.emaStates {
+		source := normalizeSourceOrClose(config.source)
+		value, ok := ohlcvSourceValue(source, openValue, high, low, closeValue, volume)
+		if !ok {
+			continue
+		}
+		state.push(value, trimmed, oldFirst[source], oldSecond[source], hasOldFirst, hasOldSecond)
 	}
 }
 
@@ -2089,6 +2814,45 @@ func (r *indicatorRuntime) pushStdDevStates(closeValue float64) {
 	}
 	for _, state := range r.stdevStates {
 		state.push(closeValue)
+	}
+}
+
+func (r *indicatorRuntime) pushWindowStates(openValue, high, low, closeValue, volume float64) {
+	if r == nil || len(r.windowStates) == 0 {
+		return
+	}
+	for _, state := range r.windowStates {
+		value, ok := ohlcvSourceValue(state.config.source, openValue, high, low, closeValue, volume)
+		if !ok {
+			continue
+		}
+		state.push(value)
+	}
+}
+
+func (r *indicatorRuntime) pushCumStates(openValue, high, low, closeValue, volume float64) {
+	if r == nil || len(r.cumStates) == 0 {
+		return
+	}
+	for config, state := range r.cumStates {
+		value, ok := ohlcvSourceValue(config.source, openValue, high, low, closeValue, volume)
+		if !ok {
+			continue
+		}
+		state.push(value)
+	}
+}
+
+func (r *indicatorRuntime) pushStochStates(openValue, high, low, closeValue, volume float64) {
+	if r == nil || len(r.stochStates) == 0 {
+		return
+	}
+	for config, state := range r.stochStates {
+		sourceValue, ok := ohlcvSourceValue(config.source, openValue, high, low, closeValue, volume)
+		if !ok {
+			continue
+		}
+		state.push(high, low, sourceValue)
 	}
 }
 
@@ -2151,6 +2915,16 @@ func (r *indicatorRuntime) movingAverageSnapshot(config movingAverageConfig, cac
 	if usesTradingPeriodWindow(config.timeUnit, r.intervalMinutes, r.symbol, r.endTimes, r.includeExtendedHours) {
 		return r.movingAverageSnapshotForTradingWindow(config, cache)
 	}
+	if usesFixedIntradayTimeframe(config.timeUnit, r.intervalMinutes) {
+		values, volumes, ok := r.fixedTimeframeSeries(config.timeUnit, config.source)
+		if !ok {
+			return nil
+		}
+		effectiveConfig := config
+		effectiveConfig.timeUnit = ""
+		current, previous, currentOK, previousOK := calculateMovingAverageSnapshotValues(values, volumes, effectiveConfig)
+		return cache.getMovingAverageSnapshot(config, current, previous, currentOK, previousOK)
+	}
 	if state, ok := r.emaStates[config]; ok {
 		current, previous, currentOK, previousOK := state.snapshotValues()
 		return cache.getMovingAverageSnapshot(config, current, previous, currentOK, previousOK)
@@ -2161,7 +2935,7 @@ func (r *indicatorRuntime) movingAverageSnapshot(config movingAverageConfig, cac
 	effectiveConfig := config
 	effectiveConfig.period = resolveBarCount(config.period, config.timeUnit, r.intervalMinutes)
 	effectiveConfig.timeUnit = ""
-	current, previous, currentOK, previousOK := calculateMovingAverageSnapshotValuesWithCache(r.closes, r.volumes, effectiveConfig, cache)
+	current, previous, currentOK, previousOK := calculateMovingAverageSnapshotValuesWithCache(r.seriesForSource(config.source), r.volumes, effectiveConfig, cache)
 	return cache.getMovingAverageSnapshot(config, current, previous, currentOK, previousOK)
 }
 
@@ -2171,15 +2945,134 @@ func (r *indicatorRuntime) movingAverageSnapshotForTradingWindow(config movingAv
 	}
 	unit := normalizeIndicatorTimeUnit(config.timeUnit)
 	labelKeys := r.tradingPeriodLabels[unit]
+	values := r.seriesForSource(config.source)
 	if len(labelKeys) == len(r.endTimes) && len(labelKeys) > 0 {
-		if current, previous, currentOK, previousOK, handled := calculateTradingWindowMovingAverageSnapshotFromKeys(r.closes, r.volumes, labelKeys, config); handled {
+		if current, previous, currentOK, previousOK, handled := calculateTradingWindowMovingAverageSnapshotFromKeys(values, r.volumes, labelKeys, config); handled {
 			if !currentOK {
 				return nil
 			}
 			return cache.getMovingAverageSnapshot(config, current, previous, currentOK, previousOK)
 		}
 	}
-	return buildMovingAverageSnapshotForTradingWindow(r.closes, r.volumes, r.endTimes, config, r.symbol, r.includeExtendedHours, cache)
+	return buildMovingAverageSnapshotForTradingWindow(values, r.volumes, r.endTimes, config, r.symbol, r.includeExtendedHours, cache)
+}
+
+func (r *indicatorRuntime) seriesForSource(source string) []float64 {
+	if r == nil {
+		return nil
+	}
+	switch normalizeSourceOrClose(source) {
+	case "open":
+		return r.opens
+	case "high":
+		return r.highs
+	case "low":
+		return r.lows
+	case "volume":
+		return r.volumes
+	case "hl2":
+		return derivedSeriesHL2(r.highs, r.lows)
+	case "hlc3":
+		return derivedSeriesHLC3(r.highs, r.lows, r.closes)
+	case "ohlc4":
+		return derivedSeriesOHLC4(r.opens, r.highs, r.lows, r.closes)
+	default:
+		return r.closes
+	}
+}
+
+func (r *indicatorRuntime) securitySourceSnapshotValues(config securitySourceConfig, cache *snapshotSeriesCache) (float64, float64, bool, bool) {
+	if r == nil || len(r.closes) == 0 {
+		return 0, 0, false, false
+	}
+	if usesTradingPeriodWindow(config.timeUnit, r.intervalMinutes, r.symbol, r.endTimes, r.includeExtendedHours) {
+		labelKeys := r.tradingPeriodLabels[normalizeIndicatorTimeUnit(config.timeUnit)]
+		if len(labelKeys) != len(r.endTimes) || len(labelKeys) == 0 {
+			if cache != nil {
+				labelKeys = cache.getTradingPeriodLabels(r.endTimes, r.symbol, config.timeUnit, r.includeExtendedHours)
+			} else {
+				labelKeys = buildTradingPeriodLabels(nil, r.endTimes, r.symbol, config.timeUnit, r.includeExtendedHours)
+			}
+		}
+		return calculateTradingPeriodSourceSnapshotWithLookback(r.opens, r.highs, r.lows, r.closes, r.volumes, labelKeys, config.source, config.lookback)
+	}
+	if usesFixedIntradayTimeframe(config.timeUnit, r.intervalMinutes) {
+		values, _, ok := r.fixedTimeframeSeries(config.timeUnit, config.source)
+		if !ok || len(values) == 0 {
+			return 0, 0, false, false
+		}
+		currentIndex := len(values) - 1 - config.lookback
+		if currentIndex < 0 {
+			return 0, 0, false, false
+		}
+		current := values[currentIndex]
+		previousIndex := currentIndex - 1
+		if previousIndex < 0 {
+			return current, 0, true, false
+		}
+		return current, values[previousIndex], true, true
+	}
+	windowBars := resolveBarCount(1, config.timeUnit, r.intervalMinutes)
+	currentEnd := max(len(r.closes)-windowBars*config.lookback, 0)
+	currentStart := max(currentEnd-windowBars, 0)
+	current, currentOK := aggregateSourceWindow(r.opens, r.highs, r.lows, r.closes, r.volumes, currentStart, currentEnd, config.source)
+	previousEnd := currentStart
+	previousStart := max(previousEnd-windowBars, 0)
+	previous, previousOK := aggregateSourceWindow(r.opens, r.highs, r.lows, r.closes, r.volumes, previousStart, previousEnd, config.source)
+	return current, previous, currentOK, previousOK
+}
+
+func (r *indicatorRuntime) fixedTimeframeSeries(timeUnit string, source string) ([]float64, []float64, bool) {
+	if r == nil {
+		return nil, nil, false
+	}
+	targetMinutes, ok := indicatorTimeUnitMinutes(timeUnit)
+	if !ok || r.intervalMinutes <= 0 || targetMinutes < r.intervalMinutes || targetMinutes%r.intervalMinutes != 0 {
+		return nil, nil, false
+	}
+	if targetMinutes == r.intervalMinutes {
+		return r.seriesForSource(source), r.volumes, len(r.closes) > 0
+	}
+	if !hasUsableEndTimes(r.endTimes) {
+		return aggregateFixedBarSeries(r.opens, r.highs, r.lows, r.closes, r.volumes, targetMinutes/r.intervalMinutes, source)
+	}
+	return aggregateTimeBucketSeries(r.opens, r.highs, r.lows, r.closes, r.volumes, r.endTimes, targetMinutes, source)
+}
+
+func hasUsableEndTimes(values []time.Time) bool {
+	for _, value := range values {
+		if !value.IsZero() {
+			return true
+		}
+	}
+	return false
+}
+
+func derivedSeriesHL2(highs, lows []float64) []float64 {
+	limit := min(len(highs), len(lows))
+	values := make([]float64, limit)
+	for index := 0; index < limit; index++ {
+		values[index] = (highs[index] + lows[index]) / 2
+	}
+	return values
+}
+
+func derivedSeriesHLC3(highs, lows, closes []float64) []float64 {
+	limit := min(len(highs), len(lows), len(closes))
+	values := make([]float64, limit)
+	for index := 0; index < limit; index++ {
+		values[index] = (highs[index] + lows[index] + closes[index]) / 3
+	}
+	return values
+}
+
+func derivedSeriesOHLC4(opens, highs, lows, closes []float64) []float64 {
+	limit := min(len(opens), len(highs), len(lows), len(closes))
+	values := make([]float64, limit)
+	for index := 0; index < limit; index++ {
+		values[index] = (opens[index] + highs[index] + lows[index] + closes[index]) / 4
+	}
+	return values
 }
 
 func (r *indicatorRuntime) appendTradingPeriodLabels(endTime time.Time) {
@@ -3508,6 +4401,26 @@ func usesTradingPeriodWindow(timeUnit string, intervalMinutes int, symbol string
 	return intervalMinutes > 0 && intervalMinutes < dayMinutes
 }
 
+func usesFixedIntradayTimeframe(timeUnit string, intervalMinutes int) bool {
+	if !isNumericMinuteTimeUnit(timeUnit) {
+		return false
+	}
+	minutes, ok := indicatorTimeUnitMinutes(timeUnit)
+	if !ok || intervalMinutes <= 0 {
+		return false
+	}
+	return minutes >= intervalMinutes && minutes%intervalMinutes == 0
+}
+
+func isNumericMinuteTimeUnit(timeUnit string) bool {
+	normalized := normalizeIndicatorTimeUnit(timeUnit)
+	if !strings.HasSuffix(normalized, "m") {
+		return false
+	}
+	_, err := strconv.Atoi(strings.TrimSuffix(normalized, "m"))
+	return err == nil
+}
+
 func snapshotValueToMap(snapshot any, keys [2]string) map[string]any {
 	if snapshot == nil {
 		return nil
@@ -3957,6 +4870,9 @@ func calculateIndicatorSeriesLimit(requirements indicatorRequirements, intervalM
 	for _, config := range requirements.ma {
 		limit = max(limit, resolveBarCount(config.period, config.timeUnit, intervalMinutes)+1)
 	}
+	for _, config := range requirements.securitySource {
+		limit = max(limit, resolveBarCount(config.lookback+2, config.timeUnit, intervalMinutes)+1)
+	}
 	for _, period := range requirements.rsi {
 		limit = max(limit, period+1)
 	}
@@ -3969,6 +4885,15 @@ func calculateIndicatorSeriesLimit(requirements indicatorRequirements, intervalM
 	for _, period := range requirements.stdev {
 		limit = max(limit, period+1)
 	}
+	for _, config := range requirements.windows {
+		limit = max(limit, config.period+2)
+	}
+	if len(requirements.cum) > 0 {
+		limit = max(limit, 2)
+	}
+	for _, config := range requirements.stoch {
+		limit = max(limit, config.period+1)
+	}
 	for _, config := range requirements.kdj {
 		limit = max(limit, config.period+config.m1+config.m2+1)
 	}
@@ -3980,6 +4905,9 @@ func calculateIndicatorSeriesLimit(requirements indicatorRequirements, intervalM
 	}
 	for _, period := range requirements.williamsR {
 		limit = max(limit, period+1)
+	}
+	if len(requirements.sar) > 0 {
+		limit = max(limit, 3)
 	}
 	for _, config := range requirements.stopLoss {
 		limit = max(limit, resolveBarCount(config.timeValue, config.timeUnit, intervalMinutes)+1)
@@ -4223,6 +5151,24 @@ func calculateSMMASequence(values []float64, period int) []float64 {
 	return result
 }
 
+func calculateRMASequence(values []float64, period int) []float64 {
+	if period <= 0 || len(values) < period {
+		return nil
+	}
+	first, ok := simpleMovingAverage(values[:period], period)
+	if !ok {
+		return nil
+	}
+	result := make([]float64, 0, len(values)-period+1)
+	result = append(result, first)
+	previous := first
+	for index := period; index < len(values); index++ {
+		previous = (previous*float64(period-1) + values[index]) / float64(period)
+		result = append(result, previous)
+	}
+	return result
+}
+
 func calculateWMASequence(values []float64, period int) []float64 {
 	if period <= 0 || len(values) < period {
 		return nil
@@ -4388,6 +5334,18 @@ func calculateBollingerSnapshot(values []float64, config bollingerConfig) map[st
 }
 
 func calculateStdDev(values []float64, period int) (float64, bool) {
+	return calculateStdDevValue(values, period)
+}
+
+func calculateStdDevValue(values []float64, period int) (float64, bool) {
+	variance, ok := calculateVarianceValue(values, period)
+	if !ok {
+		return 0, false
+	}
+	return math.Sqrt(variance), true
+}
+
+func calculateVarianceValue(values []float64, period int) (float64, bool) {
 	if period <= 0 || len(values) < period {
 		return 0, false
 	}
@@ -4401,7 +5359,7 @@ func calculateStdDev(values []float64, period int) (float64, bool) {
 		delta := value - middle
 		variance += delta * delta
 	}
-	return math.Sqrt(variance / float64(period)), true
+	return variance / float64(period), true
 }
 
 func calculateKDJSnapshot(highs, lows, closes []float64, config kdjConfig) map[string]any {
@@ -4586,6 +5544,255 @@ func calculateWilliamsRSeries(highs, lows, closes []float64, period int) []float
 		result = append(result, -100*(highestHigh-closes[index])/(highestHigh-lowestLow))
 	}
 	return result
+}
+
+func calculateCCIFromValues(values []float64, period int) (float64, bool) {
+	if period <= 0 || len(values) < period {
+		return 0, false
+	}
+	window := values[len(values)-period:]
+	mean, ok := simpleMovingAverage(window, period)
+	if !ok {
+		return 0, false
+	}
+	meanDeviation := 0.0
+	for _, value := range window {
+		meanDeviation += math.Abs(value - mean)
+	}
+	meanDeviation /= float64(period)
+	if meanDeviation == 0 {
+		return 0, true
+	}
+	return (values[len(values)-1] - mean) / (0.015 * meanDeviation), true
+}
+
+func calculateSessionVWAP(values, volumes []float64, endTimes []time.Time) (float64, bool) {
+	if len(values) == 0 || len(volumes) != len(values) || len(endTimes) != len(values) {
+		return 0, false
+	}
+	currentDay := endTimes[len(endTimes)-1].UTC().YearDay()
+	currentYear := endTimes[len(endTimes)-1].UTC().Year()
+	totalPV := 0.0
+	totalVolume := 0.0
+	for index := len(values) - 1; index >= 0; index-- {
+		at := endTimes[index].UTC()
+		if at.Year() != currentYear || at.YearDay() != currentDay {
+			break
+		}
+		totalPV += values[index] * volumes[index]
+		totalVolume += volumes[index]
+	}
+	if totalVolume <= 0 {
+		return 0, false
+	}
+	return totalPV / totalVolume, true
+}
+
+func calculateMFIValue(values, volumes []float64, period int) (float64, bool) {
+	if period <= 0 || len(values) <= period || len(volumes) != len(values) {
+		return 0, false
+	}
+	start := len(values) - period
+	positiveFlow := 0.0
+	negativeFlow := 0.0
+	for index := start; index < len(values); index++ {
+		flow := values[index] * volumes[index]
+		switch {
+		case values[index] > values[index-1]:
+			positiveFlow += flow
+		case values[index] < values[index-1]:
+			negativeFlow += flow
+		}
+	}
+	if negativeFlow == 0 {
+		return 100, true
+	}
+	ratio := positiveFlow / negativeFlow
+	return 100 - 100/(1+ratio), true
+}
+
+func calculateDMISnapshot(highs, lows, closes []float64, config dmiConfig) map[string]any {
+	plusDI, minusDI, adx, ok := calculateDMIValues(highs, lows, closes, config)
+	if !ok {
+		return nil
+	}
+	return map[string]any{"plus": plusDI, "minus": minusDI, "adx": adx}
+}
+
+func calculateDMIValues(highs, lows, closes []float64, config dmiConfig) (float64, float64, float64, bool) {
+	if config.diLength <= 0 || config.adxSmoothing <= 0 || len(closes) <= config.diLength+config.adxSmoothing || len(highs) != len(closes) || len(lows) != len(closes) {
+		return 0, 0, 0, false
+	}
+	tr := make([]float64, 0, len(closes)-1)
+	plusDM := make([]float64, 0, len(closes)-1)
+	minusDM := make([]float64, 0, len(closes)-1)
+	for index := 1; index < len(closes); index++ {
+		upMove := highs[index] - highs[index-1]
+		downMove := lows[index-1] - lows[index]
+		if upMove > downMove && upMove > 0 {
+			plusDM = append(plusDM, upMove)
+		} else {
+			plusDM = append(plusDM, 0)
+		}
+		if downMove > upMove && downMove > 0 {
+			minusDM = append(minusDM, downMove)
+		} else {
+			minusDM = append(minusDM, 0)
+		}
+		tr = append(tr, trueRange(highs[index], lows[index], closes[index-1]))
+	}
+	smoothedTR := calculateRMASequence(tr, config.diLength)
+	smoothedPlus := calculateRMASequence(plusDM, config.diLength)
+	smoothedMinus := calculateRMASequence(minusDM, config.diLength)
+	if len(smoothedTR) == 0 || len(smoothedPlus) != len(smoothedTR) || len(smoothedMinus) != len(smoothedTR) {
+		return 0, 0, 0, false
+	}
+	plusDISeq := make([]float64, len(smoothedTR))
+	minusDISeq := make([]float64, len(smoothedTR))
+	dxSeq := make([]float64, len(smoothedTR))
+	for index := range smoothedTR {
+		if smoothedTR[index] == 0 {
+			continue
+		}
+		plusDISeq[index] = 100 * smoothedPlus[index] / smoothedTR[index]
+		minusDISeq[index] = 100 * smoothedMinus[index] / smoothedTR[index]
+		sum := plusDISeq[index] + minusDISeq[index]
+		if sum > 0 {
+			dxSeq[index] = 100 * math.Abs(plusDISeq[index]-minusDISeq[index]) / sum
+		}
+	}
+	adxSeq := calculateRMASequence(dxSeq, config.adxSmoothing)
+	if len(adxSeq) == 0 {
+		return 0, 0, 0, false
+	}
+	return plusDISeq[len(plusDISeq)-1], minusDISeq[len(minusDISeq)-1], adxSeq[len(adxSeq)-1], true
+}
+
+func calculateSupertrendSnapshot(highs, lows, closes []float64, config supertrendConfig) map[string]any {
+	line, direction, ok := calculateSupertrendValues(highs, lows, closes, config)
+	if !ok {
+		return nil
+	}
+	return map[string]any{"line": line, "direction": direction}
+}
+
+func calculateSupertrendValues(highs, lows, closes []float64, config supertrendConfig) (float64, float64, bool) {
+	if config.factor <= 0 || config.atrPeriod <= 0 || len(closes) <= config.atrPeriod || len(highs) != len(closes) || len(lows) != len(closes) {
+		return 0, 0, false
+	}
+	atr := calculateATRSeries(highs, lows, closes, config.atrPeriod)
+	if len(atr) == 0 {
+		return 0, 0, false
+	}
+	offset := len(closes) - len(atr)
+	finalUpper := 0.0
+	finalLower := 0.0
+	supertrend := 0.0
+	direction := 1.0
+	for atrIndex, atrValue := range atr {
+		index := atrIndex + offset
+		hl2 := (highs[index] + lows[index]) / 2
+		basicUpper := hl2 + config.factor*atrValue
+		basicLower := hl2 - config.factor*atrValue
+		if atrIndex == 0 {
+			finalUpper = basicUpper
+			finalLower = basicLower
+			supertrend = finalLower
+			direction = 1
+			continue
+		}
+		previousClose := closes[index-1]
+		if basicUpper < finalUpper || previousClose > finalUpper {
+			finalUpper = basicUpper
+		}
+		if basicLower > finalLower || previousClose < finalLower {
+			finalLower = basicLower
+		}
+		if supertrend == finalUpper {
+			if closes[index] <= finalUpper {
+				supertrend = finalUpper
+				direction = -1
+			} else {
+				supertrend = finalLower
+				direction = 1
+			}
+		} else if closes[index] >= finalLower {
+			supertrend = finalLower
+			direction = 1
+		} else {
+			supertrend = finalUpper
+			direction = -1
+		}
+	}
+	return supertrend, direction, true
+}
+
+func calculateSARSnapshotValues(highs, lows, closes []float64, config sarConfig) (float64, float64, bool, bool) {
+	values := calculateSARSeries(highs, lows, closes, config)
+	if len(values) == 0 {
+		return 0, 0, false, false
+	}
+	current := values[len(values)-1]
+	if len(values) == 1 {
+		return current, 0, true, false
+	}
+	return current, values[len(values)-2], true, true
+}
+
+func calculateSARSeries(highs, lows, closes []float64, config sarConfig) []float64 {
+	if config.start <= 0 || config.increment <= 0 || config.maximum <= 0 || len(highs) < 2 || len(lows) != len(highs) || len(closes) != len(highs) {
+		return nil
+	}
+	result := make([]float64, 0, len(highs)-1)
+	longTrend := closes[1] >= closes[0]
+	if closes[1] == closes[0] {
+		longTrend = highs[1]+lows[1] >= highs[0]+lows[0]
+	}
+	sar := lows[0]
+	extremePoint := highs[1]
+	if !longTrend {
+		sar = highs[0]
+		extremePoint = lows[1]
+	}
+	acceleration := config.start
+	for index := 1; index < len(highs); index++ {
+		sar = sar + acceleration*(extremePoint-sar)
+		if longTrend {
+			sar = math.Min(sar, lows[index-1])
+			if index >= 2 {
+				sar = math.Min(sar, lows[index-2])
+			}
+			if lows[index] < sar {
+				longTrend = false
+				sar = extremePoint
+				extremePoint = lows[index]
+				acceleration = config.start
+			} else if highs[index] > extremePoint {
+				extremePoint = highs[index]
+				acceleration = math.Min(acceleration+config.increment, config.maximum)
+			}
+		} else {
+			sar = math.Max(sar, highs[index-1])
+			if index >= 2 {
+				sar = math.Max(sar, highs[index-2])
+			}
+			if highs[index] > sar {
+				longTrend = true
+				sar = extremePoint
+				extremePoint = highs[index]
+				acceleration = config.start
+			} else if lows[index] < extremePoint {
+				extremePoint = lows[index]
+				acceleration = math.Min(acceleration+config.increment, config.maximum)
+			}
+		}
+		result = append(result, sar)
+	}
+	return result
+}
+
+func trueRange(high, low, previousClose float64) float64 {
+	return math.Max(high-low, math.Max(math.Abs(high-previousClose), math.Abs(low-previousClose)))
 }
 
 func calculateRollingHighLow(highs, lows []float64, period int) ([]float64, []float64) {

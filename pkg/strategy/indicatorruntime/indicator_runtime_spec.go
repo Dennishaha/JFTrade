@@ -21,14 +21,27 @@ const (
 
 type indicatorRequirements struct {
 	ma             []movingAverageConfig
+	securitySource []securitySourceConfig
 	rsi            []int
+	rsiSource      []sourcePeriodConfig
 	macd           []macdConfig
 	bollinger      []bollingerConfig
 	kdj            []kdjConfig
 	atr            []int
 	stdev          []int
+	stdevSource    []sourcePeriodConfig
+	variance       []sourcePeriodConfig
+	windows        []windowConfig
+	cum            []sourceConfig
+	stoch          []sourcePeriodConfig
 	cci            []int
+	cciSource      []sourcePeriodConfig
 	williamsR      []int
+	vwap           []sourceConfig
+	mfi            []sourcePeriodConfig
+	dmi            []dmiConfig
+	supertrend     []supertrendConfig
+	sar            []sarConfig
 	stopLoss       []stopLossConfig
 	rsiDivergence  []rsiDivergenceConfig
 	macdDivergence []macdDivergenceConfig
@@ -39,6 +52,38 @@ type movingAverageConfig struct {
 	averageType string
 	period      int
 	timeUnit    string
+	source      string
+}
+
+type sourceConfig struct {
+	source string
+}
+
+type securitySourceConfig struct {
+	source   string
+	timeUnit string
+	lookback int
+}
+
+type sourcePeriodConfig struct {
+	source string
+	period int
+}
+
+type dmiConfig struct {
+	diLength     int
+	adxSmoothing int
+}
+
+type supertrendConfig struct {
+	factor    float64
+	atrPeriod int
+}
+
+type sarConfig struct {
+	start     float64
+	increment float64
+	maximum   float64
 }
 
 type stopLossConfig struct {
@@ -59,6 +104,12 @@ type macdConfig struct {
 type bollingerConfig struct {
 	period     int
 	multiplier float64
+}
+
+type windowConfig struct {
+	function string
+	source   string
+	period   int
 }
 
 type kdjConfig struct {
@@ -118,14 +169,27 @@ func indicatorRequirementsFromPlan(plan strategyir.Requirements) (indicatorRequi
 
 func parseIndicatorRequirementKeys(keys []string, strict bool) (indicatorRequirements, error) {
 	maSet := map[movingAverageConfig]struct{}{}
+	securitySourceSet := map[securitySourceConfig]struct{}{}
 	rsiSet := map[int]struct{}{}
+	rsiSourceSet := map[sourcePeriodConfig]struct{}{}
 	macdSet := map[macdConfig]struct{}{}
 	bollingerSet := map[bollingerConfig]struct{}{}
 	kdjSet := map[kdjConfig]struct{}{}
 	atrSet := map[int]struct{}{}
 	stdevSet := map[int]struct{}{}
+	stdevSourceSet := map[sourcePeriodConfig]struct{}{}
+	varianceSet := map[sourcePeriodConfig]struct{}{}
+	windowSet := map[windowConfig]struct{}{}
+	cumSet := map[sourceConfig]struct{}{}
+	stochSet := map[sourcePeriodConfig]struct{}{}
 	cciSet := map[int]struct{}{}
+	cciSourceSet := map[sourcePeriodConfig]struct{}{}
 	williamsRSet := map[int]struct{}{}
+	vwapSet := map[sourceConfig]struct{}{}
+	mfiSet := map[sourcePeriodConfig]struct{}{}
+	dmiSet := map[dmiConfig]struct{}{}
+	supertrendSet := map[supertrendConfig]struct{}{}
+	sarSet := map[sarConfig]struct{}{}
 	stopLossSet := map[stopLossConfig]struct{}{}
 	rsiDivergenceSet := map[rsiDivergenceConfig]struct{}{}
 	macdDivergenceSet := map[macdDivergenceConfig]struct{}{}
@@ -154,20 +218,105 @@ func parseIndicatorRequirementKeys(keys []string, strict bool) (indicatorRequire
 			if strict {
 				return indicatorRequirements{}, fmt.Errorf("invalid moving average key: %s", key)
 			}
-		case "rsi":
-			if len(parts) != 2 {
+		case "security_source":
+			if len(parts) != 3 && len(parts) != 4 {
 				if strict {
-					return indicatorRequirements{}, fmt.Errorf("invalid rsi key: %s", key)
+					return indicatorRequirements{}, fmt.Errorf("invalid security_source key: %s", key)
 				}
 				continue
 			}
-			period, ok := parsePositiveInt(parts[1])
-			if ok {
-				rsiSet[period] = struct{}{}
-				continue
+			timeUnit := normalizeIndicatorTimeUnit(parts[1])
+			source, sourceOK := parseOHLCVSource(parts[2])
+			lookback := 0
+			lookbackOK := true
+			if len(parts) == 4 {
+				lookback, lookbackOK = parseNonNegativeInt(parts[3])
+			}
+			if timeUnit != "" && sourceOK {
+				if lookbackOK {
+					securitySourceSet[securitySourceConfig{source: source, timeUnit: timeUnit, lookback: lookback}] = struct{}{}
+					continue
+				}
+			}
+			if strict {
+				return indicatorRequirements{}, fmt.Errorf("invalid security_source key: %s", key)
+			}
+		case "rsi":
+			if len(parts) == 2 {
+				period, ok := parsePositiveInt(parts[1])
+				if ok {
+					rsiSet[period] = struct{}{}
+					continue
+				}
+			}
+			if len(parts) == 3 {
+				source, sourceOK := parseOHLCVSource(parts[1])
+				period, periodOK := parsePositiveInt(parts[2])
+				if sourceOK && periodOK {
+					if source == "close" {
+						rsiSet[period] = struct{}{}
+					} else {
+						rsiSourceSet[sourcePeriodConfig{source: source, period: period}] = struct{}{}
+					}
+					continue
+				}
 			}
 			if strict {
 				return indicatorRequirements{}, fmt.Errorf("invalid rsi key: %s", key)
+			}
+		case "stdev":
+			if len(parts) == 2 {
+				period, ok := parsePositiveInt(parts[1])
+				if ok {
+					stdevSet[period] = struct{}{}
+					continue
+				}
+			}
+			if len(parts) == 3 {
+				source, sourceOK := parseOHLCVSource(parts[1])
+				period, periodOK := parsePositiveInt(parts[2])
+				if sourceOK && periodOK {
+					if source == "close" {
+						stdevSet[period] = struct{}{}
+					} else {
+						stdevSourceSet[sourcePeriodConfig{source: source, period: period}] = struct{}{}
+					}
+					continue
+				}
+			}
+			if strict {
+				return indicatorRequirements{}, fmt.Errorf("invalid stdev key: %s", key)
+			}
+		case "variance":
+			if len(parts) != 3 {
+				if strict {
+					return indicatorRequirements{}, fmt.Errorf("invalid variance key: %s", key)
+				}
+				continue
+			}
+			source, sourceOK := parseOHLCVSource(parts[1])
+			period, periodOK := parsePositiveInt(parts[2])
+			if sourceOK && periodOK {
+				varianceSet[sourcePeriodConfig{source: source, period: period}] = struct{}{}
+				continue
+			}
+			if strict {
+				return indicatorRequirements{}, fmt.Errorf("invalid variance key: %s", key)
+			}
+		case "cum":
+			if len(parts) != 2 {
+				if strict {
+					return indicatorRequirements{}, fmt.Errorf("invalid cum key: %s", key)
+				}
+				continue
+			}
+			source, ok := parseOHLCVSource(parts[1])
+			if ok {
+				cumSet[sourceConfig{source: source}] = struct{}{}
+				continue
+			}
+			if strict {
+				return indicatorRequirements{}, fmt.Errorf("invalid cum key: %s", key)
 			}
 		case "macd":
 			if len(parts) != 4 {
@@ -234,35 +383,141 @@ func parseIndicatorRequirementKeys(keys []string, strict bool) (indicatorRequire
 			if strict {
 				return indicatorRequirements{}, fmt.Errorf("invalid atr key: %s", key)
 			}
-		case "stdev":
-			if len(parts) != 2 {
-				if strict {
-					return indicatorRequirements{}, fmt.Errorf("invalid stdev key: %s", key)
-				}
-				continue
-			}
-			period, ok := parsePositiveInt(parts[1])
-			if ok {
-				stdevSet[period] = struct{}{}
-				continue
-			}
-			if strict {
-				return indicatorRequirements{}, fmt.Errorf("invalid stdev key: %s", key)
-			}
 		case "cci":
-			if len(parts) != 2 {
-				if strict {
-					return indicatorRequirements{}, fmt.Errorf("invalid cci key: %s", key)
+			if len(parts) == 2 {
+				period, ok := parsePositiveInt(parts[1])
+				if ok {
+					cciSet[period] = struct{}{}
+					continue
 				}
-				continue
 			}
-			period, ok := parsePositiveInt(parts[1])
-			if ok {
-				cciSet[period] = struct{}{}
-				continue
+			if len(parts) == 3 {
+				source, sourceOK := parseOHLCVSource(parts[1])
+				period, periodOK := parsePositiveInt(parts[2])
+				if sourceOK && periodOK {
+					if source == "hlc3" {
+						cciSet[period] = struct{}{}
+					} else {
+						cciSourceSet[sourcePeriodConfig{source: source, period: period}] = struct{}{}
+					}
+					continue
+				}
 			}
 			if strict {
 				return indicatorRequirements{}, fmt.Errorf("invalid cci key: %s", key)
+			}
+		case "vwap":
+			if len(parts) != 2 {
+				if strict {
+					return indicatorRequirements{}, fmt.Errorf("invalid vwap key: %s", key)
+				}
+				continue
+			}
+			source, ok := parseOHLCVSource(parts[1])
+			if ok {
+				vwapSet[sourceConfig{source: source}] = struct{}{}
+				continue
+			}
+			if strict {
+				return indicatorRequirements{}, fmt.Errorf("invalid vwap key: %s", key)
+			}
+		case "highest", "lowest", "highestbars", "lowestbars", "change", "mom", "roc", "rising", "falling", "sum":
+			if len(parts) != 3 {
+				if strict {
+					return indicatorRequirements{}, fmt.Errorf("invalid rolling window key: %s", key)
+				}
+				continue
+			}
+			function := normalizeWindowFunction(parts[0])
+			source, sourceOK := parseOHLCVSource(parts[1])
+			period, periodOK := parsePositiveInt(parts[2])
+			if function != "" && sourceOK && periodOK {
+				windowSet[windowConfig{function: function, source: source, period: period}] = struct{}{}
+				continue
+			}
+			if strict {
+				return indicatorRequirements{}, fmt.Errorf("invalid rolling window key: %s", key)
+			}
+		case "stoch":
+			if len(parts) != 3 {
+				if strict {
+					return indicatorRequirements{}, fmt.Errorf("invalid stoch key: %s", key)
+				}
+				continue
+			}
+			source, sourceOK := parseOHLCVSource(parts[1])
+			period, periodOK := parsePositiveInt(parts[2])
+			if sourceOK && source != "volume" && periodOK {
+				stochSet[sourcePeriodConfig{source: source, period: period}] = struct{}{}
+				continue
+			}
+			if strict {
+				return indicatorRequirements{}, fmt.Errorf("invalid stoch key: %s", key)
+			}
+		case "mfi":
+			if len(parts) != 3 {
+				if strict {
+					return indicatorRequirements{}, fmt.Errorf("invalid mfi key: %s", key)
+				}
+				continue
+			}
+			source, sourceOK := parseOHLCVSource(parts[1])
+			period, periodOK := parsePositiveInt(parts[2])
+			if sourceOK && periodOK {
+				mfiSet[sourcePeriodConfig{source: source, period: period}] = struct{}{}
+				continue
+			}
+			if strict {
+				return indicatorRequirements{}, fmt.Errorf("invalid mfi key: %s", key)
+			}
+		case "dmi":
+			if len(parts) != 3 {
+				if strict {
+					return indicatorRequirements{}, fmt.Errorf("invalid dmi key: %s", key)
+				}
+				continue
+			}
+			diLength, diOK := parsePositiveInt(parts[1])
+			adxSmoothing, adxOK := parsePositiveInt(parts[2])
+			if diOK && adxOK {
+				dmiSet[dmiConfig{diLength: diLength, adxSmoothing: adxSmoothing}] = struct{}{}
+				continue
+			}
+			if strict {
+				return indicatorRequirements{}, fmt.Errorf("invalid dmi key: %s", key)
+			}
+		case "supertrend":
+			if len(parts) != 3 {
+				if strict {
+					return indicatorRequirements{}, fmt.Errorf("invalid supertrend key: %s", key)
+				}
+				continue
+			}
+			factor, factorErr := strconv.ParseFloat(parts[1], 64)
+			atrPeriod, periodOK := parsePositiveInt(parts[2])
+			if factorErr == nil && factor > 0 && periodOK {
+				supertrendSet[supertrendConfig{factor: factor, atrPeriod: atrPeriod}] = struct{}{}
+				continue
+			}
+			if strict {
+				return indicatorRequirements{}, fmt.Errorf("invalid supertrend key: %s", key)
+			}
+		case "sar":
+			if len(parts) != 4 {
+				if strict {
+					return indicatorRequirements{}, fmt.Errorf("invalid sar key: %s", key)
+				}
+				continue
+			}
+			start, startErr := strconv.ParseFloat(parts[1], 64)
+			increment, incrementErr := strconv.ParseFloat(parts[2], 64)
+			maximum, maxErr := strconv.ParseFloat(parts[3], 64)
+			if startErr == nil && incrementErr == nil && maxErr == nil && start > 0 && increment > 0 && maximum > 0 {
+				sarSet[sarConfig{start: start, increment: increment, maximum: maximum}] = struct{}{}
+				continue
+			}
+			if strict {
+				return indicatorRequirements{}, fmt.Errorf("invalid sar key: %s", key)
 			}
 		case "williamsr":
 			if len(parts) != 2 {
@@ -367,14 +622,27 @@ func parseIndicatorRequirementKeys(keys []string, strict bool) (indicatorRequire
 
 	return indicatorRequirements{
 		ma:             sortedMovingAverageConfigs(maSet),
+		securitySource: sortedSecuritySourceConfigs(securitySourceSet),
 		rsi:            sortedInts(rsiSet),
+		rsiSource:      sortedSourcePeriodConfigs(rsiSourceSet),
 		macd:           sortedMACDConfigs(macdSet),
 		bollinger:      sortedBollingerConfigs(bollingerSet),
 		kdj:            sortedKDJConfigs(kdjSet),
 		atr:            sortedInts(atrSet),
 		stdev:          sortedInts(stdevSet),
+		stdevSource:    sortedSourcePeriodConfigs(stdevSourceSet),
+		variance:       sortedSourcePeriodConfigs(varianceSet),
+		windows:        sortedWindowConfigs(windowSet),
+		cum:            sortedSourceConfigs(cumSet),
+		stoch:          sortedSourcePeriodConfigs(stochSet),
 		cci:            sortedInts(cciSet),
+		cciSource:      sortedSourcePeriodConfigs(cciSourceSet),
 		williamsR:      sortedInts(williamsRSet),
+		vwap:           sortedSourceConfigs(vwapSet),
+		mfi:            sortedSourcePeriodConfigs(mfiSet),
+		dmi:            sortedDMIConfigs(dmiSet),
+		supertrend:     sortedSupertrendConfigs(supertrendSet),
+		sar:            sortedSARConfigs(sarSet),
 		stopLoss:       sortedStopLossConfigs(stopLossSet),
 		rsiDivergence:  sortedRSIDivergenceConfigs(rsiDivergenceSet),
 		macdDivergence: sortedMACDDivergenceConfigs(macdDivergenceSet),
@@ -384,14 +652,27 @@ func parseIndicatorRequirementKeys(keys []string, strict bool) (indicatorRequire
 
 func (r indicatorRequirements) isEmpty() bool {
 	return len(r.ma) == 0 &&
+		len(r.securitySource) == 0 &&
 		len(r.rsi) == 0 &&
+		len(r.rsiSource) == 0 &&
 		len(r.macd) == 0 &&
 		len(r.bollinger) == 0 &&
 		len(r.kdj) == 0 &&
 		len(r.atr) == 0 &&
 		len(r.stdev) == 0 &&
+		len(r.stdevSource) == 0 &&
+		len(r.variance) == 0 &&
+		len(r.windows) == 0 &&
+		len(r.cum) == 0 &&
+		len(r.stoch) == 0 &&
 		len(r.cci) == 0 &&
+		len(r.cciSource) == 0 &&
 		len(r.williamsR) == 0 &&
+		len(r.vwap) == 0 &&
+		len(r.mfi) == 0 &&
+		len(r.dmi) == 0 &&
+		len(r.supertrend) == 0 &&
+		len(r.sar) == 0 &&
 		len(r.stopLoss) == 0 &&
 		len(r.rsiDivergence) == 0 &&
 		len(r.macdDivergence) == 0 &&
@@ -401,10 +682,32 @@ func (r indicatorRequirements) isEmpty() bool {
 func maIndicatorKey(config movingAverageConfig) string {
 	base := "ma:" + normalizeMovingAverageType(config.averageType) + ":" + strconv.Itoa(config.period)
 	timeUnit := normalizeIndicatorTimeUnit(config.timeUnit)
-	if timeUnit == "" {
+	source, _ := parseOHLCVSource(config.source)
+	if source == "close" {
+		source = ""
+	}
+	if timeUnit == "" && source == "" {
 		return base
 	}
-	return base + ":" + timeUnit
+	if timeUnit == "" {
+		return base + ":" + source
+	}
+	if source == "" {
+		return base + ":" + timeUnit
+	}
+	return base + ":" + timeUnit + ":" + source
+}
+
+func securitySourceIndicatorKey(config securitySourceConfig) string {
+	source, _ := parseOHLCVSource(config.source)
+	if source == "" {
+		source = "close"
+	}
+	key := "security_source:" + normalizeIndicatorTimeUnit(config.timeUnit) + ":" + source
+	if config.lookback > 0 {
+		key += ":" + strconv.Itoa(config.lookback)
+	}
+	return key
 }
 
 func legacyMAIndicatorKey(period int) string {
@@ -413,6 +716,25 @@ func legacyMAIndicatorKey(period int) string {
 
 func rsiIndicatorKey(period int) string {
 	return "rsi:" + strconv.Itoa(period)
+}
+
+func sourcePeriodIndicatorKey(prefix string, config sourcePeriodConfig, legacySource string) string {
+	source, _ := parseOHLCVSource(config.source)
+	if source == "" {
+		source = legacySource
+	}
+	if source == legacySource {
+		return prefix + ":" + strconv.Itoa(config.period)
+	}
+	return prefix + ":" + source + ":" + strconv.Itoa(config.period)
+}
+
+func sourceIndicatorKey(prefix string, config sourceConfig) string {
+	source, _ := parseOHLCVSource(config.source)
+	if source == "" {
+		source = strings.ToLower(strings.TrimSpace(config.source))
+	}
+	return prefix + ":" + source
 }
 
 func macdIndicatorKey(fastPeriod, slowPeriod, signalPeriod int) string {
@@ -435,8 +757,134 @@ func stdevIndicatorKey(period int) string {
 	return "stdev:" + strconv.Itoa(period)
 }
 
+func varianceIndicatorKey(config sourcePeriodConfig) string {
+	source, _ := parseOHLCVSource(config.source)
+	if source == "" {
+		source = "close"
+	}
+	return "variance:" + source + ":" + strconv.Itoa(config.period)
+}
+
+func windowIndicatorKey(config windowConfig) string {
+	source, _ := parseOHLCVSource(config.source)
+	if source == "" {
+		source = strings.ToLower(strings.TrimSpace(config.source))
+	}
+	return normalizeWindowFunction(config.function) + ":" + source + ":" + strconv.Itoa(config.period)
+}
+
+func stochIndicatorKey(config sourcePeriodConfig) string {
+	source, _ := parseOHLCVSource(config.source)
+	if source == "" {
+		source = "close"
+	}
+	return "stoch:" + source + ":" + strconv.Itoa(config.period)
+}
+
 func cciIndicatorKey(period int) string {
 	return "cci:" + strconv.Itoa(period)
+}
+
+func dmiIndicatorKey(config dmiConfig) string {
+	return "dmi:" + strconv.Itoa(config.diLength) + ":" + strconv.Itoa(config.adxSmoothing)
+}
+
+func supertrendIndicatorKey(config supertrendConfig) string {
+	return "supertrend:" + strconv.FormatFloat(config.factor, 'f', -1, 64) + ":" + strconv.Itoa(config.atrPeriod)
+}
+
+func sarIndicatorKey(config sarConfig) string {
+	return "sar:" +
+		strconv.FormatFloat(config.start, 'f', -1, 64) + ":" +
+		strconv.FormatFloat(config.increment, 'f', -1, 64) + ":" +
+		strconv.FormatFloat(config.maximum, 'f', -1, 64)
+}
+
+func sortedWindowConfigs(values map[windowConfig]struct{}) []windowConfig {
+	result := make([]windowConfig, 0, len(values))
+	for value := range values {
+		result = append(result, value)
+	}
+	sort.Slice(result, func(left, right int) bool {
+		if result[left].function != result[right].function {
+			return result[left].function < result[right].function
+		}
+		if result[left].source != result[right].source {
+			return result[left].source < result[right].source
+		}
+		return result[left].period < result[right].period
+	})
+	return result
+}
+
+func sortedSourceConfigs(values map[sourceConfig]struct{}) []sourceConfig {
+	result := make([]sourceConfig, 0, len(values))
+	for value := range values {
+		result = append(result, value)
+	}
+	sort.Slice(result, func(left, right int) bool {
+		return normalizeSourceOrClose(result[left].source) < normalizeSourceOrClose(result[right].source)
+	})
+	return result
+}
+
+func sortedSourcePeriodConfigs(values map[sourcePeriodConfig]struct{}) []sourcePeriodConfig {
+	result := make([]sourcePeriodConfig, 0, len(values))
+	for value := range values {
+		result = append(result, value)
+	}
+	sort.Slice(result, func(left, right int) bool {
+		if result[left].period != result[right].period {
+			return result[left].period < result[right].period
+		}
+		return normalizeSourceOrClose(result[left].source) < normalizeSourceOrClose(result[right].source)
+	})
+	return result
+}
+
+func sortedDMIConfigs(values map[dmiConfig]struct{}) []dmiConfig {
+	result := make([]dmiConfig, 0, len(values))
+	for value := range values {
+		result = append(result, value)
+	}
+	sort.Slice(result, func(left, right int) bool {
+		if result[left].diLength != result[right].diLength {
+			return result[left].diLength < result[right].diLength
+		}
+		return result[left].adxSmoothing < result[right].adxSmoothing
+	})
+	return result
+}
+
+func sortedSupertrendConfigs(values map[supertrendConfig]struct{}) []supertrendConfig {
+	result := make([]supertrendConfig, 0, len(values))
+	for value := range values {
+		result = append(result, value)
+	}
+	sort.Slice(result, func(left, right int) bool {
+		if result[left].atrPeriod != result[right].atrPeriod {
+			return result[left].atrPeriod < result[right].atrPeriod
+		}
+		return result[left].factor < result[right].factor
+	})
+	return result
+}
+
+func sortedSARConfigs(values map[sarConfig]struct{}) []sarConfig {
+	result := make([]sarConfig, 0, len(values))
+	for value := range values {
+		result = append(result, value)
+	}
+	sort.Slice(result, func(left, right int) bool {
+		if result[left].start != result[right].start {
+			return result[left].start < result[right].start
+		}
+		if result[left].increment != result[right].increment {
+			return result[left].increment < result[right].increment
+		}
+		return result[left].maximum < result[right].maximum
+	})
+	return result
 }
 
 func williamsRIndicatorKey(period int) string {
@@ -480,7 +928,24 @@ func sortedMovingAverageConfigs(values map[movingAverageConfig]struct{}) []movin
 		if result[left].averageType != result[right].averageType {
 			return result[left].averageType < result[right].averageType
 		}
-		return normalizeIndicatorTimeUnit(result[left].timeUnit) < normalizeIndicatorTimeUnit(result[right].timeUnit)
+		if normalizeIndicatorTimeUnit(result[left].timeUnit) != normalizeIndicatorTimeUnit(result[right].timeUnit) {
+			return normalizeIndicatorTimeUnit(result[left].timeUnit) < normalizeIndicatorTimeUnit(result[right].timeUnit)
+		}
+		return normalizeSourceOrClose(result[left].source) < normalizeSourceOrClose(result[right].source)
+	})
+	return result
+}
+
+func sortedSecuritySourceConfigs(values map[securitySourceConfig]struct{}) []securitySourceConfig {
+	result := make([]securitySourceConfig, 0, len(values))
+	for value := range values {
+		result = append(result, value)
+	}
+	sort.Slice(result, func(left, right int) bool {
+		if normalizeIndicatorTimeUnit(result[left].timeUnit) != normalizeIndicatorTimeUnit(result[right].timeUnit) {
+			return normalizeIndicatorTimeUnit(result[left].timeUnit) < normalizeIndicatorTimeUnit(result[right].timeUnit)
+		}
+		return normalizeSourceOrClose(result[left].source) < normalizeSourceOrClose(result[right].source)
 	})
 	return result
 }
@@ -636,6 +1101,43 @@ func parsePositiveInt(value string) (int, bool) {
 	return parsed, err == nil && parsed > 0
 }
 
+func parseNonNegativeInt(value string) (int, bool) {
+	parsed, err := strconv.Atoi(strings.TrimSpace(value))
+	return parsed, err == nil && parsed >= 0
+}
+
+func parseOHLCVSource(value string) (string, bool) {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "open":
+		return "open", true
+	case "high":
+		return "high", true
+	case "low":
+		return "low", true
+	case "close":
+		return "close", true
+	case "volume":
+		return "volume", true
+	case "hl2":
+		return "hl2", true
+	case "hlc3":
+		return "hlc3", true
+	case "ohlc4":
+		return "ohlc4", true
+	default:
+		return "", false
+	}
+}
+
+func normalizeWindowFunction(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "highest", "lowest", "highestbars", "lowestbars", "change", "mom", "roc", "rising", "falling", "sum":
+		return strings.ToLower(strings.TrimSpace(value))
+	default:
+		return ""
+	}
+}
+
 func parseMovingAverageConfig(parts []string) (movingAverageConfig, bool) {
 	if len(parts) == 2 {
 		period, ok := parsePositiveInt(parts[1])
@@ -646,6 +1148,14 @@ func parseMovingAverageConfig(parts []string) (movingAverageConfig, bool) {
 	}
 	if len(parts) == 3 {
 		if period, ok := parsePositiveInt(parts[1]); ok {
+			source, sourceOK := parseOHLCVSource(parts[2])
+			if sourceOK {
+				return movingAverageConfig{
+					averageType: "MA",
+					period:      period,
+					source:      source,
+				}, true
+			}
 			return movingAverageConfig{
 				averageType: "MA",
 				period:      period,
@@ -661,18 +1171,50 @@ func parseMovingAverageConfig(parts []string) (movingAverageConfig, bool) {
 			period:      period,
 		}, true
 	}
-	if len(parts) != 4 {
+	if len(parts) == 4 {
+		period, ok := parsePositiveInt(parts[2])
+		if !ok {
+			return movingAverageConfig{}, false
+		}
+		source, sourceOK := parseOHLCVSource(parts[3])
+		if sourceOK {
+			return movingAverageConfig{
+				averageType: normalizeMovingAverageType(parts[1]),
+				period:      period,
+				source:      source,
+			}, true
+		}
+		return movingAverageConfig{
+			averageType: normalizeMovingAverageType(parts[1]),
+			period:      period,
+			timeUnit:    normalizeIndicatorTimeUnit(parts[3]),
+		}, true
+	}
+	if len(parts) != 5 {
 		return movingAverageConfig{}, false
 	}
 	period, ok := parsePositiveInt(parts[2])
 	if !ok {
 		return movingAverageConfig{}, false
 	}
+	source, sourceOK := parseOHLCVSource(parts[4])
+	if !sourceOK {
+		return movingAverageConfig{}, false
+	}
 	return movingAverageConfig{
 		averageType: normalizeMovingAverageType(parts[1]),
 		period:      period,
 		timeUnit:    normalizeIndicatorTimeUnit(parts[3]),
+		source:      source,
 	}, true
+}
+
+func normalizeSourceOrClose(value string) string {
+	source, ok := parseOHLCVSource(value)
+	if !ok || source == "" {
+		return "close"
+	}
+	return source
 }
 
 func parseStopLossConfig(parts []string) (stopLossConfig, bool) {
@@ -737,13 +1279,12 @@ func resolveBarCount(period int, timeUnit string, intervalMinutes int) int {
 	if intervalMinutes <= 0 {
 		intervalMinutes = 1
 	}
+	if minutes, ok := indicatorTimeUnitMinutes(timeUnit); ok {
+		return max(1, int(math.Ceil(float64(period*minutes)/float64(intervalMinutes))))
+	}
 	switch normalizeIndicatorTimeUnit(timeUnit) {
 	case "":
 		return period
-	case "minute":
-		return max(1, int(math.Ceil(float64(period)/float64(intervalMinutes))))
-	case "hour":
-		return max(1, int(math.Ceil(float64(period*60)/float64(intervalMinutes))))
 	case "day":
 		return max(1, int(math.Ceil(float64(period*tradingSessionMinutesPerDay)/float64(intervalMinutes))))
 	case "week":
@@ -752,6 +1293,24 @@ func resolveBarCount(period int, timeUnit string, intervalMinutes int) int {
 		return max(1, int(math.Ceil(float64(period*tradingSessionMinutesPerMonth)/float64(intervalMinutes))))
 	default:
 		return period
+	}
+}
+
+func indicatorTimeUnitMinutes(timeUnit string) (int, bool) {
+	switch normalizeIndicatorTimeUnit(timeUnit) {
+	case "minute":
+		return 1, true
+	case "hour":
+		return 60, true
+	default:
+		normalized := normalizeIndicatorTimeUnit(timeUnit)
+		if strings.HasSuffix(normalized, "m") {
+			minutes, err := strconv.Atoi(strings.TrimSuffix(normalized, "m"))
+			if err == nil && minutes > 0 {
+				return minutes, true
+			}
+		}
+		return 0, false
 	}
 }
 
@@ -765,7 +1324,12 @@ func normalizeMovingAverageType(value string) string {
 }
 
 func normalizeIndicatorTimeUnit(value string) string {
-	switch strings.ToLower(strings.TrimSpace(value)) {
+	trimmed := strings.TrimSpace(value)
+	if unquoted, err := strconv.Unquote(trimmed); err == nil {
+		trimmed = unquoted
+	}
+	normalized := strings.ToLower(strings.TrimSpace(trimmed))
+	switch normalized {
 	case "", "bar", "bars":
 		return ""
 	case "m", "min", "mins", "minute", "minutes":
@@ -779,6 +1343,19 @@ func normalizeIndicatorTimeUnit(value string) string {
 	case "mo", "mon", "month", "months":
 		return "month"
 	default:
+		if strings.HasSuffix(normalized, "m") {
+			minutes, err := strconv.Atoi(strings.TrimSuffix(normalized, "m"))
+			if err == nil && minutes > 0 {
+				switch minutes {
+				case 1:
+					return "minute"
+				case 60:
+					return "hour"
+				default:
+					return strconv.Itoa(minutes) + "m"
+				}
+			}
+		}
 		return ""
 	}
 }

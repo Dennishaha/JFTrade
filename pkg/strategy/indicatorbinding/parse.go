@@ -99,7 +99,12 @@ func NormalizeMovingAverageType(value string) string {
 // "hours").  Returns the canonical lower-case unit and true on success.
 // An empty string means "bar" (chart period).
 func ParseIndicatorTimeUnitValue(value string) (string, bool) {
-	switch strings.ToLower(strings.TrimSpace(value)) {
+	trimmed := strings.TrimSpace(value)
+	if unquoted, err := strconv.Unquote(trimmed); err == nil {
+		trimmed = unquoted
+	}
+	normalized := strings.ToLower(strings.TrimSpace(trimmed))
+	switch normalized {
 	case "", "bar", "bars":
 		return "", true
 	case "m", "min", "mins", "minute", "minutes":
@@ -113,6 +118,19 @@ func ParseIndicatorTimeUnitValue(value string) (string, bool) {
 	case "mo", "mon", "month", "months":
 		return "month", true
 	default:
+		if strings.HasSuffix(normalized, "m") {
+			minutes, err := strconv.Atoi(strings.TrimSuffix(normalized, "m"))
+			if err == nil && minutes > 0 {
+				switch minutes {
+				case 1:
+					return "minute", true
+				case 60:
+					return "hour", true
+				default:
+					return strconv.Itoa(minutes) + "m", true
+				}
+			}
+		}
 		return "", false
 	}
 }
@@ -127,11 +145,86 @@ func NormalizeIndicatorTimeUnit(value string) string {
 // BuildMovingAverageKey returns a stable key like "ma:EMA:14:minute"
 // used for indicator requirement de-duplication.
 func BuildMovingAverageKey(averageType string, period int, timeUnit string) string {
+	return BuildMovingAverageKeyWithSource(averageType, period, timeUnit, "close")
+}
+
+// BuildMovingAverageKeyWithSource returns a stable key for source-aware moving
+// averages. close keeps the historical key shape for compatibility.
+func BuildMovingAverageKeyWithSource(averageType string, period int, timeUnit string, source string) string {
 	base := "ma:" + averageType + ":" + strconv.Itoa(period)
-	if timeUnit == "" {
+	timeUnit = NormalizeIndicatorTimeUnit(timeUnit)
+	normalizedSource, ok := ParseOHLCVSource(source)
+	if !ok || normalizedSource == "close" {
+		normalizedSource = ""
+	}
+	if timeUnit == "" && normalizedSource == "" {
 		return base
 	}
-	return base + ":" + timeUnit
+	if timeUnit == "" {
+		return base + ":" + normalizedSource
+	}
+	if normalizedSource == "" {
+		return base + ":" + timeUnit
+	}
+	return base + ":" + timeUnit + ":" + normalizedSource
+}
+
+// ParseMovingAverageOptionalArgs reads the optional trailing ma() arguments.
+// A single OHLCV value is interpreted as source; otherwise it is a time unit.
+func ParseMovingAverageOptionalArgs(args []string) (timeUnit string, source string, err error) {
+	source = "close"
+	if len(args) == 0 {
+		return "", source, nil
+	}
+	if len(args) > 2 {
+		return "", "", fmt.Errorf("too many moving-average optional arguments")
+	}
+	if parsedSource, ok := ParseOHLCVSource(args[0]); ok {
+		source = parsedSource
+	} else {
+		parsedTimeUnit, ok := ParseIndicatorTimeUnitValue(args[0])
+		if !ok {
+			return "", "", fmt.Errorf("moving-average time unit or source %q is not supported", strings.TrimSpace(args[0]))
+		}
+		timeUnit = parsedTimeUnit
+	}
+	if len(args) == 2 {
+		parsedSource, ok := ParsePriceSource(args[1])
+		if !ok {
+			return "", "", fmt.Errorf("moving-average source %q is not supported; use open/high/low/close/volume/hl2/hlc3/ohlc4", strings.TrimSpace(args[1]))
+		}
+		source = parsedSource
+	}
+	return timeUnit, source, nil
+}
+
+// ParseOHLCVSource normalizes a Pine price/volume source identifier.
+func ParseOHLCVSource(value string) (string, bool) {
+	return ParsePriceSource(value)
+}
+
+// ParsePriceSource normalizes a supported Pine source identifier.
+func ParsePriceSource(value string) (string, bool) {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "open":
+		return "open", true
+	case "high":
+		return "high", true
+	case "low":
+		return "low", true
+	case "close":
+		return "close", true
+	case "volume":
+		return "volume", true
+	case "hl2":
+		return "hl2", true
+	case "hlc3":
+		return "hlc3", true
+	case "ohlc4":
+		return "ohlc4", true
+	default:
+		return "", false
+	}
 }
 
 // --- quantity mode ---

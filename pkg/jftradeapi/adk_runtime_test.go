@@ -13,7 +13,7 @@ import (
 func TestValidateADKStrategyDraftScriptRejectsUnsupportedPineRuntimeSemantics(t *testing.T) {
 	script := `//@version=6
 strategy("TME_Bollinger_RSI_V1")
-htfClose = request.security(syminfo.tickerid, "1D", close)`
+htfClose = request.security("NASDAQ:AAPL", "1D", close)`
 
 	err := validateADKStrategyDraftScript(script)
 	if err == nil {
@@ -27,6 +27,7 @@ htfClose = request.security(syminfo.tickerid, "1D", close)`
 func TestValidateADKStrategyDraftScriptAcceptsJFTradePine(t *testing.T) {
 	script := `//@version=6
 strategy("Mean Revert", overlay=true)
+htfClose = request.security(syminfo.tickerid, "1D", close)
 log.info("ready")`
 
 	if err := validateADKStrategyDraftScript(script); err != nil {
@@ -83,6 +84,22 @@ func TestADKStrategyPineSpecToolReturnsStructuredPayload(t *testing.T) {
 	}
 	if len(examples) != 0 {
 		t.Fatalf("default examples len = %d, want 0", len(examples))
+	}
+	supportMatrix, ok := payload["supportMatrix"].([]map[string]any)
+	if !ok || len(supportMatrix) == 0 {
+		t.Fatalf("supportMatrix payload = %#v, want non-empty support matrix", payload["supportMatrix"])
+	}
+	compatibilityLayers, ok := payload["compatibilityLayers"].([]map[string]any)
+	if !ok || len(compatibilityLayers) == 0 {
+		t.Fatalf("compatibilityLayers payload = %#v, want non-empty compatibility layers", payload["compatibilityLayers"])
+	}
+	unsupportedPatterns, ok := payload["unsupportedPatterns"].([]string)
+	if !ok || len(unsupportedPatterns) == 0 {
+		t.Fatalf("unsupportedPatterns payload = %#v, want non-empty unsupported pattern list", payload["unsupportedPatterns"])
+	}
+	goldenScripts, ok := payload["goldenScripts"].([]map[string]any)
+	if !ok || len(goldenScripts) == 0 {
+		t.Fatalf("goldenScripts payload = %#v, want non-empty golden script table", payload["goldenScripts"])
 	}
 
 	output, err = tool.Handler(context.Background(), map[string]any{
@@ -182,7 +199,7 @@ plot(close)`,
 	output, err = tool.Handler(context.Background(), map[string]any{
 		"script": `//@version=6
 strategy("unsupported")
-dailyClose = request.security(syminfo.tickerid, "1D", close)`,
+dailyClose = request.security("NASDAQ:AAPL", "1D", close)`,
 		"includeRequirements": false,
 	})
 	if err != nil {

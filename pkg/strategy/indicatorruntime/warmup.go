@@ -55,8 +55,14 @@ func calculateIndicatorWarmupBars(requirements indicatorRequirements, intervalMi
 	for _, config := range requirements.ma {
 		warmup = max(warmup, estimateTradingPeriodBars(config.period, config.timeUnit, intervalMinutes, symbol, includeExtendedHours))
 	}
+	for _, config := range requirements.securitySource {
+		warmup = max(warmup, estimateTradingPeriodBars(config.lookback+2, config.timeUnit, intervalMinutes, symbol, includeExtendedHours))
+	}
 	for _, period := range requirements.rsi {
 		warmup = max(warmup, period)
+	}
+	for _, config := range requirements.rsiSource {
+		warmup = max(warmup, config.period)
 	}
 	for _, config := range requirements.macd {
 		warmup = max(warmup, config.slowPeriod+config.signalPeriod)
@@ -67,6 +73,26 @@ func calculateIndicatorWarmupBars(requirements indicatorRequirements, intervalMi
 	for _, period := range requirements.stdev {
 		warmup = max(warmup, period)
 	}
+	for _, config := range requirements.stdevSource {
+		warmup = max(warmup, config.period)
+	}
+	for _, config := range requirements.variance {
+		warmup = max(warmup, config.period)
+	}
+	for _, config := range requirements.windows {
+		switch config.function {
+		case "change", "mom", "roc", "rising", "falling":
+			warmup = max(warmup, config.period+1)
+		default:
+			warmup = max(warmup, config.period)
+		}
+	}
+	if len(requirements.cum) > 0 {
+		warmup = max(warmup, 1)
+	}
+	for _, config := range requirements.stoch {
+		warmup = max(warmup, config.period)
+	}
 	for _, config := range requirements.kdj {
 		warmup = max(warmup, config.period+config.m1+config.m2)
 	}
@@ -76,8 +102,23 @@ func calculateIndicatorWarmupBars(requirements indicatorRequirements, intervalMi
 	for _, period := range requirements.cci {
 		warmup = max(warmup, period)
 	}
+	for _, config := range requirements.cciSource {
+		warmup = max(warmup, config.period)
+	}
 	for _, period := range requirements.williamsR {
 		warmup = max(warmup, period)
+	}
+	for _, config := range requirements.mfi {
+		warmup = max(warmup, config.period+1)
+	}
+	for _, config := range requirements.dmi {
+		warmup = max(warmup, config.diLength+config.adxSmoothing+1)
+	}
+	for _, config := range requirements.supertrend {
+		warmup = max(warmup, config.atrPeriod+1)
+	}
+	if len(requirements.sar) > 0 {
+		warmup = max(warmup, 2)
 	}
 	for _, config := range requirements.stopLoss {
 		warmup = max(warmup, estimateTradingPeriodBars(config.timeValue, config.timeUnit, intervalMinutes, symbol, includeExtendedHours))

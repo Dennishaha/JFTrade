@@ -64,6 +64,7 @@ export interface GetTechnicalIndicatorBlockProperties {
   blockKind: "getTechnicalIndicator";
   indicatorType: TechnicalIndicatorType;
   variableName?: string;
+  source?: "open" | "high" | "low" | "close" | "volume";
   movingAverageType?: MovingAverageIndicatorType;
   periodUnit?: IndicatorPeriodUnit;
   period?: number;
@@ -497,6 +498,7 @@ export function normalizeGetTechnicalIndicatorProperties(
       normalized.movingAverageType = normalizeMovingAverageIndicatorType(
         properties.movingAverageType,
       );
+      normalized.source = normalizeIndicatorSource(properties.source);
       normalized.periodUnit = normalizeIndicatorPeriodUnit(properties.periodUnit);
       normalized.windowSize = normalizeInteger(
         properties.windowSize ?? properties.period,
@@ -544,6 +546,20 @@ export function normalizeGetTechnicalIndicatorProperties(
   }
 
   return normalized;
+}
+
+function normalizeIndicatorSource(value: unknown): "open" | "high" | "low" | "close" | "volume" {
+	const normalizedValue = typeof value === "string" ? value.trim().toLowerCase() : "";
+	switch (normalizedValue) {
+		case "open":
+		case "high":
+		case "low":
+		case "volume":
+			return normalizedValue;
+		case "close":
+		default:
+			return "close";
+	}
 }
 
 export function normalizeTechnicalIndicatorConditionProperties(

@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	bbgo2 "github.com/c9s/bbgo/pkg/bbgo"
 	"github.com/c9s/bbgo/pkg/fixedpoint"
 	"github.com/c9s/bbgo/pkg/types"
 	exprast "github.com/expr-lang/expr/ast"
@@ -154,7 +155,7 @@ func TestEvaluateExpressionSupportsReservedBarVariablesAndShadowing(t *testing.T
 	scope := newBarExpressionScope(runtime)
 	scope.indicators = map[string]any{"ready": true}
 
-	value, err := evaluateExpression("indicators.ready and close > open and high > low and volume > 1000 and kline.close > open", scope)
+	value, err := evaluateExpression("indicators.ready and close > open and high > low and volume > 1000 and kline.close > open and equity == 0 and bar_index == 20", scope)
 	if err != nil {
 		t.Fatalf("reserved variable expression error = %v", err)
 	}
@@ -170,6 +171,208 @@ func TestEvaluateExpressionSupportsReservedBarVariablesAndShadowing(t *testing.T
 	}
 	if value != true {
 		t.Fatalf("shadowed close expression = %#v, want true", value)
+	}
+}
+
+func TestEvaluateExpressionSupportsMathAndTimeVariables(t *testing.T) {
+	runtime := &strategyRuntime{expressionCache: map[string]exprast.Node{}}
+	scope := newBarExpressionScope(runtime)
+
+	value, err := evaluateExpression("abs(-2) + min(3, 7) + max(4, 9) + round(2.6) + floor(2.9) + ceil(2.1) + sqrt(9) + pow(2, 3) + log(1) + sign(-5)", scope)
+	if err != nil {
+		t.Fatalf("math expression error = %v", err)
+	}
+	if value != 32.0 {
+		t.Fatalf("math expression = %#v, want 32", value)
+	}
+
+	timeValue := float64(time.Date(2026, time.May, 28, 9, 30, 0, 0, time.UTC).UnixMilli())
+	value, err = evaluateExpression("time == 1779960600000 and hour == 9 and minute == 30 and dayofweek == 5 and dayofmonth == 28 and month == 5 and year == 2026", scope)
+	if err != nil {
+		t.Fatalf("time expression error = %v", err)
+	}
+	if value != true {
+		t.Fatalf("time expression = %#v, want true for time %v", value, timeValue)
+	}
+}
+
+func TestEvaluateExpressionSupportsHistoryFunction(t *testing.T) {
+	runtime := &strategyRuntime{
+		expressionCache: map[string]exprast.Node{},
+		historyValues: map[string][]any{
+			"id:close":                        {98.0, 99.0, 100.0},
+			"id:hlc3":                         {97.0, 98.0, 99.0},
+			"member:id:bands.string:upper":    {101.0, 102.0, 103.0},
+			"member:id:macd.string:histogram": {1.0, 2.0, 3.0},
+			"id:time":                         {float64(time.Date(2026, time.May, 28, 9, 28, 0, 0, time.UTC).UnixMilli())},
+			"id:bar_index":                    {18.0, 19.0},
+		},
+	}
+	scope := newBarExpressionScope(runtime)
+	scope.variables["bands"] = map[string]any{"upper": 104.0}
+	scope.variables["macd"] = map[string]any{"histogram": 4.0}
+
+	value, err := evaluateExpression("history(close, 1) == 100 and history(close, 3) == 98 and history(hlc3, 2) == 98 and history(bands.upper, 2) == 102 and history(macd.histogram, 1) == 3 and history(time, 1) == 1779960480000 and history(bar_index, 2) == 18", scope)
+	if err != nil {
+		t.Fatalf("history expression error = %v", err)
+	}
+	if value != true {
+		t.Fatalf("history expression = %#v, want true", value)
+	}
+
+	value, err = evaluateExpression("history(close, 4)", scope)
+	if err != nil {
+		t.Fatalf("missing history expression error = %v", err)
+	}
+	if value != nil {
+		t.Fatalf("missing history expression = %#v, want nil", value)
+	}
+}
+
+func TestEvaluateExpressionSupportsDerivedSourcesEnvironmentTimestampAndTR(t *testing.T) {
+	runtime := &strategyRuntime{symbol: "US.AAPL", interval: types.Interval1m, expressionCache: map[string]exprast.Node{}}
+	scope := newBarExpressionScope(runtime)
+
+	value, err := evaluateExpression("hl2 == 100.5 and hlc3 == 100.83333333333333 and ohlc4 == 100.625", scope)
+	if err != nil {
+		t.Fatalf("derived source expression error = %v", err)
+	}
+	if value != true {
+		t.Fatalf("derived source expression = %#v, want true", value)
+	}
+
+	value, err = evaluateExpression("syminfo_tickerid == 'US.AAPL' and syminfo_prefix == 'US' and timeframe_period == '1m' and timeframe_isintraday and timeframe_isminutes and !timeframe_isdaily", scope)
+	if err != nil {
+		t.Fatalf("environment expression error = %v", err)
+	}
+	if value != true {
+		t.Fatalf("environment expression = %#v, want true", value)
+	}
+
+	value, err = evaluateExpression("timestamp(2026, 5, 28, 9, 30) == 1779960600000 and tr(true) == 3", scope)
+	if err != nil {
+		t.Fatalf("timestamp/TR expression error = %v", err)
+	}
+	if value != true {
+		t.Fatalf("timestamp/TR expression = %#v, want true", value)
+	}
+
+	scope.barIndex = 0
+	scope.currentSession = market.SessionRegular
+	originalBacktesting := bbgo2.IsBackTesting
+	t.Cleanup(func() { bbgo2.IsBackTesting = originalBacktesting })
+	bbgo2.IsBackTesting = true
+	value, err = evaluateExpression("barstate_isfirst and barstate_isnew and barstate_isconfirmed and barstate_ishistory and !barstate_isrealtime and barstate_islast and session_ismarket and !session_ispremarket and !session_ispostmarket", scope)
+	if err != nil {
+		t.Fatalf("barstate/session expression error = %v", err)
+	}
+	if value != true {
+		t.Fatalf("barstate/session expression = %#v, want true", value)
+	}
+	bbgo2.IsBackTesting = false
+	value, err = evaluateExpression("!barstate_ishistory and barstate_isrealtime", scope)
+	if err != nil || value != true {
+		t.Fatalf("realtime barstate expression = %#v, err %v, want true", value, err)
+	}
+	scope.currentSession = market.SessionPre
+	value, err = evaluateExpression("session_ispremarket and !session_ismarket", scope)
+	if err != nil || value != true {
+		t.Fatalf("premarket session expression = %#v, err %v, want true", value, err)
+	}
+	scope.currentSession = market.SessionAfter
+	value, err = evaluateExpression("session_ispostmarket and !session_ismarket", scope)
+	if err != nil || value != true {
+		t.Fatalf("postmarket session expression = %#v, err %v, want true", value, err)
+	}
+}
+
+func TestEvaluateExpressionSupportsNewIndicatorLookups(t *testing.T) {
+	runtime := &strategyRuntime{expressionCache: map[string]exprast.Node{}}
+	scope := newBarExpressionScope(runtime)
+	scope.indicators = map[string]any{
+		"rsi:hlc3:14":        map[string]any{"value": 55.0},
+		"stdev:volume:20":    map[string]any{"value": 12.0},
+		"variance:volume:20": map[string]any{"value": 144.0},
+		"cci:close:20":       map[string]any{"value": 80.0},
+		"vwap:hlc3":          map[string]any{"value": 100.0},
+		"mfi:hlc3:14":        map[string]any{"value": 62.0},
+		"dmi:14:14":          map[string]any{"plus": 25.0, "minus": 12.0, "adx": 28.0},
+		"supertrend:3:10":    map[string]any{"line": 98.5, "direction": 1.0},
+		"sar:0.02:0.02:0.2":  map[string]any{"value": 97.5, "previous": 96.5},
+		"highest:hlc3:3":     map[string]any{"value": 101.0},
+		"sum:volume:3":       map[string]any{"value": 3000.0},
+	}
+
+	value, err := evaluateExpression("rsi(hlc3, 14) > 50 and stdev(volume, 20) == 12 and variance(volume, 20) == 144 and cci(close, 20) > 0 and vwap(hlc3) == 100 and mfi(hlc3, 14) > 60 and dmi(14, 14).plus > dmi(14, 14).minus and dmi(14, 14).adx > 20 and supertrend(3, 10).direction == 1 and sar(0.02, 0.02, 0.2) == 97.5 and previous(sar(0.02, 0.02, 0.2)) == 96.5 and highest(hlc3, 3) == 101 and sum(volume, 3) == 3000", scope)
+	if err != nil {
+		t.Fatalf("indicator lookup expression error = %v", err)
+	}
+	if value != true {
+		t.Fatalf("indicator lookup expression = %#v, want true", value)
+	}
+}
+
+func TestEvaluateExpressionSupportsBarsSinceAndValueWhenState(t *testing.T) {
+	runtime := &strategyRuntime{
+		expressionCache: map[string]exprast.Node{},
+		barssinceStates: map[string]*barssinceState{},
+		valuewhenStates: map[string]*valuewhenState{},
+	}
+	scope := newBarExpressionScope(runtime)
+
+	scope.barIndex = 0
+	scope.closeSeries = seriesNumber{Current: 99, Previous: 100, HasCurrent: true, HasPrevious: true}
+	scope.openSeries = seriesNumber{Current: 100, Previous: 99, HasCurrent: true, HasPrevious: true}
+	value, err := evaluateExpression("barssince(close > open)", scope)
+	if err != nil {
+		t.Fatalf("barssince first expression error = %v", err)
+	}
+	if value != nil {
+		t.Fatalf("barssince first = %#v, want nil", value)
+	}
+
+	scope.barIndex = 1
+	scope.closeSeries = seriesNumber{Current: 103, Previous: 99, HasCurrent: true, HasPrevious: true}
+	scope.openSeries = seriesNumber{Current: 100, Previous: 100, HasCurrent: true, HasPrevious: true}
+	value, err = evaluateExpression("barssince(close > open)", scope)
+	if err != nil || value != 0.0 {
+		t.Fatalf("barssince trigger = %#v, err %v, want 0", value, err)
+	}
+	value, err = evaluateExpression("barssince(close > open)", scope)
+	if err != nil || value != 0.0 {
+		t.Fatalf("barssince same bar = %#v, err %v, want 0", value, err)
+	}
+
+	scope.barIndex = 2
+	scope.closeSeries = seriesNumber{Current: 98, Previous: 103, HasCurrent: true, HasPrevious: true}
+	scope.openSeries = seriesNumber{Current: 100, Previous: 100, HasCurrent: true, HasPrevious: true}
+	value, err = evaluateExpression("barssince(close > open)", scope)
+	if err != nil || value != 1.0 {
+		t.Fatalf("barssince next = %#v, err %v, want 1", value, err)
+	}
+
+	value, err = evaluateExpression("valuewhen(close > open, close, 0)", scope)
+	if err != nil || value != nil {
+		t.Fatalf("valuewhen before trigger = %#v, err %v, want nil", value, err)
+	}
+	scope.barIndex = 3
+	scope.closeSeries = seriesNumber{Current: 105, Previous: 98, HasCurrent: true, HasPrevious: true}
+	scope.openSeries = seriesNumber{Current: 100, Previous: 100, HasCurrent: true, HasPrevious: true}
+	value, err = evaluateExpression("valuewhen(close > open, close, 0)", scope)
+	series, ok := value.(seriesNumber)
+	if err != nil || !ok || series.Current != 105 {
+		t.Fatalf("valuewhen trigger = %#v, err %v, want current close series", value, err)
+	}
+	scope.barIndex = 4
+	scope.closeSeries = seriesNumber{Current: 110, Previous: 105, HasCurrent: true, HasPrevious: true}
+	scope.openSeries = seriesNumber{Current: 100, Previous: 100, HasCurrent: true, HasPrevious: true}
+	value, err = evaluateExpression("valuewhen(close > open, close, 1)", scope)
+	if err != nil {
+		t.Fatalf("valuewhen occurrence expression error = %v", err)
+	}
+	series, ok = value.(seriesNumber)
+	if !ok || series.Current != 105 {
+		t.Fatalf("valuewhen occurrence = %#v, want previous trigger close series", value)
 	}
 }
 
@@ -419,11 +622,15 @@ func newBarExpressionScope(runtime *strategyRuntime) *evaluationScope {
 		currentKlineSymbol: bar.Symbol,
 		currentSession:     market.SessionRegular,
 		klinePayload:       klinePayloadView{kline: &bar, session: market.SessionRegular},
+		barIndex:           20,
 		closeSeries:        seriesNumber{Current: bar.Close.Float64(), Previous: 100.0, HasCurrent: true, HasPrevious: true},
 		openSeries:         seriesNumber{Current: bar.Open.Float64(), Previous: 99.0, HasCurrent: true, HasPrevious: true},
 		highSeries:         seriesNumber{Current: bar.High.Float64(), Previous: 101.0, HasCurrent: true, HasPrevious: true},
 		lowSeries:          seriesNumber{Current: bar.Low.Float64(), Previous: 98.0, HasCurrent: true, HasPrevious: true},
 		volumeSeries:       seriesNumber{Current: bar.Volume.Float64(), Previous: 900.0, HasCurrent: true, HasPrevious: true},
+		hl2Series:          seriesNumber{Current: 100.5, Previous: 99.5, HasCurrent: true, HasPrevious: true},
+		hlc3Series:         seriesNumber{Current: (102.0 + 99.0 + 101.5) / 3, Previous: (101.0 + 98.0 + 100.0) / 3, HasCurrent: true, HasPrevious: true},
+		ohlc4Series:        seriesNumber{Current: (100.0 + 102.0 + 99.0 + 101.5) / 4, Previous: (99.0 + 101.0 + 98.0 + 100.0) / 4, HasCurrent: true, HasPrevious: true},
 		hasBarData:         true,
 	}
 }

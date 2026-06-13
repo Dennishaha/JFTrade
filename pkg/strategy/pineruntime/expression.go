@@ -5,9 +5,11 @@ import (
 	"math"
 	"strconv"
 	"strings"
+	"time"
 
 	exprast "github.com/expr-lang/expr/ast"
 	strategyexpression "github.com/jftrade/jftrade-main/pkg/strategy/expression"
+	"github.com/jftrade/jftrade-main/pkg/strategy/indicatorbinding"
 )
 
 type seriesNumber struct {
@@ -105,6 +107,8 @@ func evaluateAST(node exprast.Node, scope *evaluationScope) (any, error) {
 		return evaluateBuiltinExpression(typed, scope)
 	case *exprast.MemberNode:
 		return evaluateMemberExpression(typed, scope)
+	case *exprast.PredicateNode:
+		return evaluateAST(typed.Node, scope)
 	default:
 		return nil, fmt.Errorf("unsupported expression node %T", node)
 	}
@@ -398,17 +402,11 @@ func memberPropertyName(node exprast.Node) (string, bool) {
 func evaluateBuiltinExpression(expression *exprast.BuiltinNode, scope *evaluationScope) (any, error) {
 	switch strings.ToLower(strings.TrimSpace(expression.Name)) {
 	case "abs":
-		if len(expression.Arguments) != 1 {
-			return nil, fmt.Errorf("abs() requires 1 argument")
-		}
-		floatValue, ok, err := evaluateFloatOperand(expression.Arguments[0], scope)
-		if err != nil {
-			return nil, err
-		}
-		if !ok {
-			return nil, fmt.Errorf("abs() requires a numeric argument")
-		}
-		return math.Abs(floatValue), nil
+		return evaluateMathExpression("abs", expression.Arguments, scope)
+	case "min", "max", "round", "floor", "ceil", "sqrt", "pow", "log", "sign":
+		return evaluateMathExpression(strings.ToLower(strings.TrimSpace(expression.Name)), expression.Arguments, scope)
+	case "sum":
+		return evaluateWindowNumericExpression("sum", expression.Arguments, scope)
 	default:
 		return nil, fmt.Errorf("unsupported builtin function %q", expression.Name)
 	}
@@ -431,26 +429,139 @@ func evaluateCallExpression(expression *exprast.CallNode, scope *evaluationScope
 		return evaluateDivergenceExpression(expression.Arguments, scope, "bottom")
 	case "previous":
 		return evaluatePreviousExpression(expression.Arguments, scope)
+	case "history":
+		return evaluateHistoryExpression(expression, scope)
 	case "ifelse":
 		return evaluateIfElseExpression(expression.Arguments, scope)
 	case "nz":
 		return evaluateNZExpression(expression.Arguments, scope)
 	case "abs":
-		if len(expression.Arguments) != 1 {
-			return nil, fmt.Errorf("abs() requires 1 argument")
+		return evaluateMathExpression(functionName, expression.Arguments, scope)
+	case "min", "max", "round", "floor", "ceil", "sqrt", "pow", "log", "sign":
+		return evaluateMathExpression(functionName, expression.Arguments, scope)
+	case "stdev":
+		return evaluateSourcePeriodIndicatorExpression(functionName, expression.Arguments, scope, "close", "20")
+	case "rsi":
+		return evaluateSourcePeriodIndicatorExpression(functionName, expression.Arguments, scope, "close", "14")
+	case "variance":
+		return evaluateSourcePeriodIndicatorExpression(functionName, expression.Arguments, scope, "close", "20")
+	case "cci":
+		return evaluateSourcePeriodIndicatorExpression(functionName, expression.Arguments, scope, "hlc3", "20")
+	case "vwap":
+		return evaluateSourceIndicatorExpression(functionName, expression.Arguments, scope, "hlc3")
+	case "cum":
+		return evaluateRequiredSourceIndicatorExpression(functionName, expression.Arguments, scope)
+	case "mfi":
+		return evaluateSourcePeriodIndicatorExpression(functionName, expression.Arguments, scope, "hlc3", "14")
+	case "stoch":
+		return evaluateStochExpression(expression.Arguments, scope)
+	case "dmi":
+		return evaluateDMIExpression(expression.Arguments, scope)
+	case "supertrend":
+		return evaluateSupertrendExpression(expression.Arguments, scope)
+	case "sar":
+		return evaluateSARExpression(expression.Arguments, scope)
+	case "tr":
+		return evaluateTrueRangeExpression(expression.Arguments, scope)
+	case "timestamp":
+		return evaluateTimestampExpression(expression.Arguments, scope)
+	case "barssince":
+		return evaluateBarsSinceExpression(expression, scope)
+	case "valuewhen":
+		return evaluateValueWhenExpression(expression, scope)
+	case "highest", "lowest", "highestbars", "lowestbars", "change", "mom", "roc", "sum":
+		return evaluateWindowNumericExpression(functionName, expression.Arguments, scope)
+	case "rising", "falling":
+		return evaluateWindowBoolExpression(functionName, expression.Arguments, scope)
+	case "tostring":
+		return evaluateToStringExpression(expression.Arguments, scope)
+	default:
+		return nil, fmt.Errorf("unsupported function %q", name.Value)
+	}
+}
+
+func evaluateMathExpression(functionName string, arguments []exprast.Node, scope *evaluationScope) (any, error) {
+	unary := func(fn func(float64) float64) (any, error) {
+		if len(arguments) != 1 {
+			return nil, fmt.Errorf("%s() requires 1 argument", functionName)
 		}
-		floatValue, ok, err := evaluateFloatOperand(expression.Arguments[0], scope)
+		value, ok, err := evaluateFloatOperand(arguments[0], scope)
 		if err != nil {
 			return nil, err
 		}
 		if !ok {
-			return nil, fmt.Errorf("abs() requires a numeric argument")
+			return nil, fmt.Errorf("%s() requires a numeric argument", functionName)
 		}
-		return math.Abs(floatValue), nil
-	case "stdev":
-		return evaluateStdDevExpression(expression.Arguments, scope)
+		return fn(value), nil
+	}
+	switch functionName {
+	case "abs":
+		return unary(math.Abs)
+	case "round":
+		return unary(math.Round)
+	case "floor":
+		return unary(math.Floor)
+	case "ceil":
+		return unary(math.Ceil)
+	case "sqrt":
+		return unary(math.Sqrt)
+	case "log":
+		return unary(math.Log)
+	case "sign":
+		return unary(func(value float64) float64 {
+			switch {
+			case value > 0:
+				return 1
+			case value < 0:
+				return -1
+			default:
+				return 0
+			}
+		})
+	case "pow":
+		if len(arguments) != 2 {
+			return nil, fmt.Errorf("pow() requires 2 arguments")
+		}
+		left, leftOK, err := evaluateFloatOperand(arguments[0], scope)
+		if err != nil {
+			return nil, err
+		}
+		right, rightOK, err := evaluateFloatOperand(arguments[1], scope)
+		if err != nil {
+			return nil, err
+		}
+		if !leftOK || !rightOK {
+			return nil, fmt.Errorf("pow() requires numeric arguments")
+		}
+		return math.Pow(left, right), nil
+	case "min", "max":
+		if len(arguments) < 2 {
+			return nil, fmt.Errorf("%s() requires at least 2 arguments", functionName)
+		}
+		result, ok, err := evaluateFloatOperand(arguments[0], scope)
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			return nil, fmt.Errorf("%s() requires numeric arguments", functionName)
+		}
+		for _, argument := range arguments[1:] {
+			value, valueOK, valueErr := evaluateFloatOperand(argument, scope)
+			if valueErr != nil {
+				return nil, valueErr
+			}
+			if !valueOK {
+				return nil, fmt.Errorf("%s() requires numeric arguments", functionName)
+			}
+			if functionName == "min" {
+				result = math.Min(result, value)
+			} else {
+				result = math.Max(result, value)
+			}
+		}
+		return result, nil
 	default:
-		return nil, fmt.Errorf("unsupported function %q", name.Value)
+		return nil, fmt.Errorf("unsupported math function %q", functionName)
 	}
 }
 
@@ -475,6 +586,518 @@ func evaluateStdDevExpression(arguments []exprast.Node, scope *evaluationScope) 
 	return value, nil
 }
 
+func evaluateSourcePeriodIndicatorExpression(functionName string, arguments []exprast.Node, scope *evaluationScope, defaultSource string, defaultPeriod string) (any, error) {
+	key, err := sourcePeriodIndicatorLookupKey(functionName, arguments, scope, defaultSource, defaultPeriod)
+	if err != nil {
+		return nil, err
+	}
+	if scope == nil || scope.indicators == nil {
+		return nil, nil
+	}
+	value, ok := scope.indicators[key]
+	if !ok || value == nil {
+		return nil, nil
+	}
+	return value, nil
+}
+
+func sourcePeriodIndicatorLookupKey(functionName string, arguments []exprast.Node, scope *evaluationScope, defaultSource string, defaultPeriod string) (string, error) {
+	source := defaultSource
+	periodText := defaultPeriod
+	switch len(arguments) {
+	case 1:
+		if sourceIdentifier, ok := arguments[0].(*exprast.IdentifierNode); ok {
+			if parsedSource, sourceOK := indicatorbinding.ParsePriceSource(sourceIdentifier.Value); sourceOK {
+				source = parsedSource
+				break
+			}
+		}
+		periodValue, ok, err := evaluateFloatOperand(arguments[0], scope)
+		if err != nil {
+			return "", err
+		}
+		if !ok || periodValue <= 0 || math.Trunc(periodValue) != periodValue {
+			return "", fmt.Errorf("%s() length must be a positive integer", functionName)
+		}
+		periodText = strconv.Itoa(int(periodValue))
+	case 2:
+		sourceIdentifier, ok := arguments[0].(*exprast.IdentifierNode)
+		if !ok {
+			return "", fmt.Errorf("%s() source must be open/high/low/close/volume/hl2/hlc3/ohlc4", functionName)
+		}
+		parsedSource, sourceOK := indicatorbinding.ParsePriceSource(sourceIdentifier.Value)
+		if !sourceOK {
+			return "", fmt.Errorf("%s() source %q is not supported; use open/high/low/close/volume/hl2/hlc3/ohlc4", functionName, sourceIdentifier.Value)
+		}
+		source = parsedSource
+		periodValue, ok, err := evaluateFloatOperand(arguments[1], scope)
+		if err != nil {
+			return "", err
+		}
+		if !ok || periodValue <= 0 || math.Trunc(periodValue) != periodValue {
+			return "", fmt.Errorf("%s() length must be a positive integer", functionName)
+		}
+		periodText = strconv.Itoa(int(periodValue))
+	default:
+		return "", fmt.Errorf("%s() requires source and length arguments", functionName)
+	}
+	period, err := strconv.Atoi(periodText)
+	if err != nil || period <= 0 {
+		return "", fmt.Errorf("%s() length must be a positive integer", functionName)
+	}
+	legacySource := "close"
+	if functionName == "cci" {
+		legacySource = "hlc3"
+	}
+	if source == legacySource {
+		return functionName + ":" + strconv.Itoa(period), nil
+	}
+	return functionName + ":" + source + ":" + strconv.Itoa(period), nil
+}
+
+func evaluateSourceIndicatorExpression(functionName string, arguments []exprast.Node, scope *evaluationScope, defaultSource string) (any, error) {
+	source := defaultSource
+	if len(arguments) > 1 {
+		return nil, fmt.Errorf("%s() requires at most one source argument", functionName)
+	}
+	if len(arguments) == 1 {
+		sourceIdentifier, ok := arguments[0].(*exprast.IdentifierNode)
+		if !ok {
+			return nil, fmt.Errorf("%s() source must be open/high/low/close/volume/hl2/hlc3/ohlc4", functionName)
+		}
+		parsedSource, sourceOK := indicatorbinding.ParsePriceSource(sourceIdentifier.Value)
+		if !sourceOK {
+			return nil, fmt.Errorf("%s() source %q is not supported; use open/high/low/close/volume/hl2/hlc3/ohlc4", functionName, sourceIdentifier.Value)
+		}
+		source = parsedSource
+	}
+	if scope == nil || scope.indicators == nil {
+		return nil, nil
+	}
+	value, ok := scope.indicators[functionName+":"+source]
+	if !ok || value == nil {
+		return nil, nil
+	}
+	return value, nil
+}
+
+func evaluateRequiredSourceIndicatorExpression(functionName string, arguments []exprast.Node, scope *evaluationScope) (any, error) {
+	if len(arguments) != 1 {
+		return nil, fmt.Errorf("%s() requires one source argument", functionName)
+	}
+	sourceIdentifier, ok := arguments[0].(*exprast.IdentifierNode)
+	if !ok {
+		return nil, fmt.Errorf("%s() source must be open/high/low/close/volume/hl2/hlc3/ohlc4", functionName)
+	}
+	source, sourceOK := indicatorbinding.ParsePriceSource(sourceIdentifier.Value)
+	if !sourceOK {
+		return nil, fmt.Errorf("%s() source %q is not supported; use open/high/low/close/volume/hl2/hlc3/ohlc4", functionName, sourceIdentifier.Value)
+	}
+	if scope == nil || scope.indicators == nil {
+		return nil, nil
+	}
+	value, ok := scope.indicators[functionName+":"+source]
+	if !ok || value == nil {
+		return nil, nil
+	}
+	return value, nil
+}
+
+func evaluateStochExpression(arguments []exprast.Node, scope *evaluationScope) (any, error) {
+	if len(arguments) != 4 {
+		return nil, fmt.Errorf("stoch() requires source, high, low, and length arguments")
+	}
+	sourceIdentifier, ok := arguments[0].(*exprast.IdentifierNode)
+	if !ok {
+		return nil, fmt.Errorf("stoch() source must be open/high/low/close/hl2/hlc3/ohlc4")
+	}
+	source, sourceOK := indicatorbinding.ParsePriceSource(sourceIdentifier.Value)
+	if !sourceOK || source == "volume" {
+		return nil, fmt.Errorf("stoch() source %q is not supported; use open/high/low/close/hl2/hlc3/ohlc4", sourceIdentifier.Value)
+	}
+	highIdentifier, highOK := arguments[1].(*exprast.IdentifierNode)
+	lowIdentifier, lowOK := arguments[2].(*exprast.IdentifierNode)
+	if !highOK || !strings.EqualFold(strings.TrimSpace(highIdentifier.Value), "high") || !lowOK || !strings.EqualFold(strings.TrimSpace(lowIdentifier.Value), "low") {
+		return nil, fmt.Errorf("stoch() currently supports literal high and low arguments only")
+	}
+	period, ok, err := evaluateFloatOperand(arguments[3], scope)
+	if err != nil {
+		return nil, err
+	}
+	if !ok || period <= 0 || math.Trunc(period) != period {
+		return nil, fmt.Errorf("stoch() length must be a positive integer")
+	}
+	if scope == nil || scope.indicators == nil {
+		return nil, nil
+	}
+	key := "stoch:" + source + ":" + strconv.Itoa(int(period))
+	value, ok := scope.indicators[key]
+	if !ok || value == nil {
+		return nil, nil
+	}
+	return value, nil
+}
+
+func evaluateDMIExpression(arguments []exprast.Node, scope *evaluationScope) (any, error) {
+	if len(arguments) != 2 {
+		return nil, fmt.Errorf("dmi() requires diLength and adxSmoothing")
+	}
+	left, ok, err := evaluateFloatOperand(arguments[0], scope)
+	if err != nil {
+		return nil, err
+	}
+	right, rightOK, err := evaluateFloatOperand(arguments[1], scope)
+	if err != nil {
+		return nil, err
+	}
+	if !ok || !rightOK || left <= 0 || right <= 0 || math.Trunc(left) != left || math.Trunc(right) != right {
+		return nil, fmt.Errorf("dmi() arguments must be positive integers")
+	}
+	if scope == nil || scope.indicators == nil {
+		return nil, nil
+	}
+	value, ok := scope.indicators["dmi:"+strconv.Itoa(int(left))+":"+strconv.Itoa(int(right))]
+	if !ok || value == nil {
+		return nil, nil
+	}
+	return value, nil
+}
+
+func evaluateSupertrendExpression(arguments []exprast.Node, scope *evaluationScope) (any, error) {
+	if len(arguments) != 2 {
+		return nil, fmt.Errorf("supertrend() requires factor and atrPeriod")
+	}
+	factor, ok, err := evaluateFloatOperand(arguments[0], scope)
+	if err != nil {
+		return nil, err
+	}
+	period, periodOK, err := evaluateFloatOperand(arguments[1], scope)
+	if err != nil {
+		return nil, err
+	}
+	if !ok || !periodOK || factor <= 0 || period <= 0 || math.Trunc(period) != period {
+		return nil, fmt.Errorf("supertrend() requires a positive factor and positive integer atrPeriod")
+	}
+	if scope == nil || scope.indicators == nil {
+		return nil, nil
+	}
+	key := "supertrend:" + strconv.FormatFloat(factor, 'f', -1, 64) + ":" + strconv.Itoa(int(period))
+	value, ok := scope.indicators[key]
+	if !ok || value == nil {
+		return nil, nil
+	}
+	return value, nil
+}
+
+func evaluateSARExpression(arguments []exprast.Node, scope *evaluationScope) (any, error) {
+	if len(arguments) != 3 {
+		return nil, fmt.Errorf("sar() requires start, increment, and max")
+	}
+	start, startOK, err := evaluateFloatOperand(arguments[0], scope)
+	if err != nil {
+		return nil, err
+	}
+	increment, incrementOK, err := evaluateFloatOperand(arguments[1], scope)
+	if err != nil {
+		return nil, err
+	}
+	maximum, maximumOK, err := evaluateFloatOperand(arguments[2], scope)
+	if err != nil {
+		return nil, err
+	}
+	if !startOK || !incrementOK || !maximumOK || start <= 0 || increment <= 0 || maximum <= 0 {
+		return nil, fmt.Errorf("sar() arguments must be positive numbers")
+	}
+	if scope == nil || scope.indicators == nil {
+		return nil, nil
+	}
+	key := "sar:" +
+		strconv.FormatFloat(start, 'f', -1, 64) + ":" +
+		strconv.FormatFloat(increment, 'f', -1, 64) + ":" +
+		strconv.FormatFloat(maximum, 'f', -1, 64)
+	value, ok := scope.indicators[key]
+	if !ok || value == nil {
+		return nil, nil
+	}
+	return value, nil
+}
+
+func evaluateTrueRangeExpression(arguments []exprast.Node, scope *evaluationScope) (any, error) {
+	if len(arguments) > 1 {
+		return nil, fmt.Errorf("tr() requires zero arguments or one boolean argument")
+	}
+	if len(arguments) == 1 {
+		if _, _, err := evaluateBoolOperand(arguments[0], scope); err != nil {
+			return nil, err
+		}
+	}
+	if scope == nil || !scope.hasBarData {
+		return nil, nil
+	}
+	high := scope.highSeries.Current
+	low := scope.lowSeries.Current
+	if !scope.closeSeries.HasPrevious {
+		return high - low, nil
+	}
+	previousClose := scope.closeSeries.Previous
+	return math.Max(high-low, math.Max(math.Abs(high-previousClose), math.Abs(low-previousClose))), nil
+}
+
+func evaluateTimestampExpression(arguments []exprast.Node, scope *evaluationScope) (any, error) {
+	if len(arguments) < 3 || len(arguments) > 5 {
+		return nil, fmt.Errorf("timestamp() requires year, month, day, optional hour, and optional minute")
+	}
+	values := make([]int, 5)
+	values[3] = 0
+	values[4] = 0
+	for index, argument := range arguments {
+		value, ok, err := evaluateFloatOperand(argument, scope)
+		if err != nil {
+			return nil, err
+		}
+		if !ok || math.Trunc(value) != value {
+			return nil, fmt.Errorf("timestamp() arguments must be integers")
+		}
+		values[index] = int(value)
+	}
+	return float64(time.Date(values[0], time.Month(values[1]), values[2], values[3], values[4], 0, 0, time.UTC).UnixMilli()), nil
+}
+
+func evaluateBarsSinceExpression(expression *exprast.CallNode, scope *evaluationScope) (any, error) {
+	if len(expression.Arguments) != 1 {
+		return nil, fmt.Errorf("barssince() requires one condition argument")
+	}
+	if scope == nil || scope.runtime == nil {
+		return nil, nil
+	}
+	key := expressionNodeKey(expression)
+	state := scope.runtime.barssinceStates[key]
+	if state == nil {
+		state = &barssinceState{lastBarIndex: -1}
+		scope.runtime.barssinceStates[key] = state
+	}
+	if state.hasCached && state.lastBarIndex == scope.barIndex {
+		return state.cached, nil
+	}
+	conditionValue, err := evaluateAST(expression.Arguments[0], scope)
+	if err != nil {
+		return nil, err
+	}
+	condition, ok := strictBoolValue(conditionValue)
+	if !ok {
+		return nil, fmt.Errorf("barssince() condition must be boolean")
+	}
+	if condition {
+		state.seen = true
+		state.value = 0
+		state.cached = float64(0)
+	} else if state.seen {
+		state.value++
+		state.cached = float64(state.value)
+	} else {
+		state.cached = nil
+	}
+	state.lastBarIndex = scope.barIndex
+	state.hasCached = true
+	return state.cached, nil
+}
+
+func evaluateValueWhenExpression(expression *exprast.CallNode, scope *evaluationScope) (any, error) {
+	if len(expression.Arguments) != 3 {
+		return nil, fmt.Errorf("valuewhen() requires condition, source, and occurrence")
+	}
+	if scope == nil || scope.runtime == nil {
+		return nil, nil
+	}
+	key := "valuewhen:" + expressionNodeKey(expression.Arguments[0]) + ":" + expressionNodeKey(expression.Arguments[1])
+	state := scope.runtime.valuewhenStates[key]
+	if state == nil {
+		state = &valuewhenState{lastBarIndex: -1}
+		scope.runtime.valuewhenStates[key] = state
+	}
+	occurrenceValue, ok, err := evaluateFloatOperand(expression.Arguments[2], scope)
+	if err != nil {
+		return nil, err
+	}
+	if !ok || occurrenceValue < 0 || math.Trunc(occurrenceValue) != occurrenceValue {
+		return nil, fmt.Errorf("valuewhen() occurrence must be a non-negative integer")
+	}
+	occurrence := int(occurrenceValue)
+	if state.hasCached && state.lastBarIndex == scope.barIndex {
+		if occurrence < len(state.values) {
+			return state.values[occurrence], nil
+		}
+		return nil, nil
+	}
+	conditionValue, err := evaluateAST(expression.Arguments[0], scope)
+	if err != nil {
+		return nil, err
+	}
+	condition, ok := strictBoolValue(conditionValue)
+	if !ok {
+		return nil, fmt.Errorf("valuewhen() condition must be boolean")
+	}
+	if condition {
+		sourceValue, sourceErr := evaluateAST(expression.Arguments[1], scope)
+		if sourceErr != nil {
+			return nil, sourceErr
+		}
+		state.values = append([]any{snapshotExpressionValue(sourceValue)}, state.values...)
+	}
+	state.lastBarIndex = scope.barIndex
+	state.hasCached = true
+	if occurrence < len(state.values) {
+		state.cached = state.values[occurrence]
+		return state.cached, nil
+	}
+	state.cached = nil
+	return nil, nil
+}
+
+func snapshotExpressionValue(value any) any {
+	switch typed := value.(type) {
+	case *seriesNumber:
+		if typed == nil {
+			return nil
+		}
+		return *typed
+	case map[string]any:
+		copied := make(map[string]any, len(typed))
+		for key, value := range typed {
+			copied[key] = snapshotExpressionValue(value)
+		}
+		return copied
+	default:
+		return value
+	}
+}
+
+func expressionNodeKey(node exprast.Node) string {
+	switch typed := node.(type) {
+	case nil:
+		return "<nil>"
+	case *exprast.IdentifierNode:
+		return "id:" + typed.Value
+	case *exprast.IntegerNode:
+		return "int:" + strconv.Itoa(typed.Value)
+	case *exprast.FloatNode:
+		return "float:" + strconv.FormatFloat(typed.Value, 'f', -1, 64)
+	case *exprast.StringNode:
+		return "string:" + typed.Value
+	case *exprast.BoolNode:
+		if typed.Value {
+			return "bool:true"
+		}
+		return "bool:false"
+	case *exprast.NilNode:
+		return "nil"
+	case *exprast.UnaryNode:
+		return "unary:" + typed.Operator + ":" + expressionNodeKey(typed.Node)
+	case *exprast.BinaryNode:
+		return "binary:" + typed.Operator + ":" + expressionNodeKey(typed.Left) + ":" + expressionNodeKey(typed.Right)
+	case *exprast.MemberNode:
+		return "member:" + expressionNodeKey(typed.Node) + "." + expressionNodeKey(typed.Property)
+	case *exprast.PredicateNode:
+		return "predicate:" + expressionNodeKey(typed.Node)
+	case *exprast.CallNode:
+		parts := make([]string, 0, len(typed.Arguments)+1)
+		parts = append(parts, "call:"+expressionNodeKey(typed.Callee))
+		for _, argument := range typed.Arguments {
+			parts = append(parts, expressionNodeKey(argument))
+		}
+		return strings.Join(parts, ",")
+	default:
+		return fmt.Sprintf("%T", node)
+	}
+}
+
+func evaluateWindowNumericExpression(functionName string, arguments []exprast.Node, scope *evaluationScope) (any, error) {
+	key, err := windowIndicatorLookupKey(functionName, arguments, scope)
+	if err != nil {
+		return nil, err
+	}
+	if scope == nil || scope.indicators == nil {
+		return nil, nil
+	}
+	value, ok := scope.indicators[key]
+	if !ok || value == nil {
+		return nil, nil
+	}
+	return value, nil
+}
+
+func evaluateWindowBoolExpression(functionName string, arguments []exprast.Node, scope *evaluationScope) (any, error) {
+	key, err := windowIndicatorLookupKey(functionName, arguments, scope)
+	if err != nil {
+		return nil, err
+	}
+	if scope == nil || scope.indicators == nil {
+		return nil, nil
+	}
+	value, ok := scope.indicators[key]
+	if !ok || value == nil {
+		return nil, nil
+	}
+	result, resultOK := strictBoolValue(value)
+	if !resultOK {
+		return nil, fmt.Errorf("%s() indicator value is not boolean", functionName)
+	}
+	return result, nil
+}
+
+func evaluateToStringExpression(arguments []exprast.Node, scope *evaluationScope) (any, error) {
+	if len(arguments) < 1 || len(arguments) > 2 {
+		return nil, fmt.Errorf("tostring() requires value and optional format")
+	}
+	value, err := evaluateAST(arguments[0], scope)
+	if err != nil {
+		return nil, err
+	}
+	if len(arguments) == 2 {
+		if _, err := evaluateAST(arguments[1], scope); err != nil {
+			return nil, err
+		}
+	}
+	switch typed := value.(type) {
+	case nil:
+		return "na", nil
+	case string:
+		return typed, nil
+	case bool:
+		if typed {
+			return "true", nil
+		}
+		return "false", nil
+	default:
+		if numeric, ok := coerceFloatValue(value); ok {
+			return strconv.FormatFloat(numeric, 'f', -1, 64), nil
+		}
+		return fmt.Sprintf("%v", value), nil
+	}
+}
+
+func windowIndicatorLookupKey(functionName string, arguments []exprast.Node, scope *evaluationScope) (string, error) {
+	if len(arguments) != 2 {
+		return "", fmt.Errorf("%s() requires source and length arguments", functionName)
+	}
+	sourceIdentifier, ok := arguments[0].(*exprast.IdentifierNode)
+	if !ok {
+		return "", fmt.Errorf("%s() source must be open/high/low/close/volume/hl2/hlc3/ohlc4", functionName)
+	}
+	source, sourceOK := indicatorbinding.ParsePriceSource(sourceIdentifier.Value)
+	if !sourceOK {
+		return "", fmt.Errorf("%s() source %q is not supported; use open/high/low/close/volume/hl2/hlc3/ohlc4", functionName, sourceIdentifier.Value)
+	}
+	period, ok, err := evaluateFloatOperand(arguments[1], scope)
+	if err != nil {
+		return "", err
+	}
+	if !ok || period <= 0 || math.Trunc(period) != period {
+		return "", fmt.Errorf("%s() length must be a positive integer", functionName)
+	}
+	return functionName + ":" + source + ":" + strconv.Itoa(int(period)), nil
+}
+
 func evaluatePreviousExpression(arguments []exprast.Node, scope *evaluationScope) (any, error) {
 	if len(arguments) != 1 {
 		return nil, fmt.Errorf("previous() requires 1 argument")
@@ -488,6 +1111,32 @@ func evaluatePreviousExpression(arguments []exprast.Node, scope *evaluationScope
 		return nil, nil
 	}
 	return series.Previous, nil
+}
+
+func evaluateHistoryExpression(expression *exprast.CallNode, scope *evaluationScope) (any, error) {
+	if expression == nil || len(expression.Arguments) != 2 {
+		return nil, fmt.Errorf("history() requires expression and lookback arguments")
+	}
+	lookbackValue, ok, err := evaluateFloatOperand(expression.Arguments[1], scope)
+	if err != nil {
+		return nil, err
+	}
+	if !ok || lookbackValue < 0 || math.Trunc(lookbackValue) != lookbackValue {
+		return nil, fmt.Errorf("history() lookback must be a non-negative integer")
+	}
+	lookback := int(lookbackValue)
+	if lookback == 0 {
+		return evaluateAST(expression.Arguments[0], scope)
+	}
+	if scope == nil || scope.runtime == nil || scope.runtime.historyValues == nil {
+		return nil, nil
+	}
+	key := expressionNodeKey(expression.Arguments[0])
+	values := scope.runtime.historyValues[key]
+	if lookback > len(values) {
+		return nil, nil
+	}
+	return values[len(values)-lookback], nil
 }
 
 func evaluateIfElseExpression(arguments []exprast.Node, scope *evaluationScope) (any, error) {
@@ -688,7 +1337,7 @@ func coerceFloatValue(value any) (float64, bool) {
 	}
 }
 
-var scalarObjectFieldCandidates = [...]string{"value", "diff", "signal", "histogram", "k", "d", "j", "middle", "upper", "lower", "changePercent", "triggerPercent"}
+var scalarObjectFieldCandidates = [...]string{"value", "diff", "signal", "histogram", "k", "d", "j", "middle", "upper", "lower", "plus", "minus", "adx", "line", "direction", "changePercent", "triggerPercent"}
 
 func coerceFloatFromMapFields(values map[string]any) (float64, bool) {
 	for _, key := range scalarObjectFieldCandidates {

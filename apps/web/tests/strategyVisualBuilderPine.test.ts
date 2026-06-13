@@ -2,6 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import type { StrategyVisualModelDocument } from "@/contracts";
 
+import { createStrategyPaletteItems } from "../src/features/strategyVisualBuilderCatalog";
+import {
+  expandTechnicalIndicatorShortcutNode,
+  STRATEGY_TECHNICAL_INDICATOR_SHORTCUT_CREATION_MODE,
+} from "../src/features/strategyVisualBuilderIndicatorShortcut";
+import {
+  getStrategyAuthoringTemplates,
+} from "../src/features/strategyVisualBuilder";
 import {
   buildStrategyPineFromVisualModel,
 } from "../src/features/strategyVisualBuilderPine";
@@ -91,6 +99,147 @@ describe("strategyVisualBuilderPine", () => {
     expect(equityNode?.properties.quantityValue).toBe(25);
   });
 
+  it("parses Pine qty_percent, strategy.order, and close_all order forms", () => {
+    const parsed = buildStrategyVisualModelFromPine(`//@version=6
+strategy("Order Compatibility", overlay=true)
+strategy.entry("Long", strategy.long, qty_percent=10)
+strategy.order("Net", strategy.short, qty=5)
+strategy.close("Long", qty_percent=50)
+strategy.close_all()`);
+
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) {
+      return;
+    }
+
+    const orderNodes = parsed.model.nodes.filter((node) => node.properties?.blockKind === "placeOrder");
+    expect(orderNodes).toHaveLength(4);
+    expect(orderNodes[0]?.properties.quantityMode).toBe("equityPercent");
+    expect(orderNodes[0]?.properties.quantityValue).toBe(10);
+    expect(orderNodes[1]?.properties.side).toBe("SELL");
+    expect(orderNodes[1]?.properties.quantityMode).toBe("shares");
+    expect(orderNodes[1]?.properties.quantityValue).toBe(5);
+    expect(orderNodes[2]?.properties.quantityMode).toBe("equityPercent");
+    expect(orderNodes[2]?.properties.quantityValue).toBe(50);
+    expect(orderNodes[3]?.properties.pineOrderFunction).toBe("strategy.close_all");
+    expect(parsed.codeBlockCount).toBe(0);
+  });
+
+  it("keeps unsupported Pine lines as Pine snippet nodes", () => {
+    const parsed = buildStrategyVisualModelFromPine(`//@version=6
+strategy("Snippet", overlay=true)
+plot(close)
+`);
+
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) {
+      return;
+    }
+
+    const snippet = parsed.model.nodes.find((node) => node.properties?.blockKind === "pineSnippet");
+    expect(snippet?.properties.code).toBe("plot(close)");
+    expect(parsed.model.nodes.some((node) => node.properties?.blockKind === "codeBlock")).toBe(false);
+    expect(parsed.codeBlockCount).toBe(1);
+
+    const script = buildStrategyPineFromVisualModel(parsed.model, { name: "Snippet" });
+    expect(script).toContain("plot(close)");
+    expect(script).not.toContain("代码块已废弃");
+  });
+
+  it("converts old codeBlock Pine annotations to Pine snippet fallbacks", () => {
+    const parsed = buildStrategyVisualModelFromPine(`//@version=6
+strategy("Legacy Annotation", overlay=true)
+// @jftradeFlowNodeId legacy-code
+// @jftradeFlowBlockKind codeBlock
+// @jftradeFlowNodeText 旧代码块
+plot(close)
+`);
+
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) {
+      return;
+    }
+
+    const node = parsed.model.nodes.find((item) => item.id === "legacy-code");
+    expect(node?.properties.blockKind).toBe("pineSnippet");
+    expect(node?.properties.code).toBe("plot(close)");
+    expect(parsed.model.nodes.some((item) => item.properties?.blockKind === "codeBlock")).toBe(false);
+    expect(parsed.codeBlockCount).toBe(1);
+  });
+
+  it("keeps legacy codeBlock visual models read-only instead of writing custom code", () => {
+    const model: StrategyVisualModelDocument = {
+      engine: "logic-flow",
+      version: 1,
+      nodes: [
+        {
+          id: "on-kline-root",
+          type: "circle",
+          x: 120,
+          y: 120,
+          text: "K 线收盘",
+          properties: { blockKind: "onKLineClosed" },
+        },
+        {
+          id: "legacy-code",
+          type: "rect",
+          x: 360,
+          y: 120,
+          text: "旧代码块",
+          properties: {
+            blockKind: "codeBlock",
+            code: "console.log('legacy')",
+          },
+        },
+      ],
+      edges: [
+        {
+          id: "edge-root-legacy",
+          type: "polyline",
+          sourceNodeId: "on-kline-root",
+          targetNodeId: "legacy-code",
+        },
+      ],
+    };
+
+    const script = buildStrategyPineFromVisualModel(model, { name: "Legacy Code" });
+    expect(script).toContain("代码块已废弃，请改用标准 Pine 图块");
+    expect(script).not.toContain("console.log('legacy')");
+  });
+
+  it("does not expose legacy codeBlock or unified technicalIndicator in new palette paths", () => {
+    const paletteKinds = createStrategyPaletteItems().map((item) => item.properties.blockKind);
+    expect(paletteKinds).not.toContain("codeBlock");
+    expect(paletteKinds).not.toContain("technicalIndicator");
+
+    const expansion = expandTechnicalIndicatorShortcutNode({
+      id: "rsi-shortcut",
+      x: 120,
+      y: 120,
+      properties: {
+        blockKind: "technicalIndicator",
+        creationMode: STRATEGY_TECHNICAL_INDICATOR_SHORTCUT_CREATION_MODE,
+        indicatorType: "rsi",
+        conditionMode: "numeric",
+        operator: "<",
+        threshold: 30,
+        period: 14,
+      },
+    });
+    expect(expansion.nodes.map((node) => node.properties.blockKind)).toEqual([
+      "getTechnicalIndicator",
+      "technicalIndicatorCondition",
+    ]);
+  });
+
+  it("keeps built-in visual templates on standard Pine visual blocks", () => {
+    for (const template of getStrategyAuthoringTemplates().filter((item) => item.mode === "visual")) {
+      const blockKinds = template.visualModel.nodes.map((node) => node.properties.blockKind);
+      expect(blockKinds, template.id).not.toContain("codeBlock");
+      expect(blockKinds, template.id).not.toContain("technicalIndicator");
+    }
+  });
+
   it("generates Pine timeframe moving averages and basic strategy exits", () => {
     const model: StrategyVisualModelDocument = {
       engine: "logic-flow",
@@ -169,5 +318,86 @@ describe("strategyVisualBuilderPine", () => {
     expect(exitNode?.properties.mode).toBe("stopLoss");
     expect(exitNode?.properties.timeUnit).toBe("bar");
     expect(exitNode?.properties.percentage).toBe(2);
+  });
+
+  it("parses TradingView Bollinger and Williams %R aliases", () => {
+    const parsed = buildStrategyVisualModelFromPine(`//@version=6
+strategy("Aliases", overlay=true)
+basis = ta.bb(close, 20, 2)
+wr = ta.wpr(14)
+`);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) {
+      return;
+    }
+
+    const bollingerNode = parsed.model.nodes.find((node) => node.properties.variableName === "basis");
+    const williamsNode = parsed.model.nodes.find((node) => node.properties.variableName === "wr");
+    expect(bollingerNode?.properties.indicatorType).toBe("bollinger");
+    expect(bollingerNode?.properties.period).toBe(20);
+    expect(bollingerNode?.properties.multiplier).toBe(2);
+    expect(williamsNode?.properties.indicatorType).toBe("williamsR");
+    expect(williamsNode?.properties.period).toBe(14);
+  });
+
+  it("generates Williams %R Pine instead of RSI", () => {
+    const model: StrategyVisualModelDocument = {
+      engine: "logic-flow",
+      version: 1,
+      nodes: [
+        {
+          id: "on-kline-root",
+          type: "circle",
+          x: 120,
+          y: 120,
+          text: "K 线收盘",
+          properties: { blockKind: "onKLineClosed" },
+        },
+        {
+          id: "williams",
+          type: "rect",
+          x: 360,
+          y: 120,
+          text: "Williams %R",
+          properties: {
+            blockKind: "getTechnicalIndicator",
+            indicatorType: "williamsR",
+            period: 14,
+          },
+        },
+      ],
+      edges: [
+        {
+          id: "edge-root-williams",
+          type: "polyline",
+          sourceNodeId: "on-kline-root",
+          targetNodeId: "williams",
+        },
+      ],
+    };
+
+    const script = buildStrategyPineFromVisualModel(model, { name: "WPR" });
+    expect(script).toContain("williams = ta.wpr(14)");
+    expect(script).not.toContain("williams = ta.rsi");
+  });
+
+  it("preserves source-aware moving averages", () => {
+    const parsed = buildStrategyVisualModelFromPine(`//@version=6
+strategy("Volume MA", overlay=true)
+avgVol = ta.sma(volume, 20)
+`);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) {
+      return;
+    }
+
+    const maNode = parsed.model.nodes.find((node) => node.properties.variableName === "avgVol");
+    expect(maNode?.properties.indicatorType).toBe("movingAverage");
+    expect(maNode?.properties.movingAverageType).toBe("SMA");
+    expect(maNode?.properties.windowSize).toBe(20);
+    expect(maNode?.properties.source).toBe("volume");
+
+    const script = buildStrategyPineFromVisualModel(parsed.model, { name: "Volume MA" });
+    expect(script).toContain("avgVol = ta.sma(volume, 20)");
   });
 });

@@ -191,14 +191,26 @@ export function buildStrategyVisualNodeSummary(
       };
     case "codeBlock":
       return {
-        eyebrow: "自定义代码",
-        title: resolveNodeTitle(input.text, "代码块"),
+        eyebrow: "历史代码块",
+        title: resolveNodeTitle(input.text, "代码块（只读）"),
+        tone: "code",
+        variant: variantOverride ?? "card",
+        details: [
+          { label: "状态", value: "已废弃，请改用 Pine 片段或标准 Pine 图块" },
+          { label: "原片段", value: previewCodeText(properties.code) },
+        ],
+        chips: ["只读"],
+      };
+    case "pineSnippet":
+      return {
+        eyebrow: "Pine 片段",
+        title: resolveNodeTitle(input.text, "Pine 片段"),
         tone: "code",
         variant: variantOverride ?? "card",
         details: [
           { label: "片段", value: previewCodeText(properties.code) },
         ],
-        chips: [],
+        chips: ["Pine"],
       };
     case "ifCloseAbove":
       return {

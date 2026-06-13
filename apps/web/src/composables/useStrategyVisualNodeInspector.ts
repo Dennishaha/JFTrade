@@ -82,7 +82,9 @@ export function useStrategyVisualNodeInspector(
     },
   });
 
-  const showsCodeInput = computed(() => selectedVisualKind.value === "codeBlock");
+  const showsCodeInput = computed(() =>
+    selectedVisualKind.value === "codeBlock" || selectedVisualKind.value === "pineSnippet",
+  );
 
   const selectedVisualNodeCode = computed({
     get: () => {
@@ -92,7 +94,9 @@ export function useStrategyVisualNodeInspector(
     set: (value: string) => {
       mutateSelectedVisualNode((node) => ({
         ...node,
-        text: value.trim() === "" ? "代码块" : node.text,
+        text: value.trim() === ""
+          ? selectedVisualKind.value === "pineSnippet" ? "Pine 片段" : "代码块"
+          : node.text,
         properties: {
           ...node.properties,
           code: value,

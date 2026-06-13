@@ -70,7 +70,7 @@ export function buildStrategyPineFromVisualModel(
   const state = buildRenderState(sourceModel);
   const lines = [
     "//@version=6",
-    `strategy(${toPineStringLiteral(sanitizeMetadataValue(context.name, "未命名策略"))}, overlay=true)`,
+    `strategy(${toPineStringLiteral(sanitizeMetadataValue(context.name, "未命名策略"))}, overlay=true, default_qty_type=strategy.percent_of_equity, default_qty_value=10)`,
   ];
 
   const initRoots = sourceModel.nodes.filter(
@@ -219,6 +219,14 @@ function renderNode(
       return renderLinearStatement(node, state, depth, visited, buildOrderStatement(node));
     case "stopLoss":
       return renderProtectNode(node, state, depth, visited);
+    case "pineSnippet":
+      return renderLinearStatement(
+        node,
+        state,
+        depth,
+        visited,
+        readPineSnippetCode(node.properties.code),
+      );
     case "codeBlock":
       return renderLinearStatement(
         node,
@@ -236,6 +244,13 @@ function renderNode(
         `log.info(${toPineStringLiteral(node.text || "未识别图块")})`,
       );
   }
+}
+
+function readPineSnippetCode(value: unknown): string {
+  if (typeof value !== "string" || value.trim() === "") {
+    return `log.info(${toPineStringLiteral("Pine 片段为空")})`;
+  }
+  return value.trimEnd();
 }
 
 function renderLinearStatement(
@@ -608,7 +623,7 @@ function buildIndicatorExpression(properties: GetTechnicalIndicatorBlockProperti
     case "movingAverage": {
       const movingAverageType = properties.movingAverageType ?? "MA";
       const windowSize = properties.windowSize ?? properties.period ?? 20;
-      const expression = buildMovingAverageExpression(movingAverageType, windowSize);
+      const expression = buildMovingAverageExpression(movingAverageType, windowSize, properties.source ?? "close");
       const timeframe = pineTimeframeForPeriodUnit(properties.periodUnit ?? "bar");
       return timeframe === null
         ? expression
@@ -625,7 +640,7 @@ function buildIndicatorExpression(properties: GetTechnicalIndicatorBlockProperti
     case "cci":
       return `ta.cci(close, ${properties.period ?? 20})`;
     case "williamsR":
-      return `ta.rsi(close, ${properties.period ?? 14})`;
+      return `ta.wpr(${properties.period ?? 14})`;
     case "rsi":
     default:
       return `ta.rsi(close, ${properties.period ?? 14})`;
@@ -635,25 +650,40 @@ function buildIndicatorExpression(properties: GetTechnicalIndicatorBlockProperti
 function buildMovingAverageExpression(
   movingAverageType: string,
   windowSize: number,
+  source: string = "close",
 ): string {
+  const pineSource = pineMovingAverageSource(source);
   switch (movingAverageType) {
     case "EMA":
     case "EXPMA":
-      return `ta.ema(close, ${windowSize})`;
+      return `ta.ema(${pineSource}, ${windowSize})`;
     case "SMMA":
-      return `ta.rma(close, ${windowSize})`;
+      return `ta.rma(${pineSource}, ${windowSize})`;
     case "LWMA":
-      return `ta.wma(close, ${windowSize})`;
+      return `ta.wma(${pineSource}, ${windowSize})`;
     case "HMA":
-      return `ta.hma(close, ${windowSize})`;
+      return `ta.hma(${pineSource}, ${windowSize})`;
     case "VWMA":
-      return `ta.vwma(close, ${windowSize})`;
+      return `ta.vwma(${pineSource}, ${windowSize})`;
     case "MA":
     case "SMA":
     case "TMA":
     case "BOLL":
     default:
-      return `ta.sma(close, ${windowSize})`;
+      return `ta.sma(${pineSource}, ${windowSize})`;
+  }
+}
+
+function pineMovingAverageSource(source: string): string {
+  switch (source) {
+    case "open":
+    case "high":
+    case "low":
+    case "volume":
+      return source;
+    case "close":
+    default:
+      return "close";
   }
 }
 

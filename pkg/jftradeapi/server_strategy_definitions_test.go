@@ -71,6 +71,12 @@ func TestStrategyDefinitionEndpoints(t *testing.T) {
 	if createEnvelope.Data.ID == payload["id"] {
 		t.Fatalf("expected create endpoint to ignore client id, got %q", createEnvelope.Data.ID)
 	}
+	if createEnvelope.Data.Runtime != strategyRuntimePinePlan {
+		t.Fatalf("created definition runtime = %q, want %q", createEnvelope.Data.Runtime, strategyRuntimePinePlan)
+	}
+	if createEnvelope.Data.SourceFormat != strategydefinition.SourceFormatPineV6 {
+		t.Fatalf("created definition sourceFormat = %q, want %q", createEnvelope.Data.SourceFormat, strategydefinition.SourceFormatPineV6)
+	}
 
 	listResp, err := http.Get(srv.URL + "/api/v1/strategy-definitions")
 	if err != nil {
@@ -140,6 +146,12 @@ func TestStrategyDefinitionEndpoints(t *testing.T) {
 	if previewEnvelope.Data.DerivedWarmupBars != 24 {
 		t.Fatalf("preview derivedWarmupBars = %d, want 24", previewEnvelope.Data.DerivedWarmupBars)
 	}
+	if previewEnvelope.Data.Runtime != strategyRuntimePinePlan {
+		t.Fatalf("preview runtime = %q, want %q", previewEnvelope.Data.Runtime, strategyRuntimePinePlan)
+	}
+	if previewEnvelope.Data.SourceFormat != strategydefinition.SourceFormatPineV6 {
+		t.Fatalf("preview sourceFormat = %q, want %q", previewEnvelope.Data.SourceFormat, strategydefinition.SourceFormatPineV6)
+	}
 	if previewEnvelope.Data.DerivedWarmupInterval != "5m" {
 		t.Fatalf("preview derivedWarmupInterval = %q, want 5m", previewEnvelope.Data.DerivedWarmupInterval)
 	}
@@ -171,6 +183,12 @@ func TestStrategyDefinitionEndpoints(t *testing.T) {
 	}
 	if updateEnvelope.Data.ID != createEnvelope.Data.ID {
 		t.Fatalf("updated definition id = %q, want %q", updateEnvelope.Data.ID, createEnvelope.Data.ID)
+	}
+	if updateEnvelope.Data.Runtime != strategyRuntimePinePlan {
+		t.Fatalf("updated definition runtime = %q, want %q", updateEnvelope.Data.Runtime, strategyRuntimePinePlan)
+	}
+	if updateEnvelope.Data.SourceFormat != strategydefinition.SourceFormatPineV6 {
+		t.Fatalf("updated definition sourceFormat = %q, want %q", updateEnvelope.Data.SourceFormat, strategydefinition.SourceFormatPineV6)
 	}
 }
 

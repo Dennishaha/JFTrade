@@ -246,11 +246,11 @@ function parseStatementNode(entry: ParsedPineEntry, state: ParseState): ParsedNo
     node: createNodeFromParts({
       state,
       entry,
-      kind: "codeBlock",
+      kind: "pineSnippet",
       defaultText: annotation?.nodeText ?? "Pine 片段",
       defaultType: "rect",
       properties: {
-        blockKind: "codeBlock",
+        blockKind: "pineSnippet",
         code: entry.trimmed,
       },
     }),
@@ -345,11 +345,11 @@ function parseIfNode(
     node: createNodeFromParts({
       state,
       entry,
-      kind: explicitKind ?? "codeBlock",
+      kind: snippetFallbackKind(explicitKind),
       defaultText: entry.annotation?.nodeText ?? "Pine 条件",
-      defaultType: defaultTypeForKind(explicitKind ?? "codeBlock"),
+      defaultType: defaultTypeForKind(snippetFallbackKind(explicitKind)),
       properties: {
-        blockKind: explicitKind ?? "codeBlock",
+        blockKind: snippetFallbackKind(explicitKind),
         code: entry.trimmed,
       },
     }),
@@ -381,17 +381,17 @@ function parseOrderNode(
   }
   if (entry.trimmed.startsWith("strategy.")) {
     state.codeBlockCount += 1;
-    return createCodeBlockResult(entry, state);
+    return createSnippetFallbackResult(entry, state, explicitKind);
   }
   return {
     node: createNodeFromParts({
       state,
       entry,
-      kind: explicitKind ?? "codeBlock",
+      kind: snippetFallbackKind(explicitKind),
       defaultText: entry.annotation?.nodeText ?? "Pine 片段",
-      defaultType: "rect",
+      defaultType: defaultTypeForKind(snippetFallbackKind(explicitKind)),
       properties: {
-        blockKind: explicitKind ?? "codeBlock",
+        blockKind: snippetFallbackKind(explicitKind),
         code: entry.trimmed,
       },
     }),
@@ -407,7 +407,7 @@ function parsePineExitNode(
   const properties = parsePineExit(entry.trimmed);
   if (properties === null) {
     state.codeBlockCount += 1;
-    return createCodeBlockResult(entry, state);
+    return createSnippetFallbackResult(entry, state, explicitKind);
   }
   return {
     node: createNodeFromParts({
@@ -434,11 +434,14 @@ function parsePineExit(trimmed: string): Record<string, unknown> | null {
   const direction = fromEntry.includes("short") ? "short" : "long";
   const namedArgs = parseNamedArgs(args.slice(2));
   const stop = namedArgs.get("stop");
+  const limit = namedArgs.get("limit");
+  if (stop !== undefined && limit !== undefined) {
+    return null;
+  }
   if (stop !== undefined) {
     const percentage = parsePineExitPricePercent(stop);
     return percentage === null ? null : pineExitProperties(direction, "stopLoss", percentage);
   }
-  const limit = namedArgs.get("limit");
   if (limit !== undefined) {
     const percentage = parsePineExitPricePercent(limit);
     return percentage === null ? null : pineExitProperties(direction, "takeProfit", percentage);
@@ -630,6 +633,7 @@ function parseIndicatorExpression(expression: string): Record<string, unknown> |
         blockKind: "getTechnicalIndicator",
         indicatorType: "movingAverage",
         movingAverageType: "EMA",
+        source: readSource(args[0]),
         windowSize: readNumber(args[1] ?? args[0], 20),
         periodUnit: "bar",
       };
@@ -638,6 +642,7 @@ function parseIndicatorExpression(expression: string): Record<string, unknown> |
         blockKind: "getTechnicalIndicator",
         indicatorType: "movingAverage",
         movingAverageType: "SMMA",
+        source: readSource(args[0]),
         windowSize: readNumber(args[1] ?? args[0], 20),
         periodUnit: "bar",
       };
@@ -646,6 +651,7 @@ function parseIndicatorExpression(expression: string): Record<string, unknown> |
         blockKind: "getTechnicalIndicator",
         indicatorType: "movingAverage",
         movingAverageType: "LWMA",
+        source: readSource(args[0]),
         windowSize: readNumber(args[1] ?? args[0], 20),
         periodUnit: "bar",
       };
@@ -654,6 +660,7 @@ function parseIndicatorExpression(expression: string): Record<string, unknown> |
         blockKind: "getTechnicalIndicator",
         indicatorType: "movingAverage",
         movingAverageType: "HMA",
+        source: readSource(args[0]),
         windowSize: readNumber(args[1] ?? args[0], 20),
         periodUnit: "bar",
       };
@@ -662,6 +669,7 @@ function parseIndicatorExpression(expression: string): Record<string, unknown> |
         blockKind: "getTechnicalIndicator",
         indicatorType: "movingAverage",
         movingAverageType: "VWMA",
+        source: readSource(args[0]),
         windowSize: readNumber(args[1] ?? args[0], 20),
         periodUnit: "bar",
       };
@@ -670,6 +678,7 @@ function parseIndicatorExpression(expression: string): Record<string, unknown> |
         blockKind: "getTechnicalIndicator",
         indicatorType: "movingAverage",
         movingAverageType: "SMA",
+        source: readSource(args[0]),
         windowSize: readNumber(args[1] ?? args[0], 20),
         periodUnit: "bar",
       };
@@ -687,6 +696,15 @@ function parseIndicatorExpression(expression: string): Record<string, unknown> |
       return { blockKind: "getTechnicalIndicator", indicatorType: "atr", period: readNumber(args[0], 14) };
     case "ta.cci":
       return { blockKind: "getTechnicalIndicator", indicatorType: "cci", period: readNumber(args[1] ?? args[0], 20) };
+    case "ta.bb":
+      return {
+        blockKind: "getTechnicalIndicator",
+        indicatorType: "bollinger",
+        period: readNumber(args[1] ?? args[0], 20),
+        multiplier: readNumber(args[2], 2),
+      };
+    case "ta.wpr":
+      return { blockKind: "getTechnicalIndicator", indicatorType: "williamsR", period: readNumber(args[0], 14) };
     default:
       return null;
   }
@@ -731,20 +749,35 @@ function periodUnitFromPineTimeframe(value: string): string | null {
 }
 
 function createCodeBlockResult(entry: ParsedPineEntry, state: ParseState): ParsedNodeResult {
+  return createSnippetFallbackResult(entry, state);
+}
+
+function createSnippetFallbackResult(
+  entry: ParsedPineEntry,
+  state: ParseState,
+  explicitKind?: StrategyBlockKind,
+): ParsedNodeResult {
+  const kind = snippetFallbackKind(explicitKind);
   return {
     node: createNodeFromParts({
       state,
       entry,
-      kind: "codeBlock",
+      kind,
       defaultText: entry.annotation?.nodeText ?? "Pine 片段",
-      defaultType: "rect",
+      defaultType: defaultTypeForKind(kind),
       properties: {
-        blockKind: "codeBlock",
+        blockKind: kind,
         code: entry.trimmed,
       },
     }),
     isCondition: false,
   };
+}
+
+function snippetFallbackKind(explicitKind: StrategyBlockKind | undefined): StrategyBlockKind {
+  return explicitKind === undefined || explicitKind === "codeBlock"
+    ? "pineSnippet"
+    : explicitKind;
 }
 
 function createNodeFromParts(options: {
@@ -946,7 +979,7 @@ function defaultTypeForKind(kind: StrategyBlockKind): StrategyVisualNodeDocument
 }
 
 function isOrderLine(trimmed: string): boolean {
-  return /^strategy\.(entry|close)\s*\(/.test(trimmed);
+  return /^strategy\.(entry|order|close|close_all)\s*\(/.test(trimmed);
 }
 
 function isAssignmentLine(trimmed: string): boolean {
@@ -966,42 +999,59 @@ function readMessageCallOrLiteral(trimmed: string, kind: "log" | "notify"): stri
 }
 
 function parsePineOrder(trimmed: string): Record<string, unknown> | null {
-  if (trimmed.startsWith("strategy.close")) {
-    const args = splitArguments(readCallArgs(trimmed));
-    const id = readPineLiteral(args[0] ?? "");
+  if (trimmed.startsWith("strategy.close_all")) {
     return {
-      side: id.toLowerCase().includes("short") ? "BUY_COVER" : "SELL",
+      side: "SELL",
       orderType: "MARKET",
       entryPositionPolicy: "sameDirection",
       quantityMode: "shares",
       quantityValue: 100,
       limitPrice: 0,
+      pineOrderFunction: "strategy.close_all",
     };
   }
-  if (!trimmed.startsWith("strategy.entry")) {
+  if (trimmed.startsWith("strategy.close")) {
+    const args = splitArguments(readCallArgs(trimmed));
+    const id = readPineLiteral(args[0] ?? "");
+    const namedArgs = parseNamedArgs(args.slice(1));
+    const quantity = parsePineQuantity(namedArgs.get("qty"), namedArgs.get("qty_percent"));
+    return {
+      side: id.toLowerCase().includes("short") ? "BUY_COVER" : "SELL",
+      orderType: "MARKET",
+      entryPositionPolicy: "sameDirection",
+      quantityMode: quantity.mode,
+      quantityValue: quantity.value,
+      limitPrice: 0,
+    };
+  }
+  const isEntry = trimmed.startsWith("strategy.entry");
+  const isOrder = trimmed.startsWith("strategy.order");
+  if (!isEntry && !isOrder) {
     return null;
   }
   const args = splitArguments(readCallArgs(trimmed));
   const direction = String(args[1] ?? "strategy.long").toLowerCase();
   const namedArgs = parseNamedArgs(args.slice(2));
-  if (namedArgs.has("qty_percent")) {
-    return null;
-  }
-  const quantity = parsePineQuantity(namedArgs.get("qty"));
+  const quantity = parsePineQuantity(namedArgs.get("qty"), namedArgs.get("qty_percent"));
   const limitPrice = readNumber(namedArgs.get("limit"), 0);
   return {
-    side: direction.includes("short") ? "SELL_SHORT" : "BUY",
+    side: direction.includes("short") ? (isOrder ? "SELL" : "SELL_SHORT") : "BUY",
     orderType: limitPrice > 0 ? "LIMIT" : "MARKET",
     entryPositionPolicy: "sameDirection",
     quantityMode: quantity.mode,
     quantityValue: quantity.value,
     limitPrice,
+    pineOrderFunction: isOrder ? "strategy.order" : "strategy.entry",
   };
 }
 
 function parsePineQuantity(
   qty: string | undefined,
+  qtyPercent?: string | undefined,
 ): { mode: "shares" | "amount" | "equityPercent"; value: number } {
+  if (qtyPercent !== undefined) {
+    return { mode: "equityPercent", value: readNumber(qtyPercent, 100) };
+  }
   const normalized = stripWrappingParens(qty ?? "").replace(/\s+/g, " ");
   if (normalized === "") {
     return { mode: "shares", value: 100 };
@@ -1085,8 +1135,21 @@ function splitArguments(value: string): string[] {
 }
 
 function readNumber(value: string | undefined, fallback: number): number {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+	const parsed = Number(value);
+	return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function readSource(value: string | undefined): "open" | "high" | "low" | "close" | "volume" {
+	switch ((value ?? "").trim().toLowerCase()) {
+		case "open":
+		case "high":
+		case "low":
+		case "volume":
+			return (value ?? "").trim().toLowerCase() as "open" | "high" | "low" | "volume";
+		case "close":
+		default:
+			return "close";
+	}
 }
 
 function readPineLiteral(value: string): string {

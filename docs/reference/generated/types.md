@@ -59,6 +59,77 @@ export interface ApiErrorEnvelope {
 }
 ```
 
+## `MarketTradingWindowDto`
+
+```ts
+export interface MarketTradingWindowDto {
+  startMinute: number;
+  endMinute: number;
+  label: string;
+}
+```
+
+## `MarketPrecisionDto`
+
+```ts
+export interface MarketPrecisionDto {
+  price: number;
+  quote: number;
+}
+```
+
+## `MarketProfileDto`
+
+```ts
+export interface MarketProfileDto {
+  code: string;
+  resolvedMarket: string;
+  preferredPrefix: string;
+  displayName: string;
+  quoteCurrency: string;
+  supportsExtendedHours: boolean;
+  requiresExchangePrefix: boolean;
+  aliases: string[];
+  regularSessions: MarketTradingWindowDto[];
+  precision: MarketPrecisionDto;
+  tickSize: number;
+}
+```
+
+## `MarketProfilesResponse`
+
+```ts
+export interface MarketProfilesResponse {
+  markets: MarketProfileDto[];
+  defaultMarket: string;
+  updatedAt: string;
+}
+```
+
+## `NormalizeInstrumentRequest`
+
+```ts
+export interface NormalizeInstrumentRequest {
+  market?: string;
+  symbol?: string;
+  code?: string;
+  instrumentId?: string;
+}
+```
+
+## `NormalizeInstrumentResponse`
+
+```ts
+export interface NormalizeInstrumentResponse {
+  market: string;
+  prefix: string;
+  code: string;
+  symbol: string;
+  instrumentId: string;
+  resolvedMarket: string;
+}
+```
+
 ## `ADKPermissionMode`
 
 ```ts
@@ -206,6 +277,8 @@ export interface ADKSessionContextSnapshot {
   currentInputTokens: number;
   projectedNextTurnTokens: number;
   estimatedInputTokens?: number;
+  rawCurrentInputTokens?: number;
+  rawProjectedNextTurnTokens?: number;
   contextWindowTokens: number;
   usageRatio: number;
   status:
@@ -233,6 +306,16 @@ export interface ADKSessionContextSnapshot {
     pendingUserTokens: number;
     toolDeclarationTokens: number;
   };
+  rawBreakdown?: {
+    instructionTokens: number;
+    handoffTokens: number;
+    recentUserTokens: number;
+    protectedTailTokens: number;
+    otherVisibleTokens: number;
+    pendingUserTokens: number;
+    toolDeclarationTokens: number;
+  };
+  trimmedToolResponseCount?: number;
   lastCompactedAt?: string;
   lastCompactionMode?: "manual" | "auto" | "aggressive" | string;
   lastCompactionReason?: string;

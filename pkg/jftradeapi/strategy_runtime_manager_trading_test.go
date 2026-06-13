@@ -85,6 +85,161 @@ func TestStrategyRuntimeLiveModeRecordsExecutionOrder(t *testing.T) {
 	}
 }
 
+func TestStrategyRuntimeUsesStrategyDefaultPercentQuantity(t *testing.T) {
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	server := newTestServer(t, store)
+	stub := newStrategyRuntimeStubExchange()
+	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return stub }
+
+	definition := strategyDesignDefinition{
+		ID:           "runtime-default-qty-test",
+		Name:         "Runtime Default Qty Test",
+		Version:      "0.1.0",
+		Runtime:      strategyRuntimePinePlan,
+		SourceFormat: strategydefinition.SourceFormatPineV6,
+		Script:       "//@version=6\nstrategy(\"Runtime Default Qty Test\", overlay=true, default_qty_type=strategy.percent_of_equity, default_qty_value=10)\nstrategy.entry(\"Long\", strategy.long)",
+	}
+	instance, err := server.strategyStore.instantiateStrategy(definition, strategyInstanceBinding{
+		Symbols:       []string{"US.AAPL"},
+		Interval:      "1m",
+		ExecutionMode: strategyExecutionModeLive,
+		BrokerAccount: &strategyBrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
+	})
+	if err != nil {
+		t.Fatalf("instantiateStrategy: %v", err)
+	}
+	instanceRecord, ok := server.strategyStore.strategy(instance.ID)
+	if !ok {
+		t.Fatalf("strategy(%s) not found", instance.ID)
+	}
+	if err := server.strategyRuntimeManager.startStrategy(context.Background(), instanceRecord); err != nil {
+		t.Fatalf("startStrategy: %v", err)
+	}
+	if _, err := server.strategyStore.transitionStrategy(instance.ID, strategyStatusRunning, "started", "test start"); err != nil {
+		t.Fatalf("transitionStrategy start: %v", err)
+	}
+	defer server.strategyRuntimeManager.stopStrategy(instance.ID)
+
+	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 500, strategyRuntimeTestTime(10, 0, 30)))
+	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 501, strategyRuntimeTestTime(10, 1, 0)))
+
+	placedOrder, ok := stub.lastPlacedOrder()
+	if !ok {
+		t.Fatal("expected placed order")
+	}
+	if got := placedOrder.Quantity.Float64(); got != 20 {
+		t.Fatalf("expected default 10%% equity quantity 20, got %v", got)
+	}
+}
+
+func TestStrategyRuntimePyramidingLimitsSameDirectionEntries(t *testing.T) {
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	server := newTestServer(t, store)
+	stub := newStrategyRuntimeStubExchange()
+	stub.positions = []broker.PositionSnapshot{{
+		Market:           "US",
+		Symbol:           "AAPL",
+		Quantity:         1,
+		SellableQuantity: 1,
+	}}
+	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return stub }
+
+	definition := strategyDesignDefinition{
+		ID:           "runtime-pyramiding-test",
+		Name:         "Runtime Pyramiding Test",
+		Version:      "0.1.0",
+		Runtime:      strategyRuntimePinePlan,
+		SourceFormat: strategydefinition.SourceFormatPineV6,
+		Script:       "//@version=6\nstrategy(\"Runtime Pyramiding Test\", overlay=true, pyramiding=2)\nstrategy.entry(\"Long\", strategy.long, qty=1)",
+	}
+	instance, err := server.strategyStore.instantiateStrategy(definition, strategyInstanceBinding{
+		Symbols:       []string{"US.AAPL"},
+		Interval:      "1m",
+		ExecutionMode: strategyExecutionModeLive,
+		BrokerAccount: &strategyBrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
+	})
+	if err != nil {
+		t.Fatalf("instantiateStrategy: %v", err)
+	}
+	instanceRecord, ok := server.strategyStore.strategy(instance.ID)
+	if !ok {
+		t.Fatalf("strategy(%s) not found", instance.ID)
+	}
+	if err := server.strategyRuntimeManager.startStrategy(context.Background(), instanceRecord); err != nil {
+		t.Fatalf("startStrategy: %v", err)
+	}
+	if _, err := server.strategyStore.transitionStrategy(instance.ID, strategyStatusRunning, "started", "test start"); err != nil {
+		t.Fatalf("transitionStrategy start: %v", err)
+	}
+	defer server.strategyRuntimeManager.stopStrategy(instance.ID)
+
+	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 100, strategyRuntimeTestTime(10, 0, 30)))
+	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 101, strategyRuntimeTestTime(10, 1, 0)))
+	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 102, strategyRuntimeTestTime(10, 2, 0)))
+
+	if got := stub.placedOrderCount(); got != 1 {
+		t.Fatalf("expected pyramiding=2 to allow one additional long entry and skip the third signal, got %d orders", got)
+	}
+}
+
+func TestStrategyRuntimeDefaultPyramidingSkipsExistingSameDirectionPosition(t *testing.T) {
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	server := newTestServer(t, store)
+	stub := newStrategyRuntimeStubExchange()
+	stub.positions = []broker.PositionSnapshot{{
+		Market:           "US",
+		Symbol:           "AAPL",
+		Quantity:         1,
+		SellableQuantity: 1,
+	}}
+	server.strategyRuntimeManager.exchangeProvider = func() strategyRuntimeExchange { return stub }
+
+	definition := strategyDesignDefinition{
+		ID:           "runtime-default-pyramiding-test",
+		Name:         "Runtime Default Pyramiding Test",
+		Version:      "0.1.0",
+		Runtime:      strategyRuntimePinePlan,
+		SourceFormat: strategydefinition.SourceFormatPineV6,
+		Script:       "//@version=6\nstrategy(\"Runtime Default Pyramiding Test\", overlay=true)\nstrategy.entry(\"Long\", strategy.long, qty=1)",
+	}
+	instance, err := server.strategyStore.instantiateStrategy(definition, strategyInstanceBinding{
+		Symbols:       []string{"US.AAPL"},
+		Interval:      "1m",
+		ExecutionMode: strategyExecutionModeLive,
+		BrokerAccount: &strategyBrokerAccountBinding{BrokerID: "futu", AccountID: "123456", TradingEnvironment: "SIMULATE", Market: "US"},
+	})
+	if err != nil {
+		t.Fatalf("instantiateStrategy: %v", err)
+	}
+	instanceRecord, ok := server.strategyStore.strategy(instance.ID)
+	if !ok {
+		t.Fatalf("strategy(%s) not found", instance.ID)
+	}
+	if err := server.strategyRuntimeManager.startStrategy(context.Background(), instanceRecord); err != nil {
+		t.Fatalf("startStrategy: %v", err)
+	}
+	if _, err := server.strategyStore.transitionStrategy(instance.ID, strategyStatusRunning, "started", "test start"); err != nil {
+		t.Fatalf("transitionStrategy start: %v", err)
+	}
+	defer server.strategyRuntimeManager.stopStrategy(instance.ID)
+
+	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 100, strategyRuntimeTestTime(10, 0, 30)))
+	server.strategyRuntimeManager.handleMarketTrade(strategyRuntimeTestTrade("US.AAPL", 101, strategyRuntimeTestTime(10, 1, 0)))
+
+	if got := stub.placedOrderCount(); got != 0 {
+		t.Fatalf("expected default pyramiding to skip existing long position, got %d orders", got)
+	}
+}
+
 func TestStrategyRuntimeRefreshesBrokerPositionsBeforeSellOnKLineClose(t *testing.T) {
 	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
 	if err != nil {

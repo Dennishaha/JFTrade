@@ -22,7 +22,7 @@ import (
 const (
 	defaultStrategyDesignFilename = "strategy-definitions.json"
 	strategyDesignDefinitionTable = "strategy_design_definitions"
-	strategyRuntimePinePlan        = "pine-go-plan"
+	strategyRuntimePinePlan       = "pine-go-plan"
 	defaultStrategyVersion        = "0.1.0"
 )
 
@@ -458,12 +458,12 @@ func defaultStrategyDesignPine(name string) string {
 	}
 	escapedName := strings.ReplaceAll(name, `"`, `\"`)
 	return "//@version=6\n" +
-		"strategy(\"" + escapedName + "\", overlay=true)\n\n" +
+		"strategy(\"" + escapedName + "\", overlay=true, default_qty_type=strategy.percent_of_equity, default_qty_value=10)\n\n" +
 		"// JFTrade executes supported Pine strategy statements on each closed K line.\n" +
 		"fast = ta.ema(close, 8)\n" +
 		"slow = ta.ema(close, 21)\n" +
 		"if ta.crossover(fast, slow)\n" +
-		"    strategy.entry(\"Long\", strategy.long, qty=1)\n"
+		"    strategy.entry(\"Long\", strategy.long)\n"
 }
 
 func normalizeStrategySemanticVersion(value string) string {

@@ -205,10 +205,13 @@ func strategySaveHintPayload() map[string]any {
 
 func strategyMetadataPayload(program *strategyir.Program) map[string]any {
 	metadata := map[string]any{
-		"name":     "",
-		"version":  "",
-		"symbol":   "",
-		"interval": "",
+		"name":            "",
+		"version":         "",
+		"symbol":          "",
+		"interval":        "",
+		"defaultQtyMode":  "fixed",
+		"defaultQtyValue": "1",
+		"pyramiding":      1,
 	}
 	if program == nil {
 		return metadata
@@ -217,6 +220,18 @@ func strategyMetadataPayload(program *strategyir.Program) map[string]any {
 	metadata["version"] = strings.TrimSpace(program.Metadata.Version)
 	metadata["symbol"] = strings.TrimSpace(program.Metadata.Symbol)
 	metadata["interval"] = strings.TrimSpace(program.Metadata.Interval)
+	metadata["defaultQtyMode"] = strings.TrimSpace(program.Metadata.DefaultQtyMode)
+	if metadata["defaultQtyMode"] == "" {
+		metadata["defaultQtyMode"] = "fixed"
+	}
+	metadata["defaultQtyValue"] = strings.TrimSpace(program.Metadata.DefaultQtyValue)
+	if metadata["defaultQtyValue"] == "" {
+		metadata["defaultQtyValue"] = "1"
+	}
+	metadata["pyramiding"] = program.Metadata.Pyramiding
+	if program.Metadata.Pyramiding <= 0 {
+		metadata["pyramiding"] = 1
+	}
 	return metadata
 }
 

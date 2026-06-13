@@ -455,6 +455,12 @@ function translateDSLSection(section: string): string {
       return "下单";
     case "protect":
       return "保护";
+    case "support-matrix":
+      return "支持矩阵";
+    case "compatibility":
+      return "兼容迁移";
+    case "unsupported":
+      return "不支持项";
     case "examples":
       return "示例";
     default:

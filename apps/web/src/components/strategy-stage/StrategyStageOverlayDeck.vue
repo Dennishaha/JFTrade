@@ -187,6 +187,24 @@ const stopLossThresholdLabel = computed(() => {
   }
 });
 
+const isLegacyCodeBlockSelected = computed(() => props.selectedVisualKind === "codeBlock");
+
+const codeInputLabel = computed(() =>
+  props.selectedVisualKind === "pineSnippet"
+    ? "Pine 片段"
+    : isLegacyCodeBlockSelected.value
+      ? "历史代码块（只读）"
+      : "代码片段",
+);
+
+const codeInputPlaceholder = computed(() =>
+  props.selectedVisualKind === "pineSnippet"
+    ? "例如：plot(close)"
+    : isLegacyCodeBlockSelected.value
+      ? "旧 codeBlock 仅保留历史兼容；请改用 Pine 片段或标准 Pine 图块。"
+      : "例如：const signal = ctx.kline.close > 520;",
+);
+
 function toAuthoringModeLabel(mode: StrategyAuthoringTemplate["mode"] | null): string {
   return mode === "visual" ? "图优先" : "代码优先";
 }
@@ -707,12 +725,16 @@ function toTemplateTypeLabel(mode: StrategyAuthoringTemplate["mode"]): string {
         </label>
 
         <label v-if="props.showsCodeInput" class="grid gap-2 text-sm text-slate-700">
-          <span class="font-medium">代码片段</span>
+          <span class="font-medium">{{ codeInputLabel }}</span>
           <textarea
             v-model="selectedVisualNodeCode"
             class="min-h-[170px] rounded-3xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-amber-500"
-            placeholder="例如：const signal = ctx.kline.close > 520;"
+            :placeholder="codeInputPlaceholder"
+            :readonly="isLegacyCodeBlockSelected"
           />
+          <span v-if="isLegacyCodeBlockSelected" class="text-xs leading-5 text-slate-500">
+            旧 codeBlock 仅可读取；新的无法标准化 Pine 会保留为 Pine 片段。
+          </span>
         </label>
 
         <button class="strategy-btn strategy-btn--ghost strategy-btn--danger" type="button" @click="emit('delete-selected-node')">

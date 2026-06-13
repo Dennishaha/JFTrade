@@ -34,7 +34,7 @@ const emit = defineEmits<{
 
 const definitionForm = props.bindings.definitionForm;
 const monacoEditorRef = ref<InstanceType<typeof MonacoCodeEditor> | null>(null);
-const pineEditorPlaceholder = '//@version=6\nstrategy("My Strategy", overlay=true)\nfast = ta.ema(close, 8)';
+const pineEditorPlaceholder = '//@version=6\nstrategy("My Strategy", overlay=true, default_qty_type=strategy.percent_of_equity, default_qty_value=10)\nfast = ta.ema(close, 8)';
 
 interface CodeOffsetRange {
   start: number;

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -68,7 +69,16 @@ type strategyRuntime struct {
 	previousLow      float64
 	previousVolume   float64
 	hasPreviousClose bool
+	barIndex         int
 	positionCache    cachedPositionSnapshot
+	entrySubmitCount map[string]int
+	maxPyramiding    int
+	pendingOrders    map[string]pendingOrder
+	pendingSequence  int
+	barssinceStates  map[string]*barssinceState
+	valuewhenStates  map[string]*valuewhenState
+	historyTargets   map[string]historyTarget
+	historyValues    map[string][]any
 }
 
 type cachedIndicatorBinding struct {
@@ -104,6 +114,19 @@ type divergenceRequirementCacheKey struct {
 	lookback   int
 }
 
+type pendingOrder struct {
+	id         string
+	sequence   int
+	action     strategyir.OrderAction
+	intent     strategyir.OrderIntent
+	orderType  types.OrderType
+	quantity   float64
+	limitPrice float64
+	stopPrice  float64
+	hasLimit   bool
+	hasStop    bool
+}
+
 type ifScopePlan struct {
 	thenNeedsClone bool
 	elseNeedsClone bool
@@ -134,7 +157,32 @@ type evaluationScope struct {
 	highSeries         seriesNumber
 	lowSeries          seriesNumber
 	volumeSeries       seriesNumber
+	hl2Series          seriesNumber
+	hlc3Series         seriesNumber
+	ohlc4Series        seriesNumber
 	hasBarData         bool
+	barIndex           int
+}
+
+type barssinceState struct {
+	lastBarIndex int
+	hasCached    bool
+	cached       any
+	seen         bool
+	value        int
+}
+
+type valuewhenState struct {
+	lastBarIndex int
+	hasCached    bool
+	cached       any
+	values       []any
+}
+
+type historyTarget struct {
+	key         string
+	expression  exprast.Node
+	maxLookback int
 }
 
 type klinePayloadView struct {
@@ -205,6 +253,21 @@ func (s *evaluationScope) reservedVariable(name string) (any, bool) {
 			return nil, false
 		}
 		return &s.volumeSeries, true
+	case "hl2":
+		if !s.hasBarData {
+			return nil, false
+		}
+		return &s.hl2Series, true
+	case "hlc3":
+		if !s.hasBarData {
+			return nil, false
+		}
+		return &s.hlc3Series, true
+	case "ohlc4":
+		if !s.hasBarData {
+			return nil, false
+		}
+		return &s.ohlc4Series, true
 	case "position_size":
 		position := s.currentPosition()
 		if position == nil {
@@ -217,6 +280,106 @@ func (s *evaluationScope) reservedVariable(name string) (any, bool) {
 			return nil, true
 		}
 		return position.AveragePrice, true
+	case "equity":
+		if s.runtime == nil {
+			return 0.0, true
+		}
+		return s.runtime.getTotalAccountValue(), true
+	case "bar_index":
+		return float64(s.barIndex), true
+	case "time":
+		if s.currentKline == nil {
+			return nil, false
+		}
+		return float64(pineBarTime(s.currentKline).UnixMilli()), true
+	case "hour":
+		if s.currentKline == nil {
+			return nil, false
+		}
+		return float64(pineBarTime(s.currentKline).Hour()), true
+	case "minute":
+		if s.currentKline == nil {
+			return nil, false
+		}
+		return float64(pineBarTime(s.currentKline).Minute()), true
+	case "dayofweek":
+		if s.currentKline == nil {
+			return nil, false
+		}
+		return float64(pineDayOfWeek(pineBarTime(s.currentKline))), true
+	case "dayofmonth":
+		if s.currentKline == nil {
+			return nil, false
+		}
+		return float64(pineBarTime(s.currentKline).Day()), true
+	case "month":
+		if s.currentKline == nil {
+			return nil, false
+		}
+		return float64(pineBarTime(s.currentKline).Month()), true
+	case "year":
+		if s.currentKline == nil {
+			return nil, false
+		}
+		return float64(pineBarTime(s.currentKline).Year()), true
+	case "syminfo_tickerid":
+		if s.runtime == nil {
+			return "", true
+		}
+		return s.runtime.symbol, true
+	case "syminfo_prefix":
+		if s.runtime == nil {
+			return "", true
+		}
+		return pineSymbolPrefix(s.runtime.symbol), true
+	case "timeframe_period":
+		if s.runtime == nil {
+			return "", true
+		}
+		return string(s.runtime.interval), true
+	case "timeframe_isintraday":
+		if s.runtime == nil {
+			return false, true
+		}
+		return pineTimeframeIsIntraday(s.runtime.interval), true
+	case "timeframe_isminutes":
+		if s.runtime == nil {
+			return false, true
+		}
+		return pineTimeframeIsMinutes(s.runtime.interval), true
+	case "timeframe_isdaily":
+		if s.runtime == nil {
+			return false, true
+		}
+		return pineTimeframeUnit(s.runtime.interval) == "day", true
+	case "timeframe_isweekly":
+		if s.runtime == nil {
+			return false, true
+		}
+		return pineTimeframeUnit(s.runtime.interval) == "week", true
+	case "timeframe_ismonthly":
+		if s.runtime == nil {
+			return false, true
+		}
+		return pineTimeframeUnit(s.runtime.interval) == "month", true
+	case "barstate_isfirst":
+		return s.barIndex == 0, true
+	case "barstate_isnew":
+		return s.hasBarData, true
+	case "barstate_isconfirmed":
+		return s.hasBarData, true
+	case "barstate_ishistory":
+		return bbgo2.IsBackTesting, true
+	case "barstate_isrealtime":
+		return !bbgo2.IsBackTesting, true
+	case "barstate_islast":
+		return s.hasBarData, true
+	case "session_ismarket":
+		return s.currentSession == market.SessionRegular, true
+	case "session_ispremarket":
+		return s.currentSession == market.SessionPre, true
+	case "session_ispostmarket":
+		return s.currentSession == market.SessionAfter, true
 	default:
 		return nil, false
 	}
@@ -373,6 +536,14 @@ func newStrategyRuntime(
 		engine:           engine,
 		session:          session,
 		executor:         orderExecutor,
+		entrySubmitCount: map[string]int{},
+		maxPyramiding:    normalizeRuntimePyramiding(program),
+		pendingOrders:    map[string]pendingOrder{},
+		barssinceStates:  map[string]*barssinceState{},
+		valuewhenStates:  map[string]*valuewhenState{},
+		historyTargets:   collectProgramHistoryTargets(program),
+		historyValues:    map[string][]any{},
+		barIndex:         -1,
 		baseScope: &evaluationScope{
 			variables: map[string]any{
 				"id":           displayName,
@@ -429,10 +600,18 @@ func (r *strategyRuntime) handleKLineClosed(kline types.KLine) {
 	if interval := r.interval; interval != "" && kline.Interval != interval {
 		return
 	}
+	r.barIndex++
 
 	resolvedSession := r.resolveKLineSession(kline)
 	if r.engine != nil {
 		r.engine.Push(kline, resolvedSession)
+	}
+	if err := r.triggerPendingOrders(&kline); err != nil {
+		errMsg := err.Error()
+		bbgo2.Notify("pine strategy %s pending order error: %s", r.displayName, errMsg)
+		if r.strategy.OnError != nil {
+			r.strategy.OnError(errMsg)
+		}
 	}
 	if err := r.runHookLocked(strategyir.HookKLineClose, &kline, resolvedSession); err != nil {
 		errMsg := err.Error()
@@ -456,7 +635,11 @@ func (r *strategyRuntime) runHookLocked(kind strategyir.HookKind, kline *types.K
 	}
 	scope := r.newScope(kline, session)
 	_, err := r.executeStatements(hook.Statements, scope)
-	return err
+	if err != nil {
+		return err
+	}
+	r.recordHistorySnapshots(scope)
+	return nil
 }
 
 func findHook(program *strategyir.Program, kind strategyir.HookKind) (strategyir.HookBlock, bool) {
@@ -522,6 +705,115 @@ func collectIfScopePlans(statements []strategyir.Statement, plans map[*strategyi
 	}
 }
 
+func collectProgramHistoryTargets(program *strategyir.Program) map[string]historyTarget {
+	targets := map[string]historyTarget{}
+	if program == nil {
+		return targets
+	}
+	for _, hook := range program.Hooks {
+		collectStatementHistoryTargets(hook.Statements, targets)
+	}
+	return targets
+}
+
+func collectStatementHistoryTargets(statements []strategyir.Statement, targets map[string]historyTarget) {
+	for _, statement := range statements {
+		switch typed := statement.(type) {
+		case *strategyir.LetStmt:
+			collectExpressionHistoryTargets(typed.Expression, targets)
+		case *strategyir.IfStmt:
+			collectExpressionHistoryTargets(typed.Condition, targets)
+			collectStatementHistoryTargets(typed.Then, targets)
+			collectStatementHistoryTargets(typed.Else, targets)
+		case *strategyir.OrderStmt:
+			collectExpressionHistoryTargets(typed.QuantityExpression, targets)
+			collectExpressionHistoryTargets(typed.LimitExpression, targets)
+			collectExpressionHistoryTargets(typed.StopExpression, targets)
+		case *strategyir.ExitStmt:
+			collectExpressionHistoryTargets(typed.QuantityExpression, targets)
+			collectExpressionHistoryTargets(typed.StopExpression, targets)
+			collectExpressionHistoryTargets(typed.LimitExpression, targets)
+			collectExpressionHistoryTargets(typed.TrailPoints, targets)
+			collectExpressionHistoryTargets(typed.TrailOffset, targets)
+		case *strategyir.ProtectStmt:
+			collectExpressionHistoryTargets(typed.TimeValueExpression, targets)
+			collectExpressionHistoryTargets(typed.PercentageExpression, targets)
+		}
+	}
+}
+
+func collectExpressionHistoryTargets(expression string, targets map[string]historyTarget) {
+	if strings.TrimSpace(expression) == "" || targets == nil {
+		return
+	}
+	parsed, err := parseExpression(expression, nil)
+	if err != nil {
+		return
+	}
+	collectHistoryTargetsFromNode(parsed, targets)
+}
+
+func collectHistoryTargetsFromNode(node exprast.Node, targets map[string]historyTarget) {
+	switch typed := node.(type) {
+	case nil:
+		return
+	case *exprast.CallNode:
+		name, ok := typed.Callee.(*exprast.IdentifierNode)
+		if ok && strings.EqualFold(strings.TrimSpace(name.Value), "history") && len(typed.Arguments) == 2 {
+			lookback := historyLookbackFromNode(typed.Arguments[1])
+			key := expressionNodeKey(typed.Arguments[0])
+			if existing, ok := targets[key]; !ok || lookback > existing.maxLookback {
+				targets[key] = historyTarget{key: key, expression: typed.Arguments[0], maxLookback: lookback}
+			}
+		}
+		collectHistoryTargetsFromNode(typed.Callee, targets)
+		for _, argument := range typed.Arguments {
+			collectHistoryTargetsFromNode(argument, targets)
+		}
+	case *exprast.UnaryNode:
+		collectHistoryTargetsFromNode(typed.Node, targets)
+	case *exprast.BinaryNode:
+		collectHistoryTargetsFromNode(typed.Left, targets)
+		collectHistoryTargetsFromNode(typed.Right, targets)
+	case *exprast.MemberNode:
+		collectHistoryTargetsFromNode(typed.Node, targets)
+		collectHistoryTargetsFromNode(typed.Property, targets)
+	case *exprast.PredicateNode:
+		collectHistoryTargetsFromNode(typed.Node, targets)
+	}
+}
+
+func historyLookbackFromNode(node exprast.Node) int {
+	switch typed := node.(type) {
+	case *exprast.IntegerNode:
+		return typed.Value
+	case *exprast.FloatNode:
+		return int(math.Trunc(typed.Value))
+	default:
+		return 0
+	}
+}
+
+func (r *strategyRuntime) recordHistorySnapshots(scope *evaluationScope) {
+	if r == nil || scope == nil || len(r.historyTargets) == 0 {
+		return
+	}
+	if r.historyValues == nil {
+		r.historyValues = map[string][]any{}
+	}
+	for key, target := range r.historyTargets {
+		value, err := evaluateAST(target.expression, scope)
+		if err != nil {
+			value = nil
+		}
+		values := append(r.historyValues[key], snapshotExpressionValue(value))
+		if target.maxLookback > 0 && len(values) > target.maxLookback {
+			values = values[len(values)-target.maxLookback:]
+		}
+		r.historyValues[key] = values
+	}
+}
+
 func (r *strategyRuntime) newScope(kline *types.KLine, session market.Session) *evaluationScope {
 	var indicators map[string]any
 	if r.engine != nil {
@@ -555,7 +847,11 @@ func (r *strategyRuntime) newScope(kline *types.KLine, session market.Session) *
 	scope.highSeries = seriesNumber{}
 	scope.lowSeries = seriesNumber{}
 	scope.volumeSeries = seriesNumber{}
+	scope.hl2Series = seriesNumber{}
+	scope.hlc3Series = seriesNumber{}
+	scope.ohlc4Series = seriesNumber{}
 	scope.hasBarData = false
+	scope.barIndex = r.barIndex
 	if kline != nil {
 		scope.currentKlineTime = kline.EndTime.Time()
 		scope.currentKlineSymbol = kline.Symbol
@@ -565,9 +861,77 @@ func (r *strategyRuntime) newScope(kline *types.KLine, session market.Session) *
 		scope.highSeries = seriesNumber{Current: kline.High.Float64(), Previous: r.previousHigh, HasCurrent: true, HasPrevious: r.hasPreviousClose}
 		scope.lowSeries = seriesNumber{Current: kline.Low.Float64(), Previous: r.previousLow, HasCurrent: true, HasPrevious: r.hasPreviousClose}
 		scope.volumeSeries = seriesNumber{Current: kline.Volume.Float64(), Previous: r.previousVolume, HasCurrent: true, HasPrevious: r.hasPreviousClose}
+		currentHL2 := (scope.highSeries.Current + scope.lowSeries.Current) / 2
+		currentHLC3 := (scope.highSeries.Current + scope.lowSeries.Current + scope.closeSeries.Current) / 3
+		currentOHLC4 := (scope.openSeries.Current + scope.highSeries.Current + scope.lowSeries.Current + scope.closeSeries.Current) / 4
+		previousHL2 := (r.previousHigh + r.previousLow) / 2
+		previousHLC3 := (r.previousHigh + r.previousLow + r.previousClose) / 3
+		previousOHLC4 := (r.previousOpen + r.previousHigh + r.previousLow + r.previousClose) / 4
+		scope.hl2Series = seriesNumber{Current: currentHL2, Previous: previousHL2, HasCurrent: true, HasPrevious: r.hasPreviousClose}
+		scope.hlc3Series = seriesNumber{Current: currentHLC3, Previous: previousHLC3, HasCurrent: true, HasPrevious: r.hasPreviousClose}
+		scope.ohlc4Series = seriesNumber{Current: currentOHLC4, Previous: previousOHLC4, HasCurrent: true, HasPrevious: r.hasPreviousClose}
 		scope.hasBarData = true
 	}
 	return scope
+}
+
+func pineBarTime(kline *types.KLine) time.Time {
+	if kline == nil {
+		return time.Time{}
+	}
+	if !kline.StartTime.Time().IsZero() {
+		return kline.StartTime.Time()
+	}
+	return kline.EndTime.Time()
+}
+
+func pineDayOfWeek(value time.Time) int {
+	return int(value.Weekday()) + 1
+}
+
+func pineSymbolPrefix(symbol string) string {
+	trimmed := strings.TrimSpace(symbol)
+	if trimmed == "" {
+		return ""
+	}
+	if index := strings.Index(trimmed, ":"); index > 0 {
+		return trimmed[:index]
+	}
+	if index := strings.Index(trimmed, "."); index > 0 {
+		return trimmed[:index]
+	}
+	return ""
+}
+
+func pineTimeframeUnit(interval types.Interval) string {
+	value := strings.ToLower(strings.TrimSpace(string(interval)))
+	switch {
+	case strings.HasSuffix(value, "mo"), strings.HasSuffix(value, "mon"), strings.HasSuffix(value, "month"):
+		return "month"
+	case strings.HasSuffix(value, "w"):
+		return "week"
+	case strings.HasSuffix(value, "d"):
+		return "day"
+	case strings.HasSuffix(value, "h"):
+		return "hour"
+	case strings.HasSuffix(value, "m"):
+		return "minute"
+	default:
+		return ""
+	}
+}
+
+func pineTimeframeIsMinutes(interval types.Interval) bool {
+	return pineTimeframeUnit(interval) == "minute"
+}
+
+func pineTimeframeIsIntraday(interval types.Interval) bool {
+	switch pineTimeframeUnit(interval) {
+	case "minute", "hour":
+		return true
+	default:
+		return false
+	}
 }
 
 func (r *strategyRuntime) executeStatements(statements []strategyir.Statement, scope *evaluationScope) (bool, error) {
@@ -615,6 +979,13 @@ func (r *strategyRuntime) executeStatements(statements []strategyir.Statement, s
 			if err := r.executeOrderStatement(typed, scope); err != nil {
 				return false, err
 			}
+		case *strategyir.ExitStmt:
+			stopped, err := r.executeExitStatement(typed, scope)
+			if err != nil || stopped {
+				return stopped, err
+			}
+		case *strategyir.CancelStmt:
+			r.executeCancelStatement(typed)
 		case *strategyir.ProtectStmt:
 			stopped, err := r.executeProtectStatement(typed, scope)
 			if err != nil || stopped {
@@ -693,30 +1064,55 @@ func (r *strategyRuntime) executeOrderStatement(statement *strategyir.OrderStmt,
 		availablePositionQty = math.Floor(absFloat(firstPositiveFloat(absFloat(position.AvailableQuantity), absFloat(position.Quantity))))
 	}
 
+	intent := normalizeOrderIntent(statement.Intent)
+	action := statement.Action
+	if intent == strategyir.OrderIntentFlatten {
+		if position == nil || availablePositionQty <= 0 {
+			r.internalLog("无持仓可平，跳过全部平仓")
+			return nil
+		}
+		switch position.Direction {
+		case "LONG":
+			action = strategyir.OrderActionSell
+		case "SHORT":
+			action = strategyir.OrderActionCover
+		default:
+			r.internalLog("无持仓可平，跳过全部平仓")
+			return nil
+		}
+	}
+
 	entryPolicy := normalizeEntryPolicy(statement.EntryPolicy)
-	switch statement.Action {
+	sameDirectionEntryCount := 0
+	switch action {
 	case strategyir.OrderActionBuy:
-		if shouldSkipLongEntry(position, availablePositionQty, entryPolicy) {
+		if intent == strategyir.OrderIntentEntry {
+			sameDirectionEntryCount = r.sameDirectionEntryCount("LONG", position, availablePositionQty)
+		}
+		if intent == strategyir.OrderIntentEntry && shouldSkipLongEntry(position, availablePositionQty, entryPolicy, r.maxPyramiding, sameDirectionEntryCount) {
 			r.internalLog("已有多头持仓，按策略跳过开多")
 			return nil
 		}
 	case strategyir.OrderActionSell:
-		if position == nil || position.Direction != "LONG" || availablePositionQty <= 0 {
+		if intent != strategyir.OrderIntentNet && (position == nil || position.Direction != "LONG" || availablePositionQty <= 0) {
 			r.internalLog("无多头持仓可平，跳过卖出")
 			return nil
 		}
 	case strategyir.OrderActionShort:
-		if shouldSkipShortEntry(position, availablePositionQty, entryPolicy) {
+		if intent == strategyir.OrderIntentEntry {
+			sameDirectionEntryCount = r.sameDirectionEntryCount("SHORT", position, availablePositionQty)
+		}
+		if intent == strategyir.OrderIntentEntry && shouldSkipShortEntry(position, availablePositionQty, entryPolicy, r.maxPyramiding, sameDirectionEntryCount) {
 			r.internalLog("已有空头持仓，按策略跳过开空")
 			return nil
 		}
 	case strategyir.OrderActionCover:
-		if position == nil || position.Direction != "SHORT" || availablePositionQty <= 0 {
+		if intent != strategyir.OrderIntentNet && (position == nil || position.Direction != "SHORT" || availablePositionQty <= 0) {
 			r.internalLog("无空头持仓可平，跳过买入平空")
 			return nil
 		}
 	default:
-		return fmt.Errorf("pine line %d: unsupported order action %q", statement.Range.StartLine, statement.Action)
+		return fmt.Errorf("pine line %d: unsupported order action %q", statement.Range.StartLine, action)
 	}
 
 	orderPrice, limitPrice, err := r.resolveOrderPrice(statement, scope)
@@ -743,14 +1139,143 @@ func (r *strategyRuntime) executeOrderStatement(statement *strategyir.OrderStmt,
 		return nil
 	}
 
-	orderSide, err := exchangeSideForAction(statement.Action)
+	if r.shouldStorePendingOrder(statement, intent) {
+		r.storePendingOrder(statement, action, intent, quantity, limitPrice, orderPrice)
+		return nil
+	}
+
+	orderSide, err := exchangeSideForAction(action)
 	if err != nil {
 		return fmt.Errorf("pine line %d: %w", statement.Range.StartLine, err)
 	}
 	if err := r.submitOrder(orderSide, normalizeOrderType(statement.OrderType), quantity, limitPrice); err != nil {
 		return fmt.Errorf("pine line %d: %w", statement.Range.StartLine, err)
 	}
+	switch intent {
+	case strategyir.OrderIntentNet:
+		r.resetEntrySubmitCount("LONG")
+		r.resetEntrySubmitCount("SHORT")
+	default:
+		r.recordSubmittedOrderAction(action, quantity, availablePositionQty, sameDirectionEntryCount)
+	}
 	return nil
+}
+
+func (r *strategyRuntime) shouldStorePendingOrder(statement *strategyir.OrderStmt, intent strategyir.OrderIntent) bool {
+	if statement == nil {
+		return false
+	}
+	if strings.TrimSpace(statement.StopExpression) != "" {
+		return true
+	}
+	if strings.TrimSpace(statement.LimitExpression) == "" {
+		return false
+	}
+	switch intent {
+	case strategyir.OrderIntentEntry, strategyir.OrderIntentNet:
+		return true
+	default:
+		return false
+	}
+}
+
+func (r *strategyRuntime) storePendingOrder(statement *strategyir.OrderStmt, action strategyir.OrderAction, intent strategyir.OrderIntent, quantity float64, limitPrice float64, stopPrice float64) {
+	if r == nil || statement == nil || quantity <= 0 {
+		return
+	}
+	id := strings.TrimSpace(statement.ID)
+	if id == "" {
+		id = fmt.Sprintf("line:%d", statement.Range.StartLine)
+	}
+	r.pendingSequence++
+	orderType := normalizeOrderType(statement.OrderType)
+	pending := pendingOrder{
+		id:         id,
+		sequence:   r.pendingSequence,
+		action:     action,
+		intent:     intent,
+		orderType:  orderType,
+		quantity:   quantity,
+		limitPrice: limitPrice,
+		stopPrice:  stopPrice,
+		hasLimit:   strings.TrimSpace(statement.LimitExpression) != "",
+		hasStop:    strings.TrimSpace(statement.StopExpression) != "",
+	}
+	if !pending.hasLimit {
+		pending.limitPrice = 0
+	}
+	if !pending.hasStop {
+		pending.stopPrice = 0
+	}
+	r.pendingOrders[id] = pending
+	r.internalLog("registered pending order " + id)
+}
+
+func (r *strategyRuntime) triggerPendingOrders(kline *types.KLine) error {
+	if r == nil || kline == nil || len(r.pendingOrders) == 0 {
+		return nil
+	}
+	orders := make([]pendingOrder, 0, len(r.pendingOrders))
+	for _, order := range r.pendingOrders {
+		orders = append(orders, order)
+	}
+	sort.Slice(orders, func(left, right int) bool {
+		return orders[left].sequence < orders[right].sequence
+	})
+	high := kline.High.Float64()
+	low := kline.Low.Float64()
+	for _, order := range orders {
+		if !pendingOrderTriggered(order, high, low) {
+			continue
+		}
+		delete(r.pendingOrders, order.id)
+		side, err := exchangeSideForAction(order.action)
+		if err != nil {
+			return err
+		}
+		orderType := types.OrderTypeMarket
+		limitPrice := 0.0
+		if order.hasLimit && !order.hasStop {
+			orderType = types.OrderTypeLimit
+			limitPrice = order.limitPrice
+		}
+		if err := r.submitOrder(side, orderType, order.quantity, limitPrice); err != nil {
+			return err
+		}
+		switch order.intent {
+		case strategyir.OrderIntentNet:
+			r.resetEntrySubmitCount("LONG")
+			r.resetEntrySubmitCount("SHORT")
+		default:
+			r.recordSubmittedOrderAction(order.action, order.quantity, 0, 0)
+		}
+	}
+	return nil
+}
+
+func pendingOrderTriggered(order pendingOrder, high float64, low float64) bool {
+	switch {
+	case order.hasStop:
+		switch order.action {
+		case strategyir.OrderActionBuy, strategyir.OrderActionCover:
+			return high >= order.stopPrice
+		case strategyir.OrderActionSell, strategyir.OrderActionShort:
+			return low <= order.stopPrice
+		default:
+			return false
+		}
+	case order.hasLimit:
+		switch order.action {
+		case strategyir.OrderActionBuy, strategyir.OrderActionCover:
+			return low <= order.limitPrice
+		case strategyir.OrderActionSell, strategyir.OrderActionShort:
+			return high >= order.limitPrice
+		default:
+			return false
+		}
+	default:
+		return false
+	}
 }
 
 func (r *strategyRuntime) executeProtectStatement(statement *strategyir.ProtectStmt, scope *evaluationScope) (bool, error) {
@@ -767,12 +1292,41 @@ func (r *strategyRuntime) executeProtectStatement(statement *strategyir.ProtectS
 	if position == nil {
 		return false, nil
 	}
-	quantity := math.Floor(absFloat(firstPositiveFloat(absFloat(position.AvailableQuantity), absFloat(position.Quantity))))
-	if quantity <= 0 {
-		return false, nil
-	}
 	shouldExitLong := requirement.allowLongExit && position.Direction == "LONG" && readBool(rawSnapshot, "longTriggered")
 	shouldExitShort := requirement.allowShortExit && position.Direction == "SHORT" && readBool(rawSnapshot, "shortTriggered")
+	availableQuantity := math.Floor(absFloat(firstPositiveFloat(absFloat(position.AvailableQuantity), absFloat(position.Quantity))))
+	quantity := 0.0
+	if shouldExitLong || shouldExitShort {
+		quantityMode := strings.TrimSpace(statement.QuantityMode)
+		if quantityMode == "" {
+			quantityMode = "symbol_position_percent"
+		}
+		quantityExpr := strings.TrimSpace(statement.QuantityExpression)
+		if quantityExpr == "" {
+			quantityExpr = "100"
+		}
+		mode, ok := indicatorbinding.ParseQuantityMode(quantityMode)
+		if !ok {
+			return false, fmt.Errorf("pine line %d: unsupported exit quantity mode %q", statement.Range.StartLine, statement.QuantityMode)
+		}
+		closePrice := 0.0
+		if scope.currentKline != nil {
+			closePrice = scope.currentKline.Close.Float64()
+		}
+		quantity, err = r.resolveOrderQuantity(&strategyir.OrderStmt{
+			Range:              statement.Range,
+			Action:             strategyir.OrderActionSell,
+			Intent:             strategyir.OrderIntentClose,
+			QuantityMode:       mode,
+			QuantityExpression: quantityExpr,
+		}, scope, position, availableQuantity, closePrice, mode)
+		if err != nil {
+			return false, fmt.Errorf("pine line %d: %w", statement.Range.StartLine, err)
+		}
+		if quantity <= 0 {
+			return false, nil
+		}
+	}
 	if shouldExitLong {
 		if r.isPlaceBlockedDuringWarmup(scope.currentKlineTime) {
 			r.internalLog("protect exit suppressed during warmup")
@@ -781,6 +1335,7 @@ func (r *strategyRuntime) executeProtectStatement(statement *strategyir.ProtectS
 		if err := r.submitOrder(types.SideTypeSell, types.OrderTypeMarket, quantity, 0); err != nil {
 			return false, fmt.Errorf("pine line %d: %w", statement.Range.StartLine, err)
 		}
+		r.resetEntrySubmitCount("LONG")
 		return true, nil
 	}
 	if shouldExitShort {
@@ -791,9 +1346,161 @@ func (r *strategyRuntime) executeProtectStatement(statement *strategyir.ProtectS
 		if err := r.submitOrder(types.SideTypeBuy, types.OrderTypeMarket, quantity, 0); err != nil {
 			return false, fmt.Errorf("pine line %d: %w", statement.Range.StartLine, err)
 		}
+		r.resetEntrySubmitCount("SHORT")
 		return true, nil
 	}
 	return false, nil
+}
+
+func (r *strategyRuntime) executeExitStatement(statement *strategyir.ExitStmt, scope *evaluationScope) (bool, error) {
+	position := r.getPosition(r.symbol, scope.currentKlineTime)
+	if position == nil {
+		return false, nil
+	}
+	availableQuantity := math.Floor(absFloat(firstPositiveFloat(absFloat(position.AvailableQuantity), absFloat(position.Quantity))))
+	if availableQuantity <= 0 {
+		return false, nil
+	}
+	direction := normalizeProtectDirection(statement.Direction)
+	if direction == "" || direction == "both" {
+		if position.Direction == "SHORT" {
+			direction = "short"
+		} else {
+			direction = "long"
+		}
+	}
+	allowLongExit := direction != "short"
+	allowShortExit := direction != "long"
+	stopPrice, hasStop, err := evaluateOptionalFloatExpression(statement.StopExpression, scope)
+	if err != nil {
+		return false, fmt.Errorf("pine line %d: %w", statement.Range.StartLine, err)
+	}
+	limitPrice, hasLimit, err := evaluateOptionalFloatExpression(statement.LimitExpression, scope)
+	if err != nil {
+		return false, fmt.Errorf("pine line %d: %w", statement.Range.StartLine, err)
+	}
+	if !hasStop && !hasLimit {
+		return false, nil
+	}
+	high, low, closePrice := currentBarPrices(scope)
+	triggered := false
+	triggerPrice := closePrice
+	if allowLongExit && position.Direction == "LONG" {
+		stopTriggered := hasStop && low <= stopPrice
+		limitTriggered := hasLimit && high >= limitPrice
+		if stopTriggered && limitTriggered {
+			r.internalLog("strategy.exit bracket hit stop and limit in same bar; using stop-first")
+		}
+		switch {
+		case stopTriggered:
+			triggered = true
+			triggerPrice = stopPrice
+		case limitTriggered:
+			triggered = true
+			triggerPrice = limitPrice
+		}
+	}
+	if allowShortExit && position.Direction == "SHORT" {
+		stopTriggered := hasStop && high >= stopPrice
+		limitTriggered := hasLimit && low <= limitPrice
+		if stopTriggered && limitTriggered {
+			r.internalLog("strategy.exit bracket hit stop and limit in same bar; using stop-first")
+		}
+		switch {
+		case stopTriggered:
+			triggered = true
+			triggerPrice = stopPrice
+		case limitTriggered:
+			triggered = true
+			triggerPrice = limitPrice
+		}
+	}
+	if !triggered {
+		return false, nil
+	}
+	quantityMode := strings.TrimSpace(statement.QuantityMode)
+	if quantityMode == "" {
+		quantityMode = "symbol_position_percent"
+	}
+	mode, ok := indicatorbinding.ParseQuantityMode(quantityMode)
+	if !ok {
+		return false, fmt.Errorf("pine line %d: unsupported exit quantity mode %q", statement.Range.StartLine, statement.QuantityMode)
+	}
+	quantityExpr := strings.TrimSpace(statement.QuantityExpression)
+	if quantityExpr == "" {
+		quantityExpr = "100"
+	}
+	quantity, err := r.resolveOrderQuantity(&strategyir.OrderStmt{
+		Range:              statement.Range,
+		Intent:             strategyir.OrderIntentClose,
+		QuantityMode:       mode,
+		QuantityExpression: quantityExpr,
+	}, scope, position, availableQuantity, triggerPrice, mode)
+	if err != nil {
+		return false, fmt.Errorf("pine line %d: %w", statement.Range.StartLine, err)
+	}
+	if quantity <= 0 {
+		return false, nil
+	}
+	if r.isPlaceBlockedDuringWarmup(scope.currentKlineTime) {
+		r.internalLog("exit suppressed during warmup")
+		return true, nil
+	}
+	if position.Direction == "LONG" {
+		if err := r.submitOrder(types.SideTypeSell, types.OrderTypeMarket, quantity, 0); err != nil {
+			return false, fmt.Errorf("pine line %d: %w", statement.Range.StartLine, err)
+		}
+		r.resetEntrySubmitCount("LONG")
+		return true, nil
+	}
+	if position.Direction == "SHORT" {
+		if err := r.submitOrder(types.SideTypeBuy, types.OrderTypeMarket, quantity, 0); err != nil {
+			return false, fmt.Errorf("pine line %d: %w", statement.Range.StartLine, err)
+		}
+		r.resetEntrySubmitCount("SHORT")
+		return true, nil
+	}
+	return false, nil
+}
+
+func (r *strategyRuntime) executeCancelStatement(statement *strategyir.CancelStmt) {
+	if r == nil || statement == nil || len(r.pendingOrders) == 0 {
+		return
+	}
+	if statement.All {
+		clear(r.pendingOrders)
+		r.internalLog("cancelled all pending orders")
+		return
+	}
+	id := strings.TrimSpace(statement.ID)
+	if id == "" {
+		return
+	}
+	if _, ok := r.pendingOrders[id]; ok {
+		delete(r.pendingOrders, id)
+		r.internalLog("cancelled pending order " + id)
+		return
+	}
+	r.internalLog("pending order " + id + " not found for cancel")
+}
+
+func evaluateOptionalFloatExpression(expression string, scope *evaluationScope) (float64, bool, error) {
+	trimmed := strings.TrimSpace(expression)
+	if trimmed == "" {
+		return 0, false, nil
+	}
+	value, err := evaluateFloatExpression(trimmed, scope)
+	if err != nil {
+		return 0, false, err
+	}
+	return value, true, nil
+}
+
+func currentBarPrices(scope *evaluationScope) (float64, float64, float64) {
+	if scope == nil || scope.currentKline == nil {
+		return 0, 0, 0
+	}
+	return scope.currentKline.High.Float64(), scope.currentKline.Low.Float64(), scope.currentKline.Close.Float64()
 }
 
 func (r *strategyRuntime) resolveProtectRequirement(statement *strategyir.ProtectStmt) (cachedProtectRequirement, error) {
@@ -815,6 +1522,13 @@ func (r *strategyRuntime) resolveOrderPrice(statement *strategyir.OrderStmt, sco
 	closePrice := 0.0
 	if scope.currentKline != nil {
 		closePrice = scope.currentKline.Close.Float64()
+	}
+	if strings.TrimSpace(statement.StopExpression) != "" {
+		value, err := evaluateFloatExpression(statement.StopExpression, scope)
+		if err != nil {
+			return 0, 0, err
+		}
+		return value, 0, nil
 	}
 	orderType := normalizeOrderType(statement.OrderType)
 	if orderType == types.OrderTypeMarket {
@@ -843,7 +1557,7 @@ func (r *strategyRuntime) resolveOrderQuantity(
 	if err != nil {
 		return 0, err
 	}
-	closingAction := statement.Action == strategyir.OrderActionSell || statement.Action == strategyir.OrderActionCover
+	closingAction := isClosingOrderQuantity(statement)
 	switch quantityMode {
 	case "shares":
 		quantity := math.Floor(value)
@@ -868,6 +1582,13 @@ func (r *strategyRuntime) resolveOrderQuantity(
 		}
 		return clampPercentBasedQuantity(rawQuantity, availablePositionQty, closingAction), nil
 	case "symbol_position_percent":
+		if closingAction {
+			rawQuantity := 0.0
+			if availablePositionQty > 0 {
+				rawQuantity = math.Floor(availablePositionQty * value / 100)
+			}
+			return clampPercentBasedQuantity(rawQuantity, availablePositionQty, true), nil
+		}
 		currentPositionValue := 0.0
 		if position != nil {
 			currentPositionValue = absFloat(position.MarketValue)
@@ -884,6 +1605,22 @@ func (r *strategyRuntime) resolveOrderQuantity(
 			return 0, nil
 		}
 		return quantity, nil
+	}
+}
+
+func isClosingOrderQuantity(statement *strategyir.OrderStmt) bool {
+	if statement == nil {
+		return false
+	}
+	switch statement.Intent {
+	case strategyir.OrderIntentClose, strategyir.OrderIntentFlatten:
+		return true
+	case strategyir.OrderIntentNet:
+		return false
+	case "":
+		return statement.Action == strategyir.OrderActionSell || statement.Action == strategyir.OrderActionCover
+	default:
+		return false
 	}
 }
 
@@ -1257,24 +1994,100 @@ func (s *evaluationScope) clone() *evaluationScope {
 	}
 }
 
-func shouldSkipLongEntry(position *positionSnapshot, availablePositionQty float64, entryPolicy string) bool {
-	if entryPolicy == "allow" {
-		return false
+func normalizeRuntimePyramiding(program *strategyir.Program) int {
+	if program == nil || program.Metadata.Pyramiding <= 0 {
+		return 1
 	}
-	if entryPolicy == "flat_only" {
-		return position != nil && position.Quantity != 0
-	}
-	return position != nil && position.Direction == "LONG" && availablePositionQty > 0
+	return program.Metadata.Pyramiding
 }
 
-func shouldSkipShortEntry(position *positionSnapshot, availablePositionQty float64, entryPolicy string) bool {
+func (r *strategyRuntime) sameDirectionEntryCount(direction string, position *positionSnapshot, availablePositionQty float64) int {
+	if r == nil {
+		return 0
+	}
+	normalized := strings.ToUpper(strings.TrimSpace(direction))
+	count := 0
+	if r.entrySubmitCount != nil {
+		count = r.entrySubmitCount[normalized]
+	}
+	if count == 0 && position != nil && position.Direction == normalized && availablePositionQty > 0 {
+		return 1
+	}
+	return count
+}
+
+func (r *strategyRuntime) recordSubmittedOrderAction(action strategyir.OrderAction, quantity float64, availablePositionQty float64, sameDirectionEntryCount int) {
+	if r == nil {
+		return
+	}
+	switch action {
+	case strategyir.OrderActionBuy:
+		r.incrementEntrySubmitCount("LONG", sameDirectionEntryCount)
+	case strategyir.OrderActionShort:
+		r.incrementEntrySubmitCount("SHORT", sameDirectionEntryCount)
+	case strategyir.OrderActionSell:
+		r.reduceEntrySubmitCount("LONG", quantity, availablePositionQty)
+	case strategyir.OrderActionCover:
+		r.reduceEntrySubmitCount("SHORT", quantity, availablePositionQty)
+	}
+}
+
+func (r *strategyRuntime) incrementEntrySubmitCount(direction string, observedCount int) {
+	if r.entrySubmitCount == nil {
+		r.entrySubmitCount = map[string]int{}
+	}
+	normalized := strings.ToUpper(strings.TrimSpace(direction))
+	current := r.entrySubmitCount[normalized]
+	if observedCount > current {
+		current = observedCount
+	}
+	r.entrySubmitCount[normalized] = current + 1
+}
+
+func (r *strategyRuntime) reduceEntrySubmitCount(direction string, quantity float64, availablePositionQty float64) {
+	if quantity >= availablePositionQty || availablePositionQty <= 0 {
+		r.resetEntrySubmitCount(direction)
+		return
+	}
+	normalized := strings.ToUpper(strings.TrimSpace(direction))
+	if r.entrySubmitCount == nil || r.entrySubmitCount[normalized] <= 1 {
+		r.resetEntrySubmitCount(direction)
+		return
+	}
+	r.entrySubmitCount[normalized]--
+}
+
+func (r *strategyRuntime) resetEntrySubmitCount(direction string) {
+	if r == nil || r.entrySubmitCount == nil {
+		return
+	}
+	delete(r.entrySubmitCount, strings.ToUpper(strings.TrimSpace(direction)))
+}
+
+func shouldSkipLongEntry(position *positionSnapshot, availablePositionQty float64, entryPolicy string, maxPyramiding int, sameDirectionEntryCount int) bool {
 	if entryPolicy == "allow" {
 		return false
 	}
 	if entryPolicy == "flat_only" {
 		return position != nil && position.Quantity != 0
 	}
-	return position != nil && position.Direction == "SHORT" && availablePositionQty > 0
+	if maxPyramiding <= 0 {
+		maxPyramiding = 1
+	}
+	return position != nil && position.Direction == "LONG" && availablePositionQty > 0 && sameDirectionEntryCount >= maxPyramiding
+}
+
+func shouldSkipShortEntry(position *positionSnapshot, availablePositionQty float64, entryPolicy string, maxPyramiding int, sameDirectionEntryCount int) bool {
+	if entryPolicy == "allow" {
+		return false
+	}
+	if entryPolicy == "flat_only" {
+		return position != nil && position.Quantity != 0
+	}
+	if maxPyramiding <= 0 {
+		maxPyramiding = 1
+	}
+	return position != nil && position.Direction == "SHORT" && availablePositionQty > 0 && sameDirectionEntryCount >= maxPyramiding
 }
 
 func exchangeSideForAction(action strategyir.OrderAction) (types.SideType, error) {
@@ -1293,6 +2106,17 @@ func normalizeOrderType(value string) types.OrderType {
 		return types.OrderTypeLimit
 	}
 	return types.OrderTypeMarket
+}
+
+func normalizeOrderIntent(value strategyir.OrderIntent) strategyir.OrderIntent {
+	switch value {
+	case strategyir.OrderIntentClose, strategyir.OrderIntentNet, strategyir.OrderIntentFlatten:
+		return value
+	case strategyir.OrderIntentEntry:
+		return strategyir.OrderIntentEntry
+	default:
+		return strategyir.OrderIntentEntry
+	}
 }
 
 func normalizeEntryPolicy(value string) string {
@@ -1361,8 +2185,8 @@ func parseIndicatorBinding(statement *strategyir.LetStmt) (indicatorBinding, boo
 	}
 	switch indicatorbinding.NormalizeFunctionName(name) {
 	case "ma":
-		if len(args) < 2 || len(args) > 3 {
-			return indicatorBinding{}, false, fmt.Errorf("pine line %d: ma() requires type, period, and optional time unit", statement.Range.StartLine)
+		if len(args) < 2 || len(args) > 4 {
+			return indicatorBinding{}, false, fmt.Errorf("pine line %d: ma() requires type, period, optional time unit, and optional source", statement.Range.StartLine)
 		}
 		averageType, ok := indicatorbinding.ParseMovingAverageType(args[0])
 		if !ok {
@@ -1372,21 +2196,22 @@ func parseIndicatorBinding(statement *strategyir.LetStmt) (indicatorBinding, boo
 		if err != nil {
 			return indicatorBinding{}, false, fmt.Errorf("pine line %d: ma() period must be a positive integer", statement.Range.StartLine)
 		}
-		timeUnit := ""
-		if len(args) == 3 {
-			parsedTimeUnit, ok := indicatorbinding.ParseIndicatorTimeUnitValue(args[2])
-			if !ok {
-				return indicatorBinding{}, false, fmt.Errorf("pine line %d: ma() time unit %q is not supported", statement.Range.StartLine, strings.TrimSpace(args[2]))
-			}
-			timeUnit = parsedTimeUnit
+		timeUnit, source, err := indicatorbinding.ParseMovingAverageOptionalArgs(args[2:])
+		if err != nil {
+			return indicatorBinding{}, false, fmt.Errorf("pine line %d: %w", statement.Range.StartLine, err)
 		}
-		return indicatorBinding{Alias: statement.Name, Kind: "ma", Key: indicatorbinding.BuildMovingAverageKey(averageType, period, timeUnit), Args: []string{averageType, strconv.Itoa(period), timeUnit}}, true, nil
+		maArgs := []string{averageType, strconv.Itoa(period), timeUnit}
+		if strings.TrimSpace(source) != "" && strings.TrimSpace(source) != "close" {
+			maArgs = append(maArgs, source)
+		}
+		return indicatorBinding{Alias: statement.Name, Kind: "ma", Key: indicatorbinding.BuildMovingAverageKeyWithSource(averageType, period, timeUnit, source), Args: maArgs}, true, nil
 	case "rsi":
-		period, err := indicatorbinding.ExpectOnePositiveIntArg(statement.Range.StartLine, name, args)
+		source, period, err := parseSourcePeriodArgs(statement.Range.StartLine, name, args, "close", "14")
 		if err != nil {
 			return indicatorBinding{}, false, err
 		}
-		return indicatorBinding{Alias: statement.Name, Kind: "rsi", Key: "rsi:" + strconv.Itoa(period), Args: []string{strconv.Itoa(period)}}, true, nil
+		key := sourcePeriodRuntimeKey("rsi", source, period, "close")
+		return indicatorBinding{Alias: statement.Name, Kind: "rsi", Key: key, Args: sourcePeriodRuntimeArgs(source, period, "close")}, true, nil
 	case "macd":
 		values, err := indicatorbinding.ExpectPositiveIntArgs(statement.Range.StartLine, name, args, 3)
 		if err != nil {
@@ -1406,17 +2231,149 @@ func parseIndicatorBinding(statement *strategyir.LetStmt) (indicatorBinding, boo
 		}
 		return indicatorBinding{Alias: statement.Name, Kind: "atr", Key: "atr:" + strconv.Itoa(period), Args: []string{strconv.Itoa(period)}}, true, nil
 	case "stdev":
-		period, err := indicatorbinding.ExpectOnePositiveIntArg(statement.Range.StartLine, name, args)
+		source, period, err := parseSourcePeriodArgs(statement.Range.StartLine, name, args, "close", "20")
 		if err != nil {
 			return indicatorBinding{}, false, err
 		}
-		return indicatorBinding{Alias: statement.Name, Kind: "stdev", Key: "stdev:" + strconv.Itoa(period), Args: []string{strconv.Itoa(period)}}, true, nil
+		key := sourcePeriodRuntimeKey("stdev", source, period, "close")
+		return indicatorBinding{Alias: statement.Name, Kind: "stdev", Key: key, Args: sourcePeriodRuntimeArgs(source, period, "close")}, true, nil
+	case "variance":
+		source, period, err := parseSourcePeriodArgs(statement.Range.StartLine, name, args, "close", "20")
+		if err != nil {
+			return indicatorBinding{}, false, err
+		}
+		key := "variance:" + source + ":" + strconv.Itoa(period)
+		return indicatorBinding{Alias: statement.Name, Kind: "variance", Key: key, Args: []string{source, strconv.Itoa(period)}}, true, nil
+	case "cum":
+		if len(args) != 1 {
+			return indicatorBinding{}, false, fmt.Errorf("pine line %d: cum() requires one source argument", statement.Range.StartLine)
+		}
+		source, ok := indicatorbinding.ParsePriceSource(args[0])
+		if !ok {
+			return indicatorBinding{}, false, fmt.Errorf("pine line %d: cum() source %q is not supported; use open/high/low/close/volume/hl2/hlc3/ohlc4", statement.Range.StartLine, strings.TrimSpace(args[0]))
+		}
+		return indicatorBinding{Alias: statement.Name, Kind: "cum", Key: "cum:" + source, Args: []string{source}}, true, nil
+	case "highest", "lowest", "highestbars", "lowestbars", "change", "mom", "roc", "rising", "falling", "sum":
+		if len(args) != 2 {
+			return indicatorBinding{}, false, fmt.Errorf("pine line %d: %s() requires source and length arguments", statement.Range.StartLine, name)
+		}
+		source, ok := indicatorbinding.ParsePriceSource(args[0])
+		if !ok {
+			return indicatorBinding{}, false, fmt.Errorf("pine line %d: %s() source %q is not supported; use open/high/low/close/volume/hl2/hlc3/ohlc4", statement.Range.StartLine, name, strings.TrimSpace(args[0]))
+		}
+		period, err := indicatorbinding.ParsePositiveInt(args[1])
+		if err != nil {
+			return indicatorBinding{}, false, fmt.Errorf("pine line %d: %s() length must be a positive integer", statement.Range.StartLine, name)
+		}
+		function := indicatorbinding.NormalizeFunctionName(name)
+		key := function + ":" + source + ":" + strconv.Itoa(period)
+		return indicatorBinding{Alias: statement.Name, Kind: function, Key: key, Args: []string{source, strconv.Itoa(period)}}, true, nil
+	case "stoch":
+		if len(args) != 4 {
+			return indicatorBinding{}, false, fmt.Errorf("pine line %d: stoch() requires source, high, low, and length arguments", statement.Range.StartLine)
+		}
+		source, ok := parseStochSource(args[0])
+		if !ok {
+			return indicatorBinding{}, false, fmt.Errorf("pine line %d: stoch() source %q is not supported; use open/high/low/close/hl2/hlc3/ohlc4", statement.Range.StartLine, strings.TrimSpace(args[0]))
+		}
+		if !strings.EqualFold(strings.TrimSpace(args[1]), "high") || !strings.EqualFold(strings.TrimSpace(args[2]), "low") {
+			return indicatorBinding{}, false, fmt.Errorf("pine line %d: stoch() currently supports literal high and low arguments only", statement.Range.StartLine)
+		}
+		period, err := indicatorbinding.ParsePositiveInt(args[3])
+		if err != nil {
+			return indicatorBinding{}, false, fmt.Errorf("pine line %d: stoch() length must be a positive integer", statement.Range.StartLine)
+		}
+		return indicatorBinding{Alias: statement.Name, Kind: "stoch", Key: "stoch:" + source + ":" + strconv.Itoa(period), Args: []string{source, strconv.Itoa(period)}}, true, nil
 	case "cci":
-		period, err := indicatorbinding.ExpectOnePositiveIntArg(statement.Range.StartLine, name, args)
+		source, period, err := parseSourcePeriodArgs(statement.Range.StartLine, name, args, "hlc3", "20")
 		if err != nil {
 			return indicatorBinding{}, false, err
 		}
-		return indicatorBinding{Alias: statement.Name, Kind: "cci", Key: "cci:" + strconv.Itoa(period), Args: []string{strconv.Itoa(period)}}, true, nil
+		key := sourcePeriodRuntimeKey("cci", source, period, "hlc3")
+		return indicatorBinding{Alias: statement.Name, Kind: "cci", Key: key, Args: sourcePeriodRuntimeArgs(source, period, "hlc3")}, true, nil
+	case "vwap":
+		if len(args) != 1 {
+			return indicatorBinding{}, false, fmt.Errorf("pine line %d: vwap() requires one source argument", statement.Range.StartLine)
+		}
+		source, ok := indicatorbinding.ParsePriceSource(args[0])
+		if !ok {
+			return indicatorBinding{}, false, fmt.Errorf("pine line %d: vwap() source %q is not supported; use open/high/low/close/volume/hl2/hlc3/ohlc4", statement.Range.StartLine, strings.TrimSpace(args[0]))
+		}
+		return indicatorBinding{Alias: statement.Name, Kind: "vwap", Key: "vwap:" + source, Args: []string{source}}, true, nil
+	case "mfi":
+		source, period, err := parseSourcePeriodArgs(statement.Range.StartLine, name, args, "hlc3", "14")
+		if err != nil {
+			return indicatorBinding{}, false, err
+		}
+		key := "mfi:" + source + ":" + strconv.Itoa(period)
+		return indicatorBinding{Alias: statement.Name, Kind: "mfi", Key: key, Args: []string{source, strconv.Itoa(period)}}, true, nil
+	case "dmi":
+		values, err := indicatorbinding.ExpectPositiveIntArgs(statement.Range.StartLine, name, args, 2)
+		if err != nil {
+			return indicatorBinding{}, false, err
+		}
+		key := fmt.Sprintf("dmi:%d:%d", values[0], values[1])
+		return indicatorBinding{Alias: statement.Name, Kind: "dmi", Key: key, Args: indicatorbinding.IntsToStrings(values)}, true, nil
+	case "supertrend":
+		if len(args) != 2 {
+			return indicatorBinding{}, false, fmt.Errorf("pine line %d: supertrend() requires factor and atrPeriod", statement.Range.StartLine)
+		}
+		factor, err := indicatorbinding.ParsePositiveFloat(args[0])
+		if err != nil {
+			return indicatorBinding{}, false, fmt.Errorf("pine line %d: supertrend() factor must be a positive number", statement.Range.StartLine)
+		}
+		period, err := indicatorbinding.ParsePositiveInt(args[1])
+		if err != nil {
+			return indicatorBinding{}, false, fmt.Errorf("pine line %d: supertrend() atrPeriod must be a positive integer", statement.Range.StartLine)
+		}
+		factorText := strconv.FormatFloat(factor, 'f', -1, 64)
+		key := "supertrend:" + factorText + ":" + strconv.Itoa(period)
+		return indicatorBinding{Alias: statement.Name, Kind: "supertrend", Key: key, Args: []string{factorText, strconv.Itoa(period)}}, true, nil
+	case "sar":
+		if len(args) != 3 {
+			return indicatorBinding{}, false, fmt.Errorf("pine line %d: sar() requires start, increment, and max", statement.Range.StartLine)
+		}
+		start, err := indicatorbinding.ParsePositiveFloat(args[0])
+		if err != nil {
+			return indicatorBinding{}, false, fmt.Errorf("pine line %d: sar() start must be a positive number", statement.Range.StartLine)
+		}
+		increment, err := indicatorbinding.ParsePositiveFloat(args[1])
+		if err != nil {
+			return indicatorBinding{}, false, fmt.Errorf("pine line %d: sar() increment must be a positive number", statement.Range.StartLine)
+		}
+		maximum, err := indicatorbinding.ParsePositiveFloat(args[2])
+		if err != nil {
+			return indicatorBinding{}, false, fmt.Errorf("pine line %d: sar() max must be a positive number", statement.Range.StartLine)
+		}
+		key := "sar:" + strconv.FormatFloat(start, 'f', -1, 64) + ":" + strconv.FormatFloat(increment, 'f', -1, 64) + ":" + strconv.FormatFloat(maximum, 'f', -1, 64)
+		return indicatorBinding{Alias: statement.Name, Kind: "sar", Key: key, Args: []string{strconv.FormatFloat(start, 'f', -1, 64), strconv.FormatFloat(increment, 'f', -1, 64), strconv.FormatFloat(maximum, 'f', -1, 64)}}, true, nil
+	case "security_source":
+		if len(args) < 2 || len(args) > 3 {
+			return indicatorBinding{}, false, fmt.Errorf("pine line %d: security_source() requires source, time unit, and optional lookback", statement.Range.StartLine)
+		}
+		source, ok := indicatorbinding.ParsePriceSource(args[0])
+		if !ok {
+			return indicatorBinding{}, false, fmt.Errorf("pine line %d: security_source() source %q is not supported; use open/high/low/close/volume/hl2/hlc3/ohlc4", statement.Range.StartLine, strings.TrimSpace(args[0]))
+		}
+		timeUnit, ok := indicatorbinding.ParseIndicatorTimeUnitValue(args[1])
+		if !ok || timeUnit == "" {
+			return indicatorBinding{}, false, fmt.Errorf("pine line %d: security_source() time unit %q is not supported", statement.Range.StartLine, strings.TrimSpace(args[1]))
+		}
+		lookback := 0
+		if len(args) == 3 {
+			parsed, err := strconv.Atoi(strings.TrimSpace(args[2]))
+			if err != nil || parsed < 0 {
+				return indicatorBinding{}, false, fmt.Errorf("pine line %d: security_source() lookback must be a non-negative integer", statement.Range.StartLine)
+			}
+			lookback = parsed
+		}
+		key := "security_source:" + timeUnit + ":" + source
+		bindingArgs := []string{source, timeUnit}
+		if lookback > 0 {
+			key += ":" + strconv.Itoa(lookback)
+			bindingArgs = append(bindingArgs, strconv.Itoa(lookback))
+		}
+		return indicatorBinding{Alias: statement.Name, Kind: "security_source", Key: key, Args: bindingArgs}, true, nil
 	case "williams_r", "williamsr":
 		period, err := indicatorbinding.ExpectOnePositiveIntArg(statement.Range.StartLine, name, args)
 		if err != nil {
@@ -1440,6 +2397,48 @@ func parseIndicatorBinding(statement *strategyir.LetStmt) (indicatorBinding, boo
 	default:
 		return indicatorBinding{}, false, nil
 	}
+}
+
+func parseStochSource(value string) (string, bool) {
+	source, ok := indicatorbinding.ParsePriceSource(value)
+	if !ok || source == "volume" {
+		return "", false
+	}
+	return source, true
+}
+
+func parseSourcePeriodArgs(lineNumber int, name string, args []string, defaultSource string, defaultPeriod string) (string, int, error) {
+	sourceText, periodText := defaultSource, defaultPeriod
+	if len(args) == 1 {
+		periodText = strings.TrimSpace(args[0])
+	} else if len(args) >= 2 {
+		sourceText = strings.TrimSpace(args[0])
+		periodText = strings.TrimSpace(args[1])
+	}
+	source, ok := indicatorbinding.ParsePriceSource(sourceText)
+	if !ok {
+		return "", 0, fmt.Errorf("pine line %d: %s() source %q is not supported; use open/high/low/close/volume/hl2/hlc3/ohlc4", lineNumber, name, sourceText)
+	}
+	period, err := indicatorbinding.ParsePositiveInt(periodText)
+	if err != nil {
+		return "", 0, fmt.Errorf("pine line %d: %s() length must be a positive integer", lineNumber, name)
+	}
+	return source, period, nil
+}
+
+func sourcePeriodRuntimeKey(prefix string, source string, period int, legacySource string) string {
+	if strings.TrimSpace(source) == "" || source == legacySource {
+		return prefix + ":" + strconv.Itoa(period)
+	}
+	return prefix + ":" + source + ":" + strconv.Itoa(period)
+}
+
+func sourcePeriodRuntimeArgs(source string, period int, legacySource string) []string {
+	periodText := strconv.Itoa(period)
+	if strings.TrimSpace(source) == "" || source == legacySource {
+		return []string{periodText}
+	}
+	return []string{source, periodText}
 }
 
 func buildDivergenceRequirementKey(binding indicatorBinding, direction string, lookback int) (string, bool) {

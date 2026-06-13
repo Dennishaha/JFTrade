@@ -140,6 +140,977 @@ log.info("pine smoke kline")`,
 	}
 }
 
+func TestRunUsesTradingViewDefaultQuantityForNVDAStylePine(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	dbPath := filepath.Join(t.TempDir(), "backtest-nvda-default-qty.db")
+	store, err := NewFutuKLineStore(dbPath)
+	if err != nil {
+		t.Fatalf("NewFutuKLineStore() error = %v", err)
+	}
+
+	baseStart := time.Date(2026, time.May, 26, 13, 30, 0, 0, time.UTC)
+	klines := make([]types.KLine, 0, 58)
+	for index := 0; index < 55; index++ {
+		start := baseStart.Add(time.Duration(index) * time.Minute)
+		price := fixedpoint.NewFromFloat(100)
+		klines = append(klines, types.KLine{
+			StartTime: types.Time(start),
+			EndTime:   types.Time(start.Add(time.Minute - time.Millisecond)),
+			Interval:  types.Interval1m,
+			Symbol:    "US.NVDA",
+			Open:      price,
+			High:      price,
+			Low:       price,
+			Close:     price,
+			Volume:    fixedpoint.NewFromFloat(1000),
+		})
+	}
+	for offset, closePrice := range []float64{150, 151, 152} {
+		start := baseStart.Add(time.Duration(55+offset) * time.Minute)
+		price := fixedpoint.NewFromFloat(closePrice)
+		klines = append(klines, types.KLine{
+			StartTime: types.Time(start),
+			EndTime:   types.Time(start.Add(time.Minute - time.Millisecond)),
+			Interval:  types.Interval1m,
+			Symbol:    "US.NVDA",
+			Open:      price,
+			High:      price,
+			Low:       price,
+			Close:     price,
+			Volume:    fixedpoint.NewFromFloat(1000),
+		})
+	}
+
+	if err := store.InsertKLines(klines, "forward"); err != nil {
+		_ = store.Close()
+		t.Fatalf("InsertKLines() error = %v", err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatalf("store.Close() error = %v", err)
+	}
+
+	result := Run(context.Background(), RunConfig{
+		DBPath:       dbPath,
+		Symbol:       "US.NVDA",
+		Interval:     string(types.Interval1m),
+		SourceFormat: strategydefinition.SourceFormatPineV6,
+		StartTime:    klines[55].StartTime.Time(),
+		EndTime:      klines[len(klines)-1].EndTime.Time(),
+		StrategyScript: `//@version=6
+strategy("NVDA BB趋势突破策略 v4.1", overlay=true, default_qty_type=strategy.percent_of_equity, default_qty_value=10)
+
+basis = ta.sma(close, 20)
+dev = 2.0 * ta.stdev(close, 20)
+upper = basis + dev
+lower = basis - dev
+
+ema50 = ta.ema(close, 50)
+rsi = ta.rsi(close, 14)
+
+buyCondition = close > upper and rsi > 55 and close > ema50
+sellCondition = close < basis or rsi < 45
+
+if buyCondition
+    strategy.entry("Long", strategy.long)
+
+if sellCondition
+    strategy.close("Long")`,
+		InitialBalance: 10000,
+	})
+
+	if result == nil {
+		t.Fatal("expected run result")
+	}
+	if result.Error != "" {
+		t.Fatalf("Run() error = %s", result.Error)
+	}
+	if len(result.RuntimeErrors) != 0 {
+		t.Fatalf("RuntimeErrors = %#v, want empty", result.RuntimeErrors)
+	}
+	if len(result.OrderBook) == 0 {
+		t.Fatalf("expected default quantity order, got no orders; logs=%#v", result.Logs)
+	}
+	if result.OrderBook[0].Quantity != "6" {
+		t.Fatalf("first order quantity = %s, want 6 from 10%% equity at close 150", result.OrderBook[0].Quantity)
+	}
+	if result.OrderBook[0].Quantity == "1" {
+		t.Fatal("default strategy quantity still degraded to 1 share")
+	}
+}
+
+func TestRunExecutesPineHighestDonchianBreakout(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	dbPath := filepath.Join(t.TempDir(), "backtest-pine-highest.db")
+	store, err := NewFutuKLineStore(dbPath)
+	if err != nil {
+		t.Fatalf("NewFutuKLineStore() error = %v", err)
+	}
+
+	baseStart := time.Date(2026, time.May, 26, 9, 30, 0, 0, time.UTC)
+	prices := []struct {
+		high  float64
+		close float64
+	}{
+		{high: 100, close: 99},
+		{high: 101, close: 100},
+		{high: 110, close: 110},
+		{high: 111, close: 111},
+	}
+	klines := make([]types.KLine, 0, len(prices))
+	for index, price := range prices {
+		start := baseStart.Add(time.Duration(index) * time.Minute)
+		klines = append(klines, types.KLine{
+			StartTime: types.Time(start),
+			EndTime:   types.Time(start.Add(time.Minute - time.Millisecond)),
+			Interval:  types.Interval1m,
+			Symbol:    "US.AAPL",
+			Open:      fixedpoint.NewFromFloat(price.close),
+			High:      fixedpoint.NewFromFloat(price.high),
+			Low:       fixedpoint.NewFromFloat(price.close - 1),
+			Close:     fixedpoint.NewFromFloat(price.close),
+			Volume:    fixedpoint.NewFromFloat(1000),
+		})
+	}
+	if err := store.InsertKLines(klines, "forward"); err != nil {
+		_ = store.Close()
+		t.Fatalf("InsertKLines() error = %v", err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatalf("store.Close() error = %v", err)
+	}
+
+	result := Run(context.Background(), RunConfig{
+		DBPath:       dbPath,
+		Symbol:       "US.AAPL",
+		Interval:     string(types.Interval1m),
+		SourceFormat: strategydefinition.SourceFormatPineV6,
+		StartTime:    klines[2].StartTime.Time(),
+		EndTime:      klines[3].EndTime.Time(),
+		StrategyScript: `//@version=6
+strategy("Donchian Breakout", overlay=true)
+upper = ta.highest(high, 2)
+if high >= upper and close > 105
+    strategy.entry("Long", strategy.long, qty=1)`,
+		InitialBalance: 10000,
+	})
+
+	if result == nil {
+		t.Fatal("expected run result")
+	}
+	if result.Error != "" {
+		t.Fatalf("Run() error = %s", result.Error)
+	}
+	if len(result.RuntimeErrors) != 0 {
+		t.Fatalf("RuntimeErrors = %#v, want empty", result.RuntimeErrors)
+	}
+	if len(result.OrderBook) == 0 {
+		t.Fatalf("expected breakout order, got none; candles=%d pnl=%d logs=%#v", len(result.Candles), len(result.PnLCurve), result.Logs)
+	}
+	if result.OrderBook[0].Quantity != "1" {
+		t.Fatalf("first order quantity = %s, want 1", result.OrderBook[0].Quantity)
+	}
+}
+
+func TestRunExecutesPineVolumeMovingAverageFilter(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	dbPath := filepath.Join(t.TempDir(), "backtest-pine-volume-ma.db")
+	store, err := NewFutuKLineStore(dbPath)
+	if err != nil {
+		t.Fatalf("NewFutuKLineStore() error = %v", err)
+	}
+
+	baseStart := time.Date(2026, time.May, 26, 9, 30, 0, 0, time.UTC)
+	bars := []struct {
+		close  float64
+		volume float64
+	}{
+		{close: 100, volume: 100},
+		{close: 101, volume: 120},
+		{close: 102, volume: 500},
+		{close: 103, volume: 700},
+	}
+	klines := make([]types.KLine, 0, len(bars))
+	for index, bar := range bars {
+		start := baseStart.Add(time.Duration(index) * time.Minute)
+		klines = append(klines, types.KLine{
+			StartTime: types.Time(start),
+			EndTime:   types.Time(start.Add(time.Minute - time.Millisecond)),
+			Interval:  types.Interval1m,
+			Symbol:    "US.AAPL",
+			Open:      fixedpoint.NewFromFloat(bar.close),
+			High:      fixedpoint.NewFromFloat(bar.close + 1),
+			Low:       fixedpoint.NewFromFloat(bar.close - 1),
+			Close:     fixedpoint.NewFromFloat(bar.close),
+			Volume:    fixedpoint.NewFromFloat(bar.volume),
+		})
+	}
+	if err := store.InsertKLines(klines, "forward"); err != nil {
+		_ = store.Close()
+		t.Fatalf("InsertKLines() error = %v", err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatalf("store.Close() error = %v", err)
+	}
+
+	result := Run(context.Background(), RunConfig{
+		DBPath:       dbPath,
+		Symbol:       "US.AAPL",
+		Interval:     string(types.Interval1m),
+		SourceFormat: strategydefinition.SourceFormatPineV6,
+		StartTime:    klines[2].StartTime.Time(),
+		EndTime:      klines[3].EndTime.Time(),
+		StrategyScript: `//@version=6
+strategy("Volume Filter", overlay=true)
+len = input.int(2, "Length")
+avgVol = ta.sma(volume, len)
+if volume > avgVol and close > close[1]
+    strategy.entry("Long", strategy.long, qty=1)`,
+		InitialBalance: 10000,
+	})
+
+	if result == nil {
+		t.Fatal("expected run result")
+	}
+	if result.Error != "" {
+		t.Fatalf("Run() error = %s", result.Error)
+	}
+	if len(result.RuntimeErrors) != 0 {
+		t.Fatalf("RuntimeErrors = %#v, want empty", result.RuntimeErrors)
+	}
+	if len(result.OrderBook) == 0 {
+		t.Fatalf("expected volume-filter order, got none; candles=%d pnl=%d logs=%#v", len(result.Candles), len(result.PnLCurve), result.Logs)
+	}
+	if result.OrderBook[0].Quantity != "1" {
+		t.Fatalf("first order quantity = %s, want 1", result.OrderBook[0].Quantity)
+	}
+}
+
+func TestRunExecutesPineSARStrategy(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	dbPath := filepath.Join(t.TempDir(), "backtest-pine-sar.db")
+	store, err := NewFutuKLineStore(dbPath)
+	if err != nil {
+		t.Fatalf("NewFutuKLineStore() error = %v", err)
+	}
+
+	baseStart := time.Date(2026, time.May, 26, 9, 30, 0, 0, time.UTC)
+	klines := make([]types.KLine, 0, 5)
+	for index, closePrice := range []float64{9.5, 10.5, 11.5, 12.5, 13.5} {
+		start := baseStart.Add(time.Duration(index) * time.Minute)
+		klines = append(klines, types.KLine{
+			StartTime: types.Time(start),
+			EndTime:   types.Time(start.Add(time.Minute - time.Millisecond)),
+			Interval:  types.Interval1m,
+			Symbol:    "US.AAPL",
+			Open:      fixedpoint.NewFromFloat(closePrice),
+			High:      fixedpoint.NewFromFloat(closePrice + 0.5),
+			Low:       fixedpoint.NewFromFloat(closePrice - 0.5),
+			Close:     fixedpoint.NewFromFloat(closePrice),
+			Volume:    fixedpoint.NewFromFloat(1000),
+		})
+	}
+	if err := store.InsertKLines(klines, "forward"); err != nil {
+		_ = store.Close()
+		t.Fatalf("InsertKLines() error = %v", err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatalf("store.Close() error = %v", err)
+	}
+
+	result := Run(context.Background(), RunConfig{
+		DBPath:       dbPath,
+		Symbol:       "US.AAPL",
+		Interval:     string(types.Interval1m),
+		SourceFormat: strategydefinition.SourceFormatPineV6,
+		StartTime:    klines[2].StartTime.Time(),
+		EndTime:      klines[4].EndTime.Time(),
+		StrategyScript: `//@version=6
+strategy("SAR Breakout", overlay=true)
+sar = ta.sar(0.02, 0.02, 0.2)
+if close > sar
+    strategy.entry("Long", strategy.long, qty=1)`,
+		InitialBalance: 10000,
+	})
+
+	if result == nil {
+		t.Fatal("expected run result")
+	}
+	if result.Error != "" {
+		t.Fatalf("Run() error = %s", result.Error)
+	}
+	if len(result.RuntimeErrors) != 0 {
+		t.Fatalf("RuntimeErrors = %#v, want empty", result.RuntimeErrors)
+	}
+	if len(result.OrderBook) == 0 {
+		t.Fatalf("expected SAR order, got none; logs=%#v", result.Logs)
+	}
+}
+
+func TestRunExecutesPineBarstateConfirmedFilter(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	dbPath := filepath.Join(t.TempDir(), "backtest-pine-barstate.db")
+	store, err := NewFutuKLineStore(dbPath)
+	if err != nil {
+		t.Fatalf("NewFutuKLineStore() error = %v", err)
+	}
+
+	baseStart := time.Date(2026, time.May, 26, 9, 30, 0, 0, time.UTC)
+	klines := make([]types.KLine, 0, 2)
+	for index, closePrice := range []float64{100, 101} {
+		start := baseStart.Add(time.Duration(index) * time.Minute)
+		klines = append(klines, types.KLine{
+			StartTime: types.Time(start),
+			EndTime:   types.Time(start.Add(time.Minute - time.Millisecond)),
+			Interval:  types.Interval1m,
+			Symbol:    "US.AAPL",
+			Open:      fixedpoint.NewFromFloat(closePrice),
+			High:      fixedpoint.NewFromFloat(closePrice + 1),
+			Low:       fixedpoint.NewFromFloat(closePrice - 1),
+			Close:     fixedpoint.NewFromFloat(closePrice),
+			Volume:    fixedpoint.NewFromFloat(1000),
+		})
+	}
+	if err := store.InsertKLines(klines, "forward"); err != nil {
+		_ = store.Close()
+		t.Fatalf("InsertKLines() error = %v", err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatalf("store.Close() error = %v", err)
+	}
+
+	result := Run(context.Background(), RunConfig{
+		DBPath:       dbPath,
+		Symbol:       "US.AAPL",
+		Interval:     string(types.Interval1m),
+		SourceFormat: strategydefinition.SourceFormatPineV6,
+		StartTime:    klines[0].StartTime.Time(),
+		EndTime:      klines[1].EndTime.Time(),
+		StrategyScript: `//@version=6
+strategy("Barstate Confirmed", overlay=true)
+if barstate.isconfirmed and barstate.isnew and barstate.islast
+    strategy.entry("Long", strategy.long, qty=1)`,
+		InitialBalance: 10000,
+	})
+
+	if result == nil {
+		t.Fatal("expected run result")
+	}
+	if result.Error != "" {
+		t.Fatalf("Run() error = %s", result.Error)
+	}
+	if len(result.RuntimeErrors) != 0 {
+		t.Fatalf("RuntimeErrors = %#v, want empty", result.RuntimeErrors)
+	}
+	if len(result.OrderBook) == 0 {
+		t.Fatalf("expected barstate-confirmed order, got none; logs=%#v", result.Logs)
+	}
+}
+
+func TestRunExecutesPineInputTimeStartFilter(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	dbPath := filepath.Join(t.TempDir(), "backtest-pine-input-time.db")
+	store, err := NewFutuKLineStore(dbPath)
+	if err != nil {
+		t.Fatalf("NewFutuKLineStore() error = %v", err)
+	}
+
+	baseStart := time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
+	klines := make([]types.KLine, 0, 3)
+	for index, closePrice := range []float64{100, 101, 102} {
+		start := baseStart.Add(time.Duration(index) * time.Minute)
+		klines = append(klines, types.KLine{
+			StartTime: types.Time(start),
+			EndTime:   types.Time(start.Add(time.Minute - time.Millisecond)),
+			Interval:  types.Interval1m,
+			Symbol:    "US.AAPL",
+			Open:      fixedpoint.NewFromFloat(closePrice),
+			High:      fixedpoint.NewFromFloat(closePrice + 1),
+			Low:       fixedpoint.NewFromFloat(closePrice - 1),
+			Close:     fixedpoint.NewFromFloat(closePrice),
+			Volume:    fixedpoint.NewFromFloat(1000),
+		})
+	}
+	if err := store.InsertKLines(klines, "forward"); err != nil {
+		_ = store.Close()
+		t.Fatalf("InsertKLines() error = %v", err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatalf("store.Close() error = %v", err)
+	}
+
+	result := Run(context.Background(), RunConfig{
+		DBPath:       dbPath,
+		Symbol:       "US.AAPL",
+		Interval:     string(types.Interval1m),
+		SourceFormat: strategydefinition.SourceFormatPineV6,
+		StartTime:    klines[0].StartTime.Time(),
+		EndTime:      klines[2].EndTime.Time(),
+		StrategyScript: `//@version=6
+strategy("Input Time Filter", overlay=true)
+start = input.time(timestamp(2026, 1, 1, 0, 1), "Start")
+if time >= start
+    strategy.entry("Long", strategy.long, qty=1)`,
+		InitialBalance: 10000,
+	})
+
+	if result == nil {
+		t.Fatal("expected run result")
+	}
+	if result.Error != "" {
+		t.Fatalf("Run() error = %s", result.Error)
+	}
+	if len(result.RuntimeErrors) != 0 {
+		t.Fatalf("RuntimeErrors = %#v, want empty", result.RuntimeErrors)
+	}
+	if len(result.OrderBook) != 1 {
+		t.Fatalf("orders = %#v, want one order after start time", result.OrderBook)
+	}
+	if result.OrderBook[0].SubmittedAt != klines[1].EndTime.Time().Format(time.RFC3339) {
+		t.Fatalf("first order submitted at = %s, want %s", result.OrderBook[0].SubmittedAt, klines[1].EndTime.Time().Format(time.RFC3339))
+	}
+}
+
+func TestRunExecutesPineQtyPercentEntry(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	dbPath := filepath.Join(t.TempDir(), "backtest-pine-qty-percent.db")
+	store, err := NewFutuKLineStore(dbPath)
+	if err != nil {
+		t.Fatalf("NewFutuKLineStore() error = %v", err)
+	}
+	start := time.Date(2026, time.May, 26, 9, 30, 0, 0, time.UTC)
+	klines := make([]types.KLine, 0, 2)
+	for index := 0; index < 2; index++ {
+		barStart := start.Add(time.Duration(index) * time.Minute)
+		klines = append(klines, types.KLine{
+			StartTime: types.Time(barStart),
+			EndTime:   types.Time(barStart.Add(time.Minute - time.Millisecond)),
+			Interval:  types.Interval1m,
+			Symbol:    "US.AAPL",
+			Open:      fixedpoint.NewFromFloat(500),
+			High:      fixedpoint.NewFromFloat(500),
+			Low:       fixedpoint.NewFromFloat(500),
+			Close:     fixedpoint.NewFromFloat(500),
+			Volume:    fixedpoint.NewFromFloat(1000),
+		})
+	}
+	if err := store.InsertKLines(klines, "forward"); err != nil {
+		_ = store.Close()
+		t.Fatalf("InsertKLines() error = %v", err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatalf("store.Close() error = %v", err)
+	}
+
+	result := Run(context.Background(), RunConfig{
+		DBPath:       dbPath,
+		Symbol:       "US.AAPL",
+		Interval:     string(types.Interval1m),
+		SourceFormat: strategydefinition.SourceFormatPineV6,
+		StartTime:    klines[0].StartTime.Time(),
+		EndTime:      klines[1].EndTime.Time(),
+		StrategyScript: `//@version=6
+strategy("Qty Percent", overlay=true)
+if bar_index == 0
+    strategy.entry("Long", strategy.long, qty_percent=10)`,
+		InitialBalance: 100000,
+	})
+	if result == nil {
+		t.Fatal("expected run result")
+	}
+	if result.Error != "" {
+		t.Fatalf("Run() error = %s", result.Error)
+	}
+	if len(result.RuntimeErrors) != 0 {
+		t.Fatalf("RuntimeErrors = %#v, want empty", result.RuntimeErrors)
+	}
+	if len(result.OrderBook) != 1 || result.OrderBook[0].Quantity != "20" {
+		t.Fatalf("orders = %#v, want one 20-share order", result.OrderBook)
+	}
+}
+
+func TestRunStrategyOrderBypassesEntryPyramiding(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	dbPath := filepath.Join(t.TempDir(), "backtest-pine-strategy-order-pyramiding.db")
+	store, err := NewFutuKLineStore(dbPath)
+	if err != nil {
+		t.Fatalf("NewFutuKLineStore() error = %v", err)
+	}
+	baseStart := time.Date(2026, time.May, 26, 9, 30, 0, 0, time.UTC)
+	klines := make([]types.KLine, 0, 3)
+	for index := 0; index < 3; index++ {
+		start := baseStart.Add(time.Duration(index) * time.Minute)
+		klines = append(klines, types.KLine{
+			StartTime: types.Time(start),
+			EndTime:   types.Time(start.Add(time.Minute - time.Millisecond)),
+			Interval:  types.Interval1m,
+			Symbol:    "US.AAPL",
+			Open:      fixedpoint.NewFromFloat(100),
+			High:      fixedpoint.NewFromFloat(100),
+			Low:       fixedpoint.NewFromFloat(100),
+			Close:     fixedpoint.NewFromFloat(100),
+			Volume:    fixedpoint.NewFromFloat(1000),
+		})
+	}
+	if err := store.InsertKLines(klines, "forward"); err != nil {
+		_ = store.Close()
+		t.Fatalf("InsertKLines() error = %v", err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatalf("store.Close() error = %v", err)
+	}
+
+	result := Run(context.Background(), RunConfig{
+		DBPath:       dbPath,
+		Symbol:       "US.AAPL",
+		Interval:     string(types.Interval1m),
+		SourceFormat: strategydefinition.SourceFormatPineV6,
+		StartTime:    klines[0].StartTime.Time(),
+		EndTime:      klines[2].EndTime.Time(),
+		StrategyScript: `//@version=6
+strategy("Order Net", overlay=true, pyramiding=1)
+strategy.entry("Long", strategy.long, qty=1)
+strategy.order("Net", strategy.long, qty=1)`,
+		InitialBalance: 100000,
+	})
+	if result == nil {
+		t.Fatal("expected run result")
+	}
+	if result.Error != "" {
+		t.Fatalf("Run() error = %s", result.Error)
+	}
+	if len(result.RuntimeErrors) != 0 {
+		t.Fatalf("RuntimeErrors = %#v, want empty", result.RuntimeErrors)
+	}
+	if len(result.OrderBook) != 3 {
+		t.Fatalf("orders = %#v, want one entry plus two net orders", result.OrderBook)
+	}
+}
+
+func TestRunStrategyOrderAndCloseAllFlattenPosition(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	dbPath := filepath.Join(t.TempDir(), "backtest-pine-close-all.db")
+	store, err := NewFutuKLineStore(dbPath)
+	if err != nil {
+		t.Fatalf("NewFutuKLineStore() error = %v", err)
+	}
+	baseStart := time.Date(2026, time.May, 26, 9, 30, 0, 0, time.UTC)
+	klines := make([]types.KLine, 0, 4)
+	for index := 0; index < 4; index++ {
+		start := baseStart.Add(time.Duration(index) * time.Minute)
+		klines = append(klines, types.KLine{
+			StartTime: types.Time(start),
+			EndTime:   types.Time(start.Add(time.Minute - time.Millisecond)),
+			Interval:  types.Interval1m,
+			Symbol:    "US.AAPL",
+			Open:      fixedpoint.NewFromFloat(100),
+			High:      fixedpoint.NewFromFloat(100),
+			Low:       fixedpoint.NewFromFloat(100),
+			Close:     fixedpoint.NewFromFloat(100),
+			Volume:    fixedpoint.NewFromFloat(1000),
+		})
+	}
+	if err := store.InsertKLines(klines, "forward"); err != nil {
+		_ = store.Close()
+		t.Fatalf("InsertKLines() error = %v", err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatalf("store.Close() error = %v", err)
+	}
+
+	result := Run(context.Background(), RunConfig{
+		DBPath:       dbPath,
+		Symbol:       "US.AAPL",
+		Interval:     string(types.Interval1m),
+		SourceFormat: strategydefinition.SourceFormatPineV6,
+		StartTime:    klines[0].StartTime.Time(),
+		EndTime:      klines[3].EndTime.Time(),
+		StrategyScript: `//@version=6
+strategy("Flatten", overlay=true)
+if bar_index == 0
+    strategy.entry("Long", strategy.long, qty=10)
+if bar_index == 1
+    strategy.order("Reduce", strategy.short, qty=5)
+if bar_index == 2
+    strategy.close_all()`,
+		InitialBalance: 100000,
+	})
+	if result == nil {
+		t.Fatal("expected run result")
+	}
+	if result.Error != "" {
+		t.Fatalf("Run() error = %s", result.Error)
+	}
+	if len(result.RuntimeErrors) != 0 {
+		t.Fatalf("RuntimeErrors = %#v, want empty", result.RuntimeErrors)
+	}
+	if len(result.OrderBook) != 3 {
+		t.Fatalf("orders = %#v, want entry, net reduce, close_all", result.OrderBook)
+	}
+	wantSides := []string{"BUY", "SELL", "SELL"}
+	wantQty := []string{"10", "5", "5"}
+	for index := range wantSides {
+		if result.OrderBook[index].Side != wantSides[index] || result.OrderBook[index].Quantity != wantQty[index] {
+			t.Fatalf("order %d = %#v, want %s %s", index, result.OrderBook[index], wantSides[index], wantQty[index])
+		}
+	}
+}
+
+func TestRunStrategyExitQtyPercentPartiallyExits(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	dbPath := filepath.Join(t.TempDir(), "backtest-pine-exit-qty-percent.db")
+	store, err := NewFutuKLineStore(dbPath)
+	if err != nil {
+		t.Fatalf("NewFutuKLineStore() error = %v", err)
+	}
+	baseStart := time.Date(2026, time.May, 26, 9, 30, 0, 0, time.UTC)
+	closes := []float64{100, 97, 96}
+	klines := make([]types.KLine, 0, len(closes))
+	for index, closePrice := range closes {
+		start := baseStart.Add(time.Duration(index) * time.Minute)
+		klines = append(klines, types.KLine{
+			StartTime: types.Time(start),
+			EndTime:   types.Time(start.Add(time.Minute - time.Millisecond)),
+			Interval:  types.Interval1m,
+			Symbol:    "US.AAPL",
+			Open:      fixedpoint.NewFromFloat(closePrice),
+			High:      fixedpoint.NewFromFloat(closePrice),
+			Low:       fixedpoint.NewFromFloat(closePrice),
+			Close:     fixedpoint.NewFromFloat(closePrice),
+			Volume:    fixedpoint.NewFromFloat(1000),
+		})
+	}
+	if err := store.InsertKLines(klines, "forward"); err != nil {
+		_ = store.Close()
+		t.Fatalf("InsertKLines() error = %v", err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatalf("store.Close() error = %v", err)
+	}
+
+	result := Run(context.Background(), RunConfig{
+		DBPath:       dbPath,
+		Symbol:       "US.AAPL",
+		Interval:     string(types.Interval1m),
+		SourceFormat: strategydefinition.SourceFormatPineV6,
+		StartTime:    klines[0].StartTime.Time(),
+		EndTime:      klines[2].EndTime.Time(),
+		StrategyScript: `//@version=6
+strategy("Partial Exit", overlay=true)
+if bar_index == 0
+    strategy.entry("Long", strategy.long, qty=10)
+strategy.exit("Half stop", "Long", stop=98, qty_percent=50)`,
+		InitialBalance: 100000,
+	})
+	if result == nil {
+		t.Fatal("expected run result")
+	}
+	if result.Error != "" {
+		t.Fatalf("Run() error = %s", result.Error)
+	}
+	if len(result.RuntimeErrors) != 0 {
+		t.Fatalf("RuntimeErrors = %#v, want empty", result.RuntimeErrors)
+	}
+	if len(result.OrderBook) < 2 {
+		t.Fatalf("orders = %#v, want entry and partial stop exit", result.OrderBook)
+	}
+	if result.OrderBook[1].Side != "SELL" || result.OrderBook[1].Quantity != "5" {
+		t.Fatalf("partial exit order = %#v, want SELL 5", result.OrderBook[1])
+	}
+}
+
+func TestRunPinePendingStopCancelAndBracketExit(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	run := func(t *testing.T, name string, script string) *RunResult {
+		t.Helper()
+		dbPath := filepath.Join(t.TempDir(), name+".db")
+		store, err := NewFutuKLineStore(dbPath)
+		if err != nil {
+			t.Fatalf("NewFutuKLineStore() error = %v", err)
+		}
+		baseStart := time.Date(2026, time.May, 26, 9, 30, 0, 0, time.UTC)
+		klines := []types.KLine{
+			{Open: fixedpoint.NewFromFloat(100), High: fixedpoint.NewFromFloat(100), Low: fixedpoint.NewFromFloat(100), Close: fixedpoint.NewFromFloat(100), Volume: fixedpoint.NewFromFloat(1000)},
+			{Open: fixedpoint.NewFromFloat(100), High: fixedpoint.NewFromFloat(104), Low: fixedpoint.NewFromFloat(99), Close: fixedpoint.NewFromFloat(101), Volume: fixedpoint.NewFromFloat(1000)},
+			{Open: fixedpoint.NewFromFloat(101), High: fixedpoint.NewFromFloat(106), Low: fixedpoint.NewFromFloat(97), Close: fixedpoint.NewFromFloat(102), Volume: fixedpoint.NewFromFloat(1000)},
+			{Open: fixedpoint.NewFromFloat(102), High: fixedpoint.NewFromFloat(107), Low: fixedpoint.NewFromFloat(96), Close: fixedpoint.NewFromFloat(103), Volume: fixedpoint.NewFromFloat(1000)},
+			{Open: fixedpoint.NewFromFloat(103), High: fixedpoint.NewFromFloat(108), Low: fixedpoint.NewFromFloat(95), Close: fixedpoint.NewFromFloat(104), Volume: fixedpoint.NewFromFloat(1000)},
+		}
+		for index := range klines {
+			start := baseStart.Add(time.Duration(index) * time.Minute)
+			klines[index].StartTime = types.Time(start)
+			klines[index].EndTime = types.Time(start.Add(time.Minute - time.Millisecond))
+			klines[index].Interval = types.Interval1m
+			klines[index].Symbol = "US.AAPL"
+		}
+		if err := store.InsertKLines(klines, "forward"); err != nil {
+			_ = store.Close()
+			t.Fatalf("InsertKLines() error = %v", err)
+		}
+		if err := store.Close(); err != nil {
+			t.Fatalf("store.Close() error = %v", err)
+		}
+		result := Run(context.Background(), RunConfig{
+			DBPath:         dbPath,
+			Symbol:         "US.AAPL",
+			Interval:       string(types.Interval1m),
+			SourceFormat:   strategydefinition.SourceFormatPineV6,
+			StartTime:      klines[0].StartTime.Time(),
+			EndTime:        klines[len(klines)-1].EndTime.Time(),
+			StrategyScript: script,
+			InitialBalance: 100000,
+		})
+		if result == nil {
+			t.Fatal("expected run result")
+		}
+		if result.Error != "" {
+			t.Fatalf("Run() error = %s", result.Error)
+		}
+		if len(result.RuntimeErrors) != 0 {
+			t.Fatalf("RuntimeErrors = %#v, want empty", result.RuntimeErrors)
+		}
+		return result
+	}
+
+	t.Run("pending stop triggers", func(t *testing.T) {
+		result := run(t, "pending-stop", `//@version=6
+strategy("Pending stop", overlay=true)
+strategy.entry("Breakout", strategy.long, stop=105, qty=1)`)
+		if len(result.OrderBook) != 1 || result.OrderBook[0].Side != "BUY" || result.OrderBook[0].Quantity != "1" {
+			t.Fatalf("orders = %#v, want one BUY 1", result.OrderBook)
+		}
+	})
+
+	t.Run("cancel prevents pending stop", func(t *testing.T) {
+		result := run(t, "pending-cancel", `//@version=6
+strategy("Pending cancel", overlay=true)
+strategy.entry("Breakout", strategy.long, stop=105, qty=1)
+strategy.cancel("Breakout")`)
+		if len(result.OrderBook) != 0 {
+			t.Fatalf("orders = %#v, want none after cancel", result.OrderBook)
+		}
+	})
+
+	t.Run("bracket partial stop first", func(t *testing.T) {
+		result := run(t, "bracket-partial", `//@version=6
+strategy("Bracket", overlay=true)
+if position_size == 0
+    strategy.entry("Long", strategy.long, qty=10)
+strategy.exit("Bracket", "Long", stop=98, limit=105, qty_percent=50)`)
+		if len(result.OrderBook) < 2 {
+			t.Fatalf("orders = %#v, want entry and exit", result.OrderBook)
+		}
+		if result.OrderBook[1].Side != "SELL" || result.OrderBook[1].Quantity != "5" {
+			t.Fatalf("bracket exit order = %#v, want SELL 5", result.OrderBook[1])
+		}
+	})
+}
+
+func TestRunPineMultiBarHistoryBreakoutAndNoopVisualCalls(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	dbPath := filepath.Join(t.TempDir(), "history-breakout.db")
+	store, err := NewFutuKLineStore(dbPath)
+	if err != nil {
+		t.Fatalf("NewFutuKLineStore() error = %v", err)
+	}
+	baseStart := time.Date(2026, time.May, 26, 13, 30, 0, 0, time.UTC)
+	klines := make([]types.KLine, 0, 46)
+	for index := 0; index < 46; index++ {
+		closePrice := 100.0
+		highPrice := 100.0
+		if index >= 44 {
+			closePrice = 105
+			highPrice = 106
+		}
+		start := baseStart.Add(time.Duration(index) * time.Minute)
+		klines = append(klines, types.KLine{
+			StartTime: types.Time(start),
+			EndTime:   types.Time(start.Add(time.Minute - time.Millisecond)),
+			Interval:  types.Interval1m,
+			Symbol:    "US.AAPL",
+			Open:      fixedpoint.NewFromFloat(closePrice),
+			High:      fixedpoint.NewFromFloat(highPrice),
+			Low:       fixedpoint.NewFromFloat(closePrice - 1),
+			Close:     fixedpoint.NewFromFloat(closePrice),
+			Volume:    fixedpoint.NewFromFloat(1000),
+		})
+	}
+	if err := store.InsertKLines(klines, "forward"); err != nil {
+		_ = store.Close()
+		t.Fatalf("InsertKLines() error = %v", err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatalf("store.Close() error = %v", err)
+	}
+
+	result := Run(context.Background(), RunConfig{
+		DBPath:         dbPath,
+		Symbol:         "US.AAPL",
+		Interval:       string(types.Interval1m),
+		SourceFormat:   strategydefinition.SourceFormatPineV6,
+		StartTime:      klines[0].StartTime.Time(),
+		EndTime:        klines[len(klines)-1].EndTime.Time(),
+		InitialBalance: 100000,
+		StrategyScript: `//@version=6
+strategy("History breakout", overlay=true)
+plot(close)
+alertcondition(close > high[20], "Breakout")
+if close > high[20]
+    strategy.entry("Long", strategy.long, qty=1)`,
+	})
+	if result == nil {
+		t.Fatal("expected run result")
+	}
+	if result.Error != "" {
+		t.Fatalf("Run() error = %s", result.Error)
+	}
+	if len(result.RuntimeErrors) != 0 {
+		t.Fatalf("RuntimeErrors = %#v, want empty", result.RuntimeErrors)
+	}
+	if len(result.OrderBook) != 1 || result.OrderBook[0].Side != "BUY" || result.OrderBook[0].Quantity != "1" {
+		t.Fatalf("orders = %#v, want one BUY 1", result.OrderBook)
+	}
+}
+
+func TestRunPineExpressionUDFAndStaticForStrategy(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	dbPath := filepath.Join(t.TempDir(), "udf-static-for.db")
+	store, err := NewFutuKLineStore(dbPath)
+	if err != nil {
+		t.Fatalf("NewFutuKLineStore() error = %v", err)
+	}
+	baseStart := time.Date(2026, time.May, 26, 13, 30, 0, 0, time.UTC)
+	klines := make([]types.KLine, 0, 8)
+	for index, closePrice := range []float64{100, 101, 102, 103, 104, 105, 106, 107} {
+		start := baseStart.Add(time.Duration(index) * time.Minute)
+		klines = append(klines, types.KLine{
+			StartTime: types.Time(start),
+			EndTime:   types.Time(start.Add(time.Minute - time.Millisecond)),
+			Interval:  types.Interval1m,
+			Symbol:    "US.AAPL",
+			Open:      fixedpoint.NewFromFloat(closePrice - 0.25),
+			High:      fixedpoint.NewFromFloat(closePrice + 0.5),
+			Low:       fixedpoint.NewFromFloat(closePrice - 0.5),
+			Close:     fixedpoint.NewFromFloat(closePrice),
+			Volume:    fixedpoint.NewFromFloat(1000),
+		})
+	}
+	if err := store.InsertKLines(klines, "forward"); err != nil {
+		_ = store.Close()
+		t.Fatalf("InsertKLines() error = %v", err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatalf("store.Close() error = %v", err)
+	}
+
+	result := Run(context.Background(), RunConfig{
+		DBPath:         dbPath,
+		Symbol:         "US.AAPL",
+		Interval:       string(types.Interval1m),
+		SourceFormat:   strategydefinition.SourceFormatPineV6,
+		StartTime:      klines[0].StartTime.Time(),
+		EndTime:        klines[len(klines)-1].EndTime.Time(),
+		InitialBalance: 100000,
+		StrategyScript: `//@version=6
+strategy("UDF static for", overlay=true)
+isBull(src) => src > src[1]
+avg = 0
+for i = 0 to 2
+    avg := avg + close[i]
+avg := avg / 3
+if isBull(close) and close > avg
+    strategy.entry("Long", strategy.long, qty=1)`,
+	})
+	if result == nil {
+		t.Fatal("expected run result")
+	}
+	if result.Error != "" {
+		t.Fatalf("Run() error = %s", result.Error)
+	}
+	if len(result.RuntimeErrors) != 0 {
+		t.Fatalf("RuntimeErrors = %#v, want empty", result.RuntimeErrors)
+	}
+	if len(result.OrderBook) != 1 || result.OrderBook[0].Side != "BUY" || result.OrderBook[0].Quantity != "1" {
+		t.Fatalf("orders = %#v, want one BUY 1", result.OrderBook)
+	}
+}
+
+func TestRunPineRequestSecurityIntradayTimeframeFilter(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	dbPath := filepath.Join(t.TempDir(), "request-security-15m.db")
+	store, err := NewFutuKLineStore(dbPath)
+	if err != nil {
+		t.Fatalf("NewFutuKLineStore() error = %v", err)
+	}
+	baseStart := time.Date(2026, time.May, 26, 13, 30, 0, 0, time.UTC)
+	klines := make([]types.KLine, 0, 60)
+	for index := 0; index < 60; index++ {
+		closePrice := float64(100 + index)
+		start := baseStart.Add(time.Duration(index) * time.Minute)
+		klines = append(klines, types.KLine{
+			StartTime: types.Time(start),
+			EndTime:   types.Time(start.Add(time.Minute - time.Millisecond)),
+			Interval:  types.Interval1m,
+			Symbol:    "US.AAPL",
+			Open:      fixedpoint.NewFromFloat(closePrice),
+			High:      fixedpoint.NewFromFloat(closePrice + 1),
+			Low:       fixedpoint.NewFromFloat(closePrice - 1),
+			Close:     fixedpoint.NewFromFloat(closePrice),
+			Volume:    fixedpoint.NewFromFloat(1000),
+		})
+	}
+	if err := store.InsertKLines(klines, "forward"); err != nil {
+		_ = store.Close()
+		t.Fatalf("InsertKLines() error = %v", err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatalf("store.Close() error = %v", err)
+	}
+
+	result := Run(context.Background(), RunConfig{
+		DBPath:         dbPath,
+		Symbol:         "US.AAPL",
+		Interval:       string(types.Interval1m),
+		SourceFormat:   strategydefinition.SourceFormatPineV6,
+		StartTime:      klines[45].StartTime.Time(),
+		EndTime:        klines[len(klines)-1].EndTime.Time(),
+		InitialBalance: 100000,
+		StrategyScript: `//@version=6
+strategy("MTF 15m filter", overlay=true)
+tf = input.timeframe("15", "Signal TF")
+mtfClose = request.security(syminfo.tickerid, tf, close)
+mtfPrevClose = request.security(syminfo.tickerid, tf, close[1])
+mtfEma = request.security(syminfo.tickerid, "15", ta.ema(hlc3, 3))
+if mtfClose > mtfPrevClose and mtfEma > 0
+    strategy.entry("Long", strategy.long, qty=1)`,
+	})
+	if result == nil {
+		t.Fatal("expected run result")
+	}
+	if result.Error != "" {
+		t.Fatalf("Run() error = %s", result.Error)
+	}
+	if len(result.RuntimeErrors) != 0 {
+		t.Fatalf("RuntimeErrors = %#v, want empty", result.RuntimeErrors)
+	}
+	if len(result.OrderBook) != 1 || result.OrderBook[0].Side != "BUY" || result.OrderBook[0].Quantity != "1" {
+		t.Fatalf("orders = %#v, want one BUY 1", result.OrderBook)
+	}
+}
+
 func TestSessionFilteredBacktestStoreFiltersUSExtendedHours(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 

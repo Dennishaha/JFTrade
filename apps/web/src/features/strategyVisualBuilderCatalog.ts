@@ -13,6 +13,7 @@ import {
 export type StrategyBlockKind =
   | "onInit"
   | "onKLineClosed"
+  | "pineSnippet"
   | "codeBlock"
   | "getTechnicalIndicator"
   | "technicalIndicatorCondition"
@@ -170,6 +171,19 @@ const STRATEGY_BLOCK_CATALOG: StrategyBlockDefinition[] = [
     paletteVisible: false,
   },
   {
+    kind: "pineSnippet",
+    label: "Pine 片段",
+    description: "保留当前不能稳定映射成标准图块的 Pine v6 语句；保存时会原样写回 Pine。",
+    shape: "rect",
+    text: "Pine 片段",
+    properties: {
+      blockKind: "pineSnippet",
+      code: "log.info(\"保留 Pine 片段\")",
+    },
+    accent: "#475569",
+    paletteVisible: false,
+  },
+  {
     kind: "codeBlock",
     label: "代码块",
     description: "旧版自定义代码块已废弃，请改用 JFTrade Pine 图块表达策略逻辑。",
@@ -180,6 +194,7 @@ const STRATEGY_BLOCK_CATALOG: StrategyBlockDefinition[] = [
       code: "console.log(\"补充自定义逻辑\");",
     },
     accent: "#475569",
+    paletteVisible: false,
   },
   {
     kind: "ifCloseAbove",

@@ -168,7 +168,7 @@ export function useStrategyStageVisualSync(options: UseStrategyStageVisualSyncOp
         if (parseResult.codeBlockCount > 0) {
             setVisualSyncState(
                 "partial",
-                `Pine 已同步回流程图，其中 ${parseResult.codeBlockCount} 段无法标准化。`,
+                `Pine 已同步回流程图，其中 ${parseResult.codeBlockCount} 段保留为 Pine 片段。`,
                 parseResult.codeBlockCount,
             );
             return;

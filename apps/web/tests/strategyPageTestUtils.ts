@@ -1169,7 +1169,7 @@ export function buildPineScript(
 
   return [
     "//@version=6",
-    `strategy("${name}", overlay=true)`,
+    `strategy("${name}", overlay=true, default_qty_type=strategy.percent_of_equity, default_qty_value=10)`,
     `// test metadata version=${version} symbol=${symbol} interval=${interval}`,
     "",
     ...body.map((line) => normalizeTestPineLine(line)),

@@ -23,7 +23,7 @@
 
 - 图优先：通过 Logic Flow 拖拽图块、改 Inspector 参数，系统自动异步回写 Pine。
 - 码优先：直接在代码区修改 Pine，系统会在防抖和失焦时自动尝试反解回流程图。
-- 混合模式：无法反解成标准图块的 Pine 片段会保留为 `codeBlock`，继续留在流程图里和标准块并存。
+- 混合模式：无法反解成标准图块的 Pine 片段会保留为 `pineSnippet`，继续留在流程图里和标准块并存。
 
 当前约束必须明确：
 
@@ -46,7 +46,7 @@
 - [../../apps/web/src/features/strategyPineEditorIntelliSense.ts](../../apps/web/src/features/strategyPineEditorIntelliSense.ts)：Pine 编辑器的 completion、snippet 和 hover 元数据。
 - [../../apps/web/src/features/strategyVisualBuilder.ts](../../apps/web/src/features/strategyVisualBuilder.ts)：图块目录、内置模板、visualModel 克隆/初始化，以及 Pine 和 graph 双向转换的统一导出入口。
 - [../../apps/web/src/features/strategyVisualBuilderPine.ts](../../apps/web/src/features/strategyVisualBuilderPine.ts)：`visualModel -> Pine` 生成器，负责把图块、连线、条件、下单、保护和指标节点渲染为 Pine。
-- [../../apps/web/src/features/strategyVisualBuilderPineParser.ts](../../apps/web/src/features/strategyVisualBuilderPineParser.ts)：`Pine -> visualModel` 解析器，负责恢复常见指标、条件、动作和 `codeBlock` 兜底节点。
+- [../../apps/web/src/features/strategyVisualBuilderPineParser.ts](../../apps/web/src/features/strategyVisualBuilderPineParser.ts)：`Pine -> visualModel` 解析器，负责恢复常见指标、条件、动作和 `pineSnippet` 兜底节点。
 - [../../apps/web/src/composables/useDraggable.ts](../../apps/web/src/composables/useDraggable.ts)：设计态悬浮面板拖动能力，基于 transform 偏移，不破坏原有绝对定位基线。
 
 ### sidecar 持久化与契约
@@ -103,7 +103,7 @@
 - 交易块：下单；支持 Pine 可表达的固定股数 `shares`、固定金额 `amount`（生成 `qty=amount/close`）和账户权益百分比 `equityPercent`（生成 `qty=(strategy.equity*pct/100)/close`）
 - 动作块：日志、通知
 - 退出块：基础止损、止盈和追踪止损优先生成 `strategy.exit`；带交易时段窗口的复杂风控当前会明确标为 unsupported
-- 兜底块：`codeBlock`，用于承载当前不能稳定映射成标准语义块的 Pine 片段
+- 兜底块：`pineSnippet`，用于承载当前不能稳定映射成标准语义块的 Pine 片段；旧 `codeBlock` 只作为历史 visualModel 兼容读取
 
 这些语义都在 [../../apps/web/src/features/strategyVisualBuilder.ts](../../apps/web/src/features/strategyVisualBuilder.ts) 里定义，并直接决定生成的 Pine 结构。
 
@@ -118,8 +118,8 @@
 当前同步策略是双向自动的，但能力并不对称：
 
 - `visualModel -> script`：支持，拖拽建块、连线变化和 Inspector 改参数后都会自动异步刷新代码区。
-- `script -> visualModel`：支持常见 Pine v6 子集、内置模板导出的条件分支、日志、通知、下单和指标语句；无法稳定归一化的片段会降级为 `codeBlock`。
-- 无法反解的代码不会直接丢失；工具栏会显示当前是否存在 code block 兜底或解析失败。
+- `script -> visualModel`：支持常见 Pine v6 子集、内置模板导出的条件分支、日志、通知、下单和指标语句；无法稳定归一化的片段会保留为 `pineSnippet`。
+- 无法反解的代码不会直接丢失；工具栏会显示当前是否存在 Pine 片段兜底或解析失败。
 - 已保存且自带 `visualModel` 的定义，打开时仍以现有保存内容为准；只有后续发生图编辑或代码编辑时，才会触发新的自动同步。
 
 代码编辑器当前采用两层实现：

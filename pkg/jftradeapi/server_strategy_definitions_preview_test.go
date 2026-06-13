@@ -53,6 +53,12 @@ func TestInstantiateStoredDefinitionNormalizesLegacySourceFormatToDSL(t *testing
 	if createEnvelope.Data.Runtime != strategyRuntimePinePlan {
 		t.Fatalf("expected normalized Pine runtime, got %+v", createEnvelope.Data)
 	}
+	if got := createEnvelope.Data.Params["sourceFormat"]; got != strategydefinition.SourceFormatPineV6 {
+		t.Fatalf("expected normalized Pine source format params, got %+v", createEnvelope.Data.Params)
+	}
+	if got := createEnvelope.Data.Params["runtime"]; got != strategyRuntimePinePlan {
+		t.Fatalf("expected normalized Pine runtime params, got %+v", createEnvelope.Data.Params)
+	}
 }
 
 func TestStrategyDefinitionPreviewUsesRequestedSymbolAndExtendedHours(t *testing.T) {
@@ -99,6 +105,12 @@ log.info("close")`,
 	if defaultEnvelope.Data.DerivedWarmupBars != 66 {
 		t.Fatalf("default derivedWarmupBars = %d, want 66", defaultEnvelope.Data.DerivedWarmupBars)
 	}
+	if defaultEnvelope.Data.Runtime != strategyRuntimePinePlan {
+		t.Fatalf("default preview runtime = %q, want %q", defaultEnvelope.Data.Runtime, strategyRuntimePinePlan)
+	}
+	if defaultEnvelope.Data.SourceFormat != strategydefinition.SourceFormatPineV6 {
+		t.Fatalf("default preview sourceFormat = %q, want %q", defaultEnvelope.Data.SourceFormat, strategydefinition.SourceFormatPineV6)
+	}
 
 	previewResp, err := http.Get(srv.URL + "/api/v1/strategy-definitions/dsl-preview-day-window?interval=5m&symbol=US.AAPL&useExtendedHours=true")
 	if err != nil {
@@ -117,6 +129,12 @@ log.info("close")`,
 	}
 	if previewEnvelope.Data.DerivedWarmupBars != 66 {
 		t.Fatalf("extended derivedWarmupBars = %d, want 66", previewEnvelope.Data.DerivedWarmupBars)
+	}
+	if previewEnvelope.Data.Runtime != strategyRuntimePinePlan {
+		t.Fatalf("extended preview runtime = %q, want %q", previewEnvelope.Data.Runtime, strategyRuntimePinePlan)
+	}
+	if previewEnvelope.Data.SourceFormat != strategydefinition.SourceFormatPineV6 {
+		t.Fatalf("extended preview sourceFormat = %q, want %q", previewEnvelope.Data.SourceFormat, strategydefinition.SourceFormatPineV6)
 	}
 	if previewEnvelope.Data.DerivedWarmupInterval != "5m" {
 		t.Fatalf("extended derivedWarmupInterval = %q, want 5m", previewEnvelope.Data.DerivedWarmupInterval)

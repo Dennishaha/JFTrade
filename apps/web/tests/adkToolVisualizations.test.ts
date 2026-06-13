@@ -90,6 +90,25 @@ describe("buildADKToolVisualization", () => {
   });
 
   it("builds strategy Pine workflow summaries for new strategy tools", () => {
+    const spec = buildADKToolVisualization("strategy.pine_spec", {
+      version: "v6",
+      sourceFormat: "pine-v6",
+      runtime: "pine-go-plan",
+      selectedSection: "support-matrix",
+      sections: [{ id: "support-matrix", title: "支持矩阵" }],
+      supportedHooks: ["on_kline_close"],
+      supportMatrix: [{ capability: "Source-aware indicators", parser: true }],
+      compatibilityLayers: [{ name: "legacy visual codeBlock", status: "read_only" }],
+      unsupportedPatterns: ["array.* 暂不支持"],
+      goldenScripts: [{ id: "golden-ma-cross", title: "均线交叉" }],
+      examples: [],
+    });
+    expect(spec?.kind).toBe("summary");
+    if (spec?.kind !== "summary") return;
+    expect(spec.title).toBe("JFTrade Pine Script v6 规范");
+    expect(spec.subtitle).toBe("章节：支持矩阵");
+    expect(spec.rows?.find((row) => row.label === "不支持写法数")?.value).toBe("1");
+
     const validation = buildADKToolVisualization("strategy.validate_pine", {
       ok: true,
       runtime: "pine-go-plan",

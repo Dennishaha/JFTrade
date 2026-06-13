@@ -12,10 +12,13 @@ type Program struct {
 }
 
 type StrategyMetadata struct {
-	Name     string
-	Version  string
-	Symbol   string
-	Interval string
+	Name            string
+	Version         string
+	Symbol          string
+	Interval        string
+	DefaultQtyMode  string
+	DefaultQtyValue string
+	Pyramiding      int
 }
 
 type HookKind string
@@ -39,6 +42,8 @@ const (
 	StatementKindLog     StatementKind = "log"
 	StatementKindNotify  StatementKind = "notify"
 	StatementKindOrder   StatementKind = "order"
+	StatementKindExit    StatementKind = "exit"
+	StatementKindCancel  StatementKind = "cancel"
 	StatementKindProtect StatementKind = "protect"
 )
 
@@ -120,14 +125,26 @@ const (
 	OrderActionCover OrderAction = "cover"
 )
 
+type OrderIntent string
+
+const (
+	OrderIntentEntry   OrderIntent = "entry"
+	OrderIntentClose   OrderIntent = "close"
+	OrderIntentNet     OrderIntent = "net"
+	OrderIntentFlatten OrderIntent = "flatten"
+)
+
 type OrderStmt struct {
 	Range              SourceRange
+	ID                 string
 	Action             OrderAction
+	Intent             OrderIntent
 	QuantityMode       string
 	QuantityExpression string
 	EntryPolicy        string
 	OrderType          string
 	LimitExpression    string
+	StopExpression     string
 }
 
 func (s *OrderStmt) Kind() StatementKind {
@@ -138,10 +155,47 @@ func (s *OrderStmt) SourceRange() SourceRange {
 	return s.Range
 }
 
+type ExitStmt struct {
+	Range              SourceRange
+	ID                 string
+	FromEntry          string
+	Direction          string
+	QuantityMode       string
+	QuantityExpression string
+	StopExpression     string
+	LimitExpression    string
+	TrailPoints        string
+	TrailOffset        string
+}
+
+func (s *ExitStmt) Kind() StatementKind {
+	return StatementKindExit
+}
+
+func (s *ExitStmt) SourceRange() SourceRange {
+	return s.Range
+}
+
+type CancelStmt struct {
+	Range SourceRange
+	ID    string
+	All   bool
+}
+
+func (s *CancelStmt) Kind() StatementKind {
+	return StatementKindCancel
+}
+
+func (s *CancelStmt) SourceRange() SourceRange {
+	return s.Range
+}
+
 type ProtectStmt struct {
 	Range                SourceRange
 	Direction            string
 	Mode                 string
+	QuantityMode         string
+	QuantityExpression   string
 	TimeValueExpression  string
 	TimeUnit             string
 	PercentageExpression string

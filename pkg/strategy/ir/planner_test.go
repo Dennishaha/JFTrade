@@ -134,11 +134,22 @@ func TestPlanRequirementsIndicatorKeysMatchRuntimeBindingParity(t *testing.T) {
 		&strategyir.LetStmt{Range: strategyir.SourceRange{StartLine: 10}, Name: "bInt", Expression: "bollinger(20,2)"},
 		&strategyir.LetStmt{Range: strategyir.SourceRange{StartLine: 11}, Name: "bFloat", Expression: "bollinger(20,2.5)"},
 		&strategyir.LetStmt{Range: strategyir.SourceRange{StartLine: 12}, Name: "sd", Expression: "stdev(20)"},
+		&strategyir.LetStmt{Range: strategyir.SourceRange{StartLine: 13}, Name: "hh", Expression: "highest(high,20)"},
+		&strategyir.LetStmt{Range: strategyir.SourceRange{StartLine: 14}, Name: "ll", Expression: "lowest(low,10)"},
+		&strategyir.LetStmt{Range: strategyir.SourceRange{StartLine: 15}, Name: "delta", Expression: "change(close,1)"},
+		&strategyir.LetStmt{Range: strategyir.SourceRange{StartLine: 16}, Name: "momentum", Expression: "mom(close,5)"},
+		&strategyir.LetStmt{Range: strategyir.SourceRange{StartLine: 17}, Name: "rate", Expression: "roc(close,12)"},
+		&strategyir.LetStmt{Range: strategyir.SourceRange{StartLine: 18}, Name: "up", Expression: "rising(close,3)"},
+		&strategyir.LetStmt{Range: strategyir.SourceRange{StartLine: 19}, Name: "down", Expression: "falling(close,3)"},
+		&strategyir.LetStmt{Range: strategyir.SourceRange{StartLine: 20}, Name: "avgVol", Expression: "ma(SMA,20,volume)"},
+		&strategyir.LetStmt{Range: strategyir.SourceRange{StartLine: 21}, Name: "emaHigh", Expression: "ma(EMA,5,high)"},
+		&strategyir.LetStmt{Range: strategyir.SourceRange{StartLine: 22}, Name: "volSum", Expression: "sum(volume,20)"},
+		&strategyir.LetStmt{Range: strategyir.SourceRange{StartLine: 23}, Name: "sar", Expression: "sar(0.02,0.02,0.2)"},
 		&strategyir.IfStmt{
-			Range:     strategyir.SourceRange{StartLine: 13},
+			Range:     strategyir.SourceRange{StartLine: 24},
 			Condition: "cross_over(fast, slow)",
 			Then: []strategyir.Statement{&strategyir.ProtectStmt{
-				Range:                strategyir.SourceRange{StartLine: 14},
+				Range:                strategyir.SourceRange{StartLine: 25},
 				Direction:            "auto",
 				Mode:                 "trailing_stop",
 				TimeValueExpression:  "2",
@@ -167,6 +178,17 @@ func TestPlanRequirementsIndicatorKeysMatchRuntimeBindingParity(t *testing.T) {
 		"bollinger:20:2":                         true,
 		"bollinger:20:2.5":                       true,
 		"stdev:20":                               true,
+		"highest:high:20":                        true,
+		"lowest:low:10":                          true,
+		"change:close:1":                         true,
+		"mom:close:5":                            true,
+		"roc:close:12":                           true,
+		"rising:close:3":                         true,
+		"falling:close:3":                        true,
+		"ma:SMA:20:volume":                       true,
+		"ma:EMA:5:high":                          true,
+		"sum:volume:20":                          true,
+		"sar:0.02:0.02:0.2":                      true,
 		"risk:trailingStop:auto:2:day:4:session": true,
 	}
 	for _, ind := range requirements.Indicators {
@@ -177,6 +199,67 @@ func TestPlanRequirementsIndicatorKeysMatchRuntimeBindingParity(t *testing.T) {
 	}
 	for key := range expectedKeys {
 		t.Fatalf("missing indicator key %q in plan", key)
+	}
+}
+
+func TestPlanRequirementsPreservesLegacyCloseKeysAndSourceAwareKeys(t *testing.T) {
+	program, err := strategypine.ParseScript(`//@version=6
+strategy("Source Keys", overlay=true)
+closeSma = ta.sma(close, 20)
+volumeSma = ta.sma(volume, 20)
+hlc3Ema = ta.ema(hlc3, 20)
+closeRsi = ta.rsi(close, 14)
+hlc3Rsi = ta.rsi(hlc3, 14)
+legacyCci = ta.cci(hlc3, 20)
+closeCci = ta.cci(close, 20)
+if close > closeSma and volume > volumeSma and hlc3Ema > 0 and closeRsi > hlc3Rsi and closeCci > legacyCci
+    strategy.entry("Long", strategy.long, qty=1)`)
+	if err != nil {
+		t.Fatalf("ParseScript() error = %v", err)
+	}
+
+	requirements, err := strategyir.PlanRequirements(program)
+	if err != nil {
+		t.Fatalf("PlanRequirements() error = %v", err)
+	}
+
+	keys := map[string]bool{}
+	for _, indicator := range requirements.Indicators {
+		keys[indicator.Key] = true
+	}
+	expected := []string{
+		"ma:SMA:20",
+		"ma:SMA:20:volume",
+		"ma:EMA:20:hlc3",
+		"rsi:14",
+		"rsi:hlc3:14",
+		"cci:20",
+		"cci:close:20",
+	}
+	for _, key := range expected {
+		if !keys[key] {
+			t.Fatalf("missing indicator key %q; got %#v", key, requirements.Indicators)
+		}
+	}
+	for _, unexpected := range []string{
+		"ma:SMA:20:close",
+		"rsi:close:14",
+		"cci:hlc3:20",
+	} {
+		if keys[unexpected] {
+			t.Fatalf("unexpected non-legacy key %q in %#v", unexpected, requirements.Indicators)
+		}
+	}
+}
+
+func TestPlanRequirementsRejectsUnsupportedWindowSource(t *testing.T) {
+	program := programWithStatements(&strategyir.LetStmt{
+		Range:      strategyir.SourceRange{StartLine: 7},
+		Name:       "spreadHigh",
+		Expression: "highest(close - open, 20)",
+	})
+	if _, err := strategyir.PlanRequirements(program); err == nil {
+		t.Fatal("PlanRequirements() error = nil, want unsupported source error")
 	}
 }
 

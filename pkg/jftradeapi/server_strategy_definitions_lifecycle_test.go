@@ -157,6 +157,12 @@ func TestInstantiatePineStrategyDefinitionBuildsCompiledPlan(t *testing.T) {
 		if transitionEnvelope.Data.Status != expectedStatus {
 			t.Fatalf("Pine %s status = %s, want %s", action, transitionEnvelope.Data.Status, expectedStatus)
 		}
+		if transitionEnvelope.Data.Runtime != strategyRuntimePinePlan {
+			t.Fatalf("Pine %s runtime = %q, want %q", action, transitionEnvelope.Data.Runtime, strategyRuntimePinePlan)
+		}
+		if transitionEnvelope.Data.SourceFormat != strategydefinition.SourceFormatPineV6 {
+			t.Fatalf("Pine %s sourceFormat = %q, want %q", action, transitionEnvelope.Data.SourceFormat, strategydefinition.SourceFormatPineV6)
+		}
 		if !transitionEnvelope.Data.Startable {
 			t.Fatalf("expected transitioned Pine instance to remain startable: %+v", transitionEnvelope.Data)
 		}

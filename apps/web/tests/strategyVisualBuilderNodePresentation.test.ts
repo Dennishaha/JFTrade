@@ -44,6 +44,23 @@ describe("strategyVisualBuilderNodePresentation", () => {
     expect(summary.chips).toEqual(["True", "False"]);
   });
 
+  it("marks legacy codeBlock summaries as read-only compatibility", () => {
+    const summary = buildStrategyVisualNodeSummary({
+      text: "旧代码块",
+      properties: {
+        blockKind: "codeBlock",
+        code: "console.log('legacy')",
+      },
+    });
+
+    expect(summary.eyebrow).toBe("历史代码块");
+    expect(summary.chips).toEqual(["只读"]);
+    expect(summary.details).toContainEqual({
+      label: "状态",
+      value: "已废弃，请改用 Pine 片段或标准 Pine 图块",
+    });
+  });
+
   it("builds a place-order summary with direction order type and quantity", () => {
     const summary = buildStrategyVisualNodeSummary({
       text: "下单 · 买入开多 · 100 股",

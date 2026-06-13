@@ -150,6 +150,14 @@ func TestParseIndicatorBindingProducesExpectedKeys(t *testing.T) {
 			wantArgs: []string{"EMA", "5", "hour"},
 		},
 		{
+			name:     "ma source aware",
+			alias:    "avgVol",
+			expr:     "ma(SMA,20,volume)",
+			wantKind: "ma",
+			wantKey:  "ma:SMA:20:volume",
+			wantArgs: []string{"SMA", "20", "", "volume"},
+		},
+		{
 			name:     "rsi",
 			alias:    "r",
 			expr:     "rsi(14)",
@@ -214,6 +222,14 @@ func TestParseIndicatorBindingProducesExpectedKeys(t *testing.T) {
 			wantArgs: []string{"20", "2.5"},
 		},
 		{
+			name:     "sar",
+			alias:    "sar",
+			expr:     "sar(0.02,0.02,0.2)",
+			wantKind: "sar",
+			wantKey:  "sar:0.02:0.02:0.2",
+			wantArgs: []string{"0.02", "0.02", "0.2"},
+		},
+		{
 			name:    "invalid ma type",
 			alias:   "bad",
 			expr:    "ma(UNKNOWN,14)",
@@ -270,6 +286,80 @@ func TestParseIndicatorBindingProducesExpectedKeys(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestStrategyRuntimeEvaluatesHighestHistoryAlias(t *testing.T) {
+	script := `//@version=6
+strategy("Donchian", overlay=true)
+upper = ta.highest(high, 3)
+if close > upper[1]
+    log.info("breakout")`
+	program, err := strategypine.ParseScript(script)
+	if err != nil {
+		t.Fatalf("ParseScript() error = %v", err)
+	}
+	plan, err := strategyir.PlanRequirements(program)
+	if err != nil {
+		t.Fatalf("PlanRequirements() error = %v", err)
+	}
+	runtime, err := newStrategyRuntime(context.Background(), &Strategy{
+		Name:     "donchian",
+		Symbol:   "US.NVDA",
+		Interval: types.Interval1m,
+		Script:   script,
+	}, program, plan, nil, nil)
+	if err != nil {
+		t.Fatalf("newStrategyRuntime() error = %v", err)
+	}
+	baseTime := time.Date(2026, time.May, 26, 13, 30, 0, 0, time.UTC)
+	for index, bar := range []struct {
+		high  float64
+		close float64
+	}{
+		{high: 100, close: 99},
+		{high: 101, close: 100},
+		{high: 102, close: 101},
+	} {
+		start := baseTime.Add(time.Duration(index) * time.Minute)
+		kline := types.KLine{
+			Symbol:    "US.NVDA",
+			Interval:  types.Interval1m,
+			StartTime: types.Time(start),
+			EndTime:   types.Time(start.Add(time.Minute - time.Millisecond)),
+			Open:      fixedpoint.NewFromFloat(bar.close),
+			High:      fixedpoint.NewFromFloat(bar.high),
+			Low:       fixedpoint.NewFromFloat(bar.close - 1),
+			Close:     fixedpoint.NewFromFloat(bar.close),
+			Volume:    fixedpoint.NewFromFloat(1000),
+		}
+		runtime.engine.Push(kline, market.SessionRegular)
+		scope := runtime.newScope(&kline, market.SessionRegular)
+		hook := program.Hooks[0]
+		if err := runtime.executeLetStatement(hook.Statements[0].(*strategyir.LetStmt), scope); err != nil {
+			t.Fatalf("executeLetStatement() warmup error = %v", err)
+		}
+		runtime.recordHistorySnapshots(scope)
+	}
+	scope := runtime.newScope(&types.KLine{
+		Symbol:   "US.NVDA",
+		Interval: types.Interval1m,
+		Close:    fixedpoint.NewFromFloat(110),
+		High:     fixedpoint.NewFromFloat(110),
+		Low:      fixedpoint.NewFromFloat(109),
+		Volume:   fixedpoint.NewFromFloat(1000),
+	}, market.SessionRegular)
+	hook := program.Hooks[0]
+	if err := runtime.executeLetStatement(hook.Statements[0].(*strategyir.LetStmt), scope); err != nil {
+		t.Fatalf("executeLetStatement() error = %v", err)
+	}
+	ifStmt := hook.Statements[1].(*strategyir.IfStmt)
+	ok, err := evaluateBoolExpression(ifStmt.Condition, scope)
+	if err != nil {
+		t.Fatalf("evaluateBoolExpression() error = %v", err)
+	}
+	if !ok {
+		t.Fatalf("condition %q = false, want true; indicators=%#v", ifStmt.Condition, scope.indicators)
 	}
 }
 

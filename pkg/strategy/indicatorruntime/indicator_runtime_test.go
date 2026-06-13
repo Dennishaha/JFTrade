@@ -21,6 +21,9 @@ func TestParseIndicatorRequirements(t *testing.T) {
 			const fastAverage = ctx.indicators["ma:5"];
 			const slowAverage = ctx.indicators['ma:EMA:20'];
 			const dayAverage = ctx.indicators["ma:EMA:20:day"];
+			const dailyHlc3 = ctx.indicators["security_source:day:hlc3"];
+			const highAverage = ctx.indicators["ma:EMA:5:high"];
+			const volumeAverage = ctx.indicators["ma:SMA:20:volume"];
 			const volumeWeightedAverage = ctx.indicators["ma:VWMA:10"];
 			const latestRsi = ctx.indicators["rsi:14"];
 			const latestMacd = ctx.indicators["macd:12:26:9"];
@@ -28,6 +31,14 @@ func TestParseIndicatorRequirements(t *testing.T) {
 			const latestKdj = ctx.indicators["kdj:9:3:3"];
 			const latestAtr = ctx.indicators["atr:14"];
 			const latestStdDev = ctx.indicators["stdev:20"];
+			const highestHigh = ctx.indicators["highest:high:20"];
+			const lowestLow = ctx.indicators["lowest:low:10"];
+			const closeChange = ctx.indicators["change:close:1"];
+			const closeMomentum = ctx.indicators["mom:close:5"];
+			const closeRoc = ctx.indicators["roc:close:12"];
+			const risingClose = ctx.indicators["rising:close:3"];
+			const fallingClose = ctx.indicators["falling:close:3"];
+			const volumeSum = ctx.indicators["sum:volume:20"];
 			const latestCci = ctx.indicators["cci:20"];
 			const latestWilliamsR = ctx.indicators["williamsr:14"];
 			const sessionStopLoss = ctx.indicators["sl:auto:1:day:10"];
@@ -38,20 +49,28 @@ func TestParseIndicatorRequirements(t *testing.T) {
 		}
 	`)
 
-	if len(requirements.ma) != 4 {
+	if len(requirements.ma) != 6 {
 		t.Fatalf("ma requirements = %#v", requirements.ma)
 	}
-	if requirements.ma[0] != (movingAverageConfig{averageType: "MA", period: 5}) {
-		t.Fatalf("ma[0] = %#v", requirements.ma[0])
+	expectedMAs := map[movingAverageConfig]bool{
+		{averageType: "MA", period: 5}:                     true,
+		{averageType: "VWMA", period: 10}:                  true,
+		{averageType: "EMA", period: 20}:                   true,
+		{averageType: "EMA", period: 20, timeUnit: "day"}:  true,
+		{averageType: "EMA", period: 5, source: "high"}:    true,
+		{averageType: "SMA", period: 20, source: "volume"}: true,
 	}
-	if requirements.ma[1] != (movingAverageConfig{averageType: "VWMA", period: 10}) {
-		t.Fatalf("ma[1] = %#v", requirements.ma[1])
+	for _, config := range requirements.ma {
+		if !expectedMAs[config] {
+			t.Fatalf("unexpected ma config %#v", config)
+		}
+		delete(expectedMAs, config)
 	}
-	if requirements.ma[2] != (movingAverageConfig{averageType: "EMA", period: 20}) {
-		t.Fatalf("ma[2] = %#v", requirements.ma[2])
+	for config := range expectedMAs {
+		t.Fatalf("missing ma config %#v", config)
 	}
-	if requirements.ma[3] != (movingAverageConfig{averageType: "EMA", period: 20, timeUnit: "day"}) {
-		t.Fatalf("ma[3] = %#v", requirements.ma[3])
+	if len(requirements.securitySource) != 1 || requirements.securitySource[0] != (securitySourceConfig{source: "hlc3", timeUnit: "day"}) {
+		t.Fatalf("security source requirements = %#v", requirements.securitySource)
 	}
 	if len(requirements.rsi) != 1 || requirements.rsi[0] != 14 {
 		t.Fatalf("rsi requirements = %#v", requirements.rsi)
@@ -70,6 +89,25 @@ func TestParseIndicatorRequirements(t *testing.T) {
 	}
 	if len(requirements.stdev) != 1 || requirements.stdev[0] != 20 {
 		t.Fatalf("stdev requirements = %#v", requirements.stdev)
+	}
+	expectedWindows := map[windowConfig]bool{
+		{function: "highest", source: "high", period: 20}: true,
+		{function: "lowest", source: "low", period: 10}:   true,
+		{function: "change", source: "close", period: 1}:  true,
+		{function: "mom", source: "close", period: 5}:     true,
+		{function: "roc", source: "close", period: 12}:    true,
+		{function: "rising", source: "close", period: 3}:  true,
+		{function: "falling", source: "close", period: 3}: true,
+		{function: "sum", source: "volume", period: 20}:   true,
+	}
+	if len(requirements.windows) != len(expectedWindows) {
+		t.Fatalf("window requirements = %#v", requirements.windows)
+	}
+	for _, config := range requirements.windows {
+		if !expectedWindows[config] {
+			t.Fatalf("unexpected window config %#v", config)
+		}
+		delete(expectedWindows, config)
 	}
 	if len(requirements.cci) != 1 || requirements.cci[0] != 20 {
 		t.Fatalf("cci requirements = %#v", requirements.cci)
@@ -1044,6 +1082,124 @@ func TestBuildStopLossSnapshotUsesExtendedTradingWindowsWhenEnabled(t *testing.T
 	}
 }
 
+func TestIndicatorRuntimeSnapshotIncludesSAR(t *testing.T) {
+	runtime := newIndicatorRuntime(`
+		function onKLineClosed(ctx) {
+			ctx.indicators["sar:0.02:0.02:0.2"];
+		}
+	`, types.Interval1m, "US.AAPL")
+	if runtime == nil {
+		t.Fatal("expected indicator runtime")
+	}
+	for _, bar := range []struct {
+		high  float64
+		low   float64
+		close float64
+	}{
+		{high: 10, low: 9, close: 9.5},
+		{high: 11, low: 10, close: 10.5},
+		{high: 12, low: 11, close: 11.5},
+		{high: 13, low: 12, close: 12.5},
+		{high: 14, low: 13, close: 13.5},
+	} {
+		runtime.push(types.KLine{
+			High:   fixedpoint.NewFromFloat(bar.high),
+			Low:    fixedpoint.NewFromFloat(bar.low),
+			Close:  fixedpoint.NewFromFloat(bar.close),
+			Volume: fixedpoint.NewFromFloat(1000),
+		}, market.SessionRegular)
+	}
+	snapshot := runtime.snapshot()
+	sar, ok := snapshot["sar:0.02:0.02:0.2"].(*indicatorSeriesSnapshot)
+	if !ok || sar == nil {
+		t.Fatalf("sar snapshot = %#v", snapshot["sar:0.02:0.02:0.2"])
+	}
+	if !sar.hasCurrent || math.Abs(sar.current-9.3528) > 0.0000001 {
+		t.Fatalf("sar.current = %v, want 9.3528", sar.current)
+	}
+	if !sar.hasPrevious || math.Abs(sar.previous-9.12) > 0.0000001 {
+		t.Fatalf("sar.previous = %v, want 9.12", sar.previous)
+	}
+}
+
+func TestIndicatorRuntimeSnapshotIncludesSecuritySource(t *testing.T) {
+	runtime := newIndicatorRuntime(`
+		function onKLineClosed(ctx) {
+			ctx.indicators["security_source:day:close"];
+			ctx.indicators["security_source:day:hlc3"];
+		}
+	`, types.Interval1m, "US.AAPL")
+	if runtime == nil {
+		t.Fatal("expected indicator runtime")
+	}
+	bars := []struct {
+		at     time.Time
+		open   float64
+		high   float64
+		low    float64
+		close  float64
+		volume float64
+	}{
+		{at: time.Date(2026, time.June, 11, 14, 30, 0, 0, time.UTC), open: 10, high: 12, low: 8, close: 11, volume: 100},
+		{at: time.Date(2026, time.June, 11, 14, 31, 0, 0, time.UTC), open: 11, high: 16, low: 9, close: 14, volume: 200},
+		{at: time.Date(2026, time.June, 12, 14, 30, 0, 0, time.UTC), open: 20, high: 22, low: 18, close: 21, volume: 300},
+		{at: time.Date(2026, time.June, 12, 14, 31, 0, 0, time.UTC), open: 21, high: 25, low: 19, close: 24, volume: 400},
+	}
+	for _, bar := range bars {
+		runtime.push(types.KLine{
+			Symbol:    "US.AAPL",
+			Interval:  types.Interval1m,
+			StartTime: types.Time(bar.at),
+			EndTime:   types.Time(bar.at.Add(time.Minute - time.Millisecond)),
+			Open:      fixedpoint.NewFromFloat(bar.open),
+			High:      fixedpoint.NewFromFloat(bar.high),
+			Low:       fixedpoint.NewFromFloat(bar.low),
+			Close:     fixedpoint.NewFromFloat(bar.close),
+			Volume:    fixedpoint.NewFromFloat(bar.volume),
+		}, market.SessionRegular)
+	}
+
+	snapshot := runtime.snapshot()
+	assertSeriesSnapshot(t, snapshot, "security_source:day:close", 24, 14)
+	assertSeriesSnapshotApprox(t, snapshot, "security_source:day:hlc3", (25+18+24)/3.0, (16+8+14)/3.0)
+}
+
+func TestIndicatorRuntimeSnapshotIncludesIntradaySecurityTimeframes(t *testing.T) {
+	runtime := newIndicatorRuntime(`
+		function onKLineClosed(ctx) {
+			ctx.indicators["security_source:15m:close"];
+			ctx.indicators["security_source:15m:close:1"];
+			ctx.indicators["security_source:30m:hlc3"];
+			ctx.indicators["ma:EMA:3:15m:hlc3"];
+		}
+	`, types.Interval1m, "US.AAPL")
+	if runtime == nil {
+		t.Fatal("expected indicator runtime")
+	}
+	base := time.Date(2026, time.June, 12, 14, 30, 0, 0, time.UTC)
+	for index := 0; index < 60; index++ {
+		closePrice := float64(index + 1)
+		start := base.Add(time.Duration(index) * time.Minute)
+		runtime.push(types.KLine{
+			Symbol:    "US.AAPL",
+			Interval:  types.Interval1m,
+			StartTime: types.Time(start),
+			EndTime:   types.Time(start.Add(time.Minute - time.Millisecond)),
+			Open:      fixedpoint.NewFromFloat(closePrice),
+			High:      fixedpoint.NewFromFloat(closePrice + 1),
+			Low:       fixedpoint.NewFromFloat(closePrice - 1),
+			Close:     fixedpoint.NewFromFloat(closePrice),
+			Volume:    fixedpoint.NewFromFloat(1000),
+		}, market.SessionRegular)
+	}
+
+	snapshot := runtime.snapshot()
+	assertSeriesSnapshot(t, snapshot, "security_source:15m:close", 60, 45)
+	assertSeriesSnapshot(t, snapshot, "security_source:15m:close:1", 45, 30)
+	assertSeriesSnapshotApprox(t, snapshot, "security_source:30m:hlc3", (61+30+60)/3.0, (31+0+30)/3.0)
+	assertSeriesSnapshotApprox(t, snapshot, "ma:EMA:3:15m:hlc3", 42.208333333333336, 29.083333333333336)
+}
+
 func TestIndicatorRuntimeSnapshotIncludesTimeBoundIndicators(t *testing.T) {
 	runtime := newIndicatorRuntime(`
 		function onKLineClosed(ctx) {
@@ -1161,6 +1317,73 @@ momentum = ta.rsi(close, 2)`)
 	}
 }
 
+func TestIndicatorEngineComputesRollingWindowFunctions(t *testing.T) {
+	program, err := strategypine.ParseScript(`//@version=6
+strategy("Windows", overlay=true)
+hh = ta.highest(high, 3)
+ll = ta.lowest(low, 3)
+delta = ta.change(close)
+momentum = ta.mom(close, 2)
+rate = ta.roc(close, 2)
+up = ta.rising(close, 2)
+down = ta.falling(low, 2)
+avgVol = ta.sma(volume, 2)
+emaHigh = ta.ema(high, 2)
+volSum = ta.sum(volume, 2)`)
+	if err != nil {
+		t.Fatalf("ParseScript() error = %v", err)
+	}
+	plan, err := strategyir.PlanRequirements(program)
+	if err != nil {
+		t.Fatalf("PlanRequirements() error = %v", err)
+	}
+	engine, err := NewIndicatorEngineForPlan(plan, types.Interval1m, "US.AAPL")
+	if err != nil {
+		t.Fatalf("NewIndicatorEngineForPlan() error = %v", err)
+	}
+	baseTime := time.Date(2026, time.June, 13, 9, 30, 0, 0, time.UTC)
+	bars := []struct {
+		high   float64
+		low    float64
+		close  float64
+		volume float64
+	}{
+		{high: 10, low: 7, close: 100, volume: 100},
+		{high: 12, low: 6, close: 105, volume: 200},
+		{high: 11, low: 5, close: 102, volume: 300},
+		{high: 13, low: 4, close: 110, volume: 400},
+	}
+	for index, bar := range bars {
+		start := baseTime.Add(time.Duration(index) * time.Minute)
+		engine.Push(types.KLine{
+			Symbol:    "US.AAPL",
+			Interval:  types.Interval1m,
+			StartTime: types.Time(start),
+			EndTime:   types.Time(start.Add(time.Minute - time.Millisecond)),
+			Open:      fixedpoint.NewFromFloat(bar.close),
+			High:      fixedpoint.NewFromFloat(bar.high),
+			Low:       fixedpoint.NewFromFloat(bar.low),
+			Close:     fixedpoint.NewFromFloat(bar.close),
+			Volume:    fixedpoint.NewFromFloat(bar.volume),
+		}, market.SessionRegular)
+	}
+	snapshot := engine.SnapshotBorrowed()
+	assertSeriesSnapshot(t, snapshot, "highest:high:3", 13, 12)
+	assertSeriesSnapshot(t, snapshot, "lowest:low:3", 4, 5)
+	assertSeriesSnapshot(t, snapshot, "change:close:1", 8, -3)
+	assertSeriesSnapshot(t, snapshot, "mom:close:2", 5, 2)
+	assertSeriesSnapshotApprox(t, snapshot, "roc:close:2", (110-105)/105.0*100, (102-100)/100.0*100)
+	assertSeriesSnapshot(t, snapshot, "ma:SMA:2:volume", 350, 250)
+	assertSeriesSnapshotApprox(t, snapshot, "ma:EMA:2:high", 12.37037037037037, 11.11111111111111)
+	assertSeriesSnapshot(t, snapshot, "sum:volume:2", 700, 500)
+	if value, ok := snapshot["rising:close:2"].(bool); !ok || !value {
+		t.Fatalf("rising snapshot = %#v, want true", snapshot["rising:close:2"])
+	}
+	if value, ok := snapshot["falling:low:2"].(bool); !ok || !value {
+		t.Fatalf("falling snapshot = %#v, want true", snapshot["falling:low:2"])
+	}
+}
+
 func TestDetectDivergence(t *testing.T) {
 	if !detectDivergence([]float64{10, 11, 12, 13}, []float64{60, 65, 63, 61}, "top", 3) {
 		t.Fatal("expected top divergence to be detected")
@@ -1170,6 +1393,28 @@ func TestDetectDivergence(t *testing.T) {
 	}
 	if detectDivergence([]float64{10, 11, 12, 13}, []float64{60, 62, 64, 66}, "top", 3) {
 		t.Fatal("did not expect divergence when indicator confirms price")
+	}
+}
+
+func assertSeriesSnapshot(t *testing.T, snapshot map[string]any, key string, current float64, previous float64) {
+	t.Helper()
+	assertSeriesSnapshotApprox(t, snapshot, key, current, previous)
+}
+
+func assertSeriesSnapshotApprox(t *testing.T, snapshot map[string]any, key string, current float64, previous float64) {
+	t.Helper()
+	reader, ok := snapshot[key].(interface {
+		SeriesField(string) (float64, float64, bool, bool, bool)
+	})
+	if !ok {
+		t.Fatalf("snapshot %s type = %T", key, snapshot[key])
+	}
+	gotCurrent, gotPrevious, currentOK, previousOK, seriesOK := reader.SeriesField("value")
+	if !seriesOK || !currentOK || !previousOK {
+		t.Fatalf("snapshot %s series = (%v, %v, %v, %v, %v)", key, gotCurrent, gotPrevious, currentOK, previousOK, seriesOK)
+	}
+	if math.Abs(gotCurrent-current) > 1e-9 || math.Abs(gotPrevious-previous) > 1e-9 {
+		t.Fatalf("snapshot %s = (%v, %v), want (%v, %v)", key, gotCurrent, gotPrevious, current, previous)
 	}
 }
 
