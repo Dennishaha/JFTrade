@@ -72,71 +72,15 @@ func AnalyzeScript(script string, options AnalysisOptions) AnalysisResult {
 }
 
 func SupportedFeatureIDs() []string {
-	return []string{
-		"metadata.version6",
-		"metadata.strategy",
-		"metadata.backtest_costs",
-		"metadata.process_orders_on_close",
-		"syntax.if_else",
-		"syntax.assignment",
-		"syntax.var",
-		"syntax.const_varip",
-		"syntax.reassign",
-		"syntax.udf_expression",
-		"syntax.for_static_unroll",
-		"expression.history_ref_1",
-		"expression.history_ref_n",
-		"expression.ternary",
-		"expression.na_nz",
-		"expression.strict_bool",
-		"expression.input_defaults",
-		"expression.input_symbol_session",
-		"expression.math_namespace",
-		"expression.string_namespace",
-		"expression.format_constants",
-		"expression.account_equity",
-		"expression.time_variables",
-		"expression.derived_sources",
-		"expression.timestamp",
-		"expression.barstate_session",
-		"expression.pine_constants",
-		"indicator.ma",
-		"indicator.ma_source_aware",
-		"indicator.source_aware_core",
-		"indicator.rsi",
-		"indicator.macd",
-		"indicator.atr",
-		"indicator.cci",
-		"indicator.bollinger",
-		"indicator.williams_r",
-		"indicator.rolling_window",
-		"indicator.sum",
-		"indicator.cross",
-		"indicator.cum_stoch_extrema_bars",
-		"indicator.vwap_mfi_dmi_supertrend",
-		"indicator.stateful_events",
-		"indicator.sar",
-		"request.security.mtf_ma_subset",
-		"request.security.mtf_sources",
-		"request.security.mtf_ma_source_aware",
-		"request.security.timeframe_multipliers",
-		"request.security.htf_history",
-		"expression.input_timeframe",
-		"expression.barmerge_constants",
-		"visual.noop_calls",
-		"alert.alertcondition_noop",
-		"order.strategy_order_net",
-		"order.qty_percent",
-		"order.close_all",
-		"order.close_immediately",
-		"order.comment_alert_metadata",
-		"order.exit_quantity",
-		"order.exit_bracket",
-		"order.exit_price_expressions",
-		"order.pending_stop",
-		"order.cancel_pending",
-		"strategy.entry_close_exit_subset",
+	registry := CapabilityRegistry()
+	out := make([]string, 0, len(registry))
+	for _, capability := range registry {
+		if capability.Status == CapabilityUnsupported {
+			continue
+		}
+		out = append(out, capability.ID)
 	}
+	return out
 }
 
 func diagnosticFromWarning(warning string) Diagnostic {

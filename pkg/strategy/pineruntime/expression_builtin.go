@@ -11,7 +11,7 @@ func evaluateBuiltinExpression(expression *exprast.BuiltinNode, scope *evaluatio
 	switch strings.ToLower(strings.TrimSpace(expression.Name)) {
 	case "abs":
 		return evaluateMathExpression("abs", expression.Arguments, scope)
-	case "min", "max", "round", "floor", "ceil", "sqrt", "pow", "log", "sign":
+	case "min", "max", "avg", "round", "round_to_mintick", "floor", "ceil", "sqrt", "pow", "log", "sign":
 		return evaluateMathExpression(strings.ToLower(strings.TrimSpace(expression.Name)), expression.Arguments, scope)
 	case "sum":
 		return evaluateWindowNumericExpression("sum", expression.Arguments, scope)
@@ -45,12 +45,22 @@ func evaluateCallExpression(expression *exprast.CallNode, scope *evaluationScope
 		return evaluateNZExpression(expression.Arguments, scope)
 	case "abs":
 		return evaluateMathExpression(functionName, expression.Arguments, scope)
-	case "min", "max", "round", "floor", "ceil", "sqrt", "pow", "log", "sign":
+	case "ma":
+		return evaluateMovingAverageExpression(expression.Arguments, scope)
+	case "security_source":
+		return evaluateSecuritySourceExpression(expression.Arguments, scope)
+	case "min", "max", "avg", "round", "round_to_mintick", "floor", "ceil", "sqrt", "pow", "log", "sign":
 		return evaluateMathExpression(functionName, expression.Arguments, scope)
 	case "stdev":
 		return evaluateSourcePeriodIndicatorExpression(functionName, expression.Arguments, scope, "close", "20")
 	case "rsi":
 		return evaluateSourcePeriodIndicatorExpression(functionName, expression.Arguments, scope, "close", "14")
+	case "macd":
+		return evaluateMACDExpression(expression.Arguments, scope)
+	case "atr":
+		return evaluateATRExpression(expression.Arguments, scope)
+	case "bollinger":
+		return evaluateBollingerExpression(expression.Arguments, scope)
 	case "variance":
 		return evaluateSourcePeriodIndicatorExpression(functionName, expression.Arguments, scope, "close", "20")
 	case "cci":
@@ -77,7 +87,7 @@ func evaluateCallExpression(expression *exprast.CallNode, scope *evaluationScope
 		return evaluateBarsSinceExpression(expression, scope)
 	case "valuewhen":
 		return evaluateValueWhenExpression(expression, scope)
-	case "highest", "lowest", "highestbars", "lowestbars", "change", "mom", "roc", "sum":
+	case "highest", "lowest", "highestbars", "lowestbars", "change", "mom", "roc", "range", "mode", "sum":
 		return evaluateWindowNumericExpression(functionName, expression.Arguments, scope)
 	case "rising", "falling":
 		return evaluateWindowBoolExpression(functionName, expression.Arguments, scope)

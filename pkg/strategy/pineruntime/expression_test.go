@@ -298,25 +298,40 @@ func TestEvaluateExpressionSupportsNewIndicatorLookups(t *testing.T) {
 	runtime := &strategyRuntime{expressionCache: map[string]exprast.Node{}}
 	scope := newBarExpressionScope(runtime)
 	scope.indicators = map[string]any{
-		"rsi:hlc3:14":        map[string]any{"value": 55.0},
-		"stdev:volume:20":    map[string]any{"value": 12.0},
-		"variance:volume:20": map[string]any{"value": 144.0},
-		"cci:close:20":       map[string]any{"value": 80.0},
-		"vwap:hlc3":          map[string]any{"value": 100.0},
-		"mfi:hlc3:14":        map[string]any{"value": 62.0},
-		"dmi:14:14":          map[string]any{"plus": 25.0, "minus": 12.0, "adx": 28.0},
-		"supertrend:3:10":    map[string]any{"line": 98.5, "direction": 1.0},
-		"sar:0.02:0.02:0.2":  map[string]any{"value": 97.5, "previous": 96.5},
-		"highest:hlc3:3":     map[string]any{"value": 101.0},
-		"sum:volume:3":       map[string]any{"value": 3000.0},
+		"rsi:hlc3:14":                 map[string]any{"value": 55.0},
+		"stdev:volume:20":             map[string]any{"value": 12.0},
+		"variance:volume:20":          map[string]any{"value": 144.0},
+		"cci:close:20":                map[string]any{"value": 80.0},
+		"vwap:hlc3":                   map[string]any{"value": 100.0},
+		"mfi:hlc3:14":                 map[string]any{"value": 62.0},
+		"dmi:14:14":                   map[string]any{"plus": 25.0, "minus": 12.0, "adx": 28.0},
+		"supertrend:3:10":             map[string]any{"line": 98.5, "direction": 1.0},
+		"sar:0.02:0.02:0.2":           map[string]any{"value": 97.5, "previous": 96.5},
+		"highest:hlc3:3":              map[string]any{"value": 101.0},
+		"range:close:5":               map[string]any{"value": 6.0},
+		"mode:close:5":                map[string]any{"value": 103.0},
+		"sum:volume:3":                map[string]any{"value": 3000.0},
+		"ma:SMA:3:15m":                map[string]any{"value": 102.0},
+		"security_source:15m:close":   map[string]any{"value": 105.0, "previous": 101.0},
+		"security_source:15m:close:1": map[string]any{"value": 101.0, "previous": 99.0},
+		"rsi:close:14:15m":            map[string]any{"value": 58.0},
+		"macd:close:12:26:9:15m":      map[string]any{"diff": 2.0, "signal": 1.0, "histogram": 2.0},
+		"atr:14:15m":                  map[string]any{"value": 3.5},
+		"bollinger:close:20:2:15m":    map[string]any{"middle": 100.0, "upper": 106.0, "lower": 94.0},
+		"supertrend:3:10:15m":         map[string]any{"line": 99.0, "direction": 1.0},
 	}
 
-	value, err := evaluateExpression("rsi(hlc3, 14) > 50 and stdev(volume, 20) == 12 and variance(volume, 20) == 144 and cci(close, 20) > 0 and vwap(hlc3) == 100 and mfi(hlc3, 14) > 60 and dmi(14, 14).plus > dmi(14, 14).minus and dmi(14, 14).adx > 20 and supertrend(3, 10).direction == 1 and sar(0.02, 0.02, 0.2) == 97.5 and previous(sar(0.02, 0.02, 0.2)) == 96.5 and highest(hlc3, 3) == 101 and sum(volume, 3) == 3000", scope)
+	value, err := evaluateExpression("rsi(hlc3, 14) > 50 and stdev(volume, 20) == 12 and variance(volume, 20) == 144 and cci(close, 20) > 0 and vwap(hlc3) == 100 and mfi(hlc3, 14) > 60 and dmi(14, 14).plus > dmi(14, 14).minus and dmi(14, 14).adx > 20 and supertrend(3, 10).direction == 1 and sar(0.02, 0.02, 0.2) == 97.5 and previous(sar(0.02, 0.02, 0.2)) == 96.5 and highest(hlc3, 3) == 101 and range(close, 5) == 6 and mode(close, 5) == 103 and sum(volume, 3) == 3000 and security_source(close, '15m') > ma(SMA, 3, '15m') and previous(security_source(close, '15m')) == 101 and security_source(close, '15m', 1) == 101 and rsi(close, 14, '15m') > 50 and macd(12, 26, 9, '15m', close).histogram == 2 and atr(14, '15m') == 3.5 and bollinger(20, 2, '15m', close).upper == 106 and supertrend(3, 10, '15m').direction == 1", scope)
 	if err != nil {
 		t.Fatalf("indicator lookup expression error = %v", err)
 	}
 	if value != true {
 		t.Fatalf("indicator lookup expression = %#v, want true", value)
+	}
+
+	value, err = evaluateExpression("security_source(close, '15m') > ma(SMA, 3, '15m') ? 1 : 0", scope)
+	if err != nil || value != 1.0 {
+		t.Fatalf("conditional MTF expression = %#v, err %v, want 1", value, err)
 	}
 }
 

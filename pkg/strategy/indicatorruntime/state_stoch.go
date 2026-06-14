@@ -1,4 +1,5 @@
 package indicatorruntime
+
 func (s *rollingStochState) push(high, low, sourceValue float64) {
 	if s == nil || s.period <= 0 {
 		return
@@ -28,7 +29,6 @@ func (s *rollingStochState) push(high, low, sourceValue float64) {
 	s.hasCurrent = true
 }
 
-
 func newRollingStochStates(requirements indicatorRequirements) map[sourcePeriodConfig]*rollingStochState {
 	if len(requirements.stoch) == 0 {
 		return nil
@@ -48,7 +48,6 @@ func newRollingStochStates(requirements indicatorRequirements) map[sourcePeriodC
 	return states
 }
 
-
 func (r *indicatorRuntime) pushStochStates(openValue, high, low, closeValue, volume float64) {
 	if r == nil || len(r.stochStates) == 0 {
 		return
@@ -61,4 +60,3 @@ func (r *indicatorRuntime) pushStochStates(openValue, high, low, closeValue, vol
 		state.push(high, low, sourceValue)
 	}
 }
-

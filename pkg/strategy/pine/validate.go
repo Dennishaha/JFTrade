@@ -26,7 +26,7 @@ func rejectUnsupported(line parsedLine) error {
 			case strings.Contains(lower, "barmerge.gaps_on"):
 				return fmt.Errorf("pine line %d: request.security() gaps_on is not supported by JFTrade; use default gaps_off", line.number)
 			default:
-				return fmt.Errorf("pine line %d: request.security() is supported only for syminfo.tickerid with OHLCV/hl2/hlc3/ohlc4 sources, source history, or source-aware moving averages on supported higher timeframes", line.number)
+				return fmt.Errorf("pine line %d: request.security() is supported only for syminfo.tickerid with OHLCV/hl2/hlc3/ohlc4 sources, source history, source-aware moving averages, supported static intraday advanced indicators, v1.4 pure expressions, or v1.5 common TA pure expressions without side effects", line.number)
 			}
 		}
 	case strings.HasPrefix(lower, "runtime.error("):
@@ -49,8 +49,6 @@ func unsupportedSyntaxDiagnostic(line parsedLine) (Diagnostic, bool) {
 		return diagnosticForLine(DiagnosticSeverityError, "PINE_TA_FUNCTION_UNSUPPORTED", fmt.Sprintf("ta.%s() is not supported by JFTrade yet", name), line), true
 	case strings.HasPrefix(lower, "while "):
 		return diagnosticForLine(DiagnosticSeverityError, "PINE_WHILE_UNSUPPORTED", "while loops are parsed but not executable in this JFTrade Pine v6 version", line), true
-	case strings.HasPrefix(lower, "switch"):
-		return diagnosticForLine(DiagnosticSeverityError, "PINE_SWITCH_UNSUPPORTED", "switch statements are parsed but not executable in this JFTrade Pine v6 version", line), true
 	case strings.HasPrefix(lower, "type "), strings.HasPrefix(lower, "method "), strings.HasPrefix(lower, "import "):
 		return diagnosticForLine(DiagnosticSeverityError, "PINE_DECLARATION_UNSUPPORTED", "Pine declarations, libraries, and methods are not executable in this JFTrade Pine v6 version", line), true
 	case strings.Contains(lower, "array."), strings.Contains(lower, "matrix."), strings.Contains(lower, "map."):
@@ -63,11 +61,6 @@ func unsupportedSyntaxDiagnostic(line parsedLine) (Diagnostic, bool) {
 }
 
 func unsupportedTAFunctionName(lower string) string {
-	for _, name := range []string{"linreg", "pivothigh", "pivotlow", "obv"} {
-		if strings.Contains(lower, "ta."+name+"(") {
-			return name
-		}
-	}
 	return ""
 }
 
@@ -118,10 +111,11 @@ func parseStrategyTitle(line string) string {
 
 func parseStrategyDeclaration(line string) (strategyir.StrategyMetadata, []string) {
 	metadata := strategyir.StrategyMetadata{
-		Name:            "Pine Strategy",
-		DefaultQtyMode:  "fixed",
-		DefaultQtyValue: "1",
-		Pyramiding:      1,
+		Name:                  "Pine Strategy",
+		DefaultQtyMode:        "fixed",
+		DefaultQtyValue:       "1",
+		Pyramiding:            1,
+		AllowedEntryDirection: "all",
 	}
 	warnings := []string{}
 	args := splitArguments(callArgs(line))

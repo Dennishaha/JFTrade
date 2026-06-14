@@ -21,10 +21,21 @@ test("rejects compile regressions over ten percent", () => {
   assert.throws(() => assertBenchmarkGates("compile", comparisons), /regressed 11.0%/);
 });
 
-test("requires a twenty percent target improvement for golden benchmarks", () => {
+test("allows golden non-regression without mandatory improvement", () => {
   const comparisons = compareBenchmarks(
     new Map([["BenchmarkGolden", samples(100, 100, 10)]]),
     new Map([["BenchmarkGolden", samples(90, 90, 10)]]),
   );
-  assert.throws(() => assertBenchmarkGates("golden", comparisons), /at least 20%/);
+  assert.doesNotThrow(() => assertBenchmarkGates("golden", comparisons));
+});
+
+test("requires a twenty percent target improvement in performance mode", () => {
+  const comparisons = compareBenchmarks(
+    new Map([["BenchmarkGolden", samples(100, 100, 10)]]),
+    new Map([["BenchmarkGolden", samples(90, 90, 10)]]),
+  );
+  assert.throws(
+    () => assertBenchmarkGates("golden", comparisons, { requireImprovement: true }),
+    /at least 20%/,
+  );
 });

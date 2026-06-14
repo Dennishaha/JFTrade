@@ -39,45 +39,47 @@ type Strategy struct {
 }
 
 type strategyRuntime struct {
-	mu               sync.Mutex
-	ctx              context.Context
-	strategy         *Strategy
-	program          *strategyir.Program
-	plan             strategyir.Requirements
-	hooks            map[strategyir.HookKind]*strategyir.HookBlock
-	ifScopePlans     map[*strategyir.IfStmt]ifScopePlan
-	displayName      string
-	definitionID     string
-	symbol           string
-	interval         types.Interval
-	expressionCache  map[string]exprast.Node
-	bindingCache     map[*strategyir.LetStmt]cachedIndicatorBinding
-	protectCache     map[*strategyir.ProtectStmt]cachedProtectRequirement
-	divergenceCache  map[divergenceRequirementCacheKey]string
-	engine           *strategyindicatorruntime.IndicatorEngine
-	session          *bbgo2.ExchangeSession
-	executor         bbgo2.OrderExecutor
-	baseScope        *evaluationScope
-	reusableScope    *evaluationScope
-	persistentValues map[string]any
-	variableCapacity int
-	bindingCapacity  int
-	previousClose    float64
-	previousOpen     float64
-	previousHigh     float64
-	previousLow      float64
-	previousVolume   float64
-	hasPreviousClose bool
-	barIndex         int
-	positionCache    cachedPositionSnapshot
-	entrySubmitCount map[string]int
-	maxPyramiding    int
-	pendingOrders    map[string]pendingOrder
-	pendingSequence  int
-	barssinceStates  map[string]*barssinceState
-	valuewhenStates  map[string]*valuewhenState
-	historyTargets   map[string]historyTarget
-	historyValues    map[string]*historyBuffer
+	mu                    sync.Mutex
+	ctx                   context.Context
+	strategy              *Strategy
+	program               *strategyir.Program
+	plan                  strategyir.Requirements
+	hooks                 map[strategyir.HookKind]*strategyir.HookBlock
+	ifScopePlans          map[*strategyir.IfStmt]ifScopePlan
+	displayName           string
+	definitionID          string
+	symbol                string
+	interval              types.Interval
+	expressionCache       map[string]exprast.Node
+	bindingCache          map[*strategyir.LetStmt]cachedIndicatorBinding
+	protectCache          map[*strategyir.ProtectStmt]cachedProtectRequirement
+	divergenceCache       map[divergenceRequirementCacheKey]string
+	engine                *strategyindicatorruntime.IndicatorEngine
+	session               *bbgo2.ExchangeSession
+	executor              bbgo2.OrderExecutor
+	baseScope             *evaluationScope
+	reusableScope         *evaluationScope
+	persistentValues      map[string]any
+	variableCapacity      int
+	bindingCapacity       int
+	previousClose         float64
+	previousOpen          float64
+	previousHigh          float64
+	previousLow           float64
+	previousVolume        float64
+	hasPreviousClose      bool
+	barIndex              int
+	positionCache         cachedPositionSnapshot
+	entrySubmitCount      map[string]int
+	maxPyramiding         int
+	allowedEntryDirection string
+	pendingOrders         map[string]pendingOrder
+	pendingSequence       int
+	trailingExits         map[string]trailingExitState
+	barssinceStates       map[string]*barssinceState
+	valuewhenStates       map[string]*valuewhenState
+	historyTargets        map[string]historyTarget
+	historyValues         map[string]*historyBuffer
 }
 
 type historyBuffer struct {
@@ -120,19 +122,32 @@ type divergenceRequirementCacheKey struct {
 }
 
 type pendingOrder struct {
-	id         string
-	sequence   int
-	action     strategyir.OrderAction
-	intent     strategyir.OrderIntent
-	orderType  types.OrderType
-	quantity   float64
-	limitPrice float64
-	stopPrice  float64
-	hasLimit   bool
-	hasStop    bool
-	comment    string
-	alert      string
-	disable    bool
+	id                 string
+	sequence           int
+	action             strategyir.OrderAction
+	intent             strategyir.OrderIntent
+	orderType          types.OrderType
+	quantity           float64
+	quantityMode       string
+	quantityExpression string
+	entryPolicy        string
+	rangeInfo          strategyir.SourceRange
+	limitPrice         float64
+	stopPrice          float64
+	hasLimit           bool
+	hasStop            bool
+	activated          bool
+	submitted          bool
+	comment            string
+	alert              string
+	disable            bool
+}
+
+type trailingExitState struct {
+	activated bool
+	extreme   float64
+	stopPrice float64
+	direction string
 }
 
 type ifScopePlan struct {
@@ -278,31 +293,33 @@ func newStrategyRuntime(
 		return nil, fmt.Errorf("create pine indicator engine: %w", err)
 	}
 	runtime := &strategyRuntime{
-		ctx:              ctx,
-		strategy:         strategy,
-		program:          program,
-		plan:             plan,
-		hooks:            buildHookCache(program),
-		ifScopePlans:     buildIfScopePlans(program),
-		displayName:      displayName,
-		definitionID:     definitionID,
-		symbol:           symbol,
-		interval:         interval,
-		expressionCache:  map[string]exprast.Node{},
-		bindingCache:     map[*strategyir.LetStmt]cachedIndicatorBinding{},
-		protectCache:     map[*strategyir.ProtectStmt]cachedProtectRequirement{},
-		divergenceCache:  map[divergenceRequirementCacheKey]string{},
-		persistentValues: map[string]any{},
-		engine:           engine,
-		session:          session,
-		executor:         orderExecutor,
-		entrySubmitCount: map[string]int{},
-		maxPyramiding:    normalizeRuntimePyramiding(program),
-		pendingOrders:    map[string]pendingOrder{},
-		barssinceStates:  map[string]*barssinceState{},
-		valuewhenStates:  map[string]*valuewhenState{},
-		historyTargets:   collectProgramHistoryTargets(program),
-		barIndex:         -1,
+		ctx:                   ctx,
+		strategy:              strategy,
+		program:               program,
+		plan:                  plan,
+		hooks:                 buildHookCache(program),
+		ifScopePlans:          buildIfScopePlans(program),
+		displayName:           displayName,
+		definitionID:          definitionID,
+		symbol:                symbol,
+		interval:              interval,
+		expressionCache:       map[string]exprast.Node{},
+		bindingCache:          map[*strategyir.LetStmt]cachedIndicatorBinding{},
+		protectCache:          map[*strategyir.ProtectStmt]cachedProtectRequirement{},
+		divergenceCache:       map[divergenceRequirementCacheKey]string{},
+		persistentValues:      map[string]any{},
+		engine:                engine,
+		session:               session,
+		executor:              orderExecutor,
+		entrySubmitCount:      map[string]int{},
+		maxPyramiding:         normalizeRuntimePyramiding(program),
+		allowedEntryDirection: normalizeRuntimeAllowedEntryDirection(program),
+		pendingOrders:         map[string]pendingOrder{},
+		trailingExits:         map[string]trailingExitState{},
+		barssinceStates:       map[string]*barssinceState{},
+		valuewhenStates:       map[string]*valuewhenState{},
+		historyTargets:        collectProgramHistoryTargets(program),
+		barIndex:              -1,
 		baseScope: &evaluationScope{
 			variables: map[string]any{
 				"id":           displayName,
@@ -472,6 +489,57 @@ func (r *strategyRuntime) recordSubmittedOrderAction(action strategyir.OrderActi
 	}
 }
 
+func (r *strategyRuntime) recordEntryOrderAction(action strategyir.OrderAction, quantity float64, availablePositionQty float64, sameDirectionEntryCount int, adjustment entryOrderAdjustment) {
+	if r == nil {
+		return
+	}
+	switch action {
+	case strategyir.OrderActionBuy:
+		if adjustment.reversed {
+			r.resetEntrySubmitCount("SHORT")
+			r.clearOrderStateForDirection("SHORT")
+		}
+		if adjustment.closeOnly {
+			return
+		}
+		r.incrementEntrySubmitCount("LONG", sameDirectionEntryCount)
+	case strategyir.OrderActionShort:
+		if adjustment.reversed {
+			r.resetEntrySubmitCount("LONG")
+			r.clearOrderStateForDirection("LONG")
+		}
+		if adjustment.closeOnly {
+			return
+		}
+		r.incrementEntrySubmitCount("SHORT", sameDirectionEntryCount)
+	default:
+		r.recordSubmittedOrderAction(action, quantity, availablePositionQty, sameDirectionEntryCount)
+	}
+}
+
+func (r *strategyRuntime) clearOrderStateForDirection(direction string) {
+	if r == nil {
+		return
+	}
+	for key, state := range r.trailingExits {
+		if strings.EqualFold(state.direction, direction) {
+			delete(r.trailingExits, key)
+		}
+	}
+	for id, order := range r.pendingOrders {
+		switch strings.ToUpper(strings.TrimSpace(direction)) {
+		case "LONG":
+			if order.action == strategyir.OrderActionSell {
+				delete(r.pendingOrders, id)
+			}
+		case "SHORT":
+			if order.action == strategyir.OrderActionBuy || order.action == strategyir.OrderActionCover {
+				delete(r.pendingOrders, id)
+			}
+		}
+	}
+}
+
 func (r *strategyRuntime) incrementEntrySubmitCount(direction string, observedCount int) {
 	if r.entrySubmitCount == nil {
 		r.entrySubmitCount = map[string]int{}
@@ -624,6 +692,10 @@ func parseIndicatorBinding(statement *strategyir.LetStmt) (indicatorBinding, boo
 		return indicatorBinding{}, false, nil
 	}
 	switch indicatorbinding.NormalizeFunctionName(name) {
+	case "linreg", "obv", "pivothigh", "pivotlow", "kc", "kcw", "alma",
+		"cmo", "tsi", "correlation", "dev", "median", "percentile_linear_interpolation",
+		"percentile_nearest_rank", "percentrank", "swma":
+		return parseAdvancedRuntimeBinding(statement.Range.StartLine, statement.Name, indicatorbinding.NormalizeFunctionName(name), args)
 	case "ma":
 		if len(args) < 2 || len(args) > 4 {
 			return indicatorBinding{}, false, fmt.Errorf("pine line %d: ma() requires type, period, optional time unit, and optional source", statement.Range.StartLine)
@@ -693,7 +765,7 @@ func parseIndicatorBinding(statement *strategyir.LetStmt) (indicatorBinding, boo
 			return indicatorBinding{}, false, fmt.Errorf("pine line %d: cum() source %q is not supported; use open/high/low/close/volume/hl2/hlc3/ohlc4", statement.Range.StartLine, strings.TrimSpace(args[0]))
 		}
 		return indicatorBinding{Alias: statement.Name, Kind: "cum", Key: "cum:" + source, Args: []string{source}}, true, nil
-	case "highest", "lowest", "highestbars", "lowestbars", "change", "mom", "roc", "rising", "falling", "sum":
+	case "highest", "lowest", "highestbars", "lowestbars", "change", "mom", "roc", "range", "mode", "rising", "falling", "sum":
 		if len(args) != 2 {
 			return indicatorBinding{}, false, fmt.Errorf("pine line %d: %s() requires source and length arguments", statement.Range.StartLine, name)
 		}
@@ -834,6 +906,250 @@ func parseIndicatorBinding(statement *strategyir.LetStmt) (indicatorBinding, boo
 		}
 		multiplierText := strconv.FormatFloat(multiplier, 'f', -1, 64)
 		return indicatorBinding{Alias: statement.Name, Kind: "bollinger", Key: "bollinger:" + strconv.Itoa(period) + ":" + multiplierText, Args: []string{strconv.Itoa(period), multiplierText}}, true, nil
+	default:
+		return indicatorBinding{}, false, nil
+	}
+}
+
+func parseAdvancedRuntimeBinding(lineNumber int, alias, name string, args []string) (indicatorBinding, bool, error) {
+	planned, recognized, err := parseAdvancedIndicatorBindingRuntime(lineNumber, alias, name, args)
+	return planned, recognized, err
+}
+
+func parseAdvancedIndicatorBindingRuntime(lineNumber int, alias, name string, args []string) (indicatorBinding, bool, error) {
+	sourceArg := func(value string) (string, error) {
+		source, ok := indicatorbinding.ParsePriceSource(value)
+		if !ok {
+			return "", fmt.Errorf("pine line %d: %s() source %q is not supported", lineNumber, name, strings.TrimSpace(value))
+		}
+		return source, nil
+	}
+	timeUnit := ""
+	parseTimeUnit := func(index int) error {
+		if len(args) <= index {
+			return nil
+		}
+		if len(args) != index+1 {
+			return fmt.Errorf("pine line %d: %s() received an invalid argument count", lineNumber, name)
+		}
+		parsed, ok := indicatorbinding.ParseIndicatorTimeUnitValue(args[index])
+		if !ok || parsed == "" {
+			return fmt.Errorf("pine line %d: %s() timeframe %q is not supported", lineNumber, name, strings.TrimSpace(args[index]))
+		}
+		timeUnit = parsed
+		args = args[:index]
+		return nil
+	}
+	withTimeUnit := func(key string) string {
+		if timeUnit == "" {
+			return key
+		}
+		return key + ":" + timeUnit
+	}
+	switch name {
+	case "cmo", "dev", "median", "percentrank":
+		if err := parseTimeUnit(2); err != nil {
+			return indicatorBinding{}, false, err
+		}
+		if len(args) != 2 {
+			return indicatorBinding{}, false, fmt.Errorf("pine line %d: %s() requires source and length", lineNumber, name)
+		}
+		source, err := sourceArg(args[0])
+		if err != nil {
+			return indicatorBinding{}, false, err
+		}
+		period, err := indicatorbinding.ParsePositiveInt(args[1])
+		if err != nil {
+			return indicatorBinding{}, false, err
+		}
+		return indicatorBinding{Alias: alias, Kind: name, Key: withTimeUnit(fmt.Sprintf("%s:%s:%d", name, source, period)), Args: []string{source, strconv.Itoa(period)}}, true, nil
+	case "tsi":
+		if err := parseTimeUnit(3); err != nil {
+			return indicatorBinding{}, false, err
+		}
+		if len(args) != 3 {
+			return indicatorBinding{}, false, fmt.Errorf("pine line %d: tsi() requires source, short length, and long length", lineNumber)
+		}
+		source, err := sourceArg(args[0])
+		if err != nil {
+			return indicatorBinding{}, false, err
+		}
+		shortPeriod, err := indicatorbinding.ParsePositiveInt(args[1])
+		if err != nil {
+			return indicatorBinding{}, false, err
+		}
+		longPeriod, err := indicatorbinding.ParsePositiveInt(args[2])
+		if err != nil {
+			return indicatorBinding{}, false, err
+		}
+		return indicatorBinding{Alias: alias, Kind: name, Key: withTimeUnit(fmt.Sprintf("tsi:%s:%d:%d", source, shortPeriod, longPeriod)), Args: []string{source, strconv.Itoa(shortPeriod), strconv.Itoa(longPeriod)}}, true, nil
+	case "correlation":
+		if err := parseTimeUnit(3); err != nil {
+			return indicatorBinding{}, false, err
+		}
+		if len(args) != 3 {
+			return indicatorBinding{}, false, fmt.Errorf("pine line %d: correlation() requires source, second source, and length", lineNumber)
+		}
+		source, err := sourceArg(args[0])
+		if err != nil {
+			return indicatorBinding{}, false, err
+		}
+		source2, err := sourceArg(args[1])
+		if err != nil {
+			return indicatorBinding{}, false, err
+		}
+		period, err := indicatorbinding.ParsePositiveInt(args[2])
+		if err != nil {
+			return indicatorBinding{}, false, err
+		}
+		return indicatorBinding{Alias: alias, Kind: name, Key: withTimeUnit(fmt.Sprintf("correlation:%s:%s:%d", source, source2, period)), Args: []string{source, source2, strconv.Itoa(period)}}, true, nil
+	case "percentile_linear_interpolation", "percentile_nearest_rank":
+		if err := parseTimeUnit(3); err != nil {
+			return indicatorBinding{}, false, err
+		}
+		if len(args) != 3 {
+			return indicatorBinding{}, false, fmt.Errorf("pine line %d: %s() requires source, length, and percentage", lineNumber, name)
+		}
+		source, err := sourceArg(args[0])
+		if err != nil {
+			return indicatorBinding{}, false, err
+		}
+		period, err := indicatorbinding.ParsePositiveInt(args[1])
+		if err != nil {
+			return indicatorBinding{}, false, err
+		}
+		percentage, err := strconv.ParseFloat(strings.TrimSpace(args[2]), 64)
+		if err != nil || percentage < 0 || percentage > 100 {
+			return indicatorBinding{}, false, fmt.Errorf("pine line %d: %s() percentage must be between 0 and 100", lineNumber, name)
+		}
+		return indicatorBinding{Alias: alias, Kind: name, Key: withTimeUnit(fmt.Sprintf("%s:%s:%d:%s", name, source, period, strconv.FormatFloat(percentage, 'f', -1, 64))), Args: []string{source, strconv.Itoa(period), strconv.FormatFloat(percentage, 'f', -1, 64)}}, true, nil
+	case "swma":
+		if err := parseTimeUnit(1); err != nil {
+			return indicatorBinding{}, false, err
+		}
+		if len(args) != 1 {
+			return indicatorBinding{}, false, fmt.Errorf("pine line %d: swma() requires one source", lineNumber)
+		}
+		source, err := sourceArg(args[0])
+		if err != nil {
+			return indicatorBinding{}, false, err
+		}
+		return indicatorBinding{Alias: alias, Kind: name, Key: withTimeUnit("swma:" + source), Args: []string{source}}, true, nil
+	case "linreg":
+		if err := parseTimeUnit(3); err != nil {
+			return indicatorBinding{}, false, err
+		}
+		if len(args) != 3 {
+			return indicatorBinding{}, false, fmt.Errorf("pine line %d: linreg() requires source, length, and offset", lineNumber)
+		}
+		source, err := sourceArg(args[0])
+		if err != nil {
+			return indicatorBinding{}, false, err
+		}
+		period, err := indicatorbinding.ParsePositiveInt(args[1])
+		if err != nil {
+			return indicatorBinding{}, false, err
+		}
+		offset, err := strconv.Atoi(strings.TrimSpace(args[2]))
+		if err != nil || offset < 0 {
+			return indicatorBinding{}, false, fmt.Errorf("pine line %d: linreg() offset must be non-negative", lineNumber)
+		}
+		return indicatorBinding{Alias: alias, Kind: name, Key: withTimeUnit(fmt.Sprintf("linreg:%s:%d:%d", source, period, offset)), Args: args}, true, nil
+	case "obv":
+		if len(args) == 0 {
+			args = []string{"close"}
+		}
+		if err := parseTimeUnit(1); err != nil {
+			return indicatorBinding{}, false, err
+		}
+		if len(args) != 1 {
+			return indicatorBinding{}, false, fmt.Errorf("pine line %d: obv() accepts one source", lineNumber)
+		}
+		source, err := sourceArg(args[0])
+		if err != nil {
+			return indicatorBinding{}, false, err
+		}
+		return indicatorBinding{Alias: alias, Kind: name, Key: withTimeUnit("obv:" + source), Args: args}, true, nil
+	case "pivothigh", "pivotlow":
+		if err := parseTimeUnit(3); err != nil {
+			return indicatorBinding{}, false, err
+		}
+		source := "high"
+		if name == "pivotlow" {
+			source = "low"
+		}
+		lengthArgs := args
+		if len(args) == 3 {
+			var err error
+			source, err = sourceArg(args[0])
+			if err != nil {
+				return indicatorBinding{}, false, err
+			}
+			lengthArgs = args[1:]
+		}
+		if len(lengthArgs) != 2 {
+			return indicatorBinding{}, false, fmt.Errorf("pine line %d: %s() requires left and right bars", lineNumber, name)
+		}
+		left, err := indicatorbinding.ParsePositiveInt(lengthArgs[0])
+		if err != nil {
+			return indicatorBinding{}, false, err
+		}
+		right, err := indicatorbinding.ParsePositiveInt(lengthArgs[1])
+		if err != nil {
+			return indicatorBinding{}, false, err
+		}
+		return indicatorBinding{Alias: alias, Kind: name, Key: withTimeUnit(fmt.Sprintf("%s:%s:%d:%d", name, source, left, right)), Args: args}, true, nil
+	case "kc", "kcw":
+		if err := parseTimeUnit(4); err != nil {
+			return indicatorBinding{}, false, err
+		}
+		if len(args) < 3 || len(args) > 4 {
+			return indicatorBinding{}, false, fmt.Errorf("pine line %d: %s() requires source, length, multiplier, and optional useTrueRange", lineNumber, name)
+		}
+		source, err := sourceArg(args[0])
+		if err != nil {
+			return indicatorBinding{}, false, err
+		}
+		period, err := indicatorbinding.ParsePositiveInt(args[1])
+		if err != nil {
+			return indicatorBinding{}, false, err
+		}
+		multiplier, err := indicatorbinding.ParsePositiveFloat(args[2])
+		if err != nil {
+			return indicatorBinding{}, false, err
+		}
+		useTR := true
+		if len(args) == 4 {
+			useTR, err = strconv.ParseBool(strings.TrimSpace(args[3]))
+			if err != nil {
+				return indicatorBinding{}, false, err
+			}
+		}
+		return indicatorBinding{Alias: alias, Kind: name, Key: withTimeUnit(fmt.Sprintf("%s:%s:%d:%s:%t", name, source, period, strconv.FormatFloat(multiplier, 'f', -1, 64), useTR)), Args: args}, true, nil
+	case "alma":
+		if err := parseTimeUnit(4); err != nil {
+			return indicatorBinding{}, false, err
+		}
+		if len(args) != 4 {
+			return indicatorBinding{}, false, fmt.Errorf("pine line %d: alma() requires source, length, offset, and sigma", lineNumber)
+		}
+		source, err := sourceArg(args[0])
+		if err != nil {
+			return indicatorBinding{}, false, err
+		}
+		period, err := indicatorbinding.ParsePositiveInt(args[1])
+		if err != nil {
+			return indicatorBinding{}, false, err
+		}
+		offset, err := strconv.ParseFloat(strings.TrimSpace(args[2]), 64)
+		if err != nil {
+			return indicatorBinding{}, false, err
+		}
+		sigma, err := indicatorbinding.ParsePositiveFloat(args[3])
+		if err != nil {
+			return indicatorBinding{}, false, err
+		}
+		return indicatorBinding{Alias: alias, Kind: name, Key: withTimeUnit(fmt.Sprintf("alma:%s:%d:%s:%s", source, period, strconv.FormatFloat(offset, 'f', -1, 64), strconv.FormatFloat(sigma, 'f', -1, 64))), Args: args}, true, nil
 	default:
 		return indicatorBinding{}, false, nil
 	}

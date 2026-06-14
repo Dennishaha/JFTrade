@@ -1,4 +1,5 @@
 package indicatorruntime
+
 func (s *rollingCumState) push(value float64) {
 	if s == nil {
 		return
@@ -10,7 +11,6 @@ func (s *rollingCumState) push(value float64) {
 	s.current += value
 	s.hasCurrent = true
 }
-
 
 func newRollingCumStates(requirements indicatorRequirements) map[sourceConfig]*rollingCumState {
 	if len(requirements.cum) == 0 {
@@ -29,7 +29,6 @@ func newRollingCumStates(requirements indicatorRequirements) map[sourceConfig]*r
 	return states
 }
 
-
 func (r *indicatorRuntime) pushCumStates(openValue, high, low, closeValue, volume float64) {
 	if r == nil || len(r.cumStates) == 0 {
 		return
@@ -42,4 +41,3 @@ func (r *indicatorRuntime) pushCumStates(openValue, high, low, closeValue, volum
 		state.push(value)
 	}
 }
-

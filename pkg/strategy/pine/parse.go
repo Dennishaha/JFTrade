@@ -154,6 +154,7 @@ metadataDone:
 			Message: "pine strategy has no executable statements",
 		}}
 	}
+	program.Metadata = state.strategyMetadata
 	program.Hooks = []strategyir.HookBlock{{
 		Kind:       strategyir.HookKLineClose,
 		Range:      strategyir.SourceRange{StartLine: statements[0].SourceRange().StartLine, EndLine: statements[len(statements)-1].SourceRange().EndLine},

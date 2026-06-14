@@ -52,7 +52,6 @@ func newRollingRSIState(period, maxLength int, lookbacks []int) *rollingRSIState
 	}
 }
 
-
 func (r *indicatorRuntime) pushRSIStates(closeValue, previousClose float64, hasPreviousClose bool) {
 	if r == nil || len(r.rsiStates) == 0 {
 		return
@@ -61,7 +60,6 @@ func (r *indicatorRuntime) pushRSIStates(closeValue, previousClose float64, hasP
 		state.push(closeValue, previousClose, hasPreviousClose)
 	}
 }
-
 
 func (r *indicatorRuntime) rsiSeries(period int) []float64 {
 	if r == nil {
@@ -86,7 +84,6 @@ func (r *indicatorRuntime) rsiSnapshotValue(period int, cache *snapshotSeriesCac
 	}
 	return calculateRSIValueFromSeries(series)
 }
-
 
 func (s *rollingRSIState) push(currentClose, previousClose float64, hasPreviousClose bool) {
 	if s == nil || !hasPreviousClose || s.period <= 0 {
@@ -167,4 +164,3 @@ func (s *rollingRSIState) currentValue() (float64, bool) {
 	}
 	return s.series[len(s.series)-1], true
 }
-

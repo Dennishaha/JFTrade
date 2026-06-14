@@ -36,7 +36,6 @@ func newRollingMACDStates(requirements indicatorRequirements, seriesLimit int) m
 	return states
 }
 
-
 func newRollingMACDState(config macdConfig, limit int, lookbacks []int) *rollingMACDState {
 	if config.fastPeriod <= 0 || config.slowPeriod <= 0 || config.signalPeriod <= 0 {
 		return nil
@@ -204,7 +203,6 @@ func (s *rollingMACDState) pushDivergenceSample(price float64) {
 	}
 }
 
-
 func (r *indicatorRuntime) pushMACDStates(closeValue float64, trimmed bool, oldFirstClose, oldSecondClose float64, hasOldFirstClose, hasOldSecondClose bool) {
 	if r == nil || len(r.macdStates) == 0 {
 		return
@@ -213,4 +211,3 @@ func (r *indicatorRuntime) pushMACDStates(closeValue float64, trimmed bool, oldF
 		state.push(closeValue, trimmed, oldFirstClose, oldSecondClose, hasOldFirstClose, hasOldSecondClose)
 	}
 }
-

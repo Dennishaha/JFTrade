@@ -23,6 +23,7 @@ var (
 	memberPattern           = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?$`)
 	numberPattern           = regexp.MustCompile(`^-?[0-9]+(?:\.[0-9]+)?$`)
 	taTRPattern             = regexp.MustCompile(`(?i)\bta\.tr\b`)
+	taOBVPattern            = regexp.MustCompile(`(?i)\bta\.obv\b`)
 )
 
 func buildEntryPolicyCache(script string) map[int]string {

@@ -70,6 +70,21 @@ type windowConfig struct {
 	period   int
 }
 
+type advancedIndicatorConfig struct {
+	key        string
+	kind       string
+	source     string
+	source2    string
+	timeUnit   string
+	period     int
+	left       int
+	right      int
+	offset     int
+	multiplier float64
+	parameter  float64
+	useTR      bool
+}
+
 type kdjConfig struct {
 	period int
 	m1     int

@@ -11,6 +11,17 @@ import (
 func (s *parseState) parseStrategyCall(line parsedLine) (strategyir.Statement, bool, error) {
 	lower := strings.ToLower(line.trimmed)
 	switch {
+	case strings.HasPrefix(lower, "strategy.risk.allow_entry_in("):
+		args := splitArguments(callArgs(line.trimmed))
+		if len(args) != 1 {
+			return nil, true, fmt.Errorf("pine line %d: strategy.risk.allow_entry_in(direction) requires one argument", line.number)
+		}
+		direction, ok := normalizeStrategyAllowedEntryDirection(args[0])
+		if !ok {
+			return nil, true, fmt.Errorf("pine line %d: strategy.risk.allow_entry_in direction %q is not supported", line.number, strings.TrimSpace(args[0]))
+		}
+		s.strategyMetadata.AllowedEntryDirection = direction
+		return nil, true, nil
 	case strings.HasPrefix(lower, "strategy.entry("):
 		args := splitArguments(callArgs(line.trimmed))
 		if len(args) < 2 {
@@ -27,9 +38,6 @@ func (s *parseState) parseStrategyCall(line parsedLine) (strategyir.Statement, b
 		}
 		quantityMode, quantityExpr := s.pineEntryQuantity(args[2:])
 		orderType, limitExpr, stopExpr := pineOrderPrices(args[2:])
-		if strings.TrimSpace(limitExpr) != "" && strings.TrimSpace(stopExpr) != "" {
-			return nil, true, fmt.Errorf("pine line %d: strategy.entry stop-limit orders are not supported by JFTrade yet", line.number)
-		}
 		action := strategyir.OrderActionBuy
 		if strings.Contains(direction, "short") {
 			action = strategyir.OrderActionShort
@@ -93,9 +101,6 @@ func (s *parseState) parseStrategyCall(line parsedLine) (strategyir.Statement, b
 		direction := strings.ToLower(strings.TrimSpace(args[1]))
 		quantityMode, quantityExpr := s.pineEntryQuantity(args[2:])
 		orderType, limitExpr, stopExpr := pineOrderPrices(args[2:])
-		if strings.TrimSpace(limitExpr) != "" && strings.TrimSpace(stopExpr) != "" {
-			return nil, true, fmt.Errorf("pine line %d: strategy.order stop-limit orders are not supported by JFTrade yet", line.number)
-		}
 		action := strategyir.OrderActionBuy
 		if strings.Contains(direction, "short") {
 			action = strategyir.OrderActionSell
@@ -228,6 +233,22 @@ func (s *parseState) parseStrategyCall(line parsedLine) (strategyir.Statement, b
 	}
 }
 
+func normalizeStrategyAllowedEntryDirection(value string) (string, bool) {
+	normalized := strings.ToLower(strings.TrimSpace(value))
+	normalized = strings.TrimPrefix(normalized, "strategy.direction.")
+	normalized = strings.TrimPrefix(normalized, "strategy.")
+	switch normalized {
+	case "", "all":
+		return "all", true
+	case "long":
+		return "long", true
+	case "short":
+		return "short", true
+	default:
+		return "", false
+	}
+}
+
 func (s *parseState) parseStrategyExit(line parsedLine) (strategyir.Statement, error) {
 	args := splitArguments(callArgs(line.trimmed))
 	if len(args) < 1 {
@@ -243,14 +264,19 @@ func (s *parseState) parseStrategyExit(line parsedLine) (strategyir.Statement, e
 		orderArgs = orderArgs[1:]
 	}
 	triggerCount := 0
-	for _, name := range []string{"stop", "limit", "trail_points"} {
+	for _, name := range []string{"stop", "limit", "trail_points", "trail_price"} {
 		if _, ok := namedArgValue(orderArgs, name); ok {
 			triggerCount++
 		}
 	}
 	hasStop := hasNamedArg(orderArgs, "stop")
 	hasLimit := hasNamedArg(orderArgs, "limit")
-	hasTrail := hasNamedArg(orderArgs, "trail_points")
+	hasTrailPoints := hasNamedArg(orderArgs, "trail_points")
+	hasTrailPrice := hasNamedArg(orderArgs, "trail_price")
+	hasTrail := hasTrailPoints || hasTrailPrice
+	if hasTrailPoints && hasTrailPrice {
+		return nil, fmt.Errorf("pine line %d: strategy.exit accepts trail_points or trail_price, not both", line.number)
+	}
 	if hasTrail && (hasStop || hasLimit) {
 		return nil, fmt.Errorf("pine line %d: strategy.exit trail with stop/limit is not supported by JFTrade yet", line.number)
 	}
@@ -312,24 +338,52 @@ func (s *parseState) parseStrategyExit(line parsedLine) (strategyir.Statement, e
 			DisableAlert:       disableAlert,
 		}, nil
 	}
-	if trailPoints, ok := namedArgValue(orderArgs, "trail_points"); ok {
+	if hasTrail {
 		trailOffset, hasOffset := namedArgValue(orderArgs, "trail_offset")
 		if !hasOffset || strings.TrimSpace(trailOffset) == "" {
 			return nil, fmt.Errorf("pine line %d: strategy.exit trailing stop requires trail_offset", line.number)
 		}
-		percentage, ok := pineExitPercentage(trailPoints, exitTrailPattern)
-		offsetPercentage, offsetOK := pineExitPercentage(trailOffset, exitTrailPattern)
-		if !ok || !offsetOK || percentage != offsetPercentage {
-			return nil, fmt.Errorf("pine line %d: strategy.exit trailing stop is supported only as matching close * pct / 100 trail_points and trail_offset", line.number)
+		trailOffsetExpr := s.normalizeExpression(trailOffset)
+		if err := s.takeNormalizationErr(line.number); err != nil {
+			return nil, err
+		}
+		if err := validateExpression(line.number, "exit trail_offset expression", trailOffsetExpr); err != nil {
+			return nil, err
 		}
 		comment, alertMessage, disableAlert, err := pineOrderMetadata(line.number, "strategy.exit", orderArgs, false)
 		if err != nil {
 			return nil, err
 		}
-		statement := pineProtectStatement(line.number, direction, "trailingStop", percentage, quantityMode, quantityExpr)
-		statement.Comment = comment
-		statement.AlertMessage = alertMessage
-		statement.DisableAlert = disableAlert
+		statement := &strategyir.ExitStmt{
+			Range:              strategyir.SourceRange{StartLine: line.number, EndLine: line.number},
+			ID:                 exitID,
+			FromEntry:          fromEntry,
+			Direction:          direction,
+			QuantityMode:       quantityMode,
+			QuantityExpression: quantityExpr,
+			TrailOffset:        trailOffsetExpr,
+			Comment:            comment,
+			AlertMessage:       alertMessage,
+			DisableAlert:       disableAlert,
+		}
+		if raw, ok := namedArgValue(orderArgs, "trail_points"); ok {
+			statement.TrailPoints = s.normalizeExpression(raw)
+			if err := s.takeNormalizationErr(line.number); err != nil {
+				return nil, err
+			}
+			if err := validateExpression(line.number, "exit trail_points expression", statement.TrailPoints); err != nil {
+				return nil, err
+			}
+		}
+		if raw, ok := namedArgValue(orderArgs, "trail_price"); ok {
+			statement.TrailPrice = s.normalizeExpression(raw)
+			if err := s.takeNormalizationErr(line.number); err != nil {
+				return nil, err
+			}
+			if err := validateExpression(line.number, "exit trail_price expression", statement.TrailPrice); err != nil {
+				return nil, err
+			}
+		}
 		return statement, nil
 	}
 	return nil, fmt.Errorf("pine line %d: strategy.exit advanced exit semantics are not supported by JFTrade yet", line.number)

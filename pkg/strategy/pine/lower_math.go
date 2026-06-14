@@ -7,7 +7,7 @@ import (
 )
 
 func replaceMathNamespace(expression string) string {
-	for _, name := range []string{"abs", "min", "max", "round", "floor", "ceil", "sqrt", "pow", "log", "sign"} {
+	for _, name := range []string{"abs", "min", "max", "avg", "round", "round_to_mintick", "floor", "ceil", "sqrt", "pow", "log", "sign"} {
 		expression = strings.ReplaceAll(expression, "math."+name, name)
 	}
 	return expression

@@ -2,6 +2,7 @@ package pine
 
 import (
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -49,21 +50,290 @@ func lowerSupportedRequestSecurity(args []string) (string, bool) {
 		return fmt.Sprintf("security_source(%s, %s)", source, timeUnit), true
 	}
 	name, innerArgs, ok := parseTACall(inner)
-	if !ok || len(innerArgs) < 2 {
+	if !ok && strings.EqualFold(inner, "ta.obv") {
+		name, innerArgs, ok = "obv", []string{"close"}, true
+	}
+	if !ok {
+		if replacement, ok := lowerPureRequestSecurityExpression(inner, timeUnit); ok {
+			return replacement, true
+		}
+		return "", false
+	}
+	if replacement, ok := lowerAdvancedRequestSecurity(name, innerArgs, timeUnit); ok {
+		return replacement, true
+	}
+	if len(innerArgs) < 2 {
+		if replacement, ok := lowerPureRequestSecurityExpression(inner, timeUnit); ok {
+			return replacement, true
+		}
 		return "", false
 	}
 	source, ok := supportedRequestSecuritySource(strings.TrimSpace(innerArgs[0]))
 	if !ok {
+		if replacement, ok := lowerPureRequestSecurityExpression(inner, timeUnit); ok {
+			return replacement, true
+		}
 		return "", false
 	}
 	maType, ok := pineMovingAverageType(name)
 	if !ok {
+		if replacement, ok := lowerPureRequestSecurityExpression(inner, timeUnit); ok {
+			return replacement, true
+		}
 		return "", false
 	}
 	if source == "close" {
 		return fmt.Sprintf("ma(%s, %s, %s)", maType, strings.TrimSpace(innerArgs[1]), timeUnit), true
 	}
 	return fmt.Sprintf("ma(%s, %s, %s, %s)", maType, strings.TrimSpace(innerArgs[1]), timeUnit, source), true
+}
+
+func lowerPureRequestSecurityExpression(expression string, timeUnit string) (string, bool) {
+	if !requestSecurityExpressionIsPure(expression) {
+		return "", false
+	}
+	result := strings.TrimSpace(expression)
+	if strings.HasPrefix(result, "[") || strings.Contains(result, "=>") {
+		return "", false
+	}
+	placeholders := make([]string, 0)
+	addPlaceholder := func(value string) string {
+		token := fmt.Sprintf("__pine_mtf_placeholder_%d__", len(placeholders))
+		placeholders = append(placeholders, value)
+		return token
+	}
+	var ok bool
+	result, ok = maskPureRequestSecurityTACalls(result, timeUnit, addPlaceholder)
+	if !ok {
+		return "", false
+	}
+	result, ok = maskPureRequestSecuritySourceHistory(result, timeUnit, addPlaceholder)
+	if !ok {
+		return "", false
+	}
+	result = replacePureRequestSecuritySources(result, timeUnit)
+	for index, value := range placeholders {
+		result = strings.ReplaceAll(result, fmt.Sprintf("__pine_mtf_placeholder_%d__", index), value)
+	}
+	if strings.Contains(strings.ToLower(result), "ta.") || strings.Contains(strings.ToLower(result), "request.security(") {
+		return "", false
+	}
+	return "(" + result + ")", true
+}
+
+func requestSecurityExpressionIsPure(expression string) bool {
+	lower := strings.ToLower(strings.TrimSpace(expression))
+	for _, denied := range []string{
+		"strategy.", "alert(", "alertcondition(", "log.", "runtime.error(",
+		"array.", "matrix.", "map.", "line.", "label.", "box.", "table.",
+		"plot(", "plotshape(", "plotchar(", "hline(", "fill(", "bgcolor(", "barcolor(",
+		":=", "request.security(",
+	} {
+		if strings.Contains(lower, denied) {
+			return false
+		}
+	}
+	return true
+}
+
+func maskPureRequestSecurityTACalls(expression string, timeUnit string, addPlaceholder func(string) string) (string, bool) {
+	result := expression
+	for {
+		start := strings.Index(strings.ToLower(result), "ta.")
+		if start < 0 {
+			return result, true
+		}
+		open := strings.Index(result[start:], "(")
+		if open < 0 {
+			if strings.HasPrefix(strings.ToLower(result[start:]), "ta.obv") {
+				replacement, ok := lowerRequestSecurityTACall("obv", []string{"close"}, timeUnit)
+				if !ok {
+					return "", false
+				}
+				end := start + len("ta.obv")
+				result = result[:start] + addPlaceholder(replacement) + result[end:]
+				continue
+			}
+			return "", false
+		}
+		open += start
+		close := matchingParen(result, open)
+		if close < 0 {
+			return "", false
+		}
+		name := strings.ToLower(strings.TrimSpace(result[start+len("ta.") : open]))
+		args := splitArguments(result[open+1 : close])
+		replacement, ok := lowerRequestSecurityTACall(name, args, timeUnit)
+		if !ok {
+			return "", false
+		}
+		result = result[:start] + addPlaceholder(replacement) + result[close+1:]
+	}
+}
+
+func lowerRequestSecurityTACall(name string, args []string, timeUnit string) (string, bool) {
+	name = strings.ToLower(strings.TrimSpace(name))
+	if maType, ok := pineMovingAverageType(name); ok {
+		source, period := pineSourceLengthArgs(args, "close", "20")
+		if _, ok := supportedRequestSecuritySource(source); !ok {
+			return "", false
+		}
+		if source == "close" {
+			return fmt.Sprintf("ma(%s, %s, %s)", maType, period, timeUnit), true
+		}
+		return fmt.Sprintf("ma(%s, %s, %s, %s)", maType, period, timeUnit, source), true
+	}
+	switch name {
+	case "rsi":
+		source, period := pineSourceLengthArgs(args, "close", "14")
+		if _, ok := supportedRequestSecuritySource(source); !ok {
+			return "", false
+		}
+		return fmt.Sprintf("rsi(%s, %s, %s)", source, period, timeUnit), true
+	case "macd":
+		if len(args) != 4 {
+			return "", false
+		}
+		source, ok := supportedRequestSecuritySource(strings.TrimSpace(args[0]))
+		if !ok {
+			return "", false
+		}
+		return fmt.Sprintf("macd(%s, %s, %s, %s, %s)", strings.TrimSpace(args[1]), strings.TrimSpace(args[2]), strings.TrimSpace(args[3]), timeUnit, source), true
+	case "atr":
+		period := "14"
+		if len(args) == 1 {
+			period = strings.TrimSpace(args[0])
+		} else if len(args) != 0 {
+			return "", false
+		}
+		return fmt.Sprintf("atr(%s, %s)", period, timeUnit), true
+	case "bb":
+		if len(args) != 3 {
+			return "", false
+		}
+		source, ok := supportedRequestSecuritySource(strings.TrimSpace(args[0]))
+		if !ok {
+			return "", false
+		}
+		return fmt.Sprintf("bollinger(%s, %s, %s, %s)", strings.TrimSpace(args[1]), strings.TrimSpace(args[2]), timeUnit, source), true
+	case "supertrend":
+		if len(args) != 2 {
+			return "", false
+		}
+		return fmt.Sprintf("supertrend(%s, %s, %s)", strings.TrimSpace(args[0]), strings.TrimSpace(args[1]), timeUnit), true
+	case "linreg", "obv", "pivothigh", "pivotlow", "kc", "kcw", "alma",
+		"cmo", "tsi", "correlation", "dev", "median", "percentile_linear_interpolation",
+		"percentile_nearest_rank", "percentrank", "swma":
+		return lowerAdvancedRequestSecurity(name, args, timeUnit)
+	default:
+		return "", false
+	}
+}
+
+func maskPureRequestSecuritySourceHistory(expression string, timeUnit string, addPlaceholder func(string) string) (string, bool) {
+	ok := true
+	result := rewriteOutsideStringLiterals(expression, func(segment string) string {
+		return historyReferencePattern.ReplaceAllStringFunc(segment, func(match string) string {
+			parts := historyReferencePattern.FindStringSubmatch(match)
+			if len(parts) != 3 {
+				return match
+			}
+			source, sourceOK := supportedRequestSecuritySource(parts[1])
+			lookback, err := strconv.Atoi(strings.TrimSpace(parts[2]))
+			if !sourceOK || err != nil || lookback < 0 || lookback > maxHistoryLookback {
+				ok = false
+				return match
+			}
+			return addPlaceholder(fmt.Sprintf("security_source(%s, %s, %d)", source, timeUnit, lookback))
+		})
+	})
+	return result, ok
+}
+
+func replacePureRequestSecuritySources(expression string, timeUnit string) string {
+	return rewriteOutsideStringLiterals(expression, func(segment string) string {
+		for _, source := range []string{"ohlc4", "hlc3", "hl2", "volume", "open", "high", "low", "close"} {
+			pattern := regexp.MustCompile(`(?i)\b` + regexp.QuoteMeta(source) + `\b`)
+			segment = pattern.ReplaceAllString(segment, fmt.Sprintf("security_source(%s, %s)", strings.ToLower(source), timeUnit))
+		}
+		return segment
+	})
+}
+
+func lowerAdvancedRequestSecurity(name string, args []string, timeUnit string) (string, bool) {
+	if !supportedAdvancedRequestSecurityTimeUnit(timeUnit) {
+		return "", false
+	}
+	name = strings.ToLower(strings.TrimSpace(name))
+	switch name {
+	case "linreg":
+		if len(args) != 3 {
+			return "", false
+		}
+	case "obv":
+		if len(args) == 0 {
+			args = []string{"close"}
+		}
+		if len(args) != 1 {
+			return "", false
+		}
+	case "pivothigh", "pivotlow":
+		if len(args) == 2 {
+			source := "high"
+			if name == "pivotlow" {
+				source = "low"
+			}
+			args = append([]string{source}, args...)
+		}
+		if len(args) != 3 {
+			return "", false
+		}
+	case "kc", "kcw":
+		if len(args) == 3 {
+			args = append(args, "true")
+		}
+		if len(args) != 4 {
+			return "", false
+		}
+	case "alma":
+		if len(args) != 4 {
+			return "", false
+		}
+	case "cmo", "dev", "median", "percentrank":
+		if len(args) != 2 {
+			return "", false
+		}
+	case "tsi":
+		if len(args) != 3 {
+			return "", false
+		}
+	case "correlation":
+		if len(args) != 3 {
+			return "", false
+		}
+		if _, ok := supportedRequestSecuritySource(strings.TrimSpace(args[1])); !ok {
+			return "", false
+		}
+	case "percentile_linear_interpolation", "percentile_nearest_rank":
+		if len(args) != 3 {
+			return "", false
+		}
+	case "swma":
+		if len(args) != 1 {
+			return "", false
+		}
+	default:
+		return "", false
+	}
+	if _, ok := supportedRequestSecuritySource(strings.TrimSpace(args[0])); !ok {
+		return "", false
+	}
+	return fmt.Sprintf("%s(%s, %s)", name, strings.Join(args, ", "), timeUnit), true
+}
+
+func supportedAdvancedRequestSecurityTimeUnit(timeUnit string) bool {
+	normalized := strings.ToLower(unquote(strings.TrimSpace(timeUnit)))
+	return normalized == "minute" || normalized == "hour" || strings.HasSuffix(normalized, "m")
 }
 
 func supportedRequestSecurityMergeArgs(args []string) bool {

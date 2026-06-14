@@ -151,7 +151,7 @@ func planStatements(
 				return fmt.Errorf("pine line %d: unsupported exit quantity mode %q", typed.Range.StartLine, typed.QuantityMode)
 			}
 			result.RequiresPosition = true
-			for _, expression := range []string{typed.QuantityExpression, typed.StopExpression, typed.LimitExpression, typed.TrailPoints, typed.TrailOffset} {
+			for _, expression := range []string{typed.QuantityExpression, typed.StopExpression, typed.LimitExpression, typed.TrailPrice, typed.TrailPoints, typed.TrailOffset} {
 				if expressionRequiresPosition(expression) {
 					result.RequiresPosition = true
 				}

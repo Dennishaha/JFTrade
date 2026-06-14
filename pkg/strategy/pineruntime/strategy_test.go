@@ -439,3 +439,87 @@ func TestRuntimeAndPlannerIndicatorKeysMatch(t *testing.T) {
 		t.Fatalf("runtime keys = %v, planner keys = %v", runtimeKeys, plannerKeys)
 	}
 }
+
+func TestAdjustEntryOrderQuantitySupportsPineReversalAndAllowEntryIn(t *testing.T) {
+	tests := []struct {
+		name             string
+		allowedDirection string
+		action           strategyir.OrderAction
+		position         *positionSnapshot
+		available        float64
+		requested        float64
+		wantQuantity     float64
+		wantReversed     bool
+		wantCloseOnly    bool
+	}{
+		{
+			name:             "long entry reverses short position",
+			allowedDirection: "all",
+			action:           strategyir.OrderActionBuy,
+			position:         &positionSnapshot{Direction: "SHORT", Quantity: -5},
+			available:        5,
+			requested:        2,
+			wantQuantity:     7,
+			wantReversed:     true,
+		},
+		{
+			name:             "short entry reverses long position",
+			allowedDirection: "all",
+			action:           strategyir.OrderActionShort,
+			position:         &positionSnapshot{Direction: "LONG", Quantity: 10},
+			available:        10,
+			requested:        3,
+			wantQuantity:     13,
+			wantReversed:     true,
+		},
+		{
+			name:             "long disallowed closes short only",
+			allowedDirection: "short",
+			action:           strategyir.OrderActionBuy,
+			position:         &positionSnapshot{Direction: "SHORT", Quantity: -5},
+			available:        5,
+			requested:        2,
+			wantQuantity:     5,
+			wantReversed:     true,
+			wantCloseOnly:    true,
+		},
+		{
+			name:             "short disallowed closes long only",
+			allowedDirection: "long",
+			action:           strategyir.OrderActionShort,
+			position:         &positionSnapshot{Direction: "LONG", Quantity: 10},
+			available:        10,
+			requested:        3,
+			wantQuantity:     10,
+			wantReversed:     true,
+			wantCloseOnly:    true,
+		},
+		{
+			name:             "short disallowed without long position skips",
+			allowedDirection: "long",
+			action:           strategyir.OrderActionShort,
+			position:         nil,
+			available:        0,
+			requested:        3,
+			wantQuantity:     0,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			runtime := &strategyRuntime{allowedEntryDirection: tt.allowedDirection}
+			quantity, adjustment := runtime.adjustEntryOrderQuantity(
+				tt.action,
+				strategyir.OrderIntentEntry,
+				tt.position,
+				tt.available,
+				tt.requested,
+			)
+			if quantity != tt.wantQuantity {
+				t.Fatalf("quantity = %v, want %v", quantity, tt.wantQuantity)
+			}
+			if adjustment.reversed != tt.wantReversed || adjustment.closeOnly != tt.wantCloseOnly {
+				t.Fatalf("adjustment = %#v, want reversed=%v closeOnly=%v", adjustment, tt.wantReversed, tt.wantCloseOnly)
+			}
+		})
+	}
+}

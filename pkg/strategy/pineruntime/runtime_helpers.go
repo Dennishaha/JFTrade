@@ -91,3 +91,17 @@ func normalizeRuntimePyramiding(program *strategyir.Program) int {
 	}
 	return program.Metadata.Pyramiding
 }
+
+func normalizeRuntimeAllowedEntryDirection(program *strategyir.Program) string {
+	if program == nil {
+		return "all"
+	}
+	switch strings.ToLower(strings.TrimSpace(program.Metadata.AllowedEntryDirection)) {
+	case "long":
+		return "long"
+	case "short":
+		return "short"
+	default:
+		return "all"
+	}
+}

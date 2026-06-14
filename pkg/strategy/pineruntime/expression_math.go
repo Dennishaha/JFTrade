@@ -61,7 +61,28 @@ func evaluateMathExpression(functionName string, arguments []exprast.Node, scope
 			return nil, fmt.Errorf("pow() requires numeric arguments")
 		}
 		return math.Pow(left, right), nil
-	case "min", "max":
+	case "round_to_mintick":
+		if len(arguments) != 1 {
+			return nil, fmt.Errorf("round_to_mintick() requires 1 argument")
+		}
+		value, ok, err := evaluateFloatOperand(arguments[0], scope)
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			return nil, fmt.Errorf("round_to_mintick() requires a numeric argument")
+		}
+		tick := 0.01
+		if scope != nil && scope.runtime != nil && scope.runtime.session != nil && scope.runtime.symbol != "" {
+			if market, ok := scope.runtime.session.Market(scope.runtime.symbol); ok && market.TickSize.Sign() > 0 {
+				tick = market.TickSize.Float64()
+			}
+		}
+		if tick <= 0 {
+			return value, nil
+		}
+		return math.Round(value/tick) * tick, nil
+	case "avg", "min", "max":
 		if len(arguments) < 2 {
 			return nil, fmt.Errorf("%s() requires at least 2 arguments", functionName)
 		}
@@ -80,11 +101,16 @@ func evaluateMathExpression(functionName string, arguments []exprast.Node, scope
 			if !valueOK {
 				return nil, fmt.Errorf("%s() requires numeric arguments", functionName)
 			}
-			if functionName == "min" {
+			if functionName == "avg" {
+				result += value
+			} else if functionName == "min" {
 				result = math.Min(result, value)
 			} else {
 				result = math.Max(result, value)
 			}
+		}
+		if functionName == "avg" {
+			result /= float64(len(arguments))
 		}
 		return result, nil
 	default:

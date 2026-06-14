@@ -2,6 +2,17 @@ package indicatorruntime
 
 import "sort"
 
+func sortedAdvancedIndicatorConfigs(values map[advancedIndicatorConfig]struct{}) []advancedIndicatorConfig {
+	result := make([]advancedIndicatorConfig, 0, len(values))
+	for value := range values {
+		result = append(result, value)
+	}
+	sort.Slice(result, func(left, right int) bool {
+		return result[left].key < result[right].key
+	})
+	return result
+}
+
 func sortedWindowConfigs(values map[windowConfig]struct{}) []windowConfig {
 	result := make([]windowConfig, 0, len(values))
 	for value := range values {

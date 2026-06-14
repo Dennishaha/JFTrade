@@ -31,7 +31,6 @@ else
 		"ma:EMA:5:day",
 		"ma:SMA:20:day",
 		"macd:12:26:9",
-		"risk:trailingStop:long:1:bar:4:continuous",
 	}
 	if len(requirements.Indicators) != len(expectedKeys) {
 		t.Fatalf("len(requirements.Indicators) = %d, want %d", len(requirements.Indicators), len(expectedKeys))

@@ -37,6 +37,7 @@ func collectStatementHistoryTargets(statements []strategyir.Statement, targets m
 			collectExpressionHistoryTargets(typed.QuantityExpression, targets)
 			collectExpressionHistoryTargets(typed.StopExpression, targets)
 			collectExpressionHistoryTargets(typed.LimitExpression, targets)
+			collectExpressionHistoryTargets(typed.TrailPrice, targets)
 			collectExpressionHistoryTargets(typed.TrailPoints, targets)
 			collectExpressionHistoryTargets(typed.TrailOffset, targets)
 		case *strategyir.ProtectStmt:
@@ -77,7 +78,7 @@ func preparseStatementExpressions(statements []strategyir.Statement, scope *eval
 		case *strategyir.OrderStmt:
 			expressions = []string{typed.QuantityExpression, typed.LimitExpression, typed.StopExpression}
 		case *strategyir.ExitStmt:
-			expressions = []string{typed.QuantityExpression, typed.StopExpression, typed.LimitExpression, typed.TrailPoints, typed.TrailOffset}
+			expressions = []string{typed.QuantityExpression, typed.StopExpression, typed.LimitExpression, typed.TrailPrice, typed.TrailPoints, typed.TrailOffset}
 		case *strategyir.ProtectStmt:
 			expressions = []string{typed.QuantityExpression, typed.TimeValueExpression, typed.PercentageExpression}
 		}

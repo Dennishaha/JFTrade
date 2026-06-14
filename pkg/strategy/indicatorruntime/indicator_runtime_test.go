@@ -392,6 +392,94 @@ func TestBuildMovingAverageSnapshotSupportsTypedMovingAverages(t *testing.T) {
 	}
 }
 
+func TestAdvancedIndicatorCalculationsUseAuditedVectors(t *testing.T) {
+	values := []float64{1, 2, 3, 4, 5}
+	if value, ok := calculateLinearRegression(values, 5, 0); !ok || math.Abs(value-5) > 1e-9 {
+		t.Fatalf("linreg = %v/%v, want 5/true", value, ok)
+	}
+	if value, ok := calculateLinearRegression(values, 5, 1); !ok || math.Abs(value-4) > 1e-9 {
+		t.Fatalf("linreg offset = %v/%v, want 4/true", value, ok)
+	}
+	if value, ok := calculatePivot([]float64{1, 3, 5, 4, 2}, 2, 2, true); !ok || value != 5 {
+		t.Fatalf("pivot high = %v/%v, want 5/true", value, ok)
+	}
+	if _, ok := calculatePivot([]float64{1, 3, 5, 5, 2}, 2, 2, true); ok {
+		t.Fatal("equal high should not confirm a pivot")
+	}
+	alma, ok := calculateALMA(values, 5, 0.85, 6)
+	if !ok || alma <= 3 || alma >= 5 {
+		t.Fatalf("alma = %v/%v, want weighted value in (3,5)", alma, ok)
+	}
+
+	mixed := []float64{1, 2, 4, 3, 5, 7}
+	if value, ok := calculateCMO(mixed, 5); !ok || math.Abs(value-75) > 1e-9 {
+		t.Fatalf("cmo = %v/%v, want 75/true", value, ok)
+	}
+	if value, ok := calculateTSI([]float64{1, 2, 3, 4, 5, 6}, 2, 3); !ok || math.Abs(value-100) > 1e-9 {
+		t.Fatalf("tsi = %v/%v, want 100/true", value, ok)
+	}
+	if value, ok := calculateCorrelation([]float64{1, 2, 4, 3, 5}, []float64{2, 4, 8, 6, 10}, 5); !ok || math.Abs(value-1) > 1e-9 {
+		t.Fatalf("correlation = %v/%v, want 1/true", value, ok)
+	}
+	if value, ok := calculateMeanDeviation(mixed, 5); !ok || math.Abs(value-1.44) > 1e-9 {
+		t.Fatalf("dev = %v/%v, want 1.44/true", value, ok)
+	}
+	if value, ok := calculateMedian(mixed, 5); !ok || value != 4 {
+		t.Fatalf("median = %v/%v, want 4/true", value, ok)
+	}
+	if value, ok := calculatePercentileLinear(mixed, 5, 50); !ok || value != 4 {
+		t.Fatalf("percentile linear = %v/%v, want 4/true", value, ok)
+	}
+	if value, ok := calculatePercentileNearest(mixed, 5, 80); !ok || value != 5 {
+		t.Fatalf("percentile nearest = %v/%v, want 5/true", value, ok)
+	}
+	if value, ok := calculatePercentRank(mixed, 5); !ok || value != 100 {
+		t.Fatalf("percentrank = %v/%v, want 100/true", value, ok)
+	}
+	if value, ok := calculateSWMA(mixed); !ok || value != 4.5 {
+		t.Fatalf("swma = %v/%v, want 4.5/true", value, ok)
+	}
+}
+
+func TestIndicatorRuntimeSnapshotIncludesV13MigrationIndicators(t *testing.T) {
+	runtime := newIndicatorRuntime(`
+		function onKLineClosed(ctx) {
+			ctx.indicators["cmo:close:5"];
+			ctx.indicators["tsi:close:2:3"];
+			ctx.indicators["correlation:close:high:5"];
+			ctx.indicators["dev:close:5"];
+			ctx.indicators["median:close:5"];
+			ctx.indicators["percentile_linear_interpolation:close:5:50"];
+			ctx.indicators["percentile_nearest_rank:close:5:80"];
+			ctx.indicators["percentrank:close:5"];
+			ctx.indicators["swma:close"];
+		}
+	`, types.Interval1m, "US.AAPL")
+	if runtime == nil {
+		t.Fatal("expected indicator runtime")
+	}
+	for _, closePrice := range []float64{1, 2, 4, 3, 5, 7} {
+		runtime.push(types.KLine{
+			High:   fixedpoint.NewFromFloat(closePrice * 2),
+			Low:    fixedpoint.NewFromFloat(closePrice - 1),
+			Close:  fixedpoint.NewFromFloat(closePrice),
+			Volume: fixedpoint.NewFromFloat(1000),
+		}, market.SessionRegular)
+	}
+	snapshot := runtime.snapshot()
+	assertScalarSnapshotApprox(t, snapshot, "cmo:close:5", 75)
+	assertScalarSnapshotApprox(t, snapshot, "correlation:close:high:5", 1)
+	assertScalarSnapshotApprox(t, snapshot, "dev:close:5", 1.44)
+	assertScalarSnapshotApprox(t, snapshot, "median:close:5", 4)
+	assertScalarSnapshotApprox(t, snapshot, "percentile_linear_interpolation:close:5:50", 4)
+	assertScalarSnapshotApprox(t, snapshot, "percentile_nearest_rank:close:5:80", 5)
+	assertScalarSnapshotApprox(t, snapshot, "percentrank:close:5", 100)
+	assertScalarSnapshotApprox(t, snapshot, "swma:close", 4.5)
+	if value, ok := scalarSnapshotValue(snapshot, "tsi:close:2:3"); !ok || value <= 0 || value > 100 {
+		t.Fatalf("tsi snapshot = %v/%v, want value in (0, 100]", value, ok)
+	}
+}
+
 func TestBuildMovingAverageSnapshotSupportsTimeUnits(t *testing.T) {
 	values := []float64{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13}
 	volumes := []float64{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
@@ -1171,6 +1259,13 @@ func TestIndicatorRuntimeSnapshotIncludesIntradaySecurityTimeframes(t *testing.T
 			ctx.indicators["security_source:15m:close:1"];
 			ctx.indicators["security_source:30m:hlc3"];
 			ctx.indicators["ma:EMA:3:15m:hlc3"];
+			ctx.indicators["linreg:close:3:0:15m"];
+			ctx.indicators["obv:close:15m"];
+			ctx.indicators["alma:close:3:0.85:6:15m"];
+			ctx.indicators["cmo:close:3:15m"];
+			ctx.indicators["correlation:close:high:3:15m"];
+			ctx.indicators["percentile_nearest_rank:close:3:80:15m"];
+			ctx.indicators["swma:close:15m"];
 		}
 	`, types.Interval1m, "US.AAPL")
 	if runtime == nil {
@@ -1198,6 +1293,25 @@ func TestIndicatorRuntimeSnapshotIncludesIntradaySecurityTimeframes(t *testing.T
 	assertSeriesSnapshot(t, snapshot, "security_source:15m:close:1", 45, 30)
 	assertSeriesSnapshotApprox(t, snapshot, "security_source:30m:hlc3", (61+30+60)/3.0, (31+0+30)/3.0)
 	assertSeriesSnapshotApprox(t, snapshot, "ma:EMA:3:15m:hlc3", 42.208333333333336, 29.083333333333336)
+	linregSnapshot, ok := snapshot["linreg:close:3:0:15m"].(interface {
+		ScalarValue() (float64, bool)
+	})
+	if !ok {
+		t.Fatalf("MTF linreg snapshot type = %T", snapshot["linreg:close:3:0:15m"])
+	}
+	if value, valueOK := linregSnapshot.ScalarValue(); !valueOK || math.Abs(value-60) > 1e-9 {
+		t.Fatalf("MTF linreg value = (%v, %v), want (60, true)", value, valueOK)
+	}
+	assertSeriesSnapshot(t, snapshot, "obv:close:15m", 45000, 30000)
+	if _, ok := snapshot["alma:close:3:0.85:6:15m"].(interface {
+		ScalarValue() (float64, bool)
+	}); !ok {
+		t.Fatalf("MTF ALMA snapshot type = %T", snapshot["alma:close:3:0.85:6:15m"])
+	}
+	assertScalarSnapshotApprox(t, snapshot, "cmo:close:3:15m", 100)
+	assertScalarSnapshotApprox(t, snapshot, "correlation:close:high:3:15m", 1)
+	assertScalarSnapshotApprox(t, snapshot, "percentile_nearest_rank:close:3:80:15m", 60)
+	assertScalarSnapshotApprox(t, snapshot, "swma:close:15m", 37.5)
 }
 
 func TestIndicatorRuntimeSnapshotIncludesTimeBoundIndicators(t *testing.T) {
@@ -1416,6 +1530,27 @@ func assertSeriesSnapshotApprox(t *testing.T, snapshot map[string]any, key strin
 	if math.Abs(gotCurrent-current) > 1e-9 || math.Abs(gotPrevious-previous) > 1e-9 {
 		t.Fatalf("snapshot %s = (%v, %v), want (%v, %v)", key, gotCurrent, gotPrevious, current, previous)
 	}
+}
+
+func assertScalarSnapshotApprox(t *testing.T, snapshot map[string]any, key string, expected float64) {
+	t.Helper()
+	value, ok := scalarSnapshotValue(snapshot, key)
+	if !ok {
+		t.Fatalf("snapshot %s missing scalar value: %#v", key, snapshot[key])
+	}
+	if math.Abs(value-expected) > 1e-9 {
+		t.Fatalf("snapshot %s = %v, want %v", key, value, expected)
+	}
+}
+
+func scalarSnapshotValue(snapshot map[string]any, key string) (float64, bool) {
+	reader, ok := snapshot[key].(interface {
+		ScalarValue() (float64, bool)
+	})
+	if !ok {
+		return 0, false
+	}
+	return reader.ScalarValue()
 }
 
 func readSnapshotNumber(t *testing.T, snapshot map[string]any, key string) float64 {

@@ -137,9 +137,9 @@ x = request.security("NASDAQ:AAPL", "D", close)`)
 
 	err = ValidateScript(`//@version=6
 strategy("MTF", overlay=true)
-x = request.security(syminfo.tickerid, "D", close > ta.sma(close, 20))`)
+x = request.security(syminfo.tickerid, "D", alert("no side effects"))`)
 	if err == nil || !strings.Contains(err.Error(), "request.security") {
-		t.Fatalf("ValidateScript() complex expression error = %v, want request.security diagnostic", err)
+		t.Fatalf("ValidateScript() side-effect expression error = %v, want request.security diagnostic", err)
 	}
 
 	err = ValidateScript(`//@version=6
@@ -285,6 +285,163 @@ if trendUp and close > hh and close < upper and wr < -20
 	}
 	if want := "trendUp && close > hh && close < basis.upper && wr < -20"; ifStmt.Condition != want {
 		t.Fatalf("condition = %q, want %q", ifStmt.Condition, want)
+	}
+}
+
+func TestCompileSupportsV14WindowMomentumAndStatefulIndicators(t *testing.T) {
+	analysis := AnalyzeScript(`//@version=6
+strategy("v1.4 window state", overlay=true)
+dev = ta.stdev(close, 5)
+variance = ta.variance(close, 5)
+hb = ta.highestbars(high, 5)
+lb = ta.lowestbars(low, 5)
+delta = ta.change(close)
+momentum = ta.mom(close, 3)
+rate = ta.roc(close, 3)
+up = ta.rising(close, 3)
+down = ta.falling(close, 3)
+bars = ta.barssince(close > open)
+value = ta.valuewhen(close > open, close, 0)
+trTrue = ta.tr(true)
+trFalse = ta.tr(false)
+if up and not down and nz(bars, 999) < 5 and nz(value, close) > 0 and trTrue >= trFalse
+    strategy.entry("Long", strategy.long, qty=1)`, AnalysisOptions{})
+	if !analysis.OK {
+		t.Fatalf("AnalyzeScript() diagnostics = %#v", analysis.Diagnostics)
+	}
+	keys := map[string]bool{}
+	for _, requirement := range analysis.Requirements.Indicators {
+		keys[requirement.Key] = true
+	}
+	for _, key := range []string{
+		"stdev:5",
+		"variance:close:5",
+		"highestbars:high:5",
+		"lowestbars:low:5",
+		"change:close:1",
+		"mom:close:3",
+		"roc:close:3",
+		"rising:close:3",
+		"falling:close:3",
+	} {
+		if !keys[key] {
+			t.Fatalf("requirements missing %q: %#v", key, analysis.Requirements.Indicators)
+		}
+	}
+}
+
+func TestCompileSupportsV14RequestSecurityPureExpression(t *testing.T) {
+	analysis := AnalyzeScript(`//@version=6
+strategy("v1.4 MTF pure", overlay=true)
+signal = request.security(syminfo.tickerid, "15", close > ta.sma(close, 3) and nz(close[1], close) > open)
+if signal
+    strategy.entry("Long", strategy.long, qty=1)`, AnalysisOptions{})
+	if !analysis.OK {
+		t.Fatalf("AnalyzeScript() diagnostics = %#v", analysis.Diagnostics)
+	}
+	statements := analysis.Program.Hooks[0].Statements
+	first, ok := statements[0].(*strategyir.LetStmt)
+	if !ok {
+		t.Fatalf("first statement = %T", statements[0])
+	}
+	wantExpression := `security_source(close, "15m") > ma(SMA, 3, "15m") && nz(security_source(close, "15m", 1), security_source(close, "15m")) > security_source(open, "15m")`
+	if first.Expression != wantExpression {
+		t.Fatalf("expression = %q, want %q", first.Expression, wantExpression)
+	}
+	keys := map[string]bool{}
+	for _, requirement := range analysis.Requirements.Indicators {
+		keys[requirement.Key] = true
+	}
+	for _, key := range []string{
+		"security_source:15m:close",
+		"security_source:15m:close:1",
+		"security_source:15m:open",
+		"ma:SMA:3:15m",
+	} {
+		if !keys[key] {
+			t.Fatalf("requirements missing %q: %#v", key, analysis.Requirements.Indicators)
+		}
+	}
+}
+
+func TestCompileSupportsV15RequestSecurityCommonTAExpression(t *testing.T) {
+	analysis := AnalyzeScript(`//@version=6
+strategy("v1.5 MTF common TA", overlay=true)
+signal = request.security(syminfo.tickerid, "15", nz(ta.rsi(close, 14), 50) > 50 and nz(ta.macd(close, 12, 26, 9).diff, 0) > 0 and nz(ta.atr(14), 0) > 0 and nz(ta.bb(close, 20, 2).upper, close) > close and nz(ta.supertrend(3, 10).direction, 0) > 0)
+spread = ta.range(close, 5)
+modeValue = ta.mode(close, 5)
+if signal
+    strategy.entry("Long", strategy.long, qty=1)`, AnalysisOptions{})
+	if !analysis.OK {
+		t.Fatalf("AnalyzeScript() diagnostics = %#v", analysis.Diagnostics)
+	}
+	first, ok := analysis.Program.Hooks[0].Statements[0].(*strategyir.LetStmt)
+	if !ok {
+		t.Fatalf("first statement = %T", analysis.Program.Hooks[0].Statements[0])
+	}
+	for _, fragment := range []string{
+		`rsi(close, 14, "15m")`,
+		`macd(12, 26, 9, "15m", close).diff`,
+		`atr(14, "15m")`,
+		`bollinger(20, 2, "15m", close).upper`,
+		`supertrend(3, 10, "15m").direction`,
+	} {
+		if !strings.Contains(first.Expression, fragment) {
+			t.Fatalf("expression = %q, missing %q", first.Expression, fragment)
+		}
+	}
+	keys := map[string]bool{}
+	for _, requirement := range analysis.Requirements.Indicators {
+		keys[requirement.Key] = true
+	}
+	for _, key := range []string{
+		"security_source:15m:close",
+		"rsi:close:14:15m",
+		"macd:close:12:26:9:15m",
+		"atr:14:15m",
+		"bollinger:close:20:2:15m",
+		"supertrend:3:10:15m",
+		"range:close:5",
+		"mode:close:5",
+	} {
+		if !keys[key] {
+			t.Fatalf("requirements missing %q: %#v", key, analysis.Requirements.Indicators)
+		}
+	}
+}
+
+func TestCompileSupportsV15StaticForLoopControl(t *testing.T) {
+	compilation, err := Compile(`//@version=6
+strategy("Static For Control", overlay=true)
+score = 0
+for i = 1 to 4
+    score := score + i
+    continue
+    score := score + 100
+for j = 1 to 4
+    score := score + j
+    break
+    score := score + 100
+if score > 0
+    strategy.entry("Long", strategy.long, qty=1)`)
+	if err != nil {
+		t.Fatalf("Compile() error = %v", err)
+	}
+	statements := compilation.Program.Hooks[0].Statements
+	lets := make([]string, 0)
+	for _, statement := range statements {
+		if let, ok := statement.(*strategyir.LetStmt); ok {
+			lets = append(lets, let.Expression)
+		}
+	}
+	want := []string{"0", "0 + 1", "score + 2", "score + 3", "score + 4", "score + 1"}
+	if len(lets) != len(want) {
+		t.Fatalf("let expressions = %#v, want %#v", lets, want)
+	}
+	for index := range want {
+		if lets[index] != want[index] {
+			t.Fatalf("let expression %d = %q, want %q (all=%#v)", index, lets[index], want[index], lets)
+		}
 	}
 }
 
@@ -538,8 +695,8 @@ strategy.exit("Long trail", "Long", trail_points=close * 4 / 100, trail_offset=c
 	if !ok || bracket.FromEntry != "Long" || bracket.StopExpression != "close - 2" || bracket.LimitExpression != "close + 3" {
 		t.Fatalf("bracket statement = %#v", compilation.Program.Hooks[0].Statements[2])
 	}
-	trailing, ok := compilation.Program.Hooks[0].Statements[3].(*strategyir.ProtectStmt)
-	if !ok || trailing.Mode != "trailingStop" || trailing.Direction != "long" || trailing.PercentageExpression != "4" || trailing.QuantityMode != "symbol_position_percent" || trailing.QuantityExpression != "100" {
+	trailing, ok := compilation.Program.Hooks[0].Statements[3].(*strategyir.ExitStmt)
+	if !ok || trailing.ID != "Long trail" || trailing.Direction != "long" || trailing.TrailPoints != "close * 4 / 100" || trailing.TrailOffset != "close * 4 / 100" || trailing.QuantityMode != "symbol_position_percent" || trailing.QuantityExpression != "100" {
 		t.Fatalf("trailing statement = %#v", compilation.Program.Hooks[0].Statements[3])
 	}
 }
@@ -549,13 +706,14 @@ func TestCompileSupportsPendingStopAndCancelOrders(t *testing.T) {
 strategy("Pending", overlay=true)
 strategy.entry("Breakout", strategy.long, stop=ta.highest(high, 20), qty=1)
 strategy.order("Net short", strategy.short, stop=low - 1, qty=5)
+strategy.entry("StopLimit", strategy.long, stop=101, limit=99, qty=2)
 strategy.cancel("Breakout")
 strategy.cancel_all()`)
 	if err != nil {
 		t.Fatalf("Compile() error = %v", err)
 	}
 	statements := compilation.Program.Hooks[0].Statements
-	if len(statements) != 4 {
+	if len(statements) != 5 {
 		t.Fatalf("statement count = %d", len(statements))
 	}
 	entry, ok := statements[0].(*strategyir.OrderStmt)
@@ -566,13 +724,17 @@ strategy.cancel_all()`)
 	if !ok || net.Intent != strategyir.OrderIntentNet || net.ID != "Net short" || net.Action != strategyir.OrderActionSell || net.StopExpression != "low - 1" {
 		t.Fatalf("net statement = %#v", statements[1])
 	}
-	cancel, ok := statements[2].(*strategyir.CancelStmt)
-	if !ok || cancel.ID != "Breakout" || cancel.All {
-		t.Fatalf("cancel statement = %#v", statements[2])
+	stopLimit, ok := statements[2].(*strategyir.OrderStmt)
+	if !ok || stopLimit.StopExpression != "101" || stopLimit.LimitExpression != "99" || stopLimit.OrderType != "LIMIT" {
+		t.Fatalf("stop-limit statement = %#v", statements[2])
 	}
-	cancelAll, ok := statements[3].(*strategyir.CancelStmt)
+	cancel, ok := statements[3].(*strategyir.CancelStmt)
+	if !ok || cancel.ID != "Breakout" || cancel.All {
+		t.Fatalf("cancel statement = %#v", statements[3])
+	}
+	cancelAll, ok := statements[4].(*strategyir.CancelStmt)
 	if !ok || !cancelAll.All {
-		t.Fatalf("cancel_all statement = %#v", statements[3])
+		t.Fatalf("cancel_all statement = %#v", statements[4])
 	}
 }
 
@@ -582,20 +744,6 @@ func TestValidateScriptReportsUnsupportedAdvancedOrders(t *testing.T) {
 		script  string
 		message string
 	}{
-		{
-			name: "strategy entry stop limit",
-			script: `//@version=6
-strategy("Entry stop limit", overlay=true)
-strategy.entry("StopLimit", strategy.long, qty=1, stop=101, limit=99)`,
-			message: "stop-limit",
-		},
-		{
-			name: "strategy order stop limit",
-			script: `//@version=6
-strategy("Order stop limit", overlay=true)
-strategy.order("StopLimit", strategy.long, qty=1, stop=101, limit=99)`,
-			message: "stop-limit",
-		},
 		{
 			name: "trail with stop",
 			script: `//@version=6
@@ -638,6 +786,178 @@ if close > close[1]
 	ifStmt := statements[3].(*strategyir.IfStmt)
 	if ifStmt.Condition != "close > history(close, 1)" {
 		t.Fatalf("condition = %q", ifStmt.Condition)
+	}
+}
+
+func TestCompileSupportsV12AdvancedIndicators(t *testing.T) {
+	analysis := AnalyzeScript(`//@version=6
+strategy("Advanced indicators", overlay=true)
+lr = ta.linreg(close, 5, 0)
+obvValue = ta.obv
+pivotHigh = ta.pivothigh(high, 2, 2)
+pivotLow = ta.pivotlow(low, 2, 2)
+[basis, upper, lower] = ta.kc(close, 5, 1.5)
+width = ta.kcw(close, 5, 1.5)
+almaValue = ta.alma(close, 5, 0.85, 6)
+if close > lr and obvValue > 0 and upper > lower and width > 0 and almaValue > 0
+    strategy.entry("Long", strategy.long, qty=1)`, AnalysisOptions{})
+	if !analysis.OK {
+		t.Fatalf("AnalyzeScript() diagnostics = %#v", analysis.Diagnostics)
+	}
+	keys := map[string]bool{}
+	for _, requirement := range analysis.Requirements.Indicators {
+		keys[requirement.Key] = true
+	}
+	for _, key := range []string{
+		"linreg:close:5:0",
+		"obv:close",
+		"pivothigh:high:2:2",
+		"pivotlow:low:2:2",
+		"kc:close:5:1.5:true",
+		"kcw:close:5:1.5:true",
+		"alma:close:5:0.85:6",
+	} {
+		if !keys[key] {
+			t.Fatalf("requirements missing %q: %#v", key, analysis.Requirements.Indicators)
+		}
+	}
+}
+
+func TestCompileSupportsV12AdvancedIndicatorsInStaticIntradaySecurity(t *testing.T) {
+	analysis := AnalyzeScript(`//@version=6
+strategy("Advanced MTF", overlay=true)
+lr = request.security(syminfo.tickerid, "15", ta.linreg(close, 5, 0))
+obvValue = request.security(syminfo.tickerid, "15", ta.obv)
+pivotHigh = request.security(syminfo.tickerid, "15", ta.pivothigh(2, 2))
+[basis, upper, lower] = request.security(syminfo.tickerid, "15", ta.kc(close, 5, 1.5))
+almaValue = request.security(syminfo.tickerid, "15", ta.alma(close, 5, 0.85, 6))
+if close > lr and obvValue > 0 and pivotHigh > 0 and upper > lower and almaValue > 0
+    strategy.entry("Long", strategy.long, qty=1)`, AnalysisOptions{})
+	if !analysis.OK {
+		t.Fatalf("AnalyzeScript() diagnostics = %#v", analysis.Diagnostics)
+	}
+	keys := map[string]bool{}
+	for _, requirement := range analysis.Requirements.Indicators {
+		keys[requirement.Key] = true
+	}
+	for _, key := range []string{
+		"linreg:close:5:0:15m",
+		"obv:close:15m",
+		"pivothigh:high:2:2:15m",
+		"kc:close:5:1.5:true:15m",
+		"alma:close:5:0.85:6:15m",
+	} {
+		if !keys[key] {
+			t.Fatalf("requirements missing %q: %#v", key, analysis.Requirements.Indicators)
+		}
+	}
+}
+
+func TestCompileSupportsV13MigrationIndicators(t *testing.T) {
+	analysis := AnalyzeScript(`//@version=6
+strategy("v1.3 indicators", overlay=true)
+cmoValue = ta.cmo(close, 5)
+tsiValue = ta.tsi(close, 2, 3)
+corrValue = ta.correlation(close, high, 5)
+devValue = ta.dev(close, 5)
+medianValue = ta.median(close, 5)
+pLinear = ta.percentile_linear_interpolation(close, 5, 50)
+pNearest = ta.percentile_nearest_rank(close, 5, 80)
+rankValue = ta.percentrank(close, 5)
+swmaValue = ta.swma(close)
+rounded = math.round_to_mintick(math.avg(close, open))
+if cmoValue > 0 and tsiValue > 0 and corrValue > 0 and devValue > 0 and medianValue > 0 and pLinear > 0 and pNearest > 0 and rankValue > 0 and swmaValue > 0 and rounded > 0
+    strategy.entry("Long", strategy.long, qty=1)`, AnalysisOptions{})
+	if !analysis.OK {
+		t.Fatalf("AnalyzeScript() diagnostics = %#v", analysis.Diagnostics)
+	}
+	keys := map[string]bool{}
+	for _, requirement := range analysis.Requirements.Indicators {
+		keys[requirement.Key] = true
+	}
+	for _, key := range []string{
+		"cmo:close:5",
+		"tsi:close:2:3",
+		"correlation:close:high:5",
+		"dev:close:5",
+		"median:close:5",
+		"percentile_linear_interpolation:close:5:50",
+		"percentile_nearest_rank:close:5:80",
+		"percentrank:close:5",
+		"swma:close",
+	} {
+		if !keys[key] {
+			t.Fatalf("requirements missing %q: %#v", key, analysis.Requirements.Indicators)
+		}
+	}
+}
+
+func TestCompileSupportsV13IndicatorsInStaticIntradaySecurity(t *testing.T) {
+	analysis := AnalyzeScript(`//@version=6
+strategy("v1.3 MTF indicators", overlay=true)
+cmoValue = request.security(syminfo.tickerid, "15", ta.cmo(close, 5))
+corrValue = request.security(syminfo.tickerid, "15", ta.correlation(close, high, 5))
+pctValue = request.security(syminfo.tickerid, "15", ta.percentile_nearest_rank(close, 5, 80))
+swmaValue = request.security(syminfo.tickerid, "15", ta.swma(close))
+if cmoValue > 0 and corrValue > 0 and pctValue > 0 and swmaValue > 0
+    strategy.entry("Long", strategy.long, qty=1)`, AnalysisOptions{})
+	if !analysis.OK {
+		t.Fatalf("AnalyzeScript() diagnostics = %#v", analysis.Diagnostics)
+	}
+	keys := map[string]bool{}
+	for _, requirement := range analysis.Requirements.Indicators {
+		keys[requirement.Key] = true
+	}
+	for _, key := range []string{
+		"cmo:close:5:15m",
+		"correlation:close:high:5:15m",
+		"percentile_nearest_rank:close:5:80:15m",
+		"swma:close:15m",
+	} {
+		if !keys[key] {
+			t.Fatalf("requirements missing %q: %#v", key, analysis.Requirements.Indicators)
+		}
+	}
+}
+
+func TestCompileSupportsAllowEntryInRiskDeclaration(t *testing.T) {
+	compilation, err := Compile(`//@version=6
+strategy("Allow entry", overlay=true)
+strategy.risk.allow_entry_in(strategy.direction.long)
+if close > open
+    strategy.entry("Long", strategy.long, qty=1)`)
+	if err != nil {
+		t.Fatalf("Compile() error = %v", err)
+	}
+	if got := compilation.Program.Metadata.AllowedEntryDirection; got != "long" {
+		t.Fatalf("AllowedEntryDirection = %q, want long", got)
+	}
+}
+
+func TestCompatibilityScoreAndSupportedFeatureIDsAreRegistryDriven(t *testing.T) {
+	assessment := CompatibilityScore()
+	if assessment.ScoreModelVersion != "closed-bar-strategy-v1.5" {
+		t.Fatalf("ScoreModelVersion = %q", assessment.ScoreModelVersion)
+	}
+	if assessment.Score < 86.5 || assessment.Score > 88.5 {
+		t.Fatalf("Score = %v, want about 87", assessment.Score)
+	}
+	if len(assessment.Dimensions) != 5 {
+		t.Fatalf("Dimensions = %#v, want 5 dimensions", assessment.Dimensions)
+	}
+	features := map[string]bool{}
+	for _, id := range SupportedFeatureIDs() {
+		features[id] = true
+	}
+	for _, id := range []string{"indicator.v13_migration_set", "indicator.v14_window_momentum_set", "indicator.v15_common_ta_set", "request.security.pure_expression", "request.security.v15_common_ta_expression", "syntax.v15_loop_control_subset", "order.entry_reversal", "order.allow_entry_in"} {
+		if !features[id] {
+			t.Fatalf("SupportedFeatureIDs missing %q", id)
+		}
+	}
+	for _, id := range []string{"syntax.arrays_maps_matrices", "order.oca_partial_fill", "request.security.dynamic_symbol_timeframe"} {
+		if features[id] {
+			t.Fatalf("SupportedFeatureIDs includes unsupported feature %q", id)
+		}
 	}
 }
 
@@ -712,16 +1032,6 @@ y = f(close)`,
 			message: `recursive user-defined function`,
 		},
 		{
-			name: "multi statement udf",
-			script: `//@version=6
-strategy("UDF", overlay=true)
-f(x) =>
-    y = x
-    y
-z = f(close)`,
-			message: `multi-statement user-defined functions`,
-		},
-		{
 			name: "dynamic for bound",
 			script: `//@version=6
 strategy("Loop", overlay=true)
@@ -747,12 +1057,13 @@ for i = 0 to 100
 			message: `for loop expands to more than 100 iterations`,
 		},
 		{
-			name: "break",
+			name: "conditional break",
 			script: `//@version=6
 strategy("Loop", overlay=true)
 for i = 0 to 3
-    break`,
-			message: `break is not supported`,
+    if close > open
+        break`,
+			message: `conditional break/continue`,
 		},
 		{
 			name: "loop var readonly",
@@ -778,6 +1089,43 @@ for i = 0 to 3
 				t.Fatalf("ValidateScript() error = %v, want %q", err, tc.message)
 			}
 		})
+	}
+}
+
+func TestCompileSupportsSwitchAndMultiStatementUDF(t *testing.T) {
+	compilation, err := Compile(`//@version=6
+strategy("Switch UDF", overlay=true)
+classify(x) =>
+    doubled = x * 2
+    if doubled > 0
+        doubled
+    else
+        -doubled
+score = classify(close)
+signal = switch
+    close > open => 1
+    => 0
+switch signal
+    1 => strategy.entry("Long", strategy.long, qty=1)
+    => log.info("flat")`)
+	if err != nil {
+		t.Fatalf("Compile() error = %v", err)
+	}
+	statements := compilation.Program.Hooks[0].Statements
+	if len(statements) != 3 {
+		t.Fatalf("statements = %#v, want score, signal, switch", statements)
+	}
+	score, ok := statements[0].(*strategyir.LetStmt)
+	if !ok || !strings.Contains(score.Expression, "ifelse") || !strings.Contains(score.Expression, "close * 2") {
+		t.Fatalf("score statement = %#v", statements[0])
+	}
+	signal, ok := statements[1].(*strategyir.LetStmt)
+	if !ok || !strings.Contains(signal.Expression, "ifelse") {
+		t.Fatalf("signal statement = %#v", statements[1])
+	}
+	switchStmt, ok := statements[2].(*strategyir.IfStmt)
+	if !ok || len(switchStmt.Then) != 1 || len(switchStmt.Else) != 1 {
+		t.Fatalf("switch statement = %#v", statements[2])
 	}
 }
 

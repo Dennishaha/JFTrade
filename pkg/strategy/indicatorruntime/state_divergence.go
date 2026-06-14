@@ -1,4 +1,5 @@
 package indicatorruntime
+
 func newRollingDivergenceWindowStates(lookbacks []int) map[int]*rollingDivergenceWindowState {
 	if len(lookbacks) == 0 {
 		return nil
@@ -53,4 +54,3 @@ func (s *rollingDivergenceWindowState) detect(direction string) bool {
 		return false
 	}
 }
-

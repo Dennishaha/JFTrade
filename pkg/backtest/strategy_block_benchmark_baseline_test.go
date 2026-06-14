@@ -2,7 +2,9 @@ package backtest
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -20,12 +22,19 @@ const (
 	strategyBlockBenchmarkSampleCount              = 5
 	strategyBlockBenchmarkEnforceBaselineEnv       = "JFTRADE_ENFORCE_STRATEGY_BLOCK_BASELINE"
 	strategyBlockBenchmarkUpdateBaselineEnv        = "JFTRADE_UPDATE_STRATEGY_BLOCK_BASELINE"
+	strategyBlockBenchmarkAuditCommitEnv           = "JFTRADE_BENCHMARK_AUDIT_COMMIT"
+	strategyBlockBenchmarkAuditHardwareEnv         = "JFTRADE_BENCHMARK_AUDIT_HARDWARE"
 )
 
 type strategyBlockBenchmarkBaseline struct {
-	Version   int                                      `json:"version"`
-	UpdatedAt string                                   `json:"updatedAt"`
-	Cases     map[string]strategyBlockBenchmarkMetrics `json:"cases"`
+	Version             int                                      `json:"version"`
+	UpdatedAt           string                                   `json:"updatedAt"`
+	WorkloadFingerprint string                                   `json:"workloadFingerprint,omitempty"`
+	SourceFormat        string                                   `json:"sourceFormat,omitempty"`
+	SampleCount         int                                      `json:"sampleCount,omitempty"`
+	AuditCommit         string                                   `json:"auditCommit,omitempty"`
+	AuditHardware       string                                   `json:"auditHardware,omitempty"`
+	Cases               map[string]strategyBlockBenchmarkMetrics `json:"cases"`
 }
 
 type strategyBlockBenchmarkMetrics struct {
@@ -44,6 +53,11 @@ func TestStrategyBlockBenchmarkBaseline(t *testing.T) {
 	baselinePath := filepath.Join("testdata", filepath.Base(strategyBlockBenchmarkBaselinePath))
 	actual := collectStrategyBlockBenchmarkBaseline(t)
 	if updateBaseline {
+		actual.AuditCommit = strings.TrimSpace(os.Getenv(strategyBlockBenchmarkAuditCommitEnv))
+		actual.AuditHardware = strings.TrimSpace(os.Getenv(strategyBlockBenchmarkAuditHardwareEnv))
+		if actual.AuditCommit == "" || actual.AuditHardware == "" {
+			t.Fatalf("audited baseline update requires %s and %s", strategyBlockBenchmarkAuditCommitEnv, strategyBlockBenchmarkAuditHardwareEnv)
+		}
 		writeStrategyBlockBenchmarkBaseline(t, baselinePath, actual)
 		t.Logf("updated strategy block benchmark baseline at %s", baselinePath)
 		return
@@ -62,9 +76,12 @@ func collectStrategyBlockBenchmarkBaseline(t *testing.T) strategyBlockBenchmarkB
 
 	ctx := context.Background()
 	baseline := strategyBlockBenchmarkBaseline{
-		Version:   strategyBlockBenchmarkBaselineVersion,
-		UpdatedAt: time.Now().UTC().Format(time.RFC3339),
-		Cases:     make(map[string]strategyBlockBenchmarkMetrics, len(strategyBlockBenchmarkCases())),
+		Version:             strategyBlockBenchmarkBaselineVersion,
+		UpdatedAt:           time.Now().UTC().Format(time.RFC3339),
+		WorkloadFingerprint: strategyBlockBenchmarkWorkloadFingerprint(),
+		SourceFormat:        "pine-v6",
+		SampleCount:         strategyBlockBenchmarkSampleCount,
+		Cases:               make(map[string]strategyBlockBenchmarkMetrics, len(strategyBlockBenchmarkCases())),
 	}
 	for _, benchmarkCase := range strategyBlockBenchmarkCases() {
 		benchmarkCase := benchmarkCase
@@ -105,13 +122,19 @@ func strategyBlockBenchmarkRepresentativeSampleIndex(sampleCount int) int {
 	if sampleCount <= 1 {
 		return 0
 	}
-	return sampleCount - 1
+	return sampleCount / 2
 }
 
 func compareStrategyBlockBenchmarkBaseline(t *testing.T, expected, actual strategyBlockBenchmarkBaseline) {
 	t.Helper()
 	if expected.Version != strategyBlockBenchmarkBaselineVersion {
 		t.Fatalf("baseline version = %d, want %d", expected.Version, strategyBlockBenchmarkBaselineVersion)
+	}
+	if expected.WorkloadFingerprint != actual.WorkloadFingerprint {
+		t.Fatalf("baseline workload fingerprint = %q, current = %q; the historical JSON is not comparable and requires an audited regeneration", expected.WorkloadFingerprint, actual.WorkloadFingerprint)
+	}
+	if expected.SourceFormat != actual.SourceFormat || expected.SampleCount != actual.SampleCount {
+		t.Fatalf("baseline metadata sourceFormat/sampleCount = %q/%d, current = %q/%d; audited regeneration required", expected.SourceFormat, expected.SampleCount, actual.SourceFormat, actual.SampleCount)
 	}
 	for name, actualMetrics := range actual.Cases {
 		expectedMetrics, ok := expected.Cases[name]
@@ -131,6 +154,16 @@ func compareStrategyBlockBenchmarkBaseline(t *testing.T, expected, actual strate
 	if t.Failed() {
 		t.Logf("rerun with %s=1 to refresh baseline after an intentional performance shift", strategyBlockBenchmarkUpdateBaselineEnv)
 	}
+}
+
+func strategyBlockBenchmarkWorkloadFingerprint() string {
+	hash := sha256.New()
+	_, _ = fmt.Fprintln(hash, "sourceFormat=pine-v6")
+	for _, benchmarkCase := range strategyBlockBenchmarkCases() {
+		_, _ = fmt.Fprintln(hash, benchmarkCase.name)
+		_, _ = fmt.Fprintln(hash, strings.TrimSpace(benchmarkCase.script))
+	}
+	return fmt.Sprintf("sha256:%x", hash.Sum(nil))
 }
 
 func assertStrategyBlockMetricWithinRatio(t *testing.T, caseName, metricName string, baselineValue, actualValue int64, maxRatio float64) {

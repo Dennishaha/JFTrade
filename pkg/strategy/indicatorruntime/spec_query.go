@@ -26,5 +26,6 @@ func (r indicatorRequirements) isEmpty() bool {
 		len(r.stopLoss) == 0 &&
 		len(r.rsiDivergence) == 0 &&
 		len(r.macdDivergence) == 0 &&
-		len(r.kdjDivergence) == 0
+		len(r.kdjDivergence) == 0 &&
+		len(r.advanced) == 0
 }

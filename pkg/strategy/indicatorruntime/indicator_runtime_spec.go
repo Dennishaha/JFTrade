@@ -27,4 +27,5 @@ type indicatorRequirements struct {
 	rsiDivergence  []rsiDivergenceConfig
 	macdDivergence []macdDivergenceConfig
 	kdjDivergence  []kdjDivergenceConfig
+	advanced       []advancedIndicatorConfig
 }

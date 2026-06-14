@@ -98,6 +98,10 @@ func (r *strategyRuntime) executeOrderStatement(statement *strategyir.OrderStmt,
 		r.storePendingOrder(statement, action, intent, quantity, limitPrice, orderPrice)
 		return nil
 	}
+	quantity, entryAdjustment := r.adjustEntryOrderQuantity(action, intent, position, availablePositionQty, quantity)
+	if quantity <= 0 {
+		return nil
+	}
 
 	orderSide, err := exchangeSideForAction(action)
 	if err != nil {
@@ -111,6 +115,8 @@ func (r *strategyRuntime) executeOrderStatement(statement *strategyir.OrderStmt,
 	case strategyir.OrderIntentNet:
 		r.resetEntrySubmitCount("LONG")
 		r.resetEntrySubmitCount("SHORT")
+	case strategyir.OrderIntentEntry:
+		r.recordEntryOrderAction(action, quantity, availablePositionQty, sameDirectionEntryCount, entryAdjustment)
 	default:
 		r.recordSubmittedOrderAction(action, quantity, availablePositionQty, sameDirectionEntryCount)
 	}
@@ -123,11 +129,18 @@ func (r *strategyRuntime) resolveOrderPrice(statement *strategyir.OrderStmt, sco
 		closePrice = scope.currentKline.Close.Float64()
 	}
 	if strings.TrimSpace(statement.StopExpression) != "" {
-		value, err := evaluateFloatExpression(statement.StopExpression, scope)
+		stopValue, err := evaluateFloatExpression(statement.StopExpression, scope)
 		if err != nil {
 			return 0, 0, err
 		}
-		return value, 0, nil
+		limitValue := 0.0
+		if strings.TrimSpace(statement.LimitExpression) != "" {
+			limitValue, err = evaluateFloatExpression(statement.LimitExpression, scope)
+			if err != nil {
+				return 0, 0, err
+			}
+		}
+		return stopValue, limitValue, nil
 	}
 	orderType := normalizeOrderType(statement.OrderType)
 	if orderType == types.OrderTypeMarket {
@@ -234,6 +247,66 @@ func clampPercentBasedQuantity(rawQuantity float64, availablePositionQty float64
 		return 1
 	}
 	return 0
+}
+
+type entryOrderAdjustment struct {
+	reversed  bool
+	closeOnly bool
+}
+
+func (r *strategyRuntime) adjustEntryOrderQuantity(
+	action strategyir.OrderAction,
+	intent strategyir.OrderIntent,
+	position *positionSnapshot,
+	availablePositionQty float64,
+	requestedQuantity float64,
+) (float64, entryOrderAdjustment) {
+	if intent != strategyir.OrderIntentEntry || requestedQuantity <= 0 {
+		return requestedQuantity, entryOrderAdjustment{}
+	}
+	switch action {
+	case strategyir.OrderActionBuy:
+		allowed := r.entryDirectionAllowed("long")
+		if position != nil && position.Direction == "SHORT" && availablePositionQty > 0 {
+			if !allowed {
+				r.internalLog("long entry is disallowed; closing short position only")
+				return availablePositionQty, entryOrderAdjustment{reversed: true, closeOnly: true}
+			}
+			return availablePositionQty + requestedQuantity, entryOrderAdjustment{reversed: true}
+		}
+		if !allowed {
+			r.internalLog("long entry is disallowed by strategy.risk.allow_entry_in")
+			return 0, entryOrderAdjustment{}
+		}
+	case strategyir.OrderActionShort:
+		allowed := r.entryDirectionAllowed("short")
+		if position != nil && position.Direction == "LONG" && availablePositionQty > 0 {
+			if !allowed {
+				r.internalLog("short entry is disallowed; closing long position only")
+				return availablePositionQty, entryOrderAdjustment{reversed: true, closeOnly: true}
+			}
+			return availablePositionQty + requestedQuantity, entryOrderAdjustment{reversed: true}
+		}
+		if !allowed {
+			r.internalLog("short entry is disallowed by strategy.risk.allow_entry_in")
+			return 0, entryOrderAdjustment{}
+		}
+	}
+	return requestedQuantity, entryOrderAdjustment{}
+}
+
+func (r *strategyRuntime) entryDirectionAllowed(direction string) bool {
+	if r == nil {
+		return true
+	}
+	switch strings.ToLower(strings.TrimSpace(r.allowedEntryDirection)) {
+	case "long":
+		return direction == "long"
+	case "short":
+		return direction == "short"
+	default:
+		return true
+	}
 }
 
 func (r *strategyRuntime) submitOrder(side types.SideType, orderType types.OrderType, quantity float64, limitPrice float64) error {

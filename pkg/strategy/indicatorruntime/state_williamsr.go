@@ -1,4 +1,5 @@
 package indicatorruntime
+
 func newRollingWilliamsRStates(requirements indicatorRequirements) map[int]*rollingWilliamsRState {
 	if len(requirements.williamsR) == 0 {
 		return nil
@@ -13,7 +14,6 @@ func newRollingWilliamsRStates(requirements indicatorRequirements) map[int]*roll
 	return states
 }
 
-
 func (r *indicatorRuntime) pushWilliamsRStates(high, low, closeValue float64) {
 	if r == nil || len(r.williamsRStates) == 0 {
 		return
@@ -22,7 +22,6 @@ func (r *indicatorRuntime) pushWilliamsRStates(high, low, closeValue float64) {
 		state.push(high, low, closeValue)
 	}
 }
-
 
 func (r *indicatorRuntime) williamsRValue(period int) any {
 	current, ok := r.williamsRSnapshotValue(period)
@@ -42,7 +41,6 @@ func (r *indicatorRuntime) williamsRSnapshotValue(period int) (float64, bool) {
 	value, ok := calculateWilliamsR(r.highs, r.lows, r.closes, period).(float64)
 	return value, ok
 }
-
 
 func (s *rollingWilliamsRState) push(high, low, closeValue float64) {
 	if s == nil || s.period <= 0 {
@@ -83,4 +81,3 @@ func (s *rollingWilliamsRState) currentValue() (float64, bool) {
 	}
 	return s.current, true
 }
-

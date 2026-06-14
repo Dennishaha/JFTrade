@@ -1,12 +1,17 @@
 package pine
 
 import (
+	"errors"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 
 	strategyir "github.com/jftrade/jftrade-main/pkg/strategy/ir"
 )
+
+var errStaticForBreak = errors.New("static for break")
+var errStaticForContinue = errors.New("static for continue")
 
 func (s *parseState) parseBlock(startIndex int, parentIndent int) ([]strategyir.Statement, int, error) {
 	statements := make([]strategyir.Statement, 0)
@@ -27,6 +32,9 @@ func (s *parseState) parseBlock(startIndex int, parentIndent int) ([]strategyir.
 		}
 		statement, nextIndex, err := s.parseStatement(index)
 		if err != nil {
+			if errors.Is(err, errStaticForBreak) || errors.Is(err, errStaticForContinue) {
+				return statements, nextIndex, err
+			}
 			return nil, index, err
 		}
 		if statement != nil {
@@ -44,10 +52,19 @@ func (s *parseState) parseStatement(index int) (strategyir.Statement, int, error
 		return nil, nextIndex, err
 	}
 	if lower == "break" || lower == "continue" {
+		if s.forDepth > 0 {
+			if lower == "break" {
+				return nil, index + 1, errStaticForBreak
+			}
+			return nil, index + 1, errStaticForContinue
+		}
 		return nil, index, fmt.Errorf("pine line %d: %s is not supported in JFTrade static for loops yet", line.number, line.trimmed)
 	}
 	if err := rejectUnsupported(line); err != nil {
 		return nil, index, err
+	}
+	if statement, nextIndex, ok, err := s.parseSwitch(index); ok || err != nil {
+		return statement, nextIndex, err
 	}
 	if strings.HasPrefix(lower, "if ") {
 		condition := strings.TrimSpace(strings.TrimPrefix(line.trimmed, "if "))
@@ -61,6 +78,9 @@ func (s *parseState) parseStatement(index int) (strategyir.Statement, int, error
 		}
 		thenStatements, nextIndex, err := s.parseBlock(index+1, line.indent)
 		if err != nil {
+			if errors.Is(err, errStaticForBreak) || errors.Is(err, errStaticForContinue) {
+				return nil, index, fmt.Errorf("pine line %d: conditional break/continue in static for loops is not supported by JFTrade yet", line.number)
+			}
 			return nil, index, err
 		}
 		endLine := line.number
@@ -75,6 +95,9 @@ func (s *parseState) parseStatement(index int) (strategyir.Statement, int, error
 		if nextIndex < len(s.lines) && s.lines[nextIndex].indent == line.indent && strings.EqualFold(s.lines[nextIndex].trimmed, "else") {
 			elseStatements, afterElse, elseErr := s.parseBlock(nextIndex+1, line.indent)
 			if elseErr != nil {
+				if errors.Is(elseErr, errStaticForBreak) || errors.Is(elseErr, errStaticForContinue) {
+					return nil, index, fmt.Errorf("pine line %d: conditional break/continue in static for loops is not supported by JFTrade yet", s.lines[nextIndex].number)
+				}
 				return nil, index, elseErr
 			}
 			if len(elseStatements) > 0 {
@@ -145,12 +168,16 @@ func (s *parseState) parseUDFDefinition(index int) (bool, int, error) {
 		if nextIndex >= len(s.lines) || s.lines[nextIndex].indent <= line.indent {
 			return true, index, fmt.Errorf("pine line %d: user-defined function %q requires one expression body", line.number, name)
 		}
-		bodyLine := s.lines[nextIndex]
-		body = strings.TrimSpace(bodyLine.trimmed)
-		nextIndex++
-		if nextIndex < len(s.lines) && s.lines[nextIndex].indent > line.indent {
-			return true, index, fmt.Errorf("pine line %d: multi-statement user-defined functions are not supported by JFTrade yet", line.number)
+		endIndex := nextIndex
+		for endIndex < len(s.lines) && s.lines[endIndex].indent > line.indent {
+			endIndex++
 		}
+		compiledBody, compileErr := compileUDFBody(s.lines[nextIndex:endIndex])
+		if compileErr != nil {
+			return true, index, fmt.Errorf("pine line %d: user-defined function %q: %w", line.number, name, compileErr)
+		}
+		body = compiledBody
+		nextIndex = endIndex
 	}
 	if body == "" || strings.HasPrefix(strings.ToLower(body), "if ") || strings.HasPrefix(strings.ToLower(body), "for ") {
 		return true, index, fmt.Errorf("pine line %d: user-defined function %q must have a single expression body", line.number, name)
@@ -160,6 +187,101 @@ func (s *parseState) parseUDFDefinition(index int) (bool, int, error) {
 	}
 	s.udfs[name] = pineUDF{Name: name, Args: args, Body: body, Line: line.number}
 	return true, nextIndex, nil
+}
+
+func compileUDFBody(lines []parsedLine) (string, error) {
+	if len(lines) == 0 {
+		return "", fmt.Errorf("requires a return expression")
+	}
+	baseIndent := lines[0].indent
+	locals := map[string]string{}
+	var result string
+	for index := 0; index < len(lines); {
+		line := lines[index]
+		if line.indent != baseIndent {
+			return "", fmt.Errorf("unexpected indentation at line %d", line.number)
+		}
+		lower := strings.ToLower(strings.TrimSpace(line.trimmed))
+		if strings.HasPrefix(lower, "if ") {
+			condition := strings.TrimSpace(strings.TrimPrefix(line.trimmed, "if "))
+			thenExpression, nextIndex, err := udfBranchExpression(lines, index+1, line.indent, locals)
+			if err != nil {
+				return "", err
+			}
+			if nextIndex >= len(lines) || lines[nextIndex].indent != line.indent || !strings.EqualFold(lines[nextIndex].trimmed, "else") {
+				return "", fmt.Errorf("if return at line %d requires else", line.number)
+			}
+			elseExpression, afterElse, err := udfBranchExpression(lines, nextIndex+1, line.indent, locals)
+			if err != nil {
+				return "", err
+			}
+			result = fmt.Sprintf("ifelse(%s, %s, %s)",
+				substituteUDFArgs(condition, locals),
+				thenExpression,
+				elseExpression,
+			)
+			index = afterElse
+			if index != len(lines) {
+				return "", fmt.Errorf("final if/else return must be the last function statement")
+			}
+			break
+		}
+		if match := assignmentPattern.FindStringSubmatch(line.trimmed); match != nil {
+			if strings.TrimSpace(match[3]) != "=" {
+				return "", fmt.Errorf("local reassignment is not supported")
+			}
+			locals[strings.TrimSpace(match[2])] = substituteUDFArgs(strings.TrimSpace(match[4]), locals)
+			index++
+			continue
+		}
+		result = substituteUDFArgs(line.trimmed, locals)
+		index++
+		if index != len(lines) {
+			return "", fmt.Errorf("return expression must be the last function statement")
+		}
+	}
+	if strings.TrimSpace(result) == "" {
+		return "", fmt.Errorf("requires a return expression")
+	}
+	return result, nil
+}
+
+func udfBranchExpression(lines []parsedLine, start, parentIndent int, locals map[string]string) (string, int, error) {
+	if start >= len(lines) || lines[start].indent <= parentIndent {
+		return "", start, fmt.Errorf("if/else branch requires an expression")
+	}
+	branchIndent := lines[start].indent
+	index := start
+	branchLocals := make(map[string]string, len(locals))
+	for key, value := range locals {
+		branchLocals[key] = value
+	}
+	result := ""
+	for index < len(lines) && lines[index].indent > parentIndent {
+		line := lines[index]
+		if line.indent != branchIndent {
+			return "", index, fmt.Errorf("nested blocks in UDF branches are not supported")
+		}
+		if match := assignmentPattern.FindStringSubmatch(line.trimmed); match != nil {
+			branchLocals[strings.TrimSpace(match[2])] = substituteUDFArgs(strings.TrimSpace(match[4]), branchLocals)
+		} else {
+			result = substituteUDFArgs(line.trimmed, branchLocals)
+		}
+		index++
+	}
+	if strings.TrimSpace(result) == "" {
+		return "", index, fmt.Errorf("if/else branch requires a return expression")
+	}
+	return result, index, nil
+}
+
+func substituteUDFArgs(expression string, replacements map[string]string) string {
+	result := expression
+	for name, value := range replacements {
+		pattern := regexp.MustCompile(`\b` + regexp.QuoteMeta(name) + `\b`)
+		result = pattern.ReplaceAllString(result, udfArgumentReplacement(value))
+	}
+	return result
 }
 
 func parseUDFArgs(lineNumber int, raw string) ([]string, error) {
@@ -246,6 +368,7 @@ func (s *parseState) parseStaticForLoop(index int) ([]strategyir.Statement, int,
 
 	statements := make([]strategyir.Statement, 0)
 	nextIndex := index + 1
+	loopBodyEnd := s.staticForBodyEnd(index, line.indent)
 	previousValue, hadValue := s.valueAliases[loopVar]
 	previousLoopVar := s.loopVariables[loopVar]
 	s.loopVariables[loopVar] = true
@@ -267,6 +390,16 @@ func (s *parseState) parseStaticForLoop(index int) ([]strategyir.Statement, int,
 	for _, value := range values {
 		s.valueAliases[loopVar] = strconv.Itoa(value)
 		bodyStatements, afterBody, err := s.parseBlock(index+1, line.indent)
+		if errors.Is(err, errStaticForBreak) {
+			statements = append(statements, bodyStatements...)
+			nextIndex = loopBodyEnd
+			break
+		}
+		if errors.Is(err, errStaticForContinue) {
+			statements = append(statements, bodyStatements...)
+			nextIndex = loopBodyEnd
+			continue
+		}
 		if err != nil {
 			return nil, index, err
 		}
@@ -274,6 +407,14 @@ func (s *parseState) parseStaticForLoop(index int) ([]strategyir.Statement, int,
 		statements = append(statements, bodyStatements...)
 	}
 	return statements, nextIndex, nil
+}
+
+func (s *parseState) staticForBodyEnd(index int, parentIndent int) int {
+	next := index + 1
+	for next < len(s.lines) && s.lines[next].indent > parentIndent {
+		next++
+	}
+	return next
 }
 
 func (s *parseState) parseStaticIntExpression(lineNumber int, expression string, label string) (int, error) {

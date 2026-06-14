@@ -12,18 +12,19 @@ type Program struct {
 }
 
 type StrategyMetadata struct {
-	Name            string
-	Version         string
-	Symbol          string
-	Interval        string
-	DefaultQtyMode  string
-	DefaultQtyValue string
-	Pyramiding      int
-	InitialCapital  float64
-	CommissionType  string
-	CommissionValue float64
-	Slippage        int
-	ProcessOnClose  bool
+	Name                  string
+	Version               string
+	Symbol                string
+	Interval              string
+	DefaultQtyMode        string
+	DefaultQtyValue       string
+	Pyramiding            int
+	InitialCapital        float64
+	CommissionType        string
+	CommissionValue       float64
+	Slippage              int
+	ProcessOnClose        bool
+	AllowedEntryDirection string
 }
 
 type HookKind string
@@ -173,6 +174,7 @@ type ExitStmt struct {
 	QuantityExpression string
 	StopExpression     string
 	LimitExpression    string
+	TrailPrice         string
 	TrailPoints        string
 	TrailOffset        string
 	Comment            string

@@ -36,7 +36,6 @@ func newRollingKDJStates(requirements indicatorRequirements, seriesLimit int) ma
 	return states
 }
 
-
 func newRollingKDJState(config kdjConfig, limit int, lookbacks []int) *rollingKDJState {
 	maxLookback := 1
 	for _, lookback := range lookbacks {
@@ -294,7 +293,6 @@ func (s *rollingKDJState) boundaryDByDAt(step int) float64 {
 	return math.Pow(s.dBeta, float64(step))
 }
 
-
 func (r *indicatorRuntime) pushKDJStates(highs, lows, closes []float64, high, low, closeValue float64, trimmed bool) {
 	if r == nil || len(r.kdjStates) == 0 {
 		return
@@ -303,4 +301,3 @@ func (r *indicatorRuntime) pushKDJStates(highs, lows, closes []float64, high, lo
 		state.push(highs, lows, closes, high, low, closeValue, trimmed)
 	}
 }
-

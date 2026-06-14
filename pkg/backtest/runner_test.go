@@ -764,6 +764,92 @@ if bar_index == 2
 	}
 }
 
+func TestRunPineEntryReversalAndAllowedEntryDirection(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+
+	run := func(t *testing.T, name string, script string) *RunResult {
+		t.Helper()
+		dbPath := filepath.Join(t.TempDir(), name+".db")
+		store, err := NewFutuKLineStore(dbPath)
+		if err != nil {
+			t.Fatalf("NewFutuKLineStore() error = %v", err)
+		}
+		baseStart := time.Date(2026, time.May, 26, 9, 30, 0, 0, time.UTC)
+		klines := []types.KLine{
+			{Open: fixedpoint.NewFromFloat(100), High: fixedpoint.NewFromFloat(100), Low: fixedpoint.NewFromFloat(100), Close: fixedpoint.NewFromFloat(100), Volume: fixedpoint.NewFromFloat(1000)},
+			{Open: fixedpoint.NewFromFloat(101), High: fixedpoint.NewFromFloat(104), Low: fixedpoint.NewFromFloat(99), Close: fixedpoint.NewFromFloat(101), Volume: fixedpoint.NewFromFloat(1000)},
+			{Open: fixedpoint.NewFromFloat(102), High: fixedpoint.NewFromFloat(106), Low: fixedpoint.NewFromFloat(98), Close: fixedpoint.NewFromFloat(102), Volume: fixedpoint.NewFromFloat(1000)},
+			{Open: fixedpoint.NewFromFloat(103), High: fixedpoint.NewFromFloat(107), Low: fixedpoint.NewFromFloat(97), Close: fixedpoint.NewFromFloat(103), Volume: fixedpoint.NewFromFloat(1000)},
+		}
+		for index := range klines {
+			start := baseStart.Add(time.Duration(index) * time.Minute)
+			klines[index].StartTime = types.Time(start)
+			klines[index].EndTime = types.Time(start.Add(time.Minute - time.Millisecond))
+			klines[index].Interval = types.Interval1m
+			klines[index].Symbol = "US.AAPL"
+		}
+		if err := store.InsertKLines(klines, "forward"); err != nil {
+			_ = store.Close()
+			t.Fatalf("InsertKLines() error = %v", err)
+		}
+		if err := store.Close(); err != nil {
+			t.Fatalf("store.Close() error = %v", err)
+		}
+		result := Run(context.Background(), RunConfig{
+			DBPath:         dbPath,
+			Symbol:         "US.AAPL",
+			Interval:       string(types.Interval1m),
+			SourceFormat:   strategydefinition.SourceFormatPineV6,
+			StartTime:      klines[0].StartTime.Time(),
+			EndTime:        klines[len(klines)-1].EndTime.Time(),
+			StrategyScript: script,
+			InitialBalance: 100000,
+		})
+		if result == nil {
+			t.Fatal("expected run result")
+		}
+		if result.Error != "" {
+			t.Fatalf("Run() error = %s", result.Error)
+		}
+		if len(result.RuntimeErrors) != 0 {
+			t.Fatalf("RuntimeErrors = %#v, want empty", result.RuntimeErrors)
+		}
+		return result
+	}
+
+	t.Run("allowed long closes but does not reverse to short", func(t *testing.T) {
+		result := run(t, "allow-long", `//@version=6
+strategy("Allow long only", overlay=true)
+strategy.risk.allow_entry_in(strategy.direction.long)
+if bar_index == 0
+    strategy.entry("Long", strategy.long, qty=10)
+if bar_index == 1
+    strategy.entry("ShortBlocked", strategy.short, qty=2)`)
+		if len(result.Trades) != 2 {
+			t.Fatalf("trades = %#v, want long entry then close-only short entry", result.Trades)
+		}
+		if result.Trades[0].Side != "BUY" || result.Trades[0].Qty != "10" || result.Trades[1].Side != "SELL" || result.Trades[1].Qty != "10" {
+			t.Fatalf("trades = %#v, want BUY 10 then SELL 10 for flat final position", result.Trades)
+		}
+	})
+
+	t.Run("pending blocked entry closes using trigger-time position", func(t *testing.T) {
+		result := run(t, "pending-allow-long", `//@version=6
+strategy("Pending allow long only", overlay=true)
+strategy.risk.allow_entry_in(strategy.direction.long)
+if bar_index == 0
+    strategy.entry("Long", strategy.long, qty=10)
+if bar_index == 1
+    strategy.entry("ShortStopBlocked", strategy.short, stop=99, qty=2)`)
+		if len(result.Trades) != 2 {
+			t.Fatalf("trades = %#v, want long entry then pending close-only short entry", result.Trades)
+		}
+		if result.Trades[0].Side != "BUY" || result.Trades[0].Qty != "10" || result.Trades[1].Side != "SELL" || result.Trades[1].Qty != "10" {
+			t.Fatalf("trades = %#v, want BUY 10 then SELL 10 for flat final position", result.Trades)
+		}
+	})
+}
+
 func TestRunStrategyExitQtyPercentPartiallyExits(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 
@@ -901,17 +987,81 @@ strategy.cancel("Breakout")`)
 		}
 	})
 
+	t.Run("stop-limit activates before limit fill", func(t *testing.T) {
+		result := run(t, "pending-stop-limit", `//@version=6
+strategy("Pending stop-limit", overlay=true)
+strategy.entry("StopLimit", strategy.long, stop=105, limit=99, qty=2)`)
+		if len(result.OrderBook) != 1 {
+			t.Fatalf("orders = %#v, want one activated limit fill", result.OrderBook)
+		}
+		order := result.OrderBook[0]
+		if order.Side != "BUY" || order.Quantity != "2" || order.OrderType != "LIMIT" ||
+			order.OrderPrice != "99" || order.Status != "FILLED" || order.FilledQuantity != "2" || order.FilledPrice != "99" {
+			t.Fatalf("stop-limit order = %#v, want BUY 2 limit 99", order)
+		}
+		if len(result.Trades) != 1 || result.Trades[0].Side != "BUY" || result.Trades[0].Price != "99" || result.Trades[0].Qty != "2" {
+			t.Fatalf("stop-limit trades = %#v, want final long position 2 filled at 99", result.Trades)
+		}
+	})
+
 	t.Run("bracket partial stop first", func(t *testing.T) {
 		result := run(t, "bracket-partial", `//@version=6
 strategy("Bracket", overlay=true)
 if position_size == 0
     strategy.entry("Long", strategy.long, qty=10)
-strategy.exit("Bracket", "Long", stop=98, limit=105, qty_percent=50)`)
-		if len(result.OrderBook) < 2 {
-			t.Fatalf("orders = %#v, want entry and exit", result.OrderBook)
+if bar_index == 2
+    strategy.exit("Bracket", "Long", stop=98, limit=105, qty_percent=50)`)
+		if len(result.OrderBook) != 2 {
+			t.Fatalf("orders = %#v, want exactly entry then exit", result.OrderBook)
 		}
-		if result.OrderBook[1].Side != "SELL" || result.OrderBook[1].Quantity != "5" {
+		if result.OrderBook[0].Side != "BUY" || result.OrderBook[0].FilledPrice != "100" ||
+			result.OrderBook[1].Side != "SELL" || result.OrderBook[1].Quantity != "5" ||
+			result.OrderBook[1].Status != "FILLED" || result.OrderBook[1].FilledPrice != "102" {
 			t.Fatalf("bracket exit order = %#v, want SELL 5", result.OrderBook[1])
+		}
+		if len(result.Trades) != 2 || result.Trades[0].Qty != "10" || result.Trades[1].Qty != "5" {
+			t.Fatalf("bracket trades = %#v, want final long position 5", result.Trades)
+		}
+	})
+
+	t.Run("trailing points closes position", func(t *testing.T) {
+		result := run(t, "trailing-points", `//@version=6
+strategy("Trailing points", overlay=true)
+if bar_index == 0
+    strategy.entry("Long", strategy.long, qty=4)
+if strategy.position_size == 4
+    strategy.exit("Trail", "Long", trail_points=100, trail_offset=200, qty_percent=50)`)
+		if len(result.OrderBook) < 2 {
+			t.Fatalf("orders = %#v, want entry and trailing exit", result.OrderBook)
+		}
+		exit := result.OrderBook[1]
+		if exit.Side != "SELL" || exit.Quantity != "2" || exit.Status != "FILLED" || exit.FilledPrice != "101" {
+			t.Fatalf("trailing exit = %#v, want SELL 2", exit)
+		}
+		if len(result.Trades) != 2 || result.Trades[0].Side != "BUY" || result.Trades[0].Price != "100" ||
+			result.Trades[0].Qty != "4" || result.Trades[1].Side != "SELL" || result.Trades[1].Price != "101" ||
+			result.Trades[1].Qty != "2" {
+			t.Fatalf("trailing trades = %#v, want final long position 2", result.Trades)
+		}
+	})
+
+	t.Run("trailing price closes position", func(t *testing.T) {
+		result := run(t, "trailing-price", `//@version=6
+strategy("Trailing price", overlay=true)
+if bar_index == 0
+    strategy.entry("Long", strategy.long, qty=3)
+strategy.exit("Trail", "Long", trail_price=103, trail_offset=100)`)
+		if len(result.OrderBook) < 2 {
+			t.Fatalf("orders = %#v, want entry and trailing exit", result.OrderBook)
+		}
+		exit := result.OrderBook[1]
+		if exit.Side != "SELL" || exit.Quantity != "3" || exit.Status != "FILLED" || exit.FilledPrice != "101" {
+			t.Fatalf("trailing exit = %#v, want SELL 3", exit)
+		}
+		if len(result.Trades) != 2 || result.Trades[0].Side != "BUY" || result.Trades[0].Price != "100" ||
+			result.Trades[0].Qty != "3" || result.Trades[1].Side != "SELL" || result.Trades[1].Price != "101" ||
+			result.Trades[1].Qty != "3" {
+			t.Fatalf("trailing trades = %#v, want flat final position", result.Trades)
 		}
 	})
 }

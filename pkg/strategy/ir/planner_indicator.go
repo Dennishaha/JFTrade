@@ -10,19 +10,23 @@ import (
 )
 
 var divergenceCallPattern = regexp.MustCompile(`divergence_(top|bottom)\s*\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*,\s*([0-9]+)\s*\)`)
-var rsiCallPattern = regexp.MustCompile(`\brsi\s*\(\s*([^,]+?)\s*,\s*([0-9]+)\s*\)`)
+var rsiCallPattern = regexp.MustCompile(`\brsi\s*\(\s*([^,]+?)\s*,\s*([0-9]+)(?:\s*,\s*('[^']+'|"[^"]+"|[A-Za-z0-9_]+))?\s*\)`)
 var stdevCallPattern = regexp.MustCompile(`\bstdev\s*\(\s*([^,]+?)\s*,\s*([0-9]+)\s*\)`)
 var varianceCallPattern = regexp.MustCompile(`\bvariance\s*\(\s*([^,]+?)\s*,\s*([0-9]+)\s*\)`)
 var cciCallPattern = regexp.MustCompile(`\bcci\s*\(\s*([^,]+?)\s*,\s*([0-9]+)\s*\)`)
+var macdCallPattern = regexp.MustCompile(`\bmacd\s*\(\s*([0-9]+)\s*,\s*([0-9]+)\s*,\s*([0-9]+)(?:\s*,\s*('[^']+'|"[^"]+"|[A-Za-z0-9_]+)\s*,\s*([A-Za-z_][A-Za-z0-9_]*))?\s*\)`)
+var atrCallPattern = regexp.MustCompile(`\batr\s*\(\s*([0-9]+)(?:\s*,\s*('[^']+'|"[^"]+"|[A-Za-z0-9_]+))?\s*\)`)
+var bollingerCallPattern = regexp.MustCompile(`\bbollinger\s*\(\s*([0-9]+)\s*,\s*([0-9]+(?:\.[0-9]+)?)(?:\s*,\s*('[^']+'|"[^"]+"|[A-Za-z0-9_]+)\s*,\s*([A-Za-z_][A-Za-z0-9_]*))?\s*\)`)
 var cumCallPattern = regexp.MustCompile(`\bcum\s*\(\s*([^)]+?)\s*\)`)
 var stochCallPattern = regexp.MustCompile(`\bstoch\s*\(\s*([^,]+?)\s*,\s*([^,]+?)\s*,\s*([^,]+?)\s*,\s*([0-9]+)\s*\)`)
 var vwapCallPattern = regexp.MustCompile(`\bvwap\s*\(\s*([^)]+?)\s*\)`)
 var mfiCallPattern = regexp.MustCompile(`\bmfi\s*\(\s*([^,]+?)\s*,\s*([0-9]+)\s*\)`)
 var dmiCallPattern = regexp.MustCompile(`\bdmi\s*\(\s*([0-9]+)\s*,\s*([0-9]+)\s*\)`)
-var supertrendCallPattern = regexp.MustCompile(`\bsupertrend\s*\(\s*([0-9]+(?:\.[0-9]+)?)\s*,\s*([0-9]+)\s*\)`)
+var supertrendCallPattern = regexp.MustCompile(`\bsupertrend\s*\(\s*([0-9]+(?:\.[0-9]+)?)\s*,\s*([0-9]+)(?:\s*,\s*('[^']+'|"[^"]+"|[A-Za-z0-9_]+))?\s*\)`)
 var sarCallPattern = regexp.MustCompile(`\bsar\s*\(\s*([0-9]+(?:\.[0-9]+)?)\s*,\s*([0-9]+(?:\.[0-9]+)?)\s*,\s*([0-9]+(?:\.[0-9]+)?)\s*\)`)
+var maCallPattern = regexp.MustCompile(`\bma\s*\(([^()]*)\)`)
 var securitySourceCallPattern = regexp.MustCompile(`\bsecurity_source\s*\(\s*([^,]+?)\s*,\s*([^,\)]+?)(?:\s*,\s*([0-9]+)\s*)?\)`)
-var windowCallPattern = regexp.MustCompile(`\b(highest|lowest|highestbars|lowestbars|change|mom|roc|rising|falling|sum)\s*\(\s*([^,]+?)\s*,\s*([0-9]+)\s*\)`)
+var windowCallPattern = regexp.MustCompile(`\b(highest|lowest|highestbars|lowestbars|change|mom|roc|range|mode|rising|falling|sum)\s*\(\s*([^,]+?)\s*,\s*([0-9]+)\s*\)`)
 
 func parseIndicatorBinding(statement *LetStmt) (plannedBinding, bool, error) {
 	name, args, ok := indicatorbinding.ParseFunctionCall(statement.Expression)
@@ -31,6 +35,10 @@ func parseIndicatorBinding(statement *LetStmt) (plannedBinding, bool, error) {
 	}
 
 	switch indicatorbinding.NormalizeFunctionName(name) {
+	case "linreg", "obv", "pivothigh", "pivotlow", "kc", "kcw", "alma",
+		"cmo", "tsi", "correlation", "dev", "median", "percentile_linear_interpolation",
+		"percentile_nearest_rank", "percentrank", "swma":
+		return parseAdvancedIndicatorBinding(statement.Range.StartLine, statement.Name, indicatorbinding.NormalizeFunctionName(name), args)
 	case "ma":
 		if len(args) < 2 || len(args) > 4 {
 			return plannedBinding{}, false, fmt.Errorf("pine line %d: ma() requires type, period, optional time unit, and optional source", statement.Range.StartLine)
@@ -100,7 +108,7 @@ func parseIndicatorBinding(statement *LetStmt) (plannedBinding, bool, error) {
 		}
 		key := "cum:" + source
 		return plannedBinding{Alias: statement.Name, Kind: "cum", Key: key, Args: []string{source}}, true, nil
-	case "highest", "lowest", "highestbars", "lowestbars", "change", "mom", "roc", "rising", "falling", "sum":
+	case "highest", "lowest", "highestbars", "lowestbars", "change", "mom", "roc", "range", "mode", "rising", "falling", "sum":
 		if len(args) != 2 {
 			return plannedBinding{}, false, fmt.Errorf("pine line %d: %s() requires source and length arguments", statement.Range.StartLine, name)
 		}
@@ -247,6 +255,254 @@ func parseIndicatorBinding(statement *LetStmt) (plannedBinding, bool, error) {
 	}
 }
 
+func parseAdvancedIndicatorBinding(lineNumber int, alias, name string, args []string) (plannedBinding, bool, error) {
+	sourceArg := func(value string) (string, error) {
+		source, ok := indicatorbinding.ParsePriceSource(value)
+		if !ok {
+			return "", fmt.Errorf("pine line %d: %s() source %q is not supported", lineNumber, name, strings.TrimSpace(value))
+		}
+		return source, nil
+	}
+	timeUnit := ""
+	parseTimeUnit := func(index int) error {
+		if len(args) <= index {
+			return nil
+		}
+		if len(args) != index+1 {
+			return fmt.Errorf("pine line %d: %s() received an invalid argument count", lineNumber, name)
+		}
+		parsed, ok := indicatorbinding.ParseIndicatorTimeUnitValue(args[index])
+		if !ok || parsed == "" {
+			return fmt.Errorf("pine line %d: %s() timeframe %q is not supported", lineNumber, name, strings.TrimSpace(args[index]))
+		}
+		timeUnit = parsed
+		args = args[:index]
+		return nil
+	}
+	withTimeUnit := func(key string) string {
+		if timeUnit == "" {
+			return key
+		}
+		return key + ":" + timeUnit
+	}
+	switch name {
+	case "cmo", "dev", "median", "percentrank":
+		if err := parseTimeUnit(2); err != nil {
+			return plannedBinding{}, false, err
+		}
+		if len(args) != 2 {
+			return plannedBinding{}, false, fmt.Errorf("pine line %d: %s() requires source and length", lineNumber, name)
+		}
+		source, err := sourceArg(args[0])
+		if err != nil {
+			return plannedBinding{}, false, err
+		}
+		period, err := indicatorbinding.ParsePositiveInt(args[1])
+		if err != nil {
+			return plannedBinding{}, false, fmt.Errorf("pine line %d: %s() length must be positive", lineNumber, name)
+		}
+		key := withTimeUnit(fmt.Sprintf("%s:%s:%d", name, source, period))
+		return plannedBinding{Alias: alias, Kind: name, Key: key, Args: []string{source, strconv.Itoa(period)}}, true, nil
+	case "tsi":
+		if err := parseTimeUnit(3); err != nil {
+			return plannedBinding{}, false, err
+		}
+		if len(args) != 3 {
+			return plannedBinding{}, false, fmt.Errorf("pine line %d: tsi() requires source, short length, and long length", lineNumber)
+		}
+		source, err := sourceArg(args[0])
+		if err != nil {
+			return plannedBinding{}, false, err
+		}
+		shortPeriod, err := indicatorbinding.ParsePositiveInt(args[1])
+		if err != nil {
+			return plannedBinding{}, false, fmt.Errorf("pine line %d: tsi() short length must be positive", lineNumber)
+		}
+		longPeriod, err := indicatorbinding.ParsePositiveInt(args[2])
+		if err != nil {
+			return plannedBinding{}, false, fmt.Errorf("pine line %d: tsi() long length must be positive", lineNumber)
+		}
+		key := withTimeUnit(fmt.Sprintf("tsi:%s:%d:%d", source, shortPeriod, longPeriod))
+		return plannedBinding{Alias: alias, Kind: name, Key: key, Args: []string{source, strconv.Itoa(shortPeriod), strconv.Itoa(longPeriod)}}, true, nil
+	case "correlation":
+		if err := parseTimeUnit(3); err != nil {
+			return plannedBinding{}, false, err
+		}
+		if len(args) != 3 {
+			return plannedBinding{}, false, fmt.Errorf("pine line %d: correlation() requires source, second source, and length", lineNumber)
+		}
+		source, err := sourceArg(args[0])
+		if err != nil {
+			return plannedBinding{}, false, err
+		}
+		source2, err := sourceArg(args[1])
+		if err != nil {
+			return plannedBinding{}, false, err
+		}
+		period, err := indicatorbinding.ParsePositiveInt(args[2])
+		if err != nil {
+			return plannedBinding{}, false, fmt.Errorf("pine line %d: correlation() length must be positive", lineNumber)
+		}
+		key := withTimeUnit(fmt.Sprintf("correlation:%s:%s:%d", source, source2, period))
+		return plannedBinding{Alias: alias, Kind: name, Key: key, Args: []string{source, source2, strconv.Itoa(period)}}, true, nil
+	case "percentile_linear_interpolation", "percentile_nearest_rank":
+		if err := parseTimeUnit(3); err != nil {
+			return plannedBinding{}, false, err
+		}
+		if len(args) != 3 {
+			return plannedBinding{}, false, fmt.Errorf("pine line %d: %s() requires source, length, and percentage", lineNumber, name)
+		}
+		source, err := sourceArg(args[0])
+		if err != nil {
+			return plannedBinding{}, false, err
+		}
+		period, err := indicatorbinding.ParsePositiveInt(args[1])
+		if err != nil {
+			return plannedBinding{}, false, fmt.Errorf("pine line %d: %s() length must be positive", lineNumber, name)
+		}
+		percentage, err := strconv.ParseFloat(strings.TrimSpace(args[2]), 64)
+		if err != nil || percentage < 0 || percentage > 100 {
+			return plannedBinding{}, false, fmt.Errorf("pine line %d: %s() percentage must be between 0 and 100", lineNumber, name)
+		}
+		key := withTimeUnit(fmt.Sprintf("%s:%s:%d:%s", name, source, period, strconv.FormatFloat(percentage, 'f', -1, 64)))
+		return plannedBinding{Alias: alias, Kind: name, Key: key, Args: []string{source, strconv.Itoa(period), strconv.FormatFloat(percentage, 'f', -1, 64)}}, true, nil
+	case "swma":
+		if err := parseTimeUnit(1); err != nil {
+			return plannedBinding{}, false, err
+		}
+		if len(args) != 1 {
+			return plannedBinding{}, false, fmt.Errorf("pine line %d: swma() requires one source", lineNumber)
+		}
+		source, err := sourceArg(args[0])
+		if err != nil {
+			return plannedBinding{}, false, err
+		}
+		return plannedBinding{Alias: alias, Kind: name, Key: withTimeUnit("swma:" + source), Args: []string{source}}, true, nil
+	case "linreg":
+		if err := parseTimeUnit(3); err != nil {
+			return plannedBinding{}, false, err
+		}
+		if len(args) != 3 {
+			return plannedBinding{}, false, fmt.Errorf("pine line %d: linreg() requires source, length, and offset", lineNumber)
+		}
+		source, err := sourceArg(args[0])
+		if err != nil {
+			return plannedBinding{}, false, err
+		}
+		period, err := indicatorbinding.ParsePositiveInt(args[1])
+		if err != nil {
+			return plannedBinding{}, false, fmt.Errorf("pine line %d: linreg() length must be positive", lineNumber)
+		}
+		offset, err := strconv.Atoi(strings.TrimSpace(args[2]))
+		if err != nil || offset < 0 {
+			return plannedBinding{}, false, fmt.Errorf("pine line %d: linreg() offset must be a non-negative integer", lineNumber)
+		}
+		key := withTimeUnit(fmt.Sprintf("linreg:%s:%d:%d", source, period, offset))
+		return plannedBinding{Alias: alias, Kind: name, Key: key, Args: []string{source, strconv.Itoa(period), strconv.Itoa(offset)}}, true, nil
+	case "obv":
+		if len(args) == 0 {
+			args = []string{"close"}
+		}
+		if err := parseTimeUnit(1); err != nil {
+			return plannedBinding{}, false, err
+		}
+		if len(args) != 1 {
+			return plannedBinding{}, false, fmt.Errorf("pine line %d: obv() accepts one source", lineNumber)
+		}
+		source, err := sourceArg(args[0])
+		if err != nil {
+			return plannedBinding{}, false, err
+		}
+		return plannedBinding{Alias: alias, Kind: name, Key: withTimeUnit("obv:" + source), Args: []string{source}}, true, nil
+	case "pivothigh", "pivotlow":
+		if err := parseTimeUnit(3); err != nil {
+			return plannedBinding{}, false, err
+		}
+		source := "high"
+		if name == "pivotlow" {
+			source = "low"
+		}
+		lengthArgs := args
+		if len(args) == 3 {
+			var err error
+			source, err = sourceArg(args[0])
+			if err != nil {
+				return plannedBinding{}, false, err
+			}
+			lengthArgs = args[1:]
+		}
+		if len(lengthArgs) != 2 {
+			return plannedBinding{}, false, fmt.Errorf("pine line %d: %s() requires left and right bars with optional source", lineNumber, name)
+		}
+		left, err := indicatorbinding.ParsePositiveInt(lengthArgs[0])
+		if err != nil {
+			return plannedBinding{}, false, fmt.Errorf("pine line %d: %s() left bars must be positive", lineNumber, name)
+		}
+		right, err := indicatorbinding.ParsePositiveInt(lengthArgs[1])
+		if err != nil {
+			return plannedBinding{}, false, fmt.Errorf("pine line %d: %s() right bars must be positive", lineNumber, name)
+		}
+		key := withTimeUnit(fmt.Sprintf("%s:%s:%d:%d", name, source, left, right))
+		return plannedBinding{Alias: alias, Kind: name, Key: key, Args: []string{source, strconv.Itoa(left), strconv.Itoa(right)}}, true, nil
+	case "kc", "kcw":
+		if err := parseTimeUnit(4); err != nil {
+			return plannedBinding{}, false, err
+		}
+		if len(args) < 3 || len(args) > 4 {
+			return plannedBinding{}, false, fmt.Errorf("pine line %d: %s() requires source, length, multiplier, and optional useTrueRange", lineNumber, name)
+		}
+		source, err := sourceArg(args[0])
+		if err != nil {
+			return plannedBinding{}, false, err
+		}
+		period, err := indicatorbinding.ParsePositiveInt(args[1])
+		if err != nil {
+			return plannedBinding{}, false, fmt.Errorf("pine line %d: %s() length must be positive", lineNumber, name)
+		}
+		multiplier, err := indicatorbinding.ParsePositiveFloat(args[2])
+		if err != nil {
+			return plannedBinding{}, false, fmt.Errorf("pine line %d: %s() multiplier must be positive", lineNumber, name)
+		}
+		useTR := true
+		if len(args) == 4 {
+			parsed, parseErr := strconv.ParseBool(strings.TrimSpace(args[3]))
+			if parseErr != nil {
+				return plannedBinding{}, false, fmt.Errorf("pine line %d: %s() useTrueRange must be boolean", lineNumber, name)
+			}
+			useTR = parsed
+		}
+		key := withTimeUnit(fmt.Sprintf("%s:%s:%d:%s:%t", name, source, period, strconv.FormatFloat(multiplier, 'f', -1, 64), useTR))
+		return plannedBinding{Alias: alias, Kind: name, Key: key, Args: args}, true, nil
+	case "alma":
+		if err := parseTimeUnit(4); err != nil {
+			return plannedBinding{}, false, err
+		}
+		if len(args) != 4 {
+			return plannedBinding{}, false, fmt.Errorf("pine line %d: alma() requires source, length, offset, and sigma", lineNumber)
+		}
+		source, err := sourceArg(args[0])
+		if err != nil {
+			return plannedBinding{}, false, err
+		}
+		period, err := indicatorbinding.ParsePositiveInt(args[1])
+		if err != nil {
+			return plannedBinding{}, false, fmt.Errorf("pine line %d: alma() length must be positive", lineNumber)
+		}
+		offset, err := strconv.ParseFloat(strings.TrimSpace(args[2]), 64)
+		if err != nil {
+			return plannedBinding{}, false, fmt.Errorf("pine line %d: alma() offset must be numeric", lineNumber)
+		}
+		sigma, err := indicatorbinding.ParsePositiveFloat(args[3])
+		if err != nil {
+			return plannedBinding{}, false, fmt.Errorf("pine line %d: alma() sigma must be positive", lineNumber)
+		}
+		key := withTimeUnit(fmt.Sprintf("alma:%s:%d:%s:%s", source, period, strconv.FormatFloat(offset, 'f', -1, 64), strconv.FormatFloat(sigma, 'f', -1, 64)))
+		return plannedBinding{Alias: alias, Kind: name, Key: key, Args: args}, true, nil
+	default:
+		return plannedBinding{}, false, nil
+	}
+}
+
 func collectExpressionRequirements(lineNumber int, expression string) ([]IndicatorRequirement, error) {
 	requirements := make([]IndicatorRequirement, 0)
 	seen := map[string]struct{}{}
@@ -277,7 +533,69 @@ func collectExpressionRequirements(lineNumber int, expression string) ([]Indicat
 		if err != nil {
 			continue
 		}
+		if len(match) > 3 && strings.TrimSpace(match[3]) != "" {
+			timeUnit, timeUnitOK := indicatorbinding.ParseIndicatorTimeUnitValue(match[3])
+			if !timeUnitOK || timeUnit == "" {
+				return nil, fmt.Errorf("pine line %d: rsi() timeframe %q is not supported", lineNumber, strings.TrimSpace(match[3]))
+			}
+			add("rsi", fmt.Sprintf("rsi:%s:%d:%s", source, period, timeUnit))
+			continue
+		}
 		add("rsi", sourcePeriodKey("rsi", source, period, "close"))
+	}
+	for _, match := range macdCallPattern.FindAllStringSubmatch(expression, -1) {
+		fast, fastErr := indicatorbinding.ParsePositiveInt(match[1])
+		slow, slowErr := indicatorbinding.ParsePositiveInt(match[2])
+		signal, signalErr := indicatorbinding.ParsePositiveInt(match[3])
+		if fastErr != nil || slowErr != nil || signalErr != nil {
+			continue
+		}
+		if len(match) > 5 && strings.TrimSpace(match[4]) != "" {
+			timeUnit, timeUnitOK := indicatorbinding.ParseIndicatorTimeUnitValue(match[4])
+			source, sourceOK := indicatorbinding.ParsePriceSource(match[5])
+			if !timeUnitOK || timeUnit == "" || !sourceOK {
+				return nil, fmt.Errorf("pine line %d: macd() supports OHLCV/hl2/hlc3/ohlc4 source and supported timeframe", lineNumber)
+			}
+			add("macd", fmt.Sprintf("macd:%s:%d:%d:%d:%s", source, fast, slow, signal, timeUnit))
+			continue
+		}
+		add("macd", fmt.Sprintf("macd:%d:%d:%d", fast, slow, signal))
+	}
+	for _, match := range atrCallPattern.FindAllStringSubmatch(expression, -1) {
+		period, err := indicatorbinding.ParsePositiveInt(match[1])
+		if err != nil {
+			continue
+		}
+		if len(match) > 2 && strings.TrimSpace(match[2]) != "" {
+			timeUnit, timeUnitOK := indicatorbinding.ParseIndicatorTimeUnitValue(match[2])
+			if !timeUnitOK || timeUnit == "" {
+				return nil, fmt.Errorf("pine line %d: atr() timeframe %q is not supported", lineNumber, strings.TrimSpace(match[2]))
+			}
+			add("atr", fmt.Sprintf("atr:%d:%s", period, timeUnit))
+			continue
+		}
+		add("atr", "atr:"+strconv.Itoa(period))
+	}
+	for _, match := range bollingerCallPattern.FindAllStringSubmatch(expression, -1) {
+		period, err := indicatorbinding.ParsePositiveInt(match[1])
+		if err != nil {
+			continue
+		}
+		multiplier, multiplierErr := strconv.ParseFloat(strings.TrimSpace(match[2]), 64)
+		if multiplierErr != nil || multiplier <= 0 {
+			continue
+		}
+		multiplierText := strconv.FormatFloat(multiplier, 'f', -1, 64)
+		if len(match) > 4 && strings.TrimSpace(match[3]) != "" {
+			timeUnit, timeUnitOK := indicatorbinding.ParseIndicatorTimeUnitValue(match[3])
+			source, sourceOK := indicatorbinding.ParsePriceSource(match[4])
+			if !timeUnitOK || timeUnit == "" || !sourceOK {
+				return nil, fmt.Errorf("pine line %d: bollinger() supports OHLCV/hl2/hlc3/ohlc4 source and supported timeframe", lineNumber)
+			}
+			add("bollinger", fmt.Sprintf("bollinger:%s:%d:%s:%s", source, period, multiplierText, timeUnit))
+			continue
+		}
+		add("bollinger", "bollinger:"+strconv.Itoa(period)+":"+multiplierText)
 	}
 	for _, match := range cciCallPattern.FindAllStringSubmatch(expression, -1) {
 		source, ok := indicatorbinding.ParsePriceSource(match[1])
@@ -360,7 +678,19 @@ func collectExpressionRequirements(lineNumber int, expression string) ([]Indicat
 		if err != nil || factor <= 0 {
 			continue
 		}
-		add("supertrend", "supertrend:"+strconv.FormatFloat(factor, 'f', -1, 64)+":"+strings.TrimSpace(match[2]))
+		period, periodErr := indicatorbinding.ParsePositiveInt(match[2])
+		if periodErr != nil {
+			continue
+		}
+		if len(match) > 3 && strings.TrimSpace(match[3]) != "" {
+			timeUnit, timeUnitOK := indicatorbinding.ParseIndicatorTimeUnitValue(match[3])
+			if !timeUnitOK || timeUnit == "" {
+				return nil, fmt.Errorf("pine line %d: supertrend() timeframe %q is not supported", lineNumber, strings.TrimSpace(match[3]))
+			}
+			add("supertrend", "supertrend:"+strconv.FormatFloat(factor, 'f', -1, 64)+":"+strconv.Itoa(period)+":"+timeUnit)
+			continue
+		}
+		add("supertrend", "supertrend:"+strconv.FormatFloat(factor, 'f', -1, 64)+":"+strconv.Itoa(period))
 	}
 	for _, match := range sarCallPattern.FindAllStringSubmatch(expression, -1) {
 		start, startErr := strconv.ParseFloat(strings.TrimSpace(match[1]), 64)
@@ -370,6 +700,25 @@ func collectExpressionRequirements(lineNumber int, expression string) ([]Indicat
 			continue
 		}
 		add("sar", sarPlannerKey(sarPlannerConfig{start: start, increment: increment, maximum: maximum}))
+	}
+	for _, match := range maCallPattern.FindAllStringSubmatch(expression, -1) {
+		args := splitPlannerArguments(match[1])
+		if len(args) < 2 || len(args) > 4 {
+			return nil, fmt.Errorf("pine line %d: ma() requires type, period, optional time unit, and optional source", lineNumber)
+		}
+		averageType, ok := indicatorbinding.ParseMovingAverageType(args[0])
+		if !ok {
+			return nil, fmt.Errorf("pine line %d: ma() type %q is not supported", lineNumber, strings.TrimSpace(args[0]))
+		}
+		period, err := indicatorbinding.ParsePositiveInt(args[1])
+		if err != nil {
+			return nil, fmt.Errorf("pine line %d: ma() period must be a positive integer", lineNumber)
+		}
+		timeUnit, source, err := indicatorbinding.ParseMovingAverageOptionalArgs(args[2:])
+		if err != nil {
+			return nil, fmt.Errorf("pine line %d: %w", lineNumber, err)
+		}
+		add("ma", indicatorbinding.BuildMovingAverageKeyWithSource(averageType, period, timeUnit, source))
 	}
 	for _, match := range securitySourceCallPattern.FindAllStringSubmatch(expression, -1) {
 		source, sourceOK := indicatorbinding.ParsePriceSource(match[1])
@@ -388,6 +737,18 @@ func collectExpressionRequirements(lineNumber int, expression string) ([]Indicat
 		add("security_source", securitySourcePlannerKey(source, timeUnit, lookback))
 	}
 	return requirements, nil
+}
+
+func splitPlannerArguments(value string) []string {
+	parts := strings.Split(value, ",")
+	out := make([]string, 0, len(parts))
+	for _, part := range parts {
+		trimmed := strings.TrimSpace(part)
+		if trimmed != "" {
+			out = append(out, trimmed)
+		}
+	}
+	return out
 }
 
 func collectConditionRequirements(condition string, bindings map[string]plannedBinding) []IndicatorRequirement {

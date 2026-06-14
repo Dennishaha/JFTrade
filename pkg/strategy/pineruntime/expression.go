@@ -76,6 +76,8 @@ func evaluateAST(node exprast.Node, scope *evaluationScope) (any, error) {
 		return evaluateUnaryExpression(typed, scope)
 	case *exprast.BinaryNode:
 		return evaluateBinaryExpression(typed, scope)
+	case *exprast.ConditionalNode:
+		return evaluateConditionalExpression(typed, scope)
 	case *exprast.CallNode:
 		return evaluateCallExpression(typed, scope)
 	case *exprast.BuiltinNode:
@@ -87,6 +89,21 @@ func evaluateAST(node exprast.Node, scope *evaluationScope) (any, error) {
 	default:
 		return nil, fmt.Errorf("unsupported expression node %T", node)
 	}
+}
+
+func evaluateConditionalExpression(expression *exprast.ConditionalNode, scope *evaluationScope) (any, error) {
+	conditionValue, err := evaluateAST(expression.Cond, scope)
+	if err != nil {
+		return nil, err
+	}
+	condition, ok := strictBoolValue(conditionValue)
+	if !ok {
+		return nil, fmt.Errorf("conditional expression requires a boolean condition")
+	}
+	if condition {
+		return evaluateAST(expression.Exp1, scope)
+	}
+	return evaluateAST(expression.Exp2, scope)
 }
 
 func evaluateIdentifier(identifier *exprast.IdentifierNode, scope *evaluationScope) (any, error) {
@@ -307,6 +324,9 @@ func evaluateMemberExpression(expression *exprast.MemberNode, scope *evaluationS
 	if err != nil {
 		return nil, err
 	}
+	if base == nil {
+		return nil, nil
+	}
 	property, ok := memberPropertyName(expression.Property)
 	if !ok {
 		return nil, fmt.Errorf("unsupported member property %T", expression.Property)
@@ -328,7 +348,7 @@ func evaluateMemberExpression(expression *exprast.MemberNode, scope *evaluationS
 		return nil, fmt.Errorf("selector %s requires an object expression", property)
 	}
 	if current == missingObjectField {
-		return nil, fmt.Errorf("unknown field %q", property)
+		return nil, nil
 	}
 	if previousField := previousFieldName(property); previousField != "" {
 		if previous, ok := readObjectField(base, previousField); ok && previous != missingObjectField {

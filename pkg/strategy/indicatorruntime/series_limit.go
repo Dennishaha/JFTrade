@@ -88,6 +88,16 @@ func calculateIndicatorSeriesLimit(requirements indicatorRequirements, intervalM
 	for _, config := range requirements.kdjDivergence {
 		limit = max(limit, config.period+config.m1+config.m2+config.lookback+1)
 	}
+	for _, config := range requirements.advanced {
+		lookback := config.period + config.offset + 2
+		if config.left+config.right+2 > lookback {
+			lookback = config.left + config.right + 2
+		}
+		if config.timeUnit != "" {
+			lookback = resolveBarCount(lookback, config.timeUnit, intervalMinutes)
+		}
+		limit = max(limit, lookback)
+	}
 	return limit
 }
 

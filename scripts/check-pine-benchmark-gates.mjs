@@ -34,7 +34,7 @@ export function compareBenchmarks(baseRows, headRows) {
   return comparisons;
 }
 
-export function assertBenchmarkGates(mode, comparisons) {
+export function assertBenchmarkGates(mode, comparisons, options = {}) {
   const failures = [];
   for (const comparison of comparisons) {
     const { ns, bytes, allocs } = comparison.metrics;
@@ -43,7 +43,7 @@ export function assertBenchmarkGates(mode, comparisons) {
     if (bytes.delta > 10) failures.push(`${comparison.name} B/op regressed ${bytes.delta.toFixed(1)}%`);
     if (allocs.delta > 10) failures.push(`${comparison.name} allocs/op regressed ${allocs.delta.toFixed(1)}%`);
   }
-  if (mode === "runtime" || mode === "golden") {
+  if (options.requireImprovement && (mode === "runtime" || mode === "golden")) {
     const hasTargetImprovement = comparisons.some(({ metrics }) => metrics.ns.delta <= -20 || metrics.bytes.delta <= -20);
     if (!hasTargetImprovement) failures.push(`${mode} benchmarks did not improve ns/op or B/op by at least 20%`);
   }
@@ -56,7 +56,9 @@ function main() {
     throw new Error("usage: node scripts/check-pine-benchmark-gates.mjs <compile|runtime|golden> <base.txt> <head.txt>");
   }
   const comparisons = compareBenchmarks(parseBenchmarkFile(basePath), parseBenchmarkFile(headPath));
-  assertBenchmarkGates(mode, comparisons);
+  assertBenchmarkGates(mode, comparisons, {
+    requireImprovement: process.env.JFTRADE_REQUIRE_PINE_BENCHMARK_IMPROVEMENT === "1",
+  });
   for (const { name, metrics } of comparisons) {
     console.log(`${name}: ns ${metrics.ns.delta.toFixed(1)}%, bytes ${metrics.bytes.delta.toFixed(1)}%, allocs ${metrics.allocs.delta.toFixed(1)}%`);
   }

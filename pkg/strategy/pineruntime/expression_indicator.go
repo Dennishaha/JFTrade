@@ -25,6 +25,104 @@ func evaluateSourcePeriodIndicatorExpression(functionName string, arguments []ex
 	return value, nil
 }
 
+func evaluateMovingAverageExpression(arguments []exprast.Node, scope *evaluationScope) (any, error) {
+	if len(arguments) < 2 || len(arguments) > 4 {
+		return nil, fmt.Errorf("ma() requires type, period, optional time unit, and optional source")
+	}
+	averageTypeText, ok := expressionLiteralArgument(arguments[0])
+	if !ok {
+		return nil, fmt.Errorf("ma() type must be a literal moving-average name")
+	}
+	averageType, ok := indicatorbinding.ParseMovingAverageType(averageTypeText)
+	if !ok {
+		return nil, fmt.Errorf("ma() type %q is not supported", strings.TrimSpace(averageTypeText))
+	}
+	periodValue, periodOK, err := evaluateFloatOperand(arguments[1], scope)
+	if err != nil {
+		return nil, err
+	}
+	if !periodOK || periodValue <= 0 || math.Trunc(periodValue) != periodValue {
+		return nil, fmt.Errorf("ma() period must be a positive integer")
+	}
+	optionalArgs := make([]string, 0, len(arguments)-2)
+	for _, argument := range arguments[2:] {
+		value, ok := expressionLiteralArgument(argument)
+		if !ok {
+			return nil, fmt.Errorf("ma() optional time unit/source arguments must be literals")
+		}
+		optionalArgs = append(optionalArgs, value)
+	}
+	timeUnit, source, err := indicatorbinding.ParseMovingAverageOptionalArgs(optionalArgs)
+	if err != nil {
+		return nil, err
+	}
+	if scope == nil || scope.indicators == nil {
+		return nil, nil
+	}
+	key := indicatorbinding.BuildMovingAverageKeyWithSource(averageType, int(periodValue), timeUnit, source)
+	value, ok := scope.indicators[key]
+	if !ok || value == nil {
+		return nil, nil
+	}
+	return value, nil
+}
+
+func evaluateSecuritySourceExpression(arguments []exprast.Node, scope *evaluationScope) (any, error) {
+	if len(arguments) < 2 || len(arguments) > 3 {
+		return nil, fmt.Errorf("security_source() requires source, time unit, and optional lookback")
+	}
+	sourceText, ok := expressionLiteralArgument(arguments[0])
+	if !ok {
+		return nil, fmt.Errorf("security_source() source must be a literal source")
+	}
+	source, sourceOK := indicatorbinding.ParsePriceSource(sourceText)
+	if !sourceOK {
+		return nil, fmt.Errorf("security_source() source %q is not supported; use open/high/low/close/volume/hl2/hlc3/ohlc4", sourceText)
+	}
+	timeUnitText, ok := expressionLiteralArgument(arguments[1])
+	if !ok {
+		return nil, fmt.Errorf("security_source() time unit must be a literal")
+	}
+	timeUnit, timeUnitOK := indicatorbinding.ParseIndicatorTimeUnitValue(timeUnitText)
+	if !timeUnitOK || timeUnit == "" {
+		return nil, fmt.Errorf("security_source() time unit %q is not supported", timeUnitText)
+	}
+	lookback := 0
+	if len(arguments) == 3 {
+		lookbackValue, lookbackOK, err := evaluateFloatOperand(arguments[2], scope)
+		if err != nil {
+			return nil, err
+		}
+		if !lookbackOK || lookbackValue < 0 || math.Trunc(lookbackValue) != lookbackValue {
+			return nil, fmt.Errorf("security_source() lookback must be a non-negative integer")
+		}
+		lookback = int(lookbackValue)
+	}
+	if scope == nil || scope.indicators == nil {
+		return nil, nil
+	}
+	key := "security_source:" + timeUnit + ":" + source
+	if lookback > 0 {
+		key += ":" + strconv.Itoa(lookback)
+	}
+	value, ok := scope.indicators[key]
+	if !ok || value == nil {
+		return nil, nil
+	}
+	return value, nil
+}
+
+func expressionLiteralArgument(node exprast.Node) (string, bool) {
+	switch typed := node.(type) {
+	case *exprast.IdentifierNode:
+		return strings.TrimSpace(typed.Value), strings.TrimSpace(typed.Value) != ""
+	case *exprast.StringNode:
+		return strings.TrimSpace(typed.Value), true
+	default:
+		return "", false
+	}
+}
+
 func sourcePeriodIndicatorLookupKey(functionName string, arguments []exprast.Node, scope *evaluationScope, defaultSource string, defaultPeriod string) (string, error) {
 	source := defaultSource
 	periodText := defaultPeriod
@@ -62,6 +160,33 @@ func sourcePeriodIndicatorLookupKey(functionName string, arguments []exprast.Nod
 			return "", fmt.Errorf("%s() length must be a positive integer", functionName)
 		}
 		periodText = strconv.Itoa(int(periodValue))
+	case 3:
+		sourceIdentifier, ok := arguments[0].(*exprast.IdentifierNode)
+		if !ok {
+			return "", fmt.Errorf("%s() source must be open/high/low/close/volume/hl2/hlc3/ohlc4", functionName)
+		}
+		parsedSource, sourceOK := indicatorbinding.ParsePriceSource(sourceIdentifier.Value)
+		if !sourceOK {
+			return "", fmt.Errorf("%s() source %q is not supported; use open/high/low/close/volume/hl2/hlc3/ohlc4", functionName, sourceIdentifier.Value)
+		}
+		source = parsedSource
+		periodValue, ok, err := evaluateFloatOperand(arguments[1], scope)
+		if err != nil {
+			return "", err
+		}
+		if !ok || periodValue <= 0 || math.Trunc(periodValue) != periodValue {
+			return "", fmt.Errorf("%s() length must be a positive integer", functionName)
+		}
+		periodText = strconv.Itoa(int(periodValue))
+		timeUnitText, ok := expressionLiteralArgument(arguments[2])
+		if !ok {
+			return "", fmt.Errorf("%s() timeframe must be a literal", functionName)
+		}
+		timeUnit, timeUnitOK := indicatorbinding.ParseIndicatorTimeUnitValue(timeUnitText)
+		if !timeUnitOK || timeUnit == "" {
+			return "", fmt.Errorf("%s() timeframe %q is not supported", functionName, timeUnitText)
+		}
+		return fmt.Sprintf("%s:%s:%s:%s", functionName, source, periodText, timeUnit), nil
 	default:
 		return "", fmt.Errorf("%s() requires source and length arguments", functionName)
 	}
@@ -77,6 +202,131 @@ func sourcePeriodIndicatorLookupKey(functionName string, arguments []exprast.Nod
 		return functionName + ":" + strconv.Itoa(period), nil
 	}
 	return functionName + ":" + source + ":" + strconv.Itoa(period), nil
+}
+
+func evaluateMACDExpression(arguments []exprast.Node, scope *evaluationScope) (any, error) {
+	if len(arguments) != 3 && len(arguments) != 5 {
+		return nil, fmt.Errorf("macd() requires fast, slow, signal, optional timeframe, and optional source")
+	}
+	fast, slow, signal, err := positiveIntTriple("macd", arguments[0], arguments[1], arguments[2], scope)
+	if err != nil {
+		return nil, err
+	}
+	key := fmt.Sprintf("macd:%d:%d:%d", fast, slow, signal)
+	if len(arguments) == 5 {
+		timeUnitText, ok := expressionLiteralArgument(arguments[3])
+		if !ok {
+			return nil, fmt.Errorf("macd() timeframe must be a literal")
+		}
+		timeUnit, timeUnitOK := indicatorbinding.ParseIndicatorTimeUnitValue(timeUnitText)
+		sourceText, ok := expressionLiteralArgument(arguments[4])
+		if !ok {
+			return nil, fmt.Errorf("macd() source must be a literal source")
+		}
+		source, sourceOK := indicatorbinding.ParsePriceSource(sourceText)
+		if !timeUnitOK || timeUnit == "" || !sourceOK {
+			return nil, fmt.Errorf("macd() supports OHLCV/hl2/hlc3/ohlc4 source and supported timeframe")
+		}
+		key = fmt.Sprintf("macd:%s:%d:%d:%d:%s", source, fast, slow, signal, timeUnit)
+	}
+	return indicatorSnapshotValue(scope, key), nil
+}
+
+func evaluateATRExpression(arguments []exprast.Node, scope *evaluationScope) (any, error) {
+	if len(arguments) != 1 && len(arguments) != 2 {
+		return nil, fmt.Errorf("atr() requires period and optional timeframe")
+	}
+	period, err := positiveIntArgument("atr", arguments[0], scope)
+	if err != nil {
+		return nil, err
+	}
+	key := "atr:" + strconv.Itoa(period)
+	if len(arguments) == 2 {
+		timeUnitText, ok := expressionLiteralArgument(arguments[1])
+		if !ok {
+			return nil, fmt.Errorf("atr() timeframe must be a literal")
+		}
+		timeUnit, timeUnitOK := indicatorbinding.ParseIndicatorTimeUnitValue(timeUnitText)
+		if !timeUnitOK || timeUnit == "" {
+			return nil, fmt.Errorf("atr() timeframe %q is not supported", timeUnitText)
+		}
+		key += ":" + timeUnit
+	}
+	return indicatorSnapshotValue(scope, key), nil
+}
+
+func evaluateBollingerExpression(arguments []exprast.Node, scope *evaluationScope) (any, error) {
+	if len(arguments) != 2 && len(arguments) != 4 {
+		return nil, fmt.Errorf("bollinger() requires period, multiplier, optional timeframe, and optional source")
+	}
+	period, err := positiveIntArgument("bollinger", arguments[0], scope)
+	if err != nil {
+		return nil, err
+	}
+	multiplier, ok, err := evaluateFloatOperand(arguments[1], scope)
+	if err != nil {
+		return nil, err
+	}
+	if !ok || multiplier <= 0 {
+		return nil, fmt.Errorf("bollinger() multiplier must be a positive number")
+	}
+	multiplierText := strconv.FormatFloat(multiplier, 'f', -1, 64)
+	key := "bollinger:" + strconv.Itoa(period) + ":" + multiplierText
+	if len(arguments) == 4 {
+		timeUnitText, ok := expressionLiteralArgument(arguments[2])
+		if !ok {
+			return nil, fmt.Errorf("bollinger() timeframe must be a literal")
+		}
+		timeUnit, timeUnitOK := indicatorbinding.ParseIndicatorTimeUnitValue(timeUnitText)
+		sourceText, ok := expressionLiteralArgument(arguments[3])
+		if !ok {
+			return nil, fmt.Errorf("bollinger() source must be a literal source")
+		}
+		source, sourceOK := indicatorbinding.ParsePriceSource(sourceText)
+		if !timeUnitOK || timeUnit == "" || !sourceOK {
+			return nil, fmt.Errorf("bollinger() supports OHLCV/hl2/hlc3/ohlc4 source and supported timeframe")
+		}
+		key = fmt.Sprintf("bollinger:%s:%d:%s:%s", source, period, multiplierText, timeUnit)
+	}
+	return indicatorSnapshotValue(scope, key), nil
+}
+
+func positiveIntTriple(functionName string, leftNode, middleNode, rightNode exprast.Node, scope *evaluationScope) (int, int, int, error) {
+	left, err := positiveIntArgument(functionName, leftNode, scope)
+	if err != nil {
+		return 0, 0, 0, err
+	}
+	middle, err := positiveIntArgument(functionName, middleNode, scope)
+	if err != nil {
+		return 0, 0, 0, err
+	}
+	right, err := positiveIntArgument(functionName, rightNode, scope)
+	if err != nil {
+		return 0, 0, 0, err
+	}
+	return left, middle, right, nil
+}
+
+func positiveIntArgument(functionName string, node exprast.Node, scope *evaluationScope) (int, error) {
+	value, ok, err := evaluateFloatOperand(node, scope)
+	if err != nil {
+		return 0, err
+	}
+	if !ok || value <= 0 || math.Trunc(value) != value {
+		return 0, fmt.Errorf("%s() arguments must be positive integers", functionName)
+	}
+	return int(value), nil
+}
+
+func indicatorSnapshotValue(scope *evaluationScope, key string) any {
+	if scope == nil || scope.indicators == nil {
+		return nil
+	}
+	value, ok := scope.indicators[key]
+	if !ok || value == nil {
+		return nil
+	}
+	return value
 }
 
 func evaluateSourceIndicatorExpression(functionName string, arguments []exprast.Node, scope *evaluationScope, defaultSource string) (any, error) {
@@ -188,8 +438,8 @@ func evaluateDMIExpression(arguments []exprast.Node, scope *evaluationScope) (an
 }
 
 func evaluateSupertrendExpression(arguments []exprast.Node, scope *evaluationScope) (any, error) {
-	if len(arguments) != 2 {
-		return nil, fmt.Errorf("supertrend() requires factor and atrPeriod")
+	if len(arguments) != 2 && len(arguments) != 3 {
+		return nil, fmt.Errorf("supertrend() requires factor, atrPeriod, and optional timeframe")
 	}
 	factor, ok, err := evaluateFloatOperand(arguments[0], scope)
 	if err != nil {
@@ -206,6 +456,17 @@ func evaluateSupertrendExpression(arguments []exprast.Node, scope *evaluationSco
 		return nil, nil
 	}
 	key := "supertrend:" + strconv.FormatFloat(factor, 'f', -1, 64) + ":" + strconv.Itoa(int(period))
+	if len(arguments) == 3 {
+		timeUnitText, ok := expressionLiteralArgument(arguments[2])
+		if !ok {
+			return nil, fmt.Errorf("supertrend() timeframe must be a literal")
+		}
+		timeUnit, timeUnitOK := indicatorbinding.ParseIndicatorTimeUnitValue(timeUnitText)
+		if !timeUnitOK || timeUnit == "" {
+			return nil, fmt.Errorf("supertrend() timeframe %q is not supported", timeUnitText)
+		}
+		key += ":" + timeUnit
+	}
 	value, ok := scope.indicators[key]
 	if !ok || value == nil {
 		return nil, nil

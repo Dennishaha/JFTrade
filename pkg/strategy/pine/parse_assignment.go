@@ -13,8 +13,12 @@ func (s *parseState) parseTupleAssignment(line parsedLine) (strategyir.Statement
 		return nil, false, nil
 	}
 	expression := strings.TrimSpace(match[5])
-	lower := strings.ToLower(expression)
-	args := splitArguments(callArgs(expression))
+	tupleExpression := expression
+	if lowered := replaceSupportedRequestSecurity(expression); lowered != expression {
+		tupleExpression = lowered
+	}
+	lower := strings.ToLower(tupleExpression)
+	args := splitArguments(callArgs(tupleExpression))
 	if strings.HasPrefix(lower, "ta.bb(") {
 		if len(args) < 3 {
 			return nil, true, fmt.Errorf("pine line %d: ta.bb(source, length, mult) requires three arguments", line.number)
@@ -80,8 +84,55 @@ func (s *parseState) parseTupleAssignment(line parsedLine) (strategyir.Statement
 			Expression: expr,
 		}, true, validateExpression(line.number, "assignment expression", expr)
 	}
+	if strings.HasPrefix(lower, "ta.kc(") {
+		if len(args) < 3 || len(args) > 4 {
+			return nil, true, fmt.Errorf("pine line %d: ta.kc(source, length, mult, useTrueRange?) requires three or four arguments", line.number)
+		}
+		alias := strings.TrimSpace(match[1])
+		upperAlias := strings.TrimSpace(match[2])
+		lowerAlias := strings.TrimSpace(match[3])
+		useTR := "true"
+		if len(args) == 4 {
+			useTR = s.normalizeExpression(args[3])
+		}
+		expr := fmt.Sprintf("kc(%s, %s, %s, %s)", s.normalizeExpression(args[0]), s.normalizeExpression(args[1]), s.normalizeExpression(args[2]), useTR)
+		if err := s.takeNormalizationErr(line.number); err != nil {
+			return nil, true, err
+		}
+		if upperAlias != "" {
+			s.expressionAliases[upperAlias] = alias + ".upper"
+		}
+		if lowerAlias != "" {
+			s.expressionAliases[lowerAlias] = alias + ".lower"
+		}
+		return &strategyir.LetStmt{
+			Range:      strategyir.SourceRange{StartLine: line.number, EndLine: line.number},
+			Name:       alias,
+			Expression: expr,
+		}, true, validateExpression(line.number, "assignment expression", expr)
+	}
+	if strings.HasPrefix(lower, "kc(") {
+		if len(args) != 5 {
+			return nil, true, fmt.Errorf("pine line %d: MTF ta.kc requires source, length, mult, useTrueRange, and static timeframe", line.number)
+		}
+		alias := strings.TrimSpace(match[1])
+		upperAlias := strings.TrimSpace(match[2])
+		lowerAlias := strings.TrimSpace(match[3])
+		expr := fmt.Sprintf("kc(%s, %s, %s, %s, %s)", args[0], args[1], args[2], args[3], args[4])
+		if upperAlias != "" {
+			s.expressionAliases[upperAlias] = alias + ".upper"
+		}
+		if lowerAlias != "" {
+			s.expressionAliases[lowerAlias] = alias + ".lower"
+		}
+		return &strategyir.LetStmt{
+			Range:      strategyir.SourceRange{StartLine: line.number, EndLine: line.number},
+			Name:       alias,
+			Expression: expr,
+		}, true, validateExpression(line.number, "assignment expression", expr)
+	}
 	if !strings.HasPrefix(lower, "ta.macd(") {
-		return nil, true, fmt.Errorf("pine line %d: tuple assignment is supported only for ta.macd(...), ta.bb(...), ta.dmi(...), or ta.supertrend(...)", line.number)
+		return nil, true, fmt.Errorf("pine line %d: tuple assignment is supported only for ta.macd(...), ta.bb(...), ta.dmi(...), ta.supertrend(...), or ta.kc(...)", line.number)
 	}
 	if len(args) < 4 {
 		return nil, true, fmt.Errorf("pine line %d: ta.macd(source, fast, slow, signal) requires four arguments", line.number)

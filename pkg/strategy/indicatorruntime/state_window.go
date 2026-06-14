@@ -1,4 +1,5 @@
 package indicatorruntime
+
 func (s *rollingWindowState) push(value float64) {
 	if s == nil || s.config.period <= 0 {
 		return
@@ -17,6 +18,10 @@ func (s *rollingWindowState) push(value float64) {
 		s.pushNumeric(s.calculateLowest())
 	case "sum":
 		s.pushNumeric(s.calculateSum())
+	case "range":
+		s.pushNumeric(s.calculateRange())
+	case "mode":
+		s.pushNumeric(s.calculateMode())
 	case "change", "mom":
 		s.pushNumeric(s.calculateMomentum())
 	case "roc":
@@ -92,6 +97,33 @@ func (s *rollingWindowState) calculateLowest() (float64, bool) {
 	return value, true
 }
 
+func (s *rollingWindowState) calculateRange() (float64, bool) {
+	highest, highestOK := s.calculateHighest()
+	lowest, lowestOK := s.calculateLowest()
+	if !highestOK || !lowestOK {
+		return 0, false
+	}
+	return highest - lowest, true
+}
+
+func (s *rollingWindowState) calculateMode() (float64, bool) {
+	if s == nil || s.values.len() < s.config.period {
+		return 0, false
+	}
+	counts := map[float64]int{}
+	best := 0.0
+	bestCount := 0
+	for index := 0; index < s.values.len(); index++ {
+		value, _ := s.values.at(index)
+		counts[value]++
+		if counts[value] > bestCount || (counts[value] == bestCount && value < best) {
+			best = value
+			bestCount = counts[value]
+		}
+	}
+	return best, true
+}
+
 func (s *rollingWindowState) calculateMomentum() (float64, bool) {
 	if s == nil || s.values.len() < s.config.period+1 {
 		return 0, false
@@ -141,7 +173,6 @@ func (s *rollingWindowState) calculateFalling() (bool, bool) {
 	return true, true
 }
 
-
 func newRollingWindowStates(requirements indicatorRequirements) map[windowConfig]*rollingWindowState {
 	if len(requirements.windows) == 0 {
 		return nil
@@ -165,7 +196,6 @@ func newRollingWindowStates(requirements indicatorRequirements) map[windowConfig
 	return states
 }
 
-
 func (r *indicatorRuntime) pushWindowStates(openValue, high, low, closeValue, volume float64) {
 	if r == nil || len(r.windowStates) == 0 {
 		return
@@ -178,4 +208,3 @@ func (r *indicatorRuntime) pushWindowStates(openValue, high, low, closeValue, vo
 		state.push(value)
 	}
 }
-

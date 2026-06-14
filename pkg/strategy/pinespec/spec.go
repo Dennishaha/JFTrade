@@ -5,12 +5,13 @@ import (
 	"strings"
 
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
+	strategypine "github.com/jftrade/jftrade-main/pkg/strategy/pine"
 	strategypineruntime "github.com/jftrade/jftrade-main/pkg/strategy/pineruntime"
 )
 
 const (
 	PineVersion         = "v6"
-	ProductVersion      = "v1.1"
+	ProductVersion      = "v1.5"
 	SourceFormat        = strategydefinition.SourceFormatPineV6
 	Runtime             = strategypineruntime.ID
 	ToolName            = "strategy.pine_spec"
@@ -38,7 +39,7 @@ var sections = []Section{
 	{ID: "expressions", Title: "表达式", Summary: "支持的 Pine 表达式、OHLCV 序列和函数映射。"},
 	{ID: "indicators", Title: "指标", Summary: "当前 compiler、planner 与 runtime 能识别的 ta.* 指标。"},
 	{ID: "orders", Title: "下单", Summary: "strategy.entry/strategy.close 到 JFTrade 订单 IR 的映射。"},
-	{ID: "support-matrix", Title: "支持矩阵", Summary: "按 parser、planner、runtime、JFTrade 集成和前端锁定 v1.0 Pine v6 主路径能力。"},
+	{ID: "support-matrix", Title: "支持矩阵", Summary: "按 parser、planner、runtime、JFTrade 集成和前端锁定 v1.5 Pine v6 主路径能力。"},
 	{ID: "unsupported", Title: "不支持项", Summary: "已解析但不能在 JFTrade 中执行的 Pine v6 行为。"},
 	{ID: "examples", Title: "示例", Summary: "当前实现下可以成功 parse、lower 并完成 requirements planning 的 Pine v6 脚本。"},
 }
@@ -157,8 +158,8 @@ if close < lower
 	},
 	{
 		ID:          "golden-mtf-source-ma",
-		Title:       "MTF source 与 MTF MA",
-		Description: "覆盖 input.timeframe、request.security source/source[n] 与 source-aware MTF EMA。",
+		Title:       "MTF source、MA 与高级指标",
+		Description: "覆盖 input.timeframe、request.security source/source[n]、source-aware MTF EMA 与静态 intraday MTF linreg。",
 		Script: `//@version=6
 strategy("Golden MTF", overlay=true)
 
@@ -166,9 +167,10 @@ tf = input.timeframe("15", "Signal TF")
 mtfClose = request.security(syminfo.tickerid, tf, close)
 mtfPrevClose = request.security(syminfo.tickerid, tf, close[1])
 mtfEma = request.security(syminfo.tickerid, "15", ta.ema(hlc3, 3))
-if mtfClose > mtfPrevClose and close > mtfEma
+mtfLinreg = request.security(syminfo.tickerid, "15", ta.linreg(close, 5, 0))
+if mtfClose > mtfPrevClose and close > mtfEma and close > mtfLinreg
     strategy.entry("Long", strategy.long, qty=1)`,
-		RequirementKeys: []string{"security_source:15m:close", "security_source:15m:close:1", "ma:EMA:3:15m:hlc3"},
+		RequirementKeys: []string{"security_source:15m:close", "security_source:15m:close:1", "ma:EMA:3:15m:hlc3", "linreg:close:5:0:15m"},
 	},
 	{
 		ID:          "golden-orders-exits",
@@ -202,6 +204,193 @@ for i = 0 to 2
 if isBull(close) and fast > fast[1] and sum > 0
     strategy.entry("Long", strategy.long, qty=1)`,
 		RequirementKeys: []string{"ma:EMA:3"},
+	},
+	{
+		ID:          "golden-v12-advanced-indicators",
+		Title:       "v1.2 高频迁移指标",
+		Description: "覆盖 linreg、OBV、pivot、Keltner Channel/KCW 与 ALMA。",
+		Script: `//@version=6
+strategy("Golden v1.2 Indicators", overlay=true)
+
+lr = ta.linreg(close, 5, 0)
+obvValue = ta.obv
+pivotHigh = ta.pivothigh(high, 2, 2)
+pivotLow = ta.pivotlow(low, 2, 2)
+[basis, upper, lower] = ta.kc(close, 5, 1.5)
+width = ta.kcw(close, 5, 1.5)
+almaValue = ta.alma(close, 5, 0.85, 6)
+if close > lr and obvValue > 0 and upper > lower and width > 0 and almaValue > 0 and nz(pivotHigh, close) >= nz(pivotLow, close)
+    strategy.entry("Long", strategy.long, qty=1)`,
+		RequirementKeys: []string{
+			"linreg:close:5:0",
+			"obv:close",
+			"pivothigh:high:2:2",
+			"pivotlow:low:2:2",
+			"kc:close:5:1.5:true",
+			"kcw:close:5:1.5:true",
+			"alma:close:5:0.85:6",
+		},
+	},
+	{
+		ID:          "golden-v13-migration-indicators",
+		Title:       "v1.3 高频迁移指标",
+		Description: "覆盖 CMO、TSI、correlation、dev、median、percentile、percentrank、SWMA、math.avg/round_to_mintick 和 v1.3 intraday MTF 指标。",
+		Script: `//@version=6
+strategy("Golden v1.3 Indicators", overlay=true)
+
+cmoValue = ta.cmo(close, 5)
+tsiValue = ta.tsi(close, 2, 3)
+corrValue = ta.correlation(close, high, 5)
+devValue = ta.dev(close, 5)
+medianValue = ta.median(close, 5)
+pLinear = ta.percentile_linear_interpolation(close, 5, 50)
+pNearest = ta.percentile_nearest_rank(close, 5, 80)
+rankValue = ta.percentrank(close, 5)
+swmaValue = ta.swma(close)
+mtfCmo = request.security(syminfo.tickerid, "15", ta.cmo(close, 5))
+rounded = math.round_to_mintick(math.avg(close, open))
+if cmoValue > 0 and tsiValue > 0 and corrValue > 0 and devValue > 0 and medianValue > 0 and pLinear > 0 and pNearest > 0 and rankValue > 0 and swmaValue > 0 and mtfCmo > 0 and rounded > 0
+    strategy.entry("Long", strategy.long, qty=1)`,
+		RequirementKeys: []string{
+			"cmo:close:5",
+			"tsi:close:2:3",
+			"correlation:close:high:5",
+			"dev:close:5",
+			"median:close:5",
+			"percentile_linear_interpolation:close:5:50",
+			"percentile_nearest_rank:close:5:80",
+			"percentrank:close:5",
+			"swma:close",
+			"cmo:close:5:15m",
+		},
+	},
+	{
+		ID:          "golden-v14-window-momentum",
+		Title:       "v1.4 窗口与动量指标",
+		Description: "覆盖 highestbars、lowestbars、change、mom、roc、rising、falling、stdev 与 variance。",
+		Script: `//@version=6
+strategy("Golden v1.4 Window Momentum", overlay=true)
+
+dev = ta.stdev(close, 5)
+variance = ta.variance(close, 5)
+hb = ta.highestbars(high, 5)
+lb = ta.lowestbars(low, 5)
+delta = ta.change(close)
+momentum = ta.mom(close, 3)
+rate = ta.roc(close, 3)
+up = ta.rising(close, 3)
+down = ta.falling(close, 3)
+if up and not down and nz(dev, 0) >= 0 and nz(variance, 0) >= 0 and hb >= 0 and lb >= 0 and nz(delta, 0) + nz(momentum, 0) + nz(rate, 0) > -100
+    strategy.entry("Long", strategy.long, qty=1)`,
+		RequirementKeys: []string{
+			"stdev:5",
+			"variance:close:5",
+			"highestbars:high:5",
+			"lowestbars:low:5",
+			"change:close:1",
+			"mom:close:3",
+			"roc:close:3",
+			"rising:close:3",
+			"falling:close:3",
+		},
+	},
+	{
+		ID:          "golden-v14-state-events",
+		Title:       "v1.4 状态事件函数",
+		Description: "覆盖 barssince 与 valuewhen 的 closed-bar 状态语义。",
+		Script: `//@version=6
+strategy("Golden v1.4 State Events", overlay=true)
+
+bars = ta.barssince(close > open)
+value = ta.valuewhen(close > open, close, 0)
+if nz(bars, 999) < 4 and nz(value, close) >= close
+    strategy.entry("Long", strategy.long, qty=1)`,
+	},
+	{
+		ID:          "golden-v14-tr-atr",
+		Title:       "v1.4 TR/ATR 组合",
+		Description: "覆盖 ta.tr(true|false) 与 ta.atr 的边界组合。",
+		Script: `//@version=6
+strategy("Golden v1.4 TR ATR", overlay=true)
+
+trTrue = ta.tr(true)
+trFalse = ta.tr(false)
+range = ta.atr(5)
+if trTrue >= trFalse and trTrue > 0 and nz(range, trTrue) > 0
+    strategy.entry("Long", strategy.long, qty=1)`,
+		RequirementKeys: []string{"atr:5"},
+	},
+	{
+		ID:          "golden-v14-mtf-pure-expression",
+		Title:       "v1.4 MTF 纯表达式",
+		Description: "覆盖同标的静态 timeframe 的 request.security 纯表达式、source history、MA、math 与 nz 组合。",
+		Script: `//@version=6
+strategy("Golden v1.4 MTF Pure", overlay=true)
+
+signal = request.security(syminfo.tickerid, "15", close > ta.sma(close, 3) and nz(close[1], close) > open and math.avg(close, open) > 0)
+if signal
+    strategy.entry("Long", strategy.long, qty=1)`,
+		RequirementKeys: []string{
+			"security_source:15m:close",
+			"security_source:15m:close:1",
+			"security_source:15m:open",
+			"ma:SMA:3:15m",
+		},
+	},
+	{
+		ID:          "golden-v15-mtf-common-ta",
+		Title:       "v1.5 MTF common TA",
+		Description: "覆盖 request.security 纯表达式中的 RSI、MACD、ATR、Bollinger 与 Supertrend 成员读取。",
+		Script: `//@version=6
+strategy("Golden v1.5 MTF Common TA", overlay=true)
+
+signal = request.security(syminfo.tickerid, "15", nz(ta.rsi(close, 14), 50) > 50 and nz(ta.macd(close, 12, 26, 9).diff, 0) > 0 and nz(ta.atr(14), 0) > 0 and nz(ta.bb(close, 20, 2).upper, close) > close and nz(ta.supertrend(3, 10).direction, 0) > 0)
+if signal
+    strategy.entry("Long", strategy.long, qty=1)`,
+		RequirementKeys: []string{
+			"security_source:15m:close",
+			"rsi:close:14:15m",
+			"macd:close:12:26:9:15m",
+			"atr:14:15m",
+			"bollinger:close:20:2:15m",
+			"supertrend:3:10:15m",
+		},
+	},
+	{
+		ID:          "golden-v15-cross-state",
+		Title:       "v1.5 交叉与状态事件",
+		Description: "覆盖 crossover/crossunder/cross 与 barssince/valuewhen 的常见迁移组合。",
+		Script: `//@version=6
+strategy("Golden v1.5 Cross State", overlay=true)
+
+fast = ta.ema(close, 8)
+slow = ta.sma(close, 21)
+recentCross = ta.barssince(ta.cross(fast, slow))
+lastCrossClose = ta.valuewhen(ta.crossover(fast, slow), close, 0)
+if ta.crossover(fast, slow) or (nz(recentCross, 999) < 5 and close > nz(lastCrossClose, close))
+    strategy.entry("Long", strategy.long, qty=1)
+if ta.crossunder(fast, slow)
+    strategy.close("Long")`,
+		RequirementKeys: []string{"ma:EMA:8", "ma:SMA:21"},
+	},
+	{
+		ID:          "golden-v15-static-loop-control",
+		Title:       "v1.5 静态 for 控制",
+		Description: "覆盖静态 for 展开中的无条件 continue 与 break 子集。",
+		Script: `//@version=6
+strategy("Golden v1.5 Static Loop Control", overlay=true)
+
+score = 0
+for i = 1 to 4
+    score := score + i
+    continue
+    score := score + 100
+for j = 1 to 4
+    score := score + j
+    break
+    score := score + 100
+if score > 0
+    strategy.entry("Long", strategy.long, qty=1)`,
 	},
 }
 
@@ -299,6 +488,10 @@ func BuildToolPayload(section string, includeExamples bool) (map[string]any, err
 		"orderModes":                  orderModes(),
 		"protectModes":                protectModes(),
 		"supportMatrix":               supportMatrix(),
+		"capabilities":                strategypine.CapabilityRegistry(),
+		"compatibilityScore":          strategypine.CompatibilityScore().Score,
+		"scoreModelVersion":           strategypine.CompatibilityScore().ScoreModelVersion,
+		"compatibilityDimensions":     strategypine.CompatibilityScore().Dimensions,
 		"unsupportedPatterns":         unsupportedPatterns(),
 		"goldenScripts":               goldenExamplePayloads(),
 		"skeleton":                    Skeleton(),
@@ -330,7 +523,13 @@ func BuildSpecMarkdown() string {
 	builder.WriteString("`\n")
 	builder.WriteString("- `productVersion`: `")
 	builder.WriteString(ProductVersion)
-	builder.WriteString("`\n\n")
+	builder.WriteString("`\n")
+	assessment := strategypine.CompatibilityScore()
+	builder.WriteString("- `compatibilityScore`: `")
+	builder.WriteString(fmt.Sprintf("%.2f", assessment.Score))
+	builder.WriteString("`（")
+	builder.WriteString(assessment.ScoreModelVersion)
+	builder.WriteString("）\n\n")
 
 	writeMarkdownSection(&builder, "概览", sectionDetails("overview"))
 	writeMarkdownSection(&builder, "语法", sectionDetails("syntax"))
@@ -342,7 +541,7 @@ func BuildSpecMarkdown() string {
 	writeMarkdownSection(&builder, "下单", sectionDetails("orders"))
 	writeMarkdownList(&builder, "数量与下单模式", flattenNamedItems(orderModes()))
 	writeMarkdownSection(&builder, "支持矩阵", sectionDetails("support-matrix"))
-	writeMarkdownList(&builder, "v1.0 主路径能力覆盖", flattenMatrixItems(supportMatrix()))
+	writeMarkdownList(&builder, "v1.5 主路径能力覆盖", flattenMatrixItems(supportMatrix()))
 	writeMarkdownSection(&builder, "不支持项", sectionDetails("unsupported"))
 	writeMarkdownList(&builder, "明确不支持的写法", unsupportedPatterns())
 	builder.WriteString("## 最小骨架\n\n```text\n")
@@ -366,7 +565,7 @@ func BuildExamplesMarkdown() string {
 		builder.WriteString(example.Script)
 		builder.WriteString("\n```\n\n")
 	}
-	builder.WriteString("## v1.0 黄金脚本\n\n")
+	builder.WriteString("## v1.5 黄金脚本\n\n")
 	for _, example := range goldenExamples {
 		builder.WriteString("### ")
 		builder.WriteString(example.Title)
@@ -390,8 +589,9 @@ func supportedTopLevelStatements() []string {
 		"strategy(\"<name>\", overlay=true[, default_qty_type=..., default_qty_value=<number>, pyramiding=<integer>, initial_capital=<number>, commission_type=strategy.commission.percent|cash_per_order|cash_per_contract, commission_value=<number>, slippage=<ticks>, process_orders_on_close=<bool>])",
 		"<name> = <expression>",
 		"if <condition>",
-		"strategy.entry(\"<id>\", strategy.long|strategy.short[, qty=<expression>|qty_percent=<number>][, limit=<expression>])",
-		"strategy.order(\"<id>\", strategy.long|strategy.short[, qty=<expression>|qty_percent=<number>][, limit=<expression>])",
+		"strategy.risk.allow_entry_in(strategy.direction.all|long|short)",
+		"strategy.entry(\"<id>\", strategy.long|strategy.short[, qty=<expression>|qty_percent=<number>][, stop=<expression>|limit=<expression>])",
+		"strategy.order(\"<id>\", strategy.long|strategy.short[, qty=<expression>|qty_percent=<number>][, stop=<expression>|limit=<expression>])",
 		"strategy.close(\"<id>\"[, qty=<expression>|qty_percent=<number>][, limit=<expression>, immediately=<bool>]) / strategy.close_all(immediately=<bool>)",
 	}
 }
@@ -409,11 +609,15 @@ func supportedStatements() []string {
 		"var <name> = <expression> / <name> := <expression>",
 		"<series>[n] 多 bar 历史引用；可配合 nz(<series>[n], fallback)",
 		"<condition> ? <trueExpr> : <falseExpr>",
+		"switch 表达式与单行语句 arm 会在编译期 lower 为 ifelse/IfStmt",
+		"多语句 UDF 支持局部赋值和最终 if/else 返回；仍禁止递归、嵌套定义和 method/type",
+		"静态 for 支持编译期展开；无条件 break/continue 在 v1.5 子集中可用",
 		"[macdLine, signalLine, histLine] = ta.macd(close, fast, slow, signal)",
 		"[plusDI, minusDI, adx] = ta.dmi(diLength, adxSmoothing)",
 		"[supertrendLine, direction] = ta.supertrend(factor, atrPeriod)",
 		"if ta.crossover(left, right) / if ta.crossunder(left, right) / if ta.cross(left, right)",
 		"else",
+		"strategy.risk.allow_entry_in(strategy.direction.long|short|all)",
 		"strategy.entry(\"Long\", strategy.long) 会继承 strategy(...) 默认仓位",
 		"strategy.entry(\"Long\", strategy.long, qty=1)",
 		"strategy.entry(\"Long\", strategy.long, qty_percent=10)",
@@ -450,7 +654,7 @@ func reservedVariables() []map[string]any {
 func indicatorFunctions() []map[string]any {
 	return []map[string]any{
 		{"name": "input.*", "signature": "input(defval) / input.int/float/bool/string/source/time/timeframe/color(defval, title?)", "notes": "只取默认值；input.source 第一版应使用 open/high/low/close/volume/hl2/hlc3/ohlc4；input.timeframe 可用于受支持的 request.security timeframe。"},
-		{"name": "math.*", "signature": "math.abs/min/max/round/floor/ceil/sqrt/pow/log/sign", "notes": "lower 到同名表达式函数。"},
+		{"name": "math.*", "signature": "math.abs/min/max/avg/round/round_to_mintick/floor/ceil/sqrt/pow/log/sign", "notes": "lower 到同名表达式函数；round_to_mintick 按当前市场 tick size 四舍五入，缺省 tick 为 0.01。"},
 		{"name": "timestamp", "signature": "timestamp(year, month, day[, hour, minute])", "notes": "返回 Unix milliseconds；第一版不支持 timezone 参数。"},
 		{"name": "ta.ema", "signature": "ta.ema(source, period)", "notes": "source 支持 open/high/low/close/volume/hl2/hlc3/ohlc4；close 保持 legacy key。"},
 		{"name": "ta.sma", "signature": "ta.sma(source, period)", "notes": "source 支持 open/high/low/close/volume/hl2/hlc3/ohlc4；volume SMA 不会再误当 close SMA。"},
@@ -466,6 +670,8 @@ func indicatorFunctions() []map[string]any {
 		{"name": "ta.change", "signature": "ta.change(source[, length])", "notes": "source 支持 open/high/low/close/volume/hl2/hlc3/ohlc4；未传 length 默认 1。"},
 		{"name": "ta.mom", "signature": "ta.mom(source, length)", "notes": "source 支持 open/high/low/close/volume/hl2/hlc3/ohlc4。"},
 		{"name": "ta.roc", "signature": "ta.roc(source, length)", "notes": "source 支持 open/high/low/close/volume/hl2/hlc3/ohlc4。"},
+		{"name": "ta.range", "signature": "ta.range(source, length)", "notes": "滚动最高值与最低值之差；source 支持 open/high/low/close/volume/hl2/hlc3/ohlc4。"},
+		{"name": "ta.mode", "signature": "ta.mode(source, length)", "notes": "滚动众数；并列时返回较小值。"},
 		{"name": "ta.sum", "signature": "ta.sum(source, length)", "notes": "滚动求和；source 支持 open/high/low/close/volume/hl2/hlc3/ohlc4。"},
 		{"name": "ta.rising", "signature": "ta.rising(source, length)", "notes": "返回 bool；source 支持 open/high/low/close/volume/hl2/hlc3/ohlc4。"},
 		{"name": "ta.falling", "signature": "ta.falling(source, length)", "notes": "返回 bool；source 支持 open/high/low/close/volume/hl2/hlc3/ohlc4。"},
@@ -476,6 +682,20 @@ func indicatorFunctions() []map[string]any {
 		{"name": "ta.dmi/ta.adx", "signature": "[plusDI, minusDI, adx] = ta.dmi(diLength, adxSmoothing) / ta.adx(length)", "notes": "支持 DMI 三元组和常见 ta.adx(length) 写法。"},
 		{"name": "ta.supertrend", "signature": "[line, direction] = ta.supertrend(factor, atrPeriod)", "notes": "支持三元组式绑定中的 line/direction。"},
 		{"name": "ta.sar", "signature": "ta.sar(start, increment, max)", "notes": "Parabolic SAR；生成 sar:start:increment:max requirement，snapshot 提供 value/previous。"},
+		{"name": "ta.linreg", "signature": "ta.linreg(source, length, offset)", "notes": "线性回归值；offset 必须为非负静态整数。"},
+		{"name": "ta.obv", "signature": "ta.obv / ta.obv(source)", "notes": "按 source 涨跌对 volume 做增量累计。"},
+		{"name": "ta.pivothigh/ta.pivotlow", "signature": "ta.pivot*(left, right) / ta.pivot*(source, left, right)", "notes": "在 right bars 后确认，未确认时返回 na。"},
+		{"name": "ta.kc/ta.kcw", "signature": "[basis, upper, lower] = ta.kc(source, length, mult[, useTrueRange]) / ta.kcw(...)", "notes": "Keltner Channel 与归一化通道宽度。"},
+		{"name": "ta.alma", "signature": "ta.alma(source, length, offset, sigma)", "notes": "Arnaud Legoux Moving Average。"},
+		{"name": "ta.cmo", "signature": "ta.cmo(source, length)", "notes": "Chande Momentum Oscillator；source 支持 open/high/low/close/volume/hl2/hlc3/ohlc4。"},
+		{"name": "ta.tsi", "signature": "ta.tsi(source, shortLength, longLength)", "notes": "True Strength Index；使用双 EMA 平滑 momentum 和绝对 momentum。"},
+		{"name": "ta.correlation", "signature": "ta.correlation(source1, source2, length)", "notes": "滚动 Pearson 相关系数；两个 source 均需为支持的 OHLCV/派生源。"},
+		{"name": "ta.dev", "signature": "ta.dev(source, length)", "notes": "滚动平均绝对偏差。"},
+		{"name": "ta.median", "signature": "ta.median(source, length)", "notes": "滚动中位数。"},
+		{"name": "ta.percentile_linear_interpolation", "signature": "ta.percentile_linear_interpolation(source, length, percentage)", "notes": "滚动百分位线性插值，percentage 必须为 0..100。"},
+		{"name": "ta.percentile_nearest_rank", "signature": "ta.percentile_nearest_rank(source, length, percentage)", "notes": "滚动 nearest-rank 百分位，percentage 必须为 0..100。"},
+		{"name": "ta.percentrank", "signature": "ta.percentrank(source, length)", "notes": "当前值在滚动窗口中的百分排名。"},
+		{"name": "ta.swma", "signature": "ta.swma(source)", "notes": "4-bar symmetric weighted moving average。"},
 		{"name": "ta.barssince", "signature": "ta.barssince(condition)", "notes": "首次触发前返回 na，触发 bar 返回 0。"},
 		{"name": "ta.valuewhen", "signature": "ta.valuewhen(condition, sourceExpression, occurrence)", "notes": "occurrence 必须为非负整数；历史不足返回 na。"},
 		{"name": "ta.crossover", "signature": "ta.crossover(left, right)", "notes": "lower 到 cross_over。"},
@@ -487,6 +707,8 @@ func indicatorFunctions() []map[string]any {
 func orderModes() []map[string]any {
 	return []map[string]any{
 		{"name": "strategy.entry qty", "description": "按股数表达式开多或开空。"},
+		{"name": "strategy.entry reversal", "description": "反向 entry 按 Pine 规则自动放大数量为平旧仓 + 新开仓；当前现货回测执行器仍不模拟保证金裸空。"},
+		{"name": "strategy.risk.allow_entry_in", "description": "限制允许开仓方向；被禁止的反向 entry 在已有反向持仓时只执行 close-only。"},
 		{"name": "strategy.entry/order qty_percent", "description": "entry/order 中 qty_percent 表示账户权益百分比。"},
 		{"name": "strategy.order", "description": "净额买入或卖出；不受 strategy.entry pyramiding gate 限制。"},
 		{"name": "strategy.entry amount", "description": "固定金额可写为 qty=amount/close。"},
@@ -494,8 +716,8 @@ func orderModes() []map[string]any {
 		{"name": "strategy.close/close_all", "description": "平仓；不指定数量默认平 100% 持仓，close 的 qty_percent 表示当前 symbol 持仓百分比。"},
 		{"name": "strategy metadata costs", "description": "initial_capital、percent/cash commission、slippage ticks 与 process_orders_on_close=true 进入 JFTrade 回测配置；API initialBalance 优先。"},
 		{"name": "order event metadata", "description": "comment 写入策略运行日志；alert_message 在 disable_alert=false 时发出策略通知；close/close_all 接受 immediately=true。"},
-		{"name": "strategy.exit bracket", "description": "支持 stop、limit、stop+limit bracket；stop/limit 可使用普通数值表达式，qty/qty_percent 可部分退出。"},
-		{"name": "pending entry/order", "description": "strategy.entry/order 支持基础 stop 或 limit pending；stop+limit 组合仍明确诊断。"},
+		{"name": "strategy.exit bracket/trailing", "description": "支持 stop、limit、stop+limit bracket，以及 trail_points 或 trail_price 配合 trail_offset；trailing 参数按最小价格 tick 解释。"},
+		{"name": "pending entry/order", "description": "strategy.entry/order 支持 stop、limit 与 stop 激活后转 limit 的 stop-limit pending。"},
 		{"name": "strategy.cancel/cancel_all", "description": "取消当前策略 symbol 尚未触发的内部 pending orders。"},
 	}
 }
@@ -518,22 +740,26 @@ func supportMatrix() []map[string]any {
 		{"capability": "Pine metadata and diagnostics", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": true, "notes": "统一通过 AnalyzeScript、strategy.pine_spec、编辑器提示和结构化 diagnostics 暴露。"},
 		{"capability": "Source-aware indicators", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": true, "notes": "MA/RSI/stdev/variance/CCI/rolling/source-aware MTF 使用稳定 key；close 保留 legacy key。"},
 		{"capability": "Rolling and stateful indicators", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": false, "notes": "highest/lowest/change/mom/roc/rising/falling/sum、barssince、valuewhen 已可执行；前端只覆盖常用子集。"},
-		{"capability": "MTF request.security subset", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": true, "notes": "仅同标的 source/source[n]/source-aware MA，禁止 lookahead_on/gaps_on 和任意表达式。"},
-		{"capability": "Orders and exits", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": true, "notes": "entry/order/close/close_all/exit/cancel 的可执行子集已贯通，完整 broker emulator 不属于当前目标。"},
-		{"capability": "UDF and static for", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": false, "notes": "单表达式 UDF 与静态整数 for 编译期展开；动态循环、多语句/递归 UDF 诊断失败。"},
+		{"capability": "MTF request.security subset", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": true, "notes": "同标的 source/source[n]/source-aware MA、静态 intraday 高级指标、v1.4 纯表达式，以及 v1.5 common TA pure-expression 组合；禁止 lookahead_on/gaps_on、动态 symbol/timeframe、通用 tuple 和 side effect。"},
+		{"capability": "Orders and exits", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": true, "notes": "entry/order/close/close_all/exit/cancel 的可执行子集已贯通；entry 反手与 allow_entry_in 已支持，完整 broker emulator 不属于当前目标。"},
+		{"capability": "UDF, switch and static for", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": false, "notes": "表达式/受控多语句 UDF、switch 与静态整数 for 编译期展开；动态循环、递归 UDF 诊断失败。"},
+		{"capability": "v1.2 migration indicators and switch", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": true, "notes": "linreg/OBV/pivot/Keltner/ALMA、switch lowering 与受控多语句 UDF 已贯通。"},
+		{"capability": "v1.3 migration indicators and entry risk", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": true, "notes": "CMO/TSI/correlation/dev/median/percentile/percentrank/SWMA、math.avg/round_to_mintick、entry 反手和 allow_entry_in 已贯通。"},
+		{"capability": "v1.4 practical migration set", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": true, "notes": "窗口/动量、barssince/valuewhen、ta.tr(true|false)、request.security 纯表达式和 80+ 迁移语料门禁已纳入。"},
+		{"capability": "v1.5 practical migration set", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": true, "notes": "request.security common TA pure-expression、交叉/状态组合、静态 for 无条件 break/continue 和 100+ 迁移语料门禁已纳入。"},
 	}
 }
 
 func unsupportedPatterns() []string {
 	return []string{
 		"indicator()、study()、library() 脚本不能作为 JFTrade 可执行策略。",
-		"request.security() 仅支持 syminfo.tickerid + 受支持 timeframe + OHLCV/hl2/hlc3/ohlc4 source、source[n] 或 ta.sma/ema/rma/wma/hma/vwma(source, n) 的低风险多周期子集。",
+		"request.security() 仅支持 syminfo.tickerid + 静态 timeframe + source/source[n]、受支持 MA/高级指标、v1.4 纯表达式或 v1.5 common TA pure-expression 组合；动态参数、通用 tuple、side effect、lookahead_on/gaps_on 会返回诊断。",
 		"array.*、matrix.*、map.* 集合命名空间暂不支持。",
-		"静态 for 循环会在编译期展开；动态边界、break/continue、超过 100 次展开和超过 2 层嵌套会返回明确诊断。",
-		"表达式 UDF 支持编译期内联；多语句函数、递归函数、method/type 会返回明确诊断。",
+		"静态 for 循环会在编译期展开；v1.5 支持无条件 break/continue 子集，动态边界、条件控制流、超过 100 次展开和超过 2 层嵌套会返回明确诊断。",
+		"表达式 UDF 与受控多语句函数支持编译期内联；递归函数、嵌套定义、method/type 会返回明确诊断。",
 		"历史引用支持简单 identifier/member 的 `[n]`，最大 lookback 500；函数调用结果需先赋值再引用历史。",
-		"strategy.exit() 支持基础 stop、limit、stop+limit bracket 与 trail_points/trail_offset；trail 与 stop/limit 同用、OCA、partial fill、intrabar broker emulator 等高级语义暂不支持。",
-		"strategy.entry/order 的 stop+limit 组合、OCA、strategy.cancel 已成交订单等完整 broker emulator 语义暂不支持，会返回明确诊断或内部跳过。",
+		"strategy.exit() 支持基础 stop、limit、stop+limit bracket 与 trail_points|trail_price + trail_offset；trail 与 stop/limit 同用、OCA、partial fill、intrabar broker emulator 等高级语义暂不支持。",
+		"strategy.entry/order 支持 stop-limit 激活后转限价；OCA、strategy.cancel 已成交订单等完整 broker emulator 语义暂不支持。",
 		"plot/hline/bgcolor/barcolor/fill/alertcondition/label.new/line.new/box.new/table.* 等非交易调用会被解析为 warning 并忽略。",
 		"除文档列出的 ta.*、input.*、math.*、strategy.entry、strategy.close、alert/log 外的 built-ins 不应假定可执行。",
 	}
@@ -606,15 +832,15 @@ func sectionDetails(section string) []string {
 		return []string{
 			"JFTrade Pine Script v6 前端会把支持的 Pine 策略语句 lower 到 pine-go-plan runtime。",
 			"已保存草稿、回测结果和正在运行的策略实例必须视为不同工作状态，不能混为一谈。",
-			"当前目标是完整解析 Pine v6 常见语法，并对 JFTrade 暂不能执行的语义给出明确诊断。",
+			"当前目标是可执行、同标的、closed-bar 策略迁移兼容；不宣称完整 TradingView Pine v6 或 broker emulator 兼容。",
 		}
 	case "syntax":
 		return []string{
 			"脚本必须包含 //@version=6 和 strategy(...)。",
 			"空行与普通 // 注释会被忽略；// @jftradeFlow* 注释用于前端流程图双向同步。",
 			"if/else 使用 Pine 风格缩进块；顶层可执行语句统一按 K 线收盘逻辑 lower。",
-			"支持 var 持久变量、:= 重赋值、基础三元表达式、多 bar 历史引用、表达式 UDF 和静态 for 编译期展开。",
-			"表达式 UDF 形如 name(arg) => expression；支持单表达式缩进体，多语句函数暂不支持。",
+			"支持 var 持久变量、:= 重赋值、基础三元表达式、多 bar 历史引用、表达式/受控多语句 UDF 和静态 for 编译期展开。",
+			"UDF 支持 name(arg) => expression、单表达式缩进体，以及包含局部赋值、if/else 和最终返回表达式的受控多语句函数。",
 			"静态 for 支持 for i = start to end [by step]，边界必须是整数常量或 input.int 默认值，按 Pine inclusive to 语义展开。",
 			"JFTrade 会把顶层可执行语句作为 K 线收盘逻辑执行。",
 		}
@@ -631,15 +857,15 @@ func sectionDetails(section string) []string {
 			"syminfo.tickerid、syminfo.prefix、timeframe.period 和 timeframe.isintraday/isminutes/isdaily/isweekly/ismonthly 可在普通表达式中读取。",
 			"timestamp(year, month, day[, hour, minute]) 返回 Unix milliseconds；不支持 timezone 参数。",
 			"ta.crossover/ta.crossunder/ta.cross 会映射到 JFTrade cross_over/cross_under。",
-			"math.abs/min/max/round/floor/ceil/sqrt/pow/log/sign 会映射到 JFTrade 表达式函数。",
+			"math.abs/min/max/avg/round/round_to_mintick/floor/ceil/sqrt/pow/log/sign 会映射到 JFTrade 表达式函数。",
 			"未知 built-ins 可能无法 lower，应先调用 strategy.validate_pine。",
 		}
 	case "indicators":
 		return []string{
 			"指标绑定通过 <alias> = ta.<function>(...) 声明。",
-			"compiler 当前识别 ta.sma、ta.ema、ta.rma、ta.wma、ta.hma、ta.vwma、ta.rsi、ta.macd、ta.atr、ta.tr、ta.stdev、ta.variance、ta.cci、ta.highest、ta.lowest、ta.change、ta.mom、ta.roc、ta.sum、ta.rising、ta.falling、ta.bb、ta.wpr、ta.vwap、ta.mfi、ta.dmi、ta.adx、ta.supertrend、ta.sar、ta.barssince、ta.valuewhen、ta.crossover、ta.crossunder、ta.cross。",
+			"compiler 当前识别常用 MA、RSI/MACD/ATR、rolling/window、Bollinger、DMI/Supertrend/SAR，v1.2 的 linreg/OBV/pivot/Keltner/ALMA，v1.3 的 CMO/TSI/correlation/dev/median/percentile/percentrank/SWMA，v1.4 的窗口/动量、状态事件和 TR，以及 v1.5 的 MTF common TA 迁移能力。",
 			"request.security 支持同标的 timeframe：\"1\"/\"5\"/\"15\"/\"30\"/\"45\"/\"60\"/\"120\"/\"240\"、\"D\"/\"1D\"、\"W\"/\"1W\"、\"M\"/\"1M\"。",
-			"request.security(syminfo.tickerid, timeframe, source) 支持 OHLCV/hl2/hlc3/ohlc4 和 source[n]；request.security(..., ta.sma/ema/rma/wma/hma/vwma(source, n)) 支持 source-aware MTF 均线。",
+			"request.security(syminfo.tickerid, timeframe, source) 支持 OHLCV/hl2/hlc3/ohlc4 和 source[n]；支持 source-aware MTF 均线、静态 intraday 受支持高级指标、v1.4 纯表达式 source/history/MA/math/bool/nz 组合，以及 v1.5 RSI/MACD/ATR/Bollinger/Supertrend common TA 组合。",
 			"ta.macd 支持 [macdLine, signalLine, histLine] 三元组赋值。",
 			"source-aware 指标第一版 source 支持 open/high/low/close/volume/hl2/hlc3/ohlc4。",
 			"历史引用支持 close[2]、hlc3[3]、emaFast[5]、bands.upper[2] 等简单 identifier/member；超过 500 bar 会返回诊断。",
@@ -650,6 +876,7 @@ func sectionDetails(section string) []string {
 			"strategy.entry(id, strategy.short, qty=n) 映射为卖出开空。",
 			"strategy.entry 未显式传 qty 时，会继承 strategy(...) 的 default_qty_type/default_qty_value；默认等价 strategy.fixed + 1。",
 			"strategy.entry/order 支持 qty_percent；entry/order 中表示账户权益百分比，close/exit 中表示当前 symbol 持仓百分比。",
+			"strategy.entry 反向开仓会按 Pine 语义自动反手；strategy.risk.allow_entry_in 可限制方向，被禁止方向在已有反向仓位时只平仓不反手。",
 			"pyramiding 默认按 1 处理；显式 pyramiding>1 时允许有限同向追加。",
 			"strategy.order 提交净额买入或卖出，不套用 strategy.entry 的 pyramiding gate。",
 			"strategy.close_all() 只 flatten 当前策略 symbol。",
@@ -663,16 +890,16 @@ func sectionDetails(section string) []string {
 		}
 	case "support-matrix":
 		return []string{
-			"v1.0 将 JFTrade 可执行 Pine v6 子集正式锁定为策略定义、预览、回测、实例化、运行和 ADK 工具的主路径。",
+			"v1.5 将 JFTrade 可执行 Pine v6 子集继续锁定为策略定义、预览、回测、实例化、运行和 ADK 工具的主路径。",
 			"新增 Pine 能力必须同步更新 parser lowering、IR requirements、indicator/runtime lookup、规范输出和至少一层可执行测试。",
 			"前端不是完整 Pine IDE；流程图覆盖常用策略 authoring，无法标准化的 Pine 行保留为 pineSnippet。",
 		}
 	case "unsupported":
 		return []string{
 			"plot/hline/bgcolor/barcolor/fill/alertcondition/label.new/line.new/box.new/table.* 等非交易调用会返回 warning 并忽略。",
-			"while/switch、动态 for、break/continue、多语句/递归 UDF 和 Pine 类型系统会返回结构化诊断。",
-			"除同标的 source/source[n]/source-aware MA 子集以外的 request.security、lookahead_on/gaps_on、import/library、array/matrix/map 会返回错误。",
-			"strategy.entry/order 的 stop-limit、OCA 和完整 pending order broker emulator 会返回明确诊断。",
+			"while、动态 for、条件 break/continue、递归/嵌套 UDF 和 Pine method/type 系统会返回结构化诊断；switch、受控多语句 UDF 与静态 for 无条件 break/continue 已在编译期 lowering。",
+			"除同标的静态 source/source[n]/MA/受支持高级指标/v1.4 纯表达式与 v1.5 common TA pure-expression 子集以外的 request.security、lookahead_on/gaps_on、import/library、array/matrix/map 会返回错误。",
+			"strategy.entry/order 支持基础 stop-limit 和 entry 反手；OCA、partial fill、保证金裸空账户模拟和完整 pending order broker emulator 不支持。",
 			"strategy.exit 的 OCA、partial fill、trail 与 bracket 混用、intrabar broker emulator 等高级语义会给出明确诊断。",
 			"完整 TradingView broker emulator 行为不属于当前 JFTrade runtime。",
 		}

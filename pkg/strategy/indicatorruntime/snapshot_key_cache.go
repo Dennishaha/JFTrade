@@ -4,7 +4,7 @@ import "strconv"
 
 func buildSnapshotKeyCache(requirements indicatorRequirements) snapshotKeyCache {
 	cache := snapshotKeyCache{
-		resultCapacity: len(requirements.ma) + len(requirements.securitySource) + len(requirements.rsi) + len(requirements.rsiSource) + len(requirements.macd) + len(requirements.bollinger) + len(requirements.kdj) + len(requirements.atr) + len(requirements.stdev) + len(requirements.stdevSource) + len(requirements.variance) + len(requirements.windows) + len(requirements.cum) + len(requirements.stoch) + len(requirements.cci) + len(requirements.cciSource) + len(requirements.williamsR) + len(requirements.vwap) + len(requirements.mfi) + len(requirements.dmi) + len(requirements.supertrend) + len(requirements.sar) + len(requirements.stopLoss) + len(requirements.rsiDivergence) + len(requirements.macdDivergence) + len(requirements.kdjDivergence),
+		resultCapacity: len(requirements.ma) + len(requirements.securitySource) + len(requirements.rsi) + len(requirements.rsiSource) + len(requirements.macd) + len(requirements.bollinger) + len(requirements.kdj) + len(requirements.atr) + len(requirements.stdev) + len(requirements.stdevSource) + len(requirements.variance) + len(requirements.windows) + len(requirements.cum) + len(requirements.stoch) + len(requirements.cci) + len(requirements.cciSource) + len(requirements.williamsR) + len(requirements.vwap) + len(requirements.mfi) + len(requirements.dmi) + len(requirements.supertrend) + len(requirements.sar) + len(requirements.stopLoss) + len(requirements.rsiDivergence) + len(requirements.macdDivergence) + len(requirements.kdjDivergence) + len(requirements.advanced),
 	}
 	if len(requirements.ma) > 0 {
 		cache.ma = make(map[movingAverageConfig]string, len(requirements.ma))
@@ -167,6 +167,12 @@ func buildSnapshotKeyCache(requirements indicatorRequirements) snapshotKeyCache 
 		cache.kdjDivergence = make(map[kdjDivergenceConfig]string, len(requirements.kdjDivergence))
 		for _, config := range requirements.kdjDivergence {
 			cache.kdjDivergence[config] = kdjDivergenceIndicatorKey(config.period, config.m1, config.m2, config.direction, config.lookback)
+		}
+	}
+	if len(requirements.advanced) > 0 {
+		cache.advanced = make(map[advancedIndicatorConfig]string, len(requirements.advanced))
+		for _, config := range requirements.advanced {
+			cache.advanced[config] = config.key
 		}
 	}
 	return cache

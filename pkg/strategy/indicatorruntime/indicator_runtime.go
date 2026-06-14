@@ -37,6 +37,7 @@ type indicatorRuntime struct {
 	bollingerStates      map[bollingerConfig]*rollingBollingerState
 	cciStates            map[int]*rollingCCIState
 	williamsRStates      map[int]*rollingWilliamsRState
+	obvStates            map[advancedIndicatorConfig]*rollingCumState
 	opens                []float64
 	highs                []float64
 	lows                 []float64
@@ -362,6 +363,7 @@ type snapshotKeyCache struct {
 	rsiDivergence  map[rsiDivergenceConfig]string
 	macdDivergence map[macdDivergenceConfig]string
 	kdjDivergence  map[kdjDivergenceConfig]string
+	advanced       map[advancedIndicatorConfig]string
 	resultCapacity int
 }
 
@@ -416,6 +418,7 @@ func newIndicatorRuntimeWithRequirements(requirements indicatorRequirements, int
 		bollingerStates:      newRollingBollingerStates(requirements),
 		cciStates:            newRollingCCIStates(requirements),
 		williamsRStates:      newRollingWilliamsRStates(requirements),
+		obvStates:            newOBVStates(requirements),
 	}
 	if seriesLimit > 0 {
 		runtime.opens = make([]float64, 0, seriesLimit)
@@ -494,6 +497,7 @@ func (r *indicatorRuntime) push(kline types.KLine, session market.Session) {
 	r.pushBollingerStates(closeValue)
 	r.pushCCIStates(highValue, lowValue, closeValue)
 	r.pushWilliamsRStates(highValue, lowValue, closeValue)
+	r.pushOBVStates(openValue, highValue, lowValue, closeValue, volumeValue, oldFirst, hasPreviousClose)
 }
 
 func (r *indicatorRuntime) snapshot() map[string]any {
@@ -645,6 +649,18 @@ func (r *indicatorRuntime) snapshot() map[string]any {
 		key := r.snapshotKeys.sar[config]
 		current, previous, currentOK, previousOK := calculateSARSnapshotValues(r.highs, r.lows, r.closes, config)
 		result[key] = cache.getSeriesSnapshot(key, current, previous, currentOK, previousOK)
+	}
+	for _, config := range r.requirements.advanced {
+		key := r.snapshotKeys.advanced[config]
+		if config.kind == "obv" && config.timeUnit == "" {
+			if state := r.obvStates[config]; state != nil {
+				result[key] = cache.getSeriesSnapshot(key, state.current, state.previous, state.hasCurrent, state.hasPrevious)
+			}
+			continue
+		}
+		if snapshot := r.advancedIndicatorSnapshot(config, cache); snapshot != nil {
+			result[key] = snapshot
+		}
 	}
 	for _, config := range r.requirements.stopLoss {
 		snapshot := buildStopLossSnapshotForSymbolWithOptionsAndCache(r.closes, r.endTimes, r.sessions, config, r.intervalMinutes, r.symbol, r.includeExtendedHours, cache)

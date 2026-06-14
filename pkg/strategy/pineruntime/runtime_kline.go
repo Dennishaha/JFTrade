@@ -29,7 +29,8 @@ func (r *strategyRuntime) handleKLineClosed(kline types.KLine) {
 	if r.engine != nil {
 		r.engine.Push(kline, resolvedSession)
 	}
-	if err := r.triggerPendingOrders(&kline); err != nil {
+	pendingScope := r.newScope(&kline, resolvedSession)
+	if err := r.triggerPendingOrders(&kline, pendingScope); err != nil {
 		errMsg := err.Error()
 		bbgo.Notify("pine strategy %s pending order error: %s", r.displayName, errMsg)
 		if r.strategy.OnError != nil {

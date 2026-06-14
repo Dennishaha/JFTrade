@@ -22,6 +22,11 @@ on:
         required: true
         default: false
         type: boolean
+      require_pine_improvement:
+        description: Require at least 20% Pine runtime/golden improvement
+        required: true
+        default: false
+        type: boolean
       real_chain_db_path:
         description: Local DB path on the self-hosted runner for the real US.TME benchmark
         required: false
@@ -105,6 +110,8 @@ jobs:
             -benchmem -benchtime 3x -count 8 | tee artifacts/performance/pine_golden_head.txt
 
       - name: Compare Pine benchmarks
+        env:
+          JFTRADE_REQUIRE_PINE_BENCHMARK_IMPROVEMENT: ${{ inputs.require_pine_improvement && '1' || '0' }}
         run: |
           node --test scripts/check-pine-benchmark-gates.test.mjs
           benchstat artifacts/performance/pine_compile_base.txt artifacts/performance/pine_compile_head.txt \
@@ -150,6 +157,8 @@ jobs:
         env:
           JFTRADE_UPDATE_STRATEGY_BLOCK_BASELINE: '1'
         run: |
+          export JFTRADE_BENCHMARK_AUDIT_COMMIT="$(git rev-parse HEAD)"
+          export JFTRADE_BENCHMARK_AUDIT_HARDWARE="$(uname -m) / $(sysctl -n machdep.cpu.brand_string)"
           go test ./pkg/backtest -run '^TestStrategyBlockBenchmarkBaseline$' -count 1 \
             | tee artifacts/performance/strategy_block_baseline_update.txt
 

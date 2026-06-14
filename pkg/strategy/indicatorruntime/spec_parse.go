@@ -66,6 +66,7 @@ func parseIndicatorRequirementKeys(keys []string, strict bool) (indicatorRequire
 	rsiDivergenceSet := map[rsiDivergenceConfig]struct{}{}
 	macdDivergenceSet := map[macdDivergenceConfig]struct{}{}
 	kdjDivergenceSet := map[kdjDivergenceConfig]struct{}{}
+	advancedSet := map[advancedIndicatorConfig]struct{}{}
 
 	for _, rawKey := range keys {
 		key := strings.TrimSpace(rawKey)
@@ -81,6 +82,143 @@ func parseIndicatorRequirementKeys(keys []string, strict bool) (indicatorRequire
 		}
 
 		switch parts[0] {
+		case "cmo", "dev", "median", "percentrank":
+			if len(parts) == 3 || len(parts) == 4 {
+				source, sourceOK := parseOHLCVSource(parts[1])
+				period, periodOK := parsePositiveInt(parts[2])
+				timeUnit, timeUnitOK := parseOptionalAdvancedTimeUnit(parts, 3)
+				if sourceOK && periodOK && timeUnitOK {
+					advancedSet[advancedIndicatorConfig{key: key, kind: parts[0], source: source, timeUnit: timeUnit, period: period}] = struct{}{}
+					continue
+				}
+			}
+			if strict {
+				return indicatorRequirements{}, fmt.Errorf("invalid %s key: %s", parts[0], key)
+			}
+		case "tsi":
+			if len(parts) == 4 || len(parts) == 5 {
+				source, sourceOK := parseOHLCVSource(parts[1])
+				shortPeriod, shortOK := parsePositiveInt(parts[2])
+				longPeriod, longOK := parsePositiveInt(parts[3])
+				timeUnit, timeUnitOK := parseOptionalAdvancedTimeUnit(parts, 4)
+				if sourceOK && shortOK && longOK && timeUnitOK {
+					advancedSet[advancedIndicatorConfig{key: key, kind: "tsi", source: source, timeUnit: timeUnit, period: shortPeriod, right: longPeriod}] = struct{}{}
+					continue
+				}
+			}
+			if strict {
+				return indicatorRequirements{}, fmt.Errorf("invalid tsi key: %s", key)
+			}
+		case "correlation":
+			if len(parts) == 4 || len(parts) == 5 {
+				source, sourceOK := parseOHLCVSource(parts[1])
+				source2, source2OK := parseOHLCVSource(parts[2])
+				period, periodOK := parsePositiveInt(parts[3])
+				timeUnit, timeUnitOK := parseOptionalAdvancedTimeUnit(parts, 4)
+				if sourceOK && source2OK && periodOK && timeUnitOK {
+					advancedSet[advancedIndicatorConfig{key: key, kind: "correlation", source: source, source2: source2, timeUnit: timeUnit, period: period}] = struct{}{}
+					continue
+				}
+			}
+			if strict {
+				return indicatorRequirements{}, fmt.Errorf("invalid correlation key: %s", key)
+			}
+		case "percentile_linear_interpolation", "percentile_nearest_rank":
+			if len(parts) == 4 || len(parts) == 5 {
+				source, sourceOK := parseOHLCVSource(parts[1])
+				period, periodOK := parsePositiveInt(parts[2])
+				percentage, percentageErr := strconv.ParseFloat(parts[3], 64)
+				timeUnit, timeUnitOK := parseOptionalAdvancedTimeUnit(parts, 4)
+				if sourceOK && periodOK && percentageErr == nil && percentage >= 0 && percentage <= 100 && timeUnitOK {
+					advancedSet[advancedIndicatorConfig{key: key, kind: parts[0], source: source, timeUnit: timeUnit, period: period, multiplier: percentage}] = struct{}{}
+					continue
+				}
+			}
+			if strict {
+				return indicatorRequirements{}, fmt.Errorf("invalid percentile key: %s", key)
+			}
+		case "swma":
+			if len(parts) == 2 || len(parts) == 3 {
+				source, sourceOK := parseOHLCVSource(parts[1])
+				timeUnit, timeUnitOK := parseOptionalAdvancedTimeUnit(parts, 2)
+				if sourceOK && timeUnitOK {
+					advancedSet[advancedIndicatorConfig{key: key, kind: "swma", source: source, timeUnit: timeUnit}] = struct{}{}
+					continue
+				}
+			}
+			if strict {
+				return indicatorRequirements{}, fmt.Errorf("invalid swma key: %s", key)
+			}
+		case "linreg":
+			if len(parts) == 4 || len(parts) == 5 {
+				source, sourceOK := parseOHLCVSource(parts[1])
+				period, periodOK := parsePositiveInt(parts[2])
+				offset, offsetOK := parseNonNegativeInt(parts[3])
+				timeUnit, timeUnitOK := parseOptionalAdvancedTimeUnit(parts, 4)
+				if sourceOK && periodOK && offsetOK && timeUnitOK {
+					advancedSet[advancedIndicatorConfig{key: key, kind: "linreg", source: source, timeUnit: timeUnit, period: period, offset: offset}] = struct{}{}
+					continue
+				}
+			}
+			if strict {
+				return indicatorRequirements{}, fmt.Errorf("invalid linreg key: %s", key)
+			}
+		case "obv":
+			if len(parts) == 2 || len(parts) == 3 {
+				source, sourceOK := parseOHLCVSource(parts[1])
+				timeUnit, timeUnitOK := parseOptionalAdvancedTimeUnit(parts, 2)
+				if sourceOK && timeUnitOK {
+					advancedSet[advancedIndicatorConfig{key: key, kind: "obv", source: source, timeUnit: timeUnit}] = struct{}{}
+					continue
+				}
+			}
+			if strict {
+				return indicatorRequirements{}, fmt.Errorf("invalid obv key: %s", key)
+			}
+		case "pivothigh", "pivotlow":
+			if len(parts) == 4 || len(parts) == 5 {
+				source, sourceOK := parseOHLCVSource(parts[1])
+				left, leftOK := parsePositiveInt(parts[2])
+				right, rightOK := parsePositiveInt(parts[3])
+				timeUnit, timeUnitOK := parseOptionalAdvancedTimeUnit(parts, 4)
+				if sourceOK && leftOK && rightOK && timeUnitOK {
+					advancedSet[advancedIndicatorConfig{key: key, kind: parts[0], source: source, timeUnit: timeUnit, left: left, right: right}] = struct{}{}
+					continue
+				}
+			}
+			if strict {
+				return indicatorRequirements{}, fmt.Errorf("invalid pivot key: %s", key)
+			}
+		case "kc", "kcw":
+			if len(parts) == 5 || len(parts) == 6 {
+				source, sourceOK := parseOHLCVSource(parts[1])
+				period, periodOK := parsePositiveInt(parts[2])
+				multiplier, multiplierErr := strconv.ParseFloat(parts[3], 64)
+				useTR, boolErr := strconv.ParseBool(parts[4])
+				timeUnit, timeUnitOK := parseOptionalAdvancedTimeUnit(parts, 5)
+				if sourceOK && periodOK && multiplierErr == nil && multiplier > 0 && boolErr == nil && timeUnitOK {
+					advancedSet[advancedIndicatorConfig{key: key, kind: parts[0], source: source, timeUnit: timeUnit, period: period, multiplier: multiplier, useTR: useTR}] = struct{}{}
+					continue
+				}
+			}
+			if strict {
+				return indicatorRequirements{}, fmt.Errorf("invalid kc key: %s", key)
+			}
+		case "alma":
+			if len(parts) == 5 || len(parts) == 6 {
+				source, sourceOK := parseOHLCVSource(parts[1])
+				period, periodOK := parsePositiveInt(parts[2])
+				offset, offsetErr := strconv.ParseFloat(parts[3], 64)
+				sigma, sigmaErr := strconv.ParseFloat(parts[4], 64)
+				timeUnit, timeUnitOK := parseOptionalAdvancedTimeUnit(parts, 5)
+				if sourceOK && periodOK && offsetErr == nil && sigmaErr == nil && sigma > 0 && timeUnitOK {
+					advancedSet[advancedIndicatorConfig{key: key, kind: "alma", source: source, timeUnit: timeUnit, period: period, multiplier: offset, parameter: sigma}] = struct{}{}
+					continue
+				}
+			}
+			if strict {
+				return indicatorRequirements{}, fmt.Errorf("invalid alma key: %s", key)
+			}
 		case "ma":
 			config, ok := parseMovingAverageConfig(parts)
 			if ok {
@@ -114,6 +252,15 @@ func parseIndicatorRequirementKeys(keys []string, strict bool) (indicatorRequire
 				return indicatorRequirements{}, fmt.Errorf("invalid security_source key: %s", key)
 			}
 		case "rsi":
+			if len(parts) == 4 {
+				source, sourceOK := parseOHLCVSource(parts[1])
+				period, periodOK := parsePositiveInt(parts[2])
+				timeUnit, timeUnitOK := parseOptionalAdvancedTimeUnit(parts, 3)
+				if sourceOK && periodOK && timeUnitOK && timeUnit != "" {
+					advancedSet[advancedIndicatorConfig{key: key, kind: "rsi", source: source, period: period, timeUnit: timeUnit}] = struct{}{}
+					continue
+				}
+			}
 			if len(parts) == 2 {
 				period, ok := parsePositiveInt(parts[1])
 				if ok {
@@ -191,6 +338,17 @@ func parseIndicatorRequirementKeys(keys []string, strict bool) (indicatorRequire
 				return indicatorRequirements{}, fmt.Errorf("invalid cum key: %s", key)
 			}
 		case "macd":
+			if len(parts) == 6 {
+				source, sourceOK := parseOHLCVSource(parts[1])
+				fast, fastOK := parsePositiveInt(parts[2])
+				slow, slowOK := parsePositiveInt(parts[3])
+				signal, signalOK := parsePositiveInt(parts[4])
+				timeUnit, timeUnitOK := parseOptionalAdvancedTimeUnit(parts, 5)
+				if sourceOK && fastOK && slowOK && signalOK && timeUnitOK && timeUnit != "" {
+					advancedSet[advancedIndicatorConfig{key: key, kind: "macd", source: source, period: fast, right: slow, offset: signal, timeUnit: timeUnit}] = struct{}{}
+					continue
+				}
+			}
 			if len(parts) != 4 {
 				if strict {
 					return indicatorRequirements{}, fmt.Errorf("invalid macd key: %s", key)
@@ -208,6 +366,16 @@ func parseIndicatorRequirementKeys(keys []string, strict bool) (indicatorRequire
 				return indicatorRequirements{}, fmt.Errorf("invalid macd key: %s", key)
 			}
 		case "bollinger":
+			if len(parts) == 5 {
+				source, sourceOK := parseOHLCVSource(parts[1])
+				period, periodOK := parsePositiveInt(parts[2])
+				multiplier, multiplierErr := strconv.ParseFloat(parts[3], 64)
+				timeUnit, timeUnitOK := parseOptionalAdvancedTimeUnit(parts, 4)
+				if sourceOK && periodOK && multiplierErr == nil && multiplier > 0 && timeUnitOK && timeUnit != "" {
+					advancedSet[advancedIndicatorConfig{key: key, kind: "bollinger", source: source, period: period, multiplier: multiplier, timeUnit: timeUnit}] = struct{}{}
+					continue
+				}
+			}
 			if len(parts) != 3 {
 				if strict {
 					return indicatorRequirements{}, fmt.Errorf("invalid bollinger key: %s", key)
@@ -241,6 +409,14 @@ func parseIndicatorRequirementKeys(keys []string, strict bool) (indicatorRequire
 				return indicatorRequirements{}, fmt.Errorf("invalid kdj key: %s", key)
 			}
 		case "atr":
+			if len(parts) == 3 {
+				period, periodOK := parsePositiveInt(parts[1])
+				timeUnit, timeUnitOK := parseOptionalAdvancedTimeUnit(parts, 2)
+				if periodOK && timeUnitOK && timeUnit != "" {
+					advancedSet[advancedIndicatorConfig{key: key, kind: "atr", source: "close", period: period, timeUnit: timeUnit}] = struct{}{}
+					continue
+				}
+			}
 			if len(parts) != 2 {
 				if strict {
 					return indicatorRequirements{}, fmt.Errorf("invalid atr key: %s", key)
@@ -293,7 +469,7 @@ func parseIndicatorRequirementKeys(keys []string, strict bool) (indicatorRequire
 			if strict {
 				return indicatorRequirements{}, fmt.Errorf("invalid vwap key: %s", key)
 			}
-		case "highest", "lowest", "highestbars", "lowestbars", "change", "mom", "roc", "rising", "falling", "sum":
+		case "highest", "lowest", "highestbars", "lowestbars", "change", "mom", "roc", "range", "mode", "rising", "falling", "sum":
 			if len(parts) != 3 {
 				if strict {
 					return indicatorRequirements{}, fmt.Errorf("invalid rolling window key: %s", key)
@@ -359,6 +535,15 @@ func parseIndicatorRequirementKeys(keys []string, strict bool) (indicatorRequire
 				return indicatorRequirements{}, fmt.Errorf("invalid dmi key: %s", key)
 			}
 		case "supertrend":
+			if len(parts) == 4 {
+				factor, factorErr := strconv.ParseFloat(parts[1], 64)
+				atrPeriod, periodOK := parsePositiveInt(parts[2])
+				timeUnit, timeUnitOK := parseOptionalAdvancedTimeUnit(parts, 3)
+				if factorErr == nil && factor > 0 && periodOK && timeUnitOK && timeUnit != "" {
+					advancedSet[advancedIndicatorConfig{key: key, kind: "supertrend", source: "close", period: atrPeriod, multiplier: factor, timeUnit: timeUnit}] = struct{}{}
+					continue
+				}
+			}
 			if len(parts) != 3 {
 				if strict {
 					return indicatorRequirements{}, fmt.Errorf("invalid supertrend key: %s", key)
@@ -519,7 +704,19 @@ func parseIndicatorRequirementKeys(keys []string, strict bool) (indicatorRequire
 		rsiDivergence:  sortedRSIDivergenceConfigs(rsiDivergenceSet),
 		macdDivergence: sortedMACDDivergenceConfigs(macdDivergenceSet),
 		kdjDivergence:  sortedKDJDivergenceConfigs(kdjDivergenceSet),
+		advanced:       sortedAdvancedIndicatorConfigs(advancedSet),
 	}, nil
+}
+
+func parseOptionalAdvancedTimeUnit(parts []string, index int) (string, bool) {
+	if len(parts) == index {
+		return "", true
+	}
+	if len(parts) != index+1 {
+		return "", false
+	}
+	timeUnit := normalizeIndicatorTimeUnit(parts[index])
+	return timeUnit, timeUnit != ""
 }
 
 func parsePositiveInt(value string) (int, bool) {
@@ -557,7 +754,7 @@ func parseOHLCVSource(value string) (string, bool) {
 
 func normalizeWindowFunction(value string) string {
 	switch strings.ToLower(strings.TrimSpace(value)) {
-	case "highest", "lowest", "highestbars", "lowestbars", "change", "mom", "roc", "rising", "falling", "sum":
+	case "highest", "lowest", "highestbars", "lowestbars", "change", "mom", "roc", "range", "mode", "rising", "falling", "sum":
 		return strings.ToLower(strings.TrimSpace(value))
 	default:
 		return ""

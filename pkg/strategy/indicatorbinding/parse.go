@@ -19,13 +19,53 @@ import (
 func ParseFunctionCall(value string) (string, []string, bool) {
 	trimmed := strings.TrimSpace(value)
 	openIndex := strings.Index(trimmed, "(")
-	closeIndex := strings.LastIndex(trimmed, ")")
-	if openIndex <= 0 || closeIndex != len(trimmed)-1 || closeIndex <= openIndex {
+	if openIndex <= 0 {
+		return "", nil, false
+	}
+	closeIndex := matchingFunctionCallParen(trimmed, openIndex)
+	if closeIndex != len(trimmed)-1 || closeIndex <= openIndex {
 		return "", nil, false
 	}
 	name := strings.TrimSpace(trimmed[:openIndex])
 	args := SplitArguments(trimmed[openIndex+1 : closeIndex])
 	return name, args, true
+}
+
+func matchingFunctionCallParen(value string, open int) int {
+	depth := 0
+	quote := rune(0)
+	escaped := false
+	for index, char := range value {
+		if index < open {
+			continue
+		}
+		if quote != 0 {
+			if escaped {
+				escaped = false
+				continue
+			}
+			if char == '\\' {
+				escaped = true
+				continue
+			}
+			if char == quote {
+				quote = 0
+			}
+			continue
+		}
+		switch char {
+		case '\'', '"', '`':
+			quote = char
+		case '(':
+			depth++
+		case ')':
+			depth--
+			if depth == 0 {
+				return index
+			}
+		}
+	}
+	return -1
 }
 
 // SplitArguments splits a comma-separated argument list, respecting nested

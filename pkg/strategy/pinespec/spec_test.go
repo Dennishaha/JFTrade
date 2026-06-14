@@ -106,6 +106,15 @@ func TestBuildToolPayloadIncludesSupportMatrix(t *testing.T) {
 	if got := payload["selectedSection"]; got != "support-matrix" {
 		t.Fatalf("selectedSection = %#v, want support-matrix", got)
 	}
+	if score, ok := payload["compatibilityScore"].(float64); !ok || score < 86.5 || score > 88.5 {
+		t.Fatalf("compatibilityScore = %#v, want about 87", payload["compatibilityScore"])
+	}
+	if payload["scoreModelVersion"] != "closed-bar-strategy-v1.5" {
+		t.Fatalf("scoreModelVersion = %#v", payload["scoreModelVersion"])
+	}
+	if capabilities, ok := payload["capabilities"].([]strategypine.Capability); !ok || len(capabilities) == 0 {
+		t.Fatalf("capabilities = %#v, want registry entries", payload["capabilities"])
+	}
 	foundMainPathGate := false
 	for _, item := range matrix {
 		if item["capability"] == "JFTrade Pine v6 main path" && strings.Contains(item["notes"].(string), "sourceFormat=pine-v6") && strings.Contains(item["notes"].(string), "runtime=pine-go-plan") {
@@ -133,7 +142,7 @@ func TestSkillResourcesContainSpecAndExamples(t *testing.T) {
 	if !strings.Contains(examples, "### 最小可保存草稿") {
 		t.Fatalf("examples resource missing expected example heading: %q", examples)
 	}
-	if !strings.Contains(examples, "## v1.0 黄金脚本") || !strings.Contains(examples, "### UDF 与静态 for") {
+	if !strings.Contains(examples, "## v1.5 黄金脚本") || !strings.Contains(examples, "### UDF 与静态 for") || !strings.Contains(examples, "### v1.4 MTF 纯表达式") || !strings.Contains(examples, "### v1.5 MTF common TA") {
 		t.Fatalf("examples resource missing golden scripts: %q", examples)
 	}
 }
