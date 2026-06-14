@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -278,7 +279,7 @@ func TestReconcileResolvedApprovalsRecoversPendingRun(t *testing.T) {
 	ctx := context.Background()
 	runtime := newTestRuntime(t)
 	registry := NewToolRegistry()
-	executed := false
+	var executed atomic.Bool
 	registry.Register(ToolDescriptor{
 		Name:         "strategy.save_draft",
 		DisplayName:  "Save draft",
@@ -287,7 +288,7 @@ func TestReconcileResolvedApprovalsRecoversPendingRun(t *testing.T) {
 		Permission:   "write_strategy",
 		AllowedModes: []string{PermissionModeApproval, PermissionModeSandboxAuto, PermissionModeHighAuto},
 	}, func(context.Context, map[string]any) (any, error) {
-		executed = true
+		executed.Store(true)
 		return map[string]any{"saved": true}, nil
 	})
 	runtime = newRuntimeWithRegistry(t, runtime.Store(), registry)
@@ -320,12 +321,12 @@ func TestReconcileResolvedApprovalsRecoversPendingRun(t *testing.T) {
 		if err != nil || !ok {
 			t.Fatalf("persisted run ok=%v err=%v", ok, err)
 		}
-		if executed && persistedRun.Status == RunStatusCompleted {
+		if executed.Load() && persistedRun.Status == RunStatusCompleted {
 			break
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
-	if !executed {
+	if !executed.Load() {
 		t.Fatalf("write tool was not executed by resolved approval reconciliation")
 	}
 	if persistedRun.Status != RunStatusCompleted {
@@ -1780,14 +1781,14 @@ func TestUnrecoverablePendingApprovalRunIsMarkedOrphanedOnRestart(t *testing.T) 
 func TestMultipleApprovalsExecuteOnlyAfterAllApproved(t *testing.T) {
 	ctx := context.Background()
 	runtime := newTestRuntime(t)
-	executions := 0
+	var executions atomic.Int64
 	registry := NewToolRegistry()
 	for _, name := range []string{"strategy.save_draft", "strategy.optimize"} {
 		registry.Register(ToolDescriptor{
 			Name: name, Permission: "write_strategy",
 			AllowedModes: []string{PermissionModeApproval},
 		}, func(context.Context, map[string]any) (any, error) {
-			executions++
+			executions.Add(1)
 			return map[string]any{"ok": true}, nil
 		})
 	}
@@ -1813,8 +1814,8 @@ func TestMultipleApprovalsExecuteOnlyAfterAllApproved(t *testing.T) {
 	if err != nil {
 		t.Fatalf("first approval: %v", err)
 	}
-	if executions != 0 {
-		t.Fatalf("executions after first approval = %d, want 0", executions)
+	if got := executions.Load(); got != 0 {
+		t.Fatalf("executions after first approval = %d, want 0", got)
 	}
 	if first.Run == nil || first.Run.Status != RunStatusPending {
 		t.Fatalf("first approval run = %+v, want pending", first.Run)
@@ -1823,8 +1824,8 @@ func TestMultipleApprovalsExecuteOnlyAfterAllApproved(t *testing.T) {
 	if err != nil {
 		t.Fatalf("second approval: %v", err)
 	}
-	if executions != 2 {
-		t.Fatalf("executions after all approvals = %d, want 2", executions)
+	if got := executions.Load(); got != 2 {
+		t.Fatalf("executions after all approvals = %d, want 2", got)
 	}
 	if second.Run == nil || second.Run.Status != RunStatusCompleted {
 		t.Fatalf("second approval run = %+v, want completed", second.Run)

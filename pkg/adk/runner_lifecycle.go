@@ -1,0 +1,323 @@
+package adk
+
+import (
+	"context"
+	"fmt"
+	"strings"
+	"time"
+
+	"github.com/google/uuid"
+)
+
+func runTimeoutForRun(run Run) time.Duration {
+	if run.MaxDurationMs > 0 {
+		return time.Duration(run.MaxDurationMs) * time.Millisecond
+	}
+	return DefaultRunTimeout
+}
+
+// reconcileStaleRuns reclassifies unfinished runs from a previous process
+
+func (r *Runtime) reconcileStaleRuns(ctx context.Context) {
+	if r == nil || r.store == nil {
+		return
+	}
+	runs, err := r.store.ListRuns(ctx)
+	if err != nil {
+		return
+	}
+	for _, run := range runs {
+		if run.Status != RunStatusRunning && run.Status != RunStatusPending {
+			continue
+		}
+		originalStatus := run.Status
+		if originalStatus == RunStatusPending && runHasRecoverableApprovalContext(run) {
+			continue
+		}
+		if originalStatus == RunStatusRunning && runHasRecoverableResolvedApprovalContext(run) {
+			continue
+		}
+		now := nowString()
+		run.Status = RunStatusFailed
+		run.ErrorCode = "RUN_ORPHANED"
+		run.Message = "run was interrupted by server restart"
+		run.FailureReason = "run was interrupted by server restart before completion"
+		run.ResumeState = "restart_unrecoverable"
+		run.CompletedAt = &now
+		run.Degraded = true
+		if originalStatus == RunStatusPending {
+			run.FailureReason = "run was waiting for approval, but its ADK confirmation context could not be recovered after server restart"
+			run.ResumeState = "approval_context_missing"
+		}
+		finalizeRunUsage(&run)
+		_ = r.store.SaveRun(ctx, run)
+		r.audit(ctx, "run.orphaned", run.ID, "Agent run became unrecoverable after server restart.", map[string]any{
+			"runId": run.ID, "agentId": run.AgentID, "status": run.Status, "resumeState": run.ResumeState,
+		})
+	}
+}
+
+func (r *Runtime) ReconcileExpiredRuns(ctx context.Context) {
+	if r == nil || r.store == nil {
+		return
+	}
+	runs, err := r.store.ListRuns(ctx)
+	if err != nil {
+		return
+	}
+	now := time.Now().UTC()
+	for _, run := range runs {
+		if run.Status != RunStatusRunning {
+			continue
+		}
+		startedAt := strings.TrimSpace(run.StartedAt)
+		if startedAt == "" {
+			startedAt = strings.TrimSpace(run.CreatedAt)
+		}
+		started, parseErr := time.Parse(time.RFC3339Nano, startedAt)
+		timeout := runTimeoutForRun(run)
+		if parseErr != nil || now.Sub(started) < timeout {
+			continue
+		}
+		r.activeMu.Lock()
+		cancel := r.activeRuns[run.ID]
+		delete(r.activeRuns, run.ID)
+		r.activeMu.Unlock()
+		if cancel != nil {
+			cancel()
+		}
+		for index := range run.ToolCalls {
+			call := &run.ToolCalls[index]
+			if call.Status != "RUNNING" {
+				continue
+			}
+			call.Status = "FAILED"
+			errText := "run timed out while waiting for model or tool completion"
+			call.Error = &errText
+			finishToolCall(call)
+		}
+		completedAt := nowString()
+		timeoutText := timeout.String()
+		run.Status = RunStatusTimedOut
+		run.Message = "run timed out"
+		run.FailureReason = "run exceeded maximum duration of " + timeoutText
+		run.ErrorCode = runErrorCode(RunStatusTimedOut)
+		run.Degraded = true
+		run.CompletedAt = &completedAt
+		finalizeRunUsage(&run)
+		_ = r.store.SaveRun(ctx, run)
+		r.audit(ctx, "run.timed_out", run.ID, "Agent run timed out.", map[string]any{
+			"runId": run.ID, "agentId": run.AgentID, "status": run.Status, "errorCode": run.ErrorCode, "failureReason": run.FailureReason,
+		})
+	}
+}
+
+type toolExecutionContext struct {
+	calls     []ToolCall
+	summaries []string
+}
+
+func (r *Runtime) startRun(ctx context.Context, sessionID string, agent Agent, text string) (Run, context.Context, func(), error) {
+	now := nowString()
+	timeout := r.runtimeLimits().RunTimeout
+	run := Run{
+		ID: "run-" + uuid.NewString(), SessionID: sessionID, AgentID: agent.ID, ProviderID: strings.TrimSpace(agent.ProviderID),
+		MaxDurationMs: timeout.Milliseconds(),
+		Status:        RunStatusRunning, UserMessage: text, Message: "running",
+		CreatedAt: now, StartedAt: now, UpdatedAt: now,
+		ToolCalls: []ToolCall{}, PendingApprovals: []Approval{},
+		Usage: &RunUsage{},
+	}
+	if err := r.store.SaveRun(ctx, run); err != nil {
+		return Run{}, nil, nil, err
+	}
+	r.audit(ctx, "run.started", run.ID, "Agent run started.", map[string]any{
+		"runId": run.ID, "agentId": run.AgentID, "providerId": run.ProviderID, "status": run.Status, "maxDurationMs": run.MaxDurationMs,
+	})
+	runCtx, cancel := context.WithTimeout(ctx, timeout)
+	r.activeMu.Lock()
+	r.activeRuns[run.ID] = cancel
+	r.activeMu.Unlock()
+	finish := func() {
+		cancel()
+		r.activeMu.Lock()
+		delete(r.activeRuns, run.ID)
+		r.activeMu.Unlock()
+	}
+	return run, runCtx, finish, nil
+}
+
+func (r *Runtime) CancelRun(ctx context.Context, runID string) (Run, error) {
+	r.ReconcileExpiredRuns(ctx)
+	run, ok, err := r.store.Run(ctx, runID)
+	if err != nil {
+		return Run{}, err
+	}
+	if !ok {
+		return Run{}, fmt.Errorf("run not found")
+	}
+	if run.Status != RunStatusRunning && run.Status != RunStatusPending {
+		return run, nil
+	}
+	r.activeMu.Lock()
+	cancel := r.activeRuns[run.ID]
+	r.activeMu.Unlock()
+	if cancel != nil {
+		cancel()
+	}
+	cancelledAt := nowString()
+	run.Status = RunStatusCancelled
+	run.CancelledAt = &cancelledAt
+	run.CompletedAt = &cancelledAt
+	run.Message = "cancelled"
+	run.FailureReason = "run was cancelled by user"
+	run.ErrorCode = "RUN_CANCELLED"
+	for index := range run.PendingApprovals {
+		if run.PendingApprovals[index].Status == ApprovalStatusPending {
+			resolved, changed, resolveErr := r.store.ResolvePendingApproval(ctx, run.PendingApprovals[index].ID, ApprovalStatusDenied)
+			if resolveErr == nil && changed {
+				run.PendingApprovals[index] = resolved
+			}
+		}
+	}
+	for index := range run.ToolCalls {
+		call := &run.ToolCalls[index]
+		switch call.Status {
+		case "RUNNING", "PENDING", "PENDING_APPROVAL":
+			call.Status = "CANCELLED"
+			call.RequiresUser = false
+			finishToolCall(call)
+		}
+	}
+	finalizeRunUsage(&run)
+	if err := r.store.SaveRun(ctx, run); err != nil {
+		return Run{}, err
+	}
+	r.audit(ctx, "run.cancelled", run.ID, "Agent run cancelled.", map[string]any{
+		"runId": run.ID, "sessionId": run.SessionID, "agentId": run.AgentID, "status": run.Status,
+	})
+	return run, nil
+}
+
+func recentOpenAIMessages(messages []Message, maxMessages int, maxChars int) []openAIChatMessage {
+	if maxMessages <= 0 || maxChars <= 0 || len(messages) == 0 {
+		return nil
+	}
+	start := 0
+	if len(messages) > maxMessages {
+		start = len(messages) - maxMessages
+	}
+	out := make([]openAIChatMessage, 0, len(messages)-start)
+	remaining := maxChars
+	for _, message := range messages[start:] {
+		role := "assistant"
+		if message.Role == "user" {
+			role = "user"
+		}
+		content := strings.TrimSpace(message.Content)
+		if content == "" {
+			continue
+		}
+		if role == "assistant" && isIntermediateApprovalMessage(content) {
+			continue
+		}
+		if len([]rune(content)) > remaining {
+			content = string([]rune(content)[:remaining])
+		}
+		out = append(out, openAIChatMessage{Role: role, Content: content})
+		remaining -= len([]rune(content))
+		if remaining <= 0 {
+			break
+		}
+	}
+	return out
+}
+
+func isIntermediateApprovalMessage(content string) bool {
+	return strings.Contains(content, "绛夊緟鐢ㄦ埛瀹℃壒") ||
+		strings.Contains(content, "璇峰厛鍦?ADK 瀹℃壒闃熷垪")
+}
+
+func runStatusForContext(ctx context.Context, err error) string {
+	if err == nil {
+		return RunStatusCompleted
+	}
+	if ctx != nil {
+		if ctx.Err() == context.DeadlineExceeded {
+			return RunStatusTimedOut
+		}
+		if ctx.Err() == context.Canceled {
+			return RunStatusCancelled
+		}
+	}
+	return RunStatusFailed
+}
+
+func runErrorCode(status string) string {
+	switch status {
+	case RunStatusTimedOut:
+		return "RUN_TIMED_OUT"
+	case RunStatusCancelled:
+		return "RUN_CANCELLED"
+	default:
+		return "MODEL_CALL_FAILED"
+	}
+}
+
+func runLifecycleAuditKind(status string) string {
+	switch status {
+	case RunStatusTimedOut:
+		return "run.timed_out"
+	case RunStatusCancelled:
+		return "run.cancelled"
+	case RunStatusDenied:
+		return "run.denied"
+	case RunStatusFailed:
+		return "run.failed"
+	default:
+		return "run.completed"
+	}
+}
+
+func finalizeRunUsage(run *Run) {
+	if run.Usage == nil {
+		return
+	}
+	if run.StartedAt != "" && run.CompletedAt != nil {
+		if started, err := time.Parse(time.RFC3339Nano, run.StartedAt); err == nil {
+			if completed, err := time.Parse(time.RFC3339Nano, *run.CompletedAt); err == nil {
+				run.Usage.DurationMs = completed.Sub(started).Milliseconds()
+			}
+		}
+	}
+}
+
+func toolSummariesForRun(run Run) []string {
+	summaries := make([]string, 0, len(run.ToolCalls))
+	for _, call := range run.ToolCalls {
+		if call.Status == "SUCCEEDED" {
+			summaries = append(summaries, summarizeToolOutput(call.ToolName, call.Output))
+		}
+		if call.Status == "FAILED" && call.Error != nil {
+			summaries = append(summaries, fmt.Sprintf("%s failed: %s", call.ToolName, *call.Error))
+		}
+		if call.Status == "DENIED" {
+			summaries = append(summaries, fmt.Sprintf("%s denied by user", call.ToolName))
+		}
+	}
+	return summaries
+}
+
+func optimizationTaskID(calls []ToolCall) string {
+	for _, call := range calls {
+		if call.ToolName != "strategy.optimize" || call.Status != "SUCCEEDED" {
+			continue
+		}
+		if output, ok := call.Output.(map[string]any); ok {
+			if taskID, ok := output["taskId"].(string); ok {
+				return strings.TrimSpace(taskID)
+			}
+		}
+	}
+	return ""
+}

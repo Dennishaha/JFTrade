@@ -432,6 +432,7 @@ func TestAccountOrdersStreamCompletes(t *testing.T) {
 		t.Fatalf("SaveAgent: %v", err)
 	}
 
+	var deltasMu sync.Mutex
 	var deltas []ChatDelta
 	done := make(chan ChatResponse, 1)
 	errCh := make(chan error, 1)
@@ -441,7 +442,9 @@ func TestAccountOrdersStreamCompletes(t *testing.T) {
 			AgentID: agent.ID,
 			Message: "查看账户和订单",
 		}, func(delta ChatDelta) error {
+			deltasMu.Lock()
 			deltas = append(deltas, delta)
+			deltasMu.Unlock()
 			return nil
 		})
 		if chatErr != nil {
@@ -456,17 +459,20 @@ func TestAccountOrdersStreamCompletes(t *testing.T) {
 		if resp.Run.Status != RunStatusCompleted {
 			t.Fatalf("run status = %q, want COMPLETED; message: %s", resp.Run.Status, resp.Run.Message)
 		}
+		deltasMu.Lock()
+		streamDeltas := append([]ChatDelta(nil), deltas...)
+		deltasMu.Unlock()
 		// Verify we got tool progress deltas.
 		hasToolProgress := false
-		for _, delta := range deltas {
+		for _, delta := range streamDeltas {
 			if strings.Contains(delta.ToolProgress, "account.orders") {
 				hasToolProgress = true
 			}
 		}
 		if !hasToolProgress {
-			t.Logf("Warning: no tool progress delta for account.orders (deltas: %d)", len(deltas))
+			t.Logf("Warning: no tool progress delta for account.orders (deltas: %d)", len(streamDeltas))
 		}
-		t.Logf("Stream completed with %d deltas, %d tool calls", len(deltas), len(resp.Run.ToolCalls))
+		t.Logf("Stream completed with %d deltas, %d tool calls", len(streamDeltas), len(resp.Run.ToolCalls))
 	case chatErr := <-errCh:
 		t.Fatalf("ChatStream error: %v", chatErr)
 	case <-time.After(30 * time.Second):
