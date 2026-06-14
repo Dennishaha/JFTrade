@@ -9,7 +9,7 @@
 - [../../../cmd/jftrade/main.go](../../../cmd/jftrade/main.go) 复用 bbgo CLI 入口
 - [../../../pkg/futu/exchange.go](../../../pkg/futu/exchange.go) 通过注册机制接入 bbgo exchange factory
 - [../../../pkg/futu/stream.go](../../../pkg/futu/stream.go) 复用 bbgo 的 Stream / StandardStream 抽象
-- [../../../pkg/jftradeapi/notifications.go](../../../pkg/jftradeapi/notifications.go) 复用 bbgo 通知系统
+- [../../../internal/app/apiserver/servercore/notifications.go](../../../internal/app/apiserver/servercore/notifications.go) 复用 bbgo 通知系统
 
 ## 1. 运行入口与注册机制
 
@@ -46,9 +46,9 @@
 
 | 接口或扩展点 | 当前用途 | 本项目落点 | 原始文档位置 |
 | --- | --- | --- | --- |
-| `bbgo.Notification.AddNotifier(...)` | 注册 JFTrade live 通知桥 | [../../../pkg/jftradeapi/notifications.go](../../../pkg/jftradeapi/notifications.go) | 文档不足；最接近的使用侧资料是 [../bbgo-doc/configuration/slack.md](../bbgo-doc/configuration/slack.md) 与 [../bbgo-doc/configuration/telegram.md](../bbgo-doc/configuration/telegram.md) |
-| `bbgo.Notify(...)` | 把通知写入 bbgo 全局通知总线 | [../../../pkg/jftradeapi/notifications.go](../../../pkg/jftradeapi/notifications.go) | 文档不足；通知后端示例见 [../bbgo-doc/configuration/slack.md](../bbgo-doc/configuration/slack.md) 与 [../bbgo-doc/configuration/telegram.md](../bbgo-doc/configuration/telegram.md) |
-| `bbgo.Notifier` | JFTrade live bridge 实现的通知接收器接口 | [../../../pkg/jftradeapi/notifications.go](../../../pkg/jftradeapi/notifications.go) | 文档不足 |
+| `bbgo.Notification.AddNotifier(...)` | 注册 JFTrade live 通知桥 | [../../../internal/app/apiserver/servercore/notifications.go](../../../internal/app/apiserver/servercore/notifications.go) | 文档不足；最接近的使用侧资料是 [../bbgo-doc/configuration/slack.md](../bbgo-doc/configuration/slack.md) 与 [../bbgo-doc/configuration/telegram.md](../bbgo-doc/configuration/telegram.md) |
+| `bbgo.Notify(...)` | 把通知写入 bbgo 全局通知总线 | [../../../internal/app/apiserver/servercore/notifications.go](../../../internal/app/apiserver/servercore/notifications.go) | 文档不足；通知后端示例见 [../bbgo-doc/configuration/slack.md](../bbgo-doc/configuration/slack.md) 与 [../bbgo-doc/configuration/telegram.md](../bbgo-doc/configuration/telegram.md) |
+| `bbgo.Notifier` | JFTrade live bridge 实现的通知接收器接口 | [../../../internal/app/apiserver/servercore/notifications.go](../../../internal/app/apiserver/servercore/notifications.go) | 文档不足 |
 
 ## 5. 环境变量与会话发现
 
@@ -70,6 +70,6 @@
 
 - `adding-new-exchange` 更像检查单，不是完整 API 手册
 - `StandardStream` 文档比 `Exchange Factory` 文档完整得多
-- bbgo 通知系统在本地参考文档里覆盖不足，改这块时不要只依赖文档，先回到 [../../../pkg/jftradeapi/notifications.go](../../../pkg/jftradeapi/notifications.go)
+- bbgo 通知系统在本地参考文档里覆盖不足，改这块时不要只依赖文档，先回到 [../../../internal/app/apiserver/servercore/notifications.go](../../../internal/app/apiserver/servercore/notifications.go)
 - 文档里仍能看到 `SubmitOrders` 这类旧命名，和当前项目实现的 `SubmitOrder` 不必完全一一对应，语义上按“交易下单能力”理解
-- 2026-05-22 起，证券 rich details / security snapshot 不再尝试塞进 bbgo 标准 `types.Exchange` 语义层；当前实现落在项目侧 Futu adapter + `pkg/jftradeapi` 的 `/api/v1/market-data/securities/{market}/{symbol}`，bbgo 仍主要承载通用 quote / ticker / stream 能力
+- 2026-05-22 起，证券 rich details / security snapshot 不再尝试塞进 bbgo 标准 `types.Exchange` 语义层；当前实现落在项目侧 Futu adapter + `internal/api/marketdata` 的 `/api/v1/market-data/securities/{market}/{symbol}`，bbgo 仍主要承载通用 quote / ticker / stream 能力

@@ -14,6 +14,7 @@ import (
 	initpb "github.com/jftrade/jftrade-main/pkg/futu/pb/initconnect"
 	notifypb "github.com/jftrade/jftrade-main/pkg/futu/pb/notify"
 	qotupdateorderbookpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotupdateorderbook"
+	trdcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdcommon"
 )
 
 // --- Client lifecycle management (connect / reconnect / keepalive / invalidate) ---
@@ -69,6 +70,7 @@ func (e *Exchange) ensureClient(ctx context.Context) (*opend.Client, error) {
 		default:
 			e.bindOrderBookNotifyLocked(e.client)
 			e.bindSystemNotifyLocked(e.client)
+			e.bindTradeUpdateNotifyLocked(e.client)
 			return e.client, nil
 		}
 	}
@@ -112,6 +114,12 @@ func (e *Exchange) ensureClient(ctx context.Context) (*opend.Client, error) {
 	e.subscriptions.ensure()
 	e.bindOrderBookNotifyLocked(e.client)
 	e.bindSystemNotifyLocked(e.client)
+	e.bindTradeUpdateNotifyLocked(e.client)
+	if err := e.resubscribeTradeAccountPushLocked(ctx, e.client); err != nil {
+		_ = e.invalidateClientLocked()
+		log.Printf("futu OpenD trade account push resubscribe failed after reconnect: %v", err)
+		return nil, err
+	}
 	log.Printf("futu OpenD session established to %s (connect=%v init=%v total=%v)",
 		e.addr, connectElapsed, time.Since(initStart), time.Since(connectStart))
 	return e.client, nil
@@ -165,6 +173,54 @@ func (e *Exchange) dispatchSystemNotify(response *notifypb.Response) {
 	}
 }
 
+func (e *Exchange) bindTradeUpdateNotifyLocked(client *opend.Client) {
+	if client == nil || e.orderUpdateNotifyClient == client {
+		return
+	}
+	if len(e.orderUpdateHandlers) == 0 && len(e.orderFillUpdateHandlers) == 0 {
+		return
+	}
+	client.SubscribeOrderUpdate(e.dispatchOrderUpdateNotify)
+	client.SubscribeOrderFillUpdate(e.dispatchOrderFillUpdateNotify)
+	e.orderUpdateNotifyClient = client
+}
+
+func (e *Exchange) dispatchOrderUpdateNotify(header *trdcommonpb.TrdHeader, order *trdcommonpb.Order) {
+	e.mu.Lock()
+	handlers := make([]func(*trdcommonpb.TrdHeader, *trdcommonpb.Order), 0, len(e.orderUpdateHandlers))
+	for _, handler := range e.orderUpdateHandlers {
+		handlers = append(handlers, handler)
+	}
+	e.mu.Unlock()
+	for _, handler := range handlers {
+		handler(header, order)
+	}
+}
+
+func (e *Exchange) dispatchOrderFillUpdateNotify(header *trdcommonpb.TrdHeader, fill *trdcommonpb.OrderFill) {
+	e.mu.Lock()
+	handlers := make([]func(*trdcommonpb.TrdHeader, *trdcommonpb.OrderFill), 0, len(e.orderFillUpdateHandlers))
+	for _, handler := range e.orderFillUpdateHandlers {
+		handlers = append(handlers, handler)
+	}
+	e.mu.Unlock()
+	for _, handler := range handlers {
+		handler(header, fill)
+	}
+}
+
+func (e *Exchange) resubscribeTradeAccountPushLocked(ctx context.Context, client *opend.Client) error {
+	if client == nil || len(e.tradeAccountPushIDs) == 0 || e.tradeAccountPushClient == client {
+		return nil
+	}
+	ids := append([]uint64(nil), e.tradeAccountPushIDs...)
+	if err := client.SubscribeAccountPush(ctx, ids); err != nil {
+		return err
+	}
+	e.tradeAccountPushClient = client
+	return nil
+}
+
 // --- Client construction / invalidation ---
 
 func (e *Exchange) newClient() *opend.Client {
@@ -190,6 +246,8 @@ func (e *Exchange) invalidateClientLocked() error {
 	e.subscriptions.reset()
 	e.orderBookNotifyClient = nil
 	e.systemNotifyClient = nil
+	e.orderUpdateNotifyClient = nil
+	e.tradeAccountPushClient = nil
 	if client != nil {
 		return client.Close()
 	}

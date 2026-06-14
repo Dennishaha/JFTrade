@@ -18,7 +18,7 @@ v0.8 发布主线文件：
 
 - `pkg/strategy/pine/*`、`pkg/strategy/ir/*`、`pkg/strategy/indicatorbinding/*`、`pkg/strategy/indicatorruntime/*`、`pkg/strategy/pineruntime/*`、`pkg/strategy/pinespec/*`
 - `pkg/backtest/runner_test.go`
-- `pkg/jftradeapi/adk_runtime_test.go`、`pkg/jftradeapi/adk_strategy_pine_spec.go`、`pkg/jftradeapi/strategy_pine_routes_test.go`、`pkg/jftradeapi/strategy_runtime_manager_trading_test.go`
+- `internal/app/apiserver/servercore/adk_runtime_test.go`、`internal/app/apiserver/servercore/strategy_pine_routes_test.go`、`internal/app/apiserver/servercore/strategy_runtime_manager_trading_test.go`
 - `apps/web/src/features/strategyPineEditorIntelliSense.ts`、`apps/web/src/features/strategyVisualBuilderPine.ts`、`apps/web/src/features/strategyVisualBuilderPineParser.ts`
 - `apps/web/tests/strategyVisualBuilderPine.test.ts`、`apps/web/tests/adkToolVisualizations.test.ts`
 
@@ -59,7 +59,7 @@ v0.9 兼容迁移前置文件：
 必跑：
 
 ```bash
-go test ./pkg/strategy/... ./pkg/jftradeapi/... ./pkg/backtest/...
+go test ./pkg/strategy/... ./internal/app/apiserver/servercore ./internal/api/strategy ./internal/strategy ./pkg/backtest/...
 npm --workspace @jftrade/web run test
 npm run typecheck
 ```

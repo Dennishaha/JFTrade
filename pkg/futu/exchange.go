@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 	"sync"
 
@@ -20,6 +21,7 @@ import (
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
 	notifypb "github.com/jftrade/jftrade-main/pkg/futu/pb/notify"
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
+	trdcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdcommon"
 	"github.com/jftrade/jftrade-main/pkg/market"
 )
 
@@ -52,18 +54,24 @@ type Exchange struct {
 	addr         string
 	webSocketKey string
 
-	mu                      sync.Mutex
-	sessionMu               sync.RWMutex
-	client                  *opend.Client
-	ready                   bool
-	subscriptions           subscriptionRegistry
-	systemNotifyClient      *opend.Client
-	systemNotifyHandlers    []func(*notifypb.Response)
-	orderBookNotifyClient   *opend.Client
-	orderBookNotifyHandlers map[uint64]func(string)
-	nextOrderBookHandlerID  uint64
-	klineSessions           map[string]klineSessionRecord
-	marketSessionSamples    map[string][]marketSessionSample
+	mu                       sync.Mutex
+	sessionMu                sync.RWMutex
+	client                   *opend.Client
+	ready                    bool
+	subscriptions            subscriptionRegistry
+	systemNotifyClient       *opend.Client
+	systemNotifyHandlers     []func(*notifypb.Response)
+	orderBookNotifyClient    *opend.Client
+	orderBookNotifyHandlers  map[uint64]func(string)
+	nextOrderBookHandlerID   uint64
+	orderUpdateNotifyClient  *opend.Client
+	orderUpdateHandlers      map[uint64]func(*trdcommonpb.TrdHeader, *trdcommonpb.Order)
+	orderFillUpdateHandlers  map[uint64]func(*trdcommonpb.TrdHeader, *trdcommonpb.OrderFill)
+	nextTradeUpdateHandlerID uint64
+	tradeAccountPushIDs      []uint64
+	tradeAccountPushClient   *opend.Client
+	klineSessions            map[string]klineSessionRecord
+	marketSessionSamples     map[string][]marketSessionSample
 
 	// customMarkets holds market info for symbols that are not natively
 	// returned by QueryMarkets but should be known to the exchange — e.g.
@@ -137,11 +145,113 @@ func (e *Exchange) OnOrderBookUpdate(fn func(string)) func() {
 	}
 }
 
+// OnOrderUpdate registers a locally removable handler for order pushes.
+func (e *Exchange) OnOrderUpdate(fn func(*trdcommonpb.TrdHeader, *trdcommonpb.Order)) func() {
+	if fn == nil {
+		return func() {}
+	}
+	e.mu.Lock()
+	if e.orderUpdateHandlers == nil {
+		e.orderUpdateHandlers = make(map[uint64]func(*trdcommonpb.TrdHeader, *trdcommonpb.Order))
+	}
+	e.nextTradeUpdateHandlerID++
+	id := e.nextTradeUpdateHandlerID
+	e.orderUpdateHandlers[id] = fn
+	e.bindTradeUpdateNotifyLocked(e.client)
+	e.mu.Unlock()
+	return func() {
+		e.mu.Lock()
+		delete(e.orderUpdateHandlers, id)
+		e.mu.Unlock()
+	}
+}
+
+// OnOrderFillUpdate registers a locally removable handler for fill pushes.
+func (e *Exchange) OnOrderFillUpdate(fn func(*trdcommonpb.TrdHeader, *trdcommonpb.OrderFill)) func() {
+	if fn == nil {
+		return func() {}
+	}
+	e.mu.Lock()
+	if e.orderFillUpdateHandlers == nil {
+		e.orderFillUpdateHandlers = make(map[uint64]func(*trdcommonpb.TrdHeader, *trdcommonpb.OrderFill))
+	}
+	e.nextTradeUpdateHandlerID++
+	id := e.nextTradeUpdateHandlerID
+	e.orderFillUpdateHandlers[id] = fn
+	e.bindTradeUpdateNotifyLocked(e.client)
+	e.mu.Unlock()
+	return func() {
+		e.mu.Lock()
+		delete(e.orderFillUpdateHandlers, id)
+		e.mu.Unlock()
+	}
+}
+
 // EnsureSystemNotifications brings up the shared OpenD session so registered
 // system-notify handlers can receive protocol 1003 pushes.
 func (e *Exchange) EnsureSystemNotifications(ctx context.Context) error {
 	_, err := e.ensureClient(ctx)
 	return err
+}
+
+// SubscribeTradeAccountPush enables OpenD trade pushes for the given accounts.
+func (e *Exchange) SubscribeTradeAccountPush(ctx context.Context, accountIDs []uint64) error {
+	ids := normalizeTradeAccountPushIDs(accountIDs)
+	e.mu.Lock()
+	if !sameUint64Set(e.tradeAccountPushIDs, ids) {
+		e.tradeAccountPushIDs = ids
+		e.tradeAccountPushClient = nil
+	}
+	e.mu.Unlock()
+	client, err := e.ensureClient(ctx)
+	if err != nil {
+		return err
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	e.mu.Lock()
+	alreadySubscribed := e.client == client && e.tradeAccountPushClient == client && sameUint64Set(e.tradeAccountPushIDs, ids)
+	e.mu.Unlock()
+	if alreadySubscribed {
+		return nil
+	}
+	if err := client.SubscribeAccountPush(ctx, append([]uint64(nil), ids...)); err != nil {
+		return err
+	}
+	e.mu.Lock()
+	if e.client == client && sameUint64Set(e.tradeAccountPushIDs, ids) {
+		e.tradeAccountPushClient = client
+	}
+	e.mu.Unlock()
+	return nil
+}
+
+func normalizeTradeAccountPushIDs(accountIDs []uint64) []uint64 {
+	ids := append([]uint64(nil), accountIDs...)
+	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
+	out := ids[:0]
+	var last uint64
+	for i, id := range ids {
+		if i > 0 && id == last {
+			continue
+		}
+		out = append(out, id)
+		last = id
+	}
+	return append([]uint64(nil), out...)
+}
+
+func sameUint64Set(a, b []uint64) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }
 
 // --- bbgo types.ExchangeMinimal ---

@@ -24,8 +24,8 @@ Before changing Pine capabilities, update parser lowering, IR planning, runtime/
 Recommended v1.0 validation:
 
 ```bash
-go test ./pkg/strategy/... ./pkg/jftradeapi/... ./pkg/backtest/...
-go test ./pkg/jftradeapi -run 'StrategyDefinition|StrategyPine|Runtime|Backtest'
+go test ./pkg/strategy/... ./internal/app/apiserver/servercore ./internal/api/strategy ./internal/strategy ./pkg/backtest/...
+go test ./internal/app/apiserver/servercore -run 'StrategyDefinition|StrategyPine|Runtime|Backtest'
 npm --workspace @jftrade/web run test
 npm run typecheck
 ```

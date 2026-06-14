@@ -1,0 +1,571 @@
+package servercore
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"io/fs"
+	"log"
+	"net/http"
+	"os"
+	"path/filepath"
+	"sync"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/jmoiron/sqlx"
+
+	bbgotypes "github.com/c9s/bbgo/pkg/types"
+	"github.com/jftrade/jftrade-main/internal/api/httpserver"
+	apilive "github.com/jftrade/jftrade-main/internal/api/live"
+	"github.com/jftrade/jftrade-main/internal/api/middleware"
+	apiruntime "github.com/jftrade/jftrade-main/internal/app/apiserver/runtime"
+	asst "github.com/jftrade/jftrade-main/internal/assistant"
+	btsrv "github.com/jftrade/jftrade-main/internal/backtest"
+	futuintegration "github.com/jftrade/jftrade-main/internal/integration/futu"
+	"github.com/jftrade/jftrade-main/internal/live"
+	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
+	"github.com/jftrade/jftrade-main/internal/settings"
+	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
+	"github.com/jftrade/jftrade-main/internal/system"
+	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
+	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
+	bt "github.com/jftrade/jftrade-main/pkg/backtest"
+	"github.com/jftrade/jftrade-main/pkg/broker"
+	"github.com/jftrade/jftrade-main/pkg/futu"
+	strategypine "github.com/jftrade/jftrade-main/pkg/strategy/pine"
+	strategypinespec "github.com/jftrade/jftrade-main/pkg/strategy/pinespec"
+)
+
+const (
+	defaultFutuHost            = "127.0.0.1"
+	defaultFutuAPIPort         = 11110
+	defaultFutuWebSocketPort   = 11111
+	defaultMaxWebSocketClients = 20
+	strategyListLogsTailSize   = 20
+)
+
+type envelope = httpserver.Envelope
+type apiError = httpserver.APIError
+
+var errFutuIntegrationNotEnabled = errors.New("futu integration is not enabled")
+
+type Server struct {
+	store                  SidecarSettingsStore
+	strategyStore          *strategyCatalogStore
+	strategyRuntimeStore   *strategyRuntimeStore
+	strategyRuntimeManager *strategyRuntimeManager
+	designStore            *strategyDesignStore
+	backtestRuns           *backtestRunStore
+	backtestSyncTasks      *backtestSyncTaskStore
+	executionOrders        *executionOrderStore
+	liveWebSocket          *apilive.Handler
+	liveNotifications      *live.ReplayPublisher
+	closeOnce              sync.Once
+	closeErr               error
+	marketdataRuntime      *futuintegration.MarketDataRuntime
+	brokers                *broker.Registry // Unified broker registry for multi-broker support
+	adkRuntime             *jfadk.Runtime
+	assistantSvc           *asst.Service
+	frontend               *frontendServer
+	apiPort                int
+	auth                   *adminAuth
+	router                 *gin.Engine
+	sysSvc                 *system.Service
+	settingsSvc            *settings.Service
+	backtestSvc            *btsrv.Service
+	strategySvc            *stratsrv.Service
+	marketdataSvc          *mdsrv.Service
+	tradingSvc             *trdsrv.Service
+}
+
+// SidecarHandler is the minimal server surface required by API sidecar assembly.
+type SidecarHandler interface {
+	http.Handler
+	Close() error
+	SetAPIPort(int)
+	ConfigureAuthOrigins(...string)
+	SetFrontendFS(fs.FS, string)
+	ApplySecuritySettings(SecuritySettings)
+}
+
+// SidecarSettingsStore is the settings surface required by the legacy HTTP server.
+type SidecarSettingsStore interface {
+	settings.Store
+}
+
+type opendProbe struct {
+	CheckedAt        string
+	Connectivity     string
+	Status           string
+	LastError        *string
+	QuoteLoggedIn    *bool
+	TradeLoggedIn    *bool
+	ServerVersion    *string
+	ProgramStatus    *string
+	ProgramTimestamp *string
+	Markets          []map[string]any
+}
+
+// StartForRunArgs, resolveGUIAPIBaseURL, resolveGUIRuntimeAPIBaseURL,
+// shouldStartForArgs, and envOrDefault are defined in server_startup.go.
+
+func NewServer(store *SettingsStore) *Server {
+	return newServerWithFrontend(store, newFrontendServer(loadFrontendFS()))
+}
+
+// NewSidecarHandler creates the HTTP handler used by API sidecar assembly.
+func NewSidecarHandler(store *SettingsStore, frontendFS fs.FS, runtimeAPIBaseURL string) SidecarHandler {
+	return NewSidecarHandlerWithStore(store, frontendFS, runtimeAPIBaseURL)
+}
+
+// NewSidecarHandlerWithStore creates the HTTP handler from an abstract settings store.
+func NewSidecarHandlerWithStore(store SidecarSettingsStore, frontendFS fs.FS, runtimeAPIBaseURL string) SidecarHandler {
+	return newServerWithFrontend(store, newFrontendServerWithRuntimeConfig(frontendFS, runtimeAPIBaseURL))
+}
+
+// SetAPIPort updates the API port exposed by system status responses.
+func (s *Server) SetAPIPort(port int) {
+	if s != nil {
+		s.apiPort = port
+	}
+}
+
+// ConfigureAuthOrigins allows API sidecar assembly to add trusted origins.
+func (s *Server) ConfigureAuthOrigins(origins ...string) {
+	if s != nil && s.auth != nil {
+		s.auth.configureOrigins(origins...)
+	}
+}
+
+// SetFrontendFS mounts frontend assets with the runtime API base URL.
+func (s *Server) SetFrontendFS(frontendFS fs.FS, runtimeAPIBaseURL string) {
+	if s != nil {
+		s.frontend = newFrontendServerWithRuntimeConfig(frontendFS, runtimeAPIBaseURL)
+	}
+}
+
+// ApplySecuritySettings applies administrator auth settings to API and frontend.
+func (s *Server) ApplySecuritySettings(settings SecuritySettings) {
+	if s != nil {
+		s.applySecuritySettings(settings)
+	}
+}
+
+func newServerWithFrontend(store SidecarSettingsStore, frontend *frontendServer) *Server {
+	settingsPath := store.Path()
+	strategyStore, err := NewStrategyCatalogStore(deriveStrategyCatalogPath(settingsPath), deriveStrategyPluginTargetDir(settingsPath))
+	if err != nil {
+		log.Printf("JFTrade strategy catalog store degraded: %v", err)
+		fallbackSettingsPath := filepath.Join(os.TempDir(), "jftrade-strategy-catalog-fallback", "settings.json")
+		strategyStore, err = NewStrategyCatalogStore(deriveStrategyCatalogPath(fallbackSettingsPath), deriveStrategyPluginTargetDir(fallbackSettingsPath))
+		if err != nil {
+			log.Printf("JFTrade strategy catalog fallback sqlite store degraded: %v", err)
+		}
+	}
+	var runtimeStore *strategyRuntimeStore
+	if strategyStore != nil {
+		runtimeStore = strategyStore.runtimeStore
+	}
+	if strategyStore == nil {
+		var runtimeDB *sqlx.DB
+		runtimeStore, err = NewStrategyRuntimeStore(deriveStrategyRuntimeDBPath(settingsPath))
+		if err != nil {
+			log.Printf("JFTrade strategy runtime sqlite store degraded: %v", err)
+			runtimeStore = nil
+		}
+		if runtimeStore != nil {
+			runtimeDB = runtimeStore.DB()
+		}
+		strategyStore = &strategyCatalogStore{path: deriveStrategyCatalogPath(settingsPath), dbPath: deriveStrategyCatalogDBPath(deriveStrategyCatalogPath(settingsPath)), db: runtimeDB, targetDir: deriveStrategyPluginTargetDir(settingsPath), runtimeStore: runtimeStore, data: strategyCatalogFile{TargetDir: deriveStrategyPluginTargetDir(settingsPath)}}
+		if strategyStore.db != nil {
+			if migrateErr := strategyStore.migrateLocked(); migrateErr != nil {
+				log.Printf("JFTrade strategy catalog fallback sqlite store degraded: %v", migrateErr)
+			}
+		}
+	}
+	designStore, err := NewStrategyDesignStore(deriveStrategyDesignPath(settingsPath))
+	if err != nil {
+		log.Printf("JFTrade strategy design store degraded: %v", err)
+		fallbackSettingsPath := filepath.Join(os.TempDir(), "jftrade-strategy-design-fallback", "settings.json")
+		designStore, err = NewStrategyDesignStore(deriveStrategyDesignPath(fallbackSettingsPath))
+		if err != nil {
+			log.Printf("JFTrade strategy design fallback sqlite store degraded: %v", err)
+			designStore = nil
+		}
+	}
+	backtestRunStore, err := newBacktestRunStoreWithDB(deriveBacktestRunDBPath(settingsPath))
+	if err != nil {
+		log.Printf("JFTrade backtest run store degraded: %v", err)
+		fallbackSettingsPath := filepath.Join(os.TempDir(), "jftrade-backtest-runs-fallback", "settings.json")
+		backtestRunStore, err = newBacktestRunStoreWithDB(deriveBacktestRunDBPath(fallbackSettingsPath))
+		if err != nil {
+			log.Printf("JFTrade backtest run fallback sqlite store degraded: %v", err)
+			backtestRunStore = newBacktestRunStore()
+		}
+	}
+	executionOrderStore, err := newExecutionOrderStoreWithDB(deriveExecutionOrderDBPath(settingsPath))
+	if err != nil {
+		log.Printf("JFTrade execution order sqlite store degraded: %v", err)
+		executionOrderStore = newExecutionOrderStore()
+	}
+	executionOrderStore.configureSeenFillRetention(store.ExecutionSettings().SeenFillRetentionDays)
+	auth, authErr := newAdminAuth(settingsPath)
+	if authErr != nil {
+		log.Printf("JFTrade administrator authentication unavailable: %v", authErr)
+		auth = &adminAuth{
+			enabled:        true,
+			unavailable:    true,
+			allowedOrigins: map[string]struct{}{},
+			sessions:       map[string]adminSession{},
+			attempts:       map[string]loginAttempt{},
+			now:            time.Now,
+		}
+	}
+	server := &Server{
+		store:                store,
+		strategyStore:        strategyStore,
+		strategyRuntimeStore: runtimeStore,
+		designStore:          designStore,
+		backtestRuns:         backtestRunStore,
+		backtestSyncTasks:    newBacktestSyncTaskStore(),
+		executionOrders:      executionOrderStore,
+		liveNotifications:    live.NewReplayPublisher(),
+		brokers:              broker.NewRegistry(),
+		apiPort:              portFromBind(defaultDevelopmentAPIBind, 3000),
+		frontend:             frontend,
+		auth:                 auth,
+	}
+	server.liveWebSocket = apilive.NewHandler(liveWebSocketBackend{server: server}, apilive.Options{
+		DataInterval:            liveTickDispatchInterval,
+		SecurityDetailsInterval: marketSecurityDetailsStreamInterval,
+		DepthRefreshInterval:    marketDepthStreamRefreshInterval,
+	})
+	if server.auth != nil {
+		server.auth.configureOrigins(
+			apiBaseURLForBind(defaultDevelopmentAPIBind),
+			apiBaseURLForBind(defaultReleaseAPIBind),
+			"http://"+defaultReleaseGUIBind,
+			"http://127.0.0.1:5173",
+			"http://127.0.0.1:5174",
+			"http://localhost:5173",
+			"http://localhost:5174",
+		)
+		log.Printf("JFTrade administrator key file: %s", server.auth.keyPath)
+	}
+	server.applySecuritySettings(store.SecuritySettings())
+	server.adkRuntime = newADKRuntime(server, settingsPath)
+	server.assistantSvc = asst.NewService(
+		server.adkRuntime,
+		asst.WithRuntimeSettings(func() any {
+			return server.store.ADKSettings()
+		}),
+		asst.WithStreamIdleTimeout(func() int {
+			return server.store.ADKSettings().StreamIdleTimeoutMs
+		}),
+		asst.WithOptimizationRuns(assistantOptimizationRuns{server: server}),
+	)
+	server.strategyRuntimeManager = newStrategyRuntimeManager(server)
+	server.marketdataRuntime = futuintegration.NewMarketDataRuntime(futuintegration.MarketDataRuntimeOptions{
+		ConfigSource: func() futuintegration.MarketDataConfig {
+			integration := server.store.SavedIntegration()
+			if integration == nil {
+				return futuintegration.MarketDataConfig{}
+			}
+			return futuintegration.MarketDataConfig{
+				Enabled: integration.Enabled, Host: integration.Config.Host,
+				APIPort: integration.Config.APIPort, WebSocketKey: integration.Config.WebSocketKey,
+			}
+		},
+		OnExchange: func(exchange *futu.Exchange) {
+			exchange.OnSystemNotify(server.handleFutuSystemNotify)
+			if server.brokers != nil {
+				server.brokers.Replace(futu.NewBrokerAdapter(exchange))
+			}
+		},
+	})
+	if reconciled, err := server.strategyStore.reconcileRuntimeStatesOnStartup(); err != nil {
+		log.Printf("JFTrade strategy runtime state reconciliation failed: %v", err)
+	} else if reconciled > 0 {
+		log.Printf("JFTrade reconciled %d stale strategy runtime state(s) to STOPPED during startup", reconciled)
+	}
+	if err := server.liveNotifications.Start(bbgoNotificationSource{}); err != nil {
+		log.Printf("JFTrade BBGO notification source unavailable: %v", err)
+	}
+
+	// Wire system service — delegates to Server methods via closures.
+	server.sysSvc = system.NewService(
+		system.WithAPIPortFunc(func() int { return server.apiPort }),
+		system.WithSettingsPath(settingsPath),
+		system.WithDefaultTradingEnvironmentFunc(func() string { return server.defaultTradingEnvironment() }),
+		system.WithBrokerDescriptor(func() map[string]any { return server.descriptor() }),
+		system.WithStrategyRuntimeSummary(func() map[string]any { return server.strategyRuntimeSummary() }),
+		system.WithLiveStats(func() map[string]any { return server.liveStatsSummary() }),
+		system.WithMarketdataRuntimeSummary(func() map[string]any { return server.marketdataRuntimeSummary() }),
+		system.WithBrokerOrderSnapshot(func() map[string]any {
+			if server.tradingSvc == nil {
+				return map[string]any{}
+			}
+			return server.tradingSvc.OrderUpdatesSnapshot()
+		}),
+		system.WithFutuOpenDHealth(func(ctx context.Context) map[string]any { return server.futuOpenDHealth(ctx) }),
+		system.WithFutuOpenDInstallGuide(func() map[string]any { return server.futuOpenDInstallGuide() }),
+		system.WithResetFutuRuntime(func() { server.resetFutuRuntime() }),
+	)
+
+	// Wire backtest service — RunStore / SyncTaskStore / StrategyProvider
+	// are implemented by the same backing stores already held by Server.
+	server.backtestSvc = btsrv.NewService(
+		btsrv.WithRunStore(&backtestRunStoreAdapter{store: backtestRunStore}),
+		btsrv.WithSyncTaskStore(&backtestSyncTaskStoreAdapter{store: server.backtestSyncTasks}),
+		btsrv.WithStrategyProvider(&strategyProviderAdapter{store: designStore}),
+		btsrv.WithDBPathFn(func() string { return deriveBacktestDBPath() }),
+		btsrv.WithRunBacktestFn(func(ctx context.Context, config bt.RunConfig) *bt.RunResult {
+			return bt.Run(ctx, config)
+		}),
+		btsrv.WithNewKLineSyncerFn(futuintegration.NewKLineSyncer),
+	)
+
+	// Wire strategy service
+	server.strategySvc = stratsrv.NewService(
+		&strategyDesignStoreAdapter{store: designStore},
+		&strategyCatalogStoreAdapter{store: strategyStore, designStore: designStore, runtimeMgr: server.strategyRuntimeManager},
+		&strategyRuntimeManagerAdapter{mgr: server.strategyRuntimeManager},
+		stratsrv.WithPineAnalyzer(func(input stratsrv.PineAnalyzeInput) (stratsrv.PineAnalysisResult, error) {
+			analysis := strategypine.AnalyzeScript(input.Script, strategypine.AnalysisOptions{IncludeAST: input.IncludeAST})
+			response := map[string]any{
+				"ok":               analysis.OK,
+				"sourceFormat":     strategypinespec.SourceFormat,
+				"runtime":          strategypinespec.Runtime,
+				"normalizedScript": analysis.NormalizedScript,
+				"diagnostics":      analysis.Diagnostics,
+				"warnings":         analysis.Warnings,
+				"metadata":         strategyMetadataPayload(analysis.Program),
+				"hooks":            buildCompiledHookKinds(analysis.Program),
+				"requirements":     buildCompiledRequirementsPayload(analysis.Requirements),
+				"features":         analysis.Features,
+			}
+			if input.IncludeAST {
+				response["ast"] = analysis.AST
+			}
+			return response, nil
+		}),
+		stratsrv.WithLiveMarketStreamRefresher(func(ctx context.Context) {
+			server.ensureLiveMarketStream(ctx, server.activeLiveStreamInstrumentIDs(nil))
+		}),
+	)
+
+	// Wire marketdata service — delegates to Server methods via closure-based Provider.
+	server.marketdataSvc = mdsrv.NewService(newMarketdataProvider(server))
+	server.marketdataSvc.StartCollector(
+		server.marketdataRuntime,
+		server.marketdataRuntime,
+		server.handlePushMarketdataTick,
+		mdsrv.DemandSourceFunc(func() []string {
+			if server.liveWebSocket == nil {
+				return nil
+			}
+			return server.liveWebSocket.ActiveInstrumentIDs()
+		}),
+		mdsrv.DemandSourceFunc(func() []string {
+			if server.strategyRuntimeManager == nil {
+				return nil
+			}
+			return server.strategyRuntimeManager.activeInstrumentIDs()
+		}),
+	)
+
+	// Wire trading service to broker capabilities and the application-owned execution store.
+	server.tradingSvc = server.newTradingService()
+
+	// Wire settings service — delegates to SettingsStore with side-effect orchestration.
+	server.settingsSvc = settings.NewService(persistenceOnlySettingsStore(store),
+		settings.WithSideEffects(settings.SideEffects{
+			OnIntegrationChanged: func(integration BrokerIntegration) {
+				apiruntime.ApplyIntegrationEnv(integration)
+				server.resetFutuRuntime()
+			},
+			OnExecutionChanged: func(exec ExecutionSettings) {
+				if server.executionOrders != nil {
+					server.executionOrders.configureSeenFillRetention(exec.SeenFillRetentionDays)
+				}
+			},
+			OnSecurityChanged: func(sec SecuritySettings) {
+				server.applySecuritySettings(sec)
+			},
+		}),
+		settings.WithBrokerDescriptor(func() map[string]any { return server.descriptor() }),
+		settings.WithBrokerSettings(func() map[string]any { return server.brokerSettings() }),
+		settings.WithOnboardingState(func(ctx context.Context) map[string]any { return server.onboardingState(ctx) }),
+		settings.WithDefaultTradingEnvironment(server.defaultTradingEnvironment()),
+	)
+
+	server.router = server.buildRouter()
+	return server
+}
+
+func persistenceOnlySettingsStore(store SidecarSettingsStore) SidecarSettingsStore {
+	if compatibilityStore, ok := store.(*SettingsStore); ok && compatibilityStore.Store != nil {
+		return compatibilityStore.Store
+	}
+	return store
+}
+
+// --- Exchange / broker accessors (see also futu_runtime.go for futuExchange) ---
+
+func (s *Server) liveMarketExchange() bbgotypes.Exchange {
+	if s.strategyRuntimeManager != nil && s.strategyRuntimeManager.exchangeProvider != nil {
+		if exchange := s.strategyRuntimeManager.exchangeProvider(); exchange != nil {
+			return exchange
+		}
+	}
+	if !s.futuIntegrationEnabled() {
+		return nil
+	}
+	return &strategyRuntimeBrokerBridge{
+		Exchange: s.futuExchange(),
+		broker:   s.activeBroker(),
+	}
+}
+
+func (s *Server) brokerExecutionExchange() strategyRuntimeExchange {
+	if s.strategyRuntimeManager != nil && s.strategyRuntimeManager.exchangeProvider != nil {
+		if exchange := s.strategyRuntimeManager.exchangeProvider(); exchange != nil {
+			return exchange
+		}
+	}
+	if !s.futuIntegrationEnabled() {
+		return nil
+	}
+	return &strategyRuntimeBrokerBridge{
+		Exchange: s.futuExchange(),
+		broker:   s.activeBroker(),
+	}
+}
+
+func (s *Server) futuIntegrationEnabled() bool {
+	integration := s.store.SavedIntegration()
+	return integration != nil && integration.Enabled
+}
+
+func (s *Server) futuExchangeOrError() (*futu.Exchange, error) {
+	exchange := s.futuExchange()
+	if exchange == nil {
+		return nil, errFutuIntegrationNotEnabled
+	}
+	return exchange, nil
+}
+
+func (s *Server) futuBrokerOrError() (broker.Broker, error) {
+	b := s.futuBroker()
+	if b == nil {
+		return nil, errFutuIntegrationNotEnabled
+	}
+	return b, nil
+}
+
+// activeBroker returns the currently active broker.Broker from the registry.
+// If no broker is registered yet, it triggers futuExchange() which lazily
+// creates and registers the default Futu broker.
+// This is the recommended entry point for all new broker-facing code.
+func (s *Server) activeBroker() broker.Broker {
+	if b := s.brokers.ActiveBroker(); b != nil {
+		return b
+	}
+	if !s.futuIntegrationEnabled() {
+		return nil
+	}
+	// Ensure the Futu exchange is initialized and registered.
+	s.futuExchange()
+	return s.brokers.ActiveBroker()
+}
+
+func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if s == nil || s.router == nil {
+		http.NotFound(w, r)
+		return
+	}
+	s.router.ServeHTTP(w, r)
+}
+
+var _ middleware.WriteMethodDetector = (*Server)(nil)
+
+func (s *Server) IsWriteMethod(r *http.Request) bool {
+	return r.Method == http.MethodPost || r.Method == http.MethodPut || r.Method == http.MethodDelete
+}
+
+func (s *Server) writeOK(c *gin.Context, data any) {
+	httpserver.WriteOK(c, data)
+}
+
+func (s *Server) writeError(c *gin.Context, status int, code string, message string) {
+	httpserver.WriteError(c, status, code, message)
+}
+
+// Close releases all resources held by the server, including database connections.
+// It is safe to call Close multiple times. After Close, the server should not be used.
+func (s *Server) Close() error {
+	if s == nil {
+		return nil
+	}
+	s.closeOnce.Do(func() {
+		var errs []error
+		if s.tradingSvc != nil {
+			if err := s.tradingSvc.StopOrderUpdates(); err != nil {
+				errs = append(errs, fmt.Errorf("trading order updates close: %w", err))
+			}
+		}
+		if s.liveWebSocket != nil {
+			if err := s.liveWebSocket.Close(); err != nil {
+				errs = append(errs, fmt.Errorf("liveWebSocket close: %w", err))
+			}
+		}
+		if s.marketdataSvc != nil {
+			if err := s.marketdataSvc.Close(); err != nil {
+				errs = append(errs, fmt.Errorf("marketdata close: %w", err))
+			}
+		}
+		if s.liveNotifications != nil {
+			if err := s.liveNotifications.Close(); err != nil {
+				errs = append(errs, fmt.Errorf("liveNotifications close: %w", err))
+			}
+		}
+		if s.backtestSvc != nil {
+			if err := s.backtestSvc.Close(); err != nil {
+				errs = append(errs, fmt.Errorf("backtestSvc close: %w", err))
+			}
+		}
+		if s.backtestRuns != nil {
+			if err := s.backtestRuns.Close(); err != nil {
+				errs = append(errs, fmt.Errorf("backtestRuns close: %w", err))
+			}
+		}
+		if s.executionOrders != nil {
+			if err := s.executionOrders.Close(); err != nil {
+				errs = append(errs, fmt.Errorf("executionOrders close: %w", err))
+			}
+		}
+		if s.strategyStore != nil {
+			if err := s.strategyStore.Close(); err != nil {
+				errs = append(errs, fmt.Errorf("strategyStore close: %w", err))
+			}
+		}
+		if s.designStore != nil {
+			if err := s.designStore.Close(); err != nil {
+				errs = append(errs, fmt.Errorf("designStore close: %w", err))
+			}
+		}
+		if s.assistantSvc != nil {
+			if err := s.assistantSvc.Close(); err != nil {
+				errs = append(errs, fmt.Errorf("assistantSvc close: %w", err))
+			}
+		}
+		if s.marketdataRuntime != nil {
+			if err := s.marketdataRuntime.Close(); err != nil {
+				errs = append(errs, fmt.Errorf("futu marketdata runtime close: %w", err))
+			}
+		}
+		s.closeErr = errors.Join(errs...)
+	})
+	return s.closeErr
+}

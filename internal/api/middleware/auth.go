@@ -1,0 +1,113 @@
+package middleware
+
+import (
+	"net/http"
+	"strings"
+	"time"
+
+	"github.com/gin-gonic/gin"
+)
+
+// Authenticator 验证请求是否已认证。
+// 返回 session token、是否认证成功、是否通过 Bearer token 认证。
+type Authenticator interface {
+	Authenticate(r *http.Request) (session string, ok bool, isBearer bool)
+}
+
+// CSRFValidator 验证 CSRF token 是否有效。
+// session 是 Authenticator 返回的会话标识。
+type CSRFValidator interface {
+	ValidateCSRF(r *http.Request, session string) bool
+}
+
+// WriteMethodDetector 判断 HTTP 方法是否为写操作。
+type WriteMethodDetector interface {
+	IsWriteMethod(r *http.Request) bool
+}
+
+// Auth 返回 Gin 鉴权中间件。
+// 跳过 /api/v1/auth/* 和 /api/v1/system/status 路径。
+func Auth(auth Authenticator, csrf CSRFValidator, writeDetector WriteMethodDetector, originChecker OriginChecker) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		r := c.Request
+		if !requiresAuthentication(r) {
+			c.Next()
+			return
+		}
+		if !authorizeRequest(c, auth, csrf, writeDetector, originChecker) {
+			return
+		}
+		c.Next()
+	}
+}
+
+// requiresAuthentication 判断路径是否需要鉴权。
+func requiresAuthentication(r *http.Request) bool {
+	if r == nil {
+		return false
+	}
+	path := r.URL.Path
+	if !strings.HasPrefix(path, "/api/") {
+		return false
+	}
+	if strings.HasPrefix(path, "/api/v1/auth/") {
+		return false
+	}
+	return path != "/api/v1/system/status"
+}
+
+// authorizeRequest 执行请求鉴权。返回 true 表示通过。
+func authorizeRequest(c *gin.Context, auth Authenticator, csrf CSRFValidator, writeDetector WriteMethodDetector, originChecker OriginChecker) bool {
+	r := c.Request
+
+	if auth == nil {
+		writeAuthError(c, http.StatusUnauthorized, "UNAUTHORIZED", "administrator authentication is required")
+		return false
+	}
+	session, ok, bearer := auth.Authenticate(r)
+	if !ok {
+		writeAuthError(c, http.StatusUnauthorized, "UNAUTHORIZED", "administrator authentication is required")
+		return false
+	}
+	if bearer {
+		return true
+	}
+
+	origin := requestOrigin(r)
+	if origin != "" && (originChecker == nil || !originChecker.IsOriginAllowed(origin)) {
+		writeAuthError(c, http.StatusForbidden, "ORIGIN_FORBIDDEN", "request origin is not allowed")
+		return false
+	}
+	if !isWriteMethod(writeDetector, r) {
+		return true
+	}
+	if origin == "" {
+		writeAuthError(c, http.StatusForbidden, "ORIGIN_FORBIDDEN", "write request origin is not allowed")
+		return false
+	}
+	if csrf == nil || !csrf.ValidateCSRF(r, session) {
+		writeAuthError(c, http.StatusForbidden, "CSRF_FAILED", "valid CSRF token is required")
+		return false
+	}
+	return true
+}
+
+func isWriteMethod(detector WriteMethodDetector, r *http.Request) bool {
+	if detector != nil {
+		return detector.IsWriteMethod(r)
+	}
+	if r == nil {
+		return false
+	}
+	return r.Method == http.MethodPost || r.Method == http.MethodPut || r.Method == http.MethodDelete
+}
+
+// writeAuthError 写入鉴权错误响应。使用本地 envelope 结构避免引入 httpserver 依赖。
+// 注意：middleware 包不应依赖 httpserver 包。
+func writeAuthError(c *gin.Context, status int, code string, message string) {
+	c.AbortWithStatusJSON(status, gin.H{
+		"ok":        false,
+		"error":     gin.H{"code": code, "message": message},
+		"timestamp": time.Now().UTC().Format(time.RFC3339Nano),
+	})
+}

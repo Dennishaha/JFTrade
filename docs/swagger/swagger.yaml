@@ -1,61 +1,30 @@
 basePath: /
 definitions:
-  backtest.RunResult:
+  httpserver.APIError:
     properties:
-      candles:
-        items:
-          $ref: '#/definitions/runmodel.Candle'
-        type: array
-      currentDrawdown:
-        type: number
-      drawdownCurve:
-        items:
-          $ref: '#/definitions/runmodel.DrawdownPoint'
-        type: array
-      endTime:
+      code:
         type: string
-      error:
+      message:
         type: string
-      finalBalance:
-        type: number
-      interval:
-        type: string
-      logs:
-        items:
-          type: string
-        type: array
-      maxDrawdown:
-        type: number
-      orderBook:
-        items:
-          $ref: '#/definitions/runmodel.OrderBookEntry'
-        type: array
-      pnl:
-        type: number
-      pnlCurve:
-        items:
-          $ref: '#/definitions/runmodel.PnLPoint'
-        type: array
-      quoteCurrency:
-        type: string
-      runtimeErrors:
-        items:
-          type: string
-        type: array
-      startTime:
-        type: string
-      symbol:
-        type: string
-      totalTrades:
-        type: integer
-      trades:
-        items:
-          $ref: '#/definitions/runmodel.TradeEvent'
-        type: array
-      winRate:
-        type: number
     type: object
-  jftradeapi.ExecutionSettings:
+  httpserver.Envelope:
+    properties:
+      data: {}
+      error:
+        $ref: '#/definitions/httpserver.APIError'
+      ok:
+        type: boolean
+      timestamp:
+        type: string
+    type: object
+  jftsettings.ADKRuntimeSettings:
+    properties:
+      runTimeoutMs:
+        type: integer
+      streamIdleTimeoutMs:
+        type: integer
+    type: object
+  jftsettings.ExecutionSettings:
     properties:
       brokerOrderHistoryLookbackDays:
         type: integer
@@ -64,7 +33,7 @@ definitions:
       seenFillRetentionDays:
         type: integer
     type: object
-  jftradeapi.FutuIntegrationConfig:
+  jftsettings.FutuIntegrationConfig:
     properties:
       apiPort:
         type: integer
@@ -85,102 +54,49 @@ definitions:
       websocketPort:
         type: integer
     type: object
-  jftradeapi.SecuritySettings:
+  jftsettings.SecuritySettings:
     properties:
       adminAuthRequired:
         type: boolean
     type: object
-  jftradeapi.UIAppearanceSettings:
+  jftsettings.UIAppearanceSettings:
     properties:
       downColor:
         type: string
       upColor:
         type: string
     type: object
-  jftradeapi.adminLoginRequest:
+  marketdata.SubscriptionHeartbeatRequest:
     properties:
-      key:
+      consumerId:
         type: string
     type: object
-  jftradeapi.apiError:
+  marketdata.SubscriptionInstrument:
     properties:
-      code:
+      channel:
         type: string
-      message:
-        type: string
-    type: object
-  jftradeapi.backtestRunState:
-    properties:
-      createdAt:
-        type: string
-      id:
-        type: string
-      request:
-        $ref: '#/definitions/jftradeapi.backtestStartRequest'
-      result:
-        $ref: '#/definitions/backtest.RunResult'
-      status:
-        description: '"queued", "running", "completed", "failed"'
-        type: string
-      updatedAt:
-        type: string
-    type: object
-  jftradeapi.backtestStartRequest:
-    properties:
-      code:
-        type: string
-      definitionId:
-        type: string
-      definitionVersion:
-        type: string
-      endTime:
-        type: string
-      initialBalance:
-        type: number
       interval:
         type: string
       market:
         type: string
-      rehabType:
-        description: '"forward" | "backward" | "none"'
-        type: string
-      startTime:
-        type: string
       symbol:
         type: string
-      useExtendedHours:
-        type: boolean
     type: object
-  jftradeapi.backtestSyncRequest:
+  marketdata.SubscriptionRequest:
     properties:
-      code:
+      consumerId:
         type: string
-      intervals:
+      instruments:
         items:
-          type: string
+          $ref: '#/definitions/marketdata.SubscriptionInstrument'
         type: array
-      market:
-        type: string
-      rehabType:
-        description: '"none" | "forward" | "backward"'
-        type: string
-      sessionScope:
-        type: string
-      since:
-        type: string
-      symbol:
-        type: string
-      until:
-        type: string
     type: object
-  jftradeapi.brokerIntegrationSaveRequest:
+  servercore.adminLoginRequest:
     properties:
-      config:
-        $ref: '#/definitions/jftradeapi.FutuIntegrationConfig'
-      enabled:
-        type: boolean
+      key:
+        type: string
     type: object
-  jftradeapi.brokerOrderCommandResponse:
+  servercore.brokerOrderCommandResponse:
     properties:
       accepted:
         type: boolean
@@ -201,43 +117,224 @@ definitions:
       orderStatus:
         type: string
     type: object
-  jftradeapi.envelope:
+  servercore.envelope:
     properties:
       data: {}
       error:
-        $ref: '#/definitions/jftradeapi.apiError'
+        $ref: '#/definitions/httpserver.APIError'
       ok:
         type: boolean
       timestamp:
         type: string
     type: object
-  jftradeapi.executionOrderEventResponse:
-    properties:
-      createdAt:
-        type: string
-      eventType:
-        type: string
-      id:
-        type: string
-      internalOrderId:
-        type: string
-      nextStatus:
-        type: string
-      payloadJson:
-        type: string
-      previousStatus:
-        type: string
-    type: object
-  jftradeapi.executionOrderEventsResponse:
+  servercore.executionOrderEventsResponse:
     properties:
       events:
         items:
-          $ref: '#/definitions/jftradeapi.executionOrderEventResponse'
+          $ref: '#/definitions/trading.ExecutionOrderEvent'
         type: array
       internalOrderId:
         type: string
     type: object
-  jftradeapi.executionOrderSummaryResponse:
+  servercore.executionOrdersResponse:
+    properties:
+      orders:
+        items:
+          $ref: '#/definitions/trading.ExecutionOrder'
+        type: array
+    type: object
+  servercore.executionPlaceOrderRequest:
+    properties:
+      accountId:
+        type: string
+      brokerId:
+        type: string
+      clientOrderId:
+        type: string
+      code:
+        type: string
+      env:
+        type: string
+      market:
+        type: string
+      orderType:
+        type: string
+      price:
+        type: number
+      quantity:
+        type: number
+      remark:
+        type: string
+      session:
+        type: string
+      side:
+        type: string
+      stopPrice:
+        type: number
+      symbol:
+        type: string
+      timeInForce:
+        type: string
+      tradingEnvironment:
+        type: string
+    type: object
+  settings.BrokerIntegrationSaveRequest:
+    properties:
+      config:
+        $ref: '#/definitions/jftsettings.FutuIntegrationConfig'
+      enabled:
+        type: boolean
+    type: object
+  settings.ManagedBrokerAccountWriteRequest:
+    properties:
+      accountId:
+        type: string
+      brokerId:
+        type: string
+      displayName:
+        type: string
+      enabled:
+        type: boolean
+      market:
+        type: string
+      securityFirm:
+        type: string
+      tradingEnvironment:
+        type: string
+    type: object
+  settings.OnboardingWriteRequest:
+    properties:
+      completed:
+        type: boolean
+      dismissed:
+        type: boolean
+      lastBrokerId:
+        type: string
+    type: object
+  settings.UIAppearanceSettingsWriteRequest:
+    properties:
+      appearance:
+        $ref: '#/definitions/jftsettings.UIAppearanceSettings'
+    type: object
+  strategy.AnalyzePineRequest:
+    properties:
+      includeAst:
+        type: boolean
+      script:
+        type: string
+      sourceFormat:
+        type: string
+    type: object
+  strategy.BindingInstrument:
+    properties:
+      code:
+        type: string
+      market:
+        type: string
+    type: object
+  strategy.BrokerAccountBinding:
+    properties:
+      accountId:
+        type: string
+      brokerId:
+        type: string
+      market:
+        type: string
+      tradingEnvironment:
+        type: string
+    type: object
+  strategy.StrategyBindingRequest:
+    properties:
+      brokerAccount:
+        $ref: '#/definitions/strategy.BrokerAccountBinding'
+      executionMode:
+        type: string
+      instruments:
+        items:
+          $ref: '#/definitions/strategy.BindingInstrument'
+        type: array
+      interval:
+        type: string
+      symbols:
+        items:
+          type: string
+        type: array
+    type: object
+  strategy.StrategyDesignDefinition:
+    properties:
+      createdAt:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      interval:
+        type: string
+      name:
+        type: string
+      runtime:
+        type: string
+      script:
+        type: string
+      sourceFormat:
+        type: string
+      symbol:
+        type: string
+      updatedAt:
+        type: string
+      version:
+        type: string
+      visualModel:
+        $ref: '#/definitions/strategy.StrategyVisualModel'
+    type: object
+  strategy.StrategyVisualEdge:
+    properties:
+      id:
+        type: string
+      properties:
+        additionalProperties: {}
+        type: object
+      sourceNodeId:
+        type: string
+      targetNodeId:
+        type: string
+      text:
+        type: string
+      type:
+        type: string
+    type: object
+  strategy.StrategyVisualModel:
+    properties:
+      edges:
+        items:
+          $ref: '#/definitions/strategy.StrategyVisualEdge'
+        type: array
+      engine:
+        type: string
+      nodes:
+        items:
+          $ref: '#/definitions/strategy.StrategyVisualNode'
+        type: array
+      version:
+        type: integer
+    type: object
+  strategy.StrategyVisualNode:
+    properties:
+      id:
+        type: string
+      properties:
+        additionalProperties: {}
+        type: object
+      text:
+        type: string
+      type:
+        type: string
+      x:
+        type: number
+      "y":
+        type: number
+    type: object
+  trading.ExecutionOrder:
     properties:
       accountId:
         type: string
@@ -288,315 +385,21 @@ definitions:
       updatedAt:
         type: string
     type: object
-  jftradeapi.executionOrdersResponse:
-    properties:
-      orders:
-        items:
-          $ref: '#/definitions/jftradeapi.executionOrderSummaryResponse'
-        type: array
-    type: object
-  jftradeapi.executionPlaceOrderRequest:
-    properties:
-      accountId:
-        type: string
-      brokerId:
-        type: string
-      clientOrderId:
-        type: string
-      code:
-        type: string
-      env:
-        type: string
-      market:
-        type: string
-      orderType:
-        type: string
-      price:
-        type: number
-      quantity:
-        type: number
-      remark:
-        type: string
-      session:
-        type: string
-      side:
-        type: string
-      stopPrice:
-        type: number
-      symbol:
-        type: string
-      timeInForce:
-        type: string
-      tradingEnvironment:
-        type: string
-    type: object
-  jftradeapi.managedBrokerAccountWriteRequest:
-    properties:
-      accountId:
-        type: string
-      brokerId:
-        type: string
-      displayName:
-        type: string
-      enabled:
-        type: boolean
-      market:
-        type: string
-      securityFirm:
-        type: string
-      tradingEnvironment:
-        type: string
-    type: object
-  jftradeapi.marketSubscriptionHeartbeatPayload:
-    properties:
-      consumerId:
-        type: string
-    type: object
-  jftradeapi.marketSubscriptionPayload:
-    properties:
-      channel:
-        type: string
-      consumerId:
-        type: string
-      interval:
-        type: string
-      market:
-        type: string
-      symbol:
-        type: string
-    type: object
-  jftradeapi.onboardingWriteRequest:
-    properties:
-      completed:
-        type: boolean
-      dismissed:
-        type: boolean
-      lastBrokerId:
-        type: string
-    type: object
-  jftradeapi.strategyActivityPage:
-    properties:
-      hasMore:
-        type: boolean
-      limit:
-        type: integer
-      offset:
-        type: integer
-      returned:
-        type: integer
-      total:
-        type: integer
-    type: object
-  jftradeapi.strategyAuditEntry:
-    properties:
-      at:
-        type: string
-      detail:
-        type: string
-      instanceId:
-        type: string
-      kind:
-        type: string
-    type: object
-  jftradeapi.strategyAuditResponse:
-    properties:
-      entries:
-        items:
-          $ref: '#/definitions/jftradeapi.strategyAuditEntry'
-        type: array
-      instanceId:
-        type: string
-      page:
-        $ref: '#/definitions/jftradeapi.strategyActivityPage'
-    type: object
-  jftradeapi.strategyDefinitionResponse:
+  trading.ExecutionOrderEvent:
     properties:
       createdAt:
         type: string
-      derivedWarmupBars:
-        type: integer
-      derivedWarmupInterval:
-        type: string
-      description:
+      eventType:
         type: string
       id:
         type: string
-      interval:
+      internalOrderId:
         type: string
-      name:
+      nextStatus:
         type: string
-      runtime:
+      payloadJson:
         type: string
-      script:
-        type: string
-      sourceFormat:
-        type: string
-      symbol:
-        type: string
-      updatedAt:
-        type: string
-      version:
-        type: string
-      visualModel:
-        $ref: '#/definitions/jftradeapi.strategyVisualModel'
-    type: object
-  jftradeapi.strategyDesignDefinition:
-    properties:
-      createdAt:
-        type: string
-      description:
-        type: string
-      id:
-        type: string
-      interval:
-        type: string
-      name:
-        type: string
-      runtime:
-        type: string
-      script:
-        type: string
-      sourceFormat:
-        type: string
-      symbol:
-        type: string
-      updatedAt:
-        type: string
-      version:
-        type: string
-      visualModel:
-        $ref: '#/definitions/jftradeapi.strategyVisualModel'
-    type: object
-  jftradeapi.strategyLogsResponse:
-    properties:
-      instanceId:
-        type: string
-      logs:
-        items:
-          type: string
-        type: array
-      page:
-        $ref: '#/definitions/jftradeapi.strategyActivityPage'
-    type: object
-  jftradeapi.strategyVisualEdge:
-    properties:
-      id:
-        type: string
-      properties:
-        additionalProperties: {}
-        type: object
-      sourceNodeId:
-        type: string
-      targetNodeId:
-        type: string
-      text:
-        type: string
-      type:
-        type: string
-    type: object
-  jftradeapi.strategyVisualModel:
-    properties:
-      edges:
-        items:
-          $ref: '#/definitions/jftradeapi.strategyVisualEdge'
-        type: array
-      engine:
-        type: string
-      nodes:
-        items:
-          $ref: '#/definitions/jftradeapi.strategyVisualNode'
-        type: array
-      version:
-        type: integer
-    type: object
-  jftradeapi.strategyVisualNode:
-    properties:
-      id:
-        type: string
-      properties:
-        additionalProperties: {}
-        type: object
-      text:
-        type: string
-      type:
-        type: string
-      x:
-        type: number
-      "y":
-        type: number
-    type: object
-  jftradeapi.uiAppearanceSettingsWriteRequest:
-    properties:
-      appearance:
-        $ref: '#/definitions/jftradeapi.UIAppearanceSettings'
-    type: object
-  runmodel.Candle:
-    properties:
-      close:
-        type: string
-      high:
-        type: string
-      low:
-        type: string
-      open:
-        type: string
-      time:
-        type: string
-      volume:
-        type: string
-    type: object
-  runmodel.DrawdownPoint:
-    properties:
-      drawdown:
-        type: number
-      time:
-        type: string
-    type: object
-  runmodel.OrderBookEntry:
-    properties:
-      clientOrderId:
-        type: string
-      filledAt:
-        type: string
-      filledPrice:
-        type: string
-      filledQuantity:
-        type: string
-      orderId:
-        type: string
-      orderPrice:
-        type: string
-      orderType:
-        type: string
-      quantity:
-        type: string
-      side:
-        type: string
-      status:
-        type: string
-      submittedAt:
-        type: string
-      symbol:
-        type: string
-    type: object
-  runmodel.PnLPoint:
-    properties:
-      equity:
-        type: number
-      time:
-        type: string
-    type: object
-  runmodel.TradeEvent:
-    properties:
-      pnl:
-        type: number
-      price:
-        type: string
-      qty:
-        type: string
-      side:
-        type: string
-      time:
+      previousStatus:
         type: string
     type: object
 info:
@@ -613,12 +416,24 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
       summary: 读取 ADK 快照
+      tags:
+      - adk
+  /api/v1/adk/agent-templates:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: ADK catalog and provider management routes
       tags:
       - adk
   /api/v1/adk/agents:
@@ -634,16 +449,205 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
       summary: 读取 ADK Agent 列表
+      tags:
+      - adk
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: ADK catalog and provider management routes
+      tags:
+      - adk
+  /api/v1/adk/agents/{agentId}:
+    delete:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: ADK catalog and provider management routes
+      tags:
+      - adk
+    put:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: ADK catalog and provider management routes
+      tags:
+      - adk
+  /api/v1/adk/approvals:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: ADK chat, approval, and skill routes
+      tags:
+      - adk
+  /api/v1/adk/approvals/{approvalId}/approve:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: ADK chat, approval, and skill routes
+      tags:
+      - adk
+  /api/v1/adk/approvals/{approvalId}/deny:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: ADK chat, approval, and skill routes
+      tags:
+      - adk
+  /api/v1/adk/audit:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: ADK catalog and provider management routes
+      tags:
+      - adk
+  /api/v1/adk/chat:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: ADK chat, approval, and skill routes
+      tags:
+      - adk
+  /api/v1/adk/chat/stream:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: ADK chat, approval, and skill routes
+      tags:
+      - adk
+  /api/v1/adk/memory:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: ADK task and memory routes
+      tags:
+      - adk
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: ADK task and memory routes
+      tags:
+      - adk
+  /api/v1/adk/memory/{memoryId}:
+    delete:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: ADK task and memory routes
+      tags:
+      - adk
+  /api/v1/adk/metrics:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: ADK catalog and provider management routes
+      tags:
+      - adk
+  /api/v1/adk/optimization-tasks:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: ADK optimization task routes
+      tags:
+      - adk
+  /api/v1/adk/optimization-tasks/{taskId}:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: ADK optimization task routes
+      tags:
+      - adk
+  /api/v1/adk/optimization-tasks/{taskId}/cancel:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: ADK optimization task routes
       tags:
       - adk
   /api/v1/adk/providers:
@@ -654,12 +658,58 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
       summary: 读取 ADK Provider 列表
+      tags:
+      - adk
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: ADK catalog and provider management routes
+      tags:
+      - adk
+  /api/v1/adk/providers/{providerId}:
+    delete:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: ADK catalog and provider management routes
+      tags:
+      - adk
+    put:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: ADK catalog and provider management routes
+      tags:
+      - adk
+  /api/v1/adk/providers/{providerId}/test:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: ADK catalog and provider management routes
       tags:
       - adk
   /api/v1/adk/runs:
@@ -691,16 +741,40 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
       summary: 读取 ADK Run 列表
+      tags:
+      - adk
+  /api/v1/adk/runs/{runId}:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: ADK session and run routes
+      tags:
+      - adk
+  /api/v1/adk/runs/{runId}/cancel:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: ADK session and run routes
       tags:
       - adk
   /api/v1/adk/sessions:
@@ -728,16 +802,200 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
       summary: 读取 ADK Session 列表
+      tags:
+      - adk
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: ADK session and run routes
+      tags:
+      - adk
+  /api/v1/adk/sessions/{sessionId}:
+    delete:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: ADK session and run routes
+      tags:
+      - adk
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: ADK session and run routes
+      tags:
+      - adk
+    put:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: ADK session and run routes
+      tags:
+      - adk
+  /api/v1/adk/sessions/{sessionId}/context:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: ADK session and run routes
+      tags:
+      - adk
+  /api/v1/adk/sessions/{sessionId}/context/compact:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: ADK session and run routes
+      tags:
+      - adk
+  /api/v1/adk/skills:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: ADK chat, approval, and skill routes
+      tags:
+      - adk
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: ADK chat, approval, and skill routes
+      tags:
+      - adk
+  /api/v1/adk/skills/{skillId}:
+    delete:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: ADK chat, approval, and skill routes
+      tags:
+      - adk
+    put:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: ADK chat, approval, and skill routes
+      tags:
+      - adk
+  /api/v1/adk/tasks:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: ADK task and memory routes
+      tags:
+      - adk
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: ADK task and memory routes
+      tags:
+      - adk
+  /api/v1/adk/tasks/{taskId}:
+    delete:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: ADK task and memory routes
+      tags:
+      - adk
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: ADK task and memory routes
+      tags:
+      - adk
+    put:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: ADK task and memory routes
+      tags:
+      - adk
+  /api/v1/adk/tools:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: ADK catalog and provider management routes
       tags:
       - adk
   /api/v1/auth/login:
@@ -751,26 +1009,26 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/jftradeapi.adminLoginRequest'
+          $ref: '#/definitions/servercore.adminLoginRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/servercore.envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/servercore.envelope'
         "401":
           description: Unauthorized
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/servercore.envelope'
         "429":
           description: Too Many Requests
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/servercore.envelope'
       summary: 管理员登录
       tags:
       - auth
@@ -783,7 +1041,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/servercore.envelope'
       summary: 管理员注销
       tags:
       - auth
@@ -795,7 +1053,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/servercore.envelope'
       summary: 读取管理员会话
       tags:
       - auth
@@ -808,7 +1066,7 @@ paths:
         "410":
           description: Gone
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/servercore.envelope'
       summary: 旧令牌入口（已退役）
       tags:
       - auth
@@ -820,35 +1078,28 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
       summary: 读取回测列表
       tags:
       - backtest
     post:
       consumes:
       - application/json
-      parameters:
-      - description: 回测请求
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/jftradeapi.backtestStartRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
       summary: 启动回测
       tags:
       - backtest
@@ -866,15 +1117,15 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
       summary: 删除回测记录
       tags:
       - backtest
@@ -891,20 +1142,15 @@ paths:
         "200":
           description: OK
           schema:
-            allOf:
-            - $ref: '#/definitions/jftradeapi.envelope'
-            - properties:
-                data:
-                  $ref: '#/definitions/jftradeapi.backtestRunState'
-              type: object
+            $ref: '#/definitions/httpserver.Envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
       summary: 读取回测结果
       tags:
       - backtest
@@ -922,15 +1168,15 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
       summary: 读取回测状态
       tags:
       - backtest
@@ -938,25 +1184,41 @@ paths:
     post:
       consumes:
       - application/json
-      parameters:
-      - description: 同步请求
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/jftradeapi.backtestSyncRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
       summary: 启动历史数据同步
+      tags:
+      - backtest
+  /api/v1/backtests/sync/{taskId}:
+    delete:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: Backtest historical data sync task routes
+      tags:
+      - backtest
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: Backtest historical data sync task routes
       tags:
       - backtest
   /api/v1/brokers/{brokerId}/cash-flows:
@@ -994,11 +1256,11 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/servercore.envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/servercore.envelope'
       summary: 读取券商资金流水
       tags:
       - broker
@@ -1044,11 +1306,11 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/servercore.envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/servercore.envelope'
       summary: 读取券商成交
       tags:
       - broker
@@ -1078,11 +1340,11 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/servercore.envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/servercore.envelope'
       summary: 读取券商资金
       tags:
       - broker
@@ -1133,11 +1395,11 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/servercore.envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/servercore.envelope'
       summary: 读取券商 K 线
       tags:
       - broker
@@ -1182,11 +1444,11 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/servercore.envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/servercore.envelope'
       summary: 读取券商融资融券比例
       tags:
       - broker
@@ -1247,11 +1509,11 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/servercore.envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/servercore.envelope'
       summary: 读取券商最大可交易数量
       tags:
       - broker
@@ -1296,11 +1558,11 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/servercore.envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/servercore.envelope'
       summary: 读取券商订单费用
       tags:
       - broker
@@ -1360,11 +1622,11 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/servercore.envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/servercore.envelope'
       summary: 读取券商订单
       tags:
       - broker
@@ -1394,11 +1656,11 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/servercore.envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/servercore.envelope'
       summary: 读取券商持仓
       tags:
       - broker
@@ -1443,11 +1705,11 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/servercore.envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/servercore.envelope'
       summary: 读取券商行情
       tags:
       - broker
@@ -1492,11 +1754,11 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/servercore.envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/servercore.envelope'
       summary: 读取券商证券快照
       tags:
       - broker
@@ -1530,15 +1792,15 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/jftradeapi.envelope'
+            - $ref: '#/definitions/servercore.envelope'
             - properties:
                 data:
-                  $ref: '#/definitions/jftradeapi.executionOrdersResponse'
+                  $ref: '#/definitions/servercore.executionOrdersResponse'
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/servercore.envelope'
       summary: 读取执行订单
       tags:
       - execution
@@ -1551,7 +1813,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/jftradeapi.executionPlaceOrderRequest'
+          $ref: '#/definitions/servercore.executionPlaceOrderRequest'
       produces:
       - application/json
       responses:
@@ -1559,23 +1821,23 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/jftradeapi.envelope'
+            - $ref: '#/definitions/servercore.envelope'
             - properties:
                 data:
-                  $ref: '#/definitions/jftradeapi.brokerOrderCommandResponse'
+                  $ref: '#/definitions/servercore.brokerOrderCommandResponse'
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/servercore.envelope'
         "409":
           description: Conflict
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/servercore.envelope'
         "500":
           description: Internal Server Error
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/servercore.envelope'
       summary: 提交执行订单
       tags:
       - execution
@@ -1594,19 +1856,19 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/jftradeapi.envelope'
+            - $ref: '#/definitions/servercore.envelope'
             - properties:
                 data:
-                  $ref: '#/definitions/jftradeapi.brokerOrderCommandResponse'
+                  $ref: '#/definitions/servercore.brokerOrderCommandResponse'
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/servercore.envelope'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/servercore.envelope'
       summary: 取消执行订单
       tags:
       - execution
@@ -1625,44 +1887,57 @@ paths:
           description: OK
           schema:
             allOf:
-            - $ref: '#/definitions/jftradeapi.envelope'
+            - $ref: '#/definitions/servercore.envelope'
             - properties:
                 data:
-                  $ref: '#/definitions/jftradeapi.executionOrderEventsResponse'
+                  $ref: '#/definitions/servercore.executionOrderEventsResponse'
               type: object
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/servercore.envelope'
       summary: 读取执行订单事件
+      tags:
+      - execution
+  /api/v1/execution/orders/preview:
+    post:
+      description: 规范化并校验订单请求，返回预览结果，不会向券商提交订单。
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: 预览执行订单但不提交
       tags:
       - execution
   /api/v1/market-data/candles/{market}/{symbol}:
     get:
       parameters:
-      - description: 市场代码
+      - description: 市场
         in: path
         name: market
         required: true
         type: string
-      - description: 证券代码
+      - description: 标的
         in: path
         name: symbol
         required: true
         type: string
-      - description: 周期，默认 1m
+      - description: 周期
         in: query
         name: period
         type: string
-      - description: 返回条数，最大 1000
+      - description: 数量
         in: query
         name: limit
         type: integer
-      - description: 起始时间，RFC3339
+      - description: 起始时间
         in: query
         name: fromTime
         type: string
-      - description: 结束时间，RFC3339
+      - description: 结束时间
         in: query
         name: toTime
         type: string
@@ -1672,16 +1947,8 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/jftradeapi.envelope'
-        "502":
-          description: Bad Gateway
-          schema:
-            $ref: '#/definitions/jftradeapi.envelope'
-      summary: 读取 K 线
+            $ref: '#/definitions/httpserver.Envelope'
+      summary: 查询 K 线
       tags:
       - market-data
   /api/v1/market-data/depth/{market}/{symbol}:
@@ -1707,23 +1974,22 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
         "502":
           description: Bad Gateway
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
       summary: 读取盘口深度
       tags:
       - market-data
   /api/v1/market-data/instruments:
     get:
-      description: 按关键字查询可用标的。当前实现返回空结果占位。
       parameters:
-      - description: 关键字
+      - description: 搜索关键字
         in: query
         name: query
         type: string
@@ -1733,19 +1999,43 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
-      summary: 检索行情标的
+            $ref: '#/definitions/httpserver.Envelope'
+      summary: 搜索行情标的
+      tags:
+      - market-data
+  /api/v1/market-data/instruments/normalize:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: Market data utility routes
+      tags:
+      - market-data
+  /api/v1/market-data/markets:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: Market data utility routes
       tags:
       - market-data
   /api/v1/market-data/securities/{market}/{symbol}:
     get:
       parameters:
-      - description: 市场代码
+      - description: 市场
         in: path
         name: market
         required: true
         type: string
-      - description: 证券代码
+      - description: 标的
         in: path
         name: symbol
         required: true
@@ -1756,16 +2046,8 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/jftradeapi.envelope'
-        "502":
-          description: Bad Gateway
-          schema:
-            $ref: '#/definitions/jftradeapi.envelope'
-      summary: 读取证券详情
+            $ref: '#/definitions/httpserver.Envelope'
+      summary: 查询证券详情
       tags:
       - market-data
   /api/v1/market-data/snapshots/{market}/{symbol}:
@@ -1791,15 +2073,15 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
         "502":
           description: Bad Gateway
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
       summary: 读取行情快照
       tags:
       - market-data
@@ -1816,12 +2098,23 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
       summary: 清空行情订阅
+      tags:
+      - market-data
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: Market data utility routes
       tags:
       - market-data
     post:
@@ -1833,18 +2126,18 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/jftradeapi.marketSubscriptionPayload'
+          $ref: '#/definitions/marketdata.SubscriptionRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
       summary: 申请行情订阅
       tags:
       - market-data
@@ -1853,23 +2146,23 @@ paths:
       consumes:
       - application/json
       parameters:
-      - description: 订阅心跳
+      - description: 心跳请求
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/jftradeapi.marketSubscriptionHeartbeatPayload'
+          $ref: '#/definitions/marketdata.SubscriptionHeartbeatRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
       summary: 刷新订阅心跳
       tags:
       - market-data
@@ -1878,26 +2171,170 @@ paths:
       consumes:
       - application/json
       parameters:
-      - description: 订阅请求
+      - description: 释放请求
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/jftradeapi.marketSubscriptionPayload'
+          $ref: '#/definitions/marketdata.SubscriptionRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
       summary: 释放行情订阅
       tags:
       - market-data
+  /api/v1/plugins:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: Plugin catalog and operation routes
+      tags:
+      - plugins
+  /api/v1/plugins/{pluginId}/install:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: Plugin catalog and operation routes
+      tags:
+      - plugins
+  /api/v1/plugins/{pluginId}/uninstall:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: Plugin catalog and operation routes
+      tags:
+      - plugins
+  /api/v1/plugins/{pluginId}/uninstall-guidance:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: Plugin catalog and operation routes
+      tags:
+      - plugins
+  /api/v1/plugins/operations/{operationId}:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: Plugin catalog and operation routes
+      tags:
+      - plugins
+  /api/v1/portfolio/{brokerId}/cash-balances:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: Portfolio routes
+      tags:
+      - portfolio
+  /api/v1/portfolio/{brokerId}/cash-reconciliation:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: Portfolio routes
+      tags:
+      - portfolio
+  /api/v1/portfolio/{brokerId}/positions:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: Portfolio routes
+      tags:
+      - portfolio
+  /api/v1/portfolio/{brokerId}/reconciliation:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: Portfolio routes
+      tags:
+      - portfolio
+  /api/v1/settings/adk:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpserver.Envelope'
+      summary: 读取 ADK 运行时设置
+      tags:
+      - settings
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: ADK 运行时设置
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/jftsettings.ADKRuntimeSettings'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpserver.Envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpserver.Envelope'
+      summary: 保存 ADK 运行时设置
+      tags:
+      - settings
   /api/v1/settings/broker-accounts:
     post:
       consumes:
@@ -1908,18 +2345,18 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/jftradeapi.managedBrokerAccountWriteRequest'
+          $ref: '#/definitions/settings.ManagedBrokerAccountWriteRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
       summary: 创建托管账户
       tags:
       - settings
@@ -1937,15 +2374,15 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
       summary: 删除托管账户
       tags:
       - settings
@@ -1963,22 +2400,22 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/jftradeapi.managedBrokerAccountWriteRequest'
+          $ref: '#/definitions/settings.ManagedBrokerAccountWriteRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
       summary: 更新托管账户
       tags:
       - settings
@@ -1990,7 +2427,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
       summary: 读取 broker 设置
       tags:
       - settings
@@ -2009,18 +2446,18 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/jftradeapi.brokerIntegrationSaveRequest'
+          $ref: '#/definitions/settings.BrokerIntegrationSaveRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
       summary: 保存 broker 集成
       tags:
       - settings
@@ -2032,7 +2469,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
       summary: 读取执行设置
       tags:
       - settings
@@ -2045,18 +2482,18 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/jftradeapi.ExecutionSettings'
+          $ref: '#/definitions/jftsettings.ExecutionSettings'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
       summary: 保存执行设置
       tags:
       - settings
@@ -2068,7 +2505,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
       summary: 读取新手引导状态
       tags:
       - settings
@@ -2081,18 +2518,18 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/jftradeapi.onboardingWriteRequest'
+          $ref: '#/definitions/settings.OnboardingWriteRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
       summary: 保存新手引导状态
       tags:
       - settings
@@ -2104,7 +2541,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
       summary: 读取安全设置
       tags:
       - settings
@@ -2117,18 +2554,18 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/jftradeapi.SecuritySettings'
+          $ref: '#/definitions/jftsettings.SecuritySettings'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
       summary: 保存安全设置
       tags:
       - settings
@@ -2140,7 +2577,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
       summary: 读取 UI 颜色配置
       tags:
       - settings
@@ -2153,18 +2590,18 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/jftradeapi.uiAppearanceSettingsWriteRequest'
+          $ref: '#/definitions/settings.UIAppearanceSettingsWriteRequest'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
       summary: 保存 UI 颜色配置
       tags:
       - settings
@@ -2176,8 +2613,67 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
       summary: 读取策略实例列表
+      tags:
+      - strategy
+  /api/v1/strategies/{instanceId}:
+    delete:
+      parameters:
+      - description: 策略实例 ID
+        in: path
+        name: instanceId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpserver.Envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpserver.Envelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpserver.Envelope'
+      summary: 删除策略实例
+      tags:
+      - strategy
+    put:
+      consumes:
+      - application/json
+      parameters:
+      - description: 策略实例 ID
+        in: path
+        name: instanceId
+        required: true
+        type: string
+      - description: 实例绑定参数
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/strategy.StrategyBindingRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpserver.Envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpserver.Envelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpserver.Envelope'
+      summary: 更新策略实例绑定参数
       tags:
       - strategy
   /api/v1/strategies/{instanceId}/audit:
@@ -2214,20 +2710,15 @@ paths:
         "200":
           description: OK
           schema:
-            allOf:
-            - $ref: '#/definitions/jftradeapi.envelope'
-            - properties:
-                data:
-                  $ref: '#/definitions/jftradeapi.strategyAuditResponse'
-              type: object
+            $ref: '#/definitions/httpserver.Envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
       summary: 读取策略审计记录
       tags:
       - strategy
@@ -2265,21 +2756,124 @@ paths:
         "200":
           description: OK
           schema:
-            allOf:
-            - $ref: '#/definitions/jftradeapi.envelope'
-            - properties:
-                data:
-                  $ref: '#/definitions/jftradeapi.strategyLogsResponse'
-              type: object
+            $ref: '#/definitions/httpserver.Envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
       summary: 读取策略运行日志
+      tags:
+      - strategy
+  /api/v1/strategies/{instanceId}/pause:
+    post:
+      parameters:
+      - description: 策略实例 ID
+        in: path
+        name: instanceId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpserver.Envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpserver.Envelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpserver.Envelope'
+      summary: 暂停策略实例
+      tags:
+      - strategy
+  /api/v1/strategies/{instanceId}/refresh-definition:
+    post:
+      parameters:
+      - description: 策略实例 ID
+        in: path
+        name: instanceId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpserver.Envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpserver.Envelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpserver.Envelope'
+      summary: 刷新实例关联的策略定义
+      tags:
+      - strategy
+  /api/v1/strategies/{instanceId}/start:
+    post:
+      parameters:
+      - description: 策略实例 ID
+        in: path
+        name: instanceId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpserver.Envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpserver.Envelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpserver.Envelope'
+        "502":
+          description: Bad Gateway
+          schema:
+            $ref: '#/definitions/httpserver.Envelope'
+      summary: 启动策略实例
+      tags:
+      - strategy
+  /api/v1/strategies/{instanceId}/stop:
+    post:
+      parameters:
+      - description: 策略实例 ID
+        in: path
+        name: instanceId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpserver.Envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpserver.Envelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpserver.Envelope'
+      summary: 停止策略实例
       tags:
       - strategy
   /api/v1/strategy-definitions:
@@ -2290,7 +2884,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
       summary: 读取策略定义列表
       tags:
       - strategy
@@ -2303,18 +2897,18 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/jftradeapi.strategyDesignDefinition'
+          $ref: '#/definitions/strategy.StrategyDesignDefinition'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
       summary: 创建策略定义
       tags:
       - strategy
@@ -2332,15 +2926,15 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
       summary: 删除策略定义
       tags:
       - strategy
@@ -2369,20 +2963,15 @@ paths:
         "200":
           description: OK
           schema:
-            allOf:
-            - $ref: '#/definitions/jftradeapi.envelope'
-            - properties:
-                data:
-                  $ref: '#/definitions/jftradeapi.strategyDefinitionResponse'
-              type: object
+            $ref: '#/definitions/httpserver.Envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
       summary: 读取策略定义
       tags:
       - strategy
@@ -2400,23 +2989,107 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/jftradeapi.strategyDesignDefinition'
+          $ref: '#/definitions/strategy.StrategyDesignDefinition'
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
         "400":
           description: Bad Request
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
         "404":
           description: Not Found
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
       summary: 更新策略定义
+      tags:
+      - strategy
+  /api/v1/strategy-definitions/{definitionId}/apply-linked-instances:
+    post:
+      parameters:
+      - description: 策略定义 ID
+        in: path
+        name: definitionId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpserver.Envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpserver.Envelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpserver.Envelope'
+      summary: 应用策略定义到关联实例
+      tags:
+      - strategy
+  /api/v1/strategy-definitions/{definitionId}/instantiate:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: 策略定义 ID
+        in: path
+        name: definitionId
+        required: true
+        type: string
+      - description: 实例绑定参数
+        in: body
+        name: request
+        schema:
+          $ref: '#/definitions/strategy.StrategyBindingRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpserver.Envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpserver.Envelope'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpserver.Envelope'
+      summary: 从策略定义创建实例
+      tags:
+      - strategy
+  /api/v1/strategy-pine/analyze:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Pine 脚本
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/strategy.AnalyzePineRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpserver.Envelope'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/httpserver.Envelope'
+      summary: 分析 Pine 脚本
       tags:
       - strategy
   /api/v1/system/futu-opend:
@@ -2427,7 +3100,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
       summary: OpenD 健康检查
       tags:
       - system
@@ -2439,7 +3112,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
       summary: 读取 OpenD 安装指南
       tags:
       - system
@@ -2451,8 +3124,92 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
       summary: 手动重置 OpenD 运行时
+      tags:
+      - system
+  /api/v1/system/real-trade-approvals:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: System operational routes
+      tags:
+      - system
+  /api/v1/system/real-trade-hard-stop-events:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: System operational routes
+      tags:
+      - system
+  /api/v1/system/real-trade-hard-stops:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: System operational routes
+      tags:
+      - system
+  /api/v1/system/real-trade-kill-switch:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: System operational routes
+      tags:
+      - system
+  /api/v1/system/real-trade-kill-switch-events:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: System operational routes
+      tags:
+      - system
+  /api/v1/system/real-trade-risk-events:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: System operational routes
+      tags:
+      - system
+  /api/v1/system/real-trade-risk-limits:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: System operational routes
       tags:
       - system
   /api/v1/system/status:
@@ -2464,13 +3221,36 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/jftradeapi.envelope'
+            $ref: '#/definitions/httpserver.Envelope'
       summary: 读取系统状态
+      tags:
+      - system
+  /api/v1/system/storage/overview:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: System operational routes
+      tags:
+      - system
+  /api/v1/system/worker/broker-order-updates:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: System operational routes
       tags:
       - system
   /api/v1/ws/live:
     get:
-      description: 建立行情与运行态实时推送连接。
       produces:
       - application/json
       responses:
@@ -2478,13 +3258,9 @@ paths:
           description: Switching Protocols
           schema:
             type: string
-        "503":
-          description: Service Unavailable
-          schema:
-            $ref: '#/definitions/jftradeapi.envelope'
-      summary: 连接实时 WebSocket
+      summary: 实时行情 WebSocket
       tags:
-      - streaming
+      - market-data
 schemes:
 - http
 - https

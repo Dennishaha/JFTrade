@@ -14,6 +14,22 @@ import type {
 
 type MarketDataChannel = "SNAPSHOT" | "KLINE" | "TICK" | "ORDER_BOOK";
 
+function createMarketDataSubscriptionInstrument(
+  market: string,
+  symbol: string,
+  channel: MarketDataChannel | undefined,
+  interval: string | undefined,
+) {
+  return {
+    market,
+    symbol,
+    channel: channel ?? "SNAPSHOT",
+    ...(interval == null
+      ? {}
+      : { interval: normalizeKlinePeriod(interval) }),
+  };
+}
+
 interface CreateConsoleDataMarketSubscriptionsControllerOptions {
   marketDataSubscriptions: Ref<MarketDataSubscriptionsResponse>;
   marketInstrumentReferences: Ref<MarketInstrumentReference[]>;
@@ -154,12 +170,14 @@ export function createConsoleDataMarketSubscriptionsController(
             },
             body: JSON.stringify({
               consumerId: input.consumerId,
-              market,
-              symbol,
-              channel: input.channel ?? "SNAPSHOT",
-              ...(input.interval == null
-                ? {}
-                : { interval: normalizeKlinePeriod(input.interval) }),
+              instruments: [
+                createMarketDataSubscriptionInstrument(
+                  market,
+                  symbol,
+                  input.channel,
+                  input.interval,
+                ),
+              ],
             }),
           },
         );
@@ -203,12 +221,14 @@ export function createConsoleDataMarketSubscriptionsController(
             },
             body: JSON.stringify({
               consumerId: input.consumerId,
-              market,
-              symbol,
-              channel: input.channel ?? "SNAPSHOT",
-              ...(input.interval == null
-                ? {}
-                : { interval: normalizeKlinePeriod(input.interval) }),
+              instruments: [
+                createMarketDataSubscriptionInstrument(
+                  market,
+                  symbol,
+                  input.channel,
+                  input.interval,
+                ),
+              ],
             }),
             keepalive: input.keepalive ?? false,
           },

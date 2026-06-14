@@ -54,4 +54,5 @@
 - [../apps/web/src/composables/marketDataRealtime.ts](../apps/web/src/composables/marketDataRealtime.ts)
 - [../apps/web/src/composables/marketDataQuery.ts](../apps/web/src/composables/marketDataQuery.ts)
 - [../apps/web/src/charting/kline.ts](../apps/web/src/charting/kline.ts)
-- [../pkg/jftradeapi/market_data.go](../pkg/jftradeapi/market_data.go)
+- [../internal/api/marketdata/routes.go](../internal/api/marketdata/routes.go)
+- [../internal/marketdata/service.go](../internal/marketdata/service.go)

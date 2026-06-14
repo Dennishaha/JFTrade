@@ -28,13 +28,32 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/adk/agent-templates": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "adk"
+                ],
+                "summary": "ADK catalog and provider management routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
                         }
                     }
                 }
@@ -61,19 +80,317 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "adk"
+                ],
+                "summary": "ADK catalog and provider management routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/adk/agents/{agentId}": {
+            "put": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "adk"
+                ],
+                "summary": "ADK catalog and provider management routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "adk"
+                ],
+                "summary": "ADK catalog and provider management routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/adk/approvals": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "adk"
+                ],
+                "summary": "ADK chat, approval, and skill routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/adk/approvals/{approvalId}/approve": {
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "adk"
+                ],
+                "summary": "ADK chat, approval, and skill routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/adk/approvals/{approvalId}/deny": {
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "adk"
+                ],
+                "summary": "ADK chat, approval, and skill routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/adk/audit": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "adk"
+                ],
+                "summary": "ADK catalog and provider management routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/adk/chat": {
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "adk"
+                ],
+                "summary": "ADK chat, approval, and skill routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/adk/chat/stream": {
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "adk"
+                ],
+                "summary": "ADK chat, approval, and skill routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/adk/memory": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "adk"
+                ],
+                "summary": "ADK task and memory routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "adk"
+                ],
+                "summary": "ADK task and memory routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/adk/memory/{memoryId}": {
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "adk"
+                ],
+                "summary": "ADK task and memory routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/adk/metrics": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "adk"
+                ],
+                "summary": "ADK catalog and provider management routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/adk/optimization-tasks": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "adk"
+                ],
+                "summary": "ADK optimization task routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/adk/optimization-tasks/{taskId}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "adk"
+                ],
+                "summary": "ADK optimization task routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/adk/optimization-tasks/{taskId}/cancel": {
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "adk"
+                ],
+                "summary": "ADK optimization task routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
                         }
                     }
                 }
@@ -92,13 +409,85 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "adk"
+                ],
+                "summary": "ADK catalog and provider management routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/adk/providers/{providerId}": {
+            "put": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "adk"
+                ],
+                "summary": "ADK catalog and provider management routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "adk"
+                ],
+                "summary": "ADK catalog and provider management routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/adk/providers/{providerId}/test": {
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "adk"
+                ],
+                "summary": "ADK catalog and provider management routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
                         }
                     }
                 }
@@ -149,19 +538,57 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/adk/runs/{runId}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "adk"
+                ],
+                "summary": "ADK session and run routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/adk/runs/{runId}/cancel": {
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "adk"
+                ],
+                "summary": "ADK session and run routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
                         }
                     }
                 }
@@ -206,19 +633,307 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "adk"
+                ],
+                "summary": "ADK session and run routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/adk/sessions/{sessionId}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "adk"
+                ],
+                "summary": "ADK session and run routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "adk"
+                ],
+                "summary": "ADK session and run routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "adk"
+                ],
+                "summary": "ADK session and run routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/adk/sessions/{sessionId}/context": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "adk"
+                ],
+                "summary": "ADK session and run routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/adk/sessions/{sessionId}/context/compact": {
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "adk"
+                ],
+                "summary": "ADK session and run routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/adk/skills": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "adk"
+                ],
+                "summary": "ADK chat, approval, and skill routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "adk"
+                ],
+                "summary": "ADK chat, approval, and skill routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/adk/skills/{skillId}": {
+            "put": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "adk"
+                ],
+                "summary": "ADK chat, approval, and skill routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "adk"
+                ],
+                "summary": "ADK chat, approval, and skill routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/adk/tasks": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "adk"
+                ],
+                "summary": "ADK task and memory routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "adk"
+                ],
+                "summary": "ADK task and memory routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/adk/tasks/{taskId}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "adk"
+                ],
+                "summary": "ADK task and memory routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "adk"
+                ],
+                "summary": "ADK task and memory routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "adk"
+                ],
+                "summary": "ADK task and memory routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/adk/tools": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "adk"
+                ],
+                "summary": "ADK catalog and provider management routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
                         }
                     }
                 }
@@ -244,7 +959,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.adminLoginRequest"
+                            "$ref": "#/definitions/servercore.adminLoginRequest"
                         }
                     }
                 ],
@@ -252,25 +967,25 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/servercore.envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/servercore.envelope"
                         }
                     },
                     "401": {
                         "description": "Unauthorized",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/servercore.envelope"
                         }
                     },
                     "429": {
                         "description": "Too Many Requests",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/servercore.envelope"
                         }
                     }
                 }
@@ -290,7 +1005,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/servercore.envelope"
                         }
                     }
                 }
@@ -309,7 +1024,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/servercore.envelope"
                         }
                     }
                 }
@@ -329,7 +1044,7 @@ const docTemplate = `{
                     "410": {
                         "description": "Gone",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/servercore.envelope"
                         }
                     }
                 }
@@ -348,7 +1063,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     }
                 }
@@ -364,34 +1079,23 @@ const docTemplate = `{
                     "backtest"
                 ],
                 "summary": "启动回测",
-                "parameters": [
-                    {
-                        "description": "回测请求",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/jftradeapi.backtestStartRequest"
-                        }
-                    }
-                ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     }
                 }
@@ -409,28 +1113,53 @@ const docTemplate = `{
                     "backtest"
                 ],
                 "summary": "启动历史数据同步",
-                "parameters": [
-                    {
-                        "description": "同步请求",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/jftradeapi.backtestSyncRequest"
-                        }
-                    }
-                ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/backtests/sync/{taskId}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "backtest"
+                ],
+                "summary": "Backtest historical data sync task routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "backtest"
+                ],
+                "summary": "Backtest historical data sync task routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
                         }
                     }
                 }
@@ -458,31 +1187,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/jftradeapi.envelope"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/jftradeapi.backtestRunState"
-                                        }
-                                    }
-                                }
-                            ]
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     }
                 }
@@ -508,19 +1225,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     }
                 }
@@ -548,19 +1265,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     }
                 }
@@ -619,13 +1336,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/servercore.envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/servercore.envelope"
                         }
                     }
                 }
@@ -695,13 +1412,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/servercore.envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/servercore.envelope"
                         }
                     }
                 }
@@ -747,13 +1464,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/servercore.envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/servercore.envelope"
                         }
                     }
                 }
@@ -830,13 +1547,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/servercore.envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/servercore.envelope"
                         }
                     }
                 }
@@ -903,13 +1620,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/servercore.envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/servercore.envelope"
                         }
                     }
                 }
@@ -1000,13 +1717,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/servercore.envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/servercore.envelope"
                         }
                     }
                 }
@@ -1073,13 +1790,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/servercore.envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/servercore.envelope"
                         }
                     }
                 }
@@ -1169,13 +1886,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/servercore.envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/servercore.envelope"
                         }
                     }
                 }
@@ -1221,13 +1938,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/servercore.envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/servercore.envelope"
                         }
                     }
                 }
@@ -1294,13 +2011,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/servercore.envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/servercore.envelope"
                         }
                     }
                 }
@@ -1367,13 +2084,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/servercore.envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/servercore.envelope"
                         }
                     }
                 }
@@ -1426,13 +2143,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/jftradeapi.envelope"
+                                    "$ref": "#/definitions/servercore.envelope"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/jftradeapi.executionOrdersResponse"
+                                            "$ref": "#/definitions/servercore.executionOrdersResponse"
                                         }
                                     }
                                 }
@@ -1442,7 +2159,7 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/servercore.envelope"
                         }
                     }
                 }
@@ -1465,7 +2182,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.executionPlaceOrderRequest"
+                            "$ref": "#/definitions/servercore.executionPlaceOrderRequest"
                         }
                     }
                 ],
@@ -1475,13 +2192,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/jftradeapi.envelope"
+                                    "$ref": "#/definitions/servercore.envelope"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/jftradeapi.brokerOrderCommandResponse"
+                                            "$ref": "#/definitions/servercore.brokerOrderCommandResponse"
                                         }
                                     }
                                 }
@@ -1491,19 +2208,39 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/servercore.envelope"
                         }
                     },
                     "409": {
                         "description": "Conflict",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/servercore.envelope"
                         }
                     },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/servercore.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/execution/orders/preview": {
+            "post": {
+                "description": "规范化并校验订单请求，返回预览结果，不会向券商提交订单。",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "execution"
+                ],
+                "summary": "预览执行订单但不提交",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
                         }
                     }
                 }
@@ -1533,13 +2270,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/jftradeapi.envelope"
+                                    "$ref": "#/definitions/servercore.envelope"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/jftradeapi.brokerOrderCommandResponse"
+                                            "$ref": "#/definitions/servercore.brokerOrderCommandResponse"
                                         }
                                     }
                                 }
@@ -1549,13 +2286,13 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/servercore.envelope"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/servercore.envelope"
                         }
                     }
                 }
@@ -1585,13 +2322,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/jftradeapi.envelope"
+                                    "$ref": "#/definitions/servercore.envelope"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/jftradeapi.executionOrderEventsResponse"
+                                            "$ref": "#/definitions/servercore.executionOrderEventsResponse"
                                         }
                                     }
                                 }
@@ -1601,7 +2338,7 @@ const docTemplate = `{
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/servercore.envelope"
                         }
                     }
                 }
@@ -1615,43 +2352,43 @@ const docTemplate = `{
                 "tags": [
                     "market-data"
                 ],
-                "summary": "读取 K 线",
+                "summary": "查询 K 线",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "市场代码",
+                        "description": "市场",
                         "name": "market",
                         "in": "path",
                         "required": true
                     },
                     {
                         "type": "string",
-                        "description": "证券代码",
+                        "description": "标的",
                         "name": "symbol",
                         "in": "path",
                         "required": true
                     },
                     {
                         "type": "string",
-                        "description": "周期，默认 1m",
+                        "description": "周期",
                         "name": "period",
                         "in": "query"
                     },
                     {
                         "type": "integer",
-                        "description": "返回条数，最大 1000",
+                        "description": "数量",
                         "name": "limit",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "起始时间，RFC3339",
+                        "description": "起始时间",
                         "name": "fromTime",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "description": "结束时间，RFC3339",
+                        "description": "结束时间",
                         "name": "toTime",
                         "in": "query"
                     }
@@ -1660,19 +2397,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
-                        }
-                    },
-                    "502": {
-                        "description": "Bad Gateway",
-                        "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     }
                 }
@@ -1713,19 +2438,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     },
                     "502": {
                         "description": "Bad Gateway",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     }
                 }
@@ -1733,18 +2458,17 @@ const docTemplate = `{
         },
         "/api/v1/market-data/instruments": {
             "get": {
-                "description": "按关键字查询可用标的。当前实现返回空结果占位。",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "market-data"
                 ],
-                "summary": "检索行情标的",
+                "summary": "搜索行情标的",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "关键字",
+                        "description": "搜索关键字",
                         "name": "query",
                         "in": "query"
                     }
@@ -1753,7 +2477,45 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/market-data/instruments/normalize": {
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "market-data"
+                ],
+                "summary": "Market data utility routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/market-data/markets": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "market-data"
+                ],
+                "summary": "Market data utility routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
                         }
                     }
                 }
@@ -1767,18 +2529,18 @@ const docTemplate = `{
                 "tags": [
                     "market-data"
                 ],
-                "summary": "读取证券详情",
+                "summary": "查询证券详情",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "市场代码",
+                        "description": "市场",
                         "name": "market",
                         "in": "path",
                         "required": true
                     },
                     {
                         "type": "string",
-                        "description": "证券代码",
+                        "description": "标的",
                         "name": "symbol",
                         "in": "path",
                         "required": true
@@ -1788,19 +2550,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
-                        }
-                    },
-                    "502": {
-                        "description": "Bad Gateway",
-                        "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     }
                 }
@@ -1841,25 +2591,42 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     },
                     "502": {
                         "description": "Bad Gateway",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     }
                 }
             }
         },
         "/api/v1/market-data/subscriptions": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "market-data"
+                ],
+                "summary": "Market data utility routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
+                        }
+                    }
+                }
+            },
             "post": {
                 "consumes": [
                     "application/json"
@@ -1878,7 +2645,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.marketSubscriptionPayload"
+                            "$ref": "#/definitions/marketdata.SubscriptionRequest"
                         }
                     }
                 ],
@@ -1886,13 +2653,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     }
                 }
@@ -1917,13 +2684,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     }
                 }
@@ -1943,12 +2710,12 @@ const docTemplate = `{
                 "summary": "刷新订阅心跳",
                 "parameters": [
                     {
-                        "description": "订阅心跳",
+                        "description": "心跳请求",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.marketSubscriptionHeartbeatPayload"
+                            "$ref": "#/definitions/marketdata.SubscriptionHeartbeatRequest"
                         }
                     }
                 ],
@@ -1956,13 +2723,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     }
                 }
@@ -1982,12 +2749,12 @@ const docTemplate = `{
                 "summary": "释放行情订阅",
                 "parameters": [
                     {
-                        "description": "订阅请求",
+                        "description": "释放请求",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.marketSubscriptionPayload"
+                            "$ref": "#/definitions/marketdata.SubscriptionRequest"
                         }
                     }
                 ],
@@ -1995,13 +2762,240 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/plugins": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "plugins"
+                ],
+                "summary": "Plugin catalog and operation routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/plugins/operations/{operationId}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "plugins"
+                ],
+                "summary": "Plugin catalog and operation routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/plugins/{pluginId}/install": {
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "plugins"
+                ],
+                "summary": "Plugin catalog and operation routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/plugins/{pluginId}/uninstall": {
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "plugins"
+                ],
+                "summary": "Plugin catalog and operation routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/plugins/{pluginId}/uninstall-guidance": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "plugins"
+                ],
+                "summary": "Plugin catalog and operation routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/portfolio/{brokerId}/cash-balances": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "portfolio"
+                ],
+                "summary": "Portfolio routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/portfolio/{brokerId}/cash-reconciliation": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "portfolio"
+                ],
+                "summary": "Portfolio routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/portfolio/{brokerId}/positions": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "portfolio"
+                ],
+                "summary": "Portfolio routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/portfolio/{brokerId}/reconciliation": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "portfolio"
+                ],
+                "summary": "Portfolio routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/settings/adk": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "读取 ADK 运行时设置",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.Envelope"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "保存 ADK 运行时设置",
+                "parameters": [
+                    {
+                        "description": "ADK 运行时设置",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/jftsettings.ADKRuntimeSettings"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.Envelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     }
                 }
@@ -2026,7 +3020,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.managedBrokerAccountWriteRequest"
+                            "$ref": "#/definitions/settings.ManagedBrokerAccountWriteRequest"
                         }
                     }
                 ],
@@ -2034,13 +3028,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     }
                 }
@@ -2072,7 +3066,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.managedBrokerAccountWriteRequest"
+                            "$ref": "#/definitions/settings.ManagedBrokerAccountWriteRequest"
                         }
                     }
                 ],
@@ -2080,19 +3074,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     }
                 }
@@ -2118,19 +3112,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     }
                 }
@@ -2149,7 +3143,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     }
                 }
@@ -2181,7 +3175,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.brokerIntegrationSaveRequest"
+                            "$ref": "#/definitions/settings.BrokerIntegrationSaveRequest"
                         }
                     }
                 ],
@@ -2189,13 +3183,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     }
                 }
@@ -2214,7 +3208,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     }
                 }
@@ -2237,7 +3231,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.ExecutionSettings"
+                            "$ref": "#/definitions/jftsettings.ExecutionSettings"
                         }
                     }
                 ],
@@ -2245,13 +3239,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     }
                 }
@@ -2270,7 +3264,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     }
                 }
@@ -2293,7 +3287,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.onboardingWriteRequest"
+                            "$ref": "#/definitions/settings.OnboardingWriteRequest"
                         }
                     }
                 ],
@@ -2301,13 +3295,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     }
                 }
@@ -2326,7 +3320,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     }
                 }
@@ -2349,7 +3343,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.SecuritySettings"
+                            "$ref": "#/definitions/jftsettings.SecuritySettings"
                         }
                     }
                 ],
@@ -2357,13 +3351,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     }
                 }
@@ -2382,7 +3376,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     }
                 }
@@ -2405,7 +3399,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.uiAppearanceSettingsWriteRequest"
+                            "$ref": "#/definitions/settings.UIAppearanceSettingsWriteRequest"
                         }
                     }
                 ],
@@ -2413,13 +3407,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     }
                 }
@@ -2438,7 +3432,97 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/strategies/{instanceId}": {
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "strategy"
+                ],
+                "summary": "更新策略实例绑定参数",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "策略实例 ID",
+                        "name": "instanceId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "实例绑定参数",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/strategy.StrategyBindingRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.Envelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.Envelope"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.Envelope"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "strategy"
+                ],
+                "summary": "删除策略实例",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "策略实例 ID",
+                        "name": "instanceId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.Envelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.Envelope"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     }
                 }
@@ -2496,31 +3580,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/jftradeapi.envelope"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/jftradeapi.strategyAuditResponse"
-                                        }
-                                    }
-                                }
-                            ]
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     }
                 }
@@ -2578,31 +3650,185 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/jftradeapi.envelope"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/jftradeapi.strategyLogsResponse"
-                                        }
-                                    }
-                                }
-                            ]
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/strategies/{instanceId}/pause": {
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "strategy"
+                ],
+                "summary": "暂停策略实例",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "策略实例 ID",
+                        "name": "instanceId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.Envelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.Envelope"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/strategies/{instanceId}/refresh-definition": {
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "strategy"
+                ],
+                "summary": "刷新实例关联的策略定义",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "策略实例 ID",
+                        "name": "instanceId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.Envelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.Envelope"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/strategies/{instanceId}/start": {
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "strategy"
+                ],
+                "summary": "启动策略实例",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "策略实例 ID",
+                        "name": "instanceId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.Envelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.Envelope"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.Envelope"
+                        }
+                    },
+                    "502": {
+                        "description": "Bad Gateway",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/strategies/{instanceId}/stop": {
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "strategy"
+                ],
+                "summary": "停止策略实例",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "策略实例 ID",
+                        "name": "instanceId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.Envelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.Envelope"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     }
                 }
@@ -2621,7 +3847,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     }
                 }
@@ -2644,7 +3870,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.strategyDesignDefinition"
+                            "$ref": "#/definitions/strategy.StrategyDesignDefinition"
                         }
                     }
                 ],
@@ -2652,13 +3878,13 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     }
                 }
@@ -2704,31 +3930,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/jftradeapi.envelope"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/jftradeapi.strategyDefinitionResponse"
-                                        }
-                                    }
-                                }
-                            ]
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     }
                 }
@@ -2758,7 +3972,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.strategyDesignDefinition"
+                            "$ref": "#/definitions/strategy.StrategyDesignDefinition"
                         }
                     }
                 ],
@@ -2766,19 +3980,19 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     }
                 }
@@ -2804,19 +4018,149 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     },
                     "404": {
                         "description": "Not Found",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/strategy-definitions/{definitionId}/apply-linked-instances": {
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "strategy"
+                ],
+                "summary": "应用策略定义到关联实例",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "策略定义 ID",
+                        "name": "definitionId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.Envelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.Envelope"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/strategy-definitions/{definitionId}/instantiate": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "strategy"
+                ],
+                "summary": "从策略定义创建实例",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "策略定义 ID",
+                        "name": "definitionId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "实例绑定参数",
+                        "name": "request",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/strategy.StrategyBindingRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.Envelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.Envelope"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/strategy-pine/analyze": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "strategy"
+                ],
+                "summary": "分析 Pine 脚本",
+                "parameters": [
+                    {
+                        "description": "Pine 脚本",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/strategy.AnalyzePineRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.Envelope"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     }
                 }
@@ -2835,7 +4179,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     }
                 }
@@ -2854,7 +4198,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
                         }
                     }
                 }
@@ -2873,7 +4217,140 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/system/real-trade-approvals": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "system"
+                ],
+                "summary": "System operational routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/system/real-trade-hard-stop-events": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "system"
+                ],
+                "summary": "System operational routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/system/real-trade-hard-stops": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "system"
+                ],
+                "summary": "System operational routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/system/real-trade-kill-switch": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "system"
+                ],
+                "summary": "System operational routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/system/real-trade-kill-switch-events": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "system"
+                ],
+                "summary": "System operational routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/system/real-trade-risk-events": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "system"
+                ],
+                "summary": "System operational routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/system/real-trade-risk-limits": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "system"
+                ],
+                "summary": "System operational routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
                         }
                     }
                 }
@@ -2893,7 +4370,45 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
+                            "$ref": "#/definitions/httpserver.Envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/system/storage/overview": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "system"
+                ],
+                "summary": "System operational routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/system/worker/broker-order-updates": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "system"
+                ],
+                "summary": "System operational routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
                         }
                     }
                 }
@@ -2901,25 +4416,18 @@ const docTemplate = `{
         },
         "/api/v1/ws/live": {
             "get": {
-                "description": "建立行情与运行态实时推送连接。",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "streaming"
+                    "market-data"
                 ],
-                "summary": "连接实时 WebSocket",
+                "summary": "实时行情 WebSocket",
                 "responses": {
                     "101": {
                         "description": "Switching Protocols",
                         "schema": {
                             "type": "string"
-                        }
-                    },
-                    "503": {
-                        "description": "Service Unavailable",
-                        "schema": {
-                            "$ref": "#/definitions/jftradeapi.envelope"
                         }
                     }
                 }
@@ -2927,90 +4435,44 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "backtest.RunResult": {
+        "httpserver.APIError": {
             "type": "object",
             "properties": {
-                "candles": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/runmodel.Candle"
-                    }
-                },
-                "currentDrawdown": {
-                    "type": "number"
-                },
-                "drawdownCurve": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/runmodel.DrawdownPoint"
-                    }
-                },
-                "endTime": {
+                "code": {
                     "type": "string"
                 },
-                "error": {
+                "message": {
                     "type": "string"
-                },
-                "finalBalance": {
-                    "type": "number"
-                },
-                "interval": {
-                    "type": "string"
-                },
-                "logs": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "maxDrawdown": {
-                    "type": "number"
-                },
-                "orderBook": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/runmodel.OrderBookEntry"
-                    }
-                },
-                "pnl": {
-                    "type": "number"
-                },
-                "pnlCurve": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/runmodel.PnLPoint"
-                    }
-                },
-                "quoteCurrency": {
-                    "type": "string"
-                },
-                "runtimeErrors": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "startTime": {
-                    "type": "string"
-                },
-                "symbol": {
-                    "type": "string"
-                },
-                "totalTrades": {
-                    "type": "integer"
-                },
-                "trades": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/runmodel.TradeEvent"
-                    }
-                },
-                "winRate": {
-                    "type": "number"
                 }
             }
         },
-        "jftradeapi.ExecutionSettings": {
+        "httpserver.Envelope": {
+            "type": "object",
+            "properties": {
+                "data": {},
+                "error": {
+                    "$ref": "#/definitions/httpserver.APIError"
+                },
+                "ok": {
+                    "type": "boolean"
+                },
+                "timestamp": {
+                    "type": "string"
+                }
+            }
+        },
+        "jftsettings.ADKRuntimeSettings": {
+            "type": "object",
+            "properties": {
+                "runTimeoutMs": {
+                    "type": "integer"
+                },
+                "streamIdleTimeoutMs": {
+                    "type": "integer"
+                }
+            }
+        },
+        "jftsettings.ExecutionSettings": {
             "type": "object",
             "properties": {
                 "brokerOrderHistoryLookbackDays": {
@@ -3024,7 +4486,7 @@ const docTemplate = `{
                 }
             }
         },
-        "jftradeapi.FutuIntegrationConfig": {
+        "jftsettings.FutuIntegrationConfig": {
             "type": "object",
             "properties": {
                 "apiPort": {
@@ -3056,7 +4518,7 @@ const docTemplate = `{
                 }
             }
         },
-        "jftradeapi.SecuritySettings": {
+        "jftsettings.SecuritySettings": {
             "type": "object",
             "properties": {
                 "adminAuthRequired": {
@@ -3064,7 +4526,7 @@ const docTemplate = `{
                 }
             }
         },
-        "jftradeapi.UIAppearanceSettings": {
+        "jftsettings.UIAppearanceSettings": {
             "type": "object",
             "properties": {
                 "downColor": {
@@ -3075,66 +4537,19 @@ const docTemplate = `{
                 }
             }
         },
-        "jftradeapi.adminLoginRequest": {
+        "marketdata.SubscriptionHeartbeatRequest": {
             "type": "object",
             "properties": {
-                "key": {
+                "consumerId": {
                     "type": "string"
                 }
             }
         },
-        "jftradeapi.apiError": {
+        "marketdata.SubscriptionInstrument": {
             "type": "object",
             "properties": {
-                "code": {
+                "channel": {
                     "type": "string"
-                },
-                "message": {
-                    "type": "string"
-                }
-            }
-        },
-        "jftradeapi.backtestRunState": {
-            "type": "object",
-            "properties": {
-                "createdAt": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "request": {
-                    "$ref": "#/definitions/jftradeapi.backtestStartRequest"
-                },
-                "result": {
-                    "$ref": "#/definitions/backtest.RunResult"
-                },
-                "status": {
-                    "description": "\"queued\", \"running\", \"completed\", \"failed\"",
-                    "type": "string"
-                },
-                "updatedAt": {
-                    "type": "string"
-                }
-            }
-        },
-        "jftradeapi.backtestStartRequest": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "type": "string"
-                },
-                "definitionId": {
-                    "type": "string"
-                },
-                "definitionVersion": {
-                    "type": "string"
-                },
-                "endTime": {
-                    "type": "string"
-                },
-                "initialBalance": {
-                    "type": "number"
                 },
                 "interval": {
                     "type": "string"
@@ -3142,66 +4557,34 @@ const docTemplate = `{
                 "market": {
                     "type": "string"
                 },
-                "rehabType": {
-                    "description": "\"forward\" | \"backward\" | \"none\"",
-                    "type": "string"
-                },
-                "startTime": {
-                    "type": "string"
-                },
                 "symbol": {
                     "type": "string"
-                },
-                "useExtendedHours": {
-                    "type": "boolean"
                 }
             }
         },
-        "jftradeapi.backtestSyncRequest": {
+        "marketdata.SubscriptionRequest": {
             "type": "object",
             "properties": {
-                "code": {
+                "consumerId": {
                     "type": "string"
                 },
-                "intervals": {
+                "instruments": {
                     "type": "array",
                     "items": {
-                        "type": "string"
+                        "$ref": "#/definitions/marketdata.SubscriptionInstrument"
                     }
-                },
-                "market": {
-                    "type": "string"
-                },
-                "rehabType": {
-                    "description": "\"none\" | \"forward\" | \"backward\"",
-                    "type": "string"
-                },
-                "sessionScope": {
-                    "type": "string"
-                },
-                "since": {
-                    "type": "string"
-                },
-                "symbol": {
-                    "type": "string"
-                },
-                "until": {
-                    "type": "string"
                 }
             }
         },
-        "jftradeapi.brokerIntegrationSaveRequest": {
+        "servercore.adminLoginRequest": {
             "type": "object",
             "properties": {
-                "config": {
-                    "$ref": "#/definitions/jftradeapi.FutuIntegrationConfig"
-                },
-                "enabled": {
-                    "type": "boolean"
+                "key": {
+                    "type": "string"
                 }
             }
         },
-        "jftradeapi.brokerOrderCommandResponse": {
+        "servercore.brokerOrderCommandResponse": {
             "type": "object",
             "properties": {
                 "accepted": {
@@ -3233,12 +4616,12 @@ const docTemplate = `{
                 }
             }
         },
-        "jftradeapi.envelope": {
+        "servercore.envelope": {
             "type": "object",
             "properties": {
                 "data": {},
                 "error": {
-                    "$ref": "#/definitions/jftradeapi.apiError"
+                    "$ref": "#/definitions/httpserver.APIError"
                 },
                 "ok": {
                     "type": "boolean"
@@ -3248,39 +4631,13 @@ const docTemplate = `{
                 }
             }
         },
-        "jftradeapi.executionOrderEventResponse": {
-            "type": "object",
-            "properties": {
-                "createdAt": {
-                    "type": "string"
-                },
-                "eventType": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "internalOrderId": {
-                    "type": "string"
-                },
-                "nextStatus": {
-                    "type": "string"
-                },
-                "payloadJson": {
-                    "type": "string"
-                },
-                "previousStatus": {
-                    "type": "string"
-                }
-            }
-        },
-        "jftradeapi.executionOrderEventsResponse": {
+        "servercore.executionOrderEventsResponse": {
             "type": "object",
             "properties": {
                 "events": {
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/jftradeapi.executionOrderEventResponse"
+                        "$ref": "#/definitions/trading.ExecutionOrderEvent"
                     }
                 },
                 "internalOrderId": {
@@ -3288,7 +4645,310 @@ const docTemplate = `{
                 }
             }
         },
-        "jftradeapi.executionOrderSummaryResponse": {
+        "servercore.executionOrdersResponse": {
+            "type": "object",
+            "properties": {
+                "orders": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/trading.ExecutionOrder"
+                    }
+                }
+            }
+        },
+        "servercore.executionPlaceOrderRequest": {
+            "type": "object",
+            "properties": {
+                "accountId": {
+                    "type": "string"
+                },
+                "brokerId": {
+                    "type": "string"
+                },
+                "clientOrderId": {
+                    "type": "string"
+                },
+                "code": {
+                    "type": "string"
+                },
+                "env": {
+                    "type": "string"
+                },
+                "market": {
+                    "type": "string"
+                },
+                "orderType": {
+                    "type": "string"
+                },
+                "price": {
+                    "type": "number"
+                },
+                "quantity": {
+                    "type": "number"
+                },
+                "remark": {
+                    "type": "string"
+                },
+                "session": {
+                    "type": "string"
+                },
+                "side": {
+                    "type": "string"
+                },
+                "stopPrice": {
+                    "type": "number"
+                },
+                "symbol": {
+                    "type": "string"
+                },
+                "timeInForce": {
+                    "type": "string"
+                },
+                "tradingEnvironment": {
+                    "type": "string"
+                }
+            }
+        },
+        "settings.BrokerIntegrationSaveRequest": {
+            "type": "object",
+            "properties": {
+                "config": {
+                    "$ref": "#/definitions/jftsettings.FutuIntegrationConfig"
+                },
+                "enabled": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "settings.ManagedBrokerAccountWriteRequest": {
+            "type": "object",
+            "properties": {
+                "accountId": {
+                    "type": "string"
+                },
+                "brokerId": {
+                    "type": "string"
+                },
+                "displayName": {
+                    "type": "string"
+                },
+                "enabled": {
+                    "type": "boolean"
+                },
+                "market": {
+                    "type": "string"
+                },
+                "securityFirm": {
+                    "type": "string"
+                },
+                "tradingEnvironment": {
+                    "type": "string"
+                }
+            }
+        },
+        "settings.OnboardingWriteRequest": {
+            "type": "object",
+            "properties": {
+                "completed": {
+                    "type": "boolean"
+                },
+                "dismissed": {
+                    "type": "boolean"
+                },
+                "lastBrokerId": {
+                    "type": "string"
+                }
+            }
+        },
+        "settings.UIAppearanceSettingsWriteRequest": {
+            "type": "object",
+            "properties": {
+                "appearance": {
+                    "$ref": "#/definitions/jftsettings.UIAppearanceSettings"
+                }
+            }
+        },
+        "strategy.AnalyzePineRequest": {
+            "type": "object",
+            "properties": {
+                "includeAst": {
+                    "type": "boolean"
+                },
+                "script": {
+                    "type": "string"
+                },
+                "sourceFormat": {
+                    "type": "string"
+                }
+            }
+        },
+        "strategy.BindingInstrument": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "market": {
+                    "type": "string"
+                }
+            }
+        },
+        "strategy.BrokerAccountBinding": {
+            "type": "object",
+            "properties": {
+                "accountId": {
+                    "type": "string"
+                },
+                "brokerId": {
+                    "type": "string"
+                },
+                "market": {
+                    "type": "string"
+                },
+                "tradingEnvironment": {
+                    "type": "string"
+                }
+            }
+        },
+        "strategy.StrategyBindingRequest": {
+            "type": "object",
+            "properties": {
+                "brokerAccount": {
+                    "$ref": "#/definitions/strategy.BrokerAccountBinding"
+                },
+                "executionMode": {
+                    "type": "string"
+                },
+                "instruments": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/strategy.BindingInstrument"
+                    }
+                },
+                "interval": {
+                    "type": "string"
+                },
+                "symbols": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "strategy.StrategyDesignDefinition": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "interval": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "runtime": {
+                    "type": "string"
+                },
+                "script": {
+                    "type": "string"
+                },
+                "sourceFormat": {
+                    "type": "string"
+                },
+                "symbol": {
+                    "type": "string"
+                },
+                "updatedAt": {
+                    "type": "string"
+                },
+                "version": {
+                    "type": "string"
+                },
+                "visualModel": {
+                    "$ref": "#/definitions/strategy.StrategyVisualModel"
+                }
+            }
+        },
+        "strategy.StrategyVisualEdge": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "properties": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "sourceNodeId": {
+                    "type": "string"
+                },
+                "targetNodeId": {
+                    "type": "string"
+                },
+                "text": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "strategy.StrategyVisualModel": {
+            "type": "object",
+            "properties": {
+                "edges": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/strategy.StrategyVisualEdge"
+                    }
+                },
+                "engine": {
+                    "type": "string"
+                },
+                "nodes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/strategy.StrategyVisualNode"
+                    }
+                },
+                "version": {
+                    "type": "integer"
+                }
+            }
+        },
+        "strategy.StrategyVisualNode": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "properties": {
+                    "type": "object",
+                    "additionalProperties": {}
+                },
+                "text": {
+                    "type": "string"
+                },
+                "type": {
+                    "type": "string"
+                },
+                "x": {
+                    "type": "number"
+                },
+                "y": {
+                    "type": "number"
+                }
+            }
+        },
+        "trading.ExecutionOrder": {
             "type": "object",
             "properties": {
                 "accountId": {
@@ -3365,478 +5025,28 @@ const docTemplate = `{
                 }
             }
         },
-        "jftradeapi.executionOrdersResponse": {
-            "type": "object",
-            "properties": {
-                "orders": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/jftradeapi.executionOrderSummaryResponse"
-                    }
-                }
-            }
-        },
-        "jftradeapi.executionPlaceOrderRequest": {
-            "type": "object",
-            "properties": {
-                "accountId": {
-                    "type": "string"
-                },
-                "brokerId": {
-                    "type": "string"
-                },
-                "clientOrderId": {
-                    "type": "string"
-                },
-                "code": {
-                    "type": "string"
-                },
-                "env": {
-                    "type": "string"
-                },
-                "market": {
-                    "type": "string"
-                },
-                "orderType": {
-                    "type": "string"
-                },
-                "price": {
-                    "type": "number"
-                },
-                "quantity": {
-                    "type": "number"
-                },
-                "remark": {
-                    "type": "string"
-                },
-                "session": {
-                    "type": "string"
-                },
-                "side": {
-                    "type": "string"
-                },
-                "stopPrice": {
-                    "type": "number"
-                },
-                "symbol": {
-                    "type": "string"
-                },
-                "timeInForce": {
-                    "type": "string"
-                },
-                "tradingEnvironment": {
-                    "type": "string"
-                }
-            }
-        },
-        "jftradeapi.managedBrokerAccountWriteRequest": {
-            "type": "object",
-            "properties": {
-                "accountId": {
-                    "type": "string"
-                },
-                "brokerId": {
-                    "type": "string"
-                },
-                "displayName": {
-                    "type": "string"
-                },
-                "enabled": {
-                    "type": "boolean"
-                },
-                "market": {
-                    "type": "string"
-                },
-                "securityFirm": {
-                    "type": "string"
-                },
-                "tradingEnvironment": {
-                    "type": "string"
-                }
-            }
-        },
-        "jftradeapi.marketSubscriptionHeartbeatPayload": {
-            "type": "object",
-            "properties": {
-                "consumerId": {
-                    "type": "string"
-                }
-            }
-        },
-        "jftradeapi.marketSubscriptionPayload": {
-            "type": "object",
-            "properties": {
-                "channel": {
-                    "type": "string"
-                },
-                "consumerId": {
-                    "type": "string"
-                },
-                "interval": {
-                    "type": "string"
-                },
-                "market": {
-                    "type": "string"
-                },
-                "symbol": {
-                    "type": "string"
-                }
-            }
-        },
-        "jftradeapi.onboardingWriteRequest": {
-            "type": "object",
-            "properties": {
-                "completed": {
-                    "type": "boolean"
-                },
-                "dismissed": {
-                    "type": "boolean"
-                },
-                "lastBrokerId": {
-                    "type": "string"
-                }
-            }
-        },
-        "jftradeapi.strategyActivityPage": {
-            "type": "object",
-            "properties": {
-                "hasMore": {
-                    "type": "boolean"
-                },
-                "limit": {
-                    "type": "integer"
-                },
-                "offset": {
-                    "type": "integer"
-                },
-                "returned": {
-                    "type": "integer"
-                },
-                "total": {
-                    "type": "integer"
-                }
-            }
-        },
-        "jftradeapi.strategyAuditEntry": {
-            "type": "object",
-            "properties": {
-                "at": {
-                    "type": "string"
-                },
-                "detail": {
-                    "type": "string"
-                },
-                "instanceId": {
-                    "type": "string"
-                },
-                "kind": {
-                    "type": "string"
-                }
-            }
-        },
-        "jftradeapi.strategyAuditResponse": {
-            "type": "object",
-            "properties": {
-                "entries": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/jftradeapi.strategyAuditEntry"
-                    }
-                },
-                "instanceId": {
-                    "type": "string"
-                },
-                "page": {
-                    "$ref": "#/definitions/jftradeapi.strategyActivityPage"
-                }
-            }
-        },
-        "jftradeapi.strategyDefinitionResponse": {
+        "trading.ExecutionOrderEvent": {
             "type": "object",
             "properties": {
                 "createdAt": {
                     "type": "string"
                 },
-                "derivedWarmupBars": {
-                    "type": "integer"
-                },
-                "derivedWarmupInterval": {
-                    "type": "string"
-                },
-                "description": {
+                "eventType": {
                     "type": "string"
                 },
                 "id": {
                     "type": "string"
                 },
-                "interval": {
+                "internalOrderId": {
                     "type": "string"
                 },
-                "name": {
+                "nextStatus": {
                     "type": "string"
                 },
-                "runtime": {
+                "payloadJson": {
                     "type": "string"
                 },
-                "script": {
-                    "type": "string"
-                },
-                "sourceFormat": {
-                    "type": "string"
-                },
-                "symbol": {
-                    "type": "string"
-                },
-                "updatedAt": {
-                    "type": "string"
-                },
-                "version": {
-                    "type": "string"
-                },
-                "visualModel": {
-                    "$ref": "#/definitions/jftradeapi.strategyVisualModel"
-                }
-            }
-        },
-        "jftradeapi.strategyDesignDefinition": {
-            "type": "object",
-            "properties": {
-                "createdAt": {
-                    "type": "string"
-                },
-                "description": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "interval": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "runtime": {
-                    "type": "string"
-                },
-                "script": {
-                    "type": "string"
-                },
-                "sourceFormat": {
-                    "type": "string"
-                },
-                "symbol": {
-                    "type": "string"
-                },
-                "updatedAt": {
-                    "type": "string"
-                },
-                "version": {
-                    "type": "string"
-                },
-                "visualModel": {
-                    "$ref": "#/definitions/jftradeapi.strategyVisualModel"
-                }
-            }
-        },
-        "jftradeapi.strategyLogsResponse": {
-            "type": "object",
-            "properties": {
-                "instanceId": {
-                    "type": "string"
-                },
-                "logs": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "page": {
-                    "$ref": "#/definitions/jftradeapi.strategyActivityPage"
-                }
-            }
-        },
-        "jftradeapi.strategyVisualEdge": {
-            "type": "object",
-            "properties": {
-                "id": {
-                    "type": "string"
-                },
-                "properties": {
-                    "type": "object",
-                    "additionalProperties": {}
-                },
-                "sourceNodeId": {
-                    "type": "string"
-                },
-                "targetNodeId": {
-                    "type": "string"
-                },
-                "text": {
-                    "type": "string"
-                },
-                "type": {
-                    "type": "string"
-                }
-            }
-        },
-        "jftradeapi.strategyVisualModel": {
-            "type": "object",
-            "properties": {
-                "edges": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/jftradeapi.strategyVisualEdge"
-                    }
-                },
-                "engine": {
-                    "type": "string"
-                },
-                "nodes": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/jftradeapi.strategyVisualNode"
-                    }
-                },
-                "version": {
-                    "type": "integer"
-                }
-            }
-        },
-        "jftradeapi.strategyVisualNode": {
-            "type": "object",
-            "properties": {
-                "id": {
-                    "type": "string"
-                },
-                "properties": {
-                    "type": "object",
-                    "additionalProperties": {}
-                },
-                "text": {
-                    "type": "string"
-                },
-                "type": {
-                    "type": "string"
-                },
-                "x": {
-                    "type": "number"
-                },
-                "y": {
-                    "type": "number"
-                }
-            }
-        },
-        "jftradeapi.uiAppearanceSettingsWriteRequest": {
-            "type": "object",
-            "properties": {
-                "appearance": {
-                    "$ref": "#/definitions/jftradeapi.UIAppearanceSettings"
-                }
-            }
-        },
-        "runmodel.Candle": {
-            "type": "object",
-            "properties": {
-                "close": {
-                    "type": "string"
-                },
-                "high": {
-                    "type": "string"
-                },
-                "low": {
-                    "type": "string"
-                },
-                "open": {
-                    "type": "string"
-                },
-                "time": {
-                    "type": "string"
-                },
-                "volume": {
-                    "type": "string"
-                }
-            }
-        },
-        "runmodel.DrawdownPoint": {
-            "type": "object",
-            "properties": {
-                "drawdown": {
-                    "type": "number"
-                },
-                "time": {
-                    "type": "string"
-                }
-            }
-        },
-        "runmodel.OrderBookEntry": {
-            "type": "object",
-            "properties": {
-                "clientOrderId": {
-                    "type": "string"
-                },
-                "filledAt": {
-                    "type": "string"
-                },
-                "filledPrice": {
-                    "type": "string"
-                },
-                "filledQuantity": {
-                    "type": "string"
-                },
-                "orderId": {
-                    "type": "string"
-                },
-                "orderPrice": {
-                    "type": "string"
-                },
-                "orderType": {
-                    "type": "string"
-                },
-                "quantity": {
-                    "type": "string"
-                },
-                "side": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                },
-                "submittedAt": {
-                    "type": "string"
-                },
-                "symbol": {
-                    "type": "string"
-                }
-            }
-        },
-        "runmodel.PnLPoint": {
-            "type": "object",
-            "properties": {
-                "equity": {
-                    "type": "number"
-                },
-                "time": {
-                    "type": "string"
-                }
-            }
-        },
-        "runmodel.TradeEvent": {
-            "type": "object",
-            "properties": {
-                "pnl": {
-                    "type": "number"
-                },
-                "price": {
-                    "type": "string"
-                },
-                "qty": {
-                    "type": "string"
-                },
-                "side": {
-                    "type": "string"
-                },
-                "time": {
+                "previousStatus": {
                     "type": "string"
                 }
             }

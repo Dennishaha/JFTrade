@@ -57,7 +57,7 @@ Server 改造：
 | `broker_order_updates_worker.go` | `futu.BrokerReadQuery` → `broker.ReadQuery`；`futu.RuntimeAccount` → `broker.Account`；账户发现改用 `s.activeBroker().DiscoverAccounts()`；订单同步改用 `reader.QueryOrders()`；保留必要的 Futu←→broker 转换桥接函数 |
 | `execution_store.go` | `futu.BrokerOrderSnapshot` → `broker.OrderSnapshot`；`futu.BrokerOrderFillSnapshot` → `broker.OrderFillSnapshot` |
 | `strategy_runtime_manager.go` | `strategyRuntimeExchange` 接口使用 `broker.ReadQuery`/`broker.PlaceOrderQuery`/`broker.PlaceOrderResult`；`strategyRuntimeBrokerBridge` 组合 `broker.Broker` 实现新接口；`strategyLiveOrderExecutor.SubmitOrders` 从 `bbgotypes.SubmitOrder` 构建 `broker.PlaceOrderQuery` |
-| `strategy_runtime_manager_test_helpers.go` | Stub 的 `PlaceBrokerOrder`/`QueryBrokerFunds`/`QueryBrokerPositions` 签名迁移到 `broker.*` 类型 |
+| `strategy_runtime_manager_test_helpers_test.go` | Stub 的 `PlaceBrokerOrder`/`QueryBrokerFunds`/`QueryBrokerPositions` 签名迁移到 `broker.*` 类型 |
 | `strategy_runtime_manager_polling_test.go` | `futu.BrokerPositionSnapshot` → `broker.PositionSnapshot` |
 | `strategy_runtime_manager_trading_test.go` | `futu.BrokerPositionSnapshot` → `broker.PositionSnapshot` |
 

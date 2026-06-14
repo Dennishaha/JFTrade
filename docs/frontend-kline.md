@@ -51,8 +51,9 @@ apps/web
 - [../apps/web/src/composables/marketDataQuery.ts](../apps/web/src/composables/marketDataQuery.ts)
 - [../apps/web/src/composables/marketDataRealtime.ts](../apps/web/src/composables/marketDataRealtime.ts)
 - [../apps/web/src/charting/kline.ts](../apps/web/src/charting/kline.ts)
-- [../pkg/jftradeapi/market_routes.go](../pkg/jftradeapi/market_routes.go)
-- [../pkg/jftradeapi/market_live.go](../pkg/jftradeapi/market_live.go)
+- [../internal/api/marketdata/routes.go](../internal/api/marketdata/routes.go)
+- [../internal/marketdata/collector.go](../internal/marketdata/collector.go)
+- [../internal/app/apiserver/servercore/market_live_runtime_adapter.go](../internal/app/apiserver/servercore/market_live_runtime_adapter.go)
 
 - `apps/web/tests/kline.test.ts`
   - 覆盖分钟/小时 K 展示桶结束点、历史最后一根不被实时新桶吞掉、日线、周线、分钟线分桶，以及 stale history gap 抑制。

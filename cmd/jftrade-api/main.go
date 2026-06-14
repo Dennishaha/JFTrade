@@ -8,7 +8,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/jftrade/jftrade-main/pkg/jftradeapi"
+	"github.com/jftrade/jftrade-main/internal/app/apiserver"
 
 	// Embed IANA timezone database so API-only releases still work in
 	// minimal environments that lack the system tz data.
@@ -23,7 +23,7 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	if err := jftradeapi.RunAPIOnly(ctx); err != nil {
+	if err := apiserver.RunAPIOnly(ctx); err != nil {
 		log.Fatalf("JFTrade API-only server failed: %v", err)
 	}
 }

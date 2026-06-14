@@ -82,6 +82,9 @@ mkdir -p "$(dirname "$EMBED_DIR")" "$OUTPUT_DIR"
 cp -R "$WEB_DIST_DIR" "$EMBED_DIR"
 go run ./scripts/archive_frontend_assets.go -src "$WEB_DIST_DIR" -dst "$EMBED_ARCHIVE"
 
+echo "Running tests..."
+go test ./... -count=1 -timeout 300s || { echo "Tests failed"; exit 1; }
+
 for target in "${TARGETS[@]}"; do
   IFS='/' read -r goos goarch <<<"$target"
   artifact_dir="$OUTPUT_DIR/${ARTIFACT_PREFIX}-${VERSION}-${goos}-${goarch}"

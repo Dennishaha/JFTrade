@@ -24,7 +24,7 @@
 | --- | --- | --- | --- | --- |
 | `1001` | `InitConnect` | 建立 OpenD 原生连接，拿到连接信息与保活间隔 | [../../../pkg/futu/opend/client.go](../../../pkg/futu/opend/client.go) | [../Futu-API-Doc-zh-Proto.md](../Futu-API-Doc-zh-Proto.md) 中的 `1001` 协议表项、`InitConnect.proto` |
 | `1002` | `GetGlobalState` | 查询全局市场状态与连接状态 | [../../../pkg/futu/exchange.go](../../../pkg/futu/exchange.go) | [../Futu-API-Doc-zh-Proto.md](../Futu-API-Doc-zh-Proto.md) 中的 “获取全局市场状态” |
-| `1003` | `Notify` | 接收 OpenD 运行事件、连接状态、行情权限与额度通知 | [../../../pkg/futu/opend/client.go](../../../pkg/futu/opend/client.go)、[../../../pkg/jftradeapi/notifications.go](../../../pkg/jftradeapi/notifications.go) | [../Futu-API-Doc-zh-Proto.md](../Futu-API-Doc-zh-Proto.md) 中的 `1003` 协议表项、`Notify.proto` |
+| `1003` | `Notify` | 接收 OpenD 运行事件、连接状态、行情权限与额度通知 | [../../../pkg/futu/opend/client.go](../../../pkg/futu/opend/client.go)、[../../../internal/app/apiserver/servercore/notifications.go](../../../internal/app/apiserver/servercore/notifications.go) | [../Futu-API-Doc-zh-Proto.md](../Futu-API-Doc-zh-Proto.md) 中的 `1003` 协议表项、`Notify.proto` |
 | `1004` | `KeepAlive` | 维持 OpenD TCP 会话 | [../../../pkg/futu/opend/client.go](../../../pkg/futu/opend/client.go) | [../Futu-API-Doc-zh-Proto.md](../Futu-API-Doc-zh-Proto.md) 中的 `1004` 协议表项、`KeepAlive.proto` |
 
 ## 2. 当前真正接入的行情接口

@@ -1,0 +1,5066 @@
+{
+  "basePath": "/",
+  "definitions": {
+    "httpserver.APIError": {
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "httpserver.Envelope": {
+      "properties": {
+        "data": {},
+        "error": {
+          "$ref": "#/definitions/httpserver.APIError"
+        },
+        "ok": {
+          "type": "boolean"
+        },
+        "timestamp": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "jftsettings.ADKRuntimeSettings": {
+      "properties": {
+        "runTimeoutMs": {
+          "type": "integer"
+        },
+        "streamIdleTimeoutMs": {
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "jftsettings.ExecutionSettings": {
+      "properties": {
+        "brokerOrderHistoryLookbackDays": {
+          "type": "integer"
+        },
+        "defaultTradingEnvironment": {
+          "type": "string"
+        },
+        "seenFillRetentionDays": {
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "jftsettings.FutuIntegrationConfig": {
+      "properties": {
+        "apiPort": {
+          "type": "integer"
+        },
+        "host": {
+          "type": "string"
+        },
+        "maxWebSocketConnections": {
+          "type": "integer"
+        },
+        "securityFirm": {
+          "type": "string"
+        },
+        "tradeMarket": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "useEncryption": {
+          "type": "boolean"
+        },
+        "websocketKey": {
+          "type": "string"
+        },
+        "websocketPort": {
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "jftsettings.SecuritySettings": {
+      "properties": {
+        "adminAuthRequired": {
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "jftsettings.UIAppearanceSettings": {
+      "properties": {
+        "downColor": {
+          "type": "string"
+        },
+        "upColor": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "marketdata.SubscriptionHeartbeatRequest": {
+      "properties": {
+        "consumerId": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "marketdata.SubscriptionInstrument": {
+      "properties": {
+        "channel": {
+          "type": "string"
+        },
+        "interval": {
+          "type": "string"
+        },
+        "market": {
+          "type": "string"
+        },
+        "symbol": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "marketdata.SubscriptionRequest": {
+      "properties": {
+        "consumerId": {
+          "type": "string"
+        },
+        "instruments": {
+          "items": {
+            "$ref": "#/definitions/marketdata.SubscriptionInstrument"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "servercore.adminLoginRequest": {
+      "properties": {
+        "key": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "servercore.brokerOrderCommandResponse": {
+      "properties": {
+        "accepted": {
+          "type": "boolean"
+        },
+        "brokerErrorCode": {
+          "type": "string"
+        },
+        "brokerOrderId": {
+          "type": "string"
+        },
+        "brokerOrderIdEx": {
+          "type": "string"
+        },
+        "checkedAt": {
+          "type": "string"
+        },
+        "internalOrderId": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "operation": {
+          "type": "string"
+        },
+        "orderStatus": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "servercore.envelope": {
+      "properties": {
+        "data": {},
+        "error": {
+          "$ref": "#/definitions/httpserver.APIError"
+        },
+        "ok": {
+          "type": "boolean"
+        },
+        "timestamp": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "servercore.executionOrderEventsResponse": {
+      "properties": {
+        "events": {
+          "items": {
+            "$ref": "#/definitions/trading.ExecutionOrderEvent"
+          },
+          "type": "array"
+        },
+        "internalOrderId": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "servercore.executionOrdersResponse": {
+      "properties": {
+        "orders": {
+          "items": {
+            "$ref": "#/definitions/trading.ExecutionOrder"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "servercore.executionPlaceOrderRequest": {
+      "properties": {
+        "accountId": {
+          "type": "string"
+        },
+        "brokerId": {
+          "type": "string"
+        },
+        "clientOrderId": {
+          "type": "string"
+        },
+        "code": {
+          "type": "string"
+        },
+        "env": {
+          "type": "string"
+        },
+        "market": {
+          "type": "string"
+        },
+        "orderType": {
+          "type": "string"
+        },
+        "price": {
+          "type": "number"
+        },
+        "quantity": {
+          "type": "number"
+        },
+        "remark": {
+          "type": "string"
+        },
+        "session": {
+          "type": "string"
+        },
+        "side": {
+          "type": "string"
+        },
+        "stopPrice": {
+          "type": "number"
+        },
+        "symbol": {
+          "type": "string"
+        },
+        "timeInForce": {
+          "type": "string"
+        },
+        "tradingEnvironment": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "settings.BrokerIntegrationSaveRequest": {
+      "properties": {
+        "config": {
+          "$ref": "#/definitions/jftsettings.FutuIntegrationConfig"
+        },
+        "enabled": {
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
+    "settings.ManagedBrokerAccountWriteRequest": {
+      "properties": {
+        "accountId": {
+          "type": "string"
+        },
+        "brokerId": {
+          "type": "string"
+        },
+        "displayName": {
+          "type": "string"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "market": {
+          "type": "string"
+        },
+        "securityFirm": {
+          "type": "string"
+        },
+        "tradingEnvironment": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "settings.OnboardingWriteRequest": {
+      "properties": {
+        "completed": {
+          "type": "boolean"
+        },
+        "dismissed": {
+          "type": "boolean"
+        },
+        "lastBrokerId": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "settings.UIAppearanceSettingsWriteRequest": {
+      "properties": {
+        "appearance": {
+          "$ref": "#/definitions/jftsettings.UIAppearanceSettings"
+        }
+      },
+      "type": "object"
+    },
+    "strategy.AnalyzePineRequest": {
+      "properties": {
+        "includeAst": {
+          "type": "boolean"
+        },
+        "script": {
+          "type": "string"
+        },
+        "sourceFormat": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "strategy.BindingInstrument": {
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "market": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "strategy.BrokerAccountBinding": {
+      "properties": {
+        "accountId": {
+          "type": "string"
+        },
+        "brokerId": {
+          "type": "string"
+        },
+        "market": {
+          "type": "string"
+        },
+        "tradingEnvironment": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "strategy.StrategyBindingRequest": {
+      "properties": {
+        "brokerAccount": {
+          "$ref": "#/definitions/strategy.BrokerAccountBinding"
+        },
+        "executionMode": {
+          "type": "string"
+        },
+        "instruments": {
+          "items": {
+            "$ref": "#/definitions/strategy.BindingInstrument"
+          },
+          "type": "array"
+        },
+        "interval": {
+          "type": "string"
+        },
+        "symbols": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "type": "object"
+    },
+    "strategy.StrategyDesignDefinition": {
+      "properties": {
+        "createdAt": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "interval": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "runtime": {
+          "type": "string"
+        },
+        "script": {
+          "type": "string"
+        },
+        "sourceFormat": {
+          "type": "string"
+        },
+        "symbol": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "visualModel": {
+          "$ref": "#/definitions/strategy.StrategyVisualModel"
+        }
+      },
+      "type": "object"
+    },
+    "strategy.StrategyVisualEdge": {
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "properties": {
+          "additionalProperties": {},
+          "type": "object"
+        },
+        "sourceNodeId": {
+          "type": "string"
+        },
+        "targetNodeId": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "strategy.StrategyVisualModel": {
+      "properties": {
+        "edges": {
+          "items": {
+            "$ref": "#/definitions/strategy.StrategyVisualEdge"
+          },
+          "type": "array"
+        },
+        "engine": {
+          "type": "string"
+        },
+        "nodes": {
+          "items": {
+            "$ref": "#/definitions/strategy.StrategyVisualNode"
+          },
+          "type": "array"
+        },
+        "version": {
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "strategy.StrategyVisualNode": {
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "properties": {
+          "additionalProperties": {},
+          "type": "object"
+        },
+        "text": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        }
+      },
+      "type": "object"
+    },
+    "trading.ExecutionOrder": {
+      "properties": {
+        "accountId": {
+          "type": "string"
+        },
+        "brokerId": {
+          "type": "string"
+        },
+        "brokerOrderId": {
+          "type": "string"
+        },
+        "brokerOrderIdEx": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string"
+        },
+        "filledAveragePrice": {
+          "type": "number"
+        },
+        "filledQuantity": {
+          "type": "number"
+        },
+        "internalOrderId": {
+          "type": "string"
+        },
+        "lastError": {
+          "type": "string"
+        },
+        "lastErrorCode": {
+          "type": "string"
+        },
+        "lastErrorSource": {
+          "type": "string"
+        },
+        "market": {
+          "type": "string"
+        },
+        "orderType": {
+          "type": "string"
+        },
+        "remark": {
+          "type": "string"
+        },
+        "requestedPrice": {
+          "type": "number"
+        },
+        "requestedQuantity": {
+          "type": "number"
+        },
+        "side": {
+          "type": "string"
+        },
+        "source": {
+          "type": "string"
+        },
+        "sourceDetail": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "submittedAt": {
+          "type": "string"
+        },
+        "symbol": {
+          "type": "string"
+        },
+        "tradingEnvironment": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "trading.ExecutionOrderEvent": {
+      "properties": {
+        "createdAt": {
+          "type": "string"
+        },
+        "eventType": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "internalOrderId": {
+          "type": "string"
+        },
+        "nextStatus": {
+          "type": "string"
+        },
+        "payloadJson": {
+          "type": "string"
+        },
+        "previousStatus": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "host": "",
+  "info": {
+    "contact": {},
+    "description": "JFTrade sidecar API 的调试文档。Swagger UI 主要覆盖当前常用的 HTTP 调试入口，并展示实时接口的请求方式。",
+    "title": "JFTrade Debug API",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/api/v1/adk": {
+      "get": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "读取 ADK 快照",
+        "tags": [
+          "adk"
+        ]
+      }
+    },
+    "/api/v1/adk/agent-templates": {
+      "get": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "ADK catalog and provider management routes",
+        "tags": [
+          "adk"
+        ]
+      }
+    },
+    "/api/v1/adk/agents": {
+      "get": {
+        "parameters": [
+          {
+            "description": "Agent 状态过滤",
+            "in": "query",
+            "name": "status",
+            "type": "string"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "读取 ADK Agent 列表",
+        "tags": [
+          "adk"
+        ]
+      },
+      "post": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "ADK catalog and provider management routes",
+        "tags": [
+          "adk"
+        ]
+      }
+    },
+    "/api/v1/adk/agents/{agentId}": {
+      "delete": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "ADK catalog and provider management routes",
+        "tags": [
+          "adk"
+        ]
+      },
+      "put": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "ADK catalog and provider management routes",
+        "tags": [
+          "adk"
+        ]
+      }
+    },
+    "/api/v1/adk/approvals": {
+      "get": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "ADK chat, approval, and skill routes",
+        "tags": [
+          "adk"
+        ]
+      }
+    },
+    "/api/v1/adk/approvals/{approvalId}/approve": {
+      "post": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "ADK chat, approval, and skill routes",
+        "tags": [
+          "adk"
+        ]
+      }
+    },
+    "/api/v1/adk/approvals/{approvalId}/deny": {
+      "post": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "ADK chat, approval, and skill routes",
+        "tags": [
+          "adk"
+        ]
+      }
+    },
+    "/api/v1/adk/audit": {
+      "get": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "ADK catalog and provider management routes",
+        "tags": [
+          "adk"
+        ]
+      }
+    },
+    "/api/v1/adk/chat": {
+      "post": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "ADK chat, approval, and skill routes",
+        "tags": [
+          "adk"
+        ]
+      }
+    },
+    "/api/v1/adk/chat/stream": {
+      "post": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "ADK chat, approval, and skill routes",
+        "tags": [
+          "adk"
+        ]
+      }
+    },
+    "/api/v1/adk/memory": {
+      "get": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "ADK task and memory routes",
+        "tags": [
+          "adk"
+        ]
+      },
+      "post": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "ADK task and memory routes",
+        "tags": [
+          "adk"
+        ]
+      }
+    },
+    "/api/v1/adk/memory/{memoryId}": {
+      "delete": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "ADK task and memory routes",
+        "tags": [
+          "adk"
+        ]
+      }
+    },
+    "/api/v1/adk/metrics": {
+      "get": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "ADK catalog and provider management routes",
+        "tags": [
+          "adk"
+        ]
+      }
+    },
+    "/api/v1/adk/optimization-tasks": {
+      "get": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "ADK optimization task routes",
+        "tags": [
+          "adk"
+        ]
+      }
+    },
+    "/api/v1/adk/optimization-tasks/{taskId}": {
+      "get": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "ADK optimization task routes",
+        "tags": [
+          "adk"
+        ]
+      }
+    },
+    "/api/v1/adk/optimization-tasks/{taskId}/cancel": {
+      "post": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "ADK optimization task routes",
+        "tags": [
+          "adk"
+        ]
+      }
+    },
+    "/api/v1/adk/providers": {
+      "get": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "读取 ADK Provider 列表",
+        "tags": [
+          "adk"
+        ]
+      },
+      "post": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "ADK catalog and provider management routes",
+        "tags": [
+          "adk"
+        ]
+      }
+    },
+    "/api/v1/adk/providers/{providerId}": {
+      "delete": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "ADK catalog and provider management routes",
+        "tags": [
+          "adk"
+        ]
+      },
+      "put": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "ADK catalog and provider management routes",
+        "tags": [
+          "adk"
+        ]
+      }
+    },
+    "/api/v1/adk/providers/{providerId}/test": {
+      "post": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "ADK catalog and provider management routes",
+        "tags": [
+          "adk"
+        ]
+      }
+    },
+    "/api/v1/adk/runs": {
+      "get": {
+        "parameters": [
+          {
+            "description": "分页大小",
+            "in": "query",
+            "name": "limit",
+            "type": "integer"
+          },
+          {
+            "description": "分页偏移",
+            "in": "query",
+            "name": "offset",
+            "type": "integer"
+          },
+          {
+            "description": "Run 状态",
+            "in": "query",
+            "name": "status",
+            "type": "string"
+          },
+          {
+            "description": "Agent ID",
+            "in": "query",
+            "name": "agentId",
+            "type": "string"
+          },
+          {
+            "description": "Session ID",
+            "in": "query",
+            "name": "sessionId",
+            "type": "string"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "读取 ADK Run 列表",
+        "tags": [
+          "adk"
+        ]
+      }
+    },
+    "/api/v1/adk/runs/{runId}": {
+      "get": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "ADK session and run routes",
+        "tags": [
+          "adk"
+        ]
+      }
+    },
+    "/api/v1/adk/runs/{runId}/cancel": {
+      "post": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "ADK session and run routes",
+        "tags": [
+          "adk"
+        ]
+      }
+    },
+    "/api/v1/adk/sessions": {
+      "get": {
+        "parameters": [
+          {
+            "description": "分页大小",
+            "in": "query",
+            "name": "limit",
+            "type": "integer"
+          },
+          {
+            "description": "分页偏移",
+            "in": "query",
+            "name": "offset",
+            "type": "integer"
+          },
+          {
+            "description": "Agent ID",
+            "in": "query",
+            "name": "agentId",
+            "type": "string"
+          },
+          {
+            "description": "搜索关键字",
+            "in": "query",
+            "name": "query",
+            "type": "string"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "读取 ADK Session 列表",
+        "tags": [
+          "adk"
+        ]
+      },
+      "post": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "ADK session and run routes",
+        "tags": [
+          "adk"
+        ]
+      }
+    },
+    "/api/v1/adk/sessions/{sessionId}": {
+      "delete": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "ADK session and run routes",
+        "tags": [
+          "adk"
+        ]
+      },
+      "get": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "ADK session and run routes",
+        "tags": [
+          "adk"
+        ]
+      },
+      "put": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "ADK session and run routes",
+        "tags": [
+          "adk"
+        ]
+      }
+    },
+    "/api/v1/adk/sessions/{sessionId}/context": {
+      "get": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "ADK session and run routes",
+        "tags": [
+          "adk"
+        ]
+      }
+    },
+    "/api/v1/adk/sessions/{sessionId}/context/compact": {
+      "post": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "ADK session and run routes",
+        "tags": [
+          "adk"
+        ]
+      }
+    },
+    "/api/v1/adk/skills": {
+      "get": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "ADK chat, approval, and skill routes",
+        "tags": [
+          "adk"
+        ]
+      },
+      "post": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "ADK chat, approval, and skill routes",
+        "tags": [
+          "adk"
+        ]
+      }
+    },
+    "/api/v1/adk/skills/{skillId}": {
+      "delete": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "ADK chat, approval, and skill routes",
+        "tags": [
+          "adk"
+        ]
+      },
+      "put": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "ADK chat, approval, and skill routes",
+        "tags": [
+          "adk"
+        ]
+      }
+    },
+    "/api/v1/adk/tasks": {
+      "get": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "ADK task and memory routes",
+        "tags": [
+          "adk"
+        ]
+      },
+      "post": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "ADK task and memory routes",
+        "tags": [
+          "adk"
+        ]
+      }
+    },
+    "/api/v1/adk/tasks/{taskId}": {
+      "delete": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "ADK task and memory routes",
+        "tags": [
+          "adk"
+        ]
+      },
+      "get": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "ADK task and memory routes",
+        "tags": [
+          "adk"
+        ]
+      },
+      "put": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "ADK task and memory routes",
+        "tags": [
+          "adk"
+        ]
+      }
+    },
+    "/api/v1/adk/tools": {
+      "get": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "ADK catalog and provider management routes",
+        "tags": [
+          "adk"
+        ]
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "consumes": [
+          "application/json"
+        ],
+        "description": "使用单管理员密钥签发 HttpOnly、SameSite=Strict 会话。",
+        "parameters": [
+          {
+            "description": "管理员密钥",
+            "in": "body",
+            "name": "request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/servercore.adminLoginRequest"
+            }
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "管理员登录",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "description": "注销当前管理员会话。",
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "管理员注销",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/session": {
+      "get": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "读取管理员会话",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/auth/token": {
+      "get": {
+        "description": "始终返回 410 Gone；CLI 请直接使用管理员密钥作为 Bearer token。",
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "410": {
+            "description": "Gone",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "旧令牌入口（已退役）",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/backtests": {
+      "get": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "读取回测列表",
+        "tags": [
+          "backtest"
+        ]
+      },
+      "post": {
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "启动回测",
+        "tags": [
+          "backtest"
+        ]
+      }
+    },
+    "/api/v1/backtests/sync": {
+      "post": {
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "启动历史数据同步",
+        "tags": [
+          "backtest"
+        ]
+      }
+    },
+    "/api/v1/backtests/sync/{taskId}": {
+      "delete": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "Backtest historical data sync task routes",
+        "tags": [
+          "backtest"
+        ]
+      },
+      "get": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "Backtest historical data sync task routes",
+        "tags": [
+          "backtest"
+        ]
+      }
+    },
+    "/api/v1/backtests/{runId}": {
+      "delete": {
+        "parameters": [
+          {
+            "description": "回测运行 ID",
+            "in": "path",
+            "name": "runId",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "删除回测记录",
+        "tags": [
+          "backtest"
+        ]
+      },
+      "get": {
+        "parameters": [
+          {
+            "description": "回测运行 ID",
+            "in": "path",
+            "name": "runId",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "读取回测结果",
+        "tags": [
+          "backtest"
+        ]
+      }
+    },
+    "/api/v1/backtests/{runId}/status": {
+      "get": {
+        "parameters": [
+          {
+            "description": "回测运行 ID",
+            "in": "path",
+            "name": "runId",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "读取回测状态",
+        "tags": [
+          "backtest"
+        ]
+      }
+    },
+    "/api/v1/brokers/{brokerId}/cash-flows": {
+      "get": {
+        "parameters": [
+          {
+            "description": "券商 ID",
+            "in": "path",
+            "name": "brokerId",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "description": "交易环境",
+            "in": "query",
+            "name": "tradingEnvironment",
+            "type": "string"
+          },
+          {
+            "description": "账户 ID",
+            "in": "query",
+            "name": "accountId",
+            "type": "string"
+          },
+          {
+            "description": "市场代码",
+            "in": "query",
+            "name": "market",
+            "type": "string"
+          },
+          {
+            "description": "清算日期",
+            "in": "query",
+            "name": "clearingDate",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "description": "方向",
+            "in": "query",
+            "name": "direction",
+            "type": "string"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "读取券商资金流水",
+        "tags": [
+          "broker"
+        ]
+      }
+    },
+    "/api/v1/brokers/{brokerId}/fills": {
+      "get": {
+        "parameters": [
+          {
+            "description": "券商 ID",
+            "in": "path",
+            "name": "brokerId",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "description": "交易环境",
+            "in": "query",
+            "name": "tradingEnvironment",
+            "type": "string"
+          },
+          {
+            "description": "账户 ID",
+            "in": "query",
+            "name": "accountId",
+            "type": "string"
+          },
+          {
+            "description": "市场代码",
+            "in": "query",
+            "name": "market",
+            "type": "string"
+          },
+          {
+            "description": "CURRENT 或 HISTORY",
+            "in": "query",
+            "name": "scope",
+            "type": "string"
+          },
+          {
+            "description": "证券代码",
+            "in": "query",
+            "name": "symbol",
+            "type": "string"
+          },
+          {
+            "description": "历史查询起始时间",
+            "in": "query",
+            "name": "startTime",
+            "type": "string"
+          },
+          {
+            "description": "历史查询结束时间",
+            "in": "query",
+            "name": "endTime",
+            "type": "string"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "读取券商成交",
+        "tags": [
+          "broker"
+        ]
+      }
+    },
+    "/api/v1/brokers/{brokerId}/funds": {
+      "get": {
+        "parameters": [
+          {
+            "description": "券商 ID",
+            "in": "path",
+            "name": "brokerId",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "description": "交易环境",
+            "in": "query",
+            "name": "tradingEnvironment",
+            "type": "string"
+          },
+          {
+            "description": "账户 ID",
+            "in": "query",
+            "name": "accountId",
+            "type": "string"
+          },
+          {
+            "description": "市场代码",
+            "in": "query",
+            "name": "market",
+            "type": "string"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "读取券商资金",
+        "tags": [
+          "broker"
+        ]
+      }
+    },
+    "/api/v1/brokers/{brokerId}/klines": {
+      "get": {
+        "parameters": [
+          {
+            "description": "券商 ID",
+            "in": "path",
+            "name": "brokerId",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "description": "交易环境",
+            "in": "query",
+            "name": "tradingEnvironment",
+            "type": "string"
+          },
+          {
+            "description": "账户 ID",
+            "in": "query",
+            "name": "accountId",
+            "type": "string"
+          },
+          {
+            "description": "市场代码",
+            "in": "query",
+            "name": "market",
+            "type": "string"
+          },
+          {
+            "description": "证券代码",
+            "in": "query",
+            "name": "symbol",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "description": "K 线周期，默认 1d",
+            "in": "query",
+            "name": "period",
+            "type": "string"
+          },
+          {
+            "description": "起始时间",
+            "in": "query",
+            "name": "fromTime",
+            "type": "string"
+          },
+          {
+            "description": "结束时间",
+            "in": "query",
+            "name": "toTime",
+            "type": "string"
+          },
+          {
+            "description": "返回条数",
+            "in": "query",
+            "name": "limit",
+            "type": "integer"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "读取券商 K 线",
+        "tags": [
+          "broker"
+        ]
+      }
+    },
+    "/api/v1/brokers/{brokerId}/margin-ratios": {
+      "get": {
+        "parameters": [
+          {
+            "description": "券商 ID",
+            "in": "path",
+            "name": "brokerId",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "description": "交易环境",
+            "in": "query",
+            "name": "tradingEnvironment",
+            "type": "string"
+          },
+          {
+            "description": "账户 ID",
+            "in": "query",
+            "name": "accountId",
+            "type": "string"
+          },
+          {
+            "description": "市场代码",
+            "in": "query",
+            "name": "market",
+            "type": "string"
+          },
+          {
+            "collectionFormat": "csv",
+            "description": "证券代码",
+            "in": "query",
+            "items": {
+              "type": "string"
+            },
+            "name": "symbol",
+            "required": true,
+            "type": "array"
+          },
+          {
+            "collectionFormat": "csv",
+            "description": "证券代码列表",
+            "in": "query",
+            "items": {
+              "type": "string"
+            },
+            "name": "symbols",
+            "type": "array"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "读取券商融资融券比例",
+        "tags": [
+          "broker"
+        ]
+      }
+    },
+    "/api/v1/brokers/{brokerId}/max-trade-qtys": {
+      "get": {
+        "parameters": [
+          {
+            "description": "券商 ID",
+            "in": "path",
+            "name": "brokerId",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "description": "交易环境",
+            "in": "query",
+            "name": "tradingEnvironment",
+            "type": "string"
+          },
+          {
+            "description": "账户 ID",
+            "in": "query",
+            "name": "accountId",
+            "type": "string"
+          },
+          {
+            "description": "市场代码",
+            "in": "query",
+            "name": "market",
+            "type": "string"
+          },
+          {
+            "description": "证券代码",
+            "in": "query",
+            "name": "symbol",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "description": "订单类型",
+            "in": "query",
+            "name": "orderType",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "description": "价格",
+            "in": "query",
+            "name": "price",
+            "required": true,
+            "type": "number"
+          },
+          {
+            "description": "订单扩展 ID",
+            "in": "query",
+            "name": "orderIdEx",
+            "type": "string"
+          },
+          {
+            "description": "调整系数",
+            "in": "query",
+            "name": "adjustSideAndLimit",
+            "type": "number"
+          },
+          {
+            "description": "交易时段",
+            "in": "query",
+            "name": "session",
+            "type": "string"
+          },
+          {
+            "description": "持仓 ID",
+            "in": "query",
+            "name": "positionId",
+            "type": "integer"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "读取券商最大可交易数量",
+        "tags": [
+          "broker"
+        ]
+      }
+    },
+    "/api/v1/brokers/{brokerId}/order-fees": {
+      "get": {
+        "parameters": [
+          {
+            "description": "券商 ID",
+            "in": "path",
+            "name": "brokerId",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "description": "交易环境",
+            "in": "query",
+            "name": "tradingEnvironment",
+            "type": "string"
+          },
+          {
+            "description": "账户 ID",
+            "in": "query",
+            "name": "accountId",
+            "type": "string"
+          },
+          {
+            "description": "市场代码",
+            "in": "query",
+            "name": "market",
+            "type": "string"
+          },
+          {
+            "collectionFormat": "csv",
+            "description": "外部订单号",
+            "in": "query",
+            "items": {
+              "type": "string"
+            },
+            "name": "orderIdEx",
+            "required": true,
+            "type": "array"
+          },
+          {
+            "collectionFormat": "csv",
+            "description": "外部订单号列表",
+            "in": "query",
+            "items": {
+              "type": "string"
+            },
+            "name": "orderIdExList",
+            "type": "array"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "读取券商订单费用",
+        "tags": [
+          "broker"
+        ]
+      }
+    },
+    "/api/v1/brokers/{brokerId}/orders": {
+      "get": {
+        "parameters": [
+          {
+            "description": "券商 ID",
+            "in": "path",
+            "name": "brokerId",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "description": "交易环境",
+            "in": "query",
+            "name": "tradingEnvironment",
+            "type": "string"
+          },
+          {
+            "description": "账户 ID",
+            "in": "query",
+            "name": "accountId",
+            "type": "string"
+          },
+          {
+            "description": "市场代码",
+            "in": "query",
+            "name": "market",
+            "type": "string"
+          },
+          {
+            "description": "CURRENT 或 HISTORY",
+            "in": "query",
+            "name": "scope",
+            "type": "string"
+          },
+          {
+            "description": "证券代码",
+            "in": "query",
+            "name": "symbol",
+            "type": "string"
+          },
+          {
+            "description": "历史查询起始时间",
+            "in": "query",
+            "name": "startTime",
+            "type": "string"
+          },
+          {
+            "description": "历史查询结束时间",
+            "in": "query",
+            "name": "endTime",
+            "type": "string"
+          },
+          {
+            "collectionFormat": "csv",
+            "description": "订单状态",
+            "in": "query",
+            "items": {
+              "type": "string"
+            },
+            "name": "status",
+            "type": "array"
+          },
+          {
+            "collectionFormat": "csv",
+            "description": "订单状态，逗号分隔或重复参数",
+            "in": "query",
+            "items": {
+              "type": "string"
+            },
+            "name": "statuses",
+            "type": "array"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "读取券商订单",
+        "tags": [
+          "broker"
+        ]
+      }
+    },
+    "/api/v1/brokers/{brokerId}/positions": {
+      "get": {
+        "parameters": [
+          {
+            "description": "券商 ID",
+            "in": "path",
+            "name": "brokerId",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "description": "交易环境",
+            "in": "query",
+            "name": "tradingEnvironment",
+            "type": "string"
+          },
+          {
+            "description": "账户 ID",
+            "in": "query",
+            "name": "accountId",
+            "type": "string"
+          },
+          {
+            "description": "市场代码",
+            "in": "query",
+            "name": "market",
+            "type": "string"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "读取券商持仓",
+        "tags": [
+          "broker"
+        ]
+      }
+    },
+    "/api/v1/brokers/{brokerId}/quote": {
+      "get": {
+        "parameters": [
+          {
+            "description": "券商 ID",
+            "in": "path",
+            "name": "brokerId",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "description": "交易环境",
+            "in": "query",
+            "name": "tradingEnvironment",
+            "type": "string"
+          },
+          {
+            "description": "账户 ID",
+            "in": "query",
+            "name": "accountId",
+            "type": "string"
+          },
+          {
+            "description": "市场代码",
+            "in": "query",
+            "name": "market",
+            "type": "string"
+          },
+          {
+            "collectionFormat": "csv",
+            "description": "证券代码",
+            "in": "query",
+            "items": {
+              "type": "string"
+            },
+            "name": "symbol",
+            "required": true,
+            "type": "array"
+          },
+          {
+            "collectionFormat": "csv",
+            "description": "证券代码列表",
+            "in": "query",
+            "items": {
+              "type": "string"
+            },
+            "name": "symbols",
+            "type": "array"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "读取券商行情",
+        "tags": [
+          "broker"
+        ]
+      }
+    },
+    "/api/v1/brokers/{brokerId}/securities": {
+      "get": {
+        "parameters": [
+          {
+            "description": "券商 ID",
+            "in": "path",
+            "name": "brokerId",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "description": "交易环境",
+            "in": "query",
+            "name": "tradingEnvironment",
+            "type": "string"
+          },
+          {
+            "description": "账户 ID",
+            "in": "query",
+            "name": "accountId",
+            "type": "string"
+          },
+          {
+            "description": "市场代码",
+            "in": "query",
+            "name": "market",
+            "type": "string"
+          },
+          {
+            "collectionFormat": "csv",
+            "description": "证券代码",
+            "in": "query",
+            "items": {
+              "type": "string"
+            },
+            "name": "symbol",
+            "required": true,
+            "type": "array"
+          },
+          {
+            "collectionFormat": "csv",
+            "description": "证券代码列表",
+            "in": "query",
+            "items": {
+              "type": "string"
+            },
+            "name": "symbols",
+            "type": "array"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "读取券商证券快照",
+        "tags": [
+          "broker"
+        ]
+      }
+    },
+    "/api/v1/execution/orders": {
+      "get": {
+        "parameters": [
+          {
+            "description": "ACTIVE 表示仅活动订单",
+            "in": "query",
+            "name": "scope",
+            "type": "string"
+          },
+          {
+            "description": "Broker 标识",
+            "in": "query",
+            "name": "brokerId",
+            "type": "string"
+          },
+          {
+            "description": "交易环境",
+            "in": "query",
+            "name": "tradingEnvironment",
+            "type": "string"
+          },
+          {
+            "description": "账户 ID",
+            "in": "query",
+            "name": "accountId",
+            "type": "string"
+          },
+          {
+            "description": "市场",
+            "in": "query",
+            "name": "market",
+            "type": "string"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/servercore.envelope"
+                },
+                {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/definitions/servercore.executionOrdersResponse"
+                    }
+                  },
+                  "type": "object"
+                }
+              ]
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "读取执行订单",
+        "tags": [
+          "execution"
+        ]
+      },
+      "post": {
+        "consumes": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "description": "执行订单",
+            "in": "body",
+            "name": "request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/servercore.executionPlaceOrderRequest"
+            }
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/servercore.envelope"
+                },
+                {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/definitions/servercore.brokerOrderCommandResponse"
+                    }
+                  },
+                  "type": "object"
+                }
+              ]
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "提交执行订单",
+        "tags": [
+          "execution"
+        ]
+      }
+    },
+    "/api/v1/execution/orders/preview": {
+      "post": {
+        "description": "规范化并校验订单请求，返回预览结果，不会向券商提交订单。",
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "预览执行订单但不提交",
+        "tags": [
+          "execution"
+        ]
+      }
+    },
+    "/api/v1/execution/orders/{internalOrderId}/cancel": {
+      "post": {
+        "parameters": [
+          {
+            "description": "内部订单 ID",
+            "in": "path",
+            "name": "internalOrderId",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/servercore.envelope"
+                },
+                {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/definitions/servercore.brokerOrderCommandResponse"
+                    }
+                  },
+                  "type": "object"
+                }
+              ]
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "取消执行订单",
+        "tags": [
+          "execution"
+        ]
+      }
+    },
+    "/api/v1/execution/orders/{internalOrderId}/events": {
+      "get": {
+        "parameters": [
+          {
+            "description": "内部订单 ID",
+            "in": "path",
+            "name": "internalOrderId",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/definitions/servercore.envelope"
+                },
+                {
+                  "properties": {
+                    "data": {
+                      "$ref": "#/definitions/servercore.executionOrderEventsResponse"
+                    }
+                  },
+                  "type": "object"
+                }
+              ]
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "读取执行订单事件",
+        "tags": [
+          "execution"
+        ]
+      }
+    },
+    "/api/v1/market-data/candles/{market}/{symbol}": {
+      "get": {
+        "parameters": [
+          {
+            "description": "市场",
+            "in": "path",
+            "name": "market",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "description": "标的",
+            "in": "path",
+            "name": "symbol",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "description": "周期",
+            "in": "query",
+            "name": "period",
+            "type": "string"
+          },
+          {
+            "description": "数量",
+            "in": "query",
+            "name": "limit",
+            "type": "integer"
+          },
+          {
+            "description": "起始时间",
+            "in": "query",
+            "name": "fromTime",
+            "type": "string"
+          },
+          {
+            "description": "结束时间",
+            "in": "query",
+            "name": "toTime",
+            "type": "string"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "查询 K 线",
+        "tags": [
+          "market-data"
+        ]
+      }
+    },
+    "/api/v1/market-data/depth/{market}/{symbol}": {
+      "get": {
+        "parameters": [
+          {
+            "description": "市场代码",
+            "in": "path",
+            "name": "market",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "description": "证券代码",
+            "in": "path",
+            "name": "symbol",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "description": "档数，默认 10，最大 50",
+            "in": "query",
+            "name": "num",
+            "type": "integer"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "502": {
+            "description": "Bad Gateway",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "读取盘口深度",
+        "tags": [
+          "market-data"
+        ]
+      }
+    },
+    "/api/v1/market-data/instruments": {
+      "get": {
+        "parameters": [
+          {
+            "description": "搜索关键字",
+            "in": "query",
+            "name": "query",
+            "type": "string"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "搜索行情标的",
+        "tags": [
+          "market-data"
+        ]
+      }
+    },
+    "/api/v1/market-data/instruments/normalize": {
+      "post": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "Market data utility routes",
+        "tags": [
+          "market-data"
+        ]
+      }
+    },
+    "/api/v1/market-data/markets": {
+      "get": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "Market data utility routes",
+        "tags": [
+          "market-data"
+        ]
+      }
+    },
+    "/api/v1/market-data/securities/{market}/{symbol}": {
+      "get": {
+        "parameters": [
+          {
+            "description": "市场",
+            "in": "path",
+            "name": "market",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "description": "标的",
+            "in": "path",
+            "name": "symbol",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "查询证券详情",
+        "tags": [
+          "market-data"
+        ]
+      }
+    },
+    "/api/v1/market-data/snapshots/{market}/{symbol}": {
+      "get": {
+        "parameters": [
+          {
+            "description": "市场代码",
+            "in": "path",
+            "name": "market",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "description": "证券代码",
+            "in": "path",
+            "name": "symbol",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "description": "是否绕过缓存强制刷新",
+            "in": "query",
+            "name": "refresh",
+            "type": "boolean"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "502": {
+            "description": "Bad Gateway",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "读取行情快照",
+        "tags": [
+          "market-data"
+        ]
+      }
+    },
+    "/api/v1/market-data/subscriptions": {
+      "delete": {
+        "parameters": [
+          {
+            "description": "消费者 ID；为空时清空全部",
+            "in": "query",
+            "name": "consumerId",
+            "type": "string"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "清空行情订阅",
+        "tags": [
+          "market-data"
+        ]
+      },
+      "get": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "Market data utility routes",
+        "tags": [
+          "market-data"
+        ]
+      },
+      "post": {
+        "consumes": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "description": "订阅请求",
+            "in": "body",
+            "name": "request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/marketdata.SubscriptionRequest"
+            }
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "申请行情订阅",
+        "tags": [
+          "market-data"
+        ]
+      }
+    },
+    "/api/v1/market-data/subscriptions/heartbeat": {
+      "post": {
+        "consumes": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "description": "心跳请求",
+            "in": "body",
+            "name": "request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/marketdata.SubscriptionHeartbeatRequest"
+            }
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "刷新订阅心跳",
+        "tags": [
+          "market-data"
+        ]
+      }
+    },
+    "/api/v1/market-data/subscriptions/release": {
+      "post": {
+        "consumes": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "description": "释放请求",
+            "in": "body",
+            "name": "request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/marketdata.SubscriptionRequest"
+            }
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "释放行情订阅",
+        "tags": [
+          "market-data"
+        ]
+      }
+    },
+    "/api/v1/plugins": {
+      "get": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "Plugin catalog and operation routes",
+        "tags": [
+          "plugins"
+        ]
+      }
+    },
+    "/api/v1/plugins/operations/{operationId}": {
+      "get": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "Plugin catalog and operation routes",
+        "tags": [
+          "plugins"
+        ]
+      }
+    },
+    "/api/v1/plugins/{pluginId}/install": {
+      "post": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "Plugin catalog and operation routes",
+        "tags": [
+          "plugins"
+        ]
+      }
+    },
+    "/api/v1/plugins/{pluginId}/uninstall": {
+      "post": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "Plugin catalog and operation routes",
+        "tags": [
+          "plugins"
+        ]
+      }
+    },
+    "/api/v1/plugins/{pluginId}/uninstall-guidance": {
+      "get": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "Plugin catalog and operation routes",
+        "tags": [
+          "plugins"
+        ]
+      }
+    },
+    "/api/v1/portfolio/{brokerId}/cash-balances": {
+      "get": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "Portfolio routes",
+        "tags": [
+          "portfolio"
+        ]
+      }
+    },
+    "/api/v1/portfolio/{brokerId}/cash-reconciliation": {
+      "get": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "Portfolio routes",
+        "tags": [
+          "portfolio"
+        ]
+      }
+    },
+    "/api/v1/portfolio/{brokerId}/positions": {
+      "get": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "Portfolio routes",
+        "tags": [
+          "portfolio"
+        ]
+      }
+    },
+    "/api/v1/portfolio/{brokerId}/reconciliation": {
+      "get": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "Portfolio routes",
+        "tags": [
+          "portfolio"
+        ]
+      }
+    },
+    "/api/v1/settings/adk": {
+      "get": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "读取 ADK 运行时设置",
+        "tags": [
+          "settings"
+        ]
+      },
+      "put": {
+        "consumes": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "description": "ADK 运行时设置",
+            "in": "body",
+            "name": "request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/jftsettings.ADKRuntimeSettings"
+            }
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "保存 ADK 运行时设置",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/settings/broker-accounts": {
+      "post": {
+        "consumes": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "description": "托管账户",
+            "in": "body",
+            "name": "request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/settings.ManagedBrokerAccountWriteRequest"
+            }
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "创建托管账户",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/settings/broker-accounts/{accountRecordId}": {
+      "delete": {
+        "parameters": [
+          {
+            "description": "托管账户记录 ID",
+            "in": "path",
+            "name": "accountRecordId",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "删除托管账户",
+        "tags": [
+          "settings"
+        ]
+      },
+      "put": {
+        "consumes": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "description": "托管账户记录 ID",
+            "in": "path",
+            "name": "accountRecordId",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "description": "托管账户",
+            "in": "body",
+            "name": "request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/settings.ManagedBrokerAccountWriteRequest"
+            }
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "更新托管账户",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/settings/brokers": {
+      "get": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "读取 broker 设置",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/settings/brokers/{brokerId}/integration": {
+      "put": {
+        "consumes": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "description": "Broker 标识",
+            "in": "path",
+            "name": "brokerId",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "description": "Broker 集成配置",
+            "in": "body",
+            "name": "request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/settings.BrokerIntegrationSaveRequest"
+            }
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "保存 broker 集成",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/settings/execution": {
+      "get": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "读取执行设置",
+        "tags": [
+          "settings"
+        ]
+      },
+      "put": {
+        "consumes": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "description": "执行设置",
+            "in": "body",
+            "name": "request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/jftsettings.ExecutionSettings"
+            }
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "保存执行设置",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/settings/onboarding": {
+      "get": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "读取新手引导状态",
+        "tags": [
+          "settings"
+        ]
+      },
+      "put": {
+        "consumes": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "description": "引导状态",
+            "in": "body",
+            "name": "request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/settings.OnboardingWriteRequest"
+            }
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "保存新手引导状态",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/settings/security": {
+      "get": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "读取安全设置",
+        "tags": [
+          "settings"
+        ]
+      },
+      "put": {
+        "consumes": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "description": "安全设置",
+            "in": "body",
+            "name": "request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/jftsettings.SecuritySettings"
+            }
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "保存安全设置",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/settings/ui": {
+      "get": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "读取 UI 颜色配置",
+        "tags": [
+          "settings"
+        ]
+      },
+      "put": {
+        "consumes": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "description": "UI 配置",
+            "in": "body",
+            "name": "request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/settings.UIAppearanceSettingsWriteRequest"
+            }
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "保存 UI 颜色配置",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/strategies": {
+      "get": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "读取策略实例列表",
+        "tags": [
+          "strategy"
+        ]
+      }
+    },
+    "/api/v1/strategies/{instanceId}": {
+      "delete": {
+        "parameters": [
+          {
+            "description": "策略实例 ID",
+            "in": "path",
+            "name": "instanceId",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "删除策略实例",
+        "tags": [
+          "strategy"
+        ]
+      },
+      "put": {
+        "consumes": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "description": "策略实例 ID",
+            "in": "path",
+            "name": "instanceId",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "description": "实例绑定参数",
+            "in": "body",
+            "name": "request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/strategy.StrategyBindingRequest"
+            }
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "更新策略实例绑定参数",
+        "tags": [
+          "strategy"
+        ]
+      }
+    },
+    "/api/v1/strategies/{instanceId}/audit": {
+      "get": {
+        "parameters": [
+          {
+            "description": "策略实例 ID",
+            "in": "path",
+            "name": "instanceId",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "description": "分页大小",
+            "in": "query",
+            "name": "limit",
+            "type": "integer"
+          },
+          {
+            "description": "分页偏移",
+            "in": "query",
+            "name": "offset",
+            "type": "integer"
+          },
+          {
+            "description": "审计类型",
+            "in": "query",
+            "name": "kind",
+            "type": "string"
+          },
+          {
+            "description": "起始时间",
+            "in": "query",
+            "name": "fromTime",
+            "type": "string"
+          },
+          {
+            "description": "结束时间",
+            "in": "query",
+            "name": "toTime",
+            "type": "string"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "读取策略审计记录",
+        "tags": [
+          "strategy"
+        ]
+      }
+    },
+    "/api/v1/strategies/{instanceId}/logs": {
+      "get": {
+        "parameters": [
+          {
+            "description": "策略实例 ID",
+            "in": "path",
+            "name": "instanceId",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "description": "分页大小",
+            "in": "query",
+            "name": "limit",
+            "type": "integer"
+          },
+          {
+            "description": "分页偏移",
+            "in": "query",
+            "name": "offset",
+            "type": "integer"
+          },
+          {
+            "description": "日志级别",
+            "in": "query",
+            "name": "level",
+            "type": "string"
+          },
+          {
+            "description": "起始时间",
+            "in": "query",
+            "name": "fromTime",
+            "type": "string"
+          },
+          {
+            "description": "结束时间",
+            "in": "query",
+            "name": "toTime",
+            "type": "string"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "读取策略运行日志",
+        "tags": [
+          "strategy"
+        ]
+      }
+    },
+    "/api/v1/strategies/{instanceId}/pause": {
+      "post": {
+        "parameters": [
+          {
+            "description": "策略实例 ID",
+            "in": "path",
+            "name": "instanceId",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "暂停策略实例",
+        "tags": [
+          "strategy"
+        ]
+      }
+    },
+    "/api/v1/strategies/{instanceId}/refresh-definition": {
+      "post": {
+        "parameters": [
+          {
+            "description": "策略实例 ID",
+            "in": "path",
+            "name": "instanceId",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "刷新实例关联的策略定义",
+        "tags": [
+          "strategy"
+        ]
+      }
+    },
+    "/api/v1/strategies/{instanceId}/start": {
+      "post": {
+        "parameters": [
+          {
+            "description": "策略实例 ID",
+            "in": "path",
+            "name": "instanceId",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "502": {
+            "description": "Bad Gateway",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "启动策略实例",
+        "tags": [
+          "strategy"
+        ]
+      }
+    },
+    "/api/v1/strategies/{instanceId}/stop": {
+      "post": {
+        "parameters": [
+          {
+            "description": "策略实例 ID",
+            "in": "path",
+            "name": "instanceId",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "停止策略实例",
+        "tags": [
+          "strategy"
+        ]
+      }
+    },
+    "/api/v1/strategy-definitions": {
+      "get": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "读取策略定义列表",
+        "tags": [
+          "strategy"
+        ]
+      },
+      "post": {
+        "consumes": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "description": "策略定义",
+            "in": "body",
+            "name": "request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/strategy.StrategyDesignDefinition"
+            }
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "创建策略定义",
+        "tags": [
+          "strategy"
+        ]
+      }
+    },
+    "/api/v1/strategy-definitions/{definitionId}": {
+      "delete": {
+        "parameters": [
+          {
+            "description": "策略定义 ID",
+            "in": "path",
+            "name": "definitionId",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "删除策略定义",
+        "tags": [
+          "strategy"
+        ]
+      },
+      "get": {
+        "parameters": [
+          {
+            "description": "策略定义 ID",
+            "in": "path",
+            "name": "definitionId",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "description": "预览周期",
+            "in": "query",
+            "name": "interval",
+            "type": "string"
+          },
+          {
+            "description": "预览标的",
+            "in": "query",
+            "name": "symbol",
+            "type": "string"
+          },
+          {
+            "description": "是否包含盘前盘后",
+            "in": "query",
+            "name": "useExtendedHours",
+            "type": "boolean"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "读取策略定义",
+        "tags": [
+          "strategy"
+        ]
+      },
+      "put": {
+        "consumes": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "description": "策略定义 ID",
+            "in": "path",
+            "name": "definitionId",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "description": "策略定义",
+            "in": "body",
+            "name": "request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/strategy.StrategyDesignDefinition"
+            }
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "更新策略定义",
+        "tags": [
+          "strategy"
+        ]
+      }
+    },
+    "/api/v1/strategy-definitions/{definitionId}/apply-linked-instances": {
+      "post": {
+        "parameters": [
+          {
+            "description": "策略定义 ID",
+            "in": "path",
+            "name": "definitionId",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "应用策略定义到关联实例",
+        "tags": [
+          "strategy"
+        ]
+      }
+    },
+    "/api/v1/strategy-definitions/{definitionId}/instantiate": {
+      "post": {
+        "consumes": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "description": "策略定义 ID",
+            "in": "path",
+            "name": "definitionId",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "description": "实例绑定参数",
+            "in": "body",
+            "name": "request",
+            "schema": {
+              "$ref": "#/definitions/strategy.StrategyBindingRequest"
+            }
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "从策略定义创建实例",
+        "tags": [
+          "strategy"
+        ]
+      }
+    },
+    "/api/v1/strategy-pine/analyze": {
+      "post": {
+        "consumes": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "description": "Pine 脚本",
+            "in": "body",
+            "name": "request",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/strategy.AnalyzePineRequest"
+            }
+          }
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "分析 Pine 脚本",
+        "tags": [
+          "strategy"
+        ]
+      }
+    },
+    "/api/v1/system/futu-opend": {
+      "get": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "OpenD 健康检查",
+        "tags": [
+          "system"
+        ]
+      }
+    },
+    "/api/v1/system/futu-opend/install-guide": {
+      "get": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "读取 OpenD 安装指南",
+        "tags": [
+          "system"
+        ]
+      }
+    },
+    "/api/v1/system/futu-opend/manual-retry": {
+      "post": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "手动重置 OpenD 运行时",
+        "tags": [
+          "system"
+        ]
+      }
+    },
+    "/api/v1/system/real-trade-approvals": {
+      "get": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "System operational routes",
+        "tags": [
+          "system"
+        ]
+      }
+    },
+    "/api/v1/system/real-trade-hard-stop-events": {
+      "get": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "System operational routes",
+        "tags": [
+          "system"
+        ]
+      }
+    },
+    "/api/v1/system/real-trade-hard-stops": {
+      "get": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "System operational routes",
+        "tags": [
+          "system"
+        ]
+      }
+    },
+    "/api/v1/system/real-trade-kill-switch": {
+      "get": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "System operational routes",
+        "tags": [
+          "system"
+        ]
+      }
+    },
+    "/api/v1/system/real-trade-kill-switch-events": {
+      "get": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "System operational routes",
+        "tags": [
+          "system"
+        ]
+      }
+    },
+    "/api/v1/system/real-trade-risk-events": {
+      "get": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "System operational routes",
+        "tags": [
+          "system"
+        ]
+      }
+    },
+    "/api/v1/system/real-trade-risk-limits": {
+      "get": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "System operational routes",
+        "tags": [
+          "system"
+        ]
+      }
+    },
+    "/api/v1/system/status": {
+      "get": {
+        "description": "返回 API、broker 与实时流状态摘要。",
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/httpserver.Envelope"
+            }
+          }
+        },
+        "summary": "读取系统状态",
+        "tags": [
+          "system"
+        ]
+      }
+    },
+    "/api/v1/system/storage/overview": {
+      "get": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "System operational routes",
+        "tags": [
+          "system"
+        ]
+      }
+    },
+    "/api/v1/system/worker/broker-order-updates": {
+      "get": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/servercore.envelope"
+            }
+          }
+        },
+        "summary": "System operational routes",
+        "tags": [
+          "system"
+        ]
+      }
+    },
+    "/api/v1/ws/live": {
+      "get": {
+        "produces": [
+          "application/json"
+        ],
+        "responses": {
+          "101": {
+            "description": "Switching Protocols",
+            "schema": {
+              "type": "string"
+            }
+          }
+        },
+        "summary": "实时行情 WebSocket",
+        "tags": [
+          "market-data"
+        ]
+      }
+    }
+  },
+  "schemes": [
+    "http",
+    "https"
+  ],
+  "securityDefinitions": {
+    "AdministratorBearer": {
+      "description": "Bearer \u003cJFTrade administrator key\u003e",
+      "in": "header",
+      "name": "Authorization",
+      "type": "apiKey"
+    },
+    "AdministratorSession": {
+      "in": "cookie",
+      "name": "jftrade_admin_session",
+      "type": "apiKey"
+    }
+  },
+  "swagger": "2.0"
+}

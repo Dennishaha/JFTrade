@@ -10,8 +10,16 @@
 
 | Response | Schema | Description |
 | --- | --- | --- |
-| `200` | jftradeapi.envelope | OK |
-| `500` | jftradeapi.envelope | Internal Server Error |
+| `200` | httpserver.Envelope | OK |
+| `500` | httpserver.Envelope | Internal Server Error |
+
+### `GET /api/v1/adk/agent-templates`
+
+**Summary:** ADK catalog and provider management routes
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |
 
 ### `GET /api/v1/adk/agents`
 
@@ -23,9 +31,137 @@
 
 | Response | Schema | Description |
 | --- | --- | --- |
-| `200` | jftradeapi.envelope | OK |
-| `400` | jftradeapi.envelope | Bad Request |
-| `500` | jftradeapi.envelope | Internal Server Error |
+| `200` | httpserver.Envelope | OK |
+| `400` | httpserver.Envelope | Bad Request |
+| `500` | httpserver.Envelope | Internal Server Error |
+
+### `POST /api/v1/adk/agents`
+
+**Summary:** ADK catalog and provider management routes
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |
+
+### `DELETE /api/v1/adk/agents/{agentId}`
+
+**Summary:** ADK catalog and provider management routes
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |
+
+### `PUT /api/v1/adk/agents/{agentId}`
+
+**Summary:** ADK catalog and provider management routes
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |
+
+### `GET /api/v1/adk/approvals`
+
+**Summary:** ADK chat, approval, and skill routes
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |
+
+### `POST /api/v1/adk/approvals/{approvalId}/approve`
+
+**Summary:** ADK chat, approval, and skill routes
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |
+
+### `POST /api/v1/adk/approvals/{approvalId}/deny`
+
+**Summary:** ADK chat, approval, and skill routes
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |
+
+### `GET /api/v1/adk/audit`
+
+**Summary:** ADK catalog and provider management routes
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |
+
+### `POST /api/v1/adk/chat`
+
+**Summary:** ADK chat, approval, and skill routes
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |
+
+### `POST /api/v1/adk/chat/stream`
+
+**Summary:** ADK chat, approval, and skill routes
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |
+
+### `GET /api/v1/adk/memory`
+
+**Summary:** ADK task and memory routes
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |
+
+### `POST /api/v1/adk/memory`
+
+**Summary:** ADK task and memory routes
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |
+
+### `DELETE /api/v1/adk/memory/{memoryId}`
+
+**Summary:** ADK task and memory routes
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |
+
+### `GET /api/v1/adk/metrics`
+
+**Summary:** ADK catalog and provider management routes
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |
+
+### `GET /api/v1/adk/optimization-tasks`
+
+**Summary:** ADK optimization task routes
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |
+
+### `GET /api/v1/adk/optimization-tasks/{taskId}`
+
+**Summary:** ADK optimization task routes
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |
+
+### `POST /api/v1/adk/optimization-tasks/{taskId}/cancel`
+
+**Summary:** ADK optimization task routes
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |
 
 ### `GET /api/v1/adk/providers`
 
@@ -33,8 +169,40 @@
 
 | Response | Schema | Description |
 | --- | --- | --- |
-| `200` | jftradeapi.envelope | OK |
-| `500` | jftradeapi.envelope | Internal Server Error |
+| `200` | httpserver.Envelope | OK |
+| `500` | httpserver.Envelope | Internal Server Error |
+
+### `POST /api/v1/adk/providers`
+
+**Summary:** ADK catalog and provider management routes
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |
+
+### `DELETE /api/v1/adk/providers/{providerId}`
+
+**Summary:** ADK catalog and provider management routes
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |
+
+### `PUT /api/v1/adk/providers/{providerId}`
+
+**Summary:** ADK catalog and provider management routes
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |
+
+### `POST /api/v1/adk/providers/{providerId}/test`
+
+**Summary:** ADK catalog and provider management routes
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |
 
 ### `GET /api/v1/adk/runs`
 
@@ -50,9 +218,25 @@
 
 | Response | Schema | Description |
 | --- | --- | --- |
-| `200` | jftradeapi.envelope | OK |
-| `400` | jftradeapi.envelope | Bad Request |
-| `500` | jftradeapi.envelope | Internal Server Error |
+| `200` | httpserver.Envelope | OK |
+| `400` | httpserver.Envelope | Bad Request |
+| `500` | httpserver.Envelope | Internal Server Error |
+
+### `GET /api/v1/adk/runs/{runId}`
+
+**Summary:** ADK session and run routes
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |
+
+### `POST /api/v1/adk/runs/{runId}/cancel`
+
+**Summary:** ADK session and run routes
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |
 
 ### `GET /api/v1/adk/sessions`
 
@@ -67,9 +251,137 @@
 
 | Response | Schema | Description |
 | --- | --- | --- |
-| `200` | jftradeapi.envelope | OK |
-| `400` | jftradeapi.envelope | Bad Request |
-| `500` | jftradeapi.envelope | Internal Server Error |
+| `200` | httpserver.Envelope | OK |
+| `400` | httpserver.Envelope | Bad Request |
+| `500` | httpserver.Envelope | Internal Server Error |
+
+### `POST /api/v1/adk/sessions`
+
+**Summary:** ADK session and run routes
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |
+
+### `DELETE /api/v1/adk/sessions/{sessionId}`
+
+**Summary:** ADK session and run routes
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |
+
+### `GET /api/v1/adk/sessions/{sessionId}`
+
+**Summary:** ADK session and run routes
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |
+
+### `PUT /api/v1/adk/sessions/{sessionId}`
+
+**Summary:** ADK session and run routes
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |
+
+### `GET /api/v1/adk/sessions/{sessionId}/context`
+
+**Summary:** ADK session and run routes
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |
+
+### `POST /api/v1/adk/sessions/{sessionId}/context/compact`
+
+**Summary:** ADK session and run routes
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |
+
+### `GET /api/v1/adk/skills`
+
+**Summary:** ADK chat, approval, and skill routes
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |
+
+### `POST /api/v1/adk/skills`
+
+**Summary:** ADK chat, approval, and skill routes
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |
+
+### `DELETE /api/v1/adk/skills/{skillId}`
+
+**Summary:** ADK chat, approval, and skill routes
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |
+
+### `PUT /api/v1/adk/skills/{skillId}`
+
+**Summary:** ADK chat, approval, and skill routes
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |
+
+### `GET /api/v1/adk/tasks`
+
+**Summary:** ADK task and memory routes
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |
+
+### `POST /api/v1/adk/tasks`
+
+**Summary:** ADK task and memory routes
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |
+
+### `DELETE /api/v1/adk/tasks/{taskId}`
+
+**Summary:** ADK task and memory routes
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |
+
+### `GET /api/v1/adk/tasks/{taskId}`
+
+**Summary:** ADK task and memory routes
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |
+
+### `PUT /api/v1/adk/tasks/{taskId}`
+
+**Summary:** ADK task and memory routes
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |
+
+### `GET /api/v1/adk/tools`
+
+**Summary:** ADK catalog and provider management routes
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |
 
 ## auth
 
@@ -81,14 +393,14 @@
 
 | Name | In | Required | Type | Description |
 | --- | --- | --- | --- | --- |
-| `request` | body | yes | jftradeapi.adminLoginRequest | 管理员密钥 |
+| `request` | body | yes | servercore.adminLoginRequest | 管理员密钥 |
 
 | Response | Schema | Description |
 | --- | --- | --- |
-| `200` | jftradeapi.envelope | OK |
-| `400` | jftradeapi.envelope | Bad Request |
-| `401` | jftradeapi.envelope | Unauthorized |
-| `429` | jftradeapi.envelope | Too Many Requests |
+| `200` | servercore.envelope | OK |
+| `400` | servercore.envelope | Bad Request |
+| `401` | servercore.envelope | Unauthorized |
+| `429` | servercore.envelope | Too Many Requests |
 
 ### `POST /api/v1/auth/logout`
 
@@ -98,7 +410,7 @@
 
 | Response | Schema | Description |
 | --- | --- | --- |
-| `200` | jftradeapi.envelope | OK |
+| `200` | servercore.envelope | OK |
 
 ### `GET /api/v1/auth/session`
 
@@ -106,7 +418,7 @@
 
 | Response | Schema | Description |
 | --- | --- | --- |
-| `200` | jftradeapi.envelope | OK |
+| `200` | servercore.envelope | OK |
 
 ### `GET /api/v1/auth/token`
 
@@ -116,7 +428,7 @@
 
 | Response | Schema | Description |
 | --- | --- | --- |
-| `410` | jftradeapi.envelope | Gone |
+| `410` | servercore.envelope | Gone |
 
 ## backtest
 
@@ -126,21 +438,17 @@
 
 | Response | Schema | Description |
 | --- | --- | --- |
-| `200` | jftradeapi.envelope | OK |
+| `200` | httpserver.Envelope | OK |
 
 ### `POST /api/v1/backtests`
 
 **Summary:** 启动回测
 
-| Name | In | Required | Type | Description |
-| --- | --- | --- | --- | --- |
-| `request` | body | yes | jftradeapi.backtestStartRequest | 回测请求 |
-
 | Response | Schema | Description |
 | --- | --- | --- |
-| `200` | jftradeapi.envelope | OK |
-| `400` | jftradeapi.envelope | Bad Request |
-| `404` | jftradeapi.envelope | Not Found |
+| `200` | httpserver.Envelope | OK |
+| `400` | httpserver.Envelope | Bad Request |
+| `404` | httpserver.Envelope | Not Found |
 
 ### `DELETE /api/v1/backtests/{runId}`
 
@@ -152,9 +460,9 @@
 
 | Response | Schema | Description |
 | --- | --- | --- |
-| `200` | jftradeapi.envelope | OK |
-| `400` | jftradeapi.envelope | Bad Request |
-| `404` | jftradeapi.envelope | Not Found |
+| `200` | httpserver.Envelope | OK |
+| `400` | httpserver.Envelope | Bad Request |
+| `404` | httpserver.Envelope | Not Found |
 
 ### `GET /api/v1/backtests/{runId}`
 
@@ -166,9 +474,9 @@
 
 | Response | Schema | Description |
 | --- | --- | --- |
-| `200` |  | OK |
-| `400` | jftradeapi.envelope | Bad Request |
-| `404` | jftradeapi.envelope | Not Found |
+| `200` | httpserver.Envelope | OK |
+| `400` | httpserver.Envelope | Bad Request |
+| `404` | httpserver.Envelope | Not Found |
 
 ### `GET /api/v1/backtests/{runId}/status`
 
@@ -180,22 +488,34 @@
 
 | Response | Schema | Description |
 | --- | --- | --- |
-| `200` | jftradeapi.envelope | OK |
-| `400` | jftradeapi.envelope | Bad Request |
-| `404` | jftradeapi.envelope | Not Found |
+| `200` | httpserver.Envelope | OK |
+| `400` | httpserver.Envelope | Bad Request |
+| `404` | httpserver.Envelope | Not Found |
 
 ### `POST /api/v1/backtests/sync`
 
 **Summary:** 启动历史数据同步
 
-| Name | In | Required | Type | Description |
-| --- | --- | --- | --- | --- |
-| `request` | body | yes | jftradeapi.backtestSyncRequest | 同步请求 |
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | httpserver.Envelope | OK |
+| `400` | httpserver.Envelope | Bad Request |
+
+### `DELETE /api/v1/backtests/sync/{taskId}`
+
+**Summary:** Backtest historical data sync task routes
 
 | Response | Schema | Description |
 | --- | --- | --- |
-| `200` | jftradeapi.envelope | OK |
-| `400` | jftradeapi.envelope | Bad Request |
+| `200` | servercore.envelope | OK |
+
+### `GET /api/v1/backtests/sync/{taskId}`
+
+**Summary:** Backtest historical data sync task routes
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |
 
 ## broker
 
@@ -214,8 +534,8 @@
 
 | Response | Schema | Description |
 | --- | --- | --- |
-| `200` | jftradeapi.envelope | OK |
-| `400` | jftradeapi.envelope | Bad Request |
+| `200` | servercore.envelope | OK |
+| `400` | servercore.envelope | Bad Request |
 
 ### `GET /api/v1/brokers/{brokerId}/fills`
 
@@ -234,8 +554,8 @@
 
 | Response | Schema | Description |
 | --- | --- | --- |
-| `200` | jftradeapi.envelope | OK |
-| `400` | jftradeapi.envelope | Bad Request |
+| `200` | servercore.envelope | OK |
+| `400` | servercore.envelope | Bad Request |
 
 ### `GET /api/v1/brokers/{brokerId}/funds`
 
@@ -250,8 +570,8 @@
 
 | Response | Schema | Description |
 | --- | --- | --- |
-| `200` | jftradeapi.envelope | OK |
-| `400` | jftradeapi.envelope | Bad Request |
+| `200` | servercore.envelope | OK |
+| `400` | servercore.envelope | Bad Request |
 
 ### `GET /api/v1/brokers/{brokerId}/klines`
 
@@ -271,8 +591,8 @@
 
 | Response | Schema | Description |
 | --- | --- | --- |
-| `200` | jftradeapi.envelope | OK |
-| `400` | jftradeapi.envelope | Bad Request |
+| `200` | servercore.envelope | OK |
+| `400` | servercore.envelope | Bad Request |
 
 ### `GET /api/v1/brokers/{brokerId}/margin-ratios`
 
@@ -289,8 +609,8 @@
 
 | Response | Schema | Description |
 | --- | --- | --- |
-| `200` | jftradeapi.envelope | OK |
-| `400` | jftradeapi.envelope | Bad Request |
+| `200` | servercore.envelope | OK |
+| `400` | servercore.envelope | Bad Request |
 
 ### `GET /api/v1/brokers/{brokerId}/max-trade-qtys`
 
@@ -312,8 +632,8 @@
 
 | Response | Schema | Description |
 | --- | --- | --- |
-| `200` | jftradeapi.envelope | OK |
-| `400` | jftradeapi.envelope | Bad Request |
+| `200` | servercore.envelope | OK |
+| `400` | servercore.envelope | Bad Request |
 
 ### `GET /api/v1/brokers/{brokerId}/order-fees`
 
@@ -330,8 +650,8 @@
 
 | Response | Schema | Description |
 | --- | --- | --- |
-| `200` | jftradeapi.envelope | OK |
-| `400` | jftradeapi.envelope | Bad Request |
+| `200` | servercore.envelope | OK |
+| `400` | servercore.envelope | Bad Request |
 
 ### `GET /api/v1/brokers/{brokerId}/orders`
 
@@ -352,8 +672,8 @@
 
 | Response | Schema | Description |
 | --- | --- | --- |
-| `200` | jftradeapi.envelope | OK |
-| `400` | jftradeapi.envelope | Bad Request |
+| `200` | servercore.envelope | OK |
+| `400` | servercore.envelope | Bad Request |
 
 ### `GET /api/v1/brokers/{brokerId}/positions`
 
@@ -368,8 +688,8 @@
 
 | Response | Schema | Description |
 | --- | --- | --- |
-| `200` | jftradeapi.envelope | OK |
-| `400` | jftradeapi.envelope | Bad Request |
+| `200` | servercore.envelope | OK |
+| `400` | servercore.envelope | Bad Request |
 
 ### `GET /api/v1/brokers/{brokerId}/quote`
 
@@ -386,8 +706,8 @@
 
 | Response | Schema | Description |
 | --- | --- | --- |
-| `200` | jftradeapi.envelope | OK |
-| `400` | jftradeapi.envelope | Bad Request |
+| `200` | servercore.envelope | OK |
+| `400` | servercore.envelope | Bad Request |
 
 ### `GET /api/v1/brokers/{brokerId}/securities`
 
@@ -404,8 +724,8 @@
 
 | Response | Schema | Description |
 | --- | --- | --- |
-| `200` | jftradeapi.envelope | OK |
-| `400` | jftradeapi.envelope | Bad Request |
+| `200` | servercore.envelope | OK |
+| `400` | servercore.envelope | Bad Request |
 
 ## execution
 
@@ -424,7 +744,7 @@
 | Response | Schema | Description |
 | --- | --- | --- |
 | `200` |  | OK |
-| `400` | jftradeapi.envelope | Bad Request |
+| `400` | servercore.envelope | Bad Request |
 
 ### `POST /api/v1/execution/orders`
 
@@ -432,14 +752,14 @@
 
 | Name | In | Required | Type | Description |
 | --- | --- | --- | --- | --- |
-| `request` | body | yes | jftradeapi.executionPlaceOrderRequest | 执行订单 |
+| `request` | body | yes | servercore.executionPlaceOrderRequest | 执行订单 |
 
 | Response | Schema | Description |
 | --- | --- | --- |
 | `200` |  | OK |
-| `400` | jftradeapi.envelope | Bad Request |
-| `409` | jftradeapi.envelope | Conflict |
-| `500` | jftradeapi.envelope | Internal Server Error |
+| `400` | servercore.envelope | Bad Request |
+| `409` | servercore.envelope | Conflict |
+| `500` | servercore.envelope | Internal Server Error |
 
 ### `POST /api/v1/execution/orders/{internalOrderId}/cancel`
 
@@ -452,8 +772,8 @@
 | Response | Schema | Description |
 | --- | --- | --- |
 | `200` |  | OK |
-| `400` | jftradeapi.envelope | Bad Request |
-| `404` | jftradeapi.envelope | Not Found |
+| `400` | servercore.envelope | Bad Request |
+| `404` | servercore.envelope | Not Found |
 
 ### `GET /api/v1/execution/orders/{internalOrderId}/events`
 
@@ -466,28 +786,36 @@
 | Response | Schema | Description |
 | --- | --- | --- |
 | `200` |  | OK |
-| `400` | jftradeapi.envelope | Bad Request |
+| `400` | servercore.envelope | Bad Request |
+
+### `POST /api/v1/execution/orders/preview`
+
+**Summary:** 预览执行订单但不提交
+
+规范化并校验订单请求，返回预览结果，不会向券商提交订单。
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |
 
 ## market-data
 
 ### `GET /api/v1/market-data/candles/{market}/{symbol}`
 
-**Summary:** 读取 K 线
+**Summary:** 查询 K 线
 
 | Name | In | Required | Type | Description |
 | --- | --- | --- | --- | --- |
-| `market` | path | yes | string | 市场代码 |
-| `symbol` | path | yes | string | 证券代码 |
-| `period` | query | no | string | 周期，默认 1m |
-| `limit` | query | no | integer | 返回条数，最大 1000 |
-| `fromTime` | query | no | string | 起始时间，RFC3339 |
-| `toTime` | query | no | string | 结束时间，RFC3339 |
+| `market` | path | yes | string | 市场 |
+| `symbol` | path | yes | string | 标的 |
+| `period` | query | no | string | 周期 |
+| `limit` | query | no | integer | 数量 |
+| `fromTime` | query | no | string | 起始时间 |
+| `toTime` | query | no | string | 结束时间 |
 
 | Response | Schema | Description |
 | --- | --- | --- |
-| `200` | jftradeapi.envelope | OK |
-| `400` | jftradeapi.envelope | Bad Request |
-| `502` | jftradeapi.envelope | Bad Gateway |
+| `200` | httpserver.Envelope | OK |
 
 ### `GET /api/v1/market-data/depth/{market}/{symbol}`
 
@@ -501,38 +829,50 @@
 
 | Response | Schema | Description |
 | --- | --- | --- |
-| `200` | jftradeapi.envelope | OK |
-| `400` | jftradeapi.envelope | Bad Request |
-| `502` | jftradeapi.envelope | Bad Gateway |
+| `200` | httpserver.Envelope | OK |
+| `400` | httpserver.Envelope | Bad Request |
+| `502` | httpserver.Envelope | Bad Gateway |
 
 ### `GET /api/v1/market-data/instruments`
 
-**Summary:** 检索行情标的
-
-按关键字查询可用标的。当前实现返回空结果占位。
+**Summary:** 搜索行情标的
 
 | Name | In | Required | Type | Description |
 | --- | --- | --- | --- | --- |
-| `query` | query | no | string | 关键字 |
+| `query` | query | no | string | 搜索关键字 |
 
 | Response | Schema | Description |
 | --- | --- | --- |
-| `200` | jftradeapi.envelope | OK |
+| `200` | httpserver.Envelope | OK |
+
+### `POST /api/v1/market-data/instruments/normalize`
+
+**Summary:** Market data utility routes
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |
+
+### `GET /api/v1/market-data/markets`
+
+**Summary:** Market data utility routes
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |
 
 ### `GET /api/v1/market-data/securities/{market}/{symbol}`
 
-**Summary:** 读取证券详情
+**Summary:** 查询证券详情
 
 | Name | In | Required | Type | Description |
 | --- | --- | --- | --- | --- |
-| `market` | path | yes | string | 市场代码 |
-| `symbol` | path | yes | string | 证券代码 |
+| `market` | path | yes | string | 市场 |
+| `symbol` | path | yes | string | 标的 |
 
 | Response | Schema | Description |
 | --- | --- | --- |
-| `200` | jftradeapi.envelope | OK |
-| `400` | jftradeapi.envelope | Bad Request |
-| `502` | jftradeapi.envelope | Bad Gateway |
+| `200` | httpserver.Envelope | OK |
 
 ### `GET /api/v1/market-data/snapshots/{market}/{symbol}`
 
@@ -546,9 +886,9 @@
 
 | Response | Schema | Description |
 | --- | --- | --- |
-| `200` | jftradeapi.envelope | OK |
-| `400` | jftradeapi.envelope | Bad Request |
-| `502` | jftradeapi.envelope | Bad Gateway |
+| `200` | httpserver.Envelope | OK |
+| `400` | httpserver.Envelope | Bad Request |
+| `502` | httpserver.Envelope | Bad Gateway |
 
 ### `DELETE /api/v1/market-data/subscriptions`
 
@@ -560,8 +900,16 @@
 
 | Response | Schema | Description |
 | --- | --- | --- |
-| `200` | jftradeapi.envelope | OK |
-| `400` | jftradeapi.envelope | Bad Request |
+| `200` | httpserver.Envelope | OK |
+| `400` | httpserver.Envelope | Bad Request |
+
+### `GET /api/v1/market-data/subscriptions`
+
+**Summary:** Market data utility routes
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |
 
 ### `POST /api/v1/market-data/subscriptions`
 
@@ -569,12 +917,12 @@
 
 | Name | In | Required | Type | Description |
 | --- | --- | --- | --- | --- |
-| `request` | body | yes | jftradeapi.marketSubscriptionPayload | 订阅请求 |
+| `request` | body | yes | marketdata.SubscriptionRequest | 订阅请求 |
 
 | Response | Schema | Description |
 | --- | --- | --- |
-| `200` | jftradeapi.envelope | OK |
-| `400` | jftradeapi.envelope | Bad Request |
+| `200` | httpserver.Envelope | OK |
+| `400` | httpserver.Envelope | Bad Request |
 
 ### `POST /api/v1/market-data/subscriptions/heartbeat`
 
@@ -582,12 +930,12 @@
 
 | Name | In | Required | Type | Description |
 | --- | --- | --- | --- | --- |
-| `request` | body | yes | jftradeapi.marketSubscriptionHeartbeatPayload | 订阅心跳 |
+| `request` | body | yes | marketdata.SubscriptionHeartbeatRequest | 心跳请求 |
 
 | Response | Schema | Description |
 | --- | --- | --- |
-| `200` | jftradeapi.envelope | OK |
-| `400` | jftradeapi.envelope | Bad Request |
+| `200` | httpserver.Envelope | OK |
+| `400` | httpserver.Envelope | Bad Request |
 
 ### `POST /api/v1/market-data/subscriptions/release`
 
@@ -595,14 +943,119 @@
 
 | Name | In | Required | Type | Description |
 | --- | --- | --- | --- | --- |
-| `request` | body | yes | jftradeapi.marketSubscriptionPayload | 订阅请求 |
+| `request` | body | yes | marketdata.SubscriptionRequest | 释放请求 |
 
 | Response | Schema | Description |
 | --- | --- | --- |
-| `200` | jftradeapi.envelope | OK |
-| `400` | jftradeapi.envelope | Bad Request |
+| `200` | httpserver.Envelope | OK |
+| `400` | httpserver.Envelope | Bad Request |
+
+### `GET /api/v1/ws/live`
+
+**Summary:** 实时行情 WebSocket
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `101` | string | Switching Protocols |
+
+## plugins
+
+### `GET /api/v1/plugins`
+
+**Summary:** Plugin catalog and operation routes
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |
+
+### `POST /api/v1/plugins/{pluginId}/install`
+
+**Summary:** Plugin catalog and operation routes
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |
+
+### `POST /api/v1/plugins/{pluginId}/uninstall`
+
+**Summary:** Plugin catalog and operation routes
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |
+
+### `GET /api/v1/plugins/{pluginId}/uninstall-guidance`
+
+**Summary:** Plugin catalog and operation routes
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |
+
+### `GET /api/v1/plugins/operations/{operationId}`
+
+**Summary:** Plugin catalog and operation routes
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |
+
+## portfolio
+
+### `GET /api/v1/portfolio/{brokerId}/cash-balances`
+
+**Summary:** Portfolio routes
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |
+
+### `GET /api/v1/portfolio/{brokerId}/cash-reconciliation`
+
+**Summary:** Portfolio routes
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |
+
+### `GET /api/v1/portfolio/{brokerId}/positions`
+
+**Summary:** Portfolio routes
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |
+
+### `GET /api/v1/portfolio/{brokerId}/reconciliation`
+
+**Summary:** Portfolio routes
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |
 
 ## settings
+
+### `GET /api/v1/settings/adk`
+
+**Summary:** 读取 ADK 运行时设置
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | httpserver.Envelope | OK |
+
+### `PUT /api/v1/settings/adk`
+
+**Summary:** 保存 ADK 运行时设置
+
+| Name | In | Required | Type | Description |
+| --- | --- | --- | --- | --- |
+| `request` | body | yes | jftsettings.ADKRuntimeSettings | ADK 运行时设置 |
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | httpserver.Envelope | OK |
+| `400` | httpserver.Envelope | Bad Request |
 
 ### `POST /api/v1/settings/broker-accounts`
 
@@ -610,12 +1063,12 @@
 
 | Name | In | Required | Type | Description |
 | --- | --- | --- | --- | --- |
-| `request` | body | yes | jftradeapi.managedBrokerAccountWriteRequest | 托管账户 |
+| `request` | body | yes | settings.ManagedBrokerAccountWriteRequest | 托管账户 |
 
 | Response | Schema | Description |
 | --- | --- | --- |
-| `200` | jftradeapi.envelope | OK |
-| `400` | jftradeapi.envelope | Bad Request |
+| `200` | httpserver.Envelope | OK |
+| `400` | httpserver.Envelope | Bad Request |
 
 ### `DELETE /api/v1/settings/broker-accounts/{accountRecordId}`
 
@@ -627,9 +1080,9 @@
 
 | Response | Schema | Description |
 | --- | --- | --- |
-| `200` | jftradeapi.envelope | OK |
-| `400` | jftradeapi.envelope | Bad Request |
-| `404` | jftradeapi.envelope | Not Found |
+| `200` | httpserver.Envelope | OK |
+| `400` | httpserver.Envelope | Bad Request |
+| `404` | httpserver.Envelope | Not Found |
 
 ### `PUT /api/v1/settings/broker-accounts/{accountRecordId}`
 
@@ -638,13 +1091,13 @@
 | Name | In | Required | Type | Description |
 | --- | --- | --- | --- | --- |
 | `accountRecordId` | path | yes | string | 托管账户记录 ID |
-| `request` | body | yes | jftradeapi.managedBrokerAccountWriteRequest | 托管账户 |
+| `request` | body | yes | settings.ManagedBrokerAccountWriteRequest | 托管账户 |
 
 | Response | Schema | Description |
 | --- | --- | --- |
-| `200` | jftradeapi.envelope | OK |
-| `400` | jftradeapi.envelope | Bad Request |
-| `404` | jftradeapi.envelope | Not Found |
+| `200` | httpserver.Envelope | OK |
+| `400` | httpserver.Envelope | Bad Request |
+| `404` | httpserver.Envelope | Not Found |
 
 ### `GET /api/v1/settings/brokers`
 
@@ -652,7 +1105,7 @@
 
 | Response | Schema | Description |
 | --- | --- | --- |
-| `200` | jftradeapi.envelope | OK |
+| `200` | httpserver.Envelope | OK |
 
 ### `PUT /api/v1/settings/brokers/{brokerId}/integration`
 
@@ -661,12 +1114,12 @@
 | Name | In | Required | Type | Description |
 | --- | --- | --- | --- | --- |
 | `brokerId` | path | yes | string | Broker 标识 |
-| `request` | body | yes | jftradeapi.brokerIntegrationSaveRequest | Broker 集成配置 |
+| `request` | body | yes | settings.BrokerIntegrationSaveRequest | Broker 集成配置 |
 
 | Response | Schema | Description |
 | --- | --- | --- |
-| `200` | jftradeapi.envelope | OK |
-| `400` | jftradeapi.envelope | Bad Request |
+| `200` | httpserver.Envelope | OK |
+| `400` | httpserver.Envelope | Bad Request |
 
 ### `GET /api/v1/settings/execution`
 
@@ -674,7 +1127,7 @@
 
 | Response | Schema | Description |
 | --- | --- | --- |
-| `200` | jftradeapi.envelope | OK |
+| `200` | httpserver.Envelope | OK |
 
 ### `PUT /api/v1/settings/execution`
 
@@ -682,12 +1135,12 @@
 
 | Name | In | Required | Type | Description |
 | --- | --- | --- | --- | --- |
-| `request` | body | yes | jftradeapi.ExecutionSettings | 执行设置 |
+| `request` | body | yes | jftsettings.ExecutionSettings | 执行设置 |
 
 | Response | Schema | Description |
 | --- | --- | --- |
-| `200` | jftradeapi.envelope | OK |
-| `400` | jftradeapi.envelope | Bad Request |
+| `200` | httpserver.Envelope | OK |
+| `400` | httpserver.Envelope | Bad Request |
 
 ### `GET /api/v1/settings/onboarding`
 
@@ -695,7 +1148,7 @@
 
 | Response | Schema | Description |
 | --- | --- | --- |
-| `200` | jftradeapi.envelope | OK |
+| `200` | httpserver.Envelope | OK |
 
 ### `PUT /api/v1/settings/onboarding`
 
@@ -703,12 +1156,12 @@
 
 | Name | In | Required | Type | Description |
 | --- | --- | --- | --- | --- |
-| `request` | body | yes | jftradeapi.onboardingWriteRequest | 引导状态 |
+| `request` | body | yes | settings.OnboardingWriteRequest | 引导状态 |
 
 | Response | Schema | Description |
 | --- | --- | --- |
-| `200` | jftradeapi.envelope | OK |
-| `400` | jftradeapi.envelope | Bad Request |
+| `200` | httpserver.Envelope | OK |
+| `400` | httpserver.Envelope | Bad Request |
 
 ### `GET /api/v1/settings/security`
 
@@ -716,7 +1169,7 @@
 
 | Response | Schema | Description |
 | --- | --- | --- |
-| `200` | jftradeapi.envelope | OK |
+| `200` | httpserver.Envelope | OK |
 
 ### `PUT /api/v1/settings/security`
 
@@ -724,12 +1177,12 @@
 
 | Name | In | Required | Type | Description |
 | --- | --- | --- | --- | --- |
-| `request` | body | yes | jftradeapi.SecuritySettings | 安全设置 |
+| `request` | body | yes | jftsettings.SecuritySettings | 安全设置 |
 
 | Response | Schema | Description |
 | --- | --- | --- |
-| `200` | jftradeapi.envelope | OK |
-| `400` | jftradeapi.envelope | Bad Request |
+| `200` | httpserver.Envelope | OK |
+| `400` | httpserver.Envelope | Bad Request |
 
 ### `GET /api/v1/settings/ui`
 
@@ -737,7 +1190,7 @@
 
 | Response | Schema | Description |
 | --- | --- | --- |
-| `200` | jftradeapi.envelope | OK |
+| `200` | httpserver.Envelope | OK |
 
 ### `PUT /api/v1/settings/ui`
 
@@ -745,12 +1198,12 @@
 
 | Name | In | Required | Type | Description |
 | --- | --- | --- | --- | --- |
-| `request` | body | yes | jftradeapi.uiAppearanceSettingsWriteRequest | UI 配置 |
+| `request` | body | yes | settings.UIAppearanceSettingsWriteRequest | UI 配置 |
 
 | Response | Schema | Description |
 | --- | --- | --- |
-| `200` | jftradeapi.envelope | OK |
-| `400` | jftradeapi.envelope | Bad Request |
+| `200` | httpserver.Envelope | OK |
+| `400` | httpserver.Envelope | Bad Request |
 
 ## strategy
 
@@ -760,7 +1213,36 @@
 
 | Response | Schema | Description |
 | --- | --- | --- |
-| `200` | jftradeapi.envelope | OK |
+| `200` | httpserver.Envelope | OK |
+
+### `DELETE /api/v1/strategies/{instanceId}`
+
+**Summary:** 删除策略实例
+
+| Name | In | Required | Type | Description |
+| --- | --- | --- | --- | --- |
+| `instanceId` | path | yes | string | 策略实例 ID |
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | httpserver.Envelope | OK |
+| `400` | httpserver.Envelope | Bad Request |
+| `404` | httpserver.Envelope | Not Found |
+
+### `PUT /api/v1/strategies/{instanceId}`
+
+**Summary:** 更新策略实例绑定参数
+
+| Name | In | Required | Type | Description |
+| --- | --- | --- | --- | --- |
+| `instanceId` | path | yes | string | 策略实例 ID |
+| `request` | body | yes | strategy.StrategyBindingRequest | 实例绑定参数 |
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | httpserver.Envelope | OK |
+| `400` | httpserver.Envelope | Bad Request |
+| `404` | httpserver.Envelope | Not Found |
 
 ### `GET /api/v1/strategies/{instanceId}/audit`
 
@@ -777,9 +1259,9 @@
 
 | Response | Schema | Description |
 | --- | --- | --- |
-| `200` |  | OK |
-| `400` | jftradeapi.envelope | Bad Request |
-| `404` | jftradeapi.envelope | Not Found |
+| `200` | httpserver.Envelope | OK |
+| `400` | httpserver.Envelope | Bad Request |
+| `404` | httpserver.Envelope | Not Found |
 
 ### `GET /api/v1/strategies/{instanceId}/logs`
 
@@ -796,9 +1278,66 @@
 
 | Response | Schema | Description |
 | --- | --- | --- |
-| `200` |  | OK |
-| `400` | jftradeapi.envelope | Bad Request |
-| `404` | jftradeapi.envelope | Not Found |
+| `200` | httpserver.Envelope | OK |
+| `400` | httpserver.Envelope | Bad Request |
+| `404` | httpserver.Envelope | Not Found |
+
+### `POST /api/v1/strategies/{instanceId}/pause`
+
+**Summary:** 暂停策略实例
+
+| Name | In | Required | Type | Description |
+| --- | --- | --- | --- | --- |
+| `instanceId` | path | yes | string | 策略实例 ID |
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | httpserver.Envelope | OK |
+| `400` | httpserver.Envelope | Bad Request |
+| `404` | httpserver.Envelope | Not Found |
+
+### `POST /api/v1/strategies/{instanceId}/refresh-definition`
+
+**Summary:** 刷新实例关联的策略定义
+
+| Name | In | Required | Type | Description |
+| --- | --- | --- | --- | --- |
+| `instanceId` | path | yes | string | 策略实例 ID |
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | httpserver.Envelope | OK |
+| `400` | httpserver.Envelope | Bad Request |
+| `404` | httpserver.Envelope | Not Found |
+
+### `POST /api/v1/strategies/{instanceId}/start`
+
+**Summary:** 启动策略实例
+
+| Name | In | Required | Type | Description |
+| --- | --- | --- | --- | --- |
+| `instanceId` | path | yes | string | 策略实例 ID |
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | httpserver.Envelope | OK |
+| `400` | httpserver.Envelope | Bad Request |
+| `404` | httpserver.Envelope | Not Found |
+| `502` | httpserver.Envelope | Bad Gateway |
+
+### `POST /api/v1/strategies/{instanceId}/stop`
+
+**Summary:** 停止策略实例
+
+| Name | In | Required | Type | Description |
+| --- | --- | --- | --- | --- |
+| `instanceId` | path | yes | string | 策略实例 ID |
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | httpserver.Envelope | OK |
+| `400` | httpserver.Envelope | Bad Request |
+| `404` | httpserver.Envelope | Not Found |
 
 ### `GET /api/v1/strategy-definitions`
 
@@ -806,7 +1345,7 @@
 
 | Response | Schema | Description |
 | --- | --- | --- |
-| `200` | jftradeapi.envelope | OK |
+| `200` | httpserver.Envelope | OK |
 
 ### `POST /api/v1/strategy-definitions`
 
@@ -814,12 +1353,12 @@
 
 | Name | In | Required | Type | Description |
 | --- | --- | --- | --- | --- |
-| `request` | body | yes | jftradeapi.strategyDesignDefinition | 策略定义 |
+| `request` | body | yes | strategy.StrategyDesignDefinition | 策略定义 |
 
 | Response | Schema | Description |
 | --- | --- | --- |
-| `200` | jftradeapi.envelope | OK |
-| `400` | jftradeapi.envelope | Bad Request |
+| `200` | httpserver.Envelope | OK |
+| `400` | httpserver.Envelope | Bad Request |
 
 ### `DELETE /api/v1/strategy-definitions/{definitionId}`
 
@@ -831,9 +1370,9 @@
 
 | Response | Schema | Description |
 | --- | --- | --- |
-| `200` | jftradeapi.envelope | OK |
-| `400` | jftradeapi.envelope | Bad Request |
-| `404` | jftradeapi.envelope | Not Found |
+| `200` | httpserver.Envelope | OK |
+| `400` | httpserver.Envelope | Bad Request |
+| `404` | httpserver.Envelope | Not Found |
 
 ### `GET /api/v1/strategy-definitions/{definitionId}`
 
@@ -848,9 +1387,9 @@
 
 | Response | Schema | Description |
 | --- | --- | --- |
-| `200` |  | OK |
-| `400` | jftradeapi.envelope | Bad Request |
-| `404` | jftradeapi.envelope | Not Found |
+| `200` | httpserver.Envelope | OK |
+| `400` | httpserver.Envelope | Bad Request |
+| `404` | httpserver.Envelope | Not Found |
 
 ### `PUT /api/v1/strategy-definitions/{definitionId}`
 
@@ -859,26 +1398,55 @@
 | Name | In | Required | Type | Description |
 | --- | --- | --- | --- | --- |
 | `definitionId` | path | yes | string | 策略定义 ID |
-| `request` | body | yes | jftradeapi.strategyDesignDefinition | 策略定义 |
+| `request` | body | yes | strategy.StrategyDesignDefinition | 策略定义 |
 
 | Response | Schema | Description |
 | --- | --- | --- |
-| `200` | jftradeapi.envelope | OK |
-| `400` | jftradeapi.envelope | Bad Request |
-| `404` | jftradeapi.envelope | Not Found |
+| `200` | httpserver.Envelope | OK |
+| `400` | httpserver.Envelope | Bad Request |
+| `404` | httpserver.Envelope | Not Found |
 
-## streaming
+### `POST /api/v1/strategy-definitions/{definitionId}/apply-linked-instances`
 
-### `GET /api/v1/ws/live`
+**Summary:** 应用策略定义到关联实例
 
-**Summary:** 连接实时 WebSocket
-
-建立行情与运行态实时推送连接。
+| Name | In | Required | Type | Description |
+| --- | --- | --- | --- | --- |
+| `definitionId` | path | yes | string | 策略定义 ID |
 
 | Response | Schema | Description |
 | --- | --- | --- |
-| `101` | string | Switching Protocols |
-| `503` | jftradeapi.envelope | Service Unavailable |
+| `200` | httpserver.Envelope | OK |
+| `400` | httpserver.Envelope | Bad Request |
+| `404` | httpserver.Envelope | Not Found |
+
+### `POST /api/v1/strategy-definitions/{definitionId}/instantiate`
+
+**Summary:** 从策略定义创建实例
+
+| Name | In | Required | Type | Description |
+| --- | --- | --- | --- | --- |
+| `definitionId` | path | yes | string | 策略定义 ID |
+| `request` | body | no | strategy.StrategyBindingRequest | 实例绑定参数 |
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | httpserver.Envelope | OK |
+| `400` | httpserver.Envelope | Bad Request |
+| `404` | httpserver.Envelope | Not Found |
+
+### `POST /api/v1/strategy-pine/analyze`
+
+**Summary:** 分析 Pine 脚本
+
+| Name | In | Required | Type | Description |
+| --- | --- | --- | --- | --- |
+| `request` | body | yes | strategy.AnalyzePineRequest | Pine 脚本 |
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | httpserver.Envelope | OK |
+| `400` | httpserver.Envelope | Bad Request |
 
 ## system
 
@@ -888,7 +1456,7 @@
 
 | Response | Schema | Description |
 | --- | --- | --- |
-| `200` | jftradeapi.envelope | OK |
+| `200` | httpserver.Envelope | OK |
 
 ### `GET /api/v1/system/futu-opend/install-guide`
 
@@ -896,7 +1464,7 @@
 
 | Response | Schema | Description |
 | --- | --- | --- |
-| `200` | jftradeapi.envelope | OK |
+| `200` | httpserver.Envelope | OK |
 
 ### `POST /api/v1/system/futu-opend/manual-retry`
 
@@ -904,7 +1472,63 @@
 
 | Response | Schema | Description |
 | --- | --- | --- |
-| `200` | jftradeapi.envelope | OK |
+| `200` | httpserver.Envelope | OK |
+
+### `GET /api/v1/system/real-trade-approvals`
+
+**Summary:** System operational routes
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |
+
+### `GET /api/v1/system/real-trade-hard-stop-events`
+
+**Summary:** System operational routes
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |
+
+### `GET /api/v1/system/real-trade-hard-stops`
+
+**Summary:** System operational routes
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |
+
+### `GET /api/v1/system/real-trade-kill-switch`
+
+**Summary:** System operational routes
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |
+
+### `GET /api/v1/system/real-trade-kill-switch-events`
+
+**Summary:** System operational routes
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |
+
+### `GET /api/v1/system/real-trade-risk-events`
+
+**Summary:** System operational routes
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |
+
+### `GET /api/v1/system/real-trade-risk-limits`
+
+**Summary:** System operational routes
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |
 
 ### `GET /api/v1/system/status`
 
@@ -914,4 +1538,20 @@
 
 | Response | Schema | Description |
 | --- | --- | --- |
-| `200` | jftradeapi.envelope | OK |
+| `200` | httpserver.Envelope | OK |
+
+### `GET /api/v1/system/storage/overview`
+
+**Summary:** System operational routes
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |
+
+### `GET /api/v1/system/worker/broker-order-updates`
+
+**Summary:** System operational routes
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |

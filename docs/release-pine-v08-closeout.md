@@ -39,7 +39,7 @@ v0.8 锁定的是 JFTrade 可执行 Pine v6 策略子集，不追 TradingView Pi
 发布前必跑：
 
 ```bash
-go test ./pkg/strategy/... ./pkg/jftradeapi/... ./pkg/backtest/...
+go test ./pkg/strategy/... ./internal/app/apiserver/servercore ./internal/api/strategy ./internal/strategy ./pkg/backtest/...
 npm --workspace @jftrade/web run test
 npm run typecheck
 ```

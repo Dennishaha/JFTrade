@@ -5,8 +5,10 @@ JFTrade 的 ADK 集成在现有 sidecar 内提供 Agent 控制面，不嵌入 Go
 ## 后端边界
 
 - `pkg/adk`：独立 ADK 包装层，保存 provider、agent、session、run、approval、skill，并适配 `google.golang.org/adk`。
-- `pkg/jftradeapi/adk_routes.go`：对外提供 `/api/v1/adk/*`。
-- `pkg/jftradeapi/adk_runtime.go`：把 JFTrade 内部资源注册为 ADK tools，避免通过 HTTP 回环调用自身。
+- `internal/api/assistant`：对外提供 `/api/v1/adk/*` 的 JSON/SSE transport。
+- `internal/assistant.Service`：封装 session、run、approval、provider、agent、
+  skill、observability 与 optimization 业务门面。
+- `internal/app/apiserver/servercore/adk_runtime.go`：把 JFTrade 内部资源注册为 ADK tools，避免通过 HTTP 回环调用自身。
 
 实际执行链使用 GO-ADK：
 
@@ -112,7 +114,7 @@ Provider 默认允许局域网和本机模型地址，但始终拒绝 link-local
 ## 验证
 
 ```bash
-go test ./pkg/adk ./pkg/jftradeapi
+go test ./internal/assistant ./internal/api/assistant ./internal/app/apiserver/servercore ./pkg/adk
 npm --workspace @jftrade/web run typecheck
 npm --workspace @jftrade/web run build
 ```

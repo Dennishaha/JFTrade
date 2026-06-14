@@ -42,6 +42,7 @@ import (
 	trdgetpositionlistpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdgetpositionlist"
 	trdmodifyorderpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdmodifyorder"
 	trdplaceorderpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdplaceorder"
+	trdsubaccpushpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdsubaccpush"
 	"github.com/jftrade/jftrade-main/pkg/market"
 )
 
@@ -883,6 +884,42 @@ func TestEnsureSystemNotificationsBindsSystemPushHandler(t *testing.T) {
 	}
 }
 
+func TestSubscribeTradeAccountPushReplaysOnReconnectedClient(t *testing.T) {
+	server := startQuoteOpenDServer(t)
+	defer server.stop()
+
+	ex := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
+	defer ex.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	if err := ex.SubscribeTradeAccountPush(ctx, []uint64{1002, 1001, 1001}); err != nil {
+		t.Fatalf("SubscribeTradeAccountPush: %v", err)
+	}
+	if got := server.tradeAccountPushCallCount(); got != 1 {
+		t.Fatalf("trade account push calls = %d, want 1", got)
+	}
+	if got := server.lastTradeAccountPushIDs(); len(got) != 2 || got[0] != 1001 || got[1] != 1002 {
+		t.Fatalf("trade account push ids = %#v, want [1001 1002]", got)
+	}
+	if err := ex.SubscribeTradeAccountPush(ctx, []uint64{1001, 1002, 1002}); err != nil {
+		t.Fatalf("SubscribeTradeAccountPush repeat: %v", err)
+	}
+	if got := server.tradeAccountPushCallCount(); got != 1 {
+		t.Fatalf("trade account push calls after repeat = %d, want 1", got)
+	}
+
+	if client := ex.Client(); client != nil {
+		_ = client.Close()
+	}
+	if err := ex.Connect(ctx); err != nil {
+		t.Fatalf("Connect after client close: %v", err)
+	}
+	if got := server.tradeAccountPushCallCount(); got != 2 {
+		t.Fatalf("trade account push calls after reconnect = %d, want 2", got)
+	}
+}
+
 func TestQueryTickersBatchesBasicQotRequests(t *testing.T) {
 	server := startQuoteOpenDServer(t)
 	defer server.stop()
@@ -1320,6 +1357,7 @@ type quoteOpenDServer struct {
 	maxTrdQtysCalls       atomic.Int32
 	placeOrderCalls       atomic.Int32
 	modifyOrderCalls      atomic.Int32
+	tradeAccPushCalls     atomic.Int32
 	qotSubCalls           atomic.Int32
 	pushSubCalls          atomic.Int32
 	basicQotCalls         atomic.Int32
@@ -1341,6 +1379,7 @@ type quoteOpenDServer struct {
 	placedOrderIDEx       string
 	lastPlaceOrder        *trdplaceorderpb.C2S
 	lastModifyOrder       *trdmodifyorderpb.C2S
+	lastTradeAccPushIDs   []uint64
 	lastMaxTrdQtys        *trdgetmaxtrdqtyspb.C2S
 	historyKLCalls        atomic.Int32
 	currentKLCalls        atomic.Int32
@@ -1621,6 +1660,14 @@ func (s *quoteOpenDServer) handleConn(conn net.Conn) {
 		case opend.ProtoTrdModifyOrder:
 			s.modifyOrderCalls.Add(1)
 			response = s.modifyOrderResponse(frame.Body)
+		case opend.ProtoTrdSubAccPush:
+			s.tradeAccPushCalls.Add(1)
+			request := &trdsubaccpushpb.Request{}
+			_ = proto.Unmarshal(frame.Body, request)
+			s.tradeMu.Lock()
+			s.lastTradeAccPushIDs = append([]uint64(nil), request.GetC2S().GetAccIDList()...)
+			s.tradeMu.Unlock()
+			response = &trdsubaccpushpb.Response{RetType: proto.Int32(0)}
 		case opend.ProtoGetBasicQot:
 			s.basicQotCalls.Add(1)
 			response = s.basicQotResponse(frame.Body)
@@ -2245,6 +2292,10 @@ func (s *quoteOpenDServer) modifyOrderCallCount() int {
 	return int(s.modifyOrderCalls.Load())
 }
 
+func (s *quoteOpenDServer) tradeAccountPushCallCount() int {
+	return int(s.tradeAccPushCalls.Load())
+}
+
 func (s *quoteOpenDServer) lastPlaceOrderRequest() *trdplaceorderpb.C2S {
 	s.tradeMu.Lock()
 	defer s.tradeMu.Unlock()
@@ -2261,6 +2312,12 @@ func (s *quoteOpenDServer) lastModifyOrderRequest() *trdmodifyorderpb.C2S {
 		return nil
 	}
 	return proto.Clone(s.lastModifyOrder).(*trdmodifyorderpb.C2S)
+}
+
+func (s *quoteOpenDServer) lastTradeAccountPushIDs() []uint64 {
+	s.tradeMu.Lock()
+	defer s.tradeMu.Unlock()
+	return append([]uint64(nil), s.lastTradeAccPushIDs...)
 }
 
 func (s *quoteOpenDServer) pushSubCallCount() int {

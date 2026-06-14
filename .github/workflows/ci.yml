@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Verify generated API docs
+        run: |
+          go generate ./cmd/jftrade-api
+          npm run generate:docs
+          git diff --exit-code -- docs/swagger docs/reference/generated tests/fixtures/openapi-baseline.json
+
+      - name: Lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.12.0
+          args: --timeout=5m
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Build
+        run: go build ./...
+
+      - name: Test
+        run: go test ./... -count=1 -timeout 300s
+
+      - name: Build binaries
+        run: |
+          go build ./cmd/jftrade/
+          go build ./cmd/jftrade-api/
+
+      - name: Frontend test
+        run: npm --workspace @jftrade/web run test
+
+      - name: Frontend typecheck
+        run: npm run typecheck
+
+      - name: Frontend build
+        run: npm run build:web
+
+      - name: Architecture dependency check
+        run: bash scripts/check-arch-deps.sh

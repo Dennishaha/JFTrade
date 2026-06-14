@@ -12,6 +12,7 @@
 ### 1. 先理解系统现在是怎么跑的
 
 - [architecture.md](architecture.md)：当前系统架构、双运行模式、核心数据流、职责边界。
+- [architecture/backend-coding-standards.md](architecture/backend-coding-standards.md)：后端分层代码规范与 CI 边界规则。
 
 ### 2. 再看你要改的专题
 
@@ -40,6 +41,8 @@
 docs/
 ├── README.md                 文档导航
 ├── architecture.md           当前系统架构总览
+├── architecture/             后端结构与代码规范
+	├── backend-coding-standards.md 后端分层代码规范
 ├── troubleshooting.md        排障入口
 ├── adk.md                    GO-ADK / Agent 控制面
 ├── frontend-kline.md         前端行情/K 线入口
@@ -73,9 +76,9 @@ docs/
 
 ## 后端测试分层（持续更新）
 
-为降低单文件测试复杂度，`pkg/jftradeapi` 的测试按业务域拆分维护：
+为降低单文件测试复杂度，sidecar 测试现在按业务域拆分在 `internal/app/apiserver/servercore`、`internal/api/*` 与对应 service 包中维护：
 
-- `server_test.go`：保留 sidecar server 通用行为与非专题场景。
+- `server_test.go`：保留 sidecar server 通用行为、request observability 与非专题场景。
 - `server_backtest_routes_test.go`：聚焦回测创建路由参数归一与执行结果校验场景。
 - `server_backtest_routes_warmup_test.go`：聚焦回测创建后根据策略历史 K 线推导 warmup 并校验执行结果场景。
 - `server_backtest_run_store_test.go`：聚焦回测运行记录重载恢复与终态删除约束场景。
@@ -88,11 +91,11 @@ docs/
 - `server_plugin_catalog_test.go`：聚焦插件目录读取、安装/卸载与操作记录场景。
 - `broker_routes_test.go`：保留 broker 路由断连与兜底响应场景。
 - `broker_routes_read_exchange_test.go`：聚焦 broker 路由读侧 exchange-backed 主流程场景。
-- `broker_routes_test_http_helpers.go`：集中 HTTP 解包与地址端口小工具。
-- `broker_routes_test_opend_server.go`：集中 OpenD mock server 生命周期、协议收发与响应分派。
-- `broker_routes_test_normalize_helpers.go`：集中 broker route 测试用数据归一化与过滤 helper。
+- `broker_routes_test_http_helpers_test.go`：集中 HTTP 解包与地址端口小工具。
+- `broker_routes_test_opend_server_test.go`：集中 OpenD mock server 生命周期、协议收发与响应分派。
+- `broker_routes_test_normalize_helpers_test.go`：集中 broker route 测试用数据归一化与过滤 helper。
 - `strategy_runtime_manager_test.go`：聚焦策略运行时基础行为（通知模式、市场元数据补齐）。
-- `strategy_runtime_manager_test_helpers.go`：集中策略运行时测试共享桩与通用辅助函数。
+- `strategy_runtime_manager_test_helpers_test.go`：集中策略运行时测试共享桩与通用辅助函数。
 - `strategy_runtime_manager_trading_test.go`：聚焦策略运行时交易执行链路（live 下单、持仓刷新、断连回退、K 线补轮询）。
 - `strategy_runtime_manager_polling_test.go`：聚焦策略运行时闭市 K 线轮询补单场景。
 - `strategy_runtime_manager_observation_test.go`：聚焦运行时观测输出、重启后观测持久化与 panic 自动收敛场景。

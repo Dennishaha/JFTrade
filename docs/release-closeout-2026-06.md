@@ -55,9 +55,9 @@ go test ./...
 
 Swagger 和 broker 的关键行为由现有测试覆盖：
 
-- `pkg/jftradeapi/swagger_openapi_test.go`
-- `pkg/jftradeapi/broker_routes_new_test.go`
-- `pkg/jftradeapi/broker_routes_read_exchange_test.go`
+- `internal/app/apiserver/servercore/swagger_openapi_test.go`
+- `internal/app/apiserver/servercore/broker_routes_new_test.go`
+- `internal/app/apiserver/servercore/broker_routes_read_exchange_test.go`
 
 ## 发布说明草稿
 

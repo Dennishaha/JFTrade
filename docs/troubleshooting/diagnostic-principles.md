@@ -7,7 +7,7 @@
 当前系统至少有四层：
 
 - `cmd/jftrade`：决定是 API-only 还是 bbgo run
-- `pkg/jftradeapi`：提供前端默认使用的 `/api/v1/*`
+- `internal/app/apiserver` + `internal/api/*`：提供前端默认使用的 `/api/v1/*`
 - `pkg/futu`：Futu 适配层，被 sidecar 和 bbgo 共享
 - bbgo runtime：策略与交易运行时，不等于前端默认后端
 
@@ -19,7 +19,7 @@
 | --- | --- |
 | API-only | `go run ./cmd/jftrade api`，只跑 sidecar，用于前端开发和控制平面调试 |
 | bbgo run | `go run ./cmd/jftrade run --config ./config/jftrade.yaml`，跑 bbgo 运行时，并尝试同时带起 sidecar |
-| sidecar | `pkg/jftradeapi` 提供的前端适配与控制平面 |
+| sidecar | `internal/app/apiserver` 装配、`internal/api/*` 提供 transport 的前端适配与控制平面 |
 | `/api/v1/*` | JFTrade 自有 API 契约 |
 | `/api/*` | bbgo 原生路由，不是当前控制台默认接口 |
 | OpenD API port | 默认 `11110`，Go 原生 TCP/protobuf 使用 |

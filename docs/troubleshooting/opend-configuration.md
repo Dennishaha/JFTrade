@@ -24,7 +24,7 @@ Settings UI
   -> FUTU_OPEND_ADDR / JFTRADE_FUTU_API_PORT / JFTRADE_FUTU_WEBSOCKET_PORT
 ```
 
-[../../pkg/jftradeapi/settings_futu_config.go](../../pkg/jftradeapi/settings_futu_config.go) 会把当前保存的配置注入运行时环境。
+[../../internal/app/apiserver/runtime/integration_env.go](../../internal/app/apiserver/runtime/integration_env.go) 会把当前保存的配置注入运行时环境，设置保存后的运行时重置由 [../../internal/app/apiserver/servercore/server.go](../../internal/app/apiserver/servercore/server.go) 装配。
 
 ## 快速验证
 

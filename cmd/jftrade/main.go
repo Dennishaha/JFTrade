@@ -10,7 +10,7 @@ import (
 	"syscall"
 
 	"github.com/c9s/bbgo/pkg/cmd"
-	"github.com/jftrade/jftrade-main/pkg/jftradeapi"
+	"github.com/jftrade/jftrade-main/internal/app/apiserver"
 
 	// Side-effect imports register plugins with bbgo at init() time.
 	_ "github.com/jftrade/jftrade-main/pkg/futu"
@@ -29,7 +29,7 @@ func main() {
 		runAPIOnly()
 		return
 	}
-	if _, err := jftradeapi.StartForRunArgs(context.Background(), os.Args[1:]); err != nil {
+	if _, err := apiserver.StartForRunArgs(context.Background(), os.Args[1:]); err != nil {
 		log.Printf("JFTrade API adapter disabled: %v", err)
 	}
 	cmd.Execute()
@@ -50,7 +50,7 @@ func runAPIOnly() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	if err := jftradeapi.RunAPIOnly(ctx); err != nil {
+	if err := apiserver.RunAPIOnly(ctx); err != nil {
 		log.Fatalf("JFTrade API adapter failed: %v", err)
 	}
 }

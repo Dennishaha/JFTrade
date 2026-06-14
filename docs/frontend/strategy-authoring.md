@@ -51,16 +51,16 @@
 
 ### sidecar 持久化与契约
 
-- [../../pkg/jftradeapi/strategy_routes.go](../../pkg/jftradeapi/strategy_routes.go)：`/api/v1/strategy-definitions/*` 路由、Pine 校验和实例化入口。
-- [../../pkg/jftradeapi/strategy_design_store.go](../../pkg/jftradeapi/strategy_design_store.go)：策略定义文件存储，包含 Pine runtime/sourceFormat 归一化、旧记录迁移、`visualModel` 归一化和落盘。
-- [../../pkg/jftradeapi/strategy_catalog_store.go](../../pkg/jftradeapi/strategy_catalog_store.go)：策略实例目录，实例化时编译 Pine、记录 compiled hooks 和 compiled requirements。
-- [../../pkg/jftradeapi/openapi_components.go](../../pkg/jftradeapi/openapi_components.go)：`StrategyDefinition`、`StrategyVisualModel` 等 OpenAPI 契约。
+- [../../internal/api/strategy/routes.go](../../internal/api/strategy/routes.go)：`/api/v1/strategy-definitions/*` 路由、Pine 校验和实例化入口。
+- [../../internal/strategy/service.go](../../internal/strategy/service.go)：策略定义、实例、插件和 runtime 控制面的业务门面。
+- [../../internal/app/apiserver/servercore/strategy_design_store.go](../../internal/app/apiserver/servercore/strategy_design_store.go)：策略定义文件存储，包含 Pine runtime/sourceFormat 归一化、旧记录迁移、`visualModel` 归一化和落盘。
+- [../../internal/app/apiserver/servercore/strategy_catalog_store.go](../../internal/app/apiserver/servercore/strategy_catalog_store.go)：策略实例目录，实例化时编译 Pine、记录 compiled hooks 和 compiled requirements。
+- [../../internal/api/strategy/openapi_models.go](../../internal/api/strategy/openapi_models.go)：`StrategyDefinition`、`StrategyVisualModel` 等 OpenAPI 契约入口。
 - [../../apps/web/src/contracts/index.ts](../../apps/web/src/contracts/index.ts)：前端页面和测试共享的 DTO 与默认模型都在这里，`visualModel` 结构也以这里为准。
 
 ### 运行时
 
 - [../../pkg/strategy/pine](../../pkg/strategy/pine)：Pine v6 前端，负责语法解析、诊断、warning 和 lowering 到策略 IR。
-- [../../pkg/strategy/dsl](../../pkg/strategy/dsl)：内部旧 DSL/表达式解析器；当前 Pine lowering 后仍复用表达式子语言校验。
 - [../../pkg/strategy/ir](../../pkg/strategy/ir)：策略 IR 模型和需求规划，提取指标、账户能力、仓位和资金依赖。
 - [../../pkg/strategy/pineruntime](../../pkg/strategy/pineruntime)：Go 策略执行器，直接消费 Pine lowering 后的 IR 语义并执行条件、通知和下单。
 - [../../pkg/strategy/indicatorruntime](../../pkg/strategy/indicatorruntime)：指标预计算运行时，为 Pine lowering 后的 executor 提供 MA、RSI、MACD、KDJ、布林带、ATR、CCI、Williams %R 等序列值。
@@ -178,7 +178,7 @@ npm --workspace @jftrade/web run typecheck
 如果还涉及后端策略定义、解析、规划或执行器，再补：
 
 ```bash
-go test ./pkg/jftradeapi ./pkg/strategy/dsl ./pkg/strategy/pineruntime ./pkg/strategy/ir
+go test ./internal/api/strategy ./internal/strategy ./internal/app/apiserver/servercore ./pkg/strategy/pineruntime ./pkg/strategy/ir
 ```
 
 如果改动会影响共享 Go 运行时，且希望确认“当前策略设计器里各图块”的成本有没有一起回升，再补：

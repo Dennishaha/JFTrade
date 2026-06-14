@@ -49,6 +49,20 @@ function countCallsMatching(
   ).length;
 }
 
+function subscriptionInstrument(
+  body: Record<string, unknown> | undefined,
+): Record<string, unknown> | undefined {
+  const instruments = body?.instruments;
+  if (!Array.isArray(instruments)) {
+    return undefined;
+  }
+  const [instrument] = instruments;
+  if (instrument == null || typeof instrument !== "object") {
+    return undefined;
+  }
+  return instrument as Record<string, unknown>;
+}
+
 afterEach(() => {
   vi.unstubAllGlobals();
   MockWebSocket.instances = [];
@@ -632,17 +646,17 @@ describe("Market page", () => {
       ([, init]) => JSON.parse(String(init?.body)) as Record<string, unknown>,
     );
     const acquireBody = acquireBodies.find(
-      (body) => body.channel === "SNAPSHOT",
+      (body) => subscriptionInstrument(body)?.channel === "SNAPSHOT",
     );
     const tickAcquireBody = acquireBodies.find(
-      (body) => body.channel === "TICK",
+      (body) => subscriptionInstrument(body)?.channel === "TICK",
     );
-    expect(acquireBody).toMatchObject({
+    expect(subscriptionInstrument(acquireBody)).toMatchObject({
       market: "HK",
       symbol: "00700",
       channel: "SNAPSHOT",
     });
-    expect(tickAcquireBody).toMatchObject({
+    expect(subscriptionInstrument(tickAcquireBody)).toMatchObject({
       market: "HK",
       symbol: "00700",
       channel: "TICK",
