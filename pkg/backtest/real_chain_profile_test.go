@@ -499,6 +499,7 @@ func prepareRealUSMarch2026DoubleMAFixture(tb testing.TB) realChainProfileFixtur
 }
 
 func prepareRealUSTME2023To2026SavedDoubleMAStrategyFixture(tb testing.TB) realChainProfileFixture {
+	requireRealChainProfile(tb)
 	definition := loadRealChainStrategyDefinition(tb, realChainStrategyRuntimeDBPath(tb), realChainSavedDoubleMAStrategyDefinitionID())
 	return prepareRealChainProfileFixture(tb, realChainFixtureOptions{
 		progressName:      "real-us-tme-202301-202601-extended-saved-double-ma",
@@ -724,7 +725,7 @@ func realChainStrategyRuntimeDBPath(tb testing.TB) string {
 			return candidate
 		}
 	}
-	tb.Fatalf("could not locate strategy runtime db; checked %s", strings.Join(candidates, ", "))
+	tb.Skipf("could not locate strategy runtime db; checked %s", strings.Join(candidates, ", "))
 	return ""
 }
 

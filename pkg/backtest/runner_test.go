@@ -2088,8 +2088,12 @@ log.info("auto warmup")`,
 	if result.Error != "" {
 		t.Fatalf("Run() error = %s", result.Error)
 	}
-	if !strings.Contains(logBuffer.String(), "warmup 20 candles (configured=0 derived=20") {
-		t.Fatalf("expected derived warmup log, got %q", logBuffer.String())
+	logOutput := logBuffer.String()
+	if !strings.Contains(logOutput, "warmup 20 candles (configured=0 derived=20") {
+		t.Fatalf("expected derived warmup log, got %q", logOutput)
+	}
+	if strings.Contains(logOutput, "backtest prepare warning") || strings.Contains(logOutput, "no kline data found") {
+		t.Fatalf("unexpected prepare warning log: %q", logOutput)
 	}
 }
 

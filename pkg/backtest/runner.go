@@ -188,7 +188,9 @@ func Run(ctx context.Context, cfg RunConfig) *RunResult {
 	session.Account.CanWithdraw = true
 
 	if err := btExchange.Prepare(&bbgo2.Config{Backtest: backtestCfg}); err != nil {
-		log.Printf("backtest prepare warning: %v", err)
+		if !isMissingPrepareKLineError(err) {
+			log.Printf("backtest prepare warning: %v", err)
+		}
 	}
 	btExchange.BindUserData(session.UserDataStream.(types.StandardStreamEmitter))
 
@@ -321,6 +323,15 @@ func Run(ctx context.Context, cfg RunConfig) *RunResult {
 	log.Printf("backtest: done totalOrders=%d filledOrders=%d finalBalance=%.2f", totalOrders, filledOrders, result.FinalBalance)
 
 	return result
+}
+
+func isMissingPrepareKLineError(err error) bool {
+	if err == nil {
+		return false
+	}
+	message := err.Error()
+	return strings.Contains(message, "no kline data found for symbol") &&
+		strings.Contains(message, "1m before start time")
 }
 
 func resolvePineInitialBalance(requested float64, metadata strategyir.StrategyMetadata) float64 {
