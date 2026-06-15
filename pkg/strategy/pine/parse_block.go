@@ -12,6 +12,7 @@ import (
 
 var errStaticForBreak = errors.New("static for break")
 var errStaticForContinue = errors.New("static for continue")
+var errStaticForConditionalControl = errors.New("static for conditional break or continue")
 
 func (s *parseState) parseBlock(startIndex int, parentIndent int) ([]strategyir.Statement, int, error) {
 	statements := make([]strategyir.Statement, 0)
@@ -48,10 +49,30 @@ func (s *parseState) parseBlock(startIndex int, parentIndent int) ([]strategyir.
 func (s *parseState) parseStatement(index int) (strategyir.Statement, int, error) {
 	line := s.lines[index]
 	lower := strings.ToLower(line.trimmed)
+	if strings.HasPrefix(lower, "varip ") {
+		s.warnings = append(s.warnings, fmt.Sprintf("pine line %d: varip uses closed-bar var semantics in JFTrade", line.number))
+	}
+	if strings.HasPrefix(lower, "type ") {
+		nextIndex, err := s.parseExecutableTypeDefinition(index)
+		return nil, nextIndex, err
+	}
+	if strings.HasPrefix(lower, "method ") {
+		nextIndex, err := s.parseExecutableMethodDefinition(index)
+		return nil, nextIndex, err
+	}
+	if strings.HasPrefix(lower, "export ") {
+		return nil, s.skipDeclarationBlock(index), nil
+	}
 	if ok, nextIndex, err := s.parseUDFDefinition(index); ok || err != nil {
 		return nil, nextIndex, err
 	}
 	if lower == "break" || lower == "continue" {
+		if s.runtimeLoopDepth > 0 {
+			if lower == "break" {
+				return &strategyir.BreakStmt{Range: strategyir.SourceRange{StartLine: line.number, EndLine: line.number}}, index + 1, nil
+			}
+			return &strategyir.ContinueStmt{Range: strategyir.SourceRange{StartLine: line.number, EndLine: line.number}}, index + 1, nil
+		}
 		if s.forDepth > 0 {
 			if lower == "break" {
 				return nil, index + 1, errStaticForBreak
@@ -60,7 +81,16 @@ func (s *parseState) parseStatement(index int) (strategyir.Statement, int, error
 		}
 		return nil, index, fmt.Errorf("pine line %d: %s is not supported in JFTrade static for loops yet", line.number, line.trimmed)
 	}
-	if err := rejectUnsupported(line); err != nil {
+	if statement, ok, err := s.parseCollectionStatement(line); ok || err != nil {
+		return statement, index + 1, err
+	}
+	if statement, ok, err := s.parseObjectStatement(line); ok || err != nil {
+		return statement, index + 1, err
+	}
+	if strings.HasPrefix(lower, "while ") {
+		return s.parseRuntimeWhileLoop(index)
+	}
+	if err := s.rejectUnsupported(line); err != nil {
 		return nil, index, err
 	}
 	if statement, nextIndex, ok, err := s.parseSwitch(index); ok || err != nil {
@@ -79,7 +109,7 @@ func (s *parseState) parseStatement(index int) (strategyir.Statement, int, error
 		thenStatements, nextIndex, err := s.parseBlock(index+1, line.indent)
 		if err != nil {
 			if errors.Is(err, errStaticForBreak) || errors.Is(err, errStaticForContinue) {
-				return nil, index, fmt.Errorf("pine line %d: conditional break/continue in static for loops is not supported by JFTrade yet", line.number)
+				return nil, index, errStaticForConditionalControl
 			}
 			return nil, index, err
 		}
@@ -96,7 +126,7 @@ func (s *parseState) parseStatement(index int) (strategyir.Statement, int, error
 			elseStatements, afterElse, elseErr := s.parseBlock(nextIndex+1, line.indent)
 			if elseErr != nil {
 				if errors.Is(elseErr, errStaticForBreak) || errors.Is(elseErr, errStaticForContinue) {
-					return nil, index, fmt.Errorf("pine line %d: conditional break/continue in static for loops is not supported by JFTrade yet", s.lines[nextIndex].number)
+					return nil, index, errStaticForConditionalControl
 				}
 				return nil, index, elseErr
 			}
@@ -121,6 +151,9 @@ func (s *parseState) parseStatement(index int) (strategyir.Statement, int, error
 		s.warnings = append(s.warnings, fmt.Sprintf("pine line %d: visual-only call %q is ignored by JFTrade", line.number, callName(line.trimmed)))
 		return nil, index + 1, nil
 	}
+	if statement, ok, err := s.parseGeneralTupleAssignment(line); ok || err != nil {
+		return statement, index + 1, err
+	}
 	if statement, ok, err := s.parseTupleAssignment(line); ok || err != nil {
 		return statement, index + 1, err
 	}
@@ -134,6 +167,18 @@ func (s *parseState) parseStatement(index int) (strategyir.Statement, int, error
 		return statement, index + 1, nil
 	}
 	return nil, index, fmt.Errorf("pine line %d: unsupported executable statement %q", line.number, line.trimmed)
+}
+
+func (s *parseState) skipDeclarationBlock(index int) int {
+	next := index + 1
+	if index < 0 || index >= len(s.lines) {
+		return next
+	}
+	indent := s.lines[index].indent
+	for next < len(s.lines) && s.lines[next].indent > indent {
+		next++
+	}
+	return next
 }
 
 func (s *parseState) takeNormalizationErr(lineNumber int) error {
@@ -323,6 +368,9 @@ func (s *parseState) parseStaticForLoop(index int) ([]strategyir.Statement, int,
 		return nil, index, fmt.Errorf("pine line %d: nested for loops deeper than %d are not supported by JFTrade yet", line.number, maxStaticForDepth)
 	}
 	loopHeader := strings.TrimSpace(strings.TrimSuffix(line.trimmed, ":"))
+	if match := collectionForLoopPattern.FindStringSubmatch(loopHeader); match != nil {
+		return s.parseCollectionForLoop(index, match)
+	}
 	match := forLoopPattern.FindStringSubmatch(loopHeader)
 	if match == nil {
 		return nil, index, fmt.Errorf("pine line %d: for loop must use 'for i = start to end [by step]'", line.number)
@@ -330,17 +378,17 @@ func (s *parseState) parseStaticForLoop(index int) ([]strategyir.Statement, int,
 	loopVar := strings.TrimSpace(match[1])
 	start, err := s.parseStaticIntExpression(line.number, match[2], "for start")
 	if err != nil {
-		return nil, index, err
+		return s.parseRuntimeForLoop(index, match)
 	}
 	end, err := s.parseStaticIntExpression(line.number, match[3], "for end")
 	if err != nil {
-		return nil, index, err
+		return s.parseRuntimeForLoop(index, match)
 	}
 	step := 1
 	if strings.TrimSpace(match[4]) != "" {
 		step, err = s.parseStaticIntExpression(line.number, match[4], "for step")
 		if err != nil {
-			return nil, index, err
+			return s.parseRuntimeForLoop(index, match)
 		}
 	}
 	if step == 0 {
@@ -390,6 +438,9 @@ func (s *parseState) parseStaticForLoop(index int) ([]strategyir.Statement, int,
 	for _, value := range values {
 		s.valueAliases[loopVar] = strconv.Itoa(value)
 		bodyStatements, afterBody, err := s.parseBlock(index+1, line.indent)
+		if errors.Is(err, errStaticForConditionalControl) {
+			return s.parseRuntimeForLoop(index, match)
+		}
 		if errors.Is(err, errStaticForBreak) {
 			statements = append(statements, bodyStatements...)
 			nextIndex = loopBodyEnd
@@ -407,6 +458,152 @@ func (s *parseState) parseStaticForLoop(index int) ([]strategyir.Statement, int,
 		statements = append(statements, bodyStatements...)
 	}
 	return statements, nextIndex, nil
+}
+
+func (s *parseState) parseRuntimeForLoop(index int, match []string) ([]strategyir.Statement, int, error) {
+	line := s.lines[index]
+	if s.runtimeLoopDepth >= maxRuntimeLoopDepth {
+		return nil, index, fmt.Errorf("pine line %d: dynamic loop nesting exceeds %d", line.number, maxRuntimeLoopDepth)
+	}
+	loopVar := strings.TrimSpace(match[1])
+	start := s.normalizeExpression(strings.TrimSpace(match[2]))
+	if err := s.takeNormalizationErr(line.number); err != nil {
+		return nil, index, err
+	}
+	end := s.normalizeExpression(strings.TrimSpace(match[3]))
+	if err := s.takeNormalizationErr(line.number); err != nil {
+		return nil, index, err
+	}
+	step := "1"
+	if strings.TrimSpace(match[4]) != "" {
+		step = s.normalizeExpression(strings.TrimSpace(match[4]))
+		if err := s.takeNormalizationErr(line.number); err != nil {
+			return nil, index, err
+		}
+	}
+	for label, expression := range map[string]string{"for start": start, "for end": end, "for step": step} {
+		if err := validateExpression(line.number, label, expression); err != nil {
+			return nil, index, err
+		}
+	}
+	previousLoopVar := s.loopVariables[loopVar]
+	s.loopVariables[loopVar] = true
+	s.runtimeLoopDepth++
+	body, nextIndex, err := s.parseBlock(index+1, line.indent)
+	s.runtimeLoopDepth--
+	if previousLoopVar {
+		s.loopVariables[loopVar] = true
+	} else {
+		delete(s.loopVariables, loopVar)
+	}
+	if err != nil {
+		return nil, index, err
+	}
+	endLine := line.number
+	if len(body) > 0 {
+		endLine = body[len(body)-1].SourceRange().EndLine
+	}
+	return []strategyir.Statement{&strategyir.LoopStmt{
+		Range:           strategyir.SourceRange{StartLine: line.number, EndLine: endLine},
+		Variable:        loopVar,
+		StartExpression: start,
+		EndExpression:   end,
+		StepExpression:  step,
+		Body:            body,
+		MaxIterations:   maxRuntimeLoopIterations,
+	}}, nextIndex, nil
+}
+
+func (s *parseState) parseCollectionForLoop(index int, match []string) ([]strategyir.Statement, int, error) {
+	line := s.lines[index]
+	if s.runtimeLoopDepth >= maxRuntimeLoopDepth {
+		return nil, index, fmt.Errorf("pine line %d: dynamic loop nesting exceeds %d", line.number, maxRuntimeLoopDepth)
+	}
+	indexVar := strings.TrimSpace(match[1])
+	valueVar := strings.TrimSpace(match[2])
+	if valueVar == "" {
+		valueVar = strings.TrimSpace(match[3])
+	}
+	collection := s.normalizeExpression(strings.TrimSpace(match[4]))
+	if err := s.takeNormalizationErr(line.number); err != nil {
+		return nil, index, err
+	}
+	if err := validateExpression(line.number, "collection for source", collection); err != nil {
+		return nil, index, err
+	}
+	previousIndexLoopVar := false
+	if indexVar != "" && indexVar != "_" {
+		previousIndexLoopVar = s.loopVariables[indexVar]
+		s.loopVariables[indexVar] = true
+	}
+	previousValueLoopVar := false
+	if valueVar != "" && valueVar != "_" {
+		previousValueLoopVar = s.loopVariables[valueVar]
+		s.loopVariables[valueVar] = true
+	}
+	s.runtimeLoopDepth++
+	body, nextIndex, err := s.parseBlock(index+1, line.indent)
+	s.runtimeLoopDepth--
+	if indexVar != "" && indexVar != "_" {
+		if previousIndexLoopVar {
+			s.loopVariables[indexVar] = true
+		} else {
+			delete(s.loopVariables, indexVar)
+		}
+	}
+	if valueVar != "" && valueVar != "_" {
+		if previousValueLoopVar {
+			s.loopVariables[valueVar] = true
+		} else {
+			delete(s.loopVariables, valueVar)
+		}
+	}
+	if err != nil {
+		return nil, index, err
+	}
+	endLine := line.number
+	if len(body) > 0 {
+		endLine = body[len(body)-1].SourceRange().EndLine
+	}
+	return []strategyir.Statement{&strategyir.LoopStmt{
+		Range:         strategyir.SourceRange{StartLine: line.number, EndLine: endLine},
+		Variable:      valueVar,
+		IndexVariable: indexVar,
+		Collection:    collection,
+		Body:          body,
+		MaxIterations: maxRuntimeLoopIterations,
+	}}, nextIndex, nil
+}
+
+func (s *parseState) parseRuntimeWhileLoop(index int) (strategyir.Statement, int, error) {
+	line := s.lines[index]
+	if s.runtimeLoopDepth >= maxRuntimeLoopDepth {
+		return nil, index, fmt.Errorf("pine line %d: dynamic loop nesting exceeds %d", line.number, maxRuntimeLoopDepth)
+	}
+	condition := strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(line.trimmed, "while "), ":"))
+	condition = s.normalizeExpression(condition)
+	if err := s.takeNormalizationErr(line.number); err != nil {
+		return nil, index, err
+	}
+	if err := validateExpression(line.number, "while condition", condition); err != nil {
+		return nil, index, err
+	}
+	s.runtimeLoopDepth++
+	body, nextIndex, err := s.parseBlock(index+1, line.indent)
+	s.runtimeLoopDepth--
+	if err != nil {
+		return nil, index, err
+	}
+	endLine := line.number
+	if len(body) > 0 {
+		endLine = body[len(body)-1].SourceRange().EndLine
+	}
+	return &strategyir.LoopStmt{
+		Range:          strategyir.SourceRange{StartLine: line.number, EndLine: endLine},
+		WhileCondition: condition,
+		Body:           body,
+		MaxIterations:  maxRuntimeLoopIterations,
+	}, nextIndex, nil
 }
 
 func (s *parseState) staticForBodyEnd(index int, parentIndent int) int {

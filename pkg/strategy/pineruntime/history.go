@@ -25,6 +25,24 @@ func collectStatementHistoryTargets(statements []strategyir.Statement, targets m
 		switch typed := statement.(type) {
 		case *strategyir.LetStmt:
 			collectExpressionHistoryTargets(typed.Expression, targets)
+		case *strategyir.CollectionStmt:
+			for _, expression := range typed.Arguments {
+				collectExpressionHistoryTargets(expression, targets)
+			}
+		case *strategyir.TupleStmt:
+			for _, expression := range typed.Expressions {
+				collectExpressionHistoryTargets(expression, targets)
+			}
+		case *strategyir.LoopStmt:
+			collectExpressionHistoryTargets(typed.StartExpression, targets)
+			collectExpressionHistoryTargets(typed.EndExpression, targets)
+			collectExpressionHistoryTargets(typed.StepExpression, targets)
+			collectExpressionHistoryTargets(typed.WhileCondition, targets)
+			collectStatementHistoryTargets(typed.Body, targets)
+		case *strategyir.ObjectStmt:
+			for _, expression := range typed.Arguments {
+				collectExpressionHistoryTargets(expression, targets)
+			}
 		case *strategyir.IfStmt:
 			collectExpressionHistoryTargets(typed.Condition, targets)
 			collectStatementHistoryTargets(typed.Then, targets)
@@ -67,6 +85,17 @@ func preparseStatementExpressions(statements []strategyir.Statement, scope *eval
 		switch typed := statement.(type) {
 		case *strategyir.LetStmt:
 			expressions = []string{typed.Expression}
+		case *strategyir.CollectionStmt:
+			expressions = typed.Arguments
+		case *strategyir.TupleStmt:
+			expressions = typed.Expressions
+		case *strategyir.LoopStmt:
+			expressions = []string{typed.StartExpression, typed.EndExpression, typed.StepExpression, typed.WhileCondition}
+			if err := preparseStatementExpressions(typed.Body, scope); err != nil {
+				return err
+			}
+		case *strategyir.ObjectStmt:
+			expressions = typed.Arguments
 		case *strategyir.IfStmt:
 			expressions = []string{typed.Condition}
 			if err := preparseStatementExpressions(typed.Then, scope); err != nil {

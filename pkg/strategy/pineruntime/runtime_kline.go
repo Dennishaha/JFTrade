@@ -49,7 +49,9 @@ func (r *strategyRuntime) handleKLineClosed(kline types.KLine) {
 	r.previousHigh = kline.High.Float64()
 	r.previousLow = kline.Low.Float64()
 	r.previousVolume = kline.Volume.Float64()
+	r.previousBarTime = pineBarTime(&kline)
 	r.hasPreviousClose = true
+	r.hasPreviousBarTime = true
 }
 
 func (r *strategyRuntime) runHookLocked(kind strategyir.HookKind, kline *types.KLine, session market.Session) error {

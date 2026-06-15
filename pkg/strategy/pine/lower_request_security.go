@@ -5,6 +5,9 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	exprast "github.com/expr-lang/expr/ast"
+	strategyexpression "github.com/jftrade/jftrade-main/pkg/strategy/expression"
 )
 
 func replaceSupportedRequestSecurity(expression string) string {
@@ -40,6 +43,51 @@ func lowerSupportedRequestSecurity(args []string) (string, bool) {
 		return "", false
 	}
 	inner := strings.TrimSpace(args[2])
+	return lowerSupportedRequestSecurityInner(inner, timeUnit)
+}
+
+func lowerSupportedRequestSecurityTuple(args []string) ([]string, bool) {
+	lowered, ok := lowerSupportedRequestSecurityTupleGeneral(args)
+	if !ok || len(lowered) > 3 {
+		return nil, false
+	}
+	return lowered, true
+}
+
+func lowerSupportedRequestSecurityTupleGeneral(args []string) ([]string, bool) {
+	if len(args) < 3 || strings.TrimSpace(args[0]) != "syminfo.tickerid" {
+		return nil, false
+	}
+	timeUnit, ok := pineTimeframeUnit(unquote(strings.TrimSpace(args[1])))
+	if !ok {
+		return nil, false
+	}
+	if !supportedRequestSecurityMergeArgs(args[3:]) {
+		return nil, false
+	}
+	inner := strings.TrimSpace(args[2])
+	if len(inner) < 2 || inner[0] != '[' || inner[len(inner)-1] != ']' {
+		return nil, false
+	}
+	if strings.Contains(strings.ToLower(inner), "request.security(") {
+		return nil, false
+	}
+	values := splitArguments(inner[1 : len(inner)-1])
+	if len(values) < 2 || len(values) > 8 {
+		return nil, false
+	}
+	lowered := make([]string, 0, len(values))
+	for _, value := range values {
+		expression, ok := lowerSupportedRequestSecurityInner(strings.TrimSpace(value), timeUnit)
+		if !ok {
+			return nil, false
+		}
+		lowered = append(lowered, expression)
+	}
+	return lowered, true
+}
+
+func lowerSupportedRequestSecurityInner(inner string, timeUnit string) (string, bool) {
 	if strings.Contains(strings.ToLower(inner), "request.security(") {
 		return "", false
 	}
@@ -111,21 +159,98 @@ func lowerPureRequestSecurityExpression(expression string, timeUnit string) (str
 	if !ok {
 		return "", false
 	}
+	result = normalizeHistoryReferences(result)
 	result = replacePureRequestSecuritySources(result, timeUnit)
 	for index, value := range placeholders {
 		result = strings.ReplaceAll(result, fmt.Sprintf("__pine_mtf_placeholder_%d__", index), value)
 	}
+	result = replaceStringNamespace(result)
+	result = replaceTimeframeNamespace(result)
+	result = replaceMathNamespace(result)
 	if strings.Contains(strings.ToLower(result), "ta.") || strings.Contains(strings.ToLower(result), "request.security(") {
 		return "", false
 	}
-	return "(" + result + ")", true
+	result = "(" + result + ")"
+	if !requestSecurityLoweredASTIsPure(result) {
+		return "", false
+	}
+	return result, true
+}
+
+func requestSecurityLoweredASTIsPure(expression string) bool {
+	node, err := strategyexpression.ParseExpression(expression)
+	if err != nil {
+		return false
+	}
+	var pure func(exprast.Node) bool
+	pure = func(node exprast.Node) bool {
+		switch typed := node.(type) {
+		case *exprast.NilNode, *exprast.IdentifierNode, *exprast.IntegerNode, *exprast.FloatNode,
+			*exprast.BoolNode, *exprast.StringNode, *exprast.ConstantNode:
+			return true
+		case *exprast.UnaryNode:
+			return pure(typed.Node)
+		case *exprast.BinaryNode:
+			return pure(typed.Left) && pure(typed.Right)
+		case *exprast.ConditionalNode:
+			return pure(typed.Cond) && pure(typed.Exp1) && pure(typed.Exp2)
+		case *exprast.ChainNode:
+			return pure(typed.Node)
+		case *exprast.MemberNode:
+			return !typed.Method && pure(typed.Node) && pure(typed.Property)
+		case *exprast.CallNode:
+			callee, ok := typed.Callee.(*exprast.IdentifierNode)
+			if !ok || !pureRequestSecurityRuntimeCall(callee.Value) {
+				return false
+			}
+			for _, argument := range typed.Arguments {
+				if !pure(argument) {
+					return false
+				}
+			}
+			return true
+		case *exprast.BuiltinNode:
+			if !pureRequestSecurityRuntimeCall(typed.Name) {
+				return false
+			}
+			for _, argument := range typed.Arguments {
+				if !pure(argument) {
+					return false
+				}
+			}
+			return true
+		default:
+			return false
+		}
+	}
+	return pure(node)
+}
+
+func pureRequestSecurityRuntimeCall(name string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(name))
+	if strings.HasPrefix(normalized, "collection_") {
+		return true
+	}
+	switch normalized {
+	case "security_source", "ma", "rsi", "macd", "atr", "bollinger", "supertrend",
+		"linreg", "obv", "pivothigh", "pivotlow", "kc", "kcw", "alma", "bbw", "cog",
+		"cmo", "tsi", "correlation", "dev", "median", "percentile_linear_interpolation",
+		"percentile_nearest_rank", "percentrank", "swma", "nz", "abs", "min", "max",
+		"avg", "round", "round_to_mintick", "floor", "ceil", "sqrt", "pow", "log", "sign",
+		"stoch", "object_method", "history",
+		"str_length", "str_contains", "str_pos", "str_substring", "str_replace", "str_upper", "str_lower", "str_format",
+		"timeframe_change", "timeframe_in_seconds":
+		return true
+	default:
+		return false
+	}
 }
 
 func requestSecurityExpressionIsPure(expression string) bool {
 	lower := strings.ToLower(strings.TrimSpace(expression))
 	for _, denied := range []string{
 		"strategy.", "alert(", "alertcondition(", "log.", "runtime.error(",
-		"array.", "matrix.", "map.", "line.", "label.", "box.", "table.",
+		"array.", "matrix.", "map.", "line.new(", "label.new(", "box.new(", "table.",
 		"plot(", "plotshape(", "plotchar(", "hline(", "fill(", "bgcolor(", "barcolor(",
 		":=", "request.security(",
 	} {
@@ -221,7 +346,19 @@ func lowerRequestSecurityTACall(name string, args []string, timeUnit string) (st
 			return "", false
 		}
 		return fmt.Sprintf("supertrend(%s, %s, %s)", strings.TrimSpace(args[0]), strings.TrimSpace(args[1]), timeUnit), true
-	case "linreg", "obv", "pivothigh", "pivotlow", "kc", "kcw", "alma",
+	case "stoch":
+		if len(args) != 4 {
+			return "", false
+		}
+		source, ok := supportedRequestSecuritySource(strings.TrimSpace(args[0]))
+		if !ok || source == "volume" {
+			return "", false
+		}
+		if !strings.EqualFold(strings.TrimSpace(args[1]), "high") || !strings.EqualFold(strings.TrimSpace(args[2]), "low") {
+			return "", false
+		}
+		return fmt.Sprintf("stoch(%s, high, low, %s, %s)", source, strings.TrimSpace(args[3]), timeUnit), true
+	case "linreg", "obv", "pivothigh", "pivotlow", "kc", "kcw", "alma", "bbw", "cog",
 		"cmo", "tsi", "correlation", "dev", "median", "percentile_linear_interpolation",
 		"percentile_nearest_rank", "percentrank", "swma":
 		return lowerAdvancedRequestSecurity(name, args, timeUnit)
@@ -240,7 +377,10 @@ func maskPureRequestSecuritySourceHistory(expression string, timeUnit string, ad
 			}
 			source, sourceOK := supportedRequestSecuritySource(parts[1])
 			lookback, err := strconv.Atoi(strings.TrimSpace(parts[2]))
-			if !sourceOK || err != nil || lookback < 0 || lookback > maxHistoryLookback {
+			if !sourceOK {
+				return match
+			}
+			if err != nil || lookback < 0 || lookback > maxHistoryLookback {
 				ok = false
 				return match
 			}
@@ -299,7 +439,11 @@ func lowerAdvancedRequestSecurity(name string, args []string, timeUnit string) (
 		if len(args) != 4 {
 			return "", false
 		}
-	case "cmo", "dev", "median", "percentrank":
+	case "bbw":
+		if len(args) != 3 {
+			return "", false
+		}
+	case "cog", "cmo", "dev", "median", "percentrank":
 		if len(args) != 2 {
 			return "", false
 		}

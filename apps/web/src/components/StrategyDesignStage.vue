@@ -117,6 +117,10 @@ const codePanelDrag = useDraggable();
 const codeWorkbenchRef = ref<InstanceType<typeof StrategyStageCodeWorkbenchPanel> | null>(null);
 const logicFlowDesignerRef = ref<InstanceType<typeof StrategyLogicFlowDesigner> | null>(null);
 const pineDiagnosticMarkers = ref<MonacoDiagnosticMarker[]>([]);
+const pineAnalyzeCollectionOperations = ref<StrategyPineAnalyzeCollectionOperation[]>([]);
+const pineAnalyzeDeclarations = ref<StrategyPineAnalyzeDeclaration[]>([]);
+const pineAnalyzeObjectOperations = ref<StrategyPineAnalyzeObjectOperation[]>([]);
+const pineAnalyzeVisuals = ref<StrategyPineAnalyzeVisual[]>([]);
 const pineFeatureCount = ref(0);
 let pineAnalyzeTimer: ReturnType<typeof setTimeout> | null = null;
 let pineAnalyzeSequence = 0;
@@ -365,10 +369,83 @@ interface StrategyPineAnalyzeDiagnostic {
     endColumn: number;
 }
 
+interface StrategyPineAnalyzeVisual {
+    line: number;
+    kind: string;
+    call: string;
+    variable?: string;
+    target?: string;
+    title?: string;
+    arguments?: string[];
+    namedArgs?: Record<string, string>;
+    text: string;
+}
+
+interface StrategyPineAnalyzeDeclaration {
+    line: number;
+    kind: string;
+    name?: string;
+    namespace?: string;
+    call?: string;
+    typeArgs?: string;
+    receiver?: {
+        name?: string;
+        type?: string;
+        default?: string;
+    };
+    parameters?: Array<{
+        name?: string;
+        type?: string;
+        default?: string;
+    }>;
+    fields?: Array<{
+        name?: string;
+        type?: string;
+        default?: string;
+    }>;
+    importPath?: string;
+    version?: string;
+    executable: boolean;
+    reason?: string;
+}
+
+interface StrategyPineAnalyzeCollectionOperation {
+    line: number;
+    namespace: string;
+    operation: string;
+    call: string;
+    typeArgs?: string;
+    signature?: string;
+    target?: string;
+    arguments?: string[];
+    mutates: boolean;
+    supported: boolean;
+    executable: boolean;
+    reason?: string;
+}
+
+interface StrategyPineAnalyzeObjectOperation {
+    line: number;
+    kind: string;
+    type?: string;
+    method?: string;
+    call: string;
+    signature?: string;
+    target?: string;
+    arguments?: string[];
+    supported: boolean;
+    executable: boolean;
+    reason?: string;
+}
+
 interface StrategyPineAnalyzeResponse {
     ok: boolean;
+    collectionOperations?: StrategyPineAnalyzeCollectionOperation[];
     diagnostics: StrategyPineAnalyzeDiagnostic[];
+    declarations?: StrategyPineAnalyzeDeclaration[];
     features: string[];
+    objectOperations?: StrategyPineAnalyzeObjectOperation[];
+    visuals?: StrategyPineAnalyzeVisual[];
 }
 
 function normalizePineDiagnosticMarker(
@@ -403,6 +480,10 @@ async function analyzeCurrentPineScript(): Promise<void> {
     abortPendingPineAnalysis();
     if (script.trim() === "" || sourceFormat !== "pine-v6") {
         pineDiagnosticMarkers.value = [];
+        pineAnalyzeCollectionOperations.value = [];
+        pineAnalyzeDeclarations.value = [];
+        pineAnalyzeObjectOperations.value = [];
+        pineAnalyzeVisuals.value = [];
         pineFeatureCount.value = 0;
         return;
     }
@@ -427,6 +508,10 @@ async function analyzeCurrentPineScript(): Promise<void> {
             return;
         }
         pineDiagnosticMarkers.value = (result.diagnostics ?? []).map(normalizePineDiagnosticMarker);
+        pineAnalyzeCollectionOperations.value = result.collectionOperations ?? [];
+        pineAnalyzeDeclarations.value = result.declarations ?? [];
+        pineAnalyzeObjectOperations.value = result.objectOperations ?? [];
+        pineAnalyzeVisuals.value = result.visuals ?? [];
         pineFeatureCount.value = (result.features ?? []).length;
     } catch (error) {
         if (isAbortError(error)) {
@@ -436,6 +521,10 @@ async function analyzeCurrentPineScript(): Promise<void> {
             return;
         }
         pineDiagnosticMarkers.value = [];
+        pineAnalyzeCollectionOperations.value = [];
+        pineAnalyzeDeclarations.value = [];
+        pineAnalyzeObjectOperations.value = [];
+        pineAnalyzeVisuals.value = [];
         pineFeatureCount.value = 0;
     } finally {
         if (pineAnalyzeAbortController === abortController) {
@@ -489,6 +578,14 @@ const codePanelStyle = computed(() => ({
                 ? "22"
                 : "26",
 }));
+
+const pineAnalyzeMetadataCount = computed(
+    () =>
+        pineAnalyzeCollectionOperations.value.length +
+        pineAnalyzeDeclarations.value.length +
+        pineAnalyzeObjectOperations.value.length +
+        pineAnalyzeVisuals.value.length,
+);
 
 const hasUnsavedDefinitionChanges = computed(() => {
     if (isTemplatePickerEntry.value) {
@@ -1227,6 +1324,7 @@ const {
             <StrategyStageCodeWorkbenchPanel ref="codeWorkbenchRef" :bindings="codeWorkbenchBindings"
                 :completion-items="strategyPineEditorCompletions" :extra-libs="strategyPineEditorExtraLibs"
                 :diagnostic-markers="pineDiagnosticMarkers" :hover-items="strategyPineEditorHoverItems"
+                :pine-metadata-count="pineAnalyzeMetadataCount"
                 :strategy-display-mode="strategyDisplayMode" :support-feature-count="pineFeatureCount"
                 @drag-start="startCodePanelDrag" @script-blur="handleScriptWorkbenchBlur"
                 @cursor-offset="handleCodeCursorOffset" />

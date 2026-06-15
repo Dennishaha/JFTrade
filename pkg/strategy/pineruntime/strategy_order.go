@@ -245,7 +245,7 @@ func parseIndicatorBinding(statement *strategyir.LetStmt) (indicatorBinding, boo
 	}
 	switch indicatorbinding.NormalizeFunctionName(name) {
 	case "linreg", "obv", "pivothigh", "pivotlow", "kc", "kcw", "alma",
-		"cmo", "tsi", "correlation", "dev", "median", "percentile_linear_interpolation",
+		"bbw", "cog", "cmo", "tsi", "correlation", "dev", "median", "percentile_linear_interpolation",
 		"percentile_nearest_rank", "percentrank", "swma":
 		return parseAdvancedRuntimeBinding(statement.Range.StartLine, statement.Name, indicatorbinding.NormalizeFunctionName(name), args)
 	case "ma":
@@ -277,11 +277,11 @@ func parseIndicatorBinding(statement *strategyir.LetStmt) (indicatorBinding, boo
 		key := sourcePeriodRuntimeKey("rsi", source, period, "close")
 		return indicatorBinding{Alias: statement.Name, Kind: "rsi", Key: key, Args: sourcePeriodRuntimeArgs(source, period, "close")}, true, nil
 	case "macd":
-		values, err := indicatorbinding.ExpectPositiveIntArgs(statement.Range.StartLine, name, args, 3)
+		binding, err := parseMACDIndicatorBinding(statement.Range.StartLine, statement.Name, name, args)
 		if err != nil {
 			return indicatorBinding{}, false, err
 		}
-		return indicatorBinding{Alias: statement.Name, Kind: "macd", Key: fmt.Sprintf("macd:%d:%d:%d", values[0], values[1], values[2]), Args: indicatorbinding.IntsToStrings(values)}, true, nil
+		return binding, true, nil
 	case "kdj":
 		values, err := indicatorbinding.ExpectPositiveIntArgs(statement.Range.StartLine, name, args, 3)
 		if err != nil {
@@ -333,8 +333,8 @@ func parseIndicatorBinding(statement *strategyir.LetStmt) (indicatorBinding, boo
 		key := function + ":" + source + ":" + strconv.Itoa(period)
 		return indicatorBinding{Alias: statement.Name, Kind: function, Key: key, Args: []string{source, strconv.Itoa(period)}}, true, nil
 	case "stoch":
-		if len(args) != 4 {
-			return indicatorBinding{}, false, fmt.Errorf("pine line %d: stoch() requires source, high, low, and length arguments", statement.Range.StartLine)
+		if len(args) != 4 && len(args) != 5 {
+			return indicatorBinding{}, false, fmt.Errorf("pine line %d: stoch() requires source, high, low, length, and optional time unit arguments", statement.Range.StartLine)
 		}
 		source, ok := parseStochSource(args[0])
 		if !ok {
@@ -347,7 +347,17 @@ func parseIndicatorBinding(statement *strategyir.LetStmt) (indicatorBinding, boo
 		if err != nil {
 			return indicatorBinding{}, false, fmt.Errorf("pine line %d: stoch() length must be a positive integer", statement.Range.StartLine)
 		}
-		return indicatorBinding{Alias: statement.Name, Kind: "stoch", Key: "stoch:" + source + ":" + strconv.Itoa(period), Args: []string{source, strconv.Itoa(period)}}, true, nil
+		key := "stoch:" + source + ":" + strconv.Itoa(period)
+		bindingArgs := []string{source, strconv.Itoa(period)}
+		if len(args) == 5 {
+			timeUnit, ok := indicatorbinding.ParseIndicatorTimeUnitValue(args[4])
+			if !ok {
+				return indicatorBinding{}, false, fmt.Errorf("pine line %d: stoch() time unit %q is not supported", statement.Range.StartLine, strings.TrimSpace(args[4]))
+			}
+			key += ":" + timeUnit
+			bindingArgs = append(bindingArgs, timeUnit)
+		}
+		return indicatorBinding{Alias: statement.Name, Kind: "stoch", Key: key, Args: bindingArgs}, true, nil
 	case "cci":
 		source, period, err := parseSourcePeriodArgs(statement.Range.StartLine, name, args, "hlc3", "20")
 		if err != nil {
@@ -364,6 +374,16 @@ func parseIndicatorBinding(statement *strategyir.LetStmt) (indicatorBinding, boo
 			return indicatorBinding{}, false, fmt.Errorf("pine line %d: vwap() source %q is not supported; use open/high/low/close/volume/hl2/hlc3/ohlc4", statement.Range.StartLine, strings.TrimSpace(args[0]))
 		}
 		return indicatorBinding{Alias: statement.Name, Kind: "vwap", Key: "vwap:" + source, Args: []string{source}}, true, nil
+	case "anchored_vwap":
+		if len(args) != 2 {
+			return indicatorBinding{}, false, fmt.Errorf("pine line %d: anchored_vwap() requires source and anchor unit", statement.Range.StartLine)
+		}
+		source, ok := indicatorbinding.ParsePriceSource(args[0])
+		unit := strings.ToLower(strings.TrimSpace(args[1]))
+		if !ok || (unit != "day" && unit != "week" && unit != "month") {
+			return indicatorBinding{}, false, fmt.Errorf("pine line %d: anchored_vwap() supports OHLCV/derived source and day/week/month anchors", statement.Range.StartLine)
+		}
+		return indicatorBinding{Alias: statement.Name, Kind: "anchored_vwap", Key: "anchored_vwap:" + unit + ":" + source, Args: []string{source, unit}}, true, nil
 	case "mfi":
 		source, period, err := parseSourcePeriodArgs(statement.Range.StartLine, name, args, "hlc3", "14")
 		if err != nil {
@@ -379,8 +399,8 @@ func parseIndicatorBinding(statement *strategyir.LetStmt) (indicatorBinding, boo
 		key := fmt.Sprintf("dmi:%d:%d", values[0], values[1])
 		return indicatorBinding{Alias: statement.Name, Kind: "dmi", Key: key, Args: indicatorbinding.IntsToStrings(values)}, true, nil
 	case "supertrend":
-		if len(args) != 2 {
-			return indicatorBinding{}, false, fmt.Errorf("pine line %d: supertrend() requires factor and atrPeriod", statement.Range.StartLine)
+		if len(args) != 2 && len(args) != 3 {
+			return indicatorBinding{}, false, fmt.Errorf("pine line %d: supertrend() requires factor, atrPeriod, and optional time unit", statement.Range.StartLine)
 		}
 		factor, err := indicatorbinding.ParsePositiveFloat(args[0])
 		if err != nil {
@@ -392,7 +412,16 @@ func parseIndicatorBinding(statement *strategyir.LetStmt) (indicatorBinding, boo
 		}
 		factorText := strconv.FormatFloat(factor, 'f', -1, 64)
 		key := "supertrend:" + factorText + ":" + strconv.Itoa(period)
-		return indicatorBinding{Alias: statement.Name, Kind: "supertrend", Key: key, Args: []string{factorText, strconv.Itoa(period)}}, true, nil
+		bindingArgs := []string{factorText, strconv.Itoa(period)}
+		if len(args) == 3 {
+			timeUnit, ok := indicatorbinding.ParseIndicatorTimeUnitValue(args[2])
+			if !ok || timeUnit == "" {
+				return indicatorBinding{}, false, fmt.Errorf("pine line %d: supertrend() timeframe %q is not supported", statement.Range.StartLine, strings.TrimSpace(args[2]))
+			}
+			key += ":" + timeUnit
+			bindingArgs = append(bindingArgs, timeUnit)
+		}
+		return indicatorBinding{Alias: statement.Name, Kind: "supertrend", Key: key, Args: bindingArgs}, true, nil
 	case "sar":
 		if len(args) != 3 {
 			return indicatorBinding{}, false, fmt.Errorf("pine line %d: sar() requires start, increment, and max", statement.Range.StartLine)
@@ -445,8 +474,8 @@ func parseIndicatorBinding(statement *strategyir.LetStmt) (indicatorBinding, boo
 		}
 		return indicatorBinding{Alias: statement.Name, Kind: "williamsr", Key: "williamsr:" + strconv.Itoa(period), Args: []string{strconv.Itoa(period)}}, true, nil
 	case "bollinger":
-		if len(args) != 2 {
-			return indicatorBinding{}, false, fmt.Errorf("pine line %d: bollinger() requires period and multiplier", statement.Range.StartLine)
+		if len(args) != 2 && len(args) != 4 {
+			return indicatorBinding{}, false, fmt.Errorf("pine line %d: bollinger() requires period, multiplier, optional time unit, and optional source", statement.Range.StartLine)
 		}
 		period, err := indicatorbinding.ParsePositiveInt(args[0])
 		if err != nil {
@@ -457,10 +486,43 @@ func parseIndicatorBinding(statement *strategyir.LetStmt) (indicatorBinding, boo
 			return indicatorBinding{}, false, fmt.Errorf("pine line %d: bollinger() multiplier must be a positive number", statement.Range.StartLine)
 		}
 		multiplierText := strconv.FormatFloat(multiplier, 'f', -1, 64)
-		return indicatorBinding{Alias: statement.Name, Kind: "bollinger", Key: "bollinger:" + strconv.Itoa(period) + ":" + multiplierText, Args: []string{strconv.Itoa(period), multiplierText}}, true, nil
+		key := "bollinger:" + strconv.Itoa(period) + ":" + multiplierText
+		bindingArgs := []string{strconv.Itoa(period), multiplierText}
+		if len(args) == 4 {
+			timeUnit, timeUnitOK := indicatorbinding.ParseIndicatorTimeUnitValue(args[2])
+			source, sourceOK := indicatorbinding.ParsePriceSource(args[3])
+			if !timeUnitOK || timeUnit == "" || !sourceOK {
+				return indicatorBinding{}, false, fmt.Errorf("pine line %d: bollinger() supports OHLCV/hl2/hlc3/ohlc4 source and supported timeframe", statement.Range.StartLine)
+			}
+			key = fmt.Sprintf("bollinger:%s:%d:%s:%s", source, period, multiplierText, timeUnit)
+			bindingArgs = append(bindingArgs, timeUnit, source)
+		}
+		return indicatorBinding{Alias: statement.Name, Kind: "bollinger", Key: key, Args: bindingArgs}, true, nil
 	default:
 		return indicatorBinding{}, false, nil
 	}
+}
+
+func parseMACDIndicatorBinding(lineNumber int, alias string, name string, args []string) (indicatorBinding, error) {
+	if len(args) != 3 && len(args) != 5 {
+		return indicatorBinding{}, fmt.Errorf("pine line %d: %s() requires fast, slow, signal, optional time unit, and optional source", lineNumber, name)
+	}
+	values, err := indicatorbinding.ExpectPositiveIntArgs(lineNumber, name, args[:3], 3)
+	if err != nil {
+		return indicatorBinding{}, err
+	}
+	bindingArgs := indicatorbinding.IntsToStrings(values)
+	key := fmt.Sprintf("macd:%d:%d:%d", values[0], values[1], values[2])
+	if len(args) == 5 {
+		timeUnit, timeUnitOK := indicatorbinding.ParseIndicatorTimeUnitValue(args[3])
+		source, sourceOK := indicatorbinding.ParsePriceSource(args[4])
+		if !timeUnitOK || timeUnit == "" || !sourceOK {
+			return indicatorBinding{}, fmt.Errorf("pine line %d: macd() supports OHLCV/hl2/hlc3/ohlc4 source and supported timeframe", lineNumber)
+		}
+		key = fmt.Sprintf("macd:%s:%d:%d:%d:%s", source, values[0], values[1], values[2], timeUnit)
+		bindingArgs = append(bindingArgs, timeUnit, source)
+	}
+	return indicatorBinding{Alias: alias, Kind: "macd", Key: key, Args: bindingArgs}, nil
 }
 
 func parseAdvancedRuntimeBinding(lineNumber int, alias, name string, args []string) (indicatorBinding, bool, error) {
@@ -499,7 +561,7 @@ func parseAdvancedIndicatorBindingRuntime(lineNumber int, alias, name string, ar
 		return key + ":" + timeUnit
 	}
 	switch name {
-	case "cmo", "dev", "median", "percentrank":
+	case "cog", "cmo", "dev", "median", "percentrank":
 		if err := parseTimeUnit(2); err != nil {
 			return indicatorBinding{}, false, err
 		}
@@ -515,6 +577,27 @@ func parseAdvancedIndicatorBindingRuntime(lineNumber int, alias, name string, ar
 			return indicatorBinding{}, false, err
 		}
 		return indicatorBinding{Alias: alias, Kind: name, Key: withTimeUnit(fmt.Sprintf("%s:%s:%d", name, source, period)), Args: []string{source, strconv.Itoa(period)}}, true, nil
+	case "bbw":
+		if err := parseTimeUnit(3); err != nil {
+			return indicatorBinding{}, false, err
+		}
+		if len(args) != 3 {
+			return indicatorBinding{}, false, fmt.Errorf("pine line %d: bbw() requires source, length, and multiplier", lineNumber)
+		}
+		source, err := sourceArg(args[0])
+		if err != nil {
+			return indicatorBinding{}, false, err
+		}
+		period, err := indicatorbinding.ParsePositiveInt(args[1])
+		if err != nil {
+			return indicatorBinding{}, false, err
+		}
+		multiplier, err := indicatorbinding.ParsePositiveFloat(args[2])
+		if err != nil {
+			return indicatorBinding{}, false, err
+		}
+		multiplierText := strconv.FormatFloat(multiplier, 'f', -1, 64)
+		return indicatorBinding{Alias: alias, Kind: name, Key: withTimeUnit(fmt.Sprintf("bbw:%s:%d:%s", source, period, multiplierText)), Args: []string{source, strconv.Itoa(period), multiplierText}}, true, nil
 	case "tsi":
 		if err := parseTimeUnit(3); err != nil {
 			return indicatorBinding{}, false, err

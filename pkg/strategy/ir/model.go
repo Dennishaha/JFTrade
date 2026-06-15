@@ -9,6 +9,35 @@ type Program struct {
 	SourceFormat string
 	Metadata     StrategyMetadata
 	Hooks        []HookBlock
+	Types        []TypeDefinition
+	Methods      []MethodDefinition
+}
+
+type ObjectField struct {
+	Name    string
+	Type    string
+	Default string
+}
+
+type ObjectParameter struct {
+	Name    string
+	Type    string
+	Default string
+}
+
+type TypeDefinition struct {
+	Range  SourceRange
+	Name   string
+	Fields []ObjectField
+}
+
+type MethodDefinition struct {
+	Range        SourceRange
+	Name         string
+	ReceiverType string
+	ReceiverName string
+	Parameters   []ObjectParameter
+	Body         string
 }
 
 type StrategyMetadata struct {
@@ -43,14 +72,20 @@ type HookBlock struct {
 type StatementKind string
 
 const (
-	StatementKindLet     StatementKind = "let"
-	StatementKindIf      StatementKind = "if"
-	StatementKindLog     StatementKind = "log"
-	StatementKindNotify  StatementKind = "notify"
-	StatementKindOrder   StatementKind = "order"
-	StatementKindExit    StatementKind = "exit"
-	StatementKindCancel  StatementKind = "cancel"
-	StatementKindProtect StatementKind = "protect"
+	StatementKindLet        StatementKind = "let"
+	StatementKindIf         StatementKind = "if"
+	StatementKindLog        StatementKind = "log"
+	StatementKindNotify     StatementKind = "notify"
+	StatementKindOrder      StatementKind = "order"
+	StatementKindExit       StatementKind = "exit"
+	StatementKindCancel     StatementKind = "cancel"
+	StatementKindProtect    StatementKind = "protect"
+	StatementKindCollection StatementKind = "collection"
+	StatementKindTuple      StatementKind = "tuple"
+	StatementKindLoop       StatementKind = "loop"
+	StatementKindBreak      StatementKind = "break"
+	StatementKindContinue   StatementKind = "continue"
+	StatementKindObject     StatementKind = "object"
 )
 
 type Statement interface {
@@ -63,6 +98,75 @@ type LetStmt struct {
 	Name       string
 	Expression string
 	Mode       AssignmentMode
+}
+
+type CollectionStmt struct {
+	Range      SourceRange
+	Namespace  string
+	Operation  string
+	Target     string
+	ResultName string
+	TypeArgs   string
+	Arguments  []string
+	Mode       AssignmentMode
+}
+
+type TupleStmt struct {
+	Range       SourceRange
+	Names       []string
+	Expressions []string
+	Mode        AssignmentMode
+}
+
+func (s *TupleStmt) Kind() StatementKind      { return StatementKindTuple }
+func (s *TupleStmt) SourceRange() SourceRange { return s.Range }
+
+type LoopStmt struct {
+	Range           SourceRange
+	Variable        string
+	IndexVariable   string
+	StartExpression string
+	EndExpression   string
+	StepExpression  string
+	WhileCondition  string
+	Collection      string
+	Body            []Statement
+	MaxIterations   int
+}
+
+func (s *LoopStmt) Kind() StatementKind      { return StatementKindLoop }
+func (s *LoopStmt) SourceRange() SourceRange { return s.Range }
+
+type BreakStmt struct{ Range SourceRange }
+
+func (s *BreakStmt) Kind() StatementKind      { return StatementKindBreak }
+func (s *BreakStmt) SourceRange() SourceRange { return s.Range }
+
+type ContinueStmt struct{ Range SourceRange }
+
+func (s *ContinueStmt) Kind() StatementKind      { return StatementKindContinue }
+func (s *ContinueStmt) SourceRange() SourceRange { return s.Range }
+
+type ObjectStmt struct {
+	Range      SourceRange
+	Operation  string
+	TypeName   string
+	Method     string
+	Target     string
+	ResultName string
+	Arguments  []string
+	Mode       AssignmentMode
+}
+
+func (s *ObjectStmt) Kind() StatementKind      { return StatementKindObject }
+func (s *ObjectStmt) SourceRange() SourceRange { return s.Range }
+
+func (s *CollectionStmt) Kind() StatementKind {
+	return StatementKindCollection
+}
+
+func (s *CollectionStmt) SourceRange() SourceRange {
+	return s.Range
 }
 
 func (s *LetStmt) Kind() StatementKind {

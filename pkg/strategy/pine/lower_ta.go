@@ -123,11 +123,47 @@ func replaceTASourceOptionalFunction(expression string, name string, target stri
 			return expression
 		}
 		args := splitArguments(expression[open+1 : close])
+		if len(args) > 1 {
+			return expression
+		}
 		source := defaultSource
 		if len(args) > 0 && strings.TrimSpace(args[0]) != "" {
 			source = strings.TrimSpace(args[0])
 		}
 		replacement := fmt.Sprintf("%s(%s)", target, source)
+		expression = expression[:start] + replacement + expression[close+1:]
+	}
+}
+
+func replaceTAAnchoredVWAP(expression string) string {
+	const prefix = "ta.vwap("
+	for {
+		start := strings.Index(strings.ToLower(expression), prefix)
+		if start < 0 {
+			return expression
+		}
+		open := start + len(prefix) - 1
+		close := matchingParen(expression, open)
+		if close < 0 {
+			return expression
+		}
+		args := splitArguments(expression[open+1 : close])
+		if len(args) != 2 {
+			return expression
+		}
+		call, anchorArgs, ok := parseFunctionCallText(strings.TrimSpace(args[1]))
+		if !ok || !strings.EqualFold(call, "timeframe.change") || len(anchorArgs) != 1 {
+			return expression
+		}
+		timeUnit, ok := pineTimeframeUnit(unquote(strings.TrimSpace(anchorArgs[0])))
+		if !ok || (timeUnit != "day" && timeUnit != "week" && timeUnit != "month") {
+			return expression
+		}
+		source := strings.TrimSpace(args[0])
+		if source == "" {
+			source = "hlc3"
+		}
+		replacement := fmt.Sprintf("anchored_vwap(%s, %s)", source, timeUnit)
 		expression = expression[:start] + replacement + expression[close+1:]
 	}
 }

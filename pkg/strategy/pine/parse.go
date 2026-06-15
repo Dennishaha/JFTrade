@@ -14,6 +14,8 @@ const maxHistoryLookback = 500
 const maxUDFExpansionDepth = 8
 const maxStaticForIterations = 100
 const maxStaticForDepth = 2
+const maxRuntimeLoopDepth = 4
+const maxRuntimeLoopIterations = 1000
 
 type Compilation struct {
 	Program      *strategyir.Program
@@ -29,20 +31,28 @@ type parsedLine struct {
 }
 
 type parseState struct {
-	lines             []parsedLine
-	warnings          []string
-	longEntryIDs      map[string]bool
-	shortEntryIDs     map[string]bool
-	udfs              map[string]pineUDF
-	expressionAliases map[string]string
-	sourceAliases     map[string]string
-	valueAliases      map[string]string
-	loopVariables     map[string]bool
-	forDepth          int
-	normalizationErr  error
-	entryPolicyCache  map[int]string
-	strategyMetadata  strategyir.StrategyMetadata
-	regexpCache       map[string]*regexp.Regexp
+	lines                []parsedLine
+	warnings             []string
+	longEntryIDs         map[string]bool
+	shortEntryIDs        map[string]bool
+	udfs                 map[string]pineUDF
+	expressionAliases    map[string]string
+	sourceAliases        map[string]string
+	valueAliases         map[string]string
+	collectionNamespaces map[string]string
+	udtTypes             map[string]strategyir.TypeDefinition
+	udtMethods           map[string][]strategyir.MethodDefinition
+	objectTypes          map[string]string
+	objectPersistent     map[string]bool
+	typeDefinitions      []strategyir.TypeDefinition
+	methodDefinitions    []strategyir.MethodDefinition
+	loopVariables        map[string]bool
+	forDepth             int
+	runtimeLoopDepth     int
+	normalizationErr     error
+	entryPolicyCache     map[int]string
+	strategyMetadata     strategyir.StrategyMetadata
+	regexpCache          map[string]*regexp.Regexp
 }
 
 type pineUDF struct {
@@ -82,20 +92,25 @@ func Compile(script string) (Compilation, error) {
 	}, nil
 }
 
-func compileLoweredAST(script string, lines []parsedLine, _ *AST) (Compilation, error) {
+func compileLoweredAST(script string, lines []parsedLine, ast *AST) (Compilation, error) {
 	state := &parseState{
-		lines:             nil,
-		longEntryIDs:      map[string]bool{},
-		shortEntryIDs:     map[string]bool{},
-		udfs:              map[string]pineUDF{},
-		expressionAliases: map[string]string{},
-		sourceAliases:     map[string]string{},
-		valueAliases:      map[string]string{},
-		loopVariables:     map[string]bool{},
-		entryPolicyCache:  buildEntryPolicyCache(script),
-		regexpCache:       map[string]*regexp.Regexp{},
+		lines:                nil,
+		longEntryIDs:         map[string]bool{},
+		shortEntryIDs:        map[string]bool{},
+		udfs:                 map[string]pineUDF{},
+		expressionAliases:    map[string]string{},
+		sourceAliases:        map[string]string{},
+		valueAliases:         map[string]string{},
+		collectionNamespaces: map[string]string{},
+		udtTypes:             map[string]strategyir.TypeDefinition{},
+		udtMethods:           map[string][]strategyir.MethodDefinition{},
+		objectTypes:          map[string]string{},
+		objectPersistent:     map[string]bool{},
+		loopVariables:        map[string]bool{},
+		entryPolicyCache:     buildEntryPolicyCache(script),
+		regexpCache:          map[string]*regexp.Regexp{},
 	}
-	state.lines = lines
+	state.lines = parsedLinesFromStructuredAST(ast, lines)
 	if len(state.lines) == 0 {
 		return Compilation{}, fmt.Errorf("pine script is required")
 	}
@@ -155,12 +170,39 @@ metadataDone:
 		}}
 	}
 	program.Metadata = state.strategyMetadata
+	program.Types = append([]strategyir.TypeDefinition(nil), state.typeDefinitions...)
+	program.Methods = append([]strategyir.MethodDefinition(nil), state.methodDefinitions...)
 	program.Hooks = []strategyir.HookBlock{{
 		Kind:       strategyir.HookKLineClose,
 		Range:      strategyir.SourceRange{StartLine: statements[0].SourceRange().StartLine, EndLine: statements[len(statements)-1].SourceRange().EndLine},
 		Statements: statements,
 	}}
 	return Compilation{Program: program, Warnings: state.warnings}, nil
+}
+
+func parsedLinesFromStructuredAST(ast *AST, fallback []parsedLine) []parsedLine {
+	if ast == nil || len(ast.Nodes) == 0 {
+		return fallback
+	}
+	byLine := make(map[int]parsedLine, len(fallback))
+	for _, line := range fallback {
+		byLine[line.number] = line
+	}
+	result := make([]parsedLine, 0, len(fallback))
+	var appendNodes func([]ASTNode)
+	appendNodes = func(nodes []ASTNode) {
+		for _, node := range nodes {
+			if line, ok := byLine[node.Line.Line]; ok {
+				result = append(result, line)
+			}
+			appendNodes(node.Children)
+		}
+	}
+	appendNodes(ast.Nodes)
+	if len(result) != len(fallback) {
+		return fallback
+	}
+	return result
 }
 
 func ParseScript(script string) (*strategyir.Program, error) {

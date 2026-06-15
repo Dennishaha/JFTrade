@@ -8,18 +8,24 @@ import (
 )
 
 type AnalysisOptions struct {
-	IncludeAST bool
+	IncludeAST      bool
+	IncludeSemantic bool
 }
 
 type AnalysisResult struct {
-	OK               bool
-	NormalizedScript string
-	Program          *strategyir.Program
-	Requirements     strategyir.Requirements
-	Warnings         []string
-	Diagnostics      []Diagnostic
-	Features         []string
-	AST              *AST
+	OK                   bool
+	NormalizedScript     string
+	Program              *strategyir.Program
+	Requirements         strategyir.Requirements
+	Warnings             []string
+	Diagnostics          []Diagnostic
+	Features             []string
+	AST                  *AST
+	Semantic             *SemanticSummary
+	Visuals              []PineVisualMetadata
+	Declarations         []SemanticDeclaration
+	CollectionOperations []SemanticCollectionOperation
+	ObjectOperations     []SemanticObjectOperation
 }
 
 func AnalyzeScript(script string, options AnalysisOptions) AnalysisResult {
@@ -35,6 +41,15 @@ func AnalyzeScript(script string, options AnalysisOptions) AnalysisResult {
 	result.Diagnostics = append(result.Diagnostics, astDiagnostics...)
 	if options.IncludeAST {
 		result.AST = ast
+	}
+	semantic, semanticDiagnostics := analyzeSemantics(ast)
+	result.Diagnostics = append(result.Diagnostics, semanticDiagnostics...)
+	result.Visuals = semantic.Visuals
+	result.Declarations = semantic.Declarations
+	result.CollectionOperations = semantic.CollectionOperations
+	result.ObjectOperations = semantic.ObjectOperations
+	if options.IncludeSemantic || options.IncludeAST {
+		result.Semantic = semantic
 	}
 	if len(lines) == 0 {
 		result.Diagnostics = append(result.Diagnostics, Diagnostic{
@@ -56,6 +71,9 @@ func AnalyzeScript(script string, options AnalysisOptions) AnalysisResult {
 		result.Diagnostics = append(result.Diagnostics, diagnosticFromError(err))
 		return result
 	}
+	markExecutableSemanticSurface(semantic, compilation.Program)
+	result.Declarations = semantic.Declarations
+	result.ObjectOperations = semantic.ObjectOperations
 	result.Program = compilation.Program
 	result.Warnings = compilation.Warnings
 	for _, warning := range compilation.Warnings {
@@ -69,6 +87,55 @@ func AnalyzeScript(script string, options AnalysisOptions) AnalysisResult {
 	result.Requirements = requirements
 	result.OK = true
 	return result
+}
+
+func markExecutableSemanticSurface(summary *SemanticSummary, program *strategyir.Program) {
+	if summary == nil || program == nil {
+		return
+	}
+	typeLines := map[int]bool{}
+	methodLines := map[int]bool{}
+	for _, definition := range program.Types {
+		typeLines[definition.Range.StartLine] = true
+	}
+	for _, definition := range program.Methods {
+		methodLines[definition.Range.StartLine] = true
+	}
+	for index := range summary.Declarations {
+		declaration := &summary.Declarations[index]
+		executable := (declaration.Kind == "type" && typeLines[declaration.Line]) ||
+			(declaration.Kind == "method" && methodLines[declaration.Line])
+		if executable {
+			declaration.Executable = true
+			declaration.Reason = ""
+			declaration.UnsupportedReason = ""
+		}
+	}
+	objectLines := map[int]bool{}
+	var collect func([]strategyir.Statement)
+	collect = func(statements []strategyir.Statement) {
+		for _, statement := range statements {
+			switch typed := statement.(type) {
+			case *strategyir.ObjectStmt:
+				objectLines[typed.Range.StartLine] = true
+			case *strategyir.IfStmt:
+				collect(typed.Then)
+				collect(typed.Else)
+			case *strategyir.LoopStmt:
+				collect(typed.Body)
+			}
+		}
+	}
+	for _, hook := range program.Hooks {
+		collect(hook.Statements)
+	}
+	for index := range summary.ObjectOperations {
+		operation := &summary.ObjectOperations[index]
+		if objectLines[operation.Line] {
+			operation.Executable = true
+			operation.Reason = ""
+		}
+	}
 }
 
 func SupportedFeatureIDs() []string {

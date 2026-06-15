@@ -2,6 +2,7 @@ package pineruntime
 
 import (
 	"fmt"
+	"math"
 
 	exprast "github.com/expr-lang/expr/ast"
 )
@@ -69,7 +70,7 @@ func evaluateBinaryExpression(expression *exprast.BinaryNode, scope *evaluationS
 			return nil, fmt.Errorf("logical operator %s requires boolean operands", expression.Operator)
 		}
 		return leftValue || rightValue, nil
-	case "+", "-", "*", "/":
+	case "+", "-", "*", "/", "%":
 		leftRaw, err := evaluateAST(expression.Left, scope)
 		if err != nil {
 			return nil, err
@@ -96,6 +97,11 @@ func evaluateBinaryExpression(expression *exprast.BinaryNode, scope *evaluationS
 			return leftValue - rightValue, nil
 		case "*":
 			return leftValue * rightValue, nil
+		case "%":
+			if rightValue == 0 {
+				return nil, fmt.Errorf("modulo by zero")
+			}
+			return math.Mod(leftValue, rightValue), nil
 		default:
 			if rightValue == 0 {
 				return nil, fmt.Errorf("division by zero")

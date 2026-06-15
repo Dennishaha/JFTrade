@@ -9,14 +9,24 @@ import (
 	strategyir "github.com/jftrade/jftrade-main/pkg/strategy/ir"
 )
 
-func rejectUnsupported(line parsedLine) error {
+func (s *parseState) rejectUnsupported(line parsedLine) error {
 	if diagnostic, ok := unsupportedSyntaxDiagnostic(line); ok {
 		return fmt.Errorf("pine line %d: %s", diagnostic.Line, diagnostic.Message)
 	}
 	lower := strings.ToLower(line.trimmed)
 	switch {
 	case strings.Contains(lower, "request.security("):
-		if strings.Contains(strings.ToLower(replaceSupportedRequestSecurity(line.trimmed)), "request.security(") {
+		if _, _, ok := supportedRequestSecurityTupleAssignmentLine(line.trimmed); ok {
+			return nil
+		}
+		lowered := replaceSupportedRequestSecurity(line.trimmed)
+		if match := assignmentPattern.FindStringSubmatch(line.trimmed); match != nil {
+			lowered = s.normalizeExpression(strings.TrimSpace(match[4]))
+			if err := s.takeNormalizationErr(line.number); err != nil {
+				return err
+			}
+		}
+		if strings.Contains(strings.ToLower(lowered), "request.security(") {
 			if requestSecurityUsesTimeframeAlias(line.trimmed) {
 				return nil
 			}
@@ -26,14 +36,14 @@ func rejectUnsupported(line parsedLine) error {
 			case strings.Contains(lower, "barmerge.gaps_on"):
 				return fmt.Errorf("pine line %d: request.security() gaps_on is not supported by JFTrade; use default gaps_off", line.number)
 			default:
-				return fmt.Errorf("pine line %d: request.security() is supported only for syminfo.tickerid with OHLCV/hl2/hlc3/ohlc4 sources, source history, source-aware moving averages, supported static intraday advanced indicators, v1.4 pure expressions, or v1.5 common TA pure expressions without side effects", line.number)
+				return fmt.Errorf("pine line %d: request.security() is supported only for syminfo.tickerid with OHLCV/hl2/hlc3/ohlc4 sources, source history, source-aware moving averages, supported static intraday advanced indicators, pure expressions, tuple whitelists, and v2.3 pure collection/object expressions without side effects", line.number)
 			}
 		}
 	case strings.HasPrefix(lower, "runtime.error("):
 		return fmt.Errorf("pine line %d: %s", line.number, firstStringArgument(line.trimmed))
 	case strings.HasPrefix(lower, "import "):
 		return fmt.Errorf("pine line %d: Pine libraries/imports are not supported by JFTrade yet", line.number)
-	case strings.Contains(lower, "array."), strings.Contains(lower, "matrix."), strings.Contains(lower, "map."):
+	case (strings.Contains(lower, "array.") || strings.Contains(lower, "matrix.") || strings.Contains(lower, "map.")) && !supportedExecutableCollectionLine(line.trimmed):
 		return fmt.Errorf("pine line %d: Pine collection namespaces array/matrix/map are not supported by JFTrade yet", line.number)
 	default:
 		return nil
@@ -41,23 +51,144 @@ func rejectUnsupported(line parsedLine) error {
 	return nil
 }
 
+func supportedRequestSecurityTupleAssignmentLine(line string) ([]string, []string, bool) {
+	if match := generalTuplePattern.FindStringSubmatch(line); match != nil {
+		aliases := splitArguments(match[1])
+		if args, ok := requestSecurityCallArgs(strings.TrimSpace(match[3])); ok {
+			lowered, loweredOK := lowerSupportedRequestSecurityTupleGeneral(args)
+			if loweredOK && len(aliases) == len(lowered) {
+				return aliases, lowered, true
+			}
+		}
+	}
+	match := tupleAssignmentPattern.FindStringSubmatch(line)
+	if match == nil {
+		return nil, nil, false
+	}
+	args, ok := requestSecurityCallArgs(strings.TrimSpace(match[5]))
+	if !ok {
+		return nil, nil, false
+	}
+	lowered, ok := lowerSupportedRequestSecurityTuple(args)
+	if !ok {
+		return nil, nil, false
+	}
+	aliases := tupleAssignmentAliases(match)
+	return aliases, lowered, len(aliases) == len(lowered)
+}
+
 func unsupportedSyntaxDiagnostic(line parsedLine) (Diagnostic, bool) {
 	lower := strings.ToLower(strings.TrimSpace(line.trimmed))
 	switch {
+	case strings.Contains(lower, "request.security("):
+		if diagnostic, ok := requestSecurityUnsupportedDiagnostic(line); ok {
+			return diagnostic, true
+		}
+		return Diagnostic{}, false
 	case unsupportedTAFunctionName(lower) != "":
 		name := unsupportedTAFunctionName(lower)
 		return diagnosticForLine(DiagnosticSeverityError, "PINE_TA_FUNCTION_UNSUPPORTED", fmt.Sprintf("ta.%s() is not supported by JFTrade yet", name), line), true
-	case strings.HasPrefix(lower, "while "):
-		return diagnosticForLine(DiagnosticSeverityError, "PINE_WHILE_UNSUPPORTED", "while loops are parsed but not executable in this JFTrade Pine v6 version", line), true
-	case strings.HasPrefix(lower, "type "), strings.HasPrefix(lower, "method "), strings.HasPrefix(lower, "import "):
+	case strings.HasPrefix(lower, "import "), strings.HasPrefix(lower, "library("):
 		return diagnosticForLine(DiagnosticSeverityError, "PINE_DECLARATION_UNSUPPORTED", "Pine declarations, libraries, and methods are not executable in this JFTrade Pine v6 version", line), true
-	case strings.Contains(lower, "array."), strings.Contains(lower, "matrix."), strings.Contains(lower, "map."):
+	case (strings.Contains(lower, "array.") || strings.Contains(lower, "matrix.") || strings.Contains(lower, "map.") || typedAssignmentPattern.MatchString(line.trimmed)) && !supportedExecutableCollectionLine(line.trimmed):
 		return diagnosticForLine(DiagnosticSeverityError, "PINE_COLLECTION_UNSUPPORTED", "Pine collection namespaces array/matrix/map are not executable in this JFTrade Pine v6 version", line), true
 	case historyDiagnosticMessage(line.trimmed) != "":
 		return diagnosticForLine(DiagnosticSeverityError, "PINE_HISTORY_REF_UNSUPPORTED", historyDiagnosticMessage(line.trimmed), line), true
 	default:
 		return Diagnostic{}, false
 	}
+}
+
+func requestSecurityUnsupportedDiagnostic(line parsedLine) (Diagnostic, bool) {
+	trimmed := strings.TrimSpace(line.trimmed)
+	if _, _, ok := supportedRequestSecurityTupleAssignmentLine(trimmed); ok {
+		return Diagnostic{}, false
+	}
+	if !strings.Contains(strings.ToLower(replaceSupportedRequestSecurity(trimmed)), "request.security(") {
+		return Diagnostic{}, false
+	}
+	args, ok := requestSecurityArgsFromLine(trimmed)
+	if !ok {
+		return diagnosticForLine(DiagnosticSeverityError, "PINE_REQUEST_SECURITY_UNSUPPORTED", "request.security() call could not be parsed", line), true
+	}
+	for _, mergeArg := range args[3:] {
+		lowerMerge := strings.ToLower(strings.TrimSpace(mergeArg))
+		switch {
+		case strings.Contains(lowerMerge, "barmerge.lookahead_on"):
+			return diagnosticForLine(DiagnosticSeverityError, "PINE_REQUEST_SECURITY_LOOKAHEAD", "request.security() lookahead_on is not supported by JFTrade; use default lookahead_off", line), true
+		case strings.Contains(lowerMerge, "barmerge.gaps_on"):
+			return diagnosticForLine(DiagnosticSeverityError, "PINE_REQUEST_SECURITY_GAPS", "request.security() gaps_on is not supported by JFTrade; use default gaps_off", line), true
+		}
+	}
+	if len(args) < 3 {
+		return diagnosticForLine(DiagnosticSeverityError, "PINE_REQUEST_SECURITY_UNSUPPORTED", "request.security() requires symbol, timeframe, and expression arguments", line), true
+	}
+	if strings.TrimSpace(args[0]) != "syminfo.tickerid" {
+		return diagnosticForLine(DiagnosticSeverityError, "PINE_REQUEST_SECURITY_DYNAMIC_SYMBOL", "request.security() currently supports only syminfo.tickerid; dynamic or external symbols are not supported", line), true
+	}
+	if requestSecurityUsesTimeframeAlias(trimmed) {
+		return Diagnostic{}, false
+	}
+	if _, ok := pineTimeframeUnit(unquote(strings.TrimSpace(args[1]))); !ok {
+		return diagnosticForLine(DiagnosticSeverityError, "PINE_REQUEST_SECURITY_DYNAMIC_TIMEFRAME", "request.security() currently supports only static timeframe strings", line), true
+	}
+	expression := strings.TrimSpace(args[2])
+	if strings.Contains(strings.ToLower(expression), "request.security(") {
+		return diagnosticForLine(DiagnosticSeverityError, "PINE_REQUEST_SECURITY_NESTED", "nested request.security() calls are not supported by JFTrade", line), true
+	}
+	if requestSecurityExpressionHasSideEffect(expression) {
+		return diagnosticForLine(DiagnosticSeverityError, "PINE_REQUEST_SECURITY_SIDE_EFFECT", "request.security() expression must be pure; strategy, alert, visual, collection mutation, and reassignment side effects are not supported", line), true
+	}
+	return Diagnostic{}, false
+}
+
+func requestSecurityArgsFromLine(line string) ([]string, bool) {
+	if match := assignmentPattern.FindStringSubmatch(line); match != nil {
+		return requestSecurityCallArgs(strings.TrimSpace(match[4]))
+	}
+	if match := generalTuplePattern.FindStringSubmatch(line); match != nil {
+		return requestSecurityCallArgs(strings.TrimSpace(match[3]))
+	}
+	if match := tupleAssignmentPattern.FindStringSubmatch(line); match != nil {
+		return requestSecurityCallArgs(strings.TrimSpace(match[5]))
+	}
+	start := strings.Index(strings.ToLower(line), "request.security(")
+	if start < 0 {
+		return nil, false
+	}
+	open := start + len("request.security")
+	close := matchingParen(line, open)
+	if close < 0 {
+		return nil, false
+	}
+	return splitArguments(line[open+1 : close]), true
+}
+
+func requestSecurityExpressionHasSideEffect(expression string) bool {
+	lower := strings.ToLower(strings.TrimSpace(expression))
+	if strings.Contains(lower, ":=") {
+		return true
+	}
+	for _, denied := range []string{
+		"strategy.", "alert(", "alertcondition(", "log.", "runtime.error(",
+		"line.new(", "label.new(", "box.new(", "table.",
+		"plot(", "plotshape(", "plotchar(", "hline(", "fill(", "bgcolor(", "barcolor(",
+	} {
+		if strings.Contains(lower, denied) {
+			return true
+		}
+	}
+	for _, mutator := range []string{
+		".push(", ".pop(", ".shift(", ".unshift(", ".insert(", ".remove(", ".clear(", ".set(", ".fill(", ".put(",
+		"array.push(", "array.pop(", "array.shift(", "array.unshift(", "array.insert(", "array.remove(", "array.clear(", "array.set(", "array.fill(",
+		"map.put(", "map.remove(", "map.clear(",
+		"matrix.set(", "matrix.fill(",
+	} {
+		if strings.Contains(lower, mutator) {
+			return true
+		}
+	}
+	return false
 }
 
 func unsupportedTAFunctionName(lower string) string {

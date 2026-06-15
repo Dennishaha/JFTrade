@@ -1433,6 +1433,60 @@ describe("Strategy page", () => {
     wrapper.unmount();
   });
 
+  it("surfaces Pine analysis metadata counts in the code workbench", async () => {
+    vi.stubGlobal(
+      "fetch",
+      buildFetchMock({
+        definitions: [
+          {
+            id: "pine-v2-metadata",
+            name: "Pine v2 Metadata",
+            version: "0.1.0",
+            description: "pine strategy with parse-only metadata",
+            runtime: "pine-go-plan",
+            sourceFormat: "pine-v6",
+            symbol: "00700",
+            interval: "1m",
+            script: [
+              "//@version=6",
+              "strategy(\"Pine v2 Metadata\", overlay=true)",
+              "var array<float> arr = array.new_float(0)",
+              "array.push(arr, close)",
+              "arr.push(open)",
+              "type TradeBox",
+              "    float price = close",
+              "method reset(TradeBox box, float limit = 0) =>",
+              "    box",
+              "box = TradeBox.new(close)",
+              "resetBox = box.reset(10)",
+              "import TradingView/ta/7 as tav7",
+              "lbl = label.new(bar_index, close, \"Entry\")",
+              "plot(close)",
+            ].join("\n"),
+            visualModel: null,
+            createdAt: "2026-05-23T00:00:00.000Z",
+            updatedAt: "2026-05-23T00:00:00.000Z",
+          },
+        ],
+      }),
+    );
+    vi.stubGlobal(
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
+    );
+
+    const { wrapper } = await mountStrategyPage("/strategy");
+
+    await openStrategyDesignWorkspace(wrapper);
+    await showStrategyCodeEditor(wrapper, "code");
+    await new Promise((resolve) => setTimeout(resolve, 650));
+    await flushRequests();
+
+    expect(wrapper.get('[data-testid="strategy-pine-metadata-count"]').text()).toContain("11 项元数据");
+
+    wrapper.unmount();
+  });
+
   it("allows dismissing strategy notices and errors", async () => {
     vi.stubGlobal(
       "fetch",

@@ -107,6 +107,15 @@ func (s *evaluationScope) reservedVariable(name string) (any, bool) {
 			return nil, false
 		}
 		return float64(pineBarTime(s.currentKline).UnixMilli()), true
+	case "time_close":
+		if s.currentKline == nil {
+			return nil, false
+		}
+		closeTime, ok := pineBarCloseTime(s.currentKline, s.runtimeInterval())
+		if !ok {
+			return nil, true
+		}
+		return float64(closeTime.UnixMilli()), true
 	case "hour":
 		if s.currentKline == nil {
 			return nil, false
@@ -152,11 +161,15 @@ func (s *evaluationScope) reservedVariable(name string) (any, bool) {
 			return "", true
 		}
 		return string(s.runtime.interval), true
+	case "timeframe_multiplier":
+		return float64(pineTimeframeMultiplier(s.runtimeInterval())), true
 	case "timeframe_isintraday":
 		if s.runtime == nil {
 			return false, true
 		}
 		return pineTimeframeIsIntraday(s.runtime.interval), true
+	case "timeframe_isseconds":
+		return pineTimeframeUnit(s.runtimeInterval()) == "second", true
 	case "timeframe_isminutes":
 		if s.runtime == nil {
 			return false, true

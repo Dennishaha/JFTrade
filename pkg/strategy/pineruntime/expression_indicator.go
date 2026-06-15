@@ -25,6 +25,83 @@ func evaluateSourcePeriodIndicatorExpression(functionName string, arguments []ex
 	return value, nil
 }
 
+func evaluateAdvancedSourcePeriodExpression(functionName string, arguments []exprast.Node, scope *evaluationScope) (any, error) {
+	if len(arguments) != 2 && len(arguments) != 3 {
+		return nil, fmt.Errorf("%s() requires source, length, and optional timeframe", functionName)
+	}
+	sourceText, ok := expressionLiteralArgument(arguments[0])
+	if !ok {
+		return nil, fmt.Errorf("%s() source must be a literal source", functionName)
+	}
+	source, sourceOK := indicatorbinding.ParsePriceSource(sourceText)
+	if !sourceOK {
+		return nil, fmt.Errorf("%s() source %q is not supported", functionName, sourceText)
+	}
+	period, err := positiveIntArgument(functionName, arguments[1], scope)
+	if err != nil {
+		return nil, err
+	}
+	key := fmt.Sprintf("%s:%s:%d", functionName, source, period)
+	if len(arguments) == 3 {
+		timeUnitText, literal := expressionLiteralArgument(arguments[2])
+		timeUnit, timeUnitOK := indicatorbinding.ParseIndicatorTimeUnitValue(timeUnitText)
+		if !literal || !timeUnitOK || timeUnit == "" {
+			return nil, fmt.Errorf("%s() timeframe %q is not supported", functionName, timeUnitText)
+		}
+		key += ":" + timeUnit
+	}
+	return indicatorSnapshotValue(scope, key), nil
+}
+
+func evaluateAnchoredVWAPExpression(arguments []exprast.Node, scope *evaluationScope) (any, error) {
+	if len(arguments) != 2 {
+		return nil, fmt.Errorf("anchored_vwap() requires source and anchor unit")
+	}
+	sourceText, sourceLiteral := expressionLiteralArgument(arguments[0])
+	source, sourceOK := indicatorbinding.ParsePriceSource(sourceText)
+	unit, unitLiteral := expressionLiteralArgument(arguments[1])
+	unit = strings.ToLower(strings.TrimSpace(unit))
+	if !sourceLiteral || !sourceOK || !unitLiteral || (unit != "day" && unit != "week" && unit != "month") {
+		return nil, fmt.Errorf("anchored_vwap() supports OHLCV/derived source and day/week/month anchors")
+	}
+	return indicatorSnapshotValue(scope, "anchored_vwap:"+unit+":"+source), nil
+}
+
+func evaluateBBWExpression(arguments []exprast.Node, scope *evaluationScope) (any, error) {
+	if len(arguments) != 3 && len(arguments) != 4 {
+		return nil, fmt.Errorf("bbw() requires source, length, multiplier, and optional timeframe")
+	}
+	sourceText, ok := expressionLiteralArgument(arguments[0])
+	if !ok {
+		return nil, fmt.Errorf("bbw() source must be a literal source")
+	}
+	source, sourceOK := indicatorbinding.ParsePriceSource(sourceText)
+	if !sourceOK {
+		return nil, fmt.Errorf("bbw() source %q is not supported", sourceText)
+	}
+	period, err := positiveIntArgument("bbw", arguments[1], scope)
+	if err != nil {
+		return nil, err
+	}
+	multiplier, multiplierOK, err := evaluateFloatOperand(arguments[2], scope)
+	if err != nil {
+		return nil, err
+	}
+	if !multiplierOK || multiplier <= 0 {
+		return nil, fmt.Errorf("bbw() multiplier must be positive")
+	}
+	key := fmt.Sprintf("bbw:%s:%d:%s", source, period, strconv.FormatFloat(multiplier, 'f', -1, 64))
+	if len(arguments) == 4 {
+		timeUnitText, literal := expressionLiteralArgument(arguments[3])
+		timeUnit, timeUnitOK := indicatorbinding.ParseIndicatorTimeUnitValue(timeUnitText)
+		if !literal || !timeUnitOK || timeUnit == "" {
+			return nil, fmt.Errorf("bbw() timeframe %q is not supported", timeUnitText)
+		}
+		key += ":" + timeUnit
+	}
+	return indicatorSnapshotValue(scope, key), nil
+}
+
 func evaluateMovingAverageExpression(arguments []exprast.Node, scope *evaluationScope) (any, error) {
 	if len(arguments) < 2 || len(arguments) > 4 {
 		return nil, fmt.Errorf("ma() requires type, period, optional time unit, and optional source")
@@ -378,8 +455,8 @@ func evaluateRequiredSourceIndicatorExpression(functionName string, arguments []
 }
 
 func evaluateStochExpression(arguments []exprast.Node, scope *evaluationScope) (any, error) {
-	if len(arguments) != 4 {
-		return nil, fmt.Errorf("stoch() requires source, high, low, and length arguments")
+	if len(arguments) != 4 && len(arguments) != 5 {
+		return nil, fmt.Errorf("stoch() requires source, high, low, length, and optional time unit arguments")
 	}
 	sourceIdentifier, ok := arguments[0].(*exprast.IdentifierNode)
 	if !ok {
@@ -405,6 +482,17 @@ func evaluateStochExpression(arguments []exprast.Node, scope *evaluationScope) (
 		return nil, nil
 	}
 	key := "stoch:" + source + ":" + strconv.Itoa(int(period))
+	if len(arguments) == 5 {
+		timeUnitText, ok := expressionLiteralArgument(arguments[4])
+		if !ok {
+			return nil, fmt.Errorf("stoch() time unit must be a literal")
+		}
+		timeUnit, ok := indicatorbinding.ParseIndicatorTimeUnitValue(timeUnitText)
+		if !ok {
+			return nil, fmt.Errorf("stoch() time unit %q is not supported", timeUnitText)
+		}
+		key += ":" + timeUnit
+	}
 	value, ok := scope.indicators[key]
 	if !ok || value == nil {
 		return nil, nil

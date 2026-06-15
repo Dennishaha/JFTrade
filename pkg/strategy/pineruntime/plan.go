@@ -45,6 +45,18 @@ func countLetStatements(statements []strategyir.Statement) int {
 		switch typed := statement.(type) {
 		case *strategyir.LetStmt:
 			total++
+		case *strategyir.CollectionStmt:
+			if typed.ResultName != "" {
+				total++
+			}
+		case *strategyir.TupleStmt:
+			total += len(typed.Names)
+		case *strategyir.LoopStmt:
+			total += countLetStatements(typed.Body)
+		case *strategyir.ObjectStmt:
+			if typed.ResultName != "" {
+				total++
+			}
 		case *strategyir.IfStmt:
 			total += countLetStatements(typed.Then)
 			total += countLetStatements(typed.Else)
@@ -66,6 +78,10 @@ func buildIfScopePlans(program *strategyir.Program) map[*strategyir.IfStmt]ifSco
 
 func collectIfScopePlans(statements []strategyir.Statement, plans map[*strategyir.IfStmt]ifScopePlan) {
 	for _, statement := range statements {
+		if loop, ok := statement.(*strategyir.LoopStmt); ok {
+			collectIfScopePlans(loop.Body, plans)
+			continue
+		}
 		typed, ok := statement.(*strategyir.IfStmt)
 		if !ok {
 			continue

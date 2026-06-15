@@ -24,8 +24,9 @@ type securitySourceConfig struct {
 }
 
 type sourcePeriodConfig struct {
-	source string
-	period int
+	source   string
+	period   int
+	timeUnit string
 }
 
 type dmiConfig struct {

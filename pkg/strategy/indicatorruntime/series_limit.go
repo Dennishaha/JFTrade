@@ -89,6 +89,17 @@ func calculateIndicatorSeriesLimit(requirements indicatorRequirements, intervalM
 		limit = max(limit, config.period+config.m1+config.m2+config.lookback+1)
 	}
 	for _, config := range requirements.advanced {
+		if config.kind == "anchored_vwap" {
+			periodBars := tradingSessionMinutesPerDay
+			switch config.timeUnit {
+			case "week":
+				periodBars = tradingSessionMinutesPerWeek
+			case "month":
+				periodBars = tradingSessionMinutesPerMonth
+			}
+			limit = max(limit, periodBars/max(intervalMinutes, 1)+2)
+			continue
+		}
 		lookback := config.period + config.offset + 2
 		if config.left+config.right+2 > lookback {
 			lookback = config.left + config.right + 2

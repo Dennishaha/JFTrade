@@ -67,6 +67,12 @@ func evaluateCallExpression(expression *exprast.CallNode, scope *evaluationScope
 		return evaluateSourcePeriodIndicatorExpression(functionName, expression.Arguments, scope, "hlc3", "20")
 	case "vwap":
 		return evaluateSourceIndicatorExpression(functionName, expression.Arguments, scope, "hlc3")
+	case "anchored_vwap":
+		return evaluateAnchoredVWAPExpression(expression.Arguments, scope)
+	case "cog":
+		return evaluateAdvancedSourcePeriodExpression(functionName, expression.Arguments, scope)
+	case "bbw":
+		return evaluateBBWExpression(expression.Arguments, scope)
 	case "cum":
 		return evaluateRequiredSourceIndicatorExpression(functionName, expression.Arguments, scope)
 	case "mfi":
@@ -93,7 +99,19 @@ func evaluateCallExpression(expression *exprast.CallNode, scope *evaluationScope
 		return evaluateWindowBoolExpression(functionName, expression.Arguments, scope)
 	case "tostring":
 		return evaluateToStringExpression(expression.Arguments, scope)
+	case "str_length", "str_contains", "str_pos", "str_substring", "str_replace", "str_upper", "str_lower", "str_format":
+		return evaluateStringHelperExpression(functionName, expression.Arguments, scope)
+	case "timeframe_change":
+		return evaluateTimeframeChangeExpression(expression.Arguments, scope)
+	case "timeframe_in_seconds":
+		return evaluateTimeframeInSecondsExpression(expression.Arguments, scope)
 	default:
+		if strings.HasPrefix(functionName, "collection_") {
+			return evaluateCollectionReadExpression(functionName, expression.Arguments, scope)
+		}
+		if functionName == "object_method" {
+			return evaluateObjectMethodExpression(expression.Arguments, scope)
+		}
 		return nil, fmt.Errorf("unsupported function %q", name.Value)
 	}
 }

@@ -345,8 +345,21 @@ func newServerWithFrontend(store SidecarSettingsStore, frontend *frontendServer)
 				"requirements":     buildCompiledRequirementsPayload(analysis.Requirements),
 				"features":         analysis.Features,
 			}
+			if len(analysis.Visuals) > 0 {
+				response["visuals"] = analysis.Visuals
+			}
+			if len(analysis.Declarations) > 0 {
+				response["declarations"] = analysis.Declarations
+			}
+			if len(analysis.CollectionOperations) > 0 {
+				response["collectionOperations"] = analysis.CollectionOperations
+			}
+			if len(analysis.ObjectOperations) > 0 {
+				response["objectOperations"] = analysis.ObjectOperations
+			}
 			if input.IncludeAST {
 				response["ast"] = analysis.AST
+				response["semantic"] = analysis.Semantic
 			}
 			return response, nil
 		}),

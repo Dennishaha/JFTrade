@@ -66,6 +66,8 @@ func replacePineNamespaceConstants(expression string) string {
 		"format.volume":          "\"volume\"",
 		"barmerge.gaps_off":      "\"gaps_off\"",
 		"barmerge.lookahead_off": "\"lookahead_off\"",
+		"order.ascending":        "\"ascending\"",
+		"order.descending":       "\"descending\"",
 	}
 	keys := make([]string, 0, len(replacements))
 	for key := range replacements {

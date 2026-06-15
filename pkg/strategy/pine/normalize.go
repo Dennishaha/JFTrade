@@ -19,23 +19,36 @@ func (s *parseState) normalizeExpressionDepth(expression string, depth int, stac
 	result = lowerInputCalls(result)
 	result = s.resolveValueAliases(result)
 	result = s.resolveSourceAliases(result)
+	result, err := s.lowerObjectMethodCalls(result)
+	if err != nil {
+		return result, err
+	}
+	result, err = s.lowerCollectionHistoryReadCalls(result)
+	if err != nil {
+		return result, err
+	}
+	result, err = s.lowerCollectionReadCalls(result)
+	if err != nil {
+		return result, err
+	}
 	if unsupportedCallHistoryReference(result) {
 		return result, fmt.Errorf("history references are supported only on identifiers or object fields; assign the function result first")
 	}
-	var err error
 	result, err = s.expandUDFCalls(result, depth, stack)
 	if err != nil {
 		return result, err
 	}
+	result = replaceSupportedRequestSecurity(result)
 	result = strings.ReplaceAll(result, "strategy.position_avg_price", "position_avg_price")
 	result = strings.ReplaceAll(result, "strategy.position_size", "position_size")
 	result = strings.ReplaceAll(result, "strategy.equity", "equity")
-	result = replaceSupportedRequestSecurity(result)
 	result = strings.ReplaceAll(result, "syminfo.tickerid", "syminfo_tickerid")
 	result = strings.ReplaceAll(result, "syminfo.prefix", "syminfo_prefix")
 	result = strings.ReplaceAll(result, "timeframe.period", "timeframe_period")
+	result = strings.ReplaceAll(result, "timeframe.multiplier", "timeframe_multiplier")
 	result = strings.ReplaceAll(result, "timeframe.isintraday", "timeframe_isintraday")
 	result = strings.ReplaceAll(result, "timeframe.isminutes", "timeframe_isminutes")
+	result = strings.ReplaceAll(result, "timeframe.isseconds", "timeframe_isseconds")
 	result = strings.ReplaceAll(result, "timeframe.isdaily", "timeframe_isdaily")
 	result = strings.ReplaceAll(result, "timeframe.isweekly", "timeframe_isweekly")
 	result = strings.ReplaceAll(result, "timeframe.ismonthly", "timeframe_ismonthly")
@@ -68,6 +81,8 @@ func (s *parseState) normalizeExpressionDepth(expression string, depth int, stac
 	result = replaceTAExtremaBarsFunction(result, "lowestbars")
 	result = replaceTASourceRequiredFunction(result, "cum", "cum")
 	result = replaceTAFunction(result, "wpr", "williams_r(${period})")
+	result = replaceTAAnchoredVWAP(result)
+	result = replaceTimeframeNamespace(result)
 	result = replaceTASourceOptionalFunction(result, "vwap", "vwap", "hlc3")
 	result = replaceTASourceLengthFunction(result, "mfi", "mfi", "hlc3", "14")
 	result = replaceTAStoch(result)
@@ -82,6 +97,8 @@ func (s *parseState) normalizeExpressionDepth(expression string, depth int, stac
 	result = replaceTAStateFunction(result, "kc")
 	result = replaceTAStateFunction(result, "kcw")
 	result = replaceTAStateFunction(result, "alma")
+	result = replaceTAStateFunction(result, "bbw")
+	result = replaceTAStateFunction(result, "cog")
 	result = replaceTAStateFunction(result, "cmo")
 	result = replaceTAStateFunction(result, "tsi")
 	result = replaceTAStateFunction(result, "correlation")

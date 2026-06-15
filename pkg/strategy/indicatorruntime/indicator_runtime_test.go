@@ -415,6 +415,20 @@ func TestAdvancedIndicatorCalculationsUseAuditedVectors(t *testing.T) {
 	if value, ok := calculateCMO(mixed, 5); !ok || math.Abs(value-75) > 1e-9 {
 		t.Fatalf("cmo = %v/%v, want 75/true", value, ok)
 	}
+	if value, ok := calculateBollingerBandWidth(values, 5, 2); !ok || math.Abs(value-(4*math.Sqrt(2)/3)) > 1e-9 {
+		t.Fatalf("bbw = %v/%v", value, ok)
+	}
+	if value, ok := calculateCenterOfGravity(values, 5); !ok || math.Abs(value-(-35.0/15.0)) > 1e-9 {
+		t.Fatalf("cog = %v/%v", value, ok)
+	}
+	times := []time.Time{
+		time.Date(2026, 6, 12, 16, 0, 0, 0, time.UTC),
+		time.Date(2026, 6, 15, 16, 0, 0, 0, time.UTC),
+		time.Date(2026, 6, 16, 16, 0, 0, 0, time.UTC),
+	}
+	if value, ok := calculateAnchoredVWAP([]float64{10, 20, 30}, []float64{1, 1, 2}, times, "week"); !ok || value != 80.0/3.0 {
+		t.Fatalf("anchored weekly vwap = %v/%v", value, ok)
+	}
 	if value, ok := calculateTSI([]float64{1, 2, 3, 4, 5, 6}, 2, 3); !ok || math.Abs(value-100) > 1e-9 {
 		t.Fatalf("tsi = %v/%v, want 100/true", value, ok)
 	}
@@ -1266,6 +1280,7 @@ func TestIndicatorRuntimeSnapshotIncludesIntradaySecurityTimeframes(t *testing.T
 			ctx.indicators["correlation:close:high:3:15m"];
 			ctx.indicators["percentile_nearest_rank:close:3:80:15m"];
 			ctx.indicators["swma:close:15m"];
+			ctx.indicators["stoch:close:3:15m"];
 		}
 	`, types.Interval1m, "US.AAPL")
 	if runtime == nil {
@@ -1312,6 +1327,7 @@ func TestIndicatorRuntimeSnapshotIncludesIntradaySecurityTimeframes(t *testing.T
 	assertScalarSnapshotApprox(t, snapshot, "correlation:close:high:3:15m", 1)
 	assertScalarSnapshotApprox(t, snapshot, "percentile_nearest_rank:close:3:80:15m", 60)
 	assertScalarSnapshotApprox(t, snapshot, "swma:close:15m", 37.5)
+	assertSeriesSnapshotApprox(t, snapshot, "stoch:close:3:15m", 100.0*(60-15)/(61-15), 100.0*(45-0)/(46-0))
 }
 
 func TestIndicatorRuntimeSnapshotIncludesTimeBoundIndicators(t *testing.T) {

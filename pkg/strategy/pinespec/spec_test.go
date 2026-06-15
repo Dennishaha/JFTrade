@@ -56,6 +56,9 @@ func TestGoldenExamplesAnalyzeAndPlan(t *testing.T) {
 }
 
 func TestBuildToolPayloadSectionsAndExamples(t *testing.T) {
+	if ProductVersion != "v3.0" {
+		t.Fatalf("ProductVersion = %q, want v3.0", ProductVersion)
+	}
 	payload, err := BuildToolPayload("orders", false)
 	if err != nil {
 		t.Fatalf("BuildToolPayload: %v", err)
@@ -106,23 +109,93 @@ func TestBuildToolPayloadIncludesSupportMatrix(t *testing.T) {
 	if got := payload["selectedSection"]; got != "support-matrix" {
 		t.Fatalf("selectedSection = %#v, want support-matrix", got)
 	}
-	if score, ok := payload["compatibilityScore"].(float64); !ok || score < 86.5 || score > 88.5 {
-		t.Fatalf("compatibilityScore = %#v, want about 87", payload["compatibilityScore"])
+	if score, ok := payload["compatibilityScore"].(float64); !ok || score < 98 || score > 100 {
+		t.Fatalf("compatibilityScore = %#v, want v3.0 score", payload["compatibilityScore"])
 	}
-	if payload["scoreModelVersion"] != "closed-bar-strategy-v1.5" {
+	if payload["scoreModelVersion"] != "closed-bar-strategy-v3.0" {
 		t.Fatalf("scoreModelVersion = %#v", payload["scoreModelVersion"])
 	}
 	if capabilities, ok := payload["capabilities"].([]strategypine.Capability); !ok || len(capabilities) == 0 {
 		t.Fatalf("capabilities = %#v, want registry entries", payload["capabilities"])
 	}
 	foundMainPathGate := false
+	foundCollectionTypeDiagnostics := false
+	foundV22RuntimeSet := false
+	foundV23ExpansionSet := false
+	foundV24ExpansionSet := false
+	foundV25ExpansionSet := false
+	foundV26ExpansionSet := false
+	foundV27ExpansionSet := false
+	foundV28ExpansionSet := false
+	foundV29ExpansionSet := false
+	foundV30ExpansionSet := false
 	for _, item := range matrix {
 		if item["capability"] == "JFTrade Pine v6 main path" && strings.Contains(item["notes"].(string), "sourceFormat=pine-v6") && strings.Contains(item["notes"].(string), "runtime=pine-go-plan") {
 			foundMainPathGate = true
 		}
+		if item["capability"] == "v2.0 language foundation" && strings.Contains(item["notes"].(string), "collection namespace/type argument compatibility") {
+			foundCollectionTypeDiagnostics = true
+		}
+		if item["capability"] == "v2.2 structured loops, tuple and pure object subset" && strings.Contains(item["notes"].(string), "动态 for/while") {
+			foundV22RuntimeSet = true
+		}
+		if item["capability"] == "v2.3 collection, pure object and MTF expression expansion" && strings.Contains(item["notes"].(string), "纯 collection/object") {
+			foundV23ExpansionSet = true
+		}
+		if item["capability"] == "v2.4 collection/map, MTF stoch and persistent object expansion" && strings.Contains(item["notes"].(string), "MTF ta.stoch") {
+			foundV24ExpansionSet = true
+		}
+		if item["capability"] == "v2.5 array stats, string and timeframe helpers" && strings.Contains(item["notes"].(string), "timeframe.change") {
+			foundV25ExpansionSet = true
+		}
+		if item["capability"] == "v2.6 collection iteration, history and object fields" && strings.Contains(item["notes"].(string), "array for-in") {
+			foundV26ExpansionSet = true
+		}
+		if item["capability"] == "v2.7 collection/timeframe and MTF helper expansion" && strings.Contains(item["notes"].(string), "timeframe.in_seconds") {
+			foundV27ExpansionSet = true
+		}
+		if item["capability"] == "v2.8 object history, method chain and export metadata" && strings.Contains(item["notes"].(string), "method chain") {
+			foundV28ExpansionSet = true
+		}
+		if item["capability"] == "v2.9 object history method receiver and MTF diagnostics" && strings.Contains(item["notes"].(string), "box[1].score") {
+			foundV29ExpansionSet = true
+		}
+		if item["capability"] == "v3.0 stable semantic declarations and varip policy" && strings.Contains(item["notes"].(string), "unsupportedReason") {
+			foundV30ExpansionSet = true
+		}
 	}
 	if !foundMainPathGate {
 		t.Fatalf("support matrix missing v1.0 Pine main path gate: %#v", matrix)
+	}
+	if !foundCollectionTypeDiagnostics {
+		t.Fatalf("support matrix missing v2.0 collection type diagnostics: %#v", matrix)
+	}
+	if !foundV22RuntimeSet {
+		t.Fatalf("support matrix missing v2.2 runtime set: %#v", matrix)
+	}
+	if !foundV23ExpansionSet {
+		t.Fatalf("support matrix missing v2.3 expansion set: %#v", matrix)
+	}
+	if !foundV24ExpansionSet {
+		t.Fatalf("support matrix missing v2.4 expansion set: %#v", matrix)
+	}
+	if !foundV25ExpansionSet {
+		t.Fatalf("support matrix missing v2.5 expansion set: %#v", matrix)
+	}
+	if !foundV26ExpansionSet {
+		t.Fatalf("support matrix missing v2.6 expansion set: %#v", matrix)
+	}
+	if !foundV27ExpansionSet {
+		t.Fatalf("support matrix missing v2.7 expansion set: %#v", matrix)
+	}
+	if !foundV28ExpansionSet {
+		t.Fatalf("support matrix missing v2.8 expansion set: %#v", matrix)
+	}
+	if !foundV29ExpansionSet {
+		t.Fatalf("support matrix missing v2.9 expansion set: %#v", matrix)
+	}
+	if !foundV30ExpansionSet {
+		t.Fatalf("support matrix missing v3.0 expansion set: %#v", matrix)
 	}
 	if _, ok := payload["compatibilityLayers"]; ok {
 		t.Fatalf("compatibilityLayers should not be present in v1.0 payload: %#v", payload["compatibilityLayers"])
@@ -142,7 +215,7 @@ func TestSkillResourcesContainSpecAndExamples(t *testing.T) {
 	if !strings.Contains(examples, "### 最小可保存草稿") {
 		t.Fatalf("examples resource missing expected example heading: %q", examples)
 	}
-	if !strings.Contains(examples, "## v1.5 黄金脚本") || !strings.Contains(examples, "### UDF 与静态 for") || !strings.Contains(examples, "### v1.4 MTF 纯表达式") || !strings.Contains(examples, "### v1.5 MTF common TA") {
+	if !strings.Contains(examples, "## v1.7 黄金脚本") || !strings.Contains(examples, "### UDF 与静态 for") || !strings.Contains(examples, "### v1.4 MTF 纯表达式") || !strings.Contains(examples, "### v1.5 MTF common TA") || !strings.Contains(examples, "### v1.6 MTF tuple 白名单") || !strings.Contains(examples, "### v1.7 Semantic 过渡") {
 		t.Fatalf("examples resource missing golden scripts: %q", examples)
 	}
 }

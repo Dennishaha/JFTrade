@@ -65,7 +65,9 @@ type strategyRuntime struct {
 	previousHigh          float64
 	previousLow           float64
 	previousVolume        float64
+	previousBarTime       time.Time
 	hasPreviousClose      bool
+	hasPreviousBarTime    bool
 	barIndex              int
 	positionCache         cachedPositionSnapshot
 	entrySubmitCount      map[string]int

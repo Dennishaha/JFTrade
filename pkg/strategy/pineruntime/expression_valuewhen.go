@@ -74,6 +74,33 @@ func snapshotExpressionValue(value any) any {
 			copied[key] = snapshotExpressionValue(value)
 		}
 		return copied
+	case *pineArray:
+		if typed == nil {
+			return nil
+		}
+		values := make([]any, len(typed.values))
+		for index, value := range typed.values {
+			values[index] = snapshotExpressionValue(value)
+		}
+		return &pineArray{elementType: typed.elementType, values: values}
+	case *pineMap:
+		if typed == nil {
+			return nil
+		}
+		values := make(map[any]any, len(typed.values))
+		for key, value := range typed.values {
+			values[snapshotExpressionValue(key)] = snapshotExpressionValue(value)
+		}
+		return &pineMap{keyType: typed.keyType, valueType: typed.valueType, values: values}
+	case *pineMatrix:
+		if typed == nil {
+			return nil
+		}
+		values := make([]any, len(typed.values))
+		for index, value := range typed.values {
+			values[index] = snapshotExpressionValue(value)
+		}
+		return &pineMatrix{elementType: typed.elementType, rows: typed.rows, columns: typed.columns, values: values}
 	default:
 		return value
 	}

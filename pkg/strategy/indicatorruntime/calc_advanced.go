@@ -37,6 +37,10 @@ func (r *indicatorRuntime) pushOBVStates(openValue, high, low, closeValue, volum
 
 func (r *indicatorRuntime) advancedIndicatorSnapshot(config advancedIndicatorConfig, cache *snapshotSeriesCache) any {
 	values := r.seriesForSource(config.source)
+	if config.kind == "anchored_vwap" {
+		value, ok := calculateAnchoredVWAP(values, r.volumes, r.endTimes, config.timeUnit)
+		return cache.getScalarSnapshot(config.key, value, ok)
+	}
 	if config.timeUnit != "" {
 		aggregated, _, ok := r.fixedTimeframeSeries(config.timeUnit, config.source)
 		if !ok {
@@ -62,6 +66,12 @@ func (r *indicatorRuntime) advancedIndicatorSnapshot(config advancedIndicatorCon
 		return nil
 	case "bollinger":
 		return calculateBollingerSnapshot(values, bollingerConfig{period: config.period, multiplier: config.multiplier})
+	case "bbw":
+		value, ok := calculateBollingerBandWidth(values, config.period, config.multiplier)
+		return cache.getScalarSnapshot(config.key, value, ok)
+	case "cog":
+		value, ok := calculateCenterOfGravity(values, config.period)
+		return cache.getScalarSnapshot(config.key, value, ok)
 	case "supertrend":
 		highs, lows, closes, ok := r.fixedTimeframeOHLC(config.timeUnit)
 		if !ok {
@@ -135,6 +145,45 @@ func (r *indicatorRuntime) advancedIndicatorSnapshot(config advancedIndicatorCon
 	default:
 		return nil
 	}
+}
+
+func calculateBollingerBandWidth(values []float64, period int, multiplier float64) (float64, bool) {
+	if period <= 0 || multiplier <= 0 || len(values) < period {
+		return 0, false
+	}
+	window := values[len(values)-period:]
+	basis := 0.0
+	for _, value := range window {
+		basis += value
+	}
+	basis /= float64(period)
+	if basis == 0 {
+		return 0, false
+	}
+	variance := 0.0
+	for _, value := range window {
+		delta := value - basis
+		variance += delta * delta
+	}
+	deviation := math.Sqrt(variance / float64(period))
+	return 2 * multiplier * deviation / basis, true
+}
+
+func calculateCenterOfGravity(values []float64, period int) (float64, bool) {
+	if period <= 0 || len(values) < period {
+		return 0, false
+	}
+	window := values[len(values)-period:]
+	numerator, denominator := 0.0, 0.0
+	for index := 0; index < period; index++ {
+		value := window[period-1-index]
+		numerator += value * float64(index+1)
+		denominator += value
+	}
+	if denominator == 0 {
+		return 0, false
+	}
+	return -numerator / denominator, true
 }
 
 func (r *indicatorRuntime) fixedTimeframeOHLC(timeUnit string) ([]float64, []float64, []float64, bool) {

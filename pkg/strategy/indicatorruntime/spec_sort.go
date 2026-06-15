@@ -50,6 +50,9 @@ func sortedSourcePeriodConfigs(values map[sourcePeriodConfig]struct{}) []sourceP
 		if result[left].period != result[right].period {
 			return result[left].period < result[right].period
 		}
+		if result[left].timeUnit != result[right].timeUnit {
+			return normalizeIndicatorTimeUnit(result[left].timeUnit) < normalizeIndicatorTimeUnit(result[right].timeUnit)
+		}
 		return normalizeSourceOrClose(result[left].source) < normalizeSourceOrClose(result[right].source)
 	})
 	return result

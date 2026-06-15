@@ -88,6 +88,75 @@ func planStatements(
 			for _, requirement := range requirements {
 				indicatorByKey[requirement.Key] = requirement
 			}
+		case *CollectionStmt:
+			for _, expression := range typed.Arguments {
+				if expressionRequiresPosition(expression) {
+					result.RequiresPosition = true
+				}
+				if expressionRequiresTotalAccountValue(expression) {
+					result.RequiresTotalAccountValue = true
+				}
+				requirements, err := collectExpressionRequirements(typed.Range.StartLine, expression)
+				if err != nil {
+					return err
+				}
+				for _, requirement := range requirements {
+					indicatorByKey[requirement.Key] = requirement
+				}
+			}
+		case *TupleStmt:
+			for _, expression := range typed.Expressions {
+				if expressionRequiresPosition(expression) {
+					result.RequiresPosition = true
+				}
+				if expressionRequiresTotalAccountValue(expression) {
+					result.RequiresTotalAccountValue = true
+				}
+				requirements, err := collectExpressionRequirements(typed.Range.StartLine, expression)
+				if err != nil {
+					return err
+				}
+				for _, requirement := range requirements {
+					indicatorByKey[requirement.Key] = requirement
+				}
+			}
+		case *LoopStmt:
+			for _, expression := range []string{typed.StartExpression, typed.EndExpression, typed.StepExpression, typed.WhileCondition} {
+				if expressionRequiresPosition(expression) {
+					result.RequiresPosition = true
+				}
+				if expressionRequiresTotalAccountValue(expression) {
+					result.RequiresTotalAccountValue = true
+				}
+				requirements, err := collectExpressionRequirements(typed.Range.StartLine, expression)
+				if err != nil {
+					return err
+				}
+				for _, requirement := range requirements {
+					indicatorByKey[requirement.Key] = requirement
+				}
+			}
+			if err := planStatements(typed.Body, bindings, indicatorByKey, result); err != nil {
+				return err
+			}
+		case *BreakStmt, *ContinueStmt:
+			continue
+		case *ObjectStmt:
+			for _, expression := range typed.Arguments {
+				if expressionRequiresPosition(expression) {
+					result.RequiresPosition = true
+				}
+				if expressionRequiresTotalAccountValue(expression) {
+					result.RequiresTotalAccountValue = true
+				}
+				requirements, err := collectExpressionRequirements(typed.Range.StartLine, expression)
+				if err != nil {
+					return err
+				}
+				for _, requirement := range requirements {
+					indicatorByKey[requirement.Key] = requirement
+				}
+			}
 		case *IfStmt:
 			if expressionRequiresPosition(typed.Condition) {
 				result.RequiresPosition = true

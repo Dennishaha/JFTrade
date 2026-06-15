@@ -249,7 +249,7 @@ func TestEvaluateExpressionSupportsDerivedSourcesEnvironmentTimestampAndTR(t *te
 		t.Fatalf("derived source expression = %#v, want true", value)
 	}
 
-	value, err = evaluateExpression("syminfo_tickerid == 'US.AAPL' and syminfo_prefix == 'US' and timeframe_period == '1m' and timeframe_isintraday and timeframe_isminutes and !timeframe_isdaily", scope)
+	value, err = evaluateExpression("syminfo_tickerid == 'US.AAPL' and syminfo_prefix == 'US' and timeframe_period == '1m' and timeframe_multiplier == 1 and timeframe_isintraday and timeframe_isminutes and !timeframe_isseconds and !timeframe_isdaily", scope)
 	if err != nil {
 		t.Fatalf("environment expression error = %v", err)
 	}
@@ -263,6 +263,44 @@ func TestEvaluateExpressionSupportsDerivedSourcesEnvironmentTimestampAndTR(t *te
 	}
 	if value != true {
 		t.Fatalf("timestamp/TR expression = %#v, want true", value)
+	}
+
+	value, err = evaluateExpression("time_close == 1779960659000", scope)
+	if err != nil {
+		t.Fatalf("time_close expression error = %v", err)
+	}
+	if value != true {
+		t.Fatalf("time_close expression = %#v, want true", value)
+	}
+
+	runtime.previousBarTime = time.Date(2026, time.May, 28, 9, 29, 0, 0, time.UTC)
+	runtime.hasPreviousBarTime = true
+	value, err = evaluateExpression("timeframe_change('15')", scope)
+	if err != nil {
+		t.Fatalf("timeframe_change expression error = %v", err)
+	}
+	if value != true {
+		t.Fatalf("timeframe_change expression = %#v, want true", value)
+	}
+	runtime.previousBarTime = time.Date(2026, time.May, 28, 9, 30, 0, 0, time.UTC)
+	value, err = evaluateExpression("!timeframe_change('15')", scope)
+	if err != nil || value != true {
+		t.Fatalf("same bucket timeframe_change expression = %#v, err %v, want true", value, err)
+	}
+	value, err = evaluateExpression("timeframe_in_seconds() == 60 and timeframe_in_seconds('15') == 900 and timeframe_in_seconds('2D') == 172800", scope)
+	if err != nil {
+		t.Fatalf("timeframe_in_seconds expression error = %v", err)
+	}
+	if value != true {
+		t.Fatalf("timeframe_in_seconds expression = %#v, want true", value)
+	}
+
+	value, err = evaluateExpression("str_length('Alpha') == 5 and str_contains('Alpha', 'ph') and str_pos('Alpha', 'ha') == 3 and str_substring('Alpha', 1, 4) == 'lph' and str_replace('A-B', '-', '+') == 'A+B' and str_upper('ab') == 'AB' and str_lower('CD') == 'cd' and str_format('x={0}, y={1}', 3, true) == 'x=3, y=true'", scope)
+	if err != nil {
+		t.Fatalf("string helper expression error = %v", err)
+	}
+	if value != true {
+		t.Fatalf("string helper expression = %#v, want true", value)
 	}
 
 	scope.barIndex = 0

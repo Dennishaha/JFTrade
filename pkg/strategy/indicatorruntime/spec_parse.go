@@ -82,7 +82,19 @@ func parseIndicatorRequirementKeys(keys []string, strict bool) (indicatorRequire
 		}
 
 		switch parts[0] {
-		case "cmo", "dev", "median", "percentrank":
+		case "anchored_vwap":
+			if len(parts) == 3 {
+				unit := strings.ToLower(strings.TrimSpace(parts[1]))
+				source, sourceOK := parseOHLCVSource(parts[2])
+				if sourceOK && (unit == "day" || unit == "week" || unit == "month") {
+					advancedSet[advancedIndicatorConfig{key: key, kind: "anchored_vwap", source: source, timeUnit: unit}] = struct{}{}
+					continue
+				}
+			}
+			if strict {
+				return indicatorRequirements{}, fmt.Errorf("invalid anchored_vwap key: %s", key)
+			}
+		case "cog", "cmo", "dev", "median", "percentrank":
 			if len(parts) == 3 || len(parts) == 4 {
 				source, sourceOK := parseOHLCVSource(parts[1])
 				period, periodOK := parsePositiveInt(parts[2])
@@ -94,6 +106,20 @@ func parseIndicatorRequirementKeys(keys []string, strict bool) (indicatorRequire
 			}
 			if strict {
 				return indicatorRequirements{}, fmt.Errorf("invalid %s key: %s", parts[0], key)
+			}
+		case "bbw":
+			if len(parts) == 4 || len(parts) == 5 {
+				source, sourceOK := parseOHLCVSource(parts[1])
+				period, periodOK := parsePositiveInt(parts[2])
+				multiplier, multiplierErr := strconv.ParseFloat(parts[3], 64)
+				timeUnit, timeUnitOK := parseOptionalAdvancedTimeUnit(parts, 4)
+				if sourceOK && periodOK && multiplierErr == nil && multiplier > 0 && timeUnitOK {
+					advancedSet[advancedIndicatorConfig{key: key, kind: "bbw", source: source, timeUnit: timeUnit, period: period, multiplier: multiplier}] = struct{}{}
+					continue
+				}
+			}
+			if strict {
+				return indicatorRequirements{}, fmt.Errorf("invalid bbw key: %s", key)
 			}
 		case "tsi":
 			if len(parts) == 4 || len(parts) == 5 {
@@ -487,7 +513,7 @@ func parseIndicatorRequirementKeys(keys []string, strict bool) (indicatorRequire
 				return indicatorRequirements{}, fmt.Errorf("invalid rolling window key: %s", key)
 			}
 		case "stoch":
-			if len(parts) != 3 {
+			if len(parts) != 3 && len(parts) != 4 {
 				if strict {
 					return indicatorRequirements{}, fmt.Errorf("invalid stoch key: %s", key)
 				}
@@ -496,8 +522,15 @@ func parseIndicatorRequirementKeys(keys []string, strict bool) (indicatorRequire
 			source, sourceOK := parseOHLCVSource(parts[1])
 			period, periodOK := parsePositiveInt(parts[2])
 			if sourceOK && source != "volume" && periodOK {
-				stochSet[sourcePeriodConfig{source: source, period: period}] = struct{}{}
-				continue
+				timeUnit := ""
+				timeUnitOK := true
+				if len(parts) == 4 {
+					timeUnit, timeUnitOK = parseIndicatorTimeUnit(parts[3])
+				}
+				if timeUnitOK {
+					stochSet[sourcePeriodConfig{source: source, period: period, timeUnit: timeUnit}] = struct{}{}
+					continue
+				}
 			}
 			if strict {
 				return indicatorRequirements{}, fmt.Errorf("invalid stoch key: %s", key)
@@ -943,6 +976,22 @@ func normalizeMovingAverageType(value string) string {
 		return strings.ToUpper(strings.TrimSpace(value))
 	default:
 		return "MA"
+	}
+}
+
+func parseIndicatorTimeUnit(value string) (string, bool) {
+	normalized := normalizeIndicatorTimeUnit(value)
+	if normalized == "" {
+		return "", false
+	}
+	if _, ok := indicatorTimeUnitMinutes(normalized); ok {
+		return normalized, true
+	}
+	switch normalized {
+	case "day", "week", "month":
+		return normalized, true
+	default:
+		return "", false
 	}
 }
 

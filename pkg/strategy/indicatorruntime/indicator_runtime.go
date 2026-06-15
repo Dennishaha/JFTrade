@@ -606,8 +606,8 @@ func (r *indicatorRuntime) snapshot() map[string]any {
 	}
 	for _, config := range r.requirements.stoch {
 		key := r.snapshotKeys.stoch[config]
-		if state := r.stochStates[config]; state != nil {
-			result[key] = cache.getSeriesSnapshot(key, state.current, state.previous, state.hasCurrent, state.hasPrevious)
+		if snapshot := r.stochSnapshot(config, cache); snapshot != nil {
+			result[key] = snapshot
 		}
 	}
 	for _, period := range r.requirements.cci {

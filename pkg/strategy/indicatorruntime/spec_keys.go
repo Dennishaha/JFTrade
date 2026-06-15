@@ -104,7 +104,11 @@ func stochIndicatorKey(config sourcePeriodConfig) string {
 	if source == "" {
 		source = "close"
 	}
-	return "stoch:" + source + ":" + strconv.Itoa(config.period)
+	key := "stoch:" + source + ":" + strconv.Itoa(config.period)
+	if timeUnit := normalizeIndicatorTimeUnit(config.timeUnit); timeUnit != "" {
+		key += ":" + timeUnit
+	}
+	return key
 }
 
 func cciIndicatorKey(period int) string {

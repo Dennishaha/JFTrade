@@ -23,6 +23,7 @@ const props = defineProps<{
   diagnosticMarkers?: MonacoDiagnosticMarker[];
   extraLibs: MonacoExtraLibDefinition[];
   hoverItems: MonacoHoverDefinition[];
+  pineMetadataCount?: number;
   supportFeatureCount?: number;
 }>();
 
@@ -53,8 +54,12 @@ defineExpose({
 <template>
   <div class="strategy-stage__panel-head strategy-stage__drag-handle" @mousedown="emit('drag-start', $event)">
     <div class="strategy-stage__section-title">Pine 策略工作台</div>
-    <div v-if="(props.supportFeatureCount ?? 0) > 0" class="strategy-stage__section-meta">
-      Pine v6 子集 · {{ props.supportFeatureCount }} 项能力
+    <div v-if="(props.supportFeatureCount ?? 0) > 0 || (props.pineMetadataCount ?? 0) > 0" class="strategy-stage__section-meta">
+      Pine v6 子集
+      <span v-if="(props.supportFeatureCount ?? 0) > 0"> · {{ props.supportFeatureCount }} 项能力</span>
+      <span v-if="(props.pineMetadataCount ?? 0) > 0" data-testid="strategy-pine-metadata-count">
+        · {{ props.pineMetadataCount }} 项元数据
+      </span>
     </div>
   </div>
 

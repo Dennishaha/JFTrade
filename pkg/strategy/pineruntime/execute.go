@@ -1,10 +1,14 @@
 package pineruntime
 
 import (
+	"errors"
 	"fmt"
 
 	strategyir "github.com/jftrade/jftrade-main/pkg/strategy/ir"
 )
+
+var errLoopBreak = errors.New("pine loop break")
+var errLoopContinue = errors.New("pine loop continue")
 
 func (r *strategyRuntime) executeStatements(statements []strategyir.Statement, scope *evaluationScope) (bool, error) {
 	for _, statement := range statements {
@@ -13,6 +17,27 @@ func (r *strategyRuntime) executeStatements(statements []strategyir.Statement, s
 			if err := r.executeLetStatement(typed, scope); err != nil {
 				return false, err
 			}
+		case *strategyir.CollectionStmt:
+			if err := r.executeCollectionStatement(typed, scope); err != nil {
+				return false, err
+			}
+		case *strategyir.TupleStmt:
+			if err := r.executeTupleStatement(typed, scope); err != nil {
+				return false, err
+			}
+		case *strategyir.LoopStmt:
+			stopped, err := r.executeLoopStatement(typed, scope)
+			if err != nil || stopped {
+				return stopped, err
+			}
+		case *strategyir.ObjectStmt:
+			if err := r.executeObjectStatement(typed, scope); err != nil {
+				return false, err
+			}
+		case *strategyir.BreakStmt:
+			return false, errLoopBreak
+		case *strategyir.ContinueStmt:
+			return false, errLoopContinue
 		case *strategyir.IfStmt:
 			condition, err := evaluateBoolExpression(typed.Condition, scope)
 			if err != nil {

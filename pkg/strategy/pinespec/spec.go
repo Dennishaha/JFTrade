@@ -11,7 +11,7 @@ import (
 
 const (
 	PineVersion         = "v6"
-	ProductVersion      = "v1.5"
+	ProductVersion      = "v3.0"
 	SourceFormat        = strategydefinition.SourceFormatPineV6
 	Runtime             = strategypineruntime.ID
 	ToolName            = "strategy.pine_spec"
@@ -39,7 +39,7 @@ var sections = []Section{
 	{ID: "expressions", Title: "表达式", Summary: "支持的 Pine 表达式、OHLCV 序列和函数映射。"},
 	{ID: "indicators", Title: "指标", Summary: "当前 compiler、planner 与 runtime 能识别的 ta.* 指标。"},
 	{ID: "orders", Title: "下单", Summary: "strategy.entry/strategy.close 到 JFTrade 订单 IR 的映射。"},
-	{ID: "support-matrix", Title: "支持矩阵", Summary: "按 parser、planner、runtime、JFTrade 集成和前端锁定 v1.5 Pine v6 主路径能力。"},
+	{ID: "support-matrix", Title: "支持矩阵", Summary: "按 parser、semantic、planner、runtime、JFTrade 集成和前端锁定 v3.0 Pine v6 主路径、collection/map/matrix、tuple、动态循环、纯 UDT/method、MTF stoch、array stats、字符串/timeframe helper、object history/method receiver 与稳定 semantic metadata 能力。"},
 	{ID: "unsupported", Title: "不支持项", Summary: "已解析但不能在 JFTrade 中执行的 Pine v6 行为。"},
 	{ID: "examples", Title: "示例", Summary: "当前实现下可以成功 parse、lower 并完成 requirements planning 的 Pine v6 脚本。"},
 }
@@ -392,6 +392,51 @@ for j = 1 to 4
 if score > 0
     strategy.entry("Long", strategy.long, qty=1)`,
 	},
+	{
+		ID:          "golden-v16-mtf-tuple-whitelist",
+		Title:       "v1.6 MTF tuple 白名单",
+		Description: "覆盖 request.security 的 source、纯表达式与常见多返回 TA tuple 白名单。",
+		Script: `//@version=6
+strategy("Golden v1.6 MTF Tuple", overlay=true)
+
+[mtfClose, mtfFast, mtfUp] = request.security(syminfo.tickerid, "15", [close, ta.ema(hlc3, 5), close > ta.sma(close, 3)])
+[macdLine, signalLine, histLine] = request.security(syminfo.tickerid, "15", ta.macd(close, 12, 26, 9))
+[basis, upper, lower] = request.security(syminfo.tickerid, "15", ta.bb(close, 20, 2))
+if mtfClose > mtfFast and mtfUp and histLine > signalLine and close < lower
+    strategy.entry("Long", strategy.long, qty=1)`,
+		RequirementKeys: []string{
+			"security_source:15m:close",
+			"ma:EMA:5:15m:hlc3",
+			"ma:SMA:3:15m",
+			"macd:close:12:26:9:15m",
+			"bollinger:close:20:2:15m",
+		},
+	},
+	{
+		ID:          "golden-v17-semantic-transition",
+		Title:       "v1.7 Semantic 过渡",
+		Description: "覆盖 semantic summary 可识别的 input、series symbol、MTF tuple、UDF 与函数签名路径。",
+		Script: `//@version=6
+strategy("Golden v1.7 Semantic", overlay=true)
+
+len = input.int(8, "Length")
+score(src) =>
+    base = ta.sma(src, 8)
+    if base > 0
+        src / base
+    else
+        1
+fast = ta.ema(close, len)
+[mtfClose, mtfFast] = request.security(syminfo.tickerid, "15", [close, ta.ema(close, 5)])
+if score(close) > 0 and mtfClose > mtfFast and fast > fast[1]
+    strategy.entry("Long", strategy.long, qty=1)`,
+		RequirementKeys: []string{
+			"ma:SMA:8",
+			"ma:EMA:8",
+			"security_source:15m:close",
+			"ma:EMA:5:15m",
+		},
+	},
 }
 
 func Sections() []Section {
@@ -541,7 +586,7 @@ func BuildSpecMarkdown() string {
 	writeMarkdownSection(&builder, "下单", sectionDetails("orders"))
 	writeMarkdownList(&builder, "数量与下单模式", flattenNamedItems(orderModes()))
 	writeMarkdownSection(&builder, "支持矩阵", sectionDetails("support-matrix"))
-	writeMarkdownList(&builder, "v1.5 主路径能力覆盖", flattenMatrixItems(supportMatrix()))
+	writeMarkdownList(&builder, "v3.0 主路径、collection/map/matrix、tuple、动态循环、纯 UDT/method、MTF stoch、array stats、字符串/timeframe helper、object history method receiver 与稳定 semantic metadata 能力覆盖", flattenMatrixItems(supportMatrix()))
 	writeMarkdownSection(&builder, "不支持项", sectionDetails("unsupported"))
 	writeMarkdownList(&builder, "明确不支持的写法", unsupportedPatterns())
 	builder.WriteString("## 最小骨架\n\n```text\n")
@@ -565,7 +610,7 @@ func BuildExamplesMarkdown() string {
 		builder.WriteString(example.Script)
 		builder.WriteString("\n```\n\n")
 	}
-	builder.WriteString("## v1.5 黄金脚本\n\n")
+	builder.WriteString("## v1.7 黄金脚本\n\n")
 	for _, example := range goldenExamples {
 		builder.WriteString("### ")
 		builder.WriteString(example.Title)
@@ -611,7 +656,8 @@ func supportedStatements() []string {
 		"<condition> ? <trueExpr> : <falseExpr>",
 		"switch 表达式与单行语句 arm 会在编译期 lower 为 ifelse/IfStmt",
 		"多语句 UDF 支持局部赋值和最终 if/else 返回；仍禁止递归、嵌套定义和 method/type",
-		"静态 for 支持编译期展开；无条件 break/continue 在 v1.5 子集中可用",
+		"静态 for 支持编译期展开；无条件 break/continue 在 v1.5+ 子集中可用",
+		"[a, b, c, d] = request.security(syminfo.tickerid, \"15\", [open, high, low, close]) 支持 v2.2 静态同标的通用 tuple lowering",
 		"[macdLine, signalLine, histLine] = ta.macd(close, fast, slow, signal)",
 		"[plusDI, minusDI, adx] = ta.dmi(diLength, adxSmoothing)",
 		"[supertrendLine, direction] = ta.supertrend(factor, atrPeriod)",
@@ -676,8 +722,10 @@ func indicatorFunctions() []map[string]any {
 		{"name": "ta.rising", "signature": "ta.rising(source, length)", "notes": "返回 bool；source 支持 open/high/low/close/volume/hl2/hlc3/ohlc4。"},
 		{"name": "ta.falling", "signature": "ta.falling(source, length)", "notes": "返回 bool；source 支持 open/high/low/close/volume/hl2/hlc3/ohlc4。"},
 		{"name": "ta.bb", "signature": "[basis, upper, lower] = ta.bb(close, length, mult)", "notes": "lower 到 JFTrade Bollinger 指标。"},
+		{"name": "ta.bbw", "signature": "ta.bbw(source, length, mult)", "notes": "Bollinger Band Width，支持静态同标的 request.security。"},
+		{"name": "ta.cog", "signature": "ta.cog(source, length)", "notes": "Center of Gravity，支持静态同标的 request.security。"},
 		{"name": "ta.wpr", "signature": "ta.wpr(length)", "notes": "lower 到 JFTrade Williams %R 指标。"},
-		{"name": "ta.vwap", "signature": "ta.vwap(source?)", "notes": "按交易日累计 VWAP；无参数默认 hlc3。"},
+		{"name": "ta.vwap", "signature": "ta.vwap(source?) / ta.vwap(source, timeframe.change(\"D\"|\"W\"|\"M\"))", "notes": "支持交易日 VWAP，以及闭盘日/周/月锚定重置；无参数默认 hlc3。"},
 		{"name": "ta.mfi", "signature": "ta.mfi(source, length)", "notes": "基于 source 与 volume 的 Money Flow Index。"},
 		{"name": "ta.dmi/ta.adx", "signature": "[plusDI, minusDI, adx] = ta.dmi(diLength, adxSmoothing) / ta.adx(length)", "notes": "支持 DMI 三元组和常见 ta.adx(length) 写法。"},
 		{"name": "ta.supertrend", "signature": "[line, direction] = ta.supertrend(factor, atrPeriod)", "notes": "支持三元组式绑定中的 line/direction。"},
@@ -737,26 +785,40 @@ func supportMatrix() []map[string]any {
 	return []map[string]any{
 		{"capability": "JFTrade Pine v6 main path", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": true, "notes": "新建、保存、预览、回测、实例化和启动统一使用 sourceFormat=pine-v6 + runtime=pine-go-plan；旧 source/runtime 与旧 visual model 明确拒绝。"},
 		{"capability": "Backtest capital and trading costs", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": true, "notes": "API initialBalance > Pine initial_capital > 系统默认；支持 percent/cash commission 与按最小价格单位计算的 slippage ticks，仅作用于回测。"},
-		{"capability": "Pine metadata and diagnostics", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": true, "notes": "统一通过 AnalyzeScript、strategy.pine_spec、编辑器提示和结构化 diagnostics 暴露。"},
+		{"capability": "Pine metadata and diagnostics", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": true, "notes": "统一通过 AnalyzeScript、strategy.pine_spec、编辑器提示、结构化 diagnostics、visuals/declarations/collectionOperations/objectOperations metadata 和 semantic summary 暴露。"},
 		{"capability": "Source-aware indicators", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": true, "notes": "MA/RSI/stdev/variance/CCI/rolling/source-aware MTF 使用稳定 key；close 保留 legacy key。"},
 		{"capability": "Rolling and stateful indicators", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": false, "notes": "highest/lowest/change/mom/roc/rising/falling/sum、barssince、valuewhen 已可执行；前端只覆盖常用子集。"},
-		{"capability": "MTF request.security subset", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": true, "notes": "同标的 source/source[n]/source-aware MA、静态 intraday 高级指标、v1.4 纯表达式，以及 v1.5 common TA pure-expression 组合；禁止 lookahead_on/gaps_on、动态 symbol/timeframe、通用 tuple 和 side effect。"},
+		{"capability": "MTF request.security subset", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": true, "notes": "同标的 source/source[n]/source-aware MA、静态 intraday 高级指标、v1.4 纯表达式、v1.5 common TA pure-expression、v1.6 tuple 白名单、v2.2 2-8 元纯表达式 tuple、v2.3 纯 collection/object 表达式，以及 v2.4 MTF stoch；禁止 lookahead_on/gaps_on、动态 symbol/timeframe、side effect 和 nested request。"},
 		{"capability": "Orders and exits", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": true, "notes": "entry/order/close/close_all/exit/cancel 的可执行子集已贯通；entry 反手与 allow_entry_in 已支持，完整 broker emulator 不属于当前目标。"},
-		{"capability": "UDF, switch and static for", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": false, "notes": "表达式/受控多语句 UDF、switch 与静态整数 for 编译期展开；动态循环、递归 UDF 诊断失败。"},
+		{"capability": "UDF, switch and static for", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": false, "notes": "表达式/受控多语句 UDF、switch 与静态整数 for 编译期展开；静态 for 内条件 break/continue 会回退到 bounded runtime loop；递归 UDF 诊断失败。"},
 		{"capability": "v1.2 migration indicators and switch", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": true, "notes": "linreg/OBV/pivot/Keltner/ALMA、switch lowering 与受控多语句 UDF 已贯通。"},
 		{"capability": "v1.3 migration indicators and entry risk", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": true, "notes": "CMO/TSI/correlation/dev/median/percentile/percentrank/SWMA、math.avg/round_to_mintick、entry 反手和 allow_entry_in 已贯通。"},
 		{"capability": "v1.4 practical migration set", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": true, "notes": "窗口/动量、barssince/valuewhen、ta.tr(true|false)、request.security 纯表达式和 80+ 迁移语料门禁已纳入。"},
 		{"capability": "v1.5 practical migration set", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": true, "notes": "request.security common TA pure-expression、交叉/状态组合、静态 for 无条件 break/continue 和 100+ 迁移语料门禁已纳入。"},
+		{"capability": "v1.6 practical migration set", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": true, "notes": "request.security tuple 白名单、MTF 多返回指标 tuple assignment 和 130+ 迁移语料门禁已纳入。"},
+		{"capability": "v1.7 semantic transition", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": true, "notes": "AST 驱动 semantic summary、函数签名诊断、tuple 解构摘要和 170+ 迁移语料门禁已纳入。"},
+		{"capability": "v2.0 language foundation", "parser": true, "planner": false, "runtime": false, "jftrade": true, "frontend": true, "notes": "array/map/matrix typed declaration、constructor、namespace/method-style operation、type/method/import alias/library、UDT object operation 和视觉 API 已进入 parse/semantic/top-level metadata 模型；collection namespace/type argument compatibility、visual kind/variable/target/title、type fields、method receiver/parameters/defaults、duplicate declaration/receiver/overload diagnostics、object constructor/method signatures、object arity diagnostics 与 import version/alias 可分析，非执行表面返回明确诊断。"},
+		{"capability": "v2.1 executable collection and TA set", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": true, "notes": "array/map/matrix 常用 constructor/read/mutation 支持跨 K 线引用状态；ta.bbw、ta.cog、日/周/月锚定 VWAP 与 AST 校验的静态同标的 request.security 纯表达式已进入 250+ 语料门禁。"},
+		{"capability": "v2.2 structured loops, tuple and pure object subset", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": true, "notes": "结构化 AST lowering 消费缩进树；2-8 元 tuple literal/destructure、静态同标的 request.security tuple、动态 for/while/break/continue、纯 UDT constructor 与单表达式 method 已进入 420+ 语料门禁。"},
+		{"capability": "v2.3 collection, pure object and MTF expression expansion", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": true, "notes": "array copy/slice/reverse/fill/includes/indexof/min/max/avg/sum、matrix fill/copy/reshape/add/remove、命名 constructor/method 参数、多语句纯 method、局部 object 字段重赋值，以及 request.security 纯 collection/object 表达式已进入 850+ 语料门禁。"},
+		{"capability": "v2.4 collection/map, MTF stoch and persistent object expansion", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": true, "notes": "array.from/concat/join/sort/sort_indices/binary_search/median/mode/range、map.copy/keys/values、order.ascending/descending、MTF ta.stoch、静态 for 条件 break/continue runtime fallback、持久 object 字段重赋值已进入 1250+ 语料门禁。"},
+		{"capability": "v2.5 array stats, string and timeframe helpers", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": true, "notes": "array abs/binary_search_leftmost/rightmost/percentrank/percentile/stdev/variance/covariance、str.* helper、time_close 与 timeframe.change 已进入 1450+ 语料门禁。"},
+		{"capability": "v2.6 collection iteration, history and object fields", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": true, "notes": "array for-in、只读 collection history snapshot、inline collection constructor expression、UDT collection fields 与 library/export metadata 诊断已进入 1650+ 语料门禁。"},
+		{"capability": "v2.7 collection/timeframe and MTF helper expansion", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": true, "notes": "array history aggregate snapshot、map keys/values iteration、matrix rows/columns/get/set、timeframe.in_seconds/timeframe.multiplier/timeframe.isseconds 与 request.security 纯 helper 表达式已进入 1900+ 语料门禁。"},
+		{"capability": "v2.8 object history, method chain and export metadata", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": true, "notes": "box[1].field object history read、无副作用 method chain、request.security object method expression 与 export function/type/method kind metadata 已进入 2200+ 语料门禁。"},
+		{"capability": "v2.9 object history method receiver and MTF diagnostics", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": true, "notes": "box[1].score(...)、method chain named/default args、request.security object history field/method pure expression 与 dynamic symbol/timeframe、nested、side-effect、lookahead/gaps 分码诊断已进入 2500+ 语料门禁。"},
+		{"capability": "v3.0 stable semantic declarations and varip policy", "parser": true, "planner": true, "runtime": true, "jftrade": true, "frontend": true, "notes": "SemanticDeclaration 增补 signature/unsupportedReason，type/method/export/import metadata 稳定；varip 在 closed-bar runtime 下按 var 执行并输出 warning，空白/注释解析韧性已进入 2850+ 语料门禁。"},
 	}
 }
 
 func unsupportedPatterns() []string {
 	return []string{
 		"indicator()、study()、library() 脚本不能作为 JFTrade 可执行策略。",
-		"request.security() 仅支持 syminfo.tickerid + 静态 timeframe + source/source[n]、受支持 MA/高级指标、v1.4 纯表达式或 v1.5 common TA pure-expression 组合；动态参数、通用 tuple、side effect、lookahead_on/gaps_on 会返回诊断。",
-		"array.*、matrix.*、map.* 集合命名空间暂不支持。",
-		"静态 for 循环会在编译期展开；v1.5 支持无条件 break/continue 子集，动态边界、条件控制流、超过 100 次展开和超过 2 层嵌套会返回明确诊断。",
-		"表达式 UDF 与受控多语句函数支持编译期内联；递归函数、嵌套定义、method/type 会返回明确诊断。",
+		"request.security() 仅支持 syminfo.tickerid + 静态 timeframe + source/source[n]、受支持 MA/高级指标、v1.4 纯表达式、v1.5 common TA pure-expression、v1.6 tuple 白名单、v2.2 2-8 元纯表达式 tuple、v2.3 纯 collection/object 表达式、v2.4 MTF stoch、v2.7 helper 表达式、v2.8 object method 表达式与 v2.9 object history field/method 表达式；动态参数、side effect、nested request、lookahead_on/gaps_on 会返回分码诊断。",
+		"array/map/matrix 常用 constructor/read/mutation/copy/slice/fill/aggregate/sort/stats/map views、array for-in、map keys/values iteration、matrix rows/columns/get/set、只读 collection history aggregate 与 object collection fields 已执行；深层泛型与全部 Pine collection API 仍会返回诊断。",
+		"type constructor、命名参数、多语句纯 method、局部/持久 object 字段重赋值、object collection fields、object history read 与纯 method chain 子集已执行；library/import、method 副作用、完整 overload/type system 与跨 library 解析仍只进入诊断或返回不支持；export 进入 function/type/method kind metadata。",
+		"静态 for 循环会在编译期展开；v1.5+ 支持无条件 break/continue 子集，v2.4 起条件 break/continue 回退到 bounded runtime loop；超过 100 次静态展开和超过 2 层嵌套会返回明确诊断。",
+		"表达式 UDF 与受控多语句函数支持编译期内联；递归函数、嵌套定义、method/type 会进入 parse-only 语义模型并返回明确诊断。",
 		"历史引用支持简单 identifier/member 的 `[n]`，最大 lookback 500；函数调用结果需先赋值再引用历史。",
 		"strategy.exit() 支持基础 stop、limit、stop+limit bracket 与 trail_points|trail_price + trail_offset；trail 与 stop/limit 同用、OCA、partial fill、intrabar broker emulator 等高级语义暂不支持。",
 		"strategy.entry/order 支持 stop-limit 激活后转限价；OCA、strategy.cancel 已成交订单等完整 broker emulator 语义暂不支持。",
@@ -863,9 +925,9 @@ func sectionDetails(section string) []string {
 	case "indicators":
 		return []string{
 			"指标绑定通过 <alias> = ta.<function>(...) 声明。",
-			"compiler 当前识别常用 MA、RSI/MACD/ATR、rolling/window、Bollinger、DMI/Supertrend/SAR，v1.2 的 linreg/OBV/pivot/Keltner/ALMA，v1.3 的 CMO/TSI/correlation/dev/median/percentile/percentrank/SWMA，v1.4 的窗口/动量、状态事件和 TR，以及 v1.5 的 MTF common TA 迁移能力。",
+			"compiler 当前识别常用 MA、RSI/MACD/ATR、rolling/window、Bollinger、DMI/Supertrend/SAR，v1.2 的 linreg/OBV/pivot/Keltner/ALMA，v1.3 的 CMO/TSI/correlation/dev/median/percentile/percentrank/SWMA，v1.4 的窗口/动量、状态事件和 TR，v1.5 的 MTF common TA，v1.6 的 MTF tuple 白名单，以及 v2.1 的 BBW/COG/锚定 VWAP。",
 			"request.security 支持同标的 timeframe：\"1\"/\"5\"/\"15\"/\"30\"/\"45\"/\"60\"/\"120\"/\"240\"、\"D\"/\"1D\"、\"W\"/\"1W\"、\"M\"/\"1M\"。",
-			"request.security(syminfo.tickerid, timeframe, source) 支持 OHLCV/hl2/hlc3/ohlc4 和 source[n]；支持 source-aware MTF 均线、静态 intraday 受支持高级指标、v1.4 纯表达式 source/history/MA/math/bool/nz 组合，以及 v1.5 RSI/MACD/ATR/Bollinger/Supertrend common TA 组合。",
+			"request.security(syminfo.tickerid, timeframe, source) 支持 OHLCV/hl2/hlc3/ohlc4 和 source[n]；支持 source-aware MTF 均线、静态 intraday 受支持高级指标、v1.4 纯表达式 source/history/MA/math/bool/nz 组合、v1.5 RSI/MACD/ATR/Bollinger/Supertrend common TA 组合、v1.6 source/TA/纯表达式 tuple 白名单、v2.2 2-8 元纯表达式 tuple、v2.3 纯 collection/object 表达式，以及 v2.4 MTF stoch。",
 			"ta.macd 支持 [macdLine, signalLine, histLine] 三元组赋值。",
 			"source-aware 指标第一版 source 支持 open/high/low/close/volume/hl2/hlc3/ohlc4。",
 			"历史引用支持 close[2]、hlc3[3]、emaFast[5]、bands.upper[2] 等简单 identifier/member；超过 500 bar 会返回诊断。",
@@ -890,15 +952,16 @@ func sectionDetails(section string) []string {
 		}
 	case "support-matrix":
 		return []string{
-			"v1.5 将 JFTrade 可执行 Pine v6 子集继续锁定为策略定义、预览、回测、实例化、运行和 ADK 工具的主路径。",
-			"新增 Pine 能力必须同步更新 parser lowering、IR requirements、indicator/runtime lookup、规范输出和至少一层可执行测试。",
+			"v3.0 保持闭盘可执行 Pine v6 子集作为策略定义、预览、回测、实例化、运行和 ADK 工具主路径。",
+			"v3.0 让 collection/map/matrix 扩展、array stats、字符串/timeframe helper、结构化 AST、通用 tuple、动态循环、纯 UDT constructor/method、持久 object 字段更新、object collection fields、collection history aggregate、object history read/method receiver、method chain、MTF stoch、稳定 semantic declaration metadata 和 visual metadata 可分析、可解释、可分层执行；library/import 和完整 TradingView method/type 系统仍只进入 metadata/diagnostics。",
+			"新增 Pine 能力必须同步更新 parser lowering、semantic summary、IR requirements、indicator/runtime lookup、规范输出和至少一层可执行测试。",
 			"前端不是完整 Pine IDE；流程图覆盖常用策略 authoring，无法标准化的 Pine 行保留为 pineSnippet。",
 		}
 	case "unsupported":
 		return []string{
 			"plot/hline/bgcolor/barcolor/fill/alertcondition/label.new/line.new/box.new/table.* 等非交易调用会返回 warning 并忽略。",
-			"while、动态 for、条件 break/continue、递归/嵌套 UDF 和 Pine method/type 系统会返回结构化诊断；switch、受控多语句 UDF 与静态 for 无条件 break/continue 已在编译期 lowering。",
-			"除同标的静态 source/source[n]/MA/受支持高级指标/v1.4 纯表达式与 v1.5 common TA pure-expression 子集以外的 request.security、lookahead_on/gaps_on、import/library、array/matrix/map 会返回错误。",
+			"动态 for/while/break/continue 已在闭盘 runtime 执行，但递归/嵌套 UDF、library/import、method 副作用和完整 Pine method/type 系统仍会返回结构化诊断。",
+			"除同标的静态 source/source[n]/MA/受支持高级指标/v1.4 纯表达式、v1.5 common TA pure-expression、v1.6 tuple 白名单、v2.2 2-8 元纯表达式 tuple、v2.3 纯 collection/object 表达式、v2.4 MTF stoch、v2.7 helper 表达式、v2.8 object method 表达式与 v2.9 object history 表达式以外的 request.security、lookahead_on/gaps_on 和 side effect 会返回错误。",
 			"strategy.entry/order 支持基础 stop-limit 和 entry 反手；OCA、partial fill、保证金裸空账户模拟和完整 pending order broker emulator 不支持。",
 			"strategy.exit 的 OCA、partial fill、trail 与 bracket 混用、intrabar broker emulator 等高级语义会给出明确诊断。",
 			"完整 TradingView broker emulator 行为不属于当前 JFTrade runtime。",
