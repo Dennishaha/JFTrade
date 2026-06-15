@@ -61,7 +61,8 @@ go generate ./cmd/jftrade-api
 go run ./cmd/jftrade run --config ./config/jftrade.yaml
 
 # 启动前端
-cd apps/web && npm install && npm run dev
+npm install
+npm run dev:web
 ```
 
 ## 生产部署

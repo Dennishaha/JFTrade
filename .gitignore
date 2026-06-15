@@ -6,7 +6,7 @@
 coverage.txt
 
 # Node
-# avoid platform-specific lock files
+# lockfiles are generated locally and intentionally not committed
 package-lock.json
 node_modules/
 .npm
