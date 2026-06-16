@@ -92,16 +92,14 @@ func cloneStringPointer(value *string) *string {
 	if value == nil {
 		return nil
 	}
-	cloned := *value
-	return &cloned
+	return new(*value)
 }
 
 func cloneFloat64Pointer(value *float64) *float64 {
 	if value == nil {
 		return nil
 	}
-	cloned := *value
-	return &cloned
+	return new(*value)
 }
 
 func stringPointersDiffer(left *string, right *string) bool {

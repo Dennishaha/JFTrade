@@ -293,8 +293,8 @@ func TestSyncKLinesPersistentRateLimitFailure(t *testing.T) {
 
 	server := startSyncHistoryOpenDServer(t, nil)
 	server.setHistoryErrorResponse(&historypb.Response{
-		RetType: proto.Int32(-1),
-		RetMsg:  proto.String("频率太高"),
+		RetType: new(int32(-1)),
+		RetMsg:  new("频率太高"),
 	})
 	defer server.stop()
 
@@ -443,13 +443,13 @@ func (s *syncHistoryOpenDServer) handleConn(conn net.Conn) {
 		switch frame.Header.ProtoID {
 		case opend.ProtoInitConnect:
 			response = &initpb.Response{
-				RetType: proto.Int32(0),
+				RetType: new(int32(0)),
 				S2C: &initpb.S2C{
-					ServerVer:         proto.Int32(700),
-					LoginUserID:       proto.Uint64(1),
-					ConnID:            proto.Uint64(42),
-					ConnAESKey:        proto.String("0123456789abcdef"),
-					KeepAliveInterval: proto.Int32(10),
+					ServerVer:         new(int32(700)),
+					LoginUserID:       new(uint64(1)),
+					ConnID:            new(uint64(42)),
+					ConnAESKey:        new("0123456789abcdef"),
+					KeepAliveInterval: new(int32(10)),
 				},
 			}
 		case opend.ProtoRequestHistoryKL:
@@ -475,7 +475,7 @@ func (s *syncHistoryOpenDServer) handleConn(conn net.Conn) {
 func (s *syncHistoryOpenDServer) historyKLResponse(body []byte) *historypb.Response {
 	request := &historypb.Request{}
 	if err := proto.Unmarshal(body, request); err != nil {
-		return &historypb.Response{RetType: proto.Int32(1), RetMsg: proto.String(err.Error())}
+		return &historypb.Response{RetType: new(int32(1)), RetMsg: new(err.Error())}
 	}
 
 	s.historyCalls.Add(1)
@@ -486,7 +486,7 @@ func (s *syncHistoryOpenDServer) historyKLResponse(body []byte) *historypb.Respo
 	}
 
 	response := &historypb.Response{
-		RetType: proto.Int32(0),
+		RetType: new(int32(0)),
 		S2C: &historypb.S2C{
 			Security: request.GetC2S().GetSecurity(),
 		},
@@ -520,14 +520,14 @@ func cloneSyncHistoryPages(pages [][]*qotcommonpb.KLine) [][]*qotcommonpb.KLine 
 
 func testSyncHistoryKLine(at time.Time, price float64) *qotcommonpb.KLine {
 	return &qotcommonpb.KLine{
-		Time:       proto.String(at.Format("2006-01-02 15:04:05")),
-		Timestamp:  proto.Float64(float64(at.Unix())),
-		IsBlank:    proto.Bool(false),
-		OpenPrice:  proto.Float64(price),
-		HighPrice:  proto.Float64(price + 1),
-		LowPrice:   proto.Float64(price - 1),
-		ClosePrice: proto.Float64(price + 0.5),
-		Volume:     proto.Int64(1000),
-		Turnover:   proto.Float64(price * 1000),
+		Time:       new(at.Format("2006-01-02 15:04:05")),
+		Timestamp:  new(float64(at.Unix())),
+		IsBlank:    new(false),
+		OpenPrice:  new(price),
+		HighPrice:  new(price + 1),
+		LowPrice:   new(price - 1),
+		ClosePrice: new(price + 0.5),
+		Volume:     new(int64(1000)),
+		Turnover:   new(price * 1000),
 	}
 }

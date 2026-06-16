@@ -6,8 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"google.golang.org/protobuf/proto"
-
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
 	trdcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdcommon"
@@ -51,7 +49,7 @@ func (e *Exchange) QueryBrokerMarginRatios(ctx context.Context, query BrokerMarg
 			qotSecurityListRequest = append(qotSecurityListRequest, security)
 			_ = canonical
 		}
-		header := &trdcommonpb.TrdHeader{TrdEnv: proto.Int32(int32(trdcommonpb.TrdEnv_TrdEnv_Real)), AccID: proto.Uint64(resolved.protoAccountID), TrdMarket: proto.Int32(int32(resolved.protoTrdMarket))}
+		header := &trdcommonpb.TrdHeader{TrdEnv: new(int32(trdcommonpb.TrdEnv_TrdEnv_Real)), AccID: new(resolved.protoAccountID), TrdMarket: new(int32(resolved.protoTrdMarket))}
 		infoList, err := marginRatioInfoListWithUnknownStockRecovery(ctx, client, header, qotSecurityListRequest)
 		if err != nil {
 			if isMarginRatioRateLimitedError(err) {

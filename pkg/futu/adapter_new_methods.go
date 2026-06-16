@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"google.golang.org/protobuf/proto"
-
 	"github.com/jftrade/jftrade-main/pkg/broker"
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
@@ -24,7 +22,7 @@ func (a *futuAdapter) SubscribeQuotes(ctx context.Context, req broker.QuoteSubsc
 			Securities:  securities,
 			SubTypes:    []qotcommonpb.SubType{qotcommonpb.SubType_SubType_Basic},
 			IsSubscribe: true,
-			IsRegPush:   proto.Bool(true),
+			IsRegPush:   new(true),
 		})
 	})
 }
@@ -111,8 +109,7 @@ func int64AsFloat64Ptr(value *int64) *float64 {
 	if value == nil {
 		return nil
 	}
-	v := float64(*value)
-	return &v
+	return new(float64(*value))
 }
 
 // Ensure adapter implements new interfaces at compile time.

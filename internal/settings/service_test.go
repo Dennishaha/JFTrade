@@ -36,8 +36,7 @@ func (s *fakeStore) SavedIntegration() *jfsettings.BrokerIntegration {
 	if s.integration.BrokerID == "" {
 		return nil
 	}
-	result := s.integration
-	return &result
+	return new(s.integration)
 }
 func (s *fakeStore) ManagedAccounts() []jfsettings.ManagedBrokerAccount {
 	return append([]jfsettings.ManagedBrokerAccount(nil), s.managedAccounts...)

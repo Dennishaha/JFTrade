@@ -8,8 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	"google.golang.org/protobuf/proto"
-
 	"github.com/jftrade/jftrade-main/pkg/broker"
 	trdcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdcommon"
 )
@@ -241,45 +239,45 @@ func getExecutionOrdersForTest(t *testing.T, url string) executionOrdersResponse
 func TestExecutionOrdersSyncBrokerOrdersAndTracksWorkerState(t *testing.T) {
 	opendServer := startBrokerRouteOpenDServer(t)
 	opendServer.setAccounts([]*trdcommonpb.TrdAcc{{
-		TrdEnv:            proto.Int32(int32(trdcommonpb.TrdEnv_TrdEnv_Simulate)),
-		AccID:             proto.Uint64(1001),
+		TrdEnv:            new(int32(trdcommonpb.TrdEnv_TrdEnv_Simulate)),
+		AccID:             new(uint64(1001)),
 		TrdMarketAuthList: []int32{int32(trdcommonpb.TrdMarket_TrdMarket_HK)},
-		AccType:           proto.Int32(int32(trdcommonpb.TrdAccType_TrdAccType_Cash)),
+		AccType:           new(int32(trdcommonpb.TrdAccType_TrdAccType_Cash)),
 	}})
 	opendServer.setOrders([]*trdcommonpb.Order{{
-		TrdSide:     proto.Int32(int32(trdcommonpb.TrdSide_TrdSide_Buy)),
-		OrderType:   proto.Int32(int32(trdcommonpb.OrderType_OrderType_Normal)),
-		OrderStatus: proto.Int32(int32(trdcommonpb.OrderStatus_OrderStatus_Submitted)),
-		OrderID:     proto.Uint64(3001),
-		OrderIDEx:   proto.String("EXT-3001"),
-		Code:        proto.String("HK.00700"),
-		Name:        proto.String("Tencent"),
-		Qty:         proto.Float64(200),
-		Price:       proto.Float64(321.1),
-		FillQty:     proto.Float64(0),
-		CreateTime:  proto.String("2026-05-20 09:30:00"),
-		UpdateTime:  proto.String("2026-05-20 09:31:00"),
-		TimeInForce: proto.Int32(int32(trdcommonpb.TimeInForce_TimeInForce_DAY)),
-		Currency:    proto.Int32(int32(trdcommonpb.Currency_Currency_HKD)),
-		TrdMarket:   proto.Int32(int32(trdcommonpb.TrdMarket_TrdMarket_HK)),
+		TrdSide:     new(int32(trdcommonpb.TrdSide_TrdSide_Buy)),
+		OrderType:   new(int32(trdcommonpb.OrderType_OrderType_Normal)),
+		OrderStatus: new(int32(trdcommonpb.OrderStatus_OrderStatus_Submitted)),
+		OrderID:     new(uint64(3001)),
+		OrderIDEx:   new("EXT-3001"),
+		Code:        new("HK.00700"),
+		Name:        new("Tencent"),
+		Qty:         new(float64(200)),
+		Price:       new(321.1),
+		FillQty:     new(float64(0)),
+		CreateTime:  new("2026-05-20 09:30:00"),
+		UpdateTime:  new("2026-05-20 09:31:00"),
+		TimeInForce: new(int32(trdcommonpb.TimeInForce_TimeInForce_DAY)),
+		Currency:    new(int32(trdcommonpb.Currency_Currency_HKD)),
+		TrdMarket:   new(int32(trdcommonpb.TrdMarket_TrdMarket_HK)),
 	}})
 	opendServer.setHistoryOrders([]*trdcommonpb.Order{{
-		TrdSide:      proto.Int32(int32(trdcommonpb.TrdSide_TrdSide_Sell)),
-		OrderType:    proto.Int32(int32(trdcommonpb.OrderType_OrderType_Normal)),
-		OrderStatus:  proto.Int32(int32(trdcommonpb.OrderStatus_OrderStatus_Filled_All)),
-		OrderID:      proto.Uint64(3002),
-		OrderIDEx:    proto.String("EXT-3002"),
-		Code:         proto.String("HK.00700"),
-		Name:         proto.String("Tencent"),
-		Qty:          proto.Float64(100),
-		Price:        proto.Float64(322.2),
-		FillQty:      proto.Float64(100),
-		FillAvgPrice: proto.Float64(322.2),
-		CreateTime:   proto.String("2026-05-19 09:30:00"),
-		UpdateTime:   proto.String("2026-05-19 09:31:00"),
-		TimeInForce:  proto.Int32(int32(trdcommonpb.TimeInForce_TimeInForce_DAY)),
-		Currency:     proto.Int32(int32(trdcommonpb.Currency_Currency_HKD)),
-		TrdMarket:    proto.Int32(int32(trdcommonpb.TrdMarket_TrdMarket_HK)),
+		TrdSide:      new(int32(trdcommonpb.TrdSide_TrdSide_Sell)),
+		OrderType:    new(int32(trdcommonpb.OrderType_OrderType_Normal)),
+		OrderStatus:  new(int32(trdcommonpb.OrderStatus_OrderStatus_Filled_All)),
+		OrderID:      new(uint64(3002)),
+		OrderIDEx:    new("EXT-3002"),
+		Code:         new("HK.00700"),
+		Name:         new("Tencent"),
+		Qty:          new(float64(100)),
+		Price:        new(322.2),
+		FillQty:      new(float64(100)),
+		FillAvgPrice: new(322.2),
+		CreateTime:   new("2026-05-19 09:30:00"),
+		UpdateTime:   new("2026-05-19 09:31:00"),
+		TimeInForce:  new(int32(trdcommonpb.TimeInForce_TimeInForce_DAY)),
+		Currency:     new(int32(trdcommonpb.Currency_Currency_HKD)),
+		TrdMarket:    new(int32(trdcommonpb.TrdMarket_TrdMarket_HK)),
 	}})
 	defer opendServer.stop()
 

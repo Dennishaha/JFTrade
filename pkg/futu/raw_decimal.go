@@ -13,8 +13,7 @@ func decimalPtrFromFloat64(value *float64) *decimal.Decimal {
 	if value == nil {
 		return nil
 	}
-	d := decimal.NewFromFloat(*value)
-	return &d
+	return new(decimal.NewFromFloat(*value))
 }
 
 func decimalPositive(value *decimal.Decimal) bool {
@@ -47,6 +46,5 @@ func cloneFloat64(value *float64) *float64 {
 	if value == nil {
 		return nil
 	}
-	clone := *value
-	return &clone
+	return new(*value)
 }

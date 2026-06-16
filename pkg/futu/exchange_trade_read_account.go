@@ -7,8 +7,6 @@ import (
 	"strconv"
 	"strings"
 
-	"google.golang.org/protobuf/proto"
-
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
 	trdcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdcommon"
 )
@@ -187,8 +185,8 @@ func resolvedTradeAccountPriority(candidate resolvedTradeAccount) int {
 
 func (account resolvedTradeAccount) header() *trdcommonpb.TrdHeader {
 	return &trdcommonpb.TrdHeader{
-		TrdEnv:    proto.Int32(account.protoTrdEnv),
-		AccID:     proto.Uint64(account.protoAccountID),
-		TrdMarket: proto.Int32(account.protoTrdMarket),
+		TrdEnv:    new(account.protoTrdEnv),
+		AccID:     new(account.protoAccountID),
+		TrdMarket: new(account.protoTrdMarket),
 	}
 }

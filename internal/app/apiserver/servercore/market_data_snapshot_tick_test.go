@@ -25,7 +25,7 @@ func TestMarketSnapshotResponseUsesFreshCache(t *testing.T) {
 		Price:              decimal.RequireFromString("321.4"),
 		Bid:                decimal.RequireFromString("321.3"),
 		Ask:                decimal.RequireFromString("321.5"),
-		PreviousClosePrice: decimalPointer(float64Ptr(318.9)),
+		PreviousClosePrice: decimalPointer(new(318.9)),
 		Volume:             1282100,
 		Turnover:           decimal.RequireFromString("411020000"),
 		QuoteAt:            now.Format(time.RFC3339Nano),
@@ -56,8 +56,7 @@ func decimalPointer(v *float64) *decimal.Decimal {
 	if v == nil {
 		return nil
 	}
-	value := decimal.NewFromFloat(*v)
-	return &value
+	return new(decimal.NewFromFloat(*v))
 }
 
 func TestMarketSnapshotResponseQueriesQuoteSnapshotOnCacheMiss(t *testing.T) {

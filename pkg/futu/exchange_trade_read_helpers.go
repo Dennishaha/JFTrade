@@ -6,8 +6,6 @@ import (
 	"time"
 
 	"github.com/c9s/bbgo/pkg/fixedpoint"
-	"google.golang.org/protobuf/proto"
-
 	commonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/common"
 	trdcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdcommon"
 	trdflowsummarypb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdflowsummary"
@@ -20,13 +18,13 @@ func brokerTradeFilterConditions(symbol string, startTime string, endTime string
 		filter.CodeList = []string{canonicalSymbol}
 	}
 	if trimmed := normalizeTradeFilterTimeInput(startTime); trimmed != "" {
-		filter.BeginTime = proto.String(trimmed)
+		filter.BeginTime = new(trimmed)
 	}
 	if trimmed := normalizeTradeFilterTimeInput(endTime); trimmed != "" {
-		filter.EndTime = proto.String(trimmed)
+		filter.EndTime = new(trimmed)
 	}
 	if market != 0 {
-		filter.FilterMarket = proto.Int32(market)
+		filter.FilterMarket = new(market)
 	}
 	return filter
 }
@@ -127,7 +125,7 @@ func cashFlowDirectionValue(direction string) *int32 {
 		if normalizeRuntimeEnum(enumName(value, trdflowsummarypb.TrdCashFlowDirection_name)) != normalized {
 			continue
 		}
-		return proto.Int32(value)
+		return new(value)
 	}
 	return nil
 }
@@ -143,8 +141,7 @@ func optionalUint64StringPtr(value *uint64) *string {
 	if value == nil {
 		return nil
 	}
-	converted := strconv.FormatUint(*value, 10)
-	return &converted
+	return new(strconv.FormatUint(*value, 10))
 }
 
 func optionalEnumStringPtr(value *int32, names map[int32]string) *string {
@@ -177,8 +174,7 @@ func cloneFloat64Ptr(value *float64) *float64 {
 	if value == nil {
 		return nil
 	}
-	cloned := *value
-	return &cloned
+	return new(*value)
 }
 
 func fixedpointFromPtr(primary *float64, fallback *float64) fixedpoint.Value {

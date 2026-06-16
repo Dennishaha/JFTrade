@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"google.golang.org/protobuf/proto"
-
 	trdcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdcommon"
 	trdgetacclistpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdgetacclist"
 )
@@ -15,8 +13,8 @@ import (
 // environment/market normalization to the exchange adapter layer.
 func (c *Client) GetAccountList(ctx context.Context) ([]*trdcommonpb.TrdAcc, error) {
 	request := &trdgetacclistpb.Request{C2S: &trdgetacclistpb.C2S{
-		UserID:                proto.Uint64(0),
-		NeedGeneralSecAccount: proto.Bool(true),
+		UserID:                new(uint64(0)),
+		NeedGeneralSecAccount: new(true),
 	}}
 	var response trdgetacclistpb.Response
 	if err := c.Call(ctx, ProtoTrdGetAccList, request, &response); err != nil {

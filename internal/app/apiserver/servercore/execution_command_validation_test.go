@@ -9,8 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	"google.golang.org/protobuf/proto"
-
 	commonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/common"
 	trdcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdcommon"
 )
@@ -18,10 +16,10 @@ import (
 func TestExecutionOrderRoutesNormalizeUSPricePrecision(t *testing.T) {
 	opendServer := startBrokerRouteOpenDServer(t)
 	opendServer.setAccounts([]*trdcommonpb.TrdAcc{{
-		TrdEnv:            proto.Int32(int32(trdcommonpb.TrdEnv_TrdEnv_Simulate)),
-		AccID:             proto.Uint64(1001),
+		TrdEnv:            new(int32(trdcommonpb.TrdEnv_TrdEnv_Simulate)),
+		AccID:             new(uint64(1001)),
 		TrdMarketAuthList: []int32{int32(trdcommonpb.TrdMarket_TrdMarket_US)},
-		AccType:           proto.Int32(int32(trdcommonpb.TrdAccType_TrdAccType_Margin)),
+		AccType:           new(int32(trdcommonpb.TrdAccType_TrdAccType_Margin)),
 	}})
 	opendServer.setPlacedOrderResponse(9001, "EXT-9001")
 	defer opendServer.stop()
@@ -90,10 +88,10 @@ func TestExecutionOrderRoutesNormalizeUSPricePrecision(t *testing.T) {
 func TestExecutionOrderRoutesPropagateUSSessionSelection(t *testing.T) {
 	opendServer := startBrokerRouteOpenDServer(t)
 	opendServer.setAccounts([]*trdcommonpb.TrdAcc{{
-		TrdEnv:            proto.Int32(int32(trdcommonpb.TrdEnv_TrdEnv_Simulate)),
-		AccID:             proto.Uint64(1001),
+		TrdEnv:            new(int32(trdcommonpb.TrdEnv_TrdEnv_Simulate)),
+		AccID:             new(uint64(1001)),
 		TrdMarketAuthList: []int32{int32(trdcommonpb.TrdMarket_TrdMarket_US)},
-		AccType:           proto.Int32(int32(trdcommonpb.TrdAccType_TrdAccType_Margin)),
+		AccType:           new(int32(trdcommonpb.TrdAccType_TrdAccType_Margin)),
 	}})
 	opendServer.setPlacedOrderResponse(9001, "EXT-9001")
 	defer opendServer.stop()
@@ -157,10 +155,10 @@ func TestExecutionOrderRoutesPropagateUSSessionSelection(t *testing.T) {
 func TestExecutionOrderRoutesAcceptExplicitCodeWithMarket(t *testing.T) {
 	opendServer := startBrokerRouteOpenDServer(t)
 	opendServer.setAccounts([]*trdcommonpb.TrdAcc{{
-		TrdEnv:            proto.Int32(int32(trdcommonpb.TrdEnv_TrdEnv_Simulate)),
-		AccID:             proto.Uint64(1001),
+		TrdEnv:            new(int32(trdcommonpb.TrdEnv_TrdEnv_Simulate)),
+		AccID:             new(uint64(1001)),
 		TrdMarketAuthList: []int32{int32(trdcommonpb.TrdMarket_TrdMarket_US)},
-		AccType:           proto.Int32(int32(trdcommonpb.TrdAccType_TrdAccType_Margin)),
+		AccType:           new(int32(trdcommonpb.TrdAccType_TrdAccType_Margin)),
 	}})
 	opendServer.setPlacedOrderResponse(9002, "EXT-9002")
 	defer opendServer.stop()
@@ -217,10 +215,10 @@ func TestExecutionOrderRoutesAcceptExplicitCodeWithMarket(t *testing.T) {
 func TestExecutionOrderRoutesRejectBareSymbolWithoutMarket(t *testing.T) {
 	opendServer := startBrokerRouteOpenDServer(t)
 	opendServer.setAccounts([]*trdcommonpb.TrdAcc{{
-		TrdEnv:            proto.Int32(int32(trdcommonpb.TrdEnv_TrdEnv_Simulate)),
-		AccID:             proto.Uint64(1001),
+		TrdEnv:            new(int32(trdcommonpb.TrdEnv_TrdEnv_Simulate)),
+		AccID:             new(uint64(1001)),
 		TrdMarketAuthList: []int32{int32(trdcommonpb.TrdMarket_TrdMarket_US)},
-		AccType:           proto.Int32(int32(trdcommonpb.TrdAccType_TrdAccType_Margin)),
+		AccType:           new(int32(trdcommonpb.TrdAccType_TrdAccType_Margin)),
 	}})
 	defer opendServer.stop()
 

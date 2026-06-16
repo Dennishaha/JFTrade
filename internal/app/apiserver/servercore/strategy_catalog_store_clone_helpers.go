@@ -44,12 +44,10 @@ func cloneManagedStrategyPlugin(input managedStrategyPlugin) managedStrategyPlug
 		input.Artifact = &artifactCopy
 	}
 	if input.Installation.CurrentOperation != nil {
-		operationCopy := *input.Installation.CurrentOperation
-		input.Installation.CurrentOperation = &operationCopy
+		input.Installation.CurrentOperation = new(*input.Installation.CurrentOperation)
 	}
 	if input.Installation.LastOperation != nil {
-		operationCopy := *input.Installation.LastOperation
-		input.Installation.LastOperation = &operationCopy
+		input.Installation.LastOperation = new(*input.Installation.LastOperation)
 	}
 	return input
 }
@@ -58,8 +56,7 @@ func cloneManagedStrategyInstance(input managedStrategyInstance) managedStrategy
 	input.Params = copyMap(input.Params)
 	input.Binding.Symbols = append([]string(nil), input.Binding.Symbols...)
 	if input.Binding.BrokerAccount != nil {
-		bindingCopy := *input.Binding.BrokerAccount
-		input.Binding.BrokerAccount = &bindingCopy
+		input.Binding.BrokerAccount = new(*input.Binding.BrokerAccount)
 	}
 	return input
 }

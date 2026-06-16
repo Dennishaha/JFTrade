@@ -8,8 +8,6 @@ import (
 	"time"
 
 	"github.com/c9s/bbgo/pkg/types"
-	"google.golang.org/protobuf/proto"
-
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
 	qotgetbasicqotpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetbasicqot"
@@ -179,7 +177,7 @@ func subscribeBasicQot(ctx context.Context, client *opend.Client, securities []*
 	request := &qotsubpb.Request{C2S: &qotsubpb.C2S{
 		SecurityList: securities,
 		SubTypeList:  []int32{int32(qotcommonpb.SubType_SubType_Basic)},
-		IsSubOrUnSub: proto.Bool(true),
+		IsSubOrUnSub: new(true),
 	}}
 	var response qotsubpb.Response
 	if err := client.Call(ctx, opend.ProtoQotSub, request, &response); err != nil {

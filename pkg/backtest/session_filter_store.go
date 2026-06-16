@@ -63,16 +63,14 @@ func (s *sessionFilteredBacktestStore) QueryKLine(
 		if err != nil || len(rows) == 0 {
 			return nil, err
 		}
-		first := rows[0]
-		return &first, nil
+		return new(rows[0]), nil
 	}
 
 	rows, err := s.QueryKLinesBackward(ex, symbol, interval, maxBacktestQueryTime, 1)
 	if err != nil || len(rows) == 0 {
 		return nil, err
 	}
-	last := rows[len(rows)-1]
-	return &last, nil
+	return new(rows[len(rows)-1]), nil
 }
 
 func (s *sessionFilteredBacktestStore) QueryKLinesForward(

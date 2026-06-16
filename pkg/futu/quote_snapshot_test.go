@@ -16,15 +16,15 @@ func TestQuoteSnapshotPreviousClosePriceInClosedSession(t *testing.T) {
 	// closed, PreviousClosePrice should still use CurPrice so the frontend can
 	// display the latest regular-session close.
 	basicQot := &qotcommonpb.BasicQot{
-		Security:        &qotcommonpb.Security{Market: protoInt32(1), Code: protoString("TME")},
-		CurPrice:        f64(9.22),
-		LastClosePrice:  f64(9.09),
-		OpenPrice:       f64(9.02),
-		HighPrice:       f64(9.27),
-		LowPrice:        f64(9.00),
-		Volume:          protoInt64(13037749),
-		Turnover:        f64(119751018),
-		UpdateTimestamp: f64(1748548799.998), // Friday 2026-05-29 19:59:59 UTC
+		Security:        &qotcommonpb.Security{Market: new(int32(1)), Code: new("TME")},
+		CurPrice:        new(9.22),
+		LastClosePrice:  new(9.09),
+		OpenPrice:       new(9.02),
+		HighPrice:       new(9.27),
+		LowPrice:        new(9.00),
+		Volume:          new(int64(13037749)),
+		Turnover:        new(float64(119751018)),
+		UpdateTimestamp: new(1748548799.998), // Friday 2026-05-29 19:59:59 UTC
 	}
 
 	closedSessionAt := time.Date(2026, 5, 31, 12, 0, 0, 0, usEasternLocation)
@@ -58,12 +58,12 @@ func TestQuoteSnapshotPreviousClosePriceInAfterHours(t *testing.T) {
 	// During after-hours, PreviousClosePrice should be CurPrice (today's
 	// regular-session close) so the frontend can show "最近盘中收盘".
 	basicQot := &qotcommonpb.BasicQot{
-		Security:       &qotcommonpb.Security{Market: protoInt32(1), Code: protoString("AAPL")},
-		CurPrice:       f64(195.50),
-		LastClosePrice: f64(193.20),
+		Security:       &qotcommonpb.Security{Market: new(int32(1)), Code: new("AAPL")},
+		CurPrice:       new(195.50),
+		LastClosePrice: new(193.20),
 		AfterMarket: &qotcommonpb.PreAfterMarketData{
-			Price:      f64(195.30),
-			ChangeRate: f64(-0.10),
+			Price:      new(195.30),
+			ChangeRate: new(-0.10),
 		},
 	}
 
@@ -86,9 +86,9 @@ func TestQuoteSnapshotPreviousClosePriceZeroCurPrice(t *testing.T) {
 	// If CurPrice is 0 (e.g., no data), PreviousClosePrice should fall back
 	// to LastClosePrice regardless of session.
 	basicQot := &qotcommonpb.BasicQot{
-		Security:       &qotcommonpb.Security{Market: protoInt32(1), Code: protoString("TME")},
-		CurPrice:       f64(0),
-		LastClosePrice: f64(9.09),
+		Security:       &qotcommonpb.Security{Market: new(int32(1)), Code: new("TME")},
+		CurPrice:       new(float64(0)),
+		LastClosePrice: new(9.09),
 	}
 
 	snap := quoteSnapshotFromBasicQot(basicQot, "US.TME")
@@ -107,15 +107,15 @@ func TestQuoteSnapshotPreviousClosePriceForHKLunchBreak(t *testing.T) {
 	// but PreviousClosePrice must remain LastClosePrice so change percent does
 	// not collapse to 0%.
 	basicQot := &qotcommonpb.BasicQot{
-		Security:        &qotcommonpb.Security{Market: protoInt32(2), Code: protoString("00700")},
-		CurPrice:        f64(321.40),
-		LastClosePrice:  f64(318.90),
-		OpenPrice:       f64(320.00),
-		HighPrice:       f64(322.20),
-		LowPrice:        f64(319.80),
-		Volume:          protoInt64(12345678),
-		Turnover:        f64(3955555555),
-		UpdateTimestamp: f64(1781238600), // 2026-06-12 12:30:00 Asia/Hong_Kong
+		Security:        &qotcommonpb.Security{Market: new(int32(2)), Code: new("00700")},
+		CurPrice:        new(321.40),
+		LastClosePrice:  new(318.90),
+		OpenPrice:       new(320.00),
+		HighPrice:       new(322.20),
+		LowPrice:        new(319.80),
+		Volume:          new(int64(12345678)),
+		Turnover:        new(float64(3955555555)),
+		UpdateTimestamp: new(float64(1781238600)), // 2026-06-12 12:30:00 Asia/Hong_Kong
 	}
 
 	lunchBreakAt := time.Date(2026, 6, 12, 12, 30, 0, 0, time.FixedZone("HKT", 8*60*60))

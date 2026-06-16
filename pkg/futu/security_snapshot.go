@@ -479,8 +479,7 @@ func mergeStaticInfoIntoSecurityDetails(details *SecurityDetails, info *qotcommo
 		return
 	}
 	basic := info.GetBasic()
-	securityID := basic.GetId()
-	details.SecurityID = &securityID
+	details.SecurityID = new(basic.GetId())
 	if details.Name == "" {
 		details.Name = basic.GetName()
 	}
@@ -578,30 +577,26 @@ func cloneInt64Ptr(value *int64) *int64 {
 	if value == nil {
 		return nil
 	}
-	cloned := *value
-	return &cloned
+	return new(*value)
 }
 
 func cloneInt32Ptr(value *int32) *int32 {
 	if value == nil {
 		return nil
 	}
-	cloned := *value
-	return &cloned
+	return new(*value)
 }
 
 func cloneBoolPtr(value *bool) *bool {
 	if value == nil {
 		return nil
 	}
-	cloned := *value
-	return &cloned
+	return new(*value)
 }
 
 func cloneStringPtr(value *string) *string {
 	if value == nil {
 		return nil
 	}
-	cloned := *value
-	return &cloned
+	return new(*value)
 }

@@ -5,8 +5,6 @@ import (
 	"testing"
 
 	"github.com/c9s/bbgo/pkg/types"
-	"google.golang.org/protobuf/proto"
-
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
 	qotupdateorderbookpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotupdateorderbook"
 )
@@ -17,8 +15,8 @@ import (
 
 func TestSubscribeOrderBookRequestConstruction(t *testing.T) {
 	security := &qotcommonpb.Security{
-		Market: protoInt32(int32(qotcommonpb.QotMarket_QotMarket_HK_Security)),
-		Code:   protoString("00700"),
+		Market: new(int32(qotcommonpb.QotMarket_QotMarket_HK_Security)),
+		Code:   new("00700"),
 	}
 	securities := []*qotcommonpb.Security{security}
 
@@ -37,30 +35,30 @@ func TestIsHKMarket(t *testing.T) {
 		{
 			name: "HK market",
 			securities: []*qotcommonpb.Security{
-				{Market: protoInt32(int32(qotcommonpb.QotMarket_QotMarket_HK_Security)), Code: protoString("00700")},
+				{Market: new(int32(qotcommonpb.QotMarket_QotMarket_HK_Security)), Code: new("00700")},
 			},
 			want: true,
 		},
 		{
 			name: "US market",
 			securities: []*qotcommonpb.Security{
-				{Market: protoInt32(int32(qotcommonpb.QotMarket_QotMarket_US_Security)), Code: protoString("AAPL")},
+				{Market: new(int32(qotcommonpb.QotMarket_QotMarket_US_Security)), Code: new("AAPL")},
 			},
 			want: false,
 		},
 		{
 			name: "mixed HK first",
 			securities: []*qotcommonpb.Security{
-				{Market: protoInt32(int32(qotcommonpb.QotMarket_QotMarket_HK_Security)), Code: protoString("00700")},
-				{Market: protoInt32(int32(qotcommonpb.QotMarket_QotMarket_US_Security)), Code: protoString("AAPL")},
+				{Market: new(int32(qotcommonpb.QotMarket_QotMarket_HK_Security)), Code: new("00700")},
+				{Market: new(int32(qotcommonpb.QotMarket_QotMarket_US_Security)), Code: new("AAPL")},
 			},
 			want: true,
 		},
 		{
 			name: "mixed US first",
 			securities: []*qotcommonpb.Security{
-				{Market: protoInt32(int32(qotcommonpb.QotMarket_QotMarket_US_Security)), Code: protoString("AAPL")},
-				{Market: protoInt32(int32(qotcommonpb.QotMarket_QotMarket_HK_Security)), Code: protoString("00700")},
+				{Market: new(int32(qotcommonpb.QotMarket_QotMarket_US_Security)), Code: new("AAPL")},
+				{Market: new(int32(qotcommonpb.QotMarket_QotMarket_HK_Security)), Code: new("00700")},
 			},
 			want: true,
 		},
@@ -137,15 +135,15 @@ func TestGroupOrderBookRequestsForPushSplitsHKAndNonHK(t *testing.T) {
 		{
 			canonical: "HK.00700",
 			security: &qotcommonpb.Security{
-				Market: protoInt32(int32(qotcommonpb.QotMarket_QotMarket_HK_Security)),
-				Code:   protoString("00700"),
+				Market: new(int32(qotcommonpb.QotMarket_QotMarket_HK_Security)),
+				Code:   new("00700"),
 			},
 		},
 		{
 			canonical: "US.AAPL",
 			security: &qotcommonpb.Security{
-				Market: protoInt32(int32(qotcommonpb.QotMarket_QotMarket_US_Security)),
-				Code:   protoString("AAPL"),
+				Market: new(int32(qotcommonpb.QotMarket_QotMarket_US_Security)),
+				Code:   new("AAPL"),
 			},
 		},
 	}
@@ -173,8 +171,8 @@ func TestGroupOrderBookRequestsForPushSingleHKBatchNeedsDetail(t *testing.T) {
 		{
 			canonical: "HK.00700",
 			security: &qotcommonpb.Security{
-				Market: protoInt32(int32(qotcommonpb.QotMarket_QotMarket_HK_Security)),
-				Code:   protoString("00700"),
+				Market: new(int32(qotcommonpb.QotMarket_QotMarket_HK_Security)),
+				Code:   new("00700"),
 			},
 		},
 	}
@@ -202,14 +200,14 @@ func TestHandleOrderBookPushEmitsSingleCompleteBookTicker(t *testing.T) {
 
 	stream.handleOrderBookPush(&qotupdateorderbookpb.S2C{
 		Security: &qotcommonpb.Security{
-			Market: protoInt32(int32(qotcommonpb.QotMarket_QotMarket_HK_Security)),
-			Code:   protoString("00700"),
+			Market: new(int32(qotcommonpb.QotMarket_QotMarket_HK_Security)),
+			Code:   new("00700"),
 		},
 		OrderBookBidList: []*qotcommonpb.OrderBook{
-			{Price: proto.Float64(700.1), Volume: proto.Int64(1200)},
+			{Price: new(700.1), Volume: new(int64(1200))},
 		},
 		OrderBookAskList: []*qotcommonpb.OrderBook{
-			{Price: proto.Float64(700.2), Volume: proto.Int64(800)},
+			{Price: new(700.2), Volume: new(int64(800))},
 		},
 	})
 

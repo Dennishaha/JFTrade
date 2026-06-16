@@ -129,8 +129,7 @@ func executionCommandError(err error) (int, string) {
 	if srv.IsRequestError(err) {
 		return http.StatusBadRequest, "BAD_REQUEST"
 	}
-	var brokerErr *broker.BrokerError
-	if errors.As(err, &brokerErr) {
+	if brokerErr, ok := errors.AsType[*broker.BrokerError](err); ok {
 		switch strings.TrimSpace(brokerErr.Code) {
 		case broker.ErrCodeAccountNotFound, broker.ErrCodeMarketNotSupported, broker.ErrCodeOrderNotFound:
 			return http.StatusBadRequest, "BAD_REQUEST"

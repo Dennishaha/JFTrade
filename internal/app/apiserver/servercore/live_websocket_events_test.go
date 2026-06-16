@@ -10,13 +10,11 @@ import (
 
 	bbgo "github.com/c9s/bbgo/pkg/bbgo"
 	"github.com/gorilla/websocket"
-	"github.com/shopspring/decimal"
-	"google.golang.org/protobuf/proto"
-
 	"github.com/jftrade/jftrade-main/internal/api/httpserver"
 	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
 	commonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/common"
 	notifypb "github.com/jftrade/jftrade-main/pkg/futu/pb/notify"
+	"github.com/shopspring/decimal"
 )
 
 func TestLiveWebSocketSendsHeartbeat(t *testing.T) {
@@ -50,12 +48,12 @@ func TestLiveWebSocketSendsSystemNotification(t *testing.T) {
 	}
 	server := newTestServer(t, store)
 	server.handleFutuSystemNotify(&notifypb.Response{
-		RetType: proto.Int32(0),
+		RetType: new(int32(0)),
 		S2C: &notifypb.S2C{
-			Type: proto.Int32(int32(notifypb.NotifyType_NotifyType_ProgramStatus)),
+			Type: new(int32(notifypb.NotifyType_NotifyType_ProgramStatus)),
 			ProgramStatus: &commonpb.ProgramStatus{
 				Type:       commonpb.ProgramStatusType_ProgramStatusType_Ready.Enum(),
-				StrExtDesc: proto.String("OpenD ready for requests"),
+				StrExtDesc: new("OpenD ready for requests"),
 			},
 		},
 	})

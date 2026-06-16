@@ -8,8 +8,6 @@ import (
 
 	"github.com/c9s/bbgo/pkg/fixedpoint"
 	"github.com/c9s/bbgo/pkg/types"
-	"google.golang.org/protobuf/proto"
-
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
 	trdcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdcommon"
 	trdmodifyorderpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdmodifyorder"
@@ -37,8 +35,7 @@ func (e *Exchange) submitOrder(ctx context.Context, order types.SubmitOrder) (*t
 	if err != nil {
 		return nil, err
 	}
-	placed := result.Order
-	return &placed, nil
+	return new(result.Order), nil
 }
 
 func (e *Exchange) cancelOrders(ctx context.Context, orders ...types.Order) error {
@@ -107,8 +104,8 @@ func (e *Exchange) CancelBrokerOrders(ctx context.Context, query BrokerReadQuery
 			}
 			request := &trdmodifyorderpb.C2S{
 				Header:        resolved.header(),
-				OrderID:       proto.Uint64(order.OrderID),
-				ModifyOrderOp: proto.Int32(int32(trdcommonpb.ModifyOrderOp_ModifyOrderOp_Cancel)),
+				OrderID:       new(order.OrderID),
+				ModifyOrderOp: new(int32(trdcommonpb.ModifyOrderOp_ModifyOrderOp_Cancel)),
 			}
 			if _, err := client.ModifyOrder(ctx, request); err != nil {
 				return err
@@ -134,22 +131,22 @@ func placeOrderRequestFromSubmitOrder(account resolvedTradeAccount, submitOrder 
 
 	request := &trdplaceorderpb.C2S{
 		Header:    account.header(),
-		TrdSide:   proto.Int32(int32(trdSide)),
-		OrderType: proto.Int32(int32(orderType)),
-		Code:      proto.String(code),
-		Qty:       proto.Float64(submitOrder.Quantity.Float64()),
-		SecMarket: proto.Int32(int32(secMarket)),
+		TrdSide:   new(int32(trdSide)),
+		OrderType: new(int32(orderType)),
+		Code:      new(code),
+		Qty:       new(submitOrder.Quantity.Float64()),
+		SecMarket: new(int32(secMarket)),
 	}
 	normalizedPrice := normalizeSubmitOrderPrice(submitOrder.Symbol, submitOrder.Price)
 	if normalizedPrice.Sign() > 0 {
-		request.Price = proto.Float64(normalizedPrice.Float64())
+		request.Price = new(normalizedPrice.Float64())
 	}
 	normalizedStopPrice := normalizeSubmitOrderPrice(submitOrder.Symbol, submitOrder.StopPrice)
 	if normalizedStopPrice.Sign() > 0 {
-		request.AuxPrice = proto.Float64(normalizedStopPrice.Float64())
+		request.AuxPrice = new(normalizedStopPrice.Float64())
 	}
 	if timeInForce, ok := trdTimeInForceFromBBGO(submitOrder.TimeInForce); ok {
-		request.TimeInForce = proto.Int32(int32(timeInForce))
+		request.TimeInForce = new(int32(timeInForce))
 	} else if strings.TrimSpace(string(submitOrder.TimeInForce)) != "" {
 		return nil, fmt.Errorf("futu exchange: unsupported timeInForce %q", submitOrder.TimeInForce)
 	}
@@ -158,7 +155,7 @@ func placeOrderRequestFromSubmitOrder(account resolvedTradeAccount, submitOrder 
 		remark = strings.TrimSpace(submitOrder.Tag)
 	}
 	if remark != "" {
-		request.Remark = proto.String(remark)
+		request.Remark = new(remark)
 	}
 	if query.Session != nil {
 		if secMarket != trdcommonpb.TrdSecMarket_TrdSecMarket_US {
@@ -168,14 +165,14 @@ func placeOrderRequestFromSubmitOrder(account resolvedTradeAccount, submitOrder 
 		if !ok {
 			return nil, fmt.Errorf("futu exchange: unsupported session %q", *query.Session)
 		}
-		request.Session = proto.Int32(session)
+		request.Session = new(session)
 	}
 	if query.FillOutsideRTH != nil {
 		if secMarket != trdcommonpb.TrdSecMarket_TrdSecMarket_US {
 			return nil, fmt.Errorf("futu exchange: fillOutsideRTH is supported for US orders only")
 		}
 		if supportsFillOutsideRTH(submitOrder.Type) {
-			request.FillOutsideRTH = proto.Bool(*query.FillOutsideRTH)
+			request.FillOutsideRTH = new(*query.FillOutsideRTH)
 		}
 	}
 	return request, nil

@@ -150,9 +150,8 @@ func markFailedChatRun(ctx context.Context, run Run, adkErr error) Run {
 }
 
 func markCompletedChatRun(run Run) (Run, string) {
-	completedAt := nowString()
 	run.Status = RunStatusCompleted
-	run.CompletedAt = &completedAt
+	run.CompletedAt = new(nowString())
 	run.Message = "completed"
 	run.FailureReason = ""
 	run.ErrorCode = ""
@@ -227,19 +226,16 @@ func mergeRunActivitySnapshot(run *Run, snapshot Run) {
 		run.FinalMessageID = snapshot.FinalMessageID
 	}
 	if snapshot.Usage != nil {
-		cloned := *snapshot.Usage
-		run.Usage = &cloned
+		run.Usage = new(*snapshot.Usage)
 	}
 	if strings.TrimSpace(snapshot.StartedAt) != "" {
 		run.StartedAt = snapshot.StartedAt
 	}
 	if snapshot.CompletedAt != nil {
-		completedAt := *snapshot.CompletedAt
-		run.CompletedAt = &completedAt
+		run.CompletedAt = new(*snapshot.CompletedAt)
 	}
 	if snapshot.CancelledAt != nil {
-		cancelledAt := *snapshot.CancelledAt
-		run.CancelledAt = &cancelledAt
+		run.CancelledAt = new(*snapshot.CancelledAt)
 	}
 	if strings.TrimSpace(snapshot.OptimizationTaskID) != "" {
 		run.OptimizationTaskID = snapshot.OptimizationTaskID

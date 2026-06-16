@@ -63,8 +63,7 @@ func TestGoogleADKExecutionDerivesCompletedStatusFromFinishedToolCalls(t *testin
 		runID:     "run-1",
 		onDelta: func(delta ChatDelta) error {
 			if delta.Run != nil {
-				copied := *delta.Run
-				snapshots = append(snapshots, &copied)
+				snapshots = append(snapshots, new(*delta.Run))
 			}
 			return nil
 		},

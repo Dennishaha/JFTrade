@@ -262,9 +262,9 @@ func subscribeBasicQotPush(ctx context.Context, client *opend.Client, securities
 	request := &qotsubpb.Request{C2S: &qotsubpb.C2S{
 		SecurityList:     securities,
 		SubTypeList:      []int32{int32(qotcommonpb.SubType_SubType_Basic)},
-		IsSubOrUnSub:     proto.Bool(true),
-		IsRegOrUnRegPush: proto.Bool(true),
-		IsFirstPush:      proto.Bool(true),
+		IsSubOrUnSub:     new(true),
+		IsRegOrUnRegPush: new(true),
+		IsFirstPush:      new(true),
 	}}
 	var response qotsubpb.Response
 	if err := client.Call(ctx, opend.ProtoQotSub, request, &response); err != nil {

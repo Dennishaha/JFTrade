@@ -192,8 +192,7 @@ func newRouteRunStore() *routeRunStore {
 func (s *routeRunStore) Add(run *srvbacktest.RunState) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	clone := *run
-	s.runs[run.ID] = &clone
+	s.runs[run.ID] = new(*run)
 	return nil
 }
 
@@ -216,8 +215,7 @@ func (s *routeRunStore) GetFull(runID string) (*srvbacktest.RunState, bool, erro
 	if !ok {
 		return nil, false, nil
 	}
-	clone := *run
-	return &clone, true, nil
+	return new(*run), true, nil
 }
 
 func (s *routeRunStore) List() []*srvbacktest.RunState {
@@ -225,8 +223,7 @@ func (s *routeRunStore) List() []*srvbacktest.RunState {
 	defer s.mu.Unlock()
 	runs := make([]*srvbacktest.RunState, 0, len(s.runs))
 	for _, run := range s.runs {
-		clone := *run
-		runs = append(runs, &clone)
+		runs = append(runs, new(*run))
 	}
 	return runs
 }
@@ -270,8 +267,7 @@ func (s *routeRunStore) Delete(runID string) (*srvbacktest.RunState, bool, error
 	}
 	delete(s.runs, runID)
 	delete(s.cancels, runID)
-	clone := *run
-	return &clone, true, nil
+	return new(*run), true, nil
 }
 
 func (s *routeRunStore) SetCancel(runID string, cancel context.CancelFunc) {

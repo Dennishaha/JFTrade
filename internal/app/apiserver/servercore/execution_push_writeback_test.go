@@ -32,7 +32,6 @@ func TestExecutionPushHandlersWriteBackAndNotify(t *testing.T) {
 		EventType:          "COMMAND_PLACE_ACCEPTED",
 	})
 
-	fillPrice := 320.5
 	(&tradingExecutionOrderUpdates{server: server}).ApplyFill(t.Context(), "futu", trdsrv.Fill{
 		AccountID:          "1001",
 		TradingEnvironment: "SIMULATE",
@@ -44,7 +43,7 @@ func TestExecutionPushHandlersWriteBackAndNotify(t *testing.T) {
 		SymbolName:         stringPointerOrNil("Tencent"),
 		Side:               "BUY",
 		FilledQuantity:     100,
-		FillPrice:          &fillPrice,
+		FillPrice:          new(320.5),
 		FilledAt:           "2026-05-20T09:32:00Z",
 	})
 
@@ -132,7 +131,6 @@ func TestRecordPlacedOrderReusesExistingBrokerDiscoveredOrder(t *testing.T) {
 	}
 	server := newTestServer(t, store)
 
-	pushPrice := 320.5
 	(&tradingExecutionOrderUpdates{server: server}).ApplyOrder(t.Context(), "futu", trdsrv.Order{
 		AccountID:          "1001",
 		TradingEnvironment: "SIMULATE",
@@ -144,7 +142,7 @@ func TestRecordPlacedOrderReusesExistingBrokerDiscoveredOrder(t *testing.T) {
 		OrderType:          "LIMIT",
 		Status:             "SUBMITTED",
 		Quantity:           100,
-		Price:              &pushPrice,
+		Price:              new(320.5),
 		SubmittedAt:        "2026-05-20T09:33:00Z",
 		UpdatedAt:          "2026-05-20T09:33:00Z",
 	}, trdsrv.OrderWriteMetadata{
@@ -159,8 +157,6 @@ func TestRecordPlacedOrderReusesExistingBrokerDiscoveredOrder(t *testing.T) {
 		t.Fatalf("expected one discovered order, got %#v", ordersBefore.Orders)
 	}
 	discovered := ordersBefore.Orders[0]
-	price := 320.5
-
 	placed := server.executionOrders.recordPlacedOrder(executionPlacedOrderRecord{
 		BrokerID:           "futu",
 		BrokerOrderID:      "9001",
@@ -173,7 +169,7 @@ func TestRecordPlacedOrderReusesExistingBrokerDiscoveredOrder(t *testing.T) {
 		OrderType:          "LIMIT",
 		Status:             "SUBMITTED",
 		RequestedQuantity:  100,
-		RequestedPrice:     &price,
+		RequestedPrice:     new(320.5),
 		SubmittedAt:        time.Now().UTC().Format(time.RFC3339Nano),
 		EventType:          "COMMAND_PLACE_ACCEPTED",
 	})

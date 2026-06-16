@@ -8,8 +8,6 @@ import (
 
 	"github.com/c9s/bbgo/pkg/fixedpoint"
 	"github.com/c9s/bbgo/pkg/types"
-	"google.golang.org/protobuf/proto"
-
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
 	trdcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdcommon"
 	trdgetmaxtrdqtyspb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdgetmaxtrdqtys"
@@ -394,27 +392,27 @@ func (e *Exchange) QueryBrokerMaxTradeQuantity(ctx context.Context, query Broker
 		}
 		request := &trdgetmaxtrdqtyspb.C2S{
 			Header:    resolved.header(),
-			OrderType: proto.Int32(int32(orderType)),
-			Code:      proto.String(code),
-			Price:     proto.Float64(query.Price),
-			SecMarket: proto.Int32(int32(secMarket)),
+			OrderType: new(int32(orderType)),
+			Code:      new(code),
+			Price:     new(query.Price),
+			SecMarket: new(int32(secMarket)),
 		}
 		if trimmed := strings.TrimSpace(query.OrderIDEx); trimmed != "" {
-			request.OrderIDEx = proto.String(trimmed)
+			request.OrderIDEx = new(trimmed)
 		}
 		if query.AdjustSideAndLimit != nil {
-			request.AdjustPrice = proto.Bool(*query.AdjustSideAndLimit != 0)
-			request.AdjustSideAndLimit = proto.Float64(*query.AdjustSideAndLimit)
+			request.AdjustPrice = new(*query.AdjustSideAndLimit != 0)
+			request.AdjustSideAndLimit = new(*query.AdjustSideAndLimit)
 		}
 		if query.Session != nil {
 			if session, ok := sessionValue(*query.Session); ok {
-				request.Session = proto.Int32(session)
+				request.Session = new(session)
 			} else {
 				return fmt.Errorf("futu exchange: unsupported session %q", *query.Session)
 			}
 		}
 		if query.PositionID != nil {
-			request.PositionID = proto.Uint64(*query.PositionID)
+			request.PositionID = new(*query.PositionID)
 		}
 
 		maxQtys, err := client.GetMaxTrdQtys(ctx, request)

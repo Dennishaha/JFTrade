@@ -4,8 +4,6 @@ import (
 	"strings"
 	"testing"
 
-	"google.golang.org/protobuf/proto"
-
 	notifypb "github.com/jftrade/jftrade-main/pkg/futu/pb/notify"
 )
 
@@ -36,13 +34,13 @@ func TestLiveNotificationFromBBGONotifyFormatsStringArgs(t *testing.T) {
 
 func TestLiveNotificationFromFutuResponseMapsAPIQuota(t *testing.T) {
 	note := liveNotificationFromFutuResponse(&notifypb.Response{
-		RetType: proto.Int32(0),
+		RetType: new(int32(0)),
 		S2C: &notifypb.S2C{
-			Type: proto.Int32(int32(notifypb.NotifyType_NotifyType_APIQuota)),
+			Type: new(int32(notifypb.NotifyType_NotifyType_APIQuota)),
 			ApiQuota: &notifypb.APIQuota{
-				Remain:    proto.Int32(5),
-				OwnUsed:   proto.Int32(3),
-				TotalUsed: proto.Int32(8),
+				Remain:    new(int32(5)),
+				OwnUsed:   new(int32(3)),
+				TotalUsed: new(int32(8)),
 			},
 		},
 	})

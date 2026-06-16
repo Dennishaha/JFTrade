@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"google.golang.org/protobuf/proto"
-
 	"github.com/jftrade/jftrade-main/pkg/broker"
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
@@ -94,7 +92,7 @@ func (r *futuMarketDataReader) QueryKLines(ctx context.Context, query broker.KLi
 			EndTime:   toTime,
 		}
 		if query.Limit > 0 {
-			historyReq.MaxAckKLNum = proto.Int32(query.Limit)
+			historyReq.MaxAckKLNum = new(query.Limit)
 		}
 		historyResult, err := client.RequestHistoryKL(ctx, historyReq)
 		if err != nil {
@@ -145,11 +143,10 @@ func (r *futuMarketDataReader) QuerySecurityInfo(ctx context.Context, query brok
 				continue
 			}
 			basic := info.GetBasic()
-			secTypeName := enumName(basic.GetSecType(), qotcommonpb.SecurityType_name)
 			item := broker.SecurityInfoItem{
 				Symbol:       securitySymbol(basic.GetSecurity()),
 				Name:         cloneStringPtr(basic.Name),
-				SecurityType: &secTypeName,
+				SecurityType: new(enumName(basic.GetSecType(), qotcommonpb.SecurityType_name)),
 				LotSize:      cloneInt32Ptr(basic.LotSize),
 				ListTime:     cloneStringPtr(basic.ListTime),
 				IsDelisted:   cloneBoolPtr(basic.Delisting),
@@ -184,11 +181,10 @@ func (r *futuMarketDataReader) QuerySecuritySnapshot(ctx context.Context, query 
 				continue
 			}
 			basic := snap.Basic
-			secTypeName := enumName(basic.GetType(), qotcommonpb.SecurityType_name)
 			item := broker.SecuritySnapshotItem{
 				Symbol:       securitySymbol(basic.GetSecurity()),
 				Name:         cloneStringPtr(basic.Name),
-				SecurityType: &secTypeName,
+				SecurityType: new(enumName(basic.GetType(), qotcommonpb.SecurityType_name)),
 				IsSuspended:  cloneBoolPtr(basic.IsSuspend),
 				LastPrice:    cloneFloat64Ptr(basic.CurPrice),
 				OpenPrice:    cloneFloat64Ptr(basic.OpenPrice),

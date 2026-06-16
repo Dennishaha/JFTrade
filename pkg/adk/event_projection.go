@@ -223,8 +223,7 @@ func sessionProjectionFromADKEvents(events []*adksession.Event) SessionProjectio
 		}
 		filtered = append(filtered, entry)
 		if entry.Role == "assistant" {
-			copyEntry := entry
-			projection.LatestAssistant = &copyEntry
+			projection.LatestAssistant = new(entry)
 		}
 	}
 	projection.Messages = filtered

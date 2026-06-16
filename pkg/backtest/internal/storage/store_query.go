@@ -69,15 +69,13 @@ func (s *FutuKLineStore) queryLatestKLineInRange(
 		if synthErr != nil || len(klines) == 0 {
 			return nil, synthErr
 		}
-		kline := klines[len(klines)-1]
-		return &kline, nil
+		return new(klines[len(klines)-1]), nil
 	}
 	klines, queryErr := s.queryStoredKLinesInRange(symbol, interval, s.rehabType, since, until)
 	if queryErr != nil || len(klines) == 0 {
 		return nil, queryErr
 	}
-	kline := klines[len(klines)-1]
-	return &kline, nil
+	return new(klines[len(klines)-1]), nil
 }
 
 func (s *FutuKLineStore) QueryKLinesForward(

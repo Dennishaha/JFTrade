@@ -143,10 +143,9 @@ func TestOrderUpdatesWorkerThrottleForceAndSubscribeOnce(t *testing.T) {
 
 func TestOrderUpdatesWorkerCacheTTLTerminalRemovalAndDefensiveCopy(t *testing.T) {
 	now := time.Date(2026, 6, 14, 10, 0, 0, 0, time.UTC)
-	price := 100.0
 	source := &fakeOrderUpdateSource{
 		accounts: []Account{{ID: "1001", BrokerID: "futu", TradingEnvironment: "SIMULATE", MarketAuthorities: []string{"HK"}}},
-		current:  []Order{{AccountID: "1001", TradingEnvironment: "SIMULATE", Market: "HK", BrokerOrderID: "1", Status: "SUBMITTED", Price: &price}},
+		current:  []Order{{AccountID: "1001", TradingEnvironment: "SIMULATE", Market: "HK", BrokerOrderID: "1", Status: "SUBMITTED", Price: new(100.0)}},
 	}
 	execution := &fakeExecutionOrderUpdates{}
 	worker := NewOrderUpdatesWorker(source, execution, OrderUpdatesConfig{

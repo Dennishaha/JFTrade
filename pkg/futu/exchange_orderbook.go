@@ -3,8 +3,6 @@ package futu
 import (
 	"context"
 
-	"google.golang.org/protobuf/proto"
-
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
 )
@@ -68,10 +66,10 @@ func (e *Exchange) ensureOrderBookSubscriptions(ctx context.Context, client *ope
 			Securities:  securityList,
 			SubTypes:    []qotcommonpb.SubType{qotcommonpb.SubType_SubType_OrderBook},
 			IsSubscribe: true,
-			IsFirstPush: proto.Bool(false),
+			IsFirstPush: new(false),
 		}
 		if batch.withDetail {
-			subReq.IsSubOrderBookDetail = proto.Bool(true)
+			subReq.IsSubOrderBookDetail = new(true)
 		}
 		if err := client.SubscribeQuotes(ctx, subReq); err != nil {
 			return err
@@ -111,10 +109,10 @@ func (e *Exchange) ensureOrderBookPushSubscriptions(ctx context.Context, client 
 			Securities:  securityList,
 			SubTypes:    []qotcommonpb.SubType{qotcommonpb.SubType_SubType_OrderBook},
 			IsSubscribe: true,
-			IsRegPush:   proto.Bool(true),
+			IsRegPush:   new(true),
 		}
 		if batch.withDetail {
-			subReq.IsSubOrderBookDetail = proto.Bool(true)
+			subReq.IsSubOrderBookDetail = new(true)
 		}
 		if err := client.SubscribeQuotes(ctx, subReq); err != nil {
 			return err

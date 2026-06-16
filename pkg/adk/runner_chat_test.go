@@ -52,12 +52,11 @@ func TestPrepareChatRequestValidationAndConcurrency(t *testing.T) {
 
 func TestHydrateRunExecutionResultPopulatesRunFields(t *testing.T) {
 	run := Run{ID: "run-1", Usage: &RunUsage{}}
-	errText := "disk full"
 	result := hydrateRunExecutionResult(
 		run,
 		toolExecutionContext{
 			calls: []ToolCall{
-				{ToolName: "strategy.save_draft", Status: "FAILED", Error: &errText},
+				{ToolName: "strategy.save_draft", Status: "FAILED", Error: new("disk full")},
 				{ToolName: "strategy.optimize", Status: "SUCCEEDED", Output: map[string]any{"taskId": "opt-123"}},
 			},
 			summaries: []string{"saved draft", "optimization started"},
@@ -355,7 +354,6 @@ func TestCompleteChatRunKeepsFailedToolCallsVisibleWithoutFailingRun(t *testing.
 	runtime := newTestRuntime(t)
 
 	session := mustCreateSession(t, runtime, "agent-1", "tool failure")
-	toolErr := "disk full"
 	run := mustSaveRun(t, runtime, Run{
 		ID:        "run-complete-tool-failed",
 		SessionID: session.ID,
@@ -370,7 +368,7 @@ func TestCompleteChatRunKeepsFailedToolCallsVisibleWithoutFailingRun(t *testing.
 			ToolName:   "strategy.save_draft",
 			Permission: "write_strategy",
 			Status:     "FAILED",
-			Error:      &toolErr,
+			Error:      new("disk full"),
 			CreatedAt:  nowString(),
 			UpdatedAt:  nowString(),
 		}},
@@ -749,7 +747,6 @@ func TestCancelRunOnTerminalStateIsNoop(t *testing.T) {
 	ctx := context.Background()
 	runtime := newTestRuntime(t)
 
-	completedAt := nowString()
 	run := mustSaveRun(t, runtime, Run{
 		ID:          "run-terminal-noop",
 		SessionID:   "session-1",
@@ -758,7 +755,7 @@ func TestCancelRunOnTerminalStateIsNoop(t *testing.T) {
 		Message:     "completed",
 		CreatedAt:   nowString(),
 		UpdatedAt:   nowString(),
-		CompletedAt: &completedAt,
+		CompletedAt: new(nowString()),
 	})
 
 	cancelled, err := runtime.CancelRun(ctx, run.ID)

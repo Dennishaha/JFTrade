@@ -100,8 +100,6 @@ func (s *executionOrderStore) recordPlacedOrder(input executionPlacedOrderRecord
 	s.nextOrderSeq++
 	s.persistSequenceLocked("orders", s.nextOrderSeq)
 	internalOrderID := fmt.Sprintf("exec-%06d", s.nextOrderSeq)
-	requestedQuantity := input.RequestedQuantity
-	filledQuantity := 0.0
 	summary := executionOrderSummaryResponse{
 		InternalOrderID:    internalOrderID,
 		BrokerID:           strings.TrimSpace(input.BrokerID),
@@ -116,9 +114,9 @@ func (s *executionOrderStore) recordPlacedOrder(input executionPlacedOrderRecord
 		Side:               stringPointerOrNil(input.Side),
 		OrderType:          stringPointerOrNil(input.OrderType),
 		Status:             strings.TrimSpace(input.Status),
-		RequestedQuantity:  &requestedQuantity,
+		RequestedQuantity:  new(input.RequestedQuantity),
 		RequestedPrice:     cloneFloat64Pointer(input.RequestedPrice),
-		FilledQuantity:     &filledQuantity,
+		FilledQuantity:     new(0.0),
 		FilledAveragePrice: nil,
 		Remark:             stringPointerOrNil(input.Remark),
 		LastError:          nil,
@@ -242,11 +240,9 @@ func (s *executionOrderStore) upsertBrokerOrderWithSource(brokerID string, snaps
 		s.nextOrderSeq++
 		s.persistSequenceLocked("orders", s.nextOrderSeq)
 		internalOrderID = fmt.Sprintf("exec-%06d", s.nextOrderSeq)
-		requestedQuantity := snapshot.Quantity
 		filledQuantity := cloneFloat64Pointer(snapshot.FilledQuantity)
 		if filledQuantity == nil {
-			zero := 0.0
-			filledQuantity = &zero
+			filledQuantity = new(0.0)
 		}
 		summary := executionOrderSummaryResponse{
 			InternalOrderID:    internalOrderID,
@@ -262,7 +258,7 @@ func (s *executionOrderStore) upsertBrokerOrderWithSource(brokerID string, snaps
 			Side:               stringPointerOrNil(snapshot.Side),
 			OrderType:          stringPointerOrNil(snapshot.OrderType),
 			Status:             firstNonEmptyString(snapshot.Status, "SUBMITTED"),
-			RequestedQuantity:  &requestedQuantity,
+			RequestedQuantity:  new(snapshot.Quantity),
 			RequestedPrice:     cloneFloat64Pointer(snapshot.Price),
 			FilledQuantity:     filledQuantity,
 			FilledAveragePrice: cloneFloat64Pointer(snapshot.FilledAveragePrice),
@@ -281,8 +277,7 @@ func (s *executionOrderStore) upsertBrokerOrderWithSource(brokerID string, snaps
 		s.linkBrokerOrderLocked(summary)
 		s.persistOrderLocked(summary)
 		event := s.appendEventLocked(internalOrderID, nil, summary.Status, discoveredEventType, snapshot, firstNonEmptyString(summary.UpdatedAt, now))
-		clonedEvent := cloneExecutionOrderEvent(event)
-		return cloneExecutionOrderSummary(summary), &clonedEvent, true
+		return cloneExecutionOrderSummary(summary), new(cloneExecutionOrderEvent(event)), true
 	}
 
 	summary := s.orders[internalOrderID]
@@ -334,8 +329,7 @@ func (s *executionOrderStore) upsertBrokerOrderWithSource(brokerID string, snaps
 		summary.LastErrorSource = nil
 	}
 	if snapshot.Quantity > 0 && float64PointersDiffer(summary.RequestedQuantity, &snapshot.Quantity) {
-		requestedQuantity := snapshot.Quantity
-		summary.RequestedQuantity = &requestedQuantity
+		summary.RequestedQuantity = new(snapshot.Quantity)
 		changed = true
 	}
 	if snapshot.Price != nil && float64PointersDiffer(summary.RequestedPrice, snapshot.Price) {
@@ -380,8 +374,7 @@ func (s *executionOrderStore) upsertBrokerOrderWithSource(brokerID string, snaps
 	s.linkBrokerOrderLocked(summary)
 	s.persistOrderLocked(summary)
 	event := s.appendEventLocked(internalOrderID, stringPointerOrNil(previousStatus), summary.Status, updatedEventType, snapshot, summary.UpdatedAt)
-	clonedEvent := cloneExecutionOrderEvent(event)
-	return cloneExecutionOrderSummary(summary), &clonedEvent, true
+	return cloneExecutionOrderSummary(summary), new(cloneExecutionOrderEvent(event)), true
 }
 
 func (s *executionOrderStore) recordBrokerOrderFill(brokerID string, fill broker.OrderFillSnapshot) (executionOrderSummaryResponse, *executionOrderEventResponse, bool) {
@@ -403,7 +396,6 @@ func (s *executionOrderStore) recordBrokerOrderFill(brokerID string, fill broker
 		s.nextOrderSeq++
 		s.persistSequenceLocked("orders", s.nextOrderSeq)
 		internalOrderID = fmt.Sprintf("exec-%06d", s.nextOrderSeq)
-		filledQuantity := fill.FilledQuantity
 		status := firstNonEmpty(derefString(fill.Status), "FILLED_PART")
 		if status == "" {
 			status = "FILLED_PART"
@@ -424,7 +416,7 @@ func (s *executionOrderStore) recordBrokerOrderFill(brokerID string, fill broker
 			Status:             status,
 			RequestedQuantity:  nil,
 			RequestedPrice:     nil,
-			FilledQuantity:     &filledQuantity,
+			FilledQuantity:     new(fill.FilledQuantity),
 			FilledAveragePrice: cloneFloat64Pointer(fill.FillPrice),
 			Remark:             nil,
 			LastError:          nil,
@@ -441,8 +433,7 @@ func (s *executionOrderStore) recordBrokerOrderFill(brokerID string, fill broker
 		s.linkBrokerOrderLocked(summary)
 		s.persistOrderLocked(summary)
 		event := s.appendEventLocked(internalOrderID, nil, summary.Status, "BROKER_FILL_RECEIVED", fill, firstNonEmptyString(summary.UpdatedAt, now))
-		clonedEvent := cloneExecutionOrderEvent(event)
-		return cloneExecutionOrderSummary(summary), &clonedEvent, true
+		return cloneExecutionOrderSummary(summary), new(cloneExecutionOrderEvent(event)), true
 	}
 
 	summary := s.orders[internalOrderID]
@@ -462,8 +453,7 @@ func (s *executionOrderStore) recordBrokerOrderFill(brokerID string, fill broker
 	} else {
 		status = "FILLED_PART"
 	}
-	filledQuantity := newFilled
-	summary.FilledQuantity = &filledQuantity
+	summary.FilledQuantity = new(newFilled)
 	if fill.FillPrice != nil {
 		summary.FilledAveragePrice = &filledAverage
 	}
@@ -503,8 +493,7 @@ func (s *executionOrderStore) recordBrokerOrderFill(brokerID string, fill broker
 	s.linkBrokerOrderLocked(summary)
 	s.persistOrderLocked(summary)
 	event := s.appendEventLocked(internalOrderID, stringPointerOrNil(previousStatus), summary.Status, "BROKER_FILL_RECEIVED", fill, summary.UpdatedAt)
-	clonedEvent := cloneExecutionOrderEvent(event)
-	return cloneExecutionOrderSummary(summary), &clonedEvent, previousStatus != summary.Status || newFilled != previousFilled
+	return cloneExecutionOrderSummary(summary), new(cloneExecutionOrderEvent(event)), previousStatus != summary.Status || newFilled != previousFilled
 }
 
 func (s *executionOrderStore) appendEventLocked(internalOrderID string, previousStatus *string, nextStatus string, eventType string, payload any, createdAt string) executionOrderEventResponse {

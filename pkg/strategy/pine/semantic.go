@@ -596,8 +596,7 @@ func parseMethodDeclaration(value string) (string, *SemanticParameter, []Semanti
 	if len(parameters) == 0 {
 		return name, nil, nil
 	}
-	receiver := parameters[0]
-	return name, &receiver, parameters
+	return name, new(parameters[0]), parameters
 }
 
 func parseSemanticParameters(value string) []SemanticParameter {

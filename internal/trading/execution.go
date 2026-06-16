@@ -279,12 +279,10 @@ func (s *Service) normalizeExecutionOrder(payload ExecutionPlaceRequest) (Execut
 }
 
 func executionCommandResponse(operation, message string, order ExecutionOrder) ExecutionCommandResponse {
-	status := order.Status
-	internalOrderID := order.InternalOrderID
 	return ExecutionCommandResponse{
-		Accepted: true, Operation: operation, InternalOrderID: &internalOrderID,
+		Accepted: true, Operation: operation, InternalOrderID: new(order.InternalOrderID),
 		BrokerOrderID: order.BrokerOrderID, BrokerOrderIDEx: order.BrokerOrderIDEx,
-		OrderStatus: &status, Message: message, CheckedAt: time.Now().UTC().Format(time.RFC3339Nano),
+		OrderStatus: new(order.Status), Message: message, CheckedAt: time.Now().UTC().Format(time.RFC3339Nano),
 	}
 }
 
@@ -337,8 +335,7 @@ func normalizeExecutionSession(marketCode, orderType, raw string) (string, *bool
 	if orderType != "LIMIT" && orderType != "STOP_LIMIT" {
 		return session, nil, nil
 	}
-	fillOutsideRTH := session != "RTH"
-	return session, &fillOutsideRTH, nil
+	return session, new(session != "RTH"), nil
 }
 
 func requiresLimitPrice(orderType string) bool {

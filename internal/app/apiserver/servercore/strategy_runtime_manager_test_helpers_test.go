@@ -57,16 +57,16 @@ func newStrategyRuntimeStubExchange() *strategyRuntimeStubExchange {
 			AccountID:               "123456",
 			TradingEnvironment:      "SIMULATE",
 			Market:                  "US",
-			TotalAssets:             floatPtr(100000),
-			AvailableFunds:          floatPtr(100000),
-			AvailableWithdrawalCash: floatPtr(100000),
+			TotalAssets:             new(float64(100000)),
+			AvailableFunds:          new(float64(100000)),
+			AvailableWithdrawalCash: new(float64(100000)),
 			CurrencyBalances: []broker.CurrencyBalanceSnapshot{{
 				AccountID:               "123456",
 				TradingEnvironment:      "SIMULATE",
 				Currency:                "USD",
-				Cash:                    floatPtr(100000),
-				NetCashPower:            floatPtr(100000),
-				AvailableWithdrawalCash: floatPtr(100000),
+				Cash:                    new(float64(100000)),
+				NetCashPower:            new(float64(100000)),
+				AvailableWithdrawalCash: new(float64(100000)),
 			}},
 		},
 	}
@@ -81,8 +81,7 @@ func (e *strategyRuntimeStubExchange) PlatformFeeCurrency() string {
 }
 
 func (e *strategyRuntimeStubExchange) NewStream() bbgotypes.Stream {
-	stream := bbgotypes.NewStandardStream()
-	return &stream
+	return new(bbgotypes.NewStandardStream())
 }
 
 func (e *strategyRuntimeStubExchange) QueryMarkets(context.Context) (bbgotypes.MarketMap, error) {
@@ -126,8 +125,7 @@ func (e *strategyRuntimeStubExchange) QueryTicker(_ context.Context, symbol stri
 	if err != nil {
 		return nil, err
 	}
-	ticker := tickerMap[symbol]
-	return &ticker, nil
+	return new(tickerMap[symbol]), nil
 }
 
 func (e *strategyRuntimeStubExchange) QueryTickers(_ context.Context, symbols ...string) (map[string]bbgotypes.Ticker, error) {

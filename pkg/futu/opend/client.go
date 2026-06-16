@@ -157,8 +157,8 @@ func (c *Client) NextPacketID() *commonpb.PacketID {
 	}
 	serialNo := atomic.AddUint32(&c.packet, 1)
 	return &commonpb.PacketID{
-		ConnID:   proto.Uint64(connID),
-		SerialNo: proto.Uint32(serialNo),
+		ConnID:   new(connID),
+		SerialNo: new(serialNo),
 	}
 }
 
@@ -193,7 +193,7 @@ func (c *Client) keepAliveLoop(interval time.Duration) {
 				callTimeout = tickInterval
 			}
 			ctx, cancel := context.WithTimeout(context.Background(), callTimeout)
-			request := &keepalivepb.Request{C2S: &keepalivepb.C2S{Time: proto.Int64(time.Now().UTC().Unix())}}
+			request := &keepalivepb.Request{C2S: &keepalivepb.C2S{Time: new(time.Now().UTC().Unix())}}
 			var response keepalivepb.Response
 			err := c.Call(ctx, ProtoKeepAlive, request, &response)
 			cancel()

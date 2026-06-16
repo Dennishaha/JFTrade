@@ -599,6 +599,5 @@ func strategyRuntimeNullMillisToTime(value sql.NullInt64) *time.Time {
 	if !value.Valid {
 		return nil
 	}
-	timestamp := time.UnixMilli(value.Int64).UTC()
-	return &timestamp
+	return new(time.UnixMilli(value.Int64).UTC())
 }

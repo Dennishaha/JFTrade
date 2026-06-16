@@ -173,14 +173,13 @@ func (r *Runtime) markApprovalContinuationFailed(ctx context.Context, runID stri
 	if err != nil || !ok || !runCanContinueResolvedApproval(run) || runHasPendingApproval(run.PendingApprovals) {
 		return
 	}
-	completedAt := nowString()
 	run.Status = RunStatusFailed
 	run.ResumeState = "approval_continuation_failed"
 	run.Message = "审批已提交，但后台执行失败。"
 	run.FailureReason = userFacingADKError(cause)
 	run.ErrorCode = "APPROVAL_CONTINUATION_FAILED"
 	run.Degraded = true
-	run.CompletedAt = &completedAt
+	run.CompletedAt = new(nowString())
 	finalizeRunUsage(&run)
 	_ = r.store.SaveRun(ctx, run)
 	replyResult := openAIChatResult{Reply: localReply(run.UserMessage, toolSummariesForRun(run), cause)}

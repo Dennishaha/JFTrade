@@ -209,8 +209,7 @@ func cloneTick(tick *Tick) *Tick {
 	if tick == nil {
 		return nil
 	}
-	cloned := *tick
-	return &cloned
+	return new(*tick)
 }
 
 func parseTime(value string) time.Time {

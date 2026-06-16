@@ -1312,7 +1312,7 @@ func TestSessionFilteredBacktestStoreFiltersUSExtendedHours(t *testing.T) {
 	defer reopenedStore.Close()
 	reopenedStore.SetRehabType("forward")
 
-	filteredStore := newBacktestReplayStore(reopenedStore, boolPtr(false))
+	filteredStore := newBacktestReplayStore(reopenedStore, new(false))
 	backwardRows, err := filteredStore.QueryKLinesBackward(nil, "US.AAPL", types.Interval1m, regularStart.Add(time.Minute-time.Millisecond), 2)
 	if err != nil {
 		t.Fatalf("QueryKLinesBackward(filtered) error = %v", err)
@@ -1342,7 +1342,7 @@ func TestSessionFilteredBacktestStoreFiltersUSExtendedHours(t *testing.T) {
 		t.Fatalf("QueryKLinesCh(filtered) start = %s, want %s", got, regularStart)
 	}
 
-	unfilteredStore := newBacktestReplayStore(reopenedStore, boolPtr(true))
+	unfilteredStore := newBacktestReplayStore(reopenedStore, new(true))
 	unfilteredCh, unfilteredErrCh := unfilteredStore.QueryKLinesCh(
 		premarketStart,
 		regularStart.Add(time.Minute-time.Millisecond),
@@ -1437,7 +1437,7 @@ func TestSessionFilteredBacktestStoreSynthesizesUSDailyWithOvernightWhenExtended
 	defer reopenedStore.Close()
 	reopenedStore.SetRehabType("forward")
 
-	regularDailyStore := newBacktestReplayStore(reopenedStore, boolPtr(false))
+	regularDailyStore := newBacktestReplayStore(reopenedStore, new(false))
 	regularRows, err := regularDailyStore.QueryKLinesBackward(nil, "US.AAPL", types.Interval1d, time.Date(2026, time.January, 9, 0, 0, 0, 0, time.UTC), 1)
 	if err != nil {
 		t.Fatalf("QueryKLinesBackward(regular 1d) error = %v", err)
@@ -1449,7 +1449,7 @@ func TestSessionFilteredBacktestStoreSynthesizesUSDailyWithOvernightWhenExtended
 		t.Fatalf("regular daily volume = %s, want 1000", regularRows[0].Volume.String())
 	}
 
-	extendedDailyStore := newBacktestReplayStore(reopenedStore, boolPtr(true))
+	extendedDailyStore := newBacktestReplayStore(reopenedStore, new(true))
 	extendedRows, err := extendedDailyStore.QueryKLinesBackward(nil, "US.AAPL", types.Interval1d, time.Date(2026, time.January, 9, 0, 0, 0, 0, time.UTC), 1)
 	if err != nil {
 		t.Fatalf("QueryKLinesBackward(extended 1d) error = %v", err)
@@ -1573,7 +1573,7 @@ func TestSessionFilteredBacktestStoreSynthesizesUSWeeklyWithOvernightWhenExtende
 	defer reopenedStore.Close()
 	reopenedStore.SetRehabType("forward")
 
-	regularWeeklyStore := newBacktestReplayStore(reopenedStore, boolPtr(false))
+	regularWeeklyStore := newBacktestReplayStore(reopenedStore, new(false))
 	regularRows, err := regularWeeklyStore.QueryKLinesBackward(nil, "US.AAPL", types.Interval1w, time.Date(2026, time.January, 12, 0, 0, 0, 0, time.UTC), 1)
 	if err != nil {
 		t.Fatalf("QueryKLinesBackward(regular 1w) error = %v", err)
@@ -1591,7 +1591,7 @@ func TestSessionFilteredBacktestStoreSynthesizesUSWeeklyWithOvernightWhenExtende
 		t.Fatalf("regular weekly volume = %s, want 2200", regularRows[0].Volume.String())
 	}
 
-	extendedWeeklyStore := newBacktestReplayStore(reopenedStore, boolPtr(true))
+	extendedWeeklyStore := newBacktestReplayStore(reopenedStore, new(true))
 	extendedRows, err := extendedWeeklyStore.QueryKLinesBackward(nil, "US.AAPL", types.Interval1w, time.Date(2026, time.January, 12, 0, 0, 0, 0, time.UTC), 1)
 	if err != nil {
 		t.Fatalf("QueryKLinesBackward(extended 1w) error = %v", err)
@@ -1664,7 +1664,7 @@ func TestSessionFilteredBacktestStoreSynthesizesUSTwoHourWithPreMarketWhenExtend
 	defer reopenedStore.Close()
 	reopenedStore.SetRehabType("forward")
 
-	regularStore := newBacktestReplayStore(reopenedStore, boolPtr(false))
+	regularStore := newBacktestReplayStore(reopenedStore, new(false))
 	regularRows, err := regularStore.QueryKLinesBackward(nil, "US.AAPL", types.Interval2h, time.Date(2026, time.January, 8, 16, 30, 0, 0, time.UTC), 2)
 	if err != nil {
 		t.Fatalf("QueryKLinesBackward(regular 2h) error = %v", err)
@@ -1679,7 +1679,7 @@ func TestSessionFilteredBacktestStoreSynthesizesUSTwoHourWithPreMarketWhenExtend
 		t.Fatalf("regular 2h volume = %s, want 580", regularRows[0].Volume.String())
 	}
 
-	extendedStore := newBacktestReplayStore(reopenedStore, boolPtr(true))
+	extendedStore := newBacktestReplayStore(reopenedStore, new(true))
 	extendedRows, err := extendedStore.QueryKLinesBackward(nil, "US.AAPL", types.Interval2h, time.Date(2026, time.January, 8, 16, 30, 0, 0, time.UTC), 2)
 	if err != nil {
 		t.Fatalf("QueryKLinesBackward(extended 2h) error = %v", err)

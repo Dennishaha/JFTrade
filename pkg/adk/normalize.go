@@ -51,8 +51,7 @@ func NormalizeChatResponse(response ChatResponse) ChatResponse {
 
 func NormalizeApprovalResolution(resolution ApprovalResolution) ApprovalResolution {
 	if resolution.Run != nil {
-		run := NormalizeRun(*resolution.Run)
-		resolution.Run = &run
+		resolution.Run = new(NormalizeRun(*resolution.Run))
 	}
 	return resolution
 }

@@ -44,27 +44,27 @@ func (c *Client) SubscribeQuotes(ctx context.Context, req QuoteSubRequest) error
 	c2s := &qotsubpb.C2S{
 		SecurityList: req.Securities,
 		SubTypeList:  subTypeInts,
-		IsSubOrUnSub: proto.Bool(req.IsSubscribe),
-		IsUnsubAll:   proto.Bool(req.IsUnsubAll),
+		IsSubOrUnSub: new(req.IsSubscribe),
+		IsUnsubAll:   new(req.IsUnsubAll),
 	}
 
 	if req.IsRegPush != nil {
-		c2s.IsRegOrUnRegPush = proto.Bool(*req.IsRegPush)
+		c2s.IsRegOrUnRegPush = new(*req.IsRegPush)
 	}
 	if len(req.RegPushRehabTypes) > 0 {
 		c2s.RegPushRehabTypeList = rehabTypeInts
 	}
 	if req.IsFirstPush != nil {
-		c2s.IsFirstPush = proto.Bool(*req.IsFirstPush)
+		c2s.IsFirstPush = new(*req.IsFirstPush)
 	}
 	if req.ExtendedTime != nil {
-		c2s.ExtendedTime = proto.Bool(*req.ExtendedTime)
+		c2s.ExtendedTime = new(*req.ExtendedTime)
 	}
 	if req.Session != nil {
-		c2s.Session = proto.Int32(*req.Session)
+		c2s.Session = new(*req.Session)
 	}
 	if req.IsSubOrderBookDetail != nil {
-		c2s.IsSubOrderBookDetail = proto.Bool(*req.IsSubOrderBookDetail)
+		c2s.IsSubOrderBookDetail = new(*req.IsSubOrderBookDetail)
 	}
 
 	request := &qotsubpb.Request{C2S: c2s}

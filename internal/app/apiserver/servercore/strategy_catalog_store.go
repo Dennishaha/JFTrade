@@ -230,7 +230,6 @@ func (s *strategyCatalogStore) installPlugin(pluginID string) (strategyPluginOpe
 			continue
 		}
 		now := time.Now().UTC().Format(time.RFC3339Nano)
-		completedAt := now
 		operation := strategyPluginOperation{
 			OperationID: buildPluginOperationID(pluginID),
 			PluginID:    pluginID,
@@ -242,7 +241,7 @@ func (s *strategyCatalogStore) installPlugin(pluginID string) (strategyPluginOpe
 			InstallPath: plugin.Installation.InstallPath,
 			StartedAt:   now,
 			UpdatedAt:   now,
-			CompletedAt: &completedAt,
+			CompletedAt: new(now),
 		}
 		plugin.Installation.Status = "INSTALLED"
 		plugin.Installation.Installed = true
@@ -267,7 +266,6 @@ func (s *strategyCatalogStore) uninstallPlugin(pluginID string) (strategyPluginO
 			continue
 		}
 		now := time.Now().UTC().Format(time.RFC3339Nano)
-		completedAt := now
 		operation := strategyPluginOperation{
 			OperationID: buildPluginOperationID(pluginID),
 			PluginID:    pluginID,
@@ -279,7 +277,7 @@ func (s *strategyCatalogStore) uninstallPlugin(pluginID string) (strategyPluginO
 			InstallPath: plugin.Installation.InstallPath,
 			StartedAt:   now,
 			UpdatedAt:   now,
-			CompletedAt: &completedAt,
+			CompletedAt: new(now),
 		}
 		plugin.Installation.Status = "NOT_INSTALLED"
 		plugin.Installation.Installed = false

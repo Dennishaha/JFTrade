@@ -480,8 +480,7 @@ func limitVisibleEventForContext(event *adksession.Event) (*adksession.Event, in
 		}
 		partCopy := *part
 		if part.FunctionCall != nil {
-			functionCallCopy := *part.FunctionCall
-			partCopy.FunctionCall = &functionCallCopy
+			partCopy.FunctionCall = new(*part.FunctionCall)
 		}
 		if part.FunctionResponse != nil {
 			functionResponseCopy := *part.FunctionResponse

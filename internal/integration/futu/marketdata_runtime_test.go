@@ -83,14 +83,13 @@ func TestTickFromTradeProducesBrokerNeutralPushTick(t *testing.T) {
 func TestTickFromTickerPreservesHKPreviousCloseDuringLunchBreak(t *testing.T) {
 	cache := marketdata.NewCache()
 	previousClose := decimal.RequireFromString("698.9")
-	lastClose := decimal.RequireFromString("698.1")
 	cache.Seed(marketdata.Tick{
 		InstrumentID:       "HK.00700",
 		Market:             "HK",
 		Symbol:             "00700",
 		Price:              decimal.RequireFromString("700.1"),
 		PreviousClosePrice: &previousClose,
-		LastClosePrice:     &lastClose,
+		LastClosePrice:     new(decimal.RequireFromString("698.1")),
 		QuoteAt:            time.Now().UTC().Add(-time.Second).Format(time.RFC3339Nano),
 		ObservedAt:         time.Now().UTC().Add(-time.Second).Format(time.RFC3339Nano),
 		Source:             "bbgo:futu",

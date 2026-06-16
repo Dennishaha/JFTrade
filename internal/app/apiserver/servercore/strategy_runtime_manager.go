@@ -392,8 +392,7 @@ func (m *strategyRuntimeManager) seedSymbolRuntime(ctx context.Context, exchange
 	for index := range klines {
 		kline := klines[index]
 		if !kline.Closed && index == len(klines)-1 {
-			current := kline
-			runner.setCurrentBucket(&current)
+			runner.setCurrentBucket(new(kline))
 			continue
 		}
 		closed := kline
@@ -456,8 +455,7 @@ func (r *strategySymbolRuntime) syncClosedKLines() {
 		kline := klines[index]
 		if !kline.Closed {
 			if index == len(klines)-1 {
-				current := kline
-				r.setCurrentBucket(&current)
+				r.setCurrentBucket(new(kline))
 			}
 			continue
 		}
@@ -655,8 +653,7 @@ func (e *strategyLiveOrderExecutor) SubmitOrders(ctx context.Context, orders ...
 		placeQuery.OrderType = strings.ToUpper(string(order.Type))
 		placeQuery.Quantity = order.Quantity.Float64()
 		if order.Price.Sign() > 0 {
-			price := order.Price.Float64()
-			placeQuery.Price = &price
+			placeQuery.Price = new(order.Price.Float64())
 		}
 		timeInForce := strings.ToUpper(string(order.TimeInForce))
 		if timeInForce == "" {
@@ -904,16 +901,14 @@ func strategyRuntimeOptionalTime(value time.Time) *time.Time {
 	if value.IsZero() {
 		return nil
 	}
-	timestamp := value.UTC()
-	return &timestamp
+	return new(value.UTC())
 }
 
 func strategyRuntimeTimePointerToString(value *time.Time) *string {
 	if value == nil || value.IsZero() {
 		return nil
 	}
-	formatted := value.UTC().Format(time.RFC3339Nano)
-	return &formatted
+	return new(value.UTC().Format(time.RFC3339Nano))
 }
 
 func strategyRuntimeBrokerReadQuery(binding strategyInstanceBinding) broker.ReadQuery {
@@ -1201,8 +1196,7 @@ func strategyRuntimeOptionalTimestamp(value time.Time) *string {
 	if value.IsZero() {
 		return nil
 	}
-	formatted := value.UTC().Format(time.RFC3339Nano)
-	return &formatted
+	return new(value.UTC().Format(time.RFC3339Nano))
 }
 
 func strategyRuntimeOptionalString(value string) *string {

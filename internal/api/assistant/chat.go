@@ -85,8 +85,7 @@ func (h *Handler) handleADKChatStream(c *gin.Context) {
 		streamMu.Lock()
 		defer streamMu.Unlock()
 		if delta.Run != nil {
-			normalizedRun := jfadk.NormalizeRun(*delta.Run)
-			delta.Run = &normalizedRun
+			delta.Run = new(jfadk.NormalizeRun(*delta.Run))
 			timelineState.observeRun(delta.Run)
 			if err := writer.WriteEvent(adkChatStreamEvent{Type: "run", Run: delta.Run}); err != nil {
 				return err
@@ -159,7 +158,7 @@ func (h *Handler) handleADKChatStream(c *gin.Context) {
 			trimmedRun.ToolCalls[i].Output = nil
 		}
 	}
-	finalResponse := jfadk.NormalizeChatResponse(jfadk.ChatResponse{
+	_ = writer.WriteEvent(adkChatStreamEvent{Type: "final", Response: new(jfadk.NormalizeChatResponse(jfadk.ChatResponse{
 		Reply:            response.Reply,
 		ReasoningContent: response.ReasoningContent,
 		Session:          response.Session,
@@ -167,8 +166,7 @@ func (h *Handler) handleADKChatStream(c *gin.Context) {
 		PendingApprovals: response.PendingApprovals,
 		Timeline:         response.Timeline,
 		Context:          response.Context,
-	})
-	_ = writer.WriteEvent(adkChatStreamEvent{Type: "final", Response: &finalResponse})
+	}))})
 }
 
 func decodeADKChatRequest(body io.Reader) (jfadk.ChatRequest, error) {
@@ -279,8 +277,7 @@ func cloneTimelineEntry(entry *jfadk.TimelineEntry) *jfadk.TimelineEntry {
 	if entry == nil {
 		return nil
 	}
-	cloned := jfadk.NormalizeTimelineEntry(*entry)
-	return &cloned
+	return new(jfadk.NormalizeTimelineEntry(*entry))
 }
 
 func defaultTimelineSessionID(sessionID string) string {

@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"google.golang.org/protobuf/proto"
-
 	commonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/common"
 	getglobalstatepb "github.com/jftrade/jftrade-main/pkg/futu/pb/getglobalstate"
 )
@@ -13,24 +11,24 @@ import (
 // GlobalState holds the OpenD global-state snapshot returned by
 // GetGlobalState (1002).
 type GlobalState struct {
-	MarketHK        int32
-	MarketUS        int32
-	MarketSH        int32
-	MarketSZ        int32
-	MarketHKFuture  int32
-	MarketUSFuture  *int32
-	MarketSGFuture  *int32
-	MarketJPFuture  *int32
-	QotLogined      bool
-	TrdLogined      bool
-	ServerVer       int32
-	ServerBuildNo   int32
-	ServerTime      int64
-	LocalTime       *float64
-	ProgramStatus   *string
-	QotSvrIPAddr    *string
-	TrdSvrIPAddr    *string
-	ConnID          *uint64
+	MarketHK       int32
+	MarketUS       int32
+	MarketSH       int32
+	MarketSZ       int32
+	MarketHKFuture int32
+	MarketUSFuture *int32
+	MarketSGFuture *int32
+	MarketJPFuture *int32
+	QotLogined     bool
+	TrdLogined     bool
+	ServerVer      int32
+	ServerBuildNo  int32
+	ServerTime     int64
+	LocalTime      *float64
+	ProgramStatus  *string
+	QotSvrIPAddr   *string
+	TrdSvrIPAddr   *string
+	ConnID         *uint64
 }
 
 // GetGlobalState fetches the current OpenD global state, including server
@@ -38,7 +36,7 @@ type GlobalState struct {
 // (GetGlobalState, 1002).
 func (c *Client) GetGlobalState(ctx context.Context) (*GlobalState, error) {
 	request := &getglobalstatepb.Request{C2S: &getglobalstatepb.C2S{
-		UserID: proto.Uint64(0),
+		UserID: new(uint64(0)),
 	}}
 	var response getglobalstatepb.Response
 	if err := c.Call(ctx, ProtoGetGlobalState, request, &response); err != nil {
@@ -67,36 +65,28 @@ func (c *Client) GetGlobalState(ctx context.Context) (*GlobalState, error) {
 	}
 
 	if s2c.MarketUSFuture != nil {
-		v := s2c.GetMarketUSFuture()
-		gs.MarketUSFuture = &v
+		gs.MarketUSFuture = new(s2c.GetMarketUSFuture())
 	}
 	if s2c.MarketSGFuture != nil {
-		v := s2c.GetMarketSGFuture()
-		gs.MarketSGFuture = &v
+		gs.MarketSGFuture = new(s2c.GetMarketSGFuture())
 	}
 	if s2c.MarketJPFuture != nil {
-		v := s2c.GetMarketJPFuture()
-		gs.MarketJPFuture = &v
+		gs.MarketJPFuture = new(s2c.GetMarketJPFuture())
 	}
 	if s2c.LocalTime != nil {
-		v := s2c.GetLocalTime()
-		gs.LocalTime = &v
+		gs.LocalTime = new(s2c.GetLocalTime())
 	}
 	if ps := s2c.GetProgramStatus(); ps != nil {
-		v := programStatusLabel(ps)
-		gs.ProgramStatus = &v
+		gs.ProgramStatus = new(programStatusLabel(ps))
 	}
 	if s2c.QotSvrIpAddr != nil {
-		v := s2c.GetQotSvrIpAddr()
-		gs.QotSvrIPAddr = &v
+		gs.QotSvrIPAddr = new(s2c.GetQotSvrIpAddr())
 	}
 	if s2c.TrdSvrIpAddr != nil {
-		v := s2c.GetTrdSvrIpAddr()
-		gs.TrdSvrIPAddr = &v
+		gs.TrdSvrIPAddr = new(s2c.GetTrdSvrIpAddr())
 	}
 	if s2c.ConnID != nil {
-		v := s2c.GetConnID()
-		gs.ConnID = &v
+		gs.ConnID = new(s2c.GetConnID())
 	}
 
 	return gs, nil

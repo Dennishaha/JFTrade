@@ -16,8 +16,6 @@ import (
 	"github.com/c9s/bbgo/pkg/exchange"
 	"github.com/c9s/bbgo/pkg/fixedpoint"
 	"github.com/c9s/bbgo/pkg/types"
-	"google.golang.org/protobuf/proto"
-
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
 	notifypb "github.com/jftrade/jftrade-main/pkg/futu/pb/notify"
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
@@ -463,7 +461,7 @@ func futuSecurityFromSymbol(symbol string) (*qotcommonpb.Security, string, error
 	if err != nil {
 		return nil, "", err
 	}
-	return &qotcommonpb.Security{Market: proto.Int32(int32(qotMarket)), Code: proto.String(instrument.Code)}, instrument.Symbol, nil
+	return &qotcommonpb.Security{Market: new(int32(qotMarket)), Code: new(instrument.Code)}, instrument.Symbol, nil
 }
 
 func futuQotMarketForCode(market string) (qotcommonpb.QotMarket, error) {

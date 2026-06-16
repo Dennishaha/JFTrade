@@ -319,8 +319,7 @@ func (a *strategyCatalogStoreAdapter) enrichItem(item strategyListItem) strategy
 		if err != nil {
 			log.Printf("JFTrade load persisted strategy runtime observation degraded: %v", err)
 		} else if ok {
-			observation := strategyRuntimeObservationFromSnapshot(snapshot, item.Status)
-			item.RuntimeObservation = &observation
+			item.RuntimeObservation = new(strategyRuntimeObservationFromSnapshot(snapshot, item.Status))
 		}
 	}
 	// Persisted log tail for strategy list cards.
@@ -371,8 +370,7 @@ func (a *strategyCatalogStoreAdapter) buildDefinitionSyncStatus(item strategyLis
 	}
 	status.CanApplyLatest = item.Status == strategyStatusStopped
 	if !status.CanApplyLatest {
-		reason := "当前实例不是 STOPPED，先停止后才能刷新到最新策略。"
-		status.BlockedReason = &reason
+		status.BlockedReason = new("当前实例不是 STOPPED，先停止后才能刷新到最新策略。")
 	}
 	return status
 }

@@ -101,8 +101,7 @@ func (p *ReplayPublisher) Publish(note Notification) *Event {
 	}
 	p.events = filtered
 
-	copyOfEvent := event
-	return &copyOfEvent
+	return new(event)
 }
 
 // After returns a snapshot of retained events with a greater sequence.

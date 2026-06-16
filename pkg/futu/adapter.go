@@ -342,6 +342,5 @@ func (r *futuMarketDataReader) QueryMaxTradeQuantity(ctx context.Context, query 
 	if err != nil {
 		return nil, err
 	}
-	converted := convertMaxTradeQuantitySnapshot(snapshot)
-	return &converted, nil
+	return new(convertMaxTradeQuantitySnapshot(snapshot)), nil
 }

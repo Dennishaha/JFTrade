@@ -8,18 +8,16 @@ import (
 	"strings"
 	"testing"
 
-	"google.golang.org/protobuf/proto"
-
 	trdcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdcommon"
 )
 
 func TestExecutionOrderRoutesPlaceListEventsAndCancel(t *testing.T) {
 	opendServer := startBrokerRouteOpenDServer(t)
 	opendServer.setAccounts([]*trdcommonpb.TrdAcc{{
-		TrdEnv:            proto.Int32(int32(trdcommonpb.TrdEnv_TrdEnv_Simulate)),
-		AccID:             proto.Uint64(1001),
+		TrdEnv:            new(int32(trdcommonpb.TrdEnv_TrdEnv_Simulate)),
+		AccID:             new(uint64(1001)),
 		TrdMarketAuthList: []int32{int32(trdcommonpb.TrdMarket_TrdMarket_HK)},
-		AccType:           proto.Int32(int32(trdcommonpb.TrdAccType_TrdAccType_Cash)),
+		AccType:           new(int32(trdcommonpb.TrdAccType_TrdAccType_Cash)),
 	}})
 	opendServer.setPlacedOrderResponse(9001, "EXT-9001")
 	defer opendServer.stop()

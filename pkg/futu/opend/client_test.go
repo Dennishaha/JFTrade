@@ -47,13 +47,13 @@ func startFakeOpenD(t *testing.T) (addr string, stop func()) {
 				return
 			}
 			resp := &initpb.Response{
-				RetType: proto.Int32(0),
+				RetType: new(int32(0)),
 				S2C: &initpb.S2C{
-					ServerVer:         proto.Int32(700),
-					LoginUserID:       proto.Uint64(1),
-					ConnID:            proto.Uint64(42),
-					ConnAESKey:        proto.String("0123456789abcdef"),
-					KeepAliveInterval: proto.Int32(10),
+					ServerVer:         new(int32(700)),
+					LoginUserID:       new(uint64(1)),
+					ConnID:            new(uint64(42)),
+					ConnAESKey:        new("0123456789abcdef"),
+					KeepAliveInterval: new(int32(10)),
 				},
 			}
 			body, _ := proto.Marshal(resp)
@@ -100,13 +100,13 @@ func startKeepAliveStallOpenD(t *testing.T) (addr string, stop func()) {
 				continue
 			}
 			resp := &initpb.Response{
-				RetType: proto.Int32(0),
+				RetType: new(int32(0)),
 				S2C: &initpb.S2C{
-					ServerVer:         proto.Int32(700),
-					LoginUserID:       proto.Uint64(1),
-					ConnID:            proto.Uint64(42),
-					ConnAESKey:        proto.String("0123456789abcdef"),
-					KeepAliveInterval: proto.Int32(1),
+					ServerVer:         new(int32(700)),
+					LoginUserID:       new(uint64(1)),
+					ConnID:            new(uint64(42)),
+					ConnAESKey:        new("0123456789abcdef"),
+					KeepAliveInterval: new(int32(1)),
 				},
 			}
 			body, _ := proto.Marshal(resp)
@@ -133,8 +133,8 @@ func TestCallRoundTrip(t *testing.T) {
 	defer c.Close()
 
 	req := &initpb.Request{C2S: &initpb.C2S{
-		ClientVer: proto.Int32(101),
-		ClientID:  proto.String("jftrade-test"),
+		ClientVer: new(int32(101)),
+		ClientID:  new("jftrade-test"),
 	}}
 	var resp initpb.Response
 	if err := c.Call(ctx, ProtoInitConnect, req, &resp); err != nil {
@@ -171,8 +171,8 @@ func TestRequestTimeout(t *testing.T) {
 	defer c.Close()
 	var resp initpb.Response
 	err = c.Call(ctx, ProtoInitConnect, &initpb.Request{C2S: &initpb.C2S{
-		ClientVer: proto.Int32(1),
-		ClientID:  proto.String("x"),
+		ClientVer: new(int32(1)),
+		ClientID:  new("x"),
 	}}, &resp)
 	if err == nil {
 		t.Fatal("expected timeout error")
@@ -193,8 +193,8 @@ func TestKeepAliveFailureClosesClient(t *testing.T) {
 
 	var initResp initpb.Response
 	if err := c.Call(ctx, ProtoInitConnect, &initpb.Request{C2S: &initpb.C2S{
-		ClientVer: proto.Int32(1),
-		ClientID:  proto.String("x"),
+		ClientVer: new(int32(1)),
+		ClientID:  new("x"),
 	}}, &initResp); err != nil {
 		t.Fatalf("init call: %v", err)
 	}
@@ -208,8 +208,8 @@ func TestKeepAliveFailureClosesClient(t *testing.T) {
 
 	var resp initpb.Response
 	err := c.Call(ctx, ProtoInitConnect, &initpb.Request{C2S: &initpb.C2S{
-		ClientVer: proto.Int32(1),
-		ClientID:  proto.String("x"),
+		ClientVer: new(int32(1)),
+		ClientID:  new("x"),
 	}}, &resp)
 	if !errors.Is(err, ErrClosed) {
 		t.Fatalf("expected ErrClosed after keepalive failure, got %v", err)
@@ -254,13 +254,13 @@ func TestSubscribeNotifyReceivesSystemPush(t *testing.T) {
 		recvNotifyCh <- request.GetC2S().GetRecvNotify()
 
 		response := &initpb.Response{
-			RetType: proto.Int32(0),
+			RetType: new(int32(0)),
 			S2C: &initpb.S2C{
-				ServerVer:         proto.Int32(700),
-				LoginUserID:       proto.Uint64(1),
-				ConnID:            proto.Uint64(42),
-				ConnAESKey:        proto.String("0123456789abcdef"),
-				KeepAliveInterval: proto.Int32(10),
+				ServerVer:         new(int32(700)),
+				LoginUserID:       new(uint64(1)),
+				ConnID:            new(uint64(42)),
+				ConnAESKey:        new("0123456789abcdef"),
+				KeepAliveInterval: new(int32(10)),
 			},
 		}
 		body, _ := proto.Marshal(response)
@@ -270,12 +270,12 @@ func TestSubscribeNotifyReceivesSystemPush(t *testing.T) {
 		}
 
 		notifyBody, _ := proto.Marshal(&notifypb.Response{
-			RetType: proto.Int32(0),
+			RetType: new(int32(0)),
 			S2C: &notifypb.S2C{
-				Type: proto.Int32(int32(notifypb.NotifyType_NotifyType_ConnStatus)),
+				Type: new(int32(notifypb.NotifyType_NotifyType_ConnStatus)),
 				ConnectStatus: &notifypb.ConnectStatus{
-					QotLogined: proto.Bool(true),
-					TrdLogined: proto.Bool(false),
+					QotLogined: new(true),
+					TrdLogined: new(false),
 				},
 			},
 		})
@@ -302,9 +302,9 @@ func TestSubscribeNotifyReceivesSystemPush(t *testing.T) {
 
 	var initResp initpb.Response
 	if err := c.Call(ctx, ProtoInitConnect, &initpb.Request{C2S: &initpb.C2S{
-		ClientVer:  proto.Int32(101),
-		ClientID:   proto.String("jftrade-test"),
-		RecvNotify: proto.Bool(true),
+		ClientVer:  new(int32(101)),
+		ClientID:   new("jftrade-test"),
+		RecvNotify: new(true),
 	}}, &initResp); err != nil {
 		t.Fatalf("init call: %v", err)
 	}
@@ -368,24 +368,24 @@ func TestCallIgnoresMismatchedProtoOnSameSerial(t *testing.T) {
 			}
 
 			response := &initpb.Response{
-				RetType: proto.Int32(0),
+				RetType: new(int32(0)),
 				S2C: &initpb.S2C{
-					ServerVer:         proto.Int32(700),
-					LoginUserID:       proto.Uint64(1),
-					ConnID:            proto.Uint64(42),
-					ConnAESKey:        proto.String("0123456789abcdef"),
-					KeepAliveInterval: proto.Int32(10),
+					ServerVer:         new(int32(700)),
+					LoginUserID:       new(uint64(1)),
+					ConnID:            new(uint64(42)),
+					ConnAESKey:        new("0123456789abcdef"),
+					KeepAliveInterval: new(int32(10)),
 				},
 			}
 
 			if requestIndex == 1 {
 				notifyBody, _ := proto.Marshal(&notifypb.Response{
-					RetType: proto.Int32(0),
+					RetType: new(int32(0)),
 					S2C: &notifypb.S2C{
-						Type: proto.Int32(int32(notifypb.NotifyType_NotifyType_ConnStatus)),
+						Type: new(int32(notifypb.NotifyType_NotifyType_ConnStatus)),
 						ConnectStatus: &notifypb.ConnectStatus{
-							QotLogined: proto.Bool(true),
-							TrdLogined: proto.Bool(false),
+							QotLogined: new(true),
+							TrdLogined: new(false),
 						},
 					},
 				})
@@ -420,8 +420,8 @@ func TestCallIgnoresMismatchedProtoOnSameSerial(t *testing.T) {
 	})
 
 	request := &initpb.Request{C2S: &initpb.C2S{
-		ClientVer: proto.Int32(101),
-		ClientID:  proto.String("jftrade-test"),
+		ClientVer: new(int32(101)),
+		ClientID:  new("jftrade-test"),
 	}}
 	var initResp initpb.Response
 	if err := c.Call(ctx, ProtoInitConnect, request, &initResp); err != nil {

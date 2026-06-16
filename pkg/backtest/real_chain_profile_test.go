@@ -556,13 +556,13 @@ func prepareRealChainProfileFixture(tb testing.TB, options realChainFixtureOptio
 		tb.Fatalf("real chain fixture strategy script is required: %s", options.strategyLabelHint)
 	}
 	useExtendedHours := options.useExtendedHours
-	warmupCandles, err := deriveStrategyWarmupCandles(strategyScript, interval, symbol, realChainBoolPtr(useExtendedHours))
+	warmupCandles, err := deriveStrategyWarmupCandles(strategyScript, interval, symbol, new(useExtendedHours))
 	if err != nil {
 		tb.Fatalf("deriveStrategyWarmupCandles() error = %v", err)
 	}
 	syncStart := replayStart.Add(-interval.Duration() * time.Duration(warmupCandles))
 	dbPath := realChainProfileDBPath(tb)
-	readSessionScope := resolveBacktestReadSessionScope(realChainBoolPtr(useExtendedHours))
+	readSessionScope := resolveBacktestReadSessionScope(new(useExtendedHours))
 
 	store, err := NewFutuKLineStore(dbPath)
 	if err != nil {
@@ -652,7 +652,7 @@ func prepareRealChainProfileFixture(tb testing.TB, options realChainFixtureOptio
 			StrategyScript:   strategyScript,
 			InitialBalance:   100000,
 			RehabType:        "forward",
-			UseExtendedHours: realChainBoolPtr(useExtendedHours),
+			UseExtendedHours: new(useExtendedHours),
 		},
 	}
 }

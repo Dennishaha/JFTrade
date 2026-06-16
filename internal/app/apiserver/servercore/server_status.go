@@ -69,8 +69,7 @@ func optionalTimeString(value time.Time) *string {
 	if value.IsZero() {
 		return nil
 	}
-	formatted := value.UTC().Format(time.RFC3339Nano)
-	return &formatted
+	return new(value.UTC().Format(time.RFC3339Nano))
 }
 
 func stringPointerOrNil(value string) *string {

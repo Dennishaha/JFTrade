@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"google.golang.org/protobuf/proto"
-
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
 	qotgetklpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetkl"
 	historyklpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotrequesthistorykl"
@@ -29,10 +27,10 @@ type KLineResult struct {
 // GetKL fetches the latest real-time K-line batch (Qot_GetKL, 3006).
 func (c *Client) GetKL(ctx context.Context, req KLineRequest) (*KLineResult, error) {
 	request := &qotgetklpb.Request{C2S: &qotgetklpb.C2S{
-		RehabType: proto.Int32(int32(req.RehabType)),
-		KlType:    proto.Int32(int32(req.KLType)),
+		RehabType: new(int32(req.RehabType)),
+		KlType:    new(int32(req.KLType)),
 		Security:  req.Security,
-		ReqNum:    proto.Int32(req.ReqNum),
+		ReqNum:    new(req.ReqNum),
 	}}
 	var response qotgetklpb.Response
 	if err := c.Call(ctx, ProtoGetKL, request, &response); err != nil {
@@ -78,27 +76,27 @@ type HistoryKLineResult struct {
 // (Qot_RequestHistoryKL, 3103).
 func (c *Client) RequestHistoryKL(ctx context.Context, req HistoryKLineRequest) (*HistoryKLineResult, error) {
 	c2s := &historyklpb.C2S{
-		RehabType: proto.Int32(int32(req.RehabType)),
-		KlType:    proto.Int32(int32(req.KLType)),
+		RehabType: new(int32(req.RehabType)),
+		KlType:    new(int32(req.KLType)),
 		Security:  req.Security,
-		BeginTime: proto.String(req.BeginTime),
-		EndTime:   proto.String(req.EndTime),
+		BeginTime: new(req.BeginTime),
+		EndTime:   new(req.EndTime),
 	}
 
 	if req.MaxAckKLNum != nil {
-		c2s.MaxAckKLNum = proto.Int32(*req.MaxAckKLNum)
+		c2s.MaxAckKLNum = new(*req.MaxAckKLNum)
 	}
 	if req.NeedKLFields != nil {
-		c2s.NeedKLFieldsFlag = proto.Int64(*req.NeedKLFields)
+		c2s.NeedKLFieldsFlag = new(*req.NeedKLFields)
 	}
 	if len(req.NextReqKey) > 0 {
 		c2s.NextReqKey = req.NextReqKey
 	}
 	if req.ExtendedTime != nil {
-		c2s.ExtendedTime = proto.Bool(*req.ExtendedTime)
+		c2s.ExtendedTime = new(*req.ExtendedTime)
 	}
 	if req.Session != nil {
-		c2s.Session = proto.Int32(*req.Session)
+		c2s.Session = new(*req.Session)
 	}
 
 	request := &historyklpb.Request{C2S: c2s}

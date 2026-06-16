@@ -31,13 +31,13 @@ type protoHandler func(reqFrame codec.Frame) (proto.Message, error)
 
 // fakeOpenD is a configurable fake OpenD TCP server used across all tests.
 type fakeOpenD struct {
-	addr     string
-	ln       net.Listener
-	mux      map[uint32]protoHandler // protoID -> handler
-	wg       sync.WaitGroup
-	ctx      context.Context
-	cancel   context.CancelFunc
-	pushCh   chan []byte // queued pushes to send
+	addr   string
+	ln     net.Listener
+	mux    map[uint32]protoHandler // protoID -> handler
+	wg     sync.WaitGroup
+	ctx    context.Context
+	cancel context.CancelFunc
+	pushCh chan []byte // queued pushes to send
 }
 
 func newFakeOpenD(t *testing.T, addr string) *fakeOpenD {
@@ -117,13 +117,13 @@ func (f *fakeOpenD) serve(t *testing.T) {
 			if !ok {
 				// Default: respond with empty InitConnect
 				resp := &initpb.Response{
-					RetType: proto.Int32(0),
+					RetType: new(int32(0)),
 					S2C: &initpb.S2C{
-						ServerVer:         proto.Int32(700),
-						LoginUserID:       proto.Uint64(1),
-						ConnID:            proto.Uint64(42),
-						ConnAESKey:        proto.String("0123456789abcdef"),
-						KeepAliveInterval: proto.Int32(10),
+						ServerVer:         new(int32(700)),
+						LoginUserID:       new(uint64(1)),
+						ConnID:            new(uint64(42)),
+						ConnAESKey:        new("0123456789abcdef"),
+						KeepAliveInterval: new(int32(10)),
 					},
 				}
 				body, _ := proto.Marshal(resp)
@@ -154,59 +154,59 @@ func (f *fakeOpenD) close() {
 // --- Proto message helpers to fill required fields ---
 
 func hkSecurity(code string) *qotcommonpb.Security {
-	return &qotcommonpb.Security{Market: proto.Int32(1), Code: proto.String(code)}
+	return &qotcommonpb.Security{Market: new(int32(1)), Code: new(code)}
 }
 
 func validBasicQot(security *qotcommonpb.Security, curPrice float64) *qotcommonpb.BasicQot {
 	return &qotcommonpb.BasicQot{
 		Security:       security,
-		IsSuspended:    proto.Bool(false),
-		ListTime:       proto.String("2000-01-01"),
-		PriceSpread:    proto.Float64(0.1),
-		UpdateTime:     proto.String("2026-05-31 16:00:00"),
-		HighPrice:      proto.Float64(curPrice * 1.02),
-		OpenPrice:      proto.Float64(curPrice * 0.99),
-		LowPrice:       proto.Float64(curPrice * 0.98),
-		CurPrice:       proto.Float64(curPrice),
-		LastClosePrice: proto.Float64(curPrice * 0.995),
-		Volume:         proto.Int64(10000000),
-		Turnover:       proto.Float64(curPrice * 10000000),
-		TurnoverRate:   proto.Float64(0.1),
-		Amplitude:      proto.Float64(4.0),
+		IsSuspended:    new(false),
+		ListTime:       new("2000-01-01"),
+		PriceSpread:    new(0.1),
+		UpdateTime:     new("2026-05-31 16:00:00"),
+		HighPrice:      new(curPrice * 1.02),
+		OpenPrice:      new(curPrice * 0.99),
+		LowPrice:       new(curPrice * 0.98),
+		CurPrice:       new(curPrice),
+		LastClosePrice: new(curPrice * 0.995),
+		Volume:         new(int64(10000000)),
+		Turnover:       new(curPrice * 10000000),
+		TurnoverRate:   new(0.1),
+		Amplitude:      new(4.0),
 	}
 }
 
 func validKLine(timeStr string, open, close, high, low float64) *qotcommonpb.KLine {
 	return &qotcommonpb.KLine{
-		Time:      proto.String(timeStr),
-		IsBlank:   proto.Bool(false),
-		OpenPrice: proto.Float64(open),
-		ClosePrice: proto.Float64(close),
-		HighPrice:  proto.Float64(high),
-		LowPrice:   proto.Float64(low),
-		Volume:     proto.Int64(1000000),
-		Turnover:   proto.Float64(open * 1000000),
+		Time:       new(timeStr),
+		IsBlank:    new(false),
+		OpenPrice:  new(open),
+		ClosePrice: new(close),
+		HighPrice:  new(high),
+		LowPrice:   new(low),
+		Volume:     new(int64(1000000)),
+		Turnover:   new(open * 1000000),
 	}
 }
 
 func validSnapshotBasic(security *qotcommonpb.Security, name string, typ int32, price float64) *qotgetsecuritysnapshotpb.SnapshotBasicData {
 	return &qotgetsecuritysnapshotpb.SnapshotBasicData{
 		Security:       security,
-		Name:           proto.String(name),
-		Type:           proto.Int32(typ),
-		IsSuspend:      proto.Bool(false),
-		ListTime:       proto.String("2000-01-01"),
-		LotSize:        proto.Int32(100),
-		PriceSpread:    proto.Float64(0.1),
-		UpdateTime:     proto.String("2026-05-31 16:00:00"),
-		HighPrice:      proto.Float64(price * 1.02),
-		OpenPrice:      proto.Float64(price * 0.99),
-		LowPrice:       proto.Float64(price * 0.98),
-		LastClosePrice: proto.Float64(price * 0.995),
-		CurPrice:       proto.Float64(price),
-		Volume:         proto.Int64(10000000),
-		Turnover:       proto.Float64(price * 10000000),
-		TurnoverRate:   proto.Float64(0.1),
+		Name:           new(name),
+		Type:           new(typ),
+		IsSuspend:      new(false),
+		ListTime:       new("2000-01-01"),
+		LotSize:        new(int32(100)),
+		PriceSpread:    new(0.1),
+		UpdateTime:     new("2026-05-31 16:00:00"),
+		HighPrice:      new(price * 1.02),
+		OpenPrice:      new(price * 0.99),
+		LowPrice:       new(price * 0.98),
+		LastClosePrice: new(price * 0.995),
+		CurPrice:       new(price),
+		Volume:         new(int64(10000000)),
+		Turnover:       new(price * 10000000),
+		TurnoverRate:   new(0.1),
 	}
 }
 
@@ -222,13 +222,13 @@ func clientWithServer(t *testing.T, handlers map[uint32]protoHandler) (*Client, 
 	// Default InitConnect handler so the client can initialize.
 	server.handle(ProtoInitConnect, func(frame codec.Frame) (proto.Message, error) {
 		return &initpb.Response{
-			RetType: proto.Int32(0),
+			RetType: new(int32(0)),
 			S2C: &initpb.S2C{
-				ServerVer:         proto.Int32(700),
-				LoginUserID:       proto.Uint64(1),
-				ConnID:            proto.Uint64(42),
-				ConnAESKey:        proto.String("0123456789abcdef"),
-				KeepAliveInterval: proto.Int32(10),
+				ServerVer:         new(int32(700)),
+				LoginUserID:       new(uint64(1)),
+				ConnID:            new(uint64(42)),
+				ConnAESKey:        new("0123456789abcdef"),
+				KeepAliveInterval: new(int32(10)),
 			},
 		}, nil
 	})
@@ -247,8 +247,8 @@ func clientWithServer(t *testing.T, handlers map[uint32]protoHandler) (*Client, 
 	// Perform InitConnect to set connID
 	var initResp initpb.Response
 	if err := c.Call(ctx, ProtoInitConnect, &initpb.Request{C2S: &initpb.C2S{
-		ClientVer: proto.Int32(101),
-		ClientID:  proto.String("test"),
+		ClientVer: new(int32(101)),
+		ClientID:  new("test"),
 	}}, &initResp); err != nil {
 		t.Fatalf("init connect: %v", err)
 	}
@@ -262,18 +262,18 @@ func TestGetGlobalState(t *testing.T) {
 	c, _, ctx := clientWithServer(t, map[uint32]protoHandler{
 		ProtoGetGlobalState: func(frame codec.Frame) (proto.Message, error) {
 			return &getglobalstatepb.Response{
-				RetType: proto.Int32(0),
+				RetType: new(int32(0)),
 				S2C: &getglobalstatepb.S2C{
-					MarketHK:       proto.Int32(int32(qotcommonpb.QotMarketState_QotMarketState_Morning)),
-					MarketUS:       proto.Int32(int32(qotcommonpb.QotMarketState_QotMarketState_PreMarketBegin)),
-					MarketSH:       proto.Int32(int32(qotcommonpb.QotMarketState_QotMarketState_Closed)),
-					MarketSZ:       proto.Int32(int32(qotcommonpb.QotMarketState_QotMarketState_Closed)),
-					MarketHKFuture: proto.Int32(int32(qotcommonpb.QotMarketState_QotMarketState_WaitingOpen)),
-					QotLogined:     proto.Bool(true),
-					TrdLogined:     proto.Bool(true),
-					ServerVer:      proto.Int32(900),
-					ServerBuildNo:  proto.Int32(5008),
-					Time:           proto.Int64(1717000000),
+					MarketHK:       new(int32(qotcommonpb.QotMarketState_QotMarketState_Morning)),
+					MarketUS:       new(int32(qotcommonpb.QotMarketState_QotMarketState_PreMarketBegin)),
+					MarketSH:       new(int32(qotcommonpb.QotMarketState_QotMarketState_Closed)),
+					MarketSZ:       new(int32(qotcommonpb.QotMarketState_QotMarketState_Closed)),
+					MarketHKFuture: new(int32(qotcommonpb.QotMarketState_QotMarketState_WaitingOpen)),
+					QotLogined:     new(true),
+					TrdLogined:     new(true),
+					ServerVer:      new(int32(900)),
+					ServerBuildNo:  new(int32(5008)),
+					Time:           new(int64(1717000000)),
 				},
 			}, nil
 		},
@@ -314,12 +314,12 @@ func TestSubscribeQuotes(t *testing.T) {
 			if c2s.GetIsSubOrUnSub() {
 				receivedSub <- true
 			}
-			return &qotsubpb.Response{RetType: proto.Int32(0)}, nil
+			return &qotsubpb.Response{RetType: new(int32(0))}, nil
 		},
 	})
 
 	err := c.SubscribeQuotes(ctx, QuoteSubRequest{
-		Securities:  []*qotcommonpb.Security{{Market: proto.Int32(1), Code: proto.String("00700")}},
+		Securities:  []*qotcommonpb.Security{{Market: new(int32(1)), Code: new("00700")}},
 		SubTypes:    []qotcommonpb.SubType{qotcommonpb.SubType_SubType_Basic},
 		IsSubscribe: true,
 	})
@@ -353,12 +353,12 @@ func TestUnsubscribeQuotes(t *testing.T) {
 			if !c2s.GetIsSubOrUnSub() {
 				receivedUnsub <- true
 			}
-			return &qotsubpb.Response{RetType: proto.Int32(0)}, nil
+			return &qotsubpb.Response{RetType: new(int32(0))}, nil
 		},
 	})
 
 	err := c.SubscribeQuotes(ctx, QuoteSubRequest{
-		Securities:  []*qotcommonpb.Security{{Market: proto.Int32(1), Code: proto.String("00700")}},
+		Securities:  []*qotcommonpb.Security{{Market: new(int32(1)), Code: new("00700")}},
 		SubTypes:    []qotcommonpb.SubType{qotcommonpb.SubType_SubType_Basic},
 		IsSubscribe: false,
 	})
@@ -381,7 +381,7 @@ func TestGetBasicQot(t *testing.T) {
 	c, _, ctx := clientWithServer(t, map[uint32]protoHandler{
 		ProtoGetBasicQot: func(frame codec.Frame) (proto.Message, error) {
 			return &qotgetbasicqotpb.Response{
-				RetType: proto.Int32(0),
+				RetType: new(int32(0)),
 				S2C: &qotgetbasicqotpb.S2C{
 					BasicQotList: []*qotcommonpb.BasicQot{validBasicQot(hkSecurity("00700"), 380.0)},
 				},
@@ -390,7 +390,7 @@ func TestGetBasicQot(t *testing.T) {
 	})
 
 	qots, err := c.GetBasicQot(ctx, []*qotcommonpb.Security{
-		{Market: proto.Int32(1), Code: proto.String("00700")},
+		{Market: new(int32(1)), Code: new("00700")},
 	})
 	if err != nil {
 		t.Fatalf("GetBasicQot: %v", err)
@@ -409,7 +409,7 @@ func TestSubscribeBasicQot(t *testing.T) {
 	c, server, ctx := clientWithServer(t, map[uint32]protoHandler{
 		// Add a dummy handler so we can trigger a read cycle
 		ProtoGetGlobalState: func(frame codec.Frame) (proto.Message, error) {
-			return &getglobalstatepb.Response{RetType: proto.Int32(0), S2C: &getglobalstatepb.S2C{ServerVer: proto.Int32(1)}}, nil
+			return &getglobalstatepb.Response{RetType: new(int32(0)), S2C: &getglobalstatepb.S2C{ServerVer: new(int32(1))}}, nil
 		},
 	})
 	receivedCh := make(chan []*qotcommonpb.BasicQot, 1)
@@ -422,7 +422,7 @@ func TestSubscribeBasicQot(t *testing.T) {
 
 	// Queue a push frame then send a request to wake the server's read loop
 	body, _ := proto.Marshal(&qotupdatebasicqotpb.Response{
-		RetType: proto.Int32(0),
+		RetType: new(int32(0)),
 		S2C: &qotupdatebasicqotpb.S2C{
 			BasicQotList: []*qotcommonpb.BasicQot{validBasicQot(hkSecurity("00700"), 382.5)},
 		},
@@ -452,10 +452,10 @@ func TestGetKL(t *testing.T) {
 	c, _, ctx := clientWithServer(t, map[uint32]protoHandler{
 		ProtoGetKL: func(frame codec.Frame) (proto.Message, error) {
 			return &qotgetklpb.Response{
-				RetType: proto.Int32(0),
+				RetType: new(int32(0)),
 				S2C: &qotgetklpb.S2C{
 					Security: hkSecurity("00700"),
-					Name:     proto.String("Tencent"),
+					Name:     new("Tencent"),
 					KlList:   []*qotcommonpb.KLine{validKLine("2026-05-31 15:55", 378.0, 380.5, 381.0, 377.0)},
 				},
 			}, nil
@@ -463,7 +463,7 @@ func TestGetKL(t *testing.T) {
 	})
 
 	result, err := c.GetKL(ctx, KLineRequest{
-		Security:  &qotcommonpb.Security{Market: proto.Int32(1), Code: proto.String("00700")},
+		Security:  &qotcommonpb.Security{Market: new(int32(1)), Code: new("00700")},
 		RehabType: qotcommonpb.RehabType_RehabType_Forward,
 		KLType:    qotcommonpb.KLType_KLType_5Min,
 		ReqNum:    10,
@@ -485,10 +485,10 @@ func TestRequestHistoryKL(t *testing.T) {
 	c, _, ctx := clientWithServer(t, map[uint32]protoHandler{
 		ProtoRequestHistoryKL: func(frame codec.Frame) (proto.Message, error) {
 			return &qotrequesthistoryklpb.Response{
-				RetType: proto.Int32(0),
+				RetType: new(int32(0)),
 				S2C: &qotrequesthistoryklpb.S2C{
 					Security:   hkSecurity("00700"),
-					Name:       proto.String("Tencent"),
+					Name:       new("Tencent"),
 					NextReqKey: []byte("next_page_key"),
 					KlList:     []*qotcommonpb.KLine{validKLine("2026-05-30", 370.0, 378.0, 380.0, 368.0)},
 				},
@@ -497,7 +497,7 @@ func TestRequestHistoryKL(t *testing.T) {
 	})
 
 	result, err := c.RequestHistoryKL(ctx, HistoryKLineRequest{
-		Security:  &qotcommonpb.Security{Market: proto.Int32(1), Code: proto.String("00700")},
+		Security:  &qotcommonpb.Security{Market: new(int32(1)), Code: new("00700")},
 		RehabType: qotcommonpb.RehabType_RehabType_None,
 		KLType:    qotcommonpb.KLType_KLType_Day,
 		BeginTime: "2026-05-01",
@@ -520,19 +520,19 @@ func TestGetStaticInfo(t *testing.T) {
 	c, _, ctx := clientWithServer(t, map[uint32]protoHandler{
 		ProtoGetStaticInfo: func(frame codec.Frame) (proto.Message, error) {
 			return &qotgetstaticinfopb.Response{
-				RetType: proto.Int32(0),
+				RetType: new(int32(0)),
 				S2C: &qotgetstaticinfopb.S2C{
 					StaticInfoList: []*qotcommonpb.SecurityStaticInfo{
 						{
 							Basic: &qotcommonpb.SecurityStaticBasic{
 								Security:      hkSecurity("00700"),
-								Id:            proto.Int64(700),
-								Name:          proto.String("Tencent"),
-								SecType:       proto.Int32(int32(qotcommonpb.SecurityType_SecurityType_Eqty)),
-								ListTime:      proto.String("2004-06-16"),
-								LotSize:       proto.Int32(100),
-								ListTimestamp: proto.Float64(1087324800),
-								Delisting:     proto.Bool(false),
+								Id:            new(int64(700)),
+								Name:          new("Tencent"),
+								SecType:       new(int32(qotcommonpb.SecurityType_SecurityType_Eqty)),
+								ListTime:      new("2004-06-16"),
+								LotSize:       new(int32(100)),
+								ListTimestamp: new(float64(1087324800)),
+								Delisting:     new(false),
 							},
 						},
 					},
@@ -542,7 +542,7 @@ func TestGetStaticInfo(t *testing.T) {
 	})
 
 	info, err := c.GetStaticInfo(ctx, []*qotcommonpb.Security{
-		{Market: proto.Int32(1), Code: proto.String("00700")},
+		{Market: new(int32(1)), Code: new("00700")},
 	})
 	if err != nil {
 		t.Fatalf("GetStaticInfo: %v", err)
@@ -564,24 +564,24 @@ func TestGetSecuritySnapshot(t *testing.T) {
 	c, _, ctx := clientWithServer(t, map[uint32]protoHandler{
 		ProtoGetSecuritySnapshot: func(frame codec.Frame) (proto.Message, error) {
 			return &qotgetsecuritysnapshotpb.Response{
-				RetType: proto.Int32(0),
+				RetType: new(int32(0)),
 				S2C: &qotgetsecuritysnapshotpb.S2C{
 					SnapshotList: []*qotgetsecuritysnapshotpb.Snapshot{
 						{
 							Basic: validSnapshotBasic(hkSecurity("00700"), "Tencent", int32(qotcommonpb.SecurityType_SecurityType_Eqty), 380.0),
 							EquityExData: &qotgetsecuritysnapshotpb.EquitySnapshotExData{
-								IssuedShares:         proto.Int64(9600000000),
-								IssuedMarketVal:      proto.Float64(3648000000000),
-								NetAsset:             proto.Float64(869000000000),
-								NetProfit:            proto.Float64(177000000000),
-								EarningsPershare:     proto.Float64(18.5),
-								OutstandingShares:    proto.Int64(9500000000),
-								OutstandingMarketVal: proto.Float64(3610000000000),
-								NetAssetPershare:     proto.Float64(90.5),
-								EyRate:               proto.Float64(4.9),
-								PeRate:               proto.Float64(20.5),
-								PbRate:               proto.Float64(4.2),
-								PeTTMRate:            proto.Float64(18.3),
+								IssuedShares:         new(int64(9600000000)),
+								IssuedMarketVal:      new(float64(3648000000000)),
+								NetAsset:             new(float64(869000000000)),
+								NetProfit:            new(float64(177000000000)),
+								EarningsPershare:     new(18.5),
+								OutstandingShares:    new(int64(9500000000)),
+								OutstandingMarketVal: new(float64(3610000000000)),
+								NetAssetPershare:     new(90.5),
+								EyRate:               new(4.9),
+								PeRate:               new(20.5),
+								PbRate:               new(4.2),
+								PeTTMRate:            new(18.3),
 							},
 						},
 					},
@@ -591,7 +591,7 @@ func TestGetSecuritySnapshot(t *testing.T) {
 	})
 
 	snapshots, err := c.GetSecuritySnapshot(ctx, []*qotcommonpb.Security{
-		{Market: proto.Int32(1), Code: proto.String("00700")},
+		{Market: new(int32(1)), Code: new("00700")},
 	})
 	if err != nil {
 		t.Fatalf("GetSecuritySnapshot: %v", err)
@@ -618,7 +618,7 @@ func TestUnlockTrade(t *testing.T) {
 				return nil, err
 			}
 			receivedUnlock <- req.GetC2S().GetUnlock()
-			return &tradeunlockpb.Response{RetType: proto.Int32(0)}, nil
+			return &tradeunlockpb.Response{RetType: new(int32(0))}, nil
 		},
 	})
 
@@ -645,7 +645,7 @@ func TestLockTrade(t *testing.T) {
 				return nil, err
 			}
 			receivedUnlock <- req.GetC2S().GetUnlock()
-			return &tradeunlockpb.Response{RetType: proto.Int32(0)}, nil
+			return &tradeunlockpb.Response{RetType: new(int32(0))}, nil
 		},
 	})
 
@@ -669,9 +669,9 @@ func TestGetBasicQotError(t *testing.T) {
 	c, _, ctx := clientWithServer(t, map[uint32]protoHandler{
 		ProtoGetBasicQot: func(frame codec.Frame) (proto.Message, error) {
 			return &qotgetbasicqotpb.Response{
-				RetType: proto.Int32(-1),
-				ErrCode: proto.Int32(1000),
-				RetMsg:  proto.String("no permission"),
+				RetType: new(int32(-1)),
+				ErrCode: new(int32(1000)),
+				RetMsg:  new("no permission"),
 			}, nil
 		},
 	})
@@ -686,8 +686,8 @@ func TestGetGlobalStateError(t *testing.T) {
 	c, _, ctx := clientWithServer(t, map[uint32]protoHandler{
 		ProtoGetGlobalState: func(frame codec.Frame) (proto.Message, error) {
 			return &getglobalstatepb.Response{
-				RetType: proto.Int32(-1),
-				RetMsg:  proto.String("server busy"),
+				RetType: new(int32(-1)),
+				RetMsg:  new("server busy"),
 			}, nil
 		},
 	})
@@ -702,8 +702,8 @@ func TestSubscribeQuotesError(t *testing.T) {
 	c, _, ctx := clientWithServer(t, map[uint32]protoHandler{
 		ProtoQotSub: func(frame codec.Frame) (proto.Message, error) {
 			return &qotsubpb.Response{
-				RetType: proto.Int32(-1),
-				RetMsg:  proto.String("invalid security"),
+				RetType: new(int32(-1)),
+				RetMsg:  new("invalid security"),
 			}, nil
 		},
 	})
@@ -720,8 +720,8 @@ func TestUnlockTradeError(t *testing.T) {
 	c, _, ctx := clientWithServer(t, map[uint32]protoHandler{
 		ProtoTrdUnlockTrade: func(frame codec.Frame) (proto.Message, error) {
 			return &tradeunlockpb.Response{
-				RetType: proto.Int32(-1),
-				RetMsg:  proto.String("wrong password"),
+				RetType: new(int32(-1)),
+				RetMsg:  new("wrong password"),
 			}, nil
 		},
 	})
@@ -737,7 +737,7 @@ func TestUnlockTradeError(t *testing.T) {
 func TestGetBasicQotEmptyS2C(t *testing.T) {
 	c, _, ctx := clientWithServer(t, map[uint32]protoHandler{
 		ProtoGetBasicQot: func(frame codec.Frame) (proto.Message, error) {
-			return &qotgetbasicqotpb.Response{RetType: proto.Int32(0)}, nil
+			return &qotgetbasicqotpb.Response{RetType: new(int32(0))}, nil
 		},
 	})
 
@@ -753,12 +753,12 @@ func TestGetBasicQotEmptyS2C(t *testing.T) {
 func TestGetKLNullS2C(t *testing.T) {
 	c, _, ctx := clientWithServer(t, map[uint32]protoHandler{
 		ProtoGetKL: func(frame codec.Frame) (proto.Message, error) {
-			return &qotgetklpb.Response{RetType: proto.Int32(0), S2C: &qotgetklpb.S2C{Security: hkSecurity("00700")}}, nil
+			return &qotgetklpb.Response{RetType: new(int32(0)), S2C: &qotgetklpb.S2C{Security: hkSecurity("00700")}}, nil
 		},
 	})
 
 	result, err := c.GetKL(ctx, KLineRequest{
-		Security:  &qotcommonpb.Security{Market: proto.Int32(1), Code: proto.String("00700")},
+		Security:  &qotcommonpb.Security{Market: new(int32(1)), Code: new("00700")},
 		RehabType: qotcommonpb.RehabType_RehabType_None,
 		KLType:    qotcommonpb.KLType_KLType_Day,
 		ReqNum:    10,
@@ -777,28 +777,28 @@ func TestGetGlobalStateAdvancedFields(t *testing.T) {
 	c, _, ctx := clientWithServer(t, map[uint32]protoHandler{
 		ProtoGetGlobalState: func(frame codec.Frame) (proto.Message, error) {
 			return &getglobalstatepb.Response{
-				RetType: proto.Int32(0),
+				RetType: new(int32(0)),
 				S2C: &getglobalstatepb.S2C{
-					MarketHK:       proto.Int32(3),
-					MarketUS:       proto.Int32(3),
-					MarketSH:       proto.Int32(6),
-					MarketSZ:       proto.Int32(6),
-					MarketHKFuture: proto.Int32(23),
-					MarketUSFuture: proto.Int32(23),
-					MarketSGFuture: proto.Int32(6),
-					MarketJPFuture: proto.Int32(6),
-					QotLogined:     proto.Bool(true),
-					TrdLogined:     proto.Bool(true),
-					ServerVer:      proto.Int32(1000),
-					ServerBuildNo:  proto.Int32(6000),
-					Time:           proto.Int64(1717000000),
-					LocalTime:      proto.Float64(1717000000.0),
+					MarketHK:       new(int32(3)),
+					MarketUS:       new(int32(3)),
+					MarketSH:       new(int32(6)),
+					MarketSZ:       new(int32(6)),
+					MarketHKFuture: new(int32(23)),
+					MarketUSFuture: new(int32(23)),
+					MarketSGFuture: new(int32(6)),
+					MarketJPFuture: new(int32(6)),
+					QotLogined:     new(true),
+					TrdLogined:     new(true),
+					ServerVer:      new(int32(1000)),
+					ServerBuildNo:  new(int32(6000)),
+					Time:           new(int64(1717000000)),
+					LocalTime:      new(1717000000.0),
 					ProgramStatus: &commonpb.ProgramStatus{
 						Type: commonpb.ProgramStatusType_ProgramStatusType_Ready.Enum(),
 					},
-					QotSvrIpAddr: proto.String("10.0.0.1"),
-					TrdSvrIpAddr: proto.String("10.0.0.2"),
-					ConnID:       proto.Uint64(42),
+					QotSvrIpAddr: new("10.0.0.1"),
+					TrdSvrIpAddr: new("10.0.0.2"),
+					ConnID:       new(uint64(42)),
 				},
 			}, nil
 		},
@@ -841,7 +841,7 @@ func TestRequestHistoryKLPagination(t *testing.T) {
 			// If nextReqKey is set, return final page
 			if len(req.GetC2S().GetNextReqKey()) > 0 {
 				return &qotrequesthistoryklpb.Response{
-					RetType: proto.Int32(0),
+					RetType: new(int32(0)),
 					S2C: &qotrequesthistoryklpb.S2C{
 						Security: req.GetC2S().Security,
 						KlList:   []*qotcommonpb.KLine{validKLine("2026-05-25", 365.0, 370.0, 372.0, 364.0)},
@@ -849,7 +849,7 @@ func TestRequestHistoryKLPagination(t *testing.T) {
 				}, nil
 			}
 			return &qotrequesthistoryklpb.Response{
-				RetType: proto.Int32(0),
+				RetType: new(int32(0)),
 				S2C: &qotrequesthistoryklpb.S2C{
 					Security:   req.GetC2S().Security,
 					NextReqKey: []byte("page2"),
@@ -861,7 +861,7 @@ func TestRequestHistoryKLPagination(t *testing.T) {
 
 	// First page
 	result, err := c.RequestHistoryKL(ctx, HistoryKLineRequest{
-		Security:    &qotcommonpb.Security{Market: proto.Int32(1), Code: proto.String("00700")},
+		Security:    &qotcommonpb.Security{Market: new(int32(1)), Code: new("00700")},
 		RehabType:   qotcommonpb.RehabType_RehabType_None,
 		KLType:      qotcommonpb.KLType_KLType_Day,
 		BeginTime:   "2026-05-01",
@@ -880,7 +880,7 @@ func TestRequestHistoryKLPagination(t *testing.T) {
 
 	// Second page
 	result, err = c.RequestHistoryKL(ctx, HistoryKLineRequest{
-		Security:    &qotcommonpb.Security{Market: proto.Int32(1), Code: proto.String("00700")},
+		Security:    &qotcommonpb.Security{Market: new(int32(1)), Code: new("00700")},
 		RehabType:   qotcommonpb.RehabType_RehabType_None,
 		KLType:      qotcommonpb.KLType_KLType_Day,
 		BeginTime:   "2026-05-01",
@@ -905,7 +905,7 @@ func TestGetBasicQotMultipleSecurities(t *testing.T) {
 	c, _, ctx := clientWithServer(t, map[uint32]protoHandler{
 		ProtoGetBasicQot: func(frame codec.Frame) (proto.Message, error) {
 			return &qotgetbasicqotpb.Response{
-				RetType: proto.Int32(0),
+				RetType: new(int32(0)),
 				S2C: &qotgetbasicqotpb.S2C{
 					BasicQotList: []*qotcommonpb.BasicQot{
 						validBasicQot(hkSecurity("00700"), 380.0),
@@ -917,8 +917,8 @@ func TestGetBasicQotMultipleSecurities(t *testing.T) {
 	})
 
 	qots, err := c.GetBasicQot(ctx, []*qotcommonpb.Security{
-		{Market: proto.Int32(1), Code: proto.String("00700")},
-		{Market: proto.Int32(1), Code: proto.String("09988")},
+		{Market: new(int32(1)), Code: new("00700")},
+		{Market: new(int32(1)), Code: new("09988")},
 	})
 	if err != nil {
 		t.Fatalf("GetBasicQot: %v", err)
@@ -947,7 +947,7 @@ func TestUnlockTradeWithSecurityFirm(t *testing.T) {
 			if req.GetC2S().SecurityFirm != nil {
 				receivedFirm <- req.GetC2S().GetSecurityFirm()
 			}
-			return &tradeunlockpb.Response{RetType: proto.Int32(0)}, nil
+			return &tradeunlockpb.Response{RetType: new(int32(0))}, nil
 		},
 	})
 
@@ -972,15 +972,15 @@ func TestGetSecuritySnapshotIndex(t *testing.T) {
 	c, _, ctx := clientWithServer(t, map[uint32]protoHandler{
 		ProtoGetSecuritySnapshot: func(frame codec.Frame) (proto.Message, error) {
 			return &qotgetsecuritysnapshotpb.Response{
-				RetType: proto.Int32(0),
+				RetType: new(int32(0)),
 				S2C: &qotgetsecuritysnapshotpb.S2C{
 					SnapshotList: []*qotgetsecuritysnapshotpb.Snapshot{
 						{
 							Basic: validSnapshotBasic(hkSecurity("HSI"), "Hang Seng Index", int32(qotcommonpb.SecurityType_SecurityType_Index), 21000.0),
 							IndexExData: &qotgetsecuritysnapshotpb.IndexSnapshotExData{
-								RaiseCount: proto.Int32(35),
-								FallCount:  proto.Int32(25),
-								EqualCount: proto.Int32(20),
+								RaiseCount: new(int32(35)),
+								FallCount:  new(int32(25)),
+								EqualCount: new(int32(20)),
 							},
 						},
 					},
@@ -990,7 +990,7 @@ func TestGetSecuritySnapshotIndex(t *testing.T) {
 	})
 
 	snapshots, err := c.GetSecuritySnapshot(ctx, []*qotcommonpb.Security{
-		{Market: proto.Int32(1), Code: proto.String("HSI")},
+		{Market: new(int32(1)), Code: new("HSI")},
 	})
 	if err != nil {
 		t.Fatalf("GetSecuritySnapshot: %v", err)
@@ -1014,26 +1014,21 @@ func TestSubscribeQuotesAllOptions(t *testing.T) {
 				return nil, err
 			}
 			received <- req.GetC2S()
-			return &qotsubpb.Response{RetType: proto.Int32(0)}, nil
+			return &qotsubpb.Response{RetType: new(int32(0))}, nil
 		},
 	})
 
-	isRegPush := true
-	isFirstPush := true
-	extendedTime := true
-	session := int32(1)
-
 	err := c.SubscribeQuotes(ctx, QuoteSubRequest{
 		Securities: []*qotcommonpb.Security{
-			{Market: proto.Int32(11), Code: proto.String("AAPL")},
+			{Market: new(int32(11)), Code: new("AAPL")},
 		},
 		SubTypes:          []qotcommonpb.SubType{qotcommonpb.SubType_SubType_Basic, qotcommonpb.SubType_SubType_KL_Day},
 		IsSubscribe:       true,
-		IsRegPush:         &isRegPush,
+		IsRegPush:         new(true),
 		RegPushRehabTypes: []qotcommonpb.RehabType{qotcommonpb.RehabType_RehabType_Forward},
-		IsFirstPush:       &isFirstPush,
-		ExtendedTime:      &extendedTime,
-		Session:           &session,
+		IsFirstPush:       new(true),
+		ExtendedTime:      new(true),
+		Session:           new(int32(1)),
 	})
 	if err != nil {
 		t.Fatalf("SubscribeQuotes: %v", err)
@@ -1078,7 +1073,7 @@ func TestSubscribeQuotesUnsubAll(t *testing.T) {
 				return nil, err
 			}
 			received <- req.GetC2S()
-			return &qotsubpb.Response{RetType: proto.Int32(0)}, nil
+			return &qotsubpb.Response{RetType: new(int32(0))}, nil
 		},
 	})
 

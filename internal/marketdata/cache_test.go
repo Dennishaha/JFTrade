@@ -14,11 +14,9 @@ func TestCacheDeduplicatesPromotesAndInherits(t *testing.T) {
 	cache := NewCache()
 	cache.now = func() time.Time { return now }
 
-	previousClose := decimal.RequireFromString("99")
-	prePrice := decimal.RequireFromString("100.5")
 	first := tickAt("US.AAPL", "100", 1000, now.Add(-time.Second))
-	first.PreviousClosePrice = &previousClose
-	first.PreMarket = &ExtendedQuote{Price: &prePrice}
+	first.PreviousClosePrice = new(decimal.RequireFromString("99"))
+	first.PreMarket = &ExtendedQuote{Price: new(decimal.RequireFromString("100.5"))}
 	first.Turnover = decimal.RequireFromString("12345")
 	stored := cache.Store(first)
 	if stored == nil {
@@ -118,8 +116,7 @@ func TestTickCandlesVolumeWindowAndLimit(t *testing.T) {
 func TestSerializationPreservesNullExtendedAndStringPrices(t *testing.T) {
 	now := time.Date(2026, time.June, 14, 10, 0, 0, 0, time.UTC)
 	sample := tickAt("US.AAPL", "100.25", 12, now)
-	afterPrice := decimal.RequireFromString("101.75")
-	sample.AfterMarket = &ExtendedQuote{Price: &afterPrice}
+	sample.AfterMarket = &ExtendedQuote{Price: new(decimal.RequireFromString("101.75"))}
 
 	snapshot := SnapshotJSON(&sample)
 	if snapshot["price"] != "100.25" || snapshot["openPrice"] != nil {
@@ -142,8 +139,8 @@ func TestSerializationPreservesNullExtendedAndStringPrices(t *testing.T) {
 func TestServiceUsesSingleCacheForSnapshotCandlesAndLatest(t *testing.T) {
 	now := time.Now().UTC()
 	provider := &dataProviderStub{
-		snapshot: ptrTick(tickAt("HK.00700", "321.4", 100, now)),
-		ticker:   ptrTick(tickAt("HK.00700", "322.5", 150, now)),
+		snapshot: new(tickAt("HK.00700", "321.4", 100, now)),
+		ticker:   new(tickAt("HK.00700", "322.5", 150, now)),
 	}
 	service := NewService(provider)
 

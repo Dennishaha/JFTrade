@@ -181,12 +181,12 @@ func TestDiscoverAccountsReusesSingleOpenDConnection(t *testing.T) {
 	server := startQuoteOpenDServer(t)
 	server.setAccounts([]*trdcommonpb.TrdAcc{
 		{
-			TrdEnv:            proto.Int32(int32(trdcommonpb.TrdEnv_TrdEnv_Simulate)),
-			AccID:             proto.Uint64(1001),
+			TrdEnv:            new(int32(trdcommonpb.TrdEnv_TrdEnv_Simulate)),
+			AccID:             new(uint64(1001)),
 			TrdMarketAuthList: []int32{int32(trdcommonpb.TrdMarket_TrdMarket_HK)},
-			AccType:           proto.Int32(int32(trdcommonpb.TrdAccType_TrdAccType_Cash)),
-			SecurityFirm:      proto.Int32(int32(trdcommonpb.SecurityFirm_SecurityFirm_FutuSecurities)),
-			SimAccType:        proto.Int32(int32(trdcommonpb.SimAccType_SimAccType_Stock)),
+			AccType:           new(int32(trdcommonpb.TrdAccType_TrdAccType_Cash)),
+			SecurityFirm:      new(int32(trdcommonpb.SecurityFirm_SecurityFirm_FutuSecurities)),
+			SimAccType:        new(int32(trdcommonpb.SimAccType_SimAccType_Stock)),
 		},
 	})
 	defer server.stop()
@@ -238,22 +238,22 @@ func TestQueryAccountBalancesUsesOpenDFundsSnapshot(t *testing.T) {
 	server := startQuoteOpenDServer(t)
 	server.setAccounts([]*trdcommonpb.TrdAcc{
 		{
-			TrdEnv:            proto.Int32(int32(trdcommonpb.TrdEnv_TrdEnv_Simulate)),
-			AccID:             proto.Uint64(1001),
+			TrdEnv:            new(int32(trdcommonpb.TrdEnv_TrdEnv_Simulate)),
+			AccID:             new(uint64(1001)),
 			TrdMarketAuthList: []int32{int32(trdcommonpb.TrdMarket_TrdMarket_HK)},
-			AccType:           proto.Int32(int32(trdcommonpb.TrdAccType_TrdAccType_Cash)),
+			AccType:           new(int32(trdcommonpb.TrdAccType_TrdAccType_Cash)),
 		},
 	})
 	server.setFunds(&trdcommonpb.Funds{
 		CashInfoList: []*trdcommonpb.AccCashInfo{{
-			Currency:         proto.Int32(int32(trdcommonpb.Currency_Currency_HKD)),
-			Cash:             proto.Float64(10000),
-			AvailableBalance: proto.Float64(9200),
-			NetCashPower:     proto.Float64(15000),
+			Currency:         new(int32(trdcommonpb.Currency_Currency_HKD)),
+			Cash:             new(float64(10000)),
+			AvailableBalance: new(float64(9200)),
+			NetCashPower:     new(float64(15000)),
 		}},
-		Cash:              proto.Float64(10000),
-		FrozenCash:        proto.Float64(800),
-		AvlWithdrawalCash: proto.Float64(9200),
+		Cash:              new(float64(10000)),
+		FrozenCash:        new(float64(800)),
+		AvlWithdrawalCash: new(float64(9200)),
 	})
 	defer server.stop()
 
@@ -283,41 +283,41 @@ func TestQueryOpenOrdersReturnsActiveOrders(t *testing.T) {
 	server := startQuoteOpenDServer(t)
 	server.setAccounts([]*trdcommonpb.TrdAcc{
 		{
-			TrdEnv:            proto.Int32(int32(trdcommonpb.TrdEnv_TrdEnv_Simulate)),
-			AccID:             proto.Uint64(1001),
+			TrdEnv:            new(int32(trdcommonpb.TrdEnv_TrdEnv_Simulate)),
+			AccID:             new(uint64(1001)),
 			TrdMarketAuthList: []int32{int32(trdcommonpb.TrdMarket_TrdMarket_HK)},
-			AccType:           proto.Int32(int32(trdcommonpb.TrdAccType_TrdAccType_Cash)),
+			AccType:           new(int32(trdcommonpb.TrdAccType_TrdAccType_Cash)),
 		},
 	})
 	server.setOrders([]*trdcommonpb.Order{
 		{
-			OrderID:         proto.Uint64(2001),
-			Code:            proto.String("HK.00700"),
-			TrdSide:         proto.Int32(int32(trdcommonpb.TrdSide_TrdSide_Buy)),
-			OrderType:       proto.Int32(int32(trdcommonpb.OrderType_OrderType_Normal)),
-			OrderStatus:     proto.Int32(int32(trdcommonpb.OrderStatus_OrderStatus_Submitted)),
-			Qty:             proto.Float64(100),
-			Price:           proto.Float64(320),
-			FillQty:         proto.Float64(25),
-			FillAvgPrice:    proto.Float64(319.5),
-			CreateTimestamp: proto.Float64(float64(time.Date(2026, time.May, 20, 9, 30, 0, 0, time.UTC).Unix())),
-			UpdateTimestamp: proto.Float64(float64(time.Date(2026, time.May, 20, 9, 31, 0, 0, time.UTC).Unix())),
-			TimeInForce:     proto.Int32(int32(trdcommonpb.TimeInForce_TimeInForce_GTC)),
-			Currency:        proto.Int32(int32(trdcommonpb.Currency_Currency_HKD)),
-			TrdMarket:       proto.Int32(int32(trdcommonpb.TrdMarket_TrdMarket_HK)),
+			OrderID:         new(uint64(2001)),
+			Code:            new("HK.00700"),
+			TrdSide:         new(int32(trdcommonpb.TrdSide_TrdSide_Buy)),
+			OrderType:       new(int32(trdcommonpb.OrderType_OrderType_Normal)),
+			OrderStatus:     new(int32(trdcommonpb.OrderStatus_OrderStatus_Submitted)),
+			Qty:             new(float64(100)),
+			Price:           new(float64(320)),
+			FillQty:         new(float64(25)),
+			FillAvgPrice:    new(319.5),
+			CreateTimestamp: new(float64(time.Date(2026, time.May, 20, 9, 30, 0, 0, time.UTC).Unix())),
+			UpdateTimestamp: new(float64(time.Date(2026, time.May, 20, 9, 31, 0, 0, time.UTC).Unix())),
+			TimeInForce:     new(int32(trdcommonpb.TimeInForce_TimeInForce_GTC)),
+			Currency:        new(int32(trdcommonpb.Currency_Currency_HKD)),
+			TrdMarket:       new(int32(trdcommonpb.TrdMarket_TrdMarket_HK)),
 		},
 		{
-			OrderID:     proto.Uint64(2002),
-			Code:        proto.String("HK.00700"),
-			TrdSide:     proto.Int32(int32(trdcommonpb.TrdSide_TrdSide_Sell)),
-			OrderType:   proto.Int32(int32(trdcommonpb.OrderType_OrderType_Normal)),
-			OrderStatus: proto.Int32(int32(trdcommonpb.OrderStatus_OrderStatus_Cancelled_All)),
-			Qty:         proto.Float64(50),
-			Price:       proto.Float64(330),
-			UpdateTime:  proto.String("2026-05-20 09:32:00"),
-			CreateTime:  proto.String("2026-05-20 09:30:30"),
-			TrdMarket:   proto.Int32(int32(trdcommonpb.TrdMarket_TrdMarket_HK)),
-			Currency:    proto.Int32(int32(trdcommonpb.Currency_Currency_HKD)),
+			OrderID:     new(uint64(2002)),
+			Code:        new("HK.00700"),
+			TrdSide:     new(int32(trdcommonpb.TrdSide_TrdSide_Sell)),
+			OrderType:   new(int32(trdcommonpb.OrderType_OrderType_Normal)),
+			OrderStatus: new(int32(trdcommonpb.OrderStatus_OrderStatus_Cancelled_All)),
+			Qty:         new(float64(50)),
+			Price:       new(float64(330)),
+			UpdateTime:  new("2026-05-20 09:32:00"),
+			CreateTime:  new("2026-05-20 09:30:30"),
+			TrdMarket:   new(int32(trdcommonpb.TrdMarket_TrdMarket_HK)),
+			Currency:    new(int32(trdcommonpb.Currency_Currency_HKD)),
 		},
 	})
 	defer server.stop()
@@ -367,39 +367,39 @@ func TestTradeProtocolConstantsMatchOfficialIDs(t *testing.T) {
 func TestQueryBrokerHistoryOrdersReturnsHistoricalOrders(t *testing.T) {
 	server := startQuoteOpenDServer(t)
 	server.setAccounts([]*trdcommonpb.TrdAcc{{
-		TrdEnv:            proto.Int32(int32(trdcommonpb.TrdEnv_TrdEnv_Simulate)),
-		AccID:             proto.Uint64(1001),
+		TrdEnv:            new(int32(trdcommonpb.TrdEnv_TrdEnv_Simulate)),
+		AccID:             new(uint64(1001)),
 		TrdMarketAuthList: []int32{int32(trdcommonpb.TrdMarket_TrdMarket_HK)},
-		AccType:           proto.Int32(int32(trdcommonpb.TrdAccType_TrdAccType_Cash)),
+		AccType:           new(int32(trdcommonpb.TrdAccType_TrdAccType_Cash)),
 	}})
 	server.setHistoryOrders([]*trdcommonpb.Order{
 		{
-			OrderID:      proto.Uint64(2001),
-			OrderIDEx:    proto.String("EXT-2001"),
-			Code:         proto.String("HK.00700"),
-			Name:         proto.String("Tencent"),
-			TrdSide:      proto.Int32(int32(trdcommonpb.TrdSide_TrdSide_Buy)),
-			OrderType:    proto.Int32(int32(trdcommonpb.OrderType_OrderType_Normal)),
-			OrderStatus:  proto.Int32(int32(trdcommonpb.OrderStatus_OrderStatus_Filled_All)),
-			Qty:          proto.Float64(100),
-			Price:        proto.Float64(320),
-			FillQty:      proto.Float64(100),
-			FillAvgPrice: proto.Float64(319.8),
-			CreateTime:   proto.String("2026-05-20 09:30:00"),
-			UpdateTime:   proto.String("2026-05-20 09:35:00"),
-			TrdMarket:    proto.Int32(int32(trdcommonpb.TrdMarket_TrdMarket_HK)),
+			OrderID:      new(uint64(2001)),
+			OrderIDEx:    new("EXT-2001"),
+			Code:         new("HK.00700"),
+			Name:         new("Tencent"),
+			TrdSide:      new(int32(trdcommonpb.TrdSide_TrdSide_Buy)),
+			OrderType:    new(int32(trdcommonpb.OrderType_OrderType_Normal)),
+			OrderStatus:  new(int32(trdcommonpb.OrderStatus_OrderStatus_Filled_All)),
+			Qty:          new(float64(100)),
+			Price:        new(float64(320)),
+			FillQty:      new(float64(100)),
+			FillAvgPrice: new(319.8),
+			CreateTime:   new("2026-05-20 09:30:00"),
+			UpdateTime:   new("2026-05-20 09:35:00"),
+			TrdMarket:    new(int32(trdcommonpb.TrdMarket_TrdMarket_HK)),
 		},
 		{
-			OrderID:     proto.Uint64(2002),
-			OrderIDEx:   proto.String("EXT-2002"),
-			Code:        proto.String("HK.00700"),
-			Name:        proto.String("Tencent"),
-			OrderStatus: proto.Int32(int32(trdcommonpb.OrderStatus_OrderStatus_Cancelled_All)),
-			Qty:         proto.Float64(50),
-			Price:       proto.Float64(330),
-			CreateTime:  proto.String("2026-05-19 09:30:00"),
-			UpdateTime:  proto.String("2026-05-19 09:32:00"),
-			TrdMarket:   proto.Int32(int32(trdcommonpb.TrdMarket_TrdMarket_HK)),
+			OrderID:     new(uint64(2002)),
+			OrderIDEx:   new("EXT-2002"),
+			Code:        new("HK.00700"),
+			Name:        new("Tencent"),
+			OrderStatus: new(int32(trdcommonpb.OrderStatus_OrderStatus_Cancelled_All)),
+			Qty:         new(float64(50)),
+			Price:       new(float64(330)),
+			CreateTime:  new("2026-05-19 09:30:00"),
+			UpdateTime:  new("2026-05-19 09:32:00"),
+			TrdMarket:   new(int32(trdcommonpb.TrdMarket_TrdMarket_HK)),
 		},
 	})
 	defer server.stop()
@@ -429,24 +429,24 @@ func TestQueryBrokerHistoryOrdersReturnsHistoricalOrders(t *testing.T) {
 func TestQueryBrokerHistoryOrderFillsReturnsHistoricalFills(t *testing.T) {
 	server := startQuoteOpenDServer(t)
 	server.setAccounts([]*trdcommonpb.TrdAcc{{
-		TrdEnv:            proto.Int32(int32(trdcommonpb.TrdEnv_TrdEnv_Simulate)),
-		AccID:             proto.Uint64(1001),
+		TrdEnv:            new(int32(trdcommonpb.TrdEnv_TrdEnv_Simulate)),
+		AccID:             new(uint64(1001)),
 		TrdMarketAuthList: []int32{int32(trdcommonpb.TrdMarket_TrdMarket_HK)},
-		AccType:           proto.Int32(int32(trdcommonpb.TrdAccType_TrdAccType_Cash)),
+		AccType:           new(int32(trdcommonpb.TrdAccType_TrdAccType_Cash)),
 	}})
 	server.setHistoryFills([]*trdcommonpb.OrderFill{{
-		FillID:     proto.Uint64(3001),
-		FillIDEx:   proto.String("FILL-3001"),
-		OrderID:    proto.Uint64(2001),
-		OrderIDEx:  proto.String("EXT-2001"),
-		Code:       proto.String("HK.00700"),
-		Name:       proto.String("Tencent"),
-		TrdSide:    proto.Int32(int32(trdcommonpb.TrdSide_TrdSide_Buy)),
-		Qty:        proto.Float64(100),
-		Price:      proto.Float64(319.8),
-		CreateTime: proto.String("2026-05-20 09:35:00"),
-		TrdMarket:  proto.Int32(int32(trdcommonpb.TrdMarket_TrdMarket_HK)),
-		Status:     proto.Int32(int32(trdcommonpb.OrderFillStatus_OrderFillStatus_OK)),
+		FillID:     new(uint64(3001)),
+		FillIDEx:   new("FILL-3001"),
+		OrderID:    new(uint64(2001)),
+		OrderIDEx:  new("EXT-2001"),
+		Code:       new("HK.00700"),
+		Name:       new("Tencent"),
+		TrdSide:    new(int32(trdcommonpb.TrdSide_TrdSide_Buy)),
+		Qty:        new(float64(100)),
+		Price:      new(319.8),
+		CreateTime: new("2026-05-20 09:35:00"),
+		TrdMarket:  new(int32(trdcommonpb.TrdMarket_TrdMarket_HK)),
+		Status:     new(int32(trdcommonpb.OrderFillStatus_OrderFillStatus_OK)),
 	}})
 	defer server.stop()
 
@@ -476,20 +476,20 @@ func TestQueryBrokerHistoryOrderFillsReturnsHistoricalFills(t *testing.T) {
 func TestQueryBrokerOrderFeesReturnsFeeBreakdown(t *testing.T) {
 	server := startQuoteOpenDServer(t)
 	server.setAccounts([]*trdcommonpb.TrdAcc{{
-		TrdEnv:            proto.Int32(int32(trdcommonpb.TrdEnv_TrdEnv_Simulate)),
-		AccID:             proto.Uint64(1001),
+		TrdEnv:            new(int32(trdcommonpb.TrdEnv_TrdEnv_Simulate)),
+		AccID:             new(uint64(1001)),
 		TrdMarketAuthList: []int32{int32(trdcommonpb.TrdMarket_TrdMarket_HK)},
-		AccType:           proto.Int32(int32(trdcommonpb.TrdAccType_TrdAccType_Cash)),
+		AccType:           new(int32(trdcommonpb.TrdAccType_TrdAccType_Cash)),
 	}})
 	server.setOrderFees([]*trdcommonpb.OrderFee{{
-		OrderIDEx: proto.String("EXT-2001"),
-		FeeAmount: proto.Float64(12.5),
+		OrderIDEx: new("EXT-2001"),
+		FeeAmount: new(12.5),
 		FeeList: []*trdcommonpb.OrderFeeItem{{
-			Title: proto.String("BROKERAGE"),
-			Value: proto.Float64(10),
+			Title: new("BROKERAGE"),
+			Value: new(float64(10)),
 		}, {
-			Title: proto.String("STAMP_DUTY"),
-			Value: proto.Float64(2.5),
+			Title: new("STAMP_DUTY"),
+			Value: new(2.5),
 		}},
 	}})
 	defer server.stop()
@@ -524,21 +524,21 @@ func TestQueryBrokerOrderFeesReturnsFeeBreakdown(t *testing.T) {
 func TestQueryBrokerMarginRatiosReturnsMarginData(t *testing.T) {
 	server := startQuoteOpenDServer(t)
 	server.setAccounts([]*trdcommonpb.TrdAcc{{
-		TrdEnv:            proto.Int32(int32(trdcommonpb.TrdEnv_TrdEnv_Real)),
-		AccID:             proto.Uint64(1001),
+		TrdEnv:            new(int32(trdcommonpb.TrdEnv_TrdEnv_Real)),
+		AccID:             new(uint64(1001)),
 		TrdMarketAuthList: []int32{int32(trdcommonpb.TrdMarket_TrdMarket_HK)},
-		AccType:           proto.Int32(int32(trdcommonpb.TrdAccType_TrdAccType_Margin)),
+		AccType:           new(int32(trdcommonpb.TrdAccType_TrdAccType_Margin)),
 	}})
 	server.setMarginRatios([]*trdgetmarginratiopb.MarginRatioInfo{{
-		Security:        &qotcommonpb.Security{Market: proto.Int32(int32(qotcommonpb.QotMarket_QotMarket_HK_Security)), Code: proto.String("00700")},
-		IsLongPermit:    proto.Bool(true),
-		IsShortPermit:   proto.Bool(false),
-		ShortFeeRate:    proto.Float64(1.25),
-		AlertLongRatio:  proto.Float64(0.3),
-		AlertShortRatio: proto.Float64(0.4),
-		ImLongRatio:     proto.Float64(0.5),
-		McmLongRatio:    proto.Float64(0.6),
-		MmLongRatio:     proto.Float64(0.7),
+		Security:        &qotcommonpb.Security{Market: new(int32(qotcommonpb.QotMarket_QotMarket_HK_Security)), Code: new("00700")},
+		IsLongPermit:    new(true),
+		IsShortPermit:   new(false),
+		ShortFeeRate:    new(1.25),
+		AlertLongRatio:  new(0.3),
+		AlertShortRatio: new(0.4),
+		ImLongRatio:     new(0.5),
+		McmLongRatio:    new(0.6),
+		MmLongRatio:     new(0.7),
 	}})
 	defer server.stop()
 
@@ -569,18 +569,18 @@ func TestQueryBrokerMarginRatiosReturnsMarginData(t *testing.T) {
 func TestQueryBrokerMarginRatiosSkipsUnknownStock(t *testing.T) {
 	server := startQuoteOpenDServer(t)
 	server.setAccounts([]*trdcommonpb.TrdAcc{{
-		TrdEnv:            proto.Int32(int32(trdcommonpb.TrdEnv_TrdEnv_Real)),
-		AccID:             proto.Uint64(1001),
+		TrdEnv:            new(int32(trdcommonpb.TrdEnv_TrdEnv_Real)),
+		AccID:             new(uint64(1001)),
 		TrdMarketAuthList: []int32{int32(trdcommonpb.TrdMarket_TrdMarket_HK)},
-		AccType:           proto.Int32(int32(trdcommonpb.TrdAccType_TrdAccType_Margin)),
+		AccType:           new(int32(trdcommonpb.TrdAccType_TrdAccType_Margin)),
 	}})
 	server.setMarginRatios([]*trdgetmarginratiopb.MarginRatioInfo{{
-		Security:        &qotcommonpb.Security{Market: proto.Int32(int32(qotcommonpb.QotMarket_QotMarket_HK_Security)), Code: proto.String("00700")},
-		IsLongPermit:    proto.Bool(true),
-		IsShortPermit:   proto.Bool(false),
-		ShortFeeRate:    proto.Float64(1.25),
-		AlertLongRatio:  proto.Float64(0.3),
-		AlertShortRatio: proto.Float64(0.4),
+		Security:        &qotcommonpb.Security{Market: new(int32(qotcommonpb.QotMarket_QotMarket_HK_Security)), Code: new("00700")},
+		IsLongPermit:    new(true),
+		IsShortPermit:   new(false),
+		ShortFeeRate:    new(1.25),
+		AlertLongRatio:  new(0.3),
+		AlertShortRatio: new(0.4),
 	}})
 	server.setStrictMarginRatios(true)
 	defer server.stop()
@@ -606,15 +606,15 @@ func TestQueryBrokerMarginRatiosSkipsUnknownStock(t *testing.T) {
 func TestQueryBrokerMarginRatiosUsesCacheWithinTTL(t *testing.T) {
 	server := startQuoteOpenDServer(t)
 	server.setAccounts([]*trdcommonpb.TrdAcc{{
-		TrdEnv:            proto.Int32(int32(trdcommonpb.TrdEnv_TrdEnv_Real)),
-		AccID:             proto.Uint64(1001),
+		TrdEnv:            new(int32(trdcommonpb.TrdEnv_TrdEnv_Real)),
+		AccID:             new(uint64(1001)),
 		TrdMarketAuthList: []int32{int32(trdcommonpb.TrdMarket_TrdMarket_HK)},
-		AccType:           proto.Int32(int32(trdcommonpb.TrdAccType_TrdAccType_Margin)),
+		AccType:           new(int32(trdcommonpb.TrdAccType_TrdAccType_Margin)),
 	}})
 	server.setMarginRatios([]*trdgetmarginratiopb.MarginRatioInfo{{
-		Security:      &qotcommonpb.Security{Market: proto.Int32(int32(qotcommonpb.QotMarket_QotMarket_HK_Security)), Code: proto.String("00700")},
-		IsLongPermit:  proto.Bool(true),
-		IsShortPermit: proto.Bool(false),
+		Security:      &qotcommonpb.Security{Market: new(int32(qotcommonpb.QotMarket_QotMarket_HK_Security)), Code: new("00700")},
+		IsLongPermit:  new(true),
+		IsShortPermit: new(false),
 	}})
 	defer server.stop()
 
@@ -644,20 +644,20 @@ func TestQueryBrokerMarginRatiosUsesCacheWithinTTL(t *testing.T) {
 func TestQueryBrokerCashFlowsReturnsFlowSummary(t *testing.T) {
 	server := startQuoteOpenDServer(t)
 	server.setAccounts([]*trdcommonpb.TrdAcc{{
-		TrdEnv:            proto.Int32(int32(trdcommonpb.TrdEnv_TrdEnv_Real)),
-		AccID:             proto.Uint64(1001),
+		TrdEnv:            new(int32(trdcommonpb.TrdEnv_TrdEnv_Real)),
+		AccID:             new(uint64(1001)),
 		TrdMarketAuthList: []int32{int32(trdcommonpb.TrdMarket_TrdMarket_HK)},
-		AccType:           proto.Int32(int32(trdcommonpb.TrdAccType_TrdAccType_Cash)),
+		AccType:           new(int32(trdcommonpb.TrdAccType_TrdAccType_Cash)),
 	}})
 	server.setCashFlows([]*trdflowsummarypb.FlowSummaryInfo{{
-		CashFlowID:        proto.Uint64(5001),
-		ClearingDate:      proto.String("2026-05-20"),
-		SettlementDate:    proto.String("2026-05-21"),
-		Currency:          proto.Int32(int32(trdcommonpb.Currency_Currency_HKD)),
-		CashFlowType:      proto.String("DIVIDEND"),
-		CashFlowDirection: proto.Int32(int32(trdflowsummarypb.TrdCashFlowDirection_TrdCashFlowDirection_In)),
-		CashFlowAmount:    proto.Float64(88.8),
-		CashFlowRemark:    proto.String("cash-flow-test"),
+		CashFlowID:        new(uint64(5001)),
+		ClearingDate:      new("2026-05-20"),
+		SettlementDate:    new("2026-05-21"),
+		Currency:          new(int32(trdcommonpb.Currency_Currency_HKD)),
+		CashFlowType:      new("DIVIDEND"),
+		CashFlowDirection: new(int32(trdflowsummarypb.TrdCashFlowDirection_TrdCashFlowDirection_In)),
+		CashFlowAmount:    new(88.8),
+		CashFlowRemark:    new("cash-flow-test"),
 	}})
 	defer server.stop()
 
@@ -689,20 +689,20 @@ func TestQueryBrokerCashFlowsReturnsFlowSummary(t *testing.T) {
 func TestQueryBrokerMaxTradeQuantityReturnsSnapshot(t *testing.T) {
 	server := startQuoteOpenDServer(t)
 	server.setAccounts([]*trdcommonpb.TrdAcc{{
-		TrdEnv:            proto.Int32(int32(trdcommonpb.TrdEnv_TrdEnv_Real)),
-		AccID:             proto.Uint64(1001),
+		TrdEnv:            new(int32(trdcommonpb.TrdEnv_TrdEnv_Real)),
+		AccID:             new(uint64(1001)),
 		TrdMarketAuthList: []int32{int32(trdcommonpb.TrdMarket_TrdMarket_HK)},
-		AccType:           proto.Int32(int32(trdcommonpb.TrdAccType_TrdAccType_Margin)),
+		AccType:           new(int32(trdcommonpb.TrdAccType_TrdAccType_Margin)),
 	}})
 	server.setMaxTrdQtys(&trdcommonpb.MaxTrdQtys{
-		MaxCashBuy:          proto.Float64(1000),
-		MaxCashAndMarginBuy: proto.Float64(2000),
-		MaxPositionSell:     proto.Float64(500),
-		MaxSellShort:        proto.Float64(300),
-		MaxBuyBack:          proto.Float64(150),
-		LongRequiredIM:      proto.Float64(10),
-		ShortRequiredIM:     proto.Float64(12),
-		Session:             proto.Int32(int32(commonpb.Session_Session_RTH)),
+		MaxCashBuy:          new(float64(1000)),
+		MaxCashAndMarginBuy: new(float64(2000)),
+		MaxPositionSell:     new(float64(500)),
+		MaxSellShort:        new(float64(300)),
+		MaxBuyBack:          new(float64(150)),
+		LongRequiredIM:      new(float64(10)),
+		ShortRequiredIM:     new(float64(12)),
+		Session:             new(int32(commonpb.Session_Session_RTH)),
 	})
 	defer server.stop()
 
@@ -748,10 +748,10 @@ func TestQueryBrokerMaxTradeQuantityReturnsSnapshot(t *testing.T) {
 func TestSubmitOrderPlacesViaOpenD(t *testing.T) {
 	server := startQuoteOpenDServer(t)
 	server.setAccounts([]*trdcommonpb.TrdAcc{{
-		TrdEnv:            proto.Int32(int32(trdcommonpb.TrdEnv_TrdEnv_Simulate)),
-		AccID:             proto.Uint64(1001),
+		TrdEnv:            new(int32(trdcommonpb.TrdEnv_TrdEnv_Simulate)),
+		AccID:             new(uint64(1001)),
 		TrdMarketAuthList: []int32{int32(trdcommonpb.TrdMarket_TrdMarket_HK)},
-		AccType:           proto.Int32(int32(trdcommonpb.TrdAccType_TrdAccType_Cash)),
+		AccType:           new(int32(trdcommonpb.TrdAccType_TrdAccType_Cash)),
 	}})
 	server.setPlacedOrderResponse(9001, "FT-9001")
 	defer server.stop()
@@ -798,10 +798,10 @@ func TestSubmitOrderPlacesViaOpenD(t *testing.T) {
 func TestCancelOrdersUsesModifyOrderCancel(t *testing.T) {
 	server := startQuoteOpenDServer(t)
 	server.setAccounts([]*trdcommonpb.TrdAcc{{
-		TrdEnv:            proto.Int32(int32(trdcommonpb.TrdEnv_TrdEnv_Simulate)),
-		AccID:             proto.Uint64(1001),
+		TrdEnv:            new(int32(trdcommonpb.TrdEnv_TrdEnv_Simulate)),
+		AccID:             new(uint64(1001)),
 		TrdMarketAuthList: []int32{int32(trdcommonpb.TrdMarket_TrdMarket_HK)},
-		AccType:           proto.Int32(int32(trdcommonpb.TrdAccType_TrdAccType_Cash)),
+		AccType:           new(int32(trdcommonpb.TrdAccType_TrdAccType_Cash)),
 	}})
 	defer server.stop()
 
@@ -840,12 +840,12 @@ func TestCancelOrdersUsesModifyOrderCancel(t *testing.T) {
 func TestEnsureSystemNotificationsBindsSystemPushHandler(t *testing.T) {
 	server := startQuoteOpenDServer(t)
 	server.setNotifyAfterInit(&notifypb.Response{
-		RetType: proto.Int32(0),
+		RetType: new(int32(0)),
 		S2C: &notifypb.S2C{
-			Type: proto.Int32(int32(notifypb.NotifyType_NotifyType_ConnStatus)),
+			Type: new(int32(notifypb.NotifyType_NotifyType_ConnStatus)),
 			ConnectStatus: &notifypb.ConnectStatus{
-				QotLogined: proto.Bool(true),
-				TrdLogined: proto.Bool(false),
+				QotLogined: new(true),
+				TrdLogined: new(false),
 			},
 		},
 	})
@@ -971,8 +971,7 @@ func TestQueryKLinesSplitsUSHistoricalRequestsBySessionAndMergesResults(t *testi
 	defer ex.Close()
 
 	start := time.Date(2026, time.May, 20, 8, 0, 0, 0, time.UTC)
-	end := start.Add(2 * time.Hour)
-	klines, err := ex.QueryKLines(t.Context(), "US.NVDA", types.Interval1m, types.KLineQueryOptions{Limit: 3, StartTime: &start, EndTime: &end})
+	klines, err := ex.QueryKLines(t.Context(), "US.NVDA", types.Interval1m, types.KLineQueryOptions{Limit: 3, StartTime: &start, EndTime: new(start.Add(2 * time.Hour))})
 	if err != nil {
 		t.Fatalf("QueryKLines: %v", err)
 	}
@@ -1040,8 +1039,7 @@ func TestQueryKLinesFallsBackToSessionAllWhenHistoricalRouteUnsupported(t *testi
 	defer ex.Close()
 
 	start := time.Date(2026, time.May, 20, 8, 0, 0, 0, time.UTC)
-	end := start.Add(2 * time.Hour)
-	klines, err := ex.QueryKLines(t.Context(), "US.NVDA", types.Interval1m, types.KLineQueryOptions{Limit: 3, StartTime: &start, EndTime: &end})
+	klines, err := ex.QueryKLines(t.Context(), "US.NVDA", types.Interval1m, types.KLineQueryOptions{Limit: 3, StartTime: &start, EndTime: new(start.Add(2 * time.Hour))})
 	if err != nil {
 		t.Fatalf("QueryKLines: %v", err)
 	}
@@ -1079,9 +1077,7 @@ func TestQueryKLinesNormalizesIntradayHistoryLabelToBucketStart(t *testing.T) {
 	ex := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
 	defer ex.Close()
 
-	start := labelAt.Add(-time.Hour)
-	end := labelAt.Add(time.Hour)
-	klines, err := ex.QueryKLines(t.Context(), "HK.00700", types.Interval1m, types.KLineQueryOptions{Limit: 1, StartTime: &start, EndTime: &end})
+	klines, err := ex.QueryKLines(t.Context(), "HK.00700", types.Interval1m, types.KLineQueryOptions{Limit: 1, StartTime: new(labelAt.Add(-time.Hour)), EndTime: new(labelAt.Add(time.Hour))})
 	if err != nil {
 		t.Fatalf("QueryKLines: %v", err)
 	}
@@ -1109,9 +1105,7 @@ func TestQueryKLinesKeepsDailyHistoryLabelAsBucketStart(t *testing.T) {
 	ex := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
 	defer ex.Close()
 
-	start := labelAt.Add(-24 * time.Hour)
-	end := labelAt.Add(24 * time.Hour)
-	klines, err := ex.QueryKLines(t.Context(), "HK.00700", types.Interval1d, types.KLineQueryOptions{Limit: 1, StartTime: &start, EndTime: &end})
+	klines, err := ex.QueryKLines(t.Context(), "HK.00700", types.Interval1d, types.KLineQueryOptions{Limit: 1, StartTime: new(labelAt.Add(-24 * time.Hour)), EndTime: new(labelAt.Add(24 * time.Hour))})
 	if err != nil {
 		t.Fatalf("QueryKLines: %v", err)
 	}
@@ -1143,9 +1137,7 @@ func TestQueryKLinesFollowsHistoryPaginationAndKeepsLatestLimit(t *testing.T) {
 	ex := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
 	defer ex.Close()
 
-	start := oldAt.Add(-time.Hour)
-	end := recentAt.Add(time.Hour)
-	klines, err := ex.QueryKLines(t.Context(), "HK.00700", types.Interval5m, types.KLineQueryOptions{Limit: 2, StartTime: &start, EndTime: &end})
+	klines, err := ex.QueryKLines(t.Context(), "HK.00700", types.Interval5m, types.KLineQueryOptions{Limit: 2, StartTime: new(oldAt.Add(-time.Hour)), EndTime: new(recentAt.Add(time.Hour))})
 	if err != nil {
 		t.Fatalf("QueryKLines: %v", err)
 	}
@@ -1175,9 +1167,7 @@ func TestQueryKLinesAllowsMoreThanEightHistoryPages(t *testing.T) {
 	ex := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
 	defer ex.Close()
 
-	start := baseAt.Add(-time.Hour)
-	end := baseAt.Add(2 * time.Hour)
-	klines, err := ex.QueryKLines(t.Context(), "HK.00700", types.Interval5m, types.KLineQueryOptions{Limit: 2, StartTime: &start, EndTime: &end})
+	klines, err := ex.QueryKLines(t.Context(), "HK.00700", types.Interval5m, types.KLineQueryOptions{Limit: 2, StartTime: new(baseAt.Add(-time.Hour)), EndTime: new(baseAt.Add(2 * time.Hour))})
 	if err != nil {
 		t.Fatalf("QueryKLines: %v", err)
 	}
@@ -1206,9 +1196,7 @@ func TestQueryKLinesUsesLargerHistoryPageSizeThanRequestedLimit(t *testing.T) {
 	ex := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
 	defer ex.Close()
 
-	start := baseAt.Add(-time.Minute)
-	end := baseAt.Add(401 * time.Minute)
-	klines, err := ex.QueryKLines(t.Context(), "HK.00700", types.Interval1m, types.KLineQueryOptions{Limit: 2, StartTime: &start, EndTime: &end})
+	klines, err := ex.QueryKLines(t.Context(), "HK.00700", types.Interval1m, types.KLineQueryOptions{Limit: 2, StartTime: new(baseAt.Add(-time.Minute)), EndTime: new(baseAt.Add(401 * time.Minute))})
 	if err != nil {
 		t.Fatalf("QueryKLines: %v", err)
 	}
@@ -1235,9 +1223,7 @@ func TestQueryKLinesIncludesCurrentRealtimeBucketFromGetKL(t *testing.T) {
 	ex := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
 	defer ex.Close()
 
-	start := historyLabelAt.Add(-time.Hour)
-	end := currentLabelAt.Add(time.Hour)
-	klines, err := ex.QueryKLines(t.Context(), "HK.00700", types.Interval1m, types.KLineQueryOptions{Limit: 2, StartTime: &start, EndTime: &end})
+	klines, err := ex.QueryKLines(t.Context(), "HK.00700", types.Interval1m, types.KLineQueryOptions{Limit: 2, StartTime: new(historyLabelAt.Add(-time.Hour)), EndTime: new(currentLabelAt.Add(time.Hour))})
 	if err != nil {
 		t.Fatalf("QueryKLines: %v", err)
 	}
@@ -1447,8 +1433,8 @@ func (s *quoteOpenDServer) setHistorySessionError(session int32, retType int32, 
 		s.historySessionErrors = make(map[int32]*historypb.Response)
 	}
 	s.historySessionErrors[session] = &historypb.Response{
-		RetType: proto.Int32(retType),
-		RetMsg:  proto.String(retMsg),
+		RetType: new(retType),
+		RetMsg:  new(retMsg),
 	}
 }
 
@@ -1603,13 +1589,13 @@ func (s *quoteOpenDServer) handleConn(conn net.Conn) {
 			_ = proto.Unmarshal(frame.Body, request)
 			s.initRecvNotify.Store(request.GetC2S().GetRecvNotify())
 			response = &initpb.Response{
-				RetType: proto.Int32(0),
+				RetType: new(int32(0)),
 				S2C: &initpb.S2C{
-					ServerVer:         proto.Int32(700),
-					LoginUserID:       proto.Uint64(1),
-					ConnID:            proto.Uint64(42),
-					ConnAESKey:        proto.String("0123456789abcdef"),
-					KeepAliveInterval: proto.Int32(10),
+					ServerVer:         new(int32(700)),
+					LoginUserID:       new(uint64(1)),
+					ConnID:            new(uint64(42)),
+					ConnAESKey:        new("0123456789abcdef"),
+					KeepAliveInterval: new(int32(10)),
 				},
 			}
 		case opend.ProtoQotSub:
@@ -1620,7 +1606,7 @@ func (s *quoteOpenDServer) handleConn(conn net.Conn) {
 			if isPushSub {
 				s.pushSubCalls.Add(1)
 			}
-			response = &qotsubpb.Response{RetType: proto.Int32(0)}
+			response = &qotsubpb.Response{RetType: new(int32(0))}
 		case opend.ProtoTrdGetAccList:
 			s.accountListCalls.Add(1)
 			response = s.accountListResponse()
@@ -1667,7 +1653,7 @@ func (s *quoteOpenDServer) handleConn(conn net.Conn) {
 			s.tradeMu.Lock()
 			s.lastTradeAccPushIDs = append([]uint64(nil), request.GetC2S().GetAccIDList()...)
 			s.tradeMu.Unlock()
-			response = &trdsubaccpushpb.Response{RetType: proto.Int32(0)}
+			response = &trdsubaccpushpb.Response{RetType: new(int32(0))}
 		case opend.ProtoGetBasicQot:
 			s.basicQotCalls.Add(1)
 			response = s.basicQotResponse(frame.Body)
@@ -1733,7 +1719,7 @@ func (s *quoteOpenDServer) writeNotifyAfterInit(conn net.Conn) error {
 func (s *quoteOpenDServer) historyKLResponse(body []byte) *historypb.Response {
 	request := &historypb.Request{}
 	if err := proto.Unmarshal(body, request); err != nil {
-		return &historypb.Response{RetType: proto.Int32(1), RetMsg: proto.String(err.Error())}
+		return &historypb.Response{RetType: new(int32(1)), RetMsg: new(err.Error())}
 	}
 	s.historyExtended.Store(request.GetC2S().GetExtendedTime())
 	s.historySession.Store(request.GetC2S().GetSession())
@@ -1752,7 +1738,7 @@ func (s *quoteOpenDServer) historyKLResponse(body []byte) *historypb.Response {
 		}
 		s.historyRouteCallCount[session]++
 		response := &historypb.Response{
-			RetType: proto.Int32(0),
+			RetType: new(int32(0)),
 			S2C: &historypb.S2C{
 				Security: request.GetC2S().GetSecurity(),
 			},
@@ -1784,7 +1770,7 @@ func (s *quoteOpenDServer) historyKLResponse(body []byte) *historypb.Response {
 			end = len(s.historySeries)
 		}
 		response := &historypb.Response{
-			RetType: proto.Int32(0),
+			RetType: new(int32(0)),
 			S2C: &historypb.S2C{
 				Security: request.GetC2S().GetSecurity(),
 				KlList:   append([]*qotcommonpb.KLine(nil), s.historySeries[start:end]...),
@@ -1805,7 +1791,7 @@ func (s *quoteOpenDServer) historyKLResponse(body []byte) *historypb.Response {
 			pageIndex = len(s.historyPages) - 1
 		}
 		response := &historypb.Response{
-			RetType: proto.Int32(0),
+			RetType: new(int32(0)),
 			S2C: &historypb.S2C{
 				Security: request.GetC2S().GetSecurity(),
 				KlList:   s.historyPages[pageIndex],
@@ -1821,20 +1807,20 @@ func (s *quoteOpenDServer) historyKLResponse(body []byte) *historypb.Response {
 
 	startAt := time.Date(2026, time.May, 20, 8, 0, 0, 0, time.UTC)
 	return &historypb.Response{
-		RetType: proto.Int32(0),
+		RetType: new(int32(0)),
 		S2C: &historypb.S2C{
 			Security: request.GetC2S().GetSecurity(),
 			KlList: []*qotcommonpb.KLine{
 				{
-					Time:       proto.String(startAt.Format("2006-01-02 15:04:05")),
-					Timestamp:  proto.Float64(float64(startAt.Unix())),
-					IsBlank:    proto.Bool(false),
-					OpenPrice:  proto.Float64(100),
-					HighPrice:  proto.Float64(101),
-					LowPrice:   proto.Float64(99),
-					ClosePrice: proto.Float64(100.5),
-					Volume:     proto.Int64(1000),
-					Turnover:   proto.Float64(100500),
+					Time:       new(startAt.Format("2006-01-02 15:04:05")),
+					Timestamp:  new(float64(startAt.Unix())),
+					IsBlank:    new(false),
+					OpenPrice:  new(float64(100)),
+					HighPrice:  new(float64(101)),
+					LowPrice:   new(float64(99)),
+					ClosePrice: new(100.5),
+					Volume:     new(int64(1000)),
+					Turnover:   new(float64(100500)),
 				},
 			},
 		},
@@ -1844,12 +1830,12 @@ func (s *quoteOpenDServer) historyKLResponse(body []byte) *historypb.Response {
 func (s *quoteOpenDServer) currentKLResponse(body []byte) *qotgetklpb.Response {
 	request := &qotgetklpb.Request{}
 	if err := proto.Unmarshal(body, request); err != nil {
-		return &qotgetklpb.Response{RetType: proto.Int32(1), RetMsg: proto.String(err.Error())}
+		return &qotgetklpb.Response{RetType: new(int32(1)), RetMsg: new(err.Error())}
 	}
 	s.historyMu.Lock()
 	defer s.historyMu.Unlock()
 	response := &qotgetklpb.Response{
-		RetType: proto.Int32(0),
+		RetType: new(int32(0)),
 		S2C: &qotgetklpb.S2C{
 			Security: request.GetC2S().GetSecurity(),
 			KlList:   s.currentKLines,
@@ -1860,35 +1846,35 @@ func (s *quoteOpenDServer) currentKLResponse(body []byte) *qotgetklpb.Response {
 
 func testHistoryKLine(at time.Time, price float64) *qotcommonpb.KLine {
 	return &qotcommonpb.KLine{
-		Time:       proto.String(at.Format("2006-01-02 15:04:05")),
-		Timestamp:  proto.Float64(float64(at.Unix())),
-		IsBlank:    proto.Bool(false),
-		OpenPrice:  proto.Float64(price),
-		HighPrice:  proto.Float64(price + 1),
-		LowPrice:   proto.Float64(price - 1),
-		ClosePrice: proto.Float64(price + 0.5),
-		Volume:     proto.Int64(1000),
-		Turnover:   proto.Float64(price * 1000),
+		Time:       new(at.Format("2006-01-02 15:04:05")),
+		Timestamp:  new(float64(at.Unix())),
+		IsBlank:    new(false),
+		OpenPrice:  new(price),
+		HighPrice:  new(price + 1),
+		LowPrice:   new(price - 1),
+		ClosePrice: new(price + 0.5),
+		Volume:     new(int64(1000)),
+		Turnover:   new(price * 1000),
 	}
 }
 
 func testCurrentKLine(at time.Time, open float64, high float64, low float64, close float64, volume int64) *qotcommonpb.KLine {
 	return &qotcommonpb.KLine{
-		Time:       proto.String(at.Format("2006-01-02 15:04:05")),
-		Timestamp:  proto.Float64(float64(at.Unix())),
-		IsBlank:    proto.Bool(false),
-		OpenPrice:  proto.Float64(open),
-		HighPrice:  proto.Float64(high),
-		LowPrice:   proto.Float64(low),
-		ClosePrice: proto.Float64(close),
-		Volume:     proto.Int64(volume),
-		Turnover:   proto.Float64(close * float64(volume)),
+		Time:       new(at.Format("2006-01-02 15:04:05")),
+		Timestamp:  new(float64(at.Unix())),
+		IsBlank:    new(false),
+		OpenPrice:  new(open),
+		HighPrice:  new(high),
+		LowPrice:   new(low),
+		ClosePrice: new(close),
+		Volume:     new(volume),
+		Turnover:   new(close * float64(volume)),
 	}
 }
 
 func (s *quoteOpenDServer) writeBasicQotPush(conn net.Conn, securities []*qotcommonpb.Security) error {
 	response := &qotupdatebasicqotpb.Response{
-		RetType: proto.Int32(0),
+		RetType: new(int32(0)),
 		S2C:     &qotupdatebasicqotpb.S2C{BasicQotList: basicQotListForSecurities(securities)},
 	}
 	body, err := proto.Marshal(response)
@@ -1906,13 +1892,13 @@ func (s *quoteOpenDServer) writeBasicQotPush(conn net.Conn, securities []*qotcom
 func (s *quoteOpenDServer) basicQotResponse(body []byte) *qotgetbasicqotpb.Response {
 	request := &qotgetbasicqotpb.Request{}
 	if err := proto.Unmarshal(body, request); err != nil {
-		return &qotgetbasicqotpb.Response{RetType: proto.Int32(1), RetMsg: proto.String(err.Error())}
+		return &qotgetbasicqotpb.Response{RetType: new(int32(1)), RetMsg: new(err.Error())}
 	}
 
 	quotes := basicQotListForSecurities(request.GetC2S().GetSecurityList())
 
 	return &qotgetbasicqotpb.Response{
-		RetType: proto.Int32(0),
+		RetType: new(int32(0)),
 		S2C: &qotgetbasicqotpb.S2C{
 			BasicQotList: quotes,
 		},
@@ -1924,7 +1910,7 @@ func (s *quoteOpenDServer) accountListResponse() *trdgetacclistpb.Response {
 	accounts := append([]*trdcommonpb.TrdAcc(nil), s.accounts...)
 	s.accountMu.Unlock()
 	return &trdgetacclistpb.Response{
-		RetType: proto.Int32(0),
+		RetType: new(int32(0)),
 		S2C: &trdgetacclistpb.S2C{
 			AccList: accounts,
 		},
@@ -1934,13 +1920,13 @@ func (s *quoteOpenDServer) accountListResponse() *trdgetacclistpb.Response {
 func (s *quoteOpenDServer) fundsResponse(body []byte) *trdgetfundspb.Response {
 	request := &trdgetfundspb.Request{}
 	if err := proto.Unmarshal(body, request); err != nil {
-		return &trdgetfundspb.Response{RetType: proto.Int32(1), RetMsg: proto.String(err.Error())}
+		return &trdgetfundspb.Response{RetType: new(int32(1)), RetMsg: new(err.Error())}
 	}
 	s.tradeMu.Lock()
 	funds := s.funds
 	s.tradeMu.Unlock()
 	return &trdgetfundspb.Response{
-		RetType: proto.Int32(0),
+		RetType: new(int32(0)),
 		S2C: &trdgetfundspb.S2C{
 			Header: normalizeTestTrdHeader(request.GetC2S().GetHeader()),
 			Funds:  normalizeTestFunds(funds),
@@ -1951,7 +1937,7 @@ func (s *quoteOpenDServer) fundsResponse(body []byte) *trdgetfundspb.Response {
 func (s *quoteOpenDServer) positionListResponse(body []byte) *trdgetpositionlistpb.Response {
 	request := &trdgetpositionlistpb.Request{}
 	if err := proto.Unmarshal(body, request); err != nil {
-		return &trdgetpositionlistpb.Response{RetType: proto.Int32(1), RetMsg: proto.String(err.Error())}
+		return &trdgetpositionlistpb.Response{RetType: new(int32(1)), RetMsg: new(err.Error())}
 	}
 	s.tradeMu.Lock()
 	positions := append([]*trdcommonpb.Position(nil), s.positions...)
@@ -1961,7 +1947,7 @@ func (s *quoteOpenDServer) positionListResponse(body []byte) *trdgetpositionlist
 		normalized = append(normalized, normalizeTestPosition(position))
 	}
 	return &trdgetpositionlistpb.Response{
-		RetType: proto.Int32(0),
+		RetType: new(int32(0)),
 		S2C: &trdgetpositionlistpb.S2C{
 			Header:       normalizeTestTrdHeader(request.GetC2S().GetHeader()),
 			PositionList: normalized,
@@ -1972,7 +1958,7 @@ func (s *quoteOpenDServer) positionListResponse(body []byte) *trdgetpositionlist
 func (s *quoteOpenDServer) orderListResponse(body []byte) *trdgetorderlistpb.Response {
 	request := &trdgetorderlistpb.Request{}
 	if err := proto.Unmarshal(body, request); err != nil {
-		return &trdgetorderlistpb.Response{RetType: proto.Int32(1), RetMsg: proto.String(err.Error())}
+		return &trdgetorderlistpb.Response{RetType: new(int32(1)), RetMsg: new(err.Error())}
 	}
 	s.tradeMu.Lock()
 	orders := append([]*trdcommonpb.Order(nil), s.orders...)
@@ -1998,7 +1984,7 @@ func (s *quoteOpenDServer) orderListResponse(body []byte) *trdgetorderlistpb.Res
 		orders = filtered
 	}
 	return &trdgetorderlistpb.Response{
-		RetType: proto.Int32(0),
+		RetType: new(int32(0)),
 		S2C: &trdgetorderlistpb.S2C{
 			Header:    normalizeTestTrdHeader(request.GetC2S().GetHeader()),
 			OrderList: orders,
@@ -2009,7 +1995,7 @@ func (s *quoteOpenDServer) orderListResponse(body []byte) *trdgetorderlistpb.Res
 func (s *quoteOpenDServer) historyOrderListResponse(body []byte) *trdgethistoryorderlistpb.Response {
 	request := &trdgethistoryorderlistpb.Request{}
 	if err := proto.Unmarshal(body, request); err != nil {
-		return &trdgethistoryorderlistpb.Response{RetType: proto.Int32(1), RetMsg: proto.String(err.Error())}
+		return &trdgethistoryorderlistpb.Response{RetType: new(int32(1)), RetMsg: new(err.Error())}
 	}
 	s.tradeMu.Lock()
 	orders := append([]*trdcommonpb.Order(nil), s.historyOrders...)
@@ -2020,7 +2006,7 @@ func (s *quoteOpenDServer) historyOrderListResponse(body []byte) *trdgethistoryo
 	}
 	orders = filterTestOrdersByConditions(normalizedOrders, request.GetC2S().GetFilterConditions(), request.GetC2S().GetFilterStatusList())
 	return &trdgethistoryorderlistpb.Response{
-		RetType: proto.Int32(0),
+		RetType: new(int32(0)),
 		S2C: &trdgethistoryorderlistpb.S2C{
 			Header:    normalizeTestTrdHeader(request.GetC2S().GetHeader()),
 			OrderList: orders,
@@ -2031,14 +2017,14 @@ func (s *quoteOpenDServer) historyOrderListResponse(body []byte) *trdgethistoryo
 func (s *quoteOpenDServer) historyOrderFillListResponse(body []byte) *trdgethistoryorderfilllistpb.Response {
 	request := &trdgethistoryorderfilllistpb.Request{}
 	if err := proto.Unmarshal(body, request); err != nil {
-		return &trdgethistoryorderfilllistpb.Response{RetType: proto.Int32(1), RetMsg: proto.String(err.Error())}
+		return &trdgethistoryorderfilllistpb.Response{RetType: new(int32(1)), RetMsg: new(err.Error())}
 	}
 	s.tradeMu.Lock()
 	fills := append([]*trdcommonpb.OrderFill(nil), s.historyFills...)
 	s.tradeMu.Unlock()
 	filtered := filterTestFillsByConditions(fills, request.GetC2S().GetFilterConditions())
 	return &trdgethistoryorderfilllistpb.Response{
-		RetType: proto.Int32(0),
+		RetType: new(int32(0)),
 		S2C: &trdgethistoryorderfilllistpb.S2C{
 			Header:        normalizeTestTrdHeader(request.GetC2S().GetHeader()),
 			OrderFillList: filtered,
@@ -2049,14 +2035,14 @@ func (s *quoteOpenDServer) historyOrderFillListResponse(body []byte) *trdgethist
 func (s *quoteOpenDServer) orderFillListResponse(body []byte) *trdgetorderfilllistpb.Response {
 	request := &trdgetorderfilllistpb.Request{}
 	if err := proto.Unmarshal(body, request); err != nil {
-		return &trdgetorderfilllistpb.Response{RetType: proto.Int32(1), RetMsg: proto.String(err.Error())}
+		return &trdgetorderfilllistpb.Response{RetType: new(int32(1)), RetMsg: new(err.Error())}
 	}
 	s.tradeMu.Lock()
 	fills := append([]*trdcommonpb.OrderFill(nil), s.orderFills...)
 	s.tradeMu.Unlock()
 	filtered := filterTestFillsByConditions(fills, request.GetC2S().GetFilterConditions())
 	return &trdgetorderfilllistpb.Response{
-		RetType: proto.Int32(0),
+		RetType: new(int32(0)),
 		S2C: &trdgetorderfilllistpb.S2C{
 			Header:        normalizeTestTrdHeader(request.GetC2S().GetHeader()),
 			OrderFillList: filtered,
@@ -2067,7 +2053,7 @@ func (s *quoteOpenDServer) orderFillListResponse(body []byte) *trdgetorderfillli
 func (s *quoteOpenDServer) orderFeeResponse(body []byte) *trdgetorderfeepb.Response {
 	request := &trdgetorderfeepb.Request{}
 	if err := proto.Unmarshal(body, request); err != nil {
-		return &trdgetorderfeepb.Response{RetType: proto.Int32(1), RetMsg: proto.String(err.Error())}
+		return &trdgetorderfeepb.Response{RetType: new(int32(1)), RetMsg: new(err.Error())}
 	}
 	s.tradeMu.Lock()
 	fees := append([]*trdcommonpb.OrderFee(nil), s.orderFees...)
@@ -2088,7 +2074,7 @@ func (s *quoteOpenDServer) orderFeeResponse(body []byte) *trdgetorderfeepb.Respo
 		fees = filtered
 	}
 	return &trdgetorderfeepb.Response{
-		RetType: proto.Int32(0),
+		RetType: new(int32(0)),
 		S2C: &trdgetorderfeepb.S2C{
 			Header:       normalizeTestTrdHeader(request.GetC2S().GetHeader()),
 			OrderFeeList: fees,
@@ -2099,7 +2085,7 @@ func (s *quoteOpenDServer) orderFeeResponse(body []byte) *trdgetorderfeepb.Respo
 func (s *quoteOpenDServer) marginRatioResponse(body []byte) *trdgetmarginratiopb.Response {
 	request := &trdgetmarginratiopb.Request{}
 	if err := proto.Unmarshal(body, request); err != nil {
-		return &trdgetmarginratiopb.Response{RetType: proto.Int32(1), RetMsg: proto.String(err.Error())}
+		return &trdgetmarginratiopb.Response{RetType: new(int32(1)), RetMsg: new(err.Error())}
 	}
 	s.tradeMu.Lock()
 	ratios := append([]*trdgetmarginratiopb.MarginRatioInfo(nil), s.marginRatios...)
@@ -2119,12 +2105,12 @@ func (s *quoteOpenDServer) marginRatioResponse(body []byte) *trdgetmarginratiopb
 				continue
 			}
 			if _, ok := available[code]; !ok {
-				return &trdgetmarginratiopb.Response{RetType: proto.Int32(-1), ErrCode: proto.Int32(0), RetMsg: proto.String("未知股票 " + code)}
+				return &trdgetmarginratiopb.Response{RetType: new(int32(-1)), ErrCode: new(int32(0)), RetMsg: new("未知股票 " + code)}
 			}
 		}
 	}
 	return &trdgetmarginratiopb.Response{
-		RetType: proto.Int32(0),
+		RetType: new(int32(0)),
 		S2C: &trdgetmarginratiopb.S2C{
 			Header:              normalizeTestTrdHeader(request.GetC2S().GetHeader()),
 			MarginRatioInfoList: ratios,
@@ -2135,7 +2121,7 @@ func (s *quoteOpenDServer) marginRatioResponse(body []byte) *trdgetmarginratiopb
 func (s *quoteOpenDServer) flowSummaryResponse(body []byte) *trdflowsummarypb.Response {
 	request := &trdflowsummarypb.Request{}
 	if err := proto.Unmarshal(body, request); err != nil {
-		return &trdflowsummarypb.Response{RetType: proto.Int32(1), RetMsg: proto.String(err.Error())}
+		return &trdflowsummarypb.Response{RetType: new(int32(1)), RetMsg: new(err.Error())}
 	}
 	s.tradeMu.Lock()
 	flows := append([]*trdflowsummarypb.FlowSummaryInfo(nil), s.cashFlows...)
@@ -2150,7 +2136,7 @@ func (s *quoteOpenDServer) flowSummaryResponse(body []byte) *trdflowsummarypb.Re
 		flows = filtered
 	}
 	return &trdflowsummarypb.Response{
-		RetType: proto.Int32(0),
+		RetType: new(int32(0)),
 		S2C: &trdflowsummarypb.S2C{
 			Header:              normalizeTestTrdHeader(request.GetC2S().GetHeader()),
 			FlowSummaryInfoList: flows,
@@ -2161,7 +2147,7 @@ func (s *quoteOpenDServer) flowSummaryResponse(body []byte) *trdflowsummarypb.Re
 func (s *quoteOpenDServer) maxTrdQtysResponse(body []byte) *trdgetmaxtrdqtyspb.Response {
 	request := &trdgetmaxtrdqtyspb.Request{}
 	if err := proto.Unmarshal(body, request); err != nil {
-		return &trdgetmaxtrdqtyspb.Response{RetType: proto.Int32(1), RetMsg: proto.String(err.Error())}
+		return &trdgetmaxtrdqtyspb.Response{RetType: new(int32(1)), RetMsg: new(err.Error())}
 	}
 	s.tradeMu.Lock()
 	if request.GetC2S() != nil {
@@ -2170,7 +2156,7 @@ func (s *quoteOpenDServer) maxTrdQtysResponse(body []byte) *trdgetmaxtrdqtyspb.R
 	maxQtys := s.maxTrdQtys
 	s.tradeMu.Unlock()
 	return &trdgetmaxtrdqtyspb.Response{
-		RetType: proto.Int32(0),
+		RetType: new(int32(0)),
 		S2C: &trdgetmaxtrdqtyspb.S2C{
 			Header:     normalizeTestTrdHeader(request.GetC2S().GetHeader()),
 			MaxTrdQtys: maxQtys,
@@ -2181,10 +2167,10 @@ func (s *quoteOpenDServer) maxTrdQtysResponse(body []byte) *trdgetmaxtrdqtyspb.R
 func (s *quoteOpenDServer) placeOrderResponse(body []byte) *trdplaceorderpb.Response {
 	request := &trdplaceorderpb.Request{}
 	if err := proto.Unmarshal(body, request); err != nil {
-		return &trdplaceorderpb.Response{RetType: proto.Int32(1), RetMsg: proto.String(err.Error())}
+		return &trdplaceorderpb.Response{RetType: new(int32(1)), RetMsg: new(err.Error())}
 	}
 	if request.GetC2S() == nil {
-		return &trdplaceorderpb.Response{RetType: proto.Int32(1), RetMsg: proto.String("missing place order payload")}
+		return &trdplaceorderpb.Response{RetType: new(int32(1)), RetMsg: new("missing place order payload")}
 	}
 	s.tradeMu.Lock()
 	s.lastPlaceOrder = proto.Clone(request.GetC2S()).(*trdplaceorderpb.C2S)
@@ -2198,14 +2184,14 @@ func (s *quoteOpenDServer) placeOrderResponse(body []byte) *trdplaceorderpb.Resp
 		orderIDEx = strconv.FormatUint(orderID, 10)
 	}
 	if request.GetC2S().GetPacketID().GetConnID() == 0 {
-		return &trdplaceorderpb.Response{RetType: proto.Int32(1), RetMsg: proto.String("missing packet id connID")}
+		return &trdplaceorderpb.Response{RetType: new(int32(1)), RetMsg: new("missing packet id connID")}
 	}
 	return &trdplaceorderpb.Response{
-		RetType: proto.Int32(0),
+		RetType: new(int32(0)),
 		S2C: &trdplaceorderpb.S2C{
 			Header:    normalizeTestTrdHeader(request.GetC2S().GetHeader()),
-			OrderID:   proto.Uint64(orderID),
-			OrderIDEx: proto.String(orderIDEx),
+			OrderID:   new(orderID),
+			OrderIDEx: new(orderIDEx),
 		},
 	}
 }
@@ -2213,23 +2199,23 @@ func (s *quoteOpenDServer) placeOrderResponse(body []byte) *trdplaceorderpb.Resp
 func (s *quoteOpenDServer) modifyOrderResponse(body []byte) *trdmodifyorderpb.Response {
 	request := &trdmodifyorderpb.Request{}
 	if err := proto.Unmarshal(body, request); err != nil {
-		return &trdmodifyorderpb.Response{RetType: proto.Int32(1), RetMsg: proto.String(err.Error())}
+		return &trdmodifyorderpb.Response{RetType: new(int32(1)), RetMsg: new(err.Error())}
 	}
 	if request.GetC2S() == nil {
-		return &trdmodifyorderpb.Response{RetType: proto.Int32(1), RetMsg: proto.String("missing modify order payload")}
+		return &trdmodifyorderpb.Response{RetType: new(int32(1)), RetMsg: new("missing modify order payload")}
 	}
 	s.tradeMu.Lock()
 	s.lastModifyOrder = proto.Clone(request.GetC2S()).(*trdmodifyorderpb.C2S)
 	s.tradeMu.Unlock()
 	if request.GetC2S().GetPacketID().GetConnID() == 0 {
-		return &trdmodifyorderpb.Response{RetType: proto.Int32(1), RetMsg: proto.String("missing packet id connID")}
+		return &trdmodifyorderpb.Response{RetType: new(int32(1)), RetMsg: new("missing packet id connID")}
 	}
 	return &trdmodifyorderpb.Response{
-		RetType: proto.Int32(0),
+		RetType: new(int32(0)),
 		S2C: &trdmodifyorderpb.S2C{
 			Header:    normalizeTestTrdHeader(request.GetC2S().GetHeader()),
-			OrderID:   proto.Uint64(request.GetC2S().GetOrderID()),
-			OrderIDEx: proto.String(strconv.FormatUint(request.GetC2S().GetOrderID(), 10)),
+			OrderID:   new(request.GetC2S().GetOrderID()),
+			OrderIDEx: new(strconv.FormatUint(request.GetC2S().GetOrderID(), 10)),
 		},
 	}
 }
@@ -2241,20 +2227,20 @@ func basicQotListForSecurities(securities []*qotcommonpb.Security) []*qotcommonp
 		price := 700.0 + float64(index)
 		quotes = append(quotes, &qotcommonpb.BasicQot{
 			Security:        security,
-			IsSuspended:     proto.Bool(false),
-			ListTime:        proto.String("2020-01-01"),
-			PriceSpread:     proto.Float64(0.01),
-			UpdateTime:      proto.String(baseQuoteTime.Format("2006-01-02 15:04:05")),
-			HighPrice:       proto.Float64(price + 1),
-			OpenPrice:       proto.Float64(price - 1),
-			LowPrice:        proto.Float64(price - 2),
-			CurPrice:        proto.Float64(price),
-			LastClosePrice:  proto.Float64(price - 0.5),
-			Volume:          proto.Int64(1000 + int64(index)*10),
-			Turnover:        proto.Float64(price * 1000),
-			TurnoverRate:    proto.Float64(1.25),
-			Amplitude:       proto.Float64(2.5),
-			UpdateTimestamp: proto.Float64(float64(baseQuoteTime.Unix())),
+			IsSuspended:     new(false),
+			ListTime:        new("2020-01-01"),
+			PriceSpread:     new(0.01),
+			UpdateTime:      new(baseQuoteTime.Format("2006-01-02 15:04:05")),
+			HighPrice:       new(price + 1),
+			OpenPrice:       new(price - 1),
+			LowPrice:        new(price - 2),
+			CurPrice:        new(price),
+			LastClosePrice:  new(price - 0.5),
+			Volume:          new(1000 + int64(index)*10),
+			Turnover:        new(price * 1000),
+			TurnoverRate:    new(1.25),
+			Amplitude:       new(2.5),
+			UpdateTimestamp: new(float64(baseQuoteTime.Unix())),
 		})
 	}
 	return quotes
@@ -2389,25 +2375,25 @@ func normalizeTestFunds(funds *trdcommonpb.Funds) *trdcommonpb.Funds {
 	}
 	clone := proto.Clone(funds).(*trdcommonpb.Funds)
 	if clone.Power == nil {
-		clone.Power = proto.Float64(0)
+		clone.Power = new(float64(0))
 	}
 	if clone.TotalAssets == nil {
-		clone.TotalAssets = proto.Float64(0)
+		clone.TotalAssets = new(float64(0))
 	}
 	if clone.Cash == nil {
-		clone.Cash = proto.Float64(0)
+		clone.Cash = new(float64(0))
 	}
 	if clone.MarketVal == nil {
-		clone.MarketVal = proto.Float64(0)
+		clone.MarketVal = new(float64(0))
 	}
 	if clone.FrozenCash == nil {
-		clone.FrozenCash = proto.Float64(0)
+		clone.FrozenCash = new(float64(0))
 	}
 	if clone.DebtCash == nil {
-		clone.DebtCash = proto.Float64(0)
+		clone.DebtCash = new(float64(0))
 	}
 	if clone.AvlWithdrawalCash == nil {
-		clone.AvlWithdrawalCash = proto.Float64(0)
+		clone.AvlWithdrawalCash = new(float64(0))
 	}
 	return clone
 }
@@ -2418,13 +2404,13 @@ func normalizeTestTrdHeader(header *trdcommonpb.TrdHeader) *trdcommonpb.TrdHeade
 	}
 	clone := proto.Clone(header).(*trdcommonpb.TrdHeader)
 	if clone.TrdEnv == nil {
-		clone.TrdEnv = proto.Int32(int32(trdcommonpb.TrdEnv_TrdEnv_Simulate))
+		clone.TrdEnv = new(int32(trdcommonpb.TrdEnv_TrdEnv_Simulate))
 	}
 	if clone.AccID == nil {
-		clone.AccID = proto.Uint64(1001)
+		clone.AccID = new(uint64(1001))
 	}
 	if clone.TrdMarket == nil {
-		clone.TrdMarket = proto.Int32(int32(trdcommonpb.TrdMarket_TrdMarket_HK))
+		clone.TrdMarket = new(int32(trdcommonpb.TrdMarket_TrdMarket_HK))
 	}
 	return clone
 }
@@ -2435,31 +2421,31 @@ func normalizeTestPosition(position *trdcommonpb.Position) *trdcommonpb.Position
 	}
 	clone := proto.Clone(position).(*trdcommonpb.Position)
 	if clone.PositionID == nil {
-		clone.PositionID = proto.Uint64(1)
+		clone.PositionID = new(uint64(1))
 	}
 	if clone.PositionSide == nil {
-		clone.PositionSide = proto.Int32(1)
+		clone.PositionSide = new(int32(1))
 	}
 	if clone.Code == nil {
-		clone.Code = proto.String("HK.00700")
+		clone.Code = new("HK.00700")
 	}
 	if clone.Name == nil {
-		clone.Name = proto.String(clone.GetCode())
+		clone.Name = new(clone.GetCode())
 	}
 	if clone.Qty == nil {
-		clone.Qty = proto.Float64(0)
+		clone.Qty = new(float64(0))
 	}
 	if clone.CanSellQty == nil {
-		clone.CanSellQty = proto.Float64(0)
+		clone.CanSellQty = new(float64(0))
 	}
 	if clone.Price == nil {
-		clone.Price = proto.Float64(0)
+		clone.Price = new(float64(0))
 	}
 	if clone.Val == nil {
-		clone.Val = proto.Float64(0)
+		clone.Val = new(float64(0))
 	}
 	if clone.PlVal == nil {
-		clone.PlVal = proto.Float64(0)
+		clone.PlVal = new(float64(0))
 	}
 	return clone
 }
@@ -2470,34 +2456,34 @@ func normalizeTestOrder(order *trdcommonpb.Order) *trdcommonpb.Order {
 	}
 	clone := proto.Clone(order).(*trdcommonpb.Order)
 	if clone.TrdSide == nil {
-		clone.TrdSide = proto.Int32(int32(trdcommonpb.TrdSide_TrdSide_Buy))
+		clone.TrdSide = new(int32(trdcommonpb.TrdSide_TrdSide_Buy))
 	}
 	if clone.OrderType == nil {
-		clone.OrderType = proto.Int32(int32(trdcommonpb.OrderType_OrderType_Normal))
+		clone.OrderType = new(int32(trdcommonpb.OrderType_OrderType_Normal))
 	}
 	if clone.OrderStatus == nil {
-		clone.OrderStatus = proto.Int32(int32(trdcommonpb.OrderStatus_OrderStatus_Submitted))
+		clone.OrderStatus = new(int32(trdcommonpb.OrderStatus_OrderStatus_Submitted))
 	}
 	if clone.OrderID == nil {
-		clone.OrderID = proto.Uint64(1)
+		clone.OrderID = new(uint64(1))
 	}
 	if clone.OrderIDEx == nil {
-		clone.OrderIDEx = proto.String(strconv.FormatUint(clone.GetOrderID(), 10))
+		clone.OrderIDEx = new(strconv.FormatUint(clone.GetOrderID(), 10))
 	}
 	if clone.Code == nil {
-		clone.Code = proto.String("HK.00700")
+		clone.Code = new("HK.00700")
 	}
 	if clone.Name == nil {
-		clone.Name = proto.String(clone.GetCode())
+		clone.Name = new(clone.GetCode())
 	}
 	if clone.Qty == nil {
-		clone.Qty = proto.Float64(0)
+		clone.Qty = new(float64(0))
 	}
 	if clone.CreateTime == nil {
-		clone.CreateTime = proto.String("2026-05-20 09:30:00")
+		clone.CreateTime = new("2026-05-20 09:30:00")
 	}
 	if clone.UpdateTime == nil {
-		clone.UpdateTime = proto.String(clone.GetCreateTime())
+		clone.UpdateTime = new(clone.GetCreateTime())
 	}
 	return clone
 }
@@ -2576,8 +2562,7 @@ func waitFor(t *testing.T, condition func() bool) {
 
 func TestSessionFromExtendedBlocksClockGuardsStaleExtendedData(t *testing.T) {
 	priceOf := func(v float64) *ExtendedMarketQuote {
-		p := decimal.NewFromFloat(v)
-		return &ExtendedMarketQuote{Price: &p}
+		return &ExtendedMarketQuote{Price: new(decimal.NewFromFloat(v))}
 	}
 	// Use a Tuesday in early January (EST, no DST ambiguity).
 	// 10:00 UTC = 05:00 EST (pre-market window).

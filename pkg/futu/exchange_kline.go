@@ -7,8 +7,6 @@ import (
 	"time"
 
 	"github.com/c9s/bbgo/pkg/types"
-	"google.golang.org/protobuf/proto"
-
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
 	commonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/common"
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
@@ -113,22 +111,22 @@ func (e *Exchange) queryHistoricalKLinesForPlan(ctx context.Context, security *q
 	pageSize := resolveHistoricalKLinePageSize(limit)
 	for page := 0; page < maxPages; page++ {
 		request := &historypb.Request{C2S: &historypb.C2S{
-			RehabType: proto.Int32(int32(rehabType)),
-			KlType:    proto.Int32(int32(klType)),
+			RehabType: new(int32(rehabType)),
+			KlType:    new(int32(klType)),
 			Security:  security,
-			BeginTime: proto.String(beginAt.Format("2006-01-02 15:04:05")),
-			EndTime:   proto.String(endAt.Format("2006-01-02 15:04:05")),
+			BeginTime: new(beginAt.Format("2006-01-02 15:04:05")),
+			EndTime:   new(endAt.Format("2006-01-02 15:04:05")),
 		}}
 		if pageSize > 0 {
-			request.C2S.MaxAckKLNum = proto.Int32(int32(pageSize))
+			request.C2S.MaxAckKLNum = new(int32(pageSize))
 		}
 		if len(nextReqKey) > 0 {
 			request.C2S.NextReqKey = nextReqKey
 		}
 		if plan.extendedTime {
-			request.C2S.ExtendedTime = proto.Bool(true)
+			request.C2S.ExtendedTime = new(true)
 			if plan.session != nil {
-				request.C2S.Session = proto.Int32(int32(*plan.session))
+				request.C2S.Session = new(int32(*plan.session))
 			}
 		}
 
@@ -199,10 +197,10 @@ func (e *Exchange) queryCurrentKLines(ctx context.Context, security *qotcommonpb
 	}
 
 	request := &qotgetklpb.Request{C2S: &qotgetklpb.C2S{
-		RehabType: proto.Int32(int32(qotcommonpb.RehabType_RehabType_None)),
-		KlType:    proto.Int32(int32(klType)),
+		RehabType: new(int32(qotcommonpb.RehabType_RehabType_None)),
+		KlType:    new(int32(klType)),
 		Security:  security,
-		ReqNum:    proto.Int32(2),
+		ReqNum:    new(int32(2)),
 	}}
 
 	var response qotgetklpb.Response
@@ -254,12 +252,12 @@ func subscribeKLine(ctx context.Context, client *opend.Client, request klineSubs
 	subscription := &qotsubpb.Request{C2S: &qotsubpb.C2S{
 		SecurityList:     []*qotcommonpb.Security{request.security},
 		SubTypeList:      []int32{int32(request.subType)},
-		IsSubOrUnSub:     proto.Bool(true),
-		IsRegOrUnRegPush: proto.Bool(false),
+		IsSubOrUnSub:     new(true),
+		IsRegOrUnRegPush: new(false),
 	}}
 	if request.extendedTime {
-		subscription.C2S.ExtendedTime = proto.Bool(true)
-		subscription.C2S.Session = proto.Int32(int32(request.session))
+		subscription.C2S.ExtendedTime = new(true)
+		subscription.C2S.Session = new(int32(request.session))
 	}
 
 	var response qotsubpb.Response

@@ -6,7 +6,6 @@ import (
 
 	"github.com/jftrade/jftrade-main/internal/trading"
 	trdcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdcommon"
-	"google.golang.org/protobuf/proto"
 )
 
 type fakeOrderUpdateExchange struct {
@@ -65,17 +64,17 @@ func TestOrderUpdatesAdapterConvertsPushesAndStopsOnce(t *testing.T) {
 		t.Fatalf("Subscribe: %v", err)
 	}
 	header := &trdcommonpb.TrdHeader{
-		AccID: proto.Uint64(1001), TrdEnv: proto.Int32(int32(trdcommonpb.TrdEnv_TrdEnv_Simulate)),
-		TrdMarket: proto.Int32(int32(trdcommonpb.TrdMarket_TrdMarket_HK)),
+		AccID: new(uint64(1001)), TrdEnv: new(int32(trdcommonpb.TrdEnv_TrdEnv_Simulate)),
+		TrdMarket: new(int32(trdcommonpb.TrdMarket_TrdMarket_HK)),
 	}
 	exchange.orderHandler(header, &trdcommonpb.Order{
-		OrderID: proto.Uint64(9), Code: proto.String("HK.00700"),
-		OrderStatus: proto.Int32(int32(trdcommonpb.OrderStatus_OrderStatus_Submitted)),
-		TrdMarket:   proto.Int32(int32(trdcommonpb.TrdMarket_TrdMarket_HK)),
+		OrderID: new(uint64(9)), Code: new("HK.00700"),
+		OrderStatus: new(int32(trdcommonpb.OrderStatus_OrderStatus_Submitted)),
+		TrdMarket:   new(int32(trdcommonpb.TrdMarket_TrdMarket_HK)),
 	})
 	exchange.fillHandler(header, &trdcommonpb.OrderFill{
-		OrderID: proto.Uint64(9), FillID: proto.Uint64(10), Code: proto.String("HK.00700"), Qty: proto.Float64(5),
-		TrdMarket: proto.Int32(int32(trdcommonpb.TrdMarket_TrdMarket_HK)),
+		OrderID: new(uint64(9)), FillID: new(uint64(10)), Code: new("HK.00700"), Qty: new(float64(5)),
+		TrdMarket: new(int32(trdcommonpb.TrdMarket_TrdMarket_HK)),
 	})
 	if len(capture.orders) != 1 || capture.orders[0].BrokerOrderID != "9" || capture.orders[0].Market != "HK" {
 		t.Fatalf("orders = %#v", capture.orders)

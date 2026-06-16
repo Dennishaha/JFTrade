@@ -3,14 +3,13 @@ package servercore
 import "testing"
 
 func TestNormalizeManagedBrokerAccountAppliesDefaults(t *testing.T) {
-	emptyFirm := "  "
 	account := normalizeManagedBrokerAccount(ManagedBrokerAccount{
 		BrokerID:           "  ",
 		AccountID:          "  12345678  ",
 		DisplayName:        "  ",
 		TradingEnvironment: "  ",
 		Market:             " us ",
-		SecurityFirm:       &emptyFirm,
+		SecurityFirm:       new("  "),
 	})
 
 	if account.BrokerID != "futu" {

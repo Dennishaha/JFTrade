@@ -310,8 +310,7 @@ func (w *OrderUpdatesWorker) Stop() error {
 	}
 	now := w.now().Format(time.RFC3339Nano)
 	w.lastStoppedAt = &now
-	stopped := len(w.subscriptions)
-	w.stoppedSubscriptions = &stopped
+	w.stoppedSubscriptions = new(len(w.subscriptions))
 	w.lastSyncAt = time.Time{}
 	w.activeOrdersCache = make(map[string][]Order)
 	w.activeOrdersCachedAt = make(map[string]time.Time)
@@ -747,16 +746,14 @@ func cloneString(value *string) *string {
 	if value == nil {
 		return nil
 	}
-	cloned := *value
-	return &cloned
+	return new(*value)
 }
 
 func cloneFloat(value *float64) *float64 {
 	if value == nil {
 		return nil
 	}
-	cloned := *value
-	return &cloned
+	return new(*value)
 }
 
 func stringPointer(value string) *string {

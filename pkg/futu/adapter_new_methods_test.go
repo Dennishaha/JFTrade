@@ -30,9 +30,9 @@ func TestConvertFundsSnapshotFullMarginFields(t *testing.T) {
 		TradingEnvironment: "REAL",
 		Market:             "HK",
 		AccountType:        "CASH",
-		TotalAssets:        f64(500000),
-		Cash:               f64(100000),
-		PurchasingPower:    f64(200000),
+		TotalAssets:        new(float64(500000)),
+		Cash:               new(float64(100000)),
+		PurchasingPower:    new(float64(200000)),
 		// Margin fields
 		DebtCash:          &debtCash,
 		IsPDT:             &isPDT,
@@ -46,9 +46,9 @@ func TestConvertFundsSnapshotFullMarginFields(t *testing.T) {
 		UsedLimit:         &usedLimit,
 		RemainingLimit:    &remainingLimit,
 		RiskStatus:        &riskStatus,
-		InitialMargin:     f64(50000),
-		MaintenanceMargin: f64(25000),
-		MarginCallMargin:  f64(15000),
+		InitialMargin:     new(float64(50000)),
+		MaintenanceMargin: new(float64(25000)),
+		MarginCallMargin:  new(float64(15000)),
 	}
 
 	result := convertFundsSnapshot(src)
@@ -68,9 +68,9 @@ func TestConvertFundsSnapshotFullMarginFields(t *testing.T) {
 	assertFloatPtrEqual(t, "exposureLimit", &exposureLimit, result.ExposureLimit)
 	assertFloatPtrEqual(t, "usedLimit", &usedLimit, result.UsedLimit)
 	assertFloatPtrEqual(t, "remainingLimit", &remainingLimit, result.RemainingLimit)
-	assertFloatPtrEqual(t, "initialMargin", f64(50000), result.InitialMargin)
-	assertFloatPtrEqual(t, "maintenanceMargin", f64(25000), result.MaintenanceMargin)
-	assertFloatPtrEqual(t, "marginCallMargin", f64(15000), result.MarginCallMargin)
+	assertFloatPtrEqual(t, "initialMargin", new(float64(50000)), result.InitialMargin)
+	assertFloatPtrEqual(t, "maintenanceMargin", new(float64(25000)), result.MaintenanceMargin)
+	assertFloatPtrEqual(t, "marginCallMargin", new(float64(15000)), result.MarginCallMargin)
 	assertStringPtrEqual(t, "riskStatus", &riskStatus, result.RiskStatus)
 }
 
@@ -108,19 +108,17 @@ func TestConvertFundsSnapshotNilInput(t *testing.T) {
 // --- Test: currencies & market assets pass through ---
 
 func TestConvertFundsSnapshotCurrencyBalances(t *testing.T) {
-	hkdCash := 100000.0
-	usdCash := 50000.0
 	src := &BrokerFundsSnapshot{
 		AccountID:          "12345",
 		TradingEnvironment: "REAL",
 		Market:             "HK",
 		CurrencyBalances: []BrokerCurrencyBalanceSnapshot{
-			{Currency: "HKD", Cash: &hkdCash},
-			{Currency: "USD", Cash: &usdCash},
+			{Currency: "HKD", Cash: new(100000.0)},
+			{Currency: "USD", Cash: new(50000.0)},
 		},
 		MarketAssets: []BrokerMarketAssetSnapshot{
-			{Market: "HK", Assets: f64(300000)},
-			{Market: "US", Assets: f64(200000)},
+			{Market: "HK", Assets: new(float64(300000))},
+			{Market: "US", Assets: new(float64(200000))},
 		},
 	}
 	result := convertFundsSnapshot(src)
@@ -173,7 +171,7 @@ func TestSecuritiesFromSymbolsEmpty(t *testing.T) {
 // --- Test: securitySymbol ---
 
 func TestSecuritySymbol(t *testing.T) {
-	result := securitySymbol(&qotcommonpb.Security{Market: fint32(1), Code: fstring("00700")})
+	result := securitySymbol(&qotcommonpb.Security{Market: new(int32(1)), Code: new("00700")})
 	if result != "HK.00700" {
 		t.Fatalf("expected HK.00700, got %q", result)
 	}
@@ -235,8 +233,7 @@ func TestFutuKLTypeFromIntervalStringInvalid(t *testing.T) {
 // --- Test: int64AsFloat64Ptr ---
 
 func TestInt64AsFloat64Ptr(t *testing.T) {
-	val := int64(12345)
-	result := int64AsFloat64Ptr(&val)
+	result := int64AsFloat64Ptr(new(int64(12345)))
 	if result == nil {
 		t.Fatal("expected non-nil")
 	}
@@ -266,37 +263,37 @@ func TestBrokerFundsSnapshotFromProtoFullMargin(t *testing.T) {
 	}
 
 	protoFunds := &trdcommonpb.Funds{
-		Power:             pf64(200000),
-		TotalAssets:       pf64(500000),
-		Cash:              pf64(100000),
-		MarketVal:         pf64(350000),
-		FrozenCash:        pf64(10000),
-		DebtCash:          pf64(50000),
-		AvlWithdrawalCash: pf64(80000),
-		MaxPowerShort:     pf64(100000),
-		NetCashPower:      pf64(120000),
-		LongMv:            pf64(350000),
-		ShortMv:           pf64(0),
-		MaxWithdrawal:     pf64(150000),
-		InitialMargin:     pf64(50000),
-		MaintenanceMargin: pf64(25000),
-		MarginCallMargin:  pf64(15000),
-		RiskStatus:        pi32(int32(trdcommonpb.CltRiskStatus_CltRiskStatus_Level1)),
-		SecuritiesAssets:  pf64(300000),
-		FundAssets:        pf64(50000),
-		BondAssets:        pf64(0),
+		Power:             new(float64(200000)),
+		TotalAssets:       new(float64(500000)),
+		Cash:              new(float64(100000)),
+		MarketVal:         new(float64(350000)),
+		FrozenCash:        new(float64(10000)),
+		DebtCash:          new(float64(50000)),
+		AvlWithdrawalCash: new(float64(80000)),
+		MaxPowerShort:     new(float64(100000)),
+		NetCashPower:      new(float64(120000)),
+		LongMv:            new(float64(350000)),
+		ShortMv:           new(float64(0)),
+		MaxWithdrawal:     new(float64(150000)),
+		InitialMargin:     new(float64(50000)),
+		MaintenanceMargin: new(float64(25000)),
+		MarginCallMargin:  new(float64(15000)),
+		RiskStatus:        new(int32(trdcommonpb.CltRiskStatus_CltRiskStatus_Level1)),
+		SecuritiesAssets:  new(float64(300000)),
+		FundAssets:        new(float64(50000)),
+		BondAssets:        new(float64(0)),
 		// PDT fields
-		IsPdt:         pb(true),
-		PdtSeq:        ps("3/3"),
-		BeginningDTBP: pf64(100000),
-		RemainingDTBP: pf64(75000),
-		DtCallAmount:  pf64(5000),
-		DtStatus:      pi32(int32(trdcommonpb.DTStatus_DTStatus_Unlimited)),
+		IsPdt:         new(true),
+		PdtSeq:        new("3/3"),
+		BeginningDTBP: new(float64(100000)),
+		RemainingDTBP: new(float64(75000)),
+		DtCallAmount:  new(float64(5000)),
+		DtStatus:      new(int32(trdcommonpb.DTStatus_DTStatus_Unlimited)),
 		// Exposure fields
-		ExposureLevel:  pi32(int32(trdcommonpb.ExposureLevel_ExposureLevel_Normal)),
-		ExposureLimit:  pf64(2000000),
-		UsedLimit:      pf64(800000),
-		RemainingLimit: pf64(1200000),
+		ExposureLevel:  new(int32(trdcommonpb.ExposureLevel_ExposureLevel_Normal)),
+		ExposureLimit:  new(float64(2000000)),
+		UsedLimit:      new(float64(800000)),
+		RemainingLimit: new(float64(1200000)),
 	}
 
 	result := brokerFundsSnapshotFromProto(account, protoFunds)
@@ -364,9 +361,9 @@ func TestBrokerFundsSnapshotRoundTripNoMargin(t *testing.T) {
 		protoTrdMarket:     int32(trdcommonpb.TrdMarket_TrdMarket_HK),
 	}
 	protoFunds := &trdcommonpb.Funds{
-		Power:     pf64(1000000),
-		Cash:      pf64(1000000),
-		MarketVal: pf64(0),
+		Power:     new(float64(1000000)),
+		Cash:      new(float64(1000000)),
+		MarketVal: new(float64(0)),
 	}
 
 	snapshot := brokerFundsSnapshotFromProto(account, protoFunds)
@@ -437,13 +434,13 @@ func assertStringPtrEqual(t *testing.T, field string, expected, actual *string) 
 
 func TestOrderBookLevelFromPb(t *testing.T) {
 	detail := &qotcommonpb.OrderBookDetail{
-		OrderID: protoInt64(12345),
-		Volume:  protoInt64(1000),
+		OrderID: new(int64(12345)),
+		Volume:  new(int64(1000)),
 	}
 	pb := &qotcommonpb.OrderBook{
-		Price:       f64(175.5),
-		Volume:      protoInt64(5000),
-		OrederCount: fint32(3),
+		Price:       new(175.5),
+		Volume:      new(int64(5000)),
+		OrederCount: new(int32(3)),
 		DetailList:  []*qotcommonpb.OrderBookDetail{detail},
 	}
 
@@ -481,9 +478,9 @@ func TestOrderBookLevelFromPbNil(t *testing.T) {
 
 func TestOrderBookLevelFromPbEmptyDetails(t *testing.T) {
 	pb := &qotcommonpb.OrderBook{
-		Price:       f64(100.0),
-		Volume:      protoInt64(200),
-		OrederCount: fint32(1),
+		Price:       new(100.0),
+		Volume:      new(int64(200)),
+		OrederCount: new(int32(1)),
 	}
 
 	level := orderBookLevelFromPb(pb)
@@ -502,11 +499,11 @@ func TestOrderBookSnapshotFromOpendResult(t *testing.T) {
 		SvrRecvTimeBid: "2025-01-01 10:00:00.000",
 		SvrRecvTimeAsk: "2025-01-01 10:00:01.000",
 		AskList: []*qotcommonpb.OrderBook{
-			{Price: f64(320.0), Volume: protoInt64(100), OrederCount: fint32(1)},
-			{Price: f64(321.0), Volume: protoInt64(200), OrederCount: fint32(2)},
+			{Price: new(320.0), Volume: new(int64(100)), OrederCount: new(int32(1))},
+			{Price: new(321.0), Volume: new(int64(200)), OrederCount: new(int32(2))},
 		},
 		BidList: []*qotcommonpb.OrderBook{
-			{Price: f64(319.0), Volume: protoInt64(150), OrederCount: fint32(1)},
+			{Price: new(319.0), Volume: new(int64(150)), OrederCount: new(int32(1))},
 		},
 	}
 

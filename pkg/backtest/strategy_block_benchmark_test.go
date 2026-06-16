@@ -214,7 +214,7 @@ func strategyBlockBenchmarkRunConfig(dbPath string, startTime, endTime time.Time
 		StrategyScript:   script,
 		InitialBalance:   10000,
 		WarmupCandles:    256,
-		UseExtendedHours: boolPtr(true),
+		UseExtendedHours: new(true),
 	}
 }
 

@@ -9,8 +9,6 @@ import (
 	"strings"
 	"time"
 
-	"google.golang.org/protobuf/proto"
-
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
 	commonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/common"
 	globalpb "github.com/jftrade/jftrade-main/pkg/futu/pb/getglobalstate"
@@ -143,9 +141,8 @@ func (s *Server) brokerRuntime(ctx context.Context) map[string]any {
 		}
 		discoveredAccounts, err := exchange.DiscoverAccounts(ctx)
 		if err != nil {
-			message := err.Error()
 			if probe.LastError == nil {
-				probe.LastError = &message
+				probe.LastError = new(err.Error())
 			}
 			if probe.Connectivity == "connected" {
 				probe.Connectivity = "degraded"
@@ -322,21 +319,19 @@ func (s *Server) probeOpenD(ctx context.Context) opendProbe {
 		RequestTimeout:   3 * time.Second,
 	})
 	if err := client.Connect(probeCtx); err != nil {
-		message := err.Error()
-		return opendProbe{CheckedAt: checkedAt, Connectivity: "disconnected", Status: "offline", LastError: &message}
+		return opendProbe{CheckedAt: checkedAt, Connectivity: "disconnected", Status: "offline", LastError: new(err.Error())}
 	}
 	defer client.Close()
 
 	initReq := &initpb.Request{C2S: &initpb.C2S{
-		ClientVer:           proto.Int32(101),
-		ClientID:            proto.String("jftrade-api"),
-		RecvNotify:          proto.Bool(false),
-		ProgrammingLanguage: proto.String("Go"),
+		ClientVer:           new(int32(101)),
+		ClientID:            new("jftrade-api"),
+		RecvNotify:          new(false),
+		ProgrammingLanguage: new("Go"),
 	}}
 	var initResp initpb.Response
 	if err := client.Call(probeCtx, opend.ProtoInitConnect, initReq, &initResp); err != nil {
-		message := err.Error()
-		return opendProbe{CheckedAt: checkedAt, Connectivity: "degraded", Status: "degraded", LastError: &message}
+		return opendProbe{CheckedAt: checkedAt, Connectivity: "degraded", Status: "degraded", LastError: new(err.Error())}
 	}
 	if initResp.GetRetType() != int32(commonpb.RetType_RetType_Succeed) {
 		message := initResp.GetRetMsg()
@@ -346,11 +341,10 @@ func (s *Server) probeOpenD(ctx context.Context) opendProbe {
 		return opendProbe{CheckedAt: checkedAt, Connectivity: "degraded", Status: "degraded", LastError: &message}
 	}
 
-	globalReq := &globalpb.Request{C2S: &globalpb.C2S{UserID: proto.Uint64(0)}}
+	globalReq := &globalpb.Request{C2S: &globalpb.C2S{UserID: new(uint64(0))}}
 	var globalResp globalpb.Response
 	if err := client.Call(probeCtx, opend.ProtoGetGlobalState, globalReq, &globalResp); err != nil {
-		message := err.Error()
-		return opendProbe{CheckedAt: checkedAt, Connectivity: "degraded", Status: "degraded", LastError: &message}
+		return opendProbe{CheckedAt: checkedAt, Connectivity: "degraded", Status: "degraded", LastError: new(err.Error())}
 	}
 	if globalResp.GetRetType() != int32(commonpb.RetType_RetType_Succeed) {
 		message := globalResp.GetRetMsg()
@@ -361,21 +355,15 @@ func (s *Server) probeOpenD(ctx context.Context) opendProbe {
 	}
 
 	s2c := globalResp.GetS2C()
-	quoteLoggedIn := s2c.GetQotLogined()
-	tradeLoggedIn := s2c.GetTrdLogined()
-	serverVersion := fmt.Sprintf("%d.%d", s2c.GetServerVer(), s2c.GetServerBuildNo())
-	programStatus := programStatusString(s2c.GetProgramStatus())
-	programTimestamp := time.Unix(s2c.GetTime(), 0).UTC().Format(time.RFC3339Nano)
-
 	return opendProbe{
 		CheckedAt:        checkedAt,
 		Connectivity:     "connected",
 		Status:           "healthy",
-		QuoteLoggedIn:    &quoteLoggedIn,
-		TradeLoggedIn:    &tradeLoggedIn,
-		ServerVersion:    &serverVersion,
-		ProgramStatus:    &programStatus,
-		ProgramTimestamp: &programTimestamp,
+		QuoteLoggedIn:    new(s2c.GetQotLogined()),
+		TradeLoggedIn:    new(s2c.GetTrdLogined()),
+		ServerVersion:    new(fmt.Sprintf("%d.%d", s2c.GetServerVer(), s2c.GetServerBuildNo())),
+		ProgramStatus:    new(programStatusString(s2c.GetProgramStatus())),
+		ProgramTimestamp: new(time.Unix(s2c.GetTime(), 0).UTC().Format(time.RFC3339Nano)),
 		Markets: []map[string]any{
 			{"market": "HK", "state": strconv.Itoa(int(s2c.GetMarketHK()))},
 			{"market": "US", "state": strconv.Itoa(int(s2c.GetMarketUS()))},

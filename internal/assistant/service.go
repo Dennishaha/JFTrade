@@ -560,8 +560,7 @@ func (s *Service) RecoverTerminalChatResponse(ctx context.Context, runID string)
 	if snapshot, snapshotErr := s.runtime.SessionContext(ctx, session.ID); snapshotErr == nil {
 		response.Context = &snapshot
 	}
-	normalized := jfadk.NormalizeChatResponse(response)
-	return &normalized, nil
+	return new(jfadk.NormalizeChatResponse(response)), nil
 }
 
 func (s *Service) recoverAssistantReply(ctx context.Context, run jfadk.Run) (string, string) {

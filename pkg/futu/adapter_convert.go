@@ -256,8 +256,7 @@ func formatOrderID(id uint64) string {
 // formatBrokerOrderID converts a uint64 order ID to string.
 // Kept as a separate function for clarity in the adapter layer.
 func formatBrokerOrderIDPtr(id uint64) *string {
-	s := formatOrderID(id)
-	return &s
+	return new(formatOrderID(id))
 }
 
 // convertFutuAccountsToBroker converts Futu RuntimeAccount slice to broker Account slice.

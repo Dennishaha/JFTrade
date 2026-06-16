@@ -12,18 +12,18 @@ import (
 
 func TestParseOrderBookResponseCurrentOpenDWireLayout(t *testing.T) {
 	security := &qotcommonpb.Security{
-		Market: proto.Int32(int32(qotcommonpb.QotMarket_QotMarket_US_Security)),
-		Code:   proto.String("NVDA"),
+		Market: new(int32(qotcommonpb.QotMarket_QotMarket_US_Security)),
+		Code:   new("NVDA"),
 	}
 	bid := &qotcommonpb.OrderBook{
-		Price:       proto.Float64(215.86),
-		Volume:      proto.Int64(204),
-		OrederCount: proto.Int32(0),
+		Price:       new(215.86),
+		Volume:      new(int64(204)),
+		OrederCount: new(int32(0)),
 	}
 	ask := &qotcommonpb.OrderBook{
-		Price:       proto.Float64(215.82),
-		Volume:      proto.Int64(34),
-		OrederCount: proto.Int32(0),
+		Price:       new(215.82),
+		Volume:      new(int64(34)),
+		OrederCount: new(int32(0)),
 	}
 
 	securityBody, err := proto.Marshal(security)

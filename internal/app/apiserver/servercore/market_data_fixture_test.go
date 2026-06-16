@@ -112,17 +112,17 @@ func (s *marketDataQuoteOpenDServer) handleConn(conn net.Conn) {
 		switch frame.Header.ProtoID {
 		case opend.ProtoInitConnect:
 			response = &initpb.Response{
-				RetType: proto.Int32(0),
+				RetType: new(int32(0)),
 				S2C: &initpb.S2C{
-					ServerVer:         proto.Int32(700),
-					LoginUserID:       proto.Uint64(1),
-					ConnID:            proto.Uint64(42),
-					ConnAESKey:        proto.String("0123456789abcdef"),
-					KeepAliveInterval: proto.Int32(10),
+					ServerVer:         new(int32(700)),
+					LoginUserID:       new(uint64(1)),
+					ConnID:            new(uint64(42)),
+					ConnAESKey:        new("0123456789abcdef"),
+					KeepAliveInterval: new(int32(10)),
 				},
 			}
 		case opend.ProtoQotSub:
-			response = &qotsubpb.Response{RetType: proto.Int32(0)}
+			response = &qotsubpb.Response{RetType: new(int32(0))}
 		case opend.ProtoGetBasicQot:
 			s.basicQotCalls.Add(1)
 			response = s.basicQotResponse(frame.Body)
@@ -165,7 +165,7 @@ func (s *marketDataQuoteOpenDServer) handleConn(conn net.Conn) {
 func (s *marketDataQuoteOpenDServer) securitySnapshotResponse(body []byte) *qotgetsecuritysnapshotpb.Response {
 	request := &qotgetsecuritysnapshotpb.Request{}
 	if err := proto.Unmarshal(body, request); err != nil {
-		return &qotgetsecuritysnapshotpb.Response{RetType: proto.Int32(1), RetMsg: proto.String(err.Error())}
+		return &qotgetsecuritysnapshotpb.Response{RetType: new(int32(1)), RetMsg: new(err.Error())}
 	}
 
 	quoteAt := time.Now().UTC().Truncate(time.Second)
@@ -175,7 +175,7 @@ func (s *marketDataQuoteOpenDServer) securitySnapshotResponse(body []byte) *qotg
 	}
 
 	return &qotgetsecuritysnapshotpb.Response{
-		RetType: proto.Int32(0),
+		RetType: new(int32(0)),
 		S2C:     &qotgetsecuritysnapshotpb.S2C{SnapshotList: snapshots},
 	}
 }
@@ -183,7 +183,7 @@ func (s *marketDataQuoteOpenDServer) securitySnapshotResponse(body []byte) *qotg
 func (s *marketDataQuoteOpenDServer) staticInfoResponse(body []byte) *qotgetstaticinfopb.Response {
 	request := &qotgetstaticinfopb.Request{}
 	if err := proto.Unmarshal(body, request); err != nil {
-		return &qotgetstaticinfopb.Response{RetType: proto.Int32(1), RetMsg: proto.String(err.Error())}
+		return &qotgetstaticinfopb.Response{RetType: new(int32(1)), RetMsg: new(err.Error())}
 	}
 
 	entries := make([]*qotcommonpb.SecurityStaticInfo, 0, len(request.GetC2S().GetSecurityList()))
@@ -192,7 +192,7 @@ func (s *marketDataQuoteOpenDServer) staticInfoResponse(body []byte) *qotgetstat
 	}
 
 	return &qotgetstaticinfopb.Response{
-		RetType: proto.Int32(0),
+		RetType: new(int32(0)),
 		S2C:     &qotgetstaticinfopb.S2C{StaticInfoList: entries},
 	}
 }
@@ -200,7 +200,7 @@ func (s *marketDataQuoteOpenDServer) staticInfoResponse(body []byte) *qotgetstat
 func (s *marketDataQuoteOpenDServer) basicQotResponse(body []byte) *qotgetbasicqotpb.Response {
 	request := &qotgetbasicqotpb.Request{}
 	if err := proto.Unmarshal(body, request); err != nil {
-		return &qotgetbasicqotpb.Response{RetType: proto.Int32(1), RetMsg: proto.String(err.Error())}
+		return &qotgetbasicqotpb.Response{RetType: new(int32(1)), RetMsg: new(err.Error())}
 	}
 
 	quotes := make([]*qotcommonpb.BasicQot, 0, len(request.GetC2S().GetSecurityList()))
@@ -208,25 +208,25 @@ func (s *marketDataQuoteOpenDServer) basicQotResponse(body []byte) *qotgetbasicq
 	for _, security := range request.GetC2S().GetSecurityList() {
 		quotes = append(quotes, &qotcommonpb.BasicQot{
 			Security:        security,
-			IsSuspended:     proto.Bool(false),
-			ListTime:        proto.String("2020-01-01"),
-			PriceSpread:     proto.Float64(0.01),
-			UpdateTime:      proto.String(quoteAt.Format("2006-01-02 15:04:05")),
-			HighPrice:       proto.Float64(322.6),
-			OpenPrice:       proto.Float64(319.8),
-			LowPrice:        proto.Float64(319.6),
-			CurPrice:        proto.Float64(321.4),
-			LastClosePrice:  proto.Float64(318.9),
-			Volume:          proto.Int64(1282100),
-			Turnover:        proto.Float64(411020000),
-			TurnoverRate:    proto.Float64(1.25),
-			Amplitude:       proto.Float64(2.5),
-			UpdateTimestamp: proto.Float64(float64(quoteAt.Unix())),
+			IsSuspended:     new(false),
+			ListTime:        new("2020-01-01"),
+			PriceSpread:     new(0.01),
+			UpdateTime:      new(quoteAt.Format("2006-01-02 15:04:05")),
+			HighPrice:       new(322.6),
+			OpenPrice:       new(319.8),
+			LowPrice:        new(319.6),
+			CurPrice:        new(321.4),
+			LastClosePrice:  new(318.9),
+			Volume:          new(int64(1282100)),
+			Turnover:        new(float64(411020000)),
+			TurnoverRate:    new(1.25),
+			Amplitude:       new(2.5),
+			UpdateTimestamp: new(float64(quoteAt.Unix())),
 		})
 	}
 
 	return &qotgetbasicqotpb.Response{
-		RetType: proto.Int32(0),
+		RetType: new(int32(0)),
 		S2C: &qotgetbasicqotpb.S2C{
 			BasicQotList: quotes,
 		},
@@ -338,8 +338,8 @@ func (s *marketDataQuoteOpenDServer) orderBookResponseBody(body []byte) []byte {
 
 func marketDataDepthOrderBookFixture(price float64, volume int64, orderCount int32) *qotcommonpb.OrderBook {
 	return &qotcommonpb.OrderBook{
-		Price:       proto.Float64(price),
-		Volume:      proto.Int64(volume),
-		OrederCount: proto.Int32(orderCount),
+		Price:       new(price),
+		Volume:      new(volume),
+		OrederCount: new(orderCount),
 	}
 }

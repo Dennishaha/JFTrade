@@ -695,11 +695,9 @@ func stringPtrFromInput(input map[string]any, key string) *string {
 	case string:
 		return &typed
 	case nil:
-		empty := ""
-		return &empty
+		return new("")
 	default:
-		text := fmt.Sprint(typed)
-		return &text
+		return new(fmt.Sprint(typed))
 	}
 }
 

@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"google.golang.org/protobuf/proto"
-
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
 	trdcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdcommon"
 	trdflowsummarypb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdflowsummary"
@@ -57,7 +55,7 @@ func (c *Client) GetPositionList(ctx context.Context, header *trdcommonpb.TrdHea
 // GetOrderList returns the latest cached order list for the specified trading
 // header and optional filter conditions.
 func (c *Client) GetOrderList(ctx context.Context, header *trdcommonpb.TrdHeader, filter *trdcommonpb.TrdFilterConditions) ([]*trdcommonpb.Order, error) {
-	request := &trdgetorderlistpb.Request{C2S: &trdgetorderlistpb.C2S{Header: header, FilterConditions: filter, RefreshCache: proto.Bool(false)}}
+	request := &trdgetorderlistpb.Request{C2S: &trdgetorderlistpb.C2S{Header: header, FilterConditions: filter, RefreshCache: new(false)}}
 	var response trdgetorderlistpb.Response
 	if err := c.Call(ctx, ProtoTrdGetOrderList, request, &response); err != nil {
 		return nil, err
@@ -131,7 +129,7 @@ func (c *Client) GetOrderFee(ctx context.Context, header *trdcommonpb.TrdHeader,
 // GetOrderFillList returns the current-day fills for the specified trading
 // header and optional filter conditions.
 func (c *Client) GetOrderFillList(ctx context.Context, header *trdcommonpb.TrdHeader, filter *trdcommonpb.TrdFilterConditions) ([]*trdcommonpb.OrderFill, error) {
-	request := &trdgetorderfilllistpb.Request{C2S: &trdgetorderfilllistpb.C2S{Header: header, FilterConditions: filter, RefreshCache: proto.Bool(false)}}
+	request := &trdgetorderfilllistpb.Request{C2S: &trdgetorderfilllistpb.C2S{Header: header, FilterConditions: filter, RefreshCache: new(false)}}
 	var response trdgetorderfilllistpb.Response
 	if err := c.Call(ctx, ProtoTrdGetOrderFillList, request, &response); err != nil {
 		return nil, err
@@ -163,9 +161,9 @@ func (c *Client) GetMarginRatio(ctx context.Context, header *trdcommonpb.TrdHead
 
 // GetFlowSummary returns account cash-flow summaries.
 func (c *Client) GetFlowSummary(ctx context.Context, header *trdcommonpb.TrdHeader, clearingDate string, cashFlowDirection *int32) ([]*trdflowsummarypb.FlowSummaryInfo, error) {
-	request := &trdflowsummarypb.Request{C2S: &trdflowsummarypb.C2S{Header: header, ClearingDate: proto.String(clearingDate)}}
+	request := &trdflowsummarypb.Request{C2S: &trdflowsummarypb.C2S{Header: header, ClearingDate: new(clearingDate)}}
 	if cashFlowDirection != nil {
-		request.C2S.CashFlowDirection = proto.Int32(*cashFlowDirection)
+		request.C2S.CashFlowDirection = new(*cashFlowDirection)
 	}
 	var response trdflowsummarypb.Response
 	if err := c.Call(ctx, ProtoTrdFlowSummary, request, &response); err != nil {

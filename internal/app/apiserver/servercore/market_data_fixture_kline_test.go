@@ -44,7 +44,7 @@ func (s *marketDataQuoteOpenDServer) currentKLCallCount() int {
 func (s *marketDataQuoteOpenDServer) historyKLResponse(body []byte) *historypb.Response {
 	request := &historypb.Request{}
 	if err := proto.Unmarshal(body, request); err != nil {
-		return &historypb.Response{RetType: proto.Int32(1), RetMsg: proto.String(err.Error())}
+		return &historypb.Response{RetType: new(int32(1)), RetMsg: new(err.Error())}
 	}
 
 	s.historyMu.Lock()
@@ -55,7 +55,7 @@ func (s *marketDataQuoteOpenDServer) historyKLResponse(body []byte) *historypb.R
 			page = pages[0]
 		}
 		return &historypb.Response{
-			RetType: proto.Int32(0),
+			RetType: new(int32(0)),
 			S2C: &historypb.S2C{
 				Security: request.GetC2S().GetSecurity(),
 				KlList:   page,
@@ -67,7 +67,7 @@ func (s *marketDataQuoteOpenDServer) historyKLResponse(body []byte) *historypb.R
 		page = s.historyPages[0]
 	}
 	return &historypb.Response{
-		RetType: proto.Int32(0),
+		RetType: new(int32(0)),
 		S2C: &historypb.S2C{
 			Security: request.GetC2S().GetSecurity(),
 			KlList:   page,
@@ -78,13 +78,13 @@ func (s *marketDataQuoteOpenDServer) historyKLResponse(body []byte) *historypb.R
 func (s *marketDataQuoteOpenDServer) currentKLResponse(body []byte) *qotgetklpb.Response {
 	request := &qotgetklpb.Request{}
 	if err := proto.Unmarshal(body, request); err != nil {
-		return &qotgetklpb.Response{RetType: proto.Int32(1), RetMsg: proto.String(err.Error())}
+		return &qotgetklpb.Response{RetType: new(int32(1)), RetMsg: new(err.Error())}
 	}
 
 	s.historyMu.Lock()
 	defer s.historyMu.Unlock()
 	return &qotgetklpb.Response{
-		RetType: proto.Int32(0),
+		RetType: new(int32(0)),
 		S2C: &qotgetklpb.S2C{
 			Security: request.GetC2S().GetSecurity(),
 			KlList:   s.currentKLines,
@@ -94,14 +94,14 @@ func (s *marketDataQuoteOpenDServer) currentKLResponse(body []byte) *qotgetklpb.
 
 func testMarketDataProtoKLine(at time.Time, open float64, high float64, low float64, close float64, volume int64) *qotcommonpb.KLine {
 	return &qotcommonpb.KLine{
-		Time:       proto.String(at.Format("2006-01-02 15:04:05")),
-		Timestamp:  proto.Float64(float64(at.Unix())),
-		IsBlank:    proto.Bool(false),
-		OpenPrice:  proto.Float64(open),
-		HighPrice:  proto.Float64(high),
-		LowPrice:   proto.Float64(low),
-		ClosePrice: proto.Float64(close),
-		Volume:     proto.Int64(volume),
-		Turnover:   proto.Float64(close * float64(volume)),
+		Time:       new(at.Format("2006-01-02 15:04:05")),
+		Timestamp:  new(float64(at.Unix())),
+		IsBlank:    new(false),
+		OpenPrice:  new(open),
+		HighPrice:  new(high),
+		LowPrice:   new(low),
+		ClosePrice: new(close),
+		Volume:     new(volume),
+		Turnover:   new(close * float64(volume)),
 	}
 }

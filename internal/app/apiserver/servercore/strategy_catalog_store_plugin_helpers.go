@@ -15,8 +15,7 @@ func buildPluginCompatibility(artifact *strategyPluginArtifact) strategyPluginCo
 		Host:      host,
 	}
 	if !compatibility.Supported {
-		reason := "go plugin is unsupported on windows hosts"
-		compatibility.Reason = &reason
+		compatibility.Reason = new("go plugin is unsupported on windows hosts")
 	}
 	if artifact == nil {
 		return compatibility
@@ -25,8 +24,7 @@ func buildPluginCompatibility(artifact *strategyPluginArtifact) strategyPluginCo
 	compatibility.Artifact = &artifactBuild
 	compatibility.RequiresRebuild = !samePluginBuildTuple(host, artifactBuild)
 	if compatibility.RequiresRebuild {
-		reason := "artifact build tuple does not match the current jftrade host"
-		compatibility.Reason = &reason
+		compatibility.Reason = new("artifact build tuple does not match the current jftrade host")
 	}
 	return compatibility
 }

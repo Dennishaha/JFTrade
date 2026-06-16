@@ -156,7 +156,7 @@ func (r *Runtime) resumeGoogleADK(ctx context.Context, run Run) (Run, *Message, 
 	} else if result.Reply == "" {
 		result.Reply = approvalResolutionSummary(run, run.PendingApprovals[0], !denied)
 	}
-	run.CompletedAt = ptrString(nowString())
+	run.CompletedAt = new(nowString())
 	message, err := r.persistResumedRunResult(ctx, run, result)
 	if err != nil {
 		return run, nil, true, err

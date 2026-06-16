@@ -34,7 +34,7 @@ type OrderBookResult struct {
 func (c *Client) GetOrderBook(ctx context.Context, req OrderBookRequest) (*OrderBookResult, error) {
 	request := &getorderbookpb.Request{C2S: &getorderbookpb.C2S{
 		Security: req.Security,
-		Num:      proto.Int32(req.Num),
+		Num:      new(req.Num),
 	}}
 	frame, err := c.callFrame(ctx, ProtoGetOrderBook, request)
 	if err != nil {

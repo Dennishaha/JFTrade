@@ -37,13 +37,12 @@ func (r *Runtime) reconcileStaleRuns(ctx context.Context) {
 		if originalStatus == RunStatusRunning && runHasRecoverableResolvedApprovalContext(run) {
 			continue
 		}
-		now := nowString()
 		run.Status = RunStatusFailed
 		run.ErrorCode = "RUN_ORPHANED"
 		run.Message = "run was interrupted by server restart"
 		run.FailureReason = "run was interrupted by server restart before completion"
 		run.ResumeState = "restart_unrecoverable"
-		run.CompletedAt = &now
+		run.CompletedAt = new(nowString())
 		run.Degraded = true
 		if originalStatus == RunStatusPending {
 			run.FailureReason = "run was waiting for approval, but its ADK confirmation context could not be recovered after server restart"
@@ -92,18 +91,16 @@ func (r *Runtime) ReconcileExpiredRuns(ctx context.Context) {
 				continue
 			}
 			call.Status = "FAILED"
-			errText := "run timed out while waiting for model or tool completion"
-			call.Error = &errText
+			call.Error = new("run timed out while waiting for model or tool completion")
 			finishToolCall(call)
 		}
-		completedAt := nowString()
 		timeoutText := timeout.String()
 		run.Status = RunStatusTimedOut
 		run.Message = "run timed out"
 		run.FailureReason = "run exceeded maximum duration of " + timeoutText
 		run.ErrorCode = runErrorCode(RunStatusTimedOut)
 		run.Degraded = true
-		run.CompletedAt = &completedAt
+		run.CompletedAt = new(nowString())
 		finalizeRunUsage(&run)
 		_ = r.store.SaveRun(ctx, run)
 		r.audit(ctx, "run.timed_out", run.ID, "Agent run timed out.", map[string]any{

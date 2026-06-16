@@ -92,8 +92,7 @@ func (v OptionalTimeValue) PtrUTC() *time.Time {
 	if v.Time.IsZero() {
 		return nil
 	}
-	result := v.Time.UTC()
-	return &result
+	return new(v.Time.UTC())
 }
 
 func (v OptionalTimeValue) StringValue() string {

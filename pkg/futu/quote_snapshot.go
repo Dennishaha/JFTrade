@@ -164,8 +164,7 @@ func cloneInt64AsFloat64(value *int64) *float64 {
 	if value == nil {
 		return nil
 	}
-	clone := float64(*value)
-	return &clone
+	return new(float64(*value))
 }
 
 // sessionFromExtendedBlocks derives the current market session from Futu's

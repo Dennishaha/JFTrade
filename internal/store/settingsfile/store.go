@@ -109,8 +109,7 @@ func (s *Store) SavedIntegration() *jfsettings.BrokerIntegration {
 	if s.data.Integration == nil {
 		return nil
 	}
-	integration := *s.data.Integration
-	return &integration
+	return new(*s.data.Integration)
 }
 
 func (s *Store) InterfaceSettings(defaults jfsettings.LaunchDefaults) jfsettings.InterfaceSettings {
@@ -401,8 +400,7 @@ func normalizeBrowserHost(host string) string {
 }
 
 func interfaceSettingsPointer(value jfsettings.InterfaceSettings) *jfsettings.InterfaceSettings {
-	settings := value
-	return &settings
+	return new(value)
 }
 
 func DefaultUIAppearanceSettings() jfsettings.UIAppearanceSettings {
@@ -438,8 +436,7 @@ func normalizeHexColor(value string, fallback string) string {
 }
 
 func uiAppearanceSettingsPointer(value jfsettings.UIAppearanceSettings) *jfsettings.UIAppearanceSettings {
-	settings := value
-	return &settings
+	return new(value)
 }
 
 func DefaultOnboardingSettings() jfsettings.OnboardingSettings {
@@ -459,8 +456,7 @@ func NormalizeOnboardingSettings(input jfsettings.OnboardingSettings) jfsettings
 }
 
 func onboardingSettingsPointer(value jfsettings.OnboardingSettings) *jfsettings.OnboardingSettings {
-	settings := value
-	return &settings
+	return new(value)
 }
 
 func DefaultExecutionSettings() jfsettings.ExecutionSettings {
@@ -503,8 +499,7 @@ func normalizeExecutionTradingEnvironment(value string) string {
 }
 
 func executionSettingsPointer(value jfsettings.ExecutionSettings) *jfsettings.ExecutionSettings {
-	settings := value
-	return &settings
+	return new(value)
 }
 
 func DefaultSecuritySettings() jfsettings.SecuritySettings {
@@ -520,8 +515,7 @@ func NormalizeSecuritySettings(input jfsettings.SecuritySettings) jfsettings.Sec
 }
 
 func securitySettingsPointer(value jfsettings.SecuritySettings) *jfsettings.SecuritySettings {
-	settings := value
-	return &settings
+	return new(value)
 }
 
 func DefaultADKRuntimeSettings() jfsettings.ADKRuntimeSettings {
@@ -540,8 +534,7 @@ func NormalizeADKRuntimeSettings(input jfsettings.ADKRuntimeSettings) jfsettings
 }
 
 func adkRuntimeSettingsPointer(value jfsettings.ADKRuntimeSettings) *jfsettings.ADKRuntimeSettings {
-	settings := value
-	return &settings
+	return new(value)
 }
 
 func clampOrDefaultInt(value int, fallback int, min int, max int) int {

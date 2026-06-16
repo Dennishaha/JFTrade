@@ -49,25 +49,20 @@ func (err *historicalKLineRequestError) Error() string {
 
 func buildHistoricalKLineRequestPlans(symbol string, interval types.Interval) []historicalKLineRequestPlan {
 	if shouldSplitHistoricalKLineRequestsBySession(symbol, interval) {
-		rth := commonpb.Session_Session_RTH
-		eth := commonpb.Session_Session_ETH
-		all := commonpb.Session_Session_ALL
 		return []historicalKLineRequestPlan{
-			{extendedTime: true, session: &rth, keepSessions: []market.Session{market.SessionRegular}},
-			{extendedTime: true, session: &eth, keepSessions: []market.Session{market.SessionPre, market.SessionAfter}},
-			{extendedTime: true, session: &all, keepSessions: []market.Session{market.SessionOvernight}},
+			{extendedTime: true, session: new(commonpb.Session_Session_RTH), keepSessions: []market.Session{market.SessionRegular}},
+			{extendedTime: true, session: new(commonpb.Session_Session_ETH), keepSessions: []market.Session{market.SessionPre, market.SessionAfter}},
+			{extendedTime: true, session: new(commonpb.Session_Session_ALL), keepSessions: []market.Session{market.SessionOvernight}},
 		}
 	}
 	if shouldRequestExtendedKLines(symbol, interval) {
-		all := commonpb.Session_Session_ALL
-		return []historicalKLineRequestPlan{{extendedTime: true, session: &all}}
+		return []historicalKLineRequestPlan{{extendedTime: true, session: new(commonpb.Session_Session_ALL)}}
 	}
 	return []historicalKLineRequestPlan{{}}
 }
 
 func historicalKLineRequestPlanAll() historicalKLineRequestPlan {
-	all := commonpb.Session_Session_ALL
-	return historicalKLineRequestPlan{extendedTime: true, session: &all}
+	return historicalKLineRequestPlan{extendedTime: true, session: new(commonpb.Session_Session_ALL)}
 }
 
 func shouldSplitHistoricalKLineRequestsBySession(symbol string, interval types.Interval) bool {

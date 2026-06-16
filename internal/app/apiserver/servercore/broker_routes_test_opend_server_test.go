@@ -240,25 +240,25 @@ func (s *brokerRouteOpenDServer) responseForFrame(frame codec.Frame) proto.Messa
 	switch frame.Header.ProtoID {
 	case opend.ProtoInitConnect:
 		return &initpb.Response{
-			RetType: proto.Int32(0),
+			RetType: new(int32(0)),
 			S2C: &initpb.S2C{
-				ServerVer:         proto.Int32(700),
-				LoginUserID:       proto.Uint64(1),
-				ConnID:            proto.Uint64(42),
-				ConnAESKey:        proto.String("0123456789abcdef"),
-				KeepAliveInterval: proto.Int32(10),
+				ServerVer:         new(int32(700)),
+				LoginUserID:       new(uint64(1)),
+				ConnID:            new(uint64(42)),
+				ConnAESKey:        new("0123456789abcdef"),
+				KeepAliveInterval: new(int32(10)),
 			},
 		}
 	case opend.ProtoTrdGetAccList:
 		return &trdgetacclistpb.Response{
-			RetType: proto.Int32(0),
+			RetType: new(int32(0)),
 			S2C:     &trdgetacclistpb.S2C{AccList: append([]*trdcommonpb.TrdAcc(nil), s.accounts...)},
 		}
 	case opend.ProtoTrdGetFunds:
 		request := &trdgetfundspb.Request{}
 		_ = proto.Unmarshal(frame.Body, request)
 		return &trdgetfundspb.Response{
-			RetType: proto.Int32(0),
+			RetType: new(int32(0)),
 			S2C: &trdgetfundspb.S2C{
 				Header: normalizeBrokerRouteHeader(request.GetC2S().GetHeader()),
 				Funds:  normalizeBrokerRouteFunds(s.funds),
@@ -272,7 +272,7 @@ func (s *brokerRouteOpenDServer) responseForFrame(frame codec.Frame) proto.Messa
 			positions = append(positions, normalizeBrokerRoutePosition(position))
 		}
 		return &trdgetpositionlistpb.Response{
-			RetType: proto.Int32(0),
+			RetType: new(int32(0)),
 			S2C: &trdgetpositionlistpb.S2C{
 				Header:       normalizeBrokerRouteHeader(request.GetC2S().GetHeader()),
 				PositionList: positions,
@@ -283,7 +283,7 @@ func (s *brokerRouteOpenDServer) responseForFrame(frame codec.Frame) proto.Messa
 		_ = proto.Unmarshal(frame.Body, request)
 		orders := filterBrokerRouteOrders(s.orders, request.GetC2S().GetFilterConditions(), nil)
 		return &trdgetorderlistpb.Response{
-			RetType: proto.Int32(0),
+			RetType: new(int32(0)),
 			S2C: &trdgetorderlistpb.S2C{
 				Header:    normalizeBrokerRouteHeader(request.GetC2S().GetHeader()),
 				OrderList: orders,
@@ -294,7 +294,7 @@ func (s *brokerRouteOpenDServer) responseForFrame(frame codec.Frame) proto.Messa
 		_ = proto.Unmarshal(frame.Body, request)
 		orders := filterBrokerRouteOrders(s.historyOrders, request.GetC2S().GetFilterConditions(), request.GetC2S().GetFilterStatusList())
 		return &trdgethistoryorderlistpb.Response{
-			RetType: proto.Int32(0),
+			RetType: new(int32(0)),
 			S2C: &trdgethistoryorderlistpb.S2C{
 				Header:    normalizeBrokerRouteHeader(request.GetC2S().GetHeader()),
 				OrderList: orders,
@@ -305,7 +305,7 @@ func (s *brokerRouteOpenDServer) responseForFrame(frame codec.Frame) proto.Messa
 		_ = proto.Unmarshal(frame.Body, request)
 		fills := filterBrokerRouteFills(s.orderFills, request.GetC2S().GetFilterConditions())
 		return &trdgetorderfilllistpb.Response{
-			RetType: proto.Int32(0),
+			RetType: new(int32(0)),
 			S2C: &trdgetorderfilllistpb.S2C{
 				Header:        normalizeBrokerRouteHeader(request.GetC2S().GetHeader()),
 				OrderFillList: fills,
@@ -316,7 +316,7 @@ func (s *brokerRouteOpenDServer) responseForFrame(frame codec.Frame) proto.Messa
 		_ = proto.Unmarshal(frame.Body, request)
 		fills := filterBrokerRouteFills(s.historyFills, request.GetC2S().GetFilterConditions())
 		return &trdgethistoryorderfilllistpb.Response{
-			RetType: proto.Int32(0),
+			RetType: new(int32(0)),
 			S2C: &trdgethistoryorderfilllistpb.S2C{
 				Header:        normalizeBrokerRouteHeader(request.GetC2S().GetHeader()),
 				OrderFillList: fills,
@@ -342,7 +342,7 @@ func (s *brokerRouteOpenDServer) responseForFrame(frame codec.Frame) proto.Messa
 			fees = append(fees, normalizeBrokerRouteOrderFee(fee))
 		}
 		return &trdgetorderfeepb.Response{
-			RetType: proto.Int32(0),
+			RetType: new(int32(0)),
 			S2C: &trdgetorderfeepb.S2C{
 				Header:       normalizeBrokerRouteHeader(request.GetC2S().GetHeader()),
 				OrderFeeList: fees,
@@ -368,7 +368,7 @@ func (s *brokerRouteOpenDServer) responseForFrame(frame codec.Frame) proto.Messa
 			ratios = append(ratios, normalizeBrokerRouteMarginRatio(ratio))
 		}
 		return &trdgetmarginratiopb.Response{
-			RetType: proto.Int32(0),
+			RetType: new(int32(0)),
 			S2C: &trdgetmarginratiopb.S2C{
 				Header:              normalizeBrokerRouteHeader(request.GetC2S().GetHeader()),
 				MarginRatioInfoList: ratios,
@@ -388,7 +388,7 @@ func (s *brokerRouteOpenDServer) responseForFrame(frame codec.Frame) proto.Messa
 			flows = append(flows, normalizeBrokerRouteCashFlow(flow))
 		}
 		return &trdflowsummarypb.Response{
-			RetType: proto.Int32(0),
+			RetType: new(int32(0)),
 			S2C: &trdflowsummarypb.S2C{
 				Header:              normalizeBrokerRouteHeader(request.GetC2S().GetHeader()),
 				FlowSummaryInfoList: flows,
@@ -401,7 +401,7 @@ func (s *brokerRouteOpenDServer) responseForFrame(frame codec.Frame) proto.Messa
 			s.lastMaxTrdQtys = proto.Clone(request.GetC2S()).(*trdgetmaxtrdqtyspb.C2S)
 		}
 		return &trdgetmaxtrdqtyspb.Response{
-			RetType: proto.Int32(0),
+			RetType: new(int32(0)),
 			S2C: &trdgetmaxtrdqtyspb.S2C{
 				Header:     normalizeBrokerRouteHeader(request.GetC2S().GetHeader()),
 				MaxTrdQtys: normalizeBrokerRouteMaxTrdQtys(s.maxTrdQtys),
@@ -412,7 +412,7 @@ func (s *brokerRouteOpenDServer) responseForFrame(frame codec.Frame) proto.Messa
 		request := &trdplaceorderpb.Request{}
 		_ = proto.Unmarshal(frame.Body, request)
 		if request.GetC2S() == nil || request.GetC2S().GetPacketID().GetConnID() == 0 {
-			return &trdplaceorderpb.Response{RetType: proto.Int32(1), RetMsg: proto.String("missing packet id connID")}
+			return &trdplaceorderpb.Response{RetType: new(int32(1)), RetMsg: new("missing packet id connID")}
 		}
 		s.lastPlaceOrder = proto.Clone(request.GetC2S()).(*trdplaceorderpb.C2S)
 		orderID := s.placedOrderID
@@ -424,11 +424,11 @@ func (s *brokerRouteOpenDServer) responseForFrame(frame codec.Frame) proto.Messa
 			orderIDEx = strconv.FormatUint(orderID, 10)
 		}
 		return &trdplaceorderpb.Response{
-			RetType: proto.Int32(0),
+			RetType: new(int32(0)),
 			S2C: &trdplaceorderpb.S2C{
 				Header:    normalizeBrokerRouteHeader(request.GetC2S().GetHeader()),
-				OrderID:   proto.Uint64(orderID),
-				OrderIDEx: proto.String(orderIDEx),
+				OrderID:   new(orderID),
+				OrderIDEx: new(orderIDEx),
 			},
 		}
 	case opend.ProtoTrdModifyOrder:
@@ -436,21 +436,21 @@ func (s *brokerRouteOpenDServer) responseForFrame(frame codec.Frame) proto.Messa
 		request := &trdmodifyorderpb.Request{}
 		_ = proto.Unmarshal(frame.Body, request)
 		if request.GetC2S() == nil || request.GetC2S().GetPacketID().GetConnID() == 0 {
-			return &trdmodifyorderpb.Response{RetType: proto.Int32(1), RetMsg: proto.String("missing packet id connID")}
+			return &trdmodifyorderpb.Response{RetType: new(int32(1)), RetMsg: new("missing packet id connID")}
 		}
 		s.lastModifyOrder = proto.Clone(request.GetC2S()).(*trdmodifyorderpb.C2S)
 		return &trdmodifyorderpb.Response{
-			RetType: proto.Int32(0),
+			RetType: new(int32(0)),
 			S2C: &trdmodifyorderpb.S2C{
 				Header:    normalizeBrokerRouteHeader(request.GetC2S().GetHeader()),
-				OrderID:   proto.Uint64(request.GetC2S().GetOrderID()),
-				OrderIDEx: proto.String(strconv.FormatUint(request.GetC2S().GetOrderID(), 10)),
+				OrderID:   new(request.GetC2S().GetOrderID()),
+				OrderIDEx: new(strconv.FormatUint(request.GetC2S().GetOrderID(), 10)),
 			},
 		}
 	case opend.ProtoTrdSubAccPush:
 		s.subAccPushCalls++
-		return &trdsubaccpushpb.Response{RetType: proto.Int32(0)}
+		return &trdsubaccpushpb.Response{RetType: new(int32(0))}
 	default:
-		return &initpb.Response{RetType: proto.Int32(1), RetMsg: proto.String("unsupported proto")}
+		return &initpb.Response{RetType: new(int32(1)), RetMsg: new("unsupported proto")}
 	}
 }

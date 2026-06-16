@@ -18,13 +18,13 @@ func normalizeBrokerRouteHeader(header *trdcommonpb.TrdHeader) *trdcommonpb.TrdH
 	}
 	clone := proto.Clone(header).(*trdcommonpb.TrdHeader)
 	if clone.TrdEnv == nil {
-		clone.TrdEnv = proto.Int32(int32(trdcommonpb.TrdEnv_TrdEnv_Simulate))
+		clone.TrdEnv = new(int32(trdcommonpb.TrdEnv_TrdEnv_Simulate))
 	}
 	if clone.AccID == nil {
-		clone.AccID = proto.Uint64(1001)
+		clone.AccID = new(uint64(1001))
 	}
 	if clone.TrdMarket == nil {
-		clone.TrdMarket = proto.Int32(int32(trdcommonpb.TrdMarket_TrdMarket_HK))
+		clone.TrdMarket = new(int32(trdcommonpb.TrdMarket_TrdMarket_HK))
 	}
 	return clone
 }
@@ -35,25 +35,25 @@ func normalizeBrokerRouteFunds(funds *trdcommonpb.Funds) *trdcommonpb.Funds {
 	}
 	clone := proto.Clone(funds).(*trdcommonpb.Funds)
 	if clone.Power == nil {
-		clone.Power = proto.Float64(0)
+		clone.Power = new(float64(0))
 	}
 	if clone.TotalAssets == nil {
-		clone.TotalAssets = proto.Float64(0)
+		clone.TotalAssets = new(float64(0))
 	}
 	if clone.Cash == nil {
-		clone.Cash = proto.Float64(0)
+		clone.Cash = new(float64(0))
 	}
 	if clone.MarketVal == nil {
-		clone.MarketVal = proto.Float64(0)
+		clone.MarketVal = new(float64(0))
 	}
 	if clone.FrozenCash == nil {
-		clone.FrozenCash = proto.Float64(0)
+		clone.FrozenCash = new(float64(0))
 	}
 	if clone.DebtCash == nil {
-		clone.DebtCash = proto.Float64(0)
+		clone.DebtCash = new(float64(0))
 	}
 	if clone.AvlWithdrawalCash == nil {
-		clone.AvlWithdrawalCash = proto.Float64(0)
+		clone.AvlWithdrawalCash = new(float64(0))
 	}
 	return clone
 }
@@ -64,31 +64,31 @@ func normalizeBrokerRoutePosition(position *trdcommonpb.Position) *trdcommonpb.P
 	}
 	clone := proto.Clone(position).(*trdcommonpb.Position)
 	if clone.PositionID == nil {
-		clone.PositionID = proto.Uint64(1)
+		clone.PositionID = new(uint64(1))
 	}
 	if clone.PositionSide == nil {
-		clone.PositionSide = proto.Int32(1)
+		clone.PositionSide = new(int32(1))
 	}
 	if clone.Code == nil {
-		clone.Code = proto.String("HK.00700")
+		clone.Code = new("HK.00700")
 	}
 	if clone.Name == nil {
-		clone.Name = proto.String(clone.GetCode())
+		clone.Name = new(clone.GetCode())
 	}
 	if clone.Qty == nil {
-		clone.Qty = proto.Float64(0)
+		clone.Qty = new(float64(0))
 	}
 	if clone.CanSellQty == nil {
-		clone.CanSellQty = proto.Float64(0)
+		clone.CanSellQty = new(float64(0))
 	}
 	if clone.Price == nil {
-		clone.Price = proto.Float64(0)
+		clone.Price = new(float64(0))
 	}
 	if clone.Val == nil {
-		clone.Val = proto.Float64(0)
+		clone.Val = new(float64(0))
 	}
 	if clone.PlVal == nil {
-		clone.PlVal = proto.Float64(0)
+		clone.PlVal = new(float64(0))
 	}
 	return clone
 }
@@ -99,34 +99,34 @@ func normalizeBrokerRouteOrder(order *trdcommonpb.Order) *trdcommonpb.Order {
 	}
 	clone := proto.Clone(order).(*trdcommonpb.Order)
 	if clone.TrdSide == nil {
-		clone.TrdSide = proto.Int32(int32(trdcommonpb.TrdSide_TrdSide_Buy))
+		clone.TrdSide = new(int32(trdcommonpb.TrdSide_TrdSide_Buy))
 	}
 	if clone.OrderType == nil {
-		clone.OrderType = proto.Int32(int32(trdcommonpb.OrderType_OrderType_Normal))
+		clone.OrderType = new(int32(trdcommonpb.OrderType_OrderType_Normal))
 	}
 	if clone.OrderStatus == nil {
-		clone.OrderStatus = proto.Int32(int32(trdcommonpb.OrderStatus_OrderStatus_Submitted))
+		clone.OrderStatus = new(int32(trdcommonpb.OrderStatus_OrderStatus_Submitted))
 	}
 	if clone.OrderID == nil {
-		clone.OrderID = proto.Uint64(1)
+		clone.OrderID = new(uint64(1))
 	}
 	if clone.OrderIDEx == nil {
-		clone.OrderIDEx = proto.String(strconv.FormatUint(clone.GetOrderID(), 10))
+		clone.OrderIDEx = new(strconv.FormatUint(clone.GetOrderID(), 10))
 	}
 	if clone.Code == nil {
-		clone.Code = proto.String("HK.00700")
+		clone.Code = new("HK.00700")
 	}
 	if clone.Name == nil {
-		clone.Name = proto.String(clone.GetCode())
+		clone.Name = new(clone.GetCode())
 	}
 	if clone.Qty == nil {
-		clone.Qty = proto.Float64(0)
+		clone.Qty = new(float64(0))
 	}
 	if clone.CreateTime == nil {
-		clone.CreateTime = proto.String("2026-05-20 09:30:00")
+		clone.CreateTime = new("2026-05-20 09:30:00")
 	}
 	if clone.UpdateTime == nil {
-		clone.UpdateTime = proto.String(clone.GetCreateTime())
+		clone.UpdateTime = new(clone.GetCreateTime())
 	}
 	return clone
 }
@@ -137,31 +137,31 @@ func normalizeBrokerRouteOrderFill(fill *trdcommonpb.OrderFill) *trdcommonpb.Ord
 	}
 	clone := proto.Clone(fill).(*trdcommonpb.OrderFill)
 	if clone.OrderID == nil {
-		clone.OrderID = proto.Uint64(1)
+		clone.OrderID = new(uint64(1))
 	}
 	if clone.OrderIDEx == nil {
-		clone.OrderIDEx = proto.String(strconv.FormatUint(clone.GetOrderID(), 10))
+		clone.OrderIDEx = new(strconv.FormatUint(clone.GetOrderID(), 10))
 	}
 	if clone.FillID == nil {
-		clone.FillID = proto.Uint64(1)
+		clone.FillID = new(uint64(1))
 	}
 	if clone.FillIDEx == nil {
-		clone.FillIDEx = proto.String(strconv.FormatUint(clone.GetFillID(), 10))
+		clone.FillIDEx = new(strconv.FormatUint(clone.GetFillID(), 10))
 	}
 	if clone.Code == nil {
-		clone.Code = proto.String("HK.00700")
+		clone.Code = new("HK.00700")
 	}
 	if clone.Name == nil {
-		clone.Name = proto.String(clone.GetCode())
+		clone.Name = new(clone.GetCode())
 	}
 	if clone.TrdSide == nil {
-		clone.TrdSide = proto.Int32(int32(trdcommonpb.TrdSide_TrdSide_Buy))
+		clone.TrdSide = new(int32(trdcommonpb.TrdSide_TrdSide_Buy))
 	}
 	if clone.Qty == nil {
-		clone.Qty = proto.Float64(0)
+		clone.Qty = new(float64(0))
 	}
 	if clone.CreateTime == nil {
-		clone.CreateTime = proto.String("2026-05-20 09:30:00")
+		clone.CreateTime = new("2026-05-20 09:30:00")
 	}
 	return clone
 }
@@ -172,10 +172,10 @@ func normalizeBrokerRouteOrderFee(fee *trdcommonpb.OrderFee) *trdcommonpb.OrderF
 	}
 	clone := proto.Clone(fee).(*trdcommonpb.OrderFee)
 	if clone.OrderIDEx == nil {
-		clone.OrderIDEx = proto.String("")
+		clone.OrderIDEx = new("")
 	}
 	if clone.FeeAmount == nil {
-		clone.FeeAmount = proto.Float64(0)
+		clone.FeeAmount = new(float64(0))
 	}
 	return clone
 }
@@ -186,7 +186,7 @@ func normalizeBrokerRouteMarginRatio(ratio *trdgetmarginratiopb.MarginRatioInfo)
 	}
 	clone := proto.Clone(ratio).(*trdgetmarginratiopb.MarginRatioInfo)
 	if clone.Security == nil {
-		clone.Security = &qotcommonpb.Security{Market: proto.Int32(int32(qotcommonpb.QotMarket_QotMarket_HK_Security)), Code: proto.String("00700")}
+		clone.Security = &qotcommonpb.Security{Market: new(int32(qotcommonpb.QotMarket_QotMarket_HK_Security)), Code: new("00700")}
 	}
 	return clone
 }
@@ -197,10 +197,10 @@ func normalizeBrokerRouteCashFlow(flow *trdflowsummarypb.FlowSummaryInfo) *trdfl
 	}
 	clone := proto.Clone(flow).(*trdflowsummarypb.FlowSummaryInfo)
 	if clone.CashFlowID == nil {
-		clone.CashFlowID = proto.Uint64(1)
+		clone.CashFlowID = new(uint64(1))
 	}
 	if clone.ClearingDate == nil {
-		clone.ClearingDate = proto.String("2026-05-20")
+		clone.ClearingDate = new("2026-05-20")
 	}
 	return clone
 }

@@ -341,8 +341,7 @@ func optionalDecimal(value interface {
 	if value.IsZero() {
 		return nil
 	}
-	result := decimal.RequireFromString(value.String())
-	return &result
+	return new(decimal.RequireFromString(value.String()))
 }
 
 func extendedQuote(quote *pkgfutu.ExtendedMarketQuote) *marketdata.ExtendedQuote {

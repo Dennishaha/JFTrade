@@ -68,9 +68,8 @@ func (s *SettingsStore) Integration() BrokerIntegration {
 func (s *SettingsStore) SavedIntegration() *BrokerIntegration {
 	s.mu.RLock()
 	if s.data.Integration != nil {
-		integration := *s.data.Integration
 		s.mu.RUnlock()
-		return &integration
+		return new(*s.data.Integration)
 	}
 	s.mu.RUnlock()
 	return s.Store.SavedIntegration()

@@ -87,10 +87,10 @@ func (e *Exchange) ensureClient(ctx context.Context) (*opend.Client, error) {
 
 	initStart := time.Now()
 	initReq := &initpb.Request{C2S: &initpb.C2S{
-		ClientVer:           proto.Int32(101),
-		ClientID:            proto.String("jftrade-bbgo"),
-		RecvNotify:          proto.Bool(true),
-		ProgrammingLanguage: proto.String("Go"),
+		ClientVer:           new(int32(101)),
+		ClientID:            new("jftrade-bbgo"),
+		RecvNotify:          new(true),
+		ProgrammingLanguage: new("Go"),
 	}}
 	var initResp initpb.Response
 	if err := e.client.Call(ctx, opend.ProtoInitConnect, initReq, &initResp); err != nil {
