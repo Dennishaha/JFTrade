@@ -133,6 +133,7 @@ func (s *Store) migrate() error {
 		{27, `CREATE INDEX IF NOT EXISTS idx_adk_session_context_state_updated ON ` + tableSessionContextLive + ` (updated_at DESC)`},
 		{28, `DROP TABLE IF EXISTS adk_messages`},
 		{29, `DROP TABLE IF EXISTS adk_transcript_entries`},
+		{30, `UPDATE ` + tableAgents + ` SET payload_json = json_set(payload_json, '$.workMode', 'chat') WHERE json_extract(payload_json, '$.workMode') IN ('sequential', 'parallel')`},
 	}
 	for _, m := range migrations {
 		var count int
@@ -282,7 +283,7 @@ func (s *Store) ListAgents(ctx context.Context) ([]Agent, error) {
 	active := make([]Agent, 0, len(items))
 	for _, item := range items {
 		if item.DeletedAt == nil {
-			active = append(active, item)
+			active = append(active, NormalizeAgent(item))
 		}
 	}
 	return active, nil
@@ -290,7 +291,13 @@ func (s *Store) ListAgents(ctx context.Context) ([]Agent, error) {
 
 func (s *Store) ListAllAgents(ctx context.Context) ([]Agent, error) {
 	var items []Agent
-	return items, s.listJSON(ctx, tableAgents, "updated_at DESC, id ASC", &items)
+	if err := s.listJSON(ctx, tableAgents, "updated_at DESC, id ASC", &items); err != nil {
+		return nil, err
+	}
+	for index := range items {
+		items[index] = NormalizeAgent(items[index])
+	}
+	return items, nil
 }
 
 func (s *Store) SaveAgent(ctx context.Context, req AgentWriteRequest) (Agent, error) {
@@ -318,19 +325,21 @@ func (s *Store) SaveAgent(ctx context.Context, req AgentWriteRequest) (Agent, er
 		return Agent{}, fmt.Errorf("invalid agent status %q", req.Status)
 	}
 	agent := Agent{
-		ID:               id,
-		Name:             defaultString(req.Name, id),
-		Instruction:      strings.TrimSpace(req.Instruction),
-		ProviderID:       strings.TrimSpace(req.ProviderID),
-		Model:            strings.TrimSpace(req.Model),
-		Tools:            normalizeStringSlice(req.Tools),
-		Skills:           normalizeStringSlice(req.Skills),
-		PermissionMode:   normalizePermissionMode(req.PermissionMode),
-		MemoryEnabled:    req.MemoryEnabled,
-		RecentUserWindow: normalizeRecentUserWindow(req.RecentUserWindow),
-		Status:           status,
-		CreatedAt:        createdAt,
-		UpdatedAt:        now,
+		ID:                id,
+		Name:              defaultString(req.Name, id),
+		Instruction:       strings.TrimSpace(req.Instruction),
+		ProviderID:        strings.TrimSpace(req.ProviderID),
+		Model:             strings.TrimSpace(req.Model),
+		Tools:             normalizeStringSlice(req.Tools),
+		Skills:            normalizeStringSlice(req.Skills),
+		PermissionMode:    normalizePermissionMode(req.PermissionMode),
+		MemoryEnabled:     req.MemoryEnabled,
+		RecentUserWindow:  normalizeRecentUserWindow(req.RecentUserWindow),
+		WorkMode:          normalizeAgentDefaultWorkMode(req.WorkMode),
+		LoopMaxIterations: normalizeLoopMaxIterations(req.LoopMaxIterations),
+		Status:            status,
+		CreatedAt:         createdAt,
+		UpdatedAt:         now,
 	}
 	if agent.Instruction == "" {
 		agent.Instruction = defaultAgentInstruction()
@@ -338,6 +347,13 @@ func (s *Store) SaveAgent(ctx context.Context, req AgentWriteRequest) (Agent, er
 	if ok && req.RecentUserWindow == 0 {
 		agent.RecentUserWindow = normalizeRecentUserWindow(existing.RecentUserWindow)
 	}
+	if ok && strings.TrimSpace(req.WorkMode) == "" {
+		agent.WorkMode = normalizeAgentDefaultWorkMode(existing.WorkMode)
+	}
+	if ok && req.LoopMaxIterations == 0 {
+		agent.LoopMaxIterations = normalizeLoopMaxIterations(existing.LoopMaxIterations)
+	}
+	agent = NormalizeAgent(agent)
 	return agent, s.saveJSON(ctx, tableAgents, agent.ID, agent.CreatedAt, agent.UpdatedAt, agent)
 }
 
@@ -357,7 +373,10 @@ func (s *Store) EnsureAgent(ctx context.Context, req AgentWriteRequest) (Agent, 
 func (s *Store) Agent(ctx context.Context, id string) (Agent, bool, error) {
 	var agent Agent
 	ok, err := s.getJSON(ctx, tableAgents, id, &agent)
-	return agent, ok, err
+	if err != nil || !ok {
+		return Agent{}, ok, err
+	}
+	return NormalizeAgent(agent), true, nil
 }
 
 func (s *Store) DefaultAgent(ctx context.Context) (Agent, error) {
@@ -484,6 +503,7 @@ func (s *Store) SaveRun(ctx context.Context, run Run) error {
 	if run.CreatedAt == "" {
 		run.CreatedAt = nowString()
 	}
+	run = NormalizeRun(run)
 	run.UpdatedAt = nowString()
 	payload, err := json.Marshal(run)
 	if err != nil {
@@ -496,12 +516,21 @@ func (s *Store) SaveRun(ctx context.Context, run Run) error {
 func (s *Store) Run(ctx context.Context, id string) (Run, bool, error) {
 	var run Run
 	ok, err := s.getJSON(ctx, tableRuns, id, &run)
-	return run, ok, err
+	if err != nil || !ok {
+		return Run{}, ok, err
+	}
+	return NormalizeRun(run), true, nil
 }
 
 func (s *Store) ListRuns(ctx context.Context) ([]Run, error) {
 	var runs []Run
-	return runs, s.listJSON(ctx, tableRuns, "created_at DESC, id ASC", &runs)
+	if err := s.listJSON(ctx, tableRuns, "created_at DESC, id ASC", &runs); err != nil {
+		return nil, err
+	}
+	for index := range runs {
+		runs[index] = NormalizeRun(runs[index])
+	}
+	return runs, nil
 }
 
 func (s *Store) ListRunsPage(ctx context.Context, status string, agentID string, sessionID string, limit int, offset int) ([]Run, int, error) {
@@ -521,6 +550,9 @@ func (s *Store) ListRunsPage(ctx context.Context, status string, agentID string,
 	}
 	var runs []Run
 	total, err := s.listJSONPage(ctx, tableRuns, clauses, args, "created_at DESC, id ASC", limit, offset, &runs)
+	for index := range runs {
+		runs[index] = NormalizeRun(runs[index])
+	}
 	return runs, total, err
 }
 
@@ -737,7 +769,14 @@ func (s *Store) SaveTask(ctx context.Context, req TaskWriteRequest) (Task, error
 	task := Task{
 		ID: id, Title: title, Description: strings.TrimSpace(req.Description), Status: status,
 		AgentID: strings.TrimSpace(req.AgentID), RunID: strings.TrimSpace(req.RunID),
-		DependsOn: dependsOn, CreatedAt: createdAt, UpdatedAt: now,
+		DependsOn: dependsOn, Order: req.Order,
+		ModeHint: strings.TrimSpace(req.ModeHint), AgentRole: strings.TrimSpace(req.AgentRole),
+		PlannerStepID: strings.TrimSpace(req.PlannerStepID), PlanSource: strings.TrimSpace(req.PlanSource),
+		WorkflowMode: strings.TrimSpace(req.WorkflowMode), Objective: strings.TrimSpace(req.Objective),
+		Message: strings.TrimSpace(req.Message), Executor: strings.TrimSpace(req.Executor),
+		ResultSummary:   strings.TrimSpace(req.ResultSummary),
+		PlannerWarnings: normalizeStringSlice(req.PlannerWarnings),
+		CreatedAt:       createdAt, UpdatedAt: now,
 	}
 	return s.saveTask(ctx, task)
 }
@@ -783,6 +822,39 @@ func (s *Store) UpdateTask(ctx context.Context, id string, req TaskPatchRequest)
 			return Task{}, err
 		}
 		task.DependsOn = dependsOn
+	}
+	if req.Order != nil {
+		task.Order = *req.Order
+	}
+	if req.ModeHint != nil {
+		task.ModeHint = strings.TrimSpace(*req.ModeHint)
+	}
+	if req.AgentRole != nil {
+		task.AgentRole = strings.TrimSpace(*req.AgentRole)
+	}
+	if req.PlannerStepID != nil {
+		task.PlannerStepID = strings.TrimSpace(*req.PlannerStepID)
+	}
+	if req.PlanSource != nil {
+		task.PlanSource = strings.TrimSpace(*req.PlanSource)
+	}
+	if req.WorkflowMode != nil {
+		task.WorkflowMode = strings.TrimSpace(*req.WorkflowMode)
+	}
+	if req.Objective != nil {
+		task.Objective = strings.TrimSpace(*req.Objective)
+	}
+	if req.Message != nil {
+		task.Message = strings.TrimSpace(*req.Message)
+	}
+	if req.Executor != nil {
+		task.Executor = strings.TrimSpace(*req.Executor)
+	}
+	if req.ResultSummary != nil {
+		task.ResultSummary = strings.TrimSpace(*req.ResultSummary)
+	}
+	if req.PlannerWarnings != nil {
+		task.PlannerWarnings = normalizeStringSlice(req.PlannerWarnings)
 	}
 	task.UpdatedAt = nowString()
 	return s.saveTask(ctx, task)
@@ -1155,10 +1227,10 @@ func normalizeID(value string) string {
 	return strings.Trim(builder.String(), "-_")
 }
 
-func defaultString(value string, fallback string) string {
+func defaultString(value string, defaultValue string) string {
 	value = strings.TrimSpace(value)
 	if value == "" {
-		return fallback
+		return defaultValue
 	}
 	return value
 }
@@ -1260,6 +1332,46 @@ func normalizePermissionMode(value string) string {
 		return PermissionModeHighAuto
 	default:
 		return PermissionModeApproval
+	}
+}
+
+func normalizeWorkMode(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case WorkModeTask:
+		return WorkModeTask
+	case WorkModeLoop:
+		return WorkModeLoop
+	default:
+		return WorkModeChat
+	}
+}
+
+func normalizeAgentDefaultWorkMode(value string) string {
+	switch normalizeWorkMode(value) {
+	case WorkModeTask, WorkModeLoop:
+		return normalizeWorkMode(value)
+	default:
+		return WorkModeChat
+	}
+}
+
+func validWorkMode(value string) bool {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "", WorkModeChat, WorkModeTask, WorkModeLoop:
+		return true
+	default:
+		return false
+	}
+}
+
+func normalizeLoopMaxIterations(value int) int {
+	switch {
+	case value <= 0:
+		return DefaultLoopMaxIterations
+	case value > MaxLoopIterations:
+		return MaxLoopIterations
+	default:
+		return value
 	}
 }
 

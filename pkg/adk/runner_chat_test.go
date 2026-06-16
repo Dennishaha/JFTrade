@@ -83,6 +83,35 @@ func TestHydrateRunExecutionResultPopulatesRunFields(t *testing.T) {
 	}
 }
 
+func TestChatToolOnlyADKRunSynthesizesFinalReply(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	agent := mustSaveAgent(t, runtime, AgentWriteRequest{
+		ID: "tool-final-agent", Name: "Tool Final", Status: AgentStatusEnabled,
+		Tools: []string{"tools.search"},
+	})
+
+	response, err := runtime.Chat(ctx, ChatRequest{
+		AgentID: agent.ID,
+		Message: "@tools.search 查找工具",
+	})
+	if err != nil {
+		t.Fatalf("Chat: %v", err)
+	}
+	if response.Run.Status != RunStatusCompleted {
+		t.Fatalf("run status = %q, want completed", response.Run.Status)
+	}
+	if len(response.Run.ToolCalls) != 1 || response.Run.ToolCalls[0].Status != "SUCCEEDED" {
+		t.Fatalf("tool calls = %+v, want one succeeded call", response.Run.ToolCalls)
+	}
+	if strings.TrimSpace(response.Reply) == "" {
+		t.Fatal("reply is empty, want synthesized final reply after tool result")
+	}
+	if !strings.Contains(response.Reply, "tools.search") {
+		t.Fatalf("reply = %q, want tool result summary", response.Reply)
+	}
+}
+
 func TestMarkFailedChatRunMapsContextToTerminalState(t *testing.T) {
 	startedAt := time.Now().UTC().Add(-time.Second).Format(time.RFC3339Nano)
 
@@ -251,7 +280,7 @@ func TestFinishPendingApprovalRunPersistsPendingStateAndAssistantPrompt(t *testi
 	}
 }
 
-func TestCompleteChatRunFailureUsesFallbackReplyAndPersistsTerminalState(t *testing.T) {
+func TestCompleteChatRunFailurePersistsUserFacingErrorReply(t *testing.T) {
 	ctx := context.Background()
 	runtime := newTestRuntime(t)
 
@@ -284,8 +313,8 @@ func TestCompleteChatRunFailureUsesFallbackReplyAndPersistsTerminalState(t *test
 	if response.Run.Status != RunStatusFailed || response.Run.ErrorCode != "MODEL_CALL_FAILED" || response.Run.FinalMessageID == "" {
 		t.Fatalf("response run = %+v", response.Run)
 	}
-	if !strings.Contains(response.Reply, "本地兜底回复") || strings.Contains(response.Reply, "provider down") {
-		t.Fatalf("reply = %q, want user-friendly fallback reply without raw cause", response.Reply)
+	if response.Reply != "provider down" {
+		t.Fatalf("reply = %q, want user-facing error reply", response.Reply)
 	}
 
 	stored, ok, err := runtime.Store().Run(ctx, run.ID)
@@ -297,8 +326,8 @@ func TestCompleteChatRunFailureUsesFallbackReplyAndPersistsTerminalState(t *test
 	}
 
 	messages := mustAssistantMessages(t, runtime, session.ID)
-	if len(messages) != 1 || !strings.Contains(messages[0].Content, "本地兜底回复") {
-		t.Fatalf("messages = %+v, want fallback assistant message", messages)
+	if len(messages) != 1 || messages[0].Content != "provider down" {
+		t.Fatalf("messages = %+v, want user-facing error assistant message", messages)
 	}
 }
 
@@ -440,7 +469,7 @@ func TestProjectedChatResponseAppliesProjectionToRunFields(t *testing.T) {
 	appendADKEvent(t, runtime, agent.ID, session.ID, newToolResponseEvent(run.ID, "call-opt", "strategy.optimize", map[string]any{"taskId": "opt-999", "status": "started"}, time.Unix(32, 0)))
 	appendADKEvent(t, runtime, agent.ID, session.ID, newAssistantEvent(run.ID, []*genai.Part{{Text: "优化已启动。"}}, time.Unix(33, 0)))
 
-	response := runtime.projectedChatResponse(ctx, session, run, nil, openAIChatResult{Reply: "fallback"})
+	response := runtime.projectedChatResponse(ctx, session, run, nil, openAIChatResult{Reply: "projected reply"})
 	if response.Reply != "先说明一下。优化已启动。" {
 		t.Fatalf("reply = %q, want 先说明一下。优化已启动。", response.Reply)
 	}
@@ -498,7 +527,7 @@ func TestProjectedChatResponseDoesNotExposeResolvedApprovals(t *testing.T) {
 	})
 	appendADKEvent(t, runtime, agent.ID, session.ID, newAssistantEvent(run.ID, []*genai.Part{{Text: "done"}}, time.Unix(41, 0)))
 
-	response := runtime.projectedChatResponse(ctx, session, run, nil, openAIChatResult{Reply: "fallback"})
+	response := runtime.projectedChatResponse(ctx, session, run, nil, openAIChatResult{Reply: "projected reply"})
 	if len(response.PendingApprovals) != 0 {
 		t.Fatalf("response pending approvals = %+v, want none", response.PendingApprovals)
 	}
@@ -526,7 +555,7 @@ func TestResolveApprovalAsyncDetachesClosedStreamBeforeBackgroundResume(t *testi
 	})
 	runtime = newRuntimeWithRegistry(t, runtime.Store(), registry)
 	agent, err := runtime.Store().SaveAgent(ctx, AgentWriteRequest{
-		ID: "agent", Name: "Agent", Tools: []string{"strategy.save_draft"},
+		ID: "agent", Name: "Agent", ProviderID: testProviderID, Tools: []string{"strategy.save_draft"},
 		PermissionMode: PermissionModeApproval, Status: AgentStatusEnabled,
 	})
 	if err != nil {

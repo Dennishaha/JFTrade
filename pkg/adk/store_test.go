@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"google.golang.org/genai"
@@ -35,7 +36,57 @@ func newTestRuntime(t *testing.T) *Runtime {
 	if err := MigrateSQLiteSessionService(sessionService); err != nil {
 		t.Fatalf("AutoMigrate: %v", err)
 	}
-	return NewRuntimeWithSessionService(store, NewToolRegistry(), sessionService)
+	runtime := NewRuntimeWithSessionService(store, NewToolRegistry(), sessionService)
+	ensureTestProvider(t, runtime)
+	return runtime
+}
+
+func TestStoreMigrationNormalizesHiddenAgentWorkflowDefaults(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "adk.db")
+	secretsPath := filepath.Join(dir, "secrets", "adk.json")
+	skillsPath := filepath.Join(dir, "skills")
+	store, err := NewStore(dbPath, secretsPath, skillsPath)
+	if err != nil {
+		t.Fatalf("NewStore: %v", err)
+	}
+	agent := mustSaveAgent(t, NewRuntime(store, NewToolRegistry()), AgentWriteRequest{
+		ID: "legacy-sequential-agent", Name: "Legacy Sequential", Status: AgentStatusEnabled,
+		WorkMode: WorkModeLoop,
+	})
+	if agent.WorkMode != WorkModeLoop {
+		t.Fatalf("initial agent work mode = %q, want loop", agent.WorkMode)
+	}
+	_ = store.Close()
+
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatalf("open raw db: %v", err)
+	}
+	if _, err := db.Exec(`UPDATE `+tableAgents+` SET payload_json = json_set(payload_json, '$.workMode', 'sequential') WHERE id = ?`, agent.ID); err != nil {
+		_ = db.Close()
+		t.Fatalf("update raw agent payload: %v", err)
+	}
+	if _, err := db.Exec(`DELETE FROM adk_schema_migrations WHERE version = 30`); err != nil {
+		_ = db.Close()
+		t.Fatalf("delete migration marker: %v", err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatalf("close raw db: %v", err)
+	}
+
+	migrated, err := NewStore(dbPath, secretsPath, skillsPath)
+	if err != nil {
+		t.Fatalf("NewStore migrate: %v", err)
+	}
+	defer migrated.Close()
+	var rawMode string
+	if err := migrated.db.Get(&rawMode, `SELECT json_extract(payload_json, '$.workMode') FROM `+tableAgents+` WHERE id = ?`, agent.ID); err != nil {
+		t.Fatalf("read raw agent mode: %v", err)
+	}
+	if rawMode != WorkModeChat {
+		t.Fatalf("raw migrated work mode = %q, want %q", rawMode, WorkModeChat)
+	}
 }
 
 func newRuntimeWithRegistry(t *testing.T, store *Store, registry *ToolRegistry) *Runtime {
@@ -48,7 +99,9 @@ func newRuntimeWithRegistry(t *testing.T, store *Store, registry *ToolRegistry) 
 	if err := MigrateSQLiteSessionService(sessionService); err != nil {
 		t.Fatalf("AutoMigrate: %v", err)
 	}
-	return NewRuntimeWithSessionService(store, registry, sessionService)
+	runtime := NewRuntimeWithSessionService(store, registry, sessionService)
+	ensureTestProvider(t, runtime)
+	return runtime
 }
 
 func TestNewStoreDropsLegacyMessageTables(t *testing.T) {
@@ -92,10 +145,18 @@ func TestProviderSecretIsNotEchoed(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListProviders: %v", err)
 	}
-	if len(providers) != 1 {
-		t.Fatalf("providers len = %d, want 1", len(providers))
+	var encoded Provider
+	found := false
+	for _, item := range providers {
+		if item.ID == provider.ID {
+			encoded = item
+			found = true
+			break
+		}
 	}
-	encoded := providers[0]
+	if !found {
+		t.Fatalf("provider %q not found in %+v", provider.ID, providers)
+	}
 	if encoded.HasAPIKey != true {
 		t.Fatalf("listed provider HasAPIKey = false")
 	}
@@ -166,6 +227,7 @@ func TestApprovalModeCreatesPendingApprovalForWriteTool(t *testing.T) {
 	agent, err := store.SaveAgent(ctx, AgentWriteRequest{
 		ID:             "agent",
 		Name:           "Agent",
+		ProviderID:     testProviderID,
 		Tools:          []string{"strategy.save_draft"},
 		PermissionMode: PermissionModeApproval,
 		Status:         AgentStatusEnabled,
@@ -196,7 +258,7 @@ func TestApprovalModeCreatesPendingApprovalForWriteTool(t *testing.T) {
 	if resolution.Run == nil || resolution.Run.Status != RunStatusCompleted {
 		t.Fatalf("resolution run = %+v, want completed", resolution.Run)
 	}
-	if resolution.Message == nil || !strings.Contains(resolution.Message.Content, "已完成本地 ADK 分析") {
+	if resolution.Message == nil || !strings.Contains(resolution.Message.Content, "已完成 ADK 分析") {
 		t.Fatalf("resolution message = %+v, want regenerated final reply", resolution.Message)
 	}
 	if resolution.Run.UserMessage != "@strategy.save_draft 保存策略" {
@@ -227,6 +289,7 @@ func TestIdempotentApprovalRecoversPendingRunWithStaleEmbeddedApproval(t *testin
 	agent, err := runtime.Store().SaveAgent(ctx, AgentWriteRequest{
 		ID:             "agent-stale-approval",
 		Name:           "Agent",
+		ProviderID:     testProviderID,
 		Tools:          []string{"strategy.save_draft"},
 		PermissionMode: PermissionModeApproval,
 		Status:         AgentStatusEnabled,
@@ -295,6 +358,7 @@ func TestReconcileResolvedApprovalsRecoversPendingRun(t *testing.T) {
 	agent, err := runtime.Store().SaveAgent(ctx, AgentWriteRequest{
 		ID:             "agent-reconcile-approval",
 		Name:           "Agent",
+		ProviderID:     testProviderID,
 		Tools:          []string{"strategy.save_draft"},
 		PermissionMode: PermissionModeApproval,
 		Status:         AgentStatusEnabled,
@@ -357,6 +421,7 @@ func TestApprovalDenialCreatesAssistantSummary(t *testing.T) {
 	agent, err := runtime.Store().SaveAgent(ctx, AgentWriteRequest{
 		ID:             "agent",
 		Name:           "Agent",
+		ProviderID:     testProviderID,
 		Tools:          []string{"strategy.save_draft"},
 		PermissionMode: PermissionModeApproval,
 		Status:         AgentStatusEnabled,
@@ -404,6 +469,7 @@ func TestApprovalDenialRecordsResumedAndDeniedAuditEvents(t *testing.T) {
 	agent, err := runtime.Store().SaveAgent(ctx, AgentWriteRequest{
 		ID:             "agent-audit-deny",
 		Name:           "Agent",
+		ProviderID:     testProviderID,
 		Tools:          []string{"strategy.save_draft"},
 		PermissionMode: PermissionModeApproval,
 		Status:         AgentStatusEnabled,
@@ -473,6 +539,7 @@ func TestApprovedPendingRunMarksFailureWhenToolExecutionFails(t *testing.T) {
 	agent, err := runtime.Store().SaveAgent(ctx, AgentWriteRequest{
 		ID:             "agent-failing-approval",
 		Name:           "Agent",
+		ProviderID:     testProviderID,
 		Tools:          []string{"strategy.save_draft"},
 		PermissionMode: PermissionModeApproval,
 		Status:         AgentStatusEnabled,
@@ -943,10 +1010,11 @@ func TestExecuteToolTagInvokesCanonicalToolWithParameters(t *testing.T) {
 		received = input
 		return map[string]any{"ok": true}, nil
 	})
-	runtime := NewRuntime(store, registry)
+	runtime := newRuntimeWithRegistry(t, store, registry)
 	agent, err := store.SaveAgent(ctx, AgentWriteRequest{
 		ID:             "agent",
 		Name:           "Agent",
+		ProviderID:     testProviderID,
 		Tools:          []string{"portfolio.summary"},
 		PermissionMode: PermissionModeSandboxAuto,
 		Status:         AgentStatusEnabled,
@@ -1537,7 +1605,7 @@ func TestDuplicateApprovalResolutionDoesNotExecuteTwice(t *testing.T) {
 	})
 	runtime = newRuntimeWithRegistry(t, runtime.Store(), registry)
 	agent, err := runtime.Store().SaveAgent(ctx, AgentWriteRequest{
-		ID: "agent", Name: "Agent", Tools: []string{"strategy.save_draft"},
+		ID: "agent", Name: "Agent", ProviderID: testProviderID, Tools: []string{"strategy.save_draft"},
 		PermissionMode: PermissionModeApproval, Status: AgentStatusEnabled,
 	})
 	if err != nil {
@@ -1573,7 +1641,7 @@ func TestPendingApprovalResumesThroughGoogleADKAfterRuntimeRestart(t *testing.T)
 	})
 	runtime = newRuntimeWithRegistry(t, runtime.Store(), registry)
 	agent, err := runtime.Store().SaveAgent(ctx, AgentWriteRequest{
-		ID: "agent", Name: "Agent", Tools: []string{"strategy.save_draft"},
+		ID: "agent", Name: "Agent", ProviderID: testProviderID, Tools: []string{"strategy.save_draft"},
 		PermissionMode: PermissionModeApproval, Status: AgentStatusEnabled,
 	})
 	if err != nil {
@@ -1638,7 +1706,7 @@ func TestApprovalResumingRunIsRecoveredAfterRuntimeRestart(t *testing.T) {
 	})
 	runtime = newRuntimeWithRegistry(t, runtime.Store(), registry)
 	agent, err := runtime.Store().SaveAgent(ctx, AgentWriteRequest{
-		ID: "agent", Name: "Agent", Tools: []string{"strategy.save_draft"},
+		ID: "agent", Name: "Agent", ProviderID: testProviderID, Tools: []string{"strategy.save_draft"},
 		PermissionMode: PermissionModeApproval, Status: AgentStatusEnabled,
 	})
 	if err != nil {
@@ -1794,7 +1862,7 @@ func TestMultipleApprovalsExecuteOnlyAfterAllApproved(t *testing.T) {
 	}
 	runtime = newRuntimeWithRegistry(t, runtime.Store(), registry)
 	agent, err := runtime.Store().SaveAgent(ctx, AgentWriteRequest{
-		ID: "agent", Name: "Agent", Tools: []string{"strategy.save_draft", "strategy.optimize"},
+		ID: "agent", Name: "Agent", ProviderID: testProviderID, Tools: []string{"strategy.save_draft", "strategy.optimize"},
 		PermissionMode: PermissionModeApproval, Status: AgentStatusEnabled,
 	})
 	if err != nil {
@@ -1837,6 +1905,9 @@ func TestADKTaskUpdateDeleteAndValidation(t *testing.T) {
 	runtime := newTestRuntime(t)
 	task, err := runtime.Store().SaveTask(ctx, TaskWriteRequest{
 		ID: "task-a", Title: "Original", Status: "TODO", AgentID: "agent-a", DependsOn: []string{"task-b", "task-b"},
+		Order: 2, ModeHint: WorkModeTask, AgentRole: "实现 Agent", PlannerStepID: "__planner_step_2",
+		PlanSource: workflowPlanSourcePlanner, WorkflowMode: WorkModeTask, Objective: "完成目标",
+		PlannerWarnings: []string{"裁剪了多余步骤", "裁剪了多余步骤"},
 	})
 	if err != nil {
 		t.Fatalf("SaveTask: %v", err)
@@ -1844,14 +1915,26 @@ func TestADKTaskUpdateDeleteAndValidation(t *testing.T) {
 	if len(task.DependsOn) != 1 || task.DependsOn[0] != "task-b" {
 		t.Fatalf("dependsOn = %+v, want deduplicated task-b", task.DependsOn)
 	}
+	if task.Order != 2 || task.ModeHint != WorkModeTask || task.AgentRole != "实现 Agent" || task.PlannerStepID != "__planner_step_2" || task.PlanSource != workflowPlanSourcePlanner || task.WorkflowMode != WorkModeTask || task.Objective != "完成目标" {
+		t.Fatalf("task planner metadata = %+v, want saved metadata", task)
+	}
+	if len(task.PlannerWarnings) != 1 || task.PlannerWarnings[0] != "裁剪了多余步骤" {
+		t.Fatalf("planner warnings = %+v, want deduplicated warning", task.PlannerWarnings)
+	}
 	description := "kept details"
 	status := "IN_PROGRESS"
-	updated, err := runtime.Store().UpdateTask(ctx, task.ID, TaskPatchRequest{Description: &description, Status: &status})
+	order := 3
+	agentRole := "验证 Agent"
+	warnings := []string{"planner warning"}
+	updated, err := runtime.Store().UpdateTask(ctx, task.ID, TaskPatchRequest{Description: &description, Status: &status, Order: &order, AgentRole: &agentRole, PlannerWarnings: warnings})
 	if err != nil {
 		t.Fatalf("UpdateTask: %v", err)
 	}
 	if updated.Title != "Original" || updated.Description != description || updated.Status != status {
 		t.Fatalf("updated task = %+v, want partial update preserving title", updated)
+	}
+	if updated.Order != 3 || updated.AgentRole != "验证 Agent" || len(updated.PlannerWarnings) != 1 || updated.PlannerWarnings[0] != "planner warning" {
+		t.Fatalf("updated planner metadata = %+v, want patched metadata", updated)
 	}
 	if _, err := runtime.Store().SaveTask(ctx, TaskWriteRequest{ID: "bad-status", Title: "Bad", Status: "NOPE"}); err == nil {
 		t.Fatalf("SaveTask invalid status err = nil, want error")
@@ -1877,7 +1960,7 @@ func TestADKTaskUpdateDeleteAndValidation(t *testing.T) {
 func TestADKMemoryFiltersDeleteAndAgentValidation(t *testing.T) {
 	ctx := context.Background()
 	runtime := newTestRuntime(t)
-	agent, err := runtime.Store().SaveAgent(ctx, AgentWriteRequest{ID: "agent-memory", Name: "Agent", Status: AgentStatusEnabled})
+	agent, err := runtime.Store().SaveAgent(ctx, AgentWriteRequest{ID: "agent-memory", Name: "Agent", ProviderID: testProviderID, Status: AgentStatusEnabled})
 	if err != nil {
 		t.Fatalf("SaveAgent: %v", err)
 	}
@@ -1969,27 +2052,6 @@ func TestToolsSearchReturnsOnlyCurrentAgentTools(t *testing.T) {
 	}
 }
 
-func TestSelectToolInvocationsAddsStrategyPineSpecForSyntaxQueries(t *testing.T) {
-	registry := NewToolRegistry()
-	registry.Register(ToolDescriptor{Name: strategypinespec.ToolName, DisplayName: "Pine 规范", Category: "strategy", Permission: "read_internal"}, func(context.Context, map[string]any) (any, error) {
-		return nil, nil
-	})
-	invocations := SelectToolInvocations("请解释 Pine 语法定义和 spec", Agent{
-		ID:    "agent",
-		Tools: []string{strategypinespec.ToolName, "strategy.definitions"},
-	}, registry)
-	found := false
-	for _, invocation := range invocations {
-		if invocation.Name == strategypinespec.ToolName {
-			found = true
-			break
-		}
-	}
-	if !found {
-		t.Fatalf("invocations = %+v, want %s", invocations, strategypinespec.ToolName)
-	}
-}
-
 func containsString(values []string, target string) bool {
 	for _, value := range values {
 		if value == target {
@@ -1999,11 +2061,13 @@ func containsString(values []string, target string) bool {
 	return false
 }
 
-func TestWorkflowWriteToolsRequireApproval(t *testing.T) {
+func TestWorkflowWriteToolsRequireApprovalExceptLowRiskTaskCreate(t *testing.T) {
 	ctx := context.Background()
 	runtime := newTestRuntime(t)
 	registry := NewToolRegistry()
+	var taskCreates int
 	registry.Register(ToolDescriptor{Name: "tasks.create", Permission: "write_task", AllowedModes: []string{PermissionModeApproval}}, func(context.Context, map[string]any) (any, error) {
+		taskCreates++
 		return map[string]any{"created": true}, nil
 	})
 	registry.Register(ToolDescriptor{Name: "memory.remember", Permission: "write_memory", AllowedModes: []string{PermissionModeApproval}}, func(context.Context, map[string]any) (any, error) {
@@ -2011,7 +2075,7 @@ func TestWorkflowWriteToolsRequireApproval(t *testing.T) {
 	})
 	runtime = newRuntimeWithRegistry(t, runtime.Store(), registry)
 	agent, err := runtime.Store().SaveAgent(ctx, AgentWriteRequest{
-		ID: "workflow-agent", Name: "Workflow", Tools: []string{"tasks.create", "memory.remember"},
+		ID: "workflow-agent", Name: "Workflow", ProviderID: testProviderID, Tools: []string{"tasks.create", "memory.remember"},
 		PermissionMode: PermissionModeApproval, Status: AgentStatusEnabled,
 	})
 	if err != nil {
@@ -2024,7 +2088,13 @@ func TestWorkflowWriteToolsRequireApproval(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Chat: %v", err)
 	}
-	if len(response.PendingApprovals) != 2 {
-		t.Fatalf("pending approvals = %d, want 2", len(response.PendingApprovals))
+	if taskCreates != 1 {
+		t.Fatalf("task creates = %d, want executed without approval", taskCreates)
+	}
+	if len(response.PendingApprovals) != 1 {
+		t.Fatalf("pending approvals = %d, want only memory write approval", len(response.PendingApprovals))
+	}
+	if response.PendingApprovals[0].ToolName != "memory.remember" {
+		t.Fatalf("pending approval tool = %q, want memory.remember", response.PendingApprovals[0].ToolName)
 	}
 }

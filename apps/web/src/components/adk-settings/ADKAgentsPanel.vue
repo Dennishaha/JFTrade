@@ -5,6 +5,7 @@ import type {
   ADKAgent,
   ADKPermissionMode,
   ADKToolDescriptor,
+  ADKWorkMode,
 } from "@/contracts";
 
 const props = defineProps<{
@@ -19,6 +20,8 @@ const props = defineProps<{
     permissionMode: ADKPermissionMode;
     memoryEnabled: boolean;
     recentUserWindow: number;
+    workMode: ADKWorkMode;
+    loopMaxIterations: number;
     status: string;
   };
   agents: ADKAgent[];
@@ -53,6 +56,11 @@ const agentDialogOpen = ref(false);
 const templateDialogOpen = ref(false);
 const checkedAvailableTools = ref<string[]>([]);
 const checkedEnabledTools = ref<string[]>([]);
+const workModeOptions: Array<{ title: string; value: ADKWorkMode }> = [
+  { title: "单轮对话", value: "chat" },
+  { title: "任务编排", value: "task" },
+  { title: "目标循环", value: "loop" },
+];
 
 const enabledToolNameSet = computed(() => new Set(props.agentForm.tools));
 const toolDescriptorByName = computed(
@@ -262,6 +270,7 @@ watch(
               clearable />
             <v-text-field v-model="agentForm.model" label="覆盖模型（可选）" density="comfortable" />
             <v-select v-model="agentForm.permissionMode" :items="permissionModes" label="权限模式" density="comfortable" />
+            <v-select v-model="agentForm.workMode" :items="workModeOptions" label="默认工作模式" density="comfortable" />
             <v-text-field
               v-model.number="agentForm.recentUserWindow"
               label="保留最近用户消息条数"
@@ -269,6 +278,14 @@ watch(
               density="comfortable"
               min="2"
               max="100"
+            />
+            <v-text-field
+              v-model.number="agentForm.loopMaxIterations"
+              label="目标循环最大轮次"
+              type="number"
+              density="comfortable"
+              min="1"
+              max="20"
             />
           </div>
 

@@ -46,11 +46,11 @@ func normalizeBrowserHost(host string) string {
 	}
 }
 
-func portFromBind(bind string, fallback int) int {
-	return apruntime.PortFromBind(bind, fallback)
+func portFromBind(bind string, defaultPort int) int {
+	return apruntime.PortFromBind(bind, defaultPort)
 }
 
 // PortFromBind extracts the numeric port from a bind address.
-func PortFromBind(bind string, fallback int) int {
-	return portFromBind(bind, fallback)
+func PortFromBind(bind string, defaultPort int) int {
+	return portFromBind(bind, defaultPort)
 }

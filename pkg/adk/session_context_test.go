@@ -74,6 +74,28 @@ func TestSessionContextCompactionShrinksSessionView(t *testing.T) {
 	if snapshotAfter.SummaryPreview == "" {
 		t.Fatalf("SummaryPreview is empty")
 	}
+	rawAfterCompact, err := runtime.rawSessionService.Get(ctx, &adksession.GetRequest{
+		AppName:   googleADKAppName(agent.ID),
+		UserID:    googleADKUserID,
+		SessionID: session.ID,
+	})
+	if err != nil {
+		t.Fatalf("Get raw session after compact: %v", err)
+	}
+	stateSummary, err := rawAfterCompact.Session.State().Get(adkSessionHandoffSummaryKey)
+	if err != nil {
+		t.Fatalf("ADK handoff state missing: %v", err)
+	}
+	if strings.TrimSpace(fmt.Sprint(stateSummary)) == "" {
+		t.Fatalf("ADK handoff state is empty")
+	}
+	suffix, err := runtime.contextManager.InstructionSuffix(ctx, session.ID)
+	if err != nil {
+		t.Fatalf("InstructionSuffix: %v", err)
+	}
+	if !strings.Contains(suffix, strings.TrimSpace(fmt.Sprint(stateSummary))) {
+		t.Fatalf("InstructionSuffix does not include ADK handoff state")
+	}
 
 	response, err := runtime.sessionService.Get(ctx, &adksession.GetRequest{
 		AppName:   googleADKAppName(agent.ID),
@@ -90,6 +112,53 @@ func TestSessionContextCompactionShrinksSessionView(t *testing.T) {
 		if !isUserEvent(event) {
 			t.Fatalf("wrapped view contains non-user event after compaction")
 		}
+	}
+}
+
+func TestAppendADKEventWithStaleRetryRefreshesSession(t *testing.T) {
+	ctx := context.Background()
+	service, err := NewSQLiteSessionService(t.TempDir() + "/adk-session.db")
+	if err != nil {
+		t.Fatalf("NewSQLiteSessionService: %v", err)
+	}
+	t.Cleanup(func() { _ = CloseSessionService(service) })
+	if err := MigrateSQLiteSessionService(service); err != nil {
+		t.Fatalf("MigrateSQLiteSessionService: %v", err)
+	}
+	created, err := service.Create(ctx, &adksession.CreateRequest{
+		AppName: "app", UserID: "user", SessionID: "session-stale-retry",
+	})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	stale := created.Session
+	fresh, err := service.Get(ctx, &adksession.GetRequest{
+		AppName: "app", UserID: "user", SessionID: "session-stale-retry",
+	})
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+
+	first := adksession.NewEvent("inv-first")
+	first.Author = "agent"
+	first.Content = genai.NewContentFromText("first", genai.RoleModel)
+	if err := service.AppendEvent(ctx, fresh.Session, first); err != nil {
+		t.Fatalf("AppendEvent(first): %v", err)
+	}
+	second := adksession.NewEvent("inv-second")
+	second.Author = "agent"
+	second.Content = genai.NewContentFromText("second", genai.RoleModel)
+	if err := appendADKEventWithStaleRetry(ctx, service, stale, second); err != nil {
+		t.Fatalf("appendADKEventWithStaleRetry: %v", err)
+	}
+	latest, err := service.Get(ctx, &adksession.GetRequest{
+		AppName: "app", UserID: "user", SessionID: "session-stale-retry",
+	})
+	if err != nil {
+		t.Fatalf("Get latest: %v", err)
+	}
+	if latest.Session.Events().Len() != 2 {
+		t.Fatalf("event count = %d, want 2", latest.Session.Events().Len())
 	}
 }
 

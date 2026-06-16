@@ -30,6 +30,9 @@ func (r *Runtime) reconcileStaleRuns(ctx context.Context) {
 		if run.Status != RunStatusRunning && run.Status != RunStatusPending {
 			continue
 		}
+		if isWorkflowParentRun(run) {
+			continue
+		}
 		originalStatus := run.Status
 		if originalStatus == RunStatusPending && runHasRecoverableApprovalContext(run) {
 			continue
@@ -114,13 +117,30 @@ type toolExecutionContext struct {
 	summaries []string
 }
 
+type runStartOptions struct {
+	WorkMode       string
+	Objective      string
+	ParentRunID    string
+	ChildRunIDs    []string
+	Iteration      int
+	WorkflowStatus string
+}
+
 func (r *Runtime) startRun(ctx context.Context, sessionID string, agent Agent, text string) (Run, context.Context, func(), error) {
+	return r.startRunWithOptions(ctx, sessionID, agent, text, runStartOptions{WorkMode: agent.WorkMode})
+}
+
+func (r *Runtime) startRunWithOptions(ctx context.Context, sessionID string, agent Agent, text string, options runStartOptions) (Run, context.Context, func(), error) {
 	now := nowString()
 	timeout := r.runtimeLimits().RunTimeout
+	workMode := normalizeWorkMode(options.WorkMode)
 	run := Run{
 		ID: "run-" + uuid.NewString(), SessionID: sessionID, AgentID: agent.ID, ProviderID: strings.TrimSpace(agent.ProviderID),
 		MaxDurationMs: timeout.Milliseconds(),
 		Status:        RunStatusRunning, UserMessage: text, Message: "running",
+		WorkMode: workMode, Objective: strings.TrimSpace(options.Objective),
+		ParentRunID: strings.TrimSpace(options.ParentRunID), ChildRunIDs: normalizeStringSlice(options.ChildRunIDs),
+		Iteration: options.Iteration, WorkflowStatus: strings.TrimSpace(options.WorkflowStatus),
 		CreatedAt: now, StartedAt: now, UpdatedAt: now,
 		ToolCalls: []ToolCall{}, PendingApprovals: []Approval{},
 		Usage: &RunUsage{},
@@ -169,6 +189,14 @@ func (r *Runtime) CancelRun(ctx context.Context, runID string) (Run, error) {
 	run.Message = "cancelled"
 	run.FailureReason = "run was cancelled by user"
 	run.ErrorCode = "RUN_CANCELLED"
+	if isWorkflowParentRun(run) {
+		run.WorkflowStatus = workflowStatusFailed
+		for index := range run.WorkflowPlan {
+			if run.WorkflowPlan[index].Status != "DONE" {
+				run.WorkflowPlan[index].Status = "BLOCKED"
+			}
+		}
+	}
 	for index := range run.PendingApprovals {
 		if run.PendingApprovals[index].Status == ApprovalStatusPending {
 			resolved, changed, resolveErr := r.store.ResolvePendingApproval(ctx, run.PendingApprovals[index].ID, ApprovalStatusDenied)
@@ -190,8 +218,48 @@ func (r *Runtime) CancelRun(ctx context.Context, runID string) (Run, error) {
 	if err := r.store.SaveRun(ctx, run); err != nil {
 		return Run{}, err
 	}
+	for _, childRunID := range run.ChildRunIDs {
+		if strings.TrimSpace(childRunID) == "" || childRunID == run.ID {
+			continue
+		}
+		_, _ = r.CancelRun(ctx, childRunID)
+	}
 	r.audit(ctx, "run.cancelled", run.ID, "Agent run cancelled.", map[string]any{
 		"runId": run.ID, "sessionId": run.SessionID, "agentId": run.AgentID, "status": run.Status,
+	})
+	return run, nil
+}
+
+func (r *Runtime) UpdateRunObjective(ctx context.Context, runID string, objective string) (Run, error) {
+	if r == nil || r.store == nil {
+		return Run{}, fmt.Errorf("adk runtime is unavailable")
+	}
+	trimmed := strings.TrimSpace(objective)
+	if trimmed == "" {
+		return Run{}, fmt.Errorf("objective is required")
+	}
+	run, ok, err := r.store.Run(ctx, strings.TrimSpace(runID))
+	if err != nil {
+		return Run{}, err
+	}
+	if !ok {
+		return Run{}, fmt.Errorf("run not found")
+	}
+	if normalizeWorkMode(run.WorkMode) != WorkModeLoop {
+		return Run{}, fmt.Errorf("objective can only be updated for goal runs")
+	}
+	if strings.TrimSpace(run.ParentRunID) != "" {
+		return Run{}, fmt.Errorf("child run objective cannot be updated")
+	}
+	if run.Status != RunStatusRunning && run.Status != RunStatusPending {
+		return Run{}, fmt.Errorf("objective cannot be updated for terminal run")
+	}
+	run.Objective = trimmed
+	if err := r.store.SaveRun(ctx, run); err != nil {
+		return Run{}, err
+	}
+	r.audit(ctx, "run.objective.updated", run.ID, "Goal objective updated.", map[string]any{
+		"runId": run.ID, "sessionId": run.SessionID, "agentId": run.AgentID,
 	})
 	return run, nil
 }

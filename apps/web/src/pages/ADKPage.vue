@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import mermaid from "mermaid";
-import { onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 
 import ADKChatComposer from "../components/adk-page/ADKChatComposer.vue";
 import ADKChatThread from "../components/adk-page/ADKChatThread.vue";
+import ADKApprovalQueuePanel from "../components/adk-page/ADKApprovalQueuePanel.vue";
+import ADKChildRunQueuePanel from "../components/adk-page/ADKChildRunQueuePanel.vue";
 import ADKSessionSidebar from "../components/adk-page/ADKSessionSidebar.vue";
+import ADKWorkflowPlanPanel from "../components/adk-page/ADKWorkflowPlanPanel.vue";
 import { useADKMarkdownRenderer } from "../composables/useADKMarkdownRenderer";
 import { useADKPageController } from "../composables/useADKPageController";
 
@@ -13,18 +16,22 @@ const router = useRouter();
 const { renderMarkdown } = useADKMarkdownRenderer({ enableMermaid: true });
 
 const threadRef = ref<HTMLElement | null>(null);
+const childHeaderRef = ref<HTMLElement | null>(null);
+const showChildStickyBar = ref(false);
 let mermaidRenderFrame: number | null = null;
 const {
   activeRunId,
   activeRunStatus,
+  activeChildRunId,
   agentName,
   agentOptions,
   approvalTool,
   approvalsBusy,
   canInterruptChat,
   canSendChat,
+  childRunItems,
+  childViewContext,
   chatDraft,
-  timelineEntries,
   composerBlockMessage,
   cancelActiveRun,
   contextBusy,
@@ -33,6 +40,11 @@ const {
   deleteSession,
   errorMessage,
   formatPermission,
+  goalObjectiveDraft,
+  goalObjectiveError,
+  goalObjectiveSaving,
+  showGoalObjectiveEditor,
+  canSaveGoalObjective,
   hasBlockingRun,
   handleAgentChange,
   handleComposerKeydown,
@@ -53,6 +65,7 @@ const {
   resolveApproval,
   savingProviderSelection,
   selectedAgent,
+  selectedApprovalQueue,
   selectedAgentId,
   selectedProvider,
   selectedProviderId,
@@ -70,7 +83,13 @@ const {
   slashCommands,
   selectSession,
   sendChat,
+  setActiveChildRunId,
+  updateGoalObjective,
+  updateGoalObjectiveDraft,
   visibleSessions,
+  visibleTimelineEntries,
+  visibleWorkflowPlanRun,
+  workModeOverride,
   openContextDetails,
 } = useADKPageController(router, threadRef);
 
@@ -89,11 +108,20 @@ onBeforeUnmount(() => {
 });
 
 watch(
-  timelineEntries,
+  visibleTimelineEntries,
   () => {
     scheduleMermaidRender();
+    void nextTick(updateChildStickyBar);
   },
   { deep: true, flush: "post" },
+);
+
+watch(
+  childViewContext,
+  () => {
+    void nextTick(updateChildStickyBar);
+  },
+  { flush: "post" },
 );
 
 function scheduleMermaidRender(): void {
@@ -117,6 +145,22 @@ async function renderMermaidDiagrams(): Promise<void> {
 
 function clearErrorMessage(): void {
   errorMessage.value = "";
+}
+
+function updateChildStickyBar(): void {
+  const host = threadRef.value;
+  const header = childHeaderRef.value;
+  if (!childViewContext.value || !host || !header) {
+    showChildStickyBar.value = false;
+    return;
+  }
+  showChildStickyBar.value =
+    host.scrollTop > header.offsetTop + header.offsetHeight - 8;
+}
+
+function leaveChildView(): void {
+  setActiveChildRunId("");
+  showChildStickyBar.value = false;
 }
 </script>
 
@@ -143,13 +187,37 @@ function clearErrorMessage(): void {
     />
 
     <div class="adk-main">
-      <div ref="threadRef" class="adk-thread">
+      <div ref="threadRef" class="adk-thread" @scroll="updateChildStickyBar">
+        <div v-if="childViewContext" ref="childHeaderRef" class="adk-child-view-header">
+          <div class="adk-child-view-header__crumb">
+            <span>父 Agent</span>
+            <span>/</span>
+            <strong>{{ childViewContext.title }}</strong>
+            <span>/</span>
+            <code>{{ childViewContext.runId }}</code>
+          </div>
+          <p>{{ childViewContext.message }}</p>
+          <button type="button" @click="leaveChildView">
+            返回父对话
+          </button>
+        </div>
+        <div
+          v-if="childViewContext && showChildStickyBar"
+          class="adk-child-view-sticky"
+        >
+          <div class="adk-child-view-sticky__label">
+            <span>父 Agent /</span>
+            <strong>{{ childViewContext.title }}</strong>
+            <code>{{ childViewContext.runId }}</code>
+          </div>
+          <button type="button" @click="leaveChildView">返回</button>
+        </div>
         <ADKChatThread
           variant="page"
           :active-run-id="activeRunId"
           :active-run-status="activeRunStatus"
           :has-blocking-run="hasBlockingRun"
-          :timeline-entries="timelineEntries"
+          :timeline-entries="visibleTimelineEntries"
           :sending-chat="sendingChat"
           :show-typing-indicator="showTypingIndicator"
           :error-message="errorMessage"
@@ -174,6 +242,21 @@ function clearErrorMessage(): void {
         />
       </div>
 
+      <ADKApprovalQueuePanel
+        :items="selectedApprovalQueue"
+        :approvals-busy="approvalsBusy"
+        :approval-tool="approvalTool"
+        :preview="preview"
+        :resolve-approval-group="resolveApprovalGroup"
+        :resolve-approval="resolveApproval"
+      />
+      <ADKChildRunQueuePanel
+        :items="childRunItems"
+        :active-child-run-id="activeChildRunId"
+        @select="setActiveChildRunId"
+      />
+      <ADKWorkflowPlanPanel :run="visibleWorkflowPlanRun" />
+
       <ADKChatComposer
         variant="page"
         :active-run-id="activeRunId"
@@ -186,6 +269,11 @@ function clearErrorMessage(): void {
         :context-busy="contextBusy"
         :context-details-open="contextDetailsOpen"
         :context-snapshot="sessionContext"
+        :goal-objective-draft="goalObjectiveDraft"
+        :goal-objective-error="goalObjectiveError"
+        :goal-objective-saving="goalObjectiveSaving"
+        :show-goal-objective-editor="showGoalObjectiveEditor"
+        :can-save-goal-objective="canSaveGoalObjective"
         :has-blocking-run="hasBlockingRun"
         :interrupting-run-id="interruptingRunId"
         :loading="loading"
@@ -198,6 +286,7 @@ function clearErrorMessage(): void {
         :selected-agent-id="selectedAgentId"
         :selected-provider-id="selectedProviderId"
         :sending-chat="sendingChat"
+        :work-mode-override="workModeOverride"
         :cancel-active-run="cancelActiveRun"
         :handle-agent-change="handleAgentChange"
         :handle-composer-keydown="handleComposerKeydown"
@@ -208,11 +297,119 @@ function clearErrorMessage(): void {
         :revoke-queued-message="revokeQueuedMessage"
         :run-slash-command="runSlashCommand"
         :send-chat="sendChat"
+        :update-goal-objective="updateGoalObjective"
+        :update-goal-objective-draft="updateGoalObjectiveDraft"
         @update:chat-draft="chatDraft = $event"
         @update:context-details-open="contextDetailsOpen = $event"
         @update:selected-agent-id="selectedAgentId = $event"
         @update:selected-provider-id="selectedProviderId = $event"
+        @update:work-mode-override="workModeOverride = $event"
       />
     </div>
   </div>
 </template>
+
+<style scoped>
+.adk-child-view-header {
+  display: grid;
+  gap: 8px;
+  margin: 16px clamp(16px, 3vw, 32px) 8px;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--tv-accent) 35%, var(--tv-border));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--tv-accent) 10%, var(--tv-bg-surface));
+  color: var(--tv-text);
+}
+
+.adk-child-view-header__crumb {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  font-size: 12px;
+  color: var(--tv-text-muted);
+}
+
+.adk-child-view-header__crumb code {
+  font-size: 11px;
+}
+
+.adk-child-view-header p {
+  margin: 0;
+  color: var(--tv-text);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.adk-child-view-header button {
+  justify-self: start;
+  border: 0;
+  border-radius: 999px;
+  padding: 5px 10px;
+  background: color-mix(in srgb, var(--tv-accent) 14%, transparent);
+  color: color-mix(in srgb, var(--tv-accent) 82%, var(--tv-text));
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.adk-child-view-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 30px;
+  margin: -4px clamp(16px, 3vw, 32px) 8px;
+  padding: 4px 10px;
+  border: 1px solid color-mix(in srgb, var(--tv-accent) 30%, var(--tv-border));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--tv-bg-surface) 88%, transparent);
+  color: var(--tv-text);
+  box-shadow: 0 10px 28px rgba(2, 6, 23, 0.22);
+  backdrop-filter: blur(14px);
+}
+
+.adk-child-view-sticky__label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--tv-text-muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.adk-child-view-sticky__label strong {
+  color: var(--tv-text);
+  font-weight: 700;
+}
+
+.adk-child-view-sticky__label code {
+  overflow: hidden;
+  max-width: 220px;
+  color: var(--tv-text-dim);
+  font-size: 11px;
+  text-overflow: ellipsis;
+}
+
+.adk-child-view-sticky button {
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 999px;
+  padding: 3px 9px;
+  background: color-mix(in srgb, var(--tv-accent) 14%, transparent);
+  color: color-mix(in srgb, var(--tv-accent) 82%, var(--tv-text));
+  cursor: pointer;
+  font-size: 12px;
+}
+
+@media (max-width: 720px) {
+  .adk-child-view-sticky {
+    margin-right: 12px;
+    margin-left: 12px;
+  }
+}
+</style>

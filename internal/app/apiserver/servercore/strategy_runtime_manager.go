@@ -1136,7 +1136,7 @@ func buildStrategyRuntimeAccount(funds *broker.FundsSnapshot, positions []broker
 	return account
 }
 
-func strategyRuntimeMarketFromSymbol(symbol string, fallback string) string {
+func strategyRuntimeMarketFromSymbol(symbol string, defaultMarket string) string {
 	normalized := strings.ToUpper(strings.TrimSpace(symbol))
 	if strings.Contains(normalized, ".") {
 		parts := strings.SplitN(normalized, ".", 2)
@@ -1150,7 +1150,7 @@ func strategyRuntimeMarketFromSymbol(symbol string, fallback string) string {
 			return strings.TrimSpace(parts[0])
 		}
 	}
-	return strings.ToUpper(strings.TrimSpace(fallback))
+	return strings.ToUpper(strings.TrimSpace(defaultMarket))
 }
 
 func strategyRuntimeStartError(err error) (int, string) {

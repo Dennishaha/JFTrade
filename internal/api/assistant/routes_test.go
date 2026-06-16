@@ -168,6 +168,7 @@ func newAssistantTestRouterWithDBPath(t *testing.T) (*jfadk.Runtime, *gin.Engine
 	}
 	sessionService := adksession.InMemoryService()
 	runtime := jfadk.NewRuntimeWithSessionService(store, jfadk.NewToolRegistry(), sessionService)
+	assistantTestProvider(t, runtime)
 	t.Cleanup(func() {
 		_ = runtime.Close()
 	})
@@ -182,6 +183,7 @@ func TestChatAndSSEContracts(t *testing.T) {
 	runtime, router := newAssistantTestRouter(t)
 	agent, err := runtime.Store().SaveAgent(t.Context(), jfadk.AgentWriteRequest{
 		ID: "agent-stream", Name: "Stream Agent",
+		ProviderID:     "test-provider",
 		PermissionMode: jfadk.PermissionModeApproval,
 		Status:         jfadk.AgentStatusEnabled,
 	})
@@ -242,6 +244,7 @@ func TestApprovalContract(t *testing.T) {
 	})
 	agent, err := runtime.Store().SaveAgent(t.Context(), jfadk.AgentWriteRequest{
 		ID: "agent-approval", Name: "Approval Agent",
+		ProviderID:     "test-provider",
 		Tools:          []string{"contract.write"},
 		PermissionMode: jfadk.PermissionModeApproval,
 		Status:         jfadk.AgentStatusEnabled,
@@ -292,6 +295,7 @@ func newAssistantTestRouter(t *testing.T) (*jfadk.Runtime, *gin.Engine) {
 		t.Fatalf("NewStore: %v", err)
 	}
 	runtime := jfadk.NewRuntime(store, jfadk.NewToolRegistry())
+	assistantTestProvider(t, runtime)
 	t.Cleanup(func() {
 		_ = runtime.Close()
 	})
@@ -307,6 +311,45 @@ func newAssistantTestRouter(t *testing.T) (*jfadk.Runtime, *gin.Engine) {
 	api := router.Group("/api/v1")
 	RegisterRoutes(api, service)
 	return runtime, router
+}
+
+func assistantTestProvider(t *testing.T, runtime *jfadk.Runtime) {
+	t.Helper()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+		var payload struct {
+			Messages []struct {
+				Role    string `json:"role"`
+				Content string `json:"content"`
+				Name    string `json:"name"`
+			} `json:"messages"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&payload)
+		hasToolResponse := false
+		var text string
+		for _, message := range payload.Messages {
+			if message.Role == "tool" {
+				hasToolResponse = true
+			}
+			text += "\n" + message.Content
+		}
+		message := map[string]any{"role": "assistant", "content": "ok"}
+		if !hasToolResponse && strings.Contains(text, "@contract.write") {
+			message["content"] = ""
+			message["tool_calls"] = []map[string]any{{
+				"id": "call-contract-write", "type": "function",
+				"function": map[string]any{"name": "contract-write", "arguments": `{}`},
+			}}
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{"choices": []map[string]any{{"message": message}}})
+	}))
+	t.Cleanup(server.Close)
+	if _, err := runtime.Store().SaveProvider(t.Context(), jfadk.ProviderWriteRequest{
+		ID: "test-provider", DisplayName: "Test Provider", BaseURL: server.URL, Model: "test-model", APIKey: "sk-test", Enabled: true,
+	}); err != nil {
+		t.Fatalf("SaveProvider test: %v", err)
+	}
 }
 
 func performAssistantRequest(router http.Handler, method string, path string, body []byte) *httptest.ResponseRecorder {

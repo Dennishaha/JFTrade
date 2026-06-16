@@ -1,15 +1,139 @@
 // @vitest-environment jsdom
 
 import { mount } from "@vue/test-utils";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import ADKChatComposer from "../src/components/adk-page/ADKChatComposer.vue";
+import { inputStub, selectStub } from "./helpers";
 
 afterEach(() => {
   document.body.innerHTML = "";
 });
 
 describe("ADKChatComposer", () => {
+  it("hides sequential and parallel work mode entries from the composer", () => {
+    const wrapper = mount(ADKChatComposer, {
+      attachTo: document.body,
+      props: {
+        canSendChat: true,
+        chatDraft: "",
+        sendChat: async () => {},
+      },
+      global: {
+        stubs: {
+          "v-select": selectStub,
+        },
+      },
+    });
+
+    const text = wrapper.text();
+    expect(text).toContain("跟随 Agent");
+    expect(text).toContain("对话");
+    expect(text).toContain("任务");
+    expect(text).toContain("目标");
+    expect(text).not.toContain("顺序");
+    expect(text).not.toContain("并行");
+  });
+
+  it("shows an editable goal objective box and saves active goal changes", async () => {
+    const updateDraft = vi.fn();
+    const saveGoal = vi.fn();
+    const wrapper = mount(ADKChatComposer, {
+      attachTo: document.body,
+      props: {
+        canSendChat: true,
+        chatDraft: "生成交易计划",
+        sendingChat: false,
+        sendChat: async () => {},
+        activeRunId: "run-goal",
+        showGoalObjectiveEditor: true,
+        goalObjectiveDraft: "生成交易计划并检查风险",
+        canSaveGoalObjective: true,
+        updateGoalObjectiveDraft: updateDraft,
+        updateGoalObjective: saveGoal,
+      },
+      global: {
+        stubs: {
+          "v-btn": {
+            props: ["disabled", "loading"],
+            emits: ["click"],
+            template:
+              "<button type='button' :disabled='disabled' @click=\"$emit('click')\"><slot /></button>",
+          },
+          "v-select": selectStub,
+          "v-textarea": inputStub,
+        },
+      },
+    });
+
+    expect(wrapper.text()).toContain("目标");
+    expect(wrapper.text()).toContain("已修改");
+    expect(wrapper.find(".adk-goal-editor input").exists()).toBe(false);
+
+    await wrapper.find('[aria-label="编辑目标"]').trigger("click");
+    const input = wrapper.find(".adk-goal-editor input");
+    await input.setValue("新的目标");
+    expect(updateDraft).toHaveBeenCalledWith("新的目标");
+
+    const saveButton = wrapper
+      .findAll(".adk-goal-editor button")
+      .find((button) => button.text().includes("保存"));
+    expect(saveButton).toBeTruthy();
+    await saveButton!.trigger("click");
+    expect(saveGoal).toHaveBeenCalledTimes(1);
+  });
+
+  it("cancels goal mode from the goal objective card", async () => {
+    const wrapper = mount(ADKChatComposer, {
+      attachTo: document.body,
+      props: {
+        canSendChat: true,
+        chatDraft: "生成交易计划",
+        sendingChat: false,
+        sendChat: async () => {},
+        showGoalObjectiveEditor: true,
+        goalObjectiveDraft: "生成交易计划",
+        workModeOverride: "loop",
+      },
+      global: {
+        stubs: {
+          "v-icon": true,
+          "v-select": selectStub,
+        },
+      },
+    });
+
+    await wrapper.find('[aria-label="取消目标"]').trigger("click");
+    expect(wrapper.emitted("update:workModeOverride")?.[0]).toEqual([""]);
+  });
+
+  it("cancels the active goal run from the goal objective card", async () => {
+    const cancelRun = vi.fn();
+    const wrapper = mount(ADKChatComposer, {
+      attachTo: document.body,
+      props: {
+        activeRunId: "run-goal",
+        canSendChat: true,
+        chatDraft: "生成交易计划",
+        sendingChat: true,
+        sendChat: async () => {},
+        showGoalObjectiveEditor: true,
+        goalObjectiveDraft: "生成交易计划",
+        cancelActiveRun: cancelRun,
+      },
+      global: {
+        stubs: {
+          "v-icon": true,
+          "v-select": selectStub,
+        },
+      },
+    });
+
+    await wrapper.find('[aria-label="取消目标"]').trigger("click");
+    expect(cancelRun).toHaveBeenCalledTimes(1);
+    expect(wrapper.emitted("update:workModeOverride")).toBeUndefined();
+  });
+
   it("shows effective context usage plus raw diagnostics when oversized tool responses were trimmed", async () => {
     mount(ADKChatComposer, {
       attachTo: document.body,

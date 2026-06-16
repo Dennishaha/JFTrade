@@ -61,14 +61,25 @@ func (w SSEWriter) WriteRetryDirective() error {
 	if w.retryMillis <= 0 {
 		return nil
 	}
+	return w.writeFrame(fmt.Sprintf("retry: %d\n\n", w.retryMillis))
+}
+
+func (w SSEWriter) writeFrame(frame string) (err error) {
 	if w.mu != nil {
 		w.mu.Lock()
 		defer w.mu.Unlock()
 	}
-	if _, err := fmt.Fprintf(w.writer, "retry: %d\n\n", w.retryMillis); err != nil {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			err = fmt.Errorf("sse write failed: %v", recovered)
+		}
+	}()
+	if _, err := fmt.Fprint(w.writer, frame); err != nil {
 		return err
 	}
-	w.flusher.Flush()
+	if w.flusher != nil {
+		w.flusher.Flush()
+	}
 	return nil
 }
 
@@ -78,15 +89,7 @@ func (w SSEWriter) WriteEvent(value any) error {
 	if err != nil {
 		return err
 	}
-	if w.mu != nil {
-		w.mu.Lock()
-		defer w.mu.Unlock()
-	}
-	if _, err := fmt.Fprintf(w.writer, "data: %s\n\n", data); err != nil {
-		return err
-	}
-	w.flusher.Flush()
-	return nil
+	return w.writeFrame(fmt.Sprintf("data: %s\n\n", data))
 }
 
 // RunSSEStreamLoop 运行 SSE 事件循环，在 ctx 取消时返回。

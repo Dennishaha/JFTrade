@@ -332,8 +332,8 @@ func groupTimelinePrimitives(primitives []timelinePrimitive) []TimelineEntry {
 	return result
 }
 
-func runTextAnchor(run Run, fallback string) string {
-	candidates := []string{firstRunToolTime(run), firstRunApprovalTime(run), fallback, run.UpdatedAt, run.CreatedAt}
+func runTextAnchor(run Run, preferredTime string) string {
+	candidates := []string{firstRunToolTime(run), firstRunApprovalTime(run), preferredTime, run.UpdatedAt, run.CreatedAt}
 	for _, candidate := range candidates {
 		if strings.TrimSpace(candidate) != "" {
 			return candidate

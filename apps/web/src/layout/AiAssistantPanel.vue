@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, nextTick, onMounted, ref, watch } from "vue";
 
 import type {
   ADKApproval,
@@ -11,6 +11,13 @@ import type {
 
 import ADKChatComposer from "../components/adk-page/ADKChatComposer.vue";
 import ADKChatThread from "../components/adk-page/ADKChatThread.vue";
+import ADKApprovalQueuePanel from "../components/adk-page/ADKApprovalQueuePanel.vue";
+import ADKChildRunQueuePanel from "../components/adk-page/ADKChildRunQueuePanel.vue";
+import ADKWorkflowPlanPanel from "../components/adk-page/ADKWorkflowPlanPanel.vue";
+import {
+  resolveADKApprovalBatchOnce,
+  type ADKApprovalAction,
+} from "../composables/adkApprovalResolution";
 import {
   isTerminalRunStatus,
   runTerminalMessage,
@@ -48,6 +55,10 @@ import {
 import { fetchEnvelope, fetchEnvelopeWithInit } from "../composables/apiClient";
 import { useADKMarkdownRenderer } from "../composables/useADKMarkdownRenderer";
 import type { SlashCommandItem } from "../composables/useADKPageChatState";
+import {
+  sessionContextFromRunUsage,
+  useADKWorkflowQueueState,
+} from "../composables/useADKWorkflowQueueState";
 
 interface ApprovalsResponse {
   approvals: ADKApproval[];
@@ -67,8 +78,14 @@ const contextBusy = ref(false);
 const contextDetailsOpen = ref(false);
 const errorMessage = ref("");
 const scrollHost = ref<HTMLElement | null>(null);
+const childHeaderRef = ref<HTMLElement | null>(null);
+const showChildStickyBar = ref(false);
 const sessionId = ref("");
 const sessionContext = ref<ADKSessionContextSnapshot | null>(null);
+const workflowQueues = useADKWorkflowQueueState({
+  timelineEntries,
+  selectedSessionId: sessionId,
+});
 
 const suggestions = [
   "查看系统状态",
@@ -90,13 +107,36 @@ const queuedMessages = computed(() =>
     (message) => message.sessionKey === currentQueueSessionKey.value,
   ),
 );
-const canSendChat = computed(() => draft.value.trim() !== "");
+const canSendChat = computed(
+  () => draft.value.trim() !== "" && !workflowQueues.activeChildRunId.value,
+);
 const canInterruptChat = computed(
-  () => canSendChat.value && hasBlockingRun.value,
+  () => canSendChat.value && hasBlockingRun.value && !workflowQueues.activeChildRunId.value,
 );
 const showTypingIndicator = computed(() => {
   return sendingChat.value || hasBlockingRun.value;
 });
+const displayedTimelineEntries = computed(
+  () => workflowQueues.visibleTimelineEntries.value,
+);
+const composerBlockMessage = computed(() =>
+  workflowQueues.activeChildRunId.value
+    ? "子智能体视图仅支持观察和审批，请返回父对话后继续发送消息。"
+    : "",
+);
+const composerPlaceholder = computed(() =>
+  workflowQueues.activeChildRunId.value ? "子智能体视图仅支持观察和审批" : "问点什么...",
+);
+const visibleSessionContext = computed(() =>
+  workflowQueues.activeChildRunId.value
+    ? sessionContextFromRunUsage(
+        workflowQueues.childRunSnapshots.value[
+          workflowQueues.activeChildRunId.value
+        ],
+        sessionContext.value,
+      )
+    : sessionContext.value,
+);
 const slashCommands = computed<SlashCommandItem[]>(() => {
   const hasSession = sessionId.value.trim() !== "";
   return [
@@ -129,6 +169,22 @@ const slashCommands = computed<SlashCommandItem[]>(() => {
 onMounted(() => {
   void refreshApprovals();
 });
+
+watch(
+  () => workflowQueues.childViewContext.value,
+  () => {
+    void nextTick(updateChildStickyBar);
+  },
+  { flush: "post" },
+);
+
+watch(
+  displayedTimelineEntries,
+  () => {
+    void nextTick(updateChildStickyBar);
+  },
+  { deep: true, flush: "post" },
+);
 
 async function send(): Promise<void> {
   const text = draft.value.trim();
@@ -244,28 +300,30 @@ async function resolveApprovalGroup(
   approvalsBusy.value = true;
   errorMessage.value = "";
   const action = approved ? "approve" : "deny";
-  const resolutions: ADKApprovalResolution[] = [];
-  const errors: string[] = [];
   try {
-    for (const approval of approvals) {
-      try {
-        const resolution = await submitApproval(approval, action);
-        resolutions.push(resolution);
+    const { resolutions, errors } = await resolveADKApprovalBatchOnce({
+      approvals,
+      action,
+      submit: submitApproval,
+      onResolution: (resolution) => {
         timelineEntries.value = applyApprovalResolutions(
           timelineEntries.value,
           [resolution],
         );
         if (resolution.run) {
+          const run = resolution.parentRun ?? resolution.run;
+          void workflowQueues.syncWorkflowRun(resolution.run);
+          void workflowQueues.syncWorkflowRun(resolution.parentRun);
           syncActiveRun(
-            resolution.run,
-            !isTerminalRunStatus(resolution.run.status),
+            run,
+            !isTerminalRunStatus(run.status),
           );
         }
-      } catch (error) {
-        errors.push(error instanceof Error ? error.message : "审批处理失败");
-      }
+      },
+    });
+    if (resolutions.length > 0) {
+      await finalizeApprovalBatch(resolutions);
     }
-    await finalizeApprovalBatch(resolutions);
     if (errors.length > 0) {
       errorMessage.value =
         errors.length === 1 ? errors[0]! : `批量审批部分失败：${errors[0]}`;
@@ -311,7 +369,7 @@ function revokeQueuedMessage(messageId: string): void {
 
 async function submitApproval(
   approval: ADKApproval,
-  action: "approve" | "deny",
+  action: ADKApprovalAction,
 ): Promise<ADKApprovalResolution> {
   return normalizeADKApprovalResolution(
     await fetchEnvelopeWithInit<ADKApprovalResolution>(
@@ -330,7 +388,7 @@ async function finalizeApprovalBatch(
   const runs = Array.from(
     new Map(
       resolutions
-        .map((resolution) => resolution.run)
+        .map((resolution) => resolution.parentRun ?? resolution.run)
         .filter((run): run is ADKRun => run != null)
         .map((run) => [run.id, run]),
     ).values(),
@@ -425,6 +483,7 @@ async function applyAuthoritativeTimeline(
 
 async function executeChatMessage(text: string): Promise<boolean> {
   errorMessage.value = "";
+  workflowQueues.clearWorkflowQueues();
   timelineEntries.value = [
     ...timelineEntries.value,
     createTimelineEntryState({
@@ -585,6 +644,7 @@ function syncActiveRun(
   waitingForContinuation = false,
 ): void {
   if (!run) return;
+  void workflowQueues.syncWorkflowRun(run);
   if (isTerminalRunStatus(run.status)) {
     if (!activeRun.value || activeRun.value.runId === run.id) {
       activeRun.value = null;
@@ -593,19 +653,63 @@ function syncActiveRun(
   }
   activeRun.value = buildActiveChatRunState(run, waitingForContinuation);
 }
+
+function updateChildStickyBar(): void {
+  const host = scrollHost.value;
+  const header = childHeaderRef.value;
+  if (!workflowQueues.childViewContext.value || !host || !header) {
+    showChildStickyBar.value = false;
+    return;
+  }
+  showChildStickyBar.value =
+    host.scrollTop > header.offsetTop + header.offsetHeight - 8;
+}
+
+function leaveChildView(): void {
+  workflowQueues.setActiveChildRunId("");
+  showChildStickyBar.value = false;
+}
 </script>
 
 <template>
   <div
     style="display: flex; flex-direction: column; height: 100%; min-height: 0"
   >
-    <div ref="scrollHost" class="adk-thread adk-thread--dock">
+    <div ref="scrollHost" class="adk-thread adk-thread--dock" @scroll="updateChildStickyBar">
+      <div
+        v-if="workflowQueues.childViewContext.value"
+        ref="childHeaderRef"
+        class="adk-child-view-header adk-child-view-header--dock"
+      >
+        <div class="adk-child-view-header__crumb">
+          <span>父 Agent</span>
+          <span>/</span>
+          <strong>{{ workflowQueues.childViewContext.value.title }}</strong>
+          <span>/</span>
+          <code>{{ workflowQueues.childViewContext.value.runId }}</code>
+        </div>
+        <p>{{ workflowQueues.childViewContext.value.message }}</p>
+        <button type="button" @click="leaveChildView">
+          返回父对话
+        </button>
+      </div>
+      <div
+        v-if="workflowQueues.childViewContext.value && showChildStickyBar"
+        class="adk-child-view-sticky adk-child-view-sticky--dock"
+      >
+        <div class="adk-child-view-sticky__label">
+          <span>父 Agent /</span>
+          <strong>{{ workflowQueues.childViewContext.value.title }}</strong>
+          <code>{{ workflowQueues.childViewContext.value.runId }}</code>
+        </div>
+        <button type="button" @click="leaveChildView">返回</button>
+      </div>
       <ADKChatThread
         variant="dock"
         :active-run-id="activeRunId"
         :active-run-status="activeRunStatus"
         :has-blocking-run="hasBlockingRun"
-        :timeline-entries="timelineEntries"
+        :timeline-entries="displayedTimelineEntries"
         :sending-chat="sendingChat"
         :show-typing-indicator="showTypingIndicator"
         :error-message="errorMessage"
@@ -623,6 +727,21 @@ function syncActiveRun(
       />
     </div>
 
+    <ADKApprovalQueuePanel
+      :items="workflowQueues.selectedApprovalQueue.value"
+      :approvals-busy="approvalsBusy"
+      :approval-tool="() => undefined"
+      :preview="preview"
+      :resolve-approval-group="resolveApprovalGroup"
+      :resolve-approval="resolveApproval"
+    />
+    <ADKChildRunQueuePanel
+      :items="workflowQueues.childRunItems.value"
+      :active-child-run-id="workflowQueues.activeChildRunId.value"
+      @select="workflowQueues.setActiveChildRunId"
+    />
+    <ADKWorkflowPlanPanel :run="workflowQueues.visibleWorkflowPlanRun.value" />
+
     <ADKChatComposer
       variant="dock"
       :active-run-id="activeRunId"
@@ -630,9 +749,10 @@ function syncActiveRun(
       :can-interrupt-chat="canInterruptChat"
       :can-send-chat="canSendChat"
       :chat-draft="draft"
+      :composer-block-message="composerBlockMessage"
       :context-busy="contextBusy"
       :context-details-open="contextDetailsOpen"
-      :context-snapshot="sessionContext"
+      :context-snapshot="visibleSessionContext"
       :has-blocking-run="hasBlockingRun"
       :interrupting-run-id="interruptingRunId"
       :queued-messages="queuedMessages"
@@ -640,7 +760,7 @@ function syncActiveRun(
       :sending-chat="sendingChat"
       :slash-commands="slashCommands"
       :suggestions="suggestions"
-      placeholder="问点什么..."
+      :placeholder="composerPlaceholder"
       :cancel-active-run="cancelActiveRun"
       :handle-composer-keydown="handleComposerKeydown"
       :interrupt-and-queue-chat="interruptAndQueueChat"
@@ -654,3 +774,101 @@ function syncActiveRun(
     />
   </div>
 </template>
+
+<style scoped>
+.adk-child-view-header {
+  display: grid;
+  gap: 8px;
+  margin: 12px;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--tv-accent) 35%, var(--tv-border));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--tv-accent) 10%, var(--tv-bg-surface));
+  color: var(--tv-text);
+}
+
+.adk-child-view-header__crumb {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  font-size: 12px;
+  color: var(--tv-text-muted);
+}
+
+.adk-child-view-header__crumb code {
+  font-size: 11px;
+}
+
+.adk-child-view-header p {
+  margin: 0;
+  color: var(--tv-text);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.adk-child-view-header button {
+  justify-self: start;
+  border: 0;
+  border-radius: 999px;
+  padding: 5px 10px;
+  background: color-mix(in srgb, var(--tv-accent) 14%, transparent);
+  color: color-mix(in srgb, var(--tv-accent) 82%, var(--tv-text));
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.adk-child-view-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 28px;
+  margin: -4px 8px 8px;
+  padding: 4px 9px;
+  border: 1px solid color-mix(in srgb, var(--tv-accent) 30%, var(--tv-border));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--tv-bg-surface) 88%, transparent);
+  color: var(--tv-text);
+  box-shadow: 0 10px 28px rgba(2, 6, 23, 0.22);
+  backdrop-filter: blur(14px);
+}
+
+.adk-child-view-sticky__label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--tv-text-muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.adk-child-view-sticky__label strong {
+  color: var(--tv-text);
+  font-weight: 700;
+}
+
+.adk-child-view-sticky__label code {
+  overflow: hidden;
+  max-width: 116px;
+  color: var(--tv-text-dim);
+  font-size: 10px;
+  text-overflow: ellipsis;
+}
+
+.adk-child-view-sticky button {
+  flex: 0 0 auto;
+  border: 0;
+  border-radius: 999px;
+  padding: 3px 8px;
+  background: color-mix(in srgb, var(--tv-accent) 14%, transparent);
+  color: color-mix(in srgb, var(--tv-accent) 82%, var(--tv-text));
+  cursor: pointer;
+  font-size: 11px;
+}
+</style>

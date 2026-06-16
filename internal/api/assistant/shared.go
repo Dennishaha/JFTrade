@@ -20,9 +20,9 @@ func adkPageBounds(query adkPageQuery) (int, int) {
 	return httpserver.NormalizeBoundPage(query.Limit.Int(), query.Offset.Int(), 100, 500)
 }
 
-func defaultString(value string, fallback string) string {
+func defaultString(value string, defaultValue string) string {
 	if value == "" {
-		return fallback
+		return defaultValue
 	}
 	return value
 }

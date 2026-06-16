@@ -777,6 +777,18 @@ paths:
       summary: ADK session and run routes
       tags:
       - adk
+  /api/v1/adk/runs/{runId}/objective:
+    patch:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/servercore.envelope'
+      summary: ADK session and run routes
+      tags:
+      - adk
   /api/v1/adk/sessions:
     get:
       parameters:

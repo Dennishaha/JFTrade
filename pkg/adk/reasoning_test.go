@@ -48,3 +48,15 @@ func TestExtractVisibleAndReasoningTextPrefersNativeReasoningFields(t *testing.T
 		t.Fatalf("reasoning = %q, want merged native reasoning", reasoning)
 	}
 }
+
+func TestExtractVisibleAndReasoningTextPreservesChunkSpacing(t *testing.T) {
+	t.Parallel()
+
+	reply, reasoning := extractVisibleAndReasoningText(" me", " data")
+	if reply != " me" {
+		t.Fatalf("reply = %q, want leading-space chunk", reply)
+	}
+	if reasoning != " data" {
+		t.Fatalf("reasoning = %q, want leading-space reasoning chunk", reasoning)
+	}
+}

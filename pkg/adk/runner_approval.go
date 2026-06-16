@@ -19,14 +19,22 @@ func (r *Runtime) ResolveApproval(ctx context.Context, approvalID string, approv
 	}
 	if !changed {
 		if approval.ID != "" && approval.Status == status {
-			return r.continueResolvedApproval(ctx, approval, approved)
+			resolution, err := r.continueResolvedApproval(ctx, approval, approved)
+			if err != nil {
+				return ApprovalResolution{}, err
+			}
+			return r.attachParentWorkflowResolution(ctx, resolution)
 		}
 		return ApprovalResolution{Approval: approval}, nil
 	}
 	r.audit(ctx, "approval.resolved", approval.ID, "Agent approval resolved.", map[string]any{
 		"runId": approval.RunID, "toolName": approval.ToolName, "approved": approved,
 	})
-	return r.continueResolvedApproval(ctx, approval, approved)
+	resolution, err := r.continueResolvedApproval(ctx, approval, approved)
+	if err != nil {
+		return ApprovalResolution{}, err
+	}
+	return r.attachParentWorkflowResolution(ctx, resolution)
 }
 
 func (r *Runtime) ResolveApprovalAsync(ctx context.Context, approvalID string, approved bool) (ApprovalResolution, error) {
@@ -48,6 +56,10 @@ func (r *Runtime) ResolveApprovalAsync(ctx context.Context, approvalID string, a
 		})
 	}
 	resolution, shouldContinue, err := r.stageResolvedApproval(ctx, approval, approved)
+	if err != nil {
+		return ApprovalResolution{}, err
+	}
+	resolution, err = r.attachParentWorkflowResolution(ctx, resolution)
 	if err != nil {
 		return ApprovalResolution{}, err
 	}
@@ -164,7 +176,13 @@ func (r *Runtime) continueResolvedApprovalRun(ctx context.Context, runID string)
 	}
 	ctx, cancel := context.WithTimeout(ctx, runTimeoutForRun(run))
 	defer cancel()
-	_, err = r.continueResolvedApproval(ctx, approval, approval.Status == ApprovalStatusApproved)
+	resolution, err := r.continueResolvedApproval(ctx, approval, approval.Status == ApprovalStatusApproved)
+	if err != nil {
+		return err
+	}
+	if resolution.Run != nil {
+		_, err = r.continueParentWorkflowAfterChild(ctx, *resolution.Run)
+	}
 	return err
 }
 
@@ -182,7 +200,8 @@ func (r *Runtime) markApprovalContinuationFailed(ctx context.Context, runID stri
 	run.CompletedAt = new(nowString())
 	finalizeRunUsage(&run)
 	_ = r.store.SaveRun(ctx, run)
-	replyResult := openAIChatResult{Reply: localReply(run.UserMessage, toolSummariesForRun(run), cause)}
+	_, _ = r.continueParentWorkflowAfterChild(ctx, run)
+	replyResult := openAIChatResult{Reply: run.FailureReason}
 	if saved, msgErr := r.ensureAssistantMessage(ctx, Session{ID: run.SessionID, AgentID: run.AgentID}, run, replyResult); msgErr == nil {
 		run.FinalMessageID = saved.ID
 		_ = r.store.SaveRun(ctx, run)
@@ -307,6 +326,10 @@ func (r *Runtime) ReconcileResolvedApprovals(ctx context.Context) {
 		return
 	}
 	for _, run := range runs {
+		if isWorkflowParentRun(run) {
+			r.reconcileWorkflowParent(ctx, run)
+			continue
+		}
 		if !runCanContinueResolvedApproval(run) {
 			continue
 		}
@@ -325,6 +348,58 @@ func (r *Runtime) ReconcileResolvedApprovals(ctx context.Context) {
 		}
 		if !hasPending && len(run.PendingApprovals) > 0 {
 			r.enqueueResolvedApprovalContinuation(run.ID)
+		}
+	}
+}
+
+func (r *Runtime) attachParentWorkflowResolution(ctx context.Context, resolution ApprovalResolution) (ApprovalResolution, error) {
+	if resolution.Run == nil {
+		return resolution, nil
+	}
+	var parent *Run
+	var err error
+	if resolution.Run.Status == RunStatusPending || resolution.Run.Status == RunStatusRunning {
+		parent, err = r.syncParentWorkflowFromChild(ctx, *resolution.Run)
+	} else {
+		parent, err = r.continueParentWorkflowAfterChild(ctx, *resolution.Run)
+	}
+	if err != nil {
+		return ApprovalResolution{}, err
+	}
+	if parent != nil {
+		resolution.ParentRun = parent
+	}
+	return resolution, nil
+}
+
+func (r *Runtime) reconcileWorkflowParent(ctx context.Context, parent Run) {
+	if parent.Status != RunStatusPending && parent.Status != RunStatusRunning {
+		return
+	}
+	for _, step := range parent.WorkflowPlan {
+		if strings.TrimSpace(step.ChildRunID) == "" {
+			continue
+		}
+		child, ok, err := r.store.Run(ctx, step.ChildRunID)
+		if err != nil || !ok {
+			continue
+		}
+		if child.Status == RunStatusPending {
+			for _, embedded := range child.PendingApprovals {
+				if embedded.Status != ApprovalStatusPending {
+					continue
+				}
+				approval, ok, err := r.store.Approval(ctx, embedded.ID)
+				if err == nil && ok && approval.Status != ApprovalStatusPending {
+					_, _ = r.ResolveApprovalAsync(ctx, approval.ID, approval.Status == ApprovalStatusApproved)
+					return
+				}
+			}
+			continue
+		}
+		if child.Status != RunStatusRunning {
+			_, _ = r.continueParentWorkflowAfterChild(ctx, child)
+			return
 		}
 	}
 }
@@ -357,8 +432,15 @@ func runHasRecoverableResolvedApprovalContext(run Run) bool {
 }
 
 func runCanContinueResolvedApproval(run Run) bool {
+	if isWorkflowParentRun(run) {
+		return false
+	}
 	if run.Status == RunStatusPending {
 		return true
 	}
 	return run.Status == RunStatusRunning && runHasRecoverableResolvedApprovalContext(run)
+}
+
+func isWorkflowParentRun(run Run) bool {
+	return normalizeWorkMode(run.WorkMode) != WorkModeChat && strings.TrimSpace(run.WorkflowStatus) != ""
 }

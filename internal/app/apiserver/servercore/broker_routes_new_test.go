@@ -465,7 +465,7 @@ func TestBrokerGinRoutesRejectIncompletePaths(t *testing.T) {
 	}
 }
 
-// --- Test: brokerReadQuery applies default market fallback ---
+// --- Test: brokerReadQuery applies the default market ---
 
 func TestBrokerReadQueryDefaultMarket(t *testing.T) {
 	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))

@@ -9,6 +9,40 @@ import (
 	"time"
 )
 
+func TestDefaultTaskToolSchemaIncludesPlannerProjectionFields(t *testing.T) {
+	for _, name := range []string{"tasks.create", "tasks.update"} {
+		t.Run(name, func(t *testing.T) {
+			schema := defaultToolInputSchema(name)
+			properties, ok := schema["properties"].(map[string]any)
+			if !ok {
+				t.Fatalf("schema properties = %#v, want object", schema["properties"])
+			}
+			for _, field := range []string{"order", "modeHint", "agentRole", "plannerStepId", "planSource", "workflowMode", "objective", "plannerWarnings"} {
+				if _, ok := properties[field]; !ok {
+					t.Fatalf("%s schema missing %s in properties %+v", name, field, properties)
+				}
+			}
+		})
+	}
+}
+
+func TestTaskCreateIsLowRiskAndDoesNotRequireApproval(t *testing.T) {
+	registry := NewToolRegistry()
+	registry.Register(ToolDescriptor{Name: "tasks.create", Permission: "write_task"}, func(context.Context, map[string]any) (any, error) {
+		return map[string]any{"created": true}, nil
+	})
+	tool, ok := registry.Get("tasks.create")
+	if !ok {
+		t.Fatal("tasks.create not registered")
+	}
+	if tool.Descriptor.RiskLevel != "low" {
+		t.Fatalf("risk level = %q, want low", tool.Descriptor.RiskLevel)
+	}
+	if ToolRequiresApproval(tool.Descriptor, PermissionModeApproval) {
+		t.Fatal("tasks.create unexpectedly requires approval in approval mode")
+	}
+}
+
 // TestAccountOrdersCompletesWithoutHanging verifies that a chat request triggering
 // account.orders (alongside portfolio.summary) completes within a reasonable time
 // instead of hanging forever.
@@ -29,7 +63,7 @@ func TestAccountOrdersCompletesWithoutHanging(t *testing.T) {
 	registry.Register(ToolDescriptor{
 		Name:        "account.orders",
 		DisplayName: "订单摘要",
-		Description: "读取本地执行订单视图摘要。",
+		Description: "读取执行订单视图摘要。",
 		Category:    "portfolio",
 		Permission:  "read_internal",
 	}, func(_ context.Context, _ map[string]any) (any, error) {
@@ -99,6 +133,7 @@ func TestAccountOrdersCompletesWithoutHanging(t *testing.T) {
 	agent, err := store.SaveAgent(ctx, AgentWriteRequest{
 		ID:             "agent",
 		Name:           "投资分析助手",
+		ProviderID:     testProviderID,
 		Tools:          []string{"account.orders", "portfolio.summary", "market.subscriptions", "backtest.runs", "system.status"},
 		PermissionMode: PermissionModeSandboxAuto,
 		Status:         AgentStatusEnabled,
@@ -165,7 +200,7 @@ func TestAccountOrdersWithSlowPortfolioSummary(t *testing.T) {
 	registry.Register(ToolDescriptor{
 		Name:        "account.orders",
 		DisplayName: "订单摘要",
-		Description: "读取本地执行订单视图摘要。",
+		Description: "读取执行订单视图摘要。",
 		Category:    "portfolio",
 		Permission:  "read_internal",
 	}, func(_ context.Context, _ map[string]any) (any, error) {
@@ -199,6 +234,7 @@ func TestAccountOrdersWithSlowPortfolioSummary(t *testing.T) {
 	agent, err := store.SaveAgent(ctx, AgentWriteRequest{
 		ID:             "agent",
 		Name:           "投资分析助手",
+		ProviderID:     testProviderID,
 		Tools:          []string{"account.orders", "portfolio.summary"},
 		PermissionMode: PermissionModeSandboxAuto,
 		Status:         AgentStatusEnabled,
@@ -270,6 +306,7 @@ func TestChatContinuesAfterToolFailure(t *testing.T) {
 	agent, err := store.SaveAgent(ctx, AgentWriteRequest{
 		ID:             "agent",
 		Name:           "投资分析助手",
+		ProviderID:     testProviderID,
 		Tools:          []string{"strategy.save_draft"},
 		PermissionMode: PermissionModeSandboxAuto,
 		Status:         AgentStatusEnabled,
@@ -302,101 +339,6 @@ func TestChatContinuesAfterToolFailure(t *testing.T) {
 	}
 }
 
-// TestSelectToolInvocationsAccountOrders verifies that the keyword-based
-// tool selection includes account.orders when the user mentions relevant keywords.
-func TestSelectToolInvocationsAccountOrders(t *testing.T) {
-	registry := NewToolRegistry()
-	registry.Register(ToolDescriptor{Name: "account.orders", DisplayName: "订单摘要", Description: "读取订单", Category: "portfolio", Permission: "read_internal"}, func(context.Context, map[string]any) (any, error) {
-		return nil, nil
-	})
-	registry.Register(ToolDescriptor{Name: "portfolio.summary", DisplayName: "组合摘要", Description: "读取组合", Category: "portfolio", Permission: "read_internal"}, func(context.Context, map[string]any) (any, error) {
-		return nil, nil
-	})
-	registry.Register(ToolDescriptor{Name: "market.subscriptions", DisplayName: "行情订阅", Description: "读取行情", Category: "market", Permission: "read_internal"}, func(context.Context, map[string]any) (any, error) {
-		return nil, nil
-	})
-	registry.Register(ToolDescriptor{Name: "system.status", DisplayName: "系统状态", Description: "读取系统", Category: "system", Permission: "read_internal"}, func(context.Context, map[string]any) (any, error) {
-		return nil, nil
-	})
-
-	tests := []struct {
-		message  string
-		expected []string
-	}{
-		{"查看账户", []string{"portfolio.summary", "account.orders"}},
-		{"我的订单", []string{"portfolio.summary", "account.orders"}},
-		{"持仓情况", []string{"portfolio.summary", "account.orders"}},
-		{"查看行情订阅", []string{"market.subscriptions"}},
-	}
-
-	for _, test := range tests {
-		t.Run(test.message, func(t *testing.T) {
-			agent := Agent{ID: "agent", PermissionMode: PermissionModeSandboxAuto}
-			invocations := SelectToolInvocations(test.message, agent, registry)
-			names := make([]string, 0, len(invocations))
-			for _, inv := range invocations {
-				names = append(names, inv.Name)
-			}
-			for _, expected := range test.expected {
-				found := false
-				for _, name := range names {
-					if name == expected {
-						found = true
-						break
-					}
-				}
-				if !found {
-					t.Errorf("expected tool %q in selection, got %v", expected, names)
-				}
-			}
-		})
-	}
-}
-
-func TestSelectToolInvocationsAddsExplicitStrategyWorkflowTools(t *testing.T) {
-	registry := NewToolRegistry()
-	for _, descriptor := range []ToolDescriptor{
-		{Name: "strategy.validate_pine", DisplayName: "校验 Pine", Category: "strategy", Permission: "read_internal"},
-		{Name: "strategy.save_definition", DisplayName: "保存策略定义", Category: "strategy", Permission: "write_strategy"},
-		{Name: "strategy.update_instance_mode", DisplayName: "修改实例模式", Category: "strategy", Permission: "write_strategy"},
-		{Name: "system.status", DisplayName: "系统状态", Category: "system", Permission: "read_internal"},
-	} {
-		descriptor := descriptor
-		registry.Register(descriptor, func(context.Context, map[string]any) (any, error) {
-			return nil, nil
-		})
-	}
-
-	tests := []struct {
-		message  string
-		expected string
-	}{
-		{message: "请先校验这个 Pine 语法有没有问题", expected: "strategy.validate_pine"},
-		{message: "把这个策略定义保存起来，并更新已有定义", expected: "strategy.save_definition"},
-		{message: "把实例切到 notify_only 执行模式", expected: "strategy.update_instance_mode"},
-	}
-
-	agent := Agent{
-		ID:    "agent",
-		Tools: []string{"strategy.validate_pine", "strategy.save_definition", "strategy.update_instance_mode"},
-	}
-	for _, test := range tests {
-		t.Run(test.expected, func(t *testing.T) {
-			invocations := SelectToolInvocations(test.message, agent, registry)
-			found := false
-			for _, invocation := range invocations {
-				if invocation.Name == test.expected {
-					found = true
-					break
-				}
-			}
-			if !found {
-				t.Fatalf("invocations = %+v, want %s", invocations, test.expected)
-			}
-		})
-	}
-}
-
 // TestAccountOrdersStreamCompletes tests the streaming path specifically.
 func TestAccountOrdersStreamCompletes(t *testing.T) {
 	ctx := context.Background()
@@ -423,7 +365,7 @@ func TestAccountOrdersStreamCompletes(t *testing.T) {
 
 	runtime := newRuntimeWithRegistry(t, store, registry)
 	agent, err := store.SaveAgent(ctx, AgentWriteRequest{
-		ID: "agent", Name: "Agent",
+		ID: "agent", Name: "Agent", ProviderID: testProviderID,
 		Tools:          []string{"account.orders", "portfolio.summary"},
 		PermissionMode: PermissionModeSandboxAuto,
 		Status:         AgentStatusEnabled,

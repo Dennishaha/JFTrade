@@ -26,6 +26,11 @@ const props = withDefaults(
     contextBusy?: boolean;
     contextDetailsOpen?: boolean;
     contextSnapshot?: ADKSessionContextSnapshot | null;
+    goalObjectiveDraft?: string;
+    goalObjectiveError?: string;
+    goalObjectiveSaving?: boolean;
+    showGoalObjectiveEditor?: boolean;
+    canSaveGoalObjective?: boolean;
     hasBlockingRun?: boolean;
     interruptingRunId?: string;
     loading?: boolean;
@@ -40,6 +45,7 @@ const props = withDefaults(
     sendingChat: boolean;
     slashCommands?: SlashCommandItem[];
     suggestions?: string[];
+    workModeOverride?: string;
     cancelActiveRun?: () => void | Promise<void>;
     handleAgentChange?: () => void;
     handleComposerKeydown?: (event: KeyboardEvent) => void;
@@ -50,6 +56,9 @@ const props = withDefaults(
     runSlashCommand?: (command: SlashCommandItem["id"]) => void | Promise<void>;
     sendChat: () => void | Promise<void>;
     applySuggestion?: (value: string) => void | Promise<void>;
+    cancelGoalObjective?: () => void | Promise<void>;
+    updateGoalObjective?: () => void | Promise<void>;
+    updateGoalObjectiveDraft?: (value: string) => void;
   }>(),
   {
     variant: "page",
@@ -61,6 +70,11 @@ const props = withDefaults(
     contextBusy: false,
     contextDetailsOpen: false,
     contextSnapshot: null,
+    goalObjectiveDraft: "",
+    goalObjectiveError: "",
+    goalObjectiveSaving: false,
+    showGoalObjectiveEditor: false,
+    canSaveGoalObjective: false,
     hasBlockingRun: false,
     interruptingRunId: "",
     loading: false,
@@ -73,6 +87,7 @@ const props = withDefaults(
     selectedProviderId: "",
     slashCommands: () => [],
     suggestions: () => [],
+    workModeOverride: "",
   },
 );
 
@@ -81,10 +96,18 @@ const emit = defineEmits<{
   "update:contextDetailsOpen": [value: boolean];
   "update:selectedAgentId": [value: string];
   "update:selectedProviderId": [value: string];
+  "update:workModeOverride": [value: string];
 }>();
 
 const selectedSlashIndex = ref(0);
 const dismissedSlashDraft = ref("");
+const goalEditorExpanded = ref(false);
+const workModeOptions = [
+  { title: "跟随 Agent", value: "" },
+  { title: "对话", value: "chat" },
+  { title: "任务", value: "task" },
+  { title: "目标", value: "loop" },
+];
 
 const contextMenuOpen = computed({
   get: () => props.contextDetailsOpen,
@@ -125,6 +148,22 @@ const exactSlashCommand = computed(
     ) ?? null,
 );
 const queueItems = computed(() => props.queuedMessages ?? []);
+const goalObjectiveSummary = computed(() => {
+  const summary = props.goalObjectiveDraft.trim();
+  return summary || "尚未设置目标";
+});
+const goalObjectiveStatus = computed(() => {
+  if (props.goalObjectiveSaving) return "保存中";
+  if (props.goalObjectiveError) return "保存失败";
+  if (props.activeRunId) return props.canSaveGoalObjective ? "已修改" : "运行中";
+  return "待发送";
+});
+const goalObjectiveTone = computed(() => {
+  if (props.goalObjectiveError) return "is-error";
+  if (props.goalObjectiveSaving || props.canSaveGoalObjective) return "is-warning";
+  if (props.activeRunId) return "is-info";
+  return "is-muted";
+});
 const sendButtonLoading = computed(
   () => (props.sendingChat || props.hasBlockingRun) && props.chatDraft.trim() === "",
 );
@@ -258,6 +297,22 @@ watch(
     }
   },
 );
+watch(
+  () => props.showGoalObjectiveEditor,
+  (show) => {
+    if (!show) {
+      goalEditorExpanded.value = false;
+    }
+  },
+);
+watch(
+  () => props.goalObjectiveError,
+  (error) => {
+    if (error) {
+      goalEditorExpanded.value = true;
+    }
+  },
+);
 
 function openContextPopover(): void {
   contextMenuOpen.value = true;
@@ -278,6 +333,22 @@ async function handlePrimaryAction(): Promise<void> {
     return;
   }
   await props.sendChat();
+}
+
+async function handleCancelGoalObjective(): Promise<void> {
+  if (props.cancelGoalObjective) {
+    await props.cancelGoalObjective();
+    return;
+  }
+  if (props.activeRunId) {
+    await props.cancelActiveRun?.();
+    return;
+  }
+  emit("update:workModeOverride", "");
+}
+
+function handleGoalObjectiveInput(value: string | null): void {
+  props.updateGoalObjectiveDraft?.(value ?? "");
 }
 
 async function executeSlashCommand(command: SlashCommandItem): Promise<void> {
@@ -541,6 +612,82 @@ function canRevokeQueueItem(item: QueuedChatMessage): boolean {
         </v-menu>
       </div>
 
+      <div
+        v-if="showGoalObjectiveEditor"
+        class="adk-goal-editor"
+        :class="{ 'is-expanded': goalEditorExpanded }"
+      >
+        <div class="adk-goal-editor__header">
+          <button
+            type="button"
+            class="adk-goal-editor__summary-button"
+            :aria-expanded="goalEditorExpanded ? 'true' : 'false'"
+            @click="goalEditorExpanded = !goalEditorExpanded"
+          >
+            <span class="adk-goal-editor__title">
+              <span>目标</span>
+              <span class="adk-goal-editor__count">1</span>
+            </span>
+            <span class="adk-goal-editor__badge" :class="goalObjectiveTone">
+              {{ goalObjectiveStatus }}
+            </span>
+            <span class="adk-goal-editor__summary" :title="goalObjectiveSummary">
+              {{ goalObjectiveSummary }}
+            </span>
+            <span class="adk-goal-editor__toggle">
+              {{ goalEditorExpanded ? "收起" : "展开" }}
+            </span>
+          </button>
+          <span class="adk-goal-editor__icon-group">
+            <button
+              type="button"
+              class="adk-goal-editor__icon"
+              title="编辑目标"
+              aria-label="编辑目标"
+              @click="goalEditorExpanded = true"
+            >
+              <v-icon size="12">fa-solid fa-pen</v-icon>
+            </button>
+            <button
+              type="button"
+              class="adk-goal-editor__icon"
+              title="取消目标"
+              aria-label="取消目标"
+              @click="void handleCancelGoalObjective()"
+            >
+              <v-icon size="12">fa-solid fa-arrow-rotate-left</v-icon>
+            </button>
+          </span>
+        </div>
+        <div v-if="goalEditorExpanded" class="adk-goal-editor__body">
+          <span v-if="goalObjectiveError" class="adk-goal-editor__error">
+            {{ goalObjectiveError }}
+          </span>
+          <v-textarea
+            :model-value="goalObjectiveDraft"
+            variant="plain"
+            density="compact"
+            :rows="2"
+            auto-grow
+            :max-rows="4"
+            hide-details
+            class="adk-goal-editor__input"
+            @update:model-value="handleGoalObjectiveInput"
+          />
+          <v-btn
+            v-if="activeRunId"
+            size="small"
+            variant="tonal"
+            color="primary"
+            :loading="goalObjectiveSaving"
+            :disabled="!canSaveGoalObjective"
+            @click="void updateGoalObjective?.()"
+          >
+            保存
+          </v-btn>
+        </div>
+      </div>
+
       <div v-if="queueItems.length > 0" class="adk-queue-strip">
         <div class="adk-queue-strip__header">
           <span class="adk-queue-strip__title">待发送队列</span>
@@ -633,6 +780,15 @@ function canRevokeQueueItem(item: QueuedChatMessage): boolean {
                 $emit('update:selectedAgentId', $event ?? '');
                 handleAgentChange?.();
               "
+            />
+            <v-select
+              :model-value="workModeOverride"
+              :items="workModeOptions"
+              density="compact"
+              variant="plain"
+              hide-details
+              class="adk-work-mode-select"
+              @update:model-value="$emit('update:workModeOverride', $event ?? '')"
             />
           </div>
 
@@ -1017,6 +1173,146 @@ function canRevokeQueueItem(item: QueuedChatMessage): boolean {
   background: rgb(248 250 252);
 }
 
+.adk-goal-editor {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--tv-border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--tv-bg-surface) 88%, transparent);
+  color: var(--tv-text);
+}
+
+.adk-goal-editor.is-expanded {
+  border-color: color-mix(in srgb, var(--tv-accent) 34%, var(--tv-border));
+  background: color-mix(in srgb, var(--tv-accent) 7%, var(--tv-bg-surface));
+}
+
+.adk-goal-editor__header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.adk-goal-editor__summary-button {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.adk-goal-editor__title {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--tv-text);
+}
+
+.adk-goal-editor__count {
+  min-width: 20px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--tv-text-dim) 18%, transparent);
+  color: var(--tv-text-muted);
+  font-size: 11px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.adk-goal-editor__badge {
+  justify-self: start;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.adk-goal-editor__badge.is-muted {
+  color: var(--tv-text-muted);
+  background: color-mix(in srgb, var(--tv-text-dim) 18%, transparent);
+}
+
+.adk-goal-editor__badge.is-info {
+  color: color-mix(in srgb, var(--tv-accent) 82%, var(--tv-text));
+  background: color-mix(in srgb, var(--tv-accent) 16%, transparent);
+}
+
+.adk-goal-editor__badge.is-warning {
+  color: color-mix(in srgb, var(--tv-warn) 82%, var(--tv-text));
+  background: color-mix(in srgb, var(--tv-warn) 18%, transparent);
+}
+
+.adk-goal-editor__badge.is-error {
+  color: color-mix(in srgb, var(--tv-down) 82%, var(--tv-text));
+  background: color-mix(in srgb, var(--tv-down) 16%, transparent);
+}
+
+.adk-goal-editor__summary {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--tv-text-muted);
+  font-size: 12px;
+}
+
+.adk-goal-editor__toggle {
+  color: var(--tv-accent);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.adk-goal-editor__icon-group {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.adk-goal-editor__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid color-mix(in srgb, var(--tv-accent) 22%, var(--tv-border));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--tv-accent) 8%, transparent);
+  color: color-mix(in srgb, var(--tv-accent) 82%, var(--tv-text));
+  cursor: pointer;
+}
+
+.adk-goal-editor__body {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.adk-goal-editor__error {
+  flex: 0 0 auto;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--tv-down);
+}
+
+.adk-goal-editor__input {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
 .adk-queue-strip__header {
   display: flex;
   align-items: center;
@@ -1107,6 +1403,11 @@ function canRevokeQueueItem(item: QueuedChatMessage): boolean {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.adk-work-mode-select {
+  width: 116px;
+  flex: 0 0 116px;
 }
 
 .adk-composer-interrupt {

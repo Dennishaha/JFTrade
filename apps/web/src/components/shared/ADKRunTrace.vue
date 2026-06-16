@@ -99,6 +99,24 @@ const toolVisualizationMap = computed(() => {
   }
   return visualizations;
 });
+const showWorkflowMeta = computed(
+  () =>
+    props.run?.workMode &&
+    props.run.workMode !== "chat" &&
+    (props.run.workflowStatus ||
+      props.run.objective ||
+      (props.run.childRunIds?.length ?? 0) > 0),
+);
+const workflowModeLabel = computed(() => {
+  switch (props.run?.workMode) {
+    case "task":
+      return "任务编排";
+    case "loop":
+      return "目标模式";
+    default:
+      return "工作流";
+  }
+});
 
 function isTerminalToolStatus(status: string | undefined): boolean {
   const normalized = (status ?? "").trim().toUpperCase();
@@ -188,6 +206,24 @@ function truncate(value: string, maxLength: number): string {
           >
             {{ formatGenericStatusLabel(run.status) }}
           </span>
+        </span>
+      </span>
+    </div>
+
+    <div v-if="showWorkflowMeta" class="adk-run-trace-card adk-run-trace-card--workflow">
+      <span class="adk-run-trace-card__main">
+        <span class="adk-run-trace-card__title">{{ workflowModeLabel }}</span>
+        <span class="adk-run-trace-card__meta">
+          <span
+            v-if="run?.workflowStatus"
+            class="adk-status-pill"
+            :class="`is-${runStatusTone(run.status)}`"
+          >
+            {{ formatGenericStatusLabel(run.workflowStatus) }}
+          </span>
+          <span v-if="run?.iteration">第 {{ run.iteration }} 轮</span>
+          <span v-if="run?.childRunIds?.length">{{ run.childRunIds.length }} 个子智能体</span>
+          <span v-if="run?.objective">{{ truncate(run.objective, 120) }}</span>
         </span>
       </span>
     </div>

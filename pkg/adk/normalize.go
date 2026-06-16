@@ -1,5 +1,7 @@
 package adk
 
+import "strings"
+
 func normalizeToolCalls(toolCalls []ToolCall) []ToolCall {
 	if len(toolCalls) == 0 {
 		return []ToolCall{}
@@ -14,6 +16,22 @@ func normalizeApprovals(approvals []Approval) []Approval {
 	return append([]Approval(nil), approvals...)
 }
 
+func normalizeWorkflowPlan(plan []WorkflowStepState) []WorkflowStepState {
+	if len(plan) == 0 {
+		return []WorkflowStepState{}
+	}
+	normalized := make([]WorkflowStepState, 0, len(plan))
+	for _, step := range plan {
+		if len(step.DependsOn) == 0 {
+			step.DependsOn = []string{}
+		} else {
+			step.DependsOn = normalizeStringSlice(step.DependsOn)
+		}
+		normalized = append(normalized, step)
+	}
+	return normalized
+}
+
 func normalizeTimelineEntries(entries []TimelineEntry) []TimelineEntry {
 	if len(entries) == 0 {
 		return []TimelineEntry{}
@@ -26,14 +44,34 @@ func normalizeTimelineEntries(entries []TimelineEntry) []TimelineEntry {
 }
 
 func NormalizeRun(run Run) Run {
+	run.WorkMode = normalizeWorkMode(run.WorkMode)
+	if len(run.ChildRunIDs) == 0 {
+		run.ChildRunIDs = []string{}
+	} else {
+		run.ChildRunIDs = normalizeStringSlice(run.ChildRunIDs)
+	}
 	run.ToolCalls = normalizeToolCalls(run.ToolCalls)
 	run.PendingApprovals = normalizeApprovals(run.PendingApprovals)
+	run.WorkflowPlan = normalizeWorkflowPlan(run.WorkflowPlan)
 	if len(run.ToolSummaries) == 0 {
 		run.ToolSummaries = []string{}
 	} else {
 		run.ToolSummaries = append([]string(nil), run.ToolSummaries...)
 	}
 	return run
+}
+
+func NormalizeAgent(agent Agent) Agent {
+	agent.Tools = normalizeStringSlice(agent.Tools)
+	agent.Skills = normalizeStringSlice(agent.Skills)
+	agent.PermissionMode = normalizePermissionMode(agent.PermissionMode)
+	agent.RecentUserWindow = normalizeRecentUserWindow(agent.RecentUserWindow)
+	agent.WorkMode = normalizeAgentDefaultWorkMode(agent.WorkMode)
+	agent.LoopMaxIterations = normalizeLoopMaxIterations(agent.LoopMaxIterations)
+	if strings.TrimSpace(agent.Status) == "" {
+		agent.Status = AgentStatusEnabled
+	}
+	return agent
 }
 
 func NormalizeTimelineEntry(entry TimelineEntry) TimelineEntry {
@@ -52,6 +90,9 @@ func NormalizeChatResponse(response ChatResponse) ChatResponse {
 func NormalizeApprovalResolution(resolution ApprovalResolution) ApprovalResolution {
 	if resolution.Run != nil {
 		resolution.Run = new(NormalizeRun(*resolution.Run))
+	}
+	if resolution.ParentRun != nil {
+		resolution.ParentRun = new(NormalizeRun(*resolution.ParentRun))
 	}
 	return resolution
 }

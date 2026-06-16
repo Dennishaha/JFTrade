@@ -224,6 +224,32 @@ func (h *Handler) handleADKCancelRun(c *gin.Context) {
 	h.writeOK(c, jfadk.NormalizeRun(run))
 }
 
+func (h *Handler) handleADKUpdateRunObjective(c *gin.Context) {
+	var uri runURI
+	if err := httpserver.BindURI(c, &uri); err != nil || strings.TrimSpace(uri.RunID) == "" {
+		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "runId is invalid")
+		return
+	}
+	var payload struct {
+		Objective string `json:"objective"`
+	}
+	if err := c.ShouldBindJSON(&payload); err != nil {
+		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid objective payload")
+		return
+	}
+	run, err := h.service.UpdateRunObjective(c.Request.Context(), uri.RunID, payload.Objective)
+	if err != nil {
+		message := err.Error()
+		if strings.Contains(strings.ToLower(message), "not found") {
+			h.writeError(c, http.StatusNotFound, "NOT_FOUND", "run not found")
+			return
+		}
+		h.writeError(c, http.StatusBadRequest, "ADK_RUN_OBJECTIVE_UPDATE_FAILED", message)
+		return
+	}
+	h.writeOK(c, jfadk.NormalizeRun(run))
+}
+
 func (h *Handler) handleADKRun(c *gin.Context) {
 	h.service.ReconcileExpiredRuns(c.Request.Context())
 	h.service.ReconcileResolvedApprovals(context.WithoutCancel(c.Request.Context()))

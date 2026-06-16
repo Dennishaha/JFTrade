@@ -19,7 +19,7 @@ func normalizeFutuConfig(config FutuIntegrationConfig) FutuIntegrationConfig {
 	return settingsfile.NormalizeFutuConfig(config)
 }
 
-func boolEnv(key string, fallback bool) bool {
+func boolEnv(key string, defaultValue bool) bool {
 	value := strings.TrimSpace(strings.ToLower(os.Getenv(key)))
 	switch value {
 	case "1", "true", "yes", "on":
@@ -27,7 +27,7 @@ func boolEnv(key string, fallback bool) bool {
 	case "0", "false", "no", "off":
 		return false
 	default:
-		return fallback
+		return defaultValue
 	}
 }
 

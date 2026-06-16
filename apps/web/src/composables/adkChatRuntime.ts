@@ -59,6 +59,17 @@ export function buildRunObservationSignature(run: ADKRun | undefined): string {
     status: run.status,
     resumeState: run.resumeState ?? "",
     updatedAt: run.updatedAt ?? "",
+    workMode: run.workMode ?? "",
+    objective: run.objective ?? "",
+    workflowStatus: run.workflowStatus ?? "",
+    workflowCursor: run.workflowCursor ?? 0,
+    workflowPlan: (run.workflowPlan ?? []).map((step) => ({
+      taskId: step.taskId ?? "",
+      title: step.title,
+      status: step.status,
+      childRunId: step.childRunId ?? "",
+      iteration: step.iteration ?? 0,
+    })),
     toolCalls: (run.toolCalls ?? []).map((toolCall) => ({
       id: toolCall.id,
       status: toolCall.status,

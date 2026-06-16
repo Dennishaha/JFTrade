@@ -3,6 +3,7 @@ package adk
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"iter"
 	"math"
@@ -24,6 +25,10 @@ const (
 	contextWarnThreshold       = 0.70
 	contextAutoCompactThresh   = 0.85
 	contextAggressiveThreshold = 0.93
+
+	adkSessionHandoffSummaryKey   = "jftrade:handoff_summary"
+	adkSessionHandoffUpdatedAtKey = "jftrade:handoff_updated_at"
+	adkSessionHandoffCountKey     = "jftrade:handoff_segment_count"
 )
 
 type SessionCompactRequest struct {
@@ -111,6 +116,7 @@ func (m *SessionContextManager) snapshotWithPending(ctx context.Context, session
 	if _, err := m.store.SaveSessionContext(ctx, state); err != nil {
 		return SessionContextSnapshot{}, err
 	}
+	_ = m.syncHandoffStateForSession(ctx, session)
 	return projection.snapshot, nil
 }
 
@@ -194,6 +200,7 @@ func (m *SessionContextManager) Compact(ctx context.Context, session Session, ag
 	if _, err := m.store.SaveSessionContext(ctx, state); err != nil {
 		return SessionContextSnapshot{}, err
 	}
+	_ = m.syncHandoffStateForSession(ctx, session)
 	return m.snapshotWithPending(ctx, session, agent, "")
 }
 
@@ -216,6 +223,9 @@ func (m *SessionContextManager) InstructionSuffix(ctx context.Context, sessionID
 	if m == nil || m.store == nil {
 		return "", nil
 	}
+	if text, ok, err := m.handoffSummaryFromADKState(ctx, sessionID); err == nil && ok {
+		return "Session handoff summaries:\n" + text, nil
+	}
 	segments, err := m.store.HandoffSegments(ctx, strings.TrimSpace(sessionID), true)
 	if err != nil {
 		return "", err
@@ -227,7 +237,98 @@ func (m *SessionContextManager) InstructionSuffix(ctx context.Context, sessionID
 	if text == "" {
 		return "", nil
 	}
+	_ = m.syncHandoffStateForSessionID(ctx, sessionID, segments)
 	return "Session handoff summaries:\n" + text, nil
+}
+
+func (m *SessionContextManager) syncHandoffStateForSession(ctx context.Context, session Session) error {
+	if m == nil || m.store == nil {
+		return nil
+	}
+	segments, err := m.store.HandoffSegments(ctx, session.ID, true)
+	if err != nil {
+		return err
+	}
+	return m.syncHandoffState(ctx, session, segments)
+}
+
+func (m *SessionContextManager) syncHandoffStateForSessionID(ctx context.Context, sessionID string, segments []HandoffSegment) error {
+	if m == nil || m.store == nil {
+		return nil
+	}
+	session, ok, err := m.store.Session(ctx, strings.TrimSpace(sessionID))
+	if err != nil || !ok {
+		return err
+	}
+	return m.syncHandoffState(ctx, session, segments)
+}
+
+func (m *SessionContextManager) syncHandoffState(ctx context.Context, session Session, segments []HandoffSegment) error {
+	if m == nil || m.rawService == nil || strings.TrimSpace(session.ID) == "" {
+		return nil
+	}
+	raw, err := m.rawSession(ctx, session.AgentID, session.ID)
+	if err != nil {
+		return err
+	}
+	if raw == nil || raw.Session == nil || raw.Session.State() == nil {
+		return nil
+	}
+	state := raw.Session.State()
+	summary := joinSegmentSummaries(segments)
+	if stateTextValue(state, adkSessionHandoffSummaryKey) == summary &&
+		stateTextValue(state, adkSessionHandoffCountKey) == fmt.Sprint(len(segments)) {
+		return nil
+	}
+	event := adksession.NewEvent("jftrade-handoff-state")
+	event.Author = "jftrade"
+	event.Actions.SkipSummarization = true
+	event.Actions.StateDelta = map[string]any{
+		adkSessionHandoffSummaryKey:   summary,
+		adkSessionHandoffUpdatedAtKey: nowString(),
+		adkSessionHandoffCountKey:     len(segments),
+	}
+	return appendADKEventWithStaleRetry(ctx, m.rawService, raw.Session, event)
+}
+
+func (m *SessionContextManager) handoffSummaryFromADKState(ctx context.Context, sessionID string) (string, bool, error) {
+	if m == nil || m.store == nil || m.rawService == nil {
+		return "", false, nil
+	}
+	session, ok, err := m.store.Session(ctx, strings.TrimSpace(sessionID))
+	if err != nil || !ok {
+		return "", false, err
+	}
+	raw, err := m.rawSession(ctx, session.AgentID, session.ID)
+	if err != nil {
+		return "", false, err
+	}
+	if raw == nil || raw.Session == nil || raw.Session.State() == nil {
+		return "", false, nil
+	}
+	value, err := raw.Session.State().Get(adkSessionHandoffSummaryKey)
+	if errors.Is(err, adksession.ErrStateKeyNotExist) {
+		return "", false, nil
+	}
+	if err != nil {
+		return "", false, err
+	}
+	text := strings.TrimSpace(fmt.Sprint(value))
+	if text == "" {
+		return "", false, nil
+	}
+	return text, true, nil
+}
+
+func stateTextValue(state adksession.State, key string) string {
+	if state == nil {
+		return ""
+	}
+	value, err := state.Get(key)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(fmt.Sprint(value))
 }
 
 func (m *SessionContextManager) HasActiveRun(ctx context.Context, sessionID string) (bool, error) {
@@ -882,7 +983,39 @@ func (s *compactingSessionService) AppendEvent(ctx context.Context, session adks
 	if wrapped, ok := session.(*wrappedSession); ok && wrapped != nil {
 		session = wrapped.base
 	}
-	return s.base.AppendEvent(ctx, session, event)
+	return appendADKEventWithStaleRetry(ctx, s.base, session, event)
+}
+
+func appendADKEventWithStaleRetry(ctx context.Context, service adksession.Service, session adksession.Session, event *adksession.Event) error {
+	if service == nil {
+		return fmt.Errorf("adk session service is unavailable")
+	}
+	if session == nil {
+		return fmt.Errorf("adk session is unavailable")
+	}
+	err := service.AppendEvent(ctx, session, event)
+	if err == nil || !isStaleADKSessionError(err) {
+		return err
+	}
+	latest, getErr := service.Get(ctx, &adksession.GetRequest{
+		AppName:   session.AppName(),
+		UserID:    session.UserID(),
+		SessionID: session.ID(),
+	})
+	if getErr != nil {
+		return err
+	}
+	if latest == nil || latest.Session == nil {
+		return err
+	}
+	return service.AppendEvent(ctx, latest.Session, event)
+}
+
+func isStaleADKSessionError(err error) bool {
+	if err == nil {
+		return false
+	}
+	return strings.Contains(strings.ToLower(err.Error()), "stale session error")
 }
 
 func filterEvents(events []*adksession.Event, after time.Time, numRecent int) []*adksession.Event {

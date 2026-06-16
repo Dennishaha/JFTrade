@@ -87,10 +87,10 @@ func shouldStartForArgs(args []string) bool {
 	return false
 }
 
-func envOrDefault(key string, fallback string) string {
+func envOrDefault(key string, defaultValue string) string {
 	value := strings.TrimSpace(os.Getenv(key))
 	if value == "" {
-		return fallback
+		return defaultValue
 	}
 	return value
 }

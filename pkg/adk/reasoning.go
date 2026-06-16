@@ -89,19 +89,18 @@ func splitLegacyAssistantContent(content string) (string, string) {
 }
 
 func extractVisibleAndReasoningText(content string, reasoningParts ...string) (string, string) {
-	replyText := strings.TrimSpace(content)
+	replyText := content
 	reasoningText := mergeReasoningBlocks(reasoningParts...)
 	if reasoningText != "" {
 		return replyText, reasoningText
 	}
 	replyText, reasoningText = splitLegacyAssistantContent(content)
-	return strings.TrimSpace(replyText), strings.TrimSpace(reasoningText)
+	return replyText, reasoningText
 }
 
 func mergeReasoningBlocks(parts ...string) string {
 	values := make([]string, 0, len(parts))
 	for _, part := range parts {
-		part = strings.TrimSpace(part)
 		if part != "" {
 			values = append(values, part)
 		}

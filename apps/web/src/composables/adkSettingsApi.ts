@@ -209,6 +209,17 @@ export async function saveADKTask(task: {
   agentId?: string;
   runId?: string;
   dependsOn?: string[];
+  order?: number;
+  modeHint?: string;
+  agentRole?: string;
+  plannerStepId?: string;
+  planSource?: string;
+  workflowMode?: string;
+  objective?: string;
+  message?: string;
+  executor?: string;
+  resultSummary?: string;
+  plannerWarnings?: string[];
 }): Promise<ADKTask> {
   return fetchEnvelopeWithInit<ADKTask>("/api/v1/adk/tasks", {
     method: "POST",

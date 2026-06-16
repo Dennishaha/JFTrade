@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/netip"
 	"net/url"
-	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -119,7 +118,7 @@ func (r *ToolRegistry) Register(descriptor ToolDescriptor, handler ToolFunc) {
 		descriptor.InputSchema = defaultToolInputSchema(descriptor.Name)
 	}
 	if descriptor.RiskLevel == "" {
-		descriptor.RiskLevel = defaultToolRiskLevel(descriptor.Permission)
+		descriptor.RiskLevel = defaultToolRiskLevelForTool(descriptor.Name, descriptor.Permission)
 	}
 	r.tools[descriptor.Name] = RegisteredTool{Descriptor: descriptor, Handler: handler}
 }
@@ -153,146 +152,9 @@ func (r *ToolRegistry) AvailableNames() []string {
 	return names
 }
 
-func SelectTools(question string, agent Agent, registry *ToolRegistry) []string {
-	invocations := SelectToolInvocations(question, agent, registry)
-	names := make([]string, 0, len(invocations))
-	for _, invocation := range invocations {
-		names = append(names, invocation.Name)
-	}
-	return names
-}
-
 type ToolInvocation struct {
 	Name  string
 	Input map[string]any
-}
-
-func SelectToolInvocations(question string, agent Agent, registry *ToolRegistry) []ToolInvocation {
-	if registry == nil {
-		return []ToolInvocation{}
-	}
-	allowed := map[string]struct{}{}
-	if len(agent.Tools) == 0 {
-		for _, name := range registry.AvailableNames() {
-			allowed[name] = struct{}{}
-		}
-	} else {
-		for _, name := range agent.Tools {
-			if canonical, ok := registry.CanonicalName(name); ok {
-				allowed[canonical] = struct{}{}
-			}
-		}
-	}
-	lower := strings.ToLower(question)
-	candidates := []ToolInvocation{}
-	add := func(name string, input map[string]any) {
-		canonical, ok := registry.CanonicalName(name)
-		if !ok {
-			return
-		}
-		name = canonical
-		if _, ok := allowed[name]; !ok {
-			return
-		}
-		if _, ok := registry.Get(name); !ok {
-			return
-		}
-		for _, existing := range candidates {
-			if existing.Name == name {
-				return
-			}
-		}
-		if input == nil {
-			input = inferToolInput(name, question)
-		}
-		candidates = append(candidates, ToolInvocation{Name: name, Input: input})
-	}
-	for _, invocation := range parseExecuteToolInvocations(question, registry) {
-		add(invocation.Name, invocation.Input)
-	}
-	if strings.Contains(lower, "@") {
-		for name := range allowed {
-			if strings.Contains(lower, "@"+strings.ToLower(name)) {
-				add(name, nil)
-			}
-		}
-	}
-	if strings.Contains(lower, "行情") || strings.Contains(lower, "market") || strings.Contains(lower, "quote") || strings.Contains(lower, "订阅") {
-		add("market.subscriptions", nil)
-		add("market.snapshot", nil)
-	}
-	if strings.Contains(lower, "持仓") || strings.Contains(lower, "账户") || strings.Contains(lower, "portfolio") || strings.Contains(lower, "position") || strings.Contains(lower, "订单") {
-		add("portfolio.summary", nil)
-		add("account.orders", nil)
-	}
-	if strings.Contains(lower, "策略") || strings.Contains(lower, "strategy") || strings.Contains(lower, "定义") {
-		add("strategy.definitions", nil)
-	}
-	if strings.Contains(lower, "dsl") || strings.Contains(lower, "语法") || strings.Contains(lower, "spec") {
-		add("strategy.pine_spec", nil)
-	}
-	if (strings.Contains(lower, "dsl") || strings.Contains(lower, "语法") || strings.Contains(lower, "脚本") || strings.Contains(lower, "script")) &&
-		(strings.Contains(lower, "校验") || strings.Contains(lower, "验证") || strings.Contains(lower, "检查") || strings.Contains(lower, "validate")) {
-		add("strategy.validate_pine", nil)
-	}
-	if strings.Contains(lower, "修改策略定义") || strings.Contains(lower, "save definition") || strings.Contains(lower, "update definition") ||
-		((strings.Contains(lower, "保存") || strings.Contains(lower, "save") || strings.Contains(lower, "更新") || strings.Contains(lower, "update")) &&
-			(strings.Contains(lower, "策略") || strings.Contains(lower, "strategy") || strings.Contains(lower, "定义") || strings.Contains(lower, "definition"))) {
-		add("strategy.save_definition", nil)
-	}
-	if strings.Contains(lower, "notify_only") || strings.Contains(lower, "executionmode") || strings.Contains(lower, "执行模式") ||
-		strings.Contains(lower, "切换模式") || strings.Contains(lower, "修改模式") ||
-		((strings.Contains(lower, "live") || strings.Contains(lower, "mode")) && strings.Contains(lower, "instance")) {
-		add("strategy.update_instance_mode", nil)
-	}
-	if strings.Contains(lower, "回测") || strings.Contains(lower, "backtest") || strings.Contains(lower, "优化") || strings.Contains(lower, "optimize") {
-		add("backtest.runs", nil)
-		if strings.Contains(lower, "优化") || strings.Contains(lower, "optimize") {
-			add("strategy.optimize", nil)
-		}
-	}
-	if strings.Contains(lower, "系统") || strings.Contains(lower, "状态") || strings.Contains(lower, "system") || strings.Contains(lower, "opend") {
-		add("system.status", nil)
-		add("system.futu_opend", nil)
-	}
-	if strings.Contains(lower, "http") || strings.Contains(lower, "https://") || strings.Contains(lower, "http://") || strings.Contains(lower, "外部") || strings.Contains(lower, "网页") {
-		add("http.fetch", nil)
-	}
-	if strings.Contains(lower, "depth") || strings.Contains(lower, "order book") || strings.Contains(lower, "盘口") {
-		add("market.depth", nil)
-	}
-	if strings.Contains(lower, "broker") || strings.Contains(lower, "order") || strings.Contains(lower, "订单") {
-		add("broker.orders", nil)
-	}
-	if strings.Contains(lower, "fill") || strings.Contains(lower, "成交") {
-		add("broker.fills", nil)
-	}
-	if strings.Contains(lower, "fee") || strings.Contains(lower, "费用") {
-		add("broker.fees", nil)
-	}
-	if strings.Contains(lower, "margin") || strings.Contains(lower, "保证金") || strings.Contains(lower, "融资") {
-		add("broker.margin_ratios", nil)
-	}
-	if strings.Contains(lower, "risk") || strings.Contains(lower, "风控") || strings.Contains(lower, "kill switch") {
-		add("risk.state", nil)
-		add("risk.events", nil)
-	}
-	if strings.Contains(lower, "task") || strings.Contains(lower, "任务") {
-		add("tasks.list", nil)
-	}
-	if strings.Contains(lower, "memory") || strings.Contains(lower, "记忆") || strings.Contains(lower, "偏好") {
-		add("memory.list", nil)
-	}
-	if strings.Contains(lower, "tool") || strings.Contains(lower, "工具") || strings.Contains(lower, "search") {
-		add("tools.search", nil)
-	}
-	if len(candidates) == 0 {
-		add("system.status", nil)
-	}
-	if len(candidates) > 5 {
-		candidates = candidates[:5]
-	}
-	return candidates
 }
 
 func ToolDescriptorsForAgent(agent Agent, registry *ToolRegistry) []ToolDescriptor {
@@ -346,6 +208,9 @@ func (r *ToolRegistry) CanonicalName(name string) (string, bool) {
 
 func ToolRequiresApproval(descriptor ToolDescriptor, mode string) bool {
 	mode = normalizePermissionMode(mode)
+	if descriptor.Name == "tasks.create" {
+		return false
+	}
 	for _, requiredMode := range descriptor.RequiresApprovalIn {
 		if requiredMode == mode {
 			return true
@@ -550,12 +415,20 @@ func defaultToolInputSchema(name string) map[string]any {
 		}
 	case "tasks.create", "tasks.update":
 		properties := map[string]any{
-			"title":       map[string]any{"type": "string"},
-			"description": map[string]any{"type": "string"},
-			"status":      map[string]any{"type": "string", "enum": []string{"TODO", "IN_PROGRESS", "BLOCKED", "DONE", "CANCELLED"}},
-			"agentId":     map[string]any{"type": "string"},
-			"runId":       map[string]any{"type": "string"},
-			"dependsOn":   map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+			"title":           map[string]any{"type": "string"},
+			"description":     map[string]any{"type": "string"},
+			"status":          map[string]any{"type": "string", "enum": []string{"TODO", "IN_PROGRESS", "BLOCKED", "DONE", "CANCELLED"}},
+			"agentId":         map[string]any{"type": "string"},
+			"runId":           map[string]any{"type": "string"},
+			"dependsOn":       map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+			"order":           map[string]any{"type": "integer", "minimum": 1},
+			"modeHint":        map[string]any{"type": "string", "enum": []string{"task", "loop", "chat", ""}},
+			"agentRole":       map[string]any{"type": "string"},
+			"plannerStepId":   map[string]any{"type": "string"},
+			"planSource":      map[string]any{"type": "string", "enum": []string{"planner", "runtime", ""}},
+			"workflowMode":    map[string]any{"type": "string", "enum": []string{"task", "loop", "chat", ""}},
+			"objective":       map[string]any{"type": "string"},
+			"plannerWarnings": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
 		}
 		required := []string{"title"}
 		if name == "tasks.update" {
@@ -737,6 +610,13 @@ func defaultToolInputSchema(name string) map[string]any {
 	}
 }
 
+func defaultToolRiskLevelForTool(name string, permission string) string {
+	if name == "tasks.create" {
+		return "low"
+	}
+	return defaultToolRiskLevel(permission)
+}
+
 func defaultToolRiskLevel(permission string) string {
 	switch permission {
 	case "read_internal":
@@ -757,7 +637,7 @@ func toolStringValue(input map[string]any, key string) string {
 	return value
 }
 
-func toolIntValue(input map[string]any, key string, fallback int) int {
+func toolIntValue(input map[string]any, key string, defaultValue int) int {
 	switch value := input[key].(type) {
 	case float64:
 		return int(value)
@@ -769,62 +649,7 @@ func toolIntValue(input map[string]any, key string, fallback int) int {
 			return parsed
 		}
 	}
-	return fallback
-}
-
-var (
-	executeToolTagPattern      = regexp.MustCompile(`(?is)<\s*execute-tool\b([^>]*)/?>`)
-	executeToolNamePattern     = regexp.MustCompile(`(?is)\bname\s*=\s*(?:"([^"]*)"|'([^']*)')`)
-	executeToolParamsPattern   = regexp.MustCompile(`(?is)\bparameters\s*=\s*(?:"([^"]*)"|'([^']*)')`)
-	executeToolParamKeyPattern = regexp.MustCompile(`(?is)\b(?:params|input|arguments)\s*=\s*(?:"([^"]*)"|'([^']*)')`)
-)
-
-func parseExecuteToolInvocations(text string, registry *ToolRegistry) []ToolInvocation {
-	matches := executeToolTagPattern.FindAllStringSubmatch(text, -1)
-	if len(matches) == 0 {
-		return []ToolInvocation{}
-	}
-	invocations := make([]ToolInvocation, 0, len(matches))
-	for _, match := range matches {
-		attrs := ""
-		if len(match) > 1 {
-			attrs = match[1]
-		}
-		name := firstAttrValue(executeToolNamePattern, attrs)
-		if name == "" {
-			continue
-		}
-		canonical, ok := registry.CanonicalName(name)
-		if !ok {
-			continue
-		}
-		input := map[string]any{}
-		rawParams := firstAttrValue(executeToolParamsPattern, attrs)
-		if rawParams == "" {
-			rawParams = firstAttrValue(executeToolParamKeyPattern, attrs)
-		}
-		if strings.TrimSpace(rawParams) != "" {
-			if err := json.Unmarshal([]byte(rawParams), &input); err != nil {
-				input = map[string]any{"rawParameters": rawParams, "parseError": err.Error()}
-			}
-		}
-		invocations = append(invocations, ToolInvocation{Name: canonical, Input: input})
-	}
-	return invocations
-}
-
-func firstAttrValue(pattern *regexp.Regexp, text string) string {
-	match := pattern.FindStringSubmatch(text)
-	if len(match) == 0 {
-		return ""
-	}
-	for _, value := range match[1:] {
-		value = strings.TrimSpace(value)
-		if value != "" {
-			return value
-		}
-	}
-	return ""
+	return defaultValue
 }
 
 func normalizeToolAlias(name string) string {

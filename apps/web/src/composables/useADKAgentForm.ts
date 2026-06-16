@@ -6,6 +6,7 @@ import type {
   ADKProvider,
   ADKSkill,
   ADKToolDescriptor,
+  ADKWorkMode,
 } from "@/contracts";
 
 import { deleteADKAgent, saveADKAgent } from "./adkSettingsApi";
@@ -22,8 +23,15 @@ function createAgentForm(providers: ADKProvider[], tools: ADKToolDescriptor[], s
     permissionMode: "approval" as ADKPermissionMode,
     memoryEnabled: true,
     recentUserWindow: 6,
+    workMode: "chat" as ADKWorkMode,
+    loopMaxIterations: 5,
     status: "ENABLED",
   };
+}
+
+function selectableAgentWorkMode(mode?: string): ADKWorkMode {
+  if (mode === "task" || mode === "loop") return mode;
+  return "chat";
 }
 
 export function useADKAgentForm(
@@ -46,6 +54,8 @@ export function useADKAgentForm(
     permissionMode: "approval" as ADKPermissionMode,
     memoryEnabled: true,
     recentUserWindow: 6,
+    workMode: "chat" as ADKWorkMode,
+    loopMaxIterations: 5,
     status: "ENABLED",
   });
 
@@ -75,6 +85,8 @@ export function useADKAgentForm(
       permissionMode: agent.permissionMode,
       memoryEnabled: agent.memoryEnabled,
       recentUserWindow: agent.recentUserWindow ?? 6,
+      workMode: selectableAgentWorkMode(agent.workMode),
+      loopMaxIterations: agent.loopMaxIterations ?? 5,
       status: agent.status,
     };
   }
@@ -95,6 +107,8 @@ export function useADKAgentForm(
       permissionMode: agent.permissionMode,
       memoryEnabled: agent.memoryEnabled,
       recentUserWindow: agent.recentUserWindow ?? 6,
+      workMode: selectableAgentWorkMode(agent.workMode),
+      loopMaxIterations: agent.loopMaxIterations ?? 5,
       status: "ENABLED",
     };
   }

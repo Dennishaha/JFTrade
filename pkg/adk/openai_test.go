@@ -364,7 +364,7 @@ func TestOpenAIProviderWithMultipleToolCallRounds(t *testing.T) {
 		callCount++
 		w.Header().Set("Content-Type", "application/json")
 
-		if callCount <= 25 { // More than MaxToolCallsPerRun=20
+		if callCount <= 25 {
 			// Keep returning tool calls — this simulates a model that loops.
 			resp := map[string]any{
 				"id":      fmt.Sprintf("chatcmpl-%d", callCount),
@@ -448,15 +448,16 @@ func TestOpenAIProviderWithMultipleToolCallRounds(t *testing.T) {
 	select {
 	case resp := <-done:
 		t.Logf("Chat completed: status=%s toolCalls=%d", resp.Run.Status, len(resp.Run.ToolCalls))
-		// The run should fail or complete with limited tool calls due to iteration guard
-		if resp.Run.Status == RunStatusFailed {
-			t.Logf("Run failed as expected due to infinite loop guard: %s", resp.Run.Message)
+		if resp.Run.Status != RunStatusCompleted {
+			t.Fatalf("run status = %s, want completed after repeated tool calls", resp.Run.Status)
+		}
+		if len(resp.Run.ToolCalls) <= 20 {
+			t.Fatalf("tool calls = %d, want more than former limit", len(resp.Run.ToolCalls))
 		}
 	case chatErr := <-errCh:
-		// Error is expected — the iteration guard or tool limit should kick in
-		t.Logf("Chat error (expected for loop): %v", chatErr)
+		t.Fatalf("Chat error: %v", chatErr)
 	case <-time.After(60 * time.Second):
-		t.Fatal("Chat hung for over 60 seconds — infinite tool call loop not prevented!")
+		t.Fatal("Chat hung for over 60 seconds")
 	}
 }
 

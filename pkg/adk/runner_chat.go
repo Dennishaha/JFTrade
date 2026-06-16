@@ -16,6 +16,9 @@ func (r *Runtime) runChat(ctx context.Context, req ChatRequest, onDelta func(Cha
 		return ChatResponse{}, err
 	}
 	defer func() { <-r.runSem }()
+	if !validWorkMode(req.WorkModeOverride) {
+		return ChatResponse{}, fmt.Errorf("invalid work mode %q", req.WorkModeOverride)
+	}
 	agent, err := r.resolveAgent(ctx, req.AgentID)
 	if err != nil {
 		return ChatResponse{}, err
@@ -24,11 +27,22 @@ func (r *Runtime) runChat(ctx context.Context, req ChatRequest, onDelta func(Cha
 	if err != nil {
 		return ChatResponse{}, err
 	}
+	workMode, runOptions, objective, err := resolveChatWorkflowOptions(req, agent)
+	if err != nil {
+		return ChatResponse{}, err
+	}
+	agent.WorkMode = workMode
 	session, err := r.resolveSession(ctx, req.SessionID, agent, text)
 	if err != nil {
 		return ChatResponse{}, err
 	}
 	r.maybeAutoCompactSession(ctx, session, agent, text)
+	if workMode != WorkModeChat {
+		return r.workflowExecutor().Run(ctx, workflowRequest{
+			Agent: agent, Session: session, Message: text, Mode: workMode, Objective: objective,
+			RunOptions: runOptions, OnDelta: onDelta, EmitRun: emitRun,
+		})
+	}
 	run, runCtx, finishRun, err := r.startRun(ctx, session.ID, agent, text)
 	if err != nil {
 		return ChatResponse{}, err
@@ -42,6 +56,29 @@ func (r *Runtime) runChat(ctx context.Context, req ChatRequest, onDelta func(Cha
 	toolContext, approvals, replyResult, preToolContent, preToolReasoning, adkErr := r.executeGoogleADK(runCtx, agent, session, run.ID, text, onDelta)
 	run = hydrateRunExecutionResult(run, toolContext, approvals, preToolContent, preToolReasoning)
 	return r.completeChatRun(ctx, session, run, text, toolContext, approvals, replyResult, adkErr)
+}
+
+func resolveChatWorkflowOptions(req ChatRequest, agent Agent) (string, RunOptions, string, error) {
+	if !validWorkMode(req.WorkModeOverride) {
+		return "", RunOptions{}, "", fmt.Errorf("invalid work mode %q", req.WorkModeOverride)
+	}
+	mode := normalizeWorkMode(agent.WorkMode)
+	if strings.TrimSpace(req.WorkModeOverride) != "" {
+		mode = normalizeWorkMode(req.WorkModeOverride)
+	}
+	options := RunOptions{
+		LoopMaxIterations: normalizeLoopMaxIterations(agent.LoopMaxIterations),
+	}
+	if req.RunOptions != nil {
+		if req.RunOptions.LoopMaxIterations > 0 {
+			options.LoopMaxIterations = normalizeLoopMaxIterations(req.RunOptions.LoopMaxIterations)
+		}
+	}
+	objective := strings.TrimSpace(req.Objective)
+	if objective == "" {
+		objective = strings.TrimSpace(req.Message)
+	}
+	return mode, options, objective, nil
 }
 
 func (r *Runtime) completeChatRun(
@@ -62,12 +99,12 @@ func (r *Runtime) completeChatRun(
 		if err := r.persistRunTerminalState(ctx, run); err != nil {
 			return ChatResponse{}, err
 		}
-		replyResult = openAIChatResult{Reply: localReply(text, toolContext.summaries, adkErr)}
+		replyResult = openAIChatResult{Reply: userFacingADKError(adkErr)}
 	} else {
 		var toolFailure string
 		run, toolFailure = markCompletedChatRun(run)
 		if toolFailure != "" && strings.TrimSpace(replyResult.Reply) == "" {
-			replyResult = openAIChatResult{Reply: localReply(text, toolSummariesForRun(run), nil)}
+			replyResult = openAIChatResult{Reply: toolFailure}
 		}
 		if err := r.persistRunTerminalState(ctx, run); err != nil {
 			return ChatResponse{}, err
@@ -314,7 +351,7 @@ func (r *Runtime) appendAssistantMessageEvent(
 		Content:      genai.NewContentFromParts(partsFromReplyAndReasoning(replyResult.Reply, replyResult.ReasoningContent), genai.RoleModel),
 		TurnComplete: true,
 	}
-	if err := r.rawSessionService.AppendEvent(ctx, response.Session, event); err != nil {
+	if err := appendADKEventWithStaleRetry(ctx, r.rawSessionService, response.Session, event); err != nil {
 		return Message{}, err
 	}
 	message, _ := transcriptEntryFromADKEvent(event)
@@ -333,11 +370,11 @@ func (r *Runtime) projectedChatResponse(
 	session Session,
 	run Run,
 	approvals []Approval,
-	fallback openAIChatResult,
+	replyResult openAIChatResult,
 ) ChatResponse {
 	response := ChatResponse{
-		Reply:            fallback.Reply,
-		ReasoningContent: fallback.ReasoningContent,
+		Reply:            replyResult.Reply,
+		ReasoningContent: replyResult.ReasoningContent,
 		Session:          session,
 		Run:              run,
 		PendingApprovals: pendingApprovalsOnly(approvals),

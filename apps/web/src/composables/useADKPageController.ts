@@ -48,9 +48,23 @@ export function useADKPageController(
     composerBlockMessage,
   );
   const suggestions = computed(() => DEFAULT_SUGGESTIONS);
-  const composerPlaceholder = computed(() => "输入问题或任务...");
+  const composerPlaceholder = computed(() =>
+    chatState.activeChildRunId.value ? "子智能体视图仅支持观察和审批" : "输入问题或任务...",
+  );
   const emptyStateHint = computed(
     () => "可直接输入问题，也可以用 @tool_name 显式调用内置工具",
+  );
+  const effectiveComposerBlockMessage = computed(() => {
+    if (chatState.activeChildRunId.value) {
+      return "子智能体视图仅支持观察和审批，请返回父对话后继续发送消息。";
+    }
+    return composerBlockMessage.value;
+  });
+  const effectiveCanSendChat = computed(
+    () => chatState.canSendChat.value && !chatState.activeChildRunId.value,
+  );
+  const effectiveCanInterruptChat = computed(
+    () => chatState.canInterruptChat.value && !chatState.activeChildRunId.value,
   );
 
   return {
@@ -60,23 +74,36 @@ export function useADKPageController(
     agentOptions: sessionState.agentOptions,
     approvalTool: sessionState.approvalTool,
     approvalsBusy: chatState.approvalsBusy,
-    canInterruptChat: chatState.canInterruptChat,
-    canSendChat: chatState.canSendChat,
+    activeChildRunId: chatState.activeChildRunId,
+    canInterruptChat: effectiveCanInterruptChat,
+    canSendChat: effectiveCanSendChat,
+    childRunItems: chatState.childRunItems,
+    childTimelineEntries: chatState.childTimelineEntries,
+    childViewContext: chatState.childViewContext,
     chatDraft: chatState.chatDraft,
-    composerBlockMessage,
+    composerBlockMessage: effectiveComposerBlockMessage,
     cancelActiveRun: chatState.cancelActiveRun,
     contextBusy: chatState.contextBusy,
     contextDetailsOpen: chatState.contextDetailsOpen,
     createNewSession: () =>
       sessionState.createNewSession(() => {
         chatState.timelineEntries.value = [];
+        chatState.clearSessionContext();
+        chatState.clearWorkflowPlanRun();
       }),
     deleteSession: (sessionId: string) =>
       sessionState.deleteSession(sessionId, () => {
         chatState.timelineEntries.value = [];
+        chatState.clearSessionContext();
+        chatState.clearWorkflowPlanRun();
       }),
     errorMessage: sessionState.errorMessage,
     formatPermission,
+    goalObjectiveDraft: chatState.goalObjectiveDraft,
+    goalObjectiveError: chatState.goalObjectiveError,
+    goalObjectiveSaving: chatState.goalObjectiveSaving,
+    showGoalObjectiveEditor: chatState.showGoalObjectiveEditor,
+    canSaveGoalObjective: chatState.canSaveGoalObjective,
     hasBlockingRun: chatState.hasBlockingRun,
     handleAgentChange: sessionState.handleAgentChange,
     handleComposerKeydown: chatState.handleComposerKeydown,
@@ -85,6 +112,7 @@ export function useADKPageController(
     interruptingRunId: chatState.interruptingRunId,
     loading: sessionState.loading,
     openProviderSettings: sessionState.openProviderSettings,
+    parentApprovalQueue: chatState.parentApprovalQueue,
     preview,
     providerOptions: sessionState.providerOptions,
     providers: sessionState.providers,
@@ -102,12 +130,13 @@ export function useADKPageController(
         ? chatState.resolveApproval(approval)
         : chatState.denyApproval(approval),
     selectedAgent,
+    selectedApprovalQueue: chatState.selectedApprovalQueue,
     selectedAgentId: sessionState.selectedAgentId,
     selectedProvider,
     selectedProviderId: sessionState.selectedProviderId,
     selectedSessionId: sessionState.selectedSessionId,
     sendingChat: chatState.sendingChat,
-    sessionContext: chatState.sessionContext,
+    sessionContext: chatState.visibleSessionContext,
     sessionAgentFilter: sessionState.sessionAgentFilter,
     sessions: sessionState.sessions,
     sessionSearch: sessionState.sessionSearch,
@@ -120,8 +149,14 @@ export function useADKPageController(
     slashCommands: chatState.slashCommands,
     selectSession: chatState.selectSession,
     sendChat: chatState.sendChat,
+    setActiveChildRunId: chatState.setActiveChildRunId,
     timelineEntries: chatState.timelineEntries,
+    updateGoalObjective: chatState.updateGoalObjective,
+    updateGoalObjectiveDraft: chatState.updateGoalObjectiveDraft,
+    visibleTimelineEntries: chatState.visibleTimelineEntries,
+    visibleWorkflowPlanRun: chatState.visibleWorkflowPlanRun,
     visibleSessions: sessionState.visibleSessions,
+    workModeOverride: chatState.workModeOverride,
     openContextDetails: chatState.openContextDetails,
   };
 }

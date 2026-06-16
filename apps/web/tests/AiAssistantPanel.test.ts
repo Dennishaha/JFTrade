@@ -9,9 +9,11 @@ import type {
   ADKApprovalResolution,
   ADKChatResponse,
   ADKRun,
+  ADKSessionContextSnapshot,
   ADKTimelineEntry,
 } from "@/contracts";
 
+import { resetADKApprovalInFlightForTest } from "../src/composables/adkApprovalResolution";
 import AiAssistantPanel from "../src/layout/AiAssistantPanel.vue";
 import { createResponse, flushRequests } from "./helpers";
 
@@ -42,6 +44,7 @@ vi.mock("../src/composables/adkRunContinuation", async () => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  resetADKApprovalInFlightForTest();
   streamADKChatMock.mockReset();
   monitorADKRunContinuationMock.mockReset();
   monitorADKRunContinuationMock.mockImplementation(async (run) => run);
@@ -191,6 +194,7 @@ describe("AiAssistantPanel", () => {
       false,
     );
 
+    await expandQueue("待审批");
     clickButtonByText("批准");
     await flushRequests();
 
@@ -304,14 +308,219 @@ describe("AiAssistantPanel", () => {
     await sendDockMessage("dock queued follow-up");
     expect(streamADKChatMock).toHaveBeenCalledTimes(1);
 
+    await expandQueue("待审批");
     clickButtonByText("批准");
     await flushRequests();
     await flushRequests();
+    await expandQueue("待审批");
 
     expect(document.body.textContent).toContain("dock second approval required");
     expect(document.body.textContent).toContain("dock-second-draft");
     expect(document.body.textContent).toContain("dock queued follow-up");
     expect(streamADKChatMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens a dock child agent filtered view from the child run queue", async () => {
+    const workflowRun = buildRun({
+      id: "dock-parent-run",
+      status: "COMPLETED",
+      workMode: "task",
+      childRunIds: ["dock-child-run"],
+      workflowPlan: [
+        {
+          taskId: "dock-step-child",
+          title: "侧栏子智能体",
+          status: "DONE",
+          childRunId: "dock-child-run",
+        },
+      ],
+    });
+
+    streamADKChatMock.mockImplementationOnce(async (_payload, onEvent) => {
+      const response: ADKChatResponse = {
+        reply: "dock parent done",
+        run: workflowRun,
+        session: buildSession(),
+        context: buildSessionContextSnapshot(),
+        pendingApprovals: [],
+        timeline: [
+          buildTimelineEntry("assistant_message", {
+            id: "dock-parent-answer",
+            runId: workflowRun.id,
+            text: "dock parent visible answer",
+            createdAt: "2026-06-09T00:00:02Z",
+          }),
+          buildTimelineEntry("assistant_message", {
+            id: "dock-child-answer",
+            runId: "dock-child-run",
+            text: "dock child filtered answer",
+            createdAt: "2026-06-09T00:00:03Z",
+          }),
+          buildTimelineEntry("tool_group", {
+            id: "dock-child-tools",
+            runId: "dock-child-run",
+            toolCalls: [
+              buildToolCall(
+                "dock-child-tool",
+                "dock-child-run",
+                "strategy.inspect_dock_child",
+                "SUCCEEDED",
+              ),
+            ],
+            createdAt: "2026-06-09T00:00:04Z",
+          }),
+          buildTimelineEntry("tool_group", {
+            id: "dock-parent-copy-child-tools",
+            runId: workflowRun.id,
+            toolCalls: [
+              {
+                ...buildToolCall(
+                  "dock-parent-copy-child-tool",
+                  "dock-child-run",
+                  "strategy.inspect_dock_parent_copy_child",
+                  "SUCCEEDED",
+                ),
+                output: { result: "dock-child-only-success" },
+              },
+            ],
+            createdAt: "2026-06-09T00:00:05Z",
+          }),
+        ],
+      };
+      await onEvent({ type: "session", session: response.session });
+      await onEvent({ type: "final", response });
+      return response;
+    });
+
+    mountPanel({
+      runById: {
+        "dock-child-run": buildRun({
+          id: "dock-child-run",
+          parentRunId: workflowRun.id,
+          status: "RUNNING",
+          usage: { tokensIn: 1200, tokensOut: 300 },
+        }),
+      },
+    });
+    await flushRequests();
+
+    await sendDockMessage("dock child workflow");
+    expect(document.body.textContent).toContain("42% 正常");
+    await expandQueue("子智能体");
+    const childQueue = document.querySelector('[aria-label="子智能体"]');
+    expect(childQueue).not.toBeNull();
+    expect(document.querySelector('[aria-label="执行计划"]')).not.toBeNull();
+    expect(childQueue?.querySelector(".adk-workspace-queue__badge.is-success")).not.toBeNull();
+    expect(childQueue?.querySelector(".adk-workspace-queue-status.is-success")).not.toBeNull();
+    expect(childQueue?.querySelector(".adk-workspace-queue__badge.is-error")).toBeNull();
+    expect(childQueue?.querySelector(".adk-workspace-queue-status.is-error")).toBeNull();
+    expect(document.body.textContent).toContain("侧栏子智能体");
+    expect(document.body.textContent).toContain("dock parent visible answer");
+    expect(document.body.textContent).toContain("启动子智能体 #1");
+    expect(document.body.textContent).toContain("子智能体 #1 已结束：已完成");
+    expect(
+      document.querySelector('[aria-label="子智能体"]')?.textContent,
+    ).not.toContain("运行中");
+    expect(
+      document.querySelector('[aria-label="执行计划"]')?.textContent,
+    ).not.toContain("IN_PROGRESS");
+    expect(document.body.textContent).not.toContain("dock child filtered answer");
+    expect(document.body.textContent).not.toContain("strategy.inspect_dock_child");
+    expect(document.body.textContent).not.toContain(
+      "strategy.inspect_dock_parent_copy_child",
+    );
+    expect(document.body.textContent).not.toContain("dock-child-only-success");
+
+    clickButtonByText("进入");
+    await nextTick();
+
+    expect(document.body.textContent).toContain("子智能体 #1");
+    expect(document.body.textContent).toContain("dock-child-run");
+    expect(document.body.textContent).not.toContain("42% 正常");
+    expect(document.body.textContent).toContain("15% 正常");
+    expect(document.body.textContent).toContain("dock child filtered answer");
+    expect(document.body.textContent).toContain("strategy.inspect_dock_child");
+    expect(document.body.textContent).not.toContain(
+      "strategy.inspect_dock_parent_copy_child",
+    );
+    expect(document.body.textContent).not.toContain("dock parent visible answer");
+    expect(document.querySelector('[aria-label="子智能体"]')).toBeNull();
+    expect(document.querySelector('[aria-label="执行计划"]')).toBeNull();
+
+    clickButtonByText("返回父对话");
+    await nextTick();
+
+    expect(document.body.textContent).toContain("dock parent visible answer");
+    expect(document.body.textContent).toContain("42% 正常");
+    expect(document.body.textContent).not.toContain("15% 正常");
+    expect(document.body.textContent).toContain("启动子智能体 #1");
+    expect(document.body.textContent).toContain("子智能体 #1 已结束：已完成");
+    expect(document.body.textContent).not.toContain("dock child filtered answer");
+    expect(document.body.textContent).not.toContain("strategy.inspect_dock_child");
+    expect(document.body.textContent).not.toContain(
+      "strategy.inspect_dock_parent_copy_child",
+    );
+    expect(document.body.textContent).not.toContain("dock-child-only-success");
+    expect(document.querySelector('[aria-label="子智能体"]')).not.toBeNull();
+    expect(document.querySelector('[aria-label="执行计划"]')).not.toBeNull();
+  });
+
+  it("marks failed dock child agent queue items as error instead of success", async () => {
+    const workflowRun = buildRun({
+      id: "dock-parent-child-failed",
+      status: "FAILED",
+      workMode: "task",
+      childRunIds: ["dock-child-failed"],
+      workflowPlan: [
+        {
+          taskId: "dock-step-child-failed",
+          title: "侧栏失败子智能体",
+          status: "BLOCKED",
+          childRunId: "dock-child-failed",
+        },
+      ],
+    });
+
+    streamADKChatMock.mockImplementationOnce(async (_payload, onEvent) => {
+      const response: ADKChatResponse = {
+        reply: "dock parent failed",
+        run: workflowRun,
+        session: buildSession(),
+        pendingApprovals: [],
+        timeline: [
+          buildTimelineEntry("assistant_message", {
+            id: "dock-parent-failed-answer",
+            runId: workflowRun.id,
+            text: "dock parent failed answer",
+            createdAt: "2026-06-09T00:00:02Z",
+          }),
+        ],
+      };
+      await onEvent({ type: "session", session: response.session });
+      await onEvent({ type: "final", response });
+      return response;
+    });
+
+    mountPanel({
+      runById: {
+        "dock-child-failed": buildRun({
+          id: "dock-child-failed",
+          parentRunId: workflowRun.id,
+          status: "FAILED",
+        }),
+      },
+    });
+    await flushRequests();
+
+    await sendDockMessage("dock failed child workflow");
+    await expandQueue("子智能体");
+
+    const childQueue = document.querySelector('[aria-label="子智能体"]');
+    expect(childQueue).not.toBeNull();
+    expect(childQueue?.querySelector(".adk-workspace-queue__badge.is-error")).not.toBeNull();
+    expect(childQueue?.querySelector(".adk-workspace-queue-status.is-error")).not.toBeNull();
+    expect(childQueue?.querySelector(".adk-workspace-queue__badge.is-success")).toBeNull();
+    expect(childQueue?.querySelector(".adk-workspace-queue-status.is-success")).toBeNull();
   });
 
   it("queues dock messages and auto-dispatches them after the blocking run completes", async () => {
@@ -418,6 +627,7 @@ describe("AiAssistantPanel", () => {
     expect(streamADKChatMock).toHaveBeenCalledTimes(1);
     expect(document.body.textContent).toContain("dock follow-up");
 
+    await expandQueue("待审批");
     clickButtonByText("批准");
     await flushRequests();
 
@@ -698,6 +908,7 @@ function mountPanel(
     approvals?: ADKApproval[];
     approvalResolutionById?: Record<string, ADKApprovalResolution>;
     cancelRunById?: Record<string, ADKRun>;
+    runById?: Record<string, ADKRun>;
     sessionDetail?: {
       session: ReturnType<typeof buildSession>;
       timeline: ADKTimelineEntry[];
@@ -751,6 +962,11 @@ function mountPanel(
           options.cancelRunById?.[runId] ??
             buildRun({ id: runId, status: "CANCELLED", pendingApprovals: [] }),
         );
+      }
+      const runDetailMatch = url.match(/\/api\/v1\/adk\/runs\/([^/]+)$/);
+      if (runDetailMatch) {
+        const runId = decodeURIComponent(runDetailMatch[1]!);
+        return createResponse(options.runById?.[runId] ?? {});
       }
       if (/\/api\/v1\/adk\/sessions\/[^/]+$/.test(url)) {
         const detail =
@@ -834,6 +1050,39 @@ function buildSession() {
   };
 }
 
+function buildSessionContextSnapshot(
+  overrides: Partial<ADKSessionContextSnapshot> = {},
+): ADKSessionContextSnapshot {
+  const breakdown = {
+    instructionTokens: 900,
+    handoffTokens: 0,
+    recentUserTokens: 1200,
+    protectedTailTokens: 0,
+    otherVisibleTokens: 1600,
+    pendingUserTokens: 200,
+    toolDeclarationTokens: 300,
+  };
+  return {
+    sessionId: "session-1",
+    currentInputTokens: 4200,
+    projectedNextTurnTokens: 4300,
+    rawCurrentInputTokens: 4200,
+    rawProjectedNextTurnTokens: 4300,
+    contextWindowTokens: 10000,
+    usageRatio: 0.42,
+    status: "healthy",
+    recentUserWindow: 6,
+    retainedRecentUserCount: 1,
+    activeHandoffCount: 0,
+    breakdown,
+    rawBreakdown: breakdown,
+    trimmedToolResponseCount: 0,
+    autoCompacted: false,
+    degradedSummary: false,
+    ...overrides,
+  };
+}
+
 function buildTimelineEntry(
   kind: ADKTimelineEntry["kind"],
   overrides: Partial<ADKTimelineEntry> = {},
@@ -893,6 +1142,17 @@ function clickButtonByText(text: string): void {
   Array.from(document.querySelectorAll<HTMLButtonElement>("button"))
     .find((button) => button.textContent?.includes(text))
     ?.click();
+}
+
+async function expandQueue(title: string): Promise<void> {
+  const queue =
+    document.querySelector<HTMLElement>(`[aria-label="${title}"]`) ??
+    Array.from(
+      document.querySelectorAll<HTMLElement>(".adk-workspace-queue"),
+    ).find((candidate) => candidate.textContent?.includes(title));
+  if (!queue || queue.querySelector(".adk-workspace-queue__body")) return;
+  queue.querySelector<HTMLButtonElement>(".adk-workspace-queue__header")?.click();
+  await nextTick();
 }
 
 function vuetifyStubs() {

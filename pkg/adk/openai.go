@@ -240,7 +240,7 @@ func (c openAIClient) selectTools(
 	selectionMessages := append([]openAIChatMessage{}, trimMessagesForProvider(messages, maxProviderPayloadBytes)...)
 	selectionMessages = append(selectionMessages, openAIChatMessage{
 		Role:    "system",
-		Content: "Decide which JFTrade tools are needed before answering. Use at most five tool calls. If no tool is useful, answer normally without tool calls.",
+		Content: "Decide which JFTrade tools are needed before answering. If no tool is useful, answer normally without tool calls.",
 	})
 	payload := openAIChatRequest{
 		Model:       model,

@@ -4,7 +4,6 @@ import { computed } from "vue";
 import type { ADKApproval, ADKRun, ADKToolDescriptor } from "@/contracts";
 
 import {
-  approvalsForGroup,
   buildTimelineRun,
   type ADKTimelineEntryState,
 } from "../../composables/adkTimeline";
@@ -87,10 +86,6 @@ function entryToolRun(entry: ADKTimelineEntryState): ADKRun {
   };
 }
 
-function entryApprovals(entry: ADKTimelineEntryState) {
-  return approvalsForGroup(entry);
-}
-
 function entryToolProgress(entry: ADKTimelineEntryState): string {
   if (isEntryActiveRun(entry)) {
     if (props.activeRunStatus === "PENDING_APPROVAL") {
@@ -154,9 +149,10 @@ function entryToolBusy(entry: ADKTimelineEntryState): boolean {
           </button>
           <div
             v-if="entry.reasoningExpanded"
-            class="adk-bubble adk-bubble--assistant adk-reasoning-body adk-markdown"
-            v-html="renderMarkdown(entry.text ?? '')"
-          />
+            class="adk-bubble adk-bubble--assistant adk-reasoning-body"
+          >
+            {{ entry.text ?? "" }}
+          </div>
         </div>
       </div>
 
@@ -173,90 +169,7 @@ function entryToolBusy(entry: ADKTimelineEntryState): boolean {
         />
       </div>
 
-      <div
-        v-else-if="entry.kind === 'approval_group' && entryApprovals(entry).length > 0"
-        class="adk-msg adk-msg--assistant"
-      >
-        <div class="adk-approvals">
-          <div class="adk-approvals-header">
-            <div class="adk-approvals-header__title">
-              <v-icon size="16" color="warning">fa-solid fa-shield-halved</v-icon>
-              <span>待审批工具调用</span>
-              <span class="adk-approvals-count">{{ entryApprovals(entry).length }}</span>
-            </div>
-            <div class="adk-approvals-bulk">
-              <v-btn
-                class="adk-approvals-approve-all"
-                color="primary"
-                size="x-small"
-                :disabled="approvalsBusy"
-                @click="resolveApprovalGroup(entryApprovals(entry), true)"
-              >
-                全部批准
-              </v-btn>
-              <v-btn
-                class="adk-approvals-deny-all"
-                variant="outlined"
-                color="error"
-                size="x-small"
-                :disabled="approvalsBusy"
-                @click="resolveApprovalGroup(entryApprovals(entry), false)"
-              >
-                全部拒绝
-              </v-btn>
-            </div>
-          </div>
-
-          <div
-            v-for="approval in entryApprovals(entry)"
-            :key="approval.id"
-            class="adk-approval-card"
-          >
-            <div class="adk-approval-row">
-              <div class="adk-approval-main">
-                <div class="adk-approval-tool">
-                  <v-icon size="14" class="mr-1">fa-solid fa-code</v-icon>
-                  <strong>{{ approval.toolName }}</strong>
-                  <v-chip
-                    v-if="approvalTool(approval)"
-                    size="x-small"
-                    :color="approvalTool(approval)?.riskLevel === 'critical' ? 'error' : 'warning'"
-                    variant="tonal"
-                  >
-                    {{ approvalTool(approval)?.riskLevel ?? "unknown" }} risk
-                  </v-chip>
-                </div>
-                <div class="adk-approval-meta">
-                  <span v-if="approval.reason">{{ approval.reason }}</span>
-                  <span>Run: {{ approval.runId }}</span>
-                </div>
-              </div>
-              <div class="adk-approval-actions">
-                <v-btn
-                  class="adk-approval-btn--approve"
-                  color="primary"
-                  size="x-small"
-                  :disabled="approvalsBusy"
-                  @click="resolveApproval(approval, true)"
-                >
-                  批准
-                </v-btn>
-                <v-btn
-                  class="adk-approval-btn--deny"
-                  variant="outlined"
-                  color="error"
-                  size="x-small"
-                  :disabled="approvalsBusy"
-                  @click="resolveApproval(approval, false)"
-                >
-                  拒绝
-                </v-btn>
-              </div>
-            </div>
-            <pre v-if="approval.input" class="adk-json adk-approval-input">{{ preview(approval.input) }}</pre>
-          </div>
-        </div>
-      </div>
+      <template v-else-if="entry.kind === 'approval_group'" />
 
       <div v-else class="adk-msg adk-msg--assistant">
         <div

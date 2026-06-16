@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	adkagent "google.golang.org/adk/agent"
 	"google.golang.org/adk/agent/llmagent"
+	"google.golang.org/adk/agent/workflowagents/loopagent"
 	adkmodel "google.golang.org/adk/model"
 	adkrunner "google.golang.org/adk/runner"
 	adksession "google.golang.org/adk/session"
@@ -29,9 +30,19 @@ type googleADKExecution struct {
 	appName                  string
 	agent                    Agent
 	runID                    string
+	runIDByAgentName         map[string]string
+	runSnapshotBaseByID      map[string]Run
 	descriptors              map[string]ToolDescriptor
 	calls                    []ToolCall
 	summaries                []string
+	replyByRunID             map[string]*strings.Builder
+	reasoningByRunID         map[string]*strings.Builder
+	bufferedReplyByRunID     map[string]*strings.Builder
+	bufferedReasoningByRunID map[string]*strings.Builder
+	toolResponseSeenByRunID  map[string]bool
+	postToolTextByRunID      map[string]bool
+	toolResponseSeqByRunID   map[string]int
+	postToolTextSeqByRunID   map[string]int
 	reply                    strings.Builder
 	reasoning                strings.Builder
 	preToolContent           strings.Builder
@@ -71,6 +82,12 @@ func (r *Runtime) executeGoogleADK(
 		r.adkMu.Lock()
 		r.adkRuns[runID] = execution
 		r.adkMu.Unlock()
+	}
+	if len(approvals) == 0 {
+		if err := r.ensureGoogleADKFinalReply(ctx, agent, session, execution, runID, text); err != nil {
+			preToolContent, preToolReasoning := execution.preToolState()
+			return execution.toolContext(), nil, execution.result(), preToolContent, preToolReasoning, err
+		}
 	}
 	preToolContent, preToolReasoning := execution.preToolState()
 	return execution.toolContext(), approvals, execution.result(), preToolContent, preToolReasoning, nil
@@ -128,7 +145,7 @@ func (r *Runtime) resumeGoogleADK(ctx context.Context, run Run) (Run, *Message, 
 	if len(newApprovals) > 0 {
 		// Save the assistant message accumulated so far so the timeline
 		// renders the LLM's analysis between approval rounds.
-		result := execution.result()
+		result := execution.resultForRun(run.ID)
 		if strings.TrimSpace(result.Reply) != "" || strings.TrimSpace(result.ReasoningContent) != "" {
 			message, msgErr := r.ensureAssistantMessage(ctx, Session{ID: run.SessionID, AgentID: run.AgentID}, run, result)
 			if msgErr == nil {
@@ -148,8 +165,22 @@ func (r *Runtime) resumeGoogleADK(ctx context.Context, run Run) (Run, *Message, 
 		return run, nil, true, nil
 	}
 
-	run, denied := hydrateResumedRun(run, execution)
-	result := execution.result()
+	denied := runHasDeniedApproval(run.PendingApprovals)
+	if !denied {
+		if err := r.ensureGoogleADKFinalReply(ctx, execution.agent, Session{ID: run.SessionID, AgentID: run.AgentID}, execution, run.ID, run.UserMessage); err != nil {
+			run, _ = hydrateResumedRun(run, execution)
+			run = markFailedChatRun(ctx, run, err)
+			if persistErr := r.persistRunTerminalState(ctx, run); persistErr != nil {
+				return run, nil, true, persistErr
+			}
+			r.adkMu.Lock()
+			delete(r.adkRuns, run.ID)
+			r.adkMu.Unlock()
+			return run, nil, true, nil
+		}
+	}
+	run, denied = hydrateResumedRun(run, execution)
+	result := execution.resultForRun(run.ID)
 	if denied {
 		result.Reply = approvalResolutionSummary(run, run.PendingApprovals[0], false)
 		result.ReasoningContent = ""
@@ -232,7 +263,7 @@ func approvalResolutionParts(approvals []Approval) []*genai.Part {
 }
 
 func hydrateResumedRun(run Run, execution *googleADKExecution) (Run, bool) {
-	toolContext := execution.toolContext()
+	toolContext := execution.toolContextForRun(run.ID)
 	run.ToolCalls = toolContext.calls
 	run.ToolSummaries = toolContext.summaries
 	run.PreToolContent, run.PreToolReasoning = execution.preToolState()
@@ -254,7 +285,7 @@ func hydrateResumedRun(run Run, execution *googleADKExecution) (Run, bool) {
 // while keeping the run in a pending-approval state so further confirmation
 // rounds can be processed.
 func hydrateResumedRunWithApprovals(run Run, execution *googleADKExecution, newApprovals []Approval) Run {
-	toolContext := execution.toolContext()
+	toolContext := execution.toolContextForRun(run.ID)
 	run.ToolCalls = toolContext.calls
 	run.ToolSummaries = toolContext.summaries
 	run.PreToolContent, run.PreToolReasoning = execution.preToolState()
@@ -448,42 +479,246 @@ func (r *Runtime) newGoogleADKExecution(
 	runID string,
 	onDelta func(ChatDelta) error,
 ) (*googleADKExecution, error) {
-	var llm adkmodel.LLM = localADKModel{agent: definition, tools: r.tools}
-	if strings.TrimSpace(definition.ProviderID) != "" {
-		provider, ok, err := r.store.Provider(ctx, definition.ProviderID)
-		if err != nil {
-			return nil, err
-		}
-		if !ok || !provider.Enabled {
-			return nil, fmt.Errorf("agent provider is unavailable")
-		}
-		apiKey, _, err := r.store.ProviderAPIKey(provider.ID)
-		if err != nil {
-			return nil, err
-		}
-		llm = newOpenAICompatibleADKModel(provider, apiKey, definition.Model)
+	llm, err := r.googleADKModelForAgent(ctx, definition)
+	if err != nil {
+		return nil, err
 	}
 
 	execution := &googleADKExecution{
-		sessionID:   productSession.ID,
-		appName:     googleADKAppName(definition.ID),
-		agent:       definition,
-		runID:       runID,
-		descriptors: toolDescriptorIndex(ToolDescriptorsForAgent(definition, r.tools)),
-		calls:       []ToolCall{},
-		summaries:   []string{},
-		onDelta:     onDelta,
+		sessionID: productSession.ID,
+		appName:   googleADKAppName(definition.ID),
+		agent:     definition,
+		runID:     runID,
+		runIDByAgentName: map[string]string{
+			googleADKAgentName(definition.ID): runID,
+		},
+		runSnapshotBaseByID: map[string]Run{
+			runID: {
+				ID: runID, SessionID: productSession.ID, AgentID: definition.ID,
+				Status: RunStatusRunning, ToolCalls: []ToolCall{}, PendingApprovals: []Approval{},
+			},
+		},
+		descriptors:              toolDescriptorIndex(ToolDescriptorsForAgent(definition, r.tools)),
+		calls:                    []ToolCall{},
+		summaries:                []string{},
+		replyByRunID:             map[string]*strings.Builder{},
+		reasoningByRunID:         map[string]*strings.Builder{},
+		bufferedReplyByRunID:     map[string]*strings.Builder{},
+		bufferedReasoningByRunID: map[string]*strings.Builder{},
+		toolResponseSeenByRunID:  map[string]bool{},
+		postToolTextByRunID:      map[string]bool{},
+		toolResponseSeqByRunID:   map[string]int{},
+		postToolTextSeqByRunID:   map[string]int{},
+		onDelta:                  onDelta,
 		persistRunSnapshot: func(snapshot Run) error {
 			return r.persistRunActivitySnapshot(context.Background(), snapshot)
 		},
 	}
+	adkAgent, err := r.newGoogleADKLLMAgent(ctx, googleADKAgentName(definition.ID), definition.Name, definition, llm, execution)
+	if err != nil {
+		return nil, fmt.Errorf("create GO-ADK agent: %w", err)
+	}
+	return r.attachGoogleADKRunner(ctx, execution, productSession, adkAgent)
+}
+
+func (r *Runtime) newGoogleADKWorkflowExecution(
+	ctx context.Context,
+	definition Agent,
+	productSession Session,
+	parent Run,
+	childRuns []Run,
+	steps []workflowStep,
+	mode string,
+	options RunOptions,
+	onDelta func(ChatDelta) error,
+) (*googleADKExecution, error) {
+	llm, err := r.googleADKModelForAgent(ctx, definition)
+	if err != nil {
+		return nil, err
+	}
+	rootName := googleADKWorkflowRootName(parent.ID)
+	execution := &googleADKExecution{
+		sessionID: productSession.ID,
+		appName:   googleADKAppName(definition.ID),
+		agent:     definition,
+		runID:     parent.ID,
+		runIDByAgentName: map[string]string{
+			rootName: parent.ID,
+		},
+		runSnapshotBaseByID: map[string]Run{
+			parent.ID: parent,
+		},
+		descriptors:              toolDescriptorIndex(ToolDescriptorsForAgent(definition, r.tools)),
+		calls:                    []ToolCall{},
+		summaries:                []string{},
+		replyByRunID:             map[string]*strings.Builder{},
+		reasoningByRunID:         map[string]*strings.Builder{},
+		bufferedReplyByRunID:     map[string]*strings.Builder{},
+		bufferedReasoningByRunID: map[string]*strings.Builder{},
+		toolResponseSeenByRunID:  map[string]bool{},
+		postToolTextByRunID:      map[string]bool{},
+		toolResponseSeqByRunID:   map[string]int{},
+		postToolTextSeqByRunID:   map[string]int{},
+		onDelta:                  onDelta,
+		persistRunSnapshot: func(snapshot Run) error {
+			return r.persistRunActivitySnapshot(context.Background(), snapshot)
+		},
+	}
+	subAgents := make([]adkagent.Agent, 0, len(childRuns))
+	for index, child := range childRuns {
+		if index >= len(steps) {
+			break
+		}
+		name := googleADKWorkflowChildName(parent.ID, index)
+		execution.runIDByAgentName[name] = child.ID
+		execution.runSnapshotBaseByID[child.ID] = child
+		childDefinition := definition
+		childDefinition.WorkMode = WorkModeChat
+		childDefinition.Instruction = workflowChildInstruction(definition.Instruction, workflowChildInstructionTask(steps[index]))
+		childAgent, err := r.newGoogleADKLLMAgent(ctx, name, steps[index].Title, childDefinition, llm, execution)
+		if err != nil {
+			return nil, err
+		}
+		subAgents = append(subAgents, childAgent)
+	}
+	if len(subAgents) == 0 {
+		return nil, fmt.Errorf("workflow requires at least one sub-agent")
+	}
+	root, err := loopagent.New(loopagent.Config{
+		AgentConfig: adkagent.Config{
+			Name: rootName, Description: definition.Name + " loop workflow", SubAgents: subAgents,
+		},
+		MaxIterations: uint(normalizeLoopMaxIterations(options.LoopMaxIterations)),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("create GO-ADK workflow agent: %w", err)
+	}
+	return r.attachGoogleADKRunner(ctx, execution, productSession, root)
+}
+
+func (r *Runtime) runGoogleADKWorkflowChildFinalSynthesis(
+	ctx context.Context,
+	definition Agent,
+	productSession Session,
+	execution *googleADKExecution,
+	child Run,
+) error {
+	return r.runGoogleADKFinalSynthesis(ctx, definition, productSession, execution, child.ID, child.UserMessage)
+}
+
+func (r *Runtime) ensureGoogleADKFinalReply(
+	ctx context.Context,
+	definition Agent,
+	productSession Session,
+	execution *googleADKExecution,
+	runID string,
+	task string,
+) error {
+	if !execution.runNeedsFinalSynthesis(runID) {
+		return nil
+	}
+	if err := r.runGoogleADKFinalSynthesis(ctx, definition, productSession, execution, runID, task); err != nil {
+		return err
+	}
+	if execution.runNeedsFinalSynthesis(runID) || !execution.runHasPostToolText(runID) {
+		return errADKMissingFinalReply()
+	}
+	return nil
+}
+
+func (r *Runtime) runGoogleADKFinalSynthesis(
+	ctx context.Context,
+	definition Agent,
+	productSession Session,
+	execution *googleADKExecution,
+	runID string,
+	task string,
+) error {
+	noToolDefinition := definition
+	noToolDefinition.WorkMode = WorkModeChat
+	noToolDefinition.Tools = nil
+	noToolDefinition.Skills = nil
+	llm, err := r.googleADKModelForAgent(ctx, noToolDefinition)
+	if err != nil {
+		return err
+	}
+	agentName := execution.agentNameForRunID(runID)
+	if agentName == "" {
+		return fmt.Errorf("GO-ADK agent mapping missing for run %s", runID)
+	}
+	instruction := workflowFinalSynthesisInstruction(definition.Instruction, task)
+	synthesisAgent, err := llmagent.New(llmagent.Config{
+		Name:        agentName,
+		Description: "Finalize ADK run response",
+		InstructionProvider: func(ctx adkagent.ReadonlyContext) (string, error) {
+			if r.contextManager == nil || ctx == nil {
+				return instruction, nil
+			}
+			suffix, suffixErr := r.contextManager.InstructionSuffix(ctx, ctx.SessionID())
+			if suffixErr != nil || strings.TrimSpace(suffix) == "" {
+				return instruction, nil
+			}
+			return instruction + "\n\n" + suffix, nil
+		},
+		Model:           llm,
+		IncludeContents: llmagent.IncludeContentsDefault,
+	})
+	if err != nil {
+		return fmt.Errorf("create GO-ADK final synthesis agent: %w", err)
+	}
+	synthesisRunner, err := adkrunner.New(adkrunner.Config{
+		AppName: execution.appName, Agent: synthesisAgent, SessionService: execution.sessionService,
+	})
+	if err != nil {
+		return fmt.Errorf("create GO-ADK final synthesis runner: %w", err)
+	}
+	execution.markToolResponseSeenForRun(runID)
+	for event, runErr := range synthesisRunner.Run(ctx, googleADKUserID, execution.sessionID, nil, adkagent.RunConfig{
+		StreamingMode: adkagent.StreamingModeSSE,
+	}) {
+		if runErr != nil {
+			return runErr
+		}
+		if err := execution.consumeEvent(event); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (r *Runtime) googleADKModelForAgent(ctx context.Context, definition Agent) (adkmodel.LLM, error) {
+	if strings.TrimSpace(definition.ProviderID) == "" {
+		return nil, fmt.Errorf("agent provider is required")
+	}
+	provider, ok, err := r.store.Provider(ctx, definition.ProviderID)
+	if err != nil {
+		return nil, err
+	}
+	if !ok || !provider.Enabled {
+		return nil, fmt.Errorf("agent provider is unavailable")
+	}
+	apiKey, _, err := r.store.ProviderAPIKey(provider.ID)
+	if err != nil {
+		return nil, err
+	}
+	return newOpenAICompatibleADKModel(provider, apiKey, definition.Model), nil
+}
+
+func (r *Runtime) newGoogleADKLLMAgent(
+	ctx context.Context,
+	name string,
+	description string,
+	definition Agent,
+	llm adkmodel.LLM,
+	execution *googleADKExecution,
+) (adkagent.Agent, error) {
 	toolsets, err := r.googleADKToolsets(ctx, definition)
 	if err != nil {
 		return nil, err
 	}
-	adkAgent, err := llmagent.New(llmagent.Config{
-		Name:        googleADKAgentName(definition.ID),
-		Description: definition.Name,
+	return llmagent.New(llmagent.Config{
+		Name:        name,
+		Description: description,
 		InstructionProvider: func(ctx adkagent.ReadonlyContext) (string, error) {
 			instruction := strings.TrimSpace(definition.Instruction)
 			if r.contextManager == nil || ctx == nil {
@@ -508,9 +743,14 @@ func (r *Runtime) newGoogleADKExecution(
 		Toolsets:        toolsets,
 		IncludeContents: llmagent.IncludeContentsDefault,
 	})
-	if err != nil {
-		return nil, fmt.Errorf("create GO-ADK agent: %w", err)
-	}
+}
+
+func (r *Runtime) attachGoogleADKRunner(
+	ctx context.Context,
+	execution *googleADKExecution,
+	productSession Session,
+	adkAgent adkagent.Agent,
+) (*googleADKExecution, error) {
 	service := r.sessionService
 	if service == nil {
 		service = adksession.InMemoryService()
@@ -547,10 +787,7 @@ func (e *googleADKExecution) beforeToolCallback(ctx adktool.Context, tool adktoo
 	if !ok {
 		return nil, nil
 	}
-	if e.toolCallCount() >= MaxToolCallsPerRun {
-		return nil, fmt.Errorf("maximum tool calls per run (%d) exceeded", MaxToolCallsPerRun)
-	}
-	call := e.ensureCall(ctx.FunctionCallID(), descriptor, args)
+	call := e.ensureCallForAgent(ctx.FunctionCallID(), descriptor, args, ctx.AgentName())
 	e.emitToolProgress(call.ID, tool.Name())
 	if !ToolAllowedInMode(descriptor, e.agent.PermissionMode) {
 		return nil, fmt.Errorf("tool is not allowed in permission mode %s", e.agent.PermissionMode)
@@ -569,7 +806,7 @@ func (e *googleADKExecution) afterToolCallback(
 	if !ok {
 		return nil, nil
 	}
-	call := e.ensureCall(ctx.FunctionCallID(), descriptor, args)
+	call := e.ensureCallForAgent(ctx.FunctionCallID(), descriptor, args, ctx.AgentName())
 	switch {
 	case err == nil:
 		if structuredErr, ok := structuredToolError(result); ok {
@@ -621,8 +858,6 @@ func (e *googleADKExecution) run(ctx context.Context, content *genai.Content) er
 }
 
 func (e *googleADKExecution) runBlockingWithRunner(ctx context.Context, content *genai.Content) error {
-	maxIterations := MaxToolCallsPerRun * 3 // Allow model calls + tool calls per turn
-	iterations := 0
 	for event, err := range e.runner.Run(ctx, googleADKUserID, e.sessionID, content, adkagent.RunConfig{
 		StreamingMode: adkagent.StreamingModeSSE,
 	}) {
@@ -632,24 +867,8 @@ func (e *googleADKExecution) runBlockingWithRunner(ctx context.Context, content 
 		if err := e.consumeEvent(event); err != nil {
 			return err
 		}
-		if countsTowardIterationLimit(event) {
-			iterations++
-		}
-		if iterations >= maxIterations {
-			return fmt.Errorf("ADK run exceeded maximum iterations (%d), possible infinite tool call loop", maxIterations)
-		}
 	}
 	return nil
-}
-
-func countsTowardIterationLimit(event *adksession.Event) bool {
-	if event == nil {
-		return false
-	}
-	// Partial streaming chunks are token-level transport details, not agent
-	// reasoning steps. Counting them makes ordinary streamed answers trip the
-	// loop guard long before the model has a chance to finish.
-	return !event.Partial
 }
 
 func (e *googleADKExecution) consumeEvent(event *adksession.Event) error {
@@ -671,14 +890,14 @@ func (e *googleADKExecution) consumeEvent(event *adksession.Event) error {
 				continue
 			}
 			descriptor := ToolDescriptor{Name: part.FunctionCall.Name}
-			e.ensureCall(part.FunctionCall.ID, descriptor, part.FunctionCall.Args)
+			e.ensureCallForAgent(part.FunctionCall.ID, descriptor, part.FunctionCall.Args, event.Author)
 		}
 		if part.FunctionResponse != nil {
 			e.consumeFunctionResponse(part.FunctionResponse)
 		}
 		if emitText && part.Text != "" {
 			reply, reasoning := visibleTextFromParts([]*genai.Part{part})
-			if err := e.appendVisibleText(reply, reasoning); err != nil {
+			if err := e.appendVisibleTextForRun(e.runIDForAgentName(event.Author), reply, reasoning); err != nil {
 				return err
 			}
 		}
@@ -705,8 +924,43 @@ func contentHasText(content *genai.Content) bool {
 }
 
 func (e *googleADKExecution) ensureCall(functionCallID string, descriptor ToolDescriptor, input map[string]any) *ToolCall {
+	return e.ensureCallForRun(functionCallID, descriptor, input, e.runID)
+}
+
+func (e *googleADKExecution) ensureCallForAgent(functionCallID string, descriptor ToolDescriptor, input map[string]any, agentName string) *ToolCall {
+	return e.ensureCallForRun(functionCallID, descriptor, input, e.runIDForAgentName(agentName))
+}
+
+func (e *googleADKExecution) runIDForAgentName(agentName string) string {
+	normalized := strings.TrimSpace(agentName)
+	if normalized != "" && e.runIDByAgentName != nil {
+		if runID := strings.TrimSpace(e.runIDByAgentName[normalized]); runID != "" {
+			return runID
+		}
+	}
+	return e.runID
+}
+
+func (e *googleADKExecution) agentNameForRunID(runID string) string {
+	runID = strings.TrimSpace(runID)
+	if runID == "" {
+		return ""
+	}
+	for agentName, mappedRunID := range e.runIDByAgentName {
+		if strings.TrimSpace(mappedRunID) == runID {
+			return agentName
+		}
+	}
+	return ""
+}
+
+func (e *googleADKExecution) ensureCallForRun(functionCallID string, descriptor ToolDescriptor, input map[string]any, runID string) *ToolCall {
 	e.mu.Lock()
 	defer e.mu.Unlock()
+	runID = strings.TrimSpace(runID)
+	if runID == "" {
+		runID = e.runID
+	}
 	for index := range e.calls {
 		if e.calls[index].IdempotencyKey == functionCallID {
 			if e.calls[index].ToolName == "" {
@@ -720,7 +974,7 @@ func (e *googleADKExecution) ensureCall(functionCallID string, descriptor ToolDe
 	}
 	now := nowString()
 	call := ToolCall{
-		ID: "tool-" + uuid.NewString(), RunID: e.runID, ToolName: descriptor.Name,
+		ID: "tool-" + uuid.NewString(), RunID: runID, ToolName: descriptor.Name,
 		Permission: descriptor.Permission, Status: "RUNNING", Input: input,
 		IdempotencyKey: functionCallID, CreatedAt: now, StartedAt: now, UpdatedAt: now,
 	}
@@ -777,6 +1031,7 @@ func (e *googleADKExecution) consumeFunctionResponse(response *genai.FunctionRes
 		if call.IdempotencyKey != response.ID {
 			continue
 		}
+		e.markToolResponseSeenLocked(call.RunID)
 		if call.Status != "RUNNING" && call.Status != "PENDING" {
 			break
 		}
@@ -839,8 +1094,9 @@ func (e *googleADKExecution) pendingApprovals(ctx context.Context, store *Store)
 				continue
 			}
 			now := nowString()
+			runID := e.runIDForFunctionCall(original.ID)
 			approval := Approval{
-				ID: "approval-" + uuid.NewString(), RunID: e.runID, AgentID: e.agent.ID,
+				ID: "approval-" + uuid.NewString(), RunID: runID, AgentID: e.agent.ID,
 				ToolName: original.Name, Input: original.Args, Status: ApprovalStatusPending,
 				Reason:         "GO-ADK HITL 要求用户审批该工具调用。",
 				FunctionCallID: original.ID, ConfirmationCallID: call.ID,
@@ -881,17 +1137,70 @@ func (e *googleADKExecution) markCallPending(functionCallID string) {
 }
 
 func (e *googleADKExecution) toolContext() toolExecutionContext {
+	return e.toolContextForRun("")
+}
+
+func (e *googleADKExecution) toolContextForRun(runID string) toolExecutionContext {
 	e.mu.Lock()
 	defer e.mu.Unlock()
+	runID = strings.TrimSpace(runID)
+	calls := make([]ToolCall, 0, len(e.calls))
+	summaries := make([]string, 0, len(e.summaries))
+	for _, call := range e.calls {
+		if runID != "" && call.RunID != runID {
+			continue
+		}
+		calls = append(calls, call)
+		if summary := summarizeToolCall(call); summary != "" {
+			summaries = append(summaries, summary)
+		}
+	}
+	if runID == "" {
+		summaries = append([]string(nil), e.summaries...)
+	}
 	return toolExecutionContext{
-		calls: append([]ToolCall(nil), e.calls...), summaries: append([]string(nil), e.summaries...),
+		calls: calls, summaries: summaries,
 	}
 }
 
 func (e *googleADKExecution) result() openAIChatResult {
-	return openAIChatResult{
-		Reply: strings.TrimSpace(e.reply.String()), ReasoningContent: strings.TrimSpace(e.reasoning.String()),
+	return e.resultForRun(e.runID)
+}
+
+func (e *googleADKExecution) resultForRun(runID string) openAIChatResult {
+	e.ensureTextMaps()
+	runID = strings.TrimSpace(runID)
+	if runID == "" {
+		runID = e.runID
 	}
+	if runID == e.runID {
+		return openAIChatResult{
+			Reply: strings.TrimSpace(e.reply.String()), ReasoningContent: strings.TrimSpace(e.reasoning.String()),
+		}
+	}
+	reply := e.replyByRunID[runID]
+	reasoning := e.reasoningByRunID[runID]
+	var replyText, reasoningText string
+	if reply != nil {
+		replyText = reply.String()
+	}
+	if reasoning != nil {
+		reasoningText = reasoning.String()
+	}
+	return openAIChatResult{
+		Reply: strings.TrimSpace(replyText), ReasoningContent: strings.TrimSpace(reasoningText),
+	}
+}
+
+func (e *googleADKExecution) runIDForFunctionCall(functionCallID string) string {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	for _, call := range e.calls {
+		if call.IdempotencyKey == functionCallID && strings.TrimSpace(call.RunID) != "" {
+			return call.RunID
+		}
+	}
+	return e.runID
 }
 
 func (e *googleADKExecution) preToolState() (string, string) {
@@ -918,17 +1227,37 @@ func (e *googleADKExecution) emitToolProgress(callID string, toolName string) {
 }
 
 func (e *googleADKExecution) appendVisibleText(reply string, reasoning string) error {
+	return e.appendVisibleTextForRun(e.runID, reply, reasoning)
+}
+
+func (e *googleADKExecution) appendVisibleTextForRun(runID string, reply string, reasoning string) error {
 	if reply == "" && reasoning == "" {
 		return nil
 	}
-	if e.activeToolCallCount() > 0 {
-		e.bufferedReply.WriteString(reply)
-		e.bufferedReasoning.WriteString(reasoning)
+	e.ensureTextMaps()
+	runID = strings.TrimSpace(runID)
+	if runID == "" {
+		runID = e.runID
+	}
+	if e.activeToolCallCountForRun(runID) > 0 {
+		e.builderForRun(e.bufferedReplyByRunID, runID).WriteString(reply)
+		e.builderForRun(e.bufferedReasoningByRunID, runID).WriteString(reasoning)
+		if runID == e.runID {
+			e.bufferedReply.WriteString(reply)
+			e.bufferedReasoning.WriteString(reasoning)
+		}
 		return nil
 	}
-	e.reply.WriteString(reply)
-	e.reasoning.WriteString(reasoning)
-	if e.onDelta != nil {
+	e.builderForRun(e.replyByRunID, runID).WriteString(reply)
+	e.builderForRun(e.reasoningByRunID, runID).WriteString(reasoning)
+	if runID == e.runID {
+		e.reply.WriteString(reply)
+		e.reasoning.WriteString(reasoning)
+	}
+	if e.toolResponseSeenForRun(runID) {
+		e.markPostToolTextForRun(runID)
+	}
+	if e.onDelta != nil && runID == e.runID {
 		if err := e.onDelta(ChatDelta{Reply: reply, ReasoningContent: reasoning}); err != nil {
 			return err
 		}
@@ -937,19 +1266,45 @@ func (e *googleADKExecution) appendVisibleText(reply string, reasoning string) e
 }
 
 func (e *googleADKExecution) flushBufferedTextIfReady() error {
-	if e.activeToolCallCount() > 0 {
+	e.ensureTextMaps()
+	for runID := range e.bufferedReplyByRunID {
+		if err := e.flushBufferedTextForRunIfReady(runID); err != nil {
+			return err
+		}
+	}
+	return e.flushBufferedTextForRunIfReady(e.runID)
+}
+
+func (e *googleADKExecution) flushBufferedTextForRunIfReady(runID string) error {
+	e.ensureTextMaps()
+	runID = strings.TrimSpace(runID)
+	if runID == "" {
+		runID = e.runID
+	}
+	if e.activeToolCallCountForRun(runID) > 0 {
 		return nil
 	}
-	reply := strings.TrimSpace(e.bufferedReply.String())
-	reasoning := strings.TrimSpace(e.bufferedReasoning.String())
+	replyBuffer := e.builderForRun(e.bufferedReplyByRunID, runID)
+	reasoningBuffer := e.builderForRun(e.bufferedReasoningByRunID, runID)
+	reply := strings.TrimSpace(replyBuffer.String())
+	reasoning := strings.TrimSpace(reasoningBuffer.String())
 	if reply == "" && reasoning == "" {
 		return nil
 	}
-	e.bufferedReply.Reset()
-	e.bufferedReasoning.Reset()
-	e.reply.WriteString(reply)
-	e.reasoning.WriteString(reasoning)
-	if e.onDelta != nil {
+	replyBuffer.Reset()
+	reasoningBuffer.Reset()
+	e.builderForRun(e.replyByRunID, runID).WriteString(reply)
+	e.builderForRun(e.reasoningByRunID, runID).WriteString(reasoning)
+	if runID == e.runID {
+		e.bufferedReply.Reset()
+		e.bufferedReasoning.Reset()
+		e.reply.WriteString(reply)
+		e.reasoning.WriteString(reasoning)
+	}
+	if e.toolResponseSeenForRun(runID) {
+		e.markPostToolTextForRun(runID)
+	}
+	if e.onDelta != nil && runID == e.runID {
 		if err := e.onDelta(ChatDelta{Reply: reply, ReasoningContent: reasoning}); err != nil {
 			return err
 		}
@@ -957,11 +1312,58 @@ func (e *googleADKExecution) flushBufferedTextIfReady() error {
 	return nil
 }
 
+func (e *googleADKExecution) ensureTextMaps() {
+	if e.replyByRunID == nil {
+		e.replyByRunID = map[string]*strings.Builder{}
+	}
+	if e.reasoningByRunID == nil {
+		e.reasoningByRunID = map[string]*strings.Builder{}
+	}
+	if e.bufferedReplyByRunID == nil {
+		e.bufferedReplyByRunID = map[string]*strings.Builder{}
+	}
+	if e.bufferedReasoningByRunID == nil {
+		e.bufferedReasoningByRunID = map[string]*strings.Builder{}
+	}
+	if e.toolResponseSeenByRunID == nil {
+		e.toolResponseSeenByRunID = map[string]bool{}
+	}
+	if e.postToolTextByRunID == nil {
+		e.postToolTextByRunID = map[string]bool{}
+	}
+	if e.toolResponseSeqByRunID == nil {
+		e.toolResponseSeqByRunID = map[string]int{}
+	}
+	if e.postToolTextSeqByRunID == nil {
+		e.postToolTextSeqByRunID = map[string]int{}
+	}
+}
+
+func (e *googleADKExecution) builderForRun(store map[string]*strings.Builder, runID string) *strings.Builder {
+	if store == nil {
+		return &strings.Builder{}
+	}
+	builder := store[runID]
+	if builder == nil {
+		builder = &strings.Builder{}
+		store[runID] = builder
+	}
+	return builder
+}
+
 func (e *googleADKExecution) activeToolCallCount() int {
+	return e.activeToolCallCountForRun("")
+}
+
+func (e *googleADKExecution) activeToolCallCountForRun(runID string) int {
 	e.mu.Lock()
 	defer e.mu.Unlock()
+	runID = strings.TrimSpace(runID)
 	count := 0
 	for _, call := range e.calls {
+		if runID != "" && call.RunID != runID {
+			continue
+		}
 		switch call.Status {
 		case "RUNNING", "PENDING":
 			count++
@@ -970,46 +1372,83 @@ func (e *googleADKExecution) activeToolCallCount() int {
 	return count
 }
 
+func (e *googleADKExecution) markToolResponseSeenLocked(runID string) {
+	e.ensureTextMaps()
+	runID = strings.TrimSpace(runID)
+	if runID == "" {
+		runID = e.runID
+	}
+	e.toolResponseSeenByRunID[runID] = true
+	e.toolResponseSeqByRunID[runID]++
+}
+
+func (e *googleADKExecution) markToolResponseSeenForRun(runID string) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.markToolResponseSeenLocked(runID)
+}
+
+func (e *googleADKExecution) toolResponseSeenForRun(runID string) bool {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.ensureTextMaps()
+	runID = strings.TrimSpace(runID)
+	if runID == "" {
+		runID = e.runID
+	}
+	return e.toolResponseSeenByRunID[runID] || e.toolResponseSeqByRunID[runID] > 0
+}
+
+func (e *googleADKExecution) markPostToolTextForRun(runID string) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.ensureTextMaps()
+	runID = strings.TrimSpace(runID)
+	if runID == "" {
+		runID = e.runID
+	}
+	e.postToolTextByRunID[runID] = true
+	e.postToolTextSeqByRunID[runID] = e.toolResponseSeqByRunID[runID]
+}
+
 func (e *googleADKExecution) emitRunSnapshotLocked() {
-	run := Run{
-		ID:               e.runID,
-		SessionID:        e.sessionID,
-		AgentID:          e.agent.ID,
-		Status:           e.derivedRunStatusLocked(),
-		Message:          "",
-		ToolCalls:        append([]ToolCall(nil), e.calls...),
-		ToolSummaries:    append([]string(nil), e.summaries...),
-		PendingApprovals: []Approval{},
-		CreatedAt:        "",
-		UpdatedAt:        nowString(),
-	}
-	if e.persistRunSnapshot != nil {
-		persisted := run
-		persisted.Status = e.persistedRunStatusLocked()
-		if persisted.Status == RunStatusRunning || persisted.Status == RunStatusPending {
-			persisted.CompletedAt = nil
-			persisted.CancelledAt = nil
-			persisted.Degraded = false
-			if persisted.Status != RunStatusFailed {
-				persisted.Message = ""
-				persisted.FailureReason = ""
-				persisted.ErrorCode = ""
+	for _, runID := range e.snapshotRunIDsLocked() {
+		run := e.runSnapshotLocked(runID, false)
+		if e.persistRunSnapshot != nil {
+			persisted := e.runSnapshotLocked(runID, true)
+			if persisted.Status == RunStatusRunning || persisted.Status == RunStatusPending {
+				persisted.CompletedAt = nil
+				persisted.CancelledAt = nil
+				persisted.Degraded = false
+				if persisted.Status != RunStatusFailed {
+					persisted.Message = ""
+					persisted.FailureReason = ""
+					persisted.ErrorCode = ""
+				}
 			}
+			_ = e.persistRunSnapshot(persisted)
 		}
-		_ = e.persistRunSnapshot(persisted)
-	}
-	if e.onDelta != nil {
-		_ = e.onDelta(ChatDelta{Run: &run})
+		if e.onDelta != nil {
+			_ = e.onDelta(ChatDelta{Run: &run})
+		}
 	}
 }
 
 func (e *googleADKExecution) derivedRunStatusLocked() string {
-	if len(e.calls) == 0 {
+	return e.derivedRunStatusForRunLocked("")
+}
+
+func (e *googleADKExecution) derivedRunStatusForRunLocked(runID string) string {
+	calls := e.callsForRunLocked(runID)
+	if len(calls) == 0 {
+		if e.runHasTextLocked(runID) {
+			return RunStatusCompleted
+		}
 		return RunStatusRunning
 	}
 	allCancelled := true
 	allCompleted := true
-	for _, call := range e.calls {
+	for _, call := range calls {
 		switch call.Status {
 		case "PENDING_APPROVAL":
 			return RunStatusPending
@@ -1031,17 +1470,29 @@ func (e *googleADKExecution) derivedRunStatusLocked() string {
 		return RunStatusCancelled
 	}
 	if allCompleted {
+		if !e.runHasPostToolTextLocked(runID) {
+			return RunStatusRunning
+		}
 		return RunStatusCompleted
 	}
 	return RunStatusRunning
 }
 
 func (e *googleADKExecution) persistedRunStatusLocked() string {
-	if len(e.calls) == 0 {
+	return e.persistedRunStatusForRunLocked("")
+}
+
+func (e *googleADKExecution) persistedRunStatusForRunLocked(runID string) string {
+	calls := e.callsForRunLocked(runID)
+	if len(calls) == 0 {
+		if e.runHasTextLocked(runID) {
+			return RunStatusCompleted
+		}
 		return RunStatusRunning
 	}
 	allCancelled := true
-	for _, call := range e.calls {
+	allCompleted := true
+	for _, call := range calls {
 		switch call.Status {
 		case "PENDING_APPROVAL":
 			return RunStatusPending
@@ -1049,17 +1500,158 @@ func (e *googleADKExecution) persistedRunStatusLocked() string {
 			return RunStatusRunning
 		case "FAILED", "TIMED_OUT", "DENIED":
 			allCancelled = false
+			allCompleted = false
 		case "SUCCEEDED", "COMPLETED":
 			allCancelled = false
 		case "CANCELLED":
+			allCompleted = false
 		default:
 			allCancelled = false
+			allCompleted = false
 		}
 	}
 	if allCancelled {
 		return RunStatusCancelled
 	}
+	if allCompleted {
+		if !e.runHasPostToolTextLocked(runID) {
+			return RunStatusRunning
+		}
+		return RunStatusCompleted
+	}
 	return RunStatusRunning
+}
+
+func (e *googleADKExecution) runHasPostToolTextLocked(runID string) bool {
+	e.ensureTextMaps()
+	runID = strings.TrimSpace(runID)
+	if runID == "" {
+		runID = e.runID
+	}
+	toolSeq := e.toolResponseSeqByRunID[runID]
+	if toolSeq == 0 {
+		return false
+	}
+	return e.postToolTextByRunID[runID] && e.postToolTextSeqByRunID[runID] >= toolSeq
+}
+
+func (e *googleADKExecution) runHasPostToolText(runID string) bool {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return e.runHasPostToolTextLocked(runID)
+}
+
+func (e *googleADKExecution) runNeedsFinalSynthesis(runID string) bool {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	runID = strings.TrimSpace(runID)
+	if runID == "" {
+		runID = e.runID
+	}
+	calls := e.callsForRunLocked(runID)
+	if len(calls) == 0 || e.runHasPostToolTextLocked(runID) {
+		return false
+	}
+	hasFinishedCall := false
+	for _, call := range calls {
+		switch strings.ToUpper(strings.TrimSpace(call.Status)) {
+		case "RUNNING", "PENDING", "PENDING_APPROVAL":
+			return false
+		case "SUCCEEDED", "COMPLETED", "FAILED", "TIMED_OUT", "DENIED", "CANCELLED":
+			hasFinishedCall = true
+		}
+	}
+	return hasFinishedCall
+}
+
+func (e *googleADKExecution) runHasTextLocked(runID string) bool {
+	runID = strings.TrimSpace(runID)
+	if runID == "" || runID == e.runID {
+		return strings.TrimSpace(e.reply.String()) != "" || strings.TrimSpace(e.reasoning.String()) != ""
+	}
+	if builder := e.replyByRunID[runID]; builder != nil && strings.TrimSpace(builder.String()) != "" {
+		return true
+	}
+	if builder := e.reasoningByRunID[runID]; builder != nil && strings.TrimSpace(builder.String()) != "" {
+		return true
+	}
+	return false
+}
+
+func (e *googleADKExecution) snapshotRunIDsLocked() []string {
+	ids := []string{}
+	seen := map[string]struct{}{}
+	add := func(id string) {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			return
+		}
+		if _, ok := seen[id]; ok {
+			return
+		}
+		seen[id] = struct{}{}
+		ids = append(ids, id)
+	}
+	if len(e.runSnapshotBaseByID) > 0 {
+		for id := range e.runSnapshotBaseByID {
+			add(id)
+		}
+	}
+	add(e.runID)
+	for _, call := range e.calls {
+		add(call.RunID)
+	}
+	return ids
+}
+
+func (e *googleADKExecution) runSnapshotLocked(runID string, persisted bool) Run {
+	runID = strings.TrimSpace(runID)
+	if runID == "" {
+		runID = e.runID
+	}
+	base := Run{
+		ID: runID, SessionID: e.sessionID, AgentID: e.agent.ID,
+		ToolCalls: []ToolCall{}, PendingApprovals: []Approval{},
+	}
+	if e.runSnapshotBaseByID != nil {
+		if candidate, ok := e.runSnapshotBaseByID[runID]; ok {
+			base = candidate
+		}
+	}
+	calls := e.callsForRunLocked(runID)
+	base.ToolCalls = calls
+	base.ToolSummaries = toolSummariesForRun(Run{ToolCalls: calls})
+	base.Status = e.derivedRunStatusForRunLocked(runID)
+	if persisted {
+		base.Status = e.persistedRunStatusForRunLocked(runID)
+	}
+	base.UpdatedAt = nowString()
+	if base.CreatedAt == "" {
+		base.CreatedAt = ""
+	}
+	return base
+}
+
+func (e *googleADKExecution) callsForRunLocked(runID string) []ToolCall {
+	runID = strings.TrimSpace(runID)
+	calls := make([]ToolCall, 0, len(e.calls))
+	for _, call := range e.calls {
+		if runID != "" && call.RunID != runID {
+			continue
+		}
+		calls = append(calls, call)
+	}
+	return calls
+}
+
+func summarizeToolCall(call ToolCall) string {
+	if call.Output != nil {
+		return summarizeToolOutput(call.ToolName, call.Output)
+	}
+	if call.Error != nil && strings.TrimSpace(*call.Error) != "" {
+		return call.ToolName + ": " + strings.TrimSpace(*call.Error)
+	}
+	return ""
 }
 
 func googleADKAgentName(id string) string {
@@ -1071,6 +1663,94 @@ func googleADKAgentName(id string) string {
 		return "jftrade_user_agent"
 	}
 	return name
+}
+
+func googleADKWorkflowRootName(parentRunID string) string {
+	name := "workflow_" + strings.ReplaceAll(normalizeID(parentRunID), "-", "_")
+	if name == "workflow_" {
+		return "workflow_root"
+	}
+	return name
+}
+
+func googleADKWorkflowChildName(parentRunID string, index int) string {
+	name := fmt.Sprintf("%s_child_%d", googleADKWorkflowRootName(parentRunID), index+1)
+	if name == "user" {
+		return "workflow_child_agent"
+	}
+	return name
+}
+
+func workflowChildInstruction(base string, task string) string {
+	task = strings.TrimSpace(task)
+	instruction := strings.TrimSpace(base)
+	marker := "JFTRADE_WORKFLOW_TASK: " + task
+	if instruction == "" {
+		return marker
+	}
+	if task == "" {
+		return instruction
+	}
+	return instruction + "\n\n" + marker + "\n请只完成上述 JFTRADE_WORKFLOW_TASK 指定的子任务。"
+}
+
+func workflowChildInstructionTask(step workflowStep) string {
+	var builder strings.Builder
+	if objective := strings.TrimSpace(step.Objective); objective != "" {
+		builder.WriteString("总体目标：")
+		builder.WriteString(objective)
+	}
+	if task := strings.TrimSpace(step.Message); task != "" {
+		if builder.Len() > 0 {
+			builder.WriteString("\n\n")
+		}
+		builder.WriteString("当前子任务：")
+		builder.WriteString(task)
+	}
+	if description := strings.TrimSpace(step.Description); description != "" && description != strings.TrimSpace(step.Message) {
+		if builder.Len() > 0 {
+			builder.WriteString("\n\n")
+		}
+		builder.WriteString("子任务说明：")
+		builder.WriteString(description)
+	}
+	if role := strings.TrimSpace(step.AgentRole); role != "" {
+		if builder.Len() > 0 {
+			builder.WriteString("\n\n")
+		}
+		builder.WriteString("子 Agent 角色：")
+		builder.WriteString(role)
+	}
+	if builder.Len() == 0 {
+		return strings.TrimSpace(step.Message)
+	}
+	builder.WriteString("\n\n请只基于以上明确给出的目标和子任务工作；不要假设自己能看到父对话的其他上下文。")
+	return builder.String()
+}
+
+func workflowFinalSynthesisInstruction(base string, task string) string {
+	instruction := workflowChildInstruction(base, task)
+	return instruction + "\n\n工具调用已经完成。现在必须基于已有工具结果输出最终回复。不要再调用工具，不要请求审批，不要只说明准备继续。"
+}
+
+func workflowFinalSynthesisPrompt(task string, summaries []string) string {
+	var builder strings.Builder
+	builder.WriteString("请基于刚才已经返回的工具结果完成这个子 Agent 任务，输出最终结论、策略草案或下一步建议。")
+	if trimmed := strings.TrimSpace(task); trimmed != "" {
+		builder.WriteString("\n\n子任务：")
+		builder.WriteString(trimmed)
+	}
+	if len(summaries) > 0 {
+		builder.WriteString("\n\n工具结果摘要：")
+		for _, summary := range summaries {
+			if trimmed := strings.TrimSpace(summary); trimmed != "" {
+				builder.WriteString("\n- ")
+				builder.WriteString(trimmed)
+			}
+		}
+	}
+	builder.WriteString("\n\n只输出最终回复，不要调用任何工具。")
+	return builder.String()
 }
 
 func googleADKAppName(id string) string {

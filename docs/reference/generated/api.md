@@ -238,6 +238,14 @@
 | --- | --- | --- |
 | `200` | servercore.envelope | OK |
 
+### `PATCH /api/v1/adk/runs/{runId}/objective`
+
+**Summary:** ADK session and run routes
+
+| Response | Schema | Description |
+| --- | --- | --- |
+| `200` | servercore.envelope | OK |
+
 ### `GET /api/v1/adk/sessions`
 
 **Summary:** 读取 ADK Session 列表

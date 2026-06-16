@@ -17,9 +17,9 @@ func TestNormalizeCandlePeriodMapsAliases(t *testing.T) {
 }
 
 func TestParseQueryTimeFallsBackOnInvalidInput(t *testing.T) {
-	fallback := time.Date(2026, time.May, 22, 10, 30, 0, 0, time.UTC)
-	if got := httpserver.ParseQueryTime("invalid", fallback); !got.Equal(fallback) {
-		t.Fatalf("parseQueryTime fallback = %s, want %s", got, fallback)
+	defaultTime := time.Date(2026, time.May, 22, 10, 30, 0, 0, time.UTC)
+	if got := httpserver.ParseQueryTime("invalid", defaultTime); !got.Equal(defaultTime) {
+		t.Fatalf("parseQueryTime default = %s, want %s", got, defaultTime)
 	}
 }
 

@@ -35,7 +35,16 @@ export interface ADKChatStreamEvent {
 }
 
 export async function streamADKChat(
-  payload: { agentId?: string; sessionId?: string; message: string },
+  payload: {
+    agentId?: string;
+    sessionId?: string;
+    message: string;
+    workModeOverride?: string;
+    objective?: string;
+    runOptions?: {
+      loopMaxIterations?: number;
+    };
+  },
   onEvent: (event: ADKChatStreamEvent) => void | Promise<void>,
 ): Promise<ADKChatStreamResponse> {
   const headers: Record<string, string> = {

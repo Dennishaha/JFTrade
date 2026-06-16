@@ -56,6 +56,43 @@ func TestOpenAICompatibleADKModelGenerateContentStreamYieldsPartialAndFinal(t *t
 	}
 }
 
+func TestOpenAICompatibleADKModelGenerateContentStreamPreservesChunkSpacing(t *testing.T) {
+	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		_, _ = w.Write([]byte("data: {\"choices\":[{\"delta\":{\"reasoning_content\":\"Let\"}}]}\n\n"))
+		_, _ = w.Write([]byte("data: {\"choices\":[{\"delta\":{\"reasoning_content\":\" me\"}}]}\n\n"))
+		_, _ = w.Write([]byte("data: {\"choices\":[{\"delta\":{\"reasoning_content\":\" analyze\"}}]}\n\n"))
+		_, _ = w.Write([]byte("data: [DONE]\n\n"))
+	}))
+	defer mockServer.Close()
+
+	model := newOpenAICompatibleADKModel(Provider{
+		BaseURL: strings.TrimSuffix(mockServer.URL, "/"),
+		Model:   "gpt-test",
+	}, "test-key", "gpt-test")
+
+	req := &adkmodel.LLMRequest{
+		Model:    "gpt-test",
+		Contents: []*genai.Content{genai.NewContentFromText("analyze", genai.RoleUser)},
+	}
+
+	var final *adkmodel.LLMResponse
+	for response, err := range model.GenerateContent(context.Background(), req, true) {
+		if err != nil {
+			t.Fatalf("GenerateContent(stream=true) error: %v", err)
+		}
+		if !response.Partial {
+			final = response
+		}
+	}
+	if final == nil || final.Content == nil || len(final.Content.Parts) == 0 {
+		t.Fatalf("final response = %#v, want reasoning response", final)
+	}
+	if got := final.Content.Parts[0].Text; got != "Let me analyze" {
+		t.Fatalf("final reasoning text = %q, want preserved spaces", got)
+	}
+}
+
 func TestOpenAICompatibleADKModelGenerateContentStopsAfterYieldFalse(t *testing.T) {
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/event-stream")
@@ -122,21 +159,5 @@ func TestGoogleADKExecutionConsumeEventSkipsDuplicateFinalTextAfterPartial(t *te
 
 	if got := execution.result().Reply; got != "你好" {
 		t.Fatalf("reply = %q, want 你好", got)
-	}
-}
-
-func TestCountsTowardIterationLimitIgnoresPartialEvents(t *testing.T) {
-	partial := adksession.NewEvent("partial")
-	partial.Partial = true
-	final := adksession.NewEvent("final")
-
-	if countsTowardIterationLimit(partial) {
-		t.Fatal("expected partial event to be ignored by iteration limit")
-	}
-	if !countsTowardIterationLimit(final) {
-		t.Fatal("expected final event to count toward iteration limit")
-	}
-	if countsTowardIterationLimit(nil) {
-		t.Fatal("expected nil event to be ignored by iteration limit")
 	}
 }

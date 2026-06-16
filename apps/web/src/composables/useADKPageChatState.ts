@@ -1,4 +1,4 @@
-import { computed, ref, type Ref } from "vue";
+import { computed, ref, watch, type Ref } from "vue";
 
 import type {
   ADKAgent,
@@ -9,6 +9,10 @@ import type {
   ADKSessionContextSnapshot,
 } from "@/contracts";
 
+import {
+  resolveADKApprovalBatchOnce,
+  type ADKApprovalAction,
+} from "./adkApprovalResolution";
 import { isTerminalRunStatus, runTerminalMessage } from "./adkChatPresentation";
 import { streamADKChat } from "./adkChatStream";
 import {
@@ -41,6 +45,10 @@ import {
   fetchADKSessionContext,
 } from "./adkSessionContextApi";
 import { fetchEnvelopeWithInit } from "./apiClient";
+import {
+  sessionContextFromRunUsage,
+  useADKWorkflowQueueState,
+} from "./useADKWorkflowQueueState";
 
 interface SessionState {
   agents: Ref<ADKAgent[]>;
@@ -66,8 +74,10 @@ export function useADKPageChatState(
 ) {
   const timelineEntries = ref<ADKTimelineEntryState[]>([]);
   const chatDraft = ref("");
+  const workModeOverride = ref("");
   const sendingChat = ref(false);
   const activeRun = ref<ActiveChatRunState | null>(null);
+  const activeRunSnapshot = ref<ADKRun | null>(null);
   const queuedChatMessages = ref<QueuedChatMessage[]>([]);
   const queueDispatchingId = ref("");
   const interruptingRunId = ref("");
@@ -75,9 +85,40 @@ export function useADKPageChatState(
   const contextBusy = ref(false);
   const contextDetailsOpen = ref(false);
   const sessionContext = ref<ADKSessionContextSnapshot | null>(null);
+  const goalObjectiveDraft = ref("");
+  const goalObjectiveTouched = ref(false);
+  const goalObjectiveSaving = ref(false);
+  const goalObjectiveError = ref("");
+  const workflowQueues = useADKWorkflowQueueState({
+    timelineEntries,
+    selectedSessionId: sessionState.selectedSessionId,
+  });
 
   const activeRunId = computed(() => activeRun.value?.runId ?? "");
   const activeRunStatus = computed(() => activeRun.value?.status ?? "");
+  const activeGoalRun = computed(() => {
+    const run = activeRunSnapshot.value;
+    if (!run || isTerminalRunStatus(run.status)) return null;
+    return String(run.workMode ?? "").trim().toLowerCase() === "loop" &&
+      !run.parentRunId
+      ? run
+      : null;
+  });
+  const showGoalObjectiveEditor = computed(
+    () =>
+      activeGoalRun.value != null ||
+      (workModeOverride.value === "loop" &&
+        goalObjectiveDraft.value.trim() !== ""),
+  );
+  const canSaveGoalObjective = computed(() => {
+    const run = activeGoalRun.value;
+    return (
+      !!run &&
+      !goalObjectiveSaving.value &&
+      goalObjectiveDraft.value.trim() !== "" &&
+      goalObjectiveDraft.value.trim() !== String(run.objective ?? "").trim()
+    );
+  });
   const hasBlockingRun = computed(() =>
     isBlockingRunStatus(activeRun.value?.status),
   );
@@ -133,6 +174,29 @@ export function useADKPageChatState(
       },
     ];
   });
+  const visibleSessionContext = computed(() =>
+    workflowQueues.activeChildRunId.value
+      ? sessionContextFromRunUsage(
+          workflowQueues.childRunSnapshots.value[
+            workflowQueues.activeChildRunId.value
+          ],
+          sessionContext.value,
+        )
+      : sessionContext.value,
+  );
+
+  watch([workModeOverride, chatDraft], () => {
+    if (activeGoalRun.value) return;
+    if (workModeOverride.value !== "loop") {
+      goalObjectiveTouched.value = false;
+      goalObjectiveDraft.value = "";
+      goalObjectiveError.value = "";
+      return;
+    }
+    if (!goalObjectiveTouched.value) {
+      goalObjectiveDraft.value = chatDraft.value;
+    }
+  });
 
   async function selectSession(sessionId: string): Promise<void> {
     if (sessionState.selectedSessionId.value === sessionId) return;
@@ -145,6 +209,7 @@ export function useADKPageChatState(
     }
     sessionState.selectedSessionId.value = sessionId;
     timelineEntries.value = [];
+    clearWorkflowPlanRun();
     try {
       const detail = await loadSessionChatHistory(sessionId);
       timelineEntries.value = detail.timelineEntries;
@@ -291,13 +356,31 @@ export function useADKPageChatState(
     chatDraft,
     contextBusy,
     contextDetailsOpen,
+    goalObjectiveDraft,
+    goalObjectiveError,
+    goalObjectiveSaving,
+    showGoalObjectiveEditor,
+    canSaveGoalObjective,
     hasBlockingRun,
     interruptingRunId,
     queuedMessages,
     queueDispatchingId,
     revokeQueuedMessage,
     sessionContext,
+    visibleSessionContext,
     slashCommands,
+    activeChildRunId: workflowQueues.activeChildRunId,
+    childRunItems: workflowQueues.childRunItems,
+    childTimelineEntries: workflowQueues.childTimelineEntries,
+    childViewContext: workflowQueues.childViewContext,
+    parentTimelineEntries: workflowQueues.parentTimelineEntries,
+    parentApprovalQueue: workflowQueues.parentApprovalQueue,
+    selectedApprovalQueue: workflowQueues.selectedApprovalQueue,
+    setActiveChildRunId: workflowQueues.setActiveChildRunId,
+    visibleTimelineEntries: workflowQueues.visibleTimelineEntries,
+    visibleWorkflowPlanRun: workflowQueues.visibleWorkflowPlanRun,
+    clearSessionContext,
+    clearWorkflowPlanRun,
     handleComposerKeydown,
     interruptAndQueueChat,
     openContextDetails,
@@ -312,9 +395,23 @@ export function useADKPageChatState(
     sendingChat,
     showTypingIndicator,
     timelineEntries,
+    updateGoalObjective,
+    updateGoalObjectiveDraft,
+    workModeOverride,
   };
 
   async function executeChatMessage(text: string): Promise<boolean> {
+    const payload: Parameters<typeof streamADKChat>[0] = {
+      agentId: sessionState.selectedAgentId.value,
+      sessionId: sessionState.selectedSessionId.value,
+      message: text,
+    };
+    if (workModeOverride.value) {
+      payload.workModeOverride = workModeOverride.value;
+      if (workModeOverride.value === "loop") {
+        payload.objective = goalObjectiveDraft.value.trim() || text;
+      }
+    }
     const optimisticUserEntry = createTimelineEntryState({
       id: `local-user-${Date.now()}`,
       sessionId: sessionState.selectedSessionId.value,
@@ -324,17 +421,14 @@ export function useADKPageChatState(
       status: "streaming",
       text,
     });
+    clearWorkflowPlanRun();
     timelineEntries.value = [...timelineEntries.value, optimisticUserEntry];
     await scrollToBottom(threadRef);
     sendingChat.value = true;
 
     try {
       const response = await streamADKChat(
-        {
-          agentId: sessionState.selectedAgentId.value,
-          sessionId: sessionState.selectedSessionId.value,
-          message: text,
-        },
+        payload,
         async (event) => {
           if (event.type === "session" && event.session?.id) {
             setSelectedSessionId(event.session.id);
@@ -416,7 +510,7 @@ export function useADKPageChatState(
 
   async function submitApproval(
     approval: ADKApproval,
-    action: "approve" | "deny",
+    action: ADKApprovalAction,
   ): Promise<ADKApprovalResolution> {
     return normalizeADKApprovalResolution(
       await fetchEnvelopeWithInit<ADKApprovalResolution>(
@@ -428,32 +522,34 @@ export function useADKPageChatState(
 
   async function resolveApprovalsBatch(
     approvals: ADKApproval[],
-    action: "approve" | "deny",
+    action: ADKApprovalAction,
   ): Promise<void> {
     if (approvals.length === 0 || approvalsBusy.value) return;
     approvalsBusy.value = true;
-    const resolutions: ADKApprovalResolution[] = [];
-    const errors: string[] = [];
     try {
-      for (const approval of approvals) {
-        try {
-          const resolution = await submitApproval(approval, action);
-          resolutions.push(resolution);
+      const { resolutions, errors } = await resolveADKApprovalBatchOnce({
+        approvals,
+        action,
+        submit: submitApproval,
+        onResolution: (resolution) => {
           timelineEntries.value = applyApprovalResolutions(
             timelineEntries.value,
             [resolution],
           );
           if (resolution.run) {
+            const run = resolution.parentRun ?? resolution.run;
+            void workflowQueues.syncWorkflowRun(resolution.run);
+            void workflowQueues.syncWorkflowRun(resolution.parentRun);
             syncActiveRun(
-              resolution.run,
-              !isTerminalRunStatus(resolution.run.status),
+              run,
+              !isTerminalRunStatus(run.status),
             );
           }
-        } catch (error) {
-          errors.push(error instanceof Error ? error.message : "审批处理失败");
-        }
+        },
+      });
+      if (resolutions.length > 0) {
+        await finalizeApprovalBatch(resolutions);
       }
-      await finalizeApprovalBatch(resolutions);
       if (errors.length > 0) {
         sessionState.errorMessage.value =
           errors.length === 1 ? errors[0]! : `批量审批部分失败：${errors[0]}`;
@@ -472,7 +568,7 @@ export function useADKPageChatState(
     const runs = Array.from(
       new Map(
         resolutions
-          .map((resolution) => resolution.run)
+          .map((resolution) => resolution.parentRun ?? resolution.run)
           .filter((run): run is ADKRun => run != null)
           .map((run) => [run.id, run]),
       ).values(),
@@ -581,6 +677,43 @@ export function useADKPageChatState(
     }
   }
 
+  function updateGoalObjectiveDraft(value: string): void {
+    goalObjectiveTouched.value = true;
+    goalObjectiveDraft.value = value;
+    goalObjectiveError.value = "";
+  }
+
+  async function updateGoalObjective(): Promise<void> {
+    const run = activeGoalRun.value;
+    const objective = goalObjectiveDraft.value.trim();
+    if (!run || objective === "" || goalObjectiveSaving.value) {
+      return;
+    }
+    goalObjectiveSaving.value = true;
+    goalObjectiveError.value = "";
+    try {
+      const updated = normalizeADKRun(
+        await fetchEnvelopeWithInit<ADKRun>(
+          `/api/v1/adk/runs/${encodeURIComponent(run.id)}/objective`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ objective }),
+          },
+        ),
+      );
+      syncActiveRun(updated, !isTerminalRunStatus(updated.status));
+      goalObjectiveDraft.value = updated.objective ?? objective;
+      goalObjectiveTouched.value = false;
+    } catch (error) {
+      goalObjectiveError.value =
+        error instanceof Error ? error.message : "目标保存失败";
+      sessionState.errorMessage.value = goalObjectiveError.value;
+    } finally {
+      goalObjectiveSaving.value = false;
+    }
+  }
+
   async function handleExactSlashCommand(text: string): Promise<boolean> {
     const normalized = text.trim().toLowerCase();
     const match = slashCommands.value.find(
@@ -663,12 +796,33 @@ export function useADKPageChatState(
     if (!run) {
       return;
     }
+    void workflowQueues.syncWorkflowRun(run);
     if (isTerminalRunStatus(run.status)) {
       if (!activeRun.value || activeRun.value.runId === run.id) {
         activeRun.value = null;
+        activeRunSnapshot.value = null;
+        if (workModeOverride.value === "loop") {
+          goalObjectiveTouched.value = false;
+          goalObjectiveDraft.value = chatDraft.value;
+        }
       }
       return;
     }
+    activeRunSnapshot.value = run;
+    if (String(run.workMode ?? "").trim().toLowerCase() === "loop" && !goalObjectiveSaving.value) {
+      goalObjectiveDraft.value = run.objective ?? goalObjectiveDraft.value;
+      goalObjectiveTouched.value = false;
+      goalObjectiveError.value = "";
+    }
     activeRun.value = buildActiveChatRunState(run, waitingForContinuation);
+  }
+
+  function clearWorkflowPlanRun(): void {
+    workflowQueues.clearWorkflowQueues();
+  }
+
+  function clearSessionContext(): void {
+    sessionContext.value = null;
+    contextDetailsOpen.value = false;
   }
 }

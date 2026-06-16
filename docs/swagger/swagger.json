@@ -591,6 +591,25 @@
                 }
             }
         },
+        "/api/v1/adk/runs/{runId}/objective": {
+            "patch": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "adk"
+                ],
+                "summary": "ADK session and run routes",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/servercore.envelope"
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/adk/sessions": {
             "get": {
                 "produces": [

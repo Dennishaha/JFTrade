@@ -243,7 +243,7 @@ func RegisterJFTradeADKTools(store *jfadk.Store, registry *jfadk.ToolRegistry, d
 		if market == "" || symbol == "" {
 			return nil, fmt.Errorf("market and symbol are required")
 		}
-		period := defaultStringLocal(stringValue(input, "period"), "1m")
+		period := stringOrDefault(stringValue(input, "period"), "1m")
 		limit := intValue(input, "limit", 50)
 		if limit < 1 || limit > 500 {
 			return nil, fmt.Errorf("limit must be between 1 and 500")
@@ -254,17 +254,17 @@ func RegisterJFTradeADKTools(store *jfadk.Store, registry *jfadk.ToolRegistry, d
 		}
 		return deps.MarketCandles(ctx, market, symbol, normalizedPeriod, limit)
 	})
-	registry.Register(jfadk.ToolDescriptor{Name: "portfolio.summary", DisplayName: "组合摘要", Description: "读取托管账户、资金、订单和持仓的控制台摘要。", Category: "portfolio", Permission: "read_internal", OutputSummary: "托管账户、broker 状态、本地订单摘要和当前检查时间。"}, func(ctx context.Context, input map[string]any) (any, error) {
+	registry.Register(jfadk.ToolDescriptor{Name: "portfolio.summary", DisplayName: "组合摘要", Description: "读取托管账户、资金、订单和持仓的控制台摘要。", Category: "portfolio", Permission: "read_internal", OutputSummary: "托管账户、broker 状态、执行订单摘要和当前检查时间。"}, func(ctx context.Context, input map[string]any) (any, error) {
 		query := broker.ReadQuery{
 			BrokerID:           "futu",
 			AccountID:          strings.TrimSpace(stringValue(input, "accountId")),
 			TradingEnvironment: strings.ToUpper(strings.TrimSpace(stringValue(input, "tradingEnvironment"))),
-			Market:             strings.ToUpper(defaultStringLocal(stringValue(input, "market"), deps.DefaultTradeMarket())),
+			Market:             strings.ToUpper(stringOrDefault(stringValue(input, "market"), deps.DefaultTradeMarket())),
 		}
 		orders := deps.ExecutionOrders()
 		return map[string]any{"accounts": deps.ManagedAccounts(), "brokerEnabled": deps.BrokerEnabled(), "orders": orders, "orderCount": collectionLen(orders), "funds": deps.BrokerFunds(ctx, query, 8*time.Second), "positions": deps.BrokerPositions(ctx, query, 8*time.Second), "checkedAt": nowStringRFC3339Nano()}, nil
 	})
-	registry.Register(jfadk.ToolDescriptor{Name: "account.orders", DisplayName: "订单摘要", Description: "读取本地执行订单视图摘要。", Category: "portfolio", Permission: "read_internal", OutputSummary: "本地执行订单列表和数量。"}, func(context.Context, map[string]any) (any, error) {
+	registry.Register(jfadk.ToolDescriptor{Name: "account.orders", DisplayName: "订单摘要", Description: "读取执行订单视图摘要。", Category: "portfolio", Permission: "read_internal", OutputSummary: "执行订单列表和数量。"}, func(context.Context, map[string]any) (any, error) {
 		orders := deps.ExecutionOrders()
 		return map[string]any{"orders": orders, "count": collectionLen(orders), "checkedAt": nowStringRFC3339Nano()}, nil
 	})
@@ -350,7 +350,7 @@ func registerJFTradeADKStrategyTools(store *jfadk.Store, registry *jfadk.ToolReg
 		runs := make([]map[string]any, 0, len(definitionIDs))
 		runRefs := make([]jfadk.OptimizationRunRef, 0, len(definitionIDs))
 		for _, definitionID := range definitionIDs {
-			run, err := deps.EnqueueBacktest(BacktestStartInput{DefinitionID: definitionID, Market: stringValue(input, "market"), Symbol: stringValue(input, "symbol"), Code: stringValue(input, "code"), Interval: defaultStringLocal(stringValue(input, "interval"), "1m"), StartTime: stringValue(input, "startTime"), EndTime: stringValue(input, "endTime"), InitialBalance: floatValue(input, "initialBalance", 0), RehabType: defaultStringLocal(stringValue(input, "rehabType"), "forward")})
+			run, err := deps.EnqueueBacktest(BacktestStartInput{DefinitionID: definitionID, Market: stringValue(input, "market"), Symbol: stringValue(input, "symbol"), Code: stringValue(input, "code"), Interval: stringOrDefault(stringValue(input, "interval"), "1m"), StartTime: stringValue(input, "startTime"), EndTime: stringValue(input, "endTime"), InitialBalance: floatValue(input, "initialBalance", 0), RehabType: stringOrDefault(stringValue(input, "rehabType"), "forward")})
 			if err != nil {
 				for _, queued := range runRefs {
 					deps.CancelBacktest(queued.RunID)
@@ -360,7 +360,7 @@ func registerJFTradeADKStrategyTools(store *jfadk.Store, registry *jfadk.ToolReg
 			runs = append(runs, map[string]any{"definitionId": definitionID, "runId": run.ID, "status": run.Status})
 			runRefs = append(runRefs, jfadk.OptimizationRunRef{DefinitionID: definitionID, RunID: run.ID})
 		}
-		task, err := store.SaveOptimizationTask(context.Background(), jfadk.OptimizationTask{ID: taskID, Status: "queued", Objective: defaultStringLocal(stringValue(input, "objective"), "return"), Runs: runRefs})
+		task, err := store.SaveOptimizationTask(context.Background(), jfadk.OptimizationTask{ID: taskID, Status: "queued", Objective: stringOrDefault(stringValue(input, "objective"), "return"), Runs: runRefs})
 		if err != nil {
 			for _, queued := range runRefs {
 				deps.CancelBacktest(queued.RunID)
@@ -411,7 +411,7 @@ func registerJFTradeADKReadTools(registry *jfadk.ToolRegistry, deps ToolDeps) {
 	registry.Register(jfadk.ToolDescriptor{Name: "risk.events", DisplayName: "风险事件", Description: "读取近期实盘风险事件状态。", Category: "risk", Permission: "read_internal", OutputSummary: "风险事件摘要。"}, func(context.Context, map[string]any) (any, error) {
 		return deps.RiskEvents(), nil
 	})
-	registry.Register(jfadk.ToolDescriptor{Name: "execution.order_events", DisplayName: "执行订单事件", Description: "按内部订单 ID 读取本地执行订单事件历史；未提供 ID 时返回订单列表。", Category: "portfolio", Permission: "read_internal", OutputSummary: "执行订单事件时间线。"}, func(_ context.Context, input map[string]any) (any, error) {
+	registry.Register(jfadk.ToolDescriptor{Name: "execution.order_events", DisplayName: "执行订单事件", Description: "按内部订单 ID 读取执行订单事件历史；未提供 ID 时返回订单列表。", Category: "portfolio", Permission: "read_internal", OutputSummary: "执行订单事件时间线。"}, func(_ context.Context, input map[string]any) (any, error) {
 		internalOrderID := strings.TrimSpace(stringValue(input, "internalOrderId"))
 		if internalOrderID == "" {
 			return deps.ExecutionOrders(), nil
@@ -429,8 +429,26 @@ func registerJFTradeADKWorkflowTools(store *jfadk.Store, registry *jfadk.ToolReg
 		}
 		return map[string]any{"tasks": tasks, "page": pageEnvelope(limit, offset, total, len(tasks))}, nil
 	})
-	registry.Register(jfadk.ToolDescriptor{Name: "tasks.create", DisplayName: "创建 ADK 任务", Description: "创建一个用于后续跟进的轻量 ADK 任务。", Category: "workflow", Permission: "write_task", OutputSummary: "已创建的任务。"}, func(ctx context.Context, input map[string]any) (any, error) {
-		task, err := store.SaveTask(ctx, jfadk.TaskWriteRequest{Title: stringValue(input, "title"), Description: stringValue(input, "description"), Status: stringValue(input, "status"), AgentID: stringValue(input, "agentId"), RunID: stringValue(input, "runId"), DependsOn: stringSliceValue(input, "dependsOn")})
+	registry.Register(jfadk.ToolDescriptor{Name: "tasks.create", DisplayName: "创建 ADK 任务", Description: "创建一个用于后续跟进的轻量 ADK 任务。", Category: "workflow", Permission: "write_task", RiskLevel: "low", OutputSummary: "已创建的任务。"}, func(ctx context.Context, input map[string]any) (any, error) {
+		task, err := store.SaveTask(ctx, jfadk.TaskWriteRequest{
+			Title:           stringValue(input, "title"),
+			Description:     stringValue(input, "description"),
+			Status:          stringValue(input, "status"),
+			AgentID:         stringValue(input, "agentId"),
+			RunID:           stringValue(input, "runId"),
+			DependsOn:       stringSliceValue(input, "dependsOn"),
+			Order:           intValue(input, "order", 0),
+			ModeHint:        stringValue(input, "modeHint"),
+			AgentRole:       stringValue(input, "agentRole"),
+			PlannerStepID:   stringValue(input, "plannerStepId"),
+			PlanSource:      stringValue(input, "planSource"),
+			WorkflowMode:    stringValue(input, "workflowMode"),
+			Objective:       stringValue(input, "objective"),
+			Message:         stringValue(input, "message"),
+			Executor:        stringValue(input, "executor"),
+			ResultSummary:   stringValue(input, "resultSummary"),
+			PlannerWarnings: stringSliceValue(input, "plannerWarnings"),
+		})
 		if err == nil {
 			recordADKWorkflowAudit(ctx, deps, "task.saved", task.ID, "ADK task saved.", map[string]any{"status": task.Status})
 		}
@@ -679,11 +697,37 @@ func brokerReadInput(input map[string]any, deps ToolDeps, defaultScope string) B
 	if market == "" && deps.DefaultTradeMarket != nil {
 		market = deps.DefaultTradeMarket()
 	}
-	return BrokerReadInput{TradingEnvironment: stringValue(input, "tradingEnvironment"), AccountID: stringValue(input, "accountId"), Market: market, Scope: defaultStringLocal(stringValue(input, "scope"), defaultScope), Symbol: stringValue(input, "symbol"), StartTime: stringValue(input, "startTime"), EndTime: stringValue(input, "endTime"), Status: stringSliceValue(input, "status"), Statuses: stringSliceValue(input, "statuses")}
+	return BrokerReadInput{TradingEnvironment: stringValue(input, "tradingEnvironment"), AccountID: stringValue(input, "accountId"), Market: market, Scope: stringOrDefault(stringValue(input, "scope"), defaultScope), Symbol: stringValue(input, "symbol"), StartTime: stringValue(input, "startTime"), EndTime: stringValue(input, "endTime"), Status: stringSliceValue(input, "status"), Statuses: stringSliceValue(input, "statuses")}
 }
 
 func taskPatchFromInput(input map[string]any) jfadk.TaskPatchRequest {
-	return jfadk.TaskPatchRequest{Title: stringPtrFromInput(input, "title"), Description: stringPtrFromInput(input, "description"), Status: stringPtrFromInput(input, "status"), AgentID: stringPtrFromInput(input, "agentId"), RunID: stringPtrFromInput(input, "runId"), DependsOn: stringSliceFromPresentInput(input, "dependsOn")}
+	return jfadk.TaskPatchRequest{
+		Title:           stringPtrFromInput(input, "title"),
+		Description:     stringPtrFromInput(input, "description"),
+		Status:          stringPtrFromInput(input, "status"),
+		AgentID:         stringPtrFromInput(input, "agentId"),
+		RunID:           stringPtrFromInput(input, "runId"),
+		DependsOn:       stringSliceFromPresentInput(input, "dependsOn"),
+		Order:           intPtrFromInput(input, "order"),
+		ModeHint:        stringPtrFromInput(input, "modeHint"),
+		AgentRole:       stringPtrFromInput(input, "agentRole"),
+		PlannerStepID:   stringPtrFromInput(input, "plannerStepId"),
+		PlanSource:      stringPtrFromInput(input, "planSource"),
+		WorkflowMode:    stringPtrFromInput(input, "workflowMode"),
+		Objective:       stringPtrFromInput(input, "objective"),
+		Message:         stringPtrFromInput(input, "message"),
+		Executor:        stringPtrFromInput(input, "executor"),
+		ResultSummary:   stringPtrFromInput(input, "resultSummary"),
+		PlannerWarnings: stringSliceFromPresentInput(input, "plannerWarnings"),
+	}
+}
+
+func intPtrFromInput(input map[string]any, key string) *int {
+	if _, ok := input[key]; !ok {
+		return nil
+	}
+	value := intValue(input, key, 0)
+	return &value
 }
 
 func stringPtrFromInput(input map[string]any, key string) *string {
@@ -744,7 +788,7 @@ func stringValue(input map[string]any, key string) string {
 	return value
 }
 
-func intValue(input map[string]any, key string, fallback int) int {
+func intValue(input map[string]any, key string, defaultValue int) int {
 	switch value := input[key].(type) {
 	case float64:
 		return int(value)
@@ -756,10 +800,10 @@ func intValue(input map[string]any, key string, fallback int) int {
 			return parsed
 		}
 	}
-	return fallback
+	return defaultValue
 }
 
-func floatValue(input map[string]any, key string, fallback float64) float64 {
+func floatValue(input map[string]any, key string, defaultValue float64) float64 {
 	switch value := input[key].(type) {
 	case float64:
 		return value
@@ -771,7 +815,7 @@ func floatValue(input map[string]any, key string, fallback float64) float64 {
 			return parsed
 		}
 	}
-	return fallback
+	return defaultValue
 }
 
 func stringSliceValue(input map[string]any, key string) []string {
@@ -795,10 +839,10 @@ func boolInputValue(input map[string]any, key string) bool {
 	return boolInputValueDefault(input, key, false)
 }
 
-func boolInputValueDefault(input map[string]any, key string, fallback bool) bool {
+func boolInputValueDefault(input map[string]any, key string, defaultValue bool) bool {
 	value, ok := input[key]
 	if !ok {
-		return fallback
+		return defaultValue
 	}
 	switch typed := value.(type) {
 	case bool:
@@ -806,14 +850,14 @@ func boolInputValueDefault(input map[string]any, key string, fallback bool) bool
 	case string:
 		return strings.EqualFold(strings.TrimSpace(typed), "true")
 	default:
-		return fallback
+		return defaultValue
 	}
 }
 
-func defaultStringLocal(value string, fallback string) string {
+func stringOrDefault(value string, defaultValue string) string {
 	value = strings.TrimSpace(value)
 	if value == "" {
-		return fallback
+		return defaultValue
 	}
 	return value
 }

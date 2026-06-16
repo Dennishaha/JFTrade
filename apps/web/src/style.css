@@ -1580,8 +1580,7 @@ body {
 }
 
 .adk-chat-thread--dock .adk-msg--notice,
-.adk-chat-thread--dock .adk-reasoning,
-.adk-chat-thread--dock .adk-approvals {
+.adk-chat-thread--dock .adk-reasoning {
   width: 100%;
   max-width: 100%;
 }
@@ -1840,106 +1839,6 @@ body {
 @keyframes adk-bounce {
   0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
   30% { transform: translateY(-6px); opacity: 1; }
-}
-
-/* === Approval cards === */
-.adk-approvals {
-  align-self: flex-start;
-  width: 100%;
-  max-width: 580px;
-  margin-top: 8px;
-}
-
-.adk-approvals-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  flex-wrap: wrap;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--tv-warn);
-  margin-bottom: 8px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-
-.adk-approvals-header__title,
-.adk-approvals-bulk,
-.adk-approval-row,
-.adk-approval-actions {
-  display: flex;
-  align-items: center;
-}
-
-.adk-approvals-header__title {
-  gap: 6px;
-}
-
-.adk-approvals-bulk {
-  gap: 6px;
-}
-
-.adk-approvals-count {
-  display: inline-flex;
-  min-width: 18px;
-  height: 18px;
-  justify-content: center;
-  padding: 0 6px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--tv-warn) 18%, transparent);
-  color: var(--tv-text);
-  font-size: 11px;
-  line-height: 18px;
-}
-
-.adk-approval-card {
-  display: grid;
-  gap: 8px;
-  background: color-mix(in srgb, var(--tv-warn) 8%, var(--tv-bg-elevated));
-  border: 1px solid color-mix(in srgb, var(--tv-warn) 35%, transparent);
-  border-radius: 12px;
-  padding: 10px 12px;
-  margin-bottom: 8px;
-}
-
-.adk-approval-row {
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 10px;
-}
-
-.adk-approval-main {
-  min-width: 0;
-}
-
-.adk-approval-tool {
-  font-size: 13px;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-  color: var(--tv-text);
-}
-
-.adk-approval-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 10px;
-  margin-top: 4px;
-  font-size: 11px;
-  color: var(--tv-text-muted);
-}
-
-.adk-approval-actions {
-  justify-content: flex-end;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.adk-approval-input {
-  margin-top: 0;
 }
 
 .adk-inline-alert {

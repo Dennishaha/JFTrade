@@ -23,13 +23,25 @@ function normalizeTimeline(
 }
 
 export function normalizeADKRun(run: ADKRun): ADKRun {
-  return {
+  const normalized: ADKRun = {
     ...run,
     toolCalls: [...ensureArray(run.toolCalls as ADKRun["toolCalls"] | null)],
     pendingApprovals: normalizeApprovals(
       run.pendingApprovals as ADKApproval[] | null,
     ),
   };
+  if (run.childRunIds !== undefined) {
+    normalized.childRunIds = [...ensureArray(run.childRunIds as string[] | null)];
+  }
+  if (run.workflowPlan !== undefined) {
+    normalized.workflowPlan = [
+      ...ensureArray(run.workflowPlan as ADKRun["workflowPlan"] | null),
+    ].map((step) => ({
+      ...step,
+      dependsOn: [...ensureArray(step.dependsOn as string[] | null)],
+    }));
+  }
+  return normalized;
 }
 
 export function normalizeADKTimelineEntry(
@@ -68,6 +80,9 @@ export function normalizeADKApprovalResolution(
   const normalized: ADKApprovalResolution = { ...resolution };
   if (resolution.run) {
     normalized.run = normalizeADKRun(resolution.run);
+  }
+  if (resolution.parentRun) {
+    normalized.parentRun = normalizeADKRun(resolution.parentRun);
   }
   return normalized;
 }

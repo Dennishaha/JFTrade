@@ -5,6 +5,8 @@ import type {
   ADKTimelineEntry,
 } from "@/contracts";
 
+import { uniqueADKApprovalsById } from "./adkApprovalResolution";
+
 export interface ADKTimelineEntryState extends ADKTimelineEntry {
   reasoningExpanded?: boolean;
   toolSummaryExpanded?: boolean;
@@ -30,9 +32,11 @@ export function replaceTimelineEntries(
   previous: ADKTimelineEntryState[] = [],
 ): ADKTimelineEntryState[] {
   const previousById = new Map(previous.map((entry) => [entry.id, entry]));
-  return sortTimelineEntries(
-    (entries ?? []).map((entry) =>
-      mergeTimelineEntry(previousById.get(entry.id), entry),
+  return dedupeTimelineApprovalEntries(
+    sortTimelineEntries(
+      (entries ?? []).map((entry) =>
+        mergeTimelineEntry(previousById.get(entry.id), entry),
+      ),
     ),
   );
 }
@@ -43,11 +47,13 @@ export function upsertTimelineEntry(
 ): ADKTimelineEntryState[] {
   const index = entries.findIndex((entry) => entry.id === incoming.id);
   if (index < 0) {
-    return sortTimelineEntries([...entries, createTimelineEntryState(incoming)]);
+    return dedupeTimelineApprovalEntries(
+      sortTimelineEntries([...entries, createTimelineEntryState(incoming)]),
+    );
   }
   const next = [...entries];
   next[index] = mergeTimelineEntry(next[index], incoming);
-  return sortTimelineEntries(next);
+  return dedupeTimelineApprovalEntries(sortTimelineEntries(next));
 }
 
 export function sortTimelineEntries(
@@ -87,7 +93,9 @@ export function buildTimelineRun(entry: ADKTimelineEntryState): ADKRun {
 export function approvalsForGroup(
   entry: ADKTimelineEntryState,
 ): ADKApproval[] {
-  return [...(entry.approvals ?? [])].filter(isPendingApproval);
+  return uniqueADKApprovalsById(
+    [...(entry.approvals ?? [])].filter(isPendingApproval),
+  );
 }
 
 export function applyApprovalResolutions(
@@ -113,26 +121,43 @@ export function applyApprovalResolutions(
         ),
       );
     }
+    if (resolution.parentRun?.id) {
+      pendingApprovalIdsByRun.set(
+        resolution.parentRun.id,
+        new Set(
+          (resolution.parentRun.pendingApprovals ?? [])
+            .filter(isPendingApproval)
+            .map((approval) => approval.id),
+        ),
+      );
+    }
   }
-  return sortTimelineEntries(
-    entries.flatMap((entry) => {
-      if (entry.kind !== "approval_group" || !entry.approvals?.length) {
-        return [entry];
-      }
-      const pendingApprovalIds = entry.runId
-        ? pendingApprovalIdsByRun.get(entry.runId)
-        : undefined;
-      const approvals = entry.approvals.filter((approval) => {
-        if (pendingApprovalIds) {
-          return pendingApprovalIds.has(approval.id);
+  return dedupeTimelineApprovalEntries(
+    sortTimelineEntries(
+      entries.flatMap((entry) => {
+        if (entry.kind !== "approval_group" || !entry.approvals?.length) {
+          return [entry];
         }
-        return !resolvedApprovalIds.has(approval.id) && isPendingApproval(approval);
-      });
-      if (approvals.length === 0) {
-        return [];
-      }
-      return [{ ...entry, approvals }];
-    }),
+        const pendingApprovalIds = entry.runId
+          ? pendingApprovalIdsByRun.get(entry.runId)
+          : undefined;
+        const approvals = uniqueADKApprovalsById(entry.approvals).filter(
+          (approval) => {
+            if (pendingApprovalIds) {
+              return pendingApprovalIds.has(approval.id);
+            }
+            return (
+              !resolvedApprovalIds.has(approval.id) &&
+              isPendingApproval(approval)
+            );
+          },
+        );
+        if (approvals.length === 0) {
+          return [];
+        }
+        return [{ ...entry, approvals }];
+      }),
+    ),
   );
 }
 
@@ -158,6 +183,75 @@ function mergeTimelineEntry(
 function isPendingApproval(approval: Pick<ADKApproval, "status">): boolean {
   const status = String(approval.status ?? "").trim().toUpperCase();
   return status === "" || status === "PENDING" || status === "PENDING_APPROVAL";
+}
+
+function dedupeTimelineApprovalEntries(
+  entries: ADKTimelineEntryState[],
+): ADKTimelineEntryState[] {
+  const ownerByApprovalId = new Map<string, ApprovalOwner>();
+  entries.forEach((entry, index) => {
+    if (entry.kind !== "approval_group" || !entry.approvals?.length) {
+      return;
+    }
+    for (const approval of approvalsForGroup(entry)) {
+      const id = approval.id.trim();
+      if (id === "") {
+        continue;
+      }
+      const candidate: ApprovalOwner = {
+        entryKey: timelineEntryKey(entry, index),
+        parentCopy: isParentWorkflowApprovalCopy(entry, approval),
+      };
+      const current = ownerByApprovalId.get(id);
+      if (!current || shouldPreferApprovalOwner(candidate, current)) {
+        ownerByApprovalId.set(id, candidate);
+      }
+    }
+  });
+
+  return entries.flatMap((entry, index) => {
+    if (entry.kind !== "approval_group" || !entry.approvals?.length) {
+      return [entry];
+    }
+    const entryKey = timelineEntryKey(entry, index);
+    const approvals = approvalsForGroup(entry).filter((approval) => {
+      const id = approval.id.trim();
+      return id === "" || ownerByApprovalId.get(id)?.entryKey === entryKey;
+    });
+    if (approvals.length === 0) {
+      return [];
+    }
+    return [{ ...entry, approvals }];
+  });
+}
+
+interface ApprovalOwner {
+  entryKey: string;
+  parentCopy: boolean;
+}
+
+function shouldPreferApprovalOwner(
+  candidate: ApprovalOwner,
+  current: ApprovalOwner,
+): boolean {
+  return candidate.parentCopy && !current.parentCopy;
+}
+
+function isParentWorkflowApprovalCopy(
+  entry: ADKTimelineEntryState,
+  approval: ADKApproval,
+): boolean {
+  const entryRunId = String(entry.runId ?? "").trim();
+  const approvalRunId = String(approval.runId ?? "").trim();
+  return (
+    entryRunId !== "" &&
+    approvalRunId !== "" &&
+    entryRunId !== approvalRunId
+  );
+}
+
+function timelineEntryKey(entry: ADKTimelineEntryState, index: number): string {
+  return `${entry.id}::${entry.runId ?? ""}::${index}`;
 }
 
 function deriveToolGroupStatus(toolCalls: ADKRun["toolCalls"]): string {

@@ -338,6 +338,16 @@ func (s *Service) validateAgent(ctx context.Context, payload jfadk.AgentWriteReq
 	if status != "" && status != jfadk.AgentStatusEnabled && status != jfadk.AgentStatusDisabled {
 		return fmt.Errorf("invalid agent status")
 	}
+	if strings.TrimSpace(payload.WorkMode) != "" {
+		switch strings.ToLower(strings.TrimSpace(payload.WorkMode)) {
+		case jfadk.WorkModeChat, jfadk.WorkModeTask, jfadk.WorkModeLoop:
+		default:
+			return fmt.Errorf("invalid agent work mode")
+		}
+	}
+	if payload.LoopMaxIterations < 0 || payload.LoopMaxIterations > jfadk.MaxLoopIterations {
+		return fmt.Errorf("loop max iterations must be between 1 and %d", jfadk.MaxLoopIterations)
+	}
 	if strings.TrimSpace(payload.ProviderID) != "" {
 		provider, ok, err := s.runtime.Store().Provider(ctx, payload.ProviderID)
 		if err != nil {
@@ -627,6 +637,13 @@ func (s *Service) CancelRun(ctx context.Context, runID string) (jfadk.Run, error
 		return jfadk.Run{}, fmt.Errorf("adk runtime is unavailable")
 	}
 	return s.runtime.CancelRun(ctx, runID)
+}
+
+func (s *Service) UpdateRunObjective(ctx context.Context, runID string, objective string) (jfadk.Run, error) {
+	if s.runtime == nil {
+		return jfadk.Run{}, fmt.Errorf("adk runtime is unavailable")
+	}
+	return s.runtime.UpdateRunObjective(ctx, runID, objective)
 }
 
 // ReconcileExpiredRuns 清理超时 run。

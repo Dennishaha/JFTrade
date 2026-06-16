@@ -374,55 +374,6 @@ func (s *openAIStreamAggregationState) finalResponse() (*model.LLMResponse, erro
 	}, false)
 }
 
-type localADKModel struct {
-	agent Agent
-	tools *ToolRegistry
-}
-
-func (m localADKModel) Name() string { return "jftrade-local" }
-
-func (m localADKModel) GenerateContent(_ context.Context, req *model.LLMRequest, _ bool) iter.Seq2[*model.LLMResponse, error] {
-	return func(yield func(*model.LLMResponse, error) bool) {
-		var latestText string
-		var summaries []string
-		for _, content := range req.Contents {
-			for _, part := range content.Parts {
-				if part.Text != "" {
-					latestText = part.Text
-				}
-				if part.FunctionResponse != nil {
-					summaries = append(summaries, summarizeToolOutput(part.FunctionResponse.Name, part.FunctionResponse.Response))
-				}
-			}
-		}
-		if len(summaries) > 0 {
-			yield(&model.LLMResponse{
-				Content:      genai.NewContentFromText(localReply(latestText, summaries, nil), genai.RoleModel),
-				TurnComplete: true,
-			}, nil)
-			return
-		}
-		invocations := SelectToolInvocations(latestText, m.agent, m.tools)
-		if len(invocations) > 0 {
-			parts := make([]*genai.Part, 0, len(invocations))
-			for _, invocation := range invocations {
-				parts = append(parts, &genai.Part{FunctionCall: &genai.FunctionCall{
-					ID: "call-" + normalizeID(invocation.Name), Name: invocation.Name, Args: invocation.Input,
-				}})
-			}
-			yield(&model.LLMResponse{
-				Content:      genai.NewContentFromParts(parts, genai.RoleModel),
-				TurnComplete: true,
-			}, nil)
-			return
-		}
-		yield(&model.LLMResponse{
-			Content:      genai.NewContentFromText(localReply(latestText, nil, nil), genai.RoleModel),
-			TurnComplete: true,
-		}, nil)
-	}
-}
-
 func openAIMessagesFromGenAI(content *genai.Content) []openAIChatMessage {
 	if content == nil {
 		return nil

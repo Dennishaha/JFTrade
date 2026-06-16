@@ -279,7 +279,7 @@ func (s *Server) adkSaveStrategyDraft(input StrategyDraftInput) (any, error) {
 		return nil, fmt.Errorf("策略定义存储不可用")
 	}
 	definition := strategyDesignDefinition{
-		Name:         defaultStringLocal(input.Name, "ADK 策略草稿"),
+		Name:         stringOrDefault(input.Name, "ADK 策略草稿"),
 		Description:  "由 ADK agent 生成的策略草稿。",
 		SourceFormat: strategydefinition.SourceFormatPineV6,
 		Runtime:      strategyRuntimePinePlan,
@@ -313,8 +313,8 @@ func (s *Server) adkSaveStrategyDefinition(input StrategyDefinitionInput) (any, 
 		Description:  strings.TrimSpace(input.Description),
 		Runtime:      strategyRuntimePinePlan,
 		SourceFormat: strategydefinition.SourceFormatPineV6,
-		Symbol:       defaultStringLocal(strings.TrimSpace(input.Symbol), strings.TrimSpace(input.Validation.Program.Metadata.Symbol)),
-		Interval:     defaultStringLocal(strings.TrimSpace(input.Interval), strings.TrimSpace(input.Validation.Program.Metadata.Interval)),
+		Symbol:       stringOrDefault(strings.TrimSpace(input.Symbol), strings.TrimSpace(input.Validation.Program.Metadata.Symbol)),
+		Interval:     stringOrDefault(strings.TrimSpace(input.Interval), strings.TrimSpace(input.Validation.Program.Metadata.Interval)),
 		Script:       input.Validation.NormalizedScript,
 		VisualModel:  visualModel,
 	}

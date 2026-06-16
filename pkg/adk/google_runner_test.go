@@ -53,7 +53,7 @@ func TestGoogleADKExecutionBuffersTextUntilToolsFinish(t *testing.T) {
 	}
 }
 
-func TestGoogleADKExecutionDerivesCompletedStatusFromFinishedToolCalls(t *testing.T) {
+func TestGoogleADKExecutionRequiresPostToolTextBeforeCompletedStatus(t *testing.T) {
 	t.Parallel()
 
 	var snapshots []*Run
@@ -69,14 +69,86 @@ func TestGoogleADKExecutionDerivesCompletedStatusFromFinishedToolCalls(t *testin
 		},
 	}
 
+	if err := execution.appendVisibleText("先检查数据。", ""); err != nil {
+		t.Fatalf("append pre-tool text: %v", err)
+	}
 	call := execution.ensureCall("call-1", ToolDescriptor{Name: "portfolio.summary", Permission: "read"}, map[string]any{"scope": "all"})
 	execution.finishCall(call.ID, map[string]any{"ok": true}, nil)
 
 	if len(snapshots) < 2 {
 		t.Fatalf("snapshots = %d, want at least start + finish", len(snapshots))
 	}
-	if got := snapshots[len(snapshots)-1].Status; got != RunStatusCompleted {
-		t.Fatalf("final snapshot status = %q, want %q", got, RunStatusCompleted)
+	if got := snapshots[len(snapshots)-1].Status; got != RunStatusRunning {
+		t.Fatalf("tool-only snapshot status = %q, want %q", got, RunStatusRunning)
+	}
+	execution.consumeFunctionResponse(&genai.FunctionResponse{
+		ID:       "call-1",
+		Name:     "portfolio.summary",
+		Response: map[string]any{"ok": true},
+	})
+	execution.mu.Lock()
+	statusAfterResponse := execution.derivedRunStatusForRunLocked("run-1")
+	execution.mu.Unlock()
+	if statusAfterResponse != RunStatusRunning {
+		t.Fatalf("status after function response = %q, want %q", statusAfterResponse, RunStatusRunning)
+	}
+	if err := execution.appendVisibleText("基于数据，最终结论如下。", ""); err != nil {
+		t.Fatalf("append post-tool text: %v", err)
+	}
+	execution.mu.Lock()
+	finalStatus := execution.derivedRunStatusForRunLocked("run-1")
+	execution.mu.Unlock()
+	if finalStatus != RunStatusCompleted {
+		t.Fatalf("status after post-tool text = %q, want %q", finalStatus, RunStatusCompleted)
+	}
+}
+
+func TestGoogleADKExecutionRequiresPostToolTextAfterLatestToolResponse(t *testing.T) {
+	t.Parallel()
+
+	execution := &googleADKExecution{
+		sessionID: "session-1",
+		agent:     Agent{ID: "agent-1"},
+		runID:     "run-1",
+		onDelta:   func(ChatDelta) error { return nil },
+	}
+
+	first := execution.ensureCall("call-1", ToolDescriptor{Name: "market.candles", Permission: "read"}, map[string]any{"symbol": "TME"})
+	execution.finishCall(first.ID, map[string]any{"ok": true}, nil)
+	execution.consumeFunctionResponse(&genai.FunctionResponse{
+		ID:       "call-1",
+		Name:     "market.candles",
+		Response: map[string]any{"ok": true},
+	})
+	if err := execution.appendVisibleText("第一轮工具后的分析。", ""); err != nil {
+		t.Fatalf("append first post-tool text: %v", err)
+	}
+	second := execution.ensureCall("call-2", ToolDescriptor{Name: "strategy.definitions", Permission: "read"}, map[string]any{"query": "TME"})
+	execution.finishCall(second.ID, map[string]any{"ok": true}, nil)
+	execution.consumeFunctionResponse(&genai.FunctionResponse{
+		ID:       "call-2",
+		Name:     "strategy.definitions",
+		Response: map[string]any{"ok": true},
+	})
+
+	execution.mu.Lock()
+	statusAfterSecondTool := execution.derivedRunStatusForRunLocked("run-1")
+	execution.mu.Unlock()
+	if statusAfterSecondTool != RunStatusRunning {
+		t.Fatalf("status after second tool response = %q, want %q", statusAfterSecondTool, RunStatusRunning)
+	}
+	if !execution.runNeedsFinalSynthesis("run-1") {
+		t.Fatal("run should need final synthesis after latest tool response")
+	}
+
+	if err := execution.appendVisibleText("第二轮工具后的最终结论。", ""); err != nil {
+		t.Fatalf("append final post-tool text: %v", err)
+	}
+	execution.mu.Lock()
+	finalStatus := execution.derivedRunStatusForRunLocked("run-1")
+	execution.mu.Unlock()
+	if finalStatus != RunStatusCompleted {
+		t.Fatalf("status after latest post-tool text = %q, want %q", finalStatus, RunStatusCompleted)
 	}
 }
 

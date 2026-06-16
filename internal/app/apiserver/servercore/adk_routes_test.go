@@ -50,6 +50,7 @@ func TestADKApprovalApproveRouteReturnsRunningResolutionEnvelope(t *testing.T) {
 	agent, err := server.adkRuntime.Store().SaveAgent(t.Context(), jfadk.AgentWriteRequest{
 		ID:             "approval-agent-running",
 		Name:           "Approval Agent",
+		ProviderID:     testADKProviderID,
 		Tools:          []string{"strategy.save_draft"},
 		PermissionMode: jfadk.PermissionModeApproval,
 		Status:         jfadk.AgentStatusEnabled,
@@ -196,6 +197,7 @@ func TestADKApprovalRouteReturnsResolutionEnvelope(t *testing.T) {
 	agent, err := server.adkRuntime.Store().SaveAgent(t.Context(), jfadk.AgentWriteRequest{
 		ID:             "approval-agent",
 		Name:           "Approval Agent",
+		ProviderID:     testADKProviderID,
 		Tools:          []string{"strategy.save_draft"},
 		PermissionMode: jfadk.PermissionModeApproval,
 		Status:         jfadk.AgentStatusEnabled,
@@ -581,11 +583,11 @@ func TestADKTaskAndMemoryWorkflowRoutes(t *testing.T) {
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
-	agent, err := server.adkRuntime.Store().SaveAgent(t.Context(), jfadk.AgentWriteRequest{ID: "workflow-agent", Name: "Workflow", Status: jfadk.AgentStatusEnabled})
+	agent, err := server.adkRuntime.Store().SaveAgent(t.Context(), jfadk.AgentWriteRequest{ID: "workflow-agent", Name: "Workflow", ProviderID: testADKProviderID, Status: jfadk.AgentStatusEnabled})
 	if err != nil {
 		t.Fatalf("SaveAgent: %v", err)
 	}
-	createResp, err := http.Post(srv.URL+"/api/v1/adk/tasks", "application/json", strings.NewReader(`{"id":"task-route","title":"Route task","status":"TODO","agentId":"`+agent.ID+`"}`))
+	createResp, err := http.Post(srv.URL+"/api/v1/adk/tasks", "application/json", strings.NewReader(`{"id":"task-route","title":"Route task","status":"TODO","agentId":"`+agent.ID+`","order":1,"agentRole":"探索 Agent","plannerStepId":"__planner_step_1","planSource":"planner","workflowMode":"sequential","objective":"完成路线"}`))
 	if err != nil {
 		t.Fatalf("POST task: %v", err)
 	}
@@ -593,7 +595,7 @@ func TestADKTaskAndMemoryWorkflowRoutes(t *testing.T) {
 	if createResp.StatusCode != http.StatusOK {
 		t.Fatalf("POST task status = %d", createResp.StatusCode)
 	}
-	patchReq, err := http.NewRequest(http.MethodPut, srv.URL+"/api/v1/adk/tasks/task-route", strings.NewReader(`{"status":"DONE"}`))
+	patchReq, err := http.NewRequest(http.MethodPut, srv.URL+"/api/v1/adk/tasks/task-route", strings.NewReader(`{"status":"DONE","order":2,"plannerWarnings":["planner warning"]}`))
 	if err != nil {
 		t.Fatalf("NewRequest patch task: %v", err)
 	}
@@ -615,6 +617,12 @@ func TestADKTaskAndMemoryWorkflowRoutes(t *testing.T) {
 	}
 	if !patchEnvelope.OK || patchEnvelope.Data.Title != "Route task" || patchEnvelope.Data.Status != "DONE" {
 		t.Fatalf("patch envelope = %+v, want preserved title and DONE", patchEnvelope)
+	}
+	if patchEnvelope.Data.Order != 2 || patchEnvelope.Data.AgentRole != "探索 Agent" || patchEnvelope.Data.PlannerStepID != "__planner_step_1" || patchEnvelope.Data.PlanSource != "planner" || patchEnvelope.Data.WorkflowMode != "sequential" || patchEnvelope.Data.Objective != "完成路线" {
+		t.Fatalf("patched task planner metadata = %+v, want preserved/updated metadata", patchEnvelope.Data)
+	}
+	if len(patchEnvelope.Data.PlannerWarnings) != 1 || patchEnvelope.Data.PlannerWarnings[0] != "planner warning" {
+		t.Fatalf("patched task warnings = %+v, want planner warning", patchEnvelope.Data.PlannerWarnings)
 	}
 	listResp, err := http.Get(srv.URL + "/api/v1/adk/tasks?status=DONE&agentId=" + agent.ID)
 	if err != nil {
@@ -847,6 +855,7 @@ func TestADKSessionsCRUDAndFilteringRoutes(t *testing.T) {
 	agent, err := server.adkRuntime.Store().SaveAgent(t.Context(), jfadk.AgentWriteRequest{
 		ID:             "session-agent",
 		Name:           "Session Agent",
+		ProviderID:     testADKProviderID,
 		Tools:          []string{"strategy.save_draft"},
 		PermissionMode: jfadk.PermissionModeApproval,
 		Status:         jfadk.AgentStatusEnabled,
@@ -979,6 +988,7 @@ func TestADKSessionDetailOmitsResolvedApprovalGroups(t *testing.T) {
 	agent, err := server.adkRuntime.Store().SaveAgent(t.Context(), jfadk.AgentWriteRequest{
 		ID:             "session-approval-agent",
 		Name:           "Session Approval Agent",
+		ProviderID:     testADKProviderID,
 		Tools:          []string{"strategy.save_draft"},
 		PermissionMode: jfadk.PermissionModeApproval,
 		Status:         jfadk.AgentStatusEnabled,
@@ -1138,7 +1148,7 @@ func TestADKAuditRouteFiltersByKindAndSubjectID(t *testing.T) {
 	}
 }
 
-func TestADKAuditRoutePaginationFallbacks(t *testing.T) {
+func TestADKAuditRouteDefaultPagination(t *testing.T) {
 	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
@@ -1172,13 +1182,13 @@ func TestADKAuditRoutePaginationFallbacks(t *testing.T) {
 		} `json:"data"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
-		t.Fatalf("decode audit fallback page: %v", err)
+		t.Fatalf("decode audit default page: %v", err)
 	}
 	if !envelope.OK {
-		t.Fatalf("audit fallback envelope = %+v", envelope)
+		t.Fatalf("audit default page envelope = %+v", envelope)
 	}
 	if envelope.Data.Page.Limit != 100 || envelope.Data.Page.Offset != 0 || envelope.Data.Page.Total != 2 || envelope.Data.Page.Returned != 2 || envelope.Data.Page.HasMore {
-		t.Fatalf("audit fallback page = %+v, want default pagination", envelope.Data.Page)
+		t.Fatalf("audit default page = %+v, want default pagination", envelope.Data.Page)
 	}
 }
 
@@ -1195,6 +1205,7 @@ func TestADKChatStreamEmitsSessionRunAndFinalEvents(t *testing.T) {
 	agent, err := server.adkRuntime.Store().SaveAgent(t.Context(), jfadk.AgentWriteRequest{
 		ID:             "stream-agent",
 		Name:           "Stream Agent",
+		ProviderID:     testADKProviderID,
 		PermissionMode: jfadk.PermissionModeApproval,
 		Status:         jfadk.AgentStatusEnabled,
 	})
@@ -1252,6 +1263,7 @@ func TestADKChatReturnsCompletedEnvelopeWithVisibleToolFailure(t *testing.T) {
 	agent, err := server.adkRuntime.Store().SaveAgent(t.Context(), jfadk.AgentWriteRequest{
 		ID:             "chat-failed-run-agent",
 		Name:           "Failed Run Agent",
+		ProviderID:     testADKProviderID,
 		Tools:          []string{"strategy.save_draft"},
 		PermissionMode: jfadk.PermissionModeSandboxAuto,
 		Status:         jfadk.AgentStatusEnabled,
@@ -1310,6 +1322,7 @@ func TestADKChatStreamReturnsFinalEventForCompletedRunWithToolFailure(t *testing
 	agent, err := server.adkRuntime.Store().SaveAgent(t.Context(), jfadk.AgentWriteRequest{
 		ID:             "stream-failed-run-agent",
 		Name:           "Stream Failed Run Agent",
+		ProviderID:     testADKProviderID,
 		Tools:          []string{"strategy.save_draft"},
 		PermissionMode: jfadk.PermissionModeSandboxAuto,
 		Status:         jfadk.AgentStatusEnabled,
@@ -1381,6 +1394,7 @@ func TestADKChatStreamRecoversCompletedRunAsFinalEventWhenFinalMessageAppendFail
 	agent, err := server.adkRuntime.Store().SaveAgent(t.Context(), jfadk.AgentWriteRequest{
 		ID:             "stream-recover-failed-run-agent",
 		Name:           "Stream Recover Failed Run Agent",
+		ProviderID:     testADKProviderID,
 		Tools:          []string{"strategy.save_draft"},
 		PermissionMode: jfadk.PermissionModeSandboxAuto,
 		Status:         jfadk.AgentStatusEnabled,
@@ -1818,6 +1832,7 @@ func TestADKApprovalNegativeAndIdempotentRoutes(t *testing.T) {
 	agent, err := server.adkRuntime.Store().SaveAgent(t.Context(), jfadk.AgentWriteRequest{
 		ID:             "approval-idempotent-agent",
 		Name:           "Approval Idempotent Agent",
+		ProviderID:     testADKProviderID,
 		Tools:          []string{"strategy.save_draft"},
 		PermissionMode: jfadk.PermissionModeApproval,
 		Status:         jfadk.AgentStatusEnabled,

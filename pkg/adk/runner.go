@@ -23,6 +23,7 @@ type Runtime struct {
 	activeRuns        map[string]context.CancelFunc
 	adkMu             sync.Mutex
 	adkRuns           map[string]*googleADKExecution
+	workflowChildMu   sync.Mutex
 	approvalMu        sync.Mutex
 	approvalRuns      map[string]struct{}
 	runSem            chan struct{} // Concurrency limiter for active runs
@@ -259,19 +260,20 @@ func (r *Runtime) resolveAgent(ctx context.Context, agentID string) (Agent, erro
 	if agent.DeletedAt != nil {
 		return Agent{}, fmt.Errorf("agent is deleted")
 	}
-	if strings.TrimSpace(agent.ProviderID) != "" {
-		provider, providerOK, providerErr := r.store.Provider(ctx, agent.ProviderID)
-		if providerErr != nil {
-			return Agent{}, providerErr
-		}
-		if !providerOK || !provider.Enabled {
-			return Agent{}, fmt.Errorf("agent provider is unavailable")
-		}
-		if _, hasKey, keyErr := r.store.ProviderAPIKey(provider.ID); keyErr != nil {
-			return Agent{}, keyErr
-		} else if !hasKey {
-			return Agent{}, fmt.Errorf("agent provider API key is not configured")
-		}
+	if strings.TrimSpace(agent.ProviderID) == "" {
+		return Agent{}, fmt.Errorf("agent provider is required")
+	}
+	provider, providerOK, providerErr := r.store.Provider(ctx, agent.ProviderID)
+	if providerErr != nil {
+		return Agent{}, providerErr
+	}
+	if !providerOK || !provider.Enabled {
+		return Agent{}, fmt.Errorf("agent provider is unavailable")
+	}
+	if _, hasKey, keyErr := r.store.ProviderAPIKey(provider.ID); keyErr != nil {
+		return Agent{}, keyErr
+	} else if !hasKey {
+		return Agent{}, fmt.Errorf("agent provider API key is not configured")
 	}
 	return agent, nil
 }
@@ -322,15 +324,12 @@ func (r *Runtime) DeleteSession(ctx context.Context, sessionID string) error {
 }
 
 func (r *Runtime) generateReply(ctx context.Context, agent Agent, question string, toolSummaries []string, history []openAIChatMessage) (openAIChatResult, error) {
-	if strings.TrimSpace(agent.ProviderID) == "" {
-		return openAIChatResult{Reply: localReply(question, toolSummaries, nil)}, nil
-	}
 	provider, ok, err := r.store.Provider(ctx, agent.ProviderID)
 	if err != nil {
 		return openAIChatResult{}, err
 	}
 	if !ok || !provider.Enabled {
-		return openAIChatResult{Reply: localReply(question, toolSummaries, fmt.Errorf("provider unavailable"))}, nil
+		return openAIChatResult{}, fmt.Errorf("agent provider is unavailable")
 	}
 	apiKey, _, err := r.store.ProviderAPIKey(provider.ID)
 	if err != nil {
@@ -348,27 +347,12 @@ func (r *Runtime) generateReplyStream(
 	history []openAIChatMessage,
 	onDelta func(ChatDelta) error,
 ) (openAIChatResult, error) {
-	if strings.TrimSpace(agent.ProviderID) == "" {
-		result := openAIChatResult{Reply: localReply(question, toolSummaries, nil)}
-		if onDelta != nil {
-			if err := onDelta(ChatDelta{Reply: result.Reply, ReasoningContent: result.ReasoningContent}); err != nil {
-				return openAIChatResult{}, err
-			}
-		}
-		return result, nil
-	}
 	provider, ok, err := r.store.Provider(ctx, agent.ProviderID)
 	if err != nil {
 		return openAIChatResult{}, err
 	}
 	if !ok || !provider.Enabled {
-		result := openAIChatResult{Reply: localReply(question, toolSummaries, fmt.Errorf("provider unavailable"))}
-		if onDelta != nil {
-			if err := onDelta(ChatDelta{Reply: result.Reply, ReasoningContent: result.ReasoningContent}); err != nil {
-				return openAIChatResult{}, err
-			}
-		}
-		return result, nil
+		return openAIChatResult{}, fmt.Errorf("agent provider is unavailable")
 	}
 	apiKey, _, err := r.store.ProviderAPIKey(provider.ID)
 	if err != nil {
@@ -485,44 +469,6 @@ func approvalResolutionSummary(run Run, approval Approval, approved bool) string
 	return strings.Join(lines, "\n")
 }
 
-func inferToolInput(name string, text string) map[string]any {
-	input := map[string]any{"query": text}
-	if name == "http.fetch" {
-		fields := strings.Fields(text)
-		for _, field := range fields {
-			field = strings.Trim(field, "锛屻€?.()[]{}<>\"'")
-			if strings.HasPrefix(field, "http://") || strings.HasPrefix(field, "https://") {
-				input["url"] = field
-				break
-			}
-		}
-	}
-	return input
-}
-
-func localReply(question string, toolSummaries []string, cause error) string {
-	var builder strings.Builder
-	builder.WriteString("已完成本地 ADK 分析。")
-	if cause != nil {
-		builder.WriteString(" 模型服务暂时不可用，已使用本地兜底回复。")
-	}
-	if len(toolSummaries) > 0 {
-		builder.WriteString("\n\n使用的数据来源：\n")
-		for _, summary := range toolSummaries {
-			builder.WriteString("- ")
-			builder.WriteString(summary)
-			builder.WriteString("\n")
-		}
-	} else {
-		builder.WriteString(" 当前没有触发内部工具；你可以询问行情、账户、策略、回测、系统状态，或使用 @toolName 指定工具。")
-	}
-	if strings.TrimSpace(question) != "" {
-		builder.WriteString("\n\n问题摘要：")
-		builder.WriteString(strings.TrimSpace(question))
-	}
-	return builder.String()
-}
-
 func userFacingADKError(err error) string {
 	if err == nil {
 		return ""
@@ -532,7 +478,7 @@ func userFacingADKError(err error) string {
 	case strings.Contains(lower, "wrote more than the declared content-length"):
 		return "模型服务响应异常，请检查模型服务配置或稍后重试。"
 	case strings.Contains(lower, "database is locked") || strings.Contains(lower, "sqlite_busy"):
-		return "本地数据库繁忙，请稍后重试。"
+		return "数据库繁忙，请稍后重试。"
 	default:
 		return err.Error()
 	}

@@ -83,6 +83,7 @@ export interface NormalizeInstrumentResponse {
 }
 
 export type ADKPermissionMode = "approval" | "sandbox_auto" | "high_auto";
+export type ADKWorkMode = "chat" | "task" | "loop";
 
 export interface ADKProvider {
   id: string;
@@ -115,6 +116,8 @@ export interface ADKAgent {
   permissionMode: ADKPermissionMode;
   memoryEnabled: boolean;
   recentUserWindow: number;
+  workMode: ADKWorkMode;
+  loopMaxIterations: number;
   status: "ENABLED" | "DISABLED" | string;
   createdAt: string;
   updatedAt: string;
@@ -295,6 +298,14 @@ export interface ADKRun {
   errorCode?: string;
   degraded?: boolean;
   optimizationTaskId?: string;
+  workMode?: ADKWorkMode | string;
+  objective?: string;
+  parentRunId?: string;
+  childRunIds?: string[];
+  iteration?: number;
+  workflowStatus?: string;
+  workflowCursor?: number;
+  workflowPlan?: ADKWorkflowStepState[];
   toolCalls: ADKToolCall[];
   pendingApprovals: ADKApproval[];
   resumeState?: string;
@@ -305,6 +316,27 @@ export interface ADKRun {
   updatedAt: string;
   completedAt?: string;
   cancelledAt?: string;
+}
+
+export interface ADKWorkflowStepState {
+  taskId?: string;
+  title: string;
+  description?: string;
+  message?: string;
+  status: string;
+  childRunId?: string;
+  dependsOn?: string[];
+  iteration?: number;
+  order?: number;
+  modeHint?: string;
+  agentRole?: string;
+  plannerStepId?: string;
+  planSource?: string;
+  workflowMode?: string;
+  objective?: string;
+  executor?: string;
+  resultSummary?: string;
+  plannerWarnings?: string[];
 }
 
 export interface ADKChatResponse {
@@ -320,6 +352,7 @@ export interface ADKChatResponse {
 export interface ADKApprovalResolution {
   approval: ADKApproval;
   run?: ADKRun;
+  parentRun?: ADKRun;
   message?: ADKMessage;
 }
 
@@ -363,6 +396,17 @@ export interface ADKTask {
   agentId?: string;
   runId?: string;
   dependsOn?: string[];
+  order?: number;
+  modeHint?: string;
+  agentRole?: string;
+  plannerStepId?: string;
+  planSource?: string;
+  workflowMode?: string;
+  objective?: string;
+  message?: string;
+  executor?: string;
+  resultSummary?: string;
+  plannerWarnings?: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -382,6 +426,17 @@ export interface ADKTaskPatch {
   agentId?: string;
   runId?: string;
   dependsOn?: string[];
+  order?: number;
+  modeHint?: string;
+  agentRole?: string;
+  plannerStepId?: string;
+  planSource?: string;
+  workflowMode?: string;
+  objective?: string;
+  message?: string;
+  executor?: string;
+  resultSummary?: string;
+  plannerWarnings?: string[];
 }
 
 export interface ADKMemoryEntry {

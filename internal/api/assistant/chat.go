@@ -291,8 +291,8 @@ func defaultTimelineRunID(runID string) string {
 	return "stream"
 }
 
-func firstTimelineToolTime(toolCalls []jfadk.ToolCall, fallback string) string {
-	best := strings.TrimSpace(fallback)
+func firstTimelineToolTime(toolCalls []jfadk.ToolCall, currentTime string) string {
+	best := strings.TrimSpace(currentTime)
 	for _, toolCall := range toolCalls {
 		candidate := strings.TrimSpace(toolCall.CreatedAt)
 		if candidate == "" {
