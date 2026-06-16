@@ -1368,6 +1368,8 @@ describe("Strategy page", () => {
 
     expect((wrapper.get('[data-testid="strategy-stop-loss-mode"]').element as HTMLSelectElement).value).toBe("stopLoss");
     expect((wrapper.get('[data-testid="strategy-stop-loss-window-policy"]').element as HTMLSelectElement).value).toBe("continuous");
+    expect(wrapper.get('[data-testid="strategy-block-support-status"]').text()).toContain("配置不支持");
+    expect(wrapper.get('[data-testid="strategy-visual-support-summary"]').text()).toContain("1 个不支持配置");
 
     await wrapper.get('[data-testid="strategy-stop-loss-mode"]').setValue("trailingStop");
     await flushRequests();

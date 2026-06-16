@@ -9,6 +9,7 @@ import {
   nextGetTechnicalIndicatorNodeText,
   type GetTechnicalIndicatorBlockProperties,
 } from "../features/strategyVisualBuilderIndicatorBlock";
+import { SERIES_SOURCE_OPTIONS } from "../features/strategyVisualBuilderCatalog";
 import { suggestStrategyIndicatorVariableName } from "../features/strategyVisualBuilderIndicatorReferences";
 
 interface StrategyIndicatorVariableItem {
@@ -56,7 +57,12 @@ const showsWindowSizeInput = computed(
 const showsPeriodInput = computed(
   () => selectedIndicatorDefinition.value.parameterShape === "period"
     || selectedIndicatorDefinition.value.parameterShape === "bollinger"
-    || selectedIndicatorDefinition.value.parameterShape === "kdj",
+    || selectedIndicatorDefinition.value.parameterShape === "kdj"
+    || selectedIndicatorDefinition.value.parameterShape === "dmi"
+    || selectedIndicatorDefinition.value.parameterShape === "supertrend"
+    || selectedIndicatorDefinition.value.parameterShape === "linreg"
+    || selectedIndicatorDefinition.value.parameterShape === "sourcePeriodMultiplier"
+    || selectedIndicatorDefinition.value.parameterShape === "alma",
 );
 
 const showsMacdInputs = computed(
@@ -68,8 +74,56 @@ const showsKdjInputs = computed(
 );
 
 const showsMultiplierInput = computed(
-  () => selectedIndicatorDefinition.value.parameterShape === "bollinger",
+  () => selectedIndicatorDefinition.value.parameterShape === "bollinger"
+    || selectedIndicatorDefinition.value.parameterShape === "sourcePeriodMultiplier",
 );
+
+const showsSourceInput = computed(() =>
+  [
+    "movingAverage",
+    "cci",
+    "stdev",
+    "variance",
+    "highest",
+    "lowest",
+    "sum",
+    "vwap",
+    "mfi",
+    "linreg",
+    "obv",
+    "pivotHigh",
+    "pivotLow",
+    "keltner",
+    "alma",
+  ].includes(selectedVariable.value?.properties.indicatorType ?? ""),
+);
+
+const showsAdxSmoothingInput = computed(
+  () => selectedIndicatorDefinition.value.parameterShape === "dmi",
+);
+
+const showsFactorInput = computed(
+  () => selectedIndicatorDefinition.value.parameterShape === "supertrend",
+);
+
+const showsSarInputs = computed(
+  () => selectedIndicatorDefinition.value.parameterShape === "sar",
+);
+
+const showsOffsetInput = computed(
+  () => selectedIndicatorDefinition.value.parameterShape === "linreg"
+    || selectedIndicatorDefinition.value.parameterShape === "alma",
+);
+
+const showsSigmaInput = computed(
+  () => selectedIndicatorDefinition.value.parameterShape === "alma",
+);
+
+const showsPivotBarsInput = computed(
+  () => selectedIndicatorDefinition.value.parameterShape === "pivot",
+);
+
+const indicatorSourceOptions = SERIES_SOURCE_OPTIONS;
 
 const selectedVariablePlaceholder = computed(() => {
   if (selectedVariable.value === null) {
@@ -203,6 +257,106 @@ const selectedMultiplier = computed({
     mutateSelectedVariable((properties) => ({
       ...properties,
       multiplier: normalizeDecimal(value, 2),
+    }));
+  },
+});
+
+const selectedSource = computed({
+  get: () => selectedVariable.value?.properties.source ?? "close",
+  set: (value: string) => {
+    mutateSelectedVariable((properties) => ({
+      ...properties,
+      source: value,
+    }));
+  },
+});
+
+const selectedAdxSmoothing = computed({
+  get: () => readNumberString(selectedVariable.value?.properties.adxSmoothing),
+  set: (value: string) => {
+    mutateSelectedVariable((properties) => ({
+      ...properties,
+      adxSmoothing: normalizeInteger(value, 14),
+    }));
+  },
+});
+
+const selectedFactor = computed({
+  get: () => readNumberString(selectedVariable.value?.properties.factor),
+  set: (value: string) => {
+    mutateSelectedVariable((properties) => ({
+      ...properties,
+      factor: normalizeDecimal(value, 3),
+    }));
+  },
+});
+
+const selectedSarStart = computed({
+  get: () => readNumberString(selectedVariable.value?.properties.start),
+  set: (value: string) => {
+    mutateSelectedVariable((properties) => ({
+      ...properties,
+      start: normalizeDecimal(value, 0.02),
+    }));
+  },
+});
+
+const selectedSarIncrement = computed({
+  get: () => readNumberString(selectedVariable.value?.properties.increment),
+  set: (value: string) => {
+    mutateSelectedVariable((properties) => ({
+      ...properties,
+      increment: normalizeDecimal(value, 0.02),
+    }));
+  },
+});
+
+const selectedSarMaximum = computed({
+  get: () => readNumberString(selectedVariable.value?.properties.maximum),
+  set: (value: string) => {
+    mutateSelectedVariable((properties) => ({
+      ...properties,
+      maximum: normalizeDecimal(value, 0.2),
+    }));
+  },
+});
+
+const selectedOffset = computed({
+  get: () => readNumberString(selectedVariable.value?.properties.offset),
+  set: (value: string) => {
+    mutateSelectedVariable((properties) => ({
+      ...properties,
+      offset: normalizeDecimal(value, 0),
+    }));
+  },
+});
+
+const selectedSigma = computed({
+  get: () => readNumberString(selectedVariable.value?.properties.sigma),
+  set: (value: string) => {
+    mutateSelectedVariable((properties) => ({
+      ...properties,
+      sigma: normalizeDecimal(value, 6),
+    }));
+  },
+});
+
+const selectedLeftBars = computed({
+  get: () => readNumberString(selectedVariable.value?.properties.leftBars),
+  set: (value: string) => {
+    mutateSelectedVariable((properties) => ({
+      ...properties,
+      leftBars: normalizeInteger(value, 2),
+    }));
+  },
+});
+
+const selectedRightBars = computed({
+  get: () => readNumberString(selectedVariable.value?.properties.rightBars),
+  set: (value: string) => {
+    mutateSelectedVariable((properties) => ({
+      ...properties,
+      rightBars: normalizeInteger(value, 2),
     }));
   },
 });
@@ -365,6 +519,15 @@ function normalizeDecimal(value: string, fallback: number): number {
               </select>
             </label>
 
+            <label v-if="showsSourceInput" class="strategy-variable-manager__field">
+              <span>数据源</span>
+              <select v-model="selectedSource" data-testid="strategy-variable-source-select">
+                <option v-for="option in indicatorSourceOptions" :key="option.value" :value="option.value">
+                  {{ option.label }}
+                </option>
+              </select>
+            </label>
+
             <label v-if="showsPeriodInput" class="strategy-variable-manager__field">
               <span>周期</span>
               <input v-model="selectedPeriod" data-testid="strategy-variable-period-input" min="1" step="1" type="number" />
@@ -399,6 +562,52 @@ function normalizeDecimal(value: string, fallback: number): number {
             <label v-if="showsMultiplierInput" class="strategy-variable-manager__field">
               <span>乘数</span>
               <input v-model="selectedMultiplier" data-testid="strategy-variable-multiplier-input" min="0.1" step="0.1" type="number" />
+            </label>
+
+            <label v-if="showsAdxSmoothingInput" class="strategy-variable-manager__field">
+              <span>ADX 平滑周期</span>
+              <input v-model="selectedAdxSmoothing" data-testid="strategy-variable-adx-smoothing-input" min="1" step="1" type="number" />
+            </label>
+
+            <label v-if="showsFactorInput" class="strategy-variable-manager__field">
+              <span>因子</span>
+              <input v-model="selectedFactor" data-testid="strategy-variable-factor-input" min="0.01" step="0.01" type="number" />
+            </label>
+
+            <div v-if="showsSarInputs" class="strategy-variable-manager__field-grid">
+              <label class="strategy-variable-manager__field">
+                <span>起始</span>
+                <input v-model="selectedSarStart" data-testid="strategy-variable-sar-start-input" min="0.01" step="0.01" type="number" />
+              </label>
+              <label class="strategy-variable-manager__field">
+                <span>增量</span>
+                <input v-model="selectedSarIncrement" data-testid="strategy-variable-sar-increment-input" min="0.01" step="0.01" type="number" />
+              </label>
+              <label class="strategy-variable-manager__field">
+                <span>最大值</span>
+                <input v-model="selectedSarMaximum" data-testid="strategy-variable-sar-maximum-input" min="0.01" step="0.01" type="number" />
+              </label>
+            </div>
+
+            <div v-if="showsPivotBarsInput" class="strategy-variable-manager__field-grid strategy-variable-manager__field-grid--kdj">
+              <label class="strategy-variable-manager__field">
+                <span>左侧柱数</span>
+                <input v-model="selectedLeftBars" data-testid="strategy-variable-left-bars-input" min="1" step="1" type="number" />
+              </label>
+              <label class="strategy-variable-manager__field">
+                <span>右侧柱数</span>
+                <input v-model="selectedRightBars" data-testid="strategy-variable-right-bars-input" min="1" step="1" type="number" />
+              </label>
+            </div>
+
+            <label v-if="showsOffsetInput" class="strategy-variable-manager__field">
+              <span>Offset</span>
+              <input v-model="selectedOffset" data-testid="strategy-variable-offset-input" step="0.01" type="number" />
+            </label>
+
+            <label v-if="showsSigmaInput" class="strategy-variable-manager__field">
+              <span>Sigma</span>
+              <input v-model="selectedSigma" data-testid="strategy-variable-sigma-input" min="0.01" step="0.01" type="number" />
             </label>
           </div>
         </section>

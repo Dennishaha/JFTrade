@@ -14,6 +14,7 @@ import {
   fromStrategyCanvasGraphData,
   toStrategyCanvasGraphData,
 } from "../features/strategyVisualBuilder";
+import { assessPineBlockSupport } from "../features/strategyVisualBuilderSupport";
 import type { GetTechnicalIndicatorBlockProperties } from "../features/strategyVisualBuilderIndicatorBlock";
 import {
   registerStrategyLogicFlowNodes,
@@ -293,6 +294,19 @@ function buildPaletteSearchText(
     item.text,
     typeof blockKind === "string" ? blockKind : "",
   ].join(" ").toLowerCase();
+}
+
+function paletteItemSupportLabel(
+  item: ReturnType<typeof createStrategyPaletteItems>[number],
+): string {
+  return assessPineBlockSupport({
+    id: "palette-preview",
+    type: item.type,
+    x: 0,
+    y: 0,
+    text: item.text,
+    properties: item.properties,
+  }).label;
 }
 
 function currentCanvasGraphData(): ReturnType<typeof toStrategyCanvasGraphData> {
@@ -627,6 +641,7 @@ defineExpose({
             >
               <span class="strategy-logic-flow-builder__icon" :style="{ backgroundImage: `url(${item.icon})` }" />
               <span class="strategy-logic-flow-builder__label">{{ item.label }}</span>
+              <span class="strategy-logic-flow-builder__support">{{ paletteItemSupportLabel(item) }}</span>
             </button>
           </div>
 
@@ -1196,6 +1211,14 @@ defineExpose({
   font-size: 0.75rem;
   font-weight: 700;
   line-height: 1.3;
+}
+
+.strategy-logic-flow-builder__support {
+  min-height: 1rem;
+  color: var(--tv-text-muted);
+  font-size: 0.64rem;
+  font-weight: 700;
+  line-height: 1.2;
 }
 
 .strategy-logic-flow-builder__empty {

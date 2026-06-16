@@ -15,13 +15,34 @@ import {
   type TechnicalIndicatorType,
 } from "./strategyVisualBuilderIndicatorBlock";
 import {
+  nextDerivedSeriesNodeText,
+  nextCollectionStatNodeText,
+  nextMtfSeriesNodeText,
+  nextSessionFilterNodeText,
+  nextSeriesConditionNodeText,
+  nextStateUpdateNodeText,
+  nextStateVariableNodeText,
   nextStopLossNodeText,
+  nextStrategyInputNodeText,
+  nextTimeFilterNodeText,
+  normalizeDerivedSeriesBlockProperties,
+  normalizeCollectionStatBlockProperties,
+  normalizeMtfSeriesBlockProperties,
+  normalizeSessionFilterBlockProperties,
+  normalizeSeriesConditionBlockProperties,
+  normalizeStateUpdateBlockProperties,
+  normalizeStateVariableBlockProperties,
   normalizeStopLossBlockProperties,
+  normalizeStrategyInputBlockProperties,
+  normalizeTimeFilterBlockProperties,
+  sessionScopeLabel,
+  seriesSourceLabel,
   stopLossDirectionLabel,
   stopLossModeLabel,
   stopLossRuleLabel,
   stopLossTimeUnitLabel,
   stopLossWindowPolicyLabel,
+  dayOfWeekLabel,
 } from "./strategyVisualBuilderCatalog";
 import {
   normalizeOrderSide,
@@ -100,6 +121,122 @@ export function buildStrategyVisualNodeSummary(
   const blockKind = readString(properties.blockKind);
 
   switch (blockKind) {
+    case "strategyInput": {
+      const normalized = normalizeStrategyInputBlockProperties(properties);
+      return {
+        eyebrow: "策略参数",
+        title: resolveNodeTitle(input.text, nextStrategyInputNodeText(properties)),
+        tone: "data",
+        variant: variantOverride ?? "card",
+        details: [
+          { label: "变量", value: normalized.variableName ?? "length" },
+          { label: "类型", value: normalized.inputType ?? "int" },
+          { label: "默认值", value: String(normalized.defaultValue ?? "") },
+        ],
+        chips: ["input"],
+      };
+    }
+    case "derivedSeries": {
+      const normalized = normalizeDerivedSeriesBlockProperties(properties);
+      return {
+        eyebrow: "派生序列",
+        title: resolveNodeTitle(input.text, nextDerivedSeriesNodeText(properties)),
+        tone: "data",
+        variant: variantOverride ?? "card",
+        details: [
+          { label: "变量", value: normalized.variableName ?? "signal" },
+          { label: "模式", value: normalized.mode ?? "history" },
+        ],
+        chips: ["series"],
+      };
+    }
+    case "mtfSeries": {
+      const normalized = normalizeMtfSeriesBlockProperties(properties);
+      return {
+        eyebrow: "高周期序列",
+        title: resolveNodeTitle(input.text, nextMtfSeriesNodeText(properties)),
+        tone: "data",
+        variant: variantOverride ?? "card",
+        details: [
+          { label: "变量", value: normalized.variableName ?? "mtf_close" },
+          { label: "周期", value: normalized.timeframe ?? "D" },
+          { label: "类型", value: normalized.expressionType ?? "source" },
+        ],
+        chips: ["MTF"],
+      };
+    }
+    case "stateVariable": {
+      const normalized = normalizeStateVariableBlockProperties(properties);
+      return {
+        eyebrow: "持久状态",
+        title: resolveNodeTitle(input.text, nextStateVariableNodeText(properties)),
+        tone: "info",
+        variant: variantOverride ?? "card",
+        details: [
+          { label: "变量", value: normalized.variableName ?? "armed" },
+          { label: "类型", value: normalized.valueType ?? "bool" },
+        ],
+        chips: ["var"],
+      };
+    }
+    case "stateUpdate": {
+      const normalized = normalizeStateUpdateBlockProperties(properties);
+      return {
+        eyebrow: "状态更新",
+        title: resolveNodeTitle(input.text, nextStateUpdateNodeText(properties)),
+        tone: "info",
+        variant: variantOverride ?? "card",
+        details: [
+          { label: "变量", value: normalized.variableName ?? "armed" },
+          { label: "表达式", value: previewText(normalized.expression, 60, "close > open") },
+        ],
+        chips: [":="],
+      };
+    }
+    case "collectionStat": {
+      const normalized = normalizeCollectionStatBlockProperties(properties);
+      return {
+        eyebrow: "集合统计",
+        title: resolveNodeTitle(input.text, nextCollectionStatNodeText(properties)),
+        tone: "data",
+        variant: variantOverride ?? "card",
+        details: [
+          { label: "变量", value: normalized.variableName ?? "range_median" },
+          { label: "函数", value: normalized.statFunction ?? "median" },
+          { label: "Source", value: [normalized.sourceA, normalized.sourceB, normalized.sourceC].filter(Boolean).join(", ") },
+        ],
+        chips: ["array.from"],
+      };
+    }
+    case "timeFilter": {
+      const normalized = normalizeTimeFilterBlockProperties(properties);
+      return {
+        eyebrow: "时间过滤",
+        title: resolveNodeTitle(input.text, nextTimeFilterNodeText(properties)),
+        tone: "condition",
+        variant: variantOverride ?? "condition",
+        details: [
+          { label: "模式", value: normalized.mode ?? "between" },
+          { label: "开始", value: `${normalized.startHour ?? 9}:${String(normalized.startMinute ?? 30).padStart(2, "0")}` },
+          { label: "结束", value: `${normalized.endHour ?? 16}:${String(normalized.endMinute ?? 0).padStart(2, "0")}` },
+          { label: "星期", value: dayOfWeekLabel(normalized.dayOfWeek ?? 2) },
+        ],
+        chips: ["time"],
+      };
+    }
+    case "sessionFilter": {
+      const normalized = normalizeSessionFilterBlockProperties(properties);
+      return {
+        eyebrow: "交易时段过滤",
+        title: resolveNodeTitle(input.text, nextSessionFilterNodeText(properties)),
+        tone: "condition",
+        variant: variantOverride ?? "condition",
+        details: [
+          { label: "时段", value: sessionScopeLabel(normalized.scope ?? "market") },
+        ],
+        chips: ["session"],
+      };
+    }
     case "getTechnicalIndicator": {
       const normalized = normalizeGetTechnicalIndicatorProperties(properties);
       return {
@@ -147,7 +284,7 @@ export function buildStrategyVisualNodeSummary(
         details: [
           { label: "模式", value: stopLossModeLabel(normalized.mode ?? "stopLoss") },
           { label: "方向", value: stopLossDirectionLabel(normalized.direction ?? "auto") },
-          { label: "窗口", value: `${formatNumber(normalized.timeValue ?? 1)} ${stopLossTimeUnitLabel(normalized.timeUnit ?? "day")}` },
+          { label: "窗口", value: `${formatNumber(normalized.timeValue ?? 1)} ${stopLossTimeUnitLabel(normalized.timeUnit ?? "bar")}` },
           { label: "窗口模式", value: stopLossWindowPolicyLabel(normalized.windowPolicy ?? "continuous") },
           { label: "规则", value: stopLossRuleLabel(normalized) },
         ],
@@ -209,6 +346,21 @@ export function buildStrategyVisualNodeSummary(
         ],
         chips: ["True", "False"],
       };
+    case "seriesCondition": {
+      const normalized = normalizeSeriesConditionBlockProperties(properties);
+      return {
+        eyebrow: "序列条件",
+        title: resolveNodeTitle(input.text, nextSeriesConditionNodeText(properties)),
+        tone: "condition",
+        variant: variantOverride ?? "condition",
+        details: [
+          { label: "模式", value: normalized.mode ?? "compare" },
+          { label: "数据源", value: seriesSourceLabel(normalized.source ?? "close") },
+          { label: "规则", value: nextSeriesConditionNodeText(properties) },
+        ],
+        chips: ["True", "False"],
+      };
+    }
     case "onInit":
       return buildGenericSummary("触发器", input, "策略启动", variantOverride ?? "card", "default");
     case "onKLineClosed":

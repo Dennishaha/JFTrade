@@ -11,6 +11,11 @@ import {
   type StrategyVisualEdgeBranch,
 } from "./strategyVisualBuilderEdges";
 import {
+  literalExpression,
+  parsePineExpressionToVisualExpression,
+  sourceExpression,
+} from "./strategyVisualBuilderExpressions";
+import {
   parseStrategyFlowNodeAnnotationLines,
   type StrategyFlowNodeJsDoc,
 } from "./strategyVisualBuilderShared";
@@ -200,7 +205,7 @@ function parseBlock(
 
 function parseStatementNode(entry: ParsedPineEntry, state: ParseState): ParsedNodeResult {
   const annotation = entry.annotation;
-  const explicitKind = annotation?.blockKind;
+  const explicitKind = effectiveExplicitKind(annotation?.blockKind);
 
   if (isAssignmentLine(entry.trimmed)) {
     return parseLetNode(entry, state, explicitKind);
@@ -258,6 +263,7 @@ function parseStatementNode(entry: ParsedPineEntry, state: ParseState): ParsedNo
       properties: {
         blockKind: "pineSnippet",
         code: entry.trimmed,
+        snippetSource: classifyPineSnippetSource(entry.trimmed),
       },
     }),
     isCondition: false,
@@ -269,14 +275,131 @@ function parseLetNode(
   state: ParseState,
   explicitKind: StrategyBlockKind | undefined,
 ): ParsedNodeResult {
-  const match = entry.trimmed.match(/^(?:var\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*(?::=|=)\s*(.+)$/);
+  const match = entry.trimmed.match(/^(var\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*(?::=|=)\s*(.+)$/);
   if (match === null) {
     state.pineSnippetCount += 1;
     return createCodeBlockResult(entry, state);
   }
 
-  const alias = match[1]!;
-  const expression = match[2]!.trim();
+  const isVarDeclaration = match[1] !== undefined;
+  const alias = match[2]!;
+  const expression = match[3]!.trim();
+  const isReassignment = entry.trimmed.includes(":=");
+
+  const inputProperties = parseStrategyInputExpression(expression);
+  if (inputProperties !== null) {
+    return {
+      node: createNodeFromParts({
+        state,
+        entry,
+        kind: explicitKind ?? "strategyInput",
+        defaultText: entry.annotation?.nodeText ?? `参数 ${alias}`,
+        defaultType: "rect",
+        properties: {
+          blockKind: explicitKind ?? "strategyInput",
+          ...inputProperties,
+          variableName: entry.annotation?.variableName ?? alias,
+        },
+      }),
+      isCondition: false,
+    };
+  }
+
+  if (isVarDeclaration) {
+    return {
+      node: createNodeFromParts({
+        state,
+        entry,
+        kind: explicitKind ?? "stateVariable",
+        defaultText: entry.annotation?.nodeText ?? `状态 ${alias}`,
+        defaultType: "rect",
+        properties: {
+          blockKind: explicitKind ?? "stateVariable",
+          variableName: entry.annotation?.variableName ?? alias,
+          ...parseStateInitialValue(expression),
+        },
+      }),
+      isCondition: false,
+    };
+  }
+
+  if (isReassignment) {
+    const expressionAst = parsePineExpressionToVisualExpression(expression);
+    return {
+      node: createNodeFromParts({
+        state,
+        entry,
+        kind: explicitKind ?? "stateUpdate",
+        defaultText: entry.annotation?.nodeText ?? `更新状态 ${alias}`,
+        defaultType: "rect",
+        properties: {
+          blockKind: explicitKind ?? "stateUpdate",
+          variableName: entry.annotation?.variableName ?? alias,
+          expression,
+          ...(expressionAst === null ? {} : { expressionAst }),
+        },
+      }),
+      isCondition: false,
+    };
+  }
+
+  const mtfProperties = parseMtfSeriesExpression(expression);
+  if (mtfProperties !== null && (explicitKind === "mtfSeries" || mtfProperties.expressionType !== "indicator")) {
+    return {
+      node: createNodeFromParts({
+        state,
+        entry,
+        kind: explicitKind ?? "mtfSeries",
+        defaultText: entry.annotation?.nodeText ?? `MTF ${alias}`,
+        defaultType: "rect",
+        properties: {
+          blockKind: explicitKind ?? "mtfSeries",
+          ...mtfProperties,
+          variableName: entry.annotation?.variableName ?? alias,
+        },
+      }),
+      isCondition: false,
+    };
+  }
+
+  const derivedProperties = parseDerivedSeriesExpression(expression);
+  if (derivedProperties !== null) {
+    return {
+      node: createNodeFromParts({
+        state,
+        entry,
+        kind: explicitKind ?? "derivedSeries",
+        defaultText: entry.annotation?.nodeText ?? `派生 ${alias}`,
+        defaultType: "rect",
+        properties: {
+          blockKind: explicitKind ?? "derivedSeries",
+          ...derivedProperties,
+          variableName: entry.annotation?.variableName ?? alias,
+        },
+      }),
+      isCondition: false,
+    };
+  }
+
+  const collectionStatProperties = parseCollectionStatExpression(expression);
+  if (collectionStatProperties !== null && (explicitKind === undefined || explicitKind === "collectionStat")) {
+    return {
+      node: createNodeFromParts({
+        state,
+        entry,
+        kind: explicitKind ?? "collectionStat",
+        defaultText: entry.annotation?.nodeText ?? `集合统计 ${alias}`,
+        defaultType: "rect",
+        properties: {
+          blockKind: explicitKind ?? "collectionStat",
+          ...collectionStatProperties,
+          variableName: entry.annotation?.variableName ?? alias,
+        },
+      }),
+      isCondition: false,
+    };
+  }
+
   const indicatorProperties = parseIndicatorExpression(expression);
   if (indicatorProperties === null) {
     state.pineSnippetCount += 1;
@@ -289,9 +412,9 @@ function parseLetNode(
     kind: explicitKind ?? "getTechnicalIndicator",
     defaultText: entry.annotation?.nodeText ?? defaultIndicatorText(indicatorProperties),
     defaultType: "rect",
-    properties: {
-      blockKind: explicitKind ?? "getTechnicalIndicator",
-      ...indicatorProperties,
+      properties: {
+        blockKind: explicitKind ?? "getTechnicalIndicator",
+        ...indicatorProperties,
       variableName: entry.annotation?.variableName ?? alias,
     },
   });
@@ -303,13 +426,55 @@ function parseLetNode(
   return { node, isCondition: false };
 }
 
+function effectiveExplicitKind(kind: StrategyBlockKind | undefined): StrategyBlockKind | undefined {
+  return kind === "onInit" || kind === "onKLineClosed" ? undefined : kind;
+}
+
 function parseIfNode(
   entry: ParsedPineEntry,
   state: ParseState,
   explicitKind: StrategyBlockKind | undefined,
 ): ParsedNodeResult {
   const condition = entry.trimmed.replace(/^if\s+/, "").replace(/:\s*$/, "").trim();
-  const closeCondition = parseCloseCondition(condition, explicitKind);
+  const timeFilter = parseTimeFilterCondition(condition);
+  if (timeFilter !== null && (explicitKind === undefined || explicitKind === "timeFilter")) {
+    return {
+      node: createNodeFromParts({
+        state,
+        entry,
+        kind: explicitKind ?? "timeFilter",
+        defaultText: entry.annotation?.nodeText ?? "时间过滤",
+        defaultType: "diamond",
+        properties: {
+          blockKind: explicitKind ?? "timeFilter",
+          ...timeFilter,
+        },
+      }),
+      isCondition: true,
+    };
+  }
+
+  const sessionFilter = parseSessionFilterCondition(condition);
+  if (sessionFilter !== null && (explicitKind === undefined || explicitKind === "sessionFilter")) {
+    return {
+      node: createNodeFromParts({
+        state,
+        entry,
+        kind: explicitKind ?? "sessionFilter",
+        defaultText: entry.annotation?.nodeText ?? "交易时段过滤",
+        defaultType: "diamond",
+        properties: {
+          blockKind: explicitKind ?? "sessionFilter",
+          ...sessionFilter,
+        },
+      }),
+      isCondition: true,
+    };
+  }
+
+  const closeCondition = explicitKind === "seriesCondition"
+    ? null
+    : parseCloseCondition(condition, explicitKind);
   if (closeCondition !== null) {
     return {
       node: createNodeFromParts({
@@ -347,6 +512,25 @@ function parseIfNode(
     return { node, isCondition: true };
   }
 
+  const seriesCondition = parseSeriesCondition(condition);
+  if (seriesCondition !== null) {
+    const kind = explicitKind ?? "seriesCondition";
+    return {
+      node: createNodeFromParts({
+        state,
+        entry,
+        kind,
+        defaultText: entry.annotation?.nodeText ?? "序列条件判断",
+        defaultType: "diamond",
+        properties: {
+          blockKind: kind,
+          ...seriesCondition,
+        },
+      }),
+      isCondition: true,
+    };
+  }
+
   state.pineSnippetCount += 1;
   return {
     node: createNodeFromParts({
@@ -358,10 +542,379 @@ function parseIfNode(
       properties: {
         blockKind: snippetFallbackKind(explicitKind),
         code: entry.trimmed,
+        ...(snippetFallbackKind(explicitKind) === "pineSnippet"
+          ? { snippetSource: classifyPineSnippetSource(entry.trimmed) }
+          : {}),
       },
     }),
     isCondition: true,
   };
+}
+
+function parseSeriesCondition(condition: string): Record<string, unknown> | null {
+  const structured = parseStructuredSeriesCondition(condition);
+  if (structured !== null) {
+    return structured;
+  }
+
+  const compareMatch = condition.match(/^(open|high|low|close|volume|hl2|hlc3|ohlc4)\s*([<>])\s*(-?\d+(?:\.\d+)?)$/i);
+  if (compareMatch !== null) {
+    return {
+      mode: "compare",
+      source: compareMatch[1]!.toLowerCase(),
+      operator: compareMatch[2]!,
+      threshold: Number(compareMatch[3]!),
+      leftExpressionAst: sourceExpression(compareMatch[1]!.toLowerCase()),
+      rightExpressionAst: literalExpression(Number(compareMatch[3]!)),
+    };
+  }
+
+  const trendMatch = condition.match(/^(?:ta\.)?(rising|falling)\((open|high|low|close|volume|hl2|hlc3|ohlc4),\s*(\d+)\)$/i);
+  if (trendMatch !== null) {
+    return {
+      mode: trendMatch[1]!.toLowerCase(),
+      source: trendMatch[2]!.toLowerCase(),
+      length: Number(trendMatch[3]!),
+      sourceExpressionAst: sourceExpression(trendMatch[2]!.toLowerCase()),
+    };
+  }
+
+  const barssinceMatch = condition.match(/^(?:ta\.)?barssince\((open|high|low|close|volume|hl2|hlc3|ohlc4)\s*([<>])\s*(-?\d+(?:\.\d+)?)\)\s*([<>])\s*(\d+)$/i);
+  if (barssinceMatch !== null) {
+    const operator = barssinceMatch[4] === ">" ? ">" : "<";
+    return {
+      mode: "barssince",
+      eventSource: barssinceMatch[1]!.toLowerCase(),
+      eventOperator: barssinceMatch[2]!,
+      eventThreshold: Number(barssinceMatch[3]!),
+      length: Number(barssinceMatch[5]!),
+      operator,
+      eventExpressionAst: {
+        kind: "binary",
+        left: sourceExpression(barssinceMatch[1]!.toLowerCase()),
+        operator: barssinceMatch[2] as ">" | "<",
+        right: literalExpression(Number(barssinceMatch[3]!)),
+      },
+    };
+  }
+
+  const valuewhenMatch = condition.match(/^(?:ta\.)?valuewhen\((open|high|low|close|volume|hl2|hlc3|ohlc4)\s*([<>])\s*(-?\d+(?:\.\d+)?),\s*(open|high|low|close|volume|hl2|hlc3|ohlc4),\s*(\d+)\)\s*([<>])\s*(-?\d+(?:\.\d+)?)$/i);
+  if (valuewhenMatch !== null) {
+    return {
+      mode: "valuewhen",
+      eventSource: valuewhenMatch[1]!.toLowerCase(),
+      eventOperator: valuewhenMatch[2]!,
+      eventThreshold: Number(valuewhenMatch[3]!),
+      valueSource: valuewhenMatch[4]!.toLowerCase(),
+      occurrence: Number(valuewhenMatch[5]!),
+      operator: valuewhenMatch[6]!,
+      threshold: Number(valuewhenMatch[7]!),
+      eventExpressionAst: {
+        kind: "binary",
+        left: sourceExpression(valuewhenMatch[1]!.toLowerCase()),
+        operator: valuewhenMatch[2] as ">" | "<",
+        right: literalExpression(Number(valuewhenMatch[3]!)),
+      },
+      valueExpressionAst: sourceExpression(valuewhenMatch[4]!.toLowerCase()),
+      rightExpressionAst: literalExpression(Number(valuewhenMatch[7]!)),
+    };
+  }
+
+  return null;
+}
+
+function parseStructuredSeriesCondition(condition: string): Record<string, unknown> | null {
+  const expression = parsePineExpressionToVisualExpression(condition);
+  if (expression?.kind !== "binary") {
+    return null;
+  }
+
+  if (expression.left.kind === "call" && expression.left.functionName === "barssince") {
+    return {
+      mode: "barssince",
+      operator: expression.operator === ">" ? ">" : "<",
+      length: readLiteralNumber(expression.right, 3),
+      eventExpressionAst: expression.left.args[0] ?? sourceExpression("close"),
+    };
+  }
+
+  if (expression.left.kind === "call" && expression.left.functionName === "valuewhen") {
+    return {
+      mode: "valuewhen",
+      operator: expression.operator === ">" ? ">" : "<",
+      threshold: readLiteralNumber(expression.right, 0),
+      eventExpressionAst: expression.left.args[0] ?? sourceExpression("close"),
+      valueExpressionAst: expression.left.args[1] ?? sourceExpression("close"),
+      occurrence: readLiteralNumber(expression.left.args[2], 0),
+      rightExpressionAst: expression.right,
+    };
+  }
+
+  if ([">", "<", ">=", "<=", "==", "!="].includes(expression.operator)) {
+    return {
+      mode: "compare",
+      operator: expression.operator === "<" ? "<" : ">",
+      threshold: readLiteralNumber(expression.right, 0),
+      leftExpressionAst: expression.left,
+      rightExpressionAst: expression.right,
+    };
+  }
+
+  return null;
+}
+
+function parseTimeFilterCondition(condition: string): Record<string, unknown> | null {
+  const normalized = condition.replace(/\s+/g, " ").trim();
+  const dayMatch = normalized.match(/^dayofweek\s*==\s*([1-7])$/i);
+  if (dayMatch !== null) {
+    return {
+      mode: "dayOfWeek",
+      dayOfWeek: Number(dayMatch[1]),
+      startHour: 9,
+      startMinute: 30,
+      endHour: 16,
+      endMinute: 0,
+    };
+  }
+
+  const minuteExpression = "\\(?\\s*hour\\s*\\*\\s*60\\s*\\+\\s*minute\\s*\\)?";
+  const betweenMatch = normalized.match(new RegExp(`^${minuteExpression}\\s*>=\\s*(\\d+)\\s+and\\s+${minuteExpression}\\s*<\\s*(\\d+)$`, "i"));
+  if (betweenMatch !== null) {
+    return minuteWindowProperties("between", Number(betweenMatch[1]), Number(betweenMatch[2]));
+  }
+  const afterMatch = normalized.match(new RegExp(`^${minuteExpression}\\s*>=\\s*(\\d+)$`, "i"));
+  if (afterMatch !== null) {
+    return minuteWindowProperties("after", Number(afterMatch[1]), 960);
+  }
+  const beforeMatch = normalized.match(new RegExp(`^${minuteExpression}\\s*<\\s*(\\d+)$`, "i"));
+  if (beforeMatch !== null) {
+    return minuteWindowProperties("before", 570, Number(beforeMatch[1]));
+  }
+  return null;
+}
+
+function minuteWindowProperties(mode: "after" | "before" | "between", startMinuteOfDay: number, endMinuteOfDay: number): Record<string, unknown> {
+  return {
+    mode,
+    startHour: Math.floor(startMinuteOfDay / 60),
+    startMinute: startMinuteOfDay % 60,
+    endHour: Math.floor(endMinuteOfDay / 60),
+    endMinute: endMinuteOfDay % 60,
+    dayOfWeek: 2,
+  };
+}
+
+function parseSessionFilterCondition(condition: string): Record<string, unknown> | null {
+  const normalized = condition.replace(/\s+/g, "").toLowerCase();
+  switch (normalized) {
+    case "session.ismarket":
+    case "session_ismarket":
+      return { scope: "market" };
+    case "session.ispremarket":
+    case "session_ispremarket":
+      return { scope: "premarket" };
+    case "session.ispostmarket":
+    case "session_ispostmarket":
+      return { scope: "postmarket" };
+    default:
+      return null;
+  }
+}
+
+function parseStrategyInputExpression(expression: string): Record<string, unknown> | null {
+  const call = expression.match(/^input\.(int|float|source|timeframe|time|color)\((.*)\)$/i);
+  if (call === null) {
+    return null;
+  }
+  const inputType = call[1]!.toLowerCase();
+  const args = splitArguments(call[2] ?? "");
+  const namedArgs = parseNamedArgs(args);
+  const rawDefault = namedArgs.get("defval") ?? args[0] ?? "";
+  const rawTitle = namedArgs.get("title") ?? args[1] ?? "";
+  return {
+    inputType,
+    title: readPineLiteral(rawTitle) || "Input",
+    defaultValue: parseInputDefaultValue(inputType, rawDefault),
+  };
+}
+
+function parseInputDefaultValue(inputType: string, rawValue: string): number | string {
+  switch (inputType) {
+    case "int":
+      return Math.round(readAnyNumber(rawValue, 20));
+    case "float":
+      return readAnyNumber(rawValue, 2);
+    case "source":
+    case "timeframe":
+      return readPineLiteral(rawValue) || rawValue.trim() || (inputType === "source" ? "close" : "D");
+    case "time":
+    case "color":
+    default:
+      return rawValue.trim() || (inputType === "color" ? "color.green" : "timestamp(2026, 1, 1)");
+  }
+}
+
+function parseDerivedSeriesExpression(expression: string): Record<string, unknown> | null {
+  const historyMatch = expression.match(/^(open|high|low|close|volume|hl2|hlc3|ohlc4)\[(\d+)\]$/i);
+  if (historyMatch !== null) {
+    return {
+      mode: "history",
+      source: historyMatch[1]!.toLowerCase(),
+      historyOffset: Number(historyMatch[2]!),
+      sourceExpressionAst: sourceExpression(historyMatch[1]!.toLowerCase()),
+    };
+  }
+
+  const nzMatch = expression.match(/^nz\((open|high|low|close|volume|hl2|hlc3|ohlc4)(?:,\s*(-?\d+(?:\.\d+)?))?\)$/i);
+  if (nzMatch !== null) {
+    return {
+      mode: "nz",
+      source: nzMatch[1]!.toLowerCase(),
+      fallbackValue: readAnyNumber(nzMatch[2], 0),
+      sourceExpressionAst: sourceExpression(nzMatch[1]!.toLowerCase()),
+      fallbackExpressionAst: literalExpression(readAnyNumber(nzMatch[2], 0)),
+    };
+  }
+
+  const mathMatch = expression.match(/^math\.(min|max|abs|round|floor|ceil)\((.*)\)$/i);
+  if (mathMatch !== null) {
+    const args = splitArguments(mathMatch[2] ?? "");
+    return {
+      mode: "math",
+      mathFunction: mathMatch[1]!.toLowerCase(),
+      leftExpression: args[0] ?? "close",
+      rightExpression: args[1] ?? "open",
+      leftExpressionAst: parsePineExpressionToVisualExpression(args[0] ?? "close") ?? sourceExpression("close"),
+      rightExpressionAst: parsePineExpressionToVisualExpression(args[1] ?? "open") ?? sourceExpression("open"),
+    };
+  }
+
+  const arithmeticMatch = stripWrappingParens(expression).match(/^([A-Za-z_][A-Za-z0-9_.]*(?:\[\d+\])?|-?\d+(?:\.\d+)?)\s*([+\-*/])\s*([A-Za-z_][A-Za-z0-9_.]*(?:\[\d+\])?|-?\d+(?:\.\d+)?)$/);
+  if (arithmeticMatch !== null) {
+    return {
+      mode: "arithmetic",
+      leftExpression: arithmeticMatch[1]!,
+      operator: arithmeticMatch[2]!,
+      rightExpression: arithmeticMatch[3]!,
+      leftExpressionAst: parsePineExpressionToVisualExpression(arithmeticMatch[1]!) ?? sourceExpression("close"),
+      rightExpressionAst: parsePineExpressionToVisualExpression(arithmeticMatch[3]!) ?? sourceExpression("open"),
+    };
+  }
+
+  const crossMatch = expression.match(/^ta\.(crossover|crossunder|cross)\(([^,]+),\s*([^)]+)\)$/i);
+  if (crossMatch !== null) {
+    return {
+      mode: "cross",
+      crossFunction: crossMatch[1]!.toLowerCase(),
+      leftExpression: crossMatch[2]!.trim(),
+      rightExpression: crossMatch[3]!.trim(),
+      leftExpressionAst: parsePineExpressionToVisualExpression(crossMatch[2]!.trim()) ?? sourceExpression("close"),
+      rightExpressionAst: parsePineExpressionToVisualExpression(crossMatch[3]!.trim()) ?? sourceExpression("open"),
+    };
+  }
+
+  return null;
+}
+
+function parseMtfSeriesExpression(expression: string): Record<string, unknown> | null {
+  const call = expression.match(/^request\.security\((.*)\)$/i);
+  if (call === null) {
+    return null;
+  }
+  const args = splitArguments(call[1] ?? "");
+  if (args.length < 3 || args[0]?.trim() !== "syminfo.tickerid") {
+    return null;
+  }
+  const timeframe = readPineLiteral(args[1] ?? "") || "D";
+  const inner = args[2]?.trim() ?? "close";
+  const innerAst = parsePineExpressionToVisualExpression(inner);
+  const historyMatch = inner.match(/^(open|high|low|close|volume|hl2|hlc3|ohlc4)\[(\d+)\]$/i);
+  if (historyMatch !== null) {
+    return {
+      timeframe,
+      expressionType: "history",
+      source: historyMatch[1]!.toLowerCase(),
+      historyOffset: Number(historyMatch[2]!),
+      ...(innerAst === null ? {} : { indicatorExpressionAst: innerAst }),
+    };
+  }
+  const sourceMatch = inner.match(/^(open|high|low|close|volume|hl2|hlc3|ohlc4)$/i);
+  if (sourceMatch !== null) {
+    return {
+      timeframe,
+      expressionType: "source",
+      source: sourceMatch[1]!.toLowerCase(),
+      ...(innerAst === null ? {} : { indicatorExpressionAst: innerAst }),
+    };
+  }
+  const indicatorWithField = splitIndicatorField(inner);
+  if (parseIndicatorExpression(indicatorWithField.expression) !== null) {
+    const indicatorExpressionAst = parsePineExpressionToVisualExpression(indicatorWithField.expression);
+    return {
+      timeframe,
+      expressionType: "indicator",
+      indicatorExpression: indicatorWithField.expression,
+      ...(indicatorExpressionAst === null ? {} : { indicatorExpressionAst }),
+      ...(indicatorWithField.field === undefined ? {} : { mtfField: indicatorWithField.field }),
+    };
+  }
+  return null;
+}
+
+function parseCollectionStatExpression(expression: string): Record<string, unknown> | null {
+  const statMatch = expression.match(/^array\.from\((.*)\)\.(min|max|avg|sum|median|stdev|variance)\(\)$/i);
+  const percentileMatch = expression.match(/^array\.from\((.*)\)\.percentile_linear_interpolation\(([^)]*)\)$/i);
+  const argsExpression = statMatch?.[1] ?? percentileMatch?.[1];
+  if (argsExpression === undefined) {
+    return null;
+  }
+  const args = splitArguments(argsExpression);
+  if (args.length < 1 || args.length > 3) {
+    return null;
+  }
+  const expressionA = parsePineExpressionToVisualExpression(args[0] ?? "close");
+  const expressionB = parsePineExpressionToVisualExpression(args[1] ?? "open");
+  const expressionC = parsePineExpressionToVisualExpression(args[2] ?? "high");
+  if (expressionA === null || expressionB === null || expressionC === null) {
+    return null;
+  }
+  return {
+    statFunction: percentileMatch === null ? statMatch?.[2]?.toLowerCase() : "percentile",
+    sourceA: readSource(args[0], "close"),
+    sourceB: readSource(args[1], "open"),
+    sourceC: readSource(args[2], "high"),
+    sourceAExpressionAst: expressionA,
+    sourceBExpressionAst: expressionB,
+    sourceCExpressionAst: expressionC,
+    ...(percentileMatch === null ? {} : { percentile: readAnyNumber(percentileMatch[2], 50) }),
+  };
+}
+
+function splitIndicatorField(expression: string): { expression: string; field?: string } {
+  const fieldMatch = expression.match(/^(.+)\.([A-Za-z_][A-Za-z0-9_]*)$/);
+  if (fieldMatch === null) {
+    return { expression };
+  }
+  const baseExpression = fieldMatch[1]?.trim() ?? expression;
+  if (parseIndicatorExpression(baseExpression) === null) {
+    return { expression };
+  }
+  const field = fieldMatch[2];
+  return field === undefined
+    ? { expression: baseExpression }
+    : { expression: baseExpression, field };
+}
+
+function parseStateInitialValue(expression: string): Record<string, unknown> {
+  const trimmed = expression.trim();
+  if (trimmed === "true" || trimmed === "false") {
+    return { valueType: "bool", initialValue: trimmed === "true" };
+  }
+  const numberValue = Number(trimmed);
+  if (Number.isFinite(numberValue)) {
+    return { valueType: "number", initialValue: numberValue };
+  }
+  return { valueType: "string", initialValue: readPineLiteral(trimmed) };
 }
 
 function parseOrderNode(
@@ -440,35 +993,82 @@ function parsePineExit(trimmed: string): Record<string, unknown> | null {
   const fromEntry = readPineLiteral(args[1] ?? "").toLowerCase();
   const direction = fromEntry.includes("short") ? "short" : "long";
   const namedArgs = parseNamedArgs(args.slice(2));
+  const quantityPercentage = readAnyNumber(namedArgs.get("qty_percent"), 100);
   const stop = namedArgs.get("stop");
   const limit = namedArgs.get("limit");
+  const stopExpressionAst = stop === undefined ? null : parsePineExpressionToVisualExpression(stop);
+  const limitExpressionAst = limit === undefined ? null : parsePineExpressionToVisualExpression(limit);
   if (stop !== undefined && limit !== undefined) {
-    return null;
+    const stopPercentage = parsePineExitPricePercent(stop);
+    const takeProfitPercentage = parsePineExitPricePercent(limit);
+    if ((stopPercentage === null && stopExpressionAst === null) || (takeProfitPercentage === null && limitExpressionAst === null)) {
+      return null;
+    }
+    const properties = pineExitProperties(
+      direction,
+      "bracketExit",
+      stopPercentage ?? 2,
+      takeProfitPercentage ?? 4,
+      quantityPercentage,
+    );
+    return {
+      ...properties,
+      ...(stopExpressionAst === null ? {} : { stopPriceExpressionAst: stopExpressionAst }),
+      ...(limitExpressionAst === null ? {} : { takeProfitPriceExpressionAst: limitExpressionAst }),
+    };
   }
   if (stop !== undefined) {
     const percentage = parsePineExitPricePercent(stop);
-    return percentage === null ? null : pineExitProperties(direction, "stopLoss", percentage);
+    if (percentage === null && stopExpressionAst === null) {
+      return null;
+    }
+    const properties = pineExitProperties(direction, "stopLoss", percentage ?? 2, undefined, quantityPercentage);
+    return {
+      ...properties,
+      ...(stopExpressionAst === null ? {} : { stopPriceExpressionAst: stopExpressionAst }),
+    };
   }
   if (limit !== undefined) {
     const percentage = parsePineExitPricePercent(limit);
-    return percentage === null ? null : pineExitProperties(direction, "takeProfit", percentage);
+    if (percentage === null && limitExpressionAst === null) {
+      return null;
+    }
+    const properties = pineExitProperties(direction, "takeProfit", percentage ?? 2, undefined, quantityPercentage);
+    return {
+      ...properties,
+      ...(limitExpressionAst === null ? {} : { takeProfitPriceExpressionAst: limitExpressionAst }),
+    };
   }
   const trailPoints = namedArgs.get("trail_points");
   const trailOffset = namedArgs.get("trail_offset");
   if (trailPoints !== undefined && trailOffset !== undefined) {
     const percentage = parsePineExitTrailPercent(trailPoints);
     const offsetPercentage = parsePineExitTrailPercent(trailOffset);
-    return percentage === null || offsetPercentage === null || percentage !== offsetPercentage
-      ? null
-      : pineExitProperties(direction, "trailingStop", percentage);
+    const trailExpressionAst = parsePineExpressionToVisualExpression(trailPoints);
+    if ((percentage === null || offsetPercentage === null || percentage !== offsetPercentage) && trailExpressionAst === null) {
+      return null;
+    }
+    const properties = pineExitProperties(
+      direction,
+      "trailingStop",
+      percentage ?? offsetPercentage ?? 2,
+      undefined,
+      quantityPercentage,
+    );
+    return {
+      ...properties,
+      ...(trailExpressionAst === null ? {} : { trailingPriceExpressionAst: trailExpressionAst }),
+    };
   }
   return null;
 }
 
 function pineExitProperties(
   direction: "long" | "short",
-  mode: "stopLoss" | "takeProfit" | "trailingStop",
+  mode: "stopLoss" | "takeProfit" | "trailingStop" | "bracketExit",
   percentage: number,
+  takeProfitPercentage?: number,
+  quantityPercentage: number = 100,
 ): Record<string, unknown> {
   return {
     direction,
@@ -476,6 +1076,8 @@ function pineExitProperties(
     timeValue: 1,
     timeUnit: "bar",
     percentage,
+    ...(takeProfitPercentage === undefined ? {} : { takeProfitPercentage }),
+    quantityPercentage,
     windowPolicy: "continuous",
   };
 }
@@ -699,10 +1301,28 @@ function parseIndicatorExpression(expression: string): Record<string, unknown> |
         slowPeriod: readNumber(args[2], 26),
         signalPeriod: readNumber(args[3], 9),
       };
+    case "macd":
+      return {
+        blockKind: "getTechnicalIndicator",
+        indicatorType: "macd",
+        fastPeriod: readNumber(args[0], 12),
+        slowPeriod: readNumber(args[1], 26),
+        signalPeriod: readNumber(args[2], 9),
+      };
+    case "kdj":
+      return {
+        blockKind: "getTechnicalIndicator",
+        indicatorType: "kdj",
+        period: readNumber(args[0], 9),
+        m1: readNumber(args[1], 3),
+        m2: readNumber(args[2], 3),
+      };
     case "ta.atr":
       return { blockKind: "getTechnicalIndicator", indicatorType: "atr", period: readNumber(args[0], 14) };
     case "ta.cci":
-      return { blockKind: "getTechnicalIndicator", indicatorType: "cci", period: readNumber(args[1] ?? args[0], 20) };
+      return { blockKind: "getTechnicalIndicator", indicatorType: "cci", source: readSource(args[0], "hlc3"), period: readNumber(args[1] ?? args[0], 20) };
+    case "cci":
+      return { blockKind: "getTechnicalIndicator", indicatorType: "cci", source: readSource(args[0], "hlc3"), period: readNumber(args[1] ?? args[0], 20) };
     case "ta.bb":
       return {
         blockKind: "getTechnicalIndicator",
@@ -710,8 +1330,154 @@ function parseIndicatorExpression(expression: string): Record<string, unknown> |
         period: readNumber(args[1] ?? args[0], 20),
         multiplier: readNumber(args[2], 2),
       };
+    case "bollinger":
+      return {
+        blockKind: "getTechnicalIndicator",
+        indicatorType: "bollinger",
+        period: readNumber(args[0], 20),
+        multiplier: readNumber(args[1], 2),
+      };
     case "ta.wpr":
       return { blockKind: "getTechnicalIndicator", indicatorType: "williamsR", period: readNumber(args[0], 14) };
+    case "williams_r":
+      return { blockKind: "getTechnicalIndicator", indicatorType: "williamsR", period: readNumber(args[0], 14) };
+    case "ta.stdev":
+    case "stdev":
+      return {
+        blockKind: "getTechnicalIndicator",
+        indicatorType: "stdev",
+        source: readSource(args[0], "close"),
+        period: readNumber(args[1] ?? args[0], 20),
+      };
+    case "ta.variance":
+    case "variance":
+      return {
+        blockKind: "getTechnicalIndicator",
+        indicatorType: "variance",
+        source: readSource(args[0], "close"),
+        period: readNumber(args[1] ?? args[0], 20),
+      };
+    case "ta.highest":
+    case "highest":
+      return {
+        blockKind: "getTechnicalIndicator",
+        indicatorType: "highest",
+        source: readSource(args.length > 1 ? args[0] : undefined, "high"),
+        period: readNumber(args.length > 1 ? args[1] : args[0], 20),
+      };
+    case "ta.lowest":
+    case "lowest":
+      return {
+        blockKind: "getTechnicalIndicator",
+        indicatorType: "lowest",
+        source: readSource(args.length > 1 ? args[0] : undefined, "low"),
+        period: readNumber(args.length > 1 ? args[1] : args[0], 20),
+      };
+    case "ta.sum":
+    case "sum":
+      return {
+        blockKind: "getTechnicalIndicator",
+        indicatorType: "sum",
+        source: readSource(args[0], "volume"),
+        period: readNumber(args[1] ?? args[0], 20),
+      };
+    case "ta.vwap":
+    case "vwap":
+      return {
+        blockKind: "getTechnicalIndicator",
+        indicatorType: "vwap",
+        source: readSource(args[0], "hlc3"),
+      };
+    case "ta.mfi":
+    case "mfi":
+      return {
+        blockKind: "getTechnicalIndicator",
+        indicatorType: "mfi",
+        source: readSource(args[0], "hlc3"),
+        period: readNumber(args[1] ?? args[0], 14),
+      };
+    case "ta.dmi":
+    case "dmi":
+      return {
+        blockKind: "getTechnicalIndicator",
+        indicatorType: "dmi",
+        period: readNumber(args[0], 14),
+        adxSmoothing: readNumber(args[1], 14),
+      };
+    case "ta.supertrend":
+    case "supertrend":
+      return {
+        blockKind: "getTechnicalIndicator",
+        indicatorType: "supertrend",
+        factor: readNumber(args[0], 3),
+        period: readNumber(args[1], 10),
+      };
+    case "ta.sar":
+    case "sar":
+      return {
+        blockKind: "getTechnicalIndicator",
+        indicatorType: "sar",
+        start: readNumber(args[0], 0.02),
+        increment: readNumber(args[1], 0.02),
+        maximum: readNumber(args[2], 0.2),
+      };
+    case "ta.linreg":
+    case "linreg":
+      return {
+        blockKind: "getTechnicalIndicator",
+        indicatorType: "linreg",
+        source: readSource(args[0], "close"),
+        period: readNumber(args[1], 5),
+        offset: readNonNegativeNumber(args[2], 0),
+      };
+    case "ta.obv":
+    case "obv":
+      return {
+        blockKind: "getTechnicalIndicator",
+        indicatorType: "obv",
+        source: readSource(args[0], "close"),
+      };
+    case "ta.pivothigh":
+    case "pivothigh": {
+      const hasSource = args.length >= 3;
+      return {
+        blockKind: "getTechnicalIndicator",
+        indicatorType: "pivotHigh",
+        source: readSource(hasSource ? args[0] : undefined, "high"),
+        leftBars: readNumber(hasSource ? args[1] : args[0], 2),
+        rightBars: readNumber(hasSource ? args[2] : args[1], 2),
+      };
+    }
+    case "ta.pivotlow":
+    case "pivotlow": {
+      const hasSource = args.length >= 3;
+      return {
+        blockKind: "getTechnicalIndicator",
+        indicatorType: "pivotLow",
+        source: readSource(hasSource ? args[0] : undefined, "low"),
+        leftBars: readNumber(hasSource ? args[1] : args[0], 2),
+        rightBars: readNumber(hasSource ? args[2] : args[1], 2),
+      };
+    }
+    case "ta.kc":
+    case "kc":
+      return {
+        blockKind: "getTechnicalIndicator",
+        indicatorType: "keltner",
+        source: readSource(args[0], "close"),
+        period: readNumber(args[1], 20),
+        multiplier: readNumber(args[2], 1.5),
+      };
+    case "ta.alma":
+    case "alma":
+      return {
+        blockKind: "getTechnicalIndicator",
+        indicatorType: "alma",
+        source: readSource(args[0], "close"),
+        period: readNumber(args[1], 20),
+        offset: readNumber(args[2], 0.85),
+        sigma: readNumber(args[3], 6),
+      };
     default:
       return null;
   }
@@ -726,13 +1492,37 @@ function parseRequestSecurityIndicator(args: string[]): Record<string, unknown> 
     return null;
   }
   const inner = parseIndicatorExpression(args[2] ?? "");
-  if (inner === null || inner.indicatorType !== "movingAverage") {
+  if (inner === null || !supportsRequestSecurityIndicator(inner.indicatorType)) {
     return null;
   }
   return {
     ...inner,
     periodUnit,
   };
+}
+
+function supportsRequestSecurityIndicator(indicatorType: unknown): boolean {
+  return typeof indicatorType === "string" && [
+    "movingAverage",
+    "rsi",
+    "macd",
+    "atr",
+    "cci",
+    "bollinger",
+    "stdev",
+    "variance",
+    "highest",
+    "lowest",
+    "sum",
+    "mfi",
+    "supertrend",
+    "linreg",
+    "obv",
+    "pivotHigh",
+    "pivotLow",
+    "keltner",
+    "alma",
+  ].includes(indicatorType);
 }
 
 function periodUnitFromPineTimeframe(value: string): string | null {
@@ -775,6 +1565,7 @@ function createSnippetFallbackResult(
       properties: {
         blockKind: kind,
         code: entry.trimmed,
+        ...(kind === "pineSnippet" ? { snippetSource: classifyPineSnippetSource(entry.trimmed) } : {}),
       },
     }),
     isCondition: false,
@@ -785,6 +1576,22 @@ function snippetFallbackKind(explicitKind: StrategyBlockKind | undefined): Strat
   return explicitKind === undefined
     ? "pineSnippet"
     : explicitKind;
+}
+
+function classifyPineSnippetSource(code: string): string {
+  const normalized = code.trim().toLowerCase();
+  if (/^(plot|plotshape|plotchar|hline|fill|bgcolor|barcolor|alertcondition)\s*\(/.test(normalized)
+    || /^(table|line|label|box)\./.test(normalized)) {
+    return "visualOnly";
+  }
+  if (/(?:array\.|map\.|matrix\.|\bfor\b|\bwhile\b|\btype\b|\bmethod\b|\bimport\b|\blibrary\b)/.test(normalized)) {
+    return "advancedCollection";
+  }
+  if (/^(?:varip\s+|var\s+)?[a-z_][a-z0-9_]*\s*:=/.test(normalized)
+    || /\bbarstate\.|\bsession\.|\btimeframe\./.test(normalized)) {
+    return "advancedState";
+  }
+  return "unsupportedPine";
 }
 
 function hasLegacyFlowBlockAnnotation(script: string): boolean {
@@ -981,6 +1788,9 @@ function defaultTypeForKind(kind: StrategyBlockKind): StrategyVisualNodeDocument
     case "onKLineClosed":
       return "circle";
     case "technicalIndicatorCondition":
+    case "seriesCondition":
+    case "timeFilter":
+    case "sessionFilter":
     case "ifCloseAbove":
     case "ifCloseBelow":
       return "diamond";
@@ -990,7 +1800,8 @@ function defaultTypeForKind(kind: StrategyBlockKind): StrategyVisualNodeDocument
 }
 
 function isOrderLine(trimmed: string): boolean {
-  return /^strategy\.(entry|order|close|close_all)\s*\(/.test(trimmed);
+  return /^strategy\.(entry|order|close|close_all|cancel|cancel_all)\s*\(/.test(trimmed)
+    || /^strategy\.risk\.allow_entry_in\s*\(/.test(trimmed);
 }
 
 function isAssignmentLine(trimmed: string): boolean {
@@ -1010,9 +1821,25 @@ function readMessageCallOrLiteral(trimmed: string, kind: "log" | "notify"): stri
 }
 
 function parsePineOrder(trimmed: string): Record<string, unknown> | null {
+  if (trimmed.startsWith("strategy.risk.allow_entry_in")) {
+    const args = splitArguments(readCallArgs(trimmed));
+    return {
+      orderAction: "riskAllowEntryIn",
+      side: "BUY",
+      orderId: "",
+      orderType: "MARKET",
+      entryPositionPolicy: "sameDirection",
+      quantityMode: "shares",
+      quantityValue: 100,
+      limitPrice: 0,
+      riskAllowedDirection: parsePineRiskAllowEntryDirection(args[0]),
+    };
+  }
   if (trimmed.startsWith("strategy.close_all")) {
     return {
+      orderAction: "closeAll",
       side: "SELL",
+      orderId: "",
       orderType: "MARKET",
       entryPositionPolicy: "sameDirection",
       quantityMode: "shares",
@@ -1021,18 +1848,50 @@ function parsePineOrder(trimmed: string): Record<string, unknown> | null {
       pineOrderFunction: "strategy.close_all",
     };
   }
+  if (trimmed.startsWith("strategy.cancel_all")) {
+    return {
+      orderAction: "cancelAll",
+      side: "BUY",
+      orderId: "",
+      orderType: "MARKET",
+      entryPositionPolicy: "sameDirection",
+      quantityMode: "shares",
+      quantityValue: 100,
+      limitPrice: 0,
+      pineOrderFunction: "strategy.cancel_all",
+    };
+  }
+  if (trimmed.startsWith("strategy.cancel")) {
+    const args = splitArguments(readCallArgs(trimmed));
+    return {
+      orderAction: "cancel",
+      side: "BUY",
+      orderId: readPineLiteral(args[0] ?? ""),
+      orderType: "MARKET",
+      entryPositionPolicy: "sameDirection",
+      quantityMode: "shares",
+      quantityValue: 100,
+      limitPrice: 0,
+      pineOrderFunction: "strategy.cancel",
+    };
+  }
   if (trimmed.startsWith("strategy.close")) {
     const args = splitArguments(readCallArgs(trimmed));
     const id = readPineLiteral(args[0] ?? "");
     const namedArgs = parseNamedArgs(args.slice(1));
     const quantity = parsePineQuantity(namedArgs.get("qty"), namedArgs.get("qty_percent"));
+    const limit = namedArgs.get("limit");
+    const limitPriceExpressionAst = limit === undefined ? null : parsePineExpressionToVisualExpression(limit);
     return {
+      orderAction: "close",
       side: id.toLowerCase().includes("short") ? "BUY_COVER" : "SELL",
-      orderType: "MARKET",
+      orderId: id,
+      orderType: limit === undefined ? "MARKET" : "LIMIT",
       entryPositionPolicy: "sameDirection",
       quantityMode: quantity.mode,
       quantityValue: quantity.value,
-      limitPrice: 0,
+      limitPrice: readNumber(limit, 0),
+      ...(limitPriceExpressionAst === null ? {} : { limitPriceExpressionAst }),
     };
   }
   const isEntry = trimmed.startsWith("strategy.entry");
@@ -1044,16 +1903,37 @@ function parsePineOrder(trimmed: string): Record<string, unknown> | null {
   const direction = String(args[1] ?? "strategy.long").toLowerCase();
   const namedArgs = parseNamedArgs(args.slice(2));
   const quantity = parsePineQuantity(namedArgs.get("qty"), namedArgs.get("qty_percent"));
-  const limitPrice = readNumber(namedArgs.get("limit"), 0);
+  const limit = namedArgs.get("limit");
+  const stop = namedArgs.get("stop");
+  const limitPrice = readNumber(limit, 0);
+  const stopPrice = readNumber(stop, 0);
+  const limitPriceExpressionAst = limit === undefined ? null : parsePineExpressionToVisualExpression(limit);
+  const stopPriceExpressionAst = stop === undefined ? null : parsePineExpressionToVisualExpression(stop);
   return {
+    orderAction: isOrder ? "order" : "entry",
     side: direction.includes("short") ? (isOrder ? "SELL" : "SELL_SHORT") : "BUY",
-    orderType: limitPrice > 0 ? "LIMIT" : "MARKET",
+    orderId: readPineLiteral(args[0] ?? ""),
+    orderType: limit === undefined ? "MARKET" : "LIMIT",
     entryPositionPolicy: "sameDirection",
     quantityMode: quantity.mode,
     quantityValue: quantity.value,
     limitPrice,
+    stopPrice,
+    ...(limitPriceExpressionAst === null ? {} : { limitPriceExpressionAst }),
+    ...(stopPriceExpressionAst === null ? {} : { stopPriceExpressionAst }),
     pineOrderFunction: isOrder ? "strategy.order" : "strategy.entry",
   };
+}
+
+function parsePineRiskAllowEntryDirection(value: string | undefined): "all" | "long" | "short" {
+  const normalized = (value ?? "").trim().toLowerCase();
+  if (normalized.includes("short")) {
+    return "short";
+  }
+  if (normalized.includes("long")) {
+    return "long";
+  }
+  return "all";
 }
 
 function parsePineQuantity(
@@ -1150,17 +2030,65 @@ function readNumber(value: string | undefined, fallback: number): number {
 	return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
-function readSource(value: string | undefined): "open" | "high" | "low" | "close" | "volume" {
+function readAnyNumber(value: string | undefined, fallback: number): number {
+	const parsed = Number(value);
+	return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function readLiteralNumber(value: unknown, fallback: number): number {
+  if (
+    typeof value === "object"
+    && value !== null
+    && !Array.isArray(value)
+    && "kind" in value
+    && value.kind === "literal"
+    && "value" in value
+    && typeof value.value === "number"
+  ) {
+    return value.value;
+  }
+  return fallback;
+}
+
+function readNonNegativeNumber(value: string | undefined, fallback: number): number {
+	const parsed = Number(value);
+	return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+}
+
+function readSource(
+  value: string | undefined,
+  fallback: "open" | "high" | "low" | "close" | "volume" | "hl2" | "hlc3" | "ohlc4" = "close",
+): "open" | "high" | "low" | "close" | "volume" | "hl2" | "hlc3" | "ohlc4" {
 	switch ((value ?? "").trim().toLowerCase()) {
 		case "open":
 		case "high":
 		case "low":
 		case "volume":
-			return (value ?? "").trim().toLowerCase() as "open" | "high" | "low" | "volume";
+		case "hl2":
+		case "hlc3":
+		case "ohlc4":
+			return (value ?? "").trim().toLowerCase() as "open" | "high" | "low" | "volume" | "hl2" | "hlc3" | "ohlc4";
 		case "close":
-		default:
 			return "close";
+		default:
+			return fallback;
 	}
+}
+
+function isSeriesSourceLiteral(value: string | undefined): boolean {
+  switch ((value ?? "").trim().toLowerCase()) {
+    case "open":
+    case "high":
+    case "low":
+    case "close":
+    case "volume":
+    case "hl2":
+    case "hlc3":
+    case "ohlc4":
+      return true;
+    default:
+      return false;
+  }
 }
 
 function readPineLiteral(value: string): string {

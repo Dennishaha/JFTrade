@@ -6,7 +6,23 @@ export type TechnicalIndicatorType =
   | "atr"
   | "cci"
   | "williamsR"
-  | "bollinger";
+  | "bollinger"
+  | "stdev"
+  | "variance"
+  | "highest"
+  | "lowest"
+  | "sum"
+  | "vwap"
+  | "mfi"
+  | "dmi"
+  | "supertrend"
+  | "sar"
+  | "linreg"
+  | "obv"
+  | "pivotHigh"
+  | "pivotLow"
+  | "keltner"
+  | "alma";
 
 export type TechnicalIndicatorConditionMode = "none" | "numeric" | "pattern";
 
@@ -45,7 +61,7 @@ export interface GetTechnicalIndicatorBlockProperties {
   blockKind: "getTechnicalIndicator";
   indicatorType: TechnicalIndicatorType;
   variableName?: string;
-  source?: "open" | "high" | "low" | "close" | "volume";
+  source?: "open" | "high" | "low" | "close" | "volume" | "hl2" | "hlc3" | "ohlc4";
   movingAverageType?: MovingAverageIndicatorType;
   periodUnit?: IndicatorPeriodUnit;
   period?: number;
@@ -56,6 +72,15 @@ export interface GetTechnicalIndicatorBlockProperties {
   m1?: number;
   m2?: number;
   multiplier?: number;
+  factor?: number;
+  adxSmoothing?: number;
+  start?: number;
+  increment?: number;
+  maximum?: number;
+  offset?: number;
+  sigma?: number;
+  leftBars?: number;
+  rightBars?: number;
 }
 
 export interface TechnicalIndicatorConditionBlockProperties {
@@ -101,7 +126,22 @@ interface TechnicalIndicatorDefinition {
   getterLabel?: string;
   conditionModes: TechnicalIndicatorComparisonMode[];
   defaultConditionMode: TechnicalIndicatorComparisonMode;
-  parameterShape: "windowSize" | "period" | "macd" | "kdj" | "bollinger";
+  capabilityId: string;
+  parameterShape:
+    | "windowSize"
+    | "period"
+    | "sourceOnly"
+    | "macd"
+    | "kdj"
+    | "bollinger"
+    | "dmi"
+    | "supertrend"
+    | "sar"
+    | "linreg"
+    | "pivot"
+    | "sourcePeriodMultiplier"
+    | "alma";
+  defaultSource?: GetTechnicalIndicatorBlockProperties["source"];
   defaultPeriod?: number;
   defaultWindowSize?: number;
   defaultFastPeriod?: number;
@@ -110,6 +150,15 @@ interface TechnicalIndicatorDefinition {
   defaultM1?: number;
   defaultM2?: number;
   defaultMultiplier?: number;
+  defaultFactor?: number;
+  defaultAdxSmoothing?: number;
+  defaultStart?: number;
+  defaultIncrement?: number;
+  defaultMaximum?: number;
+  defaultOffset?: number;
+  defaultSigma?: number;
+  defaultLeftBars?: number;
+  defaultRightBars?: number;
   numericTargetLabel?: string;
 }
 
@@ -122,6 +171,22 @@ export const TECHNICAL_INDICATOR_OPTIONS: TechnicalIndicatorOption[] = [
   { value: "cci", label: "CCI" },
   { value: "williamsR", label: "Williams %R" },
   { value: "bollinger", label: "布林带" },
+  { value: "stdev", label: "标准差" },
+  { value: "variance", label: "方差" },
+  { value: "highest", label: "最高值" },
+  { value: "lowest", label: "最低值" },
+  { value: "sum", label: "区间求和" },
+  { value: "vwap", label: "VWAP" },
+  { value: "mfi", label: "MFI" },
+  { value: "dmi", label: "DMI/ADX" },
+  { value: "supertrend", label: "Supertrend" },
+  { value: "sar", label: "Parabolic SAR" },
+  { value: "linreg", label: "线性回归" },
+  { value: "obv", label: "OBV" },
+  { value: "pivotHigh", label: "Pivot High" },
+  { value: "pivotLow", label: "Pivot Low" },
+  { value: "keltner", label: "Keltner 通道" },
+  { value: "alma", label: "ALMA" },
 ];
 
 export const MOVING_AVERAGE_INDICATOR_OPTIONS: MovingAverageIndicatorOption[] = [
@@ -155,14 +220,18 @@ const TECHNICAL_INDICATOR_DEFINITION_MAP: Record<
     getterLabel: "均线",
     conditionModes: ["pattern"],
     defaultConditionMode: "pattern",
+    capabilityId: "indicator.ma_source_aware",
     parameterShape: "windowSize",
+    defaultSource: "close",
     defaultWindowSize: 20,
   },
   rsi: {
     label: "RSI",
     conditionModes: ["numeric", "pattern"],
     defaultConditionMode: "numeric",
+    capabilityId: "indicator.rsi",
     parameterShape: "period",
+    defaultSource: "close",
     defaultPeriod: 14,
     numericTargetLabel: "RSI 值",
   },
@@ -170,6 +239,7 @@ const TECHNICAL_INDICATOR_DEFINITION_MAP: Record<
     label: "MACD",
     conditionModes: ["numeric", "pattern"],
     defaultConditionMode: "pattern",
+    capabilityId: "indicator.macd",
     parameterShape: "macd",
     defaultFastPeriod: 12,
     defaultSlowPeriod: 26,
@@ -180,6 +250,7 @@ const TECHNICAL_INDICATOR_DEFINITION_MAP: Record<
     label: "KDJ",
     conditionModes: ["numeric", "pattern"],
     defaultConditionMode: "pattern",
+    capabilityId: "indicator.v15_common_ta_set",
     parameterShape: "kdj",
     defaultPeriod: 9,
     defaultM1: 3,
@@ -190,6 +261,7 @@ const TECHNICAL_INDICATOR_DEFINITION_MAP: Record<
     label: "ATR",
     conditionModes: ["numeric"],
     defaultConditionMode: "numeric",
+    capabilityId: "indicator.atr",
     parameterShape: "period",
     defaultPeriod: 14,
     numericTargetLabel: "ATR 值",
@@ -198,7 +270,9 @@ const TECHNICAL_INDICATOR_DEFINITION_MAP: Record<
     label: "CCI",
     conditionModes: ["numeric"],
     defaultConditionMode: "numeric",
+    capabilityId: "indicator.cci",
     parameterShape: "period",
+    defaultSource: "hlc3",
     defaultPeriod: 20,
     numericTargetLabel: "CCI 值",
   },
@@ -206,6 +280,7 @@ const TECHNICAL_INDICATOR_DEFINITION_MAP: Record<
     label: "Williams %R",
     conditionModes: ["numeric"],
     defaultConditionMode: "numeric",
+    capabilityId: "indicator.williams_r",
     parameterShape: "period",
     defaultPeriod: 14,
     numericTargetLabel: "Williams %R 值",
@@ -214,9 +289,176 @@ const TECHNICAL_INDICATOR_DEFINITION_MAP: Record<
     label: "布林带",
     conditionModes: ["pattern"],
     defaultConditionMode: "pattern",
+    capabilityId: "indicator.bollinger",
     parameterShape: "bollinger",
+    defaultSource: "close",
     defaultPeriod: 20,
     defaultMultiplier: 2,
+  },
+  stdev: {
+    label: "标准差",
+    conditionModes: ["numeric"],
+    defaultConditionMode: "numeric",
+    capabilityId: "indicator.source_aware_core",
+    parameterShape: "period",
+    defaultSource: "close",
+    defaultPeriod: 20,
+    numericTargetLabel: "标准差",
+  },
+  variance: {
+    label: "方差",
+    conditionModes: ["numeric"],
+    defaultConditionMode: "numeric",
+    capabilityId: "indicator.source_aware_core",
+    parameterShape: "period",
+    defaultSource: "close",
+    defaultPeriod: 20,
+    numericTargetLabel: "方差",
+  },
+  highest: {
+    label: "最高值",
+    conditionModes: ["numeric"],
+    defaultConditionMode: "numeric",
+    capabilityId: "indicator.rolling_window",
+    parameterShape: "period",
+    defaultSource: "high",
+    defaultPeriod: 20,
+    numericTargetLabel: "最高值",
+  },
+  lowest: {
+    label: "最低值",
+    conditionModes: ["numeric"],
+    defaultConditionMode: "numeric",
+    capabilityId: "indicator.rolling_window",
+    parameterShape: "period",
+    defaultSource: "low",
+    defaultPeriod: 20,
+    numericTargetLabel: "最低值",
+  },
+  sum: {
+    label: "区间求和",
+    conditionModes: ["numeric"],
+    defaultConditionMode: "numeric",
+    capabilityId: "indicator.sum",
+    parameterShape: "period",
+    defaultSource: "volume",
+    defaultPeriod: 20,
+    numericTargetLabel: "求和值",
+  },
+  vwap: {
+    label: "VWAP",
+    conditionModes: ["numeric"],
+    defaultConditionMode: "numeric",
+    capabilityId: "indicator.vwap_mfi_dmi_supertrend",
+    parameterShape: "sourceOnly",
+    defaultSource: "hlc3",
+    numericTargetLabel: "VWAP",
+  },
+  mfi: {
+    label: "MFI",
+    conditionModes: ["numeric"],
+    defaultConditionMode: "numeric",
+    capabilityId: "indicator.vwap_mfi_dmi_supertrend",
+    parameterShape: "period",
+    defaultSource: "hlc3",
+    defaultPeriod: 14,
+    numericTargetLabel: "MFI",
+  },
+  dmi: {
+    label: "DMI/ADX",
+    conditionModes: ["numeric"],
+    defaultConditionMode: "numeric",
+    capabilityId: "indicator.vwap_mfi_dmi_supertrend",
+    parameterShape: "dmi",
+    defaultPeriod: 14,
+    defaultAdxSmoothing: 14,
+    numericTargetLabel: "ADX",
+  },
+  supertrend: {
+    label: "Supertrend",
+    conditionModes: ["numeric"],
+    defaultConditionMode: "numeric",
+    capabilityId: "indicator.vwap_mfi_dmi_supertrend",
+    parameterShape: "supertrend",
+    defaultPeriod: 10,
+    defaultFactor: 3,
+    numericTargetLabel: "方向",
+  },
+  sar: {
+    label: "Parabolic SAR",
+    conditionModes: ["numeric"],
+    defaultConditionMode: "numeric",
+    capabilityId: "indicator.sar",
+    parameterShape: "sar",
+    defaultStart: 0.02,
+    defaultIncrement: 0.02,
+    defaultMaximum: 0.2,
+    numericTargetLabel: "SAR 值",
+  },
+  linreg: {
+    label: "线性回归",
+    conditionModes: ["numeric"],
+    defaultConditionMode: "numeric",
+    capabilityId: "indicator.linreg_obv_pivots",
+    parameterShape: "linreg",
+    defaultSource: "close",
+    defaultPeriod: 5,
+    defaultOffset: 0,
+    numericTargetLabel: "线性回归值",
+  },
+  obv: {
+    label: "OBV",
+    conditionModes: ["numeric"],
+    defaultConditionMode: "numeric",
+    capabilityId: "indicator.linreg_obv_pivots",
+    parameterShape: "sourceOnly",
+    defaultSource: "close",
+    numericTargetLabel: "OBV",
+  },
+  pivotHigh: {
+    label: "Pivot High",
+    conditionModes: ["numeric"],
+    defaultConditionMode: "numeric",
+    capabilityId: "indicator.linreg_obv_pivots",
+    parameterShape: "pivot",
+    defaultSource: "high",
+    defaultLeftBars: 2,
+    defaultRightBars: 2,
+    numericTargetLabel: "Pivot High",
+  },
+  pivotLow: {
+    label: "Pivot Low",
+    conditionModes: ["numeric"],
+    defaultConditionMode: "numeric",
+    capabilityId: "indicator.linreg_obv_pivots",
+    parameterShape: "pivot",
+    defaultSource: "low",
+    defaultLeftBars: 2,
+    defaultRightBars: 2,
+    numericTargetLabel: "Pivot Low",
+  },
+  keltner: {
+    label: "Keltner 通道",
+    conditionModes: ["numeric"],
+    defaultConditionMode: "numeric",
+    capabilityId: "indicator.keltner_alma",
+    parameterShape: "sourcePeriodMultiplier",
+    defaultSource: "close",
+    defaultPeriod: 20,
+    defaultMultiplier: 1.5,
+    numericTargetLabel: "上轨",
+  },
+  alma: {
+    label: "ALMA",
+    conditionModes: ["numeric"],
+    defaultConditionMode: "numeric",
+    capabilityId: "indicator.keltner_alma",
+    parameterShape: "alma",
+    defaultSource: "close",
+    defaultPeriod: 20,
+    defaultOffset: 0.85,
+    defaultSigma: 6,
+    numericTargetLabel: "ALMA",
   },
 };
 
@@ -257,6 +499,22 @@ const PATTERN_OPTION_MAP: Record<TechnicalIndicatorType, TechnicalIndicatorPatte
     { value: "closeAboveUpperBand", label: "收盘价突破上轨" },
     { value: "closeBelowLowerBand", label: "收盘价跌破下轨" },
   ],
+  stdev: [],
+  variance: [],
+  highest: [],
+  lowest: [],
+  sum: [],
+  vwap: [],
+  mfi: [],
+  dmi: [],
+  supertrend: [],
+  sar: [],
+  linreg: [],
+  obv: [],
+  pivotHigh: [],
+  pivotLow: [],
+  keltner: [],
+  alma: [],
 };
 
 const TECHNICAL_INDICATOR_INPUT_SLOTS: Record<
@@ -271,6 +529,22 @@ const TECHNICAL_INDICATOR_INPUT_SLOTS: Record<
   cci: ["primary"],
   williamsR: ["primary"],
   bollinger: ["primary"],
+  stdev: ["primary"],
+  variance: ["primary"],
+  highest: ["primary"],
+  lowest: ["primary"],
+  sum: ["primary"],
+  vwap: ["primary"],
+  mfi: ["primary"],
+  dmi: ["primary"],
+  supertrend: ["primary"],
+  sar: ["primary"],
+  linreg: ["primary"],
+  obv: ["primary"],
+  pivotHigh: ["primary"],
+  pivotLow: ["primary"],
+  keltner: ["primary"],
+  alma: ["primary"],
 };
 
 export function getTechnicalIndicatorDefinition(
@@ -411,14 +685,18 @@ export function normalizeGetTechnicalIndicatorProperties(
   if (variableName !== undefined) {
     normalized.variableName = variableName;
   }
+  const periodUnit = normalizeIndicatorPeriodUnit(properties.periodUnit);
+  if (periodUnit !== "bar") {
+    normalized.periodUnit = periodUnit;
+  }
 
   switch (definition.parameterShape) {
     case "windowSize":
       normalized.movingAverageType = normalizeMovingAverageIndicatorType(
         properties.movingAverageType,
       );
-      normalized.source = normalizeIndicatorSource(properties.source);
-      normalized.periodUnit = normalizeIndicatorPeriodUnit(properties.periodUnit);
+      normalized.source = normalizeIndicatorSource(properties.source, definition.defaultSource);
+      normalized.periodUnit = periodUnit;
       normalized.windowSize = normalizeInteger(
         properties.windowSize ?? properties.period,
         definition.defaultWindowSize ?? 20,
@@ -447,6 +725,8 @@ export function normalizeGetTechnicalIndicatorProperties(
       normalized.m2 = normalizeInteger(properties.m2, definition.defaultM2 ?? 3);
       break;
     case "bollinger":
+    case "sourcePeriodMultiplier":
+      normalized.source = normalizeIndicatorSource(properties.source, definition.defaultSource);
       normalized.period = normalizeInteger(
         properties.period,
         definition.defaultPeriod ?? 20,
@@ -456,7 +736,82 @@ export function normalizeGetTechnicalIndicatorProperties(
         definition.defaultMultiplier ?? 2,
       );
       break;
+    case "sourceOnly":
+      normalized.source = normalizeIndicatorSource(properties.source, definition.defaultSource);
+      break;
+    case "dmi":
+      normalized.period = normalizeInteger(
+        properties.period,
+        definition.defaultPeriod ?? 14,
+      );
+      normalized.adxSmoothing = normalizeInteger(
+        properties.adxSmoothing,
+        definition.defaultAdxSmoothing ?? 14,
+      );
+      break;
+    case "supertrend":
+      normalized.period = normalizeInteger(
+        properties.period,
+        definition.defaultPeriod ?? 10,
+      );
+      normalized.factor = normalizeDecimal(
+        properties.factor,
+        definition.defaultFactor ?? 3,
+      );
+      break;
+    case "sar":
+      normalized.start = normalizePositiveDecimal(
+        properties.start,
+        definition.defaultStart ?? 0.02,
+      );
+      normalized.increment = normalizePositiveDecimal(
+        properties.increment,
+        definition.defaultIncrement ?? 0.02,
+      );
+      normalized.maximum = normalizePositiveDecimal(
+        properties.maximum,
+        definition.defaultMaximum ?? 0.2,
+      );
+      break;
+    case "linreg":
+      normalized.source = normalizeIndicatorSource(properties.source, definition.defaultSource);
+      normalized.period = normalizeInteger(
+        properties.period,
+        definition.defaultPeriod ?? 5,
+      );
+      normalized.offset = normalizeNonNegativeInteger(
+        properties.offset,
+        definition.defaultOffset ?? 0,
+      );
+      break;
+    case "pivot":
+      normalized.source = normalizeIndicatorSource(properties.source, definition.defaultSource);
+      normalized.leftBars = normalizeInteger(
+        properties.leftBars,
+        definition.defaultLeftBars ?? 2,
+      );
+      normalized.rightBars = normalizeInteger(
+        properties.rightBars,
+        definition.defaultRightBars ?? 2,
+      );
+      break;
+    case "alma":
+      normalized.source = normalizeIndicatorSource(properties.source, definition.defaultSource);
+      normalized.period = normalizeInteger(
+        properties.period,
+        definition.defaultPeriod ?? 20,
+      );
+      normalized.offset = normalizeDecimal(
+        properties.offset,
+        definition.defaultOffset ?? 0.85,
+      );
+      normalized.sigma = normalizePositiveDecimal(
+        properties.sigma,
+        definition.defaultSigma ?? 6,
+      );
+      break;
     default:
+      normalized.source = normalizeIndicatorSource(properties.source, definition.defaultSource);
       normalized.period = normalizeInteger(
         properties.period,
         definition.defaultPeriod ?? 14,
@@ -467,17 +822,24 @@ export function normalizeGetTechnicalIndicatorProperties(
   return normalized;
 }
 
-function normalizeIndicatorSource(value: unknown): "open" | "high" | "low" | "close" | "volume" {
+function normalizeIndicatorSource(
+  value: unknown,
+  fallback: GetTechnicalIndicatorBlockProperties["source"] = "close",
+): NonNullable<GetTechnicalIndicatorBlockProperties["source"]> {
 	const normalizedValue = typeof value === "string" ? value.trim().toLowerCase() : "";
 	switch (normalizedValue) {
 		case "open":
 		case "high":
 		case "low":
 		case "volume":
+		case "hl2":
+		case "hlc3":
+		case "ohlc4":
 			return normalizedValue;
 		case "close":
-		default:
 			return "close";
+		default:
+			return fallback ?? "close";
 	}
 }
 
@@ -613,6 +975,24 @@ function indicatorInputParameterText(
       return `${properties.period ?? 9}/${properties.m1 ?? 3}/${properties.m2 ?? 3}`;
     case "bollinger":
       return `${properties.period ?? 20}x${formatThreshold(properties.multiplier ?? 2)}`;
+    case "vwap":
+    case "obv":
+      return properties.source ?? getTechnicalIndicatorDefinition(properties.indicatorType).defaultSource ?? "close";
+    case "dmi":
+      return `${properties.period ?? 14}/${properties.adxSmoothing ?? 14}`;
+    case "supertrend":
+      return `${formatThreshold(properties.factor ?? 3)}/${properties.period ?? 10}`;
+    case "sar":
+      return `${formatThreshold(properties.start ?? 0.02)}/${formatThreshold(properties.increment ?? 0.02)}/${formatThreshold(properties.maximum ?? 0.2)}`;
+    case "linreg":
+      return `${properties.period ?? 5}/${properties.offset ?? 0}`;
+    case "pivotHigh":
+    case "pivotLow":
+      return `${properties.leftBars ?? 2}/${properties.rightBars ?? 2}`;
+    case "keltner":
+      return `${properties.period ?? 20}x${formatThreshold(properties.multiplier ?? 1.5)}`;
+    case "alma":
+      return `${properties.period ?? 20}/${formatThreshold(properties.offset ?? 0.85)}/${formatThreshold(properties.sigma ?? 6)}`;
     default:
       return String(properties.period ?? defaultPeriodForIndicator(properties.indicatorType));
   }
@@ -661,9 +1041,28 @@ function defaultThresholdForIndicator(
       return operator === ">" ? 80 : 20;
     case "macd":
       return 0;
+    case "mfi":
+      return operator === ">" ? 80 : 20;
+    case "dmi":
+      return operator === ">" ? 25 : 20;
+    case "supertrend":
+      return 0;
     default:
       return 0;
   }
+}
+
+function normalizeNonNegativeInteger(value: unknown, fallback: number): number {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return Math.max(0, Math.round(value));
+  }
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return Math.max(0, Math.round(parsed));
+    }
+  }
+  return fallback;
 }
 
 function normalizeInteger(value: unknown, fallback: number): number {
@@ -690,6 +1089,11 @@ function normalizeDecimal(value: unknown, fallback: number): number {
     }
   }
   return fallback;
+}
+
+function normalizePositiveDecimal(value: unknown, fallback: number): number {
+  const normalized = normalizeDecimal(value, fallback);
+  return normalized > 0 ? normalized : fallback;
 }
 
 function formatThreshold(value: number): string {

@@ -1,4 +1,12 @@
 export {
+  createCollectionStatFilterStrategyVisualModel,
+  createCooldownStateStrategyVisualModel,
+  createParameterizedMtfTrendStrategyVisualModel,
+  createPartialExitStrategyVisualModel,
+  createStructuredLimitExitStrategyVisualModel,
+  createTimeSessionMtfRiskStrategyVisualModel,
+} from "./strategyVisualBuilderAdvancedModels";
+export {
   createBreakoutStrategyVisualModel,
   createDefaultStrategyVisualModel,
   createMeanReversionStrategyVisualModel,
@@ -9,7 +17,11 @@ export {
   createBollingerReversionStrategyVisualModel,
   createCCIReversionStrategyVisualModel,
   createKDJReversionStrategyVisualModel,
+  createBracketExitStrategyVisualModel,
   createMACDMomentumStrategyVisualModel,
+  createMFIReversionStrategyVisualModel,
+  createMTFMomentumStrategyVisualModel,
   createRSIReversionStrategyVisualModel,
+  createSupertrendStrategyVisualModel,
   createWilliamsRReversionStrategyVisualModel,
 } from "./strategyVisualBuilderIndicatorModels";

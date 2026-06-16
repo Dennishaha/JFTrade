@@ -112,3 +112,106 @@ export function createWilliamsRReversionStrategyVisualModel(): StrategyVisualMod
     ],
   };
 }
+
+export function createMFIReversionStrategyVisualModel(): StrategyVisualModelDocument {
+  return {
+    engine: "logic-flow",
+    version: 1,
+    nodes: [
+      { id: "mfi-init-root", type: "circle", x: 180, y: 120, text: "策略启动", properties: { blockKind: "onInit" } },
+      { id: "mfi-init-log", type: "rect", x: 450, y: 120, text: "输出日志", properties: { blockKind: "log", message: "MFI 策略已初始化：${ctx.symbol || '00700'} ${ctx.interval || '5m'}" } },
+      { id: "mfi-kline-root", type: "circle", x: 180, y: 320, text: "K 线收盘", properties: { blockKind: "onKLineClosed" } },
+      { id: "mfi-getter", type: "rect", x: 470, y: 320, text: "获取 MFI 14", properties: { blockKind: "getTechnicalIndicator", indicatorType: "mfi", source: "hlc3", period: 14 } },
+      { id: "mfi-buy-signal", type: "diamond", x: 740, y: 260, text: "MFI < 20", properties: { blockKind: "technicalIndicatorCondition", indicatorType: "mfi", conditionMode: "numeric", operator: "<", threshold: 20 } },
+      { id: "mfi-buy-order", type: "rect", x: 1010, y: 210, text: "下单 · 买入开多 · 100 股", properties: { blockKind: "placeOrder", side: "BUY", orderType: "MARKET", quantityMode: "shares", quantityValue: 100 } },
+      { id: "mfi-stop", type: "rect", x: 1280, y: 210, text: "自动止损 1柱 2%", properties: { blockKind: "stopLoss", mode: "stopLoss", direction: "long", timeValue: 1, timeUnit: "bar", percentage: 2, windowPolicy: "continuous" } },
+      { id: "mfi-sell-signal", type: "diamond", x: 740, y: 390, text: "MFI > 80", properties: { blockKind: "technicalIndicatorCondition", indicatorType: "mfi", conditionMode: "numeric", operator: ">", threshold: 80 } },
+      { id: "mfi-sell-order", type: "rect", x: 1010, y: 390, text: "下单 · 卖出平多 · 100 股", properties: { blockKind: "placeOrder", side: "SELL", orderType: "MARKET", quantityMode: "shares", quantityValue: 100 } },
+    ],
+    edges: [
+      { id: "edge-mfi-init-log", type: "polyline", sourceNodeId: "mfi-init-root", targetNodeId: "mfi-init-log", properties: buildStrategyVisualControlEdgeProperties() },
+      { id: "edge-mfi-getter", type: "polyline", sourceNodeId: "mfi-kline-root", targetNodeId: "mfi-getter", properties: buildStrategyVisualControlEdgeProperties() },
+      { id: "edge-mfi-buy-signal", type: "polyline", sourceNodeId: "mfi-getter", targetNodeId: "mfi-buy-signal", properties: buildStrategyVisualControlEdgeProperties() },
+      { id: "edge-mfi-buy-input", type: "polyline", sourceNodeId: "mfi-getter", targetNodeId: "mfi-buy-signal", properties: buildStrategyVisualDataEdgeProperties("primary") },
+      { id: "edge-mfi-buy-order", type: "polyline", sourceNodeId: "mfi-buy-signal", targetNodeId: "mfi-buy-order", properties: buildStrategyVisualControlEdgeProperties("true") },
+      { id: "edge-mfi-stop", type: "polyline", sourceNodeId: "mfi-buy-order", targetNodeId: "mfi-stop", properties: buildStrategyVisualControlEdgeProperties() },
+      { id: "edge-mfi-sell-signal", type: "polyline", sourceNodeId: "mfi-buy-signal", targetNodeId: "mfi-sell-signal", properties: buildStrategyVisualControlEdgeProperties("false") },
+      { id: "edge-mfi-sell-input", type: "polyline", sourceNodeId: "mfi-getter", targetNodeId: "mfi-sell-signal", properties: buildStrategyVisualDataEdgeProperties("primary") },
+      { id: "edge-mfi-sell-order", type: "polyline", sourceNodeId: "mfi-sell-signal", targetNodeId: "mfi-sell-order", properties: buildStrategyVisualControlEdgeProperties("true") },
+    ],
+  };
+}
+
+export function createSupertrendStrategyVisualModel(): StrategyVisualModelDocument {
+  return {
+    engine: "logic-flow",
+    version: 1,
+    nodes: [
+      { id: "supertrend-init-root", type: "circle", x: 180, y: 120, text: "策略启动", properties: { blockKind: "onInit" } },
+      { id: "supertrend-init-log", type: "rect", x: 500, y: 120, text: "输出日志", properties: { blockKind: "log", message: "Supertrend 策略已初始化：${ctx.symbol || '00700'} ${ctx.interval || '5m'}" } },
+      { id: "supertrend-kline-root", type: "circle", x: 180, y: 330, text: "K 线收盘", properties: { blockKind: "onKLineClosed" } },
+      { id: "supertrend-getter", type: "rect", x: 500, y: 330, text: "获取 Supertrend 3/10", properties: { blockKind: "getTechnicalIndicator", indicatorType: "supertrend", factor: 3, period: 10 } },
+      { id: "supertrend-buy-signal", type: "diamond", x: 830, y: 270, text: "Supertrend > 0", properties: { blockKind: "technicalIndicatorCondition", indicatorType: "supertrend", conditionMode: "numeric", operator: ">", threshold: 0 } },
+      { id: "supertrend-buy-order", type: "rect", x: 1160, y: 220, text: "下单 · 买入开多 · 100 股", properties: { blockKind: "placeOrder", side: "BUY", orderType: "MARKET", quantityMode: "shares", quantityValue: 100 } },
+      { id: "supertrend-stop", type: "rect", x: 1470, y: 220, text: "自动止损 1柱 3%", properties: { blockKind: "stopLoss", mode: "stopLoss", direction: "long", timeValue: 1, timeUnit: "bar", percentage: 3, windowPolicy: "continuous" } },
+      { id: "supertrend-sell-signal", type: "diamond", x: 830, y: 410, text: "Supertrend < 0", properties: { blockKind: "technicalIndicatorCondition", indicatorType: "supertrend", conditionMode: "numeric", operator: "<", threshold: 0 } },
+      { id: "supertrend-sell-order", type: "rect", x: 1160, y: 410, text: "下单 · 卖出平多 · 100 股", properties: { blockKind: "placeOrder", side: "SELL", orderType: "MARKET", quantityMode: "shares", quantityValue: 100 } },
+    ],
+    edges: [
+      { id: "edge-supertrend-init-log", type: "polyline", sourceNodeId: "supertrend-init-root", targetNodeId: "supertrend-init-log", properties: buildStrategyVisualControlEdgeProperties() },
+      { id: "edge-supertrend-getter", type: "polyline", sourceNodeId: "supertrend-kline-root", targetNodeId: "supertrend-getter", properties: buildStrategyVisualControlEdgeProperties() },
+      { id: "edge-supertrend-buy-signal", type: "polyline", sourceNodeId: "supertrend-getter", targetNodeId: "supertrend-buy-signal", properties: buildStrategyVisualControlEdgeProperties() },
+      { id: "edge-supertrend-buy-input", type: "polyline", sourceNodeId: "supertrend-getter", targetNodeId: "supertrend-buy-signal", properties: buildStrategyVisualDataEdgeProperties("primary") },
+      { id: "edge-supertrend-buy-order", type: "polyline", sourceNodeId: "supertrend-buy-signal", targetNodeId: "supertrend-buy-order", properties: buildStrategyVisualControlEdgeProperties("true") },
+      { id: "edge-supertrend-stop", type: "polyline", sourceNodeId: "supertrend-buy-order", targetNodeId: "supertrend-stop", properties: buildStrategyVisualControlEdgeProperties() },
+      { id: "edge-supertrend-sell-signal", type: "polyline", sourceNodeId: "supertrend-buy-signal", targetNodeId: "supertrend-sell-signal", properties: buildStrategyVisualControlEdgeProperties("false") },
+      { id: "edge-supertrend-sell-input", type: "polyline", sourceNodeId: "supertrend-getter", targetNodeId: "supertrend-sell-signal", properties: buildStrategyVisualDataEdgeProperties("primary") },
+      { id: "edge-supertrend-sell-order", type: "polyline", sourceNodeId: "supertrend-sell-signal", targetNodeId: "supertrend-sell-order", properties: buildStrategyVisualControlEdgeProperties("true") },
+    ],
+  };
+}
+
+export function createMTFMomentumStrategyVisualModel(): StrategyVisualModelDocument {
+  return {
+    engine: "logic-flow",
+    version: 1,
+    nodes: [
+      { id: "mtf-init-root", type: "circle", x: 180, y: 120, text: "策略启动", properties: { blockKind: "onInit" } },
+      { id: "mtf-init-log", type: "rect", x: 500, y: 120, text: "输出日志", properties: { blockKind: "log", message: "MTF 动能策略已初始化：${ctx.symbol || '00700'} ${ctx.interval || '5m'}" } },
+      { id: "mtf-kline-root", type: "circle", x: 180, y: 330, text: "K 线收盘", properties: { blockKind: "onKLineClosed" } },
+      { id: "mtf-ema", type: "rect", x: 500, y: 290, text: "获取 EMA 20日", properties: { blockKind: "getTechnicalIndicator", indicatorType: "movingAverage", movingAverageType: "EMA", source: "close", windowSize: 20, periodUnit: "day" } },
+      { id: "mtf-macd", type: "rect", x: 500, y: 420, text: "获取 MACD 12/26/9", properties: { blockKind: "getTechnicalIndicator", indicatorType: "macd", fastPeriod: 12, slowPeriod: 26, signalPeriod: 9 } },
+      { id: "mtf-macd-cross", type: "diamond", x: 820, y: 330, text: "MACD 金叉", properties: { blockKind: "technicalIndicatorCondition", indicatorType: "macd", conditionMode: "pattern", patternType: "goldenCross" } },
+      { id: "mtf-buy-order", type: "rect", x: 1130, y: 330, text: "下单 · 买入开多 · 10%", properties: { blockKind: "placeOrder", orderAction: "entry", orderId: "Long", side: "BUY", orderType: "MARKET", quantityMode: "equityPercent", quantityValue: 10 } },
+    ],
+    edges: [
+      { id: "edge-mtf-init-log", type: "polyline", sourceNodeId: "mtf-init-root", targetNodeId: "mtf-init-log", properties: buildStrategyVisualControlEdgeProperties() },
+      { id: "edge-mtf-ema", type: "polyline", sourceNodeId: "mtf-kline-root", targetNodeId: "mtf-ema", properties: buildStrategyVisualControlEdgeProperties() },
+      { id: "edge-mtf-macd", type: "polyline", sourceNodeId: "mtf-ema", targetNodeId: "mtf-macd", properties: buildStrategyVisualControlEdgeProperties() },
+      { id: "edge-mtf-macd-cross", type: "polyline", sourceNodeId: "mtf-macd", targetNodeId: "mtf-macd-cross", properties: buildStrategyVisualControlEdgeProperties() },
+      { id: "edge-mtf-macd-input", type: "polyline", sourceNodeId: "mtf-macd", targetNodeId: "mtf-macd-cross", properties: buildStrategyVisualDataEdgeProperties("primary") },
+      { id: "edge-mtf-buy-order", type: "polyline", sourceNodeId: "mtf-macd-cross", targetNodeId: "mtf-buy-order", properties: buildStrategyVisualControlEdgeProperties("true") },
+    ],
+  };
+}
+
+export function createBracketExitStrategyVisualModel(): StrategyVisualModelDocument {
+  return {
+    engine: "logic-flow",
+    version: 1,
+    nodes: [
+      { id: "bracket-init-root", type: "circle", x: 180, y: 120, text: "策略启动", properties: { blockKind: "onInit" } },
+      { id: "bracket-init-log", type: "rect", x: 500, y: 120, text: "输出日志", properties: { blockKind: "log", message: "Bracket 风控策略已初始化：${ctx.symbol || '00700'} ${ctx.interval || '5m'}" } },
+      { id: "bracket-kline-root", type: "circle", x: 180, y: 320, text: "K 线收盘", properties: { blockKind: "onKLineClosed" } },
+      { id: "bracket-breakout", type: "diamond", x: 500, y: 320, text: "收盘价 > 520", properties: { blockKind: "ifCloseAbove", threshold: 520 } },
+      { id: "bracket-entry", type: "rect", x: 800, y: 260, text: "下单 · 买入开多 · 10%", properties: { blockKind: "placeOrder", orderAction: "entry", orderId: "Long", side: "BUY", orderType: "MARKET", quantityMode: "equityPercent", quantityValue: 10 } },
+      { id: "bracket-exit", type: "rect", x: 1100, y: 260, text: "多头止盈止损 1柱 2%", properties: { blockKind: "stopLoss", mode: "bracketExit", direction: "long", timeValue: 1, timeUnit: "bar", percentage: 2, takeProfitPercentage: 4, windowPolicy: "continuous" } },
+    ],
+    edges: [
+      { id: "edge-bracket-init-log", type: "polyline", sourceNodeId: "bracket-init-root", targetNodeId: "bracket-init-log", properties: buildStrategyVisualControlEdgeProperties() },
+      { id: "edge-bracket-breakout", type: "polyline", sourceNodeId: "bracket-kline-root", targetNodeId: "bracket-breakout", properties: buildStrategyVisualControlEdgeProperties() },
+      { id: "edge-bracket-entry", type: "polyline", sourceNodeId: "bracket-breakout", targetNodeId: "bracket-entry", properties: buildStrategyVisualControlEdgeProperties("true") },
+      { id: "edge-bracket-exit", type: "polyline", sourceNodeId: "bracket-entry", targetNodeId: "bracket-exit", properties: buildStrategyVisualControlEdgeProperties() },
+    ],
+  };
+}

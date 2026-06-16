@@ -5,6 +5,8 @@ import {
   fromStrategyCanvasGraphData,
   fromLogicFlowGraphData,
   getStrategyBlockKind,
+  getVisualBlockCapability,
+  summarizePineBlockSupport,
   toStrategyCanvasGraphData,
   toLogicFlowGraphData,
 } from "../src/features/strategyVisualBuilder";
@@ -251,6 +253,161 @@ describe("strategyVisualBuilderGraphData", () => {
     expect(mergedModel.nodes.some((node) => node.id === "getter-node")).toBe(true);
     expect(mergedModel.nodes.some((node) => node.id === "condition-node")).toBe(true);
     expect(mergedModel.nodes.find((node) => node.id === "condition-node")?.properties.inputPrimaryNodeId).toBe("getter-node");
+  });
+
+  it("keeps runtime support assessments out of persisted graph data", () => {
+    const model = {
+      engine: "logic-flow" as const,
+      version: 1,
+      nodes: [
+        {
+          id: "risk-node",
+          type: "rect",
+          x: 320,
+          y: 220,
+          text: "自动止损 1日 2%",
+          properties: {
+            blockKind: "stopLoss",
+            mode: "stopLoss",
+            direction: "auto",
+            timeValue: 1,
+            timeUnit: "day",
+            percentage: 2,
+            windowPolicy: "continuous",
+          },
+        },
+        {
+          id: "collection-stat-node",
+          type: "rect",
+          x: 520,
+          y: 220,
+          text: "集合统计",
+          properties: {
+            blockKind: "collectionStat",
+            variableName: "range_median",
+            statFunction: "median",
+            sourceA: "close",
+            sourceB: "open",
+            sourceC: "high",
+          },
+        },
+      ],
+      edges: [],
+    };
+
+    expect(summarizePineBlockSupport(model).unsupportedConfigCount).toBe(1);
+    expect(getVisualBlockCapability("stopLoss")?.controlSchema.controlIds).toContain("windowPolicy");
+    expect(getVisualBlockCapability("collectionStat")?.controlSchema.controlIds).toContain("statFunction");
+    const graphData = toStrategyCanvasGraphData(model);
+    expect(graphData.nodes?.[0]?.properties).not.toHaveProperty("pineSupport");
+    expect(graphData.nodes?.[0]?.properties).not.toHaveProperty("controlSchema");
+    expect(graphData.nodes?.[0]?.properties).not.toHaveProperty("pineRenderRule");
+
+    const roundTripped = fromStrategyCanvasGraphData(graphData, model);
+    expect(roundTripped.nodes[0]?.properties).not.toHaveProperty("pineSupport");
+    expect(roundTripped.nodes[0]?.properties).not.toHaveProperty("controlSchema");
+    expect(roundTripped.nodes[0]?.properties).not.toHaveProperty("pineRenderRule");
+  });
+
+  it("persists structured expression AST as block properties without runtime schema metadata", () => {
+    const model = {
+      engine: "logic-flow" as const,
+      version: 1,
+      nodes: [
+        {
+          id: "structured-condition",
+          type: "diamond",
+          x: 320,
+          y: 220,
+          text: "结构化条件",
+          properties: {
+            blockKind: "seriesCondition",
+            mode: "compare",
+            operator: ">",
+            leftExpressionAst: { kind: "reference", name: "signal" },
+            rightExpressionAst: { kind: "literal", value: 0 },
+          },
+        },
+      ],
+      edges: [],
+    };
+
+    const graphData = toLogicFlowGraphData(model);
+
+    expect(graphData.nodes?.[0]?.properties?.leftExpressionAst).toMatchObject({ kind: "reference", name: "signal" });
+    expect(graphData.nodes?.[0]?.properties).not.toHaveProperty("expressionSchema");
+    expect(graphData.nodes?.[0]?.properties).not.toHaveProperty("expressionReferenceOptions");
+
+    const roundTripped = fromLogicFlowGraphData(graphData);
+    expect(roundTripped.nodes[0]?.properties.leftExpressionAst).toMatchObject({ kind: "reference", name: "signal" });
+  });
+
+  it("persists vNext expression block properties without capability metadata", () => {
+    const model = {
+      engine: "logic-flow" as const,
+      version: 1,
+      nodes: [
+        {
+          id: "limit-order",
+          type: "rect",
+          x: 320,
+          y: 220,
+          text: "表达式订单",
+          properties: {
+            blockKind: "placeOrder",
+            orderType: "LIMIT",
+            limitPriceExpressionAst: { kind: "call", functionName: "math.max", args: [{ kind: "source", source: "close" }, { kind: "source", source: "open" }] },
+          },
+        },
+        {
+          id: "collection-stat",
+          type: "rect",
+          x: 560,
+          y: 220,
+          text: "集合统计",
+          properties: {
+            blockKind: "collectionStat",
+            sourceAExpressionAst: { kind: "reference", name: "daily_trend" },
+          },
+        },
+        {
+          id: "time-filter",
+          type: "diamond",
+          x: 800,
+          y: 220,
+          text: "",
+          properties: {
+            blockKind: "timeFilter",
+            mode: "dayOfWeek",
+            dayOfWeek: 6,
+          },
+        },
+        {
+          id: "session-filter",
+          type: "diamond",
+          x: 1040,
+          y: 220,
+          text: "",
+          properties: {
+            blockKind: "sessionFilter",
+            scope: "premarket",
+          },
+        },
+      ],
+      edges: [],
+    };
+
+    const graphData = toLogicFlowGraphData(model);
+    expect(graphData.nodes?.[0]?.properties?.limitPriceExpressionAst).toMatchObject({ kind: "call", functionName: "math.max" });
+    expect(graphData.nodes?.[1]?.properties?.sourceAExpressionAst).toMatchObject({ kind: "reference", name: "daily_trend" });
+    expect(graphData.nodes?.[0]?.properties).not.toHaveProperty("controlSchema");
+    expect(graphData.nodes?.[0]?.properties).not.toHaveProperty("expressionSchema");
+
+    const roundTripped = fromLogicFlowGraphData(graphData);
+    expect(roundTripped.nodes.find((node) => node.id === "time-filter")?.text).toContain("星期过滤");
+    expect(roundTripped.nodes.find((node) => node.id === "session-filter")?.text).toContain("盘前");
+    expect(roundTripped.nodes.find((node) => node.id === "limit-order")?.properties.limitPriceExpressionAst).toMatchObject({ kind: "call" });
+    expect(roundTripped.nodes.find((node) => node.id === "collection-stat")?.properties.sourceAExpressionAst).toMatchObject({ kind: "reference" });
   });
 
   it("bridges control flow across hidden template getter variables without persisting synthetic edges", () => {

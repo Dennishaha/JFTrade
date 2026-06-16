@@ -35,6 +35,10 @@ import {
     getStrategyBlockKind,
     type StrategyAuthoringTemplate,
 } from "../features/strategyVisualBuilder";
+import {
+    assessPineBlockSupport,
+    summarizePineBlockSupport,
+} from "../features/strategyVisualBuilderSupport";
 
 const props = withDefaults(defineProps<{
     entryMode?: "existing" | "new";
@@ -291,6 +295,8 @@ const {
     selectedStopLossDirection,
     selectedStopLossTimeUnit,
     selectedStopLossWindowPolicy,
+    selectedStopLossTakeProfitPercentage,
+    showsStopLossTakeProfitPercentageInput,
     selectedMacdFastPeriod,
     selectedMacdSlowPeriod,
     selectedMacdSignalPeriod,
@@ -298,7 +304,25 @@ const {
     selectedIndicatorPeriodUnit,
     showsMultiplierInput,
     selectedBollingerMultiplier,
+    showsIndicatorSourceInput,
+    selectedIndicatorSource,
+    showsIndicatorAdxSmoothingInput,
+    selectedIndicatorAdxSmoothing,
+    showsIndicatorFactorInput,
+    selectedIndicatorFactor,
+    showsIndicatorSarInputs,
+    selectedIndicatorSarStart,
+    selectedIndicatorSarIncrement,
+    selectedIndicatorSarMaximum,
+    showsIndicatorOffsetInput,
+    selectedIndicatorOffset,
+    showsIndicatorSigmaInput,
+    selectedIndicatorSigma,
+    showsIndicatorPivotBarsInput,
+    selectedIndicatorLeftBars,
+    selectedIndicatorRightBars,
     showsConditionModeInput,
+    showsSeriesConditionInputs,
     showsIndicatorTypeInput,
     showsPatternTypeInput,
     showsLookbackInput,
@@ -307,15 +331,65 @@ const {
     selectedIndicatorOperator,
     selectedIndicatorPatternType,
     selectedIndicatorLookback,
+    selectedSeriesConditionMode,
+    selectedSeriesConditionSource,
+    selectedSeriesConditionOperator,
+    selectedSeriesConditionThreshold,
+    selectedSeriesConditionLength,
+    selectedSeriesConditionEventSource,
+    selectedSeriesConditionEventOperator,
+    selectedSeriesConditionEventThreshold,
+    selectedSeriesConditionValueSource,
+    selectedSeriesConditionOccurrence,
+    showsVisualExpressionInputs,
+    showsAdvancedPineBlockInputs,
+    expressionReferenceOptions,
+    expressionSlotOptions,
+    selectedExpressionSlot,
+    selectedExpressionReference,
+    selectedExpressionField,
+    selectedExpressionOperator,
+    selectedExpressionFunction,
+    selectedExpressionLiteral,
+    selectedExpressionHistoryOffset,
+    selectedAdvancedVariableName,
+    selectedAdvancedMode,
+    selectedAdvancedDefaultValue,
+    selectedAdvancedTimeframe,
+    selectedAdvancedSource,
+    selectedAdvancedSecondarySource,
+    selectedAdvancedTertiarySource,
+    selectedAdvancedNumber,
+    selectedAdvancedExpression,
+    selectedAdvancedOption,
+    selectedAdvancedReference,
+    showsTimeFilterInputs,
+    selectedTimeFilterMode,
+    selectedTimeFilterStartHour,
+    selectedTimeFilterStartMinute,
+    selectedTimeFilterEndHour,
+    selectedTimeFilterEndMinute,
+    selectedTimeFilterDayOfWeek,
+    showsSessionFilterInputs,
+    selectedSessionFilterScope,
     showsPlaceOrderInputs,
+    selectedPlaceOrderAction,
+    selectedPlaceOrderId,
     selectedPlaceOrderSide,
     selectedPlaceOrderType,
     selectedPlaceOrderEntryPositionPolicy,
     selectedPlaceOrderQuantityMode,
     selectedPlaceOrderQuantityValue,
     selectedPlaceOrderLimitPrice,
+    selectedPlaceOrderStopPrice,
+    selectedPlaceOrderRiskAllowedDirection,
     showsPlaceOrderEntryPositionPolicyInput,
     showsPlaceOrderLimitPriceInput,
+    showsPlaceOrderStopPriceInput,
+    showsPlaceOrderQuantityInputs,
+    showsPlaceOrderSideInput,
+    showsPlaceOrderTargetIdInput,
+    showsPlaceOrderRiskDirectionInput,
 } = useStrategyVisualNodeInspector({
     visualModel: resolvedVisualModel,
     selectedVisualNode,
@@ -336,6 +410,16 @@ const overlayDeckBindings = {
     selectedIndicatorOperator,
     selectedIndicatorPatternType,
     selectedIndicatorLookback,
+    selectedSeriesConditionMode,
+    selectedSeriesConditionSource,
+    selectedSeriesConditionOperator,
+    selectedSeriesConditionThreshold,
+    selectedSeriesConditionLength,
+    selectedSeriesConditionEventSource,
+    selectedSeriesConditionEventOperator,
+    selectedSeriesConditionEventThreshold,
+    selectedSeriesConditionValueSource,
+    selectedSeriesConditionOccurrence,
     selectedIndicatorPrimaryInputNodeId,
     selectedIndicatorFastInputNodeId,
     selectedIndicatorSlowInputNodeId,
@@ -343,17 +427,57 @@ const overlayDeckBindings = {
     selectedStopLossDirection,
     selectedStopLossTimeUnit,
     selectedStopLossWindowPolicy,
+    selectedStopLossTakeProfitPercentage,
     selectedMacdFastPeriod,
     selectedMacdSlowPeriod,
     selectedMacdSignalPeriod,
     selectedBollingerMultiplier,
+    selectedIndicatorSource,
+    selectedIndicatorAdxSmoothing,
+    selectedIndicatorFactor,
+    selectedIndicatorSarStart,
+    selectedIndicatorSarIncrement,
+    selectedIndicatorSarMaximum,
+    selectedIndicatorOffset,
+    selectedIndicatorSigma,
+    selectedIndicatorLeftBars,
+    selectedIndicatorRightBars,
     selectedVisualNodeThreshold,
+    selectedPlaceOrderAction,
+    selectedPlaceOrderId,
     selectedPlaceOrderSide,
     selectedPlaceOrderType,
     selectedPlaceOrderEntryPositionPolicy,
     selectedPlaceOrderQuantityMode,
     selectedPlaceOrderQuantityValue,
     selectedPlaceOrderLimitPrice,
+    selectedPlaceOrderStopPrice,
+    selectedPlaceOrderRiskAllowedDirection,
+    selectedExpressionSlot,
+    selectedExpressionReference,
+    selectedExpressionField,
+    selectedExpressionOperator,
+    selectedExpressionFunction,
+    selectedExpressionLiteral,
+    selectedExpressionHistoryOffset,
+    selectedAdvancedVariableName,
+    selectedAdvancedMode,
+    selectedAdvancedDefaultValue,
+    selectedAdvancedTimeframe,
+    selectedAdvancedSource,
+    selectedAdvancedSecondarySource,
+    selectedAdvancedTertiarySource,
+    selectedAdvancedNumber,
+    selectedAdvancedExpression,
+    selectedAdvancedOption,
+    selectedAdvancedReference,
+    selectedTimeFilterMode,
+    selectedTimeFilterStartHour,
+    selectedTimeFilterStartMinute,
+    selectedTimeFilterEndHour,
+    selectedTimeFilterEndMinute,
+    selectedTimeFilterDayOfWeek,
+    selectedSessionFilterScope,
 } as const;
 
 const codeWorkbenchBindings = {
@@ -586,6 +710,30 @@ const pineAnalyzeMetadataCount = computed(
         pineAnalyzeObjectOperations.value.length +
         pineAnalyzeVisuals.value.length,
 );
+
+const selectedVisualSupport = computed(() =>
+    selectedVisualNode.value === null
+        ? null
+        : assessPineBlockSupport(selectedVisualNode.value),
+);
+
+const visualSupportSummary = computed(() =>
+    summarizePineBlockSupport(resolvedVisualModel.value),
+);
+
+const visualSupportSummaryText = computed(() => {
+    const parts: string[] = [];
+    if (visualSupportSummary.value.unsupportedConfigCount > 0) {
+        parts.push(`${visualSupportSummary.value.unsupportedConfigCount} 个不支持配置`);
+    }
+    if (visualSupportSummary.value.snippetOnlyCount > 0) {
+        parts.push(`${visualSupportSummary.value.snippetOnlyCount} 个 Pine 片段`);
+    }
+    if (visualSupportSummary.value.warningCount > 0) {
+        parts.push(`${visualSupportSummary.value.warningCount} 个提示`);
+    }
+    return parts.join(" · ");
+});
 
 const hasUnsavedDefinitionChanges = computed(() => {
     if (isTemplatePickerEntry.value) {
@@ -1257,6 +1405,13 @@ const {
                             映射 {{ visualNodeMappingQuality.mappableCount }}/{{ visualNodeMappingQuality.total }}
                         </span>
                         <span class="strategy-stage__toolbar-status-message">{{ visualSyncMessage }}</span>
+                        <span
+                            v-if="visualSupportSummaryText !== ''"
+                            class="strategy-stage__toolbar-status-support"
+                            data-testid="strategy-visual-support-summary"
+                        >
+                            {{ visualSupportSummaryText }}
+                        </span>
                     </div>
                 </div>
             </div>
@@ -1295,11 +1450,25 @@ const {
                 :selected-strategy-template-id="selectedStrategyTemplateId"
                 :selected-visual-block-description="selectedVisualBlock?.description ?? '调整图块参数并同步 Pine。'"
                 :selected-visual-block-label="selectedVisualBlock?.label ?? (selectedVisualNode?.text ?? '')"
+                :selected-visual-support="selectedVisualSupport"
                 :selected-visual-kind="selectedVisualKind" :selected-visual-node="selectedVisualNode"
+                :expression-slot-options="expressionSlotOptions"
+                :expression-reference-options="expressionReferenceOptions"
                 :show-basic-info-section="!isBasicInfoSectionCollapsed"
                 :show-block-details-section="selectedVisualNode !== null && !isBlockInspectorCollapsed"
                 :show-templates-section="!isTemplatesSectionCollapsed" :shows-code-input="showsCodeInput"
+                :shows-visual-expression-inputs="showsVisualExpressionInputs"
+                :shows-advanced-pine-block-inputs="showsAdvancedPineBlockInputs"
+                :shows-time-filter-inputs="showsTimeFilterInputs"
+                :shows-session-filter-inputs="showsSessionFilterInputs"
                 :shows-macd-inputs="showsMacdInputs" :shows-technical-indicator-macd-inputs="showsTechnicalIndicatorMacdInputs" :shows-multiplier-input="showsMultiplierInput"
+                :shows-indicator-source-input="showsIndicatorSourceInput"
+                :shows-indicator-adx-smoothing-input="showsIndicatorAdxSmoothingInput"
+                :shows-indicator-factor-input="showsIndicatorFactorInput"
+                :shows-indicator-sar-inputs="showsIndicatorSarInputs"
+                :shows-indicator-offset-input="showsIndicatorOffsetInput"
+                :shows-indicator-sigma-input="showsIndicatorSigmaInput"
+                :shows-indicator-pivot-bars-input="showsIndicatorPivotBarsInput"
                 :shows-moving-average-type-input="showsMovingAverageTypeInput"
                 :shows-indicator-variable-name-input="showsIndicatorVariableNameInput"
                 :indicator-variable-name-placeholder="indicatorVariableNamePlaceholder"
@@ -1309,10 +1478,17 @@ const {
                 :indicator-getter-options="indicatorGetterOptions"
                 :shows-period-input="showsPeriodInput" :shows-threshold-input="showsThresholdInput"
                 :shows-condition-mode-input="showsConditionModeInput" :shows-indicator-type-input="showsIndicatorTypeInput"
+                :shows-series-condition-inputs="showsSeriesConditionInputs"
                 :shows-pattern-type-input="showsPatternTypeInput" :shows-lookback-input="showsLookbackInput"
                 :shows-place-order-inputs="showsPlaceOrderInputs"
                 :shows-place-order-entry-position-policy-input="showsPlaceOrderEntryPositionPolicyInput"
                 :shows-place-order-limit-price-input="showsPlaceOrderLimitPriceInput"
+                :shows-place-order-stop-price-input="showsPlaceOrderStopPriceInput"
+                :shows-place-order-quantity-inputs="showsPlaceOrderQuantityInputs"
+                :shows-place-order-side-input="showsPlaceOrderSideInput"
+                :shows-place-order-target-id-input="showsPlaceOrderTargetIdInput"
+                :shows-place-order-risk-direction-input="showsPlaceOrderRiskDirectionInput"
+                :shows-stop-loss-take-profit-percentage-input="showsStopLossTakeProfitPercentageInput"
                 :strategy-templates="strategyTemplates" :updated-at-text="formatTimestamp(definitionForm.updatedAt)"
                 @delete-selected-node="deleteSelectedVisualNode" @select-template="createNewDefinitionDraft"
                 @close-block-details="isBlockInspectorCollapsed = true" />
@@ -1708,6 +1884,17 @@ const {
     border-radius: 999px;
     background: color-mix(in srgb, var(--tv-accent) 14%, transparent);
     color: color-mix(in srgb, var(--tv-accent) 70%, var(--tv-text));
+    white-space: nowrap;
+}
+
+.strategy-stage__toolbar-status-support {
+    flex: 0 0 auto;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 0.12em 0.48em;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--card-red-surface) 36%, transparent);
+    color: color-mix(in srgb, var(--card-red-text) 82%, var(--tv-text));
     white-space: nowrap;
 }
 

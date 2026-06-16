@@ -309,8 +309,17 @@ function isStrategyBlockKind(value: string): value is StrategyBlockKind {
     case "onInit":
     case "onKLineClosed":
     case "pineSnippet":
+    case "strategyInput":
+    case "derivedSeries":
+    case "mtfSeries":
+    case "stateVariable":
+    case "stateUpdate":
+    case "collectionStat":
+    case "timeFilter":
+    case "sessionFilter":
     case "getTechnicalIndicator":
     case "technicalIndicatorCondition":
+    case "seriesCondition":
     case "ifCloseAbove":
     case "ifCloseBelow":
     case "log":

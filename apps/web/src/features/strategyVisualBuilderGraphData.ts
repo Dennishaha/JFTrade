@@ -7,6 +7,14 @@ import type {
 import {
   getStrategyBlockDefinition,
   getStrategyBlockKind,
+  nextCollectionStatNodeText,
+  nextDerivedSeriesNodeText,
+  nextMtfSeriesNodeText,
+  nextSessionFilterNodeText,
+  nextStateUpdateNodeText,
+  nextStateVariableNodeText,
+  nextStrategyInputNodeText,
+  nextTimeFilterNodeText,
   type StrategyBlockKind,
 } from "./strategyVisualBuilderCatalog";
 import {
@@ -231,6 +239,30 @@ function normalizeNodeText(
 
   if (blockKind === "technicalIndicatorCondition") {
     return nextTechnicalIndicatorConditionNodeText(properties);
+  }
+  if (blockKind === "strategyInput") {
+    return nextStrategyInputNodeText(properties);
+  }
+  if (blockKind === "derivedSeries") {
+    return nextDerivedSeriesNodeText(properties);
+  }
+  if (blockKind === "mtfSeries") {
+    return nextMtfSeriesNodeText(properties);
+  }
+  if (blockKind === "stateVariable") {
+    return nextStateVariableNodeText(properties);
+  }
+  if (blockKind === "stateUpdate") {
+    return nextStateUpdateNodeText(properties);
+  }
+  if (blockKind === "collectionStat") {
+    return nextCollectionStatNodeText(properties);
+  }
+  if (blockKind === "timeFilter") {
+    return nextTimeFilterNodeText(properties);
+  }
+  if (blockKind === "sessionFilter") {
+    return nextSessionFilterNodeText(properties);
   }
 
   return getStrategyBlockDefinition(blockKind)?.text ?? "";

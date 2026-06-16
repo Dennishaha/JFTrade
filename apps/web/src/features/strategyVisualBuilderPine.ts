@@ -6,8 +6,19 @@ import type {
 
 import {
   getStrategyBlockKind,
+  normalizeCollectionStatBlockProperties,
+  normalizeDerivedSeriesBlockProperties,
+  normalizeMtfSeriesBlockProperties,
+  normalizeSeriesConditionBlockProperties,
+  normalizeSessionFilterBlockProperties,
+  normalizeStateUpdateBlockProperties,
+  normalizeStateVariableBlockProperties,
   normalizeStopLossBlockProperties,
+  normalizeStrategyInputBlockProperties,
+  normalizeTimeFilterBlockProperties,
+  type StrategySeriesSource,
 } from "./strategyVisualBuilderCatalog";
+import { renderVisualExpressionToPine } from "./strategyVisualBuilderExpressions";
 import {
   isStrategyVisualControlEdge,
   isStrategyVisualDataEdge,
@@ -28,6 +39,9 @@ import {
   normalizeEntryPositionPolicy,
   normalizeMessage,
   normalizeOrderSide,
+  normalizeOrderType,
+  normalizePineOrderAction,
+  normalizePineRiskAllowEntryDirection,
   normalizeQuantityModeForSide,
   normalizeThreshold,
 } from "./strategyVisualBuilderScriptSupport";
@@ -70,6 +84,13 @@ export function buildStrategyPineFromVisualModel(
     "//@version=6",
     `strategy(${toPineStringLiteral(sanitizeMetadataValue(context.name, "未命名策略"))}, overlay=true, default_qty_type=strategy.percent_of_equity, default_qty_value=10)`,
   ];
+
+  const inputLines = sourceModel.nodes
+    .filter((node) => getStrategyBlockKind(node) === "strategyInput")
+    .flatMap((node) => renderStrategyInputDeclaration(node, 0));
+  if (inputLines.length > 0) {
+    lines.push("", ...inputLines);
+  }
 
   const initRoots = sourceModel.nodes.filter(
     (node) => getStrategyBlockKind(node) === "onInit",
@@ -209,8 +230,26 @@ function renderNode(
       );
     case "getTechnicalIndicator":
       return renderGetTechnicalIndicatorNode(node, state, depth, visited);
+    case "strategyInput":
+      return renderControlChildren(node.id, state, depth, visited);
+    case "derivedSeries":
+      return renderLinearStatement(node, state, depth, visited, buildDerivedSeriesStatement(node));
+    case "mtfSeries":
+      return renderLinearStatement(node, state, depth, visited, buildMtfSeriesStatement(node));
+    case "stateVariable":
+      return renderLinearStatement(node, state, depth, visited, buildStateVariableStatement(node));
+    case "stateUpdate":
+      return renderLinearStatement(node, state, depth, visited, buildStateUpdateStatement(node));
+    case "collectionStat":
+      return renderLinearStatement(node, state, depth, visited, buildCollectionStatStatement(node));
+    case "timeFilter":
+      return renderTimeFilterNode(node, state, depth, visited);
+    case "sessionFilter":
+      return renderSessionFilterNode(node, state, depth, visited);
     case "technicalIndicatorCondition":
       return renderTechnicalIndicatorConditionNode(node, state, depth, visited);
+    case "seriesCondition":
+      return renderSeriesConditionNode(node, state, depth, visited);
     case "ifCloseAbove":
     case "ifCloseBelow":
       return renderCloseConditionNode(node, state, depth, visited, kind);
@@ -234,6 +273,251 @@ function renderNode(
         visited,
         `log.info(${toPineStringLiteral(node.text || "未识别图块")})`,
       );
+  }
+}
+
+function renderStrategyInputDeclaration(
+  node: StrategyVisualNodeDocument,
+  depth: number,
+): string[] {
+  const properties = normalizeStrategyInputBlockProperties(node.properties ?? {});
+  return [
+    ...buildStrategyFlowNodeAnnotation(node, depth, { variableName: properties.variableName ?? "input_value" }),
+    `${indent(depth)}${properties.variableName} = ${buildStrategyInputExpression(properties)}`,
+  ];
+}
+
+function buildStrategyInputExpression(
+  properties: ReturnType<typeof normalizeStrategyInputBlockProperties>,
+): string {
+  const title = toPineStringLiteral(properties.title ?? properties.variableName ?? "Input");
+  switch (properties.inputType) {
+    case "float":
+      return `input.float(defval=${formatPineValue(properties.defaultValue)}, title=${title})`;
+    case "source":
+      return `input.source(${pineIndicatorSource(String(properties.defaultValue ?? "close"))}, ${title})`;
+    case "timeframe":
+      return `input.timeframe(${toPineStringLiteral(String(properties.defaultValue ?? "D"))}, ${title})`;
+    case "time":
+      return `input.time(${formatPineValue(properties.defaultValue)}, ${title})`;
+    case "color":
+      return `input.color(${formatPineValue(properties.defaultValue)}, ${title})`;
+    case "int":
+    default:
+      return `input.int(${formatPineValue(properties.defaultValue)}, ${title})`;
+  }
+}
+
+function buildDerivedSeriesStatement(node: StrategyVisualNodeDocument): string {
+  const properties = normalizeDerivedSeriesBlockProperties(node.properties ?? {});
+  return `${properties.variableName} = ${buildDerivedSeriesExpression(properties)}`;
+}
+
+function buildDerivedSeriesExpression(
+  properties: ReturnType<typeof normalizeDerivedSeriesBlockProperties>,
+): string {
+  const source = pineSeriesSource(properties.source ?? "close");
+  switch (properties.mode) {
+    case "nz":
+      return `nz(${renderVisualExpressionToPine(properties.sourceExpressionAst, source)}, ${renderVisualExpressionToPine(properties.fallbackExpressionAst, formatNumber(properties.fallbackValue ?? 0))})`;
+    case "math":
+      if (properties.mathFunction === "min" || properties.mathFunction === "max") {
+        return `math.${properties.mathFunction}(${renderVisualExpressionToPine(properties.leftExpressionAst, properties.leftExpression ?? "close")}, ${renderVisualExpressionToPine(properties.rightExpressionAst, properties.rightExpression ?? "open")})`;
+      }
+      return `math.${properties.mathFunction ?? "abs"}(${renderVisualExpressionToPine(properties.leftExpressionAst, properties.leftExpression ?? "close")})`;
+    case "arithmetic":
+      return `(${renderVisualExpressionToPine(properties.leftExpressionAst, properties.leftExpression ?? "close")} ${properties.operator ?? "-"} ${renderVisualExpressionToPine(properties.rightExpressionAst, properties.rightExpression ?? "open")})`;
+    case "cross":
+      return `ta.${properties.crossFunction ?? "crossover"}(${renderVisualExpressionToPine(properties.leftExpressionAst, properties.leftExpression ?? "close")}, ${renderVisualExpressionToPine(properties.rightExpressionAst, properties.rightExpression ?? "open")})`;
+    case "history":
+    default:
+      return `${renderVisualExpressionToPine(properties.sourceExpressionAst, source)}[${properties.historyOffset ?? 1}]`;
+  }
+}
+
+function buildMtfSeriesStatement(node: StrategyVisualNodeDocument): string {
+  const properties = normalizeMtfSeriesBlockProperties(node.properties ?? {});
+  const expression = buildMtfInnerExpression(properties);
+  return `${properties.variableName} = request.security(syminfo.tickerid, ${toPineStringLiteral(properties.timeframe ?? "D")}, ${expression})`;
+}
+
+function buildMtfInnerExpression(
+  properties: ReturnType<typeof normalizeMtfSeriesBlockProperties>,
+): string {
+  const source = pineSeriesSource(properties.source ?? "close");
+  switch (properties.expressionType) {
+    case "history":
+      return `${source}[${properties.historyOffset ?? 1}]`;
+    case "indicator":
+      return appendMtfField(
+        properties.indicatorExpressionAst === undefined
+          ? properties.indicatorExpression ?? "ta.ema(close, 20)"
+          : renderVisualExpressionToPine(properties.indicatorExpressionAst, properties.indicatorExpression ?? "ta.ema(close, 20)"),
+        properties.mtfField,
+      );
+    case "source":
+    default:
+      return source;
+  }
+}
+
+function buildStateVariableStatement(node: StrategyVisualNodeDocument): string {
+  const properties = normalizeStateVariableBlockProperties(node.properties ?? {});
+  return `var ${properties.variableName} = ${formatPineValue(properties.initialValue)}`;
+}
+
+function buildStateUpdateStatement(node: StrategyVisualNodeDocument): string {
+  const properties = normalizeStateUpdateBlockProperties(node.properties ?? {});
+  const expression = properties.expressionAst === undefined
+    ? properties.expression ?? "close > open"
+    : renderVisualExpressionToPine(properties.expressionAst, properties.expression ?? "close > open");
+  return `${properties.variableName} := ${expression}`;
+}
+
+function buildCollectionStatStatement(node: StrategyVisualNodeDocument): string {
+  const properties = normalizeCollectionStatBlockProperties(node.properties ?? {});
+  const values = [
+    renderVisualExpressionToPine(properties.sourceAExpressionAst, pineSeriesSource(properties.sourceA ?? "close")),
+    renderVisualExpressionToPine(properties.sourceBExpressionAst, pineSeriesSource(properties.sourceB ?? "open")),
+    renderVisualExpressionToPine(properties.sourceCExpressionAst, pineSeriesSource(properties.sourceC ?? "high")),
+  ].join(", ");
+  const receiver = `array.from(${values})`;
+  if (properties.statFunction === "percentile") {
+    return `${properties.variableName} = ${receiver}.percentile_linear_interpolation(${formatNumber(properties.percentile ?? 50)})`;
+  }
+  return `${properties.variableName} = ${receiver}.${properties.statFunction ?? "median"}()`;
+}
+
+function renderTimeFilterNode(
+  node: StrategyVisualNodeDocument,
+  state: RenderState,
+  depth: number,
+  visited: Set<string>,
+): string[] {
+  return renderConditionNode(
+    node,
+    state,
+    depth,
+    visited,
+    buildTimeFilterExpression(node.properties ?? {}),
+    "时间过滤命中但未配置动作",
+  );
+}
+
+function renderSessionFilterNode(
+  node: StrategyVisualNodeDocument,
+  state: RenderState,
+  depth: number,
+  visited: Set<string>,
+): string[] {
+  return renderConditionNode(
+    node,
+    state,
+    depth,
+    visited,
+    buildSessionFilterExpression(node.properties ?? {}),
+    "交易时段过滤命中但未配置动作",
+  );
+}
+
+function renderConditionNode(
+  node: StrategyVisualNodeDocument,
+  state: RenderState,
+  depth: number,
+  visited: Set<string>,
+  expression: string,
+  emptyMessage: string,
+): string[] {
+  const trueBody = renderControlChildren(node.id, state, depth + 1, new Set(visited), "true");
+  const falseBody = renderControlChildren(node.id, state, depth + 1, new Set(visited), "false");
+  return [
+    ...buildStrategyFlowNodeAnnotation(node, depth),
+    `${indent(depth)}if ${expression}`,
+    ...(trueBody.length > 0 ? trueBody : [`${indent(depth + 1)}log.info(${toPineStringLiteral(emptyMessage)})`]),
+    ...(falseBody.length > 0 ? [`${indent(depth)}else`, ...falseBody] : []),
+  ];
+}
+
+function buildTimeFilterExpression(rawProperties: Record<string, unknown>): string {
+  const properties = normalizeTimeFilterBlockProperties(rawProperties);
+  const startMinute = (properties.startHour ?? 9) * 60 + (properties.startMinute ?? 30);
+  const endMinute = (properties.endHour ?? 16) * 60 + (properties.endMinute ?? 0);
+  const currentMinute = "(hour * 60 + minute)";
+  switch (properties.mode) {
+    case "after":
+      return `${currentMinute} >= ${formatNumber(startMinute)}`;
+    case "before":
+      return `${currentMinute} < ${formatNumber(endMinute)}`;
+    case "dayOfWeek":
+      return `dayofweek == ${formatNumber(properties.dayOfWeek ?? 2)}`;
+    case "between":
+    default:
+      return `${currentMinute} >= ${formatNumber(startMinute)} and ${currentMinute} < ${formatNumber(endMinute)}`;
+  }
+}
+
+function buildSessionFilterExpression(rawProperties: Record<string, unknown>): string {
+  const properties = normalizeSessionFilterBlockProperties(rawProperties);
+  switch (properties.scope) {
+    case "premarket":
+      return "session.ispremarket";
+    case "postmarket":
+      return "session.ispostmarket";
+    case "market":
+    default:
+      return "session.ismarket";
+  }
+}
+
+function appendMtfField(expression: string, field: string | undefined): string {
+  if (field === undefined || field.trim() === "") {
+    return expression;
+  }
+  return `${expression}.${field}`;
+}
+
+function renderSeriesConditionNode(
+  node: StrategyVisualNodeDocument,
+  state: RenderState,
+  depth: number,
+  visited: Set<string>,
+): string[] {
+  const expression = buildSeriesConditionExpression(node.properties ?? {});
+  const trueBody = renderControlChildren(node.id, state, depth + 1, new Set(visited), "true");
+  const falseBody = renderControlChildren(node.id, state, depth + 1, new Set(visited), "false");
+
+  return [
+    ...buildStrategyFlowNodeAnnotation(node, depth),
+    `${indent(depth)}if ${expression}`,
+    ...(trueBody.length > 0 ? trueBody : [`${indent(depth + 1)}log.info(${toPineStringLiteral("序列条件命中但未配置动作")})`]),
+    ...(falseBody.length > 0
+      ? [`${indent(depth)}else`, ...falseBody]
+      : []),
+  ];
+}
+
+function buildSeriesConditionExpression(rawProperties: Record<string, unknown>): string {
+  const properties = normalizeSeriesConditionBlockProperties(rawProperties);
+  const source = renderVisualExpressionToPine(properties.sourceExpressionAst, pineSeriesSource(properties.source ?? "close"));
+  const operator = properties.operator ?? ">";
+  const threshold = renderVisualExpressionToPine(properties.rightExpressionAst, formatNumber(properties.threshold ?? 0));
+  const leftExpression = renderVisualExpressionToPine(properties.leftExpressionAst, source);
+  const eventExpression = renderVisualExpressionToPine(
+    properties.eventExpressionAst,
+    `${pineSeriesSource(properties.eventSource ?? "close")} ${properties.eventOperator ?? ">"} ${formatNumber(properties.eventThreshold ?? 520)}`,
+  );
+  switch (properties.mode) {
+    case "rising":
+      return `rising(${source}, ${properties.length ?? 3})`;
+    case "falling":
+      return `falling(${source}, ${properties.length ?? 3})`;
+    case "barssince":
+      return `barssince(${eventExpression}) < ${properties.length ?? 3}`;
+    case "valuewhen":
+      return `valuewhen(${eventExpression}, ${renderVisualExpressionToPine(properties.valueExpressionAst, pineSeriesSource(properties.valueSource ?? "close"))}, ${properties.occurrence ?? 0}) ${operator} ${threshold}`;
+    case "compare":
+    default:
+      return `${leftExpression} ${operator} ${threshold}`;
   }
 }
 
@@ -492,6 +776,12 @@ function numericConditionTargetExpression(input: IndicatorInputBinding): string 
       return `${variableName}.histogram`;
     case "kdj":
       return `${variableName}.j`;
+    case "dmi":
+      return `${variableName}.adx`;
+    case "supertrend":
+      return `${variableName}.direction`;
+    case "keltner":
+      return `${variableName}.upper`;
     default:
       return variableName;
   }
@@ -517,32 +807,103 @@ function controlOutgoingEdges(
 }
 
 function buildIndicatorExpression(properties: GetTechnicalIndicatorBlockProperties): string {
+  const wrapTimeframe = (expression: string): string =>
+    wrapIndicatorTimeframe(properties, expression);
+
   switch (properties.indicatorType) {
     case "movingAverage": {
       const movingAverageType = properties.movingAverageType ?? "MA";
       const windowSize = properties.windowSize ?? properties.period ?? 20;
       const expression = buildMovingAverageExpression(movingAverageType, windowSize, properties.source ?? "close");
-      const timeframe = pineTimeframeForPeriodUnit(properties.periodUnit ?? "bar");
-      return timeframe === null
-        ? expression
-        : `request.security(syminfo.tickerid, ${toPineStringLiteral(timeframe)}, ${expression})`;
+      return wrapTimeframe(expression);
     }
     case "macd":
-      return `ta.macd(close, ${properties.fastPeriod ?? 12}, ${properties.slowPeriod ?? 26}, ${properties.signalPeriod ?? 9})`;
+      return wrapTimeframe(`ta.macd(close, ${properties.fastPeriod ?? 12}, ${properties.slowPeriod ?? 26}, ${properties.signalPeriod ?? 9})`);
     case "kdj":
-      return `ta.rsi(close, ${properties.period ?? 9})`;
+      return `kdj(${properties.period ?? 9}, ${properties.m1 ?? 3}, ${properties.m2 ?? 3})`;
     case "bollinger":
-      return `ta.sma(close, ${properties.period ?? 20})`;
+      return wrapTimeframe(`bollinger(${properties.period ?? 20}, ${properties.multiplier ?? 2})`);
     case "atr":
-      return `ta.atr(${properties.period ?? 14})`;
+      return wrapTimeframe(`ta.atr(${properties.period ?? 14})`);
     case "cci":
-      return `ta.cci(close, ${properties.period ?? 20})`;
+      return wrapTimeframe(`cci(${pineIndicatorSource(properties.source ?? "hlc3")}, ${properties.period ?? 20})`);
     case "williamsR":
-      return `ta.wpr(${properties.period ?? 14})`;
+      return `williams_r(${properties.period ?? 14})`;
+    case "stdev":
+      return wrapTimeframe(`stdev(${pineIndicatorSource(properties.source ?? "close")}, ${properties.period ?? 20})`);
+    case "variance":
+      return wrapTimeframe(`variance(${pineIndicatorSource(properties.source ?? "close")}, ${properties.period ?? 20})`);
+    case "highest":
+      return wrapTimeframe(`highest(${pineIndicatorSource(properties.source ?? "high")}, ${properties.period ?? 20})`);
+    case "lowest":
+      return wrapTimeframe(`lowest(${pineIndicatorSource(properties.source ?? "low")}, ${properties.period ?? 20})`);
+    case "sum":
+      return wrapTimeframe(`sum(${pineIndicatorSource(properties.source ?? "volume")}, ${properties.period ?? 20})`);
+    case "vwap":
+      return `vwap(${pineIndicatorSource(properties.source ?? "hlc3")})`;
+    case "mfi":
+      return wrapTimeframe(`mfi(${pineIndicatorSource(properties.source ?? "hlc3")}, ${properties.period ?? 14})`);
+    case "dmi":
+      return `dmi(${properties.period ?? 14}, ${properties.adxSmoothing ?? 14})`;
+    case "supertrend":
+      return wrapTimeframe(`supertrend(${properties.factor ?? 3}, ${properties.period ?? 10})`);
+    case "sar":
+      return `sar(${properties.start ?? 0.02}, ${properties.increment ?? 0.02}, ${properties.maximum ?? 0.2})`;
+    case "linreg":
+      return wrapTimeframe(`linreg(${pineIndicatorSource(properties.source ?? "close")}, ${properties.period ?? 5}, ${properties.offset ?? 0})`);
+    case "obv":
+      return wrapTimeframe(`obv(${pineIndicatorSource(properties.source ?? "close")})`);
+    case "pivotHigh":
+      return wrapTimeframe(`pivothigh(${pineIndicatorSource(properties.source ?? "high")}, ${properties.leftBars ?? 2}, ${properties.rightBars ?? 2})`);
+    case "pivotLow":
+      return wrapTimeframe(`pivotlow(${pineIndicatorSource(properties.source ?? "low")}, ${properties.leftBars ?? 2}, ${properties.rightBars ?? 2})`);
+    case "keltner":
+      return wrapTimeframe(`kc(${pineIndicatorSource(properties.source ?? "close")}, ${properties.period ?? 20}, ${properties.multiplier ?? 1.5}, true)`);
+    case "alma":
+      return wrapTimeframe(`alma(${pineIndicatorSource(properties.source ?? "close")}, ${properties.period ?? 20}, ${properties.offset ?? 0.85}, ${properties.sigma ?? 6})`);
     case "rsi":
     default:
-      return `ta.rsi(close, ${properties.period ?? 14})`;
+      return wrapTimeframe(`ta.rsi(close, ${properties.period ?? 14})`);
   }
+}
+
+function wrapIndicatorTimeframe(
+  properties: GetTechnicalIndicatorBlockProperties,
+  expression: string,
+): string {
+  if (!supportsIndicatorRequestSecurity(properties.indicatorType)) {
+    return expression;
+  }
+  const timeframe = pineTimeframeForPeriodUnit(properties.periodUnit ?? "bar");
+  return timeframe === null
+    ? expression
+    : `request.security(syminfo.tickerid, ${toPineStringLiteral(timeframe)}, ${expression})`;
+}
+
+function supportsIndicatorRequestSecurity(
+  indicatorType: GetTechnicalIndicatorBlockProperties["indicatorType"],
+): boolean {
+  return [
+    "movingAverage",
+    "rsi",
+    "macd",
+    "atr",
+    "cci",
+    "bollinger",
+    "stdev",
+    "variance",
+    "highest",
+    "lowest",
+    "sum",
+    "mfi",
+    "supertrend",
+    "linreg",
+    "obv",
+    "pivotHigh",
+    "pivotLow",
+    "keltner",
+    "alma",
+  ].includes(indicatorType);
 }
 
 function buildMovingAverageExpression(
@@ -573,16 +934,27 @@ function buildMovingAverageExpression(
 }
 
 function pineMovingAverageSource(source: string): string {
+  return pineIndicatorSource(source);
+}
+
+function pineIndicatorSource(source: string): string {
   switch (source) {
     case "open":
     case "high":
     case "low":
     case "volume":
+    case "hl2":
+    case "hlc3":
+    case "ohlc4":
       return source;
     case "close":
     default:
       return "close";
   }
+}
+
+function pineSeriesSource(source: StrategySeriesSource): string {
+  return pineIndicatorSource(source);
 }
 
 function pineTimeframeForPeriodUnit(periodUnit: string): string | null {
@@ -616,31 +988,78 @@ function readIndicatorVariableName(
 
 function buildOrderStatement(node: StrategyVisualNodeDocument): string {
   const side = normalizeOrderSide(node.properties.side);
+  const action = inferPineOrderAction(node.properties.orderAction, side);
+  const orderId = normalizePineOrderId(node.properties.orderId);
+  if (action === "closeAll") {
+    return "strategy.close_all()";
+  }
+  if (action === "cancel") {
+    return `strategy.cancel(${toPineStringLiteral(orderId ?? "Long")})`;
+  }
+  if (action === "cancelAll") {
+    return "strategy.cancel_all()";
+  }
+  if (action === "riskAllowEntryIn") {
+    const direction = normalizePineRiskAllowEntryDirection(node.properties.riskAllowedDirection);
+    const pineDirection = direction === "long"
+      ? "strategy.direction.long"
+      : direction === "short"
+        ? "strategy.direction.short"
+        : "strategy.direction.all";
+    return `strategy.risk.allow_entry_in(${pineDirection})`;
+  }
+
   const quantityMode = normalizeQuantityModeForSide(node.properties.quantityMode, side);
   const quantityValue = normalizeDecimal(node.properties.quantityValue, 100);
-  const quantityOption = `qty=${buildPineQuantityExpression(quantityMode, quantityValue)}`;
-  const orderType = String(node.properties.orderType ?? "MARKET").toUpperCase();
+  const quantityArgumentName = quantityMode === "equityPercent"
+    ? "qty_percent"
+    : "qty";
+  const quantityOption = quantityArgumentName === "qty_percent"
+    ? `qty_percent=${formatNumber(quantityValue)}`
+    : `qty=${buildPineQuantityExpression(quantityMode, quantityValue)}`;
+  const orderType = normalizeOrderType(node.properties.orderType);
   const limitPrice = normalizeDecimal(node.properties.limitPrice, 0);
-  const limitOption = orderType === "LIMIT" && limitPrice > 0
-    ? `, limit=${formatNumber(limitPrice)}`
+  const stopPrice = normalizeDecimal(node.properties.stopPrice, 0);
+  const limitOption = orderType === "LIMIT" && (limitPrice > 0 || node.properties.limitPriceExpressionAst !== undefined)
+    ? `, limit=${renderVisualExpressionToPine(node.properties.limitPriceExpressionAst, formatNumber(limitPrice))}`
+    : "";
+  const stopOption = stopPrice > 0 || node.properties.stopPriceExpressionAst !== undefined
+    ? `, stop=${renderVisualExpressionToPine(node.properties.stopPriceExpressionAst, formatNumber(stopPrice))}`
     : "";
 
   const entryPolicy = normalizeEntryPositionPolicy(node.properties.entryPositionPolicy);
-  const entryPolicyAnnotation = entryPolicy !== "sameDirection"
+  const entryPolicyAnnotation = action === "entry" && entryPolicy !== "sameDirection"
     ? `// @entry_policy ${entryPositionPolicyToSnakeCase(entryPolicy)}\n`
     : "";
 
-  switch (side) {
-    case "SELL":
-      return `strategy.close("Long", ${quantityOption}${limitOption})`;
-    case "SELL_SHORT":
-      return `${entryPolicyAnnotation}strategy.entry("Short", strategy.short, ${quantityOption}${limitOption})`;
-    case "BUY_COVER":
-      return `strategy.close("Short", ${quantityOption}${limitOption})`;
-    case "BUY":
-    default:
-      return `${entryPolicyAnnotation}strategy.entry("Long", strategy.long, ${quantityOption}${limitOption})`;
+  if (action === "close") {
+    const closeId = orderId ?? (side === "BUY_COVER" ? "Short" : "Long");
+    return `strategy.close(${toPineStringLiteral(closeId)}, ${quantityOption}${limitOption})`;
   }
+  const direction = side === "SELL_SHORT" || side === "SELL"
+    ? "strategy.short"
+    : "strategy.long";
+  const defaultOrderId = direction === "strategy.short" ? "Short" : "Long";
+  const functionName = action === "order" ? "strategy.order" : "strategy.entry";
+  return `${entryPolicyAnnotation}${functionName}(${toPineStringLiteral(orderId ?? defaultOrderId)}, ${direction}, ${quantityOption}${limitOption}${stopOption})`;
+}
+
+function inferPineOrderAction(
+  value: unknown,
+  side: ReturnType<typeof normalizeOrderSide>,
+): ReturnType<typeof normalizePineOrderAction> {
+  if (typeof value === "string" && value.trim() !== "") {
+    return normalizePineOrderAction(value);
+  }
+  return side === "SELL" || side === "BUY_COVER" ? "close" : "entry";
+}
+
+function normalizePineOrderId(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+  const normalized = value.replace(/\s+/g, " ").trim();
+  return normalized === "" ? null : normalized;
 }
 
 function buildPineQuantityExpression(
@@ -686,6 +1105,19 @@ function buildProtectStatements(node: StrategyVisualNodeDocument): string[] {
   }
 
   const percentage = formatNumber(properties.percentage ?? 2);
+  const quantityPercentage = properties.quantityPercentage ?? 100;
+  const quantityOption = quantityPercentage > 0 && quantityPercentage < 100
+    ? `, qty_percent=${formatNumber(quantityPercentage)}`
+    : "";
+  const explicitStopPrice = properties.stopPriceExpressionAst === undefined
+    ? null
+    : renderVisualExpressionToPine(properties.stopPriceExpressionAst, "close");
+  const explicitTakeProfitPrice = properties.takeProfitPriceExpressionAst === undefined
+    ? null
+    : renderVisualExpressionToPine(properties.takeProfitPriceExpressionAst, "close");
+  const explicitTrailingPrice = properties.trailingPriceExpressionAst === undefined
+    ? null
+    : renderVisualExpressionToPine(properties.trailingPriceExpressionAst, "close");
   const directions = properties.direction === "long"
     ? ["long"]
     : properties.direction === "short"
@@ -696,16 +1128,40 @@ function buildProtectStatements(node: StrategyVisualNodeDocument): string[] {
     const exitId = `${entryId} ${properties.mode ?? "stopLoss"}`;
     switch (properties.mode) {
       case "takeProfit":
+        if (explicitTakeProfitPrice !== null) {
+          return `strategy.exit(${toPineStringLiteral(exitId)}, ${toPineStringLiteral(entryId)}, limit=${explicitTakeProfitPrice}${quantityOption})`;
+        }
         return direction === "short"
-          ? `strategy.exit(${toPineStringLiteral(exitId)}, ${toPineStringLiteral(entryId)}, limit=close * (1 - ${percentage} / 100))`
-          : `strategy.exit(${toPineStringLiteral(exitId)}, ${toPineStringLiteral(entryId)}, limit=close * (1 + ${percentage} / 100))`;
+          ? `strategy.exit(${toPineStringLiteral(exitId)}, ${toPineStringLiteral(entryId)}, limit=close * (1 - ${percentage} / 100)${quantityOption})`
+          : `strategy.exit(${toPineStringLiteral(exitId)}, ${toPineStringLiteral(entryId)}, limit=close * (1 + ${percentage} / 100)${quantityOption})`;
       case "trailingStop":
-        return `strategy.exit(${toPineStringLiteral(exitId)}, ${toPineStringLiteral(entryId)}, trail_points=close * ${percentage} / 100, trail_offset=close * ${percentage} / 100)`;
+        if (explicitTrailingPrice !== null) {
+          return `strategy.exit(${toPineStringLiteral(exitId)}, ${toPineStringLiteral(entryId)}, trail_points=${explicitTrailingPrice}, trail_offset=${explicitTrailingPrice}${quantityOption})`;
+        }
+        return `strategy.exit(${toPineStringLiteral(exitId)}, ${toPineStringLiteral(entryId)}, trail_points=close * ${percentage} / 100, trail_offset=close * ${percentage} / 100${quantityOption})`;
+      case "bracketExit": {
+        const takeProfitPercentage = formatNumber(properties.takeProfitPercentage ?? 4);
+        if (explicitStopPrice !== null || explicitTakeProfitPrice !== null) {
+          const stopExpression = explicitStopPrice ?? (direction === "short"
+            ? `close * (1 + ${percentage} / 100)`
+            : `close * (1 - ${percentage} / 100)`);
+          const limitExpression = explicitTakeProfitPrice ?? (direction === "short"
+            ? `close * (1 - ${takeProfitPercentage} / 100)`
+            : `close * (1 + ${takeProfitPercentage} / 100)`);
+          return `strategy.exit(${toPineStringLiteral(exitId)}, ${toPineStringLiteral(entryId)}, stop=${stopExpression}, limit=${limitExpression}${quantityOption})`;
+        }
+        return direction === "short"
+          ? `strategy.exit(${toPineStringLiteral(exitId)}, ${toPineStringLiteral(entryId)}, stop=close * (1 + ${percentage} / 100), limit=close * (1 - ${takeProfitPercentage} / 100)${quantityOption})`
+          : `strategy.exit(${toPineStringLiteral(exitId)}, ${toPineStringLiteral(entryId)}, stop=close * (1 - ${percentage} / 100), limit=close * (1 + ${takeProfitPercentage} / 100)${quantityOption})`;
+      }
       case "stopLoss":
       default:
+        if (explicitStopPrice !== null) {
+          return `strategy.exit(${toPineStringLiteral(exitId)}, ${toPineStringLiteral(entryId)}, stop=${explicitStopPrice}${quantityOption})`;
+        }
         return direction === "short"
-          ? `strategy.exit(${toPineStringLiteral(exitId)}, ${toPineStringLiteral(entryId)}, stop=close * (1 + ${percentage} / 100))`
-          : `strategy.exit(${toPineStringLiteral(exitId)}, ${toPineStringLiteral(entryId)}, stop=close * (1 - ${percentage} / 100))`;
+          ? `strategy.exit(${toPineStringLiteral(exitId)}, ${toPineStringLiteral(entryId)}, stop=close * (1 + ${percentage} / 100)${quantityOption})`
+          : `strategy.exit(${toPineStringLiteral(exitId)}, ${toPineStringLiteral(entryId)}, stop=close * (1 - ${percentage} / 100)${quantityOption})`;
     }
   });
 }
@@ -734,6 +1190,23 @@ function toPineStringLiteral(value: string): string {
 
 function formatNumber(value: number): string {
   return Number.isFinite(value) ? String(value) : "0";
+}
+
+function formatPineValue(value: unknown): string {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return String(value);
+  }
+  if (typeof value === "boolean") {
+    return value ? "true" : "false";
+  }
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (/^(?:timestamp|color\.[A-Za-z_][A-Za-z0-9_]*|#[0-9A-Fa-f]{6}|open|high|low|close|volume|hl2|hlc3|ohlc4)\b/.test(trimmed)) {
+      return trimmed;
+    }
+    return toPineStringLiteral(trimmed);
+  }
+  return "0";
 }
 
 function indent(depth: number): string {

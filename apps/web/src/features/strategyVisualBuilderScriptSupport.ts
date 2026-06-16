@@ -245,6 +245,41 @@ export function normalizeOrderType(value: unknown): "MARKET" | "LIMIT" {
   return value === "LIMIT" ? "LIMIT" : "MARKET";
 }
 
+export type PineOrderAction =
+  | "entry"
+  | "order"
+  | "close"
+  | "closeAll"
+  | "cancel"
+  | "cancelAll"
+  | "riskAllowEntryIn";
+
+export function normalizePineOrderAction(value: unknown): PineOrderAction {
+  if (
+    value === "entry" ||
+    value === "order" ||
+    value === "close" ||
+    value === "closeAll" ||
+    value === "cancel" ||
+    value === "cancelAll" ||
+    value === "riskAllowEntryIn"
+  ) {
+    return value;
+  }
+  return "entry";
+}
+
+export type PineRiskAllowEntryDirection = "all" | "long" | "short";
+
+export function normalizePineRiskAllowEntryDirection(
+  value: unknown,
+): PineRiskAllowEntryDirection {
+  if (value === "long" || value === "short") {
+    return value;
+  }
+  return "all";
+}
+
 export type EntryPositionPolicy = "sameDirection" | "flatOnly" | "allow";
 
 export function normalizeEntryPositionPolicy(value: unknown): EntryPositionPolicy {
