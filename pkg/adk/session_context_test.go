@@ -2,8 +2,10 @@ package adk
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"testing"
 
 	adksession "google.golang.org/adk/session"
@@ -160,6 +162,95 @@ func TestAppendADKEventWithStaleRetryRefreshesSession(t *testing.T) {
 	if latest.Session.Events().Len() != 2 {
 		t.Fatalf("event count = %d, want 2", latest.Session.Events().Len())
 	}
+}
+
+func TestAppendADKEventWithStaleRetrySerializesConcurrentStaleSession(t *testing.T) {
+	ctx := context.Background()
+	service, err := NewSQLiteSessionService(t.TempDir() + "/adk-session.db")
+	if err != nil {
+		t.Fatalf("NewSQLiteSessionService: %v", err)
+	}
+	t.Cleanup(func() { _ = CloseSessionService(service) })
+	if err := MigrateSQLiteSessionService(service); err != nil {
+		t.Fatalf("MigrateSQLiteSessionService: %v", err)
+	}
+	created, err := service.Create(ctx, &adksession.CreateRequest{
+		AppName: "app", UserID: "user", SessionID: "session-concurrent-stale-retry",
+	})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	const eventCount = 12
+	var wg sync.WaitGroup
+	errs := make(chan error, eventCount)
+	for index := 0; index < eventCount; index++ {
+		index := index
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			event := adksession.NewEvent(fmt.Sprintf("inv-concurrent-%02d", index))
+			event.Author = "agent"
+			event.Content = genai.NewContentFromText(fmt.Sprintf("event-%02d", index), genai.RoleModel)
+			if err := appendADKEventWithStaleRetry(ctx, service, created.Session, event); err != nil {
+				errs <- err
+			}
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		t.Fatalf("appendADKEventWithStaleRetry concurrent error: %v", err)
+	}
+
+	latest, err := service.Get(ctx, &adksession.GetRequest{
+		AppName: "app", UserID: "user", SessionID: "session-concurrent-stale-retry",
+	})
+	if err != nil {
+		t.Fatalf("Get latest: %v", err)
+	}
+	if latest.Session.Events().Len() != eventCount {
+		t.Fatalf("event count = %d, want %d", latest.Session.Events().Len(), eventCount)
+	}
+}
+
+func TestAppendADKEventWithStaleRetryReturnsNonStaleError(t *testing.T) {
+	ctx := context.Background()
+	base := adksession.InMemoryService()
+	created, err := base.Create(ctx, &adksession.CreateRequest{
+		AppName: "app", UserID: "user", SessionID: "session-non-stale-error",
+	})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	appendErr := errors.New("disk full")
+	service := &appendErrorSessionService{Service: base, err: appendErr}
+	event := adksession.NewEvent("inv-non-stale")
+	event.Author = "agent"
+	event.Content = genai.NewContentFromText("non-stale", genai.RoleModel)
+
+	err = appendADKEventWithStaleRetry(ctx, service, created.Session, event)
+	if !errors.Is(err, appendErr) {
+		t.Fatalf("append error = %v, want %v", err, appendErr)
+	}
+	if service.getCalls != 0 {
+		t.Fatalf("Get calls = %d, want 0 for non-stale error", service.getCalls)
+	}
+}
+
+type appendErrorSessionService struct {
+	adksession.Service
+	err      error
+	getCalls int
+}
+
+func (s *appendErrorSessionService) Get(ctx context.Context, req *adksession.GetRequest) (*adksession.GetResponse, error) {
+	s.getCalls++
+	return s.Service.Get(ctx, req)
+}
+
+func (s *appendErrorSessionService) AppendEvent(context.Context, adksession.Session, *adksession.Event) error {
+	return s.err
 }
 
 func TestSessionContextProjectionTrimsOversizedToolResponses(t *testing.T) {

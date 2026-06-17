@@ -8,6 +8,7 @@ import (
 	"iter"
 	"math"
 	"strings"
+	"sync"
 	"time"
 
 	adksession "google.golang.org/adk/session"
@@ -29,7 +30,11 @@ const (
 	adkSessionHandoffSummaryKey   = "jftrade:handoff_summary"
 	adkSessionHandoffUpdatedAtKey = "jftrade:handoff_updated_at"
 	adkSessionHandoffCountKey     = "jftrade:handoff_segment_count"
+
+	adkSessionAppendMaxAttempts = 5
 )
+
+var adkSessionAppendLocks sync.Map
 
 type SessionCompactRequest struct {
 	Mode    string
@@ -993,22 +998,42 @@ func appendADKEventWithStaleRetry(ctx context.Context, service adksession.Servic
 	if session == nil {
 		return fmt.Errorf("adk session is unavailable")
 	}
-	err := service.AppendEvent(ctx, session, event)
-	if err == nil || !isStaleADKSessionError(err) {
-		return err
+
+	lock := adkSessionAppendLock(session)
+	lock.Lock()
+	defer lock.Unlock()
+
+	current := session
+	var lastErr error
+	for attempt := 0; attempt < adkSessionAppendMaxAttempts; attempt++ {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		err := service.AppendEvent(ctx, current, event)
+		if err == nil {
+			return nil
+		}
+		if !isStaleADKSessionError(err) {
+			return err
+		}
+		lastErr = err
+		latest, getErr := service.Get(ctx, &adksession.GetRequest{
+			AppName:   current.AppName(),
+			UserID:    current.UserID(),
+			SessionID: current.ID(),
+		})
+		if getErr != nil {
+			return err
+		}
+		if latest == nil || latest.Session == nil {
+			return err
+		}
+		current = latest.Session
 	}
-	latest, getErr := service.Get(ctx, &adksession.GetRequest{
-		AppName:   session.AppName(),
-		UserID:    session.UserID(),
-		SessionID: session.ID(),
-	})
-	if getErr != nil {
-		return err
+	if lastErr != nil {
+		return lastErr
 	}
-	if latest == nil || latest.Session == nil {
-		return err
-	}
-	return service.AppendEvent(ctx, latest.Session, event)
+	return fmt.Errorf("failed to append ADK event after %d attempts", adkSessionAppendMaxAttempts)
 }
 
 func isStaleADKSessionError(err error) bool {
@@ -1016,6 +1041,12 @@ func isStaleADKSessionError(err error) bool {
 		return false
 	}
 	return strings.Contains(strings.ToLower(err.Error()), "stale session error")
+}
+
+func adkSessionAppendLock(session adksession.Session) *sync.Mutex {
+	key := strings.Join([]string{session.AppName(), session.UserID(), session.ID()}, "\x00")
+	lock, _ := adkSessionAppendLocks.LoadOrStore(key, &sync.Mutex{})
+	return lock.(*sync.Mutex)
 }
 
 func filterEvents(events []*adksession.Event, after time.Time, numRecent int) []*adksession.Event {
