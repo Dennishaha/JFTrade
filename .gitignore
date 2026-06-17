@@ -29,6 +29,12 @@ apps/web/dist/
 packages/*/dist/
 internal/frontendassets/dist.zip
 internal/frontendassets/dist/
+docs/swagger/docs.go
+docs/swagger/swagger.json
+docs/swagger/swagger.yaml
+docs/reference/generated/api.md
+docs/reference/generated/types.md
+tests/fixtures/openapi-baseline.json
 
 # Local env
 .env

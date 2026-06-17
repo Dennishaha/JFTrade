@@ -70,7 +70,6 @@ echo "Installing frontend dependencies..."
 install_frontend_dependencies
 
 echo "Generating API documentation..."
-go generate ./cmd/jftrade-api
 npm run generate:docs
 
 echo "Building frontend bundle..."

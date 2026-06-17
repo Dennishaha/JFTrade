@@ -35,6 +35,9 @@ fi
 echo "Installing frontend dependencies / 安装前端依赖..."
 npm install
 
+echo "Generating Swagger docs / 生成 Swagger 文档..."
+npm run generate:openapi
+
 echo "Running frontend typecheck / 运行前端类型检查..."
 npm run typecheck
 

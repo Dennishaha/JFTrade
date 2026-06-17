@@ -14,8 +14,8 @@ import (
 
 const openapiBaselinePath = "../../../../tests/fixtures/openapi-baseline.json"
 
-// TestOpenAPISpecStable 确保 OpenAPI 规范与基线快照一致。
-// 当有意修改 API 时，运行 UPDATE_OPENAPI_SNAPSHOT=1 go test -run TestOpenAPISpecStable 更新快照。
+// TestOpenAPISpecStable 在存在本地基线快照时校验 OpenAPI 规范是否稳定。
+// 当有意修改 API 时，运行 UPDATE_OPENAPI_SNAPSHOT=1 go test -run TestOpenAPISpecStable 更新本地快照。
 func TestOpenAPISpecStable(t *testing.T) {
 	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
 	if err != nil {

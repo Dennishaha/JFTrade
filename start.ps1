@@ -73,6 +73,14 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
+Write-Host "`n=== Generating Swagger docs / 生成 Swagger 文档 ===" -ForegroundColor Cyan
+npm run generate:openapi
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Swagger generation failed / Swagger 文档生成失败" -ForegroundColor Red
+    pause
+    exit 1
+}
+
 Write-Host ("`n=== Running frontend typecheck / {0} ===" -f $cnRunTypecheck) -ForegroundColor Cyan
 npm run typecheck
 if ($LASTEXITCODE -ne 0) {

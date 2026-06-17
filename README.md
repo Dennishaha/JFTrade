@@ -54,8 +54,8 @@ go run ./cmd/jftrade api
 # Swagger 调试文档
 # Swagger UI: http://127.0.0.1:3000/swagger/
 # Swagger JSON: http://127.0.0.1:3000/swagger/doc.json
-# 重新生成 Swagger 文档
-go generate ./cmd/jftrade-api
+# 重新生成 Swagger 与参考文档（生成文件不提交入库）
+npm run generate:docs
 
 # 如需完整 bbgo 引擎，再显式启动 bbgo run
 go run ./cmd/jftrade run --config ./config/jftrade.yaml
@@ -83,9 +83,10 @@ build-release.cmd
 发布脚本会依次完成：
 
 1. 安装前端依赖。
-2. 构建 `apps/web/dist`。
-3. 暂存 `internal/frontendassets/dist/`，并生成压缩归档 `internal/frontendassets/dist.zip` 供发布标签嵌入，减少最终二进制体积。
-4. 一次性输出以下平台产物到 `dist/`：macOS arm64、Linux amd64、Windows amd64、Windows arm64。
+2. 生成 Swagger 与参考文档。
+3. 构建 `apps/web/dist`。
+4. 暂存 `internal/frontendassets/dist/`，并生成压缩归档 `internal/frontendassets/dist.zip` 供发布标签嵌入，减少最终二进制体积。
+5. 一次性输出以下平台产物到 `dist/`：macOS arm64、Linux amd64、Windows amd64、Windows arm64。
 
 当前发布脚本固定构建 `cmd/jftrade-api`，也就是只保留 sidecar 与内嵌 GUI 的 API-only 发行版；发布产物名仍然保持 `jftrade`，但不再包含 bbgo `run` 模式和原有 CLI 命令面。以当前 darwin arm64 产物为例，发布二进制约 `55.6MB`。
 
