@@ -569,6 +569,8 @@ paths:
       - adk
   /api/v1/adk/memory:
     get:
+      description: ADK tasks include lightweight agent tasks and workflow step projections
+        from sequential, parallel, and loop runs.
       produces:
       - application/json
       responses:
@@ -580,6 +582,8 @@ paths:
       tags:
       - adk
     post:
+      description: ADK tasks include lightweight agent tasks and workflow step projections
+        from sequential, parallel, and loop runs.
       produces:
       - application/json
       responses:
@@ -592,6 +596,8 @@ paths:
       - adk
   /api/v1/adk/memory/{memoryId}:
     delete:
+      description: ADK tasks include lightweight agent tasks and workflow step projections
+        from sequential, parallel, and loop runs.
       produces:
       - application/json
       responses:
@@ -943,6 +949,8 @@ paths:
       - adk
   /api/v1/adk/tasks:
     get:
+      description: ADK tasks include lightweight agent tasks and workflow step projections
+        from sequential, parallel, and loop runs.
       produces:
       - application/json
       responses:
@@ -954,6 +962,8 @@ paths:
       tags:
       - adk
     post:
+      description: ADK tasks include lightweight agent tasks and workflow step projections
+        from sequential, parallel, and loop runs.
       produces:
       - application/json
       responses:
@@ -966,6 +976,8 @@ paths:
       - adk
   /api/v1/adk/tasks/{taskId}:
     delete:
+      description: ADK tasks include lightweight agent tasks and workflow step projections
+        from sequential, parallel, and loop runs.
       produces:
       - application/json
       responses:
@@ -977,6 +989,8 @@ paths:
       tags:
       - adk
     get:
+      description: ADK tasks include lightweight agent tasks and workflow step projections
+        from sequential, parallel, and loop runs.
       produces:
       - application/json
       responses:
@@ -988,6 +1002,8 @@ paths:
       tags:
       - adk
     put:
+      description: ADK tasks include lightweight agent tasks and workflow step projections
+        from sequential, parallel, and loop runs.
       produces:
       - application/json
       responses:

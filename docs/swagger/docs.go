@@ -267,6 +267,7 @@ const docTemplate = `{
         },
         "/api/v1/adk/memory": {
             "get": {
+                "description": "ADK tasks include lightweight agent tasks and workflow step projections from sequential, parallel, and loop runs.",
                 "produces": [
                     "application/json"
                 ],
@@ -284,6 +285,7 @@ const docTemplate = `{
                 }
             },
             "post": {
+                "description": "ADK tasks include lightweight agent tasks and workflow step projections from sequential, parallel, and loop runs.",
                 "produces": [
                     "application/json"
                 ],
@@ -303,6 +305,7 @@ const docTemplate = `{
         },
         "/api/v1/adk/memory/{memoryId}": {
             "delete": {
+                "description": "ADK tasks include lightweight agent tasks and workflow step projections from sequential, parallel, and loop runs.",
                 "produces": [
                     "application/json"
                 ],
@@ -852,6 +855,7 @@ const docTemplate = `{
         },
         "/api/v1/adk/tasks": {
             "get": {
+                "description": "ADK tasks include lightweight agent tasks and workflow step projections from sequential, parallel, and loop runs.",
                 "produces": [
                     "application/json"
                 ],
@@ -869,6 +873,7 @@ const docTemplate = `{
                 }
             },
             "post": {
+                "description": "ADK tasks include lightweight agent tasks and workflow step projections from sequential, parallel, and loop runs.",
                 "produces": [
                     "application/json"
                 ],
@@ -888,6 +893,7 @@ const docTemplate = `{
         },
         "/api/v1/adk/tasks/{taskId}": {
             "get": {
+                "description": "ADK tasks include lightweight agent tasks and workflow step projections from sequential, parallel, and loop runs.",
                 "produces": [
                     "application/json"
                 ],
@@ -905,6 +911,7 @@ const docTemplate = `{
                 }
             },
             "put": {
+                "description": "ADK tasks include lightweight agent tasks and workflow step projections from sequential, parallel, and loop runs.",
                 "produces": [
                     "application/json"
                 ],
@@ -922,6 +929,7 @@ const docTemplate = `{
                 }
             },
             "delete": {
+                "description": "ADK tasks include lightweight agent tasks and workflow step projections from sequential, parallel, and loop runs.",
                 "produces": [
                     "application/json"
                 ],
