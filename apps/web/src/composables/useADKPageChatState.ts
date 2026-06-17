@@ -78,6 +78,7 @@ export function useADKPageChatState(
   const sendingChat = ref(false);
   const activeRun = ref<ActiveChatRunState | null>(null);
   const activeRunSnapshot = ref<ADKRun | null>(null);
+  const activeGoalRunSnapshot = ref<ADKRun | null>(null);
   const queuedChatMessages = ref<QueuedChatMessage[]>([]);
   const queueDispatchingId = ref("");
   const interruptingRunId = ref("");
@@ -97,11 +98,13 @@ export function useADKPageChatState(
   const activeRunId = computed(() => activeRun.value?.runId ?? "");
   const activeRunStatus = computed(() => activeRun.value?.status ?? "");
   const activeGoalRun = computed(() => {
-    const run = activeRunSnapshot.value;
-    if (!run || isTerminalRunStatus(run.status)) return null;
-    return String(run.workMode ?? "").trim().toLowerCase() === "loop" &&
-      !run.parentRunId
-      ? run
+    const workflowRun = workflowQueues.parentWorkflowPlanRun.value;
+    if (isActiveGoalParentRun(workflowRun)) return workflowRun;
+    if (isActiveGoalParentRun(activeRunSnapshot.value)) {
+      return activeRunSnapshot.value;
+    }
+    return isActiveGoalParentRun(activeGoalRunSnapshot.value)
+      ? activeGoalRunSnapshot.value
       : null;
   });
   const showGoalObjectiveEditor = computed(
@@ -210,6 +213,19 @@ export function useADKPageChatState(
     sessionState.selectedSessionId.value = sessionId;
     timelineEntries.value = [];
     clearWorkflowPlanRun();
+    clearSessionContext();
+    if (
+      activeRunSnapshot.value &&
+      activeRunSnapshot.value.sessionId !== sessionId
+    ) {
+      activeRunSnapshot.value = null;
+    }
+    if (
+      activeGoalRunSnapshot.value &&
+      activeGoalRunSnapshot.value.sessionId !== sessionId
+    ) {
+      activeGoalRunSnapshot.value = null;
+    }
     try {
       const detail = await loadSessionChatHistory(sessionId);
       timelineEntries.value = detail.timelineEntries;
@@ -236,14 +252,18 @@ export function useADKPageChatState(
     }
 
     if (hasBlockingRun.value || sendingChat.value) {
-      enqueueChatMessage(text, "queued");
+      enqueueChatMessage(text, "queued", {
+        forceChat: shouldSendCurrentDraftAsGoalConversation(),
+      });
       chatDraft.value = "";
       await scrollToBottom(threadRef);
       return;
     }
 
     chatDraft.value = "";
-    await executeChatMessage(text);
+    await executeChatMessage(text, {
+      forceChat: shouldSendCurrentDraftAsGoalConversation(),
+    });
   }
 
   async function interruptAndQueueChat(): Promise<void> {
@@ -261,7 +281,9 @@ export function useADKPageChatState(
     }
 
     const currentRunId = activeRunId.value;
-    enqueueChatMessage(text, "interrupt");
+    enqueueChatMessage(text, "interrupt", {
+      forceChat: shouldSendCurrentDraftAsGoalConversation(),
+    });
     chatDraft.value = "";
     await scrollToBottom(threadRef);
     if (!currentRunId || interruptingRunId.value === currentRunId) {
@@ -400,13 +422,18 @@ export function useADKPageChatState(
     workModeOverride,
   };
 
-  async function executeChatMessage(text: string): Promise<boolean> {
+  async function executeChatMessage(
+    text: string,
+    options: { forceChat?: boolean } = {},
+  ): Promise<boolean> {
     const payload: Parameters<typeof streamADKChat>[0] = {
       agentId: sessionState.selectedAgentId.value,
       sessionId: sessionState.selectedSessionId.value,
       message: text,
     };
-    if (workModeOverride.value) {
+    if (options.forceChat) {
+      payload.workModeOverride = "chat";
+    } else if (workModeOverride.value) {
       payload.workModeOverride = workModeOverride.value;
       if (workModeOverride.value === "loop") {
         payload.objective = goalObjectiveDraft.value.trim() || text;
@@ -421,7 +448,9 @@ export function useADKPageChatState(
       status: "streaming",
       text,
     });
-    clearWorkflowPlanRun();
+    if (!options.forceChat) {
+      clearWorkflowPlanRun();
+    }
     timelineEntries.value = [...timelineEntries.value, optimisticUserEntry];
     await scrollToBottom(threadRef);
     sendingChat.value = true;
@@ -504,6 +533,7 @@ export function useADKPageChatState(
     timelineEntries.value = replaceTimelineEntries(
       normalizedResponse.timeline,
       timelineEntries.value,
+      new Map([[normalizedResponse.run.id, normalizedResponse.run]]),
     );
     await scrollToBottom(threadRef);
   }
@@ -653,9 +683,12 @@ export function useADKPageChatState(
       return;
     }
     try {
-      sessionContext.value = await fetchADKSessionContext(sessionId);
+      const context = await fetchADKSessionContext(sessionId);
+      if (sessionState.selectedSessionId.value === sessionId) {
+        sessionContext.value = context;
+      }
     } catch {
-      sessionContext.value = null;
+      // Keep the last non-empty snapshot so the context tag does not blink away.
     }
   }
 
@@ -669,9 +702,15 @@ export function useADKPageChatState(
     try {
       sessionContext.value = await compactADKSessionContext(sessionId, mode);
       contextDetailsOpen.value = true;
+      await reloadSessionTimeline(sessionId);
     } catch (error) {
       sessionState.errorMessage.value =
         error instanceof Error ? error.message : "上下文压缩失败";
+      try {
+        await reloadSessionTimeline(sessionId);
+      } catch {
+        // Keep the explicit error message if the timeline refresh also fails.
+      }
     } finally {
       contextBusy.value = false;
     }
@@ -749,11 +788,13 @@ export function useADKPageChatState(
   function enqueueChatMessage(
     text: string,
     mode: "queued" | "interrupt",
+    options: { forceChat?: boolean } = {},
   ): QueuedChatMessage {
     const message = createQueuedChatMessage(
       text,
       currentQueueSessionKey.value,
       mode,
+      options,
     );
     queuedChatMessages.value =
       mode === "interrupt"
@@ -777,7 +818,9 @@ export function useADKPageChatState(
       return;
     }
     queueDispatchingId.value = nextMessage.id;
-    const sent = await executeChatMessage(nextMessage.text);
+    const sent = await executeChatMessage(nextMessage.text, {
+      forceChat: nextMessage.forceChat === true,
+    });
     if (sent) {
       queuedChatMessages.value = queuedChatMessages.value.filter(
         (message) => message.id !== nextMessage.id,
@@ -798,18 +841,22 @@ export function useADKPageChatState(
     }
     void workflowQueues.syncWorkflowRun(run);
     if (isTerminalRunStatus(run.status)) {
+      if (isRootRun(run) && activeRunSnapshot.value?.id === run.id) {
+        activeRunSnapshot.value = null;
+      }
+      if (isRootRun(run) && activeGoalRunSnapshot.value?.id === run.id) {
+        activeGoalRunSnapshot.value = null;
+      }
       if (!activeRun.value || activeRun.value.runId === run.id) {
         activeRun.value = null;
-        activeRunSnapshot.value = null;
-        if (workModeOverride.value === "loop") {
-          goalObjectiveTouched.value = false;
-          goalObjectiveDraft.value = chatDraft.value;
-        }
       }
       return;
     }
-    activeRunSnapshot.value = run;
-    if (String(run.workMode ?? "").trim().toLowerCase() === "loop" && !goalObjectiveSaving.value) {
+    if (isRootRun(run)) {
+      activeRunSnapshot.value = run;
+    }
+    if (isActiveGoalParentRun(run) && !goalObjectiveSaving.value) {
+      activeGoalRunSnapshot.value = run;
       goalObjectiveDraft.value = run.objective ?? goalObjectiveDraft.value;
       goalObjectiveTouched.value = false;
       goalObjectiveError.value = "";
@@ -825,4 +872,17 @@ export function useADKPageChatState(
     sessionContext.value = null;
     contextDetailsOpen.value = false;
   }
+
+  function shouldSendCurrentDraftAsGoalConversation(): boolean {
+    return workModeOverride.value === "loop" && activeGoalRun.value != null;
+  }
+}
+
+function isRootRun(run: ADKRun | null | undefined): run is ADKRun {
+  return !!run && String(run.parentRunId ?? "").trim() === "";
+}
+
+function isActiveGoalParentRun(run: ADKRun | null | undefined): run is ADKRun {
+  if (!isRootRun(run) || isTerminalRunStatus(run.status)) return false;
+  return String(run.workMode ?? "").trim().toLowerCase() === "loop";
 }

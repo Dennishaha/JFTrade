@@ -8,7 +8,9 @@ import type {
 import { uniqueADKApprovalsById } from "./adkApprovalResolution";
 
 export interface ADKTimelineEntryState extends ADKTimelineEntry {
+  run?: ADKRun;
   reasoningExpanded?: boolean;
+  userPromptVariant?: "original" | "processed";
   toolSummaryExpanded?: boolean;
   expandedToolCallIds?: string[];
 }
@@ -20,6 +22,9 @@ export function createTimelineEntryState(
   if (entry.kind === "assistant_reasoning") {
     state.reasoningExpanded = false;
   }
+  if (entry.kind === "user_message") {
+    state.userPromptVariant = "original";
+  }
   if (entry.kind === "tool_group") {
     state.toolSummaryExpanded = false;
     state.expandedToolCallIds = [];
@@ -30,12 +35,13 @@ export function createTimelineEntryState(
 export function replaceTimelineEntries(
   entries: ADKTimelineEntry[] | undefined,
   previous: ADKTimelineEntryState[] = [],
+  runsById: Map<string, ADKRun> = new Map(),
 ): ADKTimelineEntryState[] {
   const previousById = new Map(previous.map((entry) => [entry.id, entry]));
   return dedupeTimelineApprovalEntries(
     sortTimelineEntries(
       (entries ?? []).map((entry) =>
-        mergeTimelineEntry(previousById.get(entry.id), entry),
+        mergeTimelineEntry(previousById.get(entry.id), entry, runsById),
       ),
     ),
   );
@@ -77,6 +83,13 @@ export function sortTimelineEntries(
 
 export function buildTimelineRun(entry: ADKTimelineEntryState): ADKRun {
   const toolCalls = [...(entry.toolCalls ?? [])];
+  if (entry.run) {
+    return {
+      ...entry.run,
+      toolCalls: toolCalls.length > 0 ? toolCalls : [...(entry.run.toolCalls ?? [])],
+      pendingApprovals: [...(entry.run.pendingApprovals ?? [])],
+    };
+  }
   return {
     id: entry.runId ?? entry.id,
     sessionId: entry.sessionId,
@@ -164,9 +177,17 @@ export function applyApprovalResolutions(
 function mergeTimelineEntry(
   existing: ADKTimelineEntryState | undefined,
   incoming: ADKTimelineEntry,
+  runsById: Map<string, ADKRun> = new Map(),
 ): ADKTimelineEntryState {
   const base = existing ?? createTimelineEntryState(incoming);
   const next: ADKTimelineEntryState = { ...base, ...incoming };
+  const runId = String(incoming.runId ?? base.runId ?? "").trim();
+  const run = runId === "" ? undefined : runsById.get(runId);
+  if (run) {
+    next.run = run;
+  } else if (base.run) {
+    next.run = base.run;
+  }
   if (incoming.toolCalls !== undefined) {
     next.toolCalls = [...incoming.toolCalls];
   } else if (base.toolCalls) {

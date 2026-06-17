@@ -11,6 +11,7 @@ export interface QueuedChatMessage {
   sessionKey: string;
   text: string;
   mode: QueuedChatMessageMode;
+  forceChat?: boolean;
   createdAt: string;
 }
 
@@ -30,12 +31,14 @@ export function createQueuedChatMessage(
   text: string,
   sessionKey: string,
   mode: QueuedChatMessageMode,
+  options: { forceChat?: boolean } = {},
 ): QueuedChatMessage {
   return {
     id: `queued-chat-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     sessionKey,
     text,
     mode,
+    forceChat: options.forceChat === true,
     createdAt: new Date().toISOString(),
   };
 }

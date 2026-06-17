@@ -45,6 +45,9 @@ func normalizeTimelineEntries(entries []TimelineEntry) []TimelineEntry {
 
 func NormalizeRun(run Run) Run {
 	run.WorkMode = normalizeWorkMode(run.WorkMode)
+	run.ProviderID = strings.TrimSpace(run.ProviderID)
+	run.ProviderName = strings.TrimSpace(run.ProviderName)
+	run.Model = strings.TrimSpace(run.Model)
 	if len(run.ChildRunIDs) == 0 {
 		run.ChildRunIDs = []string{}
 	} else {
@@ -99,5 +102,12 @@ func NormalizeApprovalResolution(resolution ApprovalResolution) ApprovalResoluti
 
 func NormalizeSessionsResponse(response SessionsResponse) SessionsResponse {
 	response.Timeline = normalizeTimelineEntries(response.Timeline)
+	if len(response.Runs) == 0 {
+		response.Runs = []Run{}
+	} else {
+		for index := range response.Runs {
+			response.Runs[index] = NormalizeRun(response.Runs[index])
+		}
+	}
 	return response
 }

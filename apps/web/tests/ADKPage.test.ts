@@ -163,6 +163,366 @@ describe("ADKPage", () => {
     });
   });
 
+  it("keeps the active goal editor when a child run becomes the latest active run", async () => {
+    const parentRun = buildRun({
+      id: "run-goal-parent-stable",
+      status: "RUNNING",
+      workMode: "loop",
+      objective: "持续优化 TME 策略",
+      workflowStatus: "PAUSED",
+      workflowPlan: [
+        buildWorkflowStep(
+          "step-goal-child",
+          "子智能体设计策略",
+          "IN_PROGRESS",
+          "run-goal-child-active",
+        ),
+      ],
+    });
+    const childRun = buildRun({
+      id: "run-goal-child-active",
+      parentRunId: parentRun.id,
+      status: "RUNNING",
+      workMode: "chat",
+      objective: parentRun.objective,
+      userMessage: "设计策略",
+      usage: { modelCalls: 0, toolCallsTotal: 0 },
+    });
+
+    streamADKChatMock.mockImplementationOnce(async (_payload, onEvent) => {
+      const response: ADKChatResponse = {
+        reply: "child still running",
+        session: buildSession(),
+        run: childRun,
+        context: buildSessionContextSnapshot(),
+        pendingApprovals: [],
+        timeline: [
+          buildTimelineEntry("assistant_message", {
+            id: "goal-child-progress",
+            runId: childRun.id,
+            text: "child still running",
+          }),
+        ],
+      };
+      await onEvent({ type: "session", session: response.session });
+      await onEvent({ type: "run", run: parentRun });
+      await onEvent({ type: "run", run: childRun });
+      await onEvent({ type: "final", response });
+      return response;
+    });
+
+    mountADKPage({
+      runById: {
+        [childRun.id]: childRun,
+      },
+    });
+    await flushRequests();
+
+    await sendPageMessage("run goal with child");
+
+    const editor = document.querySelector(".adk-goal-editor");
+    expect(editor).not.toBeNull();
+    expect(editor?.textContent).toContain("目标");
+    expect(editor?.textContent).toContain("持续优化 TME 策略");
+  });
+
+  it("keeps the active goal editor after a child run reaches terminal state while the parent remains paused", async () => {
+    const parentRun = buildRun({
+      id: "run-goal-parent-paused",
+      status: "RUNNING",
+      workMode: "loop",
+      objective: "继续完善 TME 目标",
+      workflowStatus: "PAUSED",
+      workflowPlan: [
+        buildWorkflowStep(
+          "step-goal-child-terminal",
+          "子智能体策略设计",
+          "IN_PROGRESS",
+          "run-goal-child-terminal",
+        ),
+      ],
+    });
+    const childRunning = buildRun({
+      id: "run-goal-child-terminal",
+      parentRunId: parentRun.id,
+      status: "RUNNING",
+      workMode: "chat",
+      objective: parentRun.objective,
+    });
+    const childCompleted = {
+      ...childRunning,
+      status: "COMPLETED",
+      message: "completed",
+    };
+
+    streamADKChatMock.mockImplementationOnce(async (_payload, onEvent) => {
+      const response: ADKChatResponse = {
+        reply: "child completed",
+        session: buildSession(),
+        run: childCompleted,
+        context: buildSessionContextSnapshot(),
+        pendingApprovals: [],
+        timeline: [
+          buildTimelineEntry("assistant_message", {
+            id: "goal-child-completed",
+            runId: childCompleted.id,
+            text: "child completed",
+          }),
+        ],
+      };
+      await onEvent({ type: "session", session: response.session });
+      await onEvent({ type: "run", run: parentRun });
+      await onEvent({ type: "run", run: childRunning });
+      await onEvent({ type: "run", run: childCompleted });
+      await onEvent({ type: "final", response });
+      return response;
+    });
+
+    mountADKPage({
+      runById: {
+        [childCompleted.id]: childCompleted,
+      },
+    });
+    await flushRequests();
+
+    await sendPageMessage("run goal child terminal");
+
+    const editor = document.querySelector(".adk-goal-editor");
+    expect(editor).not.toBeNull();
+    expect(editor?.textContent).toContain("继续完善 TME 目标");
+  });
+
+  it("sends follow-up text as chat while an active goal exists", async () => {
+    const goalRun = buildRun({
+      id: "run-active-goal-follow-up",
+      status: "PAUSED",
+      workMode: "loop",
+      objective: "持续跟踪 TME 策略",
+      workflowStatus: "PAUSED",
+      workflowPlan: [
+        buildWorkflowStep("step-active-goal", "推进目标", "IN_PROGRESS"),
+      ],
+    });
+    const followUpRun = buildRun({
+      id: "run-goal-follow-up-chat",
+      status: "COMPLETED",
+      workMode: "chat",
+      userMessage: "补充：更关注回撤",
+    });
+
+    streamADKChatMock
+      .mockImplementationOnce(async (_payload, onEvent) => {
+        const response: ADKChatResponse = {
+          reply: "goal paused",
+          session: buildSession(),
+          run: goalRun,
+          pendingApprovals: [],
+          timeline: [
+            buildTimelineEntry("assistant_message", {
+              id: "goal-paused-answer",
+              runId: goalRun.id,
+              text: "goal paused",
+            }),
+          ],
+        };
+        await onEvent({ type: "session", session: response.session });
+        await onEvent({ type: "final", response });
+        return response;
+      })
+      .mockImplementationOnce(async (payload, onEvent) => {
+        const response: ADKChatResponse = {
+          reply: "follow-up noted",
+          session: buildSession(),
+          run: followUpRun,
+          pendingApprovals: [],
+          timeline: [
+            buildTimelineEntry("user_message", {
+              id: "follow-up-user",
+              text: String(payload.message),
+            }),
+            buildTimelineEntry("assistant_message", {
+              id: "follow-up-answer",
+              runId: followUpRun.id,
+              text: "follow-up noted",
+            }),
+          ],
+        };
+        await onEvent({ type: "session", session: response.session });
+        await onEvent({ type: "final", response });
+        return response;
+      });
+
+    mountADKPage();
+    await flushRequests();
+
+    const workModeSelect = Array.from(
+      document.querySelectorAll<HTMLSelectElement>("select"),
+    ).find((select) =>
+      Array.from(select.options).some((option) => option.value === "loop"),
+    )!;
+    workModeSelect.value = "loop";
+    workModeSelect.dispatchEvent(new Event("change"));
+    await nextTick();
+
+    await sendPageMessage("建立 TME 目标");
+    expect(document.querySelector(".adk-goal-editor")?.textContent).toContain(
+      "持续跟踪 TME 策略",
+    );
+
+    await sendPageMessage("补充：更关注回撤");
+
+    expect(streamADKChatMock).toHaveBeenCalledTimes(2);
+    expect(streamADKChatMock.mock.calls[1]?.[0]).toMatchObject({
+      message: "补充：更关注回撤",
+      workModeOverride: "chat",
+    });
+    expect(streamADKChatMock.mock.calls[1]?.[0]).not.toHaveProperty(
+      "objective",
+    );
+    expect(document.querySelector(".adk-goal-editor")?.textContent).toContain(
+      "持续跟踪 TME 策略",
+    );
+    expect(document.querySelector(".adk-goal-editor")?.textContent).not.toContain(
+      "补充：更关注回撤",
+    );
+  });
+
+  it("keeps queued text as chat when it was entered during an active goal", async () => {
+    const pendingApproval = buildApproval(
+      "approval-active-goal-queued",
+      "run-active-goal-queued",
+    );
+    const pendingGoalRun = buildRun({
+      id: "run-active-goal-queued",
+      status: "PENDING_APPROVAL",
+      workMode: "loop",
+      objective: "稳定推进 TME 目标",
+      workflowStatus: "PAUSED",
+      workflowPlan: [
+        buildWorkflowStep("step-active-goal-queued", "等待审批", "BLOCKED"),
+      ],
+      toolCalls: [
+        buildToolCall(
+          "tool-active-goal-queued",
+          "run-active-goal-queued",
+          "strategy.save_draft",
+          "PENDING_APPROVAL",
+        ),
+      ],
+      pendingApprovals: [pendingApproval],
+    });
+    const completedGoalRun = {
+      ...pendingGoalRun,
+      status: "COMPLETED",
+      workflowStatus: "COMPLETED",
+      pendingApprovals: [],
+      toolCalls: [
+        buildToolCall(
+          "tool-active-goal-queued",
+          "run-active-goal-queued",
+          "strategy.save_draft",
+          "SUCCEEDED",
+        ),
+      ],
+    };
+    const queuedChatRun = buildRun({
+      id: "run-active-goal-queued-chat",
+      status: "COMPLETED",
+      workMode: "chat",
+      userMessage: "目标期间的补充说明",
+    });
+
+    streamADKChatMock
+      .mockImplementationOnce(async (_payload, onEvent) => {
+        const response: ADKChatResponse = {
+          reply: "waiting approval",
+          session: buildSession(),
+          run: pendingGoalRun,
+          pendingApprovals: [pendingApproval],
+          timeline: pendingApprovalTimeline(
+            pendingGoalRun,
+            [pendingApproval],
+            "建立审批目标",
+          ),
+        };
+        await onEvent({ type: "session", session: response.session });
+        await onEvent({ type: "final", response });
+        return response;
+      })
+      .mockImplementationOnce(async (payload, onEvent) => {
+        const response: ADKChatResponse = {
+          reply: "queued chat done",
+          session: buildSession(),
+          run: queuedChatRun,
+          pendingApprovals: [],
+          timeline: [
+            buildTimelineEntry("user_message", {
+              id: "queued-goal-chat-user",
+              text: String(payload.message),
+            }),
+            buildTimelineEntry("assistant_message", {
+              id: "queued-goal-chat-answer",
+              runId: queuedChatRun.id,
+              text: "queued chat done",
+            }),
+          ],
+        };
+        await onEvent({ type: "session", session: response.session });
+        await onEvent({ type: "final", response });
+        return response;
+      });
+
+    mountADKPage({
+      approvals: [pendingApproval],
+      approvalResolution: {
+        approval: { ...pendingApproval, status: "APPROVED" },
+        run: completedGoalRun,
+      },
+      sessionDetail: {
+        session: buildSession(),
+        timeline: [
+          buildTimelineEntry("assistant_message", {
+            id: "completed-goal-answer",
+            runId: completedGoalRun.id,
+            text: "goal completed",
+          }),
+        ],
+      },
+    });
+    await flushRequests();
+
+    const workModeSelect = Array.from(
+      document.querySelectorAll<HTMLSelectElement>("select"),
+    ).find((select) =>
+      Array.from(select.options).some((option) => option.value === "loop"),
+    )!;
+    workModeSelect.value = "loop";
+    workModeSelect.dispatchEvent(new Event("change"));
+    await nextTick();
+
+    await sendPageMessage("建立审批目标");
+    expect(document.querySelector(".adk-goal-editor")?.textContent).toContain(
+      "稳定推进 TME 目标",
+    );
+
+    await sendPageMessage("目标期间的补充说明");
+    expect(streamADKChatMock).toHaveBeenCalledTimes(1);
+    expect(document.body.textContent).toContain("目标期间的补充说明");
+
+    await expandQueue("待审批");
+    clickButtonByText("批准");
+    await flushRequests();
+
+    expect(streamADKChatMock).toHaveBeenCalledTimes(2);
+    expect(streamADKChatMock.mock.calls[1]?.[0]).toMatchObject({
+      message: "目标期间的补充说明",
+      workModeOverride: "chat",
+    });
+    expect(streamADKChatMock.mock.calls[1]?.[0]).not.toHaveProperty(
+      "objective",
+    );
+  });
+
   it("shows the latest workflow plan directly above the composer and clears it on the next run", async () => {
     const workflowRun = buildRun({
       id: "run-workflow-plan",
@@ -384,6 +744,192 @@ describe("ADKPage", () => {
     expect(document.body.textContent).not.toContain("child-only-success");
     expect(document.querySelector('[aria-label="子智能体"]')).not.toBeNull();
     expect(document.querySelector('[aria-label="执行计划"]')).not.toBeNull();
+  });
+
+  it("keeps parent session context visible in a child view when child usage is unavailable", async () => {
+    const fallbackContext = buildSessionContextSnapshot({
+      summaryPreview: "父会话上下文仍然有效",
+    });
+    const workflowRun = buildRun({
+      id: "parent-run-child-context-fallback",
+      status: "RUNNING",
+      workMode: "loop",
+      workflowStatus: "PAUSED",
+      childRunIds: ["child-run-no-usage"],
+      workflowPlan: [
+        buildWorkflowStep(
+          "step-child-no-usage",
+          "等待子智能体上报用量",
+          "IN_PROGRESS",
+          "child-run-no-usage",
+        ),
+      ],
+    });
+
+    streamADKChatMock.mockImplementationOnce(async (_payload, onEvent) => {
+      const response: ADKChatResponse = {
+        reply: "parent running",
+        session: buildSession(),
+        run: workflowRun,
+        context: fallbackContext,
+        pendingApprovals: [],
+        timeline: [
+          buildTimelineEntry("assistant_message", {
+            id: "parent-context-answer",
+            runId: workflowRun.id,
+            text: "parent context answer",
+          }),
+          buildTimelineEntry("assistant_message", {
+            id: "child-context-answer",
+            runId: "child-run-no-usage",
+            text: "child context answer",
+          }),
+        ],
+      };
+      await onEvent({ type: "session", session: response.session });
+      await onEvent({ type: "run", run: workflowRun });
+      await onEvent({ type: "final", response });
+      return response;
+    });
+
+    mountADKPage({
+      runById: {
+        "child-run-no-usage": buildRun({
+          id: "child-run-no-usage",
+          parentRunId: workflowRun.id,
+          status: "RUNNING",
+          usage: { modelCalls: 0, toolCallsTotal: 0 },
+        }),
+      },
+    });
+    await flushRequests();
+
+    await sendPageMessage("run child without usage");
+    expect(document.body.textContent).toContain("42% 正常");
+
+    await expandQueue("子智能体");
+    clickButtonByText("进入");
+    await nextTick();
+
+    expect(document.body.textContent).toContain("子智能体 #1");
+    expect(document.body.textContent).toContain("child-run-no-usage");
+    expect(document.body.textContent).toContain("42% 正常");
+    expect(document.body.textContent).toContain("父会话上下文仍然有效");
+    expect(document.body.textContent).not.toContain("子智能体运行用量");
+  });
+
+  it("shows child usage while preserving fallback context window metadata", async () => {
+    const fallbackContext = buildSessionContextSnapshot({
+      contextWindowTokens: 20000,
+      currentInputTokens: 6000,
+      projectedNextTurnTokens: 6200,
+      usageRatio: 0.3,
+      activeHandoffCount: 1,
+      autoCompacted: true,
+      summaryPreview: "父摘要应由子用量摘要覆盖",
+    });
+    const workflowRun = buildRun({
+      id: "parent-run-child-context-usage",
+      status: "RUNNING",
+      workMode: "loop",
+      workflowStatus: "PAUSED",
+      childRunIds: ["child-run-with-usage"],
+      workflowPlan: [
+        buildWorkflowStep(
+          "step-child-with-usage",
+          "观察子智能体用量",
+          "IN_PROGRESS",
+          "child-run-with-usage",
+        ),
+      ],
+    });
+
+    streamADKChatMock.mockImplementationOnce(async (_payload, onEvent) => {
+      const response: ADKChatResponse = {
+        reply: "parent running",
+        session: buildSession(),
+        run: workflowRun,
+        context: fallbackContext,
+        pendingApprovals: [],
+        timeline: [
+          buildTimelineEntry("assistant_message", {
+            id: "child-usage-answer",
+            runId: "child-run-with-usage",
+            text: "child usage answer",
+          }),
+        ],
+      };
+      await onEvent({ type: "session", session: response.session });
+      await onEvent({ type: "run", run: workflowRun });
+      await onEvent({ type: "final", response });
+      return response;
+    });
+
+    mountADKPage({
+      runById: {
+        "child-run-with-usage": buildRun({
+          id: "child-run-with-usage",
+          parentRunId: workflowRun.id,
+          status: "RUNNING",
+          usage: { tokensIn: 2000, tokensOut: 1000 },
+        }),
+      },
+    });
+    await flushRequests();
+
+    await sendPageMessage("run child with usage");
+    await expandQueue("子智能体");
+    clickButtonByText("进入");
+    await nextTick();
+
+    expect(document.body.textContent).toContain("15% 正常");
+    expect(document.body.textContent).toContain("模型窗口");
+    expect(document.body.textContent).toContain("20,000");
+    expect(document.body.textContent).toContain("自动压缩");
+    expect(document.body.textContent).toContain("生效 handoff 段数");
+    expect(document.body.textContent).toContain(
+      "子智能体运行用量：输入 2000，输出 1000",
+    );
+    expect(document.body.textContent).not.toContain("父摘要应由子用量摘要覆盖");
+  });
+
+  it("keeps the context tag when refreshing context fails after a valid snapshot", async () => {
+    const context = buildSessionContextSnapshot({
+      summaryPreview: "已有上下文快照",
+    });
+    const run = buildRun({ id: "run-context-refresh", status: "COMPLETED" });
+    streamADKChatMock.mockImplementationOnce(async (_payload, onEvent) => {
+      const response: ADKChatResponse = {
+        reply: "context ready",
+        session: buildSession(),
+        run,
+        context,
+        pendingApprovals: [],
+        timeline: [
+          buildTimelineEntry("assistant_message", {
+            id: "context-ready-answer",
+            runId: run.id,
+            text: "context ready",
+          }),
+        ],
+      };
+      await onEvent({ type: "session", session: response.session });
+      await onEvent({ type: "final", response });
+      return response;
+    });
+
+    mountADKPage({
+      sessionContextSequence: [new Error("context unavailable")],
+    });
+    await flushRequests();
+
+    await sendPageMessage("create context");
+    expect(document.body.textContent).toContain("42% 正常");
+
+    await sendPageMessage("/context");
+
+    expect(document.body.textContent).toContain("42% 正常");
+    expect(document.body.textContent).toContain("已有上下文快照");
   });
 
   it("marks failed child agent queue items as error instead of success", async () => {
@@ -1643,6 +2189,64 @@ describe("ADKPage", () => {
     expect(document.body.textContent).toContain("  Preserve indentation.");
   });
 
+  it("does not let an older session context response replace the selected session tag", async () => {
+    const firstContext = deferred<ADKSessionContextSnapshot | null>();
+    const secondContext = deferred<ADKSessionContextSnapshot | null>();
+    mountADKPage({
+      sessions: [
+        buildSession({ id: "session-old", title: "旧会话" }),
+        buildSession({ id: "session-current", title: "当前会话" }),
+      ],
+      sessionDetailSequence: [
+        {
+          session: buildSession({ id: "session-old", title: "旧会话" }),
+          timeline: [],
+        },
+        {
+          session: buildSession({ id: "session-current", title: "当前会话" }),
+          timeline: [],
+        },
+      ],
+      sessionContextSequence: [firstContext.promise, secondContext.promise],
+    });
+    await flushRequests();
+
+    const sessions = Array.from(
+      document.querySelectorAll<HTMLElement>(".adk-session-item"),
+    );
+    sessions[0]?.click();
+    await flushRequests();
+    sessions[1]?.click();
+    await flushRequests();
+
+    secondContext.resolve(
+      buildSessionContextSnapshot({
+        sessionId: "session-current",
+        currentInputTokens: 2400,
+        projectedNextTurnTokens: 2500,
+        usageRatio: 0.24,
+        status: "healthy",
+      }),
+    );
+    await flushRequests();
+
+    expect(document.body.textContent).toContain("24% 正常");
+
+    firstContext.resolve(
+      buildSessionContextSnapshot({
+        sessionId: "session-old",
+        currentInputTokens: 9900,
+        projectedNextTurnTokens: 9900,
+        usageRatio: 0.99,
+        status: "critical",
+      }),
+    );
+    await flushRequests();
+
+    expect(document.body.textContent).toContain("24% 正常");
+    expect(document.body.textContent).not.toContain("99% 危险");
+  });
+
   it("restores persisted timeline entries even when tool and approval arrays are null", async () => {
     mountADKPage({
       sessionDetail: {
@@ -1686,6 +2290,12 @@ describe("ADKPage", () => {
   });
 });
 
+type SessionContextTestResponse =
+  | ADKSessionContextSnapshot
+  | null
+  | Error
+  | Promise<ADKSessionContextSnapshot | null>;
+
 function mountADKPage(
   options: {
     providerHasKey?: boolean;
@@ -1695,6 +2305,7 @@ function mountADKPage(
     approvalResolutionById?: Record<string, unknown>;
     cancelRunById?: Record<string, ADKRun>;
     runById?: Record<string, ADKRun>;
+    sessions?: Array<ReturnType<typeof buildSession>>;
     sessionDetail?: {
       session: ReturnType<typeof buildSession>;
       timeline: ADKTimelineEntry[];
@@ -1704,6 +2315,7 @@ function mountADKPage(
       timeline: ADKTimelineEntry[];
     }>;
     sessionContext?: ADKSessionContextSnapshot | null;
+    sessionContextSequence?: SessionContextTestResponse[];
   } = {},
 ) {
   document.body.innerHTML = "<div id='root'></div>";
@@ -1713,6 +2325,9 @@ function mountADKPage(
       ...(options.sessionDetailSequence ?? [
         options.sessionDetail ?? { session: buildSession(), timeline: [] },
       ]),
+    ],
+    sessionContextSequence: [
+      ...(options.sessionContextSequence ?? [options.sessionContext ?? null]),
     ],
   };
 
@@ -1727,7 +2342,15 @@ function mountADKPage(
       });
     }
     if (/\/api\/v1\/adk\/sessions\/[^/]+\/context$/.test(url)) {
-      return createResponse(options.sessionContext ?? null);
+      const context =
+        state.sessionContextSequence.length > 1
+          ? state.sessionContextSequence.shift()!
+          : state.sessionContextSequence[0]!;
+      const resolvedContext = await context;
+      if (resolvedContext instanceof Error) {
+        throw resolvedContext;
+      }
+      return createResponse(resolvedContext ?? null);
     }
     if (url.includes("/api/v1/adk/sessions")) {
       if (/\/api\/v1\/adk\/sessions\/[^/]+$/.test(url)) {
@@ -1737,7 +2360,7 @@ function mountADKPage(
             : state.sessionDetailSequence[0]!;
         return createResponse(detail);
       }
-      return createResponse({ sessions: [buildSession()] });
+      return createResponse({ sessions: options.sessions ?? [buildSession()] });
     }
     const cancelRunMatch = url.match(/\/api\/v1\/adk\/runs\/([^/]+)\/cancel$/);
     if (cancelRunMatch) {
@@ -1840,13 +2463,22 @@ function buildAgentBase() {
   };
 }
 
-function buildSession() {
+function buildSession(
+  overrides: Partial<{
+    id: string;
+    agentId: string;
+    title: string;
+    createdAt: string;
+    updatedAt: string;
+  }> = {},
+) {
   return {
     id: "session-1",
     agentId: "agent-1",
     title: "测试会话",
     createdAt: "2026-06-06T00:00:00Z",
     updatedAt: "2026-06-06T00:00:00Z",
+    ...overrides,
   };
 }
 
@@ -1881,6 +2513,20 @@ function buildSessionContextSnapshot(
     degradedSummary: false,
     ...overrides,
   };
+}
+
+function deferred<T>(): {
+  promise: Promise<T>;
+  resolve: (value: T) => void;
+  reject: (reason?: unknown) => void;
+} {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
 }
 
 function buildToolCall(

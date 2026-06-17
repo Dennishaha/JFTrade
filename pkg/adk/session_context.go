@@ -3,14 +3,15 @@ package adk
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"iter"
+	"log"
 	"math"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	adksession "google.golang.org/adk/session"
 	"google.golang.org/adk/tool/toolconfirmation"
 	"google.golang.org/genai"
@@ -76,6 +77,21 @@ type projectedVisibleSession struct {
 	trimmedToolResponseCount int
 }
 
+func ensureSessionContextRevision(state SessionContextState, sessionID string) SessionContextState {
+	state.SessionID = strings.TrimSpace(defaultString(state.SessionID, sessionID))
+	if strings.TrimSpace(state.ContextRevisionID) == "" {
+		state.ContextRevisionID = newContextRevisionID()
+	}
+	if strings.TrimSpace(state.ContextRevisionCreatedAt) == "" {
+		state.ContextRevisionCreatedAt = defaultString(state.CreatedAt, nowString())
+	}
+	return state
+}
+
+func newContextRevisionID() string {
+	return "ctxrev-" + uuid.NewString()
+}
+
 func NewSessionContextManager(store *Store, rawService adksession.Service, openai openAIClient, tools *ToolRegistry) *SessionContextManager {
 	if store == nil || rawService == nil {
 		return nil
@@ -110,7 +126,8 @@ func (m *SessionContextManager) snapshotWithPending(ctx context.Context, session
 	if !ok {
 		state = SessionContextState{SessionID: session.ID}
 	}
-	segments, err := m.store.HandoffSegments(ctx, session.ID, true)
+	state = ensureSessionContextRevision(state, session.ID)
+	segments, err := m.store.HandoffSegmentsForRevision(ctx, session.ID, state.ContextRevisionID, true)
 	if err != nil {
 		return SessionContextSnapshot{}, err
 	}
@@ -140,7 +157,8 @@ func (m *SessionContextManager) Compact(ctx context.Context, session Session, ag
 	if !ok {
 		state = SessionContextState{SessionID: session.ID}
 	}
-	segments, err := m.store.HandoffSegments(ctx, session.ID, true)
+	state = ensureSessionContextRevision(state, session.ID)
+	segments, err := m.store.HandoffSegmentsForRevision(ctx, session.ID, state.ContextRevisionID, true)
 	if err != nil {
 		return SessionContextSnapshot{}, err
 	}
@@ -153,48 +171,61 @@ func (m *SessionContextManager) Compact(ctx context.Context, session Session, ag
 	mode := normalizeCompactMode(request.Mode)
 	activeEnd := maxActiveSegmentEnd(segments)
 	degraded := state.DegradedSummary
+	previousRevisionID := state.ContextRevisionID
+	nextRevisionID := newContextRevisionID()
+	nextRevisionCreatedAt := nowString()
+	wroteRevision := false
 	if mode == "aggressive" {
 		if cutoff > 0 || len(segments) > 0 {
 			deterministic := buildHandoffSummary(segments, events[:cutoff], mode)
 			merged, nextDegraded := m.mergeSummary(ctx, agent, deterministic, joinSegmentSummaries(segments), mode)
 			next := HandoffSegment{
-				SessionID:       session.ID,
-				Sequence:        nextHandoffSequence(segments),
-				StartEventIndex: 0,
-				EndEventIndex:   cutoff,
-				Summary:         merged,
-				Mode:            "aggressive",
-				Reason:          strings.TrimSpace(request.Reason),
-				EstimatedTokens: estimateTextTokens(merged),
-				Active:          true,
+				SessionID:         session.ID,
+				ContextRevisionID: nextRevisionID,
+				Sequence:          nextHandoffSequence(segments),
+				StartEventIndex:   0,
+				EndEventIndex:     cutoff,
+				Summary:           merged,
+				Mode:              "aggressive",
+				Reason:            strings.TrimSpace(request.Reason),
+				EstimatedTokens:   estimateTextTokens(merged),
+				Active:            true,
 			}
 			if _, err := m.store.ReplaceActiveHandoffSegments(ctx, session.ID, next, segments); err != nil {
 				return SessionContextSnapshot{}, err
 			}
 			degraded = nextDegraded
+			wroteRevision = true
 		}
 	} else if cutoff > activeEnd {
 		deterministic := buildHandoffSummary(nil, events[activeEnd:cutoff], mode)
-		merged, nextDegraded := m.mergeSummary(ctx, agent, deterministic, "", mode)
+		merged, nextDegraded := m.mergeSummary(ctx, agent, deterministic, joinSegmentSummaries(segments), mode)
 		next := HandoffSegment{
-			SessionID:       session.ID,
-			Sequence:        nextHandoffSequence(segments),
-			StartEventIndex: activeEnd,
-			EndEventIndex:   cutoff,
-			Summary:         merged,
-			Mode:            "manual",
-			Reason:          strings.TrimSpace(request.Reason),
-			EstimatedTokens: estimateTextTokens(merged),
-			Active:          true,
+			SessionID:         session.ID,
+			ContextRevisionID: nextRevisionID,
+			Sequence:          nextHandoffSequence(segments),
+			StartEventIndex:   0,
+			EndEventIndex:     cutoff,
+			Summary:           merged,
+			Mode:              "manual",
+			Reason:            strings.TrimSpace(request.Reason),
+			EstimatedTokens:   estimateTextTokens(merged),
+			Active:            true,
 		}
 		if _, err := m.store.SaveHandoffSegment(ctx, next); err != nil {
 			return SessionContextSnapshot{}, err
 		}
 		degraded = nextDegraded
+		wroteRevision = true
 	}
 
 	now := nowString()
 	state.SessionID = session.ID
+	if wroteRevision {
+		state.PreviousContextRevisionID = previousRevisionID
+		state.ContextRevisionID = nextRevisionID
+		state.ContextRevisionCreatedAt = nextRevisionCreatedAt
+	}
 	state.RecentUserWindow = normalizeRecentUserWindow(agent.RecentUserWindow)
 	state.LastCompactedAt = now
 	state.LastCompactionMode = compactionModeLabel(request)
@@ -224,14 +255,82 @@ func (m *SessionContextManager) ShouldAutoCompact(snapshot SessionContextSnapsho
 	}
 }
 
+func (m *SessionContextManager) AutoCompactForModelContext(ctx context.Context, session Session, agent Agent, pendingUserText string) (SessionContextSnapshot, bool, error) {
+	if m == nil || strings.TrimSpace(session.ID) == "" {
+		return SessionContextSnapshot{}, false, nil
+	}
+	snapshot, err := m.ProjectedSnapshot(ctx, session, agent, pendingUserText)
+	if err != nil {
+		return SessionContextSnapshot{}, false, err
+	}
+	mode, shouldCompact := m.ShouldAutoCompact(snapshot)
+	if !shouldCompact {
+		return snapshot, false, nil
+	}
+	canAdvance, err := m.canAdvanceAutoCompaction(ctx, session, agent)
+	if err != nil {
+		return snapshot, false, err
+	}
+	if !canAdvance {
+		return snapshot, false, nil
+	}
+	reason := "context usage exceeded automatic compaction threshold before model call"
+	if mode == "aggressive" {
+		reason = "context usage exceeded aggressive failsafe threshold before model call"
+	}
+	compacted, err := m.Compact(ctx, session, agent, SessionCompactRequest{
+		Mode:    mode,
+		Trigger: "auto",
+		Reason:  reason,
+	})
+	if err != nil {
+		return snapshot, false, err
+	}
+	return compacted, true, nil
+}
+
+func (m *SessionContextManager) canAdvanceAutoCompaction(ctx context.Context, session Session, agent Agent) (bool, error) {
+	raw, err := m.rawSession(ctx, session.AgentID, session.ID)
+	if err != nil {
+		return false, err
+	}
+	state, ok, err := m.store.SessionContext(ctx, session.ID)
+	if err != nil {
+		return false, err
+	}
+	if !ok {
+		state = SessionContextState{SessionID: session.ID}
+	}
+	state = ensureSessionContextRevision(state, session.ID)
+	segments, err := m.store.HandoffSegmentsForRevision(ctx, session.ID, state.ContextRevisionID, true)
+	if err != nil {
+		return false, err
+	}
+	events := eventSlice(raw.Session.Events())
+	cutoff := m.projectSnapshot(raw.Session, state, agent, segments, "").compactionCutoff
+	if cutoff > len(events) {
+		cutoff = len(events)
+	}
+	activeEnd := maxActiveSegmentEnd(segments)
+	if activeEnd > len(events) {
+		activeEnd = len(events)
+	}
+	return cutoff > activeEnd, nil
+}
+
 func (m *SessionContextManager) InstructionSuffix(ctx context.Context, sessionID string) (string, error) {
 	if m == nil || m.store == nil {
 		return "", nil
 	}
-	if text, ok, err := m.handoffSummaryFromADKState(ctx, sessionID); err == nil && ok {
-		return "Session handoff summaries:\n" + text, nil
+	state, ok, err := m.store.SessionContext(ctx, strings.TrimSpace(sessionID))
+	if err != nil {
+		return "", err
 	}
-	segments, err := m.store.HandoffSegments(ctx, strings.TrimSpace(sessionID), true)
+	if !ok {
+		state = SessionContextState{SessionID: strings.TrimSpace(sessionID)}
+	}
+	state = ensureSessionContextRevision(state, sessionID)
+	segments, err := m.store.HandoffSegmentsForRevision(ctx, strings.TrimSpace(sessionID), state.ContextRevisionID, true)
 	if err != nil {
 		return "", err
 	}
@@ -250,7 +349,15 @@ func (m *SessionContextManager) syncHandoffStateForSession(ctx context.Context, 
 	if m == nil || m.store == nil {
 		return nil
 	}
-	segments, err := m.store.HandoffSegments(ctx, session.ID, true)
+	state, ok, err := m.store.SessionContext(ctx, session.ID)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		state = SessionContextState{SessionID: session.ID}
+	}
+	state = ensureSessionContextRevision(state, session.ID)
+	segments, err := m.store.HandoffSegmentsForRevision(ctx, session.ID, state.ContextRevisionID, true)
 	if err != nil {
 		return err
 	}
@@ -294,35 +401,6 @@ func (m *SessionContextManager) syncHandoffState(ctx context.Context, session Se
 		adkSessionHandoffCountKey:     len(segments),
 	}
 	return appendADKEventWithStaleRetry(ctx, m.rawService, raw.Session, event)
-}
-
-func (m *SessionContextManager) handoffSummaryFromADKState(ctx context.Context, sessionID string) (string, bool, error) {
-	if m == nil || m.store == nil || m.rawService == nil {
-		return "", false, nil
-	}
-	session, ok, err := m.store.Session(ctx, strings.TrimSpace(sessionID))
-	if err != nil || !ok {
-		return "", false, err
-	}
-	raw, err := m.rawSession(ctx, session.AgentID, session.ID)
-	if err != nil {
-		return "", false, err
-	}
-	if raw == nil || raw.Session == nil || raw.Session.State() == nil {
-		return "", false, nil
-	}
-	value, err := raw.Session.State().Get(adkSessionHandoffSummaryKey)
-	if errors.Is(err, adksession.ErrStateKeyNotExist) {
-		return "", false, nil
-	}
-	if err != nil {
-		return "", false, err
-	}
-	text := strings.TrimSpace(fmt.Sprint(value))
-	if text == "" {
-		return "", false, nil
-	}
-	return text, true, nil
 }
 
 func stateTextValue(state adksession.State, key string) string {
@@ -422,6 +500,9 @@ func (m *SessionContextManager) projectSnapshot(raw adksession.Session, state Se
 		compactionCutoff: potentialCutoff,
 		snapshot: SessionContextSnapshot{
 			SessionID:                  raw.ID(),
+			ContextRevisionID:          state.ContextRevisionID,
+			PreviousContextRevisionID:  state.PreviousContextRevisionID,
+			ContextRevisionCreatedAt:   state.ContextRevisionCreatedAt,
 			CurrentInputTokens:         currentInputTokens,
 			ProjectedNextTurnTokens:    projectedNextTurnTokens,
 			EstimatedInputTokens:       currentInputTokens,
@@ -498,6 +579,9 @@ func (m *SessionContextManager) mergeSummary(ctx context.Context, agent Agent, d
 
 func mergeStateMetrics(state SessionContextState, snapshot SessionContextSnapshot) SessionContextState {
 	state.SessionID = snapshot.SessionID
+	state.ContextRevisionID = snapshot.ContextRevisionID
+	state.PreviousContextRevisionID = snapshot.PreviousContextRevisionID
+	state.ContextRevisionCreatedAt = snapshot.ContextRevisionCreatedAt
 	state.RecentUserWindow = snapshot.RecentUserWindow
 	state.RetainedRecentUserCount = snapshot.RetainedRecentUserCount
 	state.ActiveHandoffCount = snapshot.ActiveHandoffCount
@@ -699,8 +783,10 @@ func retainedRecentUserCount(events []*adksession.Event, recentStart int, protec
 }
 
 func protectedTailStart(events []*adksession.Event) int {
-	for index, event := range events {
-		if eventContainsApproval(event) {
+	resolvedApprovalCallIDs := resolvedApprovalIDs(events)
+	for index := len(events) - 1; index >= 0; index-- {
+		event := events[index]
+		if eventContainsUnresolvedApproval(event, resolvedApprovalCallIDs) {
 			return index
 		}
 	}
@@ -718,7 +804,29 @@ func isUserEvent(event *adksession.Event) bool {
 	return strings.EqualFold(strings.TrimSpace(event.Author), "user")
 }
 
-func eventContainsApproval(event *adksession.Event) bool {
+func resolvedApprovalIDs(events []*adksession.Event) map[string]struct{} {
+	resolved := map[string]struct{}{}
+	for _, event := range events {
+		if event == nil || event.Content == nil {
+			continue
+		}
+		for _, part := range event.Content.Parts {
+			if part == nil || part.FunctionResponse == nil {
+				continue
+			}
+			response := part.FunctionResponse
+			if response.Name != toolconfirmation.FunctionCallName {
+				continue
+			}
+			if id := strings.TrimSpace(response.ID); id != "" {
+				resolved[id] = struct{}{}
+			}
+		}
+	}
+	return resolved
+}
+
+func eventContainsUnresolvedApproval(event *adksession.Event, resolvedApprovalCallIDs map[string]struct{}) bool {
 	if event == nil || event.Content == nil {
 		return false
 	}
@@ -726,7 +834,11 @@ func eventContainsApproval(event *adksession.Event) bool {
 		if part == nil || part.FunctionCall == nil {
 			continue
 		}
-		if part.FunctionCall.Name == toolconfirmation.FunctionCallName {
+		call := part.FunctionCall
+		if call.Name != toolconfirmation.FunctionCallName {
+			continue
+		}
+		if _, ok := resolvedApprovalCallIDs[strings.TrimSpace(call.ID)]; !ok {
 			return true
 		}
 	}
@@ -950,7 +1062,23 @@ func (s *compactingSessionService) Get(ctx context.Context, req *adksession.GetR
 	if storeErr != nil || !ok {
 		return response, storeErr
 	}
-	segments, stateErr := s.manager.store.HandoffSegments(ctx, req.SessionID, true)
+	if _, compacted, compactErr := s.manager.AutoCompactForModelContext(ctx, session, agent, ""); compactErr != nil {
+		log.Printf("[adk] auto context compaction before model session read failed for session %s: %v", req.SessionID, compactErr)
+	} else if compacted {
+		response, err = s.base.Get(ctx, req)
+		if err != nil || response == nil {
+			return response, err
+		}
+	}
+	state, stateOK, stateErr := s.manager.store.SessionContext(ctx, req.SessionID)
+	if stateErr != nil {
+		return response, stateErr
+	}
+	if !stateOK {
+		state = SessionContextState{SessionID: req.SessionID}
+	}
+	state = ensureSessionContextRevision(state, req.SessionID)
+	segments, stateErr := s.manager.store.HandoffSegmentsForRevision(ctx, req.SessionID, state.ContextRevisionID, true)
 	if stateErr != nil {
 		return response, stateErr
 	}

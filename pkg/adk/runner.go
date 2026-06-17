@@ -120,26 +120,36 @@ func (r *Runtime) CompactSessionContext(ctx context.Context, sessionID string, m
 	if !ok {
 		return SessionContextSnapshot{}, fmt.Errorf("session not found")
 	}
+	notice := r.createContextCompactionNotice(ctx, session.ID)
+	fail := func(compactErr error) (SessionContextSnapshot, error) {
+		r.updateContextCompactionNotice(ctx, notice, TimelineStatusError, contextCompactionFailedText)
+		return SessionContextSnapshot{}, compactErr
+	}
 	active, err := r.contextManager.HasActiveRun(ctx, session.ID)
 	if err != nil {
-		return SessionContextSnapshot{}, err
+		return fail(err)
 	}
 	if active {
-		return SessionContextSnapshot{}, fmt.Errorf("session has an active or pending run")
+		return fail(fmt.Errorf("session has an active or pending run"))
 	}
 	agent, err := r.resolveAgent(ctx, session.AgentID)
 	if err != nil {
-		return SessionContextSnapshot{}, err
+		return fail(err)
 	}
 	agent, err = r.prepareAgent(ctx, agent)
 	if err != nil {
-		return SessionContextSnapshot{}, err
+		return fail(err)
 	}
-	return r.contextManager.Compact(ctx, session, agent, SessionCompactRequest{
+	snapshot, err := r.contextManager.Compact(ctx, session, agent, SessionCompactRequest{
 		Mode:    normalizeCompactMode(mode),
 		Trigger: defaultString(strings.TrimSpace(trigger), "manual"),
 		Reason:  reason,
 	})
+	if err != nil {
+		return fail(err)
+	}
+	r.updateContextCompactionNotice(ctx, notice, TimelineStatusFinal, contextCompactionDoneText)
+	return snapshot, nil
 }
 
 func (r *Runtime) Close() error {

@@ -108,6 +108,11 @@ func (c openAIClient) httpClientForProvider(provider Provider) *http.Client {
 
 const maxProviderPayloadBytes = 256 << 10 // Trim message content to stay under ~256KB JSON payload
 
+type pendingOpenAIToolCall struct {
+	messageIndex int
+	call         openAIToolCall
+}
+
 // estimateMessageBytes returns an approximate byte size of a message when
 // serialized to JSON, accounting for Content, ReasoningContent, Reasoning,
 // and ToolCalls arguments.
@@ -139,6 +144,152 @@ func truncateBytes(s string, maxBytes int) string {
 	return s[:lim] + marker
 }
 
+func normalizeMessagesForProvider(messages []openAIChatMessage) []openAIChatMessage {
+	if len(messages) == 0 {
+		return messages
+	}
+	out := make([]openAIChatMessage, 0, len(messages))
+	pending := map[string]pendingOpenAIToolCall{}
+	activeToolCallIDs := map[string]struct{}{}
+	activeAssistantIndex := -1
+	droppedTools := 0
+
+	resetActive := func() {
+		activeAssistantIndex = -1
+		activeToolCallIDs = map[string]struct{}{}
+	}
+
+	for _, message := range messages {
+		role := strings.TrimSpace(message.Role)
+		if role == "" {
+			role = message.Role
+		}
+		message.Role = role
+		switch role {
+		case "assistant":
+			out = append(out, message)
+			resetActive()
+			if len(message.ToolCalls) > 0 {
+				activeAssistantIndex = len(out) - 1
+				for _, call := range message.ToolCalls {
+					id := strings.TrimSpace(call.ID)
+					if id == "" {
+						continue
+					}
+					pending[id] = pendingOpenAIToolCall{messageIndex: activeAssistantIndex, call: call}
+					activeToolCallIDs[id] = struct{}{}
+				}
+			}
+		case "tool":
+			id := strings.TrimSpace(message.ToolCallID)
+			if id == "" {
+				droppedTools++
+				resetActive()
+				continue
+			}
+			if activeAssistantIndex >= 0 {
+				if _, ok := activeToolCallIDs[id]; ok {
+					out = append(out, message)
+					delete(pending, id)
+					delete(activeToolCallIDs, id)
+					continue
+				}
+			}
+			pair, ok := pending[id]
+			if !ok {
+				droppedTools++
+				resetActive()
+				continue
+			}
+			removeToolCallFromMessage(&out[pair.messageIndex], id)
+			out = append(out, openAIChatMessage{
+				Role:      "assistant",
+				ToolCalls: []openAIToolCall{pair.call},
+			})
+			out = append(out, message)
+			delete(pending, id)
+			activeAssistantIndex = len(out) - 2
+			activeToolCallIDs = map[string]struct{}{id: {}}
+		default:
+			out = append(out, message)
+			resetActive()
+		}
+	}
+
+	for id, pair := range pending {
+		if pair.messageIndex >= 0 && pair.messageIndex < len(out) {
+			removeToolCallFromMessage(&out[pair.messageIndex], id)
+		}
+	}
+	normalized := make([]openAIChatMessage, 0, len(out))
+	for _, message := range out {
+		if shouldDropEmptyAssistantToolCallMessage(message) {
+			continue
+		}
+		normalized = append(normalized, message)
+	}
+	if droppedTools > 0 {
+		log.Printf("[adk] dropped %d orphan OpenAI tool message(s) before provider request", droppedTools)
+	}
+	return normalized
+}
+
+func removeToolCallFromMessage(message *openAIChatMessage, id string) {
+	if message == nil || id == "" || len(message.ToolCalls) == 0 {
+		return
+	}
+	next := message.ToolCalls[:0]
+	for _, call := range message.ToolCalls {
+		if strings.TrimSpace(call.ID) == id {
+			continue
+		}
+		next = append(next, call)
+	}
+	message.ToolCalls = next
+}
+
+func shouldDropEmptyAssistantToolCallMessage(message openAIChatMessage) bool {
+	return message.Role == "assistant" &&
+		strings.TrimSpace(message.Content) == "" &&
+		strings.TrimSpace(message.ReasoningContent) == "" &&
+		strings.TrimSpace(message.Reasoning) == "" &&
+		len(message.ToolCalls) == 0
+}
+
+type providerMessageGroup struct {
+	messages []openAIChatMessage
+	system   bool
+}
+
+func groupMessagesForProvider(messages []openAIChatMessage) []providerMessageGroup {
+	groups := make([]providerMessageGroup, 0, len(messages))
+	for i := 0; i < len(messages); i++ {
+		message := messages[i]
+		if message.Role == "assistant" && len(message.ToolCalls) > 0 {
+			group := providerMessageGroup{messages: []openAIChatMessage{message}}
+			for i+1 < len(messages) && messages[i+1].Role == "tool" {
+				group.messages = append(group.messages, messages[i+1])
+				i++
+			}
+			groups = append(groups, group)
+			continue
+		}
+		groups = append(groups, providerMessageGroup{
+			messages: []openAIChatMessage{message},
+			system:   message.Role == "system",
+		})
+	}
+	return groups
+}
+
+func estimateMessageGroupBytes(group providerMessageGroup) int {
+	total := 0
+	for _, message := range group.messages {
+		total += estimateMessageBytes(message)
+	}
+	return total
+}
+
 // trimMessagesForProvider trims message content to keep the estimated JSON
 // payload size within budget, preventing 413 Request Entity Too Large errors.
 func trimMessagesForProvider(messages []openAIChatMessage, maxTotalBytes int) []openAIChatMessage {
@@ -146,8 +297,7 @@ func trimMessagesForProvider(messages []openAIChatMessage, maxTotalBytes int) []
 		return messages
 	}
 	// Work on a copy to avoid mutating the caller's slice.
-	out := make([]openAIChatMessage, len(messages))
-	copy(out, messages)
+	out := normalizeMessagesForProvider(messages)
 
 	// First pass: truncate individual messages that are excessively long.
 	const maxSingleMessageBytes = 40000
@@ -170,37 +320,47 @@ func trimMessagesForProvider(messages []openAIChatMessage, maxTotalBytes int) []
 		total += estimateMessageBytes(m)
 	}
 	if total <= maxTotalBytes {
-		return out
+		return normalizeMessagesForProvider(out)
 	}
 
-	// Keep system message + as many recent messages as possible.
-	var result []openAIChatMessage
-	startIdx := 0
-	remaining := maxTotalBytes
-	if out[0].Role == "system" {
-		result = append(result, out[0])
-		startIdx = 1
-		remaining -= estimateMessageBytes(out[0])
-	}
-	droppedCount := 0
-	for i := len(out) - 1; i >= startIdx; i-- {
-		msgBytes := estimateMessageBytes(out[i])
-		if msgBytes > remaining {
-			droppedCount = i - startIdx + 1
-			break
+	groups := groupMessagesForProvider(out)
+	systemGroups := make([]providerMessageGroup, 0, len(groups))
+	systemBytes := 0
+	for _, group := range groups {
+		if !group.system {
+			continue
 		}
-		remaining -= msgBytes
-		result = append(result, out[i])
+		systemGroups = append(systemGroups, group)
+		systemBytes += estimateMessageGroupBytes(group)
 	}
-	// Reverse the appended messages back to chronological order.
-	for i, j := len(result)-1, startIdx; i > j; i-- {
-		result[i], result[j] = result[j], result[i]
-		j++
+	remaining := maxTotalBytes - systemBytes
+	keptGroups := make([]providerMessageGroup, 0, len(groups))
+	droppedCount := 0
+	for i := len(groups) - 1; i >= 0; i-- {
+		group := groups[i]
+		if group.system {
+			continue
+		}
+		groupBytes := estimateMessageGroupBytes(group)
+		if groupBytes > remaining {
+			droppedCount += len(group.messages)
+			continue
+		}
+		remaining -= groupBytes
+		keptGroups = append(keptGroups, group)
+	}
+	for i, j := 0, len(keptGroups)-1; i < j; i, j = i+1, j-1 {
+		keptGroups[i], keptGroups[j] = keptGroups[j], keptGroups[i]
+	}
+	finalGroups := append(systemGroups, keptGroups...)
+	result := make([]openAIChatMessage, 0, len(out))
+	for _, group := range finalGroups {
+		result = append(result, group.messages...)
 	}
 	if droppedCount > 0 {
 		log.Printf("[adk] dropped %d older message(s) to keep payload under %d bytes (was %d)", droppedCount, maxTotalBytes, total)
 	}
-	return result
+	return normalizeMessagesForProvider(result)
 }
 
 func (c openAIClient) chat(ctx context.Context, provider Provider, apiKey string, model string, messages []openAIChatMessage) (string, error) {

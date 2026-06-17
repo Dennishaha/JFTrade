@@ -255,16 +255,27 @@ async function compactContext(mode: "normal" | "aggressive"): Promise<void> {
     errorMessage.value = "当前没有可压缩的会话";
     return;
   }
+  const currentSessionId = sessionId.value;
   contextBusy.value = true;
   try {
     sessionContext.value = await compactADKSessionContext(
-      sessionId.value,
+      currentSessionId,
       mode,
     );
     contextDetailsOpen.value = true;
+    if (sessionId.value === currentSessionId) {
+      await reloadTimeline();
+    }
   } catch (error) {
     errorMessage.value =
       error instanceof Error ? error.message : "上下文压缩失败";
+    try {
+      if (sessionId.value === currentSessionId) {
+        await reloadTimeline();
+      }
+    } catch {
+      // Keep the explicit error message if the timeline refresh also fails.
+    }
   } finally {
     contextBusy.value = false;
   }
@@ -477,6 +488,7 @@ async function applyAuthoritativeTimeline(
   timelineEntries.value = replaceTimelineEntries(
     normalizedResponse.timeline,
     timelineEntries.value,
+    new Map([[normalizedResponse.run.id, normalizedResponse.run]]),
   );
   await scrollToBottom(scrollHost);
 }

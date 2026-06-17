@@ -121,6 +121,9 @@ func (r *Runtime) resumeGoogleADK(ctx context.Context, run Run) (Run, *Message, 
 		execution.reply.Reset()
 		execution.reasoning.Reset()
 	}
+	if err := r.maybeAutoCompactSessionDuringWorkflow(ctx, Session{ID: run.SessionID, AgentID: run.AgentID}, execution.agent, run.UserMessage, nil); err != nil {
+		return run, nil, true, err
+	}
 	if err := execution.run(ctx, genai.NewContentFromParts(parts, genai.RoleUser)); err != nil {
 		return run, nil, true, err
 	}
@@ -638,6 +641,9 @@ func (r *Runtime) runGoogleADKFinalSynthesis(
 	noToolDefinition.WorkMode = WorkModeChat
 	noToolDefinition.Tools = nil
 	noToolDefinition.Skills = nil
+	if err := r.maybeAutoCompactSessionDuringWorkflow(ctx, productSession, noToolDefinition, task, nil); err != nil {
+		return err
+	}
 	llm, err := r.googleADKModelForAgent(ctx, noToolDefinition)
 	if err != nil {
 		return err

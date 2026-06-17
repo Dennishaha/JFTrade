@@ -335,7 +335,7 @@ export function sessionContextFromRunUsage(
   const tokensOut = Math.max(0, Math.round(run?.usage?.tokensOut ?? 0));
   const totalTokens = tokensIn + tokensOut;
   if (totalTokens <= 0) {
-    return null;
+    return fallbackContext ?? null;
   }
   const contextWindowTokens = Math.max(
     0,
@@ -356,6 +356,7 @@ export function sessionContextFromRunUsage(
     toolDeclarationTokens: 0,
   };
   return {
+    ...(fallbackContext ?? {}),
     sessionId: run?.sessionId || fallbackContext?.sessionId || "",
     currentInputTokens: totalTokens,
     projectedNextTurnTokens: totalTokens,
@@ -364,15 +365,15 @@ export function sessionContextFromRunUsage(
     contextWindowTokens,
     usageRatio,
     status,
-    recentUserWindow: 0,
-    retainedRecentUserCount: 0,
-    activeHandoffCount: 0,
+    recentUserWindow: fallbackContext?.recentUserWindow ?? 0,
+    retainedRecentUserCount: fallbackContext?.retainedRecentUserCount ?? 0,
+    activeHandoffCount: fallbackContext?.activeHandoffCount ?? 0,
     summaryPreview: `子智能体运行用量：输入 ${tokensIn}，输出 ${tokensOut}`,
     breakdown,
     rawBreakdown: breakdown,
     trimmedToolResponseCount: 0,
-    autoCompacted: false,
-    degradedSummary: false,
+    autoCompacted: fallbackContext?.autoCompacted ?? false,
+    degradedSummary: fallbackContext?.degradedSummary ?? false,
   };
 }
 

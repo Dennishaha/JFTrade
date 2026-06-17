@@ -105,6 +105,35 @@ function entryToolBusy(entry: ADKTimelineEntryState): boolean {
     (props.sendingChat && props.timelineEntries[props.timelineEntries.length - 1] === entry)
   );
 }
+
+function contextNoticeClass(entry: ADKTimelineEntryState): Record<string, boolean> {
+  return {
+    "adk-context-notice": true,
+    "is-streaming": entry.status === "streaming",
+    "is-error": entry.status === "error",
+  };
+}
+
+function hasProcessedUserPrompt(entry: ADKTimelineEntryState): boolean {
+  const original = String(entry.originalText ?? entry.text ?? "").trim();
+  const processed = String(entry.processedText ?? "").trim();
+  return processed !== "" && processed !== original;
+}
+
+function userPromptText(entry: ADKTimelineEntryState): string {
+  if (entry.userPromptVariant === "processed" && hasProcessedUserPrompt(entry)) {
+    return entry.processedText ?? "";
+  }
+  return entry.originalText ?? entry.text ?? "";
+}
+
+function userBubbleClass(entry: ADKTimelineEntryState): Record<string, boolean> {
+  return {
+    "adk-bubble": true,
+    "adk-bubble--user": true,
+    "adk-bubble--user-processed": entry.userPromptVariant === "processed",
+  };
+}
 </script>
 
 <template>
@@ -131,7 +160,39 @@ function entryToolBusy(entry: ADKTimelineEntryState): boolean {
 
     <template v-for="entry in timelineEntries" :key="entry.id">
       <div v-if="entry.kind === 'user_message'" class="adk-msg adk-msg--user">
-        <div class="adk-bubble adk-bubble--user">{{ entry.text ?? "" }}</div>
+        <div v-if="hasProcessedUserPrompt(entry)" class="adk-user-prompt-toggle" aria-label="用户提示词视图">
+          <button
+            type="button"
+            :class="{ 'is-active': entry.userPromptVariant !== 'processed' }"
+            @click="entry.userPromptVariant = 'original'"
+          >
+            原文
+          </button>
+          <button
+            type="button"
+            :class="{ 'is-active': entry.userPromptVariant === 'processed' }"
+            @click="entry.userPromptVariant = 'processed'"
+          >
+            系统处理后
+          </button>
+        </div>
+        <div :class="userBubbleClass(entry)">{{ userPromptText(entry) }}</div>
+      </div>
+
+      <div v-else-if="entry.kind === 'context_notice'" class="adk-msg adk-msg--notice">
+        <div :class="contextNoticeClass(entry)">
+          <v-progress-circular
+            v-if="entry.status === 'streaming'"
+            indeterminate
+            size="13"
+            width="2"
+          />
+          <v-icon v-else-if="entry.status === 'error'" size="13">
+            fa-solid fa-circle-exclamation
+          </v-icon>
+          <v-icon v-else size="13">fa-solid fa-check</v-icon>
+          <span>{{ entry.text ?? "" }}</span>
+        </div>
       </div>
 
       <div v-else-if="entry.kind === 'assistant_reasoning'" class="adk-msg adk-msg--assistant">

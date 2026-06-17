@@ -10,6 +10,9 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	adkmodel "google.golang.org/adk/model"
+	"google.golang.org/genai"
 )
 
 // TestToolNameSanitizeRestoreRoundTrip verifies that tool names survive
@@ -471,4 +474,216 @@ func TestProviderRequestTimeoutUsesConfiguredValue(t *testing.T) {
 	if got := providerRequestTimeout(Provider{RequestTimeoutMs: 1_000}); got != 15*time.Second {
 		t.Fatalf("providerRequestTimeout(clamped) = %s, want 15s", got)
 	}
+}
+
+func TestNormalizeMessagesForProviderRepairsInterruptedToolExchange(t *testing.T) {
+	messages := []openAIChatMessage{
+		{Role: "user", Content: "approve the tool"},
+		{Role: "assistant", ToolCalls: []openAIToolCall{
+			testOpenAIToolCall("confirmation-call", "adk_request_confirmation", map[string]any{"tool": "strategy.save_definition"}),
+		}},
+		{Role: "assistant", Content: "sse write failed: unrelated run failed"},
+		{Role: "tool", Name: "adk_request_confirmation", ToolCallID: "confirmation-call", Content: `{"confirmed":true}`},
+	}
+
+	normalized := normalizeMessagesForProvider(messages)
+	assertValidOpenAIToolMessageSequence(t, normalized)
+	toolIndex := indexOfToolMessage(normalized, "confirmation-call")
+	if toolIndex <= 0 {
+		t.Fatalf("tool message index = %d, want paired tool message", toolIndex)
+	}
+	previous := normalized[toolIndex-1]
+	if previous.Role != "assistant" || !messageHasToolCall(previous, "confirmation-call") {
+		t.Fatalf("previous message = %+v, want assistant tool call", previous)
+	}
+	if !messagesContainContent(normalized, "sse write failed") {
+		t.Fatalf("normalized messages dropped unrelated assistant text: %+v", normalized)
+	}
+}
+
+func TestOpenAICompatibleADKModelBuildChatRequestRepairsInterruptedApprovalHistory(t *testing.T) {
+	model := &openAICompatibleADKModel{
+		provider: Provider{Model: "test-model"},
+		model:    "test-model",
+	}
+	request := &adkmodel.LLMRequest{
+		Model: "test-model",
+		Contents: []*genai.Content{
+			genai.NewContentFromText("approve the strategy save", genai.RoleUser),
+			genai.NewContentFromParts([]*genai.Part{{
+				FunctionCall: &genai.FunctionCall{
+					ID: "approval-call", Name: "adk_request_confirmation",
+					Args: map[string]any{"tool": "strategy.save_definition"},
+				},
+			}}, genai.RoleModel),
+			genai.NewContentFromText("sse write failed: unrelated run failed", genai.RoleModel),
+			genai.NewContentFromParts([]*genai.Part{{
+				FunctionResponse: &genai.FunctionResponse{
+					ID: "approval-call", Name: "adk_request_confirmation",
+					Response: map[string]any{"confirmed": true},
+				},
+			}}, genai.RoleUser),
+		},
+	}
+
+	payload := model.buildChatRequest(request, false)
+	assertValidOpenAIToolMessageSequence(t, payload.Messages)
+	toolIndex := indexOfToolMessage(payload.Messages, "approval-call")
+	if toolIndex <= 0 {
+		t.Fatalf("approval tool response missing from payload: %+v", payload.Messages)
+	}
+	if !messageHasToolCall(payload.Messages[toolIndex-1], "approval-call") {
+		t.Fatalf("approval response previous payload message = %+v, want matching assistant tool call", payload.Messages[toolIndex-1])
+	}
+	if !messagesContainContent(payload.Messages, "sse write failed") {
+		t.Fatalf("payload dropped unrelated assistant message: %+v", payload.Messages)
+	}
+}
+
+func TestNormalizeMessagesForProviderDropsOrphanToolMessage(t *testing.T) {
+	normalized := normalizeMessagesForProvider([]openAIChatMessage{
+		{Role: "user", Content: "hello"},
+		{Role: "tool", Name: "missing", ToolCallID: "missing-call", Content: `{"ok":true}`},
+	})
+
+	assertValidOpenAIToolMessageSequence(t, normalized)
+	if indexOfToolMessage(normalized, "missing-call") >= 0 {
+		t.Fatalf("orphan tool message was retained: %+v", normalized)
+	}
+}
+
+func TestNormalizeMessagesForProviderPairsMultipleInterruptedToolResponses(t *testing.T) {
+	messages := []openAIChatMessage{
+		{Role: "assistant", Content: "calling tools", ToolCalls: []openAIToolCall{
+			testOpenAIToolCall("call-a", "market.snapshot", map[string]any{"symbol": "US.TME"}),
+			testOpenAIToolCall("call-b", "strategy.definitions", map[string]any{}),
+		}},
+		{Role: "assistant", Content: "unrelated text between calls and responses"},
+		{Role: "tool", Name: "strategy.definitions", ToolCallID: "call-b", Content: `{"definitions":[]}`},
+		{Role: "tool", Name: "market.snapshot", ToolCallID: "call-a", Content: `{"price":12.3}`},
+	}
+
+	normalized := normalizeMessagesForProvider(messages)
+	assertValidOpenAIToolMessageSequence(t, normalized)
+	for _, id := range []string{"call-a", "call-b"} {
+		toolIndex := indexOfToolMessage(normalized, id)
+		if toolIndex <= 0 {
+			t.Fatalf("tool %s index = %d, want paired tool message in %+v", id, toolIndex, normalized)
+		}
+		if !messageHasToolCall(normalized[toolIndex-1], id) {
+			t.Fatalf("tool %s previous message = %+v, want matching assistant call", id, normalized[toolIndex-1])
+		}
+	}
+}
+
+func TestTrimMessagesForProviderKeepsToolExchangeGroupsAtomic(t *testing.T) {
+	messages := []openAIChatMessage{
+		{Role: "system", Content: "system"},
+		{Role: "assistant", Content: strings.Repeat("old", 200), ToolCalls: []openAIToolCall{
+			testOpenAIToolCall("old-call", "market.candles", map[string]any{"symbol": "US.TME"}),
+		}},
+		{Role: "tool", Name: "market.candles", ToolCallID: "old-call", Content: strings.Repeat("old-result", 200)},
+		{Role: "user", Content: "latest question"},
+	}
+
+	trimmed := trimMessagesForProvider(messages, 300)
+	assertValidOpenAIToolMessageSequence(t, trimmed)
+	if indexOfToolMessage(trimmed, "old-call") >= 0 && !containsAssistantToolCall(trimmed, "old-call") {
+		t.Fatalf("trimmed messages split tool exchange: %+v", trimmed)
+	}
+	if !messagesContainContent(trimmed, "latest question") {
+		t.Fatalf("trimmed messages dropped latest fitting user message: %+v", trimmed)
+	}
+}
+
+func TestTrimMessagesForProviderTruncatesOversizedToolResponseWithoutLosingPair(t *testing.T) {
+	messages := []openAIChatMessage{
+		{Role: "assistant", ToolCalls: []openAIToolCall{
+			testOpenAIToolCall("large-call", "market.candles", map[string]any{"symbol": "US.TME"}),
+		}},
+		{Role: "tool", Name: "market.candles", ToolCallID: "large-call", Content: strings.Repeat("x", 50000)},
+	}
+
+	trimmed := trimMessagesForProvider(messages, 100000)
+	assertValidOpenAIToolMessageSequence(t, trimmed)
+	toolIndex := indexOfToolMessage(trimmed, "large-call")
+	if toolIndex <= 0 {
+		t.Fatalf("large tool response missing from trimmed messages: %+v", trimmed)
+	}
+	if !messageHasToolCall(trimmed[toolIndex-1], "large-call") {
+		t.Fatalf("large tool response lost assistant pair: %+v", trimmed)
+	}
+	if !strings.Contains(trimmed[toolIndex].Content, "...(truncated)") {
+		t.Fatalf("large tool response was not truncated")
+	}
+	if trimmed[toolIndex].ToolCallID != "large-call" || trimmed[toolIndex].Name != "market.candles" {
+		t.Fatalf("tool metadata changed after trim: %+v", trimmed[toolIndex])
+	}
+}
+
+func testOpenAIToolCall(id string, name string, args map[string]any) openAIToolCall {
+	rawArgs, _ := json.Marshal(args)
+	call := openAIToolCall{ID: id, Type: "function"}
+	call.Function.Name = name
+	call.Function.Arguments = string(rawArgs)
+	return call
+}
+
+func assertValidOpenAIToolMessageSequence(t *testing.T, messages []openAIChatMessage) {
+	t.Helper()
+	active := map[string]struct{}{}
+	for index, message := range messages {
+		switch message.Role {
+		case "assistant":
+			active = map[string]struct{}{}
+			for _, call := range message.ToolCalls {
+				if call.ID != "" {
+					active[call.ID] = struct{}{}
+				}
+			}
+		case "tool":
+			if _, ok := active[message.ToolCallID]; !ok {
+				t.Fatalf("message %d is orphan tool response %q in sequence %+v", index, message.ToolCallID, messages)
+			}
+			delete(active, message.ToolCallID)
+		default:
+			active = map[string]struct{}{}
+		}
+	}
+}
+
+func indexOfToolMessage(messages []openAIChatMessage, id string) int {
+	for index, message := range messages {
+		if message.Role == "tool" && message.ToolCallID == id {
+			return index
+		}
+	}
+	return -1
+}
+
+func messageHasToolCall(message openAIChatMessage, id string) bool {
+	for _, call := range message.ToolCalls {
+		if call.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
+func containsAssistantToolCall(messages []openAIChatMessage, id string) bool {
+	for _, message := range messages {
+		if message.Role == "assistant" && messageHasToolCall(message, id) {
+			return true
+		}
+	}
+	return false
+}
+
+func messagesContainContent(messages []openAIChatMessage, text string) bool {
+	for _, message := range messages {
+		if strings.Contains(message.Content, text) {
+			return true
+		}
+	}
+	return false
 }

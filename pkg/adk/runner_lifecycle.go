@@ -134,8 +134,10 @@ func (r *Runtime) startRunWithOptions(ctx context.Context, sessionID string, age
 	now := nowString()
 	timeout := r.runtimeLimits().RunTimeout
 	workMode := normalizeWorkMode(options.WorkMode)
+	providerName, modelName := r.runModelSnapshot(ctx, agent)
 	run := Run{
 		ID: "run-" + uuid.NewString(), SessionID: sessionID, AgentID: agent.ID, ProviderID: strings.TrimSpace(agent.ProviderID),
+		ProviderName: providerName, Model: modelName,
 		MaxDurationMs: timeout.Milliseconds(),
 		Status:        RunStatusRunning, UserMessage: text, Message: "running",
 		WorkMode: workMode, Objective: strings.TrimSpace(options.Objective),
@@ -162,6 +164,17 @@ func (r *Runtime) startRunWithOptions(ctx context.Context, sessionID string, age
 		r.activeMu.Unlock()
 	}
 	return run, runCtx, finish, nil
+}
+
+func (r *Runtime) runModelSnapshot(ctx context.Context, agent Agent) (string, string) {
+	if r == nil || r.store == nil || strings.TrimSpace(agent.ProviderID) == "" {
+		return "", strings.TrimSpace(agent.Model)
+	}
+	provider, ok, err := r.store.Provider(ctx, agent.ProviderID)
+	if err != nil || !ok {
+		return "", strings.TrimSpace(agent.Model)
+	}
+	return provider.DisplayName, defaultString(agent.Model, provider.Model)
 }
 
 func (r *Runtime) CancelRun(ctx context.Context, runID string) (Run, error) {

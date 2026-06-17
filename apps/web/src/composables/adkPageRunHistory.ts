@@ -1,4 +1,4 @@
-import type { ADKSession, ADKTimelineEntry } from "@/contracts";
+import type { ADKRun, ADKSession, ADKTimelineEntry } from "@/contracts";
 
 import { fetchEnvelope } from "./apiClient";
 import { normalizeADKTimelineEntries } from "./adkNormalization";
@@ -10,6 +10,7 @@ import {
 interface SessionDetailResponse {
   session: ADKSession;
   timeline: ADKTimelineEntry[];
+  runs?: ADKRun[];
 }
 
 export async function loadSessionChatHistory(sessionId: string): Promise<{
@@ -23,6 +24,12 @@ export async function loadSessionChatHistory(sessionId: string): Promise<{
     session: detail.session,
     timelineEntries: replaceTimelineEntries(
       normalizeADKTimelineEntries(detail.timeline),
+      [],
+      runsById(detail.runs ?? []),
     ),
   };
+}
+
+function runsById(runs: ADKRun[]): Map<string, ADKRun> {
+  return new Map(runs.map((run) => [run.id, run]));
 }

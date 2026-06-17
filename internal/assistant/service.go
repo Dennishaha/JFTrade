@@ -444,9 +444,14 @@ func (s *Service) GetSessionDetail(ctx context.Context, sessionID string) (jfadk
 	if timeline == nil {
 		timeline = []jfadk.TimelineEntry{}
 	}
+	runs, err := s.runtime.Store().SessionRuns(ctx, sessionID)
+	if err != nil {
+		return jfadk.SessionsResponse{}, err
+	}
 	return jfadk.NormalizeSessionsResponse(jfadk.SessionsResponse{
 		Session:  session,
 		Timeline: timeline,
+		Runs:     runs,
 	}), nil
 }
 

@@ -84,8 +84,19 @@ func (h *Handler) handleADKChatStream(c *gin.Context) {
 	result, err := h.service.ChatStream(c.Request.Context(), payload, func(delta jfadk.ChatDelta) error {
 		streamMu.Lock()
 		defer streamMu.Unlock()
+		if delta.Timeline != nil {
+			timeline := jfadk.NormalizeTimelineEntry(*delta.Timeline)
+			timelineState.observeTimeline(timeline)
+			if err := writer.WriteEvent(adkChatStreamEvent{Type: "timeline", Timeline: &timeline}); err != nil {
+				return err
+			}
+			if delta.Run == nil && delta.Context == nil && delta.Reply == "" && delta.ReasoningContent == "" {
+				return nil
+			}
+		}
 		if delta.Run != nil {
-			delta.Run = new(jfadk.NormalizeRun(*delta.Run))
+			normalizedRun := jfadk.NormalizeRun(*delta.Run)
+			delta.Run = &normalizedRun
 			timelineState.observeRun(delta.Run)
 			if err := writer.WriteEvent(adkChatStreamEvent{Type: "run", Run: delta.Run}); err != nil {
 				return err
@@ -158,7 +169,7 @@ func (h *Handler) handleADKChatStream(c *gin.Context) {
 			trimmedRun.ToolCalls[i].Output = nil
 		}
 	}
-	_ = writer.WriteEvent(adkChatStreamEvent{Type: "final", Response: new(jfadk.NormalizeChatResponse(jfadk.ChatResponse{
+	normalizedResponse := jfadk.NormalizeChatResponse(jfadk.ChatResponse{
 		Reply:            response.Reply,
 		ReasoningContent: response.ReasoningContent,
 		Session:          response.Session,
@@ -166,7 +177,8 @@ func (h *Handler) handleADKChatStream(c *gin.Context) {
 		PendingApprovals: response.PendingApprovals,
 		Timeline:         response.Timeline,
 		Context:          response.Context,
-	}))})
+	})
+	_ = writer.WriteEvent(adkChatStreamEvent{Type: "final", Response: &normalizedResponse})
 }
 
 func decodeADKChatRequest(body io.Reader) (jfadk.ChatRequest, error) {
@@ -215,6 +227,18 @@ func (s *adkTimelineStreamState) observeRun(run *jfadk.Run) {
 	s.toolGroup.CreatedAt = firstTimelineToolTime(run.ToolCalls, s.toolGroup.CreatedAt)
 	s.toolGroup.ToolCalls = append([]jfadk.ToolCall(nil), run.ToolCalls...)
 	s.toolGroup.Status = jfadk.TimelineStatusStreaming
+}
+
+func (s *adkTimelineStreamState) observeTimeline(entry jfadk.TimelineEntry) {
+	if strings.TrimSpace(entry.SessionID) != "" {
+		s.sessionID = entry.SessionID
+	}
+	if strings.TrimSpace(entry.RunID) != "" {
+		s.runID = entry.RunID
+	}
+	if entry.Sequence > s.nextSequence {
+		s.nextSequence = entry.Sequence
+	}
 }
 
 func (s *adkTimelineStreamState) appendReasoning(run *jfadk.Run, delta string) *jfadk.TimelineEntry {

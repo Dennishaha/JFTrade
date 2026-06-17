@@ -35,6 +35,7 @@ const (
 	tableSessionContexts    = "adk_session_contexts"
 	tableHandoffSegments    = "adk_handoff_segments"
 	tableSessionContextLive = "adk_session_context_state"
+	tableSessionNotices     = "adk_session_notices"
 )
 
 type Store struct {
@@ -134,6 +135,8 @@ func (s *Store) migrate() error {
 		{28, `DROP TABLE IF EXISTS adk_messages`},
 		{29, `DROP TABLE IF EXISTS adk_transcript_entries`},
 		{30, `UPDATE ` + tableAgents + ` SET payload_json = json_set(payload_json, '$.workMode', 'chat') WHERE json_extract(payload_json, '$.workMode') IN ('sequential', 'parallel')`},
+		{31, `CREATE TABLE IF NOT EXISTS ` + tableSessionNotices + ` (id TEXT PRIMARY KEY, session_id TEXT NOT NULL, run_id TEXT NOT NULL, kind TEXT NOT NULL, status TEXT NOT NULL, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`},
+		{32, `CREATE INDEX IF NOT EXISTS idx_adk_session_notices_session ON ` + tableSessionNotices + ` (session_id, created_at ASC)`},
 	}
 	for _, m := range migrations {
 		var count int
@@ -491,6 +494,9 @@ func (s *Store) DeleteSession(ctx context.Context, id string) error {
 		return err
 	}
 	if _, err := s.db.ExecContext(ctx, `DELETE FROM `+tableHandoffSegments+` WHERE session_id = ?`, id); err != nil {
+		return err
+	}
+	if _, err := s.db.ExecContext(ctx, `DELETE FROM `+tableSessionNotices+` WHERE session_id = ?`, id); err != nil {
 		return err
 	}
 	if _, err := s.db.ExecContext(ctx, `DELETE FROM `+tableSessions+` WHERE id = ?`, id); err != nil {

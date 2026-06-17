@@ -190,6 +190,9 @@ export interface ADKSession {
 
 export interface ADKSessionContextSnapshot {
   sessionId: string;
+  contextRevisionId?: string;
+  previousContextRevisionId?: string;
+  contextRevisionCreatedAt?: string;
   currentInputTokens: number;
   projectedNextTurnTokens: number;
   estimatedInputTokens?: number;
@@ -257,6 +260,7 @@ export type ADKTimelineEntryKind =
   | "assistant_reasoning"
   | "tool_group"
   | "approval_group"
+  | "context_notice"
   | "assistant_message";
 
 export type ADKTimelineEntryStatus = "streaming" | "final" | string;
@@ -267,9 +271,12 @@ export interface ADKTimelineEntry {
   runId?: string;
   kind: ADKTimelineEntryKind | string;
   createdAt: string;
+  updatedAt?: string;
   sequence: number;
   status?: ADKTimelineEntryStatus;
   text?: string;
+  originalText?: string;
+  processedText?: string;
   toolCalls?: ADKToolCall[];
   approvals?: ADKApproval[];
 }
@@ -287,6 +294,8 @@ export interface ADKRun {
   sessionId: string;
   agentId: string;
   providerId?: string;
+  providerName?: string;
+  model?: string;
   maxDurationMs?: number;
   status: string;
   message: string;

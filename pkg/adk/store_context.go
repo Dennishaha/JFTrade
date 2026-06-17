@@ -11,6 +11,7 @@ func (s *Store) SessionContext(ctx context.Context, sessionID string) (SessionCo
 	ok, err := s.getJSON(ctx, tableSessionContextLive, sessionID, &state)
 	if ok {
 		state.SessionID = strings.TrimSpace(sessionID)
+		state = ensureSessionContextRevision(state, sessionID)
 	}
 	return state, ok, err
 }
@@ -20,6 +21,7 @@ func (s *Store) SaveSessionContext(ctx context.Context, state SessionContextStat
 	if state.SessionID == "" {
 		return SessionContextState{}, os.ErrNotExist
 	}
+	state = ensureSessionContextRevision(state, state.SessionID)
 	now := nowString()
 	existing, ok, err := s.SessionContext(ctx, state.SessionID)
 	if err != nil {

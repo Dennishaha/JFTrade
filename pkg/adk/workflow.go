@@ -403,6 +403,10 @@ func (e *WorkflowExecutor) runPlannedGoogleADKWorkflow(ctx context.Context, req 
 	if err := emitWorkflowRunSnapshot(req, parent); err != nil {
 		return ChatResponse{}, err
 	}
+	if err := e.runtime.maybeAutoCompactSessionDuringWorkflow(ctx, req.Session, req.Agent, req.Message, req.OnDelta); err != nil {
+		parent = e.failParent(ctx, parent, err)
+		return e.workflowResponse(ctx, req.Session, parent, openAIChatResult{Reply: parent.FailureReason}), nil
+	}
 	execution, err := e.runtime.newGoogleADKWorkflowExecution(ctx, req.Agent, req.Session, parent, childRuns, steps, parent.WorkMode, req.RunOptions, req.OnDelta)
 	if err != nil {
 		parent = e.failParent(ctx, parent, err)
@@ -606,6 +610,10 @@ func (e *WorkflowExecutor) runChild(ctx context.Context, req workflowRequest, pa
 		return workflowChildResult{Index: iteration - 1, TaskID: task.ID, Err: err}
 	}
 	e.runtime.workflowChildMu.Lock()
+	if err := e.runtime.maybeAutoCompactSessionDuringWorkflow(ctx, req.Session, childAgent, step.Message, req.OnDelta); err != nil {
+		e.runtime.workflowChildMu.Unlock()
+		return workflowChildResult{Index: iteration - 1, TaskID: task.ID, Err: err}
+	}
 	childSession := req.Session
 	if refreshed, ok, refreshErr := e.runtime.store.Session(ctx, req.Session.ID); refreshErr == nil && ok {
 		childSession = refreshed
@@ -665,6 +673,10 @@ func (e *WorkflowExecutor) runSelfTask(ctx context.Context, req workflowRequest,
 	}
 	prompt := workflowSelfTaskPrompt(parent, task)
 	e.runtime.workflowChildMu.Lock()
+	if err := e.runtime.maybeAutoCompactSessionDuringWorkflow(ctx, req.Session, selfAgent, prompt, req.OnDelta); err != nil {
+		e.runtime.workflowChildMu.Unlock()
+		return parent, "", false, err
+	}
 	toolContext, approvals, replyResult, preToolContent, preToolReasoning, adkErr := e.runtime.executeGoogleADK(ctx, selfAgent, req.Session, parent.ID, prompt, req.OnDelta)
 	e.runtime.workflowChildMu.Unlock()
 	parent = hydrateRunExecutionResult(parent, toolContext, approvals, preToolContent, preToolReasoning)

@@ -68,10 +68,17 @@ function agentLabel(agentId: string): string {
 }
 
 function providerLabel(run: ADKRun): string {
+  if ((run.providerName ?? "").trim() !== "" || (run.model ?? "").trim() !== "") {
+    const providerPart = (run.providerName ?? "").trim() !== ""
+      ? `${run.providerName}${run.providerId ? ` (${run.providerId})` : ""}`
+      : (run.providerId ?? "").trim();
+    const modelPart = (run.model ?? "").trim();
+    return [providerPart, modelPart].filter(Boolean).join(" · ");
+  }
   const providerId = run.providerId ?? props.agents.find((agent) => agent.id === run.agentId)?.providerId ?? "";
   if (providerId === "") return "未绑定模型服务";
   const provider = props.providers.find((item) => item.id === providerId);
-  return provider ? `${provider.displayName} (${provider.id})` : providerId;
+  return provider ? `${provider.displayName} (${provider.id}) · ${provider.model}` : providerId;
 }
 
 function runStatusColor(run: ADKRun): string {

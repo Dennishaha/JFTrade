@@ -196,6 +196,13 @@ const hasContextUsage = computed(() => {
     (props.contextSnapshot.retainedRecentUserCount ?? 0) > 0
   );
 });
+const showContextControl = computed(
+  () =>
+    hasContextUsage.value ||
+    props.contextBusy ||
+    props.contextDetailsOpen ||
+    props.contextSnapshot != null,
+);
 const hasKnownContextWindow = computed(
   () =>
     !!props.contextSnapshot &&
@@ -225,7 +232,7 @@ const contextPercent = computed(() => {
 });
 const contextPillLabel = computed(() => {
   if (!hasContextUsage.value) {
-    return "";
+    return props.contextBusy ? "上下文..." : "上下文";
   }
   if (!hasKnownContextWindow.value) {
     return `${formatTokenCount(props.contextSnapshot?.currentInputTokens ?? 0)} Tokens`;
@@ -410,6 +417,14 @@ function contextWindowLabel(
   return formatTokenCount(snapshot.contextWindowTokens);
 }
 
+function contextRevisionLabel(
+  snapshot: ADKSessionContextSnapshot | null | undefined,
+): string {
+  const revision = snapshot?.contextRevisionId?.trim() ?? "";
+  if (revision === "") return "未生成";
+  return revision.length > 18 ? `${revision.slice(0, 18)}...` : revision;
+}
+
 function compactionModeLabel(mode?: string): string {
   switch (mode) {
     case "manual":
@@ -456,7 +471,7 @@ function canRevokeQueueItem(item: QueuedChatMessage): boolean {
         <span>{{ composerBlockMessage }}</span>
       </div>
 
-      <div v-if="variant === 'dock' && hasContextUsage" class="adk-context-row">
+      <div v-if="variant === 'dock' && showContextControl" class="adk-context-row">
         <v-menu
           v-model="contextMenuOpen"
           location="top start"
@@ -515,6 +530,10 @@ function canRevokeQueueItem(item: QueuedChatMessage): boolean {
               <div class="adk-context-stat">
                 <span>生效 handoff 段数</span>
                 <strong>{{ contextSnapshot?.activeHandoffCount ?? 0 }}</strong>
+              </div>
+              <div class="adk-context-stat">
+                <span>上下文版本</span>
+                <strong>{{ contextRevisionLabel(contextSnapshot) }}</strong>
               </div>
               <div class="adk-context-stat">
                 <span>最近压缩方式</span>
@@ -596,6 +615,15 @@ function canRevokeQueueItem(item: QueuedChatMessage): boolean {
                 <div class="adk-context-summary__title">最近压缩原因</div>
                 <div class="adk-context-summary__content">
                   {{ contextSnapshot.lastCompactionReason }}
+                </div>
+              </div>
+              <div
+                v-if="contextSnapshot?.contextRevisionCreatedAt"
+                class="adk-context-summary"
+              >
+                <div class="adk-context-summary__title">版本创建时间</div>
+                <div class="adk-context-summary__content">
+                  {{ contextSnapshot.contextRevisionCreatedAt }}
                 </div>
               </div>
               <div
@@ -801,7 +829,7 @@ function canRevokeQueueItem(item: QueuedChatMessage): boolean {
             />
 
             <v-menu
-              v-if="hasContextUsage"
+              v-if="showContextControl"
               v-model="contextMenuOpen"
               location="top start"
               :close-on-content-click="false"

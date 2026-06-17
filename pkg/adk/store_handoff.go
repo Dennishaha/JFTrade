@@ -34,10 +34,44 @@ func (s *Store) HandoffSegments(ctx context.Context, sessionID string, activeOnl
 	return items, nil
 }
 
+func (s *Store) HandoffSegmentsForRevision(ctx context.Context, sessionID string, contextRevisionID string, activeOnly bool) ([]HandoffSegment, error) {
+	sessionID = strings.TrimSpace(sessionID)
+	contextRevisionID = strings.TrimSpace(contextRevisionID)
+	if contextRevisionID == "" {
+		return []HandoffSegment{}, nil
+	}
+	clauses := []string{"session_id = ?"}
+	args := []any{sessionID}
+	clauses = append(clauses, "json_extract(payload_json, '$.contextRevisionId') = ?")
+	args = append(args, contextRevisionID)
+	if activeOnly {
+		clauses = append(clauses, "active = 1")
+	}
+	whereSQL := " WHERE " + strings.Join(clauses, " AND ")
+	rows := []struct {
+		PayloadJSON string `db:"payload_json"`
+	}{}
+	if err := s.db.SelectContext(ctx, &rows, `SELECT payload_json FROM `+tableHandoffSegments+whereSQL+` ORDER BY sequence_no ASC, created_at ASC`, args...); err != nil {
+		return nil, err
+	}
+	items := make([]HandoffSegment, 0, len(rows))
+	for _, row := range rows {
+		var segment HandoffSegment
+		if err := json.Unmarshal([]byte(row.PayloadJSON), &segment); err != nil {
+			return nil, err
+		}
+		items = append(items, segment)
+	}
+	return items, nil
+}
+
 func (s *Store) SaveHandoffSegment(ctx context.Context, segment HandoffSegment) (HandoffSegment, error) {
 	segment.SessionID = strings.TrimSpace(segment.SessionID)
 	if segment.SessionID == "" {
 		return HandoffSegment{}, os.ErrNotExist
+	}
+	if strings.TrimSpace(segment.ContextRevisionID) == "" {
+		segment.ContextRevisionID = newContextRevisionID()
 	}
 	now := nowString()
 	if strings.TrimSpace(segment.ID) == "" {
@@ -91,6 +125,9 @@ func (s *Store) saveHandoffSegmentTx(ctx context.Context, tx sqlx.ExtContext, se
 	segment.SessionID = strings.TrimSpace(segment.SessionID)
 	if segment.SessionID == "" {
 		return HandoffSegment{}, os.ErrNotExist
+	}
+	if strings.TrimSpace(segment.ContextRevisionID) == "" {
+		segment.ContextRevisionID = newContextRevisionID()
 	}
 	now := nowString()
 	if strings.TrimSpace(segment.ID) == "" {

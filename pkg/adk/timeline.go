@@ -8,15 +8,19 @@ import (
 )
 
 type timelinePrimitive struct {
-	id        string
-	sessionID string
-	runID     string
-	kind      string
-	createdAt string
-	order     int
-	text      string
-	toolCall  *ToolCall
-	approval  *Approval
+	id            string
+	sessionID     string
+	runID         string
+	kind          string
+	createdAt     string
+	updatedAt     string
+	order         int
+	status        string
+	text          string
+	originalText  string
+	processedText string
+	toolCall      *ToolCall
+	approval      *Approval
 }
 
 func (s *Store) SessionTimeline(ctx context.Context, sessionID string) ([]TimelineEntry, bool, error) {
@@ -28,18 +32,22 @@ func (s *Store) SessionTimeline(ctx context.Context, sessionID string) ([]Timeli
 	if err != nil || !ok {
 		return nil, false, err
 	}
-	projection, ok, err := s.SessionProjection(ctx, sessionID)
+	notices, err := s.SessionNotices(ctx, sessionID)
 	if err != nil {
 		return nil, false, err
 	}
-	if !ok {
-		return nil, false, nil
+	projection, ok, err := s.SessionProjection(ctx, sessionID)
+	if err != nil {
+		return nil, false, err
 	}
 	runs, err := s.sessionRuns(ctx, sessionID)
 	if err != nil {
 		return nil, false, err
 	}
-	timeline := buildSessionTimeline(session, projection.Messages, runs)
+	if !ok && len(runs) == 0 && len(notices) == 0 {
+		return nil, false, nil
+	}
+	timeline := buildSessionTimeline(session, projection.Messages, runs, notices)
 	if len(timeline) == 0 {
 		return nil, false, nil
 	}
@@ -67,7 +75,11 @@ func (s *Store) sessionRuns(ctx context.Context, sessionID string) ([]Run, error
 	return runs, nil
 }
 
-func buildSessionTimeline(session Session, messages []TranscriptEntry, runs []Run) []TimelineEntry {
+func (s *Store) SessionRuns(ctx context.Context, sessionID string) ([]Run, error) {
+	return s.sessionRuns(ctx, sessionID)
+}
+
+func buildSessionTimeline(session Session, messages []TranscriptEntry, runs []Run, notices []TimelineEntry) []TimelineEntry {
 	sortedMessages := append([]TranscriptEntry(nil), messages...)
 	sort.SliceStable(sortedMessages, func(i, j int) bool {
 		return compareTimelineKeys(sortedMessages[i].CreatedAt, 0, sortedMessages[i].ID, sortedMessages[j].CreatedAt, 0, sortedMessages[j].ID)
@@ -87,19 +99,47 @@ func buildSessionTimeline(session Session, messages []TranscriptEntry, runs []Ru
 		}
 	}
 
-	raw := make([]timelinePrimitive, 0, len(sortedMessages)+(len(sortedRuns)*3))
+	raw := make([]timelinePrimitive, 0, len(sortedMessages)+(len(sortedRuns)*3)+len(notices))
+	for _, notice := range notices {
+		if strings.TrimSpace(notice.Text) == "" {
+			continue
+		}
+		raw = append(raw, timelinePrimitive{
+			id:        strings.TrimSpace(notice.ID),
+			sessionID: session.ID,
+			runID:     strings.TrimSpace(notice.RunID),
+			kind:      defaultString(strings.TrimSpace(notice.Kind), TimelineKindContextNotice),
+			createdAt: notice.CreatedAt,
+			updatedAt: notice.UpdatedAt,
+			order:     15,
+			status:    strings.TrimSpace(notice.Status),
+			text:      strings.TrimSpace(notice.Text),
+		})
+	}
 	processedRuns := map[string]struct{}{}
 	for _, message := range sortedMessages {
 		switch strings.ToLower(strings.TrimSpace(message.Role)) {
 		case "user":
+			text := strings.TrimSpace(message.Content)
+			originalText := ""
+			processedText := ""
+			if run, ok := runsByID[strings.TrimSpace(message.RunID)]; ok {
+				if userMessage := strings.TrimSpace(run.UserMessage); userMessage != "" && userMessage != text {
+					originalText = userMessage
+					processedText = text
+					text = userMessage
+				}
+			}
 			raw = append(raw, timelinePrimitive{
-				id:        message.ID,
-				sessionID: session.ID,
-				runID:     strings.TrimSpace(message.RunID),
-				kind:      TimelineKindUserMessage,
-				createdAt: message.CreatedAt,
-				order:     10,
-				text:      strings.TrimSpace(message.Content),
+				id:            message.ID,
+				sessionID:     session.ID,
+				runID:         strings.TrimSpace(message.RunID),
+				kind:          TimelineKindUserMessage,
+				createdAt:     message.CreatedAt,
+				order:         10,
+				text:          text,
+				originalText:  originalText,
+				processedText: processedText,
 			})
 		default:
 			run, ok := runsByID[strings.TrimSpace(message.RunID)]
@@ -316,13 +356,16 @@ func groupTimelinePrimitives(primitives []timelinePrimitive) []TimelineEntry {
 				continue
 			}
 			result = append(result, TimelineEntry{
-				ID:        primitive.id,
-				SessionID: primitive.sessionID,
-				RunID:     primitive.runID,
-				Kind:      primitive.kind,
-				CreatedAt: primitive.createdAt,
-				Status:    TimelineStatusFinal,
-				Text:      strings.TrimSpace(primitive.text),
+				ID:            primitive.id,
+				SessionID:     primitive.sessionID,
+				RunID:         primitive.runID,
+				Kind:          primitive.kind,
+				CreatedAt:     primitive.createdAt,
+				UpdatedAt:     primitive.updatedAt,
+				Status:        defaultString(strings.TrimSpace(primitive.status), TimelineStatusFinal),
+				Text:          strings.TrimSpace(primitive.text),
+				OriginalText:  strings.TrimSpace(primitive.originalText),
+				ProcessedText: strings.TrimSpace(primitive.processedText),
 			})
 		}
 	}

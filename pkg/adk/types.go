@@ -121,9 +121,11 @@ const (
 	TimelineKindAssistantReasoning = "assistant_reasoning"
 	TimelineKindToolGroup          = "tool_group"
 	TimelineKindApprovalGroup      = "approval_group"
+	TimelineKindContextNotice      = "context_notice"
 
 	TimelineStatusStreaming = "streaming"
 	TimelineStatusFinal     = "final"
+	TimelineStatusError     = "error"
 )
 
 type TranscriptEntry struct {
@@ -140,16 +142,19 @@ type TranscriptEntry struct {
 type Message = TranscriptEntry
 
 type TimelineEntry struct {
-	ID        string     `json:"id"`
-	SessionID string     `json:"sessionId"`
-	RunID     string     `json:"runId,omitempty"`
-	Kind      string     `json:"kind"`
-	CreatedAt string     `json:"createdAt"`
-	Sequence  int        `json:"sequence"`
-	Status    string     `json:"status,omitempty"`
-	Text      string     `json:"text,omitempty"`
-	ToolCalls []ToolCall `json:"toolCalls,omitempty"`
-	Approvals []Approval `json:"approvals,omitempty"`
+	ID            string     `json:"id"`
+	SessionID     string     `json:"sessionId"`
+	RunID         string     `json:"runId,omitempty"`
+	Kind          string     `json:"kind"`
+	CreatedAt     string     `json:"createdAt"`
+	UpdatedAt     string     `json:"updatedAt,omitempty"`
+	Sequence      int        `json:"sequence"`
+	Status        string     `json:"status,omitempty"`
+	Text          string     `json:"text,omitempty"`
+	OriginalText  string     `json:"originalText,omitempty"`
+	ProcessedText string     `json:"processedText,omitempty"`
+	ToolCalls     []ToolCall `json:"toolCalls,omitempty"`
+	Approvals     []Approval `json:"approvals,omitempty"`
 }
 
 type Run struct {
@@ -157,6 +162,8 @@ type Run struct {
 	SessionID          string              `json:"sessionId"`
 	AgentID            string              `json:"agentId"`
 	ProviderID         string              `json:"providerId,omitempty"`
+	ProviderName       string              `json:"providerName,omitempty"`
+	Model              string              `json:"model,omitempty"`
 	MaxDurationMs      int64               `json:"maxDurationMs"`
 	Status             string              `json:"status"`
 	Message            string              `json:"message"`
@@ -298,6 +305,7 @@ type ChatDelta struct {
 	ToolProgress     string                  `json:"toolProgress,omitempty"`
 	Run              *Run                    `json:"run,omitempty"`
 	Context          *SessionContextSnapshot `json:"context,omitempty"`
+	Timeline         *TimelineEntry          `json:"timeline,omitempty"`
 }
 
 type ChatResponse struct {
@@ -320,6 +328,7 @@ type ApprovalResolution struct {
 type SessionsResponse struct {
 	Session  Session         `json:"session"`
 	Timeline []TimelineEntry `json:"timeline"`
+	Runs     []Run           `json:"runs,omitempty"`
 }
 
 type Snapshot struct {
@@ -434,19 +443,20 @@ type MemoryWriteRequest struct {
 }
 
 type HandoffSegment struct {
-	ID              string `json:"id"`
-	SessionID       string `json:"sessionId"`
-	Sequence        int    `json:"sequence"`
-	StartEventIndex int    `json:"startEventIndex"`
-	EndEventIndex   int    `json:"endEventIndex"`
-	Summary         string `json:"summary"`
-	Mode            string `json:"mode"`
-	Reason          string `json:"reason,omitempty"`
-	EstimatedTokens int    `json:"estimatedTokens"`
-	Active          bool   `json:"active"`
-	SupersededBy    string `json:"supersededBy,omitempty"`
-	CreatedAt       string `json:"createdAt"`
-	UpdatedAt       string `json:"updatedAt"`
+	ID                string `json:"id"`
+	SessionID         string `json:"sessionId"`
+	ContextRevisionID string `json:"contextRevisionId,omitempty"`
+	Sequence          int    `json:"sequence"`
+	StartEventIndex   int    `json:"startEventIndex"`
+	EndEventIndex     int    `json:"endEventIndex"`
+	Summary           string `json:"summary"`
+	Mode              string `json:"mode"`
+	Reason            string `json:"reason,omitempty"`
+	EstimatedTokens   int    `json:"estimatedTokens"`
+	Active            bool   `json:"active"`
+	SupersededBy      string `json:"supersededBy,omitempty"`
+	CreatedAt         string `json:"createdAt"`
+	UpdatedAt         string `json:"updatedAt"`
 }
 
 type SessionContextBreakdown struct {
@@ -460,27 +470,33 @@ type SessionContextBreakdown struct {
 }
 
 type SessionContextState struct {
-	SessionID               string                  `json:"sessionId"`
-	RecentUserWindow        int                     `json:"recentUserWindow"`
-	RetainedRecentUserCount int                     `json:"retainedRecentUserCount"`
-	ActiveHandoffCount      int                     `json:"activeHandoffCount"`
-	CurrentInputTokens      int                     `json:"currentInputTokens"`
-	ProjectedNextTurnTokens int                     `json:"projectedNextTurnTokens"`
-	ContextWindowTokens     int                     `json:"contextWindowTokens"`
-	UsageRatio              float64                 `json:"usageRatio"`
-	LatestHandoffPreview    string                  `json:"latestHandoffPreview,omitempty"`
-	Breakdown               SessionContextBreakdown `json:"breakdown"`
-	LastCompactedAt         string                  `json:"lastCompactedAt,omitempty"`
-	LastCompactionMode      string                  `json:"lastCompactionMode,omitempty"`
-	LastCompactionReason    string                  `json:"lastCompactionReason,omitempty"`
-	AutoCompacted           bool                    `json:"autoCompacted,omitempty"`
-	DegradedSummary         bool                    `json:"degradedSummary,omitempty"`
-	CreatedAt               string                  `json:"createdAt"`
-	UpdatedAt               string                  `json:"updatedAt"`
+	SessionID                 string                  `json:"sessionId"`
+	ContextRevisionID         string                  `json:"contextRevisionId,omitempty"`
+	PreviousContextRevisionID string                  `json:"previousContextRevisionId,omitempty"`
+	ContextRevisionCreatedAt  string                  `json:"contextRevisionCreatedAt,omitempty"`
+	RecentUserWindow          int                     `json:"recentUserWindow"`
+	RetainedRecentUserCount   int                     `json:"retainedRecentUserCount"`
+	ActiveHandoffCount        int                     `json:"activeHandoffCount"`
+	CurrentInputTokens        int                     `json:"currentInputTokens"`
+	ProjectedNextTurnTokens   int                     `json:"projectedNextTurnTokens"`
+	ContextWindowTokens       int                     `json:"contextWindowTokens"`
+	UsageRatio                float64                 `json:"usageRatio"`
+	LatestHandoffPreview      string                  `json:"latestHandoffPreview,omitempty"`
+	Breakdown                 SessionContextBreakdown `json:"breakdown"`
+	LastCompactedAt           string                  `json:"lastCompactedAt,omitempty"`
+	LastCompactionMode        string                  `json:"lastCompactionMode,omitempty"`
+	LastCompactionReason      string                  `json:"lastCompactionReason,omitempty"`
+	AutoCompacted             bool                    `json:"autoCompacted,omitempty"`
+	DegradedSummary           bool                    `json:"degradedSummary,omitempty"`
+	CreatedAt                 string                  `json:"createdAt"`
+	UpdatedAt                 string                  `json:"updatedAt"`
 }
 
 type SessionContextSnapshot struct {
 	SessionID                  string                  `json:"sessionId"`
+	ContextRevisionID          string                  `json:"contextRevisionId,omitempty"`
+	PreviousContextRevisionID  string                  `json:"previousContextRevisionId,omitempty"`
+	ContextRevisionCreatedAt   string                  `json:"contextRevisionCreatedAt,omitempty"`
 	CurrentInputTokens         int                     `json:"currentInputTokens"`
 	ProjectedNextTurnTokens    int                     `json:"projectedNextTurnTokens"`
 	EstimatedInputTokens       int                     `json:"estimatedInputTokens,omitempty"`

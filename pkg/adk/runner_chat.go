@@ -36,7 +36,9 @@ func (r *Runtime) runChat(ctx context.Context, req ChatRequest, onDelta func(Cha
 	if err != nil {
 		return ChatResponse{}, err
 	}
-	r.maybeAutoCompactSession(ctx, session, agent, text)
+	if err := r.maybeAutoCompactSession(ctx, session, agent, text, onDelta); err != nil {
+		return ChatResponse{}, err
+	}
 	if workMode != WorkModeChat {
 		return r.workflowExecutor().Run(ctx, workflowRequest{
 			Agent: agent, Session: session, Message: text, Mode: workMode, Objective: objective,
@@ -498,31 +500,59 @@ func terminalAuditFields(run Run) map[string]any {
 	return fields
 }
 
-func (r *Runtime) maybeAutoCompactSession(ctx context.Context, session Session, agent Agent, pendingUserText string) {
+func (r *Runtime) maybeAutoCompactSession(ctx context.Context, session Session, agent Agent, pendingUserText string, onDelta func(ChatDelta) error) error {
+	return r.maybeAutoCompactSessionWithOptions(ctx, session, agent, pendingUserText, onDelta, false)
+}
+
+func (r *Runtime) maybeAutoCompactSessionDuringWorkflow(ctx context.Context, session Session, agent Agent, pendingUserText string, onDelta func(ChatDelta) error) error {
+	return r.maybeAutoCompactSessionWithOptions(ctx, session, agent, pendingUserText, onDelta, true)
+}
+
+func (r *Runtime) maybeAutoCompactSessionWithOptions(ctx context.Context, session Session, agent Agent, pendingUserText string, onDelta func(ChatDelta) error, allowActiveRun bool) error {
 	if r == nil || r.contextManager == nil || strings.TrimSpace(session.ID) == "" {
-		return
+		return nil
 	}
 	snapshot, err := r.contextManager.ProjectedSnapshot(ctx, session, agent, pendingUserText)
 	if err != nil {
-		return
+		return nil
 	}
 	mode, shouldCompact := r.contextManager.ShouldAutoCompact(snapshot)
 	if !shouldCompact {
-		return
+		return nil
 	}
-	active, err := r.contextManager.HasActiveRun(ctx, session.ID)
-	if err != nil || active {
-		return
+	if !allowActiveRun {
+		active, err := r.contextManager.HasActiveRun(ctx, session.ID)
+		if err != nil || active {
+			return nil
+		}
 	}
 	reason := "context usage exceeded automatic compaction threshold"
 	if mode == "aggressive" {
 		reason = "context usage exceeded aggressive failsafe threshold"
 	}
-	_, _ = r.contextManager.Compact(ctx, session, agent, SessionCompactRequest{
+	notice := r.createContextCompactionNotice(ctx, session.ID)
+	if err := emitContextCompactionNotice(onDelta, notice); err != nil {
+		return err
+	}
+	compacted, err := r.contextManager.Compact(ctx, session, agent, SessionCompactRequest{
 		Mode:    mode,
 		Trigger: "auto",
 		Reason:  reason,
 	})
+	if err != nil {
+		notice = r.updateContextCompactionNotice(ctx, notice, TimelineStatusError, contextCompactionFailedText)
+		return emitContextCompactionNotice(onDelta, notice)
+	}
+	notice = r.updateContextCompactionNotice(ctx, notice, TimelineStatusFinal, contextCompactionDoneText)
+	if err := emitContextCompactionNotice(onDelta, notice); err != nil {
+		return err
+	}
+	if onDelta != nil {
+		if err := onDelta(ChatDelta{Context: &compacted}); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (r *Runtime) contextSnapshotOrNil(ctx context.Context, sessionID string) *SessionContextSnapshot {

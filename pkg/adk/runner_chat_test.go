@@ -496,6 +496,60 @@ func TestProjectedChatResponseAppliesProjectionToRunFields(t *testing.T) {
 	}
 }
 
+func TestRunStoresResolvedModelSnapshot(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	mustSaveProvider(t, runtime, ProviderWriteRequest{
+		ID:          "snapshot-provider",
+		DisplayName: "Snapshot Provider",
+		BaseURL:     "https://example.test/v1",
+		Model:       "snapshot-model-v1",
+		APIKey:      "sk-test",
+		Enabled:     true,
+	})
+	agent := mustSaveAgent(t, runtime, AgentWriteRequest{
+		ID:             "agent-model-snapshot",
+		Name:           "Agent",
+		ProviderID:     "snapshot-provider",
+		PermissionMode: PermissionModeApproval,
+		Status:         AgentStatusEnabled,
+	})
+	session := mustCreateSession(t, runtime, agent.ID, "model snapshot")
+	run, _, finish, err := runtime.startRun(ctx, session.ID, agent, "hello")
+	if err != nil {
+		t.Fatalf("startRun: %v", err)
+	}
+	finish()
+	if run.Model != "snapshot-model-v1" {
+		t.Fatalf("run model = %q, want snapshot-model-v1", run.Model)
+	}
+	if run.ProviderName != "Snapshot Provider" {
+		t.Fatalf("run providerName = %q, want Snapshot Provider", run.ProviderName)
+	}
+
+	mustSaveProvider(t, runtime, ProviderWriteRequest{
+		ID:          "snapshot-provider",
+		DisplayName: "Snapshot Provider Renamed",
+		BaseURL:     "https://example.test/v1",
+		Model:       "snapshot-model-v2",
+		Enabled:     true,
+	})
+	stored, ok, err := runtime.Store().Run(ctx, run.ID)
+	if err != nil || !ok {
+		t.Fatalf("Run lookup err=%v ok=%v", err, ok)
+	}
+	if stored.Model != "snapshot-model-v1" {
+		t.Fatalf("stored model = %q, want snapshot-model-v1", stored.Model)
+	}
+	runs, err := runtime.Store().SessionRuns(ctx, session.ID)
+	if err != nil {
+		t.Fatalf("SessionRuns: %v", err)
+	}
+	if len(runs) != 1 || runs[0].Model != "snapshot-model-v1" {
+		t.Fatalf("session runs = %+v, want model snapshot", runs)
+	}
+}
+
 func TestProjectedChatResponseDoesNotExposeResolvedApprovals(t *testing.T) {
 	ctx := context.Background()
 	runtime := newTestRuntime(t)

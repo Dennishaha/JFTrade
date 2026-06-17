@@ -98,6 +98,122 @@ func TestSessionProjectionRestoresMessagesFromADKEvents(t *testing.T) {
 	}
 }
 
+func TestSessionTimelineIncludesContextNoticeWithoutProjection(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	agent := mustSaveAgent(t, runtime, AgentWriteRequest{
+		ID:             "agent-context-notice",
+		Name:           "Context Notice Agent",
+		PermissionMode: PermissionModeApproval,
+		Status:         AgentStatusEnabled,
+	})
+	session := mustCreateSession(t, runtime, agent.ID, "Context Notice")
+	notice, err := runtime.Store().SaveSessionNotice(ctx, TimelineEntry{
+		ID:        "notice-context-compaction",
+		SessionID: session.ID,
+		Kind:      TimelineKindContextNotice,
+		Status:    TimelineStatusFinal,
+		Text:      contextCompactionDoneText,
+		CreatedAt: "2026-06-17T00:00:00Z",
+	})
+	if err != nil {
+		t.Fatalf("SaveSessionNotice: %v", err)
+	}
+
+	timeline, ok, err := runtime.Store().SessionTimeline(ctx, session.ID)
+	if err != nil || !ok {
+		t.Fatalf("SessionTimeline ok=%v err=%v", ok, err)
+	}
+	if len(timeline) != 1 {
+		t.Fatalf("timeline len = %d, want 1: %+v", len(timeline), timeline)
+	}
+	if timeline[0].ID != notice.ID || timeline[0].Kind != TimelineKindContextNotice || timeline[0].Text != contextCompactionDoneText {
+		t.Fatalf("timeline notice = %+v, want saved context notice", timeline[0])
+	}
+
+	messages, err := runtime.Store().TranscriptEntries(ctx, session.ID)
+	if err != nil {
+		t.Fatalf("TranscriptEntries: %v", err)
+	}
+	if len(messages) != 0 {
+		t.Fatalf("messages = %+v, want notice excluded from transcript", messages)
+	}
+}
+
+func TestSessionTimelineUsesRunUserMessageAsOriginalPrompt(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	agent := mustSaveAgent(t, runtime, AgentWriteRequest{
+		ID:             "agent-timeline-original",
+		Name:           "Timeline Original Agent",
+		PermissionMode: PermissionModeApproval,
+		Status:         AgentStatusEnabled,
+	})
+	session := mustCreateSession(t, runtime, agent.ID, "Timeline Original")
+	run := mustSaveRun(t, runtime, Run{
+		ID:          "run-timeline-original",
+		SessionID:   session.ID,
+		AgentID:     agent.ID,
+		Status:      RunStatusCompleted,
+		UserMessage: "设计个适合 tme 的策略",
+		CreatedAt:   "2026-06-17T00:00:00Z",
+		UpdatedAt:   "2026-06-17T00:00:01Z",
+	})
+	appendADKEvent(t, runtime, agent.ID, session.ID, newUserEvent(run.ID, "请推进这个目标。\n\n用户原始目标：设计个适合 tme 的策略", time.Unix(10, 0)))
+
+	timeline, ok, err := runtime.Store().SessionTimeline(ctx, session.ID)
+	if err != nil || !ok {
+		t.Fatalf("SessionTimeline ok=%v err=%v", ok, err)
+	}
+	if len(timeline) != 1 {
+		t.Fatalf("timeline len = %d, want 1: %+v", len(timeline), timeline)
+	}
+	entry := timeline[0]
+	if entry.Kind != TimelineKindUserMessage || entry.Text != run.UserMessage || entry.OriginalText != run.UserMessage {
+		t.Fatalf("timeline user entry = %+v, want original prompt", entry)
+	}
+	if entry.ProcessedText != "请推进这个目标。\n\n用户原始目标：设计个适合 tme 的策略" {
+		t.Fatalf("processedText = %q, want ADK event prompt", entry.ProcessedText)
+	}
+}
+
+func TestSessionTimelineOmitsPromptVariantsWhenPromptUnchanged(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	agent := mustSaveAgent(t, runtime, AgentWriteRequest{
+		ID:             "agent-timeline-plain",
+		Name:           "Timeline Plain Agent",
+		PermissionMode: PermissionModeApproval,
+		Status:         AgentStatusEnabled,
+	})
+	session := mustCreateSession(t, runtime, agent.ID, "Timeline Plain")
+	run := mustSaveRun(t, runtime, Run{
+		ID:          "run-timeline-plain",
+		SessionID:   session.ID,
+		AgentID:     agent.ID,
+		Status:      RunStatusCompleted,
+		UserMessage: "普通问题",
+		CreatedAt:   "2026-06-17T00:00:00Z",
+		UpdatedAt:   "2026-06-17T00:00:01Z",
+	})
+	appendADKEvent(t, runtime, agent.ID, session.ID, newUserEvent(run.ID, "普通问题", time.Unix(10, 0)))
+
+	timeline, ok, err := runtime.Store().SessionTimeline(ctx, session.ID)
+	if err != nil || !ok {
+		t.Fatalf("SessionTimeline ok=%v err=%v", ok, err)
+	}
+	if len(timeline) != 1 {
+		t.Fatalf("timeline len = %d, want 1: %+v", len(timeline), timeline)
+	}
+	entry := timeline[0]
+	if entry.Kind != TimelineKindUserMessage || entry.Text != "普通问题" {
+		t.Fatalf("timeline user entry = %+v, want plain prompt", entry)
+	}
+	if entry.OriginalText != "" || entry.ProcessedText != "" {
+		t.Fatalf("prompt variants = original %q processed %q, want omitted", entry.OriginalText, entry.ProcessedText)
+	}
+}
+
 func TestSessionProjectionRecoversPreToolContentAndToolOrder(t *testing.T) {
 	ctx := context.Background()
 	runtime := newTestRuntime(t)
