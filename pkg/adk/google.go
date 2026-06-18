@@ -10,6 +10,7 @@ import (
 	"io"
 	"iter"
 	"net/http"
+	"sort"
 	"strings"
 
 	"google.golang.org/adk/model"
@@ -443,6 +444,9 @@ func openAIToolsFromGenAIConfig(config *genai.GenerateContentConfig) []openAIToo
 			})
 		}
 	}
+	sort.SliceStable(result, func(i int, j int) bool {
+		return result[i].Function.Name < result[j].Function.Name
+	})
 	return result
 }
 
