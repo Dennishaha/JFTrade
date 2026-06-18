@@ -70,10 +70,10 @@ function formatDefinitionRuntime(definition: StrategyDefinitionDocument): string
         class="strategy-list-card"
         :class="{ 'is-active': definition.id === props.selectedDefinitionId }"
       >
-        <div class="flex items-start justify-between gap-3">
+        <div class="strategy-definition-card__row">
           <button
             :data-testid="`strategy-definition-${definition.id}`"
-            class="min-w-0 flex-1 text-left"
+            class="strategy-definition-card__select"
             type="button"
             @click="emit('select-definition', definition)"
           >

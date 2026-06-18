@@ -114,6 +114,7 @@
 
 .strategy-list-card,
 .strategy-template-card {
+  box-sizing: border-box;
   width: 100%;
   padding: 1rem;
   text-align: left;
@@ -134,6 +135,67 @@
   border-color: var(--card-active-border);
   background: var(--card-active-surface);
   color: var(--card-active-text);
+}
+
+.strategy-definition-card__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.strategy-definition-card__select {
+  display: block;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.strategy-definition-card__select > * {
+  overflow-wrap: anywhere;
+}
+
+.strategy-definition-delete-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: center;
+  min-width: 3.4rem;
+  min-height: 2rem;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--card-red-border) 72%, transparent);
+  background: color-mix(in srgb, var(--card-red-surface) 54%, transparent);
+  padding: 0.38rem 0.75rem;
+  color: var(--card-red-text);
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    border-color 140ms ease,
+    background-color 140ms ease,
+    color 140ms ease,
+    opacity 140ms ease,
+    transform 140ms ease;
+}
+
+.strategy-definition-delete-btn:hover {
+  border-color: color-mix(in srgb, var(--card-red-text) 58%, var(--card-red-border));
+  background: color-mix(in srgb, var(--card-red-surface) 74%, transparent);
+  color: color-mix(in srgb, var(--card-red-text) 84%, var(--tv-text));
+  transform: translateY(-1px);
+}
+
+.strategy-definition-delete-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+  transform: none;
 }
 
 .strategy-meta-card {
