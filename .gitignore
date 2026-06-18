@@ -23,6 +23,7 @@ apps/web/vite-dev*.log
 .idea/
 .vscode/*
 !.vscode/launch.json
+!.vscode/tasks.json
 
 # Build artifacts
 apps/web/dist/

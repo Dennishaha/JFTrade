@@ -9,7 +9,8 @@
             "type": "node-terminal",
             "request": "launch",
             "cwd": "${workspaceFolder}",
-            "command": "npm run dev:docs",
+            "preLaunchTask": "generate:reference-docs",
+            "command": "node scripts/dev-docs.mjs",
             "serverReadyAction": {
                 "action": "openExternally",
                 "pattern": "Local:\\s+(https?://[^\\s]+)",
@@ -22,6 +23,7 @@
             "request": "launch",
             "mode": "debug",
             "program": "${workspaceFolder}/cmd/jftrade",
+            "preLaunchTask": "go:generate-openapi",
             "args": [
                 "run",
                 "--config",

@@ -25,6 +25,7 @@ const commands = [
 const children = commands.map(([command, args]) =>
   spawn(command, args, {
     stdio: "inherit",
+    shell: process.platform === "win32",
   }),
 );
 

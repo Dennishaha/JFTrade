@@ -15,7 +15,8 @@
     "build:web": "npm --workspace @jftrade/web run build",
     "dev:docs": "npm run generate:docs && node scripts/dev-docs.mjs",
     "generate:openapi": "go generate ./cmd/jftrade-api",
-    "generate:docs": "npm run generate:openapi && node scripts/generate-docs.mjs",
+    "generate:reference": "node scripts/generate-docs.mjs",
+    "generate:docs": "npm run generate:openapi && npm run generate:reference",
     "build:docs": "npm run generate:docs && vitepress build docs",
     "stage:docs": "node scripts/stage-docs.mjs",
     "typecheck": "npm --workspace @jftrade/web run typecheck"
