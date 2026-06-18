@@ -12,11 +12,12 @@ import (
 // Handler owns the Assistant HTTP transport.
 type Handler struct {
 	service *assistantservice.Service
+	streams *adkChatStreamHub
 }
 
 // RegisterRoutes registers the stable /api/v1/adk contract.
 func RegisterRoutes(api *gin.RouterGroup, service *assistantservice.Service) {
-	handler := &Handler{service: service}
+	handler := &Handler{service: service, streams: newADKChatStreamHub()}
 	adk := api.Group("/adk", handler.requireAvailable())
 	adk.GET("", handler.handleADKSnapshot)
 	adk.GET("/tools", handler.handleADKTools)
@@ -48,11 +49,14 @@ func RegisterRoutes(api *gin.RouterGroup, service *assistantservice.Service) {
 	adk.GET("/sessions/:sessionId", handler.handleADKSession)
 	adk.GET("/sessions/:sessionId/context", handler.handleADKSessionContext)
 	adk.POST("/sessions/:sessionId/context/compact", handler.handleADKCompactSessionContext)
+	adk.PATCH("/sessions/:sessionId/composer-state", handler.handleADKUpdateSessionComposerState)
 	adk.PUT("/sessions/:sessionId", handler.handleADKRenameSession)
 	adk.DELETE("/sessions/:sessionId", handler.handleADKDeleteSession)
 	adk.POST("/chat", handler.handleADKChat)
 	adk.POST("/chat/stream", handler.handleADKChatStream)
+	adk.GET("/streams/:streamId", handler.handleADKChatStreamReconnect)
 	adk.GET("/runs", handler.handleADKRuns)
+	adk.GET("/runs/:runId/stream", handler.handleADKRunStreamReconnect)
 	adk.GET("/runs/:runId", handler.handleADKRun)
 	adk.PATCH("/runs/:runId/objective", handler.handleADKUpdateRunObjective)
 	adk.POST("/runs/:runId/cancel", handler.handleADKCancelRun)

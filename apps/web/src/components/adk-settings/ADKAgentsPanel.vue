@@ -57,10 +57,21 @@ const templateDialogOpen = ref(false);
 const checkedAvailableTools = ref<string[]>([]);
 const checkedEnabledTools = ref<string[]>([]);
 const workModeOptions: Array<{ title: string; value: ADKWorkMode }> = [
-  { title: "单轮对话", value: "chat" },
-  { title: "任务编排", value: "task" },
-  { title: "目标循环", value: "loop" },
+  { title: "对话", value: "chat" },
+  { title: "任务", value: "task" },
+  { title: "目标", value: "loop" },
 ];
+
+function workModeLabel(mode: string): string {
+  switch (mode) {
+    case "task":
+      return "任务";
+    case "loop":
+      return "目标";
+    default:
+      return "对话";
+  }
+}
 
 const enabledToolNameSet = computed(() => new Set(props.agentForm.tools));
 const toolDescriptorByName = computed(
@@ -191,8 +202,13 @@ watch(
                 <v-chip size="x-small" variant="tonal" :color="agent.status === 'ENABLED' ? 'success' : 'default'">
                   {{ agent.status }}
                 </v-chip>
+                <v-chip size="x-small" variant="tonal">
+                  {{ formatPermission(agent.permissionMode) }}
+                </v-chip>
+                <v-chip size="x-small" variant="tonal">
+                  默认：{{ workModeLabel(agent.workMode) }}
+                </v-chip>
               </div>
-              <div class="text-xs text-slate-500">{{ formatPermission(agent.permissionMode) }}</div>
               <div class="mt-1 text-xs text-slate-500">
                 {{ agent.memoryEnabled ? "记忆已开启" : "记忆已关闭" }}
               </div>
@@ -270,7 +286,20 @@ watch(
               clearable />
             <v-text-field v-model="agentForm.model" label="覆盖模型（可选）" density="comfortable" />
             <v-select v-model="agentForm.permissionMode" :items="permissionModes" label="权限模式" density="comfortable" />
-            <v-select v-model="agentForm.workMode" :items="workModeOptions" label="默认工作模式" density="comfortable" />
+            <v-radio-group
+              v-model="agentForm.workMode"
+              class="md:col-span-2"
+              label="默认工作模式"
+              inline
+              hide-details
+            >
+              <v-radio
+                v-for="mode in workModeOptions"
+                :key="mode.value"
+                :label="mode.title"
+                :value="mode.value"
+              />
+            </v-radio-group>
             <v-text-field
               v-model.number="agentForm.recentUserWindow"
               label="保留最近用户消息条数"
@@ -280,6 +309,7 @@ watch(
               max="100"
             />
             <v-text-field
+              v-if="agentForm.workMode === 'loop'"
               v-model.number="agentForm.loopMaxIterations"
               label="目标循环最大轮次"
               type="number"

@@ -160,23 +160,29 @@ function userBubbleClass(entry: ADKTimelineEntryState): Record<string, boolean> 
 
     <template v-for="entry in timelineEntries" :key="entry.id">
       <div v-if="entry.kind === 'user_message'" class="adk-msg adk-msg--user">
-        <div v-if="hasProcessedUserPrompt(entry)" class="adk-user-prompt-toggle" aria-label="用户提示词视图">
-          <button
-            type="button"
-            :class="{ 'is-active': entry.userPromptVariant !== 'processed' }"
-            @click="entry.userPromptVariant = 'original'"
+        <div class="adk-user-prompt-row">
+          <div
+            v-if="hasProcessedUserPrompt(entry)"
+            class="adk-user-prompt-toggle"
+            aria-label="用户提示词可观测切换"
           >
-            原文
-          </button>
-          <button
-            type="button"
-            :class="{ 'is-active': entry.userPromptVariant === 'processed' }"
-            @click="entry.userPromptVariant = 'processed'"
-          >
-            系统处理后
-          </button>
+            <button
+              type="button"
+              :class="{ 'is-active': entry.userPromptVariant !== 'processed' }"
+              @click="entry.userPromptVariant = 'original'"
+            >
+              原文
+            </button>
+            <button
+              type="button"
+              :class="{ 'is-active': entry.userPromptVariant === 'processed' }"
+              @click="entry.userPromptVariant = 'processed'"
+            >
+              可观测
+            </button>
+          </div>
+          <div :class="userBubbleClass(entry)">{{ userPromptText(entry) }}</div>
         </div>
-        <div :class="userBubbleClass(entry)">{{ userPromptText(entry) }}</div>
       </div>
 
       <div v-else-if="entry.kind === 'context_notice'" class="adk-msg adk-msg--notice">

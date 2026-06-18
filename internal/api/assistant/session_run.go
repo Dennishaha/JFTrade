@@ -161,6 +161,30 @@ func (h *Handler) handleADKRenameSession(c *gin.Context) {
 	h.writeOK(c, session)
 }
 
+func (h *Handler) handleADKUpdateSessionComposerState(c *gin.Context) {
+	var uri sessionURI
+	if err := httpserver.BindURI(c, &uri); err != nil || strings.TrimSpace(uri.SessionID) == "" {
+		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "sessionId is invalid")
+		return
+	}
+	var payload jfadk.SessionComposerStatePatch
+	if err := c.ShouldBindJSON(&payload); err != nil {
+		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid composer state payload")
+		return
+	}
+	state, err := h.service.UpdateSessionComposerState(c.Request.Context(), uri.SessionID, payload)
+	if err != nil {
+		lower := strings.ToLower(err.Error())
+		if strings.Contains(lower, "not exist") || strings.Contains(lower, "not found") {
+			h.writeError(c, http.StatusNotFound, "NOT_FOUND", "session not found")
+			return
+		}
+		h.writeError(c, http.StatusBadRequest, "ADK_SESSION_COMPOSER_STATE_UPDATE_FAILED", err.Error())
+		return
+	}
+	h.writeOK(c, state)
+}
+
 func (h *Handler) handleADKDeleteSession(c *gin.Context) {
 	var uri sessionURI
 	if err := httpserver.BindURI(c, &uri); err != nil || strings.TrimSpace(uri.SessionID) == "" {

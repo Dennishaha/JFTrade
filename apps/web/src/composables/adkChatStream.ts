@@ -26,6 +26,10 @@ export interface ADKChatStreamResponse {
 
 export interface ADKChatStreamEvent {
   type: "session" | "run" | "timeline" | "context" | "final" | "error";
+  streamId?: string;
+  sequence?: number;
+  runId?: string;
+  replay?: boolean;
   timeline?: ADKTimelineEntry;
   response?: ADKChatStreamResponse;
   session?: ADKSession;
@@ -60,6 +64,55 @@ export async function streamADKChat(
   if (!response.ok) {
     throw new Error((await response.text()) || "Agents chat failed");
   }
+  return consumeADKChatStream(response, onEvent);
+}
+
+export async function resumeADKChatStream(
+  cursor: {
+    streamId?: string;
+    runId?: string;
+    after?: number;
+    signal?: AbortSignal;
+  },
+  onEvent: (event: ADKChatStreamEvent) => void | Promise<void>,
+): Promise<ADKChatStreamResponse | null> {
+  const streamId = cursor.streamId?.trim() ?? "";
+  const runId = cursor.runId?.trim() ?? "";
+  if (streamId === "" && runId === "") {
+    return null;
+  }
+  const path =
+    streamId !== ""
+      ? `/api/v1/adk/streams/${encodeURIComponent(streamId)}`
+      : `/api/v1/adk/runs/${encodeURIComponent(runId)}/stream`;
+  const params = new URLSearchParams();
+  if (Number.isFinite(cursor.after) && (cursor.after ?? 0) > 0) {
+    params.set("after", String(Math.floor(cursor.after!)));
+  }
+  const init: RequestInit = {
+    method: "GET",
+    credentials: "include",
+  };
+  if (cursor.signal) {
+    init.signal = cursor.signal;
+  }
+  const response = await fetch(
+    buildApiUrl(`${path}${params.size > 0 ? `?${params.toString()}` : ""}`),
+    init,
+  );
+  if (response.status === 404) {
+    return null;
+  }
+  if (!response.ok) {
+    throw new Error((await response.text()) || "Agents stream reconnect failed");
+  }
+  return consumeADKChatStream(response, onEvent);
+}
+
+async function consumeADKChatStream(
+  response: Response,
+  onEvent: (event: ADKChatStreamEvent) => void | Promise<void>,
+): Promise<ADKChatStreamResponse> {
   if (!response.body) {
     throw new Error("流式响应不可用");
   }

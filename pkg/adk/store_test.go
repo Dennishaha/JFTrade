@@ -864,6 +864,53 @@ func TestListSessionsPageFiltersQueryAndPaginates(t *testing.T) {
 	}
 }
 
+func TestSessionComposerStatePersistsAndDeletesWithSession(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	session := mustCreateSession(t, runtime, "agent-composer", "composer")
+
+	state, ok, err := runtime.Store().SessionComposerState(ctx, session.ID)
+	if err != nil {
+		t.Fatalf("SessionComposerState empty: %v", err)
+	}
+	if ok || state.SessionID != session.ID || state.ChatDraft != "" {
+		t.Fatalf("empty composer state = %+v ok=%v", state, ok)
+	}
+
+	chatDraft := strings.Repeat("x", MaxMessageLength+20)
+	mode := WorkModeLoop
+	goal := "目标草稿"
+	touched := true
+	saved, err := runtime.Store().SaveSessionComposerState(ctx, session.ID, SessionComposerStatePatch{
+		ChatDraft:            &chatDraft,
+		WorkModeOverride:     &mode,
+		GoalObjectiveDraft:   &goal,
+		GoalObjectiveTouched: &touched,
+	})
+	if err != nil {
+		t.Fatalf("SaveSessionComposerState: %v", err)
+	}
+	if len([]rune(saved.ChatDraft)) != MaxMessageLength || saved.WorkModeOverride != WorkModeLoop || !saved.GoalObjectiveTouched {
+		t.Fatalf("saved composer state = %+v", saved)
+	}
+
+	invalidMode := "sequential"
+	if _, err := runtime.Store().SaveSessionComposerState(ctx, session.ID, SessionComposerStatePatch{WorkModeOverride: &invalidMode}); err == nil {
+		t.Fatal("SaveSessionComposerState invalid mode err = nil")
+	}
+
+	if err := runtime.Store().DeleteSession(ctx, session.ID); err != nil {
+		t.Fatalf("DeleteSession: %v", err)
+	}
+	deleted, ok, err := runtime.Store().SessionComposerState(ctx, session.ID)
+	if err != nil {
+		t.Fatalf("SessionComposerState after delete: %v", err)
+	}
+	if ok || deleted.ChatDraft != "" {
+		t.Fatalf("deleted composer state = %+v ok=%v, want empty", deleted, ok)
+	}
+}
+
 func TestDeleteSessionMissingAndBlankAreNotFound(t *testing.T) {
 	ctx := context.Background()
 	runtime := newTestRuntime(t)

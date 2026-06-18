@@ -92,6 +92,20 @@ func (w SSEWriter) WriteEvent(value any) error {
 	return w.writeFrame(fmt.Sprintf("data: %s\n\n", data))
 }
 
+// WriteEventID writes a JSON SSE event with a resumable event identifier.
+func (w SSEWriter) WriteEventID(id string, value any) error {
+	data, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+	return w.writeFrame(fmt.Sprintf("id: %s\ndata: %s\n\n", id, data))
+}
+
+// WriteComment keeps an otherwise idle SSE connection alive.
+func (w SSEWriter) WriteComment(comment string) error {
+	return w.writeFrame(fmt.Sprintf(": %s\n\n", comment))
+}
+
 // RunSSEStreamLoop 运行 SSE 事件循环，在 ctx 取消时返回。
 func RunSSEStreamLoop(ctx context.Context, opts SSEStreamLoopOptions) error {
 	if opts.Initial != nil {

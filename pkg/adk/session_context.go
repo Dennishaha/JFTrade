@@ -35,8 +35,6 @@ const (
 	adkSessionAppendMaxAttempts = 5
 )
 
-var adkSessionAppendLocks sync.Map
-
 type SessionCompactRequest struct {
 	Mode    string
 	Trigger string
@@ -44,10 +42,21 @@ type SessionCompactRequest struct {
 }
 
 type SessionContextManager struct {
-	store      *Store
-	rawService adksession.Service
-	openai     openAIClient
-	tools      *ToolRegistry
+	store       *Store
+	rawService  adksession.Service
+	openai      openAIClient
+	tools       *ToolRegistry
+	appendLocks *adkSessionAppendLockMap
+}
+
+type adkSessionAppendLockMap struct {
+	mu    sync.Mutex
+	locks map[string]*adkSessionAppendLock
+}
+
+type adkSessionAppendLock struct {
+	mu   sync.Mutex
+	refs int
 }
 
 type projectionState struct {
@@ -96,7 +105,7 @@ func NewSessionContextManager(store *Store, rawService adksession.Service, opena
 	if store == nil || rawService == nil {
 		return nil
 	}
-	return &SessionContextManager{store: store, rawService: rawService, openai: openai, tools: tools}
+	return &SessionContextManager{store: store, rawService: rawService, openai: openai, tools: tools, appendLocks: newADKSessionAppendLockMap()}
 }
 
 func (m *SessionContextManager) WrapService(service adksession.Service) adksession.Service {
@@ -400,7 +409,7 @@ func (m *SessionContextManager) syncHandoffState(ctx context.Context, session Se
 		adkSessionHandoffUpdatedAtKey: nowString(),
 		adkSessionHandoffCountKey:     len(segments),
 	}
-	return appendADKEventWithStaleRetry(ctx, m.rawService, raw.Session, event)
+	return appendADKEventWithStaleRetry(ctx, m.appendLocks, m.rawService, raw.Session, event)
 }
 
 func stateTextValue(state adksession.State, key string) string {
@@ -1116,10 +1125,10 @@ func (s *compactingSessionService) AppendEvent(ctx context.Context, session adks
 	if wrapped, ok := session.(*wrappedSession); ok && wrapped != nil {
 		session = wrapped.base
 	}
-	return appendADKEventWithStaleRetry(ctx, s.base, session, event)
+	return appendADKEventWithStaleRetry(ctx, serviceAppendLocks(s), s.base, session, event)
 }
 
-func appendADKEventWithStaleRetry(ctx context.Context, service adksession.Service, session adksession.Session, event *adksession.Event) error {
+func appendADKEventWithStaleRetry(ctx context.Context, locks *adkSessionAppendLockMap, service adksession.Service, session adksession.Session, event *adksession.Event) error {
 	if service == nil {
 		return fmt.Errorf("adk session service is unavailable")
 	}
@@ -1127,7 +1136,8 @@ func appendADKEventWithStaleRetry(ctx context.Context, service adksession.Servic
 		return fmt.Errorf("adk session is unavailable")
 	}
 
-	lock := adkSessionAppendLock(session)
+	lock, release := locks.acquire(session)
+	defer release()
 	lock.Lock()
 	defer lock.Unlock()
 
@@ -1171,10 +1181,54 @@ func isStaleADKSessionError(err error) bool {
 	return strings.Contains(strings.ToLower(err.Error()), "stale session error")
 }
 
-func adkSessionAppendLock(session adksession.Session) *sync.Mutex {
+func serviceAppendLocks(service *compactingSessionService) *adkSessionAppendLockMap {
+	if service != nil && service.manager != nil && service.manager.appendLocks != nil {
+		return service.manager.appendLocks
+	}
+	return newADKSessionAppendLockMap()
+}
+
+func runtimeAppendLocks(runtime *Runtime) *adkSessionAppendLockMap {
+	if runtime != nil && runtime.contextManager != nil && runtime.contextManager.appendLocks != nil {
+		return runtime.contextManager.appendLocks
+	}
+	return newADKSessionAppendLockMap()
+}
+
+func newADKSessionAppendLockMap() *adkSessionAppendLockMap {
+	return &adkSessionAppendLockMap{locks: map[string]*adkSessionAppendLock{}}
+}
+
+func (m *adkSessionAppendLockMap) acquire(session adksession.Session) (*sync.Mutex, func()) {
+	if m == nil {
+		m = newADKSessionAppendLockMap()
+	}
 	key := strings.Join([]string{session.AppName(), session.UserID(), session.ID()}, "\x00")
-	lock, _ := adkSessionAppendLocks.LoadOrStore(key, &sync.Mutex{})
-	return lock.(*sync.Mutex)
+	m.mu.Lock()
+	lock := m.locks[key]
+	if lock == nil {
+		lock = &adkSessionAppendLock{}
+		m.locks[key] = lock
+	}
+	lock.refs++
+	m.mu.Unlock()
+	return &lock.mu, func() {
+		m.mu.Lock()
+		defer m.mu.Unlock()
+		lock.refs--
+		if lock.refs <= 0 && m.locks[key] == lock {
+			delete(m.locks, key)
+		}
+	}
+}
+
+func (m *adkSessionAppendLockMap) len() int {
+	if m == nil {
+		return 0
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return len(m.locks)
 }
 
 func filterEvents(events []*adksession.Event, after time.Time, numRecent int) []*adksession.Event {

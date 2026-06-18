@@ -1714,11 +1714,20 @@ body {
   color: var(--tv-text-muted);
 }
 
+.adk-user-prompt-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: 8px;
+  max-width: 100%;
+}
+
 .adk-user-prompt-toggle {
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  margin-bottom: 6px;
+  flex: 0 0 auto;
+  margin-top: 4px;
   padding: 2px;
   border: 1px solid var(--tv-border);
   border-radius: 8px;

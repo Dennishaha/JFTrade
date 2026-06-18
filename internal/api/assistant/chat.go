@@ -1,14 +1,12 @@
 package assistant
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -19,6 +17,10 @@ import (
 
 type adkChatStreamEvent struct {
 	Type     string                        `json:"type"`
+	StreamID string                        `json:"streamId,omitempty"`
+	Sequence int64                         `json:"sequence,omitempty"`
+	RunID    string                        `json:"runId,omitempty"`
+	Replay   bool                          `json:"replay,omitempty"`
 	Timeline *jfadk.TimelineEntry          `json:"timeline,omitempty"`
 	Response *jfadk.ChatResponse           `json:"response,omitempty"`
 	Session  *jfadk.Session                `json:"session,omitempty"`
@@ -73,112 +75,70 @@ func (h *Handler) handleADKChatStream(c *gin.Context) {
 		h.writeError(c, http.StatusInternalServerError, "SSE_UNSUPPORTED", "streaming is unavailable")
 		return
 	}
+	record := h.startADKChatStream(payload)
+	c.Header("X-ADK-Stream-ID", record.id)
 	if err := writer.WriteRetryDirective(); err != nil {
 		return
 	}
+	h.streamADKChatRecord(c, writer, record, 0, false)
+}
 
-	sessionSent := false
-	contextSent := false
-	var streamMu sync.Mutex
-	timelineState := &adkTimelineStreamState{}
-	result, err := h.service.ChatStream(c.Request.Context(), payload, func(delta jfadk.ChatDelta) error {
-		streamMu.Lock()
-		defer streamMu.Unlock()
-		if delta.Timeline != nil {
-			timeline := jfadk.NormalizeTimelineEntry(*delta.Timeline)
-			timelineState.observeTimeline(timeline)
-			if err := writer.WriteEvent(adkChatStreamEvent{Type: "timeline", Timeline: &timeline}); err != nil {
-				return err
-			}
-			if delta.Run == nil && delta.Context == nil && delta.Reply == "" && delta.ReasoningContent == "" {
-				return nil
-			}
-		}
-		if delta.Run != nil {
-			normalizedRun := jfadk.NormalizeRun(*delta.Run)
-			delta.Run = &normalizedRun
-			timelineState.observeRun(delta.Run)
-			if err := writer.WriteEvent(adkChatStreamEvent{Type: "run", Run: delta.Run}); err != nil {
-				return err
-			}
-			if timeline := timelineState.toolGroupSnapshot(); timeline != nil {
-				if err := writer.WriteEvent(adkChatStreamEvent{Type: "timeline", Timeline: timeline}); err != nil {
-					return err
-				}
-			}
-			return nil
-		}
-		if delta.Context != nil {
-			contextSent = true
-			if err := writer.WriteEvent(adkChatStreamEvent{Type: "context", Context: delta.Context}); err != nil {
-				return err
-			}
-		}
-		if !sessionSent {
-			session, sessionErr := h.service.PreviewSession(c.Request.Context(), payload)
-			if sessionErr == nil {
-				if err := writer.WriteEvent(adkChatStreamEvent{Type: "session", Session: &session}); err != nil {
-					return err
-				}
-				sessionSent = true
-				timelineState.observeSession(session)
-				if !contextSent && strings.TrimSpace(session.ID) != "" {
-					if snapshot, snapshotErr := h.service.GetSessionContext(c.Request.Context(), session.ID); snapshotErr == nil {
-						if err := writer.WriteEvent(adkChatStreamEvent{Type: "context", Context: &snapshot}); err != nil {
-							return err
-						}
-						contextSent = true
-					}
-				}
-			}
-		}
-		if delta.Reply == "" && delta.ReasoningContent == "" {
-			return nil
-		}
-		if reasoningTimeline := timelineState.appendReasoning(delta.Run, delta.ReasoningContent); reasoningTimeline != nil {
-			if err := writer.WriteEvent(adkChatStreamEvent{Type: "timeline", Timeline: reasoningTimeline}); err != nil {
-				return err
-			}
-		}
-		if messageTimeline := timelineState.appendMessage(delta.Run, delta.Reply); messageTimeline != nil {
-			if err := writer.WriteEvent(adkChatStreamEvent{Type: "timeline", Timeline: messageTimeline}); err != nil {
-				return err
-			}
-		}
-		return nil
-	})
-	if err != nil {
-		if finalResponse, finalErr := h.service.RecoverTerminalChatResponse(context.WithoutCancel(c.Request.Context()), timelineState.runID); finalErr == nil && finalResponse != nil {
-			_ = writer.WriteEvent(adkChatStreamEvent{Type: "final", Response: finalResponse})
-			return
-		}
-		_ = writer.WriteEvent(adkChatStreamEvent{Type: "error", Message: err.Error()})
+func (h *Handler) handleADKChatStreamReconnect(c *gin.Context) {
+	var uri streamURI
+	if err := httpserver.BindURI(c, &uri); err != nil || strings.TrimSpace(uri.StreamID) == "" {
+		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "streamId is invalid")
 		return
 	}
-	response := result
-	if !sessionSent {
-		_ = writer.WriteEvent(adkChatStreamEvent{Type: "session", Session: &response.Session})
-		timelineState.observeSession(response.Session)
+	after, err := parseADKStreamAfter(c)
+	if err != nil {
+		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", err.Error())
+		return
 	}
-	if !contextSent && response.Context != nil {
-		_ = writer.WriteEvent(adkChatStreamEvent{Type: "context", Context: response.Context})
+	h.cleanupADKChatStreams()
+	record, ok := h.streams.get(uri.StreamID)
+	if !ok {
+		h.writeError(c, http.StatusNotFound, "NOT_FOUND", "stream not found")
+		return
 	}
-	trimmedRun := response.Run
-	for i := range trimmedRun.ToolCalls {
-		if trimmedRun.ToolCalls[i].Output != nil {
-			trimmedRun.ToolCalls[i].Output = nil
-		}
+	writer, ok := httpserver.PrepareSSEWriter(c.Writer)
+	if !ok {
+		h.writeError(c, http.StatusInternalServerError, "SSE_UNSUPPORTED", "streaming is unavailable")
+		return
 	}
-	normalizedResponse := jfadk.NormalizeChatResponse(jfadk.ChatResponse{
-		Reply:            response.Reply,
-		ReasoningContent: response.ReasoningContent,
-		Session:          response.Session,
-		Run:              trimmedRun,
-		PendingApprovals: response.PendingApprovals,
-		Timeline:         response.Timeline,
-		Context:          response.Context,
-	})
-	_ = writer.WriteEvent(adkChatStreamEvent{Type: "final", Response: &normalizedResponse})
+	c.Header("X-ADK-Stream-ID", record.id)
+	if err := writer.WriteRetryDirective(); err != nil {
+		return
+	}
+	h.streamADKChatRecord(c, writer, record, after, true)
+}
+
+func (h *Handler) handleADKRunStreamReconnect(c *gin.Context) {
+	var uri runURI
+	if err := httpserver.BindURI(c, &uri); err != nil || strings.TrimSpace(uri.RunID) == "" {
+		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "runId is invalid")
+		return
+	}
+	after, err := parseADKStreamAfter(c)
+	if err != nil {
+		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", err.Error())
+		return
+	}
+	h.cleanupADKChatStreams()
+	record, ok := h.streams.getByRunID(uri.RunID)
+	if !ok {
+		h.writeError(c, http.StatusNotFound, "NOT_FOUND", "stream not found")
+		return
+	}
+	writer, ok := httpserver.PrepareSSEWriter(c.Writer)
+	if !ok {
+		h.writeError(c, http.StatusInternalServerError, "SSE_UNSUPPORTED", "streaming is unavailable")
+		return
+	}
+	c.Header("X-ADK-Stream-ID", record.id)
+	if err := writer.WriteRetryDirective(); err != nil {
+		return
+	}
+	h.streamADKChatRecord(c, writer, record, after, true)
 }
 
 func decodeADKChatRequest(body io.Reader) (jfadk.ChatRequest, error) {

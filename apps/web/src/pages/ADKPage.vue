@@ -36,6 +36,7 @@ const {
   cancelActiveRun,
   contextBusy,
   contextDetailsOpen,
+  creatingSession,
   createNewSession,
   deleteSession,
   errorMessage,
@@ -178,6 +179,7 @@ function leaveChildView(): void {
       :format-permission="formatPermission"
       :session-title="sessionTitle"
       :agent-name="agentName"
+      :creating-session="creatingSession"
       :create-new-session="createNewSession"
       :select-session="selectSession"
       :rename-session="renameSession"
@@ -286,6 +288,7 @@ function leaveChildView(): void {
         :selected-agent-id="selectedAgentId"
         :selected-provider-id="selectedProviderId"
         :sending-chat="sendingChat"
+        :default-work-mode="selectedAgent?.workMode ?? 'chat'"
         :work-mode-override="workModeOverride"
         :cancel-active-run="cancelActiveRun"
         :handle-agent-change="handleAgentChange"

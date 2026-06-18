@@ -109,5 +109,6 @@ func NormalizeSessionsResponse(response SessionsResponse) SessionsResponse {
 			response.Runs[index] = NormalizeRun(response.Runs[index])
 		}
 	}
+	response.ComposerState = normalizeSessionComposerState(response.Session.ID, response.ComposerState)
 	return response
 }

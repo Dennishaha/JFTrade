@@ -188,6 +188,15 @@ export interface ADKSession {
   updatedAt: string;
 }
 
+export interface ADKSessionComposerState {
+  sessionId: string;
+  chatDraft: string;
+  workModeOverride: ADKWorkMode | "" | string;
+  goalObjectiveDraft: string;
+  goalObjectiveTouched: boolean;
+  updatedAt?: string;
+}
+
 export interface ADKSessionContextSnapshot {
   sessionId: string;
   contextRevisionId?: string;

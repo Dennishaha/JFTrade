@@ -353,7 +353,7 @@ func (r *Runtime) appendAssistantMessageEvent(
 		Content:      genai.NewContentFromParts(partsFromReplyAndReasoning(replyResult.Reply, replyResult.ReasoningContent), genai.RoleModel),
 		TurnComplete: true,
 	}
-	if err := appendADKEventWithStaleRetry(ctx, r.rawSessionService, response.Session, event); err != nil {
+	if err := appendADKEventWithStaleRetry(ctx, runtimeAppendLocks(r), r.rawSessionService, response.Session, event); err != nil {
 		return Message{}, err
 	}
 	message, _ := transcriptEntryFromADKEvent(event)

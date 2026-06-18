@@ -2,6 +2,7 @@
 
 import { mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { defineComponent, h } from "vue";
 
 import ADKChatComposer from "../src/components/adk-page/ADKChatComposer.vue";
 import { inputStub, selectStub } from "./helpers";
@@ -11,12 +12,40 @@ afterEach(() => {
 });
 
 describe("ADKChatComposer", () => {
-  it("hides sequential and parallel work mode entries from the composer", () => {
+  it("shows concrete work modes and marks the agent mode as default", () => {
     const wrapper = mount(ADKChatComposer, {
       attachTo: document.body,
       props: {
         canSendChat: true,
         chatDraft: "",
+        defaultWorkMode: "task",
+        sendChat: async () => {},
+      },
+      global: {
+        stubs: {
+          "v-select": workModeAwareSelectStub,
+        },
+      },
+    });
+
+    const text = wrapper.text();
+    expect(text).not.toContain("跟随 Agent");
+    expect(text).toContain("对话");
+    expect(text).toContain("任务");
+    expect(text).toContain("目标");
+    expect(text).toContain("任务默认");
+    expect(text).not.toContain("顺序");
+    expect(text).not.toContain("并行");
+  });
+
+  it("stores the agent default mode as an empty override", async () => {
+    const wrapper = mount(ADKChatComposer, {
+      attachTo: document.body,
+      props: {
+        canSendChat: true,
+        chatDraft: "",
+        defaultWorkMode: "loop",
+        workModeOverride: "task",
         sendChat: async () => {},
       },
       global: {
@@ -26,13 +55,12 @@ describe("ADKChatComposer", () => {
       },
     });
 
-    const text = wrapper.text();
-    expect(text).toContain("跟随 Agent");
-    expect(text).toContain("对话");
-    expect(text).toContain("任务");
-    expect(text).toContain("目标");
-    expect(text).not.toContain("顺序");
-    expect(text).not.toContain("并行");
+    const modeSelect = wrapper.find(".adk-work-mode-select");
+    await modeSelect.setValue("loop");
+    expect(wrapper.emitted("update:workModeOverride")?.[0]).toEqual([""]);
+
+    await modeSelect.setValue("chat");
+    expect(wrapper.emitted("update:workModeOverride")?.[1]).toEqual(["chat"]);
   });
 
   it("shows an editable goal objective box and saves active goal changes", async () => {
@@ -143,6 +171,8 @@ describe("ADKChatComposer", () => {
         contextDetailsOpen: true,
         contextSnapshot: {
           sessionId: "session-1",
+          contextRevisionId: "ctx-current-7",
+          contextRevisionCreatedAt: "2026-06-18T10:00:00Z",
           currentInputTokens: 1200,
           projectedNextTurnTokens: 1500,
           rawCurrentInputTokens: 57502105,
@@ -154,7 +184,7 @@ describe("ADKChatComposer", () => {
           retainedRecentUserCount: 1,
           activeHandoffCount: 0,
           rawEventCount: 44,
-          compactedEventCount: 0,
+          compactedEventCount: 7,
           summaryBoundaryEventIndex: 0,
           breakdown: {
             instructionTokens: 50,
@@ -182,13 +212,19 @@ describe("ADKChatComposer", () => {
       },
     });
 
-    expect(document.body.textContent).toContain("当前输入 Token");
+    expect(document.body.textContent).toContain("当前上下文 Token");
     expect(document.body.textContent).toContain("1,200");
-    expect(document.body.textContent).toContain("原始当前估算");
+    expect(document.body.textContent).toContain("当前上下文版本");
+    expect(document.body.textContent).toContain("ctx-current-7");
+    expect(document.body.textContent).toContain("已压缩事件数");
+    expect(document.body.textContent).toContain("7");
+    expect(document.body.textContent).toContain("版本创建时间");
+    expect(document.body.textContent).toContain("2026-06-18T10:00:00Z");
+    expect(document.body.textContent).toContain("原始会话当前估算");
     expect(document.body.textContent).toContain("57,502,105");
     expect(document.body.textContent).toContain("已裁剪工具响应");
     expect(document.body.textContent).toContain("5");
-    expect(document.body.textContent).toContain("原始 Token 构成");
+    expect(document.body.textContent).toContain("原始会话诊断 Token 构成");
   });
 
   it("keeps the diagnostics hidden for normal small sessions", async () => {
@@ -239,7 +275,24 @@ describe("ADKChatComposer", () => {
       },
     });
 
-    expect(document.body.textContent).not.toContain("原始当前估算");
-    expect(document.body.textContent).not.toContain("原始 Token 构成");
+    expect(document.body.textContent).not.toContain("原始会话当前估算");
+    expect(document.body.textContent).not.toContain("原始会话诊断 Token 构成");
   });
+});
+
+const workModeAwareSelectStub = defineComponent({
+  props: ["items"],
+  setup(props) {
+    return () =>
+      h(
+        "div",
+        {},
+        ((props.items as Array<{
+          title: string;
+          isDefault?: boolean;
+        }>) ?? []).map((item) =>
+          h("span", {}, `${item.title}${item.isDefault ? "默认" : ""}`),
+        ),
+      );
+  },
 });

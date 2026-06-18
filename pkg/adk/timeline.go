@@ -100,6 +100,7 @@ func buildSessionTimeline(session Session, messages []TranscriptEntry, runs []Ru
 	}
 
 	raw := make([]timelinePrimitive, 0, len(sortedMessages)+(len(sortedRuns)*3)+len(notices))
+	visibleUserRuns := map[string]struct{}{}
 	for _, notice := range notices {
 		if strings.TrimSpace(notice.Text) == "" {
 			continue
@@ -121,9 +122,23 @@ func buildSessionTimeline(session Session, messages []TranscriptEntry, runs []Ru
 		switch strings.ToLower(strings.TrimSpace(message.Role)) {
 		case "user":
 			text := strings.TrimSpace(message.Content)
+			prompt := classifyWorkflowUserPrompt(text)
+			run, runOK := runsByID[strings.TrimSpace(message.RunID)]
+			if !runOK && prompt.isInternal {
+				run, runOK = matchWorkflowPromptRun(prompt, sortedRuns)
+			}
+			if prompt.isHidden {
+				continue
+			}
 			originalText := ""
 			processedText := ""
-			if run, ok := runsByID[strings.TrimSpace(message.RunID)]; ok {
+			runID := strings.TrimSpace(message.RunID)
+			if runOK {
+				runID = strings.TrimSpace(run.ID)
+				if _, seen := visibleUserRuns[runID]; seen {
+					continue
+				}
+				visibleUserRuns[runID] = struct{}{}
 				if userMessage := strings.TrimSpace(run.UserMessage); userMessage != "" && userMessage != text {
 					originalText = userMessage
 					processedText = text
@@ -133,7 +148,7 @@ func buildSessionTimeline(session Session, messages []TranscriptEntry, runs []Ru
 			raw = append(raw, timelinePrimitive{
 				id:            message.ID,
 				sessionID:     session.ID,
-				runID:         strings.TrimSpace(message.RunID),
+				runID:         runID,
 				kind:          TimelineKindUserMessage,
 				createdAt:     message.CreatedAt,
 				order:         10,
@@ -163,6 +178,77 @@ func buildSessionTimeline(session Session, messages []TranscriptEntry, runs []Ru
 	}
 
 	return normalizeTimelineEntries(groupTimelinePrimitives(raw))
+}
+
+type workflowUserPrompt struct {
+	isInternal  bool
+	isHidden    bool
+	userMessage string
+	objective   string
+}
+
+func classifyWorkflowUserPrompt(text string) workflowUserPrompt {
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return workflowUserPrompt{}
+	}
+	switch {
+	case strings.HasPrefix(text, "请推进这个目标。") && strings.Contains(text, "\n用户请求："):
+		return workflowUserPrompt{
+			isInternal:  true,
+			userMessage: extractWorkflowPromptField(text, "用户请求：", ""),
+			objective:   extractWorkflowPromptField(text, "总体目标：", "\n用户请求："),
+		}
+	case strings.HasPrefix(text, "请推进这个任务编排。") && strings.Contains(text, "\n用户请求："):
+		return workflowUserPrompt{
+			isInternal:  true,
+			userMessage: extractWorkflowPromptField(text, "用户请求：", ""),
+			objective:   extractWorkflowPromptField(text, "总体目标：", "\n用户请求："),
+		}
+	case strings.HasPrefix(text, "请判断是否完成目标"),
+		strings.HasPrefix(text, "上一次没有调用目标裁决工具。"),
+		strings.HasPrefix(text, "目标尚未完成，原因："),
+		strings.HasPrefix(text, "仍有未完成 TODO。"):
+		return workflowUserPrompt{isInternal: true, isHidden: true}
+	default:
+		return workflowUserPrompt{}
+	}
+}
+
+func extractWorkflowPromptField(text string, startMarker string, endMarker string) string {
+	start := strings.Index(text, startMarker)
+	if start < 0 {
+		return ""
+	}
+	value := text[start+len(startMarker):]
+	if endMarker != "" {
+		if end := strings.Index(value, endMarker); end >= 0 {
+			value = value[:end]
+		}
+	}
+	return strings.TrimSpace(value)
+}
+
+func matchWorkflowPromptRun(prompt workflowUserPrompt, runs []Run) (Run, bool) {
+	if !prompt.isInternal || prompt.isHidden {
+		return Run{}, false
+	}
+	userMessage := strings.TrimSpace(prompt.userMessage)
+	objective := strings.TrimSpace(prompt.objective)
+	if userMessage == "" && objective == "" {
+		return Run{}, false
+	}
+	for index := len(runs) - 1; index >= 0; index-- {
+		run := runs[index]
+		if userMessage != "" && strings.TrimSpace(run.UserMessage) != userMessage {
+			continue
+		}
+		if objective != "" && strings.TrimSpace(run.Objective) != "" && strings.TrimSpace(run.Objective) != objective {
+			continue
+		}
+		return run, true
+	}
+	return Run{}, false
 }
 
 func timelinePrimitivesForRunMessage(sessionID string, run Run, message TranscriptEntry) []timelinePrimitive {

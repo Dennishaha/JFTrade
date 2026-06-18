@@ -113,6 +113,22 @@ type Session struct {
 	UpdatedAt string `json:"updatedAt"`
 }
 
+type SessionComposerState struct {
+	SessionID            string `json:"sessionId"`
+	ChatDraft            string `json:"chatDraft"`
+	WorkModeOverride     string `json:"workModeOverride"`
+	GoalObjectiveDraft   string `json:"goalObjectiveDraft"`
+	GoalObjectiveTouched bool   `json:"goalObjectiveTouched"`
+	UpdatedAt            string `json:"updatedAt"`
+}
+
+type SessionComposerStatePatch struct {
+	ChatDraft            *string `json:"chatDraft,omitempty"`
+	WorkModeOverride     *string `json:"workModeOverride,omitempty"`
+	GoalObjectiveDraft   *string `json:"goalObjectiveDraft,omitempty"`
+	GoalObjectiveTouched *bool   `json:"goalObjectiveTouched,omitempty"`
+}
+
 const transcriptKindMessage = "message"
 
 const (
@@ -326,9 +342,10 @@ type ApprovalResolution struct {
 }
 
 type SessionsResponse struct {
-	Session  Session         `json:"session"`
-	Timeline []TimelineEntry `json:"timeline"`
-	Runs     []Run           `json:"runs,omitempty"`
+	Session       Session              `json:"session"`
+	Timeline      []TimelineEntry      `json:"timeline"`
+	Runs          []Run                `json:"runs,omitempty"`
+	ComposerState SessionComposerState `json:"composerState"`
 }
 
 type Snapshot struct {

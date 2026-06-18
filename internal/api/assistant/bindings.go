@@ -30,6 +30,10 @@ type runURI struct {
 	RunID string `uri:"runId" binding:"required"`
 }
 
+type streamURI struct {
+	StreamID string `uri:"streamId" binding:"required"`
+}
+
 type approvalURI struct {
 	ApprovalID string `uri:"approvalId" binding:"required"`
 }

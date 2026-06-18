@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { mount } from "@vue/test-utils";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { nextTick } from "vue";
 import { createMemoryHistory, createRouter } from "vue-router";
 
@@ -9,6 +9,7 @@ import type {
   ADKApproval,
   ADKChatResponse,
   ADKRun,
+  ADKSessionComposerState,
   ADKSessionContextSnapshot,
   ADKTimelineEntry,
 } from "@/contracts";
@@ -17,8 +18,13 @@ import { resetADKApprovalInFlightForTest } from "../src/composables/adkApprovalR
 import ADKPage from "../src/pages/ADKPage.vue";
 import { createResponse, flushRequests } from "./helpers";
 
-const { monitorADKRunContinuationMock, streamADKChatMock } = vi.hoisted(() => ({
+const {
+  monitorADKRunContinuationMock,
+  resumeADKChatStreamMock,
+  streamADKChatMock,
+} = vi.hoisted(() => ({
   monitorADKRunContinuationMock: vi.fn(),
+  resumeADKChatStreamMock: vi.fn(),
   streamADKChatMock: vi.fn(),
 }));
 
@@ -35,6 +41,7 @@ vi.mock("../src/composables/adkChatStream", async () => {
   >("../src/composables/adkChatStream");
   return {
     ...actual,
+    resumeADKChatStream: resumeADKChatStreamMock,
     streamADKChat: streamADKChatMock,
   };
 });
@@ -49,10 +56,16 @@ vi.mock("../src/composables/adkRunContinuation", async () => {
   };
 });
 
+beforeEach(() => {
+  window.localStorage.clear();
+});
+
 afterEach(() => {
   vi.unstubAllGlobals();
   resetADKApprovalInFlightForTest();
   streamADKChatMock.mockReset();
+  resumeADKChatStreamMock.mockReset();
+  resumeADKChatStreamMock.mockResolvedValue(null);
   monitorADKRunContinuationMock.mockReset();
   monitorADKRunContinuationMock.mockImplementation(async (run) => run);
 });
@@ -716,8 +729,8 @@ describe("ADKPage", () => {
 
     expect(document.body.textContent).toContain("子智能体 #1");
     expect(document.body.textContent).toContain("child-run-drilldown");
-    expect(document.body.textContent).not.toContain("42% 正常");
-    expect(document.body.textContent).toContain("15% 正常");
+    expect(document.body.textContent).toContain("42% 正常");
+    expect(document.body.textContent).not.toContain("15% 正常");
     expect(document.body.textContent).toContain("child filtered answer");
     expect(document.body.textContent).toContain("strategy.inspect_child");
     expect(document.body.textContent).not.toContain(
@@ -818,15 +831,18 @@ describe("ADKPage", () => {
     expect(document.body.textContent).not.toContain("子智能体运行用量");
   });
 
-  it("shows child usage while preserving fallback context window metadata", async () => {
+  it("keeps backend session context visible in a child view even when child usage exists", async () => {
     const fallbackContext = buildSessionContextSnapshot({
+      contextRevisionId: "ctx-child-visible",
+      contextRevisionCreatedAt: "2026-06-18T10:10:00Z",
       contextWindowTokens: 20000,
       currentInputTokens: 6000,
       projectedNextTurnTokens: 6200,
       usageRatio: 0.3,
       activeHandoffCount: 1,
+      compactedEventCount: 12,
       autoCompacted: true,
-      summaryPreview: "父摘要应由子用量摘要覆盖",
+      summaryPreview: "父会话后端上下文快照",
     });
     const workflowRun = buildRun({
       id: "parent-run-child-context-usage",
@@ -882,15 +898,20 @@ describe("ADKPage", () => {
     clickButtonByText("进入");
     await nextTick();
 
-    expect(document.body.textContent).toContain("15% 正常");
+    expect(document.body.textContent).toContain("30% 正常");
     expect(document.body.textContent).toContain("模型窗口");
     expect(document.body.textContent).toContain("20,000");
     expect(document.body.textContent).toContain("自动压缩");
     expect(document.body.textContent).toContain("生效 handoff 段数");
-    expect(document.body.textContent).toContain(
-      "子智能体运行用量：输入 2000，输出 1000",
-    );
-    expect(document.body.textContent).not.toContain("父摘要应由子用量摘要覆盖");
+    expect(document.body.textContent).toContain("当前上下文版本");
+    expect(document.body.textContent).toContain("ctx-child-visible");
+    expect(document.body.textContent).toContain("已压缩事件数");
+    expect(document.body.textContent).toContain("12");
+    expect(document.body.textContent).toContain("版本创建时间");
+    expect(document.body.textContent).toContain("2026-06-18T10:10:00Z");
+    expect(document.body.textContent).toContain("父会话后端上下文快照");
+    expect(document.body.textContent).not.toContain("15% 正常");
+    expect(document.body.textContent).not.toContain("子智能体运行用量");
   });
 
   it("keeps the context tag when refreshing context fails after a valid snapshot", async () => {
@@ -2038,6 +2059,40 @@ describe("ADKPage", () => {
     expect(document.body.textContent).toContain("portfolio.summary");
   });
 
+  it("restores processed goal prompts as observable details without replacing the user prompt", async () => {
+    mountADKPage({
+      sessionDetail: {
+        session: buildSession(),
+        timeline: [
+          buildTimelineEntry("user_message", {
+            id: "msg-user-goal",
+            runId: "run-goal",
+            text: "编写个适合nvda的策略",
+            originalText: "编写个适合nvda的策略",
+            processedText:
+              "请推进这个目标。你可以使用 workflow.task.* 工具维护 TODO DAG，并在本轮完成可见回复后等待系统追问再裁决目标是否完成。\n总体目标：编写个适合nvda的策略\n用户请求：编写个适合nvda的策略",
+            createdAt: "2026-06-18T00:00:01Z",
+          }),
+          buildTimelineEntry("assistant_message", {
+            id: "entry-goal-answer",
+            runId: "run-goal",
+            text: "策略草案已生成。",
+            createdAt: "2026-06-18T00:00:02Z",
+          }),
+        ],
+      },
+    });
+    await flushRequests();
+
+    document.querySelector<HTMLElement>(".adk-session-item")?.click();
+    await flushRequests();
+
+    expect(document.body.textContent).toContain("编写个适合nvda的策略");
+    expect(document.body.textContent).toContain("策略草案已生成。");
+    expect(document.body.textContent).toContain("可观测");
+    expect(document.body.textContent).not.toContain("请推进这个目标");
+  });
+
   it("renders chat alerts inside the chat thread", async () => {
     streamADKChatMock.mockImplementationOnce(async (_payload, onEvent) => {
       await onEvent({ type: "session", session: buildSession() });
@@ -2247,6 +2302,285 @@ describe("ADKPage", () => {
     expect(document.body.textContent).not.toContain("99% 危险");
   });
 
+  it("persists composer state per session when switching history", async () => {
+    const sessionA = buildSession({ id: "session-a", title: "会话 A" });
+    const sessionB = buildSession({ id: "session-b", title: "会话 B" });
+    const fetchMock = mountADKPage({
+      sessions: [sessionA, sessionB],
+      composerStateBySession: {
+        [sessionA.id]: buildComposerState(sessionA.id, {
+          chatDraft: "A 原始草稿",
+          workModeOverride: "loop",
+          goalObjectiveDraft: "A 目标草稿",
+          goalObjectiveTouched: true,
+        }),
+        [sessionB.id]: buildComposerState(sessionB.id, {
+          chatDraft: "B 草稿",
+          workModeOverride: "chat",
+        }),
+      },
+      sessionDetailSequence: [
+        { session: sessionA, timeline: [] },
+        { session: sessionB, timeline: [] },
+        { session: sessionA, timeline: [] },
+      ],
+    });
+    await flushRequests();
+
+    const sessions = Array.from(
+      document.querySelectorAll<HTMLElement>(".adk-session-item"),
+    );
+    sessions[0]?.click();
+    await flushRequests();
+
+    const textarea = document.querySelector<HTMLTextAreaElement>(
+      ".adk-composer-input",
+    )!;
+    expect(textarea.value).toBe("A 原始草稿");
+    expect(findWorkModeSelect()?.value).toBe("loop");
+    expect(document.querySelector(".adk-goal-editor")?.textContent).toContain(
+      "A 目标草稿",
+    );
+
+    textarea.value = "A 编辑后草稿";
+    textarea.dispatchEvent(new Event("input"));
+    await nextTick();
+
+    sessions[1]?.click();
+    await flushRequests();
+
+    expect(lastComposerStatePatch(fetchMock, sessionA.id)).toMatchObject({
+      chatDraft: "A 编辑后草稿",
+      workModeOverride: "loop",
+      goalObjectiveDraft: "A 目标草稿",
+      goalObjectiveTouched: true,
+    });
+    expect(
+      document.querySelector<HTMLTextAreaElement>(".adk-composer-input")?.value,
+    ).toBe("B 草稿");
+    expect(findWorkModeSelect()?.value).toBe("chat");
+
+    sessions[0]?.click();
+    await flushRequests();
+
+    expect(
+      document.querySelector<HTMLTextAreaElement>(".adk-composer-input")?.value,
+    ).toBe("A 编辑后草稿");
+    expect(findWorkModeSelect()?.value).toBe("loop");
+  });
+
+  it("does not mark a newer draft as saved when an older composer save resolves later", async () => {
+    const session = buildSession({ id: "session-save-race" });
+    const firstSave = deferred<ADKSessionComposerState>();
+    const savedPatches: Partial<ADKSessionComposerState>[] = [];
+    const fetchMock = mountADKPage({
+      sessions: [session],
+      sessionDetail: { session, timeline: [] },
+      composerStateSave: async (sessionId, patch) => {
+        savedPatches.push(patch);
+        if (savedPatches.length === 1) {
+          return firstSave.promise;
+        }
+        return buildComposerState(sessionId, patch);
+      },
+    });
+    await flushRequests();
+
+    document.querySelector<HTMLElement>(".adk-session-item")?.click();
+    await flushRequests();
+    const textarea = document.querySelector<HTMLTextAreaElement>(
+      ".adk-composer-input",
+    )!;
+    textarea.value = "旧草稿";
+    textarea.dispatchEvent(new Event("input"));
+    await flushRequests();
+
+    window.dispatchEvent(new Event("pagehide"));
+    await nextTick();
+    textarea.value = "新草稿";
+    textarea.dispatchEvent(new Event("input"));
+    await nextTick();
+    firstSave.resolve(buildComposerState(session.id, savedPatches[0]));
+    await flushRequests();
+
+    expect(fetchMock.mock.calls.filter(([input]) =>
+      String(input).includes(`/api/v1/adk/sessions/${session.id}/composer-state`),
+    ).length).toBeGreaterThanOrEqual(2);
+    expect(lastComposerStatePatch(fetchMock, session.id)).toMatchObject({
+      chatDraft: "新草稿",
+    });
+  });
+
+  it("uses the agent default loop mode when sending without an explicit override", async () => {
+    const session = buildSession({ id: "session-default-loop" });
+    const run = buildRun({
+      id: "run-default-loop",
+      sessionId: session.id,
+      status: "COMPLETED",
+      workMode: "loop",
+    });
+    streamADKChatMock.mockResolvedValueOnce({
+      reply: "done",
+      session,
+      run,
+      pendingApprovals: [],
+      timeline: [],
+    });
+    mountADKPage({
+      agent: { workMode: "loop", loopMaxIterations: 5 },
+      sessions: [session],
+      sessionDetail: { session, timeline: [] },
+    });
+    await flushRequests();
+
+    document.querySelector<HTMLElement>(".adk-session-item")?.click();
+    await flushRequests();
+    await sendPageMessage("默认目标");
+
+    expect(streamADKChatMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: "默认目标",
+        workModeOverride: "loop",
+        objective: "默认目标",
+      }),
+      expect.any(Function),
+    );
+  });
+
+  it("clears persisted stream cursor when deleting a session", async () => {
+    const session = buildSession({ id: "session-delete-cursor" });
+    window.localStorage.setItem(
+      "jftrade.adk.page-state.v1",
+      JSON.stringify({
+        selectedSessionId: session.id,
+        sessions: {
+          [session.id]: {
+            streamId: "stream-delete",
+            runId: "run-delete",
+            sequence: 3,
+            activeChildRunId: "",
+          },
+        },
+      }),
+    );
+    mountADKPage({
+      sessions: [session],
+      sessionDetail: { session, timeline: [] },
+    });
+    await flushRequests();
+
+    document.querySelector<HTMLElement>('.adk-session-close[title="关闭会话"]')?.click();
+    await flushRequests();
+
+    const persisted = JSON.parse(
+      window.localStorage.getItem("jftrade.adk.page-state.v1") ?? "{}",
+    ) as { selectedSessionId?: string; sessions?: Record<string, unknown> };
+    expect(persisted.selectedSessionId).toBe("");
+    expect(persisted.sessions?.[session.id]).toBeUndefined();
+  });
+
+  it("restores the selected session and reconnects its active stream after remount", async () => {
+    const session = buildSession({ id: "session-resume" });
+    const runningRun = buildRun({
+      id: "run-resume",
+      sessionId: session.id,
+      status: "RUNNING",
+    });
+    const completedRun = buildRun({
+      ...runningRun,
+      status: "COMPLETED",
+      message: "completed",
+    });
+    window.localStorage.setItem(
+      "jftrade.adk.page-state.v1",
+      JSON.stringify({
+        selectedSessionId: session.id,
+        sessions: {
+          [session.id]: {
+            streamId: "stream-resume",
+            runId: runningRun.id,
+            sequence: 7,
+            activeChildRunId: "",
+          },
+        },
+      }),
+    );
+    resumeADKChatStreamMock.mockImplementationOnce(async (_cursor, onEvent) => {
+      const response: ADKChatResponse = {
+        reply: "刷新后完成",
+        session,
+        run: completedRun,
+        pendingApprovals: [],
+        timeline: [
+          buildTimelineEntry("assistant_message", {
+            id: "resume-answer",
+            runId: completedRun.id,
+            text: "刷新后完成",
+          }),
+        ],
+      };
+      await onEvent({
+        type: "final",
+        streamId: "stream-resume",
+        sequence: 8,
+        runId: completedRun.id,
+        replay: true,
+        response,
+      });
+      return response;
+    });
+
+    mountADKPage({
+      sessions: [session],
+      sessionDetail: {
+        session,
+        timeline: [],
+        runs: [runningRun],
+        composerState: buildComposerState(session.id, {
+          chatDraft: "刷新保留草稿",
+          workModeOverride: "loop",
+          goalObjectiveDraft: "刷新保留目标",
+          goalObjectiveTouched: true,
+        }),
+      },
+    });
+    await flushRequests();
+
+    expect(resumeADKChatStreamMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        streamId: "stream-resume",
+        runId: runningRun.id,
+        after: 7,
+      }),
+      expect.any(Function),
+    );
+    expect(
+      document.querySelector<HTMLTextAreaElement>(".adk-composer-input")?.value,
+    ).toBe("刷新保留草稿");
+    expect(document.body.textContent).toContain("刷新后完成");
+  });
+
+  it("keeps and persists the current draft when sending fails", async () => {
+    const session = buildSession({ id: "session-send-fails" });
+    streamADKChatMock.mockRejectedValueOnce(new Error("provider unavailable"));
+    const fetchMock = mountADKPage({
+      sessions: [session],
+      sessionDetail: { session, timeline: [] },
+    });
+    await flushRequests();
+
+    document.querySelector<HTMLElement>(".adk-session-item")?.click();
+    await flushRequests();
+    await sendPageMessage("失败后还在的草稿");
+
+    expect(
+      document.querySelector<HTMLTextAreaElement>(".adk-composer-input")?.value,
+    ).toBe("失败后还在的草稿");
+    expect(lastComposerStatePatch(fetchMock, session.id)).toMatchObject({
+      chatDraft: "失败后还在的草稿",
+    });
+  });
+
   it("restores persisted timeline entries even when tool and approval arrays are null", async () => {
     mountADKPage({
       sessionDetail: {
@@ -2306,13 +2640,22 @@ function mountADKPage(
     cancelRunById?: Record<string, ADKRun>;
     runById?: Record<string, ADKRun>;
     sessions?: Array<ReturnType<typeof buildSession>>;
+    composerStateBySession?: Record<string, ADKSessionComposerState>;
+    composerStateSave?: (
+      sessionId: string,
+      patch: Partial<ADKSessionComposerState>,
+    ) => Promise<ADKSessionComposerState>;
     sessionDetail?: {
       session: ReturnType<typeof buildSession>;
       timeline: ADKTimelineEntry[];
+      runs?: ADKRun[];
+      composerState?: ADKSessionComposerState;
     };
     sessionDetailSequence?: Array<{
       session: ReturnType<typeof buildSession>;
       timeline: ADKTimelineEntry[];
+      runs?: ADKRun[];
+      composerState?: ADKSessionComposerState;
     }>;
     sessionContext?: ADKSessionContextSnapshot | null;
     sessionContextSequence?: SessionContextTestResponse[];
@@ -2329,9 +2672,10 @@ function mountADKPage(
     sessionContextSequence: [
       ...(options.sessionContextSequence ?? [options.sessionContext ?? null]),
     ],
+    composerStateBySession: { ...(options.composerStateBySession ?? {}) },
   };
 
-  const fetchMock = vi.fn(async (input: string | URL | Request) => {
+  const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
     const url = String(input);
     if (url.includes("/api/v1/adk/agents")) {
       return createResponse({ agents: [buildAgent(options.agent)] });
@@ -2352,13 +2696,38 @@ function mountADKPage(
       }
       return createResponse(resolvedContext ?? null);
     }
+    const composerStateMatch = url.match(
+      /\/api\/v1\/adk\/sessions\/([^/]+)\/composer-state$/,
+    );
+    if (composerStateMatch) {
+      const sessionId = decodeURIComponent(composerStateMatch[1]!);
+      const patch = JSON.parse(String(init?.body ?? "{}")) as Partial<ADKSessionComposerState>;
+      if (options.composerStateSave) {
+        return createResponse(await options.composerStateSave(sessionId, patch));
+      }
+      state.composerStateBySession[sessionId] = buildComposerState(sessionId, {
+        ...(state.composerStateBySession[sessionId] ?? {}),
+        ...patch,
+        updatedAt: "2026-06-06T00:00:10Z",
+      });
+      return createResponse(state.composerStateBySession[sessionId]);
+    }
     if (url.includes("/api/v1/adk/sessions")) {
+      if (init?.method === "DELETE") {
+        return createResponse({});
+      }
       if (/\/api\/v1\/adk\/sessions\/[^/]+$/.test(url)) {
         const detail =
           state.sessionDetailSequence.length > 1
             ? state.sessionDetailSequence.shift()!
             : state.sessionDetailSequence[0]!;
-        return createResponse(detail);
+        return createResponse({
+          ...detail,
+          composerState:
+            detail.composerState ??
+            state.composerStateBySession[detail.session.id] ??
+            buildComposerState(detail.session.id),
+        });
       }
       return createResponse({ sessions: options.sessions ?? [buildSession()] });
     }
@@ -2457,6 +2826,8 @@ function buildAgentBase() {
     permissionMode: "approval",
     memoryEnabled: true,
     recentUserWindow: 6,
+    workMode: "chat",
+    loopMaxIterations: 5,
     status: "ENABLED",
     createdAt: "2026-06-06T00:00:00Z",
     updatedAt: "2026-06-06T00:00:00Z",
@@ -2477,6 +2848,21 @@ function buildSession(
     agentId: "agent-1",
     title: "测试会话",
     createdAt: "2026-06-06T00:00:00Z",
+    updatedAt: "2026-06-06T00:00:00Z",
+    ...overrides,
+  };
+}
+
+function buildComposerState(
+  sessionId: string,
+  overrides: Partial<ADKSessionComposerState> = {},
+): ADKSessionComposerState {
+  return {
+    sessionId,
+    chatDraft: "",
+    workModeOverride: "",
+    goalObjectiveDraft: "",
+    goalObjectiveTouched: false,
     updatedAt: "2026-06-06T00:00:00Z",
     ...overrides,
   };
@@ -2583,18 +2969,21 @@ function buildTimelineEntry(
   kind: ADKTimelineEntry["kind"],
   overrides: Partial<ADKTimelineEntry> = {},
 ): ADKTimelineEntry {
-  return {
-    id: overrides.id ?? `entry-${kind}`,
-    sessionId: overrides.sessionId ?? "session-1",
-    kind,
-    createdAt: overrides.createdAt ?? "2026-06-06T00:00:00Z",
-    sequence: overrides.sequence ?? 1,
-    status: overrides.status ?? "final",
-    runId: overrides.runId,
-    text: overrides.text,
-    toolCalls: overrides.toolCalls,
-    approvals: overrides.approvals,
-  };
+	return {
+		id: overrides.id ?? `entry-${kind}`,
+		sessionId: overrides.sessionId ?? "session-1",
+		kind,
+		createdAt: overrides.createdAt ?? "2026-06-06T00:00:00Z",
+		updatedAt: overrides.updatedAt,
+		sequence: overrides.sequence ?? 1,
+		status: overrides.status ?? "final",
+		runId: overrides.runId,
+		text: overrides.text,
+		originalText: overrides.originalText,
+		processedText: overrides.processedText,
+		toolCalls: overrides.toolCalls,
+		approvals: overrides.approvals,
+	};
 }
 
 function pendingApprovalTimeline(
@@ -2647,6 +3036,26 @@ async function expandQueue(title: string): Promise<void> {
   if (!queue || queue.querySelector(".adk-workspace-queue__body")) return;
   queue.querySelector<HTMLButtonElement>(".adk-workspace-queue__header")?.click();
   await nextTick();
+}
+
+function findWorkModeSelect(): HTMLSelectElement | undefined {
+  return Array.from(document.querySelectorAll<HTMLSelectElement>("select")).find(
+    (select) =>
+      Array.from(select.options).some((option) => option.value === "loop"),
+  );
+}
+
+function lastComposerStatePatch(
+  fetchMock: ReturnType<typeof vi.fn>,
+  sessionId: string,
+): Record<string, unknown> | undefined {
+  const calls = fetchMock.mock.calls.filter(([input]) =>
+    String(input).includes(
+      `/api/v1/adk/sessions/${encodeURIComponent(sessionId)}/composer-state`,
+    ),
+  );
+  const body = calls.at(-1)?.[1]?.body;
+  return body == null ? undefined : JSON.parse(String(body));
 }
 
 function countApprovalActionCalls(

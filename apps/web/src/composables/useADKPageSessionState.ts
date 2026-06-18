@@ -26,13 +26,22 @@ export function useADKPageSessionState(router: Router, threadRef: Ref<HTMLElemen
   const approvals = ref<ADKApproval[]>([]);
   const tools = ref<ADKToolDescriptor[]>([]);
   const loading = ref(false);
+  const initialized = ref(false);
   const errorMessage = ref("");
   const selectedAgentId = ref("");
   const selectedProviderId = ref("");
   const selectedSessionId = ref("");
   const savingProviderSelection = ref(false);
+  const creatingSession = ref(false);
   const sessionSearch = ref("");
   const sessionAgentFilter = ref("");
+  let sessionMutationRevision = 0;
+  let sessionRefreshSequence = 0;
+  let latestAppliedSessionRefresh = 0;
+  const sessionMutations = new Map<
+    string,
+    { revision: number; kind: "upsert" | "delete" }
+  >();
 
   const agentOptions = computed(() =>
     agents.value.map((a) => ({
@@ -70,13 +79,21 @@ export function useADKPageSessionState(router: Router, threadRef: Ref<HTMLElemen
   });
 
   async function refreshAll(): Promise<void> {
+    const refreshSequence = ++sessionRefreshSequence;
+    const refreshSessionRevision = sessionMutationRevision;
     loading.value = true;
     errorMessage.value = "";
     try {
       const data = await fetchADKPageSessionData();
       agents.value = data.agents;
       providers.value = data.providers;
-      sessions.value = data.sessions;
+      if (refreshSequence >= latestAppliedSessionRefresh) {
+        latestAppliedSessionRefresh = refreshSequence;
+        sessions.value = reconcileRefreshedSessions(
+          data.sessions,
+          refreshSessionRevision,
+        );
+      }
       approvals.value = data.approvals;
       tools.value = data.tools;
 
@@ -88,31 +105,50 @@ export function useADKPageSessionState(router: Router, threadRef: Ref<HTMLElemen
       errorMessage.value = error instanceof Error ? error.message : "加载 Agents 状态失败";
     } finally {
       loading.value = false;
+      initialized.value = true;
     }
   }
 
   async function createNewSession(onReset: () => void): Promise<void> {
-    if (selectedAgentId.value === "") return;
+    if (selectedAgentId.value === "" || creatingSession.value) return;
+    const agentId = selectedAgentId.value;
+    const previousSearch = sessionSearch.value;
+    const previousAgentFilter = sessionAgentFilter.value;
+    sessionSearch.value = "";
+    sessionAgentFilter.value = agentId;
+    creatingSession.value = true;
+    errorMessage.value = "";
     try {
-      const session = await createADKPageSession(selectedAgentId.value);
-      sessions.value = [session, ...sessions.value];
+      const session = await createADKPageSession(agentId);
+      recordSessionMutation(session.id, "upsert");
+      sessions.value = [
+        session,
+        ...sessions.value.filter((item) => item.id !== session.id),
+      ];
       selectedSessionId.value = session.id;
       onReset();
     } catch (error) {
+      sessionSearch.value = previousSearch;
+      sessionAgentFilter.value = previousAgentFilter;
       errorMessage.value = error instanceof Error ? error.message : "创建会话失败";
+    } finally {
+      creatingSession.value = false;
     }
   }
 
-  async function deleteSession(sessionId: string, onReset: () => void): Promise<void> {
+  async function deleteSession(sessionId: string, onReset: () => void): Promise<boolean> {
     try {
       await deleteADKPageSession(sessionId);
+      recordSessionMutation(sessionId, "delete");
       sessions.value = sessions.value.filter((s) => s.id !== sessionId);
       if (selectedSessionId.value === sessionId) {
         selectedSessionId.value = "";
         onReset();
       }
+      return true;
     } catch (error) {
       errorMessage.value = error instanceof Error ? error.message : "关闭会话失败";
+      return false;
     }
   }
 
@@ -121,6 +157,7 @@ export function useADKPageSessionState(router: Router, threadRef: Ref<HTMLElemen
     if (!title || title === session.title) return;
     try {
       const updated = await renameADKPageSession(session.id, title);
+      recordSessionMutation(updated.id, "upsert");
       sessions.value = sessions.value.map((item) => item.id === updated.id ? updated : item);
     } catch (error) {
       errorMessage.value = error instanceof Error ? error.message : "重命名会话失败";
@@ -177,6 +214,64 @@ export function useADKPageSessionState(router: Router, threadRef: Ref<HTMLElemen
     await scrollToBottom(threadRef);
   }
 
+  function recordSessionMutation(
+    sessionId: string,
+    kind: "upsert" | "delete",
+  ): void {
+    sessionMutationRevision += 1;
+    sessionMutations.set(sessionId, {
+      revision: sessionMutationRevision,
+      kind,
+    });
+  }
+
+  function reconcileRefreshedSessions(
+    remoteSessions: ADKSession[],
+    refreshSessionRevision: number,
+  ): ADKSession[] {
+    if (sessionMutationRevision === refreshSessionRevision) {
+      for (const [sessionId, mutation] of sessionMutations) {
+        if (mutation.revision <= refreshSessionRevision) {
+          sessionMutations.delete(sessionId);
+        }
+      }
+      return remoteSessions;
+    }
+
+    const remoteByID = new Map(
+      remoteSessions.map((session) => [session.id, session]),
+    );
+    const locallyPreferred: ADKSession[] = [];
+    for (const session of sessions.value) {
+      const mutation = sessionMutations.get(session.id);
+      if (!mutation || mutation.revision <= refreshSessionRevision) continue;
+      if (mutation.kind === "delete") {
+        remoteByID.delete(session.id);
+        continue;
+      }
+      remoteByID.set(session.id, session);
+      locallyPreferred.push(session);
+    }
+    for (const [sessionId, mutation] of sessionMutations) {
+      if (
+        mutation.revision > refreshSessionRevision &&
+        mutation.kind === "delete"
+      ) {
+        remoteByID.delete(sessionId);
+      }
+    }
+    const merged = [
+      ...locallyPreferred,
+      ...remoteSessions
+        .filter((session) => remoteByID.has(session.id))
+        .map((session) => remoteByID.get(session.id)!),
+    ];
+    return merged.filter(
+      (session, index) =>
+        merged.findIndex((candidate) => candidate.id === session.id) === index,
+    );
+  }
+
   return {
     agents,
     approvals,
@@ -184,12 +279,14 @@ export function useADKPageSessionState(router: Router, threadRef: Ref<HTMLElemen
     agentName,
     agentOptions,
     createNewSession,
+    creatingSession,
     deleteSession,
     errorMessage,
     finishSessionSelection,
     handleAgentChange,
     handleProviderChange,
     loading,
+    initialized,
     openProviderSettings,
     pendingApprovals,
     providerOptions,

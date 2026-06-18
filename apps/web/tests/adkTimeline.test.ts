@@ -69,4 +69,30 @@ describe("adkTimeline", () => {
     expect(timeline[0]?.status).toBe("final");
     expect(timeline[0]?.text).toBe("已压缩上下文，继续使用最新摘要。");
   });
+
+  it("keeps user prompt view on original when replay updates arrive", () => {
+    const original: ADKTimelineEntry = {
+      id: "entry-user-prompt",
+      sessionId: "session-1",
+      runId: "run-1",
+      kind: "user_message",
+      createdAt: "2026-06-18T00:00:00Z",
+      sequence: 1,
+      text: "编写个适合nvda的策略",
+      originalText: "编写个适合nvda的策略",
+      processedText: "请推进这个目标。\n总体目标：编写个适合nvda的策略\n用户请求：编写个适合nvda的策略",
+    };
+    const replayed: ADKTimelineEntry = {
+      ...original,
+      status: "final",
+    };
+
+    const timeline = upsertTimelineEntry(upsertTimelineEntry([], original), replayed);
+
+    expect(timeline).toHaveLength(1);
+    expect(timeline[0]?.text).toBe("编写个适合nvda的策略");
+    expect(timeline[0]?.originalText).toBe("编写个适合nvda的策略");
+    expect(timeline[0]?.processedText).toContain("请推进这个目标");
+    expect(timeline[0]?.userPromptVariant).toBe("original");
+  });
 });

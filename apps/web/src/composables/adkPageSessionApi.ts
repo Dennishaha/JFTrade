@@ -3,6 +3,7 @@ import type {
   ADKApproval,
   ADKProvider,
   ADKSession,
+  ADKSessionComposerState,
   ADKToolDescriptor,
 } from "@/contracts";
 
@@ -59,6 +60,30 @@ export async function renameADKPageSession(sessionId: string, title: string): Pr
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ title }),
+    },
+  );
+}
+
+export async function saveADKSessionComposerState(
+  sessionId: string,
+  state: Partial<
+    Pick<
+      ADKSessionComposerState,
+      | "chatDraft"
+      | "workModeOverride"
+      | "goalObjectiveDraft"
+      | "goalObjectiveTouched"
+    >
+  >,
+  options: { keepalive?: boolean } = {},
+): Promise<ADKSessionComposerState> {
+  return fetchEnvelopeWithInit<ADKSessionComposerState>(
+    `/api/v1/adk/sessions/${encodeURIComponent(sessionId)}/composer-state`,
+    {
+      method: "PATCH",
+      keepalive: options.keepalive === true,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(state),
     },
   );
 }

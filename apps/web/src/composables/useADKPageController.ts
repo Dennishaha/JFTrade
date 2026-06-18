@@ -40,10 +40,12 @@ export function useADKPageController(
     {
       agents: sessionState.agents,
       errorMessage: sessionState.errorMessage,
+      initialized: sessionState.initialized,
       refreshAll: sessionState.refreshAll,
       finishSessionSelection: sessionState.finishSessionSelection,
       selectedAgentId: sessionState.selectedAgentId,
       selectedSessionId: sessionState.selectedSessionId,
+      sessions: sessionState.sessions,
     },
     composerBlockMessage,
   );
@@ -85,18 +87,28 @@ export function useADKPageController(
     cancelActiveRun: chatState.cancelActiveRun,
     contextBusy: chatState.contextBusy,
     contextDetailsOpen: chatState.contextDetailsOpen,
-    createNewSession: () =>
-      sessionState.createNewSession(() => {
+    creatingSession: sessionState.creatingSession,
+    createNewSession: async () => {
+      await chatState.flushComposerState();
+      await sessionState.createNewSession(() => {
         chatState.timelineEntries.value = [];
         chatState.clearSessionContext();
         chatState.clearWorkflowPlanRun();
-      }),
-    deleteSession: (sessionId: string) =>
-      sessionState.deleteSession(sessionId, () => {
+        chatState.resetComposerState();
+      });
+    },
+    deleteSession: async (sessionId: string) => {
+      await chatState.flushComposerState();
+      const deleted = await sessionState.deleteSession(sessionId, () => {
         chatState.timelineEntries.value = [];
         chatState.clearSessionContext();
         chatState.clearWorkflowPlanRun();
-      }),
+        chatState.resetComposerState();
+      });
+      if (deleted) {
+        chatState.removeSessionRuntimeState(sessionId);
+      }
+    },
     errorMessage: sessionState.errorMessage,
     formatPermission,
     goalObjectiveDraft: chatState.goalObjectiveDraft,

@@ -3,7 +3,6 @@ import { computed, ref, type ComputedRef, type Ref } from "vue";
 import type {
   ADKApproval,
   ADKRun,
-  ADKSessionContextSnapshot,
   ADKWorkflowStepState,
 } from "@/contracts";
 
@@ -325,63 +324,6 @@ export function workflowQueueTone(status: string | undefined): string {
     default:
       return runStatusTone(status);
   }
-}
-
-export function sessionContextFromRunUsage(
-  run: ADKRun | null | undefined,
-  fallbackContext: ADKSessionContextSnapshot | null | undefined,
-): ADKSessionContextSnapshot | null {
-  const tokensIn = Math.max(0, Math.round(run?.usage?.tokensIn ?? 0));
-  const tokensOut = Math.max(0, Math.round(run?.usage?.tokensOut ?? 0));
-  const totalTokens = tokensIn + tokensOut;
-  if (totalTokens <= 0) {
-    return fallbackContext ?? null;
-  }
-  const contextWindowTokens = Math.max(
-    0,
-    Math.round(fallbackContext?.contextWindowTokens ?? 0),
-  );
-  const usageRatio =
-    contextWindowTokens > 0 ? totalTokens / contextWindowTokens : 0;
-  const status = contextWindowTokens > 0
-    ? contextStatusFromUsageRatio(usageRatio)
-    : "unknown";
-  const breakdown = {
-    instructionTokens: tokensIn,
-    handoffTokens: 0,
-    recentUserTokens: 0,
-    protectedTailTokens: 0,
-    otherVisibleTokens: tokensOut,
-    pendingUserTokens: 0,
-    toolDeclarationTokens: 0,
-  };
-  return {
-    ...(fallbackContext ?? {}),
-    sessionId: run?.sessionId || fallbackContext?.sessionId || "",
-    currentInputTokens: totalTokens,
-    projectedNextTurnTokens: totalTokens,
-    rawCurrentInputTokens: totalTokens,
-    rawProjectedNextTurnTokens: totalTokens,
-    contextWindowTokens,
-    usageRatio,
-    status,
-    recentUserWindow: fallbackContext?.recentUserWindow ?? 0,
-    retainedRecentUserCount: fallbackContext?.retainedRecentUserCount ?? 0,
-    activeHandoffCount: fallbackContext?.activeHandoffCount ?? 0,
-    summaryPreview: `子智能体运行用量：输入 ${tokensIn}，输出 ${tokensOut}`,
-    breakdown,
-    rawBreakdown: breakdown,
-    trimmedToolResponseCount: 0,
-    autoCompacted: fallbackContext?.autoCompacted ?? false,
-    degradedSummary: fallbackContext?.degradedSummary ?? false,
-  };
-}
-
-function contextStatusFromUsageRatio(ratio: number): ADKSessionContextSnapshot["status"] {
-  if (ratio >= 0.95) return "critical";
-  if (ratio >= 0.85) return "near_limit";
-  if (ratio >= 0.7) return "warning";
-  return "healthy";
 }
 
 function isDisplayableWorkflowPlanRun(

@@ -59,7 +59,11 @@ describe("ADKChatThread", () => {
     expect(wrapper.text()).not.toContain("请推进这个目标");
     expect(wrapper.find(".adk-bubble--user-processed").exists()).toBe(false);
 
-    await wrapper.findAll("button").find((button) => button.text() === "系统处理后")?.trigger("click");
+    const promptRow = wrapper.find(".adk-user-prompt-row");
+    expect(promptRow.exists()).toBe(true);
+    expect(promptRow.find(".adk-user-prompt-toggle").exists()).toBe(true);
+
+    await wrapper.findAll("button").find((button) => button.text() === "可观测")?.trigger("click");
     await nextTick();
 
     expect(wrapper.text()).toContain("请推进这个目标");
@@ -86,6 +90,6 @@ describe("ADKChatThread", () => {
     ]);
 
     expect(wrapper.text()).toContain("普通问题");
-    expect(wrapper.text()).not.toContain("系统处理后");
+    expect(wrapper.text()).not.toContain("可观测");
   });
 });

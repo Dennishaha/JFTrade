@@ -881,6 +881,49 @@ func TestADKSessionsCRUDAndFilteringRoutes(t *testing.T) {
 		t.Fatalf("create session envelope = %+v", createEnvelope)
 	}
 
+	composerReq, err := http.NewRequest(
+		http.MethodPatch,
+		srv.URL+"/api/v1/adk/sessions/"+createEnvelope.Data.ID+"/composer-state",
+		bytes.NewReader([]byte(`{"chatDraft":"未发送草稿","workModeOverride":"loop","goalObjectiveDraft":"目标草稿","goalObjectiveTouched":true}`)),
+	)
+	if err != nil {
+		t.Fatalf("NewRequest composer state: %v", err)
+	}
+	composerReq.Header.Set("Content-Type", "application/json")
+	composerResp, err := http.DefaultClient.Do(composerReq)
+	if err != nil {
+		t.Fatalf("PATCH composer state: %v", err)
+	}
+	defer composerResp.Body.Close()
+	var composerEnvelope struct {
+		OK   bool                       `json:"ok"`
+		Data jfadk.SessionComposerState `json:"data"`
+	}
+	if err := json.NewDecoder(composerResp.Body).Decode(&composerEnvelope); err != nil {
+		t.Fatalf("decode composer state: %v", err)
+	}
+	if !composerEnvelope.OK || composerEnvelope.Data.ChatDraft != "未发送草稿" || composerEnvelope.Data.WorkModeOverride != jfadk.WorkModeLoop {
+		t.Fatalf("composer state envelope = %+v", composerEnvelope)
+	}
+
+	invalidComposerReq, err := http.NewRequest(
+		http.MethodPatch,
+		srv.URL+"/api/v1/adk/sessions/"+createEnvelope.Data.ID+"/composer-state",
+		bytes.NewReader([]byte(`{"workModeOverride":"sequential"}`)),
+	)
+	if err != nil {
+		t.Fatalf("NewRequest invalid composer state: %v", err)
+	}
+	invalidComposerReq.Header.Set("Content-Type", "application/json")
+	invalidComposerResp, err := http.DefaultClient.Do(invalidComposerReq)
+	if err != nil {
+		t.Fatalf("PATCH invalid composer state: %v", err)
+	}
+	defer invalidComposerResp.Body.Close()
+	if invalidComposerResp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("invalid composer status = %d, want 400", invalidComposerResp.StatusCode)
+	}
+
 	chatResp, err := http.Post(srv.URL+"/api/v1/adk/chat", "application/json", bytes.NewReader([]byte(`{"agentId":"`+agent.ID+`","sessionId":"`+createEnvelope.Data.ID+`","message":"@strategy.save_draft 保存会话草稿"}`)))
 	if err != nil {
 		t.Fatalf("POST session chat: %v", err)
@@ -912,6 +955,13 @@ func TestADKSessionsCRUDAndFilteringRoutes(t *testing.T) {
 	if !listEnvelope.OK || listEnvelope.Data.Page.Total != 1 || len(listEnvelope.Data.Sessions) != 1 || listEnvelope.Data.Page.HasMore {
 		t.Fatalf("list sessions envelope = %+v", listEnvelope)
 	}
+	listPayload, err := json.Marshal(listEnvelope.Data.Sessions)
+	if err != nil {
+		t.Fatalf("marshal list sessions: %v", err)
+	}
+	if bytes.Contains(listPayload, []byte("未发送草稿")) {
+		t.Fatalf("session list leaked composer draft: %s", string(listPayload))
+	}
 
 	getResp, err := http.Get(srv.URL + "/api/v1/adk/sessions/" + createEnvelope.Data.ID)
 	if err != nil {
@@ -921,8 +971,9 @@ func TestADKSessionsCRUDAndFilteringRoutes(t *testing.T) {
 	var getEnvelope struct {
 		OK   bool `json:"ok"`
 		Data struct {
-			Session  jfadk.Session         `json:"session"`
-			Timeline []jfadk.TimelineEntry `json:"timeline"`
+			Session       jfadk.Session              `json:"session"`
+			Timeline      []jfadk.TimelineEntry      `json:"timeline"`
+			ComposerState jfadk.SessionComposerState `json:"composerState"`
 		} `json:"data"`
 	}
 	if err := json.NewDecoder(getResp.Body).Decode(&getEnvelope); err != nil {
@@ -930,6 +981,9 @@ func TestADKSessionsCRUDAndFilteringRoutes(t *testing.T) {
 	}
 	if !getEnvelope.OK || getEnvelope.Data.Session.ID != createEnvelope.Data.ID || len(getEnvelope.Data.Timeline) == 0 {
 		t.Fatalf("session detail envelope = %+v", getEnvelope)
+	}
+	if getEnvelope.Data.ComposerState.ChatDraft != "未发送草稿" || getEnvelope.Data.ComposerState.GoalObjectiveDraft != "目标草稿" {
+		t.Fatalf("session detail composer state = %+v", getEnvelope.Data.ComposerState)
 	}
 
 	renameReq, err := http.NewRequest(http.MethodPut, srv.URL+"/api/v1/adk/sessions/"+createEnvelope.Data.ID, bytes.NewReader([]byte(`{"title":"重命名会话"}`)))
@@ -1244,6 +1298,64 @@ func TestADKChatStreamEmitsSessionRunAndFinalEvents(t *testing.T) {
 	}
 	if finalEvent.Response.Run.MaxDurationMs != 720_000 {
 		t.Fatalf("final run maxDurationMs = %d, want 720000", finalEvent.Response.Run.MaxDurationMs)
+	}
+	streamID := rec.Header().Get("X-ADK-Stream-ID")
+	if streamID == "" {
+		t.Fatal("stream id header is empty")
+	}
+	replayReq := httptest.NewRequest(http.MethodGet, "/api/v1/adk/streams/"+streamID+"?after=1", nil)
+	replayRec := httptest.NewRecorder()
+	server.ServeHTTP(replayRec, replayReq)
+	if replayRec.Code != http.StatusOK {
+		t.Fatalf("stream replay status = %d body=%q", replayRec.Code, replayRec.Body.String())
+	}
+	replayed := parseADKStreamFrames(t, replayRec.Body.String())
+	if len(replayed) == 0 {
+		t.Fatal("stream replay returned no events")
+	}
+	for _, event := range replayed {
+		if event.Sequence <= 1 || !event.Replay || event.StreamID != streamID {
+			t.Fatalf("replayed event = %+v, want sequence > 1 with replay metadata", event)
+		}
+	}
+	runReplayReq := httptest.NewRequest(http.MethodGet, "/api/v1/adk/runs/"+finalEvent.Response.Run.ID+"/stream?after=1", nil)
+	runReplayRec := httptest.NewRecorder()
+	server.ServeHTTP(runReplayRec, runReplayReq)
+	if runReplayRec.Code != http.StatusOK {
+		t.Fatalf("run stream replay status = %d body=%q", runReplayRec.Code, runReplayRec.Body.String())
+	}
+
+	detachedCtx, cancelDetached := context.WithCancel(context.Background())
+	detachedReq := httptest.NewRequest(
+		http.MethodPost,
+		"/api/v1/adk/chat/stream",
+		strings.NewReader(`{"agentId":"`+agent.ID+`","message":"detached execution"}`),
+	).WithContext(detachedCtx)
+	detachedReq.Header.Set("Content-Type", "application/json")
+	cancelDetached()
+	detachedRec := httptest.NewRecorder()
+	server.ServeHTTP(detachedRec, detachedReq)
+
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		runs, listErr := server.adkRuntime.Store().ListRuns(t.Context())
+		if listErr != nil {
+			t.Fatalf("ListRuns after detached stream: %v", listErr)
+		}
+		completed := false
+		for _, run := range runs {
+			if run.UserMessage == "detached execution" && run.Status == jfadk.RunStatusCompleted {
+				completed = true
+				break
+			}
+		}
+		if completed {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("detached stream did not complete after request cancellation")
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
 }
 

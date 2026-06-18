@@ -95,6 +95,50 @@ func TestAgentSaveErrorClassification(t *testing.T) {
 	}
 }
 
+func TestChatStreamHubReplayAndCleanupBoundaries(t *testing.T) {
+	hub := newADKChatStreamHub()
+	record := hub.create()
+	hub.publish(record, adkChatStreamEvent{Type: "run", Run: &jfadk.Run{
+		ID: "run-replay", Status: jfadk.RunStatusRunning,
+	}})
+	replayUntil := record.currentSequence()
+	hub.publish(record, adkChatStreamEvent{Type: "timeline", Timeline: &jfadk.TimelineEntry{
+		ID: "live-after-reconnect", RunID: "run-replay",
+	}})
+
+	events, _, _ := record.snapshot(0)
+	if len(events) != 2 {
+		t.Fatalf("events len=%d, want 2", len(events))
+	}
+	for index := range events {
+		if events[index].Sequence <= replayUntil {
+			events[index].Replay = true
+		}
+	}
+	if !events[0].Replay {
+		t.Fatalf("first event should be replayed: %+v", events[0])
+	}
+	if events[1].Replay {
+		t.Fatalf("live event should not be replayed: %+v", events[1])
+	}
+
+	oldStartedAt := time.Now().Add(-2 * jfadk.DefaultRunTimeout).Add(-2 * adkChatStreamRetention).UTC()
+	hub.cleanupWithRunLookup(func(runID string) (jfadk.Run, bool) {
+		if runID != "run-replay" {
+			return jfadk.Run{}, false
+		}
+		return jfadk.Run{
+			ID:            runID,
+			Status:        jfadk.RunStatusRunning,
+			StartedAt:     oldStartedAt.Format(time.RFC3339Nano),
+			MaxDurationMs: int64(jfadk.DefaultRunTimeout / time.Millisecond),
+		}, true
+	})
+	if _, ok := hub.get(record.id); ok {
+		t.Fatalf("expired stream was not cleaned up")
+	}
+}
+
 func TestSessionTimelineFailureKeepsLegacyErrorCode(t *testing.T) {
 	runtime, router, dbPath, sessionService := newAssistantTestRouterWithDBPath(t)
 	ctx := t.Context()

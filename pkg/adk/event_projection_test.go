@@ -177,6 +177,85 @@ func TestSessionTimelineUsesRunUserMessageAsOriginalPrompt(t *testing.T) {
 	}
 }
 
+func TestSessionTimelineRestoresGoalPromptWhenInvocationMismatchesRun(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	agent := mustSaveAgent(t, runtime, AgentWriteRequest{
+		ID:             "agent-timeline-goal-mismatch",
+		Name:           "Timeline Goal Mismatch Agent",
+		PermissionMode: PermissionModeApproval,
+		Status:         AgentStatusEnabled,
+	})
+	session := mustCreateSession(t, runtime, agent.ID, "Timeline Goal Mismatch")
+	run := mustSaveRun(t, runtime, Run{
+		ID:          "run-timeline-nvda",
+		SessionID:   session.ID,
+		AgentID:     agent.ID,
+		Status:      RunStatusCompleted,
+		WorkMode:    WorkModeLoop,
+		UserMessage: "编写个适合nvda的策略",
+		Objective:   "编写个适合nvda的策略",
+		CreatedAt:   "2026-06-18T00:00:00Z",
+		UpdatedAt:   "2026-06-18T00:00:01Z",
+	})
+	processed := goalOrchestratorUserMessage(run)
+	appendADKEvent(t, runtime, agent.ID, session.ID, newUserEvent("adk-invocation-nvda", processed, time.Unix(10, 0)))
+
+	timeline, ok, err := runtime.Store().SessionTimeline(ctx, session.ID)
+	if err != nil || !ok {
+		t.Fatalf("SessionTimeline ok=%v err=%v", ok, err)
+	}
+	if len(timeline) != 1 {
+		t.Fatalf("timeline len = %d, want 1: %+v", len(timeline), timeline)
+	}
+	entry := timeline[0]
+	if entry.RunID != run.ID || entry.Text != run.UserMessage || entry.OriginalText != run.UserMessage {
+		t.Fatalf("timeline user entry = %+v, want original prompt for run %s", entry, run.ID)
+	}
+	if entry.ProcessedText != processed {
+		t.Fatalf("processedText = %q, want %q", entry.ProcessedText, processed)
+	}
+}
+
+func TestSessionTimelineHidesGoalDecisionPrompts(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	agent := mustSaveAgent(t, runtime, AgentWriteRequest{
+		ID:             "agent-timeline-goal-decision",
+		Name:           "Timeline Goal Decision Agent",
+		PermissionMode: PermissionModeApproval,
+		Status:         AgentStatusEnabled,
+	})
+	session := mustCreateSession(t, runtime, agent.ID, "Timeline Goal Decision")
+	run := mustSaveRun(t, runtime, Run{
+		ID:          "run-timeline-goal-decision",
+		SessionID:   session.ID,
+		AgentID:     agent.ID,
+		Status:      RunStatusRunning,
+		WorkMode:    WorkModeLoop,
+		UserMessage: "编写个适合nvda的策略",
+		Objective:   "编写个适合nvda的策略",
+		CreatedAt:   "2026-06-18T00:00:00Z",
+		UpdatedAt:   "2026-06-18T00:00:01Z",
+	})
+	processed := goalOrchestratorUserMessage(run)
+	appendADKEvent(t, runtime, agent.ID, session.ID, newUserEvent(run.ID, processed, time.Unix(10, 0)))
+	appendADKEvent(t, runtime, agent.ID, session.ID, newUserEvent(run.ID, goalDecisionPrompt(run, "第一轮回复", false), time.Unix(11, 0)))
+	appendADKEvent(t, runtime, agent.ID, session.ID, newUserEvent(run.ID, goalOrchestratorContinueNudge(run, "还要继续完善策略"), time.Unix(12, 0)))
+
+	timeline, ok, err := runtime.Store().SessionTimeline(ctx, session.ID)
+	if err != nil || !ok {
+		t.Fatalf("SessionTimeline ok=%v err=%v", ok, err)
+	}
+	if len(timeline) != 1 {
+		t.Fatalf("timeline len = %d, want only original user message: %+v", len(timeline), timeline)
+	}
+	entry := timeline[0]
+	if entry.Text != run.UserMessage || entry.OriginalText != run.UserMessage || entry.ProcessedText != processed {
+		t.Fatalf("timeline user entry = %+v, want original plus first processed prompt", entry)
+	}
+}
+
 func TestSessionTimelineOmitsPromptVariantsWhenPromptUnchanged(t *testing.T) {
 	ctx := context.Background()
 	runtime := newTestRuntime(t)

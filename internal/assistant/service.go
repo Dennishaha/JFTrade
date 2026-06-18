@@ -448,10 +448,15 @@ func (s *Service) GetSessionDetail(ctx context.Context, sessionID string) (jfadk
 	if err != nil {
 		return jfadk.SessionsResponse{}, err
 	}
+	composerState, _, err := s.runtime.Store().SessionComposerState(ctx, sessionID)
+	if err != nil {
+		return jfadk.SessionsResponse{}, err
+	}
 	return jfadk.NormalizeSessionsResponse(jfadk.SessionsResponse{
-		Session:  session,
-		Timeline: timeline,
-		Runs:     runs,
+		Session:       session,
+		Timeline:      timeline,
+		Runs:          runs,
+		ComposerState: composerState,
 	}), nil
 }
 
@@ -461,6 +466,13 @@ func (s *Service) RenameSession(ctx context.Context, sessionID string, title str
 		return jfadk.Session{}, fmt.Errorf("adk runtime is unavailable")
 	}
 	return s.runtime.Store().RenameSession(ctx, sessionID, title)
+}
+
+func (s *Service) UpdateSessionComposerState(ctx context.Context, sessionID string, patch jfadk.SessionComposerStatePatch) (jfadk.SessionComposerState, error) {
+	if s.runtime == nil || s.runtime.Store() == nil {
+		return jfadk.SessionComposerState{}, fmt.Errorf("adk runtime is unavailable")
+	}
+	return s.runtime.Store().SaveSessionComposerState(ctx, sessionID, patch)
 }
 
 // DeleteSession 删除会话及其关联的 runs、approvals、context。

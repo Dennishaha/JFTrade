@@ -351,6 +351,8 @@ export async function saveADKAgent(agent: {
   permissionMode: string;
   memoryEnabled: boolean;
   recentUserWindow: number;
+  workMode: ADKAgent["workMode"];
+  loopMaxIterations: number;
   status: string;
 }): Promise<ADKAgent> {
   return fetchEnvelopeWithInit<ADKAgent>("/api/v1/adk/agents", {

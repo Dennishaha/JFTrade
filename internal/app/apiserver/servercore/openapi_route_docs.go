@@ -43,11 +43,14 @@ func documentAssistantTaskMemoryRoutes() {}
 // @Router /api/v1/adk/sessions/{sessionId} [get]
 // @Router /api/v1/adk/sessions/{sessionId} [put]
 // @Router /api/v1/adk/sessions/{sessionId} [delete]
+// @Router /api/v1/adk/sessions/{sessionId}/composer-state [patch]
 // @Router /api/v1/adk/sessions/{sessionId}/context [get]
 // @Router /api/v1/adk/sessions/{sessionId}/context/compact [post]
 // @Router /api/v1/adk/runs/{runId} [get]
+// @Router /api/v1/adk/runs/{runId}/stream [get]
 // @Router /api/v1/adk/runs/{runId}/cancel [post]
 // @Router /api/v1/adk/runs/{runId}/objective [patch]
+// @Router /api/v1/adk/streams/{streamId} [get]
 func documentAssistantSessionRunRoutes() {}
 
 // documentAssistantChatApprovalSkillRoutes godoc

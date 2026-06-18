@@ -27,15 +27,17 @@ function buildAgent(workMode: ADKAgent["workMode"] | "sequential" | "parallel"):
 }
 
 describe("useADKAgentForm", () => {
+  it("defaults new agents to chat mode", () => {
+    const state = createState();
+
+    state.newAgentForm();
+
+    expect(state.agentForm.value.workMode).toBe("chat");
+    expect(state.agentForm.value.loopMaxIterations).toBe(5);
+  });
+
   it("coerces hidden sequential and parallel defaults to chat when editing or duplicating", () => {
-    const state = useADKAgentForm(
-      ref([]),
-      ref([]),
-      ref([]),
-      vi.fn(async () => {}),
-      ref(""),
-      ref(""),
-    );
+    const state = createState();
 
     state.editAgent(buildAgent("sequential"));
     expect(state.agentForm.value.workMode).toBe("chat");
@@ -52,4 +54,27 @@ describe("useADKAgentForm", () => {
     state.editAgent(buildAgent("task"));
     expect(state.agentForm.value.workMode).toBe("task");
   });
+
+  it("restores supported work modes when editing and duplicating", () => {
+    const state = createState();
+
+    for (const mode of ["chat", "task", "loop"] as const) {
+      state.editAgent(buildAgent(mode));
+      expect(state.agentForm.value.workMode).toBe(mode);
+
+      state.duplicateAgent(buildAgent(mode));
+      expect(state.agentForm.value.workMode).toBe(mode);
+    }
+  });
 });
+
+function createState() {
+  return useADKAgentForm(
+    ref([]),
+    ref([]),
+    ref([]),
+    vi.fn(async () => {}),
+    ref(""),
+    ref(""),
+  );
+}

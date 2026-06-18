@@ -55,10 +55,7 @@ import {
 import { fetchEnvelope, fetchEnvelopeWithInit } from "../composables/apiClient";
 import { useADKMarkdownRenderer } from "../composables/useADKMarkdownRenderer";
 import type { SlashCommandItem } from "../composables/useADKPageChatState";
-import {
-  sessionContextFromRunUsage,
-  useADKWorkflowQueueState,
-} from "../composables/useADKWorkflowQueueState";
+import { useADKWorkflowQueueState } from "../composables/useADKWorkflowQueueState";
 
 interface ApprovalsResponse {
   approvals: ADKApproval[];
@@ -127,16 +124,7 @@ const composerBlockMessage = computed(() =>
 const composerPlaceholder = computed(() =>
   workflowQueues.activeChildRunId.value ? "子智能体视图仅支持观察和审批" : "问点什么...",
 );
-const visibleSessionContext = computed(() =>
-  workflowQueues.activeChildRunId.value
-    ? sessionContextFromRunUsage(
-        workflowQueues.childRunSnapshots.value[
-          workflowQueues.activeChildRunId.value
-        ],
-        sessionContext.value,
-      )
-    : sessionContext.value,
-);
+const visibleSessionContext = computed(() => sessionContext.value);
 const slashCommands = computed<SlashCommandItem[]>(() => {
   const hasSession = sessionId.value.trim() !== "";
   return [

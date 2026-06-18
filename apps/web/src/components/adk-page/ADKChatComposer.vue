@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 
-import type { ADKSessionContextSnapshot } from "@/contracts";
+import type {
+  ADKSessionContextSnapshot,
+  ADKWorkMode,
+} from "@/contracts";
 
 import type { QueuedChatMessage } from "../../composables/adkChatRuntime";
 
@@ -45,6 +48,7 @@ const props = withDefaults(
     sendingChat: boolean;
     slashCommands?: SlashCommandItem[];
     suggestions?: string[];
+    defaultWorkMode?: ADKWorkMode | string;
     workModeOverride?: string;
     cancelActiveRun?: () => void | Promise<void>;
     handleAgentChange?: () => void;
@@ -87,6 +91,7 @@ const props = withDefaults(
     selectedProviderId: "",
     slashCommands: () => [],
     suggestions: () => [],
+    defaultWorkMode: "chat",
     workModeOverride: "",
   },
 );
@@ -102,12 +107,33 @@ const emit = defineEmits<{
 const selectedSlashIndex = ref(0);
 const dismissedSlashDraft = ref("");
 const goalEditorExpanded = ref(false);
-const workModeOptions = [
-  { title: "跟随 Agent", value: "" },
+const supportedWorkModes: Array<{ title: string; value: ADKWorkMode }> = [
   { title: "对话", value: "chat" },
   { title: "任务", value: "task" },
   { title: "目标", value: "loop" },
 ];
+const normalizedDefaultWorkMode = computed<ADKWorkMode>(() => {
+  if (props.defaultWorkMode === "task" || props.defaultWorkMode === "loop") {
+    return props.defaultWorkMode;
+  }
+  return "chat";
+});
+const workModeOptions = computed(() =>
+  supportedWorkModes.map((mode) => ({
+    ...mode,
+    isDefault: mode.value === normalizedDefaultWorkMode.value,
+  })),
+);
+const effectiveWorkModeSelection = computed(
+  () => props.workModeOverride || normalizedDefaultWorkMode.value,
+);
+
+function updateWorkModeSelection(mode?: string | null): void {
+  emit(
+    "update:workModeOverride",
+    mode === normalizedDefaultWorkMode.value ? "" : (mode ?? ""),
+  );
+}
 
 const contextMenuOpen = computed({
   get: () => props.contextDetailsOpen,
@@ -496,7 +522,7 @@ function canRevokeQueueItem(item: QueuedChatMessage): boolean {
             <v-card-title class="text-subtitle-2">上下文使用情况</v-card-title>
             <v-card-text class="adk-context-card__body">
               <div class="adk-context-stat">
-                <span>当前输入 Token</span>
+                <span>当前上下文 Token</span>
                 <strong>{{
                   formatTokenCount(contextSnapshot?.currentInputTokens ?? 0)
                 }}</strong>
@@ -532,8 +558,12 @@ function canRevokeQueueItem(item: QueuedChatMessage): boolean {
                 <strong>{{ contextSnapshot?.activeHandoffCount ?? 0 }}</strong>
               </div>
               <div class="adk-context-stat">
-                <span>上下文版本</span>
+                <span>当前上下文版本</span>
                 <strong>{{ contextRevisionLabel(contextSnapshot) }}</strong>
+              </div>
+              <div class="adk-context-stat">
+                <span>已压缩事件数</span>
+                <strong>{{ contextSnapshot?.compactedEventCount ?? 0 }}</strong>
               </div>
               <div class="adk-context-stat">
                 <span>最近压缩方式</span>
@@ -551,7 +581,7 @@ function canRevokeQueueItem(item: QueuedChatMessage): boolean {
               </div>
               <template v-if="rawContextDiagnosticsVisible">
                 <div class="adk-context-stat">
-                  <span>原始当前估算</span>
+                  <span>原始会话当前估算</span>
                   <strong>{{
                     formatTokenCount(
                       contextSnapshot?.rawCurrentInputTokens ??
@@ -561,7 +591,7 @@ function canRevokeQueueItem(item: QueuedChatMessage): boolean {
                   }}</strong>
                 </div>
                 <div class="adk-context-stat">
-                  <span>原始下一轮估算</span>
+                  <span>原始会话下一轮估算</span>
                   <strong>{{
                     formatTokenCount(
                       contextSnapshot?.rawProjectedNextTurnTokens ??
@@ -578,7 +608,7 @@ function canRevokeQueueItem(item: QueuedChatMessage): boolean {
                 </div>
               </template>
               <div class="adk-context-breakdown">
-                <div class="adk-context-summary__title">Token 构成</div>
+                <div class="adk-context-summary__title">当前上下文 Token 构成</div>
                 <div
                   v-for="item in breakdownRows"
                   :key="item.label"
@@ -592,7 +622,7 @@ function canRevokeQueueItem(item: QueuedChatMessage): boolean {
                 v-if="rawContextDiagnosticsVisible && rawBreakdownRows.length > 0"
                 class="adk-context-breakdown"
               >
-                <div class="adk-context-summary__title">原始 Token 构成</div>
+                <div class="adk-context-summary__title">原始会话诊断 Token 构成</div>
                 <div
                   v-for="item in rawBreakdownRows"
                   :key="`raw-${item.label}`"
@@ -810,14 +840,39 @@ function canRevokeQueueItem(item: QueuedChatMessage): boolean {
               "
             />
             <v-select
-              :model-value="workModeOverride"
+              :model-value="effectiveWorkModeSelection"
               :items="workModeOptions"
               density="compact"
               variant="plain"
               hide-details
               class="adk-work-mode-select"
-              @update:model-value="$emit('update:workModeOverride', $event ?? '')"
-            />
+              @update:model-value="updateWorkModeSelection"
+            >
+              <template #selection="{ item }">
+                <span>{{ item.title }}</span>
+                <v-chip
+                  v-if="item.isDefault"
+                  size="x-small"
+                  variant="tonal"
+                  class="ml-1"
+                >
+                  默认
+                </v-chip>
+              </template>
+              <template #item="{ props: itemProps, item }">
+                <v-list-item v-bind="itemProps">
+                  <template #append>
+                    <v-chip
+                      v-if="item.isDefault"
+                      size="x-small"
+                      variant="tonal"
+                    >
+                      默认
+                    </v-chip>
+                  </template>
+                </v-list-item>
+              </template>
+            </v-select>
           </div>
 
           <div class="adk-composer-right">
@@ -855,7 +910,7 @@ function canRevokeQueueItem(item: QueuedChatMessage): boolean {
                 </v-card-title>
                 <v-card-text class="adk-context-card__body">
                   <div class="adk-context-stat">
-                    <span>当前输入 Token</span>
+                    <span>当前上下文 Token</span>
                     <strong>{{
                       formatTokenCount(contextSnapshot?.currentInputTokens ?? 0)
                     }}</strong>
@@ -891,6 +946,14 @@ function canRevokeQueueItem(item: QueuedChatMessage): boolean {
                     <strong>{{ contextSnapshot?.activeHandoffCount ?? 0 }}</strong>
                   </div>
                   <div class="adk-context-stat">
+                    <span>当前上下文版本</span>
+                    <strong>{{ contextRevisionLabel(contextSnapshot) }}</strong>
+                  </div>
+                  <div class="adk-context-stat">
+                    <span>已压缩事件数</span>
+                    <strong>{{ contextSnapshot?.compactedEventCount ?? 0 }}</strong>
+                  </div>
+                  <div class="adk-context-stat">
                     <span>最近压缩方式</span>
                     <strong>{{
                       compactionModeLabel(contextSnapshot?.lastCompactionMode)
@@ -910,7 +973,7 @@ function canRevokeQueueItem(item: QueuedChatMessage): boolean {
                   </div>
                   <template v-if="rawContextDiagnosticsVisible">
                     <div class="adk-context-stat">
-                      <span>原始当前估算</span>
+                      <span>原始会话当前估算</span>
                       <strong>{{
                         formatTokenCount(
                           contextSnapshot?.rawCurrentInputTokens ??
@@ -920,7 +983,7 @@ function canRevokeQueueItem(item: QueuedChatMessage): boolean {
                       }}</strong>
                     </div>
                     <div class="adk-context-stat">
-                      <span>原始下一轮估算</span>
+                      <span>原始会话下一轮估算</span>
                       <strong>{{
                         formatTokenCount(
                           contextSnapshot?.rawProjectedNextTurnTokens ??
@@ -937,7 +1000,7 @@ function canRevokeQueueItem(item: QueuedChatMessage): boolean {
                     </div>
                   </template>
                   <div class="adk-context-breakdown">
-                    <div class="adk-context-summary__title">Token 构成</div>
+                    <div class="adk-context-summary__title">当前上下文 Token 构成</div>
                     <div
                       v-for="item in breakdownRows"
                       :key="item.label"
@@ -955,7 +1018,7 @@ function canRevokeQueueItem(item: QueuedChatMessage): boolean {
                     class="adk-context-breakdown"
                   >
                     <div class="adk-context-summary__title">
-                      原始 Token 构成
+                      原始会话诊断 Token 构成
                     </div>
                     <div
                       v-for="item in rawBreakdownRows"
@@ -981,6 +1044,15 @@ function canRevokeQueueItem(item: QueuedChatMessage): boolean {
                     <div class="adk-context-summary__title">最近压缩原因</div>
                     <div class="adk-context-summary__content">
                       {{ contextSnapshot.lastCompactionReason }}
+                    </div>
+                  </div>
+                  <div
+                    v-if="contextSnapshot?.contextRevisionCreatedAt"
+                    class="adk-context-summary"
+                  >
+                    <div class="adk-context-summary__title">版本创建时间</div>
+                    <div class="adk-context-summary__content">
+                      {{ contextSnapshot.contextRevisionCreatedAt }}
                     </div>
                   </div>
                   <div

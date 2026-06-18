@@ -13,6 +13,7 @@ defineProps<{
   formatPermission: (mode: string) => string;
   sessionTitle: (session: ADKSession) => string;
   agentName: (agentId: string) => string;
+  creatingSession: boolean;
   createNewSession: () => void | Promise<void>;
   selectSession: (sessionId: string) => void | Promise<void>;
   renameSession: (session: ADKSession) => void | Promise<void>;
@@ -34,7 +35,8 @@ defineEmits<{
         size="small"
         variant="text"
         title="新建会话"
-        :disabled="selectedAgentId === ''"
+        :disabled="selectedAgentId === '' || creatingSession"
+        :loading="creatingSession"
         @click="createNewSession"
       />
     </div>
@@ -82,6 +84,10 @@ defineEmits<{
         >fa-solid fa-xmark</v-icon>
       </div>
       <div v-if="sessions.length === 0" class="adk-session-empty">暂无会话</div>
+      <div
+        v-else-if="visibleSessions.length === 0"
+        class="adk-session-empty"
+      >没有匹配会话</div>
     </div>
 
     <div v-if="selectedAgent" class="adk-sidebar-footer">

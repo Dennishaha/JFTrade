@@ -6,6 +6,10 @@ import jfadk "github.com/jftrade/jftrade-main/pkg/adk"
 // contract after the transport moved to internal/api/assistant.
 type adkChatStreamEvent struct {
 	Type     string                        `json:"type"`
+	StreamID string                        `json:"streamId,omitempty"`
+	Sequence int64                         `json:"sequence,omitempty"`
+	RunID    string                        `json:"runId,omitempty"`
+	Replay   bool                          `json:"replay,omitempty"`
 	Timeline *jfadk.TimelineEntry          `json:"timeline,omitempty"`
 	Response *jfadk.ChatResponse           `json:"response,omitempty"`
 	Session  *jfadk.Session                `json:"session,omitempty"`

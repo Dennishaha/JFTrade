@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { mount } from "@vue/test-utils";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { nextTick } from "vue";
 
 import type {
@@ -40,6 +40,10 @@ vi.mock("../src/composables/adkRunContinuation", async () => {
     ...actual,
     monitorADKRunContinuation: monitorADKRunContinuationMock,
   };
+});
+
+beforeEach(() => {
+  window.localStorage.clear();
 });
 
 afterEach(() => {
@@ -436,8 +440,8 @@ describe("AiAssistantPanel", () => {
 
     expect(document.body.textContent).toContain("子智能体 #1");
     expect(document.body.textContent).toContain("dock-child-run");
-    expect(document.body.textContent).not.toContain("42% 正常");
-    expect(document.body.textContent).toContain("15% 正常");
+    expect(document.body.textContent).toContain("42% 正常");
+    expect(document.body.textContent).not.toContain("15% 正常");
     expect(document.body.textContent).toContain("dock child filtered answer");
     expect(document.body.textContent).toContain("strategy.inspect_dock_child");
     expect(document.body.textContent).not.toContain(

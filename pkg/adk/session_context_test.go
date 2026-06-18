@@ -202,6 +202,24 @@ func TestSessionContextCompactionCreatesCurrentRevision(t *testing.T) {
 	if second.ActiveHandoffCount != len(secondSegments) {
 		t.Fatalf("ActiveHandoffCount = %d, want %d", second.ActiveHandoffCount, len(secondSegments))
 	}
+	latestRevisionTokens := estimateHandoffTokens(secondSegments)
+	if second.Breakdown.HandoffTokens != latestRevisionTokens {
+		t.Fatalf("handoff tokens = %d, want latest revision tokens %d", second.Breakdown.HandoffTokens, latestRevisionTokens)
+	}
+	allActiveSegments, err := runtime.Store().HandoffSegments(ctx, session.ID, true)
+	if err != nil {
+		t.Fatalf("all active HandoffSegments: %v", err)
+	}
+	if len(allActiveSegments) <= len(secondSegments) {
+		t.Fatalf("all active segments = %d, want more than current revision segments %d", len(allActiveSegments), len(secondSegments))
+	}
+	allActiveTokens := estimateHandoffTokens(allActiveSegments)
+	if second.Breakdown.HandoffTokens == allActiveTokens {
+		t.Fatalf("handoff tokens use all active revisions: activeTokens=%d snapshot=%d", allActiveTokens, second.Breakdown.HandoffTokens)
+	}
+	if second.RawEventCount <= second.CompactedEventCount {
+		t.Fatalf("raw diagnostics collapsed into compacted view: raw=%d compacted=%d", second.RawEventCount, second.CompactedEventCount)
+	}
 }
 
 func TestCompactSessionContextWritesContextNotice(t *testing.T) {
@@ -651,8 +669,12 @@ func TestAppendADKEventWithStaleRetryRefreshesSession(t *testing.T) {
 	second := adksession.NewEvent("inv-second")
 	second.Author = "agent"
 	second.Content = genai.NewContentFromText("second", genai.RoleModel)
-	if err := appendADKEventWithStaleRetry(ctx, service, stale, second); err != nil {
+	locks := newADKSessionAppendLockMap()
+	if err := appendADKEventWithStaleRetry(ctx, locks, service, stale, second); err != nil {
 		t.Fatalf("appendADKEventWithStaleRetry: %v", err)
+	}
+	if locks.len() != 0 {
+		t.Fatalf("append lock count = %d, want 0", locks.len())
 	}
 	latest, err := service.Get(ctx, &adksession.GetRequest{
 		AppName: "app", UserID: "user", SessionID: "session-stale-retry",
@@ -674,7 +696,7 @@ func appendContextEvents(t *testing.T, service adksession.Service, session adkse
 		}
 		event := adksession.NewEvent(fmt.Sprintf("ctx-%d", index))
 		event.Content = genai.NewContentFromText(fmt.Sprintf("message %d", index), role)
-		if err := appendADKEventWithStaleRetry(context.Background(), service, session, event); err != nil {
+		if err := appendADKEventWithStaleRetry(context.Background(), newADKSessionAppendLockMap(), service, session, event); err != nil {
 			t.Fatalf("Append context event %d: %v", index, err)
 		}
 	}
@@ -688,7 +710,7 @@ func appendLargeContextEvents(t *testing.T, service adksession.Service, session 
 			role = genai.Role(genai.RoleModel)
 		}
 		event := newContextTextEvent(fmt.Sprintf("large-ctx-%d", index), strings.Repeat(fmt.Sprintf("message %d ", index), 50), role)
-		if err := appendADKEventWithStaleRetry(context.Background(), service, session, event); err != nil {
+		if err := appendADKEventWithStaleRetry(context.Background(), newADKSessionAppendLockMap(), service, session, event); err != nil {
 			t.Fatalf("Append large context event %d: %v", index, err)
 		}
 	}
@@ -742,6 +764,7 @@ func TestAppendADKEventWithStaleRetrySerializesConcurrentStaleSession(t *testing
 	}
 
 	const eventCount = 12
+	locks := newADKSessionAppendLockMap()
 	var wg sync.WaitGroup
 	errs := make(chan error, eventCount)
 	for index := 0; index < eventCount; index++ {
@@ -752,7 +775,7 @@ func TestAppendADKEventWithStaleRetrySerializesConcurrentStaleSession(t *testing
 			event := adksession.NewEvent(fmt.Sprintf("inv-concurrent-%02d", index))
 			event.Author = "agent"
 			event.Content = genai.NewContentFromText(fmt.Sprintf("event-%02d", index), genai.RoleModel)
-			if err := appendADKEventWithStaleRetry(ctx, service, created.Session, event); err != nil {
+			if err := appendADKEventWithStaleRetry(ctx, locks, service, created.Session, event); err != nil {
 				errs <- err
 			}
 		}()
@@ -772,6 +795,9 @@ func TestAppendADKEventWithStaleRetrySerializesConcurrentStaleSession(t *testing
 	if latest.Session.Events().Len() != eventCount {
 		t.Fatalf("event count = %d, want %d", latest.Session.Events().Len(), eventCount)
 	}
+	if locks.len() != 0 {
+		t.Fatalf("append lock count = %d, want 0", locks.len())
+	}
 }
 
 func TestAppendADKEventWithStaleRetryReturnsNonStaleError(t *testing.T) {
@@ -789,9 +815,13 @@ func TestAppendADKEventWithStaleRetryReturnsNonStaleError(t *testing.T) {
 	event.Author = "agent"
 	event.Content = genai.NewContentFromText("non-stale", genai.RoleModel)
 
-	err = appendADKEventWithStaleRetry(ctx, service, created.Session, event)
+	locks := newADKSessionAppendLockMap()
+	err = appendADKEventWithStaleRetry(ctx, locks, service, created.Session, event)
 	if !errors.Is(err, appendErr) {
 		t.Fatalf("append error = %v, want %v", err, appendErr)
+	}
+	if locks.len() != 0 {
+		t.Fatalf("append lock count = %d, want 0", locks.len())
 	}
 	if service.getCalls != 0 {
 		t.Fatalf("Get calls = %d, want 0 for non-stale error", service.getCalls)
