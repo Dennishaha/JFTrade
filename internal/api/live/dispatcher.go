@@ -88,7 +88,7 @@ func (d *dispatcher) run() error {
 		case <-d.clientClosed:
 			return nil
 		case <-d.client.Updated():
-			if err := d.writeAuxiliarySubscriptions(true); err != nil {
+			if err := d.writeAuxiliarySubscriptions(false); err != nil {
 				return err
 			}
 		case <-d.depthUpdated:
