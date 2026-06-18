@@ -4,6 +4,7 @@ import type {
     StrategyDefinitionDocument,
     StrategyExecutionMode,
     StrategyInstanceItem,
+    StrategyRuntimeRiskSettings,
 } from "@/contracts";
 
 import type { BrokerAccountSelectionOption } from "../../composables/consoleDataBrokerAccountSelection";
@@ -29,6 +30,7 @@ const props = defineProps<{
     marketOptions: Array<{ value: string; title: string }>;
     intervalValue: string;
     executionMode: StrategyExecutionMode;
+    runtimeRisk: StrategyRuntimeRiskSettings;
     selectedBrokerAccountOption: BrokerAccountSelectionOption | null;
     selectedBrokerAccountKey: string;
     currentBrokerAccountSelectionKey: string;
@@ -59,6 +61,10 @@ const emit = defineEmits<{
     "symbol-draft-paste": [event: ClipboardEvent];
     "update:interval": [value: string];
     "update:execution-mode": [value: string];
+    "update:runtime-risk-mode": [value: string];
+    "update:runtime-risk-close-only": [value: boolean];
+    "update:runtime-risk-pause-on-reject": [value: boolean];
+    "update:runtime-risk-number": [field: "maxOrderQuantity" | "maxOrderNotional" | "dailyMaxOrders", value: string];
     "toggle-broker-picker": [];
     "update:broker-query": [value: string];
     "clear-broker-selection": [];
@@ -127,6 +133,16 @@ const isSelectedCurrentBrokerAccount = computed(() =>
 const createActionLabel = computed(() =>
     props.isCreatingStrategyInstance ? "创建中" : `添加${props.createDefinition?.name ?? "策略"}到实例`,
 );
+const runtimeRiskModeLabel = computed(() => {
+    switch (props.runtimeRisk.mode) {
+        case "monitor":
+            return "观察";
+        case "enforce":
+            return "执行";
+        default:
+            return "关闭";
+    }
+});
 
 function closeDialog(): void {
     emit("update:open", false);
@@ -162,6 +178,22 @@ function handleIntervalInput(event: Event): void {
 
 function handleExecutionModeChange(event: Event): void {
     emit("update:execution-mode", (event.target as HTMLSelectElement).value);
+}
+
+function handleRuntimeRiskModeChange(event: Event): void {
+    emit("update:runtime-risk-mode", (event.target as HTMLSelectElement).value);
+}
+
+function handleRuntimeRiskCloseOnlyChange(event: Event): void {
+    emit("update:runtime-risk-close-only", (event.target as HTMLInputElement).checked);
+}
+
+function handleRuntimeRiskPauseOnRejectChange(event: Event): void {
+    emit("update:runtime-risk-pause-on-reject", (event.target as HTMLInputElement).checked);
+}
+
+function handleRuntimeRiskNumberInput(field: "maxOrderQuantity" | "maxOrderNotional" | "dailyMaxOrders", event: Event): void {
+    emit("update:runtime-risk-number", field, (event.target as HTMLInputElement).value);
 }
 
 function handleBrokerQueryInput(event: Event): void {
@@ -407,6 +439,95 @@ function handleBrokerQueryInput(event: Event): void {
                     <div v-if="executionMode === 'notify_only'" class="rounded-3xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
                         {{ notifyOnlyNotice }}
                     </div>
+                    <section class="rounded-3xl border border-slate-200 bg-white px-4 py-4" data-testid="strategy-runtime-risk-editor">
+                        <div class="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                                <div class="font-semibold text-slate-900">动态风控</div>
+                                <div class="mt-1 text-xs text-slate-500">
+                                    作用于当前策略实例；观察模式只记录命中规则，执行模式会拒绝下单。
+                                </div>
+                            </div>
+                            <span class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600">
+                                {{ runtimeRiskModeLabel }}
+                            </span>
+                        </div>
+                        <div class="mt-4 grid gap-3 md:grid-cols-2">
+                            <label class="grid gap-1.5 text-sm text-slate-600">
+                                <span class="font-medium text-slate-700">模式</span>
+                                <select
+                                    :value="runtimeRisk.mode"
+                                    data-testid="strategy-runtime-risk-mode"
+                                    class="rounded-2xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-500"
+                                    @change="handleRuntimeRiskModeChange"
+                                >
+                                    <option value="off">关闭</option>
+                                    <option value="monitor">观察</option>
+                                    <option value="enforce">执行</option>
+                                </select>
+                            </label>
+                            <div class="grid gap-2 rounded-2xl bg-slate-50 px-3 py-3 text-sm text-slate-600">
+                                <label class="inline-flex items-center gap-2">
+                                    <input
+                                        :checked="runtimeRisk.closeOnly"
+                                        data-testid="strategy-runtime-risk-close-only"
+                                        :disabled="runtimeRisk.mode === 'off'"
+                                        type="checkbox"
+                                        @change="handleRuntimeRiskCloseOnlyChange"
+                                    >
+                                    <span>仅允许平仓</span>
+                                </label>
+                                <label class="inline-flex items-center gap-2">
+                                    <input
+                                        :checked="runtimeRisk.pauseOnReject"
+                                        data-testid="strategy-runtime-risk-pause-on-reject"
+                                        :disabled="runtimeRisk.mode !== 'enforce'"
+                                        type="checkbox"
+                                        @change="handleRuntimeRiskPauseOnRejectChange"
+                                    >
+                                    <span>拒单后暂停策略</span>
+                                </label>
+                            </div>
+                            <label class="grid gap-1.5 text-sm text-slate-600">
+                                <span class="font-medium text-slate-700">单笔最大数量</span>
+                                <input
+                                    :value="runtimeRisk.maxOrderQuantity ?? ''"
+                                    data-testid="strategy-runtime-risk-max-quantity"
+                                    :disabled="runtimeRisk.mode === 'off'"
+                                    class="rounded-2xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-500"
+                                    min="0"
+                                    placeholder="不限制"
+                                    type="number"
+                                    @input="handleRuntimeRiskNumberInput('maxOrderQuantity', $event)"
+                                >
+                            </label>
+                            <label class="grid gap-1.5 text-sm text-slate-600">
+                                <span class="font-medium text-slate-700">单笔最大金额</span>
+                                <input
+                                    :value="runtimeRisk.maxOrderNotional ?? ''"
+                                    data-testid="strategy-runtime-risk-max-notional"
+                                    :disabled="runtimeRisk.mode === 'off'"
+                                    class="rounded-2xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-500"
+                                    min="0"
+                                    placeholder="不限制"
+                                    type="number"
+                                    @input="handleRuntimeRiskNumberInput('maxOrderNotional', $event)"
+                                >
+                            </label>
+                            <label class="grid gap-1.5 text-sm text-slate-600">
+                                <span class="font-medium text-slate-700">每日最大订单数</span>
+                                <input
+                                    :value="runtimeRisk.dailyMaxOrders ?? ''"
+                                    data-testid="strategy-runtime-risk-daily-max-orders"
+                                    :disabled="runtimeRisk.mode === 'off'"
+                                    class="rounded-2xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-500"
+                                    min="1"
+                                    placeholder="不限制"
+                                    type="number"
+                                    @input="handleRuntimeRiskNumberInput('dailyMaxOrders', $event)"
+                                >
+                            </label>
+                        </div>
+                    </section>
                 </div>
 
                 <div class="min-w-0 rounded-3xl bg-slate-50 px-4 py-4">

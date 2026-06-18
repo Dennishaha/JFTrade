@@ -52,6 +52,7 @@ func RegisterRoutes(api *gin.RouterGroup, svc *srv.Service) {
 	// Strategy Instances
 	api.GET("/strategies", handleListInstances(svc))
 	api.PUT("/strategies/:instanceId", handleUpdateInstance(svc))
+	api.PUT("/strategies/:instanceId/runtime-risk", handleUpdateInstanceRuntimeRisk(svc))
 	api.DELETE("/strategies/:instanceId", handleDeleteInstance(svc))
 	api.POST("/strategies/:instanceId/start", handleStartInstance(svc))
 	api.POST("/strategies/:instanceId/refresh-definition", handleRefreshDefinition(svc))
@@ -437,6 +438,40 @@ func handleUpdateInstance(svc *srv.Service) gin.HandlerFunc {
 		instance, err := svc.UpdateInstance(uri.InstanceID, binding)
 		if err != nil {
 			writeStrategyError(c, err, http.StatusInternalServerError, "STRATEGY_FAILED", "failed to update strategy instance")
+			return
+		}
+		httpserver.WriteOK(c, instance)
+	}
+}
+
+// handleUpdateInstanceRuntimeRisk godoc
+// @Summary 更新策略实例动态风控
+// @Tags strategy
+// @Accept json
+// @Produce json
+// @Param instanceId path string true "策略实例 ID"
+// @Param request body srv.RuntimeRiskSettings true "动态风控设置"
+// @Success 200 {object} httpserver.Envelope
+// @Failure 400 {object} httpserver.Envelope
+// @Failure 404 {object} httpserver.Envelope
+// @Router /api/v1/strategies/{instanceId}/runtime-risk [put]
+func handleUpdateInstanceRuntimeRisk(svc *srv.Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var uri struct {
+			InstanceID string `uri:"instanceId" binding:"required"`
+		}
+		if err := httpserver.BindURI(c, &uri); err != nil {
+			httpserver.WriteError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid instance id")
+			return
+		}
+		var risk srv.RuntimeRiskSettings
+		if err := c.ShouldBindJSON(&risk); err != nil {
+			httpserver.WriteError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid runtime risk payload")
+			return
+		}
+		instance, err := svc.UpdateInstanceRuntimeRisk(uri.InstanceID, risk)
+		if err != nil {
+			writeStrategyError(c, err, http.StatusInternalServerError, "STRATEGY_FAILED", "failed to update strategy runtime risk")
 			return
 		}
 		httpserver.WriteOK(c, instance)

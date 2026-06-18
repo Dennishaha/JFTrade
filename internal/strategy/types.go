@@ -72,6 +72,16 @@ type InstanceBinding struct {
 	Interval      string                `json:"interval"`
 	ExecutionMode string                `json:"executionMode"`
 	BrokerAccount *BrokerAccountBinding `json:"brokerAccount,omitempty"`
+	RuntimeRisk   RuntimeRiskSettings   `json:"runtimeRisk"`
+}
+
+type RuntimeRiskSettings struct {
+	Mode             string   `json:"mode"`
+	CloseOnly        bool     `json:"closeOnly"`
+	MaxOrderQuantity *float64 `json:"maxOrderQuantity,omitempty"`
+	MaxOrderNotional *float64 `json:"maxOrderNotional,omitempty"`
+	DailyMaxOrders   *int     `json:"dailyMaxOrders,omitempty"`
+	PauseOnReject    bool     `json:"pauseOnReject"`
 }
 
 type AuditEntry struct {

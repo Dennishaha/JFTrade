@@ -1,68 +1,54 @@
 import { describe, expect, it } from "vitest";
 
-import type { StrategyInstanceItem } from "@/contracts";
-
 import {
-  buildStrategyBindingPayload,
-  readStrategyBinding,
+    buildStrategyBindingPayload,
+    formatStrategyRuntimeRiskSummary,
+    normalizeStrategyRuntimeRiskSettings,
 } from "../src/components/strategy-runtime/strategyRuntimeInstanceBinding";
 
-describe("strategyRuntimeInstanceBinding", () => {
-  it("builds payloads from normalized instruments", () => {
-    const payload = buildStrategyBindingPayload({
-      brokerAccountOptions: [],
-      instruments: [
-        { market: "US", code: "AAPL" },
-        { market: "HK", code: "00700" },
-      ],
-      interval: "15m",
-      executionMode: "notify_only",
-      brokerAccountKey: "",
+describe("strategy runtime risk binding", () => {
+    it("normalizes legacy or disabled settings to a safe default", () => {
+        expect(normalizeStrategyRuntimeRiskSettings(undefined)).toEqual({
+            mode: "off",
+            closeOnly: false,
+            maxOrderQuantity: null,
+            maxOrderNotional: null,
+            dailyMaxOrders: null,
+            pauseOnReject: false,
+        });
+        expect(normalizeStrategyRuntimeRiskSettings({
+            mode: "off",
+            closeOnly: true,
+            maxOrderQuantity: 10,
+        })).toEqual(normalizeStrategyRuntimeRiskSettings(undefined));
     });
 
-    expect(payload.symbols).toEqual(["US.AAPL", "HK.00700"]);
-    expect(payload.instruments).toEqual([
-      { market: "US", code: "AAPL" },
-      { market: "HK", code: "00700" },
-    ]);
-  });
+    it("preserves enforce limits in the strategy binding payload", () => {
+        const payload = buildStrategyBindingPayload({
+            brokerAccountOptions: [],
+            instruments: [{ market: "US", code: "AAPL" }],
+            interval: "5m",
+            executionMode: "live",
+            brokerAccountKey: "",
+            runtimeRisk: {
+                mode: "enforce",
+                closeOnly: true,
+                maxOrderQuantity: 5,
+                maxOrderNotional: 500,
+                dailyMaxOrders: 8,
+                pauseOnReject: true,
+            },
+        });
 
-  it("prefers explicit instruments when reading strategy bindings", () => {
-    const strategy: StrategyInstanceItem = {
-      id: "instance-1",
-      definition: {
-        strategyId: "dsl-breakout",
-        name: "Pine Breakout",
-        version: "0.1.0",
-      },
-      runtime: "pine-go-plan",
-      sourceFormat: "pine-v6",
-      startable: true,
-      binding: {
-        instruments: [
-          { market: "US", code: "AAPL" },
-          { market: "HK", code: "00700" },
-        ],
-        symbols: ["US.MSFT"],
-        interval: "5m",
-        executionMode: "live",
-      },
-      params: {},
-      status: "STOPPED",
-      createdAt: "2026-05-29T00:00:00.000Z",
-      logs: [],
-    };
-
-    expect(readStrategyBinding(strategy)).toEqual({
-      instruments: [
-        { market: "US", code: "AAPL" },
-        { market: "HK", code: "00700" },
-      ],
-      symbols: ["US.AAPL", "HK.00700"],
-      interval: "5m",
-      executionMode: "live",
-      brokerAccount: null,
+        expect(payload.runtimeRisk).toEqual({
+            mode: "enforce",
+            closeOnly: true,
+            maxOrderQuantity: 5,
+            maxOrderNotional: 500,
+            dailyMaxOrders: 8,
+            pauseOnReject: true,
+        });
+        expect(formatStrategyRuntimeRiskSummary(payload.runtimeRisk)).toContain("仅平仓");
+        expect(formatStrategyRuntimeRiskSummary(payload.runtimeRisk)).toContain("拒单后暂停");
     });
-  });
-
 });

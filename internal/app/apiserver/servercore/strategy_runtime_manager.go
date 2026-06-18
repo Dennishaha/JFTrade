@@ -666,14 +666,21 @@ func (e *strategyLiveOrderExecutor) SubmitOrders(ctx context.Context, orders ...
 			placeQuery.ClientOrderID = order.ClientOrderID
 		}
 
-		placed, err := e.server.placeExecutionOrder(ctx, trdsrv.ExecutionOrderCommand{
+		command := trdsrv.ExecutionOrderCommand{
 			BrokerID:  strategyRuntimeBrokerID(e.instance.Binding),
 			Query:     placeQuery,
 			Symbol:    order.Symbol,
 			Side:      strings.ToUpper(string(order.Side)),
 			OrderType: strings.ToUpper(string(order.Type)),
 			Remark:    remark,
-		})
+		}
+		decision := e.evaluateRuntimeRisk(command)
+		e.recordRuntimeRiskDecision(decision, command)
+		if decision.rejected {
+			return placedOrders, fmt.Errorf("runtime risk rejected order: %s", decision.reason)
+		}
+
+		placed, err := e.server.placeExecutionOrder(ctx, command)
 		if err != nil {
 			e.manager.recordError(e.instance.ID, err.Error(), time.Now().UTC())
 			_ = e.server.strategyStore.appendStrategyRuntimeEvent(

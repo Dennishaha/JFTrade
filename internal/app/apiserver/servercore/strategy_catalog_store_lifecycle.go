@@ -62,6 +62,27 @@ func (s *strategyCatalogStore) updateStrategyBinding(instanceID string, binding 
 	return strategyListItem{}, os.ErrNotExist
 }
 
+func (s *strategyCatalogStore) updateStrategyRuntimeRisk(instanceID string, risk strategyRuntimeRiskSettings) (strategyListItem, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for index := range s.data.Strategies {
+		strategy := s.normalizeStrategy(s.data.Strategies[index])
+		if strategy.ID != instanceID {
+			continue
+		}
+		strategy.Binding.RuntimeRisk = normalizeStrategyRuntimeRiskSettings(risk)
+		applyStrategyBindingParams(&strategy)
+		s.recordStrategyEventsLocked(&strategy, time.Now().UTC(), "updated strategy runtime risk", "info", "control", "runtime_risk.updated", strategyRuntimeRiskAuditDetail(strategy.Binding.RuntimeRisk))
+		s.data.Strategies[index] = strategy
+		if err := s.persistLocked(); err != nil {
+			return strategyListItem{}, err
+		}
+		return strategyToListItem(strategy), nil
+	}
+
+	return strategyListItem{}, os.ErrNotExist
+}
+
 func (s *strategyCatalogStore) refreshStrategyDefinition(instanceID string, definition strategyDesignDefinition) (strategyListItem, error) {
 	now := time.Now().UTC()
 	params, err := buildStrategyInstanceParams(definition, now.Format(time.RFC3339Nano))

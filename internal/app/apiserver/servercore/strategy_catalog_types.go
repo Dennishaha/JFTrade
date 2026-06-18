@@ -57,6 +57,8 @@ type strategyBindingInstrument = stratsrv.BindingInstrument
 
 type strategyInstanceBinding = stratsrv.InstanceBinding
 
+type strategyRuntimeRiskSettings = stratsrv.RuntimeRiskSettings
+
 type strategyRuntimeObservation = stratsrv.RuntimeObservation
 
 type strategyRuntimeActiveInstanceSummary = stratsrv.RuntimeActiveInstanceSummary

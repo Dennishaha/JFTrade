@@ -9,11 +9,14 @@ import {
     bindingInstrumentsToSymbols,
     brokerAccountOptionSubtitle,
     buildStrategyBindingPayload,
+    defaultStrategyRuntimeRiskSettings,
     filterBrokerAccountOptions,
     formatBrokerAccountSummary,
     formatRuntimeObservationSymbols,
+    formatStrategyRuntimeRiskSummary,
     formatStrategyInterval,
     formatStrategySymbols,
+    normalizeStrategyRuntimeRiskSettings,
     normalizeText,
     normalizeBindingInstruments,
     readStrategyBinding,
@@ -31,6 +34,7 @@ import type {
     StrategyExecutionMode,
     StrategyInstanceBindingDocument,
     StrategyInstanceItem,
+    StrategyRuntimeRiskSettings,
     StrategyLogListResponse,
     StrategyRuntimeObservation,
     StrategySourceFormat,
@@ -86,6 +90,7 @@ const isLoadingStrategies = ref(false);
 const isLoadingDetails = ref(false);
 const isCreatingStrategyInstance = ref(false);
 const isUpdatingStrategyBinding = ref(false);
+const isUpdatingStrategyRuntimeRisk = ref(false);
 const isDeletingStrategy = ref(false);
 const isRefreshingStrategyDefinition = ref(false);
 const definitionsError = ref("");
@@ -103,6 +108,7 @@ const createSymbolDraft = ref("");
 const createSymbolValidationMessage = ref("");
 const createInterval = ref("5m");
 const createExecutionMode = ref<StrategyExecutionMode>("live");
+const createRuntimeRisk = ref<StrategyRuntimeRiskSettings>(defaultStrategyRuntimeRiskSettings());
 const createBrokerAccountKey = ref("");
 const createBrokerAccountQuery = ref("");
 
@@ -112,6 +118,7 @@ const editSymbolDraft = ref("");
 const editSymbolValidationMessage = ref("");
 const editInterval = ref("5m");
 const editExecutionMode = ref<StrategyExecutionMode>("live");
+const editRuntimeRisk = ref<StrategyRuntimeRiskSettings>(defaultStrategyRuntimeRiskSettings());
 const editBrokerAccountKey = ref("");
 const editBrokerAccountQuery = ref("");
 const activeBrokerAccountPicker = ref<StrategySymbolEditorMode | null>(null);
@@ -192,6 +199,7 @@ const activeSymbolDraft = computed(() => symbolDraftFor(activeInstanceEditorMode
 const activeSymbolValidationMessage = computed(() => symbolValidationMessageFor(activeInstanceEditorMode.value));
 const activeIntervalValue = computed(() => intervalValueFor(activeInstanceEditorMode.value));
 const activeExecutionMode = computed(() => executionModeFor(activeInstanceEditorMode.value));
+const activeRuntimeRisk = computed(() => runtimeRiskFor(activeInstanceEditorMode.value));
 const activeSelectedBrokerAccountOption = computed(() => selectedBrokerAccountOptionFor(activeInstanceEditorMode.value));
 const activeSelectedBrokerAccountKey = computed(() => selectedBrokerAccountKeyFor(activeInstanceEditorMode.value));
 const activeBrokerAccountQuery = computed(() => brokerAccountQueryFor(activeInstanceEditorMode.value));
@@ -449,6 +457,7 @@ watch(
             editSymbolValidationMessage.value = "";
             editInterval.value = "5m";
             editExecutionMode.value = "live";
+            editRuntimeRisk.value = defaultStrategyRuntimeRiskSettings();
             editBrokerAccountKey.value = defaultBrokerAccountSelectionKey.value;
             return;
         }
@@ -459,6 +468,7 @@ watch(
         editSymbolValidationMessage.value = "";
         editInterval.value = binding.interval;
         editExecutionMode.value = binding.executionMode;
+        editRuntimeRisk.value = normalizeStrategyRuntimeRiskSettings(binding.runtimeRisk);
         editBrokerAccountKey.value =
             resolveBrokerAccountSelectionKey(brokerAccountOptions.value, binding.brokerAccount)
             || defaultBrokerAccountSelectionKey.value;
@@ -802,6 +812,10 @@ function executionModeFor(mode: StrategySymbolEditorMode): StrategyExecutionMode
     return mode === "create" ? createExecutionMode.value : editExecutionMode.value;
 }
 
+function runtimeRiskFor(mode: StrategySymbolEditorMode): StrategyRuntimeRiskSettings {
+    return mode === "create" ? createRuntimeRisk.value : editRuntimeRisk.value;
+}
+
 function setExecutionMode(mode: StrategySymbolEditorMode, value: string): void {
     const normalized = value === "notify_only" ? "notify_only" : "live";
     if (mode === "create") {
@@ -809,6 +823,16 @@ function setExecutionMode(mode: StrategySymbolEditorMode, value: string): void {
         return;
     }
     editExecutionMode.value = normalized;
+}
+
+function setRuntimeRisk(mode: StrategySymbolEditorMode, patch: Partial<StrategyRuntimeRiskSettings>): void {
+    const current = runtimeRiskFor(mode);
+    const next = normalizeStrategyRuntimeRiskSettings({ ...current, ...patch });
+    if (mode === "create") {
+        createRuntimeRisk.value = next;
+        return;
+    }
+    editRuntimeRisk.value = next;
 }
 
 function selectedBrokerAccountOptionFor(mode: StrategySymbolEditorMode): BrokerAccountSelectionOption | null {
@@ -911,6 +935,27 @@ function updateActiveExecutionMode(value: string): void {
     setExecutionMode(activeInstanceEditorMode.value, value);
 }
 
+function updateActiveRuntimeRiskMode(value: string): void {
+    const mode = value === "monitor" || value === "enforce" ? value : "off";
+    setRuntimeRisk(activeInstanceEditorMode.value, { mode });
+}
+
+function updateActiveRuntimeRiskCloseOnly(value: boolean): void {
+    setRuntimeRisk(activeInstanceEditorMode.value, { closeOnly: value });
+}
+
+function updateActiveRuntimeRiskPauseOnReject(value: boolean): void {
+    setRuntimeRisk(activeInstanceEditorMode.value, { pauseOnReject: value });
+}
+
+function updateActiveRuntimeRiskNumber(field: "maxOrderQuantity" | "maxOrderNotional" | "dailyMaxOrders", value: string): void {
+    const trimmed = normalizeText(value);
+    const numeric = trimmed === "" ? null : Number(trimmed);
+    setRuntimeRisk(activeInstanceEditorMode.value, {
+        [field]: Number.isFinite(numeric) && numeric !== null && numeric > 0 ? numeric : null,
+    });
+}
+
 function toggleActiveBrokerAccountPicker(): void {
     toggleBrokerAccountPicker(activeInstanceEditorMode.value);
 }
@@ -1003,6 +1048,7 @@ function shouldDeferStrategyRuntimeRefresh(): boolean {
         || isLoadingDetails.value
         || isCreatingStrategyInstance.value
         || isUpdatingStrategyBinding.value
+        || isUpdatingStrategyRuntimeRisk.value
         || isDeletingStrategy.value
         || isRefreshingStrategyDefinition.value;
 }
@@ -1155,6 +1201,7 @@ async function createStrategyInstance(): Promise<void> {
                     instruments: createBindingInstruments.value,
                     interval: createInterval.value,
                     executionMode: createExecutionMode.value,
+                    runtimeRisk: createRuntimeRisk.value,
                     brokerAccountKey: createBrokerAccountKey.value,
                 })),
             },
@@ -1187,6 +1234,7 @@ function openCreateInstanceForm(): void {
     createSymbolDraftMarket.value = defaultSymbolDraftMarket("create");
     createSymbolDraft.value = "";
     createSymbolValidationMessage.value = "";
+    createRuntimeRisk.value = defaultStrategyRuntimeRiskSettings();
     closeBrokerAccountPicker();
 }
 
@@ -1247,6 +1295,7 @@ async function updateSelectedStrategyBinding(): Promise<void> {
                     instruments: editBindingInstruments.value,
                     interval: editInterval.value,
                     executionMode: editExecutionMode.value,
+                    runtimeRisk: editRuntimeRisk.value,
                     brokerAccountKey: editBrokerAccountKey.value,
                     fallbackBrokerAccount: selectedStrategyBinding.value?.brokerAccount ?? null,
                 })),
@@ -1261,6 +1310,36 @@ async function updateSelectedStrategyBinding(): Promise<void> {
             error instanceof Error ? error.message : "更新实例绑定失败。";
     } finally {
         isUpdatingStrategyBinding.value = false;
+    }
+}
+
+async function updateSelectedStrategyRuntimeRisk(patch: Partial<StrategyRuntimeRiskSettings>): Promise<void> {
+    clearInstanceMutationMessages();
+    if (selectedStrategy.value === null || selectedStrategyBinding.value === null) {
+        instanceMutationError.value = "请先选择策略实例。";
+        return;
+    }
+    const runtimeRisk = normalizeStrategyRuntimeRiskSettings({
+        ...selectedStrategyBinding.value.runtimeRisk,
+        ...patch,
+    });
+    isUpdatingStrategyRuntimeRisk.value = true;
+    try {
+        const updated = await fetchEnvelopeWithInit<StrategyInstanceItem>(
+            `/api/v1/strategies/${encodeURIComponent(selectedStrategy.value.id)}/runtime-risk`,
+            {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(runtimeRisk),
+            },
+        );
+        instanceMutationNotice.value = `已更新动态风控：${formatStrategyRuntimeRiskSummary(runtimeRisk)}。`;
+        await loadStrategies(updated.id);
+    } catch (error) {
+        instanceMutationError.value =
+            error instanceof Error ? error.message : "更新动态风控失败。";
+    } finally {
+        isUpdatingStrategyRuntimeRisk.value = false;
     }
 }
 
@@ -1422,6 +1501,7 @@ async function refreshSelectedStrategyDefinition(): Promise<void> {
                 :selected-strategy="selectedStrategy"
                 :selected-strategy-runtime-label="selectedStrategyRuntimeLabel"
                 :system-status="systemStatus"
+                :format-strategy-runtime-risk-summary="formatStrategyRuntimeRiskSummary"
             />
 
             <div class="grid gap-4" :class="selectedStrategy === null ? 'grid-cols-1' : 'xl:grid-cols-[minmax(22rem,26rem)_minmax(0,1fr)]'">
@@ -1471,6 +1551,7 @@ async function refreshSelectedStrategyDefinition(): Promise<void> {
                         :market-options="strategyInstrumentMarketOptions"
                         :interval-value="activeIntervalValue"
                         :execution-mode="activeExecutionMode"
+                        :runtime-risk="activeRuntimeRisk"
                         :selected-broker-account-option="activeSelectedBrokerAccountOption"
                         :selected-broker-account-key="activeSelectedBrokerAccountKey"
                         :current-broker-account-selection-key="effectiveCurrentBrokerAccountSelectionKey"
@@ -1497,6 +1578,10 @@ async function refreshSelectedStrategyDefinition(): Promise<void> {
                         @symbol-draft-paste="handleActiveSymbolDraftPaste"
                         @update:interval="updateActiveIntervalValue"
                         @update:execution-mode="updateActiveExecutionMode"
+                        @update:runtime-risk-mode="updateActiveRuntimeRiskMode"
+                        @update:runtime-risk-close-only="updateActiveRuntimeRiskCloseOnly"
+                        @update:runtime-risk-pause-on-reject="updateActiveRuntimeRiskPauseOnReject"
+                        @update:runtime-risk-number="updateActiveRuntimeRiskNumber"
                         @toggle-broker-picker="toggleActiveBrokerAccountPicker"
                         @update:broker-query="updateActiveBrokerAccountQuery"
                         @clear-broker-selection="clearActiveBrokerAccountSelection"
@@ -1521,6 +1606,7 @@ async function refreshSelectedStrategyDefinition(): Promise<void> {
                         :selected-strategy-start-hint="selectedStrategyStartHint"
                         :selected-strategy-compiled-summary="selectedStrategyCompiledSummary"
                         :is-refreshing-strategy-content="isRefreshingStrategyContent"
+                        :is-updating-strategy-runtime-risk="isUpdatingStrategyRuntimeRisk"
                         :can-start-selected-strategy="canStartSelectedStrategy"
                         :can-pause-selected-strategy="canPauseSelectedStrategy"
                         :can-stop-selected-strategy="canStopSelectedStrategy"
@@ -1529,6 +1615,7 @@ async function refreshSelectedStrategyDefinition(): Promise<void> {
                         :format-strategy-symbols="formatStrategySymbols"
                         :format-strategy-interval="formatStrategyInterval"
                         :format-strategy-execution-mode="formatStrategyExecutionMode"
+                        :format-strategy-runtime-risk-summary="formatStrategyRuntimeRiskSummary"
                         :format-broker-account-summary="formatBrokerAccountSummary"
                         :is-current-broker-account-binding="isCurrentBrokerAccountBinding"
                         :format-strategy-eligibility="formatStrategyEligibility"
@@ -1539,6 +1626,7 @@ async function refreshSelectedStrategyDefinition(): Promise<void> {
                         @open-edit="openEditInstanceForm"
                         @refresh-content="refreshStrategyRuntimeContent"
                         @refresh-definition="refreshSelectedStrategyDefinition"
+                        @update-runtime-risk="updateSelectedStrategyRuntimeRisk"
                         @change-status="changeStrategyStatus"
                     />
 

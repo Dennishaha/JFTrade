@@ -5,6 +5,7 @@ import type {
     StrategyExecutionMode,
     StrategyInstanceBindingDocument,
     StrategyInstanceItem,
+    StrategyRuntimeRiskSettings,
     StrategyRuntimeObservation,
 } from "@/contracts";
 
@@ -23,6 +24,7 @@ const props = defineProps<{
     selectedStrategyStartHint: string;
     selectedStrategyCompiledSummary: string;
     isRefreshingStrategyContent: boolean;
+    isUpdatingStrategyRuntimeRisk: boolean;
     canStartSelectedStrategy: boolean;
     canPauseSelectedStrategy: boolean;
     canStopSelectedStrategy: boolean;
@@ -31,6 +33,7 @@ const props = defineProps<{
     formatStrategySymbols: (strategy: StrategyInstanceItem) => string;
     formatStrategyInterval: (strategy: StrategyInstanceItem) => string;
     formatStrategyExecutionMode: (mode: StrategyExecutionMode | string | null | undefined) => string;
+    formatStrategyRuntimeRiskSummary: (settings: StrategyInstanceBindingDocument["runtimeRisk"] | null | undefined) => string;
     formatBrokerAccountSummary: (brokerAccount: StrategyBrokerAccountBinding | null | undefined) => string;
     isCurrentBrokerAccountBinding: (brokerAccount: StrategyBrokerAccountBinding | null | undefined) => boolean;
     formatStrategyEligibility: (strategy: StrategyInstanceItem) => string;
@@ -44,8 +47,18 @@ const emit = defineEmits<{
     "open-edit": [];
     "refresh-content": [];
     "refresh-definition": [];
+    "update-runtime-risk": [patch: Partial<StrategyRuntimeRiskSettings>];
     "change-status": [action: StrategyAction];
 }>();
+
+function handleRuntimeRiskModeChange(event: Event): void {
+    const value = (event.target as HTMLSelectElement).value;
+    emit("update-runtime-risk", { mode: value === "monitor" || value === "enforce" ? value : "off" });
+}
+
+function handleRuntimeRiskCloseOnlyChange(event: Event): void {
+    emit("update-runtime-risk", { closeOnly: (event.target as HTMLInputElement).checked });
+}
 </script>
 
 <template>
@@ -145,6 +158,35 @@ const emit = defineEmits<{
                         class="mt-2 inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700"
                     >
                         当前
+                    </div>
+                </div>
+                <div>
+                    <div class="text-xs uppercase tracking-[0.16em] text-slate-400">动态风控</div>
+                    <div class="mt-1 break-words font-medium text-slate-900" data-testid="strategy-runtime-risk-summary">
+                        {{ formatStrategyRuntimeRiskSummary(selectedStrategyBinding?.runtimeRisk) }}
+                    </div>
+                    <div v-if="selectedStrategyBinding !== null" class="mt-3 grid gap-2 sm:grid-cols-[minmax(0,10rem)_minmax(0,1fr)]">
+                        <select
+                            :value="selectedStrategyBinding.runtimeRisk.mode"
+                            class="rounded-2xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-slate-500 disabled:opacity-60"
+                            data-testid="strategy-runtime-risk-quick-mode"
+                            :disabled="isUpdatingStrategyRuntimeRisk"
+                            @change="handleRuntimeRiskModeChange"
+                        >
+                            <option value="off">关闭</option>
+                            <option value="monitor">观察</option>
+                            <option value="enforce">执行</option>
+                        </select>
+                        <label class="inline-flex items-center gap-2 rounded-2xl bg-slate-50 px-3 py-2 text-sm text-slate-600">
+                            <input
+                                :checked="selectedStrategyBinding.runtimeRisk.closeOnly"
+                                data-testid="strategy-runtime-risk-quick-close-only"
+                                :disabled="isUpdatingStrategyRuntimeRisk"
+                                type="checkbox"
+                                @change="handleRuntimeRiskCloseOnlyChange"
+                            >
+                            <span>仅平仓</span>
+                        </label>
                     </div>
                 </div>
             </div>

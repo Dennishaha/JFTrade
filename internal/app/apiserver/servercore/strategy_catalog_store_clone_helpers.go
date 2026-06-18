@@ -55,8 +55,18 @@ func cloneManagedStrategyPlugin(input managedStrategyPlugin) managedStrategyPlug
 func cloneManagedStrategyInstance(input managedStrategyInstance) managedStrategyInstance {
 	input.Params = copyMap(input.Params)
 	input.Binding.Symbols = append([]string(nil), input.Binding.Symbols...)
+	input.Binding.Instruments = append([]strategyBindingInstrument(nil), input.Binding.Instruments...)
 	if input.Binding.BrokerAccount != nil {
 		input.Binding.BrokerAccount = new(*input.Binding.BrokerAccount)
+	}
+	if input.Binding.RuntimeRisk.MaxOrderQuantity != nil {
+		input.Binding.RuntimeRisk.MaxOrderQuantity = new(*input.Binding.RuntimeRisk.MaxOrderQuantity)
+	}
+	if input.Binding.RuntimeRisk.MaxOrderNotional != nil {
+		input.Binding.RuntimeRisk.MaxOrderNotional = new(*input.Binding.RuntimeRisk.MaxOrderNotional)
+	}
+	if input.Binding.RuntimeRisk.DailyMaxOrders != nil {
+		input.Binding.RuntimeRisk.DailyMaxOrders = new(*input.Binding.RuntimeRisk.DailyMaxOrders)
 	}
 	return input
 }

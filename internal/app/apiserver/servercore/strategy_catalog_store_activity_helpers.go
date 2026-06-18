@@ -18,6 +18,8 @@ func strategyLogLevelForKind(kind string, logMessage string) string {
 	switch strings.TrimSpace(kind) {
 	case "runtime_error", "order_submit_failed", "runtime_exited":
 		return "error"
+	case "risk_rejected", "risk_monitor":
+		return "warning"
 	case "reconciled":
 		return "warning"
 	}

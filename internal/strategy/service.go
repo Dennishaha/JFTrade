@@ -56,6 +56,9 @@ type CatalogStore interface {
 	// UpdateInstance 更新实例绑定参数（仅 STOPPED 状态可更新）。
 	UpdateInstance(id string, binding InstanceBinding) (InstanceView, error)
 
+	// UpdateInstanceRuntimeRisk 更新实例运行风控（允许运行中快速切换）。
+	UpdateInstanceRuntimeRisk(id string, risk RuntimeRiskSettings) (InstanceView, error)
+
 	// DeleteInstance 删除实例（仅 STOPPED 状态可删）。
 	DeleteInstance(id string) (InstanceView, error)
 
@@ -227,6 +230,11 @@ func (s *Service) CreateInstance(def Definition, binding InstanceBinding) (Insta
 // UpdateInstance 更新实例绑定参数。
 func (s *Service) UpdateInstance(id string, binding InstanceBinding) (InstanceView, error) {
 	return s.catalog.UpdateInstance(id, binding)
+}
+
+// UpdateInstanceRuntimeRisk 更新实例运行风控。
+func (s *Service) UpdateInstanceRuntimeRisk(id string, risk RuntimeRiskSettings) (InstanceView, error) {
+	return s.catalog.UpdateInstanceRuntimeRisk(id, risk)
 }
 
 // DeleteInstance 删除实例。

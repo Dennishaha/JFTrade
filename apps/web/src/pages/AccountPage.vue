@@ -680,7 +680,7 @@ watch(
 </script>
 
 <template>
-  <div class="grid gap-6">
+  <div class="account-page grid min-w-0 gap-6">
     <PageHeader
       eyebrow="我的账户"
       :title="accountTitle"
@@ -1317,3 +1317,11 @@ watch(
     </v-window>
   </div>
 </template>
+
+<style scoped>
+.account-page {
+  height: auto;
+  min-height: 100%;
+  align-content: start;
+}
+</style>

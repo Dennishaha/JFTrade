@@ -819,6 +819,8 @@ export type StrategyInstanceStatus = "RUNNING" | "PAUSED" | "STOPPED";
 
 export type StrategyExecutionMode = "live" | "notify_only";
 
+export type StrategyRuntimeRiskMode = "off" | "monitor" | "enforce";
+
 export interface StrategyDefinitionSummaryDocument {
   strategyId: string;
   name: string;
@@ -843,6 +845,16 @@ export interface StrategyInstanceBindingDocument {
   interval: string;
   executionMode: StrategyExecutionMode;
   brokerAccount?: StrategyBrokerAccountBinding | null;
+  runtimeRisk: StrategyRuntimeRiskSettings;
+}
+
+export interface StrategyRuntimeRiskSettings {
+  mode: StrategyRuntimeRiskMode;
+  closeOnly: boolean;
+  maxOrderQuantity?: number | null;
+  maxOrderNotional?: number | null;
+  dailyMaxOrders?: number | null;
+  pauseOnReject: boolean;
 }
 
 export interface StrategyRuntimeObservation {

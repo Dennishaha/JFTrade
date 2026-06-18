@@ -4,6 +4,8 @@ import type {
     StrategyExecutionMode,
     StrategyInstanceBindingDocument,
     StrategyInstanceItem,
+    StrategyRuntimeRiskMode,
+    StrategyRuntimeRiskSettings,
 } from "@/contracts";
 
 import {
@@ -163,6 +165,80 @@ function bindingInstrumentFromSymbol(symbol: string): StrategyBindingInstrumentD
     };
 }
 
+export function defaultStrategyRuntimeRiskSettings(): StrategyRuntimeRiskSettings {
+    return {
+        mode: "off",
+        closeOnly: false,
+        maxOrderQuantity: null,
+        maxOrderNotional: null,
+        dailyMaxOrders: null,
+        pauseOnReject: false,
+    };
+}
+
+function normalizePositiveNumber(value: unknown): number | null {
+    const numeric = typeof value === "number"
+        ? value
+        : typeof value === "string" && value.trim() !== ""
+            ? Number(value)
+            : NaN;
+    return Number.isFinite(numeric) && numeric > 0 ? numeric : null;
+}
+
+function normalizePositiveInteger(value: unknown): number | null {
+    const numeric = normalizePositiveNumber(value);
+    if (numeric === null) {
+        return null;
+    }
+    return Math.max(1, Math.floor(numeric));
+}
+
+export function normalizeStrategyRuntimeRiskSettings(value: unknown): StrategyRuntimeRiskSettings {
+    const record = asRecord(value);
+    if (record === null) {
+        return defaultStrategyRuntimeRiskSettings();
+    }
+    const modeText = normalizeText(record.mode).toLowerCase();
+    const mode: StrategyRuntimeRiskMode =
+        modeText === "monitor" || modeText === "enforce" ? modeText : "off";
+    if (mode === "off") {
+        return defaultStrategyRuntimeRiskSettings();
+    }
+    return {
+        mode,
+        closeOnly: record.closeOnly === true,
+        maxOrderQuantity: normalizePositiveNumber(record.maxOrderQuantity),
+        maxOrderNotional: normalizePositiveNumber(record.maxOrderNotional),
+        dailyMaxOrders: normalizePositiveInteger(record.dailyMaxOrders),
+        pauseOnReject: record.pauseOnReject === true,
+    };
+}
+
+export function formatStrategyRuntimeRiskMode(mode: StrategyRuntimeRiskMode | string | null | undefined): string {
+    switch (mode) {
+        case "monitor":
+            return "观察";
+        case "enforce":
+            return "执行";
+        default:
+            return "关闭";
+    }
+}
+
+export function formatStrategyRuntimeRiskSummary(settings: StrategyRuntimeRiskSettings | null | undefined): string {
+    const normalized = normalizeStrategyRuntimeRiskSettings(settings);
+    if (normalized.mode === "off") {
+        return "动态风控关闭";
+    }
+    const parts = [formatStrategyRuntimeRiskMode(normalized.mode)];
+    if (normalized.closeOnly) parts.push("仅平仓");
+    if (normalized.maxOrderQuantity !== null) parts.push(`单笔数量 <= ${normalized.maxOrderQuantity}`);
+    if (normalized.maxOrderNotional !== null) parts.push(`单笔金额 <= ${normalized.maxOrderNotional}`);
+    if (normalized.dailyMaxOrders !== null) parts.push(`日订单 <= ${normalized.dailyMaxOrders}`);
+    if (normalized.pauseOnReject) parts.push("拒单后暂停");
+    return parts.join(" / ");
+}
+
 function symbolsToBindingInstruments(symbols: string[]): StrategyBindingInstrumentDocument[] {
     return normalizeBindingInstruments(
         symbols
@@ -209,6 +285,7 @@ export function readStrategyBinding(strategy: StrategyInstanceItem): StrategyIns
         executionMode: executionModeSource === "notify_only" ? "notify_only" : "live",
         brokerAccount: normalizeBrokerAccountBinding(strategy.binding?.brokerAccount)
             ?? readStrategyBrokerAccount(params),
+        runtimeRisk: normalizeStrategyRuntimeRiskSettings(strategy.binding?.runtimeRisk ?? params?.runtimeRisk),
     };
 }
 
@@ -302,6 +379,7 @@ export function buildStrategyBindingPayload(input: {
     executionMode: StrategyExecutionMode;
     brokerAccountKey: string;
     fallbackBrokerAccount?: StrategyBrokerAccountBinding | null;
+    runtimeRisk?: StrategyRuntimeRiskSettings | null;
 }): StrategyInstanceBindingDocument {
     const selectedAccount = resolveBrokerAccountOption(input.brokerAccountOptions, input.brokerAccountKey);
     const instruments = normalizeBindingInstruments(input.instruments);
@@ -319,5 +397,6 @@ export function buildStrategyBindingPayload(input: {
                 tradingEnvironment: selectedAccount.tradingEnvironment,
                 market: selectedAccount.market,
             },
+        runtimeRisk: normalizeStrategyRuntimeRiskSettings(input.runtimeRisk),
     };
 }

@@ -43,6 +43,9 @@ func (s *fakeCatalogStore) CreateInstance(def Definition, binding InstanceBindin
 func (s *fakeCatalogStore) UpdateInstance(id string, binding InstanceBinding) (InstanceView, error) {
 	return InstanceView{ID: id, Binding: binding}, nil
 }
+func (s *fakeCatalogStore) UpdateInstanceRuntimeRisk(id string, risk RuntimeRiskSettings) (InstanceView, error) {
+	return InstanceView{ID: id, Binding: InstanceBinding{RuntimeRisk: risk}}, nil
+}
 func (s *fakeCatalogStore) DeleteInstance(id string) (InstanceView, error) {
 	return InstanceView{ID: id}, nil
 }

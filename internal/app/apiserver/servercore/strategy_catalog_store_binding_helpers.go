@@ -2,6 +2,7 @@ package servercore
 
 import (
 	"fmt"
+	"math"
 	"strings"
 )
 
@@ -41,6 +42,43 @@ func normalizeStrategyBrokerAccountBinding(input *strategyBrokerAccountBinding) 
 		return nil
 	}
 	return &copyValue
+}
+
+func normalizeStrategyRuntimeRiskSettings(input strategyRuntimeRiskSettings) strategyRuntimeRiskSettings {
+	mode := strings.ToLower(strings.TrimSpace(input.Mode))
+	switch mode {
+	case "monitor", "enforce":
+	default:
+		mode = "off"
+	}
+	input.Mode = mode
+	input.MaxOrderQuantity = normalizeOptionalPositiveFloat(input.MaxOrderQuantity)
+	input.MaxOrderNotional = normalizeOptionalPositiveFloat(input.MaxOrderNotional)
+	input.DailyMaxOrders = normalizeOptionalPositiveInt(input.DailyMaxOrders)
+	if input.Mode == "off" {
+		input.CloseOnly = false
+		input.MaxOrderQuantity = nil
+		input.MaxOrderNotional = nil
+		input.DailyMaxOrders = nil
+		input.PauseOnReject = false
+	}
+	return input
+}
+
+func normalizeOptionalPositiveFloat(input *float64) *float64 {
+	if input == nil || *input <= 0 || math.IsNaN(*input) || math.IsInf(*input, 0) {
+		return nil
+	}
+	value := *input
+	return &value
+}
+
+func normalizeOptionalPositiveInt(input *int) *int {
+	if input == nil || *input <= 0 {
+		return nil
+	}
+	value := *input
+	return &value
 }
 
 func readStringSlice(value any) []string {
@@ -96,6 +134,57 @@ func strategyBrokerAccountBindingFromAny(value any) *strategyBrokerAccountBindin
 		TradingEnvironment: tradingEnvironment,
 		Market:             market,
 	})
+}
+
+func strategyRuntimeRiskSettingsFromAny(value any) strategyRuntimeRiskSettings {
+	raw, ok := value.(map[string]any)
+	if !ok {
+		return strategyRuntimeRiskSettings{}
+	}
+	mode, _ := raw["mode"].(string)
+	closeOnly, _ := raw["closeOnly"].(bool)
+	pauseOnReject, _ := raw["pauseOnReject"].(bool)
+	return normalizeStrategyRuntimeRiskSettings(strategyRuntimeRiskSettings{
+		Mode:             mode,
+		CloseOnly:        closeOnly,
+		MaxOrderQuantity: numberPointerFromAny(raw["maxOrderQuantity"]),
+		MaxOrderNotional: numberPointerFromAny(raw["maxOrderNotional"]),
+		DailyMaxOrders:   intPointerFromAny(raw["dailyMaxOrders"]),
+		PauseOnReject:    pauseOnReject,
+	})
+}
+
+func numberPointerFromAny(value any) *float64 {
+	switch typed := value.(type) {
+	case float64:
+		return &typed
+	case float32:
+		value := float64(typed)
+		return &value
+	case int:
+		value := float64(typed)
+		return &value
+	case int64:
+		value := float64(typed)
+		return &value
+	}
+	return nil
+}
+
+func intPointerFromAny(value any) *int {
+	switch typed := value.(type) {
+	case int:
+		return &typed
+	case int64:
+		value := int(typed)
+		return &value
+	case float64:
+		value := int(typed)
+		if float64(value) == typed {
+			return &value
+		}
+	}
+	return nil
 }
 
 func strategyBindingInstrumentFromNormalized(value normalizedInstrument) strategyBindingInstrument {
@@ -197,6 +286,10 @@ func normalizeStrategyInstanceBinding(input strategyInstanceBinding, params map[
 		}
 	}
 	input.ExecutionMode = normalizeStrategyExecutionMode(input.ExecutionMode)
+	if strings.TrimSpace(input.RuntimeRisk.Mode) == "" {
+		input.RuntimeRisk = strategyRuntimeRiskSettingsFromAny(params["runtimeRisk"])
+	}
+	input.RuntimeRisk = normalizeStrategyRuntimeRiskSettings(input.RuntimeRisk)
 
 	return input
 }
@@ -218,6 +311,7 @@ func applyStrategyBindingParams(input *managedStrategyInstance) {
 	}
 	input.Params["interval"] = input.Binding.Interval
 	input.Params["executionMode"] = input.Binding.ExecutionMode
+	input.Params["runtimeRisk"] = strategyRuntimeRiskSettingsToParams(input.Binding.RuntimeRisk)
 	if input.Binding.BrokerAccount != nil {
 		input.Params["brokerAccount"] = map[string]any{
 			"brokerId":           input.Binding.BrokerAccount.BrokerID,
@@ -228,6 +322,39 @@ func applyStrategyBindingParams(input *managedStrategyInstance) {
 	} else {
 		delete(input.Params, "brokerAccount")
 	}
+}
+
+func strategyRuntimeRiskSettingsToParams(input strategyRuntimeRiskSettings) map[string]any {
+	normalized := normalizeStrategyRuntimeRiskSettings(input)
+	return map[string]any{
+		"mode":             normalized.Mode,
+		"closeOnly":        normalized.CloseOnly,
+		"maxOrderQuantity": normalized.MaxOrderQuantity,
+		"maxOrderNotional": normalized.MaxOrderNotional,
+		"dailyMaxOrders":   normalized.DailyMaxOrders,
+		"pauseOnReject":    normalized.PauseOnReject,
+	}
+}
+
+func strategyRuntimeRiskAuditDetail(input strategyRuntimeRiskSettings) string {
+	normalized := normalizeStrategyRuntimeRiskSettings(input)
+	parts := []string{"mode=" + normalized.Mode}
+	if normalized.CloseOnly {
+		parts = append(parts, "closeOnly=true")
+	}
+	if normalized.MaxOrderQuantity != nil {
+		parts = append(parts, fmt.Sprintf("maxOrderQuantity=%v", *normalized.MaxOrderQuantity))
+	}
+	if normalized.MaxOrderNotional != nil {
+		parts = append(parts, fmt.Sprintf("maxOrderNotional=%v", *normalized.MaxOrderNotional))
+	}
+	if normalized.DailyMaxOrders != nil {
+		parts = append(parts, fmt.Sprintf("dailyMaxOrders=%d", *normalized.DailyMaxOrders))
+	}
+	if normalized.PauseOnReject {
+		parts = append(parts, "pauseOnReject=true")
+	}
+	return strings.Join(parts, " | ")
 }
 
 func strategyBindingInstrumentsToParams(input []strategyBindingInstrument) []map[string]any {

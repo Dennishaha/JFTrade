@@ -1,7 +1,12 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 
-import PageHeader from "../components/PageHeader.vue";
+import type {
+  StrategyInstanceItem,
+  StrategyRuntimeRiskMode,
+  StrategyRuntimeRiskSettings,
+} from "../contracts";
+import { fetchEnvelope, fetchEnvelopeWithInit } from "../composables/apiClient";
 import {
   formatApprovalDecisionLabel,
   formatConnectivityLabel,
@@ -27,6 +32,10 @@ import {
   resolveWorkerBrokerSubscriptionTagType,
 } from "../composables/consoleDataFormatting";
 import { useConsoleData } from "../composables/useConsoleData";
+import {
+  formatStrategyRuntimeRiskSummary,
+  normalizeStrategyRuntimeRiskSettings,
+} from "../components/strategy-runtime/strategyRuntimeInstanceBinding";
 
 const {
   loadError,
@@ -48,8 +57,16 @@ const {
 } = useConsoleData();
 
 onMounted(() => {
-  void loadMarketDataSubscriptions();
+  void Promise.all([loadMarketDataSubscriptions(), loadStrategyInstances()]);
 });
+
+const strategyInstances = ref<StrategyInstanceItem[]>([]);
+const strategyRuntimeRiskError = ref("");
+const updatingStrategyRuntimeRiskIds = ref<string[]>([]);
+
+const strategyInstancesById = computed(
+  () => new Map(strategyInstances.value.map((item) => [item.id, item])),
+);
 
 const workerBackoffHotspots = computed(() =>
   workerBrokerOrderUpdates.value.brokers
@@ -67,28 +84,65 @@ const activeRuntimeInstances = computed(
   () => systemStatus.value.strategyRuntime.activeInstances ?? [],
 );
 
-const systemHeaderStats = computed(() => [
-  {
-    label: "API 端口",
-    value: systemStatus.value.apiPort,
-  },
-  {
-    label: "持久化",
-    value: formatGenericStatusLabel(systemStatus.value.persistence.status),
-    tone: systemStatus.value.persistence.status === "ok" ? "good" : "warn",
-  },
-  {
-    label: "策略",
-    value: systemStatus.value.strategyRuntime.activeStrategies,
-  },
-  {
-    label: "审计日志",
-    value: storageOverview.value.recentAuditLogs.length,
-    hint: `跟踪 ${workerBrokerOrderUpdates.value.subscriptions.length} 个工作进程订阅`,
-  },
-]);
-
 const systemActiveTab = ref("status");
+
+async function loadStrategyInstances(): Promise<void> {
+  try {
+    strategyInstances.value = await fetchEnvelope<StrategyInstanceItem[]>("/api/v1/strategies");
+    strategyRuntimeRiskError.value = "";
+  } catch (error) {
+    strategyRuntimeRiskError.value =
+      error instanceof Error ? error.message : "加载策略实例动态风控失败。";
+  }
+}
+
+function runtimeRiskForInstance(instanceId: string): StrategyRuntimeRiskSettings {
+  return normalizeStrategyRuntimeRiskSettings(
+    strategyInstancesById.value.get(instanceId)?.binding?.runtimeRisk,
+  );
+}
+
+function isUpdatingStrategyRuntimeRisk(instanceId: string): boolean {
+  return updatingStrategyRuntimeRiskIds.value.includes(instanceId);
+}
+
+async function updateStrategyRuntimeRiskMode(
+  instanceId: string,
+  value: unknown,
+): Promise<void> {
+  const mode: StrategyRuntimeRiskMode =
+    value === "monitor" || value === "enforce" ? value : "off";
+  const runtimeRisk = normalizeStrategyRuntimeRiskSettings({
+    ...runtimeRiskForInstance(instanceId),
+    mode,
+  });
+
+  strategyRuntimeRiskError.value = "";
+  updatingStrategyRuntimeRiskIds.value = [
+    ...updatingStrategyRuntimeRiskIds.value,
+    instanceId,
+  ];
+  try {
+    const updated = await fetchEnvelopeWithInit<StrategyInstanceItem>(
+      `/api/v1/strategies/${encodeURIComponent(instanceId)}/runtime-risk`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(runtimeRisk),
+      },
+    );
+    strategyInstances.value = strategyInstances.value.map((item) =>
+      item.id === updated.id ? updated : item,
+    );
+    await loadSystemState({ bypassCooldown: true });
+  } catch (error) {
+    strategyRuntimeRiskError.value =
+      error instanceof Error ? error.message : "更新策略实例动态风控失败。";
+  } finally {
+    updatingStrategyRuntimeRiskIds.value =
+      updatingStrategyRuntimeRiskIds.value.filter((id) => id !== instanceId);
+  }
+}
 
 function formatStrategyRuntimeStatus(status: string): string {
   switch (status) {
@@ -113,19 +167,12 @@ function formatRuntimeObservationTime(value: string | null | undefined): string 
 </script>
 
 <template>
-  <div class="grid gap-6">
-    <PageHeader
-      eyebrow="运维中心"
-      title="系统 / 控制"
-      description="把 API、持久层、工作进程健康、审计和实盘控制面放到同一个运维入口，优先识别异常与治理动作。"
-      :stats="systemHeaderStats"
-    />
-
+  <div class="system-page grid min-w-0 gap-6">
     <v-tabs v-model="systemActiveTab" bg-color="transparent" class="tv-page-tabs">
       <v-tab value="status">状态</v-tab>
       <v-tab value="worker-broker">工作进程券商</v-tab>
-      <v-tab value="real-trade-risk">实盘风控</v-tab>
-      <v-tab value="approvals-hard-stops">审批与硬停止</v-tab>
+      <v-tab value="real-trade-control">实盘风控与审批硬停止</v-tab>
+      <v-tab value="market-data">自选 / 行情数据订阅</v-tab>
     </v-tabs>
     <v-window v-model="systemActiveTab">
       <v-window-item value="status">
@@ -560,7 +607,71 @@ function formatRuntimeObservationTime(value: string | null | undefined): string 
         </section>
       </v-window-item>
 
-      <v-window-item value="real-trade-risk">
+      <v-window-item value="real-trade-control">
+        <section class="mb-5">
+          <v-card flat class="card-shell border-0">
+            <div class="flex flex-wrap items-center justify-between gap-3 px-4 pt-4">
+              <div>
+                <div class="text-xl font-semibold text-slate-900">策略实例动态风控</div>
+                <div class="mt-1 text-xs text-slate-500">
+                  可直接切换关闭、观察或执行模式，运行中的实例无需停止。
+                </div>
+              </div>
+              <v-btn variant="text" color="primary" size="small" @click="loadStrategyInstances()">
+                刷新
+              </v-btn>
+            </div>
+            <v-card-text>
+              <v-alert
+                v-if="strategyRuntimeRiskError"
+                type="warning"
+                variant="tonal"
+                density="compact"
+                :closable="false"
+                class="mb-3"
+              >
+                {{ strategyRuntimeRiskError }}
+              </v-alert>
+              <div v-if="strategyInstances.length" class="grid gap-3 lg:grid-cols-2">
+                <div
+                  v-for="instance in strategyInstances"
+                  :key="instance.id"
+                  class="grid gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-4 sm:grid-cols-[minmax(0,1fr)_9rem] sm:items-center"
+                >
+                  <div class="min-w-0">
+                    <div class="flex flex-wrap items-center gap-2">
+                      <div class="font-semibold text-slate-900">{{ instance.definition.name }}</div>
+                      <v-chip
+                        :color="instance.status === 'RUNNING' ? 'success' : instance.status === 'PAUSED' ? 'warning' : undefined"
+                        variant="outlined"
+                        size="small"
+                      >
+                        {{ formatStrategyRuntimeStatus(instance.status) }}
+                      </v-chip>
+                    </div>
+                    <div class="mt-1 truncate text-xs text-slate-500">{{ instance.id }}</div>
+                    <div class="mt-2 text-xs font-medium text-slate-700">
+                      {{ formatStrategyRuntimeRiskSummary(runtimeRiskForInstance(instance.id)) }}
+                    </div>
+                  </div>
+                  <select
+                    :value="runtimeRiskForInstance(instance.id).mode"
+                    :disabled="isUpdatingStrategyRuntimeRisk(instance.id)"
+                    class="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none disabled:cursor-wait disabled:opacity-60"
+                    :aria-label="`${instance.definition.name} 动态风控模式`"
+                    @change="updateStrategyRuntimeRiskMode(instance.id, ($event.target as HTMLSelectElement).value)"
+                  >
+                    <option value="off">关闭</option>
+                    <option value="monitor">观察</option>
+                    <option value="enforce">执行</option>
+                  </select>
+                </div>
+              </div>
+              <v-empty-state v-else text="当前没有策略实例。创建策略实例后可在这里控制动态风控。" />
+            </v-card-text>
+          </v-card>
+        </section>
+
         <section class="grid gap-5 lg:grid-cols-3">
           <v-card flat class="card-shell border-0">
             <div class="flex items-center justify-between gap-3 px-4 pt-4">
@@ -632,11 +743,7 @@ function formatRuntimeObservationTime(value: string | null | undefined): string 
               </div>
             </v-card-text>
           </v-card>
-        </section>
-      </v-window-item>
 
-      <v-window-item value="approvals-hard-stops">
-        <section class="grid gap-5 lg:grid-cols-3">
           <v-card flat class="card-shell border-0">
             <div class="flex items-center justify-between gap-3 px-4 pt-4">
               <div class="text-xl font-semibold text-slate-900">实盘硬停止</div>
@@ -666,10 +773,10 @@ function formatRuntimeObservationTime(value: string | null | undefined): string 
           </v-card>
         </section>
       </v-window-item>
-    </v-window>
 
-    <section class="grid gap-5">
-      <v-card flat class="card-shell border-0">
+      <v-window-item value="market-data">
+        <section class="grid gap-5">
+          <v-card flat class="card-shell border-0">
         <div class="flex items-center justify-between gap-3 px-4 pt-4">
           <div>
             <div class="text-xl font-semibold text-slate-900">自选 / 行情数据订阅</div>
@@ -754,7 +861,17 @@ function formatRuntimeObservationTime(value: string | null | undefined): string 
             text="当前没有活跃的行情订阅。在行情页面添加订阅后会在此处显示。"
           />
         </v-card-text>
-      </v-card>
-    </section>
+          </v-card>
+        </section>
+      </v-window-item>
+    </v-window>
   </div>
 </template>
+
+<style scoped>
+.system-page {
+  height: auto;
+  min-height: 100%;
+  align-content: start;
+}
+</style>

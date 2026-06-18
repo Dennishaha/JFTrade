@@ -247,6 +247,10 @@ function formatAuditKind(kind: unknown): string {
             return "已停止";
         case "failed":
             return "执行失败";
+        case "risk_rejected":
+            return "风控拒单";
+        case "risk_monitor":
+            return "风控观察";
         default:
             return normalizeText(kind) || "未知";
     }

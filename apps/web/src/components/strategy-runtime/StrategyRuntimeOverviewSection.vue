@@ -6,6 +6,7 @@ defineProps<{
     selectedStrategy: StrategyInstanceItem | null;
     selectedStrategyRuntimeLabel: string;
     systemStatus: SystemStatusResponse;
+    formatStrategyRuntimeRiskSummary: (settings: NonNullable<StrategyInstanceItem["binding"]>["runtimeRisk"] | null | undefined) => string;
 }>();
 </script>
 
@@ -64,9 +65,9 @@ defineProps<{
                     </div>
                 </div>
                 <div class="rounded-3xl bg-white px-4 py-4">
-                    <div class="text-xs uppercase tracking-[0.2em] text-slate-500">最大下单数量</div>
-                    <div class="mt-2 text-xl font-semibold text-slate-900">
-                        {{ systemStatus.realTradingRisk.maxOrderQuantity ?? "暂无" }}
+                    <div class="text-xs uppercase tracking-[0.2em] text-slate-500">策略动态风控</div>
+                    <div class="mt-2 text-sm font-semibold text-slate-900" data-testid="strategy-overview-runtime-risk">
+                        {{ formatStrategyRuntimeRiskSummary(selectedStrategy?.binding?.runtimeRisk) }}
                     </div>
                 </div>
             </div>

@@ -94,6 +94,14 @@ func (a *strategyCatalogStoreAdapter) UpdateInstance(id string, binding stratsrv
 	return a.enrichItem(item), nil
 }
 
+func (a *strategyCatalogStoreAdapter) UpdateInstanceRuntimeRisk(id string, risk stratsrv.RuntimeRiskSettings) (stratsrv.InstanceView, error) {
+	item, err := a.store.updateStrategyRuntimeRisk(id, risk)
+	if err != nil {
+		return stratsrv.InstanceView{}, mapStrategyStoreError(err)
+	}
+	return a.enrichItem(item), nil
+}
+
 func (a *strategyCatalogStoreAdapter) DeleteInstance(id string) (stratsrv.InstanceView, error) {
 	item, err := a.store.deleteStrategy(id)
 	if err != nil {
