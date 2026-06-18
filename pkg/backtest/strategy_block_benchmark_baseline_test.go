@@ -69,7 +69,7 @@ func TestStrategyBlockBenchmarkBaseline(t *testing.T) {
 
 func collectStrategyBlockBenchmarkBaseline(t *testing.T) strategyBlockBenchmarkBaseline {
 	t.Helper()
-	t.Setenv("HOME", t.TempDir())
+	isolateBacktestHome(t)
 	dbPath, startTime, endTime := seedStrategyBlockBenchmarkStore(t)
 	restoreLogs := suppressBacktestRunLogs(t)
 	defer restoreLogs()

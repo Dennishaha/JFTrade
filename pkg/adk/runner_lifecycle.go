@@ -2,6 +2,7 @@ package adk
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -321,10 +322,10 @@ func runStatusForContext(ctx context.Context, err error) string {
 		return RunStatusCompleted
 	}
 	if ctx != nil {
-		if ctx.Err() == context.DeadlineExceeded {
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 			return RunStatusTimedOut
 		}
-		if ctx.Err() == context.Canceled {
+		if errors.Is(ctx.Err(), context.Canceled) {
 			return RunStatusCancelled
 		}
 	}

@@ -2,6 +2,7 @@ package storage
 
 import (
 	"database/sql"
+	"errors"
 	"unsafe"
 
 	"github.com/c9s/bbgo/pkg/fixedpoint"
@@ -20,7 +21,7 @@ func scanKLine(row *sql.Row, symbol string, interval types.Interval) (*types.KLi
 	if err := row.Scan(&startTimeMillis, &endTimeMillis,
 		&open, &high, &low, &close, &volume,
 	); err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
 		return nil, err

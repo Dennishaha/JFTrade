@@ -180,10 +180,11 @@ func TestStartForRunArgsUsesInterfaceSettingsForAPIBind(t *testing.T) {
 	for {
 		resp, err := http.Get(statusURL)
 		if err == nil {
-			defer resp.Body.Close()
 			if resp.StatusCode != http.StatusOK {
+				_ = resp.Body.Close()
 				t.Fatalf("GET status code = %d", resp.StatusCode)
 			}
+			_ = resp.Body.Close()
 			return
 		}
 		if time.Now().After(deadline) {

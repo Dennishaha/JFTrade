@@ -35,7 +35,7 @@ if ta.crossunder(fast, trend) or close < trend
     strategy.close("Long")`
 
 func TestRunExecutesLocalBacktestSmoke(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	isolateBacktestHome(t)
 
 	dbPath := filepath.Join(t.TempDir(), "backtest.db")
 	store, err := NewFutuKLineStore(dbPath)
@@ -141,7 +141,7 @@ log.info("pine smoke kline")`,
 }
 
 func TestRunUsesTradingViewDefaultQuantityForNVDAStylePine(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	isolateBacktestHome(t)
 
 	dbPath := filepath.Join(t.TempDir(), "backtest-nvda-default-qty.db")
 	store, err := NewFutuKLineStore(dbPath)
@@ -240,7 +240,7 @@ if sellCondition
 }
 
 func TestRunExecutesPineHighestDonchianBreakout(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	isolateBacktestHome(t)
 
 	dbPath := filepath.Join(t.TempDir(), "backtest-pine-highest.db")
 	store, err := NewFutuKLineStore(dbPath)
@@ -314,7 +314,7 @@ if high >= upper and close > 105
 }
 
 func TestRunExecutesPineVolumeMovingAverageFilter(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	isolateBacktestHome(t)
 
 	dbPath := filepath.Join(t.TempDir(), "backtest-pine-volume-ma.db")
 	store, err := NewFutuKLineStore(dbPath)
@@ -389,7 +389,7 @@ if volume > avgVol and close > close[1]
 }
 
 func TestRunExecutesPineSARStrategy(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	isolateBacktestHome(t)
 
 	dbPath := filepath.Join(t.TempDir(), "backtest-pine-sar.db")
 	store, err := NewFutuKLineStore(dbPath)
@@ -451,7 +451,7 @@ if close > sar
 }
 
 func TestRunExecutesPineBarstateConfirmedFilter(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	isolateBacktestHome(t)
 
 	dbPath := filepath.Join(t.TempDir(), "backtest-pine-barstate.db")
 	store, err := NewFutuKLineStore(dbPath)
@@ -512,7 +512,7 @@ if barstate.isconfirmed and barstate.isnew and barstate.islast
 }
 
 func TestRunExecutesPineInputTimeStartFilter(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	isolateBacktestHome(t)
 
 	dbPath := filepath.Join(t.TempDir(), "backtest-pine-input-time.db")
 	store, err := NewFutuKLineStore(dbPath)
@@ -577,7 +577,7 @@ if time >= start
 }
 
 func TestRunExecutesPineQtyPercentEntry(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	isolateBacktestHome(t)
 
 	dbPath := filepath.Join(t.TempDir(), "backtest-pine-qty-percent.db")
 	store, err := NewFutuKLineStore(dbPath)
@@ -636,7 +636,7 @@ if bar_index == 0
 }
 
 func TestRunStrategyOrderBypassesEntryPyramiding(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	isolateBacktestHome(t)
 
 	dbPath := filepath.Join(t.TempDir(), "backtest-pine-strategy-order-pyramiding.db")
 	store, err := NewFutuKLineStore(dbPath)
@@ -695,7 +695,7 @@ strategy.order("Net", strategy.long, qty=1)`,
 }
 
 func TestRunStrategyOrderAndCloseAllFlattenPosition(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	isolateBacktestHome(t)
 
 	dbPath := filepath.Join(t.TempDir(), "backtest-pine-close-all.db")
 	store, err := NewFutuKLineStore(dbPath)
@@ -765,7 +765,7 @@ if bar_index == 2
 }
 
 func TestRunPineEntryReversalAndAllowedEntryDirection(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	isolateBacktestHome(t)
 
 	run := func(t *testing.T, name string, script string) *RunResult {
 		t.Helper()
@@ -851,7 +851,7 @@ if bar_index == 1
 }
 
 func TestRunStrategyExitQtyPercentPartiallyExits(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	isolateBacktestHome(t)
 
 	dbPath := filepath.Join(t.TempDir(), "backtest-pine-exit-qty-percent.db")
 	store, err := NewFutuKLineStore(dbPath)
@@ -915,7 +915,7 @@ strategy.exit("Half stop", "Long", stop=98, qty_percent=50)`,
 }
 
 func TestRunPinePendingStopCancelAndBracketExit(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	isolateBacktestHome(t)
 
 	run := func(t *testing.T, name string, script string) *RunResult {
 		t.Helper()
@@ -1067,7 +1067,7 @@ strategy.exit("Trail", "Long", trail_price=103, trail_offset=100)`)
 }
 
 func TestRunPineMultiBarHistoryBreakoutAndNoopVisualCalls(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	isolateBacktestHome(t)
 
 	dbPath := filepath.Join(t.TempDir(), "history-breakout.db")
 	store, err := NewFutuKLineStore(dbPath)
@@ -1134,7 +1134,7 @@ if close > high[20]
 }
 
 func TestRunPineExpressionUDFAndStaticForStrategy(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	isolateBacktestHome(t)
 
 	dbPath := filepath.Join(t.TempDir(), "udf-static-for.db")
 	store, err := NewFutuKLineStore(dbPath)
@@ -1198,7 +1198,7 @@ if isBull(close) and close > avg
 }
 
 func TestRunPineRequestSecurityIntradayTimeframeFilter(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	isolateBacktestHome(t)
 
 	dbPath := filepath.Join(t.TempDir(), "request-security-15m.db")
 	store, err := NewFutuKLineStore(dbPath)
@@ -1262,7 +1262,7 @@ if mtfClose > mtfPrevClose and mtfEma > 0
 }
 
 func TestSessionFilteredBacktestStoreFiltersUSExtendedHours(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	isolateBacktestHome(t)
 
 	dbPath := filepath.Join(t.TempDir(), "backtest-rth.db")
 	store, err := NewFutuKLineStore(dbPath)
@@ -1379,7 +1379,7 @@ func TestSessionFilteredBacktestStoreFiltersUSExtendedHours(t *testing.T) {
 }
 
 func TestSessionFilteredBacktestStoreSynthesizesUSDailyWithOvernightWhenExtendedEnabled(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	isolateBacktestHome(t)
 
 	dbPath := filepath.Join(t.TempDir(), "backtest-extended-daily.db")
 	store, err := NewFutuKLineStore(dbPath)
@@ -1504,7 +1504,7 @@ func TestSessionFilteredBacktestStoreSynthesizesUSDailyWithOvernightWhenExtended
 }
 
 func TestSessionFilteredBacktestStoreSynthesizesUSWeeklyWithOvernightWhenExtendedEnabled(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	isolateBacktestHome(t)
 
 	dbPath := filepath.Join(t.TempDir(), "backtest-extended-weekly.db")
 	store, err := NewFutuKLineStore(dbPath)
@@ -1617,7 +1617,7 @@ func TestSessionFilteredBacktestStoreSynthesizesUSWeeklyWithOvernightWhenExtende
 }
 
 func TestSessionFilteredBacktestStoreSynthesizesUSTwoHourWithPreMarketWhenExtendedEnabled(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	isolateBacktestHome(t)
 
 	dbPath := filepath.Join(t.TempDir(), "backtest-extended-2h.db")
 	store, err := NewFutuKLineStore(dbPath)
@@ -1765,7 +1765,7 @@ func boolPtr(value bool) *bool {
 }
 
 func TestRunExecutesDSLBacktestSmoke(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	isolateBacktestHome(t)
 
 	dbPath := filepath.Join(t.TempDir(), "backtest-dsl.db")
 	store, err := NewFutuKLineStore(dbPath)
@@ -1863,7 +1863,7 @@ strategy.entry("Long", strategy.long, qty=1)`,
 }
 
 func TestRunUsesOneMinuteDataForFiveMinuteBacktest(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	isolateBacktestHome(t)
 
 	dbPath := filepath.Join(t.TempDir(), "backtest-5m.db")
 	store, err := NewFutuKLineStore(dbPath)
@@ -1921,7 +1921,7 @@ log.info("pine 5m kline")`,
 }
 
 func TestRunAllowsBoundaryCoveredOneMinuteDataForSyntheticFiveMinuteBacktest(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	isolateBacktestHome(t)
 
 	dbPath := filepath.Join(t.TempDir(), "backtest-5m-missing.db")
 	store, err := NewFutuKLineStore(dbPath)
@@ -1976,7 +1976,7 @@ log.info("pine 5m init")`,
 }
 
 func TestRunUsesFiveMinuteDataForFifteenMinuteBacktest(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	isolateBacktestHome(t)
 
 	dbPath := filepath.Join(t.TempDir(), "backtest-15m-from-5m.db")
 	store, err := NewFutuKLineStore(dbPath)
@@ -2034,7 +2034,7 @@ log.info("pine 15m kline")`,
 }
 
 func TestRunLogsDerivedStrategyWarmup(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	isolateBacktestHome(t)
 
 	dbPath := filepath.Join(t.TempDir(), "backtest-auto-warmup.db")
 	store, err := NewFutuKLineStore(dbPath)
@@ -2098,7 +2098,7 @@ log.info("auto warmup")`,
 }
 
 func BenchmarkRunExecutesIndicatorHeavyDSLBacktest(b *testing.B) {
-	b.Setenv("HOME", b.TempDir())
+	isolateBacktestHome(b)
 	dbPath, startTime, endTime := seedBenchmarkBacktestStore(b)
 	previousWriter := log.Writer()
 	previousLogrusWriter := logrus.StandardLogger().Out

@@ -327,7 +327,7 @@ func (a *adminAuth) logout(c *gin.Context) {
 		Value:    "",
 		Path:     "/",
 		HttpOnly: true,
-		Secure:   a != nil && a.secureCookies,
+		Secure:   a.secureCookies,
 		SameSite: http.SameSiteStrictMode,
 		MaxAge:   -1,
 		Expires:  time.Unix(1, 0),

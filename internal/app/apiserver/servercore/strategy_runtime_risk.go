@@ -50,6 +50,9 @@ func (e *strategyLiveOrderExecutor) evaluateRuntimeRisk(command trdsrv.Execution
 }
 
 func (e *strategyLiveOrderExecutor) currentRuntimeRiskSettings() strategyRuntimeRiskSettings {
+	if e == nil {
+		return normalizeStrategyRuntimeRiskSettings(strategyRuntimeRiskSettings{})
+	}
 	if e != nil && e.server != nil && e.server.strategyStore != nil {
 		if instance, ok := e.server.strategyStore.strategy(e.instance.ID); ok {
 			return normalizeStrategyRuntimeRiskSettings(instance.Binding.RuntimeRisk)
@@ -128,11 +131,10 @@ func (m *strategyRuntimeManager) todaySubmittedOrderCount(instanceID string, now
 	if m == nil || m.server == nil || m.server.strategyRuntimeStore == nil {
 		return 0
 	}
-	start := time.Date(now.UTC().Year(), now.UTC().Month(), now.UTC().Day(), 0, 0, 0, 0, time.UTC)
 	count, err := m.server.strategyRuntimeStore.CountAudit(context.Background(), strategyRuntimeAuditQuery{
 		InstanceID: strings.TrimSpace(instanceID),
 		Kind:       "order_submitted",
-		FromAt:     &start,
+		FromAt:     new(time.Date(now.UTC().Year(), now.UTC().Month(), now.UTC().Day(), 0, 0, 0, 0, time.UTC)),
 	})
 	if err != nil {
 		return 0

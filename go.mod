@@ -63,7 +63,7 @@ require (
 	cloud.google.com/go/auth v0.20.0 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.8 // indirect
 	cloud.google.com/go/compute/metadata v0.9.0 // indirect
-	filippo.io/edwards25519 v1.1.0 // indirect
+	filippo.io/edwards25519 v1.2.0 // indirect
 	github.com/Masterminds/squirrel v1.5.3 // indirect
 	github.com/VividCortex/ewma v1.1.1 // indirect
 	github.com/adshao/go-binance/v2 v2.8.11 // indirect
@@ -174,7 +174,7 @@ require (
 	golang.org/x/arch v0.28.0 // indirect
 	golang.org/x/crypto v0.53.0 // indirect
 	golang.org/x/exp v0.0.0-20250620022241-b7579e27df2b // indirect
-	golang.org/x/image v0.25.0 // indirect
+	golang.org/x/image v0.42.0 // indirect
 	golang.org/x/mod v0.37.0
 	golang.org/x/net v0.56.0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect

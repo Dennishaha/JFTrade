@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	bbgo "github.com/c9s/bbgo/pkg/bbgo"
+	"github.com/c9s/bbgo/pkg/bbgo"
 	"github.com/c9s/bbgo/pkg/fixedpoint"
 	bbgotypes "github.com/c9s/bbgo/pkg/types"
 

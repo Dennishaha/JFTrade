@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -509,7 +510,7 @@ func (s *strategyRuntimeStore) GetObservation(ctx context.Context, instanceID st
 	)
 	s.mu.RUnlock()
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			return strategyRuntimeObservationSnapshot{}, false, nil
 		}
 		return strategyRuntimeObservationSnapshot{}, false, fmt.Errorf("get strategy runtime observation: %w", err)

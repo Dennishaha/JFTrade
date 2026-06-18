@@ -1,6 +1,7 @@
 package servercore
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -279,7 +280,7 @@ func TestRefreshStrategyDefinitionUpdatesSnapshotForStoppedInstance(t *testing.T
 		Runtime:      strategyRuntimePinePlan,
 		SourceFormat: strategydefinition.SourceFormatPineV6,
 		Script:       "//@version=6\nstrategy(\"Mean Revert\", overlay=true)\nlog.info(\"busy\")",
-	}); err != errStrategyInstanceBusy {
+	}); !errors.Is(err, errStrategyInstanceBusy) {
 		t.Fatalf("refresh busy instance error = %v, want errStrategyInstanceBusy", err)
 	}
 }

@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	bbgo "github.com/c9s/bbgo/pkg/bbgo"
+	"github.com/c9s/bbgo/pkg/bbgo"
 	"github.com/gorilla/websocket"
 	"github.com/jftrade/jftrade-main/internal/api/httpserver"
 	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"

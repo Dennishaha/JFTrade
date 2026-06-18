@@ -26,6 +26,9 @@ func TestCacheDeduplicatesPromotesAndInherits(t *testing.T) {
 	duplicate := first
 	duplicate.ObservedAt = now.Format(time.RFC3339Nano)
 	stored = cache.Store(duplicate)
+	if stored == nil {
+		t.Fatal("expected duplicate sample")
+	}
 	if stored.ObservedAt != first.ObservedAt {
 		t.Fatalf("dedupe changed observedAt: %s", stored.ObservedAt)
 	}
@@ -34,6 +37,9 @@ func TestCacheDeduplicatesPromotesAndInherits(t *testing.T) {
 	promoted.Source = "bbgo:futu:stream"
 	promoted.ObservedAt = now.Format(time.RFC3339Nano)
 	stored = cache.Store(promoted)
+	if stored == nil {
+		t.Fatal("expected promoted sample")
+	}
 	if cache.Count(first.InstrumentID) != 1 {
 		t.Fatalf("dedupe count = %d", cache.Count(first.InstrumentID))
 	}
@@ -48,6 +54,9 @@ func TestCacheDeduplicatesPromotesAndInherits(t *testing.T) {
 	trade.Ask = trade.Price
 	trade.Session = "unknown"
 	stored = cache.Store(trade)
+	if stored == nil {
+		t.Fatal("expected trade sample")
+	}
 	if stored.Bid.String() != "100" || stored.Ask.String() != "100" || stored.Volume != 1000 {
 		t.Fatalf("trade book/volume inheritance = %#v", stored)
 	}

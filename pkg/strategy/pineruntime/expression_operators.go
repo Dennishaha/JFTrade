@@ -57,7 +57,7 @@ func evaluateBinaryExpression(expression *exprast.BinaryNode, scope *evaluationS
 			if !ok {
 				return nil, fmt.Errorf("logical operator %s requires boolean operands", expression.Operator)
 			}
-			return leftValue && rightValue, nil
+			return rightValue, nil
 		}
 		if leftValue {
 			return true, nil
@@ -69,7 +69,7 @@ func evaluateBinaryExpression(expression *exprast.BinaryNode, scope *evaluationS
 		if !ok {
 			return nil, fmt.Errorf("logical operator %s requires boolean operands", expression.Operator)
 		}
-		return leftValue || rightValue, nil
+		return rightValue, nil
 	case "+", "-", "*", "/", "%":
 		leftRaw, err := evaluateAST(expression.Left, scope)
 		if err != nil {

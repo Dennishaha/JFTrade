@@ -10,7 +10,7 @@ import (
 var benchmarkPineGoldenResult *RunResult
 
 func TestPineGoldenBenchmarkCasesSmoke(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	isolateBacktestHome(t)
 	dbPath, startTime, endTime := seedStrategyBlockBenchmarkStore(t)
 	restoreLogs := suppressBacktestRunLogs(t)
 	defer restoreLogs()
@@ -32,7 +32,7 @@ func TestPineGoldenBenchmarkCasesSmoke(t *testing.T) {
 }
 
 func BenchmarkRunExecutesPineGoldenMatrix(b *testing.B) {
-	b.Setenv("HOME", b.TempDir())
+	isolateBacktestHome(b)
 	dbPath, startTime, endTime := seedStrategyBlockBenchmarkStore(b)
 	restoreLogs := suppressBacktestRunLogs(b)
 	defer restoreLogs()

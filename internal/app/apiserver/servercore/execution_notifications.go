@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	bbgo "github.com/c9s/bbgo/pkg/bbgo"
+	"github.com/c9s/bbgo/pkg/bbgo"
 )
 
 func (s *Server) notifyExecutionOrderPlaced(order executionOrderSummaryResponse) {

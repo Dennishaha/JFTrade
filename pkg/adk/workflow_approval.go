@@ -51,13 +51,11 @@ func (r *Runtime) continueParentWorkflowAfterChild(ctx context.Context, child Ru
 		return parent, nil
 	}
 	if child.Status != RunStatusCompleted {
-		terminal := r.terminateParentWorkflowFromChild(ctx, *parent, child)
-		return &terminal, nil
+		return new(r.terminateParentWorkflowFromChild(ctx, *parent, child)), nil
 	}
 	session, agent, err := r.workflowResumeContext(ctx, *parent)
 	if err != nil {
-		failed := (&WorkflowExecutor{runtime: r}).failParent(ctx, *parent, err)
-		return &failed, nil
+		return new((&WorkflowExecutor{runtime: r}).failParent(ctx, *parent, err)), nil
 	}
 	executor := &WorkflowExecutor{runtime: r}
 	var updated Run
@@ -70,8 +68,7 @@ func (r *Runtime) continueParentWorkflowAfterChild(ctx context.Context, child Ru
 		updated = *parent
 	}
 	if err != nil {
-		failed := executor.failParent(ctx, *parent, err)
-		return &failed, nil
+		return new(executor.failParent(ctx, *parent, err)), nil
 	}
 	return &updated, nil
 }
@@ -168,10 +165,10 @@ func (e *WorkflowExecutor) reconcileWorkflowChildren(ctx context.Context, parent
 		case RunStatusCompleted:
 			if strings.TrimSpace(state.TaskID) != "" {
 				_, _ = e.runtime.store.UpdateTask(ctx, state.TaskID, TaskPatchRequest{
-					Status:        stringPtr("DONE"),
-					RunID:         stringPtr(child.ID),
-					Executor:      stringPtr(workflowTaskExecutorChild),
-					ResultSummary: stringPtr(strings.TrimSpace(child.Message)),
+					Status:        new("DONE"),
+					RunID:         new(child.ID),
+					Executor:      new(workflowTaskExecutorChild),
+					ResultSummary: new(strings.TrimSpace(child.Message)),
 				})
 			}
 			continue

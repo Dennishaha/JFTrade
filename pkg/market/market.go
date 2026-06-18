@@ -245,7 +245,7 @@ func ParseQualifiedInstrumentSymbol(symbol string) (Instrument, error) {
 	if preferredPrefix == "" {
 		return Instrument{}, fmt.Errorf("market %q requires an exchange-qualified symbol like SH.600519 or SZ.000001", prefix)
 	}
-	if preferredPrefix != "" && preferredPrefix != prefix {
+	if preferredPrefix != prefix {
 		prefix = preferredPrefix
 	}
 	return Instrument{

@@ -2,6 +2,7 @@ package adk
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -91,7 +92,7 @@ func sqliteTableExists(db *sql.DB, tableName string) (bool, error) {
 		`SELECT name FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1`,
 		strings.TrimSpace(tableName),
 	).Scan(&name)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return false, nil
 	}
 	if err != nil {

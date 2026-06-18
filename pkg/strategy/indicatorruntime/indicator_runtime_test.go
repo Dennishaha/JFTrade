@@ -808,6 +808,9 @@ func TestRollingRSIStateMatchesBatchSeriesWithTrim(t *testing.T) {
 func TestRollingRSIStateMatchesBatchDivergenceWithTrim(t *testing.T) {
 	lookback := 3
 	state := newRollingRSIState(3, 4, []int{lookback})
+	if state == nil {
+		t.Fatal("expected rolling RSI state")
+	}
 	window := make([]float64, 0, 7)
 	for _, closeValue := range []float64{10, 13, 12, 14, 15, 14, 16, 15, 17, 18, 16, 19} {
 		hasPrevious := len(window) > 0
@@ -922,6 +925,9 @@ func TestRollingKDJStateMatchesBatchSnapshotAndDivergenceWithTrim(t *testing.T) 
 	config := kdjConfig{period: 3, m1: 3, m2: 3}
 	lookback := 3
 	state := newRollingKDJState(config, 7, []int{lookback})
+	if state == nil {
+		t.Fatal("expected rolling KDJ state")
+	}
 	cache := newSnapshotSeriesCache()
 	highWindow := make([]float64, 0, 7)
 	lowWindow := make([]float64, 0, 7)

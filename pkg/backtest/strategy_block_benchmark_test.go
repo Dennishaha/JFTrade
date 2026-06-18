@@ -151,7 +151,7 @@ alert("protect evaluated")`,
 }
 
 func TestStrategyBlockBenchmarkCasesSmoke(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	isolateBacktestHome(t)
 	dbPath, startTime, endTime := seedStrategyBlockBenchmarkStore(t)
 	restoreLogs := suppressBacktestRunLogs(t)
 	defer restoreLogs()
@@ -178,7 +178,7 @@ func TestStrategyBlockBenchmarkCasesSmoke(t *testing.T) {
 }
 
 func BenchmarkRunExecutesStrategyBlockMatrix(b *testing.B) {
-	b.Setenv("HOME", b.TempDir())
+	isolateBacktestHome(b)
 	dbPath, startTime, endTime := seedStrategyBlockBenchmarkStore(b)
 	restoreLogs := suppressBacktestRunLogs(b)
 	defer restoreLogs()

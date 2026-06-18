@@ -17,7 +17,7 @@ type pineMigrationCorpusCase struct {
 }
 
 func TestPineV13MigrationCorpusGate(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	isolateBacktestHome(t)
 	cases := pineV13MigrationCorpus()
 	if len(cases) < 60 {
 		t.Fatalf("migration corpus size = %d, want at least 60", len(cases))
@@ -90,7 +90,7 @@ func TestPineV13MigrationCorpusGate(t *testing.T) {
 }
 
 func TestPineV14MigrationCorpusGate(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	isolateBacktestHome(t)
 	cases := pineV14MigrationCorpus()
 	if len(cases) < 80 {
 		t.Fatalf("migration corpus size = %d, want at least 80", len(cases))
@@ -163,7 +163,7 @@ func TestPineV14MigrationCorpusGate(t *testing.T) {
 }
 
 func TestPineV15MigrationCorpusGate(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	isolateBacktestHome(t)
 	cases := pineV15MigrationCorpus()
 	if len(cases) < 100 {
 		t.Fatalf("migration corpus size = %d, want at least 100", len(cases))
@@ -236,7 +236,7 @@ func TestPineV15MigrationCorpusGate(t *testing.T) {
 }
 
 func TestPineV16MigrationCorpusGate(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	isolateBacktestHome(t)
 	cases := pineV16MigrationCorpus()
 	if len(cases) < 130 {
 		t.Fatalf("migration corpus size = %d, want at least 130", len(cases))
@@ -309,7 +309,7 @@ func TestPineV16MigrationCorpusGate(t *testing.T) {
 }
 
 func TestPineV17MigrationCorpusGate(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	isolateBacktestHome(t)
 	cases := pineV17MigrationCorpus()
 	if len(cases) < 170 {
 		t.Fatalf("migration corpus size = %d, want at least 170", len(cases))
@@ -382,7 +382,7 @@ func TestPineV17MigrationCorpusGate(t *testing.T) {
 }
 
 func TestPineV21MigrationCorpusGate(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	isolateBacktestHome(t)
 	cases := pineV21MigrationCorpus()
 	if len(cases) < 250 {
 		t.Fatalf("migration corpus size = %d, want at least 250", len(cases))
@@ -455,7 +455,7 @@ func TestPineV21MigrationCorpusGate(t *testing.T) {
 }
 
 func TestPineV22MigrationCorpusGate(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	isolateBacktestHome(t)
 	cases := pineV22MigrationCorpus()
 	if len(cases) < 420 {
 		t.Fatalf("migration corpus size = %d, want at least 420", len(cases))
@@ -528,7 +528,7 @@ func TestPineV22MigrationCorpusGate(t *testing.T) {
 }
 
 func TestPineV23MigrationCorpusGate(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	isolateBacktestHome(t)
 	cases := pineV23MigrationCorpus()
 	if len(cases) < 520 {
 		t.Fatalf("migration corpus size = %d, want at least 520", len(cases))
@@ -601,7 +601,7 @@ func TestPineV23MigrationCorpusGate(t *testing.T) {
 }
 
 func TestPineV24MigrationCorpusGate(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	isolateBacktestHome(t)
 	cases := pineV24MigrationCorpus()
 	if len(cases) < 1250 {
 		t.Fatalf("migration corpus size = %d, want at least 1250", len(cases))
@@ -674,7 +674,7 @@ func TestPineV24MigrationCorpusGate(t *testing.T) {
 }
 
 func TestPineV25MigrationCorpusGate(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	isolateBacktestHome(t)
 	cases := pineV25MigrationCorpus()
 	if len(cases) < 1450 {
 		t.Fatalf("migration corpus size = %d, want at least 1450", len(cases))
@@ -747,7 +747,7 @@ func TestPineV25MigrationCorpusGate(t *testing.T) {
 }
 
 func TestPineV26MigrationCorpusGate(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	isolateBacktestHome(t)
 	cases := pineV26MigrationCorpus()
 	if len(cases) < 1650 {
 		t.Fatalf("migration corpus size = %d, want at least 1650", len(cases))
@@ -820,7 +820,7 @@ func TestPineV26MigrationCorpusGate(t *testing.T) {
 }
 
 func TestPineV27MigrationCorpusGate(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	isolateBacktestHome(t)
 	cases := pineV27MigrationCorpus()
 	if len(cases) < 1900 {
 		t.Fatalf("migration corpus size = %d, want at least 1900", len(cases))
@@ -893,7 +893,7 @@ func TestPineV27MigrationCorpusGate(t *testing.T) {
 }
 
 func TestPineV28MigrationCorpusGate(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	isolateBacktestHome(t)
 	cases := pineV28MigrationCorpus()
 	if len(cases) < 2200 {
 		t.Fatalf("migration corpus size = %d, want at least 2200", len(cases))
@@ -975,7 +975,7 @@ func TestPineV30MigrationCorpusGate(t *testing.T) {
 
 func runPineMigrationCorpusGate(t *testing.T, label string, cases []pineMigrationCorpusCase, minSize int, minRun int, minWeighted float64) {
 	t.Helper()
-	t.Setenv("HOME", t.TempDir())
+	isolateBacktestHome(t)
 	if len(cases) < minSize {
 		t.Fatalf("migration corpus size = %d, want at least %d", len(cases), minSize)
 	}
@@ -1047,7 +1047,7 @@ func runPineMigrationCorpusGate(t *testing.T, label string, cases []pineMigratio
 }
 
 func TestPineV22WhileContinueRegression(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	isolateBacktestHome(t)
 	item := corpusCase("v22-while-continue-regression", true, true, `count = 0
 while count < 2
     count := count + 1

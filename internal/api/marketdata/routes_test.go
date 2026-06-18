@@ -177,6 +177,52 @@ func TestCandlesRouteRejectsUnsupportedPeriod(t *testing.T) {
 	}
 }
 
+func TestCandlesRouteDefaultsInvalidLimit(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	provider := &routeTestProvider{}
+	service := srv.NewService(provider)
+	router := gin.New()
+	api := router.Group("/api/v1")
+	RegisterRoutes(api, service)
+
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/market-data/candles/HK/00700?limit=abc", nil)
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("GET candles status = %d, body = %s", response.Code, response.Body.String())
+	}
+	if !provider.candlesCalled {
+		t.Fatal("GetHistoricalCandles should be called with the default limit")
+	}
+	if provider.candlesLimit != 0 {
+		t.Fatalf("limit = %d, want 0", provider.candlesLimit)
+	}
+}
+
+func TestDepthRouteDefaultsInvalidNum(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	provider := &routeTestProvider{}
+	service := srv.NewService(provider)
+	router := gin.New()
+	api := router.Group("/api/v1")
+	RegisterRoutes(api, service)
+
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/market-data/depth/HK/00700?num=abc", nil)
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("GET depth status = %d, body = %s", response.Code, response.Body.String())
+	}
+	if !provider.depthCalled {
+		t.Fatal("GetDepth should be called with the default num")
+	}
+	if provider.depthNum != 10 {
+		t.Fatalf("num = %d, want 10", provider.depthNum)
+	}
+}
+
 func postSubscriptionJSON(t *testing.T, handler http.Handler, path string, payload map[string]any) map[string]any {
 	t.Helper()
 	body, err := json.Marshal(payload)
@@ -269,6 +315,8 @@ type routeTestProvider struct {
 	candlesLimit    int
 	candlesFromTime string
 	candlesToTime   string
+	depthCalled     bool
+	depthNum        int
 }
 
 func (*routeTestProvider) GetMarkets(context.Context) ([]srv.MarketProfile, error) {
@@ -298,7 +346,9 @@ func (p *routeTestProvider) GetHistoricalCandles(_ context.Context, market, symb
 	return srv.CandlesResponse{"candles": []any{}}, nil
 }
 
-func (*routeTestProvider) GetDepth(context.Context, string, string, int) (srv.DepthResponse, error) {
+func (p *routeTestProvider) GetDepth(_ context.Context, _ string, _ string, num int) (srv.DepthResponse, error) {
+	p.depthCalled = true
+	p.depthNum = num
 	return nil, nil
 }
 

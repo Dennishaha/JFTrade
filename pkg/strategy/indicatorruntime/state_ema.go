@@ -43,11 +43,9 @@ func newRollingEMATailState(period, limit, tailLen int) *rollingEMATailState {
 	state.beta = 1 - state.alpha
 	state.tail = make([]float64, 0, state.tailLen)
 	state.powers = make([]float64, limit)
-	if limit > 0 {
-		state.powers[0] = 1
-		for index := 1; index < limit; index++ {
-			state.powers[index] = state.powers[index-1] * state.beta
-		}
+	state.powers[0] = 1
+	for index := 1; index < limit; index++ {
+		state.powers[index] = state.powers[index-1] * state.beta
 	}
 	return state
 }

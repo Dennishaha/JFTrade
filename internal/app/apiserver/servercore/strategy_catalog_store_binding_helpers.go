@@ -69,16 +69,14 @@ func normalizeOptionalPositiveFloat(input *float64) *float64 {
 	if input == nil || *input <= 0 || math.IsNaN(*input) || math.IsInf(*input, 0) {
 		return nil
 	}
-	value := *input
-	return &value
+	return new(*input)
 }
 
 func normalizeOptionalPositiveInt(input *int) *int {
 	if input == nil || *input <= 0 {
 		return nil
 	}
-	value := *input
-	return &value
+	return new(*input)
 }
 
 func readStringSlice(value any) []string {
@@ -159,14 +157,11 @@ func numberPointerFromAny(value any) *float64 {
 	case float64:
 		return &typed
 	case float32:
-		value := float64(typed)
-		return &value
+		return new(float64(typed))
 	case int:
-		value := float64(typed)
-		return &value
+		return new(float64(typed))
 	case int64:
-		value := float64(typed)
-		return &value
+		return new(float64(typed))
 	}
 	return nil
 }
@@ -176,8 +171,7 @@ func intPointerFromAny(value any) *int {
 	case int:
 		return &typed
 	case int64:
-		value := int(typed)
-		return &value
+		return new(int(typed))
 	case float64:
 		value := int(typed)
 		if float64(value) == typed {

@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -205,7 +206,7 @@ func (s *FutuKLineStore) hasKLineEndingAtOrAfter(tableName string, at time.Time)
 		`SELECT end_time FROM `+quoteIdentifier(tableName)+` WHERE end_time >= ? ORDER BY end_time ASC LIMIT 1`,
 		timeToUnixMillis(at),
 	).Scan(&endTimeMillis)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return false, nil
 	}
 	if err != nil {
@@ -220,7 +221,7 @@ func (s *FutuKLineStore) hasKLineEndingAtOrBefore(tableName string, at time.Time
 		`SELECT end_time FROM `+quoteIdentifier(tableName)+` WHERE end_time <= ? ORDER BY end_time DESC LIMIT 1`,
 		timeToUnixMillis(at),
 	).Scan(&endTimeMillis)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return false, nil
 	}
 	if err != nil {

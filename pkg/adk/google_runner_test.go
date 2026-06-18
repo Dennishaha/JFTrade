@@ -2,6 +2,7 @@ package adk
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"google.golang.org/genai"
@@ -168,7 +169,7 @@ func TestGoogleADKExecutionFlushBufferedTextWithoutDeadlock(t *testing.T) {
 	}
 	execution.finishCall(call.ID, map[string]any{"ok": true}, nil)
 
-	if err := execution.flushBufferedTextIfReady(); err != nil && err != context.Canceled {
+	if err := execution.flushBufferedTextIfReady(); err != nil && !errors.Is(err, context.Canceled) {
 		t.Fatalf("flushBufferedTextIfReady: %v", err)
 	}
 }

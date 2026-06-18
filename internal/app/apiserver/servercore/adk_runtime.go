@@ -726,8 +726,7 @@ func intPtrFromInput(input map[string]any, key string) *int {
 	if _, ok := input[key]; !ok {
 		return nil
 	}
-	value := intValue(input, key, 0)
-	return &value
+	return new(intValue(input, key, 0))
 }
 
 func stringPtrFromInput(input map[string]any, key string) *string {

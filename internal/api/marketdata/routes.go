@@ -1,7 +1,6 @@
 package marketdata
 
 import (
-	"fmt"
 	"strings"
 	"time"
 
@@ -145,7 +144,11 @@ func handleCandles(svc *srv.Service) gin.HandlerFunc {
 		}
 		limit := 0
 		if l := c.Query("limit"); l != "" {
-			fmt.Sscanf(l, "%d", &limit)
+			parsed := httpserver.OptionalIntValue{}
+			_ = parsed.UnmarshalText([]byte(l))
+			if parsed.Valid {
+				limit = parsed.Int()
+			}
 		}
 		fromTime := normalizeOptionalQueryTime(c.Query("fromTime"))
 		if fromTime == "" {
@@ -196,7 +199,11 @@ func handleDepth(svc *srv.Service) gin.HandlerFunc {
 		}
 		num := 10
 		if n := c.Query("num"); n != "" {
-			fmt.Sscanf(n, "%d", &num)
+			parsed := httpserver.OptionalIntValue{}
+			_ = parsed.UnmarshalText([]byte(n))
+			if parsed.Valid {
+				num = parsed.Int()
+			}
 		}
 		result, err := svc.GetDepth(c.Request.Context(), uri.Market, uri.Symbol, num)
 		if err != nil {

@@ -537,7 +537,7 @@ func (t *workflowTaskToolset) claim(args map[string]any) (map[string]any, error)
 	if executor != workflowTaskExecutorChild {
 		executor = workflowTaskExecutorSelf
 	}
-	updated, err := t.executor.runtime.store.UpdateTask(context.Background(), task.ID, TaskPatchRequest{Status: stringPtr("IN_PROGRESS"), Executor: stringPtr(executor)})
+	updated, err := t.executor.runtime.store.UpdateTask(context.Background(), task.ID, TaskPatchRequest{Status: new("IN_PROGRESS"), Executor: new(executor)})
 	if err != nil {
 		return nil, err
 	}
@@ -566,7 +566,7 @@ func (t *workflowTaskToolset) complete(args map[string]any) (map[string]any, err
 		summary = workflowSelfTaskSummary(task)
 	}
 	updated, err := t.executor.runtime.store.UpdateTask(context.Background(), task.ID, TaskPatchRequest{
-		Status: stringPtr("DONE"), Executor: stringPtr(defaultString(task.Executor, workflowTaskExecutorSelf)), ResultSummary: stringPtr(summary),
+		Status: new("DONE"), Executor: new(defaultString(task.Executor, workflowTaskExecutorSelf)), ResultSummary: new(summary),
 	})
 	if err != nil {
 		return nil, err
@@ -593,7 +593,7 @@ func (t *workflowTaskToolset) block(args map[string]any) (map[string]any, error)
 		reason = "任务被阻塞。"
 	}
 	updated, err := t.executor.runtime.store.UpdateTask(context.Background(), task.ID, TaskPatchRequest{
-		Status: stringPtr("BLOCKED"), ResultSummary: stringPtr(reason),
+		Status: new("BLOCKED"), ResultSummary: new(reason),
 	})
 	if err != nil {
 		return nil, err
@@ -621,7 +621,7 @@ func (t *workflowTaskToolset) delegate(args map[string]any) (map[string]any, err
 	if role := plannerStringArg(args, "agentRole"); role != "" {
 		step.AgentRole = role
 	}
-	_, _ = t.executor.runtime.store.UpdateTask(context.Background(), task.ID, TaskPatchRequest{Executor: stringPtr(workflowTaskExecutorChild)})
+	_, _ = t.executor.runtime.store.UpdateTask(context.Background(), task.ID, TaskPatchRequest{Executor: new(workflowTaskExecutorChild)})
 	result := t.executor.runChild(context.Background(), t.req, parent, step, task, workflowTaskIteration(task))
 	if result.Err != nil {
 		return map[string]any{"success": false, "message": result.Err.Error()}, nil

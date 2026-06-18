@@ -318,10 +318,10 @@ func (s *Server) probeOpenD(ctx context.Context) opendProbe {
 		HandshakeTimeout: 2 * time.Second,
 		RequestTimeout:   3 * time.Second,
 	})
+	defer client.Close()
 	if err := client.Connect(probeCtx); err != nil {
 		return opendProbe{CheckedAt: checkedAt, Connectivity: "disconnected", Status: "offline", LastError: new(err.Error())}
 	}
-	defer client.Close()
 
 	initReq := &initpb.Request{C2S: &initpb.C2S{
 		ClientVer:           new(int32(101)),

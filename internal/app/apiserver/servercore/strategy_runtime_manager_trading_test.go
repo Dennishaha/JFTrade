@@ -145,16 +145,14 @@ func TestStrategyRuntimeRiskCloseOnlyRejectsBuyOrder(t *testing.T) {
 }
 
 func TestStrategyRuntimeRiskEvaluatesOrderLimits(t *testing.T) {
-	maxQuantity := 5.0
-	maxNotional := 500.0
 	executor := &strategyLiveOrderExecutor{
 		instance: managedStrategyInstance{
 			Binding: strategyInstanceBinding{
 				RuntimeRisk: strategyRuntimeRiskSettings{
 					Mode:             "enforce",
 					CloseOnly:        true,
-					MaxOrderQuantity: &maxQuantity,
-					MaxOrderNotional: &maxNotional,
+					MaxOrderQuantity: new(5.0),
+					MaxOrderNotional: new(500.0),
 				},
 			},
 		},

@@ -3,6 +3,7 @@ package backtest
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -533,10 +534,7 @@ func prepareRealChainProfileFixture(tb testing.TB, options realChainFixtureOptio
 	requireRealChainProfile(tb)
 	ensureOpenDReachable(tb, realChainProfileOpenDAddr())
 
-	homeDir := tb.TempDir()
-	if envSetter, ok := tb.(interface{ Setenv(string, string) }); ok {
-		envSetter.Setenv("HOME", homeDir)
-	}
+	isolateBacktestHome(tb)
 
 	symbol := strings.ToUpper(strings.TrimSpace(options.symbol))
 	if symbol == "" {
@@ -679,7 +677,7 @@ func loadRealChainStrategyDefinition(tb testing.TB, dbPath string, definitionID 
 		trimmedID,
 	).Scan(&definition.id, &definition.name, &definition.sourceFormat, &definition.script)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			tb.Skipf("strategy definition %s not found in %s", trimmedID, trimmedPath)
 		}
 		tb.Fatalf("query strategy definition %s: %v", trimmedID, err)

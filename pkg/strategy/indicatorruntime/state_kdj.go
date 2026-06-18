@@ -69,14 +69,12 @@ func newRollingKDJState(config kdjConfig, limit int, lookbacks []int) *rollingKD
 	}
 	state.kBeta = 1 - state.kAlpha
 	state.dBeta = 1 - state.dAlpha
-	if limit > 0 {
-		state.boundaryK[0] = 1
-		state.boundaryDByD[0] = 1
-		for step := 1; step < limit; step++ {
-			state.boundaryK[step] = state.boundaryK[step-1] * state.kBeta
-			state.boundaryDByD[step] = state.boundaryDByD[step-1] * state.dBeta
-			state.boundaryDByK[step] = state.dBeta*state.boundaryDByK[step-1] + state.dAlpha*state.boundaryK[step]
-		}
+	state.boundaryK[0] = 1
+	state.boundaryDByD[0] = 1
+	for step := 1; step < limit; step++ {
+		state.boundaryK[step] = state.boundaryK[step-1] * state.kBeta
+		state.boundaryDByD[step] = state.boundaryDByD[step-1] * state.dBeta
+		state.boundaryDByK[step] = state.dBeta*state.boundaryDByK[step-1] + state.dAlpha*state.boundaryK[step]
 	}
 	return state
 }

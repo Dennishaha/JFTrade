@@ -7,7 +7,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"google.golang.org/genai"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -16,6 +15,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"google.golang.org/genai"
 
 	strategypinespec "github.com/jftrade/jftrade-main/pkg/strategy/pinespec"
 )
@@ -877,15 +878,11 @@ func TestSessionComposerStatePersistsAndDeletesWithSession(t *testing.T) {
 		t.Fatalf("empty composer state = %+v ok=%v", state, ok)
 	}
 
-	chatDraft := strings.Repeat("x", MaxMessageLength+20)
-	mode := WorkModeLoop
-	goal := "目标草稿"
-	touched := true
 	saved, err := runtime.Store().SaveSessionComposerState(ctx, session.ID, SessionComposerStatePatch{
-		ChatDraft:            &chatDraft,
-		WorkModeOverride:     &mode,
-		GoalObjectiveDraft:   &goal,
-		GoalObjectiveTouched: &touched,
+		ChatDraft:            new(strings.Repeat("x", MaxMessageLength+20)),
+		WorkModeOverride:     new(WorkModeLoop),
+		GoalObjectiveDraft:   new("目标草稿"),
+		GoalObjectiveTouched: new(true),
 	})
 	if err != nil {
 		t.Fatalf("SaveSessionComposerState: %v", err)
@@ -894,8 +891,7 @@ func TestSessionComposerStatePersistsAndDeletesWithSession(t *testing.T) {
 		t.Fatalf("saved composer state = %+v", saved)
 	}
 
-	invalidMode := "sequential"
-	if _, err := runtime.Store().SaveSessionComposerState(ctx, session.ID, SessionComposerStatePatch{WorkModeOverride: &invalidMode}); err == nil {
+	if _, err := runtime.Store().SaveSessionComposerState(ctx, session.ID, SessionComposerStatePatch{WorkModeOverride: new("sequential")}); err == nil {
 		t.Fatal("SaveSessionComposerState invalid mode err = nil")
 	}
 
@@ -1970,10 +1966,8 @@ func TestADKTaskUpdateDeleteAndValidation(t *testing.T) {
 	}
 	description := "kept details"
 	status := "IN_PROGRESS"
-	order := 3
-	agentRole := "验证 Agent"
 	warnings := []string{"planner warning"}
-	updated, err := runtime.Store().UpdateTask(ctx, task.ID, TaskPatchRequest{Description: &description, Status: &status, Order: &order, AgentRole: &agentRole, PlannerWarnings: warnings})
+	updated, err := runtime.Store().UpdateTask(ctx, task.ID, TaskPatchRequest{Description: &description, Status: &status, Order: new(3), AgentRole: new("验证 Agent"), PlannerWarnings: warnings})
 	if err != nil {
 		t.Fatalf("UpdateTask: %v", err)
 	}

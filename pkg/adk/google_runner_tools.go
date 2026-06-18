@@ -11,7 +11,7 @@ import (
 	adkagent "google.golang.org/adk/agent"
 	adkmodel "google.golang.org/adk/model"
 	adktool "google.golang.org/adk/tool"
-	skilltoolset "google.golang.org/adk/tool/skilltoolset"
+	"google.golang.org/adk/tool/skilltoolset"
 	adkskill "google.golang.org/adk/tool/skilltoolset/skill"
 	"google.golang.org/genai"
 )

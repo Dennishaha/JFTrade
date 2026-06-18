@@ -13,6 +13,7 @@ import (
 	"runtime/debug"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	bbgotypes "github.com/c9s/bbgo/pkg/types"
@@ -186,6 +187,7 @@ type Service struct {
 	lifecycleCancel context.CancelFunc
 	lifecycleTasks  sync.WaitGroup
 	closed          bool
+	syncTaskSeq     uint64
 
 	// 回测数据库文件路径提供者
 	dbPathFn func() string
@@ -382,7 +384,7 @@ func (s *Service) executeBacktest(
 	}
 
 	status := "completed"
-	if ctx.Err() == context.Canceled {
+	if errors.Is(ctx.Err(), context.Canceled) {
 		status = "cancelled"
 	} else if strings.TrimSpace(result.Error) != "" {
 		status = "failed"
@@ -532,7 +534,7 @@ func (s *Service) Sync(ctx context.Context, req SyncRequest) (*SyncStarted, erro
 		return nil, fmt.Errorf("open kline sync adapter: %w", err)
 	}
 
-	taskID := fmt.Sprintf("sync-%s", time.Now().UTC().Format("20060102T150405.000000000"))
+	taskID := fmt.Sprintf("sync-%s-%d", time.Now().UTC().Format("20060102T150405.000000000"), atomic.AddUint64(&s.syncTaskSeq, 1))
 	progress := bt.NewSyncProgress(taskID, req.Symbol, time.Now().UTC())
 
 	if s.syncTasks == nil {

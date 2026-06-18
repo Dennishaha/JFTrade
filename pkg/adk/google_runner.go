@@ -1419,7 +1419,6 @@ func (e *googleADKExecution) markPostToolTextForRun(runID string) {
 
 func (e *googleADKExecution) emitRunSnapshotLocked() {
 	for _, runID := range e.snapshotRunIDsLocked() {
-		run := e.runSnapshotLocked(runID, false)
 		if e.persistRunSnapshot != nil {
 			persisted := e.runSnapshotLocked(runID, true)
 			if persisted.Status == RunStatusRunning || persisted.Status == RunStatusPending {
@@ -1435,7 +1434,7 @@ func (e *googleADKExecution) emitRunSnapshotLocked() {
 			_ = e.persistRunSnapshot(persisted)
 		}
 		if e.onDelta != nil {
-			_ = e.onDelta(ChatDelta{Run: &run})
+			_ = e.onDelta(ChatDelta{Run: new(e.runSnapshotLocked(runID, false))})
 		}
 	}
 }

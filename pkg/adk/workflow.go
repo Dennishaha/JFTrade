@@ -333,8 +333,8 @@ func (e *WorkflowExecutor) runWorkflowOrchestrator(ctx context.Context, req work
 				}
 				parent = e.mergeChildResultAt(ctx, parent, result.Response.Run, workflowPlanIndexForTask(parent.WorkflowPlan, task.ID))
 				_, _ = e.runtime.store.UpdateTask(ctx, task.ID, TaskPatchRequest{
-					Executor:      stringPtr(workflowTaskExecutorChild),
-					ResultSummary: stringPtr(strings.TrimSpace(result.Response.Reply)),
+					Executor:      new(workflowTaskExecutorChild),
+					ResultSummary: new(strings.TrimSpace(result.Response.Reply)),
 				})
 				if result.Response.Run.Status == RunStatusPending {
 					parent = pauseParentForChild(parent, result.Response.Run, workflowPlanIndexForTask(parent.WorkflowPlan, task.ID))
@@ -383,9 +383,7 @@ func (e *WorkflowExecutor) runWorkflowOrchestrator(ctx context.Context, req work
 
 func (e *WorkflowExecutor) runPlannedGoogleADKWorkflow(ctx context.Context, req workflowRequest, parent Run, steps []workflowStep, tasks []Task) (ChatResponse, error) {
 	childRuns, finishes, err := e.startWorkflowChildRuns(ctx, req, parent, steps, tasks)
-	for _, finish := range finishes {
-		defer finish()
-	}
+	defer finishWorkflowChildren(finishes)
 	if err != nil {
 		parent = e.failParent(ctx, parent, err)
 		return e.workflowResponse(ctx, req.Session, parent, openAIChatResult{Reply: parent.FailureReason}), nil
@@ -496,12 +494,18 @@ func (e *WorkflowExecutor) runPlannedGoogleADKWorkflow(ctx context.Context, req 
 	return e.workflowResponse(ctx, req.Session, parent, openAIChatResult{Reply: workflowSummary(parent, replies)}), nil
 }
 
+func finishWorkflowChildren(finishes []func()) {
+	for _, finish := range finishes {
+		finish()
+	}
+}
+
 func (e *WorkflowExecutor) startWorkflowChildRuns(ctx context.Context, req workflowRequest, parent Run, steps []workflowStep, tasks []Task) ([]Run, []func(), error) {
 	childRuns := make([]Run, 0, len(steps))
 	finishes := make([]func(), 0, len(steps))
 	for index, step := range steps {
 		if index < len(tasks) {
-			_, _ = e.runtime.store.UpdateTask(ctx, tasks[index].ID, TaskPatchRequest{Status: stringPtr("IN_PROGRESS")})
+			_, _ = e.runtime.store.UpdateTask(ctx, tasks[index].ID, TaskPatchRequest{Status: new("IN_PROGRESS")})
 		}
 		childAgent := req.Agent
 		childAgent.WorkMode = WorkModeChat
@@ -586,7 +590,7 @@ func (e *WorkflowExecutor) failWorkflowChildAfterMissingFinal(
 }
 
 func (e *WorkflowExecutor) runChild(ctx context.Context, req workflowRequest, parent Run, step workflowStep, task Task, iteration int) workflowChildResult {
-	_, _ = e.runtime.store.UpdateTask(ctx, task.ID, TaskPatchRequest{Status: stringPtr("IN_PROGRESS"), Executor: stringPtr(workflowTaskExecutorChild)})
+	_, _ = e.runtime.store.UpdateTask(ctx, task.ID, TaskPatchRequest{Status: new("IN_PROGRESS"), Executor: new(workflowTaskExecutorChild)})
 	childAgent := req.Agent
 	childAgent.WorkMode = WorkModeChat
 	child, childCtx, finishChild, err := e.runtime.startRunWithOptions(ctx, req.Session.ID, childAgent, step.Message, runStartOptions{
@@ -596,7 +600,7 @@ func (e *WorkflowExecutor) runChild(ctx context.Context, req workflowRequest, pa
 		Iteration:   iteration,
 	})
 	if err != nil {
-		_, _ = e.runtime.store.UpdateTask(ctx, task.ID, TaskPatchRequest{Status: stringPtr("BLOCKED"), RunID: stringPtr(parent.ID)})
+		_, _ = e.runtime.store.UpdateTask(ctx, task.ID, TaskPatchRequest{Status: new("BLOCKED"), RunID: new(parent.ID)})
 		return workflowChildResult{Index: iteration - 1, TaskID: task.ID, Err: err}
 	}
 	defer finishChild()
@@ -623,7 +627,7 @@ func (e *WorkflowExecutor) runChild(ctx context.Context, req workflowRequest, pa
 	response, err := e.runtime.completeChatRun(ctx, childSession, child, step.Message, toolContext, approvals, replyResult, adkErr)
 	e.runtime.workflowChildMu.Unlock()
 	if err != nil {
-		_, _ = e.runtime.store.UpdateTask(ctx, task.ID, TaskPatchRequest{Status: stringPtr("BLOCKED")})
+		_, _ = e.runtime.store.UpdateTask(ctx, task.ID, TaskPatchRequest{Status: new("BLOCKED")})
 		return workflowChildResult{Index: iteration - 1, TaskID: task.ID, Response: response, Err: err}
 	}
 	status := "DONE"
@@ -633,24 +637,23 @@ func (e *WorkflowExecutor) runChild(ctx context.Context, req workflowRequest, pa
 	_, _ = e.runtime.store.UpdateTask(ctx, task.ID, TaskPatchRequest{
 		Status:        &status,
 		RunID:         &response.Run.ID,
-		Executor:      stringPtr(workflowTaskExecutorChild),
-		ResultSummary: stringPtr(strings.TrimSpace(response.Reply)),
+		Executor:      new(workflowTaskExecutorChild),
+		ResultSummary: new(strings.TrimSpace(response.Reply)),
 	})
 	return workflowChildResult{Index: iteration - 1, TaskID: task.ID, Response: response}
 }
 
 func (e *WorkflowExecutor) runSelfTask(ctx context.Context, req workflowRequest, parent Run, task Task) (Run, string, bool, error) {
 	_, _ = e.runtime.store.UpdateTask(ctx, task.ID, TaskPatchRequest{
-		Status:   stringPtr("IN_PROGRESS"),
-		Executor: stringPtr(workflowTaskExecutorSelf),
+		Status:   new("IN_PROGRESS"),
+		Executor: new(workflowTaskExecutorSelf),
 	})
 	if strings.Contains(req.Message, "@") {
 		summary := workflowSelfTaskSummary(task)
-		status := "DONE"
 		_, err := e.runtime.store.UpdateTask(ctx, task.ID, TaskPatchRequest{
-			Status:        &status,
-			Executor:      stringPtr(workflowTaskExecutorSelf),
-			ResultSummary: stringPtr(summary),
+			Status:        new("DONE"),
+			Executor:      new(workflowTaskExecutorSelf),
+			ResultSummary: new(summary),
 		})
 		if err != nil {
 			return parent, "", false, err
@@ -686,17 +689,17 @@ func (e *WorkflowExecutor) runSelfTask(ctx context.Context, req workflowRequest,
 		parent.Message = "等待用户审批后继续执行。"
 		parent.PendingApprovals = pendingApprovalsOnly(approvals)
 		_, _ = e.runtime.store.UpdateTask(ctx, task.ID, TaskPatchRequest{
-			Status:        stringPtr("BLOCKED"),
-			Executor:      stringPtr(workflowTaskExecutorSelf),
-			ResultSummary: stringPtr(parent.Message),
+			Status:        new("BLOCKED"),
+			Executor:      new(workflowTaskExecutorSelf),
+			ResultSummary: new(parent.Message),
 		})
 		return parent, parent.Message, true, nil
 	}
 	if adkErr != nil {
 		_, _ = e.runtime.store.UpdateTask(ctx, task.ID, TaskPatchRequest{
-			Status:        stringPtr("BLOCKED"),
-			Executor:      stringPtr(workflowTaskExecutorSelf),
-			ResultSummary: stringPtr(adkErr.Error()),
+			Status:        new("BLOCKED"),
+			Executor:      new(workflowTaskExecutorSelf),
+			ResultSummary: new(adkErr.Error()),
 		})
 		return parent, "", false, adkErr
 	}
@@ -704,11 +707,10 @@ func (e *WorkflowExecutor) runSelfTask(ctx context.Context, req workflowRequest,
 	if reply == "" {
 		return parent, "", false, errADKMissingFinalReply()
 	}
-	status := "DONE"
 	_, err := e.runtime.store.UpdateTask(ctx, task.ID, TaskPatchRequest{
-		Status:        &status,
-		Executor:      stringPtr(workflowTaskExecutorSelf),
-		ResultSummary: stringPtr(reply),
+		Status:        new("DONE"),
+		Executor:      new(workflowTaskExecutorSelf),
+		ResultSummary: new(reply),
 	})
 	if err != nil {
 		return parent, "", false, err
@@ -729,8 +731,7 @@ func emitWorkflowRunSnapshot(req workflowRequest, run Run) error {
 	if !req.EmitRun || req.OnDelta == nil {
 		return nil
 	}
-	snapshot := NormalizeRun(run)
-	return req.OnDelta(ChatDelta{Run: &snapshot})
+	return req.OnDelta(ChatDelta{Run: new(NormalizeRun(run))})
 }
 
 func (e *WorkflowExecutor) mergeChildResult(ctx context.Context, parent Run, child Run) Run {

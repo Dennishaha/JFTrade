@@ -63,7 +63,7 @@ func TestBacktestSlippagePriceUsesMarketTickSize(t *testing.T) {
 }
 
 func TestRunAppliesPineInitialCapitalCommissionAndSlippage(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+	isolateBacktestHome(t)
 	dbPath, startTime, endTime := seedStrategyBlockBenchmarkStore(t)
 	restoreLogs := suppressBacktestRunLogs(t)
 	defer restoreLogs()

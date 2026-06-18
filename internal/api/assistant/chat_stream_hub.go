@@ -242,8 +242,7 @@ func (h *Handler) executeADKChatStream(record *adkChatStreamRecord, payload jfad
 			}
 		}
 		if delta.Run != nil {
-			normalizedRun := jfadk.NormalizeRun(*delta.Run)
-			delta.Run = &normalizedRun
+			delta.Run = new(jfadk.NormalizeRun(*delta.Run))
 			timelineState.observeRun(delta.Run)
 			publish(adkChatStreamEvent{Type: "run", Run: delta.Run})
 			if timeline := timelineState.toolGroupSnapshot(); timeline != nil {
@@ -297,7 +296,7 @@ func (h *Handler) executeADKChatStream(record *adkChatStreamRecord, payload jfad
 	for i := range trimmedRun.ToolCalls {
 		trimmedRun.ToolCalls[i].Output = nil
 	}
-	normalizedResponse := jfadk.NormalizeChatResponse(jfadk.ChatResponse{
+	publish(adkChatStreamEvent{Type: "final", Response: new(jfadk.NormalizeChatResponse(jfadk.ChatResponse{
 		Reply:            response.Reply,
 		ReasoningContent: response.ReasoningContent,
 		Session:          response.Session,
@@ -305,8 +304,7 @@ func (h *Handler) executeADKChatStream(record *adkChatStreamRecord, payload jfad
 		PendingApprovals: response.PendingApprovals,
 		Timeline:         response.Timeline,
 		Context:          response.Context,
-	})
-	publish(adkChatStreamEvent{Type: "final", Response: &normalizedResponse})
+	}))})
 }
 
 func (h *Handler) streamADKChatRecord(c *gin.Context, writer httpserver.SSEWriter, record *adkChatStreamRecord, after int64, replay bool) {

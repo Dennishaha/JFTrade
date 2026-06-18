@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -127,7 +128,7 @@ func (r *SkillRegistry) Get(ctx context.Context, id string) (Skill, bool, error)
 	}
 	fm, err := source.LoadFrontmatter(ctx, strings.TrimSpace(id))
 	if err != nil {
-		if err == adkskill.ErrSkillNotFound {
+		if errors.Is(err, adkskill.ErrSkillNotFound) {
 			return Skill{}, false, nil
 		}
 		return Skill{}, false, err
@@ -153,7 +154,7 @@ func (r *SkillRegistry) Source(ctx context.Context, names []string) (adkskill.So
 	}
 	for _, name := range allowed {
 		if _, err := source.LoadFrontmatter(ctx, name); err != nil {
-			if err == adkskill.ErrSkillNotFound {
+			if errors.Is(err, adkskill.ErrSkillNotFound) {
 				return nil, fmt.Errorf("skill not found: %s", name)
 			}
 			return nil, err
