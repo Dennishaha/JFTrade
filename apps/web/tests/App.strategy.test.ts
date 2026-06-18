@@ -1607,10 +1607,10 @@ describe("Strategy page", () => {
       .trigger("click");
     await flushRequests();
 
-    await router.push("/overview");
+    await router.push("/route-leave-target");
     await flushRequests();
 
-    expect(router.currentRoute.value.path).toBe("/overview");
+    expect(router.currentRoute.value.path).toBe("/route-leave-target");
     expect(confirmMock).toHaveBeenCalledTimes(2);
 
     wrapper.unmount();

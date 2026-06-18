@@ -60,9 +60,9 @@ const StrategyPageTestRoot = defineComponent({
   },
 })
 
-const OverviewTestPage = defineComponent({
+const RouteLeaveTargetPage = defineComponent({
   setup() {
-    return () => h("div", "Overview")
+    return () => h("div", "Route leave target")
   },
 })
 
@@ -71,7 +71,7 @@ export async function mountStrategyPage(path = "/strategy") {
     history: createMemoryHistory(),
     routes: [
       { path: "/strategy", component: StrategyPage as never },
-      { path: "/overview", component: OverviewTestPage as never },
+      { path: "/route-leave-target", component: RouteLeaveTargetPage as never },
     ],
   })
   await router.push(path)

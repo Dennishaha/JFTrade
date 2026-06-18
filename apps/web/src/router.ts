@@ -25,11 +25,6 @@ export function createConsoleRouter(
         meta: { title: "交易" },
       },
       {
-        path: "/overview",
-        component: () => import("./pages/OverviewPage.vue"),
-        meta: { title: "概览" },
-      },
-      {
         path: "/system",
         component: () => import("./pages/SystemPage.vue"),
         meta: { title: "系统" },
@@ -57,11 +52,6 @@ export function createConsoleRouter(
         redirect: "/account",
       },
       {
-        path: "/market",
-        component: () => import("./pages/MarketPage.vue"),
-        meta: { title: "行情" },
-      },
-      {
         path: "/strategy",
         component: () => import("./pages/StrategyPage.vue"),
         meta: { title: "策略" },
@@ -70,11 +60,6 @@ export function createConsoleRouter(
         path: "/adk",
         component: () => import("./pages/ADKPage.vue"),
         meta: { title: "Agents" },
-      },
-      {
-        path: "/risk",
-        component: () => import("./pages/RiskPage.vue"),
-        meta: { title: "风控" },
       },
       {
         path: "/backtest",

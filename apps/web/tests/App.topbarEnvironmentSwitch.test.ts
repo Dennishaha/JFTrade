@@ -33,6 +33,12 @@ import {
   mountApp,
 } from "./helpers";
 
+async function waitForShellData(): Promise<void> {
+  await flushRequests();
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  await flushRequests();
+}
+
 afterEach(() => {
   vi.unstubAllGlobals();
   MockWebSocket.instances = [];
@@ -209,8 +215,8 @@ describe("TopBar trading environment switch", () => {
       MockWebSocket as unknown as typeof WebSocket,
     );
 
-    const { wrapper } = await mountApp("/overview");
-    await flushRequests();
+    const { wrapper } = await mountApp("/test-shell-only");
+    await waitForShellData();
 
     const pickerOpenButton = wrapper.get(
       '[data-testid="topbar-broker-account-picker-open"]',
@@ -461,8 +467,8 @@ describe("TopBar trading environment switch", () => {
       MockWebSocket as unknown as typeof WebSocket,
     );
 
-    const { wrapper } = await mountApp("/overview");
-    await flushRequests();
+    const { wrapper } = await mountApp("/test-shell-only");
+    await waitForShellData();
 
     const pickerOpenButton = wrapper.get(
       '[data-testid="topbar-broker-account-picker-open"]',
@@ -631,14 +637,15 @@ describe("TopBar trading environment switch", () => {
       MockWebSocket as unknown as typeof WebSocket,
     );
 
-    const { wrapper } = await mountApp("/overview");
+    const { wrapper } = await mountApp("/test-shell-only");
+    await waitForShellData();
 
     const codeInput = wrapper.get(
       '[data-testid="topbar-instrument-code"]',
     );
 
     await codeInput.setValue("aapl");
-    await codeInput.trigger("keydown.enter");
+    await wrapper.get('[data-testid="topbar-instrument-form"]').trigger("submit");
     await flushRequests();
 
     const storedPrefs = JSON.parse(

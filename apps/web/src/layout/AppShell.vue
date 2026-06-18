@@ -100,13 +100,10 @@ watch(
 
 const navTargets = [
   { id: "nav.workspace", label: "打开交易工作台", to: "/workspace" },
-  { id: "nav.overview", label: "打开概览", to: "/overview" },
-  { id: "nav.market", label: "打开行情", to: "/market" },
   { id: "nav.strategy", label: "打开策略", to: "/strategy" },
   { id: "nav.adk", label: "打开 Agents", to: "/adk" },
   { id: "nav.backtest", label: "打开回测", to: "/backtest" },
   { id: "nav.account", label: "打开我的账户", to: "/account" },
-  { id: "nav.risk", label: "打开风控", to: "/risk" },
   { id: "nav.system", label: "打开系统", to: "/system" },
   { id: "nav.settings", label: "打开设置", to: "/settings" },
 ];
