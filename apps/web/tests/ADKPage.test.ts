@@ -84,10 +84,10 @@ describe("ADKPage", () => {
         tools: [
           "strategy.pine_spec",
           "strategy.validate_pine",
-          "strategy.save_definition",
-          "strategy.update_instance_mode",
+          "strategy.research_backtest",
+          "backtest.result_view",
         ],
-        skills: ["jftrade-strategy"],
+        skills: ["jftrade-strategy-research"],
       },
     });
     await flushRequests();

@@ -218,4 +218,30 @@ func TestSkillResourcesContainSpecAndExamples(t *testing.T) {
 	if !strings.Contains(examples, "## v1.7 黄金脚本") || !strings.Contains(examples, "### UDF 与静态 for") || !strings.Contains(examples, "### v1.4 MTF 纯表达式") || !strings.Contains(examples, "### v1.5 MTF common TA") || !strings.Contains(examples, "### v1.6 MTF tuple 白名单") || !strings.Contains(examples, "### v1.7 Semantic 过渡") {
 		t.Fatalf("examples resource missing golden scripts: %q", examples)
 	}
+	if cheatsheet := files["references/pine-v6-cheatsheet.md"]; !strings.Contains(cheatsheet, "# JFTrade Pine v6 快速参考") {
+		t.Fatalf("cheatsheet resource missing heading: %q", cheatsheet)
+	}
+	researchFiles := ResearchSkillResourceFiles()
+	if workflow := researchFiles["references/strategy-research-workflow.md"]; !strings.Contains(workflow, "strategy.research_backtest") || !strings.Contains(workflow, "backtest.result_view") {
+		t.Fatalf("research workflow missing research tool routing: %q", workflow)
+	}
+	publishFiles := PublishSkillResourceFiles()
+	if checklist := publishFiles["references/strategy-publish-checklist.md"]; !strings.Contains(checklist, "strategy.save_definition") || !strings.Contains(checklist, "strategy.validate_pine") {
+		t.Fatalf("publish checklist missing save validation flow: %q", checklist)
+	}
+	if containsString(ResearchSkillAllowedTools(), "strategy.save_definition") {
+		t.Fatalf("research skill should not expose save_definition")
+	}
+	if containsString(PublishSkillAllowedTools(), "strategy.research_backtest") {
+		t.Fatalf("publish skill should not expose research_backtest")
+	}
+}
+
+func containsString(values []string, target string) bool {
+	for _, value := range values {
+		if value == target {
+			return true
+		}
+	}
+	return false
 }

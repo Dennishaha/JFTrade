@@ -2,6 +2,9 @@ package servercore
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -59,6 +62,8 @@ type ToolDeps struct {
 	UpdateStrategyInstanceMode func(instanceID string, executionMode string) (any, error)
 	ListBacktestRuns           func() []BacktestRunSummary
 	EnqueueBacktest            func(BacktestStartInput) (BacktestRunRef, error)
+	StartResearchBacktest      func(ResearchBacktestInput) (BacktestRunSummary, error)
+	BacktestResultView         func(BacktestResultViewInput) (any, error)
 	CancelBacktest             func(string)
 	RecordAudit                func(context.Context, string, string, string, map[string]any)
 }
@@ -107,6 +112,18 @@ type StrategyDefinitionInput struct {
 type BacktestStartInput struct {
 	DefinitionID, Market, Symbol, Code, Interval, StartTime, EndTime, RehabType string
 	InitialBalance                                                              float64
+}
+
+type ResearchBacktestInput struct {
+	Script, Market, Symbol, Code, Interval, StartTime, EndTime, RehabType string
+	InitialBalance                                                        float64
+	UseExtendedHours                                                      *bool
+}
+
+type BacktestResultViewInput struct {
+	RunID, View, Resolution, StartTime, EndTime, Cursor string
+	Include                                             []string
+	Limit                                               int
 }
 
 type BacktestRunRef struct {
@@ -283,6 +300,69 @@ func registerJFTradeADKStrategyTools(store *jfadk.Store, registry *jfadk.ToolReg
 	registry.Register(jfadk.ToolDescriptor{Name: "strategy.validate_pine", DisplayName: "校验 Pine", Description: "校验 Pine Script v6 是否可被当前 parser、lowerer、planner 和 runtime 接受，并返回结构化元数据、warnings 与 requirements。", Category: "strategy", Permission: "read_internal", OutputSummary: "校验结果、元数据、hooks、warnings、编译后的 requirements，以及失败时的保存提示。"}, func(_ context.Context, input map[string]any) (any, error) {
 		return StrategyValidatePineToolPayload(input), nil
 	})
+	registry.Register(jfadk.ToolDescriptor{Name: "strategy.research_backtest", DisplayName: "策略研究回测", Description: "用临时 Pine Script v6 脚本进行研究回测；会先校验脚本并启动临时回测，但不会保存策略草稿或定义。", Category: "strategy", Permission: "optimize_strategy", RequiresApprovalIn: []string{jfadk.PermissionModeApproval}, OutputSummary: "临时回测 runId、状态、脚本 hash、校验摘要和可选结果视图。"}, func(ctx context.Context, input map[string]any) (any, error) {
+		if deps.StartResearchBacktest == nil {
+			return nil, fmt.Errorf("research backtest is unavailable")
+		}
+		script := strings.TrimSpace(stringValue(input, "script"))
+		validation, err := ValidateADKStrategyScript("strategy.research_backtest", script)
+		if err != nil {
+			return nil, err
+		}
+		run, err := deps.StartResearchBacktest(ResearchBacktestInput{
+			Script:           validation.NormalizedScript,
+			Market:           stringValue(input, "market"),
+			Symbol:           stringValue(input, "symbol"),
+			Code:             stringValue(input, "code"),
+			Interval:         stringOrDefault(stringValue(input, "interval"), "1m"),
+			StartTime:        stringValue(input, "startTime"),
+			EndTime:          stringValue(input, "endTime"),
+			InitialBalance:   floatValue(input, "initialBalance", 0),
+			RehabType:        stringOrDefault(stringValue(input, "rehabType"), "forward"),
+			UseExtendedHours: optionalBoolInput(input, "useExtendedHours"),
+		})
+		if err != nil {
+			return nil, err
+		}
+		waitMs := intValue(input, "waitForCompletionMs", 0)
+		if waitMs > 25000 {
+			waitMs = 25000
+		}
+		if waitMs > 0 && deps.BacktestResultView != nil {
+			run.Status = waitForADKBacktestStatus(ctx, deps, run.ID, waitMs, run.Status)
+		}
+		viewInput := backtestResultViewInputFromNested(input["resultView"])
+		if viewInput.View == "" {
+			viewInput.View = "summary"
+		}
+		viewInput.RunID = run.ID
+		var viewOutput any
+		var viewErr error
+		if deps.BacktestResultView != nil {
+			viewOutput, viewErr = deps.BacktestResultView(viewInput)
+			if status := statusFromBacktestResultView(viewOutput); status != "" {
+				run.Status = status
+			}
+		}
+		payload := map[string]any{
+			"ok":         true,
+			"status":     run.Status,
+			"runId":      run.ID,
+			"scriptHash": researchScriptHash(validation.NormalizedScript),
+			"validation": map[string]any{
+				"metadata": strategyMetadataPayload(validation.Program),
+				"hooks":    BuildCompiledHookKinds(validation.Program),
+				"warnings": validation.Warnings,
+			},
+			"saveRecommendation": "仅当用户明确要求保存/发布/更新策略定义时，再调用 strategy.save_definition。",
+		}
+		if viewErr != nil {
+			payload["resultViewError"] = viewErr.Error()
+		} else if viewOutput != nil {
+			payload["resultView"] = viewOutput
+		}
+		return payload, nil
+	})
 	registry.Register(jfadk.ToolDescriptor{Name: "strategy.save_draft", DisplayName: "保存策略草稿", Description: "把 agent 生成的 Pine Script v6 策略脚本保存为策略定义草稿。", Category: "strategy", Permission: "write_strategy", RequiresApprovalIn: []string{jfadk.PermissionModeApproval}, OutputSummary: "保存后的策略定义。"}, func(_ context.Context, input map[string]any) (any, error) {
 		script := strings.TrimSpace(stringValue(input, "script"))
 		if script == "" {
@@ -332,6 +412,16 @@ func registerJFTradeADKStrategyTools(store *jfadk.Store, registry *jfadk.ToolReg
 	})
 	registry.Register(jfadk.ToolDescriptor{Name: "backtest.runs", DisplayName: "回测结果", Description: "读取最近回测运行结果。", Category: "strategy", Permission: "read_internal", OutputSummary: "最近回测运行和数量。"}, func(context.Context, map[string]any) (any, error) {
 		return SummarizeADKBacktestRuns(deps.ListBacktestRuns()), nil
+	})
+	registry.Register(jfadk.ToolDescriptor{Name: "backtest.result_view", DisplayName: "回测结果视图", Description: "按 runId 同步读取回测摘要、图表窗口、订单、日志或错误；支持按时间范围、精度和 limit 多次查询。", Category: "strategy", Permission: "read_internal", OutputSummary: "指定回测 run 的轻量摘要或窗口化结果序列。"}, func(_ context.Context, input map[string]any) (any, error) {
+		if deps.BacktestResultView == nil {
+			return nil, fmt.Errorf("backtest result view is unavailable")
+		}
+		viewInput := backtestResultViewInputFromMap(input)
+		if strings.TrimSpace(viewInput.RunID) == "" {
+			return nil, fmt.Errorf("runId is required")
+		}
+		return deps.BacktestResultView(viewInput)
 	})
 	registry.Register(jfadk.ToolDescriptor{Name: "strategy.optimize", DisplayName: "策略优化", Description: "为多个候选策略定义创建真实异步回测任务，并返回任务引用。", Category: "strategy", Permission: "optimize_strategy", RequiresApprovalIn: []string{jfadk.PermissionModeApproval}, OutputSummary: "优化任务 ID 与候选回测 Run。"}, func(_ context.Context, input map[string]any) (any, error) {
 		definitionIDs := stringSliceValue(input, "definitionIds")
@@ -692,6 +782,117 @@ func summarizeADKBacktestRun(run BacktestRunSummary) map[string]any {
 	return summary
 }
 
+func researchScriptHash(script string) string {
+	hash := sha256.Sum256([]byte(strings.TrimSpace(script)))
+	return hex.EncodeToString(hash[:])[:16]
+}
+
+func optionalBoolInput(input map[string]any, key string) *bool {
+	value, ok := input[key]
+	if !ok {
+		return nil
+	}
+	switch typed := value.(type) {
+	case bool:
+		return &typed
+	case string:
+		trimmed := strings.TrimSpace(typed)
+		if trimmed == "" {
+			return nil
+		}
+		parsed := strings.EqualFold(trimmed, "true") || strings.EqualFold(trimmed, "yes") || trimmed == "1"
+		return &parsed
+	case float64:
+		parsed := typed != 0
+		return &parsed
+	case int:
+		parsed := typed != 0
+		return &parsed
+	default:
+		return nil
+	}
+}
+
+func backtestResultViewInputFromNested(value any) BacktestResultViewInput {
+	if value == nil {
+		return BacktestResultViewInput{}
+	}
+	if typed, ok := value.(map[string]any); ok {
+		return backtestResultViewInputFromMap(typed)
+	}
+	data, err := json.Marshal(value)
+	if err != nil {
+		return BacktestResultViewInput{}
+	}
+	var raw map[string]any
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return BacktestResultViewInput{}
+	}
+	return backtestResultViewInputFromMap(raw)
+}
+
+func backtestResultViewInputFromMap(input map[string]any) BacktestResultViewInput {
+	return BacktestResultViewInput{
+		RunID:      stringValue(input, "runId"),
+		View:       stringValue(input, "view"),
+		Resolution: stringValue(input, "resolution"),
+		StartTime:  stringValue(input, "startTime"),
+		EndTime:    stringValue(input, "endTime"),
+		Include:    stringSliceOrCSVValue(input, "include"),
+		Limit:      intValue(input, "limit", 0),
+		Cursor:     stringValue(input, "cursor"),
+	}
+}
+
+func waitForADKBacktestStatus(ctx context.Context, deps ToolDeps, runID string, waitMs int, initialStatus string) string {
+	if deps.BacktestResultView == nil || strings.TrimSpace(runID) == "" || waitMs <= 0 {
+		return initialStatus
+	}
+	status := initialStatus
+	deadline := time.NewTimer(time.Duration(waitMs) * time.Millisecond)
+	defer deadline.Stop()
+	ticker := time.NewTicker(250 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		if view, err := deps.BacktestResultView(BacktestResultViewInput{RunID: runID, View: "summary", Limit: 1}); err == nil {
+			if next := statusFromBacktestResultView(view); next != "" {
+				status = next
+				if isTerminalBacktestStatus(next) {
+					return status
+				}
+			}
+		}
+		select {
+		case <-ctx.Done():
+			return status
+		case <-deadline.C:
+			return status
+		case <-ticker.C:
+		}
+	}
+}
+
+func statusFromBacktestResultView(value any) string {
+	payload, ok := value.(map[string]any)
+	if !ok {
+		return ""
+	}
+	runValue, ok := payload["run"].(map[string]any)
+	if !ok {
+		return ""
+	}
+	return strings.TrimSpace(fmt.Sprint(runValue["status"]))
+}
+
+func isTerminalBacktestStatus(status string) bool {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "completed", "failed", "cancelled":
+		return true
+	default:
+		return false
+	}
+}
+
 func brokerReadInput(input map[string]any, deps ToolDeps, defaultScope string) BrokerReadInput {
 	market := stringValue(input, "market")
 	if market == "" && deps.DefaultTradeMarket != nil {
@@ -829,6 +1030,26 @@ func stringSliceValue(input map[string]any, key string) []string {
 	for _, value := range values {
 		if text, ok := value.(string); ok && strings.TrimSpace(text) != "" {
 			out = append(out, strings.TrimSpace(text))
+		}
+	}
+	return out
+}
+
+func stringSliceOrCSVValue(input map[string]any, key string) []string {
+	if values := stringSliceValue(input, key); len(values) > 0 {
+		return values
+	}
+	raw := strings.TrimSpace(stringValue(input, key))
+	if raw == "" {
+		return nil
+	}
+	parts := strings.FieldsFunc(raw, func(r rune) bool {
+		return r == ',' || r == '，' || r == ';' || r == '；' || r == '\n' || r == '\t'
+	})
+	out := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if item := strings.TrimSpace(part); item != "" {
+			out = append(out, item)
 		}
 	}
 	return out

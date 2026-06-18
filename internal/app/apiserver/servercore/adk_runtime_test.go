@@ -531,3 +531,128 @@ func TestADKBacktestRunsToolReturnsSeriesCountsInsteadOfFullArrays(t *testing.T)
 		t.Fatalf("latestLog = %#v, want line 2", got)
 	}
 }
+
+func TestADKStrategyResearchBacktestToolStartsTransientRun(t *testing.T) {
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	server := newTestServer(t, store)
+
+	tool, ok := server.adkRuntime.Tools().Get("strategy.research_backtest")
+	if !ok {
+		t.Fatal("strategy.research_backtest tool not registered")
+	}
+	if tool.Descriptor.Permission != "optimize_strategy" {
+		t.Fatalf("descriptor permission = %q, want optimize_strategy", tool.Descriptor.Permission)
+	}
+	before := len(server.designStore.listDefinitions())
+	output, err := tool.Handler(context.Background(), map[string]any{
+		"script":     strategypinespec.Skeleton(),
+		"market":     "US",
+		"symbol":     "US.TME",
+		"interval":   "1m",
+		"startTime":  "2025-01-01T00:00:00Z",
+		"endTime":    "2025-01-02T00:00:00Z",
+		"resultView": map[string]any{"view": "summary"},
+	})
+	if err != nil {
+		t.Fatalf("tool.Handler: %v", err)
+	}
+	payload, ok := output.(map[string]any)
+	if !ok {
+		t.Fatalf("tool output type = %T, want map", output)
+	}
+	if got := payload["ok"]; got != true {
+		t.Fatalf("ok = %#v, want true", got)
+	}
+	runID, _ := payload["runId"].(string)
+	if !strings.HasPrefix(runID, "bt-") {
+		t.Fatalf("runId = %#v, want bt- prefix", payload["runId"])
+	}
+	if after := len(server.designStore.listDefinitions()); after != before {
+		t.Fatalf("strategy definitions count = %d, want unchanged %d", after, before)
+	}
+	status, ok := server.backtestRuns.get(runID)
+	if !ok {
+		t.Fatalf("transient run %q not found", runID)
+	}
+	if !strings.HasPrefix(status.Request.DefinitionID, "adk-research-") {
+		t.Fatalf("definitionId = %q, want transient research id", status.Request.DefinitionID)
+	}
+	if strings.Contains(status.Request.DefinitionID, "Minimal Draft") {
+		t.Fatalf("definitionId leaked strategy name: %q", status.Request.DefinitionID)
+	}
+}
+
+func TestADKBacktestResultViewToolReturnsBoundedChartWindow(t *testing.T) {
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	server := newTestServer(t, store)
+
+	run := &backtestRunState{
+		ID:     "bt-view",
+		Status: "completed",
+		Request: backtestStartRequest{
+			DefinitionID:   "dsl-demo",
+			Market:         "US",
+			Code:           "TME",
+			Symbol:         "US.TME",
+			Interval:       "1m",
+			StartTime:      "2025-01-01T00:00:00Z",
+			EndTime:        "2025-01-01T00:10:00Z",
+			InitialBalance: 100000,
+			RehabType:      "forward",
+		},
+		Result: &backtest.RunResult{
+			QuoteCurrency: "USD",
+			FinalBalance:  100200,
+			PnL:           200,
+			Candles: []backtest.Candle{
+				{Time: "2025-01-01T00:00:00Z", Open: "10", High: "11", Low: "9", Close: "10.5", Volume: "100"},
+				{Time: "2025-01-01T00:01:00Z", Open: "10.5", High: "12", Low: "10", Close: "11.5", Volume: "200"},
+				{Time: "2025-01-01T00:02:00Z", Open: "11.5", High: "13", Low: "11", Close: "12.5", Volume: "300"},
+			},
+			Trades: []backtest.TradeEvent{{Time: "2025-01-01T00:01:00Z", Side: "BUY", Price: "11", Qty: "1"}},
+		},
+		CreatedAt: "2025-01-01T00:00:00Z",
+		UpdatedAt: "2025-01-01T00:10:00Z",
+	}
+	if err := server.backtestRuns.add(run); err != nil {
+		t.Fatalf("backtestRuns.add: %v", err)
+	}
+
+	tool, ok := server.adkRuntime.Tools().Get("backtest.result_view")
+	if !ok {
+		t.Fatal("backtest.result_view tool not registered")
+	}
+	output, err := tool.Handler(context.Background(), map[string]any{
+		"runId":      "bt-view",
+		"view":       "chart",
+		"resolution": "2m",
+		"include":    []any{"candles", "trades"},
+		"limit":      float64(1),
+	})
+	if err != nil {
+		t.Fatalf("tool.Handler: %v", err)
+	}
+	payload, ok := output.(map[string]any)
+	if !ok {
+		t.Fatalf("tool output type = %T, want map", output)
+	}
+	window := payload["window"].(map[string]any)
+	if window["resolution"] != "2m" || window["truncated"] != true || window["nextCursor"] != "1" {
+		t.Fatalf("window = %#v, want 2m truncated next cursor", window)
+	}
+	series := payload["series"].(map[string]any)
+	candles := series["candles"].([]backtest.Candle)
+	if len(candles) != 1 || candles[0].Open != "10" || candles[0].High != "12" || candles[0].Low != "9" || candles[0].Close != "11.5" {
+		t.Fatalf("candles = %#v, want first 2m aggregate", candles)
+	}
+	trades := series["trades"].([]backtest.TradeEvent)
+	if len(trades) != 1 || trades[0].Side != "BUY" {
+		t.Fatalf("trades = %#v, want bounded BUY trade", trades)
+	}
+}

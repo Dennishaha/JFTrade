@@ -1179,68 +1179,158 @@ func TestPreparedAgentLoadsOnlyEnabledBoundSkillsAndTools(t *testing.T) {
 func TestSkillRegistryReportsMetadataAndAllowedTools(t *testing.T) {
 	ctx := context.Background()
 	runtime := newTestRuntime(t)
-	skill, ok, err := runtime.Skills().Get(ctx, strategypinespec.BuiltinSkillName)
+	research, ok, err := runtime.Skills().Get(ctx, strategypinespec.ResearchBuiltinSkillName)
 	if err != nil {
-		t.Fatalf("Get builtin strategy skill: %v", err)
+		t.Fatalf("Get builtin research skill: %v", err)
 	}
 	if !ok {
-		t.Fatalf("builtin skill %s not found", strategypinespec.BuiltinSkillName)
+		t.Fatalf("builtin skill %s not found", strategypinespec.ResearchBuiltinSkillName)
 	}
-	if !skill.Builtin || skill.Source != "builtin" {
-		t.Fatalf("skill source metadata = %+v", skill)
+	if !research.Builtin || research.Source != "builtin" || research.ValidationStatus != "VALID" || research.ContentHash == "" {
+		t.Fatalf("research skill metadata = %+v", research)
 	}
-	if skill.ValidationStatus != "VALID" || skill.ContentHash == "" {
-		t.Fatalf("skill validation metadata = %+v", skill)
-	}
-	if skill.Version != strategypinespec.BuiltinSkillVersion {
-		t.Fatalf("skill version = %q, want %q", skill.Version, strategypinespec.BuiltinSkillVersion)
+	if research.Version != strategypinespec.BuiltinSkillVersion {
+		t.Fatalf("research skill version = %q, want %q", research.Version, strategypinespec.BuiltinSkillVersion)
 	}
 	for _, toolName := range []string{
 		strategypinespec.ToolName,
 		"strategy.validate_pine",
-		"strategy.save_definition",
-		"strategy.update_instance_mode",
+		"strategy.research_backtest",
+		"backtest.runs",
+		"backtest.result_view",
+		"workflow.wait",
+		"market.snapshot",
+		"market.candles",
 	} {
-		if !containsString(skill.Tools, toolName) {
-			t.Fatalf("skill tools = %+v, want %s", skill.Tools, toolName)
+		if !containsString(research.Tools, toolName) {
+			t.Fatalf("research skill tools = %+v, want %s", research.Tools, toolName)
 		}
 	}
-	specPath := filepath.Join(runtime.Store().SkillsPath(), strategypinespec.BuiltinSkillName, "references", "pine-v6-spec.md")
-	examplePath := filepath.Join(runtime.Store().SkillsPath(), strategypinespec.BuiltinSkillName, "references", "pine-v6-examples.md")
-	if _, err := os.Stat(specPath); err != nil {
-		t.Fatalf("spec resource stat: %v", err)
+	for _, forbidden := range []string{"strategy.save_draft", "strategy.save_definition", "strategy.optimize"} {
+		if containsString(research.Tools, forbidden) {
+			t.Fatalf("research skill unexpectedly exposes %s: %+v", forbidden, research.Tools)
+		}
 	}
-	if _, err := os.Stat(examplePath); err != nil {
-		t.Fatalf("examples resource stat: %v", err)
+	publish, ok, err := runtime.Skills().Get(ctx, strategypinespec.PublishBuiltinSkillName)
+	if err != nil {
+		t.Fatalf("Get builtin publish skill: %v", err)
+	}
+	if !ok {
+		t.Fatalf("builtin skill %s not found", strategypinespec.PublishBuiltinSkillName)
+	}
+	if !publish.Builtin || publish.Source != "builtin" || publish.ValidationStatus != "VALID" || publish.ContentHash == "" {
+		t.Fatalf("publish skill metadata = %+v", publish)
+	}
+	for _, toolName := range []string{"strategy.validate_pine", "strategy.save_draft", "strategy.save_definition", "strategy.update_instance_mode", "strategy.optimize", "backtest.runs"} {
+		if !containsString(publish.Tools, toolName) {
+			t.Fatalf("publish skill tools = %+v, want %s", publish.Tools, toolName)
+		}
+	}
+	if containsString(publish.Tools, "strategy.research_backtest") {
+		t.Fatalf("publish skill unexpectedly exposes research_backtest: %+v", publish.Tools)
+	}
+	if _, ok, err := runtime.Skills().Get(ctx, strategypinespec.LegacyBuiltinSkillName); err != nil || ok {
+		t.Fatalf("legacy strategy skill ok=%v err=%v, want absent", ok, err)
+	}
+	for _, item := range []struct {
+		skillName string
+		resource  string
+	}{
+		{strategypinespec.ResearchBuiltinSkillName, "references/pine-v6-spec.md"},
+		{strategypinespec.ResearchBuiltinSkillName, "references/pine-v6-examples.md"},
+		{strategypinespec.ResearchBuiltinSkillName, "references/pine-v6-cheatsheet.md"},
+		{strategypinespec.ResearchBuiltinSkillName, "references/strategy-research-workflow.md"},
+		{strategypinespec.PublishBuiltinSkillName, "references/pine-v6-spec.md"},
+		{strategypinespec.PublishBuiltinSkillName, "references/pine-v6-examples.md"},
+		{strategypinespec.PublishBuiltinSkillName, "references/pine-v6-cheatsheet.md"},
+		{strategypinespec.PublishBuiltinSkillName, "references/strategy-publish-checklist.md"},
+	} {
+		if _, err := os.Stat(filepath.Join(runtime.Store().SkillsPath(), item.skillName, item.resource)); err != nil {
+			t.Fatalf("resource %s/%s stat: %v", item.skillName, item.resource, err)
+		}
+	}
+}
+
+func TestStoreBuiltinSkillsSplitStrategySkillAndRemoveLegacyRecord(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	store := runtime.Store()
+	if _, ok, err := store.Skill(ctx, strategypinespec.LegacyBuiltinSkillName); err != nil || ok {
+		t.Fatalf("legacy store skill ok=%v err=%v, want absent", ok, err)
+	}
+	for _, skillName := range []string{strategypinespec.ResearchBuiltinSkillName, strategypinespec.PublishBuiltinSkillName} {
+		skill, ok, err := store.Skill(ctx, skillName)
+		if err != nil || !ok {
+			t.Fatalf("store skill %s ok=%v err=%v", skillName, ok, err)
+		}
+		if !skill.Builtin || !strings.EqualFold(skill.Source, "builtin") {
+			t.Fatalf("store skill %s metadata = %+v, want builtin", skillName, skill)
+		}
+	}
+
+	if _, err := store.SaveSkill(ctx, Skill{ID: strategypinespec.LegacyBuiltinSkillName, DisplayName: "Legacy Strategy", Source: "builtin", Builtin: true}); err != nil {
+		t.Fatalf("SaveSkill legacy builtin: %v", err)
+	}
+	if err := store.ensureBuiltins(ctx); err != nil {
+		t.Fatalf("ensureBuiltins after legacy builtin: %v", err)
+	}
+	if _, ok, err := store.Skill(ctx, strategypinespec.LegacyBuiltinSkillName); err != nil || ok {
+		t.Fatalf("legacy builtin store skill ok=%v err=%v, want deleted", ok, err)
+	}
+
+	if _, err := store.SaveSkill(ctx, Skill{ID: strategypinespec.LegacyBuiltinSkillName, DisplayName: "External Strategy", Source: "filesystem", Builtin: false}); err != nil {
+		t.Fatalf("SaveSkill legacy external: %v", err)
+	}
+	if err := store.ensureBuiltins(ctx); err != nil {
+		t.Fatalf("ensureBuiltins after legacy external: %v", err)
+	}
+	if skill, ok, err := store.Skill(ctx, strategypinespec.LegacyBuiltinSkillName); err != nil || !ok || skill.Source != "filesystem" {
+		t.Fatalf("legacy external store skill = %+v ok=%v err=%v, want preserved", skill, ok, err)
 	}
 }
 
 func TestBuiltinStrategySkillRefreshesOutdatedBundle(t *testing.T) {
 	ctx := context.Background()
 	runtime := newTestRuntime(t)
-	skillDir := filepath.Join(runtime.Store().SkillsPath(), strategypinespec.BuiltinSkillName)
+	skillDir := filepath.Join(runtime.Store().SkillsPath(), strategypinespec.ResearchBuiltinSkillName)
 	skillPath := filepath.Join(skillDir, "SKILL.md")
 	if err := os.WriteFile(skillPath, []byte(`---
-name: jftrade-strategy
-description: outdated builtin
-allowed-tools: [strategy.definitions]
+name: jftrade-strategy-research
+description: outdated research builtin
+allowed-tools: [strategy.validate_pine]
 metadata:
   source: builtin
   version: 1
 ---
-Old strategy instructions.
+Old research instructions.
 `), 0o644); err != nil {
 		t.Fatalf("WriteFile outdated strategy skill: %v", err)
 	}
 	if err := os.Remove(filepath.Join(skillDir, "references", "pine-v6-spec.md")); err != nil {
 		t.Fatalf("Remove spec resource: %v", err)
 	}
+	legacyDir := filepath.Join(runtime.Store().SkillsPath(), strategypinespec.LegacyBuiltinSkillName)
+	if err := os.MkdirAll(legacyDir, 0o755); err != nil {
+		t.Fatalf("MkdirAll legacyDir: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(legacyDir, "SKILL.md"), []byte(`---
+name: jftrade-strategy
+description: legacy builtin
+allowed-tools: [strategy.validate_pine]
+metadata:
+  source: builtin
+  version: 7
+---
+Legacy strategy instructions.
+`), 0o644); err != nil {
+		t.Fatalf("WriteFile legacy strategy skill: %v", err)
+	}
 
 	if err := runtime.Skills().ensureBuiltins(); err != nil {
 		t.Fatalf("ensureBuiltins: %v", err)
 	}
 
-	skill, ok, err := runtime.Skills().Get(ctx, strategypinespec.BuiltinSkillName)
+	skill, ok, err := runtime.Skills().Get(ctx, strategypinespec.ResearchBuiltinSkillName)
 	if err != nil || !ok {
 		t.Fatalf("Get refreshed strategy skill ok=%v err=%v", ok, err)
 	}
@@ -1254,6 +1344,12 @@ Old strategy instructions.
 	if !strings.Contains(string(raw), "# JFTrade Pine Script v6 规范") {
 		t.Fatalf("restored spec content = %q, want DSL heading", string(raw))
 	}
+	if _, err := os.Stat(legacyDir); !os.IsNotExist(err) {
+		t.Fatalf("legacy builtin skill dir stat err = %v, want not exist", err)
+	}
+	if _, ok, err := runtime.Skills().Get(ctx, strategypinespec.LegacyBuiltinSkillName); err != nil || ok {
+		t.Fatalf("legacy strategy skill ok=%v err=%v, want absent", ok, err)
+	}
 }
 
 func TestBuiltinStrategyAgentTemplatesExposeExplicitStrategyTools(t *testing.T) {
@@ -1262,17 +1358,51 @@ func TestBuiltinStrategyAgentTemplatesExposeExplicitStrategyTools(t *testing.T) 
 		if !ok {
 			t.Fatalf("BuiltinAgentTemplate(%q) not found", agentID)
 		}
-		for _, toolName := range []string{"strategy.validate_pine", "strategy.save_definition", "strategy.update_instance_mode"} {
-			if !containsString(template.Tools, toolName) {
-				t.Fatalf("template %q tools = %+v, want %s", agentID, template.Tools, toolName)
-			}
+		if containsString(template.Skills, strategypinespec.LegacyBuiltinSkillName) {
+			t.Fatalf("template %q still references legacy strategy skill: %+v", agentID, template.Skills)
+		}
+	}
+	investment, _ := BuiltinAgentTemplate("investment-analyst")
+	if !containsString(investment.Skills, strategypinespec.ResearchBuiltinSkillName) || containsString(investment.Skills, strategypinespec.PublishBuiltinSkillName) {
+		t.Fatalf("investment skills = %+v, want research only", investment.Skills)
+	}
+	for _, toolName := range strategypinespec.ResearchSkillAllowedTools() {
+		if !containsString(investment.Tools, toolName) {
+			t.Fatalf("investment tools = %+v, want research tool %s", investment.Tools, toolName)
+		}
+	}
+	for _, toolName := range []string{"strategy.save_definition", "strategy.update_instance_mode"} {
+		if containsString(investment.Tools, toolName) {
+			t.Fatalf("investment tools unexpectedly include publish tool %s: %+v", toolName, investment.Tools)
+		}
+	}
+
+	researcher, _ := BuiltinAgentTemplate("strategy-researcher")
+	for _, skillName := range []string{strategypinespec.ResearchBuiltinSkillName, strategypinespec.PublishBuiltinSkillName} {
+		if !containsString(researcher.Skills, skillName) {
+			t.Fatalf("strategy-researcher skills = %+v, want %s", researcher.Skills, skillName)
+		}
+	}
+	for _, toolName := range append(strategypinespec.ResearchSkillAllowedTools(), strategypinespec.PublishSkillAllowedTools()...) {
+		if !containsString(researcher.Tools, toolName) {
+			t.Fatalf("strategy-researcher tools = %+v, want %s", researcher.Tools, toolName)
+		}
+	}
+
+	risk, _ := BuiltinAgentTemplate("risk-reviewer")
+	if !containsString(risk.Skills, strategypinespec.PublishBuiltinSkillName) || containsString(risk.Skills, strategypinespec.ResearchBuiltinSkillName) {
+		t.Fatalf("risk skills = %+v, want publish only", risk.Skills)
+	}
+	for _, toolName := range strategypinespec.PublishSkillAllowedTools() {
+		if !containsString(risk.Tools, toolName) {
+			t.Fatalf("risk tools = %+v, want publish tool %s", risk.Tools, toolName)
 		}
 	}
 }
 
 func TestBuiltinRefreshDoesNotOverrideNonBuiltinSkill(t *testing.T) {
 	runtime := newTestRuntime(t)
-	skillDir := filepath.Join(runtime.Store().SkillsPath(), strategypinespec.BuiltinSkillName)
+	skillDir := filepath.Join(runtime.Store().SkillsPath(), strategypinespec.LegacyBuiltinSkillName)
 	if err := os.RemoveAll(skillDir); err != nil {
 		t.Fatalf("RemoveAll skillDir: %v", err)
 	}

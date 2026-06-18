@@ -52,6 +52,8 @@ export function buildADKToolVisualization(toolName: string, output: unknown): AD
       return buildStrategyPineSpec(output);
     case "strategy.validate_pine":
       return buildStrategyValidateDSL(output);
+    case "strategy.research_backtest":
+      return buildStrategyResearchBacktest(output);
     case "strategy.save_definition":
       return buildStrategySaveDefinition(output);
     case "strategy.update_instance_mode":
@@ -114,6 +116,8 @@ export function buildADKToolVisualization(toolName: string, output: unknown): AD
         ["tradeCount", "成交笔数"],
         ["createdAt", "创建时间"],
       ]);
+    case "backtest.result_view":
+      return buildBacktestResultView(output);
     case "strategy.optimize":
       return buildToolTable("优化候选", output, ["runs", "candidates", "tasks", "items", "data"], [
         ["definitionId", "策略定义"],
@@ -181,6 +185,37 @@ function buildStrategyValidateDSL(output: UnknownRecord): ADKToolVisualization |
     kind: "summary",
     title: "Pine 校验",
     subtitle: ok ? "可以继续保存策略定义" : "请先修正脚本后再保存",
+    cards,
+    rows,
+  };
+}
+
+function buildStrategyResearchBacktest(output: UnknownRecord): ADKToolVisualization | null {
+  const validation = isRecord(output.validation) ? output.validation : null;
+  const metadata = validation && isRecord(validation.metadata) ? validation.metadata : null;
+  const hooks = validation ? findArray(validation, ["hooks"]) : [];
+  const resultView = isRecord(output.resultView) ? output.resultView : null;
+  const resultSummary = resultView && isRecord(resultView.summary) ? resultView.summary : null;
+  const cards = [
+    summaryCard("状态", output.status, toneForValue(output.status)),
+    summaryCard("运行 ID", output.runId),
+    summaryCard("脚本 Hash", output.scriptHash),
+    summaryCard("收益", resultSummary?.totalReturn),
+    summaryCard("成交数", resultSummary?.totalTrades),
+  ].filter((card): card is NonNullable<typeof card> => card !== null);
+  const rows = [
+    row("策略名", metadata?.name),
+    row("标的", metadata?.symbol),
+    row("周期", metadata?.interval),
+    row("Hook 数", hooks.length),
+    row("结果视图错误", output.resultViewError),
+    row("保存建议", output.saveRecommendation),
+  ].filter((item): item is { label: string; value: string } => item !== null);
+  if (cards.length === 0 && rows.length === 0) return null;
+  return {
+    kind: "summary",
+    title: "策略研究回测",
+    subtitle: "临时运行，不会保存策略定义",
     cards,
     rows,
   };
@@ -281,6 +316,83 @@ function buildRiskState(output: UnknownRecord): ADKToolVisualization | null {
   return { kind: "summary", title: "风险状态", cards, rows };
 }
 
+function buildBacktestResultView(output: UnknownRecord): ADKToolVisualization | null {
+  const view = optionalValue(output.view) ?? "summary";
+  const series = isRecord(output.series) ? output.series : {};
+  if (view === "chart") {
+    const candles = findArray(series, ["candles"]);
+    if (candles.length > 0) {
+      return buildRecordTable("回测蜡烛窗口", output, candles, [
+        ["time", "时间"],
+        ["open", "开"],
+        ["high", "高"],
+        ["low", "低"],
+        ["close", "收"],
+        ["volume", "量"],
+      ]);
+    }
+    const trades = findArray(series, ["trades"]);
+    if (trades.length > 0) {
+      return buildRecordTable("回测交易窗口", output, trades, [
+        ["time", "时间"],
+        ["side", "方向"],
+        ["price", "价格"],
+        ["qty", "数量"],
+        ["positionQty", "持仓"],
+      ]);
+    }
+  }
+  if (view === "orders") {
+    const orders = findArray(series, ["orderBook"]);
+    if (orders.length > 0) {
+      return buildRecordTable("回测订单窗口", output, orders, [
+        ["orderId", "订单"],
+        ["symbol", "标的"],
+        ["side", "方向"],
+        ["status", "状态"],
+        ["quantity", "数量"],
+        ["price", "价格"],
+        ["submittedAt", "提交时间"],
+        ["filledAt", "成交时间"],
+      ]);
+    }
+  }
+  if (view === "logs" || view === "errors") {
+    const items = findArray(series, view === "logs" ? ["logs"] : ["runtimeErrors"]);
+    if (items.length > 0) {
+      return buildStringTable(view === "logs" ? "回测日志窗口" : "回测错误窗口", output, items);
+    }
+  }
+  return buildBacktestResultSummary(output);
+}
+
+function buildBacktestResultSummary(output: UnknownRecord): ADKToolVisualization | null {
+  const run = isRecord(output.run) ? output.run : {};
+  const summary = isRecord(output.summary) ? output.summary : {};
+  const cards = [
+    summaryCard("状态", run.status, toneForValue(run.status)),
+    summaryCard("最终资产", summary.finalBalance),
+    summaryCard("盈亏", summary.pnl),
+    summaryCard("收益", summary.totalReturn),
+    summaryCard("最大回撤", summary.maxDrawdown),
+    summaryCard("成交数", summary.totalTrades),
+  ].filter((card): card is NonNullable<typeof card> => card !== null);
+  const rows = [
+    row("运行 ID", run.id),
+    row("标的", run.symbol),
+    row("周期", run.interval),
+    row("开始", run.startTime),
+    row("结束", run.endTime),
+    row("错误", summary.error),
+    row("最新日志", summary.latestLog),
+  ].filter((item): item is { label: string; value: string } => item !== null);
+  if (cards.length === 0 && rows.length === 0) return null;
+  const visualization: ADKSummaryVisualization = { kind: "summary", title: "回测结果视图", cards, rows };
+  const subtitle = optionalValue(output.view);
+  if (subtitle) visualization.subtitle = subtitle;
+  return visualization;
+}
+
 function buildToolTable(
   title: string,
   output: UnknownRecord,
@@ -304,6 +416,57 @@ function buildToolTable(
     columns: columns.map(([key, label]) => ({ key, label })),
     rows: records.map((record) => Object.fromEntries(columns.map(([key]) => [key, formatValue(record[key])]))),
   };
+}
+
+function buildRecordTable(
+  title: string,
+  output: UnknownRecord,
+  items: unknown[],
+  preferredColumns: Array<[string, string]>,
+): ADKTableVisualization | null {
+  const records = items.filter(isRecord).slice(0, 20);
+  if (records.length === 0) return null;
+  const columns = preferredColumns.filter(([key]) => records.some((record) => hasDisplayValue(record[key])));
+  if (columns.length === 0) {
+    for (const key of Object.keys(records[0]!).slice(0, 6)) {
+      columns.push([key, labelFromKey(key)]);
+    }
+  }
+  return {
+    kind: "table",
+    title,
+    subtitle: backtestWindowSubtitle(output, records.length, items.length),
+    columns: columns.map(([key, label]) => ({ key, label })),
+    rows: records.map((record) => Object.fromEntries(columns.map(([key]) => [key, formatValue(record[key])]))),
+  };
+}
+
+function buildStringTable(title: string, output: UnknownRecord, items: unknown[]): ADKTableVisualization | null {
+  const rows = items.slice(0, 20).map((item, index) => ({ index: String(index + 1), message: formatValue(item) }));
+  if (rows.length === 0) return null;
+  return {
+    kind: "table",
+    title,
+    subtitle: backtestWindowSubtitle(output, rows.length, items.length),
+    columns: [
+      { key: "index", label: "#" },
+      { key: "message", label: "内容" },
+    ],
+    rows,
+  };
+}
+
+function backtestWindowSubtitle(output: UnknownRecord, returned: number, total: number): string {
+  const run = isRecord(output.run) ? output.run : {};
+  const window = isRecord(output.window) ? output.window : {};
+  const parts = [
+    optionalValue(run.symbol),
+    optionalValue(window.resolution),
+    `${returned}${total > returned ? ` / ${total}` : ""} 行`,
+  ];
+  const nextCursor = optionalValue(window.nextCursor);
+  if (nextCursor) parts.push(`next ${nextCursor}`);
+  return parts.filter(Boolean).join(" · ");
 }
 
 function buildDepth(output: UnknownRecord): ADKDepthVisualization | null {
@@ -427,7 +590,7 @@ function formatValue(value: unknown): string {
 function toneForValue(value: unknown): "ok" | "warning" | "danger" | "muted" | undefined {
   const text = formatValue(value).toLowerCase();
   if (["yes", "是", "enabled", "已启用", "active", "活跃", "ok", "healthy", "正常", "connected", "已连接", "succeeded", "success", "成功", "completed", "已完成", "done"].includes(text)) return "ok";
-  if (["no", "否", "disabled", "未启用", "inactive", "未激活", "pending", "待处理", "running", "运行中", "todo", "已停止"].includes(text)) return "muted";
+  if (["no", "否", "disabled", "未启用", "inactive", "未激活", "pending", "待处理", "queued", "排队中", "running", "运行中", "todo", "已停止"].includes(text)) return "muted";
   if (text.includes("warn") || text.includes("warning") || text.includes("警告") || text.includes("blocked") || text.includes("limited") || text.includes("受限")) return "warning";
   if (text.includes("error") || text.includes("failed") || text.includes("失败") || text.includes("denied") || text.includes("拒绝") || text.includes("kill")) return "danger";
   return undefined;

@@ -2,6 +2,7 @@ package adk
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -40,6 +41,62 @@ func TestTaskCreateIsLowRiskAndDoesNotRequireApproval(t *testing.T) {
 	}
 	if ToolRequiresApproval(tool.Descriptor, PermissionModeApproval) {
 		t.Fatal("tasks.create unexpectedly requires approval in approval mode")
+	}
+}
+
+func TestWorkflowWaitToolWaitsAndDoesNotRequireApproval(t *testing.T) {
+	registry := NewToolRegistry()
+	tool, ok := registry.Get("workflow.wait")
+	if !ok {
+		t.Fatal("workflow.wait not registered")
+	}
+	if tool.Descriptor.Permission != "read_internal" || tool.Descriptor.RiskLevel != "low" {
+		t.Fatalf("descriptor = %+v, want read_internal/low", tool.Descriptor)
+	}
+	if ToolRequiresApproval(tool.Descriptor, PermissionModeApproval) {
+		t.Fatal("workflow.wait unexpectedly requires approval in approval mode")
+	}
+	started := time.Now()
+	output, err := tool.Handler(context.Background(), map[string]any{"durationMs": 10, "reason": "test wait"})
+	if err != nil {
+		t.Fatalf("workflow.wait error = %v", err)
+	}
+	if time.Since(started) < 10*time.Millisecond {
+		t.Fatal("workflow.wait returned before requested duration")
+	}
+	payload, ok := output.(map[string]any)
+	if !ok {
+		t.Fatalf("output = %T, want map", output)
+	}
+	if payload["reason"] != "test wait" {
+		t.Fatalf("reason = %#v, want test wait", payload["reason"])
+	}
+	if _, ok := payload["waitedMs"]; !ok {
+		t.Fatalf("output missing waitedMs: %#v", payload)
+	}
+}
+
+func TestWorkflowWaitToolRejectsTooLongDuration(t *testing.T) {
+	registry := NewToolRegistry()
+	tool, ok := registry.Get("workflow.wait")
+	if !ok {
+		t.Fatal("workflow.wait not registered")
+	}
+	if _, err := tool.Handler(context.Background(), map[string]any{"seconds": 26}); err == nil || !strings.Contains(err.Error(), "25s") {
+		t.Fatalf("workflow.wait long duration error = %v, want max duration error", err)
+	}
+}
+
+func TestWorkflowWaitToolReturnsContextCancellation(t *testing.T) {
+	registry := NewToolRegistry()
+	tool, ok := registry.Get("workflow.wait")
+	if !ok {
+		t.Fatal("workflow.wait not registered")
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := tool.Handler(ctx, map[string]any{"durationMs": 100}); !errors.Is(err, context.Canceled) {
+		t.Fatalf("workflow.wait cancelled error = %v, want context.Canceled", err)
 	}
 }
 

@@ -66,9 +66,15 @@ var builtinSkillSpecs = []builtinSkillSpec{
 		},
 	},
 	{
-		Name: strategypinespec.BuiltinSkillName,
+		Name: strategypinespec.ResearchBuiltinSkillName,
 		BuildBundle: func() (map[string]string, error) {
-			return buildStrategyBuiltinSkillBundle()
+			return buildStrategyResearchBuiltinSkillBundle()
+		},
+	},
+	{
+		Name: strategypinespec.PublishBuiltinSkillName,
+		BuildBundle: func() (map[string]string, error) {
+			return buildStrategyPublishBuiltinSkillBundle()
 		},
 	},
 	{
@@ -347,6 +353,9 @@ func (r *SkillRegistry) Uninstall(ctx context.Context, id string) error {
 }
 
 func (r *SkillRegistry) ensureBuiltins() error {
+	if err := r.removeLegacyBuiltinSkills(); err != nil {
+		return err
+	}
 	for _, spec := range builtinSkillSpecs {
 		bundle, err := spec.BuildBundle()
 		if err != nil {
@@ -376,21 +385,70 @@ func buildSingleFileBuiltinSkill(name string, description string, instructions s
 	return map[string]string{"SKILL.md": string(raw)}, nil
 }
 
-func buildStrategyBuiltinSkillBundle() (map[string]string, error) {
+func buildStrategyResearchBuiltinSkillBundle() (map[string]string, error) {
 	bundle, err := buildSingleFileBuiltinSkill(
-		strategypinespec.BuiltinSkillName,
-		strategypinespec.SkillDescription(),
-		strategypinespec.SkillInstructions(),
-		strategypinespec.SkillAllowedTools(),
+		strategypinespec.ResearchBuiltinSkillName,
+		strategypinespec.ResearchSkillDescription(),
+		strategypinespec.ResearchSkillInstructions(),
+		strategypinespec.ResearchSkillAllowedTools(),
 		strategypinespec.BuiltinSkillVersion,
 	)
 	if err != nil {
 		return nil, err
 	}
-	for relativePath, content := range strategypinespec.SkillResourceFiles() {
+	for relativePath, content := range strategypinespec.ResearchSkillResourceFiles() {
 		bundle[relativePath] = content
 	}
 	return bundle, nil
+}
+
+func buildStrategyPublishBuiltinSkillBundle() (map[string]string, error) {
+	bundle, err := buildSingleFileBuiltinSkill(
+		strategypinespec.PublishBuiltinSkillName,
+		strategypinespec.PublishSkillDescription(),
+		strategypinespec.PublishSkillInstructions(),
+		strategypinespec.PublishSkillAllowedTools(),
+		strategypinespec.BuiltinSkillVersion,
+	)
+	if err != nil {
+		return nil, err
+	}
+	for relativePath, content := range strategypinespec.PublishSkillResourceFiles() {
+		bundle[relativePath] = content
+	}
+	return bundle, nil
+}
+
+func (r *SkillRegistry) removeLegacyBuiltinSkills() error {
+	for _, name := range []string{strategypinespec.LegacyBuiltinSkillName} {
+		if err := r.removeLegacyBuiltinSkill(name); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (r *SkillRegistry) removeLegacyBuiltinSkill(name string) error {
+	if r == nil || r.skillsPath == "" {
+		return nil
+	}
+	installDir := filepath.Join(r.skillsPath, strings.TrimSpace(name))
+	skillDocPath := filepath.Join(installDir, "SKILL.md")
+	raw, err := os.ReadFile(skillDocPath)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	fm, _, err := adkskill.ParseBytes(raw)
+	if err != nil {
+		return nil
+	}
+	if fm.Metadata != nil && strings.EqualFold(strings.TrimSpace(fm.Metadata["source"]), "builtin") {
+		return os.RemoveAll(installDir)
+	}
+	return nil
 }
 
 func (r *SkillRegistry) syncBuiltinSkill(name string, bundle map[string]string) error {

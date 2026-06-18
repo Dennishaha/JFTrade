@@ -177,6 +177,36 @@ func (s *Server) adkToolDeps() ToolDeps {
 			}
 			return BacktestRunRef{ID: run.ID, Status: run.Status}, nil
 		},
+		StartResearchBacktest: func(input ResearchBacktestInput) (BacktestRunSummary, error) {
+			run, err := s.backtestSvc.StartScript(context.Background(), btsrv.ScriptStartRequest{
+				Script:           input.Script,
+				Market:           input.Market,
+				Symbol:           input.Symbol,
+				Code:             input.Code,
+				Interval:         input.Interval,
+				StartTime:        input.StartTime,
+				EndTime:          input.EndTime,
+				InitialBalance:   input.InitialBalance,
+				RehabType:        input.RehabType,
+				UseExtendedHours: input.UseExtendedHours,
+			})
+			if err != nil {
+				return BacktestRunSummary{}, err
+			}
+			return backtestRunSummaryFromSrvRun(run), nil
+		},
+		BacktestResultView: func(input BacktestResultViewInput) (any, error) {
+			return s.backtestSvc.ResultView(btsrv.ResultViewRequest{
+				RunID:      input.RunID,
+				View:       input.View,
+				Resolution: input.Resolution,
+				StartTime:  input.StartTime,
+				EndTime:    input.EndTime,
+				Include:    append([]string(nil), input.Include...),
+				Limit:      input.Limit,
+				Cursor:     input.Cursor,
+			})
+		},
 		CancelBacktest: func(runID string) { s.backtestSvc.Cancel(runID) },
 		RecordAudit: func(ctx context.Context, kind string, subjectID string, detail string, metadata map[string]any) {
 			if s != nil && s.adkRuntime != nil {
@@ -328,15 +358,33 @@ func (s *Server) adkBacktestRunSummaries() []BacktestRunSummary {
 		if run == nil {
 			continue
 		}
-		out = append(out, BacktestRunSummary{
-			ID: run.ID, Status: run.Status, DefinitionID: run.Request.DefinitionID, DefinitionVersion: run.Request.DefinitionVersion,
-			Market: run.Request.Market, Code: run.Request.Code, Symbol: run.Request.Symbol, Interval: run.Request.Interval,
-			StartTime: run.Request.StartTime, EndTime: run.Request.EndTime, InitialBalance: run.Request.InitialBalance,
-			RehabType: run.Request.RehabType, UseExtendedHours: run.Request.UseExtendedHours, Result: run.Result,
-			CreatedAt: run.CreatedAt, UpdatedAt: run.UpdatedAt,
-		})
+		out = append(out, backtestRunSummaryFromSrvRun(run))
 	}
 	return out
+}
+
+func backtestRunSummaryFromSrvRun(run *btsrv.RunState) BacktestRunSummary {
+	if run == nil {
+		return BacktestRunSummary{}
+	}
+	return BacktestRunSummary{
+		ID:                run.ID,
+		Status:            run.Status,
+		DefinitionID:      run.Request.DefinitionID,
+		DefinitionVersion: run.Request.DefinitionVersion,
+		Market:            run.Request.Market,
+		Code:              run.Request.Code,
+		Symbol:            run.Request.Symbol,
+		Interval:          run.Request.Interval,
+		StartTime:         run.Request.StartTime,
+		EndTime:           run.Request.EndTime,
+		InitialBalance:    run.Request.InitialBalance,
+		RehabType:         run.Request.RehabType,
+		UseExtendedHours:  run.Request.UseExtendedHours,
+		Result:            run.Result,
+		CreatedAt:         run.CreatedAt,
+		UpdatedAt:         run.UpdatedAt,
+	}
 }
 
 func strategyVisualModelFromInput(value any) (*strategyVisualModel, error) {

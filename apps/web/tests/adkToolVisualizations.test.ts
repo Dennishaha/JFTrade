@@ -168,6 +168,63 @@ describe("buildADKToolVisualization", () => {
     expect(updateMode.rows?.find((row) => row.label === "已修改字段")?.value).toBe("执行模式");
   });
 
+  it("builds research backtest summaries and result view tables", () => {
+    const research = buildADKToolVisualization("strategy.research_backtest", {
+      ok: true,
+      status: "queued",
+      runId: "bt-1",
+      scriptHash: "abc123",
+      validation: {
+        metadata: { name: "Research Draft", symbol: "US.TME", interval: "1m" },
+        hooks: ["on_kline_close"],
+        warnings: [],
+      },
+      resultView: {
+        view: "summary",
+        summary: { totalReturn: 0.12, totalTrades: 3 },
+      },
+      saveRecommendation: "仅当用户明确要求保存时再保存。",
+    });
+    expect(research?.kind).toBe("summary");
+    if (research?.kind !== "summary") return;
+    expect(research.title).toBe("策略研究回测");
+    expect(research.subtitle).toBe("临时运行，不会保存策略定义");
+    expect(research.cards.find((card) => card.label === "状态")).toMatchObject({
+      value: "queued",
+      tone: "muted",
+    });
+
+    const chart = buildADKToolVisualization("backtest.result_view", {
+      view: "chart",
+      run: { id: "bt-1", status: "completed", symbol: "US.TME", interval: "1m" },
+      window: { resolution: "5m", nextCursor: "20" },
+      series: {
+        candles: [
+          { time: "2025-01-01T00:00:00Z", open: "10", high: "12", low: "9", close: "11", volume: "300" },
+        ],
+      },
+    });
+    expect(chart?.kind).toBe("table");
+    if (chart?.kind !== "table") return;
+    expect(chart.title).toBe("回测蜡烛窗口");
+    expect(chart.subtitle).toBe("US.TME · 5m · 1 行 · next 20");
+    expect(chart.columns.map((column) => column.key)).toEqual(["time", "open", "high", "low", "close", "volume"]);
+    expect(chart.rows[0]).toMatchObject({ open: "10", close: "11" });
+
+    const summary = buildADKToolVisualization("backtest.result_view", {
+      view: "summary",
+      run: { id: "bt-1", status: "completed", symbol: "US.TME", interval: "1m" },
+      summary: { finalBalance: 110000, pnl: 10000, maxDrawdown: 0.05, totalTrades: 2 },
+    });
+    expect(summary?.kind).toBe("summary");
+    if (summary?.kind !== "summary") return;
+    expect(summary.title).toBe("回测结果视图");
+    expect(summary.cards.find((card) => card.label === "状态")).toMatchObject({
+      value: "已完成",
+      tone: "ok",
+    });
+  });
+
   it("returns null for unknown tools and malformed known outputs", () => {
     expect(buildADKToolVisualization("unknown.tool", { ok: true })).toBeNull();
     expect(buildADKToolVisualization("broker.orders", { orders: "not an array" })).toBeNull();

@@ -56,11 +56,14 @@ JFTrade 的 Run、Approval、Audit 和前端 SSE 是产品控制面，不替代 
 - 系统：`system.status`、`system.futu_opend`、`plugins.catalog`
 - 行情：`market.subscriptions`、`market.snapshot`、`market.candles`
 - 账户：`portfolio.summary`、`account.orders`
-- 策略：`strategy.definitions`、`strategy.pine_spec`、`strategy.validate_pine`、`strategy.save_draft`、`strategy.save_definition`、`strategy.update_instance_mode`、`strategy.optimize`
-- 回测：`backtest.runs`
+- 工作流：`workflow.wait`
+- 策略：`strategy.definitions`、`strategy.pine_spec`、`strategy.validate_pine`、`strategy.research_backtest`、`strategy.save_draft`、`strategy.save_definition`、`strategy.update_instance_mode`、`strategy.optimize`
+- 回测：`backtest.runs`、`backtest.result_view`
 - 外部：`http.fetch`
 
 `http.fetch` 允许公网 HTTP/HTTPS，默认阻止本机、私网、link-local、multicast 和 metadata IP，且限制响应大小。
+
+策略内置 skill 已拆分为 `jftrade-strategy-research` 和 `jftrade-strategy-publish`。前者用于临时研究回测与结果查看，不写入策略定义；后者用于用户明确要求的保存、发布、实例模式调整和已保存定义优化。旧的 `jftrade-strategy` 不再作为内置 skill 同步。
 
 ## Skill 运行时
 
@@ -85,6 +88,7 @@ Provider 默认允许局域网和本机模型地址，但始终拒绝 link-local
 - Run 支持 `RUNNING`、`PENDING_APPROVAL`、`COMPLETED`、`FAILED`、`DENIED`、`CANCELLED`、`TIMED_OUT`。
 - 多审批 Run 只有在全部批准后才执行写工具；任一拒绝会终止其余待执行动作。
 - `POST /api/v1/adk/runs/{runId}/cancel` 可取消运行中或等待审批的 Run。
+- `strategy.research_backtest` 使用临时 Pine 脚本启动研究回测，不保存策略定义；异步未完成时可短暂调用 `workflow.wait` 后用 `backtest.result_view` 分片查看摘要、蜡烛、交易、日志或错误。
 - `strategy.optimize` 会为候选策略定义创建真实异步回测，并通过 `/api/v1/adk/optimization-tasks/*` 查询或取消。
 - `/api/v1/adk/audit` 和 `/api/v1/adk/metrics` 提供审计记录与基础运行指标。
 

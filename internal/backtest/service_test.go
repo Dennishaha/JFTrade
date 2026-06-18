@@ -105,6 +105,134 @@ func TestStartQueuesRunAndExecutesWithInjectedRunner(t *testing.T) {
 	}
 }
 
+func TestStartScriptQueuesResearchRunWithoutStrategyProvider(t *testing.T) {
+	runs := newMemoryRunStore()
+	done := make(chan struct{})
+	var gotConfig bt.RunConfig
+	svc := NewService(
+		WithRunStore(runs),
+		WithDBPathFn(func() string { return "/tmp/research.db" }),
+		WithRunBacktestFn(func(ctx context.Context, config bt.RunConfig) *bt.RunResult {
+			gotConfig = config
+			close(done)
+			return &bt.RunResult{
+				Symbol:       config.Symbol,
+				Interval:     config.Interval,
+				StartTime:    config.StartTime.Format(time.RFC3339),
+				EndTime:      config.EndTime.Format(time.RFC3339),
+				FinalBalance: config.InitialBalance + 250,
+			}
+		}),
+	)
+
+	started, err := svc.StartScript(context.Background(), ScriptStartRequest{
+		Script:    testPineScript,
+		Market:    "US",
+		Code:      "AAPL",
+		Interval:  "1m",
+		StartTime: "2024-01-02T00:00:00Z",
+		EndTime:   "2024-01-03T00:00:00Z",
+	})
+	if err != nil {
+		t.Fatalf("StartScript() error = %v", err)
+	}
+	if !strings.HasPrefix(started.Request.DefinitionID, "adk-research-") {
+		t.Fatalf("definition id = %q, want adk research id", started.Request.DefinitionID)
+	}
+	if strings.Contains(started.Request.DefinitionID, "Service Test") {
+		t.Fatalf("definition id leaked script content: %q", started.Request.DefinitionID)
+	}
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("runner was not called")
+	}
+	if gotConfig.StrategyScript != testPineScript {
+		t.Fatalf("strategy script = %q, want inline script", gotConfig.StrategyScript)
+	}
+	if gotConfig.DBPath != "/tmp/research.db" {
+		t.Fatalf("DBPath = %q, want /tmp/research.db", gotConfig.DBPath)
+	}
+	completed := waitForRunStatus(t, runs, started.ID, "completed")
+	if completed.Result == nil || completed.Result.FinalBalance != 25250 {
+		t.Fatalf("completed result = %#v, want final balance 25250", completed.Result)
+	}
+}
+
+func TestResultViewReturnsWindowedAggregatedChartData(t *testing.T) {
+	runs := newMemoryRunStore()
+	run := &RunState{
+		ID:     "bt-view",
+		Status: "completed",
+		Request: StartRequest{
+			DefinitionID:   "def-1",
+			Market:         "US",
+			Code:           "AAPL",
+			Symbol:         "US.AAPL",
+			Interval:       "1m",
+			StartTime:      "2024-01-02T00:00:00Z",
+			EndTime:        "2024-01-02T00:10:00Z",
+			InitialBalance: 1000,
+			RehabType:      "forward",
+		},
+		Result: &bt.RunResult{
+			Symbol:       "US.AAPL",
+			Interval:     "1m",
+			StartTime:    "2024-01-02T00:00:00Z",
+			EndTime:      "2024-01-02T00:10:00Z",
+			FinalBalance: 1100,
+			PnL:          100,
+			Candles: []bt.Candle{
+				{Time: "2024-01-02T00:00:00Z", Open: "10", High: "11", Low: "9", Close: "10.5", Volume: "100"},
+				{Time: "2024-01-02T00:01:00Z", Open: "10.5", High: "12", Low: "10", Close: "11.5", Volume: "200"},
+				{Time: "2024-01-02T00:02:00Z", Open: "11.5", High: "13", Low: "11", Close: "12.5", Volume: "300"},
+			},
+			Trades:        []bt.TradeEvent{{Time: "2024-01-02T00:01:00Z", Side: "BUY", Price: "11", Qty: "1"}},
+			PnLCurve:      []bt.PnLPoint{{Time: "2024-01-02T00:00:00Z", Equity: 1000}, {Time: "2024-01-02T00:02:00Z", Equity: 1100}},
+			DrawdownCurve: []bt.DrawdownPoint{{Time: "2024-01-02T00:02:00Z", Drawdown: 0.01}},
+		},
+		CreatedAt: "2024-01-02T00:00:00Z",
+		UpdatedAt: "2024-01-02T00:10:00Z",
+	}
+	if err := runs.Add(run); err != nil {
+		t.Fatalf("runs.Add: %v", err)
+	}
+	svc := NewService(WithRunStore(runs))
+
+	payload, err := svc.ResultView(ResultViewRequest{
+		RunID:      "bt-view",
+		View:       "chart",
+		Resolution: "2m",
+		Include:    []string{"candles", "trades"},
+		Limit:      1,
+	})
+	if err != nil {
+		t.Fatalf("ResultView() error = %v", err)
+	}
+	window := payload["window"].(map[string]any)
+	if window["resolution"] != "2m" || window["truncated"] != true || window["nextCursor"] != "1" {
+		t.Fatalf("window = %#v, want 2m truncated next cursor", window)
+	}
+	series := payload["series"].(map[string]any)
+	candles := series["candles"].([]bt.Candle)
+	if len(candles) != 1 {
+		t.Fatalf("candles len = %d, want 1", len(candles))
+	}
+	if candles[0].Open != "10" || candles[0].High != "12" || candles[0].Low != "9" || candles[0].Close != "11.5" || candles[0].Volume != "300" {
+		t.Fatalf("aggregated candle = %#v", candles[0])
+	}
+	trades := series["trades"].([]bt.TradeEvent)
+	if len(trades) != 1 || trades[0].Side != "BUY" {
+		t.Fatalf("trades = %#v, want one BUY", trades)
+	}
+
+	_, err = svc.ResultView(ResultViewRequest{RunID: "bt-view", View: "chart", Resolution: "30s"})
+	if err == nil || !strings.Contains(err.Error(), "finer than native interval") {
+		t.Fatalf("fine resolution error = %v, want finer-than-native rejection", err)
+	}
+}
+
 func TestStartValidationErrors(t *testing.T) {
 	validProvider := fakeStrategyProvider{
 		defs: map[string]StrategyDef{

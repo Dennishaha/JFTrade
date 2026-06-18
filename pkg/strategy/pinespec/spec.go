@@ -10,13 +10,15 @@ import (
 )
 
 const (
-	PineVersion         = "v6"
-	ProductVersion      = "v3.0"
-	SourceFormat        = strategydefinition.SourceFormatPineV6
-	Runtime             = strategypineruntime.ID
-	ToolName            = "strategy.pine_spec"
-	BuiltinSkillName    = "jftrade-strategy"
-	BuiltinSkillVersion = "6"
+	PineVersion              = "v6"
+	ProductVersion           = "v3.0"
+	SourceFormat             = strategydefinition.SourceFormatPineV6
+	Runtime                  = strategypineruntime.ID
+	ToolName                 = "strategy.pine_spec"
+	LegacyBuiltinSkillName   = "jftrade-strategy"
+	ResearchBuiltinSkillName = "jftrade-strategy-research"
+	PublishBuiltinSkillName  = "jftrade-strategy-publish"
+	BuiltinSkillVersion      = "8"
 )
 
 type Section struct {
@@ -469,39 +471,128 @@ func AllowedSections() []string {
 	return out
 }
 
-func SkillDescription() string {
-	return "谨慎使用 JFTrade 策略工具；在起草、校验或保存策略定义前，先查阅内置的 Pine Script v6 规范。"
+func ResearchSkillDescription() string {
+	return "用于 JFTrade 策略研究、临时回测和结果查看；试错不保存策略定义。"
 }
 
-func SkillInstructions() string {
+func ResearchSkillInstructions() string {
 	return strings.Join([]string{
-		"处理策略相关任务时，要明确区分策略想法、策略草稿、已保存定义、回测结果和正在运行的策略实例。",
-		"起草、校验或保存策略前，先读取 references/pine-v6-spec.md；需要完整脚本时读取 references/pine-v6-examples.md；需要结构化摘要时调用 strategy.pine_spec。",
+		"处理策略研究任务时，要明确区分策略想法、临时研究回测、已有回测结果和已保存策略定义。",
+		"开始前优先读取 references/strategy-research-workflow.md；需要 Pine 快速格式时读取 references/pine-v6-cheatsheet.md；只有需要完整支持范围或示例时才读取完整 spec/examples。",
 		"只能输出当前 JFTrade 支持的 Pine Script v6 策略脚本；必须包含 //@version=6 和 strategy(...)。",
 		"如果用户询问 Pine 支持范围，必须依据内置规范回答，不要杜撰未支持的 built-ins、订单选项或 TradingView broker emulator 行为。",
-		"脚本还不完整时先用 strategy.validate_pine 校验；明确的新建或更新流程用 strategy.save_definition；只有在用户明确要求修改某个具体实例执行模式时才用 strategy.update_instance_mode。",
-		"不要承诺收益；优化和写入类操作属于受权限约束的动作，必须遵守当前审批模式。",
+		"纯语法或兼容性检查使用 strategy.validate_pine；策略试错、参数迭代、验证收益/回撤时必须使用 strategy.research_backtest，不要保存策略定义。",
+		"research_backtest 返回未完成状态时，先短暂调用 workflow.wait，再用 backtest.result_view 按 summary/chart/orders/logs/errors 和 limit/cursor/resolution 分片查看结果；已有回测列表继续用 backtest.runs。",
+		"不要把临时研究脚本自动保存为策略定义；如用户明确要求保存或发布，应切换到 jftrade-strategy-publish skill 的流程。",
+		"不要承诺收益；回测只代表指定标的、周期、时间范围和数据条件下的历史模拟结果。",
 	}, " ")
 }
 
-func SkillAllowedTools() []string {
+func ResearchSkillAllowedTools() []string {
 	return []string{
-		"strategy.definitions",
 		ToolName,
+		"strategy.validate_pine",
+		"strategy.research_backtest",
+		"backtest.runs",
+		"backtest.result_view",
+		"workflow.wait",
+		"market.snapshot",
+		"market.candles",
+	}
+}
+
+func PublishSkillDescription() string {
+	return "用于 JFTrade 策略保存、发布、实例模式调整和已保存策略定义优化。"
+}
+
+func PublishSkillInstructions() string {
+	return strings.Join([]string{
+		"处理策略发布任务时，要明确区分临时研究脚本、策略草稿、已保存定义和正在运行的策略实例。",
+		"开始前优先读取 references/strategy-publish-checklist.md；需要 Pine 快速格式时读取 references/pine-v6-cheatsheet.md；只有需要完整支持范围或示例时才读取完整 spec/examples。",
+		"只有用户明确要求保存、发布、更新策略定义、修改实例模式或优化已保存定义时，才使用本 skill 的写入和优化工具。",
+		"保存前必须先用 strategy.validate_pine 校验脚本；校验失败时不要调用 strategy.save_draft 或 strategy.save_definition。",
+		"strategy.save_definition 用于明确的新建或更新定义；strategy.save_draft 只用于用户明确要求保存草稿的场景。",
+		"只有在用户明确要求修改某个具体实例执行模式时才用 strategy.update_instance_mode；优化已保存候选定义时用 strategy.optimize，并用 backtest.runs 查看队列状态。",
+		"不要承诺收益；写入、优化和实例模式变更必须遵守当前审批模式。",
+	}, " ")
+}
+
+func PublishSkillAllowedTools() []string {
+	return []string{
 		"strategy.validate_pine",
 		"strategy.save_draft",
 		"strategy.save_definition",
 		"strategy.update_instance_mode",
-		"backtest.runs",
 		"strategy.optimize",
+		"backtest.runs",
 	}
 }
 
 func SkillResourceFiles() map[string]string {
 	return map[string]string{
-		"references/pine-v6-spec.md":     BuildSpecMarkdown(),
-		"references/pine-v6-examples.md": BuildExamplesMarkdown(),
+		"references/pine-v6-spec.md":       BuildSpecMarkdown(),
+		"references/pine-v6-examples.md":   BuildExamplesMarkdown(),
+		"references/pine-v6-cheatsheet.md": BuildCheatsheetMarkdown(),
 	}
+}
+
+func ResearchSkillResourceFiles() map[string]string {
+	files := cloneSkillResourceFiles(SkillResourceFiles())
+	files["references/strategy-research-workflow.md"] = BuildResearchWorkflowMarkdown()
+	return files
+}
+
+func PublishSkillResourceFiles() map[string]string {
+	files := cloneSkillResourceFiles(SkillResourceFiles())
+	files["references/strategy-publish-checklist.md"] = BuildPublishChecklistMarkdown()
+	return files
+}
+
+func cloneSkillResourceFiles(files map[string]string) map[string]string {
+	out := make(map[string]string, len(files)+1)
+	for key, value := range files {
+		out[key] = value
+	}
+	return out
+}
+
+func BuildCheatsheetMarkdown() string {
+	return strings.Join([]string{
+		"# JFTrade Pine v6 快速参考",
+		"",
+		"- 脚本必须包含 `//@version=6` 和 `strategy(...)`。",
+		"- 纯检查使用 `strategy.validate_pine`；研究试错使用 `strategy.research_backtest`；明确保存才进入发布流程。",
+		"- 常用订单：`strategy.entry`、`strategy.close`、`strategy.exit`、`strategy.order`、`strategy.cancel`。",
+		"- 常用数据：`open`、`high`、`low`、`close`、`volume`、`hl2`、`hlc3`、`ohlc4`。",
+		"- 常用指标：EMA/SMA/RSI/CCI/Bollinger/Keltner/Donchian/SAR/linreg/OBV 等，完整范围以 `pine-v6-spec.md` 为准。",
+		"- 不要假设 TradingView broker emulator 行为完全一致；以 JFTrade parser、planner 和 runtime 支持矩阵为准。",
+	}, "\n")
+}
+
+func BuildResearchWorkflowMarkdown() string {
+	return strings.Join([]string{
+		"# 策略研究工作流",
+		"",
+		"1. 明确标的、周期、时间范围和初始资金；不完整时先用行情工具补齐上下文。",
+		"2. 只做语法/兼容性检查时调用 `strategy.validate_pine`。",
+		"3. 需要验证收益、回撤、成交或曲线时调用 `strategy.research_backtest`，输入临时脚本和回测参数。",
+		"4. 回测未完成时调用 `workflow.wait` 短等，然后用 `backtest.result_view` 查询。",
+		"5. 查看结果先用 `view=summary`；查看图表用 `view=chart`、`resolution=auto`、`limit<=1000`，并按需 include candles/trades/pnlCurve/drawdownCurve。",
+		"6. 不要在研究阶段调用保存工具；只有用户明确要求保存或发布时，切换到发布流程。",
+	}, "\n")
+}
+
+func BuildPublishChecklistMarkdown() string {
+	return strings.Join([]string{
+		"# 策略发布检查清单",
+		"",
+		"- 用户必须明确要求保存、发布、更新定义、保存草稿、修改实例模式或优化已保存定义。",
+		"- 保存前必须调用 `strategy.validate_pine` 并确认校验成功。",
+		"- `strategy.save_definition` 用于明确保存为策略定义；`strategy.save_draft` 只用于明确草稿保存。",
+		"- `strategy.update_instance_mode` 只用于用户点名的具体实例。",
+		"- `strategy.optimize` 只针对已保存定义创建真实异步回测任务，结果用 `backtest.runs` 查看。",
+		"- 输出中必须说明写入/优化动作受审批模式控制，不承诺收益。",
+	}, "\n")
 }
 
 func SaveDraftUsageHint() string {
