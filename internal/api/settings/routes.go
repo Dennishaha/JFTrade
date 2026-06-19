@@ -38,6 +38,10 @@ func RegisterRoutes(api *gin.RouterGroup, svc *srv.Service) {
 	settings.GET("/adk", handleADKRuntimeSettings(svc))
 	settings.PUT("/adk", handleSaveADKRuntimeSettings(svc))
 
+	// Exchange Calendars
+	settings.GET("/exchange-calendars", handleExchangeCalendarSettings(svc))
+	settings.PUT("/exchange-calendars", handleSaveExchangeCalendarSettings(svc))
+
 	// Broker
 	settings.GET("/brokers", handleBrokerSettings(svc))
 	settings.PUT("/brokers/:brokerId/integration", handleSaveBrokerIntegration(svc))
@@ -268,6 +272,32 @@ func handleSaveADKRuntimeSettings(svc *srv.Service) gin.HandlerFunc {
 			return
 		}
 		httpserver.WriteOK(c, result)
+	}
+}
+
+// ── Exchange Calendars ──
+
+func handleExchangeCalendarSettings(svc *srv.Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		httpserver.WriteOK(c, map[string]any{"exchangeCalendars": svc.GetExchangeCalendarSettings()})
+	}
+}
+
+func handleSaveExchangeCalendarSettings(svc *srv.Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var payload struct {
+			ExchangeCalendars jfsettings.ExchangeCalendarSettings `json:"exchangeCalendars"`
+		}
+		if err := c.ShouldBindJSON(&payload); err != nil {
+			httpserver.WriteError(c, 400, "BAD_REQUEST", "invalid exchange calendar payload")
+			return
+		}
+		result, err := svc.SaveExchangeCalendarSettings(payload.ExchangeCalendars)
+		if err != nil {
+			httpserver.WriteError(c, 500, "SETTINGS_SAVE_FAILED", err.Error())
+			return
+		}
+		httpserver.WriteOK(c, map[string]any{"exchangeCalendars": result})
 	}
 }
 

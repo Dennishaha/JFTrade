@@ -18,6 +18,7 @@ import (
 
 type routeStore struct {
 	execution   jfsettings.ExecutionSettings
+	calendars   jfsettings.ExchangeCalendarSettings
 	updateErr   error
 	deleteErr   error
 	integration jfsettings.BrokerIntegration
@@ -36,6 +37,9 @@ func (s *routeStore) SecuritySettings() jfsettings.SecuritySettings {
 }
 func (s *routeStore) ADKSettings() jfsettings.ADKRuntimeSettings {
 	return jfsettings.ADKRuntimeSettings{}
+}
+func (s *routeStore) ExchangeCalendarSettings() jfsettings.ExchangeCalendarSettings {
+	return s.calendars
 }
 func (s *routeStore) Integration() jfsettings.BrokerIntegration {
 	return jfsettings.BrokerIntegration{}
@@ -59,6 +63,10 @@ func (s *routeStore) SaveSecuritySettings(input jfsettings.SecuritySettings) (jf
 	return input, nil
 }
 func (s *routeStore) SaveADKSettings(input jfsettings.ADKRuntimeSettings) (jfsettings.ADKRuntimeSettings, error) {
+	return input, nil
+}
+func (s *routeStore) SaveExchangeCalendarSettings(input jfsettings.ExchangeCalendarSettings) (jfsettings.ExchangeCalendarSettings, error) {
+	s.calendars = input
 	return input, nil
 }
 func (s *routeStore) SaveIntegration(input jfsettings.BrokerIntegration) (jfsettings.BrokerIntegration, error) {
@@ -247,5 +255,50 @@ func TestExecutionSettingsRouteUsesInjectedService(t *testing.T) {
 	}
 	if !envelope.OK || !reflect.DeepEqual(envelope.Data, want) {
 		t.Fatalf("envelope = %#v, want ok with execution settings", envelope)
+	}
+}
+
+func TestExchangeCalendarSettingsRouteUsesInjectedService(t *testing.T) {
+	gin.SetMode(gin.ReleaseMode)
+	store := &routeStore{}
+	var sideEffect jfsettings.ExchangeCalendarSettings
+	service := srvsettings.NewService(store, srvsettings.WithSideEffects(srvsettings.SideEffects{
+		OnExchangeCalendarsChanged: func(settings jfsettings.ExchangeCalendarSettings) {
+			sideEffect = settings
+		},
+	}))
+
+	router := gin.New()
+	api := router.Group("/api/v1")
+	apisettings.RegisterRoutes(api, service)
+
+	body := `{"exchangeCalendars":{"autoRefreshEnabled":false,"refreshIntervalHours":12,"warmupMarkets":["US","HK"],"sourcePolicies":[{"market":"US","enabledSourceIds":["nyse_official"],"fallbackToBuiltin":true}]}}`
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPut, "/api/v1/settings/exchange-calendars", strings.NewReader(body))
+	request.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
+	}
+
+	if !reflect.DeepEqual(store.calendars, sideEffect) {
+		t.Fatalf("side effect = %#v, stored = %#v", sideEffect, store.calendars)
+	}
+	if store.calendars.RefreshIntervalHours != 12 || store.calendars.AutoRefreshEnabled {
+		t.Fatalf("stored calendars = %#v", store.calendars)
+	}
+
+	var envelope struct {
+		OK   bool `json:"ok"`
+		Data struct {
+			ExchangeCalendars jfsettings.ExchangeCalendarSettings `json:"exchangeCalendars"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(recorder.Body).Decode(&envelope); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if !envelope.OK || envelope.Data.ExchangeCalendars.RefreshIntervalHours != 12 {
+		t.Fatalf("envelope = %#v", envelope)
 	}
 }

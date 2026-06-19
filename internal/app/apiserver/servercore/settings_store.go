@@ -12,27 +12,29 @@ import (
 // internal/settings and internal/api/settings to import from the cycle-free
 // jftsettings package.
 type (
-	FutuIntegrationConfig = jftsettings.FutuIntegrationConfig
-	BrokerIntegration     = jftsettings.BrokerIntegration
-	ManagedBrokerAccount  = jftsettings.ManagedBrokerAccount
-	InterfaceSettings     = jftsettings.InterfaceSettings
-	UIAppearanceSettings  = jftsettings.UIAppearanceSettings
-	OnboardingSettings    = jftsettings.OnboardingSettings
-	ExecutionSettings     = jftsettings.ExecutionSettings
-	SecuritySettings      = jftsettings.SecuritySettings
-	ADKRuntimeSettings    = jftsettings.ADKRuntimeSettings
-	LaunchDefaults        = jftsettings.LaunchDefaults
+	FutuIntegrationConfig    = jftsettings.FutuIntegrationConfig
+	BrokerIntegration        = jftsettings.BrokerIntegration
+	ManagedBrokerAccount     = jftsettings.ManagedBrokerAccount
+	InterfaceSettings        = jftsettings.InterfaceSettings
+	UIAppearanceSettings     = jftsettings.UIAppearanceSettings
+	OnboardingSettings       = jftsettings.OnboardingSettings
+	ExecutionSettings        = jftsettings.ExecutionSettings
+	SecuritySettings         = jftsettings.SecuritySettings
+	ADKRuntimeSettings       = jftsettings.ADKRuntimeSettings
+	ExchangeCalendarSettings = jftsettings.ExchangeCalendarSettings
+	LaunchDefaults           = jftsettings.LaunchDefaults
 )
 
 type settingsFile struct {
-	Interfaces  *InterfaceSettings     `json:"interfaces,omitempty"`
-	Integration *BrokerIntegration     `json:"integration,omitempty"`
-	Accounts    []ManagedBrokerAccount `json:"accounts,omitempty"`
-	Appearance  *UIAppearanceSettings  `json:"appearance,omitempty"`
-	Onboarding  *OnboardingSettings    `json:"onboarding,omitempty"`
-	Execution   *ExecutionSettings     `json:"execution,omitempty"`
-	Security    *SecuritySettings      `json:"security,omitempty"`
-	ADK         *ADKRuntimeSettings    `json:"adk,omitempty"`
+	Interfaces  *InterfaceSettings        `json:"interfaces,omitempty"`
+	Integration *BrokerIntegration        `json:"integration,omitempty"`
+	Accounts    []ManagedBrokerAccount    `json:"accounts,omitempty"`
+	Appearance  *UIAppearanceSettings     `json:"appearance,omitempty"`
+	Onboarding  *OnboardingSettings       `json:"onboarding,omitempty"`
+	Execution   *ExecutionSettings        `json:"execution,omitempty"`
+	Security    *SecuritySettings         `json:"security,omitempty"`
+	ADK         *ADKRuntimeSettings       `json:"adk,omitempty"`
+	Calendars   *ExchangeCalendarSettings `json:"exchangeCalendars,omitempty"`
 }
 
 type SettingsStore struct {
@@ -133,4 +135,12 @@ func defaultADKRuntimeSettings() ADKRuntimeSettings {
 
 func normalizeADKRuntimeSettings(input ADKRuntimeSettings) ADKRuntimeSettings {
 	return settingsfile.NormalizeADKRuntimeSettings(input)
+}
+
+func defaultExchangeCalendarSettings() ExchangeCalendarSettings {
+	return settingsfile.DefaultExchangeCalendarSettings()
+}
+
+func normalizeExchangeCalendarSettings(input ExchangeCalendarSettings) ExchangeCalendarSettings {
+	return settingsfile.NormalizeExchangeCalendarSettings(input)
 }

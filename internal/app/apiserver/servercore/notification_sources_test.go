@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/jftrade/jftrade-main/internal/exchangecalendar"
 	notifypb "github.com/jftrade/jftrade-main/pkg/futu/pb/notify"
 )
 
@@ -64,6 +65,32 @@ func TestLiveNotificationFromFutuResponseMapsAPIQuota(t *testing.T) {
 	}
 	if note.Message != "剩余 5，当前连接已用 3，总已用 8。" {
 		t.Fatalf("message = %q", note.Message)
+	}
+	if strings.TrimSpace(note.At) == "" {
+		t.Fatal("expected timestamp")
+	}
+}
+
+func TestLiveNotificationFromExchangeCalendarAlertMapsSourceAndCategory(t *testing.T) {
+	note := liveNotificationFromExchangeCalendarAlert(exchangecalendar.SourceAlert{
+		SourceID: "nyse_official",
+		Market:   "US",
+		Level:    "error",
+		Kind:     "structure_changed",
+		Title:    "交易所日历源解析异常",
+		Message:  "US 市场日历源 nyse_official 抓取成功但未解析到有效交易日。",
+	})
+	if note == nil {
+		t.Fatal("expected note")
+	}
+	if note.Level != "error" {
+		t.Fatalf("level = %q", note.Level)
+	}
+	if note.Source != "exchange-calendars" {
+		t.Fatalf("source = %q", note.Source)
+	}
+	if note.Category != "market.calendar.source" {
+		t.Fatalf("category = %q", note.Category)
 	}
 	if strings.TrimSpace(note.At) == "" {
 		t.Fatal("expected timestamp")

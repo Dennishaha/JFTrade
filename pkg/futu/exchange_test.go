@@ -2573,6 +2573,7 @@ func TestSessionFromExtendedBlocksClockGuardsStaleExtendedData(t *testing.T) {
 	afterClock := time.Date(2025, time.January, 7, 22, 0, 0, 0, time.UTC)
 	// 02:00 UTC = 21:00 EST previous day (overnight).
 	overnightClock := time.Date(2025, time.January, 8, 2, 0, 0, 0, time.UTC)
+	holidayClock := time.Date(2026, time.June, 19, 16, 0, 0, 0, time.UTC)
 
 	stalePre := priceOf(195.0)
 	staleAfter := priceOf(198.0)
@@ -2625,6 +2626,14 @@ func TestSessionFromExtendedBlocksClockGuardsStaleExtendedData(t *testing.T) {
 			after:     nil,
 			overnight: nil,
 			want:      market.SessionAfter,
+		},
+		{
+			name:      "holiday stays closed even with stale premarket data",
+			now:       holidayClock,
+			pre:       priceOf(196.5),
+			after:     staleAfter,
+			overnight: staleOvernight,
+			want:      market.SessionClosed,
 		},
 	}
 	for _, tc := range cases {

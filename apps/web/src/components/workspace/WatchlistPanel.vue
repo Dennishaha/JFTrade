@@ -11,6 +11,7 @@ import type { MarketSecurityDetails } from "../../composables/marketDataRealtime
 import { fetchEnvelope } from "../../composables/apiClient";
 import { resolveBrokerQuery } from "../../composables/consoleDataBrokerAccountSelection";
 import { useMarketProfiles } from "../../composables/marketProfiles";
+import { resolveMarketSnapshotDisplay } from "../../composables/marketSessionDisplay";
 import { useConsoleData } from "../../composables/useConsoleData";
 import { useWorkspaceTradingPrefs } from "../../composables/useWorkspaceLayout";
 
@@ -39,67 +40,19 @@ const instrumentTitle = computed(() => {
     : `${instrumentId.value} · ${resolvedName}`;
 });
 const supportsExtendedHoursMarket = computed(() => supportsExtendedHoursForMarket(prefs.value.market));
-const snapshotSession = computed(() => {
-  const session = snapshot.value?.session;
-  return typeof session === "string" && session !== "" ? session : null;
-});
-const mainPriceLabel = computed(() => {
-  if (!supportsExtendedHoursMarket.value) return "最新价";
-  return snapshotSession.value === "regular" ? "最新价" : "最近盘中收盘";
-});
-// 大字展示逻辑：盘中展示实时价，非盘中（盘前/盘后/夜盘）展示最近盘中收盘价
-const mainDisplayPrice = computed(() => {
-  const snap = snapshot.value;
-  if (!snap) return null;
-  if (!supportsExtendedHoursMarket.value) return snap.price;
-  if (snapshotSession.value === "regular") return snap.price;
-  // 非盘中时段：previousClosePrice = 最近盘中收盘（盘前→昨日收盘，盘后/夜盘→今日4PM收盘）
-  return snap.previousClosePrice ?? snap.price;
-});
-// mainChangePercent: 语义随时段变化
-// ▸ 盘中（regular）：实时价 vs 昨收 → 当日涨跌
-// ▸ 盘外（最近盘中收盘展示）：盘中收盘 vs 上个交易日收盘（lastClosePrice）
-const mainChangePercent = computed(() => {
-  const snap = snapshot.value;
-  if (!snap) return null;
-  if (!supportsExtendedHoursMarket.value || snapshotSession.value === "regular") {
-    const livePrice = snap.price;
-    const previousClosePrice = snap.previousClosePrice;
-    if (livePrice == null || previousClosePrice == null || previousClosePrice === 0) return null;
-    return ((livePrice - previousClosePrice) / previousClosePrice) * 100;
-  }
-  // 扩展时段：最近盘中收盘 vs 上个交易日收盘
-  const close = snap.previousClosePrice;
-  const lastClose = snap.lastClosePrice;
-  if (close == null || lastClose == null || lastClose === 0 || close === lastClose) return null;
-  return ((close - lastClose) / lastClose) * 100;
-});
-
-// extendedCardChangeRate: 延伸时段卡片专用——实时延伸价格 vs 最近盘中收盘
-const extendedCardChangeRate = computed(() => {
-  const snap = snapshot.value;
-  if (!snap) return null;
-  const livePrice = snap.price;
-  const previousClosePrice = snap.previousClosePrice;
-  if (livePrice == null || previousClosePrice == null || previousClosePrice === 0) return null;
-  return ((livePrice - previousClosePrice) / previousClosePrice) * 100;
-});
+const displayModel = computed(() =>
+  resolveMarketSnapshotDisplay(snapshot.value, supportsExtendedHoursMarket.value),
+);
+const mainPriceLabel = computed(() => displayModel.value.mainPriceLabel);
+const mainDisplayPrice = computed(() => displayModel.value.mainDisplayPrice);
+const mainChangePercent = computed(() => displayModel.value.mainChangePercent);
 const mainChangeClass = computed(() => {
   const percent = mainChangePercent.value;
   if (percent == null || percent === 0) return "";
   return percent > 0 ? "tv-up" : "tv-down";
 });
-const sessionLabel = computed(() => {
-  if (snapshotSession.value === "regular") return "盘中";
-  if (snapshotSession.value === "pre") return "盘前";
-  if (snapshotSession.value === "after") return "盘后";
-  if (snapshotSession.value === "overnight") return "夜盘";
-  if (snapshotSession.value === "closed") return "休市";
-  if (snapshotSession.value === "unknown") return "未知";
-  return snapshotSession.value ?? "";
-});
 const extendedCards = computed(() => {
-  if (!supportsExtendedHoursMarket.value || snapshot.value?.extended == null) {
+  if (!supportsExtendedHoursMarket.value) {
     return [] as Array<{
       key: string;
       label: string;
@@ -110,76 +63,12 @@ const extendedCards = computed(() => {
       accent: string;
     }>;
   }
-
-  const snap = snapshot.value;
-  const extended = snap.extended;
-  // snap.price is refreshed on every live ticker event; extended.*.price only
-  // updates on HTTP snapshot fetches (~60 s). For the currently-active extended
-  // session, prefer snap.price so the card reflects live market data.
-  const livePrice = snap.price > 0 ? snap.price : null;
-  const liveChangeRate = extendedCardChangeRate.value;
-
-  const cards: Array<{
-    key: string;
-    label: string;
-    price: number;
-    changeRate: number | null;
-    border: string;
-    surface: string;
-    accent: string;
-  }> = [];
-
-  if (
-    snapshotSession.value === "pre" &&
-    extended?.preMarket?.price != null
-  ) {
-    cards.push({
-      key: "pre",
-      label: "盘前价格",
-      price: livePrice ?? extended.preMarket.price,
-      changeRate: liveChangeRate ?? extended.preMarket.changeRate ?? null,
-      border: "var(--card-sky-border)",
-      surface: "var(--card-sky-surface)",
-      accent: "var(--card-sky-text)",
-    });
-  }
-
-  if (
-    (snapshotSession.value === "after" || snapshotSession.value === "overnight") &&
-    extended?.afterMarket?.price != null
-  ) {
-    // after-market trading is only active when session === "after"; during
-    // "overnight" that window is already closed so keep the snapshot price.
-    const isActiveAfter = snapshotSession.value === "after";
-    cards.push({
-      key: "after",
-      label: "盘后价格",
-      price: isActiveAfter ? (livePrice ?? extended.afterMarket.price) : extended.afterMarket.price,
-      changeRate: isActiveAfter
-        ? (liveChangeRate ?? extended.afterMarket.changeRate ?? null)
-        : (extended.afterMarket.changeRate ?? null),
-      border: "var(--card-amber-border)",
-      surface: "var(--card-amber-surface)",
-      accent: "var(--card-amber-text)",
-    });
-  }
-
-  if (
-    snapshotSession.value === "overnight" &&
-    extended?.overnight?.price != null
-  ) {
-    cards.push({
-      key: "overnight",
-      label: "夜盘价格",
-      price: livePrice ?? extended.overnight.price,
-      changeRate: liveChangeRate ?? extended.overnight.changeRate ?? null,
-      border: "var(--card-violet-border)",
-      surface: "var(--card-violet-surface)",
-      accent: "var(--card-violet-text)",
-    });
-  }
-
-  return cards;
+  return displayModel.value.extendedCards.map((card) => ({
+    ...card,
+    border: card.key === "pre" ? "var(--card-sky-border)" : "var(--card-amber-border)",
+    surface: card.key === "pre" ? "var(--card-sky-surface)" : "var(--card-amber-surface)",
+    accent: card.key === "pre" ? "var(--card-sky-text)" : "var(--card-amber-text)",
+  }));
 });
 
 // ---- 融资融券（Margin / Short Selling） ----
@@ -482,10 +371,10 @@ function formatPercent(value: number | null | undefined): string {
             </div>
           </div>
           <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 10px">
-            <span v-if="supportsExtendedHoursMarket && sessionLabel"
+            <span v-if="supportsExtendedHoursMarket && displayModel.sessionLabel"
               style="font-size: 11px; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--tv-border); white-space: nowrap"
-              :style="snapshotSession === 'regular' ? 'color: var(--tv-accent); background: color-mix(in srgb, var(--tv-accent) 14%, var(--tv-bg-surface-2))' : 'color: var(--tv-text); background: var(--tv-bg-surface-2)'">
-              {{ sessionLabel }}
+              :style="displayModel.session === 'regular' ? 'color: var(--tv-accent); background: color-mix(in srgb, var(--tv-accent) 14%, var(--tv-bg-surface-2))' : 'color: var(--tv-text); background: var(--tv-bg-surface-2)'">
+              {{ displayModel.sessionLabel }}
             </span>
             <!-- 融资融券标志 -->
             <span v-if="showMarginBadges" ref="marginTriggerRef"

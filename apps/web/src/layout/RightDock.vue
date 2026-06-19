@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import { computed } from "vue";
 
+import { useMarketProfiles } from "../composables/marketProfiles";
+import {
+  formatMarketSessionLabel,
+  resolveMarketSnapshotDisplay,
+} from "../composables/marketSessionDisplay";
 import { useConsoleData } from "../composables/useConsoleData";
 import {
   useWorkspaceTradingPrefs,
@@ -11,6 +16,7 @@ import NotificationCenter from "./NotificationCenter.vue";
 
 const { prefs: tradingPrefs } = useWorkspaceTradingPrefs();
 const { prefs, update } = useWorkspaceViewState();
+const { supportsExtendedHoursForMarket } = useMarketProfiles();
 const { currentMarketDataSnapshot: marketDataSnapshot, marketDataSubscriptions, systemStatus } =
   useConsoleData();
 
@@ -18,20 +24,18 @@ const symbolInfo = computed(
   () => `${tradingPrefs.value.market}:${tradingPrefs.value.symbol}`,
 );
 const snap = computed(() => marketDataSnapshot.value?.snapshot ?? null);
-const sessionLabels: Record<string, string> = {
-  regular: "盘中",
-  pre: "盘前",
-  after: "盘后",
-  overnight: "夜盘",
-  closed: "休市",
-  unknown: "未知",
-};
+const supportsExtendedHoursMarket = computed(() =>
+  supportsExtendedHoursForMarket(tradingPrefs.value.market),
+);
+const displayModel = computed(() =>
+  resolveMarketSnapshotDisplay(snap.value, supportsExtendedHoursMarket.value),
+);
 const snapSessionLabel = computed(() => {
   const session = snap.value?.session;
   if (typeof session !== "string" || session === "") {
     return "—";
   }
-  return sessionLabels[session] ?? session;
+  return formatMarketSessionLabel(session);
 });
 
 const tabs = [
@@ -81,7 +85,7 @@ function toggle(): void {
         <div data-testid="rightdock-symbol-info" style="font-size: 18px; font-weight: 600; margin-bottom: 8px">{{ symbolInfo }}</div>
         <table class="tv-table">
           <tbody>
-            <tr><td>最新价</td><td class="tv-num">{{ snap?.price ?? "—" }}</td></tr>
+            <tr><td>{{ displayModel.mainPriceLabel }}</td><td class="tv-num">{{ displayModel.mainDisplayPrice ?? "—" }}</td></tr>
             <tr><td>买一</td><td class="tv-num">{{ snap?.bid ?? "—" }}</td></tr>
             <tr><td>卖一</td><td class="tv-num">{{ snap?.ask ?? "—" }}</td></tr>
             <tr><td>时段</td><td class="tv-num">{{ snapSessionLabel }}</td></tr>

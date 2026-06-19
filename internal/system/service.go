@@ -20,6 +20,10 @@ type Service struct {
 	liveStats                   func() map[string]any
 	marketdataRuntimeSummary    func() map[string]any
 	brokerOrderSnapshot         func() map[string]any
+	exchangeCalendarStatusFn    func() map[string]any
+	exchangeCalendarSourcesFn   func() []map[string]any
+	refreshExchangeCalendarsFn  func(ctx context.Context, market string) map[string]any
+	probeExchangeCalendarsFn    func(ctx context.Context, market string) map[string]any
 	futuOpenDHealthFn           func(ctx context.Context) map[string]any
 	futuOpenDInstallGuideFn     func() map[string]any
 	resetFutuRuntimeFn          func()
@@ -87,6 +91,26 @@ func WithBrokerOrderSnapshot(fn func() map[string]any) Option {
 	return func(s *Service) { s.brokerOrderSnapshot = fn }
 }
 
+// WithExchangeCalendarStatus 设置交易所日历状态提供者。
+func WithExchangeCalendarStatus(fn func() map[string]any) Option {
+	return func(s *Service) { s.exchangeCalendarStatusFn = fn }
+}
+
+// WithExchangeCalendarSources 设置交易所日历数据源提供者。
+func WithExchangeCalendarSources(fn func() []map[string]any) Option {
+	return func(s *Service) { s.exchangeCalendarSourcesFn = fn }
+}
+
+// WithRefreshExchangeCalendars 设置交易所日历刷新回调。
+func WithRefreshExchangeCalendars(fn func(ctx context.Context, market string) map[string]any) Option {
+	return func(s *Service) { s.refreshExchangeCalendarsFn = fn }
+}
+
+// WithProbeExchangeCalendars 设置交易所日历在线探针回调。
+func WithProbeExchangeCalendars(fn func(ctx context.Context, market string) map[string]any) Option {
+	return func(s *Service) { s.probeExchangeCalendarsFn = fn }
+}
+
 // WithFutuOpenDHealth 设置 Futu/OpenD 健康检查提供者。
 func WithFutuOpenDHealth(fn func(ctx context.Context) map[string]any) Option {
 	return func(s *Service) { s.futuOpenDHealthFn = fn }
@@ -131,6 +155,10 @@ func (s *Service) Status() map[string]any {
 	if s.marketdataRuntimeSummary != nil {
 		marketdata = s.marketdataRuntimeSummary()
 	}
+	exchangeCalendars := map[string]any(nil)
+	if s.exchangeCalendarStatusFn != nil {
+		exchangeCalendars = s.exchangeCalendarStatusFn()
+	}
 	status := map[string]any{
 		"name":                      "JFTrade",
 		"apiPort":                   apiPort,
@@ -166,10 +194,11 @@ func (s *Service) Status() map[string]any {
 				"startedAt": s.startedAt.Format(time.RFC3339Nano),
 				"uptimeMs":  now.Sub(s.startedAt).Milliseconds(),
 			},
-			"live":            live,
-			"marketdata":      marketdata,
-			"broker":          broker,
-			"strategyRuntime": strategyRuntime,
+			"live":              live,
+			"marketdata":        marketdata,
+			"exchangeCalendars": exchangeCalendars,
+			"broker":            broker,
+			"strategyRuntime":   strategyRuntime,
 		},
 		"message": "JFTrade API adapter is running.",
 	}
@@ -182,6 +211,38 @@ func (s *Service) Status() map[string]any {
 	}
 
 	return status
+}
+
+// ExchangeCalendarStatus 返回交易所日历状态。
+func (s *Service) ExchangeCalendarStatus() map[string]any {
+	if s.exchangeCalendarStatusFn == nil {
+		return map[string]any{}
+	}
+	return s.exchangeCalendarStatusFn()
+}
+
+// ExchangeCalendarSources 返回交易所日历数据源状态。
+func (s *Service) ExchangeCalendarSources() []map[string]any {
+	if s.exchangeCalendarSourcesFn == nil {
+		return nil
+	}
+	return s.exchangeCalendarSourcesFn()
+}
+
+// RefreshExchangeCalendars 手动刷新交易所日历。
+func (s *Service) RefreshExchangeCalendars(ctx context.Context, market string) map[string]any {
+	if s.refreshExchangeCalendarsFn == nil {
+		return map[string]any{"accepted": false, "reason": "exchange calendar manager not configured"}
+	}
+	return s.refreshExchangeCalendarsFn(ctx, market)
+}
+
+// ProbeExchangeCalendars 执行交易所日历官方源在线探针。
+func (s *Service) ProbeExchangeCalendars(ctx context.Context, market string) map[string]any {
+	if s.probeExchangeCalendarsFn == nil {
+		return map[string]any{"accepted": false, "reason": "exchange calendar probe not configured"}
+	}
+	return s.probeExchangeCalendarsFn(ctx, market)
 }
 
 // ── 存储概览 ──

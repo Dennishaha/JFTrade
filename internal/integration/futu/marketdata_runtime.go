@@ -351,6 +351,6 @@ func extendedQuote(quote *pkgfutu.ExtendedMarketQuote) *marketdata.ExtendedQuote
 	return &marketdata.ExtendedQuote{
 		Price: quote.Price, HighPrice: quote.HighPrice, LowPrice: quote.LowPrice,
 		Volume: quote.Volume, Turnover: quote.Turnover, ChangeVal: quote.ChangeVal,
-		ChangeRate: quote.ChangeRate, Amplitude: quote.Amplitude,
+		ChangeRate: quote.ChangeRate, Amplitude: quote.Amplitude, QuoteTime: quote.QuoteTime,
 	}
 }

@@ -36,6 +36,7 @@ func extendedMarketQuoteSecurityMap(quote *futu.ExtendedMarketQuote) map[string]
 		"changeVal":  optionalDecimalJSON(quote.ChangeVal),
 		"changeRate": optionalDecimalJSON(quote.ChangeRate),
 		"amplitude":  optionalDecimalJSON(quote.Amplitude),
+		"quoteTime":  quote.QuoteTime,
 	}
 }
 

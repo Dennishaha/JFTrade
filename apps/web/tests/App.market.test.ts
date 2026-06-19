@@ -41,6 +41,8 @@ afterEach(() => {
   document.title = "";
 });
 
+const WORKSPACE_TRADING_STORAGE_KEY = "jftrade.workspace.trading.v1";
+
 function buildStandardFetchMock(overrides: Record<string, unknown> = {}) {
   return vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
     const url = String(input);
@@ -108,6 +110,50 @@ function buildStandardFetchMock(overrides: Record<string, unknown> = {}) {
         },
       });
     }
+    if (url.includes("/api/v1/market-data/snapshots/US/AAPL")) {
+      return createResponse(
+        overrides["market-data/snapshots/US/AAPL"] ?? {
+          request: {
+            market: "US",
+            symbol: "AAPL",
+            instrumentId: "US.AAPL",
+          },
+          snapshot: {
+            price: 195.5,
+            bid: 195.4,
+            ask: 195.6,
+            openPrice: 194.2,
+            highPrice: 196.2,
+            lowPrice: 193.8,
+            previousClosePrice: 195.5,
+            lastClosePrice: 193.2,
+            volume: 1280000,
+            turnover: 410240000,
+            at: "2026-06-18T20:00:00.000Z",
+            session: "closed",
+            extendedHours: false,
+            extended: {
+              preMarket: {
+                price: 196.1,
+                changeRate: 0.31,
+                quoteTime: "2026-06-18T20:00:00.000Z",
+              },
+              afterMarket: {
+                price: 195.3,
+                changeRate: -0.1,
+                quoteTime: "2026-06-18T20:00:00.000Z",
+              },
+            },
+          },
+          meta: {
+            instrumentId: "US.AAPL",
+            source: "api-sample-cache",
+            resolvedAt: "2026-06-19T16:00:00.000Z",
+            fromCache: true,
+          },
+        },
+      );
+    }
     if (url.includes("/api/v1/market-data/securities/HK/00700")) {
       return createResponse({
         request: {
@@ -123,6 +169,48 @@ function buildStandardFetchMock(overrides: Record<string, unknown> = {}) {
           fromCache: true,
         },
       });
+    }
+    if (url.includes("/api/v1/market-data/securities/US/AAPL")) {
+      return createResponse(
+        overrides["market-data/securities/US/AAPL"] ?? {
+          request: {
+            market: "US",
+            symbol: "AAPL",
+            instrumentId: "US.AAPL",
+          },
+          security: {
+            instrumentId: "US.AAPL",
+            market: "US",
+            symbol: "AAPL",
+            securityId: 1,
+            name: "Apple",
+            securityType: "Eqty",
+            exchangeType: "US_NASDAQ",
+            listTime: "1980-12-12",
+            listTimestamp: 345427200,
+            delisting: false,
+            lotSize: 1,
+            isSuspend: false,
+            priceSpread: 0.01,
+            updateTime: "2026-06-18 16:00:00",
+            updateTimestamp: 1781812800,
+            highPrice: 196.2,
+            openPrice: 194.2,
+            lowPrice: 193.8,
+            lastClosePrice: 193.2,
+            currentPrice: 195.5,
+            volume: 1280000,
+            turnover: 410240000,
+            turnoverRate: 0.8,
+          },
+          meta: {
+            instrumentId: "US.AAPL",
+            source: "api-sample-cache",
+            resolvedAt: "2026-06-19T16:00:00.000Z",
+            fromCache: true,
+          },
+        },
+      );
     }
     if (url.includes("/api/v1/market-data/candles/HK/00700")) {
       return createResponse({
@@ -154,6 +242,39 @@ function buildStandardFetchMock(overrides: Record<string, unknown> = {}) {
           fromCache: true,
         },
       });
+    }
+    if (url.includes("/api/v1/market-data/candles/US/AAPL")) {
+      return createResponse(
+        overrides["market-data/candles/US/AAPL"] ?? {
+          request: {
+            instrument: {
+              market: "US",
+              symbol: "AAPL",
+              instrumentId: "US.AAPL",
+            },
+            period: "1m",
+            limit: 3,
+          },
+          candles: [
+            {
+              period: "1m",
+              open: 195.5,
+              high: 195.5,
+              low: 195.5,
+              close: 195.5,
+              volume: 0,
+              at: "2026-06-18T20:00:00.000Z",
+            },
+          ],
+          totalReturned: 1,
+          meta: {
+            instrumentId: "US.AAPL",
+            source: "api-sample-cache",
+            resolvedAt: "2026-06-19T16:00:00.000Z",
+            fromCache: true,
+          },
+        },
+      );
     }
     if (url.includes("/api/v1/market-data/markets")) {
       return createResponse({
@@ -375,6 +496,34 @@ describe("Workspace market behavior", () => {
     expect(wrapper.text()).toContain("策略");
     expect(wrapper.text()).toContain("系统");
     expect(wrapper.text()).toContain("我的账户");
+
+    wrapper.unmount();
+  });
+
+  it("renders a holiday US snapshot as closed with only recent after-hours pricing", async () => {
+    window.localStorage?.setItem(
+      WORKSPACE_TRADING_STORAGE_KEY,
+      JSON.stringify({
+        market: "US",
+        symbol: "AAPL",
+        period: "1m",
+        selectedBrokerAccountKey: null,
+        favoriteBrokerAccountKeys: [],
+      }),
+    );
+    vi.stubGlobal("fetch", buildStandardFetchMock());
+    vi.stubGlobal(
+      "WebSocket",
+      MockWebSocket as unknown as typeof WebSocket,
+    );
+
+    const { wrapper } = await mountApp("/workspace");
+    await flushRequests();
+
+    expect(wrapper.text()).toContain("US.AAPL");
+    expect(wrapper.text()).toContain("休市");
+    expect(wrapper.text()).toContain("最近盘后价格");
+    expect(wrapper.text()).not.toContain("盘前价格");
 
     wrapper.unmount();
   });

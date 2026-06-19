@@ -1886,6 +1886,7 @@ export interface MarketDataExtendedQuote {
   changeVal?: number | null;
   changeRate?: number | null;
   amplitude?: number | null;
+  quoteTime?: string | null;
 }
 
 export interface MarketDataExtendedQuoteBlocks {

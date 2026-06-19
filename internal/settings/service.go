@@ -15,6 +15,7 @@ type Store interface {
 	ExecutionSettings() jfsettings.ExecutionSettings
 	SecuritySettings() jfsettings.SecuritySettings
 	ADKSettings() jfsettings.ADKRuntimeSettings
+	ExchangeCalendarSettings() jfsettings.ExchangeCalendarSettings
 	Integration() jfsettings.BrokerIntegration
 	SavedIntegration() *jfsettings.BrokerIntegration
 	ManagedAccounts() []jfsettings.ManagedBrokerAccount
@@ -26,6 +27,7 @@ type Store interface {
 	SaveExecutionSettings(jfsettings.ExecutionSettings) (jfsettings.ExecutionSettings, error)
 	SaveSecuritySettings(jfsettings.SecuritySettings) (jfsettings.SecuritySettings, error)
 	SaveADKSettings(jfsettings.ADKRuntimeSettings) (jfsettings.ADKRuntimeSettings, error)
+	SaveExchangeCalendarSettings(jfsettings.ExchangeCalendarSettings) (jfsettings.ExchangeCalendarSettings, error)
 	SaveIntegration(jfsettings.BrokerIntegration) (jfsettings.BrokerIntegration, error)
 	CreateManagedAccount(jfsettings.ManagedBrokerAccount) (jfsettings.ManagedBrokerAccount, error)
 	UpdateManagedAccount(id string, input jfsettings.ManagedBrokerAccount) (jfsettings.ManagedBrokerAccount, error)
@@ -46,6 +48,8 @@ type SideEffects struct {
 	OnExecutionChanged func(jfsettings.ExecutionSettings)
 	// OnSecurityChanged 在安全设置变更时调用（→ 更新 auth/frontend）。
 	OnSecurityChanged func(jfsettings.SecuritySettings)
+	// OnExchangeCalendarsChanged 在交易所日历设置变更时调用（→ 刷新 manager 配置）。
+	OnExchangeCalendarsChanged func(jfsettings.ExchangeCalendarSettings)
 }
 
 // Service 提供 settings 业务逻辑：读取、持久化、副作用编排。
@@ -177,6 +181,25 @@ func (s *Service) GetADKRuntimeSettings() jfsettings.ADKRuntimeSettings {
 // SaveADKRuntimeSettings 保存 ADK 运行时设置。
 func (s *Service) SaveADKRuntimeSettings(input jfsettings.ADKRuntimeSettings) (jfsettings.ADKRuntimeSettings, error) {
 	return s.store.SaveADKSettings(input)
+}
+
+// ── Exchange Calendars ──
+
+// GetExchangeCalendarSettings 返回交易所日历设置。
+func (s *Service) GetExchangeCalendarSettings() jfsettings.ExchangeCalendarSettings {
+	return s.store.ExchangeCalendarSettings()
+}
+
+// SaveExchangeCalendarSettings 保存交易所日历设置并触发副作用。
+func (s *Service) SaveExchangeCalendarSettings(input jfsettings.ExchangeCalendarSettings) (jfsettings.ExchangeCalendarSettings, error) {
+	result, err := s.store.SaveExchangeCalendarSettings(input)
+	if err != nil {
+		return result, err
+	}
+	if s.sideEffects.OnExchangeCalendarsChanged != nil {
+		s.sideEffects.OnExchangeCalendarsChanged(result)
+	}
+	return result, nil
 }
 
 // ── Broker Integration ──

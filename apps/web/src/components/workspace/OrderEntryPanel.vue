@@ -8,6 +8,7 @@ import {
   formatTimeInForceLabel,
 } from "../../composables/consoleDataFormatting";
 import { useMarketProfiles } from "../../composables/marketProfiles";
+import { formatMarketSessionLabel } from "../../composables/marketSessionDisplay";
 import { useConsoleData } from "../../composables/useConsoleData";
 import { useNotifications } from "../../composables/useNotifications";
 import { useWorkspaceTradingPrefs } from "../../composables/useWorkspaceLayout";
@@ -221,7 +222,7 @@ const currentMarketSessionLabel = computed(() => {
   if (typeof session !== "string" || session.trim() === "") {
     return "";
   }
-  return formatCurrentMarketSession(session);
+  return formatMarketSessionLabel(session);
 });
 const orderSessionSummary = computed(() => {
   if (!supportsOrderSessionSelection.value) {
@@ -357,17 +358,6 @@ function formatOrderSession(session: string): string {
   if (normalized === "ETH") return "扩展交易时段（ETH）";
   if (normalized === "ALL") return "全时段（ALL）";
   if (normalized === "OVERNIGHT") return "夜盘（OVERNIGHT）";
-  return session;
-}
-
-function formatCurrentMarketSession(session: string): string {
-  const normalized = session.trim().toLowerCase();
-  if (normalized === "regular") return "盘中";
-  if (normalized === "pre") return "盘前";
-  if (normalized === "after") return "盘后";
-  if (normalized === "overnight") return "夜盘";
-  if (normalized === "closed") return "休市";
-  if (normalized === "unknown") return "未知";
   return session;
 }
 

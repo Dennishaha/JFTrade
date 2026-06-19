@@ -5,6 +5,8 @@ import (
 	"time"
 
 	"github.com/shopspring/decimal"
+
+	marketpkg "github.com/jftrade/jftrade-main/pkg/market"
 )
 
 type Cache struct {
@@ -139,6 +141,7 @@ func inheritTickContext(incoming, latest *Tick) {
 	if incoming == nil || latest == nil {
 		return
 	}
+	sameTradingDay := sharesTradingDay(incoming.InstrumentID, parseTime(incoming.ObservedAt), parseTime(latest.ObservedAt))
 	if incoming.OpenPrice == nil {
 		incoming.OpenPrice = latest.OpenPrice
 	}
@@ -154,19 +157,19 @@ func inheritTickContext(incoming, latest *Tick) {
 	if incoming.LastClosePrice == nil {
 		incoming.LastClosePrice = latest.LastClosePrice
 	}
-	if incoming.PreMarket == nil {
+	if sameTradingDay && incoming.PreMarket == nil {
 		incoming.PreMarket = latest.PreMarket
 	}
-	if incoming.AfterMarket == nil {
+	if sameTradingDay && incoming.AfterMarket == nil {
 		incoming.AfterMarket = latest.AfterMarket
 	}
-	if incoming.Overnight == nil {
+	if sameTradingDay && incoming.Overnight == nil {
 		incoming.Overnight = latest.Overnight
 	}
 	if incoming.Turnover.IsZero() {
 		incoming.Turnover = latest.Turnover
 	}
-	if incoming.Session == "" || incoming.Session == "unknown" {
+	if sameTradingDay && (incoming.Session == "" || incoming.Session == "unknown") {
 		incoming.Session = latest.Session
 		incoming.ExtendedHours = latest.ExtendedHours
 	}
@@ -219,4 +222,28 @@ func parseTime(value string) time.Time {
 		}
 	}
 	return time.Time{}
+}
+
+func sharesTradingDay(instrumentID string, left, right time.Time) bool {
+	if left.IsZero() || right.IsZero() {
+		return false
+	}
+	includeExtendedHours := marketpkg.IsUSSymbol(instrumentID)
+	if leftKey, leftOK := marketpkg.TradingDayKey(instrumentID, left, includeExtendedHours); leftOK {
+		if rightKey, rightOK := marketpkg.TradingDayKey(instrumentID, right, includeExtendedHours); rightOK {
+			return leftKey == rightKey
+		}
+		if includeExtendedHours {
+			return false
+		}
+	}
+	profile, ok := marketpkg.ProfileForSymbol(instrumentID)
+	if !ok {
+		return false
+	}
+	leftLocal := left.In(profile.Location)
+	rightLocal := right.In(profile.Location)
+	return leftLocal.Year() == rightLocal.Year() &&
+		leftLocal.Month() == rightLocal.Month() &&
+		leftLocal.Day() == rightLocal.Day()
 }

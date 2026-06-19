@@ -16,24 +16,28 @@ func TestSystemRoutesReturnEnvelopes(t *testing.T) {
 	router, _ := newSystemRouteTestRouter()
 
 	tests := []struct {
+		method   string
 		path     string
 		wantKeys []string
 	}{
-		{"/api/v1/system/status", []string{"apiPort"}},
-		{"/api/v1/system/futu-opend", []string{"status"}},
-		{"/api/v1/system/futu-opend/install-guide", []string{"downloadUrl"}},
-		{"/api/v1/system/storage/overview", []string{"pendingOutbox"}},
-		{"/api/v1/system/real-trade-approvals", []string{"realTradingEnabled", "requiredConfirmationText", "entries"}},
-		{"/api/v1/system/real-trade-hard-stops", []string{"blockedOperations", "entries"}},
-		{"/api/v1/system/real-trade-kill-switch", []string{"killSwitchActive", "blockedOperations", "entry"}},
-		{"/api/v1/system/real-trade-risk-limits", []string{"riskEnabled", "effectiveMaxOrderQuantity", "entry"}},
-		{"/api/v1/system/real-trade-risk-events", []string{"riskEnabled", "maxOrderQuantity", "entries"}},
-		{"/api/v1/system/worker/broker-order-updates", []string{"running"}},
+		{http.MethodGet, "/api/v1/system/status", []string{"apiPort"}},
+		{http.MethodGet, "/api/v1/system/exchange-calendars/status", []string{"autoRefreshEnabled"}},
+		{http.MethodGet, "/api/v1/system/exchange-calendars/sources", []string{"sources"}},
+		{http.MethodPost, "/api/v1/system/exchange-calendars/probe", []string{"accepted", "healthy"}},
+		{http.MethodGet, "/api/v1/system/futu-opend", []string{"status"}},
+		{http.MethodGet, "/api/v1/system/futu-opend/install-guide", []string{"downloadUrl"}},
+		{http.MethodGet, "/api/v1/system/storage/overview", []string{"pendingOutbox"}},
+		{http.MethodGet, "/api/v1/system/real-trade-approvals", []string{"realTradingEnabled", "requiredConfirmationText", "entries"}},
+		{http.MethodGet, "/api/v1/system/real-trade-hard-stops", []string{"blockedOperations", "entries"}},
+		{http.MethodGet, "/api/v1/system/real-trade-kill-switch", []string{"killSwitchActive", "blockedOperations", "entry"}},
+		{http.MethodGet, "/api/v1/system/real-trade-risk-limits", []string{"riskEnabled", "effectiveMaxOrderQuantity", "entry"}},
+		{http.MethodGet, "/api/v1/system/real-trade-risk-events", []string{"riskEnabled", "maxOrderQuantity", "entries"}},
+		{http.MethodGet, "/api/v1/system/worker/broker-order-updates", []string{"running"}},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.path, func(t *testing.T) {
-			resp := performSystemRouteRequest(router, http.MethodGet, tt.path)
+			resp := performSystemRouteRequest(router, tt.method, tt.path)
 			if resp.Code != http.StatusOK {
 				t.Fatalf("status = %d", resp.Code)
 			}
@@ -63,11 +67,67 @@ func TestSystemManualRetryRouteCallsReset(t *testing.T) {
 	}
 }
 
+func TestExchangeCalendarRefreshRouteCallsRefresh(t *testing.T) {
+	gin.SetMode(gin.ReleaseMode)
+	refreshedMarket := ""
+	svc := sysservice.NewService(
+		sysservice.WithRefreshExchangeCalendars(func(_ context.Context, market string) map[string]any {
+			refreshedMarket = market
+			return map[string]any{"accepted": true, "market": market}
+		}),
+	)
+	router := gin.New()
+	RegisterRoutes(router.Group("/api/v1"), svc)
+
+	resp := performSystemRouteRequest(router, http.MethodPost, "/api/v1/system/exchange-calendars/refresh/US")
+	if resp.Code != http.StatusOK {
+		t.Fatalf("status = %d", resp.Code)
+	}
+	if refreshedMarket != "US" {
+		t.Fatalf("refreshedMarket = %q", refreshedMarket)
+	}
+}
+
+func TestExchangeCalendarProbeRouteCallsProbe(t *testing.T) {
+	gin.SetMode(gin.ReleaseMode)
+	probedMarket := ""
+	svc := sysservice.NewService(
+		sysservice.WithProbeExchangeCalendars(func(_ context.Context, market string) map[string]any {
+			probedMarket = market
+			return map[string]any{"accepted": true, "market": market, "healthy": 1}
+		}),
+	)
+	router := gin.New()
+	RegisterRoutes(router.Group("/api/v1"), svc)
+
+	resp := performSystemRouteRequest(router, http.MethodPost, "/api/v1/system/exchange-calendars/probe/HK")
+	if resp.Code != http.StatusOK {
+		t.Fatalf("status = %d", resp.Code)
+	}
+	if probedMarket != "HK" {
+		t.Fatalf("probedMarket = %q", probedMarket)
+	}
+}
+
 func newSystemRouteTestRouter() (*gin.Engine, *bool) {
 	gin.SetMode(gin.ReleaseMode)
 	resetCalled := false
+	refreshCalled := ""
 	svc := sysservice.NewService(
 		sysservice.WithAPIPort(6699),
+		sysservice.WithExchangeCalendarStatus(func() map[string]any {
+			return map[string]any{"autoRefreshEnabled": true}
+		}),
+		sysservice.WithExchangeCalendarSources(func() []map[string]any {
+			return []map[string]any{{"id": "builtin_rules"}}
+		}),
+		sysservice.WithRefreshExchangeCalendars(func(context.Context, string) map[string]any {
+			refreshCalled = "all"
+			return map[string]any{"accepted": true}
+		}),
+		sysservice.WithProbeExchangeCalendars(func(context.Context, string) map[string]any {
+			return map[string]any{"accepted": true, "healthy": 1}
+		}),
 		sysservice.WithFutuOpenDHealth(func(context.Context) map[string]any {
 			return map[string]any{"status": "ok"}
 		}),
@@ -83,6 +143,7 @@ func newSystemRouteTestRouter() (*gin.Engine, *bool) {
 	)
 	router := gin.New()
 	RegisterRoutes(router.Group("/api/v1"), svc)
+	_ = refreshCalled
 	return router, &resetCalled
 }
 

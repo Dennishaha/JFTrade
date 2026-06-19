@@ -118,6 +118,7 @@ func EnsureRuntimeLayout(settingsPath string, backtestDBPath string) error {
 		filepath.Dir(DeriveADKDBPath(settingsPath)),
 		filepath.Dir(DeriveADKSessionDBPath(settingsPath)),
 		filepath.Dir(DeriveADKSecretsPath(settingsPath)),
+		DeriveExchangeCalendarDir(settingsPath),
 		DeriveStrategyPluginTargetDir(settingsPath),
 		DeriveADKSkillsDir(settingsPath),
 		filepath.Dir(strings.TrimSpace(backtestDBPath)),
@@ -248,4 +249,15 @@ func DeriveADKSessionDBPath(settingsPath string) string {
 		return "adk-session.db"
 	}
 	return filepath.Join(directory, "adk-session.db")
+}
+
+func DeriveExchangeCalendarDir(settingsPath string) string {
+	if envPath := strings.TrimSpace(os.Getenv("JFTRADE_EXCHANGE_CALENDAR_DIR")); envPath != "" {
+		return envPath
+	}
+	directory := filepath.Dir(strings.TrimSpace(settingsPath))
+	if directory == "" || directory == "." {
+		return filepath.Join("exchange-calendars")
+	}
+	return filepath.Join(directory, "exchange-calendars")
 }

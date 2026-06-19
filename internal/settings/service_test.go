@@ -18,6 +18,7 @@ type fakeStore struct {
 	execution       jfsettings.ExecutionSettings
 	security        jfsettings.SecuritySettings
 	adk             jfsettings.ADKRuntimeSettings
+	calendars       jfsettings.ExchangeCalendarSettings
 	integration     jfsettings.BrokerIntegration
 	managedAccounts []jfsettings.ManagedBrokerAccount
 	path            string
@@ -31,7 +32,10 @@ func (s *fakeStore) ExecutionSettings() jfsettings.ExecutionSettings {
 }
 func (s *fakeStore) SecuritySettings() jfsettings.SecuritySettings { return s.security }
 func (s *fakeStore) ADKSettings() jfsettings.ADKRuntimeSettings    { return s.adk }
-func (s *fakeStore) Integration() jfsettings.BrokerIntegration     { return s.integration }
+func (s *fakeStore) ExchangeCalendarSettings() jfsettings.ExchangeCalendarSettings {
+	return s.calendars
+}
+func (s *fakeStore) Integration() jfsettings.BrokerIntegration { return s.integration }
 func (s *fakeStore) SavedIntegration() *jfsettings.BrokerIntegration {
 	if s.integration.BrokerID == "" {
 		return nil
@@ -63,6 +67,10 @@ func (s *fakeStore) SaveSecuritySettings(input jfsettings.SecuritySettings) (jfs
 }
 func (s *fakeStore) SaveADKSettings(input jfsettings.ADKRuntimeSettings) (jfsettings.ADKRuntimeSettings, error) {
 	s.adk = input
+	return input, nil
+}
+func (s *fakeStore) SaveExchangeCalendarSettings(input jfsettings.ExchangeCalendarSettings) (jfsettings.ExchangeCalendarSettings, error) {
+	s.calendars = input
 	return input, nil
 }
 func (s *fakeStore) SaveIntegration(input jfsettings.BrokerIntegration) (jfsettings.BrokerIntegration, error) {
@@ -103,6 +111,7 @@ func TestSaveSettingsTriggersSideEffects(t *testing.T) {
 	store := &fakeStore{}
 	var gotExecution jfsettings.ExecutionSettings
 	var gotSecurity jfsettings.SecuritySettings
+	var gotCalendars jfsettings.ExchangeCalendarSettings
 	var gotIntegration jfsettings.BrokerIntegration
 
 	svc := NewService(store, WithSideEffects(SideEffects{
@@ -111,6 +120,9 @@ func TestSaveSettingsTriggersSideEffects(t *testing.T) {
 		},
 		OnSecurityChanged: func(settings jfsettings.SecuritySettings) {
 			gotSecurity = settings
+		},
+		OnExchangeCalendarsChanged: func(settings jfsettings.ExchangeCalendarSettings) {
+			gotCalendars = settings
 		},
 		OnIntegrationChanged: func(settings jfsettings.BrokerIntegration) {
 			gotIntegration = settings
@@ -131,6 +143,14 @@ func TestSaveSettingsTriggersSideEffects(t *testing.T) {
 	}
 	if !reflect.DeepEqual(gotSecurity, security) {
 		t.Fatalf("security side effect = %#v, want %#v", gotSecurity, security)
+	}
+
+	calendars := jfsettings.ExchangeCalendarSettings{AutoRefreshEnabled: true, RefreshIntervalHours: 24}
+	if _, err := svc.SaveExchangeCalendarSettings(calendars); err != nil {
+		t.Fatalf("SaveExchangeCalendarSettings: %v", err)
+	}
+	if !reflect.DeepEqual(gotCalendars, calendars) {
+		t.Fatalf("calendar side effect = %#v, want %#v", gotCalendars, calendars)
 	}
 
 	integration := jfsettings.BrokerIntegration{BrokerID: "futu", Enabled: true}

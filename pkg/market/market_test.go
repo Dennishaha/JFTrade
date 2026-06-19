@@ -22,6 +22,9 @@ func TestClassifySessionForUS(t *testing.T) {
 		{"friday closed", time.Date(2026, 6, 12, 20, 0, 0, 0, loc), SessionClosed},
 		{"saturday closed", time.Date(2026, 6, 13, 10, 0, 0, 0, loc), SessionClosed},
 		{"sunday overnight", time.Date(2026, 6, 14, 20, 0, 0, 0, loc), SessionOvernight},
+		{"juneteenth holiday closed", time.Date(2026, 6, 19, 12, 0, 0, 0, loc), SessionClosed},
+		{"before holiday does not enter overnight", time.Date(2026, 6, 18, 20, 30, 0, 0, loc), SessionClosed},
+		{"black friday early close after-hours", time.Date(2026, 11, 27, 13, 30, 0, 0, loc), SessionAfter},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -29,6 +32,19 @@ func TestClassifySessionForUS(t *testing.T) {
 				t.Fatalf("ClassifySession = %s, want %s", got, tc.want)
 			}
 		})
+	}
+}
+
+func TestIsRegularTradingTimeUsesHolidayCalendarForUS(t *testing.T) {
+	loc := mustLocation(t, "America/New_York")
+	if IsRegularTradingTime("US.AAPL", time.Date(2026, 6, 19, 10, 0, 0, 0, loc)) {
+		t.Fatal("Juneteenth should not be a regular trading session")
+	}
+	if IsRegularTradingTime("US.AAPL", time.Date(2026, 11, 27, 14, 0, 0, 0, loc)) {
+		t.Fatal("Black Friday 14:00 ET should be after-hours on an early close day")
+	}
+	if !IsRegularTradingTime("US.AAPL", time.Date(2026, 11, 27, 12, 30, 0, 0, loc)) {
+		t.Fatal("Black Friday 12:30 ET should still be regular trading time")
 	}
 }
 

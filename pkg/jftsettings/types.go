@@ -77,6 +77,38 @@ type ADKRuntimeSettings struct {
 	StreamIdleTimeoutMs int `json:"streamIdleTimeoutMs"`
 }
 
+type ExchangeCalendarSessionWindow struct {
+	Kind        string `json:"kind"`
+	StartMinute int    `json:"startMinute"`
+	EndMinute   int    `json:"endMinute"`
+}
+
+type ExchangeCalendarManualOverride struct {
+	Market   string                          `json:"market"`
+	Date     string                          `json:"date"`
+	Status   string                          `json:"status"`
+	Sessions []ExchangeCalendarSessionWindow `json:"sessions,omitempty"`
+	Reason   string                          `json:"reason,omitempty"`
+	Observed bool                            `json:"observed,omitempty"`
+}
+
+type ExchangeCalendarSourcePolicy struct {
+	Market             string   `json:"market"`
+	PreferredSourceIDs []string `json:"preferredSourceIds,omitempty"`
+	EnabledSourceIDs   []string `json:"enabledSourceIds,omitempty"`
+	FallbackToBuiltin  bool     `json:"fallbackToBuiltin"`
+	RequireOfficial    bool     `json:"requireOfficial,omitempty"`
+	StaleAfterHours    int      `json:"staleAfterHours,omitempty"`
+}
+
+type ExchangeCalendarSettings struct {
+	AutoRefreshEnabled   bool                             `json:"autoRefreshEnabled"`
+	RefreshIntervalHours int                              `json:"refreshIntervalHours"`
+	WarmupMarkets        []string                         `json:"warmupMarkets,omitempty"`
+	SourcePolicies       []ExchangeCalendarSourcePolicy   `json:"sourcePolicies,omitempty"`
+	ManualOverrides      []ExchangeCalendarManualOverride `json:"manualOverrides,omitempty"`
+}
+
 // LaunchDefaults carries startup-resolved paths and bind addresses.
 // Fields are exported so the type can live in a shared package.
 type LaunchDefaults struct {

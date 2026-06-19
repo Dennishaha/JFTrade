@@ -22,6 +22,7 @@ type ExtendedMarketQuote struct {
 	ChangeVal  *decimal.Decimal
 	ChangeRate *decimal.Decimal
 	Amplitude  *decimal.Decimal
+	QuoteTime  string
 }
 
 // QuoteSnapshot preserves extended-session fields that do not fit into bbgo's
@@ -74,9 +75,11 @@ func quoteSnapshotFromBasicQot(basicQot *qotcommonpb.BasicQot, canonical string)
 }
 
 func quoteSnapshotFromBasicQotAt(basicQot *qotcommonpb.BasicQot, canonical string, now time.Time) *QuoteSnapshot {
-	preMarket := extendedMarketQuoteFromProto(basicQot.GetPreMarket())
-	afterMarket := extendedMarketQuoteFromProto(basicQot.GetAfterMarket())
-	overnight := extendedMarketQuoteFromProto(basicQot.GetOvernight())
+	quoteAt := futuQuoteTime(basicQot.GetUpdateTimestamp(), basicQot.GetUpdateTime()).UTC()
+	quoteTime := quoteAt.Format(time.RFC3339Nano)
+	preMarket := extendedMarketQuoteFromProto(basicQot.GetPreMarket(), quoteTime)
+	afterMarket := extendedMarketQuoteFromProto(basicQot.GetAfterMarket(), quoteTime)
+	overnight := extendedMarketQuoteFromProto(basicQot.GetOvernight(), quoteTime)
 	session := sessionFromExtendedBlocksAt(canonical, preMarket, afterMarket, overnight, now)
 	activeExtended := activeExtendedQuoteForSession(session, preMarket, afterMarket, overnight)
 
@@ -122,7 +125,7 @@ func quoteSnapshotFromBasicQotAt(basicQot *qotcommonpb.BasicQot, canonical strin
 		LastClosePrice:     decimalPtrFromFloat64(basicQot.LastClosePrice),
 		Volume:             volume,
 		Turnover:           turnover,
-		QuoteAt:            futuQuoteTime(basicQot.GetUpdateTimestamp(), basicQot.GetUpdateTime()).UTC(),
+		QuoteAt:            quoteAt,
 		Session:            session,
 		ExtendedHours:      market.IsExtendedSession(session),
 		PreMarket:          preMarket,
@@ -131,7 +134,7 @@ func quoteSnapshotFromBasicQotAt(basicQot *qotcommonpb.BasicQot, canonical strin
 	}
 }
 
-func extendedMarketQuoteFromProto(data *qotcommonpb.PreAfterMarketData) *ExtendedMarketQuote {
+func extendedMarketQuoteFromProto(data *qotcommonpb.PreAfterMarketData, quoteTime string) *ExtendedMarketQuote {
 	if data == nil {
 		return nil
 	}
@@ -144,6 +147,7 @@ func extendedMarketQuoteFromProto(data *qotcommonpb.PreAfterMarketData) *Extende
 		ChangeVal:  decimalPtrFromFloat64(data.ChangeVal),
 		ChangeRate: decimalPtrFromFloat64(data.ChangeRate),
 		Amplitude:  decimalPtrFromFloat64(data.Amplitude),
+		QuoteTime:  quoteTime,
 	}
 }
 

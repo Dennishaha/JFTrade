@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/runtime"
@@ -172,5 +173,47 @@ func TestCreateManagedAccountRequiresAccountIDAndOwnsServerFields(t *testing.T) 
 	}
 	if account.UpdatedAt == "client-updated" {
 		t.Fatalf("UpdatedAt = %q, want server controlled value", account.UpdatedAt)
+	}
+}
+
+func TestNormalizeExchangeCalendarSettingsRewritesLegacySourceIDs(t *testing.T) {
+	settings := NormalizeExchangeCalendarSettings(jfsettings.ExchangeCalendarSettings{
+		SourcePolicies: []jfsettings.ExchangeCalendarSourcePolicy{
+			{
+				Market:             "HK",
+				PreferredSourceIDs: []string{"hkex_official"},
+				EnabledSourceIDs:   []string{"hkex_official", "builtin_rules"},
+				FallbackToBuiltin:  true,
+			},
+		},
+	})
+
+	policy := settings.SourcePolicies[0]
+	if !reflect.DeepEqual(policy.PreferredSourceIDs, []string{"hk_gov_1823_ical"}) {
+		t.Fatalf("preferred source ids = %#v", policy.PreferredSourceIDs)
+	}
+	if !reflect.DeepEqual(policy.EnabledSourceIDs, []string{"hk_gov_1823_ical", "builtin_rules"}) {
+		t.Fatalf("enabled source ids = %#v", policy.EnabledSourceIDs)
+	}
+}
+
+func TestDefaultExchangeCalendarSettingsUseNYSEAsOnlyDefaultUSRemoteSource(t *testing.T) {
+	settings := DefaultExchangeCalendarSettings()
+
+	var usPolicy *jfsettings.ExchangeCalendarSourcePolicy
+	for index := range settings.SourcePolicies {
+		if settings.SourcePolicies[index].Market == "US" {
+			usPolicy = &settings.SourcePolicies[index]
+			break
+		}
+	}
+	if usPolicy == nil {
+		t.Fatal("expected US source policy")
+	}
+	if !reflect.DeepEqual(usPolicy.PreferredSourceIDs, []string{"nyse_official"}) {
+		t.Fatalf("preferred source ids = %#v", usPolicy.PreferredSourceIDs)
+	}
+	if !reflect.DeepEqual(usPolicy.EnabledSourceIDs, []string{"nyse_official", "builtin_rules"}) {
+		t.Fatalf("enabled source ids = %#v", usPolicy.EnabledSourceIDs)
 	}
 }

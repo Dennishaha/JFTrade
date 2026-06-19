@@ -9,6 +9,7 @@ import {
   overlayRealtimeTickCandle,
   type KlineCandle,
 } from "../../charting/kline";
+import { formatMarketSessionLabel } from "../../composables/marketSessionDisplay";
 import { getSharedLiveSocketHub } from "../../composables/sharedLiveSocket";
 import { useConsoleData } from "../../composables/useConsoleData";
 import { useWorkspaceTradingPrefs } from "../../composables/useWorkspaceLayout";
@@ -77,23 +78,14 @@ const chartInstrumentTitle = computed(() => {
     ? instrumentId
     : `${instrumentId} · ${option.name}`;
 });
-const sessionLabels: Record<string, string> = {
-  regular: "盘中",
-  pre: "盘前",
-  after: "盘后",
-  overnight: "夜盘",
-  closed: "休市",
-  unknown: "未知时段",
-  all: "盘前/盘后K线",
-};
 const chartSessionBadge = computed(() => {
   const snapshotSession = marketDataSnapshot.value?.snapshot?.session;
   if (typeof snapshotSession === "string" && snapshotSession !== "") {
-    return sessionLabels[snapshotSession] ?? snapshotSession;
+    return formatMarketSessionLabel(snapshotSession);
   }
   const candleSession = marketDataCandles.value?.meta?.session;
   if (typeof candleSession === "string" && candleSession !== "") {
-    return sessionLabels[candleSession] ?? candleSession;
+    return candleSession === "all" ? "盘前/盘后K线" : formatMarketSessionLabel(candleSession);
   }
   return "";
 });

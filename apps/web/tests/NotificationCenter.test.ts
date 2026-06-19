@@ -35,6 +35,14 @@ const NotificationCenterHarness = defineComponent({
       category: "bbgo.notify",
       at: "2026-05-21T10:02:00.000Z",
     });
+    notifications.push({
+      level: "error",
+      title: "交易所日历源解析异常",
+      message: "US 市场日历源 nyse_official 抓取成功但未解析到有效交易日。",
+      source: "exchange-calendars",
+      category: "market.calendar.source",
+      at: "2026-05-21T10:03:00.000Z",
+    });
     return {};
   },
   template: "<NotificationCenter />",
@@ -47,6 +55,8 @@ describe("NotificationCenter", () => {
     expect(wrapper.text()).toContain("OpenD 连接状态变化");
     expect(wrapper.text()).toContain("Futu API 订阅额度更新");
     expect(wrapper.text()).toContain("Strategy risk warning");
+    expect(wrapper.text()).toContain("交易所日历");
+    expect(wrapper.text()).toContain("交易所日历源");
 
     await wrapper.get('[data-testid="notification-category-filter"]').setValue("broker.connection");
     await nextTick();

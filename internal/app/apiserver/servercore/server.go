@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -22,10 +23,12 @@ import (
 	apiruntime "github.com/jftrade/jftrade-main/internal/app/apiserver/runtime"
 	asst "github.com/jftrade/jftrade-main/internal/assistant"
 	btsrv "github.com/jftrade/jftrade-main/internal/backtest"
+	"github.com/jftrade/jftrade-main/internal/exchangecalendar"
 	futuintegration "github.com/jftrade/jftrade-main/internal/integration/futu"
 	"github.com/jftrade/jftrade-main/internal/live"
 	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
 	"github.com/jftrade/jftrade-main/internal/settings"
+	exchangecalendarstore "github.com/jftrade/jftrade-main/internal/store/exchangecalendar"
 	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	"github.com/jftrade/jftrade-main/internal/system"
 	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
@@ -33,6 +36,8 @@ import (
 	bt "github.com/jftrade/jftrade-main/pkg/backtest"
 	"github.com/jftrade/jftrade-main/pkg/broker"
 	"github.com/jftrade/jftrade-main/pkg/futu"
+	marketpkg "github.com/jftrade/jftrade-main/pkg/market"
+	marketcalendar "github.com/jftrade/jftrade-main/pkg/market/calendar"
 	strategypine "github.com/jftrade/jftrade-main/pkg/strategy/pine"
 	strategypinespec "github.com/jftrade/jftrade-main/pkg/strategy/pinespec"
 )
@@ -51,32 +56,34 @@ type apiError = httpserver.APIError
 var errFutuIntegrationNotEnabled = errors.New("futu integration is not enabled")
 
 type Server struct {
-	store                  SidecarSettingsStore
-	strategyStore          *strategyCatalogStore
-	strategyRuntimeStore   *strategyRuntimeStore
-	strategyRuntimeManager *strategyRuntimeManager
-	designStore            *strategyDesignStore
-	backtestRuns           *backtestRunStore
-	backtestSyncTasks      *backtestSyncTaskStore
-	executionOrders        *executionOrderStore
-	liveWebSocket          *apilive.Handler
-	liveNotifications      *live.ReplayPublisher
-	closeOnce              sync.Once
-	closeErr               error
-	marketdataRuntime      *futuintegration.MarketDataRuntime
-	brokers                *broker.Registry // Unified broker registry for multi-broker support
-	adkRuntime             *jfadk.Runtime
-	assistantSvc           *asst.Service
-	frontend               *frontendServer
-	apiPort                int
-	auth                   *adminAuth
-	router                 *gin.Engine
-	sysSvc                 *system.Service
-	settingsSvc            *settings.Service
-	backtestSvc            *btsrv.Service
-	strategySvc            *stratsrv.Service
-	marketdataSvc          *mdsrv.Service
-	tradingSvc             *trdsrv.Service
+	store                    SidecarSettingsStore
+	strategyStore            *strategyCatalogStore
+	strategyRuntimeStore     *strategyRuntimeStore
+	strategyRuntimeManager   *strategyRuntimeManager
+	designStore              *strategyDesignStore
+	backtestRuns             *backtestRunStore
+	backtestSyncTasks        *backtestSyncTaskStore
+	executionOrders          *executionOrderStore
+	liveWebSocket            *apilive.Handler
+	liveNotifications        *live.ReplayPublisher
+	closeOnce                sync.Once
+	closeErr                 error
+	marketdataRuntime        *futuintegration.MarketDataRuntime
+	brokers                  *broker.Registry // Unified broker registry for multi-broker support
+	adkRuntime               *jfadk.Runtime
+	assistantSvc             *asst.Service
+	frontend                 *frontendServer
+	apiPort                  int
+	auth                     *adminAuth
+	router                   *gin.Engine
+	exchangeCalendars        *exchangecalendar.Manager
+	previousCalendarResolver marketcalendar.Resolver
+	sysSvc                   *system.Service
+	settingsSvc              *settings.Service
+	backtestSvc              *btsrv.Service
+	strategySvc              *stratsrv.Service
+	marketdataSvc            *mdsrv.Service
+	tradingSvc               *trdsrv.Service
 }
 
 // SidecarHandler is the minimal server surface required by API sidecar assembly.
@@ -254,6 +261,21 @@ func newServerWithFrontend(store SidecarSettingsStore, frontend *frontendServer)
 		log.Printf("JFTrade administrator key file: %s", server.auth.keyPath)
 	}
 	server.applySecuritySettings(store.SecuritySettings())
+	server.exchangeCalendars = exchangecalendar.NewManager(
+		exchangecalendarstore.New(apiruntime.DeriveExchangeCalendarDir(settingsPath)),
+		func() ExchangeCalendarSettings {
+			return persistenceOnlySettingsStore(store).ExchangeCalendarSettings()
+		},
+		exchangecalendar.WithAlertSink(func(alert exchangecalendar.SourceAlert) {
+			note := liveNotificationFromExchangeCalendarAlert(alert)
+			if note == nil {
+				return
+			}
+			server.recordLiveNotification(*note)
+		}),
+	)
+	server.previousCalendarResolver = marketpkg.SwapCalendarResolver(server.exchangeCalendars)
+	server.exchangeCalendars.Start()
 	server.adkRuntime = newADKRuntime(server, settingsPath)
 	server.assistantSvc = asst.NewService(
 		server.adkRuntime,
@@ -307,6 +329,36 @@ func newServerWithFrontend(store SidecarSettingsStore, frontend *frontendServer)
 				return map[string]any{}
 			}
 			return server.tradingSvc.OrderUpdatesSnapshot()
+		}),
+		system.WithExchangeCalendarStatus(func() map[string]any {
+			if server.exchangeCalendars == nil {
+				return map[string]any{}
+			}
+			return server.exchangeCalendars.Status()
+		}),
+		system.WithExchangeCalendarSources(func() []map[string]any {
+			if server.exchangeCalendars == nil {
+				return nil
+			}
+			return server.exchangeCalendars.Sources()
+		}),
+		system.WithRefreshExchangeCalendars(func(ctx context.Context, market string) map[string]any {
+			if server.exchangeCalendars == nil {
+				return map[string]any{"accepted": false}
+			}
+			if strings.TrimSpace(market) == "" {
+				return server.exchangeCalendars.RefreshAll(ctx)
+			}
+			return server.exchangeCalendars.RefreshMarket(ctx, market)
+		}),
+		system.WithProbeExchangeCalendars(func(ctx context.Context, market string) map[string]any {
+			if server.exchangeCalendars == nil {
+				return map[string]any{"accepted": false}
+			}
+			if strings.TrimSpace(market) == "" {
+				return server.exchangeCalendars.ProbeAll(ctx)
+			}
+			return server.exchangeCalendars.ProbeMarket(ctx, market)
 		}),
 		system.WithFutuOpenDHealth(func(ctx context.Context) map[string]any { return server.futuOpenDHealth(ctx) }),
 		system.WithFutuOpenDInstallGuide(func() map[string]any { return server.futuOpenDInstallGuide() }),
@@ -405,6 +457,11 @@ func newServerWithFrontend(store SidecarSettingsStore, frontend *frontendServer)
 			},
 			OnSecurityChanged: func(sec SecuritySettings) {
 				server.applySecuritySettings(sec)
+			},
+			OnExchangeCalendarsChanged: func(settings ExchangeCalendarSettings) {
+				if server.exchangeCalendars != nil {
+					server.exchangeCalendars.NotifySettingsChanged()
+				}
 			},
 		}),
 		settings.WithBrokerDescriptor(func() map[string]any { return server.descriptor() }),
@@ -577,6 +634,16 @@ func (s *Server) Close() error {
 			if err := s.marketdataRuntime.Close(); err != nil {
 				errs = append(errs, fmt.Errorf("futu marketdata runtime close: %w", err))
 			}
+		}
+		if s.exchangeCalendars != nil {
+			if err := s.exchangeCalendars.Close(); err != nil {
+				errs = append(errs, fmt.Errorf("exchange calendar manager close: %w", err))
+			}
+		}
+		if s.previousCalendarResolver != nil {
+			marketpkg.SetCalendarResolver(s.previousCalendarResolver)
+		} else {
+			marketpkg.ResetCalendarResolver()
 		}
 		s.closeErr = errors.Join(errs...)
 	})

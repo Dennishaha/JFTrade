@@ -3,10 +3,12 @@ package market
 import (
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/shopspring/decimal"
 
+	marketcalendar "github.com/jftrade/jftrade-main/pkg/market/calendar"
 	"github.com/jftrade/jftrade-main/pkg/market/hk"
 	"github.com/jftrade/jftrade-main/pkg/market/sh"
 	"github.com/jftrade/jftrade-main/pkg/market/sz"
@@ -148,6 +150,12 @@ var profiles = map[string]Profile{
 }
 
 var marketDescriptorOrder = []string{"HK", "US", "CN", "SH", "SZ"}
+
+var (
+	defaultCalendarResolver marketcalendar.Resolver = marketcalendar.NewBuiltinResolver()
+	calendarResolverMu      sync.RWMutex
+	activeCalendarResolver  marketcalendar.Resolver = defaultCalendarResolver
+)
 
 func convertWindowPairs(windows [][2]int) []TradingWindow {
 	result := make([]TradingWindow, 0, len(windows))
@@ -326,6 +334,44 @@ func IsUSSymbol(symbol string) bool {
 	return SymbolMarket(symbol) == "US"
 }
 
+func CurrentCalendarResolver() marketcalendar.Resolver {
+	calendarResolverMu.RLock()
+	defer calendarResolverMu.RUnlock()
+	if activeCalendarResolver == nil {
+		return defaultCalendarResolver
+	}
+	return activeCalendarResolver
+}
+
+func SetCalendarResolver(resolver marketcalendar.Resolver) {
+	calendarResolverMu.Lock()
+	defer calendarResolverMu.Unlock()
+	if resolver == nil {
+		activeCalendarResolver = defaultCalendarResolver
+		return
+	}
+	activeCalendarResolver = resolver
+}
+
+func SwapCalendarResolver(resolver marketcalendar.Resolver) marketcalendar.Resolver {
+	calendarResolverMu.Lock()
+	defer calendarResolverMu.Unlock()
+	previous := activeCalendarResolver
+	if previous == nil {
+		previous = defaultCalendarResolver
+	}
+	if resolver == nil {
+		activeCalendarResolver = defaultCalendarResolver
+	} else {
+		activeCalendarResolver = resolver
+	}
+	return previous
+}
+
+func ResetCalendarResolver() {
+	SetCalendarResolver(nil)
+}
+
 func ClassifySession(symbol string, at time.Time) Session {
 	if !IsUSSymbol(symbol) {
 		return SessionUnknown
@@ -337,34 +383,46 @@ func ClassifySession(symbol string, at time.Time) Session {
 	if !ok {
 		return SessionUnknown
 	}
-	local := at.In(profile.Location)
-	weekday := local.Weekday()
-	minutes := local.Hour()*60 + local.Minute()
-
-	if weekday == time.Saturday {
-		return SessionClosed
+	template, schedule, local, ok := resolveTradingDaySchedule(profile.Market, at)
+	if !ok {
+		return SessionUnknown
 	}
-	if weekday == time.Sunday {
-		if minutes >= 20*60 {
+	minutes := local.Hour()*60 + local.Minute()
+	if local.Weekday() == time.Sunday && minutes >= template.OvernightCarryStartMin {
+		if nextSchedule, ok := scheduleForMarketDay(profile.Market, local.AddDate(0, 0, 1)); ok && marketcalendar.TradingDayHasSessions(nextSchedule) {
 			return SessionOvernight
 		}
-		return SessionClosed
-	}
-	if weekday == time.Friday && minutes >= 20*60 {
-		return SessionClosed
 	}
 
-	switch {
-	case minutes < 4*60:
-		return SessionOvernight
-	case minutes < 9*60+30:
+	if !marketcalendar.TradingDayHasSessions(schedule) {
+		return SessionClosed
+	}
+	if session, ok := marketcalendar.SessionForMinute(schedule, minutes); ok {
+		return sessionFromCalendar(session)
+	}
+
+	if minutes >= template.OvernightCarryStartMin {
+		if nextSchedule, ok := scheduleForMarketDay(profile.Market, local.AddDate(0, 0, 1)); ok && marketcalendar.TradingDayHasSessions(nextSchedule) {
+			return SessionOvernight
+		}
+	}
+	return SessionClosed
+}
+
+func sessionFromCalendar(session marketcalendar.SessionKind) Session {
+	switch session {
+	case marketcalendar.SessionClosed:
+		return SessionClosed
+	case marketcalendar.SessionPre:
 		return SessionPre
-	case minutes < 16*60:
+	case marketcalendar.SessionRegular:
 		return SessionRegular
-	case minutes < 20*60:
+	case marketcalendar.SessionAfter:
 		return SessionAfter
-	default:
+	case marketcalendar.SessionOvernight:
 		return SessionOvernight
+	default:
+		return SessionUnknown
 	}
 }
 
@@ -409,13 +467,13 @@ func IsRegularTradingTime(symbol string, at time.Time) bool {
 	if !ok || at.IsZero() {
 		return false
 	}
-	local := at.In(profile.Location)
-	if local.Weekday() == time.Saturday || local.Weekday() == time.Sunday {
+	_, schedule, local, ok := resolveTradingDaySchedule(profile.Market, at)
+	if !ok || !marketcalendar.TradingDayHasSessions(schedule) {
 		return false
 	}
 	minutes := local.Hour()*60 + local.Minute()
-	for _, session := range profile.Sessions {
-		if minutes >= session.StartMinute && minutes < session.EndMinute {
+	for _, session := range schedule.Sessions {
+		if session.Kind == marketcalendar.SessionRegular && minutes >= session.StartMinute && minutes < session.EndMinute {
 			return true
 		}
 	}
@@ -518,16 +576,14 @@ func regularSessionWindowBounds(profile Profile, at time.Time) (time.Time, time.
 	if at.IsZero() {
 		return time.Time{}, time.Time{}, false
 	}
-
-	local := at.In(profile.Location)
-	if local.Weekday() == time.Saturday || local.Weekday() == time.Sunday {
+	template, schedule, local, ok := resolveTradingDaySchedule(profile.Market, at)
+	if !ok || !marketcalendar.TradingDayHasSessions(schedule) {
 		return time.Time{}, time.Time{}, false
 	}
-
-	dayStart := time.Date(local.Year(), local.Month(), local.Day(), 0, 0, 0, 0, profile.Location)
 	minutes := local.Hour()*60 + local.Minute()
-	for _, session := range profile.Sessions {
-		if minutes >= session.StartMinute && minutes < session.EndMinute {
+	for _, session := range schedule.Sessions {
+		if session.Kind == marketcalendar.SessionRegular && minutes >= session.StartMinute && minutes < session.EndMinute {
+			dayStart := marketcalendar.DayStart(template, local)
 			startAt := dayStart.Add(time.Duration(session.StartMinute) * time.Minute)
 			endAt := dayStart.Add(time.Duration(session.EndMinute) * time.Minute)
 			return startAt.UTC(), endAt.UTC(), true
@@ -550,22 +606,37 @@ func usExtendedSessionWindowBounds(symbol string, at time.Time) (time.Time, time
 		return time.Time{}, time.Time{}, false
 	}
 
-	local := at.In(profile.Location)
-	dayStart := time.Date(local.Year(), local.Month(), local.Day(), 0, 0, 0, 0, profile.Location)
+	template, schedule, local, ok := resolveTradingDaySchedule(profile.Market, at)
+	if !ok || !marketcalendar.TradingDayHasSessions(schedule) {
+		return time.Time{}, time.Time{}, false
+	}
 	minutes := local.Hour()*60 + local.Minute()
+	dayStart := marketcalendar.DayStart(template, local)
 
 	switch session {
 	case SessionOvernight:
-		if minutes >= 20*60 {
-			return dayStart.Add(20 * time.Hour).UTC(), dayStart.Add(24 * time.Hour).UTC(), true
+		if minutes >= template.OvernightCarryStartMin {
+			return dayStart.Add(time.Duration(template.OvernightCarryStartMin) * time.Minute).UTC(), dayStart.Add(24 * time.Hour).UTC(), true
 		}
-		return dayStart.UTC(), dayStart.Add(4 * time.Hour).UTC(), true
+		if overnight, ok := marketcalendar.SessionWindowByKind(schedule, marketcalendar.SessionOvernight); ok {
+			return dayStart.Add(time.Duration(overnight.StartMinute) * time.Minute).UTC(), dayStart.Add(time.Duration(overnight.EndMinute) * time.Minute).UTC(), true
+		}
+		return time.Time{}, time.Time{}, false
 	case SessionPre:
-		return dayStart.Add(4 * time.Hour).UTC(), dayStart.Add(9*time.Hour + 30*time.Minute).UTC(), true
+		if pre, ok := marketcalendar.SessionWindowByKind(schedule, marketcalendar.SessionPre); ok {
+			return dayStart.Add(time.Duration(pre.StartMinute) * time.Minute).UTC(), dayStart.Add(time.Duration(pre.EndMinute) * time.Minute).UTC(), true
+		}
+		return time.Time{}, time.Time{}, false
 	case SessionRegular:
-		return dayStart.Add(9*time.Hour + 30*time.Minute).UTC(), dayStart.Add(16 * time.Hour).UTC(), true
+		if regular, ok := marketcalendar.SessionWindowByKind(schedule, marketcalendar.SessionRegular); ok {
+			return dayStart.Add(time.Duration(regular.StartMinute) * time.Minute).UTC(), dayStart.Add(time.Duration(regular.EndMinute) * time.Minute).UTC(), true
+		}
+		return time.Time{}, time.Time{}, false
 	case SessionAfter:
-		return dayStart.Add(16 * time.Hour).UTC(), dayStart.Add(20 * time.Hour).UTC(), true
+		if after, ok := marketcalendar.SessionWindowByKind(schedule, marketcalendar.SessionAfter); ok {
+			return dayStart.Add(time.Duration(after.StartMinute) * time.Minute).UTC(), dayStart.Add(time.Duration(after.EndMinute) * time.Minute).UTC(), true
+		}
+		return time.Time{}, time.Time{}, false
 	default:
 		return time.Time{}, time.Time{}, false
 	}
@@ -662,6 +733,29 @@ func startOfWeek(at time.Time) time.Time {
 	}
 	dayStart := time.Date(at.Year(), at.Month(), at.Day(), 0, 0, 0, 0, at.Location())
 	return dayStart.AddDate(0, 0, -(weekday - 1))
+}
+
+func resolveTradingDaySchedule(marketCode string, at time.Time) (marketcalendar.MarketTemplate, marketcalendar.TradingDaySchedule, time.Time, bool) {
+	resolver := CurrentCalendarResolver()
+	template, ok := resolver.Template(marketCode)
+	if !ok || at.IsZero() {
+		return marketcalendar.MarketTemplate{}, marketcalendar.TradingDaySchedule{}, time.Time{}, false
+	}
+	local := at.In(marketcalendar.LoadLocation(template))
+	schedule, ok := resolver.Schedule(marketCode, local)
+	if !ok {
+		return marketcalendar.MarketTemplate{}, marketcalendar.TradingDaySchedule{}, time.Time{}, false
+	}
+	return template, schedule, local, true
+}
+
+func scheduleForMarketDay(marketCode string, day time.Time) (marketcalendar.TradingDaySchedule, bool) {
+	resolver := CurrentCalendarResolver()
+	template, ok := resolver.Template(marketCode)
+	if !ok || day.IsZero() {
+		return marketcalendar.TradingDaySchedule{}, false
+	}
+	return resolver.Schedule(marketCode, marketcalendar.DayStart(template, day))
 }
 
 func marketInputMatchesParsedSymbol(market string, parsed Instrument) bool {

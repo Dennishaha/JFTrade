@@ -29,6 +29,7 @@ type ExtendedQuote struct {
 	ChangeVal  *decimal.Decimal
 	ChangeRate *decimal.Decimal
 	Amplitude  *decimal.Decimal
+	QuoteTime  string
 }
 
 type Tick struct {

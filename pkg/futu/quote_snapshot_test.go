@@ -54,6 +54,46 @@ func TestQuoteSnapshotPreviousClosePriceInClosedSession(t *testing.T) {
 	}
 }
 
+func TestQuoteSnapshotHolidayRemainsClosedWithStaleExtendedBlocks(t *testing.T) {
+	basicQot := &qotcommonpb.BasicQot{
+		Security:       &qotcommonpb.Security{Market: new(int32(1)), Code: new("AAPL")},
+		CurPrice:       new(195.50),
+		LastClosePrice: new(193.20),
+		PreMarket: &qotcommonpb.PreAfterMarketData{
+			Price:      new(196.10),
+			ChangeRate: new(0.31),
+		},
+		AfterMarket: &qotcommonpb.PreAfterMarketData{
+			Price:      new(195.30),
+			ChangeRate: new(-0.10),
+		},
+		Overnight: &qotcommonpb.PreAfterMarketData{
+			Price:      new(194.90),
+			ChangeRate: new(-0.31),
+		},
+		UpdateTimestamp: new(1781812800.0), // 2026-06-18 20:00:00 UTC
+	}
+
+	holidayAt := time.Date(2026, 6, 19, 12, 0, 0, 0, usEasternLocation)
+	snap := quoteSnapshotFromBasicQotAt(basicQot, "US.AAPL", holidayAt)
+
+	if snap.Session != market.SessionClosed {
+		t.Fatalf("Session = %s, want closed", snap.Session)
+	}
+	if !snap.Price.Equal(decimal.NewFromFloat(195.50)) {
+		t.Fatalf("Price = %s, want 195.50 regular close", snap.Price.String())
+	}
+	if snap.PreviousClosePrice == nil || !snap.PreviousClosePrice.Equal(decimal.NewFromFloat(195.50)) {
+		t.Fatalf("PreviousClosePrice = %v, want 195.50", snap.PreviousClosePrice)
+	}
+	if snap.PreMarket == nil || snap.AfterMarket == nil || snap.Overnight == nil {
+		t.Fatal("extended blocks should remain available for display decisions")
+	}
+	if snap.PreMarket.QuoteTime == "" || snap.AfterMarket.QuoteTime == "" || snap.Overnight.QuoteTime == "" {
+		t.Fatal("extended blocks should preserve quoteTime metadata")
+	}
+}
+
 func TestQuoteSnapshotPreviousClosePriceInAfterHours(t *testing.T) {
 	// During after-hours, PreviousClosePrice should be CurPrice (today's
 	// regular-session close) so the frontend can show "最近盘中收盘".
@@ -79,6 +119,9 @@ func TestQuoteSnapshotPreviousClosePriceInAfterHours(t *testing.T) {
 	}
 	if snap.Session != market.SessionAfter {
 		t.Errorf("Session = %s, want after", snap.Session)
+	}
+	if snap.AfterMarket == nil || snap.AfterMarket.QuoteTime == "" {
+		t.Fatal("AfterMarket quoteTime should be preserved")
 	}
 }
 

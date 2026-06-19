@@ -48,6 +48,7 @@ const visible = computed<NotificationItem[]>(() =>
 );
 
 const sourceLabels: Record<string, string> = {
+  "exchange-calendars": "交易所日历",
   "futu-opend": "富途 OpenD",
   "live-stream": "实时通道",
   "order-entry": "下单面板",
@@ -58,6 +59,7 @@ const categoryLabels: Record<string, string> = {
   "broker.connection": "券商连接",
   "live.market-data.tick": "实时行情",
   "live.system.notification": "实时通知",
+  "market.calendar.source": "交易所日历源",
   "system.workspace": "工作台",
 };
 const notificationDateTimeFormatter = new Intl.DateTimeFormat(undefined, {

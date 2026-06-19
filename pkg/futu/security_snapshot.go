@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/shopspring/decimal"
 
@@ -320,6 +321,7 @@ func securityDetailsFromSnapshot(snapshot *qotgetsecuritysnapshotpb.Snapshot, ca
 	if ref == nil {
 		ref = securityRefFromCanonical(canonical)
 	}
+	quoteTime := futuQuoteTime(basic.GetUpdateTimestamp(), basic.GetUpdateTime()).UTC().Format(time.RFC3339Nano)
 	details := &SecurityDetails{
 		InstrumentID:        ref.InstrumentID,
 		Market:              ref.Market,
@@ -358,9 +360,9 @@ func securityDetailsFromSnapshot(snapshot *qotgetsecuritysnapshotpb.Snapshot, ca
 		HighPrecisionVolume: decimalPtrFromFloat64(basic.HpVolume),
 		HighPrecisionAskVol: decimalPtrFromFloat64(basic.HpAskVol),
 		HighPrecisionBidVol: decimalPtrFromFloat64(basic.HpBidVol),
-		PreMarket:           extendedMarketQuoteFromProto(basic.GetPreMarket()),
-		AfterMarket:         extendedMarketQuoteFromProto(basic.GetAfterMarket()),
-		Overnight:           extendedMarketQuoteFromProto(basic.GetOvernight()),
+		PreMarket:           extendedMarketQuoteFromProto(basic.GetPreMarket(), quoteTime),
+		AfterMarket:         extendedMarketQuoteFromProto(basic.GetAfterMarket(), quoteTime),
+		Overnight:           extendedMarketQuoteFromProto(basic.GetOvernight(), quoteTime),
 	}
 	if equity := snapshot.GetEquityExData(); equity != nil {
 		details.Equity = &EquitySecurityDetails{

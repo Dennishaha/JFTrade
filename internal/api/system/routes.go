@@ -14,6 +14,12 @@ func RegisterRoutes(api *gin.RouterGroup, svc *sys.Service) {
 	system.GET("/futu-opend", handleFutuOpenDHealth(svc))
 	system.POST("/futu-opend/manual-retry", handleFutuOpenDManualRetry(svc))
 	system.GET("/futu-opend/install-guide", handleFutuOpenDInstallGuide(svc))
+	system.GET("/exchange-calendars/status", handleExchangeCalendarStatus(svc))
+	system.GET("/exchange-calendars/sources", handleExchangeCalendarSources(svc))
+	system.POST("/exchange-calendars/refresh", handleExchangeCalendarRefresh(svc, ""))
+	system.POST("/exchange-calendars/refresh/:market", handleExchangeCalendarRefreshPath(svc))
+	system.POST("/exchange-calendars/probe", handleExchangeCalendarProbe(svc, ""))
+	system.POST("/exchange-calendars/probe/:market", handleExchangeCalendarProbePath(svc))
 	system.GET("/status", handleSystemStatus(svc))
 	system.GET("/storage/overview", handleStorageOverview(svc))
 	system.GET("/real-trade-approvals", handleRealTradeApprovals(svc))
@@ -73,6 +79,42 @@ func handleFutuOpenDInstallGuide(svc *sys.Service) gin.HandlerFunc {
 func handleSystemStatus(svc *sys.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		httpserver.WriteOK(c, svc.Status())
+	}
+}
+
+func handleExchangeCalendarStatus(svc *sys.Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		httpserver.WriteOK(c, svc.ExchangeCalendarStatus())
+	}
+}
+
+func handleExchangeCalendarSources(svc *sys.Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		httpserver.WriteOK(c, map[string]any{"sources": svc.ExchangeCalendarSources()})
+	}
+}
+
+func handleExchangeCalendarRefresh(svc *sys.Service, market string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		httpserver.WriteOK(c, svc.RefreshExchangeCalendars(c.Request.Context(), market))
+	}
+}
+
+func handleExchangeCalendarRefreshPath(svc *sys.Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		httpserver.WriteOK(c, svc.RefreshExchangeCalendars(c.Request.Context(), c.Param("market")))
+	}
+}
+
+func handleExchangeCalendarProbe(svc *sys.Service, market string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		httpserver.WriteOK(c, svc.ProbeExchangeCalendars(c.Request.Context(), market))
+	}
+}
+
+func handleExchangeCalendarProbePath(svc *sys.Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		httpserver.WriteOK(c, svc.ProbeExchangeCalendars(c.Request.Context(), c.Param("market")))
 	}
 }
 

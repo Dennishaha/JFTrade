@@ -10,7 +10,7 @@ import (
 )
 
 func TestCacheDeduplicatesPromotesAndInherits(t *testing.T) {
-	now := time.Date(2026, time.June, 14, 10, 0, 0, 0, time.UTC)
+	now := time.Date(2026, time.June, 15, 14, 0, 0, 0, time.UTC)
 	cache := NewCache()
 	cache.now = func() time.Time { return now }
 
@@ -95,6 +95,35 @@ func TestCacheFreshnessRetentionAndMaximum(t *testing.T) {
 	}
 }
 
+func TestCacheDoesNotInheritExtendedSessionsAcrossTradingDays(t *testing.T) {
+	holidayAt := time.Date(2026, time.June, 19, 16, 0, 0, 0, time.UTC)
+	cache := NewCache()
+	cache.now = func() time.Time { return holidayAt }
+
+	first := tickAt("US.AAPL", "100", 1000, time.Date(2026, time.June, 18, 17, 0, 0, 0, time.UTC))
+	first.Session = "pre"
+	first.ExtendedHours = true
+	first.PreMarket = &ExtendedQuote{
+		Price:     new(decimal.RequireFromString("100.5")),
+		QuoteTime: first.ObservedAt,
+	}
+	cache.Store(first)
+
+	incoming := tickAt("US.AAPL", "101", 0, holidayAt)
+	incoming.Kind = TickKindTrade
+	incoming.Session = "unknown"
+	stored := cache.Store(incoming)
+	if stored == nil {
+		t.Fatal("expected stored sample")
+	}
+	if stored.Session != "unknown" || stored.ExtendedHours {
+		t.Fatalf("session inheritance should stop at holiday boundary: %#v", stored)
+	}
+	if stored.PreMarket != nil || stored.AfterMarket != nil || stored.Overnight != nil {
+		t.Fatalf("extended quote inheritance should stop at holiday boundary: %#v", stored)
+	}
+}
+
 func TestTickCandlesVolumeWindowAndLimit(t *testing.T) {
 	now := time.Date(2026, time.June, 14, 10, 0, 0, 0, time.UTC)
 	samples := []Tick{
@@ -125,7 +154,10 @@ func TestTickCandlesVolumeWindowAndLimit(t *testing.T) {
 func TestSerializationPreservesNullExtendedAndStringPrices(t *testing.T) {
 	now := time.Date(2026, time.June, 14, 10, 0, 0, 0, time.UTC)
 	sample := tickAt("US.AAPL", "100.25", 12, now)
-	sample.AfterMarket = &ExtendedQuote{Price: new(decimal.RequireFromString("101.75"))}
+	sample.AfterMarket = &ExtendedQuote{
+		Price:     new(decimal.RequireFromString("101.75")),
+		QuoteTime: now.Format(time.RFC3339Nano),
+	}
 
 	snapshot := SnapshotJSON(&sample)
 	if snapshot["price"] != "100.25" || snapshot["openPrice"] != nil {
@@ -137,6 +169,9 @@ func TestSerializationPreservesNullExtendedAndStringPrices(t *testing.T) {
 	}
 	if extended["afterMarket"].(map[string]any)["price"] != "101.75" {
 		t.Fatalf("after market = %#v", extended["afterMarket"])
+	}
+	if extended["afterMarket"].(map[string]any)["quoteTime"] != now.Format(time.RFC3339Nano) {
+		t.Fatalf("after market quoteTime = %#v", extended["afterMarket"])
 	}
 
 	event := LiveTickJSON(&sample, now.Add(time.Second).Format(time.RFC3339Nano))

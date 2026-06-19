@@ -143,6 +143,28 @@ describe("WatchlistPanel", () => {
     hkWrapper.unmount();
   });
 
+  it("shows only recent after-hours cards when the US market is closed", () => {
+    const wrapper = mountWatchlistPanel({
+      market: "US",
+      symbol: "AAPL",
+      security: createSecurityDetails({
+        instrumentId: "US.AAPL",
+        market: "US",
+        symbol: "AAPL",
+        name: "Apple",
+        securityType: "Eqty",
+        exchangeType: "US_NASDAQ",
+      }),
+      snapshot: createClosedExtendedSnapshotResult("US", "AAPL"),
+    });
+
+    expect(wrapper.text()).toContain("休市");
+    expect(wrapper.text()).toContain("最近盘后价格");
+    expect(wrapper.text()).not.toContain("盘前价格");
+
+    wrapper.unmount();
+  });
+
   it("does not render security details that belong to a previous instrument", () => {
     const wrapper = mountWatchlistPanel({
       market: "US",
@@ -458,14 +480,38 @@ function createExtendedSnapshotResult(
     preMarket: {
       price: 191,
       changeRate: 1.2,
+      quoteTime: "2026-05-22T08:15:00.000Z",
     },
     afterMarket: {
       price: 192,
       changeRate: 1.8,
+      quoteTime: "2026-05-21T20:00:00.000Z",
     },
     overnight: {
       price: 193,
       changeRate: 2.3,
+      quoteTime: "2026-05-21T23:00:00.000Z",
+    },
+  };
+  return result;
+}
+
+function createClosedExtendedSnapshotResult(
+  market: string,
+  symbol: string,
+): MarketDataSnapshotQueryResult {
+  const result = createSnapshotResult(market, symbol, 190);
+  result.snapshot.session = "closed";
+  result.snapshot.extended = {
+    preMarket: {
+      price: 191,
+      changeRate: 1.2,
+      quoteTime: "2026-06-18T20:00:00.000Z",
+    },
+    afterMarket: {
+      price: 192,
+      changeRate: 1.8,
+      quoteTime: "2026-06-18T20:00:00.000Z",
     },
   };
   return result;

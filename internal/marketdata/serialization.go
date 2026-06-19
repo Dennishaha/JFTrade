@@ -96,5 +96,6 @@ func extendedQuoteJSON(quote *ExtendedQuote) any {
 		"changeVal":  optionalPriceString(quote.ChangeVal),
 		"changeRate": optionalPriceString(quote.ChangeRate),
 		"amplitude":  optionalPriceString(quote.Amplitude),
+		"quoteTime":  strings.TrimSpace(quote.QuoteTime),
 	}
 }
