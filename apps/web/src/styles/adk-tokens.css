@@ -1,0 +1,76 @@
+:root,
+[data-theme="dark"] {
+  --adk-accent-fg: #67e8f9;
+  --adk-accent-bg: rgba(34, 211, 238, 0.14);
+  --adk-accent-bg-soft: rgba(34, 211, 238, 0.08);
+  --adk-accent-border: rgba(34, 211, 238, 0.28);
+
+  --adk-muted-fg: #94a3b8;
+  --adk-muted-bg: rgba(100, 116, 139, 0.18);
+  --adk-muted-border: rgba(100, 116, 139, 0.28);
+
+  --adk-info-fg: #7dd3fc;
+  --adk-info-bg: rgba(56, 189, 248, 0.16);
+  --adk-info-border: rgba(56, 189, 248, 0.34);
+
+  --adk-warning-fg: #fbbf24;
+  --adk-warning-bg: rgba(245, 158, 11, 0.18);
+  --adk-warning-border: rgba(245, 158, 11, 0.34);
+
+  --adk-success-fg: #4ade80;
+  --adk-success-bg: rgba(34, 197, 94, 0.16);
+  --adk-success-border: rgba(34, 197, 94, 0.34);
+
+  --adk-error-fg: #f87171;
+  --adk-error-bg: rgba(239, 68, 68, 0.16);
+  --adk-error-border: rgba(239, 68, 68, 0.34);
+
+  --adk-danger-fg: #f87171;
+  --adk-danger-bg: rgba(239, 68, 68, 0.14);
+  --adk-danger-border: rgba(239, 68, 68, 0.28);
+
+  --adk-queue-queued-fg: #93c5fd;
+  --adk-queue-queued-bg: rgba(59, 130, 246, 0.16);
+  --adk-queue-interrupt-fg: var(--adk-warning-fg);
+  --adk-queue-interrupt-bg: var(--adk-warning-bg);
+  --adk-queue-sending-fg: #bfdbfe;
+  --adk-queue-sending-bg: rgba(59, 130, 246, 0.22);
+}
+
+[data-theme="light"] {
+  --adk-accent-fg: #0e7490;
+  --adk-accent-bg: rgba(8, 145, 178, 0.12);
+  --adk-accent-bg-soft: rgba(8, 145, 178, 0.08);
+  --adk-accent-border: rgba(8, 145, 178, 0.22);
+
+  --adk-muted-fg: #64748b;
+  --adk-muted-bg: rgba(100, 116, 139, 0.14);
+  --adk-muted-border: rgba(100, 116, 139, 0.2);
+
+  --adk-info-fg: #0369a1;
+  --adk-info-bg: rgba(14, 165, 233, 0.12);
+  --adk-info-border: rgba(14, 165, 233, 0.22);
+
+  --adk-warning-fg: #b45309;
+  --adk-warning-bg: rgba(245, 158, 11, 0.14);
+  --adk-warning-border: rgba(245, 158, 11, 0.24);
+
+  --adk-success-fg: #15803d;
+  --adk-success-bg: rgba(34, 197, 94, 0.12);
+  --adk-success-border: rgba(34, 197, 94, 0.22);
+
+  --adk-error-fg: #b91c1c;
+  --adk-error-bg: rgba(239, 68, 68, 0.12);
+  --adk-error-border: rgba(239, 68, 68, 0.22);
+
+  --adk-danger-fg: #b91c1c;
+  --adk-danger-bg: rgba(239, 68, 68, 0.12);
+  --adk-danger-border: rgba(239, 68, 68, 0.22);
+
+  --adk-queue-queued-fg: #1d4ed8;
+  --adk-queue-queued-bg: rgba(59, 130, 246, 0.12);
+  --adk-queue-interrupt-fg: var(--adk-warning-fg);
+  --adk-queue-interrupt-bg: var(--adk-warning-bg);
+  --adk-queue-sending-fg: #1d4ed8;
+  --adk-queue-sending-bg: rgba(59, 130, 246, 0.18);
+}

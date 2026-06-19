@@ -49,6 +49,8 @@ func documentAssistantTaskMemoryRoutes() {}
 // @Router /api/v1/adk/runs/{runId} [get]
 // @Router /api/v1/adk/runs/{runId}/stream [get]
 // @Router /api/v1/adk/runs/{runId}/cancel [post]
+// @Router /api/v1/adk/runs/{runId}/pause [post]
+// @Router /api/v1/adk/runs/{runId}/resume [post]
 // @Router /api/v1/adk/runs/{runId}/objective [patch]
 // @Router /api/v1/adk/streams/{streamId} [get]
 func documentAssistantSessionRunRoutes() {}

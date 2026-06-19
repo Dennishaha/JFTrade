@@ -469,7 +469,7 @@ func TestProjectedChatResponseAppliesProjectionToRunFields(t *testing.T) {
 	appendADKEvent(t, runtime, agent.ID, session.ID, newToolResponseEvent(run.ID, "call-opt", "strategy.optimize", map[string]any{"taskId": "opt-999", "status": "started"}, time.Unix(32, 0)))
 	appendADKEvent(t, runtime, agent.ID, session.ID, newAssistantEvent(run.ID, []*genai.Part{{Text: "优化已启动。"}}, time.Unix(33, 0)))
 
-	response := runtime.projectedChatResponse(ctx, session, run, nil, openAIChatResult{Reply: "projected reply"})
+	response := runtime.projectedChatResponse(ctx, session, run, openAIChatResult{Reply: "projected reply"})
 	if response.Reply != "先说明一下。优化已启动。" {
 		t.Fatalf("reply = %q, want 先说明一下。优化已启动。", response.Reply)
 	}
@@ -581,7 +581,7 @@ func TestProjectedChatResponseDoesNotExposeResolvedApprovals(t *testing.T) {
 	})
 	appendADKEvent(t, runtime, agent.ID, session.ID, newAssistantEvent(run.ID, []*genai.Part{{Text: "done"}}, time.Unix(41, 0)))
 
-	response := runtime.projectedChatResponse(ctx, session, run, nil, openAIChatResult{Reply: "projected reply"})
+	response := runtime.projectedChatResponse(ctx, session, run, openAIChatResult{Reply: "projected reply"})
 	if len(response.PendingApprovals) != 0 {
 		t.Fatalf("response pending approvals = %+v, want none", response.PendingApprovals)
 	}

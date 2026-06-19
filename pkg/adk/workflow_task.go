@@ -2,6 +2,7 @@ package adk
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -88,7 +89,7 @@ func (e *WorkflowExecutor) runADKTaskWorkflow(ctx context.Context, req workflowR
 	parent.Status = RunStatusRunning
 	parent.WorkflowStatus = workflowStatusRunning
 	parent.WorkflowPlan = workflowPlanFromTasks(tasks, parent.WorkflowPlan)
-	if err := e.runtime.store.SaveRun(ctx, parent); err != nil {
+	if _, err := e.runtime.saveRunPreservingUserGoalPause(ctx, parent); err != nil {
 		parent = e.failParent(ctx, parent, err)
 		return e.workflowResponse(ctx, req.Session, parent, openAIChatResult{Reply: parent.FailureReason}), nil
 	}
@@ -111,10 +112,23 @@ func (e *WorkflowExecutor) runADKGoalWorkflow(ctx context.Context, req workflowR
 	parent.Status = RunStatusRunning
 	parent.WorkflowStatus = workflowStatusRunning
 	parent.WorkflowPlan = workflowPlanFromTasks(tasks, parent.WorkflowPlan)
-	if err := e.runtime.store.SaveRun(ctx, parent); err != nil {
+	if _, err := e.runtime.saveRunPreservingUserGoalPause(ctx, parent); err != nil {
 		parent = e.failParent(ctx, parent, err)
 		return e.workflowResponse(ctx, req.Session, parent, openAIChatResult{Reply: parent.FailureReason}), nil
 	}
+	limit := normalizeLoopMaxIterations(req.RunOptions.LoopMaxIterations)
+	return e.continueADKGoalWorkflow(ctx, req, parent, tasks, goalOrchestratorUserMessage(parent), 1, limit)
+}
+
+func (e *WorkflowExecutor) continueADKGoalWorkflow(
+	ctx context.Context,
+	req workflowRequest,
+	parent Run,
+	tasks []Task,
+	nextPrompt string,
+	startIteration int,
+	limit int,
+) (ChatResponse, error) {
 	decision := &workflowGoalDecision{}
 	req.GoalDecision = decision
 	execution, err := e.runtime.newGoogleADKTaskExecution(ctx, req.Agent, req.Session, parent, req, req.OnDelta)
@@ -122,9 +136,16 @@ func (e *WorkflowExecutor) runADKGoalWorkflow(ctx context.Context, req workflowR
 		parent = e.failParent(ctx, parent, err)
 		return e.workflowResponse(ctx, req.Session, parent, openAIChatResult{Reply: parent.FailureReason}), nil
 	}
-	limit := normalizeLoopMaxIterations(req.RunOptions.LoopMaxIterations)
-	nextPrompt := goalOrchestratorUserMessage(parent)
-	for iteration := 1; iteration <= limit; iteration++ {
+	if startIteration < 1 {
+		startIteration = 1
+	}
+	for iteration := startIteration; iteration <= limit; iteration++ {
+		var response ChatResponse
+		var paused bool
+		parent, response, paused = e.pauseADKGoalWorkflowIfRequested(ctx, req, parent, iteration-1, "")
+		if paused {
+			return response, nil
+		}
 		decision.reset()
 		adkErr := execution.run(ctx, genai.NewContentFromText(nextPrompt, genai.RoleUser))
 		parent, response, done, prompt := e.finishADKGoalWorkflowTurn(ctx, req, parent, tasks, execution, decision, adkErr, iteration, false)
@@ -140,6 +161,79 @@ func (e *WorkflowExecutor) runADKGoalWorkflow(ctx context.Context, req workflowR
 	parent.ErrorCode = workflowGoalMaxLoopErr
 	_ = e.runtime.store.SaveRun(ctx, parent)
 	return e.workflowResponse(ctx, req.Session, parent, openAIChatResult{Reply: parent.FailureReason}), nil
+}
+
+func (e *WorkflowExecutor) pauseADKGoalWorkflowIfRequested(
+	ctx context.Context,
+	req workflowRequest,
+	parent Run,
+	completedIteration int,
+	reply string,
+) (Run, ChatResponse, bool) {
+	latest := parent
+	if refreshed, ok, err := e.runtime.store.Run(ctx, parent.ID); err == nil && ok {
+		latest = refreshed
+	}
+	if latest.PauseRequestedAt == nil {
+		return parent, ChatResponse{}, false
+	}
+	parent = latest
+	if parent.Status == RunStatusPaused && parent.PausedReason == "user" {
+		if cleaned, changed := pruneInterruptedGoalWorkflowToolCalls(parent); changed {
+			parent = cleaned
+			parent, _ = e.runtime.saveRunPreservingUserGoalPause(ctx, parent)
+		}
+		return parent, e.workflowResponse(ctx, req.Session, parent, openAIChatResult{Reply: defaultString(reply, parent.Message)}), true
+	}
+	pausedAt := nowString()
+	parent.Status = RunStatusPaused
+	parent.WorkflowStatus = workflowStatusPaused
+	if parent.PausedAt == nil {
+		parent.PausedAt = &pausedAt
+	}
+	parent.PausedReason = "user"
+	parent.ResumeState = "user_paused"
+	parent.Message = "目标已暂停。"
+	if completedIteration > parent.Iteration {
+		parent.Iteration = completedIteration
+	}
+	parent.PendingApprovals = pendingApprovalsOnly(parent.PendingApprovals)
+	parent, _ = pruneInterruptedGoalWorkflowToolCalls(parent)
+	parent, _ = e.runtime.saveRunPreservingUserGoalPause(ctx, parent)
+	return parent, e.workflowResponse(ctx, req.Session, parent, openAIChatResult{Reply: defaultString(reply, parent.Message)}), true
+}
+
+func (e *WorkflowExecutor) resumeADKGoalWorkflow(ctx context.Context, session Session, agent Agent, parent Run) (Run, error) {
+	parent, blocked, err := e.reconcileWorkflowChildren(ctx, parent)
+	if err != nil {
+		return Run{}, err
+	}
+	if blocked {
+		return parent, nil
+	}
+	parent.Status = RunStatusRunning
+	parent.WorkflowStatus = workflowStatusRunning
+	parent.Message = "goal resumed"
+	parent.ResumeState = "user_resuming"
+	parent.PendingApprovals = pendingApprovalsOnly(parent.PendingApprovals)
+	if _, err := e.runtime.saveRunPreservingUserGoalPause(ctx, parent); err != nil {
+		return Run{}, err
+	}
+	tasks, err := e.workflowTasks(ctx, parent, nil)
+	if err != nil {
+		return Run{}, err
+	}
+	limit := parent.Iteration + normalizeLoopMaxIterations(agent.LoopMaxIterations)
+	response, err := e.continueADKGoalWorkflow(ctx, workflowRequest{
+		Agent: agent, Session: session, Message: parent.UserMessage, Mode: parent.WorkMode, Objective: parent.Objective,
+		RunOptions: RunOptions{
+			LoopMaxIterations: limit,
+		},
+	}, parent, tasks, goalOrchestratorContinueNudge(parent, "用户继续运行目标。"), parent.Iteration+1, limit)
+	if err != nil {
+		return Run{}, err
+	}
+	return response.Run, nil
 }
 
 func (e *WorkflowExecutor) finishADKGoalWorkflowTurn(
@@ -160,6 +254,13 @@ func (e *WorkflowExecutor) finishADKGoalWorkflowTurn(
 	visibleReply := strings.TrimSpace(replyResult.Reply)
 	snapshot := decision.snapshot()
 	if snapshot.status == "" {
+		var response ChatResponse
+		var paused bool
+		parent, response, paused = e.pauseADKGoalWorkflowIfRequested(ctx, req, parent, iteration, visibleReply)
+		if paused {
+			replyResult.Reply = defaultString(visibleReply, replyResult.Reply)
+			return parent, response, true, ""
+		}
 		latest := parent
 		if refreshed, ok, err := e.runtime.store.Run(ctx, parent.ID); err == nil && ok {
 			latest = refreshed
@@ -172,6 +273,17 @@ func (e *WorkflowExecutor) finishADKGoalWorkflowTurn(
 			return parent, e.workflowResponse(ctx, req.Session, parent, replyResult), true, ""
 		}
 		snapshot = decision.snapshot()
+		if snapshot.status == "" {
+			reply := strings.TrimSpace(replyResult.Reply)
+			if reply == "" {
+				reply = visibleReply
+			}
+			parent, response, paused = e.pauseADKGoalWorkflowIfRequested(ctx, req, parent, iteration, reply)
+			if paused {
+				replyResult.Reply = defaultString(reply, replyResult.Reply)
+				return parent, response, true, ""
+			}
+		}
 		if snapshot.status == "" && !decisionRetry {
 			return e.finishADKGoalWorkflowTurn(ctx, req, parent, known, execution, decision, nil, iteration, true)
 		}
@@ -193,6 +305,12 @@ func (e *WorkflowExecutor) finishADKGoalWorkflowTurn(
 			reply = workflowSummary(parent, workflowTaskResultSummaries(tasks))
 		}
 		replyResult.Reply = reply
+		var response ChatResponse
+		var paused bool
+		parent, response, paused = e.pauseADKGoalWorkflowIfRequested(ctx, req, parent, iteration, reply)
+		if paused {
+			return parent, response, true, ""
+		}
 		parent.Status = RunStatusCompleted
 		parent.WorkflowStatus = workflowStatusComplete
 		parent.Message = "goal completed"
@@ -211,7 +329,18 @@ func (e *WorkflowExecutor) finishADKGoalWorkflowTurn(
 		parent.WorkflowStatus = workflowStatusRunning
 		parent.Message = defaultString(snapshot.reason, "goal continues")
 		parent.Iteration = iteration
-		_ = e.runtime.store.SaveRun(ctx, parent)
+		reply := visibleReply
+		if reply == "" {
+			reply = defaultString(snapshot.reason, "目标已暂停。")
+		}
+		var response ChatResponse
+		var paused bool
+		parent, response, paused = e.pauseADKGoalWorkflowIfRequested(ctx, req, parent, iteration, reply)
+		if paused {
+			replyResult.Reply = reply
+			return parent, response, true, ""
+		}
+		parent, _ = e.runtime.saveRunPreservingUserGoalPause(ctx, parent)
 		return parent, ChatResponse{}, false, goalOrchestratorContinueNudge(parent, snapshot.reason)
 	default:
 		return parent, ChatResponse{}, false, prompt
@@ -240,6 +369,14 @@ func (e *WorkflowExecutor) prepareGoalWorkflowTurn(
 		return parent, openAIChatResult{Reply: parent.FailureReason}, true, ""
 	}
 	parent.WorkflowPlan = workflowPlanFromTasks(tasks, parent.WorkflowPlan)
+	if errors.Is(adkErr, errUserGoalPauseRequested) {
+		reply := strings.TrimSpace(replyResult.Reply)
+		var paused bool
+		parent, _, paused = e.pauseADKGoalWorkflowIfRequested(ctx, req, parent, iteration, reply)
+		if paused {
+			return parent, openAIChatResult{Reply: defaultString(reply, parent.Message)}, true, ""
+		}
+	}
 	if adkErr != nil {
 		parent = e.failParent(ctx, parent, adkErr)
 		return parent, openAIChatResult{Reply: parent.FailureReason}, true, ""
@@ -248,7 +385,7 @@ func (e *WorkflowExecutor) prepareGoalWorkflowTurn(
 		if child.Status == RunStatusPending || child.Status == RunStatusRunning {
 			parent = pauseParentForChild(parent, child, index)
 			parent.Iteration = iteration
-			_ = e.runtime.store.SaveRun(ctx, parent)
+			parent, _ = e.runtime.saveRunPreservingUserGoalPause(ctx, parent)
 			return parent, openAIChatResult{Reply: workflowPendingReply(parent)}, true, ""
 		}
 		parent = e.runtime.terminateParentWorkflowFromChild(ctx, parent, child)
@@ -269,8 +406,46 @@ func (e *WorkflowExecutor) prepareGoalWorkflowTurn(
 	parent.Status = RunStatusRunning
 	parent.WorkflowStatus = workflowStatusRunning
 	parent.Message = "goal running"
-	_ = e.runtime.store.SaveRun(ctx, parent)
+	parent, _ = e.runtime.saveRunPreservingUserGoalPause(ctx, parent)
 	return parent, replyResult, false, ""
+}
+
+func pruneInterruptedGoalWorkflowToolCalls(run Run) (Run, bool) {
+	if len(run.ToolCalls) == 0 {
+		return run, false
+	}
+	filtered := make([]ToolCall, 0, len(run.ToolCalls))
+	changed := false
+	for _, call := range run.ToolCalls {
+		if interruptedGoalWorkflowToolCall(run, call) {
+			changed = true
+			continue
+		}
+		filtered = append(filtered, call)
+	}
+	if !changed {
+		return run, false
+	}
+	run.ToolCalls = filtered
+	run.ToolSummaries = toolSummariesForRun(Run{ToolCalls: filtered})
+	return run, true
+}
+
+func interruptedGoalWorkflowToolCall(parent Run, call ToolCall) bool {
+	runID := strings.TrimSpace(call.RunID)
+	if runID != "" && runID != strings.TrimSpace(parent.ID) {
+		return false
+	}
+	switch strings.ToUpper(strings.TrimSpace(call.Status)) {
+	case "RUNNING", "PENDING":
+		return strings.HasPrefix(strings.TrimSpace(call.ToolName), "workflow.")
+	case "FAILED":
+		if call.Error == nil || !strings.Contains(strings.TrimSpace(*call.Error), errUserGoalPauseRequested.Error()) {
+			return false
+		}
+		return strings.HasPrefix(strings.TrimSpace(call.ToolName), "workflow.")
+	}
+	return false
 }
 
 func (e *WorkflowExecutor) resumeADKTaskWorkflow(ctx context.Context, session Session, agent Agent, parent Run) (Run, error) {
@@ -437,7 +612,13 @@ func (r *Runtime) newGoogleADKTaskExecution(
 		toolResponseSeqByRunID:   map[string]int{},
 		postToolTextSeqByRunID:   map[string]int{},
 		onDelta:                  onDelta,
-		persistRunSnapshot: func(snapshot Run) error {
+		loadRun: func(ctx context.Context, runID string) (Run, bool, error) {
+			if r.store == nil {
+				return Run{}, false, nil
+			}
+			return r.store.Run(ctx, runID)
+		},
+		persistRunSnapshot: func(snapshot Run) (Run, error) {
 			return r.persistRunActivitySnapshot(context.Background(), snapshot)
 		},
 	}
@@ -636,7 +817,7 @@ func (t *workflowTaskToolset) delegate(args map[string]any) (map[string]any, err
 	parent = t.executor.mergeTaskChildProjectionAt(context.Background(), parent, result.Response.Run, workflowPlanIndexForTask(parent.WorkflowPlan, task.ID))
 	if result.Response.Run.Status == RunStatusPending {
 		parent = pauseParentForChild(parent, result.Response.Run, workflowPlanIndexForTask(parent.WorkflowPlan, task.ID))
-		_ = t.executor.runtime.store.SaveRun(context.Background(), parent)
+		parent, _ = t.executor.runtime.saveRunPreservingUserGoalPause(context.Background(), parent)
 	}
 	t.currentTaskID = ""
 	return map[string]any{
@@ -688,7 +869,8 @@ func (t *workflowTaskToolset) parentAndTasks(ctx context.Context) (Run, []Task, 
 
 func (t *workflowTaskToolset) saveParentPlan(ctx context.Context, parent Run, tasks []Task) error {
 	parent.WorkflowPlan = workflowPlanFromTasks(tasks, parent.WorkflowPlan)
-	return t.executor.runtime.store.SaveRun(ctx, parent)
+	_, err := t.executor.runtime.saveRunPreservingUserGoalPause(ctx, parent)
+	return err
 }
 
 func (t *workflowTaskToolset) taskByID(ctx context.Context, id string) (Task, bool) {
@@ -736,7 +918,7 @@ func (e *WorkflowExecutor) mergeTaskChildProjectionAt(ctx context.Context, paren
 		parent.Status = RunStatusPending
 		parent.PendingApprovals = append([]Approval(nil), child.PendingApprovals...)
 	}
-	_ = e.runtime.store.SaveRun(ctx, parent)
+	parent, _ = e.runtime.saveRunPreservingUserGoalPause(ctx, parent)
 	return parent
 }
 

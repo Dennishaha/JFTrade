@@ -59,6 +59,8 @@ func RegisterRoutes(api *gin.RouterGroup, service *assistantservice.Service) {
 	adk.GET("/runs/:runId/stream", handler.handleADKRunStreamReconnect)
 	adk.GET("/runs/:runId", handler.handleADKRun)
 	adk.PATCH("/runs/:runId/objective", handler.handleADKUpdateRunObjective)
+	adk.POST("/runs/:runId/pause", handler.handleADKPauseRun)
+	adk.POST("/runs/:runId/resume", handler.handleADKResumeRun)
 	adk.POST("/runs/:runId/cancel", handler.handleADKCancelRun)
 	adk.GET("/approvals", handler.handleADKApprovals)
 	adk.POST("/approvals/:approvalId/approve", func(c *gin.Context) { handler.handleADKApproval(c, true) })

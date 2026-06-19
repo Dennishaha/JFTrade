@@ -101,6 +101,13 @@ export const inputStub = {
     "<input :value=\"modelValue ?? ''\" @input=\"$emit('update:modelValue', $event.target.value)\" />",
 };
 
+export const textareaStub = {
+  props: ["modelValue"],
+  emits: ["update:modelValue"],
+  template:
+    "<textarea :value=\"modelValue ?? ''\" @input=\"$emit('update:modelValue', $event.target.value)\"></textarea>",
+};
+
 export const autocompleteStub = defineComponent({
   props: ["modelValue"],
   emits: ["update:modelValue", "select"],
@@ -445,9 +452,12 @@ export async function mountApp(path = "/system") {
         "v-expansion-panel": collapseItemStub,
         "v-autocomplete": autocompleteStub,
         "v-text-field": inputStub,
+        "v-textarea": textareaStub,
         "v-switch": switchStub,
         "v-select": selectStub,
         "v-form": passthroughStub,
+        "v-menu": passthroughStub,
+        "v-list-item": passthroughStub,
         "v-data-table": tableStub,
         "v-navigation-drawer": drawerStub,
         "v-dialog": dialogStub,

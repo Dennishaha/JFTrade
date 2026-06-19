@@ -117,7 +117,7 @@ func (r *Runtime) completeChatRun(
 	if err != nil {
 		return ChatResponse{}, err
 	}
-	return r.projectedChatResponse(ctx, session, run, approvals, replyResult), nil
+	return r.projectedChatResponse(ctx, session, run, replyResult), nil
 }
 
 func (r *Runtime) finishPendingApprovalRun(ctx context.Context, session Session, run Run, approvals []Approval) (ChatResponse, error) {
@@ -131,7 +131,7 @@ func (r *Runtime) finishPendingApprovalRun(ctx context.Context, session Session,
 		"runId": run.ID, "agentId": run.AgentID, "status": run.Status, "pendingApprovals": len(approvals),
 	})
 	reply := "我已经准备好执行需要授权的操作，请先在 ADK 审批队列里确认或拒绝。"
-	return r.projectedChatResponse(ctx, session, run, approvals, openAIChatResult{Reply: reply}), nil
+	return r.projectedChatResponse(ctx, session, run, openAIChatResult{Reply: reply}), nil
 }
 
 func (r *Runtime) prepareChatRequest(ctx context.Context, req ChatRequest) (string, error) {
@@ -200,19 +200,31 @@ func markCompletedChatRun(run Run) (Run, string) {
 	return run, toolFailure
 }
 
-func (r *Runtime) persistRunActivitySnapshot(ctx context.Context, snapshot Run) error {
+func (r *Runtime) persistRunActivitySnapshot(ctx context.Context, snapshot Run) (Run, error) {
 	if r == nil || r.store == nil || strings.TrimSpace(snapshot.ID) == "" {
-		return nil
+		return NormalizeRun(snapshot), nil
 	}
 	run, ok, err := r.store.Run(ctx, snapshot.ID)
 	if err != nil {
-		return err
+		return Run{}, err
 	}
 	if ok {
 		mergeRunActivitySnapshot(&run, snapshot)
-		return r.store.SaveRun(ctx, run)
+		return r.saveRunPreservingUserGoalPause(ctx, run)
 	}
-	return r.store.SaveRun(ctx, snapshot)
+	return r.saveRunPreservingUserGoalPause(ctx, snapshot)
+}
+
+func (r *Runtime) authoritativeRunSnapshot(ctx context.Context, run Run) Run {
+	run = NormalizeRun(run)
+	if r == nil || r.store == nil || strings.TrimSpace(run.ID) == "" {
+		return run
+	}
+	stored, ok, err := r.store.Run(ctx, run.ID)
+	if err != nil || !ok {
+		return run
+	}
+	return NormalizeRun(stored)
 }
 
 func mergeRunActivitySnapshot(run *Run, snapshot Run) {
@@ -371,15 +383,15 @@ func (r *Runtime) projectedChatResponse(
 	ctx context.Context,
 	session Session,
 	run Run,
-	approvals []Approval,
 	replyResult openAIChatResult,
 ) ChatResponse {
+	run = r.authoritativeRunSnapshot(ctx, run)
 	response := ChatResponse{
 		Reply:            replyResult.Reply,
 		ReasoningContent: replyResult.ReasoningContent,
 		Session:          session,
 		Run:              run,
-		PendingApprovals: pendingApprovalsOnly(approvals),
+		PendingApprovals: pendingApprovalsOnly(run.PendingApprovals),
 		Timeline:         []TimelineEntry{},
 		Context:          r.contextSnapshotOrNil(ctx, session.ID),
 	}

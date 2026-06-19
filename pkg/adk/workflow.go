@@ -100,7 +100,7 @@ func (e *WorkflowExecutor) Run(ctx context.Context, req workflowRequest) (ChatRe
 			return e.workflowResponse(parentCtx, req.Session, parent, openAIChatResult{Reply: parent.FailureReason}), nil
 		}
 		parent.WorkflowPlan = workflowPlanFromTasks([]Task{task}, parent.WorkflowPlan)
-		_ = e.runtime.store.SaveRun(parentCtx, parent)
+		parent, _ = e.runtime.saveRunPreservingUserGoalPause(parentCtx, parent)
 		return e.runADKGoalWorkflow(parentCtx, req, parent, []Task{task})
 	}
 	steps, planningWarnings, err := e.planWorkflowSteps(parentCtx, req, mode, objective)
@@ -398,7 +398,7 @@ func (e *WorkflowExecutor) runPlannedGoogleADKWorkflow(ctx context.Context, req 
 		parent = e.failParent(ctx, parent, err)
 		return e.workflowResponse(ctx, req.Session, parent, openAIChatResult{Reply: parent.FailureReason}), nil
 	}
-	if err := emitWorkflowRunSnapshot(req, parent); err != nil {
+	if err := emitWorkflowRunSnapshot(ctx, e.runtime, req, parent); err != nil {
 		return ChatResponse{}, err
 	}
 	if err := e.runtime.maybeAutoCompactSessionDuringWorkflow(ctx, req.Session, req.Agent, req.Message, req.OnDelta); err != nil {
@@ -610,7 +610,7 @@ func (e *WorkflowExecutor) runChild(ctx context.Context, req workflowRequest, pa
 	if err := e.runtime.store.SaveRun(ctx, parent); err != nil {
 		return workflowChildResult{Index: iteration - 1, TaskID: task.ID, Err: err}
 	}
-	if err := emitWorkflowRunSnapshot(req, parent); err != nil {
+	if err := emitWorkflowRunSnapshot(ctx, e.runtime, req, parent); err != nil {
 		return workflowChildResult{Index: iteration - 1, TaskID: task.ID, Err: err}
 	}
 	e.runtime.workflowChildMu.Lock()
@@ -727,11 +727,15 @@ func (e *WorkflowExecutor) runSelfTask(ctx context.Context, req workflowRequest,
 	return parent, reply, false, nil
 }
 
-func emitWorkflowRunSnapshot(req workflowRequest, run Run) error {
+func emitWorkflowRunSnapshot(ctx context.Context, runtime *Runtime, req workflowRequest, run Run) error {
 	if !req.EmitRun || req.OnDelta == nil {
 		return nil
 	}
-	return req.OnDelta(ChatDelta{Run: new(NormalizeRun(run))})
+	if runtime != nil {
+		run = runtime.authoritativeRunSnapshot(ctx, run)
+	}
+	run = NormalizeRun(run)
+	return req.OnDelta(ChatDelta{Run: &run})
 }
 
 func (e *WorkflowExecutor) mergeChildResult(ctx context.Context, parent Run, child Run) Run {
@@ -1399,10 +1403,7 @@ func (e *WorkflowExecutor) failParent(ctx context.Context, parent Run, cause err
 }
 
 func (e *WorkflowExecutor) workflowResponse(ctx context.Context, session Session, parent Run, replyResult openAIChatResult) ChatResponse {
-	response := e.runtime.projectedChatResponse(ctx, session, parent, parent.PendingApprovals, replyResult)
-	response.Run = NormalizeRun(parent)
-	response.PendingApprovals = pendingApprovalsOnly(parent.PendingApprovals)
-	return NormalizeChatResponse(response)
+	return e.runtime.projectedChatResponse(ctx, session, parent, replyResult)
 }
 
 func workflowSummary(parent Run, replies []string) string {

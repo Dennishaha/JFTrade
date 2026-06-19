@@ -8,6 +8,7 @@ import type {
 
 import { uniqueADKApprovalsById } from "./adkApprovalResolution";
 import { runStatusTone } from "./adkChatPresentation";
+import { mergeADKRunLifecycleSnapshot } from "./adkChatRuntime";
 import { normalizeADKRun } from "./adkNormalization";
 import {
   approvalsForGroup,
@@ -194,15 +195,21 @@ export function useADKWorkflowQueueState(options: {
     if (!run) return;
     const normalizedRun = normalizeADKRun(run);
     if (normalizedRun.parentRunId) {
+      const current = childRunSnapshots.value[normalizedRun.id];
+      const mergedRun =
+        mergeADKRunLifecycleSnapshot(current, normalizedRun) ?? normalizedRun;
       childRunSnapshots.value = {
         ...childRunSnapshots.value,
-        [normalizedRun.id]: normalizedRun,
+        [mergedRun.id]: mergedRun,
       };
       return;
     }
     if (isDisplayableWorkflowPlanRun(normalizedRun)) {
-      workflowPlanRun.value = normalizedRun;
-      await refreshChildRunSnapshots(normalizedRun);
+      const mergedRun =
+        mergeADKRunLifecycleSnapshot(workflowPlanRun.value, normalizedRun) ??
+        normalizedRun;
+      workflowPlanRun.value = mergedRun;
+      await refreshChildRunSnapshots(mergedRun);
       return;
     }
     const current = workflowPlanRun.value;
@@ -270,9 +277,12 @@ export function useADKWorkflowQueueState(options: {
             ),
           );
           if (latest.id !== id) return;
+          const current = childRunSnapshots.value[id];
+          const mergedRun =
+            mergeADKRunLifecycleSnapshot(current, latest) ?? latest;
           childRunSnapshots.value = {
             ...childRunSnapshots.value,
-            [id]: latest,
+            [id]: mergedRun,
           };
         } catch {
           // Child snapshots are best-effort; the parent plan remains authoritative.

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, watch } from "vue";
 
 import type { ADKApproval, ADKRun, ADKToolDescriptor } from "@/contracts";
 
@@ -11,7 +11,7 @@ import ADKRunTrace from "../shared/ADKRunTrace.vue";
 
 const props = withDefaults(
   defineProps<{
-    variant?: "page" | "dock";
+    layout?: "desktop" | "mobile";
     activeRunId?: string;
     activeRunStatus?: string;
     hasBlockingRun?: boolean;
@@ -38,7 +38,7 @@ const props = withDefaults(
     ) => void | Promise<void>;
   }>(),
   {
-    variant: "page",
+    layout: "desktop",
     activeRunId: "",
     activeRunStatus: "",
     hasBlockingRun: false,
@@ -52,14 +52,32 @@ defineEmits<{
 
 const threadClass = computed(() => ({
   "adk-chat-thread": true,
-  "adk-chat-thread--dock": props.variant === "dock",
-  "adk-chat-thread--page": props.variant === "page",
+  "adk-chat-thread--mobile": props.layout === "mobile",
+  "adk-chat-thread--desktop": props.layout === "desktop",
 }));
 
 const emptyClass = computed(() => ({
   "adk-empty": true,
-  "adk-empty--dock": props.variant === "dock",
+  "adk-empty--mobile": props.layout === "mobile",
 }));
+
+const markdownCache = new Map<
+  string,
+  { renderMarkdown: (content: string) => string; text: string; html: string }
+>();
+
+watch(
+  () => props.timelineEntries.map((entry) => entry.id),
+  (entryIds) => {
+    const retainedIds = new Set(entryIds);
+    for (const key of markdownCache.keys()) {
+      if (!retainedIds.has(key)) {
+        markdownCache.delete(key);
+      }
+    }
+  },
+  { flush: "post" },
+);
 
 function isEntryActiveRun(entry: ADKTimelineEntryState): boolean {
   return !!entry.runId && props.hasBlockingRun && entry.runId === props.activeRunId;
@@ -134,6 +152,22 @@ function userBubbleClass(entry: ADKTimelineEntryState): Record<string, boolean> 
     "adk-bubble--user-processed": entry.userPromptVariant === "processed",
   };
 }
+
+function renderedMarkdown(entry: ADKTimelineEntryState): string {
+  const text = entry.text ?? "";
+  const key = entry.id || `${entry.sequence ?? ""}:${entry.createdAt ?? ""}`;
+  const cached = markdownCache.get(key);
+  if (
+    cached &&
+    cached.text === text &&
+    cached.renderMarkdown === props.renderMarkdown
+  ) {
+    return cached.html;
+  }
+  const html = props.renderMarkdown(text);
+  markdownCache.set(key, { renderMarkdown: props.renderMarkdown, text, html });
+  return html;
+}
 </script>
 
 <template>
@@ -187,11 +221,12 @@ function userBubbleClass(entry: ADKTimelineEntryState): Record<string, boolean> 
 
       <div v-else-if="entry.kind === 'context_notice'" class="adk-msg adk-msg--notice">
         <div :class="contextNoticeClass(entry)">
-          <v-progress-circular
+          <v-progress-linear
             v-if="entry.status === 'streaming'"
             indeterminate
-            size="13"
-            width="2"
+            rounded
+            color="primary"
+            class="adk-notice-progress"
           />
           <v-icon v-else-if="entry.status === 'error'" size="13">
             fa-solid fa-circle-exclamation
@@ -228,7 +263,7 @@ function userBubbleClass(entry: ADKTimelineEntryState): Record<string, boolean> 
           :run="entryToolRun(entry)"
           :tool-progress="entryToolProgress(entry)"
           :busy="entryToolBusy(entry)"
-          :compact="variant === 'dock'"
+          :compact="layout === 'mobile'"
           :summary-expanded="entry.toolSummaryExpanded"
           :expanded-tool-call-ids="entry.expandedToolCallIds"
           @update:summary-expanded="entry.toolSummaryExpanded = $event"
@@ -242,7 +277,7 @@ function userBubbleClass(entry: ADKTimelineEntryState): Record<string, boolean> 
         <div
           v-if="(entry.text ?? '').trim() !== ''"
           class="adk-bubble adk-bubble--assistant adk-markdown"
-          v-html="renderMarkdown(entry.text ?? '')"
+          v-html="renderedMarkdown(entry)"
         />
       </div>
     </template>

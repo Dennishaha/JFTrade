@@ -10,6 +10,7 @@ import "vuetify/styles";
 import App from "./App.vue";
 import { fontAwesomeIcons } from "./fontAwesomeIcons";
 import { createConsoleRouter } from "./router";
+import "./styles/adk-tokens.css";
 import "./style.css";
 
 const vuetify = createVuetify({

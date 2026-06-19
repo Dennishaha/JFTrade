@@ -248,6 +248,44 @@ func (h *Handler) handleADKCancelRun(c *gin.Context) {
 	h.writeOK(c, jfadk.NormalizeRun(run))
 }
 
+func (h *Handler) handleADKPauseRun(c *gin.Context) {
+	var uri runURI
+	if err := httpserver.BindURI(c, &uri); err != nil || strings.TrimSpace(uri.RunID) == "" {
+		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "runId is invalid")
+		return
+	}
+	run, err := h.service.PauseGoalRun(c.Request.Context(), uri.RunID)
+	if err != nil {
+		message := err.Error()
+		if strings.Contains(strings.ToLower(message), "not found") {
+			h.writeError(c, http.StatusNotFound, "NOT_FOUND", "run not found")
+			return
+		}
+		h.writeError(c, http.StatusBadRequest, "ADK_RUN_PAUSE_FAILED", message)
+		return
+	}
+	h.writeOK(c, jfadk.NormalizeRun(run))
+}
+
+func (h *Handler) handleADKResumeRun(c *gin.Context) {
+	var uri runURI
+	if err := httpserver.BindURI(c, &uri); err != nil || strings.TrimSpace(uri.RunID) == "" {
+		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "runId is invalid")
+		return
+	}
+	run, err := h.service.ResumeGoalRun(c.Request.Context(), uri.RunID)
+	if err != nil {
+		message := err.Error()
+		if strings.Contains(strings.ToLower(message), "not found") {
+			h.writeError(c, http.StatusNotFound, "NOT_FOUND", "run not found")
+			return
+		}
+		h.writeError(c, http.StatusBadRequest, "ADK_RUN_RESUME_FAILED", message)
+		return
+	}
+	h.writeOK(c, jfadk.NormalizeRun(run))
+}
+
 func (h *Handler) handleADKUpdateRunObjective(c *gin.Context) {
 	var uri runURI
 	if err := httpserver.BindURI(c, &uri); err != nil || strings.TrimSpace(uri.RunID) == "" {

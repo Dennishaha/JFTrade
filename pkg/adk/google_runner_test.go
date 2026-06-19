@@ -227,7 +227,7 @@ func TestGoogleADKExecutionPersistsTimedOutToolFailureOnRunningSnapshot(t *testi
 		sessionID: "session-1",
 		agent:     Agent{ID: "agent-1"},
 		runID:     run.ID,
-		persistRunSnapshot: func(snapshot Run) error {
+		persistRunSnapshot: func(snapshot Run) (Run, error) {
 			return runtime.persistRunActivitySnapshot(ctx, snapshot)
 		},
 	}
@@ -259,5 +259,56 @@ func TestGoogleADKExecutionPersistsTimedOutToolFailureOnRunningSnapshot(t *testi
 	}
 	if stored.Degraded {
 		t.Fatalf("stored degraded = %v, want false for activity snapshot", stored.Degraded)
+	}
+}
+
+func TestGoogleADKExecutionEmitsAuthoritativePauseRequestedSnapshot(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	now := nowString()
+	storedRun := mustSaveRun(t, runtime, Run{
+		ID:               "run-goal-pause-stream",
+		SessionID:        "session-1",
+		AgentID:          "agent-1",
+		Status:           RunStatusRunning,
+		Message:          "目标将在当前轮结束后暂停。",
+		WorkMode:         WorkModeLoop,
+		Objective:        "推进目标",
+		WorkflowStatus:   workflowStatusRunning,
+		PauseRequestedAt: &now,
+		ResumeState:      "user_pause_requested",
+		CreatedAt:        now,
+		UpdatedAt:        now,
+		StartedAt:        now,
+		Usage:            &RunUsage{},
+	})
+	staleSnapshot := storedRun
+	staleSnapshot.Message = "goal running"
+	staleSnapshot.PauseRequestedAt = nil
+	staleSnapshot.ResumeState = ""
+
+	var emitted Run
+	execution := &googleADKExecution{
+		sessionID:           storedRun.SessionID,
+		agent:               Agent{ID: storedRun.AgentID},
+		runID:               storedRun.ID,
+		runSnapshotBaseByID: map[string]Run{storedRun.ID: staleSnapshot},
+		persistRunSnapshot: func(snapshot Run) (Run, error) {
+			return runtime.persistRunActivitySnapshot(ctx, snapshot)
+		},
+		onDelta: func(delta ChatDelta) error {
+			if delta.Run != nil {
+				emitted = *delta.Run
+			}
+			return nil
+		},
+	}
+
+	execution.emitRunSnapshotLocked()
+
+	if emitted.PauseRequestedAt == nil || emitted.ResumeState != "user_pause_requested" {
+		t.Fatalf("emitted run = %+v, want authoritative pause request fields", emitted)
 	}
 }

@@ -50,6 +50,7 @@ export async function streamADKChat(
     };
   },
   onEvent: (event: ADKChatStreamEvent) => void | Promise<void>,
+  options: { signal?: AbortSignal } = {},
 ): Promise<ADKChatStreamResponse> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -60,6 +61,7 @@ export async function streamADKChat(
     credentials: "include",
     headers,
     body: JSON.stringify(payload),
+    ...(options.signal ? { signal: options.signal } : {}),
   });
   if (!response.ok) {
     throw new Error((await response.text()) || "Agents chat failed");

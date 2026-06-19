@@ -78,6 +78,52 @@ describe("ADKPage", () => {
     expect(document.body.textContent).toContain("API Key");
   });
 
+  it("switches to the shared mobile shell on narrow viewports", async () => {
+    const originalMatchMedia = window.matchMedia;
+    const matchMediaMock = vi.fn().mockImplementation((query: string) => ({
+      matches: query === "(max-width: 720px)",
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }));
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      writable: true,
+      value: matchMediaMock,
+    });
+
+    try {
+      mountADKPage();
+      await flushRequests();
+
+      expect(document.querySelector(".adk-shell--mobile")).not.toBeNull();
+      expect(
+        document.querySelector("[data-testid='adk-mobile-composer-summary']"),
+      ).not.toBeNull();
+      expect(document.querySelector(".adk-agent-select")).toBeNull();
+
+      document
+        .querySelector<HTMLButtonElement>(
+          "[data-testid='adk-mobile-composer-toggle']",
+        )
+        ?.click();
+      await nextTick();
+
+      expect(document.querySelector(".adk-agent-select")).not.toBeNull();
+      expect(document.querySelector(".adk-provider-select")).not.toBeNull();
+    } finally {
+      Object.defineProperty(window, "matchMedia", {
+        configurable: true,
+        writable: true,
+        value: originalMatchMedia,
+      });
+    }
+  });
+
   it("keeps generic hints even when the selected agent exposes strategy Pine tools", async () => {
     mountADKPage({
       agent: {
@@ -109,9 +155,7 @@ describe("ADKPage", () => {
       workMode: "loop",
       objective: "检查风险后给出交易计划",
       workflowStatus: "COMPLETED",
-      workflowPlan: [
-        buildWorkflowStep("goal-step-1", "推进目标", "DONE"),
-      ],
+      workflowPlan: [buildWorkflowStep("goal-step-1", "推进目标", "DONE")],
     });
     streamADKChatMock.mockImplementationOnce(async (_payload, onEvent) => {
       const response: ADKChatResponse = {
@@ -155,7 +199,9 @@ describe("ADKPage", () => {
     expect(document.querySelector(".adk-goal-editor")).not.toBeNull();
     expect(document.querySelector(".adk-goal-editor__input")).toBeNull();
 
-    document.querySelector<HTMLButtonElement>(".adk-goal-editor__icon")?.click();
+    document
+      .querySelector<HTMLButtonElement>(".adk-goal-editor__icon")
+      ?.click();
     await nextTick();
 
     const goalInput = document.querySelector<HTMLTextAreaElement>(
@@ -174,6 +220,83 @@ describe("ADKPage", () => {
       workModeOverride: "loop",
       objective: "检查风险后给出交易计划",
     });
+  });
+
+  it("clears the goal editor after a loop goal completes", async () => {
+    const session = buildSession({ id: "session-goal-complete-clear" });
+    const completedGoalRun = buildRun({
+      id: "run-goal-complete-clear",
+      sessionId: session.id,
+      status: "COMPLETED",
+      workMode: "loop",
+      objective: "完成后应清空目标栏",
+      workflowStatus: "COMPLETED",
+      workflowPlan: [
+        buildWorkflowStep(
+          "step-goal-complete-clear",
+          "完成后应清空目标栏",
+          "DONE",
+        ),
+      ],
+    });
+    window.localStorage.setItem(
+      "jftrade.adk.page-state.v1",
+      JSON.stringify({
+        selectedSessionId: session.id,
+        sessions: {},
+      }),
+    );
+    streamADKChatMock.mockImplementationOnce(async (_payload, onEvent) => {
+      const response: ADKChatResponse = {
+        reply: "goal done",
+        session,
+        run: completedGoalRun,
+        pendingApprovals: [],
+        timeline: [
+          buildTimelineEntry("assistant_message", {
+            id: "goal-complete-clear-answer",
+            runId: completedGoalRun.id,
+            text: "goal done",
+          }),
+        ],
+      };
+      await onEvent({ type: "session", session: response.session });
+      await onEvent({ type: "final", response });
+      return response;
+    });
+
+    mountADKPage({
+      sessions: [session],
+      sessionDetail: {
+        session,
+        timeline: [],
+        runs: [],
+        composerState: buildComposerState(session.id),
+      },
+    });
+    await flushRequests();
+
+    const workModeSelect = Array.from(
+      document.querySelectorAll<HTMLSelectElement>("select"),
+    ).find((select) =>
+      Array.from(select.options).some((option) => option.value === "loop"),
+    )!;
+    workModeSelect.value = "loop";
+    workModeSelect.dispatchEvent(new Event("change"));
+    await nextTick();
+
+    const messageInput = document.querySelector<HTMLTextAreaElement>(
+      ".adk-composer-input",
+    )!;
+    messageInput.value = "开始执行";
+    messageInput.dispatchEvent(new Event("input"));
+    await nextTick();
+    expect(document.querySelector(".adk-goal-editor")).not.toBeNull();
+
+    document.querySelector<HTMLButtonElement>(".adk-composer-send")?.click();
+    await flushRequests();
+
+    expect(document.querySelector(".adk-goal-editor")).toBeNull();
   });
 
   it("keeps the active goal editor when a child run becomes the latest active run", async () => {
@@ -395,9 +518,9 @@ describe("ADKPage", () => {
     expect(document.querySelector(".adk-goal-editor")?.textContent).toContain(
       "持续跟踪 TME 策略",
     );
-    expect(document.querySelector(".adk-goal-editor")?.textContent).not.toContain(
-      "补充：更关注回撤",
-    );
+    expect(
+      document.querySelector(".adk-goal-editor")?.textContent,
+    ).not.toContain("补充：更关注回撤");
   });
 
   it("keeps queued text as chat when it was entered during an active goal", async () => {
@@ -703,10 +826,18 @@ describe("ADKPage", () => {
     const childQueue = document.querySelector('[aria-label="子智能体"]');
     expect(childQueue).not.toBeNull();
     expect(document.querySelector('[aria-label="执行计划"]')).not.toBeNull();
-    expect(childQueue?.querySelector(".adk-workspace-queue__badge.is-success")).not.toBeNull();
-    expect(childQueue?.querySelector(".adk-workspace-queue-status.is-success")).not.toBeNull();
-    expect(childQueue?.querySelector(".adk-workspace-queue__badge.is-error")).toBeNull();
-    expect(childQueue?.querySelector(".adk-workspace-queue-status.is-error")).toBeNull();
+    expect(
+      childQueue?.querySelector(".adk-workspace-queue__badge.is-success"),
+    ).not.toBeNull();
+    expect(
+      childQueue?.querySelector(".adk-workspace-queue-status.is-success"),
+    ).not.toBeNull();
+    expect(
+      childQueue?.querySelector(".adk-workspace-queue__badge.is-error"),
+    ).toBeNull();
+    expect(
+      childQueue?.querySelector(".adk-workspace-queue-status.is-error"),
+    ).toBeNull();
     expect(document.body.textContent).toContain("检查子智能体");
     expect(document.body.textContent).toContain("parent visible answer");
     expect(document.body.textContent).toContain("启动子智能体 #1");
@@ -1005,10 +1136,18 @@ describe("ADKPage", () => {
 
     const childQueue = document.querySelector('[aria-label="子智能体"]');
     expect(childQueue).not.toBeNull();
-    expect(childQueue?.querySelector(".adk-workspace-queue__badge.is-error")).not.toBeNull();
-    expect(childQueue?.querySelector(".adk-workspace-queue-status.is-error")).not.toBeNull();
-    expect(childQueue?.querySelector(".adk-workspace-queue__badge.is-success")).toBeNull();
-    expect(childQueue?.querySelector(".adk-workspace-queue-status.is-success")).toBeNull();
+    expect(
+      childQueue?.querySelector(".adk-workspace-queue__badge.is-error"),
+    ).not.toBeNull();
+    expect(
+      childQueue?.querySelector(".adk-workspace-queue-status.is-error"),
+    ).not.toBeNull();
+    expect(
+      childQueue?.querySelector(".adk-workspace-queue__badge.is-success"),
+    ).toBeNull();
+    expect(
+      childQueue?.querySelector(".adk-workspace-queue-status.is-success"),
+    ).toBeNull();
   });
 
   it("clears the token indicator when deleting the selected conversation", async () => {
@@ -1031,7 +1170,10 @@ describe("ADKPage", () => {
   });
 
   it("summarizes a pending child approval in the parent timeline without child details", async () => {
-    const approval = buildApproval("approval-child-pending", "child-run-approval");
+    const approval = buildApproval(
+      "approval-child-pending",
+      "child-run-approval",
+    );
     const parentRun = buildRun({
       id: "parent-run-approval",
       status: "PENDING_APPROVAL",
@@ -1179,18 +1321,18 @@ describe("ADKPage", () => {
     await expandQueue("执行计划");
     await expandQueue("子智能体");
 
-    expect(document.querySelector('[aria-label="执行计划"]')?.textContent).toContain(
-      "子级计划步骤",
-    );
-    expect(document.querySelector('[aria-label="子智能体"]')?.textContent).toContain(
-      "子级计划步骤",
-    );
-    expect(document.querySelector('[aria-label="执行计划"]')?.textContent).not.toContain(
-      "父级入口步骤",
-    );
-    expect(document.querySelector('[aria-label="子智能体"]')?.textContent).not.toContain(
-      "父级入口步骤",
-    );
+    expect(
+      document.querySelector('[aria-label="执行计划"]')?.textContent,
+    ).toContain("子级计划步骤");
+    expect(
+      document.querySelector('[aria-label="子智能体"]')?.textContent,
+    ).toContain("子级计划步骤");
+    expect(
+      document.querySelector('[aria-label="执行计划"]')?.textContent,
+    ).not.toContain("父级入口步骤");
+    expect(
+      document.querySelector('[aria-label="子智能体"]')?.textContent,
+    ).not.toContain("父级入口步骤");
   });
 
   it("updates the workflow plan from approval parentRun instead of the child run", async () => {
@@ -1257,15 +1399,17 @@ describe("ADKPage", () => {
 
     await sendPageMessage("workflow approval");
     await expandQueue("执行计划");
-    expect(document.querySelector(".adk-workflow-plan-panel")?.textContent).toContain(
-      "等待保存审批",
-    );
+    expect(
+      document.querySelector(".adk-workflow-plan-panel")?.textContent,
+    ).toContain("等待保存审批");
 
     await expandQueue("待审批");
     clickButtonByText("批准");
     await flushRequests();
 
-    const panelText = document.querySelector(".adk-workflow-plan-panel")?.textContent;
+    const panelText = document.querySelector(
+      ".adk-workflow-plan-panel",
+    )?.textContent;
     expect(panelText).toContain("保存审批已通过");
     expect(panelText).toContain("执行计划");
     expect(panelText).not.toContain("等待保存审批");
@@ -1423,7 +1567,12 @@ describe("ADKPage", () => {
       id: runId,
       status: "PENDING_APPROVAL",
       toolCalls: [
-        buildToolCall("tool-first", runId, "strategy.save_draft", "PENDING_APPROVAL"),
+        buildToolCall(
+          "tool-first",
+          runId,
+          "strategy.save_draft",
+          "PENDING_APPROVAL",
+        ),
       ],
       pendingApprovals: [firstApproval],
     });
@@ -1447,7 +1596,12 @@ describe("ADKPage", () => {
       status: "PENDING_APPROVAL",
       toolCalls: [
         buildToolCall("tool-first", runId, "strategy.save_draft", "SUCCEEDED"),
-        buildToolCall("tool-second", runId, "strategy.save_draft", "PENDING_APPROVAL"),
+        buildToolCall(
+          "tool-second",
+          runId,
+          "strategy.save_draft",
+          "PENDING_APPROVAL",
+        ),
       ],
       pendingApprovals: [secondApproval],
       resumeState: "waiting_approval",
@@ -1634,7 +1788,9 @@ describe("ADKPage", () => {
     await sendPageMessage("duplicate approval");
 
     await expandQueue("待审批");
-    expect(document.querySelectorAll(".adk-approval-queue__item")).toHaveLength(1);
+    expect(document.querySelectorAll(".adk-approval-queue__item")).toHaveLength(
+      1,
+    );
 
     clickButtonByText("全部批准");
     await flushRequests();
@@ -1680,7 +1836,9 @@ describe("ADKPage", () => {
     await flushRequests();
 
     await expandQueue("待审批");
-    expect(document.querySelectorAll(".adk-approval-queue__item")).toHaveLength(1);
+    expect(document.querySelectorAll(".adk-approval-queue__item")).toHaveLength(
+      1,
+    );
     expect(document.body.textContent).toContain("parent copy");
     expect(document.body.textContent).not.toContain("child copy");
   });
@@ -1722,8 +1880,9 @@ describe("ADKPage", () => {
     await sendPageMessage("fast approval");
 
     await expandQueue("待审批");
-    const button = Array.from(document.querySelectorAll<HTMLButtonElement>("button"))
-      .find((candidate) => candidate.textContent?.includes("批准"));
+    const button = Array.from(
+      document.querySelectorAll<HTMLButtonElement>("button"),
+    ).find((candidate) => candidate.textContent?.includes("批准"));
     button?.click();
     button?.click();
     await flushRequests();
@@ -2193,7 +2352,8 @@ describe("ADKPage", () => {
   });
 
   it("keeps deep reasoning collapsed until the user expands it", async () => {
-    const reasoningText = "Detailed  chain of thought preview.\n  Preserve indentation.";
+    const reasoningText =
+      "Detailed  chain of thought preview.\n  Preserve indentation.";
     streamADKChatMock.mockImplementationOnce(async (_payload, onEvent) => {
       const response: ADKChatResponse = {
         reply: "Final answer.",
@@ -2403,9 +2563,13 @@ describe("ADKPage", () => {
     firstSave.resolve(buildComposerState(session.id, savedPatches[0]));
     await flushRequests();
 
-    expect(fetchMock.mock.calls.filter(([input]) =>
-      String(input).includes(`/api/v1/adk/sessions/${session.id}/composer-state`),
-    ).length).toBeGreaterThanOrEqual(2);
+    expect(
+      fetchMock.mock.calls.filter(([input]) =>
+        String(input).includes(
+          `/api/v1/adk/sessions/${session.id}/composer-state`,
+        ),
+      ).length,
+    ).toBeGreaterThanOrEqual(2);
     expect(lastComposerStatePatch(fetchMock, session.id)).toMatchObject({
       chatDraft: "新草稿",
     });
@@ -2444,6 +2608,7 @@ describe("ADKPage", () => {
         objective: "默认目标",
       }),
       expect.any(Function),
+      expect.any(Object),
     );
   });
 
@@ -2469,7 +2634,9 @@ describe("ADKPage", () => {
     });
     await flushRequests();
 
-    document.querySelector<HTMLElement>('.adk-session-close[title="关闭会话"]')?.click();
+    document
+      .querySelector<HTMLElement>('.adk-session-close[title="关闭会话"]')
+      ?.click();
     await flushRequests();
 
     const persisted = JSON.parse(
@@ -2560,6 +2727,404 @@ describe("ADKPage", () => {
     expect(document.body.textContent).toContain("刷新后完成");
   });
 
+  it("keeps a restored paused goal when reconnect replay delivers a stale completed final", async () => {
+    const session = buildSession({ id: "session-resume-paused-goal" });
+    const pausedRun = buildRun({
+      id: "run-resume-paused-goal",
+      sessionId: session.id,
+      status: "PAUSED",
+      workMode: "loop",
+      objective: "刷新后继续暂停目标",
+      workflowStatus: "PAUSED",
+      pauseRequestedAt: "2026-06-06T00:00:10Z",
+      pausedAt: "2026-06-06T00:00:12Z",
+      pausedReason: "user",
+      resumeState: "user_paused",
+      workflowPlan: [
+        buildWorkflowStep("step-resume-paused-goal", "刷新后继续暂停目标", "TODO"),
+      ],
+    });
+    const staleCompleted = buildRun({
+      ...pausedRun,
+      status: "COMPLETED",
+      workflowStatus: "COMPLETED",
+      pausedAt: undefined,
+      pausedReason: undefined,
+      resumeState: "",
+      message: "goal completed",
+      completedAt: "2026-06-06T00:00:30Z",
+    });
+    window.localStorage.setItem(
+      "jftrade.adk.page-state.v1",
+      JSON.stringify({
+        selectedSessionId: session.id,
+        sessions: {
+          [session.id]: {
+            streamId: "stream-resume-paused-goal",
+            runId: pausedRun.id,
+            sequence: 7,
+            activeChildRunId: "",
+          },
+        },
+      }),
+    );
+    resumeADKChatStreamMock.mockImplementationOnce(async (_cursor, onEvent) => {
+      const response: ADKChatResponse = {
+        reply: "刷新后完成",
+        session,
+        run: staleCompleted,
+        pendingApprovals: [],
+        timeline: [
+          buildTimelineEntry("assistant_message", {
+            id: "resume-stale-answer",
+            runId: staleCompleted.id,
+            text: "刷新后完成",
+          }),
+        ],
+      };
+      await onEvent({
+        type: "final",
+        streamId: "stream-resume-paused-goal",
+        sequence: 8,
+        runId: staleCompleted.id,
+        replay: true,
+        response,
+      });
+      return response;
+    });
+
+    mountADKPage({
+      sessions: [session],
+      sessionDetail: {
+        session,
+        timeline: [
+          buildTimelineEntry("assistant_message", {
+            id: "resume-paused-answer",
+            runId: pausedRun.id,
+            text: "目标已暂停。",
+          }),
+        ],
+        runs: [pausedRun],
+        composerState: buildComposerState(session.id),
+      },
+    });
+    await flushRequests();
+
+    expect(
+      document.querySelector<HTMLButtonElement>(
+        ".adk-goal-editor__action[title='运行目标']",
+      ),
+    ).not.toBeNull();
+    expect(document.querySelector(".adk-goal-editor")?.textContent).toContain(
+      "已暂停",
+    );
+    expect(document.body.textContent).not.toContain("刷新后完成");
+  });
+
+  it("keeps a restored goal visible when editing the chat draft after refresh", async () => {
+    const session = buildSession({ id: "session-restored-goal-draft" });
+    window.localStorage.setItem(
+      "jftrade.adk.page-state.v1",
+      JSON.stringify({
+        selectedSessionId: session.id,
+        sessions: {},
+      }),
+    );
+    mountADKPage({
+      sessions: [session],
+      sessionDetail: {
+        session,
+        timeline: [],
+        runs: [],
+        composerState: buildComposerState(session.id, {
+          chatDraft: "",
+          workModeOverride: "chat",
+          goalObjectiveDraft: "刷新后已有目标",
+          goalObjectiveTouched: true,
+        }),
+      },
+    });
+    await flushRequests();
+
+    expect(document.querySelector(".adk-goal-editor")?.textContent).toContain(
+      "刷新后已有目标",
+    );
+
+    const textarea = document.querySelector<HTMLTextAreaElement>(
+      ".adk-composer-input",
+    )!;
+    textarea.value = "重新输入的内容";
+    textarea.dispatchEvent(new Event("input"));
+    await nextTick();
+
+    expect(document.querySelector(".adk-goal-editor")?.textContent).toContain(
+      "刷新后已有目标",
+    );
+    expect(
+      document.querySelector<HTMLTextAreaElement>(".adk-composer-input")?.value,
+    ).toBe("重新输入的内容");
+  });
+
+  it("shows pause goal for an active goal and preserves the goal editor after clicking", async () => {
+    const session = buildSession({ id: "session-goal-pause-button" });
+    const runningRun = buildRun({
+      id: "run-goal-pause-button",
+      sessionId: session.id,
+      status: "RUNNING",
+      workMode: "loop",
+      objective: "持续检查风险",
+      workflowStatus: "RUNNING",
+      workflowPlan: [
+        buildWorkflowStep("step-goal-pause", "持续检查风险", "TODO"),
+      ],
+    });
+    const pauseRequestedRun = buildRun({
+      ...runningRun,
+      pauseRequestedAt: "2026-06-06T00:00:10Z",
+      resumeState: "user_pause_requested",
+    });
+    const pausedRun = buildRun({
+      ...pauseRequestedRun,
+      status: "PAUSED",
+      workflowStatus: "PAUSED",
+      pausedAt: "2026-06-06T00:00:12Z",
+      pausedReason: "user",
+      resumeState: "user_paused",
+    });
+    window.localStorage.setItem(
+      "jftrade.adk.page-state.v1",
+      JSON.stringify({
+        selectedSessionId: session.id,
+        sessions: {},
+      }),
+    );
+    const fetchMock = mountADKPage({
+      sessions: [session],
+      sessionDetail: {
+        session,
+        timeline: [],
+        runs: [runningRun],
+        composerState: buildComposerState(session.id),
+      },
+      pauseRunById: { [runningRun.id]: pauseRequestedRun },
+    });
+    await flushRequests();
+
+    const pauseButton = document.querySelector<HTMLButtonElement>(
+      ".adk-goal-editor__action[title='暂停目标']",
+    );
+    expect(pauseButton).not.toBeNull();
+    monitorADKRunContinuationMock.mockReset();
+    monitorADKRunContinuationMock.mockImplementationOnce(
+      async (_run, options) => {
+        await options?.onProgress?.(pausedRun, pauseRequestedRun);
+        return pausedRun;
+      },
+    );
+    pauseButton?.click();
+    await flushRequests();
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      `/api/v1/adk/runs/${runningRun.id}/pause`,
+      expect.objectContaining({ method: "POST" }),
+    );
+    expect(document.querySelector(".adk-goal-editor")?.textContent).toContain(
+      "持续检查风险",
+    );
+    expect(monitorADKRunContinuationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: runningRun.id,
+        pauseRequestedAt: "2026-06-06T00:00:10Z",
+      }),
+      expect.any(Object),
+    );
+    expect(
+      document.querySelector<HTMLButtonElement>(
+        ".adk-goal-editor__action[title='运行目标']",
+      ),
+    ).not.toBeNull();
+    expect(document.querySelector(".adk-goal-editor")?.textContent).toContain(
+      "已暂停",
+    );
+  });
+
+  it("resumes a user-paused goal without sending a chat message", async () => {
+    const session = buildSession({ id: "session-goal-resume-button" });
+    const pausedRun = buildRun({
+      id: "run-goal-resume-button",
+      sessionId: session.id,
+      status: "PAUSED",
+      workMode: "loop",
+      objective: "恢复已有目标",
+      workflowStatus: "PAUSED",
+      pauseRequestedAt: "2026-06-06T00:00:10Z",
+      pausedAt: "2026-06-06T00:00:12Z",
+      resumeState: "user_paused",
+      workflowPlan: [
+        buildWorkflowStep("step-goal-resume", "恢复已有目标", "TODO"),
+      ],
+    });
+    const runningRun = buildRun({
+      ...pausedRun,
+      status: "RUNNING",
+      workflowStatus: "RUNNING",
+      pauseRequestedAt: undefined,
+      pausedAt: undefined,
+      pausedReason: undefined,
+      resumeState: "user_resuming",
+    });
+    window.localStorage.setItem(
+      "jftrade.adk.page-state.v1",
+      JSON.stringify({
+        selectedSessionId: session.id,
+        sessions: {},
+      }),
+    );
+    const fetchMock = mountADKPage({
+      sessions: [session],
+      sessionDetail: {
+        session,
+        timeline: [],
+        runs: [pausedRun],
+        composerState: buildComposerState(session.id),
+      },
+      resumeRunById: { [pausedRun.id]: runningRun },
+    });
+    await flushRequests();
+
+    const resumeButton = document.querySelector<HTMLButtonElement>(
+      ".adk-goal-editor__action[title='运行目标']",
+    );
+    expect(resumeButton).not.toBeNull();
+    resumeButton?.click();
+    await flushRequests();
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      `/api/v1/adk/runs/${pausedRun.id}/resume`,
+      expect.objectContaining({ method: "POST" }),
+    );
+    expect(streamADKChatMock).not.toHaveBeenCalled();
+    expect(monitorADKRunContinuationMock).toHaveBeenCalledWith(
+      expect.objectContaining({ id: pausedRun.id, status: "RUNNING" }),
+      expect.any(Object),
+    );
+  });
+
+  it("keeps the run goal command after a stale running snapshot arrives", async () => {
+    const session = buildSession({ id: "session-goal-stale-running" });
+    const runningRun = buildRun({
+      id: "run-goal-stale-running",
+      sessionId: session.id,
+      status: "RUNNING",
+      workMode: "loop",
+      objective: "防止暂停态回退",
+      workflowStatus: "RUNNING",
+      workflowPlan: [
+        buildWorkflowStep("step-goal-stale-running", "防止暂停态回退", "TODO"),
+      ],
+    });
+    const pauseRequestedRun = buildRun({
+      ...runningRun,
+      pauseRequestedAt: "2026-06-06T00:00:10Z",
+      resumeState: "user_pause_requested",
+    });
+    const pausedRun = buildRun({
+      ...pauseRequestedRun,
+      status: "PAUSED",
+      workflowStatus: "PAUSED",
+      pausedAt: "2026-06-06T00:00:12Z",
+      pausedReason: "user",
+      resumeState: "user_paused",
+    });
+    window.localStorage.setItem(
+      "jftrade.adk.page-state.v1",
+      JSON.stringify({
+        selectedSessionId: session.id,
+        sessions: {},
+      }),
+    );
+    mountADKPage({
+      sessions: [session],
+      sessionDetail: {
+        session,
+        timeline: [],
+        runs: [runningRun],
+        composerState: buildComposerState(session.id),
+      },
+      pauseRunById: { [runningRun.id]: pauseRequestedRun },
+    });
+    await flushRequests();
+
+    monitorADKRunContinuationMock.mockReset();
+    monitorADKRunContinuationMock.mockImplementationOnce(
+      async (_run, options) => {
+        await options?.onProgress?.(pausedRun, pauseRequestedRun);
+        await options?.onProgress?.(pauseRequestedRun, pausedRun);
+        return pauseRequestedRun;
+      },
+    );
+    document
+      .querySelector<HTMLButtonElement>(
+        ".adk-goal-editor__action[title='暂停目标']",
+      )
+      ?.click();
+    await flushRequests();
+
+    expect(
+      document.querySelector<HTMLButtonElement>(
+        ".adk-goal-editor__action[title='运行目标']",
+      ),
+    ).not.toBeNull();
+    expect(document.querySelector(".adk-goal-editor")?.textContent).toContain(
+      "已暂停",
+    );
+  });
+
+  it("restores a paused goal after refresh with the run goal command visible", async () => {
+    const session = buildSession({ id: "session-restored-paused-goal" });
+    const pausedRun = buildRun({
+      id: "run-restored-paused-goal",
+      sessionId: session.id,
+      status: "PAUSED",
+      workMode: "loop",
+      objective: "刷新后暂停目标",
+      workflowStatus: "PAUSED",
+      pauseRequestedAt: "2026-06-06T00:00:10Z",
+      pausedAt: "2026-06-06T00:00:12Z",
+      pausedReason: "user",
+      resumeState: "user_paused",
+      workflowPlan: [
+        buildWorkflowStep("step-paused-restored", "刷新后暂停目标", "TODO"),
+      ],
+    });
+    window.localStorage.setItem(
+      "jftrade.adk.page-state.v1",
+      JSON.stringify({
+        selectedSessionId: session.id,
+        sessions: {},
+      }),
+    );
+    mountADKPage({
+      sessions: [session],
+      sessionDetail: {
+        session,
+        timeline: [],
+        runs: [pausedRun],
+        composerState: buildComposerState(session.id),
+      },
+    });
+    await flushRequests();
+
+    expect(document.querySelector(".adk-goal-editor")?.textContent).toContain(
+      "刷新后暂停目标",
+    );
+    expect(
+      document.querySelector<HTMLButtonElement>(
+        ".adk-goal-editor__action[title='运行目标']",
+      ),
+    ).not.toBeNull();
+  });
+
   it("keeps and persists the current draft when sending fails", async () => {
     const session = buildSession({ id: "session-send-fails" });
     streamADKChatMock.mockRejectedValueOnce(new Error("provider unavailable"));
@@ -2638,6 +3203,8 @@ function mountADKPage(
     approvalResolution?: unknown;
     approvalResolutionById?: Record<string, unknown>;
     cancelRunById?: Record<string, ADKRun>;
+    pauseRunById?: Record<string, ADKRun>;
+    resumeRunById?: Record<string, ADKRun>;
     runById?: Record<string, ADKRun>;
     sessions?: Array<ReturnType<typeof buildSession>>;
     composerStateBySession?: Record<string, ADKSessionComposerState>;
@@ -2675,93 +3242,132 @@ function mountADKPage(
     composerStateBySession: { ...(options.composerStateBySession ?? {}) },
   };
 
-  const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
-    const url = String(input);
-    if (url.includes("/api/v1/adk/agents")) {
-      return createResponse({ agents: [buildAgent(options.agent)] });
-    }
-    if (url.includes("/api/v1/adk/providers")) {
-      return createResponse({
-        providers: [buildProvider(options.providerHasKey ?? true)],
-      });
-    }
-    if (/\/api\/v1\/adk\/sessions\/[^/]+\/context$/.test(url)) {
-      const context =
-        state.sessionContextSequence.length > 1
-          ? state.sessionContextSequence.shift()!
-          : state.sessionContextSequence[0]!;
-      const resolvedContext = await context;
-      if (resolvedContext instanceof Error) {
-        throw resolvedContext;
+  const fetchMock = vi.fn(
+    async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes("/api/v1/adk/agents")) {
+        return createResponse({ agents: [buildAgent(options.agent)] });
       }
-      return createResponse(resolvedContext ?? null);
-    }
-    const composerStateMatch = url.match(
-      /\/api\/v1\/adk\/sessions\/([^/]+)\/composer-state$/,
-    );
-    if (composerStateMatch) {
-      const sessionId = decodeURIComponent(composerStateMatch[1]!);
-      const patch = JSON.parse(String(init?.body ?? "{}")) as Partial<ADKSessionComposerState>;
-      if (options.composerStateSave) {
-        return createResponse(await options.composerStateSave(sessionId, patch));
-      }
-      state.composerStateBySession[sessionId] = buildComposerState(sessionId, {
-        ...(state.composerStateBySession[sessionId] ?? {}),
-        ...patch,
-        updatedAt: "2026-06-06T00:00:10Z",
-      });
-      return createResponse(state.composerStateBySession[sessionId]);
-    }
-    if (url.includes("/api/v1/adk/sessions")) {
-      if (init?.method === "DELETE") {
-        return createResponse({});
-      }
-      if (/\/api\/v1\/adk\/sessions\/[^/]+$/.test(url)) {
-        const detail =
-          state.sessionDetailSequence.length > 1
-            ? state.sessionDetailSequence.shift()!
-            : state.sessionDetailSequence[0]!;
+      if (url.includes("/api/v1/adk/providers")) {
         return createResponse({
-          ...detail,
-          composerState:
-            detail.composerState ??
-            state.composerStateBySession[detail.session.id] ??
-            buildComposerState(detail.session.id),
+          providers: [buildProvider(options.providerHasKey ?? true)],
         });
       }
-      return createResponse({ sessions: options.sessions ?? [buildSession()] });
-    }
-    const cancelRunMatch = url.match(/\/api\/v1\/adk\/runs\/([^/]+)\/cancel$/);
-    if (cancelRunMatch) {
-      const runId = decodeURIComponent(cancelRunMatch[1]!);
-      return createResponse(
-        options.cancelRunById?.[runId] ??
-          buildRun({ id: runId, status: "CANCELLED", pendingApprovals: [] }),
-      );
-    }
-    const runDetailMatch = url.match(/\/api\/v1\/adk\/runs\/([^/]+)$/);
-    if (runDetailMatch) {
-      const runId = decodeURIComponent(runDetailMatch[1]!);
-      return createResponse(options.runById?.[runId] ?? {});
-    }
-    const approvalActionMatch = url.match(
-      /\/api\/v1\/adk\/approvals\/([^/]+)\/(approve|deny)$/,
-    );
-    if (approvalActionMatch) {
-      const approvalId = approvalActionMatch[1]!;
-      state.approvals = state.approvals.filter(
-        (approval) => approval.id !== approvalId,
-      );
-      if (options.approvalResolutionById?.[approvalId] !== undefined) {
-        return createResponse(options.approvalResolutionById[approvalId]);
+      if (/\/api\/v1\/adk\/sessions\/[^/]+\/context$/.test(url)) {
+        const context =
+          state.sessionContextSequence.length > 1
+            ? state.sessionContextSequence.shift()!
+            : state.sessionContextSequence[0]!;
+        const resolvedContext = await context;
+        if (resolvedContext instanceof Error) {
+          throw resolvedContext;
+        }
+        return createResponse(resolvedContext ?? null);
       }
-      return createResponse(options.approvalResolution);
-    }
-    if (url.includes("/api/v1/adk/approvals")) {
-      return createResponse({ approvals: state.approvals });
-    }
-    return createResponse({});
-  });
+      const composerStateMatch = url.match(
+        /\/api\/v1\/adk\/sessions\/([^/]+)\/composer-state$/,
+      );
+      if (composerStateMatch) {
+        const sessionId = decodeURIComponent(composerStateMatch[1]!);
+        const patch = JSON.parse(
+          String(init?.body ?? "{}"),
+        ) as Partial<ADKSessionComposerState>;
+        if (options.composerStateSave) {
+          return createResponse(
+            await options.composerStateSave(sessionId, patch),
+          );
+        }
+        state.composerStateBySession[sessionId] = buildComposerState(
+          sessionId,
+          {
+            ...(state.composerStateBySession[sessionId] ?? {}),
+            ...patch,
+            updatedAt: "2026-06-06T00:00:10Z",
+          },
+        );
+        return createResponse(state.composerStateBySession[sessionId]);
+      }
+      if (url.includes("/api/v1/adk/sessions")) {
+        if (init?.method === "DELETE") {
+          return createResponse({});
+        }
+        if (/\/api\/v1\/adk\/sessions\/[^/]+$/.test(url)) {
+          const detail =
+            state.sessionDetailSequence.length > 1
+              ? state.sessionDetailSequence.shift()!
+              : state.sessionDetailSequence[0]!;
+          return createResponse({
+            ...detail,
+            composerState:
+              detail.composerState ??
+              state.composerStateBySession[detail.session.id] ??
+              buildComposerState(detail.session.id),
+          });
+        }
+        return createResponse({
+          sessions: options.sessions ?? [buildSession()],
+        });
+      }
+      const cancelRunMatch = url.match(
+        /\/api\/v1\/adk\/runs\/([^/]+)\/cancel$/,
+      );
+      if (cancelRunMatch) {
+        const runId = decodeURIComponent(cancelRunMatch[1]!);
+        return createResponse(
+          options.cancelRunById?.[runId] ??
+            buildRun({ id: runId, status: "CANCELLED", pendingApprovals: [] }),
+        );
+      }
+      const pauseRunMatch = url.match(/\/api\/v1\/adk\/runs\/([^/]+)\/pause$/);
+      if (pauseRunMatch) {
+        const runId = decodeURIComponent(pauseRunMatch[1]!);
+        return createResponse(
+          options.pauseRunById?.[runId] ??
+            buildRun({
+              id: runId,
+              status: "RUNNING",
+              pauseRequestedAt: "2026-06-06T00:00:10Z",
+            }),
+        );
+      }
+      const resumeRunMatch = url.match(
+        /\/api\/v1\/adk\/runs\/([^/]+)\/resume$/,
+      );
+      if (resumeRunMatch) {
+        const runId = decodeURIComponent(resumeRunMatch[1]!);
+        return createResponse(
+          options.resumeRunById?.[runId] ??
+            buildRun({
+              id: runId,
+              status: "RUNNING",
+              resumeState: "user_resuming",
+            }),
+        );
+      }
+      const runDetailMatch = url.match(/\/api\/v1\/adk\/runs\/([^/]+)$/);
+      if (runDetailMatch) {
+        const runId = decodeURIComponent(runDetailMatch[1]!);
+        return createResponse(options.runById?.[runId] ?? {});
+      }
+      const approvalActionMatch = url.match(
+        /\/api\/v1\/adk\/approvals\/([^/]+)\/(approve|deny)$/,
+      );
+      if (approvalActionMatch) {
+        const approvalId = approvalActionMatch[1]!;
+        state.approvals = state.approvals.filter(
+          (approval) => approval.id !== approvalId,
+        );
+        if (options.approvalResolutionById?.[approvalId] !== undefined) {
+          return createResponse(options.approvalResolutionById[approvalId]);
+        }
+        return createResponse(options.approvalResolution);
+      }
+      if (url.includes("/api/v1/adk/approvals")) {
+        return createResponse({ approvals: state.approvals });
+      }
+      return createResponse({});
+    },
+  );
   vi.stubGlobal("fetch", fetchMock);
 
   const router = createRouter({
@@ -2969,21 +3575,21 @@ function buildTimelineEntry(
   kind: ADKTimelineEntry["kind"],
   overrides: Partial<ADKTimelineEntry> = {},
 ): ADKTimelineEntry {
-	return {
-		id: overrides.id ?? `entry-${kind}`,
-		sessionId: overrides.sessionId ?? "session-1",
-		kind,
-		createdAt: overrides.createdAt ?? "2026-06-06T00:00:00Z",
-		updatedAt: overrides.updatedAt,
-		sequence: overrides.sequence ?? 1,
-		status: overrides.status ?? "final",
-		runId: overrides.runId,
-		text: overrides.text,
-		originalText: overrides.originalText,
-		processedText: overrides.processedText,
-		toolCalls: overrides.toolCalls,
-		approvals: overrides.approvals,
-	};
+  return {
+    id: overrides.id ?? `entry-${kind}`,
+    sessionId: overrides.sessionId ?? "session-1",
+    kind,
+    createdAt: overrides.createdAt ?? "2026-06-06T00:00:00Z",
+    updatedAt: overrides.updatedAt,
+    sequence: overrides.sequence ?? 1,
+    status: overrides.status ?? "final",
+    runId: overrides.runId,
+    text: overrides.text,
+    originalText: overrides.originalText,
+    processedText: overrides.processedText,
+    toolCalls: overrides.toolCalls,
+    approvals: overrides.approvals,
+  };
 }
 
 function pendingApprovalTimeline(
@@ -3034,14 +3640,17 @@ async function expandQueue(title: string): Promise<void> {
       document.querySelectorAll<HTMLElement>(".adk-workspace-queue"),
     ).find((candidate) => candidate.textContent?.includes(title));
   if (!queue || queue.querySelector(".adk-workspace-queue__body")) return;
-  queue.querySelector<HTMLButtonElement>(".adk-workspace-queue__header")?.click();
+  queue
+    .querySelector<HTMLButtonElement>(".adk-workspace-queue__header")
+    ?.click();
   await nextTick();
 }
 
 function findWorkModeSelect(): HTMLSelectElement | undefined {
-  return Array.from(document.querySelectorAll<HTMLSelectElement>("select")).find(
-    (select) =>
-      Array.from(select.options).some((option) => option.value === "loop"),
+  return Array.from(
+    document.querySelectorAll<HTMLSelectElement>("select"),
+  ).find((select) =>
+    Array.from(select.options).some((option) => option.value === "loop"),
   );
 }
 
@@ -3090,6 +3699,8 @@ function vuetifyStubs() {
       template: "<div><slot name='activator' :props='{}' /><slot /></div>",
     },
     "v-progress-circular": { template: "<span />" },
+    "v-progress-linear": { template: "<span />" },
+    "v-list-item": { template: "<div><slot /></div>" },
     "v-select": {
       props: ["modelValue", "items"],
       emits: ["update:modelValue"],

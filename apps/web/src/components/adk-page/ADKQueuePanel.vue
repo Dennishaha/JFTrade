@@ -116,28 +116,28 @@ watch(
 }
 
 .adk-workspace-queue__badge.is-muted {
-  color: var(--tv-text-muted);
-  background: color-mix(in srgb, var(--tv-text-dim) 18%, transparent);
+  color: var(--adk-muted-fg);
+  background: var(--adk-muted-bg);
 }
 
 .adk-workspace-queue__badge.is-info {
-  color: color-mix(in srgb, var(--tv-accent) 82%, var(--tv-text));
-  background: color-mix(in srgb, var(--tv-accent) 16%, transparent);
+  color: var(--adk-info-fg);
+  background: var(--adk-info-bg);
 }
 
 .adk-workspace-queue__badge.is-warning {
-  color: color-mix(in srgb, var(--tv-warn) 82%, var(--tv-text));
-  background: color-mix(in srgb, var(--tv-warn) 18%, transparent);
+  color: var(--adk-warning-fg);
+  background: var(--adk-warning-bg);
 }
 
 .adk-workspace-queue__badge.is-success {
-  color: color-mix(in srgb, var(--tv-up) 82%, var(--tv-text));
-  background: color-mix(in srgb, var(--tv-up) 16%, transparent);
+  color: var(--adk-success-fg);
+  background: var(--adk-success-bg);
 }
 
 .adk-workspace-queue__badge.is-error {
-  color: color-mix(in srgb, var(--tv-down) 82%, var(--tv-text));
-  background: color-mix(in srgb, var(--tv-down) 16%, transparent);
+  color: var(--adk-error-fg);
+  background: var(--adk-error-bg);
 }
 
 .adk-workspace-queue__summary {
@@ -149,7 +149,7 @@ watch(
 }
 
 .adk-workspace-queue__toggle {
-  color: var(--tv-accent);
+  color: var(--adk-accent-fg);
   font-size: 12px;
 }
 
@@ -221,43 +221,43 @@ watch(
 }
 
 :deep(.adk-workspace-queue-status.is-muted) {
-  color: var(--tv-text-muted);
-  background: color-mix(in srgb, var(--tv-text-dim) 18%, transparent);
+  color: var(--adk-muted-fg);
+  background: var(--adk-muted-bg);
 }
 
 :deep(.adk-workspace-queue-status.is-info) {
-  color: color-mix(in srgb, var(--tv-accent) 82%, var(--tv-text));
-  background: color-mix(in srgb, var(--tv-accent) 16%, transparent);
+  color: var(--adk-info-fg);
+  background: var(--adk-info-bg);
 }
 
 :deep(.adk-workspace-queue-status.is-warning) {
-  color: color-mix(in srgb, var(--tv-warn) 82%, var(--tv-text));
-  background: color-mix(in srgb, var(--tv-warn) 18%, transparent);
+  color: var(--adk-warning-fg);
+  background: var(--adk-warning-bg);
 }
 
 :deep(.adk-workspace-queue-status.is-success) {
-  color: color-mix(in srgb, var(--tv-up) 82%, var(--tv-text));
-  background: color-mix(in srgb, var(--tv-up) 16%, transparent);
+  color: var(--adk-success-fg);
+  background: var(--adk-success-bg);
 }
 
 :deep(.adk-workspace-queue-status.is-error) {
-  color: color-mix(in srgb, var(--tv-down) 82%, var(--tv-text));
-  background: color-mix(in srgb, var(--tv-down) 16%, transparent);
+  color: var(--adk-error-fg);
+  background: var(--adk-error-bg);
 }
 
 :deep(.adk-workspace-queue-button) {
   border: 0;
   border-radius: 999px;
   padding: 4px 8px;
-  background: color-mix(in srgb, var(--tv-accent) 14%, transparent);
-  color: color-mix(in srgb, var(--tv-accent) 82%, var(--tv-text));
+  background: var(--adk-accent-bg);
+  color: var(--adk-accent-fg);
   cursor: pointer;
   font-size: 12px;
 }
 
 :deep(.adk-workspace-queue-button.is-danger) {
-  background: color-mix(in srgb, var(--tv-down) 14%, transparent);
-  color: color-mix(in srgb, var(--tv-down) 82%, var(--tv-text));
+  background: var(--adk-danger-bg);
+  color: var(--adk-danger-fg);
 }
 
 :deep(.adk-workspace-queue-button:disabled) {

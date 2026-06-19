@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, watch } from "vue";
 
 import type { ADKRun } from "@/contracts";
 
@@ -85,20 +85,6 @@ const summaryHint = computed(() => {
     ? "Collapse this tool trace"
     : "Expand this tool trace";
 });
-const toolVisualizationMap = computed(() => {
-  const visualizations = new Map<string, ADKToolVisualizationModel>();
-  for (const toolCall of toolCalls.value) {
-    if (toolCall.output === undefined) continue;
-    const visualization = buildADKToolVisualization(
-      toolCall.toolName,
-      toolCall.output,
-    );
-    if (visualization) {
-      visualizations.set(toolCall.id, visualization);
-    }
-  }
-  return visualizations;
-});
 const showWorkflowMeta = computed(
   () =>
     props.run?.workMode &&
@@ -117,6 +103,23 @@ const workflowModeLabel = computed(() => {
       return "工作流";
   }
 });
+const toolVisualizationCache = new Map<
+  string,
+  { output: unknown; visualization: ADKToolVisualizationModel | null }
+>();
+
+watch(
+  toolCalls,
+  (calls) => {
+    const retainedIds = new Set(calls.map((toolCall) => toolCall.id));
+    for (const key of toolVisualizationCache.keys()) {
+      if (!retainedIds.has(key)) {
+        toolVisualizationCache.delete(key);
+      }
+    }
+  },
+  { flush: "post" },
+);
 
 function isTerminalToolStatus(status: string | undefined): boolean {
   const normalized = (status ?? "").trim().toUpperCase();
@@ -139,7 +142,22 @@ function preview(value: unknown): string {
 }
 
 function toolVisualization(toolCall: ADKRun["toolCalls"][number]) {
-  return toolVisualizationMap.value.get(toolCall.id);
+  if (!isToolExpanded(toolCall.id) || toolCall.output === undefined) {
+    return null;
+  }
+  const cached = toolVisualizationCache.get(toolCall.id);
+  if (cached && cached.output === toolCall.output) {
+    return cached.visualization;
+  }
+  const visualization = buildADKToolVisualization(
+    toolCall.toolName,
+    toolCall.output,
+  );
+  toolVisualizationCache.set(toolCall.id, {
+    output: toolCall.output,
+    visualization,
+  });
+  return visualization;
 }
 
 function durationLabel(durationMs: number | undefined): string {

@@ -656,6 +656,20 @@ func (s *Service) CancelRun(ctx context.Context, runID string) (jfadk.Run, error
 	return s.runtime.CancelRun(ctx, runID)
 }
 
+func (s *Service) PauseGoalRun(ctx context.Context, runID string) (jfadk.Run, error) {
+	if s.runtime == nil {
+		return jfadk.Run{}, fmt.Errorf("adk runtime is unavailable")
+	}
+	return s.runtime.PauseGoalRun(ctx, runID)
+}
+
+func (s *Service) ResumeGoalRun(ctx context.Context, runID string) (jfadk.Run, error) {
+	if s.runtime == nil {
+		return jfadk.Run{}, fmt.Errorf("adk runtime is unavailable")
+	}
+	return s.runtime.ResumeGoalRun(ctx, runID)
+}
+
 func (s *Service) UpdateRunObjective(ctx context.Context, runID string, objective string) (jfadk.Run, error) {
 	if s.runtime == nil {
 		return jfadk.Run{}, fmt.Errorf("adk runtime is unavailable")

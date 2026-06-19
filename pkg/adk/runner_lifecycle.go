@@ -187,7 +187,7 @@ func (r *Runtime) CancelRun(ctx context.Context, runID string) (Run, error) {
 	if !ok {
 		return Run{}, fmt.Errorf("run not found")
 	}
-	if run.Status != RunStatusRunning && run.Status != RunStatusPending {
+	if run.Status != RunStatusRunning && run.Status != RunStatusPending && run.Status != RunStatusPaused {
 		return run, nil
 	}
 	r.activeMu.Lock()
@@ -242,6 +242,142 @@ func (r *Runtime) CancelRun(ctx context.Context, runID string) (Run, error) {
 		"runId": run.ID, "sessionId": run.SessionID, "agentId": run.AgentID, "status": run.Status,
 	})
 	return run, nil
+}
+
+func (r *Runtime) PauseGoalRun(ctx context.Context, runID string) (Run, error) {
+	if r == nil || r.store == nil {
+		return Run{}, fmt.Errorf("adk runtime is unavailable")
+	}
+	run, ok, err := r.store.Run(ctx, strings.TrimSpace(runID))
+	if err != nil {
+		return Run{}, err
+	}
+	if !ok {
+		return Run{}, fmt.Errorf("run not found")
+	}
+	if err := validateUserGoalPauseRun(run); err != nil {
+		return Run{}, err
+	}
+	if run.Status == RunStatusPaused && run.PausedReason == "user" {
+		return run, nil
+	}
+	if run.Status != RunStatusRunning {
+		return Run{}, fmt.Errorf("only running goal runs can be paused")
+	}
+	if run.PauseRequestedAt == nil {
+		requestedAt := nowString()
+		run.PauseRequestedAt = &requestedAt
+	}
+	run.ResumeState = "user_pause_requested"
+	run.Message = "目标将在当前轮结束后暂停。"
+	run.UpdatedAt = nowString()
+	if err := r.store.SaveRun(ctx, run); err != nil {
+		return Run{}, err
+	}
+	r.audit(ctx, "run.goal.pause_requested", run.ID, "Goal pause requested.", map[string]any{
+		"runId": run.ID, "sessionId": run.SessionID, "agentId": run.AgentID,
+	})
+	return run, nil
+}
+
+func (r *Runtime) ResumeGoalRun(ctx context.Context, runID string) (Run, error) {
+	if r == nil || r.store == nil {
+		return Run{}, fmt.Errorf("adk runtime is unavailable")
+	}
+	run, ok, err := r.store.Run(ctx, strings.TrimSpace(runID))
+	if err != nil {
+		return Run{}, err
+	}
+	if !ok {
+		return Run{}, fmt.Errorf("run not found")
+	}
+	if err := validateUserGoalResumeRun(run); err != nil {
+		return Run{}, err
+	}
+	run.Status = RunStatusRunning
+	run.WorkflowStatus = workflowStatusRunning
+	run.ResumeState = "user_resuming"
+	run.Message = "goal resumed"
+	run.PauseRequestedAt = nil
+	run.PausedAt = nil
+	run.PausedReason = ""
+	run.UpdatedAt = nowString()
+	if err := r.store.SaveRun(ctx, run); err != nil {
+		return Run{}, err
+	}
+	r.audit(ctx, "run.goal.resumed", run.ID, "Goal resumed by user.", map[string]any{
+		"runId": run.ID, "sessionId": run.SessionID, "agentId": run.AgentID,
+	})
+	r.resumeUserPausedGoalRun(context.WithoutCancel(ctx), run)
+	return run, nil
+}
+
+func validateUserGoalPauseRun(run Run) error {
+	if strings.TrimSpace(run.ParentRunID) != "" {
+		return fmt.Errorf("only root goal runs can be paused")
+	}
+	if normalizeWorkMode(run.WorkMode) != WorkModeLoop || strings.TrimSpace(run.WorkflowStatus) == "" {
+		return fmt.Errorf("only loop goal runs can be paused")
+	}
+	if isTerminalLifecycleRunStatus(run.Status) {
+		return fmt.Errorf("terminal runs cannot be paused")
+	}
+	if run.Status == RunStatusPaused {
+		if run.PausedReason == "user" {
+			return nil
+		}
+		return fmt.Errorf("system-paused runs cannot be paused")
+	}
+	return nil
+}
+
+func validateUserGoalResumeRun(run Run) error {
+	if strings.TrimSpace(run.ParentRunID) != "" {
+		return fmt.Errorf("only root goal runs can be resumed")
+	}
+	if normalizeWorkMode(run.WorkMode) != WorkModeLoop || strings.TrimSpace(run.WorkflowStatus) == "" {
+		return fmt.Errorf("only loop goal runs can be resumed")
+	}
+	if run.Status != RunStatusPaused || run.PausedReason != "user" {
+		return fmt.Errorf("only user-paused goal runs can be resumed")
+	}
+	return nil
+}
+
+func isTerminalLifecycleRunStatus(status string) bool {
+	switch strings.ToUpper(strings.TrimSpace(status)) {
+	case RunStatusCompleted, RunStatusFailed, RunStatusDenied, RunStatusCancelled, RunStatusTimedOut:
+		return true
+	default:
+		return false
+	}
+}
+
+func (r *Runtime) resumeUserPausedGoalRun(ctx context.Context, run Run) {
+	go func() {
+		timeoutCtx, cancel := context.WithTimeout(context.Background(), runTimeoutForRun(run))
+		defer cancel()
+		r.activeMu.Lock()
+		r.activeRuns[run.ID] = cancel
+		r.activeMu.Unlock()
+		defer func() {
+			r.activeMu.Lock()
+			delete(r.activeRuns, run.ID)
+			r.activeMu.Unlock()
+		}()
+		session, agent, err := r.workflowResumeContext(timeoutCtx, run)
+		executor := &WorkflowExecutor{runtime: r}
+		if err != nil {
+			_ = executor.failParent(timeoutCtx, run, err)
+			return
+		}
+		updated, err := executor.resumeADKGoalWorkflow(timeoutCtx, session, agent, run)
+		if err != nil {
+			_ = executor.failParent(timeoutCtx, run, err)
+			return
+		}
+		_ = updated
+	}()
 }
 
 func (r *Runtime) UpdateRunObjective(ctx context.Context, runID string, objective string) (Run, error) {

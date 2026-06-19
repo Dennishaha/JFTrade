@@ -1,11 +1,13 @@
 import type {
   ADKApproval,
   ADKApprovalResolution,
+  ADKChatResponse,
   ADKRun,
   ADKTimelineEntry,
 } from "@/contracts";
 
 import { uniqueADKApprovalsById } from "./adkApprovalResolution";
+import { normalizeADKChatResponse } from "./adkNormalization";
 
 export interface ADKTimelineEntryState extends ADKTimelineEntry {
   run?: ADKRun;
@@ -44,6 +46,18 @@ export function replaceTimelineEntries(
         mergeTimelineEntry(previousById.get(entry.id), entry, runsById),
       ),
     ),
+  );
+}
+
+export function replaceAuthoritativeChatResponseTimeline(
+  response: ADKChatResponse,
+  previous: ADKTimelineEntryState[] = [],
+): ADKTimelineEntryState[] {
+  const normalizedResponse = normalizeADKChatResponse(response);
+  return replaceTimelineEntries(
+    normalizedResponse.timeline,
+    previous,
+    new Map([[normalizedResponse.run.id, normalizedResponse.run]]),
   );
 }
 

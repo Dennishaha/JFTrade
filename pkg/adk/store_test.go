@@ -830,6 +830,144 @@ func TestDeleteSessionRemovesApprovals(t *testing.T) {
 	}
 }
 
+func TestSaveRunPreservesUserGoalPauseLifecycle(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	now := nowString()
+
+	t.Run("keeps pause request when stale running snapshot clears it", func(t *testing.T) {
+		initial := Run{
+			ID:               "run-goal-pause-requested",
+			SessionID:        "session-1",
+			AgentID:          "agent-1",
+			Status:           RunStatusRunning,
+			Message:          "目标将在当前轮结束后暂停。",
+			WorkMode:         WorkModeLoop,
+			Objective:        "推进目标",
+			WorkflowStatus:   workflowStatusRunning,
+			PauseRequestedAt: &now,
+			ResumeState:      "user_pause_requested",
+			CreatedAt:        now,
+			StartedAt:        now,
+			UpdatedAt:        now,
+			ToolCalls:        []ToolCall{},
+			PendingApprovals: []Approval{},
+			Usage:            &RunUsage{},
+		}
+		if err := runtime.Store().SaveRun(ctx, initial); err != nil {
+			t.Fatalf("SaveRun initial: %v", err)
+		}
+
+		stale := initial
+		stale.Message = "goal running"
+		stale.PauseRequestedAt = nil
+		stale.ResumeState = ""
+		if err := runtime.Store().SaveRun(ctx, stale); err != nil {
+			t.Fatalf("SaveRun stale: %v", err)
+		}
+
+		stored, ok, err := runtime.Store().Run(ctx, initial.ID)
+		if err != nil || !ok {
+			t.Fatalf("Run lookup ok=%v err=%v", ok, err)
+		}
+		if stored.PauseRequestedAt == nil || stored.ResumeState != "user_pause_requested" {
+			t.Fatalf("stored run = %+v, want pause request preserved", stored)
+		}
+	})
+
+	t.Run("keeps user paused state when stale running snapshot overwrites it", func(t *testing.T) {
+		initial := Run{
+			ID:               "run-goal-user-paused",
+			SessionID:        "session-1",
+			AgentID:          "agent-1",
+			Status:           RunStatusPaused,
+			Message:          "目标已暂停。",
+			WorkMode:         WorkModeLoop,
+			Objective:        "推进目标",
+			WorkflowStatus:   workflowStatusPaused,
+			PauseRequestedAt: &now,
+			PausedAt:         &now,
+			PausedReason:     "user",
+			ResumeState:      "user_paused",
+			CreatedAt:        now,
+			StartedAt:        now,
+			UpdatedAt:        now,
+			ToolCalls:        []ToolCall{},
+			PendingApprovals: []Approval{},
+			Usage:            &RunUsage{},
+		}
+		if err := runtime.Store().SaveRun(ctx, initial); err != nil {
+			t.Fatalf("SaveRun initial paused: %v", err)
+		}
+
+		stale := initial
+		stale.Status = RunStatusRunning
+		stale.WorkflowStatus = workflowStatusRunning
+		stale.Message = "goal running"
+		stale.PauseRequestedAt = nil
+		stale.PausedAt = nil
+		stale.PausedReason = ""
+		stale.ResumeState = ""
+		if err := runtime.Store().SaveRun(ctx, stale); err != nil {
+			t.Fatalf("SaveRun stale paused: %v", err)
+		}
+
+		stored, ok, err := runtime.Store().Run(ctx, initial.ID)
+		if err != nil || !ok {
+			t.Fatalf("Run lookup ok=%v err=%v", ok, err)
+		}
+		if stored.Status != RunStatusPaused || stored.WorkflowStatus != workflowStatusPaused || stored.PausedReason != "user" || stored.ResumeState != "user_paused" {
+			t.Fatalf("stored run = %+v, want user pause preserved", stored)
+		}
+	})
+
+	t.Run("allows an explicit resume snapshot to clear pause fields", func(t *testing.T) {
+		initial := Run{
+			ID:               "run-goal-user-resuming",
+			SessionID:        "session-1",
+			AgentID:          "agent-1",
+			Status:           RunStatusPaused,
+			Message:          "目标已暂停。",
+			WorkMode:         WorkModeLoop,
+			Objective:        "推进目标",
+			WorkflowStatus:   workflowStatusPaused,
+			PauseRequestedAt: &now,
+			PausedAt:         &now,
+			PausedReason:     "user",
+			ResumeState:      "user_paused",
+			CreatedAt:        now,
+			StartedAt:        now,
+			UpdatedAt:        now,
+			ToolCalls:        []ToolCall{},
+			PendingApprovals: []Approval{},
+			Usage:            &RunUsage{},
+		}
+		if err := runtime.Store().SaveRun(ctx, initial); err != nil {
+			t.Fatalf("SaveRun initial resuming: %v", err)
+		}
+
+		resuming := initial
+		resuming.Status = RunStatusRunning
+		resuming.WorkflowStatus = workflowStatusRunning
+		resuming.Message = "goal resumed"
+		resuming.PauseRequestedAt = nil
+		resuming.PausedAt = nil
+		resuming.PausedReason = ""
+		resuming.ResumeState = "user_resuming"
+		if err := runtime.Store().SaveRun(ctx, resuming); err != nil {
+			t.Fatalf("SaveRun resuming: %v", err)
+		}
+
+		stored, ok, err := runtime.Store().Run(ctx, initial.ID)
+		if err != nil || !ok {
+			t.Fatalf("Run lookup ok=%v err=%v", ok, err)
+		}
+		if stored.Status != RunStatusRunning || stored.PauseRequestedAt != nil || stored.PausedAt != nil || stored.PausedReason != "" || stored.ResumeState != "user_resuming" {
+			t.Fatalf("stored run = %+v, want explicit resume preserved", stored)
+		}
+	})
+}
+
 func TestListSessionsPageFiltersQueryAndPaginates(t *testing.T) {
 	ctx := context.Background()
 	runtime := newTestRuntime(t)

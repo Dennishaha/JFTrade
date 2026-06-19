@@ -5,7 +5,10 @@ import {
   buildRunObservationSignature,
   hasPendingRunApproval,
 } from "./adkChatRuntime";
-import { isTerminalRunStatus } from "./adkChatPresentation";
+import {
+  isTerminalRunStatus,
+  isUserPausedGoalRun,
+} from "./adkChatPresentation";
 import { normalizeADKRun } from "./adkNormalization";
 
 const DEFAULT_CONTINUATION_TIMEOUT_MS = 300_000;
@@ -21,7 +24,7 @@ export async function monitorADKRunContinuation(
   run: ADKRun | undefined,
   options: ADKRunContinuationOptions = {},
 ): Promise<ADKRun | undefined> {
-  if (!run || isTerminalRunStatus(run.status)) {
+  if (!run || isTerminalRunStatus(run.status) || isUserPausedGoalRun(run)) {
     return run;
   }
   const pollIntervalMs = options.pollIntervalMs ?? 900;
@@ -50,6 +53,9 @@ export async function monitorADKRunContinuation(
     if (hasPendingRunApproval(latestRun)) {
       return latestRun;
     }
+    if (isUserPausedGoalRun(latestRun)) {
+      return latestRun;
+    }
   }
 
   const latestRun = await fetchLatestRun(run.id);
@@ -67,6 +73,9 @@ export async function monitorADKRunContinuation(
     return latestRun;
   }
   if (hasPendingRunApproval(latestRun)) {
+    return latestRun;
+  }
+  if (isUserPausedGoalRun(latestRun)) {
     return latestRun;
   }
   if (hasFailedToolSnapshot(latestRun)) {
@@ -93,7 +102,9 @@ function delay(ms: number): Promise<void> {
 
 async function fetchLatestRun(runId: string): Promise<ADKRun> {
   return normalizeADKRun(
-    await fetchEnvelope<ADKRun>(`/api/v1/adk/runs/${encodeURIComponent(runId)}`),
+    await fetchEnvelope<ADKRun>(
+      `/api/v1/adk/runs/${encodeURIComponent(runId)}`,
+    ),
   );
 }
 

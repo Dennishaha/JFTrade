@@ -124,7 +124,7 @@ function sourceLabel(item: ADKApprovalQueueItem): string {
 
 .adk-approval-queue__risk {
   margin-left: 6px;
-  color: color-mix(in srgb, var(--tv-warn) 82%, var(--tv-text));
+  color: var(--adk-warning-fg);
   font-size: 11px;
   font-weight: 500;
 }

@@ -50,7 +50,13 @@ function toggle(): void {
 </script>
 
 <template>
-  <aside class="tv-rightdock" :class="{ 'is-collapsed': !prefs.rightDockOpen }">
+  <aside
+    class="tv-rightdock"
+    :class="{
+      'is-collapsed': !prefs.rightDockOpen,
+      'is-ai': prefs.rightDockOpen && prefs.rightDockTab === 'ai',
+    }"
+  >
     <div v-if="prefs.rightDockOpen" style="display: flex; flex-direction: column; height: 100%; min-height: 0">
       <div class="tv-dock-tabs">
         <div

@@ -327,6 +327,9 @@ export interface ADKRun {
   toolCalls: ADKToolCall[];
   pendingApprovals: ADKApproval[];
   resumeState?: string;
+  pauseRequestedAt?: string;
+  pausedAt?: string;
+  pausedReason?: string;
   finalMessageId?: string;
   usage?: ADKRunUsage;
   createdAt: string;

@@ -20,6 +20,12 @@ func (r *Runtime) syncParentWorkflowFromChild(ctx context.Context, child Run) (*
 	parent.ChildRunIDs = appendUniqueString(parent.ChildRunIDs, child.ID)
 	parent = updateWorkflowPlanForChild(parent, child)
 	parent.PendingApprovals = pendingApprovalsOnly(child.PendingApprovals)
+	if userPausedGoalParent(parent) {
+		if _, err := r.saveRunPreservingUserGoalPause(ctx, parent); err != nil {
+			return nil, err
+		}
+		return &parent, nil
+	}
 	switch child.Status {
 	case RunStatusPending:
 		parent.Status = RunStatusPending
@@ -30,13 +36,20 @@ func (r *Runtime) syncParentWorkflowFromChild(ctx context.Context, child Run) (*
 		parent.WorkflowStatus = workflowStatusRunning
 		parent.Message = child.Message
 	default:
+		if userPauseRequestedGoalParent(parent) {
+			parent = markUserPausedGoalParent(parent)
+			if _, err := r.saveRunPreservingUserGoalPause(ctx, parent); err != nil {
+				return nil, err
+			}
+			return &parent, nil
+		}
 		if parent.Status == RunStatusPending || parent.Status == RunStatusRunning {
 			parent.Status = RunStatusRunning
 			parent.WorkflowStatus = workflowStatusRunning
 			parent.Message = "workflow resumed"
 		}
 	}
-	if err := r.store.SaveRun(ctx, parent); err != nil {
+	if _, err := r.saveRunPreservingUserGoalPause(ctx, parent); err != nil {
 		return nil, err
 	}
 	return &parent, nil
@@ -47,8 +60,22 @@ func (r *Runtime) continueParentWorkflowAfterChild(ctx context.Context, child Ru
 	if err != nil || parent == nil {
 		return parent, err
 	}
+	if userPausedGoalParent(*parent) {
+		paused := markUserPausedGoalParent(*parent)
+		if _, saveErr := r.saveRunPreservingUserGoalPause(ctx, paused); saveErr != nil {
+			return nil, saveErr
+		}
+		return &paused, nil
+	}
 	if child.Status == RunStatusPending || child.Status == RunStatusRunning {
 		return parent, nil
+	}
+	if userPauseRequestedGoalParent(*parent) {
+		paused := markUserPausedGoalParent(*parent)
+		if _, saveErr := r.saveRunPreservingUserGoalPause(ctx, paused); saveErr != nil {
+			return nil, saveErr
+		}
+		return &paused, nil
 	}
 	if child.Status != RunStatusCompleted {
 		return new(r.terminateParentWorkflowFromChild(ctx, *parent, child)), nil
@@ -131,11 +158,25 @@ func (r *Runtime) terminateParentWorkflowFromChild(ctx context.Context, parent R
 }
 
 func (e *WorkflowExecutor) resumeLoopWorkflow(ctx context.Context, session Session, parent Run) (Run, error) {
+	if userPausedGoalParent(parent) {
+		parent = markUserPausedGoalParent(parent)
+		if _, err := e.runtime.saveRunPreservingUserGoalPause(ctx, parent); err != nil {
+			return Run{}, err
+		}
+		return parent, nil
+	}
 	parent, blocked, err := e.reconcileWorkflowChildren(ctx, parent)
 	if err != nil {
 		return Run{}, err
 	}
 	if blocked {
+		return parent, nil
+	}
+	if userPauseRequestedGoalParent(parent) {
+		parent = markUserPausedGoalParent(parent)
+		if _, err := e.runtime.saveRunPreservingUserGoalPause(ctx, parent); err != nil {
+			return Run{}, err
+		}
 		return parent, nil
 	}
 	replies := make([]string, 0, len(parent.WorkflowPlan))
@@ -148,6 +189,13 @@ func (e *WorkflowExecutor) resumeLoopWorkflow(ctx context.Context, session Sessi
 }
 
 func (e *WorkflowExecutor) reconcileWorkflowChildren(ctx context.Context, parent Run) (Run, bool, error) {
+	if userPausedGoalParent(parent) {
+		parent = markUserPausedGoalParent(parent)
+		if _, saveErr := e.runtime.saveRunPreservingUserGoalPause(ctx, parent); saveErr != nil {
+			return Run{}, false, saveErr
+		}
+		return parent, true, nil
+	}
 	for _, state := range parent.WorkflowPlan {
 		childRunID := strings.TrimSpace(state.ChildRunID)
 		if childRunID == "" {
@@ -177,7 +225,7 @@ func (e *WorkflowExecutor) reconcileWorkflowChildren(ctx context.Context, parent
 			parent.WorkflowStatus = workflowStatusPaused
 			parent.Message = defaultString(child.Message, "工作流正在等待审批。")
 			parent.PendingApprovals = pendingApprovalsOnly(child.PendingApprovals)
-			if saveErr := e.runtime.store.SaveRun(ctx, parent); saveErr != nil {
+			if _, saveErr := e.runtime.saveRunPreservingUserGoalPause(ctx, parent); saveErr != nil {
 				return Run{}, false, saveErr
 			}
 			return parent, true, nil
@@ -186,7 +234,7 @@ func (e *WorkflowExecutor) reconcileWorkflowChildren(ctx context.Context, parent
 			parent.WorkflowStatus = workflowStatusRunning
 			parent.Message = defaultString(child.Message, "工作流正在等待子运行完成。")
 			parent.PendingApprovals = pendingApprovalsOnly(parent.PendingApprovals)
-			if saveErr := e.runtime.store.SaveRun(ctx, parent); saveErr != nil {
+			if _, saveErr := e.runtime.saveRunPreservingUserGoalPause(ctx, parent); saveErr != nil {
 				return Run{}, false, saveErr
 			}
 			return parent, true, nil
@@ -195,6 +243,33 @@ func (e *WorkflowExecutor) reconcileWorkflowChildren(ctx context.Context, parent
 		}
 	}
 	return parent, false, nil
+}
+
+func userPauseRequestedGoalParent(run Run) bool {
+	return normalizeWorkMode(run.WorkMode) == WorkModeLoop &&
+		strings.TrimSpace(run.ParentRunID) == "" &&
+		run.PauseRequestedAt != nil
+}
+
+func userPausedGoalParent(run Run) bool {
+	return normalizeWorkMode(run.WorkMode) == WorkModeLoop &&
+		strings.TrimSpace(run.ParentRunID) == "" &&
+		run.Status == RunStatusPaused &&
+		run.PausedReason == "user"
+}
+
+func markUserPausedGoalParent(run Run) Run {
+	pausedAt := nowString()
+	run.Status = RunStatusPaused
+	run.WorkflowStatus = workflowStatusPaused
+	if run.PausedAt == nil {
+		run.PausedAt = &pausedAt
+	}
+	run.PausedReason = "user"
+	run.ResumeState = "user_paused"
+	run.Message = "目标已暂停。"
+	run.PendingApprovals = pendingApprovalsOnly(run.PendingApprovals)
+	return run
 }
 
 func (e *WorkflowExecutor) completeResumedWorkflow(ctx context.Context, session Session, parent Run, reply string) (Run, error) {
@@ -208,7 +283,7 @@ func (e *WorkflowExecutor) completeResumedWorkflow(ctx context.Context, session 
 	if err == nil {
 		parent.FinalMessageID = message.ID
 	}
-	if saveErr := e.runtime.store.SaveRun(ctx, parent); saveErr != nil {
+	if _, saveErr := e.runtime.saveRunPreservingUserGoalPause(ctx, parent); saveErr != nil {
 		return Run{}, saveErr
 	}
 	return parent, nil

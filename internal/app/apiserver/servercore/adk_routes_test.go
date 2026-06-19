@@ -364,6 +364,111 @@ func TestADKRunCancelAndFilteredList(t *testing.T) {
 	}
 }
 
+func TestADKRunPauseAndResumeRoutes(t *testing.T) {
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	server := newTestServer(t, store)
+	srv := httptest.NewServer(server)
+	t.Cleanup(srv.Close)
+
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	run := jfadk.Run{
+		ID: "run-goal-pause", SessionID: "session-1", AgentID: "agent-1",
+		Status: jfadk.RunStatusRunning, Message: "goal running", WorkMode: jfadk.WorkModeLoop,
+		WorkflowStatus: "RUNNING", CreatedAt: now, UpdatedAt: now,
+		ToolCalls: []jfadk.ToolCall{}, PendingApprovals: []jfadk.Approval{},
+	}
+	if err := server.adkRuntime.Store().SaveRun(t.Context(), run); err != nil {
+		t.Fatalf("SaveRun: %v", err)
+	}
+	pauseResp, err := http.Post(srv.URL+"/api/v1/adk/runs/"+run.ID+"/pause", "application/json", nil)
+	if err != nil {
+		t.Fatalf("POST pause: %v", err)
+	}
+	defer pauseResp.Body.Close()
+	if pauseResp.StatusCode != http.StatusOK {
+		t.Fatalf("pause status = %d", pauseResp.StatusCode)
+	}
+	var pauseEnvelope struct {
+		OK   bool      `json:"ok"`
+		Data jfadk.Run `json:"data"`
+	}
+	if err := json.NewDecoder(pauseResp.Body).Decode(&pauseEnvelope); err != nil {
+		t.Fatalf("decode pause: %v", err)
+	}
+	if !pauseEnvelope.OK || pauseEnvelope.Data.PauseRequestedAt == nil || pauseEnvelope.Data.ResumeState != "user_pause_requested" {
+		t.Fatalf("pause envelope = %+v, want pause requested", pauseEnvelope)
+	}
+
+	pausedAt := time.Now().UTC().Format(time.RFC3339Nano)
+	paused := pauseEnvelope.Data
+	paused.Status = jfadk.RunStatusPaused
+	paused.WorkflowStatus = "PAUSED"
+	paused.PausedAt = &pausedAt
+	paused.PausedReason = "user"
+	paused.ResumeState = "user_paused"
+	if err := server.adkRuntime.Store().SaveRun(t.Context(), paused); err != nil {
+		t.Fatalf("Save paused run: %v", err)
+	}
+	resumeResp, err := http.Post(srv.URL+"/api/v1/adk/runs/"+run.ID+"/resume", "application/json", nil)
+	if err != nil {
+		t.Fatalf("POST resume: %v", err)
+	}
+	defer resumeResp.Body.Close()
+	if resumeResp.StatusCode != http.StatusOK {
+		t.Fatalf("resume status = %d", resumeResp.StatusCode)
+	}
+	var resumeEnvelope struct {
+		OK   bool      `json:"ok"`
+		Data jfadk.Run `json:"data"`
+	}
+	if err := json.NewDecoder(resumeResp.Body).Decode(&resumeEnvelope); err != nil {
+		t.Fatalf("decode resume: %v", err)
+	}
+	if !resumeEnvelope.OK || resumeEnvelope.Data.Status != jfadk.RunStatusRunning || resumeEnvelope.Data.PauseRequestedAt != nil || resumeEnvelope.Data.PausedAt != nil {
+		t.Fatalf("resume envelope = %+v, want running with pause fields cleared", resumeEnvelope)
+	}
+}
+
+func TestADKRunPauseResumeRoutesRejectInvalidRuns(t *testing.T) {
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	server := newTestServer(t, store)
+	srv := httptest.NewServer(server)
+	t.Cleanup(srv.Close)
+
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+	child := jfadk.Run{
+		ID: "run-child-pause", SessionID: "session-1", AgentID: "agent-1",
+		Status: jfadk.RunStatusRunning, WorkMode: jfadk.WorkModeLoop, ParentRunID: "run-parent",
+		WorkflowStatus: "RUNNING", CreatedAt: now, UpdatedAt: now,
+		ToolCalls: []jfadk.ToolCall{}, PendingApprovals: []jfadk.Approval{},
+	}
+	if err := server.adkRuntime.Store().SaveRun(t.Context(), child); err != nil {
+		t.Fatalf("SaveRun child: %v", err)
+	}
+	resp, err := http.Post(srv.URL+"/api/v1/adk/runs/"+child.ID+"/pause", "application/json", nil)
+	if err != nil {
+		t.Fatalf("POST pause child: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("pause child status = %d, want bad request", resp.StatusCode)
+	}
+	missingResp, err := http.Post(srv.URL+"/api/v1/adk/runs/missing-run/resume", "application/json", nil)
+	if err != nil {
+		t.Fatalf("POST resume missing: %v", err)
+	}
+	defer missingResp.Body.Close()
+	if missingResp.StatusCode != http.StatusNotFound {
+		t.Fatalf("resume missing status = %d, want not found", missingResp.StatusCode)
+	}
+}
+
 func TestADKMetricsExposeLifecycleAndApprovalLatency(t *testing.T) {
 	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
 	if err != nil {

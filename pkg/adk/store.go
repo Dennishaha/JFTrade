@@ -511,11 +511,32 @@ func (s *Store) DeleteSession(ctx context.Context, id string) error {
 }
 
 func (s *Store) SaveRun(ctx context.Context, run Run) error {
+	run, err := s.prepareRunForSave(ctx, run)
+	if err != nil {
+		return err
+	}
+	return s.savePreparedRun(ctx, run)
+}
+
+func (s *Store) prepareRunForSave(ctx context.Context, run Run) (Run, error) {
 	if run.CreatedAt == "" {
 		run.CreatedAt = nowString()
 	}
+	if isRootLoopGoalRun(run) {
+		latest, ok, err := s.Run(ctx, run.ID)
+		if err != nil {
+			return Run{}, err
+		}
+		if ok {
+			run = preserveUserGoalPauseLifecycle(latest, run)
+		}
+	}
 	run = NormalizeRun(run)
 	run.UpdatedAt = nowString()
+	return run, nil
+}
+
+func (s *Store) savePreparedRun(ctx context.Context, run Run) error {
 	payload, err := json.Marshal(run)
 	if err != nil {
 		return err

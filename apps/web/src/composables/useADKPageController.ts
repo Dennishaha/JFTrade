@@ -51,7 +51,9 @@ export function useADKPageController(
   );
   const suggestions = computed(() => DEFAULT_SUGGESTIONS);
   const composerPlaceholder = computed(() =>
-    chatState.activeChildRunId.value ? "子智能体视图仅支持观察和审批" : "输入问题或任务...",
+    chatState.activeChildRunId.value
+      ? "子智能体视图仅支持观察和审批"
+      : "输入问题或任务...",
   );
   const emptyStateHint = computed(
     () => "可直接输入问题，也可以用 @tool_name 显式调用内置工具",
@@ -114,8 +116,13 @@ export function useADKPageController(
     goalObjectiveDraft: chatState.goalObjectiveDraft,
     goalObjectiveError: chatState.goalObjectiveError,
     goalObjectiveSaving: chatState.goalObjectiveSaving,
+    goalLifecycleBusy: chatState.goalLifecycleBusy,
+    goalPaused: chatState.goalPaused,
+    goalPauseRequested: chatState.goalPauseRequested,
     showGoalObjectiveEditor: chatState.showGoalObjectiveEditor,
     canSaveGoalObjective: chatState.canSaveGoalObjective,
+    canPauseGoal: chatState.canPauseGoal,
+    canResumeGoal: chatState.canResumeGoal,
     hasBlockingRun: chatState.hasBlockingRun,
     handleAgentChange: sessionState.handleAgentChange,
     handleComposerKeydown: chatState.handleComposerKeydown,
@@ -124,6 +131,7 @@ export function useADKPageController(
     interruptingRunId: chatState.interruptingRunId,
     loading: sessionState.loading,
     openProviderSettings: sessionState.openProviderSettings,
+    pauseGoalRun: chatState.pauseGoalRun,
     parentApprovalQueue: chatState.parentApprovalQueue,
     preview,
     providerOptions: sessionState.providerOptions,
@@ -131,6 +139,7 @@ export function useADKPageController(
     queueDispatchingId: chatState.queueDispatchingId,
     queuedMessages: chatState.queuedMessages,
     revokeQueuedMessage: chatState.revokeQueuedMessage,
+    resumeGoalRun: chatState.resumeGoalRun,
     runSlashCommand: chatState.runSlashCommand,
     renameSession: sessionState.renameSession,
     resolveApprovalGroup: (approvals: ADKApproval[], approved: boolean) =>

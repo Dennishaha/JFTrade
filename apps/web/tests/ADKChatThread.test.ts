@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { mount } from "@vue/test-utils";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { nextTick } from "vue";
 
 import type { ADKTimelineEntry } from "@/contracts";
@@ -9,7 +9,12 @@ import type { ADKTimelineEntry } from "@/contracts";
 import ADKChatThread from "../src/components/adk-page/ADKChatThread.vue";
 import { createTimelineEntryState } from "../src/composables/adkTimeline";
 
-function mountThread(entries: ADKTimelineEntry[]) {
+function mountThread(
+  entries: ADKTimelineEntry[],
+  options: {
+    renderMarkdown?: (content: string) => string;
+  } = {},
+) {
   return mount(ADKChatThread, {
     props: {
       timelineEntries: entries.map((entry) => createTimelineEntryState(entry)),
@@ -23,7 +28,7 @@ function mountThread(entries: ADKTimelineEntry[]) {
       approvalTool: () => undefined,
       clearErrorMessage: () => {},
       preview: (value: unknown) => String(value ?? ""),
-      renderMarkdown: (content: string) => content,
+      renderMarkdown: options.renderMarkdown ?? ((content: string) => content),
       resolveApprovalGroup: () => {},
       resolveApproval: () => {},
     },
@@ -91,5 +96,29 @@ describe("ADKChatThread", () => {
 
     expect(wrapper.text()).toContain("普通问题");
     expect(wrapper.text()).not.toContain("可观测");
+  });
+
+  it("caches rendered markdown across unrelated thread updates", async () => {
+    const renderMarkdown = vi.fn((content: string) => `<p>${content}</p>`);
+    const wrapper = mountThread(
+      [
+        {
+          id: "entry-assistant",
+          sessionId: "session-1",
+          kind: "assistant_message",
+          createdAt: "2026-06-17T00:00:00Z",
+          sequence: 1,
+          text: "**hello**",
+        },
+      ],
+      { renderMarkdown },
+    );
+
+    expect(renderMarkdown).toHaveBeenCalledTimes(1);
+
+    await wrapper.setProps({ errorMessage: "warning" });
+    await nextTick();
+
+    expect(renderMarkdown).toHaveBeenCalledTimes(1);
   });
 });

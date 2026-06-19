@@ -21,6 +21,7 @@ const (
 	RunStatusDenied    = "DENIED"
 	RunStatusCancelled = "CANCELLED"
 	RunStatusTimedOut  = "TIMED_OUT"
+	RunStatusPaused    = "PAUSED"
 
 	ApprovalStatusPending  = "PENDING"
 	ApprovalStatusApproved = "APPROVED"
@@ -202,6 +203,9 @@ type Run struct {
 	ToolCalls          []ToolCall          `json:"toolCalls"`
 	PendingApprovals   []Approval          `json:"pendingApprovals"`
 	ResumeState        string              `json:"resumeState,omitempty"`
+	PauseRequestedAt   *string             `json:"pauseRequestedAt,omitempty"`
+	PausedAt           *string             `json:"pausedAt,omitempty"`
+	PausedReason       string              `json:"pausedReason,omitempty"`
 	FinalMessageID     string              `json:"finalMessageId,omitempty"`
 	Usage              *RunUsage           `json:"usage,omitempty"`
 	CreatedAt          string              `json:"createdAt"`

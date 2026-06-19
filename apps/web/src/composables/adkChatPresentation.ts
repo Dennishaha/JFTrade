@@ -18,6 +18,18 @@ export function isTerminalRunStatus(status: string | undefined): boolean {
   );
 }
 
+export function isUserPausedGoalRun(run: ADKRun | undefined): boolean {
+  return (
+    run?.status === "PAUSED" &&
+    String(run.workMode ?? "")
+      .trim()
+      .toLowerCase() === "loop" &&
+    (run.pausedReason === "user" ||
+      run.resumeState === "user_paused" ||
+      String(run.pausedAt ?? "").trim() !== "")
+  );
+}
+
 export function runStatusTone(status: string | undefined): string {
   switch ((status ?? "").toUpperCase()) {
     case "COMPLETED":
@@ -28,6 +40,7 @@ export function runStatusTone(status: string | undefined): string {
     case "DENIED":
       return "error";
     case "PENDING_APPROVAL":
+    case "PAUSED":
       return "warning";
     case "RUNNING":
     case "PENDING":

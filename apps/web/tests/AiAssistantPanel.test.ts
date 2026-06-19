@@ -3,14 +3,18 @@
 import { mount } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { nextTick } from "vue";
+import { createMemoryHistory, createRouter } from "vue-router";
 
 import type {
   ADKApproval,
   ADKApprovalResolution,
+  ADKAgent,
   ADKChatResponse,
   ADKRun,
+  ADKSessionComposerState,
   ADKSessionContextSnapshot,
   ADKTimelineEntry,
+  ADKToolDescriptor,
 } from "@/contracts";
 
 import { resetADKApprovalInFlightForTest } from "../src/composables/adkApprovalResolution";
@@ -55,17 +59,253 @@ afterEach(() => {
 });
 
 describe("AiAssistantPanel", () => {
-  it("reuses shared dock thread and composer components", async () => {
+  it("renders the shared mobile workspace shell with a collapsed composer summary", async () => {
     mountPanel();
     await flushRequests();
 
-    expect(document.querySelector(".adk-thread--dock")).not.toBeNull();
-    expect(document.querySelector(".adk-chat-thread--dock")).not.toBeNull();
-    expect(document.querySelector(".adk-empty--dock")).not.toBeNull();
-    expect(document.querySelector(".adk-composer--dock")).not.toBeNull();
+    expect(document.querySelector(".adk-shell--mobile")).not.toBeNull();
+    expect(document.querySelector(".adk-mobile-toolbar")).not.toBeNull();
+    expect(document.querySelector(".adk-thread--mobile")).not.toBeNull();
+    expect(document.querySelector(".adk-chat-thread--mobile")).not.toBeNull();
+    expect(document.querySelector(".adk-empty--mobile")).not.toBeNull();
+    expect(document.querySelector(".adk-composer--mobile")).not.toBeNull();
+    expect(
+      document.querySelector("[data-testid='adk-mobile-composer-summary']"),
+    ).not.toBeNull();
     expect(document.querySelector(".adk-agent-select")).toBeNull();
     expect(document.querySelector(".adk-provider-select")).toBeNull();
-    expect(document.body.textContent).toContain("开始与侧栏助手对话");
+    expect(document.body.textContent).toContain("开始与智能体对话");
+
+    document
+      .querySelector<HTMLButtonElement>("[data-testid='adk-mobile-composer-toggle']")
+      ?.click();
+    await nextTick();
+
+    expect(document.querySelector(".adk-agent-select")).not.toBeNull();
+    expect(document.querySelector(".adk-provider-select")).not.toBeNull();
+  });
+
+  it("opens the session list as an in-panel drawer and closes after selecting a session", async () => {
+    mountPanel();
+    await flushRequests();
+
+    expect(
+      document.querySelector("[data-testid='adk-mobile-session-drawer']"),
+    ).toBeNull();
+    expect(document.querySelector(".adk-mobile-sheet")).toBeNull();
+    expect(document.querySelector(".adk-mobile-sheet-backdrop")).toBeNull();
+
+    document
+      .querySelector<HTMLButtonElement>("[data-testid='adk-mobile-sessions-toggle']")
+      ?.click();
+    await nextTick();
+
+    expect(
+      document.querySelector("[data-testid='adk-mobile-session-drawer']"),
+    ).not.toBeNull();
+
+    document.querySelector<HTMLElement>(".adk-session-item")?.click();
+    await flushRequests();
+
+    expect(
+      document.querySelector("[data-testid='adk-mobile-session-drawer']"),
+    ).toBeNull();
+  });
+
+  it("shows the run goal command for a user-paused dock goal", async () => {
+    const pausedRun = buildRun({
+      id: "run-dock-paused-goal",
+      status: "PAUSED",
+      workMode: "loop",
+      objective: "侧栏暂停目标",
+      workflowStatus: "PAUSED",
+      pauseRequestedAt: "2026-06-09T00:00:10Z",
+      pausedAt: "2026-06-09T00:00:12Z",
+      pausedReason: "user",
+      resumeState: "user_paused",
+      workflowPlan: [
+        {
+          title: "侧栏暂停目标",
+          message: "等待继续",
+          status: "TODO",
+        },
+      ],
+    });
+    const response: ADKChatResponse = {
+      reply: "目标已暂停。",
+      run: pausedRun,
+      session: buildSession(),
+      pendingApprovals: [],
+      timeline: [
+        buildTimelineEntry("assistant_message", {
+          id: "dock-paused-answer",
+          runId: pausedRun.id,
+          text: "目标已暂停。",
+        }),
+      ],
+    };
+    streamADKChatMock.mockImplementationOnce(async (_payload, onEvent) => {
+      await onEvent({ type: "session", session: response.session });
+      await onEvent({ type: "final", response });
+      return response;
+    });
+    mountPanel();
+    await flushRequests();
+
+    await sendDockMessage("dock paused goal");
+
+    expect(document.querySelector(".adk-goal-editor")?.textContent).toContain(
+      "侧栏暂停目标",
+    );
+    expect(
+      document.querySelector<HTMLButtonElement>(
+        ".adk-goal-editor__action[title='运行目标']",
+      ),
+    ).not.toBeNull();
+  });
+
+  it("resumes a dock user-paused goal without sending a chat message", async () => {
+    const pausedRun = buildRun({
+      id: "run-dock-resume-goal",
+      status: "PAUSED",
+      workMode: "loop",
+      objective: "侧栏恢复目标",
+      workflowStatus: "PAUSED",
+      pauseRequestedAt: "2026-06-09T00:00:10Z",
+      pausedAt: "2026-06-09T00:00:12Z",
+      pausedReason: "user",
+      resumeState: "user_paused",
+      workflowPlan: [
+        {
+          title: "侧栏恢复目标",
+          message: "等待继续",
+          status: "TODO",
+        },
+      ],
+    });
+    const runningRun = buildRun({
+      ...pausedRun,
+      status: "RUNNING",
+      workflowStatus: "RUNNING",
+      pauseRequestedAt: undefined,
+      pausedAt: undefined,
+      pausedReason: undefined,
+      resumeState: "user_resuming",
+    });
+    const response: ADKChatResponse = {
+      reply: "目标已暂停。",
+      run: pausedRun,
+      session: buildSession(),
+      pendingApprovals: [],
+      timeline: [],
+    };
+    streamADKChatMock.mockImplementationOnce(async (_payload, onEvent) => {
+      await onEvent({ type: "session", session: response.session });
+      await onEvent({ type: "final", response });
+      return response;
+    });
+    const fetchMock = mountPanel({
+      resumeRunById: { [pausedRun.id]: runningRun },
+    });
+    await flushRequests();
+    await sendDockMessage("dock resume goal");
+    streamADKChatMock.mockClear();
+
+    document
+      .querySelector<HTMLButtonElement>(
+        ".adk-goal-editor__action[title='运行目标']",
+      )
+      ?.click();
+    await flushRequests();
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      `/api/v1/adk/runs/${pausedRun.id}/resume`,
+      expect.objectContaining({ method: "POST" }),
+    );
+    expect(streamADKChatMock).not.toHaveBeenCalled();
+    expect(monitorADKRunContinuationMock).toHaveBeenCalledWith(
+      expect.objectContaining({ id: pausedRun.id, status: "RUNNING" }),
+      expect.any(Object),
+    );
+  });
+
+  it("clears the dock goal editor after a resumed loop goal completes", async () => {
+    const pausedRun = buildRun({
+      id: "run-dock-complete-goal",
+      status: "PAUSED",
+      workMode: "loop",
+      objective: "侧栏目标完成后清空",
+      workflowStatus: "PAUSED",
+      pauseRequestedAt: "2026-06-09T00:00:10Z",
+      pausedAt: "2026-06-09T00:00:12Z",
+      pausedReason: "user",
+      resumeState: "user_paused",
+      workflowPlan: [
+        {
+          title: "侧栏目标完成后清空",
+          message: "等待继续",
+          status: "TODO",
+        },
+      ],
+    });
+    const runningRun = buildRun({
+      ...pausedRun,
+      status: "RUNNING",
+      workflowStatus: "RUNNING",
+      pauseRequestedAt: undefined,
+      pausedAt: undefined,
+      pausedReason: undefined,
+      resumeState: "user_resuming",
+    });
+    const completedRun = buildRun({
+      ...runningRun,
+      status: "COMPLETED",
+      workflowStatus: "COMPLETED",
+      workflowPlan: [
+        {
+          title: "侧栏目标完成后清空",
+          message: "目标已完成",
+          status: "DONE",
+        },
+      ],
+    });
+    const response: ADKChatResponse = {
+      reply: "目标已暂停。",
+      run: pausedRun,
+      session: buildSession(),
+      pendingApprovals: [],
+      timeline: [],
+    };
+    streamADKChatMock.mockImplementationOnce(async (_payload, onEvent) => {
+      await onEvent({ type: "session", session: response.session });
+      await onEvent({ type: "final", response });
+      return response;
+    });
+    monitorADKRunContinuationMock.mockImplementationOnce(
+      async (run, options) => {
+        await options?.onTerminal?.(completedRun);
+        return completedRun;
+      },
+    );
+    mountPanel({
+      resumeRunById: { [pausedRun.id]: runningRun },
+    });
+    await flushRequests();
+
+    await sendDockMessage("dock complete goal");
+
+    expect(document.querySelector(".adk-goal-editor")?.textContent).toContain(
+      "侧栏目标完成后清空",
+    );
+
+    document
+      .querySelector<HTMLButtonElement>(
+        ".adk-goal-editor__action[title='运行目标']",
+      )
+      ?.click();
+    await flushRequests();
+
+    expect(document.querySelector(".adk-goal-editor")).toBeNull();
   });
 
   it("refreshes dock approval state to RUNNING and keeps the composer editable", async () => {
@@ -194,9 +434,10 @@ describe("AiAssistantPanel", () => {
     await sendDockMessage("dock approval");
 
     expect(document.body.textContent).toContain("PENDING_APPROVAL");
-    expect(document.querySelector("input")?.hasAttribute("disabled")).toBe(
-      false,
-    );
+    const composerInput =
+      document.querySelector("textarea") ??
+      document.querySelector("input");
+    expect(composerInput?.hasAttribute("disabled")).toBe(false);
 
     await expandQueue("待审批");
     clickButtonByText("批准");
@@ -204,9 +445,7 @@ describe("AiAssistantPanel", () => {
 
     expect(document.querySelector(".adk-run-spinner")).not.toBeNull();
     expect(document.querySelector(".adk-approvals-approve-all")).toBeNull();
-    expect(document.querySelector("input")?.hasAttribute("disabled")).toBe(
-      false,
-    );
+    expect(composerInput?.hasAttribute("disabled")).toBe(false);
     expect(document.body.textContent).not.toContain("dock approval completed");
 
     finishContinuation();
@@ -761,7 +1000,14 @@ describe("AiAssistantPanel", () => {
     await sendDockMessage("dock first");
     await sendDockMessage("dock normal");
 
-    const input = document.querySelector("input")!;
+    const input = (document.querySelector("textarea") ??
+      document.querySelector("input")) as
+      | HTMLTextAreaElement
+      | HTMLInputElement
+      | null;
+    if (!input) {
+      throw new Error("chat input not found");
+    }
     input.value = "dock urgent";
     input.dispatchEvent(new Event("input"));
     await nextTick();
@@ -898,9 +1144,7 @@ describe("AiAssistantPanel", () => {
     await sendDockMessage("dock failed run");
 
     expect(document.body.textContent).toContain("侧栏本地兜底回复。");
-    expect(document.querySelector(".adk-inline-alert")?.textContent).toContain(
-      "disk full",
-    );
+    expect(document.body.textContent).toContain("disk full");
     expect(
       document.querySelector<HTMLInputElement>("input, textarea")?.disabled,
     ).toBe(false);
@@ -912,6 +1156,8 @@ function mountPanel(
     approvals?: ADKApproval[];
     approvalResolutionById?: Record<string, ADKApprovalResolution>;
     cancelRunById?: Record<string, ADKRun>;
+    pauseRunById?: Record<string, ADKRun>;
+    resumeRunById?: Record<string, ADKRun>;
     runById?: Record<string, ADKRun>;
     sessionDetail?: {
       session: ReturnType<typeof buildSession>;
@@ -931,11 +1177,39 @@ function mountPanel(
         options.sessionDetail ?? { session: buildSession(), timeline: [] },
       ]),
     ],
+    composerStateBySession: {} as Record<string, ADKSessionComposerState>,
   };
 
   const fetchMock = vi.fn(
     async (input: string | URL | Request, init?: RequestInit) => {
       const url = String(input);
+      if (url.includes("/api/v1/adk/agents")) {
+        return createResponse({ agents: [buildAgent()] });
+      }
+      if (url.includes("/api/v1/adk/providers")) {
+        return createResponse({ providers: [buildProvider()] });
+      }
+      if (url.includes("/api/v1/adk/tools")) {
+        return createResponse({ tools: [buildToolDescriptor()] });
+      }
+      if (/\/api\/v1\/adk\/sessions\/[^/]+\/context$/.test(url)) {
+        return createResponse(null);
+      }
+      const composerStateMatch = url.match(
+        /\/api\/v1\/adk\/sessions\/([^/]+)\/composer-state$/,
+      );
+      if (composerStateMatch) {
+        const sessionId = decodeURIComponent(composerStateMatch[1]!);
+        const patch = JSON.parse(
+          String(init?.body ?? "{}"),
+        ) as Partial<ADKSessionComposerState>;
+        state.composerStateBySession[sessionId] = buildComposerState(sessionId, {
+          ...(state.composerStateBySession[sessionId] ?? {}),
+          ...patch,
+          updatedAt: "2026-06-09T00:00:10Z",
+        });
+        return createResponse(state.composerStateBySession[sessionId]);
+      }
       const approvalActionMatch = url.match(
         /\/api\/v1\/adk\/approvals\/([^/]+)\/(approve|deny)$/,
       );
@@ -967,26 +1241,68 @@ function mountPanel(
             buildRun({ id: runId, status: "CANCELLED", pendingApprovals: [] }),
         );
       }
+      const pauseRunMatch = url.match(/\/api\/v1\/adk\/runs\/([^/]+)\/pause$/);
+      if (pauseRunMatch) {
+        const runId = decodeURIComponent(pauseRunMatch[1]!);
+        return createResponse(
+          options.pauseRunById?.[runId] ??
+            buildRun({
+              id: runId,
+              status: "RUNNING",
+              pauseRequestedAt: "2026-06-09T00:00:10Z",
+            }),
+        );
+      }
+      const resumeRunMatch = url.match(
+        /\/api\/v1\/adk\/runs\/([^/]+)\/resume$/,
+      );
+      if (resumeRunMatch) {
+        const runId = decodeURIComponent(resumeRunMatch[1]!);
+        return createResponse(
+          options.resumeRunById?.[runId] ??
+            buildRun({
+              id: runId,
+              status: "RUNNING",
+              resumeState: "user_resuming",
+            }),
+        );
+      }
       const runDetailMatch = url.match(/\/api\/v1\/adk\/runs\/([^/]+)$/);
       if (runDetailMatch) {
         const runId = decodeURIComponent(runDetailMatch[1]!);
         return createResponse(options.runById?.[runId] ?? {});
       }
-      if (/\/api\/v1\/adk\/sessions\/[^/]+$/.test(url)) {
-        const detail =
-          state.sessionDetailSequence.length > 1
-            ? state.sessionDetailSequence.shift()!
-            : state.sessionDetailSequence[0]!;
-        return createResponse(detail);
+      if (url.includes("/api/v1/adk/sessions")) {
+        if (/\/api\/v1\/adk\/sessions\/[^/]+$/.test(url)) {
+          const detail =
+            state.sessionDetailSequence.length > 1
+              ? state.sessionDetailSequence.shift()!
+              : state.sessionDetailSequence[0]!;
+          return createResponse({
+            ...detail,
+            composerState:
+              state.composerStateBySession[detail.session.id] ??
+              buildComposerState(detail.session.id),
+          });
+        }
+        return createResponse({
+          sessions: [buildSession()],
+        });
       }
       return createResponse({});
     },
   );
   vi.stubGlobal("fetch", fetchMock);
 
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [{ path: "/", component: { template: "<div />" } }],
+  });
+
   mount(AiAssistantPanel, {
     attachTo: "#root",
     global: {
+      plugins: [router],
       stubs: vuetifyStubs(),
     },
   });
@@ -1044,6 +1360,42 @@ function buildRun(overrides: Partial<ADKRun>): ADKRun {
   };
 }
 
+function buildAgent(
+  overrides: Partial<ADKAgent> = {},
+): ADKAgent {
+  return {
+    id: "agent-1",
+    name: "投资分析助手",
+    instruction: "test",
+    providerId: "provider-1",
+    model: "gpt-4o-mini",
+    tools: ["strategy.save_draft"],
+    skills: [],
+    permissionMode: "approval",
+    memoryEnabled: true,
+    recentUserWindow: 6,
+    workMode: "chat",
+    loopMaxIterations: 5,
+    status: "ENABLED",
+    createdAt: "2026-06-09T00:00:00Z",
+    updatedAt: "2026-06-09T00:00:00Z",
+    ...overrides,
+  };
+}
+
+function buildProvider() {
+  return {
+    id: "provider-1",
+    displayName: "OpenAI",
+    baseUrl: "https://api.openai.com/v1",
+    model: "gpt-4o-mini",
+    enabled: true,
+    hasApiKey: true,
+    createdAt: "2026-06-09T00:00:00Z",
+    updatedAt: "2026-06-09T00:00:00Z",
+  };
+}
+
 function buildSession() {
   return {
     id: "session-1",
@@ -1051,6 +1403,34 @@ function buildSession() {
     title: "Dock Session",
     createdAt: "2026-06-09T00:00:00Z",
     updatedAt: "2026-06-09T00:00:00Z",
+  };
+}
+
+function buildComposerState(
+  sessionId: string,
+  overrides: Partial<ADKSessionComposerState> = {},
+): ADKSessionComposerState {
+  return {
+    sessionId,
+    chatDraft: "",
+    workModeOverride: "",
+    goalObjectiveDraft: "",
+    goalObjectiveTouched: false,
+    updatedAt: "2026-06-09T00:00:00Z",
+    ...overrides,
+  };
+}
+
+function buildToolDescriptor(): ADKToolDescriptor {
+  return {
+    name: "strategy.save_draft",
+    displayName: "Save Draft",
+    description: "save draft",
+    category: "strategy",
+    permission: "write_strategy",
+    allowedModes: ["approval", "sandbox_auto", "high_auto"],
+    requiresApprovalIn: ["approval"],
+    inputSchema: {},
   };
 }
 
@@ -1132,12 +1512,17 @@ function pendingApprovalTimeline(
 }
 
 async function sendDockMessage(text: string): Promise<void> {
-  const input = document.querySelector("input")!;
+  const input =
+    document.querySelector("textarea") ??
+    document.querySelector("input");
+  if (!(input instanceof HTMLTextAreaElement || input instanceof HTMLInputElement)) {
+    throw new Error("chat input not found");
+  }
   input.value = text;
   input.dispatchEvent(new Event("input"));
   await nextTick();
   document
-    .querySelector<HTMLButtonElement>(".adk-composer-send--dock")
+    .querySelector<HTMLButtonElement>(".adk-composer-send")
     ?.click();
   await flushRequests();
 }
@@ -1184,6 +1569,8 @@ function vuetifyStubs() {
       template: "<div><slot name='activator' :props='{}' /><slot /></div>",
     },
     "v-progress-circular": { template: "<span />" },
+    "v-progress-linear": { template: "<span />" },
+    "v-list-item": { template: "<div><slot /></div>" },
     "v-select": {
       props: ["modelValue", "items"],
       emits: ["update:modelValue"],

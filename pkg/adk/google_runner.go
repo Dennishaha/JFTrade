@@ -22,6 +22,8 @@ import (
 
 const googleADKUserID = "jftrade-user"
 
+var errUserGoalPauseRequested = errors.New("user goal pause requested")
+
 type googleADKExecution struct {
 	mu                       sync.Mutex
 	runner                   *adkrunner.Runner
@@ -52,7 +54,8 @@ type googleADKExecution struct {
 	onDelta                  func(ChatDelta) error
 	sawPartialText           bool
 	runBlocking              func(context.Context, *genai.Content) error
-	persistRunSnapshot       func(Run) error
+	loadRun                  func(context.Context, string) (Run, bool, error)
+	persistRunSnapshot       func(Run) (Run, error)
 	processedConfirmationIDs map[string]struct{}
 }
 
@@ -513,7 +516,13 @@ func (r *Runtime) newGoogleADKExecution(
 		toolResponseSeqByRunID:   map[string]int{},
 		postToolTextSeqByRunID:   map[string]int{},
 		onDelta:                  onDelta,
-		persistRunSnapshot: func(snapshot Run) error {
+		loadRun: func(ctx context.Context, runID string) (Run, bool, error) {
+			if r.store == nil {
+				return Run{}, false, nil
+			}
+			return r.store.Run(ctx, runID)
+		},
+		persistRunSnapshot: func(snapshot Run) (Run, error) {
 			return r.persistRunActivitySnapshot(context.Background(), snapshot)
 		},
 	}
@@ -563,7 +572,13 @@ func (r *Runtime) newGoogleADKWorkflowExecution(
 		toolResponseSeqByRunID:   map[string]int{},
 		postToolTextSeqByRunID:   map[string]int{},
 		onDelta:                  onDelta,
-		persistRunSnapshot: func(snapshot Run) error {
+		loadRun: func(ctx context.Context, runID string) (Run, bool, error) {
+			if r.store == nil {
+				return Run{}, false, nil
+			}
+			return r.store.Run(ctx, runID)
+		},
+		persistRunSnapshot: func(snapshot Run) (Run, error) {
 			return r.persistRunActivitySnapshot(context.Background(), snapshot)
 		},
 	}
@@ -789,6 +804,9 @@ func (r *Runtime) attachGoogleADKRunner(
 }
 
 func (e *googleADKExecution) beforeToolCallback(ctx adktool.Context, tool adktool.Tool, args map[string]any) (map[string]any, error) {
+	if e.shouldInterruptForUserGoalPause(e.runIDForAgentName(ctx.AgentName())) {
+		return nil, errUserGoalPauseRequested
+	}
 	descriptor, ok := e.descriptorForTool(tool)
 	if !ok {
 		return nil, nil
@@ -799,6 +817,18 @@ func (e *googleADKExecution) beforeToolCallback(ctx adktool.Context, tool adktoo
 		return nil, fmt.Errorf("tool is not allowed in permission mode %s", e.agent.PermissionMode)
 	}
 	return nil, nil
+}
+
+func (e *googleADKExecution) shouldInterruptForUserGoalPause(runID string) bool {
+	runID = strings.TrimSpace(runID)
+	if runID == "" || runID != e.runID || e.loadRun == nil {
+		return false
+	}
+	run, ok, err := e.loadRun(context.Background(), runID)
+	if err != nil || !ok {
+		return false
+	}
+	return userPauseRequestedGoalParent(run) || userPausedGoalParent(run)
 }
 
 func (e *googleADKExecution) afterToolCallback(
@@ -1419,22 +1449,29 @@ func (e *googleADKExecution) markPostToolTextForRun(runID string) {
 
 func (e *googleADKExecution) emitRunSnapshotLocked() {
 	for _, runID := range e.snapshotRunIDsLocked() {
+		snapshot := e.runSnapshotLocked(runID, false)
 		if e.persistRunSnapshot != nil {
 			persisted := e.runSnapshotLocked(runID, true)
-			if persisted.Status == RunStatusRunning || persisted.Status == RunStatusPending {
-				persisted.CompletedAt = nil
-				persisted.CancelledAt = nil
-				persisted.Degraded = false
-				if persisted.Status != RunStatusFailed {
-					persisted.Message = ""
-					persisted.FailureReason = ""
-					persisted.ErrorCode = ""
+			sanitized := persisted
+			if sanitized.Status == RunStatusRunning || sanitized.Status == RunStatusPending {
+				sanitized.CompletedAt = nil
+				sanitized.CancelledAt = nil
+				sanitized.Degraded = false
+				if sanitized.Status != RunStatusFailed {
+					sanitized.Message = ""
+					sanitized.FailureReason = ""
+					sanitized.ErrorCode = ""
 				}
 			}
-			_ = e.persistRunSnapshot(persisted)
+			if saved, err := e.persistRunSnapshot(sanitized); err == nil {
+				snapshot = saved
+			} else {
+				snapshot = sanitized
+			}
 		}
 		if e.onDelta != nil {
-			_ = e.onDelta(ChatDelta{Run: new(e.runSnapshotLocked(runID, false))})
+			snapshot = NormalizeRun(snapshot)
+			_ = e.onDelta(ChatDelta{Run: &snapshot})
 		}
 	}
 }
