@@ -8,6 +8,8 @@ import (
 
 	adksession "google.golang.org/adk/session"
 	adksessiondb "google.golang.org/adk/session/database"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 type SQLiteSessionService struct {
@@ -27,7 +29,7 @@ func NewSQLiteSessionService(path string) (*SQLiteSessionService, error) {
 		DriverName: sqliteDriverName,
 		DSN:        dsn,
 		Conn:       db,
-	})
+	}, &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
 	if err != nil {
 		_ = db.Close()
 		return nil, err

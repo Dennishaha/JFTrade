@@ -121,6 +121,7 @@ func (r *Runtime) completeChatRun(
 }
 
 func (r *Runtime) finishPendingApprovalRun(ctx context.Context, session Session, run Run, approvals []Approval) (ChatResponse, error) {
+	run.PendingApprovals = pendingApprovalsOnly(approvals)
 	run.Status = RunStatusPending
 	run.ResumeState = "waiting_approval"
 	run.Message = "等待用户审批后继续执行。"
@@ -128,7 +129,7 @@ func (r *Runtime) finishPendingApprovalRun(ctx context.Context, session Session,
 		return ChatResponse{}, err
 	}
 	r.audit(ctx, "run.awaiting_approval", run.ID, "Agent run is waiting for approval.", map[string]any{
-		"runId": run.ID, "agentId": run.AgentID, "status": run.Status, "pendingApprovals": len(approvals),
+		"runId": run.ID, "agentId": run.AgentID, "status": run.Status, "pendingApprovals": len(run.PendingApprovals),
 	})
 	reply := "我已经准备好执行需要授权的操作，请先在 ADK 审批队列里确认或拒绝。"
 	return r.projectedChatResponse(ctx, session, run, openAIChatResult{Reply: reply}), nil
