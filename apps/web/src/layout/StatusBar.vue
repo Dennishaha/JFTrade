@@ -8,6 +8,7 @@ import {
 } from "../composables/consoleDataFormatting";
 import { useConsoleData } from "../composables/useConsoleData";
 import { useSharedLiveStream } from "../composables/useSharedLiveStream";
+import { formatLocalDateTime } from "../utils/dateTime";
 
 const {
   selectedBrokerAccount,
@@ -27,10 +28,6 @@ const localClockFormatter = new Intl.DateTimeFormat(undefined, {
   hour12: false,
 });
 
-function formatUTCDateTime(value: Date): string {
-  return `${value.toISOString().slice(0, 19).replace("T", " ")} UTC`;
-}
-
 onMounted(() => {
   timer = setInterval(() => {
     now.value = new Date();
@@ -42,7 +39,6 @@ onUnmounted(() => {
 });
 
 const clock = computed(() => localClockFormatter.format(now.value));
-const utcClock = computed(() => formatUTCDateTime(now.value));
 const killActive = computed(
   () => realTradeKillSwitchState.value.killSwitchActive,
 );
@@ -54,12 +50,12 @@ const killActive = computed(
       <span class="tv-status-dot" :class="liveStreamStatus === 'connected' ? 'tv-dot-ok' : 'tv-dot-idle'"></span>
       事件流 {{ formatConnectivityLabel(liveStreamStatus) }}
     </span>
-    <span style="color: var(--tv-text-dim)">{{ liveStreamCheckedAt || "—" }}</span>
+    <span style="color: var(--tv-text-dim)">{{ formatLocalDateTime(liveStreamCheckedAt, "—") }}</span>
     <span>
       <span class="tv-status-dot" :class="connectionState === 'connected' ? 'tv-dot-ok' : connectionState === 'error' ? 'tv-dot-err' : 'tv-dot-idle'"></span>
       实时通道 {{ formatConnectivityLabel(connectionState) }}
     </span>
-    <span style="color: var(--tv-text-dim)">{{ lastHeartbeat || "—" }}</span>
+    <span style="color: var(--tv-text-dim)">{{ formatLocalDateTime(lastHeartbeat, "—") }}</span>
     <span>
       <span class="tv-status-dot" :class="killActive ? 'tv-dot-err' : 'tv-dot-ok'"></span>
       风控状态 {{ killActive ? "已激活" : "正常" }}
@@ -74,6 +70,6 @@ const killActive = computed(
           : `${systemStatus.broker.displayName}/${formatTradingEnvironment(systemStatus.defaultTradingEnvironment)}`
       }}
     </span>
-    <span style="font-variant-numeric: tabular-nums" :title="utcClock">{{ clock }} 本地时间</span>
+    <span style="font-variant-numeric: tabular-nums">{{ clock }} 本地时间</span>
   </footer>
 </template>

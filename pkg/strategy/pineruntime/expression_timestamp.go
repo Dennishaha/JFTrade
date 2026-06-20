@@ -25,5 +25,5 @@ func evaluateTimestampExpression(arguments []exprast.Node, scope *evaluationScop
 		}
 		values[index] = int(value)
 	}
-	return float64(time.Date(values[0], time.Month(values[1]), values[2], values[3], values[4], 0, 0, time.UTC).UnixMilli()), nil
+	return float64(time.Date(values[0], time.Month(values[1]), values[2], values[3], values[4], 0, 0, pineExchangeLocation(scope)).UnixMilli()), nil
 }

@@ -99,7 +99,7 @@ func (v OptionalTimeValue) StringValue() string {
 	if v.IsZero() {
 		return ""
 	}
-	return v.Format(time.RFC3339Nano)
+	return v.UTC().Format(time.RFC3339Nano)
 }
 
 // ---- Candle Period ----
@@ -175,9 +175,9 @@ func ParseQueryTime(value string, fallback time.Time) time.Time {
 		return fallback
 	}
 	for _, layout := range []string{time.RFC3339Nano, time.RFC3339, "2006-01-02 15:04:05", "2006-01-02"} {
-		parsed, err := time.ParseInLocation(layout, value, time.Local)
+		parsed, err := time.ParseInLocation(layout, value, time.UTC)
 		if err == nil {
-			return parsed
+			return parsed.UTC()
 		}
 	}
 	return fallback

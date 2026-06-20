@@ -321,7 +321,7 @@ func securityDetailsFromSnapshot(snapshot *qotgetsecuritysnapshotpb.Snapshot, ca
 	if ref == nil {
 		ref = securityRefFromCanonical(canonical)
 	}
-	quoteTime := futuQuoteTime(basic.GetUpdateTimestamp(), basic.GetUpdateTime()).UTC().Format(time.RFC3339Nano)
+	quoteTime := futuQuoteTime(basic.GetUpdateTimestamp(), basic.GetUpdateTime(), canonical).Format(time.RFC3339Nano)
 	details := &SecurityDetails{
 		InstrumentID:        ref.InstrumentID,
 		Market:              ref.Market,

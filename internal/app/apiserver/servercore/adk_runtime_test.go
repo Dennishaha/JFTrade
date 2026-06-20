@@ -473,8 +473,11 @@ func TestADKBacktestRunsToolReturnsSeriesCountsInsteadOfFullArrays(t *testing.T)
 			Code:           "TME",
 			Symbol:         "US.TME",
 			Interval:       "1d",
+			StartDate:      "2025-01-01",
+			EndDate:        "2025-12-31",
 			StartTime:      "2025-01-01T00:00:00Z",
 			EndTime:        "2025-12-31T00:00:00Z",
+			MarketTimezone: "America/New_York",
 			InitialBalance: 100000,
 			RehabType:      "forward",
 		},
@@ -530,6 +533,9 @@ func TestADKBacktestRunsToolReturnsSeriesCountsInsteadOfFullArrays(t *testing.T)
 	if got := summary["latestLog"]; got != "line 2" {
 		t.Fatalf("latestLog = %#v, want line 2", got)
 	}
+	if summary["startDate"] != "2025-01-01" || summary["endDate"] != "2025-12-31" || summary["marketTimezone"] != "America/New_York" {
+		t.Fatalf("market date metadata was not summarized: %#v", summary)
+	}
 }
 
 func TestADKStrategyResearchBacktestToolStartsTransientRun(t *testing.T) {
@@ -552,8 +558,8 @@ func TestADKStrategyResearchBacktestToolStartsTransientRun(t *testing.T) {
 		"market":     "US",
 		"symbol":     "US.TME",
 		"interval":   "1m",
-		"startTime":  "2025-01-01T00:00:00Z",
-		"endTime":    "2025-01-02T00:00:00Z",
+		"startDate":  "2025-01-01",
+		"endDate":    "2025-01-02",
 		"resultView": map[string]any{"view": "summary"},
 	})
 	if err != nil {
@@ -582,6 +588,9 @@ func TestADKStrategyResearchBacktestToolStartsTransientRun(t *testing.T) {
 	}
 	if strings.Contains(status.Request.DefinitionID, "Minimal Draft") {
 		t.Fatalf("definitionId leaked strategy name: %q", status.Request.DefinitionID)
+	}
+	if status.Request.StartDate != "2025-01-01" || status.Request.EndDate != "2025-01-02" || status.Request.MarketTimezone != "America/New_York" {
+		t.Fatalf("research backtest market date metadata = %+v", status.Request)
 	}
 }
 

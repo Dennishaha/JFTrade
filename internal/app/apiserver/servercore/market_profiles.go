@@ -23,6 +23,7 @@ type marketProfileDTO struct {
 	PreferredPrefix        string                   `json:"preferredPrefix"`
 	DisplayName            string                   `json:"displayName"`
 	QuoteCurrency          string                   `json:"quoteCurrency"`
+	Timezone               string                   `json:"timezone"`
 	SupportsExtendedHours  bool                     `json:"supportsExtendedHours"`
 	RequiresExchangePrefix bool                     `json:"requiresExchangePrefix"`
 	Aliases                []string                 `json:"aliases"`
@@ -58,6 +59,7 @@ func marketProfileDTOs() []marketProfileDTO {
 			PreferredPrefix:        descriptor.PreferredPrefix,
 			DisplayName:            descriptor.DisplayName,
 			QuoteCurrency:          descriptor.QuoteCurrency,
+			Timezone:               descriptor.Timezone,
 			SupportsExtendedHours:  descriptor.SupportsExtendedHours,
 			RequiresExchangePrefix: descriptor.RequiresExchangePrefix,
 			Aliases:                append([]string(nil), descriptor.Aliases...),

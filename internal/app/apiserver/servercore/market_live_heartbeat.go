@@ -31,7 +31,7 @@ func (s *Server) liveHeartbeatEvent(heartbeatInterval time.Duration, clients api
 		observedAt = observedAt.UTC()
 		if latestObservedAt.IsZero() || observedAt.After(latestObservedAt) {
 			latestObservedAt = observedAt
-			latestObservedAtText = observedAt.Format(time.RFC3339Nano)
+			latestObservedAtText = observedAt.UTC().Format(time.RFC3339Nano)
 		}
 		if now.Sub(observedAt) <= liveHeartbeatStaleThreshold {
 			freshCount++

@@ -52,6 +52,7 @@ export interface MarketProfileDto {
   preferredPrefix: string;
   displayName: string;
   quoteCurrency: string;
+  timezone: string;
   supportsExtendedHours: boolean;
   requiresExchangePrefix: boolean;
   aliases: string[];
@@ -1696,8 +1697,10 @@ export interface BacktestStartRequestPayload {
   code?: string;
   symbol?: string;
   interval: string;
-  startTime: string;
-  endTime: string;
+  startDate: string;
+  endDate: string;
+  startTime?: string;
+  endTime?: string;
   initialBalance: number;
   rehabType?: string;
   useExtendedHours?: boolean;
@@ -1708,8 +1711,10 @@ export interface BacktestSyncRequestPayload {
   code?: string;
   symbol?: string;
   intervals: string[];
-  since: string;
-  until: string;
+  startDate: string;
+  endDate: string;
+  since?: string;
+  until?: string;
   rehabType?: string;
   sessionScope?: "legacy" | "regular" | "extended";
 }

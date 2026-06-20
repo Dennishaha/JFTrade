@@ -40,8 +40,11 @@ type StartRequest struct {
 	Code              string  `json:"code"`
 	Symbol            string  `json:"symbol"`
 	Interval          string  `json:"interval"`
-	StartTime         string  `json:"startTime"`
-	EndTime           string  `json:"endTime"`
+	StartDate         string  `json:"startDate,omitempty"`
+	EndDate           string  `json:"endDate,omitempty"`
+	StartTime         string  `json:"startTime,omitempty"`
+	EndTime           string  `json:"endTime,omitempty"`
+	MarketTimezone    string  `json:"marketTimezone,omitempty"`
 	InitialBalance    float64 `json:"initialBalance"`
 	RehabType         string  `json:"rehabType"`
 	UseExtendedHours  *bool   `json:"useExtendedHours,omitempty"`
@@ -55,8 +58,10 @@ type ScriptStartRequest struct {
 	Code             string  `json:"code"`
 	Symbol           string  `json:"symbol"`
 	Interval         string  `json:"interval"`
-	StartTime        string  `json:"startTime"`
-	EndTime          string  `json:"endTime"`
+	StartDate        string  `json:"startDate,omitempty"`
+	EndDate          string  `json:"endDate,omitempty"`
+	StartTime        string  `json:"startTime,omitempty"`
+	EndTime          string  `json:"endTime,omitempty"`
 	InitialBalance   float64 `json:"initialBalance"`
 	RehabType        string  `json:"rehabType"`
 	UseExtendedHours *bool   `json:"useExtendedHours,omitempty"`
@@ -90,8 +95,10 @@ type SyncRequest struct {
 	Code         string   `json:"code"`
 	Symbol       string   `json:"symbol"`
 	Intervals    []string `json:"intervals"`
-	Since        string   `json:"since"`
-	Until        string   `json:"until"`
+	StartDate    string   `json:"startDate,omitempty"`
+	EndDate      string   `json:"endDate,omitempty"`
+	Since        string   `json:"since,omitempty"`
+	Until        string   `json:"until,omitempty"`
 	RehabType    string   `json:"rehabType"`
 	SessionScope string   `json:"sessionScope,omitempty"`
 }
@@ -326,6 +333,8 @@ func (s *Service) StartScript(ctx context.Context, req ScriptStartRequest) (*Run
 		Code:              req.Code,
 		Symbol:            req.Symbol,
 		Interval:          req.Interval,
+		StartDate:         req.StartDate,
+		EndDate:           req.EndDate,
 		StartTime:         req.StartTime,
 		EndTime:           req.EndTime,
 		InitialBalance:    req.InitialBalance,
@@ -365,18 +374,18 @@ func (s *Service) startResolvedBacktest(ctx context.Context, req StartRequest, d
 	}
 	req.DefinitionVersion = def.Version
 
-	// 校验时间
-	startTime, err := time.Parse(time.RFC3339, req.StartTime)
+	startTime, endTime, startDate, endDate, timezone, err := resolveBacktestTimeRange(req.Symbol, req.StartDate, req.EndDate, req.StartTime, req.EndTime)
 	if err != nil {
-		return nil, requestErrorf("invalid startTime, use RFC3339 format")
-	}
-	endTime, err := time.Parse(time.RFC3339, req.EndTime)
-	if err != nil {
-		return nil, requestErrorf("invalid endTime, use RFC3339 format")
+		return nil, err
 	}
 	if !endTime.After(startTime) {
 		return nil, requestErrorf("endTime must be after startTime")
 	}
+	req.StartDate = startDate
+	req.EndDate = endDate
+	req.StartTime = startTime.UTC().Format(time.RFC3339Nano)
+	req.EndTime = endTime.UTC().Format(time.RFC3339Nano)
+	req.MarketTimezone = timezone
 
 	// 创建运行记录
 	runID := "bt-" + time.Now().UTC().Format("20060102T150405.000000000")
@@ -670,20 +679,9 @@ func (s *Service) Sync(ctx context.Context, req SyncRequest) (*SyncStarted, erro
 		req.Intervals = []string{"1m", "5m", "15m", "30m", "1h", "1d", "1w"}
 	}
 
-	// 默认同步最近 30 天
-	sinceTime := time.Now().AddDate(0, 0, -30)
-	if req.Since != "" {
-		sinceTime, err = time.Parse(time.RFC3339, req.Since)
-		if err != nil {
-			return nil, requestErrorf("invalid since time, use RFC3339")
-		}
-	}
-	untilTime := time.Now()
-	if req.Until != "" {
-		untilTime, err = time.Parse(time.RFC3339, req.Until)
-		if err != nil {
-			return nil, requestErrorf("invalid until time, use RFC3339")
-		}
+	sinceTime, untilTime, _, _, _, err := resolveSyncTimeRange(req.Symbol, req.StartDate, req.EndDate, req.Since, req.Until)
+	if err != nil {
+		return nil, err
 	}
 	if !untilTime.After(sinceTime) {
 		return nil, requestErrorf("until must be after since")
@@ -780,8 +778,8 @@ func (s *Service) Sync(ctx context.Context, req SyncRequest) (*SyncStarted, erro
 		TaskID:       taskID,
 		Symbol:       req.Symbol,
 		Intervals:    intervals,
-		Since:        sinceTime.Format(time.RFC3339),
-		Until:        untilTime.Format(time.RFC3339),
+		Since:        sinceTime.UTC().Format(time.RFC3339Nano),
+		Until:        untilTime.UTC().Format(time.RFC3339Nano),
 		SessionScope: req.SessionScope,
 		Message:      "sync started",
 	}, nil
@@ -873,6 +871,84 @@ func parseInstrument(marketInput, symbol, code string) (struct{ Market, Prefix, 
 	}, nil
 }
 
+func resolveBacktestTimeRange(symbol, startDate, endDate, startTime, endTime string) (time.Time, time.Time, string, string, string, error) {
+	profile, ok := market.ProfileForSymbol(symbol)
+	if !ok || profile.Location == nil {
+		return time.Time{}, time.Time{}, "", "", "", requestErrorf("unsupported market timezone for %s", symbol)
+	}
+	startDate = strings.TrimSpace(startDate)
+	endDate = strings.TrimSpace(endDate)
+	if startDate != "" || endDate != "" {
+		if startDate == "" || endDate == "" {
+			return time.Time{}, time.Time{}, "", "", "", requestErrorf("startDate and endDate must be provided together")
+		}
+		startLocal, err := parseMarketDate(startDate, profile.Location)
+		if err != nil {
+			return time.Time{}, time.Time{}, "", "", "", requestErrorf("invalid startDate, use YYYY-MM-DD format")
+		}
+		endLocal, err := parseMarketDate(endDate, profile.Location)
+		if err != nil {
+			return time.Time{}, time.Time{}, "", "", "", requestErrorf("invalid endDate, use YYYY-MM-DD format")
+		}
+		if endLocal.Before(startLocal) {
+			return time.Time{}, time.Time{}, "", "", "", requestErrorf("endDate must not be before startDate")
+		}
+		return startLocal.UTC(), endLocal.AddDate(0, 0, 1).Add(-time.Nanosecond).UTC(), startDate, endDate, profile.Location.String(), nil
+	}
+
+	start, err := parseRFC3339Time(startTime)
+	if err != nil {
+		return time.Time{}, time.Time{}, "", "", "", requestErrorf("invalid startTime, use RFC3339 format")
+	}
+	end, err := parseRFC3339Time(endTime)
+	if err != nil {
+		return time.Time{}, time.Time{}, "", "", "", requestErrorf("invalid endTime, use RFC3339 format")
+	}
+	return start.UTC(), end.UTC(), "", "", profile.Location.String(), nil
+}
+
+func resolveSyncTimeRange(symbol, startDate, endDate, since, until string) (time.Time, time.Time, string, string, string, error) {
+	if strings.TrimSpace(startDate) != "" || strings.TrimSpace(endDate) != "" {
+		return resolveBacktestTimeRange(symbol, startDate, endDate, "", "")
+	}
+	now := time.Now().UTC()
+	sinceTime := now.AddDate(0, 0, -30)
+	untilTime := now
+	var err error
+	if strings.TrimSpace(since) != "" {
+		sinceTime, err = parseRFC3339Time(since)
+		if err != nil {
+			return time.Time{}, time.Time{}, "", "", "", requestErrorf("invalid since time, use RFC3339")
+		}
+	}
+	if strings.TrimSpace(until) != "" {
+		untilTime, err = parseRFC3339Time(until)
+		if err != nil {
+			return time.Time{}, time.Time{}, "", "", "", requestErrorf("invalid until time, use RFC3339")
+		}
+	}
+	return sinceTime.UTC(), untilTime.UTC(), "", "", "", nil
+}
+
+func parseMarketDate(value string, location *time.Location) (time.Time, error) {
+	if len(value) != len("2006-01-02") {
+		return time.Time{}, fmt.Errorf("invalid date")
+	}
+	parsed, err := time.ParseInLocation("2006-01-02", value, location)
+	if err != nil || parsed.Format("2006-01-02") != value {
+		return time.Time{}, fmt.Errorf("invalid date")
+	}
+	return parsed, nil
+}
+
+func parseRFC3339Time(value string) (time.Time, error) {
+	value = strings.TrimSpace(value)
+	if parsed, err := time.Parse(time.RFC3339Nano, value); err == nil {
+		return parsed, nil
+	}
+	return time.Parse(time.RFC3339, value)
+}
+
 // failureResult 构造回测失败结果。
 func failureResult(req StartRequest, message string) *bt.RunResult {
 	return &bt.RunResult{
@@ -941,8 +1017,11 @@ func resultViewRunPayload(run *RunState) map[string]any {
 		"code":              run.Request.Code,
 		"symbol":            run.Request.Symbol,
 		"interval":          run.Request.Interval,
+		"startDate":         run.Request.StartDate,
+		"endDate":           run.Request.EndDate,
 		"startTime":         run.Request.StartTime,
 		"endTime":           run.Request.EndTime,
+		"marketTimezone":    run.Request.MarketTimezone,
 		"initialBalance":    run.Request.InitialBalance,
 		"rehabType":         run.Request.RehabType,
 		"useExtendedHours":  run.Request.UseExtendedHours,
@@ -1199,7 +1278,7 @@ func aggregateResultViewCandles(candles []bt.Candle, resolution time.Duration) [
 				out = append(out, *current)
 			}
 			clone := candle
-			clone.Time = time.Unix(bucket*int64(resolution.Seconds()), 0).UTC().Format(time.RFC3339)
+			clone.Time = time.Unix(bucket*int64(resolution.Seconds()), 0).UTC().Format(time.RFC3339Nano)
 			current = &clone
 			currentBucket = bucket
 			volumeSum, volumeOK = parseResultViewFloat(candle.Volume)

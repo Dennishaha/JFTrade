@@ -62,15 +62,6 @@ const categoryLabels: Record<string, string> = {
   "market.calendar.source": "交易所日历源",
   "system.workspace": "工作台",
 };
-const notificationDateTimeFormatter = new Intl.DateTimeFormat(undefined, {
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-  second: "2-digit",
-  hour12: false,
-});
 
 function formatNotificationSource(source: string | null | undefined): string {
   if (source == null || source.trim() === "") {
@@ -98,11 +89,7 @@ function formatNotificationMeta(item: NotificationItem): string {
 }
 
 function fmt(at: string): string {
-  const parsed = new Date(at);
-  if (Number.isNaN(parsed.getTime())) {
-    return at;
-  }
-  return notificationDateTimeFormatter.format(parsed);
+  return formatDateTime(at);
 }
 </script>
 

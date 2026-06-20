@@ -52,6 +52,7 @@ type MarketDescriptor struct {
 	PreferredPrefix        string
 	DisplayName            string
 	QuoteCurrency          string
+	Timezone               string
 	PricePrecision         int
 	QuotePrecision         int
 	TickSize               float64
@@ -282,6 +283,7 @@ func MarketDescriptors() []MarketDescriptor {
 				ResolvedMarket:         "CN",
 				DisplayName:            "China A Shares",
 				QuoteCurrency:          "CNY",
+				Timezone:               sh.LocationName,
 				PricePrecision:         2,
 				QuotePrecision:         2,
 				TickSize:               0.01,
@@ -304,6 +306,7 @@ func descriptorFromProfile(profile Profile) MarketDescriptor {
 		PreferredPrefix:        profile.PreferredPrefix,
 		DisplayName:            profile.DisplayName,
 		QuoteCurrency:          profile.QuoteCurrency,
+		Timezone:               profile.Location.String(),
 		PricePrecision:         profile.PricePrecision,
 		QuotePrecision:         profile.QuotePrecision,
 		TickSize:               profile.TickSize,
@@ -496,6 +499,25 @@ func TradingDayLabelStart(symbol string, at time.Time, includeExtendedHours bool
 	return TradingPeriodLabelStart(symbol, at, "day", includeExtendedHours)
 }
 
+// TradingDayBoundaryStart returns the actual UTC instant where the market
+// trading day containing at begins. US extended-hours trading rolls at 20:00
+// America/New_York on the previous calendar day.
+func TradingDayBoundaryStart(symbol string, at time.Time, includeExtendedHours bool) (time.Time, bool) {
+	profile, ok := ProfileForSymbol(symbol)
+	if !ok {
+		return time.Time{}, false
+	}
+	localDay, ok := tradingPeriodLocalDay(profile, symbol, at, includeExtendedHours)
+	if !ok {
+		return time.Time{}, false
+	}
+	if includeExtendedHours && IsUSSymbol(symbol) {
+		previousDay := localDay.AddDate(0, 0, -1)
+		return time.Date(previousDay.Year(), previousDay.Month(), previousDay.Day(), 20, 0, 0, 0, profile.Location).UTC(), true
+	}
+	return time.Date(localDay.Year(), localDay.Month(), localDay.Day(), 0, 0, 0, 0, profile.Location).UTC(), true
+}
+
 func TradingPeriodKey(symbol string, at time.Time, unit string, includeExtendedHours bool) (string, bool) {
 	profile, ok := ProfileForSymbol(symbol)
 	if !ok {
@@ -506,6 +528,16 @@ func TradingPeriodKey(symbol string, at time.Time, unit string, includeExtendedH
 		return "", false
 	}
 	return tradingPeriodKeyFromLocalDay(profile, localDay, unit)
+}
+
+// CalendarPeriodKey returns the canonical market-local calendar period key
+// without requiring the timestamp to fall inside a trading session.
+func CalendarPeriodKey(symbol string, at time.Time, unit string) (string, bool) {
+	profile, ok := ProfileForSymbol(symbol)
+	if !ok || profile.Location == nil || at.IsZero() {
+		return "", false
+	}
+	return tradingPeriodKeyFromLocalDay(profile, at.In(profile.Location), unit)
 }
 
 func TradingPeriodLabelStart(symbol string, at time.Time, unit string, includeExtendedHours bool) (time.Time, bool) {

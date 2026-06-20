@@ -182,7 +182,7 @@ func mergeKLinesByStartTime(slices ...[]types.KLine) []types.KLine {
 }
 
 func futuKLineFromProto(candle *qotcommonpb.KLine, symbol string, interval types.Interval) types.KLine {
-	labelAt := futuQuoteTime(candle.GetTimestamp(), candle.GetTime()).UTC()
+	labelAt := futuQuoteTime(candle.GetTimestamp(), candle.GetTime(), symbol)
 	startAt := futuHistoryKLineStartTime(labelAt, interval)
 	endAt := startAt.Add(interval.Duration()).Add(-time.Millisecond)
 	if endAt.Before(startAt) {

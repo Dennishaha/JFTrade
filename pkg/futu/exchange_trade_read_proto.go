@@ -122,10 +122,8 @@ func brokerPositionSnapshotFromProto(account resolvedTradeAccount, position *trd
 }
 
 func brokerOrderSnapshotFromProto(account resolvedTradeAccount, order *trdcommonpb.Order) BrokerOrderSnapshot {
-	market := runtimeMarketAuthority(order.GetTrdMarket())
-	if market == "" {
-		market = marketFromSymbol(order.GetCode(), account.Market)
-	}
+	market := resolveBrokerOrderMarket(order.GetTrdMarket(), order.GetCode(), account.Market)
+	timeSymbol := brokerOrderTimeSymbol(market, order.GetCode())
 
 	return BrokerOrderSnapshot{
 		AccountID:          account.AccountID,
@@ -142,8 +140,8 @@ func brokerOrderSnapshotFromProto(account resolvedTradeAccount, order *trdcommon
 		FilledQuantity:     cloneFloat64Ptr(order.FillQty),
 		Price:              cloneFloat64Ptr(order.Price),
 		FilledAveragePrice: cloneFloat64Ptr(order.FillAvgPrice),
-		SubmittedAt:        formatBrokerOrderTime(order.CreateTimestamp, order.GetCreateTime()),
-		UpdatedAt:          formatBrokerOrderTime(order.UpdateTimestamp, order.GetUpdateTime()),
+		SubmittedAt:        formatBrokerOrderTime(order.CreateTimestamp, order.GetCreateTime(), timeSymbol),
+		UpdatedAt:          formatBrokerOrderTime(order.UpdateTimestamp, order.GetUpdateTime(), timeSymbol),
 		Remark:             optionalNonEmptyString(order.GetRemark()),
 		LastError:          optionalNonEmptyString(order.GetLastErrMsg()),
 		TimeInForce:        optionalEnumStringPtr(order.TimeInForce, trdcommonpb.TimeInForce_name),
@@ -152,10 +150,8 @@ func brokerOrderSnapshotFromProto(account resolvedTradeAccount, order *trdcommon
 }
 
 func brokerOrderFillSnapshotFromProto(account resolvedTradeAccount, fill *trdcommonpb.OrderFill) BrokerOrderFillSnapshot {
-	market := runtimeMarketAuthority(fill.GetTrdMarket())
-	if market == "" {
-		market = marketFromSymbol(fill.GetCode(), account.Market)
-	}
+	market := resolveBrokerOrderMarket(fill.GetTrdMarket(), fill.GetCode(), account.Market)
+	timeSymbol := brokerOrderTimeSymbol(market, fill.GetCode())
 
 	return BrokerOrderFillSnapshot{
 		AccountID:          account.AccountID,
@@ -170,7 +166,7 @@ func brokerOrderFillSnapshotFromProto(account resolvedTradeAccount, fill *trdcom
 		Side:               normalizeRuntimeEnum(enumName(fill.GetTrdSide(), trdcommonpb.TrdSide_name)),
 		FilledQuantity:     fill.GetQty(),
 		FillPrice:          cloneFloat64Ptr(fill.Price),
-		FilledAt:           formatBrokerOrderTime(fill.CreateTimestamp, fill.GetCreateTime()),
+		FilledAt:           formatBrokerOrderTime(fill.CreateTimestamp, fill.GetCreateTime(), timeSymbol),
 		Status:             optionalEnumStringPtr(fill.Status, trdcommonpb.OrderFillStatus_name),
 	}
 }

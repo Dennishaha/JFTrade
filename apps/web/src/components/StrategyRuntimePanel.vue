@@ -46,6 +46,7 @@ import {
 } from "../composables/consoleDataBrokerAccountSelection";
 import { useMarketProfiles } from "../composables/marketProfiles";
 import { useConsoleData } from "../composables/useConsoleData";
+import { formatLocalDateTime } from "../utils/dateTime";
 
 type StrategyLogsResponse = StrategyLogListResponse;
 type StrategyAuditEntry = StrategyAuditEntryDocument;
@@ -59,7 +60,6 @@ type StrategySymbolEditorMode = "create" | "edit";
 
 interface StrategyTimestampParts {
     display: string;
-    utc: string;
     timestampMs: number | null;
 }
 
@@ -476,33 +476,11 @@ watch(
     { immediate: true },
 );
 
-const localTimestampFormatter = new Intl.DateTimeFormat("zh-CN", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-});
-
-const utcTimestampFormatter = new Intl.DateTimeFormat("zh-CN", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-    timeZone: "UTC",
-});
-
 function formatTimestampParts(value: unknown): StrategyTimestampParts {
     const normalized = normalizeText(value);
     if (normalized === "") {
         return {
             display: "暂无",
-            utc: "暂无",
             timestampMs: null,
         };
     }
@@ -512,14 +490,12 @@ function formatTimestampParts(value: unknown): StrategyTimestampParts {
         const fallback = normalized.replace("T", " ").replace(".000Z", "Z");
         return {
             display: fallback,
-            utc: fallback,
             timestampMs: null,
         };
     }
 
     return {
-        display: localTimestampFormatter.format(parsed),
-        utc: `${utcTimestampFormatter.format(parsed)} UTC`,
+        display: formatLocalDateTime(parsed, normalized),
         timestampMs: parsed.getTime(),
     };
 }
@@ -529,7 +505,7 @@ function formatTimestamp(value: unknown): string {
 }
 
 function formatTimestampTooltip(value: unknown): string {
-    return formatTimestampParts(value).utc;
+    return formatTimestampParts(value).display;
 }
 
 function formatStrategyStatus(status: StrategyInstanceItem["status"] | string): string {

@@ -24,8 +24,8 @@ func TestReplayPublisherSequencesAndRetainsWindow(t *testing.T) {
 	if first.RecordedAt.Location() != time.UTC || first.At != first.RecordedAt.Format(time.RFC3339Nano) {
 		t.Fatalf("first timestamp = %#v", first)
 	}
-	if second.At != "explicit" {
-		t.Fatalf("explicit timestamp = %q", second.At)
+	if second.At != second.RecordedAt.Format(time.RFC3339Nano) {
+		t.Fatalf("invalid explicit timestamp did not fall back to recordedAt: %#v", second)
 	}
 	events := publisher.After(0)
 	if len(events) != 2 || events[0].Sequence != 2 || events[1].Sequence != 3 {
@@ -33,6 +33,23 @@ func TestReplayPublisherSequencesAndRetainsWindow(t *testing.T) {
 	}
 	if got := publisher.After(2); len(got) != 1 || got[0].Sequence != 3 {
 		t.Fatalf("After(2) = %#v", got)
+	}
+}
+
+func TestReplayPublisherNormalizesEventTimeToUTC(t *testing.T) {
+	publisher := newReplayPublisher(func() time.Time {
+		return time.Date(2026, time.June, 20, 0, 0, 0, 0, time.UTC)
+	}, time.Hour, 10)
+
+	event := publisher.Publish(Notification{
+		At:    "2026-06-20T09:30:00+08:00",
+		Title: "offset event",
+	})
+	if event == nil {
+		t.Fatal("expected event")
+	}
+	if event.At != "2026-06-20T01:30:00Z" {
+		t.Fatalf("event.At = %q, want UTC", event.At)
 	}
 }
 

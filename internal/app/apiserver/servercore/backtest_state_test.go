@@ -92,6 +92,23 @@ func TestBacktestRunStoreGetReturnsDeepCopy(t *testing.T) {
 	}
 }
 
+func TestBacktestRunStateFromRowDoesNotInferMissingDateMetadata(t *testing.T) {
+	run, err := backtestRunStateFromRow(backtestRunStateRow{
+		ID:          "bt-without-date-metadata",
+		Status:      "completed",
+		RequestJSON: `{"symbol":"US.AAPL","startTime":"2026-05-01T23:30:00-05:00","endTime":"2026-05-02T23:30:00-05:00"}`,
+	})
+	if err != nil {
+		t.Fatalf("backtestRunStateFromRow: %v", err)
+	}
+	if run.Request.StartDate != "" || run.Request.EndDate != "" || run.Request.MarketTimezone != "" {
+		t.Fatalf("missing date metadata was inferred: %+v", run.Request)
+	}
+	if run.Request.StartTime != "2026-05-01T23:30:00-05:00" || run.Request.EndTime != "2026-05-02T23:30:00-05:00" {
+		t.Fatalf("stored timestamps were rewritten: %+v", run.Request)
+	}
+}
+
 func TestBacktestRunStoreListReturnsIndependentSnapshots(t *testing.T) {
 	store := newBacktestRunStore()
 	original := &backtestRunState{
@@ -137,11 +154,14 @@ func TestBacktestRunStorePersistsAndRecoversTransientRuns(t *testing.T) {
 		ID:     "bt-persist-completed",
 		Status: "completed",
 		Request: backtestStartRequest{
-			DefinitionID: "def-completed",
-			Symbol:       "US.AAPL",
-			Interval:     "5m",
-			StartTime:    "2026-05-01T00:00:00Z",
-			EndTime:      "2026-05-02T00:00:00Z",
+			DefinitionID:   "def-completed",
+			Symbol:         "US.AAPL",
+			Interval:       "5m",
+			StartDate:      "2026-05-01",
+			EndDate:        "2026-05-02",
+			StartTime:      "2026-05-01T04:00:00Z",
+			EndTime:        "2026-05-03T03:59:59.999999999Z",
+			MarketTimezone: "America/New_York",
 		},
 		Result: &backtest.RunResult{
 			Symbol:       "US.AAPL",
@@ -190,6 +210,15 @@ func TestBacktestRunStorePersistsAndRecoversTransientRuns(t *testing.T) {
 	}
 	if reloadedCompleted.Status != "completed" {
 		t.Fatalf("completed run status = %s, want completed", reloadedCompleted.Status)
+	}
+	if reloadedCompleted.Request.StartDate != completedRun.Request.StartDate || reloadedCompleted.Request.EndDate != completedRun.Request.EndDate {
+		t.Fatalf("market date labels changed after reload: %q..%q", reloadedCompleted.Request.StartDate, reloadedCompleted.Request.EndDate)
+	}
+	if reloadedCompleted.Request.StartTime != completedRun.Request.StartTime || reloadedCompleted.Request.EndTime != completedRun.Request.EndTime {
+		t.Fatalf("UTC range changed after reload: %s..%s", reloadedCompleted.Request.StartTime, reloadedCompleted.Request.EndTime)
+	}
+	if reloadedCompleted.Request.MarketTimezone != completedRun.Request.MarketTimezone {
+		t.Fatalf("market timezone changed after reload: %q", reloadedCompleted.Request.MarketTimezone)
 	}
 	if reloadedCompleted.Result != nil {
 		t.Fatalf("lightweight completed run should not load full result: %+v", reloadedCompleted.Result)

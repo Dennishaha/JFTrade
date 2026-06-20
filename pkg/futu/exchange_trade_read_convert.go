@@ -8,6 +8,7 @@ import (
 	"github.com/c9s/bbgo/pkg/types"
 
 	trdcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdcommon"
+	"github.com/jftrade/jftrade-main/pkg/market"
 )
 
 func balanceMapFromBrokerFunds(snapshot *BrokerFundsSnapshot) types.BalanceMap {
@@ -176,32 +177,81 @@ func brokerOrderFillSortKey(fill BrokerOrderFillSnapshot) time.Time {
 }
 
 func parseBrokerOrderTime(value string) time.Time {
+	return parseBrokerOrderTimeInLocation(value, time.UTC)
+}
+
+func parseBrokerOrderTimeInLocation(value string, loc *time.Location) time.Time {
 	trimmed := strings.TrimSpace(value)
 	if trimmed == "" {
 		return time.Time{}
 	}
 	if parsed, err := time.Parse(time.RFC3339Nano, trimmed); err == nil {
-		return parsed
+		return parsed.UTC()
+	}
+	if loc == nil {
+		loc = time.UTC
 	}
 	for _, layout := range []string{"2006-01-02 15:04:05.000", "2006-01-02 15:04:05"} {
-		if parsed, err := time.ParseInLocation(layout, trimmed, time.Local); err == nil {
+		if parsed, err := time.ParseInLocation(layout, trimmed, loc); err == nil {
 			return parsed.UTC()
 		}
 	}
 	return time.Time{}
 }
 
-func formatBrokerOrderTime(timestamp *float64, fallback string) string {
+func formatBrokerOrderTime(timestamp *float64, fallback string, symbol string) string {
+	return formatBrokerOrderTimeAt(timestamp, fallback, symbol, time.Now().UTC())
+}
+
+func formatBrokerOrderTimeAt(timestamp *float64, fallback string, symbol string, recordedAt time.Time) string {
 	if timestamp != nil && *timestamp > 0 {
 		seconds := int64(*timestamp)
 		nanos := int64((*timestamp - float64(seconds)) * float64(time.Second))
 		return time.Unix(seconds, nanos).UTC().Format(time.RFC3339Nano)
 	}
-	parsed := parseBrokerOrderTime(fallback)
-	if parsed.IsZero() {
-		return strings.TrimSpace(fallback)
+	loc := time.UTC
+	if profile, ok := market.ProfileForSymbol(symbol); ok && profile.Location != nil {
+		loc = profile.Location
 	}
-	return parsed.Format(time.RFC3339Nano)
+	parsed := parseBrokerOrderTimeInLocation(fallback, loc)
+	if parsed.IsZero() {
+		if recordedAt.IsZero() {
+			recordedAt = time.Now().UTC()
+		}
+		return recordedAt.UTC().Format(time.RFC3339Nano)
+	}
+	return parsed.UTC().Format(time.RFC3339Nano)
+}
+
+func brokerOrderTimeSymbol(marketCode string, code string) string {
+	normalizedCode := strings.TrimSpace(strings.ToUpper(code))
+	if _, ok := market.ProfileForSymbol(normalizedCode); ok {
+		return normalizedCode
+	}
+	normalizedMarket := strings.TrimSpace(strings.ToUpper(marketCode))
+	switch normalizedMarket {
+	case "HK", "US", "SH", "SZ":
+		candidate := normalizedMarket + "." + normalizedCode
+		if _, ok := market.ProfileForSymbol(candidate); ok {
+			return candidate
+		}
+	case "CN":
+		// Shanghai and Shenzhen share Asia/Shanghai; either profile is a
+		// valid timezone authority when Futu omits the exchange prefix.
+		return "SH." + normalizedCode
+	}
+	return normalizedCode
+}
+
+func resolveBrokerOrderMarket(rawMarket int32, code string, fallback string) string {
+	if trdcommonpb.TrdMarket(rawMarket) == trdcommonpb.TrdMarket_TrdMarket_Unknown {
+		return marketFromSymbol(code, fallback)
+	}
+	resolved := runtimeMarketAuthority(rawMarket)
+	if resolved == "" {
+		return marketFromSymbol(code, fallback)
+	}
+	return resolved
 }
 
 func marketFromSymbol(symbol string, fallback string) string {

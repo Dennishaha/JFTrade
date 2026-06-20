@@ -527,7 +527,8 @@ func TestRunExecutesPineInputTimeStartFilter(t *testing.T) {
 		t.Fatalf("NewFutuKLineStore() error = %v", err)
 	}
 
-	baseStart := time.Date(2026, time.January, 1, 0, 0, 0, 0, time.UTC)
+	// 05:00 UTC is midnight in America/New_York on this winter date.
+	baseStart := time.Date(2026, time.January, 2, 5, 0, 0, 0, time.UTC)
 	klines := make([]types.KLine, 0, 3)
 	for index, closePrice := range []float64{100, 101, 102} {
 		start := baseStart.Add(time.Duration(index) * time.Minute)
@@ -561,7 +562,7 @@ func TestRunExecutesPineInputTimeStartFilter(t *testing.T) {
 		EndTime:      klines[2].EndTime.Time(),
 		StrategyScript: `//@version=6
 strategy("Input Time Filter", overlay=true)
-start = input.time(timestamp(2026, 1, 1, 0, 1), "Start")
+start = input.time(timestamp(2026, 1, 2, 0, 1), "Start")
 if time >= start
     strategy.entry("Long", strategy.long, qty=1)`,
 		InitialBalance: 10000,
@@ -579,8 +580,8 @@ if time >= start
 	if len(result.OrderBook) != 1 {
 		t.Fatalf("orders = %#v, want one order after start time", result.OrderBook)
 	}
-	if result.OrderBook[0].SubmittedAt != klines[1].EndTime.Time().Format(time.RFC3339) {
-		t.Fatalf("first order submitted at = %s, want %s", result.OrderBook[0].SubmittedAt, klines[1].EndTime.Time().Format(time.RFC3339))
+	if result.OrderBook[0].SubmittedAt != klines[1].EndTime.Time().UTC().Format(time.RFC3339Nano) {
+		t.Fatalf("first order submitted at = %s, want %s", result.OrderBook[0].SubmittedAt, klines[1].EndTime.Time().UTC().Format(time.RFC3339Nano))
 	}
 }
 

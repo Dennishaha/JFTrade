@@ -30,7 +30,7 @@ func evaluateTimeframeChangeExpression(arguments []exprast.Node, scope *evaluati
 	if scope.runtime == nil || !scope.runtime.hasPreviousBarTime {
 		return true, nil
 	}
-	return pineTimeframeBucketChanged(scope.runtime.previousBarTime, current, timeframe), nil
+	return pineTimeframeBucketChanged(scope.runtime.previousBarTime, current, timeframe, pineExchangeLocation(scope)), nil
 }
 
 func evaluateTimeframeInSecondsExpression(arguments []exprast.Node, scope *evaluationScope) (any, error) {
@@ -58,21 +58,30 @@ func evaluateTimeframeInSecondsExpression(arguments []exprast.Node, scope *evalu
 	return float64(duration / time.Second), nil
 }
 
-func pineTimeframeBucketChanged(previous time.Time, current time.Time, timeframe string) bool {
+func pineTimeframeBucketChanged(previous time.Time, current time.Time, timeframe string, location *time.Location) bool {
 	unit, duration, ok := pineStaticTimeframeBucket(timeframe)
 	if !ok {
 		return false
 	}
+	if location == nil {
+		location = time.UTC
+	}
 	switch unit {
 	case "month":
+		previous = previous.In(location)
+		current = current.In(location)
 		py, pm, _ := previous.Date()
 		cy, cm, _ := current.Date()
 		return py != cy || pm != cm
 	case "week":
+		previous = previous.In(location)
+		current = current.In(location)
 		py, pw := previous.ISOWeek()
 		cy, cw := current.ISOWeek()
 		return py != cy || pw != cw
 	case "day":
+		previous = previous.In(location)
+		current = current.In(location)
 		py, pm, pd := previous.Date()
 		cy, cm, cd := current.Date()
 		return py != cy || pm != cm || pd != cd

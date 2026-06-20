@@ -349,7 +349,7 @@ export const strategyPineEditorCompletions: MonacoCompletionDefinition[] = [
   {
     label: "timestamp",
     detail: "time",
-    documentation: "返回 Unix milliseconds；支持 timestamp(year, month, day[, hour, minute])，不支持 timezone 参数。",
+    documentation: "按当前标的交易所时区解释并返回 Unix milliseconds；支持 timestamp(year, month, day[, hour, minute])，不支持显式 timezone 参数。",
     kind: "function",
     insertTextRule: "snippet",
     sortText: "0658",
@@ -1307,7 +1307,7 @@ export const strategyPineEditorHoverItems: MonacoHoverDefinition[] = [
   {
     target: "timestamp",
     signature: "timestamp(year, month, day[, hour, minute])",
-    documentation: "返回 Unix milliseconds；第一版不支持 timezone 参数。",
+    documentation: "按当前标的交易所时区解释并返回 Unix milliseconds；第一版不支持显式 timezone 参数。",
   },
   {
     target: "input.time",

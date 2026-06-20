@@ -290,8 +290,8 @@ func tickFromTicker(instrumentID string, ticker *bbgotypes.Ticker, observedAt ti
 		InstrumentID: instrumentID, Market: resolvedMarket, Symbol: symbol,
 		Price: price, Bid: bid, Ask: ask,
 		OpenPrice: optionalDecimal(ticker.Open), HighPrice: optionalDecimal(ticker.High), LowPrice: optionalDecimal(ticker.Low),
-		Volume: ticker.Volume.Float64(), QuoteAt: quoteAt.Format(time.RFC3339Nano),
-		ObservedAt: observedAt.Format(time.RFC3339Nano), Source: "bbgo:futu",
+		Volume: ticker.Volume.Float64(), QuoteAt: quoteAt.UTC().Format(time.RFC3339Nano),
+		ObservedAt: observedAt.UTC().Format(time.RFC3339Nano), Source: "bbgo:futu",
 		Session: string(session), ExtendedHours: market.IsExtendedSession(session), Kind: marketdata.TickKindQuote,
 	}
 }
@@ -310,7 +310,7 @@ func tickFromTrade(trade bbgotypes.Trade, observedAt time.Time) *marketdata.Tick
 	return &marketdata.Tick{
 		InstrumentID: instrumentID, Market: resolvedMarket, Symbol: symbol,
 		Price: price, Bid: price, Ask: price, Volume: trade.Quantity.Float64(),
-		QuoteAt: quoteAt.Format(time.RFC3339Nano), ObservedAt: observedAt.Format(time.RFC3339Nano),
+		QuoteAt: quoteAt.UTC().Format(time.RFC3339Nano), ObservedAt: observedAt.UTC().Format(time.RFC3339Nano),
 		Source: "bbgo:futu:stream", Session: string(session),
 		ExtendedHours: market.IsExtendedSession(session), Kind: marketdata.TickKindTrade,
 	}
@@ -331,7 +331,7 @@ func tickFromSnapshot(instrumentID string, snapshot *pkgfutu.QuoteSnapshot, obse
 		PreviousClosePrice: snapshot.PreviousClosePrice, LastClosePrice: snapshot.LastClosePrice,
 		Volume: snapshot.Volume, Turnover: snapshot.Turnover,
 		QuoteAt:    snapshot.QuoteAt.UTC().Format(time.RFC3339Nano),
-		ObservedAt: observedAt.Format(time.RFC3339Nano), Source: "bbgo:futu",
+		ObservedAt: observedAt.UTC().Format(time.RFC3339Nano), Source: "bbgo:futu",
 		Session: string(snapshot.Session), ExtendedHours: snapshot.ExtendedHours,
 		PreMarket: extendedQuote(snapshot.PreMarket), AfterMarket: extendedQuote(snapshot.AfterMarket),
 		Overnight: extendedQuote(snapshot.Overnight), Kind: marketdata.TickKindQuote,

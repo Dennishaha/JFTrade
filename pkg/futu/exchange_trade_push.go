@@ -31,10 +31,8 @@ func BrokerOrderSnapshotFromPush(header *trdcommonpb.TrdHeader, order *trdcommon
 
 func BrokerOrderFillSnapshotFromPush(header *trdcommonpb.TrdHeader, fill *trdcommonpb.OrderFill) BrokerOrderFillSnapshot {
 	account := resolvedTradeAccountFromHeader(header, marketFromSymbol(fill.GetCode(), ""))
-	market := runtimeMarketAuthority(fill.GetTrdMarket())
-	if market == "" {
-		market = account.Market
-	}
+	market := resolveBrokerOrderMarket(fill.GetTrdMarket(), fill.GetCode(), account.Market)
+	timeSymbol := brokerOrderTimeSymbol(market, fill.GetCode())
 	return BrokerOrderFillSnapshot{
 		AccountID:          account.AccountID,
 		TradingEnvironment: account.TradingEnvironment,
@@ -48,7 +46,7 @@ func BrokerOrderFillSnapshotFromPush(header *trdcommonpb.TrdHeader, fill *trdcom
 		Side:               normalizeRuntimeEnum(enumName(fill.GetTrdSide(), trdcommonpb.TrdSide_name)),
 		FilledQuantity:     fill.GetQty(),
 		FillPrice:          cloneFloat64Ptr(fill.Price),
-		FilledAt:           formatBrokerOrderTime(fill.CreateTimestamp, fill.GetCreateTime()),
+		FilledAt:           formatBrokerOrderTime(fill.CreateTimestamp, fill.GetCreateTime(), timeSymbol),
 		Status:             optionalEnumStringPtr(fill.Status, trdcommonpb.OrderFillStatus_name),
 	}
 }

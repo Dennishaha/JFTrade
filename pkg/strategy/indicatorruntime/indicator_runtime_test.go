@@ -427,8 +427,15 @@ func TestAdvancedIndicatorCalculationsUseAuditedVectors(t *testing.T) {
 		time.Date(2026, 6, 15, 16, 0, 0, 0, time.UTC),
 		time.Date(2026, 6, 16, 16, 0, 0, 0, time.UTC),
 	}
-	if value, ok := calculateAnchoredVWAP([]float64{10, 20, 30}, []float64{1, 1, 2}, times, "week"); !ok || value != 80.0/3.0 {
+	if value, ok := calculateAnchoredVWAP([]float64{10, 20, 30}, []float64{1, 1, 2}, times, "week", "US.AAPL", false); !ok || value != 80.0/3.0 {
 		t.Fatalf("anchored weekly vwap = %v/%v", value, ok)
+	}
+	mixedSessionTimes := []time.Time{
+		time.Date(2026, 6, 16, 16, 0, 0, 0, time.UTC),
+		time.Date(2026, 6, 20, 16, 0, 0, 0, time.UTC),
+	}
+	if value, ok := calculateAnchoredVWAP([]float64{10, 20}, []float64{1, 1}, mixedSessionTimes, "week", "US.AAPL", false); !ok || value != 15 {
+		t.Fatalf("mixed-session anchored weekly vwap = %v/%v, want 15/true", value, ok)
 	}
 	if value, ok := calculateTSI([]float64{1, 2, 3, 4, 5, 6}, 2, 3); !ok || math.Abs(value-100) > 1e-9 {
 		t.Fatalf("tsi = %v/%v, want 100/true", value, ok)
@@ -1891,5 +1898,79 @@ func indicatorTestProgram(statements ...strategyir.Statement) *strategyir.Progra
 			Kind:       strategyir.HookKLineClose,
 			Statements: statements,
 		}},
+	}
+}
+
+func TestVWAPUsesMarketTradingDayAcrossUTCMidnight(t *testing.T) {
+	values := []float64{10, 20}
+	volumes := []float64{1, 1}
+	endTimes := []time.Time{
+		time.Date(2026, time.January, 5, 23, 30, 0, 0, time.UTC),
+		time.Date(2026, time.January, 6, 0, 30, 0, 0, time.UTC),
+	}
+	value, ok := calculateSessionVWAP(values, volumes, endTimes, "US.AAPL", true)
+	if !ok || value != 15 {
+		t.Fatalf("session VWAP = %v/%v, want 15/true", value, ok)
+	}
+}
+
+func TestVWAPResetsAtExtendedTradingDayBoundary(t *testing.T) {
+	values := []float64{10, 20}
+	volumes := []float64{1, 1}
+	endTimes := []time.Time{
+		time.Date(2026, time.January, 6, 0, 30, 0, 0, time.UTC),
+		time.Date(2026, time.January, 6, 1, 30, 0, 0, time.UTC),
+	}
+	value, ok := calculateSessionVWAP(values, volumes, endTimes, "US.AAPL", true)
+	if !ok || value != 20 {
+		t.Fatalf("session VWAP = %v/%v, want 20/true after trading-day rollover", value, ok)
+	}
+}
+
+func TestIndicatorRuntimeVWAPStatesUseMarketTradingPeriods(t *testing.T) {
+	runtime := newIndicatorRuntimeWithOptions(`
+		function onKLineClosed(ctx) {
+			ctx.indicators["vwap:close"];
+			ctx.indicators["anchored_vwap:day:close"];
+		}
+	`, types.Interval1m, "US.AAPL", RuntimeOptions{IncludeExtendedHours: true})
+	if runtime == nil {
+		t.Fatal("expected indicator runtime")
+	}
+	push := func(at time.Time, closeValue float64) {
+		runtime.push(types.KLine{
+			Symbol:    "US.AAPL",
+			Interval:  types.Interval1m,
+			StartTime: types.Time(at.Add(-time.Minute + time.Millisecond)),
+			EndTime:   types.Time(at),
+			Open:      fixedpoint.NewFromFloat(closeValue),
+			High:      fixedpoint.NewFromFloat(closeValue),
+			Low:       fixedpoint.NewFromFloat(closeValue),
+			Close:     fixedpoint.NewFromFloat(closeValue),
+			Volume:    fixedpoint.NewFromFloat(1),
+		}, market.SessionUnknown)
+	}
+
+	push(time.Date(2026, time.January, 5, 23, 30, 0, 0, time.UTC), 10)
+	push(time.Date(2026, time.January, 6, 0, 30, 0, 0, time.UTC), 20)
+	snapshot := runtime.snapshot()
+	assertScalarSnapshotApprox(t, snapshot, "vwap:close", 15)
+	assertScalarSnapshotApprox(t, snapshot, "anchored_vwap:day:close", 15)
+
+	push(time.Date(2026, time.January, 6, 1, 30, 0, 0, time.UTC), 30)
+	snapshot = runtime.snapshot()
+	assertScalarSnapshotApprox(t, snapshot, "vwap:close", 30)
+	assertScalarSnapshotApprox(t, snapshot, "anchored_vwap:day:close", 30)
+}
+
+func TestRollingVWAPStateClearsWhenPeriodCannotBeResolved(t *testing.T) {
+	state := &rollingVWAPState{}
+	state.push("2026-06-20", 10, 2)
+	if value, ok := state.value(); !ok || value != 10 {
+		t.Fatalf("state value = %v/%v, want 10/true", value, ok)
+	}
+	state.push("", 20, 1)
+	if value, ok := state.value(); ok {
+		t.Fatalf("state value after invalid period = %v/%v, want unavailable", value, ok)
 	}
 }

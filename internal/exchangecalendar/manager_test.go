@@ -643,3 +643,33 @@ func TestManagerStatusUsesRemoteCoverageSourceForRegularDay(t *testing.T) {
 		t.Fatalf("effectiveReason = %q", reason)
 	}
 }
+
+func TestSnapshotCacheKeyUsesMarketLocalYear(t *testing.T) {
+	manager := NewManager(nil, nil)
+
+	hongKongNewYear := time.Date(2025, time.December, 31, 16, 30, 0, 0, time.UTC)
+	if got, want := manager.snapshotCacheKey("source", "HK", hongKongNewYear), "source|HK|2026"; got != want {
+		t.Fatalf("HK snapshot cache key = %q, want %q", got, want)
+	}
+
+	newYorkPreviousYear := time.Date(2026, time.January, 1, 2, 0, 0, 0, time.UTC)
+	if got, want := manager.snapshotCacheKey("source", "US", newYorkPreviousYear), "source|US|2025"; got != want {
+		t.Fatalf("US snapshot cache key = %q, want %q", got, want)
+	}
+}
+
+func TestManagerCurrentTimeNormalizesInjectedClockToUTC(t *testing.T) {
+	local := time.FixedZone("injected", 8*60*60)
+	manager := NewManager(nil, nil, WithClock(func() time.Time {
+		return time.Date(2026, time.June, 20, 9, 30, 0, 0, local)
+	}))
+
+	got := manager.currentTime()
+	want := time.Date(2026, time.June, 20, 1, 30, 0, 0, time.UTC)
+	if !got.Equal(want) {
+		t.Fatalf("currentTime() = %s, want %s", got, want)
+	}
+	if got.Location() != time.UTC {
+		t.Fatalf("currentTime() location = %s, want UTC", got.Location())
+	}
+}

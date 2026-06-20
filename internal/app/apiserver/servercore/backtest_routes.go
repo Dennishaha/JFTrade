@@ -11,8 +11,11 @@ type backtestStartRequest struct {
 	Code              string  `json:"code"`
 	Symbol            string  `json:"symbol"`
 	Interval          string  `json:"interval"`
-	StartTime         string  `json:"startTime"`
-	EndTime           string  `json:"endTime"`
+	StartDate         string  `json:"startDate,omitempty"`
+	EndDate           string  `json:"endDate,omitempty"`
+	StartTime         string  `json:"startTime,omitempty"`
+	EndTime           string  `json:"endTime,omitempty"`
+	MarketTimezone    string  `json:"marketTimezone,omitempty"`
 	InitialBalance    float64 `json:"initialBalance"`
 	RehabType         string  `json:"rehabType"` // "forward" | "backward" | "none"
 	UseExtendedHours  *bool   `json:"useExtendedHours,omitempty"`

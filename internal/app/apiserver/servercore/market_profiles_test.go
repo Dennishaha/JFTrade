@@ -44,6 +44,9 @@ func TestMarketProfilesEndpoint(t *testing.T) {
 	if !byCode["US"].SupportsExtendedHours || byCode["US"].QuoteCurrency != "USD" {
 		t.Fatalf("US profile = %#v", byCode["US"])
 	}
+	if byCode["US"].Timezone != "America/New_York" || byCode["HK"].Timezone != "Asia/Hong_Kong" {
+		t.Fatalf("market timezones = US:%q HK:%q", byCode["US"].Timezone, byCode["HK"].Timezone)
+	}
 	if byCode["HK"].SupportsExtendedHours || byCode["HK"].Precision.Price != 3 {
 		t.Fatalf("HK profile = %#v", byCode["HK"])
 	}

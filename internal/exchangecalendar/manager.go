@@ -160,7 +160,7 @@ func (m *Manager) Status() map[string]any {
 	if len(markets) == 0 {
 		markets = []string{"US", "HK", "CN"}
 	}
-	now := m.now()
+	now := m.currentTime()
 	marketRows := make([]map[string]any, 0, len(markets))
 	for _, market := range normalizeMarkets(markets) {
 		effectiveSource := BuiltinSourceID
@@ -308,7 +308,7 @@ func (m *Manager) refresh(ctx context.Context, targetMarket string) map[string]a
 				continue
 			}
 			visitedSources[source.ID()+"|"+market] = struct{}{}
-			now := m.now().In(loc)
+			now := m.currentTime().In(loc)
 			from := time.Date(now.Year(), time.January, 1, 0, 0, 0, 0, loc)
 			to := time.Date(now.Year()+1, time.December, 31, 23, 59, 59, 0, loc)
 			snapshot, err := source.Fetch(ctx, market, from, to)
@@ -345,7 +345,7 @@ func (m *Manager) refresh(ctx context.Context, targetMarket string) map[string]a
 		"market":        normalizeMarket(targetMarket),
 		"updated":       updated,
 		"failures":      failures,
-		"requestedAt":   m.now().Format(time.RFC3339Nano),
+		"requestedAt":   m.currentTime().Format(time.RFC3339Nano),
 		"warmupMarkets": normalizeMarkets(markets),
 	}
 }
@@ -363,7 +363,7 @@ func (m *Manager) probe(ctx context.Context, targetMarket string) map[string]any
 	results := make([]map[string]any, 0)
 	healthy := 0
 	failures := 0
-	checkedAt := m.now().Format(time.RFC3339Nano)
+	checkedAt := m.currentTime().Format(time.RFC3339Nano)
 	visitedSources := map[string]struct{}{}
 	for _, market := range markets {
 		policy := policyForMarket(settings, market)
@@ -372,7 +372,7 @@ func (m *Manager) probe(ctx context.Context, targetMarket string) map[string]any
 			continue
 		}
 		loc := marketcalendar.LoadLocation(template)
-		now := m.now().In(loc)
+		now := m.currentTime().In(loc)
 		from := time.Date(now.Year(), time.January, 1, 0, 0, 0, 0, loc)
 		to := time.Date(now.Year()+1, time.December, 31, 23, 59, 59, 0, loc)
 		for _, source := range m.registry.OrderedSources(market, policy) {
@@ -503,14 +503,14 @@ func (m *Manager) cacheSnapshot(snapshot marketcalendar.CalendarSnapshot) {
 	if m == nil {
 		return
 	}
-	key := snapshotCacheKey(snapshot.SourceID, snapshot.MarketCode, snapshot.From)
+	key := m.snapshotCacheKey(snapshot.SourceID, snapshot.MarketCode, snapshot.From)
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.snapshots[key] = snapshot
 }
 
 func (m *Manager) cachedSnapshot(sourceID string, market string, day time.Time) (marketcalendar.CalendarSnapshot, bool) {
-	key := snapshotCacheKey(sourceID, market, day)
+	key := m.snapshotCacheKey(sourceID, market, day)
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	snapshot, ok := m.snapshots[key]
@@ -530,7 +530,7 @@ func (m *Manager) overrideSchedule(market string, day time.Time) (marketcalendar
 	for _, source := range m.registry.OrderedSources(market, policy) {
 		for _, candidateMarket := range candidateSnapshotMarkets(market) {
 			snapshot, ok := m.cachedSnapshot(source.ID(), candidateMarket, day)
-			if !ok || !snapshotFresh(snapshot, policy, m.now()) {
+			if !ok || !snapshotFresh(snapshot, policy, m.currentTime()) {
 				continue
 			}
 			if !marketcalendar.SnapshotCoversDay(snapshot, template, day) {
@@ -559,7 +559,7 @@ func (m *Manager) coverageSource(market string, day time.Time) (string, bool) {
 	for _, source := range m.registry.OrderedSources(market, policy) {
 		for _, candidateMarket := range candidateSnapshotMarkets(market) {
 			snapshot, ok := m.cachedSnapshot(source.ID(), candidateMarket, localDay)
-			if !ok || !snapshotFresh(snapshot, policy, m.now()) {
+			if !ok || !snapshotFresh(snapshot, policy, m.currentTime()) {
 				continue
 			}
 			if marketcalendar.SnapshotCoversDay(snapshot, template, localDay) {
@@ -596,7 +596,7 @@ func (m *Manager) recordSuccess(sourceID string, snapshot marketcalendar.Calenda
 	if m == nil {
 		return
 	}
-	now := m.now()
+	now := m.currentTime()
 	var alert *SourceAlert
 	m.mu.Lock()
 	status := m.statuses[sourceID]
@@ -618,7 +618,7 @@ func (m *Manager) recordOperationFailure(sourceID string, err error) {
 	if m == nil {
 		return
 	}
-	now := m.now()
+	now := m.currentTime()
 	m.mu.Lock()
 	status := m.statuses[sourceID]
 	if status == nil {
@@ -642,7 +642,7 @@ func (m *Manager) recordSourceFailure(sourceID string, market string, err error,
 	if m == nil {
 		return
 	}
-	now := m.now()
+	now := m.currentTime()
 	var alert *SourceAlert
 	m.mu.Lock()
 	status := m.statuses[sourceID]
@@ -671,7 +671,7 @@ func (m *Manager) recordProbeSuccess(sourceID string, market string, scheduleCou
 	if m == nil {
 		return
 	}
-	now := m.now()
+	now := m.currentTime()
 	var alert *SourceAlert
 	m.mu.Lock()
 	status := m.statuses[sourceID]
@@ -694,7 +694,7 @@ func (m *Manager) recordProbeFailure(sourceID string, market string, err error, 
 	if m == nil {
 		return
 	}
-	now := m.now()
+	now := m.currentTime()
 	var alert *SourceAlert
 	m.mu.Lock()
 	status := m.statuses[sourceID]
@@ -724,8 +724,21 @@ func (m *Manager) settings() jfsettings.ExchangeCalendarSettings {
 	return m.settingsProvider()
 }
 
-func snapshotCacheKey(sourceID string, market string, at time.Time) string {
-	return fmt.Sprintf("%s|%s|%04d", strings.TrimSpace(sourceID), normalizeMarket(market), at.Year())
+func (m *Manager) currentTime() time.Time {
+	if m == nil || m.now == nil {
+		return time.Now().UTC()
+	}
+	return m.now().UTC()
+}
+
+func (m *Manager) snapshotCacheKey(sourceID string, market string, at time.Time) string {
+	year := at.UTC().Year()
+	if m != nil && m.builtin != nil {
+		if template, ok := m.builtin.Template(normalizeMarket(market)); ok {
+			year = at.In(marketcalendar.LoadLocation(template)).Year()
+		}
+	}
+	return fmt.Sprintf("%s|%s|%04d", strings.TrimSpace(sourceID), normalizeMarket(market), year)
 }
 
 func snapshotFresh(snapshot marketcalendar.CalendarSnapshot, policy jfsettings.ExchangeCalendarSourcePolicy, now time.Time) bool {

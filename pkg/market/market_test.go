@@ -204,6 +204,27 @@ func TestTradingPeriodLabelStart(t *testing.T) {
 	}
 }
 
+func TestTradingDayBoundaryStart(t *testing.T) {
+	nyLoc := mustLocation(t, "America/New_York")
+	hkLoc := mustLocation(t, "Asia/Hong_Kong")
+
+	usStart, ok := TradingDayBoundaryStart("US.AAPL", time.Date(2026, 6, 14, 20, 30, 0, 0, nyLoc), true)
+	if !ok {
+		t.Fatal("expected US overnight trading-day boundary")
+	}
+	if want := time.Date(2026, 6, 15, 0, 0, 0, 0, time.UTC); !usStart.Equal(want) {
+		t.Fatalf("US overnight boundary = %s, want %s", usStart, want)
+	}
+
+	hkStart, ok := TradingDayBoundaryStart("HK.00700", time.Date(2026, 6, 15, 10, 0, 0, 0, hkLoc), true)
+	if !ok {
+		t.Fatal("expected HK trading-day boundary")
+	}
+	if want := time.Date(2026, 6, 14, 16, 0, 0, 0, time.UTC); !hkStart.Equal(want) {
+		t.Fatalf("HK boundary = %s, want %s", hkStart, want)
+	}
+}
+
 func TestSessionAwareIntradayBucketBounds(t *testing.T) {
 	nyLoc := mustLocation(t, "America/New_York")
 	hkLoc := mustLocation(t, "Asia/Hong_Kong")

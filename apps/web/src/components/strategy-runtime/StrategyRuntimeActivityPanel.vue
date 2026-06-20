@@ -5,13 +5,13 @@ import type {
 } from "@/contracts";
 
 import MonacoCodeEditor from "../MonacoCodeEditor.vue";
+import { formatLocalDateTime } from "../../utils/dateTime";
 
 type StrategyActivityTab = "logs" | "audit";
 type StrategyActivityLevel = "all" | "error" | "warning" | "info";
 
 interface StrategyTimestampParts {
     display: string;
-    utc: string;
     timestampMs: number | null;
 }
 
@@ -36,7 +36,7 @@ interface StrategyActivityDetailView {
     summary: string;
     detail: string;
     at: string;
-    utc: string;
+    tooltip: string;
     level: Exclude<StrategyActivityLevel, "all">;
     rawKind?: string;
 }
@@ -53,27 +53,6 @@ const strategyActivityLevelFilter = ref<StrategyActivityLevel>("all");
 const strategyParamsDialogOpen = ref(false);
 const strategyActivityDetailDialogOpen = ref(false);
 const selectedStrategyActivityDetail = ref<StrategyActivityDetailView | null>(null);
-
-const localTimestampFormatter = new Intl.DateTimeFormat("zh-CN", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-});
-
-const utcTimestampFormatter = new Intl.DateTimeFormat("zh-CN", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-    timeZone: "UTC",
-});
 
 const strategyLogViewEntries = computed<StrategyLogViewEntry[]>(() =>
     sortActivityEntriesByTime(props.strategyLogs.map((entry) => parseStrategyLogEntry(entry))),
@@ -185,7 +164,6 @@ function formatTimestampParts(value: unknown): StrategyTimestampParts {
     if (normalized === "") {
         return {
             display: "暂无",
-            utc: "暂无",
             timestampMs: null,
         };
     }
@@ -195,14 +173,12 @@ function formatTimestampParts(value: unknown): StrategyTimestampParts {
         const fallback = normalized.replace("T", " ").replace(".000Z", "Z");
         return {
             display: fallback,
-            utc: fallback,
             timestampMs: null,
         };
     }
 
     return {
-        display: localTimestampFormatter.format(parsed),
-        utc: `${utcTimestampFormatter.format(parsed)} UTC`,
+        display: formatLocalDateTime(parsed, normalized),
         timestampMs: parsed.getTime(),
     };
 }
@@ -212,7 +188,7 @@ function formatTimestamp(value: unknown): string {
 }
 
 function formatTimestampTooltip(value: unknown): string {
-    return formatTimestampParts(value).utc;
+    return formatTimestampParts(value).display;
 }
 
 function sortActivityEntriesByTime<T extends { timestampMs: number | null }>(items: T[]): T[] {
@@ -331,7 +307,7 @@ function buildLogActivityDetail(entry: StrategyLogViewEntry): StrategyActivityDe
         summary: entry.message,
         detail: entry.raw,
         at: formatTimestamp(entry.at),
-        utc: formatTimestampTooltip(entry.at),
+        tooltip: formatTimestampTooltip(entry.at),
         level: entry.level,
     };
 }
@@ -348,7 +324,7 @@ function buildAuditActivityDetail(entry: StrategyAuditViewEntry): StrategyActivi
             `at: ${entry.at}`,
         ].join("\n"),
         at: formatTimestamp(entry.at),
-        utc: formatTimestampTooltip(entry.at),
+        tooltip: formatTimestampTooltip(entry.at),
         level: entry.level,
         rawKind: entry.kind,
     };
@@ -519,15 +495,8 @@ function buildAuditActivityDetail(entry: StrategyAuditViewEntry): StrategyActivi
                     <div class="rounded-3xl bg-slate-50 px-4 py-4">
                         <div class="text-[11px] uppercase tracking-[0.18em] text-slate-500">本地时间</div>
                         <div class="mt-2 text-sm font-medium text-slate-900 strategy-time-display"
-                            :title="selectedStrategyActivityDetail.utc">
+                            :title="selectedStrategyActivityDetail.tooltip">
                             {{ selectedStrategyActivityDetail.at }}
-                        </div>
-                    </div>
-                    <div class="rounded-3xl bg-slate-50 px-4 py-4">
-                        <div class="text-[11px] uppercase tracking-[0.18em] text-slate-500">UTC</div>
-                        <div class="mt-2 text-sm font-medium text-slate-900 strategy-time-display"
-                            :title="selectedStrategyActivityDetail.utc">
-                            {{ selectedStrategyActivityDetail.utc }}
                         </div>
                     </div>
                     <div class="rounded-3xl bg-slate-50 px-4 py-4">

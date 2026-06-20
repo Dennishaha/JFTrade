@@ -7,6 +7,7 @@ import (
 	"time"
 
 	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
+	"github.com/jftrade/jftrade-main/pkg/market"
 )
 
 type strategyRuntimeRiskDecision struct {
@@ -89,7 +90,7 @@ func (e *strategyLiveOrderExecutor) runtimeRiskRejectReason(settings strategyRun
 			return "max_order_notional"
 		}
 	}
-	if settings.DailyMaxOrders != nil && e.manager.todaySubmittedOrderCount(e.instance.ID, time.Now().UTC()) >= *settings.DailyMaxOrders {
+	if settings.DailyMaxOrders != nil && e.manager.todaySubmittedOrderCount(e.instance.ID, command.Symbol, time.Now().UTC()) >= *settings.DailyMaxOrders {
 		return "daily_max_orders"
 	}
 	return ""
@@ -130,19 +131,31 @@ func (r *strategySymbolRuntime) sellableQuantity(symbol string) float64 {
 	return total
 }
 
-func (m *strategyRuntimeManager) todaySubmittedOrderCount(instanceID string, now time.Time) int {
+func (m *strategyRuntimeManager) todaySubmittedOrderCount(instanceID string, symbol string, now time.Time) int {
 	if m == nil || m.server == nil || m.server.strategyRuntimeStore == nil {
 		return 0
 	}
 	count, err := m.server.strategyRuntimeStore.CountAudit(context.Background(), strategyRuntimeAuditQuery{
 		InstanceID: strings.TrimSpace(instanceID),
 		Kind:       "order_submitted",
-		FromAt:     new(time.Date(now.UTC().Year(), now.UTC().Month(), now.UTC().Day(), 0, 0, 0, 0, time.UTC)),
+		FromAt:     new(marketDayStartUTC(symbol, now)),
 	})
 	if err != nil {
 		return 0
 	}
 	return count
+}
+
+func marketDayStartUTC(symbol string, now time.Time) time.Time {
+	if start, ok := market.TradingDayBoundaryStart(symbol, now, true); ok {
+		return start
+	}
+	location := time.UTC
+	if profile, ok := market.ProfileForSymbol(symbol); ok && profile.Location != nil {
+		location = profile.Location
+	}
+	local := now.In(location)
+	return time.Date(local.Year(), local.Month(), local.Day(), 0, 0, 0, 0, location).UTC()
 }
 
 func strategyRuntimeOptionalFloatLabel(value *float64) string {

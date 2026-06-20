@@ -39,6 +39,8 @@ type indicatorRuntime struct {
 	cciStates            map[int]*rollingCCIState
 	williamsRStates      map[int]*rollingWilliamsRState
 	obvStates            map[advancedIndicatorConfig]*rollingCumState
+	vwapStates           map[sourceConfig]*rollingVWAPState
+	anchoredVWAPStates   map[advancedIndicatorConfig]*rollingVWAPState
 	opens                []float64
 	highs                []float64
 	lows                 []float64
@@ -396,6 +398,7 @@ func newIndicatorRuntimeWithRequirements(requirements indicatorRequirements, int
 	normalizedSymbol := strings.ToUpper(strings.TrimSpace(symbol))
 	intervalMinutes := resolveIntervalMinutes(interval)
 	seriesLimit := calculateIndicatorSeriesLimit(requirements, intervalMinutes)
+	vwapStates, anchoredVWAPStates := newRollingVWAPStates(requirements)
 	runtime := &indicatorRuntime{
 		requirements:         requirements,
 		symbol:               normalizedSymbol,
@@ -420,6 +423,8 @@ func newIndicatorRuntimeWithRequirements(requirements indicatorRequirements, int
 		cciStates:            newRollingCCIStates(requirements),
 		williamsRStates:      newRollingWilliamsRStates(requirements),
 		obvStates:            newOBVStates(requirements),
+		vwapStates:           vwapStates,
+		anchoredVWAPStates:   anchoredVWAPStates,
 	}
 	if seriesLimit > 0 {
 		runtime.opens = make([]float64, 0, seriesLimit)
@@ -499,6 +504,7 @@ func (r *indicatorRuntime) push(kline types.KLine, session market.Session) {
 	r.pushCCIStates(highValue, lowValue, closeValue)
 	r.pushWilliamsRStates(highValue, lowValue, closeValue)
 	r.pushOBVStates(openValue, highValue, lowValue, closeValue, volumeValue, oldFirst, hasPreviousClose)
+	r.pushVWAPStates(openValue, highValue, lowValue, closeValue, volumeValue, kline.EndTime.Time())
 }
 
 func (r *indicatorRuntime) snapshot() map[string]any {
@@ -628,7 +634,7 @@ func (r *indicatorRuntime) snapshot() map[string]any {
 	}
 	for _, config := range r.requirements.vwap {
 		key := r.snapshotKeys.vwap[config]
-		current, currentOK := calculateSessionVWAP(r.seriesForSource(config.source), r.volumes, r.endTimes)
+		current, currentOK := r.vwapStates[config].value()
 		result[key] = cache.getScalarSnapshot(key, current, currentOK)
 	}
 	for _, config := range r.requirements.mfi {

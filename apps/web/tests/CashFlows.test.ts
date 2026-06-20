@@ -28,6 +28,7 @@ import {
   emptyStorageOverview,
   emptySystemStatus,
 } from "@/contracts";
+import { formatLocalDateTime } from "@/utils/dateTime";
 
 import {
   MockWebSocket,
@@ -262,7 +263,7 @@ describe("Console Stream", () => {
 
     expect(fetchMock.mock.calls.length).toBeGreaterThan(initialFetchCount);
     expect(wrapper.text()).toContain("事件流");
-    expect(wrapper.text()).toContain("2026-05-17T00:02:00.000Z");
+    expect(wrapper.text()).toContain(formatLocalDateTime("2026-05-17T00:02:00.000Z"));
 
     wrapper.unmount();
     expect(consoleStream?.closed).toBe(true);

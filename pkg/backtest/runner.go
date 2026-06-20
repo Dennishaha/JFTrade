@@ -33,8 +33,8 @@ func Run(ctx context.Context, cfg RunConfig) *RunResult {
 	result := &RunResult{
 		Symbol:    cfg.Symbol,
 		Interval:  cfg.Interval,
-		StartTime: cfg.StartTime.Format(time.RFC3339),
-		EndTime:   cfg.EndTime.Format(time.RFC3339),
+		StartTime: cfg.StartTime.UTC().Format(time.RFC3339Nano),
+		EndTime:   cfg.EndTime.UTC().Format(time.RFC3339Nano),
 	}
 
 	// ── 1. Open K-line store ────────────────────────────────────────

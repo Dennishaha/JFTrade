@@ -71,7 +71,7 @@ func (c *resultCollector) onOrderUpdate(order types.Order) {
 			price = order.Price
 		}
 		c.result.Trades = append(c.result.Trades, TradeEvent{
-			Time:  order.UpdateTime.Time().Format(time.RFC3339),
+			Time:  order.UpdateTime.Time().UTC().Format(time.RFC3339Nano),
 			Side:  string(order.Side),
 			Price: price.String(),
 			Qty:   order.Quantity.String(),
@@ -115,13 +115,13 @@ func (c *resultCollector) recordOrderBookEntry(order types.Order) {
 	eventTime := order.UpdateTime.Time().UTC()
 	if !eventTime.IsZero() && (state.submittedTime.IsZero() || eventTime.Before(state.submittedTime)) {
 		state.submittedTime = eventTime
-		state.entry.SubmittedAt = eventTime.Format(time.RFC3339)
+		state.entry.SubmittedAt = eventTime.Format(time.RFC3339Nano)
 	}
 
 	if order.Status == types.OrderStatusFilled {
 		if !eventTime.IsZero() && (state.filledTime.IsZero() || state.filledTime.Before(eventTime)) {
 			state.filledTime = eventTime
-			state.entry.FilledAt = eventTime.Format(time.RFC3339)
+			state.entry.FilledAt = eventTime.Format(time.RFC3339Nano)
 		}
 		state.entry.FilledQuantity = order.Quantity.String()
 		price := order.AveragePrice
@@ -167,7 +167,7 @@ func (c *resultCollector) onKLineClosed(ctx context.Context, exchange accountQue
 	if endAt.Before(c.warmupUntil) {
 		return
 	}
-	timestamp := endAt.Format(time.RFC3339)
+	timestamp := endAt.UTC().Format(time.RFC3339Nano)
 	if kline.Interval == c.strategyInterval {
 		c.candles = append(c.candles, Candle{
 			Time:   timestamp,

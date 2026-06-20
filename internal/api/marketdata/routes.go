@@ -176,7 +176,7 @@ func normalizeOptionalQueryTime(value string) string {
 	if parsed.IsZero() {
 		return ""
 	}
-	return parsed.Format(time.RFC3339Nano)
+	return parsed.UTC().Format(time.RFC3339Nano)
 }
 
 // handleDepth godoc

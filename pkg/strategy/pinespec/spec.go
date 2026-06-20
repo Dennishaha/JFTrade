@@ -792,7 +792,7 @@ func indicatorFunctions() []map[string]any {
 	return []map[string]any{
 		{"name": "input.*", "signature": "input(defval) / input.int/float/bool/string/source/time/timeframe/color(defval, title?)", "notes": "只取默认值；input.source 第一版应使用 open/high/low/close/volume/hl2/hlc3/ohlc4；input.timeframe 可用于受支持的 request.security timeframe。"},
 		{"name": "math.*", "signature": "math.abs/min/max/avg/round/round_to_mintick/floor/ceil/sqrt/pow/log/sign", "notes": "lower 到同名表达式函数；round_to_mintick 按当前市场 tick size 四舍五入，缺省 tick 为 0.01。"},
-		{"name": "timestamp", "signature": "timestamp(year, month, day[, hour, minute])", "notes": "返回 Unix milliseconds；第一版不支持 timezone 参数。"},
+		{"name": "timestamp", "signature": "timestamp(year, month, day[, hour, minute])", "notes": "按当前标的交易所时区解释并返回 Unix milliseconds；第一版不支持显式 timezone 参数。"},
 		{"name": "ta.ema", "signature": "ta.ema(source, period)", "notes": "source 支持 open/high/low/close/volume/hl2/hlc3/ohlc4；close 保持 legacy key。"},
 		{"name": "ta.sma", "signature": "ta.sma(source, period)", "notes": "source 支持 open/high/low/close/volume/hl2/hlc3/ohlc4；volume SMA 不会再误当 close SMA。"},
 		{"name": "ta.rma/ta.wma/ta.hma/ta.vwma", "signature": "ta.<ma>(source, period)", "notes": "source 支持 open/high/low/close/volume/hl2/hlc3/ohlc4。"},
@@ -1008,7 +1008,7 @@ func sectionDetails(section string) []string {
 			"barstate.isfirst/isnew/isconfirmed/ishistory/isrealtime/islast 和 session.ismarket/ispremarket/ispostmarket 会 lower 为 closed-bar runtime 状态。",
 			"dayofweek.sunday...saturday、month.january...december、color.*、color.new(...)、color.rgb(...) 支持常见默认值兼容。",
 			"syminfo.tickerid、syminfo.prefix、timeframe.period 和 timeframe.isintraday/isminutes/isdaily/isweekly/ismonthly 可在普通表达式中读取。",
-			"timestamp(year, month, day[, hour, minute]) 返回 Unix milliseconds；不支持 timezone 参数。",
+			"timestamp(year, month, day[, hour, minute]) 按当前标的交易所时区解释并返回 Unix milliseconds；不支持显式 timezone 参数。",
 			"ta.crossover/ta.crossunder/ta.cross 会映射到 JFTrade cross_over/cross_under。",
 			"math.abs/min/max/avg/round/round_to_mintick/floor/ceil/sqrt/pow/log/sign 会映射到 JFTrade 表达式函数。",
 			"未知 built-ins 可能无法 lower，应先调用 strategy.validate_pine。",

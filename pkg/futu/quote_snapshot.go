@@ -57,7 +57,7 @@ func tickerFromBasicQot(basicQot *qotcommonpb.BasicQot) *types.Ticker {
 	}
 	snapshot := quoteSnapshotFromBasicQot(basicQot, canonical)
 	lastPrice := fixedpointFromDecimal(snapshot.Price)
-	resolvedAt := futuQuoteTime(basicQot.GetUpdateTimestamp(), basicQot.GetUpdateTime())
+	resolvedAt := futuQuoteTime(basicQot.GetUpdateTimestamp(), basicQot.GetUpdateTime(), canonical)
 	return &types.Ticker{
 		Time:   resolvedAt,
 		Volume: fixedpoint.NewFromFloat(snapshot.Volume),
@@ -75,7 +75,7 @@ func quoteSnapshotFromBasicQot(basicQot *qotcommonpb.BasicQot, canonical string)
 }
 
 func quoteSnapshotFromBasicQotAt(basicQot *qotcommonpb.BasicQot, canonical string, now time.Time) *QuoteSnapshot {
-	quoteAt := futuQuoteTime(basicQot.GetUpdateTimestamp(), basicQot.GetUpdateTime()).UTC()
+	quoteAt := futuQuoteTimeAt(basicQot.GetUpdateTimestamp(), basicQot.GetUpdateTime(), canonical, now)
 	quoteTime := quoteAt.Format(time.RFC3339Nano)
 	preMarket := extendedMarketQuoteFromProto(basicQot.GetPreMarket(), quoteTime)
 	afterMarket := extendedMarketQuoteFromProto(basicQot.GetAfterMarket(), quoteTime)
@@ -190,17 +190,28 @@ func sessionFromExtendedBlocksAt(canonical string, preMarket, afterMarket, overn
 	return clockSession
 }
 
-func futuQuoteTime(timestamp float64, fallback string) time.Time {
+func futuQuoteTime(timestamp float64, fallback string, symbol string) time.Time {
+	return futuQuoteTimeAt(timestamp, fallback, symbol, time.Now().UTC())
+}
+
+func futuQuoteTimeAt(timestamp float64, fallback string, symbol string, recordedAt time.Time) time.Time {
 	if timestamp > 0 {
 		seconds := int64(timestamp)
 		nanos := int64((timestamp - float64(seconds)) * 1e9)
-		return time.Unix(seconds, nanos)
+		return time.Unix(seconds, nanos).UTC()
+	}
+	loc := time.UTC
+	if profile, ok := market.ProfileForSymbol(symbol); ok && profile.Location != nil {
+		loc = profile.Location
 	}
 	for _, layout := range []string{time.RFC3339Nano, time.RFC3339, "2006-01-02 15:04:05", "2006-01-02"} {
-		parsed, err := time.ParseInLocation(layout, fallback, time.Local)
+		parsed, err := time.ParseInLocation(layout, fallback, loc)
 		if err == nil {
-			return parsed
+			return parsed.UTC()
 		}
 	}
-	return time.Now()
+	if recordedAt.IsZero() {
+		recordedAt = time.Now().UTC()
+	}
+	return recordedAt.UTC()
 }

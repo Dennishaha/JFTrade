@@ -69,9 +69,11 @@ func (p *ReplayPublisher) Publish(note Notification) *Event {
 	}
 
 	recordedAt := p.now().UTC()
-	at := strings.TrimSpace(note.At)
-	if at == "" {
-		at = recordedAt.Format(time.RFC3339Nano)
+	at := recordedAt.Format(time.RFC3339Nano)
+	if explicitAt := strings.TrimSpace(note.At); explicitAt != "" {
+		if parsed, err := time.Parse(time.RFC3339Nano, explicitAt); err == nil {
+			at = parsed.UTC().Format(time.RFC3339Nano)
+		}
 	}
 
 	p.sequence++

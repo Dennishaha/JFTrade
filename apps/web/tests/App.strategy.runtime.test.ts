@@ -136,7 +136,7 @@ describe("Strategy page", () => {
 
     const createdAt = wrapper.get('[data-testid="strategy-instance-1"]').find('.strategy-time-display')
     expect(createdAt.text()).not.toContain("T")
-    expect(createdAt.attributes("title")).toContain("UTC")
+    expect(createdAt.attributes("title")).toBe(createdAt.text())
 
     expect(wrapper.get('[data-testid="strategy-status-instance-1"]').classes()).toContain("strategy-status-badge--running")
     expect(wrapper.get('[data-testid="strategy-status-instance-2"]').classes()).toContain("strategy-status-badge--paused")
@@ -212,7 +212,7 @@ describe("Strategy page", () => {
 
     const logTime = wrapper.get('[data-testid="strategy-log-entry-0"]').find('.strategy-time-display')
     expect(logTime.text()).not.toContain("T")
-    expect(logTime.attributes("title")).toContain("UTC")
+    expect(logTime.attributes("title")).toBe(logTime.text())
 
     await wrapper.get('[data-testid="strategy-log-detail-trigger-0"]').trigger("click")
     await settleStrategyWorkspace()
@@ -239,7 +239,8 @@ describe("Strategy page", () => {
     expect(wrapper.get('[data-testid="strategy-audit-entry-0"]').text()).toContain("runtime ready")
     expect(wrapper.get('[data-testid="strategy-audit-entry-1"]').text()).toContain("manual guardrail pause")
     expect(wrapper.get('[data-testid="strategy-audit-entry-2"]').text()).toContain("order rejected for HK.00700")
-    expect(wrapper.get('[data-testid="strategy-audit-entry-0"]').find('.strategy-time-display').attributes("title")).toContain("UTC")
+    const auditTime = wrapper.get('[data-testid="strategy-audit-entry-0"]').find('.strategy-time-display')
+    expect(auditTime.attributes("title")).toBe(auditTime.text())
 
     await wrapper.get('[data-testid="strategy-audit-detail-trigger-0"]').trigger("click")
     await settleStrategyWorkspace()
@@ -786,7 +787,7 @@ describe("Strategy page", () => {
     const runtimeTimes = wrapper.get('[data-testid="strategy-runtime-observation"]').findAll('.strategy-time-display')
     expect(runtimeTimes.length).toBeGreaterThan(0)
     expect(runtimeTimes[0].text()).not.toContain("T")
-    expect(runtimeTimes[0].attributes("title")).toContain("UTC")
+    expect(runtimeTimes[0].attributes("title")).toBe(runtimeTimes[0].text())
     expect(wrapper.text()).toContain("network glitch")
 
     wrapper.unmount()

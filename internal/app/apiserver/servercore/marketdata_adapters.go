@@ -23,6 +23,7 @@ func newMarketdataProvider(s *Server) mdsrv.Provider {
 					"preferredPrefix":        d.PreferredPrefix,
 					"displayName":            d.DisplayName,
 					"quoteCurrency":          d.QuoteCurrency,
+					"timezone":               d.Timezone,
 					"supportsExtendedHours":  d.SupportsExtendedHours,
 					"requiresExchangePrefix": d.RequiresExchangePrefix,
 					"aliases":                d.Aliases,

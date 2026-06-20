@@ -110,14 +110,14 @@ type StrategyDefinitionInput struct {
 }
 
 type BacktestStartInput struct {
-	DefinitionID, Market, Symbol, Code, Interval, StartTime, EndTime, RehabType string
-	InitialBalance                                                              float64
+	DefinitionID, Market, Symbol, Code, Interval, StartDate, EndDate, StartTime, EndTime, RehabType string
+	InitialBalance                                                                                  float64
 }
 
 type ResearchBacktestInput struct {
-	Script, Market, Symbol, Code, Interval, StartTime, EndTime, RehabType string
-	InitialBalance                                                        float64
-	UseExtendedHours                                                      *bool
+	Script, Market, Symbol, Code, Interval, StartDate, EndDate, StartTime, EndTime, RehabType string
+	InitialBalance                                                                            float64
+	UseExtendedHours                                                                          *bool
 }
 
 type BacktestResultViewInput struct {
@@ -131,11 +131,11 @@ type BacktestRunRef struct {
 }
 
 type BacktestRunSummary struct {
-	ID, Status, DefinitionID, DefinitionVersion, Market, Code, Symbol, Interval, StartTime, EndTime string
-	RehabType, CreatedAt, UpdatedAt                                                                 string
-	InitialBalance                                                                                  float64
-	UseExtendedHours                                                                                *bool
-	Result                                                                                          *backtest.RunResult
+	ID, Status, DefinitionID, DefinitionVersion, Market, Code, Symbol, Interval             string
+	StartDate, EndDate, StartTime, EndTime, MarketTimezone, RehabType, CreatedAt, UpdatedAt string
+	InitialBalance                                                                          float64
+	UseExtendedHours                                                                        *bool
+	Result                                                                                  *backtest.RunResult
 }
 
 func NewADKRuntime(settingsPath string, deps RuntimeDeps) *jfadk.Runtime {
@@ -316,6 +316,8 @@ func registerJFTradeADKStrategyTools(store *jfadk.Store, registry *jfadk.ToolReg
 			Symbol:           stringValue(input, "symbol"),
 			Code:             stringValue(input, "code"),
 			Interval:         stringOrDefault(stringValue(input, "interval"), "1m"),
+			StartDate:        stringValue(input, "startDate"),
+			EndDate:          stringValue(input, "endDate"),
 			StartTime:        stringValue(input, "startTime"),
 			EndTime:          stringValue(input, "endTime"),
 			InitialBalance:   floatValue(input, "initialBalance", 0),
@@ -441,7 +443,7 @@ func registerJFTradeADKStrategyTools(store *jfadk.Store, registry *jfadk.ToolReg
 		runs := make([]map[string]any, 0, len(definitionIDs))
 		runRefs := make([]jfadk.OptimizationRunRef, 0, len(definitionIDs))
 		for _, definitionID := range definitionIDs {
-			run, err := deps.EnqueueBacktest(BacktestStartInput{DefinitionID: definitionID, Market: stringValue(input, "market"), Symbol: stringValue(input, "symbol"), Code: stringValue(input, "code"), Interval: stringOrDefault(stringValue(input, "interval"), "1m"), StartTime: stringValue(input, "startTime"), EndTime: stringValue(input, "endTime"), InitialBalance: floatValue(input, "initialBalance", 0), RehabType: stringOrDefault(stringValue(input, "rehabType"), "forward")})
+			run, err := deps.EnqueueBacktest(BacktestStartInput{DefinitionID: definitionID, Market: stringValue(input, "market"), Symbol: stringValue(input, "symbol"), Code: stringValue(input, "code"), Interval: stringOrDefault(stringValue(input, "interval"), "1m"), StartDate: stringValue(input, "startDate"), EndDate: stringValue(input, "endDate"), StartTime: stringValue(input, "startTime"), EndTime: stringValue(input, "endTime"), InitialBalance: floatValue(input, "initialBalance", 0), RehabType: stringOrDefault(stringValue(input, "rehabType"), "forward")})
 			if err != nil {
 				for _, queued := range runRefs {
 					deps.CancelBacktest(queued.RunID)
@@ -740,7 +742,7 @@ func SummarizeADKBacktestRuns(runs []BacktestRunSummary) map[string]any {
 }
 
 func summarizeADKBacktestRun(run BacktestRunSummary) map[string]any {
-	summary := map[string]any{"id": run.ID, "status": run.Status, "definitionId": run.DefinitionID, "definitionVersion": run.DefinitionVersion, "market": run.Market, "code": run.Code, "symbol": run.Symbol, "interval": run.Interval, "startTime": run.StartTime, "endTime": run.EndTime, "initialBalance": run.InitialBalance, "rehabType": run.RehabType, "createdAt": run.CreatedAt, "updatedAt": run.UpdatedAt}
+	summary := map[string]any{"id": run.ID, "status": run.Status, "definitionId": run.DefinitionID, "definitionVersion": run.DefinitionVersion, "market": run.Market, "code": run.Code, "symbol": run.Symbol, "interval": run.Interval, "startDate": run.StartDate, "endDate": run.EndDate, "startTime": run.StartTime, "endTime": run.EndTime, "marketTimezone": run.MarketTimezone, "initialBalance": run.InitialBalance, "rehabType": run.RehabType, "createdAt": run.CreatedAt, "updatedAt": run.UpdatedAt}
 	if run.UseExtendedHours != nil {
 		summary["useExtendedHours"] = *run.UseExtendedHours
 	}

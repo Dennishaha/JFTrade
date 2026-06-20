@@ -5,6 +5,8 @@ import (
 	"time"
 
 	"github.com/c9s/bbgo/pkg/types"
+
+	"github.com/jftrade/jftrade-main/pkg/market"
 )
 
 func pineBarTime(kline *types.KLine) time.Time {
@@ -49,6 +51,27 @@ func (s *evaluationScope) runtimeInterval() types.Interval {
 
 func pineDayOfWeek(value time.Time) int {
 	return int(value.Weekday()) + 1
+}
+
+func pineExchangeTime(scope *evaluationScope, value time.Time) time.Time {
+	return value.In(pineExchangeLocation(scope))
+}
+
+func pineExchangeLocation(scope *evaluationScope) *time.Location {
+	symbol := ""
+	if scope != nil {
+		symbol = strings.TrimSpace(scope.currentKlineSymbol)
+		if symbol == "" && scope.currentKline != nil {
+			symbol = strings.TrimSpace(scope.currentKline.Symbol)
+		}
+		if symbol == "" && scope.runtime != nil {
+			symbol = strings.TrimSpace(scope.runtime.symbol)
+		}
+	}
+	if profile, ok := market.ProfileForSymbol(symbol); ok && profile.Location != nil {
+		return profile.Location
+	}
+	return time.UTC
 }
 
 func pineSymbolPrefix(symbol string) string {

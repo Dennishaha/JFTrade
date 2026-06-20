@@ -68,17 +68,17 @@ func (s *Server) marketCandlesResponseForInstrument(ctx context.Context, market 
 	limit := query.limitOrDefault(200, 1000)
 	fromTime := ""
 	if !query.FromTime.IsZero() {
-		fromTime = query.FromTime.Format(time.RFC3339Nano)
+		fromTime = query.FromTime.UTC().Format(time.RFC3339Nano)
 	}
 	if !query.From.IsZero() {
-		fromTime = query.From.Format(time.RFC3339Nano)
+		fromTime = query.From.UTC().Format(time.RFC3339Nano)
 	}
 	toTime := ""
 	if !query.ToTime.IsZero() {
-		toTime = query.ToTime.Format(time.RFC3339Nano)
+		toTime = query.ToTime.UTC().Format(time.RFC3339Nano)
 	}
 	if !query.To.IsZero() {
-		toTime = query.To.Format(time.RFC3339Nano)
+		toTime = query.To.UTC().Format(time.RFC3339Nano)
 	}
 	response, err := s.marketdataSvc.GetCandles(ctx, market, symbol, period, limit, fromTime, toTime)
 	return map[string]any(response), err

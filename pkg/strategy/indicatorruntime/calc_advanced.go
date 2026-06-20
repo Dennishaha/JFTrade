@@ -36,11 +36,11 @@ func (r *indicatorRuntime) pushOBVStates(openValue, high, low, closeValue, volum
 }
 
 func (r *indicatorRuntime) advancedIndicatorSnapshot(config advancedIndicatorConfig, cache *snapshotSeriesCache) any {
-	values := r.seriesForSource(config.source)
 	if config.kind == "anchored_vwap" {
-		value, ok := calculateAnchoredVWAP(values, r.volumes, r.endTimes, config.timeUnit)
+		value, ok := r.anchoredVWAPStates[config].value()
 		return cache.getScalarSnapshot(config.key, value, ok)
 	}
+	values := r.seriesForSource(config.source)
 	if config.timeUnit != "" {
 		aggregated, _, ok := r.fixedTimeframeSeries(config.timeUnit, config.source)
 		if !ok {

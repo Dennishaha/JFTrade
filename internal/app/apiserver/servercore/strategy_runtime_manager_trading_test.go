@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	trdsrv "github.com/jftrade/jftrade-main/internal/trading"
 	"github.com/jftrade/jftrade-main/pkg/broker"
@@ -514,5 +515,53 @@ func TestStrategyRuntimeDisconnectedBrokerRefreshKeepsCachedState(t *testing.T) 
 	}
 	if observation.LastError != nil {
 		t.Fatalf("expected runtime observation without lastError after disconnected refresh, got %+v", observation)
+	}
+}
+
+func TestMarketDayStartUTCUsesOrderSymbolTimezone(t *testing.T) {
+	now := time.Date(2026, time.January, 1, 2, 0, 0, 0, time.UTC)
+	if got, want := marketDayStartUTC("US.AAPL", now), time.Date(2025, time.December, 31, 5, 0, 0, 0, time.UTC); !got.Equal(want) {
+		t.Fatalf("US day start = %s, want %s", got, want)
+	}
+	if got, want := marketDayStartUTC("HK.00700", now), time.Date(2025, time.December, 31, 16, 0, 0, 0, time.UTC); !got.Equal(want) {
+		t.Fatalf("HK day start = %s, want %s", got, want)
+	}
+
+	ny, err := time.LoadLocation("America/New_York")
+	if err != nil {
+		t.Fatal(err)
+	}
+	overnight := time.Date(2026, time.June, 14, 20, 30, 0, 0, ny)
+	if got, want := marketDayStartUTC("US.AAPL", overnight), time.Date(2026, time.June, 15, 0, 0, 0, 0, time.UTC); !got.Equal(want) {
+		t.Fatalf("US overnight day start = %s, want %s", got, want)
+	}
+}
+
+func TestTodaySubmittedOrderCountKeepsInstanceScopeWithinOrderMarketDay(t *testing.T) {
+	runtimeStore, err := NewStrategyRuntimeStore(filepath.Join(t.TempDir(), "strategy-runtime.db"))
+	if err != nil {
+		t.Fatalf("NewStrategyRuntimeStore: %v", err)
+	}
+	t.Cleanup(func() { jftradeCheckTestError(t, runtimeStore.Close()) })
+	manager := &strategyRuntimeManager{server: &Server{strategyRuntimeStore: runtimeStore}}
+	instanceID := "multi-market-instance"
+	for _, at := range []time.Time{
+		time.Date(2025, time.December, 31, 6, 0, 0, 0, time.UTC),
+		time.Date(2025, time.December, 31, 17, 0, 0, 0, time.UTC),
+	} {
+		if err := runtimeStore.AppendAudit(t.Context(), strategyRuntimeAuditEvent{
+			InstanceID: instanceID,
+			Kind:       "order_submitted",
+			At:         at,
+		}); err != nil {
+			t.Fatalf("AppendAudit(%s): %v", at, err)
+		}
+	}
+	now := time.Date(2026, time.January, 1, 2, 0, 0, 0, time.UTC)
+	if got := manager.todaySubmittedOrderCount(instanceID, "US.AAPL", now); got != 2 {
+		t.Fatalf("US market-day instance order count = %d, want 2", got)
+	}
+	if got := manager.todaySubmittedOrderCount(instanceID, "HK.00700", now); got != 1 {
+		t.Fatalf("HK market-day instance order count = %d, want 1", got)
 	}
 }

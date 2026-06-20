@@ -47,8 +47,8 @@ strategy.entry("Long", strategy.long, qty=1)`,
 		"market":           "US",
 		"code":             "AAPL",
 		"interval":         "1m",
-		"startTime":        time.Date(2026, time.May, 26, 9, 30, 0, 0, time.UTC).Format(time.RFC3339),
-		"endTime":          time.Date(2026, time.May, 26, 9, 31, 0, 0, time.UTC).Format(time.RFC3339),
+		"startDate":        "2026-03-08",
+		"endDate":          "2026-03-08",
 		"initialBalance":   10000,
 		"rehabType":        "forward",
 		"useExtendedHours": true,
@@ -78,6 +78,15 @@ strategy.entry("Long", strategy.long, qty=1)`,
 	}
 	if runs[0].Request.InitialBalance != 10000 {
 		t.Fatalf("explicit initialBalance = %v, want 10000", runs[0].Request.InitialBalance)
+	}
+	if runs[0].Request.StartDate != "2026-03-08" || runs[0].Request.EndDate != "2026-03-08" {
+		t.Fatalf("market date labels were not persisted: %+v", runs[0].Request)
+	}
+	if runs[0].Request.MarketTimezone != "America/New_York" {
+		t.Fatalf("market timezone = %q, want America/New_York", runs[0].Request.MarketTimezone)
+	}
+	if runs[0].Request.StartTime != "2026-03-08T05:00:00Z" || runs[0].Request.EndTime != "2026-03-09T03:59:59.999999999Z" {
+		t.Fatalf("DST-normalized UTC range = %s..%s", runs[0].Request.StartTime, runs[0].Request.EndTime)
 	}
 }
 

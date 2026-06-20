@@ -146,8 +146,11 @@ interface BacktestRun {
     code?: string;
     symbol: string;
     interval: string;
+    startDate?: string;
+    endDate?: string;
     startTime: string;
     endTime: string;
+    marketTimezone?: string;
     initialBalance: number;
     rehabType?: string;
     useExtendedHours?: boolean;
@@ -167,8 +170,11 @@ interface BacktestRunTransport {
     code?: string;
     symbol: string;
     interval: string;
+    startDate?: string;
+    endDate?: string;
     startTime: string;
     endTime: string;
+    marketTimezone?: string;
     initialBalance: number;
     rehabType?: string;
     useExtendedHours?: boolean;
@@ -185,10 +191,8 @@ export interface BacktestFormState {
   code: string;
   instrumentId: string;
   interval: string;
-  syncStartTime: string;
-  syncEndTime: string;
-  backtestStartTime: string;
-  backtestEndTime: string;
+  startDate: string;
+  endDate: string;
   initialBalance: number;
   rehabType: string;
   useExtendedHours: boolean;
@@ -217,6 +221,41 @@ async function resolveBacktestInstrumentPayload(
 
 function resolveSyncSessionScope(formState: Pick<BacktestFormState, "useExtendedHours">): "regular" | "extended" {
   return formState.useExtendedHours ? "extended" : "regular";
+}
+
+export function buildBacktestStartRequestPayload(
+  formState: BacktestFormState,
+  instrument: { market: string; code: string; symbol: string },
+): BacktestStartRequestPayload {
+  return {
+    definitionId: formState.definitionId,
+    definitionVersion: formState.definitionVersion,
+    market: instrument.market,
+    code: instrument.code,
+    symbol: instrument.symbol,
+    interval: formState.interval,
+    startDate: formState.startDate,
+    endDate: formState.endDate,
+    initialBalance: formState.initialBalance,
+    rehabType: formState.rehabType,
+    useExtendedHours: formState.useExtendedHours,
+  };
+}
+
+export function buildBacktestSyncRequestPayload(
+  formState: BacktestFormState,
+  instrument: { market: string; code: string; symbol: string },
+): BacktestSyncRequestPayload {
+  return {
+    market: instrument.market,
+    code: instrument.code,
+    symbol: instrument.symbol,
+    intervals: [formState.interval],
+    startDate: formState.startDate,
+    endDate: formState.endDate,
+    rehabType: formState.rehabType,
+    sessionScope: resolveSyncSessionScope(formState),
+  };
 }
 
 export function useBacktestRuns(options: UseBacktestRunsOptions) {
@@ -459,16 +498,7 @@ export function useBacktestRuns(options: UseBacktestRunsOptions) {
         syncing.value = false;
         return;
       }
-      const payload: BacktestSyncRequestPayload = {
-        market: instrument.market,
-        code: instrument.code,
-        symbol: instrument.symbol,
-        intervals: [formState.interval],
-        since: formState.syncStartTime,
-        until: formState.syncEndTime,
-        rehabType: formState.rehabType,
-        sessionScope: resolveSyncSessionScope(formState),
-      };
+      const payload = buildBacktestSyncRequestPayload(formState, instrument);
       const data = await fetchEnvelopeWithInit<{ taskId: string; message: string }>(
         "/api/v1/backtests/sync",
         {
@@ -550,19 +580,7 @@ export function useBacktestRuns(options: UseBacktestRunsOptions) {
         error.value = "启动回测失败: 请先输入有效的市场与代码";
         return;
       }
-      const payload: BacktestStartRequestPayload = {
-        definitionId: formState.definitionId,
-        definitionVersion: formState.definitionVersion,
-        market: instrument.market,
-        code: instrument.code,
-        symbol: instrument.symbol,
-        interval: formState.interval,
-        startTime: formState.backtestStartTime,
-        endTime: formState.backtestEndTime,
-        initialBalance: formState.initialBalance,
-        rehabType: formState.rehabType,
-        useExtendedHours: formState.useExtendedHours,
-      };
+      const payload = buildBacktestStartRequestPayload(formState, instrument);
       const data = await fetchEnvelopeWithInit<{ id: string; status: string }>(
         "/api/v1/backtests",
         {

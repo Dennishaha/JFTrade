@@ -121,32 +121,32 @@ func (s *evaluationScope) reservedVariable(name string) (any, bool) {
 		if s.currentKline == nil {
 			return nil, false
 		}
-		return float64(pineBarTime(s.currentKline).Hour()), true
+		return float64(pineExchangeTime(s, pineBarTime(s.currentKline)).Hour()), true
 	case "minute":
 		if s.currentKline == nil {
 			return nil, false
 		}
-		return float64(pineBarTime(s.currentKline).Minute()), true
+		return float64(pineExchangeTime(s, pineBarTime(s.currentKline)).Minute()), true
 	case "dayofweek":
 		if s.currentKline == nil {
 			return nil, false
 		}
-		return float64(pineDayOfWeek(pineBarTime(s.currentKline))), true
+		return float64(pineDayOfWeek(pineExchangeTime(s, pineBarTime(s.currentKline)))), true
 	case "dayofmonth":
 		if s.currentKline == nil {
 			return nil, false
 		}
-		return float64(pineBarTime(s.currentKline).Day()), true
+		return float64(pineExchangeTime(s, pineBarTime(s.currentKline)).Day()), true
 	case "month":
 		if s.currentKline == nil {
 			return nil, false
 		}
-		return float64(pineBarTime(s.currentKline).Month()), true
+		return float64(pineExchangeTime(s, pineBarTime(s.currentKline)).Month()), true
 	case "year":
 		if s.currentKline == nil {
 			return nil, false
 		}
-		return float64(pineBarTime(s.currentKline).Year()), true
+		return float64(pineExchangeTime(s, pineBarTime(s.currentKline)).Year()), true
 	case "syminfo_tickerid":
 		if s.runtime == nil {
 			return "", true

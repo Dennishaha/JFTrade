@@ -1,20 +1,18 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  buildBacktestDayInclusiveEndTime,
-  buildBacktestDayStartTime,
+  normalizeBacktestDateLabel,
 } from "../src/pages/backtestTimeWindow";
 
 describe("backtest time window helpers", () => {
-  it("builds a UTC day start timestamp for sync and backtest queries", () => {
-    expect(buildBacktestDayStartTime("2026-05-20")).toBe(
-      "2026-05-20T00:00:00Z",
-    );
+  it("keeps date labels unchanged without constructing a browser Date", () => {
+    expect(normalizeBacktestDateLabel(" 2026-05-20 ")).toBe("2026-05-20");
+    expect(normalizeBacktestDateLabel("2024-02-29")).toBe("2024-02-29");
+    expect(normalizeBacktestDateLabel("2026-02-29")).toBe("");
+    expect(normalizeBacktestDateLabel("2026-13-01")).toBe("");
   });
 
-  it("keeps the end date inclusive through the last millisecond of the day", () => {
-    expect(buildBacktestDayInclusiveEndTime(" 2026-05-20 ")).toBe(
-      "2026-05-20T23:59:59.999Z",
-    );
+  it("keeps a market date label independent of the browser timezone", () => {
+    expect(normalizeBacktestDateLabel("2026-01-01")).toBe("2026-01-01");
   });
 });

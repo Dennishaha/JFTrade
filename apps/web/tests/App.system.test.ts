@@ -24,6 +24,7 @@ import {
   emptyWorkerBrokerOrderUpdates,
 } from "@/contracts";
 import type { SystemStatusResponse } from "@/contracts";
+import { formatLocalDateTime } from "@/utils/dateTime";
 
 import {
   MockWebSocket,
@@ -281,7 +282,7 @@ describe("System page", () => {
     expect(wrapper.text()).toContain("OpenD unavailable");
     expect(wrapper.text()).toContain("network down (code 1006)");
     expect(wrapper.text()).toContain("实时通道");
-    expect(wrapper.text()).toContain("2026-05-16T00:30:00.000Z");
+    expect(wrapper.text()).toContain(formatLocalDateTime("2026-05-16T00:30:00.000Z"));
 
     wrapper.unmount();
   });

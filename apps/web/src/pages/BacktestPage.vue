@@ -13,10 +13,7 @@ import {
 } from "../composables/useBacktestRuns";
 import { useConsoleData } from "../composables/useConsoleData";
 import { formatLocalDateTime } from "../utils/dateTime";
-import {
-  buildBacktestDayInclusiveEndTime,
-  buildBacktestDayStartTime,
-} from "./backtestTimeWindow";
+import { normalizeBacktestDateLabel } from "./backtestTimeWindow";
 import dayjs from "dayjs";
 
 const BACKTEST_FORM_STORAGE_KEY = "jftrade.backtest.form.v1";
@@ -102,14 +99,8 @@ function readStoredBacktestFormPreferences(): StoredBacktestFormPreferences {
     );
     const validRehabTypes = new Set(["forward", "backward", "none"]);
     const normalizeDate = (value: unknown, fallback: string) => {
-      if (typeof value !== "string") {
-        return fallback;
-      }
-      const trimmed = value.trim();
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed) || !dayjs(trimmed).isValid()) {
-        return fallback;
-      }
-      return trimmed;
+      const normalized = normalizeBacktestDateLabel(typeof value === "string" ? value : "");
+      return normalized === "" ? fallback : normalized;
     };
 
     return {
@@ -191,20 +182,6 @@ const EXTENDED_HOURS_INTERVALS = new Set([
   "1w",
   "1mo",
 ]);
-
-// Sync form (start/end time)
-const syncStartTime = computed(() =>
-  buildBacktestDayStartTime(startDate.value),
-);
-const syncEndTime = computed(() =>
-  buildBacktestDayInclusiveEndTime(endDate.value),
-);
-const backtestStartTime = computed(() =>
-  buildBacktestDayStartTime(startDate.value),
-);
-const backtestEndTime = computed(() =>
-  buildBacktestDayInclusiveEndTime(endDate.value),
-);
 
 // ── Derived ──
 const selectedDefinition = computed(() =>
@@ -419,10 +396,8 @@ const backtestFormState = computed<BacktestFormState>(() => ({
       ? codeInput.value.trim().toUpperCase()
       : "",
   interval: interval.value,
-  syncStartTime: syncStartTime.value,
-  syncEndTime: syncEndTime.value,
-  backtestStartTime: backtestStartTime.value,
-  backtestEndTime: backtestEndTime.value,
+  startDate: startDate.value,
+  endDate: endDate.value,
   initialBalance: initialBalance.value,
   rehabType: rehabType.value,
   useExtendedHours: useExtendedHours.value,
@@ -832,6 +807,10 @@ function formatBacktestTimestamp(value?: string) {
   return formatLocalDateTime(value, "--");
 }
 
+function formatBacktestRunDate(date: string | undefined) {
+  return normalizeBacktestDateLabel(date ?? "") || "--";
+}
+
 function formatBacktestOrderSide(side: string) {
   switch (side) {
     case "BUY":
@@ -1150,8 +1129,8 @@ watch(
                       <div class="text-base bt-text-strong truncate">
                         {{ resolveStrategyName(run.request.definitionId) }} ·
                         {{ run.request.symbol }} ·
-                        {{ dayjs(run.request.startTime).format("YYYY-MM-DD") }} →
-                        {{ dayjs(run.request.endTime).format("YYYY-MM-DD") }} ·
+                        {{ formatBacktestRunDate(run.request.startDate) }} →
+                        {{ formatBacktestRunDate(run.request.endDate) }} ·
                         {{ resolveRunSessionMode(run) }}
                       </div>
                       <div class="text-xs bt-text-muted mt-0.5">

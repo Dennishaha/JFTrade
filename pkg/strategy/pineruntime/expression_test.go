@@ -187,8 +187,8 @@ func TestEvaluateExpressionSupportsMathAndTimeVariables(t *testing.T) {
 		t.Fatalf("math expression = %#v, want 32", value)
 	}
 
-	timeValue := float64(time.Date(2026, time.May, 28, 9, 30, 0, 0, time.UTC).UnixMilli())
-	value, err = evaluateExpression("time == 1779960600000 and hour == 9 and minute == 30 and dayofweek == 5 and dayofmonth == 28 and month == 5 and year == 2026", scope)
+	timeValue := float64(time.Date(2026, time.May, 28, 13, 30, 0, 0, time.UTC).UnixMilli())
+	value, err = evaluateExpression("time == 1779975000000 and hour == 9 and minute == 30 and dayofweek == 5 and dayofmonth == 28 and month == 5 and year == 2026", scope)
 	if err != nil {
 		t.Fatalf("time expression error = %v", err)
 	}
@@ -258,7 +258,7 @@ func TestEvaluateExpressionSupportsDerivedSourcesEnvironmentTimestampAndTR(t *te
 		t.Fatalf("environment expression = %#v, want true", value)
 	}
 
-	value, err = evaluateExpression("timestamp(2026, 5, 28, 9, 30) == 1779960600000 and tr(true) == 3", scope)
+	value, err = evaluateExpression("timestamp(2026, 5, 28, 9, 30) == 1779975000000 and tr(true) == 3", scope)
 	if err != nil {
 		t.Fatalf("timestamp/TR expression error = %v", err)
 	}
@@ -266,7 +266,7 @@ func TestEvaluateExpressionSupportsDerivedSourcesEnvironmentTimestampAndTR(t *te
 		t.Fatalf("timestamp/TR expression = %#v, want true", value)
 	}
 
-	value, err = evaluateExpression("time_close == 1779960659000", scope)
+	value, err = evaluateExpression("time_close == 1779975059000", scope)
 	if err != nil {
 		t.Fatalf("time_close expression error = %v", err)
 	}
@@ -274,7 +274,7 @@ func TestEvaluateExpressionSupportsDerivedSourcesEnvironmentTimestampAndTR(t *te
 		t.Fatalf("time_close expression = %#v, want true", value)
 	}
 
-	runtime.previousBarTime = time.Date(2026, time.May, 28, 9, 29, 0, 0, time.UTC)
+	runtime.previousBarTime = time.Date(2026, time.May, 28, 13, 29, 0, 0, time.UTC)
 	runtime.hasPreviousBarTime = true
 	value, err = evaluateExpression("timeframe_change('15')", scope)
 	if err != nil {
@@ -283,7 +283,7 @@ func TestEvaluateExpressionSupportsDerivedSourcesEnvironmentTimestampAndTR(t *te
 	if value != true {
 		t.Fatalf("timeframe_change expression = %#v, want true", value)
 	}
-	runtime.previousBarTime = time.Date(2026, time.May, 28, 9, 30, 0, 0, time.UTC)
+	runtime.previousBarTime = time.Date(2026, time.May, 28, 13, 30, 0, 0, time.UTC)
 	value, err = evaluateExpression("!timeframe_change('15')", scope)
 	if err != nil || value != true {
 		t.Fatalf("same bucket timeframe_change expression = %#v, err %v, want true", value, err)
@@ -656,8 +656,8 @@ func newBarExpressionScope(runtime *strategyRuntime) *evaluationScope {
 	bar := types.KLine{
 		Symbol:      "US.AAPL",
 		Interval:    types.Interval1m,
-		StartTime:   types.Time(time.Date(2026, time.May, 28, 9, 30, 0, 0, time.UTC)),
-		EndTime:     types.Time(time.Date(2026, time.May, 28, 9, 30, 59, 0, time.UTC)),
+		StartTime:   types.Time(time.Date(2026, time.May, 28, 13, 30, 0, 0, time.UTC)),
+		EndTime:     types.Time(time.Date(2026, time.May, 28, 13, 30, 59, 0, time.UTC)),
 		Open:        fixedpoint.NewFromFloat(100.0),
 		High:        fixedpoint.NewFromFloat(102.0),
 		Low:         fixedpoint.NewFromFloat(99.0),
@@ -694,5 +694,48 @@ func newBarExpressionScope(runtime *strategyRuntime) *evaluationScope {
 		hlc3Series:         seriesNumber{Current: (102.0 + 99.0 + 101.5) / 3, Previous: (101.0 + 98.0 + 100.0) / 3, HasCurrent: true, HasPrevious: true},
 		ohlc4Series:        seriesNumber{Current: (100.0 + 102.0 + 99.0 + 101.5) / 4, Previous: (99.0 + 101.0 + 98.0 + 100.0) / 4, HasCurrent: true, HasPrevious: true},
 		hasBarData:         true,
+	}
+}
+
+func TestPineCalendarFieldsUseExchangeTimezone(t *testing.T) {
+	runtime := &strategyRuntime{symbol: "US.AAPL", expressionCache: map[string]exprast.Node{}}
+	scope := newBarExpressionScope(runtime)
+	scope.currentKline.StartTime = types.Time(time.Date(2026, time.January, 1, 0, 30, 0, 0, time.UTC))
+	scope.currentKline.EndTime = types.Time(time.Date(2026, time.January, 1, 0, 30, 59, 0, time.UTC))
+
+	value, err := evaluateExpression("hour == 19 and minute == 30 and dayofweek == 4 and dayofmonth == 31 and month == 12 and year == 2025", scope)
+	if err != nil {
+		t.Fatalf("evaluateExpression: %v", err)
+	}
+	if value != true {
+		t.Fatalf("exchange calendar expression = %#v, want true", value)
+	}
+}
+
+func TestPineTimestampAndTimeframeChangeUseExchangeTimezone(t *testing.T) {
+	runtime := &strategyRuntime{symbol: "US.AAPL", expressionCache: map[string]exprast.Node{}}
+	scope := newBarExpressionScope(runtime)
+
+	value, err := evaluateExpression("timestamp(2026, 3, 8) == 1772946000000", scope)
+	if err != nil || value != true {
+		t.Fatalf("DST timestamp expression = %#v, err=%v", value, err)
+	}
+
+	location := pineExchangeLocation(scope)
+	if pineTimeframeBucketChanged(
+		time.Date(2025, time.December, 31, 23, 30, 0, 0, time.UTC),
+		time.Date(2026, time.January, 1, 0, 30, 0, 0, time.UTC),
+		"1D",
+		location,
+	) {
+		t.Fatal("UTC midnight must not change the New York trading calendar day")
+	}
+	if !pineTimeframeBucketChanged(
+		time.Date(2026, time.January, 1, 4, 30, 0, 0, time.UTC),
+		time.Date(2026, time.January, 1, 5, 30, 0, 0, time.UTC),
+		"1D",
+		location,
+	) {
+		t.Fatal("New York midnight must change the daily timeframe bucket")
 	}
 }
