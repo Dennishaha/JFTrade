@@ -3,6 +3,7 @@ package calendar
 import (
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -69,18 +70,26 @@ type Resolver interface {
 	Schedule(marketCode string, day time.Time) (TradingDaySchedule, bool)
 }
 
+var locationCache sync.Map
+
 func NormalizeMarketCode(code string) string {
 	return strings.ToUpper(strings.TrimSpace(code))
 }
 
 func LoadLocation(template MarketTemplate) *time.Location {
-	if strings.TrimSpace(template.Timezone) == "" {
+	name := strings.TrimSpace(template.Timezone)
+	if name == "" {
 		return time.UTC
 	}
-	loc, err := time.LoadLocation(template.Timezone)
+	if cached, ok := locationCache.Load(name); ok {
+		return cached.(*time.Location)
+	}
+	loc, err := time.LoadLocation(name)
 	if err != nil {
 		return time.UTC
 	}
+	actual, _ := locationCache.LoadOrStore(name, loc)
+	loc = actual.(*time.Location)
 	return loc
 }
 

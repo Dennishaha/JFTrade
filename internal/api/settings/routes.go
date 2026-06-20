@@ -277,12 +277,27 @@ func handleSaveADKRuntimeSettings(svc *srv.Service) gin.HandlerFunc {
 
 // ── Exchange Calendars ──
 
+// handleExchangeCalendarSettings godoc
+// @Summary 读取交易日历设置
+// @Tags settings
+// @Produce json
+// @Success 200 {object} httpserver.Envelope
+// @Router /api/v1/settings/exchange-calendars [get]
 func handleExchangeCalendarSettings(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		httpserver.WriteOK(c, map[string]any{"exchangeCalendars": svc.GetExchangeCalendarSettings()})
 	}
 }
 
+// handleSaveExchangeCalendarSettings godoc
+// @Summary 保存交易日历设置
+// @Tags settings
+// @Accept json
+// @Produce json
+// @Param request body ExchangeCalendarSettingsWriteRequest true "交易日历设置"
+// @Success 200 {object} httpserver.Envelope
+// @Failure 400 {object} httpserver.Envelope
+// @Router /api/v1/settings/exchange-calendars [put]
 func handleSaveExchangeCalendarSettings(svc *srv.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var payload struct {

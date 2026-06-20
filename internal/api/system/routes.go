@@ -82,36 +82,74 @@ func handleSystemStatus(svc *sys.Service) gin.HandlerFunc {
 	}
 }
 
+// handleExchangeCalendarStatus godoc
+// @Summary 读取交易日历源状态
+// @Tags system
+// @Produce json
+// @Success 200 {object} httpserver.Envelope
+// @Router /api/v1/system/exchange-calendars/status [get]
 func handleExchangeCalendarStatus(svc *sys.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		httpserver.WriteOK(c, svc.ExchangeCalendarStatus())
 	}
 }
 
+// handleExchangeCalendarSources godoc
+// @Summary 列出交易日历数据源
+// @Tags system
+// @Produce json
+// @Success 200 {object} httpserver.Envelope
+// @Router /api/v1/system/exchange-calendars/sources [get]
 func handleExchangeCalendarSources(svc *sys.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		httpserver.WriteOK(c, map[string]any{"sources": svc.ExchangeCalendarSources()})
 	}
 }
 
+// handleExchangeCalendarRefresh godoc
+// @Summary 刷新所有交易日历
+// @Tags system
+// @Produce json
+// @Success 200 {object} httpserver.Envelope
+// @Router /api/v1/system/exchange-calendars/refresh [post]
 func handleExchangeCalendarRefresh(svc *sys.Service, market string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		httpserver.WriteOK(c, svc.RefreshExchangeCalendars(c.Request.Context(), market))
 	}
 }
 
+// handleExchangeCalendarRefreshPath godoc
+// @Summary 刷新指定市场交易日历
+// @Tags system
+// @Produce json
+// @Param market path string true "市场代码"
+// @Success 200 {object} httpserver.Envelope
+// @Router /api/v1/system/exchange-calendars/refresh/{market} [post]
 func handleExchangeCalendarRefreshPath(svc *sys.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		httpserver.WriteOK(c, svc.RefreshExchangeCalendars(c.Request.Context(), c.Param("market")))
 	}
 }
 
+// handleExchangeCalendarProbe godoc
+// @Summary 探测所有交易日历源
+// @Tags system
+// @Produce json
+// @Success 200 {object} httpserver.Envelope
+// @Router /api/v1/system/exchange-calendars/probe [post]
 func handleExchangeCalendarProbe(svc *sys.Service, market string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		httpserver.WriteOK(c, svc.ProbeExchangeCalendars(c.Request.Context(), market))
 	}
 }
 
+// handleExchangeCalendarProbePath godoc
+// @Summary 探测指定市场交易日历源
+// @Tags system
+// @Produce json
+// @Param market path string true "市场代码"
+// @Success 200 {object} httpserver.Envelope
+// @Router /api/v1/system/exchange-calendars/probe/{market} [post]
 func handleExchangeCalendarProbePath(svc *sys.Service) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		httpserver.WriteOK(c, svc.ProbeExchangeCalendars(c.Request.Context(), c.Param("market")))

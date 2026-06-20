@@ -6,6 +6,13 @@ import (
 	"strings"
 )
 
+type pineNamespaceReplacement struct {
+	pattern *regexp.Regexp
+	value   string
+}
+
+var pineNamespaceReplacements = buildPineNamespaceReplacements()
+
 func replaceMathNamespace(expression string) string {
 	for _, name := range []string{"abs", "min", "max", "avg", "round", "round_to_mintick", "floor", "ceil", "sqrt", "pow", "log", "sign"} {
 		expression = strings.ReplaceAll(expression, "math."+name, name)
@@ -13,7 +20,7 @@ func replaceMathNamespace(expression string) string {
 	return expression
 }
 
-func replacePineNamespaceConstants(expression string) string {
+func buildPineNamespaceReplacements() []pineNamespaceReplacement {
 	replacements := map[string]string{
 		"barstate.isfirst":       "barstate_isfirst",
 		"barstate.isnew":         "barstate_isnew",
@@ -76,9 +83,20 @@ func replacePineNamespaceConstants(expression string) string {
 	sort.Slice(keys, func(left, right int) bool {
 		return len(keys[left]) > len(keys[right])
 	})
-	result := expression
+	compiled := make([]pineNamespaceReplacement, 0, len(keys))
 	for _, key := range keys {
-		result = regexp.MustCompile(`(?i)\b`+regexp.QuoteMeta(key)+`\b`).ReplaceAllString(result, replacements[key])
+		compiled = append(compiled, pineNamespaceReplacement{
+			pattern: regexp.MustCompile(`(?i)\b` + regexp.QuoteMeta(key) + `\b`),
+			value:   replacements[key],
+		})
+	}
+	return compiled
+}
+
+func replacePineNamespaceConstants(expression string) string {
+	result := expression
+	for _, replacement := range pineNamespaceReplacements {
+		result = replacement.pattern.ReplaceAllString(result, replacement.value)
 	}
 	return result
 }

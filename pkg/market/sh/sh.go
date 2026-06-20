@@ -1,6 +1,9 @@
 package sh
 
-import "time"
+import (
+	"sync"
+	"time"
+)
 
 const (
 	Code            = "SH"
@@ -14,10 +17,14 @@ var RegularWindows = [][2]int{
 	{13 * 60, 15 * 60},
 }
 
-func Location() *time.Location {
+var location = sync.OnceValue(func() *time.Location {
 	loc, err := time.LoadLocation(LocationName)
 	if err != nil {
 		return time.UTC
 	}
 	return loc
+})
+
+func Location() *time.Location {
+	return location()
 }

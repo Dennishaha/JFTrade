@@ -271,6 +271,13 @@ func (m *Manager) run() {
 func (m *Manager) refreshWarmup() {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
+	go func() {
+		select {
+		case <-m.stopCh:
+			cancel()
+		case <-ctx.Done():
+		}
+	}()
 	m.refresh(ctx, "")
 }
 

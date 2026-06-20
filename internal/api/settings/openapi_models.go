@@ -14,6 +14,11 @@ type OnboardingWriteRequest struct {
 	LastBrokerID string `json:"lastBrokerId"`
 }
 
+// ExchangeCalendarSettingsWriteRequest documents exchange calendar writes.
+type ExchangeCalendarSettingsWriteRequest struct {
+	ExchangeCalendars jfsettings.ExchangeCalendarSettings `json:"exchangeCalendars"`
+}
+
 // BrokerIntegrationSaveRequest documents broker integration writes.
 type BrokerIntegrationSaveRequest struct {
 	Enabled bool                             `json:"enabled"`
