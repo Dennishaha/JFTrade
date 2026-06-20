@@ -89,58 +89,10 @@ func (s *SettingsStore) SaveIntegration(input BrokerIntegration) (BrokerIntegrat
 	return integration, nil
 }
 
-func interfaceSettingsFromDefaults(defaults LaunchDefaults) InterfaceSettings {
-	return settingsfile.InterfaceSettingsFromDefaults(defaults)
-}
-
-func normalizeInterfaceSettings(input InterfaceSettings, defaults LaunchDefaults) InterfaceSettings {
-	return settingsfile.NormalizeInterfaceSettings(input, defaults)
-}
-
-func defaultUIAppearanceSettings() UIAppearanceSettings {
-	return settingsfile.DefaultUIAppearanceSettings()
-}
-
-func normalizeUIAppearanceSettings(input UIAppearanceSettings) UIAppearanceSettings {
-	return settingsfile.NormalizeUIAppearanceSettings(input)
-}
-
-func defaultOnboardingSettings() OnboardingSettings {
-	return settingsfile.DefaultOnboardingSettings()
-}
-
-func normalizeOnboardingSettings(input OnboardingSettings) OnboardingSettings {
-	return settingsfile.NormalizeOnboardingSettings(input)
-}
-
-func defaultExecutionSettings() ExecutionSettings {
-	return settingsfile.DefaultExecutionSettings()
-}
-
 func normalizeExecutionSettings(input ExecutionSettings) ExecutionSettings {
 	return settingsfile.NormalizeExecutionSettings(input)
 }
 
-func defaultSecuritySettings() SecuritySettings {
-	return settingsfile.DefaultSecuritySettings()
-}
-
 func normalizeSecuritySettings(input SecuritySettings) SecuritySettings {
 	return settingsfile.NormalizeSecuritySettings(input)
-}
-
-func defaultADKRuntimeSettings() ADKRuntimeSettings {
-	return settingsfile.DefaultADKRuntimeSettings()
-}
-
-func normalizeADKRuntimeSettings(input ADKRuntimeSettings) ADKRuntimeSettings {
-	return settingsfile.NormalizeADKRuntimeSettings(input)
-}
-
-func defaultExchangeCalendarSettings() ExchangeCalendarSettings {
-	return settingsfile.DefaultExchangeCalendarSettings()
-}
-
-func normalizeExchangeCalendarSettings(input ExchangeCalendarSettings) ExchangeCalendarSettings {
-	return settingsfile.NormalizeExchangeCalendarSettings(input)
 }

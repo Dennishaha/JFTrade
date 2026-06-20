@@ -25,14 +25,6 @@ func (r *indicatorRuntime) pushATRStates(high, low, closeValue, previousClose fl
 	}
 }
 
-func (r *indicatorRuntime) atrValue(period int) any {
-	current, ok := r.atrSnapshotValue(period)
-	if !ok {
-		return nil
-	}
-	return current
-}
-
 func (r *indicatorRuntime) atrSnapshotValue(period int) (float64, bool) {
 	if r == nil {
 		return 0, false

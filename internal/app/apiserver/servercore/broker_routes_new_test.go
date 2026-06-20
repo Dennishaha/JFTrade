@@ -32,11 +32,11 @@ func testServer(t *testing.T) (*httptest.Server, *SettingsStore) {
 
 func getEnvelope(t *testing.T, url string) (int, map[string]any) {
 	t.Helper()
-	resp, err := http.Get(url)
+	resp, err := jftradeTestHTTPGet(t, url)
 	if err != nil {
 		t.Fatalf("GET: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	var envelope struct {
 		OK   bool           `json:"ok"`
 		Data map[string]any `json:"data"`
@@ -49,11 +49,11 @@ func getEnvelope(t *testing.T, url string) (int, map[string]any) {
 
 func getEnvelopeWithError(t *testing.T, url string) (int, map[string]any, *apiError) {
 	t.Helper()
-	resp, err := http.Get(url)
+	resp, err := jftradeTestHTTPGet(t, url)
 	if err != nil {
 		t.Fatalf("GET: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	var envelope struct {
 		OK    bool           `json:"ok"`
 		Data  map[string]any `json:"data"`
@@ -72,12 +72,13 @@ func postEnvelope(t *testing.T, url string, body any) (int, map[string]any) {
 
 func postEnvelopeWithError(t *testing.T, url string, body any) (int, map[string]any, *apiError) {
 	t.Helper()
-	payload, _ := json.Marshal(body)
-	resp, err := http.Post(url, "application/json", bytes.NewReader(payload))
+	payload, jftradeErr1 := json.Marshal(body)
+	jftradeCheckTestError(t, jftradeErr1)
+	resp, err := jftradeTestHTTPPost(t, url, "application/json", bytes.NewReader(payload))
 	if err != nil {
 		t.Fatalf("POST: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	var envelope struct {
 		OK    bool           `json:"ok"`
 		Data  map[string]any `json:"data"`
@@ -323,18 +324,20 @@ func TestBrokerPlaceOrderInvalidPayload(t *testing.T) {
 func TestBrokerCancelOrdersNoBroker(t *testing.T) {
 	srv, _ := testServer(t)
 
-	payload, _ := json.Marshal(map[string]any{
+	payload, jftradeErr2 := json.Marshal(map[string]any{
 		"orders": []map[string]any{
 			{"orderId": 12345, "symbol": "HK.00700"},
 		},
 	})
-	req, _ := http.NewRequest(http.MethodDelete, srv.URL+"/api/v1/brokers/futu/orders", bytes.NewReader(payload))
+	jftradeCheckTestError(t, jftradeErr2)
+	req, jftradeErr3 := http.NewRequestWithContext(t.Context(), http.MethodDelete, srv.URL+"/api/v1/brokers/futu/orders", bytes.NewReader(payload))
+	jftradeCheckTestError(t, jftradeErr3)
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatalf("DELETE: %v", err)
 	}
-	resp.Body.Close()
+	jftradeCheckTestError(t, resp.Body.Close())
 	// Without a connected OpenD, cancellation returns 502
 	if resp.StatusCode != http.StatusBadGateway {
 		t.Fatalf("expected 502 (bad gateway), got %d", resp.StatusCode)
@@ -344,13 +347,14 @@ func TestBrokerCancelOrdersNoBroker(t *testing.T) {
 func TestBrokerCancelOrdersInvalidPayload(t *testing.T) {
 	srv, _ := testServer(t)
 
-	req, _ := http.NewRequest(http.MethodDelete, srv.URL+"/api/v1/brokers/futu/orders", strings.NewReader(`{"orders":`))
+	req, jftradeErr4 := http.NewRequestWithContext(t.Context(), http.MethodDelete, srv.URL+"/api/v1/brokers/futu/orders", strings.NewReader(`{"orders":`))
+	jftradeCheckTestError(t, jftradeErr4)
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatalf("DELETE: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 
 	var envelope struct {
 		OK    bool      `json:"ok"`
@@ -422,15 +426,16 @@ func TestNewBrokerRoutesReturnJSON(t *testing.T) {
 			var resp *http.Response
 			var err error
 			if route.method == http.MethodGet {
-				resp, err = http.Get(srv.URL + route.path)
+				resp, err = jftradeTestHTTPGet(t, srv.URL+route.path)
 			} else {
-				payload, _ := json.Marshal(route.body)
-				resp, err = http.Post(srv.URL+route.path, "application/json", bytes.NewReader(payload))
+				payload, jftradeErr1 := json.Marshal(route.body)
+				jftradeCheckTestError(t, jftradeErr1)
+				resp, err = jftradeTestHTTPPost(t, srv.URL+route.path, "application/json", bytes.NewReader(payload))
 			}
 			if err != nil {
 				t.Fatalf("request: %v", err)
 			}
-			defer resp.Body.Close()
+			defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 
 			ct := resp.Header.Get("Content-Type")
 			if !strings.Contains(ct, "application/json") {
@@ -453,11 +458,11 @@ func TestBrokerGinRoutesRejectIncompletePaths(t *testing.T) {
 
 	for _, path := range tests {
 		t.Run(path, func(t *testing.T) {
-			resp, err := http.Get(srv.URL + path)
+			resp, err := jftradeTestHTTPGet(t, srv.URL+path)
 			if err != nil {
 				t.Fatalf("request: %v", err)
 			}
-			defer resp.Body.Close()
+			defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 			if resp.StatusCode != http.StatusNotFound {
 				t.Fatalf("status=%d, want 404", resp.StatusCode)
 			}

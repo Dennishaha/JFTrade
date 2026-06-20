@@ -41,11 +41,11 @@ func TestInstantiateStoredDefinitionRejectsLegacySourceFormat(t *testing.T) {
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
-	createResp, err := http.Post(srv.URL+"/api/v1/strategy-definitions/legacy-breakout/instantiate", "application/json", bytes.NewReader([]byte(`{}`)))
+	createResp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/strategy-definitions/legacy-breakout/instantiate", "application/json", bytes.NewReader([]byte(`{}`)))
 	if err != nil {
 		t.Fatalf("POST instantiate: %v", err)
 	}
-	defer createResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, createResp.Body.Close()) }()
 	if createResp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("POST legacy source format instantiate status = %d, want %d", createResp.StatusCode, http.StatusBadRequest)
 	}
@@ -84,11 +84,11 @@ log.info("close")`,
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
-	defaultResp, err := http.Get(srv.URL + "/api/v1/strategy-definitions/dsl-preview-day-window?interval=5m")
+	defaultResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/strategy-definitions/dsl-preview-day-window?interval=5m")
 	if err != nil {
 		t.Fatalf("GET default strategy preview: %v", err)
 	}
-	defer defaultResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, defaultResp.Body.Close()) }()
 	if defaultResp.StatusCode != http.StatusOK {
 		t.Fatalf("GET default strategy preview status = %d", defaultResp.StatusCode)
 	}
@@ -109,11 +109,11 @@ log.info("close")`,
 		t.Fatalf("default preview sourceFormat = %q, want %q", defaultEnvelope.Data.SourceFormat, strategydefinition.SourceFormatPineV6)
 	}
 
-	previewResp, err := http.Get(srv.URL + "/api/v1/strategy-definitions/dsl-preview-day-window?interval=5m&symbol=US.AAPL&useExtendedHours=1")
+	previewResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/strategy-definitions/dsl-preview-day-window?interval=5m&symbol=US.AAPL&useExtendedHours=1")
 	if err != nil {
 		t.Fatalf("GET extended strategy preview: %v", err)
 	}
-	defer previewResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, previewResp.Body.Close()) }()
 	if previewResp.StatusCode != http.StatusOK {
 		t.Fatalf("GET extended strategy preview status = %d", previewResp.StatusCode)
 	}

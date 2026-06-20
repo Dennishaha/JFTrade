@@ -227,7 +227,3 @@ func TestPreviousClosePriceConditionDoesNotRewriteNonUSUnknownSession(t *testing
 		t.Fatal("HK unknown session should not rewrite PreviousClosePrice to CurPrice")
 	}
 }
-
-func protoInt32(v int32) *int32    { return &v }
-func protoInt64(v int64) *int64    { return &v }
-func protoString(v string) *string { return &v }

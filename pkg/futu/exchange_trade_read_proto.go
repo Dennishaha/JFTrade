@@ -44,17 +44,17 @@ func brokerFundsSnapshotFromProto(account resolvedTradeAccount, funds *trdcommon
 		MarginCallMargin:        cloneFloat64Ptr(funds.MarginCallMargin),
 		RiskStatus:              optionalEnumStringPtr(funds.RiskStatus, trdcommonpb.CltRiskStatus_name),
 		// Margin & Financing 融资融券
-		DebtCash:        cloneFloat64Ptr(funds.DebtCash),
-		IsPDT:           cloneBoolPtr(funds.IsPdt),
-		PDTSeq:          optionalNonEmptyString(funds.GetPdtSeq()),
-		BeginningDTBP:   cloneFloat64Ptr(funds.BeginningDTBP),
-		RemainingDTBP:   cloneFloat64Ptr(funds.RemainingDTBP),
-		DTCallAmount:    cloneFloat64Ptr(funds.DtCallAmount),
-		DTStatus:        optionalEnumStringPtr(funds.DtStatus, trdcommonpb.DTStatus_name),
-		ExposureLevel:   optionalEnumStringPtr(funds.ExposureLevel, trdcommonpb.ExposureLevel_name),
-		ExposureLimit:   cloneFloat64Ptr(funds.ExposureLimit),
-		UsedLimit:       cloneFloat64Ptr(funds.UsedLimit),
-		RemainingLimit:  cloneFloat64Ptr(funds.RemainingLimit),
+		DebtCash:       cloneFloat64Ptr(funds.DebtCash),
+		IsPDT:          cloneBoolPtr(funds.IsPdt),
+		PDTSeq:         optionalNonEmptyString(funds.GetPdtSeq()),
+		BeginningDTBP:  cloneFloat64Ptr(funds.BeginningDTBP),
+		RemainingDTBP:  cloneFloat64Ptr(funds.RemainingDTBP),
+		DTCallAmount:   cloneFloat64Ptr(funds.DtCallAmount),
+		DTStatus:       optionalEnumStringPtr(funds.DtStatus, trdcommonpb.DTStatus_name),
+		ExposureLevel:  optionalEnumStringPtr(funds.ExposureLevel, trdcommonpb.ExposureLevel_name),
+		ExposureLimit:  cloneFloat64Ptr(funds.ExposureLimit),
+		UsedLimit:      cloneFloat64Ptr(funds.UsedLimit),
+		RemainingLimit: cloneFloat64Ptr(funds.RemainingLimit),
 	}
 
 	snapshot.CurrencyBalances = make([]BrokerCurrencyBalanceSnapshot, 0, len(funds.GetCashInfoList()))

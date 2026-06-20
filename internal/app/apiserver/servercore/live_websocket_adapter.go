@@ -63,11 +63,12 @@ func (b liveWebSocketBackend) SecurityDetails(ctx context.Context, market, symbo
 
 func (b liveWebSocketBackend) SubscribeDepth(ctx context.Context, instrumentID string, num int32) {
 	if subscriber, ok := b.server.futuBroker().(broker.OrderBookSubscriber); ok {
-		_ = subscriber.SubscribeOrderBook(ctx, broker.OrderBookSubscribeRequest{
+		jftradeErr1 := subscriber.SubscribeOrderBook(ctx, broker.OrderBookSubscribeRequest{
 			ReadQuery: brokerReadQuery(instrumentID),
 			Symbols:   []string{instrumentID},
 			Num:       num,
 		})
+		jftradeLogError(jftradeErr1)
 	}
 }
 

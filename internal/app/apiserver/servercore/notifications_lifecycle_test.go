@@ -17,8 +17,8 @@ func TestServerCloseUnregistersOnlyItsBBGONotificationSink(t *testing.T) {
 	}
 	first := NewServer(firstStore)
 	second := NewServer(secondStore)
-	t.Cleanup(func() { _ = first.Close() })
-	t.Cleanup(func() { _ = second.Close() })
+	t.Cleanup(func() { jftradeErr1 := first.Close(); jftradeCheckTestError(t, jftradeErr1) })
+	t.Cleanup(func() { jftradeErr2 := second.Close(); jftradeCheckTestError(t, jftradeErr2) })
 
 	dispatchBBGONotification(liveNotification{Title: "before close"})
 	if got := len(first.liveNotificationsAfter(0)); got != 1 {

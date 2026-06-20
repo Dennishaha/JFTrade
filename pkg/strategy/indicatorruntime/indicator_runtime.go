@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/c9s/bbgo/pkg/types"
+
 	"github.com/jftrade/jftrade-main/pkg/market"
 	strategyir "github.com/jftrade/jftrade-main/pkg/strategy/ir"
 )

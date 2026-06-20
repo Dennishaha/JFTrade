@@ -57,11 +57,11 @@ func TestMarketCandlesEndpointIncludesCurrentRealtimeBucket(t *testing.T) {
 		url.QueryEscape(historyLabelAt.Add(-time.Hour).Format(time.RFC3339Nano)),
 		url.QueryEscape(currentLabelAt.Add(30*time.Second).Format(time.RFC3339Nano)),
 	)
-	resp, err := http.Get(requestURL)
+	resp, err := jftradeTestHTTPGet(t, requestURL)
 	if err != nil {
 		t.Fatalf("GET market candles: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("GET market candles status = %d", resp.StatusCode)
 	}

@@ -4,8 +4,9 @@ import (
 	"errors"
 	"sync"
 
-	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	"github.com/jmoiron/sqlx"
+
+	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 )
 
 const (

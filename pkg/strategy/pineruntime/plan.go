@@ -16,18 +16,6 @@ func buildHookCache(program *strategyir.Program) map[strategyir.HookKind]*strate
 	return hooks
 }
 
-func findHook(program *strategyir.Program, kind strategyir.HookKind) (strategyir.HookBlock, bool) {
-	if program == nil {
-		return strategyir.HookBlock{}, false
-	}
-	for _, hook := range program.Hooks {
-		if hook.Kind == kind {
-			return hook, true
-		}
-	}
-	return strategyir.HookBlock{}, false
-}
-
 func countProgramLetStatements(program *strategyir.Program) int {
 	if program == nil {
 		return 0

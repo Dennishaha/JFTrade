@@ -85,8 +85,10 @@ func TestOrderUpdatesAdapterConvertsPushesAndStopsOnce(t *testing.T) {
 	if exchange.connectCalls != 1 || exchange.subscribeCalls != 1 || len(exchange.accountIDs) != 1 || exchange.accountIDs[0] != 1001 {
 		t.Fatalf("subscription state = %+v", exchange)
 	}
-	_ = subscription.Stop()
-	_ = subscription.Stop()
+	jftradeErr1 := subscription.Stop()
+	jftradeCheckTestError(t, jftradeErr1)
+	jftradeErr2 := subscription.Stop()
+	jftradeCheckTestError(t, jftradeErr2)
 	if exchange.orderStops != 1 || exchange.fillStops != 1 {
 		t.Fatalf("stop calls order=%d fill=%d", exchange.orderStops, exchange.fillStops)
 	}

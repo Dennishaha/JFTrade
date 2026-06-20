@@ -8,8 +8,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 	"golang.org/x/mod/semver"
+
+	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 )
 
 func normalizeStrategyDesignDefinition(input strategyDesignDefinition) (strategyDesignDefinition, error) {
@@ -191,7 +192,7 @@ func normalizeStrategyVisualModel(model *strategyVisualModel) (*strategyVisualMo
 }
 
 func validateStrategyVisualNodeProperties(properties map[string]any) error {
-	blockKind, _ := properties["blockKind"].(string)
+	blockKind := jftradeOptionalTypeAssertion[string](properties["blockKind"])
 	switch strings.TrimSpace(blockKind) {
 	case "codeBlock", "technicalIndicator":
 		return fmt.Errorf("%w: visual block %q is no longer supported; rebuild it with Pine v6 blocks or pineSnippet", errUnsupportedLegacyStrategyDefinition, blockKind)

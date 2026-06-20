@@ -62,11 +62,11 @@ func TestOnboardingRoutesSuggestOobeUntilCompleted(t *testing.T) {
 	srv := httptest.NewServer(api)
 	t.Cleanup(srv.Close)
 
-	resp, err := http.Get(srv.URL + "/api/v1/settings/onboarding")
+	resp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/settings/onboarding")
 	if err != nil {
 		t.Fatalf("GET onboarding: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("GET onboarding status = %d", resp.StatusCode)
 	}
@@ -96,12 +96,13 @@ func TestOnboardingRoutesSuggestOobeUntilCompleted(t *testing.T) {
 		}
 	}
 
-	body, _ := json.Marshal(map[string]any{
+	body, jftradeErr1 := json.Marshal(map[string]any{
 		"completed":    true,
 		"dismissed":    true,
 		"lastBrokerId": "futu",
 	})
-	req, err := http.NewRequest(http.MethodPut, srv.URL+"/api/v1/settings/onboarding", bytes.NewReader(body))
+	jftradeCheckTestError(t, jftradeErr1)
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodPut, srv.URL+"/api/v1/settings/onboarding", bytes.NewReader(body))
 	if err != nil {
 		t.Fatalf("NewRequest PUT onboarding: %v", err)
 	}
@@ -110,7 +111,7 @@ func TestOnboardingRoutesSuggestOobeUntilCompleted(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PUT onboarding: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("PUT onboarding status = %d", resp.StatusCode)
 	}

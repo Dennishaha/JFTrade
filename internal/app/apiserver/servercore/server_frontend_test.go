@@ -34,12 +34,12 @@ func TestServerServesFrontendAssetsAndSPAFallback(t *testing.T) {
 	if server.auth != nil {
 		server.auth.enabled = false
 	}
-	t.Cleanup(func() { _ = server.Close() })
+	t.Cleanup(func() { jftradeErr1 := server.Close(); jftradeCheckTestError(t, jftradeErr1) })
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
 	assertBodyContains := func(path string, accept string, want string) {
-		req, err := http.NewRequest(http.MethodGet, srv.URL+path, nil)
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, srv.URL+path, nil)
 		if err != nil {
 			t.Fatalf("NewRequest %s: %v", path, err)
 		}
@@ -50,7 +50,7 @@ func TestServerServesFrontendAssetsAndSPAFallback(t *testing.T) {
 		if err != nil {
 			t.Fatalf("GET %s: %v", path, err)
 		}
-		defer resp.Body.Close()
+		defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 		if resp.StatusCode != http.StatusOK {
 			t.Fatalf("GET %s status = %d", path, resp.StatusCode)
 		}
@@ -67,11 +67,11 @@ func TestServerServesFrontendAssetsAndSPAFallback(t *testing.T) {
 	assertBodyContains("/strategy", "text/html", "JFTrade UI")
 	assertBodyContains("/assets/app.js", "application/javascript", "console.log('jftrade')")
 
-	apiResp, err := http.Get(srv.URL + "/api/v1/not-found")
+	apiResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/not-found")
 	if err != nil {
 		t.Fatalf("GET api not found: %v", err)
 	}
-	defer apiResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, apiResp.Body.Close()) }()
 	if apiResp.StatusCode != http.StatusNotFound {
 		t.Fatalf("GET api not found status = %d", apiResp.StatusCode)
 	}
@@ -89,11 +89,11 @@ func TestFrontendServerServesRuntimeConfigScript(t *testing.T) {
 	srv := httptest.NewServer(newFrontendServerWithRuntimeConfig(os.DirFS(frontendDir), "http://127.0.0.1:6699"))
 	t.Cleanup(srv.Close)
 
-	resp, err := http.Get(srv.URL + "/runtime-config.js")
+	resp, err := jftradeTestHTTPGet(t, srv.URL+"/runtime-config.js")
 	if err != nil {
 		t.Fatalf("GET runtime config: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("runtime config status = %d", resp.StatusCode)
 	}
@@ -123,7 +123,10 @@ func TestStartForRunArgsInitializesRuntimeLayout(t *testing.T) {
 		t.Fatalf("StartForRunArgs: %v", err)
 	}
 	defer func() {
-		_ = shutdown(context.Background())
+		func() {
+			jftradeErr3 := shutdown(context.Background())
+			jftradeCheckTestError(t, jftradeErr3)
+		}()
 	}()
 
 	for _, path := range []string{
@@ -146,12 +149,13 @@ func TestStartForRunArgsInitializesRuntimeLayout(t *testing.T) {
 }
 
 func TestStartForRunArgsUsesInterfaceSettingsForAPIBind(t *testing.T) {
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	listener, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("Listen: %v", err)
 	}
 	apiBind := listener.Addr().String()
-	_ = listener.Close()
+	jftradeErr1 := listener.Close()
+	jftradeCheckTestError(t, jftradeErr1)
 
 	settingsPath := filepath.Join(t.TempDir(), "settings.json")
 	settingsBody := `{
@@ -172,19 +176,24 @@ func TestStartForRunArgsUsesInterfaceSettingsForAPIBind(t *testing.T) {
 		t.Fatalf("StartForRunArgs: %v", err)
 	}
 	defer func() {
-		_ = shutdown(context.Background())
+		func() {
+			jftradeErr2 := shutdown(context.Background())
+			jftradeCheckTestError(t, jftradeErr2)
+		}()
 	}()
 
 	statusURL := "http://" + apiBind + "/api/v1/system/status"
 	deadline := time.Now().Add(2 * time.Second)
 	for {
-		resp, err := http.Get(statusURL)
+		resp, err := jftradeTestHTTPGet(t, statusURL)
 		if err == nil {
 			if resp.StatusCode != http.StatusOK {
-				_ = resp.Body.Close()
+				jftradeErr2 := resp.Body.Close()
+				jftradeCheckTestError(t, jftradeErr2)
 				t.Fatalf("GET status code = %d", resp.StatusCode)
 			}
-			_ = resp.Body.Close()
+			jftradeErr3 := resp.Body.Close()
+			jftradeCheckTestError(t, jftradeErr3)
 			return
 		}
 		if time.Now().After(deadline) {

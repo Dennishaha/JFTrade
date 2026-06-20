@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -14,6 +15,19 @@ import (
 	adkmodel "google.golang.org/adk/model"
 	"google.golang.org/genai"
 )
+
+func TestOpenAIClientReadStreamingResponseTreatsWrappedEOFAsStreamEnd(t *testing.T) {
+	body := strings.NewReader("data: {\"choices\":[{\"delta\":{\"content\":\"hello\"}}]}\n\n")
+	result, err := (openAIClient{}).readStreamingResponse(body, func(ChatDelta) error {
+		return fmt.Errorf("stop stream: %w", io.EOF)
+	})
+	if err != nil {
+		t.Fatalf("readStreamingResponse() error = %v", err)
+	}
+	if result.Reply != "hello" {
+		t.Fatalf("readStreamingResponse() reply = %q, want hello", result.Reply)
+	}
+}
 
 // TestToolNameSanitizeRestoreRoundTrip verifies that tool names survive
 // the sanitize → restore round trip correctly, especially names with
@@ -63,7 +77,7 @@ func TestOpenAIProviderToolCallWithAccountOrders(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewStore: %v", err)
 	}
-	t.Cleanup(func() { _ = store.Close() })
+	t.Cleanup(func() { jftradeErr3 := store.Close(); jftradeCheckTestError(t, jftradeErr3) })
 
 	var mu sync.Mutex
 	accountOrdersExecuted := false
@@ -131,7 +145,7 @@ func TestOpenAIProviderToolCallWithAccountOrders(t *testing.T) {
 					},
 				},
 			}
-			json.NewEncoder(w).Encode(resp)
+			jftradeCheckTestError(t, json.NewEncoder(w).Encode(resp))
 			return
 		}
 
@@ -151,7 +165,7 @@ func TestOpenAIProviderToolCallWithAccountOrders(t *testing.T) {
 				},
 			},
 		}
-		json.NewEncoder(w).Encode(resp)
+		jftradeCheckTestError(t, json.NewEncoder(w).Encode(resp))
 	}))
 	defer mockServer.Close()
 
@@ -233,7 +247,7 @@ func TestOpenAIProviderWithBrokenToolName(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewStore: %v", err)
 	}
-	t.Cleanup(func() { _ = store.Close() })
+	t.Cleanup(func() { jftradeErr2 := store.Close(); jftradeCheckTestError(t, jftradeErr2) })
 
 	registry := NewToolRegistry()
 	registry.Register(ToolDescriptor{
@@ -275,7 +289,7 @@ func TestOpenAIProviderWithBrokenToolName(t *testing.T) {
 					},
 				},
 			}
-			json.NewEncoder(w).Encode(resp)
+			jftradeCheckTestError(t, json.NewEncoder(w).Encode(resp))
 			return
 		}
 
@@ -294,7 +308,7 @@ func TestOpenAIProviderWithBrokenToolName(t *testing.T) {
 				},
 			},
 		}
-		json.NewEncoder(w).Encode(resp)
+		jftradeCheckTestError(t, json.NewEncoder(w).Encode(resp))
 	}))
 	defer mockServer.Close()
 
@@ -352,7 +366,7 @@ func TestOpenAIProviderWithMultipleToolCallRounds(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewStore: %v", err)
 	}
-	t.Cleanup(func() { _ = store.Close() })
+	t.Cleanup(func() { jftradeErr1 := store.Close(); jftradeCheckTestError(t, jftradeErr1) })
 
 	registry := NewToolRegistry()
 	registry.Register(ToolDescriptor{
@@ -393,7 +407,7 @@ func TestOpenAIProviderWithMultipleToolCallRounds(t *testing.T) {
 					},
 				},
 			}
-			json.NewEncoder(w).Encode(resp)
+			jftradeCheckTestError(t, json.NewEncoder(w).Encode(resp))
 			return
 		}
 
@@ -413,7 +427,7 @@ func TestOpenAIProviderWithMultipleToolCallRounds(t *testing.T) {
 				},
 			},
 		}
-		json.NewEncoder(w).Encode(resp)
+		jftradeCheckTestError(t, json.NewEncoder(w).Encode(resp))
 	}))
 	defer mockServer.Close()
 
@@ -622,7 +636,8 @@ func TestTrimMessagesForProviderTruncatesOversizedToolResponseWithoutLosingPair(
 }
 
 func testOpenAIToolCall(id string, name string, args map[string]any) openAIToolCall {
-	rawArgs, _ := json.Marshal(args)
+	rawArgs, jftradeErr1 := json.Marshal(args)
+	jftradePanicOnError(jftradeErr1)
 	call := openAIToolCall{ID: id, Type: "function"}
 	call.Function.Name = name
 	call.Function.Arguments = string(rawArgs)
@@ -686,4 +701,11 @@ func messagesContainContent(messages []openAIChatMessage, text string) bool {
 		}
 	}
 	return false
+}
+
+func jftradeCheckTestError(t testing.TB, err error) {
+	t.Helper()
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
 }

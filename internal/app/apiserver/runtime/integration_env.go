@@ -1,6 +1,7 @@
 package runtime
 
 import (
+	"log"
 	"net"
 	"os"
 	"strconv"
@@ -50,11 +51,16 @@ func IntegrationWithEnvDefaults(integration jfsettings.BrokerIntegration) jfsett
 // ApplyIntegrationEnv exposes persisted broker settings to legacy runtime consumers.
 func ApplyIntegrationEnv(integration jfsettings.BrokerIntegration) {
 	config := integration.Config
-	_ = os.Setenv(futuOpenDAddrEnv, net.JoinHostPort(config.Host, strconv.Itoa(config.APIPort)))
-	_ = os.Setenv(futuOpenDWebSocketKeyEnv, config.WebSocketKey)
-	_ = os.Setenv(jftradeFutuWebSocketKeyEnv, config.WebSocketKey)
-	_ = os.Setenv(jftradeFutuAPIPortEnv, strconv.Itoa(config.APIPort))
-	_ = os.Setenv(jftradeFutuWebSocketPortEnv, strconv.Itoa(config.WebSocketPort))
+	jftradeErr5 := os.Setenv(futuOpenDAddrEnv, net.JoinHostPort(config.Host, strconv.Itoa(config.APIPort)))
+	jftradeLogError(jftradeErr5)
+	jftradeErr1 := os.Setenv(futuOpenDWebSocketKeyEnv, config.WebSocketKey)
+	jftradeLogError(jftradeErr1)
+	jftradeErr2 := os.Setenv(jftradeFutuWebSocketKeyEnv, config.WebSocketKey)
+	jftradeLogError(jftradeErr2)
+	jftradeErr3 := os.Setenv(jftradeFutuAPIPortEnv, strconv.Itoa(config.APIPort))
+	jftradeLogError(jftradeErr3)
+	jftradeErr4 := os.Setenv(jftradeFutuWebSocketPortEnv, strconv.Itoa(config.WebSocketPort))
+	jftradeLogError(jftradeErr4)
 }
 
 func positiveIntEnv(key string, fallback int) int {
@@ -80,4 +86,12 @@ func firstNonEmpty(values ...string) string {
 		}
 	}
 	return ""
+}
+
+func jftradeLogError(values ...any) {
+	for _, value := range values {
+		if err, ok := value.(error); ok && err != nil {
+			log.Printf("best-effort operation failed: %v", err)
+		}
+	}
 }

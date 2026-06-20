@@ -6,18 +6,14 @@ import (
 )
 
 var (
-	strategyTitlePattern       = regexp.MustCompile(`(?i)^strategy\s*\(\s*("[^"]*"|'[^']*'|[^,\)]*)`)
 	assignmentPattern          = regexp.MustCompile(`^(?:(var|varip|const)\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*(:=|=)\s*(.+)$`)
 	objectFieldAssignPattern   = regexp.MustCompile(`^([A-Za-z_][A-Za-z0-9_]*)\.([A-Za-z_][A-Za-z0-9_]*)\s*(:=|=)\s*(.+)$`)
 	typedAssignmentPattern     = regexp.MustCompile(`^(?:(var|varip|const)\s+)?((?i:array|map|matrix)\s*<[^>]+>|(?i:array|map|matrix))\s+([A-Za-z_][A-Za-z0-9_]*)\s*(:=|=)\s*(.+)$`)
 	tupleAssignmentPattern     = regexp.MustCompile(`^\[\s*([A-Za-z_][A-Za-z0-9_]*)(?:\s*,\s*([A-Za-z_][A-Za-z0-9_]*))?(?:\s*,\s*([A-Za-z_][A-Za-z0-9_]*))?\s*\]\s*(:=|=)\s*(.+)$`)
 	generalTuplePattern        = regexp.MustCompile(`^\[\s*([^\]]+)\s*\]\s*(:=|=)\s*(.+)$`)
-	inputCallPattern           = regexp.MustCompile(`(?i)^input\.[A-Za-z_][A-Za-z0-9_]*\s*\(\s*([^,\)]+)`)
 	equityQuantityPattern      = regexp.MustCompile(`(?i)^\(?\s*strategy\.equity\s*\*\s*([0-9]+(?:\.[0-9]+)?)\s*/\s*100\s*\)?\s*/\s*close$`)
 	amountQuantityPattern      = regexp.MustCompile(`(?i)^\(?\s*([0-9]+(?:\.[0-9]+)?)\s*/\s*close\s*\)?$`)
 	entryPolicyAnnotPattern    = regexp.MustCompile(`@entry_policy\s+(\S+)`)
-	exitPricePattern           = regexp.MustCompile(`(?i)^close\s*\*\s*\(?\s*1\s*[+-]\s*([0-9]+(?:\.[0-9]+)?)\s*/\s*100\s*\)?$`)
-	exitTrailPattern           = regexp.MustCompile(`(?i)^close\s*\*\s*([0-9]+(?:\.[0-9]+)?)\s*/\s*100$`)
 	historyReferencePattern    = regexp.MustCompile(`\b([A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?)\s*\[\s*([0-9]+)\s*\]`)
 	objectHistoryMethodPattern = regexp.MustCompile(`\b([A-Za-z_][A-Za-z0-9_]*)\s*\[\s*([0-9]+)\s*\]\s*\.\s*([A-Za-z_][A-Za-z0-9_]*)\s*\(`)
 	callHistoryPattern         = regexp.MustCompile(`\)\s*\[\s*[0-9]+\s*\]`)

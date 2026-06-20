@@ -44,10 +44,10 @@ func TestMarketSnapshotResponseUsesFreshCache(t *testing.T) {
 	}
 
 	assertSnapshotResponse(t, response, instrumentID, true, "bbgo:futu:stream")
-	if got := response["snapshot"].(map[string]any)["at"]; got != now.Format(time.RFC3339Nano) {
+	if got := jftradeCheckedTypeAssertion[map[string]any](response["snapshot"])["at"]; got != now.Format(time.RFC3339Nano) {
 		t.Fatalf("snapshot at = %v", got)
 	}
-	if got := response["snapshot"].(map[string]any)["turnover"]; got != "411020000" {
+	if got := jftradeCheckedTypeAssertion[map[string]any](response["snapshot"])["turnover"]; got != "411020000" {
 		t.Fatalf("snapshot turnover = %v", got)
 	}
 }
@@ -77,7 +77,7 @@ func TestMarketSnapshotResponseQueriesQuoteSnapshotOnCacheMiss(t *testing.T) {
 	if got := quoteServer.basicQotCallCount(); got != 1 {
 		t.Fatalf("expected one GetBasicQot call, got %d", got)
 	}
-	if got := response["snapshot"].(map[string]any)["price"]; got != "321.4" {
+	if got := jftradeCheckedTypeAssertion[map[string]any](response["snapshot"])["price"]; got != "321.4" {
 		t.Fatalf("snapshot price = %v", got)
 	}
 }
@@ -114,7 +114,7 @@ func TestMarketSnapshotResponseForceRefreshBypassesCache(t *testing.T) {
 	if got := quoteServer.basicQotCallCount(); got != 1 {
 		t.Fatalf("expected one forced GetBasicQot call, got %d", got)
 	}
-	if got := response["snapshot"].(map[string]any)["price"]; got != "321.4" {
+	if got := jftradeCheckedTypeAssertion[map[string]any](response["snapshot"])["price"]; got != "321.4" {
 		t.Fatalf("forced refresh snapshot price = %v", got)
 	}
 }
@@ -152,7 +152,7 @@ func TestMarketCandlesTickResponseUsesFreshCache(t *testing.T) {
 	}
 
 	assertTickCandlesResponse(t, response, instrumentID, true, 1)
-	if got := response["candles"].([]map[string]any)[0]["at"]; got != now.Format(time.RFC3339Nano) {
+	if got := jftradeCheckedTypeAssertion[[]map[string]any](response["candles"])[0]["at"]; got != now.Format(time.RFC3339Nano) {
 		t.Fatalf("tick candle at = %v", got)
 	}
 }
@@ -175,7 +175,7 @@ func TestMarketCandlesTickResponseQueriesTickerOnCacheMiss(t *testing.T) {
 	if got := quoteServer.basicQotCallCount(); got != 1 {
 		t.Fatalf("expected one GetBasicQot call, got %d", got)
 	}
-	if got := response["candles"].([]map[string]any)[0]["period"]; got != "tick" {
+	if got := jftradeCheckedTypeAssertion[[]map[string]any](response["candles"])[0]["period"]; got != "tick" {
 		t.Fatalf("tick candle period = %v", got)
 	}
 }
@@ -211,7 +211,7 @@ func TestMarketCandlesTickResponseFallsBackToCachedCandlesOnTickerError(t *testi
 	}
 
 	assertTickCandlesResponse(t, response, instrumentID, true, 1)
-	if got := response["candles"].([]map[string]any)[0]["at"]; got != observedAt.Format(time.RFC3339Nano) {
+	if got := jftradeCheckedTypeAssertion[[]map[string]any](response["candles"])[0]["at"]; got != observedAt.Format(time.RFC3339Nano) {
 		t.Fatalf("fallback tick candle at = %v", got)
 	}
 }

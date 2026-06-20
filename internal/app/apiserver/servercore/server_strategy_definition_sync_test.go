@@ -58,11 +58,11 @@ func TestStrategiesExposeDefinitionSyncAndRefreshDefinitionRoute(t *testing.T) {
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
-	listResp, err := http.Get(srv.URL + "/api/v1/strategies")
+	listResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/strategies")
 	if err != nil {
 		t.Fatalf("GET strategies: %v", err)
 	}
-	defer listResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, listResp.Body.Close()) }()
 	var listEnvelope struct {
 		OK   bool               `json:"ok"`
 		Data []strategyListItem `json:"data"`
@@ -86,11 +86,11 @@ func TestStrategiesExposeDefinitionSyncAndRefreshDefinitionRoute(t *testing.T) {
 		t.Fatalf("latestVersion = %q, want 0.1.1", listEnvelope.Data[0].DefinitionSync.LatestVersion)
 	}
 
-	refreshResp, err := http.Post(srv.URL+"/api/v1/strategies/"+instance.ID+"/refresh-definition", "application/json", bytes.NewReader([]byte(`{}`)))
+	refreshResp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/strategies/"+instance.ID+"/refresh-definition", "application/json", bytes.NewReader([]byte(`{}`)))
 	if err != nil {
 		t.Fatalf("POST refresh-definition: %v", err)
 	}
-	defer refreshResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, refreshResp.Body.Close()) }()
 	if refreshResp.StatusCode != http.StatusOK {
 		t.Fatalf("POST refresh-definition status = %d", refreshResp.StatusCode)
 	}
@@ -107,7 +107,7 @@ func TestStrategiesExposeDefinitionSyncAndRefreshDefinitionRoute(t *testing.T) {
 	if refreshEnvelope.Data.DefinitionSync == nil || !refreshEnvelope.Data.DefinitionSync.IsLatest {
 		t.Fatalf("expected refreshed strategy to be latest, got %+v", refreshEnvelope.Data.DefinitionSync)
 	}
-	if script, _ := refreshEnvelope.Data.Params["script"].(string); !strings.Contains(script, "fast = ta.sma(close, 10)") {
+	if script := jftradeCheckedTypeAssertion[string](refreshEnvelope.Data.Params["script"]); !strings.Contains(script, "fast = ta.sma(close, 10)") {
 		t.Fatalf("expected refreshed script snapshot, got %q", script)
 	}
 }

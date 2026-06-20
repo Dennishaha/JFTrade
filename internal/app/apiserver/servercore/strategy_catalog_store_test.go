@@ -133,7 +133,7 @@ func TestStrategyCatalogStoreIgnoresLegacyJSONFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewStrategyCatalogStore: %v", err)
 	}
-	t.Cleanup(func() { _ = store.Close() })
+	t.Cleanup(func() { jftradeErr1 := store.Close(); jftradeCheckTestError(t, jftradeErr1) })
 	if got := store.strategies(); len(got) != 0 {
 		t.Fatalf("expected legacy json catalog to be ignored, got %+v", got)
 	}
@@ -172,7 +172,7 @@ func TestNormalizeStrategyKeepsExplicitLegacyRuntimeInstanceUnsupported(t *testi
 	if got := strategySourceFormatFromParams(normalized.Params); got != "removed-script-source" {
 		t.Fatalf("expected explicit legacy source format to be preserved, got %q", got)
 	}
-	script, _ := normalized.Params["script"].(string)
+	script := jftradeCheckedTypeAssertion[string](normalized.Params["script"])
 	if !strings.Contains(script, "function onInit") {
 		t.Fatalf("expected explicit legacy script to be preserved, got %q", script)
 	}
@@ -187,7 +187,7 @@ func TestRefreshStrategyDefinitionUpdatesSnapshotForStoppedInstance(t *testing.T
 	if err != nil {
 		t.Fatalf("NewStrategyCatalogStore: %v", err)
 	}
-	t.Cleanup(func() { _ = store.Close() })
+	t.Cleanup(func() { jftradeErr2 := store.Close(); jftradeCheckTestError(t, jftradeErr2) })
 	if err := store.saveStrategy(managedStrategyInstance{
 		ID: "instance-1",
 		Definition: strategyDefinitionSummary{
@@ -235,7 +235,7 @@ func TestRefreshStrategyDefinitionUpdatesSnapshotForStoppedInstance(t *testing.T
 	if got := strategyDefinitionIDFromParams(item.Params); got != "dsl-mean-revert" {
 		t.Fatalf("definitionId = %q, want dsl-mean-revert", got)
 	}
-	if script, _ := item.Params["script"].(string); !strings.Contains(script, "fast = ta.sma(close, 10)") {
+	if script := jftradeCheckedTypeAssertion[string](item.Params["script"]); !strings.Contains(script, "fast = ta.sma(close, 10)") {
 		t.Fatalf("expected refreshed script snapshot, got %q", script)
 	}
 	if symbols, ok := item.Params["symbols"].([]string); !ok || len(symbols) != 1 || symbols[0] != "US.AAPL" {

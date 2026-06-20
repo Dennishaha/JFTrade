@@ -4,9 +4,10 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	swaggerdocs "github.com/jftrade/jftrade-main/docs/swagger"
 	swaggerfiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
+
+	swaggerdocs "github.com/jftrade/jftrade-main/docs/swagger"
 )
 
 var swaggerUIHandler = ginSwagger.WrapHandler(

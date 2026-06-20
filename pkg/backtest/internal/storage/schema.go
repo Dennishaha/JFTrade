@@ -40,17 +40,6 @@ func normalizeRehabTypeName(rehabType string) string {
 	}
 }
 
-func rehabTypeCode(rehabType string) int64 {
-	switch normalizeRehabTypeName(rehabType) {
-	case "backward":
-		return rehabTypeBackwardCode
-	case "none":
-		return rehabTypeNoneCode
-	default:
-		return rehabTypeForwardCode
-	}
-}
-
 // RehabTypeName converts a qotcommonpb.RehabType enum to the store's string
 // representation: "forward", "backward", or "none".
 func RehabTypeName(rehabType int32) string {
@@ -221,19 +210,6 @@ func klineSessionScopeStorageTag(scope string) string {
 		return "x"
 	default:
 		return "l"
-	}
-}
-
-func klineReadSessionScopeCandidates(scope string) []string {
-	switch normalizeReadSessionScopeName(scope) {
-	case klineSessionScopeRegular:
-		return []string{klineSessionScopeRegular, klineSessionScopeLegacy, klineSessionScopeExtended}
-	case klineSessionScopeExtended:
-		return []string{klineSessionScopeExtended, klineSessionScopeLegacy, klineSessionScopeRegular}
-	case klineSessionScopeLegacy:
-		return []string{klineSessionScopeLegacy}
-	default:
-		return []string{klineSessionScopeLegacy, klineSessionScopeExtended, klineSessionScopeRegular}
 	}
 }
 

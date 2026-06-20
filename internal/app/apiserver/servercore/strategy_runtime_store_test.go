@@ -20,7 +20,7 @@ func TestNewStrategyRuntimeStoreCreatesExpectedSchema(t *testing.T) {
 		strategyRuntimeObservationTable,
 	} {
 		var count int
-		if err := store.DB().QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?`, tableName).Scan(&count); err != nil {
+		if err := store.DB().QueryRowContext(t.Context(), `SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?`, tableName).Scan(&count); err != nil {
 			t.Fatalf("check %s table: %v", tableName, err)
 		}
 		if count != 1 {
@@ -35,9 +35,9 @@ func TestNewStrategyRuntimeStoreRejectsLegacySchema(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}
-	defer db.Close()
+	defer func() { jftradeCheckTestError(t, db.Close()) }()
 
-	if _, err := db.Exec(`CREATE TABLE strategy_log_events (id INTEGER PRIMARY KEY, message TEXT NOT NULL)`); err != nil {
+	if _, err := db.ExecContext(t.Context(), `CREATE TABLE strategy_log_events (id INTEGER PRIMARY KEY, message TEXT NOT NULL)`); err != nil {
 		t.Fatalf("create legacy schema: %v", err)
 	}
 

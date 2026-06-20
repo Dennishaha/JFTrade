@@ -23,7 +23,7 @@ func TestFutuAdapterCompileTimeChecks(t *testing.T) {
 	}
 
 	// Verify it implements broker.Broker.
-	var b broker.Broker = adapter
+	var b = adapter
 	if b.ID() != "futu" {
 		t.Fatalf("expected ID=futu, got %s", b.ID())
 	}

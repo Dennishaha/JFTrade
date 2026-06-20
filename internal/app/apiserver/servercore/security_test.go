@@ -50,13 +50,14 @@ func assertErrorEnvelopeTimestamp(t *testing.T, resp *http.Response) {
 
 func TestRemoteRequestWithoutOriginDoesNotBypassAuthentication(t *testing.T) {
 	_, srv := newAuthenticatedSecurityServer(t)
-	req, _ := http.NewRequest(http.MethodGet, srv.URL+"/api/v1/adk", nil)
+	req, jftradeErr1 := http.NewRequestWithContext(t.Context(), http.MethodGet, srv.URL+"/api/v1/adk", nil)
+	jftradeCheckTestError(t, jftradeErr1)
 	req.RemoteAddr = "192.0.2.20:12345"
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatalf("GET: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if resp.StatusCode != http.StatusUnauthorized {
 		t.Fatalf("status = %d, want 401", resp.StatusCode)
 	}
@@ -64,13 +65,14 @@ func TestRemoteRequestWithoutOriginDoesNotBypassAuthentication(t *testing.T) {
 
 func TestForgedLocalhostOriginDoesNotAuthenticateRequest(t *testing.T) {
 	_, srv := newAuthenticatedSecurityServer(t)
-	req, _ := http.NewRequest(http.MethodPost, srv.URL+"/api/v1/adk/agents", bytes.NewReader([]byte(`{}`)))
+	req, jftradeErr2 := http.NewRequestWithContext(t.Context(), http.MethodPost, srv.URL+"/api/v1/adk/agents", bytes.NewReader([]byte(`{}`)))
+	jftradeCheckTestError(t, jftradeErr2)
 	req.Header.Set("Origin", "http://localhost:5173")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatalf("POST: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if resp.StatusCode != http.StatusUnauthorized {
 		t.Fatalf("status = %d, want 401", resp.StatusCode)
 	}
@@ -78,13 +80,14 @@ func TestForgedLocalhostOriginDoesNotAuthenticateRequest(t *testing.T) {
 
 func TestAdministratorBearerKeyAllowsSensitiveRequests(t *testing.T) {
 	server, srv := newAuthenticatedSecurityServer(t)
-	req, _ := http.NewRequest(http.MethodGet, srv.URL+"/api/v1/adk", nil)
+	req, jftradeErr3 := http.NewRequestWithContext(t.Context(), http.MethodGet, srv.URL+"/api/v1/adk", nil)
+	jftradeCheckTestError(t, jftradeErr3)
 	req.Header.Set("Authorization", "Bearer "+server.auth.key)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatalf("GET: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("status = %d, want 200", resp.StatusCode)
 	}
@@ -92,13 +95,14 @@ func TestAdministratorBearerKeyAllowsSensitiveRequests(t *testing.T) {
 
 func TestWrongAdministratorBearerKeyIsRejected(t *testing.T) {
 	_, srv := newAuthenticatedSecurityServer(t)
-	req, _ := http.NewRequest(http.MethodGet, srv.URL+"/api/v1/adk", nil)
+	req, jftradeErr4 := http.NewRequestWithContext(t.Context(), http.MethodGet, srv.URL+"/api/v1/adk", nil)
+	jftradeCheckTestError(t, jftradeErr4)
 	req.Header.Set("Authorization", "Bearer wrong-key")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatalf("GET: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if resp.StatusCode != http.StatusUnauthorized {
 		t.Fatalf("status = %d, want 401", resp.StatusCode)
 	}
@@ -106,23 +110,26 @@ func TestWrongAdministratorBearerKeyIsRejected(t *testing.T) {
 
 func TestAdministratorCookieSessionRequiresCSRFForWrites(t *testing.T) {
 	server, srv := newAuthenticatedSecurityServer(t)
-	jar, _ := cookiejar.New(nil)
+	jar, jftradeErr5 := cookiejar.New(nil)
+	jftradeCheckTestError(t, jftradeErr5)
 	client := &http.Client{Jar: jar}
 	csrf := loginAdministrator(t, client, srv.URL, server.auth.key)
 
-	req, _ := http.NewRequest(http.MethodPost, srv.URL+"/api/v1/adk/agents", bytes.NewReader([]byte(`{"name":"csrf-agent","status":"ENABLED"}`)))
+	req, jftradeErr6 := http.NewRequestWithContext(t.Context(), http.MethodPost, srv.URL+"/api/v1/adk/agents", bytes.NewReader([]byte(`{"name":"csrf-agent","status":"ENABLED"}`)))
+	jftradeCheckTestError(t, jftradeErr6)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Origin", srv.URL)
 	resp, err := client.Do(req)
 	if err != nil {
 		t.Fatalf("POST without CSRF: %v", err)
 	}
-	resp.Body.Close()
+	jftradeCheckTestError(t, resp.Body.Close())
 	if resp.StatusCode != http.StatusForbidden {
 		t.Fatalf("without CSRF status = %d, want 403", resp.StatusCode)
 	}
 
-	req, _ = http.NewRequest(http.MethodPost, srv.URL+"/api/v1/adk/agents", bytes.NewReader([]byte(`{"name":"csrf-agent","status":"ENABLED"}`)))
+	req, jftradeErr7 := http.NewRequestWithContext(t.Context(), http.MethodPost, srv.URL+"/api/v1/adk/agents", bytes.NewReader([]byte(`{"name":"csrf-agent","status":"ENABLED"}`)))
+	jftradeCheckTestError(t, jftradeErr7)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Origin", srv.URL)
 	req.Header.Set("X-CSRF-Token", csrf)
@@ -130,7 +137,7 @@ func TestAdministratorCookieSessionRequiresCSRFForWrites(t *testing.T) {
 	if err != nil {
 		t.Fatalf("POST with CSRF: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
 		t.Fatalf("with CSRF status = %d", resp.StatusCode)
 	}
@@ -138,7 +145,8 @@ func TestAdministratorCookieSessionRequiresCSRFForWrites(t *testing.T) {
 
 func TestExpiredAdministratorSessionIsRejected(t *testing.T) {
 	server, srv := newAuthenticatedSecurityServer(t)
-	jar, _ := cookiejar.New(nil)
+	jar, jftradeErr8 := cookiejar.New(nil)
+	jftradeCheckTestError(t, jftradeErr8)
 	client := &http.Client{Jar: jar}
 	loginAdministrator(t, client, srv.URL, server.auth.key)
 
@@ -149,11 +157,13 @@ func TestExpiredAdministratorSessionIsRejected(t *testing.T) {
 	}
 	server.auth.mu.Unlock()
 
-	resp, err := client.Get(srv.URL + "/api/v1/adk")
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, srv.URL+"/api/v1/adk", nil)
+	jftradeCheckTestError(t, err)
+	resp, err := client.Do(req)
 	if err != nil {
 		t.Fatalf("GET: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if resp.StatusCode != http.StatusUnauthorized {
 		t.Fatalf("status = %d, want 401", resp.StatusCode)
 	}
@@ -161,23 +171,26 @@ func TestExpiredAdministratorSessionIsRejected(t *testing.T) {
 
 func TestAdministratorCookieSessionRejectsUntrustedOrigin(t *testing.T) {
 	server, srv := newAuthenticatedSecurityServer(t)
-	jar, _ := cookiejar.New(nil)
+	jar, jftradeErr9 := cookiejar.New(nil)
+	jftradeCheckTestError(t, jftradeErr9)
 	client := &http.Client{Jar: jar}
 	csrf := loginAdministrator(t, client, srv.URL, server.auth.key)
 
-	req, _ := http.NewRequest(http.MethodGet, srv.URL+"/api/v1/adk", nil)
+	req, jftradeErr10 := http.NewRequestWithContext(t.Context(), http.MethodGet, srv.URL+"/api/v1/adk", nil)
+	jftradeCheckTestError(t, jftradeErr10)
 	req.Header.Set("Origin", "https://evil.example.com")
 	resp, err := client.Do(req)
 	if err != nil {
 		t.Fatalf("GET: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if resp.StatusCode != http.StatusForbidden {
 		t.Fatalf("read status = %d, want 403", resp.StatusCode)
 	}
 	assertErrorEnvelopeTimestamp(t, resp)
 
-	req, _ = http.NewRequest(http.MethodPost, srv.URL+"/api/v1/adk/agents", bytes.NewReader([]byte(`{"name":"csrf-agent","status":"ENABLED"}`)))
+	req, jftradeErr11 := http.NewRequestWithContext(t.Context(), http.MethodPost, srv.URL+"/api/v1/adk/agents", bytes.NewReader([]byte(`{"name":"csrf-agent","status":"ENABLED"}`)))
+	jftradeCheckTestError(t, jftradeErr11)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Origin", "https://evil.example.com")
 	req.Header.Set("X-CSRF-Token", csrf)
@@ -185,7 +198,7 @@ func TestAdministratorCookieSessionRejectsUntrustedOrigin(t *testing.T) {
 	if err != nil {
 		t.Fatalf("POST: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if resp.StatusCode != http.StatusForbidden {
 		t.Fatalf("write status = %d, want 403", resp.StatusCode)
 	}
@@ -195,13 +208,14 @@ func TestUnavailableAdministratorAuthFailsClosed(t *testing.T) {
 	server, srv := newAuthenticatedSecurityServer(t)
 	server.auth.unavailable = true
 
-	req, _ := http.NewRequest(http.MethodGet, srv.URL+"/api/v1/adk", nil)
+	req, jftradeErr12 := http.NewRequestWithContext(t.Context(), http.MethodGet, srv.URL+"/api/v1/adk", nil)
+	jftradeCheckTestError(t, jftradeErr12)
 	req.Header.Set("Authorization", "Bearer "+server.auth.key)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatalf("GET: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if resp.StatusCode != http.StatusUnauthorized {
 		t.Fatalf("status = %d, want 401", resp.StatusCode)
 	}
@@ -217,13 +231,14 @@ func TestCORSOnlyReflectsConfiguredOrigins(t *testing.T) {
 		{origin: "http://localhost:5174", want: "http://localhost:5174"},
 		{origin: "https://evil.example.com", want: ""},
 	} {
-		req, _ := http.NewRequest(http.MethodGet, srv.URL+"/api/v1/system/status", nil)
+		req, jftradeErr13 := http.NewRequestWithContext(t.Context(), http.MethodGet, srv.URL+"/api/v1/system/status", nil)
+		jftradeCheckTestError(t, jftradeErr13)
 		req.Header.Set("Origin", test.origin)
 		resp, err := http.DefaultClient.Do(req)
 		if err != nil {
 			t.Fatalf("GET: %v", err)
 		}
-		resp.Body.Close()
+		jftradeCheckTestError(t, resp.Body.Close())
 		if got := resp.Header.Get("Access-Control-Allow-Origin"); got != test.want {
 			t.Fatalf("origin %q allowed as %q, want %q", test.origin, got, test.want)
 		}
@@ -232,11 +247,11 @@ func TestCORSOnlyReflectsConfiguredOrigins(t *testing.T) {
 
 func TestLegacyTokenEndpointIsGone(t *testing.T) {
 	_, srv := newAuthenticatedSecurityServer(t)
-	resp, err := http.Get(srv.URL + "/api/v1/auth/token")
+	resp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/auth/token")
 	if err != nil {
 		t.Fatalf("GET token: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if resp.StatusCode != http.StatusGone {
 		t.Fatalf("status = %d, want 410", resp.StatusCode)
 	}
@@ -259,14 +274,15 @@ func TestAdministratorKeyPersistsAcrossAuthInstances(t *testing.T) {
 
 func loginAdministrator(t *testing.T, client *http.Client, baseURL string, key string) string {
 	t.Helper()
-	req, _ := http.NewRequest(http.MethodPost, baseURL+"/api/v1/auth/login", bytes.NewReader([]byte(`{"key":"`+key+`"}`)))
+	req, jftradeErr14 := http.NewRequestWithContext(t.Context(), http.MethodPost, baseURL+"/api/v1/auth/login", bytes.NewReader([]byte(`{"key":"`+key+`"}`)))
+	jftradeCheckTestError(t, jftradeErr14)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Origin", baseURL)
 	resp, err := client.Do(req)
 	if err != nil {
 		t.Fatalf("login: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("login status = %d", resp.StatusCode)
 	}

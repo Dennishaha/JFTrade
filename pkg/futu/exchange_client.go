@@ -65,7 +65,8 @@ func (e *Exchange) ensureClient(ctx context.Context) (*opend.Client, error) {
 		select {
 		case <-e.client.Done():
 			log.Printf("futu OpenD client done; reconnecting to %s", e.addr)
-			_ = e.invalidateClientLocked()
+			jftradeErr6 := e.invalidateClientLocked()
+			jftradeLogError(jftradeErr6)
 			e.client = e.newClient()
 		default:
 			e.bindOrderBookNotifyLocked(e.client)
@@ -79,7 +80,8 @@ func (e *Exchange) ensureClient(ctx context.Context) (*opend.Client, error) {
 
 	connectStart := time.Now()
 	if err := e.client.Connect(ctx); err != nil {
-		_ = e.invalidateClientLocked()
+		jftradeErr2 := e.invalidateClientLocked()
+		jftradeLogError(jftradeErr2)
 		log.Printf("futu OpenD connect to %s failed after %v: %v", e.addr, time.Since(connectStart), err)
 		return nil, err
 	}
@@ -94,7 +96,8 @@ func (e *Exchange) ensureClient(ctx context.Context) (*opend.Client, error) {
 	}}
 	var initResp initpb.Response
 	if err := e.client.Call(ctx, opend.ProtoInitConnect, initReq, &initResp); err != nil {
-		_ = e.invalidateClientLocked()
+		jftradeErr3 := e.invalidateClientLocked()
+		jftradeLogError(jftradeErr3)
 		log.Printf("futu OpenD InitConnect to %s failed after %v (connect=%v): %v",
 			e.addr, time.Since(initStart), connectElapsed, err)
 		return nil, err
@@ -102,7 +105,8 @@ func (e *Exchange) ensureClient(ctx context.Context) (*opend.Client, error) {
 	if initResp.GetRetType() != 0 {
 		err := fmt.Errorf("opend InitConnect retType=%d errCode=%d retMsg=%s", initResp.GetRetType(), initResp.GetErrCode(), initResp.GetRetMsg())
 		log.Printf("futu OpenD InitConnect error: %v", err)
-		_ = e.invalidateClientLocked()
+		jftradeErr1 := e.invalidateClientLocked()
+		jftradeLogError(jftradeErr1)
 		return nil, err
 	}
 
@@ -116,7 +120,8 @@ func (e *Exchange) ensureClient(ctx context.Context) (*opend.Client, error) {
 	e.bindSystemNotifyLocked(e.client)
 	e.bindTradeUpdateNotifyLocked(e.client)
 	if err := e.resubscribeTradeAccountPushLocked(ctx, e.client); err != nil {
-		_ = e.invalidateClientLocked()
+		jftradeErr5 := e.invalidateClientLocked()
+		jftradeLogError(jftradeErr5)
 		log.Printf("futu OpenD trade account push resubscribe failed after reconnect: %v", err)
 		return nil, err
 	}
@@ -236,7 +241,8 @@ func (e *Exchange) invalidateClient() {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	log.Printf("futu OpenD invalidateClient (public) addr=%s", e.addr)
-	_ = e.invalidateClientLocked()
+	jftradeErr4 := e.invalidateClientLocked()
+	jftradeLogError(jftradeErr4)
 }
 
 func (e *Exchange) invalidateClientLocked() error {
@@ -266,4 +272,12 @@ func isRecoverableOpenDErr(err error) bool {
 		strings.Contains(lower, "connection reset") ||
 		strings.Contains(lower, "eof") ||
 		strings.Contains(lower, "use of closed network connection")
+}
+
+func jftradeLogError(values ...any) {
+	for _, value := range values {
+		if err, ok := value.(error); ok && err != nil {
+			log.Printf("best-effort operation failed: %v", err)
+		}
+	}
 }

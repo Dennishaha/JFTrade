@@ -126,7 +126,8 @@ func seedSessionAwareIntradayBenchmarkStore(b *testing.B) (string, time.Time) {
 	}
 	klines := buildBenchmarkSessionAwareHalfHourKLines(time.Date(2026, time.May, 4, 0, 0, 0, 0, time.UTC), 40)
 	if err := store.InsertKLines(klines, "forward"); err != nil {
-		_ = store.Close()
+		jftradeErr1 := store.Close()
+		jftradeCheckTestError(b, jftradeErr1)
 		b.Fatalf("InsertKLines() error = %v", err)
 	}
 	if err := store.Close(); err != nil {

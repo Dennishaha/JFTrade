@@ -253,39 +253,6 @@ func formatOrderID(id uint64) string {
 	return strconv.FormatUint(id, 10)
 }
 
-// formatBrokerOrderID converts a uint64 order ID to string.
-// Kept as a separate function for clarity in the adapter layer.
-func formatBrokerOrderIDPtr(id uint64) *string {
-	return new(formatOrderID(id))
-}
-
-// convertFutuAccountsToBroker converts Futu RuntimeAccount slice to broker Account slice.
-func convertFutuAccountsToBroker(accounts []RuntimeAccount) []broker.Account {
-	result := make([]broker.Account, len(accounts))
-	for i, a := range accounts {
-		result[i] = broker.Account{
-			ID:                   a.AccountID,
-			BrokerID:             string(Name),
-			TradingEnvironment:   a.TradingEnvironment,
-			AccountType:          a.AccountType,
-			AccountRole:          a.AccountRole,
-			SecurityFirm:         a.SecurityFirm,
-			MarketAuthorities:    a.MarketAuthorities,
-			SimulatedAccountType: a.SimulatedAccountType,
-		}
-	}
-	return result
-}
-
-// brokerReadQueryFromFutu converts a broker ReadQuery to a Futu BrokerReadQuery.
-func brokerReadQueryFromFutu(q broker.ReadQuery) BrokerReadQuery {
-	return BrokerReadQuery{
-		AccountID:          q.AccountID,
-		TradingEnvironment: q.TradingEnvironment,
-		Market:             q.Market,
-	}
-}
-
 // orderBookSnapshotFromOpendResult converts an opend.OrderBookResult into a broker.OrderBookSnapshot.
 func orderBookSnapshotFromOpendResult(res *opend.OrderBookResult, query *broker.OrderBookQuery) *broker.OrderBookSnapshot {
 	if res == nil {

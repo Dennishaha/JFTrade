@@ -142,7 +142,7 @@ func TestRealUSMarch2026DoubleMATemplateDiagnostics(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewFutuKLineStore() error = %v", err)
 	}
-	defer store.Close()
+	defer func() { jftradeCheckTestError(t, store.Close()) }()
 	store.SetRehabType("forward")
 	store.SetReadSessionScope(KLineSessionScopeRegular)
 
@@ -566,7 +566,7 @@ func prepareRealChainProfileFixture(tb testing.TB, options realChainFixtureOptio
 	if err != nil {
 		tb.Fatalf("NewFutuKLineStore() error = %v", err)
 	}
-	defer store.Close()
+	defer func() { jftradeCheckTestError(tb, store.Close()) }()
 	store.SetRehabType("forward")
 	store.SetReadSessionScope(readSessionScope)
 
@@ -577,7 +577,10 @@ func prepareRealChainProfileFixture(tb testing.TB, options realChainFixtureOptio
 	progress := NewSyncProgress(progressName, symbol, syncStart)
 	exchange := futu.NewExchange(realChainProfileOpenDAddr())
 	defer func() {
-		_ = exchange.Close()
+		func() {
+			jftradeErr1 := exchange.Close()
+			jftradeCheckTestError(tb, jftradeErr1)
+		}()
 	}()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Minute)
@@ -605,10 +608,12 @@ func prepareRealChainProfileFixture(tb testing.TB, options realChainFixtureOptio
 		if err != nil {
 			tb.Fatalf("SyncKLines() error = %v", err)
 		}
-		if snapshot := progress.Snapshot(); snapshot == nil || snapshot.Status != "completed" {
-			if snapshot == nil {
-				tb.Fatal("expected sync snapshot")
-			}
+		snapshot := progress.Snapshot()
+		if snapshot == nil {
+			tb.Fatal("expected sync snapshot")
+			return realChainProfileFixture{}
+		}
+		if snapshot.Status != "completed" {
 			tb.Fatalf("sync status = %s, want completed", snapshot.Status)
 		}
 	}
@@ -669,10 +674,10 @@ func loadRealChainStrategyDefinition(tb testing.TB, dbPath string, definitionID 
 	if err != nil {
 		tb.Fatalf("open real chain strategy db: %v", err)
 	}
-	defer db.Close()
+	defer func() { jftradeCheckTestError(tb, db.Close()) }()
 
 	definition := realChainSavedDefinition{}
-	err = db.QueryRow(
+	err = db.QueryRowContext(tb.Context(),
 		`SELECT id, name, source_format, script FROM strategy_design_definitions WHERE id = ? AND (deleted_at IS NULL OR TRIM(deleted_at) = '')`,
 		trimmedID,
 	).Scan(&definition.id, &definition.name, &definition.sourceFormat, &definition.script)
@@ -771,11 +776,12 @@ func requireRealChainProfile(tb testing.TB) {
 
 func ensureOpenDReachable(tb testing.TB, addr string) {
 	tb.Helper()
-	conn, err := net.DialTimeout("tcp", addr, 2*time.Second)
+	conn, err := (&net.Dialer{Timeout: 2 * time.Second}).DialContext(tb.Context(), "tcp", addr)
 	if err != nil {
 		tb.Skipf("OpenD %s is not reachable: %v", addr, err)
 	}
-	_ = conn.Close()
+	jftradeErr1 := conn.Close()
+	jftradeCheckTestError(tb, jftradeErr1)
 }
 
 func realChainProfileOpenDAddr() string {
@@ -796,10 +802,13 @@ func realChainProfileDBPath(tb testing.TB) string {
 	return filepath.Join(tb.TempDir(), "us-tme-2026-03-real-chain.db")
 }
 
-func realChainBoolPtr(value bool) *bool {
-	return &value
-}
-
 func (f realChainProfileFixture) String() string {
 	return fmt.Sprintf("%s %s [%s,%s]", f.symbol, f.interval, f.replayStart.Format(time.RFC3339), f.replayEnd.Format(time.RFC3339))
+}
+
+func jftradeCheckTestError(t testing.TB, err error) {
+	t.Helper()
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
 }

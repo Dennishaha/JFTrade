@@ -69,7 +69,7 @@ func TestMarketSecurityDetailsWebSocketSendsInitialPayload(t *testing.T) {
 	t.Cleanup(srv.Close)
 
 	conn := dialLiveWebSocket(t, srv.URL)
-	defer conn.Close()
+	defer func() { jftradeCheckTestError(t, conn.Close()) }()
 
 	if err := conn.WriteJSON(liveWebSocketClientMessage{
 		Type: "subscribe",

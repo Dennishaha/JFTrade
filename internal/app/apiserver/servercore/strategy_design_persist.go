@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/jmoiron/sqlx"
+	// Register the modernc SQLite driver for database/sql.
 	_ "modernc.org/sqlite"
 )
 

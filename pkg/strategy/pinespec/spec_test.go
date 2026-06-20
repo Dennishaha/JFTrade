@@ -10,7 +10,6 @@ import (
 
 func TestExamplesParseAndPlan(t *testing.T) {
 	for _, example := range Examples() {
-		example := example
 		t.Run(example.ID, func(t *testing.T) {
 			program, err := strategypine.ParseScript(example.Script)
 			if err != nil {
@@ -25,7 +24,6 @@ func TestExamplesParseAndPlan(t *testing.T) {
 
 func TestGoldenExamplesAnalyzeAndPlan(t *testing.T) {
 	for _, example := range GoldenExamples() {
-		example := example
 		t.Run(example.ID, func(t *testing.T) {
 			analysis := strategypine.AnalyzeScript(example.Script, strategypine.AnalysisOptions{})
 			if !analysis.OK {
@@ -130,37 +128,37 @@ func TestBuildToolPayloadIncludesSupportMatrix(t *testing.T) {
 	foundV29ExpansionSet := false
 	foundV30ExpansionSet := false
 	for _, item := range matrix {
-		if item["capability"] == "JFTrade Pine v6 main path" && strings.Contains(item["notes"].(string), "sourceFormat=pine-v6") && strings.Contains(item["notes"].(string), "runtime=pine-go-plan") {
+		if item["capability"] == "JFTrade Pine v6 main path" && strings.Contains(jftradeCheckedTypeAssertion[string](item["notes"]), "sourceFormat=pine-v6") && strings.Contains(jftradeCheckedTypeAssertion[string](item["notes"]), "runtime=pine-go-plan") {
 			foundMainPathGate = true
 		}
-		if item["capability"] == "v2.0 language foundation" && strings.Contains(item["notes"].(string), "collection namespace/type argument compatibility") {
+		if item["capability"] == "v2.0 language foundation" && strings.Contains(jftradeCheckedTypeAssertion[string](item["notes"]), "collection namespace/type argument compatibility") {
 			foundCollectionTypeDiagnostics = true
 		}
-		if item["capability"] == "v2.2 structured loops, tuple and pure object subset" && strings.Contains(item["notes"].(string), "动态 for/while") {
+		if item["capability"] == "v2.2 structured loops, tuple and pure object subset" && strings.Contains(jftradeCheckedTypeAssertion[string](item["notes"]), "动态 for/while") {
 			foundV22RuntimeSet = true
 		}
-		if item["capability"] == "v2.3 collection, pure object and MTF expression expansion" && strings.Contains(item["notes"].(string), "纯 collection/object") {
+		if item["capability"] == "v2.3 collection, pure object and MTF expression expansion" && strings.Contains(jftradeCheckedTypeAssertion[string](item["notes"]), "纯 collection/object") {
 			foundV23ExpansionSet = true
 		}
-		if item["capability"] == "v2.4 collection/map, MTF stoch and persistent object expansion" && strings.Contains(item["notes"].(string), "MTF ta.stoch") {
+		if item["capability"] == "v2.4 collection/map, MTF stoch and persistent object expansion" && strings.Contains(jftradeCheckedTypeAssertion[string](item["notes"]), "MTF ta.stoch") {
 			foundV24ExpansionSet = true
 		}
-		if item["capability"] == "v2.5 array stats, string and timeframe helpers" && strings.Contains(item["notes"].(string), "timeframe.change") {
+		if item["capability"] == "v2.5 array stats, string and timeframe helpers" && strings.Contains(jftradeCheckedTypeAssertion[string](item["notes"]), "timeframe.change") {
 			foundV25ExpansionSet = true
 		}
-		if item["capability"] == "v2.6 collection iteration, history and object fields" && strings.Contains(item["notes"].(string), "array for-in") {
+		if item["capability"] == "v2.6 collection iteration, history and object fields" && strings.Contains(jftradeCheckedTypeAssertion[string](item["notes"]), "array for-in") {
 			foundV26ExpansionSet = true
 		}
-		if item["capability"] == "v2.7 collection/timeframe and MTF helper expansion" && strings.Contains(item["notes"].(string), "timeframe.in_seconds") {
+		if item["capability"] == "v2.7 collection/timeframe and MTF helper expansion" && strings.Contains(jftradeCheckedTypeAssertion[string](item["notes"]), "timeframe.in_seconds") {
 			foundV27ExpansionSet = true
 		}
-		if item["capability"] == "v2.8 object history, method chain and export metadata" && strings.Contains(item["notes"].(string), "method chain") {
+		if item["capability"] == "v2.8 object history, method chain and export metadata" && strings.Contains(jftradeCheckedTypeAssertion[string](item["notes"]), "method chain") {
 			foundV28ExpansionSet = true
 		}
-		if item["capability"] == "v2.9 object history method receiver and MTF diagnostics" && strings.Contains(item["notes"].(string), "box[1].score") {
+		if item["capability"] == "v2.9 object history method receiver and MTF diagnostics" && strings.Contains(jftradeCheckedTypeAssertion[string](item["notes"]), "box[1].score") {
 			foundV29ExpansionSet = true
 		}
-		if item["capability"] == "v3.0 stable semantic declarations and varip policy" && strings.Contains(item["notes"].(string), "unsupportedReason") {
+		if item["capability"] == "v3.0 stable semantic declarations and varip policy" && strings.Contains(jftradeCheckedTypeAssertion[string](item["notes"]), "unsupportedReason") {
 			foundV30ExpansionSet = true
 		}
 	}

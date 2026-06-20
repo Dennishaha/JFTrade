@@ -16,16 +16,17 @@ func TestADKRuntimeSettingsDefaultAndSave(t *testing.T) {
 	}
 	server := NewServer(store)
 	t.Cleanup(func() {
-		_ = server.Close()
+		jftradeErr1 := server.Close()
+		jftradeCheckTestError(t, jftradeErr1)
 	})
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
-	resp, err := http.Get(srv.URL + "/api/v1/settings/adk")
+	resp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/settings/adk")
 	if err != nil {
 		t.Fatalf("GET adk settings: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	var getEnvelope struct {
 		OK   bool               `json:"ok"`
 		Data ADKRuntimeSettings `json:"data"`
@@ -40,11 +41,12 @@ func TestADKRuntimeSettingsDefaultAndSave(t *testing.T) {
 		t.Fatalf("default ADK settings = %+v", getEnvelope.Data)
 	}
 
-	body, _ := json.Marshal(ADKRuntimeSettings{
+	body, jftradeErr1 := json.Marshal(ADKRuntimeSettings{
 		RunTimeoutMs:        10_000,
 		StreamIdleTimeoutMs: 2_000_000,
 	})
-	req, err := http.NewRequest(http.MethodPut, srv.URL+"/api/v1/settings/adk", bytes.NewReader(body))
+	jftradeCheckTestError(t, jftradeErr1)
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodPut, srv.URL+"/api/v1/settings/adk", bytes.NewReader(body))
 	if err != nil {
 		t.Fatalf("NewRequest adk settings: %v", err)
 	}
@@ -53,7 +55,7 @@ func TestADKRuntimeSettingsDefaultAndSave(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PUT adk settings: %v", err)
 	}
-	defer saveResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, saveResp.Body.Close()) }()
 	var saveEnvelope struct {
 		OK   bool               `json:"ok"`
 		Data ADKRuntimeSettings `json:"data"`

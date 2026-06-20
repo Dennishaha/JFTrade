@@ -17,7 +17,8 @@ import (
 
 func main() {
 	if os.Getenv("DISABLE_MARKETS_CACHE") == "" {
-		_ = os.Setenv("DISABLE_MARKETS_CACHE", "1")
+		jftradeErr1 := os.Setenv("DISABLE_MARKETS_CACHE", "1")
+		jftradeLogError(jftradeErr1)
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -25,5 +26,13 @@ func main() {
 
 	if err := apiserver.RunAPIOnly(ctx); err != nil {
 		log.Fatalf("JFTrade API-only server failed: %v", err)
+	}
+}
+
+func jftradeLogError(values ...any) {
+	for _, value := range values {
+		if err, ok := value.(error); ok && err != nil {
+			log.Printf("best-effort operation failed: %v", err)
+		}
 	}
 }

@@ -24,11 +24,11 @@ func TestBrokerFundsEndpointReturnsDisconnectedSummary(t *testing.T) {
 	}
 	srv := newHTTPTestServer(t, store)
 
-	resp, err := http.Get(srv.URL + "/api/v1/brokers/futu/funds")
+	resp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/brokers/futu/funds")
 	if err != nil {
 		t.Fatalf("GET broker funds: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("GET broker funds status = %d", resp.StatusCode)
 	}

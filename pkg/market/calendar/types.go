@@ -82,14 +82,14 @@ func LoadLocation(template MarketTemplate) *time.Location {
 		return time.UTC
 	}
 	if cached, ok := locationCache.Load(name); ok {
-		return cached.(*time.Location)
+		return jftradeCheckedTypeAssertion[*time.Location](cached)
 	}
 	loc, err := time.LoadLocation(name)
 	if err != nil {
 		return time.UTC
 	}
 	actual, _ := locationCache.LoadOrStore(name, loc)
-	loc = actual.(*time.Location)
+	loc = jftradeCheckedTypeAssertion[*time.Location](actual)
 	return loc
 }
 
@@ -157,4 +157,12 @@ func ScheduleForDate(template MarketTemplate, status TradingDayStatus, day time.
 		SourceID:   strings.TrimSpace(sourceID),
 		Observed:   observed,
 	}
+}
+
+func jftradeCheckedTypeAssertion[T any](value any) T {
+	typed, ok := value.(T)
+	if !ok {
+		panic("unexpected dynamic type")
+	}
+	return typed
 }

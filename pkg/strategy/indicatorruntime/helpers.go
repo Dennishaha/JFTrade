@@ -48,18 +48,6 @@ func trimInt64SeriesInPlace(values []int64, limit int) []int64 {
 	return values[:limit]
 }
 
-func trimWindowValuesInPlace(values []windowValue, windowStart int) []windowValue {
-	expired := 0
-	for expired < len(values) && values[expired].index < windowStart {
-		expired++
-	}
-	if expired == 0 {
-		return values
-	}
-	copy(values, values[expired:])
-	return values[:len(values)-expired]
-}
-
 func reuseFloat64Slice(values []float64, length int) []float64 {
 	if length <= 0 {
 		return nil

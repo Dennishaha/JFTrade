@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	exprast "github.com/expr-lang/expr/ast"
+
 	strategyir "github.com/jftrade/jftrade-main/pkg/strategy/ir"
 )
 

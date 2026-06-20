@@ -23,9 +23,10 @@ func topLevelTernaryIndexes(expression string) (int, int) {
 	for index := 0; index < len(expression); index++ {
 		ch := expression[index]
 		if (ch == '"' || ch == '\'') && (index == 0 || expression[index-1] != '\\') {
-			if inString == 0 {
+			switch inString {
+			case 0:
 				inString = ch
-			} else if inString == ch {
+			case ch:
 				inString = 0
 			}
 			continue

@@ -14,12 +14,12 @@ import (
 )
 
 const (
-	HeaderLen        = 44
-	ProtoFormatPB    = byte(0)
-	defaultProtoVer  = byte(0)
-	frameMagic0      = byte('F')
-	frameMagic1      = byte('T')
-	MaxFrameBodyLen  = 32 << 20
+	HeaderLen       = 44
+	ProtoFormatPB   = byte(0)
+	defaultProtoVer = byte(0)
+	frameMagic0     = byte('F')
+	frameMagic1     = byte('T')
+	MaxFrameBodyLen = 32 << 20
 )
 
 var (

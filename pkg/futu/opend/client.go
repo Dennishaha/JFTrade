@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"sync"
 	"sync/atomic"
@@ -123,7 +124,8 @@ func (c *Client) Connect(ctx context.Context) error {
 	c.mu.Lock()
 	if c.closed {
 		c.mu.Unlock()
-		_ = conn.Close()
+		jftradeErr3 := conn.Close()
+		jftradeLogError(jftradeErr3)
 		return ErrClosed
 	}
 	c.conn = conn
@@ -198,7 +200,8 @@ func (c *Client) keepAliveLoop(interval time.Duration) {
 			err := c.Call(ctx, ProtoKeepAlive, request, &response)
 			cancel()
 			if err != nil || response.GetRetType() != 0 {
-				_ = c.Close()
+				jftradeErr1 := c.Close()
+				jftradeLogError(jftradeErr1)
 				return
 			}
 		}
@@ -225,7 +228,8 @@ func (c *Client) closeConn(closeNetwork bool) error {
 		if closeNetwork {
 			return conn.Close()
 		}
-		_ = conn.Close()
+		jftradeErr2 := conn.Close()
+		jftradeLogError(jftradeErr2)
 	}
 	return nil
 }
@@ -368,5 +372,14 @@ func (c *Client) dispatch(f codec.Frame) {
 }
 
 func (c *Client) fanoutClose() {
-	_ = c.closeConn(true)
+	jftradeErr4 := c.closeConn(true)
+	jftradeLogError(jftradeErr4)
+}
+
+func jftradeLogError(values ...any) {
+	for _, value := range values {
+		if err, ok := value.(error); ok && err != nil {
+			log.Printf("best-effort operation failed: %v", err)
+		}
+	}
 }

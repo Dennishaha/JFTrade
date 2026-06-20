@@ -19,8 +19,9 @@ import (
 	"strings"
 	"time"
 
-	strategypinespec "github.com/jftrade/jftrade-main/pkg/strategy/pinespec"
 	adkskill "google.golang.org/adk/tool/skilltoolset/skill"
+
+	strategypinespec "github.com/jftrade/jftrade-main/pkg/strategy/pinespec"
 )
 
 const maxSkillFileSize = 512 << 10
@@ -95,8 +96,10 @@ var builtinSkillSpecs = []builtinSkillSpec{
 func NewSkillRegistry(skillsPath string) *SkillRegistry {
 	registry := &SkillRegistry{skillsPath: strings.TrimSpace(skillsPath)}
 	if registry.skillsPath != "" {
-		_ = os.MkdirAll(registry.skillsPath, 0o755)
-		_ = registry.ensureBuiltins()
+		jftradeErr13 := os.MkdirAll(registry.skillsPath, 0o755)
+		jftradeLogError(jftradeErr13)
+		jftradeErr11 := registry.ensureBuiltins()
+		jftradeLogError(jftradeErr11)
 	}
 	return registry
 }
@@ -200,7 +203,7 @@ func (r *SkillRegistry) InstallURL(ctx context.Context, rawURL string) (Skill, e
 	if err != nil {
 		return Skill{}, err
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeLogError(resp.Body.Close()) }()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return Skill{}, fmt.Errorf("skill URL returned %d", resp.StatusCode)
 	}
@@ -247,7 +250,7 @@ func (r *SkillRegistry) installArchive(ctx context.Context, sourceURL string, bo
 	if err != nil {
 		return Skill{}, err
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() { jftradeLogError(os.RemoveAll(tempDir)) }()
 
 	reader, err := zip.NewReader(bytes.NewReader(body), int64(len(body)))
 	if err != nil {
@@ -282,12 +285,14 @@ func (r *SkillRegistry) installArchive(ctx context.Context, sourceURL string, bo
 		}
 		out, err := os.OpenFile(targetPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
 		if err != nil {
-			_ = in.Close()
+			jftradeErr1 := in.Close()
+			jftradeLogError(jftradeErr1)
 			return Skill{}, err
 		}
 		_, copyErr := io.Copy(out, io.LimitReader(in, int64(maxSkillArchiveSize)+1))
 		closeErr := out.Close()
-		_ = in.Close()
+		jftradeErr2 := in.Close()
+		jftradeLogError(jftradeErr2)
 		if copyErr != nil {
 			return Skill{}, copyErr
 		}
@@ -498,8 +503,10 @@ func (r *SkillRegistry) installSkillDocument(name string, raw []byte) (string, b
 		return "", false, err
 	}
 	if err := os.Rename(tempPath, installPath); err != nil {
-		_ = os.Remove(tempPath)
-		_ = os.RemoveAll(installDir)
+		jftradeErr7 := os.Remove(tempPath)
+		jftradeLogError(jftradeErr7)
+		jftradeErr10 := os.RemoveAll(installDir)
+		jftradeLogError(jftradeErr10)
 		return "", false, err
 	}
 	return installPath, false, nil
@@ -524,7 +531,8 @@ func (r *SkillRegistry) installSkillDirectory(name string, sourceDir string) (st
 		return "", false, err
 	}
 	if err := copyDirectoryContents(sourceDir, installDir); err != nil {
-		_ = os.RemoveAll(installDir)
+		jftradeErr9 := os.RemoveAll(installDir)
+		jftradeLogError(jftradeErr9)
 		return "", false, err
 	}
 	return filepath.Join(installDir, "SKILL.md"), false, nil
@@ -711,16 +719,20 @@ func copyDirectoryContents(sourceDir string, targetDir string) error {
 		}
 		output, err := os.OpenFile(targetPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, info.Mode().Perm())
 		if err != nil {
-			_ = input.Close()
+			jftradeErr3 := input.Close()
+			jftradeLogError(jftradeErr3)
 			return err
 		}
 		if _, err := io.Copy(output, input); err != nil {
-			_ = input.Close()
-			_ = output.Close()
+			jftradeErr4 := input.Close()
+			jftradeLogError(jftradeErr4)
+			jftradeErr5 := output.Close()
+			jftradeLogError(jftradeErr5)
 			return err
 		}
 		if err := input.Close(); err != nil {
-			_ = output.Close()
+			jftradeErr6 := output.Close()
+			jftradeLogError(jftradeErr6)
 			return err
 		}
 		return output.Close()
@@ -772,7 +784,7 @@ func replaceDirectoryWithBundle(targetDir string, bundle map[string]string) erro
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() { jftradeLogError(os.RemoveAll(tempDir)) }()
 
 	for relativePath, content := range bundle {
 		cleanPath := filepath.Clean(relativePath)
@@ -796,12 +808,14 @@ func replaceDirectoryWithBundle(targetDir string, bundle map[string]string) erro
 	}
 
 	backupDir := targetDir + ".bak"
-	_ = os.RemoveAll(backupDir)
+	jftradeErr8 := os.RemoveAll(backupDir)
+	jftradeLogError(jftradeErr8)
 	if err := os.Rename(targetDir, backupDir); err != nil {
 		return err
 	}
 	if err := os.Rename(tempDir, targetDir); err != nil {
-		_ = os.Rename(backupDir, targetDir)
+		jftradeErr12 := os.Rename(backupDir, targetDir)
+		jftradeLogError(jftradeErr12)
 		return err
 	}
 	return os.RemoveAll(backupDir)

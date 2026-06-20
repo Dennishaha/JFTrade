@@ -160,13 +160,6 @@ func (s *FutuKLineStore) findMissingRangesInTable(
 	return fullWindowMissingRange(startTime, endTime), nil
 }
 
-func (s *FutuKLineStore) findMissingRangesInWriteTable(
-	symbol string, interval types.Interval, rehabType string, startTime, endTime time.Time,
-) ([]string, error) {
-	tableName := s.writeTableName(symbol, interval, rehabType)
-	return s.findMissingRangesInPhysicalTable(tableName, interval, startTime, endTime)
-}
-
 func (s *FutuKLineStore) findMissingRangesInPhysicalTable(
 	tableName string, interval types.Interval, startTime, endTime time.Time,
 ) ([]string, error) {
@@ -202,7 +195,7 @@ func (s *FutuKLineStore) findMissingRangesInPhysicalTable(
 
 func (s *FutuKLineStore) hasKLineEndingAtOrAfter(tableName string, at time.Time) (bool, error) {
 	var endTimeMillis int64
-	err := s.db.QueryRow(
+	err := s.db.QueryRowContext(context.Background(),
 		`SELECT end_time FROM `+quoteIdentifier(tableName)+` WHERE end_time >= ? ORDER BY end_time ASC LIMIT 1`,
 		timeToUnixMillis(at),
 	).Scan(&endTimeMillis)
@@ -217,7 +210,7 @@ func (s *FutuKLineStore) hasKLineEndingAtOrAfter(tableName string, at time.Time)
 
 func (s *FutuKLineStore) hasKLineEndingAtOrBefore(tableName string, at time.Time) (bool, error) {
 	var endTimeMillis int64
-	err := s.db.QueryRow(
+	err := s.db.QueryRowContext(context.Background(),
 		`SELECT end_time FROM `+quoteIdentifier(tableName)+` WHERE end_time <= ? ORDER BY end_time DESC LIMIT 1`,
 		timeToUnixMillis(at),
 	).Scan(&endTimeMillis)
@@ -238,7 +231,7 @@ func (s *FutuKLineStore) hasKLineBoundaryPair(tableName string, left, right time
 		expectedCount = 1
 	}
 	var actualCount int
-	err := s.db.QueryRow(
+	err := s.db.QueryRowContext(context.Background(),
 		`SELECT COUNT(DISTINCT end_time) FROM `+quoteIdentifier(tableName)+` WHERE end_time IN (?, ?)`,
 		leftMillis,
 		rightMillis,
@@ -340,7 +333,7 @@ func (s *FutuKLineStore) isBatchCovered(
 	)
 
 	var endTimeMillis int64
-	err = s.db.QueryRow(
+	err = s.db.QueryRowContext(context.Background(),
 		query,
 		timeToUnixMillis(cursor),
 		timeToUnixMillis(batchEnd),

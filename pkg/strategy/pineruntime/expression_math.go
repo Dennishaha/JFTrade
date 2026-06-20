@@ -101,11 +101,12 @@ func evaluateMathExpression(functionName string, arguments []exprast.Node, scope
 			if !valueOK {
 				return nil, fmt.Errorf("%s() requires numeric arguments", functionName)
 			}
-			if functionName == "avg" {
+			switch functionName {
+			case "avg":
 				result += value
-			} else if functionName == "min" {
+			case "min":
 				result = math.Min(result, value)
-			} else {
+			default:
 				result = math.Max(result, value)
 			}
 		}

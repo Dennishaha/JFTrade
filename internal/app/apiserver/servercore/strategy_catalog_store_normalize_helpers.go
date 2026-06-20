@@ -64,12 +64,12 @@ func (s *strategyCatalogStore) normalizeStrategy(input managedStrategyInstance) 
 	if input.Params == nil {
 		input.Params = map[string]any{}
 	}
-	if runtime, _ := input.Params["runtime"].(string); strings.TrimSpace(runtime) == "" {
+	if runtime := jftradeOptionalTypeAssertion[string](input.Params["runtime"]); strings.TrimSpace(runtime) == "" {
 		input.Params["runtime"] = strategyRuntimePinePlan
 	} else {
 		input.Params["runtime"] = strings.TrimSpace(strings.ToLower(runtime))
 	}
-	if sourceFormat, _ := input.Params["sourceFormat"].(string); strings.TrimSpace(sourceFormat) == "" {
+	if sourceFormat := jftradeOptionalTypeAssertion[string](input.Params["sourceFormat"]); strings.TrimSpace(sourceFormat) == "" {
 		input.Params["sourceFormat"] = strategydefinition.SourceFormatPineV6
 	} else {
 		input.Params["sourceFormat"] = strings.TrimSpace(sourceFormat)
@@ -83,7 +83,7 @@ func (s *strategyCatalogStore) normalizeStrategy(input managedStrategyInstance) 
 	if input.Definition.Version == "" {
 		input.Definition.Version = "0.1.0"
 	}
-	if script, _ := input.Params["script"].(string); strings.TrimSpace(script) == "" {
+	if script := jftradeOptionalTypeAssertion[string](input.Params["script"]); strings.TrimSpace(script) == "" {
 		input.Params["script"] = defaultStrategyDesignPine(input.Definition.Name)
 	}
 	if input.Status == "" {

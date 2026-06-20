@@ -101,7 +101,7 @@ strategy.entry("Long", strategy.long, qty=1)`,
 			return &bt.RunResult{}
 		}),
 	)
-	t.Cleanup(func() { _ = service.Close() })
+	t.Cleanup(func() { jftradeErr1 := service.Close(); jftradeCheckTestError(t, jftradeErr1) })
 	router := newBacktestRouter(service)
 
 	recorder := performJSONRequest(
@@ -138,7 +138,7 @@ func newBacktestRouter(service *srvbacktest.Service) *gin.Engine {
 
 func performJSONRequest(router http.Handler, method string, path string, body string) *httptest.ResponseRecorder {
 	recorder := httptest.NewRecorder()
-	request := httptest.NewRequest(method, path, strings.NewReader(body))
+	request := httptest.NewRequestWithContext(context.Background(), method, path, strings.NewReader(body))
 	request.Header.Set("Content-Type", "application/json")
 	router.ServeHTTP(recorder, request)
 	return recorder
@@ -293,4 +293,11 @@ func (s *routeRunStore) Cancel(runID string) bool {
 
 func (s *routeRunStore) Close() error {
 	return nil
+}
+
+func jftradeCheckTestError(t testing.TB, err error) {
+	t.Helper()
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
 }

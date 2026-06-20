@@ -13,7 +13,7 @@ func compareValues(left any, right any, operator string) (bool, error) {
 		case "==":
 			return left == nil && right == nil, nil
 		case "!=":
-			return !(left == nil && right == nil), nil
+			return left != nil || right != nil, nil
 		default:
 			return false, fmt.Errorf("operator %s requires numeric operands", operator)
 		}

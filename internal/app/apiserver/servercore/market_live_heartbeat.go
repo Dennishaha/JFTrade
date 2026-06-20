@@ -116,12 +116,6 @@ func (s *Server) liveHeartbeatEvent(heartbeatInterval time.Duration, clients api
 	}
 }
 
-func (s *Server) refreshLiveMarketTicksIfNeeded(ctx context.Context) {
-	if s != nil && s.marketdataSvc != nil {
-		s.marketdataSvc.WakeCollector()
-	}
-}
-
 func (s *Server) activeMarketInstrumentIDs() []string {
 	if s.marketdataSvc == nil {
 		return nil

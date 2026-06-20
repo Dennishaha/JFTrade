@@ -621,9 +621,10 @@ func splitSemanticParameterArguments(value string) []string {
 	for index := 0; index < len(value); index++ {
 		ch := value[index]
 		if (ch == '"' || ch == '\'') && (index == 0 || value[index-1] != '\\') {
-			if inString == 0 {
+			switch inString {
+			case 0:
 				inString = ch
-			} else if inString == ch {
+			case ch:
 				inString = 0
 			}
 			continue

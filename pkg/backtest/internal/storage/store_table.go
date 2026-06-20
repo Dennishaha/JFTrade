@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"strings"
@@ -13,7 +14,7 @@ func (s *FutuKLineStore) migrate() error {
 }
 
 func (s *FutuKLineStore) ensureKLineTable(tableName string) error {
-	_, err := s.db.Exec(strings.Join([]string{
+	_, err := s.db.ExecContext(context.Background(), strings.Join([]string{
 		`CREATE TABLE IF NOT EXISTS ` + quoteIdentifier(tableName) + ` (`,
 		`  end_time    INTEGER NOT NULL,`,
 		`  start_time  INTEGER NOT NULL,`,
@@ -33,11 +34,11 @@ func (s *FutuKLineStore) ensureKLineTable(tableName string) error {
 }
 
 func (s *FutuKLineStore) ensureCompactSchema(tableName string) error {
-	rows, err := s.db.Query(`PRAGMA table_info(` + quoteIdentifier(tableName) + `)`)
+	rows, err := s.db.QueryContext(context.Background(), `PRAGMA table_info(`+quoteIdentifier(tableName)+`)`)
 	if err != nil {
 		return fmt.Errorf("inspect %s schema: %w", tableName, err)
 	}
-	defer rows.Close()
+	defer func() { jftradeLogError(rows.Close()) }()
 
 	got := make([]string, 0, len(expectedKLineSchemaColumns()))
 	for rows.Next() {
@@ -64,7 +65,7 @@ func (s *FutuKLineStore) ensureCompactSchema(tableName string) error {
 	}
 
 	var ddl string
-	if err := s.db.QueryRow(`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?`, tableName).Scan(&ddl); err != nil {
+	if err := s.db.QueryRowContext(context.Background(), `SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?`, tableName).Scan(&ddl); err != nil {
 		return fmt.Errorf("load %s ddl: %w", tableName, err)
 	}
 	if !strings.Contains(strings.ToUpper(ddl), "WITHOUT ROWID") {
@@ -76,10 +77,10 @@ func (s *FutuKLineStore) ensureCompactSchema(tableName string) error {
 
 func (s *FutuKLineStore) klineTableExists(tableName string) (bool, error) {
 	if cached, ok := s.tableExistsCache.Load(tableName); ok {
-		return cached.(bool), nil
+		return jftradeCheckedTypeAssertion[bool](cached), nil
 	}
 	var count int
-	if err := s.db.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?`, tableName).Scan(&count); err != nil {
+	if err := s.db.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?`, tableName).Scan(&count); err != nil {
 		return false, err
 	}
 	exists := count > 0
@@ -117,4 +118,12 @@ func (s *FutuKLineStore) readTableNames(symbol string, interval types.Interval, 
 		add(2, klineSessionScopeRegular)
 		return tableNames, 3
 	}
+}
+
+func jftradeCheckedTypeAssertion[T any](value any) T {
+	typed, ok := value.(T)
+	if !ok {
+		panic("unexpected dynamic type")
+	}
+	return typed
 }

@@ -30,7 +30,7 @@ func evaluateCrossExpression(arguments []exprast.Node, scope *evaluationScope, i
 	if !ok {
 		return false, nil
 	}
-	if !(leftSeries.HasCurrent && leftSeries.HasPrevious && rightSeries.HasCurrent && rightSeries.HasPrevious) {
+	if !leftSeries.HasCurrent || !leftSeries.HasPrevious || !rightSeries.HasCurrent || !rightSeries.HasPrevious {
 		return false, nil
 	}
 	if isCrossOver {

@@ -630,11 +630,11 @@ func (m *Manager) recordOperationFailure(sourceID string, err error) {
 		status.LastError = err.Error()
 	}
 	status.ConsecutiveFailures++
-	backoff := time.Duration(status.ConsecutiveFailures)
-	if backoff > 24 {
-		backoff = 24
+	backoffHours := status.ConsecutiveFailures
+	if backoffHours > 24 {
+		backoffHours = 24
 	}
-	status.NextRefreshAt = now.Add(backoff * time.Hour)
+	status.NextRefreshAt = now.Add(time.Duration(backoffHours) * time.Hour)
 	m.mu.Unlock()
 }
 
@@ -657,11 +657,11 @@ func (m *Manager) recordSourceFailure(sourceID string, market string, err error,
 		status.LastError = ""
 	}
 	status.ConsecutiveFailures++
-	backoff := time.Duration(status.ConsecutiveFailures)
-	if backoff > 24 {
-		backoff = 24
+	backoffHours := status.ConsecutiveFailures
+	if backoffHours > 24 {
+		backoffHours = 24
 	}
-	status.NextRefreshAt = now.Add(backoff * time.Hour)
+	status.NextRefreshAt = now.Add(time.Duration(backoffHours) * time.Hour)
 	alert = recordUnhealthyStateLocked(status, normalizeMarket(market), now, sourceFailureAlert(status.SourceID, market, kind, err))
 	m.mu.Unlock()
 	m.emitAlert(alert)
@@ -844,7 +844,7 @@ func manualOverrideSchedule(settings jfsettings.ExchangeCalendarSettings, builti
 	dayKey := marketcalendar.DayStart(template, day).Format("2006-01-02")
 	for _, override := range settings.ManualOverrides {
 		overrideMarket := normalizeMarket(override.Market)
-		if overrideMarket != normalizeMarket(market) && !(overrideMarket == "CN" && (normalizeMarket(market) == "SH" || normalizeMarket(market) == "SZ")) {
+		if overrideMarket != normalizeMarket(market) && (overrideMarket != "CN" || (normalizeMarket(market) != "SH" && normalizeMarket(market) != "SZ")) {
 			continue
 		}
 		if strings.TrimSpace(override.Date) != dayKey {

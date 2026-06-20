@@ -147,7 +147,8 @@ func (m *SessionContextManager) snapshotWithPending(ctx context.Context, session
 	if _, err := m.store.SaveSessionContext(ctx, state); err != nil {
 		return SessionContextSnapshot{}, err
 	}
-	_ = m.syncHandoffStateForSession(ctx, session)
+	jftradeErr2 := m.syncHandoffStateForSession(ctx, session)
+	jftradeLogError(jftradeErr2)
 	return projection.snapshot, nil
 }
 
@@ -245,7 +246,8 @@ func (m *SessionContextManager) Compact(ctx context.Context, session Session, ag
 	if _, err := m.store.SaveSessionContext(ctx, state); err != nil {
 		return SessionContextSnapshot{}, err
 	}
-	_ = m.syncHandoffStateForSession(ctx, session)
+	jftradeErr1 := m.syncHandoffStateForSession(ctx, session)
+	jftradeLogError(jftradeErr1)
 	return m.snapshotWithPending(ctx, session, agent, "")
 }
 
@@ -350,7 +352,8 @@ func (m *SessionContextManager) InstructionSuffix(ctx context.Context, sessionID
 	if text == "" {
 		return "", nil
 	}
-	_ = m.syncHandoffStateForSessionID(ctx, sessionID, segments)
+	jftradeErr3 := m.syncHandoffStateForSessionID(ctx, sessionID, segments)
+	jftradeLogError(jftradeErr3)
 	return "Session handoff summaries:\n" + text, nil
 }
 
@@ -760,16 +763,14 @@ func recentUserEventStart(events []*adksession.Event, recentWindow int) int {
 	if len(events) == 0 {
 		return 0
 	}
-	start := 0
 	userHits := 0
 	for index := len(events) - 1; index >= 0; index-- {
 		if !isUserEvent(events[index]) {
 			continue
 		}
 		userHits++
-		start = index
 		if userHits >= recentWindow {
-			return start
+			return index
 		}
 	}
 	return 0
@@ -967,11 +968,12 @@ func estimateToolDeclarationTokens(agent Agent, tools *ToolRegistry) int {
 	}
 	total := 0
 	for _, descriptor := range ToolDescriptorsForAgent(agent, tools) {
-		payload, _ := json.Marshal(map[string]any{
+		payload, jftradeErr4 := json.Marshal(map[string]any{
 			"name":        descriptor.Name,
 			"description": descriptor.Description,
 			"schema":      descriptor.InputSchema,
 		})
+		jftradeLogError(jftradeErr4)
 		total += estimateTextTokens(string(payload))
 	}
 	return total

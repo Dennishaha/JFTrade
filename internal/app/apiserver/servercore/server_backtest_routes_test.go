@@ -42,7 +42,7 @@ strategy.entry("Long", strategy.long, qty=1)`,
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
-	body, _ := json.Marshal(map[string]any{
+	body, jftradeErr1 := json.Marshal(map[string]any{
 		"definitionId":     "dsl-market-code-route",
 		"market":           "US",
 		"code":             "AAPL",
@@ -53,11 +53,12 @@ strategy.entry("Long", strategy.long, qty=1)`,
 		"rehabType":        "forward",
 		"useExtendedHours": true,
 	})
-	createResp, err := http.Post(srv.URL+"/api/v1/backtests", "application/json", bytes.NewReader(body))
+	jftradeCheckTestError(t, jftradeErr1)
+	createResp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/backtests", "application/json", bytes.NewReader(body))
 	if err != nil {
 		t.Fatalf("POST backtest: %v", err)
 	}
-	defer createResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, createResp.Body.Close()) }()
 	if createResp.StatusCode != http.StatusOK {
 		t.Fatalf("POST backtest status = %d", createResp.StatusCode)
 	}

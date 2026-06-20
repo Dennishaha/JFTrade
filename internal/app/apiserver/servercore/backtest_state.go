@@ -12,9 +12,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jftrade/jftrade-main/pkg/backtest"
 	"github.com/jmoiron/sqlx"
+	// Register the modernc SQLite driver for database/sql.
 	_ "modernc.org/sqlite"
+
+	"github.com/jftrade/jftrade-main/pkg/backtest"
 )
 
 const (
@@ -87,11 +89,13 @@ func newBacktestRunStoreWithDB(dbPath string) (*backtestRunStore, error) {
 		db:      db,
 	}
 	if err := store.migrate(); err != nil {
-		_ = db.Close()
+		jftradeErr2 := db.Close()
+		jftradeLogError(jftradeErr2)
 		return nil, fmt.Errorf("migrate backtest run sqlite store: %w", err)
 	}
 	if err := store.loadFromDB(); err != nil {
-		_ = db.Close()
+		jftradeErr1 := db.Close()
+		jftradeLogError(jftradeErr1)
 		return nil, fmt.Errorf("load backtest run sqlite store: %w", err)
 	}
 	return store, nil
@@ -145,7 +149,7 @@ func (s *backtestRunStore) migrate() error {
 		`CREATE INDEX IF NOT EXISTS idx_backtest_runs_updated_at ON ` + backtestRunTable + ` (updated_at DESC, id ASC)`,
 		`CREATE INDEX IF NOT EXISTS idx_backtest_runs_status ON ` + backtestRunTable + ` (status, updated_at DESC)`,
 	} {
-		if _, err := s.db.Exec(statement); err != nil {
+		if _, err := s.db.ExecContext(context.Background(), statement); err != nil {
 			if !strings.Contains(strings.ToLower(err.Error()), "duplicate column name") {
 				return err
 			}
@@ -266,7 +270,7 @@ func (s *backtestRunStore) persistRunLocked(run *backtestRunState) error {
 		}
 		resultJSON = string(encodedResult)
 	}
-	_, err = s.db.Exec(
+	_, err = s.db.ExecContext(context.Background(),
 		`INSERT INTO `+backtestRunTable+` (id, status, request_json, result_json, created_at, updated_at) `+
 			`VALUES (?, ?, ?, ?, ?, ?) `+
 			`ON CONFLICT(id) DO UPDATE SET `+
@@ -286,7 +290,7 @@ func (s *backtestRunStore) deleteFromDBLocked(runID string) error {
 	if s == nil || s.db == nil {
 		return nil
 	}
-	_, err := s.db.Exec(`DELETE FROM `+backtestRunTable+` WHERE id = ?`, runID)
+	_, err := s.db.ExecContext(context.Background(), `DELETE FROM `+backtestRunTable+` WHERE id = ?`, runID)
 	return err
 }
 
@@ -349,7 +353,7 @@ func (s *backtestRunStore) getFull(runID string) (*backtestRunState, bool, error
 		return snapshot, ok, nil
 	}
 	var resultJSON string
-	if err := s.db.QueryRow(`SELECT result_json FROM `+backtestRunTable+` WHERE id = ?`, runID).Scan(&resultJSON); err != nil {
+	if err := s.db.QueryRowContext(context.Background(), `SELECT result_json FROM `+backtestRunTable+` WHERE id = ?`, runID).Scan(&resultJSON); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return snapshot, true, nil
 		}

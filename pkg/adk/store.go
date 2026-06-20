@@ -15,10 +15,13 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	strategypinespec "github.com/jftrade/jftrade-main/pkg/strategy/pinespec"
 	"github.com/jmoiron/sqlx"
 	adksession "google.golang.org/adk/session"
+
+	// Register the modernc SQLite driver for database/sql.
 	_ "modernc.org/sqlite"
+
+	strategypinespec "github.com/jftrade/jftrade-main/pkg/strategy/pinespec"
 )
 
 const (
@@ -67,11 +70,13 @@ func NewStore(dbPath string, secretsPath string, skillsPath string) (*Store, err
 	}
 	store := &Store{db: db, secrets: secretStore{path: secretsPath}, skillsPath: skillsPath}
 	if err := store.migrate(); err != nil {
-		_ = db.Close()
+		jftradeErr2 := db.Close()
+		jftradeLogError(jftradeErr2)
 		return nil, err
 	}
 	if err := store.ensureBuiltins(context.Background()); err != nil {
-		_ = db.Close()
+		jftradeErr1 := db.Close()
+		jftradeLogError(jftradeErr1)
 		return nil, err
 	}
 	return store, nil
@@ -102,7 +107,7 @@ func (s *Store) SetSessionService(service adksession.Service) {
 
 func (s *Store) migrate() error {
 	// Create schema_migrations table for version tracking
-	if _, err := s.db.Exec(`CREATE TABLE IF NOT EXISTS adk_schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL)`); err != nil {
+	if _, err := s.db.ExecContext(context.Background(), `CREATE TABLE IF NOT EXISTS adk_schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL)`); err != nil {
 		return fmt.Errorf("migrate adk sqlite store: create schema_migrations: %w", err)
 	}
 	type migration struct {
@@ -148,10 +153,10 @@ func (s *Store) migrate() error {
 		if count > 0 {
 			continue
 		}
-		if _, err := s.db.Exec(m.statement); err != nil {
+		if _, err := s.db.ExecContext(context.Background(), m.statement); err != nil {
 			return fmt.Errorf("migrate adk sqlite store: apply version %d: %w", m.version, err)
 		}
-		if _, err := s.db.Exec(`INSERT INTO adk_schema_migrations (version, applied_at) VALUES (?, ?)`, m.version, nowString()); err != nil {
+		if _, err := s.db.ExecContext(context.Background(), `INSERT INTO adk_schema_migrations (version, applied_at) VALUES (?, ?)`, m.version, nowString()); err != nil {
 			return fmt.Errorf("migrate adk sqlite store: record version %d: %w", m.version, err)
 		}
 	}
@@ -276,7 +281,8 @@ func (s *Store) DeleteProvider(ctx context.Context, id string) error {
 	if _, err := s.db.ExecContext(ctx, `DELETE FROM `+tableProviders+` WHERE id = ?`, id); err != nil {
 		return err
 	}
-	_ = s.secrets.delete(id)
+	jftradeErr3 := s.secrets.delete(id)
+	jftradeLogError(jftradeErr3)
 	return nil
 }
 
@@ -1229,7 +1235,8 @@ func (s secretStore) write(data map[string]string) error {
 }
 
 func (s secretStore) has(id string) bool {
-	value, ok, _ := s.get(id)
+	value, ok, jftradeErr4 := s.get(id)
+	jftradeLogError(jftradeErr4)
 	return ok && strings.TrimSpace(value) != ""
 }
 

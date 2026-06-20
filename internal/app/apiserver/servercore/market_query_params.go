@@ -17,7 +17,8 @@ func pathTail(path string, prefix string) (string, string) {
 func decodeMarketSnapshotQuery(values map[string][]string) marketSnapshotQuery {
 	var query marketSnapshotQuery
 	if raw, ok := firstQueryValue(values, "refresh"); ok && raw != "" {
-		_ = query.Refresh.UnmarshalText([]byte(raw))
+		jftradeErr5 := query.Refresh.UnmarshalText([]byte(raw))
+		jftradeLogError(jftradeErr5)
 	}
 	return query
 }
@@ -30,29 +31,26 @@ func decodeMarketCandlesQuery(values map[string][]string) (marketCandlesQuery, e
 		}
 	}
 	if raw, ok := firstQueryValue(values, "limit"); ok && raw != "" {
-		_ = query.Limit.UnmarshalText([]byte(raw))
+		jftradeErr3 := query.Limit.UnmarshalText([]byte(raw))
+		jftradeLogError(jftradeErr3)
 	}
 	if raw, ok := firstQueryValue(values, "fromTime"); ok && raw != "" {
-		_ = query.FromTime.UnmarshalText([]byte(raw))
+		jftradeErr6 := query.FromTime.UnmarshalText([]byte(raw))
+		jftradeLogError(jftradeErr6)
 	}
 	if raw, ok := firstQueryValue(values, "toTime"); ok && raw != "" {
-		_ = query.ToTime.UnmarshalText([]byte(raw))
+		jftradeErr4 := query.ToTime.UnmarshalText([]byte(raw))
+		jftradeLogError(jftradeErr4)
 	}
 	if raw, ok := firstQueryValue(values, "from"); ok && raw != "" {
-		_ = query.From.UnmarshalText([]byte(raw))
+		jftradeErr2 := query.From.UnmarshalText([]byte(raw))
+		jftradeLogError(jftradeErr2)
 	}
 	if raw, ok := firstQueryValue(values, "to"); ok && raw != "" {
-		_ = query.To.UnmarshalText([]byte(raw))
+		jftradeErr1 := query.To.UnmarshalText([]byte(raw))
+		jftradeLogError(jftradeErr1)
 	}
 	return query, nil
-}
-
-func decodeMarketDepthQuery(values map[string][]string) marketDepthQuery {
-	var query marketDepthQuery
-	if raw, ok := firstQueryValue(values, "num"); ok && raw != "" {
-		_ = query.Num.UnmarshalText([]byte(raw))
-	}
-	return query
 }
 
 func firstQueryValue(query map[string][]string, key string) (string, bool) {
@@ -65,10 +63,10 @@ func firstQueryValue(query map[string][]string, key string) (string, bool) {
 
 func kLineQueryWindow(query marketCandlesQuery, periodDuration time.Duration, limit int) (time.Time, time.Time) {
 	endAt := time.Now()
-	if !query.ToTime.Time.IsZero() {
+	if !query.ToTime.IsZero() {
 		endAt = query.ToTime.Time
 	}
-	if !query.To.Time.IsZero() {
+	if !query.To.IsZero() {
 		endAt = query.To.Time
 	}
 	lookback := periodDuration * time.Duration(limit) * 4
@@ -81,10 +79,10 @@ func kLineQueryWindow(query marketCandlesQuery, periodDuration time.Duration, li
 	}
 	defaultBegin := endAt.Add(-lookback)
 	beginAt := defaultBegin
-	if !query.FromTime.Time.IsZero() {
+	if !query.FromTime.IsZero() {
 		beginAt = query.FromTime.Time
 	}
-	if !query.From.Time.IsZero() {
+	if !query.From.IsZero() {
 		beginAt = query.From.Time
 	}
 	if !beginAt.Before(endAt) {

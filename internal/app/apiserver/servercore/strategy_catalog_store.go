@@ -1,6 +1,7 @@
 package servercore
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -22,7 +23,8 @@ func NewStrategyCatalogStore(path string, targetDir string) (*strategyCatalogSto
 		store.targetDir = defaultStrategyPluginDirName
 	}
 	if err := store.load(); err != nil {
-		_ = runtimeStore.Close()
+		jftradeErr2 := runtimeStore.Close()
+		jftradeLogError(jftradeErr2)
 		return nil, err
 	}
 	return store, nil
@@ -142,7 +144,7 @@ func (s *strategyCatalogStore) migrateLocked() error {
 		`CREATE INDEX IF NOT EXISTS idx_strategy_catalog_strategies_created_at ON ` + strategyCatalogStrategyTable + ` (created_at ASC, id ASC)`,
 		`CREATE INDEX IF NOT EXISTS idx_strategy_catalog_operations_updated_at ON ` + strategyCatalogOperationTable + ` (updated_at DESC, operation_id ASC)`,
 	} {
-		if _, err := s.db.Exec(statement); err != nil {
+		if _, err := s.db.ExecContext(context.Background(), statement); err != nil {
 			return err
 		}
 	}
@@ -372,22 +374,23 @@ func (s *strategyCatalogStore) persistLocked() error {
 	}
 	defer func() {
 		if err != nil {
-			_ = tx.Rollback()
+			jftradeErr1 := tx.Rollback()
+			jftradeLogError(jftradeErr1)
 		}
 	}()
-	if _, err = tx.Exec(`DELETE FROM ` + strategyCatalogMetaTable); err != nil {
+	if _, err = tx.ExecContext(context.Background(), `DELETE FROM `+strategyCatalogMetaTable); err != nil {
 		return err
 	}
-	if _, err = tx.Exec(`DELETE FROM ` + strategyCatalogPluginTable); err != nil {
+	if _, err = tx.ExecContext(context.Background(), `DELETE FROM `+strategyCatalogPluginTable); err != nil {
 		return err
 	}
-	if _, err = tx.Exec(`DELETE FROM ` + strategyCatalogStrategyTable); err != nil {
+	if _, err = tx.ExecContext(context.Background(), `DELETE FROM `+strategyCatalogStrategyTable); err != nil {
 		return err
 	}
-	if _, err = tx.Exec(`DELETE FROM ` + strategyCatalogOperationTable); err != nil {
+	if _, err = tx.ExecContext(context.Background(), `DELETE FROM `+strategyCatalogOperationTable); err != nil {
 		return err
 	}
-	if _, err = tx.Exec(`INSERT INTO `+strategyCatalogMetaTable+` (key, value) VALUES (?, ?)`, "target_dir", s.data.TargetDir); err != nil {
+	if _, err = tx.ExecContext(context.Background(), `INSERT INTO `+strategyCatalogMetaTable+` (key, value) VALUES (?, ?)`, "target_dir", s.data.TargetDir); err != nil {
 		return err
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
@@ -396,7 +399,7 @@ func (s *strategyCatalogStore) persistLocked() error {
 		if marshalErr != nil {
 			return marshalErr
 		}
-		if _, err = tx.Exec(`INSERT INTO `+strategyCatalogPluginTable+` (id, payload_json, updated_at) VALUES (?, ?, ?)`, strings.TrimSpace(plugin.Descriptor.ID), string(payload), now); err != nil {
+		if _, err = tx.ExecContext(context.Background(), `INSERT INTO `+strategyCatalogPluginTable+` (id, payload_json, updated_at) VALUES (?, ?, ?)`, strings.TrimSpace(plugin.Descriptor.ID), string(payload), now); err != nil {
 			return err
 		}
 	}
@@ -408,7 +411,7 @@ func (s *strategyCatalogStore) persistLocked() error {
 		if marshalErr != nil {
 			return marshalErr
 		}
-		if _, err = tx.Exec(`INSERT INTO `+strategyCatalogStrategyTable+` (id, payload_json, created_at, updated_at) VALUES (?, ?, ?, ?)`, strings.TrimSpace(stored.ID), string(payload), strings.TrimSpace(stored.CreatedAt), now); err != nil {
+		if _, err = tx.ExecContext(context.Background(), `INSERT INTO `+strategyCatalogStrategyTable+` (id, payload_json, created_at, updated_at) VALUES (?, ?, ?, ?)`, strings.TrimSpace(stored.ID), string(payload), strings.TrimSpace(stored.CreatedAt), now); err != nil {
 			return err
 		}
 	}
@@ -417,7 +420,7 @@ func (s *strategyCatalogStore) persistLocked() error {
 		if marshalErr != nil {
 			return marshalErr
 		}
-		if _, err = tx.Exec(`INSERT INTO `+strategyCatalogOperationTable+` (operation_id, plugin_id, status, updated_at, payload_json) VALUES (?, ?, ?, ?, ?)`, strings.TrimSpace(operation.OperationID), strings.TrimSpace(operation.PluginID), strings.TrimSpace(operation.Status), strings.TrimSpace(operation.UpdatedAt), string(payload)); err != nil {
+		if _, err = tx.ExecContext(context.Background(), `INSERT INTO `+strategyCatalogOperationTable+` (operation_id, plugin_id, status, updated_at, payload_json) VALUES (?, ?, ?, ?, ?)`, strings.TrimSpace(operation.OperationID), strings.TrimSpace(operation.PluginID), strings.TrimSpace(operation.Status), strings.TrimSpace(operation.UpdatedAt), string(payload)); err != nil {
 			return err
 		}
 	}

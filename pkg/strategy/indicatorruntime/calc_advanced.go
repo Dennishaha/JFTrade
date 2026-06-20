@@ -138,7 +138,7 @@ func (r *indicatorRuntime) advancedIndicatorSnapshot(config advancedIndicatorCon
 			if snapshot == nil {
 				return nil
 			}
-			width, _ := snapshot["width"].(float64)
+			width := jftradeOptionalTypeAssertion[float64](snapshot["width"])
 			return cache.getScalarSnapshot(config.key, width, true)
 		}
 		return snapshot

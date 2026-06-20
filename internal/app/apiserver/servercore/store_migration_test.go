@@ -10,7 +10,7 @@ func TestStrategyRuntimeStoreMigration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewStrategyRuntimeStore: %v", err)
 	}
-	defer store.Close()
+	defer func() { jftradeCheckTestError(t, store.Close()) }()
 
 	// 空库应能正常关闭
 	if db := store.DB(); db == nil {
@@ -27,7 +27,7 @@ func TestStrategyDesignStoreMigration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewStrategyDesignStore: %v", err)
 	}
-	defer store.Close()
+	defer func() { jftradeCheckTestError(t, store.Close()) }()
 
 	// 验证空列表
 	defs := store.listDefinitions()
@@ -57,7 +57,7 @@ func TestStrategyCatalogStoreMigration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewStrategyCatalogStore: %v", err)
 	}
-	defer store.Close()
+	defer func() { jftradeCheckTestError(t, store.Close()) }()
 
 	// 验证空列表
 	strategies := store.strategies()
@@ -72,7 +72,7 @@ func TestBacktestRunStoreMigration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("newBacktestRunStoreWithDB: %v", err)
 	}
-	defer store.Close()
+	defer func() { jftradeCheckTestError(t, store.Close()) }()
 
 	// 验证空列表
 	runs := store.listLightweight()

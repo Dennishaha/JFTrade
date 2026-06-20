@@ -32,8 +32,8 @@ func newTestRuntime(t *testing.T) *Runtime {
 	if err != nil {
 		t.Fatalf("NewSessionService: %v", err)
 	}
-	t.Cleanup(func() { _ = CloseSessionService(sessionService) })
-	t.Cleanup(func() { _ = store.Close() })
+	t.Cleanup(func() { jftradeErr5 := CloseSessionService(sessionService); jftradeCheckTestError(t, jftradeErr5) })
+	t.Cleanup(func() { jftradeErr3 := store.Close(); jftradeCheckTestError(t, jftradeErr3) })
 	if err := MigrateSQLiteSessionService(sessionService); err != nil {
 		t.Fatalf("AutoMigrate: %v", err)
 	}
@@ -58,18 +58,21 @@ func TestStoreMigrationNormalizesHiddenAgentWorkflowDefaults(t *testing.T) {
 	if agent.WorkMode != WorkModeLoop {
 		t.Fatalf("initial agent work mode = %q, want loop", agent.WorkMode)
 	}
-	_ = store.Close()
+	jftradeErr1 := store.Close()
+	jftradeCheckTestError(t, jftradeErr1)
 
 	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
 		t.Fatalf("open raw db: %v", err)
 	}
-	if _, err := db.Exec(`UPDATE `+tableAgents+` SET payload_json = json_set(payload_json, '$.workMode', 'sequential') WHERE id = ?`, agent.ID); err != nil {
-		_ = db.Close()
+	if _, err := db.ExecContext(t.Context(), `UPDATE `+tableAgents+` SET payload_json = json_set(payload_json, '$.workMode', 'sequential') WHERE id = ?`, agent.ID); err != nil {
+		jftradeErr2 := db.Close()
+		jftradeCheckTestError(t, jftradeErr2)
 		t.Fatalf("update raw agent payload: %v", err)
 	}
-	if _, err := db.Exec(`DELETE FROM adk_schema_migrations WHERE version = 30`); err != nil {
-		_ = db.Close()
+	if _, err := db.ExecContext(t.Context(), `DELETE FROM adk_schema_migrations WHERE version = 30`); err != nil {
+		jftradeErr3 := db.Close()
+		jftradeCheckTestError(t, jftradeErr3)
 		t.Fatalf("delete migration marker: %v", err)
 	}
 	if err := db.Close(); err != nil {
@@ -80,7 +83,7 @@ func TestStoreMigrationNormalizesHiddenAgentWorkflowDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewStore migrate: %v", err)
 	}
-	defer migrated.Close()
+	defer func() { jftradeCheckTestError(t, migrated.Close()) }()
 	var rawMode string
 	if err := migrated.db.Get(&rawMode, `SELECT json_extract(payload_json, '$.workMode') FROM `+tableAgents+` WHERE id = ?`, agent.ID); err != nil {
 		t.Fatalf("read raw agent mode: %v", err)
@@ -96,7 +99,7 @@ func newRuntimeWithRegistry(t *testing.T, store *Store, registry *ToolRegistry) 
 	if err != nil {
 		t.Fatalf("NewSessionService: %v", err)
 	}
-	t.Cleanup(func() { _ = CloseSessionService(sessionService) })
+	t.Cleanup(func() { jftradeErr4 := CloseSessionService(sessionService); jftradeCheckTestError(t, jftradeErr4) })
 	if err := MigrateSQLiteSessionService(sessionService); err != nil {
 		t.Fatalf("AutoMigrate: %v", err)
 	}
@@ -210,7 +213,7 @@ func TestApprovalModeCreatesPendingApprovalForWriteTool(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewStore: %v", err)
 	}
-	t.Cleanup(func() { _ = store.Close() })
+	t.Cleanup(func() { jftradeErr1 := store.Close(); jftradeCheckTestError(t, jftradeErr1) })
 	registry := NewToolRegistry()
 	executed := false
 	registry.Register(ToolDescriptor{
@@ -1178,7 +1181,7 @@ func TestExecuteToolTagInvokesCanonicalToolWithParameters(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewStore: %v", err)
 	}
-	t.Cleanup(func() { _ = store.Close() })
+	t.Cleanup(func() { jftradeErr2 := store.Close(); jftradeCheckTestError(t, jftradeErr2) })
 	registry := NewToolRegistry()
 	var received map[string]any
 	registry.Register(ToolDescriptor{
@@ -1627,7 +1630,7 @@ func TestInstallSkillURLInstallsNeodataFinancialSearch(t *testing.T) {
 			return
 		}
 		w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
-		_, _ = w.Write([]byte(`---
+		_, jftradeErr4 := w.Write([]byte(`---
 name: neodata-financial-search
 description: Search NeoData financial filings and earnings materials.
 allowed-tools: [http.fetch]
@@ -1635,6 +1638,7 @@ metadata:
   version: 2026.06
 ---
 Use NeoData search results as reference material and cite the source URL.`))
+		jftradeCheckTestError(t, jftradeErr4)
 	}))
 	t.Cleanup(skillServer.Close)
 

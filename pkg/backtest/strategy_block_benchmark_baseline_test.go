@@ -84,7 +84,6 @@ func collectStrategyBlockBenchmarkBaseline(t *testing.T) strategyBlockBenchmarkB
 		Cases:               make(map[string]strategyBlockBenchmarkMetrics, len(strategyBlockBenchmarkCases())),
 	}
 	for _, benchmarkCase := range strategyBlockBenchmarkCases() {
-		benchmarkCase := benchmarkCase
 		cfg := strategyBlockBenchmarkRunConfig(dbPath, startTime, endTime, benchmarkCase.script)
 		result := collectStrategyBlockBenchmarkSamples(ctx, cfg)
 		baseline.Cases[benchmarkCase.name] = strategyBlockBenchmarkMetrics{
@@ -158,10 +157,13 @@ func compareStrategyBlockBenchmarkBaseline(t *testing.T, expected, actual strate
 
 func strategyBlockBenchmarkWorkloadFingerprint() string {
 	hash := sha256.New()
-	_, _ = fmt.Fprintln(hash, "sourceFormat=pine-v6")
+	_, jftradeErr1 := fmt.Fprintln(hash, "sourceFormat=pine-v6")
+	jftradePanicOnError(jftradeErr1)
 	for _, benchmarkCase := range strategyBlockBenchmarkCases() {
-		_, _ = fmt.Fprintln(hash, benchmarkCase.name)
-		_, _ = fmt.Fprintln(hash, strings.TrimSpace(benchmarkCase.script))
+		_, jftradeErr2 := fmt.Fprintln(hash, benchmarkCase.name)
+		jftradePanicOnError(jftradeErr2)
+		_, jftradeErr3 := fmt.Fprintln(hash, strings.TrimSpace(benchmarkCase.script))
+		jftradePanicOnError(jftradeErr3)
 	}
 	return fmt.Sprintf("sha256:%x", hash.Sum(nil))
 }
@@ -206,5 +208,11 @@ func writeStrategyBlockBenchmarkBaseline(t *testing.T, baselinePath string, base
 	content = append(content, '\n')
 	if err := os.WriteFile(baselinePath, content, 0o644); err != nil {
 		t.Fatalf("write baseline %s: %v", baselinePath, err)
+	}
+}
+
+func jftradePanicOnError(err error) {
+	if err != nil {
+		panic(err)
 	}
 }

@@ -23,14 +23,6 @@ func (r *indicatorRuntime) pushWilliamsRStates(high, low, closeValue float64) {
 	}
 }
 
-func (r *indicatorRuntime) williamsRValue(period int) any {
-	current, ok := r.williamsRSnapshotValue(period)
-	if !ok {
-		return nil
-	}
-	return current
-}
-
 func (r *indicatorRuntime) williamsRSnapshotValue(period int) (float64, bool) {
 	if r == nil {
 		return 0, false

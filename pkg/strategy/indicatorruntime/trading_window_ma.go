@@ -8,10 +8,6 @@ func buildMovingAverageSnapshot(values, volumes []float64, config movingAverageC
 	return buildMovingAverageSnapshotForSymbol(values, volumes, nil, config, intervalMinutes, "", nil)
 }
 
-func buildMovingAverageSnapshotWithCache(values, volumes []float64, config movingAverageConfig, intervalMinutes int, cache *snapshotSeriesCache) map[string]any {
-	return buildMovingAverageSnapshotForSymbol(values, volumes, nil, config, intervalMinutes, "", cache)
-}
-
 func buildMovingAverageSnapshotForSymbol(values, volumes []float64, endTimes []time.Time, config movingAverageConfig, intervalMinutes int, symbol string, cache *snapshotSeriesCache) map[string]any {
 	return snapshotValueToMap(
 		movingAverageSnapshotForSymbol(values, volumes, endTimes, config, intervalMinutes, symbol, false, cache),
@@ -43,10 +39,6 @@ func buildMovingAverageSnapshotForTradingWindow(values, volumes []float64, endTi
 	}
 	previous, previousOK := calculateTradingWindowMovingAverageCurrentValue(values, volumes, endTimes, config, symbol, max(len(values)-1, 0), includeExtendedHours, cache)
 	return cache.getMovingAverageSnapshot(config, current, previous, currentOK, previousOK)
-}
-
-func calculateTradingWindowMovingAverageSnapshotOnline(values, volumes []float64, endTimes []time.Time, config movingAverageConfig, symbol string, includeExtendedHours bool) (float64, float64, bool, bool, bool) {
-	return calculateTradingWindowMovingAverageSnapshotOnlineWithCache(values, volumes, endTimes, config, symbol, includeExtendedHours, nil)
 }
 
 func calculateTradingWindowMovingAverageSnapshotOnlineWithCache(values, volumes []float64, endTimes []time.Time, config movingAverageConfig, symbol string, includeExtendedHours bool, cache *snapshotSeriesCache) (float64, float64, bool, bool, bool) {
@@ -115,10 +107,6 @@ func calculateTradingWindowMovingAverageCurrentValue(values, volumes []float64, 
 		return 0, false
 	}
 	return calculateMovingAverageCurrentValueFromSelected(values, volumes, selected, config, cache)
-}
-
-func calculateTradingWindowMovingAverageCurrentValueOnline(values, volumes []float64, endTimes []time.Time, config movingAverageConfig, symbol string, upperBound int, includeExtendedHours bool) (float64, bool, bool) {
-	return calculateTradingWindowMovingAverageCurrentValueOnlineWithCache(values, volumes, endTimes, config, symbol, upperBound, includeExtendedHours, nil)
 }
 
 func calculateTradingWindowMovingAverageCurrentValueOnlineWithCache(values, volumes []float64, endTimes []time.Time, config movingAverageConfig, symbol string, upperBound int, includeExtendedHours bool, cache *snapshotSeriesCache) (float64, bool, bool) {
@@ -271,18 +259,6 @@ func calculateEMAFromTradingWindowSelection(values []float64, labelKeys []int64,
 		return 0, false
 	}
 	return current, true
-}
-
-func calculateTradingWindowEMAValueFromKeys(values []float64, labelKeys []int64, period int, upperBound int) (float64, bool, bool) {
-	if len(values) == 0 || len(values) != len(labelKeys) || upperBound <= 0 {
-		return 0, false, true
-	}
-	summary := summarizeTradingWindowSelectionFromKeys(labelKeys, period, upperBound)
-	if !summary.valid {
-		return 0, false, true
-	}
-	current, ok := calculateEMAFromTradingWindowSelection(values, labelKeys, summary)
-	return current, ok, true
 }
 
 func calculateSMMAFromTradingWindowSelection(values []float64, labelKeys []int64, summary tradingWindowSelectionSummary) (float64, bool) {

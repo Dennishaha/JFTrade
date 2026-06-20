@@ -89,17 +89,17 @@ func (v *OptionalTimeValue) UnmarshalText(text []byte) error {
 }
 
 func (v OptionalTimeValue) PtrUTC() *time.Time {
-	if v.Time.IsZero() {
+	if v.IsZero() {
 		return nil
 	}
-	return new(v.Time.UTC())
+	return new(v.UTC())
 }
 
 func (v OptionalTimeValue) StringValue() string {
-	if v.Time.IsZero() {
+	if v.IsZero() {
 		return ""
 	}
-	return v.Time.Format(time.RFC3339Nano)
+	return v.Format(time.RFC3339Nano)
 }
 
 // ---- Candle Period ----

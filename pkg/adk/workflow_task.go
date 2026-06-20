@@ -159,7 +159,8 @@ func (e *WorkflowExecutor) continueADKGoalWorkflow(
 	}
 	parent = e.failParent(ctx, parent, fmt.Errorf("goal workflow exceeded max iterations"))
 	parent.ErrorCode = workflowGoalMaxLoopErr
-	_ = e.runtime.store.SaveRun(ctx, parent)
+	jftradeErr7 := e.runtime.store.SaveRun(ctx, parent)
+	jftradeLogError(jftradeErr7)
 	return e.workflowResponse(ctx, req.Session, parent, openAIChatResult{Reply: parent.FailureReason}), nil
 }
 
@@ -181,7 +182,9 @@ func (e *WorkflowExecutor) pauseADKGoalWorkflowIfRequested(
 	if parent.Status == RunStatusPaused && parent.PausedReason == "user" {
 		if cleaned, changed := pruneInterruptedGoalWorkflowToolCalls(parent); changed {
 			parent = cleaned
-			parent, _ = e.runtime.saveRunPreservingUserGoalPause(ctx, parent)
+			updatedParent, jftradeErr29 := e.runtime.saveRunPreservingUserGoalPause(ctx, parent)
+			jftradeLogError(jftradeErr29)
+			parent = updatedParent
 		}
 		return parent, e.workflowResponse(ctx, req.Session, parent, openAIChatResult{Reply: defaultString(reply, parent.Message)}), true
 	}
@@ -199,7 +202,8 @@ func (e *WorkflowExecutor) pauseADKGoalWorkflowIfRequested(
 	}
 	parent.PendingApprovals = pendingApprovalsOnly(parent.PendingApprovals)
 	parent, _ = pruneInterruptedGoalWorkflowToolCalls(parent)
-	parent, _ = e.runtime.saveRunPreservingUserGoalPause(ctx, parent)
+	parent, jftradeErr25 := e.runtime.saveRunPreservingUserGoalPause(ctx, parent)
+	jftradeLogError(jftradeErr25)
 	return parent, e.workflowResponse(ctx, req.Session, parent, openAIChatResult{Reply: defaultString(reply, parent.Message)}), true
 }
 
@@ -290,7 +294,8 @@ func (e *WorkflowExecutor) finishADKGoalWorkflowTurn(
 		if snapshot.status == "" {
 			parent = e.failParent(ctx, parent, fmt.Errorf("goal decision required"))
 			parent.ErrorCode = workflowGoalDecisionErr
-			_ = e.runtime.store.SaveRun(ctx, parent)
+			jftradeErr8 := e.runtime.store.SaveRun(ctx, parent)
+			jftradeLogError(jftradeErr8)
 			return parent, e.workflowResponse(ctx, req.Session, parent, openAIChatResult{Reply: parent.FailureReason}), true, ""
 		}
 	}
@@ -301,7 +306,8 @@ func (e *WorkflowExecutor) finishADKGoalWorkflowTurn(
 			reply = visibleReply
 		}
 		if reply == "" {
-			tasks, _ := e.workflowTasks(ctx, parent, known)
+			tasks, jftradeErr10 := e.workflowTasks(ctx, parent, known)
+			jftradeLogError(jftradeErr10)
 			reply = workflowSummary(parent, workflowTaskResultSummaries(tasks))
 		}
 		replyResult.Reply = reply
@@ -321,7 +327,8 @@ func (e *WorkflowExecutor) finishADKGoalWorkflowTurn(
 		if saved, err := e.runtime.attachFinalAssistantMessage(ctx, req.Session, parent, replyResult); err == nil {
 			parent = saved
 		} else {
-			_ = e.runtime.store.SaveRun(ctx, parent)
+			jftradeErr6 := e.runtime.store.SaveRun(ctx, parent)
+			jftradeLogError(jftradeErr6)
 		}
 		return parent, e.workflowResponse(ctx, req.Session, parent, replyResult), true, ""
 	case "continue":
@@ -340,7 +347,8 @@ func (e *WorkflowExecutor) finishADKGoalWorkflowTurn(
 			replyResult.Reply = reply
 			return parent, response, true, ""
 		}
-		parent, _ = e.runtime.saveRunPreservingUserGoalPause(ctx, parent)
+		parent, jftradeErr24 := e.runtime.saveRunPreservingUserGoalPause(ctx, parent)
+		jftradeLogError(jftradeErr24)
 		return parent, ChatResponse{}, false, goalOrchestratorContinueNudge(parent, snapshot.reason)
 	default:
 		return parent, ChatResponse{}, false, prompt
@@ -385,7 +393,8 @@ func (e *WorkflowExecutor) prepareGoalWorkflowTurn(
 		if child.Status == RunStatusPending || child.Status == RunStatusRunning {
 			parent = pauseParentForChild(parent, child, index)
 			parent.Iteration = iteration
-			parent, _ = e.runtime.saveRunPreservingUserGoalPause(ctx, parent)
+			parent, jftradeErr26 := e.runtime.saveRunPreservingUserGoalPause(ctx, parent)
+			jftradeLogError(jftradeErr26)
 			return parent, openAIChatResult{Reply: workflowPendingReply(parent)}, true, ""
 		}
 		parent = e.runtime.terminateParentWorkflowFromChild(ctx, parent, child)
@@ -400,13 +409,15 @@ func (e *WorkflowExecutor) prepareGoalWorkflowTurn(
 		parent.Degraded = true
 		parent.CompletedAt = new(nowString())
 		finalizeRunUsage(&parent)
-		_ = e.runtime.store.SaveRun(ctx, parent)
+		jftradeErr1 := e.runtime.store.SaveRun(ctx, parent)
+		jftradeLogError(jftradeErr1)
 		return parent, openAIChatResult{Reply: parent.FailureReason}, true, ""
 	}
 	parent.Status = RunStatusRunning
 	parent.WorkflowStatus = workflowStatusRunning
 	parent.Message = "goal running"
-	parent, _ = e.runtime.saveRunPreservingUserGoalPause(ctx, parent)
+	parent, jftradeErr27 := e.runtime.saveRunPreservingUserGoalPause(ctx, parent)
+	jftradeLogError(jftradeErr27)
 	return parent, replyResult, false, ""
 }
 
@@ -507,7 +518,8 @@ func (e *WorkflowExecutor) finishADKTaskWorkflowAttempt(
 	if child, index, ok := e.firstBlockingTaskChild(ctx, parent); ok {
 		if child.Status == RunStatusPending || child.Status == RunStatusRunning {
 			parent = pauseParentForChild(parent, child, index)
-			_ = e.runtime.store.SaveRun(ctx, parent)
+			jftradeErr4 := e.runtime.store.SaveRun(ctx, parent)
+			jftradeLogError(jftradeErr4)
 			return parent, e.workflowResponse(ctx, req.Session, parent, openAIChatResult{Reply: workflowPendingReply(parent)}), true
 		}
 		parent = e.runtime.terminateParentWorkflowFromChild(ctx, parent, child)
@@ -522,20 +534,23 @@ func (e *WorkflowExecutor) finishADKTaskWorkflowAttempt(
 		parent.Degraded = true
 		parent.CompletedAt = new(nowString())
 		finalizeRunUsage(&parent)
-		_ = e.runtime.store.SaveRun(ctx, parent)
+		jftradeErr5 := e.runtime.store.SaveRun(ctx, parent)
+		jftradeLogError(jftradeErr5)
 		return parent, e.workflowResponse(ctx, req.Session, parent, openAIChatResult{Reply: parent.FailureReason}), true
 	}
 	if !workflowTasksComplete(tasks) {
 		parent.Status = RunStatusRunning
 		parent.WorkflowStatus = workflowStatusRunning
 		parent.Message = "workflow running"
-		_ = e.runtime.store.SaveRun(ctx, parent)
+		jftradeErr9 := e.runtime.store.SaveRun(ctx, parent)
+		jftradeLogError(jftradeErr9)
 		if !finalAttempt {
 			return parent, ChatResponse{}, false
 		}
 		parent = e.failParent(ctx, parent, fmt.Errorf("workflow task scheduler incomplete"))
 		parent.ErrorCode = workflowTaskIncompleteErr
-		_ = e.runtime.store.SaveRun(ctx, parent)
+		jftradeErr2 := e.runtime.store.SaveRun(ctx, parent)
+		jftradeLogError(jftradeErr2)
 		return parent, e.workflowResponse(ctx, req.Session, parent, openAIChatResult{Reply: parent.FailureReason}), true
 	}
 	reply := strings.TrimSpace(replyResult.Reply)
@@ -552,7 +567,8 @@ func (e *WorkflowExecutor) finishADKTaskWorkflowAttempt(
 	if saved, err := e.runtime.attachFinalAssistantMessage(ctx, req.Session, parent, replyResult); err == nil {
 		parent = saved
 	} else {
-		_ = e.runtime.store.SaveRun(ctx, parent)
+		jftradeErr3 := e.runtime.store.SaveRun(ctx, parent)
+		jftradeLogError(jftradeErr3)
 	}
 	return parent, e.workflowResponse(ctx, req.Session, parent, replyResult), true
 }
@@ -679,7 +695,8 @@ func (t *workflowTaskToolset) list(map[string]any) (map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
-	_ = t.saveParentPlan(context.Background(), parent, tasks)
+	jftradeErr15 := t.saveParentPlan(context.Background(), parent, tasks)
+	jftradeLogError(jftradeErr15)
 	return map[string]any{"success": true, "tasks": taskToolTaskSummaries(tasks), "readyTasks": taskToolTaskSummaries(executableWorkflowTasks(tasks, parent.WorkMode))}, nil
 }
 
@@ -698,8 +715,10 @@ func (t *workflowTaskToolset) add(args map[string]any) (map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
-	parent, tasks, _ := t.parentAndTasks(context.Background())
-	_ = t.saveParentPlan(context.Background(), parent, tasks)
+	parent, tasks, jftradeErr22 := t.parentAndTasks(context.Background())
+	jftradeLogError(jftradeErr22)
+	jftradeErr13 := t.saveParentPlan(context.Background(), parent, tasks)
+	jftradeLogError(jftradeErr13)
 	return map[string]any{"success": true, "task": taskToolTaskSummary(task)}, nil
 }
 
@@ -723,8 +742,10 @@ func (t *workflowTaskToolset) claim(args map[string]any) (map[string]any, error)
 		return nil, err
 	}
 	t.currentTaskID = updated.ID
-	parent, tasks, _ = t.parentAndTasks(context.Background())
-	_ = t.saveParentPlan(context.Background(), parent, tasks)
+	parent, tasks, jftradeErr16 := t.parentAndTasks(context.Background())
+	jftradeLogError(jftradeErr16)
+	jftradeErr11 := t.saveParentPlan(context.Background(), parent, tasks)
+	jftradeLogError(jftradeErr11)
 	return map[string]any{"success": true, "task": taskToolTaskSummary(updated)}, nil
 }
 
@@ -753,8 +774,10 @@ func (t *workflowTaskToolset) complete(args map[string]any) (map[string]any, err
 		return nil, err
 	}
 	t.currentTaskID = ""
-	parent, tasks, _ = t.parentAndTasks(context.Background())
-	_ = t.saveParentPlan(context.Background(), parent, tasks)
+	parent, tasks, jftradeErr12 := t.parentAndTasks(context.Background())
+	jftradeLogError(jftradeErr12)
+	jftradeErr14 := t.saveParentPlan(context.Background(), parent, tasks)
+	jftradeLogError(jftradeErr14)
 	return map[string]any{"success": true, "task": taskToolTaskSummary(updated)}, nil
 }
 
@@ -779,8 +802,10 @@ func (t *workflowTaskToolset) block(args map[string]any) (map[string]any, error)
 	if err != nil {
 		return nil, err
 	}
-	parent, tasks, _ = t.parentAndTasks(context.Background())
-	_ = t.saveParentPlan(context.Background(), parent, tasks)
+	parent, tasks, jftradeErr20 := t.parentAndTasks(context.Background())
+	jftradeLogError(jftradeErr20)
+	jftradeErr18 := t.saveParentPlan(context.Background(), parent, tasks)
+	jftradeLogError(jftradeErr18)
 	return map[string]any{"success": true, "task": taskToolTaskSummary(updated)}, nil
 }
 
@@ -802,7 +827,8 @@ func (t *workflowTaskToolset) delegate(args map[string]any) (map[string]any, err
 	if role := plannerStringArg(args, "agentRole"); role != "" {
 		step.AgentRole = role
 	}
-	_, _ = t.executor.runtime.store.UpdateTask(context.Background(), task.ID, TaskPatchRequest{Executor: new(workflowTaskExecutorChild)})
+	_, jftradeErr31 := t.executor.runtime.store.UpdateTask(context.Background(), task.ID, TaskPatchRequest{Executor: new(workflowTaskExecutorChild)})
+	jftradeLogError(jftradeErr31)
 	result := t.executor.runChild(context.Background(), t.req, parent, step, task, workflowTaskIteration(task))
 	if result.Err != nil {
 		return map[string]any{"success": false, "message": result.Err.Error()}, nil
@@ -817,7 +843,8 @@ func (t *workflowTaskToolset) delegate(args map[string]any) (map[string]any, err
 	parent = t.executor.mergeTaskChildProjectionAt(context.Background(), parent, result.Response.Run, workflowPlanIndexForTask(parent.WorkflowPlan, task.ID))
 	if result.Response.Run.Status == RunStatusPending {
 		parent = pauseParentForChild(parent, result.Response.Run, workflowPlanIndexForTask(parent.WorkflowPlan, task.ID))
-		parent, _ = t.executor.runtime.saveRunPreservingUserGoalPause(context.Background(), parent)
+		_, jftradeErr30 := t.executor.runtime.saveRunPreservingUserGoalPause(context.Background(), parent)
+		jftradeLogError(jftradeErr30)
 	}
 	t.currentTaskID = ""
 	return map[string]any{
@@ -834,8 +861,10 @@ func (t *workflowTaskToolset) goalComplete(args map[string]any) (map[string]any,
 		summary = plannerStringArg(args, "resultSummary")
 	}
 	t.req.GoalDecision.setComplete(summary)
-	parent, tasks, _ := t.parentAndTasks(context.Background())
-	_ = t.saveParentPlan(context.Background(), parent, tasks)
+	parent, tasks, jftradeErr23 := t.parentAndTasks(context.Background())
+	jftradeLogError(jftradeErr23)
+	jftradeErr17 := t.saveParentPlan(context.Background(), parent, tasks)
+	jftradeLogError(jftradeErr17)
 	return map[string]any{"success": true, "status": "complete", "summary": summary}, nil
 }
 
@@ -847,8 +876,10 @@ func (t *workflowTaskToolset) goalContinue(args map[string]any) (map[string]any,
 		reason = "目标尚未完成。"
 	}
 	t.req.GoalDecision.setContinue(reason)
-	parent, tasks, _ := t.parentAndTasks(context.Background())
-	_ = t.saveParentPlan(context.Background(), parent, tasks)
+	parent, tasks, jftradeErr21 := t.parentAndTasks(context.Background())
+	jftradeLogError(jftradeErr21)
+	jftradeErr19 := t.saveParentPlan(context.Background(), parent, tasks)
+	jftradeLogError(jftradeErr19)
 	return map[string]any{"success": true, "status": "continue", "reason": reason}, nil
 }
 
@@ -918,7 +949,8 @@ func (e *WorkflowExecutor) mergeTaskChildProjectionAt(ctx context.Context, paren
 		parent.Status = RunStatusPending
 		parent.PendingApprovals = append([]Approval(nil), child.PendingApprovals...)
 	}
-	parent, _ = e.runtime.saveRunPreservingUserGoalPause(ctx, parent)
+	parent, jftradeErr28 := e.runtime.saveRunPreservingUserGoalPause(ctx, parent)
+	jftradeLogError(jftradeErr28)
 	return parent
 }
 

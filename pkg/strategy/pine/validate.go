@@ -232,14 +232,6 @@ func validateExpression(lineNumber int, label string, expression string) error {
 	return nil
 }
 
-func parseStrategyTitle(line string) string {
-	match := strategyTitlePattern.FindStringSubmatch(line)
-	if match == nil {
-		return ""
-	}
-	return unquote(strings.TrimSpace(match[1]))
-}
-
 func parseStrategyDeclaration(line string) (strategyir.StrategyMetadata, []string) {
 	metadata := strategyir.StrategyMetadata{
 		Name:                  "Pine Strategy",

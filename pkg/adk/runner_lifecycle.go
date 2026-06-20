@@ -53,7 +53,8 @@ func (r *Runtime) reconcileStaleRuns(ctx context.Context) {
 			run.ResumeState = "approval_context_missing"
 		}
 		finalizeRunUsage(&run)
-		_ = r.store.SaveRun(ctx, run)
+		jftradeErr2 := r.store.SaveRun(ctx, run)
+		jftradeLogError(jftradeErr2)
 		r.audit(ctx, "run.orphaned", run.ID, "Agent run became unrecoverable after server restart.", map[string]any{
 			"runId": run.ID, "agentId": run.AgentID, "status": run.Status, "resumeState": run.ResumeState,
 		})
@@ -106,7 +107,8 @@ func (r *Runtime) ReconcileExpiredRuns(ctx context.Context) {
 		run.Degraded = true
 		run.CompletedAt = new(nowString())
 		finalizeRunUsage(&run)
-		_ = r.store.SaveRun(ctx, run)
+		jftradeErr1 := r.store.SaveRun(ctx, run)
+		jftradeLogError(jftradeErr1)
 		r.audit(ctx, "run.timed_out", run.ID, "Agent run timed out.", map[string]any{
 			"runId": run.ID, "agentId": run.AgentID, "status": run.Status, "errorCode": run.ErrorCode, "failureReason": run.FailureReason,
 		})
@@ -236,7 +238,8 @@ func (r *Runtime) CancelRun(ctx context.Context, runID string) (Run, error) {
 		if strings.TrimSpace(childRunID) == "" || childRunID == run.ID {
 			continue
 		}
-		_, _ = r.CancelRun(ctx, childRunID)
+		_, jftradeErr3 := r.CancelRun(ctx, childRunID)
+		jftradeLogError(jftradeErr3)
 	}
 	r.audit(ctx, "run.cancelled", run.ID, "Agent run cancelled.", map[string]any{
 		"runId": run.ID, "sessionId": run.SessionID, "agentId": run.AgentID, "status": run.Status,

@@ -1,19 +1,5 @@
 package indicatorruntime
 
-func calculateRSIDivergence(closes []float64, config rsiDivergenceConfig) bool {
-	return detectRSIDivergence(closes, calculateRSISeries(closes, config.period), config.direction, config.lookback)
-}
-
-func calculateMACDDivergence(closes []float64, config macdDivergenceConfig) bool {
-	series := calculateMACDSeries(closes, macdConfig{fastPeriod: config.fastPeriod, slowPeriod: config.slowPeriod, signalPeriod: config.signalPeriod})
-	return detectMACDDivergence(closes, series.diff, config.direction, config.lookback)
-}
-
-func calculateKDJDivergence(highs, lows, closes []float64, config kdjDivergenceConfig) bool {
-	_, _, jValues := calculateKDJSeries(highs, lows, closes, kdjConfig{period: config.period, m1: config.m1, m2: config.m2})
-	return detectKDJDivergence(closes, jValues, config.direction, config.lookback)
-}
-
 func detectRSIDivergence(closes, series []float64, direction string, lookback int) bool {
 	alignedCloses, alignedSeries := alignSeries(closes, series)
 	return detectDivergence(alignedCloses, alignedSeries, direction, lookback)

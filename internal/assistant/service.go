@@ -11,6 +11,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -18,6 +19,10 @@ import (
 )
 
 var ErrSessionTimelineFailed = errors.New("adk session timeline failed")
+
+func wrapSessionTimelineError(err error) error {
+	return fmt.Errorf("%w: %w", ErrSessionTimelineFailed, err)
+}
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Service
@@ -439,7 +444,7 @@ func (s *Service) GetSessionDetail(ctx context.Context, sessionID string) (jfadk
 	}
 	timeline, _, err := s.runtime.Store().SessionTimeline(ctx, sessionID)
 	if err != nil {
-		return jfadk.SessionsResponse{}, fmt.Errorf("%w: %v", ErrSessionTimelineFailed, err)
+		return jfadk.SessionsResponse{}, wrapSessionTimelineError(err)
 	}
 	if timeline == nil {
 		timeline = []jfadk.TimelineEntry{}
@@ -1087,7 +1092,9 @@ func (s *Service) optimizationTaskResponse(ctx context.Context, task jfadk.Optim
 	}
 	if task.Status != status {
 		task.Status = status
-		task, _ = s.runtime.Store().SaveOptimizationTask(ctx, task)
+		updatedTask, jftradeErr1 := s.runtime.Store().SaveOptimizationTask(ctx, task)
+		jftradeLogError(jftradeErr1)
+		task = updatedTask
 	}
 	return map[string]any{
 		"id": task.ID, "status": status, "objective": task.Objective, "runs": runs,
@@ -1137,4 +1144,12 @@ func approvalWaitDurationMs(approval jfadk.Approval, now time.Time) int64 {
 		return 0
 	}
 	return endedAt.Sub(startedAt).Milliseconds()
+}
+
+func jftradeLogError(values ...any) {
+	for _, value := range values {
+		if err, ok := value.(error); ok && err != nil {
+			log.Printf("best-effort operation failed: %v", err)
+		}
+	}
 }

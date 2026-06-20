@@ -32,7 +32,7 @@ func newProviderHTTPClientWithResolver(
 	lookup func(context.Context, string, string) ([]netip.Addr, error),
 ) *http.Client {
 	dialer := &net.Dialer{Timeout: 10 * time.Second, KeepAlive: 30 * time.Second}
-	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport := jftradeCheckedTypeAssertion[*http.Transport](http.DefaultTransport).Clone()
 	transport.Proxy = nil
 	transport.DialContext = func(ctx context.Context, network string, address string) (net.Conn, error) {
 		host, port, err := net.SplitHostPort(address)
@@ -106,4 +106,21 @@ func validateProviderIP(ip netip.Addr) error {
 		}
 	}
 	return nil
+}
+
+func jftradeCheckedTypeAssertion[T any](value any) T {
+	typed, ok := value.(T)
+	if !ok {
+		panic("unexpected dynamic type")
+	}
+	return typed
+}
+
+func jftradeOptionalTypeAssertion[T any](value any) T {
+	typed, ok := value.(T)
+	if !ok {
+		var zero T
+		return zero
+	}
+	return typed
 }

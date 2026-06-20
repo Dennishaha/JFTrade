@@ -16,9 +16,10 @@ import (
 	"testing"
 	"time"
 
+	adksession "google.golang.org/adk/session"
+
 	asst "github.com/jftrade/jftrade-main/internal/assistant"
 	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
-	adksession "google.golang.org/adk/session"
 )
 
 func TestADKApprovalApproveRouteReturnsRunningResolutionEnvelope(t *testing.T) {
@@ -60,11 +61,11 @@ func TestADKApprovalApproveRouteReturnsRunningResolutionEnvelope(t *testing.T) {
 	}
 
 	chatPayload := []byte(`{"agentId":"` + agent.ID + `","message":"@strategy.save_draft save"}`)
-	chatResp, err := http.Post(srv.URL+"/api/v1/adk/chat", "application/json", bytes.NewReader(chatPayload))
+	chatResp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/adk/chat", "application/json", bytes.NewReader(chatPayload))
 	if err != nil {
 		t.Fatalf("POST adk chat: %v", err)
 	}
-	defer chatResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, chatResp.Body.Close()) }()
 	if chatResp.StatusCode != http.StatusOK {
 		t.Fatalf("POST adk chat status = %d", chatResp.StatusCode)
 	}
@@ -83,11 +84,11 @@ func TestADKApprovalApproveRouteReturnsRunningResolutionEnvelope(t *testing.T) {
 	}
 
 	approvalID := chatEnvelope.Data.PendingApprovals[0].ID
-	approveResp, err := http.Post(srv.URL+"/api/v1/adk/approvals/"+approvalID+"/approve", "application/json", nil)
+	approveResp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/adk/approvals/"+approvalID+"/approve", "application/json", nil)
 	if err != nil {
 		t.Fatalf("POST approve approval: %v", err)
 	}
-	defer approveResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, approveResp.Body.Close()) }()
 	if approveResp.StatusCode != http.StatusOK {
 		t.Fatalf("POST approve approval status = %d", approveResp.StatusCode)
 	}
@@ -117,11 +118,11 @@ func TestADKApprovalApproveRouteReturnsRunningResolutionEnvelope(t *testing.T) {
 		t.Fatal("timed out waiting for approved continuation to resume")
 	}
 
-	runResp, err := http.Get(srv.URL + "/api/v1/adk/runs/" + chatEnvelope.Data.Run.ID)
+	runResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/adk/runs/"+chatEnvelope.Data.Run.ID)
 	if err != nil {
 		t.Fatalf("GET run: %v", err)
 	}
-	defer runResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, runResp.Body.Close()) }()
 	if runResp.StatusCode != http.StatusOK {
 		t.Fatalf("GET run status = %d", runResp.StatusCode)
 	}
@@ -136,11 +137,11 @@ func TestADKApprovalApproveRouteReturnsRunningResolutionEnvelope(t *testing.T) {
 		t.Fatalf("run envelope = %+v, want running", runEnvelope)
 	}
 
-	sessionResp, err := http.Get(srv.URL + "/api/v1/adk/sessions/" + runEnvelope.Data.SessionID)
+	sessionResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/adk/sessions/"+runEnvelope.Data.SessionID)
 	if err != nil {
 		t.Fatalf("GET session detail: %v", err)
 	}
-	defer sessionResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, sessionResp.Body.Close()) }()
 	if sessionResp.StatusCode != http.StatusOK {
 		t.Fatalf("GET session detail status = %d", sessionResp.StatusCode)
 	}
@@ -207,11 +208,11 @@ func TestADKApprovalRouteReturnsResolutionEnvelope(t *testing.T) {
 	}
 
 	chatPayload := []byte(`{"agentId":"` + agent.ID + `","message":"@strategy.save_draft 保存一个策略草稿"}`)
-	chatResp, err := http.Post(srv.URL+"/api/v1/adk/chat", "application/json", bytes.NewReader(chatPayload))
+	chatResp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/adk/chat", "application/json", bytes.NewReader(chatPayload))
 	if err != nil {
 		t.Fatalf("POST adk chat: %v", err)
 	}
-	defer chatResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, chatResp.Body.Close()) }()
 	if chatResp.StatusCode != http.StatusOK {
 		t.Fatalf("POST adk chat status = %d", chatResp.StatusCode)
 	}
@@ -230,11 +231,11 @@ func TestADKApprovalRouteReturnsResolutionEnvelope(t *testing.T) {
 	}
 
 	approvalID := chatEnvelope.Data.PendingApprovals[0].ID
-	denyResp, err := http.Post(srv.URL+"/api/v1/adk/approvals/"+approvalID+"/deny", "application/json", nil)
+	denyResp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/adk/approvals/"+approvalID+"/deny", "application/json", nil)
 	if err != nil {
 		t.Fatalf("POST deny approval: %v", err)
 	}
-	defer denyResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, denyResp.Body.Close()) }()
 	if denyResp.StatusCode != http.StatusOK {
 		t.Fatalf("POST deny approval status = %d", denyResp.StatusCode)
 	}
@@ -303,7 +304,7 @@ func TestADKProviderDeleteRejectsReferencedProvider(t *testing.T) {
 		t.Fatalf("SaveAgent: %v", err)
 	}
 
-	req, err := http.NewRequest(http.MethodDelete, srv.URL+"/api/v1/adk/providers/"+provider.ID, nil)
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodDelete, srv.URL+"/api/v1/adk/providers/"+provider.ID, nil)
 	if err != nil {
 		t.Fatalf("NewRequest: %v", err)
 	}
@@ -311,7 +312,7 @@ func TestADKProviderDeleteRejectsReferencedProvider(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DELETE provider: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if resp.StatusCode != http.StatusConflict {
 		t.Fatalf("DELETE provider status = %d, want conflict", resp.StatusCode)
 	}
@@ -333,20 +334,20 @@ func TestADKRunCancelAndFilteredList(t *testing.T) {
 	if err := server.adkRuntime.Store().SaveRun(t.Context(), run); err != nil {
 		t.Fatalf("SaveRun: %v", err)
 	}
-	cancelResp, err := http.Post(srv.URL+"/api/v1/adk/runs/"+run.ID+"/cancel", "application/json", nil)
+	cancelResp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/adk/runs/"+run.ID+"/cancel", "application/json", nil)
 	if err != nil {
 		t.Fatalf("POST cancel: %v", err)
 	}
-	defer cancelResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, cancelResp.Body.Close()) }()
 	if cancelResp.StatusCode != http.StatusOK {
 		t.Fatalf("cancel status = %d", cancelResp.StatusCode)
 	}
 
-	listResp, err := http.Get(srv.URL + "/api/v1/adk/runs?status=CANCELLED&agentId=agent-1&limit=1")
+	listResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/adk/runs?status=CANCELLED&agentId=agent-1&limit=1")
 	if err != nil {
 		t.Fatalf("GET runs: %v", err)
 	}
-	defer listResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, listResp.Body.Close()) }()
 	var envelope struct {
 		OK   bool `json:"ok"`
 		Data struct {
@@ -383,11 +384,11 @@ func TestADKRunPauseAndResumeRoutes(t *testing.T) {
 	if err := server.adkRuntime.Store().SaveRun(t.Context(), run); err != nil {
 		t.Fatalf("SaveRun: %v", err)
 	}
-	pauseResp, err := http.Post(srv.URL+"/api/v1/adk/runs/"+run.ID+"/pause", "application/json", nil)
+	pauseResp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/adk/runs/"+run.ID+"/pause", "application/json", nil)
 	if err != nil {
 		t.Fatalf("POST pause: %v", err)
 	}
-	defer pauseResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, pauseResp.Body.Close()) }()
 	if pauseResp.StatusCode != http.StatusOK {
 		t.Fatalf("pause status = %d", pauseResp.StatusCode)
 	}
@@ -412,11 +413,11 @@ func TestADKRunPauseAndResumeRoutes(t *testing.T) {
 	if err := server.adkRuntime.Store().SaveRun(t.Context(), paused); err != nil {
 		t.Fatalf("Save paused run: %v", err)
 	}
-	resumeResp, err := http.Post(srv.URL+"/api/v1/adk/runs/"+run.ID+"/resume", "application/json", nil)
+	resumeResp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/adk/runs/"+run.ID+"/resume", "application/json", nil)
 	if err != nil {
 		t.Fatalf("POST resume: %v", err)
 	}
-	defer resumeResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resumeResp.Body.Close()) }()
 	if resumeResp.StatusCode != http.StatusOK {
 		t.Fatalf("resume status = %d", resumeResp.StatusCode)
 	}
@@ -451,19 +452,19 @@ func TestADKRunPauseResumeRoutesRejectInvalidRuns(t *testing.T) {
 	if err := server.adkRuntime.Store().SaveRun(t.Context(), child); err != nil {
 		t.Fatalf("SaveRun child: %v", err)
 	}
-	resp, err := http.Post(srv.URL+"/api/v1/adk/runs/"+child.ID+"/pause", "application/json", nil)
+	resp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/adk/runs/"+child.ID+"/pause", "application/json", nil)
 	if err != nil {
 		t.Fatalf("POST pause child: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("pause child status = %d, want bad request", resp.StatusCode)
 	}
-	missingResp, err := http.Post(srv.URL+"/api/v1/adk/runs/missing-run/resume", "application/json", nil)
+	missingResp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/adk/runs/missing-run/resume", "application/json", nil)
 	if err != nil {
 		t.Fatalf("POST resume missing: %v", err)
 	}
-	defer missingResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, missingResp.Body.Close()) }()
 	if missingResp.StatusCode != http.StatusNotFound {
 		t.Fatalf("resume missing status = %d, want not found", missingResp.StatusCode)
 	}
@@ -547,11 +548,11 @@ func TestADKMetricsExposeLifecycleAndApprovalLatency(t *testing.T) {
 		t.Fatalf("SaveApproval: %v", err)
 	}
 
-	resp, err := http.Get(srv.URL + "/api/v1/adk/metrics")
+	resp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/adk/metrics")
 	if err != nil {
 		t.Fatalf("GET metrics: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("metrics status = %d", resp.StatusCode)
 	}
@@ -616,11 +617,11 @@ func TestADKMetricsIgnoresUnexpectedQueryParams(t *testing.T) {
 	}
 	srv := newHTTPTestServer(t, store)
 
-	resp, err := http.Get(srv.URL + "/api/v1/adk/metrics?limit=abc&offset=-1&status=FAILED")
+	resp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/adk/metrics?limit=abc&offset=-1&status=FAILED")
 	if err != nil {
 		t.Fatalf("GET metrics with noise query params: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("metrics status = %d", resp.StatusCode)
 	}
@@ -656,20 +657,20 @@ func TestADKOptimizationTaskCanBeQueriedAndCancelled(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SaveOptimizationTask: %v", err)
 	}
-	getResp, err := http.Get(srv.URL + "/api/v1/adk/optimization-tasks/" + task.ID)
+	getResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/adk/optimization-tasks/"+task.ID)
 	if err != nil {
 		t.Fatalf("GET optimization task: %v", err)
 	}
-	defer getResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, getResp.Body.Close()) }()
 	if getResp.StatusCode != http.StatusOK {
 		t.Fatalf("GET optimization status = %d", getResp.StatusCode)
 	}
 
-	cancelResp, err := http.Post(srv.URL+"/api/v1/adk/optimization-tasks/"+task.ID+"/cancel", "application/json", nil)
+	cancelResp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/adk/optimization-tasks/"+task.ID+"/cancel", "application/json", nil)
 	if err != nil {
 		t.Fatalf("POST optimization cancel: %v", err)
 	}
-	defer cancelResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, cancelResp.Body.Close()) }()
 	if cancelResp.StatusCode != http.StatusOK {
 		t.Fatalf("optimization cancel status = %d", cancelResp.StatusCode)
 	}
@@ -692,15 +693,15 @@ func TestADKTaskAndMemoryWorkflowRoutes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SaveAgent: %v", err)
 	}
-	createResp, err := http.Post(srv.URL+"/api/v1/adk/tasks", "application/json", strings.NewReader(`{"id":"task-route","title":"Route task","status":"TODO","agentId":"`+agent.ID+`","order":1,"agentRole":"探索 Agent","plannerStepId":"__planner_step_1","planSource":"planner","workflowMode":"sequential","objective":"完成路线"}`))
+	createResp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/adk/tasks", "application/json", strings.NewReader(`{"id":"task-route","title":"Route task","status":"TODO","agentId":"`+agent.ID+`","order":1,"agentRole":"探索 Agent","plannerStepId":"__planner_step_1","planSource":"planner","workflowMode":"sequential","objective":"完成路线"}`))
 	if err != nil {
 		t.Fatalf("POST task: %v", err)
 	}
-	defer createResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, createResp.Body.Close()) }()
 	if createResp.StatusCode != http.StatusOK {
 		t.Fatalf("POST task status = %d", createResp.StatusCode)
 	}
-	patchReq, err := http.NewRequest(http.MethodPut, srv.URL+"/api/v1/adk/tasks/task-route", strings.NewReader(`{"status":"DONE","order":2,"plannerWarnings":["planner warning"]}`))
+	patchReq, err := http.NewRequestWithContext(t.Context(), http.MethodPut, srv.URL+"/api/v1/adk/tasks/task-route", strings.NewReader(`{"status":"DONE","order":2,"plannerWarnings":["planner warning"]}`))
 	if err != nil {
 		t.Fatalf("NewRequest patch task: %v", err)
 	}
@@ -709,7 +710,7 @@ func TestADKTaskAndMemoryWorkflowRoutes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PUT task: %v", err)
 	}
-	defer patchResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, patchResp.Body.Close()) }()
 	if patchResp.StatusCode != http.StatusOK {
 		t.Fatalf("PUT task status = %d", patchResp.StatusCode)
 	}
@@ -729,15 +730,15 @@ func TestADKTaskAndMemoryWorkflowRoutes(t *testing.T) {
 	if len(patchEnvelope.Data.PlannerWarnings) != 1 || patchEnvelope.Data.PlannerWarnings[0] != "planner warning" {
 		t.Fatalf("patched task warnings = %+v, want planner warning", patchEnvelope.Data.PlannerWarnings)
 	}
-	listResp, err := http.Get(srv.URL + "/api/v1/adk/tasks?status=DONE&agentId=" + agent.ID)
+	listResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/adk/tasks?status=DONE&agentId="+agent.ID)
 	if err != nil {
 		t.Fatalf("GET tasks: %v", err)
 	}
-	defer listResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, listResp.Body.Close()) }()
 	if listResp.StatusCode != http.StatusOK {
 		t.Fatalf("GET tasks status = %d", listResp.StatusCode)
 	}
-	deleteReq, err := http.NewRequest(http.MethodDelete, srv.URL+"/api/v1/adk/tasks/task-route", nil)
+	deleteReq, err := http.NewRequestWithContext(t.Context(), http.MethodDelete, srv.URL+"/api/v1/adk/tasks/task-route", nil)
 	if err != nil {
 		t.Fatalf("NewRequest delete task: %v", err)
 	}
@@ -745,16 +746,16 @@ func TestADKTaskAndMemoryWorkflowRoutes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DELETE task: %v", err)
 	}
-	defer deleteResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, deleteResp.Body.Close()) }()
 	if deleteResp.StatusCode != http.StatusOK {
 		t.Fatalf("DELETE task status = %d", deleteResp.StatusCode)
 	}
 
-	memoryResp, err := http.Post(srv.URL+"/api/v1/adk/memory", "application/json", strings.NewReader(`{"scope":"agent","agentId":"`+agent.ID+`","key":"style","value":"risk first"}`))
+	memoryResp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/adk/memory", "application/json", strings.NewReader(`{"scope":"agent","agentId":"`+agent.ID+`","key":"style","value":"risk first"}`))
 	if err != nil {
 		t.Fatalf("POST memory: %v", err)
 	}
-	defer memoryResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, memoryResp.Body.Close()) }()
 	if memoryResp.StatusCode != http.StatusOK {
 		t.Fatalf("POST memory status = %d", memoryResp.StatusCode)
 	}
@@ -765,15 +766,15 @@ func TestADKTaskAndMemoryWorkflowRoutes(t *testing.T) {
 	if err := json.NewDecoder(memoryResp.Body).Decode(&memoryEnvelope); err != nil {
 		t.Fatalf("decode memory: %v", err)
 	}
-	filterResp, err := http.Get(srv.URL + "/api/v1/adk/memory?scope=agent&agentId=" + agent.ID + "&key=style")
+	filterResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/adk/memory?scope=agent&agentId="+agent.ID+"&key=style")
 	if err != nil {
 		t.Fatalf("GET memory: %v", err)
 	}
-	defer filterResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, filterResp.Body.Close()) }()
 	if filterResp.StatusCode != http.StatusOK {
 		t.Fatalf("GET memory status = %d", filterResp.StatusCode)
 	}
-	deleteMemoryReq, err := http.NewRequest(http.MethodDelete, srv.URL+"/api/v1/adk/memory/"+memoryEnvelope.Data.ID, nil)
+	deleteMemoryReq, err := http.NewRequestWithContext(t.Context(), http.MethodDelete, srv.URL+"/api/v1/adk/memory/"+memoryEnvelope.Data.ID, nil)
 	if err != nil {
 		t.Fatalf("NewRequest delete memory: %v", err)
 	}
@@ -781,7 +782,7 @@ func TestADKTaskAndMemoryWorkflowRoutes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DELETE memory: %v", err)
 	}
-	defer deleteMemoryResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, deleteMemoryResp.Body.Close()) }()
 	if deleteMemoryResp.StatusCode != http.StatusOK {
 		t.Fatalf("DELETE memory status = %d", deleteMemoryResp.StatusCode)
 	}
@@ -808,11 +809,11 @@ func TestADKOptimizationTaskNegativeRoutes(t *testing.T) {
 		t.Fatalf("optimization invalid get = %d/%s/%q", status, code, message)
 	}
 
-	missingGetResp, err := http.Get(srv.URL + "/api/v1/adk/optimization-tasks/missing-task")
+	missingGetResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/adk/optimization-tasks/missing-task")
 	if err != nil {
 		t.Fatalf("GET missing optimization task: %v", err)
 	}
-	defer missingGetResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, missingGetResp.Body.Close()) }()
 	status, code, message = decodeAPIErrorEnvelope(t, missingGetResp)
 	if status != http.StatusNotFound || code != "NOT_FOUND" || message != "optimization task not found" {
 		t.Fatalf("optimization missing get = %d/%s/%q", status, code, message)
@@ -830,11 +831,11 @@ func TestADKOptimizationTaskNegativeRoutes(t *testing.T) {
 		t.Fatalf("optimization invalid cancel = %d/%s/%q", status, code, message)
 	}
 
-	missingCancelResp, err := http.Post(srv.URL+"/api/v1/adk/optimization-tasks/missing-task/cancel", "application/json", nil)
+	missingCancelResp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/adk/optimization-tasks/missing-task/cancel", "application/json", nil)
 	if err != nil {
 		t.Fatalf("POST missing optimization cancel: %v", err)
 	}
-	defer missingCancelResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, missingCancelResp.Body.Close()) }()
 	status, code, message = decodeAPIErrorEnvelope(t, missingCancelResp)
 	if status != http.StatusNotFound || code != "NOT_FOUND" || message != "optimization task not found" {
 		t.Fatalf("optimization missing cancel = %d/%s/%q", status, code, message)
@@ -850,11 +851,11 @@ func TestAssistantChatCompatibilityRouteIsGone(t *testing.T) {
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
-	resp, err := http.Post(srv.URL+"/api/v1/assistant/chat", "application/json", bytes.NewReader([]byte(`{"prompt":"hello"}`)))
+	resp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/assistant/chat", "application/json", bytes.NewReader([]byte(`{"prompt":"hello"}`)))
 	if err != nil {
 		t.Fatalf("POST assistant chat: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("assistant chat status = %d, want %d", resp.StatusCode, http.StatusNotFound)
@@ -895,11 +896,11 @@ func TestADKSnapshotAndToolsRoutesReturnCatalogData(t *testing.T) {
 		t.Fatalf("SaveAgent: %v", err)
 	}
 
-	snapshotResp, err := http.Get(srv.URL + "/api/v1/adk")
+	snapshotResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/adk")
 	if err != nil {
 		t.Fatalf("GET snapshot: %v", err)
 	}
-	defer snapshotResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, snapshotResp.Body.Close()) }()
 	var snapshotEnvelope struct {
 		OK   bool `json:"ok"`
 		Data struct {
@@ -926,11 +927,11 @@ func TestADKSnapshotAndToolsRoutesReturnCatalogData(t *testing.T) {
 		t.Fatalf("runtimeSettings = %+v", snapshotEnvelope.Data.RuntimeSettings)
 	}
 
-	toolsResp, err := http.Get(srv.URL + "/api/v1/adk/tools")
+	toolsResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/adk/tools")
 	if err != nil {
 		t.Fatalf("GET tools: %v", err)
 	}
-	defer toolsResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, toolsResp.Body.Close()) }()
 	var toolsEnvelope struct {
 		OK   bool `json:"ok"`
 		Data struct {
@@ -970,11 +971,11 @@ func TestADKSessionsCRUDAndFilteringRoutes(t *testing.T) {
 	}
 
 	createBody := []byte(`{"agentId":"` + agent.ID + `","title":"组合诊断会话"}`)
-	createResp, err := http.Post(srv.URL+"/api/v1/adk/sessions", "application/json", bytes.NewReader(createBody))
+	createResp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/adk/sessions", "application/json", bytes.NewReader(createBody))
 	if err != nil {
 		t.Fatalf("POST sessions: %v", err)
 	}
-	defer createResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, createResp.Body.Close()) }()
 	var createEnvelope struct {
 		OK   bool          `json:"ok"`
 		Data jfadk.Session `json:"data"`
@@ -986,7 +987,7 @@ func TestADKSessionsCRUDAndFilteringRoutes(t *testing.T) {
 		t.Fatalf("create session envelope = %+v", createEnvelope)
 	}
 
-	composerReq, err := http.NewRequest(
+	composerReq, err := http.NewRequestWithContext(t.Context(),
 		http.MethodPatch,
 		srv.URL+"/api/v1/adk/sessions/"+createEnvelope.Data.ID+"/composer-state",
 		bytes.NewReader([]byte(`{"chatDraft":"未发送草稿","workModeOverride":"loop","goalObjectiveDraft":"目标草稿","goalObjectiveTouched":true}`)),
@@ -999,7 +1000,7 @@ func TestADKSessionsCRUDAndFilteringRoutes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PATCH composer state: %v", err)
 	}
-	defer composerResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, composerResp.Body.Close()) }()
 	var composerEnvelope struct {
 		OK   bool                       `json:"ok"`
 		Data jfadk.SessionComposerState `json:"data"`
@@ -1011,7 +1012,7 @@ func TestADKSessionsCRUDAndFilteringRoutes(t *testing.T) {
 		t.Fatalf("composer state envelope = %+v", composerEnvelope)
 	}
 
-	invalidComposerReq, err := http.NewRequest(
+	invalidComposerReq, err := http.NewRequestWithContext(t.Context(),
 		http.MethodPatch,
 		srv.URL+"/api/v1/adk/sessions/"+createEnvelope.Data.ID+"/composer-state",
 		bytes.NewReader([]byte(`{"workModeOverride":"sequential"}`)),
@@ -1024,25 +1025,25 @@ func TestADKSessionsCRUDAndFilteringRoutes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PATCH invalid composer state: %v", err)
 	}
-	defer invalidComposerResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, invalidComposerResp.Body.Close()) }()
 	if invalidComposerResp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("invalid composer status = %d, want 400", invalidComposerResp.StatusCode)
 	}
 
-	chatResp, err := http.Post(srv.URL+"/api/v1/adk/chat", "application/json", bytes.NewReader([]byte(`{"agentId":"`+agent.ID+`","sessionId":"`+createEnvelope.Data.ID+`","message":"@strategy.save_draft 保存会话草稿"}`)))
+	chatResp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/adk/chat", "application/json", bytes.NewReader([]byte(`{"agentId":"`+agent.ID+`","sessionId":"`+createEnvelope.Data.ID+`","message":"@strategy.save_draft 保存会话草稿"}`)))
 	if err != nil {
 		t.Fatalf("POST session chat: %v", err)
 	}
-	defer chatResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, chatResp.Body.Close()) }()
 	if chatResp.StatusCode != http.StatusOK {
 		t.Fatalf("POST session chat status = %d", chatResp.StatusCode)
 	}
 
-	listResp, err := http.Get(srv.URL + "/api/v1/adk/sessions?agentId=" + agent.ID + "&query=组合&limit=5")
+	listResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/adk/sessions?agentId="+agent.ID+"&query=组合&limit=5")
 	if err != nil {
 		t.Fatalf("GET sessions: %v", err)
 	}
-	defer listResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, listResp.Body.Close()) }()
 	var listEnvelope struct {
 		OK   bool `json:"ok"`
 		Data struct {
@@ -1068,11 +1069,11 @@ func TestADKSessionsCRUDAndFilteringRoutes(t *testing.T) {
 		t.Fatalf("session list leaked composer draft: %s", string(listPayload))
 	}
 
-	getResp, err := http.Get(srv.URL + "/api/v1/adk/sessions/" + createEnvelope.Data.ID)
+	getResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/adk/sessions/"+createEnvelope.Data.ID)
 	if err != nil {
 		t.Fatalf("GET session detail: %v", err)
 	}
-	defer getResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, getResp.Body.Close()) }()
 	var getEnvelope struct {
 		OK   bool `json:"ok"`
 		Data struct {
@@ -1091,7 +1092,7 @@ func TestADKSessionsCRUDAndFilteringRoutes(t *testing.T) {
 		t.Fatalf("session detail composer state = %+v", getEnvelope.Data.ComposerState)
 	}
 
-	renameReq, err := http.NewRequest(http.MethodPut, srv.URL+"/api/v1/adk/sessions/"+createEnvelope.Data.ID, bytes.NewReader([]byte(`{"title":"重命名会话"}`)))
+	renameReq, err := http.NewRequestWithContext(t.Context(), http.MethodPut, srv.URL+"/api/v1/adk/sessions/"+createEnvelope.Data.ID, bytes.NewReader([]byte(`{"title":"重命名会话"}`)))
 	if err != nil {
 		t.Fatalf("NewRequest rename: %v", err)
 	}
@@ -1100,7 +1101,7 @@ func TestADKSessionsCRUDAndFilteringRoutes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PUT session rename: %v", err)
 	}
-	defer renameResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, renameResp.Body.Close()) }()
 	var renameEnvelope struct {
 		OK   bool          `json:"ok"`
 		Data jfadk.Session `json:"data"`
@@ -1112,7 +1113,7 @@ func TestADKSessionsCRUDAndFilteringRoutes(t *testing.T) {
 		t.Fatalf("rename session envelope = %+v", renameEnvelope)
 	}
 
-	deleteReq, err := http.NewRequest(http.MethodDelete, srv.URL+"/api/v1/adk/sessions/"+createEnvelope.Data.ID, nil)
+	deleteReq, err := http.NewRequestWithContext(t.Context(), http.MethodDelete, srv.URL+"/api/v1/adk/sessions/"+createEnvelope.Data.ID, nil)
 	if err != nil {
 		t.Fatalf("NewRequest delete: %v", err)
 	}
@@ -1120,16 +1121,16 @@ func TestADKSessionsCRUDAndFilteringRoutes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DELETE session: %v", err)
 	}
-	defer deleteResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, deleteResp.Body.Close()) }()
 	if deleteResp.StatusCode != http.StatusOK {
 		t.Fatalf("delete session status = %d", deleteResp.StatusCode)
 	}
 
-	missingResp, err := http.Get(srv.URL + "/api/v1/adk/sessions/" + createEnvelope.Data.ID)
+	missingResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/adk/sessions/"+createEnvelope.Data.ID)
 	if err != nil {
 		t.Fatalf("GET deleted session: %v", err)
 	}
-	defer missingResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, missingResp.Body.Close()) }()
 	if missingResp.StatusCode != http.StatusNotFound {
 		t.Fatalf("deleted session status = %d, want 404", missingResp.StatusCode)
 	}
@@ -1160,15 +1161,11 @@ func TestADKSessionDetailOmitsResolvedApprovalGroups(t *testing.T) {
 		t.Fatalf("CreateSession: %v", err)
 	}
 
-	chatResp, err := http.Post(
-		srv.URL+"/api/v1/adk/chat",
-		"application/json",
-		strings.NewReader(`{"agentId":"`+agent.ID+`","sessionId":"`+session.ID+`","message":"@strategy.save_draft 保存草稿"}`),
-	)
+	chatResp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/adk/chat", "application/json", strings.NewReader(`{"agentId":"`+agent.ID+`","sessionId":"`+session.ID+`","message":"@strategy.save_draft 保存草稿"}`))
 	if err != nil {
 		t.Fatalf("POST session chat: %v", err)
 	}
-	defer chatResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, chatResp.Body.Close()) }()
 	if chatResp.StatusCode != http.StatusOK {
 		t.Fatalf("POST session chat status = %d", chatResp.StatusCode)
 	}
@@ -1187,11 +1184,11 @@ func TestADKSessionDetailOmitsResolvedApprovalGroups(t *testing.T) {
 	}
 	approvalID := chatEnvelope.Data.PendingApprovals[0].ID
 
-	approveResp, err := http.Post(srv.URL+"/api/v1/adk/approvals/"+approvalID+"/approve", "application/json", nil)
+	approveResp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/adk/approvals/"+approvalID+"/approve", "application/json", nil)
 	if err != nil {
 		t.Fatalf("POST approve: %v", err)
 	}
-	defer approveResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, approveResp.Body.Close()) }()
 	if approveResp.StatusCode != http.StatusOK {
 		t.Fatalf("approve status = %d", approveResp.StatusCode)
 	}
@@ -1214,11 +1211,11 @@ func TestADKSessionDetailOmitsResolvedApprovalGroups(t *testing.T) {
 		t.Fatalf("run did not reach terminal status after approval: run=%+v ok=%v err=%v", run, ok, err)
 	}
 
-	getResp, err := http.Get(srv.URL + "/api/v1/adk/sessions/" + session.ID)
+	getResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/adk/sessions/"+session.ID)
 	if err != nil {
 		t.Fatalf("GET session detail: %v", err)
 	}
-	defer getResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, getResp.Body.Close()) }()
 	if getResp.StatusCode != http.StatusOK {
 		t.Fatalf("GET session detail status = %d", getResp.StatusCode)
 	}
@@ -1241,11 +1238,11 @@ func TestADKSessionDetailOmitsResolvedApprovalGroups(t *testing.T) {
 		}
 	}
 
-	listResp, err := http.Get(srv.URL + "/api/v1/adk/approvals?status=PENDING")
+	listResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/adk/approvals?status=PENDING")
 	if err != nil {
 		t.Fatalf("GET pending approvals: %v", err)
 	}
-	defer listResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, listResp.Body.Close()) }()
 	if listResp.StatusCode != http.StatusOK {
 		t.Fatalf("GET pending approvals status = %d", listResp.StatusCode)
 	}
@@ -1281,11 +1278,11 @@ func TestADKAuditRouteFiltersByKindAndSubjectID(t *testing.T) {
 	server.adkRuntime.RecordAudit(t.Context(), "agent.saved", "agent-audit", "saved-again", map[string]any{"idx": 2})
 	server.adkRuntime.RecordAudit(t.Context(), "provider.saved", "provider-audit", "provider", map[string]any{"idx": 3})
 
-	resp, err := http.Get(srv.URL + "/api/v1/adk/audit?kind=agent.saved&subjectId=agent-audit&limit=1")
+	resp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/adk/audit?kind=agent.saved&subjectId=agent-audit&limit=1")
 	if err != nil {
 		t.Fatalf("GET audit: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	var envelope struct {
 		OK   bool `json:"ok"`
 		Data struct {
@@ -1319,11 +1316,11 @@ func TestADKAuditRouteDefaultPagination(t *testing.T) {
 	server.adkRuntime.RecordAudit(t.Context(), "agent.saved", "agent-audit-1", "saved", nil)
 	server.adkRuntime.RecordAudit(t.Context(), "agent.saved", "agent-audit-2", "saved", nil)
 
-	resp, err := http.Get(srv.URL + "/api/v1/adk/audit?limit=oops&offset=-10")
+	resp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/adk/audit?limit=oops&offset=-10")
 	if err != nil {
 		t.Fatalf("GET audit with invalid page params: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("audit status = %d", resp.StatusCode)
 	}
@@ -1372,7 +1369,7 @@ func TestADKChatStreamEmitsSessionRunAndFinalEvents(t *testing.T) {
 		t.Fatalf("SaveAgent: %v", err)
 	}
 
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/adk/chat/stream", strings.NewReader(`{"agentId":"`+agent.ID+`","message":"hello"}`))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/adk/chat/stream", strings.NewReader(`{"agentId":"`+agent.ID+`","message":"hello"}`))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	server.ServeHTTP(rec, req)
@@ -1408,7 +1405,7 @@ func TestADKChatStreamEmitsSessionRunAndFinalEvents(t *testing.T) {
 	if streamID == "" {
 		t.Fatal("stream id header is empty")
 	}
-	replayReq := httptest.NewRequest(http.MethodGet, "/api/v1/adk/streams/"+streamID+"?after=1", nil)
+	replayReq := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/adk/streams/"+streamID+"?after=1", nil)
 	replayRec := httptest.NewRecorder()
 	server.ServeHTTP(replayRec, replayReq)
 	if replayRec.Code != http.StatusOK {
@@ -1423,7 +1420,7 @@ func TestADKChatStreamEmitsSessionRunAndFinalEvents(t *testing.T) {
 			t.Fatalf("replayed event = %+v, want sequence > 1 with replay metadata", event)
 		}
 	}
-	runReplayReq := httptest.NewRequest(http.MethodGet, "/api/v1/adk/runs/"+finalEvent.Response.Run.ID+"/stream?after=1", nil)
+	runReplayReq := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/adk/runs/"+finalEvent.Response.Run.ID+"/stream?after=1", nil)
 	runReplayRec := httptest.NewRecorder()
 	server.ServeHTTP(runReplayRec, runReplayReq)
 	if runReplayRec.Code != http.StatusOK {
@@ -1431,7 +1428,7 @@ func TestADKChatStreamEmitsSessionRunAndFinalEvents(t *testing.T) {
 	}
 
 	detachedCtx, cancelDetached := context.WithCancel(context.Background())
-	detachedReq := httptest.NewRequest(
+	detachedReq := httptest.NewRequestWithContext(t.Context(),
 		http.MethodPost,
 		"/api/v1/adk/chat/stream",
 		strings.NewReader(`{"agentId":"`+agent.ID+`","message":"detached execution"}`),
@@ -1489,7 +1486,7 @@ func TestADKChatReturnsCompletedEnvelopeWithVisibleToolFailure(t *testing.T) {
 		t.Fatalf("SaveAgent: %v", err)
 	}
 
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/adk/chat", strings.NewReader(`{"agentId":"`+agent.ID+`","message":"@strategy.save_draft 保存失败草稿"}`))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/adk/chat", strings.NewReader(`{"agentId":"`+agent.ID+`","message":"@strategy.save_draft 保存失败草稿"}`))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	server.ServeHTTP(rec, req)
@@ -1548,7 +1545,7 @@ func TestADKChatStreamReturnsFinalEventForCompletedRunWithToolFailure(t *testing
 		t.Fatalf("SaveAgent: %v", err)
 	}
 
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/adk/chat/stream", strings.NewReader(`{"agentId":"`+agent.ID+`","message":"@strategy.save_draft 保存失败草稿"}`))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/adk/chat/stream", strings.NewReader(`{"agentId":"`+agent.ID+`","message":"@strategy.save_draft 保存失败草稿"}`))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	server.ServeHTTP(rec, req)
@@ -1599,7 +1596,8 @@ func TestADKChatStreamRecoversCompletedRunAsFinalEventWhenFinalMessageAppendFail
 	server.assistantSvc = asst.NewService(server.adkRuntime)
 	server.router = server.buildRouter()
 	t.Cleanup(func() {
-		_ = server.adkRuntime.Close()
+		jftradeErr1 := server.adkRuntime.Close()
+		jftradeCheckTestError(t, jftradeErr1)
 	})
 	server.adkRuntime.Tools().Register(jfadk.ToolDescriptor{
 		Name: "strategy.save_draft", Permission: "write_strategy",
@@ -1620,7 +1618,7 @@ func TestADKChatStreamRecoversCompletedRunAsFinalEventWhenFinalMessageAppendFail
 		t.Fatalf("SaveAgent: %v", err)
 	}
 
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/adk/chat/stream", strings.NewReader(`{"agentId":"`+agent.ID+`","message":"@strategy.save_draft attach final failure"}`))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/adk/chat/stream", strings.NewReader(`{"agentId":"`+agent.ID+`","message":"@strategy.save_draft attach final failure"}`))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	server.ServeHTTP(rec, req)
@@ -1658,11 +1656,11 @@ func TestADKChatStreamReturnsErrorEventForInvalidPayload(t *testing.T) {
 	}
 	srv := newHTTPTestServer(t, store)
 
-	resp, err := http.Post(srv.URL+"/api/v1/adk/chat/stream", "application/json", strings.NewReader(`{"message":`))
+	resp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/adk/chat/stream", "application/json", strings.NewReader(`{"message":`))
 	if err != nil {
 		t.Fatalf("POST invalid chat stream: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		t.Fatalf("ReadAll invalid stream: %v", err)
@@ -1684,11 +1682,11 @@ func TestADKProviderSaveRejectsInvalidPayload(t *testing.T) {
 	}
 	srv := newHTTPTestServer(t, store)
 
-	resp, err := http.Post(srv.URL+"/api/v1/adk/providers", "application/json", strings.NewReader(`{"displayName":`))
+	resp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/adk/providers", "application/json", strings.NewReader(`{"displayName":`))
 	if err != nil {
 		t.Fatalf("POST invalid provider payload: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 
 	status, code, message := decodeAPIErrorEnvelope(t, resp)
 	if status != http.StatusBadRequest || code != "BAD_REQUEST" || message != "invalid provider payload" {
@@ -1703,7 +1701,7 @@ func TestADKProviderSaveReturnsRequestTimeoutMs(t *testing.T) {
 	}
 	srv := newHTTPTestServer(t, store)
 
-	resp, err := http.Post(srv.URL+"/api/v1/adk/providers", "application/json", strings.NewReader(`{
+	resp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/adk/providers", "application/json", strings.NewReader(`{
 		"displayName":"Slow Provider",
 		"baseUrl":"https://api.openai.com/v1",
 		"model":"gpt-4o-mini",
@@ -1713,7 +1711,7 @@ func TestADKProviderSaveReturnsRequestTimeoutMs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("POST provider: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("POST provider status = %d", resp.StatusCode)
 	}
@@ -1788,11 +1786,11 @@ func TestADKAgentSaveValidationFailures(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			resp, err := http.Post(srv.URL+"/api/v1/adk/agents", "application/json", strings.NewReader(tc.body))
+			resp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/adk/agents", "application/json", strings.NewReader(tc.body))
 			if err != nil {
 				t.Fatalf("POST agent payload: %v", err)
 			}
-			defer resp.Body.Close()
+			defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 
 			status, code, message := decodeAPIErrorEnvelope(t, resp)
 			if status != http.StatusBadRequest || code != "BAD_REQUEST" || message != tc.wantMessage {
@@ -1811,17 +1809,17 @@ func TestADKSkillInstallAndUninstallFailureRoutes(t *testing.T) {
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
-	installResp, err := http.Post(srv.URL+"/api/v1/adk/skills", "application/json", strings.NewReader(`{"url":"not-a-valid-url"}`))
+	installResp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/adk/skills", "application/json", strings.NewReader(`{"url":"not-a-valid-url"}`))
 	if err != nil {
 		t.Fatalf("POST invalid skill install: %v", err)
 	}
-	defer installResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, installResp.Body.Close()) }()
 	status, code, message := decodeAPIErrorEnvelope(t, installResp)
 	if status != http.StatusBadRequest || code != "ADK_SKILL_INSTALL_FAILED" || strings.TrimSpace(message) == "" {
 		t.Fatalf("skill install error = %d/%s/%q, want 400/ADK_SKILL_INSTALL_FAILED/non-empty", status, code, message)
 	}
 
-	deleteReq, err := http.NewRequest(http.MethodDelete, srv.URL+"/api/v1/adk/skills/jftrade-market", nil)
+	deleteReq, err := http.NewRequestWithContext(t.Context(), http.MethodDelete, srv.URL+"/api/v1/adk/skills/jftrade-market", nil)
 	if err != nil {
 		t.Fatalf("NewRequest delete builtin skill: %v", err)
 	}
@@ -1829,7 +1827,7 @@ func TestADKSkillInstallAndUninstallFailureRoutes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DELETE builtin skill: %v", err)
 	}
-	defer deleteResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, deleteResp.Body.Close()) }()
 	status, code, message = decodeAPIErrorEnvelope(t, deleteResp)
 	if status != http.StatusInternalServerError || code != "ADK_SKILL_UNINSTALL_FAILED" || !strings.Contains(strings.ToLower(message), "builtin") {
 		t.Fatalf("skill uninstall error = %d/%s/%q, want 500/ADK_SKILL_UNINSTALL_FAILED/*builtin*", status, code, message)
@@ -1862,11 +1860,11 @@ Use NeoData search results as reference material and cite the source URL.`), 0o6
 	}
 
 	createBody := `{"id":"agent-neodata","name":"Agent NeoData","permissionMode":"approval","status":"ENABLED","tools":["http.fetch"],"skills":["neodata-financial-search"]}`
-	createResp, err := http.Post(srv.URL+"/api/v1/adk/agents", "application/json", strings.NewReader(createBody))
+	createResp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/adk/agents", "application/json", strings.NewReader(createBody))
 	if err != nil {
 		t.Fatalf("POST create agent: %v", err)
 	}
-	defer createResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, createResp.Body.Close()) }()
 	if createResp.StatusCode != http.StatusOK {
 		t.Fatalf("POST create agent status = %d", createResp.StatusCode)
 	}
@@ -1891,11 +1889,11 @@ func TestADKSessionNegativeRoutes(t *testing.T) {
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
-	createResp, err := http.Post(srv.URL+"/api/v1/adk/sessions", "application/json", strings.NewReader(`{"agentId":"missing-agent","title":"x"}`))
+	createResp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/adk/sessions", "application/json", strings.NewReader(`{"agentId":"missing-agent","title":"x"}`))
 	if err != nil {
 		t.Fatalf("POST invalid session create: %v", err)
 	}
-	defer createResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, createResp.Body.Close()) }()
 	status, code, message := decodeAPIErrorEnvelope(t, createResp)
 	if status != http.StatusBadRequest || code != "BAD_REQUEST" || message != "enabled agent is required" {
 		t.Fatalf("session create error = %d/%s/%q, want 400/BAD_REQUEST/enabled agent is required", status, code, message)
@@ -1913,11 +1911,11 @@ func TestADKSessionNegativeRoutes(t *testing.T) {
 		t.Fatalf("session invalid id error = %d/%s/%q", status, code, message)
 	}
 
-	missingResp, err := http.Get(srv.URL + "/api/v1/adk/sessions/session-missing")
+	missingResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/adk/sessions/session-missing")
 	if err != nil {
 		t.Fatalf("GET missing session detail: %v", err)
 	}
-	defer missingResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, missingResp.Body.Close()) }()
 	status, code, message = decodeAPIErrorEnvelope(t, missingResp)
 	if status != http.StatusNotFound || code != "NOT_FOUND" || message != "session not found" {
 		t.Fatalf("session missing error = %d/%s/%q", status, code, message)
@@ -1937,7 +1935,7 @@ func TestADKSessionNegativeRoutes(t *testing.T) {
 		t.Fatalf("CreateSession: %v", err)
 	}
 
-	renameReq, err := http.NewRequest(http.MethodPut, srv.URL+"/api/v1/adk/sessions/"+session.ID, strings.NewReader(`{"title":`))
+	renameReq, err := http.NewRequestWithContext(t.Context(), http.MethodPut, srv.URL+"/api/v1/adk/sessions/"+session.ID, strings.NewReader(`{"title":`))
 	if err != nil {
 		t.Fatalf("NewRequest invalid rename: %v", err)
 	}
@@ -1946,7 +1944,7 @@ func TestADKSessionNegativeRoutes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PUT invalid rename: %v", err)
 	}
-	defer renameResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, renameResp.Body.Close()) }()
 	status, code, message = decodeAPIErrorEnvelope(t, renameResp)
 	if status != http.StatusBadRequest || code != "BAD_REQUEST" || message != "invalid session payload" {
 		t.Fatalf("session rename payload error = %d/%s/%q", status, code, message)
@@ -1973,11 +1971,11 @@ func TestADKRunNegativeRoutes(t *testing.T) {
 		t.Fatalf("run cancel invalid error = %d/%s/%q", status, code, message)
 	}
 
-	cancelMissingResp, err := http.Post(srv.URL+"/api/v1/adk/runs/run-missing/cancel", "application/json", nil)
+	cancelMissingResp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/adk/runs/run-missing/cancel", "application/json", nil)
 	if err != nil {
 		t.Fatalf("POST missing cancel run: %v", err)
 	}
-	defer cancelMissingResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, cancelMissingResp.Body.Close()) }()
 	status, code, message = decodeAPIErrorEnvelope(t, cancelMissingResp)
 	if status != http.StatusNotFound || code != "ADK_RUN_CANCEL_FAILED" || message != "run not found" {
 		t.Fatalf("run cancel missing error = %d/%s/%q", status, code, message)
@@ -1995,11 +1993,11 @@ func TestADKRunNegativeRoutes(t *testing.T) {
 		t.Fatalf("run get invalid error = %d/%s/%q", status, code, message)
 	}
 
-	getMissingResp, err := http.Get(srv.URL + "/api/v1/adk/runs/run-missing")
+	getMissingResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/adk/runs/run-missing")
 	if err != nil {
 		t.Fatalf("GET missing run: %v", err)
 	}
-	defer getMissingResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, getMissingResp.Body.Close()) }()
 	status, code, message = decodeAPIErrorEnvelope(t, getMissingResp)
 	if status != http.StatusNotFound || code != "NOT_FOUND" || message != "run not found" {
 		t.Fatalf("run get missing error = %d/%s/%q", status, code, message)
@@ -2027,11 +2025,11 @@ func TestADKApprovalNegativeAndIdempotentRoutes(t *testing.T) {
 		t.Fatalf("approval invalid error = %d/%s/%q", status, code, message)
 	}
 
-	missingResp, err := http.Post(srv.URL+"/api/v1/adk/approvals/approval-missing/approve", "application/json", nil)
+	missingResp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/adk/approvals/approval-missing/approve", "application/json", nil)
 	if err != nil {
 		t.Fatalf("POST missing approval: %v", err)
 	}
-	defer missingResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, missingResp.Body.Close()) }()
 	if missingResp.StatusCode != http.StatusOK {
 		t.Fatalf("missing approval status = %d, want 200", missingResp.StatusCode)
 	}
@@ -2057,11 +2055,11 @@ func TestADKApprovalNegativeAndIdempotentRoutes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SaveAgent: %v", err)
 	}
-	chatResp, err := http.Post(srv.URL+"/api/v1/adk/chat", "application/json", strings.NewReader(`{"agentId":"`+agent.ID+`","message":"@strategy.save_draft 保存草稿"}`))
+	chatResp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/adk/chat", "application/json", strings.NewReader(`{"agentId":"`+agent.ID+`","message":"@strategy.save_draft 保存草稿"}`))
 	if err != nil {
 		t.Fatalf("POST chat for approval: %v", err)
 	}
-	defer chatResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, chatResp.Body.Close()) }()
 	var chatEnvelope struct {
 		OK   bool `json:"ok"`
 		Data struct {
@@ -2076,20 +2074,20 @@ func TestADKApprovalNegativeAndIdempotentRoutes(t *testing.T) {
 	}
 	approvalID := chatEnvelope.Data.PendingApprovals[0].ID
 
-	firstResp, err := http.Post(srv.URL+"/api/v1/adk/approvals/"+approvalID+"/approve", "application/json", nil)
+	firstResp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/adk/approvals/"+approvalID+"/approve", "application/json", nil)
 	if err != nil {
 		t.Fatalf("POST first approval: %v", err)
 	}
-	defer firstResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, firstResp.Body.Close()) }()
 	if firstResp.StatusCode != http.StatusOK {
 		t.Fatalf("first approval status = %d", firstResp.StatusCode)
 	}
 
-	secondResp, err := http.Post(srv.URL+"/api/v1/adk/approvals/"+approvalID+"/approve", "application/json", nil)
+	secondResp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/adk/approvals/"+approvalID+"/approve", "application/json", nil)
 	if err != nil {
 		t.Fatalf("POST second approval: %v", err)
 	}
-	defer secondResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, secondResp.Body.Close()) }()
 	if secondResp.StatusCode != http.StatusOK {
 		t.Fatalf("second approval status = %d", secondResp.StatusCode)
 	}
@@ -2211,8 +2209,8 @@ func sessionEventText(event *adksession.Event) string {
 			}
 		}
 	}
-	if event.LLMResponse.Content != nil {
-		for _, part := range event.LLMResponse.Content.Parts {
+	if event.Content != nil {
+		for _, part := range event.Content.Parts {
 			if part != nil && strings.TrimSpace(part.Text) != "" {
 				parts = append(parts, part.Text)
 			}

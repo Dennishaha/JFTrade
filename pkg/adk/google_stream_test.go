@@ -15,9 +15,12 @@ import (
 func TestOpenAICompatibleADKModelGenerateContentStreamYieldsPartialAndFinal(t *testing.T) {
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/event-stream")
-		_, _ = w.Write([]byte("data: {\"choices\":[{\"delta\":{\"content\":\"你\"}}]}\n\n"))
-		_, _ = w.Write([]byte("data: {\"choices\":[{\"delta\":{\"content\":\"好\"}}]}\n\n"))
-		_, _ = w.Write([]byte("data: [DONE]\n\n"))
+		_, jftradeErr1 := w.Write([]byte("data: {\"choices\":[{\"delta\":{\"content\":\"你\"}}]}\n\n"))
+		jftradeCheckTestError(t, jftradeErr1)
+		_, jftradeErr2 := w.Write([]byte("data: {\"choices\":[{\"delta\":{\"content\":\"好\"}}]}\n\n"))
+		jftradeCheckTestError(t, jftradeErr2)
+		_, jftradeErr3 := w.Write([]byte("data: [DONE]\n\n"))
+		jftradeCheckTestError(t, jftradeErr3)
 	}))
 	defer mockServer.Close()
 
@@ -59,10 +62,14 @@ func TestOpenAICompatibleADKModelGenerateContentStreamYieldsPartialAndFinal(t *t
 func TestOpenAICompatibleADKModelGenerateContentStreamPreservesChunkSpacing(t *testing.T) {
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/event-stream")
-		_, _ = w.Write([]byte("data: {\"choices\":[{\"delta\":{\"reasoning_content\":\"Let\"}}]}\n\n"))
-		_, _ = w.Write([]byte("data: {\"choices\":[{\"delta\":{\"reasoning_content\":\" me\"}}]}\n\n"))
-		_, _ = w.Write([]byte("data: {\"choices\":[{\"delta\":{\"reasoning_content\":\" analyze\"}}]}\n\n"))
-		_, _ = w.Write([]byte("data: [DONE]\n\n"))
+		_, jftradeErr4 := w.Write([]byte("data: {\"choices\":[{\"delta\":{\"reasoning_content\":\"Let\"}}]}\n\n"))
+		jftradeCheckTestError(t, jftradeErr4)
+		_, jftradeErr5 := w.Write([]byte("data: {\"choices\":[{\"delta\":{\"reasoning_content\":\" me\"}}]}\n\n"))
+		jftradeCheckTestError(t, jftradeErr5)
+		_, jftradeErr6 := w.Write([]byte("data: {\"choices\":[{\"delta\":{\"reasoning_content\":\" analyze\"}}]}\n\n"))
+		jftradeCheckTestError(t, jftradeErr6)
+		_, jftradeErr7 := w.Write([]byte("data: [DONE]\n\n"))
+		jftradeCheckTestError(t, jftradeErr7)
 	}))
 	defer mockServer.Close()
 
@@ -96,9 +103,12 @@ func TestOpenAICompatibleADKModelGenerateContentStreamPreservesChunkSpacing(t *t
 func TestOpenAICompatibleADKModelGenerateContentStopsAfterYieldFalse(t *testing.T) {
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/event-stream")
-		_, _ = w.Write([]byte("data: {\"choices\":[{\"delta\":{\"content\":\"你\"}}]}\n\n"))
-		_, _ = w.Write([]byte("data: {\"choices\":[{\"delta\":{\"content\":\"好\"}}]}\n\n"))
-		_, _ = w.Write([]byte("data: [DONE]\n\n"))
+		_, jftradeErr8 := w.Write([]byte("data: {\"choices\":[{\"delta\":{\"content\":\"你\"}}]}\n\n"))
+		jftradeCheckTestError(t, jftradeErr8)
+		_, jftradeErr9 := w.Write([]byte("data: {\"choices\":[{\"delta\":{\"content\":\"好\"}}]}\n\n"))
+		jftradeCheckTestError(t, jftradeErr9)
+		_, jftradeErr10 := w.Write([]byte("data: [DONE]\n\n"))
+		jftradeCheckTestError(t, jftradeErr10)
 	}))
 	defer mockServer.Close()
 

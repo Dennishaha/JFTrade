@@ -16,6 +16,7 @@ import (
 	"github.com/c9s/bbgo/pkg/exchange"
 	"github.com/c9s/bbgo/pkg/fixedpoint"
 	"github.com/c9s/bbgo/pkg/types"
+
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
 	notifypb "github.com/jftrade/jftrade-main/pkg/futu/pb/notify"
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"

@@ -35,8 +35,11 @@ func TestMarketDataRuntimeCloseWaitsForEnsureAndDoesNotRevive(t *testing.T) {
 	<-started
 	closeDone := make(chan struct{})
 	go func() {
-		_ = runtime.Close()
-		close(closeDone)
+		func() {
+			jftradeErr1 := runtime.Close()
+			jftradeCheckTestError(t, jftradeErr1)
+			close(closeDone)
+		}()
 	}()
 	select {
 	case <-closeDone:
@@ -215,4 +218,11 @@ func fixedpointValue(t *testing.T, value string) fixedpoint.Value {
 		t.Fatalf("fixedpoint.NewFromString: %v", err)
 	}
 	return result
+}
+
+func jftradeCheckTestError(t testing.TB, err error) {
+	t.Helper()
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
 }

@@ -658,10 +658,12 @@ func TestGoalWorkflowPauseAfterContinueAndResume(t *testing.T) {
 			shouldComplete := resumeNudgeSeen
 			mu.Unlock()
 			if shouldPause {
-				runs, _ := runtime.Store().ListRuns(ctx)
+				runs, jftradeErr1 := runtime.Store().ListRuns(ctx)
+				jftradeCheckTestError(t, jftradeErr1)
 				for _, run := range runs {
 					if normalizeWorkMode(run.WorkMode) == WorkModeLoop && run.ParentRunID == "" && run.Status == RunStatusRunning {
-						_, _ = runtime.PauseGoalRun(ctx, run.ID)
+						_, jftradeErr2 := runtime.PauseGoalRun(ctx, run.ID)
+						jftradeCheckTestError(t, jftradeErr2)
 						break
 					}
 				}
@@ -738,10 +740,12 @@ func TestGoalWorkflowPauseRequestedBeforeCompleteDecisionPausesInsteadOfCompleti
 				return openAIChatMessage{Role: "assistant", Content: "goal.complete 已被中断。"}
 			}
 			if !pauseRequested.Swap(true) {
-				runs, _ := runtime.Store().ListRuns(ctx)
+				runs, jftradeErr3 := runtime.Store().ListRuns(ctx)
+				jftradeCheckTestError(t, jftradeErr3)
 				for _, run := range runs {
 					if normalizeWorkMode(run.WorkMode) == WorkModeLoop && run.ParentRunID == "" && run.Status == RunStatusRunning {
-						_, _ = runtime.PauseGoalRun(ctx, run.ID)
+						_, jftradeErr4 := runtime.PauseGoalRun(ctx, run.ID)
+						jftradeCheckTestError(t, jftradeErr4)
 						break
 					}
 				}
@@ -967,7 +971,8 @@ func TestGoalWorkflowDecisionPromptUsesUpdatedObjective(t *testing.T) {
 			}
 			for _, run := range runs {
 				if normalizeWorkMode(run.WorkMode) == WorkModeLoop && run.ParentRunID == "" && run.Status == RunStatusRunning {
-					_, _ = runtime.UpdateRunObjective(ctx, run.ID, "更新后的目标")
+					_, jftradeErr5 := runtime.UpdateRunObjective(ctx, run.ID, "更新后的目标")
+					jftradeCheckTestError(t, jftradeErr5)
 					break
 				}
 			}
@@ -1379,18 +1384,19 @@ func saveGoalWorkflowProvider(t *testing.T, runtime *Runtime, id string, message
 			http.NotFound(w, r)
 			return
 		}
-		defer r.Body.Close()
+		defer func() { jftradeCheckTestError(t, r.Body.Close()) }()
 		var req openAIChatRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(openAIChatResponse{
+		jftradeErr6 := json.NewEncoder(w).Encode(openAIChatResponse{
 			Choices: []struct {
 				Message openAIChatMessage `json:"message"`
 			}{{Message: message(req)}},
 		})
+		jftradeCheckTestError(t, jftradeErr6)
 	}))
 	t.Cleanup(server.Close)
 	provider := mustSaveProvider(t, runtime, ProviderWriteRequest{

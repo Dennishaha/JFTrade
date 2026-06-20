@@ -14,12 +14,37 @@ import (
 	marketcalendar "github.com/jftrade/jftrade-main/pkg/market/calendar"
 )
 
+func jftradeCheckedTypeAssertion[T any](value any) T {
+	typed, ok := value.(T)
+	if !ok {
+		panic("unexpected dynamic type")
+	}
+	return typed
+}
+
 type stubSource struct {
 	id        string
 	kind      string
 	authority string
 	markets   []string
 	fetch     func(context.Context, string, time.Time, time.Time) (marketcalendar.CalendarSnapshot, error)
+}
+
+func TestManagerFailureBackoffUsesHoursAndCapsAtTwentyFour(t *testing.T) {
+	now := time.Date(2026, 6, 20, 8, 0, 0, 0, time.UTC)
+	manager := NewManager(nil, nil, WithClock(func() time.Time { return now }))
+
+	manager.recordOperationFailure("operation-source", errors.New("operation failed"))
+	if got, want := manager.statuses["operation-source"].NextRefreshAt, now.Add(time.Hour); !got.Equal(want) {
+		t.Fatalf("first operation retry = %s, want %s", got, want)
+	}
+
+	for range 30 {
+		manager.recordSourceFailure("calendar-source", "US", errors.New("refresh failed"), "fetch_failed")
+	}
+	if got, want := manager.statuses["calendar-source"].NextRefreshAt, now.Add(24*time.Hour); !got.Equal(want) {
+		t.Fatalf("capped source retry = %s, want %s", got, want)
+	}
 }
 
 func (s stubSource) ID() string        { return s.id }
@@ -506,8 +531,8 @@ func TestManagerSourcesExposeAvailabilityNotes(t *testing.T) {
 	rows := manager.Sources()
 	notes := map[string]string{}
 	for _, row := range rows {
-		id, _ := row["id"].(string)
-		note, _ := row["availabilityNote"].(string)
+		id := jftradeCheckedTypeAssertion[string](row["id"])
+		note := jftradeCheckedTypeAssertion[string](row["availabilityNote"])
 		notes[id] = note
 	}
 
@@ -548,7 +573,7 @@ func TestManagerStatusExplainsBuiltinEffectiveReason(t *testing.T) {
 	if markets[0]["effectiveSource"] != BuiltinSourceID {
 		t.Fatalf("effectiveSource = %#v", markets[0]["effectiveSource"])
 	}
-	reason, _ := markets[0]["effectiveReason"].(string)
+	reason := jftradeCheckedTypeAssertion[string](markets[0]["effectiveReason"])
 	if reason == "" || reason != "current policy uses builtin_rules because no external source is enabled for this market" {
 		t.Fatalf("effectiveReason = %q", reason)
 	}
@@ -613,7 +638,7 @@ func TestManagerStatusUsesRemoteCoverageSourceForRegularDay(t *testing.T) {
 	if markets[0]["effectiveMode"] != "remote_covered_day" {
 		t.Fatalf("effectiveMode = %#v", markets[0]["effectiveMode"])
 	}
-	reason, _ := markets[0]["effectiveReason"].(string)
+	reason := jftradeCheckedTypeAssertion[string](markets[0]["effectiveReason"])
 	if reason != "a fresh source snapshot covers the checked trading day; builtin template supplies the standard session result because that date has no special override" {
 		t.Fatalf("effectiveReason = %q", reason)
 	}

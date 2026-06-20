@@ -35,11 +35,11 @@ func TestStrategiesEndpointReturnsList(t *testing.T) {
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
-	resp, err := http.Get(srv.URL + "/api/v1/strategies")
+	resp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/strategies")
 	if err != nil {
 		t.Fatalf("GET strategies: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("GET strategies status = %d", resp.StatusCode)
 	}
@@ -57,11 +57,11 @@ func TestStrategiesEndpointReturnsList(t *testing.T) {
 		t.Fatalf("expected 1 strategy, got %d", len(envelope.Data))
 	}
 
-	logsResp, err := http.Get(srv.URL + "/api/v1/strategies/instance-1/logs")
+	logsResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/strategies/instance-1/logs")
 	if err != nil {
 		t.Fatalf("GET logs: %v", err)
 	}
-	defer logsResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, logsResp.Body.Close()) }()
 	if logsResp.StatusCode != http.StatusOK {
 		t.Fatalf("GET logs status = %d", logsResp.StatusCode)
 	}
@@ -76,11 +76,11 @@ func TestStrategiesEndpointReturnsList(t *testing.T) {
 		t.Fatalf("unexpected logs response: %+v", logsEnvelope.Data)
 	}
 
-	auditResp, err := http.Get(srv.URL + "/api/v1/strategies/instance-1/audit")
+	auditResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/strategies/instance-1/audit")
 	if err != nil {
 		t.Fatalf("GET audit: %v", err)
 	}
-	defer auditResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, auditResp.Body.Close()) }()
 	if auditResp.StatusCode != http.StatusOK {
 		t.Fatalf("GET audit status = %d", auditResp.StatusCode)
 	}
@@ -122,11 +122,11 @@ func TestStrategiesEndpointIncludesPersistedRuntimeLogTail(t *testing.T) {
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
-	resp, err := http.Get(srv.URL + "/api/v1/strategies")
+	resp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/strategies")
 	if err != nil {
 		t.Fatalf("GET strategies: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	var envelope struct {
 		OK   bool               `json:"ok"`
 		Data []strategyListItem `json:"data"`
@@ -178,11 +178,11 @@ func TestStrategyLogsAndAuditEndpointsSupportPaginationAndFilters(t *testing.T) 
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
-	logsResp, err := http.Get(srv.URL + "/api/v1/strategies/instance-logs/logs?limit=1&offset=1")
+	logsResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/strategies/instance-logs/logs?limit=1&offset=1")
 	if err != nil {
 		t.Fatalf("GET paged logs: %v", err)
 	}
-	defer logsResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, logsResp.Body.Close()) }()
 	var logsEnvelope struct {
 		OK   bool                 `json:"ok"`
 		Data strategyLogsResponse `json:"data"`
@@ -194,20 +194,20 @@ func TestStrategyLogsAndAuditEndpointsSupportPaginationAndFilters(t *testing.T) 
 		t.Fatalf("unexpected logs page: %+v", logsEnvelope.Data.Page)
 	}
 
-	legacyQueryResp, err := http.Get(srv.URL + "/api/v1/strategies/instance-logs/logs?limit=bogus&fromTime=2026-05-22")
+	legacyQueryResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/strategies/instance-logs/logs?limit=bogus&fromTime=2026-05-22")
 	if err != nil {
 		t.Fatalf("GET logs with legacy query parsing: %v", err)
 	}
-	defer legacyQueryResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, legacyQueryResp.Body.Close()) }()
 	if legacyQueryResp.StatusCode != http.StatusOK {
 		t.Fatalf("GET logs with legacy query parsing status = %d", legacyQueryResp.StatusCode)
 	}
 
-	filteredLogsResp, err := http.Get(srv.URL + "/api/v1/strategies/instance-logs/logs?level=error")
+	filteredLogsResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/strategies/instance-logs/logs?level=error")
 	if err != nil {
 		t.Fatalf("GET filtered logs: %v", err)
 	}
-	defer filteredLogsResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, filteredLogsResp.Body.Close()) }()
 	if err := json.NewDecoder(filteredLogsResp.Body).Decode(&logsEnvelope); err != nil {
 		t.Fatalf("decode filtered logs: %v", err)
 	}
@@ -215,11 +215,11 @@ func TestStrategyLogsAndAuditEndpointsSupportPaginationAndFilters(t *testing.T) 
 		t.Fatalf("unexpected filtered logs response: %+v", logsEnvelope.Data)
 	}
 
-	auditResp, err := http.Get(srv.URL + "/api/v1/strategies/instance-logs/audit?kind=runtime_error")
+	auditResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/strategies/instance-logs/audit?kind=runtime_error")
 	if err != nil {
 		t.Fatalf("GET filtered audit: %v", err)
 	}
-	defer auditResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, auditResp.Body.Close()) }()
 	var auditEnvelope struct {
 		OK   bool                  `json:"ok"`
 		Data strategyAuditResponse `json:"data"`

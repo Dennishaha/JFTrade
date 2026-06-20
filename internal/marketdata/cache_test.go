@@ -163,19 +163,19 @@ func TestSerializationPreservesNullExtendedAndStringPrices(t *testing.T) {
 	if snapshot["price"] != "100.25" || snapshot["openPrice"] != nil {
 		t.Fatalf("snapshot prices = %#v", snapshot)
 	}
-	extended := snapshot["extended"].(map[string]any)
+	extended := jftradeCheckedTypeAssertion[map[string]any](snapshot["extended"])
 	if extended["preMarket"] != nil || extended["overnight"] != nil {
 		t.Fatalf("extended null behavior = %#v", extended)
 	}
-	if extended["afterMarket"].(map[string]any)["price"] != "101.75" {
+	if jftradeCheckedTypeAssertion[map[string]any](extended["afterMarket"])["price"] != "101.75" {
 		t.Fatalf("after market = %#v", extended["afterMarket"])
 	}
-	if extended["afterMarket"].(map[string]any)["quoteTime"] != now.Format(time.RFC3339Nano) {
+	if jftradeCheckedTypeAssertion[map[string]any](extended["afterMarket"])["quoteTime"] != now.Format(time.RFC3339Nano) {
 		t.Fatalf("after market quoteTime = %#v", extended["afterMarket"])
 	}
 
 	event := LiveTickJSON(&sample, now.Add(time.Second).Format(time.RFC3339Nano))
-	if event["at"] != event["snapshot"].(map[string]any)["observedAt"] {
+	if event["at"] != jftradeCheckedTypeAssertion[map[string]any](event["snapshot"])["observedAt"] {
 		t.Fatalf("observedAt override = %#v", event)
 	}
 }
@@ -192,7 +192,7 @@ func TestServiceUsesSingleCacheForSnapshotCandlesAndLatest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetSnapshot: %v", err)
 	}
-	if snapshot["meta"].(map[string]any)["fromCache"] != false {
+	if jftradeCheckedTypeAssertion[map[string]any](snapshot["meta"])["fromCache"] != false {
 		t.Fatalf("snapshot meta = %#v", snapshot["meta"])
 	}
 	if provider.snapshotCalls != 1 {
@@ -200,7 +200,7 @@ func TestServiceUsesSingleCacheForSnapshotCandlesAndLatest(t *testing.T) {
 	}
 
 	snapshot, err = service.GetSnapshot(context.Background(), "HK", "00700", false)
-	if err != nil || snapshot["meta"].(map[string]any)["fromCache"] != true {
+	if err != nil || jftradeCheckedTypeAssertion[map[string]any](snapshot["meta"])["fromCache"] != true {
 		t.Fatalf("cached snapshot = %#v, err=%v", snapshot, err)
 	}
 	candles, err := service.GetCandles(context.Background(), "HK", "00700", "tick", 10, "", "")
@@ -226,7 +226,7 @@ func TestServiceTickCandleFallsBackToRetainedCache(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetCandles fallback: %v", err)
 	}
-	if response["meta"].(map[string]any)["fromCache"] != true || response["totalReturned"] != 1 {
+	if jftradeCheckedTypeAssertion[map[string]any](response["meta"])["fromCache"] != true || response["totalReturned"] != 1 {
 		t.Fatalf("fallback response = %#v", response)
 	}
 }
@@ -248,10 +248,6 @@ func tickAt(instrumentID, price string, volume float64, observedAt time.Time) Ti
 		Session:      "regular",
 		Kind:         TickKindQuote,
 	}
-}
-
-func ptrTick(tick Tick) *Tick {
-	return &tick
 }
 
 type dataProviderStub struct {

@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/jmoiron/sqlx"
+	// Register the modernc SQLite driver for database/sql.
 	_ "modernc.org/sqlite"
 )
 
@@ -36,7 +37,8 @@ func NewFutuKLineStore(dbPath string) (*FutuKLineStore, error) {
 		writeSessionScope: klineSessionScopeLegacy,
 	}
 	if err := store.migrate(); err != nil {
-		_ = db.Close()
+		jftradeErr1 := db.Close()
+		jftradeLogError(jftradeErr1)
 		return nil, fmt.Errorf("migrate sqlite backtest store: %w", err)
 	}
 	return store, nil

@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"iter"
+	"log"
 	"net/http"
 	"sort"
 	"strings"
@@ -80,7 +81,7 @@ func (m *openAICompatibleADKModel) generateStream(
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeLogError(resp.Body.Close()) }()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		body, readErr := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
 		if readErr != nil {
@@ -140,7 +141,7 @@ func (m *openAICompatibleADKModel) generateStream(
 		line := scanner.Text()
 		if line == "" {
 			err := flushEvent()
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				break
 			}
 			if err != nil {
@@ -155,7 +156,7 @@ func (m *openAICompatibleADKModel) generateStream(
 	if err := scanner.Err(); err != nil {
 		return err
 	}
-	if err := flushEvent(); err != nil && err != io.EOF {
+	if err := flushEvent(); err != nil && !errors.Is(err, io.EOF) {
 		return err
 	}
 	final, err := state.finalResponse()
@@ -203,7 +204,7 @@ func (m *openAICompatibleADKModel) doGenerate(ctx context.Context, payload openA
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeLogError(resp.Body.Close()) }()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		body, readErr := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
 		if readErr != nil {
@@ -396,14 +397,16 @@ func openAIMessagesFromGenAI(content *genai.Content) []openAIChatMessage {
 			}
 		}
 		if part.FunctionCall != nil {
-			rawArgs, _ := json.Marshal(part.FunctionCall.Args)
+			rawArgs, jftradeErr2 := json.Marshal(part.FunctionCall.Args)
+			jftradeLogError(jftradeErr2)
 			call := openAIToolCall{ID: part.FunctionCall.ID, Type: "function"}
 			call.Function.Name = part.FunctionCall.Name
 			call.Function.Arguments = string(rawArgs)
 			calls = append(calls, call)
 		}
 		if part.FunctionResponse != nil {
-			rawResponse, _ := json.Marshal(part.FunctionResponse.Response)
+			rawResponse, jftradeErr4 := json.Marshal(part.FunctionResponse.Response)
+			jftradeLogError(jftradeErr4)
 			messages = append(messages, openAIChatMessage{
 				Role:       "tool",
 				Content:    string(rawResponse),
@@ -430,10 +433,12 @@ func openAIToolsFromGenAIConfig(config *genai.GenerateContentConfig) []openAIToo
 	var result []openAITool
 	for _, item := range config.Tools {
 		for _, declaration := range item.FunctionDeclarations {
-			parameters, _ := declaration.ParametersJsonSchema.(map[string]any)
+			parameters := jftradeOptionalTypeAssertion[map[string]any](declaration.ParametersJsonSchema)
 			if parameters == nil {
-				raw, _ := json.Marshal(declaration.ParametersJsonSchema)
-				_ = json.Unmarshal(raw, &parameters)
+				raw, jftradeErr3 := json.Marshal(declaration.ParametersJsonSchema)
+				jftradeLogError(jftradeErr3)
+				jftradeErr1 := json.Unmarshal(raw, &parameters)
+				jftradeLogError(jftradeErr1)
 			}
 			parameters = sanitizeSchemaForOpenAI(parameters)
 			result = append(result, openAITool{
@@ -501,4 +506,12 @@ func sanitizeSchemaForOpenAI(schema map[string]any) map[string]any {
 		}
 	}
 	return out
+}
+
+func jftradeLogError(values ...any) {
+	for _, value := range values {
+		if err, ok := value.(error); ok && err != nil {
+			log.Printf("best-effort operation failed: %v", err)
+		}
+	}
 }

@@ -107,8 +107,8 @@ func readStrategyBindingInstruments(value any) []strategyBindingInstrument {
 			if !ok {
 				continue
 			}
-			market, _ := record["market"].(string)
-			code, _ := record["code"].(string)
+			market := jftradeOptionalTypeAssertion[string](record["market"])
+			code := jftradeOptionalTypeAssertion[string](record["code"])
 			result = append(result, strategyBindingInstrument{Market: market, Code: code})
 		}
 		return result
@@ -122,10 +122,10 @@ func strategyBrokerAccountBindingFromAny(value any) *strategyBrokerAccountBindin
 	if !ok {
 		return nil
 	}
-	brokerID, _ := raw["brokerId"].(string)
-	accountID, _ := raw["accountId"].(string)
-	tradingEnvironment, _ := raw["tradingEnvironment"].(string)
-	market, _ := raw["market"].(string)
+	brokerID := jftradeOptionalTypeAssertion[string](raw["brokerId"])
+	accountID := jftradeOptionalTypeAssertion[string](raw["accountId"])
+	tradingEnvironment := jftradeOptionalTypeAssertion[string](raw["tradingEnvironment"])
+	market := jftradeOptionalTypeAssertion[string](raw["market"])
 	return normalizeStrategyBrokerAccountBinding(&strategyBrokerAccountBinding{
 		BrokerID:           brokerID,
 		AccountID:          accountID,
@@ -139,9 +139,9 @@ func strategyRuntimeRiskSettingsFromAny(value any) strategyRuntimeRiskSettings {
 	if !ok {
 		return strategyRuntimeRiskSettings{}
 	}
-	mode, _ := raw["mode"].(string)
-	closeOnly, _ := raw["closeOnly"].(bool)
-	pauseOnReject, _ := raw["pauseOnReject"].(bool)
+	mode := jftradeOptionalTypeAssertion[string](raw["mode"])
+	closeOnly := jftradeOptionalTypeAssertion[bool](raw["closeOnly"])
+	pauseOnReject := jftradeOptionalTypeAssertion[bool](raw["pauseOnReject"])
 	return normalizeStrategyRuntimeRiskSettings(strategyRuntimeRiskSettings{
 		Mode:             mode,
 		CloseOnly:        closeOnly,

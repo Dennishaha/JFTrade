@@ -53,10 +53,6 @@ func seedCachedTickSample(server *Server, sample marketTickSample) {
 	server.marketdataSvc.Seed(sample)
 }
 
-func float64Ptr(v float64) *float64 {
-	return &v
-}
-
 func assertSnapshotResponse(t *testing.T, response map[string]any, instrumentID string, fromCache bool, source string) {
 	t.Helper()
 	request, ok := response["request"].(map[string]any)

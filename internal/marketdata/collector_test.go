@@ -54,8 +54,8 @@ func TestCollectorOldGenerationCannotCommitPushOrConnect(t *testing.T) {
 		DemandInterval: time.Hour,
 		ConnectTimeout: time.Hour,
 	})
-	t.Cleanup(func() { _ = collector.Close() })
-	collector.SetDemandSources(DemandSourceFunc(func() []string { return demand.Load().([]string) }))
+	t.Cleanup(func() { jftradeErr1 := collector.Close(); jftradeCheckTestError(t, jftradeErr1) })
+	collector.SetDemandSources(DemandSourceFunc(func() []string { return jftradeCheckedTypeAssertion[[]string](demand.Load()) }))
 	<-first.connectStarted
 
 	demand.Store([]string{"US.AAPL"})
@@ -84,7 +84,7 @@ func TestCollectorPollingFallbackDoesNotCallPushHandler(t *testing.T) {
 	collector := NewCollector(cache, quotes, nil, func(Tick) { pushes.Add(1) }, CollectorOptions{
 		PollInterval: time.Hour, QueryTimeout: time.Second, DemandInterval: time.Hour,
 	})
-	t.Cleanup(func() { _ = collector.Close() })
+	t.Cleanup(func() { jftradeErr4 := collector.Close(); jftradeCheckTestError(t, jftradeErr4) })
 	collector.SetDemandSources(DemandSourceFunc(func() []string { return []string{"HK.00700"} }))
 	waitFor(t, func() bool { return collector.State().ActiveCount == 1 })
 	collector.poll()
@@ -104,7 +104,7 @@ func TestCollectorResetInvalidatesBlockingQueryResult(t *testing.T) {
 	collector := NewCollector(cache, quotes, nil, nil, CollectorOptions{
 		PollInterval: time.Hour, QueryTimeout: time.Hour, DemandInterval: time.Hour,
 	})
-	t.Cleanup(func() { _ = collector.Close() })
+	t.Cleanup(func() { jftradeErr5 := collector.Close(); jftradeCheckTestError(t, jftradeErr5) })
 	collector.SetDemandSources(DemandSourceFunc(func() []string { return []string{"HK.00700"} }))
 	collector.poll()
 	<-quotes.started
@@ -121,7 +121,7 @@ func TestCollectorStreamFailureBacksOff(t *testing.T) {
 	collector := NewCollector(NewCache(), nil, push, nil, CollectorOptions{
 		DemandInterval: time.Hour,
 	})
-	t.Cleanup(func() { _ = collector.Close() })
+	t.Cleanup(func() { jftradeErr2 := collector.Close(); jftradeCheckTestError(t, jftradeErr2) })
 	collector.SetDemandSources(DemandSourceFunc(func() []string { return []string{"HK.00700"} }))
 
 	waitFor(t, func() bool { return collector.State().StreamFailures == 1 })
@@ -149,7 +149,7 @@ func TestCollectorQuoteFailureBacksOff(t *testing.T) {
 		QueryTimeout:   time.Second,
 		DemandInterval: time.Hour,
 	})
-	t.Cleanup(func() { _ = collector.Close() })
+	t.Cleanup(func() { jftradeErr3 := collector.Close(); jftradeCheckTestError(t, jftradeErr3) })
 	collector.SetDemandSources(DemandSourceFunc(func() []string { return []string{"HK.00700"} }))
 	waitFor(t, func() bool { return collector.State().ActiveCount == 1 })
 
@@ -277,5 +277,20 @@ func waitFor(t *testing.T, condition func() bool) {
 			t.Fatal("condition not met")
 		}
 		time.Sleep(time.Millisecond)
+	}
+}
+
+func jftradeCheckedTypeAssertion[T any](value any) T {
+	typed, ok := value.(T)
+	if !ok {
+		panic("unexpected dynamic type")
+	}
+	return typed
+}
+
+func jftradeCheckTestError(t testing.TB, err error) {
+	t.Helper()
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
 	}
 }

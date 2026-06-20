@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
+	// Register the modernc SQLite driver for database/sql.
 	_ "modernc.org/sqlite"
 )
 
@@ -97,7 +98,8 @@ func NewStrategyRuntimeStore(dbPath string) (*strategyRuntimeStore, error) {
 	}
 	store := &strategyRuntimeStore{db: db}
 	if err := store.migrate(); err != nil {
-		_ = db.Close()
+		jftradeErr1 := db.Close()
+		jftradeLogError(jftradeErr1)
 		return nil, fmt.Errorf("migrate strategy runtime sqlite store: %w", err)
 	}
 	return store, nil
@@ -163,7 +165,7 @@ func (s *strategyRuntimeStore) migrate() error {
 			`)`,
 		}, " "),
 	} {
-		if _, err := s.db.Exec(statement); err != nil {
+		if _, err := s.db.ExecContext(context.Background(), statement); err != nil {
 			return err
 		}
 	}
@@ -187,7 +189,7 @@ func (s *strategyRuntimeStore) migrate() error {
 		`CREATE INDEX IF NOT EXISTS idx_strategy_audit_events_instance_at ON ` + strategyRuntimeAuditTable + ` (instance_id, at_ms DESC, id DESC)`,
 		`CREATE INDEX IF NOT EXISTS idx_strategy_audit_events_kind ON ` + strategyRuntimeAuditTable + ` (kind)`,
 	} {
-		if _, err := s.db.Exec(statement); err != nil {
+		if _, err := s.db.ExecContext(context.Background(), statement); err != nil {
 			return err
 		}
 	}
@@ -196,11 +198,11 @@ func (s *strategyRuntimeStore) migrate() error {
 }
 
 func (s *strategyRuntimeStore) ensureSchema(tableName string, want []string) error {
-	rows, err := s.db.Query(`PRAGMA table_info(` + tableName + `)`)
+	rows, err := s.db.QueryContext(context.Background(), `PRAGMA table_info(`+tableName+`)`)
 	if err != nil {
 		return fmt.Errorf("inspect %s schema: %w", tableName, err)
 	}
-	defer rows.Close()
+	defer func() { jftradeLogError(rows.Close()) }()
 
 	got := make([]string, 0, len(want))
 	for rows.Next() {

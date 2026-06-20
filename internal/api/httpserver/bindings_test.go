@@ -45,7 +45,7 @@ func TestBindURIAllowsEscapedLiteralPercent(t *testing.T) {
 	})
 
 	recorder := httptest.NewRecorder()
-	request := httptest.NewRequest(http.MethodGet, "/items/value%25", nil)
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/items/value%25", nil)
 	router.ServeHTTP(recorder, request)
 
 	if recorder.Code != http.StatusNoContent {

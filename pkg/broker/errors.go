@@ -20,12 +20,12 @@ func NewBrokerError(brokerID, code, message string) *BrokerError {
 
 // Common error codes.
 const (
-	ErrCodeNotConnected     = "NOT_CONNECTED"
-	ErrCodeAccountNotFound  = "ACCOUNT_NOT_FOUND"
+	ErrCodeNotConnected       = "NOT_CONNECTED"
+	ErrCodeAccountNotFound    = "ACCOUNT_NOT_FOUND"
 	ErrCodeMarketNotSupported = "MARKET_NOT_SUPPORTED"
-	ErrCodeOrderNotFound    = "ORDER_NOT_FOUND"
-	ErrCodeInsufficientFunds = "INSUFFICIENT_FUNDS"
-	ErrCodeRateLimited      = "RATE_LIMITED"
-	ErrCodeTimeout          = "TIMEOUT"
-	ErrCodeInternal         = "INTERNAL"
+	ErrCodeOrderNotFound      = "ORDER_NOT_FOUND"
+	ErrCodeInsufficientFunds  = "INSUFFICIENT_FUNDS"
+	ErrCodeRateLimited        = "RATE_LIMITED"
+	ErrCodeTimeout            = "TIMEOUT"
+	ErrCodeInternal           = "INTERNAL"
 )

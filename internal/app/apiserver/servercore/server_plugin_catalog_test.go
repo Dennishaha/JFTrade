@@ -40,11 +40,11 @@ func TestPluginCatalogLifecycleEndpoints(t *testing.T) {
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
-	resp, err := http.Get(srv.URL + "/api/v1/plugins")
+	resp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/plugins")
 	if err != nil {
 		t.Fatalf("GET plugins: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("GET plugins status = %d", resp.StatusCode)
 	}
@@ -62,11 +62,11 @@ func TestPluginCatalogLifecycleEndpoints(t *testing.T) {
 		t.Fatalf("expected plugin to require rebuild: %+v", envelope.Data.Plugins[0].Compatibility)
 	}
 
-	installResp, err := http.Post(srv.URL+"/api/v1/plugins/demo-plugin/install", "application/json", bytes.NewReader([]byte(`{}`)))
+	installResp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/plugins/demo-plugin/install", "application/json", bytes.NewReader([]byte(`{}`)))
 	if err != nil {
 		t.Fatalf("POST install: %v", err)
 	}
-	defer installResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, installResp.Body.Close()) }()
 	if installResp.StatusCode != http.StatusOK {
 		t.Fatalf("POST install status = %d", installResp.StatusCode)
 	}
@@ -83,29 +83,29 @@ func TestPluginCatalogLifecycleEndpoints(t *testing.T) {
 		t.Fatalf("unexpected install operation: %+v", installEnvelope.Data.Operation)
 	}
 
-	opResp, err := http.Get(srv.URL + "/api/v1/plugins/operations/" + installEnvelope.Data.Operation.OperationID)
+	opResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/plugins/operations/"+installEnvelope.Data.Operation.OperationID)
 	if err != nil {
 		t.Fatalf("GET operation: %v", err)
 	}
-	defer opResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, opResp.Body.Close()) }()
 	if opResp.StatusCode != http.StatusOK {
 		t.Fatalf("GET operation status = %d", opResp.StatusCode)
 	}
 
-	guidanceResp, err := http.Get(srv.URL + "/api/v1/plugins/demo-plugin/uninstall-guidance")
+	guidanceResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/plugins/demo-plugin/uninstall-guidance")
 	if err != nil {
 		t.Fatalf("GET uninstall guidance: %v", err)
 	}
-	defer guidanceResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, guidanceResp.Body.Close()) }()
 	if guidanceResp.StatusCode != http.StatusOK {
 		t.Fatalf("GET uninstall guidance status = %d", guidanceResp.StatusCode)
 	}
 
-	uninstallResp, err := http.Post(srv.URL+"/api/v1/plugins/demo-plugin/uninstall", "application/json", bytes.NewReader([]byte(`{}`)))
+	uninstallResp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/plugins/demo-plugin/uninstall", "application/json", bytes.NewReader([]byte(`{}`)))
 	if err != nil {
 		t.Fatalf("POST uninstall: %v", err)
 	}
-	defer uninstallResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, uninstallResp.Body.Close()) }()
 	if uninstallResp.StatusCode != http.StatusOK {
 		t.Fatalf("POST uninstall status = %d", uninstallResp.StatusCode)
 	}

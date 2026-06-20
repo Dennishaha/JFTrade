@@ -8,8 +8,9 @@ import (
 	"testing"
 	"time"
 
-	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 	"github.com/sirupsen/logrus"
+
+	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 )
 
 var benchmarkStrategyBlockResult *RunResult
@@ -158,7 +159,6 @@ func TestStrategyBlockBenchmarkCasesSmoke(t *testing.T) {
 
 	ctx := context.Background()
 	for _, benchmarkCase := range strategyBlockBenchmarkCases() {
-		benchmarkCase := benchmarkCase
 		t.Run(benchmarkCase.name, func(t *testing.T) {
 			result := Run(ctx, strategyBlockBenchmarkRunConfig(dbPath, startTime, endTime, benchmarkCase.script))
 			if result == nil {
@@ -185,7 +185,6 @@ func BenchmarkRunExecutesStrategyBlockMatrix(b *testing.B) {
 
 	ctx := context.Background()
 	for _, benchmarkCase := range strategyBlockBenchmarkCases() {
-		benchmarkCase := benchmarkCase
 		b.Run(benchmarkCase.name, func(b *testing.B) {
 			cfg := strategyBlockBenchmarkRunConfig(dbPath, startTime, endTime, benchmarkCase.script)
 			b.ReportAllocs()
@@ -228,7 +227,8 @@ func seedStrategyBlockBenchmarkStore(tb testing.TB) (string, time.Time, time.Tim
 	baseStart := time.Date(2026, time.May, 26, 9, 30, 0, 0, time.UTC)
 	klines := buildBenchmarkKLines(baseStart, 2048)
 	if err := store.InsertKLines(klines, "forward"); err != nil {
-		_ = store.Close()
+		jftradeErr1 := store.Close()
+		jftradeCheckTestError(tb, jftradeErr1)
 		tb.Fatalf("InsertKLines() error = %v", err)
 	}
 	if err := store.Close(); err != nil {

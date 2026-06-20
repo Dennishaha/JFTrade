@@ -48,12 +48,13 @@ func TestStrategyDefinitionEndpoints(t *testing.T) {
 			"edges": []map[string]any{},
 		},
 	}
-	body, _ := json.Marshal(payload)
-	createResp, err := http.Post(srv.URL+"/api/v1/strategy-definitions", "application/json", bytes.NewReader(body))
+	body, jftradeErr1 := json.Marshal(payload)
+	jftradeCheckTestError(t, jftradeErr1)
+	createResp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/strategy-definitions", "application/json", bytes.NewReader(body))
 	if err != nil {
 		t.Fatalf("POST strategy definition: %v", err)
 	}
-	defer createResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, createResp.Body.Close()) }()
 	if createResp.StatusCode != http.StatusOK {
 		t.Fatalf("POST strategy definition status = %d", createResp.StatusCode)
 	}
@@ -78,11 +79,11 @@ func TestStrategyDefinitionEndpoints(t *testing.T) {
 		t.Fatalf("created definition sourceFormat = %q, want %q", createEnvelope.Data.SourceFormat, strategydefinition.SourceFormatPineV6)
 	}
 
-	listResp, err := http.Get(srv.URL + "/api/v1/strategy-definitions")
+	listResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/strategy-definitions")
 	if err != nil {
 		t.Fatalf("GET strategy definitions: %v", err)
 	}
-	defer listResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, listResp.Body.Close()) }()
 	if listResp.StatusCode != http.StatusOK {
 		t.Fatalf("GET strategy definitions status = %d", listResp.StatusCode)
 	}
@@ -97,11 +98,11 @@ func TestStrategyDefinitionEndpoints(t *testing.T) {
 		t.Fatalf("unexpected definitions response: %+v", listEnvelope.Data)
 	}
 
-	detailResp, err := http.Get(srv.URL + "/api/v1/strategy-definitions/" + createEnvelope.Data.ID)
+	detailResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/strategy-definitions/"+createEnvelope.Data.ID)
 	if err != nil {
 		t.Fatalf("GET strategy definition detail: %v", err)
 	}
-	defer detailResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, detailResp.Body.Close()) }()
 	if detailResp.StatusCode != http.StatusOK {
 		t.Fatalf("GET strategy definition detail status = %d", detailResp.StatusCode)
 	}
@@ -128,11 +129,11 @@ func TestStrategyDefinitionEndpoints(t *testing.T) {
 		t.Fatalf("default derivedWarmupInterval = %q, want 5m", detailEnvelope.Data.DerivedWarmupInterval)
 	}
 
-	previewResp, err := http.Get(srv.URL + "/api/v1/strategy-definitions/" + createEnvelope.Data.ID + "?interval=5m")
+	previewResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/strategy-definitions/"+createEnvelope.Data.ID+"?interval=5m")
 	if err != nil {
 		t.Fatalf("GET strategy definition detail preview: %v", err)
 	}
-	defer previewResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, previewResp.Body.Close()) }()
 	if previewResp.StatusCode != http.StatusOK {
 		t.Fatalf("GET strategy definition detail preview status = %d", previewResp.StatusCode)
 	}
@@ -157,8 +158,9 @@ func TestStrategyDefinitionEndpoints(t *testing.T) {
 	}
 
 	payload["description"] = "updated pine strategy"
-	updateBody, _ := json.Marshal(payload)
-	request, err := http.NewRequest(http.MethodPut, srv.URL+"/api/v1/strategy-definitions/"+createEnvelope.Data.ID, bytes.NewReader(updateBody))
+	updateBody, jftradeErr2 := json.Marshal(payload)
+	jftradeCheckTestError(t, jftradeErr2)
+	request, err := http.NewRequestWithContext(t.Context(), http.MethodPut, srv.URL+"/api/v1/strategy-definitions/"+createEnvelope.Data.ID, bytes.NewReader(updateBody))
 	if err != nil {
 		t.Fatalf("build PUT request: %v", err)
 	}
@@ -167,7 +169,7 @@ func TestStrategyDefinitionEndpoints(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PUT strategy definition: %v", err)
 	}
-	defer updateResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, updateResp.Body.Close()) }()
 	if updateResp.StatusCode != http.StatusOK {
 		t.Fatalf("PUT strategy definition status = %d", updateResp.StatusCode)
 	}
@@ -206,12 +208,13 @@ func TestStrategyDefinitionCreateGeneratesUUIDWhenIDMissing(t *testing.T) {
 		"sourceFormat": strategydefinition.SourceFormatPineV6,
 		"script":       "//@version=6\nstrategy(\"UUID Strategy\", overlay=true)\nlog.info(\"close\")",
 	}
-	body, _ := json.Marshal(payload)
-	createResp, err := http.Post(srv.URL+"/api/v1/strategy-definitions", "application/json", bytes.NewReader(body))
+	body, jftradeErr3 := json.Marshal(payload)
+	jftradeCheckTestError(t, jftradeErr3)
+	createResp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/strategy-definitions", "application/json", bytes.NewReader(body))
 	if err != nil {
 		t.Fatalf("POST strategy definition without id: %v", err)
 	}
-	defer createResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, createResp.Body.Close()) }()
 	if createResp.StatusCode != http.StatusOK {
 		t.Fatalf("POST strategy definition without id status = %d", createResp.StatusCode)
 	}
@@ -242,12 +245,13 @@ func TestStrategyDefinitionRejectsInvalidScriptPayloads(t *testing.T) {
 		"sourceFormat": strategydefinition.SourceFormatPineV6,
 		"script":       "//@version=6\nstrategy(\"Broken Pine\", overlay=true)\nx = request.security(\"NASDAQ:AAPL\", \"D\", close)",
 	}
-	body, _ := json.Marshal(payload)
-	createResp, err := http.Post(srv.URL+"/api/v1/strategy-definitions", "application/json", bytes.NewReader(body))
+	body, jftradeErr4 := json.Marshal(payload)
+	jftradeCheckTestError(t, jftradeErr4)
+	createResp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/strategy-definitions", "application/json", bytes.NewReader(body))
 	if err != nil {
 		t.Fatalf("POST invalid strategy definition: %v", err)
 	}
-	defer createResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, createResp.Body.Close()) }()
 	if createResp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("POST invalid strategy definition status = %d, want %d", createResp.StatusCode, http.StatusBadRequest)
 	}
@@ -260,7 +264,7 @@ func TestDeleteMissingStrategyDefinitionReturnsNotFound(t *testing.T) {
 	}
 	srv := newHTTPTestServer(t, store)
 
-	request, err := http.NewRequest(http.MethodDelete, srv.URL+"/api/v1/strategy-definitions/missing-definition", nil)
+	request, err := http.NewRequestWithContext(t.Context(), http.MethodDelete, srv.URL+"/api/v1/strategy-definitions/missing-definition", nil)
 	if err != nil {
 		t.Fatalf("build DELETE request: %v", err)
 	}
@@ -268,7 +272,7 @@ func TestDeleteMissingStrategyDefinitionReturnsNotFound(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DELETE missing definition: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("DELETE missing definition status = %d, want %d", resp.StatusCode, http.StatusNotFound)
 	}
@@ -303,7 +307,7 @@ func TestDeleteStrategyDefinitionRequiresDeletingLinkedInstancesFirst(t *testing
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
-	deleteReq, err := http.NewRequest(http.MethodDelete, srv.URL+"/api/v1/strategy-definitions/"+definition.ID, nil)
+	deleteReq, err := http.NewRequestWithContext(t.Context(), http.MethodDelete, srv.URL+"/api/v1/strategy-definitions/"+definition.ID, nil)
 	if err != nil {
 		t.Fatalf("build delete definition request: %v", err)
 	}
@@ -311,7 +315,7 @@ func TestDeleteStrategyDefinitionRequiresDeletingLinkedInstancesFirst(t *testing
 	if err != nil {
 		t.Fatalf("delete definition with linked instance: %v", err)
 	}
-	defer deleteResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, deleteResp.Body.Close()) }()
 	if deleteResp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("delete definition with linked instance status = %d, want %d", deleteResp.StatusCode, http.StatusBadRequest)
 	}
@@ -326,7 +330,7 @@ func TestDeleteStrategyDefinitionRequiresDeletingLinkedInstancesFirst(t *testing
 		t.Fatal("definition should still exist after blocked delete")
 	}
 
-	instanceDeleteReq, err := http.NewRequest(http.MethodDelete, srv.URL+"/api/v1/strategies/"+instance.ID, nil)
+	instanceDeleteReq, err := http.NewRequestWithContext(t.Context(), http.MethodDelete, srv.URL+"/api/v1/strategies/"+instance.ID, nil)
 	if err != nil {
 		t.Fatalf("build delete instance request: %v", err)
 	}
@@ -334,12 +338,12 @@ func TestDeleteStrategyDefinitionRequiresDeletingLinkedInstancesFirst(t *testing
 	if err != nil {
 		t.Fatalf("delete linked instance: %v", err)
 	}
-	defer instanceDeleteResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, instanceDeleteResp.Body.Close()) }()
 	if instanceDeleteResp.StatusCode != http.StatusOK {
 		t.Fatalf("delete linked instance status = %d, want %d", instanceDeleteResp.StatusCode, http.StatusOK)
 	}
 
-	deleteReq, err = http.NewRequest(http.MethodDelete, srv.URL+"/api/v1/strategy-definitions/"+definition.ID, nil)
+	deleteReq, err = http.NewRequestWithContext(t.Context(), http.MethodDelete, srv.URL+"/api/v1/strategy-definitions/"+definition.ID, nil)
 	if err != nil {
 		t.Fatalf("build second delete definition request: %v", err)
 	}
@@ -347,7 +351,7 @@ func TestDeleteStrategyDefinitionRequiresDeletingLinkedInstancesFirst(t *testing
 	if err != nil {
 		t.Fatalf("delete definition after removing instances: %v", err)
 	}
-	defer deleteResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, deleteResp.Body.Close()) }()
 	if deleteResp.StatusCode != http.StatusOK {
 		t.Fatalf("delete definition after removing instances status = %d, want %d", deleteResp.StatusCode, http.StatusOK)
 	}

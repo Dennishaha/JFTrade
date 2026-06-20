@@ -46,7 +46,7 @@ type marketDataQuoteOpenDServer struct {
 func startMarketDataQuoteOpenDServer(t *testing.T) *marketDataQuoteOpenDServer {
 	t.Helper()
 
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	listener, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,7 +61,8 @@ func startMarketDataQuoteOpenDServer(t *testing.T) *marketDataQuoteOpenDServer {
 
 func (s *marketDataQuoteOpenDServer) stop() {
 	s.stopOnce.Do(func() {
-		_ = s.listener.Close()
+		jftradeErr1 := s.listener.Close()
+		jftradePanicOnError(jftradeErr1)
 		<-s.shutdownCompleted
 	})
 }
@@ -90,7 +91,7 @@ func (s *marketDataQuoteOpenDServer) acceptLoop() {
 }
 
 func (s *marketDataQuoteOpenDServer) handleConn(conn net.Conn) {
-	defer conn.Close()
+	defer func() { jftradePanicOnError(conn.Close()) }()
 	for {
 		header := make([]byte, codec.HeaderLen)
 		if _, err := io.ReadFull(conn, header); err != nil {
@@ -341,5 +342,11 @@ func marketDataDepthOrderBookFixture(price float64, volume int64, orderCount int
 		Price:       new(price),
 		Volume:      new(volume),
 		OrederCount: new(orderCount),
+	}
+}
+
+func jftradePanicOnError(err error) {
+	if err != nil {
+		panic(err)
 	}
 }

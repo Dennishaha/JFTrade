@@ -1,8 +1,6 @@
 package servercore
 
 import (
-	"strings"
-
 	apruntime "github.com/jftrade/jftrade-main/internal/app/apiserver/runtime"
 )
 
@@ -35,15 +33,6 @@ func apiBaseURLForBind(bind string) string {
 // APIBaseURLForBind returns the browser-accessible API base URL for a bind address.
 func APIBaseURLForBind(bind string) string {
 	return apiBaseURLForBind(bind)
-}
-
-func normalizeBrowserHost(host string) string {
-	switch strings.TrimSpace(host) {
-	case "", "0.0.0.0", "::", "[::]":
-		return "127.0.0.1"
-	default:
-		return strings.TrimSpace(host)
-	}
 }
 
 func portFromBind(bind string, defaultPort int) int {

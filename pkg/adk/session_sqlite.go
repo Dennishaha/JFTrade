@@ -1,6 +1,7 @@
 package adk
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -31,7 +32,8 @@ func NewSQLiteSessionService(path string) (*SQLiteSessionService, error) {
 		Conn:       db,
 	}, &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
 	if err != nil {
-		_ = db.Close()
+		jftradeErr1 := db.Close()
+		jftradeLogError(jftradeErr1)
 		return nil, err
 	}
 	return &SQLiteSessionService{Service: service, db: db}, nil
@@ -90,7 +92,7 @@ func sqliteSessionSchemaReady(db *sql.DB) (bool, error) {
 
 func sqliteTableExists(db *sql.DB, tableName string) (bool, error) {
 	var name string
-	err := db.QueryRow(
+	err := db.QueryRowContext(context.Background(),
 		`SELECT name FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1`,
 		strings.TrimSpace(tableName),
 	).Scan(&name)

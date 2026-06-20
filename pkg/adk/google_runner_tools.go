@@ -2,7 +2,6 @@ package adk
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -19,7 +18,6 @@ import (
 type googleADKTool struct {
 	descriptor ToolDescriptor
 	registered RegisteredTool
-	execution  *googleADKExecution
 }
 
 type googleADKProductToolset struct {
@@ -236,14 +234,9 @@ func toolDescriptorIndex(descriptors []ToolDescriptor) map[string]ToolDescriptor
 }
 
 func (t *googleADKTool) Declaration() *genai.FunctionDeclaration {
-	schemaRaw := any(t.descriptor.InputSchema)
-	if schemaRaw == nil {
-		schemaRaw = map[string]any{"type": "object", "properties": map[string]any{}}
-	}
-	schema, ok := schemaRaw.(map[string]any)
-	if !ok {
-		raw, _ := json.Marshal(schemaRaw)
-		_ = json.Unmarshal(raw, &schema)
+	schema := t.descriptor.InputSchema
+	if schema == nil {
+		schema = map[string]any{"type": "object", "properties": map[string]any{}}
 	}
 	schema = sanitizeSchemaForOpenAI(schema)
 	return &genai.FunctionDeclaration{
@@ -251,7 +244,7 @@ func (t *googleADKTool) Declaration() *genai.FunctionDeclaration {
 	}
 }
 
-func (t *googleADKTool) ProcessRequest(_ adktool.Context, req *adkmodel.LLMRequest) error {
+func (t *googleADKTool) ProcessRequest(_ adkagent.ToolContext, req *adkmodel.LLMRequest) error {
 	if req.Tools == nil {
 		req.Tools = make(map[string]any)
 	}
@@ -279,7 +272,7 @@ func (t *googleADKTool) ProcessRequest(_ adktool.Context, req *adkmodel.LLMReque
 	return nil
 }
 
-func (t *googleADKTool) Run(ctx adktool.Context, args any) (map[string]any, error) {
+func (t *googleADKTool) Run(ctx adkagent.ToolContext, args any) (map[string]any, error) {
 	input, ok := args.(map[string]any)
 	if !ok {
 		return nil, fmt.Errorf("tool %s received invalid input %T", t.Name(), args)
@@ -318,7 +311,7 @@ func structuredToolError(result map[string]any) (string, bool) {
 	}
 	// New format: {"success":false, "message":"..."}
 	if success, ok := result["success"]; ok {
-		if boolVal, _ := success.(bool); !boolVal {
+		if boolVal := jftradeOptionalTypeAssertion[bool](success); !boolVal {
 			if msg, ok := result["message"]; ok {
 				return strings.TrimSpace(fmt.Sprint(msg)), true
 			}
@@ -345,7 +338,7 @@ func isToolResponseError(response map[string]any) bool {
 		return false
 	}
 	if success, ok := response["success"]; ok {
-		if boolVal, _ := success.(bool); !boolVal {
+		if boolVal := jftradeOptionalTypeAssertion[bool](success); !boolVal {
 			return true
 		}
 		return false

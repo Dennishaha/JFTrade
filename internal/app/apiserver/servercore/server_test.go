@@ -38,11 +38,11 @@ func TestBrokerRuntimeDescriptorIncludesReadFeatures(t *testing.T) {
 	}
 	srv := newHTTPTestServer(t, store)
 
-	resp, err := http.Get(srv.URL + "/api/v1/brokers/futu/runtime")
+	resp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/brokers/futu/runtime")
 	if err != nil {
 		t.Fatalf("GET broker runtime: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("GET broker runtime status = %d", resp.StatusCode)
 	}
@@ -98,7 +98,7 @@ func TestRequestObservabilityMiddlewarePropagatesRequestID(t *testing.T) {
 	}
 	srv := newHTTPTestServer(t, store)
 
-	req, err := http.NewRequest(http.MethodGet, srv.URL+"/api/v1/system/status", nil)
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, srv.URL+"/api/v1/system/status", nil)
 	if err != nil {
 		t.Fatalf("NewRequest: %v", err)
 	}
@@ -107,7 +107,7 @@ func TestRequestObservabilityMiddlewarePropagatesRequestID(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GET system status: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if got := resp.Header.Get(requestIDHeader); got != "test-request-id" {
 		t.Fatalf("%s = %q, want propagated request id", requestIDHeader, got)
 	}

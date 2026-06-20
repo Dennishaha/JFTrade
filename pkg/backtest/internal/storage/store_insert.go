@@ -1,6 +1,8 @@
 package storage
 
 import (
+	"context"
+
 	"github.com/jmoiron/sqlx"
 
 	"github.com/c9s/bbgo/pkg/types"
@@ -29,7 +31,7 @@ func (s *FutuKLineStore) insertKLineLocked(kline types.KLine, rehabType string, 
 		}
 	}
 
-	_, err := s.db.Exec(
+	_, err := s.db.ExecContext(context.Background(),
 		klineInsertStatement(tableName),
 		timeToUnixMillis(kline.EndTime.Time()),
 		timeToUnixMillis(kline.StartTime.Time()),
@@ -80,7 +82,8 @@ func (s *FutuKLineStore) InsertKLines(klines []types.KLine, rehabType string) er
 	stmts := make(map[string]*sqlx.Stmt, len(ensuredTables))
 	defer func() {
 		for _, stmt := range stmts {
-			_ = stmt.Close()
+			jftradeErr1 := stmt.Close()
+			jftradeLogError(jftradeErr1)
 		}
 	}()
 
@@ -90,13 +93,14 @@ func (s *FutuKLineStore) InsertKLines(klines []types.KLine, rehabType string) er
 		if !ok {
 			stmt, err = tx.Preparex(klineInsertStatement(tableName))
 			if err != nil {
-				_ = tx.Rollback()
+				jftradeErr4 := tx.Rollback()
+				jftradeLogError(jftradeErr4)
 				return err
 			}
 			stmts[tableName] = stmt
 		}
 
-		if _, err := stmt.Exec(
+		if _, err := stmt.ExecContext(context.Background(),
 			timeToUnixMillis(k.EndTime.Time()),
 			timeToUnixMillis(k.StartTime.Time()),
 			k.Open.String(),
@@ -105,13 +109,15 @@ func (s *FutuKLineStore) InsertKLines(klines []types.KLine, rehabType string) er
 			k.Close.String(),
 			k.Volume.String(),
 		); err != nil {
-			_ = tx.Rollback()
+			jftradeErr2 := tx.Rollback()
+			jftradeLogError(jftradeErr2)
 			return err
 		}
 	}
 
 	if err := tx.Commit(); err != nil {
-		_ = tx.Rollback()
+		jftradeErr3 := tx.Rollback()
+		jftradeLogError(jftradeErr3)
 		return err
 	}
 	return nil

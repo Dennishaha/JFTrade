@@ -14,11 +14,11 @@ func TestPortfolioCashBalancesEndpointReturnsEmptyBalances(t *testing.T) {
 	}
 	srv := newHTTPTestServer(t, store)
 
-	resp, err := http.Get(srv.URL + "/api/v1/portfolio/futu/cash-balances")
+	resp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/portfolio/futu/cash-balances")
 	if err != nil {
 		t.Fatalf("GET portfolio cash balances: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("GET portfolio cash balances status = %d", resp.StatusCode)
 	}
@@ -63,11 +63,11 @@ func TestPortfolioReconciliationEndpointsReturnConnectivityEnvelope(t *testing.T
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			resp, err := http.Get(srv.URL + tt.path)
+			resp, err := jftradeTestHTTPGet(t, srv.URL+tt.path)
 			if err != nil {
 				t.Fatalf("GET %s: %v", tt.path, err)
 			}
-			defer resp.Body.Close()
+			defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 			if resp.StatusCode != http.StatusOK {
 				t.Fatalf("GET %s status = %d", tt.path, resp.StatusCode)
 			}
@@ -105,11 +105,11 @@ func TestPortfolioRoutesRejectUnknownBroker(t *testing.T) {
 	}
 	srv := newHTTPTestServer(t, store)
 
-	resp, err := http.Get(srv.URL + "/api/v1/portfolio/unknown/cash-balances")
+	resp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/portfolio/unknown/cash-balances")
 	if err != nil {
 		t.Fatalf("GET portfolio cash balances: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("GET portfolio cash balances status = %d", resp.StatusCode)
 	}

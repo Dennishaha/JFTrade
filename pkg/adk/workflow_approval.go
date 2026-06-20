@@ -153,7 +153,8 @@ func (r *Runtime) terminateParentWorkflowFromChild(ctx context.Context, parent R
 		parent.CancelledAt = &completedAt
 	}
 	finalizeRunUsage(&parent)
-	_ = r.store.SaveRun(ctx, parent)
+	jftradeErr1 := r.store.SaveRun(ctx, parent)
+	jftradeLogError(jftradeErr1)
 	return parent
 }
 
@@ -212,12 +213,13 @@ func (e *WorkflowExecutor) reconcileWorkflowChildren(ctx context.Context, parent
 		switch child.Status {
 		case RunStatusCompleted:
 			if strings.TrimSpace(state.TaskID) != "" {
-				_, _ = e.runtime.store.UpdateTask(ctx, state.TaskID, TaskPatchRequest{
+				_, jftradeErr2 := e.runtime.store.UpdateTask(ctx, state.TaskID, TaskPatchRequest{
 					Status:        new("DONE"),
 					RunID:         new(child.ID),
 					Executor:      new(workflowTaskExecutorChild),
 					ResultSummary: new(strings.TrimSpace(child.Message)),
 				})
+				jftradeLogError(jftradeErr2)
 			}
 			continue
 		case RunStatusPending:
@@ -287,13 +289,4 @@ func (e *WorkflowExecutor) completeResumedWorkflow(ctx context.Context, session 
 		return Run{}, saveErr
 	}
 	return parent, nil
-}
-
-func firstIncompleteWorkflowStep(plan []WorkflowStepState) int {
-	for index, step := range plan {
-		if step.Status != "DONE" {
-			return index
-		}
-	}
-	return len(plan)
 }

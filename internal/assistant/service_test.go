@@ -1,9 +1,25 @@
 package assistant
 
 import (
+	"errors"
 	"strings"
 	"testing"
 )
+
+func TestWrapSessionTimelineErrorPreservesErrorChain(t *testing.T) {
+	cause := errors.New("timeline storage failed")
+	err := wrapSessionTimelineError(cause)
+
+	if !errors.Is(err, ErrSessionTimelineFailed) {
+		t.Fatalf("errors.Is(%v, ErrSessionTimelineFailed) = false", err)
+	}
+	if !errors.Is(err, cause) {
+		t.Fatalf("errors.Is(%v, cause) = false", err)
+	}
+	if got, want := err.Error(), "adk session timeline failed: timeline storage failed"; got != want {
+		t.Fatalf("error text = %q, want %q", got, want)
+	}
+}
 
 func TestServiceUnavailableWithoutRuntime(t *testing.T) {
 	service := NewService(nil)

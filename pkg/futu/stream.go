@@ -85,8 +85,10 @@ func (s *Stream) reconnectLoop(ctx context.Context) {
 		case <-s.CloseC:
 			return
 		case <-s.ReconnectC:
-			_ = s.connectOpenDBasicQot(ctx)
-			_ = s.connectOpenDOrderBook(ctx)
+			jftradeErr1 := s.connectOpenDBasicQot(ctx)
+			jftradeLogError(jftradeErr1)
+			jftradeErr2 := s.connectOpenDOrderBook(ctx)
+			jftradeLogError(jftradeErr2)
 		}
 	}
 }

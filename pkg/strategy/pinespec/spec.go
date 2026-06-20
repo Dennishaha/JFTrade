@@ -662,7 +662,7 @@ func BuildSpecMarkdown() string {
 	builder.WriteString("`\n")
 	assessment := strategypine.CompatibilityScore()
 	builder.WriteString("- `compatibilityScore`: `")
-	builder.WriteString(fmt.Sprintf("%.2f", assessment.Score))
+	fmt.Fprintf(&builder, "%.2f", assessment.Score)
 	builder.WriteString("`（")
 	builder.WriteString(assessment.ScoreModelVersion)
 	builder.WriteString("）\n\n")
@@ -1079,8 +1079,8 @@ func isKnownSection(section string) bool {
 func flattenMatrixItems(items []map[string]any) []string {
 	out := make([]string, 0, len(items))
 	for _, item := range items {
-		capability, _ := item["capability"].(string)
-		notes, _ := item["notes"].(string)
+		capability := jftradeOptionalTypeAssertion[string](item["capability"])
+		notes := jftradeOptionalTypeAssertion[string](item["notes"])
 		out = append(out, capability+" — "+notes)
 	}
 	return out
@@ -1089,10 +1089,10 @@ func flattenMatrixItems(items []map[string]any) []string {
 func flattenNamedItems(items []map[string]any) []string {
 	out := make([]string, 0, len(items))
 	for _, item := range items {
-		name, _ := item["name"].(string)
-		description, _ := item["description"].(string)
+		name := jftradeOptionalTypeAssertion[string](item["name"])
+		description := jftradeOptionalTypeAssertion[string](item["description"])
 		if description == "" {
-			notes, _ := item["notes"].(string)
+			notes := jftradeOptionalTypeAssertion[string](item["notes"])
 			description = notes
 		}
 		if description == "" {

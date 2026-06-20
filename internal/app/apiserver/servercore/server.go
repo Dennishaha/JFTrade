@@ -16,7 +16,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jmoiron/sqlx"
 
-	bbgotypes "github.com/c9s/bbgo/pkg/types"
 	"github.com/jftrade/jftrade-main/internal/api/httpserver"
 	apilive "github.com/jftrade/jftrade-main/internal/api/live"
 	"github.com/jftrade/jftrade-main/internal/api/middleware"
@@ -483,21 +482,6 @@ func persistenceOnlySettingsStore(store SidecarSettingsStore) SidecarSettingsSto
 
 // --- Exchange / broker accessors (see also futu_runtime.go for futuExchange) ---
 
-func (s *Server) liveMarketExchange() bbgotypes.Exchange {
-	if s.strategyRuntimeManager != nil && s.strategyRuntimeManager.exchangeProvider != nil {
-		if exchange := s.strategyRuntimeManager.exchangeProvider(); exchange != nil {
-			return exchange
-		}
-	}
-	if !s.futuIntegrationEnabled() {
-		return nil
-	}
-	return &strategyRuntimeBrokerBridge{
-		Exchange: s.futuExchange(),
-		broker:   s.activeBroker(),
-	}
-}
-
 func (s *Server) brokerExecutionExchange() strategyRuntimeExchange {
 	if s.strategyRuntimeManager != nil && s.strategyRuntimeManager.exchangeProvider != nil {
 		if exchange := s.strategyRuntimeManager.exchangeProvider(); exchange != nil {
@@ -562,10 +546,6 @@ var _ middleware.WriteMethodDetector = (*Server)(nil)
 
 func (s *Server) IsWriteMethod(r *http.Request) bool {
 	return r.Method == http.MethodPost || r.Method == http.MethodPut || r.Method == http.MethodDelete
-}
-
-func (s *Server) writeOK(c *gin.Context, data any) {
-	httpserver.WriteOK(c, data)
 }
 
 func (s *Server) writeError(c *gin.Context, status int, code string, message string) {

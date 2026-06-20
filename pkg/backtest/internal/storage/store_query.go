@@ -1,7 +1,9 @@
 package storage
 
 import (
+	"context"
 	"fmt"
+	"log"
 	"sort"
 	"strings"
 	"time"
@@ -48,34 +50,8 @@ func (s *FutuKLineStore) queryKLine(
 		quoteIdentifier(tableName), normalizedOrder,
 	)
 
-	row := s.db.QueryRow(query, limit)
+	row := s.db.QueryRowContext(context.Background(), query, limit)
 	return scanKLine(row, symbol, interval)
-}
-
-// queryLatestKLineInRange returns the most recent K-line for the given
-// symbol+interval whose end_time falls within [since, until].
-func (s *FutuKLineStore) queryLatestKLineInRange(
-	symbol string, interval types.Interval,
-	since, until time.Time,
-) (*types.KLine, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	source, err := s.resolveReadSource(symbol, interval, since, until)
-	if err != nil {
-		return nil, err
-	}
-	if source.synthesize {
-		klines, synthErr := s.queryAggregatedKLinesInRange(symbol, interval, source.baseInterval, since, until)
-		if synthErr != nil || len(klines) == 0 {
-			return nil, synthErr
-		}
-		return new(klines[len(klines)-1]), nil
-	}
-	klines, queryErr := s.queryStoredKLinesInRange(symbol, interval, s.rehabType, since, until)
-	if queryErr != nil || len(klines) == 0 {
-		return nil, queryErr
-	}
-	return new(klines[len(klines)-1]), nil
 }
 
 func (s *FutuKLineStore) QueryKLinesForward(
@@ -353,11 +329,11 @@ func (s *FutuKLineStore) queryStoredKLinesForwardFromTable(tableName string, sym
 		selectKLineColumns,
 		quoteIdentifier(tableName),
 	)
-	rows, err := s.db.Query(query, timeToUnixMillis(startTime), limit)
+	rows, err := s.db.QueryContext(context.Background(), query, timeToUnixMillis(startTime), limit)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { jftradeLogError(rows.Close()) }()
 	return scanKLinesWithCapacity(rows, symbol, interval, limit)
 }
 
@@ -397,11 +373,11 @@ func (s *FutuKLineStore) queryStoredKLinesBackwardFromTable(tableName string, sy
 		selectKLineColumns,
 		quoteIdentifier(tableName),
 	)
-	rows, err := s.db.Query(query, timeToUnixMillis(endTime), limit)
+	rows, err := s.db.QueryContext(context.Background(), query, timeToUnixMillis(endTime), limit)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { jftradeLogError(rows.Close()) }()
 
 	klines, err := scanKLinesWithCapacity(rows, symbol, interval, limit)
 	if err != nil {
@@ -440,11 +416,11 @@ func (s *FutuKLineStore) queryStoredKLinesInRangeFromTable(tableName string, sym
 		selectKLineColumns,
 		quoteIdentifier(tableName),
 	)
-	rows, err := s.db.Query(query, timeToUnixMillis(since), timeToUnixMillis(until))
+	rows, err := s.db.QueryContext(context.Background(), query, timeToUnixMillis(since), timeToUnixMillis(until))
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { jftradeLogError(rows.Close()) }()
 	return scanKLines(rows, symbol, interval)
 }
 
@@ -454,11 +430,11 @@ func (s *FutuKLineStore) streamStoredKLinesInRangeFromTable(tableName string, sy
 		selectKLineColumns,
 		quoteIdentifier(tableName),
 	)
-	rows, err := s.db.Query(query, timeToUnixMillis(since), timeToUnixMillis(until))
+	rows, err := s.db.QueryContext(context.Background(), query, timeToUnixMillis(since), timeToUnixMillis(until))
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
+	defer func() { jftradeLogError(rows.Close()) }()
 	return streamKLines(rows, symbol, interval, emit)
 }
 
@@ -467,4 +443,12 @@ func klineQueryChannelBufferSize(symbols []string, intervals []types.Interval) i
 		return 256
 	}
 	return 512
+}
+
+func jftradeLogError(values ...any) {
+	for _, value := range values {
+		if err, ok := value.(error); ok && err != nil {
+			log.Printf("best-effort operation failed: %v", err)
+		}
+	}
 }

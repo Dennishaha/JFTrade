@@ -210,19 +210,19 @@ func TestResultViewReturnsWindowedAggregatedChartData(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ResultView() error = %v", err)
 	}
-	window := payload["window"].(map[string]any)
+	window := jftradeCheckedTypeAssertion[map[string]any](payload["window"])
 	if window["resolution"] != "2m" || window["truncated"] != true || window["nextCursor"] != "1" {
 		t.Fatalf("window = %#v, want 2m truncated next cursor", window)
 	}
-	series := payload["series"].(map[string]any)
-	candles := series["candles"].([]bt.Candle)
+	series := jftradeCheckedTypeAssertion[map[string]any](payload["series"])
+	candles := jftradeCheckedTypeAssertion[[]bt.Candle](series["candles"])
 	if len(candles) != 1 {
 		t.Fatalf("candles len = %d, want 1", len(candles))
 	}
 	if candles[0].Open != "10" || candles[0].High != "12" || candles[0].Low != "9" || candles[0].Close != "11.5" || candles[0].Volume != "300" {
 		t.Fatalf("aggregated candle = %#v", candles[0])
 	}
-	trades := series["trades"].([]bt.TradeEvent)
+	trades := jftradeCheckedTypeAssertion[[]bt.TradeEvent](series["trades"])
 	if len(trades) != 1 || trades[0].Side != "BUY" {
 		t.Fatalf("trades = %#v, want one BUY", trades)
 	}
@@ -869,7 +869,8 @@ func waitForRunStatus(t *testing.T, runs *memoryRunStore, runID string, want str
 	for {
 		select {
 		case <-deadline:
-			run, _, _ := runs.GetFull(runID)
+			run, _, jftradeErr1 := runs.GetFull(runID)
+			jftradeCheckTestError(t, jftradeErr1)
 			t.Fatalf("timed out waiting for run %s status %q; latest = %#v", runID, want, run)
 		case <-ticker.C:
 			run, ok, err := runs.GetFull(runID)
@@ -1146,4 +1147,11 @@ func (s *fakeKLineSyncer) Close() error {
 	defer s.mu.Unlock()
 	s.closed = true
 	return nil
+}
+
+func jftradeCheckTestError(t testing.TB, err error) {
+	t.Helper()
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
 }

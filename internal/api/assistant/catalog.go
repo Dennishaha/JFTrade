@@ -94,7 +94,7 @@ func (h *Handler) handleADKSaveTask(c *gin.Context) {
 		return
 	}
 	var payload jfadk.TaskWriteRequest
-	if err := c.ShouldBindJSON(&payload); err != nil && err != io.EOF {
+	if err := c.ShouldBindJSON(&payload); err != nil && !errors.Is(err, io.EOF) {
 		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid task payload")
 		return
 	}
@@ -113,7 +113,7 @@ func (h *Handler) handleADKPatchTask(c *gin.Context) {
 		return
 	}
 	var payload jfadk.TaskPatchRequest
-	if err := c.ShouldBindJSON(&payload); err != nil && err != io.EOF {
+	if err := c.ShouldBindJSON(&payload); err != nil && !errors.Is(err, io.EOF) {
 		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid task payload")
 		return
 	}
@@ -164,7 +164,7 @@ func (h *Handler) handleADKMemory(c *gin.Context) {
 
 func (h *Handler) handleADKSaveMemory(c *gin.Context) {
 	var payload jfadk.MemoryWriteRequest
-	if err := c.ShouldBindJSON(&payload); err != nil && err != io.EOF {
+	if err := c.ShouldBindJSON(&payload); err != nil && !errors.Is(err, io.EOF) {
 		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid memory payload")
 		return
 	}
@@ -261,7 +261,8 @@ func (h *Handler) handleADKAgents(c *gin.Context) {
 		return
 	}
 	var pageQuery adkPageQuery
-	_ = c.ShouldBindQuery(&pageQuery)
+	jftradeErr1 := c.ShouldBindQuery(&pageQuery)
+	jftradeLogError(jftradeErr1)
 	limit, offset := adkPageBounds(pageQuery)
 	total := len(agents)
 	if offset > total {
@@ -324,7 +325,7 @@ func (h *Handler) handleADKDeleteSkill(c *gin.Context) {
 
 func (h *Handler) handleADKSaveProvider(c *gin.Context) {
 	var payload jfadk.ProviderWriteRequest
-	if err := c.ShouldBindJSON(&payload); err != nil && err != io.EOF {
+	if err := c.ShouldBindJSON(&payload); err != nil && !errors.Is(err, io.EOF) {
 		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid provider payload")
 		return
 	}
@@ -346,7 +347,7 @@ func (h *Handler) handleADKSaveProvider(c *gin.Context) {
 
 func (h *Handler) handleADKSaveAgent(c *gin.Context) {
 	var payload jfadk.AgentWriteRequest
-	if err := c.ShouldBindJSON(&payload); err != nil && err != io.EOF {
+	if err := c.ShouldBindJSON(&payload); err != nil && !errors.Is(err, io.EOF) {
 		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "invalid agent payload")
 		return
 	}

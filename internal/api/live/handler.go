@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 	"sync"
@@ -103,7 +104,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	defer func() {
 		h.release(conn)
-		_ = conn.Close()
+		jftradeErr2 := conn.Close()
+		jftradeLogError(jftradeErr2)
 	}()
 
 	h.backend.EnsureNotificationBridge(r.Context())
@@ -124,11 +126,12 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	dispatcher := newDispatcher(h, requestCtx, conn, client, clientClosed, depthUpdated)
+	dispatcher := newDispatcher(requestCtx, h, conn, client, clientClosed, depthUpdated)
 	if err := dispatcher.writeInitialEvents(); err != nil {
 		return
 	}
-	_ = dispatcher.run()
+	jftradeErr3 := dispatcher.run()
+	jftradeLogError(jftradeErr3)
 }
 
 func (h *Handler) Stats() ClientStats {
@@ -162,7 +165,8 @@ func (h *Handler) Close() error {
 		}
 		h.mu.Unlock()
 		for _, conn := range connections {
-			_ = conn.Close()
+			jftradeErr1 := conn.Close()
+			jftradeLogError(jftradeErr1)
 		}
 		h.active.Wait()
 	})
@@ -257,7 +261,7 @@ func readClientMessages(conn *websocket.Conn, client *livecore.Client) <-chan st
 func writeLimitError(w http.ResponseWriter, limit int) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(http.StatusServiceUnavailable)
-	_ = json.NewEncoder(w).Encode(map[string]any{
+	jftradeErr4 := json.NewEncoder(w).Encode(map[string]any{
 		"ok": false,
 		"error": map[string]any{
 			"code":    "LIVE_WS_LIMIT_REACHED",
@@ -265,6 +269,7 @@ func writeLimitError(w http.ResponseWriter, limit int) {
 		},
 		"timestamp": time.Now().UTC().Format(time.RFC3339Nano),
 	})
+	jftradeLogError(jftradeErr4)
 }
 
 func normalizeOptions(options Options) Options {
@@ -284,4 +289,12 @@ func normalizeOptions(options Options) Options {
 		options.DepthRefreshInterval = 15 * time.Second
 	}
 	return options
+}
+
+func jftradeLogError(values ...any) {
+	for _, value := range values {
+		if err, ok := value.(error); ok && err != nil {
+			log.Printf("best-effort operation failed: %v", err)
+		}
+	}
 }

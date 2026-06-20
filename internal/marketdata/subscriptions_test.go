@@ -147,7 +147,7 @@ func subscriptionEntriesByKey(t *testing.T, snapshot SubscriptionsSnapshot) map[
 	}
 	byKey := make(map[string]map[string]any, len(entries))
 	for _, entry := range entries {
-		key, _ := entry["key"].(string)
+		key := jftradeCheckedTypeAssertion[string](entry["key"])
 		byKey[key] = entry
 	}
 	return byKey
@@ -182,11 +182,11 @@ func assertSubscriptionQuota(t *testing.T, snapshot SubscriptionsSnapshot, total
 	if snapshot["totalActiveSubscriptions"] != total {
 		t.Fatalf("totalActiveSubscriptions = %#v", snapshot["totalActiveSubscriptions"])
 	}
-	quota := snapshot["quota"].(map[string]any)
+	quota := jftradeCheckedTypeAssertion[map[string]any](snapshot["quota"])
 	if quota["totalUsed"] != total || quota["totalLimit"] != nil || quota["totalRemaining"] != nil {
 		t.Fatalf("quota = %#v", quota)
 	}
-	buckets := quota["byMarket"].([]map[string]any)
+	buckets := jftradeCheckedTypeAssertion[[]map[string]any](quota["byMarket"])
 	if len(buckets) != 1 || buckets[0]["market"] != market || buckets[0]["used"] != used ||
 		buckets[0]["limit"] != nil || buckets[0]["remaining"] != nil {
 		t.Fatalf("quota buckets = %#v", buckets)

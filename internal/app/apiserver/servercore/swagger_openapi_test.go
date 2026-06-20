@@ -16,11 +16,11 @@ func TestSwaggerUIAvailable(t *testing.T) {
 	}
 	srv := newHTTPTestServer(t, store)
 
-	resp, err := http.Get(srv.URL + "/swagger/")
+	resp, err := jftradeTestHTTPGet(t, srv.URL+"/swagger/")
 	if err != nil {
 		t.Fatalf("GET swagger UI: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("swagger status = %d", resp.StatusCode)
@@ -41,11 +41,11 @@ func TestSwaggerUIAvailable(t *testing.T) {
 		t.Fatalf("swagger UI page still references external CDN: %s", html)
 	}
 
-	assetResp, err := http.Get(srv.URL + "/swagger/swagger-ui.css")
+	assetResp, err := jftradeTestHTTPGet(t, srv.URL+"/swagger/swagger-ui.css")
 	if err != nil {
 		t.Fatalf("GET swagger css asset: %v", err)
 	}
-	defer assetResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, assetResp.Body.Close()) }()
 	if assetResp.StatusCode != http.StatusOK {
 		t.Fatalf("swagger css status = %d", assetResp.StatusCode)
 	}
@@ -53,11 +53,11 @@ func TestSwaggerUIAvailable(t *testing.T) {
 		t.Fatalf("swagger css content-type = %q", contentType)
 	}
 
-	initResp, err := http.Get(srv.URL + "/swagger/swagger-initializer.js")
+	initResp, err := jftradeTestHTTPGet(t, srv.URL+"/swagger/swagger-initializer.js")
 	if err != nil {
 		t.Fatalf("GET swagger initializer asset: %v", err)
 	}
-	defer initResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, initResp.Body.Close()) }()
 	initBody, err := io.ReadAll(initResp.Body)
 	if err != nil {
 		t.Fatalf("read swagger initializer asset: %v", err)
@@ -74,11 +74,11 @@ func TestOpenAPISpecExposesCorePaths(t *testing.T) {
 	}
 	srv := newHTTPTestServer(t, store)
 
-	resp, err := http.Get(srv.URL + "/swagger/doc.json")
+	resp, err := jftradeTestHTTPGet(t, srv.URL+"/swagger/doc.json")
 	if err != nil {
 		t.Fatalf("GET swagger doc json: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("swagger doc status = %d", resp.StatusCode)

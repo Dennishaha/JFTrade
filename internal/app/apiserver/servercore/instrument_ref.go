@@ -29,20 +29,6 @@ func parseQualifiedInstrumentSymbol(symbol string) (normalizedInstrument, error)
 	return normalizedInstrumentFromMarket(instrument), nil
 }
 
-func normalizeInstrumentMarketInput(marketInput string) (resolvedMarket string, preferredPrefix string, err error) {
-	return market.NormalizeMarketInput(marketInput)
-}
-
-func instrumentMarketInputMatchesParsedSymbol(marketInput string, parsed normalizedInstrument) bool {
-	instrument := market.Instrument{
-		Market: parsed.Market,
-		Prefix: parsed.Prefix,
-		Code:   parsed.Code,
-		Symbol: parsed.Symbol,
-	}
-	return market.MarketInputMatchesParsedSymbol(marketInput, instrument)
-}
-
 func normalizedInstrumentFromMarket(instrument market.Instrument) normalizedInstrument {
 	return normalizedInstrument{
 		Market: instrument.Market,

@@ -42,7 +42,7 @@ type fakeOpenD struct {
 
 func newFakeOpenD(t *testing.T, addr string) *fakeOpenD {
 	t.Helper()
-	ln, err := net.Listen("tcp", addr)
+	ln, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", addr)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -76,78 +76,89 @@ func (f *fakeOpenD) serve(t *testing.T) {
 	t.Helper()
 	f.wg.Add(1)
 	go func() {
-		defer f.wg.Done()
-		conn, err := f.ln.Accept()
-		if err != nil {
-			return
-		}
-		defer conn.Close()
-		for {
-			select {
-			case <-f.ctx.Done():
+		func() {
+			defer f.wg.Done()
+			conn, err := f.ln.Accept()
+			if err != nil {
 				return
-			default:
 			}
-			// Flush any queued pushes before reading new requests.
+			defer func() { jftradeCheckTestError(t, conn.Close()) }()
 			for {
 				select {
-				case pkt := <-f.pushCh:
-					_, _ = conn.Write(pkt)
+				case <-f.ctx.Done():
+					return
 				default:
-					goto donePush
 				}
-			}
-		donePush:
+				// Flush any queued pushes before reading new requests.
+				for {
+					select {
+					case pkt := <-f.pushCh:
+						_, jftradeErr2 := conn.Write(pkt)
+						jftradeCheckTestError(t, jftradeErr2)
+					default:
+						goto donePush
+					}
+				}
+			donePush:
 
-			header := make([]byte, codec.HeaderLen)
-			if _, err := io.ReadFull(conn, header); err != nil {
-				return
-			}
-			bodyLen := int(uint32(header[12]) | uint32(header[13])<<8 | uint32(header[14])<<16 | uint32(header[15])<<24)
-			packet := make([]byte, codec.HeaderLen+bodyLen)
-			copy(packet, header)
-			if _, err := io.ReadFull(conn, packet[codec.HeaderLen:]); err != nil {
-				return
-			}
-			frame, err := codec.Decode(packet)
-			if err != nil {
-				return
-			}
-			handler, ok := f.mux[frame.Header.ProtoID]
-			if !ok {
-				// Default: respond with empty InitConnect
-				resp := &initpb.Response{
-					RetType: new(int32(0)),
-					S2C: &initpb.S2C{
-						ServerVer:         new(int32(700)),
-						LoginUserID:       new(uint64(1)),
-						ConnID:            new(uint64(42)),
-						ConnAESKey:        new("0123456789abcdef"),
-						KeepAliveInterval: new(int32(10)),
-					},
+				header := make([]byte, codec.HeaderLen)
+				if _, err := io.ReadFull(conn, header); err != nil {
+					return
 				}
-				body, _ := proto.Marshal(resp)
-				pkt, _ := codec.Encode(frame.Header.ProtoID, frame.Header.SerialNo, body)
-				_, _ = conn.Write(pkt)
-				continue
+				bodyLen := int(uint32(header[12]) | uint32(header[13])<<8 | uint32(header[14])<<16 | uint32(header[15])<<24)
+				packet := make([]byte, codec.HeaderLen+bodyLen)
+				copy(packet, header)
+				if _, err := io.ReadFull(conn, packet[codec.HeaderLen:]); err != nil {
+					return
+				}
+				frame, err := codec.Decode(packet)
+				if err != nil {
+					return
+				}
+				handler, ok := f.mux[frame.Header.ProtoID]
+				if !ok {
+					// Default: respond with empty InitConnect
+					resp := &initpb.Response{
+						RetType: new(int32(0)),
+						S2C: &initpb.S2C{
+							ServerVer:         new(int32(700)),
+							LoginUserID:       new(uint64(1)),
+							ConnID:            new(uint64(42)),
+							ConnAESKey:        new("0123456789abcdef"),
+							KeepAliveInterval: new(int32(10)),
+						},
+					}
+					body, jftradeErr4 := proto.Marshal(resp)
+					jftradeCheckTestError(t, jftradeErr4)
+					pkt, jftradeErr6 := codec.Encode(frame.Header.ProtoID, frame.Header.SerialNo, body)
+					jftradeCheckTestError(t, jftradeErr6)
+					_, jftradeErr3 := conn.Write(pkt)
+					jftradeCheckTestError(t, jftradeErr3)
+					continue
+				}
+				respMsg, err := handler(frame)
+				if err != nil {
+					return
+				}
+				if respMsg == nil {
+					continue // push-like, no response
+				}
+				// Some fake responses intentionally omit required protocol fields; the
+				// partial payload is still useful for exercising client error paths.
+				body, _ := proto.Marshal(respMsg) //nolint:errcheck // Intentionally malformed fake responses exercise client error paths.
+				pkt, jftradeErr7 := codec.Encode(frame.Header.ProtoID, frame.Header.SerialNo, body)
+				jftradeCheckTestError(t, jftradeErr7)
+				_, jftradeErr1 := conn.Write(pkt)
+				jftradeCheckTestError(t, jftradeErr1)
 			}
-			respMsg, err := handler(frame)
-			if err != nil {
-				return
-			}
-			if respMsg == nil {
-				continue // push-like, no response
-			}
-			body, _ := proto.Marshal(respMsg)
-			pkt, _ := codec.Encode(frame.Header.ProtoID, frame.Header.SerialNo, body)
-			_, _ = conn.Write(pkt)
-		}
+		}()
 	}()
 }
 
 func (f *fakeOpenD) close() {
 	f.cancel()
-	_ = f.ln.Close()
+	jftradeErr1 := f.ln.Close()
+	jftradePanicOnError(jftradeErr1)
 	f.wg.Wait()
 }
 
@@ -238,7 +249,7 @@ func clientWithServer(t *testing.T, handlers map[uint32]protoHandler) (*Client, 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	t.Cleanup(func() {
 		cancel()
-		c.Close()
+		jftradeCheckTestError(t, c.Close())
 		server.close()
 	})
 	if err := c.Connect(ctx); err != nil {
@@ -421,17 +432,21 @@ func TestSubscribeBasicQot(t *testing.T) {
 	})
 
 	// Queue a push frame then send a request to wake the server's read loop
-	body, _ := proto.Marshal(&qotupdatebasicqotpb.Response{
+	body, jftradeErr2 := proto.Marshal(&qotupdatebasicqotpb.Response{
 		RetType: new(int32(0)),
 		S2C: &qotupdatebasicqotpb.S2C{
 			BasicQotList: []*qotcommonpb.BasicQot{validBasicQot(hkSecurity("00700"), 382.5)},
 		},
 	})
-	pkt, _ := codec.Encode(ProtoQotUpdateBasicQot, 0, body)
+	jftradeCheckTestError(t, jftradeErr2)
+	pkt, jftradeErr3 := codec.Encode(ProtoQotUpdateBasicQot, 0, body)
+	jftradeCheckTestError(t, jftradeErr3)
 	server.push(pkt)
 
 	// Issue a request to trigger the server read loop to flush the push
-	_, _ = c.GetGlobalState(ctx)
+	// This request only wakes the server read loop; its intentionally incomplete
+	// fake response is unrelated to the push assertion below.
+	_, _ = c.GetGlobalState(ctx) //nolint:errcheck // This request only wakes the fake server so it can flush the push.
 
 	select {
 	case qots := <-receivedCh:
@@ -1091,5 +1106,11 @@ func TestSubscribeQuotesUnsubAll(t *testing.T) {
 		}
 	case <-ctx.Done():
 		t.Fatal("timed out waiting for unsubAll")
+	}
+}
+
+func jftradePanicOnError(err error) {
+	if err != nil {
+		panic(err)
 	}
 }

@@ -18,11 +18,15 @@ func TestProviderHTTPClientAllowsPrivateNetworkProvider(t *testing.T) {
 	}))
 	defer server.Close()
 
-	response, err := newProviderHTTPClient(time.Second).Get(server.URL)
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, server.URL, nil)
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	response, err := newProviderHTTPClient(time.Second).Do(req)
 	if err != nil {
 		t.Fatalf("private provider request failed: %v", err)
 	}
-	defer response.Body.Close()
+	defer func() { jftradeCheckTestError(t, response.Body.Close()) }()
 	if response.StatusCode != http.StatusNoContent {
 		t.Fatalf("status = %d, want %d", response.StatusCode, http.StatusNoContent)
 	}
@@ -66,7 +70,14 @@ func TestProviderHTTPClientRevalidatesRedirectDNSResolution(t *testing.T) {
 	}
 
 	client := newProviderHTTPClientWithResolver(time.Second, lookup)
-	_, err := client.Get(serverURLWithHost(t, "model.test", serverAddressPort(t, server)))
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, serverURLWithHost(t, "model.test", serverAddressPort(t, server)), nil)
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	resp, err := client.Do(req)
+	if resp != nil {
+		defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
+	}
 	if err == nil || !strings.Contains(err.Error(), "blocked") {
 		t.Fatalf("redirect request error = %v, want blocked metadata resolution", err)
 	}

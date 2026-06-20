@@ -15,11 +15,11 @@ func TestContractSystemStatus(t *testing.T) {
 	}
 	srv := newHTTPTestServer(t, store)
 
-	resp, err := http.Get(srv.URL + "/api/v1/system/status")
+	resp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/system/status")
 	if err != nil {
 		t.Fatalf("GET /api/v1/system/status: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("status = %d", resp.StatusCode)
@@ -70,11 +70,11 @@ func TestContractSettings(t *testing.T) {
 	}
 	srv := newHTTPTestServer(t, store)
 
-	resp, err := http.Get(srv.URL + "/api/v1/settings/ui")
+	resp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/settings/ui")
 	if err != nil {
 		t.Fatalf("GET /api/v1/settings/ui: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("status = %d", resp.StatusCode)
@@ -103,11 +103,11 @@ func TestContractMarketDataMarkets(t *testing.T) {
 	}
 	srv := newHTTPTestServer(t, store)
 
-	resp, err := http.Get(srv.URL + "/api/v1/market-data/markets")
+	resp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/market-data/markets")
 	if err != nil {
 		t.Fatalf("GET /api/v1/market-data/markets: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("status = %d", resp.StatusCode)
@@ -145,11 +145,11 @@ func TestContractBrokerRuntime(t *testing.T) {
 	}
 	srv := newHTTPTestServer(t, store)
 
-	resp, err := http.Get(srv.URL + "/api/v1/brokers/futu/runtime")
+	resp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/brokers/futu/runtime")
 	if err != nil {
 		t.Fatalf("GET /api/v1/brokers/futu/runtime: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 
 	// 即使未集成也应返回有效响应
 	if resp.StatusCode != http.StatusOK {
@@ -185,11 +185,11 @@ func TestContractStrategyDefinitions(t *testing.T) {
 	}
 	srv := newHTTPTestServer(t, store)
 
-	resp, err := http.Get(srv.URL + "/api/v1/strategy-definitions")
+	resp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/strategy-definitions")
 	if err != nil {
 		t.Fatalf("GET /api/v1/strategy-definitions: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("status = %d", resp.StatusCode)
@@ -220,11 +220,11 @@ func TestContractBacktests(t *testing.T) {
 	}
 	srv := newHTTPTestServer(t, store)
 
-	resp, err := http.Get(srv.URL + "/api/v1/backtests")
+	resp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/backtests")
 	if err != nil {
 		t.Fatalf("GET /api/v1/backtests: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("status = %d", resp.StatusCode)

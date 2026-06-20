@@ -16,16 +16,17 @@ func TestSecuritySettingsDefaultDoesNotRequireAuthentication(t *testing.T) {
 	}
 	server := NewServer(store)
 	t.Cleanup(func() {
-		_ = server.Close()
+		jftradeErr1 := server.Close()
+		jftradeCheckTestError(t, jftradeErr1)
 	})
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
-	resp, err := http.Get(srv.URL + "/api/v1/settings/security")
+	resp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/settings/security")
 	if err != nil {
 		t.Fatalf("GET security settings: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if resp.StatusCode == http.StatusUnauthorized {
 		t.Fatal("default security settings unexpectedly require authentication")
 	}
@@ -41,29 +42,30 @@ func TestSecuritySettingsToggleAuthenticationImmediately(t *testing.T) {
 	}
 	server := NewServer(store)
 	t.Cleanup(func() {
-		_ = server.Close()
+		jftradeErr2 := server.Close()
+		jftradeCheckTestError(t, jftradeErr2)
 	})
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
 	saveSecuritySettings(t, srv.URL, "", true)
 
-	resp, err := http.Get(srv.URL + "/api/v1/settings/security")
+	resp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/settings/security")
 	if err != nil {
 		t.Fatalf("GET security settings while auth enabled: %v", err)
 	}
-	resp.Body.Close()
+	jftradeCheckTestError(t, resp.Body.Close())
 	if resp.StatusCode != http.StatusUnauthorized {
 		t.Fatalf("GET security settings while auth enabled status = %d, want 401", resp.StatusCode)
 	}
 
 	saveSecuritySettings(t, srv.URL, server.auth.key, false)
 
-	resp, err = http.Get(srv.URL + "/api/v1/settings/security")
+	resp, err = jftradeTestHTTPGet(t, srv.URL+"/api/v1/settings/security")
 	if err != nil {
 		t.Fatalf("GET security settings after disable: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if resp.StatusCode == http.StatusUnauthorized {
 		t.Fatal("security settings still require authentication after disabling auth")
 	}
@@ -74,8 +76,9 @@ func TestSecuritySettingsToggleAuthenticationImmediately(t *testing.T) {
 
 func saveSecuritySettings(t *testing.T, baseURL string, bearerKey string, required bool) {
 	t.Helper()
-	body, _ := json.Marshal(SecuritySettings{AdminAuthRequired: required})
-	req, err := http.NewRequest(http.MethodPut, baseURL+"/api/v1/settings/security", bytes.NewReader(body))
+	body, jftradeErr1 := json.Marshal(SecuritySettings{AdminAuthRequired: required})
+	jftradeCheckTestError(t, jftradeErr1)
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodPut, baseURL+"/api/v1/settings/security", bytes.NewReader(body))
 	if err != nil {
 		t.Fatalf("NewRequest security settings: %v", err)
 	}
@@ -87,7 +90,7 @@ func saveSecuritySettings(t *testing.T, baseURL string, bearerKey string, requir
 	if err != nil {
 		t.Fatalf("PUT security settings: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("PUT security settings status = %d, want 200", resp.StatusCode)
 	}

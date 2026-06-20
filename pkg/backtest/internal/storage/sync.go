@@ -123,7 +123,11 @@ func (s *FutuKLineStore) syncInterval(
 		}
 
 		// Skip batches that are already fully stored locally.
-		if covered, _ := s.isBatchCovered(symbol, interval, cursor, batchEnd, RehabTypeName(int32(rehabType))); covered {
+		covered, err := s.isBatchCovered(symbol, interval, cursor, batchEnd, RehabTypeName(int32(rehabType)))
+		if err != nil {
+			return fmt.Errorf("check batch coverage: %w", err)
+		}
+		if covered {
 			cursor = batchEnd
 			if progress != nil {
 				progress.IncrementCompletedBatches(time.Now().UTC())

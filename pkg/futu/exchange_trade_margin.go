@@ -49,7 +49,7 @@ func (e *Exchange) QueryBrokerMarginRatios(ctx context.Context, query BrokerMarg
 			qotSecurityListRequest = append(qotSecurityListRequest, security)
 			_ = canonical
 		}
-		header := &trdcommonpb.TrdHeader{TrdEnv: new(int32(trdcommonpb.TrdEnv_TrdEnv_Real)), AccID: new(resolved.protoAccountID), TrdMarket: new(int32(resolved.protoTrdMarket))}
+		header := &trdcommonpb.TrdHeader{TrdEnv: new(int32(trdcommonpb.TrdEnv_TrdEnv_Real)), AccID: new(resolved.protoAccountID), TrdMarket: new(resolved.protoTrdMarket)}
 		infoList, err := marginRatioInfoListWithUnknownStockRecovery(ctx, client, header, qotSecurityListRequest)
 		if err != nil {
 			if isMarginRatioRateLimitedError(err) {

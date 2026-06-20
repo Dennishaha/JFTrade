@@ -171,13 +171,6 @@ func cloneInt64AsFloat64(value *int64) *float64 {
 	return new(float64(*value))
 }
 
-// sessionFromExtendedBlocks derives the current market session from Futu's
-// extended-data blocks rather than the wall clock. This correctly handles
-// market holidays and early-close sessions without an external holiday calendar.
-func sessionFromExtendedBlocks(canonical string, preMarket, afterMarket, overnight *ExtendedMarketQuote) market.Session {
-	return sessionFromExtendedBlocksAt(canonical, preMarket, afterMarket, overnight, time.Now().UTC())
-}
-
 func sessionFromExtendedBlocksAt(canonical string, preMarket, afterMarket, overnight *ExtendedMarketQuote, now time.Time) market.Session {
 	clockSession := market.ClassifySession(canonical, now)
 	switch clockSession {

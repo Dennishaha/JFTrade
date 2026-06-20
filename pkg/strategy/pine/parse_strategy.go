@@ -2,7 +2,6 @@ package pine
 
 import (
 	"fmt"
-	"regexp"
 	"strings"
 
 	strategyir "github.com/jftrade/jftrade-main/pkg/strategy/ir"
@@ -387,29 +386,6 @@ func (s *parseState) parseStrategyExit(line parsedLine) (strategyir.Statement, e
 		return statement, nil
 	}
 	return nil, fmt.Errorf("pine line %d: strategy.exit advanced exit semantics are not supported by JFTrade yet", line.number)
-}
-
-func pineProtectStatement(lineNumber int, direction string, mode string, percentage string, quantityMode string, quantityExpression string) *strategyir.ProtectStmt {
-	return &strategyir.ProtectStmt{
-		Range:                strategyir.SourceRange{StartLine: lineNumber, EndLine: lineNumber},
-		Direction:            direction,
-		Mode:                 mode,
-		QuantityMode:         quantityMode,
-		QuantityExpression:   quantityExpression,
-		TimeValueExpression:  "1",
-		TimeUnit:             "bar",
-		PercentageExpression: percentage,
-		WindowPolicy:         "continuous",
-	}
-}
-
-func pineExitPercentage(expression string, pattern *regexp.Regexp) (string, bool) {
-	normalized := stripWrappingParens(strings.TrimSpace(expression))
-	match := pattern.FindStringSubmatch(normalized)
-	if match == nil {
-		return "", false
-	}
-	return strings.TrimSpace(match[1]), true
 }
 
 func parseLogOrAlert(line parsedLine) (strategyir.Statement, bool) {

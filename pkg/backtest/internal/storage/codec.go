@@ -59,17 +59,6 @@ func streamKLines(rows *sql.Rows, symbol string, interval types.Interval, emit f
 	return rows.Err()
 }
 
-func streamKLinesToChannel(rows *sql.Rows, symbol string, interval types.Interval, ch chan<- types.KLine) error {
-	for rows.Next() {
-		kline, err := scanStoredKLineRow(rows, symbol, interval)
-		if err != nil {
-			return err
-		}
-		ch <- kline
-	}
-	return rows.Err()
-}
-
 func scanStoredKLineRow(rows *sql.Rows, symbol string, interval types.Interval) (types.KLine, error) {
 	var startTimeMillis, endTimeMillis int64
 	var open, high, low, close, volume sql.RawBytes

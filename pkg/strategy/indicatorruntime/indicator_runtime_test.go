@@ -7,6 +7,7 @@ import (
 
 	"github.com/c9s/bbgo/pkg/fixedpoint"
 	"github.com/c9s/bbgo/pkg/types"
+
 	"github.com/jftrade/jftrade-main/pkg/market"
 	strategyir "github.com/jftrade/jftrade-main/pkg/strategy/ir"
 	strategypine "github.com/jftrade/jftrade-main/pkg/strategy/pine"
@@ -786,7 +787,7 @@ func TestCalculateWMASequenceMatchesExpectedWindows(t *testing.T) {
 func TestCalculateRSISeriesMatchesExpectedValues(t *testing.T) {
 	series := calculateRSISeries([]float64{10, 13, 12, 14, 15}, 3)
 	assertFloatSliceApproxEqual(t, series, []float64{83.33333333333333, 75})
-	if value := calculateRSI([]float64{10, 13, 12, 14, 15}, 3); value.(float64) != series[len(series)-1] {
+	if value := calculateRSI([]float64{10, 13, 12, 14, 15}, 3); jftradeCheckedTypeAssertion[float64](value) != series[len(series)-1] {
 		t.Fatalf("calculateRSI() = %v, want %v", value, series[len(series)-1])
 	}
 }
@@ -1752,7 +1753,6 @@ func BenchmarkTradingWindowMovingAverageSnapshotFromKeys(b *testing.B) {
 		{averageType: "TMA", period: 1, timeUnit: "day"},
 	}
 	for _, config := range configs {
-		config := config
 		b.Run(config.averageType, func(b *testing.B) {
 			b.ReportAllocs()
 			for index := 0; index < b.N; index++ {

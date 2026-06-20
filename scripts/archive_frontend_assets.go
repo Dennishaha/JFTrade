@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"log"
 	"os"
 	"path/filepath"
 	"time"
@@ -43,12 +44,14 @@ func run() error {
 		return fmt.Errorf("create archive: %w", err)
 	}
 	defer func() {
-		_ = archiveFile.Close()
+		jftradeErr2 := archiveFile.Close()
+		jftradeLogError(jftradeErr2)
 	}()
 
 	zipWriter := zip.NewWriter(archiveFile)
 	defer func() {
-		_ = zipWriter.Close()
+		jftradeErr1 := zipWriter.Close()
+		jftradeLogError(jftradeErr1)
 	}()
 
 	if err := filepath.WalkDir(trimmedSrcDir, func(path string, d fs.DirEntry, walkErr error) error {
@@ -88,7 +91,7 @@ func run() error {
 		if err != nil {
 			return err
 		}
-		defer file.Close()
+		defer func() { jftradeLogError(file.Close()) }()
 
 		if _, err := io.Copy(writer, file); err != nil {
 			return err
@@ -108,4 +111,12 @@ func run() error {
 		return fmt.Errorf("close archive file: %w", err)
 	}
 	return nil
+}
+
+func jftradeLogError(values ...any) {
+	for _, value := range values {
+		if err, ok := value.(error); ok && err != nil {
+			log.Printf("best-effort operation failed: %v", err)
+		}
+	}
 }

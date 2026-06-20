@@ -642,7 +642,7 @@ func TestAppendADKEventWithStaleRetryRefreshesSession(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewSQLiteSessionService: %v", err)
 	}
-	t.Cleanup(func() { _ = CloseSessionService(service) })
+	t.Cleanup(func() { jftradeErr1 := CloseSessionService(service); jftradeCheckTestError(t, jftradeErr1) })
 	if err := MigrateSQLiteSessionService(service); err != nil {
 		t.Fatalf("MigrateSQLiteSessionService: %v", err)
 	}
@@ -752,7 +752,7 @@ func TestAppendADKEventWithStaleRetrySerializesConcurrentStaleSession(t *testing
 	if err != nil {
 		t.Fatalf("NewSQLiteSessionService: %v", err)
 	}
-	t.Cleanup(func() { _ = CloseSessionService(service) })
+	t.Cleanup(func() { jftradeErr2 := CloseSessionService(service); jftradeCheckTestError(t, jftradeErr2) })
 	if err := MigrateSQLiteSessionService(service); err != nil {
 		t.Fatalf("MigrateSQLiteSessionService: %v", err)
 	}
@@ -768,7 +768,6 @@ func TestAppendADKEventWithStaleRetrySerializesConcurrentStaleSession(t *testing
 	var wg sync.WaitGroup
 	errs := make(chan error, eventCount)
 	for index := 0; index < eventCount; index++ {
-		index := index
 		wg.Add(1)
 		go func() {
 			defer wg.Done()

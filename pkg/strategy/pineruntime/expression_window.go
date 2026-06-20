@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	exprast "github.com/expr-lang/expr/ast"
+
 	"github.com/jftrade/jftrade-main/pkg/strategy/indicatorbinding"
 )
 

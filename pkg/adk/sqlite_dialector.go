@@ -107,7 +107,7 @@ func (dialector sqliteDialector) DefaultValueOf(field *schema.Field) clause.Expr
 }
 
 func (dialector sqliteDialector) BindVarTo(writer clause.Writer, stmt *gorm.Statement, v any) {
-	writer.WriteByte('?')
+	jftradeLogError(writer.WriteByte('?'))
 }
 
 func (dialector sqliteDialector) QuoteTo(writer clause.Writer, str string) {
@@ -122,7 +122,7 @@ func (dialector sqliteDialector) QuoteTo(writer clause.Writer, str string) {
 		case '`':
 			continuousBacktick++
 			if continuousBacktick == 2 {
-				writer.WriteString("``")
+				jftradeLogError(writer.WriteString("``"))
 				continuousBacktick = 0
 			}
 		case '.':
@@ -130,30 +130,30 @@ func (dialector sqliteDialector) QuoteTo(writer clause.Writer, str string) {
 				shiftDelimiter = 0
 				underQuoted = false
 				continuousBacktick = 0
-				writer.WriteString("`")
+				jftradeLogError(writer.WriteString("`"))
 			}
-			writer.WriteByte(value)
+			jftradeLogError(writer.WriteByte(value))
 			continue
 		default:
 			if shiftDelimiter-continuousBacktick <= 0 && !underQuoted {
-				writer.WriteString("`")
+				jftradeLogError(writer.WriteString("`"))
 				underQuoted = true
 				if selfQuoted = continuousBacktick > 0; selfQuoted {
 					continuousBacktick--
 				}
 			}
 			for ; continuousBacktick > 0; continuousBacktick-- {
-				writer.WriteString("``")
+				jftradeLogError(writer.WriteString("``"))
 			}
-			writer.WriteByte(value)
+			jftradeLogError(writer.WriteByte(value))
 		}
 		shiftDelimiter++
 	}
 
 	if continuousBacktick > 0 && !selfQuoted {
-		writer.WriteString("``")
+		jftradeLogError(writer.WriteString("``"))
 	}
-	writer.WriteString("`")
+	jftradeLogError(writer.WriteString("`"))
 }
 
 func (dialector sqliteDialector) Explain(sql string, vars ...any) string {
@@ -165,12 +165,12 @@ func (dialector sqliteDialector) ClauseBuilders() map[string]clause.ClauseBuilde
 		"INSERT": func(c clause.Clause, builder clause.Builder) {
 			if insert, ok := c.Expression.(clause.Insert); ok {
 				if stmt, ok := builder.(*gorm.Statement); ok {
-					stmt.WriteString("INSERT ")
+					jftradeLogError(stmt.WriteString("INSERT "))
 					if insert.Modifier != "" {
-						stmt.WriteString(insert.Modifier)
-						stmt.WriteByte(' ')
+						jftradeLogError(stmt.WriteString(insert.Modifier))
+						jftradeLogError(stmt.WriteByte(' '))
 					}
-					stmt.WriteString("INTO ")
+					jftradeLogError(stmt.WriteString("INTO "))
 					if insert.Table.Name == "" {
 						stmt.WriteQuoted(stmt.Table)
 					} else {
@@ -188,12 +188,12 @@ func (dialector sqliteDialector) ClauseBuilders() map[string]clause.ClauseBuilde
 					limitValue = *limit.Limit
 				}
 				if limitValue >= 0 || limit.Offset > 0 {
-					builder.WriteString("LIMIT ")
-					builder.WriteString(strconv.Itoa(limitValue))
+					jftradeLogError(builder.WriteString("LIMIT "))
+					jftradeLogError(builder.WriteString(strconv.Itoa(limitValue)))
 				}
 				if limit.Offset > 0 {
-					builder.WriteString(" OFFSET ")
-					builder.WriteString(strconv.Itoa(limit.Offset))
+					jftradeLogError(builder.WriteString(" OFFSET "))
+					jftradeLogError(builder.WriteString(strconv.Itoa(limit.Offset)))
 				}
 			}
 		},

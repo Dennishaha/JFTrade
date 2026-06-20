@@ -3,6 +3,7 @@ package trading
 import (
 	"context"
 	"errors"
+	"log"
 	"sort"
 	"strings"
 	"sync"
@@ -536,10 +537,12 @@ func (w *OrderUpdatesWorker) ensureSubscribed(ctx context.Context, accounts []Ac
 	w.subscriptionReady = nil
 	w.mu.Unlock()
 	if old != nil {
-		_ = old.Stop()
+		jftradeErr1 := old.Stop()
+		jftradeLogError(jftradeErr1)
 	}
 	if subscription != nil {
-		_ = subscription.Stop()
+		jftradeErr2 := subscription.Stop()
+		jftradeLogError(jftradeErr2)
 	}
 	if err != nil {
 		return err
@@ -794,4 +797,12 @@ func latestInvalidationAt(invalidations []orderUpdateInvalidation) any {
 		return nil
 	}
 	return invalidations[len(invalidations)-1].CreatedAt
+}
+
+func jftradeLogError(values ...any) {
+	for _, value := range values {
+		if err, ok := value.(error); ok && err != nil {
+			log.Printf("best-effort operation failed: %v", err)
+		}
+	}
 }

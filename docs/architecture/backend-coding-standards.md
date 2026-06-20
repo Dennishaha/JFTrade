@@ -77,7 +77,8 @@ API 层不得：
 ## 强制规则
 
 - `scripts/check-arch-deps.sh` 是项目级结构保护线，负责检查 repo-specific import 方向。
-- `.golangci.yml` 首版启用 `depguard` 与 `govet`，先把分层边界纳入 CI；`staticcheck`、`unused`、`ineffassign`、`errcheck`、`gofmt`/`goimports` 已列为后续清理目标，避免首次接入 lint 时把历史问题和结构治理混在一起。
+- `.golangci.yml` 使用 golangci-lint v2.12.0 的 `standard` 基线，启用默认的 `errcheck`、`govet`、`ineffassign`、`staticcheck` 和 `unused`；生产代码与测试代码统一受这些规则约束，生成代码按严格生成标记排除。
+- CI 另外运行 `go vet ./...` 和 `scripts/check-arch-deps.sh`，继续检查 Go 基础问题和项目特定的依赖方向。
 - 新增模块时先选择最窄目录；只有需要被其他 Go module 复用的稳定能力才放入 `pkg/*`。
 - 新增 shared helper 前先确认是否属于某个业务包；不要为了少量函数建立 `utils`、`common` 或大而全 helper 包。
 

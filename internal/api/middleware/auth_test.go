@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -82,7 +83,7 @@ func TestCORSReflectsAllowedOriginsAndRejectsUnknownPreflight(t *testing.T) {
 	router.GET("/*path", func(c *gin.Context) { c.Status(http.StatusNoContent) })
 	router.OPTIONS("/*path", func(c *gin.Context) { c.Status(http.StatusNoContent) })
 
-	allowedReq := httptest.NewRequest(http.MethodGet, "/api/v1/settings/ui", nil)
+	allowedReq := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/settings/ui", nil)
 	allowedReq.Header.Set("Origin", "http://localhost:5173")
 	allowedResp := httptest.NewRecorder()
 	router.ServeHTTP(allowedResp, allowedReq)
@@ -90,7 +91,7 @@ func TestCORSReflectsAllowedOriginsAndRejectsUnknownPreflight(t *testing.T) {
 		t.Fatalf("allow origin header = %q", allowedResp.Header().Get("Access-Control-Allow-Origin"))
 	}
 
-	deniedReq := httptest.NewRequest(http.MethodOptions, "/api/v1/settings/ui", nil)
+	deniedReq := httptest.NewRequestWithContext(t.Context(), http.MethodOptions, "/api/v1/settings/ui", nil)
 	deniedReq.Header.Set("Origin", "http://evil.example")
 	deniedResp := httptest.NewRecorder()
 	router.ServeHTTP(deniedResp, deniedReq)
@@ -105,7 +106,7 @@ func performAuthRequest(method string, path string, headers map[string]string, a
 	router.Use(Auth(auth, csrf, nil, origins))
 	router.Any("/*path", func(c *gin.Context) { c.Status(http.StatusNoContent) })
 
-	req := httptest.NewRequest(method, path, nil)
+	req := httptest.NewRequestWithContext(context.Background(), method, path, nil)
 	for key, value := range headers {
 		req.Header.Set(key, value)
 	}

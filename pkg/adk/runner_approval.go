@@ -199,12 +199,15 @@ func (r *Runtime) markApprovalContinuationFailed(ctx context.Context, runID stri
 	run.Degraded = true
 	run.CompletedAt = new(nowString())
 	finalizeRunUsage(&run)
-	_ = r.store.SaveRun(ctx, run)
-	_, _ = r.continueParentWorkflowAfterChild(ctx, run)
+	jftradeErr3 := r.store.SaveRun(ctx, run)
+	jftradeLogError(jftradeErr3)
+	_, jftradeErr4 := r.continueParentWorkflowAfterChild(ctx, run)
+	jftradeLogError(jftradeErr4)
 	replyResult := openAIChatResult{Reply: run.FailureReason}
 	if saved, msgErr := r.ensureAssistantMessage(ctx, Session{ID: run.SessionID, AgentID: run.AgentID}, run, replyResult); msgErr == nil {
 		run.FinalMessageID = saved.ID
-		_ = r.store.SaveRun(ctx, run)
+		jftradeErr1 := r.store.SaveRun(ctx, run)
+		jftradeLogError(jftradeErr1)
 	}
 	r.audit(ctx, "run.failed", run.ID, "Agent approval continuation failed.", map[string]any{
 		"runId": run.ID, "agentId": run.AgentID, "status": run.Status, "resumeState": run.ResumeState, "failureReason": run.FailureReason,
@@ -270,7 +273,8 @@ func (r *Runtime) continueResolvedApproval(ctx context.Context, approval Approva
 			}
 		}
 		if hasPending {
-			_ = r.store.SaveRun(ctx, run)
+			jftradeErr2 := r.store.SaveRun(ctx, run)
+			jftradeLogError(jftradeErr2)
 			updatedRun = &run
 			return ApprovalResolution{Approval: approval, Run: updatedRun}, nil
 		}
@@ -343,7 +347,8 @@ func (r *Runtime) ReconcileResolvedApprovals(ctx context.Context) {
 			if err != nil || !ok || approval.Status == ApprovalStatusPending {
 				continue
 			}
-			_, _ = r.ResolveApprovalAsync(ctx, approval.ID, approval.Status == ApprovalStatusApproved)
+			_, jftradeErr7 := r.ResolveApprovalAsync(ctx, approval.ID, approval.Status == ApprovalStatusApproved)
+			jftradeLogError(jftradeErr7)
 			break
 		}
 		if !hasPending && len(run.PendingApprovals) > 0 {
@@ -391,14 +396,16 @@ func (r *Runtime) reconcileWorkflowParent(ctx context.Context, parent Run) {
 				}
 				approval, ok, err := r.store.Approval(ctx, embedded.ID)
 				if err == nil && ok && approval.Status != ApprovalStatusPending {
-					_, _ = r.ResolveApprovalAsync(ctx, approval.ID, approval.Status == ApprovalStatusApproved)
+					_, jftradeErr6 := r.ResolveApprovalAsync(ctx, approval.ID, approval.Status == ApprovalStatusApproved)
+					jftradeLogError(jftradeErr6)
 					return
 				}
 			}
 			continue
 		}
 		if child.Status != RunStatusRunning {
-			_, _ = r.continueParentWorkflowAfterChild(ctx, child)
+			_, jftradeErr5 := r.continueParentWorkflowAfterChild(ctx, child)
+			jftradeLogError(jftradeErr5)
 			return
 		}
 	}

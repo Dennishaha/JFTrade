@@ -16,7 +16,6 @@ func TestPineGoldenBenchmarkCasesSmoke(t *testing.T) {
 	defer restoreLogs()
 
 	for _, example := range pinespec.GoldenExamples() {
-		example := example
 		t.Run(example.ID, func(t *testing.T) {
 			cfg := strategyBlockBenchmarkRunConfig(dbPath, startTime, endTime, example.Script)
 			cfg.InitialBalance = 1_000_000_000
@@ -38,7 +37,6 @@ func BenchmarkRunExecutesPineGoldenMatrix(b *testing.B) {
 	defer restoreLogs()
 
 	for _, example := range pinespec.GoldenExamples() {
-		example := example
 		b.Run(example.ID, func(b *testing.B) {
 			cfg := strategyBlockBenchmarkRunConfig(dbPath, startTime, endTime, example.Script)
 			cfg.InitialBalance = 1_000_000_000

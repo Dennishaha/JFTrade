@@ -96,12 +96,13 @@ func TestHandlerHeartbeatSubscribeNormalizationAndPayloads(t *testing.T) {
 	handler := NewHandler(backend, Options{DataInterval: 10 * time.Millisecond})
 	server := httptest.NewServer(handler)
 	t.Cleanup(func() {
-		_ = handler.Close()
+		jftradeErr2 := handler.Close()
+		jftradeCheckTestError(t, jftradeErr2)
 		server.Close()
 	})
 
 	conn := dial(t, server.URL)
-	defer conn.Close()
+	defer func() { jftradeCheckTestError(t, conn.Close()) }()
 	if err := conn.WriteJSON(map[string]any{
 		"type": "subscribe",
 		"subscriptions": map[string]any{
@@ -130,13 +131,13 @@ func TestHandlerHeartbeatSubscribeNormalizationAndPayloads(t *testing.T) {
 		switch event["type"] {
 		case "market.security-details":
 			seenSecurity = true
-			request := event["request"].(map[string]any)
+			request := jftradeCheckedTypeAssertion[map[string]any](event["request"])
 			if request["instrumentId"] != "HK.00700" {
 				t.Fatalf("security request = %#v", request)
 			}
 		case "market.depth":
 			seenDepth = true
-			request := event["request"].(map[string]any)
+			request := jftradeCheckedTypeAssertion[map[string]any](event["request"])
 			if request["instrumentId"] != "US.TME" || request["num"] != float64(50) {
 				t.Fatalf("depth request = %#v", request)
 			}
@@ -190,12 +191,13 @@ func TestHandlerNotificationSequenceZeroReplay(t *testing.T) {
 	handler := NewHandler(backend, Options{})
 	server := httptest.NewServer(handler)
 	t.Cleanup(func() {
-		_ = handler.Close()
+		jftradeErr1 := handler.Close()
+		jftradeCheckTestError(t, jftradeErr1)
 		server.Close()
 	})
 
 	conn := dial(t, server.URL)
-	defer conn.Close()
+	defer func() { jftradeCheckTestError(t, conn.Close()) }()
 	_ = readEvent(t, conn)
 	event := readEvent(t, conn)
 	if event["type"] != "system.notification" || event["id"] != "system-notification-1" {
@@ -215,17 +217,18 @@ func TestHandlerConnectionLimitAndCloseLifecycle(t *testing.T) {
 	wsURL := "ws" + strings.TrimPrefix(server.URL, "http")
 	second, response, err := websocket.DefaultDialer.Dial(wsURL, nil)
 	if second != nil {
-		_ = second.Close()
+		jftradeErr1 := second.Close()
+		jftradeCheckTestError(t, jftradeErr1)
 	}
 	if err == nil || response == nil || response.StatusCode != 503 {
 		t.Fatalf("second dial err=%v status=%v", err, responseStatus(response))
 	}
-	defer response.Body.Close()
+	defer func() { jftradeCheckTestError(t, response.Body.Close()) }()
 	var envelope map[string]any
 	if err := json.NewDecoder(response.Body).Decode(&envelope); err != nil {
 		t.Fatalf("decode limit response: %v", err)
 	}
-	errorPayload := envelope["error"].(map[string]any)
+	errorPayload := jftradeCheckedTypeAssertion[map[string]any](envelope["error"])
 	if errorPayload["code"] != "LIVE_WS_LIMIT_REACHED" {
 		t.Fatalf("limit response = %#v", envelope)
 	}
@@ -233,11 +236,13 @@ func TestHandlerConnectionLimitAndCloseLifecycle(t *testing.T) {
 	if err := handler.Close(); err != nil {
 		t.Fatalf("Close: %v", err)
 	}
-	_ = first.SetReadDeadline(time.Now().Add(time.Second))
+	jftradeErr2 := first.SetReadDeadline(time.Now().Add(time.Second))
+	jftradeCheckTestError(t, jftradeErr2)
 	if _, _, err := first.ReadMessage(); err == nil {
 		t.Fatal("expected Close to terminate active connection")
 	}
-	_ = first.Close()
+	jftradeErr3 := first.Close()
+	jftradeCheckTestError(t, jftradeErr3)
 
 	deadline := time.Now().Add(time.Second)
 	for handler.Stats().Connected != 0 && time.Now().Before(deadline) {
@@ -309,11 +314,15 @@ func (w *recordingWriter) countType(eventType string) int {
 func dial(t *testing.T, baseURL string) *websocket.Conn {
 	t.Helper()
 	wsURL := "ws" + strings.TrimPrefix(baseURL, "http")
-	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	conn, resp, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	if resp != nil && resp.Body != nil {
+		t.Cleanup(func() { jftradeCheckTestError(t, resp.Body.Close()) })
+	}
 	if err != nil {
 		t.Fatalf("Dial: %v", err)
 	}
-	_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+	jftradeErr4 := conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+	jftradeCheckTestError(t, jftradeErr4)
 	return conn
 }
 
@@ -331,4 +340,11 @@ func responseStatus(response *http.Response) int {
 		return 0
 	}
 	return response.StatusCode
+}
+
+func jftradeCheckTestError(t testing.TB, err error) {
+	t.Helper()
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
 }

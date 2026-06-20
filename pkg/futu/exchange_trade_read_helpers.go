@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/c9s/bbgo/pkg/fixedpoint"
+
 	commonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/common"
 	trdcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdcommon"
 	trdflowsummarypb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdflowsummary"
@@ -74,16 +75,6 @@ func brokerOrderStatusFilterValues(statuses []string) []int32 {
 		}
 	}
 	return values
-}
-
-func trdOrderTypeFromNormalized(orderType string) (trdcommonpb.OrderType, bool) {
-	normalized := normalizeRuntimeEnum(orderType)
-	for value := range trdcommonpb.OrderType_name {
-		if normalizeRuntimeEnum(enumName(value, trdcommonpb.OrderType_name)) == normalized {
-			return trdcommonpb.OrderType(value), true
-		}
-	}
-	return 0, false
 }
 
 func trdOrderTypeFromBrokerOrderType(orderType string) (trdcommonpb.OrderType, string, bool) {

@@ -19,103 +19,115 @@ import (
 // containing the requested protoID/serialNo and a small InitConnect.Response.
 func startFakeOpenD(t *testing.T) (addr string, stop func()) {
 	t.Helper()
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	ln, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
 	done := make(chan struct{})
 	go func() {
-		defer close(done)
-		conn, err := ln.Accept()
-		if err != nil {
-			return
-		}
-		defer conn.Close()
-		for {
-			header := make([]byte, codec.HeaderLen)
-			if _, err := io.ReadFull(conn, header); err != nil {
-				return
-			}
-			bodyLen := int(uint32(header[12]) | uint32(header[13])<<8 | uint32(header[14])<<16 | uint32(header[15])<<24)
-			packet := make([]byte, codec.HeaderLen+bodyLen)
-			copy(packet, header)
-			if _, err := io.ReadFull(conn, packet[codec.HeaderLen:]); err != nil {
-				return
-			}
-			f, err := codec.Decode(packet)
+		func() {
+			defer close(done)
+			conn, err := ln.Accept()
 			if err != nil {
 				return
 			}
-			resp := &initpb.Response{
-				RetType: new(int32(0)),
-				S2C: &initpb.S2C{
-					ServerVer:         new(int32(700)),
-					LoginUserID:       new(uint64(1)),
-					ConnID:            new(uint64(42)),
-					ConnAESKey:        new("0123456789abcdef"),
-					KeepAliveInterval: new(int32(10)),
-				},
+			defer func() { jftradeCheckTestError(t, conn.Close()) }()
+			for {
+				header := make([]byte, codec.HeaderLen)
+				if _, err := io.ReadFull(conn, header); err != nil {
+					return
+				}
+				bodyLen := int(uint32(header[12]) | uint32(header[13])<<8 | uint32(header[14])<<16 | uint32(header[15])<<24)
+				packet := make([]byte, codec.HeaderLen+bodyLen)
+				copy(packet, header)
+				if _, err := io.ReadFull(conn, packet[codec.HeaderLen:]); err != nil {
+					return
+				}
+				f, err := codec.Decode(packet)
+				if err != nil {
+					return
+				}
+				resp := &initpb.Response{
+					RetType: new(int32(0)),
+					S2C: &initpb.S2C{
+						ServerVer:         new(int32(700)),
+						LoginUserID:       new(uint64(1)),
+						ConnID:            new(uint64(42)),
+						ConnAESKey:        new("0123456789abcdef"),
+						KeepAliveInterval: new(int32(10)),
+					},
+				}
+				body, jftradeErr4 := proto.Marshal(resp)
+				jftradeCheckTestError(t, jftradeErr4)
+				pkt, jftradeErr10 := codec.Encode(f.Header.ProtoID, f.Header.SerialNo, body)
+				jftradeCheckTestError(t, jftradeErr10)
+				_, jftradeErr3 := conn.Write(pkt)
+				jftradeCheckTestError(t, jftradeErr3)
 			}
-			body, _ := proto.Marshal(resp)
-			pkt, _ := codec.Encode(f.Header.ProtoID, f.Header.SerialNo, body)
-			_, _ = conn.Write(pkt)
-		}
+		}()
 	}()
 	return ln.Addr().String(), func() {
-		_ = ln.Close()
+		jftradeErr1 := ln.Close()
+		jftradeCheckTestError(t, jftradeErr1)
 		<-done
 	}
 }
 
 func startKeepAliveStallOpenD(t *testing.T) (addr string, stop func()) {
 	t.Helper()
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	ln, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
 	done := make(chan struct{})
 	go func() {
-		defer close(done)
-		conn, err := ln.Accept()
-		if err != nil {
-			return
-		}
-		defer conn.Close()
-		for requestIndex := 0; ; requestIndex++ {
-			header := make([]byte, codec.HeaderLen)
-			if _, err := io.ReadFull(conn, header); err != nil {
-				return
-			}
-			bodyLen := int(uint32(header[12]) | uint32(header[13])<<8 | uint32(header[14])<<16 | uint32(header[15])<<24)
-			packet := make([]byte, codec.HeaderLen+bodyLen)
-			copy(packet, header)
-			if _, err := io.ReadFull(conn, packet[codec.HeaderLen:]); err != nil {
-				return
-			}
-			f, err := codec.Decode(packet)
+		func() {
+			defer close(done)
+			conn, err := ln.Accept()
 			if err != nil {
 				return
 			}
-			if requestIndex > 0 {
-				continue
+			defer func() { jftradeCheckTestError(t, conn.Close()) }()
+			for requestIndex := 0; ; requestIndex++ {
+				header := make([]byte, codec.HeaderLen)
+				if _, err := io.ReadFull(conn, header); err != nil {
+					return
+				}
+				bodyLen := int(uint32(header[12]) | uint32(header[13])<<8 | uint32(header[14])<<16 | uint32(header[15])<<24)
+				packet := make([]byte, codec.HeaderLen+bodyLen)
+				copy(packet, header)
+				if _, err := io.ReadFull(conn, packet[codec.HeaderLen:]); err != nil {
+					return
+				}
+				f, err := codec.Decode(packet)
+				if err != nil {
+					return
+				}
+				if requestIndex > 0 {
+					continue
+				}
+				resp := &initpb.Response{
+					RetType: new(int32(0)),
+					S2C: &initpb.S2C{
+						ServerVer:         new(int32(700)),
+						LoginUserID:       new(uint64(1)),
+						ConnID:            new(uint64(42)),
+						ConnAESKey:        new("0123456789abcdef"),
+						KeepAliveInterval: new(int32(1)),
+					},
+				}
+				body, jftradeErr5 := proto.Marshal(resp)
+				jftradeCheckTestError(t, jftradeErr5)
+				pkt, jftradeErr11 := codec.Encode(f.Header.ProtoID, f.Header.SerialNo, body)
+				jftradeCheckTestError(t, jftradeErr11)
+				_, jftradeErr2 := conn.Write(pkt)
+				jftradeCheckTestError(t, jftradeErr2)
 			}
-			resp := &initpb.Response{
-				RetType: new(int32(0)),
-				S2C: &initpb.S2C{
-					ServerVer:         new(int32(700)),
-					LoginUserID:       new(uint64(1)),
-					ConnID:            new(uint64(42)),
-					ConnAESKey:        new("0123456789abcdef"),
-					KeepAliveInterval: new(int32(1)),
-				},
-			}
-			body, _ := proto.Marshal(resp)
-			pkt, _ := codec.Encode(f.Header.ProtoID, f.Header.SerialNo, body)
-			_, _ = conn.Write(pkt)
-		}
+		}()
 	}()
 	return ln.Addr().String(), func() {
-		_ = ln.Close()
+		jftradeErr2 := ln.Close()
+		jftradeCheckTestError(t, jftradeErr2)
 		<-done
 	}
 }
@@ -130,7 +142,7 @@ func TestCallRoundTrip(t *testing.T) {
 	if err := c.Connect(ctx); err != nil {
 		t.Fatalf("connect: %v", err)
 	}
-	defer c.Close()
+	defer func() { jftradeCheckTestError(t, c.Close()) }()
 
 	req := &initpb.Request{C2S: &initpb.C2S{
 		ClientVer: new(int32(101)),
@@ -146,20 +158,23 @@ func TestCallRoundTrip(t *testing.T) {
 }
 
 func TestRequestTimeout(t *testing.T) {
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	ln, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer ln.Close()
+	defer func() { jftradeCheckTestError(t, ln.Close()) }()
 	go func() {
-		conn, err := ln.Accept()
-		if err != nil {
-			return
-		}
-		defer conn.Close()
-		buf := make([]byte, codec.HeaderLen+256)
-		_, _ = conn.Read(buf)
-		time.Sleep(2 * time.Second)
+		func() {
+			conn, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			defer func() { jftradeCheckTestError(t, conn.Close()) }()
+			buf := make([]byte, codec.HeaderLen+256)
+			_, jftradeErr1 := conn.Read(buf)
+			jftradeCheckTestError(t, jftradeErr1)
+			time.Sleep(2 * time.Second)
+		}()
 	}()
 
 	c := New(Config{Addr: ln.Addr().String(), RequestTimeout: 200 * time.Millisecond})
@@ -168,7 +183,7 @@ func TestRequestTimeout(t *testing.T) {
 	if err := c.Connect(ctx); err != nil {
 		t.Fatalf("connect: %v", err)
 	}
-	defer c.Close()
+	defer func() { jftradeCheckTestError(t, c.Close()) }()
 	var resp initpb.Response
 	err = c.Call(ctx, ProtoInitConnect, &initpb.Request{C2S: &initpb.C2S{
 		ClientVer: new(int32(1)),
@@ -189,7 +204,7 @@ func TestKeepAliveFailureClosesClient(t *testing.T) {
 	if err := c.Connect(ctx); err != nil {
 		t.Fatalf("connect: %v", err)
 	}
-	defer c.Close()
+	defer func() { jftradeCheckTestError(t, c.Close()) }()
 
 	var initResp initpb.Response
 	if err := c.Call(ctx, ProtoInitConnect, &initpb.Request{C2S: &initpb.C2S{
@@ -217,70 +232,77 @@ func TestKeepAliveFailureClosesClient(t *testing.T) {
 }
 
 func TestSubscribeNotifyReceivesSystemPush(t *testing.T) {
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	ln, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer ln.Close()
+	defer func() { jftradeCheckTestError(t, ln.Close()) }()
 
 	recvNotifyCh := make(chan bool, 1)
 	done := make(chan struct{})
 	go func() {
-		defer close(done)
-		conn, err := ln.Accept()
-		if err != nil {
-			return
-		}
-		defer conn.Close()
+		func() {
+			defer close(done)
+			conn, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			defer func() { jftradeCheckTestError(t, conn.Close()) }()
 
-		header := make([]byte, codec.HeaderLen)
-		if _, err := io.ReadFull(conn, header); err != nil {
-			return
-		}
-		bodyLen := int(uint32(header[12]) | uint32(header[13])<<8 | uint32(header[14])<<16 | uint32(header[15])<<24)
-		packet := make([]byte, codec.HeaderLen+bodyLen)
-		copy(packet, header)
-		if _, err := io.ReadFull(conn, packet[codec.HeaderLen:]); err != nil {
-			return
-		}
-		frame, err := codec.Decode(packet)
-		if err != nil {
-			return
-		}
-		request := &initpb.Request{}
-		if err := proto.Unmarshal(frame.Body, request); err != nil {
-			return
-		}
-		recvNotifyCh <- request.GetC2S().GetRecvNotify()
+			header := make([]byte, codec.HeaderLen)
+			if _, err := io.ReadFull(conn, header); err != nil {
+				return
+			}
+			bodyLen := int(uint32(header[12]) | uint32(header[13])<<8 | uint32(header[14])<<16 | uint32(header[15])<<24)
+			packet := make([]byte, codec.HeaderLen+bodyLen)
+			copy(packet, header)
+			if _, err := io.ReadFull(conn, packet[codec.HeaderLen:]); err != nil {
+				return
+			}
+			frame, err := codec.Decode(packet)
+			if err != nil {
+				return
+			}
+			request := &initpb.Request{}
+			if err := proto.Unmarshal(frame.Body, request); err != nil {
+				return
+			}
+			recvNotifyCh <- request.GetC2S().GetRecvNotify()
 
-		response := &initpb.Response{
-			RetType: new(int32(0)),
-			S2C: &initpb.S2C{
-				ServerVer:         new(int32(700)),
-				LoginUserID:       new(uint64(1)),
-				ConnID:            new(uint64(42)),
-				ConnAESKey:        new("0123456789abcdef"),
-				KeepAliveInterval: new(int32(10)),
-			},
-		}
-		body, _ := proto.Marshal(response)
-		pkt, _ := codec.Encode(frame.Header.ProtoID, frame.Header.SerialNo, body)
-		if _, err := conn.Write(pkt); err != nil {
-			return
-		}
-
-		notifyBody, _ := proto.Marshal(&notifypb.Response{
-			RetType: new(int32(0)),
-			S2C: &notifypb.S2C{
-				Type: new(int32(notifypb.NotifyType_NotifyType_ConnStatus)),
-				ConnectStatus: &notifypb.ConnectStatus{
-					QotLogined: new(true),
-					TrdLogined: new(false),
+			response := &initpb.Response{
+				RetType: new(int32(0)),
+				S2C: &initpb.S2C{
+					ServerVer:         new(int32(700)),
+					LoginUserID:       new(uint64(1)),
+					ConnID:            new(uint64(42)),
+					ConnAESKey:        new("0123456789abcdef"),
+					KeepAliveInterval: new(int32(10)),
 				},
-			},
-		})
-		notifyPacket, _ := codec.Encode(ProtoNotify, 0, notifyBody)
-		_, _ = conn.Write(notifyPacket)
+			}
+			body, jftradeErr8 := proto.Marshal(response)
+			jftradeCheckTestError(t, jftradeErr8)
+			pkt, jftradeErr13 := codec.Encode(frame.Header.ProtoID, frame.Header.SerialNo, body)
+			jftradeCheckTestError(t, jftradeErr13)
+			if _, err := conn.Write(pkt); err != nil {
+				return
+			}
+
+			notifyBody, jftradeErr15 := proto.Marshal(&notifypb.Response{
+				RetType: new(int32(0)),
+				S2C: &notifypb.S2C{
+					Type: new(int32(notifypb.NotifyType_NotifyType_ConnStatus)),
+					ConnectStatus: &notifypb.ConnectStatus{
+						QotLogined: new(true),
+						TrdLogined: new(false),
+					},
+				},
+			})
+			jftradeCheckTestError(t, jftradeErr15)
+			notifyPacket, jftradeErr9 := codec.Encode(ProtoNotify, 0, notifyBody)
+			jftradeCheckTestError(t, jftradeErr9)
+			_, jftradeErr6 := conn.Write(notifyPacket)
+			jftradeCheckTestError(t, jftradeErr6)
+		}()
 	}()
 	defer func() { <-done }()
 
@@ -290,7 +312,7 @@ func TestSubscribeNotifyReceivesSystemPush(t *testing.T) {
 	if err := c.Connect(ctx); err != nil {
 		t.Fatalf("connect: %v", err)
 	}
-	defer c.Close()
+	defer func() { jftradeCheckTestError(t, c.Close()) }()
 
 	notifyCh := make(chan *notifypb.Response, 1)
 	c.SubscribeNotify(func(response *notifypb.Response) {
@@ -335,72 +357,78 @@ func TestSubscribeNotifyReceivesSystemPush(t *testing.T) {
 }
 
 func TestCallIgnoresMismatchedProtoOnSameSerial(t *testing.T) {
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	ln, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer ln.Close()
+	defer func() { jftradeCheckTestError(t, ln.Close()) }()
 
 	notifyReceived := make(chan *notifypb.Response, 1)
 	done := make(chan struct{})
 	go func() {
-		defer close(done)
-		conn, err := ln.Accept()
-		if err != nil {
-			return
-		}
-		defer conn.Close()
-
-		header := make([]byte, codec.HeaderLen)
-		for requestIndex := 0; ; requestIndex++ {
-			if _, err := io.ReadFull(conn, header); err != nil {
-				return
-			}
-			bodyLen := int(uint32(header[12]) | uint32(header[13])<<8 | uint32(header[14])<<16 | uint32(header[15])<<24)
-			packet := make([]byte, codec.HeaderLen+bodyLen)
-			copy(packet, header)
-			if _, err := io.ReadFull(conn, packet[codec.HeaderLen:]); err != nil {
-				return
-			}
-			frame, err := codec.Decode(packet)
+		func() {
+			defer close(done)
+			conn, err := ln.Accept()
 			if err != nil {
 				return
 			}
+			defer func() { jftradeCheckTestError(t, conn.Close()) }()
 
-			response := &initpb.Response{
-				RetType: new(int32(0)),
-				S2C: &initpb.S2C{
-					ServerVer:         new(int32(700)),
-					LoginUserID:       new(uint64(1)),
-					ConnID:            new(uint64(42)),
-					ConnAESKey:        new("0123456789abcdef"),
-					KeepAliveInterval: new(int32(10)),
-				},
-			}
+			header := make([]byte, codec.HeaderLen)
+			for requestIndex := 0; ; requestIndex++ {
+				if _, err := io.ReadFull(conn, header); err != nil {
+					return
+				}
+				bodyLen := int(uint32(header[12]) | uint32(header[13])<<8 | uint32(header[14])<<16 | uint32(header[15])<<24)
+				packet := make([]byte, codec.HeaderLen+bodyLen)
+				copy(packet, header)
+				if _, err := io.ReadFull(conn, packet[codec.HeaderLen:]); err != nil {
+					return
+				}
+				frame, err := codec.Decode(packet)
+				if err != nil {
+					return
+				}
 
-			if requestIndex == 1 {
-				notifyBody, _ := proto.Marshal(&notifypb.Response{
+				response := &initpb.Response{
 					RetType: new(int32(0)),
-					S2C: &notifypb.S2C{
-						Type: new(int32(notifypb.NotifyType_NotifyType_ConnStatus)),
-						ConnectStatus: &notifypb.ConnectStatus{
-							QotLogined: new(true),
-							TrdLogined: new(false),
-						},
+					S2C: &initpb.S2C{
+						ServerVer:         new(int32(700)),
+						LoginUserID:       new(uint64(1)),
+						ConnID:            new(uint64(42)),
+						ConnAESKey:        new("0123456789abcdef"),
+						KeepAliveInterval: new(int32(10)),
 					},
-				})
-				notifyPacket, _ := codec.Encode(ProtoNotify, frame.Header.SerialNo, notifyBody)
-				if _, err := conn.Write(notifyPacket); err != nil {
+				}
+
+				if requestIndex == 1 {
+					notifyBody, jftradeErr16 := proto.Marshal(&notifypb.Response{
+						RetType: new(int32(0)),
+						S2C: &notifypb.S2C{
+							Type: new(int32(notifypb.NotifyType_NotifyType_ConnStatus)),
+							ConnectStatus: &notifypb.ConnectStatus{
+								QotLogined: new(true),
+								TrdLogined: new(false),
+							},
+						},
+					})
+					jftradeCheckTestError(t, jftradeErr16)
+					notifyPacket, jftradeErr14 := codec.Encode(ProtoNotify, frame.Header.SerialNo, notifyBody)
+					jftradeCheckTestError(t, jftradeErr14)
+					if _, err := conn.Write(notifyPacket); err != nil {
+						return
+					}
+				}
+
+				body, jftradeErr7 := proto.Marshal(response)
+				jftradeCheckTestError(t, jftradeErr7)
+				pkt, jftradeErr12 := codec.Encode(frame.Header.ProtoID, frame.Header.SerialNo, body)
+				jftradeCheckTestError(t, jftradeErr12)
+				if _, err := conn.Write(pkt); err != nil {
 					return
 				}
 			}
-
-			body, _ := proto.Marshal(response)
-			pkt, _ := codec.Encode(frame.Header.ProtoID, frame.Header.SerialNo, body)
-			if _, err := conn.Write(pkt); err != nil {
-				return
-			}
-		}
+		}()
 	}()
 	defer func() { <-done }()
 
@@ -410,7 +438,7 @@ func TestCallIgnoresMismatchedProtoOnSameSerial(t *testing.T) {
 	if err := c.Connect(ctx); err != nil {
 		t.Fatalf("connect: %v", err)
 	}
-	defer c.Close()
+	defer func() { jftradeCheckTestError(t, c.Close()) }()
 
 	c.SubscribeNotify(func(response *notifypb.Response) {
 		select {
@@ -443,5 +471,12 @@ func TestCallIgnoresMismatchedProtoOnSameSerial(t *testing.T) {
 		}
 	case <-ctx.Done():
 		t.Fatal("timed out waiting for mismatched proto push to be dispatched")
+	}
+}
+
+func jftradeCheckTestError(t testing.TB, err error) {
+	t.Helper()
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
 	}
 }

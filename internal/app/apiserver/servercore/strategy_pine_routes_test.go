@@ -20,11 +20,11 @@ func TestAnalyzeStrategyPineRouteReturnsDiagnosticsAndRequirements(t *testing.T)
 	t.Cleanup(srv.Close)
 
 	body := []byte(`{"sourceFormat":"pine-v6","includeAst":true,"script":"//@version=6\nstrategy(\"Analyze\", overlay=true, default_qty_type=strategy.percent_of_equity, default_qty_value=10, pyramiding=2)\nstart = input.time(timestamp(2026, 1, 1), \"Start\")\nsignalColor = input.color(color.green, \"Signal\")\nfast = ta.ema(close, 8)\navgVol = ta.sma(volume, 20)\nsar = ta.sar(0.02, 0.02, 0.2)\nif barstate.isconfirmed and session.ismarket and dayofweek == dayofweek.monday and time >= start and close > close[1] and volume > avgVol and close > sar\n    strategy.entry(\"Long\", strategy.long)"}`)
-	resp, err := http.Post(srv.URL+"/api/v1/strategy-pine/analyze", "application/json", bytes.NewReader(body))
+	resp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/strategy-pine/analyze", "application/json", bytes.NewReader(body))
 	if err != nil {
 		t.Fatalf("POST analyze: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("POST analyze status = %d", resp.StatusCode)
 	}
@@ -98,11 +98,11 @@ func TestAnalyzeStrategyPineRouteOmitsASTByDefault(t *testing.T) {
 	t.Cleanup(srv.Close)
 
 	body := []byte(`{"script":"//@version=6\nstrategy(\"Analyze\", overlay=true)\nstrategy.entry(\"Long\", strategy.long)"}`)
-	resp, err := http.Post(srv.URL+"/api/v1/strategy-pine/analyze", "application/json", bytes.NewReader(body))
+	resp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/strategy-pine/analyze", "application/json", bytes.NewReader(body))
 	if err != nil {
 		t.Fatalf("POST analyze: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("POST analyze status = %d", resp.StatusCode)
 	}
@@ -134,11 +134,11 @@ func TestAnalyzeStrategyPineRouteRejectsUnsupportedSourceFormat(t *testing.T) {
 	t.Cleanup(srv.Close)
 
 	body := []byte(`{"sourceFormat":"legacy","script":"//@version=6\nstrategy(\"Analyze\", overlay=true)"}`)
-	resp, err := http.Post(srv.URL+"/api/v1/strategy-pine/analyze", "application/json", bytes.NewReader(body))
+	resp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/strategy-pine/analyze", "application/json", bytes.NewReader(body))
 	if err != nil {
 		t.Fatalf("POST analyze: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("POST analyze status = %d, want %d", resp.StatusCode, http.StatusBadRequest)
 	}
@@ -176,11 +176,11 @@ func TestAnalyzeStrategyPineRouteReportsUnsupportedSyntax(t *testing.T) {
 	t.Cleanup(srv.Close)
 
 	body := []byte(`{"script":"//@version=6\nstrategy(\"Analyze\", overlay=true)\nimport TradingView/ta/7"}`)
-	resp, err := http.Post(srv.URL+"/api/v1/strategy-pine/analyze", "application/json", bytes.NewReader(body))
+	resp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/strategy-pine/analyze", "application/json", bytes.NewReader(body))
 	if err != nil {
 		t.Fatalf("POST analyze: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("POST analyze status = %d", resp.StatusCode)
 	}
@@ -214,11 +214,11 @@ func TestAnalyzeStrategyPineRouteReturnsV20ParseOnlyMetadata(t *testing.T) {
 	t.Cleanup(srv.Close)
 
 	body := []byte(`{"includeAst":true,"script":"//@version=6\nstrategy(\"v2 metadata\", overlay=true)\nvar array<int> arr = array.new_float(0)\narray.push(arr, close)\narr.push(open)\ntype TradeBox\n    float price = close\nmethod reset(TradeBox box, float limit = 0) =>\n    box\nbox = TradeBox.new(close)\nresetBox = box.reset(10)\nimport TradingView/ta/7 as tav7\nlbl = label.new(bar_index, close, \"Entry\")\nplot(close, title=\"Close\")"}`)
-	resp, err := http.Post(srv.URL+"/api/v1/strategy-pine/analyze", "application/json", bytes.NewReader(body))
+	resp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/strategy-pine/analyze", "application/json", bytes.NewReader(body))
 	if err != nil {
 		t.Fatalf("POST analyze: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("POST analyze status = %d", resp.StatusCode)
 	}
@@ -361,11 +361,11 @@ func TestAnalyzeStrategyPineRouteReturnsObjectSignatureDiagnostics(t *testing.T)
 	t.Cleanup(srv.Close)
 
 	body := []byte(`{"includeAst":true,"script":"//@version=6\nstrategy(\"bad object\", overlay=true)\ntype TradeBox\n    float price\nmethod reset(TradeBox box, float limit) =>\n    box\nbox = TradeBox.new()\nresetBox = box.reset()"}`)
-	resp, err := http.Post(srv.URL+"/api/v1/strategy-pine/analyze", "application/json", bytes.NewReader(body))
+	resp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/strategy-pine/analyze", "application/json", bytes.NewReader(body))
 	if err != nil {
 		t.Fatalf("POST analyze: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("POST analyze status = %d", resp.StatusCode)
 	}
@@ -418,11 +418,11 @@ func TestAnalyzeStrategyPineRouteReturnsImportAliasDiagnostics(t *testing.T) {
 	t.Cleanup(srv.Close)
 
 	body := []byte(`{"includeAst":true,"script":"//@version=6\nstrategy(\"bad import\", overlay=true)\nimport TradingView/ta/7 as tools\nimport TradingView/math/1 as tools"}`)
-	resp, err := http.Post(srv.URL+"/api/v1/strategy-pine/analyze", "application/json", bytes.NewReader(body))
+	resp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/strategy-pine/analyze", "application/json", bytes.NewReader(body))
 	if err != nil {
 		t.Fatalf("POST analyze: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("POST analyze status = %d", resp.StatusCode)
 	}
@@ -469,11 +469,11 @@ func TestAnalyzeStrategyPineRouteReturnsTypeMethodRegistryDiagnostics(t *testing
 	t.Cleanup(srv.Close)
 
 	body := []byte(`{"includeAst":true,"script":"//@version=6\nstrategy(\"declaration registry\", overlay=true)\ntype TradeBox\n    float price\ntype TradeBox\n    int bars\nmethod reset(TradeBox box, float limit) =>\n    box\nmethod reset(TradeBox target, float threshold = 0) =>\n    target\nmethod haunt(Ghost ghost) =>\n    ghost"}`)
-	resp, err := http.Post(srv.URL+"/api/v1/strategy-pine/analyze", "application/json", bytes.NewReader(body))
+	resp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/strategy-pine/analyze", "application/json", bytes.NewReader(body))
 	if err != nil {
 		t.Fatalf("POST analyze: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("POST analyze status = %d", resp.StatusCode)
 	}

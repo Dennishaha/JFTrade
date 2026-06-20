@@ -101,7 +101,7 @@ func TestSettingsRoutesPreserveLegacyResponseShapes(t *testing.T) {
 
 	t.Run("broker integration returns object directly", func(t *testing.T) {
 		recorder := httptest.NewRecorder()
-		request := httptest.NewRequest(http.MethodPut, "/api/v1/settings/brokers/futu/integration", strings.NewReader(`{"enabled":true}`))
+		request := httptest.NewRequestWithContext(t.Context(), http.MethodPut, "/api/v1/settings/brokers/futu/integration", strings.NewReader(`{"enabled":true}`))
 		request.Header.Set("Content-Type", "application/json")
 		router.ServeHTTP(recorder, request)
 		if recorder.Code != http.StatusOK {
@@ -121,7 +121,7 @@ func TestSettingsRoutesPreserveLegacyResponseShapes(t *testing.T) {
 
 	t.Run("delete account returns deleted flag and id", func(t *testing.T) {
 		recorder := httptest.NewRecorder()
-		request := httptest.NewRequest(http.MethodDelete, "/api/v1/settings/broker-accounts/account-1", nil)
+		request := httptest.NewRequestWithContext(t.Context(), http.MethodDelete, "/api/v1/settings/broker-accounts/account-1", nil)
 		router.ServeHTTP(recorder, request)
 		if recorder.Code != http.StatusOK {
 			t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body.String())
@@ -157,7 +157,7 @@ func TestManagedAccountRoutesMapMissingRecordsToNotFound(t *testing.T) {
 		{method: http.MethodDelete},
 	} {
 		recorder := httptest.NewRecorder()
-		request := httptest.NewRequest(tc.method, "/api/v1/settings/broker-accounts/missing", strings.NewReader(tc.body))
+		request := httptest.NewRequestWithContext(t.Context(), tc.method, "/api/v1/settings/broker-accounts/missing", strings.NewReader(tc.body))
 		if tc.body != "" {
 			request.Header.Set("Content-Type", "application/json")
 		}
@@ -176,7 +176,7 @@ func TestCreateManagedAccountRejectsMissingAccountID(t *testing.T) {
 	apisettings.RegisterRoutes(router.Group("/api/v1"), service)
 
 	recorder := httptest.NewRecorder()
-	request := httptest.NewRequest(http.MethodPost, "/api/v1/settings/broker-accounts", strings.NewReader(`{}`))
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/settings/broker-accounts", strings.NewReader(`{}`))
 	request.Header.Set("Content-Type", "application/json")
 	router.ServeHTTP(recorder, request)
 
@@ -193,7 +193,7 @@ func TestCreateManagedAccountDropsServerManagedFields(t *testing.T) {
 	apisettings.RegisterRoutes(router.Group("/api/v1"), service)
 
 	recorder := httptest.NewRecorder()
-	request := httptest.NewRequest(http.MethodPost, "/api/v1/settings/broker-accounts", strings.NewReader(`{"id":"client-id","accountId":"acc-1","createdAt":"client-created","updatedAt":"client-updated"}`))
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/settings/broker-accounts", strings.NewReader(`{"id":"client-id","accountId":"acc-1","createdAt":"client-created","updatedAt":"client-updated"}`))
 	request.Header.Set("Content-Type", "application/json")
 	router.ServeHTTP(recorder, request)
 
@@ -226,7 +226,7 @@ func TestExecutionSettingsRouteUsesInjectedService(t *testing.T) {
 
 	body := `{"defaultTradingEnvironment":"SIMULATE","brokerOrderHistoryLookbackDays":30,"seenFillRetentionDays":9}`
 	recorder := httptest.NewRecorder()
-	request := httptest.NewRequest(http.MethodPut, "/api/v1/settings/execution", strings.NewReader(body))
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodPut, "/api/v1/settings/execution", strings.NewReader(body))
 	request.Header.Set("Content-Type", "application/json")
 	router.ServeHTTP(recorder, request)
 
@@ -274,7 +274,7 @@ func TestExchangeCalendarSettingsRouteUsesInjectedService(t *testing.T) {
 
 	body := `{"exchangeCalendars":{"autoRefreshEnabled":false,"refreshIntervalHours":12,"warmupMarkets":["US","HK"],"sourcePolicies":[{"market":"US","enabledSourceIds":["nyse_official"],"fallbackToBuiltin":true}]}}`
 	recorder := httptest.NewRecorder()
-	request := httptest.NewRequest(http.MethodPut, "/api/v1/settings/exchange-calendars", strings.NewReader(body))
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodPut, "/api/v1/settings/exchange-calendars", strings.NewReader(body))
 	request.Header.Set("Content-Type", "application/json")
 	router.ServeHTTP(recorder, request)
 

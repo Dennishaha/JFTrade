@@ -98,13 +98,19 @@ func TestExecuteV23ArrayCollectionOperations(t *testing.T) {
 	} else if sliced, ok := value.(*pineArray); !ok || len(sliced.values) != 2 || sliced.values[0] != float64(2) || sliced.values[1] != float64(3) {
 		t.Fatalf("array.slice = %#v", value)
 	}
-	if value, _ := array.operation("includes", []any{float64(3)}); value != true {
+	value, jftradeErr1 := array.operation("includes", []any{float64(3)})
+	jftradeCheckTestError(t, jftradeErr1)
+	if value != true {
 		t.Fatalf("array.includes = %#v, want true", value)
 	}
-	if value, _ := array.operation("indexof", []any{float64(2)}); value != float64(1) {
+	value, jftradeErr2 := array.operation("indexof", []any{float64(2)})
+	jftradeCheckTestError(t, jftradeErr2)
+	if value != float64(1) {
 		t.Fatalf("array.indexof = %#v, want 1", value)
 	}
-	if value, _ := array.operation("lastindexof", []any{float64(2)}); value != float64(3) {
+	value, jftradeErr3 := array.operation("lastindexof", []any{float64(2)})
+	jftradeCheckTestError(t, jftradeErr3)
+	if value != float64(3) {
 		t.Fatalf("array.lastindexof = %#v, want 3", value)
 	}
 	for operation, want := range map[string]float64{"min": 1, "max": 3, "avg": 2, "sum": 8} {
@@ -343,5 +349,12 @@ func collectionTestScope(runtime *strategyRuntime, close float64) *evaluationSco
 		highSeries:   seriesNumber{Current: close, HasCurrent: true},
 		lowSeries:    seriesNumber{Current: close, HasCurrent: true},
 		volumeSeries: seriesNumber{Current: 1, HasCurrent: true},
+	}
+}
+
+func jftradeCheckTestError(t testing.TB, err error) {
+	t.Helper()
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
 	}
 }

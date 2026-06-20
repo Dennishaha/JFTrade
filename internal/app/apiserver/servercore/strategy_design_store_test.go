@@ -8,9 +8,10 @@ import (
 	"strings"
 	"testing"
 
-	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 	"github.com/jmoiron/sqlx"
 	_ "modernc.org/sqlite"
+
+	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 )
 
 func countStrategyDesignDefinitionRows(t *testing.T, dbPath string) int {
@@ -19,7 +20,7 @@ func countStrategyDesignDefinitionRows(t *testing.T, dbPath string) int {
 	if err != nil {
 		t.Fatalf("open sqlite db: %v", err)
 	}
-	defer db.Close()
+	defer func() { jftradeCheckTestError(t, db.Close()) }()
 
 	var count int
 	if err := db.Get(&count, `SELECT COUNT(*) FROM `+strategyDesignDefinitionTable); err != nil {
@@ -34,7 +35,7 @@ func readStrategyDesignDefinitionRow(t *testing.T, dbPath string, id string) str
 	if err != nil {
 		t.Fatalf("open sqlite db: %v", err)
 	}
-	defer db.Close()
+	defer func() { jftradeCheckTestError(t, db.Close()) }()
 
 	var row strategyDesignDefinitionRow
 	if err := db.Get(&row,
@@ -93,7 +94,7 @@ func TestStrategyDesignStoreIgnoresLegacyJSONFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewStrategyDesignStore: %v", err)
 	}
-	t.Cleanup(func() { store.Close() })
+	t.Cleanup(func() { jftradeCheckTestError(t, store.Close()) })
 
 	if got := store.listDefinitions(); len(got) != 0 {
 		t.Fatalf("expected legacy json definitions to be ignored, got %+v", got)
@@ -116,7 +117,7 @@ func TestStrategyDesignStoreSaveDefinitionManagesVersionAndScriptMetadata(t *tes
 	if err != nil {
 		t.Fatalf("NewStrategyDesignStore: %v", err)
 	}
-	t.Cleanup(func() { store.Close() })
+	t.Cleanup(func() { jftradeCheckTestError(t, store.Close()) })
 
 	created, err := store.saveDefinition(strategyDesignDefinition{
 		ID:           "dsl-versioned",
@@ -192,7 +193,7 @@ func TestStrategyDesignStoreRejectsLegacyRuntimeSourceAndVisualBlocks(t *testing
 	if err != nil {
 		t.Fatalf("NewStrategyDesignStore: %v", err)
 	}
-	t.Cleanup(func() { store.Close() })
+	t.Cleanup(func() { jftradeCheckTestError(t, store.Close()) })
 
 	tests := []struct {
 		name       string
@@ -259,7 +260,7 @@ func TestStrategyDesignStoreGeneratesUUIDWhenIDMissing(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewStrategyDesignStore: %v", err)
 	}
-	t.Cleanup(func() { store.Close() })
+	t.Cleanup(func() { jftradeCheckTestError(t, store.Close()) })
 
 	created, err := store.saveDefinition(strategyDesignDefinition{
 		Name:         "UUID Strategy",
@@ -286,7 +287,7 @@ func TestStrategyDesignStoreDeleteDefinitionSoftDeletes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewStrategyDesignStore: %v", err)
 	}
-	t.Cleanup(func() { store.Close() })
+	t.Cleanup(func() { jftradeCheckTestError(t, store.Close()) })
 
 	created, err := store.saveDefinition(strategyDesignDefinition{
 		ID:           "dsl-delete-me",

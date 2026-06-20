@@ -51,11 +51,11 @@ func TestExecutionOrderRoutesPlaceListEventsAndCancel(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Marshal payload: %v", err)
 	}
-	resp, err := http.Post(srv.URL+"/api/v1/execution/orders", "application/json", bytes.NewReader(payload))
+	resp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/execution/orders", "application/json", bytes.NewReader(payload))
 	if err != nil {
 		t.Fatalf("POST execution orders: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("POST execution orders status = %d", resp.StatusCode)
 	}
@@ -80,11 +80,11 @@ func TestExecutionOrderRoutesPlaceListEventsAndCancel(t *testing.T) {
 		t.Fatalf("brokerOrderId = %#v, want 9001", commandEnvelope.Data.BrokerOrderID)
 	}
 
-	listResp, err := http.Get(srv.URL + "/api/v1/execution/orders")
+	listResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/execution/orders")
 	if err != nil {
 		t.Fatalf("GET execution orders: %v", err)
 	}
-	defer listResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, listResp.Body.Close()) }()
 	if listResp.StatusCode != http.StatusOK {
 		t.Fatalf("GET execution orders status = %d", listResp.StatusCode)
 	}
@@ -116,11 +116,11 @@ func TestExecutionOrderRoutesPlaceListEventsAndCancel(t *testing.T) {
 		t.Fatalf("expected one place order call, got %d", got)
 	}
 
-	eventsResp, err := http.Get(srv.URL + "/api/v1/execution/orders/" + *commandEnvelope.Data.InternalOrderID + "/events")
+	eventsResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/execution/orders/"+*commandEnvelope.Data.InternalOrderID+"/events")
 	if err != nil {
 		t.Fatalf("GET execution order events: %v", err)
 	}
-	defer eventsResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, eventsResp.Body.Close()) }()
 	if eventsResp.StatusCode != http.StatusOK {
 		t.Fatalf("GET execution order events status = %d", eventsResp.StatusCode)
 	}
@@ -142,7 +142,7 @@ func TestExecutionOrderRoutesPlaceListEventsAndCancel(t *testing.T) {
 		t.Fatalf("eventType = %q, want COMMAND_PLACE_ACCEPTED", got)
 	}
 
-	cancelReq, err := http.NewRequest(http.MethodPost, srv.URL+"/api/v1/execution/orders/"+*commandEnvelope.Data.InternalOrderID+"/cancel", nil)
+	cancelReq, err := http.NewRequestWithContext(t.Context(), http.MethodPost, srv.URL+"/api/v1/execution/orders/"+*commandEnvelope.Data.InternalOrderID+"/cancel", nil)
 	if err != nil {
 		t.Fatalf("NewRequest cancel: %v", err)
 	}
@@ -150,7 +150,7 @@ func TestExecutionOrderRoutesPlaceListEventsAndCancel(t *testing.T) {
 	if err != nil {
 		t.Fatalf("POST execution cancel: %v", err)
 	}
-	defer cancelResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, cancelResp.Body.Close()) }()
 	if cancelResp.StatusCode != http.StatusOK {
 		t.Fatalf("POST execution cancel status = %d", cancelResp.StatusCode)
 	}
@@ -172,11 +172,11 @@ func TestExecutionOrderRoutesPlaceListEventsAndCancel(t *testing.T) {
 		t.Fatalf("expected one modify order call, got %d", got)
 	}
 
-	updatedEventsResp, err := http.Get(srv.URL + "/api/v1/execution/orders/" + *commandEnvelope.Data.InternalOrderID + "/events")
+	updatedEventsResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/execution/orders/"+*commandEnvelope.Data.InternalOrderID+"/events")
 	if err != nil {
 		t.Fatalf("GET updated execution order events: %v", err)
 	}
-	defer updatedEventsResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, updatedEventsResp.Body.Close()) }()
 
 	var updatedEventsEnvelope struct {
 		OK   bool                         `json:"ok"`

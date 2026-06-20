@@ -226,10 +226,6 @@ func (s *executionOrderStore) markCancelRequested(internalOrderID string, payloa
 	return cloneExecutionOrderSummary(summary), true
 }
 
-func (s *executionOrderStore) upsertBrokerOrder(brokerID string, snapshot broker.OrderSnapshot, discoveredEventType string, updatedEventType string) (executionOrderSummaryResponse, *executionOrderEventResponse, bool) {
-	return s.upsertBrokerOrderWithSource(brokerID, snapshot, discoveredEventType, updatedEventType, "broker", "broker.current")
-}
-
 func (s *executionOrderStore) upsertBrokerOrderWithSource(brokerID string, snapshot broker.OrderSnapshot, discoveredEventType string, updatedEventType string, source string, sourceDetail string) (executionOrderSummaryResponse, *executionOrderEventResponse, bool) {
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	s.mu.Lock()
@@ -445,7 +441,7 @@ func (s *executionOrderStore) recordBrokerOrderFill(brokerID string, fill broker
 	if fill.FillPrice != nil && newFilled > 0 {
 		filledAverage = ((previousAverage * previousFilled) + (*fill.FillPrice * fill.FilledQuantity)) / newFilled
 	}
-	status := summary.Status
+	var status string
 	if fillStatus := strings.TrimSpace(derefString(fill.Status)); fillStatus != "" {
 		status = fillStatus
 	} else if summary.RequestedQuantity != nil && newFilled >= *summary.RequestedQuantity && *summary.RequestedQuantity > 0 {

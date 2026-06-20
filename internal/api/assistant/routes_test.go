@@ -15,12 +15,13 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	assistantservice "github.com/jftrade/jftrade-main/internal/assistant"
-	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
 	adkmodel "google.golang.org/adk/model"
 	adksession "google.golang.org/adk/session"
 	"google.golang.org/genai"
 	_ "modernc.org/sqlite"
+
+	assistantservice "github.com/jftrade/jftrade-main/internal/assistant"
+	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
 )
 
 func TestCatalogSessionRunAndObservabilityContracts(t *testing.T) {
@@ -175,7 +176,7 @@ func TestSessionTimelineFailureKeepsLegacyErrorCode(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open db: %v", err)
 	}
-	defer db.Close()
+	defer func() { jftradeCheckTestError(t, db.Close()) }()
 	if _, err := db.ExecContext(ctx, `DROP TABLE adk_runs`); err != nil {
 		t.Fatalf("drop adk_runs: %v", err)
 	}
@@ -214,7 +215,8 @@ func newAssistantTestRouterWithDBPath(t *testing.T) (*jfadk.Runtime, *gin.Engine
 	runtime := jfadk.NewRuntimeWithSessionService(store, jfadk.NewToolRegistry(), sessionService)
 	assistantTestProvider(t, runtime)
 	t.Cleanup(func() {
-		_ = runtime.Close()
+		jftradeErr1 := runtime.Close()
+		jftradeCheckTestError(t, jftradeErr1)
 	})
 	service := assistantservice.NewService(runtime)
 	gin.SetMode(gin.ReleaseMode)
@@ -341,7 +343,8 @@ func newAssistantTestRouter(t *testing.T) (*jfadk.Runtime, *gin.Engine) {
 	runtime := jfadk.NewRuntime(store, jfadk.NewToolRegistry())
 	assistantTestProvider(t, runtime)
 	t.Cleanup(func() {
-		_ = runtime.Close()
+		jftradeErr2 := runtime.Close()
+		jftradeCheckTestError(t, jftradeErr2)
 	})
 	service := assistantservice.NewService(
 		runtime,
@@ -360,7 +363,7 @@ func newAssistantTestRouter(t *testing.T) (*jfadk.Runtime, *gin.Engine) {
 func assistantTestProvider(t *testing.T, runtime *jfadk.Runtime) {
 	t.Helper()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		defer r.Body.Close()
+		defer func() { jftradeCheckTestError(t, r.Body.Close()) }()
 		var payload struct {
 			Messages []struct {
 				Role    string `json:"role"`
@@ -368,7 +371,8 @@ func assistantTestProvider(t *testing.T, runtime *jfadk.Runtime) {
 				Name    string `json:"name"`
 			} `json:"messages"`
 		}
-		_ = json.NewDecoder(r.Body).Decode(&payload)
+		jftradeErr1 := json.NewDecoder(r.Body).Decode(&payload)
+		jftradeCheckTestError(t, jftradeErr1)
 		hasToolResponse := false
 		var text string
 		for _, message := range payload.Messages {
@@ -386,7 +390,8 @@ func assistantTestProvider(t *testing.T, runtime *jfadk.Runtime) {
 			}}
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]any{"choices": []map[string]any{{"message": message}}})
+		jftradeErr2 := json.NewEncoder(w).Encode(map[string]any{"choices": []map[string]any{{"message": message}}})
+		jftradeCheckTestError(t, jftradeErr2)
 	}))
 	t.Cleanup(server.Close)
 	if _, err := runtime.Store().SaveProvider(t.Context(), jfadk.ProviderWriteRequest{
@@ -403,7 +408,7 @@ func performAssistantRequest(router http.Handler, method string, path string, bo
 	} else {
 		reader = bytes.NewReader(body)
 	}
-	request := httptest.NewRequest(method, path, reader)
+	request := httptest.NewRequestWithContext(context.Background(), method, path, reader)
 	if body != nil {
 		request.Header.Set("Content-Type", "application/json")
 	}
@@ -422,5 +427,12 @@ func assertOKEnvelope(t *testing.T, recorder *httptest.ResponseRecorder) {
 	}
 	if !envelope.OK {
 		t.Fatalf("envelope not ok: %s", recorder.Body.String())
+	}
+}
+
+func jftradeCheckTestError(t testing.TB, err error) {
+	t.Helper()
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
 	}
 }

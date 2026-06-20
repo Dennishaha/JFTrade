@@ -105,7 +105,8 @@ func (s *Server) ensureLiveNotificationBridge(ctx context.Context) {
 	go func() {
 		bridgeCtx, cancel := context.WithTimeout(ctx, liveStreamConnectTimeout)
 		defer cancel()
-		_ = exchange.EnsureSystemNotifications(bridgeCtx)
+		jftradeErr1 := exchange.EnsureSystemNotifications(bridgeCtx)
+		jftradeLogError(jftradeErr1)
 	}()
 }
 

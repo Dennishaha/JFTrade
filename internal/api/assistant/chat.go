@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -67,7 +68,8 @@ func (h *Handler) handleADKChatStream(c *gin.Context) {
 		if err := writer.WriteRetryDirective(); err != nil {
 			return
 		}
-		_ = writer.WriteEvent(adkChatStreamEvent{Type: "error", Message: "invalid chat payload: " + err.Error()})
+		jftradeErr1 := writer.WriteEvent(adkChatStreamEvent{Type: "error", Message: "invalid chat payload: " + err.Error()})
+		jftradeLogError(jftradeErr1)
 		return
 	}
 	writer, ok := httpserver.PrepareSSEWriter(c.Writer)
@@ -297,4 +299,12 @@ func firstTimelineToolTime(toolCalls []jfadk.ToolCall, currentTime string) strin
 
 func streamTimelineNow() string {
 	return time.Now().UTC().Format(time.RFC3339Nano)
+}
+
+func jftradeLogError(values ...any) {
+	for _, value := range values {
+		if err, ok := value.(error); ok && err != nil {
+			log.Printf("best-effort operation failed: %v", err)
+		}
+	}
 }

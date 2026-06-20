@@ -60,7 +60,7 @@ type brokerRouteOpenDServer struct {
 
 func startBrokerRouteOpenDServer(t *testing.T) *brokerRouteOpenDServer {
 	t.Helper()
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	listener, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -75,7 +75,8 @@ func startBrokerRouteOpenDServer(t *testing.T) *brokerRouteOpenDServer {
 
 func (s *brokerRouteOpenDServer) stop() {
 	s.stopOnce.Do(func() {
-		_ = s.listener.Close()
+		jftradeErr1 := s.listener.Close()
+		jftradePanicOnError(jftradeErr1)
 		<-s.shutdownCompleted
 	})
 }
@@ -171,16 +172,7 @@ func (s *brokerRouteOpenDServer) lastPlaceOrderRequest() *trdplaceorderpb.C2S {
 	if s.lastPlaceOrder == nil {
 		return nil
 	}
-	return proto.Clone(s.lastPlaceOrder).(*trdplaceorderpb.C2S)
-}
-
-func (s *brokerRouteOpenDServer) lastModifyOrderRequest() *trdmodifyorderpb.C2S {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.lastModifyOrder == nil {
-		return nil
-	}
-	return proto.Clone(s.lastModifyOrder).(*trdmodifyorderpb.C2S)
+	return jftradeCheckedTypeAssertion[*trdplaceorderpb.C2S](proto.Clone(s.lastPlaceOrder))
 }
 
 func (s *brokerRouteOpenDServer) subAccPushCallCount() int {
@@ -201,7 +193,7 @@ func (s *brokerRouteOpenDServer) acceptLoop() {
 }
 
 func (s *brokerRouteOpenDServer) handleConn(conn net.Conn) {
-	defer conn.Close()
+	defer func() { jftradePanicOnError(conn.Close()) }()
 	for {
 		header := make([]byte, codec.HeaderLen)
 		if _, err := io.ReadFull(conn, header); err != nil {
@@ -256,7 +248,8 @@ func (s *brokerRouteOpenDServer) responseForFrame(frame codec.Frame) proto.Messa
 		}
 	case opend.ProtoTrdGetFunds:
 		request := &trdgetfundspb.Request{}
-		_ = proto.Unmarshal(frame.Body, request)
+		jftradeErr1 := proto.Unmarshal(frame.Body, request)
+		jftradePanicOnError(jftradeErr1)
 		return &trdgetfundspb.Response{
 			RetType: new(int32(0)),
 			S2C: &trdgetfundspb.S2C{
@@ -266,7 +259,8 @@ func (s *brokerRouteOpenDServer) responseForFrame(frame codec.Frame) proto.Messa
 		}
 	case opend.ProtoTrdGetPositionList:
 		request := &trdgetpositionlistpb.Request{}
-		_ = proto.Unmarshal(frame.Body, request)
+		jftradeErr2 := proto.Unmarshal(frame.Body, request)
+		jftradePanicOnError(jftradeErr2)
 		positions := make([]*trdcommonpb.Position, 0, len(s.positions))
 		for _, position := range s.positions {
 			positions = append(positions, normalizeBrokerRoutePosition(position))
@@ -280,7 +274,8 @@ func (s *brokerRouteOpenDServer) responseForFrame(frame codec.Frame) proto.Messa
 		}
 	case opend.ProtoTrdGetOrderList:
 		request := &trdgetorderlistpb.Request{}
-		_ = proto.Unmarshal(frame.Body, request)
+		jftradeErr3 := proto.Unmarshal(frame.Body, request)
+		jftradePanicOnError(jftradeErr3)
 		orders := filterBrokerRouteOrders(s.orders, request.GetC2S().GetFilterConditions(), nil)
 		return &trdgetorderlistpb.Response{
 			RetType: new(int32(0)),
@@ -291,7 +286,8 @@ func (s *brokerRouteOpenDServer) responseForFrame(frame codec.Frame) proto.Messa
 		}
 	case opend.ProtoTrdGetHistoryOrderList:
 		request := &trdgethistoryorderlistpb.Request{}
-		_ = proto.Unmarshal(frame.Body, request)
+		jftradeErr4 := proto.Unmarshal(frame.Body, request)
+		jftradePanicOnError(jftradeErr4)
 		orders := filterBrokerRouteOrders(s.historyOrders, request.GetC2S().GetFilterConditions(), request.GetC2S().GetFilterStatusList())
 		return &trdgethistoryorderlistpb.Response{
 			RetType: new(int32(0)),
@@ -302,7 +298,8 @@ func (s *brokerRouteOpenDServer) responseForFrame(frame codec.Frame) proto.Messa
 		}
 	case opend.ProtoTrdGetOrderFillList:
 		request := &trdgetorderfilllistpb.Request{}
-		_ = proto.Unmarshal(frame.Body, request)
+		jftradeErr5 := proto.Unmarshal(frame.Body, request)
+		jftradePanicOnError(jftradeErr5)
 		fills := filterBrokerRouteFills(s.orderFills, request.GetC2S().GetFilterConditions())
 		return &trdgetorderfilllistpb.Response{
 			RetType: new(int32(0)),
@@ -313,7 +310,8 @@ func (s *brokerRouteOpenDServer) responseForFrame(frame codec.Frame) proto.Messa
 		}
 	case opend.ProtoTrdGetHistoryOrderFillList:
 		request := &trdgethistoryorderfilllistpb.Request{}
-		_ = proto.Unmarshal(frame.Body, request)
+		jftradeErr6 := proto.Unmarshal(frame.Body, request)
+		jftradePanicOnError(jftradeErr6)
 		fills := filterBrokerRouteFills(s.historyFills, request.GetC2S().GetFilterConditions())
 		return &trdgethistoryorderfilllistpb.Response{
 			RetType: new(int32(0)),
@@ -324,7 +322,8 @@ func (s *brokerRouteOpenDServer) responseForFrame(frame codec.Frame) proto.Messa
 		}
 	case opend.ProtoTrdGetOrderFee:
 		request := &trdgetorderfeepb.Request{}
-		_ = proto.Unmarshal(frame.Body, request)
+		jftradeErr7 := proto.Unmarshal(frame.Body, request)
+		jftradePanicOnError(jftradeErr7)
 		fees := make([]*trdcommonpb.OrderFee, 0, len(s.orderFees))
 		requested := make(map[string]struct{}, len(request.GetC2S().GetOrderIdExList()))
 		for _, orderIDEx := range request.GetC2S().GetOrderIdExList() {
@@ -350,7 +349,8 @@ func (s *brokerRouteOpenDServer) responseForFrame(frame codec.Frame) proto.Messa
 		}
 	case opend.ProtoTrdGetMarginRatio:
 		request := &trdgetmarginratiopb.Request{}
-		_ = proto.Unmarshal(frame.Body, request)
+		jftradeErr8 := proto.Unmarshal(frame.Body, request)
+		jftradePanicOnError(jftradeErr8)
 		ratios := make([]*trdgetmarginratiopb.MarginRatioInfo, 0, len(s.marginRatios))
 		requested := make(map[string]struct{}, len(request.GetC2S().GetSecurityList()))
 		for _, security := range request.GetC2S().GetSecurityList() {
@@ -376,7 +376,8 @@ func (s *brokerRouteOpenDServer) responseForFrame(frame codec.Frame) proto.Messa
 		}
 	case opend.ProtoTrdFlowSummary:
 		request := &trdflowsummarypb.Request{}
-		_ = proto.Unmarshal(frame.Body, request)
+		jftradeErr9 := proto.Unmarshal(frame.Body, request)
+		jftradePanicOnError(jftradeErr9)
 		flows := make([]*trdflowsummarypb.FlowSummaryInfo, 0, len(s.cashFlows))
 		for _, flow := range s.cashFlows {
 			if flow == nil {
@@ -396,9 +397,10 @@ func (s *brokerRouteOpenDServer) responseForFrame(frame codec.Frame) proto.Messa
 		}
 	case opend.ProtoTrdGetMaxTrdQtys:
 		request := &trdgetmaxtrdqtyspb.Request{}
-		_ = proto.Unmarshal(frame.Body, request)
+		jftradeErr10 := proto.Unmarshal(frame.Body, request)
+		jftradePanicOnError(jftradeErr10)
 		if request.GetC2S() != nil {
-			s.lastMaxTrdQtys = proto.Clone(request.GetC2S()).(*trdgetmaxtrdqtyspb.C2S)
+			s.lastMaxTrdQtys = jftradeCheckedTypeAssertion[*trdgetmaxtrdqtyspb.C2S](proto.Clone(request.GetC2S()))
 		}
 		return &trdgetmaxtrdqtyspb.Response{
 			RetType: new(int32(0)),
@@ -410,11 +412,12 @@ func (s *brokerRouteOpenDServer) responseForFrame(frame codec.Frame) proto.Messa
 	case opend.ProtoTrdPlaceOrder:
 		s.placeOrderCalls++
 		request := &trdplaceorderpb.Request{}
-		_ = proto.Unmarshal(frame.Body, request)
+		jftradeErr11 := proto.Unmarshal(frame.Body, request)
+		jftradePanicOnError(jftradeErr11)
 		if request.GetC2S() == nil || request.GetC2S().GetPacketID().GetConnID() == 0 {
 			return &trdplaceorderpb.Response{RetType: new(int32(1)), RetMsg: new("missing packet id connID")}
 		}
-		s.lastPlaceOrder = proto.Clone(request.GetC2S()).(*trdplaceorderpb.C2S)
+		s.lastPlaceOrder = jftradeCheckedTypeAssertion[*trdplaceorderpb.C2S](proto.Clone(request.GetC2S()))
 		orderID := s.placedOrderID
 		orderIDEx := s.placedOrderIDEx
 		if orderID == 0 {
@@ -434,11 +437,12 @@ func (s *brokerRouteOpenDServer) responseForFrame(frame codec.Frame) proto.Messa
 	case opend.ProtoTrdModifyOrder:
 		s.modifyOrderCalls++
 		request := &trdmodifyorderpb.Request{}
-		_ = proto.Unmarshal(frame.Body, request)
+		jftradeErr12 := proto.Unmarshal(frame.Body, request)
+		jftradePanicOnError(jftradeErr12)
 		if request.GetC2S() == nil || request.GetC2S().GetPacketID().GetConnID() == 0 {
 			return &trdmodifyorderpb.Response{RetType: new(int32(1)), RetMsg: new("missing packet id connID")}
 		}
-		s.lastModifyOrder = proto.Clone(request.GetC2S()).(*trdmodifyorderpb.C2S)
+		s.lastModifyOrder = jftradeCheckedTypeAssertion[*trdmodifyorderpb.C2S](proto.Clone(request.GetC2S()))
 		return &trdmodifyorderpb.Response{
 			RetType: new(int32(0)),
 			S2C: &trdmodifyorderpb.S2C{

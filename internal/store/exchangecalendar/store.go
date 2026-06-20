@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -60,7 +61,7 @@ func (s *Store) LoadSnapshots() ([]marketcalendar.CalendarSnapshot, []error) {
 		snapshots []marketcalendar.CalendarSnapshot
 		errs      []error
 	)
-	_ = filepath.WalkDir(s.root, func(path string, entry fs.DirEntry, walkErr error) error {
+	jftradeErr1 := filepath.WalkDir(s.root, func(path string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			errs = append(errs, walkErr)
 			return nil
@@ -81,6 +82,7 @@ func (s *Store) LoadSnapshots() ([]marketcalendar.CalendarSnapshot, []error) {
 		snapshots = append(snapshots, snapshot)
 		return nil
 	})
+	jftradeLogError(jftradeErr1)
 	return snapshots, errs
 }
 
@@ -113,5 +115,13 @@ func snapshotYear(snapshot marketcalendar.CalendarSnapshot) int {
 		return snapshot.Schedules[0].Date.Year()
 	default:
 		return 0
+	}
+}
+
+func jftradeLogError(values ...any) {
+	for _, value := range values {
+		if err, ok := value.(error); ok && err != nil {
+			log.Printf("best-effort operation failed: %v", err)
+		}
 	}
 }

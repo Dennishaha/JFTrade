@@ -40,8 +40,9 @@ func TestBrokerIntegrationSavePersistsAndUpdatesRuntimeEnv(t *testing.T) {
 			"securityFirm":            "FUTUSECURITIES",
 		},
 	}
-	body, _ := json.Marshal(payload)
-	req, err := http.NewRequest(http.MethodPut, srv.URL+"/api/v1/settings/brokers/futu/integration", bytes.NewReader(body))
+	body, jftradeErr1 := json.Marshal(payload)
+	jftradeCheckTestError(t, jftradeErr1)
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodPut, srv.URL+"/api/v1/settings/brokers/futu/integration", bytes.NewReader(body))
 	if err != nil {
 		t.Fatalf("NewRequest: %v", err)
 	}
@@ -50,7 +51,7 @@ func TestBrokerIntegrationSavePersistsAndUpdatesRuntimeEnv(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PUT integration: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("PUT status = %d", resp.StatusCode)
 	}
@@ -62,11 +63,11 @@ func TestBrokerIntegrationSavePersistsAndUpdatesRuntimeEnv(t *testing.T) {
 		t.Fatalf("JFTRADE_FUTU_WEBSOCKET_KEY = %q", got)
 	}
 
-	resp, err = http.Get(srv.URL + "/api/v1/settings/brokers")
+	resp, err = jftradeTestHTTPGet(t, srv.URL+"/api/v1/settings/brokers")
 	if err != nil {
 		t.Fatalf("GET settings: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 
 	var response struct {
 		OK   bool `json:"ok"`
@@ -125,11 +126,11 @@ func TestBrokerSettingsExposeNullIntegrationUntilFirstSave(t *testing.T) {
 	srv := httptest.NewServer(api)
 	t.Cleanup(srv.Close)
 
-	resp, err := http.Get(srv.URL + "/api/v1/settings/brokers")
+	resp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/settings/brokers")
 	if err != nil {
 		t.Fatalf("GET settings: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("GET settings status = %d", resp.StatusCode)
 	}
@@ -169,11 +170,11 @@ func TestFutuRuntimeAndHealthStayNeutralWithoutSavedEnabledIntegration(t *testin
 	srv := httptest.NewServer(api)
 	t.Cleanup(srv.Close)
 
-	runtimeResp, err := http.Get(srv.URL + "/api/v1/brokers/futu/runtime")
+	runtimeResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/brokers/futu/runtime")
 	if err != nil {
 		t.Fatalf("GET runtime: %v", err)
 	}
-	defer runtimeResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, runtimeResp.Body.Close()) }()
 	if runtimeResp.StatusCode != http.StatusOK {
 		t.Fatalf("GET runtime status = %d", runtimeResp.StatusCode)
 	}
@@ -204,11 +205,11 @@ func TestFutuRuntimeAndHealthStayNeutralWithoutSavedEnabledIntegration(t *testin
 		t.Fatalf("runtime lastError = %v", *runtimeEnvelope.Data.Session.LastError)
 	}
 
-	healthResp, err := http.Get(srv.URL + "/api/v1/system/futu-opend")
+	healthResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/system/futu-opend")
 	if err != nil {
 		t.Fatalf("GET OpenD health: %v", err)
 	}
-	defer healthResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, healthResp.Body.Close()) }()
 	if healthResp.StatusCode != http.StatusOK {
 		t.Fatalf("GET OpenD health status = %d", healthResp.StatusCode)
 	}
@@ -268,11 +269,11 @@ func TestFutuRuntimeAndHealthStayNeutralWithoutSavedEnabledIntegration(t *testin
 		t.Fatal("expected saved integration to remain disabled")
 	}
 
-	healthResp, err = http.Get(srv.URL + "/api/v1/system/futu-opend")
+	healthResp, err = jftradeTestHTTPGet(t, srv.URL+"/api/v1/system/futu-opend")
 	if err != nil {
 		t.Fatalf("GET OpenD health after disabled save: %v", err)
 	}
-	defer healthResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, healthResp.Body.Close()) }()
 	if err := json.NewDecoder(healthResp.Body).Decode(&healthEnvelope); err != nil {
 		t.Fatalf("decode OpenD health after disabled save: %v", err)
 	}
@@ -299,12 +300,13 @@ func TestManagedBrokerAccountCRUDReflectsInBrokerSettings(t *testing.T) {
 		"securityFirm":       "FUTUSECURITIES",
 		"enabled":            true,
 	}
-	body, _ := json.Marshal(payload)
-	resp, err := http.Post(srv.URL+"/api/v1/settings/broker-accounts", "application/json", bytes.NewReader(body))
+	body, jftradeErr2 := json.Marshal(payload)
+	jftradeCheckTestError(t, jftradeErr2)
+	resp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/settings/broker-accounts", "application/json", bytes.NewReader(body))
 	if err != nil {
 		t.Fatalf("POST managed account: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("POST managed account status = %d", resp.StatusCode)
 	}
@@ -320,11 +322,11 @@ func TestManagedBrokerAccountCRUDReflectsInBrokerSettings(t *testing.T) {
 		t.Fatalf("unexpected create response: %+v", createEnvelope)
 	}
 
-	resp, err = http.Get(srv.URL + "/api/v1/settings/brokers")
+	resp, err = jftradeTestHTTPGet(t, srv.URL+"/api/v1/settings/brokers")
 	if err != nil {
 		t.Fatalf("GET broker settings: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	var settingsEnvelope struct {
 		OK   bool `json:"ok"`
 		Data struct {
@@ -350,8 +352,9 @@ func TestManagedBrokerAccountCRUDReflectsInBrokerSettings(t *testing.T) {
 		"securityFirm":       "FUTUSECURITIES",
 		"enabled":            true,
 	}
-	body, _ = json.Marshal(updatedPayload)
-	req, err := http.NewRequest(http.MethodPut, srv.URL+"/api/v1/settings/broker-accounts/"+url.PathEscape(createEnvelope.Data.ID), bytes.NewReader(body))
+	body, jftradeErr3 := json.Marshal(updatedPayload)
+	jftradeCheckTestError(t, jftradeErr3)
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodPut, srv.URL+"/api/v1/settings/broker-accounts/"+url.PathEscape(createEnvelope.Data.ID), bytes.NewReader(body))
 	if err != nil {
 		t.Fatalf("NewRequest update managed account: %v", err)
 	}
@@ -360,16 +363,16 @@ func TestManagedBrokerAccountCRUDReflectsInBrokerSettings(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PUT managed account: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("PUT managed account status = %d", resp.StatusCode)
 	}
 
-	resp, err = http.Get(srv.URL + "/api/v1/settings/brokers")
+	resp, err = jftradeTestHTTPGet(t, srv.URL+"/api/v1/settings/brokers")
 	if err != nil {
 		t.Fatalf("GET broker settings after update: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if err := json.NewDecoder(resp.Body).Decode(&settingsEnvelope); err != nil {
 		t.Fatalf("decode settings after update: %v", err)
 	}
@@ -377,7 +380,7 @@ func TestManagedBrokerAccountCRUDReflectsInBrokerSettings(t *testing.T) {
 		t.Fatalf("unexpected displayName after update = %q", got)
 	}
 
-	req, err = http.NewRequest(http.MethodDelete, srv.URL+"/api/v1/settings/broker-accounts/"+url.PathEscape(createEnvelope.Data.ID), nil)
+	req, err = http.NewRequestWithContext(t.Context(), http.MethodDelete, srv.URL+"/api/v1/settings/broker-accounts/"+url.PathEscape(createEnvelope.Data.ID), nil)
 	if err != nil {
 		t.Fatalf("NewRequest delete managed account: %v", err)
 	}
@@ -385,16 +388,16 @@ func TestManagedBrokerAccountCRUDReflectsInBrokerSettings(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DELETE managed account: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("DELETE managed account status = %d", resp.StatusCode)
 	}
 
-	resp, err = http.Get(srv.URL + "/api/v1/settings/brokers")
+	resp, err = jftradeTestHTTPGet(t, srv.URL+"/api/v1/settings/brokers")
 	if err != nil {
 		t.Fatalf("GET broker settings after delete: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if err := json.NewDecoder(resp.Body).Decode(&settingsEnvelope); err != nil {
 		t.Fatalf("decode settings after delete: %v", err)
 	}
@@ -419,8 +422,9 @@ func TestUIAppearanceSavePersistsToSettings(t *testing.T) {
 			"downColor": "#aa2200",
 		},
 	}
-	body, _ := json.Marshal(payload)
-	req, err := http.NewRequest(http.MethodPut, srv.URL+"/api/v1/settings/ui", bytes.NewReader(body))
+	body, jftradeErr4 := json.Marshal(payload)
+	jftradeCheckTestError(t, jftradeErr4)
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodPut, srv.URL+"/api/v1/settings/ui", bytes.NewReader(body))
 	if err != nil {
 		t.Fatalf("NewRequest UI appearance: %v", err)
 	}
@@ -429,7 +433,7 @@ func TestUIAppearanceSavePersistsToSettings(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PUT UI appearance: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("PUT UI appearance status = %d", resp.StatusCode)
 	}

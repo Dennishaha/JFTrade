@@ -1,6 +1,7 @@
 package servercore
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
+	// Register the modernc SQLite driver for database/sql.
 	_ "modernc.org/sqlite"
 )
 
@@ -90,7 +92,8 @@ func newExecutionOrderStoreWithDB(dbPath string) (*executionOrderStore, error) {
 	store := newExecutionOrderStore()
 	store.persistence = persistence
 	if err := store.loadFromDB(); err != nil {
-		_ = persistence.Close()
+		jftradeErr2 := persistence.Close()
+		jftradeLogError(jftradeErr2)
 		return nil, err
 	}
 	store.startPersistenceWorker()
@@ -115,7 +118,8 @@ func newExecutionOrderSQLiteStore(dbPath string) (*executionOrderSQLiteStore, er
 	}
 	store := &executionOrderSQLiteStore{db: db}
 	if err := store.migrate(); err != nil {
-		_ = db.Close()
+		jftradeErr1 := db.Close()
+		jftradeLogError(jftradeErr1)
 		return nil, fmt.Errorf("migrate execution order sqlite store: %w", err)
 	}
 	return store, nil
@@ -189,7 +193,7 @@ func (s *executionOrderSQLiteStore) migrate() error {
 		`CREATE INDEX IF NOT EXISTS idx_execution_orders_broker_order_ex ON ` + executionOrderTable + ` (broker_id, trading_environment, account_id, market, broker_order_id_ex)`,
 		`CREATE INDEX IF NOT EXISTS idx_execution_order_events_order ON ` + executionOrderEventTable + ` (internal_order_id, created_at ASC, id ASC)`,
 	} {
-		if _, err := s.db.Exec(statement); err != nil {
+		if _, err := s.db.ExecContext(context.Background(), statement); err != nil {
 			return err
 		}
 	}
@@ -235,11 +239,11 @@ func (s *executionOrderSQLiteStore) ensureExistingSchemaCanBeOpened() error {
 }
 
 func (s *executionOrderSQLiteStore) ensureSchema(tableName string, want []string) error {
-	rows, err := s.db.Query(`PRAGMA table_info(` + tableName + `)`)
+	rows, err := s.db.QueryContext(context.Background(), `PRAGMA table_info(`+tableName+`)`)
 	if err != nil {
 		return fmt.Errorf("inspect %s schema: %w", tableName, err)
 	}
-	defer rows.Close()
+	defer func() { jftradeLogError(rows.Close()) }()
 
 	got := make([]string, 0, len(want))
 	for rows.Next() {
@@ -413,7 +417,7 @@ func (s *executionOrderSQLiteStore) persistSeenFillKey(fillKey string, createdAt
 	if strings.TrimSpace(fillKey) == "" {
 		return nil
 	}
-	_, err := s.db.Exec(`INSERT OR IGNORE INTO `+executionSeenFillTable+` (fill_key, created_at) VALUES (?, ?)`, fillKey, createdAt)
+	_, err := s.db.ExecContext(context.Background(), `INSERT OR IGNORE INTO `+executionSeenFillTable+` (fill_key, created_at) VALUES (?, ?)`, fillKey, createdAt)
 	return err
 }
 
@@ -421,7 +425,7 @@ func (s *executionOrderSQLiteStore) persistSequence(name string, value uint64) e
 	if strings.TrimSpace(name) == "" {
 		return nil
 	}
-	_, err := s.db.Exec(
+	_, err := s.db.ExecContext(context.Background(),
 		`INSERT INTO `+executionSequenceTable+` (name, value) VALUES (?, ?) `+
 			`ON CONFLICT(name) DO UPDATE SET value = excluded.value`,
 		name,
@@ -434,7 +438,7 @@ func (s *executionOrderSQLiteStore) deleteSeenFillKeysBefore(cutoff time.Time) e
 	if cutoff.IsZero() {
 		return nil
 	}
-	_, err := s.db.Exec(`DELETE FROM `+executionSeenFillTable+` WHERE created_at < ?`, cutoff.UTC().Format(time.RFC3339Nano))
+	_, err := s.db.ExecContext(context.Background(), `DELETE FROM `+executionSeenFillTable+` WHERE created_at < ?`, cutoff.UTC().Format(time.RFC3339Nano))
 	return err
 }
 

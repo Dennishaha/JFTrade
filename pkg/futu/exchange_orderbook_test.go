@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/c9s/bbgo/pkg/types"
+
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
 	qotupdateorderbookpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotupdateorderbook"
 )

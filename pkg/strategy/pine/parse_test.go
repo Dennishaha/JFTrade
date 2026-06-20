@@ -101,11 +101,11 @@ strategy.close("Long", immediately=true, comment="close", alert_message="closed"
 		t.Fatalf("Compile() error = %v", err)
 	}
 	statements := compilation.Program.Hooks[0].Statements
-	entry := statements[0].(*strategyir.OrderStmt)
+	entry := jftradeCheckedTypeAssertion[*strategyir.OrderStmt](statements[0])
 	if entry.Comment != "entry" || entry.AlertMessage != "opened" || entry.DisableAlert {
 		t.Fatalf("entry metadata = %#v", entry)
 	}
-	closeOrder := statements[1].(*strategyir.OrderStmt)
+	closeOrder := jftradeCheckedTypeAssertion[*strategyir.OrderStmt](statements[1])
 	if !closeOrder.Immediate || closeOrder.Comment != "close" || closeOrder.AlertMessage != "closed" || !closeOrder.DisableAlert {
 		t.Fatalf("close metadata = %#v", closeOrder)
 	}
@@ -694,23 +694,23 @@ strategy.close_all()`)
 	if len(statements) != 5 {
 		t.Fatalf("statement count = %d", len(statements))
 	}
-	entry := statements[0].(*strategyir.OrderStmt)
+	entry := jftradeCheckedTypeAssertion[*strategyir.OrderStmt](statements[0])
 	if entry.Intent != strategyir.OrderIntentEntry || entry.QuantityMode != "account_position_percent" || entry.QuantityExpression != "25" {
 		t.Fatalf("entry = %#v", entry)
 	}
-	closeStmt := statements[1].(*strategyir.OrderStmt)
+	closeStmt := jftradeCheckedTypeAssertion[*strategyir.OrderStmt](statements[1])
 	if closeStmt.Intent != strategyir.OrderIntentClose || closeStmt.QuantityMode != "symbol_position_percent" || closeStmt.QuantityExpression != "50" {
 		t.Fatalf("close = %#v", closeStmt)
 	}
-	netShort := statements[2].(*strategyir.OrderStmt)
+	netShort := jftradeCheckedTypeAssertion[*strategyir.OrderStmt](statements[2])
 	if netShort.Intent != strategyir.OrderIntentNet || netShort.Action != strategyir.OrderActionSell || netShort.QuantityMode != "shares" || netShort.QuantityExpression != "5" {
 		t.Fatalf("net short = %#v", netShort)
 	}
-	netDefault := statements[3].(*strategyir.OrderStmt)
+	netDefault := jftradeCheckedTypeAssertion[*strategyir.OrderStmt](statements[3])
 	if netDefault.Intent != strategyir.OrderIntentNet || netDefault.Action != strategyir.OrderActionBuy || netDefault.QuantityMode != "account_position_percent" || netDefault.QuantityExpression != "10" {
 		t.Fatalf("net default = %#v", netDefault)
 	}
-	flatten := statements[4].(*strategyir.OrderStmt)
+	flatten := jftradeCheckedTypeAssertion[*strategyir.OrderStmt](statements[4])
 	if flatten.Intent != strategyir.OrderIntentFlatten || flatten.QuantityMode != "symbol_position_percent" || flatten.QuantityExpression != "100" {
 		t.Fatalf("flatten = %#v", flatten)
 	}
@@ -2172,16 +2172,16 @@ if close > close[1]
 		t.Fatalf("Compile() error = %v", err)
 	}
 	statements := compilation.Program.Hooks[0].Statements
-	if got := statements[0].(*strategyir.LetStmt).Mode; got != strategyir.AssignmentModeVar {
+	if got := jftradeCheckedTypeAssertion[*strategyir.LetStmt](statements[0]).Mode; got != strategyir.AssignmentModeVar {
 		t.Fatalf("first assignment mode = %q", got)
 	}
-	if got := statements[1].(*strategyir.LetStmt).Mode; got != strategyir.AssignmentModeReassign {
+	if got := jftradeCheckedTypeAssertion[*strategyir.LetStmt](statements[1]).Mode; got != strategyir.AssignmentModeReassign {
 		t.Fatalf("second assignment mode = %q", got)
 	}
-	if got := statements[2].(*strategyir.LetStmt).Expression; got != "ifelse(history(close, 1) == na, 0, nz(history(close, 1), close))" {
+	if got := jftradeCheckedTypeAssertion[*strategyir.LetStmt](statements[2]).Expression; got != "ifelse(history(close, 1) == na, 0, nz(history(close, 1), close))" {
 		t.Fatalf("signal expression = %q", got)
 	}
-	ifStmt := statements[3].(*strategyir.IfStmt)
+	ifStmt := jftradeCheckedTypeAssertion[*strategyir.IfStmt](statements[3])
 	if ifStmt.Condition != "close > history(close, 1)" {
 		t.Fatalf("condition = %q", ifStmt.Condition)
 	}
@@ -2548,10 +2548,18 @@ deeper = "close[2]"`)
 		t.Fatalf("Compile() error = %v", err)
 	}
 	statements := compilation.Program.Hooks[0].Statements
-	if got := statements[0].(*strategyir.LetStmt).Expression; got != `"close[1]"` {
+	if got := jftradeCheckedTypeAssertion[*strategyir.LetStmt](statements[0]).Expression; got != `"close[1]"` {
 		t.Fatalf("label expression = %q", got)
 	}
-	if got := statements[1].(*strategyir.LetStmt).Expression; got != `"close[2]"` {
+	if got := jftradeCheckedTypeAssertion[*strategyir.LetStmt](statements[1]).Expression; got != `"close[2]"` {
 		t.Fatalf("deeper expression = %q", got)
 	}
+}
+
+func jftradeCheckedTypeAssertion[T any](value any) T {
+	typed, ok := value.(T)
+	if !ok {
+		panic("unexpected dynamic type")
+	}
+	return typed
 }

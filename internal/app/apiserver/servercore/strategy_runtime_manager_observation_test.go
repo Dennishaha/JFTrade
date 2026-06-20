@@ -3,7 +3,6 @@ package servercore
 import (
 	"context"
 	"encoding/json"
-	"net/http"
 	"net/http/httptest"
 	"path/filepath"
 	"strings"
@@ -43,11 +42,11 @@ func TestStrategyRuntimeObservationAppearsInStrategiesAndSystemStatus(t *testing
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
-	strategiesResp, err := http.Get(srv.URL + "/api/v1/strategies")
+	strategiesResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/strategies")
 	if err != nil {
 		t.Fatalf("GET strategies: %v", err)
 	}
-	defer strategiesResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, strategiesResp.Body.Close()) }()
 	var strategiesEnvelope struct {
 		OK   bool               `json:"ok"`
 		Data []strategyListItem `json:"data"`
@@ -75,11 +74,11 @@ func TestStrategyRuntimeObservationAppearsInStrategiesAndSystemStatus(t *testing
 		t.Fatalf("notify_only should not have lastOrderAt, got %+v", observation.LastOrderAt)
 	}
 
-	statusResp, err := http.Get(srv.URL + "/api/v1/system/status")
+	statusResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/system/status")
 	if err != nil {
 		t.Fatalf("GET system status: %v", err)
 	}
-	defer statusResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, statusResp.Body.Close()) }()
 	var statusEnvelope struct {
 		OK   bool           `json:"ok"`
 		Data map[string]any `json:"data"`
@@ -91,7 +90,7 @@ func TestStrategyRuntimeObservationAppearsInStrategiesAndSystemStatus(t *testing
 	if !ok {
 		t.Fatalf("expected strategyRuntime summary, got %+v", statusEnvelope.Data["strategyRuntime"])
 	}
-	if got := int(strategyRuntime["activeStrategies"].(float64)); got != 1 {
+	if got := int(jftradeCheckedTypeAssertion[float64](strategyRuntime["activeStrategies"])); got != 1 {
 		t.Fatalf("activeStrategies = %d, want 1", got)
 	}
 	activeInstances, ok := strategyRuntime["activeInstances"].([]any)
@@ -166,7 +165,7 @@ func TestStrategyRuntimeObservationPersistsAcrossServerRestart(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected strategyRuntime summary, got %+v", reloadedServer.sysSvc.Status()["strategyRuntime"])
 	}
-	if got := strategyRuntime["activeStrategies"].(int); got != 0 {
+	if got := jftradeCheckedTypeAssertion[int](strategyRuntime["activeStrategies"]); got != 0 {
 		t.Fatalf("activeStrategies after reload = %d, want 0", got)
 	}
 }
@@ -243,7 +242,7 @@ func TestStrategyRuntimePanicAutoReconcilesToStopped(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected strategyRuntime summary, got %+v", server.sysSvc.Status()["strategyRuntime"])
 	}
-	if got := strategyRuntime["activeStrategies"].(int); got != 0 {
+	if got := jftradeCheckedTypeAssertion[int](strategyRuntime["activeStrategies"]); got != 0 {
 		t.Fatalf("activeStrategies after panic = %d, want 0", got)
 	}
 }

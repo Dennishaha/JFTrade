@@ -10,6 +10,7 @@ import (
 	"syscall"
 
 	"github.com/c9s/bbgo/pkg/cmd"
+
 	"github.com/jftrade/jftrade-main/internal/app/apiserver"
 
 	// Side-effect imports register plugins with bbgo at init() time.
@@ -23,7 +24,8 @@ import (
 
 func main() {
 	if os.Getenv("DISABLE_MARKETS_CACHE") == "" {
-		_ = os.Setenv("DISABLE_MARKETS_CACHE", "1")
+		jftradeErr1 := os.Setenv("DISABLE_MARKETS_CACHE", "1")
+		jftradeLogError(jftradeErr1)
 	}
 	if shouldRunAPIOnly(os.Args[1:]) {
 		runAPIOnly()
@@ -52,5 +54,13 @@ func runAPIOnly() {
 
 	if err := apiserver.RunAPIOnly(ctx); err != nil {
 		log.Fatalf("JFTrade API adapter failed: %v", err)
+	}
+}
+
+func jftradeLogError(values ...any) {
+	for _, value := range values {
+		if err, ok := value.(error); ok && err != nil {
+			log.Printf("best-effort operation failed: %v", err)
+		}
 	}
 }

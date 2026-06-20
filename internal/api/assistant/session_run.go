@@ -50,7 +50,8 @@ func (h *Handler) handleADKCreateSession(c *gin.Context) {
 		AgentID string `json:"agentId"`
 		Title   string `json:"title"`
 	}
-	_ = c.ShouldBindJSON(&payload)
+	jftradeErr1 := c.ShouldBindJSON(&payload)
+	jftradeLogError(jftradeErr1)
 	session, err := h.service.CreateSession(c.Request.Context(), asstsvc.CreateSessionRequest{
 		AgentID: payload.AgentID,
 		Title:   payload.Title,
@@ -117,7 +118,8 @@ func (h *Handler) handleADKCompactSessionContext(c *gin.Context) {
 		Mode   string `json:"mode"`
 		Reason string `json:"reason"`
 	}
-	_ = c.ShouldBindJSON(&payload)
+	jftradeErr2 := c.ShouldBindJSON(&payload)
+	jftradeLogError(jftradeErr2)
 	snapshot, err := h.service.CompactSessionContext(
 		c.Request.Context(),
 		uri.SessionID,

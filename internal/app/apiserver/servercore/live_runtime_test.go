@@ -35,9 +35,9 @@ func TestLiveStreamDiagnosticsUseConfiguredLimit(t *testing.T) {
 	httpServer := httptest.NewServer(server)
 	defer httpServer.Close()
 	first := dialLiveWebSocket(t, httpServer.URL)
-	defer first.Close()
+	defer func() { jftradeCheckTestError(t, first.Close()) }()
 	second := dialLiveWebSocket(t, httpServer.URL)
-	defer second.Close()
+	defer func() { jftradeCheckTestError(t, second.Close()) }()
 
 	deadline := time.Now().Add(time.Second)
 	for {

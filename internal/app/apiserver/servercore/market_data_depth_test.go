@@ -24,11 +24,11 @@ func TestMarketDepthEndpointRouting(t *testing.T) {
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
-	resp, err := http.Get(srv.URL + "/api/v1/market-data/depth/US/NVDA?num=5")
+	resp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/market-data/depth/US/NVDA?num=5")
 	if err != nil {
 		t.Fatalf("GET depth: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 
 	// Without a configured OpenD the handler should return 502, NOT 404.
 	if resp.StatusCode == http.StatusNotFound {
@@ -49,11 +49,11 @@ func TestMarketDepthEndpointMethodNotAllowed(t *testing.T) {
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
-	resp, err := http.Post(srv.URL+"/api/v1/market-data/depth/US/NVDA", "application/json", nil)
+	resp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/market-data/depth/US/NVDA", "application/json", nil)
 	if err != nil {
 		t.Fatalf("POST depth: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("POST to depth endpoint should return 404, got %d", resp.StatusCode)
@@ -69,12 +69,13 @@ func TestMarketDepthEndpointPutNotAllowed(t *testing.T) {
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
-	req, _ := http.NewRequest(http.MethodPut, srv.URL+"/api/v1/market-data/depth/US/NVDA", nil)
+	req, jftradeErr1 := http.NewRequestWithContext(t.Context(), http.MethodPut, srv.URL+"/api/v1/market-data/depth/US/NVDA", nil)
+	jftradeCheckTestError(t, jftradeErr1)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatalf("PUT depth: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("PUT to depth endpoint should return 404, got %d", resp.StatusCode)
@@ -128,11 +129,11 @@ func TestMarketDepthResponseWithMockOpenD(t *testing.T) {
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
-	resp, err := http.Get(srv.URL + "/api/v1/market-data/depth/US/NVDA?num=10")
+	resp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/market-data/depth/US/NVDA?num=10")
 	if err != nil {
 		t.Fatalf("GET depth: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("depth endpoint returned %d", resp.StatusCode)
@@ -266,7 +267,7 @@ func TestMarketDepthWebSocketSendsInitialPayload(t *testing.T) {
 	t.Cleanup(srv.Close)
 
 	conn := dialLiveWebSocket(t, srv.URL)
-	defer conn.Close()
+	defer func() { jftradeCheckTestError(t, conn.Close()) }()
 
 	if err := conn.WriteJSON(liveWebSocketClientMessage{
 		Type: "subscribe",
@@ -287,15 +288,15 @@ func TestMarketDepthWebSocketSendsInitialPayload(t *testing.T) {
 	if event["type"] != "market.depth" {
 		t.Fatalf("unexpected websocket event: %+v", event)
 	}
-	request, _ := event["request"].(map[string]any)
+	request := jftradeCheckedTypeAssertion[map[string]any](event["request"])
 	if request == nil || request["instrumentId"] != "US.TME" {
 		t.Fatalf("unexpected request payload: %+v", event["request"])
 	}
-	depth, _ := event["depth"].(map[string]any)
+	depth := jftradeCheckedTypeAssertion[map[string]any](event["depth"])
 	if depth == nil {
 		t.Fatalf("missing depth payload: %+v", event)
 	}
-	bids, _ := depth["bids"].([]any)
+	bids := jftradeCheckedTypeAssertion[[]any](depth["bids"])
 	if len(bids) != 1 {
 		t.Fatalf("bids len = %d, want 1", len(bids))
 	}
@@ -363,11 +364,11 @@ func TestMarketDepthNumClamping(t *testing.T) {
 			if tt.queryNum != "" {
 				url += "?num=" + tt.queryNum
 			}
-			resp, err := http.Get(url)
+			resp, err := jftradeTestHTTPGet(t, url)
 			if err != nil {
 				t.Fatalf("GET depth: %v", err)
 			}
-			defer resp.Body.Close()
+			defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 
 			if resp.StatusCode != tt.expectCode {
 				t.Errorf("status = %d, want %d", resp.StatusCode, tt.expectCode)
@@ -437,11 +438,11 @@ func TestMarketDepthSymbolCasing(t *testing.T) {
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
-	resp, err := http.Get(srv.URL + "/api/v1/market-data/depth/us/nvda?num=5")
+	resp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/market-data/depth/us/nvda?num=5")
 	if err != nil {
 		t.Fatalf("GET depth: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("lowercase depth endpoint returned %d", resp.StatusCode)
@@ -519,11 +520,11 @@ func TestMarketDepthHKMarket(t *testing.T) {
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
-	resp, err := http.Get(srv.URL + "/api/v1/market-data/depth/HK/00700?num=5")
+	resp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/market-data/depth/HK/00700?num=5")
 	if err != nil {
 		t.Fatalf("GET depth: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("depth endpoint returned %d", resp.StatusCode)
@@ -606,11 +607,11 @@ func TestMarketDepthEmptyOrderBook(t *testing.T) {
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
-	resp, err := http.Get(srv.URL + "/api/v1/market-data/depth/US/AAPL?num=10")
+	resp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/market-data/depth/US/AAPL?num=10")
 	if err != nil {
 		t.Fatalf("GET depth: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("empty order book endpoint returned %d", resp.StatusCode)
@@ -678,11 +679,11 @@ func TestMarketDepthOpenDError(t *testing.T) {
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
-	resp, err := http.Get(srv.URL + "/api/v1/market-data/depth/US/NVDA?num=5")
+	resp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/market-data/depth/US/NVDA?num=5")
 	if err != nil {
 		t.Fatalf("GET depth: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 
 	// Should get 502 when OpenD returns error
 	if resp.StatusCode != http.StatusBadGateway {
@@ -721,11 +722,11 @@ func TestMarketDepthRouteDoesNotCollide(t *testing.T) {
 	t.Cleanup(srv.Close)
 
 	// /api/v1/market-data/depths should NOT match the depth route (different prefix)
-	resp, err := http.Get(srv.URL + "/api/v1/market-data/depths")
+	resp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/market-data/depths")
 	if err != nil {
 		t.Fatalf("GET depths: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 
 	if resp.StatusCode != http.StatusNotFound {
 		t.Errorf("/api/v1/market-data/depths returned %d, want 404 (should not collide with depth route)", resp.StatusCode)

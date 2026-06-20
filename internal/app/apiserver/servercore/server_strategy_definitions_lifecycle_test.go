@@ -31,11 +31,11 @@ func TestInstantiatePineStrategyDefinitionBuildsCompiledPlan(t *testing.T) {
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
-	resp, err := http.Post(srv.URL+"/api/v1/strategy-definitions/pine-breakout/instantiate", "application/json", bytes.NewReader([]byte(`{"instruments":[{"market":"US","code":"AAPL"},{"market":"HK","code":"00700"}],"interval":"15m","executionMode":"notify_only","brokerAccount":{"brokerId":"futu","accountId":"123456","tradingEnvironment":"simulate","market":"us"}}`)))
+	resp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/strategy-definitions/pine-breakout/instantiate", "application/json", bytes.NewReader([]byte(`{"instruments":[{"market":"US","code":"AAPL"},{"market":"HK","code":"00700"}],"interval":"15m","executionMode":"notify_only","brokerAccount":{"brokerId":"futu","accountId":"123456","tradingEnvironment":"simulate","market":"us"}}`)))
 	if err != nil {
 		t.Fatalf("POST instantiate Pine strategy: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("POST instantiate Pine strategy status = %d, want %d", resp.StatusCode, http.StatusOK)
 	}
@@ -105,7 +105,7 @@ func TestInstantiatePineStrategyDefinitionBuildsCompiledPlan(t *testing.T) {
 	}
 
 	instanceID := envelope.Data.ID
-	updateRequest, err := http.NewRequest(http.MethodPut, srv.URL+"/api/v1/strategies/"+instanceID, bytes.NewReader([]byte(`{"instruments":[{"market":"US","code":"MSFT"}],"interval":"30m","executionMode":"live"}`)))
+	updateRequest, err := http.NewRequestWithContext(t.Context(), http.MethodPut, srv.URL+"/api/v1/strategies/"+instanceID, bytes.NewReader([]byte(`{"instruments":[{"market":"US","code":"MSFT"}],"interval":"30m","executionMode":"live"}`)))
 	if err != nil {
 		t.Fatalf("build PUT strategy request: %v", err)
 	}
@@ -114,7 +114,7 @@ func TestInstantiatePineStrategyDefinitionBuildsCompiledPlan(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PUT strategy binding: %v", err)
 	}
-	defer updateResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, updateResp.Body.Close()) }()
 	if updateResp.StatusCode != http.StatusOK {
 		t.Fatalf("PUT strategy binding status = %d, want %d", updateResp.StatusCode, http.StatusOK)
 	}
@@ -139,11 +139,11 @@ func TestInstantiatePineStrategyDefinitionBuildsCompiledPlan(t *testing.T) {
 	}
 
 	assertTransition := func(action string, expectedStatus string) {
-		transitionResp, transitionErr := http.Post(srv.URL+"/api/v1/strategies/"+instanceID+"/"+action, "application/json", bytes.NewReader([]byte(`{}`)))
+		transitionResp, transitionErr := jftradeTestHTTPPost(t, srv.URL+"/api/v1/strategies/"+instanceID+"/"+action, "application/json", bytes.NewReader([]byte(`{}`)))
 		if transitionErr != nil {
 			t.Fatalf("POST Pine %s: %v", action, transitionErr)
 		}
-		defer transitionResp.Body.Close()
+		defer func() { jftradeCheckTestError(t, transitionResp.Body.Close()) }()
 		if transitionResp.StatusCode != http.StatusOK {
 			t.Fatalf("POST Pine %s status = %d, want %d", action, transitionResp.StatusCode, http.StatusOK)
 		}
@@ -178,7 +178,7 @@ func TestInstantiatePineStrategyDefinitionBuildsCompiledPlan(t *testing.T) {
 	}
 	assertTransition("stop", strategyStatusStopped)
 
-	deleteRequest, err := http.NewRequest(http.MethodDelete, srv.URL+"/api/v1/strategies/"+instanceID, nil)
+	deleteRequest, err := http.NewRequestWithContext(t.Context(), http.MethodDelete, srv.URL+"/api/v1/strategies/"+instanceID, nil)
 	if err != nil {
 		t.Fatalf("build DELETE strategy request: %v", err)
 	}
@@ -186,7 +186,7 @@ func TestInstantiatePineStrategyDefinitionBuildsCompiledPlan(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DELETE strategy: %v", err)
 	}
-	defer deleteResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, deleteResp.Body.Close()) }()
 	if deleteResp.StatusCode != http.StatusOK {
 		t.Fatalf("DELETE strategy status = %d, want %d", deleteResp.StatusCode, http.StatusOK)
 	}
@@ -200,11 +200,11 @@ func TestInstantiatePineStrategyDefinitionBuildsCompiledPlan(t *testing.T) {
 	if deleteEnvelope.Data.ID != instanceID {
 		t.Fatalf("unexpected deleted strategy response: %+v", deleteEnvelope.Data)
 	}
-	listResp, err := http.Get(srv.URL + "/api/v1/strategies")
+	listResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/strategies")
 	if err != nil {
 		t.Fatalf("GET strategies after delete: %v", err)
 	}
-	defer listResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, listResp.Body.Close()) }()
 	var listEnvelope struct {
 		OK   bool               `json:"ok"`
 		Data []strategyListItem `json:"data"`
@@ -236,12 +236,19 @@ func TestInstantiateStrategyDefinitionRejectsMalformedJSON(t *testing.T) {
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
-	resp, err := http.Post(srv.URL+"/api/v1/strategy-definitions/pine-malformed-binding/instantiate", "application/json", bytes.NewReader([]byte(`{"interval":`)))
+	resp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/strategy-definitions/pine-malformed-binding/instantiate", "application/json", bytes.NewReader([]byte(`{"interval":`)))
 	if err != nil {
 		t.Fatalf("POST instantiate malformed JSON: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("POST malformed instantiate status = %d, want %d", resp.StatusCode, http.StatusBadRequest)
+	}
+}
+
+func jftradeCheckTestError(t testing.TB, err error) {
+	t.Helper()
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
 	}
 }

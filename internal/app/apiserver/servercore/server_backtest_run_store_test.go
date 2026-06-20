@@ -61,7 +61,8 @@ func TestNewServerReloadsPersistedBacktestRuns(t *testing.T) {
 	}
 
 	// Close the first server so the reloaded store can acquire the DB on Windows.
-	_ = server.Close()
+	jftradeErr1 := server.Close()
+	jftradeCheckTestError(t, jftradeErr1)
 
 	reloadedStore, err := NewSettingsStore(settingsPath)
 	if err != nil {
@@ -131,7 +132,7 @@ func TestBacktestRouteDeletesTerminalRuns(t *testing.T) {
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
-	deleteReq, err := http.NewRequest(http.MethodDelete, srv.URL+"/api/v1/backtests/"+completedRun.ID, nil)
+	deleteReq, err := http.NewRequestWithContext(t.Context(), http.MethodDelete, srv.URL+"/api/v1/backtests/"+completedRun.ID, nil)
 	if err != nil {
 		t.Fatalf("build delete backtest request: %v", err)
 	}
@@ -139,7 +140,7 @@ func TestBacktestRouteDeletesTerminalRuns(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DELETE backtest: %v", err)
 	}
-	defer deleteResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, deleteResp.Body.Close()) }()
 	if deleteResp.StatusCode != http.StatusOK {
 		t.Fatalf("DELETE backtest status = %d, want %d", deleteResp.StatusCode, http.StatusOK)
 	}
@@ -161,7 +162,7 @@ func TestBacktestRouteDeletesTerminalRuns(t *testing.T) {
 		t.Fatal("expected completed backtest run to be removed")
 	}
 
-	blockedReq, err := http.NewRequest(http.MethodDelete, srv.URL+"/api/v1/backtests/"+runningRun.ID, nil)
+	blockedReq, err := http.NewRequestWithContext(t.Context(), http.MethodDelete, srv.URL+"/api/v1/backtests/"+runningRun.ID, nil)
 	if err != nil {
 		t.Fatalf("build delete running backtest request: %v", err)
 	}
@@ -169,7 +170,7 @@ func TestBacktestRouteDeletesTerminalRuns(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DELETE running backtest: %v", err)
 	}
-	defer blockedResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, blockedResp.Body.Close()) }()
 	if blockedResp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("DELETE running backtest status = %d, want %d", blockedResp.StatusCode, http.StatusBadRequest)
 	}
@@ -213,11 +214,11 @@ func TestBacktestListReturnsLightweightRunsAndResultReturnsDetail(t *testing.T) 
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
-	listResp, err := http.Get(srv.URL + "/api/v1/backtests")
+	listResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/backtests")
 	if err != nil {
 		t.Fatalf("GET backtests: %v", err)
 	}
-	defer listResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, listResp.Body.Close()) }()
 	if listResp.StatusCode != http.StatusOK {
 		t.Fatalf("GET backtests status = %d", listResp.StatusCode)
 	}
@@ -236,11 +237,11 @@ func TestBacktestListReturnsLightweightRunsAndResultReturnsDetail(t *testing.T) 
 		t.Fatalf("list response included result: %+v", listEnvelope.Data.Runs[0].Result)
 	}
 
-	detailResp, err := http.Get(srv.URL + "/api/v1/backtests/" + run.ID)
+	detailResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/backtests/"+run.ID)
 	if err != nil {
 		t.Fatalf("GET backtest detail: %v", err)
 	}
-	defer detailResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, detailResp.Body.Close()) }()
 	if detailResp.StatusCode != http.StatusOK {
 		t.Fatalf("GET backtest detail status = %d", detailResp.StatusCode)
 	}

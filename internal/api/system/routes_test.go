@@ -148,7 +148,7 @@ func newSystemRouteTestRouter() (*gin.Engine, *bool) {
 }
 
 func performSystemRouteRequest(router http.Handler, method string, path string) *httptest.ResponseRecorder {
-	req := httptest.NewRequest(method, path, nil)
+	req := httptest.NewRequestWithContext(context.Background(), method, path, nil)
 	resp := httptest.NewRecorder()
 	router.ServeHTTP(resp, req)
 	return resp

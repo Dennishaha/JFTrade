@@ -20,13 +20,6 @@ func decimalPositive(value *decimal.Decimal) bool {
 	return value != nil && value.GreaterThan(decimal.Zero)
 }
 
-func decimalValueOrZero(value *decimal.Decimal) decimal.Decimal {
-	if value == nil {
-		return decimal.Zero
-	}
-	return *value
-}
-
 func fixedpointFromDecimal(value decimal.Decimal) fixedpoint.Value {
 	return fixedpoint.MustNewFromString(value.String())
 }

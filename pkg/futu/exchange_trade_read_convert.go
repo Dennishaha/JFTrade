@@ -80,7 +80,7 @@ func bbgoOrderFromBrokerOrder(order BrokerOrderSnapshot) types.Order {
 		Status:           bbgoOrderStatusFromBrokerOrderStatus(order.Status),
 		OriginalStatus:   order.Status,
 		ExecutedQuantity: fixedpoint.NewFromFloat(optionalFloat64Value(order.FilledQuantity)),
-		IsWorking:        bbgoOrderStatusFromBrokerOrderStatus(order.Status).Closed() == false,
+		IsWorking:        !bbgoOrderStatusFromBrokerOrderStatus(order.Status).Closed(),
 		CreationTime:     types.Time(createdAt),
 		UpdateTime:       types.Time(updatedAt),
 	}

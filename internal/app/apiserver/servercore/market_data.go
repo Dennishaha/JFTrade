@@ -20,10 +20,6 @@ func marketSecurityDetailsPathTail(path string) (string, string) {
 	return pathTail(path, "/api/v1/market-data/securities/")
 }
 
-func marketDepthPathTail(path string) (string, string) {
-	return pathTail(path, "/api/v1/market-data/depth/")
-}
-
 func (s *Server) marketSecurityDetailsResponse(ctx context.Context, path string) (map[string]any, error) {
 	market, symbol := marketSecurityDetailsPathTail(path)
 	return s.marketSecurityDetailsResponseForInstrument(ctx, market, symbol)
@@ -71,18 +67,18 @@ func (s *Server) marketCandlesResponseForInstrument(ctx context.Context, market 
 	period := query.normalizedPeriod()
 	limit := query.limitOrDefault(200, 1000)
 	fromTime := ""
-	if !query.FromTime.Time.IsZero() {
-		fromTime = query.FromTime.Time.Format(time.RFC3339Nano)
+	if !query.FromTime.IsZero() {
+		fromTime = query.FromTime.Format(time.RFC3339Nano)
 	}
-	if !query.From.Time.IsZero() {
-		fromTime = query.From.Time.Format(time.RFC3339Nano)
+	if !query.From.IsZero() {
+		fromTime = query.From.Format(time.RFC3339Nano)
 	}
 	toTime := ""
-	if !query.ToTime.Time.IsZero() {
-		toTime = query.ToTime.Time.Format(time.RFC3339Nano)
+	if !query.ToTime.IsZero() {
+		toTime = query.ToTime.Format(time.RFC3339Nano)
 	}
-	if !query.To.Time.IsZero() {
-		toTime = query.To.Time.Format(time.RFC3339Nano)
+	if !query.To.IsZero() {
+		toTime = query.To.Format(time.RFC3339Nano)
 	}
 	response, err := s.marketdataSvc.GetCandles(ctx, market, symbol, period, limit, fromTime, toTime)
 	return map[string]any(response), err
@@ -175,11 +171,6 @@ func (s *Server) futuExchange() *futu.Exchange {
 }
 
 // --- Depth (Order Book) ---
-
-func (s *Server) marketDepthResponse(ctx context.Context, path string, query map[string][]string) (map[string]any, error) {
-	market, symbol := marketDepthPathTail(path)
-	return s.marketDepthResponseForInstrument(ctx, market, symbol, decodeMarketDepthQuery(query))
-}
 
 func (s *Server) marketDepthResponseForInstrument(ctx context.Context, market string, symbol string, query marketDepthQuery) (map[string]any, error) {
 	market = strings.ToUpper(strings.TrimSpace(market))

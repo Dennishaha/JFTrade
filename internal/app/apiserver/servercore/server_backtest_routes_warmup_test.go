@@ -11,6 +11,7 @@ import (
 
 	"github.com/c9s/bbgo/pkg/fixedpoint"
 	bbgotypes "github.com/c9s/bbgo/pkg/types"
+
 	"github.com/jftrade/jftrade-main/pkg/backtest"
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 )
@@ -73,7 +74,8 @@ strategy.entry("Long", strategy.long, qty=1)`,
 		})
 	}
 	if err := klineStore.InsertKLines(klines, "forward"); err != nil {
-		_ = klineStore.Close()
+		jftradeErr1 := klineStore.Close()
+		jftradeCheckTestError(t, jftradeErr1)
 		t.Fatalf("InsertKLines: %v", err)
 	}
 	if err := klineStore.Close(); err != nil {
@@ -83,7 +85,7 @@ strategy.entry("Long", strategy.long, qty=1)`,
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
-	body, _ := json.Marshal(map[string]any{
+	body, jftradeErr2 := json.Marshal(map[string]any{
 		"definitionId":   "dsl-auto-warmup-route",
 		"symbol":         "US.AAPL",
 		"interval":       "1m",
@@ -92,11 +94,12 @@ strategy.entry("Long", strategy.long, qty=1)`,
 		"initialBalance": 10000,
 		"rehabType":      "forward",
 	})
-	createResp, err := http.Post(srv.URL+"/api/v1/backtests", "application/json", bytes.NewReader(body))
+	jftradeCheckTestError(t, jftradeErr2)
+	createResp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/backtests", "application/json", bytes.NewReader(body))
 	if err != nil {
 		t.Fatalf("POST backtest: %v", err)
 	}
-	defer createResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, createResp.Body.Close()) }()
 	if createResp.StatusCode != http.StatusOK {
 		t.Fatalf("POST backtest status = %d", createResp.StatusCode)
 	}
@@ -116,19 +119,19 @@ strategy.entry("Long", strategy.long, qty=1)`,
 	}
 	deadline := time.Now().Add(5 * time.Second)
 	for time.Now().Before(deadline) {
-		resultResp, err := http.Get(srv.URL + "/api/v1/backtests/" + createEnvelope.Data.ID)
+		resultResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/backtests/"+createEnvelope.Data.ID)
 		if err != nil {
 			t.Fatalf("GET backtest result: %v", err)
 		}
 		if resultResp.StatusCode != http.StatusOK {
-			resultResp.Body.Close()
+			jftradeCheckTestError(t, resultResp.Body.Close())
 			t.Fatalf("GET backtest result status = %d", resultResp.StatusCode)
 		}
 		if err := json.NewDecoder(resultResp.Body).Decode(&runEnvelope); err != nil {
-			resultResp.Body.Close()
+			jftradeCheckTestError(t, resultResp.Body.Close())
 			t.Fatalf("decode backtest result: %v", err)
 		}
-		resultResp.Body.Close()
+		jftradeCheckTestError(t, resultResp.Body.Close())
 		if runEnvelope.Data.Status == "completed" || runEnvelope.Data.Status == "failed" {
 			break
 		}

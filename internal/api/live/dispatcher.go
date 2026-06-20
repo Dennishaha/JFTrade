@@ -38,8 +38,8 @@ type dispatcher struct {
 }
 
 func newDispatcher(
-	handler *Handler,
 	requestCtx context.Context,
+	handler *Handler,
 	conn *websocket.Conn,
 	client *livecore.Client,
 	clientClosed <-chan struct{},
@@ -257,7 +257,7 @@ func cloneEventMap(value map[string]any) map[string]any {
 }
 
 func eventResolvedAt(value map[string]any) string {
-	meta, _ := value["meta"].(map[string]any)
-	resolvedAt, _ := meta["resolvedAt"].(string)
+	meta := jftradeOptionalTypeAssertion[map[string]any](value["meta"])
+	resolvedAt := jftradeOptionalTypeAssertion[string](meta["resolvedAt"])
 	return resolvedAt
 }

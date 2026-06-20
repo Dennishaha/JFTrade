@@ -147,7 +147,7 @@ func TestQueryTickerReusesSingleOpenDConnection(t *testing.T) {
 	defer server.stop()
 
 	ex := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
-	defer ex.Close()
+	defer func() { jftradeCheckTestError(t, ex.Close()) }()
 
 	firstTicker, err := ex.QueryTicker(t.Context(), "HK.00700")
 	if err != nil {
@@ -192,7 +192,7 @@ func TestDiscoverAccountsReusesSingleOpenDConnection(t *testing.T) {
 	defer server.stop()
 
 	ex := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
-	defer ex.Close()
+	defer func() { jftradeCheckTestError(t, ex.Close()) }()
 
 	accounts, err := ex.DiscoverAccounts(t.Context())
 	if err != nil {
@@ -258,7 +258,7 @@ func TestQueryAccountBalancesUsesOpenDFundsSnapshot(t *testing.T) {
 	defer server.stop()
 
 	ex := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
-	defer ex.Close()
+	defer func() { jftradeCheckTestError(t, ex.Close()) }()
 
 	balances, err := ex.QueryAccountBalances(t.Context())
 	if err != nil {
@@ -323,7 +323,7 @@ func TestQueryOpenOrdersReturnsActiveOrders(t *testing.T) {
 	defer server.stop()
 
 	ex := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
-	defer ex.Close()
+	defer func() { jftradeCheckTestError(t, ex.Close()) }()
 
 	orders, err := ex.QueryOpenOrders(t.Context(), "HK.00700")
 	if err != nil {
@@ -405,7 +405,7 @@ func TestQueryBrokerHistoryOrdersReturnsHistoricalOrders(t *testing.T) {
 	defer server.stop()
 
 	ex := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
-	defer ex.Close()
+	defer func() { jftradeCheckTestError(t, ex.Close()) }()
 
 	orders, err := ex.QueryBrokerHistoryOrders(t.Context(), BrokerOrderHistoryQuery{
 		BrokerReadQuery: BrokerReadQuery{TradingEnvironment: "SIMULATE", AccountID: "1001", Market: "HK"},
@@ -451,7 +451,7 @@ func TestQueryBrokerHistoryOrderFillsReturnsHistoricalFills(t *testing.T) {
 	defer server.stop()
 
 	ex := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
-	defer ex.Close()
+	defer func() { jftradeCheckTestError(t, ex.Close()) }()
 
 	fills, err := ex.QueryBrokerHistoryOrderFills(t.Context(), BrokerOrderFillHistoryQuery{
 		BrokerReadQuery: BrokerReadQuery{TradingEnvironment: "SIMULATE", AccountID: "1001", Market: "HK"},
@@ -495,7 +495,7 @@ func TestQueryBrokerOrderFeesReturnsFeeBreakdown(t *testing.T) {
 	defer server.stop()
 
 	ex := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
-	defer ex.Close()
+	defer func() { jftradeCheckTestError(t, ex.Close()) }()
 
 	fees, err := ex.QueryBrokerOrderFees(t.Context(), BrokerOrderFeeQuery{
 		BrokerReadQuery: BrokerReadQuery{TradingEnvironment: "SIMULATE", AccountID: "1001", Market: "HK"},
@@ -543,7 +543,7 @@ func TestQueryBrokerMarginRatiosReturnsMarginData(t *testing.T) {
 	defer server.stop()
 
 	ex := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
-	defer ex.Close()
+	defer func() { jftradeCheckTestError(t, ex.Close()) }()
 
 	ratios, err := ex.QueryBrokerMarginRatios(t.Context(), BrokerMarginRatioQuery{Symbols: []string{"HK.00700"}})
 	if err != nil {
@@ -586,7 +586,7 @@ func TestQueryBrokerMarginRatiosSkipsUnknownStock(t *testing.T) {
 	defer server.stop()
 
 	ex := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
-	defer ex.Close()
+	defer func() { jftradeCheckTestError(t, ex.Close()) }()
 
 	ratios, err := ex.QueryBrokerMarginRatios(t.Context(), BrokerMarginRatioQuery{Symbols: []string{"HK.00700", "HK.07226"}})
 	if err != nil {
@@ -619,7 +619,7 @@ func TestQueryBrokerMarginRatiosUsesCacheWithinTTL(t *testing.T) {
 	defer server.stop()
 
 	ex := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
-	defer ex.Close()
+	defer func() { jftradeCheckTestError(t, ex.Close()) }()
 
 	first, err := ex.QueryBrokerMarginRatios(t.Context(), BrokerMarginRatioQuery{Symbols: []string{"HK.00700"}})
 	if err != nil {
@@ -662,7 +662,7 @@ func TestQueryBrokerCashFlowsReturnsFlowSummary(t *testing.T) {
 	defer server.stop()
 
 	ex := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
-	defer ex.Close()
+	defer func() { jftradeCheckTestError(t, ex.Close()) }()
 
 	flows, err := ex.QueryBrokerCashFlows(t.Context(), BrokerCashFlowQuery{
 		BrokerReadQuery: BrokerReadQuery{TradingEnvironment: "REAL", AccountID: "1001", Market: "HK"},
@@ -707,7 +707,7 @@ func TestQueryBrokerMaxTradeQuantityReturnsSnapshot(t *testing.T) {
 	defer server.stop()
 
 	ex := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
-	defer ex.Close()
+	defer func() { jftradeCheckTestError(t, ex.Close()) }()
 
 	snapshot, err := ex.QueryBrokerMaxTradeQuantity(t.Context(), BrokerMaxTradeQuantityQuery{
 		BrokerReadQuery: BrokerReadQuery{TradingEnvironment: "REAL", AccountID: "1001", Market: "HK"},
@@ -757,7 +757,7 @@ func TestSubmitOrderPlacesViaOpenD(t *testing.T) {
 	defer server.stop()
 
 	ex := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
-	defer ex.Close()
+	defer func() { jftradeCheckTestError(t, ex.Close()) }()
 
 	placed, err := ex.SubmitOrder(t.Context(), types.SubmitOrder{
 		ClientOrderID: "execution-test-order",
@@ -806,7 +806,7 @@ func TestCancelOrdersUsesModifyOrderCancel(t *testing.T) {
 	defer server.stop()
 
 	ex := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
-	defer ex.Close()
+	defer func() { jftradeCheckTestError(t, ex.Close()) }()
 
 	err := ex.CancelOrders(t.Context(), types.Order{
 		SubmitOrder: types.SubmitOrder{
@@ -852,7 +852,7 @@ func TestEnsureSystemNotificationsBindsSystemPushHandler(t *testing.T) {
 	defer server.stop()
 
 	ex := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
-	defer ex.Close()
+	defer func() { jftradeCheckTestError(t, ex.Close()) }()
 
 	received := make(chan *notifypb.Response, 1)
 	ex.OnSystemNotify(func(response *notifypb.Response) {
@@ -889,7 +889,7 @@ func TestSubscribeTradeAccountPushReplaysOnReconnectedClient(t *testing.T) {
 	defer server.stop()
 
 	ex := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
-	defer ex.Close()
+	defer func() { jftradeCheckTestError(t, ex.Close()) }()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
@@ -910,7 +910,8 @@ func TestSubscribeTradeAccountPushReplaysOnReconnectedClient(t *testing.T) {
 	}
 
 	if client := ex.Client(); client != nil {
-		_ = client.Close()
+		jftradeErr1 := client.Close()
+		jftradeCheckTestError(t, jftradeErr1)
 	}
 	if err := ex.Connect(ctx); err != nil {
 		t.Fatalf("Connect after client close: %v", err)
@@ -925,7 +926,7 @@ func TestQueryTickersBatchesBasicQotRequests(t *testing.T) {
 	defer server.stop()
 
 	ex := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
-	defer ex.Close()
+	defer func() { jftradeCheckTestError(t, ex.Close()) }()
 
 	tickers, err := ex.QueryTickers(t.Context(), "HK.00700", "US.NVDA")
 	if err != nil {
@@ -968,7 +969,7 @@ func TestQueryKLinesSplitsUSHistoricalRequestsBySessionAndMergesResults(t *testi
 	defer server.stop()
 
 	ex := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
-	defer ex.Close()
+	defer func() { jftradeCheckTestError(t, ex.Close()) }()
 
 	start := time.Date(2026, time.May, 20, 8, 0, 0, 0, time.UTC)
 	klines, err := ex.QueryKLines(t.Context(), "US.NVDA", types.Interval1m, types.KLineQueryOptions{Limit: 3, StartTime: &start, EndTime: new(start.Add(2 * time.Hour))})
@@ -1036,7 +1037,7 @@ func TestQueryKLinesFallsBackToSessionAllWhenHistoricalRouteUnsupported(t *testi
 	defer server.stop()
 
 	ex := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
-	defer ex.Close()
+	defer func() { jftradeCheckTestError(t, ex.Close()) }()
 
 	start := time.Date(2026, time.May, 20, 8, 0, 0, 0, time.UTC)
 	klines, err := ex.QueryKLines(t.Context(), "US.NVDA", types.Interval1m, types.KLineQueryOptions{Limit: 3, StartTime: &start, EndTime: new(start.Add(2 * time.Hour))})
@@ -1075,7 +1076,7 @@ func TestQueryKLinesNormalizesIntradayHistoryLabelToBucketStart(t *testing.T) {
 	server.setHistoryPages([][]*qotcommonpb.KLine{{testHistoryKLine(labelAt, 100)}})
 
 	ex := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
-	defer ex.Close()
+	defer func() { jftradeCheckTestError(t, ex.Close()) }()
 
 	klines, err := ex.QueryKLines(t.Context(), "HK.00700", types.Interval1m, types.KLineQueryOptions{Limit: 1, StartTime: new(labelAt.Add(-time.Hour)), EndTime: new(labelAt.Add(time.Hour))})
 	if err != nil {
@@ -1103,7 +1104,7 @@ func TestQueryKLinesKeepsDailyHistoryLabelAsBucketStart(t *testing.T) {
 	server.setHistoryPages([][]*qotcommonpb.KLine{{testHistoryKLine(labelAt, 100)}})
 
 	ex := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
-	defer ex.Close()
+	defer func() { jftradeCheckTestError(t, ex.Close()) }()
 
 	klines, err := ex.QueryKLines(t.Context(), "HK.00700", types.Interval1d, types.KLineQueryOptions{Limit: 1, StartTime: new(labelAt.Add(-24 * time.Hour)), EndTime: new(labelAt.Add(24 * time.Hour))})
 	if err != nil {
@@ -1135,7 +1136,7 @@ func TestQueryKLinesFollowsHistoryPaginationAndKeepsLatestLimit(t *testing.T) {
 	})
 
 	ex := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
-	defer ex.Close()
+	defer func() { jftradeCheckTestError(t, ex.Close()) }()
 
 	klines, err := ex.QueryKLines(t.Context(), "HK.00700", types.Interval5m, types.KLineQueryOptions{Limit: 2, StartTime: new(oldAt.Add(-time.Hour)), EndTime: new(recentAt.Add(time.Hour))})
 	if err != nil {
@@ -1165,7 +1166,7 @@ func TestQueryKLinesAllowsMoreThanEightHistoryPages(t *testing.T) {
 	server.setHistoryPages(pages)
 
 	ex := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
-	defer ex.Close()
+	defer func() { jftradeCheckTestError(t, ex.Close()) }()
 
 	klines, err := ex.QueryKLines(t.Context(), "HK.00700", types.Interval5m, types.KLineQueryOptions{Limit: 2, StartTime: new(baseAt.Add(-time.Hour)), EndTime: new(baseAt.Add(2 * time.Hour))})
 	if err != nil {
@@ -1194,7 +1195,7 @@ func TestQueryKLinesUsesLargerHistoryPageSizeThanRequestedLimit(t *testing.T) {
 	server.setHistorySeries(series)
 
 	ex := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
-	defer ex.Close()
+	defer func() { jftradeCheckTestError(t, ex.Close()) }()
 
 	klines, err := ex.QueryKLines(t.Context(), "HK.00700", types.Interval1m, types.KLineQueryOptions{Limit: 2, StartTime: new(baseAt.Add(-time.Minute)), EndTime: new(baseAt.Add(401 * time.Minute))})
 	if err != nil {
@@ -1221,7 +1222,7 @@ func TestQueryKLinesIncludesCurrentRealtimeBucketFromGetKL(t *testing.T) {
 	server.setCurrentKLines([]*qotcommonpb.KLine{testCurrentKLine(currentLabelAt, 101, 106, 99, 103, 500)})
 
 	ex := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
-	defer ex.Close()
+	defer func() { jftradeCheckTestError(t, ex.Close()) }()
 
 	klines, err := ex.QueryKLines(t.Context(), "HK.00700", types.Interval1m, types.KLineQueryOptions{Limit: 2, StartTime: new(historyLabelAt.Add(-time.Hour)), EndTime: new(currentLabelAt.Add(time.Hour))})
 	if err != nil {
@@ -1256,7 +1257,7 @@ func TestStreamConnectEmitsBasicQotPushAsBBGOEvents(t *testing.T) {
 	defer server.stop()
 
 	ex := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
-	defer ex.Close()
+	defer func() { jftradeCheckTestError(t, ex.Close()) }()
 
 	stream := NewStream(ex)
 	stream.Subscribe(types.MarketTradeChannel, "HK.00700", types.SubscribeOptions{})
@@ -1274,7 +1275,7 @@ func TestStreamConnectEmitsBasicQotPushAsBBGOEvents(t *testing.T) {
 	if err := stream.Connect(ctx); err != nil {
 		t.Fatalf("stream.Connect: %v", err)
 	}
-	defer stream.Close()
+	defer func() { jftradeCheckTestError(t, stream.Close()) }()
 
 	select {
 	case trade := <-trades:
@@ -1304,13 +1305,14 @@ func TestStreamConnectRebuildsClosedCachedOpenDClient(t *testing.T) {
 	defer server.stop()
 
 	ex := NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
-	defer ex.Close()
+	defer func() { jftradeCheckTestError(t, ex.Close()) }()
 
 	if _, err := ex.QueryTicker(t.Context(), "HK.00700"); err != nil {
 		t.Fatalf("QueryTicker: %v", err)
 	}
 	if client := ex.Client(); client != nil {
-		_ = client.Close()
+		jftradeErr2 := client.Close()
+		jftradeCheckTestError(t, jftradeErr2)
 	}
 
 	stream := NewStream(ex)
@@ -1320,7 +1322,7 @@ func TestStreamConnectRebuildsClosedCachedOpenDClient(t *testing.T) {
 	if err := stream.Connect(ctx); err != nil {
 		t.Fatalf("stream.Connect after cached client close: %v", err)
 	}
-	defer stream.Close()
+	defer func() { jftradeCheckTestError(t, stream.Close()) }()
 
 	if got := server.acceptCount(); got < 2 {
 		t.Fatalf("expected stream to create a fresh OpenD session, got %d accepts", got)
@@ -1462,12 +1464,6 @@ func (s *quoteOpenDServer) setFunds(funds *trdcommonpb.Funds) {
 	s.funds = funds
 }
 
-func (s *quoteOpenDServer) setPositions(positions []*trdcommonpb.Position) {
-	s.tradeMu.Lock()
-	defer s.tradeMu.Unlock()
-	s.positions = append([]*trdcommonpb.Position(nil), positions...)
-}
-
 func (s *quoteOpenDServer) setOrders(orders []*trdcommonpb.Order) {
 	s.tradeMu.Lock()
 	defer s.tradeMu.Unlock()
@@ -1484,12 +1480,6 @@ func (s *quoteOpenDServer) setHistoryFills(fills []*trdcommonpb.OrderFill) {
 	s.tradeMu.Lock()
 	defer s.tradeMu.Unlock()
 	s.historyFills = append([]*trdcommonpb.OrderFill(nil), fills...)
-}
-
-func (s *quoteOpenDServer) setOrderFills(fills []*trdcommonpb.OrderFill) {
-	s.tradeMu.Lock()
-	defer s.tradeMu.Unlock()
-	s.orderFills = append([]*trdcommonpb.OrderFill(nil), fills...)
 }
 
 func (s *quoteOpenDServer) setOrderFees(fees []*trdcommonpb.OrderFee) {
@@ -1532,7 +1522,7 @@ func (s *quoteOpenDServer) setPlacedOrderResponse(orderID uint64, orderIDEx stri
 func startQuoteOpenDServer(t *testing.T) *quoteOpenDServer {
 	t.Helper()
 
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	listener, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1547,7 +1537,8 @@ func startQuoteOpenDServer(t *testing.T) *quoteOpenDServer {
 
 func (s *quoteOpenDServer) stop() {
 	s.stopOnce.Do(func() {
-		_ = s.listener.Close()
+		jftradeErr1 := s.listener.Close()
+		jftradePanicOnError(jftradeErr1)
 		<-s.shutdownCompleted
 	})
 }
@@ -1565,7 +1556,7 @@ func (s *quoteOpenDServer) acceptLoop() {
 }
 
 func (s *quoteOpenDServer) handleConn(conn net.Conn) {
-	defer conn.Close()
+	defer func() { jftradePanicOnError(conn.Close()) }()
 	for {
 		header := make([]byte, codec.HeaderLen)
 		if _, err := io.ReadFull(conn, header); err != nil {
@@ -1586,7 +1577,8 @@ func (s *quoteOpenDServer) handleConn(conn net.Conn) {
 		switch frame.Header.ProtoID {
 		case opend.ProtoInitConnect:
 			request := &initpb.Request{}
-			_ = proto.Unmarshal(frame.Body, request)
+			jftradeErr3 := proto.Unmarshal(frame.Body, request)
+			jftradePanicOnError(jftradeErr3)
 			s.initRecvNotify.Store(request.GetC2S().GetRecvNotify())
 			response = &initpb.Response{
 				RetType: new(int32(0)),
@@ -1601,7 +1593,8 @@ func (s *quoteOpenDServer) handleConn(conn net.Conn) {
 		case opend.ProtoQotSub:
 			s.qotSubCalls.Add(1)
 			request := &qotsubpb.Request{}
-			_ = proto.Unmarshal(frame.Body, request)
+			jftradeErr4 := proto.Unmarshal(frame.Body, request)
+			jftradePanicOnError(jftradeErr4)
 			isPushSub := request.GetC2S().GetIsRegOrUnRegPush()
 			if isPushSub {
 				s.pushSubCalls.Add(1)
@@ -1649,7 +1642,8 @@ func (s *quoteOpenDServer) handleConn(conn net.Conn) {
 		case opend.ProtoTrdSubAccPush:
 			s.tradeAccPushCalls.Add(1)
 			request := &trdsubaccpushpb.Request{}
-			_ = proto.Unmarshal(frame.Body, request)
+			jftradeErr5 := proto.Unmarshal(frame.Body, request)
+			jftradePanicOnError(jftradeErr5)
 			s.tradeMu.Lock()
 			s.lastTradeAccPushIDs = append([]uint64(nil), request.GetC2S().GetAccIDList()...)
 			s.tradeMu.Unlock()
@@ -1685,7 +1679,8 @@ func (s *quoteOpenDServer) handleConn(conn net.Conn) {
 		}
 		if frame.Header.ProtoID == opend.ProtoQotSub {
 			request := &qotsubpb.Request{}
-			_ = proto.Unmarshal(frame.Body, request)
+			jftradeErr6 := proto.Unmarshal(frame.Body, request)
+			jftradePanicOnError(jftradeErr6)
 			if request.GetC2S().GetIsRegOrUnRegPush() {
 				if err := s.writeBasicQotPush(conn, request.GetC2S().GetSecurityList()); err != nil {
 					return
@@ -2151,7 +2146,7 @@ func (s *quoteOpenDServer) maxTrdQtysResponse(body []byte) *trdgetmaxtrdqtyspb.R
 	}
 	s.tradeMu.Lock()
 	if request.GetC2S() != nil {
-		s.lastMaxTrdQtys = proto.Clone(request.GetC2S()).(*trdgetmaxtrdqtyspb.C2S)
+		s.lastMaxTrdQtys = jftradeCheckedTypeAssertion[*trdgetmaxtrdqtyspb.C2S](proto.Clone(request.GetC2S()))
 	}
 	maxQtys := s.maxTrdQtys
 	s.tradeMu.Unlock()
@@ -2173,7 +2168,7 @@ func (s *quoteOpenDServer) placeOrderResponse(body []byte) *trdplaceorderpb.Resp
 		return &trdplaceorderpb.Response{RetType: new(int32(1)), RetMsg: new("missing place order payload")}
 	}
 	s.tradeMu.Lock()
-	s.lastPlaceOrder = proto.Clone(request.GetC2S()).(*trdplaceorderpb.C2S)
+	s.lastPlaceOrder = jftradeCheckedTypeAssertion[*trdplaceorderpb.C2S](proto.Clone(request.GetC2S()))
 	orderID := s.placedOrderID
 	orderIDEx := s.placedOrderIDEx
 	s.tradeMu.Unlock()
@@ -2205,7 +2200,7 @@ func (s *quoteOpenDServer) modifyOrderResponse(body []byte) *trdmodifyorderpb.Re
 		return &trdmodifyorderpb.Response{RetType: new(int32(1)), RetMsg: new("missing modify order payload")}
 	}
 	s.tradeMu.Lock()
-	s.lastModifyOrder = proto.Clone(request.GetC2S()).(*trdmodifyorderpb.C2S)
+	s.lastModifyOrder = jftradeCheckedTypeAssertion[*trdmodifyorderpb.C2S](proto.Clone(request.GetC2S()))
 	s.tradeMu.Unlock()
 	if request.GetC2S().GetPacketID().GetConnID() == 0 {
 		return &trdmodifyorderpb.Response{RetType: new(int32(1)), RetMsg: new("missing packet id connID")}
@@ -2288,7 +2283,7 @@ func (s *quoteOpenDServer) lastPlaceOrderRequest() *trdplaceorderpb.C2S {
 	if s.lastPlaceOrder == nil {
 		return nil
 	}
-	return proto.Clone(s.lastPlaceOrder).(*trdplaceorderpb.C2S)
+	return jftradeCheckedTypeAssertion[*trdplaceorderpb.C2S](proto.Clone(s.lastPlaceOrder))
 }
 
 func (s *quoteOpenDServer) lastModifyOrderRequest() *trdmodifyorderpb.C2S {
@@ -2297,7 +2292,7 @@ func (s *quoteOpenDServer) lastModifyOrderRequest() *trdmodifyorderpb.C2S {
 	if s.lastModifyOrder == nil {
 		return nil
 	}
-	return proto.Clone(s.lastModifyOrder).(*trdmodifyorderpb.C2S)
+	return jftradeCheckedTypeAssertion[*trdmodifyorderpb.C2S](proto.Clone(s.lastModifyOrder))
 }
 
 func (s *quoteOpenDServer) lastTradeAccountPushIDs() []uint64 {
@@ -2324,10 +2319,6 @@ func (s *quoteOpenDServer) currentKLCallCount() int {
 
 func (s *quoteOpenDServer) lastHistoryExtendedTime() bool {
 	return s.historyExtended.Load()
-}
-
-func (s *quoteOpenDServer) lastHistorySession() int32 {
-	return s.historySession.Load()
 }
 
 func (s *quoteOpenDServer) historySessionCalls() []int32 {
@@ -2366,14 +2357,14 @@ func (s *quoteOpenDServer) lastMaxTrdQtysRequest() *trdgetmaxtrdqtyspb.C2S {
 	if s.lastMaxTrdQtys == nil {
 		return nil
 	}
-	return proto.Clone(s.lastMaxTrdQtys).(*trdgetmaxtrdqtyspb.C2S)
+	return jftradeCheckedTypeAssertion[*trdgetmaxtrdqtyspb.C2S](proto.Clone(s.lastMaxTrdQtys))
 }
 
 func normalizeTestFunds(funds *trdcommonpb.Funds) *trdcommonpb.Funds {
 	if funds == nil {
 		funds = &trdcommonpb.Funds{}
 	}
-	clone := proto.Clone(funds).(*trdcommonpb.Funds)
+	clone := jftradeCheckedTypeAssertion[*trdcommonpb.Funds](proto.Clone(funds))
 	if clone.Power == nil {
 		clone.Power = new(float64(0))
 	}
@@ -2402,7 +2393,7 @@ func normalizeTestTrdHeader(header *trdcommonpb.TrdHeader) *trdcommonpb.TrdHeade
 	if header == nil {
 		header = &trdcommonpb.TrdHeader{}
 	}
-	clone := proto.Clone(header).(*trdcommonpb.TrdHeader)
+	clone := jftradeCheckedTypeAssertion[*trdcommonpb.TrdHeader](proto.Clone(header))
 	if clone.TrdEnv == nil {
 		clone.TrdEnv = new(int32(trdcommonpb.TrdEnv_TrdEnv_Simulate))
 	}
@@ -2419,7 +2410,7 @@ func normalizeTestPosition(position *trdcommonpb.Position) *trdcommonpb.Position
 	if position == nil {
 		position = &trdcommonpb.Position{}
 	}
-	clone := proto.Clone(position).(*trdcommonpb.Position)
+	clone := jftradeCheckedTypeAssertion[*trdcommonpb.Position](proto.Clone(position))
 	if clone.PositionID == nil {
 		clone.PositionID = new(uint64(1))
 	}
@@ -2454,7 +2445,7 @@ func normalizeTestOrder(order *trdcommonpb.Order) *trdcommonpb.Order {
 	if order == nil {
 		order = &trdcommonpb.Order{}
 	}
-	clone := proto.Clone(order).(*trdcommonpb.Order)
+	clone := jftradeCheckedTypeAssertion[*trdcommonpb.Order](proto.Clone(order))
 	if clone.TrdSide == nil {
 		clone.TrdSide = new(int32(trdcommonpb.TrdSide_TrdSide_Buy))
 	}
@@ -2546,20 +2537,6 @@ func filterTestFillsByConditions(fills []*trdcommonpb.OrderFill, filter *trdcomm
 	return filtered
 }
 
-func waitFor(t *testing.T, condition func() bool) {
-	t.Helper()
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	for !condition() {
-		select {
-		case <-ctx.Done():
-			t.Fatal("timed out waiting for condition")
-		default:
-			time.Sleep(10 * time.Millisecond)
-		}
-	}
-}
-
 func TestSessionFromExtendedBlocksClockGuardsStaleExtendedData(t *testing.T) {
 	priceOf := func(v float64) *ExtendedMarketQuote {
 		return &ExtendedMarketQuote{Price: new(decimal.NewFromFloat(v))}
@@ -2643,5 +2620,26 @@ func TestSessionFromExtendedBlocksClockGuardsStaleExtendedData(t *testing.T) {
 				t.Fatalf("session=%s, want %s", got, tc.want)
 			}
 		})
+	}
+}
+
+func jftradeCheckedTypeAssertion[T any](value any) T {
+	typed, ok := value.(T)
+	if !ok {
+		panic("unexpected dynamic type")
+	}
+	return typed
+}
+
+func jftradeCheckTestError(t testing.TB, err error) {
+	t.Helper()
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+func jftradePanicOnError(err error) {
+	if err != nil {
+		panic(err)
 	}
 }

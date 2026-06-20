@@ -10,11 +10,12 @@ import (
 
 	"github.com/c9s/bbgo/pkg/bbgo"
 	"github.com/gorilla/websocket"
+	"github.com/shopspring/decimal"
+
 	"github.com/jftrade/jftrade-main/internal/api/httpserver"
 	mdsrv "github.com/jftrade/jftrade-main/internal/marketdata"
 	commonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/common"
 	notifypb "github.com/jftrade/jftrade-main/pkg/futu/pb/notify"
-	"github.com/shopspring/decimal"
 )
 
 func TestLiveWebSocketSendsHeartbeat(t *testing.T) {
@@ -27,16 +28,16 @@ func TestLiveWebSocketSendsHeartbeat(t *testing.T) {
 	t.Cleanup(srv.Close)
 
 	conn := dialLiveWebSocket(t, srv.URL)
-	defer conn.Close()
+	defer func() { jftradeCheckTestError(t, conn.Close()) }()
 
 	event := readLiveWebSocketEvent(t, conn)
 	if event["type"] != "heartbeat" || event["at"] == "" {
 		t.Fatalf("unexpected event: %+v", event)
 	}
-	if got := int64(event["intervalMs"].(float64)); got != int64(15*time.Second/time.Millisecond) {
+	if got := int64(jftradeCheckedTypeAssertion[float64](event["intervalMs"])); got != int64(15*time.Second/time.Millisecond) {
 		t.Fatalf("intervalMs = %d", got)
 	}
-	if stale, _ := event["stale"].(bool); stale {
+	if stale := jftradeCheckedTypeAssertion[bool](event["stale"]); stale {
 		t.Fatalf("unexpected stale heartbeat: %+v", event)
 	}
 }
@@ -62,7 +63,7 @@ func TestLiveWebSocketSendsSystemNotification(t *testing.T) {
 	t.Cleanup(srv.Close)
 
 	conn := dialLiveWebSocket(t, srv.URL)
-	defer conn.Close()
+	defer func() { jftradeCheckTestError(t, conn.Close()) }()
 
 	heartbeat := readLiveWebSocketEvent(t, conn)
 	if heartbeat["type"] != "heartbeat" {
@@ -93,7 +94,7 @@ func TestLiveWebSocketSendsBBGONotification(t *testing.T) {
 	bbgo.Notify("strategy %s started", "demo-grid")
 
 	conn := dialLiveWebSocket(t, srv.URL)
-	defer conn.Close()
+	defer func() { jftradeCheckTestError(t, conn.Close()) }()
 
 	heartbeat := readLiveWebSocketEvent(t, conn)
 	if heartbeat["type"] != "heartbeat" {
@@ -139,13 +140,13 @@ func TestLiveWebSocketHeartbeatReportsStaleMarketData(t *testing.T) {
 	t.Cleanup(srv.Close)
 
 	conn := dialLiveWebSocket(t, srv.URL)
-	defer conn.Close()
+	defer func() { jftradeCheckTestError(t, conn.Close()) }()
 
 	heartbeat := readLiveWebSocketEvent(t, conn)
 	if heartbeat["type"] != "heartbeat" {
 		t.Fatalf("unexpected first event: %+v", heartbeat)
 	}
-	if stale, _ := heartbeat["stale"].(bool); !stale {
+	if stale := jftradeCheckedTypeAssertion[bool](heartbeat["stale"]); !stale {
 		t.Fatalf("expected stale heartbeat, got %+v", heartbeat)
 	}
 }
@@ -177,7 +178,7 @@ func TestLiveWebSocketInitialMarketTickRefreshesObservedAt(t *testing.T) {
 	t.Cleanup(srv.Close)
 
 	conn := dialLiveWebSocket(t, srv.URL)
-	defer conn.Close()
+	defer func() { jftradeCheckTestError(t, conn.Close()) }()
 
 	if err := conn.WriteJSON(liveWebSocketClientMessage{
 		Type: "subscribe",
@@ -200,7 +201,7 @@ func TestLiveWebSocketInitialMarketTickRefreshesObservedAt(t *testing.T) {
 	if snapshot["observedAt"] != event["at"] {
 		t.Fatalf("snapshot.observedAt = %#v, event.at = %#v", snapshot["observedAt"], event["at"])
 	}
-	parsedObservedAt := httpserver.ParseQueryTime(event["at"].(string), time.Time{})
+	parsedObservedAt := httpserver.ParseQueryTime(jftradeCheckedTypeAssertion[string](event["at"]), time.Time{})
 	if parsedObservedAt.Before(observedAt) {
 		t.Fatalf("event at = %s, want >= %s", parsedObservedAt, observedAt)
 	}
@@ -216,7 +217,7 @@ func TestLiveWebSocketSendsConsoleRefresh(t *testing.T) {
 	t.Cleanup(srv.Close)
 
 	conn := dialLiveWebSocket(t, srv.URL)
-	defer conn.Close()
+	defer func() { jftradeCheckTestError(t, conn.Close()) }()
 
 	if err := conn.WriteJSON(liveWebSocketClientMessage{
 		Type: "subscribe",
@@ -240,11 +241,15 @@ func TestLiveWebSocketSendsConsoleRefresh(t *testing.T) {
 func dialLiveWebSocket(t *testing.T, baseURL string) *websocket.Conn {
 	t.Helper()
 	wsURL := "ws" + strings.TrimPrefix(baseURL, "http") + "/api/v1/ws/live"
-	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	conn, resp, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	if resp != nil && resp.Body != nil {
+		t.Cleanup(func() { jftradeCheckTestError(t, resp.Body.Close()) })
+	}
 	if err != nil {
 		t.Fatalf("Dial live websocket: %v", err)
 	}
-	_ = conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+	jftradeErr3 := conn.SetReadDeadline(time.Now().Add(2 * time.Second))
+	jftradeCheckTestError(t, jftradeErr3)
 	return conn
 }
 

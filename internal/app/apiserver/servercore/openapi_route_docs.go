@@ -1,3 +1,4 @@
+//nolint:unused // These annotation-only stubs are consumed by swag during go generate.
 package servercore
 
 // documentAssistantCatalogRoutes godoc

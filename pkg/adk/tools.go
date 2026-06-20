@@ -13,8 +13,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/google/uuid"
 )
 
 type ToolFunc func(context.Context, map[string]any) (any, error)
@@ -248,24 +246,6 @@ func ToolAllowedInMode(descriptor ToolDescriptor, mode string) bool {
 		}
 	}
 	return false
-}
-
-func buildToolCall(runID string, descriptor ToolDescriptor, input map[string]any, status string) ToolCall {
-	now := nowString()
-	id := "tool-" + uuid.NewString()
-	return ToolCall{
-		ID:             id,
-		RunID:          runID,
-		ToolName:       descriptor.Name,
-		Permission:     descriptor.Permission,
-		Status:         status,
-		Input:          input,
-		RequiresUser:   status == "PENDING_APPROVAL",
-		IdempotencyKey: runID + ":" + id,
-		CreatedAt:      now,
-		StartedAt:      now,
-		UpdatedAt:      now,
-	}
 }
 
 func finishToolCall(call *ToolCall) {
@@ -708,7 +688,7 @@ func defaultToolRiskLevel(permission string) string {
 }
 
 func toolStringValue(input map[string]any, key string) string {
-	value, _ := input[key].(string)
+	value := jftradeOptionalTypeAssertion[string](input[key])
 	return value
 }
 
@@ -742,7 +722,7 @@ func normalizeToolAlias(name string) string {
 }
 
 func httpFetchTool(ctx context.Context, input map[string]any) (any, error) {
-	rawURL, _ := input["url"].(string)
+	rawURL := jftradeOptionalTypeAssertion[string](input["url"])
 	rawURL = strings.TrimSpace(rawURL)
 	if rawURL == "" {
 		return nil, fmt.Errorf("url is required")
@@ -779,9 +759,9 @@ func httpFetchTool(ctx context.Context, input map[string]any) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeLogError(resp.Body.Close()) }()
 	contentType := strings.ToLower(resp.Header.Get("Content-Type"))
-	if contentType != "" && !(strings.Contains(contentType, "text/") || strings.Contains(contentType, "json") || strings.Contains(contentType, "xml") || strings.Contains(contentType, "rss")) {
+	if contentType != "" && (!strings.Contains(contentType, "text/") && !strings.Contains(contentType, "json") && !strings.Contains(contentType, "xml") && !strings.Contains(contentType, "rss")) {
 		return nil, fmt.Errorf("unsupported content type %q", contentType)
 	}
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))

@@ -30,11 +30,11 @@ func TestSystemStatusEndpointReturnsStatus(t *testing.T) {
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
-	resp, err := http.Get(srv.URL + "/api/v1/system/status")
+	resp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/system/status")
 	if err != nil {
 		t.Fatalf("GET system status: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("GET system status = %d", resp.StatusCode)
 	}
@@ -66,7 +66,7 @@ func TestSystemStatusEndpointReturnsStatus(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected strategyRuntime summary, got %+v", envelope.Data["strategyRuntime"])
 	}
-	if got := int(strategyRuntime["activeStrategies"].(float64)); got != 0 {
+	if got := int(jftradeCheckedTypeAssertion[float64](strategyRuntime["activeStrategies"])); got != 0 {
 		t.Fatalf("activeStrategies = %d", got)
 	}
 	activeInstances, ok := strategyRuntime["activeInstances"].([]any)
@@ -88,7 +88,7 @@ func TestSystemStatusEndpointReturnsStatus(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected live observability, got %+v", observability["live"])
 	}
-	if got := int(live["connected"].(float64)); got != 0 {
+	if got := int(jftradeCheckedTypeAssertion[float64](live["connected"])); got != 0 {
 		t.Fatalf("live connected = %d, want 0", got)
 	}
 	marketdata, ok := observability["marketdata"].(map[string]any)
@@ -110,11 +110,11 @@ func TestSystemStatusReflectsUpdatedAPIPort(t *testing.T) {
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
-	resp, err := http.Get(srv.URL + "/api/v1/system/status")
+	resp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/system/status")
 	if err != nil {
 		t.Fatalf("GET system status: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("GET system status = %d", resp.StatusCode)
 	}
@@ -125,7 +125,7 @@ func TestSystemStatusReflectsUpdatedAPIPort(t *testing.T) {
 	if err := json.NewDecoder(resp.Body).Decode(&envelope); err != nil {
 		t.Fatalf("decode system status: %v", err)
 	}
-	if got := int(envelope.Data["apiPort"].(float64)); got != 38401 {
+	if got := int(jftradeCheckedTypeAssertion[float64](envelope.Data["apiPort"])); got != 38401 {
 		t.Fatalf("apiPort = %d, want 38401", got)
 	}
 }
@@ -186,7 +186,7 @@ func TestNewServerReconcilesPersistedActiveStrategyStates(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected strategyRuntime summary, got %+v", reloadedServer.sysSvc.Status()["strategyRuntime"])
 	}
-	if got := int(strategyRuntime["activeStrategies"].(int)); got != 0 {
+	if got := jftradeCheckedTypeAssertion[int](strategyRuntime["activeStrategies"]); got != 0 {
 		t.Fatalf("activeStrategies after restart = %d, want 0", got)
 	}
 	if got := strategyRuntime["status"]; got != "idle" {

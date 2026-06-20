@@ -9,6 +9,8 @@ import (
 const defaultExecutionPersistenceQueueSize = 1024
 
 type brokerOrderCommandResponse = trdsrv.ExecutionCommandResponse
+
+//nolint:unused // Referenced by Swagger annotations during go generate.
 type executionPlaceOrderRequest = trdsrv.ExecutionPlaceRequest
 type executionOrderSummaryResponse = trdsrv.ExecutionOrder
 type executionOrderEventResponse = trdsrv.ExecutionOrderEvent

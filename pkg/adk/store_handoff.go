@@ -100,7 +100,8 @@ func (s *Store) ReplaceActiveHandoffSegments(ctx context.Context, sessionID stri
 	}
 	defer func() {
 		if tx != nil {
-			_ = tx.Rollback()
+			jftradeErr1 := tx.Rollback()
+			jftradeLogError(jftradeErr1)
 		}
 	}()
 	next, err = s.saveHandoffSegmentTx(ctx, tx, next)

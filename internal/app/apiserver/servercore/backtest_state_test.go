@@ -131,7 +131,7 @@ func TestBacktestRunStorePersistsAndRecoversTransientRuns(t *testing.T) {
 	if err != nil {
 		t.Fatalf("newBacktestRunStoreWithDB: %v", err)
 	}
-	t.Cleanup(func() { _ = store.Close() })
+	t.Cleanup(func() { jftradeErr1 := store.Close(); jftradeCheckTestError(t, jftradeErr1) })
 
 	completedRun := &backtestRunState{
 		ID:     "bt-persist-completed",
@@ -182,7 +182,7 @@ func TestBacktestRunStorePersistsAndRecoversTransientRuns(t *testing.T) {
 	if err != nil {
 		t.Fatalf("reload store: %v", err)
 	}
-	t.Cleanup(func() { _ = reloadedStore.Close() })
+	t.Cleanup(func() { jftradeErr3 := reloadedStore.Close(); jftradeCheckTestError(t, jftradeErr3) })
 
 	reloadedCompleted, ok := reloadedStore.get(completedRun.ID)
 	if !ok {
@@ -231,7 +231,7 @@ func TestBacktestRunStorePersistsAndRecoversTransientRuns(t *testing.T) {
 	if err != nil {
 		t.Fatalf("reload store after delete: %v", err)
 	}
-	t.Cleanup(func() { _ = reloadedAgain.Close() })
+	t.Cleanup(func() { jftradeErr2 := reloadedAgain.Close(); jftradeCheckTestError(t, jftradeErr2) })
 	if _, ok := reloadedAgain.get(completedRun.ID); ok {
 		t.Fatal("expected deleted completed run to stay deleted after reload")
 	}

@@ -29,7 +29,7 @@ func TestSyncKLinesImmediateCancellation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewFutuKLineStore() error = %v", err)
 	}
-	defer store.Close()
+	defer func() { jftradeCheckTestError(t, store.Close()) }()
 
 	queuedAt := time.Date(2026, time.May, 20, 9, 30, 0, 0, time.UTC)
 	progress := NewSyncProgress("sync-cancelled", "HK.00700", queuedAt)
@@ -70,7 +70,7 @@ func TestSyncKLinesImmediateCancellation(t *testing.T) {
 	}
 
 	var rowCount int
-	if err := store.DB().QueryRow(`SELECT COUNT(*) FROM ` + quoteIdentifier(klineTableName("HK.00700", bbgotypes.Interval1m, RehabTypeName(int32(qotcommonpb.RehabType_RehabType_Forward))))).Scan(&rowCount); err == nil {
+	if err := store.DB().QueryRowContext(t.Context(), `SELECT COUNT(*) FROM `+quoteIdentifier(klineTableName("HK.00700", bbgotypes.Interval1m, RehabTypeName(int32(qotcommonpb.RehabType_RehabType_Forward))))).Scan(&rowCount); err == nil {
 		t.Fatalf("expected no per-series table after cancelled sync, found %d rows", rowCount)
 	} else if !strings.Contains(err.Error(), "no such table") {
 		t.Fatalf("count rows after cancelled sync: %v", err)
@@ -96,10 +96,10 @@ func TestSyncKLinesCancellationAfterFirstBatch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewFutuKLineStore() error = %v", err)
 	}
-	defer store.Close()
+	defer func() { jftradeCheckTestError(t, store.Close()) }()
 
 	exchange := futu.NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
-	defer exchange.Close()
+	defer func() { jftradeCheckTestError(t, exchange.Close()) }()
 
 	since := time.Date(2026, time.May, 20, 9, 30, 0, 0, time.UTC)
 	until := since.Add(5 * time.Minute)
@@ -160,7 +160,7 @@ func TestSyncKLinesCancellationAfterFirstBatch(t *testing.T) {
 
 	var rowCount int
 	tableName := quoteIdentifier(klineTableName("HK.00700", bbgotypes.Interval1m, RehabTypeName(int32(qotcommonpb.RehabType_RehabType_Forward))))
-	if err := store.DB().QueryRow(`SELECT COUNT(*) FROM ` + tableName).Scan(&rowCount); err != nil {
+	if err := store.DB().QueryRowContext(t.Context(), `SELECT COUNT(*) FROM `+tableName).Scan(&rowCount); err != nil {
 		t.Fatalf("count rows after mid-cancel sync: %v", err)
 	}
 	if rowCount != 1 {
@@ -186,10 +186,10 @@ func TestSyncKLinesSyncsAndSkipsCoveredBatch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewFutuKLineStore() error = %v", err)
 	}
-	defer store.Close()
+	defer func() { jftradeCheckTestError(t, store.Close()) }()
 
 	exchange := futu.NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
-	defer exchange.Close()
+	defer func() { jftradeCheckTestError(t, exchange.Close()) }()
 
 	since := time.Date(2026, time.May, 20, 9, 30, 0, 0, time.UTC)
 	until := time.Date(2026, time.May, 20, 9, 33, 0, 0, time.UTC)
@@ -226,7 +226,7 @@ func TestSyncKLinesSyncsAndSkipsCoveredBatch(t *testing.T) {
 
 	var rowCount int
 	tableName := quoteIdentifier(klineTableName("HK.00700", bbgotypes.Interval1m, RehabTypeName(int32(qotcommonpb.RehabType_RehabType_Forward))))
-	if err := store.DB().QueryRow(`SELECT COUNT(*) FROM ` + tableName).Scan(&rowCount); err != nil {
+	if err := store.DB().QueryRowContext(t.Context(), `SELECT COUNT(*) FROM `+tableName).Scan(&rowCount); err != nil {
 		t.Fatalf("count synced rows: %v", err)
 	}
 	if rowCount != 3 {
@@ -273,7 +273,7 @@ func TestSyncKLinesSyncsAndSkipsCoveredBatch(t *testing.T) {
 		t.Fatalf("expected covered batch to skip RequestHistoryKL, calls before=%d after=%d", firstCalls, secondCalls)
 	}
 
-	if err := store.DB().QueryRow(`SELECT COUNT(*) FROM ` + tableName).Scan(&rowCount); err != nil {
+	if err := store.DB().QueryRowContext(t.Context(), `SELECT COUNT(*) FROM `+tableName).Scan(&rowCount); err != nil {
 		t.Fatalf("count rows after second sync: %v", err)
 	}
 	if rowCount != 3 {
@@ -302,10 +302,10 @@ func TestSyncKLinesPersistentRateLimitFailure(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewFutuKLineStore() error = %v", err)
 	}
-	defer store.Close()
+	defer func() { jftradeCheckTestError(t, store.Close()) }()
 
 	exchange := futu.NewExchangeWithConfig(opend.Config{Addr: server.addr, RequestTimeout: 2 * time.Second})
-	defer exchange.Close()
+	defer func() { jftradeCheckTestError(t, exchange.Close()) }()
 
 	queuedAt := time.Date(2026, time.May, 20, 9, 30, 0, 0, time.UTC)
 	progress := NewSyncProgress("sync-rate-limit", "HK.00700", queuedAt)
@@ -353,7 +353,7 @@ func TestSyncKLinesPersistentRateLimitFailure(t *testing.T) {
 
 	var rowCount int
 	tableName := quoteIdentifier(klineTableName("HK.00700", bbgotypes.Interval1m, RehabTypeName(int32(qotcommonpb.RehabType_RehabType_Forward))))
-	if err := store.DB().QueryRow(`SELECT COUNT(*) FROM ` + tableName).Scan(&rowCount); err == nil {
+	if err := store.DB().QueryRowContext(t.Context(), `SELECT COUNT(*) FROM `+tableName).Scan(&rowCount); err == nil {
 		if rowCount != 0 {
 			t.Fatalf("row count after rate-limit sync = %d, want 0", rowCount)
 		}
@@ -377,7 +377,7 @@ type syncHistoryOpenDServer struct {
 func startSyncHistoryOpenDServer(t *testing.T, pages [][]*qotcommonpb.KLine) *syncHistoryOpenDServer {
 	t.Helper()
 
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	listener, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -394,7 +394,8 @@ func startSyncHistoryOpenDServer(t *testing.T, pages [][]*qotcommonpb.KLine) *sy
 
 func (s *syncHistoryOpenDServer) stop() {
 	s.stopOnce.Do(func() {
-		_ = s.listener.Close()
+		jftradeErr1 := s.listener.Close()
+		jftradePanicOnError(jftradeErr1)
 		<-s.shutdownCompleted
 	})
 }
@@ -421,7 +422,7 @@ func (s *syncHistoryOpenDServer) acceptLoop() {
 }
 
 func (s *syncHistoryOpenDServer) handleConn(conn net.Conn) {
-	defer conn.Close()
+	defer func() { jftradePanicOnError(conn.Close()) }()
 	for {
 		header := make([]byte, codec.HeaderLen)
 		if _, err := io.ReadFull(conn, header); err != nil {
@@ -482,7 +483,7 @@ func (s *syncHistoryOpenDServer) historyKLResponse(body []byte) *historypb.Respo
 	s.pagesMu.Lock()
 	defer s.pagesMu.Unlock()
 	if s.historyError != nil {
-		return proto.Clone(s.historyError).(*historypb.Response)
+		return jftradeCheckedTypeAssertion[*historypb.Response](proto.Clone(s.historyError))
 	}
 
 	response := &historypb.Response{
@@ -529,5 +530,18 @@ func testSyncHistoryKLine(at time.Time, price float64) *qotcommonpb.KLine {
 		ClosePrice: new(price + 0.5),
 		Volume:     new(int64(1000)),
 		Turnover:   new(price * 1000),
+	}
+}
+
+func jftradeCheckTestError(t testing.TB, err error) {
+	t.Helper()
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+func jftradePanicOnError(err error) {
+	if err != nil {
+		panic(err)
 	}
 }

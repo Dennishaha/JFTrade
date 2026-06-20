@@ -307,7 +307,3 @@ func strategyRuntimeTestTrade(symbol string, price float64, at time.Time) bbgoty
 func strategyRuntimeTestTime(hour int, minute int, second int) time.Time {
 	return time.Date(2026, time.May, 28, hour, minute, second, 0, time.UTC)
 }
-
-func floatPtr(value float64) *float64 {
-	return &value
-}

@@ -552,7 +552,7 @@ func SessionAwareIntradayBucketBounds(symbol string, at time.Time, interval time
 	}
 
 	offset := at.Sub(sessionStart)
-	bucketStart := sessionStart.Add((offset / interval) * interval)
+	bucketStart := sessionStart.Add(offset.Truncate(interval))
 	bucketEndExclusive := bucketStart.Add(interval)
 	if bucketEndExclusive.After(sessionEndExclusive) {
 		bucketEndExclusive = sessionEndExclusive

@@ -48,10 +48,6 @@ func collectTradingPeriodUnits(requirements indicatorRequirements, intervalMinut
 	return units
 }
 
-func calculateTradingPeriodSourceSnapshot(opens, highs, lows, closes, volumes []float64, labelKeys []int64, source string) (float64, float64, bool, bool) {
-	return calculateTradingPeriodSourceSnapshotWithLookback(opens, highs, lows, closes, volumes, labelKeys, source, 0)
-}
-
 func calculateTradingPeriodSourceSnapshotWithLookback(opens, highs, lows, closes, volumes []float64, labelKeys []int64, source string, lookback int) (float64, float64, bool, bool) {
 	if len(closes) == 0 || len(labelKeys) == 0 {
 		return 0, 0, false, false
@@ -207,14 +203,6 @@ func (r *indicatorRuntime) appendTradingPeriodLabels(endTime time.Time) {
 		}
 		r.tradingPeriodLabels[unit] = append(r.tradingPeriodLabels[unit], key)
 	}
-}
-
-func selectTradingWindowSeries(values, volumes []float64, endTimes []time.Time, period int, timeUnit string, symbol string, upperBound int, includeExtendedHours bool) ([]float64, []float64) {
-	if len(values) == 0 || len(values) != len(endTimes) {
-		return nil, nil
-	}
-	selected := selectTradingWindowIndices(endTimes, period, timeUnit, symbol, upperBound, includeExtendedHours)
-	return materializeTradingWindowSeriesFromSelected(values, volumes, selected, nil)
 }
 
 func selectTradingWindowSeriesWithCache(values, volumes []float64, endTimes []time.Time, period int, timeUnit string, symbol string, upperBound int, includeExtendedHours bool, cache *snapshotSeriesCache) ([]float64, []float64) {

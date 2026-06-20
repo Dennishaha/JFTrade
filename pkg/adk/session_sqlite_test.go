@@ -11,7 +11,8 @@ func TestMigrateSQLiteSessionServiceSkipsWhenSchemaAlreadyExists(t *testing.T) {
 		t.Fatalf("NewSQLiteSessionService: %v", err)
 	}
 	t.Cleanup(func() {
-		_ = service.Close()
+		jftradeErr1 := service.Close()
+		jftradeCheckTestError(t, jftradeErr1)
 	})
 
 	if err := MigrateSQLiteSessionService(service); err != nil {

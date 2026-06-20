@@ -16,7 +16,7 @@ func normalizeBrokerRouteHeader(header *trdcommonpb.TrdHeader) *trdcommonpb.TrdH
 	if header == nil {
 		header = &trdcommonpb.TrdHeader{}
 	}
-	clone := proto.Clone(header).(*trdcommonpb.TrdHeader)
+	clone := jftradeCheckedTypeAssertion[*trdcommonpb.TrdHeader](proto.Clone(header))
 	if clone.TrdEnv == nil {
 		clone.TrdEnv = new(int32(trdcommonpb.TrdEnv_TrdEnv_Simulate))
 	}
@@ -33,7 +33,7 @@ func normalizeBrokerRouteFunds(funds *trdcommonpb.Funds) *trdcommonpb.Funds {
 	if funds == nil {
 		funds = &trdcommonpb.Funds{}
 	}
-	clone := proto.Clone(funds).(*trdcommonpb.Funds)
+	clone := jftradeCheckedTypeAssertion[*trdcommonpb.Funds](proto.Clone(funds))
 	if clone.Power == nil {
 		clone.Power = new(float64(0))
 	}
@@ -62,7 +62,7 @@ func normalizeBrokerRoutePosition(position *trdcommonpb.Position) *trdcommonpb.P
 	if position == nil {
 		position = &trdcommonpb.Position{}
 	}
-	clone := proto.Clone(position).(*trdcommonpb.Position)
+	clone := jftradeCheckedTypeAssertion[*trdcommonpb.Position](proto.Clone(position))
 	if clone.PositionID == nil {
 		clone.PositionID = new(uint64(1))
 	}
@@ -97,7 +97,7 @@ func normalizeBrokerRouteOrder(order *trdcommonpb.Order) *trdcommonpb.Order {
 	if order == nil {
 		order = &trdcommonpb.Order{}
 	}
-	clone := proto.Clone(order).(*trdcommonpb.Order)
+	clone := jftradeCheckedTypeAssertion[*trdcommonpb.Order](proto.Clone(order))
 	if clone.TrdSide == nil {
 		clone.TrdSide = new(int32(trdcommonpb.TrdSide_TrdSide_Buy))
 	}
@@ -135,7 +135,7 @@ func normalizeBrokerRouteOrderFill(fill *trdcommonpb.OrderFill) *trdcommonpb.Ord
 	if fill == nil {
 		fill = &trdcommonpb.OrderFill{}
 	}
-	clone := proto.Clone(fill).(*trdcommonpb.OrderFill)
+	clone := jftradeCheckedTypeAssertion[*trdcommonpb.OrderFill](proto.Clone(fill))
 	if clone.OrderID == nil {
 		clone.OrderID = new(uint64(1))
 	}
@@ -170,7 +170,7 @@ func normalizeBrokerRouteOrderFee(fee *trdcommonpb.OrderFee) *trdcommonpb.OrderF
 	if fee == nil {
 		fee = &trdcommonpb.OrderFee{}
 	}
-	clone := proto.Clone(fee).(*trdcommonpb.OrderFee)
+	clone := jftradeCheckedTypeAssertion[*trdcommonpb.OrderFee](proto.Clone(fee))
 	if clone.OrderIDEx == nil {
 		clone.OrderIDEx = new("")
 	}
@@ -184,7 +184,7 @@ func normalizeBrokerRouteMarginRatio(ratio *trdgetmarginratiopb.MarginRatioInfo)
 	if ratio == nil {
 		ratio = &trdgetmarginratiopb.MarginRatioInfo{}
 	}
-	clone := proto.Clone(ratio).(*trdgetmarginratiopb.MarginRatioInfo)
+	clone := jftradeCheckedTypeAssertion[*trdgetmarginratiopb.MarginRatioInfo](proto.Clone(ratio))
 	if clone.Security == nil {
 		clone.Security = &qotcommonpb.Security{Market: new(int32(qotcommonpb.QotMarket_QotMarket_HK_Security)), Code: new("00700")}
 	}
@@ -195,7 +195,7 @@ func normalizeBrokerRouteCashFlow(flow *trdflowsummarypb.FlowSummaryInfo) *trdfl
 	if flow == nil {
 		flow = &trdflowsummarypb.FlowSummaryInfo{}
 	}
-	clone := proto.Clone(flow).(*trdflowsummarypb.FlowSummaryInfo)
+	clone := jftradeCheckedTypeAssertion[*trdflowsummarypb.FlowSummaryInfo](proto.Clone(flow))
 	if clone.CashFlowID == nil {
 		clone.CashFlowID = new(uint64(1))
 	}
@@ -209,7 +209,7 @@ func normalizeBrokerRouteMaxTrdQtys(maxQtys *trdcommonpb.MaxTrdQtys) *trdcommonp
 	if maxQtys == nil {
 		maxQtys = &trdcommonpb.MaxTrdQtys{}
 	}
-	return proto.Clone(maxQtys).(*trdcommonpb.MaxTrdQtys)
+	return jftradeCheckedTypeAssertion[*trdcommonpb.MaxTrdQtys](proto.Clone(maxQtys))
 }
 
 func filterBrokerRouteOrders(input []*trdcommonpb.Order, filter *trdcommonpb.TrdFilterConditions, statuses []int32) []*trdcommonpb.Order {

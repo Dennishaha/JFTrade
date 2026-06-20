@@ -34,11 +34,11 @@ func TestStartStrategyRouteRejectsNotStartableInstance(t *testing.T) {
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
-	resp, err := http.Post(srv.URL+"/api/v1/strategies/legacy-instance/start", "application/json", nil)
+	resp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/strategies/legacy-instance/start", "application/json", nil)
 	if err != nil {
 		t.Fatalf("POST start: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("POST start status = %d, want %d", resp.StatusCode, http.StatusBadRequest)
 	}

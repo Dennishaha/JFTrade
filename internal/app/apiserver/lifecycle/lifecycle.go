@@ -125,7 +125,8 @@ func StartForRunArgs(ctx context.Context, args []string, deps Dependencies) (fun
 		<-ctx.Done()
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		_ = shutdownAll(shutdownCtx)
+		jftradeErr1 := shutdownAll(shutdownCtx)
+		jftradeLogError(jftradeErr1)
 	}()
 
 	return shutdownAll, nil
@@ -160,5 +161,13 @@ func onceShutdown(servers []*http.Server, handler Handler) func(context.Context)
 			}
 		})
 		return shutdownErr
+	}
+}
+
+func jftradeLogError(values ...any) {
+	for _, value := range values {
+		if err, ok := value.(error); ok && err != nil {
+			log.Printf("best-effort operation failed: %v", err)
+		}
 	}
 }

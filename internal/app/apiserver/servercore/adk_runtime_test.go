@@ -566,7 +566,7 @@ func TestADKStrategyResearchBacktestToolStartsTransientRun(t *testing.T) {
 	if got := payload["ok"]; got != true {
 		t.Fatalf("ok = %#v, want true", got)
 	}
-	runID, _ := payload["runId"].(string)
+	runID := jftradeCheckedTypeAssertion[string](payload["runId"])
 	if !strings.HasPrefix(runID, "bt-") {
 		t.Fatalf("runId = %#v, want bt- prefix", payload["runId"])
 	}
@@ -642,16 +642,16 @@ func TestADKBacktestResultViewToolReturnsBoundedChartWindow(t *testing.T) {
 	if !ok {
 		t.Fatalf("tool output type = %T, want map", output)
 	}
-	window := payload["window"].(map[string]any)
+	window := jftradeCheckedTypeAssertion[map[string]any](payload["window"])
 	if window["resolution"] != "2m" || window["truncated"] != true || window["nextCursor"] != "1" {
 		t.Fatalf("window = %#v, want 2m truncated next cursor", window)
 	}
-	series := payload["series"].(map[string]any)
-	candles := series["candles"].([]backtest.Candle)
+	series := jftradeCheckedTypeAssertion[map[string]any](payload["series"])
+	candles := jftradeCheckedTypeAssertion[[]backtest.Candle](series["candles"])
 	if len(candles) != 1 || candles[0].Open != "10" || candles[0].High != "12" || candles[0].Low != "9" || candles[0].Close != "11.5" {
 		t.Fatalf("candles = %#v, want first 2m aggregate", candles)
 	}
-	trades := series["trades"].([]backtest.TradeEvent)
+	trades := jftradeCheckedTypeAssertion[[]backtest.TradeEvent](series["trades"])
 	if len(trades) != 1 || trades[0].Side != "BUY" {
 		t.Fatalf("trades = %#v, want bounded BUY trade", trades)
 	}

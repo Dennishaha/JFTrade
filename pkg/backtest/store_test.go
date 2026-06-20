@@ -15,10 +15,10 @@ import (
 
 func TestNewFutuKLineStoreCreatesCompactSchema(t *testing.T) {
 	store := newTestFutuKLineStore(t)
-	defer store.Close()
+	defer func() { jftradeCheckTestError(t, store.Close()) }()
 
 	var baseTableCount int
-	if err := store.DB().QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?`, KLineTable).Scan(&baseTableCount); err != nil {
+	if err := store.DB().QueryRowContext(t.Context(), `SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?`, KLineTable).Scan(&baseTableCount); err != nil {
 		t.Fatalf("count base tables: %v", err)
 	}
 	if baseTableCount != 0 {
@@ -42,11 +42,11 @@ func TestNewFutuKLineStoreCreatesCompactSchema(t *testing.T) {
 
 	tableName := KLineTableName(input.Symbol, input.Interval, "forward")
 
-	rows, err := store.DB().Query(`PRAGMA table_info(` + tableName + `)`)
+	rows, err := store.DB().QueryContext(t.Context(), `PRAGMA table_info(`+tableName+`)`)
 	if err != nil {
 		t.Fatalf("PRAGMA table_info: %v", err)
 	}
-	defer rows.Close()
+	defer func() { jftradeCheckTestError(t, rows.Close()) }()
 
 	var got []string
 	for rows.Next() {
@@ -68,7 +68,7 @@ func TestNewFutuKLineStoreCreatesCompactSchema(t *testing.T) {
 	}
 
 	var ddl string
-	if err := store.DB().QueryRow(`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?`, tableName).Scan(&ddl); err != nil {
+	if err := store.DB().QueryRowContext(t.Context(), `SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?`, tableName).Scan(&ddl); err != nil {
 		t.Fatalf("load sqlite_master ddl: %v", err)
 	}
 	upperDDL := strings.ToUpper(ddl)
@@ -88,7 +88,7 @@ func TestNewFutuKLineStoreUsesSeparateTablesPerDimension(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewFutuKLineStore: %v", err)
 	}
-	defer store.Close()
+	defer func() { jftradeCheckTestError(t, store.Close()) }()
 
 	baseStart := time.Date(2026, time.May, 26, 9, 30, 0, 0, time.UTC)
 	rows := []struct {
@@ -108,7 +108,7 @@ func TestNewFutuKLineStoreUsesSeparateTablesPerDimension(t *testing.T) {
 	for _, row := range rows {
 		tableName := KLineTableName(row.kline.Symbol, row.kline.Interval, row.rehabType)
 		var count int
-		if err := store.DB().QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?`, tableName).Scan(&count); err != nil {
+		if err := store.DB().QueryRowContext(t.Context(), `SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?`, tableName).Scan(&count); err != nil {
 			t.Fatalf("count table %s: %v", tableName, err)
 		}
 		if count != 1 {
@@ -119,7 +119,7 @@ func TestNewFutuKLineStoreUsesSeparateTablesPerDimension(t *testing.T) {
 
 func TestFutuKLineStoreSeparatesScopedSyncVersions(t *testing.T) {
 	store := newTestFutuKLineStore(t)
-	defer store.Close()
+	defer func() { jftradeCheckTestError(t, store.Close()) }()
 
 	startAt := time.Date(2026, time.May, 26, 13, 30, 0, 0, time.UTC)
 	endAt := startAt.Add(time.Minute - time.Millisecond)
@@ -152,7 +152,7 @@ func TestFutuKLineStoreSeparatesScopedSyncVersions(t *testing.T) {
 	for _, sessionScope := range []string{KLineSessionScopeRegular, KLineSessionScopeExtended} {
 		tableName := KLineTableNameForSessionScope(regular.Symbol, regular.Interval, "forward", sessionScope)
 		var count int
-		if err := store.DB().QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?`, tableName).Scan(&count); err != nil {
+		if err := store.DB().QueryRowContext(t.Context(), `SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?`, tableName).Scan(&count); err != nil {
 			t.Fatalf("count scoped table %s: %v", tableName, err)
 		}
 		if count != 1 {
@@ -182,7 +182,7 @@ func TestFutuKLineStoreSeparatesScopedSyncVersions(t *testing.T) {
 
 func TestFutuKLineStoreRegularScopeFallsBackToLegacyWhenCoverageIsIncomplete(t *testing.T) {
 	store := newTestFutuKLineStore(t)
-	defer store.Close()
+	defer func() { jftradeCheckTestError(t, store.Close()) }()
 
 	baseStart := time.Date(2026, time.May, 26, 13, 30, 0, 0, time.UTC)
 	firstEnd := baseStart.Add(time.Minute - time.Millisecond)
@@ -248,7 +248,7 @@ func TestFutuKLineStoreRegularScopeFallsBackToLegacyWhenCoverageIsIncomplete(t *
 
 func TestFutuKLineStoreQueryKLinesChPrefersRegularScopedRangeWhenCoverageIsComplete(t *testing.T) {
 	store := newTestFutuKLineStore(t)
-	defer store.Close()
+	defer func() { jftradeCheckTestError(t, store.Close()) }()
 
 	baseStart := time.Date(2026, time.May, 26, 13, 30, 0, 0, time.UTC)
 	firstEnd := baseStart.Add(time.Minute - time.Millisecond)
@@ -289,7 +289,7 @@ func TestFutuKLineStoreQueryKLinesChPrefersRegularScopedRangeWhenCoverageIsCompl
 
 func TestFutuKLineStoreQueryKLinesChFallsBackToLegacyWhenRegularRangeIsIncomplete(t *testing.T) {
 	store := newTestFutuKLineStore(t)
-	defer store.Close()
+	defer func() { jftradeCheckTestError(t, store.Close()) }()
 
 	baseStart := time.Date(2026, time.May, 26, 13, 30, 0, 0, time.UTC)
 	firstEnd := baseStart.Add(time.Minute - time.Millisecond)
@@ -326,7 +326,7 @@ func TestFutuKLineStoreQueryKLinesChFallsBackToLegacyWhenRegularRangeIsIncomplet
 
 func TestFutuKLineStoreRoundTripsCompactRows(t *testing.T) {
 	store := newTestFutuKLineStore(t)
-	defer store.Close()
+	defer func() { jftradeCheckTestError(t, store.Close()) }()
 
 	startAt := time.Date(2026, time.May, 26, 9, 30, 0, 0, time.UTC)
 	endAt := startAt.Add(time.Minute - time.Millisecond)
@@ -381,7 +381,7 @@ func TestFutuKLineStoreRoundTripsCompactRows(t *testing.T) {
 	var openValue, highValue, lowValue, closeValue, volumeValue string
 	var startType, endType, openType, highType, lowType, closeType, volumeType string
 	tableName := KLineTableName(input.Symbol, input.Interval, "forward")
-	if err := store.DB().QueryRow(
+	if err := store.DB().QueryRowContext(t.Context(),
 		`SELECT start_time, end_time, open, high, low, close, volume, typeof(start_time), typeof(end_time), typeof(open), typeof(high), typeof(low), typeof(close), typeof(volume) FROM `+tableName+` LIMIT 1`,
 	).Scan(&startTimeValue, &endTimeValue, &openValue, &highValue, &lowValue, &closeValue, &volumeValue, &startType, &endType, &openType, &highType, &lowType, &closeType, &volumeType); err != nil {
 		t.Fatalf("inspect stored row: %v", err)
@@ -405,7 +405,7 @@ func TestFutuKLineStoreRoundTripsCompactRows(t *testing.T) {
 
 func TestFutuKLineStoreFiltersByRehabType(t *testing.T) {
 	store := newTestFutuKLineStore(t)
-	defer store.Close()
+	defer func() { jftradeCheckTestError(t, store.Close()) }()
 
 	startAt := time.Date(2026, time.May, 26, 9, 30, 0, 0, time.UTC)
 	endAt := startAt.Add(time.Minute - time.Millisecond)
@@ -489,7 +489,7 @@ func TestFutuKLineStoreFiltersByRehabType(t *testing.T) {
 
 func TestFutuKLineStoreVerifyAcceptsOverlappingCoverage(t *testing.T) {
 	store := newTestFutuKLineStore(t)
-	defer store.Close()
+	defer func() { jftradeCheckTestError(t, store.Close()) }()
 
 	windowStart := time.Date(2026, time.May, 26, 9, 30, 0, 0, time.UTC)
 	windowEnd := windowStart.Add(time.Second - time.Millisecond)
@@ -504,7 +504,7 @@ func TestFutuKLineStoreVerifyAcceptsOverlappingCoverage(t *testing.T) {
 
 func TestFutuKLineStoreVerifyReportsMissingCoverage(t *testing.T) {
 	store := newTestFutuKLineStore(t)
-	defer store.Close()
+	defer func() { jftradeCheckTestError(t, store.Close()) }()
 
 	windowStart := time.Date(2026, time.May, 26, 9, 30, 0, 0, time.UTC)
 	windowEnd := windowStart.Add(time.Second - time.Millisecond)
@@ -526,7 +526,7 @@ func TestFutuKLineStoreVerifyReportsMissingCoverage(t *testing.T) {
 
 func TestFutuKLineStoreSynthesizesFiveMinuteFromOneMinute(t *testing.T) {
 	store := newTestFutuKLineStore(t)
-	defer store.Close()
+	defer func() { jftradeCheckTestError(t, store.Close()) }()
 
 	baseStart := time.Date(2026, time.May, 26, 9, 30, 0, 0, time.UTC)
 	minuteKLines := make([]types.KLine, 0, 5)
@@ -578,7 +578,7 @@ func TestFutuKLineStoreSynthesizesFiveMinuteFromOneMinute(t *testing.T) {
 
 func TestFutuKLineStoreSynthesizesFifteenMinuteFromFiveMinute(t *testing.T) {
 	store := newTestFutuKLineStore(t)
-	defer store.Close()
+	defer func() { jftradeCheckTestError(t, store.Close()) }()
 
 	baseStart := time.Date(2026, time.May, 26, 9, 30, 0, 0, time.UTC)
 	fiveMinuteKLines := []types.KLine{
@@ -646,7 +646,7 @@ func TestFutuKLineStoreSynthesizesFifteenMinuteFromFiveMinute(t *testing.T) {
 
 func TestFutuKLineStoreSynthesizesTwoHourFromUSSessionAwareBuckets(t *testing.T) {
 	store := newTestFutuKLineStore(t)
-	defer store.Close()
+	defer func() { jftradeCheckTestError(t, store.Close()) }()
 
 	baseStart := time.Date(2026, time.May, 26, 13, 30, 0, 0, time.UTC)
 	halfHourKLines := make([]types.KLine, 0, 13)
@@ -710,7 +710,7 @@ func TestFutuKLineStoreSynthesizesTwoHourFromUSSessionAwareBuckets(t *testing.T)
 
 func TestFutuKLineStoreSynthesizesTwoHourAcrossHKLunchBreak(t *testing.T) {
 	store := newTestFutuKLineStore(t)
-	defer store.Close()
+	defer func() { jftradeCheckTestError(t, store.Close()) }()
 
 	starts := []time.Time{
 		time.Date(2026, time.May, 26, 1, 30, 0, 0, time.UTC),
@@ -773,7 +773,7 @@ func TestFutuKLineStoreSynthesizesTwoHourAcrossHKLunchBreak(t *testing.T) {
 
 func TestFutuKLineStoreSynthesizesTwoHourForwardFromUSSessionAwareBuckets(t *testing.T) {
 	store := newTestFutuKLineStore(t)
-	defer store.Close()
+	defer func() { jftradeCheckTestError(t, store.Close()) }()
 
 	baseStart := time.Date(2026, time.May, 26, 13, 30, 0, 0, time.UTC)
 	halfHourKLines := make([]types.KLine, 0, 13)
@@ -819,7 +819,7 @@ func TestFutuKLineStoreSynthesizesTwoHourForwardFromUSSessionAwareBuckets(t *tes
 
 func TestFutuKLineStoreQueryBackwardSessionAwarePaginationMatchesRangeSeries(t *testing.T) {
 	store := newTestFutuKLineStore(t)
-	defer store.Close()
+	defer func() { jftradeCheckTestError(t, store.Close()) }()
 
 	baseRows := buildBenchmarkSessionAwareHalfHourKLines(time.Date(2026, time.May, 4, 0, 0, 0, 0, time.UTC), 40)
 	if err := store.InsertKLines(baseRows, "forward"); err != nil {
@@ -869,7 +869,7 @@ func TestFutuKLineStoreQueryBackwardSessionAwarePaginationMatchesRangeSeries(t *
 
 func TestFutuKLineStoreSynthesizesDailyFromUSRegularTradingHours(t *testing.T) {
 	store := newTestFutuKLineStore(t)
-	defer store.Close()
+	defer func() { jftradeCheckTestError(t, store.Close()) }()
 
 	baseStart := time.Date(2026, time.May, 26, 13, 0, 0, 0, time.UTC)
 	oneHourKLines := []types.KLine{
@@ -937,7 +937,7 @@ func TestFutuKLineStoreSynthesizesDailyFromUSRegularTradingHours(t *testing.T) {
 
 func TestFutuKLineStoreSynthesizesDailyAcrossHKLunchBreak(t *testing.T) {
 	store := newTestFutuKLineStore(t)
-	defer store.Close()
+	defer func() { jftradeCheckTestError(t, store.Close()) }()
 
 	morningStart := time.Date(2026, time.May, 26, 1, 30, 0, 0, time.UTC)
 	hkKLines := []types.KLine{
@@ -1011,7 +1011,7 @@ func TestFutuKLineStoreSynthesizesDailyAcrossHKLunchBreak(t *testing.T) {
 
 func TestFutuKLineStoreSynthesizesWeeklyFromDailyTradingDays(t *testing.T) {
 	store := newTestFutuKLineStore(t)
-	defer store.Close()
+	defer func() { jftradeCheckTestError(t, store.Close()) }()
 
 	dailyRows := []types.KLine{
 		{
@@ -1103,7 +1103,7 @@ func TestFutuKLineStoreSynthesizesWeeklyFromDailyTradingDays(t *testing.T) {
 
 func TestFutuKLineStoreSynthesizesMonthlyFromDailyTradingDays(t *testing.T) {
 	store := newTestFutuKLineStore(t)
-	defer store.Close()
+	defer func() { jftradeCheckTestError(t, store.Close()) }()
 
 	dailyRows := []types.KLine{
 		{
@@ -1173,7 +1173,7 @@ func TestFutuKLineStoreSynthesizesMonthlyFromDailyTradingDays(t *testing.T) {
 
 func TestFutuKLineStorePrefersFiveMinuteSourceForFifteenMinuteQuery(t *testing.T) {
 	store := newTestFutuKLineStore(t)
-	defer store.Close()
+	defer func() { jftradeCheckTestError(t, store.Close()) }()
 
 	baseStart := time.Date(2026, time.May, 26, 9, 30, 0, 0, time.UTC)
 	oneMinuteKLines := make([]types.KLine, 0, 15)

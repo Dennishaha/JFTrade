@@ -55,10 +55,10 @@ func TestStrategyCatalogNormalizeStrategyAppliesDefaults(t *testing.T) {
 	if normalized.Definition.Version != "0.1.0" {
 		t.Fatalf("expected default definition version 0.1.0, got %q", normalized.Definition.Version)
 	}
-	if runtime, _ := normalized.Params["runtime"].(string); runtime != strategyRuntimePinePlan {
+	if runtime := jftradeCheckedTypeAssertion[string](normalized.Params["runtime"]); runtime != strategyRuntimePinePlan {
 		t.Fatalf("expected runtime %q, got %q", strategyRuntimePinePlan, runtime)
 	}
-	if sourceFormat, _ := normalized.Params["sourceFormat"].(string); sourceFormat == "" {
+	if sourceFormat := jftradeCheckedTypeAssertion[string](normalized.Params["sourceFormat"]); sourceFormat == "" {
 		t.Fatalf("expected non-empty source format")
 	}
 	if normalized.CreatedAt == "" {

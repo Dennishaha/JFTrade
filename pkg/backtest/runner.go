@@ -47,7 +47,7 @@ func Run(ctx context.Context, cfg RunConfig) *RunResult {
 		result.Error = fmt.Sprintf("open backtest store: %v", err)
 		return result
 	}
-	defer store.Close()
+	defer func() { jftradeLogError(store.Close()) }()
 
 	// Configure price-adjustment mode for all subsequent K-line queries.
 	if cfg.RehabType == "" {
@@ -118,7 +118,8 @@ func Run(ctx context.Context, cfg RunConfig) *RunResult {
 	// QueryMarkets fresh and picks up our EnsureMarket injection.
 	if home, err := os.UserHomeDir(); err == nil {
 		cacheFile := filepath.Join(home, ".bbgo", "cache", "futu-markets.json")
-		_ = os.Remove(cacheFile)
+		jftradeErr1 := os.Remove(cacheFile)
+		jftradeLogError(jftradeErr1)
 	}
 
 	// Determine quote currency from the symbol's market.
@@ -192,19 +193,14 @@ func Run(ctx context.Context, cfg RunConfig) *RunResult {
 			log.Printf("backtest prepare warning: %v", err)
 		}
 	}
-	btExchange.BindUserData(session.UserDataStream.(types.StandardStreamEmitter))
+	btExchange.BindUserData(jftradeCheckedTypeAssertion[types.StandardStreamEmitter](session.UserDataStream))
 
 	// ── 4. Instantiate and run strategy runtime ─────────────────────
 	// Wire before Subscribe so SubscribeMarketData sees strategy interval.
-	btExchange.MarketDataStream = session.MarketDataStream.(types.StandardStreamEmitter)
+	btExchange.MarketDataStream = jftradeCheckedTypeAssertion[types.StandardStreamEmitter](session.MarketDataStream)
 
 	bbgo2.IsBackTesting = true
 	defer func() { bbgo2.IsBackTesting = false }()
-
-	type runnableStrategy interface {
-		Subscribe(session *bbgo2.ExchangeSession)
-		Run(ctx context.Context, orderExecutor bbgo2.OrderExecutor, session *bbgo2.ExchangeSession) error
-	}
 
 	strategy := &pineruntime.Strategy{
 		Name:             "backtest-strategy",
@@ -220,10 +216,15 @@ func Run(ctx context.Context, cfg RunConfig) *RunResult {
 			log.Printf("backtest runtime error: %s", errMsg)
 		},
 	}
-	executor := bbgo2.OrderExecutor(session.OrderExecutor)
+	defaultExecutor := sessionDefaultOrderExecutor(session)
+	if defaultExecutor == nil {
+		result.Error = "session order executor is nil"
+		return result
+	}
+	var executor bbgo2.OrderExecutor = defaultExecutor
 	if compilation.Program.Metadata.Slippage > 0 {
 		slippageExecutor := newBacktestSlippageExecutor(
-			session.OrderExecutor,
+			executor,
 			session,
 			compilation.Program.Metadata.Slippage,
 		)
@@ -240,11 +241,7 @@ func Run(ctx context.Context, cfg RunConfig) *RunResult {
 		session.MarketDataStream.Subscribe(sub.Channel, sub.Symbol, sub.Options)
 	}
 
-	if session.OrderExecutor == nil {
-		result.Error = "session.OrderExecutor is nil"
-		return result
-	}
-	log.Printf("backtest: strategy starting, executor=%T symbol=%s interval=%s", session.OrderExecutor, cfg.Symbol, cfg.Interval)
+	log.Printf("backtest: strategy starting, executor=%T symbol=%s interval=%s", executor, cfg.Symbol, cfg.Interval)
 	if err := strategy.Run(ctx, executor, session); err != nil {
 		result.Error = fmt.Sprintf("strategy run: %v", err)
 		return result
@@ -325,6 +322,15 @@ func Run(ctx context.Context, cfg RunConfig) *RunResult {
 	return result
 }
 
+// sessionDefaultOrderExecutor isolates bbgo's deprecated field. bbgo still
+// initializes its backtest session with this executor and exposes no replacement
+// session accessor in v1.64.2.
+//
+//nolint:staticcheck // Required until bbgo exposes the initialized executor through its replacement API.
+func sessionDefaultOrderExecutor(session *bbgo2.ExchangeSession) *bbgo2.ExchangeOrderExecutor {
+	return session.OrderExecutor
+}
+
 func isMissingPrepareKLineError(err error) bool {
 	if err == nil {
 		return false
@@ -372,4 +378,20 @@ func estimateReplayBarCapacity(start, end time.Time, interval types.Interval) in
 		return 0
 	}
 	return int(end.Sub(start)/intervalDuration) + 1
+}
+
+func jftradeCheckedTypeAssertion[T any](value any) T {
+	typed, ok := value.(T)
+	if !ok {
+		panic("unexpected dynamic type")
+	}
+	return typed
+}
+
+func jftradeLogError(values ...any) {
+	for _, value := range values {
+		if err, ok := value.(error); ok && err != nil {
+			log.Printf("best-effort operation failed: %v", err)
+		}
+	}
 }

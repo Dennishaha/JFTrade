@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/c9s/bbgo/pkg/types"
+
 	"github.com/jftrade/jftrade-main/pkg/futu/opend"
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
 	qotgetbasicqotpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetbasicqot"

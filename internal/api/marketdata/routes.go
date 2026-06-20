@@ -1,6 +1,7 @@
 package marketdata
 
 import (
+	"log"
 	"strings"
 	"time"
 
@@ -98,7 +99,8 @@ func handleSnapshot(svc *srv.Service) gin.HandlerFunc {
 		}
 		var refreshValue httpserver.OptionalBoolValue
 		if raw := c.Query("refresh"); raw != "" {
-			_ = refreshValue.UnmarshalText([]byte(raw))
+			jftradeErr3 := refreshValue.UnmarshalText([]byte(raw))
+			jftradeLogError(jftradeErr3)
 		}
 		refresh := refreshValue.Bool()
 
@@ -145,7 +147,8 @@ func handleCandles(svc *srv.Service) gin.HandlerFunc {
 		limit := 0
 		if l := c.Query("limit"); l != "" {
 			parsed := httpserver.OptionalIntValue{}
-			_ = parsed.UnmarshalText([]byte(l))
+			jftradeErr2 := parsed.UnmarshalText([]byte(l))
+			jftradeLogError(jftradeErr2)
 			if parsed.Valid {
 				limit = parsed.Int()
 			}
@@ -200,7 +203,8 @@ func handleDepth(svc *srv.Service) gin.HandlerFunc {
 		num := 10
 		if n := c.Query("num"); n != "" {
 			parsed := httpserver.OptionalIntValue{}
-			_ = parsed.UnmarshalText([]byte(n))
+			jftradeErr1 := parsed.UnmarshalText([]byte(n))
+			jftradeLogError(jftradeErr1)
 			if parsed.Valid {
 				num = parsed.Int()
 			}
@@ -420,5 +424,13 @@ func handleNormalizeInstrument(svc *srv.Service) gin.HandlerFunc {
 			return
 		}
 		httpserver.WriteOK(c, result)
+	}
+}
+
+func jftradeLogError(values ...any) {
+	for _, value := range values {
+		if err, ok := value.(error); ok && err != nil {
+			log.Printf("best-effort operation failed: %v", err)
+		}
 	}
 }

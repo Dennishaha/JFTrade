@@ -35,10 +35,10 @@ func newMarketdataProvider(s *Server) mdsrv.Provider {
 		},
 
 		normalizeInstrument: func(ctx context.Context, input map[string]any) (map[string]any, error) {
-			marketStr, _ := input["market"].(string)
-			symbolStr, _ := input["symbol"].(string)
-			codeStr, _ := input["code"].(string)
-			instrumentIDStr, _ := input["instrumentId"].(string)
+			marketStr := jftradeOptionalTypeAssertion[string](input["market"])
+			symbolStr := jftradeOptionalTypeAssertion[string](input["symbol"])
+			codeStr := jftradeOptionalTypeAssertion[string](input["code"])
+			instrumentIDStr := jftradeOptionalTypeAssertion[string](input["instrumentId"])
 
 			instrument, err := market.ParseInstrument(market.InstrumentInput{
 				Market:       marketStr,

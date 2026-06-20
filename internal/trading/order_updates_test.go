@@ -322,7 +322,7 @@ func TestOrderUpdatesWorkerSnapshotCapsInvalidations(t *testing.T) {
 		worker.Sync(context.Background(), true, false)
 	}
 	snapshot := worker.SnapshotResponse()
-	invalidations := snapshot["recentInvalidations"].([]any)
+	invalidations := jftradeCheckedTypeAssertion[[]any](snapshot["recentInvalidations"])
 	if len(invalidations) != 20 {
 		t.Fatalf("invalidations = %d, want 20", len(invalidations))
 	}
@@ -333,12 +333,20 @@ func TestOrderUpdatesWorkerInactiveSourcePreservesDiagnosticState(t *testing.T) 
 	worker := NewOrderUpdatesWorker(source, &fakeExecutionOrderUpdates{}, OrderUpdatesConfig{})
 	worker.Sync(context.Background(), true, false)
 	snapshot := worker.SnapshotResponse()
-	if got := len(snapshot["subscriptions"].([]any)); got != 0 {
+	if got := len(jftradeCheckedTypeAssertion[[]any](snapshot["subscriptions"])); got != 0 {
 		t.Fatalf("subscriptions = %d, want 0", got)
 	}
-	brokers := snapshot["brokers"].([]any)
-	if len(brokers) != 1 || brokers[0].(map[string]any)["connectivity"] == nil ||
-		*brokers[0].(map[string]any)["connectivity"].(*string) != "inactive" {
+	brokers := jftradeCheckedTypeAssertion[[]any](snapshot["brokers"])
+	if len(brokers) != 1 || jftradeCheckedTypeAssertion[map[string]any](brokers[0])["connectivity"] == nil ||
+		*jftradeCheckedTypeAssertion[*string](jftradeCheckedTypeAssertion[map[string]any](brokers[0])["connectivity"]) != "inactive" {
 		t.Fatalf("brokers = %#v", brokers)
 	}
+}
+
+func jftradeCheckedTypeAssertion[T any](value any) T {
+	typed, ok := value.(T)
+	if !ok {
+		panic("unexpected dynamic type")
+	}
+	return typed
 }

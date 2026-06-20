@@ -2,7 +2,6 @@ package servercore
 
 import (
 	"encoding/json"
-	"net/http"
 	"net/http/httptest"
 	"path/filepath"
 	"testing"
@@ -37,16 +36,16 @@ func TestADKRoutesSerializeEmptySlicesAsArrays(t *testing.T) {
 		t.Fatalf("SaveRun: %v", err)
 	}
 
-	runResp, err := http.Get(srv.URL + "/api/v1/adk/runs/" + run.ID)
+	runResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/adk/runs/"+run.ID)
 	if err != nil {
 		t.Fatalf("GET run: %v", err)
 	}
-	defer runResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, runResp.Body.Close()) }()
 	var runEnvelope map[string]any
 	if err := json.NewDecoder(runResp.Body).Decode(&runEnvelope); err != nil {
 		t.Fatalf("decode run envelope: %v", err)
 	}
-	runData := runEnvelope["data"].(map[string]any)
+	runData := jftradeCheckedTypeAssertion[map[string]any](runEnvelope["data"])
 	if _, ok := runData["toolCalls"].([]any); !ok {
 		t.Fatalf("toolCalls = %#v, want JSON array", runData["toolCalls"])
 	}
@@ -54,16 +53,16 @@ func TestADKRoutesSerializeEmptySlicesAsArrays(t *testing.T) {
 		t.Fatalf("pendingApprovals = %#v, want JSON array", runData["pendingApprovals"])
 	}
 
-	sessionResp, err := http.Get(srv.URL + "/api/v1/adk/sessions/" + session.ID)
+	sessionResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/adk/sessions/"+session.ID)
 	if err != nil {
 		t.Fatalf("GET session: %v", err)
 	}
-	defer sessionResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, sessionResp.Body.Close()) }()
 	var sessionEnvelope map[string]any
 	if err := json.NewDecoder(sessionResp.Body).Decode(&sessionEnvelope); err != nil {
 		t.Fatalf("decode session envelope: %v", err)
 	}
-	sessionData := sessionEnvelope["data"].(map[string]any)
+	sessionData := jftradeCheckedTypeAssertion[map[string]any](sessionEnvelope["data"])
 	if _, ok := sessionData["timeline"].([]any); !ok {
 		t.Fatalf("timeline = %#v, want JSON array", sessionData["timeline"])
 	}
@@ -94,17 +93,17 @@ func TestADKRoutesSerializeEmptySlicesAsArrays(t *testing.T) {
 		t.Fatalf("SaveApproval: %v", err)
 	}
 
-	approvalResp, err := http.Post(srv.URL+"/api/v1/adk/approvals/"+approval.ID+"/deny", "application/json", nil)
+	approvalResp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/adk/approvals/"+approval.ID+"/deny", "application/json", nil)
 	if err != nil {
 		t.Fatalf("POST approval deny: %v", err)
 	}
-	defer approvalResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, approvalResp.Body.Close()) }()
 	var approvalEnvelope map[string]any
 	if err := json.NewDecoder(approvalResp.Body).Decode(&approvalEnvelope); err != nil {
 		t.Fatalf("decode approval envelope: %v", err)
 	}
-	approvalData := approvalEnvelope["data"].(map[string]any)
-	resolutionRun := approvalData["run"].(map[string]any)
+	approvalData := jftradeCheckedTypeAssertion[map[string]any](approvalEnvelope["data"])
+	resolutionRun := jftradeCheckedTypeAssertion[map[string]any](approvalData["run"])
 	if _, ok := resolutionRun["toolCalls"].([]any); !ok {
 		t.Fatalf("resolution run toolCalls = %#v, want JSON array", resolutionRun["toolCalls"])
 	}

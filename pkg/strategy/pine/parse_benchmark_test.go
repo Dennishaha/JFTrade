@@ -72,7 +72,6 @@ else
 
 func BenchmarkPineTokenize(b *testing.B) {
 	for _, benchmarkCase := range pineBenchmarkCases() {
-		benchmarkCase := benchmarkCase
 		b.Run(benchmarkCase.name, func(b *testing.B) {
 			b.ReportAllocs()
 			for index := 0; index < b.N; index++ {
@@ -84,7 +83,6 @@ func BenchmarkPineTokenize(b *testing.B) {
 
 func BenchmarkPineParseAST(b *testing.B) {
 	for _, benchmarkCase := range pineBenchmarkCases() {
-		benchmarkCase := benchmarkCase
 		lines := tokenizeScript(benchmarkCase.script)
 		b.Run(benchmarkCase.name, func(b *testing.B) {
 			b.ReportAllocs()
@@ -97,7 +95,6 @@ func BenchmarkPineParseAST(b *testing.B) {
 
 func BenchmarkPineLowering(b *testing.B) {
 	for _, benchmarkCase := range pineBenchmarkCases() {
-		benchmarkCase := benchmarkCase
 		lines := tokenizeScript(benchmarkCase.script)
 		ast, diagnostics := parseAST(lines)
 		if err := diagnosticError(diagnostics); err != nil {

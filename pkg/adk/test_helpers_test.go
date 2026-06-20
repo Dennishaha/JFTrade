@@ -99,18 +99,19 @@ func testProviderChatHandler(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	defer r.Body.Close()
+	defer func() { jftradePanicOnError(r.Body.Close()) }()
 	var req openAIChatRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(openAIChatResponse{
+	jftradeErr1 := json.NewEncoder(w).Encode(openAIChatResponse{
 		Choices: []struct {
 			Message openAIChatMessage `json:"message"`
 		}{{Message: testProviderMessage(req)}},
 	})
+	jftradePanicOnError(jftradeErr1)
 }
 
 func testProviderMessage(req openAIChatRequest) openAIChatMessage {
@@ -288,7 +289,8 @@ func testProviderExecuteToolCalls(toolNames []string, text string) []openAIToolC
 		}
 		args := map[string]any{}
 		if rawParams := testProviderTagAttr(tag, "parameters"); rawParams != "" {
-			_ = json.Unmarshal([]byte(rawParams), &args)
+			jftradeErr2 := json.Unmarshal([]byte(rawParams), &args)
+			jftradePanicOnError(jftradeErr2)
 		}
 		for _, key := range []string{"title", "key", "value"} {
 			if value := testProviderTagAttr(tag, key); value != "" {
@@ -328,7 +330,8 @@ func testProviderTagAttr(tag string, name string) string {
 }
 
 func testProviderToolCall(id string, name string, args map[string]any) openAIToolCall {
-	rawArgs, _ := json.Marshal(args)
+	rawArgs, jftradeErr3 := json.Marshal(args)
+	jftradePanicOnError(jftradeErr3)
 	call := openAIToolCall{ID: id, Type: "function"}
 	call.Function.Name = sanitizeToolNameForOpenAI(name)
 	call.Function.Arguments = string(rawArgs)
@@ -395,7 +398,8 @@ func testProviderConversationText(messages []openAIChatMessage) string {
 			parts = append(parts, message.Content)
 		}
 		if len(message.ToolCalls) > 0 {
-			raw, _ := json.Marshal(message.ToolCalls)
+			raw, jftradeErr4 := json.Marshal(message.ToolCalls)
+			jftradePanicOnError(jftradeErr4)
 			parts = append(parts, string(raw))
 		}
 	}
@@ -456,4 +460,10 @@ func containsTool(names []string, want string) bool {
 		}
 	}
 	return false
+}
+
+func jftradePanicOnError(err error) {
+	if err != nil {
+		panic(err)
+	}
 }

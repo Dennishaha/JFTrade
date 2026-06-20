@@ -383,14 +383,6 @@ func TestBrokerFundsSnapshotRoundTripNoMargin(t *testing.T) {
 
 // --- Helpers ---
 
-func f64(v float64) *float64   { return &v }
-func pf64(v float64) *float64  { return &v }
-func fint32(v int32) *int32    { return &v }
-func fstring(v string) *string { return &v }
-func pi32(v int32) *int32      { return &v }
-func pb(v bool) *bool          { return &v }
-func ps(v string) *string      { return &v }
-
 func assertFloatPtrEqual(t *testing.T, field string, expected, actual *float64) {
 	t.Helper()
 	if expected == nil && actual == nil {

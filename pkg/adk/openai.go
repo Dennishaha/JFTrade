@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -431,7 +432,7 @@ func (c openAIClient) selectTools(
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeLogError(resp.Body.Close()) }()
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
 	if err != nil {
 		return nil, err
@@ -491,7 +492,7 @@ func (c openAIClient) chatStream(
 	if err != nil {
 		return openAIChatResult{}, err
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeLogError(resp.Body.Close()) }()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		body, readErr := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
 		if readErr != nil {
@@ -570,7 +571,7 @@ func (c openAIClient) readStreamingResponse(body io.Reader, onDelta func(ChatDel
 		line := scanner.Text()
 		if line == "" {
 			err := flushEvent()
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				break
 			}
 			if err != nil {
@@ -585,7 +586,7 @@ func (c openAIClient) readStreamingResponse(body io.Reader, onDelta func(ChatDel
 	if err := scanner.Err(); err != nil {
 		return openAIChatResult{}, err
 	}
-	if err := flushEvent(); err != nil && err != io.EOF {
+	if err := flushEvent(); err != nil && !errors.Is(err, io.EOF) {
 		return openAIChatResult{}, err
 	}
 	replyTail, reasoningTail := splitter.Flush()

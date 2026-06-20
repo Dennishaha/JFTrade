@@ -23,11 +23,11 @@ func TestOpenAPISpecStable(t *testing.T) {
 	}
 	srv := newHTTPTestServer(t, store)
 
-	resp, err := http.Get(srv.URL + "/swagger/doc.json")
+	resp, err := jftradeTestHTTPGet(t, srv.URL+"/swagger/doc.json")
 	if err != nil {
 		t.Fatalf("GET /swagger/doc.json: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("/swagger/doc.json status = %d", resp.StatusCode)
@@ -91,11 +91,11 @@ func TestOpenAPICoversRegisteredAPIRoutes(t *testing.T) {
 
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
-	resp, err := http.Get(srv.URL + "/swagger/doc.json")
+	resp, err := jftradeTestHTTPGet(t, srv.URL+"/swagger/doc.json")
 	if err != nil {
 		t.Fatalf("GET /swagger/doc.json: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("/swagger/doc.json status = %d", resp.StatusCode)
 	}
@@ -143,11 +143,11 @@ func TestOpenAPIDocumentsWritableRequestBodies(t *testing.T) {
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
-	resp, err := http.Get(srv.URL + "/swagger/doc.json")
+	resp, err := jftradeTestHTTPGet(t, srv.URL+"/swagger/doc.json")
 	if err != nil {
 		t.Fatalf("GET /swagger/doc.json: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		t.Fatalf("read /swagger/doc.json body: %v", err)

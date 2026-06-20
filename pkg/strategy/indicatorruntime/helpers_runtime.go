@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/c9s/bbgo/pkg/types"
+
 	"github.com/jftrade/jftrade-main/pkg/market"
 )
 
@@ -209,18 +210,6 @@ func simpleMovingAverageFromSelected(values []float64, selected []int) (float64,
 		sum += values[selected[index]]
 	}
 	return sum / float64(len(selected)), true
-}
-
-func exponentialMovingAverageFromSelected(values []float64, selected []int, period int) (float64, bool) {
-	if period <= 0 || len(selected) < period {
-		return 0, false
-	}
-	multiplier := 2 / float64(period+1)
-	current := values[selected[len(selected)-1]]
-	for index := len(selected) - 2; index >= 0; index-- {
-		current = current + (values[selected[index]]-current)*multiplier
-	}
-	return current, true
 }
 
 func linearWeightedMovingAverageFromSelected(values []float64, selected []int, period int) (float64, bool) {

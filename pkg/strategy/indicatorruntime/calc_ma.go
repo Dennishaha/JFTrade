@@ -2,27 +2,6 @@ package indicatorruntime
 
 import "math"
 
-func calculateMovingAverageValue(values, volumes []float64, config movingAverageConfig) (float64, bool) {
-	switch normalizeMovingAverageType(config.averageType) {
-	case "EMA", "EXPMA":
-		return exponentialMovingAverage(values, config.period)
-	case "SMMA":
-		return smoothedMovingAverage(values, config.period)
-	case "LWMA":
-		return linearWeightedMovingAverage(values, config.period)
-	case "TMA":
-		return triangularMovingAverage(values, config.period)
-	case "HMA":
-		return hullMovingAverage(values, config.period)
-	case "VWMA":
-		return volumeWeightedMovingAverage(values, volumes, config.period)
-	case "SMA", "BOLL", "MA":
-		fallthrough
-	default:
-		return simpleMovingAverage(values, config.period)
-	}
-}
-
 func simpleMovingAverage(values []float64, period int) (float64, bool) {
 	if period <= 0 || len(values) < period {
 		return 0, false
@@ -32,51 +11,6 @@ func simpleMovingAverage(values []float64, period int) (float64, bool) {
 		sum += value
 	}
 	return sum / float64(period), true
-}
-
-func exponentialMovingAverage(values []float64, period int) (float64, bool) {
-	if period <= 0 || len(values) < period {
-		return 0, false
-	}
-	sequence := calculateEMASequence(values, period)
-	if len(sequence) == 0 {
-		return 0, false
-	}
-	return sequence[len(sequence)-1], true
-}
-
-func smoothedMovingAverage(values []float64, period int) (float64, bool) {
-	sequence := calculateSMMASequence(values, period)
-	if len(sequence) == 0 {
-		return 0, false
-	}
-	return sequence[len(sequence)-1], true
-}
-
-func linearWeightedMovingAverage(values []float64, period int) (float64, bool) {
-	if period <= 0 || len(values) < period {
-		return 0, false
-	}
-	window := values[len(values)-period:]
-	weightSum := 0.0
-	weightedSum := 0.0
-	for index, value := range window {
-		weight := float64(index + 1)
-		weightSum += weight
-		weightedSum += value * weight
-	}
-	if weightSum == 0 {
-		return 0, false
-	}
-	return weightedSum / weightSum, true
-}
-
-func triangularMovingAverage(values []float64, period int) (float64, bool) {
-	sequence := calculateTMASequence(values, period)
-	if len(sequence) == 0 {
-		return 0, false
-	}
-	return sequence[len(sequence)-1], true
 }
 
 func calculateTMASequence(values []float64, period int) []float64 {
@@ -89,14 +23,6 @@ func calculateTMASequenceWithCache(values []float64, period int, cache *snapshot
 		return nil
 	}
 	return calculateSMASequence(sequence, period)
-}
-
-func hullMovingAverage(values []float64, period int) (float64, bool) {
-	sequence := calculateHMASequence(values, period)
-	if len(sequence) == 0 {
-		return 0, false
-	}
-	return sequence[len(sequence)-1], true
 }
 
 func calculateHMASequence(values []float64, period int) []float64 {

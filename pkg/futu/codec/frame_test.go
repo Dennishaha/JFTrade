@@ -27,7 +27,8 @@ func TestEncodeDecodeRoundTrip(t *testing.T) {
 }
 
 func TestDecodeRejectsCorruptedBody(t *testing.T) {
-	pkt, _ := Encode(2001, 1, []byte("hello"))
+	pkt, jftradeErr1 := Encode(2001, 1, []byte("hello"))
+	jftradeCheckTestError(t, jftradeErr1)
 	pkt[len(pkt)-1] ^= 0xff
 	_, err := Decode(pkt)
 	if !errors.Is(err, ErrBadBodyHash) {
@@ -36,7 +37,8 @@ func TestDecodeRejectsCorruptedBody(t *testing.T) {
 }
 
 func TestDecodeRejectsBadMagic(t *testing.T) {
-	pkt, _ := Encode(2001, 1, []byte{0})
+	pkt, jftradeErr2 := Encode(2001, 1, []byte{0})
+	jftradeCheckTestError(t, jftradeErr2)
 	pkt[0] = 'X'
 	_, err := Decode(pkt)
 	if !errors.Is(err, ErrBadMagic) {
@@ -52,10 +54,18 @@ func TestDecodeRejectsShortFrame(t *testing.T) {
 }
 
 func TestDecodeRejectsLengthMismatch(t *testing.T) {
-	pkt, _ := Encode(1, 1, []byte{1, 2, 3})
+	pkt, jftradeErr3 := Encode(1, 1, []byte{1, 2, 3})
+	jftradeCheckTestError(t, jftradeErr3)
 	// truncate body
 	pkt = pkt[:HeaderLen+1]
 	if _, err := Decode(pkt); err == nil {
 		t.Fatal("want length mismatch error")
+	}
+}
+
+func jftradeCheckTestError(t testing.TB, err error) {
+	t.Helper()
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
 	}
 }

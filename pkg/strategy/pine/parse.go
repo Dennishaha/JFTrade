@@ -245,9 +245,10 @@ func stripInlineComment(line string) string {
 	for index := 0; index+1 < len(line); index++ {
 		ch := line[index]
 		if (ch == '"' || ch == '\'') && (index == 0 || line[index-1] != '\\') {
-			if inString == 0 {
+			switch inString {
+			case 0:
 				inString = ch
-			} else if inString == ch {
+			case ch:
 				inString = 0
 			}
 			continue
@@ -334,13 +335,6 @@ func (s *parseState) pineEntryQuantity(args []string) (string, string) {
 	default:
 		return "shares", value
 	}
-}
-
-func pineQuantity(args []string) (string, string) {
-	if quantityMode, quantityExpression, ok := pineExplicitQuantity(args); ok {
-		return quantityMode, quantityExpression
-	}
-	return "shares", "1"
 }
 
 func pineExplicitQuantity(args []string) (string, string, bool) {
@@ -505,9 +499,10 @@ func wrappingParensCoverExpression(value string) bool {
 	for index := 0; index < len(value); index++ {
 		ch := value[index]
 		if (ch == '"' || ch == '\'') && (index == 0 || value[index-1] != '\\') {
-			if inString == 0 {
+			switch inString {
+			case 0:
 				inString = ch
-			} else if inString == ch {
+			case ch:
 				inString = 0
 			}
 			continue
@@ -554,9 +549,10 @@ func matchingParen(value string, open int) int {
 	for index := open; index < len(value); index++ {
 		ch := value[index]
 		if (ch == '"' || ch == '\'') && (index == 0 || value[index-1] != '\\') {
-			if inString == 0 {
+			switch inString {
+			case 0:
 				inString = ch
-			} else if inString == ch {
+			case ch:
 				inString = 0
 			}
 			continue
@@ -564,9 +560,10 @@ func matchingParen(value string, open int) int {
 		if inString != 0 {
 			continue
 		}
-		if ch == '(' {
+		switch ch {
+		case '(':
 			depth++
-		} else if ch == ')' {
+		case ')':
 			depth--
 			if depth == 0 {
 				return index
@@ -584,9 +581,10 @@ func splitArguments(value string) []string {
 	for index := 0; index < len(value); index++ {
 		ch := value[index]
 		if (ch == '"' || ch == '\'') && (index == 0 || value[index-1] != '\\') {
-			if inString == 0 {
+			switch inString {
+			case 0:
 				inString = ch
-			} else if inString == ch {
+			case ch:
 				inString = 0
 			}
 			continue

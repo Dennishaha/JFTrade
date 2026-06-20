@@ -76,7 +76,7 @@ func TestSubscriptionRoutesUseInstrumentRequestContract(t *testing.T) {
 	}
 	snapshot = getSubscriptionJSON(t, router, "/api/v1/market-data/subscriptions")
 	entry = singleRouteEntry(t, snapshot)
-	consumers := entry["consumers"].([]any)
+	consumers := jftradeCheckedTypeAssertion[[]any](entry["consumers"])
 	if entry["key"] != "SNAPSHOT:US:AAPL" || len(consumers) != 1 || consumers[0] != "chart-main" || entry["refCount"] != float64(1) {
 		t.Fatalf("remaining entry after consumer delete = %#v", entry)
 	}
@@ -116,7 +116,7 @@ func TestSubscriptionReleaseConsumerOnlyClearsConsumer(t *testing.T) {
 		t.Fatalf("snapshot after consumer-only release = %#v", released)
 	}
 	entry := singleRouteEntry(t, released)
-	consumers := entry["consumers"].([]any)
+	consumers := jftradeCheckedTypeAssertion[[]any](entry["consumers"])
 	if entry["key"] != "SNAPSHOT:HK:00700" || len(consumers) != 1 || consumers[0] != "other" {
 		t.Fatalf("remaining entry after consumer-only release = %#v", entry)
 	}
@@ -130,7 +130,7 @@ func TestCandlesRoutePreservesLegacyQueryParsing(t *testing.T) {
 	api := router.Group("/api/v1")
 	RegisterRoutes(api, service)
 
-	request := httptest.NewRequest(http.MethodGet, "/api/v1/market-data/candles/us/aapl?period=k_60m&limit=5&from=2026-05-01&to=2026-05-02%2015:04:05", nil)
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/market-data/candles/us/aapl?period=k_60m&limit=5&from=2026-05-01&to=2026-05-02%2015:04:05", nil)
 	response := httptest.NewRecorder()
 	router.ServeHTTP(response, request)
 
@@ -165,7 +165,7 @@ func TestCandlesRouteRejectsUnsupportedPeriod(t *testing.T) {
 	api := router.Group("/api/v1")
 	RegisterRoutes(api, service)
 
-	request := httptest.NewRequest(http.MethodGet, "/api/v1/market-data/candles/HK/00700?period=unsupported", nil)
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/market-data/candles/HK/00700?period=unsupported", nil)
 	response := httptest.NewRecorder()
 	router.ServeHTTP(response, request)
 
@@ -185,7 +185,7 @@ func TestCandlesRouteDefaultsInvalidLimit(t *testing.T) {
 	api := router.Group("/api/v1")
 	RegisterRoutes(api, service)
 
-	request := httptest.NewRequest(http.MethodGet, "/api/v1/market-data/candles/HK/00700?limit=abc", nil)
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/market-data/candles/HK/00700?limit=abc", nil)
 	response := httptest.NewRecorder()
 	router.ServeHTTP(response, request)
 
@@ -208,7 +208,7 @@ func TestDepthRouteDefaultsInvalidNum(t *testing.T) {
 	api := router.Group("/api/v1")
 	RegisterRoutes(api, service)
 
-	request := httptest.NewRequest(http.MethodGet, "/api/v1/market-data/depth/HK/00700?num=abc", nil)
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/market-data/depth/HK/00700?num=abc", nil)
 	response := httptest.NewRecorder()
 	router.ServeHTTP(response, request)
 
@@ -229,7 +229,7 @@ func postSubscriptionJSON(t *testing.T, handler http.Handler, path string, paylo
 	if err != nil {
 		t.Fatalf("marshal payload: %v", err)
 	}
-	request := httptest.NewRequest(http.MethodPost, path, bytes.NewReader(body))
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, path, bytes.NewReader(body))
 	request.Header.Set("Content-Type", "application/json")
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, request)
@@ -241,7 +241,7 @@ func postSubscriptionJSON(t *testing.T, handler http.Handler, path string, paylo
 
 func getSubscriptionJSON(t *testing.T, handler http.Handler, path string) map[string]any {
 	t.Helper()
-	request := httptest.NewRequest(http.MethodGet, path, nil)
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, path, nil)
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, request)
 	if response.Code != http.StatusOK {
@@ -252,7 +252,7 @@ func getSubscriptionJSON(t *testing.T, handler http.Handler, path string) map[st
 
 func deleteSubscriptionJSON(t *testing.T, handler http.Handler, path string) map[string]any {
 	t.Helper()
-	request := httptest.NewRequest(http.MethodDelete, path, nil)
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodDelete, path, nil)
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, request)
 	if response.Code != http.StatusOK {
@@ -301,7 +301,7 @@ func routeEntriesByKey(t *testing.T, snapshot map[string]any) map[string]map[str
 		if !ok {
 			t.Fatalf("entry = %#v", raw)
 		}
-		key, _ := entry["key"].(string)
+		key := jftradeCheckedTypeAssertion[string](entry["key"])
 		byKey[key] = entry
 	}
 	return byKey
@@ -358,4 +358,12 @@ func (*routeTestProvider) NormalizeInstrument(context.Context, map[string]any) (
 
 func (*routeTestProvider) Health(context.Context) (srv.HealthStatus, error) {
 	return srv.HealthStatus{}, nil
+}
+
+func jftradeCheckedTypeAssertion[T any](value any) T {
+	typed, ok := value.(T)
+	if !ok {
+		panic("unexpected dynamic type")
+	}
+	return typed
 }

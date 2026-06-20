@@ -110,7 +110,7 @@ func TestAccountOrdersCompletesWithoutHanging(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewStore: %v", err)
 	}
-	t.Cleanup(func() { _ = store.Close() })
+	t.Cleanup(func() { jftradeErr3 := store.Close(); jftradeCheckTestError(t, jftradeErr3) })
 
 	registry := NewToolRegistry()
 	var mu sync.Mutex
@@ -247,7 +247,7 @@ func TestAccountOrdersWithSlowPortfolioSummary(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewStore: %v", err)
 	}
-	t.Cleanup(func() { _ = store.Close() })
+	t.Cleanup(func() { jftradeErr4 := store.Close(); jftradeCheckTestError(t, jftradeErr4) })
 
 	registry := NewToolRegistry()
 	var mu sync.Mutex
@@ -342,7 +342,7 @@ func TestChatContinuesAfterToolFailure(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewStore: %v", err)
 	}
-	t.Cleanup(func() { _ = store.Close() })
+	t.Cleanup(func() { jftradeErr2 := store.Close(); jftradeCheckTestError(t, jftradeErr2) })
 
 	registry := NewToolRegistry()
 	registry.Register(ToolDescriptor{
@@ -404,7 +404,7 @@ func TestAccountOrdersStreamCompletes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewStore: %v", err)
 	}
-	t.Cleanup(func() { _ = store.Close() })
+	t.Cleanup(func() { jftradeErr1 := store.Close(); jftradeCheckTestError(t, jftradeErr1) })
 
 	registry := NewToolRegistry()
 	registry.Register(ToolDescriptor{

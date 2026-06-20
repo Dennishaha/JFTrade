@@ -29,35 +29,3 @@ func strategyLogLevelForKind(kind string, logMessage string) string {
 	}
 	return "info"
 }
-
-func sliceStrategyActivityPage[T any](items []T, limit int, offset int) ([]T, int, bool) {
-	total := len(items)
-	if offset >= total {
-		return []T{}, total, false
-	}
-	end := offset + limit
-	if end > total {
-		end = total
-	}
-	page := append([]T(nil), items[offset:end]...)
-	return page, total, end < total
-}
-
-func (s *strategyCatalogStore) runtimeSummary() map[string]any {
-	strategies := s.strategies()
-	activeCount := 0
-	for _, strategy := range strategies {
-		if strategy.Status == strategyStatusRunning || strategy.Status == strategyStatusPaused {
-			activeCount++
-		}
-	}
-	status := "idle"
-	if activeCount > 0 {
-		status = "active"
-	}
-	return map[string]any{
-		"status":                 status,
-		"activeStrategies":       activeCount,
-		"supportsBacktestParity": true,
-	}
-}

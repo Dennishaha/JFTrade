@@ -342,12 +342,13 @@ func (m *strategyRuntimeManager) buildSymbolRuntime(
 				return
 			}
 			m.recordError(instance.ID, message, time.Now().UTC())
-			_ = m.server.strategyStore.appendStrategyRuntimeEvent(
+			jftradeErr2 := m.server.strategyStore.appendStrategyRuntimeEvent(
 				instance.ID,
 				fmt.Sprintf("runtime error %s: %s", symbol, message),
 				"runtime_error",
 				fmt.Sprintf("%s: %s", symbol, message),
 			)
+			jftradeLogError(jftradeErr2)
 		},
 	}
 
@@ -359,12 +360,13 @@ func (m *strategyRuntimeManager) buildSymbolRuntime(
 		Script:       script,
 		DefinitionID: strategyRuntimeDefinitionID(instance),
 		OnError: func(message string) {
-			_ = m.server.strategyStore.appendStrategyRuntimeEvent(
+			jftradeErr3 := m.server.strategyStore.appendStrategyRuntimeEvent(
 				instance.ID,
 				fmt.Sprintf("runtime error %s: %s", symbol, strings.TrimSpace(message)),
 				"runtime_error",
 				fmt.Sprintf("%s: %s", symbol, strings.TrimSpace(message)),
 			)
+			jftradeLogError(jftradeErr3)
 		},
 	}
 	strategy.Subscribe(session)
@@ -612,12 +614,13 @@ func (e *strategyNotifyOnlyOrderExecutor) SubmitOrders(_ context.Context, orders
 			BrokerID: strategyRuntimeBrokerID(e.instance.Binding),
 			Category: "strategy.order.signal",
 		})
-		_ = e.server.strategyStore.appendStrategyRuntimeEvent(
+		jftradeErr4 := e.server.strategyStore.appendStrategyRuntimeEvent(
 			e.instance.ID,
 			fmt.Sprintf("notify-only signal %s %s %s", order.Symbol, strings.ToUpper(string(order.Side)), strategyRuntimeFormatNumber(order.Quantity.Float64())),
 			"signal_notified",
 			message,
 		)
+		jftradeLogError(jftradeErr4)
 	}
 	return nil, nil
 }
@@ -683,21 +686,23 @@ func (e *strategyLiveOrderExecutor) SubmitOrders(ctx context.Context, orders ...
 		placed, err := e.server.placeExecutionOrder(ctx, command)
 		if err != nil {
 			e.manager.recordError(e.instance.ID, err.Error(), time.Now().UTC())
-			_ = e.server.strategyStore.appendStrategyRuntimeEvent(
+			jftradeErr5 := e.server.strategyStore.appendStrategyRuntimeEvent(
 				e.instance.ID,
 				fmt.Sprintf("live order failed %s %s %s", order.Symbol, strings.ToUpper(string(order.Side)), strategyRuntimeFormatNumber(order.Quantity.Float64())),
 				"order_submit_failed",
 				err.Error(),
 			)
+			jftradeLogError(jftradeErr5)
 			return placedOrders, err
 		}
 		e.manager.recordOrder(e.instance.ID, time.Now().UTC())
-		_ = e.server.strategyStore.appendStrategyRuntimeEvent(
+		jftradeErr6 := e.server.strategyStore.appendStrategyRuntimeEvent(
 			e.instance.ID,
 			fmt.Sprintf("live order submitted %s %s %s", order.Symbol, strings.ToUpper(string(order.Side)), strategyRuntimeFormatNumber(order.Quantity.Float64())),
 			"order_submitted",
 			fmt.Sprintf("internalOrderId=%s", placed.InternalOrderID),
 		)
+		jftradeLogError(jftradeErr6)
 		placedOrders = append(placedOrders, bbgotypes.Order{SubmitOrder: order})
 	}
 	return placedOrders, nil
@@ -803,7 +808,8 @@ func (m *strategyRuntimeManager) handleRuntimePanic(instanceID string, symbol st
 	detail := fmt.Sprintf("strategy runtime panic on %s: %v", symbol, recovered)
 	m.recordError(instanceID, detail, time.Now().UTC())
 	m.stopStrategy(instanceID)
-	_ = m.server.strategyStore.reconcileStrategyRuntimeFailure(instanceID, detail)
+	jftradeErr1 := m.server.strategyStore.reconcileStrategyRuntimeFailure(instanceID, detail)
+	jftradeLogError(jftradeErr1)
 	m.server.recordLiveNotification(liveNotification{
 		At:       time.Now().UTC().Format(time.RFC3339Nano),
 		Level:    "error",
@@ -948,7 +954,7 @@ func strategyRuntimeBrokerID(binding strategyInstanceBinding) string {
 }
 
 func strategyRuntimeDefinitionID(instance managedStrategyInstance) string {
-	definitionID, _ := instance.Params["definitionId"].(string)
+	definitionID := jftradeOptionalTypeAssertion[string](instance.Params["definitionId"])
 	return strings.TrimSpace(definitionID)
 }
 
@@ -1199,13 +1205,6 @@ func strategyRuntimeWarmupUntil(klines []bbgotypes.KLine, interval bbgotypes.Int
 	return time.Time{}
 }
 
-func strategyRuntimeOptionalTimestamp(value time.Time) *string {
-	if value.IsZero() {
-		return nil
-	}
-	return new(value.UTC().Format(time.RFC3339Nano))
-}
-
 func strategyRuntimeOptionalString(value string) *string {
 	value = strings.TrimSpace(value)
 	if value == "" {
@@ -1228,4 +1227,12 @@ func strategyRuntimeMaxTime(left time.Time, right time.Time) time.Time {
 		return right
 	}
 	return left
+}
+
+func jftradeLogError(values ...any) {
+	for _, value := range values {
+		if err, ok := value.(error); ok && err != nil {
+			log.Printf("best-effort operation failed: %v", err)
+		}
+	}
 }

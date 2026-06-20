@@ -1,6 +1,7 @@
 package servercore
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"os"
@@ -8,9 +9,11 @@ import (
 	"sync"
 	"time"
 
-	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	"github.com/jmoiron/sqlx"
+	// Register the modernc SQLite driver for database/sql.
 	_ "modernc.org/sqlite"
+
+	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 )
 
 const (
@@ -56,7 +59,8 @@ func NewStrategyDesignStore(path string) (*strategyDesignStore, error) {
 		return nil, err
 	}
 	if err := store.load(); err != nil {
-		_ = store.Close()
+		jftradeErr1 := store.Close()
+		jftradeLogError(jftradeErr1)
 		return nil, err
 	}
 	return store, nil
@@ -97,7 +101,7 @@ func (s *strategyDesignStore) migrateLocked() error {
 		`CREATE INDEX IF NOT EXISTS idx_strategy_design_definitions_updated_at ON ` + strategyDesignDefinitionTable + ` (updated_at DESC, id ASC)`,
 		`CREATE INDEX IF NOT EXISTS idx_strategy_design_definitions_deleted_at ON ` + strategyDesignDefinitionTable + ` (deleted_at)`,
 	} {
-		if _, err := s.db.Exec(statement); err != nil {
+		if _, err := s.db.ExecContext(context.Background(), statement); err != nil {
 			return err
 		}
 	}
@@ -209,7 +213,7 @@ func (s *strategyDesignStore) deleteDefinition(id string) (strategyDesignDefinit
 		return strategyDesignDefinition{}, err
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
-	if _, err := s.db.Exec(
+	if _, err := s.db.ExecContext(context.Background(),
 		`UPDATE `+strategyDesignDefinitionTable+` SET updated_at = ?, deleted_at = ? WHERE id = ?`,
 		now,
 		now,
@@ -248,7 +252,7 @@ func (s *strategyDesignStore) upsertDefinitionLocked(definition strategyDesignDe
 	if deletedAt != nil {
 		deletedValue = strings.TrimSpace(*deletedAt)
 	}
-	_, err = s.db.Exec(
+	_, err = s.db.ExecContext(context.Background(),
 		`INSERT INTO `+strategyDesignDefinitionTable+` (`+
 			`id, name, version, description, runtime, source_format, symbol, interval, script, visual_model_json, created_at, updated_at, deleted_at`+
 			`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) `+

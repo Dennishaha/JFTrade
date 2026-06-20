@@ -26,14 +26,6 @@ func (r *indicatorRuntime) pushCCIStates(high, low, closeValue float64) {
 	}
 }
 
-func (r *indicatorRuntime) cciValue(period int) any {
-	current, ok := r.cciSnapshotValue(period)
-	if !ok {
-		return nil
-	}
-	return current
-}
-
 func (r *indicatorRuntime) cciSnapshotValue(period int) (float64, bool) {
 	if r == nil {
 		return 0, false

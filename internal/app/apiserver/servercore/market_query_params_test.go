@@ -1,9 +1,10 @@
 package servercore
 
 import (
-	"github.com/jftrade/jftrade-main/internal/api/httpserver"
 	"testing"
 	"time"
+
+	"github.com/jftrade/jftrade-main/internal/api/httpserver"
 )
 
 func TestNormalizeCandlePeriodMapsAliases(t *testing.T) {

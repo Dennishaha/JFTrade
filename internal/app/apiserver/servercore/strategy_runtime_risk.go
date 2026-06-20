@@ -102,15 +102,18 @@ func (e *strategyLiveOrderExecutor) recordRuntimeRiskDecision(decision strategyR
 	if decision.rejected {
 		message := fmt.Sprintf("runtime risk rejected %s %s %s: %s", command.Symbol, command.Side, strategyRuntimeFormatNumber(command.Query.Quantity), decision.reason)
 		e.manager.recordError(e.instance.ID, message, time.Now().UTC())
-		_ = e.server.strategyStore.appendStrategyRuntimeEvent(e.instance.ID, message, "risk_rejected", decision.detail)
+		jftradeErr2 := e.server.strategyStore.appendStrategyRuntimeEvent(e.instance.ID, message, "risk_rejected", decision.detail)
+		jftradeLogError(jftradeErr2)
 		if decision.pauseOnReject {
 			e.manager.stopStrategy(e.instance.ID)
-			_, _ = e.server.strategyStore.transitionStrategy(e.instance.ID, strategyStatusPaused, "paused", "runtime risk rejected order with pauseOnReject")
+			_, jftradeErr3 := e.server.strategyStore.transitionStrategy(e.instance.ID, strategyStatusPaused, "paused", "runtime risk rejected order with pauseOnReject")
+			jftradeLogError(jftradeErr3)
 		}
 		return
 	}
 	message := fmt.Sprintf("runtime risk monitor matched %s %s %s: %s", command.Symbol, command.Side, strategyRuntimeFormatNumber(command.Query.Quantity), decision.reason)
-	_ = e.server.strategyStore.appendStrategyRuntimeEvent(e.instance.ID, message, "risk_monitor", decision.detail)
+	jftradeErr1 := e.server.strategyStore.appendStrategyRuntimeEvent(e.instance.ID, message, "risk_monitor", decision.detail)
+	jftradeLogError(jftradeErr1)
 }
 
 func (r *strategySymbolRuntime) sellableQuantity(symbol string) float64 {

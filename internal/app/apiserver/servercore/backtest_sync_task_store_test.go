@@ -5,6 +5,7 @@ import (
 	"time"
 
 	bbgotypes "github.com/c9s/bbgo/pkg/types"
+
 	"github.com/jftrade/jftrade-main/pkg/backtest"
 )
 

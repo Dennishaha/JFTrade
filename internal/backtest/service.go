@@ -570,9 +570,9 @@ func (s *Service) ResultView(req ResultViewRequest) (map[string]any, error) {
 		return payload, nil
 	}
 
-	window := payload["window"].(map[string]any)
-	series := payload["series"].(map[string]any)
-	returned := window["returned"].(map[string]int)
+	window := jftradeCheckedTypeAssertion[map[string]any](payload["window"])
+	series := jftradeCheckedTypeAssertion[map[string]any](payload["series"])
+	returned := jftradeCheckedTypeAssertion[map[string]int](window["returned"])
 
 	switch view {
 	case "summary":
@@ -730,20 +730,22 @@ func (s *Service) Sync(ctx context.Context, req SyncRequest) (*SyncStarted, erro
 	progress := bt.NewSyncProgress(taskID, req.Symbol, time.Now().UTC())
 
 	if s.syncTasks == nil {
-		_ = syncer.Close()
+		jftradeErr2 := syncer.Close()
+		jftradeLogError(jftradeErr2)
 		return nil, fmt.Errorf("sync task store not configured")
 	}
 
 	syncCtx, syncCancel, err := s.beginTask()
 	if err != nil {
-		_ = syncer.Close()
+		jftradeErr1 := syncer.Close()
+		jftradeLogError(jftradeErr1)
 		return nil, err
 	}
 	s.syncTasks.Add(taskID, progress, syncCancel)
 
 	go func() {
 		defer s.finishTask(syncCancel)
-		defer syncer.Close()
+		defer func() { jftradeLogError(syncer.Close()) }()
 		defer s.syncTasks.Finish(taskID)
 		params := KLineSyncParams{
 			Symbol:       req.Symbol,
@@ -1089,7 +1091,7 @@ func resultViewCandles(
 	if err != nil {
 		return "", nil, err
 	}
-	targetDuration := nativeDuration
+	var targetDuration time.Duration
 	normalizedResolution := strings.ToLower(strings.TrimSpace(resolution))
 	if normalizedResolution == "" || normalizedResolution == "auto" {
 		targetDuration = chooseResultViewAutoResolution(nativeDuration, len(filtered), limit)
@@ -1293,4 +1295,20 @@ func planSyncInterval(symbol string, interval bbgotypes.Interval, sessionScope s
 		return bbgotypes.Interval1h
 	}
 	return interval
+}
+
+func jftradeCheckedTypeAssertion[T any](value any) T {
+	typed, ok := value.(T)
+	if !ok {
+		panic("unexpected dynamic type")
+	}
+	return typed
+}
+
+func jftradeLogError(values ...any) {
+	for _, value := range values {
+		if err, ok := value.(error); ok && err != nil {
+			log.Printf("best-effort operation failed: %v", err)
+		}
+	}
 }

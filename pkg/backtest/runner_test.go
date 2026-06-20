@@ -14,8 +14,9 @@ import (
 
 	"github.com/c9s/bbgo/pkg/fixedpoint"
 	"github.com/c9s/bbgo/pkg/types"
-	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 	"github.com/sirupsen/logrus"
+
+	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
 )
 
 var benchmarkBacktestResult *RunResult
@@ -81,7 +82,8 @@ func TestRunExecutesLocalBacktestSmoke(t *testing.T) {
 	}
 
 	if err := store.InsertKLines(klines, "forward"); err != nil {
-		_ = store.Close()
+		jftradeErr1 := store.Close()
+		jftradeCheckTestError(t, jftradeErr1)
 		t.Fatalf("InsertKLines() error = %v", err)
 	}
 	if err := store.Close(); err != nil {
@@ -183,7 +185,8 @@ func TestRunUsesTradingViewDefaultQuantityForNVDAStylePine(t *testing.T) {
 	}
 
 	if err := store.InsertKLines(klines, "forward"); err != nil {
-		_ = store.Close()
+		jftradeErr2 := store.Close()
+		jftradeCheckTestError(t, jftradeErr2)
 		t.Fatalf("InsertKLines() error = %v", err)
 	}
 	if err := store.Close(); err != nil {
@@ -274,7 +277,8 @@ func TestRunExecutesPineHighestDonchianBreakout(t *testing.T) {
 		})
 	}
 	if err := store.InsertKLines(klines, "forward"); err != nil {
-		_ = store.Close()
+		jftradeErr3 := store.Close()
+		jftradeCheckTestError(t, jftradeErr3)
 		t.Fatalf("InsertKLines() error = %v", err)
 	}
 	if err := store.Close(); err != nil {
@@ -348,7 +352,8 @@ func TestRunExecutesPineVolumeMovingAverageFilter(t *testing.T) {
 		})
 	}
 	if err := store.InsertKLines(klines, "forward"); err != nil {
-		_ = store.Close()
+		jftradeErr4 := store.Close()
+		jftradeCheckTestError(t, jftradeErr4)
 		t.Fatalf("InsertKLines() error = %v", err)
 	}
 	if err := store.Close(); err != nil {
@@ -414,7 +419,8 @@ func TestRunExecutesPineSARStrategy(t *testing.T) {
 		})
 	}
 	if err := store.InsertKLines(klines, "forward"); err != nil {
-		_ = store.Close()
+		jftradeErr5 := store.Close()
+		jftradeCheckTestError(t, jftradeErr5)
 		t.Fatalf("InsertKLines() error = %v", err)
 	}
 	if err := store.Close(); err != nil {
@@ -476,7 +482,8 @@ func TestRunExecutesPineBarstateConfirmedFilter(t *testing.T) {
 		})
 	}
 	if err := store.InsertKLines(klines, "forward"); err != nil {
-		_ = store.Close()
+		jftradeErr6 := store.Close()
+		jftradeCheckTestError(t, jftradeErr6)
 		t.Fatalf("InsertKLines() error = %v", err)
 	}
 	if err := store.Close(); err != nil {
@@ -537,7 +544,8 @@ func TestRunExecutesPineInputTimeStartFilter(t *testing.T) {
 		})
 	}
 	if err := store.InsertKLines(klines, "forward"); err != nil {
-		_ = store.Close()
+		jftradeErr7 := store.Close()
+		jftradeCheckTestError(t, jftradeErr7)
 		t.Fatalf("InsertKLines() error = %v", err)
 	}
 	if err := store.Close(); err != nil {
@@ -601,7 +609,8 @@ func TestRunExecutesPineQtyPercentEntry(t *testing.T) {
 		})
 	}
 	if err := store.InsertKLines(klines, "forward"); err != nil {
-		_ = store.Close()
+		jftradeErr8 := store.Close()
+		jftradeCheckTestError(t, jftradeErr8)
 		t.Fatalf("InsertKLines() error = %v", err)
 	}
 	if err := store.Close(); err != nil {
@@ -660,7 +669,8 @@ func TestRunStrategyOrderBypassesEntryPyramiding(t *testing.T) {
 		})
 	}
 	if err := store.InsertKLines(klines, "forward"); err != nil {
-		_ = store.Close()
+		jftradeErr9 := store.Close()
+		jftradeCheckTestError(t, jftradeErr9)
 		t.Fatalf("InsertKLines() error = %v", err)
 	}
 	if err := store.Close(); err != nil {
@@ -719,7 +729,8 @@ func TestRunStrategyOrderAndCloseAllFlattenPosition(t *testing.T) {
 		})
 	}
 	if err := store.InsertKLines(klines, "forward"); err != nil {
-		_ = store.Close()
+		jftradeErr10 := store.Close()
+		jftradeCheckTestError(t, jftradeErr10)
 		t.Fatalf("InsertKLines() error = %v", err)
 	}
 	if err := store.Close(); err != nil {
@@ -789,7 +800,8 @@ func TestRunPineEntryReversalAndAllowedEntryDirection(t *testing.T) {
 			klines[index].Symbol = "US.AAPL"
 		}
 		if err := store.InsertKLines(klines, "forward"); err != nil {
-			_ = store.Close()
+			jftradeErr11 := store.Close()
+			jftradeCheckTestError(t, jftradeErr11)
 			t.Fatalf("InsertKLines() error = %v", err)
 		}
 		if err := store.Close(); err != nil {
@@ -876,7 +888,8 @@ func TestRunStrategyExitQtyPercentPartiallyExits(t *testing.T) {
 		})
 	}
 	if err := store.InsertKLines(klines, "forward"); err != nil {
-		_ = store.Close()
+		jftradeErr12 := store.Close()
+		jftradeCheckTestError(t, jftradeErr12)
 		t.Fatalf("InsertKLines() error = %v", err)
 	}
 	if err := store.Close(); err != nil {
@@ -940,7 +953,8 @@ func TestRunPinePendingStopCancelAndBracketExit(t *testing.T) {
 			klines[index].Symbol = "US.AAPL"
 		}
 		if err := store.InsertKLines(klines, "forward"); err != nil {
-			_ = store.Close()
+			jftradeErr13 := store.Close()
+			jftradeCheckTestError(t, jftradeErr13)
 			t.Fatalf("InsertKLines() error = %v", err)
 		}
 		if err := store.Close(); err != nil {
@@ -1097,7 +1111,8 @@ func TestRunPineMultiBarHistoryBreakoutAndNoopVisualCalls(t *testing.T) {
 		})
 	}
 	if err := store.InsertKLines(klines, "forward"); err != nil {
-		_ = store.Close()
+		jftradeErr14 := store.Close()
+		jftradeCheckTestError(t, jftradeErr14)
 		t.Fatalf("InsertKLines() error = %v", err)
 	}
 	if err := store.Close(); err != nil {
@@ -1158,7 +1173,8 @@ func TestRunPineExpressionUDFAndStaticForStrategy(t *testing.T) {
 		})
 	}
 	if err := store.InsertKLines(klines, "forward"); err != nil {
-		_ = store.Close()
+		jftradeErr15 := store.Close()
+		jftradeCheckTestError(t, jftradeErr15)
 		t.Fatalf("InsertKLines() error = %v", err)
 	}
 	if err := store.Close(); err != nil {
@@ -1223,7 +1239,8 @@ func TestRunPineRequestSecurityIntradayTimeframeFilter(t *testing.T) {
 		})
 	}
 	if err := store.InsertKLines(klines, "forward"); err != nil {
-		_ = store.Close()
+		jftradeErr16 := store.Close()
+		jftradeCheckTestError(t, jftradeErr16)
 		t.Fatalf("InsertKLines() error = %v", err)
 	}
 	if err := store.Close(); err != nil {
@@ -1298,7 +1315,8 @@ func TestSessionFilteredBacktestStoreFiltersUSExtendedHours(t *testing.T) {
 	}
 
 	if err := store.InsertKLines(klines, "forward"); err != nil {
-		_ = store.Close()
+		jftradeErr17 := store.Close()
+		jftradeCheckTestError(t, jftradeErr17)
 		t.Fatalf("InsertKLines() error = %v", err)
 	}
 	if err := store.Close(); err != nil {
@@ -1309,7 +1327,7 @@ func TestSessionFilteredBacktestStoreFiltersUSExtendedHours(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewFutuKLineStore(reopen) error = %v", err)
 	}
-	defer reopenedStore.Close()
+	defer func() { jftradeCheckTestError(t, reopenedStore.Close()) }()
 	reopenedStore.SetRehabType("forward")
 
 	filteredStore := newBacktestReplayStore(reopenedStore, new(false))
@@ -1423,7 +1441,8 @@ func TestSessionFilteredBacktestStoreSynthesizesUSDailyWithOvernightWhenExtended
 		},
 	}
 	if err := store.InsertKLines(baseRows, "forward"); err != nil {
-		_ = store.Close()
+		jftradeErr18 := store.Close()
+		jftradeCheckTestError(t, jftradeErr18)
 		t.Fatalf("InsertKLines() error = %v", err)
 	}
 	if err := store.Close(); err != nil {
@@ -1434,7 +1453,7 @@ func TestSessionFilteredBacktestStoreSynthesizesUSDailyWithOvernightWhenExtended
 	if err != nil {
 		t.Fatalf("NewFutuKLineStore(reopen) error = %v", err)
 	}
-	defer reopenedStore.Close()
+	defer func() { jftradeCheckTestError(t, reopenedStore.Close()) }()
 	reopenedStore.SetRehabType("forward")
 
 	regularDailyStore := newBacktestReplayStore(reopenedStore, new(false))
@@ -1559,7 +1578,8 @@ func TestSessionFilteredBacktestStoreSynthesizesUSWeeklyWithOvernightWhenExtende
 		},
 	}
 	if err := store.InsertKLines(baseRows, "forward"); err != nil {
-		_ = store.Close()
+		jftradeErr19 := store.Close()
+		jftradeCheckTestError(t, jftradeErr19)
 		t.Fatalf("InsertKLines() error = %v", err)
 	}
 	if err := store.Close(); err != nil {
@@ -1570,7 +1590,7 @@ func TestSessionFilteredBacktestStoreSynthesizesUSWeeklyWithOvernightWhenExtende
 	if err != nil {
 		t.Fatalf("NewFutuKLineStore(reopen) error = %v", err)
 	}
-	defer reopenedStore.Close()
+	defer func() { jftradeCheckTestError(t, reopenedStore.Close()) }()
 	reopenedStore.SetRehabType("forward")
 
 	regularWeeklyStore := newBacktestReplayStore(reopenedStore, new(false))
@@ -1650,7 +1670,8 @@ func TestSessionFilteredBacktestStoreSynthesizesUSTwoHourWithPreMarketWhenExtend
 		})
 	}
 	if err := store.InsertKLines(baseRows, "forward"); err != nil {
-		_ = store.Close()
+		jftradeErr20 := store.Close()
+		jftradeCheckTestError(t, jftradeErr20)
 		t.Fatalf("InsertKLines() error = %v", err)
 	}
 	if err := store.Close(); err != nil {
@@ -1661,7 +1682,7 @@ func TestSessionFilteredBacktestStoreSynthesizesUSTwoHourWithPreMarketWhenExtend
 	if err != nil {
 		t.Fatalf("NewFutuKLineStore(reopen) error = %v", err)
 	}
-	defer reopenedStore.Close()
+	defer func() { jftradeCheckTestError(t, reopenedStore.Close()) }()
 	reopenedStore.SetRehabType("forward")
 
 	regularStore := newBacktestReplayStore(reopenedStore, new(false))
@@ -1760,10 +1781,6 @@ func collectKLinesFromStreamer(store any, since, until time.Time, symbols []stri
 	return rows, nil
 }
 
-func boolPtr(value bool) *bool {
-	return &value
-}
-
 func TestRunExecutesDSLBacktestSmoke(t *testing.T) {
 	isolateBacktestHome(t)
 
@@ -1822,7 +1839,8 @@ func TestRunExecutesDSLBacktestSmoke(t *testing.T) {
 	}
 
 	if err := store.InsertKLines(klines, "forward"); err != nil {
-		_ = store.Close()
+		jftradeErr21 := store.Close()
+		jftradeCheckTestError(t, jftradeErr21)
 		t.Fatalf("InsertKLines() error = %v", err)
 	}
 	if err := store.Close(); err != nil {
@@ -1888,7 +1906,8 @@ func TestRunUsesOneMinuteDataForFiveMinuteBacktest(t *testing.T) {
 		})
 	}
 	if err := store.InsertKLines(minuteKLines, "forward"); err != nil {
-		_ = store.Close()
+		jftradeErr22 := store.Close()
+		jftradeCheckTestError(t, jftradeErr22)
 		t.Fatalf("InsertKLines() error = %v", err)
 	}
 	if err := store.Close(); err != nil {
@@ -1946,7 +1965,8 @@ func TestRunAllowsBoundaryCoveredOneMinuteDataForSyntheticFiveMinuteBacktest(t *
 		})
 	}
 	if err := store.InsertKLines(minuteKLines, "forward"); err != nil {
-		_ = store.Close()
+		jftradeErr23 := store.Close()
+		jftradeCheckTestError(t, jftradeErr23)
 		t.Fatalf("InsertKLines() error = %v", err)
 	}
 	if err := store.Close(); err != nil {
@@ -2001,7 +2021,8 @@ func TestRunUsesFiveMinuteDataForFifteenMinuteBacktest(t *testing.T) {
 		})
 	}
 	if err := store.InsertKLines(fiveMinuteKLines, "forward"); err != nil {
-		_ = store.Close()
+		jftradeErr24 := store.Close()
+		jftradeCheckTestError(t, jftradeErr24)
 		t.Fatalf("InsertKLines() error = %v", err)
 	}
 	if err := store.Close(); err != nil {
@@ -2056,7 +2077,8 @@ func TestRunLogsDerivedStrategyWarmup(t *testing.T) {
 	}
 
 	if err := store.InsertKLines([]types.KLine{currentKLine}, "forward"); err != nil {
-		_ = store.Close()
+		jftradeErr25 := store.Close()
+		jftradeCheckTestError(t, jftradeErr25)
 		t.Fatalf("InsertKLines() error = %v", err)
 	}
 	if err := store.Close(); err != nil {
@@ -2142,7 +2164,8 @@ func seedBenchmarkBacktestStore(b *testing.B) (string, time.Time, time.Time) {
 	baseStart := time.Date(2026, time.May, 26, 9, 30, 0, 0, time.UTC)
 	klines := buildBenchmarkKLines(baseStart, 2048)
 	if err := store.InsertKLines(klines, "forward"); err != nil {
-		_ = store.Close()
+		jftradeErr26 := store.Close()
+		jftradeCheckTestError(b, jftradeErr26)
 		b.Fatalf("InsertKLines() error = %v", err)
 	}
 	if err := store.Close(); err != nil {

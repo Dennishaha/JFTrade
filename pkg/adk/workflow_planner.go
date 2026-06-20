@@ -257,7 +257,7 @@ func (t *workflowPlannerTool) Declaration() *genai.FunctionDeclaration {
 	return &genai.FunctionDeclaration{Name: t.Name(), Description: t.Description(), ParametersJsonSchema: sanitizeSchemaForOpenAI(t.schema)}
 }
 
-func (t *workflowPlannerTool) ProcessRequest(_ adktool.Context, req *adkmodel.LLMRequest) error {
+func (t *workflowPlannerTool) ProcessRequest(_ adkagent.ToolContext, req *adkmodel.LLMRequest) error {
 	if req.Tools == nil {
 		req.Tools = make(map[string]any)
 	}
@@ -283,7 +283,7 @@ func (t *workflowPlannerTool) ProcessRequest(_ adktool.Context, req *adkmodel.LL
 	return nil
 }
 
-func (t *workflowPlannerTool) Run(_ adktool.Context, args any) (map[string]any, error) {
+func (t *workflowPlannerTool) Run(_ adkagent.ToolContext, args any) (map[string]any, error) {
 	input, ok := args.(map[string]any)
 	if !ok {
 		return nil, fmt.Errorf("tool %s received invalid input %T", t.Name(), args)

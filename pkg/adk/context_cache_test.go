@@ -25,7 +25,7 @@ func newCapturedChatProvider(t *testing.T, runtime *Runtime, id string) *capture
 			http.NotFound(w, r)
 			return
 		}
-		defer r.Body.Close()
+		defer func() { jftradeCheckTestError(t, r.Body.Close()) }()
 		var req openAIChatRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -35,11 +35,12 @@ func newCapturedChatProvider(t *testing.T, runtime *Runtime, id string) *capture
 		captured.requests = append(captured.requests, req)
 		captured.mu.Unlock()
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(openAIChatResponse{
+		jftradeErr1 := json.NewEncoder(w).Encode(openAIChatResponse{
 			Choices: []struct {
 				Message openAIChatMessage `json:"message"`
 			}{{Message: openAIChatMessage{Role: "assistant", Content: testProviderFinalReply(req)}}},
 		})
+		jftradeCheckTestError(t, jftradeErr1)
 	}))
 	t.Cleanup(captured.server.Close)
 	mustSaveProvider(t, runtime, ProviderWriteRequest{

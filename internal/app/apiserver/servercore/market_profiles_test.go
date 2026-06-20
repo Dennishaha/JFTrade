@@ -16,11 +16,11 @@ func TestMarketProfilesEndpoint(t *testing.T) {
 	}
 	srv := newHTTPTestServer(t, store)
 
-	resp, err := http.Get(srv.URL + "/api/v1/market-data/markets")
+	resp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/market-data/markets")
 	if err != nil {
 		t.Fatalf("GET markets: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("status = %d", resp.StatusCode)
 	}
@@ -78,11 +78,11 @@ func TestNormalizeMarketInstrumentEndpoint(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			resp, err := http.Post(srv.URL+"/api/v1/market-data/instruments/normalize", "application/json", bytes.NewBufferString(tc.body))
+			resp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/market-data/instruments/normalize", "application/json", bytes.NewBufferString(tc.body))
 			if err != nil {
 				t.Fatalf("POST normalize: %v", err)
 			}
-			defer resp.Body.Close()
+			defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 			if resp.StatusCode != tc.wantHTTPCode {
 				t.Fatalf("status = %d, want %d", resp.StatusCode, tc.wantHTTPCode)
 			}

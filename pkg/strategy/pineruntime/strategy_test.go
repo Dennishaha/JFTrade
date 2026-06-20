@@ -9,6 +9,7 @@ import (
 
 	"github.com/c9s/bbgo/pkg/fixedpoint"
 	"github.com/c9s/bbgo/pkg/types"
+
 	"github.com/jftrade/jftrade-main/pkg/market"
 	strategyir "github.com/jftrade/jftrade-main/pkg/strategy/ir"
 	strategypine "github.com/jftrade/jftrade-main/pkg/strategy/pine"
@@ -336,7 +337,7 @@ if close > upper[1]
 		runtime.engine.Push(kline, market.SessionRegular)
 		scope := runtime.newScope(&kline, market.SessionRegular)
 		hook := program.Hooks[0]
-		if err := runtime.executeLetStatement(hook.Statements[0].(*strategyir.LetStmt), scope); err != nil {
+		if err := runtime.executeLetStatement(jftradeCheckedTypeAssertion[*strategyir.LetStmt](hook.Statements[0]), scope); err != nil {
 			t.Fatalf("executeLetStatement() warmup error = %v", err)
 		}
 		runtime.recordHistorySnapshots(scope)
@@ -350,10 +351,10 @@ if close > upper[1]
 		Volume:   fixedpoint.NewFromFloat(1000),
 	}, market.SessionRegular)
 	hook := program.Hooks[0]
-	if err := runtime.executeLetStatement(hook.Statements[0].(*strategyir.LetStmt), scope); err != nil {
+	if err := runtime.executeLetStatement(jftradeCheckedTypeAssertion[*strategyir.LetStmt](hook.Statements[0]), scope); err != nil {
 		t.Fatalf("executeLetStatement() error = %v", err)
 	}
-	ifStmt := hook.Statements[1].(*strategyir.IfStmt)
+	ifStmt := jftradeCheckedTypeAssertion[*strategyir.IfStmt](hook.Statements[1])
 	ok, err := evaluateBoolExpression(ifStmt.Condition, scope)
 	if err != nil {
 		t.Fatalf("evaluateBoolExpression() error = %v", err)
@@ -522,4 +523,12 @@ func TestAdjustEntryOrderQuantitySupportsPineReversalAndAllowEntryIn(t *testing.
 			}
 		})
 	}
+}
+
+func jftradeCheckedTypeAssertion[T any](value any) T {
+	typed, ok := value.(T)
+	if !ok {
+		panic("unexpected dynamic type")
+	}
+	return typed
 }

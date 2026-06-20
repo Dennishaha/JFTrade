@@ -408,51 +408,6 @@ func firstToolCallFailure(run *Run) string {
 	return toolCallFailureMessage(call)
 }
 
-func applyRunFailureFromToolCalls(run *Run) bool {
-	if run == nil {
-		return false
-	}
-	call := firstToolCallByStatus(run.ToolCalls, "TIMED_OUT")
-	errorCode := "TOOL_EXECUTION_TIMED_OUT"
-	status := RunStatusFailed
-	if call == nil {
-		call = firstToolCallByStatus(run.ToolCalls, "FAILED")
-		errorCode = "TOOL_EXECUTION_FAILED"
-	}
-	if call == nil {
-		allCancelled := len(run.ToolCalls) > 0
-		for _, toolCall := range run.ToolCalls {
-			if strings.ToUpper(strings.TrimSpace(toolCall.Status)) != "CANCELLED" {
-				allCancelled = false
-				break
-			}
-		}
-		if allCancelled {
-			call = &ToolCall{Status: "CANCELLED"}
-			errorCode = runErrorCode(RunStatusCancelled)
-			status = RunStatusCancelled
-		}
-	}
-	if call == nil {
-		return false
-	}
-	message := toolCallFailureMessage(call)
-	run.Status = status
-	run.ErrorCode = errorCode
-	run.Message = message
-	run.FailureReason = message
-	run.Degraded = true
-	completedAt := nowString()
-	if run.CompletedAt == nil {
-		run.CompletedAt = &completedAt
-	}
-	if run.Status == RunStatusCancelled && run.CancelledAt == nil {
-		run.CancelledAt = &completedAt
-	}
-	finalizeRunUsage(run)
-	return true
-}
-
 func (r *Runtime) persistResumedRunResult(ctx context.Context, run Run, result openAIChatResult) (*Message, error) {
 	message, err := r.ensureAssistantMessage(ctx, Session{ID: run.SessionID, AgentID: run.AgentID}, run, result)
 	if err != nil {
@@ -472,10 +427,6 @@ func (r *Runtime) auditResumedRun(ctx context.Context, run Run) {
 	r.audit(ctx, runLifecycleAuditKind(run.Status), run.ID, "Agent run reached a terminal state after approval resolution.", map[string]any{
 		"runId": run.ID, "agentId": run.AgentID, "status": run.Status, "resumeState": run.ResumeState, "failureReason": run.FailureReason,
 	})
-}
-
-func ptrString(value string) *string {
-	return &value
 }
 
 func (r *Runtime) newGoogleADKExecution(
@@ -803,7 +754,7 @@ func (r *Runtime) attachGoogleADKRunner(
 	return execution, nil
 }
 
-func (e *googleADKExecution) beforeToolCallback(ctx adktool.Context, tool adktool.Tool, args map[string]any) (map[string]any, error) {
+func (e *googleADKExecution) beforeToolCallback(ctx adkagent.ToolContext, tool adktool.Tool, args map[string]any) (map[string]any, error) {
 	if e.shouldInterruptForUserGoalPause(e.runIDForAgentName(ctx.AgentName())) {
 		return nil, errUserGoalPauseRequested
 	}
@@ -832,7 +783,7 @@ func (e *googleADKExecution) shouldInterruptForUserGoalPause(runID string) bool 
 }
 
 func (e *googleADKExecution) afterToolCallback(
-	ctx adktool.Context,
+	ctx adkagent.ToolContext,
 	tool adktool.Tool,
 	args map[string]any,
 	result map[string]any,
@@ -1052,7 +1003,8 @@ func (e *googleADKExecution) finishCall(callID string, output any, err error) {
 	e.emitRunSnapshotLocked()
 	e.mu.Unlock()
 	if changed {
-		_ = e.flushBufferedTextIfReady()
+		jftradeErr1 := e.flushBufferedTextIfReady()
+		jftradeLogError(jftradeErr1)
 	}
 }
 
@@ -1101,7 +1053,8 @@ func (e *googleADKExecution) consumeFunctionResponse(response *genai.FunctionRes
 	e.emitRunSnapshotLocked()
 	e.mu.Unlock()
 	if changed {
-		_ = e.flushBufferedTextIfReady()
+		jftradeErr2 := e.flushBufferedTextIfReady()
+		jftradeLogError(jftradeErr2)
 	}
 }
 
@@ -1243,12 +1196,6 @@ func (e *googleADKExecution) preToolState() (string, string) {
 	return strings.TrimSpace(e.preToolContent.String()), strings.TrimSpace(e.preToolReasoning.String())
 }
 
-func (e *googleADKExecution) toolCallCount() int {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	return len(e.calls)
-}
-
 func (e *googleADKExecution) detachDeltaSink() {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -1259,7 +1206,8 @@ func (e *googleADKExecution) emitToolProgress(callID string, toolName string) {
 	if e.onDelta == nil {
 		return
 	}
-	_ = e.onDelta(ChatDelta{ToolProgress: projectedToolProgress(toolName)})
+	jftradeErr4 := e.onDelta(ChatDelta{ToolProgress: projectedToolProgress(toolName)})
+	jftradeLogError(jftradeErr4)
 }
 
 func (e *googleADKExecution) appendVisibleText(reply string, reasoning string) error {
@@ -1387,10 +1335,6 @@ func (e *googleADKExecution) builderForRun(store map[string]*strings.Builder, ru
 	return builder
 }
 
-func (e *googleADKExecution) activeToolCallCount() int {
-	return e.activeToolCallCountForRun("")
-}
-
 func (e *googleADKExecution) activeToolCallCountForRun(runID string) int {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -1471,13 +1415,10 @@ func (e *googleADKExecution) emitRunSnapshotLocked() {
 		}
 		if e.onDelta != nil {
 			snapshot = NormalizeRun(snapshot)
-			_ = e.onDelta(ChatDelta{Run: &snapshot})
+			jftradeErr3 := e.onDelta(ChatDelta{Run: &snapshot})
+			jftradeLogError(jftradeErr3)
 		}
 	}
-}
-
-func (e *googleADKExecution) derivedRunStatusLocked() string {
-	return e.derivedRunStatusForRunLocked("")
 }
 
 func (e *googleADKExecution) derivedRunStatusForRunLocked(runID string) string {
@@ -1518,10 +1459,6 @@ func (e *googleADKExecution) derivedRunStatusForRunLocked(runID string) string {
 		return RunStatusCompleted
 	}
 	return RunStatusRunning
-}
-
-func (e *googleADKExecution) persistedRunStatusLocked() string {
-	return e.persistedRunStatusForRunLocked("")
 }
 
 func (e *googleADKExecution) persistedRunStatusForRunLocked(runID string) string {
@@ -1773,26 +1710,6 @@ func workflowChildInstructionTask(step workflowStep) string {
 func workflowFinalSynthesisInstruction(base string, task string) string {
 	instruction := workflowChildInstruction(base, task)
 	return instruction + "\n\n工具调用已经完成。现在必须基于已有工具结果输出最终回复。不要再调用工具，不要请求审批，不要只说明准备继续。"
-}
-
-func workflowFinalSynthesisPrompt(task string, summaries []string) string {
-	var builder strings.Builder
-	builder.WriteString("请基于刚才已经返回的工具结果完成这个子 Agent 任务，输出最终结论、策略草案或下一步建议。")
-	if trimmed := strings.TrimSpace(task); trimmed != "" {
-		builder.WriteString("\n\n子任务：")
-		builder.WriteString(trimmed)
-	}
-	if len(summaries) > 0 {
-		builder.WriteString("\n\n工具结果摘要：")
-		for _, summary := range summaries {
-			if trimmed := strings.TrimSpace(summary); trimmed != "" {
-				builder.WriteString("\n- ")
-				builder.WriteString(trimmed)
-			}
-		}
-	}
-	builder.WriteString("\n\n只输出最终回复，不要调用任何工具。")
-	return builder.String()
 }
 
 func googleADKAppName(id string) string {

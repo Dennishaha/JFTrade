@@ -289,7 +289,8 @@ func retryState(retryAfter time.Time) (any, bool) {
 
 func (s *Server) resetFutuRuntime() {
 	if s.tradingSvc != nil {
-		_ = s.tradingSvc.StopOrderUpdates()
+		jftradeErr1 := s.tradingSvc.StopOrderUpdates()
+		jftradeLogError(jftradeErr1)
 	}
 	if s.marketdataSvc != nil {
 		s.marketdataSvc.ResetCollector()
@@ -318,7 +319,7 @@ func (s *Server) probeOpenD(ctx context.Context) opendProbe {
 		HandshakeTimeout: 2 * time.Second,
 		RequestTimeout:   3 * time.Second,
 	})
-	defer client.Close()
+	defer func() { jftradeLogError(client.Close()) }()
 	if err := client.Connect(probeCtx); err != nil {
 		return opendProbe{CheckedAt: checkedAt, Connectivity: "disconnected", Status: "offline", LastError: new(err.Error())}
 	}

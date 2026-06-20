@@ -100,9 +100,12 @@ func (f *frontendServer) serveRuntimeConfig(w http.ResponseWriter, r *http.Reque
 	if r.Method == http.MethodHead {
 		return
 	}
-	_, _ = w.Write([]byte("window.__JFTRADE_RUNTIME_CONFIG__ = Object.assign({}, window.__JFTRADE_RUNTIME_CONFIG__, "))
-	_, _ = w.Write(payload)
-	_, _ = w.Write([]byte(");\n"))
+	_, jftradeErr3 := w.Write([]byte("window.__JFTRADE_RUNTIME_CONFIG__ = Object.assign({}, window.__JFTRADE_RUNTIME_CONFIG__, "))
+	jftradeLogError(jftradeErr3)
+	_, jftradeErr1 := w.Write(payload)
+	jftradeLogError(jftradeErr1)
+	_, jftradeErr2 := w.Write([]byte(");\n"))
+	jftradeLogError(jftradeErr2)
 }
 
 func (f *frontendServer) hasFile(assetPath string) bool {

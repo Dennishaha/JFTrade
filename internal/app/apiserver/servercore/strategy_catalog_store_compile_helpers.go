@@ -67,7 +67,7 @@ func buildCompiledRequirementsPayload(requirements strategyir.Requirements) map[
 }
 
 func strategyDefinitionIDFromParams(params map[string]any) string {
-	definitionID, _ := params["definitionId"].(string)
+	definitionID := jftradeOptionalTypeAssertion[string](params["definitionId"])
 	return strings.TrimSpace(definitionID)
 }
 

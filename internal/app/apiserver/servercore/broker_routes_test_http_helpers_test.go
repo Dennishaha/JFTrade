@@ -10,11 +10,11 @@ import (
 
 func decodeBrokerEnvelope(t *testing.T, url string) map[string]any {
 	t.Helper()
-	resp, err := http.Get(url)
+	resp, err := jftradeTestHTTPGet(t, url)
 	if err != nil {
 		t.Fatalf("GET %s: %v", url, err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("GET %s status = %d", url, resp.StatusCode)
 	}

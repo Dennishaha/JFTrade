@@ -46,8 +46,7 @@ func buildStopLossSnapshotForSymbolWithOptionsAndCache(closes []float64, endTime
 	changePercent := ((current - reference) / reference) * 100
 	mode := normalizeStopLossMode(config.mode)
 	direction := normalizeStopLossDirection(config.direction)
-	longTriggered := false
-	shortTriggered := false
+	var longTriggered, shortTriggered bool
 	longTriggerPercent := math.Abs(changePercent)
 	shortTriggerPercent := math.Abs(changePercent)
 	peakClose := current
@@ -73,7 +72,7 @@ func buildStopLossSnapshotForSymbolWithOptionsAndCache(closes []float64, endTime
 		longTriggered = changePercent <= -config.percentage
 		shortTriggered = changePercent >= config.percentage
 	}
-	triggerPercent := 0.0
+	var triggerPercent float64
 	switch direction {
 	case "long":
 		triggerPercent = longTriggerPercent
@@ -110,10 +109,6 @@ func buildStopLossSnapshotForSymbolWithOptionsAndCache(closes []float64, endTime
 	)
 }
 
-func buildStopLossSnapshotForTradingWindow(closes []float64, endTimes []time.Time, sessions []market.Session, config stopLossConfig, intervalMinutes int, symbol string, includeExtendedHours bool) map[string]any {
-	return buildStopLossSnapshotForTradingWindowWithCache(closes, endTimes, sessions, config, intervalMinutes, symbol, includeExtendedHours, nil)
-}
-
 func buildStopLossSnapshotForTradingWindowWithCache(closes []float64, endTimes []time.Time, sessions []market.Session, config stopLossConfig, intervalMinutes int, symbol string, includeExtendedHours bool, cache *snapshotSeriesCache) map[string]any {
 	selectedIndices := selectStopLossTradingWindowIndicesWithCache(endTimes, config.timeValue, config.timeUnit, symbol, len(closes), includeExtendedHours, cache)
 	if len(selectedIndices) < 2 {
@@ -127,8 +122,7 @@ func buildStopLossSnapshotForTradingWindowWithCache(closes []float64, endTimes [
 	changePercent := ((current - reference) / reference) * 100
 	mode := normalizeStopLossMode(config.mode)
 	direction := normalizeStopLossDirection(config.direction)
-	longTriggered := false
-	shortTriggered := false
+	var longTriggered, shortTriggered bool
 	longTriggerPercent := math.Abs(changePercent)
 	shortTriggerPercent := math.Abs(changePercent)
 	peakClose := current
@@ -154,7 +148,7 @@ func buildStopLossSnapshotForTradingWindowWithCache(closes []float64, endTimes [
 		longTriggered = changePercent <= -config.percentage
 		shortTriggered = changePercent >= config.percentage
 	}
-	triggerPercent := 0.0
+	var triggerPercent float64
 	switch direction {
 	case "long":
 		triggerPercent = longTriggerPercent
@@ -193,12 +187,13 @@ func buildStopLossSnapshotForTradingWindowWithCache(closes []float64, endTimes [
 }
 
 func fillStopLossSnapshot(cache *snapshotSeriesCache, config stopLossConfig, mode, direction string, windowBars float64, windowPolicy string, reference, current, changePercent, triggerPercent float64, longTriggered, shortTriggered bool, longTriggerPercent, shortTriggerPercent, peakClose, troughClose, longDrawdownPercent, shortReboundPercent float64) map[string]any {
-	triggered := false
-	if direction == "long" {
+	var triggered bool
+	switch direction {
+	case "long":
 		triggered = longTriggered
-	} else if direction == "short" {
+	case "short":
 		triggered = shortTriggered
-	} else {
+	default:
 		triggered = longTriggered || shortTriggered
 	}
 	snapshot := cache.getStopLossSnapshot(config)

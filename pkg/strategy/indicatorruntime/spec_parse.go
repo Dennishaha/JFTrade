@@ -2,6 +2,7 @@ package indicatorruntime
 
 import (
 	"fmt"
+	"log"
 	"math"
 	"regexp"
 	"strconv"
@@ -22,7 +23,8 @@ func parseIndicatorRequirements(script string) indicatorRequirements {
 		keys = append(keys, key)
 	}
 
-	requirements, _ := parseIndicatorRequirementKeys(keys, false)
+	requirements, jftradeErr1 := parseIndicatorRequirementKeys(keys, false)
+	jftradeLogError(jftradeErr1)
 	return requirements
 }
 
@@ -1086,4 +1088,12 @@ func firstNonEmpty(values ...string) string {
 		}
 	}
 	return ""
+}
+
+func jftradeLogError(values ...any) {
+	for _, value := range values {
+		if err, ok := value.(error); ok && err != nil {
+			log.Printf("best-effort operation failed: %v", err)
+		}
+	}
 }

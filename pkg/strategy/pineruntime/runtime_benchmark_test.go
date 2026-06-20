@@ -7,6 +7,7 @@ import (
 
 	"github.com/c9s/bbgo/pkg/fixedpoint"
 	"github.com/c9s/bbgo/pkg/types"
+
 	strategyir "github.com/jftrade/jftrade-main/pkg/strategy/ir"
 	strategypine "github.com/jftrade/jftrade-main/pkg/strategy/pine"
 )
@@ -54,7 +55,6 @@ signal = bars >= 0 and close >= nz(last, close)`,
 
 func BenchmarkPineRuntimePushKLines(b *testing.B) {
 	for _, benchmarkCase := range pineRuntimeBenchmarkCases() {
-		benchmarkCase := benchmarkCase
 		compilation, err := strategypine.Compile(benchmarkCase.script)
 		if err != nil {
 			b.Fatalf("%s compile: %v", benchmarkCase.name, err)

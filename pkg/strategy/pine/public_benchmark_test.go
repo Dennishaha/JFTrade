@@ -32,7 +32,6 @@ if isBull(close) and close > fast and volume > avgVol and sum > 0
 
 func BenchmarkPineAnalyzeScript(b *testing.B) {
 	for name, script := range publicPineBenchmarkCases() {
-		script := script
 		b.Run(name, func(b *testing.B) {
 			b.ReportAllocs()
 			for index := 0; index < b.N; index++ {

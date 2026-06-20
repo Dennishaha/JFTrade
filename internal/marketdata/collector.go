@@ -486,7 +486,8 @@ func retryDelay(failures int) time.Duration {
 
 func closeStream(stream PushStream) {
 	if stream != nil {
-		_ = stream.Close()
+		jftradeErr1 := stream.Close()
+		jftradeLogError(jftradeErr1)
 	}
 }
 

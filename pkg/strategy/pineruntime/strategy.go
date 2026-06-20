@@ -10,6 +10,7 @@ import (
 	bbgo2 "github.com/c9s/bbgo/pkg/bbgo"
 	"github.com/c9s/bbgo/pkg/types"
 	exprast "github.com/expr-lang/expr/ast"
+
 	"github.com/jftrade/jftrade-main/pkg/market"
 	strategyindicatorruntime "github.com/jftrade/jftrade-main/pkg/strategy/indicatorruntime"
 	strategyir "github.com/jftrade/jftrade-main/pkg/strategy/ir"
@@ -258,10 +259,6 @@ func strategyName(strategy *Strategy) string {
 		return name
 	}
 	return ID
-}
-
-func klinePayload(kline types.KLine, session market.Session) *klinePayloadView {
-	return &klinePayloadView{kline: &kline, session: session}
 }
 
 func (p *klinePayloadView) FieldValue(name string) (any, bool) {

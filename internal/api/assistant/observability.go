@@ -24,7 +24,8 @@ func (h *Handler) handleADKAudit(c *gin.Context) {
 		return
 	}
 	var pageQuery adkPageQuery
-	_ = c.ShouldBindQuery(&pageQuery)
+	jftradeErr2 := c.ShouldBindQuery(&pageQuery)
+	jftradeLogError(jftradeErr2)
 	limit, offset := adkPageBounds(pageQuery)
 	total := len(events)
 	if offset > total {
@@ -53,7 +54,8 @@ func (h *Handler) handleADKOptimizationTasks(c *gin.Context) {
 		return
 	}
 	var pageQuery adkPageQuery
-	_ = c.ShouldBindQuery(&pageQuery)
+	jftradeErr1 := c.ShouldBindQuery(&pageQuery)
+	jftradeLogError(jftradeErr1)
 	limit, offset := adkPageBounds(pageQuery)
 	tasks := result.Tasks
 	total := len(tasks)

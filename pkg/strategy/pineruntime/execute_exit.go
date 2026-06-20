@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/c9s/bbgo/pkg/types"
+
 	"github.com/jftrade/jftrade-main/pkg/strategy/indicatorbinding"
 	strategyir "github.com/jftrade/jftrade-main/pkg/strategy/ir"
 )
@@ -144,7 +145,7 @@ func (r *strategyRuntime) executeTrailingExit(
 	}
 	tickSize := r.marketTickSize()
 	offset := offsetTicks * tickSize
-	activationPrice := 0.0
+	var activationPrice float64
 	if strings.TrimSpace(statement.TrailPrice) != "" {
 		activationPrice, err = evaluateFloatExpression(statement.TrailPrice, scope)
 		if err != nil {

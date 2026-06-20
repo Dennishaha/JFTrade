@@ -55,11 +55,11 @@ func TestExecutionOrderRoutesNormalizeUSPricePrecision(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Marshal payload: %v", err)
 	}
-	resp, err := http.Post(srv.URL+"/api/v1/execution/orders", "application/json", bytes.NewReader(payload))
+	resp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/execution/orders", "application/json", bytes.NewReader(payload))
 	if err != nil {
 		t.Fatalf("POST execution orders: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("POST execution orders status = %d", resp.StatusCode)
 	}
@@ -128,11 +128,11 @@ func TestExecutionOrderRoutesPropagateUSSessionSelection(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Marshal payload: %v", err)
 	}
-	resp, err := http.Post(srv.URL+"/api/v1/execution/orders", "application/json", bytes.NewReader(payload))
+	resp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/execution/orders", "application/json", bytes.NewReader(payload))
 	if err != nil {
 		t.Fatalf("POST execution orders: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("POST execution orders status = %d", resp.StatusCode)
 	}
@@ -194,11 +194,11 @@ func TestExecutionOrderRoutesAcceptExplicitCodeWithMarket(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Marshal payload: %v", err)
 	}
-	resp, err := http.Post(srv.URL+"/api/v1/execution/orders", "application/json", bytes.NewReader(payload))
+	resp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/execution/orders", "application/json", bytes.NewReader(payload))
 	if err != nil {
 		t.Fatalf("POST execution orders: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("POST execution orders status = %d", resp.StatusCode)
 	}
@@ -252,11 +252,11 @@ func TestExecutionOrderRoutesRejectBareSymbolWithoutMarket(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Marshal payload: %v", err)
 	}
-	resp, err := http.Post(srv.URL+"/api/v1/execution/orders/preview", "application/json", bytes.NewReader(payload))
+	resp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/execution/orders/preview", "application/json", bytes.NewReader(payload))
 	if err != nil {
 		t.Fatalf("POST execution preview: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("POST execution preview status = %d, want %d", resp.StatusCode, http.StatusBadRequest)
 	}

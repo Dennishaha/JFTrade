@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/c9s/bbgo/pkg/types"
+
 	"github.com/jftrade/jftrade-main/pkg/market"
 )
 
@@ -117,7 +118,7 @@ func resolveIntervalMinutes(interval types.Interval) int {
 	if value == "" {
 		return 1
 	}
-	unit := ""
+	var unit string
 	switch {
 	case strings.HasSuffix(value, "mo"):
 		unit = "mo"

@@ -135,12 +135,14 @@ func (r *MarketDataRuntime) Ensure() *pkgfutu.Exchange {
 
 		if !valid {
 			if candidate != nil {
-				_ = candidate.Close()
+				jftradeErr4 := candidate.Close()
+				jftradeLogError(jftradeErr4)
 			}
 			return nil
 		}
 		if previous != nil && previous != candidate {
-			_ = previous.Close()
+			jftradeErr2 := previous.Close()
+			jftradeLogError(jftradeErr2)
 		}
 		return candidate
 	}
@@ -165,7 +167,8 @@ func (r *MarketDataRuntime) Reset() {
 	r.key = ""
 	r.mu.Unlock()
 	if exchange != nil {
-		_ = exchange.Close()
+		jftradeErr3 := exchange.Close()
+		jftradeLogError(jftradeErr3)
 	}
 }
 
@@ -185,7 +188,8 @@ func (r *MarketDataRuntime) Close() error {
 	r.key = ""
 	r.mu.Unlock()
 	if exchange != nil {
-		_ = exchange.Close()
+		jftradeErr1 := exchange.Close()
+		jftradeLogError(jftradeErr1)
 	}
 	r.wg.Wait()
 	return nil

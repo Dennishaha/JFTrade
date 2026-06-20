@@ -1,7 +1,6 @@
 package servercore
 
 import (
-	"strconv"
 	"time"
 
 	"github.com/jftrade/jftrade-main/internal/api/httpserver"
@@ -27,66 +26,6 @@ func newOptionalTimeValue(value time.Time) optionalTimeValue {
 	return optionalTimeValue{Time: value}
 }
 
-type marketInstrumentURI struct {
-	Market string `uri:"market" binding:"required"`
-	Symbol string `uri:"symbol" binding:"required"`
-}
-
-type accountRecordURI struct {
-	AccountRecordID string `uri:"accountRecordId" binding:"required"`
-}
-
-type definitionURI struct {
-	DefinitionID string `uri:"definitionId" binding:"required"`
-}
-
-type instanceURI struct {
-	InstanceID string `uri:"instanceId" binding:"required"`
-}
-
-type backtestRunURI struct {
-	RunID string `uri:"runId" binding:"required"`
-}
-
-type taskURI struct {
-	TaskID string `uri:"taskId" binding:"required"`
-}
-
-type sessionURI struct {
-	SessionID string `uri:"sessionId" binding:"required"`
-}
-
-type runURI struct {
-	RunID string `uri:"runId" binding:"required"`
-}
-
-type approvalURI struct {
-	ApprovalID string `uri:"approvalId" binding:"required"`
-}
-
-type providerURI struct {
-	ProviderID string `uri:"providerId" binding:"required"`
-}
-
-type agentURI struct {
-	AgentID string `uri:"agentId" binding:"required"`
-}
-
-type skillURI struct {
-	SkillID string `uri:"skillId" binding:"required"`
-}
-
-type instrumentSearchQuery struct {
-	Query string `form:"query"`
-}
-
-type normalizeMarketInstrumentRequest struct {
-	Market       string `json:"market"`
-	Symbol       string `json:"symbol"`
-	Code         string `json:"code"`
-	InstrumentID string `json:"instrumentId"`
-}
-
 type marketSnapshotQuery struct {
 	Refresh optionalBoolValue `form:"refresh,parser=encoding.TextUnmarshaler"`
 }
@@ -102,118 +41,6 @@ type marketCandlesQuery struct {
 
 type marketDepthQuery struct {
 	Num optionalIntValue `form:"num,parser=encoding.TextUnmarshaler"`
-}
-
-type strategyDefinitionPreviewQuery struct {
-	Interval         string `form:"interval"`
-	Symbol           string `form:"symbol"`
-	UseExtendedHours bool   `form:"useExtendedHours"`
-}
-
-type strategyActivityPageQuery struct {
-	Limit    optionalIntValue  `form:"limit,parser=encoding.TextUnmarshaler"`
-	Offset   optionalIntValue  `form:"offset,parser=encoding.TextUnmarshaler"`
-	Level    string            `form:"level"`
-	Kind     string            `form:"kind"`
-	FromTime optionalTimeValue `form:"fromTime,parser=encoding.TextUnmarshaler"`
-	ToTime   optionalTimeValue `form:"toTime,parser=encoding.TextUnmarshaler"`
-}
-
-type adkPageQuery struct {
-	Limit  optionalIntValue `form:"limit,parser=encoding.TextUnmarshaler"`
-	Offset optionalIntValue `form:"offset,parser=encoding.TextUnmarshaler"`
-}
-
-type adkSessionsQuery struct {
-	Limit   optionalIntValue `form:"limit,parser=encoding.TextUnmarshaler"`
-	Offset  optionalIntValue `form:"offset,parser=encoding.TextUnmarshaler"`
-	AgentID string           `form:"agentId"`
-	Query   string           `form:"query"`
-}
-
-type adkRunsQuery struct {
-	Limit     optionalIntValue `form:"limit,parser=encoding.TextUnmarshaler"`
-	Offset    optionalIntValue `form:"offset,parser=encoding.TextUnmarshaler"`
-	Status    string           `form:"status"`
-	AgentID   string           `form:"agentId"`
-	SessionID string           `form:"sessionId"`
-}
-
-type adkApprovalsQuery struct {
-	Limit   optionalIntValue `form:"limit,parser=encoding.TextUnmarshaler"`
-	Offset  optionalIntValue `form:"offset,parser=encoding.TextUnmarshaler"`
-	Status  string           `form:"status"`
-	AgentID string           `form:"agentId"`
-}
-
-type adkAgentsQuery struct {
-	Status string `form:"status"`
-}
-
-type adkAuditQuery struct {
-	Kind      string `form:"kind"`
-	SubjectID string `form:"subjectId"`
-}
-
-type adkTasksQuery struct {
-	Limit   optionalIntValue `form:"limit,parser=encoding.TextUnmarshaler"`
-	Offset  optionalIntValue `form:"offset,parser=encoding.TextUnmarshaler"`
-	Status  string           `form:"status"`
-	AgentID string           `form:"agentId"`
-	RunID   string           `form:"runId"`
-}
-
-type adkMemoryQuery struct {
-	Scope   string `form:"scope"`
-	AgentID string `form:"agentId"`
-	Key     string `form:"key"`
-}
-
-type memoryURI struct {
-	MemoryID string `uri:"memoryId" binding:"required"`
-}
-
-type marketSubscriptionDeleteQuery struct {
-	ConsumerID string `form:"consumerId"`
-}
-
-func (q marketCandlesQuery) values() map[string][]string {
-	values := map[string][]string{}
-	if q.Period != "" {
-		values["period"] = []string{q.Period.String()}
-	}
-	if q.Limit.Set && q.Limit.Valid {
-		values["limit"] = []string{strconv.Itoa(q.Limit.Int())}
-	}
-	if value := q.FromTime.StringValue(); value != "" {
-		values["fromTime"] = []string{value}
-	}
-	if value := q.ToTime.StringValue(); value != "" {
-		values["toTime"] = []string{value}
-	}
-	if value := q.From.StringValue(); value != "" {
-		values["from"] = []string{value}
-	}
-	if value := q.To.StringValue(); value != "" {
-		values["to"] = []string{value}
-	}
-	return values
-}
-
-func (q marketDepthQuery) values() map[string][]string {
-	values := map[string][]string{}
-	if q.Num.Set && q.Num.Valid {
-		values["num"] = []string{strconv.Itoa(q.Num.Int())}
-	}
-	return values
-}
-
-func (q marketSnapshotQuery) values() map[string][]string {
-	values := map[string][]string{}
-	if q.Refresh.Set {
-		values["refresh"] = []string{strconv.FormatBool(q.Refresh.Bool())}
-	}
-	return values
 }
 
 func (q marketSnapshotQuery) forceRefresh() bool {

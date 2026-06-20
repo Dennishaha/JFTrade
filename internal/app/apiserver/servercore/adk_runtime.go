@@ -160,7 +160,8 @@ func NewADKRuntime(settingsPath string, deps RuntimeDeps) *jfadk.Runtime {
 	}
 	if err := jfadk.MigrateSQLiteSessionService(sessionService); err != nil {
 		log.Printf("JFTrade ADK session migration degraded: %v", err)
-		_ = sessionService.Close()
+		jftradeErr1 := sessionService.Close()
+		jftradeLogError(jftradeErr1)
 		runtime := jfadk.NewRuntime(store, registry)
 		configureADKRuntime(runtime, deps)
 		return runtime
@@ -984,7 +985,7 @@ func inferMarketSymbol(input map[string]any) (string, string) {
 }
 
 func stringValue(input map[string]any, key string) string {
-	value, _ := input[key].(string)
+	value := jftradeOptionalTypeAssertion[string](input[key])
 	return value
 }
 

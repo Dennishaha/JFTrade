@@ -194,7 +194,7 @@ func TestExecutionOrderStorePersistsOrdersEventsAndFillKeys(t *testing.T) {
 	if err != nil {
 		t.Fatalf("reload execution store: %v", err)
 	}
-	defer reloaded.Close()
+	defer func() { jftradeCheckTestError(t, reloaded.Close()) }()
 
 	reloadedOrder, ok := reloaded.order(order.InternalOrderID)
 	if !ok {
@@ -215,11 +215,11 @@ func TestExecutionOrderStorePersistsOrdersEventsAndFillKeys(t *testing.T) {
 
 func getExecutionOrdersForTest(t *testing.T, url string) executionOrdersResponse {
 	t.Helper()
-	resp, err := http.Get(url)
+	resp, err := jftradeTestHTTPGet(t, url)
 	if err != nil {
 		t.Fatalf("GET execution orders: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("GET execution orders status = %d", resp.StatusCode)
 	}
@@ -299,11 +299,11 @@ func TestExecutionOrdersSyncBrokerOrdersAndTracksWorkerState(t *testing.T) {
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
-	resp, err := http.Get(srv.URL + "/api/v1/execution/orders")
+	resp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/execution/orders")
 	if err != nil {
 		t.Fatalf("GET execution orders: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
 
 	var ordersEnvelope struct {
 		OK   bool                    `json:"ok"`
@@ -344,11 +344,11 @@ func TestExecutionOrdersSyncBrokerOrdersAndTracksWorkerState(t *testing.T) {
 		t.Fatalf("expected one Trd_SubAccPush call, got %d", got)
 	}
 
-	workerResp, err := http.Get(srv.URL + "/api/v1/system/worker/broker-order-updates")
+	workerResp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/system/worker/broker-order-updates")
 	if err != nil {
 		t.Fatalf("GET worker status: %v", err)
 	}
-	defer workerResp.Body.Close()
+	defer func() { jftradeCheckTestError(t, workerResp.Body.Close()) }()
 
 	var workerEnvelope struct {
 		OK   bool           `json:"ok"`

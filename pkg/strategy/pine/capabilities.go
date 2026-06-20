@@ -251,10 +251,6 @@ func partialCapability(id string, weight float64, notes string) capabilityDefini
 	return capabilityDefinition{id: id, status: CapabilityPartial, weight: weight, notes: notes}
 }
 
-func analyzedCapability(id string, weight float64, notes string) capabilityDefinition {
-	return capabilityDefinition{id: id, status: CapabilityAnalyzed, weight: weight, notes: notes}
-}
-
 func unsupportedCapability(id string, weight float64, notes string) capabilityDefinition {
 	return capabilityDefinition{id: id, status: CapabilityUnsupported, weight: weight, notes: notes}
 }

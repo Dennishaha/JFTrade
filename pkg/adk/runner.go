@@ -333,56 +333,6 @@ func (r *Runtime) DeleteSession(ctx context.Context, sessionID string) error {
 	return r.store.DeleteSession(ctx, sessionID)
 }
 
-func (r *Runtime) generateReply(ctx context.Context, agent Agent, question string, toolSummaries []string, history []openAIChatMessage) (openAIChatResult, error) {
-	provider, ok, err := r.store.Provider(ctx, agent.ProviderID)
-	if err != nil {
-		return openAIChatResult{}, err
-	}
-	if !ok || !provider.Enabled {
-		return openAIChatResult{}, fmt.Errorf("agent provider is unavailable")
-	}
-	apiKey, _, err := r.store.ProviderAPIKey(provider.ID)
-	if err != nil {
-		return openAIChatResult{}, err
-	}
-	messages := buildPromptMessages(agent, question, toolSummaries, history)
-	return r.openai.chatDetailed(ctx, provider, apiKey, defaultString(agent.Model, provider.Model), messages)
-}
-
-func (r *Runtime) generateReplyStream(
-	ctx context.Context,
-	agent Agent,
-	question string,
-	toolSummaries []string,
-	history []openAIChatMessage,
-	onDelta func(ChatDelta) error,
-) (openAIChatResult, error) {
-	provider, ok, err := r.store.Provider(ctx, agent.ProviderID)
-	if err != nil {
-		return openAIChatResult{}, err
-	}
-	if !ok || !provider.Enabled {
-		return openAIChatResult{}, fmt.Errorf("agent provider is unavailable")
-	}
-	apiKey, _, err := r.store.ProviderAPIKey(provider.ID)
-	if err != nil {
-		return openAIChatResult{}, err
-	}
-	messages := buildPromptMessages(agent, question, toolSummaries, history)
-	return r.openai.chatStream(ctx, provider, apiKey, defaultString(agent.Model, provider.Model), messages, onDelta)
-}
-
-func (r *Runtime) conversationHistory(ctx context.Context, sessionID string, enabled bool) ([]openAIChatMessage, error) {
-	if !enabled || strings.TrimSpace(sessionID) == "" {
-		return nil, nil
-	}
-	messages, err := r.store.Messages(ctx, sessionID)
-	if err != nil {
-		return nil, err
-	}
-	return recentOpenAIMessages(messages, 12, 12000), nil
-}
-
 func (r *Runtime) prepareAgent(ctx context.Context, agent Agent) (Agent, error) {
 	for _, id := range agent.Skills {
 		if _, ok, err := r.skills.Get(ctx, id); err != nil {
@@ -434,28 +384,14 @@ func (r *Runtime) audit(ctx context.Context, kind string, subjectID string, deta
 	if r == nil || r.store == nil {
 		return
 	}
-	_ = r.store.AddAuditEvent(ctx, AuditEvent{
+	jftradeErr1 := r.store.AddAuditEvent(ctx, AuditEvent{
 		Kind: kind, SubjectID: subjectID, Detail: detail, Metadata: metadata,
 	})
+	jftradeLogError(jftradeErr1)
 }
 
 func (r *Runtime) RecordAudit(ctx context.Context, kind string, subjectID string, detail string, metadata map[string]any) {
 	r.audit(ctx, kind, subjectID, detail, metadata)
-}
-
-func buildPromptMessages(agent Agent, question string, toolSummaries []string, history []openAIChatMessage) []openAIChatMessage {
-	system := strings.TrimSpace(agent.Instruction)
-	if system == "" {
-		system = defaultAgentInstruction()
-	}
-	messages := []openAIChatMessage{{Role: "system", Content: system}}
-	messages = append(messages, history...)
-	prompt := "鐢ㄦ埛闂锛歕n" + question
-	if len(toolSummaries) > 0 {
-		prompt += "\n\nJFTrade 宸ュ叿杈撳嚭锛歕n" + strings.Join(toolSummaries, "\n\n")
-	}
-	messages = append(messages, openAIChatMessage{Role: "user", Content: prompt})
-	return messages
 }
 
 func approvalResolutionSummary(run Run, approval Approval, approved bool) string {
