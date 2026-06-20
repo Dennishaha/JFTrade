@@ -24,8 +24,6 @@ const (
 
 	workflowGoalCompleteTool = "workflow.goal.complete"
 	workflowGoalContinueTool = "workflow.goal.continue"
-	workflowGoalDecisionErr  = "WORKFLOW_GOAL_DECISION_REQUIRED"
-	workflowGoalMaxLoopErr   = "WORKFLOW_GOAL_MAX_ITERATIONS_EXCEEDED"
 )
 
 type workflowTaskToolset struct {
@@ -38,6 +36,7 @@ type workflowTaskToolset struct {
 
 type workflowGoalDecision struct {
 	mu      sync.Mutex
+	phase   string
 	status  string
 	summary string
 	reason  string
@@ -49,9 +48,31 @@ func (d *workflowGoalDecision) reset() {
 	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
+	d.phase = "work"
 	d.status = ""
 	d.summary = ""
 	d.reason = ""
+}
+
+func (d *workflowGoalDecision) beginDecision() {
+	if d == nil {
+		return
+	}
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.phase = "decision"
+	d.status = ""
+	d.summary = ""
+	d.reason = ""
+}
+
+func (d *workflowGoalDecision) decisionPhase() bool {
+	if d == nil {
+		return false
+	}
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	return d.phase == "decision"
 }
 
 func (d *workflowGoalDecision) setComplete(summary string) {
@@ -157,11 +178,18 @@ func (e *WorkflowExecutor) continueADKGoalWorkflow(
 		}
 		nextPrompt = prompt
 	}
-	parent = e.failParent(ctx, parent, fmt.Errorf("goal workflow exceeded max iterations"))
-	parent.ErrorCode = workflowGoalMaxLoopErr
-	jftradeErr7 := e.runtime.store.SaveRun(ctx, parent)
-	jftradeLogError(jftradeErr7)
-	return e.workflowResponse(ctx, req.Session, parent, openAIChatResult{Reply: parent.FailureReason}), nil
+	pausedAt := nowString()
+	parent.Status = RunStatusPaused
+	parent.WorkflowStatus = workflowStatusPaused
+	parent.Message = "目标达到本轮运行上限，已暂停。"
+	parent.ResumeState = "iteration_limit"
+	parent.PausedReason = "iteration_limit"
+	parent.PausedAt = &pausedAt
+	parent.Iteration = limit
+	parent.PendingApprovals = pendingApprovalsOnly(parent.PendingApprovals)
+	parent, saveErr := e.runtime.saveRunPreservingUserGoalPause(ctx, parent)
+	jftradeLogError(saveErr)
+	return e.workflowResponse(ctx, req.Session, parent, openAIChatResult{Reply: parent.Message}), nil
 }
 
 func (e *WorkflowExecutor) pauseADKGoalWorkflowIfRequested(
@@ -270,7 +298,10 @@ func (e *WorkflowExecutor) finishADKGoalWorkflowTurn(
 			latest = refreshed
 			parent = refreshed
 		}
-		decision.reset()
+		if !goalTurnHasFinalReply(execution, parent.ID, visibleReply) {
+			return parent, ChatResponse{}, false, goalFinalReplyPrompt(parent)
+		}
+		decision.beginDecision()
 		decisionErr := execution.run(ctx, genai.NewContentFromText(goalDecisionPrompt(latest, visibleReply, decisionRetry), genai.RoleUser))
 		parent, replyResult, done, prompt = e.prepareGoalWorkflowTurn(ctx, req, parent, known, execution, decisionErr, iteration)
 		if done {
@@ -292,11 +323,8 @@ func (e *WorkflowExecutor) finishADKGoalWorkflowTurn(
 			return e.finishADKGoalWorkflowTurn(ctx, req, parent, known, execution, decision, nil, iteration, true)
 		}
 		if snapshot.status == "" {
-			parent = e.failParent(ctx, parent, fmt.Errorf("goal decision required"))
-			parent.ErrorCode = workflowGoalDecisionErr
-			jftradeErr8 := e.runtime.store.SaveRun(ctx, parent)
-			jftradeLogError(jftradeErr8)
-			return parent, e.workflowResponse(ctx, req.Session, parent, openAIChatResult{Reply: parent.FailureReason}), true, ""
+			decision.setContinue("目标裁决未按要求调用工具，安全地继续目标。")
+			snapshot = decision.snapshot()
 		}
 	}
 	switch snapshot.status {
@@ -583,6 +611,9 @@ func (e *WorkflowExecutor) firstBlockingTaskChild(ctx context.Context, parent Ru
 		if err != nil || !ok {
 			continue
 		}
+		if !isDirectWorkflowChild(parent, child) {
+			continue
+		}
 		switch child.Status {
 		case RunStatusPending, RunStatusRunning, RunStatusFailed, RunStatusDenied, RunStatusCancelled, RunStatusTimedOut:
 			return child, index, true
@@ -671,6 +702,12 @@ func (r *Runtime) newGoogleADKTaskExecution(
 func (t *workflowTaskToolset) Name() string { return "jftrade-workflow-task-tools" }
 
 func (t *workflowTaskToolset) Tools(adkagent.ReadonlyContext) ([]adktool.Tool, error) {
+	if normalizeWorkMode(t.req.Mode) == WorkModeLoop && t.req.GoalDecision != nil && t.req.GoalDecision.decisionPhase() {
+		return []adktool.Tool{
+			&workflowPlannerTool{name: workflowGoalCompleteTool, description: "Declare that the current objective is complete and finish the goal loop.", schema: workflowGoalCompleteSchema(), run: t.goalComplete},
+			&workflowPlannerTool{name: workflowGoalContinueTool, description: "Declare that the current objective is not complete yet and continue orchestration.", schema: workflowGoalContinueSchema(), run: t.goalContinue},
+		}, nil
+	}
 	tools := []adktool.Tool{
 		&workflowPlannerTool{name: workflowTasksListTool, description: "List current workflow TODO DAG, ready tasks, completed results and blocked state.", schema: emptyObjectSchema(), run: t.list},
 		&workflowPlannerTool{name: workflowTaskAddTool, description: "Add a runtime TODO to the current ADK task workflow.", schema: workflowTaskAddSchema(), run: t.add},
@@ -678,12 +715,6 @@ func (t *workflowTaskToolset) Tools(adkagent.ReadonlyContext) ([]adktool.Tool, e
 		&workflowPlannerTool{name: workflowTaskCompleteTool, description: "Mark a claimed or ready TODO as DONE with a result summary.", schema: workflowTaskCompleteSchema(), run: t.complete},
 		&workflowPlannerTool{name: workflowTaskBlockTool, description: "Mark a TODO as BLOCKED with a blocking reason.", schema: workflowTaskBlockSchema(), run: t.block},
 		&workflowPlannerTool{name: workflowTaskDelegateTool, description: "Delegate a ready TODO to an ADK child agent. This creates a JFTrade child run only when called.", schema: workflowTaskDelegateSchema(), run: t.delegate},
-	}
-	if normalizeWorkMode(t.req.Mode) == WorkModeLoop && t.req.GoalDecision != nil {
-		tools = append(tools,
-			&workflowPlannerTool{name: workflowGoalCompleteTool, description: "Declare that the current objective is complete and finish the goal loop.", schema: workflowGoalCompleteSchema(), run: t.goalComplete},
-			&workflowPlannerTool{name: workflowGoalContinueTool, description: "Declare that the current objective is not complete yet and continue orchestration.", schema: workflowGoalContinueSchema(), run: t.goalContinue},
-		)
 	}
 	return tools, nil
 }
@@ -760,6 +791,21 @@ func (t *workflowTaskToolset) complete(args map[string]any) (map[string]any, err
 	if err != nil {
 		return nil, err
 	}
+	if task.Executor == workflowTaskExecutorChild && strings.TrimSpace(task.RunID) != "" {
+		child, ok, childErr := t.executor.runtime.store.Run(context.Background(), task.RunID)
+		if childErr != nil {
+			return nil, childErr
+		}
+		if !ok || !isDirectWorkflowChild(parent, child) {
+			return map[string]any{"success": false, "message": "delegated child run is unavailable", "taskId": task.ID}, nil
+		}
+		if child.Status != RunStatusCompleted {
+			return map[string]any{
+				"success": false, "message": "delegated task cannot be completed before its child run succeeds",
+				"taskId": task.ID, "childRunId": child.ID, "childStatus": child.Status,
+			}, nil
+		}
+	}
 	summary := plannerStringArg(args, "resultSummary")
 	if summary == "" {
 		summary = plannerStringArg(args, "summary")
@@ -820,6 +866,19 @@ func (t *workflowTaskToolset) delegate(args map[string]any) (map[string]any, err
 	if err != nil {
 		return nil, err
 	}
+	if task.Executor == workflowTaskExecutorChild && strings.TrimSpace(task.RunID) != "" {
+		child, ok, childErr := t.executor.runtime.store.Run(context.Background(), task.RunID)
+		if childErr != nil {
+			return nil, childErr
+		}
+		if ok && isDirectWorkflowChild(parent, child) && (child.Status == RunStatusPending || child.Status == RunStatusRunning) {
+			return map[string]any{
+				"success": true, "taskId": task.ID, "childRunId": child.ID, "status": child.Status,
+				"pendingApproval": child.Status == RunStatusPending, "result": strings.TrimSpace(child.Message),
+				"reused": true,
+			}, nil
+		}
+	}
 	step := workflowStepFromTask(task)
 	if prompt := plannerStringArg(args, "prompt"); prompt != "" {
 		step.Message = prompt
@@ -856,16 +915,84 @@ func (t *workflowTaskToolset) delegate(args map[string]any) (map[string]any, err
 func (t *workflowTaskToolset) goalComplete(args map[string]any) (map[string]any, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
+	parent, tasks, err := t.parentAndTasks(context.Background())
+	if err != nil {
+		return nil, err
+	}
+	if blockers := t.workflowCompletionBlockers(context.Background(), parent, tasks); len(blockers) > 0 {
+		return map[string]any{
+			"success":  false,
+			"status":   "blocked",
+			"message":  "goal cannot complete while workflow tasks or child runs are unfinished",
+			"blockers": blockers,
+		}, nil
+	}
 	summary := plannerStringArg(args, "summary")
 	if summary == "" {
 		summary = plannerStringArg(args, "resultSummary")
 	}
 	t.req.GoalDecision.setComplete(summary)
-	parent, tasks, jftradeErr23 := t.parentAndTasks(context.Background())
-	jftradeLogError(jftradeErr23)
 	jftradeErr17 := t.saveParentPlan(context.Background(), parent, tasks)
 	jftradeLogError(jftradeErr17)
 	return map[string]any{"success": true, "status": "complete", "summary": summary}, nil
+}
+
+func (t *workflowTaskToolset) workflowCompletionBlockers(ctx context.Context, parent Run, tasks []Task) []map[string]any {
+	blockers := make([]map[string]any, 0)
+	pendingApprovalRuns := map[string]struct{}{}
+	if approvals, err := t.executor.runtime.store.ListApprovals(ctx); err == nil {
+		for _, approval := range approvals {
+			if approval.Status == ApprovalStatusPending {
+				pendingApprovalRuns[strings.TrimSpace(approval.RunID)] = struct{}{}
+			}
+		}
+	}
+	for _, task := range tasks {
+		status := strings.ToUpper(strings.TrimSpace(task.Status))
+		if status != "DONE" && status != "CANCELLED" {
+			blockers = append(blockers, map[string]any{"type": "task", "id": task.ID, "status": status})
+		}
+		if task.Executor != workflowTaskExecutorChild || strings.TrimSpace(task.RunID) == "" {
+			continue
+		}
+		child, ok, err := t.executor.runtime.store.Run(ctx, task.RunID)
+		if err != nil || !ok || !isDirectWorkflowChild(parent, child) {
+			blockers = append(blockers, map[string]any{"type": "child_run", "id": task.RunID, "status": "MISSING"})
+			continue
+		}
+		if child.Status != RunStatusCompleted {
+			blockers = append(blockers, map[string]any{"type": "child_run", "id": child.ID, "status": child.Status})
+			continue
+		}
+		if _, pending := pendingApprovalRuns[child.ID]; pending || t.executor.runtime.runExecutionInFlight(child.ID) {
+			blockers = append(blockers, map[string]any{"type": "child_run", "id": child.ID, "status": "STILL_ACTIVE"})
+		}
+	}
+	known := make(map[string]struct{}, len(tasks))
+	for _, task := range tasks {
+		if strings.TrimSpace(task.RunID) != "" {
+			known[task.RunID] = struct{}{}
+		}
+	}
+	for _, childRunID := range parent.ChildRunIDs {
+		childRunID = strings.TrimSpace(childRunID)
+		if childRunID == "" || childRunID == parent.ID {
+			continue
+		}
+		if _, ok := known[childRunID]; ok {
+			continue
+		}
+		child, ok, err := t.executor.runtime.store.Run(ctx, childRunID)
+		_, pending := pendingApprovalRuns[childRunID]
+		if err != nil || !ok || !isDirectWorkflowChild(parent, child) || child.Status != RunStatusCompleted || pending || t.executor.runtime.runExecutionInFlight(childRunID) {
+			status := "MISSING"
+			if ok {
+				status = child.Status
+			}
+			blockers = append(blockers, map[string]any{"type": "child_run", "id": childRunID, "status": status})
+		}
+	}
+	return blockers
 }
 
 func (t *workflowTaskToolset) goalContinue(args map[string]any) (map[string]any, error) {
@@ -1009,6 +1136,22 @@ func goalDecisionPrompt(parent Run, lastReply string, retry bool) string {
 		prefix = "上一次没有调用目标裁决工具。现在必须调用 workflow.goal.complete 或 workflow.goal.continue"
 	}
 	return fmt.Sprintf("%s：“%s”。\n上一轮可见回复：%s\n如果目标已完成，调用 workflow.goal.complete 并给出 summary；如果尚未完成，调用 workflow.goal.continue 并给出 reason。不要只输出文字。", prefix, strings.TrimSpace(parent.Objective), strings.TrimSpace(lastReply))
+}
+
+func goalFinalReplyPrompt(parent Run) string {
+	return fmt.Sprintf("所有当前工作步骤已经返回，但还没有形成最终可见答复。请总结本轮结果并直接回复用户；本轮不要再调用工具。\n当前目标：%s", strings.TrimSpace(parent.Objective))
+}
+
+func goalTurnHasFinalReply(execution *googleADKExecution, runID string, visibleReply string) bool {
+	if execution == nil || strings.TrimSpace(visibleReply) == "" || execution.activeToolCallCountForRun(runID) > 0 {
+		return false
+	}
+	execution.mu.Lock()
+	defer execution.mu.Unlock()
+	if len(execution.callsForRunLocked(runID)) == 0 {
+		return true
+	}
+	return execution.runHasPostToolTextLocked(runID)
 }
 
 func goalOrchestratorContinueNudge(parent Run, reason string) string {

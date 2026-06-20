@@ -62,6 +62,7 @@ export interface ADKWorkflowQueueState {
 export function useADKWorkflowQueueState(options: {
   timelineEntries: Ref<ADKTimelineEntryState[]>;
   selectedSessionId: Ref<string>;
+  resolvingApprovalIds?: Ref<Set<string>>;
 }): ADKWorkflowQueueState {
   const workflowPlanRun = ref<ADKRun | null>(null);
   const childRunSnapshots = ref<Record<string, ADKRun>>({});
@@ -137,7 +138,7 @@ export function useADKWorkflowQueueState(options: {
       childRunSnapshots: childRunSnapshots.value,
       timelineEntries: options.timelineEntries.value,
       workflowRun: parentWorkflowPlanRun.value,
-    }),
+    }).filter((item) => !options.resolvingApprovalIds?.value.has(item.approval.id)),
   );
 
   const selectedApprovalQueue = computed<ADKApprovalQueueItem[]>(() =>
@@ -147,7 +148,7 @@ export function useADKWorkflowQueueState(options: {
       childRunSnapshots: childRunSnapshots.value,
       timelineEntries: options.timelineEntries.value,
       workflowRun: conversationRun.value,
-    }),
+    }).filter((item) => !options.resolvingApprovalIds?.value.has(item.approval.id)),
   );
 
   const childTimelineEntries = computed(() => {
@@ -413,6 +414,12 @@ function effectiveChildRunStatus(
     return "PENDING_APPROVAL";
   }
   const childStatus = String(childRun?.status ?? "").trim();
+  if (
+    childStatus.toUpperCase() === "PENDING_APPROVAL" &&
+    pendingApprovals(childRun?.pendingApprovals).length === 0
+  ) {
+    return "BLOCKED";
+  }
   return childStatus || childStatusFromWorkflowStepStatus(stepStatus) || "PENDING";
 }
 
@@ -423,7 +430,7 @@ function childStatusFromWorkflowStepStatus(status: string): string {
     case "IN_PROGRESS":
       return "RUNNING";
     case "BLOCKED":
-      return "PENDING_APPROVAL";
+      return "BLOCKED";
     case "TODO":
       return "PENDING";
     default:
@@ -608,10 +615,12 @@ function childLifecycleStatusText(
   const prefix = `子智能体 #${item.index}`;
   const suffix = `${label}（${item.id}）`;
   const status = String(item.status ?? "").trim().toUpperCase();
-  if (item.pendingApprovalCount > 0 || status === "PENDING_APPROVAL" || status === "BLOCKED") {
+  if (item.pendingApprovalCount > 0 || status === "PENDING_APPROVAL") {
     return `${prefix} 等待审批：${suffix}`;
   }
   switch (status) {
+    case "BLOCKED":
+      return `${prefix} 已阻断：${suffix}`;
     case "DONE":
     case "COMPLETED":
     case "SUCCEEDED":

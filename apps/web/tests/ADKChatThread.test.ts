@@ -13,13 +13,14 @@ function mountThread(
   entries: ADKTimelineEntry[],
   options: {
     renderMarkdown?: (content: string) => string;
+    activityIndicator?: "idle" | "typing" | "child_finished";
   } = {},
 ) {
   return mount(ADKChatThread, {
     props: {
       timelineEntries: entries.map((entry) => createTimelineEntryState(entry)),
       sendingChat: false,
-      showTypingIndicator: false,
+      activityIndicator: options.activityIndicator ?? "idle",
       errorMessage: "",
       approvalsBusy: false,
       suggestions: [],
@@ -45,6 +46,15 @@ function mountThread(
 }
 
 describe("ADKChatThread", () => {
+  it("replaces typing dots with a child-finished status", () => {
+    const wrapper = mountThread([], { activityIndicator: "child_finished" });
+
+    expect(wrapper.find(".adk-typing").exists()).toBe(false);
+    expect(wrapper.find(".adk-child-finished-status").text()).toContain(
+      "子智能体已结束，主智能体继续处理中",
+    );
+  });
+
   it("shows original user prompt by default and toggles processed prompt", async () => {
     const wrapper = mountThread([
       {

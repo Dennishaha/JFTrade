@@ -98,6 +98,9 @@ export function useADKPageController(
         chatState.clearWorkflowPlanRun();
         chatState.resetComposerState();
       });
+      if (sessionState.selectedSessionId.value) {
+        await chatState.initializeSessionContext(sessionState.selectedSessionId.value);
+      }
     },
     deleteSession: async (sessionId: string) => {
       await chatState.flushComposerState();
@@ -162,7 +165,7 @@ export function useADKPageController(
     sessions: sessionState.sessions,
     sessionSearch: sessionState.sessionSearch,
     sessionTitle: sessionState.sessionTitle,
-    showTypingIndicator: chatState.showTypingIndicator,
+    activityIndicator: chatState.activityIndicator,
     suggestions,
     composerPlaceholder,
     emptyStateHint,

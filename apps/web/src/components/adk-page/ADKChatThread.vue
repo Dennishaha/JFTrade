@@ -17,7 +17,7 @@ const props = withDefaults(
     hasBlockingRun?: boolean;
     timelineEntries: ADKTimelineEntryState[];
     sendingChat: boolean;
-    showTypingIndicator: boolean;
+    activityIndicator: "idle" | "typing" | "child_finished";
     errorMessage: string;
     approvalsBusy: boolean;
     suggestions: string[];
@@ -295,11 +295,17 @@ function renderedMarkdown(entry: ADKTimelineEntryState): string {
       </v-alert>
     </div>
 
-    <div v-if="showTypingIndicator" class="adk-msg adk-msg--assistant">
+    <div v-if="activityIndicator === 'typing'" class="adk-msg adk-msg--assistant">
       <div class="adk-typing">
         <span class="adk-dot" />
         <span class="adk-dot" />
         <span class="adk-dot" />
+      </div>
+    </div>
+    <div v-else-if="activityIndicator === 'child_finished'" class="adk-msg adk-msg--assistant">
+      <div class="adk-child-finished-status">
+        <v-icon size="13">fa-solid fa-circle-check</v-icon>
+        <span>子智能体已结束，主智能体继续处理中</span>
       </div>
     </div>
   </div>

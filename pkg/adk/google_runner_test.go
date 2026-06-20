@@ -5,8 +5,77 @@ import (
 	"errors"
 	"testing"
 
+	adksession "google.golang.org/adk/session"
+	"google.golang.org/adk/tool/toolconfirmation"
 	"google.golang.org/genai"
 )
+
+func TestPendingApprovalsOnlyClaimsConfirmationCallsOwnedByExecution(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	service := adksession.InMemoryService()
+	created, err := service.Create(ctx, &adksession.CreateRequest{AppName: "app", UserID: googleADKUserID, SessionID: "session-approval-owner"})
+	if err != nil {
+		t.Fatalf("Create session: %v", err)
+	}
+	appendConfirmation := func(invocationID, confirmationID, functionCallID string) {
+		t.Helper()
+		event := adksession.NewEvent(invocationID)
+		event.Author = "agent"
+		event.Content = genai.NewContentFromParts([]*genai.Part{{FunctionCall: &genai.FunctionCall{
+			ID: confirmationID, Name: toolconfirmation.FunctionCallName,
+			Args: map[string]any{
+				"originalFunctionCall": &genai.FunctionCall{ID: functionCallID, Name: "strategy.research_backtest", Args: map[string]any{"symbol": "TME"}},
+				"toolConfirmation":     toolconfirmation.ToolConfirmation{Hint: "approve"},
+			},
+		}}}, genai.RoleModel)
+		if err := service.AppendEvent(ctx, created.Session, event); err != nil {
+			t.Fatalf("Append confirmation: %v", err)
+		}
+	}
+	appendConfirmation("inv-foreign", "confirmation-foreign", "call-foreign")
+	appendConfirmation("inv-owned", "confirmation-owned", "call-owned")
+
+	execution := &googleADKExecution{
+		sessionID: "session-approval-owner", appName: "app", sessionService: service,
+		agent: Agent{ID: "agent-1"}, runID: "run-owned",
+	}
+	execution.ensureCall("call-owned", ToolDescriptor{Name: "strategy.research_backtest"}, map[string]any{"symbol": "TME"})
+	approvals, err := execution.pendingApprovals(ctx, runtime.Store())
+	if err != nil {
+		t.Fatalf("pendingApprovals: %v", err)
+	}
+	if len(approvals) != 1 || approvals[0].ConfirmationCallID != "confirmation-owned" || approvals[0].RunID != "run-owned" {
+		t.Fatalf("approvals = %+v, want only owned confirmation", approvals)
+	}
+	again, err := execution.pendingApprovals(ctx, runtime.Store())
+	if err != nil {
+		t.Fatalf("pendingApprovals second pass: %v", err)
+	}
+	if len(again) != 0 {
+		t.Fatalf("second pass approvals = %+v, want none", again)
+	}
+
+	recovery := &googleADKExecution{
+		sessionID: "session-approval-owner", appName: "app", sessionService: service,
+		agent: Agent{ID: "agent-1"}, runID: "run-recovery",
+	}
+	recovery.ensureCall("call-owned", ToolDescriptor{Name: "strategy.research_backtest"}, map[string]any{"symbol": "TME"})
+	recovered, err := recovery.pendingApprovals(ctx, runtime.Store())
+	if err != nil {
+		t.Fatalf("pendingApprovals recovery pass: %v", err)
+	}
+	if len(recovered) != 0 {
+		t.Fatalf("recovery approvals = %+v, want globally idempotent confirmation", recovered)
+	}
+	all, err := runtime.Store().ListApprovals(ctx)
+	if err != nil {
+		t.Fatalf("ListApprovals: %v", err)
+	}
+	if len(all) != 1 {
+		t.Fatalf("stored approvals = %d, want 1", len(all))
+	}
+}
 
 func TestGoogleADKExecutionBuffersTextUntilToolsFinish(t *testing.T) {
 	t.Parallel()
@@ -259,6 +328,24 @@ func TestGoogleADKExecutionPersistsTimedOutToolFailureOnRunningSnapshot(t *testi
 	}
 	if stored.Degraded {
 		t.Fatalf("stored degraded = %v, want false for activity snapshot", stored.Degraded)
+	}
+}
+
+func TestGoogleADKExecutionDoesNotPersistCompletedActivitySnapshot(t *testing.T) {
+	t.Parallel()
+	execution := &googleADKExecution{
+		runID:                   "run-activity",
+		calls:                   []ToolCall{{RunID: "run-activity", ToolName: "strategy.inspect", Status: "SUCCEEDED"}},
+		toolResponseSeenByRunID: map[string]bool{"run-activity": true},
+		postToolTextByRunID:     map[string]bool{"run-activity": true},
+		toolResponseSeqByRunID:  map[string]int{"run-activity": 1},
+		postToolTextSeqByRunID:  map[string]int{"run-activity": 1},
+	}
+	if status := execution.derivedRunStatusForRunLocked("run-activity"); status != RunStatusCompleted {
+		t.Fatalf("derived display status = %q, want completed after post-tool text", status)
+	}
+	if status := execution.persistedRunStatusForRunLocked("run-activity"); status != RunStatusRunning {
+		t.Fatalf("persisted activity status = %q, want running until invocation returns", status)
 	}
 }
 

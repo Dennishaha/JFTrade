@@ -46,6 +46,7 @@ const props = withDefaults(
     revokeQueuedMessage?: (messageId: string) => void | Promise<void>;
     savingProviderSelection?: boolean;
     selectedAgentId?: string;
+    selectedSessionId?: string;
     selectedProviderId?: string;
     sendingChat: boolean;
     slashCommands?: SlashCommandItem[];
@@ -97,6 +98,7 @@ const props = withDefaults(
     queueDispatchingId: "",
     savingProviderSelection: false,
     selectedAgentId: "",
+    selectedSessionId: "",
     selectedProviderId: "",
     slashCommands: () => [],
     suggestions: () => [],
@@ -263,6 +265,7 @@ const hasContextUsage = computed(() => {
 });
 const showContextControl = computed(
   () =>
+    props.selectedSessionId.trim() !== "" ||
     hasContextUsage.value ||
     props.contextBusy ||
     props.contextDetailsOpen ||
@@ -296,13 +299,14 @@ const contextPercent = computed(() => {
   return `${Math.max(0, Math.round(ratio * 100))}%`;
 });
 const contextPillLabel = computed(() => {
-  if (!hasContextUsage.value) {
-    return props.contextBusy ? "上下文..." : "上下文";
+  if (props.contextBusy && !props.contextSnapshot) return "上下文...";
+  if (hasKnownContextWindow.value) {
+    return `${contextPercent.value} ${contextStatusLabel.value}`;
   }
-  if (!hasKnownContextWindow.value) {
+  if (hasContextUsage.value) {
     return `${formatTokenCount(props.contextSnapshot?.currentInputTokens ?? 0)} Tokens`;
   }
-  return `${contextPercent.value} ${contextStatusLabel.value}`;
+  return "上下文";
 });
 const selectedAgentLabel = computed(
   () =>

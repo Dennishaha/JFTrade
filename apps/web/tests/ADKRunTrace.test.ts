@@ -219,6 +219,33 @@ describe("ADKRunTrace", () => {
     expect(wrapper.find(".adk-run-trace").exists()).toBe(true);
     expect(wrapper.text()).not.toContain("Cannot read properties of null");
   });
+
+  it("renders workflow metadata with the same card style as tool calls", () => {
+    const wrapper = mount(ADKRunTrace, {
+      props: {
+        run: {
+          ...buildRun([], "COMPLETED"),
+          workMode: "loop",
+          workflowStatus: "RUNNING",
+          objective: "等待子智能体审批",
+          childRunIds: ["child-1", "child-2"],
+        },
+        busy: false,
+        summaryExpanded: false,
+        expandedToolCallIds: [],
+      },
+    });
+
+    const workflowCard = wrapper.find(".adk-run-trace-card--tool");
+    expect(workflowCard.exists()).toBe(true);
+    expect(workflowCard.text()).toContain("Agent");
+    expect(workflowCard.text()).toContain("目标模式");
+    expect(workflowCard.text()).toContain("运行中");
+    expect(workflowCard.find(".adk-status-pill.is-info").exists()).toBe(true);
+    expect(workflowCard.find(".adk-status-pill.is-success").exists()).toBe(
+      false,
+    );
+  });
 });
 
 function buildRun(

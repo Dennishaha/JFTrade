@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 	"time"
 
@@ -28,7 +29,56 @@ func (r *Runtime) reconcileStaleRuns(ctx context.Context) {
 		return
 	}
 	for _, run := range runs {
-		if run.Status != RunStatusRunning && run.Status != RunStatusPending {
+		latest, ok, latestErr := r.store.Run(ctx, run.ID)
+		if latestErr != nil || !ok {
+			jftradeLogError(latestErr)
+			continue
+		}
+		run = latest
+		if repaired, repairErr := r.repairWorkflowSelfReference(ctx, &run); repairErr != nil {
+			jftradeLogError(repairErr)
+			continue
+		} else if repaired {
+			continue
+		}
+		if isCompletedRunningWorkflowParent(run) {
+			executor := &WorkflowExecutor{runtime: r}
+			_, _, reconcileErr := executor.reconcileWorkflowChildren(ctx, run)
+			jftradeLogError(reconcileErr)
+			continue
+		}
+		if isTerminalLifecycleRunStatus(run.Status) {
+			changed := len(run.PendingApprovals) > 0
+			run.PendingApprovals = nil
+			if isWorkflowParentRun(run) {
+				executor := &WorkflowExecutor{runtime: r}
+				if tasks, taskErr := executor.workflowTasks(ctx, run, nil); taskErr == nil && len(tasks) > 0 {
+					refreshed := workflowPlanFromTasks(tasks, run.WorkflowPlan)
+					if !reflect.DeepEqual(refreshed, run.WorkflowPlan) {
+						run.WorkflowPlan = refreshed
+						changed = true
+					}
+				}
+				r.cancelUnfinishedWorkflowChildren(ctx, run)
+			}
+			if changed {
+				jftradeErr := r.store.SaveRunAndDenyPendingApprovals(ctx, run)
+				jftradeLogError(jftradeErr)
+			}
+			continue
+		}
+		if run.Status != RunStatusRunning && run.Status != RunStatusPending && run.Status != RunStatusPaused {
+			continue
+		}
+		if parentID := strings.TrimSpace(run.ParentRunID); parentID != "" {
+			parent, ok, parentErr := r.store.Run(ctx, parentID)
+			if parentErr == nil && ok && isTerminalLifecycleRunStatus(parent.Status) && !isCompletedRunningWorkflowParent(parent) {
+				_, terminateErr := r.cancelRunTree(ctx, run, "parent workflow "+parent.ID+" is already terminal", "PARENT_RUN_TERMINATED", "cancelled because parent workflow terminated", "run.parent_terminated")
+				jftradeLogError(terminateErr)
+				continue
+			}
+		}
+		if run.Status == RunStatusPaused {
 			continue
 		}
 		if isWorkflowParentRun(run) {
@@ -192,6 +242,13 @@ func (r *Runtime) CancelRun(ctx context.Context, runID string) (Run, error) {
 	if run.Status != RunStatusRunning && run.Status != RunStatusPending && run.Status != RunStatusPaused {
 		return run, nil
 	}
+	return r.cancelRunTree(ctx, run, "run was cancelled by user", "RUN_CANCELLED", "cancelled", "run.cancelled")
+}
+
+func (r *Runtime) cancelRunTree(ctx context.Context, run Run, reason string, errorCode string, message string, auditKind string) (Run, error) {
+	if run.Status != RunStatusRunning && run.Status != RunStatusPending && run.Status != RunStatusPaused {
+		return run, nil
+	}
 	r.activeMu.Lock()
 	cancel := r.activeRuns[run.ID]
 	r.activeMu.Unlock()
@@ -202,9 +259,9 @@ func (r *Runtime) CancelRun(ctx context.Context, runID string) (Run, error) {
 	run.Status = RunStatusCancelled
 	run.CancelledAt = &cancelledAt
 	run.CompletedAt = &cancelledAt
-	run.Message = "cancelled"
-	run.FailureReason = "run was cancelled by user"
-	run.ErrorCode = "RUN_CANCELLED"
+	run.Message = message
+	run.FailureReason = reason
+	run.ErrorCode = errorCode
 	if isWorkflowParentRun(run) {
 		run.WorkflowStatus = workflowStatusFailed
 		for index := range run.WorkflowPlan {
@@ -213,14 +270,7 @@ func (r *Runtime) CancelRun(ctx context.Context, runID string) (Run, error) {
 			}
 		}
 	}
-	for index := range run.PendingApprovals {
-		if run.PendingApprovals[index].Status == ApprovalStatusPending {
-			resolved, changed, resolveErr := r.store.ResolvePendingApproval(ctx, run.PendingApprovals[index].ID, ApprovalStatusDenied)
-			if resolveErr == nil && changed {
-				run.PendingApprovals[index] = resolved
-			}
-		}
-	}
+	run.PendingApprovals = nil
 	for index := range run.ToolCalls {
 		call := &run.ToolCalls[index]
 		switch call.Status {
@@ -231,20 +281,158 @@ func (r *Runtime) CancelRun(ctx context.Context, runID string) (Run, error) {
 		}
 	}
 	finalizeRunUsage(&run)
-	if err := r.store.SaveRun(ctx, run); err != nil {
+	if err := r.store.SaveRunAndDenyPendingApprovals(ctx, run); err != nil {
 		return Run{}, err
 	}
+	childRunIDs := make(map[string]struct{}, len(run.ChildRunIDs))
 	for _, childRunID := range run.ChildRunIDs {
+		if childRunID = strings.TrimSpace(childRunID); childRunID != "" {
+			childRunIDs[childRunID] = struct{}{}
+		}
+	}
+	if runs, err := r.store.ListRuns(ctx); err == nil {
+		for _, candidate := range runs {
+			if strings.TrimSpace(candidate.ParentRunID) == run.ID {
+				childRunIDs[candidate.ID] = struct{}{}
+			}
+		}
+	} else {
+		jftradeLogError(err)
+	}
+	for childRunID := range childRunIDs {
 		if strings.TrimSpace(childRunID) == "" || childRunID == run.ID {
 			continue
 		}
-		_, jftradeErr3 := r.CancelRun(ctx, childRunID)
-		jftradeLogError(jftradeErr3)
+		child, ok, childErr := r.store.Run(ctx, childRunID)
+		if childErr != nil {
+			jftradeLogError(childErr)
+			continue
+		}
+		if ok {
+			_, childErr = r.cancelRunTree(ctx, child, reason, errorCode, message, auditKind)
+			jftradeLogError(childErr)
+		}
 	}
-	r.audit(ctx, "run.cancelled", run.ID, "Agent run cancelled.", map[string]any{
+	r.audit(ctx, auditKind, run.ID, "Agent run cancelled.", map[string]any{
 		"runId": run.ID, "sessionId": run.SessionID, "agentId": run.AgentID, "status": run.Status,
 	})
 	return run, nil
+}
+
+func (r *Runtime) cancelUnfinishedWorkflowChildren(ctx context.Context, parent Run) {
+	childRunIDs := make(map[string]struct{}, len(parent.ChildRunIDs))
+	for _, childRunID := range parent.ChildRunIDs {
+		if childRunID = strings.TrimSpace(childRunID); childRunID != "" {
+			childRunIDs[childRunID] = struct{}{}
+		}
+	}
+	if runs, err := r.store.ListRuns(ctx); err == nil {
+		for _, run := range runs {
+			if strings.TrimSpace(run.ParentRunID) == parent.ID {
+				childRunIDs[run.ID] = struct{}{}
+			}
+		}
+	} else {
+		jftradeLogError(err)
+	}
+	for childRunID := range childRunIDs {
+		childRunID = strings.TrimSpace(childRunID)
+		if childRunID == "" || childRunID == parent.ID {
+			continue
+		}
+		child, ok, err := r.store.Run(ctx, childRunID)
+		if err != nil || !ok {
+			jftradeLogError(err)
+			continue
+		}
+		_, err = r.cancelRunTree(ctx, child, "parent workflow "+parent.ID+" terminated", "PARENT_RUN_TERMINATED", "cancelled because parent workflow terminated", "run.parent_terminated")
+		jftradeLogError(err)
+	}
+}
+
+func (r *Runtime) runExecutionInFlight(runID string) bool {
+	if r == nil || strings.TrimSpace(runID) == "" {
+		return false
+	}
+	runID = strings.TrimSpace(runID)
+	r.activeMu.Lock()
+	_, active := r.activeRuns[runID]
+	r.activeMu.Unlock()
+	if active {
+		return true
+	}
+	r.approvalMu.Lock()
+	_, resuming := r.approvalRuns[runID]
+	r.approvalMu.Unlock()
+	return resuming
+}
+
+func (r *Runtime) repairWorkflowSelfReference(ctx context.Context, parent *Run) (bool, error) {
+	if r == nil || r.store == nil || parent == nil || !isWorkflowParentRun(*parent) {
+		return false, nil
+	}
+	if isTerminalLifecycleRunStatus(parent.Status) && !isCompletedRunningWorkflowParent(*parent) {
+		return false, nil
+	}
+	repaired := false
+	for index := range parent.WorkflowPlan {
+		state := &parent.WorkflowPlan[index]
+		selfReference := strings.TrimSpace(state.ChildRunID) == parent.ID
+		if !selfReference && strings.TrimSpace(state.ChildRunID) == "" && state.Executor == workflowTaskExecutorChild && strings.TrimSpace(state.TaskID) != "" {
+			task, ok, err := r.store.Task(ctx, state.TaskID)
+			if err != nil {
+				return false, err
+			}
+			selfReference = ok && task.Executor == workflowTaskExecutorChild && strings.TrimSpace(task.RunID) == parent.ID
+		}
+		if !selfReference {
+			continue
+		}
+		repaired = true
+		state.ChildRunID = ""
+		state.Executor = ""
+		state.ResultSummary = ""
+		if state.Status != "DONE" && state.Status != "CANCELLED" {
+			state.Status = "TODO"
+		}
+		if strings.TrimSpace(state.TaskID) != "" {
+			status := state.Status
+			executor := ""
+			resultSummary := ""
+			if _, err := r.store.UpdateTask(ctx, state.TaskID, TaskPatchRequest{
+				Status: &status, Executor: &executor, ResultSummary: &resultSummary,
+			}); err != nil {
+				return false, err
+			}
+		}
+	}
+	if !repaired {
+		return false, nil
+	}
+	children := make([]string, 0, len(parent.ChildRunIDs))
+	for _, childRunID := range parent.ChildRunIDs {
+		if strings.TrimSpace(childRunID) != parent.ID {
+			children = append(children, childRunID)
+		}
+	}
+	parent.ChildRunIDs = children
+	pausedAt := nowString()
+	parent.Status = RunStatusPaused
+	parent.WorkflowStatus = workflowStatusPaused
+	parent.Message = "检测到无效的子智能体引用，已修复并暂停目标。"
+	parent.ResumeState = "self_reference_recovered"
+	parent.PausedReason = "self_reference_recovered"
+	parent.PausedAt = &pausedAt
+	parent.CompletedAt = nil
+	parent.ErrorCode = ""
+	parent.FailureReason = ""
+	if _, err := r.saveRunPreservingUserGoalPause(ctx, *parent); err != nil {
+		return false, err
+	}
+	r.audit(ctx, "run.workflow.self_reference_recovered", parent.ID, "Invalid workflow child self-reference was repaired.", map[string]any{
+		"runId": parent.ID, "sessionId": parent.SessionID,
+	})
+	return true, nil
 }
 
 func (r *Runtime) PauseGoalRun(ctx context.Context, runID string) (Run, error) {
@@ -301,6 +489,8 @@ func (r *Runtime) ResumeGoalRun(ctx context.Context, runID string) (Run, error) 
 	run.WorkflowStatus = workflowStatusRunning
 	run.ResumeState = "user_resuming"
 	run.Message = "goal resumed"
+	run.ErrorCode = ""
+	run.FailureReason = ""
 	run.PauseRequestedAt = nil
 	run.PausedAt = nil
 	run.PausedReason = ""
@@ -341,8 +531,8 @@ func validateUserGoalResumeRun(run Run) error {
 	if normalizeWorkMode(run.WorkMode) != WorkModeLoop || strings.TrimSpace(run.WorkflowStatus) == "" {
 		return fmt.Errorf("only loop goal runs can be resumed")
 	}
-	if run.Status != RunStatusPaused || run.PausedReason != "user" {
-		return fmt.Errorf("only user-paused goal runs can be resumed")
+	if run.Status != RunStatusPaused || (run.PausedReason != "user" && run.PausedReason != "iteration_limit" && run.PausedReason != "self_reference_recovered") {
+		return fmt.Errorf("only resumable paused goal runs can be resumed")
 	}
 	return nil
 }
@@ -354,6 +544,12 @@ func isTerminalLifecycleRunStatus(status string) bool {
 	default:
 		return false
 	}
+}
+
+func isCompletedRunningWorkflowParent(run Run) bool {
+	return isWorkflowParentRun(run) &&
+		strings.EqualFold(strings.TrimSpace(run.Status), RunStatusCompleted) &&
+		strings.EqualFold(strings.TrimSpace(run.WorkflowStatus), workflowStatusRunning)
 }
 
 func (r *Runtime) resumeUserPausedGoalRun(ctx context.Context, run Run) {

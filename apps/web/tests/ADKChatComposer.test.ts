@@ -12,6 +12,48 @@ afterEach(() => {
 });
 
 describe("ADKChatComposer", () => {
+  it("shows zero percent healthy context for a new empty session", () => {
+    const wrapper = mount(ADKChatComposer, {
+      props: {
+        layout: "mobile",
+        canSendChat: false,
+        chatDraft: "",
+        sendingChat: false,
+        selectedSessionId: "session-empty",
+        contextSnapshot: {
+          sessionId: "session-empty",
+          currentInputTokens: 0,
+          projectedNextTurnTokens: 0,
+          rawCurrentInputTokens: 0,
+          rawProjectedNextTurnTokens: 0,
+          contextWindowTokens: 128000,
+          usageRatio: 0,
+          status: "healthy",
+          recentUserWindow: 2,
+          retainedRecentUserCount: 0,
+          activeHandoffCount: 0,
+          rawEventCount: 0,
+          compactedEventCount: 0,
+          summaryBoundaryEventIndex: 0,
+          breakdown: {
+            instructionTokens: 0,
+            handoffTokens: 0,
+            recentUserTokens: 0,
+            protectedTailTokens: 0,
+            otherVisibleTokens: 0,
+            pendingUserTokens: 0,
+            toolDeclarationTokens: 0,
+          },
+          autoCompacted: false,
+          degradedSummary: false,
+        },
+        sendChat: async () => {},
+      },
+    });
+
+    expect(wrapper.text()).toContain("0% 正常");
+  });
+
   it("shows concrete work modes and marks the agent mode as default", () => {
     const wrapper = mount(ADKChatComposer, {
       attachTo: document.body,

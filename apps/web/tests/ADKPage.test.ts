@@ -71,6 +71,33 @@ afterEach(() => {
 });
 
 describe("ADKPage", () => {
+  it("loads context immediately after creating an empty session", async () => {
+    const session = buildSession({ id: "session-new-empty" });
+    const context = buildSessionContextSnapshot({
+      sessionId: session.id,
+      currentInputTokens: 0,
+      projectedNextTurnTokens: 0,
+      usageRatio: 0,
+      status: "healthy",
+    });
+    const fetchMock = mountADKPage({
+      sessions: [],
+      createSession: session,
+      sessionContext: context,
+    });
+    await flushRequests();
+
+    document.querySelector<HTMLButtonElement>('[title="新建会话"]')?.click();
+    await flushRequests();
+
+    expect(document.body.textContent).toContain("0% 正常");
+    expect(
+      fetchMock.mock.calls.some(([input]) =>
+        String(input).includes(`/api/v1/adk/sessions/${session.id}/context`),
+      ),
+    ).toBe(true);
+  });
+
   it("shows a composer block when the selected provider has no API key", async () => {
     mountADKPage({ providerHasKey: false });
     await flushRequests();
@@ -1150,6 +1177,51 @@ describe("ADKPage", () => {
     ).toBeNull();
   });
 
+  it("does not show an empty approval queue for a blocked child without approvals", async () => {
+    const workflowRun = buildRun({
+      id: "parent-run-child-blocked",
+      status: "RUNNING",
+      workMode: "task",
+      childRunIds: ["child-run-blocked"],
+      workflowPlan: [
+        buildWorkflowStep(
+          "step-child-blocked",
+          "等待子智能体",
+          "BLOCKED",
+          "child-run-blocked",
+        ),
+      ],
+    });
+    streamADKChatMock.mockImplementationOnce(async (_payload, onEvent) => {
+      const response: ADKChatResponse = {
+        reply: "child blocked",
+        session: buildSession(),
+        run: workflowRun,
+        pendingApprovals: [],
+        timeline: [],
+      };
+      await onEvent({ type: "final", response });
+      return response;
+    });
+
+    mountADKPage({
+      runById: {
+        "child-run-blocked": buildRun({
+          id: "child-run-blocked",
+          parentRunId: workflowRun.id,
+          status: "PENDING_APPROVAL",
+          pendingApprovals: [],
+        }),
+      },
+    });
+    await flushRequests();
+    await sendPageMessage("run blocked child workflow");
+    await expandQueue("子智能体");
+
+    expect(document.querySelector('[aria-label="待审批"]')).toBeNull();
+    expect(document.body.textContent).toContain("已阻断");
+  });
+
   it("clears the token indicator when deleting the selected conversation", async () => {
     mountADKPage({
       sessionContext: buildSessionContextSnapshot(),
@@ -1892,6 +1964,50 @@ describe("ADKPage", () => {
     ).toBe(1);
   });
 
+  it("hides an approval immediately while the request is in flight", async () => {
+    const approval = buildApproval("approval-optimistic", "run-optimistic");
+    const run = buildRun({
+      id: "run-optimistic",
+      status: "PENDING_APPROVAL",
+      pendingApprovals: [approval],
+    });
+    streamADKChatMock.mockImplementationOnce(async (_payload, onEvent) => {
+      const response: ADKChatResponse = {
+        reply: "waiting",
+        session: buildSession(),
+        run,
+        pendingApprovals: [approval],
+        timeline: pendingApprovalTimeline(run, [approval], "optimistic approval"),
+      };
+      await onEvent({ type: "session", session: response.session });
+      await onEvent({ type: "final", response });
+      return response;
+    });
+
+    let finishApproval!: (value: unknown) => void;
+    const approvalResponse = new Promise<unknown>((resolve) => {
+      finishApproval = resolve;
+    });
+    mountADKPage({ approvals: [approval], approvalResolution: approvalResponse });
+    await flushRequests();
+    await sendPageMessage("optimistic approval");
+    await expandQueue("待审批");
+    expect(document.querySelectorAll(".adk-approval-queue__item")).toHaveLength(1);
+
+    const approve = Array.from(document.querySelectorAll<HTMLButtonElement>("button")).find(
+      (candidate) => candidate.textContent?.trim() === "批准",
+    );
+    approve?.click();
+    await nextTick();
+    expect(document.querySelectorAll(".adk-approval-queue__item")).toHaveLength(0);
+
+    finishApproval({
+      approval: { ...approval, status: "APPROVED" },
+      run: buildRun({ id: run.id, status: "COMPLETED", pendingApprovals: [] }),
+    });
+    await flushRequests();
+  });
+
   it("queues, revokes, and auto-dispatches messages while a blocking run is active", async () => {
     const pendingApproval = buildApproval("approval-queue", "run-queue");
     const pendingRun = buildRun({
@@ -2460,6 +2576,55 @@ describe("ADKPage", () => {
 
     expect(document.body.textContent).toContain("24% 正常");
     expect(document.body.textContent).not.toContain("99% 危险");
+  });
+
+  it("does not let an older context revision overwrite an auto-compacted snapshot", async () => {
+    const session = buildSession({ id: "session-context-revision" });
+    const newer = buildSessionContextSnapshot({
+      sessionId: session.id,
+      contextRevisionId: "ctx-new",
+      previousContextRevisionId: "ctx-old",
+      contextRevisionCreatedAt: "2026-06-21T03:18:54Z",
+      currentInputTokens: 1200,
+      projectedNextTurnTokens: 1300,
+      usageRatio: 0.12,
+      activeHandoffCount: 1,
+      autoCompacted: true,
+      lastCompactedAt: "2026-06-21T03:18:54Z",
+      lastCompactionMode: "auto",
+    });
+    const older = buildSessionContextSnapshot({
+      sessionId: session.id,
+      contextRevisionId: "ctx-old",
+      contextRevisionCreatedAt: "2026-06-21T03:14:17Z",
+      currentInputTokens: 9200,
+      projectedNextTurnTokens: 9300,
+      usageRatio: 0.92,
+      autoCompacted: false,
+    });
+    streamADKChatMock.mockImplementationOnce(async (_payload, onEvent) => {
+      await onEvent({ type: "context", context: newer });
+      const response: ADKChatResponse = {
+        reply: "done",
+        session,
+        run: buildRun({ id: "run-context-revision", status: "COMPLETED" }),
+        context: older,
+        pendingApprovals: [],
+        timeline: [],
+      };
+      await onEvent({ type: "final", response });
+      return response;
+    });
+    mountADKPage({
+      sessions: [session],
+      sessionContext: older,
+    });
+    await flushRequests();
+
+    await sendPageMessage("触发上下文更新");
+
+    expect(document.body.textContent).toContain("12% 正常");
+    expect(document.body.textContent).not.toContain("92% 正常");
   });
 
   it("persists composer state per session when switching history", async () => {
@@ -3207,6 +3372,7 @@ function mountADKPage(
     resumeRunById?: Record<string, ADKRun>;
     runById?: Record<string, ADKRun>;
     sessions?: Array<ReturnType<typeof buildSession>>;
+    createSession?: ReturnType<typeof buildSession>;
     composerStateBySession?: Record<string, ADKSessionComposerState>;
     composerStateSave?: (
       sessionId: string,
@@ -3304,6 +3470,9 @@ function mountADKPage(
               buildComposerState(detail.session.id),
           });
         }
+        if (init?.method === "POST" && options.createSession) {
+          return createResponse(options.createSession);
+        }
         return createResponse({
           sessions: options.sessions ?? [buildSession()],
         });
@@ -3360,7 +3529,7 @@ function mountADKPage(
         if (options.approvalResolutionById?.[approvalId] !== undefined) {
           return createResponse(options.approvalResolutionById[approvalId]);
         }
-        return createResponse(options.approvalResolution);
+        return createResponse(await Promise.resolve(options.approvalResolution));
       }
       if (url.includes("/api/v1/adk/approvals")) {
         return createResponse({ approvals: state.approvals });

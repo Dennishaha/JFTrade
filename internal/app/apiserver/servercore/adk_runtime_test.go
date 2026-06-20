@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
+	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
 	"github.com/jftrade/jftrade-main/pkg/backtest"
 	strategypinespec "github.com/jftrade/jftrade-main/pkg/strategy/pinespec"
 )
@@ -552,6 +553,12 @@ func TestADKStrategyResearchBacktestToolStartsTransientRun(t *testing.T) {
 	if tool.Descriptor.Permission != "optimize_strategy" {
 		t.Fatalf("descriptor permission = %q, want optimize_strategy", tool.Descriptor.Permission)
 	}
+	if tool.Descriptor.RiskLevel != "low" {
+		t.Fatalf("descriptor risk level = %q, want low", tool.Descriptor.RiskLevel)
+	}
+	if jfadk.ToolRequiresApproval(tool.Descriptor, jfadk.PermissionModeApproval) {
+		t.Fatal("strategy.research_backtest unexpectedly requires approval")
+	}
 	before := len(server.designStore.listDefinitions())
 	output, err := tool.Handler(context.Background(), map[string]any{
 		"script":     strategypinespec.Skeleton(),
@@ -591,6 +598,21 @@ func TestADKStrategyResearchBacktestToolStartsTransientRun(t *testing.T) {
 	}
 	if status.Request.StartDate != "2025-01-01" || status.Request.EndDate != "2025-01-02" || status.Request.MarketTimezone != "America/New_York" {
 		t.Fatalf("research backtest market date metadata = %+v", status.Request)
+	}
+	resultTool, ok := server.adkRuntime.Tools().Get("backtest.result_view")
+	if !ok {
+		t.Fatal("backtest.result_view tool not registered")
+	}
+	resultOutput, err := resultTool.Handler(context.Background(), map[string]any{
+		"runId": runID,
+		"view":  "summary",
+	})
+	if err != nil {
+		t.Fatalf("backtest.result_view for transient run: %v", err)
+	}
+	resultPayload, ok := resultOutput.(map[string]any)
+	if !ok || resultPayload["run"] == nil {
+		t.Fatalf("backtest.result_view output = %#v, want persisted transient run", resultOutput)
 	}
 }
 

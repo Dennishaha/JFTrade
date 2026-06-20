@@ -128,7 +128,7 @@ func (r *Runtime) terminateParentWorkflowFromChild(ctx context.Context, parent R
 	parent.ErrorCode = child.ErrorCode
 	parent.Degraded = true
 	parent.WorkflowStatus = workflowStatusFailed
-	parent.PendingApprovals = append([]Approval(nil), child.PendingApprovals...)
+	parent.PendingApprovals = nil
 	if parent.FailureReason == "" {
 		switch child.Status {
 		case RunStatusDenied:
@@ -153,8 +153,11 @@ func (r *Runtime) terminateParentWorkflowFromChild(ctx context.Context, parent R
 		parent.CancelledAt = &completedAt
 	}
 	finalizeRunUsage(&parent)
-	jftradeErr1 := r.store.SaveRun(ctx, parent)
-	jftradeLogError(jftradeErr1)
+	if err := r.store.SaveRunAndDenyPendingApprovals(ctx, parent); err != nil {
+		jftradeLogError(err)
+	} else {
+		r.cancelUnfinishedWorkflowChildren(context.Background(), parent)
+	}
 	return parent
 }
 
@@ -207,6 +210,9 @@ func (e *WorkflowExecutor) reconcileWorkflowChildren(ctx context.Context, parent
 			return Run{}, false, err
 		}
 		if !ok {
+			continue
+		}
+		if !isDirectWorkflowChild(parent, child) {
 			continue
 		}
 		parent = updateWorkflowPlanForChild(parent, child)
@@ -278,7 +284,7 @@ func (e *WorkflowExecutor) completeResumedWorkflow(ctx context.Context, session 
 	parent.Status = RunStatusCompleted
 	parent.Message = "workflow completed"
 	parent.WorkflowStatus = workflowStatusComplete
-	parent.PendingApprovals = pendingApprovalsOnly(parent.PendingApprovals)
+	parent.PendingApprovals = nil
 	parent.CompletedAt = new(nowString())
 	finalizeRunUsage(&parent)
 	message, err := e.runtime.ensureAssistantMessage(ctx, session, parent, openAIChatResult{Reply: reply})

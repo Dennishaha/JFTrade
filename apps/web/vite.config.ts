@@ -52,6 +52,50 @@ function createProxyEntry(target: string) {
   };
 }
 
+function runtimeEnv(): Record<string, string | undefined> {
+  return (
+    (globalThis as typeof globalThis & {
+      [key: string]: RuntimeProcess | undefined;
+    })["process"]?.env ?? {}
+  );
+}
+
+function apiTargetFromBind(bind: string | undefined): string | null {
+  const trimmedBind = bind?.trim();
+  if (!trimmedBind) {
+    return null;
+  }
+
+  const port = trimmedBind.match(/:(\d+)$/)?.[1];
+  if (!port) {
+    return null;
+  }
+
+  const host = trimmedBind.replace(/:\d+$/, "");
+  const browserHost =
+    host === "" || host === "0.0.0.0" || host === "::" || host === "[::]"
+      ? "127.0.0.1"
+      : host.replace(/^\[(.*)\]$/, "$1");
+
+  return `http://${browserHost}:${port}`;
+}
+
+function normalizeProxyTarget(target: string | undefined): string | null {
+  const trimmedTarget = target?.trim().replace(/\/$/, "");
+  return trimmedTarget ? trimmedTarget : null;
+}
+
+function resolveDevelopmentApiTarget(): string {
+  const env = runtimeEnv();
+  return (
+    normalizeProxyTarget(env.VITE_DEV_API_TARGET) ??
+    apiTargetFromBind(env.JFTRADE_API_BIND) ??
+    developmentApiTarget
+  );
+}
+
+const resolvedDevelopmentApiTarget = resolveDevelopmentApiTarget();
+
 export default defineConfig({
   resolve: {
     alias: {
@@ -76,7 +120,10 @@ export default defineConfig({
     port: 5173,
     proxy: {
       ...Object.fromEntries(
-        apiProxyTargets.map((path) => [path, createProxyEntry(developmentApiTarget)]),
+        apiProxyTargets.map((path) => [
+          path,
+          createProxyEntry(resolvedDevelopmentApiTarget),
+        ]),
       ),
       "/docs": createProxyEntry(developmentDocsTarget),
     },

@@ -228,14 +228,17 @@ function truncate(value: string, maxLength: number): string {
       </span>
     </div>
 
-    <div v-if="showWorkflowMeta" class="adk-run-trace-card adk-run-trace-card--workflow">
+    <div v-if="showWorkflowMeta" class="adk-run-trace-card adk-run-trace-card--tool">
       <span class="adk-run-trace-card__main">
-        <span class="adk-run-trace-card__title">{{ workflowModeLabel }}</span>
+        <span class="adk-run-trace-card__title">
+          <span class="adk-run-trace-card__index">Agent</span>
+          {{ workflowModeLabel }}
+        </span>
         <span class="adk-run-trace-card__meta">
           <span
             v-if="run?.workflowStatus"
             class="adk-status-pill"
-            :class="`is-${runStatusTone(run.status)}`"
+            :class="`is-${runStatusTone(run.workflowStatus)}`"
           >
             {{ formatGenericStatusLabel(run.workflowStatus) }}
           </span>

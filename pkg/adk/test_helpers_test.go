@@ -153,6 +153,14 @@ func testProviderToolCalls(req openAIChatRequest) []openAIToolCall {
 		return testProviderWorkflowPlanCalls(req, text)
 	case containsTool(toolNames, workflowTaskCompleteTool):
 		return testProviderWorkflowTaskCalls(req, text)
+	case containsTool(toolNames, workflowGoalCompleteTool):
+		seen := testProviderToolResponseNames(req.Messages)
+		if !seen[workflowGoalCompleteTool] && !seen[workflowGoalContinueTool] {
+			return []openAIToolCall{testProviderToolCall("call-goal-complete", workflowGoalCompleteTool, map[string]any{
+				"summary": "目标已完成。",
+			})}
+		}
+		return nil
 	default:
 		if len(testProviderToolResponseNames(req.Messages)) > 0 {
 			return nil

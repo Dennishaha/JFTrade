@@ -539,6 +539,11 @@ func (r *Runtime) maybeAutoCompactSessionWithOptions(ctx context.Context, sessio
 			return nil
 		}
 	}
+	release, acquired := r.beginSessionCompaction(session.ID)
+	if !acquired {
+		return nil
+	}
+	defer release()
 	reason := "context usage exceeded automatic compaction threshold"
 	if mode == "aggressive" {
 		reason = "context usage exceeded aggressive failsafe threshold"

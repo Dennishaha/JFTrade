@@ -1921,6 +1921,18 @@ body {
   border: 0;
 }
 
+.adk-child-finished-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 10px;
+  border: 1px solid var(--adk-success-border);
+  border-radius: 10px;
+  background: var(--adk-success-bg);
+  color: var(--tv-text-muted);
+  font-size: 12px;
+}
+
 .adk-dot {
   width: 7px;
   height: 7px;

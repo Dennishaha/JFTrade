@@ -218,7 +218,7 @@ func (r *ToolRegistry) CanonicalName(name string) (string, bool) {
 
 func ToolRequiresApproval(descriptor ToolDescriptor, mode string) bool {
 	mode = normalizePermissionMode(mode)
-	if descriptor.Name == "tasks.create" {
+	if toolExplicitlySkipsApproval(descriptor.Name) {
 		return false
 	}
 	for _, requiredMode := range descriptor.RequiresApprovalIn {
@@ -232,6 +232,15 @@ func ToolRequiresApproval(descriptor ToolDescriptor, mode string) bool {
 	case "create_strategy_instance":
 		return mode != PermissionModeHighAuto
 	case "live_trading":
+		return true
+	default:
+		return false
+	}
+}
+
+func toolExplicitlySkipsApproval(name string) bool {
+	switch strings.TrimSpace(name) {
+	case "tasks.create", "strategy.research_backtest":
 		return true
 	default:
 		return false

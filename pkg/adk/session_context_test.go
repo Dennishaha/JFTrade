@@ -322,6 +322,10 @@ func TestMaybeAutoCompactSessionEmitsContextNoticeDeltas(t *testing.T) {
 		}
 	}
 
+	before, err := runtime.contextManager.ProjectedSnapshot(ctx, session, agent, strings.Repeat("pending input ", 200))
+	if err != nil {
+		t.Fatalf("ProjectedSnapshot before: %v", err)
+	}
 	var deltas []ChatDelta
 	if err := runtime.maybeAutoCompactSession(ctx, session, agent, strings.Repeat("pending input ", 200), func(delta ChatDelta) error {
 		deltas = append(deltas, delta)
@@ -330,13 +334,13 @@ func TestMaybeAutoCompactSessionEmitsContextNoticeDeltas(t *testing.T) {
 		t.Fatalf("maybeAutoCompactSession: %v", err)
 	}
 	var notices []TimelineEntry
-	hasContext := false
+	var compacted *SessionContextSnapshot
 	for _, delta := range deltas {
 		if delta.Timeline != nil && delta.Timeline.Kind == TimelineKindContextNotice {
 			notices = append(notices, *delta.Timeline)
 		}
 		if delta.Context != nil {
-			hasContext = true
+			compacted = delta.Context
 		}
 	}
 	if len(notices) != 2 {
@@ -345,8 +349,157 @@ func TestMaybeAutoCompactSessionEmitsContextNoticeDeltas(t *testing.T) {
 	if notices[0].Status != TimelineStatusStreaming || notices[1].Status != TimelineStatusFinal || notices[0].ID != notices[1].ID {
 		t.Fatalf("context notices = %+v, want same notice streaming -> final", notices)
 	}
-	if !hasContext {
+	if compacted == nil {
 		t.Fatalf("deltas = %+v, want context snapshot after compaction", deltas)
+	}
+	if compacted.CurrentInputTokens >= before.ProjectedNextTurnTokens {
+		t.Fatalf("context tokens after = %d, want less than projected before %d", compacted.CurrentInputTokens, before.ProjectedNextTurnTokens)
+	}
+	if compacted.ContextRevisionID == "" || compacted.ContextRevisionID == before.ContextRevisionID {
+		t.Fatalf("context revision after = %q, before %q", compacted.ContextRevisionID, before.ContextRevisionID)
+	}
+	if compacted.PreviousContextRevisionID != before.ContextRevisionID {
+		t.Fatalf("previous revision = %q, want %q", compacted.PreviousContextRevisionID, before.ContextRevisionID)
+	}
+	if !compacted.AutoCompacted || compacted.ActiveHandoffCount == 0 || compacted.CompactedEventCount == 0 {
+		t.Fatalf("compacted snapshot = %+v, want auto compaction handoff state", compacted)
+	}
+	segments, err := runtime.Store().HandoffSegmentsForRevision(ctx, session.ID, compacted.ContextRevisionID, true)
+	if err != nil {
+		t.Fatalf("HandoffSegmentsForRevision: %v", err)
+	}
+	if len(segments) == 0 {
+		t.Fatal("auto compaction created no handoff segment")
+	}
+	savedNotices, err := runtime.Store().SessionNotices(ctx, session.ID)
+	if err != nil {
+		t.Fatalf("SessionNotices: %v", err)
+	}
+	if len(savedNotices) != 1 || savedNotices[0].Status != TimelineStatusFinal || savedNotices[0].Text != contextCompactionDoneText {
+		t.Fatalf("saved notices = %+v, want one final compaction notice", savedNotices)
+	}
+}
+
+func TestMaybeAutoCompactSessionSkipsWhenSessionCompactionAlreadyRunning(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	provider, ok, err := runtime.Store().Provider(ctx, testProviderID)
+	if err != nil || !ok {
+		t.Fatalf("Provider: ok=%v err=%v", ok, err)
+	}
+	mustSaveProvider(t, runtime, ProviderWriteRequest{
+		ID:                  testProviderID,
+		DisplayName:         provider.DisplayName,
+		BaseURL:             provider.BaseURL,
+		Model:               provider.Model,
+		APIKey:              "sk-test",
+		ContextWindowTokens: 80,
+		RequestTimeoutMs:    5000,
+		Enabled:             true,
+	})
+	agent := mustSaveAgent(t, runtime, AgentWriteRequest{
+		ID:               "context-auto-gate-agent",
+		Name:             "Context Auto Gate Agent",
+		Instruction:      "Test agent",
+		RecentUserWindow: 1,
+		PermissionMode:   PermissionModeApproval,
+		Status:           AgentStatusEnabled,
+	})
+	session := mustCreateSession(t, runtime, agent.ID, "Context Auto Gate Session")
+	created, err := runtime.rawSessionService.Create(ctx, &adksession.CreateRequest{
+		AppName: googleADKAppName(agent.ID), UserID: googleADKUserID, SessionID: session.ID,
+	})
+	if err != nil {
+		t.Fatalf("Create raw session: %v", err)
+	}
+	appendLargeContextEvents(t, runtime.rawSessionService, created.Session, 0, 80)
+
+	release, acquired := runtime.beginSessionCompaction(session.ID)
+	if !acquired {
+		t.Fatal("beginSessionCompaction acquired = false, want true")
+	}
+	defer release()
+	var deltas []ChatDelta
+	if err := runtime.maybeAutoCompactSessionDuringWorkflow(ctx, session, agent, strings.Repeat("pending input ", 200), func(delta ChatDelta) error {
+		deltas = append(deltas, delta)
+		return nil
+	}); err != nil {
+		t.Fatalf("maybeAutoCompactSessionDuringWorkflow: %v", err)
+	}
+	if len(deltas) != 0 {
+		t.Fatalf("deltas = %+v, want no duplicate compaction notice while gate is held", deltas)
+	}
+	timeline, ok, err := runtime.Store().SessionTimeline(ctx, session.ID)
+	if err != nil || !ok {
+		t.Fatalf("SessionTimeline ok=%v err=%v", ok, err)
+	}
+	for _, entry := range timeline {
+		if entry.Kind == TimelineKindContextNotice {
+			t.Fatalf("timeline = %+v, want no duplicate context notice while gate is held", timeline)
+		}
+	}
+}
+
+func TestSessionServiceAutoCompactionUsesSessionGate(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	provider, ok, err := runtime.Store().Provider(ctx, testProviderID)
+	if err != nil || !ok {
+		t.Fatalf("Provider: ok=%v err=%v", ok, err)
+	}
+	mustSaveProvider(t, runtime, ProviderWriteRequest{
+		ID:                  testProviderID,
+		DisplayName:         provider.DisplayName,
+		BaseURL:             provider.BaseURL,
+		Model:               provider.Model,
+		APIKey:              "sk-test",
+		ContextWindowTokens: 80,
+		RequestTimeoutMs:    5000,
+		Enabled:             true,
+	})
+	agent := mustSaveAgent(t, runtime, AgentWriteRequest{
+		ID:               "context-service-gate-agent",
+		Name:             "Context Service Gate Agent",
+		Instruction:      "Test agent",
+		RecentUserWindow: 1,
+		PermissionMode:   PermissionModeApproval,
+		Status:           AgentStatusEnabled,
+	})
+	session := mustCreateSession(t, runtime, agent.ID, "Context Service Gate Session")
+	created, err := runtime.rawSessionService.Create(ctx, &adksession.CreateRequest{
+		AppName: googleADKAppName(agent.ID), UserID: googleADKUserID, SessionID: session.ID,
+	})
+	if err != nil {
+		t.Fatalf("Create raw session: %v", err)
+	}
+	appendLargeContextEvents(t, runtime.rawSessionService, created.Session, 0, 80)
+
+	release, acquired := runtime.beginSessionCompaction(session.ID)
+	if !acquired {
+		t.Fatal("beginSessionCompaction acquired = false, want true")
+	}
+	request := &adksession.GetRequest{AppName: googleADKAppName(agent.ID), UserID: googleADKUserID, SessionID: session.ID}
+	if _, err := runtime.sessionService.Get(ctx, request); err != nil {
+		t.Fatalf("Get while gate held: %v", err)
+	}
+	before, err := runtime.SessionContext(ctx, session.ID)
+	if err != nil {
+		t.Fatalf("SessionContext before release: %v", err)
+	}
+	if before.AutoCompacted || before.ActiveHandoffCount != 0 {
+		t.Fatalf("context compacted while session gate held: %+v", before)
+	}
+
+	release()
+	if _, err := runtime.sessionService.Get(ctx, request); err != nil {
+		t.Fatalf("Get after gate release: %v", err)
+	}
+	after, err := runtime.SessionContext(ctx, session.ID)
+	if err != nil {
+		t.Fatalf("SessionContext after release: %v", err)
+	}
+	if !after.AutoCompacted || after.ActiveHandoffCount == 0 {
+		t.Fatalf("context was not compacted after session gate release: %+v", after)
 	}
 }
 
@@ -554,7 +707,7 @@ func TestModelContextReadAutoCompactsBeforeProviderPayload(t *testing.T) {
 	}
 }
 
-func TestProtectedTailStartsAtLatestUnresolvedApprovalEvent(t *testing.T) {
+func TestProtectedTailStartsAtEarliestUnresolvedApprovalEvent(t *testing.T) {
 	events := []*adksession.Event{
 		newContextTextEvent("ctx-protect-0", "old user", genai.RoleUser),
 		newContextApprovalEvent("ctx-protect-1"),
@@ -563,8 +716,21 @@ func TestProtectedTailStartsAtLatestUnresolvedApprovalEvent(t *testing.T) {
 		newContextApprovalEvent("ctx-protect-4"),
 		newContextTextEvent("ctx-protect-5", "tail", genai.RoleModel),
 	}
-	if got := protectedTailStart(events); got != 4 {
-		t.Fatalf("protectedTailStart = %d, want latest approval index 4", got)
+	if got := protectedTailStart(events); got != 1 {
+		t.Fatalf("protectedTailStart = %d, want earliest unresolved approval index 1", got)
+	}
+}
+
+func TestProtectedTailIncludesOriginalFunctionCallForPendingApproval(t *testing.T) {
+	events := []*adksession.Event{
+		newContextTextEvent("ctx-original-0", "old user", genai.RoleUser),
+		newContextFunctionCallEvent("ctx-original-call", "call-original"),
+		newContextFunctionResponseEvent("ctx-original-wait", "call-original", "strategy.research_backtest"),
+		newContextApprovalEventForOriginal("ctx-original-approval", "call-original"),
+		newContextTextEvent("ctx-original-tail", "tail", genai.RoleModel),
+	}
+	if got := protectedTailStart(events); got != 1 {
+		t.Fatalf("protectedTailStart = %d, want original function call index 1", got)
 	}
 }
 
@@ -687,6 +853,152 @@ func TestAppendADKEventWithStaleRetryRefreshesSession(t *testing.T) {
 	}
 }
 
+func TestCompactedSessionViewTracksEventsAppendedDuringInvocation(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	agent := mustSaveAgent(t, runtime, AgentWriteRequest{
+		ID: "context-live-view-agent", Name: "Context Live View", Instruction: "Test agent",
+		RecentUserWindow: 1, PermissionMode: PermissionModeApproval, Status: AgentStatusEnabled,
+	})
+	session := mustCreateSession(t, runtime, agent.ID, "Live projected context")
+	created, err := runtime.rawSessionService.Create(ctx, &adksession.CreateRequest{
+		AppName: googleADKAppName(agent.ID), UserID: googleADKUserID, SessionID: session.ID,
+	})
+	if err != nil {
+		t.Fatalf("Create raw session: %v", err)
+	}
+	appendContextEvents(t, runtime.rawSessionService, created.Session, 0, 6)
+	if _, err := runtime.contextManager.Compact(ctx, session, agent, SessionCompactRequest{
+		Mode: "aggressive", Trigger: "manual", Reason: "test live projected view",
+	}); err != nil {
+		t.Fatalf("Compact: %v", err)
+	}
+
+	response, err := runtime.sessionService.Get(ctx, &adksession.GetRequest{
+		AppName: googleADKAppName(agent.ID), UserID: googleADKUserID, SessionID: session.ID,
+	})
+	if err != nil {
+		t.Fatalf("Get wrapped session: %v", err)
+	}
+	before := response.Session.Events().Len()
+	call := adksession.NewEvent("inv-live")
+	call.Content = genai.NewContentFromParts([]*genai.Part{{FunctionCall: &genai.FunctionCall{
+		ID: "call-live", Name: "test.tool", Args: map[string]any{"value": 1},
+	}}}, genai.RoleModel)
+	if err := runtime.sessionService.AppendEvent(ctx, response.Session, call); err != nil {
+		t.Fatalf("Append call: %v", err)
+	}
+	result := adksession.NewEvent("inv-live")
+	result.Content = genai.NewContentFromParts([]*genai.Part{{FunctionResponse: &genai.FunctionResponse{
+		ID: "call-live", Name: "test.tool", Response: map[string]any{"ok": true},
+	}}}, genai.RoleUser)
+	if err := runtime.sessionService.AppendEvent(ctx, response.Session, result); err != nil {
+		t.Fatalf("Append response: %v", err)
+	}
+
+	events := eventSlice(response.Session.Events())
+	if got := len(events); got != before+2 {
+		t.Fatalf("projected event count = %d, want %d", got, before+2)
+	}
+	if len(events[len(events)-2].Content.Parts) == 0 || events[len(events)-2].Content.Parts[0].FunctionCall == nil {
+		t.Fatalf("projected view lost appended function call")
+	}
+	if len(events[len(events)-1].Content.Parts) == 0 || events[len(events)-1].Content.Parts[0].FunctionResponse == nil {
+		t.Fatalf("projected view lost appended function response")
+	}
+}
+
+func TestHasActiveRunDoesNotTreatPendingApprovalAsExecuting(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	agent := mustSaveAgent(t, runtime, AgentWriteRequest{
+		ID: "context-active-run-agent", Name: "Context Active Run", Instruction: "Test agent",
+		RecentUserWindow: 1, PermissionMode: PermissionModeApproval, Status: AgentStatusEnabled,
+	})
+	session := mustCreateSession(t, runtime, agent.ID, "Active run guard")
+	pending := mustSaveRun(t, runtime, Run{
+		ID: "run-context-pending", SessionID: session.ID, AgentID: agent.ID,
+		Status: RunStatusPending, CreatedAt: nowString(), UpdatedAt: nowString(),
+	})
+	active, err := runtime.contextManager.HasActiveRun(ctx, session.ID)
+	if err != nil {
+		t.Fatalf("HasActiveRun pending: %v", err)
+	}
+	if active {
+		t.Fatalf("pending approval run must not block compaction")
+	}
+	pending.Status = RunStatusRunning
+	if err := runtime.Store().SaveRun(ctx, pending); err != nil {
+		t.Fatalf("Save running run: %v", err)
+	}
+	active, err = runtime.contextManager.HasActiveRun(ctx, session.ID)
+	if err != nil {
+		t.Fatalf("HasActiveRun running: %v", err)
+	}
+	if !active {
+		t.Fatalf("running run must block manual compaction")
+	}
+}
+
+func TestCompactedSessionPreservesOriginalCallForPendingApproval(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	agent := mustSaveAgent(t, runtime, AgentWriteRequest{
+		ID: "context-pending-pair-agent", Name: "Context Pending Pair", Instruction: "Test agent",
+		RecentUserWindow: 1, PermissionMode: PermissionModeApproval, Status: AgentStatusEnabled,
+	})
+	session := mustCreateSession(t, runtime, agent.ID, "Pending approval pair")
+	created, err := runtime.rawSessionService.Create(ctx, &adksession.CreateRequest{
+		AppName: googleADKAppName(agent.ID), UserID: googleADKUserID, SessionID: session.ID,
+	})
+	if err != nil {
+		t.Fatalf("Create raw session: %v", err)
+	}
+	appendContextEvents(t, runtime.rawSessionService, created.Session, 0, 8)
+	events := []*adksession.Event{
+		newContextFunctionCallEvent("ctx-pair-call", "call-pair-original"),
+		newContextFunctionResponseEvent("ctx-pair-wait", "call-pair-original", "strategy.research_backtest"),
+		newContextApprovalEventForOriginal("ctx-pair-approval", "call-pair-original"),
+	}
+	for _, event := range events {
+		if err := appendADKEventWithStaleRetry(ctx, runtime.contextManager.appendLocks, runtime.rawSessionService, created.Session, event); err != nil {
+			t.Fatalf("Append pending pair event: %v", err)
+		}
+	}
+	if _, err := runtime.contextManager.Compact(ctx, session, agent, SessionCompactRequest{
+		Mode: "aggressive", Trigger: "manual", Reason: "test pending approval pair",
+	}); err != nil {
+		t.Fatalf("Compact: %v", err)
+	}
+	response, err := runtime.sessionService.Get(ctx, &adksession.GetRequest{
+		AppName: googleADKAppName(agent.ID), UserID: googleADKUserID, SessionID: session.ID,
+	})
+	if err != nil {
+		t.Fatalf("Get projected session: %v", err)
+	}
+	seenOriginal := false
+	seenConfirmation := false
+	for event := range response.Session.Events().All() {
+		if event == nil || event.Content == nil {
+			continue
+		}
+		for _, part := range event.Content.Parts {
+			if part == nil || part.FunctionCall == nil {
+				continue
+			}
+			if part.FunctionCall.ID == "call-pair-original" {
+				seenOriginal = true
+			}
+			if part.FunctionCall.Name == toolconfirmation.FunctionCallName {
+				seenConfirmation = true
+			}
+		}
+	}
+	if !seenOriginal || !seenConfirmation {
+		t.Fatalf("projected pending approval pair original=%v confirmation=%v", seenOriginal, seenConfirmation)
+	}
+}
+
 func appendContextEvents(t *testing.T, service adksession.Service, session adksession.Session, start int, count int) {
 	t.Helper()
 	for index := start; index < start+count; index++ {
@@ -723,14 +1035,44 @@ func newContextTextEvent(id string, text string, role genai.Role) *adksession.Ev
 }
 
 func newContextApprovalEvent(id string) *adksession.Event {
+	return newContextApprovalEventForOriginal(id, "")
+}
+
+func newContextApprovalEventForOriginal(id string, originalCallID string) *adksession.Event {
 	event := adksession.NewEvent(id)
+	args := map[string]any{}
+	if originalCallID != "" {
+		args["originalFunctionCall"] = &genai.FunctionCall{
+			ID: originalCallID, Name: "strategy.research_backtest", Args: map[string]any{"symbol": "TME"},
+		}
+	}
 	event.Content = genai.NewContentFromParts([]*genai.Part{{
 		FunctionCall: &genai.FunctionCall{
 			ID:   id + "-call",
 			Name: toolconfirmation.FunctionCallName,
-			Args: map[string]any{},
+			Args: args,
 		},
 	}}, genai.RoleModel)
+	return event
+}
+
+func newContextFunctionCallEvent(id string, functionCallID string) *adksession.Event {
+	event := adksession.NewEvent(id)
+	event.Content = genai.NewContentFromParts([]*genai.Part{{
+		FunctionCall: &genai.FunctionCall{
+			ID: functionCallID, Name: "strategy.research_backtest", Args: map[string]any{"symbol": "TME"},
+		},
+	}}, genai.RoleModel)
+	return event
+}
+
+func newContextFunctionResponseEvent(id string, functionCallID string, name string) *adksession.Event {
+	event := adksession.NewEvent(id)
+	event.Content = genai.NewContentFromParts([]*genai.Part{{
+		FunctionResponse: &genai.FunctionResponse{
+			ID: functionCallID, Name: name, Response: map[string]any{"error": "confirmation required"},
+		},
+	}}, genai.RoleUser)
 	return event
 }
 
@@ -827,10 +1169,50 @@ func TestAppendADKEventWithStaleRetryReturnsNonStaleError(t *testing.T) {
 	}
 }
 
+func TestAppendADKEventWithStaleRetryRefreshesUnexpectedSessionType(t *testing.T) {
+	ctx := context.Background()
+	base := adksession.InMemoryService()
+	created, err := base.Create(ctx, &adksession.CreateRequest{
+		AppName: "app", UserID: "user", SessionID: "session-refresh-type",
+	})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	service := &refreshSessionTypeService{Service: base}
+	event := adksession.NewEvent("inv-refresh-type")
+	event.Author = "agent"
+	event.Content = genai.NewContentFromText("refreshed", genai.RoleModel)
+	if err := appendADKEventWithStaleRetry(ctx, newADKSessionAppendLockMap(), service, created.Session, event); err != nil {
+		t.Fatalf("appendADKEventWithStaleRetry: %v", err)
+	}
+	if service.getCalls != 1 || service.appendCalls != 2 {
+		t.Fatalf("refresh calls get=%d append=%d, want 1 and 2", service.getCalls, service.appendCalls)
+	}
+}
+
 type appendErrorSessionService struct {
 	adksession.Service
 	err      error
 	getCalls int
+}
+
+type refreshSessionTypeService struct {
+	adksession.Service
+	getCalls    int
+	appendCalls int
+}
+
+func (s *refreshSessionTypeService) Get(ctx context.Context, req *adksession.GetRequest) (*adksession.GetResponse, error) {
+	s.getCalls++
+	return s.Service.Get(ctx, req)
+}
+
+func (s *refreshSessionTypeService) AppendEvent(ctx context.Context, session adksession.Session, event *adksession.Event) error {
+	s.appendCalls++
+	if s.appendCalls == 1 {
+		return fmt.Errorf("unexpected session type %T", session)
+	}
+	return s.Service.AppendEvent(ctx, session, event)
 }
 
 func (s *appendErrorSessionService) Get(ctx context.Context, req *adksession.GetRequest) (*adksession.GetResponse, error) {

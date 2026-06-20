@@ -44,6 +44,24 @@ func TestTaskCreateIsLowRiskAndDoesNotRequireApproval(t *testing.T) {
 	}
 }
 
+func TestResearchBacktestExplicitlySkipsApproval(t *testing.T) {
+	descriptor := ToolDescriptor{
+		Name:               "strategy.research_backtest",
+		Permission:         "optimize_strategy",
+		RiskLevel:          "low",
+		RequiresApprovalIn: []string{PermissionModeApproval},
+		AllowedModes:       allPermissionModes(),
+	}
+	for _, mode := range allPermissionModes() {
+		if ToolRequiresApproval(descriptor, mode) {
+			t.Fatalf("strategy.research_backtest requires approval in %s", mode)
+		}
+		if !ToolAllowedInMode(descriptor, mode) {
+			t.Fatalf("strategy.research_backtest is not allowed in %s", mode)
+		}
+	}
+}
+
 func TestWorkflowWaitToolWaitsAndDoesNotRequireApproval(t *testing.T) {
 	registry := NewToolRegistry()
 	tool, ok := registry.Get("workflow.wait")

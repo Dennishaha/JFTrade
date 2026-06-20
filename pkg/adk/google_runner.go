@@ -1082,8 +1082,14 @@ func (e *googleADKExecution) pendingApprovals(ctx context.Context, store *Store)
 			if e.hasApprovalForConfirmation(call.ID) {
 				continue
 			}
+			runID, tracked := e.trackedRunIDForFunctionCall(original.ID)
+			if !tracked {
+				// The ADK session is shared by the parent and delegated children.
+				// Confirmation calls from another execution must not be projected
+				// into this run's approval queue.
+				continue
+			}
 			now := nowString()
-			runID := e.runIDForFunctionCall(original.ID)
 			approval := Approval{
 				ID: "approval-" + uuid.NewString(), RunID: runID, AgentID: e.agent.ID,
 				ToolName: original.Name, Input: original.Args, Status: ApprovalStatusPending,
@@ -1091,11 +1097,19 @@ func (e *googleADKExecution) pendingApprovals(ctx context.Context, store *Store)
 				FunctionCallID: original.ID, ConfirmationCallID: call.ID,
 				CreatedAt: now, UpdatedAt: now,
 			}
-			if err := store.SaveApproval(ctx, approval); err != nil {
+			saved, created, err := store.SaveApprovalIfConfirmationAbsent(ctx, approval)
+			if err != nil {
 				return nil, err
 			}
+			e.markConfirmationProcessed(call.ID)
+			if !created {
+				// A prior execution or recovery pass already owns this exact ADK
+				// confirmation. Never create a second actionable approval.
+				_ = saved
+				continue
+			}
 			e.markCallPending(original.ID)
-			approvals = append(approvals, approval)
+			approvals = append(approvals, saved)
 		}
 	}
 	return approvals, nil
@@ -1105,11 +1119,26 @@ func (e *googleADKExecution) hasApprovalForConfirmation(id string) bool {
 	if id == "" {
 		return true
 	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
 	if e.processedConfirmationIDs != nil {
 		_, ok := e.processedConfirmationIDs[id]
 		return ok
 	}
 	return false
+}
+
+func (e *googleADKExecution) markConfirmationProcessed(id string) {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if e.processedConfirmationIDs == nil {
+		e.processedConfirmationIDs = make(map[string]struct{})
+	}
+	e.processedConfirmationIDs[id] = struct{}{}
 }
 
 func (e *googleADKExecution) markCallPending(functionCallID string) {
@@ -1181,15 +1210,15 @@ func (e *googleADKExecution) resultForRun(runID string) openAIChatResult {
 	}
 }
 
-func (e *googleADKExecution) runIDForFunctionCall(functionCallID string) string {
+func (e *googleADKExecution) trackedRunIDForFunctionCall(functionCallID string) (string, bool) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	for _, call := range e.calls {
 		if call.IdempotencyKey == functionCallID && strings.TrimSpace(call.RunID) != "" {
-			return call.RunID
+			return call.RunID, true
 		}
 	}
-	return e.runID
+	return "", false
 }
 
 func (e *googleADKExecution) preToolState() (string, string) {
@@ -1463,41 +1492,16 @@ func (e *googleADKExecution) derivedRunStatusForRunLocked(runID string) string {
 
 func (e *googleADKExecution) persistedRunStatusForRunLocked(runID string) string {
 	calls := e.callsForRunLocked(runID)
-	if len(calls) == 0 {
-		if e.runHasTextLocked(runID) {
-			return RunStatusCompleted
-		}
-		return RunStatusRunning
-	}
-	allCancelled := true
-	allCompleted := true
 	for _, call := range calls {
-		switch call.Status {
+		switch strings.ToUpper(strings.TrimSpace(call.Status)) {
 		case "PENDING_APPROVAL":
 			return RunStatusPending
-		case "RUNNING", "PENDING":
-			return RunStatusRunning
-		case "FAILED", "TIMED_OUT", "DENIED":
-			allCancelled = false
-			allCompleted = false
-		case "SUCCEEDED", "COMPLETED":
-			allCancelled = false
-		case "CANCELLED":
-			allCompleted = false
-		default:
-			allCancelled = false
-			allCompleted = false
 		}
 	}
-	if allCancelled {
-		return RunStatusCancelled
-	}
-	if allCompleted {
-		if !e.runHasPostToolTextLocked(runID) {
-			return RunStatusRunning
-		}
-		return RunStatusCompleted
-	}
+	// These snapshots are emitted while GO-ADK still owns the invocation.
+	// Post-tool text is not a terminal boundary: the same invocation may issue
+	// another tool call afterwards. Only the explicit completion path may write
+	// a terminal run status.
 	return RunStatusRunning
 }
 

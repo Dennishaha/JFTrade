@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -90,6 +91,190 @@ func TestStoreMigrationNormalizesHiddenAgentWorkflowDefaults(t *testing.T) {
 	}
 	if rawMode != WorkModeChat {
 		t.Fatalf("raw migrated work mode = %q, want %q", rawMode, WorkModeChat)
+	}
+}
+
+func TestStoreMigrationRepairsOrphanTasksAndDuplicateConfirmations(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "adk.db")
+	secretsPath := filepath.Join(dir, "secrets", "adk.json")
+	skillsPath := filepath.Join(dir, "skills")
+	store, err := NewStore(dbPath, secretsPath, skillsPath)
+	if err != nil {
+		t.Fatalf("NewStore: %v", err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatalf("close store: %v", err)
+	}
+
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatalf("open raw db: %v", err)
+	}
+	ctx := t.Context()
+	if _, err := db.ExecContext(ctx, `DELETE FROM adk_schema_migrations WHERE version IN (35, 36, 37, 38, 39, 40)`); err != nil {
+		t.Fatalf("reset migration markers: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `DROP INDEX IF EXISTS idx_adk_approvals_confirmation_call`); err != nil {
+		t.Fatalf("drop confirmation index: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO `+tableTasks+` (id, status, agent_id, run_id, payload_json, created_at, updated_at) VALUES ('orphan-task', 'TODO', 'agent', 'missing-run', '{}', '2024-01-01T00:00:00Z', '2024-01-01T00:00:00Z')`); err != nil {
+		t.Fatalf("insert orphan task: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO `+tableRuns+` (id, session_id, agent_id, status, payload_json, created_at, updated_at) VALUES ('terminal-with-approval', 'session', 'agent', 'FAILED', '{"id":"terminal-with-approval","sessionId":"session","agentId":"agent","status":"FAILED","pendingApprovals":[{"id":"resolved","status":"APPROVED"}]}', '2024-01-01T00:00:00Z', '2024-01-01T00:00:00Z')`); err != nil {
+		t.Fatalf("insert terminal run: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO `+tableRuns+` (id, session_id, agent_id, status, payload_json, created_at, updated_at) VALUES ('run-owner', 'session', 'agent', 'PENDING_APPROVAL', '{"id":"run-owner","sessionId":"session","agentId":"agent","status":"PENDING_APPROVAL","toolCalls":[{"idempotencyKey":"function-owned"}]}', '2024-01-01T00:00:00Z', '2024-01-01T00:00:00Z'), ('run-wrong', 'session', 'agent', 'PENDING_APPROVAL', '{"id":"run-wrong","sessionId":"session","agentId":"agent","status":"PENDING_APPROVAL","toolCalls":[]}', '2024-01-02T00:00:00Z', '2024-01-02T00:00:00Z')`); err != nil {
+		t.Fatalf("insert approval owner runs: %v", err)
+	}
+	insertApproval := `INSERT INTO ` + tableApprovals + ` (id, run_id, agent_id, status, payload_json, created_at, updated_at) VALUES (?, ?, 'agent', ?, json_object('id', ?, 'runId', ?, 'agentId', 'agent', 'status', ?, 'functionCallId', 'function-owned', 'confirmationCallId', 'confirmation-duplicate', 'createdAt', ?, 'updatedAt', ?), ?, ?)`
+	if _, err := db.ExecContext(ctx, insertApproval, "approval-pending", "run-wrong", ApprovalStatusPending, "approval-pending", "run-wrong", ApprovalStatusPending, "2024-01-01T00:00:00Z", "2024-01-01T00:00:00Z", "2024-01-01T00:00:00Z", "2024-01-01T00:00:00Z"); err != nil {
+		t.Fatalf("insert pending approval: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, insertApproval, "approval-approved", "run-owner", ApprovalStatusApproved, "approval-approved", "run-owner", ApprovalStatusApproved, "2024-01-02T00:00:00Z", "2024-01-02T00:00:00Z", "2024-01-02T00:00:00Z", "2024-01-02T00:00:00Z"); err != nil {
+		t.Fatalf("insert approved approval: %v", err)
+	}
+	if _, err := db.ExecContext(ctx, insertApproval, "approval-denied", "run-wrong", ApprovalStatusDenied, "approval-denied", "run-wrong", ApprovalStatusDenied, "2024-01-03T00:00:00Z", "2024-01-03T00:00:00Z", "2024-01-03T00:00:00Z", "2024-01-03T00:00:00Z"); err != nil {
+		t.Fatalf("insert denied approval: %v", err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatalf("close raw db: %v", err)
+	}
+
+	migrated, err := NewStore(dbPath, secretsPath, skillsPath)
+	if err != nil {
+		t.Fatalf("NewStore migrate: %v", err)
+	}
+	defer func() { jftradeCheckTestError(t, migrated.Close()) }()
+	var orphanCount int
+	if err := migrated.db.Get(&orphanCount, `SELECT COUNT(*) FROM `+tableTasks+` WHERE id = 'orphan-task'`); err != nil || orphanCount != 0 {
+		t.Fatalf("orphan task count = %d err=%v", orphanCount, err)
+	}
+	var embeddedApprovalCount int
+	if err := migrated.db.Get(&embeddedApprovalCount, `SELECT json_array_length(json_extract(payload_json, '$.pendingApprovals')) FROM `+tableRuns+` WHERE id = 'terminal-with-approval'`); err != nil || embeddedApprovalCount != 0 {
+		t.Fatalf("terminal embedded approval count = %d err=%v", embeddedApprovalCount, err)
+	}
+	approval, ok, err := migrated.ApprovalByConfirmationCallID(ctx, "confirmation-duplicate")
+	if err != nil || !ok || approval.ID != "approval-denied" || approval.RunID != "run-owner" {
+		t.Fatalf("canonical approval = %+v ok=%v err=%v", approval, ok, err)
+	}
+	duplicate := Approval{ID: "approval-late", RunID: "run", AgentID: "agent", Status: ApprovalStatusPending, ConfirmationCallID: "confirmation-duplicate"}
+	if _, created, err := migrated.SaveApprovalIfConfirmationAbsent(ctx, duplicate); err != nil || created {
+		t.Fatalf("duplicate approval created=%v err=%v", created, err)
+	}
+}
+
+func TestStoreMigrationReopensCompletedWorkflowWithRecoverablePendingApproval(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "adk.db")
+	secretsPath := filepath.Join(dir, "secrets", "adk.json")
+	skillsPath := filepath.Join(dir, "skills")
+	store, err := NewStore(dbPath, secretsPath, skillsPath)
+	if err != nil {
+		t.Fatalf("NewStore: %v", err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatalf("close store: %v", err)
+	}
+
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatalf("open raw db: %v", err)
+	}
+	ctx := t.Context()
+	if _, err := db.ExecContext(ctx, `DELETE FROM adk_schema_migrations WHERE version IN (41, 42)`); err != nil {
+		t.Fatalf("reset recovery migrations: %v", err)
+	}
+	parentJSON := `{"id":"parent-terminal","sessionId":"session","agentId":"agent","status":"COMPLETED","workMode":"loop","workflowStatus":"COMPLETED","completedAt":"2026-06-21T00:00:00Z","finalMessageId":"message-final","pendingApprovals":[]}`
+	childJSON := `{"id":"child-terminal","sessionId":"session","agentId":"agent","parentRunId":"parent-terminal","status":"COMPLETED","workMode":"chat","completedAt":"2026-06-21T00:00:00Z","finalMessageId":"message-child","pendingApprovals":[]}`
+	if _, err := db.ExecContext(ctx, `INSERT INTO `+tableRuns+` (id, session_id, agent_id, status, payload_json, created_at, updated_at) VALUES (?, 'session', 'agent', 'COMPLETED', ?, '2026-06-21T00:00:00Z', '2026-06-21T00:00:00Z'), (?, 'session', 'agent', 'COMPLETED', ?, '2026-06-21T00:00:00Z', '2026-06-21T00:00:00Z')`, "parent-terminal", parentJSON, "child-terminal", childJSON); err != nil {
+		t.Fatalf("insert terminal workflow: %v", err)
+	}
+	approvalJSON := `{"id":"approval-late","runId":"child-terminal","agentId":"agent","toolName":"strategy.research_backtest","status":"PENDING","functionCallId":"function-late","confirmationCallId":"confirmation-late","createdAt":"2026-06-21T00:01:00Z","updatedAt":"2026-06-21T00:01:00Z"}`
+	if _, err := db.ExecContext(ctx, `INSERT INTO `+tableApprovals+` (id, run_id, agent_id, status, payload_json, created_at, updated_at) VALUES ('approval-late', 'child-terminal', 'agent', 'PENDING', ?, '2026-06-21T00:01:00Z', '2026-06-21T00:01:00Z')`, approvalJSON); err != nil {
+		t.Fatalf("insert late approval: %v", err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatalf("close raw db: %v", err)
+	}
+
+	migrated, err := NewStore(dbPath, secretsPath, skillsPath)
+	if err != nil {
+		t.Fatalf("NewStore migrate: %v", err)
+	}
+	defer func() { jftradeCheckTestError(t, migrated.Close()) }()
+	child, ok, err := migrated.Run(ctx, "child-terminal")
+	if err != nil || !ok {
+		t.Fatalf("child lookup ok=%v err=%v", ok, err)
+	}
+	if child.Status != RunStatusPending || child.CompletedAt != nil || child.FinalMessageID != "" || len(child.PendingApprovals) != 1 {
+		t.Fatalf("recovered child = %+v", child)
+	}
+	parent, ok, err := migrated.Run(ctx, "parent-terminal")
+	if err != nil || !ok {
+		t.Fatalf("parent lookup ok=%v err=%v", ok, err)
+	}
+	if parent.Status != RunStatusPending || parent.WorkflowStatus != workflowStatusPaused || parent.CompletedAt != nil || len(parent.PendingApprovals) != 1 {
+		t.Fatalf("recovered parent = %+v", parent)
+	}
+}
+
+func TestSaveApprovalIfConfirmationAbsentIsConcurrentIdempotent(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	const workers = 24
+	var wg sync.WaitGroup
+	created := make(chan string, workers)
+	errs := make(chan error, workers)
+	for index := 0; index < workers; index++ {
+		index := index
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			approval := Approval{
+				ID: "approval-concurrent-" + fmt.Sprint(index), RunID: "run-concurrent-owner", AgentID: "agent",
+				ToolName: "strategy.research_backtest", Status: ApprovalStatusPending,
+				FunctionCallID: "function-concurrent", ConfirmationCallID: "confirmation-concurrent",
+			}
+			saved, wasCreated, err := runtime.Store().SaveApprovalIfConfirmationAbsent(ctx, approval)
+			if err != nil {
+				errs <- err
+				return
+			}
+			if saved.ConfirmationCallID != "confirmation-concurrent" {
+				errs <- fmt.Errorf("saved approval confirmation = %q", saved.ConfirmationCallID)
+				return
+			}
+			if wasCreated {
+				created <- saved.ID
+			}
+		}()
+	}
+	wg.Wait()
+	close(created)
+	close(errs)
+	for err := range errs {
+		if err != nil {
+			t.Fatalf("SaveApprovalIfConfirmationAbsent concurrent error: %v", err)
+		}
+	}
+	var createdIDs []string
+	for id := range created {
+		createdIDs = append(createdIDs, id)
+	}
+	if len(createdIDs) != 1 {
+		t.Fatalf("created approvals = %+v, want exactly one creator", createdIDs)
+	}
+	approval, ok, err := runtime.Store().ApprovalByConfirmationCallID(ctx, "confirmation-concurrent")
+	if err != nil || !ok {
+		t.Fatalf("ApprovalByConfirmationCallID ok=%v err=%v", ok, err)
+	}
+	all, err := runtime.Store().ListApprovals(ctx)
+	if err != nil {
+		t.Fatalf("ListApprovals: %v", err)
+	}
+	if len(all) != 1 || all[0].ID != approval.ID {
+		t.Fatalf("stored approvals = %+v, canonical = %+v", all, approval)
 	}
 }
 
@@ -813,6 +998,10 @@ func TestDeleteSessionRemovesApprovals(t *testing.T) {
 	if err := runtime.Store().SaveApproval(ctx, approval); err != nil {
 		t.Fatalf("SaveApproval: %v", err)
 	}
+	task, err := runtime.Store().SaveTask(ctx, TaskWriteRequest{ID: "task-test", Title: "test", Status: "TODO", AgentID: "agent", RunID: run.ID})
+	if err != nil {
+		t.Fatalf("SaveTask: %v", err)
+	}
 	appendADKEvent(t, runtime, "agent", session.ID, newAssistantEvent(run.ID, []*genai.Part{{Text: "done"}}, time.Unix(40, 0)))
 
 	if err := runtime.Store().DeleteSession(ctx, session.ID); err != nil {
@@ -824,12 +1013,197 @@ func TestDeleteSessionRemovesApprovals(t *testing.T) {
 	if _, ok, err := runtime.Store().Run(ctx, run.ID); err != nil || ok {
 		t.Fatalf("run still exists: ok=%v err=%v", ok, err)
 	}
+	if _, ok, err := runtime.Store().Task(ctx, task.ID); err != nil || ok {
+		t.Fatalf("task still exists: ok=%v err=%v", ok, err)
+	}
 	messages := mustMessages(t, runtime, session.ID)
 	if len(messages) != 0 {
 		t.Fatalf("messages = %+v, want empty after deleting session", messages)
 	}
 	if _, ok, err := runtime.Store().Session(ctx, session.ID); err != nil || ok {
 		t.Fatalf("session still exists: ok=%v err=%v", ok, err)
+	}
+}
+
+func TestSaveRunDoesNotRegressTerminalLifecycle(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	now := nowString()
+	cancelledAt := nowString()
+	terminal := mustSaveRun(t, runtime, Run{
+		ID: "run-terminal-monotonic", SessionID: "session-terminal-monotonic", AgentID: "agent",
+		Status: RunStatusCancelled, Message: "cancelled", ErrorCode: "RUN_CANCELLED",
+		CreatedAt: now, UpdatedAt: now, CompletedAt: &cancelledAt, CancelledAt: &cancelledAt,
+	})
+	stale := terminal
+	stale.Status = RunStatusRunning
+	stale.Message = "stale running snapshot"
+	stale.ErrorCode = ""
+	stale.CompletedAt = nil
+	stale.CancelledAt = nil
+	if err := runtime.Store().SaveRun(ctx, stale); err != nil {
+		t.Fatalf("SaveRun stale snapshot: %v", err)
+	}
+	stored, ok, err := runtime.Store().Run(ctx, terminal.ID)
+	if err != nil || !ok {
+		t.Fatalf("Run lookup ok=%v err=%v", ok, err)
+	}
+	if stored.Status != RunStatusCancelled || stored.ErrorCode != "RUN_CANCELLED" || stored.CancelledAt == nil {
+		t.Fatalf("terminal run regressed = %+v", stored)
+	}
+
+	failedAt := nowString()
+	failed := mustSaveRun(t, runtime, Run{
+		ID: "run-terminal-different-terminal", SessionID: "session-terminal-monotonic", AgentID: "agent",
+		Status: RunStatusFailed, Message: "failed first", ErrorCode: "PROVIDER_ERROR",
+		CreatedAt: now, UpdatedAt: now, CompletedAt: &failedAt,
+	})
+	laterCancelled := failed
+	laterCancelled.Status = RunStatusCancelled
+	laterCancelled.Message = "stale cancellation"
+	laterCancelled.ErrorCode = "RUN_CANCELLED"
+	laterCancelled.CancelledAt = &failedAt
+	if err := runtime.Store().SaveRun(ctx, laterCancelled); err != nil {
+		t.Fatalf("SaveRun different terminal snapshot: %v", err)
+	}
+	stored, ok, err = runtime.Store().Run(ctx, failed.ID)
+	if err != nil || !ok {
+		t.Fatalf("Run lookup ok=%v err=%v", ok, err)
+	}
+	if stored.Status != RunStatusFailed || stored.ErrorCode != "PROVIDER_ERROR" || stored.CancelledAt != nil {
+		t.Fatalf("terminal run changed to a different terminal state = %+v", stored)
+	}
+
+	cancelledWithoutFinal := mustSaveRun(t, runtime, Run{
+		ID: "run-terminal-final-message-enrichment", SessionID: "session-terminal-monotonic", AgentID: "agent",
+		Status: RunStatusCancelled, Message: "cancelled", ErrorCode: "RUN_CANCELLED",
+		CreatedAt: now, UpdatedAt: now, CompletedAt: &cancelledAt, CancelledAt: &cancelledAt,
+	})
+	enriched := cancelledWithoutFinal
+	enriched.FinalMessageID = "message-final-after-cancel"
+	if err := runtime.Store().SaveRun(ctx, enriched); err != nil {
+		t.Fatalf("SaveRun cancelled final message enrichment: %v", err)
+	}
+	stored, ok, err = runtime.Store().Run(ctx, cancelledWithoutFinal.ID)
+	if err != nil || !ok {
+		t.Fatalf("Run lookup ok=%v err=%v", ok, err)
+	}
+	if stored.Status != RunStatusCancelled || stored.FinalMessageID != "message-final-after-cancel" {
+		t.Fatalf("cancelled final message enrichment = %+v", stored)
+	}
+
+	completedRunningWorkflow := mustSaveRun(t, runtime, Run{
+		ID: "run-terminal-completed-running-workflow", SessionID: "session-terminal-monotonic", AgentID: "agent",
+		Status: RunStatusCompleted, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
+		Message: "completed intermediate workflow state", CreatedAt: now, UpdatedAt: now, CompletedAt: &failedAt,
+	})
+	staleRunningWorkflow := completedRunningWorkflow
+	staleRunningWorkflow.Status = RunStatusRunning
+	staleRunningWorkflow.Message = "stale workflow running snapshot"
+	staleRunningWorkflow.CompletedAt = nil
+	if err := runtime.Store().SaveRun(ctx, staleRunningWorkflow); err != nil {
+		t.Fatalf("SaveRun stale completed-running workflow snapshot: %v", err)
+	}
+	stored, ok, err = runtime.Store().Run(ctx, completedRunningWorkflow.ID)
+	if err != nil || !ok {
+		t.Fatalf("Run lookup ok=%v err=%v", ok, err)
+	}
+	if stored.Status != RunStatusCompleted || stored.WorkflowStatus != workflowStatusRunning || stored.CompletedAt == nil {
+		t.Fatalf("completed workflow regressed to stale running snapshot = %+v", stored)
+	}
+	failedAfterIntermediate := completedRunningWorkflow
+	failedAfterIntermediate.Status = RunStatusFailed
+	failedAfterIntermediate.WorkflowStatus = workflowStatusFailed
+	failedAfterIntermediate.Message = "workflow max iterations exceeded"
+	failedAfterIntermediate.ErrorCode = "WORKFLOW_GOAL_MAX_ITERATIONS_EXCEEDED"
+	failedAfterIntermediate.CompletedAt = &failedAt
+	if err := runtime.Store().SaveRun(ctx, failedAfterIntermediate); err != nil {
+		t.Fatalf("SaveRun terminal correction after completed-running workflow: %v", err)
+	}
+	stored, ok, err = runtime.Store().Run(ctx, completedRunningWorkflow.ID)
+	if err != nil || !ok {
+		t.Fatalf("Run lookup ok=%v err=%v", ok, err)
+	}
+	if stored.Status != RunStatusFailed || stored.ErrorCode != "WORKFLOW_GOAL_MAX_ITERATIONS_EXCEEDED" {
+		t.Fatalf("completed-running workflow did not accept terminal correction = %+v", stored)
+	}
+}
+
+func TestSaveRunReopensCompletedRunForFreshPendingApproval(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	now := nowString()
+	completedAt := nowString()
+	run := mustSaveRun(t, runtime, Run{
+		ID: "run-reopen-fresh-approval", SessionID: "session-reopen-fresh-approval", AgentID: "agent",
+		Status: RunStatusCompleted, CompletedAt: &completedAt, CreatedAt: now, UpdatedAt: now,
+	})
+	approval := Approval{
+		ID: "approval-reopen-fresh", RunID: run.ID, AgentID: run.AgentID,
+		ToolName: "strategy.research_backtest", Status: ApprovalStatusPending,
+		FunctionCallID: "function-reopen-fresh", ConfirmationCallID: "confirmation-reopen-fresh",
+	}
+	reopened := run
+	reopened.Status = RunStatusPending
+	reopened.CompletedAt = nil
+	reopened.ResumeState = "waiting_approval"
+	reopened.PendingApprovals = []Approval{approval}
+	if err := runtime.Store().SaveRun(ctx, reopened); err != nil {
+		t.Fatalf("SaveRun reopened approval: %v", err)
+	}
+	stored, ok, err := runtime.Store().Run(ctx, run.ID)
+	if err != nil || !ok {
+		t.Fatalf("Run lookup ok=%v err=%v", ok, err)
+	}
+	if stored.Status != RunStatusPending || stored.CompletedAt != nil || len(stored.PendingApprovals) != 1 {
+		t.Fatalf("reopened run = %+v", stored)
+	}
+}
+
+func TestSaveRunAllowsPausedWorkflowLifecycleUpdates(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	now := nowString()
+	parent := mustSaveRun(t, runtime, Run{
+		ID: "run-paused-workflow-updatable", SessionID: "session-paused-workflow-updatable", AgentID: "agent",
+		Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusPaused,
+		Message: "waiting for child approval", CreatedAt: now, UpdatedAt: now,
+	})
+	updated := parent
+	updated.Message = "workflow resumed after approval"
+	updated.WorkflowStatus = workflowStatusRunning
+	updated.Iteration = 2
+	if err := runtime.Store().SaveRun(ctx, updated); err != nil {
+		t.Fatalf("SaveRun paused workflow update: %v", err)
+	}
+	stored, ok, err := runtime.Store().Run(ctx, parent.ID)
+	if err != nil || !ok {
+		t.Fatalf("Run lookup ok=%v err=%v", ok, err)
+	}
+	if stored.Status != RunStatusRunning || stored.WorkflowStatus != workflowStatusRunning || stored.Message != updated.Message || stored.Iteration != 2 {
+		t.Fatalf("paused workflow update was blocked = %+v", stored)
+	}
+
+	pausedAgain := stored
+	pausedAgain.WorkflowStatus = workflowStatusPaused
+	if err := runtime.Store().SaveRun(ctx, pausedAgain); err != nil {
+		t.Fatalf("SaveRun pause workflow again: %v", err)
+	}
+	completedAt := nowString()
+	completed := pausedAgain
+	completed.Status = RunStatusCompleted
+	completed.WorkflowStatus = workflowStatusComplete
+	completed.Message = "workflow completed after approval"
+	completed.CompletedAt = &completedAt
+	if err := runtime.Store().SaveRun(ctx, completed); err != nil {
+		t.Fatalf("SaveRun terminal update from paused workflow: %v", err)
+	}
+	stored, ok, err = runtime.Store().Run(ctx, parent.ID)
+	if err != nil || !ok {
+		t.Fatalf("Run lookup after terminal update ok=%v err=%v", ok, err)
+	}
+	if stored.Status != RunStatusCompleted || stored.WorkflowStatus != workflowStatusComplete || stored.Message != completed.Message {
+		t.Fatalf("terminal update from paused workflow was blocked = %+v", stored)
 	}
 }
 

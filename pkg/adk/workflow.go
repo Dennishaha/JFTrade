@@ -128,22 +128,8 @@ func (e *WorkflowExecutor) Run(ctx context.Context, req workflowRequest) (ChatRe
 }
 
 func (e *WorkflowExecutor) createInitialGoalTask(ctx context.Context, parent Run, agent Agent, objective string, message string) (Task, error) {
-	taskMessage := strings.TrimSpace(message)
-	if taskMessage == "" {
-		taskMessage = strings.TrimSpace(objective)
-	}
-	title := strings.TrimSpace(objective)
-	if title == "" {
-		title = taskMessage
-	}
-	if title == "" {
-		title = "推进目标"
-	}
-	if len([]rune(title)) > 80 {
-		title = string([]rune(title)[:80])
-	}
 	return e.runtime.store.SaveTask(ctx, TaskWriteRequest{
-		Title:        title,
+		Title:        "推进当前目标",
 		Description:  "目标模式初始任务",
 		Status:       "TODO",
 		AgentID:      agent.ID,
@@ -152,8 +138,7 @@ func (e *WorkflowExecutor) createInitialGoalTask(ctx context.Context, parent Run
 		ModeHint:     WorkModeTask,
 		PlanSource:   workflowPlanSourceRuntime,
 		WorkflowMode: WorkModeLoop,
-		Objective:    strings.TrimSpace(objective),
-		Message:      taskMessage,
+		Message:      "分析当前目标并维护后续执行步骤。",
 	})
 }
 
@@ -174,7 +159,6 @@ func (e *WorkflowExecutor) planWorkflowSteps(ctx context.Context, req workflowRe
 func applyWorkflowStepPlanningMetadata(steps []workflowStep, mode string, objective string, warnings []string) []workflowStep {
 	normalizedWarnings := normalizeStringSlice(warnings)
 	normalizedMode := normalizeWorkMode(mode)
-	normalizedObjective := strings.TrimSpace(objective)
 	for index := range steps {
 		if steps[index].Order <= 0 {
 			steps[index].Order = index + 1
@@ -182,17 +166,37 @@ func applyWorkflowStepPlanningMetadata(steps []workflowStep, mode string, object
 		if strings.TrimSpace(steps[index].WorkflowMode) == "" {
 			steps[index].WorkflowMode = normalizedMode
 		}
-		if strings.TrimSpace(steps[index].Objective) == "" {
-			steps[index].Objective = normalizedObjective
-		}
+		steps[index].Objective = ""
 		if strings.TrimSpace(steps[index].PlanSource) == "" {
 			steps[index].PlanSource = workflowPlanSourcePlanner
 		}
 		if len(normalizedWarnings) > 0 {
 			steps[index].PlannerWarnings = append([]string(nil), normalizedWarnings...)
 		}
+		steps[index] = sanitizeWorkflowPlanStep(steps[index], objective, index)
 	}
 	return steps
+}
+
+func sanitizeWorkflowPlanStep(step workflowStep, userRequest string, index int) workflowStep {
+	original := strings.TrimSpace(userRequest)
+	if original == "" {
+		return step
+	}
+	if strings.TrimSpace(step.Title) == original {
+		step.Title = fmt.Sprintf("执行计划步骤 %d", index+1)
+	}
+	if strings.TrimSpace(step.Description) == original {
+		step.Description = ""
+	}
+	if strings.TrimSpace(step.Message) == original {
+		if description := strings.TrimSpace(step.Description); description != "" {
+			step.Message = description
+		} else {
+			step.Message = fmt.Sprintf("推进计划中的第 %d 步。", index+1)
+		}
+	}
+	return step
 }
 
 func (e *WorkflowExecutor) persistWorkflowTasks(ctx context.Context, parent Run, agent Agent, steps []workflowStep) ([]Task, error) {
@@ -357,7 +361,7 @@ func (e *WorkflowExecutor) runPlannedGoogleADKWorkflow(ctx context.Context, req 
 	if parent.WorkMode == WorkModeLoop && parent.Iteration == 0 {
 		parent.Iteration = 1
 	}
-	parent.PendingApprovals = pendingApprovalsOnly(parent.PendingApprovals)
+	parent.PendingApprovals = nil
 	parent.CompletedAt = new(nowString())
 	finalizeRunUsage(&parent)
 	jftradeErr1 := e.runtime.store.SaveRun(ctx, parent)
@@ -623,12 +627,16 @@ func workflowPlanFromTasks(tasks []Task, existing []WorkflowStepState) []Workflo
 			state.Objective = prior.Objective
 		}
 		state.ChildRunID = prior.ChildRunID
-		if task.Executor == workflowTaskExecutorChild && strings.TrimSpace(task.RunID) != "" {
-			state.ChildRunID = task.RunID
-		}
 		plan = append(plan, state)
 	}
 	return plan
+}
+
+func isDirectWorkflowChild(parent Run, child Run) bool {
+	return strings.TrimSpace(parent.ID) != "" &&
+		strings.TrimSpace(child.ID) != "" &&
+		child.ID != parent.ID &&
+		strings.TrimSpace(child.ParentRunID) == parent.ID
 }
 
 func (e *WorkflowExecutor) workflowTasks(ctx context.Context, parent Run, known []Task) ([]Task, error) {
@@ -1053,19 +1061,26 @@ func workflowStepFromState(state WorkflowStepState) workflowStep {
 }
 
 func (e *WorkflowExecutor) failParent(ctx context.Context, parent Run, cause error) Run {
+	if tasks, taskErr := e.workflowTasks(context.Background(), parent, nil); taskErr == nil && len(tasks) > 0 {
+		parent.WorkflowPlan = workflowPlanFromTasks(tasks, parent.WorkflowPlan)
+	}
 	parent.Status = runStatusForContext(ctx, cause)
 	parent.Message = userFacingADKError(cause)
 	parent.FailureReason = userFacingADKError(cause)
 	parent.ErrorCode = runErrorCode(parent.Status)
 	parent.WorkflowStatus = workflowStatusFailed
 	parent.Degraded = true
+	parent.PendingApprovals = nil
 	parent.CompletedAt = new(nowString())
 	if parent.Status == RunStatusCancelled {
 		parent.CancelledAt = parent.CompletedAt
 	}
 	finalizeRunUsage(&parent)
-	jftradeErr5 := e.runtime.store.SaveRun(context.Background(), parent)
-	jftradeLogError(jftradeErr5)
+	if err := e.runtime.store.SaveRunAndDenyPendingApprovals(context.Background(), parent); err != nil {
+		jftradeLogError(err)
+	} else {
+		e.runtime.cancelUnfinishedWorkflowChildren(context.Background(), parent)
+	}
 	return parent
 }
 

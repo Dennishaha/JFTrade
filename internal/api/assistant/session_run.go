@@ -131,7 +131,7 @@ func (h *Handler) handleADKCompactSessionContext(c *gin.Context) {
 		status := http.StatusInternalServerError
 		lower := strings.ToLower(err.Error())
 		switch {
-		case strings.Contains(lower, "active or pending run"):
+		case strings.Contains(lower, "active run"):
 			status = http.StatusConflict
 		case strings.Contains(lower, "not found"):
 			status = http.StatusNotFound

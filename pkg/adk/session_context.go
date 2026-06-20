@@ -108,11 +108,15 @@ func NewSessionContextManager(store *Store, rawService adksession.Service, opena
 	return &SessionContextManager{store: store, rawService: rawService, openai: openai, tools: tools, appendLocks: newADKSessionAppendLockMap()}
 }
 
-func (m *SessionContextManager) WrapService(service adksession.Service) adksession.Service {
+func (m *SessionContextManager) WrapService(service adksession.Service, gates ...func(string) (func(), bool)) adksession.Service {
 	if m == nil || service == nil {
 		return service
 	}
-	return &compactingSessionService{base: service, manager: m}
+	var beginCompaction func(string) (func(), bool)
+	if len(gates) > 0 {
+		beginCompaction = gates[0]
+	}
+	return &compactingSessionService{base: service, manager: m, beginCompaction: beginCompaction}
 }
 
 func (m *SessionContextManager) Snapshot(ctx context.Context, session Session, agent Agent) (SessionContextSnapshot, error) {
@@ -435,7 +439,10 @@ func (m *SessionContextManager) HasActiveRun(ctx context.Context, sessionID stri
 		if run.SessionID != sessionID {
 			continue
 		}
-		if run.Status == RunStatusRunning || run.Status == RunStatusPending {
+		// A run waiting for approval is quiescent. Its unresolved confirmation
+		// events are protected by protectedTailStart, so context compaction can
+		// safely advance up to (but never across) that approval boundary.
+		if run.Status == RunStatusRunning {
 			return true, nil
 		}
 	}
@@ -794,13 +801,34 @@ func retainedRecentUserCount(events []*adksession.Event, recentStart int, protec
 
 func protectedTailStart(events []*adksession.Event) int {
 	resolvedApprovalCallIDs := resolvedApprovalIDs(events)
-	for index := len(events) - 1; index >= 0; index-- {
-		event := events[index]
-		if eventContainsUnresolvedApproval(event, resolvedApprovalCallIDs) {
-			return index
+	protectedStart := len(events)
+	for index, event := range events {
+		if event == nil || event.Content == nil {
+			continue
+		}
+		for _, part := range event.Content.Parts {
+			if part == nil || part.FunctionCall == nil {
+				continue
+			}
+			call := part.FunctionCall
+			if call.Name != toolconfirmation.FunctionCallName {
+				continue
+			}
+			if _, ok := resolvedApprovalCallIDs[strings.TrimSpace(call.ID)]; ok {
+				continue
+			}
+			candidate := index
+			if original, err := toolconfirmation.OriginalCallFrom(call); err == nil {
+				if originalIndex := functionCallEventIndex(events, original.ID, index); originalIndex >= 0 {
+					candidate = originalIndex
+				}
+			}
+			if candidate < protectedStart {
+				protectedStart = candidate
+			}
 		}
 	}
-	return len(events)
+	return protectedStart
 }
 
 func isUserEvent(event *adksession.Event) bool {
@@ -836,23 +864,26 @@ func resolvedApprovalIDs(events []*adksession.Event) map[string]struct{} {
 	return resolved
 }
 
-func eventContainsUnresolvedApproval(event *adksession.Event, resolvedApprovalCallIDs map[string]struct{}) bool {
-	if event == nil || event.Content == nil {
-		return false
+func functionCallEventIndex(events []*adksession.Event, functionCallID string, through int) int {
+	functionCallID = strings.TrimSpace(functionCallID)
+	if functionCallID == "" {
+		return -1
 	}
-	for _, part := range event.Content.Parts {
-		if part == nil || part.FunctionCall == nil {
+	if through >= len(events) {
+		through = len(events) - 1
+	}
+	for index := 0; index <= through; index++ {
+		event := events[index]
+		if event == nil || event.Content == nil {
 			continue
 		}
-		call := part.FunctionCall
-		if call.Name != toolconfirmation.FunctionCallName {
-			continue
-		}
-		if _, ok := resolvedApprovalCallIDs[strings.TrimSpace(call.ID)]; !ok {
-			return true
+		for _, part := range event.Content.Parts {
+			if part != nil && part.FunctionCall != nil && strings.TrimSpace(part.FunctionCall.ID) == functionCallID {
+				return index
+			}
 		}
 	}
-	return false
+	return -1
 }
 
 func buildHandoffSummary(existing []HandoffSegment, events []*adksession.Event, mode string) string {
@@ -1052,8 +1083,9 @@ func eventSlice(events adksession.Events) []*adksession.Event {
 }
 
 type compactingSessionService struct {
-	base    adksession.Service
-	manager *SessionContextManager
+	base            adksession.Service
+	manager         *SessionContextManager
+	beginCompaction func(string) (func(), bool)
 }
 
 func (s *compactingSessionService) Create(ctx context.Context, req *adksession.CreateRequest) (*adksession.CreateResponse, error) {
@@ -1073,7 +1105,8 @@ func (s *compactingSessionService) Get(ctx context.Context, req *adksession.GetR
 	if storeErr != nil || !ok {
 		return response, storeErr
 	}
-	if _, compacted, compactErr := s.manager.AutoCompactForModelContext(ctx, session, agent, ""); compactErr != nil {
+	compacted, compactErr := s.autoCompactForModelContext(ctx, session, agent)
+	if compactErr != nil {
 		log.Printf("[adk] auto context compaction before model session read failed for session %s: %v", req.SessionID, compactErr)
 	} else if compacted {
 		response, err = s.base.Get(ctx, req)
@@ -1115,6 +1148,21 @@ func (s *compactingSessionService) Get(ctx context.Context, req *adksession.GetR
 	return response, nil
 }
 
+func (s *compactingSessionService) autoCompactForModelContext(ctx context.Context, session Session, agent Agent) (bool, error) {
+	if s == nil || s.manager == nil {
+		return false, nil
+	}
+	if s.beginCompaction != nil {
+		release, acquired := s.beginCompaction(session.ID)
+		if !acquired {
+			return false, nil
+		}
+		defer release()
+	}
+	_, compacted, err := s.manager.AutoCompactForModelContext(ctx, session, agent, "")
+	return compacted, err
+}
+
 func (s *compactingSessionService) List(ctx context.Context, req *adksession.ListRequest) (*adksession.ListResponse, error) {
 	return s.base.List(ctx, req)
 }
@@ -1124,10 +1172,24 @@ func (s *compactingSessionService) Delete(ctx context.Context, req *adksession.D
 }
 
 func (s *compactingSessionService) AppendEvent(ctx context.Context, session adksession.Session, event *adksession.Event) error {
+	var projected *wrappedEvents
 	if wrapped, ok := session.(*wrappedSession); ok && wrapped != nil {
 		session = wrapped.base
+		projected = wrapped.events
 	}
-	return appendADKEventWithStaleRetry(ctx, serviceAppendLocks(s), s.base, session, event)
+	if err := appendADKEventWithStaleRetry(ctx, serviceAppendLocks(s), s.base, session, event); err != nil {
+		return err
+	}
+	// The GO-ADK invocation keeps the Session returned by Get for its entire
+	// run. A compacted session uses a projected event view, so appending only to
+	// the raw base leaves that invocation with a frozen history. In particular,
+	// the next model turn can see a function response without the function call
+	// that immediately preceded it. Keep the projected view live as events are
+	// committed.
+	if projected != nil && event != nil && !event.Partial {
+		projected.Append(event)
+	}
+	return nil
 }
 
 func appendADKEventWithStaleRetry(ctx context.Context, locks *adkSessionAppendLockMap, service adksession.Service, session adksession.Session, event *adksession.Event) error {
@@ -1153,7 +1215,7 @@ func appendADKEventWithStaleRetry(ctx context.Context, locks *adkSessionAppendLo
 		if err == nil {
 			return nil
 		}
-		if !isStaleADKSessionError(err) {
+		if !isRefreshableADKSessionError(err) {
 			return err
 		}
 		lastErr = err
@@ -1181,6 +1243,14 @@ func isStaleADKSessionError(err error) bool {
 		return false
 	}
 	return strings.Contains(strings.ToLower(err.Error()), "stale session error")
+}
+
+func isRefreshableADKSessionError(err error) bool {
+	if err == nil {
+		return false
+	}
+	lower := strings.ToLower(err.Error())
+	return isStaleADKSessionError(err) || strings.Contains(lower, "unexpected session type")
 }
 
 func serviceAppendLocks(service *compactingSessionService) *adkSessionAppendLockMap {
@@ -1252,7 +1322,7 @@ func filterEvents(events []*adksession.Event, after time.Time, numRecent int) []
 
 type wrappedSession struct {
 	base   adksession.Session
-	events adksession.Events
+	events *wrappedEvents
 }
 
 func (s *wrappedSession) ID() string                { return s.base.ID() }
@@ -1263,12 +1333,16 @@ func (s *wrappedSession) Events() adksession.Events { return s.events }
 func (s *wrappedSession) LastUpdateTime() time.Time { return s.base.LastUpdateTime() }
 
 type wrappedEvents struct {
+	mu    sync.RWMutex
 	items []*adksession.Event
 }
 
 func (e *wrappedEvents) All() iter.Seq[*adksession.Event] {
+	e.mu.RLock()
+	items := append([]*adksession.Event(nil), e.items...)
+	e.mu.RUnlock()
 	return func(yield func(*adksession.Event) bool) {
-		for _, item := range e.items {
+		for _, item := range items {
 			if !yield(item) {
 				return
 			}
@@ -1276,13 +1350,33 @@ func (e *wrappedEvents) All() iter.Seq[*adksession.Event] {
 	}
 }
 
-func (e *wrappedEvents) Len() int { return len(e.items) }
+func (e *wrappedEvents) Len() int {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	return len(e.items)
+}
 
 func (e *wrappedEvents) At(i int) *adksession.Event {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
 	if i < 0 || i >= len(e.items) {
 		return nil
 	}
 	return e.items[i]
+}
+
+func (e *wrappedEvents) Append(event *adksession.Event) {
+	if e == nil || event == nil {
+		return
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	for _, existing := range e.items {
+		if existing != nil && existing.ID == event.ID {
+			return
+		}
+	}
+	e.items = append(e.items, event)
 }
 
 type emptySession struct {

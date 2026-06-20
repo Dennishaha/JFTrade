@@ -112,6 +112,7 @@ export function useADKPageChatState(
   const queueDispatchingId = ref("");
   const interruptingRunId = ref("");
   const approvalsBusy = ref(false);
+  const resolvingApprovalIds = ref<Set<string>>(new Set());
   const contextBusy = ref(false);
   const contextDetailsOpen = ref(false);
   const sessionContext = ref<ADKSessionContextSnapshot | null>(null);
@@ -136,7 +137,52 @@ export function useADKPageChatState(
   const workflowQueues = useADKWorkflowQueueState({
     timelineEntries,
     selectedSessionId: sessionState.selectedSessionId,
+    resolvingApprovalIds,
   });
+
+  function applySessionContext(
+    incoming: ADKSessionContextSnapshot | null | undefined,
+  ): void {
+    if (!incoming) return;
+    const current = sessionContext.value;
+    if (!current || current.sessionId !== incoming.sessionId) {
+      sessionContext.value = incoming;
+      return;
+    }
+    const currentRevision = current.contextRevisionId?.trim() ?? "";
+    const incomingRevision = incoming.contextRevisionId?.trim() ?? "";
+    if (currentRevision === incomingRevision) {
+      sessionContext.value = incoming;
+      return;
+    }
+    if (
+      incoming.previousContextRevisionId?.trim() === currentRevision ||
+      currentRevision === ""
+    ) {
+      sessionContext.value = incoming;
+      return;
+    }
+    if (
+      current.previousContextRevisionId?.trim() === incomingRevision ||
+      incomingRevision === ""
+    ) {
+      return;
+    }
+    const currentCreatedAt = Date.parse(
+      current.contextRevisionCreatedAt?.trim() ?? "",
+    );
+    const incomingCreatedAt = Date.parse(
+      incoming.contextRevisionCreatedAt?.trim() ?? "",
+    );
+    if (
+      Number.isFinite(currentCreatedAt) &&
+      Number.isFinite(incomingCreatedAt) &&
+      incomingCreatedAt < currentCreatedAt
+    ) {
+      return;
+    }
+    sessionContext.value = incoming;
+  }
 
   const activeRunId = computed(() => activeRun.value?.runId ?? "");
   const activeRunStatus = computed(() => activeRun.value?.status ?? "");
@@ -211,8 +257,25 @@ export function useADKPageChatState(
   const canInterruptChat = computed(
     () => canSendChat.value && hasBlockingRun.value,
   );
-  const showTypingIndicator = computed(() => {
-    return sendingChat.value || hasBlockingRun.value;
+  const activityIndicator = computed<"idle" | "typing" | "child_finished">(() => {
+    if (!sendingChat.value && !hasBlockingRun.value) return "idle";
+    const parent = workflowQueues.parentWorkflowPlanRun.value;
+    const children = workflowQueues.parentChildRunItems.value;
+    const parentActive =
+      !!parent &&
+      parent.status !== "COMPLETED" &&
+      parent.status !== "FAILED" &&
+      parent.status !== "CANCELLED" &&
+      parent.status !== "DENIED" &&
+      parent.status !== "TIMED_OUT";
+    const childrenFinished =
+      children.length > 0 &&
+      children.every((child) =>
+        ["COMPLETED", "DONE", "FAILED", "CANCELLED", "DENIED", "TIMED_OUT"].includes(
+          String(child.status).trim().toUpperCase(),
+        ),
+      );
+    return parentActive && childrenFinished ? "child_finished" : "typing";
   });
   const slashCommands = computed<SlashCommandItem[]>(() => {
     const hasSession = sessionState.selectedSessionId.value.trim() !== "";
@@ -534,7 +597,7 @@ export function useADKPageChatState(
       });
     }
     if (event.type === "context" && event.context) {
-      sessionContext.value = event.context;
+      applySessionContext(event.context);
     }
     if (event.type === "run" && event.run?.id) {
       syncActiveRun(normalizeADKRun(event.run), true);
@@ -558,7 +621,7 @@ export function useADKPageChatState(
       }
       await applyAuthoritativeTimeline(resolution.resolvedResponse);
       if (resolution.normalizedResponse.context) {
-        sessionContext.value = resolution.normalizedResponse.context;
+        applySessionContext(resolution.normalizedResponse.context);
       }
       if (resolution.failMessage) {
         sessionState.errorMessage.value = resolution.failMessage;
@@ -817,6 +880,7 @@ export function useADKPageChatState(
     visibleTimelineEntries: workflowQueues.visibleTimelineEntries,
     visibleWorkflowPlanRun: workflowQueues.visibleWorkflowPlanRun,
     clearSessionContext,
+    initializeSessionContext,
     clearWorkflowPlanRun,
     flushComposerState,
     resetComposerState,
@@ -835,7 +899,7 @@ export function useADKPageChatState(
     selectSession,
     sendChat,
     sendingChat,
-    showTypingIndicator,
+    activityIndicator,
     timelineEntries,
     updateGoalObjective,
     updateGoalObjectiveDraft,
@@ -921,7 +985,7 @@ export function useADKPageChatState(
     }
     await applyAuthoritativeTimeline(resolution.resolvedResponse);
     if (resolution.normalizedResponse.context) {
-      sessionContext.value = resolution.normalizedResponse.context;
+      applySessionContext(resolution.normalizedResponse.context);
     } else {
       await refreshSessionContext(resolution.normalizedResponse.session.id);
     }
@@ -962,6 +1026,13 @@ export function useADKPageChatState(
     action: ADKApprovalAction,
   ): Promise<void> {
     if (approvals.length === 0 || approvalsBusy.value) return;
+    const resolvingIds = approvals
+      .map((approval) => String(approval.id ?? "").trim())
+      .filter((id) => id !== "");
+    resolvingApprovalIds.value = new Set([
+      ...resolvingApprovalIds.value,
+      ...resolvingIds,
+    ]);
     approvalsBusy.value = true;
     try {
       const { resolutions, errors } = await resolveADKApprovalBatchOnce({
@@ -989,6 +1060,9 @@ export function useADKPageChatState(
           errors.length === 1 ? errors[0]! : `批量审批部分失败：${errors[0]}`;
       }
     } finally {
+      const remaining = new Set(resolvingApprovalIds.value);
+      resolvingIds.forEach((id) => remaining.delete(id));
+      resolvingApprovalIds.value = remaining;
       approvalsBusy.value = false;
     }
   }
@@ -1013,7 +1087,11 @@ export function useADKPageChatState(
         await handleTerminalRun(run);
         continue;
       }
-      await waitForRunContinuation(run);
+      // Approval controls should only be busy while the approval request and
+      // authoritative refresh are in flight. A continuation may run for minutes
+      // and can itself produce another approval round; monitor it in the
+      // background so those new controls remain clickable.
+      void waitForRunContinuation(run);
     }
   }
 
@@ -1063,18 +1141,22 @@ export function useADKPageChatState(
 
   async function refreshSessionContext(
     sessionId = sessionState.selectedSessionId.value,
+    showBusy = false,
   ): Promise<void> {
     if (!sessionId) {
       sessionContext.value = null;
       return;
     }
+    if (showBusy) contextBusy.value = true;
     try {
       const context = await fetchADKSessionContext(sessionId);
       if (sessionState.selectedSessionId.value === sessionId) {
-        sessionContext.value = context;
+        applySessionContext(context);
       }
     } catch {
       // Keep the last non-empty snapshot so the context tag does not blink away.
+    } finally {
+      if (showBusy) contextBusy.value = false;
     }
   }
 
@@ -1216,7 +1298,7 @@ export function useADKPageChatState(
     }
     contextBusy.value = true;
     try {
-      sessionContext.value = await compactADKSessionContext(sessionId, mode);
+      applySessionContext(await compactADKSessionContext(sessionId, mode));
       contextDetailsOpen.value = true;
       await reloadSessionTimeline(sessionId);
     } catch (error) {
@@ -1383,6 +1465,10 @@ export function useADKPageChatState(
   function clearSessionContext(): void {
     sessionContext.value = null;
     contextDetailsOpen.value = false;
+  }
+
+  async function initializeSessionContext(sessionId: string): Promise<void> {
+    await refreshSessionContext(sessionId, true);
   }
 
   function shouldSendCurrentDraftAsGoalConversation(): boolean {

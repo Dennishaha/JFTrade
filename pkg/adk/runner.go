@@ -11,22 +11,24 @@ import (
 )
 
 type Runtime struct {
-	store             *Store
-	tools             *ToolRegistry
-	skills            *SkillRegistry
-	sessionService    adksession.Service
-	rawSessionService adksession.Service
-	contextManager    *SessionContextManager
-	openai            openAIClient
-	limitsProvider    RuntimeLimitsProvider
-	activeMu          sync.Mutex
-	activeRuns        map[string]context.CancelFunc
-	adkMu             sync.Mutex
-	adkRuns           map[string]*googleADKExecution
-	workflowChildMu   sync.Mutex
-	approvalMu        sync.Mutex
-	approvalRuns      map[string]struct{}
-	runSem            chan struct{} // Concurrency limiter for active runs
+	store              *Store
+	tools              *ToolRegistry
+	skills             *SkillRegistry
+	sessionService     adksession.Service
+	rawSessionService  adksession.Service
+	contextManager     *SessionContextManager
+	openai             openAIClient
+	limitsProvider     RuntimeLimitsProvider
+	activeMu           sync.Mutex
+	activeRuns         map[string]context.CancelFunc
+	adkMu              sync.Mutex
+	adkRuns            map[string]*googleADKExecution
+	workflowChildMu    sync.Mutex
+	approvalMu         sync.Mutex
+	approvalRuns       map[string]struct{}
+	compactionMu       sync.Mutex
+	compactionSessions map[string]struct{}
+	runSem             chan struct{} // Concurrency limiter for active runs
 }
 
 func NewRuntime(store *Store, tools *ToolRegistry) *Runtime {
@@ -46,7 +48,7 @@ func NewRuntimeWithSessionService(store *Store, tools *ToolRegistry, sessionServ
 	}
 	r := &Runtime{
 		store: store, tools: tools, skills: NewSkillRegistry(skillsPath), sessionService: sessionService, rawSessionService: sessionService, openai: newOpenAIClient(),
-		activeRuns: map[string]context.CancelFunc{}, adkRuns: map[string]*googleADKExecution{}, approvalRuns: map[string]struct{}{},
+		activeRuns: map[string]context.CancelFunc{}, adkRuns: map[string]*googleADKExecution{}, approvalRuns: map[string]struct{}{}, compactionSessions: map[string]struct{}{},
 		runSem: make(chan struct{}, MaxConcurrentRuns),
 	}
 	if store != nil {
@@ -54,11 +56,34 @@ func NewRuntimeWithSessionService(store *Store, tools *ToolRegistry, sessionServ
 	}
 	if store != nil {
 		r.contextManager = NewSessionContextManager(store, sessionService, r.openai, tools)
-		r.sessionService = r.contextManager.WrapService(sessionService)
+		r.sessionService = r.contextManager.WrapService(sessionService, r.beginSessionCompaction)
 		store.SetSessionService(sessionService)
 	}
 	r.reconcileStaleRuns(context.Background())
 	return r
+}
+
+func (r *Runtime) beginSessionCompaction(sessionID string) (func(), bool) {
+	sessionID = strings.TrimSpace(sessionID)
+	if r == nil || sessionID == "" {
+		return func() {}, true
+	}
+	r.compactionMu.Lock()
+	if r.compactionSessions == nil {
+		r.compactionSessions = make(map[string]struct{})
+	}
+	if _, exists := r.compactionSessions[sessionID]; exists {
+		r.compactionMu.Unlock()
+		return func() {}, false
+	}
+	r.compactionSessions[sessionID] = struct{}{}
+	r.compactionMu.Unlock()
+	release := func() {
+		r.compactionMu.Lock()
+		delete(r.compactionSessions, sessionID)
+		r.compactionMu.Unlock()
+	}
+	return release, true
 }
 
 func (r *Runtime) SetRuntimeLimitsProvider(provider RuntimeLimitsProvider) {
@@ -120,6 +145,11 @@ func (r *Runtime) CompactSessionContext(ctx context.Context, sessionID string, m
 	if !ok {
 		return SessionContextSnapshot{}, fmt.Errorf("session not found")
 	}
+	release, acquired := r.beginSessionCompaction(session.ID)
+	if !acquired {
+		return SessionContextSnapshot{}, fmt.Errorf("session context compaction already running")
+	}
+	defer release()
 	notice := r.createContextCompactionNotice(ctx, session.ID)
 	fail := func(compactErr error) (SessionContextSnapshot, error) {
 		r.updateContextCompactionNotice(ctx, notice, TimelineStatusError, contextCompactionFailedText)
@@ -130,7 +160,7 @@ func (r *Runtime) CompactSessionContext(ctx context.Context, sessionID string, m
 		return fail(err)
 	}
 	if active {
-		return fail(fmt.Errorf("session has an active or pending run"))
+		return fail(fmt.Errorf("session has an active run"))
 	}
 	agent, err := r.resolveAgent(ctx, session.AgentID)
 	if err != nil {

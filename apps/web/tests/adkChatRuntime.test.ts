@@ -126,6 +126,34 @@ describe("mergeADKRunLifecycleSnapshot", () => {
     expect(result.activeRunState).toBeNull();
   });
 
+  it("keeps a completed/running workflow parent visible until backend reconciliation", () => {
+    const pseudoCompletedGoal = buildRun({
+      status: "COMPLETED",
+      workMode: "loop",
+      workflowStatus: "RUNNING",
+      objective: "等待子智能体审批",
+      message: "running",
+    });
+
+    const result = syncGoalAwareActiveRun({
+      incomingRun: pseudoCompletedGoal,
+      activeRunSnapshot: null,
+      activeGoalRunSnapshot: null,
+      activeRunState: null,
+      goalObjectiveState: {
+        draft: "",
+        touched: false,
+        error: "",
+      },
+      goalObjectiveSaving: false,
+    });
+
+    expect(result.goalObjectiveCleared).toBe(false);
+    expect(result.goalObjectiveState.draft).toBe("等待子智能体审批");
+    expect(result.activeRunSnapshot?.id).toBe(pseudoCompletedGoal.id);
+    expect(result.activeGoalRunSnapshot?.id).toBe(pseudoCompletedGoal.id);
+  });
+
   it("hydrates the goal objective from an untouched active loop run", () => {
     const runningGoal = buildRun({
       status: "RUNNING",

@@ -144,6 +144,15 @@ func (s *Store) migrate() error {
 		{31, `CREATE TABLE IF NOT EXISTS ` + tableSessionNotices + ` (id TEXT PRIMARY KEY, session_id TEXT NOT NULL, run_id TEXT NOT NULL, kind TEXT NOT NULL, status TEXT NOT NULL, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`},
 		{32, `CREATE INDEX IF NOT EXISTS idx_adk_session_notices_session ON ` + tableSessionNotices + ` (session_id, created_at ASC)`},
 		{33, `CREATE TABLE IF NOT EXISTS ` + tableSessionComposer + ` (id TEXT PRIMARY KEY, session_id TEXT NOT NULL, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`},
+		{34, `CREATE INDEX IF NOT EXISTS idx_adk_approvals_confirmation_call ON ` + tableApprovals + ` (json_extract(payload_json, '$.confirmationCallId'))`},
+		{35, `DELETE FROM ` + tableTasks + ` WHERE TRIM(run_id) <> '' AND NOT EXISTS (SELECT 1 FROM ` + tableRuns + ` WHERE ` + tableRuns + `.id = ` + tableTasks + `.run_id)`},
+		{36, `UPDATE ` + tableApprovals + ` AS approval SET run_id = (SELECT owner.id FROM ` + tableRuns + ` AS owner, json_each(owner.payload_json, '$.toolCalls') AS tool_call WHERE json_extract(tool_call.value, '$.idempotencyKey') = json_extract(approval.payload_json, '$.functionCallId') ORDER BY owner.created_at ASC, owner.id ASC LIMIT 1), payload_json = json_set(approval.payload_json, '$.runId', (SELECT owner.id FROM ` + tableRuns + ` AS owner, json_each(owner.payload_json, '$.toolCalls') AS tool_call WHERE json_extract(tool_call.value, '$.idempotencyKey') = json_extract(approval.payload_json, '$.functionCallId') ORDER BY owner.created_at ASC, owner.id ASC LIMIT 1)) WHERE COALESCE(json_extract(approval.payload_json, '$.confirmationCallId'), '') <> '' AND EXISTS (SELECT 1 FROM ` + tableRuns + ` AS owner, json_each(owner.payload_json, '$.toolCalls') AS tool_call WHERE json_extract(tool_call.value, '$.idempotencyKey') = json_extract(approval.payload_json, '$.functionCallId'))`},
+		{37, `DELETE FROM ` + tableApprovals + ` AS duplicate WHERE COALESCE(json_extract(duplicate.payload_json, '$.confirmationCallId'), '') <> '' AND duplicate.rowid <> (SELECT canonical.rowid FROM ` + tableApprovals + ` AS canonical WHERE json_extract(canonical.payload_json, '$.confirmationCallId') = json_extract(duplicate.payload_json, '$.confirmationCallId') ORDER BY CASE canonical.status WHEN 'DENIED' THEN 0 WHEN 'APPROVED' THEN 1 ELSE 2 END, canonical.created_at ASC, canonical.id ASC LIMIT 1)`},
+		{38, `DROP INDEX IF EXISTS idx_adk_approvals_confirmation_call`},
+		{39, `CREATE UNIQUE INDEX IF NOT EXISTS idx_adk_approvals_confirmation_call ON ` + tableApprovals + ` (json_extract(payload_json, '$.confirmationCallId')) WHERE COALESCE(json_extract(payload_json, '$.confirmationCallId'), '') <> ''`},
+		{40, `UPDATE ` + tableRuns + ` SET payload_json = json_set(payload_json, '$.pendingApprovals', json('[]')) WHERE status IN ('COMPLETED', 'FAILED', 'DENIED', 'CANCELLED', 'TIMED_OUT') AND json_array_length(json_extract(payload_json, '$.pendingApprovals')) > 0`},
+		{41, `UPDATE ` + tableRuns + ` SET status = 'PENDING_APPROVAL', payload_json = json_set(payload_json, '$.status', 'PENDING_APPROVAL', '$.resumeState', 'waiting_approval', '$.message', '等待用户审批后继续执行。', '$.completedAt', NULL, '$.finalMessageId', '', '$.pendingApprovals', json((SELECT json_group_array(json(approval.payload_json)) FROM ` + tableApprovals + ` AS approval WHERE approval.run_id = ` + tableRuns + `.id AND approval.status = 'PENDING'))) WHERE status = 'COMPLETED' AND EXISTS (SELECT 1 FROM ` + tableApprovals + ` AS approval WHERE approval.run_id = ` + tableRuns + `.id AND approval.status = 'PENDING' AND COALESCE(json_extract(approval.payload_json, '$.functionCallId'), '') <> '' AND COALESCE(json_extract(approval.payload_json, '$.confirmationCallId'), '') <> '')`},
+		{42, `UPDATE ` + tableRuns + ` AS parent SET status = 'PENDING_APPROVAL', payload_json = json_set(parent.payload_json, '$.status', 'PENDING_APPROVAL', '$.workflowStatus', 'PAUSED', '$.message', '工作流正在等待子运行审批。', '$.completedAt', NULL, '$.finalMessageId', '', '$.pendingApprovals', json((SELECT json_extract(child.payload_json, '$.pendingApprovals') FROM ` + tableRuns + ` AS child WHERE json_extract(child.payload_json, '$.parentRunId') = parent.id AND child.status = 'PENDING_APPROVAL' ORDER BY child.updated_at DESC LIMIT 1))) WHERE parent.status = 'COMPLETED' AND EXISTS (SELECT 1 FROM ` + tableRuns + ` AS child WHERE json_extract(child.payload_json, '$.parentRunId') = parent.id AND child.status = 'PENDING_APPROVAL')`},
 	}
 	for _, m := range migrations {
 		var count int
@@ -492,6 +501,9 @@ func (s *Store) DeleteSession(ctx context.Context, id string) error {
 	if _, err := s.db.ExecContext(ctx, `DELETE FROM `+tableApprovals+` WHERE run_id IN (SELECT id FROM `+tableRuns+` WHERE session_id = ?)`, id); err != nil {
 		return err
 	}
+	if _, err := s.db.ExecContext(ctx, `DELETE FROM `+tableTasks+` WHERE run_id IN (SELECT id FROM `+tableRuns+` WHERE session_id = ?)`, id); err != nil {
+		return err
+	}
 	if _, err := s.db.ExecContext(ctx, `DELETE FROM `+tableRuns+` WHERE session_id = ?`, id); err != nil {
 		return err
 	}
@@ -543,12 +555,72 @@ func (s *Store) prepareRunForSave(ctx context.Context, run Run) (Run, error) {
 }
 
 func (s *Store) savePreparedRun(ctx context.Context, run Run) error {
+	return savePreparedRunWithExecutor(ctx, s.db, run)
+}
+
+func savePreparedRunWithExecutor(ctx context.Context, executor sqlx.ExtContext, run Run) error {
 	payload, err := json.Marshal(run)
 	if err != nil {
 		return err
 	}
-	_, err = s.db.ExecContext(ctx, `INSERT INTO `+tableRuns+` (id, session_id, agent_id, status, payload_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET session_id = excluded.session_id, agent_id = excluded.agent_id, status = excluded.status, payload_json = excluded.payload_json, updated_at = excluded.updated_at`, run.ID, run.SessionID, run.AgentID, run.Status, string(payload), run.CreatedAt, run.UpdatedAt)
+	_, err = executor.ExecContext(ctx, `INSERT INTO `+tableRuns+` (id, session_id, agent_id, status, payload_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET session_id = excluded.session_id, agent_id = excluded.agent_id, status = excluded.status, payload_json = excluded.payload_json, updated_at = excluded.updated_at WHERE `+tableRuns+`.status NOT IN (?, ?, ?, ?, ?) OR (`+tableRuns+`.status = excluded.status AND `+tableRuns+`.status <> ?) OR (`+tableRuns+`.status = ? AND COALESCE(json_extract(`+tableRuns+`.payload_json, '$.finalMessageId'), '') = '' AND COALESCE(json_extract(excluded.payload_json, '$.finalMessageId'), '') <> '') OR (`+tableRuns+`.status = ? AND json_extract(`+tableRuns+`.payload_json, '$.workflowStatus') = ? AND excluded.status IN (?, ?, ?, ?, ?)) OR (`+tableRuns+`.status = ? AND excluded.status = ? AND json_array_length(json_extract(excluded.payload_json, '$.pendingApprovals')) > 0)`,
+		run.ID, run.SessionID, run.AgentID, run.Status, string(payload), run.CreatedAt, run.UpdatedAt,
+		RunStatusCompleted, RunStatusFailed, RunStatusDenied, RunStatusCancelled, RunStatusTimedOut,
+		RunStatusCancelled, RunStatusCancelled, RunStatusCompleted, workflowStatusRunning,
+		RunStatusCompleted, RunStatusFailed, RunStatusDenied, RunStatusCancelled, RunStatusTimedOut,
+		RunStatusCompleted, RunStatusPending,
+	)
 	return err
+}
+
+func (s *Store) SaveRunAndDenyPendingApprovals(ctx context.Context, run Run) error {
+	run, err := s.prepareRunForSave(ctx, run)
+	if err != nil {
+		return err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	tx, err := s.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if tx != nil {
+			jftradeErr := tx.Rollback()
+			jftradeLogError(jftradeErr)
+		}
+	}()
+	rows := []struct {
+		PayloadJSON string `db:"payload_json"`
+	}{}
+	if err := tx.SelectContext(ctx, &rows, `SELECT payload_json FROM `+tableApprovals+` WHERE run_id = ? AND status = ?`, run.ID, ApprovalStatusPending); err != nil {
+		return err
+	}
+	for _, row := range rows {
+		var approval Approval
+		if err := json.Unmarshal([]byte(row.PayloadJSON), &approval); err != nil {
+			return err
+		}
+		approval.Status = ApprovalStatusDenied
+		approval.UpdatedAt = nowString()
+		payload, err := json.Marshal(approval)
+		if err != nil {
+			return err
+		}
+		if _, err := tx.ExecContext(ctx, `UPDATE `+tableApprovals+` SET status = ?, payload_json = ?, updated_at = ? WHERE id = ? AND status = ?`,
+			approval.Status, string(payload), approval.UpdatedAt, approval.ID, ApprovalStatusPending,
+		); err != nil {
+			return err
+		}
+	}
+	if err := savePreparedRunWithExecutor(ctx, tx, run); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	tx = nil
+	return nil
 }
 
 func (s *Store) Run(ctx context.Context, id string) (Run, bool, error) {
@@ -605,6 +677,63 @@ func (s *Store) SaveApproval(ctx context.Context, approval Approval) error {
 	}
 	_, err = s.db.ExecContext(ctx, `INSERT INTO `+tableApprovals+` (id, run_id, agent_id, status, payload_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET run_id = excluded.run_id, agent_id = excluded.agent_id, status = excluded.status, payload_json = excluded.payload_json, updated_at = excluded.updated_at`, approval.ID, approval.RunID, approval.AgentID, approval.Status, string(payload), approval.CreatedAt, approval.UpdatedAt)
 	return err
+}
+
+func (s *Store) SaveApprovalIfConfirmationAbsent(ctx context.Context, approval Approval) (Approval, bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	confirmationID := strings.TrimSpace(approval.ConfirmationCallID)
+	if confirmationID != "" {
+		existing, ok, err := s.approvalByConfirmationCallID(ctx, confirmationID)
+		if err != nil {
+			return Approval{}, false, err
+		}
+		if ok {
+			return existing, false, nil
+		}
+	}
+	if approval.CreatedAt == "" {
+		approval.CreatedAt = nowString()
+	}
+	approval.UpdatedAt = nowString()
+	payload, err := json.Marshal(approval)
+	if err != nil {
+		return Approval{}, false, err
+	}
+	_, err = s.db.ExecContext(ctx, `INSERT INTO `+tableApprovals+` (id, run_id, agent_id, status, payload_json, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`, approval.ID, approval.RunID, approval.AgentID, approval.Status, string(payload), approval.CreatedAt, approval.UpdatedAt)
+	if err != nil {
+		if confirmationID != "" {
+			existing, ok, lookupErr := s.approvalByConfirmationCallID(ctx, confirmationID)
+			if lookupErr == nil && ok {
+				return existing, false, nil
+			}
+		}
+		return Approval{}, false, err
+	}
+	return approval, true, nil
+}
+
+func (s *Store) ApprovalByConfirmationCallID(ctx context.Context, confirmationID string) (Approval, bool, error) {
+	return s.approvalByConfirmationCallID(ctx, strings.TrimSpace(confirmationID))
+}
+
+func (s *Store) approvalByConfirmationCallID(ctx context.Context, confirmationID string) (Approval, bool, error) {
+	var approval Approval
+	if confirmationID == "" {
+		return approval, false, nil
+	}
+	var payload string
+	err := s.db.QueryRowxContext(ctx, `SELECT payload_json FROM `+tableApprovals+` WHERE json_extract(payload_json, '$.confirmationCallId') = ? ORDER BY created_at ASC, id ASC LIMIT 1`, confirmationID).Scan(&payload)
+	if errors.Is(err, sql.ErrNoRows) {
+		return approval, false, nil
+	}
+	if err != nil {
+		return approval, false, err
+	}
+	if err := json.Unmarshal([]byte(payload), &approval); err != nil {
+		return Approval{}, false, err
+	}
+	return approval, true, nil
 }
 
 func (s *Store) ResolvePendingApproval(ctx context.Context, id string, status string) (Approval, bool, error) {

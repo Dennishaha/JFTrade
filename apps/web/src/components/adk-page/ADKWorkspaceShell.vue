@@ -106,7 +106,7 @@ const {
   sessionSearch,
   sessions,
   sessionTitle,
-  showTypingIndicator,
+  activityIndicator,
   suggestions,
   composerPlaceholder,
   emptyStateHint,
@@ -418,7 +418,7 @@ async function handleMobileSessionSelect(sessionId: string): Promise<void> {
           :has-blocking-run="hasBlockingRun"
           :timeline-entries="visibleTimelineEntries"
           :sending-chat="sendingChat"
-          :show-typing-indicator="showTypingIndicator"
+          :activity-indicator="activityIndicator"
           :error-message="errorMessage"
           :approvals-busy="approvalsBusy"
           :suggestions="suggestions"
@@ -482,6 +482,7 @@ async function handleMobileSessionSelect(sessionId: string): Promise<void> {
         :slash-commands="slashCommands"
         :saving-provider-selection="savingProviderSelection"
         :selected-agent-id="selectedAgentId"
+        :selected-session-id="selectedSessionId"
         :selected-provider-id="selectedProviderId"
         :sending-chat="sendingChat"
         :suggestions="suggestions"

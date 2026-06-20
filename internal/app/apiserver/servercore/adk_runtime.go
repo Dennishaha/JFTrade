@@ -301,7 +301,7 @@ func registerJFTradeADKStrategyTools(store *jfadk.Store, registry *jfadk.ToolReg
 	registry.Register(jfadk.ToolDescriptor{Name: "strategy.validate_pine", DisplayName: "校验 Pine", Description: "校验 Pine Script v6 是否可被当前 parser、lowerer、planner 和 runtime 接受，并返回结构化元数据、warnings 与 requirements。", Category: "strategy", Permission: "read_internal", OutputSummary: "校验结果、元数据、hooks、warnings、编译后的 requirements，以及失败时的保存提示。"}, func(_ context.Context, input map[string]any) (any, error) {
 		return StrategyValidatePineToolPayload(input), nil
 	})
-	registry.Register(jfadk.ToolDescriptor{Name: "strategy.research_backtest", DisplayName: "策略研究回测", Description: "用临时 Pine Script v6 脚本进行研究回测；会先校验脚本并启动临时回测，但不会保存策略草稿或定义。", Category: "strategy", Permission: "optimize_strategy", RequiresApprovalIn: []string{jfadk.PermissionModeApproval}, OutputSummary: "临时回测 runId、状态、脚本 hash、校验摘要和可选结果视图。"}, func(ctx context.Context, input map[string]any) (any, error) {
+	registry.Register(jfadk.ToolDescriptor{Name: "strategy.research_backtest", DisplayName: "策略研究回测", Description: "用临时 Pine Script v6 脚本进行研究回测；会先校验脚本并启动临时回测，但不会保存策略草稿或定义。回测运行和结果会保留供后续查询。", Category: "strategy", Permission: "optimize_strategy", RiskLevel: "low", OutputSummary: "临时回测 runId、状态、脚本 hash、校验摘要和可选结果视图。"}, func(ctx context.Context, input map[string]any) (any, error) {
 		if deps.StartResearchBacktest == nil {
 			return nil, fmt.Errorf("research backtest is unavailable")
 		}

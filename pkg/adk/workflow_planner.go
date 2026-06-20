@@ -340,7 +340,6 @@ func compileWorkflowPlanDraft(draft workflowPlanDraft, mode string, message stri
 	for index, item := range draft.Steps {
 		step := workflowStep{
 			Order:        item.Order,
-			Objective:    strings.TrimSpace(objective),
 			Title:        strings.TrimSpace(item.Title),
 			Description:  strings.TrimSpace(item.Description),
 			Message:      strings.TrimSpace(item.Message),
@@ -358,6 +357,10 @@ func compileWorkflowPlanDraft(draft workflowPlanDraft, mode string, message stri
 		}
 		if step.Title == "" {
 			step.Title = fmt.Sprintf("步骤 %d", index+1)
+		}
+		step = sanitizeWorkflowPlanStep(step, message, index)
+		if strings.TrimSpace(objective) != strings.TrimSpace(message) {
+			step = sanitizeWorkflowPlanStep(step, objective, index)
 		}
 		steps = append(steps, step)
 	}
@@ -381,7 +384,6 @@ func compileWorkflowPlanDraft(draft workflowPlanDraft, mode string, message stri
 	} else if normalizedMode == WorkModeLoop && workflowStepsHaveDependencies(steps) {
 		return nil, draft.Warnings, fmt.Errorf("loop planner step must not depend on another step")
 	}
-	_ = message
 	return steps, draft.Warnings, nil
 }
 

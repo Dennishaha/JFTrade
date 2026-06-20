@@ -156,7 +156,10 @@ export function syncGoalAwareActiveRun(
   let nextGoalObjectiveState = options.goalObjectiveState;
   let goalObjectiveCleared = false;
 
-  if (isTerminalRunStatus(run.status)) {
+  if (
+    isTerminalRunStatus(run.status) &&
+    !isCompletedRunningWorkflowGoal(run)
+  ) {
     if (isRootLoopRun(run)) {
       goalObjectiveCleared =
         nextGoalObjectiveState.draft !== "" ||
@@ -493,15 +496,25 @@ export function isRootLoopRun(run: ADKRun | null | undefined): run is ADKRun {
   );
 }
 
+export function isCompletedRunningWorkflowGoal(
+  run: ADKRun | null | undefined,
+): boolean {
+  return (
+    isRootLoopRun(run) &&
+    String(run.status ?? "")
+      .trim()
+      .toUpperCase() === "COMPLETED" &&
+    String(run.workflowStatus ?? "")
+      .trim()
+      .toUpperCase() === "RUNNING"
+  );
+}
+
 export function isActiveGoalParentRun(
   run: ADKRun | null | undefined,
 ): run is ADKRun {
-  if (!isRootRun(run) || isTerminalRunStatus(run.status)) return false;
-  return (
-    String(run.workMode ?? "")
-      .trim()
-      .toLowerCase() === "loop"
-  );
+  if (!isRootLoopRun(run)) return false;
+  return !isTerminalRunStatus(run.status) || isCompletedRunningWorkflowGoal(run);
 }
 
 function copyOptionalRunField<

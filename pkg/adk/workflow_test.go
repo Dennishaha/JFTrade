@@ -3,6 +3,7 @@ package adk
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -14,6 +15,340 @@ import (
 
 	"google.golang.org/genai"
 )
+
+func TestWorkflowTaskStateMachineRejectsPrematureChildCompletion(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	now := nowString()
+	child := mustSaveRun(t, runtime, Run{
+		ID: "run-child-awaiting-approval", SessionID: "session-workflow-guard", AgentID: "agent",
+		Status: RunStatusPending, Message: "waiting", CreatedAt: now, UpdatedAt: now,
+	})
+	parent := mustSaveRun(t, runtime, Run{
+		ID: "run-parent-workflow-guard", SessionID: child.SessionID, AgentID: "agent",
+		Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
+		WorkflowPlan: []WorkflowStepState{{TaskID: "task-child-guard", Title: "child task", Status: "BLOCKED", ChildRunID: child.ID}},
+		ChildRunIDs:  []string{child.ID}, CreatedAt: now, UpdatedAt: now,
+	})
+	_, err := runtime.Store().SaveTask(ctx, TaskWriteRequest{
+		ID: "task-child-guard", Title: "child task", Status: "BLOCKED", AgentID: "agent",
+		RunID: child.ID, Executor: workflowTaskExecutorChild, WorkflowMode: WorkModeLoop,
+	})
+	if err != nil {
+		t.Fatalf("SaveTask: %v", err)
+	}
+	decision := &workflowGoalDecision{}
+	toolset := &workflowTaskToolset{
+		executor: &WorkflowExecutor{runtime: runtime}, parentID: parent.ID, currentTaskID: "task-child-guard",
+		req: workflowRequest{Mode: WorkModeLoop, GoalDecision: decision},
+	}
+	result, err := toolset.complete(map[string]any{"taskId": "task-child-guard", "resultSummary": "pretend done"})
+	if err != nil {
+		t.Fatalf("complete: %v", err)
+	}
+	if success, _ := result["success"].(bool); success {
+		t.Fatalf("premature complete result = %+v", result)
+	}
+	task, ok, err := runtime.Store().Task(ctx, "task-child-guard")
+	if err != nil || !ok {
+		t.Fatalf("Task lookup ok=%v err=%v", ok, err)
+	}
+	if task.Status == "DONE" {
+		t.Fatalf("pending child task was marked DONE")
+	}
+	goalResult, err := toolset.goalComplete(map[string]any{"summary": "pretend goal complete"})
+	if err != nil {
+		t.Fatalf("goalComplete: %v", err)
+	}
+	if success, _ := goalResult["success"].(bool); success || decision.snapshot().status == "complete" {
+		t.Fatalf("premature goalComplete result=%+v decision=%+v", goalResult, decision.snapshot())
+	}
+}
+
+func TestGoalWorkflowToolsAreIsolatedByPhase(t *testing.T) {
+	decision := &workflowGoalDecision{}
+	decision.reset()
+	toolset := &workflowTaskToolset{req: workflowRequest{Mode: WorkModeLoop, GoalDecision: decision}}
+	workTools, err := toolset.Tools(nil)
+	if err != nil {
+		t.Fatalf("work tools: %v", err)
+	}
+	workNames := map[string]bool{}
+	for _, tool := range workTools {
+		workNames[tool.Name()] = true
+	}
+	if !workNames[workflowTasksListTool] || workNames[workflowGoalCompleteTool] || workNames[workflowGoalContinueTool] {
+		t.Fatalf("work phase tools = %+v, want only workflow task tools", workNames)
+	}
+
+	decision.beginDecision()
+	decisionTools, err := toolset.Tools(nil)
+	if err != nil {
+		t.Fatalf("decision tools: %v", err)
+	}
+	decisionNames := map[string]bool{}
+	for _, tool := range decisionTools {
+		decisionNames[tool.Name()] = true
+	}
+	if len(decisionNames) != 2 || !decisionNames[workflowGoalCompleteTool] || !decisionNames[workflowGoalContinueTool] {
+		t.Fatalf("decision phase tools = %+v, want only goal decision tools", decisionNames)
+	}
+}
+
+func TestGoalCompletionWaitsForChildApprovalContinuation(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	now := nowString()
+	child := mustSaveRun(t, runtime, Run{
+		ID: "run-child-still-resuming", SessionID: "session-goal-active-child", AgentID: "agent",
+		Status: RunStatusCompleted, ParentRunID: "run-parent-waits-child", CreatedAt: now, UpdatedAt: now,
+	})
+	parent := mustSaveRun(t, runtime, Run{
+		ID: child.ParentRunID, SessionID: child.SessionID, AgentID: "agent", Status: RunStatusRunning,
+		WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning, ChildRunIDs: []string{child.ID},
+		WorkflowPlan: []WorkflowStepState{{TaskID: "task-child-still-resuming", ChildRunID: child.ID, Status: "DONE"}},
+		CreatedAt:    now, UpdatedAt: now,
+	})
+	if _, err := runtime.Store().SaveTask(ctx, TaskWriteRequest{
+		ID: "task-child-still-resuming", Title: "child", Status: "DONE", AgentID: "agent",
+		RunID: child.ID, Executor: workflowTaskExecutorChild, WorkflowMode: WorkModeLoop,
+	}); err != nil {
+		t.Fatalf("SaveTask: %v", err)
+	}
+	runtime.approvalRuns[child.ID] = struct{}{}
+	decision := &workflowGoalDecision{}
+	toolset := &workflowTaskToolset{
+		executor: &WorkflowExecutor{runtime: runtime}, parentID: parent.ID,
+		req: workflowRequest{Mode: WorkModeLoop, GoalDecision: decision},
+	}
+	result, err := toolset.goalComplete(map[string]any{"summary": "too early"})
+	if err != nil {
+		t.Fatalf("goalComplete: %v", err)
+	}
+	if success, _ := result["success"].(bool); success || decision.snapshot().status == "complete" {
+		t.Fatalf("goal completed during child continuation: result=%+v decision=%+v", result, decision.snapshot())
+	}
+}
+
+func TestFailParentRefreshesAuthoritativeTaskPlan(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	now := nowString()
+	parent := mustSaveRun(t, runtime, Run{
+		ID: "run-parent-fail-refresh", SessionID: "session-fail-refresh", AgentID: "agent",
+		Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
+		WorkflowPlan: []WorkflowStepState{{TaskID: "task-fail-refresh", Title: "finished task", Status: "BLOCKED"}},
+		PendingApprovals: []Approval{
+			{ID: "approval-resolved", Status: ApprovalStatusApproved},
+			{ID: "approval-pending", Status: ApprovalStatusPending},
+		},
+		CreatedAt: now, UpdatedAt: now,
+	})
+	_, err := runtime.Store().SaveTask(ctx, TaskWriteRequest{
+		ID: "task-fail-refresh", Title: "finished task", Status: "DONE", AgentID: "agent",
+		RunID: parent.ID, ResultSummary: "authoritative result", WorkflowMode: WorkModeLoop,
+	})
+	if err != nil {
+		t.Fatalf("SaveTask: %v", err)
+	}
+	failed := (&WorkflowExecutor{runtime: runtime}).failParent(ctx, parent, errors.New("provider failed"))
+	if len(failed.WorkflowPlan) != 1 || failed.WorkflowPlan[0].Status != "DONE" || failed.WorkflowPlan[0].ResultSummary != "authoritative result" {
+		t.Fatalf("failed workflow plan = %+v", failed.WorkflowPlan)
+	}
+	if len(failed.PendingApprovals) != 0 {
+		t.Fatalf("failed parent pending approvals = %+v, want none on terminal parent", failed.PendingApprovals)
+	}
+}
+
+func TestFailParentCancelsPendingChildrenAndDeniesApprovals(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	now := nowString()
+	approval := Approval{ID: "approval-child-terminal", RunID: "run-child-terminal", AgentID: "agent", ToolName: "dangerous", Status: ApprovalStatusPending, CreatedAt: now, UpdatedAt: now}
+	if err := runtime.Store().SaveApproval(ctx, approval); err != nil {
+		t.Fatalf("SaveApproval: %v", err)
+	}
+	child := mustSaveRun(t, runtime, Run{
+		ID: approval.RunID, SessionID: "session-terminal-cascade", AgentID: "agent", Status: RunStatusPending,
+		ParentRunID: "run-parent-terminal", PendingApprovals: []Approval{approval}, CreatedAt: now, UpdatedAt: now,
+	})
+	parent := mustSaveRun(t, runtime, Run{
+		ID: child.ParentRunID, SessionID: child.SessionID, AgentID: "agent", Status: RunStatusRunning,
+		WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning, CreatedAt: now, UpdatedAt: now,
+	})
+
+	failed := (&WorkflowExecutor{runtime: runtime}).failParent(ctx, parent, errors.New("provider failed"))
+	if failed.Status != RunStatusFailed {
+		t.Fatalf("parent status = %s", failed.Status)
+	}
+	storedChild, ok, err := runtime.Store().Run(ctx, child.ID)
+	if err != nil || !ok {
+		t.Fatalf("child lookup ok=%v err=%v", ok, err)
+	}
+	if storedChild.Status != RunStatusCancelled || storedChild.ErrorCode != "PARENT_RUN_TERMINATED" || len(storedChild.PendingApprovals) != 0 {
+		t.Fatalf("child after parent failure = %+v", storedChild)
+	}
+	storedApproval, ok, err := runtime.Store().Approval(ctx, approval.ID)
+	if err != nil || !ok || storedApproval.Status != ApprovalStatusDenied {
+		t.Fatalf("approval after parent failure = %+v ok=%v err=%v", storedApproval, ok, err)
+	}
+}
+
+func TestCancelWorkflowParentCancelsChildrenDiscoveredByParentRunID(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	now := nowString()
+	parent := mustSaveRun(t, runtime, Run{
+		ID: "run-parent-cancel-by-parent-id", SessionID: "session-parent-id-cascade", AgentID: "agent",
+		Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
+		// Historical data can miss ChildRunIDs while child.ParentRunID is still
+		// present. User cancellation must still cascade to that child.
+		ChildRunIDs: nil, CreatedAt: now, UpdatedAt: now,
+	})
+	approval := Approval{
+		ID: "approval-child-parent-id-cascade", RunID: "run-child-parent-id-cascade", AgentID: "agent",
+		ToolName: "dangerous", Status: ApprovalStatusPending, CreatedAt: now, UpdatedAt: now,
+	}
+	if err := runtime.Store().SaveApproval(ctx, approval); err != nil {
+		t.Fatalf("SaveApproval: %v", err)
+	}
+	child := mustSaveRun(t, runtime, Run{
+		ID: approval.RunID, SessionID: parent.SessionID, AgentID: "agent",
+		ParentRunID: parent.ID, Status: RunStatusPending,
+		PendingApprovals: []Approval{approval}, CreatedAt: now, UpdatedAt: now,
+	})
+
+	cancelled, err := runtime.CancelRun(ctx, parent.ID)
+	if err != nil {
+		t.Fatalf("CancelRun parent: %v", err)
+	}
+	if cancelled.Status != RunStatusCancelled {
+		t.Fatalf("parent after cancel = %+v", cancelled)
+	}
+	storedChild, ok, err := runtime.Store().Run(ctx, child.ID)
+	if err != nil || !ok {
+		t.Fatalf("child lookup ok=%v err=%v", ok, err)
+	}
+	if storedChild.Status != RunStatusCancelled || storedChild.ErrorCode != "RUN_CANCELLED" || len(storedChild.PendingApprovals) != 0 {
+		t.Fatalf("child after parent cancel = %+v", storedChild)
+	}
+	storedApproval, ok, err := runtime.Store().Approval(ctx, approval.ID)
+	if err != nil || !ok || storedApproval.Status != ApprovalStatusDenied {
+		t.Fatalf("approval after parent cancel = %+v ok=%v err=%v", storedApproval, ok, err)
+	}
+}
+
+func TestReconcileStaleRunsCancelsChildOfTerminalParent(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	now := nowString()
+	parent := mustSaveRun(t, runtime, Run{
+		ID: "run-parent-already-terminal", SessionID: "session-reconcile-terminal", AgentID: "agent",
+		Status: RunStatusFailed, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusFailed, CreatedAt: now, UpdatedAt: now,
+	})
+	child := mustSaveRun(t, runtime, Run{
+		ID: "run-child-stale-approval", SessionID: parent.SessionID, AgentID: "agent", ParentRunID: parent.ID,
+		Status: RunStatusPending, ResumeState: "waiting_approval", PendingApprovals: []Approval{{ID: "approval-stale-child", Status: ApprovalStatusPending}}, CreatedAt: now, UpdatedAt: now,
+	})
+	pausedChild := mustSaveRun(t, runtime, Run{
+		ID: "run-child-stale-paused", SessionID: parent.SessionID, AgentID: "agent", ParentRunID: parent.ID,
+		Status: RunStatusPaused, PausedReason: "user", CreatedAt: now, UpdatedAt: now,
+	})
+
+	runtime.reconcileStaleRuns(ctx)
+	stored, ok, err := runtime.Store().Run(ctx, child.ID)
+	if err != nil || !ok {
+		t.Fatalf("child lookup ok=%v err=%v", ok, err)
+	}
+	if stored.Status != RunStatusCancelled || stored.ErrorCode != "PARENT_RUN_TERMINATED" {
+		t.Fatalf("reconciled child = %+v", stored)
+	}
+	storedPaused, ok, err := runtime.Store().Run(ctx, pausedChild.ID)
+	if err != nil || !ok || storedPaused.Status != RunStatusCancelled || storedPaused.ErrorCode != "PARENT_RUN_TERMINATED" {
+		t.Fatalf("reconciled paused child = %+v ok=%v err=%v", storedPaused, ok, err)
+	}
+}
+
+func TestReconcileStaleRunsReopensCompletedRunningParentWithPendingChild(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	now := nowString()
+	approval := Approval{
+		ID: "approval-reconcile-reopen-child", RunID: "run-reconcile-reopen-child", AgentID: "agent",
+		ToolName: "strategy.research_backtest", Status: ApprovalStatusPending, CreatedAt: now, UpdatedAt: now,
+		FunctionCallID: "call-reconcile-reopen", ConfirmationCallID: "confirm-reconcile-reopen",
+	}
+	parent := mustSaveRun(t, runtime, Run{
+		ID: "run-reconcile-reopen-parent", SessionID: "session-reconcile-reopen", AgentID: "agent",
+		Status: RunStatusCompleted, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
+		Message: "running", Objective: "等待子审批", ChildRunIDs: []string{"run-reconcile-reopen-child"},
+		WorkflowPlan: []WorkflowStepState{{
+			TaskID: "task-reconcile-reopen", Title: "需要审批的步骤", Status: "DONE", ChildRunID: "run-reconcile-reopen-child",
+		}},
+		CreatedAt: now, UpdatedAt: now,
+	})
+	child := mustSaveRun(t, runtime, Run{
+		ID: "run-reconcile-reopen-child", SessionID: parent.SessionID, AgentID: "agent", ParentRunID: parent.ID,
+		Status: RunStatusPending, ResumeState: "waiting_approval", PendingApprovals: []Approval{approval},
+		CreatedAt: now, UpdatedAt: now,
+	})
+	if err := runtime.Store().SaveApproval(ctx, approval); err != nil {
+		t.Fatalf("SaveApproval: %v", err)
+	}
+
+	runtime.reconcileStaleRuns(ctx)
+	storedParent, ok, err := runtime.Store().Run(ctx, parent.ID)
+	if err != nil || !ok {
+		t.Fatalf("parent lookup ok=%v err=%v", ok, err)
+	}
+	if storedParent.Status != RunStatusPending || storedParent.WorkflowStatus != workflowStatusPaused {
+		t.Fatalf("reconciled parent = %+v, want reopened pending workflow", storedParent)
+	}
+	if len(storedParent.PendingApprovals) != 1 || storedParent.PendingApprovals[0].ID != approval.ID {
+		t.Fatalf("parent pending approvals = %+v, want child approval", storedParent.PendingApprovals)
+	}
+	if got := storedParent.WorkflowPlan[0].Status; got != "BLOCKED" {
+		t.Fatalf("workflow step status = %q, want BLOCKED", got)
+	}
+	storedChild, ok, err := runtime.Store().Run(ctx, child.ID)
+	if err != nil || !ok {
+		t.Fatalf("child lookup ok=%v err=%v", ok, err)
+	}
+	if storedChild.Status != RunStatusPending || storedChild.ErrorCode == "PARENT_RUN_TERMINATED" {
+		t.Fatalf("reconciled child = %+v, want pending child preserved", storedChild)
+	}
+}
+
+func TestReconcileTerminalWorkflowRefreshesPlanAndClearsApprovals(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	now := nowString()
+	parent := mustSaveRun(t, runtime, Run{
+		ID: "run-terminal-refresh", SessionID: "session-terminal-refresh", AgentID: "agent",
+		Status: RunStatusFailed, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusFailed,
+		WorkflowPlan:     []WorkflowStepState{{TaskID: "task-terminal-refresh", Title: "task", Status: "BLOCKED"}},
+		PendingApprovals: []Approval{{ID: "approval-terminal-resolved", Status: ApprovalStatusApproved}},
+		CreatedAt:        now, UpdatedAt: now,
+	})
+	if _, err := runtime.Store().SaveTask(ctx, TaskWriteRequest{
+		ID: "task-terminal-refresh", Title: "task", Status: "DONE", AgentID: "agent",
+		RunID: parent.ID, ResultSummary: "authoritative", WorkflowMode: WorkModeLoop,
+	}); err != nil {
+		t.Fatalf("SaveTask: %v", err)
+	}
+
+	runtime.reconcileStaleRuns(ctx)
+	stored, ok, err := runtime.Store().Run(ctx, parent.ID)
+	if err != nil || !ok {
+		t.Fatalf("parent lookup ok=%v err=%v", ok, err)
+	}
+	if len(stored.PendingApprovals) != 0 {
+		t.Fatalf("terminal parent approvals = %+v", stored.PendingApprovals)
+	}
+	if len(stored.WorkflowPlan) != 1 || stored.WorkflowPlan[0].Status != "DONE" || stored.WorkflowPlan[0].ResultSummary != "authoritative" {
+		t.Fatalf("terminal parent workflow plan = %+v", stored.WorkflowPlan)
+	}
+}
 
 func TestSaveAgentNormalizesWorkflowDefaults(t *testing.T) {
 	runtime := newTestRuntime(t)
@@ -239,7 +574,7 @@ func TestWorkflowPlannerCreatesDynamicStrategySteps(t *testing.T) {
 	if err != nil || !ok {
 		t.Fatalf("first planner task lookup ok=%v err=%v", ok, err)
 	}
-	if firstTask.Order != firstStep.Order || firstTask.PlanSource != firstStep.PlanSource || firstTask.AgentRole != firstStep.AgentRole || firstTask.PlannerStepID != firstStep.PlannerStepID || firstTask.Objective == "" {
+	if firstTask.Order != firstStep.Order || firstTask.PlanSource != firstStep.PlanSource || firstTask.AgentRole != firstStep.AgentRole || firstTask.PlannerStepID != firstStep.PlannerStepID || firstTask.Objective != "" || firstStep.Objective != "" {
 		t.Fatalf("planner task metadata = %+v, step=%+v, want mirrored metadata", firstTask, firstStep)
 	}
 	if len(plan) > 1 {
@@ -273,6 +608,57 @@ func TestCompileWorkflowPlanDraftValidationAndLimits(t *testing.T) {
 	}
 	if len(loopSteps) != 1 || len(warnings) == 0 {
 		t.Fatalf("loop steps=%+v warnings=%+v, want first step warning", loopSteps, warnings)
+	}
+}
+
+func TestWorkflowPlanDoesNotCopyOriginalUserRequest(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	agent := mustSaveAgent(t, runtime, AgentWriteRequest{
+		ID: "plan-redaction-agent", Name: "Plan Redaction", Status: AgentStatusEnabled,
+	})
+	session := mustCreateSession(t, runtime, agent.ID, "plan redaction")
+	original := "请完整照抄这一条用户请求作为计划"
+	parent := mustSaveRun(t, runtime, Run{
+		ID: "plan-redaction-parent", SessionID: session.ID, AgentID: agent.ID,
+		Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
+		UserMessage: original, Objective: original, CreatedAt: nowString(), UpdatedAt: nowString(), Usage: &RunUsage{},
+	})
+	executor := &WorkflowExecutor{runtime: runtime}
+	initial, err := executor.createInitialGoalTask(ctx, parent, agent, original, original)
+	if err != nil {
+		t.Fatalf("createInitialGoalTask: %v", err)
+	}
+	if initial.Title == original || initial.Message == original || initial.Objective != "" {
+		t.Fatalf("initial goal task copied original request: %+v", initial)
+	}
+	if parent.UserMessage != original || parent.Objective != original {
+		t.Fatalf("root run lost original goal: %+v", parent)
+	}
+
+	steps, _, err := compileWorkflowPlanDraft(workflowPlanDraft{
+		Finished: true,
+		Steps: []workflowPlanDraftStep{{
+			Order: 1, Title: original, Description: original, Message: original,
+		}},
+	}, WorkModeTask, original, original, RunOptions{})
+	if err != nil {
+		t.Fatalf("compileWorkflowPlanDraft: %v", err)
+	}
+	steps = applyWorkflowStepPlanningMetadata(steps, WorkModeTask, original, nil)
+	if len(steps) != 1 {
+		t.Fatalf("steps = %+v, want one", steps)
+	}
+	if steps[0].Title == original || steps[0].Description == original || steps[0].Message == original || steps[0].Objective != "" {
+		t.Fatalf("planned step copied original request: %+v", steps[0])
+	}
+	tasks, err := executor.persistWorkflowTasks(ctx, parent, agent, steps)
+	if err != nil {
+		t.Fatalf("persistWorkflowTasks: %v", err)
+	}
+	plan := workflowPlanFromSteps(steps, tasks)
+	if len(plan) != 1 || plan[0].Title == original || plan[0].Description == original || plan[0].Message == original || plan[0].Objective != "" {
+		t.Fatalf("persisted workflow plan copied original request: %+v", plan)
 	}
 }
 
@@ -384,6 +770,102 @@ func TestRuntimeWorkflowTaskAddRules(t *testing.T) {
 	parent.WorkflowPlan = workflowPlanFromTasks(mustWorkflowTasks(t, runtime, parent), parent.WorkflowPlan)
 	if _, err := executor.addRuntimeWorkflowTask(ctx, parent, base, workflowRuntimeTaskRequest{Title: "超过上限"}); err == nil {
 		t.Fatal("addRuntimeWorkflowTask over limit err = nil, want error")
+	}
+}
+
+func TestClaimedRuntimeChildTaskDoesNotReuseParentRun(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	agent := mustSaveAgent(t, runtime, AgentWriteRequest{
+		ID: "runtime-child-self-ref-agent", Name: "Runtime Child Self Ref", Status: AgentStatusEnabled,
+		WorkMode: WorkModeTask,
+	})
+	session := mustCreateSession(t, runtime, agent.ID, "runtime child self ref")
+	parent := mustSaveRun(t, runtime, Run{
+		ID: "run-runtime-child-parent", SessionID: session.ID, AgentID: agent.ID,
+		Status: RunStatusRunning, WorkMode: WorkModeTask, WorkflowStatus: workflowStatusRunning,
+		Objective: "delegate runtime child", CreatedAt: nowString(), UpdatedAt: nowString(), Usage: &RunUsage{},
+	})
+	task, err := runtime.Store().SaveTask(ctx, TaskWriteRequest{
+		ID: "task-runtime-child", Title: "child task", Message: "analyze child task", Status: "IN_PROGRESS",
+		AgentID: agent.ID, RunID: parent.ID, Executor: workflowTaskExecutorChild,
+		Order: 1, PlanSource: workflowPlanSourceRuntime, WorkflowMode: WorkModeTask,
+	})
+	if err != nil {
+		t.Fatalf("SaveTask: %v", err)
+	}
+	parent.WorkflowPlan = workflowPlanFromTasks([]Task{task}, nil)
+	if parent.WorkflowPlan[0].ChildRunID != "" {
+		t.Fatalf("claimed task projected parent as child: %+v", parent.WorkflowPlan[0])
+	}
+	if err := runtime.Store().SaveRun(ctx, parent); err != nil {
+		t.Fatalf("SaveRun parent: %v", err)
+	}
+	toolset := &workflowTaskToolset{
+		executor: &WorkflowExecutor{runtime: runtime}, parentID: parent.ID,
+		req: workflowRequest{Agent: agent, Session: session, Mode: WorkModeTask},
+	}
+	result, err := toolset.delegate(map[string]any{"taskId": task.ID, "prompt": "analyze child task"})
+	if err != nil {
+		t.Fatalf("delegate: %v", err)
+	}
+	childRunID := strings.TrimSpace(fmt.Sprint(result["childRunId"]))
+	if childRunID == "" || childRunID == parent.ID {
+		t.Fatalf("delegate result = %+v, want distinct child run", result)
+	}
+	if reused, _ := result["reused"].(bool); reused {
+		t.Fatalf("delegate result = %+v, parent run must not be reused", result)
+	}
+	child, ok, err := runtime.Store().Run(ctx, childRunID)
+	if err != nil || !ok {
+		t.Fatalf("child lookup ok=%v err=%v", ok, err)
+	}
+	if child.ParentRunID != parent.ID {
+		t.Fatalf("child parent = %q, want %q", child.ParentRunID, parent.ID)
+	}
+	storedTask, ok, err := runtime.Store().Task(ctx, task.ID)
+	if err != nil || !ok || storedTask.RunID != child.ID {
+		t.Fatalf("stored task = %+v ok=%v err=%v", storedTask, ok, err)
+	}
+}
+
+func TestRepairWorkflowSelfReferenceMakesGoalResumable(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	now := nowString()
+	parent := mustSaveRun(t, runtime, Run{
+		ID: "run-self-reference-recovery", SessionID: "session-self-reference-recovery", AgentID: "agent",
+		Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusPaused,
+		ChildRunIDs: []string{"run-self-reference-recovery"},
+		WorkflowPlan: []WorkflowStepState{{
+			TaskID: "task-self-reference-recovery", Title: "child task", Status: "IN_PROGRESS",
+			ChildRunID: "run-self-reference-recovery", Executor: workflowTaskExecutorChild,
+		}},
+		CreatedAt: now, UpdatedAt: now,
+	})
+	if _, err := runtime.Store().SaveTask(ctx, TaskWriteRequest{
+		ID: "task-self-reference-recovery", Title: "child task", Status: "IN_PROGRESS", AgentID: "agent",
+		RunID: parent.ID, Executor: workflowTaskExecutorChild, WorkflowMode: WorkModeLoop,
+	}); err != nil {
+		t.Fatalf("SaveTask: %v", err)
+	}
+	if child, _, blocked := (&WorkflowExecutor{runtime: runtime}).firstBlockingTaskChild(ctx, parent); blocked {
+		t.Fatalf("self reference treated as blocking child: %+v", child)
+	}
+	runtime.reconcileStaleRuns(ctx)
+	stored, ok, err := runtime.Store().Run(ctx, parent.ID)
+	if err != nil || !ok {
+		t.Fatalf("parent lookup ok=%v err=%v", ok, err)
+	}
+	if stored.Status != RunStatusPaused || stored.ResumeState != "self_reference_recovered" || len(stored.ChildRunIDs) != 0 || stored.WorkflowPlan[0].ChildRunID != "" {
+		t.Fatalf("repaired parent = %+v", stored)
+	}
+	if err := validateUserGoalResumeRun(stored); err != nil {
+		t.Fatalf("repaired goal is not resumable: %v", err)
+	}
+	storedTask, ok, err := runtime.Store().Task(ctx, "task-self-reference-recovery")
+	if err != nil || !ok || storedTask.Status != "TODO" || storedTask.Executor != "" {
+		t.Fatalf("repaired task = %+v ok=%v err=%v", storedTask, ok, err)
 	}
 }
 
@@ -558,6 +1040,9 @@ func TestLoopWorkflowCanBeSelectedPerRun(t *testing.T) {
 	if len(response.Run.WorkflowPlan) != 1 || response.Run.WorkflowPlan[0].PlanSource != workflowPlanSourceRuntime {
 		t.Fatalf("workflow plan = %+v, want runtime initial goal task", response.Run.WorkflowPlan)
 	}
+	if step := response.Run.WorkflowPlan[0]; step.Title == response.Run.UserMessage || step.Message == response.Run.UserMessage || step.Objective != "" {
+		t.Fatalf("runtime goal plan copied root user request: %+v", step)
+	}
 	for _, call := range response.Run.ToolCalls {
 		if strings.HasPrefix(call.ToolName, "workflow.plan.") {
 			t.Fatalf("tool calls = %+v, loop goal mode must not call planner tools", response.Run.ToolCalls)
@@ -568,7 +1053,7 @@ func TestLoopWorkflowCanBeSelectedPerRun(t *testing.T) {
 	}
 }
 
-func TestGoalWorkflowRequiresDecisionTool(t *testing.T) {
+func TestGoalWorkflowMissingDecisionSafelyContinuesUntilPaused(t *testing.T) {
 	runtime := newTestRuntime(t)
 	providerID := saveGoalWorkflowProvider(t, runtime, "goal-no-decision-provider", func(req openAIChatRequest) openAIChatMessage {
 		if calls := testGoalWorkflowTaskProgressCalls(req); len(calls) > 0 {
@@ -589,8 +1074,11 @@ func TestGoalWorkflowRequiresDecisionTool(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Chat goal workflow missing decision: %v", err)
 	}
-	if response.Run.Status != RunStatusFailed || response.Run.ErrorCode != workflowGoalDecisionErr {
-		t.Fatalf("run = %+v, want failed %s", response.Run, workflowGoalDecisionErr)
+	if response.Run.Status != RunStatusPaused || response.Run.ResumeState != "iteration_limit" {
+		t.Fatalf("run = %+v, want resumable iteration-limit pause", response.Run)
+	}
+	if runHasToolCall(response.Run, workflowGoalCompleteTool) {
+		t.Fatalf("run = %+v, missing decision must not complete the goal", response.Run)
 	}
 }
 
@@ -627,8 +1115,8 @@ func TestGoalWorkflowContinueRespectsMaxIterations(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Chat goal workflow continue: %v", err)
 	}
-	if response.Run.Status != RunStatusFailed || response.Run.ErrorCode != workflowGoalMaxLoopErr {
-		t.Fatalf("run = %+v, want failed %s", response.Run, workflowGoalMaxLoopErr)
+	if response.Run.Status != RunStatusPaused || response.Run.ResumeState != "iteration_limit" || response.Run.ErrorCode != "" {
+		t.Fatalf("run = %+v, want resumable non-error pause", response.Run)
 	}
 }
 
@@ -720,6 +1208,13 @@ func TestGoalWorkflowPauseAfterContinueAndResume(t *testing.T) {
 	completed := waitForRunStatus(t, runtime, response.Run.ID, RunStatusCompleted)
 	if completed.Message != "goal completed" {
 		t.Fatalf("completed run = %+v, want goal completed", completed)
+	}
+	deadline := time.Now().Add(2 * time.Second)
+	for runtime.runExecutionInFlight(response.Run.ID) && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+	}
+	if runtime.runExecutionInFlight(response.Run.ID) {
+		t.Fatal("resumed goal execution did not leave the runtime before test cleanup")
 	}
 	mu.Lock()
 	defer mu.Unlock()
@@ -1211,6 +1706,60 @@ func TestTaskResumeUsesStoredPendingChildBeforeCompletingParent(t *testing.T) {
 	}
 }
 
+func TestPendingChildCanReopenCompletedRunningParentWorkflow(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	agent := mustSaveAgent(t, runtime, AgentWriteRequest{
+		ID: "parent-reopen-pending-child-agent", Name: "Parent Reopen Pending Child", Status: AgentStatusEnabled,
+		WorkMode: WorkModeLoop,
+	})
+	session := mustCreateSession(t, runtime, agent.ID, "reopen pending child")
+	approval := Approval{
+		ID: "approval-reopen-pending-child", RunID: "child-reopen-pending", AgentID: agent.ID,
+		ToolName: "strategy.research_backtest", Status: ApprovalStatusPending,
+		CreatedAt: nowString(), UpdatedAt: nowString(),
+	}
+	parent := mustSaveRun(t, runtime, Run{
+		ID: "parent-completed-running-reopen", SessionID: session.ID, AgentID: agent.ID,
+		Status: RunStatusCompleted, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
+		Message: "running", Objective: "等待子审批", ChildRunIDs: []string{"child-reopen-pending"},
+		WorkflowPlan: []WorkflowStepState{{
+			TaskID: "task-reopen-pending-child", Title: "需要审批的步骤", Status: "DONE", ChildRunID: "child-reopen-pending",
+		}},
+		CreatedAt: nowString(), UpdatedAt: nowString(), Usage: &RunUsage{},
+	})
+	child := mustSaveRun(t, runtime, Run{
+		ID: "child-reopen-pending", SessionID: session.ID, AgentID: agent.ID, ParentRunID: parent.ID,
+		Status: RunStatusPending, Message: "等待用户审批后继续执行。", UserMessage: "保存策略",
+		PendingApprovals: []Approval{approval},
+		CreatedAt:        nowString(), UpdatedAt: nowString(), Usage: &RunUsage{},
+	})
+	if err := runtime.Store().SaveApproval(ctx, approval); err != nil {
+		t.Fatalf("SaveApproval: %v", err)
+	}
+
+	updated, err := runtime.syncParentWorkflowFromChild(ctx, child)
+	if err != nil {
+		t.Fatalf("syncParentWorkflowFromChild: %v", err)
+	}
+	if updated == nil || updated.Status != RunStatusPending || updated.WorkflowStatus != workflowStatusPaused {
+		t.Fatalf("updated parent = %+v, want pending paused parent", updated)
+	}
+	if len(updated.PendingApprovals) != 1 || updated.PendingApprovals[0].ID != approval.ID {
+		t.Fatalf("updated pending approvals = %+v, want child approval", updated.PendingApprovals)
+	}
+	stored, ok, err := runtime.Store().Run(ctx, parent.ID)
+	if err != nil || !ok {
+		t.Fatalf("stored parent lookup ok=%v err=%v", ok, err)
+	}
+	if stored.Status != RunStatusPending || stored.WorkflowStatus != workflowStatusPaused {
+		t.Fatalf("stored parent = %+v, want reopened pending workflow", stored)
+	}
+	if got := stored.WorkflowPlan[0].Status; got != "BLOCKED" {
+		t.Fatalf("workflow step status = %q, want BLOCKED", got)
+	}
+}
+
 func TestTaskResumeUsesStoredRunningChildBeforeCompletingParent(t *testing.T) {
 	ctx := context.Background()
 	runtime := newTestRuntime(t)
@@ -1332,6 +1881,41 @@ func TestWorkflowParentReconcilesResolvedChildApproval(t *testing.T) {
 	}
 	if executions.Load() != 1 {
 		t.Fatalf("tool executions = %d, want 1", executions.Load())
+	}
+}
+
+func TestCompleteResumedWorkflowClearsTerminalPendingApprovals(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	agent := mustSaveAgent(t, runtime, AgentWriteRequest{
+		ID: "complete-resumed-clear-agent", Name: "Complete Resumed Clear", Status: AgentStatusEnabled,
+		WorkMode: WorkModeLoop,
+	})
+	session := mustCreateSession(t, runtime, agent.ID, "complete resumed clear")
+	parent := mustSaveRun(t, runtime, Run{
+		ID: "run-complete-resumed-clear", SessionID: session.ID, AgentID: agent.ID,
+		Status: RunStatusRunning, WorkMode: WorkModeLoop, WorkflowStatus: workflowStatusRunning,
+		Objective: "完成恢复工作流", PendingApprovals: []Approval{
+			{ID: "approval-stale-pending-on-parent", RunID: "run-complete-resumed-clear", AgentID: agent.ID, Status: ApprovalStatusPending},
+			{ID: "approval-resolved-on-parent", RunID: "run-complete-resumed-clear", AgentID: agent.ID, Status: ApprovalStatusApproved},
+		},
+		WorkflowPlan: []WorkflowStepState{{TaskID: "task-complete-resumed-clear", Title: "完成", Status: "DONE"}},
+		CreatedAt:    nowString(), UpdatedAt: nowString(), Usage: &RunUsage{},
+	})
+
+	completed, err := (&WorkflowExecutor{runtime: runtime}).completeResumedWorkflow(ctx, session, parent, "done")
+	if err != nil {
+		t.Fatalf("completeResumedWorkflow: %v", err)
+	}
+	if completed.Status != RunStatusCompleted || len(completed.PendingApprovals) != 0 {
+		t.Fatalf("completed parent = %+v, want terminal parent without pending approvals", completed)
+	}
+	stored, ok, err := runtime.Store().Run(ctx, parent.ID)
+	if err != nil || !ok {
+		t.Fatalf("Run lookup ok=%v err=%v", ok, err)
+	}
+	if stored.Status != RunStatusCompleted || len(stored.PendingApprovals) != 0 {
+		t.Fatalf("stored completed parent = %+v, want no pending approvals", stored)
 	}
 }
 
