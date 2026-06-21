@@ -114,7 +114,11 @@ func TestNewDatabaseFailureDoesNotLeaveSchemaMetadata(t *testing.T) {
 		if openErr != nil {
 			t.Fatalf("inspect failed database: %v", openErr)
 		}
-		defer raw.Close()
+		defer func() {
+			if err := raw.Close(); err != nil && err != sql.ErrConnDone {
+				t.Fatalf("close sqlite inspector: %v", err)
+			}
+		}()
 		var count int
 		if err := raw.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE name=?`, MetadataTable).Scan(&count); err != nil {
 			t.Fatalf("inspect metadata: %v", err)

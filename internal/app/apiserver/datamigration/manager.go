@@ -215,8 +215,8 @@ func (m *Manager) CompletePending(ctx context.Context) error {
 	return os.Remove(m.markerPath())
 }
 
-func inspectDatabase(ctx context.Context, descriptor Descriptor) DatabaseStatus {
-	status := DatabaseStatus{Descriptor: descriptor, Status: "missing"}
+func inspectDatabase(ctx context.Context, descriptor Descriptor) (status DatabaseStatus) {
+	status = DatabaseStatus{Descriptor: descriptor, Status: "missing"}
 	info, err := os.Stat(descriptor.Path)
 	if errors.Is(err, os.ErrNotExist) {
 		return status
@@ -237,7 +237,13 @@ func inspectDatabase(ctx context.Context, descriptor Descriptor) DatabaseStatus 
 		status.Error = err.Error()
 		return status
 	}
-	defer db.Close()
+	defer func() {
+		if closeErr := db.Close(); closeErr != nil && status.Status == "ready" {
+			status.Status = "unavailable"
+			status.CurrentVersion = nil
+			status.Error = closeErr.Error()
+		}
+	}()
 	var version int
 	err = db.QueryRowContext(ctx,
 		`SELECT version FROM `+sqliteschema.MetadataTable+` WHERE component_id = ? LIMIT 1`,

@@ -141,12 +141,16 @@ func databaseIsNew(path string) (bool, error) {
 	return info.Size() == 0, nil
 }
 
-func ValidateTable(ctx context.Context, db *sqlx.DB, table string, expected []string) error {
+func ValidateTable(ctx context.Context, db *sqlx.DB, table string, expected []string) (resultErr error) {
 	rows, err := db.QueryxContext(ctx, `PRAGMA table_info(`+table+`)`)
 	if err != nil {
 		return err
 	}
-	defer rows.Close()
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil && resultErr == nil {
+			resultErr = closeErr
+		}
+	}()
 	actual := make([]string, 0, len(expected))
 	for rows.Next() {
 		var cid, notNull, primaryKey int
