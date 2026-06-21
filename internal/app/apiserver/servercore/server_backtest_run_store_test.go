@@ -255,3 +255,23 @@ func TestBacktestListReturnsLightweightRunsAndResultReturnsDetail(t *testing.T) 
 		t.Fatalf("detail response missing full series: %+v", detailEnvelope.Data.Result)
 	}
 }
+
+func TestBacktestRoutesCreateRuntimeLayoutForMissingBacktestDir(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("JFTRADE_BACKTEST_DB", filepath.Join(t.TempDir(), "missing", "nested", "backtest.db"))
+
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	srv := newHTTPTestServer(t, store)
+
+	resp, err := jftradeTestHTTPGet(t, srv.URL+"/api/v1/backtests")
+	if err != nil {
+		t.Fatalf("GET backtests: %v", err)
+	}
+	defer func() { jftradeCheckTestError(t, resp.Body.Close()) }()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("GET backtests status = %d, want %d", resp.StatusCode, http.StatusOK)
+	}
+}

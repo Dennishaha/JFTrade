@@ -160,7 +160,8 @@ func (s *Server) ApplySecuritySettings(settings SecuritySettings) {
 
 func newServerWithFrontend(store SidecarSettingsStore, frontend *frontendServer) *Server {
 	settingsPath := store.Path()
-	dataMigration := datamigration.NewManager(settingsPath, deriveBacktestDBPath())
+	backtestDBPath := deriveBacktestDBPath()
+	dataMigration := datamigration.NewManager(settingsPath, backtestDBPath)
 	unavailableDatabases := make(map[string]error)
 	recordUnavailable := func(id string, err error) {
 		if err == nil {
@@ -170,7 +171,10 @@ func newServerWithFrontend(store SidecarSettingsStore, frontend *frontendServer)
 		dataMigration.SetUnavailable(id, err)
 		log.Printf("JFTrade %s database unavailable: %v", id, err)
 	}
-	if backtestStore, err := bt.NewFutuKLineStore(deriveBacktestDBPath()); err != nil {
+	if err := ensureRuntimeLayout(settingsPath, backtestDBPath); err != nil {
+		log.Printf("JFTrade runtime layout unavailable: %v", err)
+	}
+	if backtestStore, err := bt.NewFutuKLineStore(backtestDBPath); err != nil {
 		recordUnavailable(datamigration.DatabaseBacktest, err)
 	} else if err := backtestStore.Close(); err != nil {
 		log.Printf("JFTrade backtest database close failed: %v", err)
