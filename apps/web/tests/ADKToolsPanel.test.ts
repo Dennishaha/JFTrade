@@ -130,7 +130,7 @@ function buildTool(overrides: Record<string, unknown> = {}) {
     description: "读取系统状态摘要。",
     category: "system",
     permission: "read_internal",
-    allowedModes: ["approval", "sandbox_auto", "high_auto"],
+    allowedModes: ["approval", "less_approval", "all"],
     requiresApprovalIn: ["approval"],
     inputSchema: { type: "object", properties: {} },
     outputSummary: "系统健康摘要",
@@ -145,9 +145,9 @@ function previewJSON(value: unknown): string {
 
 function formatPermissionMode(mode: string): string {
   switch (mode) {
-    case "sandbox_auto":
+    case "less_approval":
       return "沙盒自动";
-    case "high_auto":
+    case "all":
       return "高度自动";
     default:
       return "审批制";

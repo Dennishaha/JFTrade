@@ -1505,12 +1505,21 @@ func normalizeStringSlice(values []string) []string {
 
 func normalizePermissionMode(value string) string {
 	switch strings.ToLower(strings.TrimSpace(value)) {
-	case PermissionModeSandboxAuto:
-		return PermissionModeSandboxAuto
-	case PermissionModeHighAuto:
-		return PermissionModeHighAuto
+	case PermissionModeLessApproval:
+		return PermissionModeLessApproval
+	case PermissionModeAll:
+		return PermissionModeAll
 	default:
 		return PermissionModeApproval
+	}
+}
+
+func validPermissionMode(value string) bool {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case PermissionModeApproval, PermissionModeLessApproval, PermissionModeAll:
+		return true
+	default:
+		return false
 	}
 }
 
@@ -1599,7 +1608,7 @@ func normalizeMemoryKey(value string) string {
 }
 
 func defaultAgentInstruction() string {
-	return "你是 JFTrade 投资分析 agent。优先使用内部行情、账户、策略和回测工具；涉及安装 skill、保存策略、运行优化或改变自动化状态时遵守当前权限模式。输出必须说明使用了哪些数据来源，不提供保证收益承诺。"
+	return "你是 JFTrade 投资分析 agent。优先使用内部行情、账户、策略和回测工具；涉及安装 skill、保存策略、运行优化或改变自动化状态时遵守当前审批等级。输出必须说明使用了哪些数据来源，不提供保证收益承诺。"
 }
 
 func validateProviderBaseURL(rawURL string) error {

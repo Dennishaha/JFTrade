@@ -1007,7 +1007,7 @@ func TestADKSessionsCRUDAndFilteringRoutes(t *testing.T) {
 	composerReq, err := http.NewRequestWithContext(t.Context(),
 		http.MethodPatch,
 		srv.URL+"/api/v1/adk/sessions/"+createEnvelope.Data.ID+"/composer-state",
-		bytes.NewReader([]byte(`{"chatDraft":"未发送草稿","workModeOverride":"loop","goalObjectiveDraft":"目标草稿","goalObjectiveTouched":true}`)),
+		bytes.NewReader([]byte(`{"chatDraft":"未发送草稿","workModeOverride":"loop","permissionModeOverride":"less_approval","goalObjectiveDraft":"目标草稿","goalObjectiveTouched":true}`)),
 	)
 	if err != nil {
 		t.Fatalf("NewRequest composer state: %v", err)
@@ -1025,7 +1025,7 @@ func TestADKSessionsCRUDAndFilteringRoutes(t *testing.T) {
 	if err := json.NewDecoder(composerResp.Body).Decode(&composerEnvelope); err != nil {
 		t.Fatalf("decode composer state: %v", err)
 	}
-	if !composerEnvelope.OK || composerEnvelope.Data.ChatDraft != "未发送草稿" || composerEnvelope.Data.WorkModeOverride != jfadk.WorkModeLoop {
+	if !composerEnvelope.OK || composerEnvelope.Data.ChatDraft != "未发送草稿" || composerEnvelope.Data.WorkModeOverride != jfadk.WorkModeLoop || composerEnvelope.Data.PermissionModeOverride != jfadk.PermissionModeLessApproval {
 		t.Fatalf("composer state envelope = %+v", composerEnvelope)
 	}
 
@@ -1045,6 +1045,24 @@ func TestADKSessionsCRUDAndFilteringRoutes(t *testing.T) {
 	defer func() { jftradeCheckTestError(t, invalidComposerResp.Body.Close()) }()
 	if invalidComposerResp.StatusCode != http.StatusBadRequest {
 		t.Fatalf("invalid composer status = %d, want 400", invalidComposerResp.StatusCode)
+	}
+
+	invalidPermissionReq, err := http.NewRequestWithContext(t.Context(),
+		http.MethodPatch,
+		srv.URL+"/api/v1/adk/sessions/"+createEnvelope.Data.ID+"/composer-state",
+		bytes.NewReader([]byte(`{"permissionModeOverride":"root"}`)),
+	)
+	if err != nil {
+		t.Fatalf("NewRequest invalid permission state: %v", err)
+	}
+	invalidPermissionReq.Header.Set("Content-Type", "application/json")
+	invalidPermissionResp, err := http.DefaultClient.Do(invalidPermissionReq)
+	if err != nil {
+		t.Fatalf("PATCH invalid permission state: %v", err)
+	}
+	defer func() { jftradeCheckTestError(t, invalidPermissionResp.Body.Close()) }()
+	if invalidPermissionResp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("invalid permission status = %d, want 400", invalidPermissionResp.StatusCode)
 	}
 
 	chatResp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/adk/chat", "application/json", bytes.NewReader([]byte(`{"agentId":"`+agent.ID+`","sessionId":"`+createEnvelope.Data.ID+`","message":"@strategy.save_draft 保存会话草稿"}`)))
@@ -1502,7 +1520,7 @@ func TestADKChatReturnsCompletedEnvelopeWithVisibleToolFailure(t *testing.T) {
 	server := newTestServer(t, store)
 	server.adkRuntime.Tools().Register(jfadk.ToolDescriptor{
 		Name: "strategy.save_draft", Permission: "write_strategy",
-		AllowedModes: []string{jfadk.PermissionModeApproval, jfadk.PermissionModeSandboxAuto},
+		AllowedModes: []string{jfadk.PermissionModeApproval, jfadk.PermissionModeLessApproval},
 	}, func(context.Context, map[string]any) (any, error) {
 		return nil, errors.New("disk full")
 	})
@@ -1512,7 +1530,7 @@ func TestADKChatReturnsCompletedEnvelopeWithVisibleToolFailure(t *testing.T) {
 		Name:           "Failed Run Agent",
 		ProviderID:     testADKProviderID,
 		Tools:          []string{"strategy.save_draft"},
-		PermissionMode: jfadk.PermissionModeSandboxAuto,
+		PermissionMode: jfadk.PermissionModeLessApproval,
 		Status:         jfadk.AgentStatusEnabled,
 	})
 	if err != nil {
@@ -1561,7 +1579,7 @@ func TestADKChatStreamReturnsFinalEventForCompletedRunWithToolFailure(t *testing
 	server := newTestServer(t, store)
 	server.adkRuntime.Tools().Register(jfadk.ToolDescriptor{
 		Name: "strategy.save_draft", Permission: "write_strategy",
-		AllowedModes: []string{jfadk.PermissionModeApproval, jfadk.PermissionModeSandboxAuto},
+		AllowedModes: []string{jfadk.PermissionModeApproval, jfadk.PermissionModeLessApproval},
 	}, func(context.Context, map[string]any) (any, error) {
 		return nil, errors.New("disk full")
 	})
@@ -1571,7 +1589,7 @@ func TestADKChatStreamReturnsFinalEventForCompletedRunWithToolFailure(t *testing
 		Name:           "Stream Failed Run Agent",
 		ProviderID:     testADKProviderID,
 		Tools:          []string{"strategy.save_draft"},
-		PermissionMode: jfadk.PermissionModeSandboxAuto,
+		PermissionMode: jfadk.PermissionModeLessApproval,
 		Status:         jfadk.AgentStatusEnabled,
 	})
 	if err != nil {
@@ -1634,7 +1652,7 @@ func TestADKChatStreamRecoversCompletedRunAsFinalEventWhenFinalMessageAppendFail
 	})
 	server.adkRuntime.Tools().Register(jfadk.ToolDescriptor{
 		Name: "strategy.save_draft", Permission: "write_strategy",
-		AllowedModes: []string{jfadk.PermissionModeApproval, jfadk.PermissionModeSandboxAuto},
+		AllowedModes: []string{jfadk.PermissionModeApproval, jfadk.PermissionModeLessApproval},
 	}, func(context.Context, map[string]any) (any, error) {
 		return nil, errors.New("disk full")
 	})
@@ -1644,7 +1662,7 @@ func TestADKChatStreamRecoversCompletedRunAsFinalEventWhenFinalMessageAppendFail
 		Name:           "Stream Recover Failed Run Agent",
 		ProviderID:     testADKProviderID,
 		Tools:          []string{"strategy.save_draft"},
-		PermissionMode: jfadk.PermissionModeSandboxAuto,
+		PermissionMode: jfadk.PermissionModeLessApproval,
 		Status:         jfadk.AgentStatusEnabled,
 	})
 	if err != nil {

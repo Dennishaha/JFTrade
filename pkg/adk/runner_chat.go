@@ -19,6 +19,10 @@ func (r *Runtime) runChat(ctx context.Context, req ChatRequest, onDelta func(Cha
 	if !validWorkMode(req.WorkModeOverride) {
 		return ChatResponse{}, fmt.Errorf("invalid work mode %q", req.WorkModeOverride)
 	}
+	permissionModeOverride := strings.TrimSpace(req.PermissionModeOverride)
+	if permissionModeOverride != "" && !validPermissionMode(permissionModeOverride) {
+		return ChatResponse{}, fmt.Errorf("invalid permission mode %q", permissionModeOverride)
+	}
 	agent, err := r.resolveAgent(ctx, req.AgentID)
 	if err != nil {
 		return ChatResponse{}, err
@@ -26,6 +30,9 @@ func (r *Runtime) runChat(ctx context.Context, req ChatRequest, onDelta func(Cha
 	agent, err = r.prepareAgent(ctx, agent)
 	if err != nil {
 		return ChatResponse{}, err
+	}
+	if permissionModeOverride != "" {
+		agent.PermissionMode = normalizePermissionMode(permissionModeOverride)
 	}
 	workMode, runOptions, objective, err := resolveChatWorkflowOptions(req, agent)
 	if err != nil {

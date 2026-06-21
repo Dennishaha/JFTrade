@@ -46,8 +46,8 @@ JFTrade 的 Run、Approval、Audit 和前端 SSE 是产品控制面，不替代 
 ## 权限模式
 
 - `approval`：默认模式。读内部/外部资源自动执行；安装 skill、保存策略、运行优化等写动作进入审批。
-- `sandbox_auto`：允许沙盒内自动执行优化和草稿类动作；live/real 策略仍不自动启动。
-- `high_auto`：允许更多自动化控制面动作；实盘交易工具未开放，未来也必须复用现有风控和熔断。
+- `less_approval`：减少写入和优化类动作的审批；不允许调用 `live_trading` 工具。
+- `all`：允许全部 ADK 工具自动执行，包括 `live_trading`；实际交易仍必须通过交易系统自身的实盘开关、风控和熔断。
 
 ## 内置 Tools
 

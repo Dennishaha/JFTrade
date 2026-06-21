@@ -52,11 +52,18 @@ export function normalizeSessionComposerState(
   state: ADKSessionComposerState | null | undefined,
 ): ADKSessionComposerState {
   const mode = String(state?.workModeOverride ?? "").trim();
+  const permissionMode = String(state?.permissionModeOverride ?? "").trim();
   return {
     sessionId: String(state?.sessionId || sessionId).trim(),
     chatDraft: state?.chatDraft ?? "",
     workModeOverride:
       mode === "chat" || mode === "task" || mode === "loop" ? mode : "",
+    permissionModeOverride:
+      permissionMode === "approval" ||
+      permissionMode === "less_approval" ||
+      permissionMode === "all"
+        ? permissionMode
+        : "",
     goalObjectiveDraft: state?.goalObjectiveDraft ?? "",
     goalObjectiveTouched: state?.goalObjectiveTouched === true,
     updatedAt: state?.updatedAt ?? "",

@@ -47,7 +47,7 @@ func NewToolRegistry() *ToolRegistry {
 		Description:        "短暂等待指定时间后返回，用于轮询异步任务进度；最大等待 25 秒，不创建持久化调度任务。",
 		Category:           "workflow",
 		Permission:         "read_internal",
-		AllowedModes:       []string{PermissionModeApproval, PermissionModeSandboxAuto, PermissionModeHighAuto},
+		AllowedModes:       []string{PermissionModeApproval, PermissionModeLessApproval, PermissionModeAll},
 		RequiresApprovalIn: nil,
 		OutputSummary:      "实际等待时长、开始和完成时间。",
 		RiskLevel:          "low",
@@ -58,7 +58,7 @@ func NewToolRegistry() *ToolRegistry {
 		Description:        "读取公网 HTTP/HTTPS 文本或 JSON 资源，默认阻止本机、私网和 metadata 地址。",
 		Category:           "external",
 		Permission:         "read_external",
-		AllowedModes:       []string{PermissionModeApproval, PermissionModeSandboxAuto, PermissionModeHighAuto},
+		AllowedModes:       []string{PermissionModeApproval, PermissionModeLessApproval, PermissionModeAll},
 		RequiresApprovalIn: nil,
 	}, httpFetchTool)
 	registry.Register(ToolDescriptor{
@@ -67,7 +67,7 @@ func NewToolRegistry() *ToolRegistry {
 		Description:        "按名称、分类、权限、风险等级或描述搜索当前已注册的 JFTrade ADK 工具。",
 		Category:           "system",
 		Permission:         "read_internal",
-		AllowedModes:       []string{PermissionModeApproval, PermissionModeSandboxAuto, PermissionModeHighAuto},
+		AllowedModes:       []string{PermissionModeApproval, PermissionModeLessApproval, PermissionModeAll},
 		RequiresApprovalIn: nil,
 		OutputSummary:      "匹配到的工具 descriptor、风险等级与输入 schema。",
 		RiskLevel:          "low",
@@ -122,7 +122,11 @@ func (r *ToolRegistry) Register(descriptor ToolDescriptor, handler ToolFunc) {
 	descriptor.Name = strings.TrimSpace(descriptor.Name)
 	descriptor.Permission = strings.TrimSpace(descriptor.Permission)
 	if len(descriptor.AllowedModes) == 0 {
-		descriptor.AllowedModes = []string{PermissionModeApproval, PermissionModeSandboxAuto, PermissionModeHighAuto}
+		if descriptor.Permission == "live_trading" {
+			descriptor.AllowedModes = []string{PermissionModeAll}
+		} else {
+			descriptor.AllowedModes = []string{PermissionModeApproval, PermissionModeLessApproval, PermissionModeAll}
+		}
 	}
 	if descriptor.InputSchema == nil {
 		descriptor.InputSchema = defaultToolInputSchema(descriptor.Name)
@@ -230,9 +234,9 @@ func ToolRequiresApproval(descriptor ToolDescriptor, mode string) bool {
 	case "install_skill", "write_strategy", "optimize_strategy", "write_task", "write_memory":
 		return mode == PermissionModeApproval
 	case "create_strategy_instance":
-		return mode != PermissionModeHighAuto
+		return mode != PermissionModeAll
 	case "live_trading":
-		return true
+		return false
 	default:
 		return false
 	}
@@ -249,6 +253,9 @@ func toolExplicitlySkipsApproval(name string) bool {
 
 func ToolAllowedInMode(descriptor ToolDescriptor, mode string) bool {
 	mode = normalizePermissionMode(mode)
+	if descriptor.Permission == "live_trading" {
+		return mode == PermissionModeAll
+	}
 	for _, allowed := range descriptor.AllowedModes {
 		if allowed == mode {
 			return true

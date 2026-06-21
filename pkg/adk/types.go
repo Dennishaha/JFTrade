@@ -3,9 +3,9 @@ package adk
 import "time"
 
 const (
-	PermissionModeApproval    = "approval"
-	PermissionModeSandboxAuto = "sandbox_auto"
-	PermissionModeHighAuto    = "high_auto"
+	PermissionModeApproval     = "approval"
+	PermissionModeLessApproval = "less_approval"
+	PermissionModeAll          = "all"
 
 	WorkModeChat = "chat"
 	WorkModeTask = "task"
@@ -115,19 +115,21 @@ type Session struct {
 }
 
 type SessionComposerState struct {
-	SessionID            string `json:"sessionId"`
-	ChatDraft            string `json:"chatDraft"`
-	WorkModeOverride     string `json:"workModeOverride"`
-	GoalObjectiveDraft   string `json:"goalObjectiveDraft"`
-	GoalObjectiveTouched bool   `json:"goalObjectiveTouched"`
-	UpdatedAt            string `json:"updatedAt"`
+	SessionID              string `json:"sessionId"`
+	ChatDraft              string `json:"chatDraft"`
+	WorkModeOverride       string `json:"workModeOverride"`
+	PermissionModeOverride string `json:"permissionModeOverride"`
+	GoalObjectiveDraft     string `json:"goalObjectiveDraft"`
+	GoalObjectiveTouched   bool   `json:"goalObjectiveTouched"`
+	UpdatedAt              string `json:"updatedAt"`
 }
 
 type SessionComposerStatePatch struct {
-	ChatDraft            *string `json:"chatDraft,omitempty"`
-	WorkModeOverride     *string `json:"workModeOverride,omitempty"`
-	GoalObjectiveDraft   *string `json:"goalObjectiveDraft,omitempty"`
-	GoalObjectiveTouched *bool   `json:"goalObjectiveTouched,omitempty"`
+	ChatDraft              *string `json:"chatDraft,omitempty"`
+	WorkModeOverride       *string `json:"workModeOverride,omitempty"`
+	PermissionModeOverride *string `json:"permissionModeOverride,omitempty"`
+	GoalObjectiveDraft     *string `json:"goalObjectiveDraft,omitempty"`
+	GoalObjectiveTouched   *bool   `json:"goalObjectiveTouched,omitempty"`
 }
 
 const transcriptKindMessage = "message"
@@ -193,6 +195,7 @@ type Run struct {
 	Degraded           bool                `json:"degraded,omitempty"`
 	OptimizationTaskID string              `json:"optimizationTaskId,omitempty"`
 	WorkMode           string              `json:"workMode,omitempty"`
+	PermissionMode     string              `json:"permissionMode,omitempty"`
 	Objective          string              `json:"objective,omitempty"`
 	ParentRunID        string              `json:"parentRunId,omitempty"`
 	ChildRunIDs        []string            `json:"childRunIds,omitempty"`
@@ -307,12 +310,13 @@ type ToolDescriptor struct {
 }
 
 type ChatRequest struct {
-	AgentID          string      `json:"agentId,omitempty"`
-	SessionID        string      `json:"sessionId,omitempty"`
-	Message          string      `json:"message"`
-	WorkModeOverride string      `json:"workModeOverride,omitempty"`
-	Objective        string      `json:"objective,omitempty"`
-	RunOptions       *RunOptions `json:"runOptions,omitempty"`
+	AgentID                string      `json:"agentId,omitempty"`
+	SessionID              string      `json:"sessionId,omitempty"`
+	Message                string      `json:"message"`
+	WorkModeOverride       string      `json:"workModeOverride,omitempty"`
+	PermissionModeOverride string      `json:"permissionModeOverride,omitempty"`
+	Objective              string      `json:"objective,omitempty"`
+	RunOptions             *RunOptions `json:"runOptions,omitempty"`
 }
 
 type RunOptions struct {

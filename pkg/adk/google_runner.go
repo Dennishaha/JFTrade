@@ -214,6 +214,9 @@ func (r *Runtime) rehydrateGoogleADKExecution(ctx context.Context, run Run) (*go
 	if err != nil {
 		return nil, err
 	}
+	if validPermissionMode(run.PermissionMode) {
+		agentDefinition.PermissionMode = normalizePermissionMode(run.PermissionMode)
+	}
 	productSession, ok, err := r.store.Session(ctx, run.SessionID)
 	if err != nil {
 		return nil, err

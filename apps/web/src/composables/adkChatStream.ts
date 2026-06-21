@@ -12,6 +12,7 @@ import type {
   ADKSession,
   ADKSessionContextSnapshot,
   ADKTimelineEntry,
+  ADKPermissionMode,
 } from "@/contracts";
 
 export interface ADKChatStreamResponse {
@@ -44,6 +45,7 @@ export async function streamADKChat(
     sessionId?: string;
     message: string;
     workModeOverride?: string;
+    permissionModeOverride?: ADKPermissionMode | string;
     objective?: string;
     runOptions?: {
       loopMaxIterations?: number;

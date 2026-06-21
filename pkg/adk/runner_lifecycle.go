@@ -193,7 +193,7 @@ func (r *Runtime) startRunWithOptions(ctx context.Context, sessionID string, age
 		ProviderName: providerName, Model: modelName,
 		MaxDurationMs: timeout.Milliseconds(),
 		Status:        RunStatusRunning, UserMessage: text, Message: "running",
-		WorkMode: workMode, Objective: strings.TrimSpace(options.Objective),
+		WorkMode: workMode, PermissionMode: normalizePermissionMode(agent.PermissionMode), Objective: strings.TrimSpace(options.Objective),
 		ParentRunID: strings.TrimSpace(options.ParentRunID), ChildRunIDs: normalizeStringSlice(options.ChildRunIDs),
 		Iteration: options.Iteration, WorkflowStatus: strings.TrimSpace(options.WorkflowStatus),
 		CreatedAt: now, StartedAt: now, UpdatedAt: now,

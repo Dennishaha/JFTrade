@@ -1095,7 +1095,7 @@ func workflowTaskToolDescriptors() []ToolDescriptor {
 }
 
 func allPermissionModes() []string {
-	return []string{PermissionModeApproval, PermissionModeSandboxAuto, PermissionModeHighAuto}
+	return []string{PermissionModeApproval, PermissionModeLessApproval, PermissionModeAll}
 }
 
 func taskOrchestratorInstruction(base string) string {

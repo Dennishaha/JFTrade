@@ -3,16 +3,16 @@ import type { ADKPermissionMode, ADKSkill } from "@/contracts";
 import { runStatusTone } from "./adkChatPresentation";
 
 export const permissionModes: Array<{ title: string; value: ADKPermissionMode }> = [
-  { title: "审批制", value: "approval" },
-  { title: "沙盒自动", value: "sandbox_auto" },
-  { title: "高度自动", value: "high_auto" },
+  { title: "请求批准", value: "approval" },
+  { title: "减少审批", value: "less_approval" },
+  { title: "全部允许", value: "all" },
 ];
 
 export function formatPermission(mode: string): string {
   switch (mode) {
-    case "sandbox_auto": return "沙盒自动";
-    case "high_auto": return "高度自动";
-    default: return "审批制";
+    case "less_approval": return "减少审批";
+    case "all": return "全部允许";
+    default: return "请求批准";
   }
 }
 

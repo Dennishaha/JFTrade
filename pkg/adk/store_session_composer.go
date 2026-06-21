@@ -52,6 +52,13 @@ func (s *Store) SaveSessionComposerState(ctx context.Context, sessionID string, 
 		}
 		state.WorkModeOverride = mode
 	}
+	if patch.PermissionModeOverride != nil {
+		mode, err := normalizeSessionComposerPermissionMode(*patch.PermissionModeOverride)
+		if err != nil {
+			return SessionComposerState{}, err
+		}
+		state.PermissionModeOverride = mode
+	}
 	if patch.GoalObjectiveDraft != nil {
 		state.GoalObjectiveDraft = limitComposerText(*patch.GoalObjectiveDraft)
 	}
@@ -84,8 +91,24 @@ func normalizeSessionComposerState(sessionID string, state SessionComposerState)
 		mode = ""
 	}
 	state.WorkModeOverride = mode
+	permissionMode, err := normalizeSessionComposerPermissionMode(state.PermissionModeOverride)
+	if err != nil {
+		permissionMode = ""
+	}
+	state.PermissionModeOverride = permissionMode
 	state.GoalObjectiveDraft = limitComposerText(state.GoalObjectiveDraft)
 	return state
+}
+
+func normalizeSessionComposerPermissionMode(mode string) (string, error) {
+	mode = strings.ToLower(strings.TrimSpace(mode))
+	if mode == "" {
+		return "", nil
+	}
+	if !validPermissionMode(mode) {
+		return "", fmt.Errorf("invalid composer permission mode %q", mode)
+	}
+	return normalizePermissionMode(mode), nil
 }
 
 func normalizeSessionComposerWorkMode(mode string) (string, error) {

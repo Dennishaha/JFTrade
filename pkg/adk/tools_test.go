@@ -235,7 +235,7 @@ func TestAccountOrdersCompletesWithoutHanging(t *testing.T) {
 		Name:           "投资分析助手",
 		ProviderID:     testProviderID,
 		Tools:          []string{"account.orders", "portfolio.summary", "market.subscriptions", "backtest.runs", "system.status"},
-		PermissionMode: PermissionModeSandboxAuto,
+		PermissionMode: PermissionModeLessApproval,
 		Status:         AgentStatusEnabled,
 	})
 	if err != nil {
@@ -336,7 +336,7 @@ func TestAccountOrdersWithSlowPortfolioSummary(t *testing.T) {
 		Name:           "投资分析助手",
 		ProviderID:     testProviderID,
 		Tools:          []string{"account.orders", "portfolio.summary"},
-		PermissionMode: PermissionModeSandboxAuto,
+		PermissionMode: PermissionModeLessApproval,
 		Status:         AgentStatusEnabled,
 	})
 	if err != nil {
@@ -378,6 +378,32 @@ func TestAccountOrdersWithSlowPortfolioSummary(t *testing.T) {
 	}
 }
 
+func TestLiveTradingToolsAreAvailableOnlyInAllMode(t *testing.T) {
+	registry := NewToolRegistry()
+	registry.Register(ToolDescriptor{
+		Name:       "orders.place",
+		Permission: "live_trading",
+	}, func(context.Context, map[string]any) (any, error) {
+		return map[string]any{"ok": true}, nil
+	})
+	registered, ok := registry.Get("orders.place")
+	if !ok {
+		t.Fatal("live trading tool was not registered")
+	}
+	if ToolAllowedInMode(registered.Descriptor, PermissionModeApproval) {
+		t.Fatal("live trading tool must not be allowed in approval mode")
+	}
+	if ToolAllowedInMode(registered.Descriptor, PermissionModeLessApproval) {
+		t.Fatal("live trading tool must not be allowed in less_approval mode")
+	}
+	if !ToolAllowedInMode(registered.Descriptor, PermissionModeAll) {
+		t.Fatal("live trading tool must be allowed in all mode")
+	}
+	if ToolRequiresApproval(registered.Descriptor, PermissionModeAll) {
+		t.Fatal("live trading tool must execute without ADK approval in all mode")
+	}
+}
+
 func TestChatContinuesAfterToolFailure(t *testing.T) {
 	ctx := context.Background()
 	dir := t.TempDir()
@@ -395,8 +421,8 @@ func TestChatContinuesAfterToolFailure(t *testing.T) {
 		Category:    "strategy",
 		Permission:  "write_strategy",
 		AllowedModes: []string{
-			PermissionModeSandboxAuto,
-			PermissionModeHighAuto,
+			PermissionModeLessApproval,
+			PermissionModeAll,
 		},
 	}, func(context.Context, map[string]any) (any, error) {
 		return nil, fmt.Errorf("disk full")
@@ -408,7 +434,7 @@ func TestChatContinuesAfterToolFailure(t *testing.T) {
 		Name:           "投资分析助手",
 		ProviderID:     testProviderID,
 		Tools:          []string{"strategy.save_draft"},
-		PermissionMode: PermissionModeSandboxAuto,
+		PermissionMode: PermissionModeLessApproval,
 		Status:         AgentStatusEnabled,
 	})
 	if err != nil {
@@ -467,7 +493,7 @@ func TestAccountOrdersStreamCompletes(t *testing.T) {
 	agent, err := store.SaveAgent(ctx, AgentWriteRequest{
 		ID: "agent", Name: "Agent", ProviderID: testProviderID,
 		Tools:          []string{"account.orders", "portfolio.summary"},
-		PermissionMode: PermissionModeSandboxAuto,
+		PermissionMode: PermissionModeLessApproval,
 		Status:         AgentStatusEnabled,
 	})
 	if err != nil {

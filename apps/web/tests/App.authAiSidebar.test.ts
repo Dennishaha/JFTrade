@@ -125,7 +125,7 @@ function buildAuthWorkspaceFetchMock() {
             description: "save draft",
             category: "strategy",
             permission: "write_strategy",
-            allowedModes: ["approval", "sandbox_auto", "high_auto"],
+            allowedModes: ["approval", "less_approval", "all"],
             requiresApprovalIn: ["approval"],
             inputSchema: {},
           },

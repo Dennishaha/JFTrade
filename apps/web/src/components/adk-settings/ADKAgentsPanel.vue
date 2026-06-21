@@ -285,7 +285,7 @@ watch(
             <v-select v-model="agentForm.providerId" :items="providerOptions" label="模型服务" density="comfortable"
               clearable />
             <v-text-field v-model="agentForm.model" label="覆盖模型（可选）" density="comfortable" />
-            <v-select v-model="agentForm.permissionMode" :items="permissionModes" label="权限模式" density="comfortable" />
+            <v-select v-model="agentForm.permissionMode" :items="permissionModes" label="默认审批等级" density="comfortable" />
             <v-radio-group
               v-model="agentForm.workMode"
               class="md:col-span-2"

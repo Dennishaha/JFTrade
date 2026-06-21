@@ -120,6 +120,7 @@ const {
   visibleTimelineEntries,
   visibleWorkflowPlanRun,
   workModeOverride,
+  permissionModeOverride,
   openContextDetails,
 } = useADKPageController(router, threadRef);
 
@@ -487,6 +488,8 @@ async function handleMobileSessionSelect(sessionId: string): Promise<void> {
         :sending-chat="sendingChat"
         :suggestions="suggestions"
         :default-work-mode="selectedAgent?.workMode ?? 'chat'"
+        :default-permission-mode="selectedAgent?.permissionMode ?? 'approval'"
+        :permission-mode-override="permissionModeOverride"
         :work-mode-override="workModeOverride"
         :cancel-active-run="cancelActiveRun"
         :handle-agent-change="handleAgentChange"
@@ -506,6 +509,7 @@ async function handleMobileSessionSelect(sessionId: string): Promise<void> {
         @update:context-details-open="contextDetailsOpen = $event"
         @update:selected-agent-id="selectedAgentId = $event"
         @update:selected-provider-id="selectedProviderId = $event"
+        @update:permission-mode-override="permissionModeOverride = $event"
         @update:work-mode-override="workModeOverride = $event"
       />
     </div>

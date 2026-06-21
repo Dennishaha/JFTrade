@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 
-import type { ADKSessionContextSnapshot, ADKWorkMode } from "@/contracts";
+import type {
+  ADKPermissionMode,
+  ADKSessionContextSnapshot,
+  ADKWorkMode,
+} from "@/contracts";
 
 import type { QueuedChatMessage } from "../../composables/adkChatRuntime";
 
@@ -52,6 +56,8 @@ const props = withDefaults(
     slashCommands?: SlashCommandItem[];
     suggestions?: string[];
     defaultWorkMode?: ADKWorkMode | string;
+    defaultPermissionMode?: ADKPermissionMode | string;
+    permissionModeOverride?: string;
     workModeOverride?: string;
     cancelActiveRun?: () => void | Promise<void>;
     handleAgentChange?: () => void;
@@ -103,6 +109,8 @@ const props = withDefaults(
     slashCommands: () => [],
     suggestions: () => [],
     defaultWorkMode: "chat",
+    defaultPermissionMode: "approval",
+    permissionModeOverride: "",
     workModeOverride: "",
   },
 );
@@ -112,6 +120,7 @@ const emit = defineEmits<{
   "update:contextDetailsOpen": [value: boolean];
   "update:selectedAgentId": [value: string];
   "update:selectedProviderId": [value: string];
+  "update:permissionModeOverride": [value: string];
   "update:workModeOverride": [value: string];
 }>();
 
@@ -140,6 +149,71 @@ const workModeOptions = computed(() =>
 const effectiveWorkModeSelection = computed(
   () => props.workModeOverride || normalizedDefaultWorkMode.value,
 );
+
+interface PermissionModeOption {
+  title: string;
+  value: ADKPermissionMode;
+  icon: string;
+  tone: "approval" | "less" | "all";
+  description: string;
+}
+
+const permissionModeOptions: PermissionModeOption[] = [
+  {
+    title: "请求批准",
+    value: "approval",
+    icon: "fa-solid fa-shield-halved",
+    tone: "approval",
+    description: "低风险操作自动执行，敏感操作请求确认",
+  },
+  {
+    title: "减少审批",
+    value: "less_approval",
+    icon: "fa-solid fa-shield",
+    tone: "less",
+    description: "减少中等风险操作的确认次数",
+  },
+  {
+    title: "全部允许",
+    value: "all",
+    icon: "fa-solid fa-triangle-exclamation",
+    tone: "all",
+    description: "高风险操作自动执行，关键安全门仍保留",
+  },
+];
+
+const normalizedDefaultPermissionMode = computed<ADKPermissionMode>(() => {
+  if (
+    props.defaultPermissionMode === "less_approval" ||
+    props.defaultPermissionMode === "all"
+  ) {
+    return props.defaultPermissionMode;
+  }
+  return "approval";
+});
+const effectivePermissionMode = computed<ADKPermissionMode>(() => {
+  if (
+    props.permissionModeOverride === "less_approval" ||
+    props.permissionModeOverride === "all"
+  ) {
+    return props.permissionModeOverride;
+  }
+  if (props.permissionModeOverride === "approval") return "approval";
+  return normalizedDefaultPermissionMode.value;
+});
+const effectivePermissionOption = computed(
+  () =>
+    permissionModeOptions.find(
+      (option) => option.value === effectivePermissionMode.value,
+    ) ?? permissionModeOptions[0]!,
+);
+
+function updatePermissionModeSelection(mode: ADKPermissionMode): void {
+  emit(
+    "update:permissionModeOverride",
+    mode === normalizedDefaultPermissionMode.value ? "" : mode,
+  );
+}
 
 function updateWorkModeSelection(mode?: string | null): void {
   emit(
@@ -774,6 +848,15 @@ function canRevokeQueueItem(item: QueuedChatMessage): boolean {
           </span>
           <span
             class="adk-mobile-composer-summary__chip"
+            :title="`审批 · ${effectivePermissionOption.title}`"
+          >
+            <span class="adk-mobile-composer-summary__label">审批</span>
+            <span class="adk-mobile-composer-summary__value">{{
+              effectivePermissionOption.title
+            }}</span>
+          </span>
+          <span
+            class="adk-mobile-composer-summary__chip"
             :title="`模式 · ${selectedWorkModeLabel}`"
           >
             <span class="adk-mobile-composer-summary__label">模式</span>
@@ -821,6 +904,49 @@ function canRevokeQueueItem(item: QueuedChatMessage): boolean {
             title="添加模型服务"
             @click="openProviderSettings?.()"
           />
+          <v-menu location="top start">
+            <template #activator="{ props: menuProps }">
+              <button
+                v-bind="menuProps"
+                type="button"
+                class="adk-permission-trigger"
+                :class="`is-${effectivePermissionOption.tone}`"
+                :title="`审批等级：${effectivePermissionOption.title}`"
+              >
+                <v-icon size="15">{{ effectivePermissionOption.icon }}</v-icon>
+                <span>{{ effectivePermissionOption.title }}</span>
+                <v-icon size="12">fa-solid fa-chevron-down</v-icon>
+              </button>
+            </template>
+            <v-list class="adk-permission-menu" density="compact">
+              <v-list-item
+                v-for="option in permissionModeOptions"
+                :key="option.value"
+                class="adk-permission-option"
+                :class="[
+                  `is-${option.tone}`,
+                  { 'is-selected': option.value === effectivePermissionMode },
+                ]"
+                @click="updatePermissionModeSelection(option.value)"
+              >
+                <template #prepend>
+                  <v-icon size="16">{{ option.icon }}</v-icon>
+                </template>
+                <v-list-item-title>
+                  {{ option.title }}
+                  <v-chip
+                    v-if="option.value === normalizedDefaultPermissionMode"
+                    size="x-small"
+                    variant="tonal"
+                    class="ml-1"
+                  >
+                    默认
+                  </v-chip>
+                </v-list-item-title>
+                <v-list-item-subtitle>{{ option.description }}</v-list-item-subtitle>
+              </v-list-item>
+            </v-list>
+          </v-menu>
           <v-select
             :model-value="selectedAgentId"
             :items="agentOptions"
@@ -1520,6 +1646,55 @@ function canRevokeQueueItem(item: QueuedChatMessage): boolean {
   flex: 0 0 116px;
 }
 
+.adk-permission-trigger {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 7px;
+  min-height: 32px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.adk-permission-trigger:hover {
+  background: rgba(148, 163, 184, 0.12);
+}
+
+.adk-permission-trigger.is-approval,
+.adk-permission-option.is-approval :deep(.v-icon) {
+  color: rgb(22 163 74);
+}
+
+.adk-permission-trigger.is-less,
+.adk-permission-option.is-less :deep(.v-icon) {
+  color: rgb(217 119 6);
+}
+
+.adk-permission-trigger.is-all,
+.adk-permission-option.is-all :deep(.v-icon) {
+  color: rgb(220 38 38);
+}
+
+.adk-permission-menu {
+  min-width: 310px;
+  padding: 6px;
+  border-radius: 12px;
+}
+
+.adk-permission-option {
+  margin: 2px 0;
+  border-radius: 9px;
+}
+
+.adk-permission-option.is-selected {
+  background: rgba(148, 163, 184, 0.12);
+}
+
 .adk-composer-interrupt {
   text-transform: none;
 }
@@ -1634,6 +1809,10 @@ function canRevokeQueueItem(item: QueuedChatMessage): boolean {
 .adk-composer--mobile .adk-work-mode-select {
   min-width: 108px;
   flex: 0 1 112px;
+}
+
+.adk-composer--mobile .adk-permission-trigger {
+  max-width: 148px;
 }
 
 .adk-composer--mobile .adk-context-pill {

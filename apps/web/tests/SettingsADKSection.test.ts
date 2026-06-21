@@ -563,7 +563,7 @@ function buildToolBase() {
     description: "读取系统状态摘要。",
     category: "system",
     permission: "read_internal",
-    allowedModes: ["approval", "sandbox_auto", "high_auto"],
+    allowedModes: ["approval", "less_approval", "all"],
     requiresApprovalIn: [],
     inputSchema: { type: "object", properties: {} },
     outputSummary: "系统健康摘要",

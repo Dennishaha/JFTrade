@@ -451,7 +451,7 @@ func TestApprovalModeCreatesPendingApprovalForWriteTool(t *testing.T) {
 		Description:  "test write tool",
 		Category:     "strategy",
 		Permission:   "write_strategy",
-		AllowedModes: []string{PermissionModeApproval, PermissionModeSandboxAuto, PermissionModeHighAuto},
+		AllowedModes: []string{PermissionModeApproval, PermissionModeLessApproval, PermissionModeAll},
 	}, func(context.Context, map[string]any) (any, error) {
 		executed = true
 		return map[string]any{"saved": true}, nil
@@ -513,7 +513,7 @@ func TestIdempotentApprovalRecoversPendingRunWithStaleEmbeddedApproval(t *testin
 		Description:  "test write tool",
 		Category:     "strategy",
 		Permission:   "write_strategy",
-		AllowedModes: []string{PermissionModeApproval, PermissionModeSandboxAuto, PermissionModeHighAuto},
+		AllowedModes: []string{PermissionModeApproval, PermissionModeLessApproval, PermissionModeAll},
 	}, func(context.Context, map[string]any) (any, error) {
 		executed = true
 		return map[string]any{"saved": true}, nil
@@ -582,7 +582,7 @@ func TestReconcileResolvedApprovalsRecoversPendingRun(t *testing.T) {
 		Description:  "test write tool",
 		Category:     "strategy",
 		Permission:   "write_strategy",
-		AllowedModes: []string{PermissionModeApproval, PermissionModeSandboxAuto, PermissionModeHighAuto},
+		AllowedModes: []string{PermissionModeApproval, PermissionModeLessApproval, PermissionModeAll},
 	}, func(context.Context, map[string]any) (any, error) {
 		executed.Store(true)
 		return map[string]any{"saved": true}, nil
@@ -645,7 +645,7 @@ func TestApprovalDenialCreatesAssistantSummary(t *testing.T) {
 		Description:  "test write tool",
 		Category:     "strategy",
 		Permission:   "write_strategy",
-		AllowedModes: []string{PermissionModeApproval, PermissionModeSandboxAuto, PermissionModeHighAuto},
+		AllowedModes: []string{PermissionModeApproval, PermissionModeLessApproval, PermissionModeAll},
 	}, func(context.Context, map[string]any) (any, error) {
 		executed = true
 		return map[string]any{"saved": true}, nil
@@ -1438,20 +1438,24 @@ func TestSessionComposerStatePersistsAndDeletesWithSession(t *testing.T) {
 	}
 
 	saved, err := runtime.Store().SaveSessionComposerState(ctx, session.ID, SessionComposerStatePatch{
-		ChatDraft:            new(strings.Repeat("x", MaxMessageLength+20)),
-		WorkModeOverride:     new(WorkModeLoop),
-		GoalObjectiveDraft:   new("目标草稿"),
-		GoalObjectiveTouched: new(true),
+		ChatDraft:              new(strings.Repeat("x", MaxMessageLength+20)),
+		WorkModeOverride:       new(WorkModeLoop),
+		PermissionModeOverride: new(PermissionModeLessApproval),
+		GoalObjectiveDraft:     new("目标草稿"),
+		GoalObjectiveTouched:   new(true),
 	})
 	if err != nil {
 		t.Fatalf("SaveSessionComposerState: %v", err)
 	}
-	if len([]rune(saved.ChatDraft)) != MaxMessageLength || saved.WorkModeOverride != WorkModeLoop || !saved.GoalObjectiveTouched {
+	if len([]rune(saved.ChatDraft)) != MaxMessageLength || saved.WorkModeOverride != WorkModeLoop || saved.PermissionModeOverride != PermissionModeLessApproval || !saved.GoalObjectiveTouched {
 		t.Fatalf("saved composer state = %+v", saved)
 	}
 
 	if _, err := runtime.Store().SaveSessionComposerState(ctx, session.ID, SessionComposerStatePatch{WorkModeOverride: new("sequential")}); err == nil {
 		t.Fatal("SaveSessionComposerState invalid mode err = nil")
+	}
+	if _, err := runtime.Store().SaveSessionComposerState(ctx, session.ID, SessionComposerStatePatch{PermissionModeOverride: new("root")}); err == nil {
+		t.Fatal("SaveSessionComposerState invalid permission mode err = nil")
 	}
 
 	if err := runtime.Store().DeleteSession(ctx, session.ID); err != nil {
@@ -1618,7 +1622,7 @@ func TestExecuteToolTagInvokesCanonicalToolWithParameters(t *testing.T) {
 		Name:           "Agent",
 		ProviderID:     testProviderID,
 		Tools:          []string{"portfolio.summary"},
-		PermissionMode: PermissionModeSandboxAuto,
+		PermissionMode: PermissionModeLessApproval,
 		Status:         AgentStatusEnabled,
 	})
 	if err != nil {

@@ -116,6 +116,9 @@ func (r *Runtime) workflowResumeContext(ctx context.Context, parent Run) (Sessio
 	if err != nil {
 		return Session{}, Agent{}, err
 	}
+	if validPermissionMode(parent.PermissionMode) {
+		agent.PermissionMode = normalizePermissionMode(parent.PermissionMode)
+	}
 	agent.WorkMode = normalizeWorkMode(parent.WorkMode)
 	return session, agent, nil
 }

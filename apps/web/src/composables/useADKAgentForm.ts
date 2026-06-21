@@ -46,7 +46,7 @@ export function useADKAgentForm(
     id: "",
     name: "投资分析助手",
     instruction:
-      "你是 JFTrade 投资分析 agent。优先使用内部行情、账户、策略和回测工具；涉及安装 skill、保存策略、运行优化或改变自动化状态时遵守当前权限模式。",
+      "你是 JFTrade 投资分析 agent。优先使用内部行情、账户、策略和回测工具；涉及安装 skill、保存策略、运行优化或改变自动化状态时遵守当前审批等级。",
     providerId: "",
     model: "",
     tools: [] as string[],

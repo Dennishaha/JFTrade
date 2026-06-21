@@ -106,6 +106,7 @@ export function useADKPageChatState(
   const timelineEntries = ref<ADKTimelineEntryState[]>([]);
   const chatDraft = ref("");
   const workModeOverride = ref("");
+  const permissionModeOverride = ref("");
   const sendingChat = ref(false);
   const activeRun = ref<ActiveChatRunState | null>(null);
   const activeRunSnapshot = ref<ADKRun | null>(null);
@@ -359,6 +360,7 @@ export function useADKPageChatState(
     () => [
       chatDraft.value,
       workModeOverride.value,
+      permissionModeOverride.value,
       goalObjectiveDraft.value,
       goalObjectiveTouched.value,
     ],
@@ -931,6 +933,7 @@ export function useADKPageChatState(
     updateGoalObjective,
     updateGoalObjectiveDraft,
     workModeOverride,
+    permissionModeOverride,
   };
 
   async function executeChatMessage(
@@ -942,6 +945,9 @@ export function useADKPageChatState(
       sessionId: sessionState.selectedSessionId.value,
       message: text,
     };
+    if (permissionModeOverride.value) {
+      payload.permissionModeOverride = permissionModeOverride.value;
+    }
     const mode = effectiveWorkMode.value;
     if (options.forceChat) {
       payload.workModeOverride = "chat";
@@ -1247,6 +1253,7 @@ export function useADKPageChatState(
         {
           chatDraft: state.chatDraft,
           workModeOverride: state.workModeOverride,
+          permissionModeOverride: state.permissionModeOverride,
           goalObjectiveDraft: state.goalObjectiveDraft,
           goalObjectiveTouched: state.goalObjectiveTouched,
         },
@@ -1280,6 +1287,7 @@ export function useADKPageChatState(
       sessionId,
       chatDraft: chatDraft.value,
       workModeOverride: workModeOverride.value,
+      permissionModeOverride: permissionModeOverride.value,
       goalObjectiveDraft: goalObjectiveDraft.value,
       goalObjectiveTouched: goalObjectiveTouched.value,
     });
@@ -1290,6 +1298,7 @@ export function useADKPageChatState(
     const normalized = normalizeSessionComposerState(sessionId, state);
     applyingComposerState = true;
     workModeOverride.value = normalized.workModeOverride;
+    permissionModeOverride.value = normalized.permissionModeOverride;
     chatDraft.value = normalized.chatDraft;
     goalObjectiveTouched.value = normalized.goalObjectiveTouched;
     goalObjectiveDraft.value =
@@ -1325,6 +1334,7 @@ export function useADKPageChatState(
       sessionId: sessionId.trim(),
       chatDraft: "",
       workModeOverride: "",
+      permissionModeOverride: "",
       goalObjectiveDraft: "",
       goalObjectiveTouched: false,
       updatedAt: "",

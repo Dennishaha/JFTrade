@@ -71,6 +71,7 @@ export async function saveADKSessionComposerState(
       ADKSessionComposerState,
       | "chatDraft"
       | "workModeOverride"
+      | "permissionModeOverride"
       | "goalObjectiveDraft"
       | "goalObjectiveTouched"
     >

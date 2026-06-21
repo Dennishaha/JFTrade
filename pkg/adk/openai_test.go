@@ -187,7 +187,7 @@ func TestOpenAIProviderToolCallWithAccountOrders(t *testing.T) {
 		Name:           "投资分析助手",
 		ProviderID:     "mock-openai",
 		Tools:          []string{"account.orders", "portfolio.summary"},
-		PermissionMode: PermissionModeSandboxAuto,
+		PermissionMode: PermissionModeLessApproval,
 		Status:         AgentStatusEnabled,
 	})
 	if err != nil {
@@ -323,7 +323,7 @@ func TestOpenAIProviderWithBrokenToolName(t *testing.T) {
 
 	agent, err := store.SaveAgent(ctx, AgentWriteRequest{
 		ID: "agent", Name: "Agent", ProviderID: "mock-openai",
-		Tools: []string{"account.orders"}, PermissionMode: PermissionModeSandboxAuto,
+		Tools: []string{"account.orders"}, PermissionMode: PermissionModeLessApproval,
 		Status: AgentStatusEnabled,
 	})
 	if err != nil {
@@ -442,7 +442,7 @@ func TestOpenAIProviderWithMultipleToolCallRounds(t *testing.T) {
 
 	agent, err := store.SaveAgent(ctx, AgentWriteRequest{
 		ID: "agent", Name: "Agent", ProviderID: "mock-openai",
-		Tools: []string{"account.orders"}, PermissionMode: PermissionModeSandboxAuto,
+		Tools: []string{"account.orders"}, PermissionMode: PermissionModeLessApproval,
 		Status: AgentStatusEnabled,
 	})
 	if err != nil {

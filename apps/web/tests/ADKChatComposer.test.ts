@@ -105,6 +105,62 @@ describe("ADKChatComposer", () => {
     expect(wrapper.emitted("update:workModeOverride")?.[1]).toEqual(["chat"]);
   });
 
+  it("shows approval levels beside the add button and clears the default override", async () => {
+    const menuStub = defineComponent({
+      setup(_, { slots }) {
+        return () =>
+          h("div", [
+            slots.activator?.({ props: {} }),
+            slots.default?.(),
+          ]);
+      },
+    });
+    const listItemStub = defineComponent({
+      emits: ["click"],
+      setup(_, { emit, slots }) {
+        return () =>
+          h(
+            "button",
+            { type: "button", onClick: () => emit("click") },
+            [slots.prepend?.(), slots.default?.()],
+          );
+      },
+    });
+    const wrapper = mount(ADKChatComposer, {
+      attachTo: document.body,
+      props: {
+        canSendChat: true,
+        chatDraft: "",
+        defaultPermissionMode: "all",
+        permissionModeOverride: "approval",
+        sendingChat: false,
+        sendChat: async () => {},
+      },
+      global: {
+        stubs: {
+          "v-menu": menuStub,
+          "v-list": { template: "<div><slot /></div>" },
+          "v-list-item": listItemStub,
+          "v-icon": { template: "<i><slot /></i>" },
+          "v-select": selectStub,
+        },
+      },
+    });
+
+    expect(wrapper.find(".adk-composer-left").text()).toContain("请求批准");
+    expect(wrapper.text()).toContain("全部允许");
+    expect(wrapper.text()).toContain("默认");
+
+    const options = wrapper.findAll(".adk-permission-option");
+    await options[2]!.trigger("click");
+    expect(wrapper.emitted("update:permissionModeOverride")?.[0]).toEqual([""]);
+
+    await options[1]!.trigger("click");
+    expect(wrapper.emitted("update:permissionModeOverride")?.[1]).toEqual([
+      "less_approval",
+    ]);
+  });
+
   it("shows an editable goal objective box and saves active goal changes", async () => {
     const updateDraft = vi.fn();
     const saveGoal = vi.fn();

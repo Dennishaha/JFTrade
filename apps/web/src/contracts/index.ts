@@ -83,7 +83,7 @@ export interface NormalizeInstrumentResponse {
   resolvedMarket: string;
 }
 
-export type ADKPermissionMode = "approval" | "sandbox_auto" | "high_auto";
+export type ADKPermissionMode = "approval" | "less_approval" | "all";
 export type ADKWorkMode = "chat" | "task" | "loop";
 
 export interface ADKProvider {
@@ -193,6 +193,7 @@ export interface ADKSessionComposerState {
   sessionId: string;
   chatDraft: string;
   workModeOverride: ADKWorkMode | "" | string;
+  permissionModeOverride: ADKPermissionMode | "" | string;
   goalObjectiveDraft: string;
   goalObjectiveTouched: boolean;
   updatedAt?: string;
@@ -318,6 +319,7 @@ export interface ADKRun {
   degraded?: boolean;
   optimizationTaskId?: string;
   workMode?: ADKWorkMode | string;
+  permissionMode?: ADKPermissionMode | string;
   objective?: string;
   parentRunId?: string;
   childRunIds?: string[];

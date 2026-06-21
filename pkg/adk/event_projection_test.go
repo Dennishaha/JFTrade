@@ -23,7 +23,7 @@ func TestFilteredSkillSourceForAgentHonorsAllowedToolsAndPermissionMode(t *testi
 		DisplayName:  "Restricted",
 		Description:  "high-auto only tool",
 		Permission:   "write_strategy",
-		AllowedModes: []string{PermissionModeHighAuto},
+		AllowedModes: []string{PermissionModeAll},
 	}, func(context.Context, map[string]any) (any, error) {
 		return map[string]any{"ok": true}, nil
 	})

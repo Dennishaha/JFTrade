@@ -181,18 +181,19 @@ export function useADKPageController(
     visibleWorkflowPlanRun: chatState.visibleWorkflowPlanRun,
     visibleSessions: sessionState.visibleSessions,
     workModeOverride: chatState.workModeOverride,
+    permissionModeOverride: chatState.permissionModeOverride,
     openContextDetails: chatState.openContextDetails,
   };
 }
 
 function formatPermission(mode: string): string {
   switch (mode) {
-    case "sandbox_auto":
-      return "沙盒自动";
-    case "high_auto":
-      return "高度自动";
+    case "less_approval":
+      return "减少审批";
+    case "all":
+      return "全部允许";
     default:
-      return "审批制";
+      return "请求批准";
   }
 }
 

@@ -496,6 +496,17 @@ func TestProjectedChatResponseAppliesProjectionToRunFields(t *testing.T) {
 	}
 }
 
+func TestRunChatRejectsInvalidPermissionModeOverride(t *testing.T) {
+	runtime := newTestRuntime(t)
+	_, err := runtime.runChat(context.Background(), ChatRequest{
+		Message:                "hello",
+		PermissionModeOverride: "root",
+	}, nil, false)
+	if err == nil || !strings.Contains(err.Error(), "invalid permission mode") {
+		t.Fatalf("runChat error = %v, want invalid permission mode", err)
+	}
+}
+
 func TestRunStoresResolvedModelSnapshot(t *testing.T) {
 	ctx := context.Background()
 	runtime := newTestRuntime(t)
@@ -525,6 +536,9 @@ func TestRunStoresResolvedModelSnapshot(t *testing.T) {
 	}
 	if run.ProviderName != "Snapshot Provider" {
 		t.Fatalf("run providerName = %q, want Snapshot Provider", run.ProviderName)
+	}
+	if run.PermissionMode != PermissionModeApproval {
+		t.Fatalf("run permissionMode = %q, want %q", run.PermissionMode, PermissionModeApproval)
 	}
 
 	mustSaveProvider(t, runtime, ProviderWriteRequest{
