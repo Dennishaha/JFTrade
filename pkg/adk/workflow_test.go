@@ -487,13 +487,13 @@ func TestTaskWorkflowStreamEmitsParentAfterChildRunCreated(t *testing.T) {
 	runtime, _ := newWorkflowApprovalRuntime(t, WorkModeTask)
 	agent := mustSaveAgent(t, runtime, AgentWriteRequest{
 		ID: "task-agent-child-stream", Name: "Task Agent Child Stream", Status: AgentStatusEnabled,
-		WorkMode: WorkModeTask, Tools: []string{"strategy.save_draft"}, PermissionMode: PermissionModeApproval,
+		WorkMode: WorkModeTask, Tools: []string{"approval.required"}, PermissionMode: PermissionModeApproval,
 	})
 
 	var runDeltas []Run
 	response, err := runtime.ChatStream(ctx, ChatRequest{
 		AgentID:          agent.ID,
-		Message:          "请创建子智能体并 @strategy.save_draft 保存策略",
+		Message:          "请创建子智能体并 @approval.required 保存策略",
 		WorkModeOverride: WorkModeTask,
 	}, func(delta ChatDelta) error {
 		if delta.Run != nil {
@@ -1586,11 +1586,11 @@ func TestTaskWorkflowApprovalContinuesParentWorkflow(t *testing.T) {
 	runtime, executions := newWorkflowApprovalRuntime(t, WorkModeTask)
 	agent := mustSaveAgent(t, runtime, AgentWriteRequest{
 		ID: "seq-approval-agent", Name: "Task Approval", Status: AgentStatusEnabled,
-		WorkMode: WorkModeTask, Tools: []string{"strategy.save_draft"}, PermissionMode: PermissionModeApproval,
+		WorkMode: WorkModeTask, Tools: []string{"approval.required"}, PermissionMode: PermissionModeApproval,
 	})
 	response, err := runtime.Chat(ctx, ChatRequest{
 		AgentID:          agent.ID,
-		Message:          "请创建子智能体并 @strategy.save_draft 保存策略",
+		Message:          "请创建子智能体并 @approval.required 保存策略",
 		Objective:        "完成审批续跑测试",
 		WorkModeOverride: WorkModeTask,
 	})
@@ -1627,11 +1627,11 @@ func TestTaskWorkflowApprovalDeniedTerminatesParentWorkflow(t *testing.T) {
 	runtime, _ := newWorkflowApprovalRuntime(t, WorkModeTask)
 	agent := mustSaveAgent(t, runtime, AgentWriteRequest{
 		ID: "seq-deny-agent", Name: "Task Deny", Status: AgentStatusEnabled,
-		WorkMode: WorkModeTask, Tools: []string{"strategy.save_draft"}, PermissionMode: PermissionModeApproval,
+		WorkMode: WorkModeTask, Tools: []string{"approval.required"}, PermissionMode: PermissionModeApproval,
 	})
 	response, err := runtime.Chat(ctx, ChatRequest{
 		AgentID:          agent.ID,
-		Message:          "请创建子智能体并 @strategy.save_draft 保存策略",
+		Message:          "请创建子智能体并 @approval.required 保存策略",
 		WorkModeOverride: WorkModeTask,
 	})
 	if err != nil {
@@ -1860,11 +1860,11 @@ func TestWorkflowParentReconcilesResolvedChildApproval(t *testing.T) {
 	runtime, executions := newWorkflowApprovalRuntime(t, WorkModeTask)
 	agent := mustSaveAgent(t, runtime, AgentWriteRequest{
 		ID: "seq-reconcile-agent", Name: "Task Reconcile", Status: AgentStatusEnabled,
-		WorkMode: WorkModeTask, Tools: []string{"strategy.save_draft"}, PermissionMode: PermissionModeApproval,
+		WorkMode: WorkModeTask, Tools: []string{"approval.required"}, PermissionMode: PermissionModeApproval,
 	})
 	response, err := runtime.Chat(ctx, ChatRequest{
 		AgentID:          agent.ID,
-		Message:          "请创建子智能体并 @strategy.save_draft 保存策略",
+		Message:          "请创建子智能体并 @approval.required 保存策略",
 		Objective:        "完成审批恢复测试",
 		WorkModeOverride: WorkModeTask,
 	})
@@ -1925,8 +1925,10 @@ func newWorkflowApprovalRuntime(t *testing.T, mode string) (*Runtime, *atomic.In
 	executions := &atomic.Int32{}
 	registry := NewToolRegistry()
 	registry.Register(ToolDescriptor{
-		Name: "strategy.save_draft", Permission: "write_strategy",
-		AllowedModes: []string{PermissionModeApproval},
+		Name:               "approval.required",
+		Permission:         "write_strategy",
+		AllowedModes:       []string{PermissionModeApproval},
+		RequiresApprovalIn: []string{PermissionModeApproval},
 	}, func(context.Context, map[string]any) (any, error) {
 		executions.Add(1)
 		return map[string]any{"saved": true, "mode": mode}, nil

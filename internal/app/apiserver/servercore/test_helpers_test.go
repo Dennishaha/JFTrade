@@ -106,7 +106,7 @@ func configureTestADKProvider(t *testing.T, server *Server) {
 
 func testADKToolNameFromText(text string) string {
 	for _, name := range []string{
-		"strategy.save_draft", "strategy.optimize", "tasks.create", "memory.remember", "contract.write",
+		"approval.required", "strategy.save_draft", "strategy.optimize", "tasks.create", "memory.remember", "contract.write",
 	} {
 		if strings.Contains(text, "@"+name) || strings.Contains(text, `name="`+name+`"`) {
 			return name

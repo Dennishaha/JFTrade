@@ -27,20 +27,45 @@ func TestDefaultTaskToolSchemaIncludesPlannerProjectionFields(t *testing.T) {
 	}
 }
 
-func TestTaskCreateIsLowRiskAndDoesNotRequireApproval(t *testing.T) {
+func TestTaskWriteToolsMarkedLowRiskCanSkipApproval(t *testing.T) {
 	registry := NewToolRegistry()
-	registry.Register(ToolDescriptor{Name: "tasks.create", Permission: "write_task"}, func(context.Context, map[string]any) (any, error) {
-		return map[string]any{"created": true}, nil
-	})
-	tool, ok := registry.Get("tasks.create")
-	if !ok {
-		t.Fatal("tasks.create not registered")
+	for _, name := range []string{"tasks.create", "tasks.update", "tasks.delete"} {
+		registry.Register(ToolDescriptor{Name: name, Permission: "write_task"}, func(context.Context, map[string]any) (any, error) {
+			return map[string]any{"ok": true}, nil
+		})
+		tool, ok := registry.Get(name)
+		if !ok {
+			t.Fatalf("%s not registered", name)
+		}
+		if tool.Descriptor.RiskLevel != "low" {
+			t.Fatalf("%s risk level = %q, want low", name, tool.Descriptor.RiskLevel)
+		}
+		if ToolRequiresApproval(tool.Descriptor, PermissionModeApproval) {
+			t.Fatalf("%s unexpectedly requires approval in approval mode", name)
+		}
 	}
-	if tool.Descriptor.RiskLevel != "low" {
-		t.Fatalf("risk level = %q, want low", tool.Descriptor.RiskLevel)
-	}
-	if ToolRequiresApproval(tool.Descriptor, PermissionModeApproval) {
-		t.Fatal("tasks.create unexpectedly requires approval in approval mode")
+}
+
+func TestLowRiskWriteToolsCanSkipApproval(t *testing.T) {
+	registry := NewToolRegistry()
+	for _, name := range []string{"memory.remember", "memory.forget", "strategy.save_draft"} {
+		registry.Register(ToolDescriptor{Name: name, Permission: map[string]string{
+			"memory.remember":     "write_memory",
+			"memory.forget":       "write_memory",
+			"strategy.save_draft": "write_strategy",
+		}[name]}, func(context.Context, map[string]any) (any, error) {
+			return map[string]any{"ok": true}, nil
+		})
+		tool, ok := registry.Get(name)
+		if !ok {
+			t.Fatalf("%s not registered", name)
+		}
+		if tool.Descriptor.RiskLevel != "low" {
+			t.Fatalf("%s risk level = %q, want low", name, tool.Descriptor.RiskLevel)
+		}
+		if ToolRequiresApproval(tool.Descriptor, PermissionModeApproval) {
+			t.Fatalf("%s unexpectedly requires approval in approval mode", name)
+		}
 	}
 }
 

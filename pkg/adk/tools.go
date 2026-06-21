@@ -240,7 +240,7 @@ func ToolRequiresApproval(descriptor ToolDescriptor, mode string) bool {
 
 func toolExplicitlySkipsApproval(name string) bool {
 	switch strings.TrimSpace(name) {
-	case "tasks.create", "strategy.research_backtest":
+	case "tasks.create", "tasks.update", "tasks.delete", "memory.remember", "memory.forget", "strategy.save_draft", "strategy.research_backtest":
 		return true
 	default:
 		return false
@@ -675,7 +675,8 @@ func defaultToolInputSchema(name string) map[string]any {
 }
 
 func defaultToolRiskLevelForTool(name string, permission string) string {
-	if name == "tasks.create" {
+	switch name {
+	case "tasks.create", "tasks.update", "tasks.delete", "memory.remember", "memory.forget", "strategy.save_draft":
 		return "low"
 	}
 	return defaultToolRiskLevel(permission)

@@ -299,7 +299,7 @@ func registerJFTradeADKStrategyTools(store *jfadk.Store, registry *jfadk.ToolReg
 		}
 		return payload, nil
 	})
-	registry.Register(jfadk.ToolDescriptor{Name: "strategy.save_draft", DisplayName: "保存策略草稿", Description: "把 agent 生成的 Pine Script v6 策略脚本保存为策略定义草稿。", Category: "strategy", Permission: "write_strategy", RequiresApprovalIn: []string{jfadk.PermissionModeApproval}, OutputSummary: "保存后的策略定义。"}, func(_ context.Context, input map[string]any) (any, error) {
+	registry.Register(jfadk.ToolDescriptor{Name: "strategy.save_draft", DisplayName: "保存策略草稿", Description: "把 agent 生成的 Pine Script v6 策略脚本保存为策略定义草稿。", Category: "strategy", Permission: "write_strategy", RiskLevel: "low", OutputSummary: "保存后的策略定义。"}, func(_ context.Context, input map[string]any) (any, error) {
 		script := strings.TrimSpace(stringValue(input, "script"))
 		if script == "" {
 			script = strategypinespec.Skeleton()
@@ -480,14 +480,14 @@ func registerJFTradeADKWorkflowTools(store *jfadk.Store, registry *jfadk.ToolReg
 		}
 		return task, err
 	})
-	registry.Register(jfadk.ToolDescriptor{Name: "tasks.update", DisplayName: "更新 ADK 任务", Description: "更新轻量 ADK 任务的状态或详情。", Category: "workflow", Permission: "write_task", OutputSummary: "已更新的任务。"}, func(ctx context.Context, input map[string]any) (any, error) {
+	registry.Register(jfadk.ToolDescriptor{Name: "tasks.update", DisplayName: "更新 ADK 任务", Description: "更新轻量 ADK 任务的状态或详情。", Category: "workflow", Permission: "write_task", RiskLevel: "low", OutputSummary: "已更新的任务。"}, func(ctx context.Context, input map[string]any) (any, error) {
 		task, err := store.UpdateTask(ctx, stringValue(input, "id"), taskPatchFromInput(input))
 		if err == nil {
 			recordADKWorkflowAudit(ctx, deps, "task.updated", task.ID, "ADK task updated.", map[string]any{"status": task.Status})
 		}
 		return task, err
 	})
-	registry.Register(jfadk.ToolDescriptor{Name: "tasks.delete", DisplayName: "删除 ADK 任务", Description: "删除轻量 ADK 任务记录。", Category: "workflow", Permission: "write_task", OutputSummary: "删除结果。"}, func(ctx context.Context, input map[string]any) (any, error) {
+	registry.Register(jfadk.ToolDescriptor{Name: "tasks.delete", DisplayName: "删除 ADK 任务", Description: "删除轻量 ADK 任务记录。", Category: "workflow", Permission: "write_task", RiskLevel: "low", OutputSummary: "删除结果。"}, func(ctx context.Context, input map[string]any) (any, error) {
 		id := stringValue(input, "id")
 		if err := store.DeleteTask(ctx, id); err != nil {
 			return nil, err
@@ -502,14 +502,14 @@ func registerJFTradeADKWorkflowTools(store *jfadk.Store, registry *jfadk.ToolReg
 		}
 		return map[string]any{"entries": entries, "totalReturned": len(entries)}, nil
 	})
-	registry.Register(jfadk.ToolDescriptor{Name: "memory.remember", DisplayName: "写入 ADK 记忆", Description: "将简短的工作区或 agent 记忆条目保存到 ADK 数据库。", Category: "workflow", Permission: "write_memory", OutputSummary: "已保存的记忆条目。"}, func(ctx context.Context, input map[string]any) (any, error) {
+	registry.Register(jfadk.ToolDescriptor{Name: "memory.remember", DisplayName: "写入 ADK 记忆", Description: "将简短的工作区或 agent 记忆条目保存到 ADK 数据库。", Category: "workflow", Permission: "write_memory", RiskLevel: "low", OutputSummary: "已保存的记忆条目。"}, func(ctx context.Context, input map[string]any) (any, error) {
 		entry, err := store.SaveMemory(ctx, jfadk.MemoryWriteRequest{AgentID: stringValue(input, "agentId"), Key: stringValue(input, "key"), Value: stringValue(input, "value"), Scope: stringValue(input, "scope")})
 		if err == nil {
 			recordADKWorkflowAudit(ctx, deps, "memory.saved", entry.ID, "ADK memory saved.", map[string]any{"scope": entry.Scope, "key": entry.Key})
 		}
 		return entry, err
 	})
-	registry.Register(jfadk.ToolDescriptor{Name: "memory.forget", DisplayName: "删除 ADK 记忆", Description: "从 ADK 数据库删除工作区或 agent 记忆条目。", Category: "workflow", Permission: "write_memory", OutputSummary: "删除结果。"}, func(ctx context.Context, input map[string]any) (any, error) {
+	registry.Register(jfadk.ToolDescriptor{Name: "memory.forget", DisplayName: "删除 ADK 记忆", Description: "从 ADK 数据库删除工作区或 agent 记忆条目。", Category: "workflow", Permission: "write_memory", RiskLevel: "low", OutputSummary: "删除结果。"}, func(ctx context.Context, input map[string]any) (any, error) {
 		id := stringValue(input, "id")
 		if err := store.DeleteMemory(ctx, id); err != nil {
 			return nil, err

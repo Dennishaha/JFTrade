@@ -601,15 +601,17 @@ func TestResolveApprovalAsyncDetachesClosedStreamBeforeBackgroundResume(t *testi
 	executions := 0
 	registry := NewToolRegistry()
 	registry.Register(ToolDescriptor{
-		Name: "strategy.save_draft", Permission: "write_strategy",
-		AllowedModes: []string{PermissionModeApproval},
+		Name:               "approval.required",
+		Permission:         "write_strategy",
+		AllowedModes:       []string{PermissionModeApproval},
+		RequiresApprovalIn: []string{PermissionModeApproval},
 	}, func(context.Context, map[string]any) (any, error) {
 		executions++
 		return map[string]any{"saved": true}, nil
 	})
 	runtime = newRuntimeWithRegistry(t, runtime.Store(), registry)
 	agent, err := runtime.Store().SaveAgent(ctx, AgentWriteRequest{
-		ID: "agent", Name: "Agent", ProviderID: testProviderID, Tools: []string{"strategy.save_draft"},
+		ID: "agent", Name: "Agent", ProviderID: testProviderID, Tools: []string{"approval.required"},
 		PermissionMode: PermissionModeApproval, Status: AgentStatusEnabled,
 	})
 	if err != nil {
@@ -619,7 +621,7 @@ func TestResolveApprovalAsyncDetachesClosedStreamBeforeBackgroundResume(t *testi
 	var streamClosed atomic.Bool
 	var lateDeltaCalls atomic.Int32
 	response, err := runtime.ChatStream(ctx, ChatRequest{
-		AgentID: agent.ID, Message: "@strategy.save_draft save",
+		AgentID: agent.ID, Message: "@approval.required save",
 	}, func(delta ChatDelta) error {
 		if streamClosed.Load() {
 			lateDeltaCalls.Add(1)

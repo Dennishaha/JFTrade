@@ -40,6 +40,7 @@ import {
   isUserPauseRequestedGoalRun,
   resolveGoalAwareChatResponse,
   selectActiveGoalRun,
+  selectPrimaryRootRun,
   isBlockingRunStatus,
   shouldWaitForRunContinuation,
   syncGoalAwareActiveRun,
@@ -95,6 +96,7 @@ export interface SlashCommandItem {
 }
 
 const COMPOSER_STATE_SAVE_DELAY_MS = 600;
+const CONTEXT_REFRESH_THROTTLE_MS = 1000;
 
 export function useADKPageChatState(
   threadRef: Ref<HTMLElement | null>,
@@ -130,6 +132,7 @@ export function useADKPageChatState(
   let streamReconnectController: AbortController | null = null;
   let chatStreamController: AbortController | null = null;
   let chatStreamAbortReason = "";
+  let lastContextRefreshAt = 0;
   const pageState = readADKPagePersistentState();
   const flushComposerStateBeforeUnload = () => {
     void flushComposerState({ keepalive: true });
@@ -193,6 +196,13 @@ export function useADKPageChatState(
       workflowRun: workflowQueues.parentWorkflowPlanRun.value,
     }),
   );
+  const primaryRootRun = computed(() =>
+    selectPrimaryRootRun({
+      activeRunSnapshot: activeRunSnapshot.value,
+      activeGoalRunSnapshot: activeGoalRunSnapshot.value,
+      workflowRun: workflowQueues.parentWorkflowPlanRun.value,
+    }),
+  );
   const selectedAgentDefaultWorkMode = computed(() => {
     const agent = sessionState.agents.value.find(
       (candidate) => candidate.id === sessionState.selectedAgentId.value,
@@ -238,8 +248,19 @@ export function useADKPageChatState(
     () => goalPaused.value && !goalLifecycleBusy.value,
   );
   const hasBlockingRun = computed(() =>
-    isBlockingRunStatus(activeRun.value?.status),
+    primaryRootRun.value
+      ? isBlockingRunStatus(primaryRootRun.value.status)
+      : isBlockingRunStatus(activeRun.value?.status),
   );
+  const activeRunControlId = computed(() => {
+    if (
+      primaryRootRun.value &&
+      isBlockingRunStatus(primaryRootRun.value.status)
+    ) {
+      return primaryRootRun.value.id;
+    }
+    return activeRun.value?.runId ?? "";
+  });
   const currentQueueSessionKey = computed(() =>
     buildQueueSessionKey(sessionState.selectedSessionId.value),
   );
@@ -366,6 +387,11 @@ export function useADKPageChatState(
   watch(sessionState.selectedSessionId, (sessionId) => {
     pageState.selectedSessionId = sessionId.trim();
     writeADKPagePersistentState(pageState);
+  });
+
+  watch(contextDetailsOpen, (open) => {
+    if (!open) return;
+    void refreshSessionContext(undefined, true);
   });
 
   onBeforeUnmount(() => {
@@ -601,6 +627,7 @@ export function useADKPageChatState(
     }
     if (event.type === "run" && event.run?.id) {
       syncActiveRun(normalizeADKRun(event.run), true);
+      scheduleSessionContextRefresh(eventSessionId);
     }
     if (event.type === "timeline" && event.timeline) {
       timelineEntries.value = upsertTimelineEntry(
@@ -693,7 +720,7 @@ export function useADKPageChatState(
       return;
     }
 
-    const currentRunId = activeRunId.value;
+    const currentRunId = activeRunControlId.value;
     enqueueChatMessage(text, "interrupt", {
       forceChat: shouldSendCurrentDraftAsGoalConversation(),
     });
@@ -708,7 +735,7 @@ export function useADKPageChatState(
     await cancelActiveRun(currentRunId);
   }
 
-  async function cancelActiveRun(runId = activeRunId.value): Promise<void> {
+  async function cancelActiveRun(runId = activeRunControlId.value): Promise<void> {
     if (!runId) return;
     try {
       const run = normalizeADKRun(
@@ -1147,6 +1174,7 @@ export function useADKPageChatState(
       sessionContext.value = null;
       return;
     }
+    lastContextRefreshAt = Date.now();
     if (showBusy) contextBusy.value = true;
     try {
       const context = await fetchADKSessionContext(sessionId);
@@ -1158,6 +1186,19 @@ export function useADKPageChatState(
     } finally {
       if (showBusy) contextBusy.value = false;
     }
+  }
+
+  function scheduleSessionContextRefresh(
+    sessionId = sessionState.selectedSessionId.value,
+  ): void {
+    const normalized = sessionId.trim();
+    if (normalized === "") {
+      return;
+    }
+    if (Date.now() - lastContextRefreshAt < CONTEXT_REFRESH_THROTTLE_MS) {
+      return;
+    }
+    void refreshSessionContext(normalized);
   }
 
   function markComposerStateDirty(): void {

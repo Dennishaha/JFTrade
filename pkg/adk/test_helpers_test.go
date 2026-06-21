@@ -183,7 +183,9 @@ func testProviderWorkflowPlanCalls(req openAIChatRequest, text string) []openAIT
 	if strings.Contains(text, "创建子智能体") {
 		title = "委派子智能体"
 		message = "请创建子智能体完成任务"
-		if strings.Contains(text, "strategy.save_draft") {
+		if strings.Contains(text, "approval.required") {
+			message = "请 @approval.required 保存策略"
+		} else if strings.Contains(text, "strategy.save_draft") {
 			message = "请 @strategy.save_draft 保存策略"
 		} else if strings.Contains(text, "行情分析") {
 			message = "请创建子智能体完成行情分析"
@@ -217,7 +219,7 @@ func testProviderWorkflowTaskCalls(req openAIChatRequest, text string) []openAIT
 		return []openAIToolCall{testProviderToolCall("call-task-list", workflowTasksListTool, map[string]any{})}
 	}
 	taskID := testProviderTaskIDFromText(text)
-	if strings.Contains(text, "创建子智能体") || strings.Contains(text, "strategy.save_draft") {
+	if strings.Contains(text, "创建子智能体") || strings.Contains(text, "approval.required") || strings.Contains(text, "strategy.save_draft") {
 		return []openAIToolCall{testProviderToolCall("call-task-delegate", workflowTaskDelegateTool, map[string]any{
 			"taskId": taskID, "prompt": testProviderDelegatePrompt(text), "agentRole": "执行子 Agent",
 		})}
@@ -452,6 +454,9 @@ func testProviderTaskIDFromText(text string) string {
 }
 
 func testProviderDelegatePrompt(text string) string {
+	if strings.Contains(text, "approval.required") {
+		return "请 @approval.required 保存策略"
+	}
 	if strings.Contains(text, "strategy.save_draft") {
 		return "请 @strategy.save_draft 保存策略"
 	}

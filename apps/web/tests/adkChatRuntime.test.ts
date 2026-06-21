@@ -5,6 +5,7 @@ import type { ADKRun } from "@/contracts";
 import {
   resolveGoalAwareChatResponse,
   selectActiveGoalRun,
+  selectPrimaryRootRun,
   isStaleTerminalGoalPauseOverride,
   mergeADKRunLifecycleSnapshot,
   syncGoalAwareActiveRun,
@@ -211,6 +212,45 @@ describe("mergeADKRunLifecycleSnapshot", () => {
     });
 
     expect(selected?.id).toBe(pausedGoal.id);
+  });
+
+  it("prefers the workflow parent as the controlling root run", () => {
+    const workflowRun = buildRun({
+      id: "run-workflow-parent",
+      status: "RUNNING",
+      workMode: "loop",
+      workflowStatus: "RUNNING",
+    });
+    const otherRootRun = buildRun({
+      id: "run-other-root",
+      status: "RUNNING",
+    });
+
+    const selected = selectPrimaryRootRun({
+      activeRunSnapshot: otherRootRun,
+      activeGoalRunSnapshot: null,
+      workflowRun,
+    });
+
+    expect(selected?.id).toBe(workflowRun.id);
+  });
+
+  it("keeps a terminal root run authoritative over stale child activity", () => {
+    const cancelledRootRun = buildRun({
+      id: "run-root-cancelled",
+      status: "CANCELLED",
+      workMode: "loop",
+      workflowStatus: "CANCELLED",
+    });
+
+    const selected = selectPrimaryRootRun({
+      activeRunSnapshot: cancelledRootRun,
+      activeGoalRunSnapshot: null,
+      workflowRun: null,
+    });
+
+    expect(selected?.id).toBe(cancelledRootRun.id);
+    expect(selected?.status).toBe("CANCELLED");
   });
 
   it("resolves a stale terminal pause override into a normalized response", () => {

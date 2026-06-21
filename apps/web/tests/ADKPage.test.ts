@@ -1111,6 +1111,64 @@ describe("ADKPage", () => {
     expect(document.body.textContent).toContain("已有上下文快照");
   });
 
+  it("refreshes the context popover from the live session snapshot while a run is still active", async () => {
+    const liveContext = buildSessionContextSnapshot({
+      contextRevisionId: "ctx-live-during-run",
+      contextRevisionCreatedAt: "2026-06-21T05:00:00Z",
+      currentInputTokens: 67874,
+      projectedNextTurnTokens: 67874,
+      contextWindowTokens: 200000,
+      usageRatio: 0.33937,
+      activeHandoffCount: 2,
+      compactedEventCount: 18,
+      autoCompacted: true,
+      summaryPreview: "运行中也应显示最新上下文",
+    });
+    const runningWorkflow = buildRun({
+      id: "run-live-context",
+      status: "RUNNING",
+      workMode: "loop",
+      workflowStatus: "RUNNING",
+      objective: "持续推进中",
+    });
+    streamADKChatMock.mockImplementationOnce(async (_payload, onEvent) => {
+      const response: ADKChatResponse = {
+        reply: "still running",
+        session: buildSession(),
+        run: runningWorkflow,
+        pendingApprovals: [],
+        timeline: [
+          buildTimelineEntry("assistant_message", {
+            id: "live-context-answer",
+            runId: runningWorkflow.id,
+            text: "still running",
+          }),
+        ],
+      };
+      await onEvent({ type: "session", session: response.session });
+      await onEvent({ type: "run", run: runningWorkflow });
+      await onEvent({ type: "final", response });
+      return response;
+    });
+
+    mountADKPage({
+      sessionContextSequence: [null, liveContext],
+    });
+    await flushRequests();
+
+    await sendPageMessage("start long task");
+
+    document
+      .querySelector<HTMLButtonElement>(".adk-context-pill")
+      ?.click();
+    await flushRequests();
+
+    expect(document.body.textContent).toContain("34% 正常");
+    expect(document.body.textContent).toContain("200,000");
+    expect(document.body.textContent).toContain("ctx-live-during-ru...");
+    expect(document.body.textContent).toContain("运行中也应显示最新上下文");
+  });
+
   it("marks failed child agent queue items as error instead of success", async () => {
     const workflowRun = buildRun({
       id: "parent-run-child-failed",

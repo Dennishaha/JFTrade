@@ -31,8 +31,9 @@ func TestADKApprovalApproveRouteReturnsRunningResolutionEnvelope(t *testing.T) {
 	releaseTool := make(chan struct{})
 	toolStarted := make(chan struct{}, 1)
 	server.adkRuntime.Tools().Register(jfadk.ToolDescriptor{
-		Name: "strategy.save_draft", Permission: "write_strategy",
-		AllowedModes: []string{jfadk.PermissionModeApproval},
+		Name: "approval.required", Permission: "write_strategy",
+		AllowedModes:       []string{jfadk.PermissionModeApproval},
+		RequiresApprovalIn: []string{jfadk.PermissionModeApproval},
 	}, func(ctx context.Context, _ map[string]any) (any, error) {
 		select {
 		case toolStarted <- struct{}{}:
@@ -52,7 +53,7 @@ func TestADKApprovalApproveRouteReturnsRunningResolutionEnvelope(t *testing.T) {
 		ID:             "approval-agent-running",
 		Name:           "Approval Agent",
 		ProviderID:     testADKProviderID,
-		Tools:          []string{"strategy.save_draft"},
+		Tools:          []string{"approval.required"},
 		PermissionMode: jfadk.PermissionModeApproval,
 		Status:         jfadk.AgentStatusEnabled,
 	})
@@ -60,7 +61,7 @@ func TestADKApprovalApproveRouteReturnsRunningResolutionEnvelope(t *testing.T) {
 		t.Fatalf("SaveAgent: %v", err)
 	}
 
-	chatPayload := []byte(`{"agentId":"` + agent.ID + `","message":"@strategy.save_draft save"}`)
+	chatPayload := []byte(`{"agentId":"` + agent.ID + `","message":"<execute-tool name=\"approval.required\" />"}`)
 	chatResp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/adk/chat", "application/json", bytes.NewReader(chatPayload))
 	if err != nil {
 		t.Fatalf("POST adk chat: %v", err)
@@ -192,6 +193,14 @@ func TestADKApprovalRouteReturnsResolutionEnvelope(t *testing.T) {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
 	server := newTestServer(t, store)
+	server.adkRuntime.Tools().Register(jfadk.ToolDescriptor{
+		Name:               "approval.required",
+		Permission:         "write_strategy",
+		AllowedModes:       []string{jfadk.PermissionModeApproval},
+		RequiresApprovalIn: []string{jfadk.PermissionModeApproval},
+	}, func(context.Context, map[string]any) (any, error) {
+		return map[string]any{"saved": true}, nil
+	})
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
@@ -199,7 +208,7 @@ func TestADKApprovalRouteReturnsResolutionEnvelope(t *testing.T) {
 		ID:             "approval-agent",
 		Name:           "Approval Agent",
 		ProviderID:     testADKProviderID,
-		Tools:          []string{"strategy.save_draft"},
+		Tools:          []string{"approval.required"},
 		PermissionMode: jfadk.PermissionModeApproval,
 		Status:         jfadk.AgentStatusEnabled,
 	})
@@ -207,7 +216,7 @@ func TestADKApprovalRouteReturnsResolutionEnvelope(t *testing.T) {
 		t.Fatalf("SaveAgent: %v", err)
 	}
 
-	chatPayload := []byte(`{"agentId":"` + agent.ID + `","message":"@strategy.save_draft 保存一个策略草稿"}`)
+	chatPayload := []byte(`{"agentId":"` + agent.ID + `","message":"<execute-tool name=\"approval.required\" />"}`)
 	chatResp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/adk/chat", "application/json", bytes.NewReader(chatPayload))
 	if err != nil {
 		t.Fatalf("POST adk chat: %v", err)
@@ -281,6 +290,14 @@ func TestADKProviderDeleteRejectsReferencedProvider(t *testing.T) {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
 	server := newTestServer(t, store)
+	server.adkRuntime.Tools().Register(jfadk.ToolDescriptor{
+		Name:               "approval.required",
+		Permission:         "write_strategy",
+		AllowedModes:       []string{jfadk.PermissionModeApproval},
+		RequiresApprovalIn: []string{jfadk.PermissionModeApproval},
+	}, func(context.Context, map[string]any) (any, error) {
+		return map[string]any{"saved": true}, nil
+	})
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
@@ -1142,6 +1159,14 @@ func TestADKSessionDetailOmitsResolvedApprovalGroups(t *testing.T) {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
 	server := newTestServer(t, store)
+	server.adkRuntime.Tools().Register(jfadk.ToolDescriptor{
+		Name:               "approval.required",
+		Permission:         "write_strategy",
+		AllowedModes:       []string{jfadk.PermissionModeApproval},
+		RequiresApprovalIn: []string{jfadk.PermissionModeApproval},
+	}, func(context.Context, map[string]any) (any, error) {
+		return map[string]any{"saved": true}, nil
+	})
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
@@ -1149,7 +1174,7 @@ func TestADKSessionDetailOmitsResolvedApprovalGroups(t *testing.T) {
 		ID:             "session-approval-agent",
 		Name:           "Session Approval Agent",
 		ProviderID:     testADKProviderID,
-		Tools:          []string{"strategy.save_draft"},
+		Tools:          []string{"approval.required"},
 		PermissionMode: jfadk.PermissionModeApproval,
 		Status:         jfadk.AgentStatusEnabled,
 	})
@@ -1161,7 +1186,7 @@ func TestADKSessionDetailOmitsResolvedApprovalGroups(t *testing.T) {
 		t.Fatalf("CreateSession: %v", err)
 	}
 
-	chatResp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/adk/chat", "application/json", strings.NewReader(`{"agentId":"`+agent.ID+`","sessionId":"`+session.ID+`","message":"@strategy.save_draft 保存草稿"}`))
+	chatResp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/adk/chat", "application/json", strings.NewReader(`{"agentId":"`+agent.ID+`","sessionId":"`+session.ID+`","message":"<execute-tool name=\"approval.required\" />"}`))
 	if err != nil {
 		t.Fatalf("POST session chat: %v", err)
 	}
@@ -1271,6 +1296,14 @@ func TestADKAuditRouteFiltersByKindAndSubjectID(t *testing.T) {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
 	server := newTestServer(t, store)
+	server.adkRuntime.Tools().Register(jfadk.ToolDescriptor{
+		Name:               "approval.required",
+		Permission:         "write_strategy",
+		AllowedModes:       []string{jfadk.PermissionModeApproval},
+		RequiresApprovalIn: []string{jfadk.PermissionModeApproval},
+	}, func(context.Context, map[string]any) (any, error) {
+		return map[string]any{"saved": true}, nil
+	})
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
@@ -2010,6 +2043,14 @@ func TestADKApprovalNegativeAndIdempotentRoutes(t *testing.T) {
 		t.Fatalf("NewSettingsStore: %v", err)
 	}
 	server := newTestServer(t, store)
+	server.adkRuntime.Tools().Register(jfadk.ToolDescriptor{
+		Name:               "approval.required",
+		Permission:         "write_strategy",
+		AllowedModes:       []string{jfadk.PermissionModeApproval},
+		RequiresApprovalIn: []string{jfadk.PermissionModeApproval},
+	}, func(context.Context, map[string]any) (any, error) {
+		return map[string]any{"saved": true}, nil
+	})
 	srv := httptest.NewServer(server)
 	t.Cleanup(srv.Close)
 
@@ -2048,14 +2089,14 @@ func TestADKApprovalNegativeAndIdempotentRoutes(t *testing.T) {
 		ID:             "approval-idempotent-agent",
 		Name:           "Approval Idempotent Agent",
 		ProviderID:     testADKProviderID,
-		Tools:          []string{"strategy.save_draft"},
+		Tools:          []string{"approval.required"},
 		PermissionMode: jfadk.PermissionModeApproval,
 		Status:         jfadk.AgentStatusEnabled,
 	})
 	if err != nil {
 		t.Fatalf("SaveAgent: %v", err)
 	}
-	chatResp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/adk/chat", "application/json", strings.NewReader(`{"agentId":"`+agent.ID+`","message":"@strategy.save_draft 保存草稿"}`))
+	chatResp, err := jftradeTestHTTPPost(t, srv.URL+"/api/v1/adk/chat", "application/json", strings.NewReader(`{"agentId":"`+agent.ID+`","message":"<execute-tool name=\"approval.required\" />"}`))
 	if err != nil {
 		t.Fatalf("POST chat for approval: %v", err)
 	}

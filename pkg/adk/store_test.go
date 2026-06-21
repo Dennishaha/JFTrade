@@ -446,7 +446,7 @@ func TestApprovalModeCreatesPendingApprovalForWriteTool(t *testing.T) {
 	registry := NewToolRegistry()
 	executed := false
 	registry.Register(ToolDescriptor{
-		Name:         "strategy.save_draft",
+		Name:         "approval.required",
 		DisplayName:  "Save draft",
 		Description:  "test write tool",
 		Category:     "strategy",
@@ -461,14 +461,14 @@ func TestApprovalModeCreatesPendingApprovalForWriteTool(t *testing.T) {
 		ID:             "agent",
 		Name:           "Agent",
 		ProviderID:     testProviderID,
-		Tools:          []string{"strategy.save_draft"},
+		Tools:          []string{"approval.required"},
 		PermissionMode: PermissionModeApproval,
 		Status:         AgentStatusEnabled,
 	})
 	if err != nil {
 		t.Fatalf("SaveAgent: %v", err)
 	}
-	response, err := runtime.Chat(ctx, ChatRequest{AgentID: agent.ID, Message: "@strategy.save_draft 保存策略"})
+	response, err := runtime.Chat(ctx, ChatRequest{AgentID: agent.ID, Message: "@approval.required 保存策略"})
 	if err != nil {
 		t.Fatalf("Chat: %v", err)
 	}
@@ -494,10 +494,10 @@ func TestApprovalModeCreatesPendingApprovalForWriteTool(t *testing.T) {
 	if resolution.Message == nil || !strings.Contains(resolution.Message.Content, "已完成 ADK 分析") {
 		t.Fatalf("resolution message = %+v, want regenerated final reply", resolution.Message)
 	}
-	if resolution.Run.UserMessage != "@strategy.save_draft 保存策略" {
+	if resolution.Run.UserMessage != "@approval.required 保存策略" {
 		t.Fatalf("run user message = %q, want original request", resolution.Run.UserMessage)
 	}
-	if len(resolution.Run.ToolSummaries) != 1 || !strings.Contains(resolution.Run.ToolSummaries[0], "strategy.save_draft") {
+	if len(resolution.Run.ToolSummaries) != 1 || !strings.Contains(resolution.Run.ToolSummaries[0], "approval.required") {
 		t.Fatalf("tool summaries = %+v, want saved draft summary", resolution.Run.ToolSummaries)
 	}
 }
@@ -508,7 +508,7 @@ func TestIdempotentApprovalRecoversPendingRunWithStaleEmbeddedApproval(t *testin
 	registry := NewToolRegistry()
 	executed := false
 	registry.Register(ToolDescriptor{
-		Name:         "strategy.save_draft",
+		Name:         "approval.required",
 		DisplayName:  "Save draft",
 		Description:  "test write tool",
 		Category:     "strategy",
@@ -523,14 +523,14 @@ func TestIdempotentApprovalRecoversPendingRunWithStaleEmbeddedApproval(t *testin
 		ID:             "agent-stale-approval",
 		Name:           "Agent",
 		ProviderID:     testProviderID,
-		Tools:          []string{"strategy.save_draft"},
+		Tools:          []string{"approval.required"},
 		PermissionMode: PermissionModeApproval,
 		Status:         AgentStatusEnabled,
 	})
 	if err != nil {
 		t.Fatalf("SaveAgent: %v", err)
 	}
-	response, err := runtime.Chat(ctx, ChatRequest{AgentID: agent.ID, Message: "@strategy.save_draft 保存策略"})
+	response, err := runtime.Chat(ctx, ChatRequest{AgentID: agent.ID, Message: "@approval.required 保存策略"})
 	if err != nil {
 		t.Fatalf("Chat: %v", err)
 	}
@@ -577,7 +577,7 @@ func TestReconcileResolvedApprovalsRecoversPendingRun(t *testing.T) {
 	registry := NewToolRegistry()
 	var executed atomic.Bool
 	registry.Register(ToolDescriptor{
-		Name:         "strategy.save_draft",
+		Name:         "approval.required",
 		DisplayName:  "Save draft",
 		Description:  "test write tool",
 		Category:     "strategy",
@@ -592,14 +592,14 @@ func TestReconcileResolvedApprovalsRecoversPendingRun(t *testing.T) {
 		ID:             "agent-reconcile-approval",
 		Name:           "Agent",
 		ProviderID:     testProviderID,
-		Tools:          []string{"strategy.save_draft"},
+		Tools:          []string{"approval.required"},
 		PermissionMode: PermissionModeApproval,
 		Status:         AgentStatusEnabled,
 	})
 	if err != nil {
 		t.Fatalf("SaveAgent: %v", err)
 	}
-	response, err := runtime.Chat(ctx, ChatRequest{AgentID: agent.ID, Message: "@strategy.save_draft 保存策略"})
+	response, err := runtime.Chat(ctx, ChatRequest{AgentID: agent.ID, Message: "@approval.required 保存策略"})
 	if err != nil {
 		t.Fatalf("Chat: %v", err)
 	}
@@ -640,7 +640,7 @@ func TestApprovalDenialCreatesAssistantSummary(t *testing.T) {
 	registry := NewToolRegistry()
 	executed := false
 	registry.Register(ToolDescriptor{
-		Name:         "strategy.save_draft",
+		Name:         "approval.required",
 		DisplayName:  "Save draft",
 		Description:  "test write tool",
 		Category:     "strategy",
@@ -655,14 +655,14 @@ func TestApprovalDenialCreatesAssistantSummary(t *testing.T) {
 		ID:             "agent",
 		Name:           "Agent",
 		ProviderID:     testProviderID,
-		Tools:          []string{"strategy.save_draft"},
+		Tools:          []string{"approval.required"},
 		PermissionMode: PermissionModeApproval,
 		Status:         AgentStatusEnabled,
 	})
 	if err != nil {
 		t.Fatalf("SaveAgent: %v", err)
 	}
-	response, err := runtime.Chat(ctx, ChatRequest{AgentID: agent.ID, Message: "@strategy.save_draft 保存策略"})
+	response, err := runtime.Chat(ctx, ChatRequest{AgentID: agent.ID, Message: "@approval.required 保存策略"})
 	if err != nil {
 		t.Fatalf("Chat: %v", err)
 	}
@@ -689,7 +689,7 @@ func TestApprovalDenialRecordsResumedAndDeniedAuditEvents(t *testing.T) {
 	runtime := newTestRuntime(t)
 	registry := NewToolRegistry()
 	registry.Register(ToolDescriptor{
-		Name:         "strategy.save_draft",
+		Name:         "approval.required",
 		DisplayName:  "Save draft",
 		Description:  "test write tool",
 		Category:     "strategy",
@@ -703,14 +703,14 @@ func TestApprovalDenialRecordsResumedAndDeniedAuditEvents(t *testing.T) {
 		ID:             "agent-audit-deny",
 		Name:           "Agent",
 		ProviderID:     testProviderID,
-		Tools:          []string{"strategy.save_draft"},
+		Tools:          []string{"approval.required"},
 		PermissionMode: PermissionModeApproval,
 		Status:         AgentStatusEnabled,
 	})
 	if err != nil {
 		t.Fatalf("SaveAgent: %v", err)
 	}
-	response, err := runtime.Chat(ctx, ChatRequest{AgentID: agent.ID, Message: "@strategy.save_draft 保存策略"})
+	response, err := runtime.Chat(ctx, ChatRequest{AgentID: agent.ID, Message: "@approval.required 保存策略"})
 	if err != nil {
 		t.Fatalf("Chat: %v", err)
 	}
@@ -759,7 +759,7 @@ func TestApprovedPendingRunMarksFailureWhenToolExecutionFails(t *testing.T) {
 	runtime := newTestRuntime(t)
 	registry := NewToolRegistry()
 	registry.Register(ToolDescriptor{
-		Name:         "strategy.save_draft",
+		Name:         "approval.required",
 		DisplayName:  "Save draft",
 		Description:  "test write tool",
 		Category:     "strategy",
@@ -773,14 +773,14 @@ func TestApprovedPendingRunMarksFailureWhenToolExecutionFails(t *testing.T) {
 		ID:             "agent-failing-approval",
 		Name:           "Agent",
 		ProviderID:     testProviderID,
-		Tools:          []string{"strategy.save_draft"},
+		Tools:          []string{"approval.required"},
 		PermissionMode: PermissionModeApproval,
 		Status:         AgentStatusEnabled,
 	})
 	if err != nil {
 		t.Fatalf("SaveAgent: %v", err)
 	}
-	response, err := runtime.Chat(ctx, ChatRequest{AgentID: agent.ID, Message: "@strategy.save_draft 保存策略"})
+	response, err := runtime.Chat(ctx, ChatRequest{AgentID: agent.ID, Message: "@approval.required 保存策略"})
 	if err != nil {
 		t.Fatalf("Chat: %v", err)
 	}
@@ -2330,21 +2330,23 @@ func TestDuplicateApprovalResolutionDoesNotExecuteTwice(t *testing.T) {
 	executions := 0
 	registry := NewToolRegistry()
 	registry.Register(ToolDescriptor{
-		Name: "strategy.save_draft", Permission: "write_strategy",
-		AllowedModes: []string{PermissionModeApproval},
+		Name:               "approval.required",
+		Permission:         "write_strategy",
+		AllowedModes:       []string{PermissionModeApproval},
+		RequiresApprovalIn: []string{PermissionModeApproval},
 	}, func(context.Context, map[string]any) (any, error) {
 		executions++
 		return map[string]any{"saved": true}, nil
 	})
 	runtime = newRuntimeWithRegistry(t, runtime.Store(), registry)
 	agent, err := runtime.Store().SaveAgent(ctx, AgentWriteRequest{
-		ID: "agent", Name: "Agent", ProviderID: testProviderID, Tools: []string{"strategy.save_draft"},
+		ID: "agent", Name: "Agent", ProviderID: testProviderID, Tools: []string{"approval.required"},
 		PermissionMode: PermissionModeApproval, Status: AgentStatusEnabled,
 	})
 	if err != nil {
 		t.Fatalf("SaveAgent: %v", err)
 	}
-	response, err := runtime.Chat(ctx, ChatRequest{AgentID: agent.ID, Message: "@strategy.save_draft save"})
+	response, err := runtime.Chat(ctx, ChatRequest{AgentID: agent.ID, Message: "@approval.required save"})
 	if err != nil {
 		t.Fatalf("Chat: %v", err)
 	}
@@ -2366,22 +2368,24 @@ func TestPendingApprovalResumesThroughGoogleADKAfterRuntimeRestart(t *testing.T)
 	executions := 0
 	registry := NewToolRegistry()
 	registry.Register(ToolDescriptor{
-		Name: "strategy.save_draft", Permission: "write_strategy",
-		AllowedModes: []string{PermissionModeApproval},
+		Name:               "approval.required",
+		Permission:         "write_strategy",
+		AllowedModes:       []string{PermissionModeApproval},
+		RequiresApprovalIn: []string{PermissionModeApproval},
 	}, func(context.Context, map[string]any) (any, error) {
 		executions++
 		return map[string]any{"saved": true}, nil
 	})
 	runtime = newRuntimeWithRegistry(t, runtime.Store(), registry)
 	agent, err := runtime.Store().SaveAgent(ctx, AgentWriteRequest{
-		ID: "agent", Name: "Agent", ProviderID: testProviderID, Tools: []string{"strategy.save_draft"},
+		ID: "agent", Name: "Agent", ProviderID: testProviderID, Tools: []string{"approval.required"},
 		PermissionMode: PermissionModeApproval, Status: AgentStatusEnabled,
 	})
 	if err != nil {
 		t.Fatalf("SaveAgent: %v", err)
 	}
 	response, err := runtime.Chat(ctx, ChatRequest{
-		AgentID: agent.ID, Message: "@strategy.save_draft save",
+		AgentID: agent.ID, Message: "@approval.required save",
 	})
 	if err != nil {
 		t.Fatalf("Chat: %v", err)
@@ -2422,8 +2426,10 @@ func TestApprovalResumingRunIsRecoveredAfterRuntimeRestart(t *testing.T) {
 	executions := 0
 	registry := NewToolRegistry()
 	registry.Register(ToolDescriptor{
-		Name: "strategy.save_draft", Permission: "write_strategy",
-		AllowedModes: []string{PermissionModeApproval},
+		Name:               "approval.required",
+		Permission:         "write_strategy",
+		AllowedModes:       []string{PermissionModeApproval},
+		RequiresApprovalIn: []string{PermissionModeApproval},
 	}, func(ctx context.Context, _ map[string]any) (any, error) {
 		executions++
 		select {
@@ -2439,14 +2445,14 @@ func TestApprovalResumingRunIsRecoveredAfterRuntimeRestart(t *testing.T) {
 	})
 	runtime = newRuntimeWithRegistry(t, runtime.Store(), registry)
 	agent, err := runtime.Store().SaveAgent(ctx, AgentWriteRequest{
-		ID: "agent", Name: "Agent", ProviderID: testProviderID, Tools: []string{"strategy.save_draft"},
+		ID: "agent", Name: "Agent", ProviderID: testProviderID, Tools: []string{"approval.required"},
 		PermissionMode: PermissionModeApproval, Status: AgentStatusEnabled,
 	})
 	if err != nil {
 		t.Fatalf("SaveAgent: %v", err)
 	}
 	response, err := runtime.Chat(ctx, ChatRequest{
-		AgentID: agent.ID, Message: "@strategy.save_draft save",
+		AgentID: agent.ID, Message: "@approval.required save",
 	})
 	if err != nil {
 		t.Fatalf("Chat: %v", err)
@@ -2584,10 +2590,12 @@ func TestMultipleApprovalsExecuteOnlyAfterAllApproved(t *testing.T) {
 	runtime := newTestRuntime(t)
 	var executions atomic.Int64
 	registry := NewToolRegistry()
-	for _, name := range []string{"strategy.save_draft", "strategy.optimize"} {
+	for _, name := range []string{"approval.required.one", "approval.required.two"} {
 		registry.Register(ToolDescriptor{
-			Name: name, Permission: "write_strategy",
-			AllowedModes: []string{PermissionModeApproval},
+			Name:               name,
+			Permission:         "write_strategy",
+			AllowedModes:       []string{PermissionModeApproval},
+			RequiresApprovalIn: []string{PermissionModeApproval},
 		}, func(context.Context, map[string]any) (any, error) {
 			executions.Add(1)
 			return map[string]any{"ok": true}, nil
@@ -2595,7 +2603,7 @@ func TestMultipleApprovalsExecuteOnlyAfterAllApproved(t *testing.T) {
 	}
 	runtime = newRuntimeWithRegistry(t, runtime.Store(), registry)
 	agent, err := runtime.Store().SaveAgent(ctx, AgentWriteRequest{
-		ID: "agent", Name: "Agent", ProviderID: testProviderID, Tools: []string{"strategy.save_draft", "strategy.optimize"},
+		ID: "agent", Name: "Agent", ProviderID: testProviderID, Tools: []string{"approval.required.one", "approval.required.two"},
 		PermissionMode: PermissionModeApproval, Status: AgentStatusEnabled,
 	})
 	if err != nil {
@@ -2603,7 +2611,7 @@ func TestMultipleApprovalsExecuteOnlyAfterAllApproved(t *testing.T) {
 	}
 	response, err := runtime.Chat(ctx, ChatRequest{
 		AgentID: agent.ID,
-		Message: `<execute-tool name="strategy.save_draft" /><execute-tool name="strategy.optimize" />`,
+		Message: `<execute-tool name="approval.required.one" /><execute-tool name="approval.required.two" />`,
 	})
 	if err != nil {
 		t.Fatalf("Chat: %v", err)
@@ -2792,21 +2800,43 @@ func containsString(values []string, target string) bool {
 	return false
 }
 
-func TestWorkflowWriteToolsRequireApprovalExceptLowRiskTaskCreate(t *testing.T) {
+func TestWorkflowWriteToolsRequireApprovalExceptLowRiskTaskWrites(t *testing.T) {
 	ctx := context.Background()
 	runtime := newTestRuntime(t)
 	registry := NewToolRegistry()
 	var taskCreates int
+	var taskUpdates int
+	var taskDeletes int
+	var remembers int
+	var forgets int
+	var draftSaves int
 	registry.Register(ToolDescriptor{Name: "tasks.create", Permission: "write_task", AllowedModes: []string{PermissionModeApproval}}, func(context.Context, map[string]any) (any, error) {
 		taskCreates++
 		return map[string]any{"created": true}, nil
 	})
+	registry.Register(ToolDescriptor{Name: "tasks.update", Permission: "write_task", AllowedModes: []string{PermissionModeApproval}}, func(context.Context, map[string]any) (any, error) {
+		taskUpdates++
+		return map[string]any{"updated": true}, nil
+	})
+	registry.Register(ToolDescriptor{Name: "tasks.delete", Permission: "write_task", AllowedModes: []string{PermissionModeApproval}}, func(context.Context, map[string]any) (any, error) {
+		taskDeletes++
+		return map[string]any{"deleted": true}, nil
+	})
 	registry.Register(ToolDescriptor{Name: "memory.remember", Permission: "write_memory", AllowedModes: []string{PermissionModeApproval}}, func(context.Context, map[string]any) (any, error) {
+		remembers++
 		return map[string]any{"remembered": true}, nil
+	})
+	registry.Register(ToolDescriptor{Name: "memory.forget", Permission: "write_memory", AllowedModes: []string{PermissionModeApproval}}, func(context.Context, map[string]any) (any, error) {
+		forgets++
+		return map[string]any{"forgotten": true}, nil
+	})
+	registry.Register(ToolDescriptor{Name: "strategy.save_draft", Permission: "write_strategy", AllowedModes: []string{PermissionModeApproval}}, func(context.Context, map[string]any) (any, error) {
+		draftSaves++
+		return map[string]any{"saved": true}, nil
 	})
 	runtime = newRuntimeWithRegistry(t, runtime.Store(), registry)
 	agent, err := runtime.Store().SaveAgent(ctx, AgentWriteRequest{
-		ID: "workflow-agent", Name: "Workflow", ProviderID: testProviderID, Tools: []string{"tasks.create", "memory.remember"},
+		ID: "workflow-agent", Name: "Workflow", ProviderID: testProviderID, Tools: []string{"tasks.create", "tasks.update", "tasks.delete", "memory.remember", "memory.forget", "strategy.save_draft"},
 		PermissionMode: PermissionModeApproval, Status: AgentStatusEnabled,
 	})
 	if err != nil {
@@ -2814,7 +2844,7 @@ func TestWorkflowWriteToolsRequireApprovalExceptLowRiskTaskCreate(t *testing.T) 
 	}
 	response, err := runtime.Chat(ctx, ChatRequest{
 		AgentID: agent.ID,
-		Message: `<execute-tool name="tasks.create" title="Follow up" /><execute-tool name="memory.remember" key="market" value="HK" />`,
+		Message: `<execute-tool name="tasks.create" title="Follow up" /><execute-tool name="tasks.update" id="task-1" status="DONE" /><execute-tool name="tasks.delete" id="task-2" /><execute-tool name="memory.remember" key="market" value="HK" /><execute-tool name="memory.forget" id="memory-1" /><execute-tool name="strategy.save_draft" name="Draft" script="strategy('x')" />`,
 	})
 	if err != nil {
 		t.Fatalf("Chat: %v", err)
@@ -2822,10 +2852,22 @@ func TestWorkflowWriteToolsRequireApprovalExceptLowRiskTaskCreate(t *testing.T) 
 	if taskCreates != 1 {
 		t.Fatalf("task creates = %d, want executed without approval", taskCreates)
 	}
-	if len(response.PendingApprovals) != 1 {
-		t.Fatalf("pending approvals = %d, want only memory write approval", len(response.PendingApprovals))
+	if taskUpdates != 1 {
+		t.Fatalf("task updates = %d, want executed without approval", taskUpdates)
 	}
-	if response.PendingApprovals[0].ToolName != "memory.remember" {
-		t.Fatalf("pending approval tool = %q, want memory.remember", response.PendingApprovals[0].ToolName)
+	if taskDeletes != 1 {
+		t.Fatalf("task deletes = %d, want executed without approval", taskDeletes)
+	}
+	if remembers != 1 {
+		t.Fatalf("memory remembers = %d, want executed without approval", remembers)
+	}
+	if forgets != 1 {
+		t.Fatalf("memory forgets = %d, want executed without approval", forgets)
+	}
+	if draftSaves != 1 {
+		t.Fatalf("draft saves = %d, want executed without approval", draftSaves)
+	}
+	if len(response.PendingApprovals) != 0 {
+		t.Fatalf("pending approvals = %d, want 0", len(response.PendingApprovals))
 	}
 }

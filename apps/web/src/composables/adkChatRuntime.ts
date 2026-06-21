@@ -250,6 +250,22 @@ export function selectActiveGoalRun(options: {
     : null;
 }
 
+export function selectPrimaryRootRun(options: {
+  activeRunSnapshot: ADKRun | null;
+  activeGoalRunSnapshot: ADKRun | null;
+  workflowRun: ADKRun | null | undefined;
+}): ADKRun | null {
+  if (isRootRun(options.workflowRun)) {
+    return options.workflowRun;
+  }
+  if (isRootRun(options.activeRunSnapshot)) {
+    return options.activeRunSnapshot;
+  }
+  return isRootRun(options.activeGoalRunSnapshot)
+    ? options.activeGoalRunSnapshot
+    : null;
+}
+
 export function resolveGoalAwareChatResponse(
   response: ADKChatResponse,
   syncActiveRun: (
