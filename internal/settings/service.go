@@ -2,6 +2,7 @@ package settings
 
 import (
 	"context"
+	"errors"
 	"strings"
 
 	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
@@ -58,10 +59,12 @@ type Service struct {
 	sideEffects SideEffects
 
 	// 来自 Server 的委托（不在 Store 中的聚合信息）
-	brokerDescriptor  func() map[string]any
-	brokerSettingsFn  func() map[string]any
-	onboardingStateFn func(ctx context.Context) map[string]any
-	defaultTradingEnv string
+	brokerDescriptor       func() map[string]any
+	brokerSettingsFn       func() map[string]any
+	onboardingStateFn      func(ctx context.Context) map[string]any
+	defaultTradingEnv      string
+	dataMigrationStatusFn  func(context.Context) (any, error)
+	dataMigrationRebuildFn func(context.Context, any) (any, error)
 }
 
 // NewService 创建 settings 服务。
@@ -99,6 +102,30 @@ func WithOnboardingState(fn func(ctx context.Context) map[string]any) Option {
 // WithDefaultTradingEnvironment 设置默认交易环境。
 func WithDefaultTradingEnvironment(env string) Option {
 	return func(s *Service) { s.defaultTradingEnv = env }
+}
+
+func WithDataMigration(
+	status func(context.Context) (any, error),
+	rebuild func(context.Context, any) (any, error),
+) Option {
+	return func(s *Service) {
+		s.dataMigrationStatusFn = status
+		s.dataMigrationRebuildFn = rebuild
+	}
+}
+
+func (s *Service) DataMigrationStatus(ctx context.Context) (any, error) {
+	if s.dataMigrationStatusFn == nil {
+		return map[string]any{"databases": []any{}}, nil
+	}
+	return s.dataMigrationStatusFn(ctx)
+}
+
+func (s *Service) ScheduleDatabaseRebuild(ctx context.Context, request any) (any, error) {
+	if s.dataMigrationRebuildFn == nil {
+		return nil, errors.New("database rebuild is unavailable")
+	}
+	return s.dataMigrationRebuildFn(ctx, request)
 }
 
 // ── UI Appearance ──

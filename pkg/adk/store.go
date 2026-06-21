@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jftrade/jftrade-main/internal/store/sqliteschema"
 	"github.com/jmoiron/sqlx"
 	adksession "google.golang.org/adk/session"
 
@@ -45,6 +46,7 @@ const (
 type Store struct {
 	mu         sync.RWMutex
 	db         *sqlx.DB
+	dbPath     string
 	secrets    secretStore
 	skillsPath string
 	sessions   adksession.Service
@@ -68,8 +70,8 @@ func NewStore(dbPath string, secretsPath string, skillsPath string) (*Store, err
 	if err != nil {
 		return nil, fmt.Errorf("open adk sqlite store: %w", err)
 	}
-	store := &Store{db: db, secrets: secretStore{path: secretsPath}, skillsPath: skillsPath}
-	if err := store.migrate(); err != nil {
+	store := &Store{db: db, dbPath: dbPath, secrets: secretStore{path: secretsPath}, skillsPath: skillsPath}
+	if err := store.initializeOrValidateSchema(); err != nil {
 		jftradeErr2 := db.Close()
 		jftradeLogError(jftradeErr2)
 		return nil, err
@@ -105,71 +107,57 @@ func (s *Store) SetSessionService(service adksession.Service) {
 	s.sessions = service
 }
 
-func (s *Store) migrate() error {
-	// Create schema_migrations table for version tracking
-	if _, err := s.db.ExecContext(context.Background(), `CREATE TABLE IF NOT EXISTS adk_schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL)`); err != nil {
-		return fmt.Errorf("migrate adk sqlite store: create schema_migrations: %w", err)
+func (s *Store) initializeOrValidateSchema() error {
+	statements := []string{
+		`CREATE TABLE ` + tableProviders + ` (id TEXT PRIMARY KEY, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
+		`CREATE TABLE ` + tableAgents + ` (id TEXT PRIMARY KEY, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
+		`CREATE TABLE ` + tableSessions + ` (id TEXT PRIMARY KEY, agent_id TEXT NOT NULL, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
+		`CREATE TABLE ` + tableRuns + ` (id TEXT PRIMARY KEY, session_id TEXT NOT NULL, agent_id TEXT NOT NULL, status TEXT NOT NULL, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
+		`CREATE TABLE ` + tableApprovals + ` (id TEXT PRIMARY KEY, run_id TEXT NOT NULL, agent_id TEXT NOT NULL, status TEXT NOT NULL, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
+		`CREATE TABLE ` + tableSkills + ` (id TEXT PRIMARY KEY, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
+		`CREATE TABLE ` + tableAudit + ` (id TEXT PRIMARY KEY, kind TEXT NOT NULL, subject_id TEXT NOT NULL, payload_json TEXT NOT NULL, created_at TEXT NOT NULL)`,
+		`CREATE TABLE ` + tableOptimizations + ` (id TEXT PRIMARY KEY, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
+		`CREATE TABLE ` + tableTasks + ` (id TEXT PRIMARY KEY, status TEXT NOT NULL, agent_id TEXT NOT NULL, run_id TEXT NOT NULL, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
+		`CREATE TABLE ` + tableMemory + ` (id TEXT PRIMARY KEY, agent_id TEXT NOT NULL, scope TEXT NOT NULL, memory_key TEXT NOT NULL, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
+		`CREATE TABLE ` + tableSessionContexts + ` (id TEXT PRIMARY KEY, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
+		`CREATE TABLE ` + tableHandoffSegments + ` (id TEXT PRIMARY KEY, session_id TEXT NOT NULL, active INTEGER NOT NULL, sequence_no INTEGER NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, payload_json TEXT NOT NULL)`,
+		`CREATE TABLE ` + tableSessionContextLive + ` (id TEXT PRIMARY KEY, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
+		`CREATE TABLE ` + tableSessionNotices + ` (id TEXT PRIMARY KEY, session_id TEXT NOT NULL, run_id TEXT NOT NULL, kind TEXT NOT NULL, status TEXT NOT NULL, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
+		`CREATE TABLE ` + tableSessionComposer + ` (id TEXT PRIMARY KEY, session_id TEXT NOT NULL, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`,
+		`CREATE INDEX idx_adk_sessions_agent ON ` + tableSessions + ` (agent_id, updated_at DESC)`,
+		`CREATE INDEX idx_adk_runs_session ON ` + tableRuns + ` (session_id, created_at DESC)`,
+		`CREATE INDEX idx_adk_approvals_status ON ` + tableApprovals + ` (status, updated_at DESC)`,
+		`CREATE UNIQUE INDEX idx_adk_approvals_confirmation_call ON ` + tableApprovals + ` (json_extract(payload_json, '$.confirmationCallId')) WHERE COALESCE(json_extract(payload_json, '$.confirmationCallId'), '') <> ''`,
+		`CREATE INDEX idx_adk_audit_kind ON ` + tableAudit + ` (kind, created_at DESC)`,
+		`CREATE INDEX idx_adk_tasks_status ON ` + tableTasks + ` (status, updated_at DESC)`,
+		`CREATE INDEX idx_adk_tasks_agent ON ` + tableTasks + ` (agent_id, updated_at DESC)`,
+		`CREATE UNIQUE INDEX idx_adk_memory_agent_scope_key ON ` + tableMemory + ` (agent_id, scope, memory_key)`,
+		`CREATE INDEX idx_adk_session_contexts_updated ON ` + tableSessionContexts + ` (updated_at DESC)`,
+		`CREATE INDEX idx_adk_handoff_segments_session ON ` + tableHandoffSegments + ` (session_id, sequence_no ASC)`,
+		`CREATE INDEX idx_adk_session_context_state_updated ON ` + tableSessionContextLive + ` (updated_at DESC)`,
+		`CREATE INDEX idx_adk_session_notices_session ON ` + tableSessionNotices + ` (session_id, created_at ASC)`,
 	}
-	type migration struct {
-		version   int
-		statement string
-	}
-	migrations := []migration{
-		{1, `CREATE TABLE IF NOT EXISTS ` + tableProviders + ` (id TEXT PRIMARY KEY, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`},
-		{2, `CREATE TABLE IF NOT EXISTS ` + tableAgents + ` (id TEXT PRIMARY KEY, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`},
-		{3, `CREATE TABLE IF NOT EXISTS ` + tableSessions + ` (id TEXT PRIMARY KEY, agent_id TEXT NOT NULL, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`},
-		{5, `CREATE TABLE IF NOT EXISTS ` + tableRuns + ` (id TEXT PRIMARY KEY, session_id TEXT NOT NULL, agent_id TEXT NOT NULL, status TEXT NOT NULL, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`},
-		{6, `CREATE TABLE IF NOT EXISTS ` + tableApprovals + ` (id TEXT PRIMARY KEY, run_id TEXT NOT NULL, agent_id TEXT NOT NULL, status TEXT NOT NULL, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`},
-		{7, `CREATE TABLE IF NOT EXISTS ` + tableSkills + ` (id TEXT PRIMARY KEY, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`},
-		{8, `CREATE TABLE IF NOT EXISTS ` + tableAudit + ` (id TEXT PRIMARY KEY, kind TEXT NOT NULL, subject_id TEXT NOT NULL, payload_json TEXT NOT NULL, created_at TEXT NOT NULL)`},
-		{9, `CREATE TABLE IF NOT EXISTS ` + tableOptimizations + ` (id TEXT PRIMARY KEY, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`},
-		{10, `CREATE INDEX IF NOT EXISTS idx_adk_sessions_agent ON ` + tableSessions + ` (agent_id, updated_at DESC)`},
-		{12, `CREATE INDEX IF NOT EXISTS idx_adk_runs_session ON ` + tableRuns + ` (session_id, created_at DESC)`},
-		{13, `CREATE INDEX IF NOT EXISTS idx_adk_approvals_status ON ` + tableApprovals + ` (status, updated_at DESC)`},
-		{14, `CREATE INDEX IF NOT EXISTS idx_adk_audit_kind ON ` + tableAudit + ` (kind, created_at DESC)`},
-		{15, `CREATE TABLE IF NOT EXISTS ` + tableTasks + ` (id TEXT PRIMARY KEY, status TEXT NOT NULL, agent_id TEXT NOT NULL, run_id TEXT NOT NULL, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`},
-		{16, `CREATE INDEX IF NOT EXISTS idx_adk_tasks_status ON ` + tableTasks + ` (status, updated_at DESC)`},
-		{17, `CREATE INDEX IF NOT EXISTS idx_adk_tasks_agent ON ` + tableTasks + ` (agent_id, updated_at DESC)`},
-		{18, `CREATE TABLE IF NOT EXISTS ` + tableMemory + ` (id TEXT PRIMARY KEY, agent_id TEXT NOT NULL, scope TEXT NOT NULL, memory_key TEXT NOT NULL, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`},
-		{19, `CREATE UNIQUE INDEX IF NOT EXISTS idx_adk_memory_agent_scope_key ON ` + tableMemory + ` (agent_id, scope, memory_key)`},
-		{20, `CREATE TABLE IF NOT EXISTS ` + tableSessionContexts + ` (id TEXT PRIMARY KEY, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`},
-		{21, `CREATE INDEX IF NOT EXISTS idx_adk_session_contexts_updated ON ` + tableSessionContexts + ` (updated_at DESC)`},
-		{24, `CREATE TABLE IF NOT EXISTS ` + tableHandoffSegments + ` (id TEXT PRIMARY KEY, session_id TEXT NOT NULL, active INTEGER NOT NULL, sequence_no INTEGER NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, payload_json TEXT NOT NULL)`},
-		{25, `CREATE INDEX IF NOT EXISTS idx_adk_handoff_segments_session ON ` + tableHandoffSegments + ` (session_id, sequence_no ASC)`},
-		{26, `CREATE TABLE IF NOT EXISTS ` + tableSessionContextLive + ` (id TEXT PRIMARY KEY, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`},
-		{27, `CREATE INDEX IF NOT EXISTS idx_adk_session_context_state_updated ON ` + tableSessionContextLive + ` (updated_at DESC)`},
-		{28, `DROP TABLE IF EXISTS adk_messages`},
-		{29, `DROP TABLE IF EXISTS adk_transcript_entries`},
-		{30, `UPDATE ` + tableAgents + ` SET payload_json = json_set(payload_json, '$.workMode', 'chat') WHERE json_extract(payload_json, '$.workMode') IN ('sequential', 'parallel')`},
-		{31, `CREATE TABLE IF NOT EXISTS ` + tableSessionNotices + ` (id TEXT PRIMARY KEY, session_id TEXT NOT NULL, run_id TEXT NOT NULL, kind TEXT NOT NULL, status TEXT NOT NULL, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`},
-		{32, `CREATE INDEX IF NOT EXISTS idx_adk_session_notices_session ON ` + tableSessionNotices + ` (session_id, created_at ASC)`},
-		{33, `CREATE TABLE IF NOT EXISTS ` + tableSessionComposer + ` (id TEXT PRIMARY KEY, session_id TEXT NOT NULL, payload_json TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL)`},
-		{34, `CREATE INDEX IF NOT EXISTS idx_adk_approvals_confirmation_call ON ` + tableApprovals + ` (json_extract(payload_json, '$.confirmationCallId'))`},
-		{35, `DELETE FROM ` + tableTasks + ` WHERE TRIM(run_id) <> '' AND NOT EXISTS (SELECT 1 FROM ` + tableRuns + ` WHERE ` + tableRuns + `.id = ` + tableTasks + `.run_id)`},
-		{36, `UPDATE ` + tableApprovals + ` AS approval SET run_id = (SELECT owner.id FROM ` + tableRuns + ` AS owner, json_each(owner.payload_json, '$.toolCalls') AS tool_call WHERE json_extract(tool_call.value, '$.idempotencyKey') = json_extract(approval.payload_json, '$.functionCallId') ORDER BY owner.created_at ASC, owner.id ASC LIMIT 1), payload_json = json_set(approval.payload_json, '$.runId', (SELECT owner.id FROM ` + tableRuns + ` AS owner, json_each(owner.payload_json, '$.toolCalls') AS tool_call WHERE json_extract(tool_call.value, '$.idempotencyKey') = json_extract(approval.payload_json, '$.functionCallId') ORDER BY owner.created_at ASC, owner.id ASC LIMIT 1)) WHERE COALESCE(json_extract(approval.payload_json, '$.confirmationCallId'), '') <> '' AND EXISTS (SELECT 1 FROM ` + tableRuns + ` AS owner, json_each(owner.payload_json, '$.toolCalls') AS tool_call WHERE json_extract(tool_call.value, '$.idempotencyKey') = json_extract(approval.payload_json, '$.functionCallId'))`},
-		{37, `DELETE FROM ` + tableApprovals + ` AS duplicate WHERE COALESCE(json_extract(duplicate.payload_json, '$.confirmationCallId'), '') <> '' AND duplicate.rowid <> (SELECT canonical.rowid FROM ` + tableApprovals + ` AS canonical WHERE json_extract(canonical.payload_json, '$.confirmationCallId') = json_extract(duplicate.payload_json, '$.confirmationCallId') ORDER BY CASE canonical.status WHEN 'DENIED' THEN 0 WHEN 'APPROVED' THEN 1 ELSE 2 END, canonical.created_at ASC, canonical.id ASC LIMIT 1)`},
-		{38, `DROP INDEX IF EXISTS idx_adk_approvals_confirmation_call`},
-		{39, `CREATE UNIQUE INDEX IF NOT EXISTS idx_adk_approvals_confirmation_call ON ` + tableApprovals + ` (json_extract(payload_json, '$.confirmationCallId')) WHERE COALESCE(json_extract(payload_json, '$.confirmationCallId'), '') <> ''`},
-		{40, `UPDATE ` + tableRuns + ` SET payload_json = json_set(payload_json, '$.pendingApprovals', json('[]')) WHERE status IN ('COMPLETED', 'FAILED', 'DENIED', 'CANCELLED', 'TIMED_OUT') AND json_array_length(json_extract(payload_json, '$.pendingApprovals')) > 0`},
-		{41, `UPDATE ` + tableRuns + ` SET status = 'PENDING_APPROVAL', payload_json = json_set(payload_json, '$.status', 'PENDING_APPROVAL', '$.resumeState', 'waiting_approval', '$.message', '等待用户审批后继续执行。', '$.completedAt', NULL, '$.finalMessageId', '', '$.pendingApprovals', json((SELECT json_group_array(json(approval.payload_json)) FROM ` + tableApprovals + ` AS approval WHERE approval.run_id = ` + tableRuns + `.id AND approval.status = 'PENDING'))) WHERE status = 'COMPLETED' AND EXISTS (SELECT 1 FROM ` + tableApprovals + ` AS approval WHERE approval.run_id = ` + tableRuns + `.id AND approval.status = 'PENDING' AND COALESCE(json_extract(approval.payload_json, '$.functionCallId'), '') <> '' AND COALESCE(json_extract(approval.payload_json, '$.confirmationCallId'), '') <> '')`},
-		{42, `UPDATE ` + tableRuns + ` AS parent SET status = 'PENDING_APPROVAL', payload_json = json_set(parent.payload_json, '$.status', 'PENDING_APPROVAL', '$.workflowStatus', 'PAUSED', '$.message', '工作流正在等待子运行审批。', '$.completedAt', NULL, '$.finalMessageId', '', '$.pendingApprovals', json((SELECT json_extract(child.payload_json, '$.pendingApprovals') FROM ` + tableRuns + ` AS child WHERE json_extract(child.payload_json, '$.parentRunId') = parent.id AND child.status = 'PENDING_APPROVAL' ORDER BY child.updated_at DESC LIMIT 1))) WHERE parent.status = 'COMPLETED' AND EXISTS (SELECT 1 FROM ` + tableRuns + ` AS child WHERE json_extract(child.payload_json, '$.parentRunId') = parent.id AND child.status = 'PENDING_APPROVAL')`},
-	}
-	for _, m := range migrations {
-		var count int
-		if err := s.db.Get(&count, `SELECT COUNT(*) FROM adk_schema_migrations WHERE version = ?`, m.version); err != nil {
-			return fmt.Errorf("migrate adk sqlite store: check version %d: %w", m.version, err)
-		}
-		if count > 0 {
-			continue
-		}
-		if _, err := s.db.ExecContext(context.Background(), m.statement); err != nil {
-			return fmt.Errorf("migrate adk sqlite store: apply version %d: %w", m.version, err)
-		}
-		if _, err := s.db.ExecContext(context.Background(), `INSERT INTO adk_schema_migrations (version, applied_at) VALUES (?, ?)`, m.version, nowString()); err != nil {
-			return fmt.Errorf("migrate adk sqlite store: record version %d: %w", m.version, err)
-		}
-	}
-	return nil
+	return sqliteschema.InitializeOrValidate(
+		context.Background(), s.db, s.dbPath, "adk", 1, statements,
+		func(ctx context.Context, db *sqlx.DB) error {
+			for _, schema := range []struct {
+				table   string
+				columns []string
+			}{
+				{tableProviders, []string{"id:TEXT:1", "payload_json:TEXT:0", "created_at:TEXT:0", "updated_at:TEXT:0"}},
+				{tableAgents, []string{"id:TEXT:1", "payload_json:TEXT:0", "created_at:TEXT:0", "updated_at:TEXT:0"}},
+				{tableSessions, []string{"id:TEXT:1", "agent_id:TEXT:0", "payload_json:TEXT:0", "created_at:TEXT:0", "updated_at:TEXT:0"}},
+				{tableRuns, []string{"id:TEXT:1", "session_id:TEXT:0", "agent_id:TEXT:0", "status:TEXT:0", "payload_json:TEXT:0", "created_at:TEXT:0", "updated_at:TEXT:0"}},
+				{tableApprovals, []string{"id:TEXT:1", "run_id:TEXT:0", "agent_id:TEXT:0", "status:TEXT:0", "payload_json:TEXT:0", "created_at:TEXT:0", "updated_at:TEXT:0"}},
+				{tableTasks, []string{"id:TEXT:1", "status:TEXT:0", "agent_id:TEXT:0", "run_id:TEXT:0", "payload_json:TEXT:0", "created_at:TEXT:0", "updated_at:TEXT:0"}},
+			} {
+				if err := sqliteschema.ValidateTable(ctx, db, schema.table, schema.columns); err != nil {
+					return err
+				}
+			}
+			return nil
+		},
+	)
 }
 
 func (s *Store) ListProviders(ctx context.Context) ([]Provider, error) {

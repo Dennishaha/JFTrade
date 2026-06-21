@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/jftrade/jftrade-main/internal/app/apiserver/datamigration"
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/lifecycle"
 	apiruntime "github.com/jftrade/jftrade-main/internal/app/apiserver/runtime"
 	"github.com/jftrade/jftrade-main/internal/app/apiserver/servercore"
@@ -28,11 +29,17 @@ func StartForRunArgs(ctx context.Context, args []string) (func(context.Context) 
 
 func dependencies() lifecycle.Dependencies {
 	return lifecycle.Dependencies{
-		ShouldStartForArgs:        shouldStartForArgs,
-		LoadFrontendFS:            loadFrontendFS,
-		ResolveLaunchDefaults:     apiruntime.ResolveLaunchDefaults,
-		EnvOrDefault:              envOrDefault,
-		EnsureRuntimeLayout:       apiruntime.EnsureRuntimeLayout,
+		ShouldStartForArgs:    shouldStartForArgs,
+		LoadFrontendFS:        loadFrontendFS,
+		ResolveLaunchDefaults: apiruntime.ResolveLaunchDefaults,
+		EnvOrDefault:          envOrDefault,
+		EnsureRuntimeLayout:   apiruntime.EnsureRuntimeLayout,
+		ApplyDatabaseRebuild: func(settingsPath string, backtestDBPath string) error {
+			return datamigration.NewManager(settingsPath, backtestDBPath).ApplyPending()
+		},
+		CompleteDatabaseRebuild: func(settingsPath string, backtestDBPath string) error {
+			return datamigration.NewManager(settingsPath, backtestDBPath).CompletePending(context.Background())
+		},
 		NewSettingsStore:          newSettingsStore,
 		ResolveIntegrationRuntime: apiruntime.IntegrationWithEnvDefaults,
 		ApplyIntegrationRuntime:   apiruntime.ApplyIntegrationEnv,

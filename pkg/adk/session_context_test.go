@@ -809,8 +809,8 @@ func TestAppendADKEventWithStaleRetryRefreshesSession(t *testing.T) {
 		t.Fatalf("NewSQLiteSessionService: %v", err)
 	}
 	t.Cleanup(func() { jftradeErr1 := CloseSessionService(service); jftradeCheckTestError(t, jftradeErr1) })
-	if err := MigrateSQLiteSessionService(service); err != nil {
-		t.Fatalf("MigrateSQLiteSessionService: %v", err)
+	if err := ValidateSQLiteSessionService(service); err != nil {
+		t.Fatalf("ValidateSQLiteSessionService: %v", err)
 	}
 	created, err := service.Create(ctx, &adksession.CreateRequest{
 		AppName: "app", UserID: "user", SessionID: "session-stale-retry",
@@ -1095,8 +1095,8 @@ func TestAppendADKEventWithStaleRetrySerializesConcurrentStaleSession(t *testing
 		t.Fatalf("NewSQLiteSessionService: %v", err)
 	}
 	t.Cleanup(func() { jftradeErr2 := CloseSessionService(service); jftradeCheckTestError(t, jftradeErr2) })
-	if err := MigrateSQLiteSessionService(service); err != nil {
-		t.Fatalf("MigrateSQLiteSessionService: %v", err)
+	if err := ValidateSQLiteSessionService(service); err != nil {
+		t.Fatalf("ValidateSQLiteSessionService: %v", err)
 	}
 	created, err := service.Create(ctx, &adksession.CreateRequest{
 		AppName: "app", UserID: "user", SessionID: "session-concurrent-stale-retry",

@@ -3,9 +3,11 @@
 package storage
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
+	"github.com/jftrade/jftrade-main/internal/store/sqliteschema"
 	"github.com/jmoiron/sqlx"
 	// Register the modernc SQLite driver for database/sql.
 	_ "modernc.org/sqlite"
@@ -17,6 +19,7 @@ import (
 type FutuKLineStore struct {
 	mu                sync.RWMutex
 	db                *sqlx.DB
+	dbPath            string
 	rehabType         string // "forward" | "backward" | "none" — filters all queries
 	readSessionScope  string
 	writeSessionScope string
@@ -32,14 +35,15 @@ func NewFutuKLineStore(dbPath string) (*FutuKLineStore, error) {
 	}
 	store := &FutuKLineStore{
 		db:                db,
+		dbPath:            dbPath,
 		rehabType:         normalizeRehabTypeName("forward"),
 		readSessionScope:  klineReadSessionScopeAuto,
 		writeSessionScope: klineSessionScopeLegacy,
 	}
-	if err := store.migrate(); err != nil {
+	if err := sqliteschema.InitializeOrValidate(context.Background(), db, dbPath, "backtest", 1, nil, nil); err != nil {
 		jftradeErr1 := db.Close()
 		jftradeLogError(jftradeErr1)
-		return nil, fmt.Errorf("migrate sqlite backtest store: %w", err)
+		return nil, fmt.Errorf("validate sqlite backtest store: %w", err)
 	}
 	return store, nil
 }

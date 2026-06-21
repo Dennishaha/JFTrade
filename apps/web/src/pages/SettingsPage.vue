@@ -14,6 +14,7 @@ import { useConsoleData } from "../composables/useConsoleData";
 const route = useRoute();
 const router = useRouter();
 const SettingsADKSection = defineAsyncComponent(() => import("../components/SettingsADKSection.vue"));
+const SettingsDataMigrationSection = defineAsyncComponent(() => import("../components/SettingsDataMigrationSection.vue"));
 
 const SETTINGS_LAST_KEY = "jft.settings.section";
 
@@ -55,6 +56,11 @@ const settingsMenu = [
     index: "adk",
     label: "智能体",
     description: "配置 AI 模型 Provider、Agent 定义与 Skill 安装。",
+  },
+  {
+    index: "data-migration",
+    label: "数据库重建",
+    description: "检测数据库兼容性并安排安全重建。",
   },
 ] as const;
 
@@ -178,6 +184,8 @@ const {
         <SettingsSecuritySection v-if="activeMenu === 'security'" />
 
         <SettingsADKSection v-show="activeMenu === 'adk'" />
+
+        <SettingsDataMigrationSection v-if="activeMenu === 'data-migration'" />
       </div>
     </section>
   </div>

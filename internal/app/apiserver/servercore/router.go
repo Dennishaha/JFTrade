@@ -9,6 +9,7 @@ import (
 
 	apiassistant "github.com/jftrade/jftrade-main/internal/api/assistant"
 	apibacktest "github.com/jftrade/jftrade-main/internal/api/backtest"
+	"github.com/jftrade/jftrade-main/internal/api/httpserver"
 	apilive "github.com/jftrade/jftrade-main/internal/api/live"
 	apimd "github.com/jftrade/jftrade-main/internal/api/marketdata"
 	"github.com/jftrade/jftrade-main/internal/api/middleware"
@@ -25,6 +26,7 @@ func (s *Server) buildRouter() *gin.Engine {
 	router.Use(gin.Recovery())
 	router.Use(s.corsMiddleware())
 	router.Use(s.authMiddleware())
+	router.Use(s.databaseAvailabilityMiddleware())
 
 	router.GET("/swagger", s.handleSwaggerRoot)
 	router.GET("/swagger/*any", s.handleSwaggerUI)
@@ -44,6 +46,30 @@ func (s *Server) buildRouter() *gin.Engine {
 
 	router.NoRoute(s.handleNoRoute)
 	return router
+}
+
+func (s *Server) databaseAvailabilityMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		path := c.Request.URL.Path
+		required := []string{}
+		switch {
+		case strings.HasPrefix(path, "/api/v1/backtests"):
+			required = []string{"backtest", "backtest-runs"}
+		case strings.HasPrefix(path, "/api/v1/strategy"), strings.HasPrefix(path, "/api/v1/strategies"):
+			required = []string{"strategy"}
+		case strings.HasPrefix(path, "/api/v1/execution"):
+			required = []string{"execution-orders"}
+		case strings.HasPrefix(path, "/api/v1/adk"), strings.HasPrefix(path, "/api/v1/assistant"):
+			required = []string{"adk", "adk-session"}
+		}
+		for _, id := range required {
+			if err := s.unavailableDatabases[id]; err != nil {
+				httpserver.WriteError(c, http.StatusServiceUnavailable, "DATABASE_INCOMPATIBLE", fmt.Sprintf("%s database is unavailable; rebuild it in Settings > 数据库重建 and restart JFTrade", id))
+				return
+			}
+		}
+		c.Next()
+	}
 }
 
 func (s *Server) corsMiddleware() gin.HandlerFunc {

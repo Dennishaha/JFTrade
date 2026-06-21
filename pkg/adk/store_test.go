@@ -35,8 +35,8 @@ func newTestRuntime(t *testing.T) *Runtime {
 	}
 	t.Cleanup(func() { jftradeErr5 := CloseSessionService(sessionService); jftradeCheckTestError(t, jftradeErr5) })
 	t.Cleanup(func() { jftradeErr3 := store.Close(); jftradeCheckTestError(t, jftradeErr3) })
-	if err := MigrateSQLiteSessionService(sessionService); err != nil {
-		t.Fatalf("AutoMigrate: %v", err)
+	if err := ValidateSQLiteSessionService(sessionService); err != nil {
+		t.Fatalf("ValidateSQLiteSessionService: %v", err)
 	}
 	runtime := NewRuntimeWithSessionService(store, NewToolRegistry(), sessionService)
 	ensureTestProvider(t, runtime)
@@ -44,6 +44,7 @@ func newTestRuntime(t *testing.T) *Runtime {
 }
 
 func TestStoreMigrationNormalizesHiddenAgentWorkflowDefaults(t *testing.T) {
+	t.Skip("incremental ADK migrations were intentionally removed; strict incompatibility is covered below")
 	dir := t.TempDir()
 	dbPath := filepath.Join(dir, "adk.db")
 	secretsPath := filepath.Join(dir, "secrets", "adk.json")
@@ -95,6 +96,7 @@ func TestStoreMigrationNormalizesHiddenAgentWorkflowDefaults(t *testing.T) {
 }
 
 func TestStoreMigrationRepairsOrphanTasksAndDuplicateConfirmations(t *testing.T) {
+	t.Skip("incremental ADK migrations were intentionally removed; strict incompatibility is covered below")
 	dir := t.TempDir()
 	dbPath := filepath.Join(dir, "adk.db")
 	secretsPath := filepath.Join(dir, "secrets", "adk.json")
@@ -165,6 +167,7 @@ func TestStoreMigrationRepairsOrphanTasksAndDuplicateConfirmations(t *testing.T)
 }
 
 func TestStoreMigrationReopensCompletedWorkflowWithRecoverablePendingApproval(t *testing.T) {
+	t.Skip("incremental ADK migrations were intentionally removed; strict incompatibility is covered below")
 	dir := t.TempDir()
 	dbPath := filepath.Join(dir, "adk.db")
 	secretsPath := filepath.Join(dir, "secrets", "adk.json")
@@ -216,6 +219,47 @@ func TestStoreMigrationReopensCompletedWorkflowWithRecoverablePendingApproval(t 
 	}
 	if parent.Status != RunStatusPending || parent.WorkflowStatus != workflowStatusPaused || parent.CompletedAt != nil || len(parent.PendingApprovals) != 1 {
 		t.Fatalf("recovered parent = %+v", parent)
+	}
+}
+
+func TestNewStoreRejectsLegacyDatabaseWithoutMutatingIt(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "adk.db")
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatalf("open legacy db: %v", err)
+	}
+	if _, err := db.Exec(`CREATE TABLE legacy_data (id TEXT PRIMARY KEY, value TEXT NOT NULL);
+		INSERT INTO legacy_data (id, value) VALUES ('keep', 'untouched')`); err != nil {
+		t.Fatalf("create legacy db: %v", err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatalf("close legacy db: %v", err)
+	}
+
+	_, err = NewStore(dbPath, filepath.Join(dir, "secrets.json"), filepath.Join(dir, "skills"))
+	if err == nil || !strings.Contains(err.Error(), "schema metadata is missing") {
+		t.Fatalf("NewStore legacy error = %v", err)
+	}
+
+	db, err = sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatalf("reopen legacy db: %v", err)
+	}
+	defer func() { jftradeCheckTestError(t, db.Close()) }()
+	var value string
+	if err := db.QueryRow(`SELECT value FROM legacy_data WHERE id = 'keep'`).Scan(&value); err != nil {
+		t.Fatalf("legacy row was modified: %v", err)
+	}
+	if value != "untouched" {
+		t.Fatalf("legacy value = %q", value)
+	}
+	var metadataCount int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='jftrade_schema_meta'`).Scan(&metadataCount); err != nil {
+		t.Fatalf("inspect metadata table: %v", err)
+	}
+	if metadataCount != 0 {
+		t.Fatal("legacy database was modified with schema metadata")
 	}
 }
 
@@ -285,8 +329,8 @@ func newRuntimeWithRegistry(t *testing.T, store *Store, registry *ToolRegistry) 
 		t.Fatalf("NewSessionService: %v", err)
 	}
 	t.Cleanup(func() { jftradeErr4 := CloseSessionService(sessionService); jftradeCheckTestError(t, jftradeErr4) })
-	if err := MigrateSQLiteSessionService(sessionService); err != nil {
-		t.Fatalf("AutoMigrate: %v", err)
+	if err := ValidateSQLiteSessionService(sessionService); err != nil {
+		t.Fatalf("ValidateSQLiteSessionService: %v", err)
 	}
 	runtime := NewRuntimeWithSessionService(store, registry, sessionService)
 	ensureTestProvider(t, runtime)

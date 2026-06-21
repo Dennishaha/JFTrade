@@ -39,6 +39,8 @@ type Dependencies struct {
 	ResolveLaunchDefaults     func(bool) jfsettings.LaunchDefaults
 	EnvOrDefault              func(string, string) string
 	EnsureRuntimeLayout       func(settingsPath string, backtestDBPath string) error
+	ApplyDatabaseRebuild      func(settingsPath string, backtestDBPath string) error
+	CompleteDatabaseRebuild   func(settingsPath string, backtestDBPath string) error
 	NewSettingsStore          func(path string) (SettingsStore, error)
 	ResolveIntegrationRuntime func(jfsettings.BrokerIntegration) jfsettings.BrokerIntegration
 	ApplyIntegrationRuntime   func(jfsettings.BrokerIntegration)
@@ -61,6 +63,11 @@ func StartForRunArgs(ctx context.Context, args []string, deps Dependencies) (fun
 	if err := deps.EnsureRuntimeLayout(settingsPath, backtestDBPath); err != nil {
 		return nil, err
 	}
+	if deps.ApplyDatabaseRebuild != nil {
+		if err := deps.ApplyDatabaseRebuild(settingsPath, backtestDBPath); err != nil {
+			return nil, err
+		}
+	}
 	store, err := deps.NewSettingsStore(settingsPath)
 	if err != nil {
 		return nil, err
@@ -81,6 +88,12 @@ func StartForRunArgs(ctx context.Context, args []string, deps Dependencies) (fun
 	apiHandler, err := deps.NewHandler(store)
 	if err != nil {
 		return nil, err
+	}
+	if deps.CompleteDatabaseRebuild != nil {
+		if err := deps.CompleteDatabaseRebuild(settingsPath, backtestDBPath); err != nil {
+			_ = apiHandler.Close()
+			return nil, err
+		}
 	}
 	apiHandler.SetAPIPort(deps.PortFromBind(apiBind, deps.PortFromBind(defaults.APIBind, 3000)))
 	apiHandler.ConfigureAuthOrigins(deps.APIBaseURLForBind(apiBind))

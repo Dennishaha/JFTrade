@@ -9,10 +9,6 @@ import (
 	"github.com/c9s/bbgo/pkg/types"
 )
 
-func (s *FutuKLineStore) migrate() error {
-	return nil
-}
-
 func (s *FutuKLineStore) ensureKLineTable(tableName string) error {
 	_, err := s.db.ExecContext(context.Background(), strings.Join([]string{
 		`CREATE TABLE IF NOT EXISTS ` + quoteIdentifier(tableName) + ` (`,

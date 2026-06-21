@@ -1,6 +1,15 @@
 //nolint:unused // These annotation-only stubs are consumed by swag during go generate.
 package servercore
 
+// documentDataMigrationRoutes godoc
+// @Summary Database compatibility status and rebuild scheduling
+// @Tags settings
+// @Produce json
+// @Success 200 {object} envelope
+// @Router /api/v1/settings/data-migration/databases [get]
+// @Router /api/v1/settings/data-migration/databases/rebuild [post]
+func documentDataMigrationRoutes() {}
+
 // documentAssistantCatalogRoutes godoc
 // @Summary ADK catalog and provider management routes
 // @Tags adk

@@ -38,6 +38,9 @@ func RegisterRoutes(api *gin.RouterGroup, svc *srv.Service) {
 	settings.GET("/adk", handleADKRuntimeSettings(svc))
 	settings.PUT("/adk", handleSaveADKRuntimeSettings(svc))
 
+	settings.GET("/data-migration/databases", handleDataMigrationDatabases(svc))
+	settings.POST("/data-migration/databases/rebuild", handleDataMigrationRebuild(svc))
+
 	// Exchange Calendars
 	settings.GET("/exchange-calendars", handleExchangeCalendarSettings(svc))
 	settings.PUT("/exchange-calendars", handleSaveExchangeCalendarSettings(svc))
@@ -50,6 +53,33 @@ func RegisterRoutes(api *gin.RouterGroup, svc *srv.Service) {
 	settings.POST("/broker-accounts", handleCreateManagedBrokerAccount(svc))
 	settings.PUT("/broker-accounts/:accountRecordId", handleUpdateManagedBrokerAccount(svc))
 	settings.DELETE("/broker-accounts/:accountRecordId", handleDeleteManagedBrokerAccount(svc))
+}
+
+func handleDataMigrationDatabases(svc *srv.Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		result, err := svc.DataMigrationStatus(c.Request.Context())
+		if err != nil {
+			httpserver.WriteError(c, 500, "DATABASE_STATUS_FAILED", err.Error())
+			return
+		}
+		httpserver.WriteOK(c, result)
+	}
+}
+
+func handleDataMigrationRebuild(svc *srv.Service) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var input map[string]any
+		if err := c.ShouldBindJSON(&input); err != nil {
+			httpserver.WriteError(c, 400, "BAD_REQUEST", "invalid database rebuild payload")
+			return
+		}
+		result, err := svc.ScheduleDatabaseRebuild(c.Request.Context(), input)
+		if err != nil {
+			httpserver.WriteError(c, 400, "DATABASE_REBUILD_REJECTED", err.Error())
+			return
+		}
+		httpserver.WriteOK(c, result)
+	}
 }
 
 // ── UI Appearance ──

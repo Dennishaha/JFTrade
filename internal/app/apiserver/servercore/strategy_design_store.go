@@ -74,37 +74,6 @@ func (s *strategyDesignStore) Close() error {
 }
 
 func (s *strategyDesignStore) load() error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.migrateLocked()
-}
-
-func (s *strategyDesignStore) migrateLocked() error {
-	for _, statement := range []string{
-		strings.Join([]string{
-			`CREATE TABLE IF NOT EXISTS ` + strategyDesignDefinitionTable + ` (`,
-			`  id                TEXT PRIMARY KEY,`,
-			`  name              TEXT NOT NULL DEFAULT '',`,
-			`  version           TEXT NOT NULL DEFAULT '',`,
-			`  description       TEXT NOT NULL DEFAULT '',`,
-			`  runtime           TEXT NOT NULL DEFAULT '',`,
-			`  source_format     TEXT NOT NULL DEFAULT '',`,
-			`  symbol            TEXT NOT NULL DEFAULT '',`,
-			`  interval          TEXT NOT NULL DEFAULT '',`,
-			`  script            TEXT NOT NULL DEFAULT '',`,
-			`  visual_model_json TEXT NOT NULL DEFAULT '',`,
-			`  created_at        TEXT NOT NULL DEFAULT '',`,
-			`  updated_at        TEXT NOT NULL DEFAULT '',`,
-			`  deleted_at        TEXT`,
-			`)`,
-		}, " "),
-		`CREATE INDEX IF NOT EXISTS idx_strategy_design_definitions_updated_at ON ` + strategyDesignDefinitionTable + ` (updated_at DESC, id ASC)`,
-		`CREATE INDEX IF NOT EXISTS idx_strategy_design_definitions_deleted_at ON ` + strategyDesignDefinitionTable + ` (deleted_at)`,
-	} {
-		if _, err := s.db.ExecContext(context.Background(), statement); err != nil {
-			return err
-		}
-	}
 	return nil
 }
 

@@ -7,18 +7,16 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jmoiron/sqlx"
 
 	"github.com/jftrade/jftrade-main/internal/api/httpserver"
 	apilive "github.com/jftrade/jftrade-main/internal/api/live"
 	"github.com/jftrade/jftrade-main/internal/api/middleware"
+	"github.com/jftrade/jftrade-main/internal/app/apiserver/datamigration"
 	apiruntime "github.com/jftrade/jftrade-main/internal/app/apiserver/runtime"
 	asst "github.com/jftrade/jftrade-main/internal/assistant"
 	btsrv "github.com/jftrade/jftrade-main/internal/backtest"
@@ -79,6 +77,8 @@ type Server struct {
 	previousCalendarResolver marketcalendar.Resolver
 	sysSvc                   *system.Service
 	settingsSvc              *settings.Service
+	dataMigration            *datamigration.Manager
+	unavailableDatabases     map[string]error
 	backtestSvc              *btsrv.Service
 	strategySvc              *stratsrv.Service
 	marketdataSvc            *mdsrv.Service
@@ -160,59 +160,45 @@ func (s *Server) ApplySecuritySettings(settings SecuritySettings) {
 
 func newServerWithFrontend(store SidecarSettingsStore, frontend *frontendServer) *Server {
 	settingsPath := store.Path()
+	dataMigration := datamigration.NewManager(settingsPath, deriveBacktestDBPath())
+	unavailableDatabases := make(map[string]error)
+	recordUnavailable := func(id string, err error) {
+		if err == nil {
+			return
+		}
+		unavailableDatabases[id] = err
+		dataMigration.SetUnavailable(id, err)
+		log.Printf("JFTrade %s database unavailable: %v", id, err)
+	}
+	if backtestStore, err := bt.NewFutuKLineStore(deriveBacktestDBPath()); err != nil {
+		recordUnavailable(datamigration.DatabaseBacktest, err)
+	} else if err := backtestStore.Close(); err != nil {
+		log.Printf("JFTrade backtest database close failed: %v", err)
+	}
 	strategyStore, err := NewStrategyCatalogStore(deriveStrategyCatalogPath(settingsPath), deriveStrategyPluginTargetDir(settingsPath))
 	if err != nil {
-		log.Printf("JFTrade strategy catalog store degraded: %v", err)
-		fallbackSettingsPath := filepath.Join(os.TempDir(), "jftrade-strategy-catalog-fallback", "settings.json")
-		strategyStore, err = NewStrategyCatalogStore(deriveStrategyCatalogPath(fallbackSettingsPath), deriveStrategyPluginTargetDir(fallbackSettingsPath))
-		if err != nil {
-			log.Printf("JFTrade strategy catalog fallback sqlite store degraded: %v", err)
-		}
+		recordUnavailable(datamigration.DatabaseStrategy, err)
 	}
 	var runtimeStore *strategyRuntimeStore
 	if strategyStore != nil {
 		runtimeStore = strategyStore.runtimeStore
 	}
 	if strategyStore == nil {
-		var runtimeDB *sqlx.DB
-		runtimeStore, err = NewStrategyRuntimeStore(deriveStrategyRuntimeDBPath(settingsPath))
-		if err != nil {
-			log.Printf("JFTrade strategy runtime sqlite store degraded: %v", err)
-			runtimeStore = nil
-		}
-		if runtimeStore != nil {
-			runtimeDB = runtimeStore.DB()
-		}
-		strategyStore = &strategyCatalogStore{path: deriveStrategyCatalogPath(settingsPath), dbPath: deriveStrategyCatalogDBPath(deriveStrategyCatalogPath(settingsPath)), db: runtimeDB, targetDir: deriveStrategyPluginTargetDir(settingsPath), runtimeStore: runtimeStore, data: strategyCatalogFile{TargetDir: deriveStrategyPluginTargetDir(settingsPath)}}
-		if strategyStore.db != nil {
-			if migrateErr := strategyStore.migrateLocked(); migrateErr != nil {
-				log.Printf("JFTrade strategy catalog fallback sqlite store degraded: %v", migrateErr)
-			}
-		}
+		strategyStore = &strategyCatalogStore{path: deriveStrategyCatalogPath(settingsPath), dbPath: deriveStrategyCatalogDBPath(deriveStrategyCatalogPath(settingsPath)), targetDir: deriveStrategyPluginTargetDir(settingsPath), data: strategyCatalogFile{TargetDir: deriveStrategyPluginTargetDir(settingsPath)}}
 	}
 	designStore, err := NewStrategyDesignStore(deriveStrategyDesignPath(settingsPath))
 	if err != nil {
-		log.Printf("JFTrade strategy design store degraded: %v", err)
-		fallbackSettingsPath := filepath.Join(os.TempDir(), "jftrade-strategy-design-fallback", "settings.json")
-		designStore, err = NewStrategyDesignStore(deriveStrategyDesignPath(fallbackSettingsPath))
-		if err != nil {
-			log.Printf("JFTrade strategy design fallback sqlite store degraded: %v", err)
-			designStore = nil
-		}
+		recordUnavailable(datamigration.DatabaseStrategy, err)
+		designStore = &strategyDesignStore{path: deriveStrategyDesignPath(settingsPath), dbPath: deriveStrategyDesignDBPath(deriveStrategyDesignPath(settingsPath))}
 	}
 	backtestRunStore, err := newBacktestRunStoreWithDB(deriveBacktestRunDBPath(settingsPath))
 	if err != nil {
-		log.Printf("JFTrade backtest run store degraded: %v", err)
-		fallbackSettingsPath := filepath.Join(os.TempDir(), "jftrade-backtest-runs-fallback", "settings.json")
-		backtestRunStore, err = newBacktestRunStoreWithDB(deriveBacktestRunDBPath(fallbackSettingsPath))
-		if err != nil {
-			log.Printf("JFTrade backtest run fallback sqlite store degraded: %v", err)
-			backtestRunStore = newBacktestRunStore()
-		}
+		recordUnavailable(datamigration.DatabaseBacktestRuns, err)
+		backtestRunStore = newBacktestRunStore()
 	}
 	executionOrderStore, err := newExecutionOrderStoreWithDB(deriveExecutionOrderDBPath(settingsPath))
 	if err != nil {
-		log.Printf("JFTrade execution order sqlite store degraded: %v", err)
+		recordUnavailable(datamigration.DatabaseExecution, err)
 		executionOrderStore = newExecutionOrderStore()
 	}
 	executionOrderStore.configureSeenFillRetention(store.ExecutionSettings().SeenFillRetentionDays)
@@ -241,7 +227,9 @@ func newServerWithFrontend(store SidecarSettingsStore, frontend *frontendServer)
 		apiPort:              portFromBind(defaultDevelopmentAPIBind, 3000),
 		frontend:             frontend,
 		auth:                 auth,
+		unavailableDatabases: unavailableDatabases,
 	}
+	server.dataMigration = dataMigration
 	server.liveWebSocket = apilive.NewHandler(liveWebSocketBackend{server: server}, apilive.Options{
 		DataInterval:            liveTickDispatchInterval,
 		SecurityDetailsInterval: marketSecurityDetailsStreamInterval,
@@ -275,7 +263,39 @@ func newServerWithFrontend(store SidecarSettingsStore, frontend *frontendServer)
 	)
 	server.previousCalendarResolver = marketpkg.SwapCalendarResolver(server.exchangeCalendars)
 	server.exchangeCalendars.Start()
-	server.adkRuntime = newADKRuntime(server, settingsPath)
+	if adkStore, err := jfadk.NewStore(
+		apiruntime.DeriveADKDBPath(settingsPath),
+		apiruntime.DeriveADKSecretsPath(settingsPath),
+		apiruntime.DeriveADKSkillsDir(settingsPath),
+	); err != nil {
+		recordUnavailable(datamigration.DatabaseADK, err)
+	} else if err := adkStore.Close(); err != nil {
+		log.Printf("JFTrade ADK database close failed: %v", err)
+	}
+	if sessionService, err := jfadk.NewSQLiteSessionService(apiruntime.DeriveADKSessionDBPath(settingsPath)); err != nil {
+		recordUnavailable(datamigration.DatabaseADKSession, err)
+	} else if err := jfadk.CloseSessionService(sessionService); err != nil {
+		log.Printf("JFTrade ADK session database close failed: %v", err)
+	}
+	if unavailableDatabases[datamigration.DatabaseADK] == nil &&
+		unavailableDatabases[datamigration.DatabaseADKSession] == nil {
+		server.adkRuntime = newADKRuntime(server, settingsPath)
+	}
+	if statuses, statusErr := server.dataMigration.Statuses(context.Background()); statusErr != nil {
+		log.Printf("JFTrade database status inspection failed: %v", statusErr)
+	} else {
+		for _, status := range statuses {
+			if status.Status == "ready" {
+				continue
+			}
+			reason := status.Error
+			if strings.TrimSpace(reason) == "" {
+				reason = "database was not initialized"
+			}
+			err := fmt.Errorf("%s", reason)
+			server.unavailableDatabases[status.ID] = err
+		}
+	}
 	server.assistantSvc = asst.NewService(
 		server.adkRuntime,
 		asst.WithRuntimeSettings(func() any {
@@ -305,7 +325,9 @@ func newServerWithFrontend(store SidecarSettingsStore, frontend *frontendServer)
 			}
 		},
 	})
-	if reconciled, err := server.strategyStore.reconcileRuntimeStatesOnStartup(); err != nil {
+	if _, unavailable := unavailableDatabases[datamigration.DatabaseStrategy]; unavailable {
+		// The settings and migration endpoints remain available while strategy data is incompatible.
+	} else if reconciled, err := server.strategyStore.reconcileRuntimeStatesOnStartup(); err != nil {
 		log.Printf("JFTrade strategy runtime state reconciliation failed: %v", err)
 	} else if reconciled > 0 {
 		log.Printf("JFTrade reconciled %d stale strategy runtime state(s) to STOPPED during startup", reconciled)
@@ -467,6 +489,34 @@ func newServerWithFrontend(store SidecarSettingsStore, frontend *frontendServer)
 		settings.WithBrokerSettings(func() map[string]any { return server.brokerSettings() }),
 		settings.WithOnboardingState(func(ctx context.Context) map[string]any { return server.onboardingState(ctx) }),
 		settings.WithDefaultTradingEnvironment(server.defaultTradingEnvironment()),
+		settings.WithDataMigration(
+			func(ctx context.Context) (any, error) {
+				statuses, err := server.dataMigration.Statuses(ctx)
+				if err != nil {
+					return nil, err
+				}
+				return map[string]any{"databases": statuses}, nil
+			},
+			func(ctx context.Context, raw any) (any, error) {
+				payload, ok := raw.(map[string]any)
+				if !ok {
+					return nil, fmt.Errorf("invalid database rebuild payload")
+				}
+				request := datamigration.RebuildRequest{
+					Mode:         strings.TrimSpace(fmt.Sprint(payload["mode"])),
+					Confirmation: strings.TrimSpace(fmt.Sprint(payload["confirmation"])),
+				}
+				if values, ok := payload["databaseIds"].([]any); ok {
+					for _, value := range values {
+						request.DatabaseIDs = append(request.DatabaseIDs, strings.TrimSpace(fmt.Sprint(value)))
+					}
+				}
+				if value, ok := payload["databaseId"].(string); ok && strings.TrimSpace(value) != "" {
+					request.DatabaseIDs = append(request.DatabaseIDs, strings.TrimSpace(value))
+				}
+				return server.dataMigration.ScheduleRebuild(ctx, request)
+			},
+		),
 	)
 
 	server.router = server.buildRouter()

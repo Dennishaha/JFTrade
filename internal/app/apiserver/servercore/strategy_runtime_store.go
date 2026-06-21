@@ -29,8 +29,9 @@ const (
 )
 
 type strategyRuntimeStore struct {
-	mu sync.RWMutex
-	db *sqlx.DB
+	mu   sync.RWMutex
+	db   *sqlx.DB
+	path string
 }
 
 type strategyRuntimeLogEvent struct {
@@ -96,8 +97,8 @@ func NewStrategyRuntimeStore(dbPath string) (*strategyRuntimeStore, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open strategy runtime sqlite store: %w", err)
 	}
-	store := &strategyRuntimeStore{db: db}
-	if err := store.migrate(); err != nil {
+	store := &strategyRuntimeStore{db: db, path: trimmedPath}
+	if err := store.initializeOrValidateSchema(); err != nil {
 		jftradeErr1 := db.Close()
 		jftradeLogError(jftradeErr1)
 		return nil, fmt.Errorf("migrate strategy runtime sqlite store: %w", err)
@@ -130,102 +131,8 @@ func (s *strategyRuntimeStore) DB() *sqlx.DB {
 	return s.db
 }
 
-func (s *strategyRuntimeStore) migrate() error {
-	for _, statement := range []string{
-		strings.Join([]string{
-			`CREATE TABLE IF NOT EXISTS ` + strategyRuntimeLogTable + ` (`,
-			`  id          INTEGER PRIMARY KEY AUTOINCREMENT,`,
-			`  instance_id TEXT    NOT NULL,`,
-			`  at_ms       INTEGER NOT NULL,`,
-			`  raw         TEXT    NOT NULL,`,
-			`  level       TEXT    NOT NULL DEFAULT '',`,
-			`  source      TEXT    NOT NULL DEFAULT ''`,
-			`)`,
-		}, " "),
-		strings.Join([]string{
-			`CREATE TABLE IF NOT EXISTS ` + strategyRuntimeAuditTable + ` (`,
-			`  id          INTEGER PRIMARY KEY AUTOINCREMENT,`,
-			`  instance_id TEXT    NOT NULL,`,
-			`  kind        TEXT    NOT NULL,`,
-			`  detail      TEXT    NOT NULL DEFAULT '',`,
-			`  at_ms       INTEGER NOT NULL`,
-			`)`,
-		}, " "),
-		strings.Join([]string{
-			`CREATE TABLE IF NOT EXISTS ` + strategyRuntimeObservationTable + ` (`,
-			`  instance_id                 TEXT    PRIMARY KEY,`,
-			`  actual_status_snapshot      TEXT    NOT NULL DEFAULT '',`,
-			`  active_symbols_json         TEXT    NOT NULL DEFAULT '[]',`,
-			`  last_closed_kline_at_ms     INTEGER,`,
-			`  last_signal_at_ms           INTEGER,`,
-			`  last_order_at_ms            INTEGER,`,
-			`  last_error_at_ms            INTEGER,`,
-			`  last_error                  TEXT    NOT NULL DEFAULT '',`,
-			`  updated_at_ms               INTEGER`,
-			`)`,
-		}, " "),
-	} {
-		if _, err := s.db.ExecContext(context.Background(), statement); err != nil {
-			return err
-		}
-	}
-
-	for _, schema := range []struct {
-		table   string
-		columns []string
-	}{
-		{table: strategyRuntimeLogTable, columns: expectedStrategyRuntimeLogSchemaColumns()},
-		{table: strategyRuntimeAuditTable, columns: expectedStrategyRuntimeAuditSchemaColumns()},
-		{table: strategyRuntimeObservationTable, columns: expectedStrategyRuntimeObservationSchemaColumns()},
-	} {
-		if err := s.ensureSchema(schema.table, schema.columns); err != nil {
-			return err
-		}
-	}
-
-	for _, statement := range []string{
-		`CREATE INDEX IF NOT EXISTS idx_strategy_log_events_instance_at ON ` + strategyRuntimeLogTable + ` (instance_id, at_ms DESC, id DESC)`,
-		`CREATE INDEX IF NOT EXISTS idx_strategy_log_events_level ON ` + strategyRuntimeLogTable + ` (level)`,
-		`CREATE INDEX IF NOT EXISTS idx_strategy_audit_events_instance_at ON ` + strategyRuntimeAuditTable + ` (instance_id, at_ms DESC, id DESC)`,
-		`CREATE INDEX IF NOT EXISTS idx_strategy_audit_events_kind ON ` + strategyRuntimeAuditTable + ` (kind)`,
-	} {
-		if _, err := s.db.ExecContext(context.Background(), statement); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (s *strategyRuntimeStore) ensureSchema(tableName string, want []string) error {
-	rows, err := s.db.QueryContext(context.Background(), `PRAGMA table_info(`+tableName+`)`)
-	if err != nil {
-		return fmt.Errorf("inspect %s schema: %w", tableName, err)
-	}
-	defer func() { jftradeLogError(rows.Close()) }()
-
-	got := make([]string, 0, len(want))
-	for rows.Next() {
-		var cid, notNull, pk int
-		var name, dataType string
-		var defaultValue sql.NullString
-		if err := rows.Scan(&cid, &name, &dataType, &notNull, &defaultValue, &pk); err != nil {
-			return fmt.Errorf("scan %s schema: %w", tableName, err)
-		}
-		got = append(got, fmt.Sprintf("%s:%s:%d", name, strings.ToUpper(dataType), pk))
-	}
-	if err := rows.Err(); err != nil {
-		return fmt.Errorf("iterate %s schema: %w", tableName, err)
-	}
-	if len(got) != len(want) {
-		return fmt.Errorf("%s schema is obsolete; rebuild the strategy runtime database", tableName)
-	}
-	for index := range want {
-		if got[index] != want[index] {
-			return fmt.Errorf("%s schema is obsolete; rebuild the strategy runtime database", tableName)
-		}
-	}
-	return nil
+func (s *strategyRuntimeStore) initializeOrValidateSchema() error {
+	return initializeStrategyDatabase(s.db, s.path)
 }
 
 func expectedStrategyRuntimeLogSchemaColumns() []string {

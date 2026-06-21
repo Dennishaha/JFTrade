@@ -5,13 +5,9 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
-	"os"
-	"path/filepath"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -141,9 +137,6 @@ type BacktestRunSummary struct {
 func NewADKRuntime(settingsPath string, deps RuntimeDeps) *jfadk.Runtime {
 	dbPath := apiruntime.DeriveADKDBPath(settingsPath)
 	sessionDBPath := apiruntime.DeriveADKSessionDBPath(settingsPath)
-	if err := BackupSQLiteFiles(dbPath, sessionDBPath); err != nil {
-		log.Printf("JFTrade ADK backup degraded: %v", err)
-	}
 	store, err := jfadk.NewStore(dbPath, apiruntime.DeriveADKSecretsPath(settingsPath), apiruntime.DeriveADKSkillsDir(settingsPath))
 	if err != nil {
 		log.Printf("JFTrade ADK runtime degraded: %v", err)
@@ -154,17 +147,8 @@ func NewADKRuntime(settingsPath string, deps RuntimeDeps) *jfadk.Runtime {
 	sessionService, err := jfadk.NewSQLiteSessionService(sessionDBPath)
 	if err != nil {
 		log.Printf("JFTrade ADK session store degraded: %v", err)
-		runtime := jfadk.NewRuntime(store, registry)
-		configureADKRuntime(runtime, deps)
-		return runtime
-	}
-	if err := jfadk.MigrateSQLiteSessionService(sessionService); err != nil {
-		log.Printf("JFTrade ADK session migration degraded: %v", err)
-		jftradeErr1 := sessionService.Close()
-		jftradeLogError(jftradeErr1)
-		runtime := jfadk.NewRuntime(store, registry)
-		configureADKRuntime(runtime, deps)
-		return runtime
+		_ = store.Close()
+		return nil
 	}
 	runtime := jfadk.NewRuntimeWithSessionService(store, registry, sessionService)
 	configureADKRuntime(runtime, deps)
@@ -175,57 +159,6 @@ func configureADKRuntime(runtime *jfadk.Runtime, deps RuntimeDeps) {
 	if runtime != nil && deps.RuntimeLimits != nil {
 		runtime.SetRuntimeLimitsProvider(deps.RuntimeLimits)
 	}
-}
-
-func BackupSQLiteFiles(paths ...string) error {
-	var errs []error
-	for _, path := range paths {
-		if err := backupSQLiteFile(path, 3); err != nil {
-			errs = append(errs, err)
-		}
-	}
-	return errors.Join(errs...)
-}
-
-func backupSQLiteFile(path string, retain int) error {
-	path = strings.TrimSpace(path)
-	if path == "" {
-		return nil
-	}
-	info, err := os.Stat(path)
-	if errors.Is(err, os.ErrNotExist) {
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-	if !info.Mode().IsRegular() {
-		return fmt.Errorf("ADK database is not a regular file: %s", path)
-	}
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		return err
-	}
-	backupDir := filepath.Join(filepath.Dir(path), "backups")
-	if err := os.MkdirAll(backupDir, 0o700); err != nil {
-		return err
-	}
-	backupPath := filepath.Join(backupDir, filepath.Base(path)+"."+time.Now().UTC().Format("20060102T150405.000000000Z")+".bak")
-	if err := os.WriteFile(backupPath, raw, 0o600); err != nil {
-		return err
-	}
-	matches, err := filepath.Glob(filepath.Join(backupDir, filepath.Base(path)+".*.bak"))
-	if err != nil {
-		return err
-	}
-	sort.Strings(matches)
-	for len(matches) > retain {
-		if err := os.Remove(matches[0]); err != nil {
-			return err
-		}
-		matches = matches[1:]
-	}
-	return nil
 }
 
 func RegisterJFTradeADKTools(store *jfadk.Store, registry *jfadk.ToolRegistry, deps ToolDeps) {

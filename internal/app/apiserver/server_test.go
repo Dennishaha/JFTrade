@@ -75,3 +75,37 @@ func TestStartForRunArgsDisabledReturnsNoop(t *testing.T) {
 		t.Fatalf("shutdown() error = %v", err)
 	}
 }
+
+func TestDependenciesApplyScheduledDatabaseRebuildBeforeStartup(t *testing.T) {
+	root := t.TempDir()
+	settingsPath := filepath.Join(root, "settings.json")
+	backtestPath := filepath.Join(root, "backtest.db")
+	for _, path := range []string{backtestPath, backtestPath + "-wal", backtestPath + "-shm"} {
+		if err := os.WriteFile(path, []byte("legacy"), 0o600); err != nil {
+			t.Fatalf("write legacy database file: %v", err)
+		}
+	}
+	if err := os.WriteFile(
+		filepath.Join(root, "database-rebuild.json"),
+		[]byte(`{"databaseIds":["backtest"],"createdAt":"2026-06-21T00:00:00Z"}`),
+		0o600,
+	); err != nil {
+		t.Fatalf("write rebuild marker: %v", err)
+	}
+
+	deps := dependencies()
+	if deps.ApplyDatabaseRebuild == nil || deps.CompleteDatabaseRebuild == nil {
+		t.Fatal("database rebuild lifecycle callbacks are not wired")
+	}
+	if err := deps.ApplyDatabaseRebuild(settingsPath, backtestPath); err != nil {
+		t.Fatalf("ApplyDatabaseRebuild: %v", err)
+	}
+	for _, path := range []string{backtestPath, backtestPath + "-wal", backtestPath + "-shm"} {
+		if _, err := os.Stat(path); !os.IsNotExist(err) {
+			t.Fatalf("scheduled database file still exists: %s (%v)", path, err)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(root, "database-rebuild.json")); err != nil {
+		t.Fatalf("rebuild marker should remain until schema initialization completes: %v", err)
+	}
+}

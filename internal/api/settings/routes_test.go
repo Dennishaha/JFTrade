@@ -1,6 +1,7 @@
 package settings_test
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -300,5 +301,40 @@ func TestExchangeCalendarSettingsRouteUsesInjectedService(t *testing.T) {
 	}
 	if !envelope.OK || envelope.Data.ExchangeCalendars.RefreshIntervalHours != 12 {
 		t.Fatalf("envelope = %#v", envelope)
+	}
+}
+
+func TestDataMigrationRoutesUseInjectedCallbacks(t *testing.T) {
+	gin.SetMode(gin.ReleaseMode)
+	store := &routeStore{}
+	var rebuildPayload any
+	service := srvsettings.NewService(store, srvsettings.WithDataMigration(
+		func(context.Context) (any, error) {
+			return map[string]any{"databases": []map[string]any{{"id": "adk", "status": "incompatible"}}}, nil
+		},
+		func(_ context.Context, payload any) (any, error) {
+			rebuildPayload = payload
+			return map[string]any{"scheduled": true, "restartRequired": true}, nil
+		},
+	))
+	router := gin.New()
+	apisettings.RegisterRoutes(router.Group("/api/v1"), service)
+
+	statusRecorder := httptest.NewRecorder()
+	router.ServeHTTP(statusRecorder, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/settings/data-migration/databases", nil))
+	if statusRecorder.Code != http.StatusOK || !strings.Contains(statusRecorder.Body.String(), `"id":"adk"`) {
+		t.Fatalf("status response = %d %s", statusRecorder.Code, statusRecorder.Body.String())
+	}
+
+	rebuildRecorder := httptest.NewRecorder()
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/settings/data-migration/databases/rebuild", strings.NewReader(`{"mode":"single","databaseId":"adk","confirmation":"REBUILD adk"}`))
+	request.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(rebuildRecorder, request)
+	if rebuildRecorder.Code != http.StatusOK || !strings.Contains(rebuildRecorder.Body.String(), `"restartRequired":true`) {
+		t.Fatalf("rebuild response = %d %s", rebuildRecorder.Code, rebuildRecorder.Body.String())
+	}
+	payload, ok := rebuildPayload.(map[string]any)
+	if !ok || payload["databaseId"] != "adk" {
+		t.Fatalf("rebuild payload = %#v", rebuildPayload)
 	}
 }

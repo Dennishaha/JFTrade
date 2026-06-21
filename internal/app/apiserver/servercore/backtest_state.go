@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jftrade/jftrade-main/internal/store/sqliteschema"
 	"github.com/jmoiron/sqlx"
 	// Register the modernc SQLite driver for database/sql.
 	_ "modernc.org/sqlite"
@@ -30,6 +31,7 @@ type backtestRunStore struct {
 	runs    map[string]*backtestRunState
 	cancels map[string]context.CancelFunc
 	db      *sqlx.DB
+	dbPath  string
 }
 
 type backtestRunStateRow struct {
@@ -87,8 +89,9 @@ func newBacktestRunStoreWithDB(dbPath string) (*backtestRunStore, error) {
 		runs:    make(map[string]*backtestRunState),
 		cancels: make(map[string]context.CancelFunc),
 		db:      db,
+		dbPath:  trimmedPath,
 	}
-	if err := store.migrate(); err != nil {
+	if err := store.initializeOrValidateSchema(); err != nil {
 		jftradeErr2 := db.Close()
 		jftradeLogError(jftradeErr2)
 		return nil, fmt.Errorf("migrate backtest run sqlite store: %w", err)
@@ -131,11 +134,11 @@ func (s *backtestRunStore) Close() error {
 	return s.db.Close()
 }
 
-func (s *backtestRunStore) migrate() error {
+func (s *backtestRunStore) initializeOrValidateSchema() error {
 	if s == nil || s.db == nil {
 		return nil
 	}
-	for _, statement := range []string{
+	statements := []string{
 		strings.Join([]string{
 			`CREATE TABLE IF NOT EXISTS ` + backtestRunTable + ` (`,
 			`  id           TEXT PRIMARY KEY,`,
@@ -148,14 +151,16 @@ func (s *backtestRunStore) migrate() error {
 		}, " "),
 		`CREATE INDEX IF NOT EXISTS idx_backtest_runs_updated_at ON ` + backtestRunTable + ` (updated_at DESC, id ASC)`,
 		`CREATE INDEX IF NOT EXISTS idx_backtest_runs_status ON ` + backtestRunTable + ` (status, updated_at DESC)`,
-	} {
-		if _, err := s.db.ExecContext(context.Background(), statement); err != nil {
-			if !strings.Contains(strings.ToLower(err.Error()), "duplicate column name") {
-				return err
-			}
-		}
 	}
-	return nil
+	return sqliteschema.InitializeOrValidate(
+		context.Background(), s.db, s.dbPath, "backtest-runs", 1, statements,
+		func(ctx context.Context, db *sqlx.DB) error {
+			return sqliteschema.ValidateTable(ctx, db, backtestRunTable, []string{
+				"id:TEXT:1", "status:TEXT:0", "request_json:TEXT:0", "result_json:TEXT:0",
+				"created_at:TEXT:0", "updated_at:TEXT:0",
+			})
+		},
+	)
 }
 
 func (s *backtestRunStore) loadFromDB() error {

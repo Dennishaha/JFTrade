@@ -47,6 +47,11 @@ func (s *strategyDesignStore) openDB() error {
 		return fmt.Errorf("open strategy design sqlite store: %w", err)
 	}
 	s.db = db
+	if err := initializeStrategyDatabase(db, trimmedPath); err != nil {
+		_ = db.Close()
+		s.db = nil
+		return fmt.Errorf("initialize strategy design sqlite store: %w", err)
+	}
 	return nil
 }
 

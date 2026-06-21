@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jftrade/jftrade-main/internal/store/sqliteschema"
 	"github.com/jmoiron/sqlx"
 	// Register the modernc SQLite driver for database/sql.
 	_ "modernc.org/sqlite"
@@ -23,7 +24,8 @@ const (
 )
 
 type executionOrderSQLiteStore struct {
-	db *sqlx.DB
+	db   *sqlx.DB
+	path string
 }
 
 type executionOrderSummaryRow struct {
@@ -116,8 +118,8 @@ func newExecutionOrderSQLiteStore(dbPath string) (*executionOrderSQLiteStore, er
 	if err != nil {
 		return nil, fmt.Errorf("open execution order sqlite store: %w", err)
 	}
-	store := &executionOrderSQLiteStore{db: db}
-	if err := store.migrate(); err != nil {
+	store := &executionOrderSQLiteStore{db: db, path: trimmedPath}
+	if err := store.initializeOrValidateSchema(); err != nil {
 		jftradeErr1 := db.Close()
 		jftradeLogError(jftradeErr1)
 		return nil, fmt.Errorf("migrate execution order sqlite store: %w", err)
@@ -132,11 +134,8 @@ func (s *executionOrderSQLiteStore) Close() error {
 	return s.db.Close()
 }
 
-func (s *executionOrderSQLiteStore) migrate() error {
-	if err := s.ensureExistingSchemaCanBeOpened(); err != nil {
-		return err
-	}
-	for _, statement := range []string{
+func (s *executionOrderSQLiteStore) initializeOrValidateSchema() error {
+	statements := []string{
 		strings.Join([]string{
 			`CREATE TABLE IF NOT EXISTS ` + executionOrderTable + ` (`,
 			`  internal_order_id    TEXT PRIMARY KEY,`,
@@ -192,25 +191,34 @@ func (s *executionOrderSQLiteStore) migrate() error {
 		`CREATE INDEX IF NOT EXISTS idx_execution_orders_broker_order ON ` + executionOrderTable + ` (broker_id, trading_environment, account_id, market, broker_order_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_execution_orders_broker_order_ex ON ` + executionOrderTable + ` (broker_id, trading_environment, account_id, market, broker_order_id_ex)`,
 		`CREATE INDEX IF NOT EXISTS idx_execution_order_events_order ON ` + executionOrderEventTable + ` (internal_order_id, created_at ASC, id ASC)`,
-	} {
-		if _, err := s.db.ExecContext(context.Background(), statement); err != nil {
-			return err
-		}
 	}
-	for _, schema := range []struct {
-		table   string
-		columns []string
-	}{
-		{table: executionOrderTable, columns: expectedExecutionOrderColumns()},
-		{table: executionOrderEventTable, columns: expectedExecutionOrderEventColumns()},
-		{table: executionSeenFillTable, columns: expectedExecutionSeenFillColumns()},
-		{table: executionSequenceTable, columns: expectedExecutionSequenceColumns()},
-	} {
-		if err := s.ensureSchema(schema.table, schema.columns); err != nil {
-			return err
-		}
-	}
-	return nil
+	return sqliteschema.InitializeOrValidate(
+		context.Background(),
+		s.db,
+		s.path,
+		"execution-orders",
+		1,
+		statements,
+		func(ctx context.Context, _ *sqlx.DB) error {
+			if err := s.ensureExistingSchemaCanBeOpened(); err != nil {
+				return err
+			}
+			for _, schema := range []struct {
+				table   string
+				columns []string
+			}{
+				{table: executionOrderTable, columns: expectedExecutionOrderColumns()},
+				{table: executionOrderEventTable, columns: expectedExecutionOrderEventColumns()},
+				{table: executionSeenFillTable, columns: expectedExecutionSeenFillColumns()},
+				{table: executionSequenceTable, columns: expectedExecutionSequenceColumns()},
+			} {
+				if err := s.ensureSchema(schema.table, schema.columns); err != nil {
+					return err
+				}
+			}
+			return nil
+		},
+	)
 }
 
 func (s *executionOrderSQLiteStore) ensureExistingSchemaCanBeOpened() error {

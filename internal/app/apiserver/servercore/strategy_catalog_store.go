@@ -62,9 +62,6 @@ func (s *strategyCatalogStore) Close() error {
 func (s *strategyCatalogStore) load() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if err := s.migrateLocked(); err != nil {
-		return err
-	}
 	s.data = strategyCatalogFile{TargetDir: s.targetDir, Plugins: []managedStrategyPlugin{}, Strategies: []managedStrategyInstance{}, Operations: []strategyPluginOperation{}}
 	targetDir, err := s.loadCatalogMetaLocked("target_dir")
 	if err != nil {
@@ -131,22 +128,6 @@ func (s *strategyCatalogStore) load() error {
 	}
 	if migrated {
 		return s.persistLocked()
-	}
-	return nil
-}
-
-func (s *strategyCatalogStore) migrateLocked() error {
-	for _, statement := range []string{
-		`CREATE TABLE IF NOT EXISTS ` + strategyCatalogMetaTable + ` (key TEXT PRIMARY KEY, value TEXT NOT NULL DEFAULT '')`,
-		`CREATE TABLE IF NOT EXISTS ` + strategyCatalogPluginTable + ` (id TEXT PRIMARY KEY, payload_json TEXT NOT NULL DEFAULT '', updated_at TEXT NOT NULL DEFAULT '')`,
-		`CREATE TABLE IF NOT EXISTS ` + strategyCatalogStrategyTable + ` (id TEXT PRIMARY KEY, payload_json TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT '', updated_at TEXT NOT NULL DEFAULT '')`,
-		`CREATE TABLE IF NOT EXISTS ` + strategyCatalogOperationTable + ` (operation_id TEXT PRIMARY KEY, plugin_id TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT '', updated_at TEXT NOT NULL DEFAULT '', payload_json TEXT NOT NULL DEFAULT '')`,
-		`CREATE INDEX IF NOT EXISTS idx_strategy_catalog_strategies_created_at ON ` + strategyCatalogStrategyTable + ` (created_at ASC, id ASC)`,
-		`CREATE INDEX IF NOT EXISTS idx_strategy_catalog_operations_updated_at ON ` + strategyCatalogOperationTable + ` (updated_at DESC, operation_id ASC)`,
-	} {
-		if _, err := s.db.ExecContext(context.Background(), statement); err != nil {
-			return err
-		}
 	}
 	return nil
 }

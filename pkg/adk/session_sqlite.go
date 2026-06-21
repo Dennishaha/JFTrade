@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/jftrade/jftrade-main/internal/store/sqliteschema"
+	"github.com/jmoiron/sqlx"
 	adksession "google.golang.org/adk/session"
 	adksessiondb "google.golang.org/adk/session/database"
 	"gorm.io/gorm"
@@ -26,6 +28,37 @@ func NewSQLiteSessionService(path string) (*SQLiteSessionService, error) {
 	}
 	db.SetMaxOpenConns(1)
 	db.SetMaxIdleConns(1)
+	if err := sqliteschema.InitializeOrValidate(
+		context.Background(),
+		sqlx.NewDb(db, sqliteDriverName),
+		path,
+		"adk-session",
+		1,
+		[]string{
+			"CREATE TABLE sessions (app_name TEXT, user_id TEXT, id TEXT, state TEXT, create_time TIMESTAMP, update_time TIMESTAMP, PRIMARY KEY (app_name,user_id,id))",
+			"CREATE TABLE events (id TEXT, app_name TEXT, user_id TEXT, session_id TEXT, invocation_id TEXT, author TEXT, actions BLOB, long_running_tool_ids_json TEXT, branch TEXT, timestamp TIMESTAMP, content TEXT, grounding_metadata TEXT, custom_metadata TEXT, usage_metadata TEXT, citation_metadata TEXT, partial NUMERIC, turn_complete NUMERIC, error_code TEXT, error_message TEXT, interrupted NUMERIC, PRIMARY KEY (id,app_name,user_id,session_id), FOREIGN KEY (app_name,user_id,session_id) REFERENCES sessions(app_name,user_id,id) ON DELETE CASCADE)",
+			"CREATE TABLE app_states (app_name TEXT PRIMARY KEY, state TEXT, update_time TIMESTAMP)",
+			"CREATE TABLE user_states (app_name TEXT, user_id TEXT, state TEXT, update_time TIMESTAMP, PRIMARY KEY (app_name,user_id))",
+		},
+		func(ctx context.Context, db *sqlx.DB) error {
+			for _, schema := range []struct {
+				table   string
+				columns []string
+			}{
+				{"sessions", []string{"app_name:TEXT:1", "user_id:TEXT:2", "id:TEXT:3", "state:TEXT:0", "create_time:TIMESTAMP:0", "update_time:TIMESTAMP:0"}},
+				{"app_states", []string{"app_name:TEXT:1", "state:TEXT:0", "update_time:TIMESTAMP:0"}},
+				{"user_states", []string{"app_name:TEXT:1", "user_id:TEXT:2", "state:TEXT:0", "update_time:TIMESTAMP:0"}},
+			} {
+				if err := sqliteschema.ValidateTable(ctx, db, schema.table, schema.columns); err != nil {
+					return err
+				}
+			}
+			return nil
+		},
+	); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
 	service, err := adksessiondb.NewSessionService(sqliteDialector{
 		DriverName: sqliteDriverName,
 		DSN:        dsn,
@@ -46,24 +79,17 @@ func (s *SQLiteSessionService) Close() error {
 	return s.db.Close()
 }
 
-func MigrateSQLiteSessionService(service adksession.Service) error {
+func ValidateSQLiteSessionService(service adksession.Service) error {
 	if wrapper, ok := service.(*SQLiteSessionService); ok && wrapper != nil {
-		if ready, err := sqliteSessionSchemaReady(wrapper.db); err == nil && ready {
-			return nil
-		} else if err != nil {
+		ready, err := sqliteSessionSchemaReady(wrapper.db)
+		if err != nil {
 			return err
 		}
-		service = wrapper.Service
+		if ready {
+			return nil
+		}
 	}
-	err := adksessiondb.AutoMigrate(service)
-	if err == nil {
-		return nil
-	}
-	lower := strings.ToLower(err.Error())
-	if strings.Contains(lower, "already exists") {
-		return nil
-	}
-	return err
+	return fmt.Errorf("ADK session schema is unavailable")
 }
 
 func CloseSessionService(service adksession.Service) error {

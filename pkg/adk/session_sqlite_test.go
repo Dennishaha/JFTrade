@@ -2,7 +2,7 @@ package adk
 
 import "testing"
 
-func TestMigrateSQLiteSessionServiceSkipsWhenSchemaAlreadyExists(t *testing.T) {
+func TestValidateSQLiteSessionServiceAcceptsCurrentSchema(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
@@ -15,11 +15,11 @@ func TestMigrateSQLiteSessionServiceSkipsWhenSchemaAlreadyExists(t *testing.T) {
 		jftradeCheckTestError(t, jftradeErr1)
 	})
 
-	if err := MigrateSQLiteSessionService(service); err != nil {
-		t.Fatalf("first MigrateSQLiteSessionService: %v", err)
+	if err := ValidateSQLiteSessionService(service); err != nil {
+		t.Fatalf("first ValidateSQLiteSessionService: %v", err)
 	}
-	if err := MigrateSQLiteSessionService(service); err != nil {
-		t.Fatalf("second MigrateSQLiteSessionService: %v", err)
+	if err := ValidateSQLiteSessionService(service); err != nil {
+		t.Fatalf("second ValidateSQLiteSessionService: %v", err)
 	}
 
 	ready, err := sqliteSessionSchemaReady(service.db)
