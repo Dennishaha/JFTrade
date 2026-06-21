@@ -404,6 +404,23 @@ func TestLiveTradingToolsAreAvailableOnlyInAllMode(t *testing.T) {
 	}
 }
 
+func TestBacktestToolsIncludeRequiredKLineSyncStatusCompanion(t *testing.T) {
+	registry := NewToolRegistry()
+	for _, name := range []string{"strategy.research_backtest", "backtest.kline_sync_status"} {
+		registry.Register(ToolDescriptor{Name: name, Permission: "read_internal"}, func(context.Context, map[string]any) (any, error) {
+			return nil, nil
+		})
+	}
+	descriptors := ToolDescriptorsForAgent(Agent{Tools: []string{"strategy.research_backtest"}}, registry)
+	names := make(map[string]bool, len(descriptors))
+	for _, descriptor := range descriptors {
+		names[descriptor.Name] = true
+	}
+	if !names["strategy.research_backtest"] || !names["backtest.kline_sync_status"] {
+		t.Fatalf("tool descriptors = %#v, want research and sync status companion", names)
+	}
+}
+
 func TestChatContinuesAfterToolFailure(t *testing.T) {
 	ctx := context.Background()
 	dir := t.TempDir()

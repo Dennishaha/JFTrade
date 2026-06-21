@@ -160,6 +160,23 @@ func (s *Server) adkToolDeps() ToolDeps {
 			return s.strategySvc.UpdateInstance(instanceID, binding)
 		},
 		ListBacktestRuns: s.adkBacktestRunSummaries,
+		EnsureBacktestData: func(definitionIDs []string, input BacktestStartInput) (BacktestDataReadiness, error) {
+			readiness, err := s.backtestSvc.EnsureDefinitionsData(context.Background(), btsrv.StartRequest{
+				Market: input.Market, Symbol: input.Symbol, Code: input.Code, Interval: input.Interval,
+				StartDate: input.StartDate, EndDate: input.EndDate, StartTime: input.StartTime, EndTime: input.EndTime,
+				InitialBalance: input.InitialBalance, RehabType: input.RehabType,
+			}, definitionIDs)
+			return backtestDataReadinessFromService(readiness), err
+		},
+		EnsureResearchBacktestData: func(input ResearchBacktestInput) (BacktestDataReadiness, error) {
+			readiness, err := s.backtestSvc.EnsureScriptData(context.Background(), btsrv.ScriptStartRequest{
+				Script: input.Script, Market: input.Market, Symbol: input.Symbol, Code: input.Code, Interval: input.Interval,
+				StartDate: input.StartDate, EndDate: input.EndDate, StartTime: input.StartTime, EndTime: input.EndTime,
+				InitialBalance: input.InitialBalance, RehabType: input.RehabType, UseExtendedHours: input.UseExtendedHours,
+			})
+			return backtestDataReadinessFromService(readiness), err
+		},
+		BacktestKLineSyncProgress: s.backtestSvc.GetSyncProgress,
 		EnqueueBacktest: func(input BacktestStartInput) (BacktestRunRef, error) {
 			run, err := s.backtestSvc.Start(context.Background(), btsrv.StartRequest{
 				DefinitionID:   input.DefinitionID,
@@ -218,6 +235,30 @@ func (s *Server) adkToolDeps() ToolDeps {
 			}
 		},
 	}
+}
+
+func backtestDataReadinessFromService(readiness *btsrv.DataReadiness) BacktestDataReadiness {
+	if readiness == nil {
+		return BacktestDataReadiness{}
+	}
+	result := BacktestDataReadiness{
+		Status: readiness.Status, Ready: readiness.Ready, Progress: readiness.Progress, Error: readiness.Error,
+	}
+	if readiness.Sync != nil {
+		intervals := make([]string, 0, len(readiness.Sync.Intervals))
+		for _, interval := range readiness.Sync.Intervals {
+			intervals = append(intervals, string(interval))
+		}
+		status := "queued"
+		if readiness.Progress != nil && readiness.Progress.Status != "" {
+			status = readiness.Progress.Status
+		}
+		result.DataSync = &BacktestDataSync{
+			TaskID: readiness.Sync.TaskID, Symbol: readiness.Sync.Symbol, Intervals: intervals,
+			Since: readiness.Sync.Since, Until: readiness.Sync.Until, SessionScope: readiness.Sync.SessionScope, Status: status,
+		}
+	}
+	return result
 }
 
 func brokerReadQueryFromADK(service *trdsrv.Service, input BrokerReadInput) broker.ReadQuery {

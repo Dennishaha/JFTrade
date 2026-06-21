@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 	jfadk "github.com/jftrade/jftrade-main/pkg/adk"
@@ -539,7 +540,7 @@ func TestADKBacktestRunsToolReturnsSeriesCountsInsteadOfFullArrays(t *testing.T)
 	}
 }
 
-func TestADKStrategyResearchBacktestToolStartsTransientRun(t *testing.T) {
+func TestADKStrategyResearchBacktestToolStartsKLineSyncBeforeTransientRun(t *testing.T) {
 	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
 	if err != nil {
 		t.Fatalf("NewSettingsStore: %v", err)
@@ -579,40 +580,114 @@ func TestADKStrategyResearchBacktestToolStartsTransientRun(t *testing.T) {
 	if got := payload["ok"]; got != true {
 		t.Fatalf("ok = %#v, want true", got)
 	}
-	runID := jftradeCheckedTypeAssertion[string](payload["runId"])
-	if !strings.HasPrefix(runID, "bt-") {
-		t.Fatalf("runId = %#v, want bt- prefix", payload["runId"])
+	if payload["status"] != "syncing_data" {
+		t.Fatalf("status = %#v, want syncing_data", payload["status"])
+	}
+	if _, exists := payload["runId"]; exists {
+		t.Fatalf("syncing response unexpectedly contains runId: %#v", payload)
+	}
+	dataSync, ok := payload["dataSync"].(map[string]any)
+	if !ok || !strings.HasPrefix(jftradeCheckedTypeAssertion[string](dataSync["taskId"]), "sync-") {
+		t.Fatalf("dataSync = %#v, want sync task", payload["dataSync"])
 	}
 	if after := len(server.designStore.listDefinitions()); after != before {
 		t.Fatalf("strategy definitions count = %d, want unchanged %d", after, before)
 	}
-	status, ok := server.backtestRuns.get(runID)
+	if len(server.backtestRuns.list()) != 0 {
+		t.Fatal("backtest run was created before K-line sync completed")
+	}
+}
+
+func TestADKStrategyResearchBacktestStartsRunWhenKLinesAreReady(t *testing.T) {
+	registry := jfadk.NewToolRegistry()
+	started := false
+	registerJFTradeADKStrategyTools(nil, registry, ToolDeps{
+		EnsureResearchBacktestData: func(ResearchBacktestInput) (BacktestDataReadiness, error) {
+			return BacktestDataReadiness{Status: "ready", Ready: true}, nil
+		},
+		StartResearchBacktest: func(ResearchBacktestInput) (BacktestRunSummary, error) {
+			started = true
+			return BacktestRunSummary{ID: "bt-ready", Status: "queued"}, nil
+		},
+	})
+	tool, ok := registry.Get("strategy.research_backtest")
 	if !ok {
-		t.Fatalf("transient run %q not found", runID)
+		t.Fatal("strategy.research_backtest tool not registered")
 	}
-	if !strings.HasPrefix(status.Request.DefinitionID, "adk-research-") {
-		t.Fatalf("definitionId = %q, want transient research id", status.Request.DefinitionID)
-	}
-	if strings.Contains(status.Request.DefinitionID, "Minimal Draft") {
-		t.Fatalf("definitionId leaked strategy name: %q", status.Request.DefinitionID)
-	}
-	if status.Request.StartDate != "2025-01-01" || status.Request.EndDate != "2025-01-02" || status.Request.MarketTimezone != "America/New_York" {
-		t.Fatalf("research backtest market date metadata = %+v", status.Request)
-	}
-	resultTool, ok := server.adkRuntime.Tools().Get("backtest.result_view")
-	if !ok {
-		t.Fatal("backtest.result_view tool not registered")
-	}
-	resultOutput, err := resultTool.Handler(context.Background(), map[string]any{
-		"runId": runID,
-		"view":  "summary",
+	output, err := tool.Handler(context.Background(), map[string]any{
+		"script": strategypinespec.Skeleton(), "market": "US", "symbol": "US.AAPL",
+		"startTime": "2025-01-01T00:00:00Z", "endTime": "2025-01-02T00:00:00Z",
 	})
 	if err != nil {
-		t.Fatalf("backtest.result_view for transient run: %v", err)
+		t.Fatalf("tool.Handler: %v", err)
 	}
-	resultPayload, ok := resultOutput.(map[string]any)
-	if !ok || resultPayload["run"] == nil {
-		t.Fatalf("backtest.result_view output = %#v, want persisted transient run", resultOutput)
+	payload := jftradeCheckedTypeAssertion[map[string]any](output)
+	if !started || payload["runId"] != "bt-ready" {
+		t.Fatalf("started=%v payload=%#v, want queued run", started, payload)
+	}
+}
+
+func TestADKKLineSyncStatusToolReportsRetryReadiness(t *testing.T) {
+	registry := jfadk.NewToolRegistry()
+	progress := backtest.NewSyncProgress("sync-ready", "US.AAPL", time.Now())
+	progress.MarkCompleted(1, time.Now())
+	registerJFTradeADKStrategyTools(nil, registry, ToolDeps{
+		BacktestKLineSyncProgress: func(taskID string) (*backtest.SyncProgress, bool) {
+			return progress.Snapshot(), taskID == "sync-ready"
+		},
+	})
+	tool, ok := registry.Get("backtest.kline_sync_status")
+	if !ok {
+		t.Fatal("backtest.kline_sync_status tool not registered")
+	}
+	if jfadk.ToolRequiresApproval(tool.Descriptor, jfadk.PermissionModeApproval) {
+		t.Fatal("K-line sync status unexpectedly requires approval")
+	}
+	output, err := tool.Handler(context.Background(), map[string]any{"taskId": "sync-ready"})
+	if err != nil {
+		t.Fatalf("tool.Handler: %v", err)
+	}
+	payload := jftradeCheckedTypeAssertion[map[string]any](output)
+	if payload["status"] != "completed" || payload["readyToRetry"] != true {
+		t.Fatalf("payload = %#v, want completed retry readiness", payload)
+	}
+}
+
+func TestADKStrategyOptimizeDoesNotCreateRunsWhileKLinesSync(t *testing.T) {
+	registry := jfadk.NewToolRegistry()
+	enqueueCalls := 0
+	registerJFTradeADKStrategyTools(nil, registry, ToolDeps{
+		EnsureBacktestData: func(ids []string, _ BacktestStartInput) (BacktestDataReadiness, error) {
+			if len(ids) != 2 {
+				t.Fatalf("definition IDs = %#v, want two candidates", ids)
+			}
+			return BacktestDataReadiness{
+				Status:   "syncing_data",
+				DataSync: &BacktestDataSync{TaskID: "sync-opt", Symbol: "US.AAPL", Intervals: []string{"1m"}, Status: "running"},
+			}, nil
+		},
+		EnqueueBacktest: func(BacktestStartInput) (BacktestRunRef, error) {
+			enqueueCalls++
+			return BacktestRunRef{}, nil
+		},
+	})
+	tool, ok := registry.Get("strategy.optimize")
+	if !ok {
+		t.Fatal("strategy.optimize tool not registered")
+	}
+	output, err := tool.Handler(context.Background(), map[string]any{
+		"definitionIds": []any{"def-a", "def-b"}, "market": "US", "symbol": "US.AAPL",
+		"startTime": "2025-01-01T00:00:00Z", "endTime": "2025-01-02T00:00:00Z",
+	})
+	if err != nil {
+		t.Fatalf("tool.Handler: %v", err)
+	}
+	payload := jftradeCheckedTypeAssertion[map[string]any](output)
+	if payload["status"] != "syncing_data" || enqueueCalls != 0 {
+		t.Fatalf("payload=%#v enqueueCalls=%d, want sync without runs", payload, enqueueCalls)
+	}
+	if _, exists := payload["optimizationTaskId"]; exists {
+		t.Fatalf("syncing payload unexpectedly contains optimizationTaskId: %#v", payload)
 	}
 }
 

@@ -220,7 +220,7 @@ func TestSkillResourcesContainSpecAndExamples(t *testing.T) {
 		t.Fatalf("cheatsheet resource missing heading: %q", cheatsheet)
 	}
 	researchFiles := ResearchSkillResourceFiles()
-	if workflow := researchFiles["references/strategy-research-workflow.md"]; !strings.Contains(workflow, "strategy.research_backtest") || !strings.Contains(workflow, "backtest.result_view") {
+	if workflow := researchFiles["references/strategy-research-workflow.md"]; !strings.Contains(workflow, "strategy.research_backtest") || !strings.Contains(workflow, "backtest.result_view") || !strings.Contains(workflow, "backtest.kline_sync_status") {
 		t.Fatalf("research workflow missing research tool routing: %q", workflow)
 	}
 	publishFiles := PublishSkillResourceFiles()
@@ -232,6 +232,9 @@ func TestSkillResourcesContainSpecAndExamples(t *testing.T) {
 	}
 	if containsString(PublishSkillAllowedTools(), "strategy.research_backtest") {
 		t.Fatalf("publish skill should not expose research_backtest")
+	}
+	if !containsString(ResearchSkillAllowedTools(), "backtest.kline_sync_status") || !containsString(PublishSkillAllowedTools(), "backtest.kline_sync_status") {
+		t.Fatal("research and publish skills must expose K-line sync status")
 	}
 }
 

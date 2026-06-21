@@ -2043,10 +2043,10 @@ body {
 }
 
 .adk-composer-send {
-  flex-shrink: 0;
+  flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
 }
 
 .adk-composer--mobile .adk-composer-input {
@@ -2055,7 +2055,7 @@ body {
 }
 
 .adk-composer--mobile .adk-composer-send {
-  min-width: 72px;
+  min-width: 38px;
 }
 
 /* === Config drawer === */

@@ -58,12 +58,14 @@ JFTrade 的 Run、Approval、Audit 和前端 SSE 是产品控制面，不替代 
 - 账户：`portfolio.summary`、`account.orders`
 - 工作流：`workflow.wait`
 - 策略：`strategy.definitions`、`strategy.pine_spec`、`strategy.validate_pine`、`strategy.research_backtest`、`strategy.save_draft`、`strategy.save_definition`、`strategy.update_instance_mode`、`strategy.optimize`
-- 回测：`backtest.runs`、`backtest.result_view`
+- 回测：`backtest.runs`、`backtest.result_view`、`backtest.kline_sync_status`
 - 外部：`http.fetch`
 
 `http.fetch` 允许公网 HTTP/HTTPS，默认阻止本机、私网、link-local、multicast 和 metadata IP，且限制响应大小。
 
 策略内置 skill 已拆分为 `jftrade-strategy-research` 和 `jftrade-strategy-publish`。前者用于临时研究回测与结果查看，不写入策略定义；后者用于用户明确要求的保存、发布、实例模式调整和已保存定义优化。旧的 `jftrade-strategy` 不再作为内置 skill 同步。
+
+ADK 发起研究回测或策略优化前会先检查本地 K 线覆盖，并把指标 warmup 纳入检查范围。覆盖不足时自动启动历史数据同步，工具返回 `syncing_data` 和同步 `taskId`，不会提前创建回测 run；skill 使用 `backtest.kline_sync_status` 等待完成后，以相同参数重试原回测工具。同步失败、取消或完成后覆盖仍不足时停止自动重试并返回原因。
 
 ## Skill 运行时
 

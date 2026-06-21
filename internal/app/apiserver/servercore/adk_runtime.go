@@ -57,6 +57,9 @@ type ToolDeps struct {
 	SaveStrategyDefinition     func(StrategyDefinitionInput) (any, error)
 	UpdateStrategyInstanceMode func(instanceID string, executionMode string) (any, error)
 	ListBacktestRuns           func() []BacktestRunSummary
+	EnsureBacktestData         func([]string, BacktestStartInput) (BacktestDataReadiness, error)
+	EnsureResearchBacktestData func(ResearchBacktestInput) (BacktestDataReadiness, error)
+	BacktestKLineSyncProgress  func(string) (*backtest.SyncProgress, bool)
 	EnqueueBacktest            func(BacktestStartInput) (BacktestRunRef, error)
 	StartResearchBacktest      func(ResearchBacktestInput) (BacktestRunSummary, error)
 	BacktestResultView         func(BacktestResultViewInput) (any, error)
@@ -124,6 +127,19 @@ type BacktestResultViewInput struct {
 
 type BacktestRunRef struct {
 	ID, Status string
+}
+
+type BacktestDataReadiness struct {
+	Status   string
+	Ready    bool
+	DataSync *BacktestDataSync
+	Progress *backtest.SyncProgress
+	Error    string
+}
+
+type BacktestDataSync struct {
+	TaskID, Symbol, Since, Until, SessionScope, Status string
+	Intervals                                          []string
 }
 
 type BacktestRunSummary struct {
@@ -243,7 +259,7 @@ func registerJFTradeADKStrategyTools(store *jfadk.Store, registry *jfadk.ToolReg
 		if err != nil {
 			return nil, err
 		}
-		run, err := deps.StartResearchBacktest(ResearchBacktestInput{
+		researchInput := ResearchBacktestInput{
 			Script:           validation.NormalizedScript,
 			Market:           stringValue(input, "market"),
 			Symbol:           stringValue(input, "symbol"),
@@ -256,7 +272,17 @@ func registerJFTradeADKStrategyTools(store *jfadk.Store, registry *jfadk.ToolReg
 			InitialBalance:   floatValue(input, "initialBalance", 0),
 			RehabType:        stringOrDefault(stringValue(input, "rehabType"), "forward"),
 			UseExtendedHours: optionalBoolInput(input, "useExtendedHours"),
-		})
+		}
+		if deps.EnsureResearchBacktestData != nil {
+			readiness, ensureErr := deps.EnsureResearchBacktestData(researchInput)
+			if ensureErr != nil {
+				return nil, ensureErr
+			}
+			if !readiness.Ready {
+				return backtestDataReadinessPayload(readiness), nil
+			}
+		}
+		run, err := deps.StartResearchBacktest(researchInput)
 		if err != nil {
 			return nil, err
 		}
@@ -359,6 +385,24 @@ func registerJFTradeADKStrategyTools(store *jfadk.Store, registry *jfadk.ToolReg
 		}
 		return deps.BacktestResultView(viewInput)
 	})
+	registry.Register(jfadk.ToolDescriptor{Name: "backtest.kline_sync_status", DisplayName: "K 线同步状态", Description: "查询回测历史 K 线自动同步任务；可短暂等待任务完成。", Category: "strategy", Permission: "read_internal", RiskLevel: "low", OutputSummary: "K 线同步进度、错误和是否可以重试回测。"}, func(ctx context.Context, input map[string]any) (any, error) {
+		if deps.BacktestKLineSyncProgress == nil {
+			return nil, fmt.Errorf("backtest K-line sync status is unavailable")
+		}
+		taskID := strings.TrimSpace(stringValue(input, "taskId"))
+		if taskID == "" {
+			return nil, fmt.Errorf("taskId is required")
+		}
+		waitMs := intValue(input, "waitForCompletionMs", 0)
+		if waitMs > 25000 {
+			waitMs = 25000
+		}
+		progress, ok := waitForADKKLineSyncProgress(ctx, deps, taskID, waitMs)
+		if !ok {
+			return nil, fmt.Errorf("k-line sync task %q not found", taskID)
+		}
+		return klineSyncProgressPayload(progress), nil
+	})
 	registry.Register(jfadk.ToolDescriptor{Name: "strategy.optimize", DisplayName: "策略优化", Description: "为多个候选策略定义创建真实异步回测任务，并返回任务引用。", Category: "strategy", Permission: "optimize_strategy", RequiresApprovalIn: []string{jfadk.PermissionModeApproval}, OutputSummary: "优化任务 ID 与候选回测 Run。"}, func(_ context.Context, input map[string]any) (any, error) {
 		definitionIDs := stringSliceValue(input, "definitionIds")
 		if len(definitionIDs) == 0 {
@@ -372,11 +416,23 @@ func registerJFTradeADKStrategyTools(store *jfadk.Store, registry *jfadk.ToolReg
 		if len(definitionIDs) > 12 {
 			return nil, fmt.Errorf("at most 12 optimization candidates are allowed")
 		}
+		startInput := BacktestStartInput{Market: stringValue(input, "market"), Symbol: stringValue(input, "symbol"), Code: stringValue(input, "code"), Interval: stringOrDefault(stringValue(input, "interval"), "1m"), StartDate: stringValue(input, "startDate"), EndDate: stringValue(input, "endDate"), StartTime: stringValue(input, "startTime"), EndTime: stringValue(input, "endTime"), InitialBalance: floatValue(input, "initialBalance", 0), RehabType: stringOrDefault(stringValue(input, "rehabType"), "forward")}
+		if deps.EnsureBacktestData != nil {
+			readiness, ensureErr := deps.EnsureBacktestData(definitionIDs, startInput)
+			if ensureErr != nil {
+				return nil, ensureErr
+			}
+			if !readiness.Ready {
+				return backtestDataReadinessPayload(readiness), nil
+			}
+		}
 		taskID := "opt-" + time.Now().UTC().Format("20060102T150405.000000000")
 		runs := make([]map[string]any, 0, len(definitionIDs))
 		runRefs := make([]jfadk.OptimizationRunRef, 0, len(definitionIDs))
 		for _, definitionID := range definitionIDs {
-			run, err := deps.EnqueueBacktest(BacktestStartInput{DefinitionID: definitionID, Market: stringValue(input, "market"), Symbol: stringValue(input, "symbol"), Code: stringValue(input, "code"), Interval: stringOrDefault(stringValue(input, "interval"), "1m"), StartDate: stringValue(input, "startDate"), EndDate: stringValue(input, "endDate"), StartTime: stringValue(input, "startTime"), EndTime: stringValue(input, "endTime"), InitialBalance: floatValue(input, "initialBalance", 0), RehabType: stringOrDefault(stringValue(input, "rehabType"), "forward")})
+			candidateInput := startInput
+			candidateInput.DefinitionID = definitionID
+			run, err := deps.EnqueueBacktest(candidateInput)
 			if err != nil {
 				for _, queued := range runRefs {
 					deps.CancelBacktest(queued.RunID)
@@ -806,6 +862,84 @@ func waitForADKBacktestStatus(ctx context.Context, deps ToolDeps, runID string, 
 		case <-ticker.C:
 		}
 	}
+}
+
+func waitForADKKLineSyncProgress(ctx context.Context, deps ToolDeps, taskID string, waitMs int) (*backtest.SyncProgress, bool) {
+	progress, ok := deps.BacktestKLineSyncProgress(taskID)
+	if !ok || waitMs <= 0 || isTerminalKLineSyncStatus(progress.Status) {
+		return progress, ok
+	}
+	deadline := time.NewTimer(time.Duration(waitMs) * time.Millisecond)
+	defer deadline.Stop()
+	ticker := time.NewTicker(250 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return progress, true
+		case <-deadline.C:
+			return progress, true
+		case <-ticker.C:
+			next, found := deps.BacktestKLineSyncProgress(taskID)
+			if !found {
+				return nil, false
+			}
+			progress = next
+			if isTerminalKLineSyncStatus(progress.Status) {
+				return progress, true
+			}
+		}
+	}
+}
+
+func isTerminalKLineSyncStatus(status string) bool {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "completed", "failed", "cancelled":
+		return true
+	default:
+		return false
+	}
+}
+
+func klineSyncProgressPayload(progress *backtest.SyncProgress) map[string]any {
+	if progress == nil {
+		return map[string]any{"status": "unknown", "readyToRetry": false}
+	}
+	return map[string]any{
+		"taskId": progress.TaskID, "status": progress.Status, "symbol": progress.Symbol,
+		"currentInterval": progress.CurrentInterval, "totalIntervals": progress.TotalIntervals,
+		"completedIntervals": progress.CompletedIntervals, "totalBatches": progress.TotalBatches,
+		"completedBatches": progress.CompletedBatches, "retries": progress.Retries,
+		"error": progress.Error, "startedAt": progress.StartedAt, "updatedAt": progress.UpdatedAt,
+		"readyToRetry": strings.EqualFold(progress.Status, "completed"),
+	}
+}
+
+func backtestDataReadinessPayload(readiness BacktestDataReadiness) map[string]any {
+	payload := map[string]any{
+		"ok":         readiness.Status == "syncing_data",
+		"status":     readiness.Status,
+		"nextAction": "等待 K 线同步完成后，使用完全相同的参数重试原回测工具。",
+	}
+	if readiness.Error != "" {
+		payload["error"] = readiness.Error
+	}
+	if readiness.DataSync != nil {
+		payload["dataSync"] = map[string]any{
+			"taskId": readiness.DataSync.TaskID, "symbol": readiness.DataSync.Symbol,
+			"intervals": readiness.DataSync.Intervals, "since": readiness.DataSync.Since,
+			"until": readiness.DataSync.Until, "sessionScope": readiness.DataSync.SessionScope,
+			"status": readiness.DataSync.Status,
+		}
+		payload["nextTool"] = map[string]any{"name": "backtest.kline_sync_status", "input": map[string]any{"taskId": readiness.DataSync.TaskID, "waitForCompletionMs": 25000}}
+	}
+	if readiness.Progress != nil {
+		payload["progress"] = klineSyncProgressPayload(readiness.Progress)
+	}
+	if readiness.Status != "syncing_data" {
+		payload["nextAction"] = "停止自动重试并向用户说明 K 线同步失败或同步后覆盖仍不足。"
+	}
+	return payload
 }
 
 func statusFromBacktestResultView(value any) string {

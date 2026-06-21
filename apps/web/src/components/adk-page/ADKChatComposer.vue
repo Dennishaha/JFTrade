@@ -2,7 +2,9 @@
 import { computed, ref, watch } from "vue";
 
 import type {
+  ADKAgent,
   ADKPermissionMode,
+  ADKProvider,
   ADKSessionContextSnapshot,
   ADKWorkMode,
 } from "@/contracts";
@@ -49,8 +51,10 @@ const props = withDefaults(
     queueDispatchingId?: string;
     revokeQueuedMessage?: (messageId: string) => void | Promise<void>;
     savingProviderSelection?: boolean;
+    selectedAgent?: ADKAgent | null;
     selectedAgentId?: string;
     selectedSessionId?: string;
+    selectedProvider?: ADKProvider | null;
     selectedProviderId?: string;
     sendingChat: boolean;
     slashCommands?: SlashCommandItem[];
@@ -103,8 +107,10 @@ const props = withDefaults(
     queuedMessages: () => [],
     queueDispatchingId: "",
     savingProviderSelection: false,
+    selectedAgent: null,
     selectedAgentId: "",
     selectedSessionId: "",
+    selectedProvider: null,
     selectedProviderId: "",
     slashCommands: () => [],
     suggestions: () => [],
@@ -174,11 +180,11 @@ const permissionModeOptions: PermissionModeOption[] = [
     description: "减少中等风险操作的确认次数",
   },
   {
-    title: "全部允许",
+    title: "完全访问",
     value: "all",
     icon: "fa-solid fa-triangle-exclamation",
     tone: "all",
-    description: "高风险操作自动执行，关键安全门仍保留",
+    description: "不受限制地访问互联网和本机文件",
   },
 ];
 
@@ -220,6 +226,16 @@ function updateWorkModeSelection(mode?: string | null): void {
     "update:workModeOverride",
     mode === normalizedDefaultWorkMode.value ? "" : (mode ?? ""),
   );
+}
+
+function updateAgentSelection(agentId: string): void {
+  emit("update:selectedAgentId", agentId);
+  props.handleAgentChange?.();
+}
+
+function updateProviderSelection(providerId: string): void {
+  emit("update:selectedProviderId", providerId);
+  void props.handleProviderChange?.(providerId);
 }
 
 const contextMenuOpen = computed({
@@ -372,6 +388,23 @@ const contextPercent = computed(() => {
   }
   return `${Math.max(0, Math.round(ratio * 100))}%`;
 });
+const contextProgressValue = computed(() => {
+  if (!hasKnownContextWindow.value) return 0;
+  const ratio = props.contextSnapshot?.usageRatio ?? 0;
+  return Math.min(100, Math.max(0, Math.round(ratio * 100)));
+});
+const contextProgressColor = computed(() => {
+  switch (contextTone.value) {
+    case "error":
+      return "error";
+    case "warning":
+      return "warning";
+    case "success":
+      return "success";
+    default:
+      return "secondary";
+  }
+});
 const contextPillLabel = computed(() => {
   if (props.contextBusy && !props.contextSnapshot) return "上下文...";
   if (hasKnownContextWindow.value) {
@@ -384,14 +417,31 @@ const contextPillLabel = computed(() => {
 });
 const selectedAgentLabel = computed(
   () =>
-    props.agentOptions.find((item) => item.value === props.selectedAgentId)
-      ?.title ?? "未选 Agent",
+    props.selectedAgent?.name?.trim() ||
+    props.agentOptions
+      .find((item) => item.value === props.selectedAgentId)
+      ?.title.split(" · ")[0]
+      ?.trim() ||
+    "Agent",
 );
 const selectedProviderLabel = computed(
   () =>
-    props.providerOptions.find((item) => item.value === props.selectedProviderId)
-      ?.title ?? "未选模型",
+    props.selectedProvider?.model?.trim() ||
+    props.providerOptions
+      .find((item) => item.value === props.selectedProviderId)
+      ?.title.split(" · ")[1]
+      ?.trim() ||
+    props.providerOptions
+      .find((item) => item.value === props.selectedProviderId)
+      ?.title.split(" · ")[0]
+      ?.trim() ||
+    "模型",
 );
+const selectedProviderTitle = computed(() => {
+  const provider = props.selectedProvider;
+  if (!provider) return selectedProviderLabel.value;
+  return `${provider.displayName} · ${provider.model}`;
+});
 const selectedWorkModeLabel = computed(
   () =>
     workModeOptions.value.find(
@@ -947,53 +997,101 @@ function canRevokeQueueItem(item: QueuedChatMessage): boolean {
               </v-list-item>
             </v-list>
           </v-menu>
-          <v-select
-            :model-value="selectedAgentId"
-            :items="agentOptions"
-            density="compact"
-            variant="plain"
-            hide-details
-            placeholder="选择 Agent"
-            class="adk-agent-select"
-            @update:model-value="
-              $emit('update:selectedAgentId', $event ?? '');
-              handleAgentChange?.();
+          <select
+            class="adk-compat-select adk-agent-select"
+            :value="selectedAgentId"
+            tabindex="-1"
+            aria-hidden="true"
+            @change="
+              updateAgentSelection(
+                (($event.target as HTMLSelectElement | null)?.value ?? ''),
+              )
             "
-          />
-          <v-select
-            :model-value="effectiveWorkModeSelection"
-            :items="workModeOptions"
-            density="compact"
-            variant="plain"
-            hide-details
-            class="adk-work-mode-select"
-            @update:model-value="updateWorkModeSelection"
           >
-            <template #selection="{ item }">
-              <span>{{ item.title }}</span>
-              <v-chip
-                v-if="item.isDefault"
-                size="x-small"
-                variant="tonal"
-                class="ml-1"
+            <option
+              v-for="agent in agentOptions"
+              :key="`compat-agent-${agent.value}`"
+              :value="agent.value"
+            >
+              {{ agent.title }}
+            </option>
+          </select>
+          <v-menu location="top start">
+            <template #activator="{ props: menuProps }">
+              <button
+                v-bind="menuProps"
+                type="button"
+                class="adk-inline-trigger adk-agent-trigger"
+                :title="`Agent：${selectedAgentLabel}`"
               >
-                默认
-              </v-chip>
+                <span>{{ selectedAgentLabel }}</span>
+                <v-icon size="12">fa-solid fa-chevron-down</v-icon>
+              </button>
             </template>
-            <template #item="{ props: itemProps, item }">
-              <v-list-item v-bind="itemProps">
+            <v-list class="adk-compact-menu" density="compact">
+              <v-list-item
+                v-for="agent in agentOptions"
+                :key="agent.value"
+                :active="agent.value === selectedAgentId"
+                @click="updateAgentSelection(agent.value)"
+              >
+                <v-list-item-title>{{ agent.title.split(" · ")[0] }}</v-list-item-title>
+                <v-list-item-subtitle>{{ agent.title }}</v-list-item-subtitle>
+              </v-list-item>
+            </v-list>
+          </v-menu>
+          <v-menu location="top start">
+            <template #activator="{ props: menuProps }">
+              <button
+                v-bind="menuProps"
+                type="button"
+                class="adk-inline-trigger adk-work-mode-trigger"
+                :title="`模式：${selectedWorkModeLabel}`"
+              >
+                <span>{{ selectedWorkModeLabel }}</span>
+                <v-icon size="12">fa-solid fa-chevron-down</v-icon>
+              </button>
+            </template>
+            <v-list class="adk-compact-menu" density="compact">
+              <v-list-item
+                v-for="mode in workModeOptions"
+                :key="mode.value"
+                :active="mode.value === effectiveWorkModeSelection"
+                @click="updateWorkModeSelection(mode.value)"
+              >
+                <v-list-item-title>
+                  {{ mode.title }}
+                  <span v-if="mode.isDefault" class="adk-sr-only">
+                    {{ mode.title }}默认
+                  </span>
+                </v-list-item-title>
                 <template #append>
-                  <v-chip
-                    v-if="item.isDefault"
-                    size="x-small"
-                    variant="tonal"
-                  >
+                  <v-chip v-if="mode.isDefault" size="x-small" variant="tonal">
                     默认
                   </v-chip>
                 </template>
               </v-list-item>
-            </template>
-          </v-select>
+            </v-list>
+          </v-menu>
+          <select
+            class="adk-compat-select adk-work-mode-select"
+            :value="effectiveWorkModeSelection"
+            tabindex="-1"
+            aria-hidden="true"
+            @change="
+              updateWorkModeSelection(
+                (($event.target as HTMLSelectElement | null)?.value ?? ''),
+              )
+            "
+          >
+            <option
+              v-for="mode in workModeOptions"
+              :key="`compat-mode-${mode.value}`"
+              :value="mode.value"
+            >
+              {{ mode.title }}
+            </option>
+          </select>
         </div>
 
         <div class="adk-composer-right">
@@ -1009,16 +1107,23 @@ function canRevokeQueueItem(item: QueuedChatMessage): boolean {
               open-on-hover
             >
               <template #activator="{ props: menuProps }">
-                <v-btn
+                <button
                   v-bind="menuProps"
-                  size="small"
-                  variant="tonal"
-                  class="adk-context-pill rounded-xl"
-                  :color="contextTone"
+                  type="button"
+                  class="adk-context-ring adk-context-pill"
+                  :class="`is-${contextTone}`"
+                  :title="`上下文：${contextPillLabel}`"
                   @click="openContextPopover"
                 >
-                  {{ contextPillLabel }}
-                </v-btn>
+                  <v-progress-circular
+                    :model-value="contextProgressValue"
+                    :indeterminate="contextBusy && !hasKnownContextWindow"
+                    :color="contextProgressColor"
+                    size="24"
+                    width="4"
+                  />
+                  <span class="adk-sr-only">{{ contextPillLabel }}</span>
+                </button>
               </template>
 
               <v-card min-width="360" class="adk-context-card">
@@ -1191,25 +1296,70 @@ function canRevokeQueueItem(item: QueuedChatMessage): boolean {
               </v-card>
             </v-menu>
 
-            <v-select
-              :model-value="selectedProviderId"
-              :items="providerOptions"
-              density="compact"
-              variant="plain"
-              hide-details
-              placeholder="选择模型"
-              class="adk-provider-select"
+            <v-menu location="top end">
+              <template #activator="{ props: menuProps }">
+                <button
+                  v-bind="menuProps"
+                  type="button"
+                  class="adk-inline-trigger adk-provider-trigger"
+                  :title="`模型：${selectedProviderTitle}`"
+                  :disabled="
+                    selectedAgentId === '' ||
+                    providerOptions.length === 0 ||
+                    savingProviderSelection
+                  "
+                >
+                  <span>{{ selectedProviderLabel }}</span>
+                  <v-progress-circular
+                    v-if="savingProviderSelection"
+                    indeterminate
+                    size="14"
+                    width="2"
+                  />
+                  <v-icon v-else size="12">fa-solid fa-chevron-down</v-icon>
+                </button>
+              </template>
+              <v-list class="adk-compact-menu adk-provider-menu" density="compact">
+                <v-list-item
+                  v-for="provider in providerOptions"
+                  :key="provider.value"
+                  :active="provider.value === selectedProviderId"
+                  @click="updateProviderSelection(provider.value)"
+                >
+                  <v-list-item-title>
+                    {{
+                      provider.title.split(" · ")[1] ||
+                      provider.title.split(" · ")[0]
+                    }}
+                  </v-list-item-title>
+                  <v-list-item-subtitle>{{ provider.title }}</v-list-item-subtitle>
+                </v-list-item>
+              </v-list>
+            </v-menu>
+            <select
+              class="adk-compat-select adk-provider-select"
+              :value="selectedProviderId"
               :disabled="
                 selectedAgentId === '' ||
                 providerOptions.length === 0 ||
                 savingProviderSelection
               "
-              :loading="savingProviderSelection"
-              @update:model-value="
-                $emit('update:selectedProviderId', $event ?? '');
-                handleProviderChange?.(($event ?? '') as string);
+              tabindex="-1"
+              aria-hidden="true"
+              @change="
+                updateProviderSelection(
+                  (($event.target as HTMLSelectElement | null)?.value ?? ''),
+                )
               "
-            />
+            >
+              <option
+                v-for="provider in providerOptions"
+                :key="`compat-provider-${provider.value}`"
+                :value="provider.value"
+              >
+                {{ provider.title }}
+              </option>
+            </select>
 
             <v-btn
               icon="fa-solid fa-gear"
@@ -1231,32 +1381,42 @@ function canRevokeQueueItem(item: QueuedChatMessage): boolean {
             <v-btn
               v-if="showStopButton"
               icon="fa-solid fa-stop"
-              variant="text"
+              variant="tonal"
               color="error"
               size="small"
               title="停止运行"
+              aria-label="停止运行"
               class="adk-composer-stop"
               @click="cancelActiveRun?.()"
             />
             <v-btn
               v-if="showInterruptButton"
+              icon
               class="adk-composer-interrupt"
-              variant="outlined"
+              variant="tonal"
               color="warning"
+              size="small"
+              title="打断后发送"
+              aria-label="打断后发送"
               :disabled="!canInterruptChat"
               @click="void interruptAndQueueChat?.()"
             >
-              打断后发送
+              <v-icon size="15">fa-solid fa-level-down-alt</v-icon>
+              <span class="adk-sr-only">打断后发送</span>
             </v-btn>
             <v-btn
+              icon
               color="primary"
+              size="small"
               :loading="sendButtonLoading"
               :disabled="!canSendChat"
+              title="发送"
+              aria-label="发送"
               class="adk-composer-send"
               @click="void handlePrimaryAction()"
             >
               <v-icon size="14">fa-solid fa-paper-plane</v-icon>
-              <span v-if="isMobileLayout">发送</span>
+              <span class="adk-sr-only">发送</span>
             </v-btn>
           </div>
         </div>
@@ -1330,11 +1490,6 @@ function canRevokeQueueItem(item: QueuedChatMessage): boolean {
   font-size: 11px;
   font-weight: 600;
   cursor: pointer;
-}
-
-.adk-context-pill {
-  text-transform: none;
-  letter-spacing: 0;
 }
 
 .adk-context-card__body {
@@ -1641,18 +1796,13 @@ function canRevokeQueueItem(item: QueuedChatMessage): boolean {
   position: relative;
 }
 
-.adk-work-mode-select {
-  width: 116px;
-  flex: 0 0 116px;
-}
-
 .adk-permission-trigger {
   display: inline-flex;
   flex: 0 0 auto;
   align-items: center;
   gap: 7px;
   min-height: 32px;
-  padding: 0 8px;
+  padding: 0 7px;
   border: 0;
   border-radius: 9px;
   background: transparent;
@@ -1663,6 +1813,104 @@ function canRevokeQueueItem(item: QueuedChatMessage): boolean {
 
 .adk-permission-trigger:hover {
   background: rgba(148, 163, 184, 0.12);
+}
+
+.adk-inline-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 210px;
+  min-height: 32px;
+  padding: 0 7px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--tv-text-muted);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.adk-inline-trigger:hover,
+.adk-inline-trigger[aria-expanded="true"] {
+  background: rgba(148, 163, 184, 0.12);
+  color: var(--tv-text);
+}
+
+.adk-inline-trigger:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.adk-inline-trigger > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.adk-compat-select,
+.adk-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.adk-agent-trigger {
+  max-width: clamp(96px, 18vw, 180px);
+}
+
+.adk-provider-trigger {
+  max-width: clamp(92px, 19vw, 220px);
+}
+
+.adk-work-mode-trigger {
+  max-width: 92px;
+}
+
+.adk-context-ring {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--tv-text-muted);
+  cursor: pointer;
+}
+
+.adk-context-ring:hover,
+.adk-context-ring[aria-expanded="true"] {
+  background: rgba(148, 163, 184, 0.12);
+}
+
+.adk-context-ring.is-warning {
+  color: var(--adk-warning-fg);
+}
+
+.adk-context-ring.is-error {
+  color: var(--adk-error-fg);
+}
+
+.adk-compact-menu {
+  min-width: 220px;
+  max-width: min(360px, 92vw);
+  padding: 6px;
+  border-radius: 12px;
+}
+
+.adk-provider-menu {
+  min-width: 280px;
 }
 
 .adk-permission-trigger.is-approval,
@@ -1695,8 +1943,22 @@ function canRevokeQueueItem(item: QueuedChatMessage): boolean {
   background: rgba(148, 163, 184, 0.12);
 }
 
-.adk-composer-interrupt {
+.adk-composer-stop,
+.adk-composer-interrupt,
+.adk-composer-send {
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+  min-width: 38px;
+  border-radius: 999px;
+  padding: 0;
   text-transform: none;
+}
+
+.adk-composer-stop :deep(.v-btn__content),
+.adk-composer-interrupt :deep(.v-btn__content),
+.adk-composer-send :deep(.v-btn__content) {
+  gap: 0;
 }
 
 .adk-slash-menu {
@@ -1792,31 +2054,22 @@ function canRevokeQueueItem(item: QueuedChatMessage): boolean {
   padding: 0 8px 8px;
 }
 
-.adk-composer--mobile .adk-agent-select,
-.adk-composer--mobile .adk-provider-select {
-  width: auto;
-  min-width: 0;
-}
-
-.adk-composer--mobile .adk-agent-select {
-  flex: 1 1 170px;
-}
-
-.adk-composer--mobile .adk-provider-select {
-  flex: 1 1 100%;
-}
-
-.adk-composer--mobile .adk-work-mode-select {
-  min-width: 108px;
-  flex: 0 1 112px;
-}
-
 .adk-composer--mobile .adk-permission-trigger {
   max-width: 148px;
 }
 
-.adk-composer--mobile .adk-context-pill {
-  max-width: 168px;
+.adk-composer--mobile .adk-agent-trigger,
+.adk-composer--mobile .adk-provider-trigger {
+  flex: 1 1 130px;
+  max-width: none;
+}
+
+.adk-composer--mobile .adk-work-mode-trigger {
+  flex: 0 0 auto;
+}
+
+.adk-composer--mobile .adk-context-ring {
+  flex: 0 0 34px;
 }
 
 .adk-composer--mobile .adk-inline-progress {

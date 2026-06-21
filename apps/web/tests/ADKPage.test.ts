@@ -1235,6 +1235,73 @@ describe("ADKPage", () => {
     ).toBeNull();
   });
 
+  it("derives completed workflow state from terminal child snapshots", async () => {
+    const workflowRun = buildRun({
+      id: "parent-run-stale-running-child-complete",
+      status: "RUNNING",
+      workMode: "task",
+      workflowStatus: "RUNNING",
+      childRunIds: ["child-run-complete"],
+      workflowPlan: [
+        buildWorkflowStep(
+          "step-child-complete",
+          "完成子智能体",
+          "IN_PROGRESS",
+          "child-run-complete",
+        ),
+      ],
+    });
+
+    streamADKChatMock.mockImplementationOnce(async (_payload, onEvent) => {
+      const response: ADKChatResponse = {
+        reply: "parent still stale",
+        session: buildSession(),
+        run: workflowRun,
+        pendingApprovals: [],
+        timeline: [
+          buildTimelineEntry("assistant_message", {
+            id: "child-complete-answer",
+            runId: "child-run-complete",
+            text: "child completed answer",
+            createdAt: "2026-06-06T00:00:03Z",
+          }),
+        ],
+      };
+      await onEvent({ type: "session", session: response.session });
+      await onEvent({ type: "run", run: workflowRun });
+      await onEvent({ type: "final", response });
+      return response;
+    });
+
+    mountADKPage({
+      runById: {
+        "child-run-complete": buildRun({
+          id: "child-run-complete",
+          parentRunId: workflowRun.id,
+          status: "COMPLETED",
+        }),
+      },
+    });
+    await flushRequests();
+
+    await sendPageMessage("run stale parent workflow");
+    await expandQueue("子智能体");
+
+    const childQueue = document.querySelector('[aria-label="子智能体"]');
+    expect(childQueue?.textContent).toContain("已完成");
+    expect(childQueue?.textContent).not.toContain("运行中");
+    expect(
+      childQueue?.querySelector(".adk-workspace-queue__badge.is-success"),
+    ).not.toBeNull();
+    expect(document.querySelector(".adk-composer-stop")).toBeNull();
+
+    clickButtonByText("进入");
+    await nextTick();
+
+    expect(document.body.textContent).toContain("child completed answer");
+    expect(document.body.textContent).not.toContain("正在运行");
+  });
+
   it("does not show an empty approval queue for a blocked child without approvals", async () => {
     const workflowRun = buildRun({
       id: "parent-run-child-blocked",

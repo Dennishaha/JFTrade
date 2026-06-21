@@ -25,6 +25,7 @@ import (
 	bt "github.com/jftrade/jftrade-main/pkg/backtest"
 	"github.com/jftrade/jftrade-main/pkg/market"
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
+	"github.com/jftrade/jftrade-main/pkg/strategy/indicatorruntime"
 	strategypine "github.com/jftrade/jftrade-main/pkg/strategy/pine"
 )
 
@@ -112,6 +113,31 @@ type SyncStarted struct {
 	Until        string               `json:"until"`
 	SessionScope string               `json:"sessionScope"`
 	Message      string               `json:"message"`
+}
+
+const (
+	DataStatusReady                 = "ready"
+	DataStatusSyncing               = "syncing_data"
+	DataStatusSyncFailed            = "sync_failed"
+	DataStatusSyncCancelled         = "sync_cancelled"
+	DataStatusInsufficientAfterSync = "insufficient_after_sync"
+)
+
+// DataReadiness describes whether a backtest can start or must wait for K-line sync.
+type DataReadiness struct {
+	Status   string           `json:"status"`
+	Ready    bool             `json:"ready"`
+	Sync     *SyncStarted     `json:"dataSync,omitempty"`
+	Progress *bt.SyncProgress `json:"progress,omitempty"`
+	Error    string           `json:"error,omitempty"`
+}
+
+type preparedBacktest struct {
+	request    StartRequest
+	definition StrategyDef
+	startTime  time.Time
+	endTime    time.Time
+	queryStart time.Time
 }
 
 // RehabType is the broker-independent price adjustment mode used for K-lines.
@@ -226,6 +252,8 @@ type Service struct {
 	lifecycleTasks  sync.WaitGroup
 	closed          bool
 	syncTaskSeq     uint64
+	dataSyncMu      sync.Mutex
+	dataSyncTasks   map[string]*SyncStarted
 
 	// 回测数据库文件路径提供者
 	dbPathFn func() string
@@ -235,6 +263,9 @@ type Service struct {
 
 	// 创建 broker-specific K 线同步适配器。
 	newKLineSyncerFn func(dbPath string) (KLineSyncer, error)
+
+	// 检查本地 K 线覆盖；测试可注入稳定结果。
+	checkKLineCoverageFn func(dbPath, symbol, interval string, since, until time.Time, rehabType, sessionScope string) error
 }
 
 // NewService 创建回测服务。所有依赖通过 Option 注入。
@@ -244,6 +275,7 @@ func NewService(opts ...Option) *Service {
 		runBacktestFn:   bt.Run,
 		lifecycleCtx:    lifecycleCtx,
 		lifecycleCancel: lifecycleCancel,
+		dataSyncTasks:   make(map[string]*SyncStarted),
 	}
 	for _, o := range opts {
 		o(s)
@@ -284,6 +316,11 @@ func WithNewKLineSyncerFn(fn func(dbPath string) (KLineSyncer, error)) Option {
 	return func(s *Service) { s.newKLineSyncerFn = fn }
 }
 
+// WithKLineCoverageCheckFn overrides local K-line coverage checks.
+func WithKLineCoverageCheckFn(fn func(dbPath, symbol, interval string, since, until time.Time, rehabType, sessionScope string) error) Option {
+	return func(s *Service) { s.checkKLineCoverageFn = fn }
+}
+
 // ──────────────────────────────────────────────────────────────────────────────
 // 回测生命周期方法
 // ──────────────────────────────────────────────────────────────────────────────
@@ -318,14 +355,7 @@ func (s *Service) StartScript(ctx context.Context, req ScriptStartRequest) (*Run
 	if script == "" {
 		return nil, requestErrorf("script is required")
 	}
-	hash := sha256.Sum256([]byte(script))
-	scriptHash := hex.EncodeToString(hash[:])
-	def := StrategyDef{
-		ID:           "adk-research-" + scriptHash[:12],
-		Version:      "script-" + scriptHash[:12],
-		SourceFormat: strategydefinition.SourceFormatPineV6,
-		Script:       script,
-	}
+	def := transientStrategyDefinition(script)
 	return s.startResolvedBacktest(ctx, StartRequest{
 		DefinitionID:      def.ID,
 		DefinitionVersion: def.Version,
@@ -343,49 +373,186 @@ func (s *Service) StartScript(ctx context.Context, req ScriptStartRequest) (*Run
 	}, def)
 }
 
-func (s *Service) startResolvedBacktest(ctx context.Context, req StartRequest, def StrategyDef) (*RunState, error) {
-	// 统一标的解析
-	instrument, err := parseInstrument(req.Market, req.Symbol, req.Code)
-	if err != nil {
-		return nil, requestErrorf("%v", err)
+// EnsureScriptData checks local K-line coverage for a transient research script
+// and starts one deduplicated sync task when coverage is missing.
+func (s *Service) EnsureScriptData(ctx context.Context, req ScriptStartRequest) (*DataReadiness, error) {
+	script := strings.TrimSpace(req.Script)
+	if script == "" {
+		return nil, requestErrorf("script is required")
 	}
-	req.Market = instrument.Market
-	req.Code = instrument.Code
-	req.Symbol = instrument.Symbol
-
-	if strings.TrimSpace(req.Interval) == "" {
-		req.Interval = "1m"
-	}
-
-	if strategydefinition.NormalizeSourceFormat(def.SourceFormat) != strategydefinition.SourceFormatPineV6 {
-		return nil, requestErrorf("unsupported strategy source format: %s", def.SourceFormat)
-	}
-
-	// 编译策略脚本
-	compilation, err := strategypine.Compile(def.Script)
-	if err != nil {
-		return nil, requestErrorf("%v", err)
-	}
-	if req.InitialBalance <= 0 {
-		req.InitialBalance = compilation.Program.Metadata.InitialCapital
-	}
-	if req.InitialBalance <= 0 {
-		req.InitialBalance = 100000
-	}
-	req.DefinitionVersion = def.Version
-
-	startTime, endTime, startDate, endDate, timezone, err := resolveBacktestTimeRange(req.Symbol, req.StartDate, req.EndDate, req.StartTime, req.EndTime)
+	prepared, err := prepareResolvedBacktest(StartRequest{
+		Market: req.Market, Code: req.Code, Symbol: req.Symbol, Interval: req.Interval,
+		StartDate: req.StartDate, EndDate: req.EndDate, StartTime: req.StartTime, EndTime: req.EndTime,
+		InitialBalance: req.InitialBalance, RehabType: req.RehabType, UseExtendedHours: req.UseExtendedHours,
+	}, transientStrategyDefinition(script))
 	if err != nil {
 		return nil, err
 	}
-	if !endTime.After(startTime) {
-		return nil, requestErrorf("endTime must be after startTime")
+	return s.ensurePreparedData(ctx, []preparedBacktest{prepared})
+}
+
+// EnsureDefinitionsData checks the union of K-line requirements for optimization candidates.
+func (s *Service) EnsureDefinitionsData(ctx context.Context, req StartRequest, definitionIDs []string) (*DataReadiness, error) {
+	if s.strategies == nil {
+		return nil, fmt.Errorf("strategy provider not configured")
 	}
-	req.StartDate = startDate
-	req.EndDate = endDate
-	req.StartTime = startTime.UTC().Format(time.RFC3339Nano)
-	req.EndTime = endTime.UTC().Format(time.RFC3339Nano)
-	req.MarketTimezone = timezone
+	prepared := make([]preparedBacktest, 0, len(definitionIDs))
+	for _, definitionID := range definitionIDs {
+		definitionID = strings.TrimSpace(definitionID)
+		if definitionID == "" {
+			continue
+		}
+		def, ok, err := s.strategies.Definition(definitionID)
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			return nil, fmt.Errorf("%w: %s", ErrStrategyDefinitionNotFound, definitionID)
+		}
+		candidateReq := req
+		candidateReq.DefinitionID = definitionID
+		candidate, err := prepareResolvedBacktest(candidateReq, def)
+		if err != nil {
+			return nil, err
+		}
+		prepared = append(prepared, candidate)
+	}
+	if len(prepared) == 0 {
+		return nil, requestErrorf("definitionIds is required")
+	}
+	return s.ensurePreparedData(ctx, prepared)
+}
+
+func transientStrategyDefinition(script string) StrategyDef {
+	hash := sha256.Sum256([]byte(script))
+	scriptHash := hex.EncodeToString(hash[:])
+	return StrategyDef{
+		ID: "adk-research-" + scriptHash[:12], Version: "script-" + scriptHash[:12],
+		SourceFormat: strategydefinition.SourceFormatPineV6, Script: script,
+	}
+}
+
+func (s *Service) ensurePreparedData(ctx context.Context, prepared []preparedBacktest) (*DataReadiness, error) {
+	base := prepared[0]
+	queryStart := base.queryStart
+	endTime := base.endTime
+	for _, candidate := range prepared[1:] {
+		if candidate.request.Symbol != base.request.Symbol || candidate.request.Interval != base.request.Interval {
+			return nil, requestErrorf("optimization candidates must use the same symbol and interval")
+		}
+		if candidate.queryStart.Before(queryStart) {
+			queryStart = candidate.queryStart
+		}
+		if candidate.endTime.After(endTime) {
+			endTime = candidate.endTime
+		}
+	}
+	rehabType := normalizeRehabTypeName(base.request.RehabType)
+	readSessionScope := backtestReadSessionScope(base.request.UseExtendedHours)
+	syncSessionScope := backtestSyncSessionScope(base.request.UseExtendedHours)
+	covered, coverageErr := s.hasKLineCoverage(base.request.Symbol, base.request.Interval, queryStart, endTime, rehabType, readSessionScope)
+	if coverageErr != nil && !isMissingKLineCoverageError(coverageErr) {
+		return nil, coverageErr
+	}
+	if covered {
+		return &DataReadiness{Status: DataStatusReady, Ready: true}, nil
+	}
+
+	key := dataSyncKey(base.request.Symbol, base.request.Interval, queryStart, endTime, rehabType, syncSessionScope)
+	s.dataSyncMu.Lock()
+	defer s.dataSyncMu.Unlock()
+	if existing := s.dataSyncTasks[key]; existing != nil {
+		if progress, ok := s.GetSyncProgress(existing.TaskID); ok {
+			switch progress.Status {
+			case "queued", "running":
+				return readinessForSyncProgress(progress, existing), nil
+			case "failed":
+				return &DataReadiness{Status: DataStatusSyncFailed, Sync: existing, Progress: progress, Error: progress.Error}, nil
+			case "cancelled":
+				return &DataReadiness{Status: DataStatusSyncCancelled, Sync: existing, Progress: progress, Error: progress.Error}, nil
+			case "completed":
+				return &DataReadiness{Status: DataStatusInsufficientAfterSync, Sync: existing, Progress: progress, Error: coverageErr.Error()}, nil
+			}
+		}
+		delete(s.dataSyncTasks, key)
+	}
+	started, err := s.Sync(ctx, SyncRequest{
+		Symbol: base.request.Symbol, Intervals: []string{base.request.Interval},
+		Since: queryStart.UTC().Format(time.RFC3339Nano), Until: endTime.UTC().Format(time.RFC3339Nano),
+		RehabType: rehabType, SessionScope: syncSessionScope,
+	})
+	if err != nil {
+		return nil, err
+	}
+	s.dataSyncTasks[key] = started
+	progress, _ := s.GetSyncProgress(started.TaskID)
+	return readinessForSyncProgress(progress, started), nil
+}
+
+func (s *Service) hasKLineCoverage(symbol, interval string, since, until time.Time, rehabType, sessionScope string) (bool, error) {
+	if s.checkKLineCoverageFn != nil {
+		err := s.checkKLineCoverageFn(s.dbPath(), symbol, interval, since, until, rehabType, sessionScope)
+		return err == nil, err
+	}
+	store, err := bt.NewFutuKLineStore(s.dbPath())
+	if err != nil {
+		return false, fmt.Errorf("open backtest store for coverage check: %w", err)
+	}
+	defer func() { _ = store.Close() }()
+	store.SetRehabType(rehabType)
+	store.SetReadSessionScope(sessionScope)
+	err = store.EnsureCoverage(symbol, bbgotypes.Interval(interval), since, until)
+	return err == nil, err
+}
+
+func readinessForSyncProgress(progress *bt.SyncProgress, started *SyncStarted) *DataReadiness {
+	return &DataReadiness{Status: DataStatusSyncing, Ready: false, Sync: started, Progress: progress}
+}
+
+func normalizeRehabTypeName(value string) string {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "none":
+		return "none"
+	case "backward":
+		return "backward"
+	default:
+		return "forward"
+	}
+}
+
+func backtestReadSessionScope(useExtendedHours *bool) string {
+	if useExtendedHours == nil {
+		return "auto"
+	}
+	if *useExtendedHours {
+		return "extended"
+	}
+	return "regular"
+}
+
+func backtestSyncSessionScope(useExtendedHours *bool) string {
+	if useExtendedHours == nil {
+		return "legacy"
+	}
+	return backtestReadSessionScope(useExtendedHours)
+}
+
+func dataSyncKey(symbol, interval string, since, until time.Time, rehabType, sessionScope string) string {
+	return strings.Join([]string{symbol, interval, since.UTC().Format(time.RFC3339Nano), until.UTC().Format(time.RFC3339Nano), rehabType, sessionScope}, "|")
+}
+
+func isMissingKLineCoverageError(err error) bool {
+	return err != nil && strings.Contains(strings.ToLower(err.Error()), "missing k-line coverage")
+}
+
+func (s *Service) startResolvedBacktest(ctx context.Context, req StartRequest, def StrategyDef) (*RunState, error) {
+	prepared, err := prepareResolvedBacktest(req, def)
+	if err != nil {
+		return nil, err
+	}
+	req = prepared.request
+	startTime := prepared.startTime
+	endTime := prepared.endTime
 
 	// 创建运行记录
 	runID := "bt-" + time.Now().UTC().Format("20060102T150405.000000000")
@@ -415,6 +582,60 @@ func (s *Service) startResolvedBacktest(ctx context.Context, req StartRequest, d
 	go s.executeBacktest(runCtx, runID, req, def, startTime, endTime, cancel)
 
 	return run, nil
+}
+
+func prepareResolvedBacktest(req StartRequest, def StrategyDef) (preparedBacktest, error) {
+	instrument, err := parseInstrument(req.Market, req.Symbol, req.Code)
+	if err != nil {
+		return preparedBacktest{}, requestErrorf("%v", err)
+	}
+	req.Market = instrument.Market
+	req.Code = instrument.Code
+	req.Symbol = instrument.Symbol
+	if strings.TrimSpace(req.Interval) == "" {
+		req.Interval = "1m"
+	}
+	if strategydefinition.NormalizeSourceFormat(def.SourceFormat) != strategydefinition.SourceFormatPineV6 {
+		return preparedBacktest{}, requestErrorf("unsupported strategy source format: %s", def.SourceFormat)
+	}
+	compilation, err := strategypine.Compile(def.Script)
+	if err != nil {
+		return preparedBacktest{}, requestErrorf("%v", err)
+	}
+	if req.InitialBalance <= 0 {
+		req.InitialBalance = compilation.Program.Metadata.InitialCapital
+	}
+	if req.InitialBalance <= 0 {
+		req.InitialBalance = 100000
+	}
+	req.DefinitionVersion = def.Version
+	startTime, endTime, startDate, endDate, timezone, err := resolveBacktestTimeRange(req.Symbol, req.StartDate, req.EndDate, req.StartTime, req.EndTime)
+	if err != nil {
+		return preparedBacktest{}, err
+	}
+	if !endTime.After(startTime) {
+		return preparedBacktest{}, requestErrorf("endTime must be after startTime")
+	}
+	req.StartDate = startDate
+	req.EndDate = endDate
+	req.StartTime = startTime.UTC().Format(time.RFC3339Nano)
+	req.EndTime = endTime.UTC().Format(time.RFC3339Nano)
+	req.MarketTimezone = timezone
+	interval := bbgotypes.Interval(req.Interval)
+	warmup, err := indicatorruntime.WarmupBarsFromPlanForSymbolWithOptions(
+		compilation.Requirements,
+		interval,
+		req.Symbol,
+		indicatorruntime.RuntimeOptions{IncludeExtendedHours: req.UseExtendedHours != nil && *req.UseExtendedHours},
+	)
+	if err != nil {
+		return preparedBacktest{}, requestErrorf("derive strategy warmup: %v", err)
+	}
+	queryStart := startTime
+	if warmup > 0 {
+		queryStart = startTime.Add(-interval.Duration() * time.Duration(warmup))
+	}
+	return preparedBacktest{request: req, definition: def, startTime: startTime, endTime: endTime, queryStart: queryStart}, nil
 }
 
 // executeBacktest 在独立 goroutine 中运行回测并持久化结果。

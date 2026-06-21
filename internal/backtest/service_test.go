@@ -169,6 +169,221 @@ func TestStartScriptQueuesResearchRunWithoutStrategyProvider(t *testing.T) {
 	}
 }
 
+func TestEnsureScriptDataReturnsReadyAndIncludesDerivedWarmup(t *testing.T) {
+	var checkedSince time.Time
+	svc := NewService(
+		WithDBPathFn(func() string { return "/tmp/coverage.db" }),
+		WithKLineCoverageCheckFn(func(_ string, symbol, interval string, since, until time.Time, rehabType, sessionScope string) error {
+			checkedSince = since
+			if symbol != "US.AAPL" || interval != "1m" || rehabType != "forward" || sessionScope != "auto" {
+				t.Fatalf("coverage args = %s %s %s %s", symbol, interval, rehabType, sessionScope)
+			}
+			return nil
+		}),
+	)
+	readiness, err := svc.EnsureScriptData(context.Background(), ScriptStartRequest{
+		Script: `//@version=6
+strategy("Warmup", overlay=true)
+ma = ta.sma(close, 20)
+if close > ma
+    strategy.entry("Long", strategy.long)`,
+		Market: "US", Code: "AAPL", Interval: "1m",
+		StartTime: "2024-01-02T15:00:00Z", EndTime: "2024-01-03T15:00:00Z",
+	})
+	if err != nil {
+		t.Fatalf("EnsureScriptData() error = %v", err)
+	}
+	if !readiness.Ready || readiness.Status != DataStatusReady {
+		t.Fatalf("readiness = %#v, want ready", readiness)
+	}
+	if !checkedSince.Before(time.Date(2024, 1, 2, 15, 0, 0, 0, time.UTC)) {
+		t.Fatalf("coverage since = %s, want warmup before backtest start", checkedSince)
+	}
+}
+
+func TestEnsureScriptDataStartsAndDeduplicatesKLineSync(t *testing.T) {
+	tasks := newMemorySyncTaskStore()
+	syncer := &fakeKLineSyncer{waitForCancel: true, started: make(chan struct{})}
+	svc := NewService(
+		WithSyncTaskStore(tasks),
+		WithKLineCoverageCheckFn(func(string, string, string, time.Time, time.Time, string, string) error {
+			return errors.New("missing K-line coverage for US.AAPL 1m")
+		}),
+		WithNewKLineSyncerFn(func(string) (KLineSyncer, error) { return syncer, nil }),
+	)
+	request := ScriptStartRequest{
+		Script: testPineScript, Market: "US", Code: "AAPL", Interval: "1m",
+		StartTime: "2024-01-02T15:00:00Z", EndTime: "2024-01-03T15:00:00Z",
+		RehabType: "backward", UseExtendedHours: new(true),
+	}
+	first, err := svc.EnsureScriptData(context.Background(), request)
+	if err != nil {
+		t.Fatalf("first EnsureScriptData() error = %v", err)
+	}
+	select {
+	case <-syncer.started:
+	case <-time.After(2 * time.Second):
+		t.Fatal("sync did not start")
+	}
+	second, err := svc.EnsureScriptData(context.Background(), request)
+	if err != nil {
+		t.Fatalf("second EnsureScriptData() error = %v", err)
+	}
+	if first.Sync == nil || second.Sync == nil || first.Sync.TaskID != second.Sync.TaskID {
+		t.Fatalf("sync tasks = %#v / %#v, want reused task", first.Sync, second.Sync)
+	}
+	syncer.mu.Lock()
+	params := syncer.params
+	syncer.mu.Unlock()
+	if params.RehabType != RehabTypeBackward || params.SessionScope != "extended" {
+		t.Fatalf("sync params = %#v, want backward extended", params)
+	}
+	if err := svc.Close(); err != nil {
+		t.Fatalf("Close() error = %v", err)
+	}
+}
+
+func TestEnsureScriptDataSurfacesFailedSyncWithoutRestarting(t *testing.T) {
+	tasks := newMemorySyncTaskStore()
+	syncer := &fakeKLineSyncer{err: errors.New("OpenD unavailable"), done: make(chan struct{})}
+	factoryCalls := 0
+	svc := NewService(
+		WithSyncTaskStore(tasks),
+		WithKLineCoverageCheckFn(func(string, string, string, time.Time, time.Time, string, string) error {
+			return errors.New("missing K-line coverage for US.AAPL 1m")
+		}),
+		WithNewKLineSyncerFn(func(string) (KLineSyncer, error) {
+			factoryCalls++
+			return syncer, nil
+		}),
+	)
+	request := ScriptStartRequest{
+		Script: testPineScript, Market: "US", Code: "AAPL", Interval: "1m",
+		StartTime: "2024-01-02T15:00:00Z", EndTime: "2024-01-03T15:00:00Z",
+	}
+	first, err := svc.EnsureScriptData(context.Background(), request)
+	if err != nil || first.Sync == nil {
+		t.Fatalf("first EnsureScriptData() = %#v, %v", first, err)
+	}
+	select {
+	case <-syncer.done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("sync did not finish")
+	}
+	waitForSyncFinished(t, tasks, first.Sync.TaskID)
+	second, err := svc.EnsureScriptData(context.Background(), request)
+	if err != nil {
+		t.Fatalf("second EnsureScriptData() error = %v", err)
+	}
+	if second.Status != DataStatusSyncFailed || second.Error != "OpenD unavailable" || factoryCalls != 1 {
+		t.Fatalf("readiness=%#v factoryCalls=%d, want one failed sync", second, factoryCalls)
+	}
+}
+
+func TestEnsureScriptDataStopsAfterCompletedSyncStillLacksCoverage(t *testing.T) {
+	tasks := newMemorySyncTaskStore()
+	syncer := &fakeKLineSyncer{done: make(chan struct{})}
+	svc := NewService(
+		WithSyncTaskStore(tasks),
+		WithKLineCoverageCheckFn(func(string, string, string, time.Time, time.Time, string, string) error {
+			return errors.New("missing K-line coverage for US.AAPL 1m")
+		}),
+		WithNewKLineSyncerFn(func(string) (KLineSyncer, error) { return syncer, nil }),
+	)
+	request := ScriptStartRequest{
+		Script: testPineScript, Market: "US", Code: "AAPL", Interval: "1m",
+		StartTime: "2024-01-02T15:00:00Z", EndTime: "2024-01-03T15:00:00Z",
+	}
+	first, err := svc.EnsureScriptData(context.Background(), request)
+	if err != nil || first.Sync == nil {
+		t.Fatalf("first EnsureScriptData() = %#v, %v", first, err)
+	}
+	select {
+	case <-syncer.done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("sync did not finish")
+	}
+	waitForSyncFinished(t, tasks, first.Sync.TaskID)
+	second, err := svc.EnsureScriptData(context.Background(), request)
+	if err != nil {
+		t.Fatalf("second EnsureScriptData() error = %v", err)
+	}
+	if second.Status != DataStatusInsufficientAfterSync {
+		t.Fatalf("status = %q, want %q", second.Status, DataStatusInsufficientAfterSync)
+	}
+}
+
+func TestEnsureScriptDataBecomesReadyAfterCompletedSyncFillsCoverage(t *testing.T) {
+	tasks := newMemorySyncTaskStore()
+	syncer := &fakeKLineSyncer{done: make(chan struct{})}
+	covered := false
+	svc := NewService(
+		WithSyncTaskStore(tasks),
+		WithKLineCoverageCheckFn(func(string, string, string, time.Time, time.Time, string, string) error {
+			if covered {
+				return nil
+			}
+			return errors.New("missing K-line coverage for US.AAPL 1m")
+		}),
+		WithNewKLineSyncerFn(func(string) (KLineSyncer, error) { return syncer, nil }),
+	)
+	request := ScriptStartRequest{
+		Script: testPineScript, Market: "US", Code: "AAPL", Interval: "1m",
+		StartTime: "2024-01-02T15:00:00Z", EndTime: "2024-01-03T15:00:00Z",
+	}
+	first, err := svc.EnsureScriptData(context.Background(), request)
+	if err != nil || first.Sync == nil {
+		t.Fatalf("first EnsureScriptData() = %#v, %v", first, err)
+	}
+	select {
+	case <-syncer.done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("sync did not finish")
+	}
+	waitForSyncFinished(t, tasks, first.Sync.TaskID)
+	covered = true
+	second, err := svc.EnsureScriptData(context.Background(), request)
+	if err != nil {
+		t.Fatalf("second EnsureScriptData() error = %v", err)
+	}
+	if !second.Ready || second.Status != DataStatusReady {
+		t.Fatalf("readiness = %#v, want ready after sync", second)
+	}
+}
+
+func TestEnsureDefinitionsDataUsesMaximumCandidateWarmup(t *testing.T) {
+	provider := fakeStrategyProvider{defs: map[string]StrategyDef{
+		"fast": {ID: "fast", Version: "1", SourceFormat: strategydefinition.SourceFormatPineV6, Script: testPineScript},
+		"slow": {ID: "slow", Version: "1", SourceFormat: strategydefinition.SourceFormatPineV6, Script: `//@version=6
+strategy("Slow", overlay=true)
+ma = ta.sma(close, 50)
+if close > ma
+    strategy.entry("Long", strategy.long)`},
+	}}
+	var checkedSince time.Time
+	svc := NewService(
+		WithStrategyProvider(provider),
+		WithKLineCoverageCheckFn(func(_ string, _, _ string, since, _ time.Time, _, _ string) error {
+			checkedSince = since
+			return nil
+		}),
+	)
+	start := time.Date(2024, 1, 2, 15, 0, 0, 0, time.UTC)
+	readiness, err := svc.EnsureDefinitionsData(context.Background(), StartRequest{
+		Market: "US", Code: "AAPL", Interval: "1m",
+		StartTime: start.Format(time.RFC3339), EndTime: start.Add(24 * time.Hour).Format(time.RFC3339),
+	}, []string{"fast", "slow"})
+	if err != nil {
+		t.Fatalf("EnsureDefinitionsData() error = %v", err)
+	}
+	if !readiness.Ready {
+		t.Fatalf("readiness = %#v, want ready", readiness)
+	}
+	if !checkedSince.Before(start.Add(-40 * time.Minute)) {
+		t.Fatalf("coverage since = %s, want maximum candidate warmup", checkedSince)
+	}
+}
+
 func TestResultViewReturnsWindowedAggregatedChartData(t *testing.T) {
 	runs := newMemoryRunStore()
 	run := &RunState{

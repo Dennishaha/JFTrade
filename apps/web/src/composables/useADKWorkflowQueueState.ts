@@ -7,7 +7,7 @@ import type {
 } from "@/contracts";
 
 import { uniqueADKApprovalsById } from "./adkApprovalResolution";
-import { runStatusTone } from "./adkChatPresentation";
+import { isTerminalRunStatus, runStatusTone } from "./adkChatPresentation";
 import { mergeADKRunLifecycleSnapshot } from "./adkChatRuntime";
 import { normalizeADKRun } from "./adkNormalization";
 import {
@@ -70,6 +70,7 @@ export function useADKWorkflowQueueState(options: {
 
   const parentWorkflowPlanRun = computed(() => {
     const run = workflowPlanRun.value;
+    if (!run) return null;
     if (!isDisplayableWorkflowPlanRun(run)) return null;
     const selectedSessionId = options.selectedSessionId.value.trim();
     if (
@@ -79,7 +80,7 @@ export function useADKWorkflowQueueState(options: {
     ) {
       return null;
     }
-    return run;
+    return workflowRunWithDerivedTerminalStatus(run, childRunSnapshots.value);
   });
 
   const activeChildRun = computed(() => {
@@ -345,6 +346,56 @@ function isDisplayableWorkflowPlanRun(
   return (run.workflowPlan ?? []).length > 0;
 }
 
+function workflowRunWithDerivedTerminalStatus(
+  run: ADKRun,
+  snapshots: Record<string, ADKRun>,
+): ADKRun {
+  if (isTerminalRunStatus(run.status)) {
+    return run;
+  }
+  const childIds = workflowChildRunIds(run);
+  if (childIds.length === 0) {
+    return run;
+  }
+  const stepByChildRunId = workflowStepByChildRunId(run);
+  const allChildrenTerminal = childIds.every((id) => {
+    const childStatus = String(snapshots[id]?.status ?? "").trim();
+    if (isTerminalRunStatus(childStatus)) {
+      return true;
+    }
+    const stepStatus = effectiveWorkflowStepStatus(
+      run,
+      stepByChildRunId.get(id)?.step,
+    );
+    return isTerminalWorkflowStepStatus(stepStatus);
+  });
+  if (!allChildrenTerminal) {
+    return run;
+  }
+  const hasFailedChild = childIds.some((id) => {
+    const childStatus = String(snapshots[id]?.status ?? "").trim().toUpperCase();
+    const stepStatus = String(
+      effectiveWorkflowStepStatus(run, stepByChildRunId.get(id)?.step),
+    )
+      .trim()
+      .toUpperCase();
+    return (
+      childStatus === "FAILED" ||
+      childStatus === "TIMED_OUT" ||
+      childStatus === "DENIED" ||
+      stepStatus === "FAILED" ||
+      stepStatus === "TIMED_OUT" ||
+      stepStatus === "DENIED"
+    );
+  });
+  return {
+    ...run,
+    status: hasFailedChild ? "FAILED" : "COMPLETED",
+    workflowStatus: hasFailedChild ? "FAILED" : "COMPLETED",
+    message: run.message || (hasFailedChild ? "workflow failed" : "workflow completed"),
+  };
+}
+
 function workflowChildRunIds(run: ADKRun | null | undefined): string[] {
   const ids = new Set<string>();
   for (const id of run?.childRunIds ?? []) {
@@ -435,6 +486,22 @@ function childStatusFromWorkflowStepStatus(status: string): string {
       return "PENDING";
     default:
       return String(status ?? "").trim();
+  }
+}
+
+function isTerminalWorkflowStepStatus(status: string): boolean {
+  switch (String(status).trim().toUpperCase()) {
+    case "DONE":
+    case "COMPLETED":
+    case "SUCCEEDED":
+    case "FAILED":
+    case "TIMED_OUT":
+    case "DENIED":
+    case "CANCELLED":
+    case "CANCELED":
+      return true;
+    default:
+      return false;
   }
 }
 

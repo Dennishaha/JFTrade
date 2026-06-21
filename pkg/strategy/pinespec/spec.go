@@ -18,7 +18,7 @@ const (
 	LegacyBuiltinSkillName   = "jftrade-strategy"
 	ResearchBuiltinSkillName = "jftrade-strategy-research"
 	PublishBuiltinSkillName  = "jftrade-strategy-publish"
-	BuiltinSkillVersion      = "8"
+	BuiltinSkillVersion      = "9"
 )
 
 type Section struct {
@@ -483,6 +483,7 @@ func ResearchSkillInstructions() string {
 		"如果用户询问 Pine 支持范围，必须依据内置规范回答，不要杜撰未支持的 built-ins、订单选项或 TradingView broker emulator 行为。",
 		"纯语法或兼容性检查使用 strategy.validate_pine；策略试错、参数迭代、验证收益/回撤时必须使用 strategy.research_backtest，不要保存策略定义。",
 		"research_backtest 返回未完成状态时，先短暂调用 workflow.wait，再用 backtest.result_view 按 summary/chart/orders/logs/errors 和 limit/cursor/resolution 分片查看结果；已有回测列表继续用 backtest.runs。",
+		"research_backtest 返回 syncing_data 时，使用 workflow.wait 和 backtest.kline_sync_status 等待；completed 后必须用完全相同参数重试 research_backtest，failed、cancelled 或 insufficient_after_sync 时停止自动重试并说明原因。",
 		"不要把临时研究脚本自动保存为策略定义；如用户明确要求保存或发布，应切换到 jftrade-strategy-publish skill 的流程。",
 		"不要承诺收益；回测只代表指定标的、周期、时间范围和数据条件下的历史模拟结果。",
 	}, " ")
@@ -495,6 +496,7 @@ func ResearchSkillAllowedTools() []string {
 		"strategy.research_backtest",
 		"backtest.runs",
 		"backtest.result_view",
+		"backtest.kline_sync_status",
 		"workflow.wait",
 		"market.snapshot",
 		"market.candles",
@@ -513,6 +515,7 @@ func PublishSkillInstructions() string {
 		"保存前必须先用 strategy.validate_pine 校验脚本；校验失败时不要调用 strategy.save_draft 或 strategy.save_definition。",
 		"strategy.save_definition 用于明确的新建或更新定义；strategy.save_draft 只用于用户明确要求保存草稿的场景。",
 		"只有在用户明确要求修改某个具体实例执行模式时才用 strategy.update_instance_mode；优化已保存候选定义时用 strategy.optimize，并用 backtest.runs 查看队列状态。",
+		"strategy.optimize 返回 syncing_data 时，使用 backtest.kline_sync_status 等待；completed 后用完全相同参数重试 optimize，failed、cancelled 或 insufficient_after_sync 时停止自动重试并说明原因。",
 		"不要承诺收益；写入、优化和实例模式变更必须遵守当前审批模式。",
 	}, " ")
 }
@@ -525,6 +528,7 @@ func PublishSkillAllowedTools() []string {
 		"strategy.update_instance_mode",
 		"strategy.optimize",
 		"backtest.runs",
+		"backtest.kline_sync_status",
 	}
 }
 
@@ -576,9 +580,10 @@ func BuildResearchWorkflowMarkdown() string {
 		"1. 明确标的、周期、时间范围和初始资金；不完整时先用行情工具补齐上下文。",
 		"2. 只做语法/兼容性检查时调用 `strategy.validate_pine`。",
 		"3. 需要验证收益、回撤、成交或曲线时调用 `strategy.research_backtest`，输入临时脚本和回测参数。",
-		"4. 回测未完成时调用 `workflow.wait` 短等，然后用 `backtest.result_view` 查询。",
-		"5. 查看结果先用 `view=summary`；查看图表用 `view=chart`、`resolution=auto`、`limit<=1000`，并按需 include candles/trades/pnlCurve/drawdownCurve。",
-		"6. 不要在研究阶段调用保存工具；只有用户明确要求保存或发布时，切换到发布流程。",
+		"4. 返回 `syncing_data` 时调用 `workflow.wait` 和 `backtest.kline_sync_status`；同步 completed 后以完全相同参数重试 `strategy.research_backtest`。",
+		"5. 同步 failed、cancelled 或 insufficient_after_sync 时停止自动重试并说明原因；回测未完成时短等后用 `backtest.result_view` 查询。",
+		"6. 查看结果先用 `view=summary`；查看图表用 `view=chart`、`resolution=auto`、`limit<=1000`，并按需 include candles/trades/pnlCurve/drawdownCurve。",
+		"7. 不要在研究阶段调用保存工具；只有用户明确要求保存或发布时，切换到发布流程。",
 	}, "\n")
 }
 
@@ -591,6 +596,7 @@ func BuildPublishChecklistMarkdown() string {
 		"- `strategy.save_definition` 用于明确保存为策略定义；`strategy.save_draft` 只用于明确草稿保存。",
 		"- `strategy.update_instance_mode` 只用于用户点名的具体实例。",
 		"- `strategy.optimize` 只针对已保存定义创建真实异步回测任务，结果用 `backtest.runs` 查看。",
+		"- `strategy.optimize` 返回 `syncing_data` 时用 `backtest.kline_sync_status` 等待，completed 后以相同参数重试；失败或覆盖仍不足时停止。",
 		"- 输出中必须说明写入/优化动作受审批模式控制，不承诺收益。",
 	}, "\n")
 }

@@ -187,6 +187,12 @@ func ToolDescriptorsForAgent(agent Agent, registry *ToolRegistry) []ToolDescript
 			}
 		}
 	}
+	if _, researchEnabled := allowed["strategy.research_backtest"]; researchEnabled {
+		allowed["backtest.kline_sync_status"] = struct{}{}
+	}
+	if _, optimizeEnabled := allowed["strategy.optimize"]; optimizeEnabled {
+		allowed["backtest.kline_sync_status"] = struct{}{}
+	}
 	descriptors := registry.List()
 	out := make([]ToolDescriptor, 0, len(descriptors))
 	for _, descriptor := range descriptors {
@@ -616,6 +622,18 @@ func defaultToolInputSchema(name string) map[string]any {
 			},
 			"required":             []string{"runId"},
 			"additionalProperties": false,
+		}
+	case "backtest.kline_sync_status":
+		return map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"taskId": map[string]any{"type": "string"},
+				"waitForCompletionMs": map[string]any{
+					"type": "integer", "minimum": 0, "maximum": 25000,
+					"description": "可选短等待，最多 25000ms。",
+				},
+			},
+			"required": []string{"taskId"}, "additionalProperties": false,
 		}
 	case "strategy.pine_spec":
 		return map[string]any{

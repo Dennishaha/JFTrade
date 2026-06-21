@@ -148,7 +148,7 @@ describe("ADKChatComposer", () => {
     });
 
     expect(wrapper.find(".adk-composer-left").text()).toContain("请求批准");
-    expect(wrapper.text()).toContain("全部允许");
+    expect(wrapper.text()).toContain("完全访问");
     expect(wrapper.text()).toContain("默认");
 
     const options = wrapper.findAll(".adk-permission-option");
