@@ -3,12 +3,50 @@ package adk
 import (
 	"context"
 	"errors"
+	"sync/atomic"
 	"testing"
 
 	adksession "google.golang.org/adk/session"
 	"google.golang.org/adk/tool/toolconfirmation"
 	"google.golang.org/genai"
 )
+
+type flakyAppendSessionService struct {
+	delegate             adksession.Service
+	failAppendRemaining  atomic.Int32
+	failedAppendAttempts atomic.Int32
+	appendCalls          atomic.Int32
+}
+
+func (s *flakyAppendSessionService) Create(ctx context.Context, req *adksession.CreateRequest) (*adksession.CreateResponse, error) {
+	return s.delegate.Create(ctx, req)
+}
+
+func (s *flakyAppendSessionService) Get(ctx context.Context, req *adksession.GetRequest) (*adksession.GetResponse, error) {
+	return s.delegate.Get(ctx, req)
+}
+
+func (s *flakyAppendSessionService) List(ctx context.Context, req *adksession.ListRequest) (*adksession.ListResponse, error) {
+	return s.delegate.List(ctx, req)
+}
+
+func (s *flakyAppendSessionService) Delete(ctx context.Context, req *adksession.DeleteRequest) error {
+	return s.delegate.Delete(ctx, req)
+}
+
+func (s *flakyAppendSessionService) AppendEvent(ctx context.Context, session adksession.Session, event *adksession.Event) error {
+	s.appendCalls.Add(1)
+	for {
+		remaining := s.failAppendRemaining.Load()
+		if remaining <= 0 {
+			return s.delegate.AppendEvent(ctx, session, event)
+		}
+		if s.failAppendRemaining.CompareAndSwap(remaining, remaining-1) {
+			s.failedAppendAttempts.Add(1)
+			return errors.New("append event to sessionservice failed: database is locked")
+		}
+	}
+}
 
 func TestPendingApprovalsOnlyClaimsConfirmationCallsOwnedByExecution(t *testing.T) {
 	ctx := context.Background()
@@ -74,6 +112,135 @@ func TestPendingApprovalsOnlyClaimsConfirmationCallsOwnedByExecution(t *testing.
 	}
 	if len(all) != 1 {
 		t.Fatalf("stored approvals = %d, want 1", len(all))
+	}
+}
+
+func TestHydrateResumedRunWithApprovalsKeepsPendingRoundState(t *testing.T) {
+	execution := &googleADKExecution{runID: "run-multi-approval"}
+	execution.calls = []ToolCall{{
+		ID: "call-follow-up-approval", RunID: "run-multi-approval", ToolName: "approval.required", Status: "RUNNING",
+	}}
+	execution.summaries = []string{"等待第二轮审批"}
+	execution.preToolContent.WriteString("第一轮审批后的分析")
+	execution.preToolReasoning.WriteString("继续推理")
+
+	run := Run{
+		ID:          "run-multi-approval",
+		Status:      RunStatusRunning,
+		ResumeState: "approval_resuming",
+		PendingApprovals: []Approval{{
+			ID: "approval-approved", Status: ApprovalStatusApproved, ToolName: "approval.required",
+		}},
+	}
+	newApprovals := []Approval{{
+		ID: "approval-follow-up", Status: ApprovalStatusPending, ToolName: "approval.required",
+	}}
+
+	hydrated := hydrateResumedRunWithApprovals(run, execution, newApprovals)
+	if hydrated.Status != RunStatusRunning || hydrated.ResumeState != "waiting_approval" {
+		t.Fatalf("hydrated run = %+v, want running waiting_approval state", hydrated)
+	}
+	if len(hydrated.ToolCalls) != 1 || hydrated.ToolCalls[0].ID != "call-follow-up-approval" {
+		t.Fatalf("hydrated tool calls = %+v, want resumed execution calls", hydrated.ToolCalls)
+	}
+	if len(hydrated.ToolSummaries) != 0 {
+		t.Fatalf("hydrated tool summaries = %+v, want no per-run summary until the follow-up tool finishes", hydrated.ToolSummaries)
+	}
+	if hydrated.PreToolContent != "第一轮审批后的分析" || hydrated.PreToolReasoning != "继续推理" {
+		t.Fatalf("hydrated pre-tool state = %q / %q", hydrated.PreToolContent, hydrated.PreToolReasoning)
+	}
+	if len(hydrated.PendingApprovals) != 1 || hydrated.PendingApprovals[0].ID != "approval-follow-up" || hydrated.PendingApprovals[0].Status != ApprovalStatusPending {
+		t.Fatalf("hydrated approvals = %+v, want fresh pending approval round", hydrated.PendingApprovals)
+	}
+}
+
+func TestIsRetryableADKSessionBusyRecognizesSQLiteBusyAppendErrors(t *testing.T) {
+	cases := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{name: "nil", err: nil, want: false},
+		{name: "sqlite busy append", err: errors.New("append event to sessionservice failed: database is locked"), want: true},
+		{name: "sqlite busy token", err: errors.New("append event to sessionservice failed: SQLITE_BUSY"), want: true},
+		{name: "other append failure", err: errors.New("append event to sessionservice failed: permission denied"), want: false},
+		{name: "busy without append prefix", err: errors.New("database is locked"), want: false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := isRetryableADKSessionBusy(tc.err); got != tc.want {
+				t.Fatalf("isRetryableADKSessionBusy(%v) = %v, want %v", tc.err, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestResolveApprovalRetriesRetryableSessionBusyDuringResume(t *testing.T) {
+	ctx := context.Background()
+	base := newTestRuntime(t)
+	registry := NewToolRegistry()
+	var executions atomic.Int32
+	registry.Register(ToolDescriptor{
+		Name:         "approval.required",
+		DisplayName:  "Save draft",
+		Description:  "test write tool",
+		Category:     "strategy",
+		Permission:   "write_strategy",
+		AllowedModes: []string{PermissionModeApproval, PermissionModeLessApproval, PermissionModeAll},
+	}, func(context.Context, map[string]any) (any, error) {
+		executions.Add(1)
+		return map[string]any{"saved": true}, nil
+	})
+	service := &flakyAppendSessionService{delegate: adksession.InMemoryService()}
+	runtime := NewRuntimeWithSessionService(base.Store(), registry, service)
+	ensureTestProvider(t, runtime)
+	agent, err := runtime.Store().SaveAgent(ctx, AgentWriteRequest{
+		ID:             "agent-approval-busy-retry",
+		Name:           "Agent Busy Retry",
+		ProviderID:     testProviderID,
+		Tools:          []string{"approval.required"},
+		PermissionMode: PermissionModeApproval,
+		Status:         AgentStatusEnabled,
+	})
+	if err != nil {
+		t.Fatalf("SaveAgent: %v", err)
+	}
+
+	response, err := runtime.Chat(ctx, ChatRequest{AgentID: agent.ID, Message: "@approval.required 保存策略"})
+	if err != nil {
+		t.Fatalf("Chat: %v", err)
+	}
+	if len(response.PendingApprovals) != 1 {
+		t.Fatalf("pending approvals = %d, want 1", len(response.PendingApprovals))
+	}
+
+	service.failAppendRemaining.Store(1)
+	appendCallsBeforeResume := service.appendCalls.Load()
+	resolution, err := runtime.ResolveApproval(ctx, response.PendingApprovals[0].ID, true)
+	if err != nil {
+		t.Fatalf("ResolveApproval: %v", err)
+	}
+	if service.failedAppendAttempts.Load() != 1 {
+		t.Fatalf("failed append attempts = %d, want 1 retryable failure", service.failedAppendAttempts.Load())
+	}
+	if service.appendCalls.Load() <= appendCallsBeforeResume+1 {
+		t.Fatalf("append calls after resume = %d, want retry to append more than once", service.appendCalls.Load())
+	}
+	if executions.Load() != 1 {
+		t.Fatalf("tool executions = %d, want exactly 1 execution after retry", executions.Load())
+	}
+	if resolution.Run == nil || resolution.Run.Status != RunStatusCompleted {
+		t.Fatalf("resolution run = %+v, want completed run", resolution.Run)
+	}
+	if len(resolution.Run.PendingApprovals) != 1 || resolution.Run.PendingApprovals[0].Status != ApprovalStatusApproved {
+		t.Fatalf("resolution approvals = %+v, want embedded approved approval", resolution.Run.PendingApprovals)
+	}
+	persistedRun, ok, err := runtime.Store().Run(ctx, response.Run.ID)
+	if err != nil || !ok {
+		t.Fatalf("persisted run ok=%v err=%v", ok, err)
+	}
+	if persistedRun.Status != RunStatusCompleted || persistedRun.FinalMessageID == "" {
+		t.Fatalf("persisted run = %+v, want completed run with assistant message", persistedRun)
 	}
 }
 

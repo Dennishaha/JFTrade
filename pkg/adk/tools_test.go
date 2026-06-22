@@ -4,11 +4,20 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
+	"net/netip"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 )
+
+type roundTripperFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripperFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
+}
 
 func TestDefaultTaskToolSchemaIncludesPlannerProjectionFields(t *testing.T) {
 	for _, name := range []string{"tasks.create", "tasks.update"} {
@@ -141,6 +150,224 @@ func TestWorkflowWaitToolReturnsContextCancellation(t *testing.T) {
 	if _, err := tool.Handler(ctx, map[string]any{"durationMs": 100}); !errors.Is(err, context.Canceled) {
 		t.Fatalf("workflow.wait cancelled error = %v, want context.Canceled", err)
 	}
+}
+
+func TestWorkflowWaitDurationParsesMultipleInputForms(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		input    map[string]any
+		want     time.Duration
+		wantText string
+	}{
+		{
+			name:  "duration ms wins",
+			input: map[string]any{"durationMs": 1500, "seconds": 9},
+			want:  1500 * time.Millisecond,
+		},
+		{
+			name:  "float seconds",
+			input: map[string]any{"seconds": 1.5},
+			want:  1500 * time.Millisecond,
+		},
+		{
+			name:  "int seconds",
+			input: map[string]any{"seconds": 2},
+			want:  2 * time.Second,
+		},
+		{
+			name:  "string seconds",
+			input: map[string]any{"seconds": "0.25"},
+			want:  250 * time.Millisecond,
+		},
+		{
+			name:     "blank string rejected",
+			input:    map[string]any{"seconds": "   "},
+			wantText: "greater than 0",
+		},
+		{
+			name:     "invalid string rejected",
+			input:    map[string]any{"seconds": "later"},
+			wantText: "greater than 0",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := workflowWaitDuration(tc.input)
+			if tc.wantText != "" {
+				if err == nil || !strings.Contains(err.Error(), tc.wantText) {
+					t.Fatalf("workflowWaitDuration(%#v) err=%v, want substring %q", tc.input, err, tc.wantText)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("workflowWaitDuration(%#v): %v", tc.input, err)
+			}
+			if got != tc.want {
+				t.Fatalf("workflowWaitDuration(%#v) = %s, want %s", tc.input, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestHTTPFetchToolRejectsInvalidAndUnsafeTargets(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		input    map[string]any
+		wantText string
+	}{
+		{
+			name:     "missing url",
+			input:    map[string]any{},
+			wantText: "url is required",
+		},
+		{
+			name:     "invalid url",
+			input:    map[string]any{"url": "://bad"},
+			wantText: "invalid url",
+		},
+		{
+			name:     "unsupported scheme",
+			input:    map[string]any{"url": "ftp://example.com/feed"},
+			wantText: "only http and https are supported",
+		},
+		{
+			name:     "localhost blocked",
+			input:    map[string]any{"url": "http://localhost:8080/health"},
+			wantText: "localhost targets are blocked",
+		},
+		{
+			name:     "metadata blocked",
+			input:    map[string]any{"url": "http://169.254.169.254/latest/meta-data"},
+			wantText: "private, loopback, link-local, multicast and metadata addresses are blocked",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if _, err := httpFetchTool(context.Background(), tc.input); err == nil || !strings.Contains(err.Error(), tc.wantText) {
+				t.Fatalf("httpFetchTool(%#v) err=%v, want substring %q", tc.input, err, tc.wantText)
+			}
+		})
+	}
+}
+
+func TestRejectUnsafeHostAndUnsafeAddrClassification(t *testing.T) {
+	if err := rejectUnsafeHost(context.Background(), ""); err == nil || !strings.Contains(err.Error(), "host is required") {
+		t.Fatalf("rejectUnsafeHost empty err = %v, want host required", err)
+	}
+	if err := rejectUnsafeHost(context.Background(), "8.8.8.8"); err != nil {
+		t.Fatalf("rejectUnsafeHost public ip: %v", err)
+	}
+
+	for _, tc := range []struct {
+		addr netip.Addr
+		want bool
+	}{
+		{addr: netip.MustParseAddr("127.0.0.1"), want: true},
+		{addr: netip.MustParseAddr("10.0.0.1"), want: true},
+		{addr: netip.MustParseAddr("169.254.1.10"), want: true},
+		{addr: netip.MustParseAddr("224.0.0.1"), want: true},
+		{addr: netip.MustParseAddr("0.0.0.0"), want: true},
+		{addr: netip.MustParseAddr("169.254.169.254"), want: true},
+		{addr: netip.MustParseAddr("8.8.8.8"), want: false},
+		{addr: netip.MustParseAddr("1.1.1.1"), want: false},
+	} {
+		if got := unsafeAddr(tc.addr); got != tc.want {
+			t.Fatalf("unsafeAddr(%s) = %v, want %v", tc.addr, got, tc.want)
+		}
+	}
+}
+
+func TestHTTPFetchToolHandlesResponsesWithoutRealNetwork(t *testing.T) {
+	oldTransport := http.DefaultTransport
+	t.Cleanup(func() {
+		http.DefaultTransport = oldTransport
+	})
+
+	t.Run("successful text response", func(t *testing.T) {
+		http.DefaultTransport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+			if req.Header.Get("User-Agent") != "JFTrade-ADK/1.0" {
+				t.Fatalf("user agent = %q, want JFTrade-ADK/1.0", req.Header.Get("User-Agent"))
+			}
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     http.Header{"Content-Type": []string{"text/plain; charset=utf-8"}},
+				Body:       io.NopCloser(strings.NewReader("market snapshot")),
+				Request:    req,
+			}, nil
+		})
+
+		output, err := httpFetchTool(context.Background(), map[string]any{"url": "http://8.8.8.8/report"})
+		if err != nil {
+			t.Fatalf("httpFetchTool success: %v", err)
+		}
+		payload, ok := output.(map[string]any)
+		if !ok {
+			t.Fatalf("output = %T, want map[string]any", output)
+		}
+		if payload["status"] != http.StatusOK || payload["body"] != "market snapshot" || payload["truncated"] != false {
+			t.Fatalf("payload = %#v, want successful fetch payload", payload)
+		}
+		if payload["url"] != "http://8.8.8.8/report" {
+			t.Fatalf("payload url = %#v, want canonical request url", payload["url"])
+		}
+	})
+
+	t.Run("unsupported content type", func(t *testing.T) {
+		http.DefaultTransport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     http.Header{"Content-Type": []string{"application/octet-stream"}},
+				Body:       io.NopCloser(strings.NewReader("binary")),
+				Request:    req,
+			}, nil
+		})
+
+		if _, err := httpFetchTool(context.Background(), map[string]any{"url": "http://8.8.8.8/file"}); err == nil || !strings.Contains(err.Error(), "unsupported content type") {
+			t.Fatalf("httpFetchTool unsupported content type err = %v, want content type error", err)
+		}
+	})
+
+	t.Run("redirect to unsafe host blocked", func(t *testing.T) {
+		calls := 0
+		http.DefaultTransport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+			calls++
+			return &http.Response{
+				StatusCode: http.StatusFound,
+				Header:     http.Header{"Location": []string{"http://127.0.0.1/private"}},
+				Body:       io.NopCloser(strings.NewReader("")),
+				Request:    req,
+			}, nil
+		})
+
+		if _, err := httpFetchTool(context.Background(), map[string]any{"url": "http://8.8.8.8/redirect"}); err == nil || !strings.Contains(err.Error(), "redirect to unsafe host") {
+			t.Fatalf("httpFetchTool redirect err = %v, want redirect safety error", err)
+		}
+		if calls != 1 {
+			t.Fatalf("redirect transport calls = %d, want 1", calls)
+		}
+	})
+
+	t.Run("large text response marked truncated", func(t *testing.T) {
+		body := strings.Repeat("a", (1<<20)+64)
+		http.DefaultTransport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     http.Header{"Content-Type": []string{"text/plain"}},
+				Body:       io.NopCloser(strings.NewReader(body)),
+				Request:    req,
+			}, nil
+		})
+
+		output, err := httpFetchTool(context.Background(), map[string]any{"url": "http://8.8.8.8/large"})
+		if err != nil {
+			t.Fatalf("httpFetchTool large body: %v", err)
+		}
+		payload := output.(map[string]any)
+		if payload["truncated"] != true {
+			t.Fatalf("payload truncated = %#v, want true", payload["truncated"])
+		}
+		if got := len(payload["body"].(string)); got != 1<<20 {
+			t.Fatalf("payload body len = %d, want %d", got, 1<<20)
+		}
+	})
 }
 
 // TestAccountOrdersCompletesWithoutHanging verifies that a chat request triggering
