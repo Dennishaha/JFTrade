@@ -10,7 +10,15 @@ npm run dev:web
 如需打开文档开发站：
 
 ```bash
+npm run generate:docs
 npm run dev:docs
+```
+
+如需同时启动前端和文档站：
+
+```bash
+npm run generate:docs
+npm run dev:all
 ```
 
 用户访问入口保持为 `http://localhost:5173/docs/`。

@@ -26,6 +26,6 @@ Recommended v1.0 validation:
 ```bash
 go test ./pkg/strategy/... ./internal/app/apiserver/servercore ./internal/api/strategy ./internal/strategy ./pkg/backtest/...
 go test ./internal/app/apiserver/servercore -run 'StrategyDefinition|StrategyPine|Runtime|Backtest'
-npm --workspace @jftrade/web run test
-npm run typecheck
+npm run test:web
+npm run typecheck:web
 ```

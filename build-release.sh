@@ -69,9 +69,6 @@ ARTIFACT_PREFIX="jftrade"
 echo "Installing frontend dependencies..."
 install_frontend_dependencies
 
-echo "Generating API documentation..."
-npm run generate:docs
-
 echo "Building frontend bundle..."
 npm run build:web
 

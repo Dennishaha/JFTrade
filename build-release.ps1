@@ -134,12 +134,6 @@ $buildTime = if ([string]::IsNullOrWhiteSpace($env:JFTRADE_BUILD_TIME)) {
 Write-Host "Installing frontend dependencies..." -ForegroundColor Cyan
 Install-FrontendDependencies
 
-Write-Host "Generating API documentation..." -ForegroundColor Cyan
-npm run generate:docs
-if ($LASTEXITCODE -ne 0) {
-    throw "api documentation generation failed"
-}
-
 Write-Host "Building frontend bundle..." -ForegroundColor Cyan
 npm run build:web
 if ($LASTEXITCODE -ne 0) {

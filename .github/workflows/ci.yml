@@ -58,10 +58,10 @@ jobs:
           go build ./cmd/jftrade-api/
 
       - name: Frontend test
-        run: npm --workspace @jftrade/web run test
+        run: npm run test:web
 
       - name: Frontend typecheck
-        run: npm run typecheck
+        run: npm run typecheck:web
 
       - name: Frontend build
         run: npm run build:web

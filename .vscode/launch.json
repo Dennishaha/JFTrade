@@ -5,12 +5,18 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Dev Web with Docs",
+            "name": "Generate Docs",
             "type": "node-terminal",
             "request": "launch",
             "cwd": "${workspaceFolder}",
-            "preLaunchTask": "generate:reference-docs",
-            "command": "node scripts/dev-docs.mjs",
+            "command": "npm run generate:docs"
+        },
+        {
+            "name": "Debug Web",
+            "type": "node-terminal",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "command": "npm run dev:web",
             "serverReadyAction": {
                 "action": "openExternally",
                 "pattern": "Local:\\s+(https?://[^\\s]+)",
@@ -18,12 +24,35 @@
             }
         },
         {
-            "name": "Launch Backend",
+            "name": "Debug Docs",
+            "type": "node-terminal",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "command": "npm run dev:docs",
+            "serverReadyAction": {
+                "action": "openExternally",
+                "pattern": "Local:\\s+(https?://[^\\s]+)",
+                "uriFormat": "%s"
+            }
+        },
+        {
+            "name": "Debug Web with Docs",
+            "type": "node-terminal",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "command": "npm run dev:all",
+            "serverReadyAction": {
+                "action": "openExternally",
+                "pattern": "Local:\\s+(https?://[^\\s]+)",
+                "uriFormat": "%s"
+            }
+        },
+        {
+            "name": "Debug Backend",
             "type": "go",
             "request": "launch",
             "mode": "debug",
             "program": "${workspaceFolder}/cmd/jftrade",
-            "preLaunchTask": "go:generate-openapi",
             "args": [
                 "run",
                 "--config",
@@ -38,6 +67,34 @@
             "dlvFlags": [
                 "--check-go-version=false"
             ]
+        },
+        {
+            "name": "Build Web",
+            "type": "node-terminal",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "command": "npm run build:web"
+        },
+        {
+            "name": "Build Docs",
+            "type": "node-terminal",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "command": "npm run build:docs"
+        },
+        {
+            "name": "Build Backend",
+            "type": "node-terminal",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "command": "npm run build:backend"
+        },
+        {
+            "name": "Build All",
+            "type": "node-terminal",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "command": "npm run build"
         }
     ]
 }

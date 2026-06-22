@@ -133,7 +133,7 @@ build-release.cmd
 
 ```bash
 go test ./...
-cd apps/web && npm run typecheck && npm run build
+npm run typecheck:web && npm run build:web
 ```
 
 也可以直接运行根目录的 `start.sh` 或 `start.cmd`，按顺序执行测试、前端类型检查、前端构建，然后启动带内嵌前端的 Go 服务。

@@ -40,15 +40,15 @@ v0.8 锁定的是 JFTrade 可执行 Pine v6 策略子集，不追 TradingView Pi
 
 ```bash
 go test ./pkg/strategy/... ./internal/app/apiserver/servercore ./internal/api/strategy ./internal/strategy ./pkg/backtest/...
-npm --workspace @jftrade/web run test
-npm run typecheck
+npm run test:web
+npm run typecheck:web
 ```
 
 建议补跑：
 
 ```bash
 go test ./pkg/backtest -run Pine
-npm --workspace @jftrade/web run test -- strategyVisualBuilderPine.test.ts
+npm run test:web -- strategyVisualBuilderPine.test.ts
 ```
 
 通过标准：全量测试通过；黄金脚本全部 `AnalyzeScript OK` 并能完成 requirements planning；既有 Pine backtest 回归无 runtime error；前端不可识别 Pine 行保留为 `pineSnippet`。

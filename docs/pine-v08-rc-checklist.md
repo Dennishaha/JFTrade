@@ -60,13 +60,13 @@ v0.9 兼容迁移前置文件：
 
 ```bash
 go test ./pkg/strategy/... ./internal/app/apiserver/servercore ./internal/api/strategy ./internal/strategy ./pkg/backtest/...
-npm --workspace @jftrade/web run test
-npm run typecheck
+npm run test:web
+npm run typecheck:web
 ```
 
 专项：
 
 ```bash
 go test ./pkg/backtest -run Pine
-npm --workspace @jftrade/web run test -- strategyVisualBuilderPine.test.ts
+npm run test:web -- strategyVisualBuilderPine.test.ts
 ```

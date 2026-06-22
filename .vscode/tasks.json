@@ -2,15 +2,40 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "go:generate-openapi",
-            "type": "shell",
-            "command": "go generate ./cmd/jftrade-api",
+            "label": "generate:docs",
+            "type": "npm",
+            "script": "generate:docs",
             "problemMatcher": []
         },
         {
-            "label": "generate:reference-docs",
+            "label": "build:web",
             "type": "npm",
-            "script": "generate:reference",
+            "script": "build:web",
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
+            "label": "build:docs",
+            "type": "npm",
+            "script": "build:docs",
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
+            "label": "build:backend",
+            "type": "npm",
+            "script": "build:backend",
+            "group": "build",
+            "problemMatcher": ["$go"]
+        },
+        {
+            "label": "build:all",
+            "type": "npm",
+            "script": "build",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
             "problemMatcher": []
         }
     ]

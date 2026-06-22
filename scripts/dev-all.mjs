@@ -1,5 +1,7 @@
 import { spawn } from "node:child_process";
 
+// Combined development entry point; individual services remain available via package scripts.
+
 const npmCommand = process.env.npm_execpath
   ? [process.execPath, [process.env.npm_execpath]]
   : [process.platform === "win32" ? "npm.cmd" : "npm", []];

@@ -166,13 +166,13 @@
 前端策略设计相关改动，优先跑下面这条窄验证：
 
 ```bash
-npm --workspace @jftrade/web run test -- --run tests/App.strategy.test.ts tests/App.strategy.runtime.test.ts
+npm run test:web -- --run tests/App.strategy.test.ts tests/App.strategy.runtime.test.ts
 ```
 
 如果改了 Pine 编辑器或图块转换，再补：
 
 ```bash
-npm --workspace @jftrade/web run typecheck
+npm run typecheck:web
 ```
 
 如果还涉及后端策略定义、解析、规划或执行器，再补：
