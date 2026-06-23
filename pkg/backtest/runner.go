@@ -78,10 +78,7 @@ func Run(ctx context.Context, cfg RunConfig) *RunResult {
 		result.Error = fmt.Sprintf("derive strategy warmup: %v", err)
 		return result
 	}
-	warmupCandles := cfg.WarmupCandles
-	if derivedWarmupCandles > warmupCandles {
-		warmupCandles = derivedWarmupCandles
-	}
+	warmupCandles := max(derivedWarmupCandles, cfg.WarmupCandles)
 
 	// ── Warmup ──────────────────────────────────────────────────────
 	// Extend the kline query start time backward so indicators have

@@ -115,8 +115,7 @@ func TestStartForRunArgsInitializesRuntimeLayout(t *testing.T) {
 	t.Setenv("JFTRADE_BACKTEST_DB", backtestDBPath)
 	t.Setenv("JFTRADE_API_BIND", "127.0.0.1:0")
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	shutdown, err := StartForRunArgs(ctx, []string{"api"})
 	if err != nil {
@@ -168,8 +167,7 @@ func TestStartForRunArgsUsesInterfaceSettingsForAPIBind(t *testing.T) {
 	}
 	t.Setenv("JFTRADE_SETTINGS_PATH", settingsPath)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	shutdown, err := StartForRunArgs(ctx, []string{"api"})
 	if err != nil {

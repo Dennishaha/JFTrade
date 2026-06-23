@@ -245,8 +245,8 @@ func openAPIRequestBodyRef(t *testing.T, spec openAPIContractSpec, path string, 
 func openAPIPathFromGinPath(path string) string {
 	parts := strings.Split(path, "/")
 	for i, part := range parts {
-		if strings.HasPrefix(part, ":") {
-			parts[i] = "{" + strings.TrimPrefix(part, ":") + "}"
+		if after, ok := strings.CutPrefix(part, ":"); ok {
+			parts[i] = "{" + after + "}"
 		}
 	}
 	return strings.Join(parts, "/")

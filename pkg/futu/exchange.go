@@ -8,8 +8,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
-	"sort"
+	"slices"
 	"strings"
 	"sync"
 
@@ -228,7 +229,7 @@ func (e *Exchange) SubscribeTradeAccountPush(ctx context.Context, accountIDs []u
 
 func normalizeTradeAccountPushIDs(accountIDs []uint64) []uint64 {
 	ids := append([]uint64(nil), accountIDs...)
-	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
+	slices.Sort(ids)
 	out := ids[:0]
 	var last uint64
 	for i, id := range ids {
@@ -279,9 +280,7 @@ func (e *Exchange) QueryMarkets(ctx context.Context) (types.MarketMap, error) {
 		},
 	}
 	e.mu.Lock()
-	for symbol, market := range e.customMarkets {
-		base[symbol] = market
-	}
+	maps.Copy(base, e.customMarkets)
 	e.mu.Unlock()
 	return base, nil
 }

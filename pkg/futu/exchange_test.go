@@ -1162,7 +1162,7 @@ func TestQueryKLinesAllowsMoreThanEightHistoryPages(t *testing.T) {
 
 	baseAt := time.Date(2026, time.May, 15, 10, 0, 0, 0, time.UTC)
 	pages := make([][]*qotcommonpb.KLine, 0, 9)
-	for index := 0; index < 9; index++ {
+	for index := range 9 {
 		labelAt := baseAt.Add(time.Duration(index) * 5 * time.Minute)
 		pages = append(pages, []*qotcommonpb.KLine{testHistoryKLine(labelAt, 100+float64(index))})
 	}
@@ -1192,7 +1192,7 @@ func TestQueryKLinesUsesLargerHistoryPageSizeThanRequestedLimit(t *testing.T) {
 
 	baseAt := time.Date(2026, time.May, 15, 10, 0, 0, 0, time.UTC)
 	series := make([]*qotcommonpb.KLine, 0, 401)
-	for index := 0; index < 401; index++ {
+	for index := range 401 {
 		series = append(series, testHistoryKLine(baseAt.Add(time.Duration(index)*time.Minute), 100+float64(index)))
 	}
 	server.setHistorySeries(series)
@@ -1792,14 +1792,8 @@ func (s *quoteOpenDServer) historyKLResponse(body []byte) *historypb.Response {
 		if nextReqKey := request.GetC2S().GetNextReqKey(); len(nextReqKey) > 0 {
 			pageIndex = int(nextReqKey[0])
 		}
-		start := pageIndex * pageSize
-		if start > len(s.historySeries) {
-			start = len(s.historySeries)
-		}
-		end := start + pageSize
-		if end > len(s.historySeries) {
-			end = len(s.historySeries)
-		}
+		start := min(pageIndex*pageSize, len(s.historySeries))
+		end := min(start+pageSize, len(s.historySeries))
 		response := &historypb.Response{
 			RetType: new(int32(0)),
 			S2C: &historypb.S2C{
@@ -1814,10 +1808,7 @@ func (s *quoteOpenDServer) historyKLResponse(body []byte) *historypb.Response {
 		return response
 	}
 	if len(s.historyPages) > 0 {
-		pageIndex := int(s.historyKLCalls.Load()) - 1
-		if pageIndex < 0 {
-			pageIndex = 0
-		}
+		pageIndex := max(int(s.historyKLCalls.Load())-1, 0)
 		if pageIndex >= len(s.historyPages) {
 			pageIndex = len(s.historyPages) - 1
 		}

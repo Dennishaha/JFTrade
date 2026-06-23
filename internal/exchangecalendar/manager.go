@@ -630,10 +630,7 @@ func (m *Manager) recordOperationFailure(sourceID string, err error) {
 		status.LastError = err.Error()
 	}
 	status.ConsecutiveFailures++
-	backoffHours := status.ConsecutiveFailures
-	if backoffHours > 24 {
-		backoffHours = 24
-	}
+	backoffHours := min(status.ConsecutiveFailures, 24)
 	status.NextRefreshAt = now.Add(time.Duration(backoffHours) * time.Hour)
 	m.mu.Unlock()
 }
@@ -657,10 +654,7 @@ func (m *Manager) recordSourceFailure(sourceID string, market string, err error,
 		status.LastError = ""
 	}
 	status.ConsecutiveFailures++
-	backoffHours := status.ConsecutiveFailures
-	if backoffHours > 24 {
-		backoffHours = 24
-	}
+	backoffHours := min(status.ConsecutiveFailures, 24)
 	status.NextRefreshAt = now.Add(time.Duration(backoffHours) * time.Hour)
 	alert = recordUnhealthyStateLocked(status, normalizeMarket(market), now, sourceFailureAlert(status.SourceID, market, kind, err))
 	m.mu.Unlock()

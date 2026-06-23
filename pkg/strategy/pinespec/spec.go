@@ -2,6 +2,7 @@ package pinespec
 
 import (
 	"fmt"
+	"maps"
 	"strings"
 
 	strategydefinition "github.com/jftrade/jftrade-main/pkg/strategy/definition"
@@ -554,9 +555,7 @@ func PublishSkillResourceFiles() map[string]string {
 
 func cloneSkillResourceFiles(files map[string]string) map[string]string {
 	out := make(map[string]string, len(files)+1)
-	for key, value := range files {
-		out[key] = value
-	}
+	maps.Copy(out, files)
 	return out
 }
 

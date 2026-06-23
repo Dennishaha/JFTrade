@@ -133,7 +133,7 @@ func calculateWMASequence(values []float64, period int) []float64 {
 	weightSum := float64(period * (period + 1) / 2)
 	windowSum := 0.0
 	weightedSum := 0.0
-	for index := 0; index < period; index++ {
+	for index := range period {
 		weight := float64(index + 1)
 		windowSum += values[index]
 		weightedSum += values[index] * weight

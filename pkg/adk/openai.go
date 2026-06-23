@@ -134,10 +134,7 @@ func truncateBytes(s string, maxBytes int) string {
 		return s
 	}
 	const marker = "\n...(truncated)"
-	lim := maxBytes - len(marker)
-	if lim < 0 {
-		lim = 0
-	}
+	lim := max(maxBytes-len(marker), 0)
 	// Avoid splitting a multi-byte UTF-8 character.
 	for lim > 0 && !utf8.RuneStart(s[lim]) {
 		lim--
@@ -579,8 +576,8 @@ func (c openAIClient) readStreamingResponse(body io.Reader, onDelta func(ChatDel
 			}
 			continue
 		}
-		if strings.HasPrefix(line, "data:") {
-			dataLines = append(dataLines, strings.TrimSpace(strings.TrimPrefix(line, "data:")))
+		if after, ok := strings.CutPrefix(line, "data:"); ok {
+			dataLines = append(dataLines, strings.TrimSpace(after))
 		}
 	}
 	if err := scanner.Err(); err != nil {

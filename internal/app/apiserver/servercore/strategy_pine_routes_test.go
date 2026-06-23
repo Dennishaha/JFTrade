@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -158,12 +159,7 @@ func TestAnalyzeStrategyPineRouteRejectsUnsupportedSourceFormat(t *testing.T) {
 }
 
 func stringSliceContains(values []string, target string) bool {
-	for _, value := range values {
-		if value == target {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(values, target)
 }
 
 func TestAnalyzeStrategyPineRouteReportsUnsupportedSyntax(t *testing.T) {

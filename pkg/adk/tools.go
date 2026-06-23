@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/netip"
 	"net/url"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -74,13 +75,7 @@ func NewToolRegistry() *ToolRegistry {
 	}, func(ctx context.Context, input map[string]any) (any, error) {
 		query := strings.ToLower(strings.TrimSpace(toolStringValue(input, "query")))
 		category := strings.ToLower(strings.TrimSpace(toolStringValue(input, "category")))
-		limit := toolIntValue(input, "limit", 12)
-		if limit < 1 {
-			limit = 1
-		}
-		if limit > 50 {
-			limit = 50
-		}
+		limit := min(max(toolIntValue(input, "limit", 12), 1), 50)
 		descriptors := registry.List()
 		if agent, ok := toolAgentFromContext(ctx); ok {
 			descriptors = ToolDescriptorsForAgent(agent, registry)
@@ -231,10 +226,8 @@ func ToolRequiresApproval(descriptor ToolDescriptor, mode string) bool {
 	if toolExplicitlySkipsApproval(descriptor.Name) {
 		return false
 	}
-	for _, requiredMode := range descriptor.RequiresApprovalIn {
-		if requiredMode == mode {
-			return true
-		}
+	if slices.Contains(descriptor.RequiresApprovalIn, mode) {
+		return true
 	}
 	switch descriptor.Permission {
 	case "install_skill", "write_strategy", "optimize_strategy", "write_task", "write_memory":
@@ -262,12 +255,7 @@ func ToolAllowedInMode(descriptor ToolDescriptor, mode string) bool {
 	if descriptor.Permission == "live_trading" {
 		return mode == PermissionModeAll
 	}
-	for _, allowed := range descriptor.AllowedModes {
-		if allowed == mode {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(descriptor.AllowedModes, mode)
 }
 
 func finishToolCall(call *ToolCall) {
@@ -883,10 +871,8 @@ func rejectUnsafeHost(ctx context.Context, host string) error {
 	if err != nil {
 		return fmt.Errorf("resolve host: %w", err)
 	}
-	for _, addr := range addrs {
-		if unsafeAddr(addr) {
-			return fmt.Errorf("private, loopback, link-local, multicast and metadata addresses are blocked")
-		}
+	if slices.ContainsFunc(addrs, unsafeAddr) {
+		return fmt.Errorf("private, loopback, link-local, multicast and metadata addresses are blocked")
 	}
 	return nil
 }

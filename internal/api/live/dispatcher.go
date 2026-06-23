@@ -3,6 +3,7 @@ package live
 import (
 	"context"
 	"fmt"
+	"maps"
 	"strconv"
 	"time"
 
@@ -250,9 +251,7 @@ func notificationEventMap(event livecore.Event) map[string]any {
 
 func cloneEventMap(value map[string]any) map[string]any {
 	result := make(map[string]any, len(value)+2)
-	for key, item := range value {
-		result[key] = item
-	}
+	maps.Copy(result, value)
 	return result
 }
 

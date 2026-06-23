@@ -110,7 +110,7 @@ func (e *Exchange) queryHistoricalKLinesForPlan(ctx context.Context, security *q
 	klines := make([]types.KLine, 0, max(limit, 1))
 	nextReqKey := []byte(nil)
 	pageSize := resolveHistoricalKLinePageSize(limit)
-	for page := 0; page < maxPages; page++ {
+	for page := range maxPages {
 		request := &historypb.Request{C2S: &historypb.C2S{
 			RehabType: new(int32(rehabType)),
 			KlType:    new(int32(klType)),

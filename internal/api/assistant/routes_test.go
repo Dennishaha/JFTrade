@@ -374,15 +374,15 @@ func assistantTestProvider(t *testing.T, runtime *jfadk.Runtime) {
 		jftradeErr1 := json.NewDecoder(r.Body).Decode(&payload)
 		jftradeCheckTestError(t, jftradeErr1)
 		hasToolResponse := false
-		var text string
+		var text strings.Builder
 		for _, message := range payload.Messages {
 			if message.Role == "tool" {
 				hasToolResponse = true
 			}
-			text += "\n" + message.Content
+			text.WriteString("\n" + message.Content)
 		}
 		message := map[string]any{"role": "assistant", "content": "ok"}
-		if !hasToolResponse && strings.Contains(text, "@contract.write") {
+		if !hasToolResponse && strings.Contains(text.String(), "@contract.write") {
 			message["content"] = ""
 			message["tool_calls"] = []map[string]any{{
 				"id": "call-contract-write", "type": "function",

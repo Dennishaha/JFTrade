@@ -40,7 +40,7 @@ func TestSessionContextCompactionShrinksSessionView(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Create raw session: %v", err)
 	}
-	for index := 0; index < 10; index++ {
+	for index := range 10 {
 		role := genai.Role(genai.RoleUser)
 		if index%2 == 1 {
 			role = genai.Role(genai.RoleModel)
@@ -242,7 +242,7 @@ func TestCompactSessionContextWritesContextNotice(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Create raw session: %v", err)
 	}
-	for index := 0; index < 6; index++ {
+	for index := range 6 {
 		role := genai.Role(genai.RoleUser)
 		if index%2 == 1 {
 			role = genai.Role(genai.RoleModel)
@@ -310,7 +310,7 @@ func TestMaybeAutoCompactSessionEmitsContextNoticeDeltas(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Create raw session: %v", err)
 	}
-	for index := 0; index < 80; index++ {
+	for index := range 80 {
 		role := genai.Role(genai.RoleUser)
 		if index%2 == 1 {
 			role = genai.Role(genai.RoleModel)
@@ -1109,17 +1109,15 @@ func TestAppendADKEventWithStaleRetrySerializesConcurrentStaleSession(t *testing
 	locks := newADKSessionAppendLockMap()
 	var wg sync.WaitGroup
 	errs := make(chan error, eventCount)
-	for index := 0; index < eventCount; index++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for index := range eventCount {
+		wg.Go(func() {
 			event := adksession.NewEvent(fmt.Sprintf("inv-concurrent-%02d", index))
 			event.Author = "agent"
 			event.Content = genai.NewContentFromText(fmt.Sprintf("event-%02d", index), genai.RoleModel)
 			if err := appendADKEventWithStaleRetry(ctx, locks, service, created.Session, event); err != nil {
 				errs <- err
 			}
-		}()
+		})
 	}
 	wg.Wait()
 	close(errs)

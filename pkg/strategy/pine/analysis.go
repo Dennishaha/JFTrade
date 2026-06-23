@@ -188,18 +188,18 @@ func diagnosticFromError(err error) Diagnostic {
 
 func parsePineLineMessage(value string) (int, string, bool) {
 	prefix := "pine line "
-	index := strings.Index(value, prefix)
-	if index < 0 {
+	_, after, ok := strings.Cut(value, prefix)
+	if !ok {
 		return 0, "", false
 	}
-	rest := value[index+len(prefix):]
-	colon := strings.Index(rest, ":")
-	if colon < 0 {
+	rest := after
+	before, after, ok := strings.Cut(rest, ":")
+	if !ok {
 		return 0, "", false
 	}
-	line, err := strconv.Atoi(strings.TrimSpace(rest[:colon]))
+	line, err := strconv.Atoi(strings.TrimSpace(before))
 	if err != nil || line <= 0 {
 		return 0, "", false
 	}
-	return line, strings.TrimSpace(rest[colon+1:]), true
+	return line, strings.TrimSpace(after), true
 }

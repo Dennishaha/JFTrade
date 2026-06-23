@@ -166,7 +166,7 @@ func TestSessionFilteredStoreQueryHelpersFilterUSRegularHours(t *testing.T) {
 	t.Run("forward pagination skips pre and after hours", func(t *testing.T) {
 		fullPage := make([]types.KLine, 0, 64)
 		fullPage = append(fullPage, pre, regular1)
-		for index := 0; index < 62; index++ {
+		for range 62 {
 			fullPage = append(fullPage, after)
 		}
 		base := &stubBacktestStore{forwardBatches: [][]types.KLine{fullPage, {regular2}}}

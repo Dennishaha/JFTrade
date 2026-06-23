@@ -286,10 +286,7 @@ func registerJFTradeADKStrategyTools(store *jfadk.Store, registry *jfadk.ToolReg
 		if err != nil {
 			return nil, err
 		}
-		waitMs := intValue(input, "waitForCompletionMs", 0)
-		if waitMs > 25000 {
-			waitMs = 25000
-		}
+		waitMs := min(intValue(input, "waitForCompletionMs", 0), 25000)
 		if waitMs > 0 && deps.BacktestResultView != nil {
 			run.Status = waitForADKBacktestStatus(ctx, deps, run.ID, waitMs, run.Status)
 		}
@@ -393,10 +390,7 @@ func registerJFTradeADKStrategyTools(store *jfadk.Store, registry *jfadk.ToolReg
 		if taskID == "" {
 			return nil, fmt.Errorf("taskId is required")
 		}
-		waitMs := intValue(input, "waitForCompletionMs", 0)
-		if waitMs > 25000 {
-			waitMs = 25000
-		}
+		waitMs := min(intValue(input, "waitForCompletionMs", 0), 25000)
 		progress, ok := waitForADKKLineSyncProgress(ctx, deps, taskID, waitMs)
 		if !ok {
 			return nil, fmt.Errorf("k-line sync task %q not found", taskID)

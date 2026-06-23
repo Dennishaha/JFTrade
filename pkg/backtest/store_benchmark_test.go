@@ -146,7 +146,7 @@ func buildBenchmarkSessionAwareHalfHourKLines(baseDay time.Time, tradingDays int
 			continue
 		}
 		sessionStart := time.Date(day.Year(), day.Month(), day.Day(), 13, 30, 0, 0, time.UTC)
-		for slot := 0; slot < 13; slot++ {
+		for slot := range 13 {
 			startAt := sessionStart.Add(time.Duration(slot) * 30 * time.Minute)
 			cycle := float64((addedDays*13+slot)%17) * 0.15
 			openValue := price

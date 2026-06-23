@@ -296,7 +296,7 @@ func (s *FutuKLineStore) StreamKLines(
 func (s *FutuKLineStore) queryStoredKLinesForward(symbol string, interval types.Interval, rehabType string, startTime time.Time, limit int) ([]types.KLine, error) {
 	var firstNonEmpty []types.KLine
 	tableNames, tableCount := s.readTableNames(symbol, interval, rehabType)
-	for index := 0; index < tableCount; index++ {
+	for index := range tableCount {
 		tableName := tableNames[index]
 		exists, err := s.klineTableExists(tableName)
 		if err != nil {
@@ -340,7 +340,7 @@ func (s *FutuKLineStore) queryStoredKLinesForwardFromTable(tableName string, sym
 func (s *FutuKLineStore) queryStoredKLinesBackward(symbol string, interval types.Interval, rehabType string, endTime time.Time, limit int) ([]types.KLine, error) {
 	var firstNonEmpty []types.KLine
 	tableNames, tableCount := s.readTableNames(symbol, interval, rehabType)
-	for index := 0; index < tableCount; index++ {
+	for index := range tableCount {
 		tableName := tableNames[index]
 		exists, err := s.klineTableExists(tableName)
 		if err != nil {

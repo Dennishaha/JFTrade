@@ -1419,24 +1419,24 @@ if mtfStoch >= 0 and middle >= 0 and spread >= 0 and lookup >= -1 and vals.size(
 	if !analysis.OK {
 		t.Fatalf("AnalyzeScript().OK = false, diagnostics = %#v", analysis.Diagnostics)
 	}
-	joined := ""
-	collectionOps := ""
+	var joined strings.Builder
+	var collectionOps strings.Builder
 	for _, statement := range analysis.Program.Hooks[0].Statements {
 		if let, ok := statement.(*strategyir.LetStmt); ok {
-			joined += let.Expression + "\n"
+			joined.WriteString(let.Expression + "\n")
 		}
 		if collection, ok := statement.(*strategyir.CollectionStmt); ok {
-			collectionOps += collection.Namespace + "." + collection.Operation + "\n"
+			collectionOps.WriteString(collection.Namespace + "." + collection.Operation + "\n")
 		}
 	}
 	for _, fragment := range []string{`stoch(close, high, low, 14, "15m")`} {
-		if !strings.Contains(joined, fragment) {
-			t.Fatalf("compiled expressions = %q, missing %q", joined, fragment)
+		if !strings.Contains(joined.String(), fragment) {
+			t.Fatalf("compiled expressions = %q, missing %q", joined.String(), fragment)
 		}
 	}
 	for _, fragment := range []string{"array.from", "array.median", "map.values"} {
-		if !strings.Contains(collectionOps, fragment) {
-			t.Fatalf("collection ops = %q, missing %q", collectionOps, fragment)
+		if !strings.Contains(collectionOps.String(), fragment) {
+			t.Fatalf("collection ops = %q, missing %q", collectionOps.String(), fragment)
 		}
 	}
 	keys := map[string]bool{}
@@ -1516,24 +1516,24 @@ if absValues.size() == 5 and left >= 0 and right >= left and rank >= 0 and p50 >
 	if !analysis.OK {
 		t.Fatalf("AnalyzeScript().OK = false, diagnostics = %#v", analysis.Diagnostics)
 	}
-	collectionOps := ""
-	expressions := ""
+	var collectionOps strings.Builder
+	var expressions strings.Builder
 	for _, statement := range analysis.Program.Hooks[0].Statements {
 		if collection, ok := statement.(*strategyir.CollectionStmt); ok {
-			collectionOps += collection.Namespace + "." + collection.Operation + "\n"
+			collectionOps.WriteString(collection.Namespace + "." + collection.Operation + "\n")
 		}
 		if let, ok := statement.(*strategyir.LetStmt); ok {
-			expressions += let.Expression + "\n"
+			expressions.WriteString(let.Expression + "\n")
 		}
 	}
 	for _, fragment := range []string{"array.abs", "array.binary_search_leftmost", "array.percentile_linear_interpolation", "array.covariance"} {
-		if !strings.Contains(collectionOps, fragment) {
-			t.Fatalf("collection ops = %q, missing %q", collectionOps, fragment)
+		if !strings.Contains(collectionOps.String(), fragment) {
+			t.Fatalf("collection ops = %q, missing %q", collectionOps.String(), fragment)
 		}
 	}
 	for _, fragment := range []string{"str_format", "str_upper", "str_length", "timeframe_change", "time_close"} {
-		if !strings.Contains(expressions, fragment) {
-			t.Fatalf("expressions = %q, missing %q", expressions, fragment)
+		if !strings.Contains(expressions.String(), fragment) {
+			t.Fatalf("expressions = %q, missing %q", expressions.String(), fragment)
 		}
 	}
 }
@@ -1559,8 +1559,8 @@ if total >= 3 and nz(previousFirst, 0) >= 0 and fieldSize > 0
 		t.Fatalf("AnalyzeScript().OK = false, diagnostics = %#v", analysis.Diagnostics)
 	}
 	foundCollectionLoop := false
-	expressions := ""
-	collectionOps := ""
+	var expressions strings.Builder
+	var collectionOps strings.Builder
 	for _, statement := range analysis.Program.Hooks[0].Statements {
 		switch typed := statement.(type) {
 		case *strategyir.LoopStmt:
@@ -1568,26 +1568,26 @@ if total >= 3 and nz(previousFirst, 0) >= 0 and fieldSize > 0
 				foundCollectionLoop = true
 			}
 		case *strategyir.LetStmt:
-			expressions += typed.Expression + "\n"
+			expressions.WriteString(typed.Expression + "\n")
 		case *strategyir.CollectionStmt:
-			collectionOps += typed.Target + "." + typed.Operation + "\n"
+			collectionOps.WriteString(typed.Target + "." + typed.Operation + "\n")
 		case *strategyir.ObjectStmt:
-			expressions += strings.Join(typed.Arguments, "\n") + "\n"
+			expressions.WriteString(strings.Join(typed.Arguments, "\n") + "\n")
 		}
 	}
 	if !foundCollectionLoop {
 		t.Fatalf("statements = %#v, want collection for loop", analysis.Program.Hooks[0].Statements)
 	}
 	for _, fragment := range []string{"collection_array_get(history(values, 1), 0)", "collection_array_new_float()"} {
-		if !strings.Contains(expressions, fragment) {
-			t.Fatalf("expressions = %q, missing %q", expressions, fragment)
+		if !strings.Contains(expressions.String(), fragment) {
+			t.Fatalf("expressions = %q, missing %q", expressions.String(), fragment)
 		}
 	}
-	if !strings.Contains(collectionOps, "box.values.push") {
-		t.Fatalf("collection ops = %q, missing box.values.push", collectionOps)
+	if !strings.Contains(collectionOps.String(), "box.values.push") {
+		t.Fatalf("collection ops = %q, missing box.values.push", collectionOps.String())
 	}
-	if !strings.Contains(collectionOps, "box.values.size") {
-		t.Fatalf("collection ops = %q, missing box.values.size", collectionOps)
+	if !strings.Contains(collectionOps.String(), "box.values.size") {
+		t.Fatalf("collection ops = %q, missing box.values.size", collectionOps.String())
 	}
 }
 
@@ -1617,8 +1617,8 @@ if nz(prevRange, 0) >= 0 and nz(prevDev, 0) >= 0 and total == 3 and rows == 2 an
 		t.Fatalf("AnalyzeScript().OK = false, diagnostics = %#v", analysis.Diagnostics)
 	}
 	foundCollectionLoop := false
-	expressions := ""
-	collectionOps := ""
+	var expressions strings.Builder
+	var collectionOps strings.Builder
 	for _, statement := range analysis.Program.Hooks[0].Statements {
 		switch typed := statement.(type) {
 		case *strategyir.LoopStmt:
@@ -1626,22 +1626,22 @@ if nz(prevRange, 0) >= 0 and nz(prevDev, 0) >= 0 and total == 3 and rows == 2 an
 				foundCollectionLoop = true
 			}
 		case *strategyir.LetStmt:
-			expressions += typed.Expression + "\n"
+			expressions.WriteString(typed.Expression + "\n")
 		case *strategyir.CollectionStmt:
-			collectionOps += typed.Namespace + "." + typed.Operation + ":" + typed.Target + "\n"
+			collectionOps.WriteString(typed.Namespace + "." + typed.Operation + ":" + typed.Target + "\n")
 		}
 	}
 	if !foundCollectionLoop {
 		t.Fatalf("statements = %#v, want map.keys collection loop", analysis.Program.Hooks[0].Statements)
 	}
 	for _, fragment := range []string{"collection_array_range(history(values, 1))", "collection_array_stdev(history(values, 1))", "timeframe_in_seconds", "timeframe_multiplier", "str_length", "str_format"} {
-		if !strings.Contains(expressions, fragment) {
-			t.Fatalf("expressions = %q, missing %q", expressions, fragment)
+		if !strings.Contains(expressions.String(), fragment) {
+			t.Fatalf("expressions = %q, missing %q", expressions.String(), fragment)
 		}
 	}
 	for _, fragment := range []string{"matrix.set:grid", "matrix.get:grid", "matrix.rows:grid", "matrix.columns:grid"} {
-		if !strings.Contains(collectionOps, fragment) {
-			t.Fatalf("collection ops = %q, missing %q", collectionOps, fragment)
+		if !strings.Contains(collectionOps.String(), fragment) {
+			t.Fatalf("collection ops = %q, missing %q", collectionOps.String(), fragment)
 		}
 	}
 }
@@ -1664,14 +1664,14 @@ if nz(prevPrice, 0) >= 0 and chained > 0
 	if !analysis.OK {
 		t.Fatalf("AnalyzeScript().OK = false, diagnostics = %#v", analysis.Diagnostics)
 	}
-	expressions := ""
+	var expressions strings.Builder
 	for _, statement := range analysis.Program.Hooks[0].Statements {
 		if let, ok := statement.(*strategyir.LetStmt); ok {
-			expressions += let.Expression + "\n"
+			expressions.WriteString(let.Expression + "\n")
 		}
 	}
-	if !strings.Contains(expressions, "history(box, 1).price") || !strings.Contains(expressions, `object_method("PriceBox", "score", object_method("PriceBox", "identity", box), 2)`) {
-		t.Fatalf("expressions = %q, want object history and method chain lowering", expressions)
+	if !strings.Contains(expressions.String(), "history(box, 1).price") || !strings.Contains(expressions.String(), `object_method("PriceBox", "score", object_method("PriceBox", "identity", box), 2)`) {
+		t.Fatalf("expressions = %q, want object history and method chain lowering", expressions.String())
 	}
 	exports := map[string]string{}
 	for _, declaration := range analysis.Semantic.Declarations {
@@ -1700,10 +1700,10 @@ if nz(prevScore, 0) >= 0 and chained > 0 and mtfPrev >= 0
 	if !analysis.OK {
 		t.Fatalf("AnalyzeScript().OK = false, diagnostics = %#v", analysis.Diagnostics)
 	}
-	expressions := ""
+	var expressions strings.Builder
 	for _, statement := range analysis.Program.Hooks[0].Statements {
 		if let, ok := statement.(*strategyir.LetStmt); ok {
-			expressions += let.Expression + "\n"
+			expressions.WriteString(let.Expression + "\n")
 		}
 	}
 	for _, fragment := range []string{
@@ -1711,8 +1711,8 @@ if nz(prevScore, 0) >= 0 and chained > 0 and mtfPrev >= 0
 		`object_method("PriceBox", "score", object_method("PriceBox", "identity", box), 2, 1)`,
 		`history(box, 1).price`,
 	} {
-		if !strings.Contains(expressions, fragment) {
-			t.Fatalf("expressions = %q, missing %q", expressions, fragment)
+		if !strings.Contains(expressions.String(), fragment) {
+			t.Fatalf("expressions = %q, missing %q", expressions.String(), fragment)
 		}
 	}
 }

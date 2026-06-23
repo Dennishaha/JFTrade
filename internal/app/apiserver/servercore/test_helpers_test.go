@@ -65,17 +65,17 @@ func configureTestADKProvider(t *testing.T, server *Server) {
 		}
 		jftradeErr1 := json.NewDecoder(r.Body).Decode(&payload)
 		jftradeCheckTestError(t, jftradeErr1)
-		var text string
+		var text strings.Builder
 		hasToolResponse := false
 		for _, message := range payload.Messages {
 			if message.Role == "tool" {
 				hasToolResponse = true
 			}
-			text += "\n" + message.Content
+			text.WriteString("\n" + message.Content)
 		}
 		message := map[string]any{"role": "assistant", "content": "ok"}
 		if !hasToolResponse {
-			if tool := testADKToolNameFromText(text); tool != "" {
+			if tool := testADKToolNameFromText(text.String()); tool != "" {
 				message["content"] = ""
 				message["tool_calls"] = []map[string]any{{
 					"id": "call-" + strings.ReplaceAll(tool, ".", "-"), "type": "function",

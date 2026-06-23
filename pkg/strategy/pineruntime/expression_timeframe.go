@@ -115,8 +115,8 @@ func pineStaticTimeframeDuration(value string) (time.Duration, bool) {
 		{value: "W", unit: 7 * 24 * time.Hour},
 		{value: "M", unit: 30 * 24 * time.Hour},
 	} {
-		if strings.HasSuffix(trimmed, suffix.value) {
-			value := strings.TrimSuffix(trimmed, suffix.value)
+		if before, ok := strings.CutSuffix(trimmed, suffix.value); ok {
+			value := before
 			if value == "" {
 				value = "1"
 			}

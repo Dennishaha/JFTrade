@@ -1,5 +1,7 @@
 package runmodel
 
+import "maps"
+
 import "sync"
 
 // TradeEvent is a single filled trade for chart rendering.
@@ -114,9 +116,7 @@ func (r *RunResult) Snapshot() *RunResult {
 				return nil
 			}
 			clone := make(map[string]int, len(r.RuntimeErrorCounts))
-			for key, value := range r.RuntimeErrorCounts {
-				clone[key] = value
-			}
+			maps.Copy(clone, r.RuntimeErrorCounts)
 			return clone
 		}(),
 	}

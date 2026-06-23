@@ -67,12 +67,12 @@ func (s *parseState) parseExecutableMethodDefinition(index int) (int, error) {
 		return index, fmt.Errorf("pine line %d: method declarations must be top level", line.number)
 	}
 	afterKeyword := strings.TrimSpace(line.trimmed[len("method "):])
-	arrow := strings.Index(afterKeyword, "=>")
+	before, after, ok := strings.Cut(afterKeyword, "=>")
 	declarationText := afterKeyword
 	body := ""
-	if arrow >= 0 {
-		declarationText = strings.TrimSpace(afterKeyword[:arrow])
-		body = strings.TrimSpace(afterKeyword[arrow+2:])
+	if ok {
+		declarationText = strings.TrimSpace(before)
+		body = strings.TrimSpace(after)
 	}
 	name, receiver, parameters := parseMethodDeclaration(declarationText)
 	if receiver == nil || receiver.Type == "" || receiver.Name == "" {

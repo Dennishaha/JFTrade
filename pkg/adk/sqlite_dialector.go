@@ -3,6 +3,7 @@ package adk
 import (
 	"context"
 	"database/sql"
+	"maps"
 	"strconv"
 
 	"gorm.io/gorm"
@@ -61,9 +62,7 @@ func (dialector sqliteDialector) Initialize(db *gorm.DB) error {
 		})
 	}
 
-	for key, value := range dialector.ClauseBuilders() {
-		db.ClauseBuilders[key] = value
-	}
+	maps.Copy(db.ClauseBuilders, dialector.ClauseBuilders())
 	return nil
 }
 
@@ -236,11 +235,8 @@ func compareSQLiteVersion(version string, required string) int {
 
 	left := parse(version)
 	right := parse(required)
-	size := len(left)
-	if len(right) > size {
-		size = len(right)
-	}
-	for i := 0; i < size; i++ {
+	size := max(len(right), len(left))
+	for i := range size {
 		leftValue := 0
 		rightValue := 0
 		if i < len(left) {

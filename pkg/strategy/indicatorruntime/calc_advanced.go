@@ -175,7 +175,7 @@ func calculateCenterOfGravity(values []float64, period int) (float64, bool) {
 	}
 	window := values[len(values)-period:]
 	numerator, denominator := 0.0, 0.0
-	for index := 0; index < period; index++ {
+	for index := range period {
 		value := window[period-1-index]
 		numerator += value * float64(index+1)
 		denominator += value
@@ -330,13 +330,7 @@ func calculatePercentileNearest(values []float64, period int, percentage float64
 	}
 	window := append([]float64(nil), values[len(values)-period:]...)
 	sort.Float64s(window)
-	rank := int(math.Ceil((percentage / 100) * float64(period)))
-	if rank < 1 {
-		rank = 1
-	}
-	if rank > period {
-		rank = period
-	}
+	rank := min(max(int(math.Ceil((percentage/100)*float64(period))), 1), period)
 	return window[rank-1], true
 }
 

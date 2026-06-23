@@ -216,11 +216,11 @@ func classifyWorkflowUserPrompt(text string) workflowUserPrompt {
 }
 
 func extractWorkflowPromptField(text string, startMarker string, endMarker string) string {
-	start := strings.Index(text, startMarker)
-	if start < 0 {
+	_, after, ok := strings.Cut(text, startMarker)
+	if !ok {
 		return ""
 	}
-	value := text[start+len(startMarker):]
+	value := after
 	if endMarker != "" {
 		if end := strings.Index(value, endMarker); end >= 0 {
 			value = value[:end]

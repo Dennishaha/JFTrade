@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"maps"
 	"net/http"
 	"net/url"
 	"os"
@@ -401,9 +402,7 @@ func buildStrategyResearchBuiltinSkillBundle() (map[string]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	for relativePath, content := range strategypinespec.ResearchSkillResourceFiles() {
-		bundle[relativePath] = content
-	}
+	maps.Copy(bundle, strategypinespec.ResearchSkillResourceFiles())
 	return bundle, nil
 }
 
@@ -418,9 +417,7 @@ func buildStrategyPublishBuiltinSkillBundle() (map[string]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	for relativePath, content := range strategypinespec.PublishSkillResourceFiles() {
-		bundle[relativePath] = content
-	}
+	maps.Copy(bundle, strategypinespec.PublishSkillResourceFiles())
 	return bundle, nil
 }
 

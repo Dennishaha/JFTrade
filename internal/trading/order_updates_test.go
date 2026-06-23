@@ -302,12 +302,10 @@ func TestOrderUpdatesWorkerConcurrentSyncSubscribesOnce(t *testing.T) {
 	}}}
 	worker := NewOrderUpdatesWorker(source, &fakeExecutionOrderUpdates{}, OrderUpdatesConfig{})
 	var wg sync.WaitGroup
-	for i := 0; i < 20; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range 20 {
+		wg.Go(func() {
 			worker.Sync(context.Background(), true, true)
-		}()
+		})
 	}
 	wg.Wait()
 	if source.subscribeCalls != 1 {
@@ -318,7 +316,7 @@ func TestOrderUpdatesWorkerConcurrentSyncSubscribesOnce(t *testing.T) {
 func TestOrderUpdatesWorkerSnapshotCapsInvalidations(t *testing.T) {
 	source := &fakeOrderUpdateSource{discoverErr: errors.New("dial timeout")}
 	worker := NewOrderUpdatesWorker(source, &fakeExecutionOrderUpdates{}, OrderUpdatesConfig{})
-	for i := 0; i < 25; i++ {
+	for range 25 {
 		worker.Sync(context.Background(), true, false)
 	}
 	snapshot := worker.SnapshotResponse()

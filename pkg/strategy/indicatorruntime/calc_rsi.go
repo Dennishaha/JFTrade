@@ -39,7 +39,7 @@ func calculateRSISeries(values []float64, period int) []float64 {
 	result := make([]float64, 0, len(values)-period)
 	rollingGains := 0.0
 	rollingLosses := 0.0
-	for index := 0; index < period; index++ {
+	for index := range period {
 		rollingGains += gains[index]
 		rollingLosses += losses[index]
 	}

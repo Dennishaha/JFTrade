@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -2171,9 +2172,9 @@ func parseADKStreamFrames(t *testing.T, body string) []adkChatStreamEvent {
 			continue
 		}
 		var dataLines []string
-		for _, line := range strings.Split(segment, "\n") {
-			if strings.HasPrefix(line, "data:") {
-				dataLines = append(dataLines, strings.TrimSpace(strings.TrimPrefix(line, "data:")))
+		for line := range strings.SplitSeq(segment, "\n") {
+			if after, ok := strings.CutPrefix(line, "data:"); ok {
+				dataLines = append(dataLines, strings.TrimSpace(after))
 			}
 		}
 		payload := strings.Join(dataLines, "\n")
@@ -2190,12 +2191,7 @@ func parseADKStreamFrames(t *testing.T, body string) []adkChatStreamEvent {
 }
 
 func containsString(values []string, target string) bool {
-	for _, value := range values {
-		if value == target {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(values, target)
 }
 
 func decodeAPIErrorEnvelope(t *testing.T, resp *http.Response) (int, string, string) {

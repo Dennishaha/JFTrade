@@ -1301,7 +1301,7 @@ func TestIndicatorRuntimeSnapshotIncludesIntradaySecurityTimeframes(t *testing.T
 		t.Fatal("expected indicator runtime")
 	}
 	base := time.Date(2026, time.June, 12, 14, 30, 0, 0, time.UTC)
-	for index := 0; index < 60; index++ {
+	for index := range 60 {
 		closePrice := float64(index + 1)
 		start := base.Add(time.Duration(index) * time.Minute)
 		runtime.push(types.KLine{
@@ -1816,7 +1816,7 @@ func benchmarkIndicatorRuntime(b *testing.B) *indicatorRuntime {
 		b.Fatal("expected benchmark runtime")
 	}
 	baseTime := time.Date(2026, 5, 28, 9, 30, 0, 0, time.UTC)
-	for index := 0; index < minimumIndicatorSeriesLimit+32; index++ {
+	for index := range minimumIndicatorSeriesLimit + 32 {
 		closeValue := 100 + float64(index%41)
 		runtime.push(types.KLine{
 			Symbol:    "US.AAPL",
@@ -1875,7 +1875,7 @@ func benchmarkProtectSessionIndicatorRuntime(b *testing.B) *indicatorRuntime {
 		b.Fatal("expected protect benchmark runtime")
 	}
 	baseTime := time.Date(2026, 5, 28, 9, 30, 0, 0, time.UTC)
-	for index := 0; index < minimumIndicatorSeriesLimit+128; index++ {
+	for index := range minimumIndicatorSeriesLimit + 128 {
 		closeValue := 100 + math.Sin(float64(index)/11.0)*3 + float64(index%17)/10
 		runtime.push(types.KLine{
 			Symbol:    "US.AAPL",

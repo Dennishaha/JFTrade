@@ -161,13 +161,7 @@ func NormalizeSubscriptions(input Subscriptions) Subscriptions {
 		market := strings.ToUpper(strings.TrimSpace(item.Market))
 		symbol := strings.ToUpper(strings.TrimSpace(item.Symbol))
 		instrumentID := normalizeInstrumentID(item.InstrumentID)
-		num := item.Num
-		if num < 1 {
-			num = 1
-		}
-		if num > 50 {
-			num = 50
-		}
+		num := min(max(item.Num, 1), 50)
 		if market == "" || symbol == "" || instrumentID == "" {
 			continue
 		}

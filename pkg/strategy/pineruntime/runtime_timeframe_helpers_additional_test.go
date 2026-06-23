@@ -113,10 +113,10 @@ func TestPineRuntimeTimeframeHelpersCoverCoreSemantics(t *testing.T) {
 
 func TestPendingOrderTriggerHelpersCoverStopLimitAndDirectionBranches(t *testing.T) {
 	if pendingOrderTriggered(pendingOrder{
-		action:    strategyir.OrderActionBuy,
-		hasStop:   true,
-		stopPrice: 101,
-		hasLimit:  true,
+		action:     strategyir.OrderActionBuy,
+		hasStop:    true,
+		stopPrice:  101,
+		hasLimit:   true,
 		limitPrice: 100,
 	}, 105, 99) {
 		t.Fatal("inactive stop-limit order should not trigger before activation")

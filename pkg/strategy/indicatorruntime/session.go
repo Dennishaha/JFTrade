@@ -56,10 +56,7 @@ func maxMinSelectedCloses(closes []float64, selectedIndices []int) (float64, flo
 }
 
 func sessionAwareSeriesLength(endTimes []time.Time, sessions []market.Session) int {
-	seriesLength := len(endTimes)
-	if len(sessions) > seriesLength {
-		seriesLength = len(sessions)
-	}
+	seriesLength := max(len(sessions), len(endTimes))
 	return seriesLength
 }
 

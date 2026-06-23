@@ -13,7 +13,7 @@ import (
 func (s *FutuKLineStore) selectReadTableName(symbol string, interval types.Interval, rehabType string, since, until time.Time) (string, error) {
 	var firstExisting string
 	tableNames, tableCount := s.readTableNames(symbol, interval, rehabType)
-	for index := 0; index < tableCount; index++ {
+	for index := range tableCount {
 		tableName := tableNames[index]
 		exists, err := s.klineTableExists(tableName)
 		if err != nil {
@@ -134,7 +134,7 @@ func (s *FutuKLineStore) findMissingRangesInTable(
 ) ([]string, error) {
 	var firstMissing []string
 	tableNames, tableCount := s.readTableNames(symbol, interval, rehabType)
-	for index := 0; index < tableCount; index++ {
+	for index := range tableCount {
 		tableName := tableNames[index]
 		exists, err := s.klineTableExists(tableName)
 		if err != nil {

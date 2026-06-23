@@ -497,10 +497,7 @@ func (s *syncHistoryOpenDServer) historyKLResponse(body []byte) *historypb.Respo
 		return response
 	}
 
-	pageIndex := int(s.historyCalls.Load()) - 1
-	if pageIndex < 0 {
-		pageIndex = 0
-	}
+	pageIndex := max(int(s.historyCalls.Load())-1, 0)
 	if pageIndex >= len(s.pages) {
 		pageIndex = len(s.pages) - 1
 	}

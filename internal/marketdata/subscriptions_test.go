@@ -2,6 +2,7 @@ package marketdata
 
 import (
 	"context"
+	"slices"
 	"testing"
 	"time"
 )
@@ -194,12 +195,7 @@ func assertSubscriptionQuota(t *testing.T, snapshot SubscriptionsSnapshot, total
 }
 
 func containsString(values []string, want string) bool {
-	for _, value := range values {
-		if value == want {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(values, want)
 }
 
 type stubProvider struct {

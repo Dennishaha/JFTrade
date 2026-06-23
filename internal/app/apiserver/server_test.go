@@ -37,8 +37,7 @@ func TestStartForRunArgsInitializesRuntimeLayout(t *testing.T) {
 		t.Fatalf("pure store changed FUTU_OPEND_ADDR to %q", got)
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	shutdown, err := StartForRunArgs(ctx, []string{"api"})
 	if err != nil {

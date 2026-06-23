@@ -3,6 +3,7 @@ package pine
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"regexp"
 	"strconv"
 	"strings"
@@ -298,9 +299,7 @@ func udfBranchExpression(lines []parsedLine, start, parentIndent int, locals map
 	branchIndent := lines[start].indent
 	index := start
 	branchLocals := make(map[string]string, len(locals))
-	for key, value := range locals {
-		branchLocals[key] = value
-	}
+	maps.Copy(branchLocals, locals)
 	result := ""
 	for index < len(lines) && lines[index].indent > parentIndent {
 		line := lines[index]

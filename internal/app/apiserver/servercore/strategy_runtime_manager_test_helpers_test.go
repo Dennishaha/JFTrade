@@ -3,6 +3,7 @@ package servercore
 import (
 	"context"
 	"fmt"
+	"maps"
 	"strings"
 	"sync"
 	"testing"
@@ -88,9 +89,7 @@ func (e *strategyRuntimeStubExchange) QueryMarkets(context.Context) (bbgotypes.M
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	result := make(bbgotypes.MarketMap, len(e.markets))
-	for symbol, market := range e.markets {
-		result[symbol] = market
-	}
+	maps.Copy(result, e.markets)
 	return result, nil
 }
 

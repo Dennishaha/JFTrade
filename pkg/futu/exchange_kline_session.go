@@ -3,6 +3,7 @@ package futu
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
@@ -108,12 +109,7 @@ func (plan historicalKLineRequestPlan) shouldKeepMarketSession(session market.Se
 	if len(plan.keepSessions) == 0 {
 		return true
 	}
-	for _, candidate := range plan.keepSessions {
-		if candidate == session {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(plan.keepSessions, session)
 }
 
 func resolveHistoricalMarketSession(requestSession commonpb.Session, symbol string, kline types.KLine) market.Session {

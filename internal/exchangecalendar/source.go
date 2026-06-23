@@ -37,22 +37,22 @@ type SourceDescriptor struct {
 type SourceStatus struct {
 	SourceID              string    `json:"sourceId"`
 	Enabled               bool      `json:"enabled"`
-	LastSuccessAt         time.Time `json:"lastSuccessAt,omitempty"`
-	LastFailureAt         time.Time `json:"lastFailureAt,omitempty"`
+	LastSuccessAt         time.Time `json:"lastSuccessAt,omitzero"`
+	LastFailureAt         time.Time `json:"lastFailureAt,omitzero"`
 	LastError             string    `json:"lastError,omitempty"`
 	ConsecutiveFailures   int       `json:"consecutiveFailures,omitempty"`
-	NextRefreshAt         time.Time `json:"nextRefreshAt,omitempty"`
-	LastSnapshotFetchedAt time.Time `json:"lastSnapshotFetchedAt,omitempty"`
-	LastProbeAt           time.Time `json:"lastProbeAt,omitempty"`
-	LastProbeSuccessAt    time.Time `json:"lastProbeSuccessAt,omitempty"`
-	LastProbeFailureAt    time.Time `json:"lastProbeFailureAt,omitempty"`
+	NextRefreshAt         time.Time `json:"nextRefreshAt,omitzero"`
+	LastSnapshotFetchedAt time.Time `json:"lastSnapshotFetchedAt,omitzero"`
+	LastProbeAt           time.Time `json:"lastProbeAt,omitzero"`
+	LastProbeSuccessAt    time.Time `json:"lastProbeSuccessAt,omitzero"`
+	LastProbeFailureAt    time.Time `json:"lastProbeFailureAt,omitzero"`
 	LastProbeStatus       string    `json:"lastProbeStatus,omitempty"`
 	LastProbeError        string    `json:"lastProbeError,omitempty"`
 	LastProbeMarket       string    `json:"lastProbeMarket,omitempty"`
 	LastProbeSchedules    int       `json:"lastProbeSchedules,omitempty"`
 	HealthState           string    `json:"healthState,omitempty"`
 	HealthFingerprint     string    `json:"healthFingerprint,omitempty"`
-	LastAlertAt           time.Time `json:"lastAlertAt,omitempty"`
+	LastAlertAt           time.Time `json:"lastAlertAt,omitzero"`
 	LastAlertStatus       string    `json:"lastAlertStatus,omitempty"`
 	LastAlertFingerprint  string    `json:"lastAlertFingerprint,omitempty"`
 }

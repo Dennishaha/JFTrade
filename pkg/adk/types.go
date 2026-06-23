@@ -540,7 +540,7 @@ type SessionContextSnapshot struct {
 	CompactedEventCount        int                     `json:"compactedEventCount,omitempty"`
 	SummaryBoundaryEventIndex  int                     `json:"summaryBoundaryEventIndex,omitempty"`
 	Breakdown                  SessionContextBreakdown `json:"breakdown"`
-	RawBreakdown               SessionContextBreakdown `json:"rawBreakdown,omitempty"`
+	RawBreakdown               SessionContextBreakdown `json:"rawBreakdown,omitzero"`
 	TrimmedToolResponseCount   int                     `json:"trimmedToolResponseCount,omitempty"`
 	LastCompactedAt            string                  `json:"lastCompactedAt,omitempty"`
 	LastCompactionMode         string                  `json:"lastCompactionMode,omitempty"`

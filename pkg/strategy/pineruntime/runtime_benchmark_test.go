@@ -84,7 +84,7 @@ func BenchmarkPineRuntimePushKLines(b *testing.B) {
 
 func pushBenchmarkKLines(runtime *strategyRuntime, count int) {
 	start := time.Date(2026, time.January, 5, 14, 30, 0, 0, time.UTC)
-	for index := 0; index < count; index++ {
+	for index := range count {
 		price := 100 + float64(index%37)*0.05
 		barStart := start.Add(time.Duration(index) * time.Minute)
 		runtime.handleKLineClosed(types.KLine{

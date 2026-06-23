@@ -962,8 +962,8 @@ func indicatorTimeUnitMinutes(timeUnit string) (int, bool) {
 		return 60, true
 	default:
 		normalized := normalizeIndicatorTimeUnit(timeUnit)
-		if strings.HasSuffix(normalized, "m") {
-			minutes, err := strconv.Atoi(strings.TrimSuffix(normalized, "m"))
+		if before, ok := strings.CutSuffix(normalized, "m"); ok {
+			minutes, err := strconv.Atoi(before)
 			if err == nil && minutes > 0 {
 				return minutes, true
 			}
@@ -1017,8 +1017,8 @@ func normalizeIndicatorTimeUnit(value string) string {
 	case "mo", "mon", "month", "months":
 		return "month"
 	default:
-		if strings.HasSuffix(normalized, "m") {
-			minutes, err := strconv.Atoi(strings.TrimSuffix(normalized, "m"))
+		if before, ok := strings.CutSuffix(normalized, "m"); ok {
+			minutes, err := strconv.Atoi(before)
 			if err == nil && minutes > 0 {
 				switch minutes {
 				case 1:

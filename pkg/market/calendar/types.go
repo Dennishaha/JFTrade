@@ -51,7 +51,7 @@ type TradingDaySchedule struct {
 	Reason     string           `json:"reason,omitempty"`
 	SourceID   string           `json:"sourceId,omitempty"`
 	Observed   bool             `json:"observed,omitempty"`
-	UpdatedAt  time.Time        `json:"updatedAt,omitempty"`
+	UpdatedAt  time.Time        `json:"updatedAt,omitzero"`
 }
 
 type CalendarSnapshot struct {

@@ -2,6 +2,7 @@ package pineruntime
 
 import (
 	"fmt"
+	"maps"
 	"math"
 	"sort"
 	"strings"
@@ -619,13 +620,7 @@ func (a *pineArray) percentile(percentage float64, linear bool) (any, error) {
 		return values[0], nil
 	}
 	if !linear {
-		rank := int(math.Ceil(percentage / 100 * float64(len(values))))
-		if rank < 1 {
-			rank = 1
-		}
-		if rank > len(values) {
-			rank = len(values)
-		}
+		rank := min(max(int(math.Ceil(percentage/100*float64(len(values)))), 1), len(values))
 		return values[rank-1], nil
 	}
 	position := percentage / 100 * float64(len(values)-1)
@@ -728,9 +723,7 @@ func (m *pineMap) operation(operation string, arguments []any) (any, error) {
 		return nil, nil
 	case "copy":
 		values := make(map[any]any, len(m.values))
-		for key, value := range m.values {
-			values[key] = value
-		}
+		maps.Copy(values, m.values)
 		return &pineMap{keyType: m.keyType, valueType: m.valueType, values: values}, nil
 	case "keys", "values":
 		keys := sortedMapKeys(m.values)
@@ -923,7 +916,7 @@ func (m *pineMatrix) operation(operation string, arguments []any) (any, error) {
 		if err := validateCollectionValue(m.elementType, arguments[0]); err != nil {
 			return nil, err
 		}
-		for index := range m.values {
+		for index := 0; index < len(m.values); index++ {
 			m.values[index] = arguments[0]
 		}
 		return nil, nil

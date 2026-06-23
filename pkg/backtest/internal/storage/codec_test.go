@@ -35,7 +35,7 @@ func TestParseStoredFixedRoundTripsFixedpointString(t *testing.T) {
 	}
 
 	random := rand.New(rand.NewSource(42))
-	for index := 0; index < 2000; index++ {
+	for range 2000 {
 		value := fixedpoint.Value(random.Int63n(2_000_000_000_000_000) - 1_000_000_000_000_000)
 		text := value.String()
 		parsed, err := parseStoredFixed(text)

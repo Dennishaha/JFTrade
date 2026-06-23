@@ -62,7 +62,7 @@ func buildBenchmarkPnLCurve(count int) []PnLPoint {
 	baseStart := time.Date(2026, time.May, 26, 9, 30, 0, 0, time.UTC)
 	pnlCurve := make([]PnLPoint, count)
 	equity := 100000.0
-	for index := 0; index < count; index++ {
+	for index := range count {
 		if index%37 == 0 {
 			equity += 95
 		} else if index%13 == 0 {

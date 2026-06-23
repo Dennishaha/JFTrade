@@ -94,7 +94,7 @@ func TestAddRuntimeErrorReusesExistingSamplesAndCapsUniqueList(t *testing.T) {
 
 	result.AddRuntimeError("preloaded warning")
 	result.AddRuntimeError("new warning")
-	for index := 0; index < 101; index++ {
+	for index := range 101 {
 		result.AddRuntimeError(fmt.Sprintf("unique-%03d", index))
 	}
 

@@ -381,7 +381,7 @@ func extractTextLines(body string) []string {
 
 	tagPattern := regexp.MustCompile(`(?s)<[^>]+>`)
 	cleaned := tagPattern.ReplaceAllString(body, "\n")
-	for _, line := range strings.Split(cleaned, "\n") {
+	for line := range strings.SplitSeq(cleaned, "\n") {
 		appendLine(line)
 	}
 	return lines

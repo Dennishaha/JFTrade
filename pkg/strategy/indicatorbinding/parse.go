@@ -158,8 +158,8 @@ func ParseIndicatorTimeUnitValue(value string) (string, bool) {
 	case "mo", "mon", "month", "months":
 		return "month", true
 	default:
-		if strings.HasSuffix(normalized, "m") {
-			minutes, err := strconv.Atoi(strings.TrimSuffix(normalized, "m"))
+		if before, ok := strings.CutSuffix(normalized, "m"); ok {
+			minutes, err := strconv.Atoi(before)
 			if err == nil && minutes > 0 {
 				switch minutes {
 				case 1:

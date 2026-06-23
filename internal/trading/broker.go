@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"strings"
 	"time"
 
@@ -560,9 +561,7 @@ func (s *Service) resolveBroker(brokerID string, required bool) (broker.Broker, 
 
 func connectedResponse(values map[string]any) map[string]any {
 	result := map[string]any{"checkedAt": now(), "connectivity": "connected", "lastError": nil}
-	for key, value := range values {
-		result[key] = value
-	}
+	maps.Copy(result, values)
 	return result
 }
 

@@ -84,7 +84,7 @@ func TestRunResultAddRuntimeErrorAggregatesCountsAndCapsSamples(t *testing.T) {
 
 	result.AddRuntimeError("repeat")
 	result.AddRuntimeError("repeat")
-	for index := 0; index < 105; index++ {
+	for index := range 105 {
 		result.AddRuntimeError(fmt.Sprintf("unique-%d", index))
 	}
 

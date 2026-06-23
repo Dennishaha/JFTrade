@@ -47,7 +47,7 @@ func TestSSEWriterSerializesConcurrentWrites(t *testing.T) {
 	}
 
 	var wg sync.WaitGroup
-	for index := 0; index < 8; index++ {
+	for index := range 8 {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()

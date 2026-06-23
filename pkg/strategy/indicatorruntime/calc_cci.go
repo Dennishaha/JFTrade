@@ -22,7 +22,7 @@ func calculateCCISeries(highs, lows, closes []float64, period int) []float64 {
 	rollingSum := 0.0
 	for index := period - 1; index < len(typicalPrices); index++ {
 		if index == period-1 {
-			for cursor := 0; cursor < period; cursor++ {
+			for cursor := range period {
 				rollingSum += typicalPrices[cursor]
 			}
 		} else {

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -325,16 +326,16 @@ func testProviderCanonicalToolName(toolNames []string, raw string) string {
 func testProviderTagAttr(tag string, name string) string {
 	for _, quote := range []string{`"`, `'`} {
 		prefix := name + "=" + quote
-		start := strings.Index(tag, prefix)
-		if start < 0 {
+		_, after, ok := strings.Cut(tag, prefix)
+		if !ok {
 			continue
 		}
-		rest := tag[start+len(prefix):]
-		end := strings.Index(rest, quote)
-		if end < 0 {
+		rest := after
+		before, _, ok := strings.Cut(rest, quote)
+		if !ok {
 			return strings.TrimSpace(rest)
 		}
-		return strings.TrimSpace(rest[:end])
+		return strings.TrimSpace(before)
 	}
 	return ""
 }
@@ -429,9 +430,9 @@ func testProviderLastUserText(text string) string {
 
 func testProviderTaskIDFromText(text string) string {
 	for _, marker := range []string{`"id":"task-`, `"id": "task-`} {
-		index := strings.Index(text, marker)
-		if index >= 0 {
-			rest := "task-" + text[index+len(marker):]
+		_, after, ok := strings.Cut(text, marker)
+		if ok {
+			rest := "task-" + after
 			end := strings.IndexAny(rest, `",}`)
 			if end < 0 {
 				return strings.TrimSpace(rest)
@@ -467,12 +468,7 @@ func testProviderDelegatePrompt(text string) string {
 }
 
 func containsTool(names []string, want string) bool {
-	for _, name := range names {
-		if name == want {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(names, want)
 }
 
 func jftradePanicOnError(err error) {

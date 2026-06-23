@@ -178,10 +178,7 @@ func (m *SessionContextManager) Compact(ctx context.Context, session Session, ag
 	}
 	projection := m.projectSnapshot(raw.Session, state, agent, segments, "")
 	events := eventSlice(raw.Session.Events())
-	cutoff := projection.compactionCutoff
-	if cutoff > len(events) {
-		cutoff = len(events)
-	}
+	cutoff := min(projection.compactionCutoff, len(events))
 	mode := normalizeCompactMode(request.Mode)
 	activeEnd := maxActiveSegmentEnd(segments)
 	degraded := state.DegradedSummary
@@ -322,14 +319,8 @@ func (m *SessionContextManager) canAdvanceAutoCompaction(ctx context.Context, se
 		return false, err
 	}
 	events := eventSlice(raw.Session.Events())
-	cutoff := m.projectSnapshot(raw.Session, state, agent, segments, "").compactionCutoff
-	if cutoff > len(events) {
-		cutoff = len(events)
-	}
-	activeEnd := maxActiveSegmentEnd(segments)
-	if activeEnd > len(events) {
-		activeEnd = len(events)
-	}
+	cutoff := min(m.projectSnapshot(raw.Session, state, agent, segments, "").compactionCutoff, len(events))
+	activeEnd := min(maxActiveSegmentEnd(segments), len(events))
 	return cutoff > activeEnd, nil
 }
 
@@ -477,18 +468,9 @@ func (m *SessionContextManager) projectSnapshot(raw adksession.Session, state Se
 	events := eventSlice(raw.Events())
 	recentWindow := normalizeRecentUserWindow(agent.RecentUserWindow)
 	potentialCutoff := compactionCutoff(events, recentWindow)
-	currentCutoff := maxActiveSegmentEnd(segments)
-	if currentCutoff > len(events) {
-		currentCutoff = len(events)
-	}
-	protectedStart := protectedTailStart(events)
-	if protectedStart < currentCutoff {
-		protectedStart = currentCutoff
-	}
-	recentStart := recentUserEventStart(events, recentWindow)
-	if recentStart < currentCutoff {
-		recentStart = currentCutoff
-	}
+	currentCutoff := min(maxActiveSegmentEnd(segments), len(events))
+	protectedStart := max(protectedTailStart(events), currentCutoff)
+	recentStart := max(recentUserEventStart(events, recentWindow), currentCutoff)
 
 	rawBreakdown := SessionContextBreakdown{
 		InstructionTokens:     estimateInstructionTokens(agent),
@@ -1128,14 +1110,8 @@ func (s *compactingSessionService) Get(ctx context.Context, req *adksession.GetR
 	}
 	events := eventSlice(response.Session.Events())
 	cutoff := minInt(maxActiveSegmentEnd(segments), len(events))
-	recentStart := recentUserEventStart(events, normalizeRecentUserWindow(agent.RecentUserWindow))
-	if recentStart < cutoff {
-		recentStart = cutoff
-	}
-	protectedStart := protectedTailStart(events)
-	if protectedStart < cutoff {
-		protectedStart = cutoff
-	}
+	recentStart := max(recentUserEventStart(events, normalizeRecentUserWindow(agent.RecentUserWindow)), cutoff)
+	protectedStart := max(protectedTailStart(events), cutoff)
 	projected := projectVisibleSessionEvents(events, len(segments) > 0, cutoff, recentStart, protectedStart)
 	if len(segments) == 0 && projected.trimmedToolResponseCount == 0 {
 		return response, nil
@@ -1207,7 +1183,7 @@ func appendADKEventWithStaleRetry(ctx context.Context, locks *adkSessionAppendLo
 
 	current := session
 	var lastErr error
-	for attempt := 0; attempt < adkSessionAppendMaxAttempts; attempt++ {
+	for range adkSessionAppendMaxAttempts {
 		if err := ctx.Err(); err != nil {
 			return err
 		}

@@ -533,7 +533,7 @@ func mergeValues(groups ...[]string) []string {
 	var values []string
 	for _, group := range groups {
 		for _, raw := range group {
-			for _, part := range strings.Split(raw, ",") {
+			for part := range strings.SplitSeq(raw, ",") {
 				value := strings.TrimSpace(part)
 				key := strings.ToUpper(value)
 				if value == "" {

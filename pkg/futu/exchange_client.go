@@ -32,7 +32,7 @@ func (e *Exchange) withClient(ctx context.Context, fn func(*opend.Client) error)
 		defer cancel()
 	}
 	var lastErr error
-	for attempt := 0; attempt < 2; attempt++ {
+	for range 2 {
 		client, err := e.ensureClient(ctx)
 		if err != nil {
 			return err

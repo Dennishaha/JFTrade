@@ -12,35 +12,31 @@ import (
 	trdcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdcommon"
 )
 
-func valuePtr[T any](value T) *T {
-	return &value
-}
-
 func TestDiscoverAccountsDeduplicatesAndFallsBackToCardIdentifier(t *testing.T) {
 	server := startQuoteOpenDServer(t)
 	server.setAccounts([]*trdcommonpb.TrdAcc{
 		{
-			TrdEnv:            valuePtr(int32(trdcommonpb.TrdEnv_TrdEnv_Simulate)),
-			AccID:             valuePtr(uint64(0)),
-			CardNum:           valuePtr("SIM-CARD"),
+			TrdEnv:            new(int32(trdcommonpb.TrdEnv_TrdEnv_Simulate)),
+			AccID:             new(uint64(0)),
+			CardNum:           new("SIM-CARD"),
 			TrdMarketAuthList: []int32{int32(trdcommonpb.TrdMarket_TrdMarket_HK), int32(trdcommonpb.TrdMarket_TrdMarket_HK), 999},
-			AccType:           valuePtr(int32(999)),
-			SecurityFirm:      valuePtr(int32(999)),
+			AccType:           new(int32(999)),
+			SecurityFirm:      new(int32(999)),
 		},
 		{
-			TrdEnv:            valuePtr(int32(trdcommonpb.TrdEnv_TrdEnv_Simulate)),
-			AccID:             valuePtr(uint64(0)),
-			CardNum:           valuePtr("SIM-CARD"),
+			TrdEnv:            new(int32(trdcommonpb.TrdEnv_TrdEnv_Simulate)),
+			AccID:             new(uint64(0)),
+			CardNum:           new("SIM-CARD"),
 			TrdMarketAuthList: []int32{int32(trdcommonpb.TrdMarket_TrdMarket_US)},
-			AccType:           valuePtr(int32(trdcommonpb.TrdAccType_TrdAccType_Cash)),
+			AccType:           new(int32(trdcommonpb.TrdAccType_TrdAccType_Cash)),
 		},
 		{
-			TrdEnv:            valuePtr(int32(trdcommonpb.TrdEnv_TrdEnv_Real)),
-			AccID:             valuePtr(uint64(1002)),
+			TrdEnv:            new(int32(trdcommonpb.TrdEnv_TrdEnv_Real)),
+			AccID:             new(uint64(1002)),
 			TrdMarketAuthList: []int32{int32(trdcommonpb.TrdMarket_TrdMarket_US)},
-			AccType:           valuePtr(int32(trdcommonpb.TrdAccType_TrdAccType_Margin)),
-			SecurityFirm:      valuePtr(int32(trdcommonpb.SecurityFirm_SecurityFirm_FutuSecurities)),
-			SimAccType:        valuePtr(int32(trdcommonpb.SimAccType_SimAccType_Stock)),
+			AccType:           new(int32(trdcommonpb.TrdAccType_TrdAccType_Margin)),
+			SecurityFirm:      new(int32(trdcommonpb.SecurityFirm_SecurityFirm_FutuSecurities)),
+			SimAccType:        new(int32(trdcommonpb.SimAccType_SimAccType_Stock)),
 		},
 	})
 	defer server.stop()
@@ -123,52 +119,52 @@ func TestQueryBrokerOrdersFiltersAndSortsWorkingOrders(t *testing.T) {
 	server := startQuoteOpenDServer(t)
 	server.setAccounts([]*trdcommonpb.TrdAcc{
 		{
-			TrdEnv:            valuePtr(int32(trdcommonpb.TrdEnv_TrdEnv_Real)),
-			AccID:             valuePtr(uint64(1001)),
+			TrdEnv:            new(int32(trdcommonpb.TrdEnv_TrdEnv_Real)),
+			AccID:             new(uint64(1001)),
 			TrdMarketAuthList: []int32{int32(trdcommonpb.TrdMarket_TrdMarket_HK)},
-			AccType:           valuePtr(int32(trdcommonpb.TrdAccType_TrdAccType_Cash)),
+			AccType:           new(int32(trdcommonpb.TrdAccType_TrdAccType_Cash)),
 		},
 		{
-			TrdEnv:            valuePtr(int32(trdcommonpb.TrdEnv_TrdEnv_Simulate)),
-			AccID:             valuePtr(uint64(1002)),
+			TrdEnv:            new(int32(trdcommonpb.TrdEnv_TrdEnv_Simulate)),
+			AccID:             new(uint64(1002)),
 			TrdMarketAuthList: []int32{int32(trdcommonpb.TrdMarket_TrdMarket_HK)},
-			AccType:           valuePtr(int32(trdcommonpb.TrdAccType_TrdAccType_Cash)),
+			AccType:           new(int32(trdcommonpb.TrdAccType_TrdAccType_Cash)),
 		},
 	})
 	server.setOrders([]*trdcommonpb.Order{
 		{
-			OrderID:     valuePtr(uint64(2001)),
-			Code:        valuePtr("hk.00700"),
-			OrderStatus: valuePtr(int32(trdcommonpb.OrderStatus_OrderStatus_Submitted)),
-			Qty:         valuePtr(100.0),
-			CreateTime:  valuePtr("2026-05-20 09:30:00"),
-			UpdateTime:  valuePtr("2026-05-20 09:31:00"),
-			TrdMarket:   valuePtr(int32(trdcommonpb.TrdMarket_TrdMarket_HK)),
+			OrderID:     new(uint64(2001)),
+			Code:        new("hk.00700"),
+			OrderStatus: new(int32(trdcommonpb.OrderStatus_OrderStatus_Submitted)),
+			Qty:         new(100.0),
+			CreateTime:  new("2026-05-20 09:30:00"),
+			UpdateTime:  new("2026-05-20 09:31:00"),
+			TrdMarket:   new(int32(trdcommonpb.TrdMarket_TrdMarket_HK)),
 		},
 		{
-			OrderID:         valuePtr(uint64(2002)),
-			Code:            valuePtr("hk.00700"),
-			OrderStatus:     valuePtr(int32(trdcommonpb.OrderStatus_OrderStatus_Filled_Part)),
-			Qty:             valuePtr(200.0),
-			CreateTimestamp: valuePtr(float64(time.Date(2026, time.May, 20, 9, 32, 0, 0, time.UTC).Unix())),
-			UpdateTimestamp: valuePtr(float64(time.Date(2026, time.May, 20, 9, 32, 0, 0, time.UTC).Unix())),
-			TrdMarket:       valuePtr(int32(trdcommonpb.TrdMarket_TrdMarket_HK)),
+			OrderID:         new(uint64(2002)),
+			Code:            new("hk.00700"),
+			OrderStatus:     new(int32(trdcommonpb.OrderStatus_OrderStatus_Filled_Part)),
+			Qty:             new(200.0),
+			CreateTimestamp: new(float64(time.Date(2026, time.May, 20, 9, 32, 0, 0, time.UTC).Unix())),
+			UpdateTimestamp: new(float64(time.Date(2026, time.May, 20, 9, 32, 0, 0, time.UTC).Unix())),
+			TrdMarket:       new(int32(trdcommonpb.TrdMarket_TrdMarket_HK)),
 		},
 		{
-			OrderID:     valuePtr(uint64(2003)),
-			Code:        valuePtr("HK.00700"),
-			OrderStatus: valuePtr(int32(trdcommonpb.OrderStatus_OrderStatus_Cancelled_All)),
-			Qty:         valuePtr(50.0),
-			UpdateTime:  valuePtr("2026-05-20 09:33:00"),
-			TrdMarket:   valuePtr(int32(trdcommonpb.TrdMarket_TrdMarket_HK)),
+			OrderID:     new(uint64(2003)),
+			Code:        new("HK.00700"),
+			OrderStatus: new(int32(trdcommonpb.OrderStatus_OrderStatus_Cancelled_All)),
+			Qty:         new(50.0),
+			UpdateTime:  new("2026-05-20 09:33:00"),
+			TrdMarket:   new(int32(trdcommonpb.TrdMarket_TrdMarket_HK)),
 		},
 		{
-			OrderID:     valuePtr(uint64(2004)),
-			Code:        valuePtr("US.AAPL"),
-			OrderStatus: valuePtr(int32(trdcommonpb.OrderStatus_OrderStatus_Submitted)),
-			Qty:         valuePtr(10.0),
-			UpdateTime:  valuePtr("2026-05-20 09:34:00"),
-			TrdMarket:   valuePtr(int32(trdcommonpb.TrdMarket_TrdMarket_US)),
+			OrderID:     new(uint64(2004)),
+			Code:        new("US.AAPL"),
+			OrderStatus: new(int32(trdcommonpb.OrderStatus_OrderStatus_Submitted)),
+			Qty:         new(10.0),
+			UpdateTime:  new("2026-05-20 09:34:00"),
+			TrdMarket:   new(int32(trdcommonpb.TrdMarket_TrdMarket_US)),
 		},
 	})
 	defer server.stop()

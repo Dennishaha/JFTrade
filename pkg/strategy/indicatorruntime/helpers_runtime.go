@@ -162,7 +162,7 @@ func hasUsableEndTimes(values []time.Time) bool {
 func derivedSeriesHL2(highs, lows []float64) []float64 {
 	limit := min(len(highs), len(lows))
 	values := make([]float64, limit)
-	for index := 0; index < limit; index++ {
+	for index := range limit {
 		values[index] = (highs[index] + lows[index]) / 2
 	}
 	return values
@@ -171,7 +171,7 @@ func derivedSeriesHL2(highs, lows []float64) []float64 {
 func derivedSeriesHLC3(highs, lows, closes []float64) []float64 {
 	limit := min(len(highs), len(lows), len(closes))
 	values := make([]float64, limit)
-	for index := 0; index < limit; index++ {
+	for index := range limit {
 		values[index] = (highs[index] + lows[index] + closes[index]) / 3
 	}
 	return values
@@ -180,7 +180,7 @@ func derivedSeriesHLC3(highs, lows, closes []float64) []float64 {
 func derivedSeriesOHLC4(opens, highs, lows, closes []float64) []float64 {
 	limit := min(len(opens), len(highs), len(lows), len(closes))
 	values := make([]float64, limit)
-	for index := 0; index < limit; index++ {
+	for index := range limit {
 		values[index] = (opens[index] + highs[index] + lows[index] + closes[index]) / 4
 	}
 	return values

@@ -650,7 +650,7 @@ func TestFutuKLineStoreSynthesizesTwoHourFromUSSessionAwareBuckets(t *testing.T)
 
 	baseStart := time.Date(2026, time.May, 26, 13, 30, 0, 0, time.UTC)
 	halfHourKLines := make([]types.KLine, 0, 13)
-	for index := 0; index < 13; index++ {
+	for index := range 13 {
 		startAt := baseStart.Add(time.Duration(index) * 30 * time.Minute)
 		openValue := 100 + float64(index)
 		halfHourKLines = append(halfHourKLines, types.KLine{
@@ -777,7 +777,7 @@ func TestFutuKLineStoreSynthesizesTwoHourForwardFromUSSessionAwareBuckets(t *tes
 
 	baseStart := time.Date(2026, time.May, 26, 13, 30, 0, 0, time.UTC)
 	halfHourKLines := make([]types.KLine, 0, 13)
-	for index := 0; index < 13; index++ {
+	for index := range 13 {
 		startAt := baseStart.Add(time.Duration(index) * 30 * time.Minute)
 		openValue := 100 + float64(index)
 		halfHourKLines = append(halfHourKLines, types.KLine{
@@ -1177,7 +1177,7 @@ func TestFutuKLineStorePrefersFiveMinuteSourceForFifteenMinuteQuery(t *testing.T
 
 	baseStart := time.Date(2026, time.May, 26, 9, 30, 0, 0, time.UTC)
 	oneMinuteKLines := make([]types.KLine, 0, 15)
-	for index := 0; index < 15; index++ {
+	for index := range 15 {
 		startAt := baseStart.Add(time.Duration(index) * time.Minute)
 		oneMinuteKLines = append(oneMinuteKLines, types.KLine{
 			StartTime: types.Time(startAt),

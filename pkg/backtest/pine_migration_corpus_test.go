@@ -1656,7 +1656,7 @@ if normalize(close) > 0
 
 func pineV21MigrationCorpus() []pineMigrationCorpusCase {
 	base := append([]pineMigrationCorpusCase{}, pineV17MigrationCorpus()...)
-	for index := 0; index < 20; index++ {
+	for index := range 20 {
 		base = append(base, corpusCase(fmt.Sprintf("v21-run-array-%02d", index+1), true, true, fmt.Sprintf(`var values = array.new_float(0)
 values.push(close)
 latest = values.last()
@@ -1665,7 +1665,7 @@ if values.size() > 0 and latest >= 0 and array.get(values, 0) >= 0
 if values.size() > %d
     values.shift()`, index+2)))
 	}
-	for index := 0; index < 10; index++ {
+	for index := range 10 {
 		base = append(base, corpusCase(fmt.Sprintf("v21-run-map-%02d", index+1), true, true, fmt.Sprintf(`var prices = map.new<string, float>()
 prices.put("last", close)
 known = prices.contains("last")
@@ -1673,14 +1673,14 @@ latest = prices.get("last")
 if known and latest >= %d
     strategy.entry("Long", strategy.long, qty=1)`, index)))
 	}
-	for index := 0; index < 10; index++ {
+	for index := range 10 {
 		base = append(base, corpusCase(fmt.Sprintf("v21-run-matrix-%02d", index+1), true, index < 5, fmt.Sprintf(`var grid = matrix.new<float>(2, 2, 0)
 grid.set(%d, %d, close)
 cell = grid.get(%d, %d)
 if grid.rows() == 2 and grid.columns() == 2 and cell >= 0
     strategy.entry("Long", strategy.long, qty=1)`, index%2, (index/2)%2, index%2, (index/2)%2)))
 	}
-	for index := 0; index < 20; index++ {
+	for index := range 20 {
 		length := index + 3
 		base = append(base, corpusCase(fmt.Sprintf("v21-ta-mtf-%02d", index+1), true, index < 5, fmt.Sprintf(`width = ta.bbw(close, %d, 2)
 gravity = ta.cog(hlc3, %d)
@@ -1690,7 +1690,7 @@ mtfGravity = request.security(syminfo.tickerid, "15", ta.cog(hlc3, %d))
 if width >= 0 and gravity <= 0 and weekly > 0 and mtfWidth >= 0 and mtfGravity <= 0
     strategy.entry("Long", strategy.long, qty=1)`, length, length, length, length)))
 	}
-	for index := 0; index < 20; index++ {
+	for index := range 20 {
 		length := index + 3
 		base = append(base, corpusCase(fmt.Sprintf("v21-ast-security-%02d", index+1), true, false, fmt.Sprintf(`signal = request.security(syminfo.tickerid, "15", (nz(ta.rsi(close, %d), 50) > 45 and math.max(high - low, 0) >= 0) ? nz(ta.bbw(close, %d, 2), 0) : nz(ta.cog(hlc3, %d), 0))
 if signal >= 0 or signal < 0
@@ -1701,13 +1701,13 @@ if signal >= 0 or signal < 0
 
 func pineV22MigrationCorpus() []pineMigrationCorpusCase {
 	base := append([]pineMigrationCorpusCase{}, pineV21MigrationCorpus()...)
-	for index := 0; index < 40; index++ {
+	for index := range 40 {
 		base = append(base, corpusCase(fmt.Sprintf("v22-tuple-%02d", index+1), true, index < 10, fmt.Sprintf(`[a, b, _, d] = [open, high, low, close]
 [mtfOpen, mtfHigh, mtfLow, mtfClose] = request.security(syminfo.tickerid, "15", [open, high, low, close])
 if d >= a and mtfClose >= mtfOpen and b >= %d
     strategy.entry("Long", strategy.long, qty=1)`, index)))
 	}
-	for index := 0; index < 40; index++ {
+	for index := range 40 {
 		base = append(base, corpusCase(fmt.Sprintf("v22-dynamic-for-%02d", index+1), true, index < 20, fmt.Sprintf(`limit = bar_index %% %d
 total = 0
 for i = 0 to limit
@@ -1717,7 +1717,7 @@ for i = 0 to limit
 if total >= 0
     strategy.entry("Long", strategy.long, qty=1)`, index%5+1)))
 	}
-	for index := 0; index < 30; index++ {
+	for index := range 30 {
 		base = append(base, corpusCase(fmt.Sprintf("v22-while-%02d", index+1), true, index < 10, fmt.Sprintf(`count = 0
 while count < %d
     count := count + 1
@@ -1728,7 +1728,7 @@ while count < %d
 if count >= 1
     strategy.entry("Long", strategy.long, qty=1)`, index%4+2, index%4+2)))
 	}
-	for index := 0; index < 30; index++ {
+	for index := range 30 {
 		base = append(base, corpusCase(fmt.Sprintf("v22-object-%02d", index+1), true, index < 10, fmt.Sprintf(`type PriceBox
     float price = close
     int bars = %d
@@ -1743,7 +1743,7 @@ if value > close
 
 func pineV23MigrationCorpus() []pineMigrationCorpusCase {
 	base := append([]pineMigrationCorpusCase{}, pineV22MigrationCorpus()...)
-	for index := 0; index < 100; index++ {
+	for index := range 100 {
 		base = append(base, corpusCase(fmt.Sprintf("v23-array-api-%03d", index+1), true, index < 10, fmt.Sprintf(`values = array.new_float(0)
 values.push(close)
 values.push(open)
@@ -1758,7 +1758,7 @@ idx = window.indexof(close + %d)
 if total >= 0 and peak >= 0 and idx >= -1
     strategy.entry("Long", strategy.long, qty=1)`, index%3, index%3, index%3)))
 	}
-	for index := 0; index < 90; index++ {
+	for index := range 90 {
 		base = append(base, corpusCase(fmt.Sprintf("v23-matrix-api-%03d", index+1), true, index < 10, fmt.Sprintf(`grid = matrix.new(2, 2, close)
 grid.set(0, 1, high)
 grid.fill(close + %d)
@@ -1770,7 +1770,7 @@ rowTotal = row.sum()
 if rowTotal >= 0
     strategy.entry("Long", strategy.long, qty=1)`, index%4)))
 	}
-	for index := 0; index < 100; index++ {
+	for index := range 100 {
 		base = append(base, corpusCase(fmt.Sprintf("v23-object-api-%03d", index+1), true, index < 10, fmt.Sprintf(`type PriceBox
     float price = close
     int bars = %d
@@ -1783,7 +1783,7 @@ value = box.score(offset=%d, factor=2)
 if value > close
     strategy.entry("Long", strategy.long, qty=1)`, index%5+1, index%5+1, index%2, index%3)))
 	}
-	for index := 0; index < 100; index++ {
+	for index := range 100 {
 		base = append(base, corpusCase(fmt.Sprintf("v23-mtf-pure-object-collection-%03d", index+1), true, index < 10, fmt.Sprintf(`values = array.new_float(0)
 values.push(close)
 type PriceBox
@@ -1797,7 +1797,7 @@ mtfScore = request.security(syminfo.tickerid, "15", box.score(2))
 if mtfLast >= 0 and mtfField >= 0 and mtfScore >= 0
     strategy.entry("Long", strategy.long, qty=1)`, index%6+1, index%6+1)))
 	}
-	for index := 0; index < 60; index++ {
+	for index := range 60 {
 		base = append(base, corpusCase(fmt.Sprintf("v23-combined-%03d", index+1), true, index < 10, fmt.Sprintf(`values = array.new_float(0)
 values.push(close)
 values.push(high)
@@ -1824,7 +1824,7 @@ func pineV24MigrationCorpus() []pineMigrationCorpusCase {
 			base = append(base, item)
 		}
 	}
-	for index := 0; index < 110; index++ {
+	for index := range 110 {
 		base = append(base, corpusCase(fmt.Sprintf("v24-array-sort-%03d", index+1), true, index < 20, fmt.Sprintf(`values = array.from(close + %d, open, high, low)
 indices = values.sort_indices(order.ascending)
 values.sort(order.descending)
@@ -1836,7 +1836,7 @@ idx = values.binary_search(close)
 if indices.size() >= 0 and spread >= 0 and middle >= 0 and common >= 0 and idx >= -1
     strategy.entry("Long", strategy.long, qty=1)`, index%5)))
 	}
-	for index := 0; index < 100; index++ {
+	for index := range 100 {
 		base = append(base, corpusCase(fmt.Sprintf("v24-array-from-concat-%03d", index+1), true, index < 20, fmt.Sprintf(`left = array.from(close, open)
 right = array.from(high, low + %d)
 left.concat(right)
@@ -1845,7 +1845,7 @@ label = left.join("|")
 if left.last() >= left.first()
     strategy.entry("Long", strategy.long, qty=1)`, index%4)))
 	}
-	for index := 0; index < 100; index++ {
+	for index := range 100 {
 		base = append(base, corpusCase(fmt.Sprintf("v24-map-views-%03d", index+1), true, index < 20, fmt.Sprintf(`prices = map.new<string, float>()
 prices.put("b", close + %d)
 prices.put("a", open)
@@ -1856,12 +1856,12 @@ vals.sort(order.ascending)
 if keys.size() == 2 and vals.last() >= vals.first()
     strategy.entry("Long", strategy.long, qty=1)`, index%3)))
 	}
-	for index := 0; index < 90; index++ {
+	for index := range 90 {
 		base = append(base, corpusCase(fmt.Sprintf("v24-mtf-stoch-%03d", index+1), true, index < 20, fmt.Sprintf(`stochValue = request.security(syminfo.tickerid, "15", ta.stoch(close, high, low, %d))
 if stochValue >= 0
     strategy.entry("Long", strategy.long, qty=1)`, index%5+5)))
 	}
-	for index := 0; index < 90; index++ {
+	for index := range 90 {
 		base = append(base, corpusCase(fmt.Sprintf("v24-loop-fallback-%03d", index+1), true, index < 10, fmt.Sprintf(`total = 0
 for i = 0 to %d
     if i == %d
@@ -1870,7 +1870,7 @@ for i = 0 to %d
 if total >= 0
     strategy.entry("Long", strategy.long, qty=1)`, index%6+4, index%4+2)))
 	}
-	for index := 0; index < 90; index++ {
+	for index := range 90 {
 		base = append(base, corpusCase(fmt.Sprintf("v24-persistent-object-%03d", index+1), true, index < 10, fmt.Sprintf(`type PriceBox
     float price = close
     int bars = %d
@@ -1894,7 +1894,7 @@ func pineV25MigrationCorpus() []pineMigrationCorpusCase {
 			base = append(base, item)
 		}
 	}
-	for index := 0; index < 80; index++ {
+	for index := range 80 {
 		base = append(base, corpusCase(fmt.Sprintf("v25-array-stats-%03d", index+1), true, index < 20, fmt.Sprintf(`values = array.from(-2, 1, 2, 2, close + %d)
 absValues = values.abs()
 values.sort(order.ascending)
@@ -1910,7 +1910,7 @@ cov = values.covariance(other)
 if absValues.size() == 5 and left >= 0 and right >= left and rank >= 0 and p50 >= 0 and p50lin >= 0 and dev >= 0 and variance >= 0 and cov >= 0
     strategy.entry("Long", strategy.long, qty=1)`, index%4)))
 	}
-	for index := 0; index < 80; index++ {
+	for index := range 80 {
 		base = append(base, corpusCase(fmt.Sprintf("v25-string-time-%03d", index+1), true, index < 20, fmt.Sprintf(`labelText = str.format("{0}:{1}", str.upper("alpha"), str.length("beta%d"))
 hasNeedle = str.contains(labelText, "ALPHA")
 pos = str.pos(labelText, ":")
@@ -1922,7 +1922,7 @@ changed = timeframe.change("15")
 if hasNeedle and pos >= 0 and str.length(lowered) > 0 and tc >= time and (changed or not changed)
     strategy.entry("Long", strategy.long, qty=1)`, index%5)))
 	}
-	for index := 0; index < 80; index++ {
+	for index := range 80 {
 		base = append(base, corpusCase(fmt.Sprintf("v25-combined-helper-%03d", index+1), true, index < 20, fmt.Sprintf(`values = array.from(close, open, high, low)
 spread = values.percentile_linear_interpolation(%d) - values.percentile_nearest_rank(25)
 msg = str.format("spread={0}", spread)
@@ -1939,7 +1939,7 @@ func pineV26MigrationCorpus() []pineMigrationCorpusCase {
 			base = append(base, item)
 		}
 	}
-	for index := 0; index < 80; index++ {
+	for index := range 80 {
 		base = append(base, corpusCase(fmt.Sprintf("v26-collection-iteration-%03d", index+1), true, index < 25, fmt.Sprintf(`values = array.from(1, 2, 3, %d)
 total = 0
 for [i, value] in values
@@ -1949,14 +1949,14 @@ for [i, value] in values
 if total >= 6
     strategy.entry("Long", strategy.long, qty=1)`, index%5+4)))
 	}
-	for index := 0; index < 80; index++ {
+	for index := range 80 {
 		base = append(base, corpusCase(fmt.Sprintf("v26-collection-history-%03d", index+1), true, index < 25, fmt.Sprintf(`values = array.from(close + %d, open)
 prevSize = values[1].size()
 prevFirst = values[1].get(0)
 if nz(prevSize, 0) >= 0 and nz(prevFirst, 0) >= 0
     strategy.entry("Long", strategy.long, qty=1)`, index%4)))
 	}
-	for index := 0; index < 80; index++ {
+	for index := range 80 {
 		base = append(base, corpusCase(fmt.Sprintf("v26-object-collection-field-%03d", index+1), true, index < 25, fmt.Sprintf(`type Box
     array<float> values
 box = Box.new(array.new_float())
@@ -1977,7 +1977,7 @@ func pineV27MigrationCorpus() []pineMigrationCorpusCase {
 			base = append(base, item)
 		}
 	}
-	for index := 0; index < 100; index++ {
+	for index := range 100 {
 		base = append(base, corpusCase(fmt.Sprintf("v27-history-aggregate-%03d", index+1), true, index < 25, fmt.Sprintf(`values = array.from(close + %d, open, high, low)
 prevRange = values[1].range()
 prevDev = values[1].stdev()
@@ -1985,7 +1985,7 @@ prevVariance = values[1].variance()
 if nz(prevRange, 0) >= 0 and nz(prevDev, 0) >= 0 and nz(prevVariance, 0) >= 0
     strategy.entry("Long", strategy.long, qty=1)`, index%5)))
 	}
-	for index := 0; index < 100; index++ {
+	for index := range 100 {
 		base = append(base, corpusCase(fmt.Sprintf("v27-map-matrix-timeframe-%03d", index+1), true, index < 30, fmt.Sprintf(`labels = map.new<string, float>()
 labels.put("b", close + %d)
 labels.put("a", open)
@@ -2001,7 +2001,7 @@ seconds = timeframe.in_seconds("15")
 if total > 0 and cell > 0 and rows == 2 and cols == 2 and seconds == 900 and timeframe.multiplier >= 1
     strategy.entry("Long", strategy.long, qty=1)`, index%3)))
 	}
-	for index := 0; index < 100; index++ {
+	for index := range 100 {
 		base = append(base, corpusCase(fmt.Sprintf("v27-mtf-helper-expression-%03d", index+1), true, index < 30, fmt.Sprintf(`mtf = request.security(syminfo.tickerid, "15", str.length(str.format("{0}", close + %d)) + timeframe.in_seconds("15"))
 if mtf > 0
     strategy.entry("Long", strategy.long, qty=1)`, index%7)))
@@ -2016,7 +2016,7 @@ func pineV28MigrationCorpus() []pineMigrationCorpusCase {
 			base = append(base, item)
 		}
 	}
-	for index := 0; index < 100; index++ {
+	for index := range 100 {
 		base = append(base, corpusCase(fmt.Sprintf("v28-object-history-chain-%03d", index+1), true, index < 40, fmt.Sprintf(`type PriceBox
     float price = close
 method identity(PriceBox self) => self
@@ -2027,7 +2027,7 @@ chained = box.identity().score(2)
 if nz(previous, 0) >= 0 and chained > 0
     strategy.entry("Long", strategy.long, qty=1)`, index%5)))
 	}
-	for index := 0; index < 100; index++ {
+	for index := range 100 {
 		base = append(base, corpusCase(fmt.Sprintf("v28-export-metadata-%03d", index+1), true, index < 20, fmt.Sprintf(`type ExportBox
     float price = close
 method exportedScore(ExportBox self, float factor = 1) => self.price * factor
@@ -2039,7 +2039,7 @@ score = box.exportedScore(2)
 if score > 0
     strategy.entry("Long", strategy.long, qty=1)`, index%9)))
 	}
-	for index := 0; index < 100; index++ {
+	for index := range 100 {
 		base = append(base, corpusCase(fmt.Sprintf("v28-mtf-object-method-%03d", index+1), true, index < 30, fmt.Sprintf(`type PriceBox
     float price = close
 method score(PriceBox self, float factor = 1) => self.price * factor
@@ -2058,7 +2058,7 @@ func pineV29MigrationCorpus() []pineMigrationCorpusCase {
 			base = append(base, item)
 		}
 	}
-	for index := 0; index < 100; index++ {
+	for index := range 100 {
 		base = append(base, corpusCase(fmt.Sprintf("v29-object-history-method-%03d", index+1), true, index < 40, fmt.Sprintf(`type PriceBox
     float price = close
 method score(PriceBox self, float factor = 1, float offset = 0) => self.price * factor + offset
@@ -2067,7 +2067,7 @@ previousScore = box[1].score(factor=2, offset=1)
 if nz(previousScore, 0) >= 0
     strategy.entry("Long", strategy.long, qty=1)`, index%6)))
 	}
-	for index := 0; index < 100; index++ {
+	for index := range 100 {
 		base = append(base, corpusCase(fmt.Sprintf("v29-method-chain-named-%03d", index+1), true, index < 40, fmt.Sprintf(`type PriceBox
     float price = close
 method identity(PriceBox self) => self
@@ -2077,7 +2077,7 @@ score = box.identity().score(offset=1, factor=2)
 if score > 0
     strategy.entry("Long", strategy.long, qty=1)`, index%7)))
 	}
-	for index := 0; index < 100; index++ {
+	for index := range 100 {
 		base = append(base, corpusCase(fmt.Sprintf("v29-mtf-object-history-%03d", index+1), true, index < 40, fmt.Sprintf(`type PriceBox
     float price = close
 method score(PriceBox self, float factor = 1, float offset = 0) => self.price * factor + offset
@@ -2096,13 +2096,13 @@ func pineV30MigrationCorpus() []pineMigrationCorpusCase {
 			base = append(base, item)
 		}
 	}
-	for index := 0; index < 120; index++ {
+	for index := range 120 {
 		base = append(base, corpusCase(fmt.Sprintf("v30-varip-policy-%03d", index+1), true, index < 45, fmt.Sprintf(`varip count = %d
 count := count + 1
 if count >= 1
     strategy.entry("Long", strategy.long, qty=1)`, index%3)))
 	}
-	for index := 0; index < 120; index++ {
+	for index := range 120 {
 		base = append(base, corpusCase(fmt.Sprintf("v30-semantic-export-%03d", index+1), true, index < 45, fmt.Sprintf(`type ExportBox
     float price = close
 method score(ExportBox self, float factor = 1) => self.price * factor
@@ -2114,7 +2114,7 @@ score = box.score(2)
 if score > 0
     strategy.entry("Long", strategy.long, qty=1)`, index%17, index%17)))
 	}
-	for index := 0; index < 110; index++ {
+	for index := range 110 {
 		base = append(base, corpusCase(fmt.Sprintf("v30-parser-whitespace-comments-%03d", index+1), true, index < 40, fmt.Sprintf(`// inline comments and blank lines stay stable in v3.0
 fast = ta.ema(close, %d) // strip this comment
 

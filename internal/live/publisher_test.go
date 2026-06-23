@@ -111,10 +111,10 @@ func TestReplayPublisherConcurrentPublishAndAfter(t *testing.T) {
 
 	var wg sync.WaitGroup
 	wg.Add(writers)
-	for writer := 0; writer < writers; writer++ {
+	for range writers {
 		go func() {
 			defer wg.Done()
-			for i := 0; i < perWriter; i++ {
+			for range perWriter {
 				publisher.Publish(Notification{Title: "event"})
 				_ = publisher.After(0)
 			}

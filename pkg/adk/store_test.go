@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -270,11 +271,8 @@ func TestSaveApprovalIfConfirmationAbsentIsConcurrentIdempotent(t *testing.T) {
 	var wg sync.WaitGroup
 	created := make(chan string, workers)
 	errs := make(chan error, workers)
-	for index := 0; index < workers; index++ {
-		index := index
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for index := range workers {
+		wg.Go(func() {
 			approval := Approval{
 				ID: "approval-concurrent-" + fmt.Sprint(index), RunID: "run-concurrent-owner", AgentID: "agent",
 				ToolName: "strategy.research_backtest", Status: ApprovalStatusPending,
@@ -292,7 +290,7 @@ func TestSaveApprovalIfConfirmationAbsentIsConcurrentIdempotent(t *testing.T) {
 			if wasCreated {
 				created <- saved.ID
 			}
-		}()
+		})
 	}
 	wg.Wait()
 	close(created)
@@ -2796,12 +2794,7 @@ func TestToolsSearchReturnsOnlyCurrentAgentTools(t *testing.T) {
 }
 
 func containsString(values []string, target string) bool {
-	for _, value := range values {
-		if value == target {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(values, target)
 }
 
 func TestWorkflowWriteToolsRequireApprovalExceptLowRiskTaskWrites(t *testing.T) {

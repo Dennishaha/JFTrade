@@ -198,12 +198,12 @@ func TestServiceBrokerReadOperationsMapSnapshotsAndQueries(t *testing.T) {
 				AccountID:          "acc-1",
 				TradingEnvironment: "REAL",
 				Market:             "US",
-				Currency:           stringPtr("USD"),
+				Currency:           new("USD"),
 				CurrencyBalances: []broker.CurrencyBalanceSnapshot{{
 					AccountID:          "acc-1",
 					TradingEnvironment: "REAL",
 					Currency:           "USD",
-					Cash:               floatPtr(1000),
+					Cash:               new(float64(1000)),
 				}},
 			}, nil
 		},
@@ -214,7 +214,7 @@ func TestServiceBrokerReadOperationsMapSnapshotsAndQueries(t *testing.T) {
 				Market:             "US",
 				Symbol:             "US.AAPL",
 				Quantity:           10,
-				AverageCostPrice:   floatPtr(95),
+				AverageCostPrice:   new(float64(95)),
 				MarketValue:        1050,
 			}}, nil
 		},
@@ -452,8 +452,8 @@ func TestServicePortfolioAndFallbackResponses(t *testing.T) {
 				AccountID:          "acc-1",
 				TradingEnvironment: "REAL",
 				Market:             "US",
-				Currency:           stringPtr("USD"),
-				Cash:               floatPtr(2500),
+				Currency:           new("USD"),
+				Cash:               new(float64(2500)),
 				CurrencyBalances:   nil,
 			}, nil
 		},
@@ -464,7 +464,7 @@ func TestServicePortfolioAndFallbackResponses(t *testing.T) {
 				Market:             "US",
 				Symbol:             "US.NVDA",
 				Quantity:           3,
-				CostPrice:          floatPtr(98),
+				CostPrice:          new(float64(98)),
 				MarketValue:        360,
 			}}, nil
 		},
@@ -533,9 +533,9 @@ func TestServicePortfolioAndFallbackResponses(t *testing.T) {
 					AccountID:               "acc-1",
 					TradingEnvironment:      "REAL",
 					Currency:                "USD",
-					Cash:                    floatPtr(500),
-					AvailableWithdrawalCash: floatPtr(250),
-					NetCashPower:            floatPtr(400),
+					Cash:                    new(float64(500)),
+					AvailableWithdrawalCash: new(float64(250)),
+					NetCashPower:            new(float64(400)),
 				}},
 			}, nil
 		},
@@ -615,7 +615,7 @@ func TestServiceBrokerWriteAndTimeoutBehaviors(t *testing.T) {
 		Side:      "BUY",
 		OrderType: "LIMIT",
 		Quantity:  1,
-		Price:     floatPtr(100),
+		Price:     new(float64(100)),
 	})
 	if err != nil {
 		t.Fatalf("PlaceBrokerOrder: %v", err)
@@ -717,6 +717,3 @@ func TestNormalizeSymbolsAndRuntimeDefaults(t *testing.T) {
 func queryToQuote(query broker.ReadQuery, symbol string) broker.QuoteQuery {
 	return broker.QuoteQuery{ReadQuery: query, Symbols: []string{symbol}}
 }
-
-func floatPtr(value float64) *float64 { return &value }
-func stringPtr(value string) *string  { return &value }

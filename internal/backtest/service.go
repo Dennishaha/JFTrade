@@ -1304,10 +1304,7 @@ func sliceResultViewItems[T any](items []T, offset int, limit int) ([]T, string)
 	if offset >= len(items) {
 		return []T{}, ""
 	}
-	end := offset + limit
-	if end > len(items) {
-		end = len(items)
-	}
+	end := min(offset+limit, len(items))
 	next := ""
 	if end < len(items) {
 		next = strconv.Itoa(end)

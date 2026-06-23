@@ -153,7 +153,7 @@ func TestRunUsesTradingViewDefaultQuantityForNVDAStylePine(t *testing.T) {
 
 	baseStart := time.Date(2026, time.May, 26, 13, 30, 0, 0, time.UTC)
 	klines := make([]types.KLine, 0, 58)
-	for index := 0; index < 55; index++ {
+	for index := range 55 {
 		start := baseStart.Add(time.Duration(index) * time.Minute)
 		price := fixedpoint.NewFromFloat(100)
 		klines = append(klines, types.KLine{
@@ -595,7 +595,7 @@ func TestRunExecutesPineQtyPercentEntry(t *testing.T) {
 	}
 	start := time.Date(2026, time.May, 26, 9, 30, 0, 0, time.UTC)
 	klines := make([]types.KLine, 0, 2)
-	for index := 0; index < 2; index++ {
+	for index := range 2 {
 		barStart := start.Add(time.Duration(index) * time.Minute)
 		klines = append(klines, types.KLine{
 			StartTime: types.Time(barStart),
@@ -655,7 +655,7 @@ func TestRunStrategyOrderBypassesEntryPyramiding(t *testing.T) {
 	}
 	baseStart := time.Date(2026, time.May, 26, 9, 30, 0, 0, time.UTC)
 	klines := make([]types.KLine, 0, 3)
-	for index := 0; index < 3; index++ {
+	for index := range 3 {
 		start := baseStart.Add(time.Duration(index) * time.Minute)
 		klines = append(klines, types.KLine{
 			StartTime: types.Time(start),
@@ -715,7 +715,7 @@ func TestRunStrategyOrderAndCloseAllFlattenPosition(t *testing.T) {
 	}
 	baseStart := time.Date(2026, time.May, 26, 9, 30, 0, 0, time.UTC)
 	klines := make([]types.KLine, 0, 4)
-	for index := 0; index < 4; index++ {
+	for index := range 4 {
 		start := baseStart.Add(time.Duration(index) * time.Minute)
 		klines = append(klines, types.KLine{
 			StartTime: types.Time(start),
@@ -1091,7 +1091,7 @@ func TestRunPineMultiBarHistoryBreakoutAndNoopVisualCalls(t *testing.T) {
 	}
 	baseStart := time.Date(2026, time.May, 26, 13, 30, 0, 0, time.UTC)
 	klines := make([]types.KLine, 0, 46)
-	for index := 0; index < 46; index++ {
+	for index := range 46 {
 		closePrice := 100.0
 		highPrice := 100.0
 		if index >= 44 {
@@ -1224,7 +1224,7 @@ func TestRunPineRequestSecurityIntradayTimeframeFilter(t *testing.T) {
 	}
 	baseStart := time.Date(2026, time.May, 26, 13, 30, 0, 0, time.UTC)
 	klines := make([]types.KLine, 0, 60)
-	for index := 0; index < 60; index++ {
+	for index := range 60 {
 		closePrice := float64(100 + index)
 		start := baseStart.Add(time.Duration(index) * time.Minute)
 		klines = append(klines, types.KLine{
@@ -1892,7 +1892,7 @@ func TestRunUsesOneMinuteDataForFiveMinuteBacktest(t *testing.T) {
 
 	baseStart := time.Date(2026, time.May, 26, 9, 30, 0, 0, time.UTC)
 	minuteKLines := make([]types.KLine, 0, 15)
-	for index := 0; index < 15; index++ {
+	for index := range 15 {
 		startAt := baseStart.Add(time.Duration(index) * time.Minute)
 		minuteKLines = append(minuteKLines, types.KLine{
 			StartTime: types.Time(startAt),
@@ -1951,7 +1951,7 @@ func TestRunAllowsBoundaryCoveredOneMinuteDataForSyntheticFiveMinuteBacktest(t *
 
 	baseStart := time.Date(2026, time.May, 26, 9, 30, 0, 0, time.UTC)
 	minuteKLines := make([]types.KLine, 0, 8)
-	for index := 0; index < 8; index++ {
+	for index := range 8 {
 		startAt := baseStart.Add(time.Duration(index) * time.Minute)
 		minuteKLines = append(minuteKLines, types.KLine{
 			StartTime: types.Time(startAt),
@@ -2007,7 +2007,7 @@ func TestRunUsesFiveMinuteDataForFifteenMinuteBacktest(t *testing.T) {
 
 	baseStart := time.Date(2026, time.May, 26, 9, 30, 0, 0, time.UTC)
 	fiveMinuteKLines := make([]types.KLine, 0, 6)
-	for index := 0; index < 6; index++ {
+	for index := range 6 {
 		startAt := baseStart.Add(time.Duration(index*5) * time.Minute)
 		fiveMinuteKLines = append(fiveMinuteKLines, types.KLine{
 			StartTime: types.Time(startAt),
@@ -2179,7 +2179,7 @@ func seedBenchmarkBacktestStore(b *testing.B) (string, time.Time, time.Time) {
 func buildBenchmarkKLines(baseStart time.Time, count int) []types.KLine {
 	klines := make([]types.KLine, 0, count)
 	previousClose := 100.0
-	for index := 0; index < count; index++ {
+	for index := range count {
 		startAt := baseStart.Add(time.Duration(index) * time.Minute)
 		cycle := math.Sin(float64(index)/18.0)*4 + math.Cos(float64(index)/7.0)*1.5
 		drift := float64(index%97) / 97.0 * 0.4

@@ -14,7 +14,6 @@ import (
 func TestInitializeOrValidateStrictSchemaForAllDatabases(t *testing.T) {
 	components := []string{"backtest", "backtest-runs", "strategy", "execution-orders", "adk", "adk-session"}
 	for _, component := range components {
-		component := component
 		t.Run(component, func(t *testing.T) {
 			ctx := context.Background()
 			path := filepath.Join(t.TempDir(), component+".db")

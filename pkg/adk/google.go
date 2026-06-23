@@ -149,8 +149,8 @@ func (m *openAICompatibleADKModel) generateStream(
 			}
 			continue
 		}
-		if strings.HasPrefix(line, "data:") {
-			dataLines = append(dataLines, strings.TrimSpace(strings.TrimPrefix(line, "data:")))
+		if after, ok := strings.CutPrefix(line, "data:"); ok {
+			dataLines = append(dataLines, strings.TrimSpace(after))
 		}
 	}
 	if err := scanner.Err(); err != nil {
@@ -337,10 +337,7 @@ func (s *openAIStreamAggregationState) consumeMessage(message openAIChatMessage,
 
 func (s *openAIStreamAggregationState) mergeToolCalls(chunks []openAIToolCall) {
 	for _, chunk := range chunks {
-		index := chunk.Index
-		if index < 0 {
-			index = 0
-		}
+		index := max(chunk.Index, 0)
 		for len(s.toolCalls) <= index {
 			s.toolCalls = append(s.toolCalls, openAIToolCall{})
 		}

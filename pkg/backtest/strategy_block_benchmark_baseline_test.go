@@ -97,7 +97,7 @@ func collectStrategyBlockBenchmarkBaseline(t *testing.T) strategyBlockBenchmarkB
 
 func collectStrategyBlockBenchmarkSamples(ctx context.Context, cfg RunConfig) testing.BenchmarkResult {
 	samples := make([]testing.BenchmarkResult, 0, strategyBlockBenchmarkSampleCount)
-	for sampleIndex := 0; sampleIndex < strategyBlockBenchmarkSampleCount; sampleIndex++ {
+	for range strategyBlockBenchmarkSampleCount {
 		samples = append(samples, testing.Benchmark(func(b *testing.B) {
 			b.ReportAllocs()
 			for index := 0; index < b.N; index++ {

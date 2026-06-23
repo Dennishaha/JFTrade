@@ -2,6 +2,7 @@ package ir
 
 import (
 	"fmt"
+	"maps"
 	"sort"
 
 	"github.com/jftrade/jftrade-main/pkg/strategy/indicatorbinding"
@@ -256,8 +257,6 @@ func planStatements(
 
 func cloneBindings(input map[string]plannedBinding) map[string]plannedBinding {
 	cloned := make(map[string]plannedBinding, len(input))
-	for key, value := range input {
-		cloned[key] = value
-	}
+	maps.Copy(cloned, input)
 	return cloned
 }

@@ -98,10 +98,7 @@ func (r *strategyRuntime) incrementEntrySubmitCount(direction string, observedCo
 		r.entrySubmitCount = map[string]int{}
 	}
 	normalized := strings.ToUpper(strings.TrimSpace(direction))
-	current := r.entrySubmitCount[normalized]
-	if observedCount > current {
-		current = observedCount
-	}
+	current := max(observedCount, r.entrySubmitCount[normalized])
 	r.entrySubmitCount[normalized] = current + 1
 }
 

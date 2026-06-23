@@ -30,13 +30,13 @@ func TestPrepareChatRequestValidationAndConcurrency(t *testing.T) {
 		t.Fatalf("long message error = %v, want maximum length error", err)
 	}
 
-	for i := 0; i < MaxConcurrentRuns; i++ {
+	for range MaxConcurrentRuns {
 		runtime.runSem <- struct{}{}
 	}
 	if _, err := runtime.prepareChatRequest(ctx, ChatRequest{Message: "hello"}); err == nil || !strings.Contains(err.Error(), "maximum concurrent runs") {
 		t.Fatalf("concurrency error = %v, want maximum concurrent runs", err)
 	}
-	for i := 0; i < MaxConcurrentRuns; i++ {
+	for range MaxConcurrentRuns {
 		<-runtime.runSem
 	}
 
