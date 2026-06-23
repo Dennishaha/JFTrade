@@ -1,6 +1,6 @@
 # 实时 SSE 连接问题
 
-本文回答一个问题：为什么前端显示实时通道断开，以及应该先查 sidecar 还是 bbgo。
+本文回答一个问题：为什么前端显示实时通道断开，以及应该先查 sidecar 哪一层。
 
 盘口深度现在也走同样的 SSE 思路：`/api/v1/market-data/depth/*` 支持 `Accept: text/event-stream`，并且在券商支持 order book push 时会优先消费事件流。
 
@@ -20,7 +20,7 @@ Futu exchange/stream 适配位于 [../../internal/integration/futu/marketdata_ru
 
 ## 常见根因优先级
 
-1. sidecar 根本没启动，或者已经跟随 `cmd/jftrade run` 一起退出
+1. sidecar 根本没启动，或者进程已经退出
 2. 前端配置错误地指向了 bbgo 或 `localhost`
 3. sidecar 活着，但实时流握手失败，只有心跳没有行情
 4. OpenD 不可用，sidecar 回退轮询也失败

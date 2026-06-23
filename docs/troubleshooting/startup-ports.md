@@ -6,14 +6,13 @@
 - 各端口分别是谁在提供
 - 为什么后端启动后会马上退出
 
-## 两种启动模式
+## 启动模式
 
 | 模式 | 命令 | 适用场景 | 关键差异 |
 | --- | --- | --- | --- |
-| API-only | `go run ./cmd/jftrade api` | 前端开发、设置调试、行情调试 | 只启动 sidecar，不进入 bbgo 策略运行时 |
-| bbgo run | `go run ./cmd/jftrade run --config ./config/jftrade.yaml` | 完整策略与交易运行时 | 进入 bbgo，并尝试同时启动 sidecar |
+| API sidecar | `go run ./cmd/jftrade-api` | 前端开发、设置调试、行情调试、策略运行控制 | 启动 JFTrade `/api/v1/*` 控制台后端 |
 
-[cmd/jftrade/main.go](../../cmd/jftrade/main.go) 在进程入口会默认写入 `DISABLE_MARKETS_CACHE=1`，避免空 market cache 把 bbgo 启动过程带偏。
+[cmd/jftrade-api/main.go](../../cmd/jftrade-api/main.go) 在进程入口会默认写入 `DISABLE_MARKETS_CACHE=1`，避免旧 market cache 影响 Futu market metadata。
 
 ## 默认端口
 
@@ -52,20 +51,15 @@ lsof -nP -iTCP:11110 -sTCP:LISTEN
 lsof -nP -iTCP:11111 -sTCP:LISTEN
 ```
 
-## 后端启动后马上退出
+## 看到旧 full 模式日志
 
-最常见的日志是：
+如果日志里还有：
 
 ```text
 market info should not be empty, 0 markets loaded
 ```
 
-这不是前端问题，而是 bbgo bootstrap 失败。当前要求是：
-
-- `pkg/futu.Exchange.QueryMarkets()` 至少返回一个 bootstrap market
-- `DISABLE_MARKETS_CACHE=1` 保持启用，避免旧空缓存继续污染启动
-
-如果你在前端开发阶段不需要完整交易运行时，优先切回 API-only，先把 sidecar 相关问题单独排清。
+这不是当前 API 入口会主动触发的路径。通常说明你运行的是旧二进制、旧分支、旧 VSCode 配置或旧脚本。先确认当前命令是 `go run ./cmd/jftrade-api`，并清理旧进程和旧构建产物，再回到上面的端口检查。
 
 ## FUTU_OPEND_ADDR 缺失或端口写错
 
@@ -80,6 +74,6 @@ echo "$JFTRADE_FUTU_API_PORT"
 
 ## 需要避免的旧表述
 
-- 不要写“bbgo server 起不来，所以前端断开”，应写清到底是开发态 sidecar 3000 消失、发布态 gateway 6699 消失，还是 bbgo 自身失败
+- 不要写“bbgo server 起不来，所以前端断开”，应写清到底是开发态 sidecar 3000 消失，还是发布态 gateway 6699 消失
 - 不要把 `/api/v1/*` 说成 bbgo 自带接口
-- 不要把 `start.sh` 的默认行为等同于所有运行方式，真正的模式判断在 [../../cmd/jftrade/main.go](../../cmd/jftrade/main.go)
+- 不要把 `start.sh` 的默认行为等同于所有运行方式，真正的入口在 [../../cmd/jftrade-api/main.go](../../cmd/jftrade-api/main.go)

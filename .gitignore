@@ -54,5 +54,5 @@ var/
 
 # local debug/build binaries
 cmd/jftrade/__debug_bin*
-jftrade.exe
 jftrade-api.exe
+jftrade-api

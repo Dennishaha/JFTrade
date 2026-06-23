@@ -53,9 +53,7 @@ jobs:
         run: go test ./... -count=1 -timeout 300s
 
       - name: Build binaries
-        run: |
-          go build ./cmd/jftrade/
-          go build ./cmd/jftrade-api/
+        run: go build ./cmd/jftrade-api/
 
       - name: Frontend test
         run: npm run test:web

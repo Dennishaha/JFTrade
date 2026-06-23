@@ -3,6 +3,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -16,6 +17,15 @@ import (
 )
 
 func main() {
+	args := os.Args[1:]
+	if isHelpArgs(args) {
+		printUsage()
+		return
+	}
+	if err := validateArgs(args); err != nil {
+		log.Fatalf("%v", err)
+	}
+
 	if os.Getenv("DISABLE_MARKETS_CACHE") == "" {
 		jftradeErr1 := os.Setenv("DISABLE_MARKETS_CACHE", "1")
 		jftradeLogError(jftradeErr1)
@@ -27,6 +37,21 @@ func main() {
 	if err := apiserver.RunAPIOnly(ctx); err != nil {
 		log.Fatalf("JFTrade API-only server failed: %v", err)
 	}
+}
+
+func isHelpArgs(args []string) bool {
+	return len(args) == 1 && (args[0] == "help" || args[0] == "--help" || args[0] == "-h")
+}
+
+func printUsage() {
+	_, _ = fmt.Fprintln(os.Stdout, "Usage: jftrade-api")
+}
+
+func validateArgs(args []string) error {
+	if len(args) == 0 {
+		return nil
+	}
+	return fmt.Errorf("unsupported command %q; run `jftrade-api` without subcommands", args[0])
 }
 
 func jftradeLogError(values ...any) {

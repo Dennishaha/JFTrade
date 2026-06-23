@@ -84,7 +84,7 @@ func shouldStartForArgs(args []string) bool {
 		return false
 	}
 	for _, arg := range args {
-		if arg == "run" || arg == "api" || arg == "serve-api" {
+		if arg == "api" || arg == "serve-api" {
 			return true
 		}
 		if arg == "help" || arg == "--help" || arg == "-h" {

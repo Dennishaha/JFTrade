@@ -6,17 +6,16 @@
 
 当前项目与 bbgo 的关系是：
 
-- [../../../cmd/jftrade/main.go](../../../cmd/jftrade/main.go) 复用 bbgo CLI 入口
+- `cmd/jftrade` 已移除；当前入口是 [../../../cmd/jftrade-api/main.go](../../../cmd/jftrade-api/main.go)，只启动 JFTrade API sidecar
 - [../../../pkg/futu/exchange.go](../../../pkg/futu/exchange.go) 通过注册机制接入 bbgo exchange factory
 - [../../../pkg/futu/stream.go](../../../pkg/futu/stream.go) 复用 bbgo 的 Stream / StandardStream 抽象
 - [../../../internal/app/apiserver/servercore/notifications.go](../../../internal/app/apiserver/servercore/notifications.go) 复用 bbgo 通知系统
 
-## 1. 运行入口与注册机制
+## 1. 注册机制
 
 | 接口或扩展点 | 当前用途 | 本项目落点 | 原始文档位置 |
 | --- | --- | --- | --- |
-| `cmd.Execute()` | 复用 bbgo CLI 根命令 | [../../../cmd/jftrade/main.go](../../../cmd/jftrade/main.go) | [../bbgo-doc/commands/bbgo.md](../bbgo-doc/commands/bbgo.md)、[../bbgo-doc/commands/bbgo_run.md](../bbgo-doc/commands/bbgo_run.md) |
-| `exchange.Register(name, factory)` | 把 `futu` 注册到 bbgo exchange factory | [../../../pkg/futu/exchange.go](../../../pkg/futu/exchange.go) | [../bbgo-doc/development/adding-new-exchange.md](../bbgo-doc/development/adding-new-exchange.md) 的 “Exchange Factory” 与 “Implementation” |
+| `exchange.Register(name, factory)` | 保留 `futu` 的 bbgo exchange factory 兼容注册；当前 sidecar 直接构造 exchange，不依赖 CLI 配置发现 | [../../../pkg/futu/exchange.go](../../../pkg/futu/exchange.go) | [../bbgo-doc/development/adding-new-exchange.md](../bbgo-doc/development/adding-new-exchange.md) 的 “Exchange Factory” 与 “Implementation” |
 | `exchange.Factory` | 提供 `EnvLoader` 与 `Constructor` | [../../../pkg/futu/exchange.go](../../../pkg/futu/exchange.go) | 文档不足；最近的说明在 [../bbgo-doc/development/adding-new-exchange.md](../bbgo-doc/development/adding-new-exchange.md) |
 
 ## 2. Exchange 接口族
@@ -26,7 +25,7 @@
 | 接口或方法族 | 当前用途 | 本项目落点 | 原始文档位置 |
 | --- | --- | --- | --- |
 | `types.Exchange` | 交易所总接口 | [../../../pkg/futu/exchange.go](../../../pkg/futu/exchange.go) | [../bbgo-doc/development/adding-new-exchange.md](../bbgo-doc/development/adding-new-exchange.md) 的 “Checklist” |
-| `QueryMarkets` | 提供市场列表，避免 bbgo bootstrap 因空 market 失败 | [../../../pkg/futu/exchange.go](../../../pkg/futu/exchange.go) | [../bbgo-doc/development/adding-new-exchange.md](../bbgo-doc/development/adding-new-exchange.md) |
+| `QueryMarkets` | 提供市场列表，供 sidecar、策略 runtime 和回测初始化 market metadata | [../../../pkg/futu/exchange.go](../../../pkg/futu/exchange.go) | [../bbgo-doc/development/adding-new-exchange.md](../bbgo-doc/development/adding-new-exchange.md) |
 | `QueryTicker` / `QueryTickers` | 提供快照报价 | [../../../pkg/futu/exchange.go](../../../pkg/futu/exchange.go) | [../bbgo-doc/development/adding-new-exchange.md](../bbgo-doc/development/adding-new-exchange.md) |
 | `NewStream` | 提供实时流入口 | [../../../pkg/futu/exchange.go](../../../pkg/futu/exchange.go) | [../bbgo-doc/development/adding-new-exchange.md](../bbgo-doc/development/adding-new-exchange.md)、[../bbgo-doc/topics/standard-stream.md](../bbgo-doc/topics/standard-stream.md) |
 | `QueryAccount` / `QueryAccountBalances` | 账户接口，占位实现 | [../../../pkg/futu/exchange.go](../../../pkg/futu/exchange.go) | 文档不足；`adding-new-exchange` 只覆盖检查单级别说明 |
@@ -54,7 +53,7 @@
 
 | 接口或扩展点 | 当前用途 | 本项目落点 | 原始文档位置 |
 | --- | --- | --- | --- |
-| 以 session 前缀解析环境变量 | 让 bbgo 能通过环境变量构造 exchange session | [../../../pkg/futu/exchange.go](../../../pkg/futu/exchange.go) | [../bbgo-doc/topics/developing-strategy.md](../bbgo-doc/topics/developing-strategy.md) 中的 session / env 说明、[../bbgo-doc/configuration/envvars.md](../bbgo-doc/configuration/envvars.md) |
+| 以 session 前缀解析环境变量 | 保留 bbgo exchange factory 兼容行为；JFTrade sidecar 主要通过 settings/env runtime 直接构造 exchange | [../../../pkg/futu/exchange.go](../../../pkg/futu/exchange.go) | [../bbgo-doc/topics/developing-strategy.md](../bbgo-doc/topics/developing-strategy.md) 中的 session / env 说明、[../bbgo-doc/configuration/envvars.md](../bbgo-doc/configuration/envvars.md) |
 | `EnvLoader` | 把外部环境变量转成 exchange options | [../../../pkg/futu/exchange.go](../../../pkg/futu/exchange.go) | 文档不足；最近的说明仍是 [../bbgo-doc/development/adding-new-exchange.md](../bbgo-doc/development/adding-new-exchange.md) |
 
 ## 当前最重要的文档落点
@@ -63,8 +62,7 @@
 
 1. [../bbgo-doc/development/adding-new-exchange.md](../bbgo-doc/development/adding-new-exchange.md)
 2. [../bbgo-doc/topics/standard-stream.md](../bbgo-doc/topics/standard-stream.md)
-3. [../bbgo-doc/commands/bbgo.md](../bbgo-doc/commands/bbgo.md)
-4. [../bbgo-doc/topics/developing-strategy.md](../bbgo-doc/topics/developing-strategy.md)
+3. [../bbgo-doc/topics/developing-strategy.md](../bbgo-doc/topics/developing-strategy.md)
 
 ## 对后续 AI 的提醒
 

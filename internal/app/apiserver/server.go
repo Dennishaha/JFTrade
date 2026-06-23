@@ -22,7 +22,7 @@ func RunAPIOnly(ctx context.Context) error {
 	return lifecycle.RunAPIOnly(ctx, dependencies())
 }
 
-// StartForRunArgs starts the API sidecar for bbgo-compatible command args.
+// StartForRunArgs starts the API sidecar for supported API command args.
 func StartForRunArgs(ctx context.Context, args []string) (func(context.Context) error, error) {
 	return lifecycle.StartForRunArgs(ctx, args, dependencies())
 }
@@ -79,7 +79,7 @@ func shouldStartForArgs(args []string) bool {
 		return false
 	}
 	for _, arg := range args {
-		if arg == "run" || arg == "api" || arg == "serve-api" {
+		if arg == "api" || arg == "serve-api" {
 			return true
 		}
 		if arg == "help" || arg == "--help" || arg == "-h" {

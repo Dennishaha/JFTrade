@@ -133,7 +133,7 @@ func (a *ibAdapter) Trading() broker.TradingService {
 }
 ```
 
-### 步骤 2：在 `cmd/jftrade/main.go` 注册
+### 步骤 2：在 sidecar 装配层注册
 
 ```go
 import (

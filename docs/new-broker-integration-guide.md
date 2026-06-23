@@ -122,10 +122,10 @@ func (s *ibTradingService) CancelOrders(ctx context.Context, query broker.ReadQu
 }
 ```
 
-### 步骤 3：注册到 Server
+### 步骤 3：注册到 sidecar 装配层
 
 ```go
-// cmd/jftrade/main.go
+// internal/app/apiserver/servercore/server.go
 import "github.com/jftrade/jftrade-main/pkg/ib"
 
 // 在 Server 初始化后注册

@@ -16,8 +16,8 @@ func TestShouldStartForAPIOnlyArgs(t *testing.T) {
 	if !shouldStartForArgs([]string{"serve-api"}) {
 		t.Fatal("expected serve-api command to start JFTrade sidecar")
 	}
-	if !shouldStartForArgs([]string{"run", "--config", "./config/jftrade.yaml"}) {
-		t.Fatal("expected bbgo run command to start JFTrade sidecar")
+	if shouldStartForArgs([]string{"run"}) {
+		t.Fatal("expected removed bbgo run command to be ignored")
 	}
 }
 

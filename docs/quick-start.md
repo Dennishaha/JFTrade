@@ -9,7 +9,7 @@
 终端 1：
 
 ```bash
-go run ./cmd/jftrade api
+go run ./cmd/jftrade-api
 ```
 
 终端 2：
@@ -50,14 +50,6 @@ start.cmd
 
 - GUI：`http://127.0.0.1:6688/`
 - API gateway：`http://127.0.0.1:6699/`
-
-## 完整策略/交易运行时
-
-```bash
-go run ./cmd/jftrade run --config ./config/jftrade.yaml
-```
-
-这条路径会进入 bbgo runtime，适合策略执行和交易链路验证。它不是前端控制台默认依赖的后端接口形态。
 
 ## 发布构建
 

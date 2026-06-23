@@ -5,20 +5,6 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Generate Docs",
-            "type": "node-terminal",
-            "request": "launch",
-            "cwd": "${workspaceFolder}",
-            "command": "npm run generate:docs"
-        },
-        {
-            "name": "Go Fix",
-            "type": "node-terminal",
-            "request": "launch",
-            "cwd": "${workspaceFolder}",
-            "command": "go fix ./..."
-        },
-        {
             "name": "Debug Web",
             "type": "node-terminal",
             "request": "launch",
@@ -59,12 +45,8 @@
             "type": "go",
             "request": "launch",
             "mode": "debug",
-            "program": "${workspaceFolder}/cmd/jftrade",
-            "args": [
-                "run",
-                "--config",
-                "${workspaceFolder}/config/jftrade.yaml"
-            ],
+            "program": "${workspaceFolder}/cmd/jftrade-api",
+            "args": [],
             "env": {
                 "JFTRADE_SETTINGS_PATH": "${workspaceFolder}/var/jftrade-api/settings.json",
                 "JFTRADE_BACKTEST_DB": "${workspaceFolder}/var/jftrade-api/backtest.db",

@@ -5,7 +5,7 @@
 先记住两个前提：
 
 - 前端默认依赖的是 JFTrade sidecar 的 `/api/v1/*`，不是 bbgo 原生 `/api/*`
-- 启动方式分为 API-only 和 bbgo run，两者看到的故障现象可能完全不同
+- JFTrade 当前只支持 API sidecar 运行模式，前端不连接 bbgo 原生 `/api/*`
 
 ## 先看症状，再进专题
 
@@ -43,8 +43,7 @@ go test ./...
 
 ## 术语统一
 
-- API-only：`go run ./cmd/jftrade api`，只启动 sidecar
-- bbgo run：`go run ./cmd/jftrade run --config ./config/jftrade.yaml`，启动 bbgo 运行时，并尝试附带 sidecar
+- API sidecar：`go run ./cmd/jftrade-api`，启动 JFTrade 控制台后端
 - 发布态 GUI：默认 `127.0.0.1:6688`，内嵌前端、`/api/v1/*` 与 Swagger 的同源入口
 - 发布态 gateway：默认 `127.0.0.1:6699`，API 直连与排障入口
 - OpenD API port：默认 `127.0.0.1:11110`，Go 原生 TCP API 使用

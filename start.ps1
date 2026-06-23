@@ -117,14 +117,14 @@ Write-Host ("`n=== Starting backend service / {0} ===" -f $cnStartBackend) -Fore
 $backendExe = Join-Path $PSScriptRoot "dist\jftrade-api-test.exe"
 New-Item -ItemType Directory -Force -Path (Split-Path -Parent $backendExe) | Out-Null
 
-go build -tags release_assets -o $backendExe ./cmd/jftrade
+go build -tags release_assets -o $backendExe ./cmd/jftrade-api
 if ($LASTEXITCODE -ne 0) {
     Write-Host ("Backend build failed / {0}" -f $cnBackendBuildFailed) -ForegroundColor Red
     pause
     exit 1
 }
 
-$backendProcess = Start-Process -FilePath $backendExe -ArgumentList @("api") -WorkingDirectory $PSScriptRoot -PassThru
+$backendProcess = Start-Process -FilePath $backendExe -WorkingDirectory $PSScriptRoot -PassThru
 $watchdogPath = Join-Path $env:TEMP ("jftrade-watchdog-{0}.ps1" -f ([guid]::NewGuid().ToString("N")))
 @'
 param($launcherPid, $backendPid)

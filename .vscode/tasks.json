@@ -5,7 +5,28 @@
             "label": "generate:docs",
             "type": "npm",
             "script": "generate:docs",
-            "problemMatcher": []
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "close": false
+            }
+        },
+        {
+            "label": "go:fix",
+            "type": "shell",
+            "command": "go fix ./...",
+            "group": "build",
+            "problemMatcher": [
+                "$go"
+            ],
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+                "showReuseMessage": true,
+                "close": false
+            }
         },
         {
             "label": "build:web",

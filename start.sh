@@ -6,8 +6,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$ROOT_DIR"
 
 # --- Default runtime configuration ---------------------------------------
-# Default to the release-style GUI/API ports. Full bbgo engine runs can still use
-# `go run ./cmd/jftrade run --config ./config/jftrade.yaml` directly.
+# Default to the release-style GUI/API ports.
 export JFTRADE_API_BIND="${JFTRADE_API_BIND:-127.0.0.1:6699}"
 export JFTRADE_GUI_BIND="${JFTRADE_GUI_BIND:-127.0.0.1:6688}"
 export JFTRADE_FUTU_API_PORT="${JFTRADE_FUTU_API_PORT:-11110}"
@@ -54,4 +53,4 @@ go run ./scripts/archive_frontend_assets.go \
 echo "Starting JFTrade service / 启动 JFTrade 服务..."
 echo "JFTrade GUI / 前端地址: http://${JFTRADE_GUI_BIND}"
 echo "JFTrade API / 后端地址: http://${JFTRADE_API_BIND}"
-go run -tags release_assets ./cmd/jftrade api
+go run -tags release_assets ./cmd/jftrade-api

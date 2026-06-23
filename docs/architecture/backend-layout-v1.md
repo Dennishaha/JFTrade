@@ -6,10 +6,9 @@
 
 ## 1. 当前基线
 
-当前后端有两个进程入口：
+当前后端有一个 API sidecar 进程入口：
 
 - `cmd/jftrade-api`：独立 API sidecar。
-- `cmd/jftrade`：bbgo CLI 包装器，可同时启动 sidecar。
 
 核心问题不是单个文件过长，而是包边界过宽：
 
@@ -267,10 +266,9 @@ internal/integration
 
 本轮实际完成：
 
-- `cmd/jftrade` 与 `cmd/jftrade-api` 已改由 `internal/app/apiserver` 启动；
+- `cmd/jftrade-api` 已改由 `internal/app/apiserver` 启动；
   API/GUI server、runtime layout、launch defaults 和 shutdown 编排已有独立所有者。
-- `internal/app/apiserver/lifecycle` 被 `cmd/jftrade` 与 `cmd/jftrade-api`
-  共同复用，避免两套启动流程漂移；旧兼容门面已删除。
+- `internal/app/apiserver/lifecycle` 被 API-only 启动流程复用；旧兼容门面已删除。
 - JSON settings 实现已迁入 `internal/store/settingsfile`。该包只负责默认值、
   规范化和文件持久化，不导入 Futu，也不修改进程环境变量。
 - integration env 默认值解析和应用集中在 `internal/app/apiserver/runtime`。

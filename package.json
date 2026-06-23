@@ -20,7 +20,7 @@
     "build": "npm run build:web && npm run build:docs && npm run build:backend",
     "build:web": "npm -w @jftrade/web run build",
     "build:docs": "npm run generate:docs && vitepress build docs",
-    "build:backend": "go build -tags=embed_zoneinfo -o dist/jftrade-dev ./cmd/jftrade",
+    "build:backend": "go build -tags=embed_zoneinfo -o dist/jftrade-dev ./cmd/jftrade-api",
     "test:web": "npm -w @jftrade/web run test",
     "test:web:watch": "npm -w @jftrade/web run test:watch",
     "typecheck:web": "npm -w @jftrade/web run typecheck",

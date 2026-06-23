@@ -8,7 +8,7 @@
 
 ### 1. 先确认系统边界
 
-- [architecture.md](architecture.md)：当前系统架构、双运行模式、请求链路和职责边界。
+- [architecture.md](architecture.md)：当前系统架构、单一 API 入口、请求链路和职责边界。
 - [architecture/backend-coding-standards.md](architecture/backend-coding-standards.md)：后端分层约束、依赖方向和常见禁区。
 
 ### 2. 再按问题类型进入专题
@@ -46,6 +46,6 @@
 
 后续 AI 在动手前建议按下面顺序取上下文：
 
-1. 读 [architecture.md](architecture.md)，先判断问题属于 sidecar、bbgo runtime、前端还是 Futu 集成。
+1. 读 [architecture.md](architecture.md)，先判断问题属于 sidecar、前端、Futu 集成还是底层 bbgo 公共能力。
 2. 读对应专题页，而不是直接在根目录全仓库盲搜。
 3. 只有需要协议原文或上游背景时，才进入 [reference/README.md](reference/README.md) 或 `reference/bbgo-doc/`。
