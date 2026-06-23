@@ -4,12 +4,14 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/shopspring/decimal"
 
 	srv "github.com/jftrade/jftrade-main/internal/marketdata"
 )
@@ -223,6 +225,145 @@ func TestDepthRouteDefaultsInvalidNum(t *testing.T) {
 	}
 }
 
+func TestReadRoutesCoverMarketsSecuritySnapshotSearchHeartbeatAndNormalize(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	provider := &routeTestProvider{
+		markets: []srv.MarketProfile{{"market": "US"}},
+		securityDetails: srv.SecurityDetails{
+			"instrument": map[string]any{"market": "US", "symbol": "AAPL"},
+		},
+		snapshot: &srv.Tick{
+			InstrumentID: "US.AAPL",
+			Market:       "US",
+			Symbol:       "AAPL",
+			Price:        decimal.RequireFromString("101.5"),
+			Bid:          decimal.RequireFromString("101.4"),
+			Ask:          decimal.RequireFromString("101.6"),
+			ObservedAt:   "2026-06-22T00:00:00Z",
+			QuoteAt:      "2026-06-22T00:00:00Z",
+			Source:       "test-feed",
+		},
+		normalizedInstrument: map[string]any{
+			"market":       "US",
+			"symbol":       "AAPL",
+			"instrumentId": "US.AAPL",
+		},
+	}
+	service := srv.NewService(provider)
+	router := gin.New()
+	RegisterRoutes(router.Group("/api/v1"), service)
+
+	marketsRec := httptest.NewRecorder()
+	router.ServeHTTP(marketsRec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/market-data/markets", nil))
+	if marketsRec.Code != http.StatusOK || !strings.Contains(marketsRec.Body.String(), `"defaultMarket":"HK"`) {
+		t.Fatalf("markets = %d %s", marketsRec.Code, marketsRec.Body.String())
+	}
+
+	securityRec := httptest.NewRecorder()
+	router.ServeHTTP(securityRec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/market-data/securities/us/aapl", nil))
+	if securityRec.Code != http.StatusOK || provider.securityMarket != "us" || provider.securitySymbol != "aapl" {
+		t.Fatalf("security = %d %s provider=%s/%s", securityRec.Code, securityRec.Body.String(), provider.securityMarket, provider.securitySymbol)
+	}
+
+	snapshotRec := httptest.NewRecorder()
+	router.ServeHTTP(snapshotRec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/market-data/snapshots/us/aapl?refresh=true", nil))
+	if snapshotRec.Code != http.StatusOK {
+		t.Fatalf("snapshot = %d %s", snapshotRec.Code, snapshotRec.Body.String())
+	}
+	if provider.snapshotInstrumentID != "US.AAPL" {
+		t.Fatalf("snapshot instrumentID = %q", provider.snapshotInstrumentID)
+	}
+	if !strings.Contains(snapshotRec.Body.String(), `"instrumentId":"US.AAPL"`) || !strings.Contains(snapshotRec.Body.String(), `"fromCache":false`) {
+		t.Fatalf("snapshot body = %s", snapshotRec.Body.String())
+	}
+
+	postSubscriptionJSON(t, router, "/api/v1/market-data/subscriptions", map[string]any{
+		"consumerId": "chart-main",
+		"instruments": []any{
+			map[string]any{"market": "US", "symbol": "AAPL"},
+		},
+	})
+	heartbeatRec := httptest.NewRecorder()
+	heartbeatReq := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/market-data/subscriptions/heartbeat", strings.NewReader(`{"consumerId":"chart-main"}`))
+	heartbeatReq.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(heartbeatRec, heartbeatReq)
+	if heartbeatRec.Code != http.StatusOK || !strings.Contains(heartbeatRec.Body.String(), `"totalActiveSubscriptions":1`) {
+		t.Fatalf("heartbeat = %d %s", heartbeatRec.Code, heartbeatRec.Body.String())
+	}
+
+	searchRec := httptest.NewRecorder()
+	router.ServeHTTP(searchRec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/market-data/instruments?query=nvda", nil))
+	if searchRec.Code != http.StatusOK || !strings.Contains(searchRec.Body.String(), `"query":"nvda"`) {
+		t.Fatalf("search = %d %s", searchRec.Code, searchRec.Body.String())
+	}
+
+	normalizeRec := httptest.NewRecorder()
+	normalizeReq := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/market-data/instruments/normalize", strings.NewReader(`{"market":"us","symbol":"aapl"}`))
+	normalizeReq.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(normalizeRec, normalizeReq)
+	if normalizeRec.Code != http.StatusOK {
+		t.Fatalf("normalize = %d %s", normalizeRec.Code, normalizeRec.Body.String())
+	}
+	if provider.normalizeRequest["market"] != "us" || provider.normalizeRequest["symbol"] != "aapl" {
+		t.Fatalf("normalize request = %#v", provider.normalizeRequest)
+	}
+}
+
+func TestReadRoutesMapProviderAndRequestFailures(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	provider := &routeTestProvider{
+		marketsErr:   errors.New("markets unavailable"),
+		securityErr:  errors.New("security unavailable"),
+		snapshotErr:  errors.New("snapshot unavailable"),
+		normalizeErr: errors.New("instrument invalid"),
+	}
+	service := srv.NewService(provider)
+	router := gin.New()
+	RegisterRoutes(router.Group("/api/v1"), service)
+
+	marketsRec := httptest.NewRecorder()
+	router.ServeHTTP(marketsRec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/market-data/markets", nil))
+	if marketsRec.Code != http.StatusInternalServerError {
+		t.Fatalf("markets status = %d body=%s", marketsRec.Code, marketsRec.Body.String())
+	}
+
+	securityRec := httptest.NewRecorder()
+	router.ServeHTTP(securityRec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/market-data/securities/us/aapl", nil))
+	if securityRec.Code != http.StatusBadGateway {
+		t.Fatalf("security status = %d body=%s", securityRec.Code, securityRec.Body.String())
+	}
+
+	snapshotRec := httptest.NewRecorder()
+	router.ServeHTTP(snapshotRec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/market-data/snapshots/us/aapl", nil))
+	if snapshotRec.Code != http.StatusBadGateway {
+		t.Fatalf("snapshot status = %d body=%s", snapshotRec.Code, snapshotRec.Body.String())
+	}
+
+	heartbeatRec := httptest.NewRecorder()
+	heartbeatReq := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/market-data/subscriptions/heartbeat", strings.NewReader(`bad`))
+	heartbeatReq.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(heartbeatRec, heartbeatReq)
+	if heartbeatRec.Code != http.StatusBadRequest {
+		t.Fatalf("heartbeat status = %d body=%s", heartbeatRec.Code, heartbeatRec.Body.String())
+	}
+
+	normalizeBadJSON := httptest.NewRecorder()
+	normalizeBadJSONReq := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/market-data/instruments/normalize", strings.NewReader(`bad`))
+	normalizeBadJSONReq.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(normalizeBadJSON, normalizeBadJSONReq)
+	if normalizeBadJSON.Code != http.StatusBadRequest {
+		t.Fatalf("normalize bad json status = %d body=%s", normalizeBadJSON.Code, normalizeBadJSON.Body.String())
+	}
+
+	normalizeRec := httptest.NewRecorder()
+	normalizeReq := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/v1/market-data/instruments/normalize", strings.NewReader(`{"market":"us","symbol":"bad"}`))
+	normalizeReq.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(normalizeRec, normalizeReq)
+	if normalizeRec.Code != http.StatusBadRequest {
+		t.Fatalf("normalize provider err status = %d body=%s", normalizeRec.Code, normalizeRec.Body.String())
+	}
+}
+
 func postSubscriptionJSON(t *testing.T, handler http.Handler, path string, payload map[string]any) map[string]any {
 	t.Helper()
 	body, err := json.Marshal(payload)
@@ -308,27 +449,42 @@ func routeEntriesByKey(t *testing.T, snapshot map[string]any) map[string]map[str
 }
 
 type routeTestProvider struct {
-	candlesCalled   bool
-	candlesMarket   string
-	candlesSymbol   string
-	candlesPeriod   string
-	candlesLimit    int
-	candlesFromTime string
-	candlesToTime   string
-	depthCalled     bool
-	depthNum        int
+	candlesCalled        bool
+	candlesMarket        string
+	candlesSymbol        string
+	candlesPeriod        string
+	candlesLimit         int
+	candlesFromTime      string
+	candlesToTime        string
+	depthCalled          bool
+	depthNum             int
+	markets              []srv.MarketProfile
+	marketsErr           error
+	securityDetails      srv.SecurityDetails
+	securityErr          error
+	securityMarket       string
+	securitySymbol       string
+	snapshot             *srv.Tick
+	snapshotErr          error
+	snapshotInstrumentID string
+	normalizedInstrument map[string]any
+	normalizeErr         error
+	normalizeRequest     map[string]any
 }
 
-func (*routeTestProvider) GetMarkets(context.Context) ([]srv.MarketProfile, error) {
-	return nil, nil
+func (p *routeTestProvider) GetMarkets(context.Context) ([]srv.MarketProfile, error) {
+	return p.markets, p.marketsErr
 }
 
-func (*routeTestProvider) GetSecurityDetails(context.Context, string, string) (srv.SecurityDetails, error) {
-	return nil, nil
+func (p *routeTestProvider) GetSecurityDetails(_ context.Context, market, symbol string) (srv.SecurityDetails, error) {
+	p.securityMarket = market
+	p.securitySymbol = symbol
+	return p.securityDetails, p.securityErr
 }
 
-func (*routeTestProvider) QuerySnapshot(context.Context, string) (*srv.Tick, error) {
-	return nil, nil
+func (p *routeTestProvider) QuerySnapshot(_ context.Context, instrumentID string) (*srv.Tick, error) {
+	p.snapshotInstrumentID = instrumentID
+	return p.snapshot, p.snapshotErr
 }
 
 func (*routeTestProvider) QueryTicker(context.Context, string) (*srv.Tick, error) {
@@ -352,8 +508,9 @@ func (p *routeTestProvider) GetDepth(_ context.Context, _ string, _ string, num 
 	return nil, nil
 }
 
-func (*routeTestProvider) NormalizeInstrument(context.Context, map[string]any) (map[string]any, error) {
-	return nil, nil
+func (p *routeTestProvider) NormalizeInstrument(_ context.Context, input map[string]any) (map[string]any, error) {
+	p.normalizeRequest = input
+	return p.normalizedInstrument, p.normalizeErr
 }
 
 func (*routeTestProvider) Health(context.Context) (srv.HealthStatus, error) {

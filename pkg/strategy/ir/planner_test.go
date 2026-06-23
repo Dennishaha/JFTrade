@@ -262,6 +262,108 @@ func TestPlanRequirementsRejectsUnsupportedWindowSource(t *testing.T) {
 	}
 }
 
+func TestPlanRequirementsCollectsAdvancedIndicatorBindings(t *testing.T) {
+	program := programWithStatements(
+		&strategyir.LetStmt{Range: strategyir.SourceRange{StartLine: 1}, Name: "cog", Expression: "cog(close, 10, day)"},
+		&strategyir.LetStmt{Range: strategyir.SourceRange{StartLine: 2}, Name: "bbw", Expression: "bbw(close, 20, 2.0, week)"},
+		&strategyir.LetStmt{Range: strategyir.SourceRange{StartLine: 3}, Name: "tsi", Expression: "tsi(close, 13, 25, hour)"},
+		&strategyir.LetStmt{Range: strategyir.SourceRange{StartLine: 4}, Name: "corr", Expression: "correlation(close, open, 10, day)"},
+		&strategyir.LetStmt{Range: strategyir.SourceRange{StartLine: 5}, Name: "pctLin", Expression: "percentile_linear_interpolation(close, 20, 80, week)"},
+		&strategyir.LetStmt{Range: strategyir.SourceRange{StartLine: 6}, Name: "pctRank", Expression: "percentile_nearest_rank(hlc3, 20, 95, month)"},
+		&strategyir.LetStmt{Range: strategyir.SourceRange{StartLine: 7}, Name: "sw", Expression: "swma(close, day)"},
+		&strategyir.LetStmt{Range: strategyir.SourceRange{StartLine: 8}, Name: "lin", Expression: "linreg(close, 20, 1, hour)"},
+		&strategyir.LetStmt{Range: strategyir.SourceRange{StartLine: 9}, Name: "obv", Expression: "obv(close)"},
+		&strategyir.LetStmt{Range: strategyir.SourceRange{StartLine: 10}, Name: "pivotTop", Expression: "pivothigh(high, 2, 2, day)"},
+		&strategyir.LetStmt{Range: strategyir.SourceRange{StartLine: 11}, Name: "kc", Expression: "kc(close, 20, 1.5, true, day)"},
+		&strategyir.LetStmt{Range: strategyir.SourceRange{StartLine: 12}, Name: "alma", Expression: "alma(close, 9, 0.85, 6, day)"},
+	)
+
+	requirements, err := strategyir.PlanRequirements(program)
+	if err != nil {
+		t.Fatalf("PlanRequirements() error = %v", err)
+	}
+
+	keys := map[string]bool{}
+	for _, indicator := range requirements.Indicators {
+		keys[indicator.Key] = true
+	}
+	for _, key := range []string{
+		"cog:close:10:day",
+		"bbw:close:20:2:week",
+		"tsi:close:13:25:hour",
+		"correlation:close:open:10:day",
+		"percentile_linear_interpolation:close:20:80:week",
+		"percentile_nearest_rank:hlc3:20:95:month",
+		"swma:close:day",
+		"linreg:close:20:1:hour",
+		"obv:close",
+		"pivothigh:high:2:2:day",
+		"kc:close:20:1.5:true:day",
+		"alma:close:9:0.85:6:day",
+	} {
+		if !keys[key] {
+			t.Fatalf("missing advanced indicator key %q in %#v", key, requirements.Indicators)
+		}
+	}
+}
+
+func TestPlanRequirementsCollectsExpressionIndicatorsAcrossStatementShapes(t *testing.T) {
+	program := programWithStatements(
+		&strategyir.CollectionStmt{
+			Range: strategyir.SourceRange{StartLine: 1},
+			Arguments: []string{
+				"stoch(close, high, low, 14, day)",
+				"security_source(close, week, 2)",
+				"variance(close, 10)",
+				"cum(volume)",
+				"anchored_vwap(hlc3, month)",
+				"mfi(hlc3, 14)",
+				"dmi(14, 14)",
+				"supertrend(3, 10, day)",
+				"sar(0.02, 0.02, 0.2)",
+				"bollinger(20, 2, day, close)",
+				"vwap(close)",
+			},
+		},
+		&strategyir.TupleStmt{
+			Range: strategyir.SourceRange{StartLine: 2},
+			Expressions: []string{
+				"macd(12, 26, 9, day, close)",
+				"atr(14, week)",
+			},
+		},
+	)
+
+	requirements, err := strategyir.PlanRequirements(program)
+	if err != nil {
+		t.Fatalf("PlanRequirements() error = %v", err)
+	}
+
+	keys := map[string]bool{}
+	for _, indicator := range requirements.Indicators {
+		keys[indicator.Key] = true
+	}
+	for _, key := range []string{
+		"stoch:close:14:day",
+		"security_source:week:close:2",
+		"variance:close:10",
+		"cum:volume",
+		"anchored_vwap:month:hlc3",
+		"mfi:hlc3:14",
+		"dmi:14:14",
+		"supertrend:3:10:day",
+		"sar:0.02:0.02:0.2",
+		"bollinger:close:20:2:day",
+		"vwap:close",
+		"macd:close:12:26:9:day",
+		"atr:14:week",
+	} {
+		if !keys[key] {
+			t.Fatalf("missing expression requirement %q in %#v", key, requirements.Indicators)
+		}
+	}
+}
+
 func programWithStatements(statements ...strategyir.Statement) *strategyir.Program {
 	return &strategyir.Program{
 		SourceFormat: strategypine.SourceFormatPineV6,

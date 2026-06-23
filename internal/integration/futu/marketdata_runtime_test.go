@@ -12,6 +12,8 @@ import (
 
 	"github.com/jftrade/jftrade-main/internal/marketdata"
 	pkgfutu "github.com/jftrade/jftrade-main/pkg/futu"
+	"github.com/jftrade/jftrade-main/pkg/futu/opend"
+	"github.com/jftrade/jftrade-main/pkg/market"
 )
 
 func TestMarketDataRuntimeCloseWaitsForEnsureAndDoesNotRevive(t *testing.T) {
@@ -208,6 +210,206 @@ func TestTickFromTickerReclassifiesUSRegularBoundary(t *testing.T) {
 	}
 	if tick.ExtendedHours {
 		t.Fatal("regular US tick should clear extended hours")
+	}
+}
+
+func TestMarketDataRuntimeExchangeResetAndStreamLifecycle(t *testing.T) {
+	var created atomic.Int64
+	var onExchangeCalls atomic.Int64
+	runtime := NewMarketDataRuntime(MarketDataRuntimeOptions{
+		ConfigSource: func() MarketDataConfig {
+			return MarketDataConfig{Enabled: true, Host: "127.0.0.1", APIPort: 11110, WebSocketKey: "secret"}
+		},
+		NewExchange: func(config MarketDataConfig) *pkgfutu.Exchange {
+			created.Add(1)
+			return pkgfutu.NewExchangeWithConfig(opend.Config{
+				Addr:         "127.0.0.1:1",
+				WebSocketKey: config.WebSocketKey,
+			})
+		},
+		OnExchange: func(*pkgfutu.Exchange) {
+			onExchangeCalls.Add(1)
+		},
+		Now: func() time.Time {
+			return time.Date(2026, time.June, 23, 1, 2, 3, 0, time.UTC)
+		},
+	})
+
+	first := runtime.Exchange()
+	if first == nil {
+		t.Fatal("Exchange() = nil")
+	}
+	if runtime.Ensure() != first {
+		t.Fatal("Ensure() did not reuse exchange from Exchange()")
+	}
+	if created.Load() != 1 || onExchangeCalls.Load() != 1 {
+		t.Fatalf("creations/onExchange = %d/%d", created.Load(), onExchangeCalls.Load())
+	}
+
+	stream, err := runtime.NewStream([]string{"HK.00700", "US.AAPL"}, nil)
+	if err != nil {
+		t.Fatalf("NewStream(nil handler): %v", err)
+	}
+	futuStream, ok := stream.(*pkgfutu.Stream)
+	if !ok {
+		t.Fatalf("stream type = %T, want *pkgfutu.Stream", stream)
+	}
+	if !futuStream.GetPublicOnly() {
+		t.Fatal("stream should be public-only")
+	}
+	subs := futuStream.GetSubscriptions()
+	if len(subs) != 2 {
+		t.Fatalf("subscriptions = %#v", subs)
+	}
+	if subs[0].Symbol != "HK.00700" || subs[1].Symbol != "US.AAPL" {
+		t.Fatalf("subscription symbols = %#v", subs)
+	}
+
+	pushTicks := make(chan marketdata.Tick, 1)
+	stream, err = runtime.NewStream([]string{"HK.00700"}, func(tick marketdata.Tick) {
+		pushTicks <- tick
+	})
+	if err != nil {
+		t.Fatalf("NewStream(handler): %v", err)
+	}
+	futuStream = stream.(*pkgfutu.Stream)
+	tradeAt := time.Date(2026, time.June, 23, 9, 31, 0, 0, time.UTC)
+	futuStream.EmitMarketTrade(bbgotypes.Trade{
+		Symbol:   "HK.00700",
+		Price:    fixedpointValue(t, "323.5"),
+		Quantity: fixedpointValue(t, "120"),
+		Time:     bbgotypes.Time(tradeAt),
+	})
+	select {
+	case tick := <-pushTicks:
+		if tick.InstrumentID != "HK.00700" || tick.Kind != marketdata.TickKindTrade || !tick.Price.Equal(decimal.RequireFromString("323.5")) {
+			t.Fatalf("push tick = %#v", tick)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for push tick")
+	}
+
+	runtime.Reset()
+	second := runtime.Exchange()
+	if second == nil {
+		t.Fatal("Exchange() after Reset = nil")
+	}
+	if second == first {
+		t.Fatal("Reset() should force a fresh exchange")
+	}
+	if created.Load() != 2 || onExchangeCalls.Load() != 2 {
+		t.Fatalf("creations/onExchange after reset = %d/%d", created.Load(), onExchangeCalls.Load())
+	}
+}
+
+func TestMarketDataRuntimeUnavailableQueryHelpers(t *testing.T) {
+	runtime := NewMarketDataRuntime(MarketDataRuntimeOptions{
+		ConfigSource: func() MarketDataConfig { return MarketDataConfig{} },
+	})
+
+	if exchange := runtime.Exchange(); exchange != nil {
+		t.Fatalf("Exchange() = %#v, want nil when config disabled", exchange)
+	}
+	if _, err := runtime.QueryTicker(context.Background(), "HK.00700"); err == nil {
+		t.Fatal("QueryTicker() error = nil")
+	}
+	if _, err := runtime.QuerySnapshot(context.Background(), "HK.00700"); err == nil {
+		t.Fatal("QuerySnapshot() error = nil")
+	}
+	if _, err := runtime.NewStream([]string{"HK.00700"}, func(marketdata.Tick) {}); err == nil {
+		t.Fatal("NewStream() error = nil when config disabled")
+	}
+}
+
+func TestTickFromSnapshotMapsExtendedQuoteFields(t *testing.T) {
+	quoteAt := time.Date(2026, time.June, 23, 20, 15, 0, 0, time.UTC)
+	prePrice := decimal.RequireFromString("320.1")
+	preHigh := decimal.RequireFromString("321.8")
+	preLow := decimal.RequireFromString("319.5")
+	preTurnover := decimal.RequireFromString("12345.6")
+	preChangeVal := decimal.RequireFromString("2.3")
+	preChangeRate := decimal.RequireFromString("0.72")
+	preAmplitude := decimal.RequireFromString("1.1")
+	preVolume := 4567.0
+
+	afterPrice := decimal.RequireFromString("322.4")
+	overnightPrice := decimal.RequireFromString("323.7")
+	openPrice := decimal.RequireFromString("318.0")
+	highPrice := decimal.RequireFromString("322.0")
+	lowPrice := decimal.RequireFromString("317.8")
+	previousClose := decimal.RequireFromString("316.4")
+	lastClose := decimal.RequireFromString("316.2")
+	snapshot := &pkgfutu.QuoteSnapshot{
+		Symbol:             "US.AAPL",
+		Price:              decimal.RequireFromString("321.2"),
+		Bid:                decimal.RequireFromString("321.1"),
+		Ask:                decimal.RequireFromString("321.3"),
+		OpenPrice:          &openPrice,
+		HighPrice:          &highPrice,
+		LowPrice:           &lowPrice,
+		PreviousClosePrice: &previousClose,
+		LastClosePrice:     &lastClose,
+		Volume:             6789,
+		Turnover:           decimal.RequireFromString("999999.9"),
+		QuoteAt:            quoteAt,
+		Session:            market.SessionAfter,
+		ExtendedHours:      true,
+		PreMarket: &pkgfutu.ExtendedMarketQuote{
+			Price:      &prePrice,
+			HighPrice:  &preHigh,
+			LowPrice:   &preLow,
+			Volume:     &preVolume,
+			Turnover:   &preTurnover,
+			ChangeVal:  &preChangeVal,
+			ChangeRate: &preChangeRate,
+			Amplitude:  &preAmplitude,
+			QuoteTime:  "2026-06-23T08:15:00Z",
+		},
+		AfterMarket: &pkgfutu.ExtendedMarketQuote{
+			Price:     &afterPrice,
+			QuoteTime: "2026-06-23T20:15:00Z",
+		},
+		Overnight: &pkgfutu.ExtendedMarketQuote{
+			Price:     &overnightPrice,
+			QuoteTime: "2026-06-24T01:15:00Z",
+		},
+	}
+
+	observedAt := quoteAt.Add(time.Second)
+	tick := tickFromSnapshot("US.AAPL", snapshot, observedAt)
+	if tick == nil {
+		t.Fatal("tickFromSnapshot() = nil")
+	}
+	if tick.InstrumentID != "US.AAPL" || tick.Market != "US" || tick.Symbol != "AAPL" {
+		t.Fatalf("tick identity = %#v", tick)
+	}
+	if tick.Kind != marketdata.TickKindQuote || tick.Source != "bbgo:futu" || !tick.ExtendedHours {
+		t.Fatalf("tick kind/source/session = %#v", tick)
+	}
+	if tick.Session != string(market.SessionAfter) {
+		t.Fatalf("tick session = %s", tick.Session)
+	}
+	if tick.PreMarket == nil || tick.PreMarket.Price == nil || !tick.PreMarket.Price.Equal(prePrice) {
+		t.Fatalf("tick.PreMarket = %#v", tick.PreMarket)
+	}
+	if tick.AfterMarket == nil || tick.AfterMarket.Price == nil || !tick.AfterMarket.Price.Equal(afterPrice) {
+		t.Fatalf("tick.AfterMarket = %#v", tick.AfterMarket)
+	}
+	if tick.Overnight == nil || tick.Overnight.Price == nil || !tick.Overnight.Price.Equal(overnightPrice) {
+		t.Fatalf("tick.Overnight = %#v", tick.Overnight)
+	}
+	if tick.QuoteAt != quoteAt.Format(time.RFC3339Nano) || tick.ObservedAt != observedAt.Format(time.RFC3339Nano) {
+		t.Fatalf("tick times = quote:%s observed:%s", tick.QuoteAt, tick.ObservedAt)
+	}
+
+	if got := tickFromSnapshot("US.AAPL", &pkgfutu.QuoteSnapshot{}, observedAt); got != nil {
+		t.Fatalf("tickFromSnapshot(zero price) = %#v", got)
+	}
+	if got := tickFromSnapshot("bad-symbol", snapshot, observedAt); got != nil {
+		t.Fatalf("tickFromSnapshot(invalid symbol) = %#v", got)
+	}
+	if got := extendedQuote(nil); got != nil {
+		t.Fatalf("extendedQuote(nil) = %#v", got)
 	}
 }
 

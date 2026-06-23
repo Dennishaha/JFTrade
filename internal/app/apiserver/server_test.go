@@ -109,3 +109,89 @@ func TestDependenciesApplyScheduledDatabaseRebuildBeforeStartup(t *testing.T) {
 		t.Fatalf("rebuild marker should remain until schema initialization completes: %v", err)
 	}
 }
+
+func TestRunAPIOnlyReturnsAfterContextCancellation(t *testing.T) {
+	t.Setenv("JFTRADE_API_DISABLED", "true")
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	if err := RunAPIOnly(ctx); err != nil {
+		t.Fatalf("RunAPIOnly() error = %v", err)
+	}
+}
+
+func TestResolveGUIAPIBaseURLPrefersEnvAndNormalizesDefaultBinding(t *testing.T) {
+	t.Run("env override wins", func(t *testing.T) {
+		t.Setenv("JFTRADE_GUI_API_BASE_URL", "https://gui-api.example.com")
+
+		got := resolveGUIAPIBaseURL(jfsettings.InterfaceSettings{
+			APIBind:       "127.0.0.1:3000",
+			GUIAPIBaseURL: "http://configured.example.com",
+		}, "127.0.0.1:16699")
+		if got != "https://gui-api.example.com" {
+			t.Fatalf("resolveGUIAPIBaseURL() = %q", got)
+		}
+	})
+
+	t.Run("blank or default configured value follows runtime api bind", func(t *testing.T) {
+		t.Setenv("JFTRADE_GUI_API_BASE_URL", "")
+
+		got := resolveGUIAPIBaseURL(jfsettings.InterfaceSettings{
+			APIBind:       "127.0.0.1:3000",
+			GUIAPIBaseURL: "http://127.0.0.1:3000",
+		}, "127.0.0.1:16699")
+		if got != "http://127.0.0.1:16699" {
+			t.Fatalf("resolveGUIAPIBaseURL() = %q", got)
+		}
+	})
+
+	t.Run("custom configured value is preserved", func(t *testing.T) {
+		t.Setenv("JFTRADE_GUI_API_BASE_URL", "")
+
+		got := resolveGUIAPIBaseURL(jfsettings.InterfaceSettings{
+			APIBind:       "127.0.0.1:3000",
+			GUIAPIBaseURL: "https://custom-api.example.com",
+		}, "127.0.0.1:16699")
+		if got != "https://custom-api.example.com" {
+			t.Fatalf("resolveGUIAPIBaseURL() = %q", got)
+		}
+	})
+}
+
+func TestResolveGUIRuntimeAPIBaseURLSuppressesSameOriginButKeepsCrossOrigin(t *testing.T) {
+	t.Run("env override survives runtime suppression", func(t *testing.T) {
+		t.Setenv("JFTRADE_GUI_API_BASE_URL", "https://runtime-api.example.com")
+
+		got := resolveGUIRuntimeAPIBaseURL(jfsettings.InterfaceSettings{
+			APIBind: "127.0.0.1:3000",
+		}, "127.0.0.1:16699")
+		if got != "https://runtime-api.example.com" {
+			t.Fatalf("resolveGUIRuntimeAPIBaseURL() = %q", got)
+		}
+	})
+
+	t.Run("same origin returns empty string", func(t *testing.T) {
+		t.Setenv("JFTRADE_GUI_API_BASE_URL", "")
+
+		got := resolveGUIRuntimeAPIBaseURL(jfsettings.InterfaceSettings{
+			APIBind:       "127.0.0.1:3000",
+			GUIAPIBaseURL: "",
+		}, "127.0.0.1:16699")
+		if got != "" {
+			t.Fatalf("resolveGUIRuntimeAPIBaseURL() = %q, want empty", got)
+		}
+	})
+
+	t.Run("cross origin configured value is preserved", func(t *testing.T) {
+		t.Setenv("JFTRADE_GUI_API_BASE_URL", "")
+
+		got := resolveGUIRuntimeAPIBaseURL(jfsettings.InterfaceSettings{
+			APIBind:       "127.0.0.1:3000",
+			GUIAPIBaseURL: "https://custom-api.example.com",
+		}, "127.0.0.1:16699")
+		if got != "https://custom-api.example.com" {
+			t.Fatalf("resolveGUIRuntimeAPIBaseURL() = %q", got)
+		}
+	})
+}

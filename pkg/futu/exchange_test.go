@@ -25,6 +25,8 @@ import (
 	qotcommonpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotcommon"
 	qotgetbasicqotpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetbasicqot"
 	qotgetklpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetkl"
+	qotgetorderbookpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetorderbook"
+	qotgetsecuritysnapshotpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotgetsecuritysnapshot"
 	historypb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotrequesthistorykl"
 	qotsubpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotsub"
 	qotupdatebasicqotpb "github.com/jftrade/jftrade-main/pkg/futu/pb/qotupdatebasicqot"
@@ -43,6 +45,7 @@ import (
 	trdmodifyorderpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdmodifyorder"
 	trdplaceorderpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdplaceorder"
 	trdsubaccpushpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdsubaccpush"
+	tradeunlockpb "github.com/jftrade/jftrade-main/pkg/futu/pb/trdunlocktrade"
 	"github.com/jftrade/jftrade-main/pkg/market"
 )
 
@@ -1345,10 +1348,14 @@ type quoteOpenDServer struct {
 	maxTrdQtysCalls       atomic.Int32
 	placeOrderCalls       atomic.Int32
 	modifyOrderCalls      atomic.Int32
+	unlockTradeCalls      atomic.Int32
 	tradeAccPushCalls     atomic.Int32
 	qotSubCalls           atomic.Int32
 	pushSubCalls          atomic.Int32
 	basicQotCalls         atomic.Int32
+	staticInfoCalls       atomic.Int32
+	securitySnapshotCalls atomic.Int32
+	orderBookCalls        atomic.Int32
 	accountMu             sync.Mutex
 	accounts              []*trdcommonpb.TrdAcc
 	tradeMu               sync.Mutex
@@ -1367,6 +1374,8 @@ type quoteOpenDServer struct {
 	placedOrderIDEx       string
 	lastPlaceOrder        *trdplaceorderpb.C2S
 	lastModifyOrder       *trdmodifyorderpb.C2S
+	lastUnlockTrade       *tradeunlockpb.C2S
+	lastOrderBook         *qotgetorderbookpb.C2S
 	lastTradeAccPushIDs   []uint64
 	lastMaxTrdQtys        *trdgetmaxtrdqtyspb.C2S
 	historyKLCalls        atomic.Int32
@@ -1381,6 +1390,10 @@ type quoteOpenDServer struct {
 	historySessionCallLog []int32
 	historyRouteCallCount map[int32]int
 	currentKLines         []*qotcommonpb.KLine
+	basicQuotes           []*qotcommonpb.BasicQot
+	staticInfos           []*qotcommonpb.SecurityStaticInfo
+	securitySnapshots     []*qotgetsecuritysnapshotpb.Snapshot
+	orderBookSnapshot     *qotgetorderbookpb.S2C
 	notifyMu              sync.Mutex
 	notifyAfterInit       *notifypb.Response
 	listener              net.Listener
@@ -1574,6 +1587,7 @@ func (s *quoteOpenDServer) handleConn(conn net.Conn) {
 		}
 
 		var response proto.Message
+		var responseBody []byte
 		switch frame.Header.ProtoID {
 		case opend.ProtoInitConnect:
 			request := &initpb.Request{}
@@ -1639,6 +1653,9 @@ func (s *quoteOpenDServer) handleConn(conn net.Conn) {
 		case opend.ProtoTrdModifyOrder:
 			s.modifyOrderCalls.Add(1)
 			response = s.modifyOrderResponse(frame.Body)
+		case opend.ProtoTrdUnlockTrade:
+			s.unlockTradeCalls.Add(1)
+			response = s.unlockTradeResponse(frame.Body)
 		case opend.ProtoTrdSubAccPush:
 			s.tradeAccPushCalls.Add(1)
 			request := &trdsubaccpushpb.Request{}
@@ -1651,6 +1668,19 @@ func (s *quoteOpenDServer) handleConn(conn net.Conn) {
 		case opend.ProtoGetBasicQot:
 			s.basicQotCalls.Add(1)
 			response = s.basicQotResponse(frame.Body)
+		case opend.ProtoGetStaticInfo:
+			s.staticInfoCalls.Add(1)
+			response = s.staticInfoResponse(frame.Body)
+		case opend.ProtoGetSecuritySnapshot:
+			s.securitySnapshotCalls.Add(1)
+			response = s.securitySnapshotResponse(frame.Body)
+		case opend.ProtoGetOrderBook:
+			s.orderBookCalls.Add(1)
+			var err error
+			responseBody, err = s.orderBookResponseBody(frame.Body)
+			if err != nil {
+				return
+			}
 		case opend.ProtoGetKL:
 			s.currentKLCalls.Add(1)
 			response = s.currentKLResponse(frame.Body)
@@ -1661,9 +1691,15 @@ func (s *quoteOpenDServer) handleConn(conn net.Conn) {
 			return
 		}
 
-		body, err := proto.Marshal(response)
-		if err != nil {
-			return
+		var body []byte
+		if responseBody != nil {
+			body = responseBody
+		} else {
+			var err error
+			body, err = proto.Marshal(response)
+			if err != nil {
+				return
+			}
 		}
 		packet, err = codec.Encode(frame.Header.ProtoID, frame.Header.SerialNo, body)
 		if err != nil {
@@ -1870,7 +1906,7 @@ func testCurrentKLine(at time.Time, open float64, high float64, low float64, clo
 func (s *quoteOpenDServer) writeBasicQotPush(conn net.Conn, securities []*qotcommonpb.Security) error {
 	response := &qotupdatebasicqotpb.Response{
 		RetType: new(int32(0)),
-		S2C:     &qotupdatebasicqotpb.S2C{BasicQotList: basicQotListForSecurities(securities)},
+		S2C:     &qotupdatebasicqotpb.S2C{BasicQotList: s.basicQotResponseForSecurities(securities)},
 	}
 	body, err := proto.Marshal(response)
 	if err != nil {
@@ -1890,7 +1926,7 @@ func (s *quoteOpenDServer) basicQotResponse(body []byte) *qotgetbasicqotpb.Respo
 		return &qotgetbasicqotpb.Response{RetType: new(int32(1)), RetMsg: new(err.Error())}
 	}
 
-	quotes := basicQotListForSecurities(request.GetC2S().GetSecurityList())
+	quotes := s.basicQotResponseForSecurities(request.GetC2S().GetSecurityList())
 
 	return &qotgetbasicqotpb.Response{
 		RetType: new(int32(0)),

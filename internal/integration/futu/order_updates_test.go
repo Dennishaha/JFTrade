@@ -2,6 +2,7 @@ package futu
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/jftrade/jftrade-main/internal/trading"
@@ -12,6 +13,8 @@ type fakeOrderUpdateExchange struct {
 	connectCalls   int
 	subscribeCalls int
 	accountIDs     []uint64
+	connectErr     error
+	subscribeErr   error
 	orderHandler   func(*trdcommonpb.TrdHeader, *trdcommonpb.Order)
 	fillHandler    func(*trdcommonpb.TrdHeader, *trdcommonpb.OrderFill)
 	orderRegisters int
@@ -22,13 +25,13 @@ type fakeOrderUpdateExchange struct {
 
 func (f *fakeOrderUpdateExchange) Connect(context.Context) error {
 	f.connectCalls++
-	return nil
+	return f.connectErr
 }
 
 func (f *fakeOrderUpdateExchange) SubscribeTradeAccountPush(_ context.Context, ids []uint64) error {
 	f.subscribeCalls++
 	f.accountIDs = append([]uint64(nil), ids...)
-	return nil
+	return f.subscribeErr
 }
 
 func (f *fakeOrderUpdateExchange) OnOrderUpdate(handler func(*trdcommonpb.TrdHeader, *trdcommonpb.Order)) func() {
@@ -123,5 +126,62 @@ func TestOrderUpdatesAdapterRefreshRepeatsAccountPushWithoutReregisteringHandler
 	}
 	if exchange.orderRegisters != 1 || exchange.fillRegisters != 1 {
 		t.Fatalf("handler registrations order=%d fill=%d, want 1 each", exchange.orderRegisters, exchange.fillRegisters)
+	}
+}
+
+func TestOrderUpdateSubscriptionNilAndNoAccountPaths(t *testing.T) {
+	var nilSubscription *orderUpdateSubscription
+	if err := nilSubscription.Refresh(context.Background(), []trading.Account{{ID: "1001"}}, nil); err != nil {
+		t.Fatalf("nil Refresh() error = %v", err)
+	}
+	if err := nilSubscription.Stop(); err != nil {
+		t.Fatalf("nil Stop() error = %v", err)
+	}
+	if err := (noOpOrderUpdateSubscription{}).Stop(); err != nil {
+		t.Fatalf("noOp Stop() error = %v", err)
+	}
+
+	exchange := &fakeOrderUpdateExchange{}
+	subscription := &orderUpdateSubscription{exchange: exchange}
+	if err := subscription.Refresh(context.Background(), []trading.Account{{ID: "bad"}}, nil); err != nil {
+		t.Fatalf("Refresh(no valid account IDs) error = %v", err)
+	}
+	if exchange.connectCalls != 1 || exchange.subscribeCalls != 0 {
+		t.Fatalf("no-account refresh state = %+v", exchange)
+	}
+}
+
+func TestOrderUpdatesAdapterSubscribeReturnsNoOpOrErrorsCleanly(t *testing.T) {
+	if subscription, err := (*OrderUpdatesAdapter)(nil).Subscribe(context.Background(), nil, &captureOrderUpdates{}); err != nil {
+		t.Fatalf("nil adapter Subscribe() error = %v", err)
+	} else if err := subscription.Stop(); err != nil {
+		t.Fatalf("nil adapter subscription Stop() error = %v", err)
+	}
+
+	adapter := NewOrderUpdatesAdapter(&fakeOrderUpdateExchange{})
+	if subscription, err := adapter.Subscribe(context.Background(), nil, nil); err != nil {
+		t.Fatalf("nil handler Subscribe() error = %v", err)
+	} else if err := subscription.Stop(); err != nil {
+		t.Fatalf("nil handler subscription Stop() error = %v", err)
+	}
+
+	connectErr := errors.New("connect failed")
+	exchange := &fakeOrderUpdateExchange{connectErr: connectErr}
+	adapter = NewOrderUpdatesAdapter(exchange)
+	if _, err := adapter.Subscribe(context.Background(), []trading.Account{{ID: "1001"}}, &captureOrderUpdates{}); !errors.Is(err, connectErr) {
+		t.Fatalf("Subscribe(connect error) = %v, want %v", err, connectErr)
+	}
+	if exchange.orderStops != 1 || exchange.fillStops != 1 {
+		t.Fatalf("connect-error cleanup stops order=%d fill=%d", exchange.orderStops, exchange.fillStops)
+	}
+
+	subscribeErr := errors.New("push failed")
+	exchange = &fakeOrderUpdateExchange{subscribeErr: subscribeErr}
+	adapter = NewOrderUpdatesAdapter(exchange)
+	if _, err := adapter.Subscribe(context.Background(), []trading.Account{{ID: "1001"}}, &captureOrderUpdates{}); !errors.Is(err, subscribeErr) {
+		t.Fatalf("Subscribe(push error) = %v, want %v", err, subscribeErr)
+	}
+	if exchange.orderStops != 1 || exchange.fillStops != 1 {
+		t.Fatalf("push-error cleanup stops order=%d fill=%d", exchange.orderStops, exchange.fillStops)
 	}
 }

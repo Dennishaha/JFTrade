@@ -24,8 +24,13 @@ func (s *fakeDesignStore) DeleteDefinition(id string) (Definition, error) {
 }
 
 type fakeCatalogStore struct {
-	closed       bool
-	startableErr error
+	closed         bool
+	startableErr   error
+	pluginCatalog  PluginCatalog
+	pluginOp       PluginOperation
+	pluginOpFound  bool
+	uninstallGuide PluginUninstallGuidance
+	guideFound     bool
 }
 
 func (s *fakeCatalogStore) ListInstances() []InstanceView {
@@ -71,12 +76,12 @@ func (s *fakeCatalogStore) GetAudit(id string, query AuditQuery) (AuditResult, b
 	return AuditResult{InstanceID: id, Page: ActivityPage{Limit: query.Limit}}, true
 }
 func (s *fakeCatalogStore) ReconcileOnStartup() (int, error) { return 2, nil }
-func (s *fakeCatalogStore) PluginCatalog() PluginCatalog     { return PluginCatalog{} }
+func (s *fakeCatalogStore) PluginCatalog() PluginCatalog     { return s.pluginCatalog }
 func (s *fakeCatalogStore) PluginOperation(string) (PluginOperation, bool) {
-	return PluginOperation{}, false
+	return s.pluginOp, s.pluginOpFound
 }
 func (s *fakeCatalogStore) PluginUninstallGuidance(string) (PluginUninstallGuidance, bool) {
-	return PluginUninstallGuidance{}, false
+	return s.uninstallGuide, s.guideFound
 }
 func (s *fakeCatalogStore) InstallPlugin(id string) (PluginOperation, error) {
 	return PluginOperation{PluginID: id, Phase: "installed"}, nil
@@ -210,5 +215,115 @@ func TestServiceStartInstanceRefreshesLiveMarketStreamAfterSuccess(t *testing.T)
 	}
 	if got.ID != "instance-a" || got.Status != "RUNNING" {
 		t.Fatalf("StartInstance() result = %#v", got)
+	}
+}
+
+func TestServiceDelegatesCatalogRuntimeAndLifecycleEntryPoints(t *testing.T) {
+	catalog := &fakeCatalogStore{
+		pluginCatalog: PluginCatalog{
+			Plugins: []PluginCatalogItem{{Descriptor: PluginDescriptor{ID: "plugin-a"}}},
+		},
+		pluginOp:      PluginOperation{PluginID: "plugin-a", Phase: "running"},
+		pluginOpFound: true,
+		uninstallGuide: PluginUninstallGuidance{
+			PluginID: "plugin-a",
+			Path:     "/tmp/plugin-a",
+			Exists:   true,
+		},
+		guideFound: true,
+	}
+	runtime := &fakeRuntimeManager{}
+	service := NewService(&fakeDesignStore{}, catalog, runtime)
+
+	if got, err := service.DeleteDefinition("def-1"); err != nil || got.ID != "def-1" {
+		t.Fatalf("DeleteDefinition() = %#v, %v", got, err)
+	}
+	if got := service.ListInstances(); len(got) != 1 || got[0].ID != "instance-a" {
+		t.Fatalf("ListInstances() = %#v", got)
+	}
+	if got, ok := service.GetInstance("instance-a"); !ok || got.ID != "instance-a" {
+		t.Fatalf("GetInstance() = %#v, %v", got, ok)
+	}
+	if err := service.ValidateStartable(ManagedInstance{ID: "instance-a"}); err != nil {
+		t.Fatalf("ValidateStartable() error = %v", err)
+	}
+
+	created, err := service.CreateInstance(Definition{ID: "def-1"}, InstanceBinding{Symbols: []string{"US.AAPL"}})
+	if err != nil || created.ID != "def-1" || len(created.Binding.Symbols) != 1 {
+		t.Fatalf("CreateInstance() = %#v, %v", created, err)
+	}
+	updated, err := service.UpdateInstance("instance-a", InstanceBinding{Interval: "1m"})
+	if err != nil || updated.ID != "instance-a" || updated.Binding.Interval != "1m" {
+		t.Fatalf("UpdateInstance() = %#v, %v", updated, err)
+	}
+	risk := RuntimeRiskSettings{Mode: "strict", CloseOnly: true}
+	updatedRisk, err := service.UpdateInstanceRuntimeRisk("instance-a", risk)
+	if err != nil || updatedRisk.Binding.RuntimeRisk.Mode != "strict" || !updatedRisk.Binding.RuntimeRisk.CloseOnly {
+		t.Fatalf("UpdateInstanceRuntimeRisk() = %#v, %v", updatedRisk, err)
+	}
+	deleted, err := service.DeleteInstance("instance-a")
+	if err != nil || deleted.ID != "instance-a" {
+		t.Fatalf("DeleteInstance() = %#v, %v", deleted, err)
+	}
+
+	transitioned, err := service.TransitionInstance("instance-a", "PAUSED")
+	if err != nil || transitioned.Status != "PAUSED" {
+		t.Fatalf("TransitionInstance() = %#v, %v", transitioned, err)
+	}
+	refreshed, err := service.RefreshDefinition("instance-a", Definition{ID: "def-2"})
+	if err != nil || refreshed.Definition.StrategyID != "def-2" {
+		t.Fatalf("RefreshDefinition() = %#v, %v", refreshed, err)
+	}
+	applyResult, err := service.ApplyDefinitionToLinked(Definition{ID: "def-3"})
+	if err != nil || applyResult.DefinitionID != "def-3" {
+		t.Fatalf("ApplyDefinitionToLinked() = %#v, %v", applyResult, err)
+	}
+	if got := service.GetLinkedInstanceIDs("def-3"); len(got) != 1 || got[0] != "def-3-instance" {
+		t.Fatalf("GetLinkedInstanceIDs() = %#v", got)
+	}
+	if got, err := service.RefreshInstanceDefinition("instance-a"); err != nil || got.ID != "instance-a" {
+		t.Fatalf("RefreshInstanceDefinition() = %#v, %v", got, err)
+	}
+
+	if got, ok := service.GetObservation("running"); !ok || got.ActualStatus != "running" {
+		t.Fatalf("GetObservation() = %#v, %v", got, ok)
+	}
+	if got := service.RuntimeSummary(); got.Status != "active" || got.ActiveStrategies != 1 {
+		t.Fatalf("RuntimeSummary() = %#v", got)
+	}
+
+	logs, ok := service.GetLogs("instance-a", LogQuery{Limit: 20})
+	if !ok || logs.InstanceID != "instance-a" || logs.Page.Limit != 20 {
+		t.Fatalf("GetLogs() = %#v, %v", logs, ok)
+	}
+	audit, ok := service.GetAudit("instance-a", AuditQuery{Limit: 15})
+	if !ok || audit.InstanceID != "instance-a" || audit.Page.Limit != 15 {
+		t.Fatalf("GetAudit() = %#v, %v", audit, ok)
+	}
+
+	if got, err := service.ReconcileOnStartup(); err != nil || got != 2 {
+		t.Fatalf("ReconcileOnStartup() = %d, %v", got, err)
+	}
+	if got := service.PluginCatalog(); len(got.Plugins) != 1 || got.Plugins[0].Descriptor.ID != "plugin-a" {
+		t.Fatalf("PluginCatalog() = %#v", got)
+	}
+	if got, ok := service.PluginOperation("plugin-a"); !ok || got.PluginID != "plugin-a" || got.Phase != "running" {
+		t.Fatalf("PluginOperation() = %#v, %v", got, ok)
+	}
+	if got, ok := service.PluginUninstallGuidance("plugin-a"); !ok || got.PluginID != "plugin-a" || !got.Exists {
+		t.Fatalf("PluginUninstallGuidance() = %#v, %v", got, ok)
+	}
+	if got, err := service.InstallPlugin("plugin-a"); err != nil || got.Phase != "installed" {
+		t.Fatalf("InstallPlugin() = %#v, %v", got, err)
+	}
+	if got, err := service.UninstallPlugin("plugin-a"); err != nil || got.Phase != "uninstalled" {
+		t.Fatalf("UninstallPlugin() = %#v, %v", got, err)
+	}
+}
+
+func TestServiceCloseWithoutCatalogIsSafe(t *testing.T) {
+	service := &Service{}
+	if err := service.Close(); err != nil {
+		t.Fatalf("Close() error = %v", err)
 	}
 }

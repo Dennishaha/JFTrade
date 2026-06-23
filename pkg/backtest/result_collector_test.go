@@ -218,3 +218,98 @@ func TestResultCollectorWarnsOnNonPositiveCloseOnce(t *testing.T) {
 		t.Fatalf("run result pnl curve should not be populated before finalize, got %d", len(result.PnLCurve))
 	}
 }
+
+func TestOrderBookIdentityHelpersPreferExchangeThenClientThenPending(t *testing.T) {
+	orderWithExchangeID := types.Order{
+		SubmitOrder: types.SubmitOrder{Symbol: "BTCUSDT", Side: types.SideTypeBuy},
+		OrderID:     42,
+		UpdateTime:  types.Time(time.Date(2026, time.May, 25, 9, 1, 0, 0, time.UTC)),
+	}
+	if key := orderBookEntryKey(orderWithExchangeID); key != "id:42" {
+		t.Fatalf("orderBookEntryKey(exchange id) = %q", key)
+	}
+	if displayID := orderBookDisplayID(orderWithExchangeID); displayID != "42" {
+		t.Fatalf("orderBookDisplayID(exchange id) = %q", displayID)
+	}
+
+	orderWithClientID := types.Order{
+		SubmitOrder: types.SubmitOrder{Symbol: "BTCUSDT", Side: types.SideTypeSell, ClientOrderID: " client-7 "},
+		UpdateTime:  types.Time(time.Date(2026, time.May, 25, 9, 2, 0, 0, time.UTC)),
+	}
+	if key := orderBookEntryKey(orderWithClientID); key != "client:client-7" {
+		t.Fatalf("orderBookEntryKey(client id) = %q", key)
+	}
+	if displayID := orderBookDisplayID(orderWithClientID); displayID != "client-7" {
+		t.Fatalf("orderBookDisplayID(client id) = %q", displayID)
+	}
+
+	orderWithoutIDs := types.Order{
+		SubmitOrder: types.SubmitOrder{Symbol: "BTCUSDT", Side: types.SideTypeBuy},
+		UpdateTime:  types.Time(time.Date(2026, time.May, 25, 9, 3, 0, 0, time.UTC)),
+	}
+	wantFallback := "fallback:BTCUSDT:BUY:2026-05-25T09:03:00Z"
+	if key := orderBookEntryKey(orderWithoutIDs); key != wantFallback {
+		t.Fatalf("orderBookEntryKey(fallback) = %q", key)
+	}
+	if displayID := orderBookDisplayID(orderWithoutIDs); displayID != "pending" {
+		t.Fatalf("orderBookDisplayID(fallback) = %q", displayID)
+	}
+}
+
+func TestResultCollectorFinalizeValuesOpenPositionAndFiltersWarmupOrders(t *testing.T) {
+	t.Run("marks open position to market using latest close", func(t *testing.T) {
+		result := &RunResult{}
+		collector := newResultCollector("BTCUSDT", types.Interval("1m"), "USDT", time.Time{}, result)
+		collector.netPosition = fixedpoint.NewFromFloat(2)
+		collector.candles = []Candle{{Time: "2026-05-25T09:05:00Z", Close: "15"}}
+
+		account := types.NewAccount()
+		account.SetBalance("USDT", types.Balance{Currency: "USDT", Available: fixedpoint.NewFromFloat(1000)})
+		totalOrders, filledOrders := collector.finalize(context.Background(), stubAccountQuerier{account: account}, 1000)
+
+		if totalOrders != 0 || filledOrders != 0 {
+			t.Fatalf("finalize() counts = %d, %d", totalOrders, filledOrders)
+		}
+		if result.FinalBalance != 1030 {
+			t.Fatalf("FinalBalance = %f, want 1030", result.FinalBalance)
+		}
+		if result.PnL != 30 {
+			t.Fatalf("PnL = %f, want 30", result.PnL)
+		}
+	})
+
+	t.Run("warns when final position cannot be valued and skips warmup-only orders", func(t *testing.T) {
+		warmupUntil := time.Date(2026, time.May, 25, 9, 0, 0, 0, time.UTC)
+		result := &RunResult{}
+		collector := newResultCollector("BTCUSDT", types.Interval("1m"), "USDT", warmupUntil, result)
+		collector.netPosition = fixedpoint.NewFromFloat(3)
+		collector.orderBook = []orderBookEntryState{
+			{
+				entry:         OrderBookEntry{OrderID: "warmup-submitted"},
+				submittedTime: warmupUntil.Add(-time.Minute),
+			},
+			{
+				entry:      OrderBookEntry{OrderID: "warmup-filled"},
+				filledTime: warmupUntil.Add(-time.Second),
+			},
+			{
+				entry:         OrderBookEntry{OrderID: "keep-me"},
+				submittedTime: warmupUntil.Add(time.Minute),
+			},
+		}
+
+		account := types.NewAccount()
+		account.SetBalance("USDT", types.Balance{Currency: "USDT", Available: fixedpoint.NewFromFloat(1000)})
+		collector.finalize(context.Background(), stubAccountQuerier{account: account}, 1000)
+
+		if result.FinalBalance != 1000 {
+			t.Fatalf("FinalBalance = %f, want 1000", result.FinalBalance)
+		}
+		if len(result.RuntimeErrors) != 1 {
+			t.Fatalf("RuntimeErrors len = %d", len(result.RuntimeErrors))
+		}
+		if len(result.OrderBook) != 1 || result.OrderBook[0].OrderID != "keep-me" {
+			t.Fatalf("OrderBook = %#v", result.OrderBook)
+		}
+	})
+}

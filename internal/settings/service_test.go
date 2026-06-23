@@ -23,6 +23,8 @@ type fakeStore struct {
 	managedAccounts []jfsettings.ManagedBrokerAccount
 	path            string
 	hasAppearance   bool
+	bootstrapCalls  int
+	bootstrapArg    jfsettings.LaunchDefaults
 }
 
 func (s *fakeStore) Appearance() jfsettings.UIAppearanceSettings { return s.appearance }
@@ -102,6 +104,8 @@ func (s *fakeStore) DeleteManagedAccount(id string) error {
 	return nil
 }
 func (s *fakeStore) EnsureBootstrapFile(defaults jfsettings.LaunchDefaults) error {
+	s.bootstrapCalls++
+	s.bootstrapArg = defaults
 	return nil
 }
 func (s *fakeStore) HasAppearance() bool { return s.hasAppearance }
@@ -200,5 +204,135 @@ func TestSaveIntegrationSideEffectAppliesRuntimeEnv(t *testing.T) {
 	}
 	if got := os.Getenv("JFTRADE_FUTU_WEBSOCKET_PORT"); got != "23334" {
 		t.Fatalf("JFTRADE_FUTU_WEBSOCKET_PORT = %q", got)
+	}
+}
+
+func TestServiceDelegatesGettersAndSimpleSavers(t *testing.T) {
+	store := &fakeStore{
+		appearance: jfsettings.UIAppearanceSettings{UpColor: "#00ff00", DownColor: "#ff0000"},
+		onboarding: jfsettings.OnboardingSettings{Completed: true},
+		execution: jfsettings.ExecutionSettings{
+			DefaultTradingEnvironment: "REAL",
+			SeenFillRetentionDays:     30,
+		},
+		security:      jfsettings.SecuritySettings{AdminAuthRequired: true},
+		adk:           jfsettings.ADKRuntimeSettings{RunTimeoutMs: 15000, StreamIdleTimeoutMs: 5000},
+		calendars:     jfsettings.ExchangeCalendarSettings{AutoRefreshEnabled: true, RefreshIntervalHours: 8},
+		integration:   jfsettings.BrokerIntegration{BrokerID: "futu", Enabled: true},
+		hasAppearance: true,
+	}
+	svc := NewService(store)
+
+	if got := svc.GetAppearance(); !reflect.DeepEqual(got, store.appearance) {
+		t.Fatalf("GetAppearance() = %#v, want %#v", got, store.appearance)
+	}
+	if got := svc.GetOnboarding(); !reflect.DeepEqual(got, store.onboarding) {
+		t.Fatalf("GetOnboarding() = %#v, want %#v", got, store.onboarding)
+	}
+	if got := svc.GetExecutionSettings(); !reflect.DeepEqual(got, store.execution) {
+		t.Fatalf("GetExecutionSettings() = %#v, want %#v", got, store.execution)
+	}
+	if got := svc.GetSecuritySettings(); !reflect.DeepEqual(got, store.security) {
+		t.Fatalf("GetSecuritySettings() = %#v, want %#v", got, store.security)
+	}
+	if got := svc.GetADKRuntimeSettings(); !reflect.DeepEqual(got, store.adk) {
+		t.Fatalf("GetADKRuntimeSettings() = %#v, want %#v", got, store.adk)
+	}
+	if got := svc.GetExchangeCalendarSettings(); !reflect.DeepEqual(got, store.calendars) {
+		t.Fatalf("GetExchangeCalendarSettings() = %#v, want %#v", got, store.calendars)
+	}
+	if got := svc.GetIntegration(); !reflect.DeepEqual(got, store.integration) {
+		t.Fatalf("GetIntegration() = %#v, want %#v", got, store.integration)
+	}
+	if got := svc.GetSavedIntegration(); got == nil || !reflect.DeepEqual(*got, store.integration) {
+		t.Fatalf("GetSavedIntegration() = %#v, want %#v", got, store.integration)
+	}
+	if !svc.HasAppearance() {
+		t.Fatal("HasAppearance() = false, want true")
+	}
+
+	updatedAppearance := jfsettings.UIAppearanceSettings{UpColor: "#111111", DownColor: "#222222"}
+	if got, err := svc.SaveAppearance(updatedAppearance); err != nil || !reflect.DeepEqual(got, updatedAppearance) {
+		t.Fatalf("SaveAppearance() = %#v, %v", got, err)
+	}
+	if !reflect.DeepEqual(store.appearance, updatedAppearance) {
+		t.Fatalf("stored appearance = %#v, want %#v", store.appearance, updatedAppearance)
+	}
+
+	updatedOnboarding := jfsettings.OnboardingSettings{Completed: false}
+	if got, err := svc.SaveOnboarding(updatedOnboarding); err != nil || !reflect.DeepEqual(got, updatedOnboarding) {
+		t.Fatalf("SaveOnboarding() = %#v, %v", got, err)
+	}
+	if !reflect.DeepEqual(store.onboarding, updatedOnboarding) {
+		t.Fatalf("stored onboarding = %#v, want %#v", store.onboarding, updatedOnboarding)
+	}
+
+	updatedADK := jfsettings.ADKRuntimeSettings{RunTimeoutMs: 25000, StreamIdleTimeoutMs: 10000}
+	if got, err := svc.SaveADKRuntimeSettings(updatedADK); err != nil || !reflect.DeepEqual(got, updatedADK) {
+		t.Fatalf("SaveADKRuntimeSettings() = %#v, %v", got, err)
+	}
+	if !reflect.DeepEqual(store.adk, updatedADK) {
+		t.Fatalf("stored ADK settings = %#v, want %#v", store.adk, updatedADK)
+	}
+}
+
+func TestServiceDelegatesProvidersAndLifecycle(t *testing.T) {
+	store := &fakeStore{
+		managedAccounts: []jfsettings.ManagedBrokerAccount{
+			{ID: "managed-1", AccountID: "acc-1"},
+			{ID: "managed-2", AccountID: "acc-2"},
+		},
+	}
+	svc := NewService(
+		store,
+		WithBrokerSettings(func() map[string]any {
+			return map[string]any{"connected": true, "brokerId": "futu"}
+		}),
+		WithOnboardingState(func(context.Context) map[string]any {
+			return map[string]any{"step": "accounts", "complete": false}
+		}),
+	)
+
+	if got := svc.BrokerSettings(); !reflect.DeepEqual(got, map[string]any{"connected": true, "brokerId": "futu"}) {
+		t.Fatalf("BrokerSettings() = %#v", got)
+	}
+	if got := svc.OnboardingState(context.Background()); !reflect.DeepEqual(got, map[string]any{"step": "accounts", "complete": false}) {
+		t.Fatalf("OnboardingState() = %#v", got)
+	}
+
+	accounts := svc.ListManagedAccounts()
+	if len(accounts) != 2 || accounts[0].ID != "managed-1" || accounts[1].ID != "managed-2" {
+		t.Fatalf("ListManagedAccounts() = %#v", accounts)
+	}
+
+	updated, err := svc.UpdateManagedAccount("managed-2", jfsettings.ManagedBrokerAccount{
+		ID:                 "client-supplied",
+		AccountID:          "acc-2",
+		DisplayName:        "Primary",
+		TradingEnvironment: "SIMULATE",
+	})
+	if err != nil {
+		t.Fatalf("UpdateManagedAccount() error = %v", err)
+	}
+	if updated.ID != "managed-2" || updated.DisplayName != "Primary" {
+		t.Fatalf("UpdateManagedAccount() = %#v", updated)
+	}
+	if store.managedAccounts[1].ID != "managed-2" || store.managedAccounts[1].DisplayName != "Primary" {
+		t.Fatalf("stored managed accounts after update = %#v", store.managedAccounts)
+	}
+
+	if err := svc.DeleteManagedAccount("managed-1"); err != nil {
+		t.Fatalf("DeleteManagedAccount() error = %v", err)
+	}
+	if len(store.managedAccounts) != 1 || store.managedAccounts[0].ID != "managed-2" {
+		t.Fatalf("stored managed accounts after delete = %#v", store.managedAccounts)
+	}
+
+	defaults := jfsettings.LaunchDefaults{APIBind: "127.0.0.1:3000", GUIBind: "127.0.0.1:5173"}
+	if err := svc.EnsureBootstrap(defaults); err != nil {
+		t.Fatalf("EnsureBootstrap() error = %v", err)
+	}
+	if store.bootstrapCalls != 1 || !reflect.DeepEqual(store.bootstrapArg, defaults) {
+		t.Fatalf("EnsureBootstrap delegation = calls:%d arg:%#v", store.bootstrapCalls, store.bootstrapArg)
 	}
 }

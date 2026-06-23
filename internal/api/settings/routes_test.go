@@ -18,7 +18,11 @@ import (
 )
 
 type routeStore struct {
+	appearance  jfsettings.UIAppearanceSettings
+	onboarding  jfsettings.OnboardingSettings
 	execution   jfsettings.ExecutionSettings
+	security    jfsettings.SecuritySettings
+	adk         jfsettings.ADKRuntimeSettings
 	calendars   jfsettings.ExchangeCalendarSettings
 	updateErr   error
 	deleteErr   error
@@ -27,23 +31,23 @@ type routeStore struct {
 }
 
 func (s *routeStore) Appearance() jfsettings.UIAppearanceSettings {
-	return jfsettings.UIAppearanceSettings{}
+	return s.appearance
 }
 func (s *routeStore) Onboarding() jfsettings.OnboardingSettings {
-	return jfsettings.OnboardingSettings{}
+	return s.onboarding
 }
 func (s *routeStore) ExecutionSettings() jfsettings.ExecutionSettings { return s.execution }
 func (s *routeStore) SecuritySettings() jfsettings.SecuritySettings {
-	return jfsettings.SecuritySettings{}
+	return s.security
 }
 func (s *routeStore) ADKSettings() jfsettings.ADKRuntimeSettings {
-	return jfsettings.ADKRuntimeSettings{}
+	return s.adk
 }
 func (s *routeStore) ExchangeCalendarSettings() jfsettings.ExchangeCalendarSettings {
 	return s.calendars
 }
 func (s *routeStore) Integration() jfsettings.BrokerIntegration {
-	return jfsettings.BrokerIntegration{}
+	return s.integration
 }
 func (s *routeStore) SavedIntegration() *jfsettings.BrokerIntegration    { return nil }
 func (s *routeStore) ManagedAccounts() []jfsettings.ManagedBrokerAccount { return nil }
@@ -51,9 +55,11 @@ func (s *routeStore) InterfaceSettings(defaults jfsettings.LaunchDefaults) jfset
 	return jfsettings.InterfaceSettings{APIBind: defaults.APIBind, GUIBind: defaults.GUIBind}
 }
 func (s *routeStore) SaveAppearance(input jfsettings.UIAppearanceSettings) (jfsettings.UIAppearanceSettings, error) {
+	s.appearance = input
 	return input, nil
 }
 func (s *routeStore) SaveOnboarding(input jfsettings.OnboardingSettings) (jfsettings.OnboardingSettings, error) {
+	s.onboarding = input
 	return input, nil
 }
 func (s *routeStore) SaveExecutionSettings(input jfsettings.ExecutionSettings) (jfsettings.ExecutionSettings, error) {
@@ -61,9 +67,11 @@ func (s *routeStore) SaveExecutionSettings(input jfsettings.ExecutionSettings) (
 	return input, nil
 }
 func (s *routeStore) SaveSecuritySettings(input jfsettings.SecuritySettings) (jfsettings.SecuritySettings, error) {
+	s.security = input
 	return input, nil
 }
 func (s *routeStore) SaveADKSettings(input jfsettings.ADKRuntimeSettings) (jfsettings.ADKRuntimeSettings, error) {
+	s.adk = input
 	return input, nil
 }
 func (s *routeStore) SaveExchangeCalendarSettings(input jfsettings.ExchangeCalendarSettings) (jfsettings.ExchangeCalendarSettings, error) {
@@ -208,6 +216,7 @@ func TestCreateManagedAccountDropsServerManagedFields(t *testing.T) {
 		t.Fatalf("accountId = %q, want acc-1", store.created.AccountID)
 	}
 }
+
 func (s *routeStore) HasAppearance() bool { return false }
 func (s *routeStore) Path() string        { return "" }
 
@@ -257,6 +266,223 @@ func TestExecutionSettingsRouteUsesInjectedService(t *testing.T) {
 	if !envelope.OK || !reflect.DeepEqual(envelope.Data, want) {
 		t.Fatalf("envelope = %#v, want ok with execution settings", envelope)
 	}
+}
+
+func TestAppearanceOnboardingSecurityAndADKRoutesCoverSaveFlows(t *testing.T) {
+	gin.SetMode(gin.ReleaseMode)
+	store := &routeStore{
+		appearance: jfsettings.UIAppearanceSettings{UpColor: "#111111", DownColor: "#222222"},
+		onboarding: jfsettings.OnboardingSettings{LastBrokerID: "futu"},
+	}
+	var securitySideEffect jfsettings.SecuritySettings
+	service := srvsettings.NewService(
+		store,
+		srvsettings.WithOnboardingState(func(context.Context) map[string]any {
+			return map[string]any{
+				"completed":    store.onboarding.Completed,
+				"completedAt":  store.onboarding.CompletedAt,
+				"dismissedAt":  store.onboarding.DismissedAt,
+				"lastBrokerId": store.onboarding.LastBrokerID,
+			}
+		}),
+		srvsettings.WithSideEffects(srvsettings.SideEffects{
+			OnSecurityChanged: func(settings jfsettings.SecuritySettings) {
+				securitySideEffect = settings
+			},
+		}),
+	)
+	router := gin.New()
+	apisettings.RegisterRoutes(router.Group("/api/v1"), service)
+
+	uiGetRec := httptest.NewRecorder()
+	router.ServeHTTP(uiGetRec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/settings/ui", nil))
+	if uiGetRec.Code != http.StatusOK || !strings.Contains(uiGetRec.Body.String(), `"upColor":"#111111"`) {
+		t.Fatalf("ui get = %d %s", uiGetRec.Code, uiGetRec.Body.String())
+	}
+
+	uiPutRec := httptest.NewRecorder()
+	uiPutReq := httptest.NewRequestWithContext(t.Context(), http.MethodPut, "/api/v1/settings/ui", strings.NewReader(`{"appearance":{"upColor":"#00ff00","downColor":"#ff0000"}}`))
+	uiPutReq.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(uiPutRec, uiPutReq)
+	if uiPutRec.Code != http.StatusOK {
+		t.Fatalf("ui put = %d %s", uiPutRec.Code, uiPutRec.Body.String())
+	}
+	if store.appearance.UpColor != "#00ff00" || store.appearance.DownColor != "#ff0000" {
+		t.Fatalf("appearance = %#v", store.appearance)
+	}
+
+	onboardingGetRec := httptest.NewRecorder()
+	router.ServeHTTP(onboardingGetRec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/settings/onboarding", nil))
+	if onboardingGetRec.Code != http.StatusOK || !strings.Contains(onboardingGetRec.Body.String(), `"lastBrokerId":"futu"`) {
+		t.Fatalf("onboarding get = %d %s", onboardingGetRec.Code, onboardingGetRec.Body.String())
+	}
+
+	onboardingPutRec := httptest.NewRecorder()
+	onboardingPutReq := httptest.NewRequestWithContext(t.Context(), http.MethodPut, "/api/v1/settings/onboarding", strings.NewReader(`{"completed":true,"dismissed":true,"lastBrokerId":"   "}`))
+	onboardingPutReq.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(onboardingPutRec, onboardingPutReq)
+	if onboardingPutRec.Code != http.StatusOK {
+		t.Fatalf("onboarding put = %d %s", onboardingPutRec.Code, onboardingPutRec.Body.String())
+	}
+	if !store.onboarding.Completed || store.onboarding.LastBrokerID != "futu" || store.onboarding.CompletedAt == "" || store.onboarding.DismissedAt == "" {
+		t.Fatalf("onboarding stored = %#v", store.onboarding)
+	}
+	if !strings.Contains(onboardingPutRec.Body.String(), `"completed":true`) {
+		t.Fatalf("onboarding response = %s", onboardingPutRec.Body.String())
+	}
+
+	securityGetRec := httptest.NewRecorder()
+	router.ServeHTTP(securityGetRec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/settings/security", nil))
+	if securityGetRec.Code != http.StatusOK || !strings.Contains(securityGetRec.Body.String(), `"adminAuthRequired":false`) {
+		t.Fatalf("security get = %d %s", securityGetRec.Code, securityGetRec.Body.String())
+	}
+
+	securityPutRec := httptest.NewRecorder()
+	securityPutReq := httptest.NewRequestWithContext(t.Context(), http.MethodPut, "/api/v1/settings/security", strings.NewReader(`{"adminAuthRequired":true}`))
+	securityPutReq.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(securityPutRec, securityPutReq)
+	if securityPutRec.Code != http.StatusOK {
+		t.Fatalf("security put = %d %s", securityPutRec.Code, securityPutRec.Body.String())
+	}
+	if !store.security.AdminAuthRequired || !securitySideEffect.AdminAuthRequired {
+		t.Fatalf("security store=%#v sideEffect=%#v", store.security, securitySideEffect)
+	}
+
+	adkGetRec := httptest.NewRecorder()
+	router.ServeHTTP(adkGetRec, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/settings/adk", nil))
+	if adkGetRec.Code != http.StatusOK || !strings.Contains(adkGetRec.Body.String(), `"runTimeoutMs":0`) {
+		t.Fatalf("adk get = %d %s", adkGetRec.Code, adkGetRec.Body.String())
+	}
+
+	adkPutRec := httptest.NewRecorder()
+	adkPutReq := httptest.NewRequestWithContext(t.Context(), http.MethodPut, "/api/v1/settings/adk", strings.NewReader(`{"runTimeoutMs":120000,"streamIdleTimeoutMs":30000}`))
+	adkPutReq.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(adkPutRec, adkPutReq)
+	if adkPutRec.Code != http.StatusOK {
+		t.Fatalf("adk put = %d %s", adkPutRec.Code, adkPutRec.Body.String())
+	}
+	if store.adk.RunTimeoutMs != 120000 || store.adk.StreamIdleTimeoutMs != 30000 {
+		t.Fatalf("adk settings = %#v", store.adk)
+	}
+}
+
+func TestExecutionExchangeCalendarAndBrokerRoutesCoverReadAndValidation(t *testing.T) {
+	gin.SetMode(gin.ReleaseMode)
+
+	store := &routeStore{
+		execution: jfsettings.ExecutionSettings{
+			DefaultTradingEnvironment:      "REAL",
+			BrokerOrderHistoryLookbackDays: 15,
+			SeenFillRetentionDays:          7,
+		},
+		calendars: jfsettings.ExchangeCalendarSettings{
+			AutoRefreshEnabled:   true,
+			RefreshIntervalHours: 12,
+			WarmupMarkets:        []string{"US", "HK"},
+		},
+	}
+	var calendarSideEffect jfsettings.ExchangeCalendarSettings
+	service := srvsettings.NewService(
+		store,
+		srvsettings.WithBrokerSettings(func() map[string]any {
+			return map[string]any{"brokerId": "futu", "connected": true}
+		}),
+		srvsettings.WithSideEffects(srvsettings.SideEffects{
+			OnExchangeCalendarsChanged: func(settings jfsettings.ExchangeCalendarSettings) {
+				calendarSideEffect = settings
+			},
+		}),
+	)
+	router := gin.New()
+	apisettings.RegisterRoutes(router.Group("/api/v1"), service)
+
+	t.Run("execution get returns persisted settings", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/settings/execution", nil)
+		router.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200, body=%s", rec.Code, rec.Body.String())
+		}
+		if !strings.Contains(rec.Body.String(), `"defaultTradingEnvironment":"REAL"`) {
+			t.Fatalf("body = %s, want execution settings payload", rec.Body.String())
+		}
+	})
+
+	t.Run("execution put rejects malformed payload", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPut, "/api/v1/settings/execution", strings.NewReader(`{"defaultTradingEnvironment":`))
+		req.Header.Set("Content-Type", "application/json")
+		router.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("status = %d, want 400, body=%s", rec.Code, rec.Body.String())
+		}
+	})
+
+	t.Run("exchange calendar get and put keep wrapped shape", func(t *testing.T) {
+		getRec := httptest.NewRecorder()
+		getReq := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/settings/exchange-calendars", nil)
+		router.ServeHTTP(getRec, getReq)
+
+		if getRec.Code != http.StatusOK {
+			t.Fatalf("get status = %d, want 200, body=%s", getRec.Code, getRec.Body.String())
+		}
+		if !strings.Contains(getRec.Body.String(), `"exchangeCalendars"`) || !strings.Contains(getRec.Body.String(), `"warmupMarkets":["US","HK"]`) {
+			t.Fatalf("get body = %s, want wrapped calendar payload", getRec.Body.String())
+		}
+
+		putRec := httptest.NewRecorder()
+		putReq := httptest.NewRequestWithContext(t.Context(), http.MethodPut, "/api/v1/settings/exchange-calendars", strings.NewReader(`{"exchangeCalendars":{"autoRefreshEnabled":false,"refreshIntervalHours":6,"warmupMarkets":["US"]}}`))
+		putReq.Header.Set("Content-Type", "application/json")
+		router.ServeHTTP(putRec, putReq)
+
+		if putRec.Code != http.StatusOK {
+			t.Fatalf("put status = %d, want 200, body=%s", putRec.Code, putRec.Body.String())
+		}
+		if store.calendars.AutoRefreshEnabled || store.calendars.RefreshIntervalHours != 6 || !reflect.DeepEqual(store.calendars.WarmupMarkets, []string{"US"}) {
+			t.Fatalf("stored calendars = %#v", store.calendars)
+		}
+		if !reflect.DeepEqual(calendarSideEffect, store.calendars) {
+			t.Fatalf("calendar side effect = %#v, want %#v", calendarSideEffect, store.calendars)
+		}
+		if !strings.Contains(putRec.Body.String(), `"exchangeCalendars"`) {
+			t.Fatalf("put body = %s, want wrapped calendar payload", putRec.Body.String())
+		}
+	})
+
+	t.Run("exchange calendar put rejects malformed payload", func(t *testing.T) {
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPut, "/api/v1/settings/exchange-calendars", strings.NewReader(`{"exchangeCalendars":`))
+		req.Header.Set("Content-Type", "application/json")
+		router.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("status = %d, want 400, body=%s", rec.Code, rec.Body.String())
+		}
+	})
+
+	t.Run("broker settings get and integration put cover read and validation", func(t *testing.T) {
+		getRec := httptest.NewRecorder()
+		getReq := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/settings/brokers", nil)
+		router.ServeHTTP(getRec, getReq)
+
+		if getRec.Code != http.StatusOK {
+			t.Fatalf("get status = %d, want 200, body=%s", getRec.Code, getRec.Body.String())
+		}
+		if !strings.Contains(getRec.Body.String(), `"brokerId":"futu"`) || !strings.Contains(getRec.Body.String(), `"connected":true`) {
+			t.Fatalf("get body = %s, want broker settings payload", getRec.Body.String())
+		}
+
+		badPutRec := httptest.NewRecorder()
+		badPutReq := httptest.NewRequestWithContext(t.Context(), http.MethodPut, "/api/v1/settings/brokers/futu/integration", strings.NewReader(`{"enabled":`))
+		badPutReq.Header.Set("Content-Type", "application/json")
+		router.ServeHTTP(badPutRec, badPutReq)
+
+		if badPutRec.Code != http.StatusBadRequest {
+			t.Fatalf("put status = %d, want 400, body=%s", badPutRec.Code, badPutRec.Body.String())
+		}
+	})
 }
 
 func TestExchangeCalendarSettingsRouteUsesInjectedService(t *testing.T) {
