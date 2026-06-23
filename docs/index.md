@@ -1,12 +1,20 @@
-# JFTrade 文档
+# JFTrade 用户文档
 
-这里是 JFTrade 的用户文档入口。开发态通过 `http://localhost:5173/docs/` 访问，发布态通过同源 `/docs/` 访问。
+这里是 JFTrade 控制台的用户文档入口。
 
-## 建议阅读顺序
+- 开发态：可以直接访问 `http://127.0.0.1:3001/`，也可以通过前端开发服务器的 `http://127.0.0.1:5173/docs/` 进入
+- 发布态：通过 GUI 同源路径 `/docs/` 访问
 
-- [快速开始](./quick-start.md)：启动开发态或发布态服务。
-- [配置](./configuration.md)：理解运行时配置、管理员密钥和 OpenD 集成。
-- [使用指南](./usage.md)：从控制台进入常用功能。
+## 从这里开始
+
+- [快速开始](./quick-start.md)：启动开发态、文档站或发布构建。
+- [配置](./configuration.md)：了解运行时目录、管理员密钥、端口绑定和 OpenD 集成。
+- [使用指南](./usage.md)：按控制台功能区进入账户、行情、策略、回测和系统功能。
 - [排障](./troubleshooting.md)：定位启动、端口、实时连接和 OpenD 问题。
+
+## 自动生成参考
+
 - [HTTP API](./reference/generated/api.md)：从 Swagger 自动生成的接口参考。
-- [数据类型](./reference/generated/types.md)：从 `apps/web/src/contracts` 自动生成的数据类型参考。
+- [数据类型](./reference/generated/types.md)：从前端契约自动生成的类型参考。
+
+如果你是在维护仓库本身，而不是使用控制台，请回到 [README.md](./README.md) 和 [architecture.md](./architecture.md)。

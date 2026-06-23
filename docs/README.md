@@ -1,114 +1,51 @@
-# JFTrade 文档导航
+# JFTrade 维护者文档导航
 
-本文档面向两类读者：
+这份 README 面向仓库维护者、协作者和后续 AI。它不重复介绍项目本身，只负责把你引到正确的事实来源。
 
-- 想快速理解当前系统边界的开发者
-- 需要让后续 AI 协作不跑偏的维护者
+如果只看一篇，请先看 [architecture.md](architecture.md)。
 
-如果你只看一篇，请先看 [architecture.md](architecture.md)。
+## 推荐阅读顺序
 
-## 阅读顺序
+### 1. 先确认系统边界
 
-### 1. 先理解系统现在是怎么跑的
+- [architecture.md](architecture.md)：当前系统架构、双运行模式、请求链路和职责边界。
+- [architecture/backend-coding-standards.md](architecture/backend-coding-standards.md)：后端分层约束、依赖方向和常见禁区。
 
-- [architecture.md](architecture.md)：当前系统架构、双运行模式、核心数据流、职责边界。
-- [architecture/backend-coding-standards.md](architecture/backend-coding-standards.md)：后端分层代码规范与 CI 边界规则。
+### 2. 再按问题类型进入专题
 
-### 2. 再看你要改的专题
+- [troubleshooting.md](troubleshooting.md)：启动、端口、实时连接、OpenD、回测性能的排障入口。
+- [adk.md](adk.md)：GO-ADK / Agent 控制面、权限模式、内置 tools 和运行时文件。
+- [frontend-kline.md](frontend-kline.md)：前端行情与 K 线专题入口。
+- [frontend/strategy-authoring.md](frontend/strategy-authoring.md)：策略定义、Logic Flow、Pine 编辑与 visual model 同步。
+- [reference/README.md](reference/README.md)：协议细节、OpenD 资料和上游参考。
 
-- [troubleshooting.md](troubleshooting.md)：排障入口，按启动、实时 SSE、OpenD、行情时段分流。
-- [frontend-kline.md](frontend-kline.md)：前端行情与 K 线专题入口，包含实时合成与防回归约束。
-- [frontend/strategy-authoring.md](frontend/strategy-authoring.md)：前端 Pine 策略设计专题，覆盖 Logic Flow、Monaco、模板和 visualModel 同步约束。
-- [adk.md](adk.md)：GO-ADK / Agent 控制面、权限模式、内置 tools 与运行时文件。
-- [review-boundaries-2026-06.md](review-boundaries-2026-06.md)：当前 gin / Swagger / broker 收口变更的 review 分块说明。
-- [release-closeout-2026-06.md](release-closeout-2026-06.md)：当前发布候选的对外变化、固定验收和冻结规则。
+### 3. 最后再看历史收口记录
 
-### 3. 最后看参考资料
+以下文档保留为历史背景，不是当前默认入口：
 
-- [reference/README.md](reference/README.md)：协议细节、上游 bbgo 资料、历史参考文档入口。
+- [review-boundaries-2026-06.md](review-boundaries-2026-06.md)
+- [release-closeout-2026-06.md](release-closeout-2026-06.md)
 
-## 文档分层约定
+## 快速路由
 
-为避免信息密度失控，docs 统一按下面的规则组织：
+- 改启动方式、端口、运行时目录：先看 [architecture.md](architecture.md) 和 [troubleshooting/startup-ports.md](troubleshooting/startup-ports.md)
+- 改前端默认接口、系统状态、设置：先看 [architecture.md](architecture.md)、[configuration.md](configuration.md)、[troubleshooting.md](troubleshooting.md)
+- 改 ADK、agent、approval、provider、tools：先看 [adk.md](adk.md)
+- 改实时行情、K 线、SSE、WS：先看 [frontend-kline.md](frontend-kline.md) 和 [troubleshooting/live-stream-connection.md](troubleshooting/live-stream-connection.md)
+- 改 Futu / OpenD 协议和映射：先看 [reference/README.md](reference/README.md)
 
-- 顶层入口文档只回答“这块是什么、边界在哪里、先看哪篇”。
-- 实现细节、边界条件、回归案例放到专题子目录，不继续堆在总览文档里。
-- 协议原文、上游资料、长篇背景说明放到 reference 层，不干扰当前架构判断。
+## 文档职责边界
 
-## 当前文档地图
+- 根仓库 `README.md`：仓库级入口，回答“项目现在怎么跑”
+- 本文档：维护者导航，回答“遇到这个问题先看哪篇”
+- [index.md](index.md)：VitePress 用户文档首页，面向控制台使用者
 
-```text
-docs/
-├── README.md                 文档导航
-├── architecture.md           当前系统架构总览
-├── architecture/             后端结构与代码规范
-	├── backend-coding-standards.md 后端分层代码规范
-├── troubleshooting.md        排障入口
-├── adk.md                    GO-ADK / Agent 控制面
-├── frontend-kline.md         前端行情/K 线入口
-├── review-boundaries-2026-06.md 当前发布候选的 review 分块
-├── release-closeout-2026-06.md  当前发布候选的收口说明
-├── troubleshooting/          排障专题
-├── frontend/                 前端与行情专题
-	├── strategy-authoring.md   前端策略设计专题
-├── reference/                协议与参考资料
-	└── bbgo-doc/              上游 bbgo 参考资料（保持原样）
-```
+不要把实现细节、长篇回归记录或协议原文继续堆回入口文档；它们应留在专题页或 reference 层。
 
-## AI 协作约定
+## AI 协作入口
 
-后续 AI 在动手前应优先按下面顺序取上下文：
+后续 AI 在动手前建议按下面顺序取上下文：
 
-1. 先读 [architecture.md](architecture.md)，确认是在改 sidecar、bbgo 运行时、前端，还是 Futu 适配层。
-2. 如果是启动、端口、连接问题，再进 [troubleshooting.md](troubleshooting.md)。
-3. 如果是策略定义、Logic Flow、Pine 脚本同步或编辑器问题，再进 [frontend/strategy-authoring.md](frontend/strategy-authoring.md)。
-4. 如果是 GO-ADK、Agent、Skill、AI provider、审批或工具调用问题，再进 [adk.md](adk.md)。
-5. 如果是实时行情、K 线、实时 SSE、快照合成问题，再进 [frontend-kline.md](frontend-kline.md)。
-6. 只有在需要协议或上游背景时，才进入 [reference/README.md](reference/README.md) 或 [reference/bbgo-doc/README.md](reference/bbgo-doc/README.md)。
-
-## 管理员鉴权
-
-- 除 `/api/v1/system/status`、登录入口和前端静态资源外，sidecar API 默认要求管理员认证。
-- 首次启动会生成 `secrets/admin.key`（权限 `0600`）；也可通过 `JFTRADE_ADMIN_KEY` 或 `JFTRADE_ADMIN_KEY_FILE` 配置。
-- 浏览器登录后使用 `HttpOnly`、`SameSite=Strict` 会话 cookie；写请求同时要求可信 GUI Origin 和 `X-CSRF-Token`。
-- CLI 使用 `Authorization: Bearer <管理员密钥>`。密钥不再写入 `runtime-config.js`，`/api/v1/auth/token` 已退役。
-- 具体边界、ADK session/skill 目录模型说明见 [adk.md](adk.md)。
-
-## 后端测试分层（持续更新）
-
-为降低单文件测试复杂度，sidecar 测试现在按业务域拆分在 `internal/app/apiserver/servercore`、`internal/api/*` 与对应 service 包中维护：
-
-- `server_test.go`：保留 sidecar server 通用行为、request observability 与非专题场景。
-- `server_backtest_routes_test.go`：聚焦回测创建路由参数归一与执行结果校验场景。
-- `server_backtest_routes_warmup_test.go`：聚焦回测创建后根据策略历史 K 线推导 warmup 并校验执行结果场景。
-- `server_backtest_run_store_test.go`：聚焦回测运行记录重载恢复与终态删除约束场景。
-- `server_strategy_definitions_test.go`：聚焦策略定义创建与删除保护场景。
-- `server_strategy_definitions_lifecycle_test.go`：聚焦策略定义实例化后的编译产物、绑定更新与 start/pause/stop/delete 状态流转场景。
-- `server_strategy_definitions_preview_test.go`：聚焦策略定义预览与 legacy source format 归一场景。
-- `server_strategy_runtime_logs_test.go`：聚焦策略实例列表、运行日志与审计分页筛选场景。
-- `server_strategy_definition_sync_test.go`：聚焦策略定义版本同步与 refresh-definition 场景。
-- `server_market_data_test.go`：聚焦行情订阅获取、心跳续约与释放场景。
-- `server_plugin_catalog_test.go`：聚焦插件目录读取、安装/卸载与操作记录场景。
-- `broker_routes_test.go`：保留 broker 路由断连与兜底响应场景。
-- `broker_routes_read_exchange_test.go`：聚焦 broker 路由读侧 exchange-backed 主流程场景。
-- `broker_routes_test_http_helpers_test.go`：集中 HTTP 解包与地址端口小工具。
-- `broker_routes_test_opend_server_test.go`：集中 OpenD mock server 生命周期、协议收发与响应分派。
-- `broker_routes_test_normalize_helpers_test.go`：集中 broker route 测试用数据归一化与过滤 helper。
-- `strategy_runtime_manager_test.go`：聚焦策略运行时基础行为（通知模式、市场元数据补齐）。
-- `strategy_runtime_manager_test_helpers_test.go`：集中策略运行时测试共享桩与通用辅助函数。
-- `strategy_runtime_manager_trading_test.go`：聚焦策略运行时交易执行链路（live 下单、持仓刷新、断连回退、K 线补轮询）。
-- `strategy_runtime_manager_polling_test.go`：聚焦策略运行时闭市 K 线轮询补单场景。
-- `strategy_runtime_manager_observation_test.go`：聚焦运行时观测输出、重启后观测持久化与 panic 自动收敛场景。
-- `execution_command_routes_test.go`：聚焦 execution 命令主链路（下单、撤单、事件写入与列表联动）。
-- `execution_command_validation_test.go`：聚焦 execution 命令参数归一与输入校验（US 精度、交易时段透传、symbol/code 约束）。
-- `execution_routes_test.go`：聚焦 execution 订单同步链路与 worker 状态追踪。
-- `execution_push_writeback_test.go`：聚焦 execution 推送回写通知与已发现订单复用场景。
-- `market_data_test.go`：聚焦行情 K 线 session 规则（intraday session 路由与日线 session 元数据约束）。
-- `market_data_realtime_bucket_test.go`：聚焦行情 K 线实时桶拼接场景（history + current bucket 合并）。
-- `market_data_snapshot_tick_test.go`：聚焦行情快照与 tick 路径（cache 命中、cache miss、强制刷新与回退）。
-- `market_data_security_details_test.go`：聚焦证券详情类型块映射与 snapshot/staticInfo 联合查询校验。
-- `market_data_fixture_test.go`：聚焦行情测试的 OpenD mock server 生命周期与基础报价响应。
-- `market_data_fixture_runtime_helpers_test.go`：集中行情测试运行时组装、tick cache seed 与 snapshot/tick 响应断言辅助。
-- `market_data_fixture_security_test.go`：聚焦行情测试的证券快照与静态信息 fixture 组装。
-- `market_data_fixture_kline_test.go`：聚焦行情测试的历史/当前 K 线响应夹具与 K 线 proto 构造辅助。
-- `market_data_depth_test.go`：聚焦盘口深度端点路由注册、HTTP 方法校验、num 参数钳位、市场/代码大小写归一、mock OpenD 响应校验、空盘口、OpenD 错误传播及路由防碰撞场景。
+1. 读 [architecture.md](architecture.md)，先判断问题属于 sidecar、bbgo runtime、前端还是 Futu 集成。
+2. 读对应专题页，而不是直接在根目录全仓库盲搜。
+3. 只有需要协议原文或上游背景时，才进入 [reference/README.md](reference/README.md) 或 `reference/bbgo-doc/`。
