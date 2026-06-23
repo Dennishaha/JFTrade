@@ -12,6 +12,13 @@
             "command": "npm run generate:docs"
         },
         {
+            "name": "Go Fix",
+            "type": "node-terminal",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "command": "go fix ./..."
+        },
+        {
             "name": "Debug Web",
             "type": "node-terminal",
             "request": "launch",
