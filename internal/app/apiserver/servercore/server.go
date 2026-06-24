@@ -40,17 +40,25 @@ import (
 )
 
 const (
-	defaultFutuHost            = "127.0.0.1"
-	defaultFutuAPIPort         = 11110
-	defaultFutuWebSocketPort   = 11111
-	defaultMaxWebSocketClients = 20
-	strategyListLogsTailSize   = 20
+	defaultFutuHost                  = "127.0.0.1"
+	defaultFutuAPIPort               = 11110
+	defaultFutuWebSocketPort         = 11111
+	defaultMaxWebSocketClients       = 20
+	strategyListLogsTailSize         = 20
+	exchangeCalendarOperationTimeout = 75 * time.Second
 )
 
 type envelope = httpserver.Envelope
 type apiError = httpserver.APIError
 
 var errFutuIntegrationNotEnabled = errors.New("futu integration is not enabled")
+
+func exchangeCalendarOperationContext(parent context.Context) (context.Context, context.CancelFunc) {
+	if parent == nil {
+		parent = context.Background()
+	}
+	return context.WithTimeout(context.WithoutCancel(parent), exchangeCalendarOperationTimeout)
+}
 
 type Server struct {
 	store                    SidecarSettingsStore
@@ -258,11 +266,7 @@ func newServerWithFrontend(store SidecarSettingsStore, frontend *frontendServer)
 			return persistenceOnlySettingsStore(store).ExchangeCalendarSettings()
 		},
 		exchangecalendar.WithAlertSink(func(alert exchangecalendar.SourceAlert) {
-			note := liveNotificationFromExchangeCalendarAlert(alert)
-			if note == nil {
-				return
-			}
-			server.recordLiveNotification(*note)
+			server.recordExchangeCalendarAlert(alert)
 		}),
 	)
 	server.previousCalendarResolver = marketpkg.SwapCalendarResolver(server.exchangeCalendars)
@@ -371,19 +375,23 @@ func newServerWithFrontend(store SidecarSettingsStore, frontend *frontendServer)
 			if server.exchangeCalendars == nil {
 				return map[string]any{"accepted": false}
 			}
+			operationCtx, cancel := exchangeCalendarOperationContext(ctx)
+			defer cancel()
 			if strings.TrimSpace(market) == "" {
-				return server.exchangeCalendars.RefreshAll(ctx)
+				return server.exchangeCalendars.RefreshAll(operationCtx)
 			}
-			return server.exchangeCalendars.RefreshMarket(ctx, market)
+			return server.exchangeCalendars.RefreshMarket(operationCtx, market)
 		}),
 		system.WithProbeExchangeCalendars(func(ctx context.Context, market string) map[string]any {
 			if server.exchangeCalendars == nil {
 				return map[string]any{"accepted": false}
 			}
+			operationCtx, cancel := exchangeCalendarOperationContext(ctx)
+			defer cancel()
 			if strings.TrimSpace(market) == "" {
-				return server.exchangeCalendars.ProbeAll(ctx)
+				return server.exchangeCalendars.ProbeAll(operationCtx)
 			}
-			return server.exchangeCalendars.ProbeMarket(ctx, market)
+			return server.exchangeCalendars.ProbeMarket(operationCtx, market)
 		}),
 		system.WithFutuOpenDHealth(func(ctx context.Context) map[string]any { return server.futuOpenDHealth(ctx) }),
 		system.WithFutuOpenDInstallGuide(func() map[string]any { return server.futuOpenDInstallGuide() }),

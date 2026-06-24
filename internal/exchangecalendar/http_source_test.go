@@ -37,6 +37,21 @@ func TestDefaultRegistryRegistersExpectedSources(t *testing.T) {
 	}
 }
 
+func TestDefaultRegistryUsesCalendarFetchTimeout(t *testing.T) {
+	registry := DefaultRegistry(nil)
+	source, ok := registry.Source("nyse_official")
+	if !ok {
+		t.Fatal("missing nyse_official source")
+	}
+	httpSource, ok := source.(*HTTPCalendarSource)
+	if !ok {
+		t.Fatalf("source type = %T, want *HTTPCalendarSource", source)
+	}
+	if httpSource.client == nil || httpSource.client.Timeout != defaultHTTPTimeout {
+		t.Fatalf("default timeout = %v, want %v", httpSource.client, defaultHTTPTimeout)
+	}
+}
+
 func TestHTTPCalendarSourceFetchBuildsSnapshotMetadata(t *testing.T) {
 	source := &HTTPCalendarSource{
 		id:        "nyse_official",

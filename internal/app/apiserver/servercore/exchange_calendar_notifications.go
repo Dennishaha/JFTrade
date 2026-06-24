@@ -8,6 +8,20 @@ import (
 	"github.com/jftrade/jftrade-main/internal/exchangecalendar"
 )
 
+func (s *Server) recordExchangeCalendarAlert(alert exchangecalendar.SourceAlert) {
+	if s == nil || s.store == nil {
+		return
+	}
+	if !persistenceOnlySettingsStore(s.store).ExchangeCalendarSettings().ErrorNotificationsEnabled {
+		return
+	}
+	note := liveNotificationFromExchangeCalendarAlert(alert)
+	if note == nil {
+		return
+	}
+	s.recordLiveNotification(*note)
+}
+
 func liveNotificationFromExchangeCalendarAlert(alert exchangecalendar.SourceAlert) *liveNotification {
 	if strings.TrimSpace(alert.Title) == "" {
 		return nil

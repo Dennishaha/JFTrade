@@ -1,6 +1,7 @@
 package servercore
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"os"
@@ -28,6 +29,20 @@ func TestPersistenceOnlySettingsStoreUnwrapsCompatibilityStore(t *testing.T) {
 	}
 	if got := persistenceOnlySettingsStore(store); got != store.Store {
 		t.Fatalf("persistenceOnlySettingsStore() = %T, want embedded settingsfile store", got)
+	}
+}
+
+func TestExchangeCalendarOperationContextIgnoresRequestCancellation(t *testing.T) {
+	requestCtx, requestCancel := context.WithCancel(context.Background())
+	requestCancel()
+
+	operationCtx, operationCancel := exchangeCalendarOperationContext(requestCtx)
+	defer operationCancel()
+
+	select {
+	case <-operationCtx.Done():
+		t.Fatalf("operation context inherited request cancellation: %v", operationCtx.Err())
+	default:
 	}
 }
 

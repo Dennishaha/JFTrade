@@ -1,11 +1,14 @@
 package servercore
 
 import (
+	"encoding/json"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/jftrade/jftrade-main/internal/exchangecalendar"
 	notifypb "github.com/jftrade/jftrade-main/pkg/futu/pb/notify"
+	jfsettings "github.com/jftrade/jftrade-main/pkg/jftsettings"
 )
 
 func TestLiveNotificationFromBBGONotifyFormatsStringArgs(t *testing.T) {
@@ -30,6 +33,39 @@ func TestLiveNotificationFromBBGONotifyFormatsStringArgs(t *testing.T) {
 	}
 	if strings.TrimSpace(note.At) == "" {
 		t.Fatal("expected timestamp")
+	}
+}
+
+func TestExchangeCalendarAlertRecordingHonorsNotificationSetting(t *testing.T) {
+	store, err := NewSettingsStore(filepath.Join(t.TempDir(), "settings.json"))
+	if err != nil {
+		t.Fatalf("NewSettingsStore: %v", err)
+	}
+	server := newTestServer(t, store)
+	alert := exchangecalendar.SourceAlert{
+		SourceID: "nyse_official",
+		Market:   "US",
+		Level:    "warn",
+		Kind:     "fetch_failed",
+		Title:    "交易所日历源抓取失败",
+		Message:  "US 市场日历源 nyse_official 抓取失败。",
+	}
+
+	server.recordExchangeCalendarAlert(alert)
+	if got := len(server.liveNotificationsAfter(0)); got != 1 {
+		t.Fatalf("notifications with default setting = %d, want 1", got)
+	}
+
+	var disabled jfsettings.ExchangeCalendarSettings
+	if err := json.Unmarshal([]byte(`{"autoRefreshEnabled":true,"errorNotificationsEnabled":false,"refreshIntervalHours":24,"warmupMarkets":["US"]}`), &disabled); err != nil {
+		t.Fatalf("Unmarshal settings: %v", err)
+	}
+	if _, err := store.SaveExchangeCalendarSettings(disabled); err != nil {
+		t.Fatalf("SaveExchangeCalendarSettings: %v", err)
+	}
+	server.recordExchangeCalendarAlert(alert)
+	if got := len(server.liveNotificationsAfter(0)); got != 1 {
+		t.Fatalf("notifications after disabling = %d, want unchanged 1", got)
 	}
 }
 

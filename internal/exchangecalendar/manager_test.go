@@ -47,6 +47,12 @@ func TestManagerFailureBackoffUsesHoursAndCapsAtTwentyFour(t *testing.T) {
 	}
 }
 
+func TestDefaultWarmupRefreshTimeoutCoversSequentialRemoteSources(t *testing.T) {
+	if defaultWarmupRefreshTimeout < 3*defaultHTTPTimeout {
+		t.Fatalf("defaultWarmupRefreshTimeout = %s, want at least three source fetch windows of %s", defaultWarmupRefreshTimeout, defaultHTTPTimeout)
+	}
+}
+
 func (s stubSource) ID() string        { return s.id }
 func (s stubSource) Kind() string      { return s.kind }
 func (s stubSource) Markets() []string { return append([]string(nil), s.markets...) }
@@ -95,6 +101,105 @@ func TestManagerFallsBackToBuiltinWhenOfficialRefreshFails(t *testing.T) {
 	}
 	if schedule.Status != marketcalendar.TradingDayClosed || schedule.SourceID != BuiltinSourceID {
 		t.Fatalf("schedule = %#v", schedule)
+	}
+	sources := manager.Sources()
+	var nyseSource map[string]any
+	for _, source := range sources {
+		if source["id"] == "nyse_official" {
+			nyseSource = source
+			break
+		}
+	}
+	if nyseSource == nil || nyseSource["lastError"] == "" {
+		t.Fatalf("sources = %#v, want lastError after failed refresh", sources)
+	}
+}
+
+func TestManagerStatusIncludesSnapshotSummariesAndSampleSchedules(t *testing.T) {
+	registry := NewSourceRegistry()
+	registry.Register(stubSource{
+		id:        "nyse_official",
+		kind:      "official_html",
+		authority: "NYSE",
+		markets:   []string{"US"},
+		fetch: func(context.Context, string, time.Time, time.Time) (marketcalendar.CalendarSnapshot, error) {
+			fetchedAt := time.Date(2026, 1, 2, 3, 0, 0, 0, time.UTC)
+			return marketcalendar.CalendarSnapshot{
+				MarketCode: "US",
+				SourceID:   "nyse_official",
+				From:       time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC),
+				To:         time.Date(2027, 12, 31, 23, 59, 59, 0, time.UTC),
+				FetchedAt:  fetchedAt,
+				ValidUntil: fetchedAt.Add(7 * 24 * time.Hour),
+				Checksum:   "checksum-1",
+				Schedules: []marketcalendar.TradingDaySchedule{
+					{
+						MarketCode: "US",
+						Date:       time.Date(2026, 1, 2, 0, 0, 0, 0, time.UTC),
+						Status:     marketcalendar.TradingDayOpen,
+						SourceID:   "nyse_official",
+					},
+					{
+						MarketCode: "US",
+						Date:       time.Date(2026, 1, 19, 0, 0, 0, 0, time.UTC),
+						Status:     marketcalendar.TradingDayClosed,
+						Reason:     "holiday",
+						SourceID:   "nyse_official",
+						Observed:   true,
+					},
+					{
+						MarketCode: "US",
+						Date:       time.Date(2026, 11, 27, 0, 0, 0, 0, time.UTC),
+						Status:     marketcalendar.TradingDayEarlyClose,
+						Reason:     "early close",
+						SourceID:   "nyse_official",
+						Sessions: []marketcalendar.SessionWindow{
+							{Kind: marketcalendar.SessionRegular, StartMinute: 570, EndMinute: 780},
+						},
+					},
+				},
+			}, nil
+		},
+	})
+	settings := jfsettings.ExchangeCalendarSettings{
+		AutoRefreshEnabled:   false,
+		RefreshIntervalHours: 24,
+		WarmupMarkets:        []string{"US"},
+		SourcePolicies: []jfsettings.ExchangeCalendarSourcePolicy{
+			{
+				Market:             "US",
+				PreferredSourceIDs: []string{"nyse_official"},
+				EnabledSourceIDs:   []string{"nyse_official"},
+				FallbackToBuiltin:  true,
+				StaleAfterHours:    72,
+			},
+		},
+	}
+	manager := NewManager(calendarstore.New(t.TempDir()), func() jfsettings.ExchangeCalendarSettings { return settings }, WithRegistry(registry), WithClock(func() time.Time {
+		return time.Date(2026, 6, 19, 12, 0, 0, 0, time.UTC)
+	}))
+
+	if result := manager.RefreshAll(context.Background()); result["updated"] != 1 || result["failures"] != 0 {
+		t.Fatalf("RefreshAll result = %#v", result)
+	}
+	status := manager.Status()
+	snapshots := jftradeCheckedTypeAssertion[[]map[string]any](status["snapshots"])
+	if len(snapshots) != 1 {
+		t.Fatalf("snapshots = %#v", snapshots)
+	}
+	snapshot := snapshots[0]
+	if snapshot["market"] != "US" || snapshot["sourceId"] != "nyse_official" || snapshot["schedulesParsed"] != 3 || snapshot["checksum"] != "checksum-1" {
+		t.Fatalf("snapshot summary = %#v", snapshot)
+	}
+	samples := jftradeCheckedTypeAssertion[[]map[string]any](snapshot["sampleSchedules"])
+	if len(samples) != 2 {
+		t.Fatalf("sampleSchedules = %#v, want closed/early-close samples only", samples)
+	}
+	if samples[0]["date"] != "2026-01-19" || samples[0]["status"] != marketcalendar.TradingDayClosed || samples[0]["reason"] != "holiday" {
+		t.Fatalf("first sample = %#v", samples[0])
+	}
+	if samples[1]["date"] != "2026-11-27" || samples[1]["status"] != marketcalendar.TradingDayEarlyClose {
+		t.Fatalf("second sample = %#v", samples[1])
 	}
 }
 
@@ -501,6 +606,129 @@ func TestManagerSourceAlertsDeduplicateAndRecover(t *testing.T) {
 	status := manager.sourceStatus("hk_gov_1823_ical")
 	if status.HealthState != "healthy" || status.LastAlertStatus != "recovered" {
 		t.Fatalf("source status = %#v", status)
+	}
+}
+
+func TestManagerSourceAlertsDeduplicateNetworkTimeoutVariants(t *testing.T) {
+	registry := NewSourceRegistry()
+	errorsByCall := []error{
+		context.DeadlineExceeded,
+		context.Canceled,
+		errors.New(`Get "https://www.nyse.com/trade/hours-calendars": context deadline exceeded (Client.Timeout exceeded while awaiting headers)`),
+	}
+	callCount := 0
+	registry.Register(stubSource{
+		id:        "nyse_official",
+		kind:      "official_html",
+		authority: "NYSE",
+		markets:   []string{"US"},
+		fetch: func(context.Context, string, time.Time, time.Time) (marketcalendar.CalendarSnapshot, error) {
+			err := errorsByCall[callCount%len(errorsByCall)]
+			callCount++
+			return marketcalendar.CalendarSnapshot{}, err
+		},
+	})
+	settings := jfsettings.ExchangeCalendarSettings{
+		AutoRefreshEnabled:   false,
+		RefreshIntervalHours: 24,
+		WarmupMarkets:        []string{"US"},
+		SourcePolicies: []jfsettings.ExchangeCalendarSourcePolicy{
+			{
+				Market:             "US",
+				PreferredSourceIDs: []string{"nyse_official"},
+				EnabledSourceIDs:   []string{"nyse_official"},
+				FallbackToBuiltin:  true,
+			},
+		},
+	}
+	var alerts []SourceAlert
+	manager := NewManager(
+		nil,
+		func() jfsettings.ExchangeCalendarSettings { return settings },
+		WithRegistry(registry),
+		WithAlertSink(func(alert SourceAlert) {
+			alerts = append(alerts, alert)
+		}),
+		WithClock(func() time.Time {
+			return time.Date(2026, 6, 2, 12, 0, 0, 0, time.UTC)
+		}),
+	)
+
+	manager.RefreshAll(context.Background())
+	manager.RefreshAll(context.Background())
+	manager.RefreshAll(context.Background())
+
+	if len(alerts) != 1 {
+		t.Fatalf("alerts = %#v, want one network timeout alert", alerts)
+	}
+	if got, want := alerts[0].Fingerprint, "nyse_official|US|fetch_failed|network_timeout_or_cancelled"; got != want {
+		t.Fatalf("fingerprint = %q, want %q", got, want)
+	}
+}
+
+func TestManagerProbeRecoveryClearsCurrentFetchError(t *testing.T) {
+	registry := NewSourceRegistry()
+	callCount := 0
+	registry.Register(stubSource{
+		id:        "nyse_official",
+		kind:      "official_html",
+		authority: "NYSE",
+		markets:   []string{"US"},
+		fetch: func(context.Context, string, time.Time, time.Time) (marketcalendar.CalendarSnapshot, error) {
+			callCount++
+			if callCount == 1 {
+				return marketcalendar.CalendarSnapshot{}, errors.New("context deadline exceeded")
+			}
+			return marketcalendar.CalendarSnapshot{
+				MarketCode: "US",
+				SourceID:   "nyse_official",
+				Schedules: []marketcalendar.TradingDaySchedule{
+					{
+						MarketCode: "US",
+						Date:       time.Date(2026, 6, 19, 0, 0, 0, 0, time.UTC),
+						Status:     marketcalendar.TradingDayClosed,
+					},
+				},
+				FetchedAt:  time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC),
+				ValidUntil: time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC),
+			}, nil
+		},
+	})
+	settings := jfsettings.ExchangeCalendarSettings{
+		AutoRefreshEnabled:   false,
+		RefreshIntervalHours: 24,
+		WarmupMarkets:        []string{"US"},
+		SourcePolicies: []jfsettings.ExchangeCalendarSourcePolicy{
+			{
+				Market:             "US",
+				PreferredSourceIDs: []string{"nyse_official"},
+				EnabledSourceIDs:   []string{"nyse_official"},
+				FallbackToBuiltin:  true,
+			},
+		},
+	}
+	manager := NewManager(
+		nil,
+		func() jfsettings.ExchangeCalendarSettings { return settings },
+		WithRegistry(registry),
+		WithClock(func() time.Time {
+			return time.Date(2026, 6, 2, 12, 0, 0, 0, time.UTC)
+		}),
+	)
+
+	manager.RefreshAll(context.Background())
+	failed := manager.sourceStatus("nyse_official")
+	if failed.HealthState != "unhealthy" || failed.LastError == "" || failed.NextRefreshAt.IsZero() {
+		t.Fatalf("failed source status = %#v", failed)
+	}
+
+	manager.ProbeAll(context.Background())
+	recovered := manager.sourceStatus("nyse_official")
+	if recovered.HealthState != "healthy" || recovered.LastError != "" || recovered.LastProbeError != "" {
+		t.Fatalf("recovered source status = %#v", recovered)
+	}
+	if recovered.ConsecutiveFailures != 0 || !recovered.NextRefreshAt.IsZero() {
+		t.Fatalf("recovered retry state = %#v", recovered)
 	}
 }
 

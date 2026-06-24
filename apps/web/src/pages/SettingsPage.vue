@@ -5,6 +5,7 @@ import { useRoute, useRouter } from "vue-router";
 import FutuIntegrationSection from "../components/FutuIntegrationSection.vue";
 import SettingsAccountDiscoverySection from "../components/SettingsAccountDiscoverySection.vue";
 import SettingsAppearanceSection from "../components/SettingsAppearanceSection.vue";
+import SettingsExchangeCalendarSection from "../components/SettingsExchangeCalendarSection.vue";
 import SettingsManagedAccountsSection from "../components/SettingsManagedAccountsSection.vue";
 import SettingsSecuritySection from "../components/SettingsSecuritySection.vue";
 import { createSettingsManagedAccountsController } from "../composables/settingsManagedAccounts";
@@ -46,6 +47,11 @@ const settingsMenu = [
     index: "appearance",
     label: "界面外观",
     description: "设置 K 线、价格涨跌与买卖颜色。",
+  },
+  {
+    index: "exchange-calendars",
+    label: "交易所日历",
+    description: "查看外部交易所日历源状态与错误推送。",
   },
   {
     index: "security",
@@ -180,6 +186,8 @@ const {
         />
 
         <SettingsAppearanceSection v-show="activeMenu === 'appearance'" />
+
+        <SettingsExchangeCalendarSection v-show="activeMenu === 'exchange-calendars'" />
 
         <SettingsSecuritySection v-if="activeMenu === 'security'" />
 

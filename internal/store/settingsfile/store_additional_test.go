@@ -1,6 +1,7 @@
 package settingsfile
 
 import (
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -161,6 +162,9 @@ func TestSaveExchangeCalendarSettingsNormalizesPoliciesAndOverrides(t *testing.T
 	if saved.AutoRefreshEnabled {
 		t.Fatalf("AutoRefreshEnabled = true, want false")
 	}
+	if !saved.ErrorNotificationsEnabled {
+		t.Fatalf("ErrorNotificationsEnabled = false, want default true")
+	}
 	if saved.RefreshIntervalHours != 24*30 {
 		t.Fatalf("RefreshIntervalHours = %d, want %d", saved.RefreshIntervalHours, 24*30)
 	}
@@ -200,6 +204,45 @@ func TestSaveExchangeCalendarSettingsNormalizesPoliciesAndOverrides(t *testing.T
 	}
 	if got := reloaded.ExchangeCalendarSettings(); !reflect.DeepEqual(got, saved) {
 		t.Fatalf("reloaded calendars = %#v, want %#v", got, saved)
+	}
+}
+
+func TestExchangeCalendarErrorNotificationSettingPreservesExplicitFalse(t *testing.T) {
+	var input jfsettings.ExchangeCalendarSettings
+	if err := json.Unmarshal([]byte(`{"autoRefreshEnabled":true,"errorNotificationsEnabled":false,"refreshIntervalHours":24,"warmupMarkets":["US"]}`), &input); err != nil {
+		t.Fatalf("Unmarshal settings: %v", err)
+	}
+	if input.ErrorNotificationsEnabled {
+		t.Fatalf("decoded ErrorNotificationsEnabled = true, want false")
+	}
+
+	settingsPath := filepath.Join(t.TempDir(), "settings.json")
+	store, err := New(settingsPath)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+	saved, err := store.SaveExchangeCalendarSettings(input)
+	if err != nil {
+		t.Fatalf("SaveExchangeCalendarSettings: %v", err)
+	}
+	if saved.ErrorNotificationsEnabled {
+		t.Fatalf("saved ErrorNotificationsEnabled = true, want false")
+	}
+
+	reloaded, err := New(settingsPath)
+	if err != nil {
+		t.Fatalf("New reload: %v", err)
+	}
+	if got := reloaded.ExchangeCalendarSettings(); got.ErrorNotificationsEnabled {
+		t.Fatalf("reloaded ErrorNotificationsEnabled = true, want false")
+	}
+
+	var legacy jfsettings.ExchangeCalendarSettings
+	if err := json.Unmarshal([]byte(`{"autoRefreshEnabled":true,"refreshIntervalHours":24}`), &legacy); err != nil {
+		t.Fatalf("Unmarshal legacy settings: %v", err)
+	}
+	if !legacy.ErrorNotificationsEnabled {
+		t.Fatalf("legacy ErrorNotificationsEnabled = false, want default true")
 	}
 }
 

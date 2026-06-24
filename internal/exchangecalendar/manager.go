@@ -2,6 +2,7 @@ package exchangecalendar
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -31,6 +32,8 @@ type Manager struct {
 	reloadCh  chan struct{}
 	wg        sync.WaitGroup
 }
+
+const defaultWarmupRefreshTimeout = 60 * time.Second
 
 type Option func(*Manager)
 
@@ -191,6 +194,7 @@ func (m *Manager) Status() map[string]any {
 		"warmupMarkets":        normalizeMarkets(settings.WarmupMarkets),
 		"markets":              marketRows,
 		"sources":              m.Sources(),
+		"snapshots":            m.snapshotSummaries(),
 	}
 }
 
@@ -269,7 +273,7 @@ func (m *Manager) run() {
 }
 
 func (m *Manager) refreshWarmup() {
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), defaultWarmupRefreshTimeout)
 	defer cancel()
 	go func() {
 		select {
@@ -590,6 +594,80 @@ func (m *Manager) sourceStatus(sourceID string) SourceStatus {
 		return *status
 	}
 	return SourceStatus{SourceID: sourceID}
+}
+
+func (m *Manager) snapshotSummaries() []map[string]any {
+	if m == nil {
+		return nil
+	}
+	m.mu.RLock()
+	snapshots := make([]marketcalendar.CalendarSnapshot, 0, len(m.snapshots))
+	for _, snapshot := range m.snapshots {
+		if strings.TrimSpace(snapshot.SourceID) == "" || snapshot.SourceID == BuiltinSourceID {
+			continue
+		}
+		snapshots = append(snapshots, snapshot)
+	}
+	m.mu.RUnlock()
+
+	sort.SliceStable(snapshots, func(i, j int) bool {
+		left := snapshotSortKey(snapshots[i])
+		right := snapshotSortKey(snapshots[j])
+		return left < right
+	})
+
+	rows := make([]map[string]any, 0, len(snapshots))
+	for _, snapshot := range snapshots {
+		rows = append(rows, map[string]any{
+			"market":          normalizeMarket(snapshot.MarketCode),
+			"sourceId":        strings.TrimSpace(snapshot.SourceID),
+			"from":            snapshot.From,
+			"to":              snapshot.To,
+			"fetchedAt":       snapshot.FetchedAt,
+			"validUntil":      snapshot.ValidUntil,
+			"schedulesParsed": len(snapshot.Schedules),
+			"checksum":        snapshot.Checksum,
+			"sampleSchedules": sampleSnapshotSchedules(snapshot.Schedules, 8),
+		})
+	}
+	return rows
+}
+
+func snapshotSortKey(snapshot marketcalendar.CalendarSnapshot) string {
+	return strings.Join([]string{
+		normalizeMarket(snapshot.MarketCode),
+		strings.TrimSpace(snapshot.SourceID),
+		snapshot.From.Format(time.RFC3339Nano),
+	}, "|")
+}
+
+func sampleSnapshotSchedules(schedules []marketcalendar.TradingDaySchedule, limit int) []map[string]any {
+	if limit <= 0 {
+		return nil
+	}
+	samples := make([]marketcalendar.TradingDaySchedule, 0, limit)
+	for _, schedule := range schedules {
+		if schedule.Status == marketcalendar.TradingDayOpen {
+			continue
+		}
+		samples = append(samples, schedule)
+		if len(samples) >= limit {
+			break
+		}
+	}
+	rows := make([]map[string]any, 0, len(samples))
+	for _, schedule := range samples {
+		rows = append(rows, map[string]any{
+			"market":   normalizeMarket(schedule.MarketCode),
+			"date":     schedule.Date.Format("2006-01-02"),
+			"status":   schedule.Status,
+			"reason":   schedule.Reason,
+			"sourceId": strings.TrimSpace(schedule.SourceID),
+			"observed": schedule.Observed,
+			"sessions": schedule.Sessions,
+		})
+	}
+	return rows
 }
 
 func (m *Manager) recordSuccess(sourceID string, snapshot marketcalendar.CalendarSnapshot) {
@@ -938,6 +1016,10 @@ func recordHealthyStateLocked(status *SourceStatus, market string, now time.Time
 	previousFingerprint := status.HealthFingerprint
 	status.HealthState = "healthy"
 	status.HealthFingerprint = ""
+	status.LastError = ""
+	status.LastProbeError = ""
+	status.ConsecutiveFailures = 0
+	status.NextRefreshAt = time.Time{}
 	if previousState != "unhealthy" {
 		return nil
 	}
@@ -994,7 +1076,7 @@ func sourceFailureAlert(sourceID string, market string, kind string, err error) 
 			Kind:        "structure_changed",
 			Title:       "交易所日历源解析异常",
 			Message:     fmt.Sprintf("%s 市场日历源 %s 抓取成功但未解析到有效交易日，可能是官网结构发生变化。系统将继续回退到内置日历。", normalizedMarket, sourceID),
-			Fingerprint: sourceAlertFingerprint(sourceID, normalizedMarket, "structure_changed", message),
+			Fingerprint: sourceAlertFingerprint(sourceID, normalizedMarket, "structure_changed", err),
 		}
 	default:
 		return SourceAlert{
@@ -1004,13 +1086,34 @@ func sourceFailureAlert(sourceID string, market string, kind string, err error) 
 			Kind:        "fetch_failed",
 			Title:       "交易所日历源抓取失败",
 			Message:     fmt.Sprintf("%s 市场日历源 %s 抓取失败：%s。系统将继续回退到内置日历。", normalizedMarket, sourceID, defaultAlertDetail(message)),
-			Fingerprint: sourceAlertFingerprint(sourceID, normalizedMarket, "fetch_failed", message),
+			Fingerprint: sourceAlertFingerprint(sourceID, normalizedMarket, "fetch_failed", err),
 		}
 	}
 }
 
-func sourceAlertFingerprint(sourceID string, market string, kind string, detail string) string {
-	return fmt.Sprintf("%s|%s|%s|%s", strings.TrimSpace(sourceID), normalizeMarket(market), strings.TrimSpace(kind), strings.TrimSpace(detail))
+func sourceAlertFingerprint(sourceID string, market string, kind string, err error) string {
+	return fmt.Sprintf("%s|%s|%s|%s", strings.TrimSpace(sourceID), normalizeMarket(market), strings.TrimSpace(kind), sourceAlertFingerprintDetail(kind, err))
+}
+
+func sourceAlertFingerprintDetail(kind string, err error) string {
+	if strings.TrimSpace(kind) == "structure_changed" {
+		return "structure_changed"
+	}
+	if err == nil {
+		return "unknown_error"
+	}
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return "network_timeout_or_cancelled"
+	}
+	detail := strings.ToLower(strings.TrimSpace(err.Error()))
+	switch {
+	case strings.Contains(detail, "context canceled"),
+		strings.Contains(detail, "context deadline exceeded"),
+		strings.Contains(detail, "client.timeout exceeded"):
+		return "network_timeout_or_cancelled"
+	default:
+		return detail
+	}
 }
 
 func defaultAlertDetail(detail string) string {

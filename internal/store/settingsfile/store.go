@@ -559,9 +559,10 @@ func adkRuntimeSettingsPointer(value jfsettings.ADKRuntimeSettings) *jfsettings.
 
 func DefaultExchangeCalendarSettings() jfsettings.ExchangeCalendarSettings {
 	return jfsettings.ExchangeCalendarSettings{
-		AutoRefreshEnabled:   true,
-		RefreshIntervalHours: 24,
-		WarmupMarkets:        []string{"US", "HK", "CN"},
+		AutoRefreshEnabled:        true,
+		ErrorNotificationsEnabled: true,
+		RefreshIntervalHours:      24,
+		WarmupMarkets:             []string{"US", "HK", "CN"},
 		SourcePolicies: []jfsettings.ExchangeCalendarSourcePolicy{
 			{
 				Market:             "US",
@@ -597,6 +598,10 @@ func NormalizeExchangeCalendarSettings(input jfsettings.ExchangeCalendarSettings
 	defaults := DefaultExchangeCalendarSettings()
 	normalized := input
 	normalized.AutoRefreshEnabled = input.AutoRefreshEnabled
+	if !input.ErrorNotificationsEnabledSet() && !input.ErrorNotificationsEnabled {
+		normalized.ErrorNotificationsEnabled = defaults.ErrorNotificationsEnabled
+	}
+	normalized = normalized.WithErrorNotificationsEnabledSet(true)
 	if normalized.RefreshIntervalHours <= 0 {
 		normalized.RefreshIntervalHours = defaults.RefreshIntervalHours
 	}

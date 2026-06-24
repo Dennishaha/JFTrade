@@ -2,6 +2,8 @@
 // service, API transport, persistence, and application assembly layers.
 package jftsettings
 
+import "encoding/json"
+
 // FutuIntegrationConfig holds Futu OpenD connection parameters.
 type FutuIntegrationConfig struct {
 	Type                    string `json:"type"`
@@ -102,11 +104,44 @@ type ExchangeCalendarSourcePolicy struct {
 }
 
 type ExchangeCalendarSettings struct {
-	AutoRefreshEnabled   bool                             `json:"autoRefreshEnabled"`
-	RefreshIntervalHours int                              `json:"refreshIntervalHours"`
-	WarmupMarkets        []string                         `json:"warmupMarkets,omitempty"`
-	SourcePolicies       []ExchangeCalendarSourcePolicy   `json:"sourcePolicies,omitempty"`
-	ManualOverrides      []ExchangeCalendarManualOverride `json:"manualOverrides,omitempty"`
+	AutoRefreshEnabled        bool                             `json:"autoRefreshEnabled"`
+	ErrorNotificationsEnabled bool                             `json:"errorNotificationsEnabled"`
+	RefreshIntervalHours      int                              `json:"refreshIntervalHours"`
+	WarmupMarkets             []string                         `json:"warmupMarkets,omitempty"`
+	SourcePolicies            []ExchangeCalendarSourcePolicy   `json:"sourcePolicies,omitempty"`
+	ManualOverrides           []ExchangeCalendarManualOverride `json:"manualOverrides,omitempty"`
+
+	errorNotificationsEnabledSet bool
+}
+
+// UnmarshalJSON defaults error notifications on for legacy settings files that
+// predate the field while preserving an explicit false from the API or disk.
+func (s *ExchangeCalendarSettings) UnmarshalJSON(data []byte) error {
+	type alias ExchangeCalendarSettings
+	var raw struct {
+		alias
+		ErrorNotificationsEnabled *bool `json:"errorNotificationsEnabled"`
+	}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	*s = ExchangeCalendarSettings(raw.alias)
+	if raw.ErrorNotificationsEnabled != nil {
+		s.ErrorNotificationsEnabled = *raw.ErrorNotificationsEnabled
+		s.errorNotificationsEnabledSet = true
+	} else {
+		s.ErrorNotificationsEnabled = true
+	}
+	return nil
+}
+
+func (s ExchangeCalendarSettings) ErrorNotificationsEnabledSet() bool {
+	return s.errorNotificationsEnabledSet
+}
+
+func (s ExchangeCalendarSettings) WithErrorNotificationsEnabledSet(set bool) ExchangeCalendarSettings {
+	s.errorNotificationsEnabledSet = set
+	return s
 }
 
 // LaunchDefaults carries startup-resolved paths and bind addresses.

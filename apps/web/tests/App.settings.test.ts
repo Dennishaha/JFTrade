@@ -112,6 +112,28 @@ describe("Settings page", () => {
           ],
         });
       }
+      if (url.includes("/api/v1/settings/exchange-calendars")) {
+        return createResponse({
+          exchangeCalendars: {
+            autoRefreshEnabled: true,
+            errorNotificationsEnabled: true,
+            refreshIntervalHours: 24,
+            warmupMarkets: ["US", "HK", "CN"],
+            sourcePolicies: [],
+            manualOverrides: [],
+          },
+        });
+      }
+      if (url.includes("/api/v1/system/exchange-calendars/status")) {
+        return createResponse({
+          autoRefreshEnabled: true,
+          refreshIntervalHours: 24,
+          warmupMarkets: ["US", "HK", "CN"],
+          markets: [],
+          sources: [],
+          snapshots: [],
+        });
+      }
       if (url.includes("/api/v1/system/futu-opend/install-guide")) {
         return createResponse({
           brokerId: "futu",
@@ -300,6 +322,7 @@ describe("Settings page", () => {
 
     expect(wrapper.text()).toContain("设置");
     expect(wrapper.text()).toContain("富途接入");
+    expect(wrapper.text()).toContain("交易所日历");
     expect(wrapper.text()).toContain("OpenD 连接状态");
     expect(wrapper.text()).toContain("WebSocket 密码 / 密钥");
     expect(wrapper.text()).toContain("Primary sim");

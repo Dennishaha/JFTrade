@@ -376,9 +376,10 @@ func TestExecutionExchangeCalendarAndBrokerRoutesCoverReadAndValidation(t *testi
 			SeenFillRetentionDays:          7,
 		},
 		calendars: jfsettings.ExchangeCalendarSettings{
-			AutoRefreshEnabled:   true,
-			RefreshIntervalHours: 12,
-			WarmupMarkets:        []string{"US", "HK"},
+			AutoRefreshEnabled:        true,
+			ErrorNotificationsEnabled: true,
+			RefreshIntervalHours:      12,
+			WarmupMarkets:             []string{"US", "HK"},
 		},
 	}
 	var calendarSideEffect jfsettings.ExchangeCalendarSettings
@@ -428,19 +429,19 @@ func TestExecutionExchangeCalendarAndBrokerRoutesCoverReadAndValidation(t *testi
 		if getRec.Code != http.StatusOK {
 			t.Fatalf("get status = %d, want 200, body=%s", getRec.Code, getRec.Body.String())
 		}
-		if !strings.Contains(getRec.Body.String(), `"exchangeCalendars"`) || !strings.Contains(getRec.Body.String(), `"warmupMarkets":["US","HK"]`) {
+		if !strings.Contains(getRec.Body.String(), `"exchangeCalendars"`) || !strings.Contains(getRec.Body.String(), `"warmupMarkets":["US","HK"]`) || !strings.Contains(getRec.Body.String(), `"errorNotificationsEnabled":true`) {
 			t.Fatalf("get body = %s, want wrapped calendar payload", getRec.Body.String())
 		}
 
 		putRec := httptest.NewRecorder()
-		putReq := httptest.NewRequestWithContext(t.Context(), http.MethodPut, "/api/v1/settings/exchange-calendars", strings.NewReader(`{"exchangeCalendars":{"autoRefreshEnabled":false,"refreshIntervalHours":6,"warmupMarkets":["US"]}}`))
+		putReq := httptest.NewRequestWithContext(t.Context(), http.MethodPut, "/api/v1/settings/exchange-calendars", strings.NewReader(`{"exchangeCalendars":{"autoRefreshEnabled":false,"errorNotificationsEnabled":false,"refreshIntervalHours":6,"warmupMarkets":["US"]}}`))
 		putReq.Header.Set("Content-Type", "application/json")
 		router.ServeHTTP(putRec, putReq)
 
 		if putRec.Code != http.StatusOK {
 			t.Fatalf("put status = %d, want 200, body=%s", putRec.Code, putRec.Body.String())
 		}
-		if store.calendars.AutoRefreshEnabled || store.calendars.RefreshIntervalHours != 6 || !reflect.DeepEqual(store.calendars.WarmupMarkets, []string{"US"}) {
+		if store.calendars.AutoRefreshEnabled || store.calendars.ErrorNotificationsEnabled || store.calendars.RefreshIntervalHours != 6 || !reflect.DeepEqual(store.calendars.WarmupMarkets, []string{"US"}) {
 			t.Fatalf("stored calendars = %#v", store.calendars)
 		}
 		if !reflect.DeepEqual(calendarSideEffect, store.calendars) {
@@ -499,7 +500,7 @@ func TestExchangeCalendarSettingsRouteUsesInjectedService(t *testing.T) {
 	api := router.Group("/api/v1")
 	apisettings.RegisterRoutes(api, service)
 
-	body := `{"exchangeCalendars":{"autoRefreshEnabled":false,"refreshIntervalHours":12,"warmupMarkets":["US","HK"],"sourcePolicies":[{"market":"US","enabledSourceIds":["nyse_official"],"fallbackToBuiltin":true}]}}`
+	body := `{"exchangeCalendars":{"autoRefreshEnabled":false,"errorNotificationsEnabled":false,"refreshIntervalHours":12,"warmupMarkets":["US","HK"],"sourcePolicies":[{"market":"US","enabledSourceIds":["nyse_official"],"fallbackToBuiltin":true}]}}`
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequestWithContext(t.Context(), http.MethodPut, "/api/v1/settings/exchange-calendars", strings.NewReader(body))
 	request.Header.Set("Content-Type", "application/json")
@@ -512,7 +513,7 @@ func TestExchangeCalendarSettingsRouteUsesInjectedService(t *testing.T) {
 	if !reflect.DeepEqual(store.calendars, sideEffect) {
 		t.Fatalf("side effect = %#v, stored = %#v", sideEffect, store.calendars)
 	}
-	if store.calendars.RefreshIntervalHours != 12 || store.calendars.AutoRefreshEnabled {
+	if store.calendars.RefreshIntervalHours != 12 || store.calendars.AutoRefreshEnabled || store.calendars.ErrorNotificationsEnabled {
 		t.Fatalf("stored calendars = %#v", store.calendars)
 	}
 
@@ -525,7 +526,7 @@ func TestExchangeCalendarSettingsRouteUsesInjectedService(t *testing.T) {
 	if err := json.NewDecoder(recorder.Body).Decode(&envelope); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
-	if !envelope.OK || envelope.Data.ExchangeCalendars.RefreshIntervalHours != 12 {
+	if !envelope.OK || envelope.Data.ExchangeCalendars.RefreshIntervalHours != 12 || envelope.Data.ExchangeCalendars.ErrorNotificationsEnabled {
 		t.Fatalf("envelope = %#v", envelope)
 	}
 }

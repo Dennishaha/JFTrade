@@ -20,6 +20,8 @@ import (
 type ParseFunc func(market string, body []byte, from time.Time, to time.Time) ([]marketcalendar.TradingDaySchedule, error)
 type ValidateFunc func(market string, schedules []marketcalendar.TradingDaySchedule, from time.Time, to time.Time) error
 
+const defaultHTTPTimeout = 15 * time.Second
+
 type HTTPCalendarSource struct {
 	id        string
 	kind      string
@@ -43,7 +45,7 @@ func (s *HTTPCalendarSource) Fetch(ctx context.Context, market string, from time
 	}
 	client := s.client
 	if client == nil {
-		client = &http.Client{Timeout: 5 * time.Second}
+		client = &http.Client{Timeout: defaultHTTPTimeout}
 	}
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, s.url, nil)
 	if err != nil {
@@ -96,7 +98,7 @@ func (s *HTTPCalendarSource) ValidateSnapshot(market string, schedules []marketc
 
 func DefaultRegistry(client *http.Client) *SourceRegistry {
 	if client == nil {
-		client = &http.Client{Timeout: 5 * time.Second}
+		client = &http.Client{Timeout: defaultHTTPTimeout}
 	}
 	registry := NewSourceRegistry()
 	registry.Register(&HTTPCalendarSource{
