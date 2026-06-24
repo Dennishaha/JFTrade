@@ -65,6 +65,90 @@ func TestWorkflowTaskStateMachineRejectsPrematureChildCompletion(t *testing.T) {
 	}
 }
 
+func TestRunChildUsesStepProviderAndModel(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	childProviderID := saveGoalWorkflowProvider(t, runtime, "child-model-provider", func(openAIChatRequest) openAIChatMessage {
+		return openAIChatMessage{Role: "assistant", Content: "子模型完成。"}
+	})
+	agent := mustSaveAgent(t, runtime, AgentWriteRequest{
+		ID: "child-provider-parent-agent", Name: "Child Provider Parent", Status: AgentStatusEnabled, WorkMode: WorkModeTask,
+	})
+	session := mustCreateSession(t, runtime, agent.ID, "child provider override")
+	parent := mustSaveRun(t, runtime, Run{
+		ID: "parent-child-provider-override", SessionID: session.ID, AgentID: agent.ID,
+		Status: RunStatusRunning, WorkMode: WorkModeTask, WorkflowStatus: workflowStatusRunning,
+		Objective: "验证子模型选择", CreatedAt: nowString(), UpdatedAt: nowString(), Usage: &RunUsage{},
+	})
+	task, err := runtime.Store().SaveTask(ctx, TaskWriteRequest{
+		ID: "task-child-provider-override", Title: "子模型任务", Status: "IN_PROGRESS", AgentID: agent.ID,
+		RunID: parent.ID, Executor: workflowTaskExecutorChild, WorkflowMode: WorkModeTask, Objective: parent.Objective,
+		ChildProviderID: childProviderID, ChildModel: "child-special-model",
+	})
+	if err != nil {
+		t.Fatalf("SaveTask: %v", err)
+	}
+	result := (&WorkflowExecutor{runtime: runtime}).runChild(ctx, workflowRequest{
+		Agent: agent, Session: session, Mode: WorkModeTask, Objective: parent.Objective,
+	}, parent, workflowStep{
+		Title: "子模型任务", Message: "直接回答", ChildProviderID: childProviderID, ChildModel: "child-special-model",
+	}, task, 1)
+	if result.Err != nil {
+		t.Fatalf("runChild: %v", result.Err)
+	}
+	if result.Response.Run.Status != RunStatusCompleted {
+		t.Fatalf("child run status = %q, want completed", result.Response.Run.Status)
+	}
+	if result.Response.Run.ProviderID != childProviderID || result.Response.Run.ProviderName != childProviderID || result.Response.Run.Model != "child-special-model" {
+		t.Fatalf("child run model snapshot = %+v, want provider/model override", result.Response.Run)
+	}
+	stored, ok, err := runtime.Store().Run(ctx, result.Response.Run.ID)
+	if err != nil || !ok {
+		t.Fatalf("stored child lookup ok=%v err=%v", ok, err)
+	}
+	if stored.ProviderID != childProviderID || stored.ProviderName != childProviderID || stored.Model != "child-special-model" {
+		t.Fatalf("stored child model snapshot = %+v, want provider/model override", stored)
+	}
+}
+
+func TestWorkflowTaskToolsExposeModelSelection(t *testing.T) {
+	toolset := &workflowTaskToolset{req: workflowRequest{Mode: WorkModeTask}}
+	tools, err := toolset.Tools(nil)
+	if err != nil {
+		t.Fatalf("Tools: %v", err)
+	}
+	names := map[string]bool{}
+	for _, tool := range tools {
+		names[tool.Name()] = true
+	}
+	if !names[workflowModelsListTool] {
+		t.Fatalf("workflow task tools = %+v, want %s", names, workflowModelsListTool)
+	}
+	for name, schema := range map[string]map[string]any{
+		workflowTaskAddTool:      workflowTaskAddSchema(),
+		workflowTaskDelegateTool: workflowTaskDelegateSchema(),
+	} {
+		properties, ok := schema["properties"].(map[string]any)
+		if !ok {
+			t.Fatalf("%s schema properties = %#v", name, schema["properties"])
+		}
+		for _, field := range []string{"childProviderId", "childModel"} {
+			if _, ok := properties[field]; !ok {
+				t.Fatalf("%s schema missing %s in %+v", name, field, properties)
+			}
+		}
+	}
+	modelProperties, ok := workflowModelsListSchema()["properties"].(map[string]any)
+	if !ok {
+		t.Fatalf("workflow.models.list schema properties missing")
+	}
+	for _, field := range []string{"query", "providerId", "callableOnly", "limit"} {
+		if _, ok := modelProperties[field]; !ok {
+			t.Fatalf("workflow.models.list schema missing %s in %+v", field, modelProperties)
+		}
+	}
+}
+
 func TestGoalWorkflowToolsAreIsolatedByPhase(t *testing.T) {
 	decision := &workflowGoalDecision{}
 	decision.reset()
@@ -829,6 +913,56 @@ func TestClaimedRuntimeChildTaskDoesNotReuseParentRun(t *testing.T) {
 	}
 }
 
+func TestDelegatePersistsChildModelSelectionWhenProviderInvalid(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	agent := mustSaveAgent(t, runtime, AgentWriteRequest{
+		ID: "runtime-child-invalid-provider-agent", Name: "Runtime Child Invalid Provider", Status: AgentStatusEnabled,
+		WorkMode: WorkModeTask,
+	})
+	session := mustCreateSession(t, runtime, agent.ID, "runtime child invalid provider")
+	parent := mustSaveRun(t, runtime, Run{
+		ID: "run-runtime-child-invalid-provider", SessionID: session.ID, AgentID: agent.ID,
+		Status: RunStatusRunning, WorkMode: WorkModeTask, WorkflowStatus: workflowStatusRunning,
+		Objective: "delegate runtime child with invalid provider", CreatedAt: nowString(), UpdatedAt: nowString(), Usage: &RunUsage{},
+	})
+	task, err := runtime.Store().SaveTask(ctx, TaskWriteRequest{
+		ID: "task-runtime-child-invalid-provider", Title: "child invalid provider", Message: "analyze child task", Status: "TODO",
+		AgentID: agent.ID, RunID: parent.ID, Order: 1, PlanSource: workflowPlanSourceRuntime, WorkflowMode: WorkModeTask,
+	})
+	if err != nil {
+		t.Fatalf("SaveTask: %v", err)
+	}
+	parent.WorkflowPlan = workflowPlanFromTasks([]Task{task}, nil)
+	if err := runtime.Store().SaveRun(ctx, parent); err != nil {
+		t.Fatalf("SaveRun parent: %v", err)
+	}
+	toolset := &workflowTaskToolset{
+		executor: &WorkflowExecutor{runtime: runtime}, parentID: parent.ID,
+		req: workflowRequest{Agent: agent, Session: session, Mode: WorkModeTask},
+	}
+	result, err := toolset.delegate(map[string]any{
+		"taskId": task.ID, "prompt": "analyze child task",
+		"childProviderId": "missing-child-provider", "childModel": "expensive-child-model",
+	})
+	if err != nil {
+		t.Fatalf("delegate: %v", err)
+	}
+	if result["status"] != RunStatusFailed || result["result"] != "agent provider is unavailable" {
+		t.Fatalf("delegate result = %+v, want failed child response with provider error", result)
+	}
+	storedTask, ok, err := runtime.Store().Task(ctx, task.ID)
+	if err != nil || !ok {
+		t.Fatalf("stored task lookup ok=%v err=%v", ok, err)
+	}
+	if storedTask.Status != "BLOCKED" || storedTask.ResultSummary != "agent provider is unavailable" {
+		t.Fatalf("stored task = %+v, want blocked provider failure", storedTask)
+	}
+	if storedTask.ChildProviderID != "missing-child-provider" || storedTask.ChildModel != "expensive-child-model" {
+		t.Fatalf("stored child model fields = %+v, want delegate arguments persisted", storedTask)
+	}
+}
+
 func TestRepairWorkflowSelfReferenceMakesGoalResumable(t *testing.T) {
 	ctx := context.Background()
 	runtime := newTestRuntime(t)
@@ -943,7 +1077,7 @@ func TestWorkflowFinalSynthesisCompletesToolOnlyChildRun(t *testing.T) {
 	executor := WorkflowExecutor{runtime: runtime}
 	err = executor.ensureWorkflowChildrenFinalReplies(ctx, workflowRequest{
 		Agent: agent, Session: session, Message: child.UserMessage,
-	}, execution, []Run{child}, nil)
+	}, execution, []Run{child}, steps, nil)
 	if err != nil {
 		t.Fatalf("ensureWorkflowChildrenFinalReplies: %v", err)
 	}
@@ -1000,7 +1134,7 @@ func TestWorkflowFinalSynthesisSkipsChildrenWithPendingApproval(t *testing.T) {
 	executor := WorkflowExecutor{runtime: runtime}
 	if err := executor.ensureWorkflowChildrenFinalReplies(ctx, workflowRequest{
 		Agent: agent, Session: session, Message: child.UserMessage,
-	}, execution, []Run{child}, []Approval{approval}); err != nil {
+	}, execution, []Run{child}, steps, []Approval{approval}); err != nil {
 		t.Fatalf("ensureWorkflowChildrenFinalReplies: %v", err)
 	}
 	if !execution.runNeedsFinalSynthesis(child.ID) {

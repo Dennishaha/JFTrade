@@ -45,6 +45,12 @@ func (s *Store) SaveSessionComposerState(ctx context.Context, sessionID string, 
 	if patch.ChatDraft != nil {
 		state.ChatDraft = limitComposerText(*patch.ChatDraft)
 	}
+	if patch.ProviderIDOverride != nil {
+		state.ProviderIDOverride = strings.TrimSpace(*patch.ProviderIDOverride)
+	}
+	if patch.ModelOverride != nil {
+		state.ModelOverride = strings.TrimSpace(*patch.ModelOverride)
+	}
 	if patch.WorkModeOverride != nil {
 		mode, err := normalizeSessionComposerWorkMode(*patch.WorkModeOverride)
 		if err != nil {
@@ -91,6 +97,8 @@ func normalizeSessionComposerState(sessionID string, state SessionComposerState)
 		mode = ""
 	}
 	state.WorkModeOverride = mode
+	state.ProviderIDOverride = strings.TrimSpace(state.ProviderIDOverride)
+	state.ModelOverride = strings.TrimSpace(state.ModelOverride)
 	permissionMode, err := normalizeSessionComposerPermissionMode(state.PermissionModeOverride)
 	if err != nil {
 		permissionMode = ""

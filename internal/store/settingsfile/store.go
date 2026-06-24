@@ -540,7 +540,7 @@ func securitySettingsPointer(value jfsettings.SecuritySettings) *jfsettings.Secu
 
 func DefaultADKRuntimeSettings() jfsettings.ADKRuntimeSettings {
 	return jfsettings.ADKRuntimeSettings{
-		RunTimeoutMs:        600_000,
+		RunTimeoutMs:        1_800_000,
 		StreamIdleTimeoutMs: 300_000,
 	}
 }
@@ -548,7 +548,7 @@ func DefaultADKRuntimeSettings() jfsettings.ADKRuntimeSettings {
 func NormalizeADKRuntimeSettings(input jfsettings.ADKRuntimeSettings) jfsettings.ADKRuntimeSettings {
 	defaults := DefaultADKRuntimeSettings()
 	return jfsettings.ADKRuntimeSettings{
-		RunTimeoutMs:        clampOrDefaultInt(input.RunTimeoutMs, defaults.RunTimeoutMs, 60_000, 1_800_000),
+		RunTimeoutMs:        clampOrDefaultInt(input.RunTimeoutMs, defaults.RunTimeoutMs, 60_000, 43_200_000),
 		StreamIdleTimeoutMs: clampOrDefaultInt(input.StreamIdleTimeoutMs, defaults.StreamIdleTimeoutMs, 30_000, 900_000),
 	}
 }

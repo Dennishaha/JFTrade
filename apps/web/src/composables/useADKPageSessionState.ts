@@ -14,7 +14,6 @@ import {
   deleteADKPageSession,
   fetchADKPageSessionData,
   renameADKPageSession,
-  updateADKPageAgentProvider,
 } from "./adkPageSessionApi";
 import { formatDateTime } from "./consoleDataFormatting";
 import { scrollToBottom } from "./adkThreadScroll";
@@ -165,30 +164,26 @@ export function useADKPageSessionState(router: Router, threadRef: Ref<HTMLElemen
   }
 
   async function handleProviderChange(providerId: string): Promise<void> {
-    const agent = selectedAgent.value;
-    if (!agent || providerId === "" || providerId === agent.providerId || savingProviderSelection.value) {
+    if (providerId === "" || savingProviderSelection.value) {
       return;
     }
-    savingProviderSelection.value = true;
     errorMessage.value = "";
-    try {
-      const updated = await updateADKPageAgentProvider(agent, providerId);
-      agents.value = agents.value.map((item) => (item.id === updated.id ? updated : item));
-      selectedProviderId.value = updated.providerId;
-    } catch (error) {
-      selectedProviderId.value = agent.providerId;
-      errorMessage.value = error instanceof Error ? error.message : "切换模型提供商失败";
-    } finally {
-      savingProviderSelection.value = false;
-    }
+    selectedProviderId.value = providerId;
   }
 
-  function syncSelectedProviderFromAgent(): void {
-    selectedProviderId.value = selectedAgent.value?.providerId ?? "";
+  function syncSelectedProviderFromAgent(options: { force?: boolean } = {}): void {
+    const providerID = selectedAgent.value?.providerId ?? "";
+    const selectionMissing = selectedProviderId.value === "";
+    const selectionUnavailable =
+      selectedProviderId.value !== "" &&
+      !providers.value.some((provider) => provider.id === selectedProviderId.value);
+    if (options.force || selectionMissing || selectionUnavailable) {
+      selectedProviderId.value = providerID;
+    }
   }
 
   function handleAgentChange(): void {
-    syncSelectedProviderFromAgent();
+    syncSelectedProviderFromAgent({ force: true });
   }
 
   function openProviderSettings(): void {

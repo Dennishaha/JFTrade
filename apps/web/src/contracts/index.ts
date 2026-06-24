@@ -120,6 +120,7 @@ export interface ADKAgent {
   workMode: ADKWorkMode;
   loopMaxIterations: number;
   status: "ENABLED" | "DISABLED" | string;
+  builtin?: boolean;
   createdAt: string;
   updatedAt: string;
   deletedAt?: string;
@@ -192,6 +193,8 @@ export interface ADKSession {
 export interface ADKSessionComposerState {
   sessionId: string;
   chatDraft: string;
+  providerIdOverride: string;
+  modelOverride: string;
   workModeOverride: ADKWorkMode | "" | string;
   permissionModeOverride: ADKPermissionMode | "" | string;
   goalObjectiveDraft: string;
@@ -349,6 +352,8 @@ export interface ADKWorkflowStepState {
   message?: string;
   status: string;
   childRunId?: string;
+  childProviderId?: string;
+  childModel?: string;
   dependsOn?: string[];
   iteration?: number;
   order?: number;
@@ -429,6 +434,8 @@ export interface ADKTask {
   objective?: string;
   message?: string;
   executor?: string;
+  childProviderId?: string;
+  childModel?: string;
   resultSummary?: string;
   plannerWarnings?: string[];
   createdAt: string;
@@ -459,6 +466,8 @@ export interface ADKTaskPatch {
   objective?: string;
   message?: string;
   executor?: string;
+  childProviderId?: string;
+  childModel?: string;
   resultSummary?: string;
   plannerWarnings?: string[];
 }

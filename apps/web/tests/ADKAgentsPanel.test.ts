@@ -4,6 +4,7 @@ import { mount } from "@vue/test-utils";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import ADKAgentsPanel from "../src/components/adk-settings/ADKAgentsPanel.vue";
+import type { ADKAgent } from "../src/contracts";
 import {
   buttonStub,
   dialogStub,
@@ -17,6 +18,42 @@ afterEach(() => {
 });
 
 describe("ADKAgentsPanel", () => {
+  it("opens the new-agent dialog from the custom create button", async () => {
+    const newAgentForm = vi.fn();
+    const wrapper = mountAgentsPanel({ newAgentForm });
+
+    expect(wrapper.find(".v-dialog-stub").exists()).toBe(false);
+    await wrapper.findAll("button").find((button) => button.text().includes("自定义新建"))!.trigger("click");
+
+    expect(newAgentForm).toHaveBeenCalled();
+    expect(wrapper.text()).toContain("新建智能体");
+    expect(wrapper.text()).toContain("保存智能体");
+  });
+
+  it("opens templates and applies the selected template", async () => {
+    const applyAgentTemplate = vi.fn();
+    const template = {
+      ...buildAgent("task"),
+      id: "template-strategy",
+      name: "策略模板",
+      tools: [],
+      skills: ["jftrade-market"],
+    };
+    const wrapper = mountAgentsPanel({
+      agentTemplates: [template],
+      applyAgentTemplate,
+    });
+
+    await wrapper.findAll("button").find((button) => button.text().includes("从模板新建"))!.trigger("click");
+    expect(wrapper.text()).toContain("选择智能体模板");
+    expect(wrapper.text()).toContain("策略模板");
+
+    await wrapper.findAll("button").find((button) => button.text().includes("策略模板"))!.trigger("click");
+
+    expect(applyAgentTemplate).toHaveBeenCalledWith(template);
+    expect(wrapper.text()).toContain("新建智能体");
+  });
+
   it("hides sequential and parallel from the agent default work mode selector", async () => {
     const wrapper = mountAgentsPanel();
 
@@ -46,6 +83,48 @@ describe("ADKAgentsPanel", () => {
     expect(wrapper.text()).toContain("默认：任务");
     expect(wrapper.text()).toContain("默认：目标");
     expect(wrapper.text()).toContain("审批制");
+  });
+
+  it("marks builtin agents, shows all tools, and hides delete", () => {
+    const wrapper = mountAgentsPanel({
+      agents: [
+        {
+          ...buildAgent("chat"),
+          id: "jftrade-default",
+          name: "默认助手",
+          builtin: true,
+          tools: [],
+        },
+      ],
+    });
+
+    expect(wrapper.text()).toContain("系统默认");
+    expect(wrapper.text()).toContain("全部工具");
+    expect(wrapper.findAll("button").some((button) => button.text().includes("删除"))).toBe(false);
+    expect(wrapper.findAll("button").some((button) => button.text().includes("编辑"))).toBe(false);
+  });
+
+  it("sorts the primary default agent first", () => {
+    const wrapper = mountAgentsPanel({
+      agents: [
+        {
+          ...buildAgent("task"),
+          id: "custom-agent",
+          name: "Custom Agent",
+        },
+        {
+          ...buildAgent("chat"),
+          id: "jftrade-default",
+          name: "默认助手",
+          builtin: true,
+          status: "ENABLED",
+        },
+      ],
+    });
+
+    const text = wrapper.text();
+    expect(text.indexOf("默认助手")).toBeGreaterThanOrEqual(0);
+    expect(text.indexOf("默认助手")).toBeLessThan(text.indexOf("Custom Agent"));
   });
 
   it("shows all supported default modes directly in the edit dialog", async () => {
@@ -89,29 +168,35 @@ describe("ADKAgentsPanel", () => {
 
 function mountAgentsPanel(
   overrides: Partial<{
-    agents: ReturnType<typeof buildAgent>[];
+    agents: ADKAgent[];
+    agentForm: Partial<ADKAgent>;
+    agentTemplates: Array<Omit<ADKAgent, "createdAt" | "updatedAt">>;
+    applyAgentTemplate: ReturnType<typeof vi.fn>;
+    newAgentForm: ReturnType<typeof vi.fn>;
   }> = {},
 ) {
+  const agentForm = {
+    id: "",
+    name: "新 Agent",
+    instruction: "",
+    providerId: "provider",
+    model: "",
+    tools: [],
+    skills: [],
+    permissionMode: "approval" as const,
+    memoryEnabled: true,
+    recentUserWindow: 6,
+    workMode: "chat" as const,
+    loopMaxIterations: 5,
+    status: "ENABLED" as const,
+    ...overrides.agentForm,
+  };
   return mount(ADKAgentsPanel, {
     attachTo: document.body,
     props: {
-      agentForm: {
-        id: "",
-        name: "新 Agent",
-        instruction: "",
-        providerId: "provider",
-        model: "",
-        tools: [],
-        skills: [],
-        permissionMode: "approval",
-        memoryEnabled: true,
-        recentUserWindow: 6,
-        workMode: "chat",
-        loopMaxIterations: 5,
-        status: "ENABLED",
-      },
+      agentForm,
       agents: overrides.agents ?? [],
-      agentTemplates: [],
+      agentTemplates: overrides.agentTemplates ?? [],
       agentTemplateNotice: "",
       providerOptions: [{ title: "Provider", value: "provider" }],
       toolOptions: [],
@@ -125,9 +210,9 @@ function mountAgentsPanel(
       formatPermission: (mode: string) => mode === "approval" ? "审批制" : mode,
       riskColor: () => "default",
       riskLabel: () => "默认",
-      applyAgentTemplate: vi.fn(),
+      applyAgentTemplate: overrides.applyAgentTemplate ?? vi.fn(),
       saveAgent: vi.fn(),
-      newAgentForm: vi.fn(),
+      newAgentForm: overrides.newAgentForm ?? vi.fn(),
       editAgent: vi.fn(),
       duplicateAgent: vi.fn(),
       deleteAgent: vi.fn(),
@@ -151,7 +236,10 @@ function mountAgentsPanel(
           template: "<fieldset><legend>{{ label }}</legend><slot /></fieldset>",
         },
         "v-select": selectStub,
-        "v-switch": { template: "<label><slot /></label>" },
+        "v-switch": {
+          props: ["modelValue", "label", "disabled"],
+          template: "<label>{{ label }}<input type='checkbox' :data-switch-label='label' :checked=\"modelValue === true || modelValue === 'ENABLED'\" :disabled='disabled' /></label>",
+        },
         "v-text-field": {
           props: ["modelValue", "label"],
           template: "<label>{{ label }}<input :value='modelValue' /></label>",
@@ -162,7 +250,7 @@ function mountAgentsPanel(
   });
 }
 
-function buildAgent(workMode: "chat" | "task" | "loop") {
+function buildAgent(workMode: "chat" | "task" | "loop"): ADKAgent {
   return {
     id: `agent-${workMode}`,
     name: `Agent ${workMode}`,

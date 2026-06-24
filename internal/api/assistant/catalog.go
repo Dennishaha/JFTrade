@@ -279,6 +279,10 @@ func (h *Handler) handleADKDeleteAgent(c *gin.Context) {
 		return
 	}
 	if err := h.service.DeleteAgent(c.Request.Context(), uri.AgentID); err != nil {
+		if errors.Is(err, jfadk.ErrBuiltinAgentProtected) {
+			h.writeError(c, http.StatusConflict, "ADK_AGENT_PROTECTED", err.Error())
+			return
+		}
 		h.writeError(c, http.StatusInternalServerError, "ADK_AGENT_DELETE_FAILED", err.Error())
 		return
 	}
@@ -361,6 +365,10 @@ func (h *Handler) handleADKSaveAgent(c *gin.Context) {
 	}
 	agent, err := h.service.SaveAgent(c.Request.Context(), payload)
 	if err != nil {
+		if errors.Is(err, jfadk.ErrBuiltinAgentProtected) {
+			h.writeError(c, http.StatusConflict, "ADK_AGENT_PROTECTED", err.Error())
+			return
+		}
 		if isADKAgentValidationError(err) {
 			h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", err.Error())
 			return
@@ -377,6 +385,7 @@ func isADKAgentValidationError(err error) bool {
 	}
 	message := strings.ToLower(err.Error())
 	return strings.Contains(message, "invalid agent") ||
+		errors.Is(err, jfadk.ErrBuiltinAgentProtected) ||
 		strings.Contains(message, "provider not found") ||
 		strings.Contains(message, "provider is disabled") ||
 		strings.Contains(message, "provider api key is not configured") ||

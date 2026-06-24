@@ -2,8 +2,11 @@ package adk
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -561,6 +564,71 @@ func TestRunStoresResolvedModelSnapshot(t *testing.T) {
 	}
 	if len(runs) != 1 || runs[0].Model != "snapshot-model-v1" {
 		t.Fatalf("session runs = %+v, want model snapshot", runs)
+	}
+}
+
+func TestChatRequestProviderOverrideRunsWithoutEditingAgent(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	ensureTestProvider(t, runtime)
+	var captured openAIChatRequest
+	overrideServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || !strings.HasSuffix(r.URL.Path, "/chat/completions") {
+			http.NotFound(w, r)
+			return
+		}
+		defer func() { jftradePanicOnError(r.Body.Close()) }()
+		if err := json.NewDecoder(r.Body).Decode(&captured); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		jftradeErr1 := json.NewEncoder(w).Encode(openAIChatResponse{
+			Choices: []struct {
+				Message openAIChatMessage `json:"message"`
+			}{{Message: openAIChatMessage{Role: "assistant", Content: "override ok"}}},
+		})
+		jftradePanicOnError(jftradeErr1)
+	}))
+	t.Cleanup(overrideServer.Close)
+	mustSaveProvider(t, runtime, ProviderWriteRequest{
+		ID:          "override-provider",
+		DisplayName: "Override Provider",
+		BaseURL:     overrideServer.URL,
+		Model:       "provider-default-model",
+		APIKey:      "sk-override",
+		Enabled:     true,
+	})
+	agent := mustSaveAgent(t, runtime, AgentWriteRequest{
+		ID:             "agent-runtime-provider-override",
+		Name:           "Runtime Provider Override",
+		ProviderID:     testProviderID,
+		Model:          "agent-model",
+		PermissionMode: PermissionModeApproval,
+		Status:         AgentStatusEnabled,
+	})
+
+	response, err := runtime.Chat(ctx, ChatRequest{
+		AgentID:    agent.ID,
+		Message:    "使用临时模型运行",
+		ProviderID: "override-provider",
+		Model:      "override-model",
+	})
+	if err != nil {
+		t.Fatalf("Chat provider override: %v", err)
+	}
+	if captured.Model != "override-model" {
+		t.Fatalf("provider request model = %q, want override-model", captured.Model)
+	}
+	if response.Run.ProviderID != "override-provider" || response.Run.ProviderName != "Override Provider" || response.Run.Model != "override-model" {
+		t.Fatalf("run provider snapshot = %+v, want override provider/model", response.Run)
+	}
+	storedAgent, ok, err := runtime.Store().Agent(ctx, agent.ID)
+	if err != nil || !ok {
+		t.Fatalf("Agent lookup err=%v ok=%v", err, ok)
+	}
+	if storedAgent.ProviderID != testProviderID || storedAgent.Model != "agent-model" {
+		t.Fatalf("stored agent provider/model = %q/%q, want original %q/agent-model", storedAgent.ProviderID, storedAgent.Model, testProviderID)
 	}
 }
 

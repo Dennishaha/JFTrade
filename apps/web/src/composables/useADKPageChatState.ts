@@ -5,6 +5,7 @@ import type {
   ADKApproval,
   ADKApprovalResolution,
   ADKChatResponse,
+  ADKProvider,
   ADKRun,
   ADKSession,
   ADKSessionComposerState,
@@ -37,6 +38,7 @@ import {
   isGoalPauseAbortError,
   isQueueDispatchBlockedByGoalLifecycle,
   isRootRun,
+  isResumableTimedOutGoalRun,
   isUserPauseRequestedGoalRun,
   resolveGoalAwareChatResponse,
   selectActiveGoalRun,
@@ -82,7 +84,9 @@ interface SessionState {
   initialized: Ref<boolean>;
   refreshAll: () => Promise<void>;
   finishSessionSelection: (agentId: string | undefined) => Promise<void>;
+  selectedProvider: Ref<ADKProvider | null>;
   selectedAgentId: Ref<string>;
+  selectedProviderId: Ref<string>;
   selectedSessionId: Ref<string>;
   sessions: Ref<ADKSession[]>;
 }
@@ -233,6 +237,9 @@ export function useADKPageChatState(
   const goalPaused = computed(() =>
     isUserPausedGoalRun(activeGoalRun.value ?? undefined),
   );
+  const goalTimedOut = computed(() =>
+    isResumableTimedOutGoalRun(activeGoalRun.value ?? undefined),
+  );
   const goalPauseRequested = computed(
     () => isUserPauseRequestedGoalRun(activeGoalRun.value ?? undefined),
   );
@@ -246,7 +253,7 @@ export function useADKPageChatState(
     );
   });
   const canResumeGoal = computed(
-    () => goalPaused.value && !goalLifecycleBusy.value,
+    () => (goalPaused.value || goalTimedOut.value) && !goalLifecycleBusy.value,
   );
   const hasBlockingRun = computed(() =>
     primaryRootRun.value
@@ -359,6 +366,7 @@ export function useADKPageChatState(
   watch(
     () => [
       chatDraft.value,
+      sessionState.selectedProviderId.value,
       workModeOverride.value,
       permissionModeOverride.value,
       goalObjectiveDraft.value,
@@ -446,9 +454,9 @@ export function useADKPageChatState(
       applyComposerState(emptyComposerState(sessionId));
     } else {
       timelineEntries.value = detail.timelineEntries;
-      applyComposerState(detail.composerState);
       await restoreSessionRuns(detail.runs);
       await sessionState.finishSessionSelection(detail.session.agentId);
+      applyComposerState(detail.composerState);
       const runtimeState = sessionRuntimeState(sessionId);
       const savedChildRun = detail.runs.find(
         (run) => run.id === runtimeState.activeChildRunId,
@@ -885,6 +893,7 @@ export function useADKPageChatState(
     goalObjectiveSaving,
     goalLifecycleBusy,
     goalPaused,
+    goalTimedOut,
     goalPauseRequested,
     showGoalObjectiveEditor,
     canSaveGoalObjective,
@@ -945,6 +954,14 @@ export function useADKPageChatState(
       sessionId: sessionState.selectedSessionId.value,
       message: text,
     };
+    const providerId = sessionState.selectedProviderId.value.trim();
+    if (providerId !== "") {
+      payload.providerId = providerId;
+    }
+    const model = sessionState.selectedProvider.value?.model?.trim() ?? "";
+    if (model !== "") {
+      payload.model = model;
+    }
     if (permissionModeOverride.value) {
       payload.permissionModeOverride = permissionModeOverride.value;
     }
@@ -1252,6 +1269,8 @@ export function useADKPageChatState(
         activeSessionId,
         {
           chatDraft: state.chatDraft,
+          providerIdOverride: state.providerIdOverride,
+          modelOverride: state.modelOverride,
           workModeOverride: state.workModeOverride,
           permissionModeOverride: state.permissionModeOverride,
           goalObjectiveDraft: state.goalObjectiveDraft,
@@ -1283,9 +1302,12 @@ export function useADKPageChatState(
   }
 
   function currentComposerState(sessionId: string): ADKSessionComposerState {
+    const providerOverride = currentProviderOverride();
     return normalizeSessionComposerState(sessionId, {
       sessionId,
       chatDraft: chatDraft.value,
+      providerIdOverride: providerOverride.providerId,
+      modelOverride: providerOverride.model,
       workModeOverride: workModeOverride.value,
       permissionModeOverride: permissionModeOverride.value,
       goalObjectiveDraft: goalObjectiveDraft.value,
@@ -1293,10 +1315,31 @@ export function useADKPageChatState(
     });
   }
 
+  function currentProviderOverride(): { providerId: string; model: string } {
+    const selectedProviderId = sessionState.selectedProviderId.value.trim();
+    if (selectedProviderId === "" || selectedProviderId === defaultProviderIdForSelectedAgent()) {
+      return { providerId: "", model: "" };
+    }
+    return {
+      providerId: selectedProviderId,
+      model: sessionState.selectedProvider.value?.model?.trim() ?? "",
+    };
+  }
+
+  function defaultProviderIdForSelectedAgent(): string {
+    return (
+      sessionState.agents.value.find(
+        (agent) => agent.id === sessionState.selectedAgentId.value,
+      )?.providerId ?? ""
+    ).trim();
+  }
+
   function applyComposerState(state: ADKSessionComposerState): void {
     const sessionId = sessionState.selectedSessionId.value.trim();
     const normalized = normalizeSessionComposerState(sessionId, state);
     applyingComposerState = true;
+    sessionState.selectedProviderId.value =
+      normalized.providerIdOverride || defaultProviderIdForSelectedAgent();
     workModeOverride.value = normalized.workModeOverride;
     permissionModeOverride.value = normalized.permissionModeOverride;
     chatDraft.value = normalized.chatDraft;
@@ -1333,6 +1376,8 @@ export function useADKPageChatState(
     return {
       sessionId: sessionId.trim(),
       chatDraft: "",
+      providerIdOverride: "",
+      modelOverride: "",
       workModeOverride: "",
       permissionModeOverride: "",
       goalObjectiveDraft: "",

@@ -70,6 +70,8 @@ export async function saveADKSessionComposerState(
     Pick<
       ADKSessionComposerState,
       | "chatDraft"
+      | "providerIdOverride"
+      | "modelOverride"
       | "workModeOverride"
       | "permissionModeOverride"
       | "goalObjectiveDraft"

@@ -44,6 +44,8 @@ export async function streamADKChat(
     agentId?: string;
     sessionId?: string;
     message: string;
+    providerId?: string;
+    model?: string;
     workModeOverride?: string;
     permissionModeOverride?: ADKPermissionMode | string;
     objective?: string;

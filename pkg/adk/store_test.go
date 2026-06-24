@@ -858,6 +858,55 @@ func TestStartRunUsesConfiguredRuntimeTimeout(t *testing.T) {
 	}
 }
 
+func TestResumeGoalRunAllowsTimedOutGoalWithFreshTimeoutWindow(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	runtime.SetRuntimeLimitsProvider(func() RuntimeLimits {
+		return RuntimeLimits{RunTimeout: 45 * time.Minute}
+	})
+
+	completedAt := time.Now().UTC().Add(-time.Minute).Format(time.RFC3339Nano)
+	startedAt := time.Now().UTC().Add(-DefaultRunTimeout - time.Minute).Format(time.RFC3339Nano)
+	run := Run{
+		ID:             "run-timed-out-goal",
+		SessionID:      "session-1",
+		AgentID:        "agent-1",
+		Status:         RunStatusTimedOut,
+		WorkMode:       WorkModeLoop,
+		WorkflowStatus: workflowStatusRunning,
+		Message:        "run timed out",
+		FailureReason:  "run exceeded maximum duration",
+		ErrorCode:      runErrorCode(RunStatusTimedOut),
+		Degraded:       true,
+		CreatedAt:      startedAt,
+		StartedAt:      startedAt,
+		UpdatedAt:      completedAt,
+		CompletedAt:    &completedAt,
+		MaxDurationMs:  DefaultRunTimeout.Milliseconds(),
+		Usage:          &RunUsage{},
+	}
+	if err := runtime.Store().SaveRun(ctx, run); err != nil {
+		t.Fatalf("SaveRun: %v", err)
+	}
+
+	resumed, err := runtime.ResumeGoalRun(ctx, run.ID)
+	if err != nil {
+		t.Fatalf("ResumeGoalRun: %v", err)
+	}
+	if resumed.Status != RunStatusRunning || resumed.ResumeState != "user_resuming" {
+		t.Fatalf("resumed status/state = %q/%q, want running/user_resuming", resumed.Status, resumed.ResumeState)
+	}
+	if resumed.CompletedAt != nil || resumed.ErrorCode != "" || resumed.FailureReason != "" || resumed.Degraded {
+		t.Fatalf("resumed terminal fields not cleared: %+v", resumed)
+	}
+	if resumed.StartedAt == startedAt {
+		t.Fatalf("StartedAt was not refreshed: %q", resumed.StartedAt)
+	}
+	if resumed.MaxDurationMs != int64((45*time.Minute)/time.Millisecond) {
+		t.Fatalf("MaxDurationMs = %d, want fresh runtime timeout", resumed.MaxDurationMs)
+	}
+}
+
 func TestReconcileExpiredRunsMarksHungRunTimedOut(t *testing.T) {
 	ctx := context.Background()
 	runtime := newTestRuntime(t)
@@ -1437,6 +1486,8 @@ func TestSessionComposerStatePersistsAndDeletesWithSession(t *testing.T) {
 
 	saved, err := runtime.Store().SaveSessionComposerState(ctx, session.ID, SessionComposerStatePatch{
 		ChatDraft:              new(strings.Repeat("x", MaxMessageLength+20)),
+		ProviderIDOverride:     new(" provider-session "),
+		ModelOverride:          new(" model-session "),
 		WorkModeOverride:       new(WorkModeLoop),
 		PermissionModeOverride: new(PermissionModeLessApproval),
 		GoalObjectiveDraft:     new("目标草稿"),
@@ -1445,7 +1496,7 @@ func TestSessionComposerStatePersistsAndDeletesWithSession(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SaveSessionComposerState: %v", err)
 	}
-	if len([]rune(saved.ChatDraft)) != MaxMessageLength || saved.WorkModeOverride != WorkModeLoop || saved.PermissionModeOverride != PermissionModeLessApproval || !saved.GoalObjectiveTouched {
+	if len([]rune(saved.ChatDraft)) != MaxMessageLength || saved.ProviderIDOverride != "provider-session" || saved.ModelOverride != "model-session" || saved.WorkModeOverride != WorkModeLoop || saved.PermissionModeOverride != PermissionModeLessApproval || !saved.GoalObjectiveTouched {
 		t.Fatalf("saved composer state = %+v", saved)
 	}
 
@@ -1914,6 +1965,14 @@ Legacy strategy instructions.
 }
 
 func TestBuiltinStrategyAgentTemplatesExposeExplicitStrategyTools(t *testing.T) {
+	defaultAgent, ok := BuiltinAgentTemplate(DefaultBuiltinAgentID)
+	if !ok {
+		t.Fatalf("BuiltinAgentTemplate(%q) not found", DefaultBuiltinAgentID)
+	}
+	if !sameStringSet(defaultAgent.Skills, BuiltinSkillIDs()) {
+		t.Fatalf("default agent skills = %+v, want all builtin skills %+v", defaultAgent.Skills, BuiltinSkillIDs())
+	}
+
 	for _, agentID := range []string{"investment-analyst", "strategy-researcher", "risk-reviewer"} {
 		template, ok := BuiltinAgentTemplate(agentID)
 		if !ok {
@@ -2128,8 +2187,9 @@ func TestDeleteAgentSoftDeletesHistoricalRecord(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListAgents: %v", err)
 	}
-	if len(agents) != 0 {
-		t.Fatalf("active agents = %+v, want none", agents)
+	userAgents := nonBuiltinAgents(agents)
+	if len(userAgents) != 0 {
+		t.Fatalf("active user agents = %+v, want none", userAgents)
 	}
 }
 
@@ -2152,19 +2212,21 @@ func TestListAgentsExcludesSoftDeletedWhileListAllIncludesThem(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListAgents: %v", err)
 	}
-	if len(active) != 1 || active[0].ID != "agent-newer" {
-		t.Fatalf("active agents = %+v, want only agent-newer", active)
+	activeUserAgents := nonBuiltinAgents(active)
+	if len(activeUserAgents) != 1 || activeUserAgents[0].ID != "agent-newer" {
+		t.Fatalf("active user agents = %+v, want only agent-newer", activeUserAgents)
 	}
 
 	all, err := runtime.Store().ListAllAgents(ctx)
 	if err != nil {
 		t.Fatalf("ListAllAgents: %v", err)
 	}
-	if len(all) != 2 {
-		t.Fatalf("all agents len = %d, want 2", len(all))
+	allUserAgents := nonBuiltinAgents(all)
+	if len(allUserAgents) != 2 {
+		t.Fatalf("all user agents len = %d, want 2", len(allUserAgents))
 	}
 	var deletedFound bool
-	for _, agent := range all {
+	for _, agent := range allUserAgents {
 		if agent.ID == "agent-older" {
 			deletedFound = agent.DeletedAt != nil && agent.Status == AgentStatusDisabled
 		}
@@ -2196,9 +2258,21 @@ func TestSaveAgentRestoresDeletedAgentRecord(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListAgents: %v", err)
 	}
-	if len(agents) != 1 || agents[0].Name != "Agent Restored" {
-		t.Fatalf("active agents = %+v, want restored visible agent", agents)
+	userAgents := nonBuiltinAgents(agents)
+	if len(userAgents) != 1 || userAgents[0].Name != "Agent Restored" {
+		t.Fatalf("active user agents = %+v, want restored visible agent", userAgents)
 	}
+}
+
+func nonBuiltinAgents(agents []Agent) []Agent {
+	filtered := make([]Agent, 0, len(agents))
+	for _, agent := range agents {
+		if agent.Builtin {
+			continue
+		}
+		filtered = append(filtered, agent)
+	}
+	return filtered
 }
 
 func TestCancelPendingRunDeniesApprovals(t *testing.T) {

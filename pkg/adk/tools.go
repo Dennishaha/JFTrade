@@ -229,6 +229,9 @@ func ToolRequiresApproval(descriptor ToolDescriptor, mode string) bool {
 	if slices.Contains(descriptor.RequiresApprovalIn, mode) {
 		return true
 	}
+	if mode == PermissionModeApproval && mediumOrHigherRisk(descriptor.RiskLevel) {
+		return true
+	}
 	switch descriptor.Permission {
 	case "install_skill", "write_strategy", "optimize_strategy", "write_task", "write_memory":
 		return mode == PermissionModeApproval
@@ -236,6 +239,15 @@ func ToolRequiresApproval(descriptor ToolDescriptor, mode string) bool {
 		return mode != PermissionModeAll
 	case "live_trading":
 		return false
+	default:
+		return false
+	}
+}
+
+func mediumOrHigherRisk(risk string) bool {
+	switch strings.ToLower(strings.TrimSpace(risk)) {
+	case "medium", "high", "critical":
+		return true
 	default:
 		return false
 	}
@@ -415,6 +427,17 @@ func defaultToolInputSchema(name string) map[string]any {
 			},
 			"additionalProperties": false,
 		}
+	case "models.list":
+		return map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"query":        map[string]any{"type": "string", "description": "Filter by provider name, provider id, model, base URL or capability."},
+				"providerId":   map[string]any{"type": "string", "description": "Optional ADK provider id to inspect."},
+				"callableOnly": map[string]any{"type": "boolean", "description": "When true, only providers that are enabled and have an API key are returned. Defaults to true."},
+				"limit":        map[string]any{"type": "integer", "minimum": 1, "maximum": 100},
+			},
+			"additionalProperties": false,
+		}
 	case "workflow.wait":
 		return map[string]any{
 			"type": "object",
@@ -440,6 +463,8 @@ func defaultToolInputSchema(name string) map[string]any {
 			"planSource":      map[string]any{"type": "string", "enum": []string{"planner", "runtime", ""}},
 			"workflowMode":    map[string]any{"type": "string", "enum": []string{"task", "loop", "chat", ""}},
 			"objective":       map[string]any{"type": "string"},
+			"childProviderId": map[string]any{"type": "string"},
+			"childModel":      map[string]any{"type": "string"},
 			"plannerWarnings": map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
 		}
 		required := []string{"title"}

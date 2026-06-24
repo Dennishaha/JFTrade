@@ -485,16 +485,23 @@ func (r *Runtime) ResumeGoalRun(ctx context.Context, runID string) (Run, error) 
 	if err := validateUserGoalResumeRun(run); err != nil {
 		return Run{}, err
 	}
+	now := nowString()
+	if run.Status == RunStatusTimedOut {
+		run.StartedAt = now
+		run.CompletedAt = nil
+		run.MaxDurationMs = r.runtimeLimits().RunTimeout.Milliseconds()
+	}
 	run.Status = RunStatusRunning
 	run.WorkflowStatus = workflowStatusRunning
 	run.ResumeState = "user_resuming"
 	run.Message = "goal resumed"
 	run.ErrorCode = ""
 	run.FailureReason = ""
+	run.Degraded = false
 	run.PauseRequestedAt = nil
 	run.PausedAt = nil
 	run.PausedReason = ""
-	run.UpdatedAt = nowString()
+	run.UpdatedAt = now
 	if err := r.store.SaveRun(ctx, run); err != nil {
 		return Run{}, err
 	}
@@ -530,6 +537,9 @@ func validateUserGoalResumeRun(run Run) error {
 	}
 	if normalizeWorkMode(run.WorkMode) != WorkModeLoop || strings.TrimSpace(run.WorkflowStatus) == "" {
 		return fmt.Errorf("only loop goal runs can be resumed")
+	}
+	if run.Status == RunStatusTimedOut {
+		return nil
 	}
 	if run.Status != RunStatusPaused || (run.PausedReason != "user" && run.PausedReason != "iteration_limit" && run.PausedReason != "self_reference_recovered") {
 		return fmt.Errorf("only resumable paused goal runs can be resumed")

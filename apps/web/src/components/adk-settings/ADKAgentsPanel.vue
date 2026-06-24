@@ -73,9 +73,33 @@ function workModeLabel(mode: string): string {
   }
 }
 
+function enabledToolCountLabel(agent: Pick<ADKAgent, "tools">): string {
+  return agent.tools.length === 0 ? "全部工具" : `${agent.tools.length} 个工具`;
+}
+
+function templateToolCountLabel(template: Pick<ADKAgent, "tools">): string {
+  return template.tools.length === 0 ? "全部工具" : `${template.tools.length} 个工具`;
+}
+
+function primaryDefaultAgentForm(): boolean {
+  return props.agentForm.id === "jftrade-default";
+}
+
+function primaryDefaultAgent(agent: Pick<ADKAgent, "id">): boolean {
+  return agent.id === "jftrade-default";
+}
+
 const enabledToolNameSet = computed(() => new Set(props.agentForm.tools));
 const toolDescriptorByName = computed(
   () => new Map(props.tools.map((tool) => [tool.name, tool])),
+);
+const displayedAgents = computed(() =>
+  [...props.agents].sort((left, right) => {
+    const leftDefault = primaryDefaultAgent(left);
+    const rightDefault = primaryDefaultAgent(right);
+    if (leftDefault === rightDefault) return 0;
+    return leftDefault ? -1 : 1;
+  }),
 );
 const availableRuntimeTools = computed(() =>
   props.tools.filter((tool) => {
@@ -92,12 +116,21 @@ const enabledRuntimeTools = computed(() =>
   })),
 );
 
-function openCustomNewAgentDialog(): void {
+function stopButtonEvent(event?: Event): void {
+  event?.preventDefault();
+  event?.stopPropagation();
+}
+
+function openCustomNewAgentDialog(event?: Event): void {
+  stopButtonEvent(event);
+  templateDialogOpen.value = false;
   props.newAgentForm();
   agentDialogOpen.value = true;
 }
 
-function openTemplateDialog(): void {
+function openTemplateDialog(event?: Event): void {
+  stopButtonEvent(event);
+  agentDialogOpen.value = false;
   templateDialogOpen.value = true;
 }
 
@@ -183,17 +216,17 @@ watch(
         </div>
       </v-card-title>
       <v-card-actions class="flex flex-wrap gap-2 mx-3">
-        <v-btn color="primary" variant="outlined" size="small" @click="openTemplateDialog">
+        <v-btn type="button" color="primary" variant="outlined" size="small" @click="openTemplateDialog">
           从模板新建
         </v-btn>
-        <v-btn variant="outlined" size="small" @click="openCustomNewAgentDialog">
+        <v-btn type="button" variant="outlined" size="small" @click="openCustomNewAgentDialog">
           自定义新建
         </v-btn>
       </v-card-actions>
     </v-card>
 
     <div class="grid auto-rows-max gap-3 md:grid-cols-2 xl:grid-cols-3">
-      <v-card v-for="agent in agents" :key="agent.id" flat class="card-shell border-0">
+      <v-card v-for="agent in displayedAgents" :key="agent.id" flat class="card-shell border-0">
         <v-card-text>
           <div class="flex items-start justify-between gap-2">
             <div class="min-w-0 flex-1">
@@ -208,11 +241,17 @@ watch(
                 <v-chip size="x-small" variant="tonal">
                   默认：{{ workModeLabel(agent.workMode) }}
                 </v-chip>
+                <v-chip v-if="agent.builtin" size="x-small" variant="tonal" color="info">
+                  系统默认
+                </v-chip>
               </div>
               <div class="mt-1 text-xs text-slate-500">
-                {{ agent.memoryEnabled ? "记忆已开启" : "记忆已关闭" }}
+                {{ agent.memoryEnabled ? "记忆已开启" : "记忆已关闭" }} · {{ enabledToolCountLabel(agent) }}
               </div>
               <div class="mt-2 flex flex-wrap gap-1">
+                <v-chip v-if="agent.tools.length === 0" size="x-small" variant="outlined">
+                  全部工具
+                </v-chip>
                 <v-chip v-for="tool in agent.tools.slice(0, 5)" :key="tool" size="x-small" variant="outlined">
                   {{ tool }}
                 </v-chip>
@@ -222,14 +261,29 @@ watch(
               </div>
             </div>
             <div class="flex shrink-0 flex-col gap-1">
-              <v-btn size="x-small" variant="outlined" @click="openEditAgentDialog(agent)">编辑</v-btn>
+              <v-btn
+                v-if="!primaryDefaultAgent(agent)"
+                size="x-small"
+                variant="outlined"
+                @click="openEditAgentDialog(agent)"
+              >
+                编辑
+              </v-btn>
               <v-btn size="x-small" variant="outlined" @click="openDuplicateAgentDialog(agent)">复制</v-btn>
-              <v-btn size="x-small" variant="outlined" color="error" @click="deleteAgent(agent.id)">删除</v-btn>
+              <v-btn
+                v-if="!agent.builtin"
+                size="x-small"
+                variant="outlined"
+                color="error"
+                @click="deleteAgent(agent.id)"
+              >
+                删除
+              </v-btn>
             </div>
           </div>
         </v-card-text>
       </v-card>
-      <v-card v-if="agents.length === 0" flat class="card-shell border-0 md:col-span-2 xl:col-span-3">
+      <v-card v-if="displayedAgents.length === 0" flat class="card-shell border-0 md:col-span-2 xl:col-span-3">
         <v-card-text class="text-sm text-slate-500">
           尚未创建任何智能体。可以从模板开始，也可以自定义新建。
         </v-card-text>
@@ -259,7 +313,7 @@ watch(
             >
               <span class="adk-agent-template-card__name">{{ template.name }}</span>
               <span class="adk-agent-template-card__meta">
-                {{ formatPermission(template.permissionMode) }} · {{ template.tools.length }} 个工具 · {{ template.skills.length }} 个技能
+                {{ formatPermission(template.permissionMode) }} · {{ templateToolCountLabel(template) }} · {{ template.skills.length }} 个技能
               </span>
             </button>
           </div>
@@ -328,7 +382,7 @@ watch(
                 </div>
               </div>
               <v-chip size="small" variant="tonal">
-                已启用 {{ agentForm.tools.length }}/{{ tools.length }}
+                {{ agentForm.tools.length === 0 ? `全部工具 ${tools.length}` : `已启用 ${agentForm.tools.length}/${tools.length}` }}
               </v-chip>
             </div>
             <div class="grid gap-3 md:grid-cols-2">
@@ -442,7 +496,7 @@ watch(
                     </v-chip>
                   </label>
                   <div v-if="enabledRuntimeTools.length === 0" class="adk-tool-transfer__empty">
-                    尚未为该智能体启用工具。
+                    空列表表示该智能体可使用全部运行时工具。
                   </div>
                 </div>
               </div>
@@ -453,8 +507,15 @@ watch(
           <v-textarea v-model="agentForm.instruction" label="系统指令" :rows="5" density="comfortable" />
           <div class="flex gap-6">
             <v-switch v-model="agentForm.memoryEnabled" label="记忆" color="primary" hide-details />
-            <v-switch v-model="agentForm.status" true-value="ENABLED" false-value="DISABLED" label="启用" color="primary"
-              hide-details />
+            <v-switch
+              v-model="agentForm.status"
+              true-value="ENABLED"
+              false-value="DISABLED"
+              label="启用"
+              color="primary"
+              hide-details
+              :disabled="primaryDefaultAgentForm()"
+            />
           </div>
         </v-card-text>
         <v-card-actions class="justify-end gap-2">

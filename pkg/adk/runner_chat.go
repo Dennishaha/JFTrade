@@ -23,8 +23,12 @@ func (r *Runtime) runChat(ctx context.Context, req ChatRequest, onDelta func(Cha
 	if permissionModeOverride != "" && !validPermissionMode(permissionModeOverride) {
 		return ChatResponse{}, fmt.Errorf("invalid permission mode %q", permissionModeOverride)
 	}
-	agent, err := r.resolveAgent(ctx, req.AgentID)
+	agent, err := r.resolveAgentDefinition(ctx, req.AgentID)
 	if err != nil {
+		return ChatResponse{}, err
+	}
+	agent = applyChatModelOverride(agent, req)
+	if err := r.validateAgentProvider(ctx, agent); err != nil {
 		return ChatResponse{}, err
 	}
 	agent, err = r.prepareAgent(ctx, agent)
@@ -140,6 +144,16 @@ func (r *Runtime) finishPendingApprovalRun(ctx context.Context, session Session,
 	})
 	reply := "我已经准备好执行需要授权的操作，请先在 ADK 审批队列里确认或拒绝。"
 	return r.projectedChatResponse(ctx, session, run, openAIChatResult{Reply: reply}), nil
+}
+
+func applyChatModelOverride(agent Agent, req ChatRequest) Agent {
+	if providerID := strings.TrimSpace(req.ProviderID); providerID != "" {
+		agent.ProviderID = providerID
+	}
+	if model := strings.TrimSpace(req.Model); model != "" {
+		agent.Model = model
+	}
+	return agent
 }
 
 func (r *Runtime) prepareChatRequest(ctx context.Context, req ChatRequest) (string, error) {
@@ -401,7 +415,7 @@ func (r *Runtime) projectedChatResponse(
 		Run:              run,
 		PendingApprovals: pendingApprovalsOnly(run.PendingApprovals),
 		Timeline:         []TimelineEntry{},
-		Context:          r.contextSnapshotOrNil(ctx, session.ID),
+		Context:          r.contextSnapshotForRunOrNil(ctx, session, run),
 	}
 	if r == nil || r.store == nil {
 		return response
@@ -587,6 +601,31 @@ func (r *Runtime) contextSnapshotOrNil(ctx context.Context, sessionID string) *S
 	snapshot, err := r.SessionContext(ctx, sessionID)
 	if err != nil {
 		return nil
+	}
+	return &snapshot
+}
+
+func (r *Runtime) contextSnapshotForRunOrNil(ctx context.Context, session Session, run Run) *SessionContextSnapshot {
+	if r == nil || r.contextManager == nil || strings.TrimSpace(session.ID) == "" {
+		return nil
+	}
+	agent, err := r.resolveSessionContextAgent(ctx, session)
+	if err != nil {
+		return r.contextSnapshotOrNil(ctx, session.ID)
+	}
+	if providerID := strings.TrimSpace(run.ProviderID); providerID != "" {
+		agent.ProviderID = providerID
+	}
+	if model := strings.TrimSpace(run.Model); model != "" {
+		agent.Model = model
+	}
+	agent, err = r.prepareAgent(ctx, agent)
+	if err != nil {
+		return r.contextSnapshotOrNil(ctx, session.ID)
+	}
+	snapshot, err := r.contextManager.Snapshot(ctx, session, agent)
+	if err != nil {
+		return r.contextSnapshotOrNil(ctx, session.ID)
 	}
 	return &snapshot
 }

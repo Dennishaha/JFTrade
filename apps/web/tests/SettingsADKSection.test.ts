@@ -245,8 +245,8 @@ describe("SettingsADKSection", () => {
 
     const inputs = wrapper.findAll("input");
     expect(inputs.length).toBeGreaterThanOrEqual(2);
-    await inputs[0]!.setValue("720");
-    await inputs[1]!.setValue("450");
+    await inputs[0]!.setValue("99999");
+    await inputs[1]!.setValue("9999");
     const saveButton = wrapper.findAll("button").find((button) => button.text().includes("保存运行时设置"));
     expect(saveButton).toBeTruthy();
     await saveButton!.trigger("click");
@@ -257,9 +257,112 @@ describe("SettingsADKSection", () => {
     );
     expect(putCall).toBeTruthy();
     expect(JSON.parse(String((putCall?.[1] as RequestInit).body))).toEqual({
-      runTimeoutMs: 720_000,
-      streamIdleTimeoutMs: 450_000,
+      runTimeoutMs: 43_200_000,
+      streamIdleTimeoutMs: 900_000,
     });
+  });
+
+  it("allows continuing timed-out goal runs from the runs panel", async () => {
+    document.body.innerHTML = "<div id='root'></div>";
+    const timedOutRun = {
+      ...buildRun(),
+      status: "TIMED_OUT",
+      workMode: "loop",
+      workflowStatus: "RUNNING",
+      failureReason: "run exceeded maximum duration",
+    };
+    const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/api/v1/adk")) {
+        return createResponse({
+          providers: [buildProvider()],
+          agents: [buildAgent()],
+          tools: [buildTool()],
+          skills: [],
+          runtimeSettings: {
+            runTimeoutMs: 1_800_000,
+            streamIdleTimeoutMs: 300_000,
+          },
+        });
+      }
+      if (url.endsWith(`/api/v1/adk/runs/${timedOutRun.id}/resume`) && init?.method === "POST") {
+        return createResponse({ ...timedOutRun, status: "RUNNING", failureReason: "" });
+      }
+      if (url.includes("/api/v1/adk/optimization-tasks")) {
+        return createResponse({ tasks: [] });
+      }
+      if (url.includes("/api/v1/adk/tasks")) {
+        return createResponse({ tasks: [], page: { limit: 20, offset: 0, total: 0, returned: 0, hasMore: false } });
+      }
+      if (url.includes("/api/v1/adk/memory")) {
+        return createResponse({ entries: [] });
+      }
+      if (url.includes("/api/v1/adk/agent-templates")) {
+        return createResponse({ templates: [] });
+      }
+      if (url.includes("/api/v1/adk/metrics")) {
+        return createResponse(buildMetrics());
+      }
+      if (url.includes("/api/v1/adk/runs")) {
+        return createResponse({
+          runs: [timedOutRun],
+          page: { limit: 20, offset: 0, total: 1, returned: 1, hasMore: false },
+        });
+      }
+      if (url.includes("/api/v1/adk/approvals")) {
+        return createResponse({ approvals: [], page: { limit: 10, offset: 0, total: 0, returned: 0, hasMore: false } });
+      }
+      if (url.includes("/api/v1/adk/audit")) {
+        return createResponse({ events: [], page: { limit: 12, offset: 0, total: 0, returned: 0, hasMore: false } });
+      }
+      return createResponse({});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const router = createADKSettingsRouter("/settings/adk?tab=observation&view=runs");
+    await router.isReady();
+
+    const wrapper = mount(SettingsADKSection, {
+      attachTo: "#root",
+      global: {
+        plugins: [router],
+        stubs: {
+          "v-alert": { template: "<div><slot /></div>" },
+          "v-btn": buttonStub,
+          "v-card": { template: "<section><slot /></section>" },
+          "v-card-actions": passthroughStub,
+          "v-card-title": { template: "<div><slot /></div>" },
+          "v-card-text": { template: "<div><slot /></div>" },
+          "v-chip": { template: "<span><slot /></span>" },
+          "v-checkbox": { template: "<label><slot /></label>" },
+          "v-dialog": dialogStub,
+          "v-icon": iconStub,
+          "v-select": selectStub,
+          "v-switch": { template: "<label><slot /></label>" },
+          "v-tab": tabStub,
+          "v-tabs": tabsStub,
+          "v-text-field": inputStub,
+          "v-textarea": inputStub,
+          "v-window": windowStub,
+          "v-window-item": windowItemStub,
+        },
+      },
+    });
+
+    await flushRequests();
+
+    const continueButton = wrapper.findAll("button").find((button) => button.text().includes("继续"));
+    expect(continueButton).toBeTruthy();
+    await continueButton!.trigger("click");
+    await flushRequests();
+
+    expect(
+      fetchMock.mock.calls.some(
+        ([url, init]) =>
+          String(url).endsWith(`/api/v1/adk/runs/${timedOutRun.id}/resume`) &&
+          (init as RequestInit | undefined)?.method === "POST",
+      ),
+    ).toBe(true);
   });
 
   it("syncs the tools tab from route query", async () => {

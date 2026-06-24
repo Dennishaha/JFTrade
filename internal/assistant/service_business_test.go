@@ -118,18 +118,16 @@ func TestServicePreviewSessionScenarios(t *testing.T) {
 	runtime, service, _ := newAssistantServiceHarness(t)
 	ctx := t.Context()
 
-	defaultAgent, err := runtime.Store().SaveAgent(ctx, jfadk.AgentWriteRequest{
-		ID: "agent-default", Name: "Default Agent", Status: jfadk.AgentStatusEnabled,
-	})
+	defaultAgent, err := runtime.Store().DefaultAgent(ctx)
 	if err != nil {
-		t.Fatalf("SaveAgent default: %v", err)
+		t.Fatalf("DefaultAgent: %v", err)
 	}
 	preview, err := service.PreviewSession(ctx, jfadk.ChatRequest{Message: "default agent title"})
 	if err != nil {
 		t.Fatalf("PreviewSession default: %v", err)
 	}
-	if preview.AgentID != defaultAgent.ID {
-		t.Fatalf("PreviewSession default agent = %q, want %q", preview.AgentID, defaultAgent.ID)
+	if preview.AgentID != jfadk.DefaultBuiltinAgentID || preview.AgentID != defaultAgent.ID {
+		t.Fatalf("PreviewSession default agent = %q, want %q", preview.AgentID, jfadk.DefaultBuiltinAgentID)
 	}
 
 	explicitAgent, err := runtime.Store().SaveAgent(ctx, jfadk.AgentWriteRequest{

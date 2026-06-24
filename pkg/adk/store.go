@@ -25,6 +25,8 @@ import (
 	strategypinespec "github.com/jftrade/jftrade-main/pkg/strategy/pinespec"
 )
 
+var ErrBuiltinAgentProtected = errors.New("builtin agent is protected")
+
 const (
 	tableProviders          = "adk_providers"
 	tableAgents             = "adk_agents"
@@ -294,6 +296,7 @@ func (s *Store) ListAgents(ctx context.Context) ([]Agent, error) {
 			active = append(active, NormalizeAgent(item))
 		}
 	}
+	sortAgentsPrimaryDefaultFirst(active)
 	return active, nil
 }
 
@@ -305,6 +308,7 @@ func (s *Store) ListAllAgents(ctx context.Context) ([]Agent, error) {
 	for index := range items {
 		items[index] = NormalizeAgent(items[index])
 	}
+	sortAgentsPrimaryDefaultFirst(items)
 	return items, nil
 }
 
@@ -332,6 +336,9 @@ func (s *Store) SaveAgent(ctx context.Context, req AgentWriteRequest) (Agent, er
 	if status != AgentStatusEnabled && status != AgentStatusDisabled {
 		return Agent{}, fmt.Errorf("invalid agent status %q", req.Status)
 	}
+	if IsPrimaryBuiltinAgentID(id) && status == AgentStatusDisabled {
+		return Agent{}, fmt.Errorf("%w: primary builtin agent cannot be disabled", ErrBuiltinAgentProtected)
+	}
 	agent := Agent{
 		ID:                id,
 		Name:              defaultString(req.Name, id),
@@ -346,8 +353,12 @@ func (s *Store) SaveAgent(ctx context.Context, req AgentWriteRequest) (Agent, er
 		WorkMode:          normalizeAgentDefaultWorkMode(req.WorkMode),
 		LoopMaxIterations: normalizeLoopMaxIterations(req.LoopMaxIterations),
 		Status:            status,
+		Builtin:           IsBuiltinAgentID(id),
 		CreatedAt:         createdAt,
 		UpdatedAt:         now,
+	}
+	if ok {
+		agent.Builtin = existing.Builtin || agent.Builtin
 	}
 	if agent.Instruction == "" {
 		agent.Instruction = defaultAgentInstruction()
@@ -363,6 +374,17 @@ func (s *Store) SaveAgent(ctx context.Context, req AgentWriteRequest) (Agent, er
 	}
 	agent = NormalizeAgent(agent)
 	return agent, s.saveJSON(ctx, tableAgents, agent.ID, agent.CreatedAt, agent.UpdatedAt, agent)
+}
+
+func sortAgentsPrimaryDefaultFirst(agents []Agent) {
+	sort.SliceStable(agents, func(i, j int) bool {
+		leftDefault := IsPrimaryBuiltinAgentID(agents[i].ID)
+		rightDefault := IsPrimaryBuiltinAgentID(agents[j].ID)
+		if leftDefault != rightDefault {
+			return leftDefault
+		}
+		return false
+	})
 }
 
 func (s *Store) EnsureAgent(ctx context.Context, req AgentWriteRequest) (Agent, error) {
@@ -393,14 +415,19 @@ func (s *Store) DefaultAgent(ctx context.Context) (Agent, error) {
 		return Agent{}, err
 	}
 	for _, agent := range agents {
+		if agent.ID == DefaultBuiltinAgentID && agent.Status == AgentStatusEnabled {
+			return agent, nil
+		}
+	}
+	for _, agent := range agents {
 		if agent.Status == AgentStatusEnabled {
 			return agent, nil
 		}
 	}
-	if template, ok := BuiltinAgentTemplate("investment-analyst"); ok {
+	if template, ok := BuiltinAgentTemplate(DefaultBuiltinAgentID); ok {
 		return s.SaveAgent(ctx, template)
 	}
-	return s.SaveAgent(ctx, AgentWriteRequest{ID: "investment-analyst", Name: "投资分析助手", Instruction: defaultAgentInstruction(), PermissionMode: PermissionModeApproval, Status: AgentStatusEnabled})
+	return s.SaveAgent(ctx, AgentWriteRequest{ID: DefaultBuiltinAgentID, Name: "默认助手", Instruction: defaultAgentInstruction(), PermissionMode: PermissionModeApproval, Status: AgentStatusEnabled})
 }
 
 func (s *Store) DeleteAgent(ctx context.Context, id string) error {
@@ -410,6 +437,9 @@ func (s *Store) DeleteAgent(ctx context.Context, id string) error {
 	}
 	if !ok {
 		return os.ErrNotExist
+	}
+	if agent.Builtin || IsBuiltinAgentID(agent.ID) {
+		return fmt.Errorf("%w: builtin agent cannot be deleted", ErrBuiltinAgentProtected)
 	}
 	now := nowString()
 	agent.Status = AgentStatusDisabled
@@ -929,6 +959,8 @@ func (s *Store) SaveTask(ctx context.Context, req TaskWriteRequest) (Task, error
 		PlannerStepID: strings.TrimSpace(req.PlannerStepID), PlanSource: strings.TrimSpace(req.PlanSource),
 		WorkflowMode: strings.TrimSpace(req.WorkflowMode), Objective: strings.TrimSpace(req.Objective),
 		Message: strings.TrimSpace(req.Message), Executor: strings.TrimSpace(req.Executor),
+		ChildProviderID: strings.TrimSpace(req.ChildProviderID),
+		ChildModel:      strings.TrimSpace(req.ChildModel),
 		ResultSummary:   strings.TrimSpace(req.ResultSummary),
 		PlannerWarnings: normalizeStringSlice(req.PlannerWarnings),
 		CreatedAt:       createdAt, UpdatedAt: now,
@@ -1004,6 +1036,12 @@ func (s *Store) UpdateTask(ctx context.Context, id string, req TaskPatchRequest)
 	}
 	if req.Executor != nil {
 		task.Executor = strings.TrimSpace(*req.Executor)
+	}
+	if req.ChildProviderID != nil {
+		task.ChildProviderID = strings.TrimSpace(*req.ChildProviderID)
+	}
+	if req.ChildModel != nil {
+		task.ChildModel = strings.TrimSpace(*req.ChildModel)
 	}
 	if req.ResultSummary != nil {
 		task.ResultSummary = strings.TrimSpace(*req.ResultSummary)
@@ -1207,6 +1245,11 @@ func (s *Store) ensureBuiltins(ctx context.Context) error {
 			skill.CreatedAt = existing.CreatedAt
 		}
 		if _, err := s.SaveSkill(ctx, skill); err != nil {
+			return err
+		}
+	}
+	for _, template := range BuiltinAgentTemplates() {
+		if _, err := s.EnsureAgent(ctx, template); err != nil {
 			return err
 		}
 	}

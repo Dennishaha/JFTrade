@@ -94,6 +94,14 @@ var builtinSkillSpecs = []builtinSkillSpec{
 	},
 }
 
+func BuiltinSkillIDs() []string {
+	ids := make([]string, 0, len(builtinSkillSpecs))
+	for _, spec := range builtinSkillSpecs {
+		ids = append(ids, spec.Name)
+	}
+	return ids
+}
+
 func NewSkillRegistry(skillsPath string) *SkillRegistry {
 	registry := &SkillRegistry{skillsPath: strings.TrimSpace(skillsPath)}
 	if registry.skillsPath != "" {

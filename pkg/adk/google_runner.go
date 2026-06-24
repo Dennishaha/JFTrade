@@ -214,6 +214,12 @@ func (r *Runtime) rehydrateGoogleADKExecution(ctx context.Context, run Run) (*go
 	if err != nil {
 		return nil, err
 	}
+	if strings.TrimSpace(run.ProviderID) != "" {
+		agentDefinition.ProviderID = strings.TrimSpace(run.ProviderID)
+	}
+	if strings.TrimSpace(run.Model) != "" {
+		agentDefinition.Model = strings.TrimSpace(run.Model)
+	}
 	if validPermissionMode(run.PermissionMode) {
 		agentDefinition.PermissionMode = normalizePermissionMode(run.PermissionMode)
 	}
@@ -498,10 +504,6 @@ func (r *Runtime) newGoogleADKWorkflowExecution(
 	options RunOptions,
 	onDelta func(ChatDelta) error,
 ) (*googleADKExecution, error) {
-	llm, err := r.googleADKModelForAgent(ctx, definition)
-	if err != nil {
-		return nil, err
-	}
 	rootName := googleADKWorkflowRootName(parent.ID)
 	execution := &googleADKExecution{
 		sessionID: productSession.ID,
@@ -545,9 +547,14 @@ func (r *Runtime) newGoogleADKWorkflowExecution(
 		execution.runIDByAgentName[name] = child.ID
 		execution.runSnapshotBaseByID[child.ID] = child
 		childDefinition := definition
+		childDefinition = workflowChildAgentForStep(childDefinition, steps[index])
 		childDefinition.WorkMode = WorkModeChat
 		childDefinition.Instruction = workflowChildInstruction(definition.Instruction, workflowChildInstructionTask(steps[index]))
-		childAgent, err := r.newGoogleADKLLMAgent(ctx, name, steps[index].Title, childDefinition, llm, execution)
+		childLLM, err := r.googleADKModelForAgent(ctx, childDefinition)
+		if err != nil {
+			return nil, err
+		}
+		childAgent, err := r.newGoogleADKLLMAgent(ctx, name, steps[index].Title, childDefinition, childLLM, execution)
 		if err != nil {
 			return nil, err
 		}
@@ -672,9 +679,12 @@ func (r *Runtime) googleADKModelForAgent(ctx context.Context, definition Agent) 
 	if !ok || !provider.Enabled {
 		return nil, fmt.Errorf("agent provider is unavailable")
 	}
-	apiKey, _, err := r.store.ProviderAPIKey(provider.ID)
+	apiKey, hasKey, err := r.store.ProviderAPIKey(provider.ID)
 	if err != nil {
 		return nil, err
+	}
+	if !hasKey || strings.TrimSpace(apiKey) == "" {
+		return nil, fmt.Errorf("agent provider API key is not configured")
 	}
 	return newOpenAICompatibleADKModel(provider, apiKey, definition.Model), nil
 }

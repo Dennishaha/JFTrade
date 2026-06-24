@@ -59,6 +59,7 @@ const {
   runtimeSettingsForm,
   providerOptions,
   providers,
+  resumeRun,
   riskColor,
   riskLabel,
   runPage,
@@ -446,6 +447,7 @@ function memoryScopeHint(scope: string): string {
                 :preview="preview"
                 :run-terminal-message="runTerminalMessage"
                 :cancel-run="cancelRun"
+                :resume-run="resumeRun"
                 :cancel-optimization-task="cancelOptimizationTask"
                 :previous-runs-page="previousRunsPage"
                 :next-runs-page="nextRunsPage"

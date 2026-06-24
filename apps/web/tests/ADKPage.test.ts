@@ -105,6 +105,87 @@ describe("ADKPage", () => {
     expect(document.body.textContent).toContain("API Key");
   });
 
+  it("keeps session provider overrides without editing the selected agent", async () => {
+    const session = buildSession({ id: "session-provider-override" });
+    const providers = [
+      buildProvider(true),
+      buildProvider(true, {
+        id: "provider-2",
+        displayName: "Claude",
+        model: "claude-sonnet",
+      }),
+    ];
+    const fetchMock = mountADKPage({
+      providers,
+      sessions: [session],
+      sessionDetail: {
+        session,
+        timeline: [],
+        runs: [],
+        composerState: buildComposerState(session.id),
+      },
+    });
+    await flushRequests();
+    document.querySelector<HTMLElement>(".adk-session-item")?.click();
+    await flushRequests();
+
+    const providerSelect = findProviderSelect("provider-2");
+    expect(providerSelect).toBeDefined();
+    providerSelect!.value = "provider-2";
+    providerSelect!.dispatchEvent(new Event("change"));
+    await nextTick();
+
+    streamADKChatMock.mockImplementationOnce(async (payload) => ({
+      reply: "ok",
+      session,
+      run: buildRun({
+        id: "run-provider-override",
+        sessionId: session.id,
+        providerId: String(payload.providerId ?? ""),
+        model: String(payload.model ?? ""),
+        userMessage: String(payload.message ?? ""),
+      }),
+      pendingApprovals: [],
+      timeline: [],
+    }));
+    await sendPageMessage("使用临时模型");
+
+    expect(streamADKChatMock.mock.calls[0]?.[0]).toMatchObject({
+      providerId: "provider-2",
+      model: "claude-sonnet",
+    });
+    expect(
+      fetchMock.mock.calls.some(
+        ([input, init]) =>
+          String(input).includes("/api/v1/adk/agents") &&
+          String(init?.method ?? "GET").toUpperCase() !== "GET",
+      ),
+    ).toBe(false);
+    expect(lastComposerStatePatch(fetchMock, session.id)).toMatchObject({
+      providerIdOverride: "provider-2",
+      modelOverride: "claude-sonnet",
+    });
+
+    mountADKPage({
+      providers,
+      sessions: [session],
+      sessionDetail: {
+        session,
+        timeline: [],
+        runs: [],
+        composerState: buildComposerState(session.id, {
+          providerIdOverride: "provider-2",
+          modelOverride: "claude-sonnet",
+        }),
+      },
+    });
+    await flushRequests();
+    document.querySelector<HTMLElement>(".adk-session-item")?.click();
+    await flushRequests();
+
+    expect(findProviderSelect("provider-2")?.value).toBe("provider-2");
+  });
+
   it("switches to the shared mobile shell on narrow viewports", async () => {
     const originalMatchMedia = window.matchMedia;
     const matchMediaMock = vi.fn().mockImplementation((query: string) => ({
@@ -3488,6 +3569,7 @@ type SessionContextTestResponse =
 function mountADKPage(
   options: {
     providerHasKey?: boolean;
+    providers?: Array<ReturnType<typeof buildProvider>>;
     agent?: Partial<ReturnType<typeof buildAgentBase>>;
     approvals?: ADKApproval[];
     approvalResolution?: unknown;
@@ -3541,7 +3623,7 @@ function mountADKPage(
       }
       if (url.includes("/api/v1/adk/providers")) {
         return createResponse({
-          providers: [buildProvider(options.providerHasKey ?? true)],
+          providers: options.providers ?? [buildProvider(options.providerHasKey ?? true)],
         });
       }
       if (/\/api\/v1\/adk\/sessions\/[^/]+\/context$/.test(url)) {
@@ -3678,7 +3760,17 @@ function mountADKPage(
   return fetchMock;
 }
 
-function buildProvider(hasApiKey: boolean) {
+function buildProvider(
+  hasApiKey: boolean,
+  overrides: Partial<ReturnType<typeof buildProviderBase>> = {},
+) {
+  return {
+    ...buildProviderBase(hasApiKey),
+    ...overrides,
+  };
+}
+
+function buildProviderBase(hasApiKey: boolean) {
   return {
     id: "provider-1",
     displayName: "OpenAI",
@@ -3760,7 +3852,10 @@ function buildComposerState(
   return {
     sessionId,
     chatDraft: "",
+    providerIdOverride: "",
+    modelOverride: "",
     workModeOverride: "",
+    permissionModeOverride: "",
     goalObjectiveDraft: "",
     goalObjectiveTouched: false,
     updatedAt: "2026-06-06T00:00:00Z",
@@ -3945,6 +4040,14 @@ function findWorkModeSelect(): HTMLSelectElement | undefined {
     document.querySelectorAll<HTMLSelectElement>("select"),
   ).find((select) =>
     Array.from(select.options).some((option) => option.value === "loop"),
+  );
+}
+
+function findProviderSelect(providerId: string): HTMLSelectElement | undefined {
+  return Array.from(
+    document.querySelectorAll<HTMLSelectElement>("select"),
+  ).find((select) =>
+    Array.from(select.options).some((option) => option.value === providerId),
   );
 }
 

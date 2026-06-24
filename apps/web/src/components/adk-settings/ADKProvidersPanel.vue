@@ -161,12 +161,20 @@ async function submitProviderForm(): Promise<void> {
             label="运行总时长（秒）"
             type="number"
             density="comfortable"
+            min="60"
+            max="43200"
+            hint="运行总时长是指整个运行过程的最长持续时间。"
+            persistent-hint
           />
           <v-text-field
             v-model="runtimeSettingsForm.streamIdleTimeoutSeconds"
             label="流空闲超时（秒）"
             type="number"
             density="comfortable"
+            min="30"
+            max="900"
+            hint="流空闲超时是指在流式响应中，如果在指定时间内没有新的数据传输，则认为连接空闲并关闭。"
+            persistent-hint
           />
           <v-btn color="primary" block @click="saveRuntimeSettings"
             >保存运行时设置</v-btn

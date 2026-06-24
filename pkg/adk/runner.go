@@ -59,6 +59,7 @@ func NewRuntimeWithSessionService(store *Store, tools *ToolRegistry, sessionServ
 		r.sessionService = r.contextManager.WrapService(sessionService, r.beginSessionCompaction)
 		store.SetSessionService(sessionService)
 	}
+	r.registerModelCatalogTool()
 	r.reconcileStaleRuns(context.Background())
 	return r
 }
@@ -123,7 +124,7 @@ func (r *Runtime) SessionContext(ctx context.Context, sessionID string) (Session
 	if !ok {
 		return SessionContextSnapshot{}, fmt.Errorf("session not found")
 	}
-	agent, err := r.resolveAgent(ctx, session.AgentID)
+	agent, err := r.resolveSessionContextAgent(ctx, session)
 	if err != nil {
 		return SessionContextSnapshot{}, err
 	}
@@ -162,7 +163,7 @@ func (r *Runtime) CompactSessionContext(ctx context.Context, sessionID string, m
 	if active {
 		return fail(fmt.Errorf("session has an active run"))
 	}
-	agent, err := r.resolveAgent(ctx, session.AgentID)
+	agent, err := r.resolveSessionContextAgent(ctx, session)
 	if err != nil {
 		return fail(err)
 	}
@@ -180,6 +181,47 @@ func (r *Runtime) CompactSessionContext(ctx context.Context, sessionID string, m
 	}
 	r.updateContextCompactionNotice(ctx, notice, TimelineStatusFinal, contextCompactionDoneText)
 	return snapshot, nil
+}
+
+func (r *Runtime) resolveSessionContextAgent(ctx context.Context, session Session) (Agent, error) {
+	agent, err := r.resolveAgentDefinition(ctx, session.AgentID)
+	if err != nil {
+		return Agent{}, err
+	}
+	base := agent
+	agent, overridden := r.applySessionComposerModelOverride(ctx, session.ID, agent)
+	if strings.TrimSpace(agent.ProviderID) == "" {
+		return agent, nil
+	}
+	if err := r.validateAgentProvider(ctx, agent); err != nil {
+		if overridden && strings.TrimSpace(base.ProviderID) != "" {
+			if fallbackErr := r.validateAgentProvider(ctx, base); fallbackErr == nil {
+				return base, nil
+			}
+		}
+		return Agent{}, err
+	}
+	return agent, nil
+}
+
+func (r *Runtime) applySessionComposerModelOverride(ctx context.Context, sessionID string, agent Agent) (Agent, bool) {
+	if r == nil || r.store == nil || strings.TrimSpace(sessionID) == "" {
+		return agent, false
+	}
+	state, _, err := r.store.SessionComposerState(ctx, sessionID)
+	if err != nil {
+		return agent, false
+	}
+	overridden := false
+	if providerID := strings.TrimSpace(state.ProviderIDOverride); providerID != "" {
+		agent.ProviderID = providerID
+		overridden = true
+	}
+	if model := strings.TrimSpace(state.ModelOverride); model != "" {
+		agent.Model = model
+		overridden = true
+	}
+	return agent, overridden
 }
 
 func (r *Runtime) Close() error {
@@ -283,9 +325,33 @@ func (r *Runtime) ChatStream(ctx context.Context, req ChatRequest, onDelta func(
 }
 
 func (r *Runtime) resolveAgent(ctx context.Context, agentID string) (Agent, error) {
+	agent, err := r.resolveAgentDefinition(ctx, agentID)
+	if err != nil {
+		return Agent{}, err
+	}
+	if strings.TrimSpace(agentID) == "" && strings.TrimSpace(agent.ProviderID) == "" {
+		return agent, nil
+	}
+	if err := r.validateAgentProvider(ctx, agent); err != nil {
+		return Agent{}, err
+	}
+	return agent, nil
+}
+
+func (r *Runtime) resolveAgentDefinition(ctx context.Context, agentID string) (Agent, error) {
 	agentID = strings.TrimSpace(agentID)
 	if agentID == "" {
-		return r.store.DefaultAgent(ctx)
+		agent, err := r.store.DefaultAgent(ctx)
+		if err != nil {
+			return Agent{}, err
+		}
+		if agent.Status == AgentStatusDisabled {
+			return Agent{}, fmt.Errorf("agent is disabled")
+		}
+		if agent.DeletedAt != nil {
+			return Agent{}, fmt.Errorf("agent is deleted")
+		}
+		return agent, nil
 	}
 	agent, ok, err := r.store.Agent(ctx, agentID)
 	if err != nil {
@@ -300,22 +366,26 @@ func (r *Runtime) resolveAgent(ctx context.Context, agentID string) (Agent, erro
 	if agent.DeletedAt != nil {
 		return Agent{}, fmt.Errorf("agent is deleted")
 	}
+	return agent, nil
+}
+
+func (r *Runtime) validateAgentProvider(ctx context.Context, agent Agent) error {
 	if strings.TrimSpace(agent.ProviderID) == "" {
-		return Agent{}, fmt.Errorf("agent provider is required")
+		return fmt.Errorf("agent provider is required")
 	}
 	provider, providerOK, providerErr := r.store.Provider(ctx, agent.ProviderID)
 	if providerErr != nil {
-		return Agent{}, providerErr
+		return providerErr
 	}
 	if !providerOK || !provider.Enabled {
-		return Agent{}, fmt.Errorf("agent provider is unavailable")
+		return fmt.Errorf("agent provider is unavailable")
 	}
 	if _, hasKey, keyErr := r.store.ProviderAPIKey(provider.ID); keyErr != nil {
-		return Agent{}, keyErr
+		return keyErr
 	} else if !hasKey {
-		return Agent{}, fmt.Errorf("agent provider API key is not configured")
+		return fmt.Errorf("agent provider API key is not configured")
 	}
-	return agent, nil
+	return nil
 }
 
 func (r *Runtime) resolveSession(ctx context.Context, sessionID string, agent Agent, text string) (Session, error) {

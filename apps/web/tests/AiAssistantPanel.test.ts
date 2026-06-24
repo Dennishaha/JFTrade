@@ -1413,7 +1413,10 @@ function buildComposerState(
   return {
     sessionId,
     chatDraft: "",
+    providerIdOverride: "",
+    modelOverride: "",
     workModeOverride: "",
+    permissionModeOverride: "",
     goalObjectiveDraft: "",
     goalObjectiveTouched: false,
     updatedAt: "2026-06-09T00:00:00Z",

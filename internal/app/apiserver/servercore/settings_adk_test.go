@@ -37,7 +37,7 @@ func TestADKRuntimeSettingsDefaultAndSave(t *testing.T) {
 	if !getEnvelope.OK {
 		t.Fatalf("GET envelope = %+v, want ok=true", getEnvelope)
 	}
-	if getEnvelope.Data.RunTimeoutMs != 600_000 || getEnvelope.Data.StreamIdleTimeoutMs != 300_000 {
+	if getEnvelope.Data.RunTimeoutMs != 1_800_000 || getEnvelope.Data.StreamIdleTimeoutMs != 300_000 {
 		t.Fatalf("default ADK settings = %+v", getEnvelope.Data)
 	}
 
@@ -68,5 +68,34 @@ func TestADKRuntimeSettingsDefaultAndSave(t *testing.T) {
 	}
 	if saveEnvelope.Data.RunTimeoutMs != 60_000 || saveEnvelope.Data.StreamIdleTimeoutMs != 900_000 {
 		t.Fatalf("normalized ADK settings = %+v", saveEnvelope.Data)
+	}
+
+	body, jftradeErr1 = json.Marshal(ADKRuntimeSettings{
+		RunTimeoutMs:        99_999_999,
+		StreamIdleTimeoutMs: 300_000,
+	})
+	jftradeCheckTestError(t, jftradeErr1)
+	req, err = http.NewRequestWithContext(t.Context(), http.MethodPut, srv.URL+"/api/v1/settings/adk", bytes.NewReader(body))
+	if err != nil {
+		t.Fatalf("NewRequest max adk settings: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	maxResp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("PUT max adk settings: %v", err)
+	}
+	defer func() { jftradeCheckTestError(t, maxResp.Body.Close()) }()
+	var maxEnvelope struct {
+		OK   bool               `json:"ok"`
+		Data ADKRuntimeSettings `json:"data"`
+	}
+	if err := json.NewDecoder(maxResp.Body).Decode(&maxEnvelope); err != nil {
+		t.Fatalf("decode max PUT adk settings: %v", err)
+	}
+	if !maxEnvelope.OK {
+		t.Fatalf("max PUT envelope = %+v, want ok=true", maxEnvelope)
+	}
+	if maxEnvelope.Data.RunTimeoutMs != 43_200_000 || maxEnvelope.Data.StreamIdleTimeoutMs != 300_000 {
+		t.Fatalf("max normalized ADK settings = %+v", maxEnvelope.Data)
 	}
 }

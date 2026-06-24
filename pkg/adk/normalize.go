@@ -71,6 +71,11 @@ func NormalizeAgent(agent Agent) Agent {
 	agent.RecentUserWindow = normalizeRecentUserWindow(agent.RecentUserWindow)
 	agent.WorkMode = normalizeAgentDefaultWorkMode(agent.WorkMode)
 	agent.LoopMaxIterations = normalizeLoopMaxIterations(agent.LoopMaxIterations)
+	agent.Builtin = agent.Builtin || IsBuiltinAgentID(agent.ID)
+	if IsPrimaryBuiltinAgentID(agent.ID) {
+		agent.Name = "默认助手"
+		agent.Skills = BuiltinSkillIDs()
+	}
 	if strings.TrimSpace(agent.Status) == "" {
 		agent.Status = AgentStatusEnabled
 	}

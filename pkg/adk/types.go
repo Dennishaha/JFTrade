@@ -29,7 +29,7 @@ const (
 
 	// Runtime safety limits
 	DefaultProviderRequestTimeout = 180 * time.Second
-	DefaultRunTimeout             = 600 * time.Second
+	DefaultRunTimeout             = 30 * time.Minute
 	DefaultStreamIdleTimeout      = 300 * time.Second
 	MaxConcurrentRuns             = 10 // Maximum simultaneous runs
 	DefaultLoopMaxIterations      = 5
@@ -85,6 +85,7 @@ type Agent struct {
 	WorkMode          string   `json:"workMode"`
 	LoopMaxIterations int      `json:"loopMaxIterations"`
 	Status            string   `json:"status"`
+	Builtin           bool     `json:"builtin,omitempty"`
 	CreatedAt         string   `json:"createdAt"`
 	UpdatedAt         string   `json:"updatedAt"`
 	DeletedAt         *string  `json:"deletedAt,omitempty"`
@@ -117,6 +118,8 @@ type Session struct {
 type SessionComposerState struct {
 	SessionID              string `json:"sessionId"`
 	ChatDraft              string `json:"chatDraft"`
+	ProviderIDOverride     string `json:"providerIdOverride"`
+	ModelOverride          string `json:"modelOverride"`
 	WorkModeOverride       string `json:"workModeOverride"`
 	PermissionModeOverride string `json:"permissionModeOverride"`
 	GoalObjectiveDraft     string `json:"goalObjectiveDraft"`
@@ -126,6 +129,8 @@ type SessionComposerState struct {
 
 type SessionComposerStatePatch struct {
 	ChatDraft              *string `json:"chatDraft,omitempty"`
+	ProviderIDOverride     *string `json:"providerIdOverride,omitempty"`
+	ModelOverride          *string `json:"modelOverride,omitempty"`
 	WorkModeOverride       *string `json:"workModeOverride,omitempty"`
 	PermissionModeOverride *string `json:"permissionModeOverride,omitempty"`
 	GoalObjectiveDraft     *string `json:"goalObjectiveDraft,omitempty"`
@@ -225,6 +230,8 @@ type WorkflowStepState struct {
 	Message         string   `json:"message,omitempty"`
 	Status          string   `json:"status"`
 	ChildRunID      string   `json:"childRunId,omitempty"`
+	ChildProviderID string   `json:"childProviderId,omitempty"`
+	ChildModel      string   `json:"childModel,omitempty"`
 	DependsOn       []string `json:"dependsOn,omitempty"`
 	Iteration       int      `json:"iteration,omitempty"`
 	Order           int      `json:"order,omitempty"`
@@ -313,6 +320,8 @@ type ChatRequest struct {
 	AgentID                string      `json:"agentId,omitempty"`
 	SessionID              string      `json:"sessionId,omitempty"`
 	Message                string      `json:"message"`
+	ProviderID             string      `json:"providerId,omitempty"`
+	Model                  string      `json:"model,omitempty"`
 	WorkModeOverride       string      `json:"workModeOverride,omitempty"`
 	PermissionModeOverride string      `json:"permissionModeOverride,omitempty"`
 	Objective              string      `json:"objective,omitempty"`
@@ -403,6 +412,8 @@ type Task struct {
 	Objective       string   `json:"objective,omitempty"`
 	Message         string   `json:"message,omitempty"`
 	Executor        string   `json:"executor,omitempty"`
+	ChildProviderID string   `json:"childProviderId,omitempty"`
+	ChildModel      string   `json:"childModel,omitempty"`
 	ResultSummary   string   `json:"resultSummary,omitempty"`
 	PlannerWarnings []string `json:"plannerWarnings,omitempty"`
 	CreatedAt       string   `json:"createdAt"`
@@ -426,6 +437,8 @@ type TaskWriteRequest struct {
 	Objective       string   `json:"objective,omitempty"`
 	Message         string   `json:"message,omitempty"`
 	Executor        string   `json:"executor,omitempty"`
+	ChildProviderID string   `json:"childProviderId,omitempty"`
+	ChildModel      string   `json:"childModel,omitempty"`
 	ResultSummary   string   `json:"resultSummary,omitempty"`
 	PlannerWarnings []string `json:"plannerWarnings,omitempty"`
 }
@@ -446,6 +459,8 @@ type TaskPatchRequest struct {
 	Objective       *string  `json:"objective,omitempty"`
 	Message         *string  `json:"message,omitempty"`
 	Executor        *string  `json:"executor,omitempty"`
+	ChildProviderID *string  `json:"childProviderId,omitempty"`
+	ChildModel      *string  `json:"childModel,omitempty"`
 	ResultSummary   *string  `json:"resultSummary,omitempty"`
 	PlannerWarnings []string `json:"plannerWarnings,omitempty"`
 }

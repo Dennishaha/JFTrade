@@ -158,7 +158,8 @@ export function syncGoalAwareActiveRun(
 
   if (
     isTerminalRunStatus(run.status) &&
-    !isCompletedRunningWorkflowGoal(run)
+    !isCompletedRunningWorkflowGoal(run) &&
+    !isResumableTimedOutGoalRun(run)
   ) {
     if (isRootLoopRun(run)) {
       goalObjectiveCleared =
@@ -526,11 +527,27 @@ export function isCompletedRunningWorkflowGoal(
   );
 }
 
+export function isResumableTimedOutGoalRun(
+  run: ADKRun | null | undefined,
+): boolean {
+  return (
+    isRootLoopRun(run) &&
+    String(run.status ?? "")
+      .trim()
+      .toUpperCase() === "TIMED_OUT" &&
+    String(run.workflowStatus ?? "").trim() !== ""
+  );
+}
+
 export function isActiveGoalParentRun(
   run: ADKRun | null | undefined,
 ): run is ADKRun {
   if (!isRootLoopRun(run)) return false;
-  return !isTerminalRunStatus(run.status) || isCompletedRunningWorkflowGoal(run);
+  return (
+    !isTerminalRunStatus(run.status) ||
+    isCompletedRunningWorkflowGoal(run) ||
+    isResumableTimedOutGoalRun(run)
+  );
 }
 
 function copyOptionalRunField<

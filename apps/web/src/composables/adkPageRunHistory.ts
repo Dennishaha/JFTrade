@@ -56,6 +56,8 @@ export function normalizeSessionComposerState(
   return {
     sessionId: String(state?.sessionId || sessionId).trim(),
     chatDraft: state?.chatDraft ?? "",
+    providerIdOverride: String(state?.providerIdOverride ?? "").trim(),
+    modelOverride: String(state?.modelOverride ?? "").trim(),
     workModeOverride:
       mode === "chat" || mode === "task" || mode === "loop" ? mode : "",
     permissionModeOverride:

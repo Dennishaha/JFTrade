@@ -32,6 +32,7 @@ import {
   nextPage,
   pageSummary,
   previousPage,
+  resumeADKRun,
   saveADKAgent,
   saveADKProvider,
   saveADKRuntimeSettings,
@@ -53,6 +54,17 @@ import {
 import { formatDateTime, formatGenericStatusLabel } from "./consoleDataFormatting";
 import { useADKAgentForm } from "./useADKAgentForm";
 import { useADKProviderForm } from "./useADKProviderForm";
+
+const ADK_RUN_TIMEOUT_MIN_SECONDS = 60;
+const ADK_RUN_TIMEOUT_MAX_SECONDS = 43_200;
+const ADK_STREAM_IDLE_TIMEOUT_MIN_SECONDS = 30;
+const ADK_STREAM_IDLE_TIMEOUT_MAX_SECONDS = 900;
+
+function clampRuntimeSeconds(value: unknown, fallback: number, min: number, max: number): number {
+  const numeric = Math.round(Number(value));
+  if (!Number.isFinite(numeric)) return fallback;
+  return Math.min(max, Math.max(min, numeric));
+}
 
 export function useADKSettingsSectionState() {
   const providers = ref<ADKProvider[]>([]);
@@ -90,7 +102,7 @@ export function useADKSettingsSectionState() {
   const auditPage = ref<PageEnvelope>({ limit: 12, offset: 0, total: 0, returned: 0, hasMore: false });
   const skillUrl = ref("");
   const runtimeSettingsForm = ref({
-    runTimeoutSeconds: 600,
+    runTimeoutSeconds: 1800,
     streamIdleTimeoutSeconds: 300,
   });
 
@@ -160,8 +172,18 @@ export function useADKSettingsSectionState() {
       tools.value = snapshot.tools;
       skills.value = snapshot.skills;
       runtimeSettingsForm.value = {
-        runTimeoutSeconds: Math.max(1, Math.round((snapshot.runtimeSettings?.runTimeoutMs ?? 600_000) / 1000)),
-        streamIdleTimeoutSeconds: Math.max(1, Math.round((snapshot.runtimeSettings?.streamIdleTimeoutMs ?? 300_000) / 1000)),
+        runTimeoutSeconds: clampRuntimeSeconds(
+          (snapshot.runtimeSettings?.runTimeoutMs ?? 1_800_000) / 1000,
+          1800,
+          ADK_RUN_TIMEOUT_MIN_SECONDS,
+          ADK_RUN_TIMEOUT_MAX_SECONDS,
+        ),
+        streamIdleTimeoutSeconds: clampRuntimeSeconds(
+          (snapshot.runtimeSettings?.streamIdleTimeoutMs ?? 300_000) / 1000,
+          300,
+          ADK_STREAM_IDLE_TIMEOUT_MIN_SECONDS,
+          ADK_STREAM_IDLE_TIMEOUT_MAX_SECONDS,
+        ),
       };
       optimizationTasks.value = snapshot.optimizationTasks;
       tasks.value = snapshot.tasks;
@@ -227,6 +249,16 @@ export function useADKSettingsSectionState() {
       await Promise.all([refreshRuns(), refreshApprovals(), refreshAuditEvents(), refreshMetrics()]);
     } catch (error) {
       errorMessage.value = error instanceof Error ? error.message : "取消运行失败";
+    }
+  }
+
+  async function resumeRun(run: ADKRun): Promise<void> {
+    try {
+      await resumeADKRun(run.id);
+      await Promise.all([refreshRuns(), refreshApprovals(), refreshAuditEvents(), refreshMetrics()]);
+      successMessage.value = "已继续运行目标";
+    } catch (error) {
+      errorMessage.value = error instanceof Error ? error.message : "继续运行失败";
     }
   }
 
@@ -325,12 +357,32 @@ export function useADKSettingsSectionState() {
   async function saveRuntimeSettings(): Promise<void> {
     try {
       const settings = await saveADKRuntimeSettings({
-        runTimeoutMs: Math.max(1, Math.round(Number(runtimeSettingsForm.value.runTimeoutSeconds || 0) * 1000)),
-        streamIdleTimeoutMs: Math.max(1, Math.round(Number(runtimeSettingsForm.value.streamIdleTimeoutSeconds || 0) * 1000)),
+        runTimeoutMs: clampRuntimeSeconds(
+          runtimeSettingsForm.value.runTimeoutSeconds,
+          1800,
+          ADK_RUN_TIMEOUT_MIN_SECONDS,
+          ADK_RUN_TIMEOUT_MAX_SECONDS,
+        ) * 1000,
+        streamIdleTimeoutMs: clampRuntimeSeconds(
+          runtimeSettingsForm.value.streamIdleTimeoutSeconds,
+          300,
+          ADK_STREAM_IDLE_TIMEOUT_MIN_SECONDS,
+          ADK_STREAM_IDLE_TIMEOUT_MAX_SECONDS,
+        ) * 1000,
       });
       runtimeSettingsForm.value = {
-        runTimeoutSeconds: Math.max(1, Math.round(settings.runTimeoutMs / 1000)),
-        streamIdleTimeoutSeconds: Math.max(1, Math.round(settings.streamIdleTimeoutMs / 1000)),
+        runTimeoutSeconds: clampRuntimeSeconds(
+          settings.runTimeoutMs / 1000,
+          1800,
+          ADK_RUN_TIMEOUT_MIN_SECONDS,
+          ADK_RUN_TIMEOUT_MAX_SECONDS,
+        ),
+        streamIdleTimeoutSeconds: clampRuntimeSeconds(
+          settings.streamIdleTimeoutMs / 1000,
+          300,
+          ADK_STREAM_IDLE_TIMEOUT_MIN_SECONDS,
+          ADK_STREAM_IDLE_TIMEOUT_MAX_SECONDS,
+        ),
       };
       successMessage.value = "ADK 运行时设置已保存";
       await refreshAll();
@@ -346,9 +398,6 @@ export function useADKSettingsSectionState() {
     void refreshAll().then(() => {
       if (agentFormState.agentForm.value.providerId === "" && providers.value.length > 0) {
         agentFormState.agentForm.value.providerId = providers.value[0]!.id;
-      }
-      if (agentFormState.agentForm.value.tools.length === 0) {
-        agentFormState.agentForm.value.tools = tools.value.slice(0, 8).map((t) => t.name);
       }
       if (agentFormState.agentForm.value.id === "" && agentFormState.agentForm.value.skills.length === 0) {
         agentFormState.agentForm.value.skills = skills.value.map((skill) => skill.id);
@@ -431,6 +480,7 @@ export function useADKSettingsSectionState() {
     providers,
     refreshAll,
     refreshMetrics,
+    resumeRun,
     riskColor,
     riskLabel,
     runPage,

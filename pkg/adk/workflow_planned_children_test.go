@@ -56,7 +56,7 @@ func TestWorkflowFinalSynthesisFailureMarksChildRunFailed(t *testing.T) {
 		executor := &WorkflowExecutor{runtime: runtime}
 		err := executor.ensureWorkflowChildrenFinalReplies(ctx, workflowRequest{
 			Agent: badAgent, Session: session, Message: child.UserMessage,
-		}, execution, []Run{child}, nil)
+		}, execution, []Run{child}, []workflowStep{{Title: child.UserMessage, Message: child.UserMessage}}, nil)
 		if err == nil || err.Error() != "agent provider is required" {
 			t.Fatalf("ensureWorkflowChildrenFinalReplies err = %v, want provider required", err)
 		}
@@ -95,7 +95,7 @@ func TestWorkflowFinalSynthesisFailureMarksChildRunFailed(t *testing.T) {
 		executor := &WorkflowExecutor{runtime: runtime}
 		err := executor.ensureWorkflowChildrenFinalReplies(ctx, workflowRequest{
 			Agent: agent, Session: session, Message: child.UserMessage,
-		}, execution, []Run{child}, nil)
+		}, execution, []Run{child}, []workflowStep{{Title: child.UserMessage, Message: child.UserMessage}}, nil)
 		if err == nil || !strings.Contains(err.Error(), "最终回复") {
 			t.Fatalf("ensureWorkflowChildrenFinalReplies err = %v, want missing final reply", err)
 		}

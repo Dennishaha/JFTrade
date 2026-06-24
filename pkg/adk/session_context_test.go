@@ -118,6 +118,69 @@ func TestSessionContextCompactionShrinksSessionView(t *testing.T) {
 	}
 }
 
+func TestSessionContextUsesSessionProviderOverrideWindow(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	mustSaveProvider(t, runtime, ProviderWriteRequest{
+		ID:                  "context-base-provider",
+		DisplayName:         "Context Base",
+		BaseURL:             "https://base.example.test",
+		Model:               "base-model",
+		ContextWindowTokens: 1000,
+		APIKey:              "sk-base",
+		Enabled:             true,
+	})
+	mustSaveProvider(t, runtime, ProviderWriteRequest{
+		ID:                  "context-override-provider",
+		DisplayName:         "Context Override",
+		BaseURL:             "https://override.example.test",
+		Model:               "override-model",
+		ContextWindowTokens: 200000,
+		APIKey:              "sk-override",
+		Enabled:             true,
+	})
+	agent := mustSaveAgent(t, runtime, AgentWriteRequest{
+		ID:             "context-provider-override-agent",
+		Name:           "Context Provider Override",
+		ProviderID:     "context-base-provider",
+		PermissionMode: PermissionModeApproval,
+		Status:         AgentStatusEnabled,
+	})
+	session := mustCreateSession(t, runtime, agent.ID, "Context Provider Override")
+	created, err := runtime.rawSessionService.Create(ctx, &adksession.CreateRequest{
+		AppName:   googleADKAppName(agent.ID),
+		UserID:    googleADKUserID,
+		SessionID: session.ID,
+	})
+	if err != nil {
+		t.Fatalf("Create raw session: %v", err)
+	}
+	event := adksession.NewEvent("context-provider-override-user")
+	event.Content = genai.NewContentFromText("hello with override provider", genai.RoleUser)
+	if err := runtime.rawSessionService.AppendEvent(ctx, created.Session, event); err != nil {
+		t.Fatalf("AppendEvent: %v", err)
+	}
+	providerOverride := "context-override-provider"
+	modelOverride := "override-model"
+	if _, err := runtime.Store().SaveSessionComposerState(ctx, session.ID, SessionComposerStatePatch{
+		ProviderIDOverride: &providerOverride,
+		ModelOverride:      &modelOverride,
+	}); err != nil {
+		t.Fatalf("SaveSessionComposerState: %v", err)
+	}
+
+	snapshot, err := runtime.SessionContext(ctx, session.ID)
+	if err != nil {
+		t.Fatalf("SessionContext: %v", err)
+	}
+	if snapshot.ContextWindowTokens != 200000 {
+		t.Fatalf("context window = %d, want override provider window 200000", snapshot.ContextWindowTokens)
+	}
+	if snapshot.UsageRatio <= 0 {
+		t.Fatalf("usage ratio = %f, want positive ratio from override provider window", snapshot.UsageRatio)
+	}
+}
+
 func TestSessionContextCompactionCreatesCurrentRevision(t *testing.T) {
 	ctx := context.Background()
 	runtime := newTestRuntime(t)

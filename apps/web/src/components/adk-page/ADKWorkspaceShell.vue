@@ -68,6 +68,7 @@ const {
   goalObjectiveSaving,
   goalLifecycleBusy,
   goalPaused,
+  goalTimedOut,
   goalPauseRequested,
   showGoalObjectiveEditor,
   canSaveGoalObjective,
@@ -468,6 +469,7 @@ async function handleMobileSessionSelect(sessionId: string): Promise<void> {
         :goal-objective-saving="goalObjectiveSaving"
         :goal-lifecycle-busy="goalLifecycleBusy"
         :goal-paused="goalPaused"
+        :goal-timed-out="goalTimedOut"
         :goal-pause-requested="goalPauseRequested"
         :show-goal-objective-editor="showGoalObjectiveEditor"
         :can-save-goal-objective="canSaveGoalObjective"

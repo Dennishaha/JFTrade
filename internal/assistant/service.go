@@ -319,6 +319,9 @@ func (s *Service) SaveAgent(ctx context.Context, req jfadk.AgentWriteRequest) (j
 	if s.runtime == nil || s.runtime.Store() == nil {
 		return jfadk.Agent{}, fmt.Errorf("adk runtime is unavailable")
 	}
+	if jfadk.IsPrimaryBuiltinAgentID(strings.TrimSpace(req.ID)) {
+		return jfadk.Agent{}, fmt.Errorf("%w: primary builtin agent cannot be edited", jfadk.ErrBuiltinAgentProtected)
+	}
 	if err := s.validateAgent(ctx, req); err != nil {
 		return jfadk.Agent{}, err
 	}

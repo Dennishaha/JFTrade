@@ -37,6 +37,7 @@ const props = withDefaults(
     goalObjectiveSaving?: boolean;
     goalLifecycleBusy?: boolean;
     goalPaused?: boolean;
+    goalTimedOut?: boolean;
     goalPauseRequested?: boolean;
     showGoalObjectiveEditor?: boolean;
     canSaveGoalObjective?: boolean;
@@ -94,6 +95,7 @@ const props = withDefaults(
     goalObjectiveSaving: false,
     goalLifecycleBusy: false,
     goalPaused: false,
+    goalTimedOut: false,
     goalPauseRequested: false,
     showGoalObjectiveEditor: false,
     canSaveGoalObjective: false,
@@ -284,6 +286,7 @@ const goalObjectiveSummary = computed(() => {
 const goalObjectiveStatus = computed(() => {
   if (props.goalObjectiveSaving) return "保存中";
   if (props.goalObjectiveError) return "保存失败";
+  if (props.goalTimedOut) return "已超时";
   if (props.goalPaused) return "已暂停";
   if (props.goalPauseRequested) return "暂停中";
   if (props.activeRunId)
@@ -292,7 +295,7 @@ const goalObjectiveStatus = computed(() => {
 });
 const goalObjectiveTone = computed(() => {
   if (props.goalObjectiveError) return "is-error";
-  if (props.goalPaused || props.goalPauseRequested) return "is-warning";
+  if (props.goalPaused || props.goalTimedOut || props.goalPauseRequested) return "is-warning";
   if (props.goalObjectiveSaving || props.canSaveGoalObjective)
     return "is-warning";
   if (props.activeRunId) return "is-info";
@@ -303,15 +306,17 @@ const showGoalLifecycleButton = computed(
     props.canPauseGoal ||
     props.canResumeGoal ||
     props.goalPauseRequested ||
-    props.goalPaused,
+    props.goalPaused ||
+    props.goalTimedOut,
 );
 const goalLifecycleButtonLabel = computed(() => {
+  if (props.goalTimedOut) return "继续目标";
   if (props.goalPaused) return "运行目标";
   if (props.goalPauseRequested) return "暂停中";
   return "暂停目标";
 });
 const goalLifecycleButtonIcon = computed(() =>
-  props.goalPaused ? "fa-solid fa-play" : "fa-solid fa-pause",
+  props.goalPaused || props.goalTimedOut ? "fa-solid fa-play" : "fa-solid fa-pause",
 );
 const goalLifecycleButtonDisabled = computed(
   () =>

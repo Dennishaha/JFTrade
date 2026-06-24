@@ -23,12 +23,11 @@ export function useADKPageController(
   const composerBlockMessage = computed(() => {
     const agent = selectedAgent.value;
     if (!agent) return "请选择可用 Agent";
-    if (!agent.providerId)
-      return "当前 Agent 未绑定模型 Provider，请先在 Agents 配置中选择 Provider。";
-    const provider = sessionState.providers.value.find(
-      (p) => p.id === agent.providerId,
-    );
-    if (!provider) return "当前 Agent 绑定的 Provider 不存在，请重新配置。";
+    const providerId = sessionState.selectedProviderId.value.trim();
+    if (!providerId)
+      return "请选择本次会话使用的模型 Provider。";
+    const provider = selectedProvider.value;
+    if (!provider) return "当前选择的 Provider 不存在，请重新选择。";
     if (!provider.enabled)
       return "当前 Provider 已停用，请启用或切换 Provider。";
     if (!provider.hasApiKey)
@@ -43,7 +42,9 @@ export function useADKPageController(
       initialized: sessionState.initialized,
       refreshAll: sessionState.refreshAll,
       finishSessionSelection: sessionState.finishSessionSelection,
+      selectedProvider,
       selectedAgentId: sessionState.selectedAgentId,
+      selectedProviderId: sessionState.selectedProviderId,
       selectedSessionId: sessionState.selectedSessionId,
       sessions: sessionState.sessions,
     },
@@ -121,6 +122,7 @@ export function useADKPageController(
     goalObjectiveSaving: chatState.goalObjectiveSaving,
     goalLifecycleBusy: chatState.goalLifecycleBusy,
     goalPaused: chatState.goalPaused,
+    goalTimedOut: chatState.goalTimedOut,
     goalPauseRequested: chatState.goalPauseRequested,
     showGoalObjectiveEditor: chatState.showGoalObjectiveEditor,
     canSaveGoalObjective: chatState.canSaveGoalObjective,

@@ -27,12 +27,38 @@ func TestDefaultTaskToolSchemaIncludesPlannerProjectionFields(t *testing.T) {
 			if !ok {
 				t.Fatalf("schema properties = %#v, want object", schema["properties"])
 			}
-			for _, field := range []string{"order", "modeHint", "agentRole", "plannerStepId", "planSource", "workflowMode", "objective", "plannerWarnings"} {
+			for _, field := range []string{"order", "modeHint", "agentRole", "plannerStepId", "planSource", "workflowMode", "objective", "childProviderId", "childModel", "plannerWarnings"} {
 				if _, ok := properties[field]; !ok {
 					t.Fatalf("%s schema missing %s in properties %+v", name, field, properties)
 				}
 			}
 		})
+	}
+}
+
+func TestModelsListToolRegisteredWithSafeSchema(t *testing.T) {
+	runtime := newTestRuntime(t)
+	tool, ok := runtime.Tools().Get("models.list")
+	if !ok {
+		t.Fatal("models.list not registered")
+	}
+	if tool.Descriptor.Permission != "read_internal" || tool.Descriptor.RiskLevel != "low" {
+		t.Fatalf("models.list descriptor = %+v, want read_internal/low", tool.Descriptor)
+	}
+	if ToolRequiresApproval(tool.Descriptor, PermissionModeApproval) {
+		t.Fatal("models.list unexpectedly requires approval")
+	}
+	properties, ok := tool.Descriptor.InputSchema["properties"].(map[string]any)
+	if !ok {
+		t.Fatalf("models.list schema properties = %#v", tool.Descriptor.InputSchema["properties"])
+	}
+	for _, field := range []string{"query", "providerId", "callableOnly", "limit"} {
+		if _, ok := properties[field]; !ok {
+			t.Fatalf("models.list schema missing %s in %+v", field, properties)
+		}
+	}
+	if strings.Contains(fmt.Sprint(tool.Descriptor.InputSchema), "apiKey") {
+		t.Fatalf("models.list schema mentions apiKey: %+v", tool.Descriptor.InputSchema)
 	}
 }
 
@@ -75,6 +101,22 @@ func TestLowRiskWriteToolsCanSkipApproval(t *testing.T) {
 		if ToolRequiresApproval(tool.Descriptor, PermissionModeApproval) {
 			t.Fatalf("%s unexpectedly requires approval in approval mode", name)
 		}
+	}
+}
+
+func TestApprovalModeRequiresMediumAndHigherRiskApproval(t *testing.T) {
+	for _, risk := range []string{"medium", "high", "critical"} {
+		descriptor := ToolDescriptor{Name: "risk." + risk, Permission: "write_external", RiskLevel: risk, AllowedModes: allPermissionModes()}
+		if !ToolRequiresApproval(descriptor, PermissionModeApproval) {
+			t.Fatalf("risk %s did not require approval in approval mode", risk)
+		}
+		if ToolRequiresApproval(descriptor, PermissionModeAll) {
+			t.Fatalf("risk %s unexpectedly required approval in all mode", risk)
+		}
+	}
+	low := ToolDescriptor{Name: "risk.low", Permission: "write_external", RiskLevel: "low", AllowedModes: allPermissionModes()}
+	if ToolRequiresApproval(low, PermissionModeApproval) {
+		t.Fatal("low risk tool unexpectedly requires approval in approval mode")
 	}
 }
 

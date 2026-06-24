@@ -28,6 +28,7 @@ const props = defineProps<{
   preview: (value: unknown) => string;
   runTerminalMessage: (run: ADKRun) => string;
   cancelRun: (run: ADKRun) => void | Promise<void>;
+  resumeRun: (run: ADKRun) => void | Promise<void>;
   cancelOptimizationTask: (task: ADKOptimizationTask) => void | Promise<void>;
   previousRunsPage: () => void | Promise<void>;
   nextRunsPage: () => void | Promise<void>;
@@ -148,6 +149,15 @@ function auditKindLabel(kind: string): string {
   if (kind.startsWith("run.")) return `运行 · ${kind}`;
   return kind;
 }
+
+function canResumeRun(run: ADKRun): boolean {
+  return (
+    run.status === "TIMED_OUT" &&
+    (run.parentRunId ?? "").trim() === "" &&
+    (run.workMode ?? "").trim().toLowerCase() === "loop" &&
+    (run.workflowStatus ?? "").trim() !== ""
+  );
+}
 </script>
 
 <template>
@@ -241,6 +251,15 @@ function auditKindLabel(kind: string): string {
               @click="cancelRun(run)"
             >
               取消
+            </v-btn>
+            <v-btn
+              v-if="canResumeRun(run)"
+              size="small"
+              variant="outlined"
+              color="primary"
+              @click="resumeRun(run)"
+            >
+              继续
             </v-btn>
           </div>
         </div>

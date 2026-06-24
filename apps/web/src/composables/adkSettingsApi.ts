@@ -131,7 +131,7 @@ export async function fetchADKSettingsSnapshot(): Promise<{
     tools: snapshot.tools,
     skills: snapshot.skills,
     runtimeSettings: snapshot.runtimeSettings ?? {
-      runTimeoutMs: 600_000,
+      runTimeoutMs: 1_800_000,
       streamIdleTimeoutMs: 300_000,
     },
     optimizationTasks: optimizationTasks.tasks,
@@ -218,6 +218,8 @@ export async function saveADKTask(task: {
   objective?: string;
   message?: string;
   executor?: string;
+  childProviderId?: string;
+  childModel?: string;
   resultSummary?: string;
   plannerWarnings?: string[];
 }): Promise<ADKTask> {
@@ -375,6 +377,17 @@ export async function cancelADKRun(runId: string): Promise<ADKRun> {
   return normalizeADKRun(
     await fetchEnvelopeWithInit<ADKRun>(
       `/api/v1/adk/runs/${encodeURIComponent(runId)}/cancel`,
+      {
+        method: "POST",
+      },
+    ),
+  );
+}
+
+export async function resumeADKRun(runId: string): Promise<ADKRun> {
+  return normalizeADKRun(
+    await fetchEnvelopeWithInit<ADKRun>(
+      `/api/v1/adk/runs/${encodeURIComponent(runId)}/resume`,
       {
         method: "POST",
       },

@@ -20,6 +20,7 @@ const (
 	workflowTaskCompleteTool  = "workflow.task.complete"
 	workflowTaskBlockTool     = "workflow.task.block"
 	workflowTaskDelegateTool  = "workflow.task.delegate"
+	workflowModelsListTool    = "workflow.models.list"
 	workflowTaskIncompleteErr = "WORKFLOW_TASK_INCOMPLETE"
 
 	workflowGoalCompleteTool = "workflow.goal.complete"
@@ -715,8 +716,24 @@ func (t *workflowTaskToolset) Tools(adkagent.ReadonlyContext) ([]adktool.Tool, e
 		&workflowPlannerTool{name: workflowTaskCompleteTool, description: "Mark a claimed or ready TODO as DONE with a result summary.", schema: workflowTaskCompleteSchema(), run: t.complete},
 		&workflowPlannerTool{name: workflowTaskBlockTool, description: "Mark a TODO as BLOCKED with a blocking reason.", schema: workflowTaskBlockSchema(), run: t.block},
 		&workflowPlannerTool{name: workflowTaskDelegateTool, description: "Delegate a ready TODO to an ADK child agent. This creates a JFTrade child run only when called.", schema: workflowTaskDelegateSchema(), run: t.delegate},
+		&workflowPlannerTool{name: workflowModelsListTool, description: "List callable ADK models that can be selected for delegated child agents.", schema: workflowModelsListSchema(), run: t.modelsList},
 	}
 	return tools, nil
+}
+
+func (t *workflowTaskToolset) modelsList(args map[string]any) (map[string]any, error) {
+	if t == nil || t.executor == nil || t.executor.runtime == nil {
+		return nil, fmt.Errorf("adk runtime is unavailable")
+	}
+	output, err := t.executor.runtime.modelsListTool(context.Background(), args)
+	if err != nil {
+		return nil, err
+	}
+	mapped, ok := output.(map[string]any)
+	if !ok {
+		return map[string]any{"result": output}, nil
+	}
+	return mapped, nil
 }
 
 func (t *workflowTaskToolset) list(map[string]any) (map[string]any, error) {
@@ -742,6 +759,7 @@ func (t *workflowTaskToolset) add(args map[string]any) (map[string]any, error) {
 	task, err := t.executor.addRuntimeWorkflowTask(context.Background(), parent, current, workflowRuntimeTaskRequest{
 		Title: plannerStringArg(args, "title"), Message: plannerStringArg(args, "message"), Description: plannerStringArg(args, "description"),
 		DependsOn: plannerStringSliceArg(args, "dependsOn"), AgentRole: plannerStringArg(args, "agentRole"), ModeHint: plannerStringArg(args, "modeHint"),
+		ChildProviderID: plannerStringArg(args, "childProviderId"), ChildModel: plannerStringArg(args, "childModel"),
 	})
 	if err != nil {
 		return nil, err
@@ -790,6 +808,13 @@ func (t *workflowTaskToolset) complete(args map[string]any) (map[string]any, err
 	task, err := t.resolveTask(context.Background(), parent, tasks, plannerStringArg(args, "taskId"), false)
 	if err != nil {
 		return nil, err
+	}
+	switch strings.ToUpper(strings.TrimSpace(task.Status)) {
+	case "DONE", "CANCELLED", "BLOCKED":
+		return map[string]any{
+			"success": false, "message": "task is not completable in its current status",
+			"taskId": task.ID, "status": task.Status,
+		}, nil
 	}
 	if task.Executor == workflowTaskExecutorChild && strings.TrimSpace(task.RunID) != "" {
 		child, ok, childErr := t.executor.runtime.store.Run(context.Background(), task.RunID)
@@ -886,7 +911,15 @@ func (t *workflowTaskToolset) delegate(args map[string]any) (map[string]any, err
 	if role := plannerStringArg(args, "agentRole"); role != "" {
 		step.AgentRole = role
 	}
-	_, jftradeErr31 := t.executor.runtime.store.UpdateTask(context.Background(), task.ID, TaskPatchRequest{Executor: new(workflowTaskExecutorChild)})
+	if providerID := plannerStringArg(args, "childProviderId"); providerID != "" {
+		step.ChildProviderID = providerID
+	}
+	if modelName := plannerStringArg(args, "childModel"); modelName != "" {
+		step.ChildModel = modelName
+	}
+	_, jftradeErr31 := t.executor.runtime.store.UpdateTask(context.Background(), task.ID, TaskPatchRequest{
+		Executor: new(workflowTaskExecutorChild), ChildProviderID: &step.ChildProviderID, ChildModel: &step.ChildModel,
+	})
 	jftradeLogError(jftradeErr31)
 	result := t.executor.runChild(context.Background(), t.req, parent, step, task, workflowTaskIteration(task))
 	if result.Err != nil {
@@ -1089,6 +1122,7 @@ func workflowTaskToolDescriptors() []ToolDescriptor {
 		{Name: workflowTaskCompleteTool, DisplayName: "完成工作流任务", Description: "完成一个 TODO 并写入结果摘要。", Category: "workflow", Permission: "workflow_internal", RiskLevel: "low", AllowedModes: allPermissionModes()},
 		{Name: workflowTaskBlockTool, DisplayName: "阻塞工作流任务", Description: "标记一个 TODO 被阻塞。", Category: "workflow", Permission: "workflow_internal", RiskLevel: "low", AllowedModes: allPermissionModes()},
 		{Name: workflowTaskDelegateTool, DisplayName: "委派子智能体", Description: "将一个 TODO 委派给 ADK 子智能体。", Category: "workflow", Permission: "workflow_internal", RiskLevel: "low", AllowedModes: allPermissionModes()},
+		{Name: workflowModelsListTool, DisplayName: "查询子智能体模型", Description: "列出可供委派子智能体使用的 ADK 模型。", Category: "workflow", Permission: "workflow_internal", RiskLevel: "low", AllowedModes: allPermissionModes()},
 		{Name: workflowGoalCompleteTool, DisplayName: "完成目标", Description: "声明目标已经完成并退出目标循环。", Category: "workflow", Permission: "workflow_internal", RiskLevel: "low", AllowedModes: allPermissionModes()},
 		{Name: workflowGoalContinueTool, DisplayName: "继续目标", Description: "声明目标尚未完成并继续目标循环。", Category: "workflow", Permission: "workflow_internal", RiskLevel: "low", AllowedModes: allPermissionModes()},
 	}
@@ -1100,7 +1134,7 @@ func allPermissionModes() []string {
 
 func taskOrchestratorInstruction(base string) string {
 	var builder strings.Builder
-	builder.WriteString("JFTRADE_TASK_ORCHESTRATOR\n你是 ADK 任务模式的主控调度智能体。你必须通过 workflow.task.* 工具推进 TODO DAG，可以亲自完成任务，也可以在确有必要时调用 workflow.task.delegate 委派给子智能体。不要直接调用业务工具；业务工具只能由被委派的子智能体使用。所有新增任务必须通过 workflow.task.add。完成前必须确认没有未完成任务、等待审批或运行中的子智能体。")
+	builder.WriteString("JFTRADE_TASK_ORCHESTRATOR\n你是 ADK 任务模式的主控调度智能体。你必须通过 workflow.task.* 工具推进 TODO DAG，可以亲自完成任务，也可以在确有必要时调用 workflow.task.delegate 委派给子智能体。不要直接调用业务工具；业务工具只能由被委派的子智能体使用。需要为子智能体选择不同模型时，先调用 workflow.models.list 查询可调用模型，再把 childProviderId 和可选 childModel 传给委派工具。所有新增任务必须通过 workflow.task.add。完成前必须确认没有未完成任务、等待审批或运行中的子智能体。")
 	if strings.TrimSpace(base) != "" {
 		builder.WriteString("\n\n基础 Agent 指令：")
 		builder.WriteString(strings.TrimSpace(base))
@@ -1110,7 +1144,7 @@ func taskOrchestratorInstruction(base string) string {
 
 func goalOrchestratorInstruction(base string) string {
 	var builder strings.Builder
-	builder.WriteString("JFTRADE_GOAL_ORCHESTRATOR\n你是目标模式主控调度智能体。目标模式是任务模式的扩展：你必须通过 workflow.task.* 工具推进 TODO DAG，可以亲自完成任务、增加后续 TODO、阻塞无法完成的任务，或在确有必要时委派子智能体。不要直接调用业务工具；业务工具只能由被委派的子智能体使用。收到“是否完成目标”追问时，必须调用 workflow.goal.complete 或 workflow.goal.continue 二选一；不要只输出文字。")
+	builder.WriteString("JFTRADE_GOAL_ORCHESTRATOR\n你是目标模式主控调度智能体。目标模式是任务模式的扩展：你必须通过 workflow.task.* 工具推进 TODO DAG，可以亲自完成任务、增加后续 TODO、阻塞无法完成的任务，或在确有必要时委派子智能体。不要直接调用业务工具；业务工具只能由被委派的子智能体使用。需要为子智能体选择不同模型时，先调用 workflow.models.list 查询可调用模型，再把 childProviderId 和可选 childModel 传给委派工具。收到“是否完成目标”追问时，必须调用 workflow.goal.complete 或 workflow.goal.continue 二选一；不要只输出文字。")
 	if strings.TrimSpace(base) != "" {
 		builder.WriteString("\n\n基础 Agent 指令：")
 		builder.WriteString(strings.TrimSpace(base))
@@ -1185,6 +1219,7 @@ func taskToolTaskSummary(task Task) map[string]any {
 		"id": task.ID, "title": task.Title, "status": task.Status, "order": task.Order,
 		"dependsOn": task.DependsOn, "executor": task.Executor, "runId": task.RunID,
 		"agentRole": task.AgentRole, "planSource": task.PlanSource, "resultSummary": task.ResultSummary,
+		"childProviderId": task.ChildProviderID, "childModel": task.ChildModel,
 	}
 }
 
@@ -1213,6 +1248,7 @@ func workflowTaskAddSchema() map[string]any {
 	return map[string]any{"type": "object", "properties": map[string]any{
 		"title": map[string]any{"type": "string"}, "message": map[string]any{"type": "string"}, "description": map[string]any{"type": "string"},
 		"dependsOn": map[string]any{"type": "array", "items": map[string]any{"type": "string"}}, "agentRole": map[string]any{"type": "string"}, "modeHint": map[string]any{"type": "string"},
+		"childProviderId": map[string]any{"type": "string"}, "childModel": map[string]any{"type": "string"},
 	}, "required": []string{"title"}, "additionalProperties": false}
 }
 
@@ -1229,7 +1265,17 @@ func workflowTaskBlockSchema() map[string]any {
 }
 
 func workflowTaskDelegateSchema() map[string]any {
-	return map[string]any{"type": "object", "properties": map[string]any{"taskId": map[string]any{"type": "string"}, "prompt": map[string]any{"type": "string"}, "agentRole": map[string]any{"type": "string"}}, "additionalProperties": false}
+	return map[string]any{"type": "object", "properties": map[string]any{
+		"taskId": map[string]any{"type": "string"}, "prompt": map[string]any{"type": "string"}, "agentRole": map[string]any{"type": "string"},
+		"childProviderId": map[string]any{"type": "string"}, "childModel": map[string]any{"type": "string"},
+	}, "additionalProperties": false}
+}
+
+func workflowModelsListSchema() map[string]any {
+	return map[string]any{"type": "object", "properties": map[string]any{
+		"query": map[string]any{"type": "string"}, "providerId": map[string]any{"type": "string"},
+		"callableOnly": map[string]any{"type": "boolean"}, "limit": map[string]any{"type": "integer", "minimum": 1, "maximum": 100},
+	}, "additionalProperties": false}
 }
 
 func workflowGoalCompleteSchema() map[string]any {

@@ -11,14 +11,14 @@ import type {
 
 import { deleteADKAgent, saveADKAgent } from "./adkSettingsApi";
 
-function createAgentForm(providers: ADKProvider[], tools: ADKToolDescriptor[], skills: ADKSkill[]) {
+function createAgentForm(providers: ADKProvider[], _tools: ADKToolDescriptor[], skills: ADKSkill[]) {
   return {
     id: "",
     name: "新 Agent",
     instruction: "",
     providerId: providers[0]?.id ?? "",
     model: "",
-    tools: tools.slice(0, 8).map((tool) => tool.name),
+    tools: [],
     skills: skills.map((skill) => skill.id),
     permissionMode: "approval" as ADKPermissionMode,
     memoryEnabled: true,

@@ -16,6 +16,23 @@ import (
 	adksession "google.golang.org/adk/session"
 )
 
+func sameStringSet(left []string, right []string) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	seen := make(map[string]int, len(left))
+	for _, item := range left {
+		seen[item]++
+	}
+	for _, item := range right {
+		seen[item]--
+		if seen[item] < 0 {
+			return false
+		}
+	}
+	return true
+}
+
 func TestStoreDefaultAgentEnsureAgentAndSessionOrdering(t *testing.T) {
 	ctx := context.Background()
 	runtime := newTestRuntime(t)
@@ -26,6 +43,12 @@ func TestStoreDefaultAgentEnsureAgentAndSessionOrdering(t *testing.T) {
 	}
 	if defaultAgent.ID == "" || defaultAgent.Status != AgentStatusEnabled || defaultAgent.PermissionMode != PermissionModeApproval {
 		t.Fatalf("default agent = %+v, want enabled approval-mode built-in agent", defaultAgent)
+	}
+	if defaultAgent.ID != DefaultBuiltinAgentID || defaultAgent.Name != "默认助手" || !defaultAgent.Builtin || len(defaultAgent.Tools) != 0 {
+		t.Fatalf("default agent = %+v, want primary builtin with all tools marker", defaultAgent)
+	}
+	if !sameStringSet(defaultAgent.Skills, BuiltinSkillIDs()) {
+		t.Fatalf("default agent skills = %+v, want all builtin skills %+v", defaultAgent.Skills, BuiltinSkillIDs())
 	}
 
 	ensured, err := runtime.Store().EnsureAgent(ctx, AgentWriteRequest{
@@ -46,6 +69,13 @@ func TestStoreDefaultAgentEnsureAgentAndSessionOrdering(t *testing.T) {
 	}
 	if again.ID != ensured.ID || again.CreatedAt != ensured.CreatedAt {
 		t.Fatalf("EnsureAgent idempotent result = %+v, want existing %+v", again, ensured)
+	}
+	agents, err := runtime.Store().ListAgents(ctx)
+	if err != nil {
+		t.Fatalf("ListAgents: %v", err)
+	}
+	if len(agents) == 0 || agents[0].ID != DefaultBuiltinAgentID {
+		t.Fatalf("agent order = %+v, want primary default first", agents)
 	}
 
 	firstSession, err := runtime.Store().CreateSession(ctx, ensured.ID, "first")
@@ -81,6 +111,127 @@ func TestStoreDefaultAgentEnsureAgentAndSessionOrdering(t *testing.T) {
 	}
 	if sessions[0].ID != renamed.ID || sessions[1].ID != secondSession.ID {
 		t.Fatalf("session order = [%s %s], want [%s %s]", sessions[0].ID, sessions[1].ID, renamed.ID, secondSession.ID)
+	}
+}
+
+func TestStoreBuiltinAgentsAreProtected(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+
+	defaultAgent, err := runtime.Store().DefaultAgent(ctx)
+	if err != nil {
+		t.Fatalf("DefaultAgent: %v", err)
+	}
+	if err := runtime.Store().DeleteAgent(ctx, defaultAgent.ID); !errors.Is(err, ErrBuiltinAgentProtected) {
+		t.Fatalf("DeleteAgent default err = %v, want ErrBuiltinAgentProtected", err)
+	}
+	if _, err := runtime.Store().SaveAgent(ctx, AgentWriteRequest{
+		ID: defaultAgent.ID, Name: defaultAgent.Name, Status: AgentStatusDisabled,
+	}); !errors.Is(err, ErrBuiltinAgentProtected) {
+		t.Fatalf("disable primary default err = %v, want ErrBuiltinAgentProtected", err)
+	}
+
+	secondary, err := runtime.Store().SaveAgent(ctx, AgentWriteRequest{
+		ID: "investment-analyst", Name: "投资分析助手", Status: AgentStatusDisabled,
+	})
+	if err != nil {
+		t.Fatalf("disable secondary builtin: %v", err)
+	}
+	if secondary.Status != AgentStatusDisabled || !secondary.Builtin {
+		t.Fatalf("secondary builtin = %+v, want disabled builtin", secondary)
+	}
+	if err := runtime.Store().DeleteAgent(ctx, secondary.ID); !errors.Is(err, ErrBuiltinAgentProtected) {
+		t.Fatalf("DeleteAgent secondary err = %v, want ErrBuiltinAgentProtected", err)
+	}
+}
+
+func TestModelsListToolReturnsCallableModelsWithoutKeys(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	mustSaveProvider(t, runtime, ProviderWriteRequest{
+		ID: "disabled-provider", DisplayName: "Disabled Provider", BaseURL: "https://disabled.example/v1",
+		Model: "disabled-model", APIKey: "sk-disabled", Enabled: false,
+	})
+	mustSaveProvider(t, runtime, ProviderWriteRequest{
+		ID: "no-key-provider", DisplayName: "No Key Provider", BaseURL: "https://no-key.example/v1",
+		Model: "no-key-model", Enabled: true,
+	})
+	capabilityProvider := mustSaveProvider(t, runtime, ProviderWriteRequest{
+		ID: "capability-provider", DisplayName: "Capability Provider", BaseURL: "https://capability.example/v1",
+		Model: "vision-model", APIKey: "sk-capability", Enabled: true,
+	})
+	if _, err := runtime.Store().UpdateProviderCapabilities(ctx, capabilityProvider.ID, map[string]bool{"vision": true, "disabled-capability": false}); err != nil {
+		t.Fatalf("UpdateProviderCapabilities: %v", err)
+	}
+
+	raw, err := runtime.modelsListTool(ctx, map[string]any{"limit": 10})
+	if err != nil {
+		t.Fatalf("models.list: %v", err)
+	}
+	payload, ok := raw.(map[string]any)
+	if !ok {
+		t.Fatalf("models.list payload = %T, want map", raw)
+	}
+	models, ok := payload["models"].([]map[string]any)
+	if !ok {
+		t.Fatalf("models = %#v, want []map[string]any", payload["models"])
+	}
+	if len(models) != 2 {
+		t.Fatalf("models = %#v, want two callable providers", models)
+	}
+	callableSeen := map[string]map[string]any{}
+	for _, item := range models {
+		callableSeen[fmt.Sprint(item["providerId"])] = item
+	}
+	if callableSeen[testProviderID]["model"] != "test-model" || callableSeen["capability-provider"]["model"] != "vision-model" {
+		t.Fatalf("models = %#v, want callable test and capability providers", models)
+	}
+	if callableSeen[testProviderID]["hasApiKey"] != true || callableSeen[testProviderID]["callable"] != true {
+		t.Fatalf("model flags = %#v, want hasApiKey/callable true", callableSeen[testProviderID])
+	}
+	encoded, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+	if strings.Contains(strings.ToLower(string(encoded)), "sk-") {
+		t.Fatalf("models.list leaked key material: %s", string(encoded))
+	}
+	rawAll, err := runtime.modelsListTool(ctx, map[string]any{"callableOnly": false, "limit": 10})
+	if err != nil {
+		t.Fatalf("models.list all: %v", err)
+	}
+	allPayload, ok := rawAll.(map[string]any)
+	if !ok {
+		t.Fatalf("models.list all payload = %T, want map", rawAll)
+	}
+	allModels, ok := allPayload["models"].([]map[string]any)
+	if !ok {
+		t.Fatalf("models all = %#v, want []map[string]any", allPayload["models"])
+	}
+	seen := map[string]map[string]any{}
+	for _, item := range allModels {
+		seen[fmt.Sprint(item["providerId"])] = item
+	}
+	if seen["disabled-provider"]["callable"] != false || seen["no-key-provider"]["hasApiKey"] != false || seen["no-key-provider"]["callable"] != false {
+		t.Fatalf("all models = %#v, want disabled/no-key diagnostics", allModels)
+	}
+	rawDisabled, err := runtime.modelsListTool(ctx, map[string]any{"providerId": "disabled-provider", "callableOnly": false})
+	if err != nil {
+		t.Fatalf("models.list disabled provider: %v", err)
+	}
+	disabledPayload := rawDisabled.(map[string]any)
+	disabledModels := disabledPayload["models"].([]map[string]any)
+	if len(disabledModels) != 1 || disabledModels[0]["providerId"] != "disabled-provider" || disabledModels[0]["callable"] != false {
+		t.Fatalf("disabled provider models = %#v, want disabled provider diagnostic", disabledModels)
+	}
+	rawVision, err := runtime.modelsListTool(ctx, map[string]any{"query": "vision"})
+	if err != nil {
+		t.Fatalf("models.list vision query: %v", err)
+	}
+	visionPayload := rawVision.(map[string]any)
+	visionModels := visionPayload["models"].([]map[string]any)
+	if len(visionModels) != 1 || visionModels[0]["providerId"] != "capability-provider" {
+		t.Fatalf("vision query models = %#v, want capability-provider only", visionModels)
 	}
 }
 

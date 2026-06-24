@@ -1,7 +1,16 @@
 package adk
 
+const DefaultBuiltinAgentID = "jftrade-default"
+
 func BuiltinAgentTemplates() []AgentWriteRequest {
 	return []AgentWriteRequest{
+		{
+			ID: DefaultBuiltinAgentID, Name: "默认助手",
+			Instruction:    defaultAgentInstruction(),
+			PermissionMode: PermissionModeApproval, Status: AgentStatusEnabled, MemoryEnabled: true, WorkMode: WorkModeChat, LoopMaxIterations: DefaultLoopMaxIterations,
+			Tools:  nil,
+			Skills: BuiltinSkillIDs(),
+		},
 		{
 			ID: "investment-analyst", Name: "投资分析助手",
 			Instruction:    "你是 JFTrade 投资分析 agent。优先使用内部行情、账户、策略和回测工具；输出必须说明数据来源，不承诺收益。",
@@ -34,10 +43,20 @@ func BuiltinAgentTemplates() []AgentWriteRequest {
 }
 
 func BuiltinAgentTemplate(id string) (AgentWriteRequest, bool) {
+	id = normalizeID(id)
 	for _, template := range BuiltinAgentTemplates() {
-		if template.ID == id {
+		if normalizeID(template.ID) == id {
 			return template, true
 		}
 	}
 	return AgentWriteRequest{}, false
+}
+
+func IsBuiltinAgentID(id string) bool {
+	_, ok := BuiltinAgentTemplate(id)
+	return ok
+}
+
+func IsPrimaryBuiltinAgentID(id string) bool {
+	return normalizeID(id) == DefaultBuiltinAgentID
 }

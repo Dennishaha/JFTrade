@@ -50,6 +50,8 @@ type workflowStep struct {
 	Message         string
 	DependsOn       []string
 	AgentRole       string
+	ChildProviderID string
+	ChildModel      string
 	ModeHint        string
 	Objective       string
 	PlanSource      string
@@ -231,6 +233,8 @@ func (e *WorkflowExecutor) persistWorkflowTasks(ctx context.Context, parent Run,
 			Order:           step.Order,
 			ModeHint:        step.ModeHint,
 			AgentRole:       step.AgentRole,
+			ChildProviderID: step.ChildProviderID,
+			ChildModel:      step.ChildModel,
 			PlannerStepID:   step.DependencyID,
 			PlanSource:      step.PlanSource,
 			WorkflowMode:    step.WorkflowMode,
@@ -306,7 +310,7 @@ func (e *WorkflowExecutor) runPlannedGoogleADKWorkflow(ctx context.Context, req 
 		}
 		e.runtime.adkMu.Unlock()
 	}
-	if err := e.ensureWorkflowChildrenFinalReplies(ctx, req, execution, childRuns, approvals); err != nil {
+	if err := e.ensureWorkflowChildrenFinalReplies(ctx, req, execution, childRuns, steps, approvals); err != nil {
 		parent = e.failParent(ctx, parent, err)
 		return e.workflowResponse(ctx, req.Session, parent, openAIChatResult{Reply: parent.FailureReason}), nil
 	}
@@ -384,8 +388,13 @@ func (e *WorkflowExecutor) startWorkflowChildRuns(ctx context.Context, req workf
 			_, jftradeErr11 := e.runtime.store.UpdateTask(ctx, tasks[index].ID, TaskPatchRequest{Status: new("IN_PROGRESS")})
 			jftradeLogError(jftradeErr11)
 		}
-		childAgent := req.Agent
-		childAgent.WorkMode = WorkModeChat
+		childAgent := workflowChildAgentForStep(req.Agent, step)
+		if _, err := e.runtime.googleADKModelForAgent(ctx, childAgent); err != nil {
+			for _, finish := range finishes {
+				finish()
+			}
+			return nil, nil, err
+		}
 		child, _, finishChild, err := e.runtime.startRunWithOptions(ctx, req.Session.ID, childAgent, step.Message, runStartOptions{
 			WorkMode:    WorkModeChat,
 			Objective:   req.Objective,
@@ -435,16 +444,21 @@ func (e *WorkflowExecutor) ensureWorkflowChildrenFinalReplies(
 	req workflowRequest,
 	execution *googleADKExecution,
 	childRuns []Run,
+	steps []workflowStep,
 	approvals []Approval,
 ) error {
-	for _, child := range childRuns {
+	for index, child := range childRuns {
 		if len(approvalsForRun(approvals, child.ID)) > 0 {
 			continue
 		}
 		if !execution.runNeedsFinalSynthesis(child.ID) {
 			continue
 		}
-		if err := e.runtime.runGoogleADKWorkflowChildFinalSynthesis(ctx, req.Agent, req.Session, execution, child); err != nil {
+		childAgent := req.Agent
+		if index < len(steps) {
+			childAgent = workflowChildAgentForStep(req.Agent, steps[index])
+		}
+		if err := e.runtime.runGoogleADKWorkflowChildFinalSynthesis(ctx, childAgent, req.Session, execution, child); err != nil {
 			return e.failWorkflowChildAfterMissingFinal(ctx, child, execution, err)
 		}
 		if execution.runNeedsFinalSynthesis(child.ID) || !execution.runHasPostToolText(child.ID) {
@@ -471,8 +485,29 @@ func (e *WorkflowExecutor) failWorkflowChildAfterMissingFinal(
 func (e *WorkflowExecutor) runChild(ctx context.Context, req workflowRequest, parent Run, step workflowStep, task Task, iteration int) workflowChildResult {
 	_, jftradeErr14 := e.runtime.store.UpdateTask(ctx, task.ID, TaskPatchRequest{Status: new("IN_PROGRESS"), Executor: new(workflowTaskExecutorChild)})
 	jftradeLogError(jftradeErr14)
-	childAgent := req.Agent
-	childAgent.WorkMode = WorkModeChat
+	childAgent := workflowChildAgentForStep(req.Agent, step)
+	if _, err := e.runtime.googleADKModelForAgent(ctx, childAgent); err != nil {
+		reason := err.Error()
+		_, jftradeErr13 := e.runtime.store.UpdateTask(ctx, task.ID, TaskPatchRequest{Status: new("BLOCKED"), RunID: new(parent.ID), ResultSummary: &reason})
+		jftradeLogError(jftradeErr13)
+		failed := Run{
+			ID:            parent.ID,
+			SessionID:     req.Session.ID,
+			AgentID:       childAgent.ID,
+			ProviderID:    childAgent.ProviderID,
+			Model:         childAgent.Model,
+			ParentRunID:   parent.ID,
+			Status:        RunStatusFailed,
+			Message:       reason,
+			FailureReason: reason,
+			ErrorCode:     runErrorCode(RunStatusFailed),
+			WorkMode:      WorkModeChat,
+			CreatedAt:     nowString(),
+			UpdatedAt:     nowString(),
+			Usage:         &RunUsage{},
+		}
+		return workflowChildResult{Index: iteration - 1, TaskID: task.ID, Response: ChatResponse{Reply: reason, Session: req.Session, Run: failed}}
+	}
 	child, childCtx, finishChild, err := e.runtime.startRunWithOptions(ctx, req.Session.ID, childAgent, step.Message, runStartOptions{
 		WorkMode:    WorkModeChat,
 		Objective:   req.Objective,
@@ -551,6 +586,8 @@ func workflowPlanFromSteps(steps []workflowStep, tasks []Task) []WorkflowStepSta
 			Order:           step.Order,
 			ModeHint:        step.ModeHint,
 			AgentRole:       step.AgentRole,
+			ChildProviderID: step.ChildProviderID,
+			ChildModel:      step.ChildModel,
 			PlannerStepID:   step.DependencyID,
 			PlanSource:      step.PlanSource,
 			WorkflowMode:    step.WorkflowMode,
@@ -565,6 +602,8 @@ func workflowPlanFromSteps(steps []workflowStep, tasks []Task) []WorkflowStepSta
 			state.Order = tasks[index].Order
 			state.ModeHint = tasks[index].ModeHint
 			state.AgentRole = tasks[index].AgentRole
+			state.ChildProviderID = tasks[index].ChildProviderID
+			state.ChildModel = tasks[index].ChildModel
 			state.PlannerStepID = tasks[index].PlannerStepID
 			state.PlanSource = tasks[index].PlanSource
 			state.WorkflowMode = tasks[index].WorkflowMode
@@ -601,6 +640,8 @@ func workflowPlanFromTasks(tasks []Task, existing []WorkflowStepState) []Workflo
 			Order:           task.Order,
 			ModeHint:        task.ModeHint,
 			AgentRole:       task.AgentRole,
+			ChildProviderID: task.ChildProviderID,
+			ChildModel:      task.ChildModel,
 			PlannerStepID:   task.PlannerStepID,
 			PlanSource:      task.PlanSource,
 			WorkflowMode:    task.WorkflowMode,
@@ -737,6 +778,8 @@ func workflowStepFromTask(task Task) workflowStep {
 		Message:         message,
 		DependsOn:       append([]string(nil), task.DependsOn...),
 		AgentRole:       task.AgentRole,
+		ChildProviderID: task.ChildProviderID,
+		ChildModel:      task.ChildModel,
 		ModeHint:        task.ModeHint,
 		Objective:       task.Objective,
 		PlanSource:      task.PlanSource,
@@ -783,12 +826,14 @@ func workflowSelfTaskSummary(task Task) string {
 }
 
 type workflowRuntimeTaskRequest struct {
-	Title       string
-	Message     string
-	Description string
-	DependsOn   []string
-	AgentRole   string
-	ModeHint    string
+	Title           string
+	Message         string
+	Description     string
+	DependsOn       []string
+	AgentRole       string
+	ModeHint        string
+	ChildProviderID string
+	ChildModel      string
 }
 
 func (e *WorkflowExecutor) addRuntimeWorkflowTask(ctx context.Context, parent Run, current Task, req workflowRuntimeTaskRequest) (Task, error) {
@@ -831,20 +876,22 @@ func (e *WorkflowExecutor) addRuntimeWorkflowTask(ctx context.Context, parent Ru
 	}
 	nextRuntime := runtimeCount + 1
 	task, err := e.runtime.store.SaveTask(ctx, TaskWriteRequest{
-		Title:         title,
-		Description:   description,
-		Message:       message,
-		Status:        "TODO",
-		AgentID:       parent.AgentID,
-		RunID:         parent.ID,
-		DependsOn:     dependsOn,
-		Order:         maxOrder + 1,
-		ModeHint:      req.ModeHint,
-		AgentRole:     req.AgentRole,
-		PlannerStepID: fmt.Sprintf("runtime-%d", nextRuntime),
-		PlanSource:    workflowPlanSourceRuntime,
-		WorkflowMode:  parent.WorkMode,
-		Objective:     parent.Objective,
+		Title:           title,
+		Description:     description,
+		Message:         message,
+		Status:          "TODO",
+		AgentID:         parent.AgentID,
+		RunID:           parent.ID,
+		DependsOn:       dependsOn,
+		Order:           maxOrder + 1,
+		ModeHint:        req.ModeHint,
+		AgentRole:       req.AgentRole,
+		ChildProviderID: req.ChildProviderID,
+		ChildModel:      req.ChildModel,
+		PlannerStepID:   fmt.Sprintf("runtime-%d", nextRuntime),
+		PlanSource:      workflowPlanSourceRuntime,
+		WorkflowMode:    parent.WorkMode,
+		Objective:       parent.Objective,
 	})
 	if err != nil {
 		return Task{}, err
@@ -1028,6 +1075,12 @@ func applyWorkflowChildState(step *WorkflowStepState, child Run) {
 	}
 	step.ChildRunID = child.ID
 	step.Executor = workflowTaskExecutorChild
+	if strings.TrimSpace(step.ChildProviderID) == "" {
+		step.ChildProviderID = strings.TrimSpace(child.ProviderID)
+	}
+	if strings.TrimSpace(step.ChildModel) == "" {
+		step.ChildModel = strings.TrimSpace(child.Model)
+	}
 	switch child.Status {
 	case RunStatusCompleted:
 		step.Status = "DONE"
@@ -1053,12 +1106,26 @@ func workflowStepFromState(state WorkflowStepState) workflowStep {
 		Message:         state.Message,
 		DependsOn:       append([]string(nil), state.DependsOn...),
 		AgentRole:       state.AgentRole,
+		ChildProviderID: state.ChildProviderID,
+		ChildModel:      state.ChildModel,
 		ModeHint:        state.ModeHint,
 		Objective:       state.Objective,
 		PlanSource:      state.PlanSource,
 		WorkflowMode:    state.WorkflowMode,
 		PlannerWarnings: append([]string(nil), state.PlannerWarnings...),
 	}
+}
+
+func workflowChildAgentForStep(agent Agent, step workflowStep) Agent {
+	child := agent
+	child.WorkMode = WorkModeChat
+	if providerID := strings.TrimSpace(step.ChildProviderID); providerID != "" {
+		child.ProviderID = providerID
+	}
+	if model := strings.TrimSpace(step.ChildModel); model != "" {
+		child.Model = model
+	}
+	return child
 }
 
 func (e *WorkflowExecutor) failParent(ctx context.Context, parent Run, cause error) Run {

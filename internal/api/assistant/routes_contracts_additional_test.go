@@ -27,7 +27,9 @@ func TestTaskAndMemoryCRUDContracts(t *testing.T) {
 		"title":"检查盘前准备",
 		"status":"IN_PROGRESS",
 		"agentId":"`+agent.ID+`",
-		"message":"补齐观察清单"
+		"message":"补齐观察清单",
+		"childProviderId":"provider-child",
+		"childModel":"model-child-a"
 	}`))
 	if taskResponse.Code != http.StatusOK {
 		t.Fatalf("create task status=%d body=%s", taskResponse.Code, taskResponse.Body.String())
@@ -42,6 +44,9 @@ func TestTaskAndMemoryCRUDContracts(t *testing.T) {
 	if !taskEnvelope.OK || taskEnvelope.Data.ID == "" {
 		t.Fatalf("task create envelope=%s", taskResponse.Body.String())
 	}
+	if taskEnvelope.Data.ChildProviderID != "provider-child" || taskEnvelope.Data.ChildModel != "model-child-a" {
+		t.Fatalf("task child model fields = %+v, want provider/model persisted", taskEnvelope.Data)
+	}
 
 	taskList := performAssistantRequest(router, http.MethodGet, "/api/v1/adk/tasks?status=IN_PROGRESS", nil)
 	if taskList.Code != http.StatusOK || !strings.Contains(taskList.Body.String(), "检查盘前准备") {
@@ -50,9 +55,11 @@ func TestTaskAndMemoryCRUDContracts(t *testing.T) {
 
 	taskPatch := performAssistantRequest(router, http.MethodPut, "/api/v1/adk/tasks/"+taskEnvelope.Data.ID, []byte(`{
 		"status":"DONE",
-		"resultSummary":"已完成"
+		"resultSummary":"已完成",
+		"childProviderId":"provider-child-updated",
+		"childModel":"model-child-b"
 	}`))
-	if taskPatch.Code != http.StatusOK || !strings.Contains(taskPatch.Body.String(), `"status":"DONE"`) {
+	if taskPatch.Code != http.StatusOK || !strings.Contains(taskPatch.Body.String(), `"status":"DONE"`) || !strings.Contains(taskPatch.Body.String(), `"childModel":"model-child-b"`) {
 		t.Fatalf("patch task status=%d body=%s", taskPatch.Code, taskPatch.Body.String())
 	}
 
@@ -120,6 +127,17 @@ func TestCatalogSnapshotToolsTemplatesAndDeleteAgentContracts(t *testing.T) {
 	templates := performAssistantRequest(router, http.MethodGet, "/api/v1/adk/agent-templates", nil)
 	if templates.Code != http.StatusOK || !strings.Contains(templates.Body.String(), "投资分析助手") {
 		t.Fatalf("templates status=%d body=%s", templates.Code, templates.Body.String())
+	}
+	editDefault := performAssistantRequest(router, http.MethodPut, "/api/v1/adk/agents/"+jfadk.DefaultBuiltinAgentID, []byte(`{
+		"name":"Edited Default",
+		"status":"ENABLED"
+	}`))
+	if editDefault.Code != http.StatusConflict || !strings.Contains(editDefault.Body.String(), "ADK_AGENT_PROTECTED") {
+		t.Fatalf("edit default agent status=%d body=%s", editDefault.Code, editDefault.Body.String())
+	}
+	deleteDefault := performAssistantRequest(router, http.MethodDelete, "/api/v1/adk/agents/"+jfadk.DefaultBuiltinAgentID, nil)
+	if deleteDefault.Code != http.StatusConflict || !strings.Contains(deleteDefault.Body.String(), "ADK_AGENT_PROTECTED") {
+		t.Fatalf("delete default agent status=%d body=%s", deleteDefault.Code, deleteDefault.Body.String())
 	}
 
 	agent, err := runtime.Store().SaveAgent(ctx, jfadk.AgentWriteRequest{

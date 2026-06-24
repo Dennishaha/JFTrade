@@ -3,7 +3,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { ref } from "vue";
 
-import type { ADKAgent } from "../src/contracts";
+import type { ADKAgent, ADKToolDescriptor } from "../src/contracts";
 import { useADKAgentForm } from "../src/composables/useADKAgentForm";
 
 function buildAgent(workMode: ADKAgent["workMode"] | "sequential" | "parallel"): ADKAgent {
@@ -34,6 +34,14 @@ describe("useADKAgentForm", () => {
 
     expect(state.agentForm.value.workMode).toBe("chat");
     expect(state.agentForm.value.loopMaxIterations).toBe(5);
+  });
+
+  it("keeps new agent tools empty so the backend treats it as all tools", () => {
+    const state = createState(["tool.1", "tool.2", "tool.3", "tool.4", "tool.5", "tool.6", "tool.7", "tool.8", "tool.9"]);
+
+    state.newAgentForm();
+
+    expect(state.agentForm.value.tools).toEqual([]);
   });
 
   it("coerces hidden sequential and parallel defaults to chat when editing or duplicating", () => {
@@ -68,13 +76,25 @@ describe("useADKAgentForm", () => {
   });
 });
 
-function createState() {
+function createState(toolNames: string[] = []) {
   return useADKAgentForm(
     ref([]),
-    ref([]),
+    ref(toolNames.map(buildTool)),
     ref([]),
     vi.fn(async () => {}),
     ref(""),
     ref(""),
   );
+}
+
+function buildTool(name: string): ADKToolDescriptor {
+  return {
+    name,
+    displayName: name,
+    description: "",
+    category: "test",
+    permission: "read",
+    allowedModes: ["approval", "less_approval", "all"],
+    requiresApprovalIn: [],
+  };
 }

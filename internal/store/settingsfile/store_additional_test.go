@@ -84,6 +84,20 @@ func TestSaveAppearanceAndADKSettingsPersistNormalizedValues(t *testing.T) {
 		t.Fatalf("adk = %#v, want %#v", adk, want)
 	}
 
+	adk, err = store.SaveADKSettings(jfsettings.ADKRuntimeSettings{
+		RunTimeoutMs:        99_999_999,
+		StreamIdleTimeoutMs: 300_000,
+	})
+	if err != nil {
+		t.Fatalf("SaveADKSettings max: %v", err)
+	}
+	if want := (jfsettings.ADKRuntimeSettings{
+		RunTimeoutMs:        43_200_000,
+		StreamIdleTimeoutMs: 300_000,
+	}); adk != want {
+		t.Fatalf("max adk = %#v, want %#v", adk, want)
+	}
+
 	reloaded, err := New(settingsPath)
 	if err != nil {
 		t.Fatalf("New reload: %v", err)

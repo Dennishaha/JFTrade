@@ -33,13 +33,15 @@ type workflowPlanDraft struct {
 }
 
 type workflowPlanDraftStep struct {
-	Order       int
-	Title       string
-	Message     string
-	Description string
-	ModeHint    string
-	DependsOn   []string
-	AgentRole   string
+	Order           int
+	Title           string
+	Message         string
+	Description     string
+	ModeHint        string
+	DependsOn       []string
+	AgentRole       string
+	ChildProviderID string
+	ChildModel      string
 }
 
 type workflowPlannerToolset struct {
@@ -185,25 +187,29 @@ func (t *workflowPlannerToolset) Tools(adkagent.ReadonlyContext) ([]adktool.Tool
 			schema: map[string]any{
 				"type": "object",
 				"properties": map[string]any{
-					"title":       map[string]any{"type": "string"},
-					"order":       map[string]any{"type": "integer", "minimum": 1},
-					"message":     map[string]any{"type": "string"},
-					"description": map[string]any{"type": "string"},
-					"modeHint":    map[string]any{"type": "string", "enum": []string{"task", "loop", "chat", ""}},
-					"dependsOn":   map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
-					"agentRole":   map[string]any{"type": "string"},
+					"title":           map[string]any{"type": "string"},
+					"order":           map[string]any{"type": "integer", "minimum": 1},
+					"message":         map[string]any{"type": "string"},
+					"description":     map[string]any{"type": "string"},
+					"modeHint":        map[string]any{"type": "string", "enum": []string{"task", "loop", "chat", ""}},
+					"dependsOn":       map[string]any{"type": "array", "items": map[string]any{"type": "string"}},
+					"agentRole":       map[string]any{"type": "string"},
+					"childProviderId": map[string]any{"type": "string"},
+					"childModel":      map[string]any{"type": "string"},
 				},
 				"required":             []string{"title", "message"},
 				"additionalProperties": false,
 			},
 			run: func(args map[string]any) (map[string]any, error) {
 				step := workflowPlanDraftStep{
-					Order:       plannerIntArg(args, "order"),
-					Title:       plannerStringArg(args, "title"),
-					Message:     plannerStringArg(args, "message"),
-					Description: plannerStringArg(args, "description"),
-					ModeHint:    plannerStringArg(args, "modeHint"),
-					AgentRole:   plannerStringArg(args, "agentRole"),
+					Order:           plannerIntArg(args, "order"),
+					Title:           plannerStringArg(args, "title"),
+					Message:         plannerStringArg(args, "message"),
+					Description:     plannerStringArg(args, "description"),
+					ModeHint:        plannerStringArg(args, "modeHint"),
+					AgentRole:       plannerStringArg(args, "agentRole"),
+					ChildProviderID: plannerStringArg(args, "childProviderId"),
+					ChildModel:      plannerStringArg(args, "childModel"),
 				}
 				if values, ok := args["dependsOn"].([]any); ok {
 					for _, value := range values {
@@ -339,15 +345,17 @@ func compileWorkflowPlanDraft(draft workflowPlanDraft, mode string, message stri
 	steps := make([]workflowStep, 0, len(draft.Steps))
 	for index, item := range draft.Steps {
 		step := workflowStep{
-			Order:        item.Order,
-			Title:        strings.TrimSpace(item.Title),
-			Description:  strings.TrimSpace(item.Description),
-			Message:      strings.TrimSpace(item.Message),
-			DependsOn:    append([]string(nil), item.DependsOn...),
-			AgentRole:    strings.TrimSpace(item.AgentRole),
-			ModeHint:     strings.TrimSpace(item.ModeHint),
-			PlanSource:   workflowPlanSourcePlanner,
-			WorkflowMode: normalizeWorkMode(mode),
+			Order:           item.Order,
+			Title:           strings.TrimSpace(item.Title),
+			Description:     strings.TrimSpace(item.Description),
+			Message:         strings.TrimSpace(item.Message),
+			DependsOn:       append([]string(nil), item.DependsOn...),
+			AgentRole:       strings.TrimSpace(item.AgentRole),
+			ChildProviderID: strings.TrimSpace(item.ChildProviderID),
+			ChildModel:      strings.TrimSpace(item.ChildModel),
+			ModeHint:        strings.TrimSpace(item.ModeHint),
+			PlanSource:      workflowPlanSourcePlanner,
+			WorkflowMode:    normalizeWorkMode(mode),
 		}
 		if step.Message == "" {
 			step.Message = step.Description
