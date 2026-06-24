@@ -11,9 +11,10 @@ import (
 // InsertKLine inserts a single K-line into the store. Duplicates (same
 // end_time in the same series table) are replaced.
 func (s *FutuKLineStore) InsertKLine(kline types.KLine, rehabType string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.insertKLineLocked(kline, rehabType, nil)
+	if s == nil || s.accessQueue == nil {
+		return nil
+	}
+	return s.accessQueue.enqueueKLines(s, []types.KLine{kline}, rehabType)
 }
 
 func (s *FutuKLineStore) insertKLineLocked(kline types.KLine, rehabType string, ensuredTables map[string]struct{}) error {
@@ -52,8 +53,19 @@ func klineInsertStatement(tableName string) string {
 
 // InsertKLines batch-inserts K-lines into the store.
 func (s *FutuKLineStore) InsertKLines(klines []types.KLine, rehabType string) error {
+	if s == nil || s.accessQueue == nil || len(klines) == 0 {
+		return nil
+	}
+	return s.accessQueue.enqueueKLines(s, klines, rehabType)
+}
+
+func (s *FutuKLineStore) insertKLinesQueued(klines []types.KLine, rehabType string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	return s.insertKLinesLocked(klines, rehabType)
+}
+
+func (s *FutuKLineStore) insertKLinesLocked(klines []types.KLine, rehabType string) error {
 	if len(klines) == 0 {
 		return nil
 	}

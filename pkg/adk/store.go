@@ -15,12 +15,10 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jftrade/jftrade-main/internal/store/sqliteconn"
 	"github.com/jftrade/jftrade-main/internal/store/sqliteschema"
 	"github.com/jmoiron/sqlx"
 	adksession "google.golang.org/adk/session"
-
-	// Register the modernc SQLite driver for database/sql.
-	_ "modernc.org/sqlite"
 
 	strategypinespec "github.com/jftrade/jftrade-main/pkg/strategy/pinespec"
 )
@@ -68,7 +66,7 @@ func NewStore(dbPath string, secretsPath string, skillsPath string) (*Store, err
 	if err := os.MkdirAll(skillsPath, 0o755); err != nil {
 		return nil, fmt.Errorf("create adk skills directory: %w", err)
 	}
-	db, err := sqlx.Open("sqlite", dbPath+"?_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)&_pragma=busy_timeout(10000)")
+	db, err := sqliteconn.OpenX(dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("open adk sqlite store: %w", err)
 	}

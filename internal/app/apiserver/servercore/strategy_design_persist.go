@@ -7,9 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/jmoiron/sqlx"
-	// Register the modernc SQLite driver for database/sql.
-	_ "modernc.org/sqlite"
+	"github.com/jftrade/jftrade-main/internal/store/sqliteconn"
 )
 
 func deriveStrategyDesignPath(settingsPath string) string {
@@ -42,7 +40,7 @@ func (s *strategyDesignStore) openDB() error {
 			return fmt.Errorf("create strategy design db directory: %w", err)
 		}
 	}
-	db, err := sqlx.Open("sqlite", trimmedPath+"?_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)")
+	db, err := sqliteconn.OpenX(trimmedPath)
 	if err != nil {
 		return fmt.Errorf("open strategy design sqlite store: %w", err)
 	}

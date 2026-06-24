@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/jftrade/jftrade-main/internal/store/sqliteconn"
 	"github.com/jftrade/jftrade-main/internal/store/sqliteschema"
 	"github.com/jmoiron/sqlx"
 	adksession "google.golang.org/adk/session"
@@ -21,13 +22,11 @@ type SQLiteSessionService struct {
 }
 
 func NewSQLiteSessionService(path string) (*SQLiteSessionService, error) {
-	dsn := path + "?_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)&_pragma=busy_timeout(10000)"
-	db, err := sql.Open(sqliteDriverName, dsn)
+	dsn := sqliteconn.DSN(path)
+	db, err := sqliteconn.Open(path)
 	if err != nil {
 		return nil, err
 	}
-	db.SetMaxOpenConns(1)
-	db.SetMaxIdleConns(1)
 	if err := sqliteschema.InitializeOrValidate(
 		context.Background(),
 		sqlx.NewDb(db, sqliteDriverName),

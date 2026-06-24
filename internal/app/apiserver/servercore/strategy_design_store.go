@@ -10,8 +10,6 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
-	// Register the modernc SQLite driver for database/sql.
-	_ "modernc.org/sqlite"
 
 	stratsrv "github.com/jftrade/jftrade-main/internal/strategy"
 )

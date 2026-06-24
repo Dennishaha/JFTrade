@@ -15,18 +15,17 @@ func (s *FutuKLineStore) QueryKLine(
 	ex types.Exchange, symbol string, interval types.Interval,
 	orderBy string, limit int,
 ) (*types.KLine, error) {
-	if limit <= 0 {
-		limit = 1
-	}
-	normalizedOrder := strings.ToUpper(strings.TrimSpace(orderBy))
-	kline, err := s.queryKLine(symbol, interval, normalizedOrder, limit)
-	if err != nil || kline != nil {
-		return kline, err
-	}
-	if normalizedOrder == "ASC" {
-		return nil, nil
-	}
-	return nil, nil
+	var kline *types.KLine
+	err := s.accessQueue.enqueueRead(func() error {
+		if limit <= 0 {
+			limit = 1
+		}
+		normalizedOrder := strings.ToUpper(strings.TrimSpace(orderBy))
+		var queryErr error
+		kline, queryErr = s.queryKLine(symbol, interval, normalizedOrder, limit)
+		return queryErr
+	})
+	return kline, err
 }
 
 func (s *FutuKLineStore) queryKLine(
@@ -58,8 +57,21 @@ func (s *FutuKLineStore) QueryKLinesForward(
 	exchange types.Exchange, symbol string, interval types.Interval,
 	startTime time.Time, limit int,
 ) ([]types.KLine, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+	var rows []types.KLine
+	err := s.accessQueue.enqueueRead(func() error {
+		s.mu.RLock()
+		defer s.mu.RUnlock()
+		var queryErr error
+		rows, queryErr = s.queryKLinesForwardLocked(symbol, interval, startTime, limit)
+		return queryErr
+	})
+	return rows, err
+}
+
+func (s *FutuKLineStore) queryKLinesForwardLocked(
+	symbol string, interval types.Interval,
+	startTime time.Time, limit int,
+) ([]types.KLine, error) {
 	stored, err := s.queryStoredKLinesForward(symbol, interval, s.rehabType, startTime, limit)
 	if err != nil {
 		return nil, err
@@ -95,8 +107,21 @@ func (s *FutuKLineStore) QueryKLinesBackward(
 	exchange types.Exchange, symbol string, interval types.Interval,
 	endTime time.Time, limit int,
 ) ([]types.KLine, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+	var rows []types.KLine
+	err := s.accessQueue.enqueueRead(func() error {
+		s.mu.RLock()
+		defer s.mu.RUnlock()
+		var queryErr error
+		rows, queryErr = s.queryKLinesBackwardLocked(symbol, interval, endTime, limit)
+		return queryErr
+	})
+	return rows, err
+}
+
+func (s *FutuKLineStore) queryKLinesBackwardLocked(
+	symbol string, interval types.Interval,
+	endTime time.Time, limit int,
+) ([]types.KLine, error) {
 	stored, err := s.queryStoredKLinesBackward(symbol, interval, s.rehabType, endTime, limit)
 	if err != nil {
 		return nil, err
@@ -145,6 +170,91 @@ func (s *FutuKLineStore) QueryKLinesCh(
 			return
 		}
 
+		err := s.accessQueue.enqueueRead(func() error {
+			s.mu.RLock()
+			defer s.mu.RUnlock()
+
+			if len(symbols) == 1 && len(intervals) == 1 {
+				symbol := symbols[0]
+				interval := intervals[0]
+				source, err := s.resolveReadSource(symbol, interval, since, until)
+				if err != nil {
+					return err
+				}
+
+				if source.synthesize {
+					series, err := s.queryAggregatedKLinesInRange(symbol, interval, source.baseInterval, since, until)
+					if err != nil {
+						return err
+					}
+					for _, k := range series {
+						ch <- k
+					}
+				} else {
+					if err := s.streamStoredKLinesInRangeToChannel(symbol, interval, s.rehabType, since, until, ch); err != nil {
+						return err
+					}
+				}
+				return nil
+			}
+
+			klines := make([]types.KLine, 0, len(symbols)*len(intervals))
+			for _, symbol := range symbols {
+				for _, interval := range intervals {
+					source, err := s.resolveReadSource(symbol, interval, since, until)
+					if err != nil {
+						return err
+					}
+
+					var series []types.KLine
+					if source.synthesize {
+						series, err = s.queryAggregatedKLinesInRange(symbol, interval, source.baseInterval, since, until)
+					} else {
+						series, err = s.queryStoredKLinesInRange(symbol, interval, s.rehabType, since, until)
+					}
+					if err != nil {
+						return err
+					}
+					klines = append(klines, series...)
+				}
+			}
+
+			sort.Slice(klines, func(i, j int) bool {
+				leftEnd := klines[i].EndTime.Time()
+				rightEnd := klines[j].EndTime.Time()
+				if !leftEnd.Equal(rightEnd) {
+					return leftEnd.Before(rightEnd)
+				}
+				leftInterval := intervalStorageValue(klines[i].Interval)
+				rightInterval := intervalStorageValue(klines[j].Interval)
+				if leftInterval != rightInterval {
+					return leftInterval < rightInterval
+				}
+				return klines[i].Symbol < klines[j].Symbol
+			})
+			for _, k := range klines {
+				ch <- k
+			}
+			return nil
+		})
+		if err != nil {
+			errCh <- err
+		}
+	}()
+
+	return ch, errCh
+}
+
+func (s *FutuKLineStore) StreamKLines(
+	since, until time.Time, exchange types.Exchange,
+	symbols []string, intervals []types.Interval,
+	emit func(types.KLine),
+) error {
+	if emit == nil || len(symbols) == 0 || len(intervals) == 0 {
+		return nil
+	}
+
+	return s.accessQueue.enqueueRead(func() error {
 		s.mu.RLock()
 		defer s.mu.RUnlock()
 
@@ -153,26 +263,21 @@ func (s *FutuKLineStore) QueryKLinesCh(
 			interval := intervals[0]
 			source, err := s.resolveReadSource(symbol, interval, since, until)
 			if err != nil {
-				errCh <- err
-				return
+				return err
 			}
 
 			if source.synthesize {
 				series, err := s.queryAggregatedKLinesInRange(symbol, interval, source.baseInterval, since, until)
 				if err != nil {
-					errCh <- err
-					return
+					return err
 				}
-				for _, k := range series {
-					ch <- k
+				for _, kline := range series {
+					emit(kline)
 				}
-			} else {
-				if err := s.streamStoredKLinesInRangeToChannel(symbol, interval, s.rehabType, since, until, ch); err != nil {
-					errCh <- err
-					return
-				}
+				return nil
 			}
-			return
+
+			return s.streamStoredKLinesInRange(symbol, interval, s.rehabType, since, until, emit)
 		}
 
 		klines := make([]types.KLine, 0, len(symbols)*len(intervals))
@@ -180,8 +285,7 @@ func (s *FutuKLineStore) QueryKLinesCh(
 			for _, interval := range intervals {
 				source, err := s.resolveReadSource(symbol, interval, since, until)
 				if err != nil {
-					errCh <- err
-					return
+					return err
 				}
 
 				var series []types.KLine
@@ -191,8 +295,7 @@ func (s *FutuKLineStore) QueryKLinesCh(
 					series, err = s.queryStoredKLinesInRange(symbol, interval, s.rehabType, since, until)
 				}
 				if err != nil {
-					errCh <- err
-					return
+					return err
 				}
 				klines = append(klines, series...)
 			}
@@ -211,88 +314,12 @@ func (s *FutuKLineStore) QueryKLinesCh(
 			}
 			return klines[i].Symbol < klines[j].Symbol
 		})
-		for _, k := range klines {
-			ch <- k
+		for _, kline := range klines {
+			emit(kline)
 		}
-	}()
-
-	return ch, errCh
-}
-
-func (s *FutuKLineStore) StreamKLines(
-	since, until time.Time, exchange types.Exchange,
-	symbols []string, intervals []types.Interval,
-	emit func(types.KLine),
-) error {
-	if emit == nil || len(symbols) == 0 || len(intervals) == 0 {
 		return nil
-	}
-
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	if len(symbols) == 1 && len(intervals) == 1 {
-		symbol := symbols[0]
-		interval := intervals[0]
-		source, err := s.resolveReadSource(symbol, interval, since, until)
-		if err != nil {
-			return err
-		}
-
-		if source.synthesize {
-			series, err := s.queryAggregatedKLinesInRange(symbol, interval, source.baseInterval, since, until)
-			if err != nil {
-				return err
-			}
-			for _, kline := range series {
-				emit(kline)
-			}
-			return nil
-		}
-
-		return s.streamStoredKLinesInRange(symbol, interval, s.rehabType, since, until, emit)
-	}
-
-	klines := make([]types.KLine, 0, len(symbols)*len(intervals))
-	for _, symbol := range symbols {
-		for _, interval := range intervals {
-			source, err := s.resolveReadSource(symbol, interval, since, until)
-			if err != nil {
-				return err
-			}
-
-			var series []types.KLine
-			if source.synthesize {
-				series, err = s.queryAggregatedKLinesInRange(symbol, interval, source.baseInterval, since, until)
-			} else {
-				series, err = s.queryStoredKLinesInRange(symbol, interval, s.rehabType, since, until)
-			}
-			if err != nil {
-				return err
-			}
-			klines = append(klines, series...)
-		}
-	}
-
-	sort.Slice(klines, func(i, j int) bool {
-		leftEnd := klines[i].EndTime.Time()
-		rightEnd := klines[j].EndTime.Time()
-		if !leftEnd.Equal(rightEnd) {
-			return leftEnd.Before(rightEnd)
-		}
-		leftInterval := intervalStorageValue(klines[i].Interval)
-		rightInterval := intervalStorageValue(klines[j].Interval)
-		if leftInterval != rightInterval {
-			return leftInterval < rightInterval
-		}
-		return klines[i].Symbol < klines[j].Symbol
 	})
-	for _, kline := range klines {
-		emit(kline)
-	}
-	return nil
 }
-
 func (s *FutuKLineStore) queryStoredKLinesForward(symbol string, interval types.Interval, rehabType string, startTime time.Time, limit int) ([]types.KLine, error) {
 	var firstNonEmpty []types.KLine
 	tableNames, tableCount := s.readTableNames(symbol, interval, rehabType)

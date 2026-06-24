@@ -7,10 +7,9 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/jftrade/jftrade-main/internal/store/sqliteconn"
 	"github.com/jftrade/jftrade-main/internal/store/sqliteschema"
 	"github.com/jmoiron/sqlx"
-	// Register the modernc SQLite driver for database/sql.
-	_ "modernc.org/sqlite"
 )
 
 // FutuKLineStore implements service.BackTestable for Futu data stored in
@@ -24,23 +23,28 @@ type FutuKLineStore struct {
 	readSessionScope  string
 	writeSessionScope string
 	tableExistsCache  sync.Map
+	accessQueue       *klineAccessQueue
 }
 
 // NewFutuKLineStore opens or creates a SQLite database at the given path and
 // lazily creates per-series tables as data is inserted.
 func NewFutuKLineStore(dbPath string) (*FutuKLineStore, error) {
-	db, err := sqlx.Open("sqlite", dbPath+"?_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)")
+	db, err := sqliteconn.OpenX(dbPath, sqliteconn.WithMaxOpenConns(8))
 	if err != nil {
 		return nil, fmt.Errorf("open sqlite backtest store: %w", err)
 	}
+	queue := klineAccessQueueForPath(dbPath)
 	store := &FutuKLineStore{
 		db:                db,
 		dbPath:            dbPath,
 		rehabType:         normalizeRehabTypeName("forward"),
 		readSessionScope:  klineReadSessionScopeAuto,
 		writeSessionScope: klineSessionScopeLegacy,
+		accessQueue:       queue,
 	}
-	if err := sqliteschema.InitializeOrValidate(context.Background(), db, dbPath, "backtest", 1, nil, nil); err != nil {
+	if err := queue.enqueueWrite(func() error {
+		return sqliteschema.InitializeOrValidate(context.Background(), db, dbPath, "backtest", 1, nil, nil)
+	}); err != nil {
 		jftradeErr1 := db.Close()
 		jftradeLogError(jftradeErr1)
 		return nil, fmt.Errorf("validate sqlite backtest store: %w", err)
@@ -57,14 +61,20 @@ func (s *FutuKLineStore) Close() error {
 // queries.  Must be called before a backtest run.  Valid values:
 // "forward" (前复权), "backward" (后复权), "none" (不复权).
 func (s *FutuKLineStore) SetRehabType(rehabType string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.rehabType = normalizeRehabTypeName(rehabType)
 }
 
 func (s *FutuKLineStore) SetReadSessionScope(scope string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.readSessionScope = normalizeReadSessionScopeName(scope)
 }
 
 func (s *FutuKLineStore) SetWriteSessionScope(scope string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.writeSessionScope = normalizeKLineSessionScopeName(scope)
 }
 

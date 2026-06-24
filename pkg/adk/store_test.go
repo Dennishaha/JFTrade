@@ -44,6 +44,19 @@ func newTestRuntime(t *testing.T) *Runtime {
 	return runtime
 }
 
+func TestNewStoreUsesSingleSQLiteConnection(t *testing.T) {
+	dir := t.TempDir()
+	store, err := NewStore(filepath.Join(dir, "adk.db"), filepath.Join(dir, "secrets", "adk.json"), filepath.Join(dir, "skills"))
+	if err != nil {
+		t.Fatalf("NewStore: %v", err)
+	}
+	t.Cleanup(func() { jftradeCheckTestError(t, store.Close()) })
+
+	if got := store.db.Stats().MaxOpenConnections; got != 1 {
+		t.Fatalf("MaxOpenConnections = %d, want 1", got)
+	}
+}
+
 func TestStoreMigrationNormalizesHiddenAgentWorkflowDefaults(t *testing.T) {
 	t.Skip("incremental ADK migrations were intentionally removed; strict incompatibility is covered below")
 	dir := t.TempDir()

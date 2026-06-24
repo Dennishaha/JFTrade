@@ -12,9 +12,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jftrade/jftrade-main/internal/store/sqliteconn"
 	"github.com/jmoiron/sqlx"
-	// Register the modernc SQLite driver for database/sql.
-	_ "modernc.org/sqlite"
 )
 
 const (
@@ -93,7 +92,7 @@ func NewStrategyRuntimeStore(dbPath string) (*strategyRuntimeStore, error) {
 		}
 	}
 
-	db, err := sqlx.Open("sqlite", trimmedPath+"?_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)")
+	db, err := sqliteconn.OpenX(trimmedPath)
 	if err != nil {
 		return nil, fmt.Errorf("open strategy runtime sqlite store: %w", err)
 	}

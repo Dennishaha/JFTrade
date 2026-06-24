@@ -12,10 +12,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/jftrade/jftrade-main/internal/store/sqliteconn"
 	"github.com/jftrade/jftrade-main/internal/store/sqliteschema"
 	"github.com/jmoiron/sqlx"
-	// Register the modernc SQLite driver for database/sql.
-	_ "modernc.org/sqlite"
 
 	"github.com/jftrade/jftrade-main/pkg/backtest"
 )
@@ -80,7 +79,7 @@ func newBacktestRunStoreWithDB(dbPath string) (*backtestRunStore, error) {
 		}
 	}
 
-	db, err := sqlx.Open("sqlite", trimmedPath+"?_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)")
+	db, err := sqliteconn.OpenX(trimmedPath)
 	if err != nil {
 		return nil, fmt.Errorf("open backtest run sqlite store: %w", err)
 	}

@@ -12,21 +12,39 @@ import (
 )
 
 func (s *FutuKLineStore) QueryTradingPeriodKLinesInRange(symbol string, interval types.Interval, since, until time.Time, includeExtendedHours bool) ([]types.KLine, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.queryTradingPeriodKLinesInRangeLocked(symbol, interval, since, until, includeExtendedHours)
+	var rows []types.KLine
+	err := s.accessQueue.enqueueRead(func() error {
+		s.mu.RLock()
+		defer s.mu.RUnlock()
+		var queryErr error
+		rows, queryErr = s.queryTradingPeriodKLinesInRangeLocked(symbol, interval, since, until, includeExtendedHours)
+		return queryErr
+	})
+	return rows, err
 }
 
 func (s *FutuKLineStore) QuerySessionAwareIntradayKLinesInRange(symbol string, interval types.Interval, since, until time.Time, includeExtendedHours bool) ([]types.KLine, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.querySessionAwareIntradayKLinesInRangeLocked(symbol, interval, since, until, includeExtendedHours)
+	var rows []types.KLine
+	err := s.accessQueue.enqueueRead(func() error {
+		s.mu.RLock()
+		defer s.mu.RUnlock()
+		var queryErr error
+		rows, queryErr = s.querySessionAwareIntradayKLinesInRangeLocked(symbol, interval, since, until, includeExtendedHours)
+		return queryErr
+	})
+	return rows, err
 }
 
 func (s *FutuKLineStore) QueryDailyKLinesInRange(symbol string, since, until time.Time, includeExtendedHours bool) ([]types.KLine, error) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.queryDailyKLinesInRangeLocked(symbol, since, until, includeExtendedHours)
+	var rows []types.KLine
+	err := s.accessQueue.enqueueRead(func() error {
+		s.mu.RLock()
+		defer s.mu.RUnlock()
+		var queryErr error
+		rows, queryErr = s.queryDailyKLinesInRangeLocked(symbol, since, until, includeExtendedHours)
+		return queryErr
+	})
+	return rows, err
 }
 
 func (s *FutuKLineStore) queryAggregatedKLinesInRange(symbol string, interval, baseInterval types.Interval, since, until time.Time) ([]types.KLine, error) {

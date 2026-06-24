@@ -9,10 +9,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jftrade/jftrade-main/internal/store/sqliteconn"
 	"github.com/jftrade/jftrade-main/internal/store/sqliteschema"
 	"github.com/jmoiron/sqlx"
-	// Register the modernc SQLite driver for database/sql.
-	_ "modernc.org/sqlite"
 )
 
 const (
@@ -114,7 +113,7 @@ func newExecutionOrderSQLiteStore(dbPath string) (*executionOrderSQLiteStore, er
 		}
 	}
 
-	db, err := sqlx.Open("sqlite", trimmedPath+"?_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)")
+	db, err := sqliteconn.OpenX(trimmedPath)
 	if err != nil {
 		return nil, fmt.Errorf("open execution order sqlite store: %w", err)
 	}
