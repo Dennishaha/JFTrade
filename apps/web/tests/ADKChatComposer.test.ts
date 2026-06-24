@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { defineComponent, h } from "vue";
 
 import ADKChatComposer from "../src/components/adk-page/ADKChatComposer.vue";
+import type { ADKProvider } from "../src/contracts";
 import { inputStub, selectStub } from "./helpers";
 
 afterEach(() => {
@@ -103,6 +104,59 @@ describe("ADKChatComposer", () => {
 
     await modeSelect.setValue("chat");
     expect(wrapper.emitted("update:workModeOverride")?.[1]).toEqual(["chat"]);
+  });
+
+  it("marks the default provider in the model menu", () => {
+    const wrapper = mount(ADKChatComposer, {
+      attachTo: document.body,
+      props: {
+        canSendChat: true,
+        chatDraft: "",
+        selectedAgentId: "agent-1",
+        selectedProviderId: "",
+        selectedProvider: buildProvider({
+          id: "provider-default",
+          displayName: "Default Provider",
+          model: "gpt-4o",
+          default: true,
+        }),
+        providerOptions: [
+          {
+            title: "Default Provider · gpt-4o · 默认",
+            value: "",
+            providerId: "provider-default",
+            displayName: "Default Provider",
+            model: "gpt-4o",
+            isDefault: true,
+          },
+          {
+            title: "Other Provider · claude",
+            value: "provider-other",
+            providerId: "provider-other",
+            displayName: "Other Provider",
+            model: "claude",
+            isDefault: false,
+          },
+        ],
+        sendChat: async () => {},
+      },
+      global: {
+        stubs: {
+          "v-menu": menuStub,
+          "v-list": passthroughStub,
+          "v-list-item": listItemStub,
+          "v-list-item-title": passthroughStub,
+          "v-list-item-subtitle": passthroughStub,
+          "v-chip": passthroughStub,
+          "v-icon": passthroughStub,
+          "v-progress-circular": passthroughStub,
+        },
+      },
+    });
+
+    expect(wrapper.text()).toContain("gpt-4o");
+    expect(wrapper.text()).toContain("默认");
+    expect(wrapper.text()).not.toContain("默认模型");
   });
 
   it("shows approval levels beside the add button and clears the default override", async () => {
@@ -394,3 +448,43 @@ const workModeAwareSelectStub = defineComponent({
       );
   },
 });
+
+const menuStub = defineComponent({
+  setup(_, { slots }) {
+    return () =>
+      h("div", [
+        slots.activator?.({ props: {} }),
+        slots.default?.(),
+      ]);
+  },
+});
+
+const listItemStub = defineComponent({
+  emits: ["click"],
+  setup(_, { emit, slots }) {
+    return () =>
+      h("button", { type: "button", onClick: () => emit("click") }, slots.default?.());
+  },
+});
+
+const passthroughStub = defineComponent({
+  setup(_, { slots }) {
+    return () => h("div", slots.default?.());
+  },
+});
+
+function buildProvider(overrides: Partial<ADKProvider> = {}): ADKProvider {
+  return {
+    id: "provider-1",
+    displayName: "Provider",
+    baseUrl: "https://api.openai.com/v1",
+    model: "gpt-4o-mini",
+    requestTimeoutMs: 180_000,
+    enabled: true,
+    default: false,
+    hasApiKey: true,
+    createdAt: "2026-06-24T00:00:00Z",
+    updatedAt: "2026-06-24T00:00:00Z",
+    ...overrides,
+  };
+}

@@ -19,6 +19,15 @@ interface SlashCommandItem {
   disabled?: boolean;
 }
 
+interface ProviderOption {
+  title: string;
+  value: string;
+  providerId?: string;
+  displayName?: string;
+  model?: string;
+  isDefault?: boolean;
+}
+
 const props = withDefaults(
   defineProps<{
     layout?: "desktop" | "mobile";
@@ -47,7 +56,7 @@ const props = withDefaults(
     interruptingRunId?: string;
     loading?: boolean;
     placeholder?: string;
-    providerOptions?: { title: string; value: string }[];
+    providerOptions?: ProviderOption[];
     queuedMessages?: QueuedChatMessage[];
     queueDispatchingId?: string;
     revokeQueuedMessage?: (messageId: string) => void | Promise<void>;
@@ -432,6 +441,10 @@ const selectedAgentLabel = computed(
 const selectedProviderLabel = computed(
   () =>
     props.selectedProvider?.model?.trim() ||
+    props.providerOptions
+      .find((item) => item.value === props.selectedProviderId)
+      ?.model
+      ?.trim() ||
     props.providerOptions
       .find((item) => item.value === props.selectedProviderId)
       ?.title.split(" · ")[1]
@@ -1331,11 +1344,16 @@ function canRevokeQueueItem(item: QueuedChatMessage): boolean {
                   :active="provider.value === selectedProviderId"
                   @click="updateProviderSelection(provider.value)"
                 >
-                  <v-list-item-title>
-                    {{
-                      provider.title.split(" · ")[1] ||
-                      provider.title.split(" · ")[0]
-                    }}
+                  <v-list-item-title class="adk-provider-menu__title">
+                    <span>{{ provider.model || provider.title.split(" · ")[1] || provider.title.split(" · ")[0] }}</span>
+                    <v-chip
+                      v-if="provider.isDefault"
+                      size="x-small"
+                      color="primary"
+                      variant="tonal"
+                    >
+                      默认
+                    </v-chip>
                   </v-list-item-title>
                   <v-list-item-subtitle>{{ provider.title }}</v-list-item-subtitle>
                 </v-list-item>
@@ -1916,6 +1934,20 @@ function canRevokeQueueItem(item: QueuedChatMessage): boolean {
 
 .adk-provider-menu {
   min-width: 280px;
+}
+
+.adk-provider-menu__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.adk-provider-menu__title > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .adk-permission-trigger.is-approval,

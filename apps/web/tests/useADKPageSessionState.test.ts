@@ -5,7 +5,7 @@ import { defineComponent, h, nextTick, ref } from "vue";
 import { createMemoryHistory, createRouter } from "vue-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { ADKSession } from "@/contracts";
+import type { ADKProvider, ADKSession } from "@/contracts";
 
 import { flushRequests } from "./helpers";
 
@@ -151,6 +151,33 @@ describe("useADKPageSessionState", () => {
     await Promise.all([first, second]);
     expect(state.creatingSession.value).toBe(false);
   });
+
+  it("shows the default provider first without duplicating it", async () => {
+    fetchADKPageSessionDataMock.mockResolvedValueOnce(
+      buildPageData([buildSession()], [
+        buildProvider({ id: "provider-other", displayName: "Other", model: "claude", default: false }),
+        buildProvider({ id: "provider-default", displayName: "Default", model: "gpt-4o", default: true }),
+      ]),
+    );
+
+    const state = await mountSessionState();
+
+    expect(state.providerOptions.value).toHaveLength(2);
+    expect(state.providerOptions.value[0]).toMatchObject({
+      value: "",
+      providerId: "provider-default",
+      model: "gpt-4o",
+      isDefault: true,
+    });
+    expect(state.providerOptions.value[1]).toMatchObject({
+      value: "provider-other",
+      providerId: "provider-other",
+      isDefault: false,
+    });
+    expect(
+      state.providerOptions.value.filter((option) => option.model === "gpt-4o"),
+    ).toHaveLength(1);
+  });
 });
 
 async function mountSessionState() {
@@ -171,7 +198,7 @@ async function mountSessionState() {
   return state;
 }
 
-function buildPageData(sessions: ADKSession[]) {
+function buildPageData(sessions: ADKSession[], providers: ADKProvider[] = []) {
   return {
     agents: [
       {
@@ -192,10 +219,26 @@ function buildPageData(sessions: ADKSession[]) {
         updatedAt: "2026-06-18T00:00:00Z",
       },
     ],
-    providers: [],
+    providers,
     sessions,
     approvals: [],
     tools: [],
+  };
+}
+
+function buildProvider(overrides: Partial<ADKProvider> = {}): ADKProvider {
+  return {
+    id: "provider-1",
+    displayName: "Provider",
+    baseUrl: "https://api.openai.com/v1",
+    model: "gpt-4o-mini",
+    requestTimeoutMs: 180_000,
+    enabled: true,
+    default: false,
+    hasApiKey: true,
+    createdAt: "2026-06-24T00:00:00Z",
+    updatedAt: "2026-06-24T00:00:00Z",
+    ...overrides,
   };
 }
 

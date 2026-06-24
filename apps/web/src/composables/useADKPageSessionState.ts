@@ -22,12 +22,6 @@ function defaultProvider(providers: ADKProvider[]): ADKProvider | null {
   return providers.find((item) => item.default) ?? providers[0] ?? null;
 }
 
-function defaultProviderOptionTitle(providers: ADKProvider[]): string {
-  const provider = defaultProvider(providers);
-  if (!provider) return "默认模型";
-  return `默认模型 · ${provider.displayName} · ${provider.model}`;
-}
-
 export function useADKPageSessionState(router: Router, threadRef: Ref<HTMLElement | null>) {
   const agents = ref<ADKAgent[]>([]);
   const providers = ref<ADKProvider[]>([]);
@@ -59,16 +53,19 @@ export function useADKPageSessionState(router: Router, threadRef: Ref<HTMLElemen
     })),
   );
   const providerOptions = computed(() =>
-    [
-      {
-        title: defaultProviderOptionTitle(providers.value),
-        value: "",
-      },
-      ...providers.value.map((p) => ({
-        title: `${p.displayName} · ${p.model}${p.default ? " · 默认" : ""}${p.enabled ? "" : " · 已停用"}${p.hasApiKey ? "" : " · 未配置 Key"}`,
-        value: p.id,
-      })),
-    ],
+    [...providers.value]
+      .sort((a, b) => Number(b.default) - Number(a.default))
+      .map((p, index) => {
+        const isDefault = p.default && index === 0;
+        return {
+          title: `${p.displayName} · ${p.model}${isDefault ? " · 默认" : ""}${p.enabled ? "" : " · 已停用"}${p.hasApiKey ? "" : " · 未配置 Key"}`,
+          value: isDefault ? "" : p.id,
+          providerId: p.id,
+          displayName: p.displayName,
+          model: p.model,
+          isDefault,
+        };
+      }),
   );
   const pendingApprovals = computed(() =>
     approvals.value.filter((a) => a.status === "PENDING"),
