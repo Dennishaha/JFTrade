@@ -190,18 +190,16 @@ func (r *Runtime) resolveSessionContextAgent(ctx context.Context, session Sessio
 	}
 	base := agent
 	agent, overridden := r.applySessionComposerModelOverride(ctx, session.ID, agent)
-	if strings.TrimSpace(agent.ProviderID) == "" {
-		return agent, nil
-	}
-	if err := r.validateAgentProvider(ctx, agent); err != nil {
+	resolved, err := r.resolveAgentProvider(ctx, agent)
+	if err != nil {
 		if overridden && strings.TrimSpace(base.ProviderID) != "" {
-			if fallbackErr := r.validateAgentProvider(ctx, base); fallbackErr == nil {
-				return base, nil
+			if fallbackResolved, fallbackErr := r.resolveAgentProvider(ctx, base); fallbackErr == nil {
+				return fallbackResolved, nil
 			}
 		}
 		return Agent{}, err
 	}
-	return agent, nil
+	return resolved, nil
 }
 
 func (r *Runtime) applySessionComposerModelOverride(ctx context.Context, sessionID string, agent Agent) (Agent, bool) {
@@ -330,9 +328,10 @@ func (r *Runtime) resolveAgent(ctx context.Context, agentID string) (Agent, erro
 		return Agent{}, err
 	}
 	if strings.TrimSpace(agentID) == "" && strings.TrimSpace(agent.ProviderID) == "" {
-		return agent, nil
+		return r.resolveAgentProvider(ctx, agent)
 	}
-	if err := r.validateAgentProvider(ctx, agent); err != nil {
+	agent, err = r.resolveAgentProvider(ctx, agent)
+	if err != nil {
 		return Agent{}, err
 	}
 	return agent, nil
@@ -370,22 +369,53 @@ func (r *Runtime) resolveAgentDefinition(ctx context.Context, agentID string) (A
 }
 
 func (r *Runtime) validateAgentProvider(ctx context.Context, agent Agent) error {
-	if strings.TrimSpace(agent.ProviderID) == "" {
-		return fmt.Errorf("agent provider is required")
+	_, err := r.resolveAgentProvider(ctx, agent)
+	return err
+}
+
+func (r *Runtime) resolveAgentProvider(ctx context.Context, agent Agent) (Agent, error) {
+	if r == nil || r.store == nil {
+		return Agent{}, fmt.Errorf("adk runtime is unavailable")
 	}
-	provider, providerOK, providerErr := r.store.Provider(ctx, agent.ProviderID)
-	if providerErr != nil {
-		return providerErr
+	provider, err := r.effectiveProvider(ctx, agent.ProviderID)
+	if err != nil {
+		return Agent{}, err
 	}
-	if !providerOK || !provider.Enabled {
-		return fmt.Errorf("agent provider is unavailable")
+	if !provider.Enabled {
+		return Agent{}, fmt.Errorf("agent provider is unavailable")
 	}
 	if _, hasKey, keyErr := r.store.ProviderAPIKey(provider.ID); keyErr != nil {
-		return keyErr
+		return Agent{}, keyErr
 	} else if !hasKey {
-		return fmt.Errorf("agent provider API key is not configured")
+		return Agent{}, fmt.Errorf("agent provider API key is not configured")
 	}
-	return nil
+	agent.ProviderID = provider.ID
+	return agent, nil
+}
+
+func (r *Runtime) effectiveProvider(ctx context.Context, providerID string) (Provider, error) {
+	if r == nil || r.store == nil {
+		return Provider{}, fmt.Errorf("adk runtime is unavailable")
+	}
+	providerID = strings.TrimSpace(providerID)
+	if providerID == "" {
+		provider, ok, err := r.store.DefaultProvider(ctx)
+		if err != nil {
+			return Provider{}, err
+		}
+		if !ok {
+			return Provider{}, fmt.Errorf("default agent provider is not configured")
+		}
+		return provider, nil
+	}
+	provider, providerOK, providerErr := r.store.Provider(ctx, providerID)
+	if providerErr != nil {
+		return Provider{}, providerErr
+	}
+	if !providerOK {
+		return Provider{}, fmt.Errorf("agent provider is unavailable")
+	}
+	return provider, nil
 }
 
 func (r *Runtime) resolveSession(ctx context.Context, sessionID string, agent Agent, text string) (Session, error) {

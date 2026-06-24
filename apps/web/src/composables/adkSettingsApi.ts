@@ -333,6 +333,15 @@ export async function testADKProvider(
   );
 }
 
+export async function setADKDefaultProvider(
+  providerId: string,
+): Promise<ADKProvider> {
+  return fetchEnvelopeWithInit<ADKProvider>(
+    `/api/v1/adk/providers/${encodeURIComponent(providerId)}/default`,
+    { method: "POST" },
+  );
+}
+
 export async function deleteADKProvider(providerId: string): Promise<void> {
   await fetchEnvelopeWithInit(
     `/api/v1/adk/providers/${encodeURIComponent(providerId)}`,

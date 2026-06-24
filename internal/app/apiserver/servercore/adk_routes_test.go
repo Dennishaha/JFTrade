@@ -938,8 +938,18 @@ func TestADKSnapshotAndToolsRoutesReturnCatalogData(t *testing.T) {
 	if len(snapshotEnvelope.Data.Providers) == 0 || len(snapshotEnvelope.Data.Agents) == 0 || len(snapshotEnvelope.Data.Skills) == 0 || len(snapshotEnvelope.Data.Tools) == 0 {
 		t.Fatalf("snapshot data incomplete: %+v", snapshotEnvelope.Data)
 	}
-	if snapshotEnvelope.Data.Providers[0].RequestTimeoutMs != 240_000 {
-		t.Fatalf("provider requestTimeoutMs = %d, want 240000", snapshotEnvelope.Data.Providers[0].RequestTimeoutMs)
+	var snapshotProvider jfadk.Provider
+	for _, item := range snapshotEnvelope.Data.Providers {
+		if item.ID == provider.ID {
+			snapshotProvider = item
+			break
+		}
+	}
+	if snapshotProvider.ID == "" {
+		t.Fatalf("provider %q missing from snapshot: %+v", provider.ID, snapshotEnvelope.Data.Providers)
+	}
+	if snapshotProvider.RequestTimeoutMs != 240_000 {
+		t.Fatalf("provider requestTimeoutMs = %d, want 240000", snapshotProvider.RequestTimeoutMs)
 	}
 	if snapshotEnvelope.Data.RuntimeSettings.RunTimeoutMs != 660_000 || snapshotEnvelope.Data.RuntimeSettings.StreamIdleTimeoutMs != 420_000 {
 		t.Fatalf("runtimeSettings = %+v", snapshotEnvelope.Data.RuntimeSettings)

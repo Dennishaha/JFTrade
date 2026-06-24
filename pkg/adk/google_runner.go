@@ -669,15 +669,13 @@ func (r *Runtime) runGoogleADKFinalSynthesis(
 }
 
 func (r *Runtime) googleADKModelForAgent(ctx context.Context, definition Agent) (adkmodel.LLM, error) {
-	if strings.TrimSpace(definition.ProviderID) == "" {
-		return nil, fmt.Errorf("agent provider is required")
-	}
-	provider, ok, err := r.store.Provider(ctx, definition.ProviderID)
+	definition, err := r.resolveAgentProvider(ctx, definition)
 	if err != nil {
 		return nil, err
 	}
-	if !ok || !provider.Enabled {
-		return nil, fmt.Errorf("agent provider is unavailable")
+	provider, err := r.effectiveProvider(ctx, definition.ProviderID)
+	if err != nil {
+		return nil, err
 	}
 	apiKey, hasKey, err := r.store.ProviderAPIKey(provider.ID)
 	if err != nil {

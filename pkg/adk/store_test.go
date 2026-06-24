@@ -1046,10 +1046,13 @@ func TestDeleteProviderFailsWhenReferencedByAgent(t *testing.T) {
 	}
 }
 
-func TestListProvidersSortsNewestFirstAndDeleteMissingIsIdempotent(t *testing.T) {
+func TestProvidersMaintainDefaultSelectionAndCreatedOrder(t *testing.T) {
 	ctx := context.Background()
 	runtime := newTestRuntime(t)
 
+	if err := runtime.Store().DeleteProvider(ctx, testProviderID); err != nil {
+		t.Fatalf("DeleteProvider test provider: %v", err)
+	}
 	mustSaveProvider(t, runtime, ProviderWriteRequest{
 		ID: "provider-older", DisplayName: "Older", APIKey: "sk-older", Enabled: true,
 	})
@@ -1065,11 +1068,39 @@ func TestListProvidersSortsNewestFirstAndDeleteMissingIsIdempotent(t *testing.T)
 	if len(providers) < 2 {
 		t.Fatalf("providers len = %d, want at least 2", len(providers))
 	}
-	if providers[0].ID != "provider-newer" || providers[1].ID != "provider-older" {
-		t.Fatalf("provider order = [%s %s], want [provider-newer provider-older]", providers[0].ID, providers[1].ID)
+	if providers[0].ID != "provider-older" || providers[1].ID != "provider-newer" {
+		t.Fatalf("provider order = [%s %s], want [provider-older provider-newer]", providers[0].ID, providers[1].ID)
+	}
+	if !providers[0].Default || providers[1].Default {
+		t.Fatalf("provider defaults = %+v, want older default only", providers[:2])
 	}
 	if !providers[0].HasAPIKey || !providers[1].HasAPIKey {
 		t.Fatalf("providers api key visibility = %+v, want both true", providers[:2])
+	}
+
+	updatedDefault, err := runtime.Store().SetDefaultProvider(ctx, "provider-newer")
+	if err != nil {
+		t.Fatalf("SetDefaultProvider: %v", err)
+	}
+	if !updatedDefault.Default {
+		t.Fatalf("updated default = %+v, want default", updatedDefault)
+	}
+	providers, err = runtime.Store().ListProviders(ctx)
+	if err != nil {
+		t.Fatalf("ListProviders after default: %v", err)
+	}
+	if providers[0].ID != "provider-newer" || !providers[0].Default || providers[1].Default {
+		t.Fatalf("provider order/default after set = %+v, want newer default first", providers[:2])
+	}
+	if err := runtime.Store().DeleteProvider(ctx, "provider-newer"); err != nil {
+		t.Fatalf("DeleteProvider default: %v", err)
+	}
+	providers, err = runtime.Store().ListProviders(ctx)
+	if err != nil {
+		t.Fatalf("ListProviders after delete default: %v", err)
+	}
+	if len(providers) == 0 || providers[0].ID != "provider-older" || !providers[0].Default {
+		t.Fatalf("providers after default delete = %+v, want older promoted", providers)
 	}
 
 	if err := runtime.Store().DeleteProvider(ctx, ""); !errors.Is(err, os.ErrNotExist) {

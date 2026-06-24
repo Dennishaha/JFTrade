@@ -273,6 +273,19 @@ func (s *Service) SaveProvider(ctx context.Context, req jfadk.ProviderWriteReque
 	return saved, nil
 }
 
+// SetDefaultProvider 将指定 Provider 设为默认模型。
+func (s *Service) SetDefaultProvider(ctx context.Context, providerID string) (jfadk.Provider, error) {
+	if s.runtime == nil || s.runtime.Store() == nil {
+		return jfadk.Provider{}, fmt.Errorf("adk runtime is unavailable")
+	}
+	provider, err := s.runtime.Store().SetDefaultProvider(ctx, providerID)
+	if err != nil {
+		return jfadk.Provider{}, err
+	}
+	s.runtime.RecordAudit(ctx, "provider.default_set", provider.ID, "ADK default provider changed.", map[string]any{"providerId": provider.ID})
+	return provider, nil
+}
+
 // DeleteProvider 删除 Provider。
 func (s *Service) DeleteProvider(ctx context.Context, providerID string) error {
 	if s.runtime == nil || s.runtime.Store() == nil {

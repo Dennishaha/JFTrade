@@ -223,6 +223,24 @@ func (h *Handler) handleADKTestProvider(c *gin.Context) {
 	h.writeOK(c, result)
 }
 
+func (h *Handler) handleADKSetDefaultProvider(c *gin.Context) {
+	var uri providerURI
+	if err := httpserver.BindURI(c, &uri); err != nil || strings.TrimSpace(uri.ProviderID) == "" {
+		h.writeError(c, http.StatusBadRequest, "BAD_REQUEST", "providerId is invalid")
+		return
+	}
+	result, err := h.service.SetDefaultProvider(c.Request.Context(), uri.ProviderID)
+	if err != nil {
+		status := http.StatusInternalServerError
+		if errors.Is(err, os.ErrNotExist) {
+			status = http.StatusNotFound
+		}
+		h.writeError(c, status, "ADK_PROVIDER_DEFAULT_FAILED", err.Error())
+		return
+	}
+	h.writeOK(c, result)
+}
+
 func (h *Handler) handleADKDeleteProvider(c *gin.Context) {
 	var uri providerURI
 	if err := httpserver.BindURI(c, &uri); err != nil || strings.TrimSpace(uri.ProviderID) == "" {

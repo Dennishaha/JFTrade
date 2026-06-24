@@ -25,6 +25,7 @@ const props = defineProps<{
   editProvider: (provider: ADKProvider) => void;
   testProvider: (providerId: string) => void | Promise<void>;
   deleteProvider: (providerId: string) => void | Promise<void>;
+  setDefaultProvider: (providerId: string) => void | Promise<void>;
 }>();
 
 const providerDialogOpen = ref(false);
@@ -85,6 +86,14 @@ async function submitProviderForm(): Promise<void> {
                   >
                     {{ provider.enabled ? "启用" : "停用" }}
                   </v-chip>
+                  <v-chip
+                    v-if="provider.default"
+                    size="x-small"
+                    color="primary"
+                    variant="tonal"
+                  >
+                    默认
+                  </v-chip>
                 </div>
                 <div class="mt-0.5 text-xs text-slate-500">
                   {{ provider.baseUrl }} · {{ provider.model }}
@@ -128,6 +137,13 @@ async function submitProviderForm(): Promise<void> {
                   variant="outlined"
                   @click="testProvider(provider.id)"
                   >测试</v-btn
+                >
+                <v-btn
+                  v-if="!provider.default"
+                  size="x-small"
+                  variant="outlined"
+                  @click="setDefaultProvider(provider.id)"
+                  >设为默认</v-btn
                 >
                 <v-btn
                   size="x-small"

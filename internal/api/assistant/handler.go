@@ -39,6 +39,7 @@ func RegisterRoutes(api *gin.RouterGroup, service *assistantservice.Service) {
 	adk.POST("/providers", handler.handleADKSaveProvider)
 	adk.PUT("/providers/:providerId", handler.handleADKSaveProvider)
 	adk.DELETE("/providers/:providerId", handler.handleADKDeleteProvider)
+	adk.POST("/providers/:providerId/default", handler.handleADKSetDefaultProvider)
 	adk.POST("/providers/:providerId/test", handler.handleADKTestProvider)
 	adk.GET("/agents", handler.handleADKAgents)
 	adk.POST("/agents", handler.handleADKSaveAgent)

@@ -290,7 +290,7 @@ func TestRunChildAndWorkflowResumeEdgeCases(t *testing.T) {
 			t.Fatalf("SaveRun parent with plan: %v", err)
 		}
 		badAgent := agent
-		badAgent.ProviderID = ""
+		badAgent.ProviderID = "missing-run-child-provider"
 
 		result := (&WorkflowExecutor{runtime: runtime}).runChild(ctx, workflowRequest{
 			Agent:     badAgent,
@@ -304,14 +304,14 @@ func TestRunChildAndWorkflowResumeEdgeCases(t *testing.T) {
 		if result.Err != nil {
 			t.Fatalf("runChild immediate fail err = %v, want nil with failed child response", result.Err)
 		}
-		if result.Response.Run.Status != RunStatusFailed || result.Response.Reply != "agent provider is required" {
+		if result.Response.Run.Status != RunStatusFailed || result.Response.Reply != "agent provider is unavailable" {
 			t.Fatalf("child response = %+v, want failed child run with provider error", result.Response)
 		}
 		storedTask, ok, err := runtime.Store().Task(ctx, task.ID)
 		if err != nil || !ok {
 			t.Fatalf("stored task lookup ok=%v err=%v", ok, err)
 		}
-		if storedTask.Status != "BLOCKED" || storedTask.ResultSummary != "agent provider is required" {
+		if storedTask.Status != "BLOCKED" || storedTask.ResultSummary != "agent provider is unavailable" {
 			t.Fatalf("stored task = %+v, want blocked task with child failure summary", storedTask)
 		}
 	})

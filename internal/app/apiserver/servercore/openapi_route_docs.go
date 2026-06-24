@@ -22,6 +22,7 @@ func documentDataMigrationRoutes() {}
 // @Router /api/v1/adk/providers [post]
 // @Router /api/v1/adk/providers/{providerId} [put]
 // @Router /api/v1/adk/providers/{providerId} [delete]
+// @Router /api/v1/adk/providers/{providerId}/default [post]
 // @Router /api/v1/adk/providers/{providerId}/test [post]
 // @Router /api/v1/adk/agents [post]
 // @Router /api/v1/adk/agents/{agentId} [put]

@@ -28,7 +28,8 @@ func (r *Runtime) runChat(ctx context.Context, req ChatRequest, onDelta func(Cha
 		return ChatResponse{}, err
 	}
 	agent = applyChatModelOverride(agent, req)
-	if err := r.validateAgentProvider(ctx, agent); err != nil {
+	agent, err = r.resolveAgentProvider(ctx, agent)
+	if err != nil {
 		return ChatResponse{}, err
 	}
 	agent, err = r.prepareAgent(ctx, agent)

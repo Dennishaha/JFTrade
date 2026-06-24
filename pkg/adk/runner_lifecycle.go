@@ -184,6 +184,11 @@ func (r *Runtime) startRun(ctx context.Context, sessionID string, agent Agent, t
 }
 
 func (r *Runtime) startRunWithOptions(ctx context.Context, sessionID string, agent Agent, text string, options runStartOptions) (Run, context.Context, func(), error) {
+	resolvedAgent, err := r.resolveAgentProvider(ctx, agent)
+	if err != nil {
+		return Run{}, nil, nil, err
+	}
+	agent = resolvedAgent
 	now := nowString()
 	timeout := r.runtimeLimits().RunTimeout
 	workMode := normalizeWorkMode(options.WorkMode)

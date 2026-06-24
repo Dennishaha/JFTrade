@@ -16,8 +16,6 @@ import type {
 import {
   cancelADKOptimizationTask,
   cancelADKRun,
-  deleteADKAgent,
-  deleteADKProvider,
   fallbackPage,
   fetchADKApprovalsPage,
   fetchADKAuditPage,
@@ -33,10 +31,7 @@ import {
   pageSummary,
   previousPage,
   resumeADKRun,
-  saveADKAgent,
-  saveADKProvider,
   saveADKRuntimeSettings,
-  testADKProvider,
   type ADKMetricsResponse,
   type PageEnvelope,
   uninstallADKSkill,
@@ -64,6 +59,12 @@ function clampRuntimeSeconds(value: unknown, fallback: number, min: number, max:
   const numeric = Math.round(Number(value));
   if (!Number.isFinite(numeric)) return fallback;
   return Math.min(max, Math.max(min, numeric));
+}
+
+function defaultProviderOptionTitle(providers: ADKProvider[]): string {
+  const provider = providers.find((item) => item.default) ?? providers[0];
+  if (!provider) return "默认模型";
+  return `默认模型 · ${provider.displayName} · ${provider.model}`;
 }
 
 export function useADKSettingsSectionState() {
@@ -107,10 +108,16 @@ export function useADKSettingsSectionState() {
   });
 
   const providerOptions = computed(() =>
-    providers.value.map((p) => ({
-      title: `${p.displayName} · ${p.model}${p.hasApiKey ? "" : " · 未配置密钥"}`,
-      value: p.id,
-    })),
+    [
+      {
+        title: defaultProviderOptionTitle(providers.value),
+        value: "",
+      },
+      ...providers.value.map((p) => ({
+        title: `${p.displayName} · ${p.model}${p.default ? " · 默认" : ""}${p.hasApiKey ? "" : " · 未配置密钥"}`,
+        value: p.id,
+      })),
+    ],
   );
   const filteredToolsByFacet = computed(() =>
     tools.value.filter((tool) => {
@@ -288,7 +295,7 @@ export function useADKSettingsSectionState() {
       id: "",
       name: template.name,
       instruction: template.instruction,
-      providerId: providers.value[0]?.id ?? "",
+      providerId: "",
       model: template.model ?? "",
       tools: [...template.tools],
       skills: [...template.skills],
@@ -396,9 +403,6 @@ export function useADKSettingsSectionState() {
 
   onMounted(() => {
     void refreshAll().then(() => {
-      if (agentFormState.agentForm.value.providerId === "" && providers.value.length > 0) {
-        agentFormState.agentForm.value.providerId = providers.value[0]!.id;
-      }
       if (agentFormState.agentForm.value.id === "" && agentFormState.agentForm.value.skills.length === 0) {
         agentFormState.agentForm.value.skills = skills.value.map((skill) => skill.id);
       }
@@ -489,6 +493,7 @@ export function useADKSettingsSectionState() {
     saveAgent: agentFormState.saveAgent,
     saveProvider: providerFormState.saveProvider,
     saveRuntimeSettings,
+    setDefaultProvider: providerFormState.setDefaultProvider,
     skillOptions,
     skills,
     skillUrl,

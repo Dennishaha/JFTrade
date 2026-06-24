@@ -164,13 +164,22 @@ func (s *Store) initializeOrValidateSchema() error {
 
 func (s *Store) ListProviders(ctx context.Context) ([]Provider, error) {
 	var items []Provider
-	if err := s.listJSON(ctx, tableProviders, "updated_at DESC, id ASC", &items); err != nil {
+	if err := s.listJSON(ctx, tableProviders, "created_at ASC, id ASC", &items); err != nil {
 		return nil, err
 	}
 	for index := range items {
 		items[index] = normalizeProvider(items[index])
 		items[index].HasAPIKey = s.secrets.has(items[index].ID)
 	}
+	if changed := normalizeDefaultProviderSelection(items); changed {
+		if err := s.saveProviderDefaultSelection(ctx, items); err != nil {
+			return nil, err
+		}
+		for index := range items {
+			items[index].HasAPIKey = s.secrets.has(items[index].ID)
+		}
+	}
+	sortProvidersDefaultFirst(items)
 	return items, nil
 }
 
@@ -210,6 +219,7 @@ func (s *Store) SaveProvider(ctx context.Context, req ProviderWriteRequest) (Pro
 		RequestTimeoutMs:    normalizeProviderRequestTimeoutMs(req.RequestTimeoutMs),
 		DefaultHeaders:      normalizeHeaders(req.DefaultHeaders),
 		Enabled:             req.Enabled,
+		Default:             existing.Default,
 		CreatedAt:           createdAt,
 		UpdatedAt:           now,
 	}
@@ -232,7 +242,27 @@ func (s *Store) SaveProvider(ctx context.Context, req ProviderWriteRequest) (Pro
 		}
 	}
 	provider.HasAPIKey = s.secrets.has(id)
-	return provider, s.saveJSON(ctx, tableProviders, provider.ID, provider.CreatedAt, provider.UpdatedAt, provider)
+	if !ok {
+		providers, err := s.ListProviders(ctx)
+		if err != nil {
+			return Provider{}, err
+		}
+		provider.Default = len(providers) == 0
+	}
+	if err := s.saveJSON(ctx, tableProviders, provider.ID, provider.CreatedAt, provider.UpdatedAt, provider); err != nil {
+		return Provider{}, err
+	}
+	if _, err := s.ensureDefaultProvider(ctx); err != nil {
+		return Provider{}, err
+	}
+	saved, ok, err := s.Provider(ctx, provider.ID)
+	if err != nil {
+		return Provider{}, err
+	}
+	if ok {
+		return saved, nil
+	}
+	return provider, nil
 }
 
 func (s *Store) UpdateProviderCapabilities(ctx context.Context, id string, capabilities map[string]bool) (Provider, error) {
@@ -259,6 +289,52 @@ func (s *Store) Provider(ctx context.Context, id string) (Provider, bool, error)
 	return provider, true, nil
 }
 
+func (s *Store) DefaultProvider(ctx context.Context) (Provider, bool, error) {
+	providers, err := s.ListProviders(ctx)
+	if err != nil {
+		return Provider{}, false, err
+	}
+	if len(providers) == 0 {
+		return Provider{}, false, nil
+	}
+	return providers[0], true, nil
+}
+
+func (s *Store) SetDefaultProvider(ctx context.Context, id string) (Provider, error) {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return Provider{}, os.ErrNotExist
+	}
+	providers, err := s.loadProvidersCreatedFirst(ctx)
+	if err != nil {
+		return Provider{}, err
+	}
+	found := -1
+	for index := range providers {
+		if providers[index].ID == id {
+			found = index
+			break
+		}
+	}
+	if found < 0 {
+		return Provider{}, os.ErrNotExist
+	}
+	for index := range providers {
+		providers[index].Default = providers[index].ID == id
+	}
+	if err := s.saveProviderDefaultSelection(ctx, providers); err != nil {
+		return Provider{}, err
+	}
+	provider, ok, err := s.Provider(ctx, id)
+	if err != nil {
+		return Provider{}, err
+	}
+	if !ok {
+		return Provider{}, os.ErrNotExist
+	}
+	return provider, nil
+}
+
 func (s *Store) ProviderAPIKey(id string) (string, bool, error) {
 	return s.secrets.get(id)
 }
@@ -277,12 +353,94 @@ func (s *Store) DeleteProvider(ctx context.Context, id string) error {
 			return fmt.Errorf("provider is used by agent %q", agent.Name)
 		}
 	}
+	deletedProvider, deletedOK, err := s.Provider(ctx, id)
+	if err != nil {
+		return err
+	}
 	if _, err := s.db.ExecContext(ctx, `DELETE FROM `+tableProviders+` WHERE id = ?`, id); err != nil {
 		return err
 	}
 	jftradeErr3 := s.secrets.delete(id)
 	jftradeLogError(jftradeErr3)
+	if deletedOK && deletedProvider.Default {
+		if _, err := s.ensureDefaultProvider(ctx); err != nil {
+			return err
+		}
+	}
 	return nil
+}
+
+func (s *Store) loadProvidersCreatedFirst(ctx context.Context) ([]Provider, error) {
+	var items []Provider
+	if err := s.listJSON(ctx, tableProviders, "created_at ASC, id ASC", &items); err != nil {
+		return nil, err
+	}
+	for index := range items {
+		items[index] = normalizeProvider(items[index])
+		items[index].HasAPIKey = s.secrets.has(items[index].ID)
+	}
+	return items, nil
+}
+
+func (s *Store) ensureDefaultProvider(ctx context.Context) (bool, error) {
+	providers, err := s.loadProvidersCreatedFirst(ctx)
+	if err != nil {
+		return false, err
+	}
+	if normalizeDefaultProviderSelection(providers) {
+		return true, s.saveProviderDefaultSelection(ctx, providers)
+	}
+	return false, nil
+}
+
+func normalizeDefaultProviderSelection(providers []Provider) bool {
+	if len(providers) == 0 {
+		return false
+	}
+	firstDefault := -1
+	changed := false
+	for index := range providers {
+		providers[index] = normalizeProvider(providers[index])
+		if providers[index].Default {
+			if firstDefault < 0 {
+				firstDefault = index
+			} else {
+				providers[index].Default = false
+				changed = true
+			}
+		}
+	}
+	if firstDefault < 0 {
+		providers[0].Default = true
+		changed = true
+	}
+	return changed
+}
+
+func (s *Store) saveProviderDefaultSelection(ctx context.Context, providers []Provider) error {
+	now := nowString()
+	for index := range providers {
+		provider := normalizeProvider(providers[index])
+		provider.HasAPIKey = s.secrets.has(provider.ID)
+		provider.UpdatedAt = now
+		if err := s.saveJSON(ctx, tableProviders, provider.ID, provider.CreatedAt, provider.UpdatedAt, provider); err != nil {
+			return err
+		}
+		providers[index] = provider
+	}
+	return nil
+}
+
+func sortProvidersDefaultFirst(providers []Provider) {
+	sort.SliceStable(providers, func(i, j int) bool {
+		if providers[i].Default != providers[j].Default {
+			return providers[i].Default
+		}
+		if providers[i].CreatedAt != providers[j].CreatedAt {
+			return providers[i].CreatedAt < providers[j].CreatedAt
+		}
+		return providers[i].ID < providers[j].ID
+	})
 }
 
 func (s *Store) ListAgents(ctx context.Context) ([]Agent, error) {

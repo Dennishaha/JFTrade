@@ -1390,6 +1390,7 @@ function buildProvider() {
     baseUrl: "https://api.openai.com/v1",
     model: "gpt-4o-mini",
     enabled: true,
+    default: true,
     hasApiKey: true,
     createdAt: "2026-06-09T00:00:00Z",
     updatedAt: "2026-06-09T00:00:00Z",

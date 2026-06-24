@@ -3777,6 +3777,7 @@ function buildProviderBase(hasApiKey: boolean) {
     baseUrl: "https://api.openai.com/v1",
     model: "gpt-4o-mini",
     enabled: true,
+    default: true,
     hasApiKey,
     createdAt: "2026-06-06T00:00:00Z",
     updatedAt: "2026-06-06T00:00:00Z",

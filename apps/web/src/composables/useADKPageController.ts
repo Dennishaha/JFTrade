@@ -23,11 +23,8 @@ export function useADKPageController(
   const composerBlockMessage = computed(() => {
     const agent = selectedAgent.value;
     if (!agent) return "请选择可用 Agent";
-    const providerId = sessionState.selectedProviderId.value.trim();
-    if (!providerId)
-      return "请选择本次会话使用的模型 Provider。";
     const provider = selectedProvider.value;
-    if (!provider) return "当前选择的 Provider 不存在，请重新选择。";
+    if (!provider) return "请先在 Agents 配置中新增模型 Provider。";
     if (!provider.enabled)
       return "当前 Provider 已停用，请启用或切换 Provider。";
     if (!provider.hasApiKey)

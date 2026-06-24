@@ -36,6 +36,14 @@ describe("useADKAgentForm", () => {
     expect(state.agentForm.value.loopMaxIterations).toBe(5);
   });
 
+  it("keeps new agents on the dynamic default provider", () => {
+    const state = createState();
+
+    state.newAgentForm();
+
+    expect(state.agentForm.value.providerId).toBe("");
+  });
+
   it("keeps new agent tools empty so the backend treats it as all tools", () => {
     const state = createState(["tool.1", "tool.2", "tool.3", "tool.4", "tool.5", "tool.6", "tool.7", "tool.8", "tool.9"]);
 

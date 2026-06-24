@@ -18,6 +18,16 @@ import {
 import { formatDateTime } from "./consoleDataFormatting";
 import { scrollToBottom } from "./adkThreadScroll";
 
+function defaultProvider(providers: ADKProvider[]): ADKProvider | null {
+  return providers.find((item) => item.default) ?? providers[0] ?? null;
+}
+
+function defaultProviderOptionTitle(providers: ADKProvider[]): string {
+  const provider = defaultProvider(providers);
+  if (!provider) return "默认模型";
+  return `默认模型 · ${provider.displayName} · ${provider.model}`;
+}
+
 export function useADKPageSessionState(router: Router, threadRef: Ref<HTMLElement | null>) {
   const agents = ref<ADKAgent[]>([]);
   const providers = ref<ADKProvider[]>([]);
@@ -49,10 +59,16 @@ export function useADKPageSessionState(router: Router, threadRef: Ref<HTMLElemen
     })),
   );
   const providerOptions = computed(() =>
-    providers.value.map((p) => ({
-      title: `${p.displayName} · ${p.model}${p.enabled ? "" : " · 已停用"}${p.hasApiKey ? "" : " · 未配置 Key"}`,
-      value: p.id,
-    })),
+    [
+      {
+        title: defaultProviderOptionTitle(providers.value),
+        value: "",
+      },
+      ...providers.value.map((p) => ({
+        title: `${p.displayName} · ${p.model}${p.default ? " · 默认" : ""}${p.enabled ? "" : " · 已停用"}${p.hasApiKey ? "" : " · 未配置 Key"}`,
+        value: p.id,
+      })),
+    ],
   );
   const pendingApprovals = computed(() =>
     approvals.value.filter((a) => a.status === "PENDING"),
@@ -67,9 +83,13 @@ export function useADKPageSessionState(router: Router, threadRef: Ref<HTMLElemen
   const selectedAgent = computed(() =>
     agents.value.find((a) => a.id === selectedAgentId.value) ?? null,
   );
-  const selectedProvider = computed(() =>
-    providers.value.find((p) => p.id === selectedProviderId.value) ?? null,
-  );
+  const selectedProvider = computed(() => {
+    const providerID = selectedProviderId.value.trim();
+    if (providerID === "") {
+      return defaultProvider(providers.value);
+    }
+    return providers.value.find((p) => p.id === providerID) ?? null;
+  });
   const approvalTool = (approval: ADKApproval) =>
     tools.value.find((tool) => tool.name === approval.toolName);
 

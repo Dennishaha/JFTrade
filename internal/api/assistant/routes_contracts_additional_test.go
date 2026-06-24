@@ -245,6 +245,38 @@ func TestProviderAndAgentValidationContracts(t *testing.T) {
 	}
 }
 
+func TestProviderDefaultContract(t *testing.T) {
+	_, router := newAssistantTestRouter(t)
+
+	for _, body := range []string{
+		`{"id":"provider-default-a","displayName":"Provider A","apiKey":"sk-a","enabled":true}`,
+		`{"id":"provider-default-b","displayName":"Provider B","apiKey":"sk-b","enabled":true}`,
+	} {
+		response := performAssistantRequest(router, http.MethodPost, "/api/v1/adk/providers", []byte(body))
+		if response.Code != http.StatusOK {
+			t.Fatalf("create provider status=%d body=%s", response.Code, response.Body.String())
+		}
+	}
+
+	setDefault := performAssistantRequest(router, http.MethodPost, "/api/v1/adk/providers/provider-default-b/default", nil)
+	if setDefault.Code != http.StatusOK || !strings.Contains(setDefault.Body.String(), `"default":true`) {
+		t.Fatalf("set default status=%d body=%s", setDefault.Code, setDefault.Body.String())
+	}
+	list := performAssistantRequest(router, http.MethodGet, "/api/v1/adk/providers", nil)
+	if list.Code != http.StatusOK {
+		t.Fatalf("list providers status=%d body=%s", list.Code, list.Body.String())
+	}
+	body := list.Body.String()
+	if strings.Index(body, "provider-default-b") < 0 || strings.Index(body, "provider-default-a") < 0 || strings.Index(body, "provider-default-b") > strings.Index(body, "provider-default-a") {
+		t.Fatalf("providers body = %s, want default provider first", body)
+	}
+
+	missing := performAssistantRequest(router, http.MethodPost, "/api/v1/adk/providers/provider-default-missing/default", nil)
+	if missing.Code != http.StatusNotFound {
+		t.Fatalf("missing default status=%d body=%s, want 404", missing.Code, missing.Body.String())
+	}
+}
+
 func TestSessionRunAndOptimizationRouteContracts(t *testing.T) {
 	runtime, router := newAssistantTestRouter(t)
 	ctx := t.Context()

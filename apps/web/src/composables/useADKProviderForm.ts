@@ -5,6 +5,7 @@ import type { ADKProvider } from "@/contracts";
 import {
   deleteADKProvider,
   saveADKProvider,
+  setADKDefaultProvider,
   testADKProvider,
 } from "./adkSettingsApi";
 
@@ -70,6 +71,17 @@ export function useADKProviderForm(
     }
   }
 
+  async function setDefaultProvider(providerId: string): Promise<void> {
+    try {
+      await setADKDefaultProvider(providerId);
+      successMessage.value = "默认模型已更新";
+      await refreshAll();
+    } catch (error) {
+      errorMessage.value =
+        error instanceof Error ? error.message : "设置默认模型失败";
+    }
+  }
+
   function newProviderForm(): void {
     providerForm.value = createProviderForm();
   }
@@ -95,6 +107,7 @@ export function useADKProviderForm(
     saveProvider,
     testProvider,
     deleteProvider,
+    setDefaultProvider,
     newProviderForm,
     editProvider,
   };

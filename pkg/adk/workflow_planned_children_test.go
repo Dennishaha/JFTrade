@@ -51,20 +51,20 @@ func TestWorkflowFinalSynthesisFailureMarksChildRunFailed(t *testing.T) {
 		})
 		execution := buildExecution(t, runtime, agent, session, parent, child)
 		badAgent := agent
-		badAgent.ProviderID = ""
+		badAgent.ProviderID = "missing-final-synth-provider"
 
 		executor := &WorkflowExecutor{runtime: runtime}
 		err := executor.ensureWorkflowChildrenFinalReplies(ctx, workflowRequest{
 			Agent: badAgent, Session: session, Message: child.UserMessage,
 		}, execution, []Run{child}, []workflowStep{{Title: child.UserMessage, Message: child.UserMessage}}, nil)
-		if err == nil || err.Error() != "agent provider is required" {
-			t.Fatalf("ensureWorkflowChildrenFinalReplies err = %v, want provider required", err)
+		if err == nil || err.Error() != "agent provider is unavailable" {
+			t.Fatalf("ensureWorkflowChildrenFinalReplies err = %v, want provider unavailable", err)
 		}
 		stored, ok, getErr := runtime.Store().Run(ctx, child.ID)
 		if getErr != nil || !ok {
 			t.Fatalf("child run lookup ok=%v err=%v", ok, getErr)
 		}
-		if stored.Status != RunStatusFailed || stored.FailureReason != "agent provider is required" {
+		if stored.Status != RunStatusFailed || stored.FailureReason != "agent provider is unavailable" {
 			t.Fatalf("stored child = %+v, want failed child with provider error", stored)
 		}
 	})

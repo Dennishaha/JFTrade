@@ -47,6 +47,7 @@ type Provider struct {
 	RequestTimeoutMs    int               `json:"requestTimeoutMs"`
 	DefaultHeaders      map[string]string `json:"defaultHeaders,omitempty"`
 	Enabled             bool              `json:"enabled"`
+	Default             bool              `json:"default"`
 	HasAPIKey           bool              `json:"hasApiKey"`
 	Capabilities        map[string]bool   `json:"capabilities,omitempty"`
 	CreatedAt           string            `json:"createdAt"`

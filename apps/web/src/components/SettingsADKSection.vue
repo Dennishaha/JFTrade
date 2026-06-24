@@ -68,6 +68,7 @@ const {
   saveAgent,
   saveProvider,
   saveRuntimeSettings,
+  setDefaultProvider,
   skillOptions,
   skills,
   skillUrl,
@@ -270,6 +271,7 @@ function memoryScopeHint(scope: string): string {
           :edit-provider="editProvider"
           :test-provider="testProvider"
           :delete-provider="deleteProvider"
+          :set-default-provider="setDefaultProvider"
         />
       </v-window-item>
 

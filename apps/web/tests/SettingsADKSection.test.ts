@@ -577,6 +577,7 @@ function buildProvider() {
     model: "gpt-4o-mini",
     requestTimeoutMs: 180_000,
     enabled: true,
+    default: true,
     hasApiKey: true,
     createdAt: "2026-06-06T00:00:00Z",
     updatedAt: "2026-06-06T00:00:00Z",

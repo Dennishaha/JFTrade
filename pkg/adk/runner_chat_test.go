@@ -632,6 +632,77 @@ func TestChatRequestProviderOverrideRunsWithoutEditingAgent(t *testing.T) {
 	}
 }
 
+func TestAgentWithoutProviderDynamicallyUsesDefaultProvider(t *testing.T) {
+	ctx := context.Background()
+	runtime := newTestRuntime(t)
+	agent, err := runtime.Store().SaveAgent(ctx, AgentWriteRequest{
+		ID:             "agent-dynamic-default-provider",
+		Name:           "Dynamic Default Provider",
+		PermissionMode: PermissionModeApproval,
+		Status:         AgentStatusEnabled,
+	})
+	if err != nil {
+		t.Fatalf("SaveAgent: %v", err)
+	}
+	if agent.ProviderID != "" {
+		t.Fatalf("agent providerId = %q, want empty", agent.ProviderID)
+	}
+
+	first, err := runtime.Chat(ctx, ChatRequest{AgentID: agent.ID, Message: "first"})
+	if err != nil {
+		t.Fatalf("Chat first default: %v", err)
+	}
+	if first.Run.ProviderID != testProviderID || first.Run.Model != "test-model" {
+		t.Fatalf("first run provider/model = %q/%q, want %q/test-model", first.Run.ProviderID, first.Run.Model, testProviderID)
+	}
+
+	var capturedSecond openAIChatRequest
+	secondServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || !strings.HasSuffix(r.URL.Path, "/chat/completions") {
+			http.NotFound(w, r)
+			return
+		}
+		defer func() { jftradePanicOnError(r.Body.Close()) }()
+		if err := json.NewDecoder(r.Body).Decode(&capturedSecond); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		jftradeErr := json.NewEncoder(w).Encode(openAIChatResponse{
+			Choices: []struct {
+				Message openAIChatMessage `json:"message"`
+			}{{Message: openAIChatMessage{Role: "assistant", Content: "second default ok"}}},
+		})
+		jftradePanicOnError(jftradeErr)
+	}))
+	t.Cleanup(secondServer.Close)
+	mustSaveProvider(t, runtime, ProviderWriteRequest{
+		ID: "second-default-provider", DisplayName: "Second Default", BaseURL: secondServer.URL,
+		Model: "second-default-model", APIKey: "sk-second", Enabled: true,
+	})
+	if _, err := runtime.Store().SetDefaultProvider(ctx, "second-default-provider"); err != nil {
+		t.Fatalf("SetDefaultProvider: %v", err)
+	}
+
+	second, err := runtime.Chat(ctx, ChatRequest{AgentID: agent.ID, Message: "second"})
+	if err != nil {
+		t.Fatalf("Chat second default: %v", err)
+	}
+	if capturedSecond.Model != "second-default-model" {
+		t.Fatalf("captured second model = %q, want second-default-model", capturedSecond.Model)
+	}
+	if second.Run.ProviderID != "second-default-provider" || second.Run.ProviderName != "Second Default" || second.Run.Model != "second-default-model" {
+		t.Fatalf("second run provider snapshot = %+v, want second default", second.Run)
+	}
+	storedAgent, ok, err := runtime.Store().Agent(ctx, agent.ID)
+	if err != nil || !ok {
+		t.Fatalf("Agent lookup err=%v ok=%v", err, ok)
+	}
+	if storedAgent.ProviderID != "" {
+		t.Fatalf("stored agent providerId = %q, want empty dynamic default", storedAgent.ProviderID)
+	}
+}
+
 func TestProjectedChatResponseDoesNotExposeResolvedApprovals(t *testing.T) {
 	ctx := context.Background()
 	runtime := newTestRuntime(t)
@@ -869,11 +940,11 @@ func TestStartRunPersistsRunAndFinishRemovesActiveHandle(t *testing.T) {
 	ctx := context.Background()
 	runtime := newTestRuntime(t)
 
-	run, runCtx, finish, err := runtime.startRun(ctx, "session-1", Agent{ID: "agent-1", ProviderID: "provider-1"}, "hello")
+	run, runCtx, finish, err := runtime.startRun(ctx, "session-1", Agent{ID: "agent-1", ProviderID: testProviderID}, "hello")
 	if err != nil {
 		t.Fatalf("startRun: %v", err)
 	}
-	if run.Status != RunStatusRunning || run.SessionID != "session-1" || run.AgentID != "agent-1" || run.ProviderID != "provider-1" {
+	if run.Status != RunStatusRunning || run.SessionID != "session-1" || run.AgentID != "agent-1" || run.ProviderID != testProviderID {
 		t.Fatalf("run = %+v", run)
 	}
 	if runCtx == nil {

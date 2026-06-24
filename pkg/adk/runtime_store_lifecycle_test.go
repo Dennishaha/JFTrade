@@ -189,6 +189,9 @@ func TestModelsListToolReturnsCallableModelsWithoutKeys(t *testing.T) {
 	if callableSeen[testProviderID]["hasApiKey"] != true || callableSeen[testProviderID]["callable"] != true {
 		t.Fatalf("model flags = %#v, want hasApiKey/callable true", callableSeen[testProviderID])
 	}
+	if callableSeen[testProviderID]["default"] != true || callableSeen["capability-provider"]["default"] == true {
+		t.Fatalf("model default flags = %#v, want test provider default only", models)
+	}
 	encoded, err := json.Marshal(payload)
 	if err != nil {
 		t.Fatalf("marshal payload: %v", err)

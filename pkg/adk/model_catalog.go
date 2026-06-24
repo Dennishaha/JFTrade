@@ -62,6 +62,7 @@ func (r *Runtime) modelsListTool(ctx context.Context, input map[string]any) (any
 			"baseUrl":             provider.BaseURL,
 			"contextWindowTokens": provider.ContextWindowTokens,
 			"enabled":             provider.Enabled,
+			"default":             provider.Default,
 			"hasApiKey":           provider.HasAPIKey,
 			"callable":            callable,
 			"capabilities":        provider.Capabilities,

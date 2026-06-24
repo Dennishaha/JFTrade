@@ -656,7 +656,7 @@ func TestRunADKTaskWorkflowUsesNudgeAndHandlesExecutionInitFailure(t *testing.T)
 	t.Run("execution init failure returns failed workflow response", func(t *testing.T) {
 		runtime := newTestRuntime(t)
 		session := mustCreateSession(t, runtime, "agent-missing-provider", "missing provider")
-		agent := Agent{ID: "agent-missing-provider", Name: "Missing Provider", Status: AgentStatusEnabled}
+		agent := Agent{ID: "agent-missing-provider", Name: "Missing Provider", ProviderID: "provider-missing-for-workflow", Status: AgentStatusEnabled}
 		parent := mustSaveRun(t, runtime, Run{
 			ID: "run-parent-missing-provider", SessionID: session.ID, AgentID: agent.ID,
 			Status: RunStatusRunning, WorkMode: WorkModeTask, WorkflowStatus: workflowStatusRunning,
@@ -679,8 +679,8 @@ func TestRunADKTaskWorkflowUsesNudgeAndHandlesExecutionInitFailure(t *testing.T)
 		if response.Run.Status != RunStatusFailed || response.Run.WorkflowStatus != workflowStatusFailed {
 			t.Fatalf("response run = %+v, want failed workflow", response.Run)
 		}
-		if response.Reply != "agent provider is required" {
-			t.Fatalf("reply = %q, want provider-required failure", response.Reply)
+		if response.Reply != "agent provider is unavailable" {
+			t.Fatalf("reply = %q, want provider-unavailable failure", response.Reply)
 		}
 	})
 }

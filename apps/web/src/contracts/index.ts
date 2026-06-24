@@ -95,6 +95,7 @@ export interface ADKProvider {
   requestTimeoutMs: number;
   defaultHeaders?: Record<string, string>;
   enabled: boolean;
+  default: boolean;
   hasApiKey: boolean;
   capabilities?: Record<string, boolean>;
   createdAt: string;
