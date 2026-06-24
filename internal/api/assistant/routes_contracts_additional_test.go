@@ -267,7 +267,9 @@ func TestProviderDefaultContract(t *testing.T) {
 		t.Fatalf("list providers status=%d body=%s", list.Code, list.Body.String())
 	}
 	body := list.Body.String()
-	if strings.Index(body, "provider-default-b") < 0 || strings.Index(body, "provider-default-a") < 0 || strings.Index(body, "provider-default-b") > strings.Index(body, "provider-default-a") {
+	if !strings.Contains(body, "provider-default-b") ||
+		!strings.Contains(body, "provider-default-a") ||
+		strings.Index(body, "provider-default-b") > strings.Index(body, "provider-default-a") {
 		t.Fatalf("providers body = %s, want default provider first", body)
 	}
 

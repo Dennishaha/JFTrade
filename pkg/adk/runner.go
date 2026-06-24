@@ -368,11 +368,6 @@ func (r *Runtime) resolveAgentDefinition(ctx context.Context, agentID string) (A
 	return agent, nil
 }
 
-func (r *Runtime) validateAgentProvider(ctx context.Context, agent Agent) error {
-	_, err := r.resolveAgentProvider(ctx, agent)
-	return err
-}
-
 func (r *Runtime) resolveAgentProvider(ctx context.Context, agent Agent) (Agent, error) {
 	if r == nil || r.store == nil {
 		return Agent{}, fmt.Errorf("adk runtime is unavailable")
