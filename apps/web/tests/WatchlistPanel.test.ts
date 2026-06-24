@@ -165,6 +165,28 @@ describe("WatchlistPanel", () => {
     wrapper.unmount();
   });
 
+  it("renders overnight session and overnight pricing for US snapshots", () => {
+    const wrapper = mountWatchlistPanel({
+      market: "US",
+      symbol: "AAPL",
+      security: createSecurityDetails({
+        instrumentId: "US.AAPL",
+        market: "US",
+        symbol: "AAPL",
+        name: "Apple",
+        securityType: "Eqty",
+        exchangeType: "US_NASDAQ",
+      }),
+      snapshot: createExtendedSnapshotResult("US", "AAPL", "overnight"),
+    });
+
+    expect(wrapper.text()).toContain("夜盘");
+    expect(wrapper.text()).toContain("夜盘价格");
+    expect(wrapper.text()).toContain("最近盘后价格");
+
+    wrapper.unmount();
+  });
+
   it("does not render security details that belong to a previous instrument", () => {
     const wrapper = mountWatchlistPanel({
       market: "US",

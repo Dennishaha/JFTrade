@@ -65,9 +65,24 @@ const extendedCards = computed(() => {
   }
   return displayModel.value.extendedCards.map((card) => ({
     ...card,
-    border: card.key === "pre" ? "var(--card-sky-border)" : "var(--card-amber-border)",
-    surface: card.key === "pre" ? "var(--card-sky-surface)" : "var(--card-amber-surface)",
-    accent: card.key === "pre" ? "var(--card-sky-text)" : "var(--card-amber-text)",
+    border:
+      card.key === "pre"
+        ? "var(--card-sky-border)"
+        : card.key === "overnight"
+          ? "var(--card-violet-border)"
+          : "var(--card-amber-border)",
+    surface:
+      card.key === "pre"
+        ? "var(--card-sky-surface)"
+        : card.key === "overnight"
+          ? "var(--card-violet-surface)"
+          : "var(--card-amber-surface)",
+    accent:
+      card.key === "pre"
+        ? "var(--card-sky-text)"
+        : card.key === "overnight"
+          ? "var(--card-violet-text)"
+          : "var(--card-amber-text)",
   }));
 });
 

@@ -92,4 +92,46 @@ describe("marketSessionDisplay", () => {
       },
     ]);
   });
+
+  it("shows active overnight pricing during overnight sessions", () => {
+    const display = resolveMarketSnapshotDisplay(
+      {
+        price: 193,
+        previousClosePrice: 190,
+        lastClosePrice: 188,
+        session: "overnight",
+        extended: {
+          afterMarket: {
+            price: 192,
+            changeRate: 1.8,
+            quoteTime: "2026-06-23T20:00:00.000Z",
+          },
+          overnight: {
+            price: 193,
+            changeRate: 2.3,
+            quoteTime: "2026-06-24T04:15:00.000Z",
+          },
+        },
+      },
+      true,
+    );
+
+    expect(display.sessionLabel).toBe("夜盘");
+    expect(display.extendedCards).toEqual([
+      {
+        key: "after",
+        label: "最近盘后价格",
+        price: 192,
+        changeRate: 1.8,
+        quoteTime: "2026-06-23T20:00:00.000Z",
+      },
+      {
+        key: "overnight",
+        label: "夜盘价格",
+        price: 193,
+        changeRate: 1.5789473684210527,
+        quoteTime: "2026-06-24T04:15:00.000Z",
+      },
+    ]);
+  });
 });

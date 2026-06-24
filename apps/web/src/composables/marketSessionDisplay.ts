@@ -17,7 +17,7 @@ type SupportedSession =
   | "unknown";
 
 export interface MarketSnapshotDisplayCard {
-  key: "pre" | "after";
+  key: "pre" | "after" | "overnight";
   label: string;
   price: number;
   changeRate: number | null;
@@ -152,6 +152,16 @@ function resolveExtendedCards(
         quoteTime: normalizeQuoteTime(extended.afterMarket),
       });
     }
+  }
+
+  if (session === "overnight" && positiveNumber(extended.overnight?.price)) {
+    cards.push({
+      key: "overnight",
+      label: "夜盘价格",
+      price: livePrice ?? (extended.overnight?.price as number),
+      changeRate: liveChangeRate ?? normalizeNullableNumber(extended.overnight?.changeRate),
+      quoteTime: normalizeQuoteTime(extended.overnight),
+    });
   }
 
   return cards;
