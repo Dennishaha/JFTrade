@@ -1,47 +1,13 @@
 <script setup lang="ts">
-import { computed } from "vue";
-
-import { useMarketProfiles } from "../composables/marketProfiles";
-import {
-  formatMarketSessionLabel,
-  resolveMarketSnapshotDisplay,
-} from "../composables/marketSessionDisplay";
-import { useConsoleData } from "../composables/useConsoleData";
-import {
-  useWorkspaceTradingPrefs,
-  useWorkspaceViewState,
-} from "../composables/useWorkspaceLayout";
+import { useWorkspaceViewState } from "../composables/useWorkspaceLayout";
 import AiAssistantPanel from "./AiAssistantPanel.vue";
 import NotificationCenter from "./NotificationCenter.vue";
 
-const { prefs: tradingPrefs } = useWorkspaceTradingPrefs();
 const { prefs, update } = useWorkspaceViewState();
-const { supportsExtendedHoursForMarket } = useMarketProfiles();
-const { currentMarketDataSnapshot: marketDataSnapshot, marketDataSubscriptions, systemStatus } =
-  useConsoleData();
-
-const symbolInfo = computed(
-  () => `${tradingPrefs.value.market}:${tradingPrefs.value.symbol}`,
-);
-const snap = computed(() => marketDataSnapshot.value?.snapshot ?? null);
-const supportsExtendedHoursMarket = computed(() =>
-  supportsExtendedHoursForMarket(tradingPrefs.value.market),
-);
-const displayModel = computed(() =>
-  resolveMarketSnapshotDisplay(snap.value, supportsExtendedHoursMarket.value),
-);
-const snapSessionLabel = computed(() => {
-  const session = snap.value?.session;
-  if (typeof session !== "string" || session === "") {
-    return "—";
-  }
-  return formatMarketSessionLabel(session);
-});
 
 const tabs = [
   { id: "notifications", label: "通知" },
   { id: "ai", label: "助手" },
-  { id: "context", label: "上下文" },
 ] as const;
 
 function select(id: (typeof tabs)[number]["id"]): void {
@@ -57,11 +23,10 @@ function toggle(): void {
   <aside
     class="tv-rightdock"
     :class="{
-      'is-collapsed': !prefs.rightDockOpen,
       'is-ai': prefs.rightDockOpen && prefs.rightDockTab === 'ai',
     }"
   >
-    <div v-if="prefs.rightDockOpen" style="display: flex; flex-direction: column; height: 100%; min-height: 0">
+    <div style="display: flex; flex-direction: column; height: 100%; min-height: 0">
       <div class="tv-dock-tabs">
         <div
           v-for="tab in tabs"
@@ -77,45 +42,7 @@ function toggle(): void {
       </div>
 
       <NotificationCenter v-if="prefs.rightDockTab === 'notifications'" />
-      <AiAssistantPanel v-else-if="prefs.rightDockTab === 'ai'" />
-      <div v-else class="tv-dock-body">
-        <div style="font-size: 11px; color: var(--tv-text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px">
-          标的
-        </div>
-        <div data-testid="rightdock-symbol-info" style="font-size: 18px; font-weight: 600; margin-bottom: 8px">{{ symbolInfo }}</div>
-        <table class="tv-table">
-          <tbody>
-            <tr><td>{{ displayModel.mainPriceLabel }}</td><td class="tv-num">{{ displayModel.mainDisplayPrice ?? "—" }}</td></tr>
-            <tr><td>买一</td><td class="tv-num">{{ snap?.bid ?? "—" }}</td></tr>
-            <tr><td>卖一</td><td class="tv-num">{{ snap?.ask ?? "—" }}</td></tr>
-            <tr><td>时段</td><td class="tv-num">{{ snapSessionLabel }}</td></tr>
-            <tr><td>成交量</td><td class="tv-num">{{ snap?.volume ?? "—" }}</td></tr>
-            <tr><td>成交额</td><td class="tv-num">{{ snap?.turnover ?? "—" }}</td></tr>
-            <tr><td>时间</td><td class="tv-num">{{ snap?.at ?? "—" }}</td></tr>
-          </tbody>
-        </table>
-
-        <div style="font-size: 11px; color: var(--tv-text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin: 14px 0 6px">
-          订阅
-        </div>
-        <div style="font-size: 12px; color: var(--tv-text-muted)">
-          {{ marketDataSubscriptions.totalActiveSubscriptions }} 个活跃
-          · 配额 {{ marketDataSubscriptions.quota.totalUsed }} / {{ marketDataSubscriptions.quota.totalLimit ?? "∞" }}
-        </div>
-
-        <div style="font-size: 11px; color: var(--tv-text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin: 14px 0 6px">
-          系统
-        </div>
-        <div style="font-size: 12px; color: var(--tv-text-muted)">
-          {{ systemStatus.message }}
-        </div>
-      </div>
+      <AiAssistantPanel v-else />
     </div>
-    <button
-      v-else
-      class="tv-rightdock-toggle"
-      title="打开侧栏"
-      @click="toggle"
-    >⟨</button>
   </aside>
 </template>

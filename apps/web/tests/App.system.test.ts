@@ -427,7 +427,14 @@ describe("System page", () => {
     const { wrapper } = await mountApp("/system");
     const liveStream = findLiveEventStream();
 
-    await wrapper.get(".tv-rightdock-toggle").trigger("click");
+    expect(wrapper.find(".tv-rightdock-toggle").exists()).toBe(false);
+    expect(wrapper.find(".tv-app-content-split").exists()).toBe(false);
+    expect(wrapper.find(".tv-rightdock-slot").exists()).toBe(false);
+    const mainElement = wrapper.get(".tv-main").element;
+    await wrapper.get('button[title="通知"]').trigger("click");
+    expect(wrapper.get(".tv-main").element).toBe(mainElement);
+    expect(wrapper.find(".tv-app-content-split").exists()).toBe(false);
+    expect(wrapper.find(".tv-rightdock-slot").exists()).toBe(true);
     await wrapper.get('[data-testid="rightdock-tab-notifications"]').trigger(
       "click",
     );

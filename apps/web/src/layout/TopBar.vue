@@ -185,7 +185,7 @@ watch(
   { immediate: true },
 );
 
-function openRightDock(tab: "notifications" | "ai" | "context"): void {
+function openRightDock(tab: "notifications" | "ai"): void {
   updateViewState({ rightDockOpen: true, rightDockTab: tab });
 }
 

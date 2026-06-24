@@ -325,7 +325,7 @@ async function handleMobileSessionSelect(sessionId: string): Promise<void> {
           :aria-expanded="mobileSessionPanelOpen ? 'true' : 'false'"
           @click="toggleMobileSessionPanel"
         >
-          <span>会话</span>
+          <span style="text-wrap: nowrap;">会话</span>
           <span class="adk-mobile-toolbar__count">{{ sessions.length }}</span>
         </button>
         <div class="adk-mobile-toolbar__summary">
@@ -338,7 +338,7 @@ async function handleMobileSessionSelect(sessionId: string): Promise<void> {
           :disabled="selectedAgentId === '' || creatingSession"
           @click="void handleMobileCreateNewSession()"
         >
-          {{ creatingSession ? "创建中" : "新建" }}
+          <span style="text-wrap: nowrap;">{{ creatingSession ? "创建中" : "新建" }}</span>
         </button>
       </div>
 
@@ -602,15 +602,12 @@ async function handleMobileSessionSelect(sessionId: string): Promise<void> {
 
 .adk-mobile-session-drawer {
   position: absolute;
-  inset: 50px 8px 8px;
+  inset: 50px 0px 0px;
   z-index: 12;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--tv-accent) 18%, var(--tv-border));
-  border-radius: 18px;
   background: color-mix(in srgb, var(--tv-bg-surface) 96%, transparent);
-  box-shadow: 0 18px 42px rgba(2, 6, 23, 0.26);
 }
 
 .adk-mobile-session-drawer__actions {

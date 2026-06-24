@@ -22,11 +22,12 @@ export type WorkspacePaneSizeKey =
 
 export type WorkspacePaneSizes = Record<WorkspacePaneSizeKey, [number, number]>;
 
-export type WorkspaceRightDockTab = "notifications" | "ai" | "context";
+export type WorkspaceRightDockTab = "notifications" | "ai";
 
 export interface WorkspaceViewState {
   rightDockOpen: boolean;
   rightDockTab: WorkspaceRightDockTab;
+  rightDockSize: number;
   paneSizes: WorkspacePaneSizes;
 }
 
@@ -57,6 +58,7 @@ const defaultPaneSizes: WorkspacePaneSizes = {
 const defaultViewState: WorkspaceViewState = {
   rightDockOpen: false,
   rightDockTab: "notifications",
+  rightDockSize: 28,
   paneSizes: { ...defaultPaneSizes },
 };
 
@@ -157,8 +159,16 @@ function normalizePaneSizes(input: unknown): WorkspacePaneSizes {
   };
 }
 
+function normalizeRightDockSize(input: unknown): number {
+  const value = Number(input);
+  if (!Number.isFinite(value)) {
+    return defaultViewState.rightDockSize;
+  }
+  return Math.min(48, Math.max(18, value));
+}
+
 function normalizeRightDockTab(input: unknown): WorkspaceRightDockTab {
-  return input === "ai" || input === "context" ? input : "notifications";
+  return input === "ai" ? input : "notifications";
 }
 
 function normalizeViewState(
@@ -168,6 +178,7 @@ function normalizeViewState(
   return {
     rightDockOpen: merged.rightDockOpen === true,
     rightDockTab: normalizeRightDockTab(merged.rightDockTab),
+    rightDockSize: normalizeRightDockSize(merged.rightDockSize),
     paneSizes: normalizePaneSizes(input.paneSizes),
   };
 }

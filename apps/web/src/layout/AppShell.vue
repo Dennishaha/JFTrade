@@ -40,8 +40,17 @@ const router = useRouter();
 const route = useRoute();
 const isOobeRoute = computed(() => route.path === "/oobe");
 const onboardingGateReady = ref(false);
+const isCompactAppShell = ref(false);
+const appBodyRef = ref<HTMLElement | null>(null);
 const { docsHomeUrl, openDocs } = useDocsLink();
 const documentTitleSuffix = "JFTrade Console";
+let compactAppShellMediaQuery: MediaQueryList | null = null;
+let dockResizeStart:
+  | {
+      pointerId: number;
+      bodyWidth: number;
+    }
+  | null = null;
 const activeWorkspaceInstrumentId = computed(
   () =>
     `${workspaceTradingPrefs.prefs.value.market}.${workspaceTradingPrefs.prefs.value.symbol}`
@@ -107,6 +116,23 @@ const navTargets = [
   { id: "nav.system", label: "打开系统", to: "/system" },
   { id: "nav.settings", label: "打开设置", to: "/settings" },
 ];
+const rightDockOpen = computed(
+  () => workspaceLayout.prefs.value.rightDockOpen,
+);
+const rightDockSize = computed(
+  () => workspaceLayout.prefs.value.rightDockSize,
+);
+const appBodyStyle = computed(() => {
+  if (isOobeRoute.value) {
+    return {};
+  }
+  if (rightDockOpen.value && !isCompactAppShell.value) {
+    return {
+      "--tv-rightdock-width": `${rightDockSize.value}%`,
+    };
+  }
+  return {};
+});
 
 for (const target of navTargets) {
   palette.register({
@@ -202,11 +228,71 @@ function scheduleMarketTickFlush(): void {
   }, Math.floor(1000 / 30));
 }
 
+function syncCompactAppShell(
+  event: MediaQueryListEvent | MediaQueryList,
+): void {
+  isCompactAppShell.value = event.matches;
+}
+
 function reconnectLiveStreamIfNeeded(): void {
   if (typeof document !== "undefined" && document.visibilityState === "hidden") {
     return;
   }
   live.reconnect();
+}
+
+function clampRightDockSize(size: number): number {
+  return Math.min(48, Math.max(18, size));
+}
+
+function startRightDockResize(event: PointerEvent): void {
+  if (isCompactAppShell.value || !rightDockOpen.value) {
+    return;
+  }
+  const body = appBodyRef.value;
+  if (body == null) {
+    return;
+  }
+  const rect = body.getBoundingClientRect();
+  if (!Number.isFinite(rect.width) || rect.width <= 0) {
+    return;
+  }
+  dockResizeStart = {
+    pointerId: event.pointerId,
+    bodyWidth: rect.width,
+  };
+  window.addEventListener("pointermove", handleRightDockResizeMove);
+  window.addEventListener("pointerup", stopRightDockResize);
+  window.addEventListener("pointercancel", stopRightDockResize);
+  event.preventDefault();
+}
+
+function handleRightDockResizeMove(event: PointerEvent): void {
+  if (dockResizeStart == null) {
+    return;
+  }
+  const body = appBodyRef.value;
+  if (body == null) {
+    return;
+  }
+  const rect = body.getBoundingClientRect();
+  const bodyWidth = rect.width || dockResizeStart.bodyWidth;
+  const nextSize = ((rect.right - event.clientX) / bodyWidth) * 100;
+  workspaceLayout.update({ rightDockSize: clampRightDockSize(nextSize) });
+}
+
+function stopRightDockResize(event?: PointerEvent): void {
+  if (
+    event != null &&
+    dockResizeStart != null &&
+    event.pointerId !== dockResizeStart.pointerId
+  ) {
+    return;
+  }
+  dockResizeStart = null;
+  window.removeEventListener("pointermove", handleRightDockResizeMove);
+  window.removeEventListener("pointerup", stopRightDockResize);
+  window.removeEventListener("pointercancel", stopRightDockResize);
 }
 
 async function initializeConsoleShell(): Promise<void> {
@@ -338,6 +424,18 @@ onMounted(() => {
   }
   if (typeof window !== "undefined") {
     window.addEventListener("online", reconnectLiveStreamIfNeeded);
+    if (typeof window.matchMedia === "function") {
+      compactAppShellMediaQuery = window.matchMedia("(max-width: 960px)");
+      isCompactAppShell.value = compactAppShellMediaQuery.matches;
+      if (typeof compactAppShellMediaQuery.addEventListener === "function") {
+        compactAppShellMediaQuery.addEventListener(
+          "change",
+          syncCompactAppShell,
+        );
+      } else {
+        compactAppShellMediaQuery.addListener(syncCompactAppShell);
+      }
+    }
   }
   void initializeConsoleShell();
   live.connect();
@@ -352,12 +450,24 @@ onMounted(() => {
 
 onUnmounted(() => {
   flushPendingMarketTickEvent();
+  stopRightDockResize();
   if (typeof document !== "undefined") {
     document.removeEventListener("visibilitychange", reconnectLiveStreamIfNeeded);
   }
   if (typeof window !== "undefined") {
     window.removeEventListener("online", reconnectLiveStreamIfNeeded);
   }
+  if (compactAppShellMediaQuery) {
+    if (typeof compactAppShellMediaQuery.removeEventListener === "function") {
+      compactAppShellMediaQuery.removeEventListener(
+        "change",
+        syncCompactAppShell,
+      );
+    } else {
+      compactAppShellMediaQuery.removeListener(syncCompactAppShell);
+    }
+  }
+  compactAppShellMediaQuery = null;
   live.disconnect();
   console_.dispose();
   stop();
@@ -369,14 +479,35 @@ onUnmounted(() => {
 <template>
   <div class="tv-app" :class="{ 'tv-app--oobe': isOobeRoute }">
     <TopBar v-if="!isOobeRoute" />
-    <div class="tv-app-body" :class="{ 'tv-app-body--oobe': isOobeRoute }">
+    <div
+      ref="appBodyRef"
+      class="tv-app-body"
+      :class="{
+        'tv-app-body--oobe': isOobeRoute,
+        'tv-app-body--dock-open': !isOobeRoute && rightDockOpen && !isCompactAppShell,
+      }"
+      :style="appBodyStyle"
+    >
       <IconRail v-if="!isOobeRoute" />
       <main class="tv-main">
         <div class="tv-main-scroll">
           <RouterView v-if="onboardingGateReady" />
         </div>
       </main>
-      <RightDock v-if="!isOobeRoute" />
+      <div
+        v-if="!isOobeRoute && rightDockOpen"
+        class="tv-rightdock-slot"
+      >
+        <button
+          v-if="!isCompactAppShell"
+          type="button"
+          class="tv-rightdock-resizer"
+          title="调整侧栏宽度"
+          aria-label="调整侧栏宽度"
+          @pointerdown="startRightDockResize"
+        />
+        <RightDock />
+      </div>
     </div>
     <StatusBar v-if="!isOobeRoute" />
     <CommandPalette />
